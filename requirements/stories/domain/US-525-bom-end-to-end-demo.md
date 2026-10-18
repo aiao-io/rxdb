@@ -40,13 +40,15 @@ INVEST 检查清单:
 | **E** | 模型扩展与集成：扩展属性、序列 / 批次、配置选择、导出与导入 | AC#17～20 全绿；前置 US-517、US-518、US-519（不依赖 US-030 阶段 D 的 AC）、US-521   | ✅   |
 | **F** | 实例 BOM：装机事实、换件与来源保护                          | AC#21～22 全绿；前置 US-523                                                         | ✅   |
 
+以下保留分阶段交付时的历史约定；当前完整演示的A～F均已交付。
+
 **各阶段算式面板可用的步骤**（[US-511](US-511-bom-quantity-semantics.md) 七步）：阶段 A 显示第 1～4 步（第 4 步只含 US-511 B1 的头 / 组件损耗）与第 6、7 步；
 第 5 步显示「工序损耗未交付」，**不显示为「按 0 计算」**。阶段 A 的种子里根本没有工艺路线与工序损耗——那些实体的 schema
 在 A 阶段还不存在，谈不上拒绝或忽略；它们随阶段 B 的种子层加入（见 In Scope「分层种子」）。阶段 B 起第 5 步可用。
 成本页到阶段 D 才出现，B / C 阶段不放空成本页。
 
-阶段 A 有独立价值：它是[首轮可开工切片](../../epics/epic-009-bom-domain-model.md#首轮可开工切片)的**验收手段**，
-不依赖 B~F 就能被用来判断那五条故事是否真的交付了。后续各阶段各自等对应故事落地，
+阶段 A 当时有独立价值：它是[首轮可开工切片](../../epics/epic-009-bom-domain-model.md#首轮可开工切片)的**验收手段**，
+不依赖 B~F 就能被用来判断那五条故事是否真的交付了。原交付顺序要求后续各阶段各自等对应故事落地，
 **全部阶段关闭后才置 `Done`**（[CONVENTIONS 大故事分阶段](../../CONVENTIONS.md#大故事分阶段不拆子故事文件硬规则)）。
 
 ## 范围边界
@@ -81,9 +83,8 @@ INVEST 检查清单:
 - **可复用的三框架绑定**（→ [US-522](US-522-bom-tri-framework-ui.md)）：本故事交付的是**一个应用**，
   不是**一套绑定**。单端即可，先例是 [US-214](../adapter/US-214-http-browser-demo.md)（`status: Done`，
   只有 Angular 前端）。三端对称是 US-522 的关闭条件，不是本故事的
-- **配置求解器**（[US-517](US-517-configurable-sales-bom.md) 只定模型与求解契约，求解可外挂）、
-  **联产品**（US-513 阶段 B）与**热字段提升的索引加速演示**（US-519 AC#3 / #7，等 US-030 阶段 D）——
-  三者不进演示。其余全域能力（含配置选择、序列 / 批次、实例 BOM）在阶段 E / F 内，见对应 AC；
+- **配置求解器**（[US-517](US-517-configurable-sales-bom.md) 只定模型与求解契约，求解可外挂）与
+  **热字段提升的索引加速演示**（US-519 AC#3 / #7）不进演示；规模与索引命中计划由spec023验收。联产品联合成本、显式下游来源与既有主产物兼容纳入联产演示。其余全域能力（含配置选择、序列 / 批次、实例 BOM）在阶段 E / F 内，见对应 AC；
   「一份数据集走完全域」的「全域」以 US-525 阶段 A～F 的 AC 为界
 - **性能基准**：本故事的数据集按「覆盖全部硬用例」设计，不按「压出规模」设计
 - **新领域能力**：本故事**不新增任何抽象**，全部行为都归属到已有的 18 条故事
@@ -223,33 +224,23 @@ owner 需要一个**完整功能的 BOM 演示应用**（`apps/dev-rxdb-bom` 独
 | E    | `apps/dev-rxdb-bom/` 扩展属性、序列 / 批次、配置与导出 / 导入面板     | 已交付                                   |
 | F    | `apps/dev-rxdb-bom/src/app/pages/instances/` 与 `bom-demo.service.ts` | 已交付；实例树、换件历史、追溯与来源保护 |
 
+本轮联产扩展另落在`packages/rxdb-plugin-bom/src/testing/coproduct-dataset.ts`、`apps/dev-rxdb-bom/src/app/pages/cost/cost.page.ts`及`apps/dev-rxdb-bom-e2e/src/bom-coproduct.spec.ts`；种子6/6已通过，包含新增联产的demo24/24已通过。
+
 ## 首轮切片第 4 步关闭记录
 
-阶段 A 已交付（AC#1~#6 全绿）：
-`packages/rxdb-plugin-bom/src/testing/`（`scooter-dataset.ts` 确定性种子——id 由业务键 FNV-1a
-派生、审计时间戳固定基准、批次号常量，两遍装载全表 dump 逐字节相同；`scooter-golden.ts`
-手写 golden 表，不由被测 kernel 生成）、`apps/dev-rxdb-bom`（Angular：展开树 + 七步算式面板
-（第 5 步显示「工序损耗未交付」）+ 评估日显式输入 + 直连写入按钮 + 位号发布校验演示 +
-where-used 面板，`pnpm nx serve dev-rxdb-bom` 一键起）、`apps/dev-rxdb-bom-e2e`
-（playwright 六条 AC 用例）。vitest 对账测试以独立 oracle 逐位比对 explodeBom 输出。
-端口：本机 4310 被 QQ 占用，demo 起在 **4311**（故事 INVEST 清单端口可调）。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-525)。
 
 ## 首轮切片第 5 步关闭记录
 
-阶段 B 已交付（AC#7~#9 全绿）：种子 B 层追加外壳下料头（consume/by_product/scrap_out）、
-10kΩ 替代组（COVER-ASSY，proportional 0.5/0.3/0.2）、工艺路线 10→20→30（20 损耗 3%）与
-分摊 6:4（PROCESS-01）；A 层路径 golden 值逐位不变（加层不扰动旧结构）；算式面板第 5 步
-显示工序损耗累乘值与分摊；e2e 三条 AC 用例 + demo 替代组发布拒绝演示（0.5/0.3 → 0.8）。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-525)。
 
 ## 首轮切片第 8 步关闭记录
 
-阶段 E 已交付（2026-10-16，AC#17~#20）：41 物料、4 批次的 E 层种子，扩展属性、序列候选、配置与导入导出面板；六页应用壳保留全部验收行为，21 条 e2e 全绿。阶段 F 于第 9 步接续实施。验证与性能见 [第 8 步 quickstart](../../../specs/018-bom-slice-8/quickstart.md)。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-525)。
 
 ## 首轮切片第 9 步关闭记录
 
-2026-10-16～17：阶段 F 已交付，AC#21/#22 通过。SC-100 的 SN-001 / SN-002 复用实际电池部位，41 个物料、43 个发生项与 5 条初始安装事实覆盖两台整机、电池及批次件；实例追溯页展示实际修订、装拆区间与序列/批次反查，并验证换件历史、主数据 BATT:B 改版不改实例、草稿来源直连删除拒绝。
-
-原 21 条与新增 2 条共 23 条 e2e 全部通过。联合领域回归为 38 个文件、599 条分段测试，包含两端各 10 万实例节点的主数据隔离、F 种子保持 A～E 计算结果，以及来源三条删除路径的拒绝与回滚；领域验收见 [US-523](US-523-bom-as-built-instance.md)。运行、实际命令与分支门禁证据见 [第 9 步 quickstart](../../../specs/019-bom-slice-9/quickstart.md)：保留首轮 affected 的 Vue 失败及必要修复，随后补齐剩余目标，BOM/Electron 分段验证均已完成。US-522 三框架绑定保持独立后续范围。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-525)。
 
 ## References
 
@@ -271,6 +262,10 @@ where-used 面板，`pnpm nx serve dev-rxdb-bom` 一键起）、`apps/dev-rxdb-b
 - [US-522 三框架 BOM 编辑与展开视图](US-522-bom-tri-framework-ui.md) — 绑定与应用的分工
 - [US-517 可配置销售 BOM](US-517-configurable-sales-bom.md) — 前置：阶段 E 的 AC#19（其 AC#1 / #2 / #3）
 - [US-518 序列与批次有效性](US-518-bom-unit-lot-effectivity.md) — 前置：阶段 E 的 AC#18（其 AC#1 / #6）
-- [US-519 扩展属性](US-519-bom-extension-attributes.md) — 前置：阶段 E 的 AC#17（其 AC#1 / #4 / #5；索引加速演示不进 demo，等 US-030 阶段 D）
+- [US-519 扩展属性](US-519-bom-extension-attributes.md) — 前置：阶段 E 的 AC#17（其 AC#1 / #4 / #5；索引加速的规模与命中计划见 spec023）
 - [US-521 ERP/MRP 集成契约](US-521-bom-erp-mrp-integration.md) — 前置：阶段 E 的 AC#20（其 AC#5 / #6 / #7 / #9 / #10 / #14）
 - [US-523 as-built / as-maintained 实例 BOM](US-523-bom-as-built-instance.md) — 前置：阶段 F 的 AC#21 / #22（其 AC#2 / #3 / #4 / #7）
+
+## 验收依据
+
+当前验收结论见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，阶段记录见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-525)。

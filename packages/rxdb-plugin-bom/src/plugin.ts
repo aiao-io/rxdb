@@ -12,23 +12,22 @@ import type { EntityType, IRxDBPlugin, Plugin, RxDB } from '@aiao/rxdb';
 import { getEntityMetadata, RxDBPluginBase, SyncType } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
 import { firstValueFrom, Observable } from 'rxjs';
-import { BOM_ENTITIES } from './entities.js';
+import { BOM_ENTITIES, BomHeader } from './entities.js';
 import type {
   BomInstanceQueryOptions,
   BomInstanceTraceResult,
   BomInstanceTraceTarget,
   BomInstanceTreeResult
 } from './instance.js';
-import { rollupCost as runRollupCost, type CostRollupContext, type CostRollupResult } from './quantity/cost.js';
-import { explodeBom as runExplodeBom, type ExplosionOptions, type ExplosionResult } from './quantity/explosion.js';
+import { rollupCost as runRollupCost } from './quantity/cost-api.js';
+import type { CostRollupContext, CostRollupResult } from './quantity/cost.js';
+import { explodeBom as runExplodeBom } from './quantity/explosion-api.js';
+import type { ExplosionOptions, ExplosionResult } from './quantity/explosion.js';
+import { createBomReachSystem, hasCompleteBomGraph } from './reach/system.js';
 import { BomRepository } from './repository.js';
 import { cycleConstraintDdlForRemotePg } from './resolve/cycle-constraint-ddl.js';
-import {
-  ecnDiff as runEcnDiff,
-  ecnImpact as runEcnImpact,
-  type EcnDiffResult,
-  type EcnImpactResult
-} from './resolve/ecn.js';
+import { ecnDiff as runEcnDiff, ecnImpact as runEcnImpact } from './resolve/ecn-api.js';
+import type { EcnDiffResult, EcnImpactResult } from './resolve/ecn.js';
 import {
   expandBom as runExpandBom,
   whereUsed as runWhereUsed,
@@ -38,15 +37,14 @@ import {
 } from './resolve/expansion.js';
 import type { BomExportPayload } from './resolve/export-contract.js';
 import { filterByAttr as runFilterByAttr, type ExtAttrQueryFilter, type ExtAttrScope } from './resolve/ext-attr.js';
-import { loadHistory, type HistoryBatchInput } from './resolve/history-loader.js';
-import {
-  exportBom as runExportBom,
-  importBomDraft as runImportBomDraft,
-  type BomImportResult
-} from './resolve/integration.js';
+import { loadHistory } from './resolve/history-api.js';
+import type { HistoryBatchInput } from './resolve/history-loader.js';
+import { exportBom as runExportBom, importBomDraft as runImportBomDraft } from './resolve/integration-api.js';
+import type { BomImportResult } from './resolve/integration.js';
 import type { ResolutionContext, ResolutionResult } from './resolve/resolution.js';
 import { resolveBom, type ResolveTarget } from './resolve/resolver.js';
 import { BomBackendCapabilityError, BomSyncUnsupportedError } from './types.js';
+import type { BomViewInput, BomViewSnapshot } from './view-types.js';
 
 /** SQLite 家族适配器名（与各适配器包的 `ADAPTER_NAME` 一致）。 */
 const SQLITE_ADAPTER_NAMES: ReadonlySet<string> = new Set([
@@ -103,6 +101,8 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
   readonly lifecycle = 'scoped' as const;
   readonly inject = ['adapter:local'] as const;
   name: Uncapitalize<string> = 'bom';
+  /** 内部可达性实体的建表与升级贡献。 */
+  readonly system = createBomReachSystem(this.rxdb);
 
   constructor(rxdb: RxDB) {
     super(rxdb);
@@ -158,69 +158,17 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
   }
 
   /**
-   * 远端 PostgreSQL 的写入期环约束 DDL（US-509 AC#7，部署与否由使用方负责）。
+   * 订阅显式输入的结构、数量与显示信息，随真实实体事件更新。
+   * @param input - 当前数据库中的完整解析上下文、目标、计划量、预算与公式参数
+   * @returns 同一读取快照的派生数据及后台刷新标记
    */
-  /**
-   * 活视图订阅（US-522）：结构与数量随库变更（ECN 发布、修订发布、行变更）自动重算。
-   * 每次 emit 一个 { expansion, explosion, quantityError } 快照——expansion 恒为结构；
-   * 数量违约时 explosion 为 null、quantityError 携带原因（AC#6/#7/#8 的消费面）。
-   */
-  watchView(input: {
-    context: ResolutionContext;
-    target: ResolveTarget;
-    plannedQty: { value: string; uom: string };
-  }): Observable<LiveSnapshot> {
-    // 活语义经 rxdb_change 最新 id 轮询驱动（适配器面无变更流；change 表是全部写入的统一日志）。
-    // 每次探测到新变更即整体重算并 emit 快照；订阅立即发首帧。
-    return new Observable<LiveSnapshot>(subscriber => {
-      let stopped = false;
-      let timer: ReturnType<typeof setTimeout> | null = null;
-      let lastChangeId = -1;
-      const compute = async (): Promise<void> => {
-        if (stopped) return;
-        const adapter = await firstValueFrom(this.rxdb.localAdapter$).catch(() => undefined);
-        if (adapter === undefined) {
-          subscriber.error(new Error('BOM 活视图：本地适配器未就绪'));
-          return;
-        }
-        const expansion = await runExpandBom(adapter, input.context, input.target);
-        let explosion: ExplosionResult | null = null;
-        let quantityError: unknown = null;
-        try {
-          explosion = await runExplodeBom(adapter, input.context, input.target, { plannedQty: input.plannedQty });
-        } catch (error) {
-          quantityError = error;
-        }
-        subscriber.next({ expansion, explosion, quantityError });
-      };
-      const tick = async (): Promise<void> => {
-        if (stopped) return;
-        const adapter = await firstValueFrom(this.rxdb.localAdapter$).catch(() => undefined);
-        if (adapter === undefined) {
-          timer = setTimeout(() => void tick(), 250);
-          return;
-        }
-        const table = adapter.name === 'pglite' ? '"rxdb"."rxdb_change"' : '"rxdb$rxdb_change"';
-        const result = (await adapter.rawQuery?.(
-          `SELECT COALESCE(MAX("id"), -1) AS "maxId" FROM ${table}`
-        )) as unknown as { results?: { rows: unknown[][] }[]; rows?: unknown[][] };
-        const rows = Array.isArray(result.results) ? result.results[0].rows : (result.rows ?? []);
-        const current = rows.length > 0 ? Number(rows[0][0]) : -1;
-        if (current > lastChangeId) {
-          lastChangeId = current;
-          await compute();
-        }
-        timer = setTimeout(() => void tick(), 250);
-      };
-      void tick();
-      void compute();
-      return () => {
-        stopped = true;
-        if (timer !== null) clearTimeout(timer);
-      };
-    });
+  watchView(input: BomViewInput): Observable<BomViewSnapshot> {
+    return this.rxdb.entityManager
+      .getRepository<typeof BomHeader, BomRepository<typeof BomHeader>>(BomHeader)
+      .watchView(input);
   }
 
+  /** 远端PostgreSQL的写入期环约束DDL，部署由调用方负责。 */
   cycleConstraintDdlForRemotePg(): string {
     return cycleConstraintDdlForRemotePg();
   }
@@ -311,6 +259,10 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
           }
         }
       }, false);
+    }
+    if (hasCompleteBomGraph(this.rxdb)) {
+      const { installReachMaintenance } = await import('./reach/install.js');
+      await adapter.bootstrapTransaction(executor => installReachMaintenance(executor, adapter.name), false);
     }
   }
 }

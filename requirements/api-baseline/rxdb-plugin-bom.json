@@ -34,6 +34,10 @@
         "kind": "value"
       },
       {
+        "name": "BOM_VIEW_STYLES",
+        "kind": "value"
+      },
+      {
         "name": "BOM_WRITE_PROTOCOL_PREFIX",
         "kind": "value"
       },
@@ -94,8 +98,20 @@
         "kind": "both"
       },
       {
+        "name": "bomEditorFields",
+        "kind": "value"
+      },
+      {
+        "name": "BomEditorFields",
+        "kind": "type"
+      },
+      {
         "name": "BomError",
         "kind": "both"
+      },
+      {
+        "name": "bomErrorText",
+        "kind": "value"
       },
       {
         "name": "BomExportPayload",
@@ -110,12 +126,20 @@
         "kind": "both"
       },
       {
+        "name": "BomExtStorageOptions",
+        "kind": "type"
+      },
+      {
         "name": "BomHeader",
         "kind": "both"
       },
       {
         "name": "BomHistoryBatch",
         "kind": "both"
+      },
+      {
+        "name": "BomHotField",
+        "kind": "type"
       },
       {
         "name": "BomImportContractError",
@@ -170,12 +194,24 @@
         "kind": "both"
       },
       {
+        "name": "BomJointCostSourceError",
+        "kind": "both"
+      },
+      {
         "name": "BomLine",
         "kind": "both"
       },
       {
         "name": "BomLineDesignator",
         "kind": "both"
+      },
+      {
+        "name": "BomLineEditorState",
+        "kind": "type"
+      },
+      {
+        "name": "BomLineEditorValue",
+        "kind": "type"
       },
       {
         "name": "BomLineOccurrence",
@@ -188,6 +224,10 @@
       {
         "name": "BomMapError",
         "kind": "both"
+      },
+      {
+        "name": "BomOccurrencePatch",
+        "kind": "type"
       },
       {
         "name": "BomPublishValidationError",
@@ -235,6 +275,34 @@
       },
       {
         "name": "BomType",
+        "kind": "type"
+      },
+      {
+        "name": "BomViewCandidate",
+        "kind": "type"
+      },
+      {
+        "name": "BomViewCommands",
+        "kind": "type"
+      },
+      {
+        "name": "BomViewHandle",
+        "kind": "type"
+      },
+      {
+        "name": "BomViewInput",
+        "kind": "type"
+      },
+      {
+        "name": "BomViewNode",
+        "kind": "type"
+      },
+      {
+        "name": "BomViewSnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "BomViewState",
         "kind": "type"
       },
       {
@@ -308,6 +376,18 @@
       {
         "name": "CostRollupResult",
         "kind": "type"
+      },
+      {
+        "name": "createBomExtStorage",
+        "kind": "value"
+      },
+      {
+        "name": "createBomExtStorageMigration",
+        "kind": "value"
+      },
+      {
+        "name": "createBomView",
+        "kind": "value"
       },
       {
         "name": "cycleConstraintDdlForRemotePg",
@@ -558,8 +638,24 @@
         "kind": "type"
       },
       {
+        "name": "initialBomViewState",
+        "kind": "value"
+      },
+      {
         "name": "isDecimalString",
         "kind": "value"
+      },
+      {
+        "name": "JointCostOutput",
+        "kind": "type"
+      },
+      {
+        "name": "JointCostSourceUse",
+        "kind": "type"
+      },
+      {
+        "name": "JointCostSummary",
+        "kind": "type"
       },
       {
         "name": "loadHistory",
@@ -624,6 +720,10 @@
       {
         "name": "OutputLine",
         "kind": "type"
+      },
+      {
+        "name": "parseBomEditorFields",
+        "kind": "value"
       },
       {
         "name": "parseCondition",
@@ -768,6 +868,34 @@
     ],
     "./testing": [
       {
+        "name": "BOM_VIEW_FIXTURE_DATES",
+        "kind": "value"
+      },
+      {
+        "name": "BomViewFixture",
+        "kind": "type"
+      },
+      {
+        "name": "BomViewFixtureActions",
+        "kind": "type"
+      },
+      {
+        "name": "BomViewFixtureIds",
+        "kind": "type"
+      },
+      {
+        "name": "BomViewFixtureRoot",
+        "kind": "type"
+      },
+      {
+        "name": "COPRODUCT_DATASET",
+        "kind": "value"
+      },
+      {
+        "name": "COPRODUCT_GOLDEN",
+        "kind": "value"
+      },
+      {
         "name": "deterministicId",
         "kind": "value"
       },
@@ -790,6 +918,14 @@
       {
         "name": "GoldenStepValue",
         "kind": "type"
+      },
+      {
+        "name": "loadBomViewFixture",
+        "kind": "value"
+      },
+      {
+        "name": "loadCoproductDataset",
+        "kind": "value"
       },
       {
         "name": "loadScooterDataset",

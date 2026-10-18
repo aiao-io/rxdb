@@ -16,6 +16,7 @@ import {
   gateRawWrite,
   getEntityMetadata,
   getEntityStatus,
+  getEntityStorageMetadata,
   MAIN_BRANCH_ID,
   orderExclusionUpdates,
   ordersWritesForExclusion,
@@ -593,7 +594,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     await this.bootstrapTransaction(async executor => {
       // 传门面（executor）而非真实适配器：门面的 queryRaw 落在当前事务里；
       // 真实适配器的 query 会重新入队排在自己身后，永久挂起。
-      await check_entity_constraints_pglite(executor as PGliteTransactionExecutor, EntityTypes);
+      await check_entity_constraints_pglite(executor as PGliteTransactionExecutor, EntityTypes, entity =>
+        getEntityStorageMetadata(this.rxdb, entity)
+      );
     }, false);
   }
 
@@ -789,7 +792,11 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   protected createClient(): IPGliteClient {
     // 有实体声明区间排他即装载 btree_gist（见 pglite-server-extensions.ts）
-    return new PGliteClient(pgliteServerExtensionRequirementsOf(this.rxdb.config.entities));
+    return new PGliteClient(
+      pgliteServerExtensionRequirementsOf(this.rxdb.config.entities, entity =>
+        getEntityStorageMetadata(this.rxdb, entity)
+      )
+    );
   }
 
   /**
@@ -959,7 +966,12 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * 在这里显式失败、点名缺什么，不留到第一次建表才报一条读不出原因的 SQL 错误（AC#6）。
    */
   async #ensureServerExtensions(client: IPGliteClient): Promise<void> {
-    if (!pgliteServerExtensionRequirementsOf(this.rxdb.config.entities).btreeGist) return;
+    if (
+      !pgliteServerExtensionRequirementsOf(this.rxdb.config.entities, entity =>
+        getEntityStorageMetadata(this.rxdb, entity)
+      ).btreeGist
+    )
+      return;
     try {
       await client.exec('CREATE EXTENSION IF NOT EXISTS btree_gist');
     } catch (error) {

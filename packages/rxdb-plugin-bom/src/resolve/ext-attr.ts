@@ -11,6 +11,17 @@
  * （含 `ne`）；过滤值类型与 `data_type` 不符即拒绝查询，不做隐式转换。
  */
 
+import {
+  advancedIndexesOf,
+  compileAdvancedIndex,
+  compileGeneratedColumn,
+  generatedColumnsOf,
+  getEntityMetadata,
+  getEntityStorageMetadata,
+  quoteSqlIdentifier,
+  type EntityMetadata
+} from '@aiao/rxdb';
+import { BomHeader, BomItem, BomLineOccurrence } from '../entities.js';
 import { BomError } from '../types.js';
 import type { BomLocalAdapter } from './bom-adapter.js';
 import { bomSqlDialectFor } from './bom-sql.js';
@@ -229,7 +240,12 @@ const extJsonExpr = (dialect: ExtFilterDialect, dataType: string, code: string, 
 };
 
 /** 单条过滤的谓词片段；`in` 展开为 OR 相等列表（空数组恒假）。 */
-const filterClause = (dialect: ExtFilterDialect, filter: ExtFilter, tableRef: string): string => {
+const filterClause = (
+  dialect: ExtFilterDialect,
+  filter: ExtFilter,
+  tableRef: string,
+  metadata?: EntityMetadata
+): string => {
   const dataType = filter.dataType;
   if (!EXT_DATA_TYPES.includes(dataType)) {
     throw new BomExtAttrError(filter.code, `未知 dataType「${dataType}」`);
@@ -237,7 +253,22 @@ const filterClause = (dialect: ExtFilterDialect, filter: ExtFilter, tableRef: st
   if (['lt', 'lte', 'gt', 'gte'].includes(filter.op) && dataType !== 'number' && dataType !== 'date') {
     throw new BomExtAttrError(filter.code, '范围比较仅支持 number / date');
   }
-  const json = extJsonExpr(dialect, dataType, filter.code, tableRef);
+  const generated =
+    metadata === undefined ? undefined : (
+      generatedColumnsOf(metadata).find(
+        column => column.expression.property === 'ext' && column.expression.key === filter.code
+      )
+    );
+  if (generated !== undefined && generated.expression.dataType !== dataType) {
+    throw new BomExtAttrError(
+      filter.code,
+      `属性字典类型 ${dataType} 与热字段类型 ${generated.expression.dataType} 不匹配`
+    );
+  }
+  const json =
+    generated === undefined ?
+      extJsonExpr(dialect, dataType, filter.code, tableRef)
+    : `${tableRef === '' ? '' : `${tableRef}.`}${quoteSqlIdentifier(compileGeneratedColumn(metadata!, generated, dialect === 'pglite' ? 'postgres' : 'sqlite').columnName)}`;
   const literalOf = (value: unknown): string =>
     dataType === 'date' && dialect === 'sqlite' ? `julianday(${sqlLiteral(value)})` : sqlLiteral(value);
   if (filter.op === 'exists') return `${json} IS NOT NULL`;
@@ -256,7 +287,26 @@ const filterClause = (dialect: ExtFilterDialect, filter: ExtFilter, tableRef: st
     throw new BomExtAttrError(filter.code, `过滤值 ${valueText(value)} 与 dataType「${dataType}」不符`);
   }
   const literal = literalOf(value);
-  if (filter.op === 'eq') return `${json} = ${literal}`;
+  if (filter.op === 'eq') {
+    const gin =
+      generated === undefined && dialect === 'pglite' && dataType !== 'date' && metadata !== undefined ?
+        advancedIndexesOf(metadata).find(
+          index =>
+            index.method === 'gin' &&
+            index.expression?.kind === 'jsonDocument' &&
+            index.expression.property === 'ext' &&
+            compileAdvancedIndex(metadata, index, 'postgres') !== null
+        )
+      : undefined;
+    if (gin !== undefined) {
+      const index = compileAdvancedIndex(metadata!, gin, 'postgres')!;
+      const source = quoteSqlIdentifier(metadata!.propertyMap.get('ext')!.columnName);
+      const expression =
+        tableRef === '' ? index.expression! : index.expression!.replace(source, `${tableRef}.${source}`);
+      return `(${expression}) @> ${sqlStringLiteral(JSON.stringify({ [filter.code]: value }))}::jsonb`;
+    }
+    return `${json} = ${literal}`;
+  }
   // ne（US-519 契约：缺字段与显式 null 等价，其余比较对缺字段一律不匹配，含 ne）：
   // 提取表达式对缺字段与 JSON null 都返回 SQL NULL，`IS NOT NULL AND <>` 让二者都落败；
   // 若用 `IS NULL OR <>` 形态，缺字段 / null 会命中，违背契约。
@@ -285,9 +335,11 @@ const filterClause = (dialect: ExtFilterDialect, filter: ExtFilter, tableRef: st
 export const buildExtFilterSql = (
   dialect: ExtFilterDialect,
   tableName: string,
-  filters: ExtFilter[]
+  filters: ExtFilter[],
+  metadata?: EntityMetadata
 ): { sql: string } => {
-  const clauses = filters.map(filter => filterClause(dialect, filter, tableName));
+  for (const filter of filters) filterClause(dialect, filter, tableName);
+  const clauses = filters.map(filter => filterClause(dialect, filter, tableName, metadata));
   if (clauses.length === 0) return { sql: '' };
   return { sql: clauses.map(clause => `(${clause})`).join(' AND ') };
 };
@@ -318,9 +370,20 @@ export const filterByAttr = async (
       if (dataType === undefined) throw new BomExtAttrError(filter.code, `未在作用域「${appliesTo}」声明`);
       return { ...filter, dataType };
     });
-    const { sql } = buildExtFilterSql(adapter.name === 'pglite' ? 'pglite' : 'sqlite', '', typed);
+    const entity = { item: BomItem, bom_header: BomHeader, bom_line_occurrence: BomLineOccurrence }[appliesTo];
+    const metadata =
+      adapter.rxdb === undefined ? getEntityMetadata(entity) : getEntityStorageMetadata(adapter.rxdb, entity);
+    const { sql } = buildExtFilterSql(adapter.name === 'pglite' ? 'pglite' : 'sqlite', '', typed, metadata);
+    const columns = [
+      ...new Set([
+        ...[...metadata.propertyMap.values()].map(property => property.columnName),
+        ...metadata.foreignKeyColumnNames
+      ])
+    ]
+      .map(quoteSqlIdentifier)
+      .join(', ');
     const result = await executor.query(
-      `SELECT * FROM ${dialect.table(appliesTo)}${sql.length > 0 ? ` WHERE ${sql}` : ''} ORDER BY "id"`
+      `SELECT ${columns} FROM ${dialect.table(appliesTo)}${sql.length > 0 ? ` WHERE ${sql}` : ''} ORDER BY "id"`
     );
     return result.rows.map(row => Object.fromEntries(result.columns.map((column, index) => [column, row[index]])));
-  });
+  }, false);

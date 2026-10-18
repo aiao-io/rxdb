@@ -1,0 +1,22 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "BomLineEditor",
+        "kind": "value"
+      },
+      {
+        "name": "BomTree",
+        "kind": "value"
+      },
+      {
+        "name": "BomViewBinding",
+        "kind": "type"
+      },
+      {
+        "name": "useBomView",
+        "kind": "value"
+      }
+    ]
+  }
+}

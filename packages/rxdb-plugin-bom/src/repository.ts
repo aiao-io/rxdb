@@ -6,23 +6,45 @@
  * BOM 触发器消息）归一为类型化错误类再上抛。
  */
 
-import type { EntityType, RxDB, TransactionExecutor } from '@aiao/rxdb';
-import { assertEntityOperationAllowed, getEntityMetadata, Repository } from '@aiao/rxdb';
-import { firstValueFrom } from 'rxjs';
+import type { EntityType, QueryTask, RxDB, TransactionExecutor } from '@aiao/rxdb';
+import {
+  assertEntityOperationAllowed,
+  deterministicStringify,
+  getEntityMetadata,
+  getEntityStatus,
+  getEntityStorageMetadata,
+  Repository
+} from '@aiao/rxdb';
+import { firstValueFrom, type Observable } from 'rxjs';
 import { normalizeDecimalString } from './decimal.utils.js';
-import { BomInstanceNode, BomLineDesignator } from './entities.js';
+import { BOM_ENTITIES, BomHeader, BomInstanceNode, BomItem, BomLineDesignator, BomLineOccurrence } from './entities.js';
 import { bomSqlDialectFor, type BomSqlDialect } from './resolve/bom-sql.js';
 import { BomConfigError, CONDITION_GRAMMAR_VERSION } from './resolve/config-condition.js';
 import { validateConditionReferences } from './resolve/config-validate.js';
 import { attachUnionOnlyMark } from './resolve/cycle-analysis.js';
-import { normalizeExtValue, validateExtWrite, type ExtAttrDefShape, type ExtWriteMode } from './resolve/ext-attr.js';
+import {
+  BomExtAttrError,
+  normalizeExtValue,
+  validateExtWrite,
+  type ExtAttrDefShape,
+  type ExtWriteMode
+} from './resolve/ext-attr.js';
 import { BomResolutionError } from './resolve/resolution.js';
 import type { BomQueryExecutor } from './resolve/resolver.js';
 import { parseLotCodes } from './resolve/unit-lot.js';
 import { BomCycleError, BomInstanceError, normalizeBomError } from './types.js';
+import type { BomViewInput, BomViewSnapshot } from './view-types.js';
+import { bomViewRunner } from './view.js';
+
+declare module '@aiao/rxdb' {
+  interface RepositoryQueryExtensions<T extends EntityType> {
+    bomView: { type: 'bomView'; options: BomViewInput; entityType?: T };
+  }
+}
 
 /** 需要入口规范化的十进制字段（US-511 按十进制值合同扩列）。 */
 const DECIMAL_FIELDS = [
+  'jointCostShare',
   'qty',
   'baseQty',
   'assemblyScrap',
@@ -109,6 +131,26 @@ const conditionById = async (
   return condition;
 };
 
+const validateDictionaryStorageType = (rxdb: Pick<RxDB, 'config'>, data: Record<string, unknown>): void => {
+  const entities = new Map<string, EntityType>([
+    ['item', BomItem],
+    ['bom_header', BomHeader],
+    ['bom_line_occurrence', BomLineOccurrence]
+  ]);
+  const entity = entities.get(String(data['appliesTo']));
+  if (entity === undefined) return;
+  const metadata = getEntityStorageMetadata(rxdb, entity);
+  for (const column of metadata.generatedColumnMap.values()) {
+    if (column.expression.property !== 'ext' || column.expression.key !== data['code']) continue;
+    if (column.expression.dataType !== data['dataType']) {
+      throw new BomExtAttrError(
+        String(data['code']),
+        `属性字典类型 ${String(data['dataType'])} 与热字段类型 ${column.expression.dataType} 不匹配`
+      );
+    }
+  }
+};
+
 /** 仓储与批量导入共用保存期校验，所有查询由调用方提供的执行器执行。 */
 export const validateBomWrite = async (
   query: BomQueryExecutor['query'],
@@ -116,8 +158,10 @@ export const validateBomWrite = async (
   entityName: string,
   data: Record<string, unknown>,
   mode: ExtWriteMode,
-  touchesExt = true
+  touchesExt = true,
+  rxdb?: Pick<RxDB, 'config'>
 ): Promise<void> => {
+  if (entityName === 'BomAttrDef' && rxdb !== undefined) validateDictionaryStorageType(rxdb, data);
   const appliesTo = EXT_APPLIES_TO[entityName];
   if (appliesTo !== undefined && touchesExt) {
     const defs = await readRows(
@@ -187,6 +231,23 @@ const assertOccurrenceUnreferenced = async (
 };
 
 export class BomRepository<T extends EntityType = EntityType> extends Repository<T> {
+  constructor(rxdb: RxDB, EntityType: T) {
+    super(rxdb, EntityType);
+    this.queryManager.registerMergeCreateFn('bomView', task => task.refresh());
+    this.queryManager.registerMergeUpdateFn('bomView', task => task.refresh());
+    this.queryManager.registerMergeRemoveFn('bomView', task => task.refresh());
+  }
+
+  /** 订阅完整输入对应的派生快照，保守跟踪 BOM 实体依赖。 */
+  watchView(input: BomViewInput): Observable<BomViewSnapshot> {
+    return this.#viewTask(input).result$;
+  }
+
+  /** 显式重读当前作用域，已有订阅共享同一轮查询。 */
+  refreshView(input: BomViewInput): void {
+    this.#viewTask(input).refresh();
+  }
+
   override async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
     normalizeDecimalFields(entity as unknown as Record<string, unknown>);
     const data = entity as unknown as Record<string, unknown>;
@@ -195,7 +256,9 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
       bomSqlDialectFor(this.rxdb.localAdapterSync?.name),
       getEntityMetadata(this.EntityType).name,
       data,
-      'create'
+      'create',
+      true,
+      this.rxdb
     );
     try {
       return await super.create(entity);
@@ -215,6 +278,11 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
   }
 
   override async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
+    const pending = getEntityStatus(entity).prepareUpdate(patch);
+    return this.#updatePrepared(entity, patch).finally(pending.release);
+  }
+
+  async #updatePrepared(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     const patchRecord = patch as unknown as Record<string, unknown>;
     const data = new Proxy(patchRecord, {
       get: (target, property) =>
@@ -228,12 +296,16 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
       getEntityMetadata(this.EntityType).name,
       data,
       'update-complete',
-      'ext' in patchRecord
+      'ext' in patchRecord,
+      this.rxdb
     );
     // 规范化只在插件入口：patch 里的十进制字段同样经规范串入存储
     for (const [field, value] of Object.entries(patch)) {
       if ((DECIMAL_FIELDS as readonly string[]).includes(field) && value !== undefined && value !== null) {
-        (patch as Record<string, unknown>)[field] = normalizeDecimalString(value, field);
+        const normalized = normalizeDecimalString(value, field);
+        (patch as Record<string, unknown>)[field] = normalized;
+        const entityRecord = entity as unknown as Record<string, unknown>;
+        if (entityRecord[field] === value) entityRecord[field] = normalized;
       }
     }
     try {
@@ -241,6 +313,29 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
     } catch (error) {
       return await rethrowBomError(this.rxdb, error, entity as unknown as Record<string, unknown>);
     }
+  }
+
+  #viewTask(input: BomViewInput): QueryTask<T, BomViewSnapshot> {
+    const captured = structuredClone(input);
+    const runner = bomViewRunner(this.rxdb, captured);
+    return this.queryManager.createTask({
+      options: { type: 'bomView', options: captured },
+      runner: () => runner,
+      getFingerprint: snapshot => [
+        deterministicStringify({
+          ...snapshot,
+          quantityError:
+            snapshot.quantityError instanceof Error ?
+              {
+                name: snapshot.quantityError.name,
+                message: snapshot.quantityError.message
+              }
+            : snapshot.quantityError
+        })
+      ],
+      relationEntityTypes: BOM_ENTITIES.filter(EntityType => this.rxdb.config.entities.includes(EntityType)),
+      autoCache: false
+    });
   }
 
   async #removeOccurrence(entity: InstanceType<T>): Promise<InstanceType<T>> {

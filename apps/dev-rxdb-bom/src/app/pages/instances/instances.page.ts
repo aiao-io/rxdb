@@ -54,6 +54,11 @@ export class InstancesPage {
     return value.toISOString().slice(0, 10);
   }
 
+  /** 用物料编号呈现实际安装路径。 */
+  tracePath(match: BomInstanceTraceResult['matches'][number]): string {
+    return match.path.map(node => node.itemNo).join(' → ');
+  }
+
   /** 当前安装与全历史共用实例查询合同。 */
   async loadTree(): Promise<void> {
     this.busy.set(true);
@@ -90,6 +95,12 @@ export class InstancesPage {
 
   /** 演示按时间截止旧安装，再追加新安装。 */
   async replace(): Promise<void> {
+    if (
+      !window.confirm(
+        `确认在 ${this.replaceDate()} 为 SN-001 换件？PACK-001 的安装将截止，PACK-003 同日开始安装，旧记录保留。`
+      )
+    )
+      return;
     this.busy.set(true);
     this.error.set('');
     this.actionResult.set('');
@@ -123,6 +134,10 @@ export class InstancesPage {
 
   /** 直连删除草稿来源，读取后端给出的引用保护错误。 */
   async deleteSource(): Promise<void> {
+    if (
+      !window.confirm('确认尝试删除 SN-002 的草稿来源？该来源已被安装记录引用，系统应拒绝删除；请核对返回的保护结果。')
+    )
+      return;
     this.busy.set(true);
     this.error.set('');
     this.sourceResult.set('');

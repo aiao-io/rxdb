@@ -125,7 +125,7 @@ AC#8 与 US-510 AC#11、US-514 AC#11 同一裁决：截断或未解析的结构�
 
 ## 第 8 步关闭记录
 
-2026-10-16：稳定导出契约、同快照主数据与数量、完整替代组、逐行 SAVEPOINT 和整批原子草稿导入通过；位号/组成员/分摊、延迟外键、同键组、重叠及环诊断均有双后端真实回归。 联合验收：插件 554 条、演示 21 条通过；完整门禁和性能证据见 [第 8 步 quickstart](../../../specs/018-bom-slice-8/quickstart.md)。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-521)。
 
 ## References
 

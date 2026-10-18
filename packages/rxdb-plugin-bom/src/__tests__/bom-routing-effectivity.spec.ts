@@ -6,6 +6,7 @@ import {
   BomItem,
   BomLine,
   BomLineOccurrence,
+  BomLineOperationSplit,
   BomRouting,
   BomRoutingOperation,
   BomWorkCenter
@@ -13,6 +14,7 @@ import {
 import { rollupCost, type CostRollupContext } from '../quantity/cost.js';
 import { explodeBom } from '../quantity/explosion.js';
 import { loadHistory } from '../resolve/history-loader.js';
+import { exportBom } from '../resolve/integration.js';
 import type { ResolutionContext } from '../resolve/resolution.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
@@ -27,6 +29,8 @@ interface LayerFixture {
   occurrence: BomLineOccurrence;
   routing: BomRouting | null;
 }
+
+type RoutingMode = 'single' | 'split';
 
 const contextAt = (date: string): ResolutionContext => ({
   bomType: 'ebom',
@@ -52,7 +56,24 @@ const makeItem = async (unitPrice: string | null = null): Promise<BomItem> => {
   return item;
 };
 
-const attachRouting = async (header: BomHeader): Promise<BomRouting> => {
+const saveOperation = async (
+  routing: BomRouting,
+  center: BomWorkCenter,
+  operationSeq: number,
+  operationScrap: string
+): Promise<void> => {
+  const operation = new BomRoutingOperation();
+  operation.routingId = routing.id;
+  operation.operationSeq = operationSeq;
+  operation.workCenterId = center.id;
+  operation.operationScrap = operationScrap;
+  operation.scrapConvention = 'additive';
+  operation.runTime = '1';
+  operation.timeUom = 'h';
+  await operation.save();
+};
+
+const attachRouting = async (header: BomHeader, mode: RoutingMode): Promise<BomRouting> => {
   const center = new BomWorkCenter();
   center.code = `routing-effectivity-${crypto.randomUUID()}`;
   center.orgId = 'org-x';
@@ -76,15 +97,8 @@ const attachRouting = async (header: BomHeader): Promise<BomRouting> => {
   routing.validFrom = day('2026-02-01');
   routing.disabledAt = day('2026-12-01');
   await routing.save();
-  const operation = new BomRoutingOperation();
-  operation.routingId = routing.id;
-  operation.operationSeq = 20;
-  operation.workCenterId = center.id;
-  operation.operationScrap = '0.1';
-  operation.scrapConvention = 'additive';
-  operation.runTime = '1';
-  operation.timeUom = 'h';
-  await operation.save();
+  await saveOperation(routing, center, 20, '0.1');
+  if (mode === 'split') await saveOperation(routing, center, 40, '0');
   header.routingId = routing.id;
   await header.save();
   return routing;
@@ -93,7 +107,7 @@ const attachRouting = async (header: BomHeader): Promise<BomRouting> => {
 const makeLayer = async (
   adapter: BomTestAdapter,
   child: BomItem,
-  options: { routed?: boolean; qty?: string } = {}
+  options: { routing?: RoutingMode; qty?: string } = {}
 ): Promise<LayerFixture> => {
   const parent = await makeItem();
   await loadHistory(adapter, {
@@ -111,7 +125,7 @@ const makeLayer = async (
   header.orgId = 'org-x';
   header.costLotQty = '1';
   await header.save();
-  const routing = options.routed ? await attachRouting(header) : null;
+  const routing = options.routing === undefined ? null : await attachRouting(header, options.routing);
   const line = new BomLine();
   line.headerId = header.id;
   line.lineNo = 10;
@@ -122,11 +136,25 @@ const makeLayer = async (
   occurrence.qty = options.qty ?? '10';
   occurrence.uom = 'pcs';
   occurrence.effectiveFrom = day('2026-01-01');
-  occurrence.operationSeq = routing === null ? null : 20;
+  occurrence.operationSeq = options.routing === 'single' ? 20 : null;
   await occurrence.save();
+  if (options.routing === 'split') await saveSplits(occurrence);
   header.state = 'released';
   await header.save();
   return { parent, header, occurrence, routing };
+};
+
+const saveSplits = async (occurrence: BomLineOccurrence): Promise<void> => {
+  for (const [operationSeq, ratio] of [
+    [20, '0.6'],
+    [40, '0.4']
+  ] as const) {
+    const split = new BomLineOperationSplit();
+    split.occurrenceId = occurrence.id;
+    split.operationSeq = operationSeq;
+    split.ratio = ratio;
+    await split.save();
+  }
 };
 
 const expectUncovered = async (result: Promise<unknown>, fixture: LayerFixture): Promise<void> => {
@@ -144,14 +172,18 @@ for (const backend of BACKENDS) {
   describe(`US-520 AC#11 / US-524 AC#7 路线有效期 [${backend}]`, () => {
     let adapter: BomTestAdapter;
     let routed: LayerFixture;
+    let split: LayerFixture;
     let nested: LayerFixture;
+    let nestedSplit: LayerFixture;
     let noRouting: LayerFixture;
 
     beforeAll(async () => {
       adapter = await createBomTestAdapter(backend);
       const child = await makeItem('2');
-      routed = await makeLayer(adapter, child, { routed: true });
+      routed = await makeLayer(adapter, child, { routing: 'single' });
+      split = await makeLayer(adapter, child, { routing: 'split', qty: '100' });
       nested = await makeLayer(adapter, routed.parent, { qty: '2' });
+      nestedSplit = await makeLayer(adapter, split.parent, { qty: '2' });
       noRouting = await makeLayer(adapter, child);
     });
 
@@ -180,6 +212,40 @@ for (const backend of BACKENDS) {
       });
       expect(nestedCost.root.batchCost).toBe('46.2');
       expect(nestedCost.root.children[0].processing).toMatchObject([{ operationSeq: 20, amount: '2.2' }]);
+      const exported = await exportBom(adapter, contextAt(date), {
+        parentRevisionId: routed.header.parentRevisionId
+      });
+      expect(exported.requirementLines).toMatchObject([{ qty: '11', uom: 'pcs' }]);
+    });
+
+    it.each(COVERED_DATES)('%s 路线有效，分摊数量、根层及子层成本和导出保留历史结果', async date => {
+      const quantity = await explodeBom(
+        adapter,
+        contextAt(date),
+        { parentRevisionId: split.header.parentRevisionId },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
+      expect(quantity.requirementLines).toMatchObject([
+        { qty: '106', steps: { operationScrapped: { value: '106', uom: 'pcs' } } }
+      ]);
+      const cost = await rollupCost(adapter, costContextAt(date), {
+        parentRevisionId: split.header.parentRevisionId
+      });
+      expect(cost.root.material[0].amount).toBe('212');
+      expect(cost.root.processing).toMatchObject([
+        { operationSeq: 20, amount: '1.1' },
+        { operationSeq: 40, amount: '1' }
+      ]);
+      expect(cost.root.batchCost).toBe('214.1');
+      const nestedCost = await rollupCost(adapter, costContextAt(date), {
+        parentRevisionId: nestedSplit.header.parentRevisionId
+      });
+      expect(nestedCost.root.batchCost).toBe('428.2');
+      const exported = await exportBom(adapter, contextAt(date), {
+        parentRevisionId: split.header.parentRevisionId
+      });
+      expect(exported.requirementLines).toMatchObject([{ qty: '106', uom: 'pcs' }]);
+      expect(exported.operationSplits).toHaveLength(2);
     });
 
     it.each(UNCOVERED_DATES)('%s 路线未覆盖，数量展开点名路线与发生项并拒绝整次计算', async date => {
@@ -208,6 +274,40 @@ for (const backend of BACKENDS) {
       );
     });
 
+    it.each(UNCOVERED_DATES)('%s 分摊路线未覆盖，数量点名路线与发生项并拒绝整次计算', async date => {
+      await expectUncovered(
+        explodeBom(
+          adapter,
+          contextAt(date),
+          { parentRevisionId: split.header.parentRevisionId },
+          { plannedQty: { value: '1', uom: 'pcs' } }
+        ),
+        split
+      );
+    });
+
+    it.each(UNCOVERED_DATES)('%s 分摊路线未覆盖，根层与递归成本均点名路线和发生项', async date => {
+      await expectUncovered(
+        rollupCost(adapter, costContextAt(date), { parentRevisionId: split.header.parentRevisionId }),
+        split
+      );
+      await expectUncovered(
+        rollupCost(adapter, costContextAt(date), { parentRevisionId: nestedSplit.header.parentRevisionId }),
+        split
+      );
+    });
+
+    it.each(UNCOVERED_DATES)('%s 单工序与分摊路线未覆盖，导出点名路线和发生项并拒绝', async date => {
+      await expectUncovered(
+        exportBom(adapter, contextAt(date), { parentRevisionId: routed.header.parentRevisionId }),
+        routed
+      );
+      await expectUncovered(
+        exportBom(adapter, contextAt(date), { parentRevisionId: split.header.parentRevisionId }),
+        split
+      );
+    });
+
     it.each([...COVERED_DATES, ...UNCOVERED_DATES])('%s 未挂路线仍按无工序、无加工成本计算', async date => {
       const quantity = await explodeBom(
         adapter,
@@ -223,6 +323,10 @@ for (const backend of BACKENDS) {
       expect(cost.root.batchCost).toBe('20');
       expect(cost.root.processing).toEqual([]);
       expect(cost.root.overheadReason).toBe('无路线');
+      const exported = await exportBom(adapter, contextAt(date), {
+        parentRevisionId: noRouting.header.parentRevisionId
+      });
+      expect(exported.requirementLines).toMatchObject([{ qty: '10', uom: 'pcs' }]);
     });
   });
 }

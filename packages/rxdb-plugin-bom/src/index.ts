@@ -13,6 +13,7 @@ export {
   buildUnitLotOverlapGuardSqlite,
   unitFromGtUnitToCheck
 } from './backend/unit-lot-trigger-ddl.js';
+export type { JointCostSourceUse } from './coproduct.js';
 export { DECIMAL_CANONICAL_RE, DECIMAL_MAX_SIGNIFICANT_DIGITS, normalizeDecimalString } from './decimal.utils.js';
 export {
   BOM_ENTITIES,
@@ -38,6 +39,8 @@ export {
   BomSubstituteGroup,
   BomWorkCenter
 } from './entities.js';
+export { createBomExtStorage, createBomExtStorageMigration } from './ext-storage.js';
+export type { BomExtStorageOptions, BomHotField } from './ext-storage.js';
 export type {
   BomInstanceNodeView,
   BomInstanceQueryOptions,
@@ -48,15 +51,15 @@ export type {
   BomInstanceTreeResult
 } from './instance.js';
 export { RxDBPluginBom, rxDBPluginBom } from './plugin.js';
-export {
-  BomCostError,
-  rollupCost,
-  type CostCreditLine,
-  type CostMaterialLine,
-  type CostNodeDetail,
-  type CostProcessingLine,
-  type CostRollupContext,
-  type CostRollupResult
+export { rollupCost } from './quantity/cost-api.js';
+export { BomCostError } from './quantity/cost-error.js';
+export type {
+  CostCreditLine,
+  CostMaterialLine,
+  CostNodeDetail,
+  CostProcessingLine,
+  CostRollupContext,
+  CostRollupResult
 } from './quantity/cost.js';
 export {
   ceilToDecimalPlaces,
@@ -72,21 +75,23 @@ export {
   roundToSignificant,
   type Decimal
 } from './quantity/decimal.js';
-export {
-  EXPLOSION_ALGORITHM_VERSION,
-  explodeBom,
-  type ExplosionManifest,
-  type ExplosionOptions,
-  type ExplosionResult,
-  type ExplosionStepValue,
-  type ExplosionSteps,
-  type OutputLine,
-  type PenetrationRecord,
-  type PlannedQuantity,
-  type RequirementLine
+export { explodeBom } from './quantity/explosion-api.js';
+export type {
+  ExplosionManifest,
+  ExplosionOptions,
+  ExplosionResult,
+  ExplosionStepValue,
+  ExplosionSteps,
+  OutputLine,
+  PenetrationRecord,
+  PlannedQuantity,
+  RequirementLine
 } from './quantity/explosion.js';
 export { FORMULA_GRAMMAR_VERSION, evaluateFormula } from './quantity/formula.js';
+export { BomJointCostSourceError } from './quantity/joint-cost-error.js';
+export type { JointCostOutput, JointCostSummary } from './quantity/joint-cost.js';
 export { convertUom, type UomConversionRates } from './quantity/uom.js';
+export { EXPLOSION_ALGORITHM_VERSION } from './quantity/versions.js';
 export { BomRepository } from './repository.js';
 export {
   BomMapError,
@@ -117,7 +122,8 @@ export {
   validateConditionReferences
 } from './resolve/config-validate.js';
 export { cycleConstraintDdlForRemotePg } from './resolve/cycle-constraint-ddl.js';
-export { ecnDiff, ecnImpact, type EcnDiffEntry, type EcnDiffResult, type EcnImpactResult } from './resolve/ecn.js';
+export { ecnDiff, ecnImpact } from './resolve/ecn-api.js';
+export type { EcnDiffEntry, EcnDiffResult, EcnImpactResult } from './resolve/ecn.js';
 export {
   assertCompleteResolution,
   expandBom,
@@ -154,8 +160,8 @@ export {
   type ExtFilterOp,
   type ExtWriteMode
 } from './resolve/ext-attr.js';
+export { loadHistory } from './resolve/history-api.js';
 export {
-  loadHistory,
   type HistoryBatchInput,
   type HistoryHeaderInput,
   type HistoryOccurrenceInput,
@@ -175,7 +181,8 @@ export {
   type ImportRecord,
   type ImportValidationResult
 } from './resolve/import-contract.js';
-export { exportBom, importBomDraft, type BomImportResult } from './resolve/integration.js';
+export { exportBom, importBomDraft } from './resolve/integration-api.js';
+export type { BomImportResult } from './resolve/integration.js';
 export {
   BomResolutionError,
   type BomType,
@@ -216,3 +223,18 @@ export {
   normalizeBomError,
   type TruncationReason
 } from './types.js';
+export { BOM_VIEW_STYLES, bomEditorFields, bomErrorText, parseBomEditorFields } from './view-fields.js';
+export { createBomView, initialBomViewState } from './view-state.js';
+export type {
+  BomEditorFields,
+  BomLineEditorState,
+  BomLineEditorValue,
+  BomOccurrencePatch,
+  BomViewCandidate,
+  BomViewCommands,
+  BomViewHandle,
+  BomViewInput,
+  BomViewNode,
+  BomViewSnapshot,
+  BomViewState
+} from './view-types.js';

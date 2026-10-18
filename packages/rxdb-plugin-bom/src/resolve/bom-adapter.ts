@@ -7,7 +7,7 @@
  * `rawQuery` 三个成员，本接口只声明它们，两个适配器家族都能满足。
  */
 
-import type { EntityType, TransactionFun } from '@aiao/rxdb';
+import type { EntityType, RxDBConfig, TransactionFun } from '@aiao/rxdb';
 
 /** 实体构造门面（多实例下 `new Entity()` 无法判目标库，经 {@link import('@aiao/rxdb').EntityManager.instantiate} 构造）。 */
 export interface BomEntityFactory {
@@ -20,5 +20,5 @@ export interface BomLocalAdapter {
   transaction<T extends TransactionFun>(fun: T, transactionLog?: boolean): Promise<Awaited<ReturnType<T>>>;
   rawQuery?(sql: string, params?: unknown[]): Promise<unknown>;
   /** 实体构造门面（种子装载与历史通道构造实体用；真实适配器带 rxdb.entityManager）。 */
-  rxdb?: { readonly entityManager: BomEntityFactory };
+  rxdb?: { readonly entityManager: BomEntityFactory; readonly config: RxDBConfig };
 }

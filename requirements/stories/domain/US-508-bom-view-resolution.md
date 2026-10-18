@@ -1,11 +1,11 @@
 ---
 id: US-508
 title: BOM 视图解析：类型/组织/修订/生效期过滤
-status: In Progress
+status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-10-18
 tags: [domain, bom, query]
 ---
 
@@ -83,8 +83,7 @@ tags: [domain, bom, query]
 
 ## 技术笔记
 
-**首轮切片验收 AC#1～#11 / #13～#15 / #17 / #18**：AC#12 / #16 要造并发布 ECN，等 [US-515](US-515-bom-change-management.md) 落地，
-本故事在此之前不置 Done，见 [epic-009 首轮可开工切片](../../epics/epic-009-bom-domain-model.md#首轮可开工切片)。
+**首轮切片历史分工**：首轮验收AC#1～#11/#13～#15/#17/#18，AC#12/#16已随US-515交付并在本故事AC表关闭；全部解析AC及最终统一门禁现已通过，故事已Done。
 
 区间排他的作用域**必须精确到同一逻辑行 `bom_line_id`**，不能对整表施加：
 多个 `alternative_no` 与多个替代行（US-512）本来就该并存，全局禁重叠会把正常数据拒掉。
@@ -139,17 +138,11 @@ manifest 记录结构依据（头、修订、发生项 ID），[US-511](US-511-b
 
 ## 实现文件
 
-- `packages/rxdb-plugin-bom/` — 待建；视图解析查询与有效期约束
+- `packages/rxdb-plugin-bom/` — 视图解析查询与有效期约束
 
 ## 首轮切片第 2 步关闭记录
 
-首轮 AC#1~#11 / #13~#15 / #17 / #18 全关（`packages/rxdb-plugin-bom`，双后端 wa-sqlite / pglite 同断言）：
-显式 `ResolutionContext`（`as_of_date` 必填、不读系统时钟）；父修订按时点取已发布最新或显式指定；
-released 头 + 生效窗口 `[effective_from, effective_to)` 含评估日；imprecise 子件修订取「released 且
-`effective_from ≤ as_of_date`」的最新（唯一性由 AC#10 的部分唯一索引保证）；多备选手动未指定 → `unresolved` + 候选。
-追溯发布由存储层触发器拒绝（UTC 当日，不读宿主时区），`loadHistory` 经开启态批次审计通道放行、批次只追加、
-关闭后不再放行（AC#13/#14/#18）；一次解析的全部读取在同一个读事务（AC#15）。
-AC#12 / #16 等 US-515（ECN）落地。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-508)。
 
 ## References
 
@@ -158,3 +151,7 @@ AC#12 / #16 等 US-515（ECN）落地。
 - [US-030 实体元数据层的声明式存储约束](../core/US-030-declarative-storage-constraints.md) — AC#2 的区间排他落点；AC#10 的条件唯一（阶段 B）
 - [US-515 变更管理](US-515-bom-change-management.md) — 发生项可见性与 ECN 状态；AC#12 / #16；AC#16 的宿主当日只限改期 / 取消（其 AC#7）
 - [US-525 BOM 端到端 demo](US-525-bom-end-to-end-demo.md) — 历史装载通道的第一个消费方（确定性种子，依赖批次号可复现，AC#18）
+
+## 最终验收
+
+最终完整affected351任务EXIT0、三端共享51/51、demo24/24、Tauri额外门禁及8包严格覆盖率全部通过，本故事全部功能AC与最终门禁已关闭，status为Done。证据及失败/修复历史见[最终验收](../../../specs/021-bom-closure/closure-map.md)。

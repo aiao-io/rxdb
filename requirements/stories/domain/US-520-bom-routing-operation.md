@@ -1,11 +1,11 @@
 ---
 id: US-520
 title: 工艺路线挂接与工序投料分摊
-status: In Progress
+status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-10-18
 tags: [domain, bom, routing, manufacturing]
 ---
 
@@ -53,7 +53,7 @@ tags: [domain, bom, routing, manufacturing]
 | 8   | 同 #2，路线上只有工序 10 损耗 2%（加成制）（US-524 阶段 D）                                | 展开                                                                                                                                                             | 工序 10 那份 60 × 1.02 = 61.2，工序 30 那份 40 不经过 10 仍为 40；合计 101.2，分摊不重复施加损耗                                                                            |      | ✅  |
 | 9   | `draft` 头下一条分摊行                                                                     | 直连 SQL 把它改指另一发生项                                                                                                                                      | 拒绝（US-507 结构归属列不可改）；要挪就删除重建                                                                                                                             |      | ✅  |
 | 10  | 一个发生项分摊到多道工序                                                                   | ① 经插件 API 与直连 SQL 写比例 `0.5000000000000001` ② 录入 0.5 / 0.499999999 后发布头 ③ 录入 0.7 / 0.2 / 0.1 后发布头 ④ 经插件 API 与直连 SQL 写 `1.5` 或 `-0.1` | ① 两后端保存即拒，点名字段与 9 位小数上限 ② 两后端都拒绝发布，实际合计逐字为 `0.999999999` ③ 两后端都通过 ④ 两后端保存即拒，点名字段与 `[0, 1]` 值域（US-511 十进制值合同） |      | ✅  |
-| 11  | 头选定路线 R 的 `disabled_at = 2026-12-01`，发生项挂 `operation_seq = 20`（US-524 阶段 A） | 按停用前、后两个日期展开                                                                                                                                         | 停用前需求归属工序 20；停用后该行报未覆盖，错误点名路线与发生项，不静默算无工序（与 [US-524](US-524-routing-master-model.md) AC#7 同一用例）                                | ⬜   |
+| 11  | 头选定路线 R 的 `disabled_at = 2026-12-01`，发生项挂 `operation_seq = 20`（US-524 阶段 A） | 按停用前、后两个日期展开                                                                                                                                         | 停用前需求归属工序 20；停用后该行报未覆盖，错误点名路线与发生项，不静默算无工序（与 [US-524](US-524-routing-master-model.md) AC#7 同一用例）                                | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -100,16 +100,11 @@ AC#4 拒绝而不归一化，与 [US-512](US-512-bom-substitute-group.md) AC#5 �
 
 ## 实现文件
 
-- `packages/rxdb-plugin-bom/` — 待建；工序挂接与分摊
+- `packages/rxdb-plugin-bom/` — 工序挂接与分摊
 
 ## 首轮切片第 5 步关闭记录
 
-非 ECN 场景已交付（`packages/rxdb-plugin-bom`，双后端同断言）：AC#1~#10 全关。
-行挂 `operation_seq`（保存期校验：头已挂路由时工序必须在序集内）+ `bom_line_operation_split`
-分摊子表（9 位小数域、`(occurrenceId, operationSeq)` 唯一、`occurrenceId` 结构列不可改、
-与 `operation_seq` 互斥 AC#6）；发布转移校验分摊合计恒 1（定点整数）；展开第 5 步——
-投料工序（含）至末工序逐道累乘、分摊每份额从各自工序起算不重复施加损耗（AC#8）。
-AC#11（路线停用的「未覆盖」展开面）随 US-524 AC#7 同批。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-520)。
 
 ## References
 
@@ -120,3 +115,7 @@ AC#11（路线停用的「未覆盖」展开面）随 US-524 AC#7 同批。
 - [US-514 成本卷算](US-514-bom-cost-rollup.md) — 消费方：US-514 以本故事的行到工序挂接为前置；本故事 AC#7 防的是卷算取到别的路线的工时与费率
 - [US-515 变更管理](US-515-bom-change-management.md) — 已发布头下分摊行只能随 ECN 新发生项新建（表 × 操作矩阵）；ECN 发布、已发布改期与取消在转换后运行投影上重做分摊合计校验（其 AC#23～#25）；首轮无 ECN，这部分随 US-515 落地才生效
 - [US-524 工艺路线本体](US-524-routing-master-model.md) — 前置：阶段 A 是 AC#5 / #7 引用的那一端，整条故事的分摊行与 `operation_seq` 都以它为前提；阶段 D（工序损耗与每道工序各自的 `scrap_convention`）是 AC#3 / #8 的前置，D 之前这两条不开工
+
+## 最终验收
+
+最终完整affected351任务EXIT0、三端共享51/51、demo24/24、Tauri额外门禁及8包严格覆盖率全部通过，本故事全部功能AC与最终门禁已关闭，status为Done。证据及失败/修复历史见[最终验收](../../../specs/021-bom-closure/closure-map.md)。

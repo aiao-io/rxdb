@@ -36,3 +36,27 @@
 ## 下一步（第 2 步）
 
 US-508（视图解析）+ US-509（判环，不依赖可达性表的 AC）+ US-510 阶段 A。
+
+## 2026-10-18 历史提交与门禁复核
+
+只读git证据确认`1116953409cf163c6e6ec906e4afed09b00a55cb`已提交本切片四份文档及首轮关闭记录，其祖先`24020154`和`316ea65d`分别提交US-030 A/B/C与BOM骨架，T029据历史事实关闭。该次复核时仅有首轮Cargo历史记录，因此未替代本轮sqlite-core变化后的Tauri一致性复验；本轮实际结果见下节，T028已随最终分支门禁通过关闭。
+
+当前Tauri门禁入口与CI一致：
+
+```bash
+pnpm nx run-many -t cargo-clippy cargo-test test-conformance -p rxdb-adapter-tauri --output-style=stream --parallel=1
+```
+
+`cargo-clippy --all-targets`包含类型检查，`test-conformance`依赖`build-test-host`及上游构建。本轮Rust与lock文件未改，精确缓存可复用；以下记录包含依赖sqlite-core的真实conformance复验。
+
+## 2026-10-18 Tauri额外门禁通过
+
+主会话运行上述入口，Nx共21任务通过、16项有效缓存，耗时2m35；日志`/private/tmp/bom-tauri-final-gates.log`。
+
+| 目标             | 本轮结果                                                                        |
+| ---------------- | ------------------------------------------------------------------------------- |
+| cargo-clippy     | 零警告通过                                                                      |
+| cargo-test       | 163通过，1个既有doc ignored                                                     |
+| test-conformance | 15文件、691通过/9既有跳过；含52MiB大文件、真实disk_full及backup/restore内存曲线 |
+
+Tauri额外门禁、最终完整351任务和8包严格coverage均已通过，T028已勾选，spec011全部完成；19BOM故事及US-030均Done，见[最终验收](../021-bom-closure/closure-map.md)。

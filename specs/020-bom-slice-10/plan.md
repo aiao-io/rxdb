@@ -52,12 +52,12 @@
 
 任务身份必须包含完整 `BomViewInput` 的所有业务输入，并依托明确的数据库实例隔离。指纹包含实际显示值、数量、候选、截断与错误信息，不能只取节点 ID。不同上下文、预算、参数或数据库不得相互污染缓存。
 
-本计划尚未声称 spike 已通过；证据、节点投影与错误快照细项补入 [research.md](research.md) 与 [契约](contracts/bom-view-api.md) 后，才冻结三端实现输入。
+依赖spike现已通过，节点投影与错误快照细项已按实测补入[research.md](research.md)及[契约](contracts/bom-view-api.md)，三端实现输入据此冻结；最终联合验收仍以quickstart记录为准。
 
 ## Phase 1: 共享 Kernel 与公共合同
 
 - `rxdb.bom.watchView(input): Observable<BomViewSnapshot>` 提供数据投影；`BomRepository` 复用同名或内部代理派生查询。
-- `createBomView(db, input): BomViewHandle` 共享管理 `state$`、`setInput`、`refresh`、`toggle(path)`、`loadOccurrence(id)`、`saveOccurrence(patch)`、`destroy`。函数名与职责已确定，快照节点与保存输入细项等待主会话 spike 收敛。
+- `createBomView(db, input): BomViewHandle`共享管理`state$`、`setInput`、`refresh`、`toggle(path)`、`loadOccurrence(id)`、`saveOccurrence(patch)`、`calculate()`与`destroy`。快照节点与保存输入已随spike收敛到`view-types.ts`和公共契约。
 - `BomViewInput` 使用既有 `ResolutionContext`、`ResolveTarget`、`PlannedQuantity`、`ExpansionBudgets`，并带可选公式参数 `params`。不从全局单例推断 db，不复制解析轴。
 - 未解析浏览从结构/解析 kernel 获取候选，不能以完整数量展开成功为前提；完整数量、成本与导出消费通过共享完整性检查拒绝未解析。既有 `explodeBom` 保留正常行及 manifest 的兼容语义，具体完整消费入口在 spike 中定稿。
 - 首次查询可处于 loading；已有快照刷新时保留旧节点并标记 refreshing，不先清空树。迟到响应受输入代次/订阅切换控制，不能覆盖新输入。
@@ -112,13 +112,13 @@ benchmarks/bom.bench.ts
 - 双后端验证前置与共享 kernel，三端真实组件/DOM 与完整共享场景验证绑定和视觉语义。组件加载/空/数据/错误、后台刷新、键盘与焦点独立可验。
 - 更新公共 API baseline、三端 README、统一示例与发现入口；API 对称检查、四项覆盖率、五项审计、格式及当前分支 affected 由主会话统一执行。
 - 基准记录预热、样本数、数据规模、运行环境、p50/p95/max；分别量查询、保存、发布/输入更新到 DOM、首屏及静态/完整 gzip。失败视为验收失败，不以缓存掩盖预算问题。
-- 其他旧故事的回写只引用独立审计证据；US-510 B、US-513 B、US-519 AC#3/#7 维持价值待证，US-509 AC#13 不进入本步。
+- 其他旧故事的回写只引用独立审计证据；US-510 B、US-513 B、US-519 AC#3/#7及US-509 AC#13已随完整BOM授权进入spec021～024，按各自验收记录收口，不由本步自动关闭。
 
 ## 验证命令与执行边界
 
 所有任务使用 `pnpm nx`，具体新增 project/target 在生成后通过工作区发现确认。主会话使用本环境统一配置 `NX_DAEMON=false NX_ISOLATE_PLUGINS=false NX_NO_CLOUD=true`，重负载目标分段，保留本地缓存；子任务不启动 Nx，不并发重建共享 dist。
 
-现阶段只写本目录指定五份文档。实现阶段再补有实测结果的 quickstart，不提前填写测试通过、性能或门禁完成记录。
+规格阶段原仅写本目录五份设计文档；当前实现与独立验证已经完成，实测结果持续记录到quickstart，未通过的联合门禁不提前填写成功。
 
 ## Complexity Tracking
 

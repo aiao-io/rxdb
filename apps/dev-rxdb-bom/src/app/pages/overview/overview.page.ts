@@ -1,84 +1,164 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { BomDemoService } from '../../bom-demo.service';
 import { ExtPanel } from '../../components/ext-panel';
 
-/** 物料概览：种子状态、物料清单与扩展属性；专项操作由各自页面承载。 */
+/** 从真实已有数据进入物料和六个业务场景。 */
 @Component({
   selector: 'bom-overview-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ExtPanel],
+  imports: [ExtPanel, FormsModule, RouterLink],
   templateUrl: './overview.page.html',
   styles: [
     `
-      .inventory {
-        margin-top: var(--space-4);
-        border-top: 1px solid var(--color-border);
-      }
-
-      .inventory summary {
-        padding: var(--space-3) 0;
-        color: var(--color-text-secondary);
-        font-weight: 600;
-        cursor: pointer;
+      :host {
+        display: block;
+        min-width: 0;
       }
 
       .inventory-scroll {
-        max-height: 320px;
-        overflow: auto;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
+        max-height: 420px;
       }
 
-      .inventory table {
-        width: 100%;
-        border-collapse: collapse;
-        text-align: left;
+      .inventory-toolbar {
+        margin-bottom: 18px;
       }
 
-      .inventory th,
-      .inventory td {
-        padding: var(--space-2) var(--space-3);
-        border-bottom: 1px solid var(--color-border);
+      .inventory-toolbar label {
+        flex: 1 1 240px;
       }
 
-      .inventory th {
-        position: sticky;
-        top: 0;
-        background: var(--color-surface-alt);
-        color: var(--color-text-secondary);
-        font-size: 12px;
-      }
-
-      .inventory tbody tr:hover {
-        background: var(--color-hover);
-      }
-
-      .inventory .item-index {
-        width: 48px;
+      .item-index {
+        width: 64px;
         color: var(--color-text-muted);
         font-variant-numeric: tabular-nums;
+      }
+
+      .data-table th {
+        position: sticky;
+        top: 0;
+      }
+
+      .scenario-number {
+        color: var(--color-primary);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .scenario-card h3 {
+        margin-top: 8px;
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      @media (max-width: 640px) {
+        .summary-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .metric-card {
+          padding: 12px 10px;
+        }
+
+        .metric-label {
+          font-size: 11px;
+        }
+
+        .metric-value {
+          font-size: 24px;
+        }
+
+        .metric-note {
+          display: none;
+        }
       }
     `
   ]
 })
 export class OverviewPage {
   private readonly service = inject(BomDemoService);
+  private readonly statisticsRevision = signal(0);
 
+  readonly ready = this.service.ready;
   readonly itemNos = this.service.itemNos;
+  readonly itemCount = this.service.itemCount;
+  readonly changeCount = computed(() => this.service.ecns().size);
+  readonly instanceCount = computed(() => this.service.instanceRoots().length);
   readonly inventory = computed(() => [...this.itemNos().values()].sort());
+  readonly filter = signal('');
+  readonly filteredInventory = computed(() => {
+    const query = this.filter().trim().toLowerCase();
+    return this.inventory().filter(itemNo => itemNo.toLowerCase().includes(query));
+  });
   readonly seedBatchNo = this.service.seedBatchNo;
   readonly seedTimestamp = this.service.seedTimestamp;
   readonly rowCounts = signal('');
+  readonly statisticsLoading = signal(false);
+  readonly statisticsError = signal('');
+  readonly resetError = signal('');
+  readonly notice = signal('');
   readonly busy = signal(false);
+  readonly scenarios = [
+    { path: '/explosion', title: '整机展开', description: '按计划量查看所需物料，逐行了解用量的计算过程。' },
+    { path: '/timeline', title: '变更时间轴', description: '选择生效日期，比较工程变更前后的结构。' },
+    { path: '/mapping', title: '双图映射', description: '对照设计与生产结构，检查覆盖情况和映射缺口。' },
+    { path: '/cost', title: '成本卷算', description: '查看材料、加工与费用，以及多产品的成本分配。' },
+    { path: '/where-used', title: '反查影响范围', description: '找到物料被哪些装配使用，了解修改会影响哪里。' },
+    { path: '/instances', title: '实例追溯', description: '查看某台整机的安装结构与换件记录。' }
+  ];
 
-  /** 重置并装载种子（AC#1 的两遍 seed 入口），随后回读行数面板。 */
+  constructor() {
+    effect(onCleanup => {
+      this.statisticsRevision();
+      const canRead = this.ready() && this.itemCount() > 0;
+      let current = true;
+      onCleanup(() => {
+        current = false;
+      });
+      this.rowCounts.set('');
+      this.statisticsError.set('');
+      this.statisticsLoading.set(canRead);
+      if (!canRead) return;
+      void this.service.dumpRowCounts().then(
+        counts => {
+          if (!current) return;
+          this.rowCounts.set(counts);
+          this.statisticsLoading.set(false);
+        },
+        error => {
+          if (!current) return;
+          this.statisticsError.set(String(error));
+          this.statisticsLoading.set(false);
+        }
+      );
+    });
+  }
+
+  /** 确认清空后重新准备演示数据，阻止重复提交。 */
   async resetAndSeed(): Promise<void> {
+    if (this.busy()) return;
+    if (!window.confirm('这会清空当前演示数据并重新准备示例，你的修改将不会保留。确定继续？')) return;
     this.busy.set(true);
+    this.resetError.set('');
+    this.notice.set('');
     try {
       await this.service.resetAndSeed();
-      this.rowCounts.set(await this.service.dumpRowCounts());
+      this.notice.set('演示数据已准备完成，可以选择下方业务场景。');
+    } catch (error) {
+      this.resetError.set(String(error));
     } finally {
       this.busy.set(false);
     }
+  }
+
+  /** 重新读取数据统计，不清空或修改业务数据。 */
+  refreshStatistics(): void {
+    this.statisticsRevision.update(value => value + 1);
   }
 }

@@ -6,6 +6,7 @@
  * （本步只有阶段 A 的层），不受新层影响的路径各阶段值逐位相同。
  */
 
+import type { UUID } from '@aiao/rxdb';
 import { deterministicId } from './scooter-dataset.js';
 
 /** 一步中间量（手写）。 */
@@ -176,7 +177,7 @@ export const SCOOTER_GOLDEN_B: {
 export const goldenOccurrenceId = (pathKey: string): string => deterministicId(pathKey);
 
 /** 业务键 → 确定性物料 id。 */
-export const goldenItemId = (itemKey: string): string => deterministicId(`item:${itemKey}`);
+export const goldenItemId = (itemKey: string): UUID => deterministicId(`item:${itemKey}`);
 
 /**
  * SC-100 阶段 C 的 golden（US-525 AC#10/#11）：受影响路径按评估日两段手写值——

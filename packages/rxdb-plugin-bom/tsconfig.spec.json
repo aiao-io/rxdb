@@ -19,7 +19,11 @@
     "src/**/*.test.jsx",
     "src/**/*.spec.jsx",
     "src/**/*.d.ts",
-    "src/__tests__/**/*.ts"
+    "src/__tests__/**/*.ts",
+    "vitest.pg.config.mts",
+    "tests-pg/**/*.ts",
+    "vitest.reach.config.mts",
+    "tests-reach/**/*.ts"
   ],
   "references": [
     {

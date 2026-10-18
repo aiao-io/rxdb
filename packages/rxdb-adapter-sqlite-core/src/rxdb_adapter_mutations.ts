@@ -3,6 +3,7 @@ import {
   EntityType,
   getEntityMetadata,
   getEntityStatus,
+  getEntityStorageMetadata,
   planMutationWrites,
   RxDBMutationsMap,
   toStorageConstraintViolationError
@@ -65,7 +66,7 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
     entityType: T,
     sqliteSuccessResult: Awaited<ReturnType<typeof adapter.query>>
   ) => {
-    const metadata = getEntityMetadata(entityType);
+    const metadata = getEntityStorageMetadata(adapter.rxdb, entityType);
     const repository = adapter.getRepository<T, SqliteRepository<T>>(entityType);
 
     // 结果集里的列名是物理列名，主键列可被 columnName 改写（SQLC-014）

@@ -1,29 +1,47 @@
-import { ChangeDetectionStrategy, Component, effect, inject, OnInit, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  OnInit,
+  signal,
+  viewChild,
+  type ElementRef
+} from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, map } from 'rxjs';
 import { BomDemoService } from '../bom-demo.service';
 
-/** 侧边栏导航条目。 */
 interface NavItem {
   path: string;
   label: string;
+  description: string;
+  icon: string;
   exact: boolean;
 }
 
-/**
- * 应用壳：侧边栏分区导航、顶栏状态与重置按钮、页面出口。
- * 壳统一负责既有库连接（页面重载路径），各页面只消费服务信号。
- */
 @Component({
   selector: 'bom-app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  host: { '(keydown.escape)': 'closeNavigation()' },
   template: `
-    <div class="shell">
-      <aside class="sidebar">
-        <div class="brand">
-          <span class="brand-mark">BOM</span>
-          <span class="brand-name">演示中心</span>
-        </div>
+    <a class="skip-link" href="#main-content">跳到主要内容</a>
+    <div class="shell" [class.navigation-open]="navigationOpen()">
+      @if (navigationOpen()) {
+        <button class="navigation-backdrop" (click)="closeNavigation()" aria-label="关闭导航"></button>
+      }
+      <aside class="sidebar" id="bom-navigation" aria-label="演示场景导航">
+        <a class="brand" (click)="closeNavigation()" aria-label="BOM 演示中心首页" routerLink="/">
+          <span class="brand-mark" aria-hidden="true">
+            <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+              <path d="M12 3 21 8v8l-9 5-9-5V8l9-5Z M3 8l9 5 9-5 M12 13v8 M7.5 5.5l9 5" />
+            </svg>
+          </span>
+          <span><strong>BOM 演示中心</strong><small>物料与制造工作台</small></span>
+        </a>
+        <div class="workspace-label"><span class="workspace-dot"></span>演示工作区</div>
         <nav class="nav" aria-label="主导航">
           @for (section of sections; track section.label) {
             <div class="nav-section">
@@ -31,308 +49,232 @@ interface NavItem {
               @for (item of section.items; track item.path) {
                 <a
                   class="nav-item"
+                  [attr.aria-label]="item.label"
                   [routerLink]="item.path"
                   [routerLinkActiveOptions]="{ exact: item.exact }"
+                  (click)="closeNavigation()"
+                  ariaCurrentWhenActive="page"
                   routerLinkActive="active"
                 >
-                  <span class="nav-item-dot"></span>
-                  <span class="nav-item-label">{{ item.label }}</span>
+                  <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.65" viewBox="0 0 24 24">
+                    <path [attr.d]="item.icon" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <span class="nav-item-copy"
+                    ><strong>{{ item.label }}</strong
+                    ><small>{{ item.description }}</small></span
+                  >
+                  <span class="nav-arrow" aria-hidden="true">›</span>
                 </a>
               }
             </div>
           }
         </nav>
+        <div class="sidebar-bottom">
+          <div class="dataset-card">
+            <span class="dataset-icon" aria-hidden="true">SC</span>
+            <div>
+              <strong>SC-100 电动滑板车</strong
+              ><small>{{ ready() ? itemCount() + ' 项物料 · 可开始体验' : '从准备演示数据开始' }}</small>
+            </div>
+          </div>
+          <p>本地演示 · 数据保存在当前浏览器</p>
+        </div>
       </aside>
       <div class="workspace">
         <header class="header">
-          <div class="header-title">
-            <h1>BOM 端到端演示</h1>
-            <span class="header-sub">rxdb-plugin-bom · SC-100 电动滑板车</span>
+          <div class="header-location">
+            <button
+              class="navigation-toggle"
+              #menuToggle
+              [attr.aria-expanded]="navigationOpen()"
+              [attr.aria-label]="navigationOpen() ? '关闭导航' : '打开导航'"
+              (click)="navigationOpen.update(toggle)"
+              aria-controls="bom-navigation"
+            >
+              <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" />
+              </svg>
+            </button>
+            <div class="breadcrumb">
+              <a routerLink="/">演示中心</a><span aria-hidden="true">/</span><strong>{{ activeLabel() }}</strong>
+            </div>
           </div>
           <div class="header-actions">
-            <span class="badge" [class.badge-neutral]="!ready()" [class.badge-success]="ready()">
-              {{
-                ready() ? '种子已就绪 · ' + itemCount() + ' 物料'
-                : connectionError() ? '连接失败'
-                : initializing() ? '连接中…'
-                : '未装载种子'
-              }}
+            <span
+              class="badge"
+              [class.badge-neutral]="!ready() || resetting()"
+              [class.badge-success]="ready() && !resetting()"
+              data-testid="workspace-data-status"
+              role="status"
+            >
+              {{ statusLabel() }}
             </span>
-            <button class="btn btn-secondary" [disabled]="resetting()" (click)="resetAll()">重置数据库</button>
+            <button
+              class="btn btn-quiet reset-button"
+              [disabled]="resetting() || initializing()"
+              (click)="resetAll()"
+              aria-label="重置演示数据"
+            >
+              <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+                <path d="M4 10a8 8 0 1 1 1.2 7M4 4v6h6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>重置演示</span>
+            </button>
           </div>
         </header>
-        <main class="content">
+        <main class="content" id="main-content" tabindex="-1">
           @if (connectionError()) {
-            <div class="error-box connection-error" role="alert">{{ connectionError() }}。可重置数据库后重试。</div>
+            <div class="error-box workspace-notice connection-error" role="alert">
+              <strong>演示数据连接失败</strong>
+              <div>请查看原因，或重置演示数据后重试。</div>
+              <details>
+                <summary>查看详细原因</summary>
+                <p>{{ connectionError() }}</p>
+              </details>
+            </div>
+          }
+          @if (actionError()) {
+            <div class="error-box workspace-notice action-error" role="alert">
+              <strong>恢复演示数据失败</strong>
+              <div>请稍后重试；下方保留本次错误原因。</div>
+              <details>
+                <summary>查看详细原因</summary>
+                <p>{{ actionError() }}</p>
+              </details>
+            </div>
           }
           <router-outlet />
         </main>
       </div>
     </div>
   `,
-  styles: [
-    `
-      :host {
-        display: block;
-        height: 100vh;
-      }
-
-      .shell {
-        display: flex;
-        height: 100vh;
-        overflow: hidden;
-      }
-
-      /* ---- 侧边栏 ---- */
-      .sidebar {
-        display: flex;
-        flex-shrink: 0;
-        flex-direction: column;
-        width: 224px;
-        border-right: 1px solid var(--color-border);
-        background: var(--color-surface);
-      }
-
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-4);
-        border-bottom: 1px solid var(--color-border);
-      }
-
-      .brand-mark {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: var(--radius-md);
-        background: var(--color-primary);
-        color: #fff;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-      }
-
-      .brand-name {
-        font-size: 14px;
-        font-weight: 600;
-      }
-
-      .nav {
-        display: flex;
-        flex: 1;
-        flex-direction: column;
-        gap: var(--space-4);
-        overflow-y: auto;
-        padding: var(--space-3) var(--space-2);
-      }
-
-      .nav-section {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-
-      .nav-section-title {
-        padding: 0 var(--space-2);
-        color: var(--color-text-muted);
-        font-size: 11px;
-        letter-spacing: 0.06em;
-      }
-
-      .nav-item {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: 7px 10px;
-        border-radius: var(--radius-sm);
-        color: var(--color-text-secondary);
-        font-size: 13px;
-        text-decoration: none;
-        transition:
-          background 0.12s ease,
-          color 0.12s ease;
-      }
-
-      .nav-item:hover {
-        background: var(--color-hover);
-        color: var(--color-text);
-      }
-
-      .nav-item.active {
-        background: var(--color-primary-bg);
-        color: var(--color-primary);
-        font-weight: 600;
-      }
-
-      .nav-item-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: currentColor;
-        opacity: 0.35;
-      }
-
-      .nav-item.active .nav-item-dot {
-        opacity: 1;
-      }
-
-      /* ---- 工作区（顶栏 + 内容） ---- */
-      .workspace {
-        display: flex;
-        flex: 1;
-        flex-direction: column;
-        min-width: 0;
-      }
-
-      .header {
-        display: flex;
-        flex-shrink: 0;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--space-4);
-        height: 56px;
-        padding: 0 var(--space-5);
-        border-bottom: 1px solid var(--color-border);
-        background: var(--color-surface);
-      }
-
-      .header-title {
-        display: flex;
-        align-items: baseline;
-        gap: var(--space-2);
-        min-width: 0;
-      }
-
-      .header-title h1 {
-        margin: 0;
-        font-size: 15px;
-        font-weight: 700;
-      }
-
-      .header-sub {
-        overflow: hidden;
-        color: var(--color-text-muted);
-        font-size: 12px;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .header-actions {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-      }
-
-      .content {
-        flex: 1;
-        overflow-y: auto;
-        background: var(--color-bg);
-      }
-
-      .connection-error {
-        margin: var(--space-4);
-      }
-
-      @media (max-width: 760px) {
-        .shell {
-          flex-direction: column;
-        }
-        .sidebar {
-          width: auto;
-          border-right: 0;
-          border-bottom: 1px solid var(--color-border);
-        }
-        .brand {
-          display: none;
-        }
-        .nav {
-          flex-direction: row;
-          gap: var(--space-2);
-          padding: var(--space-2);
-          overflow-x: auto;
-        }
-        .nav-section {
-          flex-direction: row;
-        }
-        .nav-section-title {
-          display: none;
-        }
-        .nav-item {
-          white-space: nowrap;
-        }
-        .workspace {
-          min-height: 0;
-        }
-        .header {
-          height: auto;
-          min-height: 56px;
-          padding: var(--space-2) var(--space-3);
-          flex-wrap: wrap;
-          gap: var(--space-2);
-        }
-        .header-sub {
-          display: none;
-        }
-      }
-    `
-  ]
+  styleUrl: './app-shell.scss'
 })
 export class AppShell implements OnInit {
   private readonly service = inject(BomDemoService);
+  private readonly router = inject(Router);
+  private readonly menuToggle = viewChild.required<ElementRef<HTMLButtonElement>>('menuToggle');
+  private readonly currentUrl = toSignal(
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map(event => event.urlAfterRedirects)
+    ),
+    { initialValue: this.router.url }
+  );
 
   readonly ready = this.service.ready;
   readonly itemCount = this.service.itemCount;
   readonly resetting = signal(false);
   readonly connectionError = signal('');
+  readonly actionError = signal('');
   readonly initializing = signal(true);
+  readonly navigationOpen = signal(false);
 
-  /** 侧边栏分区导航：物料核心页与主数据、实例追溯场景。 */
   readonly sections: { label: string; items: NavItem[] }[] = [
     {
-      label: '核心',
+      label: '开始使用',
       items: [
-        { path: '/', label: '概览', exact: true },
-        { path: '/explosion', label: '展开', exact: false }
+        {
+          path: '/',
+          label: '概览',
+          description: '数据准备与场景入口',
+          icon: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
+          exact: true
+        }
       ]
     },
     {
-      label: '场景',
+      label: '结构与成本',
       items: [
-        { path: '/timeline', label: '时间轴', exact: false },
-        { path: '/mapping', label: '双图映射', exact: false },
-        { path: '/cost', label: '成本卷算', exact: false },
-        { path: '/where-used', label: '反查', exact: false },
-        { path: '/instances', label: '实例追溯', exact: false }
+        {
+          path: '/explosion',
+          label: '展开',
+          description: '查看结构与用量依据',
+          icon: 'M9 3h6v5H9z M3 16h6v5H3z M15 16h6v5h-6z M12 8v4 M6 16v-4h12v4',
+          exact: false
+        },
+        {
+          path: '/cost',
+          label: '成本卷算',
+          description: '从总成本看到每笔明细',
+          icon: 'M5 3h14v18H5z M8 7h8 M8 11h2 M14 11h2 M8 15h2 M14 15h2 M8 18h2 M14 18h2',
+          exact: false
+        },
+        {
+          path: '/where-used',
+          label: '反查',
+          description: '查找物料的上层用途',
+          icon: 'M12 21V8 M7 13l5-5 5 5 M5 3h14',
+          exact: false
+        }
+      ]
+    },
+    {
+      label: '变更与制造',
+      items: [
+        {
+          path: '/timeline',
+          label: '时间轴',
+          description: '对比变更前后的版本',
+          icon: 'M4 5h16 M4 19h16 M7 5v14 M12 9h8 M12 14h5',
+          exact: false
+        },
+        {
+          path: '/mapping',
+          label: '双图映射',
+          description: '对照设计与制造清单',
+          icon: 'M3 5h6v14H3z M15 5h6v14h-6z M9 9h6 M12 6l3 3-3 3 M15 15H9 M12 12l-3 3 3 3',
+          exact: false
+        },
+        {
+          path: '/instances',
+          label: '实例追溯',
+          description: '查看实物安装与换件',
+          icon: 'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M15 14h5v6h-5 M2 12h20',
+          exact: false
+        }
       ]
     }
   ];
 
-  constructor() {
-    effect(() => {
-      if (this.ready()) this.connectionError.set('');
-    });
-  }
+  readonly activeLabel = computed(() => {
+    const path = this.currentUrl().split(/[?#]/)[0];
+    return this.sections.flatMap(section => section.items).find(item => item.path === path)?.label;
+  });
+
+  readonly statusLabel = computed(() => {
+    if (this.resetting()) return '正在恢复数据…';
+    if (this.initializing()) return '正在连接…';
+    if (this.connectionError()) return '连接失败';
+    return this.ready() ? `数据已就绪 · ${this.itemCount()} 项物料` : '待准备演示数据';
+  });
+
+  readonly toggle = (value: boolean): boolean => !value;
 
   ngOnInit(): void {
-    // 壳统一连接既有库（页面重载路径：插件触发器幂等安装，种子行原样可用）
     void this.service
       .connectExisting()
       .catch(error => this.connectionError.set(String(error)))
       .finally(() => this.initializing.set(false));
   }
 
-  /** 顶栏重置：清库重装种子后整页重载，让各页本地信号回到初始态（服务信号已由 hydrate 刷新）。 */
+  closeNavigation(): void {
+    const wasOpen = this.navigationOpen();
+    this.navigationOpen.set(false);
+    if (wasOpen) this.menuToggle().nativeElement.focus();
+  }
+
   async resetAll(): Promise<void> {
+    if (this.resetting() || !window.confirm('将清空当前演示数据中的修改，并恢复 SC-100 的完整示例数据。是否继续？'))
+      return;
     this.resetting.set(true);
     this.connectionError.set('');
+    this.actionError.set('');
     try {
       await this.service.resetAndSeed();
-      window.location.reload();
+      await this.router.navigateByUrl('/');
     } catch (error) {
-      this.connectionError.set(String(error));
+      this.actionError.set(String(error));
     } finally {
       this.resetting.set(false);
     }

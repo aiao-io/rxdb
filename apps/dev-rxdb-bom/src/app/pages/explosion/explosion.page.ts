@@ -1,6 +1,7 @@
 import type { ExplosionResult, PenetrationRecord, RequirementLine } from '@aiao/rxdb-plugin-bom';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { BomDemoService } from '../../bom-demo.service';
 import { ConfigPanel } from '../../components/config-panel';
 import { DemoChecks } from '../../components/demo-checks';
@@ -8,20 +9,48 @@ import { IntegrationPanel } from '../../components/integration-panel';
 import { ReqTree } from '../../components/req-tree';
 import { StepPanel } from '../../components/step-panel';
 
-/** 一次展开的页面状态（信号集）。 */
 interface ExplosionView {
   result: ExplosionResult;
   selected: RequirementLine | null;
 }
 
-/**
- * 展开专项页：EBOM 树与七步算式、配置选择、导入导出及保存/发布校验演示。
- */
+/** 先选择展开条件，再查看需求结构与所选物料的用量。 */
 @Component({
   selector: 'bom-explosion-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ConfigPanel, DemoChecks, FormsModule, IntegrationPanel, ReqTree, StepPanel],
-  templateUrl: './explosion.page.html'
+  imports: [ConfigPanel, DemoChecks, FormsModule, IntegrationPanel, ReqTree, RouterLink, StepPanel],
+  templateUrl: './explosion.page.html',
+  styles: [
+    `
+      :host {
+        display: block;
+        min-width: 0;
+      }
+
+      .result-panel {
+        min-width: 0;
+      }
+
+      .result-panel h2 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+
+      .selected-material {
+        margin: 0 0 18px;
+        color: var(--color-text-secondary);
+      }
+
+      .selected-material strong {
+        color: var(--color-primary);
+      }
+
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+    `
+  ]
 })
 export class ExplosionPage {
   private readonly service = inject(BomDemoService);
@@ -36,9 +65,22 @@ export class ExplosionPage {
   readonly view = signal<ExplosionView | null>(null);
   readonly explodeError = signal('');
   readonly busy = signal(false);
+  readonly selectedItemNo = computed(() => {
+    const line = this.view()?.selected;
+    return line ? this.itemNos().get(line.itemId) : null;
+  });
 
-  /** 按评估日与计划量展开整机（根物料可选，默认整机 SC-100）。 */
+  constructor() {
+    effect(() => {
+      if (this.ready()) return;
+      this.view.set(null);
+      this.explodeError.set('');
+    });
+  }
+
+  /** 使用明确的日期、计划量与适用条件计算整机需求。 */
   async runExplode(): Promise<void> {
+    if (this.busy() || !this.ready()) return;
     this.busy.set(true);
     this.explodeError.set('');
     this.view.set(null);
@@ -54,13 +96,13 @@ export class ExplosionPage {
     }
   }
 
-  /** 行选中（算式面板联动）。 */
+  /** 选择一条需求行，联动展示它的数量计算依据。 */
   select(line: RequirementLine): void {
     const current = this.view();
     if (current) this.view.set({ ...current, selected: line });
   }
 
-  /** 该需求行路径上的穿透记录（算式面板第 7 步的展示）。 */
+  /** 读取该需求路径经过的虚拟件穿透记录。 */
   penetrationsOn(line: RequirementLine | null): PenetrationRecord[] {
     const result = this.view()?.result;
     if (!line || !result) return [];

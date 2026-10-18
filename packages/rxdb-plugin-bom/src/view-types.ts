@@ -87,16 +87,17 @@ export interface BomViewCommands {
   toggle(path: readonly string[]): void;
   /** 独立读取草稿或 ECN 新发生项的编辑数据。 */
   loadOccurrence(id: string): Promise<void>;
-  /** 保存当前发生项，失败保留原始领域错误。 */
+  /** 保存当前发生项；已发布既有行拒绝，draft ECN新行的日期仍由ECN派生，失败保留领域错误。 */
   saveOccurrence(patch: BomOccurrencePatch): Promise<void>;
-  /** 仅消费完整、已裁决的数量结果，否则明确拒绝。 */
+  /** 重读当前完整输入；数量错误、未裁决候选或截断时明确拒绝。 */
   calculate(): Promise<ExplosionResult>;
 }
 
 /** 共享控制器；框架层负责订阅并在销毁时释放。 */
 export interface BomViewHandle extends BomViewCommands {
+  /** 首次订阅启动查询，最后订阅释放后可重新订阅。 */
   readonly state$: Observable<BomViewState>;
-  /** 结束订阅与状态流；重复调用不会产生额外操作。 */
+  /** 结束订阅与状态流；销毁后新订阅立即完成、命令拒绝，重复销毁幂等。 */
   destroy(): void;
 }
 

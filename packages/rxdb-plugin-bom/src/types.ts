@@ -100,6 +100,14 @@ export class BomBackendCapabilityError extends BomError {
  * 只有错误码与路径，没有这个标记（有意的）。
  */
 export class BomCycleError extends BomError {
+  /** 三框架原样透传的稳定错误码。 */
+  readonly code = 'BOM_CYCLE';
+
+  /** 与消息同源的结构化错误信息。 */
+  get payload(): { path: string[]; unionOnly: boolean } {
+    return { path: this.path, unionOnly: this.unionOnly };
+  }
+
   constructor(
     /** 环路径（物料 id 序列）。 */
     readonly path: string[],

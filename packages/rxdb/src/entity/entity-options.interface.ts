@@ -13,6 +13,7 @@ import type { RxDBRepositoryName } from '../rxdb-adapter.js';
 import type { ManualOrderOptions } from '../sortable/sortable.interface.js';
 import type { EntityCheckMetadataOptions } from './check-constraint.js';
 import type { EntityExclusionMetadataOptions } from './exclusion-constraint.js';
+import type { EntityGeneratedColumnMetadataOptions } from './generated-column.js';
 import type {
   EntityForeignKeyMetadataOptions,
   EntityIndexMetadataOptions,
@@ -205,6 +206,9 @@ export interface EntityMetadataOptions {
    * **注意：** 当前仅在树结构（`tree` feature）中使用
    */
   computedProperties?: EntityPropertyMetadataOptions[];
+
+  /** 数据库只读生成列；不进入可写属性、补丁、日志或重放值。 */
+  generatedColumns?: EntityGeneratedColumnMetadataOptions[];
 
   /**
    * 实体的关系配置

@@ -1,0 +1,597 @@
+{
+  "dataRows": 10000,
+  "fullDeclaredIndexesPresentDuringPerformance": true,
+  "functionalTests": 25,
+  "host": {
+    "os": "Darwin",
+    "architecture": "arm64",
+    "node": "v26.12.0",
+    "instrumentation": "BOM full package coverage run"
+  },
+  "matchingRows": 50,
+  "migrationDataRows": {
+    "item": 1,
+    "bom_header": 0,
+    "bom_line_occurrence": 0
+  },
+  "observations": [
+    {
+      "kind": "BOM_STORAGE_MIGRATION",
+      "result": {
+        "backend": "wa-sqlite",
+        "name": "023-audited-storage",
+        "samples": [
+          {
+            "sql": "SELECT \"id\", \"ext\" FROM \"bom$item\" WHERE \"ext\" IS NOT NULL ORDER BY \"id\" LIMIT 1000",
+            "ms": 0.3149999976158142
+          },
+          {
+            "sql": "SELECT \"id\", \"ext\" FROM \"bom$bom_header\" WHERE \"ext\" IS NOT NULL ORDER BY \"id\" LIMIT 1000",
+            "ms": 0.15500003099441528
+          },
+          {
+            "sql": "SELECT \"id\", \"ext\" FROM \"bom$bom_line_occurrence\" WHERE \"ext\" IS NOT NULL ORDER BY \"id\" LIMIT 1000",
+            "ms": 0.1549999713897705
+          },
+          {
+            "sql": "ALTER TABLE \"bom$item\" ADD COLUMN \"gc_hot_88ad5723_78ec36b3\" TEXT GENERATED ALWAYS AS (CASE WHEN json_type(\"ext\", '$.\"rohs_status\"') = 'text' THEN json_extract(\"ext\", '$.\"rohs_status\"') ELSE NULL END) VIRTUAL",
+            "ms": 7.564999997615814
+          },
+          {
+            "sql": "CREATE INDEX \"sx_item_lookup_hot_88ad5723_e5d3e40d\" ON \"bom$item\" (\"gc_hot_88ad5723_78ec36b3\");",
+            "ms": 0.4449999928474426
+          }
+        ],
+        "auditMs": 1.0149999856948853,
+        "generatedMs": 7.699999988079071,
+        "indexesMs": 0.48500001430511475,
+        "totalMs": 9.199999988079071
+      }
+    },
+    {
+      "kind": "BOM_STORAGE_MIGRATION",
+      "result": {
+        "backend": "wa-sqlite",
+        "totalConnectAndMigrationMs": 129.2049999833107
+      }
+    },
+    {
+      "kind": "BOM_STORAGE_MIGRATION",
+      "result": {
+        "backend": "pglite",
+        "name": "023-audited-storage",
+        "samples": [
+          {
+            "sql": "SELECT \"id\", \"ext\" FROM \"bom\".\"item\" WHERE \"ext\" IS NOT NULL ORDER BY \"id\" LIMIT 1000",
+            "ms": 0.6449999809265137
+          },
+          {
+            "sql": "SELECT \"id\", \"ext\" FROM \"bom\".\"bom_header\" WHERE \"ext\" IS NOT NULL ORDER BY \"id\" LIMIT 1000",
+            "ms": 0.36000001430511475
+          },
+          {
+            "sql": "SELECT \"id\", \"ext\" FROM \"bom\".\"bom_line_occurrence\" WHERE \"ext\" IS NOT NULL ORDER BY \"id\" LIMIT 1000",
+            "ms": 0.3799999952316284
+          },
+          {
+            "sql": "ALTER TABLE \"bom\".\"item\" ADD COLUMN \"gc_hot_88ad5723_7af03bf7\" TEXT GENERATED ALWAYS AS (CASE WHEN jsonb_typeof((\"ext\")::jsonb->'rohs_status') = 'string' THEN (\"ext\")::jsonb->>'rohs_status' ELSE NULL END) STORED",
+            "ms": 2.8550000190734863
+          },
+          {
+            "sql": "CREATE INDEX \"sx_item_lookup_hot_88ad5723_f62be6d0\" ON \"bom\".\"item\" USING btree (\"gc_hot_88ad5723_7af03bf7\");",
+            "ms": 0.3500000238418579
+          },
+          {
+            "sql": "CREATE INDEX \"sx_item_ext_gin_dba9a411\" ON \"bom\".\"item\" USING gin (((\"ext\")::jsonb) jsonb_ops);",
+            "ms": 1.034999966621399
+          },
+          {
+            "sql": "CREATE INDEX \"sx_bom_header_ext_gin_f952035a\" ON \"bom\".\"bom_header\" USING gin (((\"ext\")::jsonb) jsonb_ops);",
+            "ms": 0.375
+          },
+          {
+            "sql": "CREATE INDEX \"sx_bom_line_occurrence_ext_gin_8b699f4f\" ON \"bom\".\"bom_line_occurrence\" USING gin (((\"ext\")::jsonb) jsonb_ops);",
+            "ms": 0.3400000333786011
+          }
+        ],
+        "auditMs": 1.4799999594688416,
+        "generatedMs": 2.9200000166893005,
+        "indexesMs": 2.175000011920929,
+        "totalMs": 6.574999988079071
+      }
+    },
+    {
+      "kind": "BOM_STORAGE_MIGRATION",
+      "result": {
+        "backend": "pglite",
+        "totalConnectAndMigrationMs": 1364.2800000309944
+      }
+    },
+    {
+      "kind": "BOM_HOT_EXPLAIN",
+      "result": {
+        "backend": "wa-sqlite",
+        "rows": 10000,
+        "matches": 50,
+        "query": {
+          "sql": "SELECT \"id\", \"createdAt\", \"updatedAt\", \"createdBy\", \"updatedBy\", \"itemNo\", \"description\", \"serialized\", \"stockUom\", \"uomDecimals\", \"uomConversion\", \"unitPrice\", \"priceUom\", \"priceCurrency\", \"creditPrice\", \"ext\" FROM \"bom$item\" WHERE (\"gc_hot_rohs_status_1ff6080e\" = 'rare') ORDER BY \"id\"",
+          "params": []
+        },
+        "plan": {
+          "rowsAffected": 0,
+          "rows": [
+            [
+              4,
+              0,
+              145,
+              "SEARCH bom$item USING INDEX sx_item_lookup_rohs_status_e2cb3423 (gc_hot_rohs_status_1ff6080e=?)"
+            ],
+            [28, 0, 0, "USE TEMP B-TREE FOR ORDER BY"]
+          ],
+          "columns": ["id", "parent", "notused", "detail"]
+        }
+      }
+    },
+    {
+      "kind": "BOM_HOT_PERFORMANCE",
+      "result": {
+        "backend": "wa-sqlite",
+        "metric": "filterByAttr",
+        "rows": 10000,
+        "warmup": 5,
+        "samples": [
+          0.7099999785423279, 0.7250000238418579, 0.699999988079071, 0.6949999928474426, 0.675000011920929,
+          0.6949999928474426, 0.675000011920929, 0.675000011920929, 0.7049999833106995, 0.6949999928474426,
+          0.6899999976158142, 0.6800000071525574, 0.6800000071525574, 0.7249999642372131, 0.6899999976158142,
+          0.6850000023841858, 0.7350000143051147, 0.6949999928474426, 0.7150000333786011, 0.6899999976158142
+        ],
+        "host": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
+        "recordedAt": "2026-10-17T23:45:11.615Z",
+        "runtime": {
+          "worker": false,
+          "vfs": "MemoryAsyncVFS"
+        },
+        "storage": {
+          "generatedColumns": [
+            {
+              "name": "hot_rohs_status",
+              "expression": {
+                "kind": "jsonScalar",
+                "property": "ext",
+                "key": "rohs_status",
+                "dataType": "string",
+                "jsonText": true
+              }
+            },
+            {
+              "name": "hot_lead_days",
+              "expression": {
+                "kind": "jsonScalar",
+                "property": "ext",
+                "key": "lead_days",
+                "dataType": "number",
+                "jsonText": true
+              }
+            },
+            {
+              "name": "hot_active",
+              "expression": {
+                "kind": "jsonScalar",
+                "property": "ext",
+                "key": "active",
+                "dataType": "boolean",
+                "jsonText": true
+              }
+            }
+          ],
+          "indexes": [
+            {
+              "name": "lookup_rohs_status",
+              "properties": ["hot_rohs_status"]
+            },
+            {
+              "name": "lookup_lead_days",
+              "properties": ["hot_lead_days"]
+            },
+            {
+              "name": "lookup_active",
+              "properties": ["hot_active"]
+            },
+            {
+              "name": "ext_gin",
+              "expression": {
+                "kind": "jsonDocument",
+                "property": "ext",
+                "jsonText": true
+              },
+              "method": "gin",
+              "dialects": ["postgres"]
+            }
+          ]
+        },
+        "p50": 0.6949999928474426,
+        "p95": 0.7250000238418579,
+        "max": 0.7350000143051147,
+        "budgetMs": 16
+      }
+    },
+    {
+      "kind": "BOM_HOT_PERFORMANCE",
+      "result": {
+        "backend": "wa-sqlite",
+        "metric": "saveExt",
+        "rows": 10000,
+        "warmup": 5,
+        "samples": [
+          1.1749999523162842, 1.2200000286102295, 1.2350000143051147, 1.1649999618530273, 1.1150000095367432,
+          1.0849999785423279, 1.090000033378601, 1.0949999690055847, 3.490000009536743, 1.5649999976158142,
+          1.2549999952316284, 1.1500000357627869, 1.1349999904632568, 1.149999976158142, 1.14000004529953,
+          1.2549999952316284, 1.3299999833106995, 1.300000011920929, 1.274999976158142, 1.1600000262260437
+        ],
+        "host": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
+        "recordedAt": "2026-10-17T23:45:11.648Z",
+        "runtime": {
+          "worker": false,
+          "vfs": "MemoryAsyncVFS"
+        },
+        "storage": {
+          "generatedColumns": [
+            {
+              "name": "hot_rohs_status",
+              "expression": {
+                "kind": "jsonScalar",
+                "property": "ext",
+                "key": "rohs_status",
+                "dataType": "string",
+                "jsonText": true
+              }
+            },
+            {
+              "name": "hot_lead_days",
+              "expression": {
+                "kind": "jsonScalar",
+                "property": "ext",
+                "key": "lead_days",
+                "dataType": "number",
+                "jsonText": true
+              }
+            },
+            {
+              "name": "hot_active",
+              "expression": {
+                "kind": "jsonScalar",
+                "property": "ext",
+                "key": "active",
+                "dataType": "boolean",
+                "jsonText": true
+              }
+            }
+          ],
+          "indexes": [
+            {
+              "name": "lookup_rohs_status",
+              "properties": ["hot_rohs_status"]
+            },
+            {
+              "name": "lookup_lead_days",
+              "properties": ["hot_lead_days"]
+            },
+            {
+              "name": "lookup_active",
+              "properties": ["hot_active"]
+            },
+            {
+              "name": "ext_gin",
+              "expression": {
+                "kind": "jsonDocument",
+                "property": "ext",
+                "jsonText": true
+              },
+              "method": "gin",
+              "dialects": ["postgres"]
+            }
+          ]
+        },
+        "p50": 1.1649999618530273,
+        "p95": 1.5649999976158142,
+        "max": 3.490000009536743,
+        "budgetMs": 100
+      }
+    },
+    {
+      "kind": "BOM_GIN_MAINTENANCE",
+      "result": {
+        "backend": "pglite",
+        "index": "sx_item_ext_gin_dba9a411",
+        "cleanedPages": "84"
+      }
+    },
+    {
+      "kind": "BOM_HOT_EXPLAIN",
+      "result": {
+        "backend": "pglite",
+        "rows": 10000,
+        "matches": 50,
+        "query": {
+          "sql": "SELECT \"id\", \"createdAt\", \"updatedAt\", \"createdBy\", \"updatedBy\", \"itemNo\", \"description\", \"serialized\", \"stockUom\", \"uomDecimals\", \"uomConversion\", \"unitPrice\", \"priceUom\", \"priceCurrency\", \"creditPrice\", \"ext\" FROM \"bom\".\"item\" WHERE (\"gc_hot_rohs_status_079b497c\" = 'rare') ORDER BY \"id\"",
+          "params": []
+        },
+        "plan": {
+          "rowsAffected": 0,
+          "rows": [
+            [
+              [
+                {
+                  "Plan": {
+                    "Node Type": "Sort",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 20.69,
+                    "Total Cost": 20.81,
+                    "Plan Rows": 50,
+                    "Plan Width": 351,
+                    "Disabled": false,
+                    "Sort Key": ["id"],
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Forward",
+                        "Index Name": "sx_item_lookup_rohs_status_b45bce94",
+                        "Relation Name": "item",
+                        "Alias": "item",
+                        "Startup Cost": 0.29,
+                        "Total Cost": 19.28,
+                        "Plan Rows": 50,
+                        "Plan Width": 351,
+                        "Disabled": false,
+                        "Index Cond": "(gc_hot_rohs_status_079b497c = 'rare'::text)"
+                      }
+                    ]
+                  }
+                }
+              ]
+            ]
+          ],
+          "columns": ["QUERY PLAN"]
+        }
+      }
+    },
+    {
+      "kind": "BOM_GIN_EXPLAIN",
+      "result": {
+        "backend": "pglite",
+        "query": {
+          "sql": "SELECT \"id\", \"createdAt\", \"updatedAt\", \"createdBy\", \"updatedBy\", \"itemNo\", \"description\", \"serialized\", \"stockUom\", \"uomDecimals\", \"uomConversion\", \"unitPrice\", \"priceUom\", \"priceCurrency\", \"creditPrice\", \"ext\" FROM \"bom\".\"item\" WHERE (((\"ext\")::jsonb) @> '{\"cold\":\"rare\"}'::jsonb) ORDER BY \"id\"",
+          "params": []
+        },
+        "plan": {
+          "rowsAffected": 0,
+          "rows": [
+            [
+              [
+                {
+                  "Plan": {
+                    "Node Type": "Sort",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 135.17,
+                    "Total Cost": 135.29,
+                    "Plan Rows": 50,
+                    "Plan Width": 351,
+                    "Disabled": false,
+                    "Sort Key": ["id"],
+                    "Plans": [
+                      {
+                        "Node Type": "Bitmap Heap Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Relation Name": "item",
+                        "Alias": "item",
+                        "Startup Cost": 21.78,
+                        "Total Cost": 133.75,
+                        "Plan Rows": 50,
+                        "Plan Width": 351,
+                        "Disabled": false,
+                        "Recheck Cond": "((ext)::jsonb @> '{\"cold\": \"rare\"}'::jsonb)",
+                        "Plans": [
+                          {
+                            "Node Type": "Bitmap Index Scan",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Index Name": "sx_item_ext_gin_dba9a411",
+                            "Startup Cost": 0,
+                            "Total Cost": 21.77,
+                            "Plan Rows": 50,
+                            "Plan Width": 0,
+                            "Disabled": false,
+                            "Index Cond": "((ext)::jsonb @> '{\"cold\": \"rare\"}'::jsonb)"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            ]
+          ],
+          "columns": ["QUERY PLAN"]
+        }
+      }
+    },
+    {
+      "kind": "BOM_HOT_PERFORMANCE",
+      "result": {
+        "backend": "pglite",
+        "metric": "filterByAttr",
+        "rows": 10000,
+        "warmup": 5,
+        "samples": [
+          1.1850000023841858, 1.2049999833106995, 1.215000033378601, 1.1699999570846558, 1.2350000143051147,
+          1.1800000071525574, 1.1899999976158142, 1.1850000023841858, 1.1600000262260437, 1.1749999523162842,
+          1.1700000166893005, 1.175000011920929, 1.159999966621399, 1.2000000476837158, 1.1949999928474426,
+          1.1800000071525574, 1.1649999618530273, 1.1550000309944153, 1.1850000023841858, 1.199999988079071
+        ],
+        "host": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
+        "recordedAt": "2026-10-17T23:45:17.893Z",
+        "runtime": {
+          "store": "memory"
+        },
+        "storage": {
+          "generatedColumns": [
+            {
+              "name": "hot_rohs_status",
+              "expression": {
+                "kind": "jsonScalar",
+                "property": "ext",
+                "key": "rohs_status",
+                "dataType": "string",
+                "jsonText": true
+              }
+            },
+            {
+              "name": "hot_lead_days",
+              "expression": {
+                "kind": "jsonScalar",
+                "property": "ext",
+                "key": "lead_days",
+                "dataType": "number",
+                "jsonText": true
+              }
+            },
+            {
+              "name": "hot_active",
+              "expression": {
+                "kind": "jsonScalar",
+                "property": "ext",
+                "key": "active",
+                "dataType": "boolean",
+                "jsonText": true
+              }
+            }
+          ],
+          "indexes": [
+            {
+              "name": "lookup_rohs_status",
+              "properties": ["hot_rohs_status"]
+            },
+            {
+              "name": "lookup_lead_days",
+              "properties": ["hot_lead_days"]
+            },
+            {
+              "name": "lookup_active",
+              "properties": ["hot_active"]
+            },
+            {
+              "name": "ext_gin",
+              "expression": {
+                "kind": "jsonDocument",
+                "property": "ext",
+                "jsonText": true
+              },
+              "method": "gin",
+              "dialects": ["postgres"]
+            }
+          ]
+        },
+        "p50": 1.1800000071525574,
+        "p95": 1.215000033378601,
+        "max": 1.2350000143051147,
+        "budgetMs": 16
+      }
+    },
+    {
+      "kind": "BOM_HOT_PERFORMANCE",
+      "result": {
+        "backend": "pglite",
+        "metric": "saveExt",
+        "rows": 10000,
+        "warmup": 5,
+        "samples": [
+          1.340000033378601, 1.2300000190734863, 1.2399999499320984, 1.2700000405311584, 1.2299999594688416,
+          1.2700000405311584, 1.3650000095367432, 3.884999990463257, 1.5149999856948853, 1.4350000023841858,
+          1.4350000023841858, 2.584999978542328, 1.7400000095367432, 1.6100000143051147, 1.6399999856948853,
+          1.5099999904632568, 1.3799999952316284, 1.4200000166893005, 1.4649999737739563, 1.4000000357627869
+        ],
+        "host": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
+        "recordedAt": "2026-10-17T23:45:18.146Z",
+        "runtime": {
+          "store": "memory"
+        },
+        "storage": {
+          "generatedColumns": [
+            {
+              "name": "hot_rohs_status",
+              "expression": {
+                "kind": "jsonScalar",
+                "property": "ext",
+                "key": "rohs_status",
+                "dataType": "string",
+                "jsonText": true
+              }
+            },
+            {
+              "name": "hot_lead_days",
+              "expression": {
+                "kind": "jsonScalar",
+                "property": "ext",
+                "key": "lead_days",
+                "dataType": "number",
+                "jsonText": true
+              }
+            },
+            {
+              "name": "hot_active",
+              "expression": {
+                "kind": "jsonScalar",
+                "property": "ext",
+                "key": "active",
+                "dataType": "boolean",
+                "jsonText": true
+              }
+            }
+          ],
+          "indexes": [
+            {
+              "name": "lookup_rohs_status",
+              "properties": ["hot_rohs_status"]
+            },
+            {
+              "name": "lookup_lead_days",
+              "properties": ["hot_lead_days"]
+            },
+            {
+              "name": "lookup_active",
+              "properties": ["hot_active"]
+            },
+            {
+              "name": "ext_gin",
+              "expression": {
+                "kind": "jsonDocument",
+                "property": "ext",
+                "jsonText": true
+              },
+              "method": "gin",
+              "dialects": ["postgres"]
+            }
+          ]
+        },
+        "p50": 1.4200000166893005,
+        "p95": 2.584999978542328,
+        "max": 3.884999990463257,
+        "budgetMs": 100
+      }
+    }
+  ],
+  "plannerOverrides": false,
+  "quantileMethod": "nearest-rank",
+  "remainingGatesTrackedIn": "specs/023-bom-hot-fields/validation.md",
+  "scope": "023 targeted functional, query plan, migration and performance evidence",
+  "sourceLog": "/private/tmp/bom-full-coverage.log",
+  "status": "passed"
+}

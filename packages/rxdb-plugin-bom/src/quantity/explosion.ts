@@ -45,10 +45,11 @@ import {
   type LayerRoutingOp,
   type SubstituteMember
 } from './layer.js';
+import { routingUncoveredReason } from './routing-effectivity.js';
 import { convertUom } from './uom.js';
 
-/** 展开算法版本：34 位有效数字、half-even 中间量、七步顺序、需求行向上取整（改动即升版本）。 */
-export const EXPLOSION_ALGORITHM_VERSION = '2';
+import { EXPLOSION_ALGORITHM_VERSION } from './versions.js';
+export { EXPLOSION_ALGORITHM_VERSION } from './versions.js';
 
 /** 调用方给的计划量：值 + 单位（归一后成为根头的 P）。 */
 export interface PlannedQuantity {
@@ -146,11 +147,11 @@ export interface UnresolvedSubstituteGroup {
   candidates: { itemId: string; role: 'primary' | 'substitute'; occurrenceId: string }[];
 }
 
-/** 一条产出量（US-513：by_product 副产 / scrap_out 废料，不进需求行）。 */
+/** 一条产出量（副产、废料与联产品均不进入投入需求行）。 */
 export interface OutputLine {
   path: string[];
   itemId: string;
-  direction: 'by_product' | 'scrap_out';
+  direction: 'by_product' | 'scrap_out' | 'produce';
   /** 产出量（规范十进制串，行 UoM）。 */
   qty: string;
   uom: string;
@@ -198,7 +199,7 @@ interface ExplosionRow {
   occurrenceUom: string;
   occurrenceUomConversion: string | null;
   phantomOverride: boolean | null;
-  flowDirection: 'consume' | 'by_product' | 'scrap_out';
+  flowDirection: 'consume' | 'by_product' | 'scrap_out' | 'produce';
   substituteGroupId: string | null;
   substituteGroupCode: string | null;
   substituteStrategy: 'priority' | 'proportional' | 'manual' | null;
@@ -256,13 +257,6 @@ const readNullableBool = (row: unknown[], columns: string[], name: string): bool
 const readNullableNumber = (row: unknown[], columns: string[], name: string): number | null =>
   row[columnIndexOf(columns, name)] === null ? null : Number(row[columnIndexOf(columns, name)]);
 
-/** 路由有效期列值归一为 ISO 文本（PGlite 的 date 列返回 Date 对象，toString 不是 ISO）。 */
-export const normalizeRoutingDate = (value: unknown): string => {
-  if (value instanceof Date) return value.toISOString();
-  const text = String(value);
-  return text.length > 0 && Number.isNaN(Date.parse(text)) ? new Date(text).toISOString() : text;
-};
-
 export const fetchHeaderRows = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
@@ -312,7 +306,8 @@ export const fetchHeaderRows = async (
         occurrenceUom: readString(row, result.columns, 'occurrenceUom'),
         occurrenceUomConversion: readNullableString(row, result.columns, 'occurrenceUomConversion'),
         phantomOverride: readNullableBool(row, result.columns, 'phantomOverride'),
-        flowDirection: readString(row, result.columns, 'flowDirection') as 'consume' | 'by_product' | 'scrap_out',
+        flowDirection: readString(row, result.columns, 'flowDirection') as
+          'consume' | 'by_product' | 'scrap_out' | 'produce',
         substituteGroupId: readNullableString(row, result.columns, 'substituteGroupId'),
         substituteGroupCode: readNullableString(row, result.columns, 'substituteGroupCode'),
         substituteStrategy: readNullableString(row, result.columns, 'substituteStrategy') as
@@ -422,6 +417,12 @@ export const explodeBom = async (
 
   return adapter.transaction(async executor => {
     const query = (executor as unknown as BomQueryExecutor).query.bind(executor);
+    const childHeaders = new Map<string, ResolvedChildHeader | null>();
+    const readChildHeader = async (revisionId: string): Promise<ResolvedChildHeader | null> => {
+      if (!childHeaders.has(revisionId))
+        childHeaders.set(revisionId, await resolveChildHeader(query, dialect, context, revisionId));
+      return childHeaders.get(revisionId)!;
+    };
 
     // 1. 父修订与根头（与 resolveBom 同口径；多备选未裁决拒绝）
     const parentSql = buildParentRevisionSql(dialect, {
@@ -482,25 +483,15 @@ export const explodeBom = async (
       });
       opsByRouting.set(routingId, list);
     }
-    // 路线有效期（US-520 AC#11 / US-524 AC#7）：validFrom ≤ asOfDate < disabledAt 才有效；
-    // 投料行（带 operationSeq）所在头的路线在该评估日未覆盖时整次拒绝，不静默按无工序算
     const routingValidity = (
       await query(
         `SELECT "id" AS "id", "validFrom" AS "validFrom", "disabledAt" AS "disabledAt" FROM ${dialect.table('routing')}`
       )
     ).rows;
-    const routingUncovered = new Map<string, string>(); // routingId → 未覆盖原因文本
-    const asOfIso = context.asOfDate.toISOString();
+    const routingUncovered = new Map<string, string>();
     for (const row of routingValidity) {
-      // 列序固定（SELECT id, validFrom, disabledAt），不经 columns 反查
-      const routingId = String(row[0]);
-      const validFrom = normalizeRoutingDate(row[1]);
-      const disabledAt = row[2] === null ? null : normalizeRoutingDate(row[2]);
-      if (validFrom > asOfIso) {
-        routingUncovered.set(routingId, `生效起始 ${validFrom.slice(0, 10)} 晚于评估日`);
-      } else if (disabledAt !== null && disabledAt <= asOfIso) {
-        routingUncovered.set(routingId, `停用日 ${disabledAt.slice(0, 10)} 不晚于评估日`);
-      }
+      const reason = routingUncoveredReason({ validFrom: row[1], disabledAt: row[2] }, context.asOfDate);
+      if (reason !== null) routingUncovered.set(String(row[0]), reason);
     }
     const splitsByOccurrence = new Map<string, { operationSeq: number; ratio: string }[]>();
     const splitsResult = await query(
@@ -578,9 +569,8 @@ export const explodeBom = async (
           throw new BomQuantityError(error instanceof Error ? error.message : String(error), node.path);
         }
 
-        // 路线未覆盖（US-520 AC#11 / US-524 AC#7）：投料行所在头的路线在评估日失效即整次拒绝
         for (const row of effectiveRows) {
-          if (row.operationSeq === null) continue;
+          if (row.operationSeq === null && !splitsByOccurrence.has(row.occurrenceId)) continue;
           const headerRoutingId = rows[0]?.headerRoutingId ?? null;
           if (headerRoutingId === null) continue;
           const uncoveredReason = routingUncovered.get(headerRoutingId);
@@ -642,7 +632,7 @@ export const explodeBom = async (
                 row.occurrenceId
               ]);
             }
-            const childHeader = await resolveChildHeader(query, dialect, context, row.resolvedChildRevisionId);
+            const childHeader = await readChildHeader(row.resolvedChildRevisionId);
             if (childHeader === null) {
               throw new BomQuantityError(`虚拟件 ${row.childItemId} 在当前上下文下没有已发布 BOM 头`, [
                 ...node.path,
@@ -691,7 +681,7 @@ export const explodeBom = async (
               }
             });
             if (row.resolvedChildRevisionId !== null) {
-              const childHeader = await resolveChildHeader(query, dialect, context, row.resolvedChildRevisionId);
+              const childHeader = await readChildHeader(row.resolvedChildRevisionId);
               if (childHeader !== null) {
                 const childPlanned = convertUom(
                   decimalToCanonical(rounded),
@@ -743,7 +733,12 @@ export const explodeBom = async (
         // 反向物料流与普通 consume 行
         for (const row of effectiveRows) {
           if (row.flowDirection !== 'consume') {
-            const outputQuantity = computeOutputQuantity(row.qty, row.isFixedQty, plannedPrime, row.headerBaseQty);
+            const outputQuantity = computeOutputQuantity(
+              row.qty,
+              row.isFixedQty,
+              row.flowDirection === 'produce' ? node.plannedQty : plannedPrime,
+              row.headerBaseQty
+            );
             outputs.push({
               path: [...node.path, row.occurrenceId],
               itemId: row.childItemId,

@@ -20,7 +20,10 @@ import type { BomLocalAdapter } from './bom-adapter.js';
 import { bomSqlDialectFor } from './bom-sql.js';
 import {
   BomExportRejectedError,
+  COPRODUCT_EXPORT_CONTRACT_VERSION,
+  EXPORT_CONTRACT_VERSION,
   EXPORT_TABLE_COLUMNS,
+  exportColumnsFor,
   isDecimalString,
   serializeExportRows,
   validateExportReady,
@@ -270,14 +273,36 @@ export const exportBom = async (
       designator: snapshot.designator.filter(row => occurrenceIds.has(String(row['occurrenceId']))),
       operation_split: snapshot.operation_split.filter(row => occurrenceIds.has(String(row['occurrenceId'])))
     };
-    const batches: ExportRowBatch[] = IMPORT_KINDS.map(kind => ({
-      table: kind as ExportTable,
-      values: selected[kind]
+    const joint =
+      headers.some(row => row['jointCostShare'] != null) || occurrences.some(row => row['flowDirection'] === 'produce');
+    const version = joint ? COPRODUCT_EXPORT_CONTRACT_VERSION : EXPORT_CONTRACT_VERSION;
+    const dependencyRevisionIds = new Set(
+      occurrences.filter(row => row['flowDirection'] === 'produce').map(row => String(row['childRevisionId']))
+    );
+    const dependencyRevisions = selected.revision.filter(row => dependencyRevisionIds.has(String(row['id'])));
+    const dependencyItemIds = new Set(dependencyRevisions.map(row => String(row['itemId'])));
+    const dependencyItems = selected.item.filter(row => dependencyItemIds.has(String(row['id'])));
+    selected.revision = selected.revision.filter(row => !dependencyRevisionIds.has(String(row['id'])));
+    selected.item = selected.item.filter(row => !dependencyItemIds.has(String(row['id'])));
+    const serializeRows = (kind: ImportKind, values: Row[], columns: readonly string[]) =>
+      values
         .map(row => ({ row, key: naturalKeyFor(kind, row) }))
         .sort((left, right) => textOrder(left.key, right.key))
-        .map(({ row }) => EXPORT_TABLE_COLUMNS[kind].map(column => canonicalCell(column, row[column])))
+        .map(({ row }) => columns.map(column => canonicalCell(column, row[column])));
+    const batches: ExportRowBatch[] = IMPORT_KINDS.map(kind => ({
+      table: kind as ExportTable,
+      values: serializeRows(kind, selected[kind], exportColumnsFor(version, kind))
     }));
     const payload = serializeExportRows(batches, {
+      version,
+      ...(joint ?
+        {
+          dependencies: {
+            items: serializeRows('item', dependencyItems, EXPORT_TABLE_COLUMNS.item),
+            revisions: serializeRows('revision', dependencyRevisions, EXPORT_TABLE_COLUMNS.revision)
+          }
+        }
+      : {}),
       orgId: context.orgId,
       exportedAt: context.asOfDate.toISOString(),
       manifest: { ...explosion.manifest, resolution: resolved.manifest }
@@ -288,11 +313,18 @@ export const exportBom = async (
     return payload;
   });
 
-const recordsFromPayload = (payload: unknown): unknown[] => {
-  if (Array.isArray(payload)) return payload;
+const recordsFromPayload = (payload: unknown): { rows: unknown[]; dependencies?: unknown[] } => {
+  if (Array.isArray(payload)) {
+    if (payload.some(row => row !== null && typeof row === 'object' && (row as Row)['flowDirection'] === 'produce'))
+      throw new BomImportContractError('version', 'produce必须使用v2显式已发布依赖');
+    return { rows: payload };
+  }
   if (payload === null || typeof payload !== 'object')
     throw new BomImportContractError('payload', '必须是记录数组或 BOM 导出体');
   const source = payload as Row;
+  const version = source['version'];
+  if (version !== EXPORT_CONTRACT_VERSION && version !== COPRODUCT_EXPORT_CONTRACT_VERSION)
+    throw new BomImportContractError('version', `未知BOM导出版本 ${String(version)}`);
   const buckets: Record<ImportKind, string> = {
     item: 'items',
     revision: 'revisions',
@@ -303,17 +335,35 @@ const recordsFromPayload = (payload: unknown): unknown[] => {
     designator: 'designators',
     operation_split: 'operationSplits'
   };
-  return IMPORT_KINDS.flatMap(kind => {
-    const rows = source[buckets[kind]];
+  const decode = (kind: ImportKind, rows: unknown, rowVersion: string): Row[] => {
+    const columns = exportColumnsFor(rowVersion, kind);
     if (!Array.isArray(rows)) throw new BomImportContractError(buckets[kind], '必须是行数组');
     return rows.map(row => {
-      if (!Array.isArray(row) || row.length !== EXPORT_TABLE_COLUMNS[kind].length)
+      if (!Array.isArray(row) || row.length !== columns.length)
         throw new BomImportContractError(buckets[kind], '行宽与导出契约不符');
-      const data = Object.fromEntries(EXPORT_TABLE_COLUMNS[kind].map((column, offset) => [column, row[offset]]));
+      const data = Object.fromEntries(columns.map((column, offset) => [column, row[offset]]));
+      if (version === EXPORT_CONTRACT_VERSION && data['flowDirection'] === 'produce')
+        throw new BomImportContractError('version', 'v1不能承载produce，必须使用v2保存联产份额');
       if ('historyBatchNo' in data) data['historyBatchNo'] = null;
       return { kind, source_ref: naturalKeyFor(kind, data), ...data };
     });
+  };
+  const rows = IMPORT_KINDS.flatMap(kind => {
+    const rows = source[buckets[kind]];
+    return decode(kind, rows, version);
   });
+  if (version === EXPORT_CONTRACT_VERSION) return { rows };
+  const dependencies = source['dependencies'];
+  if (dependencies === null || typeof dependencies !== 'object' || Array.isArray(dependencies))
+    throw new BomImportContractError('dependencies', 'v2必须声明已发布输出依赖');
+  const declared = dependencies as Row;
+  return {
+    rows,
+    dependencies: [
+      ...decode('item', declared['items'], EXPORT_CONTRACT_VERSION),
+      ...decode('revision', declared['revisions'], EXPORT_CONTRACT_VERSION)
+    ]
+  };
 };
 
 const diagnosticFor = (raw: unknown, cause: unknown): ImportDiagnostic => {
@@ -382,6 +432,53 @@ const indexSnapshot = (snapshot: Snapshot): Record<ImportKind, Map<string, Row>>
   Object.fromEntries(
     IMPORT_KINDS.map(kind => [kind, new Map(snapshot[kind].map(row => [naturalKeyFor(kind, row), row]))])
   ) as Record<ImportKind, Map<string, Row>>;
+
+const validatePublishedDependencies = (
+  declared: ReturnType<typeof parseBatch>,
+  records: readonly ImportRecord[],
+  indexes: Record<ImportKind, Map<string, Row>>
+): ImportDiagnostic[] => {
+  const diagnostics = [...declared.diagnostics];
+  const counts = new Map<string, number>();
+  for (const record of declared.records) counts.set(record.naturalKey, (counts.get(record.naturalKey) ?? 0) + 1);
+  for (const record of declared.records) {
+    try {
+      if (counts.get(record.naturalKey)! > 1)
+        throw new BomImportContractError('dependencies', 'duplicate_key：已发布输出依赖重复');
+      const stored = indexes[record.kind].get(record.naturalKey);
+      if (stored === undefined)
+        throw new BomImportContractError('dependencies', '已发布输出依赖缺失，须由调用方预先明确创建并发布');
+      const fields =
+        record.kind === 'item' ? ['stockUom', 'uomDecimals', 'uomConversion'] : ['effectiveFrom', 'defaultPhantom'];
+      if (record.kind === 'revision' && (stored['state'] !== 'released' || record.data['state'] !== 'released'))
+        throw new BomImportContractError('dependencies', '输出依赖必须是已发布修订，草稿导入不自动发布主数据');
+      for (const field of fields) {
+        if (canonicalCell(field, stored[field]) !== canonicalCell(field, record.data[field]))
+          throw new BomImportContractError(
+            'dependencies',
+            `已发布输出依赖的${record.kind === 'item' ? '单位' : '修订'}身份 ${field} 不匹配`
+          );
+      }
+    } catch (cause) {
+      diagnostics.push(diagnosticFor(record.data, cause));
+    }
+  }
+  const keys = new Set(declared.records.map(record => record.naturalKey));
+  for (const record of records.filter(row => row.kind === 'occurrence' && row.data['flowDirection'] === 'produce')) {
+    try {
+      const itemKey = naturalKeyFor('item', { itemNo: record.data['childItemNo'] });
+      const revisionKey = naturalKeyFor('revision', {
+        itemNo: record.data['childItemNo'],
+        revisionNo: record.data['childRevisionNo']
+      });
+      if (!keys.has(itemKey) || !keys.has(revisionKey))
+        throw new BomImportContractError('dependencies', 'v2 produce必须显式声明完整的已发布输出物料与修订依赖');
+    } catch (cause) {
+      diagnostics.push(diagnosticFor(record.data, cause));
+    }
+  }
+  return diagnostics;
+};
 
 const importEntityData = (record: ImportRecord, indexes: Record<ImportKind, Map<string, Row>>): Row => {
   const data = { ...record.data };
@@ -469,7 +566,9 @@ const writeImportRecord = async (
     bomSqlDialectFor(adapter.name),
     getEntityMetadata(Entity).name,
     data,
-    'create'
+    'create',
+    true,
+    adapter.rxdb
   );
   const entity = constructImportEntity(adapter, Entity, data);
   const id = (entity as unknown as Row)['id'];
@@ -535,11 +634,23 @@ const createImportExecutionState = (
 const importDraftInTransaction = async (
   adapter: BomLocalAdapter,
   executor: TransactionExecutor,
-  parsed: ReturnType<typeof parseBatch>
+  parsed: ReturnType<typeof parseBatch>,
+  dependencies?: ReturnType<typeof parseBatch>
 ): Promise<BomImportResult> => {
   if (adapter.name === 'pglite') await executor.query('SET CONSTRAINTS ALL IMMEDIATE');
   else await executor.query('PRAGMA defer_foreign_keys = OFF');
   const state = createImportExecutionState(await readSnapshot(executor), parsed);
+  if (dependencies !== undefined) {
+    const dependencyDiagnostics = validatePublishedDependencies(dependencies, parsed.records, state.indexes);
+    if (dependencyDiagnostics.length > 0)
+      throw new ImportRollback({
+        committed: false,
+        diagnostics: [...state.diagnostics, ...dependencyDiagnostics].sort(
+          (left, right) => textOrder(left.naturalKey, right.naturalKey) || textOrder(left.message, right.message)
+        ),
+        headerIds: []
+      });
+  }
   const rejected = new Set(state.diagnostics.map(row => row.naturalKey));
   const ordered = parsed.records
     .slice()
@@ -563,9 +674,11 @@ const importDraftInTransaction = async (
 
 /** 逐行 SAVEPOINT 收集全部诊断，任一失败回滚整批；成功数据仅进入草稿。 */
 export const importBomDraft = async (adapter: BomLocalAdapter, payload: unknown): Promise<BomImportResult> => {
-  const parsed = parseBatch(recordsFromPayload(payload));
+  const input = recordsFromPayload(payload);
+  const parsed = parseBatch(input.rows);
+  const dependencies = input.dependencies === undefined ? undefined : parseBatch(input.dependencies);
   try {
-    return await adapter.transaction(executor => importDraftInTransaction(adapter, executor, parsed));
+    return await adapter.transaction(executor => importDraftInTransaction(adapter, executor, parsed, dependencies));
   } catch (cause) {
     if (cause instanceof ImportRollback) return cause.result;
     throw cause;

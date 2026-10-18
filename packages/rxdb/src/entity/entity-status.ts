@@ -59,6 +59,9 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    * @private
    */
   #changed_keys = new Set<keyof InstanceType<T>>();
+  #editVersion = 0;
+  readonly #fieldEditVersions = new Map<string, number>();
+  readonly #updates = new WeakMap<object, { version: number }>();
 
   /**
    * reset/replace 各自递增的代数
@@ -329,6 +332,7 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    */
   markChanged(key: keyof InstanceType<T>) {
     this.#changed_keys.add(key);
+    this.#fieldEditVersions.set(String(key), ++this.#editVersion);
   }
 
   /**
@@ -348,6 +352,10 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
   reset() {
     const target = this.proxyTarget as Record<string, unknown>;
     const origin = this.origin as Record<string, unknown>;
+    const keys = new Set([...Object.keys(target), ...Object.keys(origin)]);
+    for (const key of keys) {
+      if (!isEqual(target[key], origin[key])) this.#fieldEditVersions.set(key, ++this.#editVersion);
+    }
     for (const key of Object.keys(target)) {
       if (!(key in origin)) delete target[key];
     }
@@ -406,27 +414,32 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    * （确实无需再写）；`_modified` 也据此重算，而不是被无条件归零。
    */
   mergeExternal(data: Partial<InstanceType<T>>) {
-    const target = this.target as Record<string, unknown>;
-    const origin = this._origin as Record<string, unknown>;
-    const protectedKeys = new Set(Object.keys(this.patch));
+    this.#mergeExternal(data, new Set(Object.keys(this.patch)));
+  }
 
-    for (const key of Object.keys(data) as (keyof InstanceType<T>)[]) {
-      const incoming = (data as Record<string, unknown>)[key as string];
-      // 基线一律前移
-      origin[key as string] = structuredClone(incoming);
-      // 当前 patch 没有真实差异的键才同步可见值；仍有本地编辑的保留本地值
-      if (!protectedKeys.has(key as string)) {
-        target[key as string] = incoming;
+  /**
+   * 捕获一次更新的编辑起点，供仓储验证与适配器写回共享。
+   * @param patch - 同一轮更新沿仓储链传递的补丁对象
+   * @returns 成功回填与结束句柄；结束后可用同一补丁重新尝试
+   */
+  prepareUpdate(patch: Partial<InstanceType<T>>): {
+    apply: (data: Partial<InstanceType<T>>) => void;
+    release: () => void;
+  } {
+    const snapshot = this.#updates.get(patch) ?? { version: this.#editVersion };
+    this.#updates.set(patch, snapshot);
+    return {
+      apply: data => {
+        const protectedKeys = new Set(Object.keys(this.patch));
+        for (const [key, version] of this.#fieldEditVersions) {
+          if (version > snapshot.version) protectedKeys.add(key);
+        }
+        this.#mergeExternal(data, protectedKeys);
+      },
+      release: () => {
+        if (this.#updates.get(patch) === snapshot) this.#updates.delete(patch);
       }
-    }
-
-    // 不推进内容修订号：适配器写回 computed 列时会先经 proxy 把实体标脏，随后正是走这条分支
-    // （`status.modified ? mergeExternal(row) : replace(row)`），在这里推进同样会自激
-    this.#clear_cache(false);
-    // 同 {@link replace}：只回灌外键，不清未保存的关系编辑
-    this.#relations.syncObservableForeignKeys();
-    // 按新基线重算是否仍有未保存改动，而不是无条件归零
-    this._modified = Object.keys(this.patch).length > 0;
+    };
   }
 
   /**
@@ -603,6 +616,30 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    */
   markContentChanged(): void {
     this.#clear_cache(true);
+  }
+
+  #mergeExternal(data: Partial<InstanceType<T>>, protectedKeys: ReadonlySet<string>) {
+    const target = this.target as Record<string, unknown>;
+    const origin = this._origin as Record<string, unknown>;
+
+    for (const key of Object.keys(data) as (keyof InstanceType<T>)[]) {
+      const incoming = (data as Record<string, unknown>)[key as string];
+      // 基线一律前移
+      origin[key as string] = structuredClone(incoming);
+      if (protectedKeys.has(key as string)) this.#changed_keys.add(key);
+      // 当前 patch 没有真实差异的键才同步可见值；仍有本地编辑的保留本地值
+      if (!protectedKeys.has(key as string)) {
+        target[key as string] = incoming;
+      }
+    }
+
+    // 不推进内容修订号：适配器写回 computed 列时会先经 proxy 把实体标脏，随后正是走这条分支
+    // （`status.modified ? mergeExternal(row) : replace(row)`），在这里推进同样会自激
+    this.#clear_cache(false);
+    // 同 {@link replace}：只回灌外键，不清未保存的关系编辑
+    this.#relations.syncObservableForeignKeys();
+    // 按新基线重算是否仍有未保存改动，而不是无条件归零
+    this._modified = Object.keys(this.patch).length > 0;
   }
 
   /**

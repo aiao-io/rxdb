@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { BomDemoService } from '../bom-demo.service';
 import { ReqTree } from './req-tree';
 
-/** 演示颜色必选特征、条件选行与互斥冲突。 */
+/** 按颜色选择查看物料选用结果，同时保留冲突与缺少配置的验证入口。 */
 @Component({
   selector: 'bom-config-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -12,31 +12,48 @@ import { ReqTree } from './req-tree';
   template: `
     <section class="panel" [attr.aria-busy]="busy()">
       <div class="panel-head">
-        <h2>配置选择</h2>
-        <p class="panel-desc">CONFIG-DEMO 的颜色为必选特征。红色选中 CONFIG-PART，蓝色不选中；红与蓝互斥。</p>
+        <h2>产品配置</h2>
+        <p class="panel-desc">为 CONFIG-DEMO 选择颜色。红色使用 CONFIG-PART，蓝色不使用；必须选择一种颜色。</p>
       </div>
-      <div class="toolbar">
-        <label><input [(ngModel)]="red" data-testid="config-red" type="checkbox" />红</label>
-        <label><input [(ngModel)]="blue" data-testid="config-blue" type="checkbox" />蓝</label>
+      <div class="toolbar" aria-label="产品颜色" role="group">
+        <label><input [(ngModel)]="red" [disabled]="busy()" data-testid="config-red" type="checkbox" />红色</label>
+        <label><input [(ngModel)]="blue" [disabled]="busy()" data-testid="config-blue" type="checkbox" />蓝色</label>
         <button class="btn btn-primary" [disabled]="busy() || !ready()" (click)="run()" data-testid="config-explode">
-          {{ busy() ? '解析中…' : '按配置展开' }}
+          {{ busy() ? '正在应用配置…' : '按配置展开' }}
         </button>
       </div>
+      <p class="hint result-title">可以尝试同时选择或全部取消，查看配置规则如何保护结果。</p>
       @if (error()) {
-        <p class="error-box" data-testid="config-error" role="alert">{{ error() }}</p>
+        <div class="error-box" data-testid="config-error" role="alert">
+          <p>配置无法应用，请检查颜色选项。</p>
+          <details>
+            <summary>查看具体原因</summary>
+            <pre>{{ error() }}</pre>
+          </details>
+        </div>
       }
-      <div data-testid="config-tree">
-        @if (result(); as result) {
-          <bom-req-tree [designators]="designators()" [itemNos]="itemNos()" [result]="result" />
-          @if (result.requirementLines.length === 0) {
+      <div class="result-title" data-testid="config-tree">
+        @if (busy()) {
+          <p class="hint" role="status">正在按所选颜色展开物料…</p>
+        } @else if (result(); as current) {
+          <bom-req-tree [designators]="designators()" [itemNos]="itemNos()" [result]="current" />
+          @if (current.requirementLines.length === 0) {
             <div class="empty-state" data-testid="config-empty">当前配置没有选中的物料行。</div>
           }
-        } @else if (!error() && !busy()) {
-          <div class="empty-state">选择颜色后点击「按配置展开」。</div>
+        } @else if (!error()) {
+          <div class="empty-state">选择颜色后点击「按配置展开」，查看配置对应的物料。</div>
         }
       </div>
     </section>
-  `
+  `,
+  styles: [
+    `
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+    `
+  ]
 })
 export class ConfigPanel {
   private readonly service = inject(BomDemoService);
@@ -58,8 +75,9 @@ export class ConfigPanel {
     });
   }
 
-  /** 每次解析先清空旧结构，失败时只呈现本次错误。 */
+  /** 每次按明确的配置重新计算，失败时清除上次结果。 */
   async run(): Promise<void> {
+    if (this.busy() || !this.ready()) return;
     this.busy.set(true);
     this.result.set(null);
     this.error.set('');

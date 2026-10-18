@@ -1,0 +1,108 @@
+{
+  "limitations": [
+    "PG GIN 原始计划选择 Seq Scan，后续补正常 pending list 清理。",
+    "WA 查询原默认带日志事务，p95 超过 16ms；预算保持不变。"
+  ],
+  "observations": [
+    {
+      "kind": "BOM_HOT_EXPLAIN",
+      "result": {
+        "backend": "wa-sqlite",
+        "rows": 10000,
+        "matches": 50,
+        "query": {
+          "sql": "SELECT \"id\", \"createdAt\", \"updatedAt\", \"createdBy\", \"updatedBy\", \"itemNo\", \"description\", \"serialized\", \"stockUom\", \"uomDecimals\", \"uomConversion\", \"unitPrice\", \"priceUom\", \"priceCurrency\", \"creditPrice\", \"ext\" FROM \"bom$item\" WHERE (\"gc_hot_rohs_status_1ff6080e\" = 'rare') ORDER BY \"id\"",
+          "params": []
+        },
+        "plan": {
+          "rowsAffected": 0,
+          "rows": [
+            [
+              4,
+              0,
+              145,
+              "SEARCH bom$item USING INDEX sx_item_lookup_rohs_status_e2cb3423 (gc_hot_rohs_status_1ff6080e=?)"
+            ],
+            [28, 0, 0, "USE TEMP B-TREE FOR ORDER BY"]
+          ],
+          "columns": ["id", "parent", "notused", "detail"]
+        }
+      }
+    },
+    {
+      "kind": "BOM_HOT_PERFORMANCE",
+      "result": {
+        "backend": "wa-sqlite",
+        "metric": "filterByAttr",
+        "rows": 10000,
+        "warmup": 5,
+        "samples": [
+          36.280000030994415, 37.605000019073486, 35.375, 33.70999997854233, 32.314999997615814, 31.25499999523163,
+          31.22000002861023, 31.014999985694885, 30.764999985694885, 31.14000004529953, 30.774999976158142,
+          31.399999976158142, 32.2600000500679, 32.27999997138977, 34.27000004053116, 31.87000000476837,
+          33.13499999046326, 33.389999985694885, 31.910000026226044, 31.639999985694885
+        ],
+        "p50": 31.910000026226044,
+        "p95": 36.280000030994415,
+        "max": 37.605000019073486,
+        "budgetMs": 16
+      }
+    },
+    {
+      "kind": "BOM_HOT_EXPLAIN",
+      "result": {
+        "backend": "pglite",
+        "rows": 10000,
+        "matches": 50,
+        "query": {
+          "sql": "SELECT \"id\", \"createdAt\", \"updatedAt\", \"createdBy\", \"updatedBy\", \"itemNo\", \"description\", \"serialized\", \"stockUom\", \"uomDecimals\", \"uomConversion\", \"unitPrice\", \"priceUom\", \"priceCurrency\", \"creditPrice\", \"ext\" FROM \"bom\".\"item\" WHERE (\"gc_hot_rohs_status_079b497c\" = 'rare') ORDER BY \"id\"",
+          "params": []
+        },
+        "plan": {
+          "rowsAffected": 0,
+          "rows": [
+            [
+              [
+                {
+                  "Plan": {
+                    "Node Type": "Sort",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 20.69,
+                    "Total Cost": 20.81,
+                    "Plan Rows": 50,
+                    "Plan Width": 351,
+                    "Disabled": false,
+                    "Sort Key": ["id"],
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Forward",
+                        "Index Name": "sx_item_lookup_rohs_status_b45bce94",
+                        "Relation Name": "item",
+                        "Alias": "item",
+                        "Startup Cost": 0.29,
+                        "Total Cost": 19.28,
+                        "Plan Rows": 50,
+                        "Plan Width": 351,
+                        "Disabled": false,
+                        "Index Cond": "(gc_hot_rohs_status_079b497c = 'rare'::text)"
+                      }
+                    ]
+                  }
+                }
+              ]
+            ]
+          ],
+          "columns": ["QUERY PLAN"]
+        }
+      }
+    }
+  ],
+  "plannerOverrides": false,
+  "sourceLog": "/private/tmp/bom-hot-replay-save-green.log",
+  "status": "baseline-before-read-only-transaction-fix"
+}

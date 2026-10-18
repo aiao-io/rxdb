@@ -6,6 +6,24 @@
   "sourceRoot": "benchmarks/src",
   "tags": ["react-app"],
   "targets": {
+    "benchmark-bom-reach-prototype": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [{ "projects": ["rxdb-plugin-bom", "rxdb-adapter-pglite"], "target": "build" }],
+      "options": {
+        "cwd": "benchmarks",
+        "command": "node --expose-gc --experimental-strip-types bom-reach.bench.ts --reach-prototype"
+      }
+    },
+    "benchmark-bom-reach": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [{ "projects": ["rxdb-plugin-bom", "rxdb-adapter-pglite"], "target": "build" }],
+      "options": {
+        "cwd": "benchmarks",
+        "command": "node --expose-gc --experimental-strip-types bom-reach.bench.ts"
+      }
+    },
     "benchmark-bom": {
       "executor": "nx:run-commands",
       "cache": false,

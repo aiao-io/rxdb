@@ -428,6 +428,69 @@ describe('EntityStatus', () => {
     });
   });
 
+  describe('更新回填', () => {
+    it.each(['赋值撤回', 'reset撤回'])('%s在保存结果到达后仍可再次提交', mode => {
+      const entity = rxdb.entityManager.instantiate(TestEntity, { title: 'before' });
+      const status = getEntityStatus(entity);
+      status.replace({ title: 'before' });
+      entity.title = 'submitted';
+      const pending = status.prepareUpdate({ title: 'submitted' });
+      if (mode === '赋值撤回') entity.title = 'before';
+      else entity.reset();
+      pending.apply({ title: 'submitted' });
+      pending.release();
+      expect(entity.title).toBe('before');
+      expect(status.origin.title).toBe('submitted');
+      expect(status.patch).toEqual({ title: 'before' });
+      expect(status.modified).toBe(true);
+    });
+
+    it('直接补丁不要求先改实体，失败结束后同一补丁可用新起点重试', () => {
+      const entity = rxdb.entityManager.instantiate(TestEntity, { title: 'before' });
+      const status = getEntityStatus(entity);
+      status.replace({ title: 'before' });
+      const patch = { title: 'submitted' };
+      const failed = status.prepareUpdate(patch);
+      failed.release();
+      entity.title = 'before-retry';
+      status.replace({ title: 'retry-baseline' });
+      const retry = status.prepareUpdate(patch);
+      failed.release();
+      retry.apply({ title: 'submitted' });
+      retry.release();
+      expect(entity.title).toBe('submitted');
+      expect(status.patch).toEqual({});
+      expect(status.modified).toBe(false);
+    });
+
+    it('直接补丁写入期间编辑后回到调用值，不被当作从未编辑', () => {
+      const entity = rxdb.entityManager.instantiate(TestEntity, { title: 'before' });
+      const status = getEntityStatus(entity);
+      status.replace({ title: 'before' });
+      const pending = status.prepareUpdate({ title: 'submitted' });
+      entity.title = 'typing';
+      entity.title = 'before';
+      pending.apply({ title: 'submitted' });
+      pending.release();
+      expect(entity.title).toBe('before');
+      expect(status.origin.title).toBe('submitted');
+      expect(status.patch).toEqual({ title: 'before' });
+    });
+
+    it('普通查询回填仍按真实patch合并，不获得更新的撤回保护', () => {
+      const entity = rxdb.entityManager.instantiate(TestEntity, { title: 'before' });
+      const status = getEntityStatus(entity);
+      status.replace({ title: 'before' });
+      const pending = status.prepareUpdate({ title: 'submitted' });
+      entity.title = 'typing';
+      entity.title = 'before';
+      status.applyExternal({ title: 'external' });
+      pending.release();
+      expect(entity.title).toBe('external');
+      expect(status.patch).toEqual({});
+    });
+  });
+
   describe('inversePatch property', () => {
     it('should return inverse of current patch', () => {
       const entityId = uuid();

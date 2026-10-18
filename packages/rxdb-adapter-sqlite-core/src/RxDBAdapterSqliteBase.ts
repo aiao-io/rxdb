@@ -16,6 +16,7 @@ import {
   gateRawWrite,
   getEntityMetadata,
   getEntityMutations,
+  getEntityStorageMetadata,
   getRxDBSystemVersionState,
   hasRxDBBackupWebLocks,
   isCurrentRxDBSystemVersion,
@@ -653,7 +654,11 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   override async checkEntityConstraints(EntityTypes: EntityType[]): Promise<void> {
     // 必须走 bootstrapTransaction：connect() 引导期内 ready() 等的是当前 connect
     // promise，直接 query() 会等自己、永久挂起（与 rawQuery 引导窗分支同口径）。
-    await this.bootstrapTransaction(executor => check_entity_constraints_sqlite(executor, EntityTypes), false);
+    await this.bootstrapTransaction(
+      executor =>
+        check_entity_constraints_sqlite(executor, EntityTypes, entity => getEntityStorageMetadata(this.rxdb, entity)),
+      false
+    );
   }
 
   public async disconnect() {
@@ -1563,7 +1568,9 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    */
   async #assert_sqlite_host_version(client: SqliteClientLike): Promise<void> {
     if (this.#sqlite_host_version_checked) return;
-    const declaring = this.rxdb.config.entities.some(entity => declaresStorageConstraints(getEntityMetadata(entity)));
+    const declaring = this.rxdb.config.entities.some(entity =>
+      declaresStorageConstraints(getEntityStorageMetadata(this.rxdb, entity))
+    );
     if (!declaring) return;
     const result = await client.execute('SELECT sqlite_version() AS version');
     const version = String(result.results[0]?.rows[0]?.[0] ?? '');

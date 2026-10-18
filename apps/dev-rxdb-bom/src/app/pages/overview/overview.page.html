@@ -1,57 +1,160 @@
 <div class="page">
   <section class="page-hero">
     <div>
-      <h2>物料概览</h2>
-      <p class="panel-desc">
-        查看 SC-100 电动滑板车的物料清单与种子状态，维护物料扩展属性。通过左侧导航展开结构、查看变更、映射、成本与反查。
+      <p class="page-eyebrow">BOM 演示中心 · SC-100 电动滑板车</p>
+      <h1>物料概览</h1>
+      <p class="panel-desc">从一份整机数据出发，查看物料需求、工程变更、成本和实际安装结构。</p>
+    </div>
+  </section>
+
+  <section class="panel" [attr.aria-busy]="busy()">
+    <div class="panel-head">
+      <h2>当前数据</h2>
+      <p class="panel-desc" data-testid="overview-data-status" role="status">
+        @if (busy()) {
+          正在准备演示数据，请稍候…
+        } @else if (ready() && itemCount() > 0) {
+          已有 {{ itemCount() }} 项物料，数据可用。选择一个场景即可开始。
+        } @else if (itemCount() > 0) {
+          已发现 {{ itemCount() }} 项物料，正在等待数据就绪。
+        } @else {
+          等待准备演示数据。准备完成后，即可体验下方六个业务场景。
+        }
       </p>
     </div>
+    <div class="summary-grid">
+      <div class="metric-card">
+        <span class="metric-label">物料</span>
+        <strong class="metric-value" data-testid="overview-item-count">{{ itemCount() }}</strong>
+        <span class="metric-note">当前已有物料</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">工程变更单</span>
+        <strong class="metric-value">{{ changeCount() }}</strong>
+        <span class="metric-note">用于查看结构随日期变化</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">整机实例</span>
+        <strong class="metric-value">{{ instanceCount() }}</strong>
+        <span class="metric-note">用于追溯安装与换件</span>
+      </div>
+    </div>
+    <div class="toolbar result-title">
+      @if (ready() && itemCount() > 0) {
+        <a class="btn btn-primary" data-testid="overview-start" routerLink="/explosion">查看整机展开</a>
+      }
+      <button
+        class="btn"
+        [class.btn-danger]="itemCount() > 0"
+        [class.btn-primary]="itemCount() === 0"
+        [disabled]="busy()"
+        (click)="resetAndSeed()"
+        data-testid="prepare-data"
+      >
+        {{
+          busy() ? '正在准备…'
+          : itemCount() > 0 ? '重新准备演示数据'
+          : '准备演示数据'
+        }}
+      </button>
+      <p class="hint">重新准备会清空当前演示数据，执行前需要确认。</p>
+    </div>
+    @if (notice()) {
+      <p class="status-success" role="status">{{ notice() }}</p>
+    }
+    @if (resetError()) {
+      <div class="error-box" role="alert">
+        <p>准备数据失败，请查看原因后重试。</p>
+        <details>
+          <summary>查看原因</summary>
+          <pre>{{ resetError() }}</pre>
+        </details>
+      </div>
+    }
+    @if (statisticsError()) {
+      <div class="error-box" role="alert">
+        <p>数据已存在，但暂时无法读取完整概览。</p>
+        <button class="btn" [disabled]="statisticsLoading()" (click)="refreshStatistics()">重新读取概览</button>
+        <details>
+          <summary>查看原因</summary>
+          <pre>{{ statisticsError() }}</pre>
+        </details>
+      </div>
+    }
   </section>
 
-  <section class="panel">
+  <section aria-labelledby="scenario-title">
     <div class="panel-head">
-      <h2>种子与行数（AC#1）</h2>
-      <p class="panel-desc">两遍 seed 的可见面逐字相同；重置会删除 IndexedDB 库并重新装载全部阶段数据。</p>
+      <h2 id="scenario-title">选择业务场景</h2>
+      <p class="panel-desc">每个场景只完成一件事，可以独立查看，也可以沿着整机数据继续探索。</p>
     </div>
-    <div class="toolbar">
-      <button class="btn btn-primary" [disabled]="busy()" (click)="resetAndSeed()">
-        {{ busy() ? '处理中…' : '重置并装载种子' }}
-      </button>
-      <span class="seed-meta" data-testid="seed-info">批次 {{ seedBatchNo }} · 基准 {{ seedTimestamp }}</span>
+    <div class="scenario-grid">
+      @for (scenario of scenarios; track scenario.path) {
+        <a class="scenario-card" [routerLink]="scenario.path" data-testid="workflow-card">
+          <span class="scenario-number">0{{ $index + 1 }}</span>
+          <h3>{{ scenario.title }}</h3>
+          <p>{{ scenario.description }}</p>
+        </a>
+      }
     </div>
-    <div class="row-counts" data-testid="row-counts">
-      @if (rowCounts()) {
+  </section>
+
+  <section class="panel" data-testid="item-inventory">
+    <div class="panel-head">
+      <h2 data-testid="item-inventory-toggle">物料清单（{{ inventory().length }} 项）</h2>
+      <p class="panel-desc">按物料编码查找，展开结构时可以选择这些物料。</p>
+    </div>
+    @if (inventory().length > 0) {
+      <div class="toolbar inventory-toolbar">
+        <label>
+          筛选物料
+          <input [(ngModel)]="filter" data-testid="item-filter" placeholder="输入物料编码，例如 SC-100" type="search" />
+        </label>
+        <span class="hint" role="status">显示 {{ filteredInventory().length }} / {{ inventory().length }} 项</span>
+      </div>
+      <div class="table-scroll inventory-scroll">
+        <table class="data-table" aria-label="已装载物料清单">
+          <thead>
+            <tr>
+              <th class="item-index" scope="col">序号</th>
+              <th scope="col">物料编码</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (itemNo of filteredInventory(); track itemNo) {
+              <tr data-testid="item-inventory-row">
+                <td class="item-index">{{ $index + 1 }}</td>
+                <td>{{ itemNo }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="2"><div class="empty-state">没有匹配的物料，请换一个编码查找。</div></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="empty-state">准备演示数据后，这里会显示物料清单。</div>
+    }
+  </section>
+
+  <details class="details-panel">
+    <summary>维护物料扩展属性</summary>
+    <bom-ext-panel />
+  </details>
+
+  <details class="details-panel">
+    <summary>数据版本与记录统计</summary>
+    <p class="hint" data-testid="seed-info">批次 {{ seedBatchNo }} · 基准 {{ seedTimestamp }}</p>
+    <div data-testid="row-counts">
+      @if (statisticsLoading()) {
+        <p class="hint" role="status">正在读取记录统计…</p>
+      } @else if (rowCounts()) {
         <pre>{{ rowCounts() }}</pre>
       } @else {
-        <div class="empty-state">尚未装载种子：点击「重置并装载种子」。</div>
+        <p class="hint">数据准备完成后可查看记录统计。</p>
       }
     </div>
-    <details class="inventory" data-testid="item-inventory">
-      <summary data-testid="item-inventory-toggle">物料清单（{{ inventory().length }} 项）</summary>
-      @if (inventory().length > 0) {
-        <div class="inventory-scroll">
-          <table aria-label="已装载物料清单">
-            <thead>
-              <tr>
-                <th class="item-index" scope="col">序号</th>
-                <th scope="col">物料编码</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (itemNo of inventory(); track itemNo) {
-                <tr data-testid="item-inventory-row">
-                  <td class="item-index">{{ $index + 1 }}</td>
-                  <td>{{ itemNo }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      } @else {
-        <div class="empty-state">暂无物料，请先装载种子。</div>
-      }
-    </details>
-  </section>
-
-  <bom-ext-panel />
+  </details>
 </div>

@@ -127,11 +127,7 @@ AC#4 的「装机区间可查」意味着实例节点需要 `installed_at` / `re
 
 ## 第 9 步关闭记录
 
-2026-10-16～17：AC#1～13 完成领域与消费方联合验收。实例事实固定实际修订，支持显式时点、全历史与序列/批次追溯；安装区间、单父、无环及序列必填由写入期约束保护。草稿来源直接删除、未生效 ECN 取消与草稿 ECN 撤回均验证引用保护及整次回滚。
-
-插件 38 个测试文件、599 条用例分段通过（597 条常规与 2 条规模），包含 SQLite/PGlite 各 1000 台、10 万实例节点的主数据隔离回归，以及阶段 F 种子真实执行前后三个时点的整机展开与卷算结果不变。演示 23 条 e2e 全部通过：41 个物料、43 个发生项与 5 条初始安装事实覆盖 SN-001/SN-002、换件历史、固定实际修订、追溯与来源删除拒绝。
-
-运行方式、实际命令与分段验证证据见 [第 9 步 quickstart](../../../specs/019-bom-slice-9/quickstart.md)，公共契约见 [实例 API](../../../specs/019-bom-slice-9/contracts/instance-api.md)。BOM、Electron 与分支级 affected 剩余目标均已分段完成；首轮 Vue 失败、确定性修复及后续补齐结果完整保留。US-522 三框架绑定继续独立排期；本轮不扩展维修工单、换件事务、实际数量/单位或跨安装的稳定实物身份。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-523)。
 
 ## References
 
@@ -143,3 +139,7 @@ AC#4 的「装机区间可查」意味着实例节点需要 `installed_at` / `re
 - [US-509 DAG 约束与环路检测](US-509-bom-dag-cycle-detection.md) — 实例图无环（AC#9）的插件触发器先例（自父 = 路径长度 0）
 - [US-515 变更管理](US-515-bom-change-management.md) — 前置（AC#7 的 ECN 路径）；撤回 / 取消级联与不可取消条件，AC#7 在其取消校验上追加「被实例引用」
 - [US-518 序列与批次有效性](US-518-bom-unit-lot-effectivity.md) — 序列号维度
+
+## 验收依据
+
+当前验收结论见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，阶段记录见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-523)。

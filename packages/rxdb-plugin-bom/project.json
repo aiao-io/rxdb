@@ -3,8 +3,25 @@
   "name": "rxdb-plugin-bom",
   "tags": ["js-lib"],
   "targets": {
+    "test-reach": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["^build"],
+      "options": {
+        "cwd": "packages/rxdb-plugin-bom",
+        "command": "vitest run --config vitest.reach.config.mts"
+      }
+    },
     "typecheck": {
       "dependsOn": ["build", "^typecheck"]
+    },
+    "test-pg": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "packages/rxdb-plugin-bom",
+        "command": "vitest run --config vitest.pg.config.mts"
+      }
     }
   }
 }

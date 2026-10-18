@@ -1,11 +1,11 @@
 ---
 id: US-524
 title: 工艺路线本体：工序、工作中心、工时与费率
-status: In Progress
+status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-16
+updated: 2026-10-18
 tags: [domain, bom, routing, cost]
 ---
 
@@ -58,7 +58,7 @@ AC 的阶段归属：A 关闭 AC#1 / #2 / #7 / #8 / #10 / #11；B 关闭 AC#3 / 
 | 4   | 某工作中心在卷算日期无生效费率                                          | 卷算                                                                                   | 明确报缺失项，**不以 0 兜底**                                                                               | ✅   |
 | 5   | 工序 `setup_time = 2 h`、`fixed_time = 3 h`、`run_time = 0`，费率 1 / h | 批量 ×10 卷算加工项（US-514）                                                          | 加工项恒为 5，不随批量放大                                                                                  | ✅   |
 | 6   | 工序 20 声明 3% 损耗                                                    | 读工序                                                                                 | 损耗与 `scrap_convention` 可读，记法与 US-511 一致                                                          |      | ✅  |
-| 7   | 路线 `disabled_at = 2026-12-01`（路线级停用字段，阶段 A）               | 按停用前、后两个日期解析；再对已挂接该路线的 BOM 行展开（US-520）                      | 停用前该路线可解析；停用后不入结果，已挂接的 BOM 行报未覆盖（由 US-520 展开报出，其 AC#11）而非静默算无工序 |      |     | ⬜  |
+| 7   | 路线 `disabled_at = 2026-12-01`（路线级停用字段，阶段 A）               | 按停用前、后两个日期解析；再对已挂接该路线的 BOM 行展开（US-520）                      | 停用前该路线可解析；停用后不入结果，已挂接的 BOM 行报未覆盖（由 US-520 展开报出，其 AC#11）而非静默算无工序 |      |     | ✅  |
 | 8   | BOM 头 `routing_id` 指向本仓不存在的路线                                | 保存头                                                                                 | 拒绝；不接受「外部路线 ID」                                                                                 |      | ✅  |
 | 9   | 工序 10 加成制 2%、工序 20 良率制 3%                                    | 读工序并交给 US-511 第 5 步                                                            | 两道工序各按自己的 convention 计算，不被统一成一种                                                          |      | ✅  |
 | 10  | 头 `routing_id` 为 NULL                                                 | 卷算（US-514）                                                                         | 加工项为空且明细注明「无路线」；不是缺费率错误，也不是静默 0                                                |      | ✅  |
@@ -116,16 +116,11 @@ D 是 [US-511](US-511-bom-quantity-semantics.md) 阶段 B2 的前置。驱动场
 
 ## 实现文件
 
-- `packages/rxdb-plugin-bom/` — 待建；路线、工作中心与费率实体
+- `packages/rxdb-plugin-bom/` — 路线、工作中心与费率实体
 
 ## 首轮切片第 5 步关闭记录
 
-阶段 A（除 AC#7 的展开面）与阶段 D 已交付（`packages/rxdb-plugin-bom`，双后端同断言）：
-AC#1/#2/#6/#8/#9/#10/#11 全关。`work_center` / `routing`（唯一键与 BOM 头对齐）/
-`routing_operation`（(routingId, operationSeq) 唯一、工作中心引用完整性、工序损耗与各自
-`scrap_convention` 同 US-511 记法）；头挂 `routing_id`（FK，指向不存在路线保存拒绝）。
-AC#7 的「停用后不入结果」展开面随 US-520 AC#11 同批（阶段 C 的工时模型之前）；AC#3/#4/#5
-随阶段 B/C。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-524)。
 
 ## References
 
@@ -136,3 +131,11 @@ AC#7 的「停用后不入结果」展开面随 US-520 AC#11 同批（阶段 C �
 - [US-514 成本卷算](US-514-bom-cost-rollup.md) — 消费三类工时、`time_uom`、费率与 `rate_uom`（其 AC#18 / #19）
 - [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — 工序损耗记法的共用来源
 - [US-030 实体元数据层的声明式存储约束](../core/US-030-declarative-storage-constraints.md) — AC#3 的区间排他落点（阶段 C）
+
+## 最终验收
+
+最终完整affected351任务EXIT0、三端共享51/51、demo24/24、Tauri额外门禁及8包严格覆盖率全部通过，本故事全部功能AC与最终门禁已关闭，status为Done。证据及失败/修复历史见[最终验收](../../../specs/021-bom-closure/closure-map.md)。
+
+## 验收依据
+
+当前验收结论见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，阶段记录见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-524)。

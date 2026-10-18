@@ -89,7 +89,9 @@ export interface HistoryOccurrenceInput {
   createdAt?: Date;
   updatedAt?: Date;
   /** 物料流方向（US-513，默认 consume）。 */
-  flowDirection?: 'consume' | 'by_product' | 'scrap_out';
+  flowDirection?: 'consume' | 'by_product' | 'scrap_out' | 'produce';
+  /** 联产品的显式固定成本份额，其他方向留空。 */
+  jointCostShare?: string | null;
   /** 投料工序（US-520）。 */
   operationSeq?: number | null;
   /** 替代组成员（US-512）：role / probability / equiv_qty；组装载见 HistoryHeaderInput.substituteGroups。 */
@@ -122,6 +124,8 @@ export interface HistoryHeaderInput {
   assemblyScrapConvention?: 'additive' | 'yield';
   /** 标准成本批量（US-514）：以头 base_uom 计；卷算必填。 */
   costLotQty?: string | null;
+  /** 第一主产物的固定成本份额，旧单产留空。 */
+  jointCostShare?: string | null;
   /** 确定性装载的显式 id（US-525 种子）。 */
   id?: string;
   createdAt?: Date;
@@ -267,6 +271,10 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       header.assemblyScrap = headerInput.assemblyScrap ?? '0';
       header.assemblyScrapConvention = headerInput.assemblyScrapConvention ?? 'additive';
       header.costLotQty = headerInput.costLotQty ?? null;
+      header.jointCostShare =
+        headerInput.jointCostShare == null ?
+          null
+        : normalizeDecimalString(headerInput.jointCostShare, 'jointCostShare');
       await executor.getRepository(BomHeader).create(header);
       const lines: { line: BomLine; occurrence: BomLineOccurrence }[] = [];
       for (const lineInput of headerInput.lines) {
@@ -309,6 +317,10 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
           occurrence.designatorManaged = occurrenceInput.designatorManaged ?? false;
           occurrence.supplyToVendor = occurrenceInput.supplyToVendor ?? false;
           occurrence.flowDirection = occurrenceInput.flowDirection ?? 'consume';
+          occurrence.jointCostShare =
+            occurrenceInput.jointCostShare == null ?
+              null
+            : normalizeDecimalString(occurrenceInput.jointCostShare, 'jointCostShare');
           occurrence.operationSeq = occurrenceInput.operationSeq ?? null;
           occurrence.unitFrom = occurrenceInput.unitFrom ?? null;
           occurrence.unitTo = occurrenceInput.unitTo ?? null;
@@ -464,6 +476,10 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
           occurrence.phantomOverride = occurrenceInput.phantomOverride ?? null;
           occurrence.designatorManaged = occurrenceInput.designatorManaged ?? false;
           occurrence.flowDirection = occurrenceInput.flowDirection ?? 'consume';
+          occurrence.jointCostShare =
+            occurrenceInput.jointCostShare == null ?
+              null
+            : normalizeDecimalString(occurrenceInput.jointCostShare, 'jointCostShare');
           occurrence.operationSeq = occurrenceInput.operationSeq ?? null;
           occurrence.unitFrom = occurrenceInput.unitFrom ?? null;
           occurrence.unitTo = occurrenceInput.unitTo ?? null;

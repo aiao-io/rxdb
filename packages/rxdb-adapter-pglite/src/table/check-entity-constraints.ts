@@ -12,7 +12,7 @@
  * `init()` 就被报「多余」（AC#16）。
  */
 
-import type { EntityType } from '@aiao/rxdb';
+import type { EntityMetadata, EntityType } from '@aiao/rxdb';
 import {
   assertNoEntityConstraintDrift,
   CHECK_NAME_PREFIX,
@@ -25,6 +25,7 @@ import {
 } from '@aiao/rxdb';
 import type { Results } from '@electric-sql/pglite';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { checkStorageDeclarationsPGlite } from './check-storage-declarations.js';
 
 /** 漂移检查只读查询的最小接口：事务执行器门面的 `queryRaw`（行是对象，不是数组）。 */
 type ConstraintCatalogQuerier = Pick<RxDBAdapterPGlite, never> & {
@@ -37,7 +38,9 @@ const TABLE_EXISTS_SQL = `
     SELECT 1 FROM pg_class cls
     JOIN pg_namespace ns ON ns.oid = cls.relnamespace
     WHERE ns.nspname = $1 AND cls.relname = $2
-  ) AS exists
+  ) AS exists,
+  EXISTS (SELECT 1 FROM pg_attribute a JOIN pg_class t ON t.oid = a.attrelid JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE n.nspname = $1 AND t.relname = $2 AND a.attgenerated <> '' AND left(a.attname, 3) = 'gc_') AS generated
 `;
 
 /** 该表的全部 CHECK（`c`）与 EXCLUDE（`x`）约束名（含匿名自动命名），范围过滤在比对时做。 */
@@ -63,19 +66,22 @@ const INDEX_NAMES_SQL = `SELECT indexname FROM pg_indexes WHERE schemaname = $1 
  */
 export const check_entity_constraints_pglite = async (
   adapter: ConstraintCatalogQuerier,
-  EntityTypes: readonly EntityType[]
+  EntityTypes: readonly EntityType[],
+  resolveMetadata: (entity: EntityType) => EntityMetadata = getEntityMetadata
 ): Promise<void> => {
   for (const EntityType of EntityTypes) {
-    const metadata = getEntityMetadata(EntityType);
+    const metadata = resolveMetadata(EntityType);
     const params = [metadata.namespace, metadata.tableName];
 
-    const existence = await adapter.queryRaw<{ exists: boolean }>(TABLE_EXISTS_SQL, params);
+    const existence = await adapter.queryRaw<{ exists: boolean; generated: boolean }>(TABLE_EXISTS_SQL, params);
     const tableMissing = existence.rows.length === 0 || existence.rows[0].exists !== true;
 
     let actual: string[] = [];
+    let hasStorageIndexes = false;
     if (!tableMissing) {
       const constraints = await adapter.queryRaw<{ conname: string; contype: string }>(CONSTRAINT_NAMES_SQL, params);
       const indexes = await adapter.queryRaw<{ indexname: string }>(INDEX_NAMES_SQL, params);
+      hasStorageIndexes = indexes.rows.some(row => row.indexname.startsWith('sx_'));
       actual = [
         // CHECK 只认 ck_、EXCLUDE 只认 ex_（查询只取了这两种）
         ...constraints.rows
@@ -85,6 +91,15 @@ export const check_entity_constraints_pglite = async (
       ];
     }
 
+    const storage = await checkStorageDeclarationsPGlite(
+      adapter,
+      metadata,
+      tableMissing,
+      existence.rows[0]?.generated === true,
+      hasStorageIndexes
+    );
+    actual.push(...storage.actual);
+
     assertNoEntityConstraintDrift({
       entity: metadata.name,
       tableName: metadata.tableName,
@@ -92,9 +107,11 @@ export const check_entity_constraints_pglite = async (
       expected: [
         ...expectedCheckConstraintNames(metadata),
         ...expectedConditionalUniqueIndexNames(metadata),
-        ...expectedExclusionConstraintNames(metadata)
+        ...expectedExclusionConstraintNames(metadata),
+        ...storage.expected
       ],
-      actual
+      actual,
+      changed: storage.changed
     });
   }
 };

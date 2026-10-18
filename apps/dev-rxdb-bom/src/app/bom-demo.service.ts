@@ -28,6 +28,7 @@ import {
 import {
   deterministicId,
   goldenItemId,
+  loadCoproductDataset,
   loadScooterDataset,
   loadScooterDatasetC,
   loadScooterDatasetD,
@@ -331,15 +332,36 @@ export class BomDemoService {
   }
 
   /** 成本卷算（US-525 AC#14/#15）：逐层明细树，金额为规范十进制串。 */
-  async rollup(rootKey: string, asOfDate: string): Promise<CostRollupResult> {
+  async rollup(
+    rootKey: string,
+    asOfDate: string,
+    options: {
+      jointCostSources?: Readonly<Record<string, string>>;
+      plannedQty?: { value: string; uom: string };
+    } = {}
+  ): Promise<CostRollupResult> {
     if (!this.rxdb) throw new Error('demo 未就绪');
     const day = new Date(`${asOfDate}T00:00:00.000Z`);
     return rollupCost(
       this.adapter!,
-      { bomType: 'ebom', orgId: 'org-x', asOfDate: day, currency: 'CNY', rateDate: day },
+      {
+        bomType: 'ebom',
+        orgId: 'org-x',
+        asOfDate: day,
+        currency: 'CNY',
+        rateDate: day,
+        ...(options.jointCostSources === undefined ? {} : { jointCostSources: options.jointCostSources })
+      },
       { parentItemId: goldenItemId(rootKey) },
-      { value: '1', uom: 'pcs' }
+      options.plannedQty ?? { value: '1', uom: 'pcs' }
     );
+  }
+
+  /** 显式追加联产演示，不改变默认SC-100种子及其原有验收行数。 */
+  async loadCoproductDemo(): Promise<void> {
+    if (!this.adapter) throw new Error('demo 未就绪');
+    await loadCoproductDataset(this.adapter, { itemExt: { rohs: 'yes' } });
+    await this.#hydrate();
   }
 
   /** 替代组发布拒绝演示（US-525 AC#7 ②）：draft 组 0.5/0.3 发布 → 拒绝并给实际合计 0.8。 */

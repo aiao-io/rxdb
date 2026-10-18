@@ -18,6 +18,14 @@ import { DECIMAL_FIELDS } from './import-contract.js';
 
 /** 导出契约版本号（进 api-baseline，破坏性变更被门禁拦下，AC#1）。 */
 export const EXPORT_CONTRACT_VERSION = '1';
+/** 仅联产数据使用的版本，旧单产仍由默认v1承载。 */
+export const COPRODUCT_EXPORT_CONTRACT_VERSION = '2';
+
+/** 输出物料与已发布修订只声明为外部依赖，不经草稿导入创建或修改。 */
+export interface BomExportDependencies {
+  items: unknown[][];
+  revisions: unknown[][];
+}
 
 /** 导出层（与导入契约的同名层一一对应，见 import-contract.ts）。 */
 export type ExportTable =
@@ -44,6 +52,8 @@ export interface BomExportPayload {
   requirementLines: RequirementLine[];
   outputs: OutputLine[];
   penetrations: PenetrationRecord[];
+  /** v2联产的已发布输出依赖；v1不增加空字段。 */
+  dependencies?: BomExportDependencies;
 }
 
 /** 一个层的一批行（事务门面按同一层合并多次查询结果后分桶喂入）。 */
@@ -162,6 +172,14 @@ export const EXPORT_TABLE_COLUMNS: Record<ExportTable, readonly string[]> = {
   ]
 };
 
+/** 按明确版本取得位置列，v2只在头与发生项末尾追加份额。 */
+export const exportColumnsFor = (version: string, table: ExportTable): readonly string[] => {
+  if (version === EXPORT_CONTRACT_VERSION) return EXPORT_TABLE_COLUMNS[table];
+  if (version !== COPRODUCT_EXPORT_CONTRACT_VERSION) throw new BomExportRejectedError(`未知导出版本 ${version}`);
+  const columns = EXPORT_TABLE_COLUMNS[table];
+  return table === 'header' || table === 'occurrence' ? [...columns, 'jointCostShare'] : columns;
+};
+
 /**
  * 规范十进制串判定（与 {@link DECIMAL_CANONICAL_RE} 同口径——存储层触发器与入口校验
  * 共用同一份定义）：无符号、无指数、无前导零（单个 `0` 除外）、小数无尾随零。
@@ -212,6 +230,10 @@ export const validateExportReady = (
 
 /** 序列化所需的元数据（由调用方给定，本模块不读时钟）。 */
 export interface ExportSerializeMeta {
+  /** 显式联产选择v2；未提供时保持v1。 */
+  version?: '1' | '2';
+  /** v2已发布输出主数据声明，待目标库预先具备。 */
+  dependencies?: BomExportDependencies;
   /** 组织/工厂（AC#4：组织维度在契约里显式）。 */
   orgId: string;
   /** 导出时点（ISO 文本；同上下文无写入时两次导出逐字节一致，AC#9）。 */
@@ -242,13 +264,39 @@ const BUCKET_OF: Record<
 };
 
 /** 某层十进制列的列下标（契约列序 ∩ {@link DECIMAL_FIELDS}）。 */
-const decimalIndexesOf = (table: ExportTable): number[] => {
-  const columns = EXPORT_TABLE_COLUMNS[table];
+const decimalIndexesOf = (table: ExportTable, version: string): number[] => {
+  const columns = exportColumnsFor(version, table);
   const indexes: number[] = [];
   for (let index = 0; index < columns.length; index += 1) {
     if ((DECIMAL_FIELDS as readonly string[]).includes(columns[index])) indexes.push(index);
   }
   return indexes;
+};
+
+const normalizedRows = (table: ExportTable, rows: unknown[][], version: string): unknown[][] => {
+  const columns = exportColumnsFor(version, table);
+  const decimalIndexes = decimalIndexesOf(table, version);
+  for (const row of rows) {
+    if (row.length !== columns.length)
+      throw new BomExportRejectedError(
+        `${table} 层行宽 ${row.length} 与契约列宽 ${columns.length} 不符（列：${columns.join(', ')}）`
+      );
+    if (
+      version === EXPORT_CONTRACT_VERSION &&
+      table === 'occurrence' &&
+      row[columns.indexOf('flowDirection')] === 'produce'
+    )
+      throw new BomExportRejectedError('v1不能承载produce，必须使用v2保存联产份额');
+    for (const index of decimalIndexes) {
+      const value = row[index];
+      if (value !== null && !isDecimalString(value))
+        throw new BomDecimalFormatError(
+          `${table}.${columns[index]}`,
+          `导出值 ${typeof value === 'string' ? JSON.stringify(value) : typeof value} 不是规范十进制串`
+        );
+    }
+  }
+  return rows.map(row => row.map(normalizeCell));
 };
 
 /**
@@ -272,8 +320,13 @@ export const serializeExportRows = (rows: ExportRowBatch[], meta: ExportSerializ
   if (typeof meta.manifest !== 'object' || meta.manifest === null || Array.isArray(meta.manifest)) {
     throw new BomExportRejectedError('manifest 必填（resolution manifest 对象）');
   }
+  const version = meta.version ?? EXPORT_CONTRACT_VERSION;
+  if (version !== EXPORT_CONTRACT_VERSION && version !== COPRODUCT_EXPORT_CONTRACT_VERSION)
+    throw new BomExportRejectedError(`未知导出版本 ${String(version)}`);
+  if (version === COPRODUCT_EXPORT_CONTRACT_VERSION && meta.dependencies === undefined)
+    throw new BomExportRejectedError('v2 dependencies必填');
   const payload: BomExportPayload = {
-    version: EXPORT_CONTRACT_VERSION,
+    version,
     exportedAt: meta.exportedAt,
     orgId: meta.orgId,
     manifest: meta.manifest,
@@ -290,26 +343,13 @@ export const serializeExportRows = (rows: ExportRowBatch[], meta: ExportSerializ
     penetrations: []
   };
   for (const batch of rows) {
-    const columns = EXPORT_TABLE_COLUMNS[batch.table];
-    const decimalIndexes = decimalIndexesOf(batch.table);
-    for (const row of batch.values) {
-      if (row.length !== columns.length) {
-        throw new BomExportRejectedError(
-          `${batch.table} 层行宽 ${row.length} 与契约列宽 ${columns.length} 不符（列：${columns.join(', ')}）`
-        );
-      }
-      for (const index of decimalIndexes) {
-        const value = row[index];
-        if (value !== null && !isDecimalString(value)) {
-          throw new BomDecimalFormatError(
-            `${batch.table}.${columns[index]}`,
-            `导出值 ${typeof value === 'string' ? JSON.stringify(value) : typeof value} 不是规范十进制串`
-          );
-        }
-      }
-    }
     const bucket = payload[BUCKET_OF[batch.table]];
-    for (const row of batch.values) bucket.push(row.map(normalizeCell));
+    for (const row of normalizedRows(batch.table, batch.values, version)) bucket.push(row);
   }
+  if (version === COPRODUCT_EXPORT_CONTRACT_VERSION)
+    payload.dependencies = {
+      items: normalizedRows('item', meta.dependencies!.items, EXPORT_CONTRACT_VERSION),
+      revisions: normalizedRows('revision', meta.dependencies!.revisions, EXPORT_CONTRACT_VERSION)
+    };
   return payload;
 };

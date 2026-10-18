@@ -74,10 +74,69 @@
 
 **测量**：100 节点预热查询、保存、刷新到 DOM、首屏、入口及静态依赖/完整可达分块分开记录。保留原始样本和环境，不能把动态分块当作总字节减少。
 
-## 待 Spike 写入的收敛记录
+## Spike收敛检查项（初始记录，结果见下方实施证据）
 
 - 依赖矩阵 AC#6～#9 的实际失败原因、修复及验证结果。
 - `BomViewSnapshot` 节点/候选/错误投影与 handle state 的最终类型。
 - `loadOccurrence` / `saveOccurrence` 的最小输入和返回值、只读原因与销毁幂等规则。
 - 完整数量消费边界与现有部分展开 API 的兼容证明。
 - 若存在现有引擎通道不足，只记录可复现缺口及最小改动；不得预先宣称引擎扩展是必需。
+
+## 实施证据（2026-10-18）
+
+- 已复核当前分支、规格、计划、合同与 constitution；第 10 步没有未完成的 checklist 文件，沿当前分支执行。生成器已发现并阅读源码；忽略文件覆盖依赖、构建与测试产物。可选 Git 前钩子跳过，初始工作区干净。
+- 路线红：`NX_DAEMON=false NX_ISOLATE_PLUGINS=false NX_NO_CLOUD=true pnpm nx test rxdb-plugin-bom --run src/__tests__/bom-routing-effectivity.spec.ts --coverage=false --output-style=stream`，54 条中 36 通过、18 失败（SQLite/PGlite）。分摊引用失效路线时数量/导出未拒绝，成本拒绝缺少发生项定位；生效边界与无路线历史回归已通过。
+
+- 路线绿：同一文件 54/54 通过，含分摊数量、根/递归成本、导出及无路线历史结果。
+- 依赖 spike 红：`bom-view-live.spec.ts` 在 SQLite/PGlite 的新增断言均失败，旧 watchView 未调用 QueryManager；四类既有存储事件用例能通过轮询，不能因此算依赖通道通过。
+- 依赖 spike 绿：改用 BomHeader 仓储的 QueryManager，自定义 bomView 查询类型、完整输入快照、BOM 实体保守依赖、autoCache:false、派生值指纹与刷新状态；10/10 通过，不需要修改核心引擎。结构、数量与显示信息在同一读事务中生成；不再轮询。
+- 共享视图红：26 条中 12 条真实数据依赖/输入回归通过，14 条控制器行为未实现而失败；生命周期/编辑器另 22 条确认功能失败。初轮实现后共 112 条回归有 108 条通过、4 条失败，分别是双后端备选候选投影缺失和 draft ECN 新发生项编辑被存储协议拒绝，继续修复后再关闭。
+- 框架红：React 13/13、Vue 初始 14/14 均因绑定或真实组件未实现失败；Angular 尚未运行有效功能红。
+- 三端配置经 Nx 官方生成器（已读源码并 dry-run）生成，去除生成器引入的无关根配置变更，沿用 tree 绑定的发布/测试配置。生成器自带安装因无 TTY 中止后，由 pnpm workspace add 完成本地依赖链接；发布 peer 约定 workspace:^ 与锁文件已同步。
+
+### 保存协议收敛
+
+真实编辑测试暴露 US-522 草稿 ECN 新发生项编辑与旧存储守卫的冲突。新增放行仅覆盖仍属同一 draft ECN 的新发生项 qty/componentScrap/operationSeq；结构归属、子件、ECN 引用与派生生效区间保持原约束，发布后的既有发生项仍全拒。SQLite 安装时原子替换此受影响守卫，使持久化旧库也得到同一行为。新增回归和原 US-515 协议测试共同验收，不靠绕过仓储或自动生成 ECN 完成保存。
+
+### 后续边界回归（2026-10-18）
+
+- 共享刷新与空态补充：关闭自动事件后，显式 refresh 的双后端测试曾超时，接主动 QueryTask.refresh 后四条回归通过；合法配置无命中使用 empty/nodes=[]。
+- 候选物料/公式表单红：候选展示 UUID 而非物料编码的六条双后端断言失败，空公式用量解析为非法空字符串的一条失败。补齐候选物料读取、编码投影和 null 转换后，`bom-view.spec.ts` 28条、`bom-view-fields.spec.ts` 2条及联产集成16条，共46/46通过。
+- 页面资源红：Vue与Angular各3条中2失败，分别是连接取消仍装种子、种子失败未立即释放。补取消检查和缓存释放承诺后各3/3通过。
+- React绑定内联等值输入回归先红，按确定性输入身份去重后组件/绑定14/14通过。Angular组件/绑定12/12、Vue18/18曾通过；最终覆盖率与浏览器51场景仍独立验收，不据此关闭整故事。
+- 新核心元数据与旧dist/source混用令React应用注册生成实体时缺Map，浏览器17项前置均失败；应重建完整依赖而非增加缺字段fallback。此轮失败未计作功能通过。
+
+### 前轮三端实际验收（2026-10-18，非当前最终结果）
+
+- 锁定 Playwright Chromium revision 1248 已安装。React / Angular / Vue 在相同共享场景中各17/17通过，共51条，覆盖真实Element引用、两路径独立折叠、五输入编辑与发布、四类候选拒绝、实际ECN/修订/换算事件、卸载重挂、四态、键盘和axe、布局与100节点浏览器性能。
+- 首轮React/Vue各15/17，暴露无效日期同步指纹错误和发生项生效期外浏览空态缺失。新增双后端边界4红后，控制器接收同步查询构造错误为领域状态、React输入身份支持非法输入传递、空结构保留数量拒绝信息；生命周期/编辑27/27通过，再重跑浏览器为三端全绿。
+- 三端四项覆盖率（语句/分支/函数/行）：Angular 99/100/100/98.61，React 87.59/86.66/93.02/92.92，Vue 100/97.36/100/100。真实导出均为useBomView/BomTree/BomLineEditor与BomViewBinding，唯一容器差别为signal/plain snapshot/ref。
+- 核心静态包体积首次AST实测52739字节，超过50000预算，已继续抽出按需导入导出实现；仍须在最终构建后复测，不能用单入口文件或修改预算关闭任务。
+
+### 性能失败与修复起点
+
+- `benchmarks:benchmark-bom` 在100节点下测得watchView首次完整快照p95=32.782ms、保存到快照p95=111.840ms，均真实越过16/100预算，报告保存于 `benchmarks/reports/bom-latest.json`，没有更改预算或fixture。SQL计数测试在两端确认同一个子修订被查询99次而非1次。
+- 数量引擎增加本次读事务内的子头选择缓存（包括无头结果），不跨调用共享。对应2条去重/下一事务重读测试、28条视图及54条路线回归共84/84通过；仍需重新构建后测预算。
+- 布局JSON发现Angular宿主导致树/编辑面板高度差115.5px，新增共享高度断言真实失败，组件宿主改为display:contents，最终浏览器复核待执行。
+
+- 事务局部去重构建后主基准已通过：100节点查询p50/p95/max=12.483/13.158/13.496ms；真实描述保存=0.970/1.012/1.194ms；save完成到新快照=33.903/34.660/35.377ms。仍为5预热、20样本、每次重建任务，16/100ms原预算不变。
+
+### 第三轮完整e2e首屏失败
+
+`/private/tmp/bom-affected-complete3.log`中的Vue181/182、React198/199通过，各自唯一失败均为BOM100节点首屏：2504.4/2512.9ms超过1500ms；输入p95为10.4/40.4ms，仍低于100ms。两者实际采用各自Playwright默认8 workers，不是Nx并行；原始报告保留在`benchmarks/reports/bom-view-{vue,react}-performance-8-workers.json`。前轮三端51条通过仅为历史，不作为本轮结论。
+
+冷启动trace包含全局宿主DB和BOM独立DB两份WASM初始化，单凭该观察没有归因。full3最终349任务、39m44、166本地缓存命中，仅Vue/React两e2e失败，其余347通过或使用有效缓存。主会话随后对未修改的同一构建产物以`grep=100 节点性能`、workers=1及excludeTaskDependencies做冷控制，Vue1/1（3.2s）、React1/1（3.1s）通过，日志`/private/tmp/bom-e2e-performance-control.log`；保留原8 workers失败报告。
+
+最小配置修正仅将Vue/React两份Playwright配置的workers从`isCI ? 2 : 8`改为1，1500ms首屏阈值、100ms输入阈值及无本地重试保持。随后Vue完整182/182通过；React先因OPFS目录导航同步导致198/199，修正helper后2/2定向绿，再跑完整仍198/199，唯一失败变为共享search-handle的auditTime旧词在clear后复活。证据分别为`/private/tmp/bom-e2e-final-serial.log`、`/private/tmp/bom-react-opfs-navigation-green.log`及`/private/tmp/bom-react-e2e-final-complete.log`。该搜索缺陷当时修复后通过完整Node297；追加pending竞态后最终Node299和完整e2e均通过，见下方。Angular当时full3以2 workers完成203/203（3.0m），firstData1088.7ms/输入p95=14ms和468px等高仅为历史，不代表最新完整共享通过。
+
+### 对称性修复与最终冻结
+
+React aria-selected、Angular/React叶子Space不应toggle及disabled submit保护三处差异，经7条增强行为红绿后完成最小修复。`/private/tmp/bom-components-symmetry-green.log`确认Angular15、React17、Vue18全部通过；四项分别99.01/100/100/98.66、89.31/87.30/95.34/92.59、100/97.36/100/100%。搜索首轮Node297及91.13/80.39/94.88/92.80%仅为历史轮次；追加pending竞态后的Node299和真实browser52已合并93.50/84.80/96.80/94.70%，正式8包审计已逐包通过，见下方最终结果。
+
+首个final.log主动exit130、350任务Angular1622.6ms失败及1340ms单worker控制均保留历史；搜索pending第二批2红后Node299/browser52真实合并通过，refresh专用过滤保持debounced输入合同。
+
+最终完整affected EXIT0：86项目、351任务、324本地缓存、12m14（`/private/tmp/bom-affected-final-serial.log`）。三端共享51/51、demo24/24通过；Angular203/203（5.8m）、React199/199（5.5m）、Vue182/182有效缓存。最终首屏/输入p95分别1206/15.6、1105.2/42.2、796.3/9.5ms，均满足1500/100ms原预算，三端tree/editor均468px。
+
+PGlite真实summary/final已从有效本地缓存恢复：13任务、12缓存、791ms，日志`/private/tmp/bom-pglite-final-coverage-restored.log`。严格8包官方coverage逐包执行8次全部EXIT0，证据`/private/tmp/bom-final-coverage-eight-packages.log`；SQLite/PGlite两条趋势软提示保留、均达门槛，baseline未改。早期仅评估rxdb一包的日志不作为8包证据。
+
+本轮18条任务全部关闭，spec011～024共256/256完成，19条BOM故事、US-522 AC#1与US-030均Done。失败/控制历史、正式审计与最终结果见[最终验收](../021-bom-closure/closure-map.md)。

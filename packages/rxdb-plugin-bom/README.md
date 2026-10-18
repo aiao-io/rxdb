@@ -28,6 +28,8 @@ BOM（物料清单）领域插件，提供修订、生效域、数量展开、�
 
 ## 使用
 
+宿主在连接前注册对应适配器，并把适配器侧的 `BomRepository` 映射到 SQLite 的 `SqliteRepository` 或 PGlite 的 `PGliteRepository`。下列配置与宿主装配配合使用；完整装配见 [Angular 消费页](../../apps/dev-rxdb-angular/src/app/pages/bom-view.ts)。
+
 ```typescript
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { BOM_ENTITIES, rxDBPluginBom } from '@aiao/rxdb-plugin-bom';
@@ -66,3 +68,142 @@ const trace = await rxdb.bom.whereUsedInstance({ lotCode: 'PACK-LOT-A' });
 
 - SQLite 宿主 ≥ 3.47.0（触发器的 `RAISE` 表达式，US-030 AC#7），不满足在 `connect()` 即失败；
 - 实体声明了区间排他等存储约束（US-030 阶段 C），`init()` 会做只读漂移比对。
+
+## 联产品与固定份额
+
+头父件仍是第一主产物，`flowDirection: 'produce'` 的行表示其他主产物。头与produce行分别声明 `jointCostShare`：规范十进制字符串、范围 `[0, 1]`、最多9位小数。发布与ECN转换后的每个日期切片必须精确合计为1，草稿可暂时不完整，不自动归一化。
+
+produce行必须精确引用已发布的非phantom输出修订，数量大于0；首个合同只支持比例产出。联产品按合格主产量 `L / baseQty` 缩放，损耗增加投入，不额外制造联产品。副产品沿用原抵减规则，废料不计不抵，produce物料的 `creditPrice` 不参与抵减。
+
+过程净成本先算材料、加工、制费与副产抵减，再按固定份额分配。金额使用整批共同34位量子half-even，稳定排序最后一个正份额输出接尾差；零份额恒为0。`root.batchCost` / `unitCost` 是第一主产物分配后的成本，`root.jointCost` 提供过程净成本与全部输出明细。旧单产结果不增加空joint字段。
+
+下游使用联产品成本时，必须显式设置 `jointCostSources[输出修订ID] = 生产头ID`，即使只有一个候选也不自动选择；不会回退到该物料单价或回写物料价格。来源缺失、组织/类型不匹配、派生生产头成本环均明确拒绝。实际选择进入 `jointManifest.sources`。
+
+```typescript
+const cost = await rxdb.bom.rollupCost(
+  {
+    bomType: 'ebom',
+    orgId: 'factory-a',
+    asOfDate: new Date('2099-01-02T00:00:00Z'),
+    currency: 'CNY',
+    rateDate: new Date('2099-01-02T00:00:00Z'),
+    jointCostSources: { [outputRevisionId]: producerHeaderId }
+  },
+  { parentRevisionId: consumerRevisionId }
+);
+```
+
+`produce` 不进入原consume结构判环；成本依赖另按生产头检测环。已发布头的份额不可原地修改，改变第一主产物份额需要新父修订与头，ECN不获得修改头字段的特权。
+
+## 联产导出v2与发布依赖
+
+`EXPORT_CONTRACT_VERSION` 仍是 `1`，旧单产导出的字段、列宽和默认导入语义不变。仅联产数据使用v2：头与发生项位置数组的末列追加 `jointCostShare`；输出物料和已发布修订移到独立 `dependencies.items` / `dependencies.revisions`，不重复出现在待创建主数据中。
+
+目标库须先具备自然键、所属物料、发布状态、单位和修订身份相符的输出依赖，再调用 `importBomDraft(payload)`。依赖缺失或不匹配会逐条诊断并整批零残留；依赖本身从不被导入修改。导入不会发布任何主数据，也不借历史装载绕过追溯限制。成功后新生产修订与头仍是草稿，由调用方明确发布。v1不能承载produce，未知版本明确拒绝。
+
+演示用 `@aiao/rxdb-plugin-bom/testing` 的 `loadCoproductDataset` 可显式追加固定联产样本：净成本220，两个主产物分配132/88，下游消耗10kg得到17.6。有扩展属性字典的库由调用方显式传入 `{ itemExt: { rohs: 'yes' } }`，四个演示物料仍经真实字典校验，缺失/非法属性照常拒绝。独立BOM应用成本页通过“装载联产演示”按需接入，显式满足SC-100字典的必填rohs，原默认种子不增加记录。
+
+## 既有库升级
+
+应用迁移需给 `bom_header` 与 `bom_line_occurrence` 增加可空字符串列 `jointCostShare`，旧数据保持NULL；发生项原enum CHECK也需允许produce。SQLite修改旧CHECK需要走既有表重建迁移，保留数据、外键、索引及其他约束；PGlite需更新对应CHECK。仅新增两列不足以让旧enum接受produce，插件不会以删除旧数据代替迁移。
+
+表结构迁移完成后，插件重新连接会替换受影响的SQLite发生项协议与ECN触发器，PGlite会替换对应函数；不能把旧版本守卫因 `IF NOT EXISTS` 留在库里。触发器升级回归与表结构迁移是两项不同验证，不把前者通过当作后者已自动执行。
+
+## 三框架共享视图
+
+`watchView(input)` 通过现有查询任务自动跟踪ECN、修订、phantom、换算与显示字段；结构、数量、物料编码在同一读事务中生成。上下文、目标、计划量、预算和公式参数全部参与身份，数据库由参数明确传入。
+
+```typescript
+import { createBomView } from '@aiao/rxdb-plugin-bom';
+
+const view = createBomView(rxdb, {
+  context: { bomType: 'ebom', orgId: 'factory-a', asOfDate: new Date('2099-01-01T00:00:00Z') },
+  target: { parentItemId: rootItemId },
+  plannedQty: { value: '1', uom: 'pcs' }
+});
+const subscription = view.state$.subscribe(state => render(state));
+try {
+  view.toggle([occurrenceId]);
+  await view.loadOccurrence(draftOccurrenceId);
+  await view.saveOccurrence({ qty: '3', componentScrap: '0.1', operationSeq: 20 });
+  await view.calculate();
+} finally {
+  subscription.unsubscribe();
+  view.destroy();
+}
+```
+
+示例中的 `rootItemId` 属于已发布结构，`draftOccurrenceId` 位于草稿头，且其头路线包含工序20。编辑目标可以独立于当前浏览树加载。
+
+`state.phase` 为idle/loading/empty/success/error，后台刷新保留旧节点并设refreshing。完整发生项路径是稳定key；相同物料的多重边和共享装配分别展开，不合并数量。候选显示物料编码，备选/manual/序列/批次未解析与截断可浏览，完整数量、成本和导出明确拒绝。空结构的数量拒绝仍通过quantityError保留。
+
+最后订阅释放会停止查询，可再次订阅；destroy幂等且永久终止handle。切换输入隔离迟到结果，无效评估日进入可恢复错误状态。数据库连接与销毁由创建数据库的宿主管理。
+
+发生项编辑独立于已发布树。草稿头可编辑用量、组件损耗、工序与生效区间；已发布头下的draft ECN新发生项可编辑协议允许的用量、损耗与工序，生效区间仍由ECN派生，直接改日期会被仓储拒绝。已发布既有行只读，保存沿既有ECN协议处理，错误保留code/payload/message。表单日期为UTC，保留毫秒。
+
+共享绑定通过 `commands.calculate()` 重读完整输入并拒绝数量错误、候选或截断。原 `explodeBom` 继续返回带manifest的部分结果，直接调用时须检查其未解析与截断信息；成本卷算与导出仍使用核心API的完整消费校验。
+
+三个框架包均导出 `useBomView`、`BomTree`、`BomLineEditor` 与 `BomViewBinding`，组件统一接收 `{state, commands}`：Angular的state为signal，React为普通快照，Vue为只读shallowRef。生命周期由各框架卸载钩子释放。使用方法见各包README；开发应用的“BOM 编辑与展开”导航进入 `/bom-view`，共用同一fixture和浏览器验收。
+
+| 绑定                                            | 状态读取                                                                   | 输入更新                                                                      | 订阅释放                                |
+| ----------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------- |
+| [Angular](../rxdb-plugin-bom-angular/README.md) | `Signal<BomViewState>`，模板/脚本读取 `state()`                            | 注入上下文创建，后续调用 `commands.setInput(nextInput)`                       | `DestroyRef`                            |
+| [React](../rxdb-plugin-bom-react/README.md)     | 普通 `BomViewState` 快照                                                   | Hook接收的完整input变化自动同步；也提供相同命令                               | `useLayoutEffect`清理，db变化重建handle |
+| [Vue](../rxdb-plugin-bom-vue/README.md)         | `Readonly<ShallowRef<BomViewState>>`，脚本读取 `state.value`，模板自动解包 | setup/effectScope创建；后续通过watch或事件调用 `commands.setInput(nextInput)` | `onScopeDispose`                        |
+
+六个命令在三端相同：`setInput`、`refresh`、`toggle`、`loadOccurrence`、`saveOccurrence`、`calculate`。绑定释放共享handle与订阅，数据库资源仍由宿主管理。Angular/Vue绑定更换数据库时重建其组件或作用域。
+
+包体积通过 `pnpm nx run @aiao/source:audit-bom-bundle` 复测：报告区分静态依赖和完整动态可达分块，外部peer单独列出；成本、数量、ECN差异/影响与导入导出在实际调用时加载，公开返回值与错误合同保持。
+
+## 扩展属性热字段与显式迁移
+
+`ext` 继续保存 JSON 文本，业务仍调用 `db.bom.filterByAttr(scope, filters)`。应用按库选择热字段，声明在构造时深快照；同一个 `BomItem` 类可供不同数据库选择不同热键。声明不修改类的全局元数据，也不增加可写属性或日志字段。
+
+```typescript
+import { RxDB, SyncType } from '@aiao/rxdb';
+import { BOM_ENTITIES, createBomExtStorage, createBomExtStorageMigration, rxDBPluginBom } from '@aiao/rxdb-plugin-bom';
+
+const entityStorage = createBomExtStorage({
+  hotFields: [
+    { scope: 'item', code: 'rohs_status', dataType: 'string' },
+    { scope: 'bom_header', code: 'lead_days', dataType: 'number' },
+    { scope: 'bom_line_occurrence', code: 'active', dataType: 'boolean' }
+  ],
+  gin: true
+});
+const backend = 'wa-sqlite';
+const db = new RxDB({
+  dbName: 'manufacturing',
+  entities: [...BOM_ENTITIES],
+  sync: { type: SyncType.None, local: { adapter: backend } },
+  entityStorage,
+  migrations: [createBomExtStorageMigration('023-hot-fields', 'sqlite', entityStorage)]
+});
+db.use(rxDBPluginBom);
+```
+
+适配器照常注册并连接。PGlite 使用 `'postgres'` 迁移方言；`gin: true` 仅声明 PostgreSQL 的 `jsonb_ops` 文档表达式索引，SQLite 不安装 GIN。默认不启用 GIN。热字段必须与对应作用域的 `attr_def.dataType` 一致；不兼容的字典改型拒绝保存。
+
+热查询按“同键生成列、PG GIN 非日期等值、原 JSON 提取”的顺序选择。SQLite 生成 VIRTUAL 列并建立 B-tree，PGlite 生成 STORED 列。字符串、有限数值与布尔值不互转；缺键、JSON null、SQL NULL 保持缺值语义。日期仍按原时点语义过滤，本版本明确拒绝日期生成列。
+
+既有持久库必须显式迁移。迁移先按主键分页扫描原 JSON 对象及热键类型，坏值通过 `BomExtAttrError` 点名表、行和键，整批回滚且迁移水位不推进；审计通过后创建派生列和索引，原 `ext` 字节不改写、不需要业务回填。扫描和索引构建仍有成本，应在目标库独立测量。新库由正常建表路径直接安装声明。
+
+连接只核对目录，不自动修复缺失、多余或变形的生成列/高级索引。改定义或删除旧声明时，应在新的用户迁移中显式移除旧托管对象，再安装新声明。不要复用已经执行的迁移名。当前引擎不执行 `down()`，本 helper 的回退应写成新的 `up` 迁移。生成列仅由原 `ext` 重算，不能直接写入，不进入公开过滤结果、实体、变更补丁、导入或导出合同。
+
+## 物料可达性与判环
+
+插件通过系统实体贡献登记内部 `BomReach`，原有 `entities: [...BOM_ENTITIES]` 配置无需增加新类型。每个组织/BOM类型内仅保存正长度的祖先→后代物料对，consume多重边共用可达对；不保存路径、用量、日期、修订或候选裁决，不进入用户导入/导出与变更日志。
+
+拓扑增删改与可达性维护处于同一存储事务：插入补祖先×后代，删除只移除已无其他支持路径的对；方向切换先移除旧贡献，再加入新贡献。qty、损耗、工序、日期、phantom、ECN状态和实例安装等非拓扑变化不重写派生表，取消/撤回实际删除发生项时正常维护。内部实体采用system写权限，不提供业务CRUD门面。
+
+首次连接的新库自动建空表；既有库由具名系统迁移 `0001-bom-reach` 原子回填，再启用维护与索引判环。后续连接校验完整性而不全表重建，缺失或多余可达对明确拒绝；迁移失败不会推进水位，旧物理备份恢复后走同一升级路径。部分BOM实体配置不启用完整图维护。
+
+判环先点查可达对，再只取一条有界见证；保留128层硬限制和原错误code/payload/message、unionOnly语义。远端PostgreSQL的导出DDL同时覆盖INSERT/UPDATE/DELETE，要求Read Committed和作用域锁，部署不会提交调用方已有事务。
+
+主数据 `expandBom` / `whereUsed` 保留既有上下文过滤、排序与路径预算，备选仍沿首轮多头路径合同；备选选择与候选由 `resolveBom` 及完整消费入口负责。1万物料的实测p95由236.24ms降到7.60ms，收益来自最小childItemId索引；不将其归给闭包。读取剪枝以独立原型验证，未经额外收益证明不启用。20串菱形仅物化1810对，仍按10000条实际发生项路径截断，物料对不替代路径。
+
+```bash
+pnpm nx run rxdb-plugin-bom:test-reach
+pnpm nx run rxdb-plugin-bom:test-pg
+pnpm nx run benchmarks:benchmark-bom-reach-prototype
+```

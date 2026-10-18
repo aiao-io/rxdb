@@ -417,7 +417,9 @@ export class RxDBConstraintDriftError extends RxDBError {
     /** 库里存在、元数据没声明的约束名 */
     readonly extra: readonly string[],
     /** 表本身在目录里不存在（缺表），与「有表但约束不一致」分开点名 */
-    readonly tableMissing: boolean = false
+    readonly tableMissing: boolean = false,
+    /** 名称相同但实际列、表达式、方法或生成模式不符的存储对象 */
+    readonly changed: readonly string[] = []
   ) {
     super(
       tableMissing ?
@@ -426,6 +428,7 @@ export class RxDBConstraintDriftError extends RxDBError {
           `Restore the table (or a migration creating it) before init.`
       : `Entity '${entity}' (table '${tableName}') storage constraints drifted. ` +
           `Missing: [${missing.join(', ')}]. Extra: [${extra.join(', ')}]. ` +
+          (changed.length > 0 ? `Changed definitions: [${changed.join(', ')}]. ` : '') +
           `Apply a migration to add/drop the listed constraints before init.`
     );
     this.name = 'RxDBConstraintDriftError';

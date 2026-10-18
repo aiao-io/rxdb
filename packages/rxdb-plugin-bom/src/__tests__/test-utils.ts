@@ -2,7 +2,17 @@
  * @fileoverview BOM 插件测试装配：wa-sqlite 与 pglite 双后端各建一个已装插件的 RxDB。
  */
 
-import { EntityType, RxDB, SyncType, type AdapterRepositoryConstructor } from '@aiao/rxdb';
+import {
+  EntityType,
+  RxDB,
+  SyncType,
+  type AdapterRepositoryConstructor,
+  type EntityStorageOverride,
+  type IRxDBAdapter,
+  type MigrationType,
+  type RawQueryResult,
+  type TransactionFun
+} from '@aiao/rxdb';
 import { PGliteRepository, RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { RxDBAdapterWaSqlite, SqliteRepository, type WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqlite';
 import { BOM_ENTITIES, BomItem } from '../entities.js';
@@ -12,27 +22,47 @@ import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 export type BomTestBackend = 'wa-sqlite' | 'pglite';
 
-export type BomTestAdapter = RxDBAdapterWaSqlite | RxDBAdapterPGlite;
+/** 两个真实后端共有的测试门面，保留事务结果推断与本地备份能力。 */
+export interface BomTestAdapter
+  extends
+    Pick<RxDBAdapterPGlite, 'backup' | 'checkEntityConstraints' | 'mergeChanges'>,
+    Pick<IRxDBAdapter, 'getRepository'> {
+  readonly name: string;
+  readonly rxdb: RxDB;
+  transaction<T extends TransactionFun>(fun: T, transactionLog?: boolean): Promise<Awaited<ReturnType<T>>>;
+  bootstrapTransaction<T extends TransactionFun>(fun: T, transactionLog?: boolean): Promise<Awaited<ReturnType<T>>>;
+  rawQuery(sql: string, params?: unknown[]): Promise<RawQueryResult>;
+}
 
 /** 建一个已连接、已装 BOM 插件与全部 BOM 实体的数据库。 */
 export const createBomTestAdapter = async (
   backend: BomTestBackend,
   entities: readonly EntityType[] = BOM_ENTITIES,
-  options: { dbName?: string; persistent?: boolean } = {}
+  options: {
+    dbName?: string;
+    persistent?: boolean;
+    migrations?: MigrationType[];
+    entityStorage?: readonly EntityStorageOverride[];
+    configure?: (db: RxDB) => void;
+    deferConnect?: boolean;
+  } = {}
 ): Promise<BomTestAdapter> => {
   // 固定 dbName 用于「两个连接同一份存储」的快照一致性场景；persistent 走 IDBBatchAtomicVFS
   // （按名共享），memory 走 MemoryAsyncVFS（按实例独立）
   const dbName = options.dbName ?? `bom-test-${backend}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const rxdb = new RxDB({
     dbName,
+    migrations: options.migrations,
+    entityStorage: options.entityStorage,
     entities: [...entities],
     sync: { local: { adapter: backend }, type: SyncType.None }
   });
   rxdb.use(rxDBPluginBom);
+  options.configure?.(rxdb);
   let adapter: BomTestAdapter;
   rxdb.adapter(backend, db => {
     if (backend === 'wa-sqlite') {
-      adapter = new RxDBAdapterWaSqlite(db, {
+      const sqlite = new RxDBAdapterWaSqlite(db, {
         vfs: options.persistent ? 'IDBBatchAtomicVFS' : 'MemoryAsyncVFS',
         async: true,
         worker: false,
@@ -40,15 +70,26 @@ export const createBomTestAdapter = async (
         batchTimeout: 1,
         repositories: { BomRepository: SqliteRepository } as unknown as WaSqliteOptions['repositories']
       });
-    } else {
-      adapter = new RxDBAdapterPGlite(db, {
-        store: 'memory',
-        repositories: { BomRepository: PGliteRepository as unknown as AdapterRepositoryConstructor<RxDBAdapterPGlite> }
-      });
+      adapter = sqlite;
+      return sqlite;
     }
-    return adapter;
+    const postgres = new RxDBAdapterPGlite(db, {
+      store: options.persistent ? 'idb' : 'memory',
+      repositories: { BomRepository: PGliteRepository as unknown as AdapterRepositoryConstructor<RxDBAdapterPGlite> }
+    });
+    adapter = postgres;
+    return postgres;
   });
-  await rxdb.connect(backend);
+  if (options.deferConnect) {
+    await rxdb.getAdapter(backend);
+    return adapter!;
+  }
+  try {
+    await rxdb.connect(backend);
+  } catch (failure) {
+    await rxdb.disconnectAll();
+    throw failure;
+  }
   return adapter!;
 };
 

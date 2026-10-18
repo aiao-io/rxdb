@@ -420,6 +420,7 @@ describe('US-521 导入契约解析（import-contract.parseImportPayload）', ()
 
   it('DECIMAL_FIELDS 清单即契约', () => {
     expect([...DECIMAL_FIELDS]).toEqual([
+      'jointCostShare',
       'qty',
       'baseQty',
       'assemblyScrap',

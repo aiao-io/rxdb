@@ -1,9 +1,9 @@
 {
   "firstPhase": "empty",
-  "firstVisibleMs": 290,
+  "firstVisibleMs": 323,
   "framework": "angular",
   "metric": "working-tree-panel-first-visible-state",
   "note": "SC-005：浏览器不承诺绝对数字，本指标不进 benchmark JSON 的 measurements，单独归档",
-  "recordedAt": "2026-10-05T03:27:00.107Z",
+  "recordedAt": "2026-10-18T02:42:07.056Z",
   "route": "/working-tree"
 }

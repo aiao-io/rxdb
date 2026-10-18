@@ -9,10 +9,17 @@
  * 环、缺成本、缺费率、币种不符、unresolved/truncated 一律报错，不以 0 兜底。
  */
 
+import {
+  BomJointCostSourceError,
+  findJointCostSources,
+  readJointProduction,
+  type JointCostSourceUse
+} from '../coproduct.js';
 import type { BomLocalAdapter } from '../resolve/bom-adapter.js';
 import { bomSqlDialectFor, buildAlternativeHeadersSql, buildParentRevisionSql } from '../resolve/bom-sql.js';
 import type { ResolutionContext } from '../resolve/resolution.js';
 import { assertContext, columnIndexOf, type BomQueryExecutor, type ResolveTarget } from '../resolve/resolver.js';
+import { BomCostError } from './cost-error.js';
 import {
   decimalAdd,
   decimalDiv,
@@ -22,13 +29,8 @@ import {
   decimalToCanonical,
   type Decimal
 } from './decimal.js';
-import {
-  fetchHeaderRows,
-  normalizeRoutingDate,
-  resolveChildHeader,
-  rowRates,
-  type ResolvedChildHeader
-} from './explosion.js';
+import { fetchHeaderRows, resolveChildHeader, rowRates, type ResolvedChildHeader } from './explosion.js';
+import { allocateJointCost, type JointCostSummary } from './joint-cost.js';
 import {
   allocateSubstituteShares,
   computeGross,
@@ -40,7 +42,10 @@ import {
   type LayerRoutingOp,
   type SubstituteMember
 } from './layer.js';
+import { routingUncoveredReason } from './routing-effectivity.js';
 import { convertUom } from './uom.js';
+
+export { BomCostError } from './cost-error.js';
 
 /** 成本卷算的上下文：评估日 + 币种 + 费率日（与 as_of_date 一并进缓存键）。 */
 export interface CostRollupContext extends ResolutionContext {
@@ -50,6 +55,8 @@ export interface CostRollupContext extends ResolutionContext {
   currency: string;
   rateDate: Date;
   formulaParams?: Record<string, string>;
+  /** 已解析输出修订到生产头的显式联产成本来源。 */
+  jointCostSources?: Readonly<Record<string, string>>;
   substituteSelections?: ResolutionContext['substituteSelections'];
   substituteAvailabilities?: ResolutionContext['substituteAvailabilities'];
 }
@@ -104,25 +111,16 @@ export interface CostNodeDetail {
   overheadReason: '按工时计' | '无路线' | '工作中心未声明制费';
   credits: CostCreditLine[];
   children: CostNodeDetail[];
+  /** 仅联产数据提供过程净成本与各主产物分配明细。 */
+  jointCost?: JointCostSummary;
 }
 
 /** 卷算结果：根节点明细树（金额均为规范十进制串，币种由上下文给出）。 */
 export interface CostRollupResult {
   context: CostRollupContext;
   root: CostNodeDetail;
-}
-
-/** 卷算违约（缺成本、缺费率、币种不符、环、unresolved/truncated）。 */
-export class BomCostError extends Error {
-  constructor(
-    /** 违约的头/发生项/工序标识。 */
-    readonly subject: string,
-    message: string
-  ) {
-    super(`[rxdb-plugin-bom] 成本卷算违约（${subject}）：${message}`);
-    this.name = 'BomCostError';
-    Object.setPrototypeOf(this, BomCostError.prototype);
-  }
+  /** 仅实际消费联产来源时记录本快照的选择依据。 */
+  jointManifest?: { sources: readonly JointCostSourceUse[] };
 }
 
 type ExplosionRowLike =
@@ -209,25 +207,16 @@ const fetchRoutingOps = async (
   }[];
   uncoveredReason: string | null;
 }> => {
-  // 路线有效期（US-520 AC#11 / US-524 AC#7）：validFrom ≤ asOfDate < disabledAt 才有效
   const routingTable = dialect.table('routing');
   const routingRows = await queryRows(
     query,
     `SELECT "validFrom" AS "validFrom", "disabledAt" AS "disabledAt" FROM ${routingTable} WHERE "id" = '${routingId}'`
   );
-  let uncoveredReason: string | null = null;
-  if (routingRows.length === 0) {
-    uncoveredReason = '路线不存在';
-  } else {
-    const asOfIso = asOfDate.toISOString();
-    const validFrom = normalizeRoutingDate(routingRows[0][0]);
-    const disabledAt = routingRows[0][1] === null ? null : normalizeRoutingDate(routingRows[0][1]);
-    if (validFrom > asOfIso) {
-      uncoveredReason = `生效起始 ${validFrom.slice(0, 10)} 晚于评估日`;
-    } else if (disabledAt !== null && disabledAt <= asOfIso) {
-      uncoveredReason = `停用日 ${disabledAt.slice(0, 10)} 不晚于评估日`;
-    }
-  }
+  const validity = routingRows[0];
+  const uncoveredReason = routingUncoveredReason(
+    validity === undefined ? undefined : { validFrom: validity[0], disabledAt: validity[1] },
+    asOfDate
+  );
   const opTable = dialect.table('routing_operation');
   const rows = await queryRows(
     query,
@@ -409,14 +398,42 @@ export const rollupCost = async (
     // unit_cost 独立 memo：键 = 头 + 上下文（节点是已解析头，AC#8 不串）；
     // batch_cost 随请求批量变，本层每次现算、子件只取 unit_cost（拓扑逆序单遍的实质）
     const unitCostCache = new Map<string, string>();
+    const jointCache = new Map<string, JointCostSummary>();
+    const sourceCache = new Map<string, { unitCost: string; uom: string } | null>();
+    const sourceUses = new Map<string, JointCostSourceUse>();
+    const selections = { ...context.jointCostSources };
+    const sourceIdentity = JSON.stringify(
+      Object.entries(selections).sort(([left], [right]) =>
+        left < right ? -1
+        : left > right ? 1
+        : 0
+      )
+    );
     const stack: string[] = [];
 
+    const allocate = async (headerMeta: HeaderMeta, L: Decimal, total: Decimal) => {
+      const production = await readJointProduction(query, dialect, {
+        context: resolutionContext,
+        headerId: headerMeta.headerId,
+        plannedQty: { value: decimalToCanonical(L), uom: headerMeta.baseUom }
+      });
+      if (production === null) return { batch: total, joint: undefined };
+      const joint = allocateJointCost(decimalToCanonical(total), production.outputs);
+      jointCache.set(`${headerMeta.headerId}|${decimalToCanonical(L)}`, joint);
+      return { batch: decimalFromCanonical(joint.outputs[0].batchCost), joint };
+    };
+
     const unitCostOf = async (headerMeta: HeaderMeta): Promise<string> => {
-      const key = `${headerMeta.headerId}|${context.asOfDate.toISOString()}|${context.currency}|${context.rateDate.toISOString()}`;
+      const key = `${headerMeta.headerId}|${context.asOfDate.toISOString()}|${context.currency}|${context.rateDate.toISOString()}|${sourceIdentity}`;
       const cached = unitCostCache.get(key);
       if (cached !== undefined) return cached;
       if (stack.includes(headerMeta.headerId)) {
-        throw new BomCostError(`头 ${headerMeta.headerId}`, '卷算检出环（写入期约束可能被绕过），不死循环');
+        throw new BomCostError(
+          `头 ${headerMeta.headerId}`,
+          Object.keys(selections).length > 0 ?
+            `生产头成本依赖检出环：${[...stack, headerMeta.headerId].join(' → ')}`
+          : '卷算检出环（写入期约束可能被绕过），不死循环'
+        );
       }
       if (headerMeta.costLotQty === null) {
         throw new BomCostError(`头 ${headerMeta.headerId} 的 cost_lot_qty`, '卷算必填，缺失即拒绝');
@@ -427,6 +444,45 @@ export const rollupCost = async (
       const unit = decimalToCanonical(decimalDiv(batch, decimalFromCanonical(headerMeta.costLotQty)));
       unitCostCache.set(key, unit);
       return unit;
+    };
+
+    const jointUnitCost = async (revisionId: string | null): Promise<{ unitCost: string; uom: string } | null> => {
+      if (revisionId === null) return null;
+      if (sourceCache.has(revisionId)) return sourceCache.get(revisionId)!;
+      const candidates = await findJointCostSources(query, dialect, resolutionContext, revisionId);
+      const selected = selections[revisionId];
+      if (candidates.length === 0 && selected === undefined) {
+        sourceCache.set(revisionId, null);
+        return null;
+      }
+      const producer = candidates.find(candidate => candidate.headerId === selected);
+      if (producer === undefined)
+        throw new BomJointCostSourceError(
+          revisionId,
+          candidates.map(candidate => candidate.headerId),
+          selected
+        );
+      await unitCostOf(producer);
+      const summary = jointCache.get(`${producer.headerId}|${producer.costLotQty}`);
+      const output = summary?.outputs.find(candidate => candidate.revisionId === revisionId);
+      if (output === undefined)
+        throw new BomJointCostSourceError(
+          revisionId,
+          candidates.map(candidate => candidate.headerId),
+          selected
+        );
+      sourceUses.set(`${revisionId}|${producer.headerId}`, {
+        outputRevisionId: revisionId,
+        producerHeaderId: producer.headerId,
+        outputLineId: output.lineId,
+        outputOccurrenceId: output.occurrenceId,
+        share: output.share,
+        qty: output.qty,
+        uom: output.uom
+      });
+      const price = { unitCost: output.unitCost, uom: output.uom };
+      sourceCache.set(revisionId, price);
+      return price;
     };
 
     /** 本层 batch_cost（不缓存；子件单位成本经 {@link unitCostOf} 缓存）。 */
@@ -445,12 +501,19 @@ export const rollupCost = async (
 
       // 路由工序链（批级加工量用）+ 加工明细
       const routingOps: LayerRoutingOp[] = [];
+      const splitsByOccurrence = await fetchSplits(
+        q,
+        dialect,
+        effectiveRows.map(row => row.occurrenceId)
+      );
       const routingDetail =
         headerMeta.routingId !== null ?
           await fetchRoutingOps(q, dialect, headerMeta.routingId, context.asOfDate)
         : { operations: [], uncoveredReason: null };
       if (routingDetail.uncoveredReason !== null) {
-        const firstRouted = effectiveRows.find(row => row.operationSeq !== null);
+        const firstRouted = effectiveRows.find(
+          row => row.operationSeq !== null || splitsByOccurrence.has(row.occurrenceId)
+        );
         throw new BomCostError(
           `路线 ${headerMeta.routingId}${firstRouted !== undefined ? `（发生项 ${firstRouted.occurrenceId}）` : ''}`,
           `路线未覆盖：${routingDetail.uncoveredReason}，成本不能继续使用工序或退化成无路线`
@@ -463,12 +526,6 @@ export const rollupCost = async (
           scrapConvention: operation.scrapConvention
         });
       }
-      const splitsByOccurrence = await fetchSplits(
-        q,
-        dialect,
-        effectiveRows.map(row => row.occurrenceId)
-      );
-
       let total: Decimal = { coeff: 0n, exp: 0 };
 
       // 替代组分流（AC#2：按 usage_probability × equiv_qty 加权；AC#11：manual 未选即拒绝）
@@ -570,6 +627,15 @@ export const rollupCost = async (
         });
         const rates = rowRates(row);
         const demandInStock = convertUom(decimalToCanonical(layer.net), row.occurrenceUom, row.childStockUom, rates);
+        const jointPrice = await jointUnitCost(row.resolvedChildRevisionId);
+        if (jointPrice !== null) {
+          const demand = convertUom(demandInStock, row.childStockUom, jointPrice.uom, rates);
+          total = decimalAdd(
+            total,
+            decimalMul(decimalFromCanonical(demand), decimalFromCanonical(jointPrice.unitCost))
+          );
+          continue;
+        }
         // 子件有头：换算到子头 base_uom × unit_cost（虚拟件同样走链式，穿透数值等价）。
         // 爆炸层已拒绝 unresolved（US-514 AC#11），此处 null 不可达。
         const childHeader = await resolveChildHeader(query, dialect, resolutionContext, row.resolvedChildRevisionId!);
@@ -639,7 +705,7 @@ export const rollupCost = async (
           }
         }
       }
-      return total;
+      return (await allocate(headerMeta, L, total)).batch;
     };
 
     // 明细树：根按请求批量展开；children 按各自的本层需求批量展开（unit_cost 共享缓存）
@@ -649,12 +715,19 @@ export const rollupCost = async (
       const effectiveRows = selectTierRows(rows, L);
       const pPrime = scrap(L, headerMeta.assemblyScrap, headerMeta.assemblyScrapConvention);
       const routingOps: LayerRoutingOp[] = [];
+      const splitsByOccurrence = await fetchSplits(
+        q,
+        dialect,
+        effectiveRows.map(row => row.occurrenceId)
+      );
       const routingDetail =
         headerMeta.routingId !== null ?
           await fetchRoutingOps(q, dialect, headerMeta.routingId, context.asOfDate)
         : { operations: [], uncoveredReason: null };
       if (routingDetail.uncoveredReason !== null) {
-        const firstRouted = effectiveRows.find(row => row.operationSeq !== null);
+        const firstRouted = effectiveRows.find(
+          row => row.operationSeq !== null || splitsByOccurrence.has(row.occurrenceId)
+        );
         throw new BomCostError(
           `路线 ${headerMeta.routingId}${firstRouted !== undefined ? `（发生项 ${firstRouted.occurrenceId}）` : ''}`,
           `路线未覆盖：${routingDetail.uncoveredReason}，成本不能继续使用工序或退化成无路线`
@@ -667,12 +740,6 @@ export const rollupCost = async (
           scrapConvention: operation.scrapConvention
         });
       }
-      const splitsByOccurrence = await fetchSplits(
-        q,
-        dialect,
-        effectiveRows.map(row => row.occurrenceId)
-      );
-
       const material: CostMaterialLine[] = [];
       const credits: CostCreditLine[] = [];
       const children: CostNodeDetail[] = [];
@@ -781,6 +848,21 @@ export const rollupCost = async (
         });
         const rates = rowRates(row);
         const demandInStock = convertUom(decimalToCanonical(layer.net), row.occurrenceUom, row.childStockUom, rates);
+        const jointPrice = await jointUnitCost(row.resolvedChildRevisionId);
+        if (jointPrice !== null) {
+          const demand = convertUom(demandInStock, row.childStockUom, jointPrice.uom, rates);
+          const amount = decimalMul(decimalFromCanonical(demand), decimalFromCanonical(jointPrice.unitCost));
+          materialTotal = decimalAdd(materialTotal, amount);
+          material.push({
+            occurrenceId: row.occurrenceId,
+            childItemId: row.childItemId,
+            demand,
+            demandUom: jointPrice.uom,
+            unitCost: jointPrice.unitCost,
+            amount: decimalToCanonical(amount)
+          });
+          continue;
+        }
         // 爆炸层已拒绝 unresolved（US-514 AC#11），此处 null 不可达。
         const childHeader = await resolveChildHeader(query, dialect, resolutionContext, row.resolvedChildRevisionId!);
         if (childHeader !== null) {
@@ -889,6 +971,7 @@ export const rollupCost = async (
       }
 
       const batchCost = decimalSub(decimalAdd(decimalAdd(materialTotal, processingTotal), overheadAmount), creditTotal);
+      const allocated = await allocate(headerMeta, L, batchCost);
       const unitCost = await unitCostOf(headerMeta);
       if (headerMeta.costLotQty === null) {
         throw new BomCostError(`头 ${headerMeta.headerId} 的 cost_lot_qty`, '卷算必填，缺失即拒绝');
@@ -899,18 +982,23 @@ export const rollupCost = async (
         batchQty: decimalToCanonical(L),
         baseUom: headerMeta.baseUom,
         costLotQty: headerMeta.costLotQty,
-        batchCost: decimalToCanonical(batchCost),
+        batchCost: decimalToCanonical(allocated.batch),
         unitCost,
         material,
         processing,
         overhead: decimalToCanonical(overheadAmount),
         overheadReason,
         credits,
-        children
+        children,
+        ...(allocated.joint === undefined ? {} : { jointCost: allocated.joint })
       };
     };
 
     const root = await buildDetail(rootHeader, rootL);
-    return { context, root };
+    return {
+      context,
+      root,
+      ...(sourceUses.size === 0 ? {} : { jointManifest: { sources: [...sourceUses.values()] } })
+    };
   }, false);
 };

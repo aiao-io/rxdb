@@ -89,7 +89,7 @@ AC#3 遵守「无 fallback 兜底」：配置不完整时返回部分结构，�
 
 ## 第 8 步关闭记录
 
-2026-10-16：配置实体、保存期引用校验与统一解析链；缺参、互斥、并集环与 manifest 双后端回归通过。 联合验收：插件 554 条、演示 21 条通过；完整门禁和性能证据见 [第 8 步 quickstart](../../../specs/018-bom-slice-8/quickstart.md)。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-517)。
 
 ## References
 

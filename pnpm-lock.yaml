@@ -279,6 +279,15 @@ importers:
       '@aiao/rxdb-adapter-pglite':
         specifier: workspace:*
         version: link:packages/rxdb-adapter-pglite
+      '@aiao/rxdb-adapter-wa-sqlite':
+        specifier: workspace:*
+        version: link:packages/rxdb-adapter-wa-sqlite
+      '@aiao/rxdb-plugin-bom':
+        specifier: workspace:*
+        version: link:packages/rxdb-plugin-bom
+      '@aiao/rxdb-plugin-bom-angular':
+        specifier: workspace:*
+        version: link:packages/rxdb-plugin-bom-angular
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:packages/rxdb-plugin-history
@@ -785,6 +794,12 @@ importers:
       '@aiao/rxdb-model-react':
         specifier: workspace:*
         version: link:../../packages/rxdb-model-react
+      '@aiao/rxdb-plugin-bom':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-bom
+      '@aiao/rxdb-plugin-bom-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-bom-react
       '@aiao/rxdb-plugin-graph':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-graph
@@ -858,6 +873,9 @@ importers:
       '@aiao/rxdb-adapter-sqlite-wasm':
         specifier: workspace:*
         version: link:../../packages/rxdb-adapter-sqlite-wasm
+      '@aiao/rxdb-adapter-wa-sqlite':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-adapter-wa-sqlite
       '@aiao/rxdb-client-generator':
         specifier: workspace:*
         version: link:../../packages/rxdb-client-generator
@@ -867,6 +885,12 @@ importers:
       '@aiao/rxdb-model-vue':
         specifier: workspace:*
         version: link:../../packages/rxdb-model-vue
+      '@aiao/rxdb-plugin-bom':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-bom
+      '@aiao/rxdb-plugin-bom-vue':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-bom-vue
       '@aiao/rxdb-plugin-graph':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-graph
@@ -1837,8 +1861,21 @@ importers:
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
         version: link:../rxdb-adapter-wa-sqlite
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      pg:
+        specifier: 8.23.1
+        version: 8.23.1
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass-embedded@1.104.1)(sass@1.105.1)(terser@5.51.2)(yaml@2.9.0))
 
   packages/rxdb-plugin-bom-angular:
+    dependencies:
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
     devDependencies:
       '@aiao/rxdb':
         specifier: workspace:*
@@ -1849,14 +1886,24 @@ importers:
       '@angular/common':
         specifier: 22.2.3
         version: 22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/compiler':
+        specifier: 22.2.3
+        version: 22.2.3
       '@angular/core':
         specifier: 22.2.3
         version: 22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2)
+      '@angular/platform-browser':
+        specifier: 22.2.3
+        version: 22.2.3(@angular/common@22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass-embedded@1.104.1)(sass@1.105.1)(terser@5.51.2)(yaml@2.9.0))
+
+  packages/rxdb-plugin-bom-react:
+    dependencies:
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
-
-  packages/rxdb-plugin-bom-react:
     devDependencies:
       '@aiao/rxdb':
         specifier: workspace:*
@@ -1867,11 +1914,12 @@ importers:
       react:
         specifier: ^19.3.0
         version: 19.3.1
+
+  packages/rxdb-plugin-bom-vue:
+    dependencies:
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
-
-  packages/rxdb-plugin-bom-vue:
     devDependencies:
       '@aiao/rxdb':
         specifier: workspace:*
@@ -1879,9 +1927,6 @@ importers:
       '@aiao/rxdb-plugin-bom':
         specifier: workspace:*
         version: link:../rxdb-plugin-bom
-      rxjs:
-        specifier: ^7.8.2
-        version: 7.8.2
       vue:
         specifier: ^3.5.43
         version: 3.5.44(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))

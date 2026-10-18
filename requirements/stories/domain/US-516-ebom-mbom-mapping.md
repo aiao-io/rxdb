@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-10-18
 tags: [domain, bom, integration]
 ---
 
@@ -162,7 +162,7 @@ MBOM 随后也改了——映射前后都是同一对 ID，引用本身不知道
 
 ## 实现文件
 
-- `packages/rxdb-plugin-bom/` — 待建；`bom_map` 与差异查询
+- `packages/rxdb-plugin-bom/` — `bom_map` 与差异查询
 
 ## References
 

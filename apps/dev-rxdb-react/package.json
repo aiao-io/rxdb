@@ -9,6 +9,8 @@
     "@aiao/rxdb-client-generator": "workspace:*",
     "@aiao/rxdb-devtools": "workspace:*",
     "@aiao/rxdb-model-react": "workspace:*",
+    "@aiao/rxdb-plugin-bom": "workspace:*",
+    "@aiao/rxdb-plugin-bom-react": "workspace:*",
     "@aiao/rxdb-plugin-graph": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-plugin-search": "workspace:*",

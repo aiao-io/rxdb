@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-10-18
 tags: [domain, bom, change-management]
 ---
 
@@ -186,7 +186,7 @@ AC#4 的「不留半生效状态」需要同一事务边界：一次 ECN 取消�
 
 ## 实现文件
 
-- `packages/rxdb-plugin-bom/` — 待建；ECN 实体与派生生效期
+- `packages/rxdb-plugin-bom/` — ECN 实体与派生生效期
 
 ## References
 

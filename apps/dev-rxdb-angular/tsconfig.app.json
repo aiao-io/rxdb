@@ -26,13 +26,13 @@
       "path": "../../modules/wujie/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
-    },
-    {
       "path": "../../packages/rxdb-adapter-sqliteai/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-adapter-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-plugin-search/tsconfig.lib.json"
@@ -44,25 +44,22 @@
       "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
-    },
-    {
       "path": "../../packages/rxdb-plugin-workspace/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-plugin-working-tree-angular/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-plugin-replay/tsconfig.lib.json"
+      "path": "../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-search-angular/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-plugin-replay-angular/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/rxdb-plugin-search-angular/tsconfig.lib.json"
+      "path": "../../packages/rxdb-plugin-replay/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"
@@ -84,6 +81,15 @@
     },
     {
       "path": "../../packages/code-editor-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-test/tsconfig.lib.json"

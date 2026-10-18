@@ -125,6 +125,7 @@ export class BomItemRevision extends EntityBase {
   tableName: 'bom_header',
   repository: 'BomRepository',
   properties: [
+    { name: 'jointCostShare', type: PropertyType.string, nullable: true },
     { name: 'bomType', type: PropertyType.enum, enum: ['ebom', 'mbom', 'sales'] },
     { name: 'orgId', type: PropertyType.string },
     { name: 'alternativeNo', type: PropertyType.integer, default: 1 },
@@ -174,6 +175,7 @@ export class BomItemRevision extends EntityBase {
   ]
 })
 export class BomHeader extends EntityBase {
+  jointCostShare!: string | null;
   bomType!: 'ebom' | 'mbom' | 'sales';
   ext!: string | null;
   orgId!: string;
@@ -309,6 +311,7 @@ export class BomLine extends EntityBase {
   tableName: 'bom_line_occurrence',
   repository: 'BomRepository',
   properties: [
+    { name: 'jointCostShare', type: PropertyType.string, nullable: true },
     { name: 'childRevisionId', type: PropertyType.uuid, nullable: true },
     // US-511 阶段 A：qty 与 qty_formula 恰好一项（单行 CHECK），公式行的 qty 为空
     { name: 'qty', type: PropertyType.string, nullable: true },
@@ -335,7 +338,7 @@ export class BomLine extends EntityBase {
     {
       name: 'flowDirection',
       type: PropertyType.enum,
-      enum: ['consume', 'by_product', 'scrap_out'],
+      enum: ['consume', 'by_product', 'scrap_out', 'produce'],
       default: 'consume'
     },
     // 替代组成员（US-512）：primary 是原始需求对象，替代只从 primary 指向各 substitute
@@ -457,9 +460,11 @@ export class BomLine extends EntityBase {
       mappedEntity: 'BomEcn',
       mappedProperties: ['id']
     }
-  ]
+  ],
+  indexes: [{ name: 'occurrence_child_item', properties: ['childItemId'] }]
 })
 export class BomLineOccurrence extends EntityBase {
+  jointCostShare!: string | null;
   childRevisionId!: string | null;
   qty!: string | null;
   effectiveFrom!: Date;
@@ -481,7 +486,7 @@ export class BomLineOccurrence extends EntityBase {
   uomConversion!: string | null;
   phantomOverride!: boolean | null;
   designatorManaged!: boolean;
-  flowDirection!: 'consume' | 'by_product' | 'scrap_out';
+  flowDirection!: 'consume' | 'by_product' | 'scrap_out' | 'produce';
   substituteGroupId!: string | null;
   substituteRole!: 'primary' | 'substitute' | null;
   substitutePriority!: number | null;

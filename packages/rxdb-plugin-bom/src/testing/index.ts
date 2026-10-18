@@ -5,6 +5,15 @@
  */
 
 export {
+  BOM_VIEW_FIXTURE_DATES,
+  loadBomViewFixture,
+  type BomViewFixture,
+  type BomViewFixtureActions,
+  type BomViewFixtureIds,
+  type BomViewFixtureRoot
+} from './bom-view-fixture.js';
+export { COPRODUCT_DATASET, COPRODUCT_GOLDEN, loadCoproductDataset } from './coproduct-dataset.js';
+export {
   SCOOTER_DATASET,
   SCOOTER_DATASET_D,
   SCOOTER_DATASET_E,

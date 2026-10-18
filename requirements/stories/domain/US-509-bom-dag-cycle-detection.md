@@ -1,11 +1,11 @@
 ---
 id: US-509
 title: DAG 约束与环路检测下沉存储层
-status: In Progress
+status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-10-18
 tags: [domain, bom, graph, integrity]
 ---
 
@@ -30,10 +30,9 @@ tags: [domain, bom, graph, integrity]
   发生项的 `bom_line_id`——创建后不可改（[US-507](US-507-bom-graph-skeleton.md) AC#13），于是不需要为它们再挂检查
 - 自反边（`child_item_id = parent_item_id`）由同一个可达性触发器拒绝：它是路径长度 0 的退化环（子件「已能到达」父件），
   不另设 CHECK，也不依赖 [US-030](../core/US-030-declarative-storage-constraints.md)
-- 无闭包表时的递归 CTE 兜底，带 `depth` 硬上限防脏数据
-- 只有 `flow_direction = 'consume'` 的边参与环检测。该列由 [US-513](US-513-bom-coproduct-byproduct.md) 阶段 A 引入，它落地前所有发生项都是 `consume`：
-  首轮触发器不带这条过滤、也没有 `flow_direction` 的更新入口，列落地时重新生成触发器补上两者（AC#4）。不能提前引用该列——
-  触发器里引用尚不存在的列，两后端都是创建成功、首次 INSERT 才报错（探针：SQLite `no such column`，PGlite `record "new" has no field`）
+- 当前判环先查 `bom_reach` 物料对，成环见证与负向深度检查保留128硬停；旧库由系统迁移回填并验证闭包，缺失或损坏的闭包明确拒绝连接
+- 只有 `flow_direction = 'consume'` 的边参与环检测，该列已由 [US-513](US-513-bom-coproduct-byproduct.md) 阶段 A 引入，插入与方向更新均受保护（AC#4）。
+  历史首轮在该列落地前没有这条过滤或更新入口；当时的探针证明不能提前引用缺失列：两后端均会创建触发器成功、首次 INSERT 才报错（SQLite `no such column`，PGlite `record "new" has no field`）
 - 「存储层」的适配器边界与无本地存储时的降级语义（见技术笔记的适配器矩阵）
 - **写入端的提交协议**：首轮 BOM 实体不参与同步，在同步配置校验处显式拒绝；导入走 [US-521](US-521-bom-erp-mrp-integration.md)
   的整批原子提交；导出给远端的 DDL 自带串行化锁。见技术笔记「多写入端」
@@ -58,15 +57,15 @@ tags: [domain, bom, graph, integrity]
 | 5   | DDL 由本仓掌控的适配器                   | 绕过 adapter 直连库写入成环边                                                                                                         | 触发器拒绝                                                                                                                                                                                                                                            |      | ✅  |
 | 6   | `http` / `supabase`                      | `init()`                                                                                                                              | 显式声明本适配器无写入期环约束并 fail-fast，不静默降级为仓储层校验                                                                                                                                                                                    |      | ✅  |
 | 7   | 同上                                     | 取环约束 DDL                                                                                                                          | 返回可供远端自行部署的 DDL 片段，含 `(bom_type, org_id)` 级 `pg_advisory_xact_lock` 与 `transaction_isolation` 检查；部署与否由使用方负责                                                                                                             |      | ✅  |
-| 8   | 可达性表已建（依赖 US-510 阶段 B）       | 插入成环边                                                                                                                            | 检测走 O(1) 可达性命中，不退化为递归遍历；与递归 CTE 判定一致                                                                                                                                                                                         | ⬜   |
+| 8   | 可达性表已建（依赖 US-510 阶段 B）       | 插入成环边                                                                                                                            | 检测走 O(1) 可达性命中，不退化为递归遍历；与递归 CTE 判定一致                                                                                                                                                                                         | ✅   |
 | 9   | A→B 仅在 `[2026-01-01, 2026-10-01)` 生效 | 经插件 API 插入 B→A，仅 `[2026-10-01, +∞)` 生效                                                                                       | 按保守政策拒绝，与 AC#1 同一环错误码与路径；插件附加 `union_only` 标记，同时段真环不带此标记                                                                                                                                                          |      | ✅  |
 | 10  | A→B 在 EBOM                              | 在同 org 的 MBOM 插入 B→A                                                                                                             | 接受：作用域是 `(bom_type, org_id)`                                                                                                                                                                                                                   |      | ✅  |
 | 11  | B 的行发生项 imprecise 引用 C            | C 发布新修订                                                                                                                          | 无需重检：物料级并集图未变，不可能激活未校验的环                                                                                                                                                                                                      |      | ✅  |
 | 12  | 任一 BOM 实体                            | 为其声明同步配置                                                                                                                      | 配置校验即拒绝，错误点名「BOM 实体首轮不参与同步」                                                                                                                                                                                                    |      | ✅  |
-| 13  | 导出的 PG DDL 部署到真实 PostgreSQL      | Read Committed 下两个连接并发分别写 A→B、B→A；再各起一个**提前建立快照**的 Repeatable Read 事务与一个 Serializable 事务写同样的反向边 | Read Committed：至多一条提交，另一条在锁后重检失败；Repeatable Read / Serializable：触发器拒绝，错误点名隔离级别，两条反向边不会都提交；两个 Read Committed 连接以相反顺序各写 `(EBOM, X)` 与 `(MBOM, Y)` 时，PG 报死锁并中止其一，两个作用域内都无环 | ⬜   |
+| 13  | 导出的 PG DDL 部署到真实 PostgreSQL      | Read Committed 下两个连接并发分别写 A→B、B→A；再各起一个**提前建立快照**的 Repeatable Read 事务与一个 Serializable 事务写同样的反向边 | Read Committed：至多一条提交，另一条在锁后重检失败；Repeatable Read / Serializable：触发器拒绝，错误点名隔离级别，两条反向边不会都提交；两个 Read Committed 连接以相反顺序各写 `(EBOM, X)` 与 `(MBOM, Y)` 时，PG 报死锁并中止其一，两个作用域内都无环 | ✅   |
 | 14  | 组织 X 有 A→B、组织 Y 有 B→A             | 直连 SQL 把 Y 的头 `org_id` 改为 X，或改头的 `bom_type`、把逻辑行挂到 X 的头、把发生项挂到 X 的逻辑行                                 | 全部拒绝（US-507 AC#13 的不可改列），X 内不成环；US-510 阶段 B 落地后追加 `bom_reach` 零写入断言                                                                                                                                                      |      | ✅  |
-| 15  | 已发布头有 A→B；一张 `draft` ECN         | 在另一张已发布头下插入挂该 ECN 的 B→A                                                                                                 | 写入即拒绝（`BomCycleError`），不等 ECN 发布——draft ECN 的发生项对解析不可见，但在并集里；US-510 阶段 B 落地后追加：被拒写入后 `bom_reach` 不变，被接受的 draft ECN 发生项的可达对已在 `bom_reach` 中、ECN 发布时不再写入                             | ⚠️   |
-| 16  | B→A 由一张 `released` 未生效 ECN 引入    | ① 取消前插入反向边 A→B ② 取消该 ECN 后再插入 A→B；`draft` ECN 引入 B→A 后撤回，同样再插 A→B                                           | ① 拒绝：未生效的 ECN 也在并集里 ② 接受：取消 / 撤回级联删除 B→A 的发生项，退出并集（与 `bom_reach`）                                                                                                                                                  | ⚠️   |
+| 15  | 已发布头有 A→B；一张 `draft` ECN         | 在另一张已发布头下插入挂该 ECN 的 B→A                                                                                                 | 写入即拒绝（`BomCycleError`），不等 ECN 发布——draft ECN 的发生项对解析不可见，但在并集里；US-510 阶段 B 落地后追加：被拒写入后 `bom_reach` 不变，被接受的 draft ECN 发生项的可达对已在 `bom_reach` 中、ECN 发布时不再写入                             | ✅   |
+| 16  | B→A 由一张 `released` 未生效 ECN 引入    | ① 取消前插入反向边 A→B ② 取消该 ECN 后再插入 A→B；`draft` ECN 引入 B→A 后撤回，同样再插 A→B                                           | ① 拒绝：未生效的 ECN 也在并集里 ② 接受：取消 / 撤回级联删除 B→A 的发生项，退出并集（与 `bom_reach`）                                                                                                                                                  | ✅   |
 | 17  | 已发布头有 A→B                           | 在一张 `draft` 头下插入 B→A                                                                                                           | 写入即拒绝（`BomCycleError`）：草稿头对解析不可见，但在并集里                                                                                                                                                                                         |      | ✅  |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
@@ -150,7 +149,7 @@ ECN 改期、备选切换都会在**没有任何行写入**的情况下改变解
   `current_setting('transaction_isolation')`，不是 `read committed` 即 `RAISE`，而不是只在使用说明里写一句（AC#13）。
   Serializable 理论上可由 SSI 冲突中止兜住，但要使用方实现重试协议，首轮不承诺，一并拒绝。
   一个事务跨多个 `(bom_type, org_id)` 写入时按写入顺序逐个取锁，交叉顺序的死锁由 PostgreSQL 检出并中止其中一个事务，不会两条都提交。
-  这一段是依据官方语义的推断，未连真实 PostgreSQL 复现；AC#13 落地即验证。导出 DDL **不改变**本插件在 `http` / `supabase`
+  这一段已由隔离 PostgreSQL 16.15 的真实多连接测试验证（AC#13，2026-10-18），记录见 [收口验证](../../../specs/021-bom-closure/quickstart.md)。导出 DDL **不改变**本插件在 `http` / `supabase`
   上的支持态：`init()` 仍 fail-fast（AC#6），DDL 只保护使用方自己的远端写入端。
 - 两个离线客户端分别新增 A→B 与 B→A，本地都合法、合并后成环，而且是两条不同记录，普通行冲突检测抓不到。
   首轮不解决它，而是不让它发生：BOM 实体声明同步配置即拒绝（AC#12）。
@@ -159,9 +158,7 @@ ECN 改期、备选切换都会在**没有任何行写入**的情况下改变解
 在其余适配器上，能力缺席被显式声明（AC#6）。多写入端是本故事存在的全部理由——
 只在仓储层校验等于没校验，而声称在每个后端都校验到了，比没校验更坏。
 
-**首轮切片只验收 AC#1～#3 / #5～#7 / #9～#12 / #14 / #17**：AC#4 等 US-513 引入 `flow_direction`，
-AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境，AC#15 / #16 等 US-515 的 ECN；整条故事在这些前置落地前不置 Done，见
-[epic-009 首轮可开工切片](../../epics/epic-009-bom-domain-model.md#首轮可开工切片)。
+**首轮历史分工**：初期只验收AC#1～#3/#5～#7/#9～#12/#14/#17，其余按US-513物料流、US-515 ECN、真实PG和US-510 Reach顺序补齐。本轮所有功能AC已有独立通过证据，见最新收口记录；最终完整分支与Tauri门禁也已通过，故事已Done。
 
 ## 价值待证
 
@@ -169,25 +166,22 @@ AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境，A
 
 ## 实现文件
 
-- `packages/rxdb-plugin-bom/` — 待建；可达性校验
+- `packages/rxdb-plugin-bom/src/reach/cycle-ddl.ts` — 物料对点查、单条成环见证与128硬停
+- `packages/rxdb-plugin-bom/src/reach/remote.ts`、`src/resolve/cycle-constraint-ddl.ts` — 远端导出、作用域锁与事务边界
+- `packages/rxdb-plugin-bom/tests-reach/`、`tests-pg/` — 双后端闭包与真实 PostgreSQL 并发回归
 - `packages/rxdb-plugin-graph/` — 可选：给图插件加 opt-in 的写入期无环约束，默认行为不变
 
 ## 首轮切片第 2 步关闭记录
 
-首轮 AC#1~#3 / #5~#7 / #9~#12 / #14 / #17 全关（`packages/rxdb-plugin-bom`，双后端同断言）：
-`(bom_type, org_id)` 物料级并集的递归 CTE 判环（深度硬上限 128、三态判定），递归项到达父物料即停止延伸——
-路径终止于父正是错误消息要的环路径，也避免多重边成环时 UNION ALL 不去重导致的指数爆炸；
-自环是路径长度 0 的退化环（AC#2）；绕过 adapter 直连写库仍被拒（AC#5）；`union_only` 由插件 API 层
-读路径各边区间求交集补充标记（AC#9）；http/supabase `init()` 显式 fail-fast（AC#6）、
-`cycleConstraintDdlForRemotePg()` 导出含 advisory 锁与隔离级别检查的远端 DDL（AC#7）、
-BOM 实体声明同步配置即拒绝（AC#12）。
-AC#4 等 US-513、AC#8 等 US-510 阶段 B 的可达性表、AC#13 等真实 PostgreSQL 环境、AC#15/#16 等 US-515 落地。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-509)。
 
 ## 首轮切片第 5 步关闭记录
 
-AC#4 已关（随 US-513 阶段 A）：`flow_direction` 列落地，判环触发器只认 `consume` 边
-（存储边与 NEW 边均过滤，非 consume 的 NEW 行整体跳过）——X consume Y 与 Y by_product X
-并存不报环，consume 子图成环仍拒。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-509)。
+
+## 真实 PostgreSQL 关闭记录
+
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-509)。
 
 ## References
 
@@ -199,3 +193,11 @@ AC#4 已关（随 US-513 阶段 A）：`flow_direction` 列落地，判环触发
 - [US-510 多级展开与 where-used 反查](US-510-bom-multilevel-explosion.md) — AC#8 依赖其阶段 B
 - [US-030 实体元数据层的声明式存储约束](../core/US-030-declarative-storage-constraints.md) — AC#7 的 SQLite 宿主版本门槛
 - [US-515 变更管理](US-515-bom-change-management.md) — ECN 撤回 / 取消对并集的影响；AC#15 / #16；宿主日期只限改期 / 取消（其 AC#7）
+
+## 最终验收
+
+最终完整affected351任务EXIT0、三端共享51/51、demo24/24、Tauri额外门禁及8包严格覆盖率全部通过，本故事全部功能AC与最终门禁已关闭，status为Done。证据及失败/修复历史见[最终验收](../../../specs/021-bom-closure/closure-map.md)。
+
+## 验收依据
+
+当前验收结论见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，阶段记录见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-509)。

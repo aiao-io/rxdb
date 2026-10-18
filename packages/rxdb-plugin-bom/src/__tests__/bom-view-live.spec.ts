@@ -1,5 +1,6 @@
 /** @fileoverview US-522 活视图真实存储验证：ECN、时点、新修订与数量额外依赖。 */
 
+import type { QueryManager } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { BomEcn, BomHeader, BomItem, BomItemRevision, BomLine, BomLineOccurrence } from '../entities.js';
 import type { ExplosionResult } from '../quantity/explosion.js';
@@ -167,6 +168,28 @@ const prepareRevisionE = async (
 
 for (const backend of ['wa-sqlite', 'pglite'] as const) {
   describe(`BOM 活视图真实刷新 [${backend}]`, () => {
+    it('活视图通过查询任务注册跨实体依赖，不启动变更日志轮询', async () => {
+      await withFixture(backend, {}, async fixture => {
+        const repository = fixture.adapter.rxdb.entityManager.getRepository(BomHeader);
+        const manager = Reflect.get(repository, 'queryManager') as QueryManager<typeof BomHeader>;
+        const createTask = vi.spyOn(manager, 'createTask');
+        const recorded = observe(fixture);
+        try {
+          await waitForView(recorded, snapshot => expect(quantities(snapshot, fixture.leaf.id)).toEqual(['2']));
+          expect(createTask).toHaveBeenCalledWith(
+            expect.objectContaining({
+              options: expect.objectContaining({ type: 'bomView' }),
+              autoCache: false,
+              relationEntityTypes: expect.arrayContaining([BomEcn, BomItem, BomItemRevision, BomLineOccurrence])
+            })
+          );
+        } finally {
+          recorded.stop();
+          createTask.mockRestore();
+        }
+      });
+    });
+
     it('AC#6：发布 draft ECN 后，原结果未引用的新行进入结构与数量同一快照', async () => {
       await withFixture(backend, {}, async fixture => {
         const recorded = observe(fixture);

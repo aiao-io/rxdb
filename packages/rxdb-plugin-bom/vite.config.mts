@@ -102,7 +102,7 @@ export default defineConfig(() => ({
     watch: false,
     globals: true,
     fileParallelism: false,
-    include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    include: ['{src,tests,tests-reach}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default', 'junit'],
     outputFile: {
       junit: '../../coverage/packages/rxdb-plugin-bom/junit.xml'

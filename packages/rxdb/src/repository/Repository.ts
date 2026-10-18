@@ -461,11 +461,12 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
       assertSortOrderKey(metadata.name, (patch as Record<string, unknown>)[SORT_ORDER_FIELD]);
     }
     if (isRegroupWithoutKey(metadata, entity, patch)) return this.#updateRegrouped(entity, patch);
+    const pending = getEntityStatus(entity).prepareUpdate(patch);
     const observer = this.primary$.pipe(
       switchMap(repo => repo.update(entity, patch)),
       tap(this._setLocal)
     );
-    return firstValueFrom(observer);
+    return firstValueFrom(observer).finally(pending.release);
   }
 
   /**

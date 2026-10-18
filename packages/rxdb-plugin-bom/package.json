@@ -64,7 +64,10 @@
   },
   "devDependencies": {
     "@aiao/rxdb-adapter-pglite": "workspace:*",
-    "@aiao/rxdb-adapter-wa-sqlite": "workspace:*"
+    "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "pg": "8.23.1",
+    "vitest": "4.1.11"
   },
   "peerDependencies": {
     "@aiao/rxdb": "workspace:^"

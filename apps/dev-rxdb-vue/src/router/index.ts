@@ -22,6 +22,7 @@ const connectLocalAdapter = async (): Promise<true> => {
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    { path: '/bom-view', name: 'bom-view', component: () => import('../views/BomView.vue') },
     {
       path: '/home',
       name: 'home',

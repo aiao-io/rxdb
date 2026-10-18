@@ -15,6 +15,12 @@
 
 import { EntityMetadata, getEntityColumnName, quoteSqlIdentifier } from '@aiao/rxdb';
 import { BOM_CYCLE_DEPTH_LIMIT } from './constants.js';
+import {
+  buildPgCoproductDdl,
+  buildPgCoproductProjectionChecks,
+  buildSqliteCoproductDdl,
+  buildSqliteCoproductProjectionChecks
+} from './coproduct-trigger-ddl.js';
 import { buildPgInstanceNodeDdl, buildSqliteInstanceNodeDdl } from './instance-node-ddl.js';
 import { buildPgInstanceSourceDdl, buildSqliteInstanceSourceDdl } from './instance-source-ddl.js';
 import { buildUnitLotOverlapGuardPg, buildUnitLotOverlapGuardSqlite } from './unit-lot-trigger-ddl.js';
@@ -330,6 +336,7 @@ const SQLITE_OCCURRENCE_PROTOCOL_COLUMNS = [
   'phantomOverride',
   'designatorManaged',
   'flowDirection',
+  'jointCostShare',
   'substituteGroupId',
   'substituteRole',
   'substitutePriority',
@@ -442,19 +449,29 @@ const sqliteReleasedHeaderMembersGuard = (metadata: EntityMetadata): string[] =>
     `OLD."ecnOutId" IS NULL OR NEW."ecnOutId" IS NOT NULL OR ` +
     `NOT ${ecnStateIs('OLD."ecnOutId"', "'draft', 'cancelled'")} OR ` +
     `NEW."effectiveTo" IS NOT NULL OR (${untouchedColumns})`;
+  const draftEditColumns = SQLITE_OCCURRENCE_PROTOCOL_COLUMNS.filter(
+    field => !['qty', 'componentScrap', 'operationSeq', 'jointCostShare'].includes(field)
+  )
+    .map(field => `NEW."${field}" IS NOT OLD."${field}"`)
+    .join(' OR ');
+  const draftEditViolation =
+    `OLD."ecnInId" IS NULL OR NOT ${ecnStateIs('OLD."ecnInId"', "'draft'")} OR ` +
+    `OLD."ecnOutId" IS NOT NULL OR NEW."ecnOutId" IS NOT NULL OR ` +
+    `NEW."effectiveFrom" IS NOT OLD."effectiveFrom" OR NEW."effectiveTo" IS NOT OLD."effectiveTo" OR (${draftEditColumns})`;
   const rescheduleViolation =
     `(NEW."ecnInId" IS NULL OR NEW."ecnInId" IS NOT OLD."ecnInId" OR ` +
     `NEW."effectiveFrom" IS NOT ${derivedFrom('NEW')} OR NEW."effectiveTo" IS NOT OLD."effectiveTo" OR (${untouchedColumns})) AND ` +
     `(NEW."ecnOutId" IS NULL OR NEW."ecnOutId" IS NOT OLD."ecnOutId" OR ` +
     `NEW."effectiveTo" IS NOT ${derivedTo('NEW')} OR NEW."effectiveFrom" IS NOT OLD."effectiveFrom" OR (${untouchedColumns}))`;
   guards.push(
+    `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier(`${metadata.tableName}_released_header_u`)}`,
     sqliteTrigger(
       tableRef,
       `${metadata.tableName}_released_header_u`,
       'BEFORE UPDATE',
       raiseWhen(
         message,
-        `EXISTS (${releasedJoin('NEW')}) AND (${markViolation}) AND (${unmarkViolation}) AND (${rescheduleViolation})`
+        `EXISTS (${releasedJoin('NEW')}) AND (${markViolation}) AND (${unmarkViolation}) AND (${rescheduleViolation}) AND (${draftEditViolation})`
       )
     )
   );
@@ -1125,6 +1142,7 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
 
   // 发布：禁止追溯生效（指向开启态历史批次的行跳过——历史装载通道）
   const publish = [
+    `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier('ecn_publish_trg')};`,
     sqliteTrigger(
       tableRef,
       'ecn_publish_trg',
@@ -1146,6 +1164,7 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
     ` WHERE o."ecnInId" = OLD."id" AND o."ecnOutId" IS NOT NULL AND o."ecnOutId" <> OLD."id"` +
     ` AND ${dateOf('e')} < ${dateOf('NEW')})`;
   const reschedule = [
+    `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier('ecn_reschedule_trg')};`,
     sqliteTrigger(
       tableRef,
       'ecn_reschedule_trg',
@@ -1189,6 +1208,7 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
     `EXISTS (SELECT 1 FROM ${occurrence} o WHERE o."substituteGroupId" IN (SELECT g."id" FROM ${group} g WHERE g."ecnInId" = OLD."id")` +
     ` AND o."ecnInId" IS NOT NULL AND o."ecnInId" <> OLD."id")`;
   const cancel = [
+    `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier('ecn_cancel_trg')};`,
     sqliteTrigger(
       tableRef,
       'ecn_cancel_trg',
@@ -1320,7 +1340,7 @@ const sqliteEcnProjectionChecks = (
     ` ELSE '0.' || substr('000000000' || CAST(${total} AS TEXT), -9) END`;
   const fixedProb = `CAST(substr(a."prob" || '000000000', 3, 9) AS INTEGER)`;
 
-  const guards: string[] = [];
+  const guards: string[] = buildSqliteCoproductProjectionChecks(metadata, target, startDate, historyBatchNo);
 
   // 位号计数（目标 ECN 引入的 managed 行，发布时逐行；AC#9 错误点名头与发生项）
   const designatorCount = (row: string): string =>
@@ -1434,6 +1454,7 @@ const sqliteMapNullRuleTriggers = (metadata: EntityMetadata): string[] => {
 /** 实体全部 SQLite 触发器 DDL（单条语句数组）。 */
 
 export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => [
+  ...buildSqliteCoproductDdl(metadata),
   ...buildSqliteInstanceNodeDdl(metadata),
   ...buildSqliteInstanceSourceDdl(metadata),
   // 有效域三维重叠守卫创建最早 = 执行最晚（SQLite 同事件触发器逆创建序）：
@@ -1676,6 +1697,7 @@ const PG_OCCURRENCE_PROTOCOL_COLUMNS = [
   'phantomOverride',
   'designatorManaged',
   'flowDirection',
+  'jointCostShare',
   'substituteGroupId',
   'substituteRole',
   'substitutePriority',
@@ -1759,6 +1781,15 @@ const pgReleasedHeaderMembersFunction = (metadata: EntityMetadata): string[] => 
     `OLD."ecnOutId" IS NULL OR NEW."ecnOutId" IS NOT NULL OR ` +
     `NOT ${pgEcnStateIs('OLD."ecnOutId"', "'draft', 'cancelled'")} OR ` +
     `NEW."effectiveTo" IS NOT NULL OR (${untouchedColumns})`;
+  const draftEditColumns = PG_OCCURRENCE_PROTOCOL_COLUMNS.filter(
+    field => !['qty', 'componentScrap', 'operationSeq', 'jointCostShare'].includes(field)
+  )
+    .map(field => `NEW."${field}" IS DISTINCT FROM OLD."${field}"`)
+    .join(' OR ');
+  const draftEditViolation =
+    `OLD."ecnInId" IS NULL OR NOT ${pgEcnStateIs('OLD."ecnInId"', "'draft'")} OR ` +
+    `OLD."ecnOutId" IS NOT NULL OR NEW."ecnOutId" IS NOT NULL OR ` +
+    `NEW."effectiveFrom" IS DISTINCT FROM OLD."effectiveFrom" OR NEW."effectiveTo" IS DISTINCT FROM OLD."effectiveTo" OR (${draftEditColumns})`;
   const rescheduleViolation =
     `(NEW."ecnInId" IS NULL OR NEW."ecnInId" IS DISTINCT FROM OLD."ecnInId" OR ` +
     `NEW."effectiveFrom" IS DISTINCT FROM ${derivedFrom} OR NEW."effectiveTo" IS DISTINCT FROM OLD."effectiveTo" OR (${untouchedColumns})) AND ` +
@@ -1768,7 +1799,7 @@ const pgReleasedHeaderMembersFunction = (metadata: EntityMetadata): string[] => 
     `  IF TG_OP = 'INSERT' AND EXISTS (${releasedJoin}) AND (${insertViolation}) THEN\n` +
     `    RAISE EXCEPTION '${message}';\n` +
     `  END IF;\n` +
-    `  IF TG_OP = 'UPDATE' AND EXISTS (${releasedJoin}) AND (${markViolation}) AND (${unmarkViolation}) AND (${rescheduleViolation}) THEN\n` +
+    `  IF TG_OP = 'UPDATE' AND EXISTS (${releasedJoin}) AND (${markViolation}) AND (${unmarkViolation}) AND (${rescheduleViolation}) AND (${draftEditViolation}) THEN\n` +
     `    RAISE EXCEPTION '${message}';\n` +
     `  END IF;\n` +
     `  IF TG_OP = 'DELETE' AND EXISTS (${releasedJoin}) AND NOT (${pgEcnStateIs('OLD."ecnInId"', "'draft', 'cancelled'")}) THEN\n` +
@@ -2028,7 +2059,7 @@ const pgEcnProjectionChecks = (
   const checkBlock = (violation: string): string =>
     `    DECLARE msg text;\n    BEGIN\n      ${violation} INTO msg;\n      IF msg IS NOT NULL THEN\n        RAISE EXCEPTION '%', msg;\n      END IF;\n    END;`;
 
-  const checks: string[] = [];
+  const checks: string[] = buildPgCoproductProjectionChecks(metadata, target, startDate, historyBatchNo);
 
   // 位号计数（目标 ECN 引入的 managed 行）
   checks.push(
@@ -2622,6 +2653,7 @@ const pgMapNullRuleFunction = (metadata: EntityMetadata): string[] => {
 /** 实体全部 PGlite 触发器 DDL（单条语句数组）。 */
 
 export const buildPgBomTriggerDdl = (metadata: EntityMetadata): string[] => [
+  ...buildPgCoproductDdl(metadata),
   ...buildPgInstanceNodeDdl(metadata),
   ...buildPgInstanceSourceDdl(metadata),
   ...buildUnitLotOverlapGuardPg(metadata),

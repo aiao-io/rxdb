@@ -71,6 +71,12 @@
       "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-plugin-bom-vue/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-model-vue/tsconfig.lib.json"
     },
     {
@@ -78,6 +84,9 @@
     },
     {
       "path": "../../packages/rxdb-client-generator/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"

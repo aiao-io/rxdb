@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-16
+updated: 2026-10-18
 tags: [domain, bom, calculation, cost]
 ---
 
@@ -134,7 +134,7 @@ AC#6 遵守本仓「无 fallback 兜底」铁律：缺成本以 0 计会产出�
 
 ## 实现文件
 
-- `packages/rxdb-plugin-bom/` — 待建；卷算引擎
+- `packages/rxdb-plugin-bom/` — 卷算引擎
 
 ## References
 

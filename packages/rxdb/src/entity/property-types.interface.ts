@@ -9,9 +9,11 @@
  */
 
 import type { SetRequired } from 'type-fest';
+import type { StorageIndexMethod } from './advanced-index.js';
 import type { CheckRuleGroup, PropertyCheckRule } from './check-constraint.js';
 import type { UUID } from './entity.interface.js';
 import type { ICascadeOptions } from './relation-types.interface.js';
+import type { StorageDialect, StorageExpression } from './storage-expression.js';
 
 /**
  * 值对象
@@ -512,6 +514,12 @@ export type EntityPropertyMetadata =
  */
 export interface EntityIndexMetadataOptions extends IEntityObject {
   properties?: string[];
+  /** 白名单 JSON 表达式，与 properties 互斥，不接受 SQL 字符串。 */
+  expression?: StorageExpression;
+  /** 显式索引方法；省略时旧声明继续按原方式处理。 */
+  method?: StorageIndexMethod;
+  /** 明确安装的方言范围；省略时对全部方言声明能力。 */
+  dialects?: readonly StorageDialect[];
   /**
    * 归一化唯一索引：索引的**每一列**都以 `lower(COALESCE(CAST(列 AS TEXT), ''))` 参与比较。
    *

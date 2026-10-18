@@ -68,6 +68,7 @@ describe('execute_switch_actions', () => {
       runInTransaction: async (run: (tx: SqliteClientLike) => Promise<unknown>) => run(client),
       encryptionContext: { keyring: null, namespace: 'execute-review' },
       rxdb: {
+        config: rxdb.config,
         entityManager: rxdb.entityManager,
         dispatchEvent: () => undefined
       }
@@ -123,6 +124,7 @@ describe('execute_switch_actions', () => {
       encryptionContext: { keyring: null, namespace: 'event-review' },
       cacheRowIdEntity: () => undefined,
       rxdb: {
+        config: rxdb.config,
         entityManager: rxdb.entityManager,
         dispatchEvent: (event: unknown) => dispatched.push(event)
       }
@@ -177,6 +179,7 @@ describe('execute_switch_actions', () => {
       encryptionContext: { keyring: null, namespace: 'restore-insert-review' },
       cacheRowIdEntity: () => undefined,
       rxdb: {
+        config: rxdb.config,
         entityManager: rxdb.entityManager,
         dispatchEvent: () => undefined
       }
@@ -238,6 +241,7 @@ describe('execute_switch_actions', () => {
       encryptionContext: { keyring: null, namespace: 'typed-event-review' },
       cacheRowIdEntity: () => undefined,
       rxdb: {
+        config: rxdb.config,
         entityManager: rxdb.entityManager,
         dispatchEvent: (event: unknown) => dispatched.push(event)
       }
@@ -414,6 +418,7 @@ describe('execute_switch_actions', () => {
       encryptionContext: { keyring: null, namespace: 'event-fallback-review' },
       cacheRowIdEntity: () => undefined,
       rxdb: {
+        config: rxdb.config,
         entityManager: rxdb.entityManager,
         dispatchEvent: (event: unknown) => dispatched.push(event)
       }

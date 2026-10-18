@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-10-18
 tags: [domain, bom, schema]
 ---
 
@@ -22,7 +22,7 @@ tags: [domain, bom, schema]
 ### In Scope
 
 - `bom_substitute_group` 作为一等实体：`code`（组编码）、`strategy`（priority / proportional / manual）、`allow_mix`；
-  隶属某张 `bom_header`，`(bom_header_id, code)` 唯一；带可空 `ecn_in_id`（ECN 在已发布头下新建组时填，首轮恒空，见 US-515 表 × 操作矩阵）
+  隶属某张 `bom_header`，`(bom_header_id, code)` 唯一；带可空 `ecn_in_id`（ECN 在已发布头下新建组时填，未挂 ECN 时为空，见 US-515 表 × 操作矩阵）
 - 组成员是**同一头**下的行发生项（[US-507](US-507-bom-graph-skeleton.md)），成员侧：`role`（`primary` / `substitute`）、
   `substitute_priority`、`usage_probability`、`equiv_qty`
 - **替代方向落在数据结构上**：每组恰好一个 `primary` 成员，它是原始需求对象；替代只从 `primary` 指向各 `substitute`。
@@ -137,16 +137,11 @@ priority 组 A/B/C 为 1/2/3，E1 于 11-01 把 B 改为 4、E2 于 12-01 把 C 
 
 ## 实现文件
 
-- `packages/rxdb-plugin-bom/` — 待建；替代组实体与分摊计算
+- `packages/rxdb-plugin-bom/` — 替代组实体与分摊计算
 
 ## 首轮切片第 5 步关闭记录
 
-非 ECN 场景已交付（`packages/rxdb-plugin-bom`，双后端同断言）：AC#1~#5/#7/#8/#10~#13/#15 全关。
-`bom_substitute_group` 一等实体（(headerId, code) 唯一 + 单行 CHECK AC#10）；成员列挂行发生项
-（概率 9 位小数域两后端保存即拒）；发布转移按生效域桶校验（恰好一个 primary / priority 不并列 /
-合计恒 1 定点整数 10⁹ 比较，错误还原规范串）；已发布头组/成员写入拒绝；展开分流（proportional
-分摊 golden、priority 择优与可用量上限、manual unresolved + `ResolutionContext` 扩展）。
-ECN 场景（AC#6/#9/#14）随 US-515 同批关闭。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-512)。
 
 ## References
 

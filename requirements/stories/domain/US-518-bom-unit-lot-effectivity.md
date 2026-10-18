@@ -92,7 +92,7 @@ PG GiST 对数组没有默认运算符类，NULL 在 `EXCLUDE` 里又永不冲�
 
 ## 第 8 步关闭记录
 
-2026-10-16：三维有效域整体由 BOM 插件触发器承担，日期排他退化为全序列/全批次特例；区间 CHECK、三维矩阵、未解析候选与消费方拒绝通过。 联合验收：插件 554 条、演示 21 条通过；完整门禁和性能证据见 [第 8 步 quickstart](../../../specs/018-bom-slice-8/quickstart.md)。
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-518)。
 
 ## References
 

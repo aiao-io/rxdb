@@ -30,6 +30,8 @@ export class TimelinePage {
       .map(([id, entry]) => ({ id, ...entry }))
       .sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate) || a.ecnNo.localeCompare(b.ecnNo))
   );
+  readonly releasedCount = computed(() => this.entries().filter(entry => entry.state === 'released').length);
+  readonly draftCount = computed(() => this.entries().filter(entry => entry.state === 'draft').length);
 
   /** 状态中文标签（ECN 下拉里保持原样英文 state，此处仅时间轴展示用）。 */
   stateLabel(state: string): string {

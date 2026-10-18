@@ -36,6 +36,7 @@ export type ImportKind = (typeof IMPORT_KINDS)[number];
  * `ratio` 属 US-520 工序分摊子表。
  */
 export const DECIMAL_FIELDS = [
+  'jointCostShare',
   'qty',
   'baseQty',
   'assemblyScrap',

@@ -1,5 +1,5 @@
 /**
- * @fileoverview 已连接、预热后的 BOM API 耗时测量；预算仅作对照，不作为机器相关的硬门禁。
+ * @fileoverview 已连接、预热后的 BOM API 耗时测量；活视图执行查询 16ms、保存与快照更新 100ms 预算门禁。
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -15,14 +15,18 @@ import {
   BomItem,
   BomLine,
   BomLineOccurrence,
-  rxDBPluginBom
+  rxDBPluginBom,
+  type BomViewSnapshot
 } from '@aiao/rxdb-plugin-bom';
+import { loadBomViewFixture } from '@aiao/rxdb-plugin-bom/testing';
+import { filter, firstValueFrom, map, ReplaySubject, timeout } from 'rxjs';
 import { summarise } from './bench-stats.ts';
 
 const WARMUP = 5;
 const SAMPLES = 20;
 const READ_LINES = 100;
 const INSTANCE_NODES = 100;
+const VIEW_NODES = 100;
 const IMPORT_LINES = 498;
 const QUERY_BUDGET_MS = 16;
 const SINGLE_SAVE_BUDGET_MS = 100;
@@ -41,6 +45,21 @@ interface Measurement {
   withinReferenceBudget: boolean;
 }
 
+const measurement = (name: string, budgetMs: number, samples: number[]): Measurement => {
+  const stats = summarise(samples);
+  return {
+    name,
+    samples: samples.length,
+    p50Ms: stats.p50,
+    p95Ms: stats.p95,
+    maxMs: stats.max,
+    rawSamplesMs: samples,
+    referenceBudgetMs: budgetMs,
+    p95ToBudgetRatio: stats.p95 / budgetMs,
+    withinReferenceBudget: stats.p95 <= budgetMs
+  };
+};
+
 const measure = async <T>(
   name: string,
   budgetMs: number,
@@ -56,18 +75,7 @@ const measure = async <T>(
     verify(result);
     if (iteration >= WARMUP) samples.push(elapsed);
   }
-  const stats = summarise(samples);
-  return {
-    name,
-    samples: samples.length,
-    p50Ms: stats.p50,
-    p95Ms: stats.p95,
-    maxMs: stats.max,
-    rawSamplesMs: samples,
-    referenceBudgetMs: budgetMs,
-    p95ToBudgetRatio: stats.p95 / budgetMs,
-    withinReferenceBudget: stats.p95 <= budgetMs
-  };
+  return measurement(name, budgetMs, samples);
 };
 
 const createDatabase = async (): Promise<RxDB> => {
@@ -221,6 +229,139 @@ const measureInstances = async (
   return [expand, trace, save];
 };
 
+const assertViewSnapshot = (snapshot: BomViewSnapshot): void => {
+  if (
+    snapshot.refreshing ||
+    snapshot.expansion.nodes.length !== VIEW_NODES ||
+    snapshot.expansion.truncated !== null ||
+    (snapshot.expansion.unresolved?.length ?? 0) > 0 ||
+    snapshot.quantityError !== null ||
+    snapshot.explosion === null ||
+    snapshot.explosion.requirementLines.length !== VIEW_NODES - 1 ||
+    snapshot.explosion.truncated !== null ||
+    snapshot.explosion.unresolved.length > 0 ||
+    snapshot.explosion.manifest.unresolved.length > 0
+  ) {
+    throw new Error('活视图基准必须返回完整的根与 99 个叶子及其数量快照');
+  }
+};
+
+const measureViewWrites = async (rxdb: RxDB, fixture: Awaited<ReturnType<typeof loadBomViewFixture>>) => {
+  const input = fixture.inputFor('performance');
+  const changes = new ReplaySubject<BomViewSnapshot>(1);
+  const subscription = rxdb.bom.watchView(input).subscribe({
+    next: snapshot => changes.next(snapshot),
+    error: (failure: unknown) => changes.error(failure)
+  });
+  const saves: number[] = [];
+  const refreshes: number[] = [];
+  const snapshotRelativeToSaveMs: number[] = [];
+  try {
+    assertViewSnapshot(
+      await firstValueFrom(
+        changes.pipe(
+          filter(snapshot => !snapshot.refreshing),
+          timeout(10_000)
+        )
+      )
+    );
+    const repository = rxdb.entityManager.getRepository(BomItem);
+    const item = await firstValueFrom(repository.get(fixture.ids.items.performance));
+    for (let iteration = 0; iteration < WARMUP + SAMPLES; iteration += 1) {
+      const description = `BOM 活视图性能样本 ${iteration}`;
+      const observed = firstValueFrom(
+        changes.pipe(
+          filter(
+            snapshot =>
+              !snapshot.refreshing &&
+              snapshot.items.some(value => value.id === item.id && value.description === description)
+          ),
+          map(snapshot => ({ snapshot, receivedAt: performance.now() })),
+          timeout(10_000)
+        )
+      );
+      const start = performance.now();
+      const [savedAt, result] = await Promise.all([
+        repository.update(item, { description }).then(() => performance.now()),
+        observed
+      ]);
+      assertViewSnapshot(result.snapshot);
+      if (iteration < WARMUP) continue;
+      saves.push(savedAt - start);
+      const relative = result.receivedAt - savedAt;
+      snapshotRelativeToSaveMs.push(relative);
+      refreshes.push(Math.max(0, relative));
+    }
+    return {
+      metrics: [
+        measurement('saveViewItemDescription', SINGLE_SAVE_BUDGET_MS, saves),
+        measurement('viewSnapshotAfterSave', SINGLE_SAVE_BUDGET_MS, refreshes)
+      ],
+      rawSnapshotRelativeToSaveMs: snapshotRelativeToSaveMs,
+      snapshotBeforeSaveCompletionCount: snapshotRelativeToSaveMs.filter(value => value < 0).length
+    };
+  } finally {
+    subscription.unsubscribe();
+    changes.complete();
+  }
+};
+
+const measureView = async () => {
+  const rxdb = await createDatabase();
+  try {
+    const fixture = await loadBomViewFixture(rxdb);
+    const input = fixture.inputFor('performance');
+    const query = await measure(
+      'watchViewRecreatedTask',
+      QUERY_BUDGET_MS,
+      () => () =>
+        firstValueFrom(
+          rxdb.bom.watchView(input).pipe(
+            filter(snapshot => !snapshot.refreshing),
+            timeout(10_000)
+          )
+        ),
+      assertViewSnapshot
+    );
+    const writes = await measureViewWrites(rxdb, fixture);
+    return {
+      fixture: {
+        source: 'loadBomViewFixture(db).inputFor(performance)',
+        isolatedDatabase: true,
+        nodes: VIEW_NODES,
+        leaves: VIEW_NODES - 1,
+        plannedQty: input.plannedQty,
+        asOfDate: input.context.asOfDate.toISOString()
+      },
+      measurement: {
+        queryBoundary: 'new watchView task subscription to first complete non-refreshing snapshot',
+        queryTaskLifetime: 'last subscription released after every sample; task recreated for next sample',
+        saveBoundary: 'BomItem repository.update Promise resolve',
+        refreshBoundary: 'save Promise completion to first non-refreshing snapshot containing the written description',
+        snapshotAlreadyVisibleAtSaveCompletionMs: 0,
+        rawSnapshotRelativeToSaveMs: writes.rawSnapshotRelativeToSaveMs,
+        snapshotBeforeSaveCompletionCount: writes.snapshotBeforeSaveCompletionCount,
+        warmup: WARMUP,
+        samples: SAMPLES,
+        percentile: 'nearest rank',
+        startupIncluded: false,
+        fixturePreparationIncluded: false,
+        enforced: true
+      },
+      metrics: [query, ...writes.metrics],
+      budgets: {
+        queryMs: QUERY_BUDGET_MS,
+        singleSaveMs: SINGLE_SAVE_BUDGET_MS,
+        saveCompletionToSnapshotMs: SINGLE_SAVE_BUDGET_MS,
+        criterion: 'p95 <= budget',
+        enforced: true
+      }
+    };
+  } finally {
+    await rxdb.disconnectAll();
+  }
+};
+
 const run = async () => {
   const rxdb = await createDatabase();
   try {
@@ -298,6 +439,7 @@ const run = async () => {
     const imported = await rxdb.bom.importBomDraft(payload);
     const importMs = performance.now() - importStart;
     assertImported(imported);
+    const view = await measureView();
     return {
       createdAt: new Date().toISOString(),
       environment: {
@@ -327,6 +469,7 @@ const run = async () => {
         shape: 'single level, repeated child on distinct logical lines'
       },
       metrics: [resolveMetric, explodeMetric, exportMetric, saveMetric, ...instanceMetrics],
+      view,
       import: {
         samples: 1,
         warmupBatches: WARMUP,
@@ -356,3 +499,12 @@ await mkdir(dirname(reportPath), { recursive: true });
 await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 console.log(JSON.stringify(report, null, 2));
 console.log(`BOM benchmark report: ${reportPath}`);
+const failedViewMetrics = report.view.metrics.filter(metric => !metric.withinReferenceBudget);
+if (failedViewMetrics.length > 0) {
+  console.error(
+    `BOM 活视图性能预算未达标：${failedViewMetrics
+      .map(metric => `${metric.name} p95=${metric.p95Ms.toFixed(3)}ms > ${metric.referenceBudgetMs}ms`)
+      .join('；')}`
+  );
+  process.exitCode = 1;
+}

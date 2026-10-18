@@ -52,8 +52,8 @@
 ## Phase 5: 回写与验证
 
 - [x] T027 回写：US-030（阶段 A/B/C ⬜→✅、AC 勾选、价值待证注释）、US-507（阶段 A/B ⬜→✅、AC 勾选、AC#2/#3/#5/#12 保持 ⬜）、US-511（AC#22 存储段/AC#23 ⚠️ 注明展开段归第 3 步）、status-overview / roadmap 批次 4 / epic-009 第 1 步关闭记录、README
-- [ ] T028 [US030] `pnpm audit:api-surface` + affected-ci full（lint/typecheck/test/test-memory/test-browser/build/audit-lazy-backend + tauri cargo/conformance + pglite + sqlite 家族）+ 覆盖率门禁；specs/011-bom-slice-1/quickstart.md 记录结果
-- [ ] T029 提交（分阶段 WIP commit 或按 phase 提交，收尾 squash 策略按仓库惯例）
+- [x] T028 [US030] `pnpm audit:api-surface` + affected-ci full（lint/typecheck/test/test-memory/test-browser/build/audit-lazy-backend + tauri cargo/conformance + pglite + sqlite 家族）+ 覆盖率门禁；specs/011-bom-slice-1/quickstart.md 记录结果
+- [x] T029 历史提交已核实：`24020154`交付US-030 A/B/C，`316ea65d`交付BOM骨架，`11169534`提交本切片spec/plan/tasks/quickstart与关闭记录，均为当前分支祖先。
 
 ## Dependencies and implementation strategy
 

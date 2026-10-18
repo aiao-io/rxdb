@@ -26,6 +26,12 @@
   ],
   "references": [
     {
+      "path": "../../packages/rxdb-plugin-bom-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-model-angular/tsconfig.lib.json"
     },
     {
