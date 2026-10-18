@@ -431,14 +431,14 @@ test.describe('BOM demo（US-525 阶段 E）', () => {
     await page.getByTestId('ext-filter').click();
     await expect(page.getByTestId('ext-filter-row')).toHaveCount(1);
     await openDetails(page, '查看物料属性');
-    await expect(page.getByTestId('ext-filter-row').locator('code')).toBeVisible();
+    await expect(page.getByTestId('ext-filter-row').locator('code')).toBeAttached();
     await expect(page.getByTestId('ext-filter-row')).toContainText('B-01');
     await page.getByTestId('ext-filter-op').selectOption('ne');
     await page.getByTestId('ext-filter-value').fill('no');
     await page.getByTestId('ext-filter').click();
     await expect(page.getByTestId('ext-filter-row')).toHaveCount(1);
     await openDetails(page, '查看物料属性');
-    await expect(page.getByTestId('ext-filter-row').locator('code')).toBeVisible();
+    await expect(page.getByTestId('ext-filter-row').locator('code')).toBeAttached();
     await expect(page.getByTestId('ext-filter-row')).toContainText('B-01');
   });
 

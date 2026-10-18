@@ -24,7 +24,7 @@ test('已有数据重开后直接可用，取消重置不丢失数据，场景�
   await expect(page.getByTestId('overview-data-status')).toContainText('数据可用');
   await page.reload();
   await expect(page.getByTestId('overview-data-status')).toContainText('已有 41 项物料', { timeout: 30000 });
-  await page.screenshot({ path: '/private/tmp/bom-redesign-overview-desktop.png', animations: 'disabled' });
+  await page.screenshot({ path: 'test-output/bom-redesign-overview-desktop.png', animations: 'disabled' });
 });
 
 test('成本按业务精度展示，原值可展开核对，构成不重复汇总子件', async ({ page }) => {
@@ -38,7 +38,7 @@ test('成本按业务精度展示，原值可展开核对，构成不重复汇�
   await expect(pcba.locator('[data-amount]')).toHaveAttribute('data-amount', '8.020408163265306122448979591836735');
   await expect(pcba.locator('[data-amount]')).toHaveText('8.02');
   await expect(page.getByText('子件成本已计入材料', { exact: false })).toBeVisible();
-  await page.screenshot({ path: '/private/tmp/bom-redesign-cost-desktop.png', animations: 'disabled' });
+  await page.screenshot({ path: 'test-output/bom-redesign-cost-desktop.png', animations: 'disabled' });
   await pcba.locator('summary').click();
   await expect(pcba.locator('code').filter({ hasText: '8.020408163265306122448979591836735' }).first()).toBeVisible();
 });
@@ -59,5 +59,5 @@ test('窄屏导航可关闭，查询和成本结果不造成页面横向溢出',
     scrollWidth: document.documentElement.scrollWidth
   }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width);
-  await page.screenshot({ path: '/private/tmp/bom-redesign-cost-mobile.png', animations: 'disabled' });
+  await page.screenshot({ path: 'test-output/bom-redesign-cost-mobile.png', animations: 'disabled' });
 });
