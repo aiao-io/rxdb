@@ -1,0 +1,4951 @@
+{
+  "assetSizes": {
+    "isomorphic.js": {
+      "bytes": 268817,
+      "gzipBytes": 82233
+    },
+    "vendor/lg2.js": {
+      "bytes": 110554,
+      "gzipBytes": 30630
+    },
+    "vendor/lg2.wasm": {
+      "bytes": 862879,
+      "gzipBytes": 361650
+    },
+    "vendor/lg2_opfs.js": {
+      "bytes": 72574,
+      "gzipBytes": 20191
+    },
+    "vendor/lg2_opfs.wasm": {
+      "bytes": 976417,
+      "gzipBytes": 400318
+    },
+    "vendor/lg2_opfs_jspi.js": {
+      "bytes": 106230,
+      "gzipBytes": 29199
+    },
+    "vendor/lg2_opfs_jspi.wasm": {
+      "bytes": 861379,
+      "gzipBytes": 361552
+    },
+    "vendor/lg2_opfs_async.js": {
+      "bytes": 110040,
+      "gzipBytes": 30183
+    },
+    "vendor/lg2_opfs_async.wasm": {
+      "bytes": 1627526,
+      "gzipBytes": 549167
+    }
+  },
+  "attempts": 5,
+  "environment": {
+    "platform": "darwin",
+    "release": "27.0.0",
+    "cpu": "Apple M1 Max",
+    "logicalCpus": 10,
+    "totalMemoryBytes": 34359738368,
+    "node": "v26.12.0",
+    "browser": "156.0.8078.4"
+  },
+  "generatedAt": "2026-10-18T08:57:30.263Z",
+  "notes": [
+    "MEMFS configurations share the Emscripten FS implementation; isomorphic startup includes that benchmark-only FS runtime.",
+    "Native OPFS is a benchmark-only async facade for ordinary files, not a production filesystem.",
+    "Git clone uses a loopback native git-http-backend, without internet latency or authentication.",
+    "All OPFS builds run with COOP/COEP enabled; variants are forced rather than auto-selected.",
+    "Validation and fixture creation are outside operation timings. Reopen includes runtime initialization, restoration, and first status.",
+    "Rapid equal-length rewrite correctness is reported separately. Timed ten-file edits wait 1100 ms outside timing to avoid second-resolution stat-cache races.",
+    "WasmFS pthreads FS.writeFile appends in Emscripten 6.0.3. Its stock behavior is probed; benchmark edits explicitly use open(w), positioned write, and close.",
+    "WASM linear memory is not total browser memory; JS heap and peak RSS are not measured.",
+    "Five samples support medians and ranges; p95 nearest-rank equals the maximum and is not a stable tail estimate."
+  ],
+  "profiles": ["small", "medium"],
+  "results": [
+    {
+      "profile": "small",
+      "configuration": {
+        "label": "isomorphic-memfs",
+        "engine": "isomorphic",
+        "storage": "memfs"
+      },
+      "fileCount": 100,
+      "totalBytes": 409600,
+      "metrics": {
+        "readyMs": {
+          "samples": 5,
+          "medianMs": 35.47258300000249,
+          "p95Ms": 78.40795900000012,
+          "minMs": 33.99129199999879,
+          "maxMs": 78.40795900000012,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "engineImportMs": {
+          "samples": 5,
+          "medianMs": 16.105000019073486,
+          "p95Ms": 26.2849999666214,
+          "minMs": 15.675000011920929,
+          "maxMs": 26.2849999666214,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 5,
+          "medianMs": 10.8299999833107,
+          "p95Ms": 20.480000019073486,
+          "minMs": 10.115000009536743,
+          "maxMs": 20.480000019073486,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 5,
+          "medianMs": 84.30500000715256,
+          "p95Ms": 103.62000000476837,
+          "minMs": 80.2150000333786,
+          "maxMs": 103.62000000476837,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 5.689999997615814,
+          "p95Ms": 6.004999995231628,
+          "minMs": 5.425000011920929,
+          "maxMs": 6.004999995231628,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 3.560000002384186,
+          "p95Ms": 3.6950000524520874,
+          "minMs": 3.2850000262260437,
+          "maxMs": 3.6950000524520874,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 5,
+          "medianMs": 0.6200000047683716,
+          "p95Ms": 0.8149999976158142,
+          "minMs": 0.29500001668930054,
+          "maxMs": 0.8149999976158142,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 5,
+          "medianMs": 6.569999992847443,
+          "p95Ms": 8.0450000166893,
+          "minMs": 3.9200000166893005,
+          "maxMs": 8.0450000166893,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 5,
+          "medianMs": 5.339999973773956,
+          "p95Ms": 9.739999949932098,
+          "minMs": 3.810000002384186,
+          "maxMs": 9.739999949932098,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 5,
+          "medianMs": 8.335000038146973,
+          "p95Ms": 13.489999949932098,
+          "minMs": 6.669999957084656,
+          "maxMs": 13.489999949932098,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 5,
+          "medianMs": 5.774999976158142,
+          "p95Ms": 7.870000004768372,
+          "minMs": 4.980000019073486,
+          "maxMs": 7.870000004768372,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 5,
+          "medianMs": 5.264999985694885,
+          "p95Ms": 6.125,
+          "minMs": 4.754999995231628,
+          "maxMs": 6.125,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 5,
+        "sameSecondRapidRewrites": 5,
+        "stockOverwriteFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 78.40795900000012,
+            "engineImportMs": 26.2849999666214,
+            "filesystemAndRuntimeMs": 20.480000019073486,
+            "cloneMs": 103.62000000476837,
+            "firstCleanStatusMs": 5.680000007152557,
+            "warmCleanStatusMs": 3.560000002384186,
+            "write10FilesMs": 0.29500001668930054,
+            "modifiedStatusMs": 3.9200000166893005,
+            "stage10FilesMs": 3.810000002384186,
+            "commitMs": 6.6700000166893005,
+            "checkoutOriginalMs": 5.649999976158142,
+            "checkoutModifiedMs": 4.790000021457672
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313853521,
+              "afterMtimeMs": 1792313853530,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 34.30879199999981,
+            "engineImportMs": 15.894999980926514,
+            "filesystemAndRuntimeMs": 10.115000009536743,
+            "cloneMs": 80.2150000333786,
+            "firstCleanStatusMs": 5.754999995231628,
+            "warmCleanStatusMs": 3.6600000262260437,
+            "write10FilesMs": 0.7449999451637268,
+            "modifiedStatusMs": 5.849999964237213,
+            "stage10FilesMs": 4.699999988079071,
+            "commitMs": 6.669999957084656,
+            "checkoutOriginalMs": 4.980000019073486,
+            "checkoutModifiedMs": 4.754999995231628
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313878736,
+              "afterMtimeMs": 1792313878742,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 37.12379200000214,
+            "engineImportMs": 17.210000038146973,
+            "filesystemAndRuntimeMs": 11.25,
+            "cloneMs": 84.06999999284744,
+            "firstCleanStatusMs": 5.425000011920929,
+            "warmCleanStatusMs": 3.439999997615814,
+            "write10FilesMs": 0.5300000309944153,
+            "modifiedStatusMs": 8.0450000166893,
+            "stage10FilesMs": 5.339999973773956,
+            "commitMs": 8.335000038146973,
+            "checkoutOriginalMs": 7.870000004768372,
+            "checkoutModifiedMs": 6.125
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313880123,
+              "afterMtimeMs": 1792313880129,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 33.99129199999879,
+            "engineImportMs": 15.675000011920929,
+            "filesystemAndRuntimeMs": 10.180000007152557,
+            "cloneMs": 84.30500000715256,
+            "firstCleanStatusMs": 6.004999995231628,
+            "warmCleanStatusMs": 3.2850000262260437,
+            "write10FilesMs": 0.6200000047683716,
+            "modifiedStatusMs": 6.569999992847443,
+            "stage10FilesMs": 6.4799999594688416,
+            "commitMs": 9.564999997615814,
+            "checkoutOriginalMs": 6.024999976158142,
+            "checkoutModifiedMs": 5.675000011920929
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313904917,
+              "afterMtimeMs": 1792313904922,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 35.47258300000249,
+            "engineImportMs": 16.105000019073486,
+            "filesystemAndRuntimeMs": 10.8299999833107,
+            "cloneMs": 86.19499999284744,
+            "firstCleanStatusMs": 5.689999997615814,
+            "warmCleanStatusMs": 3.6950000524520874,
+            "write10FilesMs": 0.8149999976158142,
+            "modifiedStatusMs": 7.870000004768372,
+            "stage10FilesMs": 9.739999949932098,
+            "commitMs": 13.489999949932098,
+            "checkoutOriginalMs": 5.774999976158142,
+            "checkoutModifiedMs": 5.264999985694885
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313906322,
+              "afterMtimeMs": 1792313906328,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        }
+      ]
+    },
+    {
+      "profile": "small",
+      "configuration": {
+        "label": "wasm-memfs",
+        "engine": "wasm",
+        "storage": "memfs"
+      },
+      "fileCount": 100,
+      "totalBytes": 409600,
+      "metrics": {
+        "readyMs": {
+          "samples": 5,
+          "medianMs": 21.738500000003114,
+          "p95Ms": 22.120583999996597,
+          "minMs": 20.53441699999985,
+          "maxMs": 22.120583999996597,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 5,
+          "medianMs": 14.365000009536743,
+          "p95Ms": 14.685000002384186,
+          "minMs": 13.334999978542328,
+          "maxMs": 14.685000002384186,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 5,
+          "medianMs": 80.61999994516373,
+          "p95Ms": 86.25499999523163,
+          "minMs": 78.97500002384186,
+          "maxMs": 86.25499999523163,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 2.740000009536743,
+          "p95Ms": 2.8449999690055847,
+          "minMs": 2.3050000071525574,
+          "maxMs": 2.8449999690055847,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 1.5949999690055847,
+          "p95Ms": 2.0350000262260437,
+          "minMs": 1.2350000143051147,
+          "maxMs": 2.0350000262260437,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 5,
+          "medianMs": 0.7749999761581421,
+          "p95Ms": 1.1200000047683716,
+          "minMs": 0.5899999737739563,
+          "maxMs": 1.1200000047683716,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 5,
+          "medianMs": 5.360000014305115,
+          "p95Ms": 6.810000002384186,
+          "minMs": 4.389999985694885,
+          "maxMs": 6.810000002384186,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 5,
+          "medianMs": 10.105000019073486,
+          "p95Ms": 13.370000004768372,
+          "minMs": 8.929999947547913,
+          "maxMs": 13.370000004768372,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 5,
+          "medianMs": 4.280000030994415,
+          "p95Ms": 5.900000035762787,
+          "minMs": 3.814999997615814,
+          "maxMs": 5.900000035762787,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 5,
+          "medianMs": 3.8299999833106995,
+          "p95Ms": 6.430000007152557,
+          "minMs": 3.689999997615814,
+          "maxMs": 6.430000007152557,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 5,
+          "medianMs": 4.024999976158142,
+          "p95Ms": 4.25,
+          "minMs": 2.915000021457672,
+          "maxMs": 4.25,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 0,
+        "sameSecondRapidRewrites": 5,
+        "stockOverwriteFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 20.53441699999985,
+            "filesystemAndRuntimeMs": 13.334999978542328,
+            "cloneMs": 86.25499999523163,
+            "firstCleanStatusMs": 2.740000009536743,
+            "warmCleanStatusMs": 2.0350000262260437,
+            "write10FilesMs": 1.1200000047683716,
+            "modifiedStatusMs": 4.389999985694885,
+            "stage10FilesMs": 10.105000019073486,
+            "commitMs": 4.240000009536743,
+            "checkoutOriginalMs": 6.430000007152557,
+            "checkoutModifiedMs": 4.175000011920929
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313854894,
+              "afterMtimeMs": 1792313854898,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 21.7846669999999,
+            "filesystemAndRuntimeMs": 14.680000007152557,
+            "cloneMs": 80.56999999284744,
+            "firstCleanStatusMs": 2.8350000381469727,
+            "warmCleanStatusMs": 1.5949999690055847,
+            "write10FilesMs": 0.5899999737739563,
+            "modifiedStatusMs": 5.085000038146973,
+            "stage10FilesMs": 13.370000004768372,
+            "commitMs": 4.870000004768372,
+            "checkoutOriginalMs": 3.8299999833106995,
+            "checkoutModifiedMs": 4.024999976158142
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313877365,
+              "afterMtimeMs": 1792313877369,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 21.738500000003114,
+            "filesystemAndRuntimeMs": 14.365000009536743,
+            "cloneMs": 84.4650000333786,
+            "firstCleanStatusMs": 2.8449999690055847,
+            "warmCleanStatusMs": 1.5699999928474426,
+            "write10FilesMs": 0.8149999976158142,
+            "modifiedStatusMs": 5.410000026226044,
+            "stage10FilesMs": 9.069999992847443,
+            "commitMs": 3.814999997615814,
+            "checkoutOriginalMs": 3.689999997615814,
+            "checkoutModifiedMs": 2.915000021457672
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313881502,
+              "afterMtimeMs": 1792313881506,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 22.120583999996597,
+            "filesystemAndRuntimeMs": 14.685000002384186,
+            "cloneMs": 80.61999994516373,
+            "firstCleanStatusMs": 2.3050000071525574,
+            "warmCleanStatusMs": 1.2350000143051147,
+            "write10FilesMs": 0.7749999761581421,
+            "modifiedStatusMs": 6.810000002384186,
+            "stage10FilesMs": 8.929999947547913,
+            "commitMs": 4.280000030994415,
+            "checkoutOriginalMs": 3.7350000143051147,
+            "checkoutModifiedMs": 3.8600000143051147
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313903547,
+              "afterMtimeMs": 1792313903551,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 21.10479099999793,
+            "filesystemAndRuntimeMs": 14.185000002384186,
+            "cloneMs": 78.97500002384186,
+            "firstCleanStatusMs": 2.590000033378601,
+            "warmCleanStatusMs": 1.6549999713897705,
+            "write10FilesMs": 0.6699999570846558,
+            "modifiedStatusMs": 5.360000014305115,
+            "stage10FilesMs": 13.289999961853027,
+            "commitMs": 5.900000035762787,
+            "checkoutOriginalMs": 4.110000014305115,
+            "checkoutModifiedMs": 4.25
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313907703,
+              "afterMtimeMs": 1792313907707,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        }
+      ]
+    },
+    {
+      "profile": "small",
+      "configuration": {
+        "label": "isomorphic-native-opfs",
+        "engine": "isomorphic",
+        "storage": "native-opfs"
+      },
+      "fileCount": 100,
+      "totalBytes": 409600,
+      "metrics": {
+        "readyMs": {
+          "samples": 5,
+          "medianMs": 26.489707999997336,
+          "p95Ms": 38.89354200000071,
+          "minMs": 25.307916000005207,
+          "maxMs": 38.89354200000071,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "engineImportMs": {
+          "samples": 5,
+          "medianMs": 16.62999999523163,
+          "p95Ms": 19.49500000476837,
+          "minMs": 15.7950000166893,
+          "maxMs": 19.49500000476837,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 5,
+          "medianMs": 1.2400000095367432,
+          "p95Ms": 7.365000009536743,
+          "minMs": 1.0199999809265137,
+          "maxMs": 7.365000009536743,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 5,
+          "medianMs": 242.01499998569489,
+          "p95Ms": 379.0900000333786,
+          "minMs": 229.81999999284744,
+          "maxMs": 379.0900000333786,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 85.50499999523163,
+          "p95Ms": 85.75999999046326,
+          "minMs": 77.02499997615814,
+          "maxMs": 85.75999999046326,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 78.27499997615814,
+          "p95Ms": 79.8299999833107,
+          "minMs": 65.89999997615814,
+          "maxMs": 79.8299999833107,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 5,
+          "medianMs": 18.27999997138977,
+          "p95Ms": 24.134999990463257,
+          "minMs": 14.069999992847443,
+          "maxMs": 24.134999990463257,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 5,
+          "medianMs": 87.08999997377396,
+          "p95Ms": 96.18999999761581,
+          "minMs": 77.10499995946884,
+          "maxMs": 96.18999999761581,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 5,
+          "medianMs": 19.919999957084656,
+          "p95Ms": 21.384999990463257,
+          "minMs": 18.334999978542328,
+          "maxMs": 21.384999990463257,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 5,
+          "medianMs": 58.59500002861023,
+          "p95Ms": 66.50499999523163,
+          "minMs": 55.97000002861023,
+          "maxMs": 66.50499999523163,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 5,
+          "medianMs": 63.389999985694885,
+          "p95Ms": 66.43500000238419,
+          "minMs": 60.685000002384186,
+          "maxMs": 66.43500000238419,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 5,
+          "medianMs": 61.1599999666214,
+          "p95Ms": 64.10500001907349,
+          "minMs": 57.84500002861023,
+          "maxMs": 64.10500001907349,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenReadyMs": {
+          "samples": 5,
+          "medianMs": 85.63491699999577,
+          "p95Ms": 89.69604200000322,
+          "minMs": 42.56133399999999,
+          "maxMs": 89.69604200000322,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "restoreMs": {
+          "samples": 5,
+          "medianMs": 0.010000050067901611,
+          "p95Ms": 0.014999985694885254,
+          "minMs": 0.004999995231628418,
+          "maxMs": 0.014999985694885254,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenFirstStatusMs": {
+          "samples": 5,
+          "medianMs": 84.53999996185303,
+          "p95Ms": 122.5,
+          "minMs": 77.34500002861023,
+          "maxMs": 122.5,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenWarmStatusMs": {
+          "samples": 5,
+          "medianMs": 78.125,
+          "p95Ms": 98.93000000715256,
+          "minMs": 65.53999996185303,
+          "maxMs": 98.93000000715256,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenTotalMs": {
+          "samples": 5,
+          "medianMs": 172.18604200953996,
+          "p95Ms": 174.37962505483665,
+          "minMs": 162.98491702383762,
+          "maxMs": 174.37962505483665,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenRuntimeMs": {
+          "samples": 5,
+          "medianMs": 32.4899999499321,
+          "p95Ms": 36.464999973773956,
+          "minMs": 11.445000052452087,
+          "maxMs": 36.464999973773956,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 5,
+        "sameSecondRapidRewrites": 5,
+        "stockOverwriteFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 38.89354200000071,
+            "engineImportMs": 19.49500000476837,
+            "filesystemAndRuntimeMs": 7.365000009536743,
+            "cloneMs": 379.0900000333786,
+            "firstCleanStatusMs": 77.02499997615814,
+            "warmCleanStatusMs": 65.89999997615814,
+            "write10FilesMs": 24.134999990463257,
+            "modifiedStatusMs": 87.08999997377396,
+            "stage10FilesMs": 19.740000009536743,
+            "commitMs": 66.50499999523163,
+            "checkoutOriginalMs": 63.389999985694885,
+            "checkoutModifiedMs": 57.84500002861023,
+            "reopenReadyMs": 42.56133399999999,
+            "restoreMs": 0.014999985694885254,
+            "reopenFirstStatusMs": 122.5,
+            "reopenWarmStatusMs": 78.125,
+            "reopenTotalMs": 165.07633398569487,
+            "reopenRuntimeMs": 11.445000052452087
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313856805,
+              "afterMtimeMs": 1792313856891,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": null,
+          "storage": {
+            "quota": 10738147082,
+            "usage": 728842,
+            "usageDetails": {
+              "fileSystem": 728842
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 26.63354099999924,
+            "engineImportMs": 16.62999999523163,
+            "filesystemAndRuntimeMs": 1.2699999809265137,
+            "cloneMs": 242.01499998569489,
+            "firstCleanStatusMs": 78.61500000953674,
+            "warmCleanStatusMs": 70.09499996900558,
+            "write10FilesMs": 18.27999997138977,
+            "modifiedStatusMs": 96.18999999761581,
+            "stage10FilesMs": 20.12999999523163,
+            "commitMs": 61.685000002384186,
+            "checkoutOriginalMs": 60.685000002384186,
+            "checkoutModifiedMs": 61.1599999666214,
+            "reopenReadyMs": 82.99962500000038,
+            "restoreMs": 0.010000050067901611,
+            "reopenFirstStatusMs": 91.37000000476837,
+            "reopenWarmStatusMs": 98.93000000715256,
+            "reopenTotalMs": 174.37962505483665,
+            "reopenRuntimeMs": 31.134999990463257
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313874767,
+              "afterMtimeMs": 1792313874854,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": null,
+          "storage": {
+            "quota": 10738147082,
+            "usage": 728842,
+            "usageDetails": {
+              "fileSystem": 728842
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 26.489707999997336,
+            "engineImportMs": 16.650000035762787,
+            "filesystemAndRuntimeMs": 1.2400000095367432,
+            "cloneMs": 247.53500002622604,
+            "firstCleanStatusMs": 85.75999999046326,
+            "warmCleanStatusMs": 78.27499997615814,
+            "write10FilesMs": 14.069999992847443,
+            "modifiedStatusMs": 77.10499995946884,
+            "stage10FilesMs": 18.334999978542328,
+            "commitMs": 56.50500005483627,
+            "checkoutOriginalMs": 66.43500000238419,
+            "checkoutModifiedMs": 61.44999998807907,
+            "reopenReadyMs": 89.42579200000182,
+            "restoreMs": 0.009999990463256836,
+            "reopenFirstStatusMs": 84.53999996185303,
+            "reopenWarmStatusMs": 79.75499999523163,
+            "reopenTotalMs": 173.9757919523181,
+            "reopenRuntimeMs": 34.72499996423721
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313883204,
+              "afterMtimeMs": 1792313883293,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": null,
+          "storage": {
+            "quota": 10738147082,
+            "usage": 728842,
+            "usageDetails": {
+              "fileSystem": 728842
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 25.54883400000108,
+            "engineImportMs": 16.365000009536743,
+            "filesystemAndRuntimeMs": 1.0199999809265137,
+            "cloneMs": 229.81999999284744,
+            "firstCleanStatusMs": 85.50499999523163,
+            "warmCleanStatusMs": 78.55000001192093,
+            "write10FilesMs": 18.834999978542328,
+            "modifiedStatusMs": 88.61000001430511,
+            "stage10FilesMs": 19.919999957084656,
+            "commitMs": 55.97000002861023,
+            "checkoutOriginalMs": 60.910000026226044,
+            "checkoutModifiedMs": 58.08500003814697,
+            "reopenReadyMs": 89.69604200000322,
+            "restoreMs": 0.010000050067901611,
+            "reopenFirstStatusMs": 82.47999995946884,
+            "reopenWarmStatusMs": 65.53999996185303,
+            "reopenTotalMs": 172.18604200953996,
+            "reopenRuntimeMs": 36.464999973773956
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313901087,
+              "afterMtimeMs": 1792313901177,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": null,
+          "storage": {
+            "quota": 10738147082,
+            "usage": 728842,
+            "usageDetails": {
+              "fileSystem": 728842
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 25.307916000005207,
+            "engineImportMs": 15.7950000166893,
+            "filesystemAndRuntimeMs": 1.125,
+            "cloneMs": 234.625,
+            "firstCleanStatusMs": 85.53000003099442,
+            "warmCleanStatusMs": 79.8299999833107,
+            "write10FilesMs": 18.0349999666214,
+            "modifiedStatusMs": 85.24500000476837,
+            "stage10FilesMs": 21.384999990463257,
+            "commitMs": 58.59500002861023,
+            "checkoutOriginalMs": 65.38499999046326,
+            "checkoutModifiedMs": 64.10500001907349,
+            "reopenReadyMs": 85.63491699999577,
+            "restoreMs": 0.004999995231628418,
+            "reopenFirstStatusMs": 77.34500002861023,
+            "reopenWarmStatusMs": 68.23000001907349,
+            "reopenTotalMs": 162.98491702383762,
+            "reopenRuntimeMs": 32.4899999499321
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313909386,
+              "afterMtimeMs": 1792313909487,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": null,
+          "storage": {
+            "quota": 10738147082,
+            "usage": 728842,
+            "usageDetails": {
+              "fileSystem": 728842
+            }
+          }
+        }
+      ]
+    },
+    {
+      "profile": "small",
+      "configuration": {
+        "label": "wasm-opfs-pthreads",
+        "engine": "wasm",
+        "storage": "opfs",
+        "variant": "pthreads"
+      },
+      "fileCount": 100,
+      "totalBytes": 409600,
+      "metrics": {
+        "readyMs": {
+          "samples": 5,
+          "medianMs": 25.361375000000407,
+          "p95Ms": 28.335833000001003,
+          "minMs": 24.185624999998254,
+          "maxMs": 28.335833000001003,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 5,
+          "medianMs": 18.32499998807907,
+          "p95Ms": 21.185000002384186,
+          "minMs": 17.35499995946884,
+          "maxMs": 21.185000002384186,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 5,
+          "medianMs": 283.92500001192093,
+          "p95Ms": 307.02000004053116,
+          "minMs": 278.75,
+          "maxMs": 307.02000004053116,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 220,
+          "p95Ms": 232.43000000715256,
+          "minMs": 103.35499995946884,
+          "maxMs": 232.43000000715256,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 209.98500001430511,
+          "p95Ms": 246.46999996900558,
+          "minMs": 95.39999997615814,
+          "maxMs": 246.46999996900558,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 5,
+          "medianMs": 11.745000004768372,
+          "p95Ms": 17.780000030994415,
+          "minMs": 9.475000023841858,
+          "maxMs": 17.780000030994415,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 5,
+          "medianMs": 46.52500003576279,
+          "p95Ms": 63.160000026226044,
+          "minMs": 36.894999980926514,
+          "maxMs": 63.160000026226044,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 5,
+          "medianMs": 83.74500000476837,
+          "p95Ms": 141.62000000476837,
+          "minMs": 79.38999998569489,
+          "maxMs": 141.62000000476837,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 5,
+          "medianMs": 90.12000000476837,
+          "p95Ms": 94.62000000476837,
+          "minMs": 76.27500003576279,
+          "maxMs": 94.62000000476837,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 5,
+          "medianMs": 69.47499996423721,
+          "p95Ms": 76.2950000166893,
+          "minMs": 64.88999998569489,
+          "maxMs": 76.2950000166893,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 5,
+          "medianMs": 78.75999999046326,
+          "p95Ms": 83.41000002622604,
+          "minMs": 76.67500001192093,
+          "maxMs": 83.41000002622604,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenReadyMs": {
+          "samples": 5,
+          "medianMs": 78.25658400000066,
+          "p95Ms": 79.49312500000087,
+          "minMs": 67.52404200000456,
+          "maxMs": 79.49312500000087,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "restoreMs": {
+          "samples": 5,
+          "medianMs": 4.740000009536743,
+          "p95Ms": 8.054999947547913,
+          "minMs": 4.475000023841858,
+          "maxMs": 8.054999947547913,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenFirstStatusMs": {
+          "samples": 5,
+          "medianMs": 79.06000000238419,
+          "p95Ms": 105.25999999046326,
+          "minMs": 68.56499999761581,
+          "maxMs": 105.25999999046326,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenWarmStatusMs": {
+          "samples": 5,
+          "medianMs": 40.985000014305115,
+          "p95Ms": 43.235000014305115,
+          "minMs": 30.850000023841858,
+          "maxMs": 43.235000014305115,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenTotalMs": {
+          "samples": 5,
+          "medianMs": 162.2227080262237,
+          "p95Ms": 191.57158393801183,
+          "minMs": 140.69404201669386,
+          "maxMs": 191.57158393801183,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenRuntimeMs": {
+          "samples": 5,
+          "medianMs": 67.83499997854233,
+          "p95Ms": 69.67500001192093,
+          "minMs": 60.61500000953674,
+          "maxMs": 69.67500001192093,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 0,
+        "sameSecondRapidRewrites": 3,
+        "stockOverwriteFailures": 5,
+        "reopenStatusFailures": 5,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 28.335833000001003,
+            "filesystemAndRuntimeMs": 21.185000002384186,
+            "cloneMs": 283.92500001192093,
+            "firstCleanStatusMs": 189.74000000953674,
+            "warmCleanStatusMs": 209.98500001430511,
+            "write10FilesMs": 10.474999964237213,
+            "modifiedStatusMs": 41.564999997615814,
+            "stage10FilesMs": 141.62000000476837,
+            "commitMs": 90.12000000476837,
+            "checkoutOriginalMs": 76.2950000166893,
+            "checkoutModifiedMs": 83.41000002622604,
+            "reopenReadyMs": 78.25658400000066,
+            "restoreMs": 8.054999947547913,
+            "reopenFirstStatusMs": 105.25999999046326,
+            "reopenWarmStatusMs": 43.235000014305115,
+            "reopenTotalMs": 191.57158393801183,
+            "reopenRuntimeMs": 69.67500001192093
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313859000,
+              "afterMtimeMs": 1792313860000,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": {
+              "expected": "bb",
+              "actual": "aabb",
+              "passed": false,
+              "benchmarkUsesExplicitTruncatingWrite": true
+            },
+            "reopen": {
+              "firstDirtyCount": 100,
+              "warmDirtyCount": 100,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": [
+                " M src/package-00/feature-00/module-000000.ts",
+                " M src/package-00/feature-00/module-000001.ts",
+                " M src/package-00/feature-00/module-000002.ts",
+                " M src/package-00/feature-00/module-000003.ts",
+                " M src/package-00/feature-00/module-000004.ts",
+                " M src/package-00/feature-00/module-000005.ts",
+                " M src/package-00/feature-00/module-000006.ts",
+                " M src/package-00/feature-00/module-000007.ts",
+                " M src/package-00/feature-00/module-000008.ts",
+                " M src/package-00/feature-00/module-000009.ts",
+                " M src/package-00/feature-01/module-000010.ts",
+                " M src/package-00/feature-01/module-000011.ts"
+              ]
+            }
+          },
+          "wasmLinearMemoryBytes": 16777216,
+          "storage": {
+            "quota": 10738148671,
+            "usage": 730431,
+            "usageDetails": {
+              "fileSystem": 730431
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 25.361375000000407,
+            "filesystemAndRuntimeMs": 18.2150000333786,
+            "cloneMs": 307.02000004053116,
+            "firstCleanStatusMs": 226.3299999833107,
+            "warmCleanStatusMs": 203.43000000715256,
+            "write10FilesMs": 12.1700000166893,
+            "modifiedStatusMs": 49.200000047683716,
+            "stage10FilesMs": 83.41000002622604,
+            "commitMs": 88.06999999284744,
+            "checkoutOriginalMs": 64.88999998569489,
+            "checkoutModifiedMs": 78.75999999046326,
+            "reopenReadyMs": 79.49312500000087,
+            "restoreMs": 5.550000011920929,
+            "reopenFirstStatusMs": 79.90500003099442,
+            "reopenWarmStatusMs": 42.68000000715256,
+            "reopenTotalMs": 164.94812504291622,
+            "reopenRuntimeMs": 66.48000001907349
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313871000,
+              "afterMtimeMs": 1792313872000,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": {
+              "expected": "bb",
+              "actual": "aabb",
+              "passed": false,
+              "benchmarkUsesExplicitTruncatingWrite": true
+            },
+            "reopen": {
+              "firstDirtyCount": 100,
+              "warmDirtyCount": 100,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": [
+                " M src/package-00/feature-00/module-000000.ts",
+                " M src/package-00/feature-00/module-000001.ts",
+                " M src/package-00/feature-00/module-000002.ts",
+                " M src/package-00/feature-00/module-000003.ts",
+                " M src/package-00/feature-00/module-000004.ts",
+                " M src/package-00/feature-00/module-000005.ts",
+                " M src/package-00/feature-00/module-000006.ts",
+                " M src/package-00/feature-00/module-000007.ts",
+                " M src/package-00/feature-00/module-000008.ts",
+                " M src/package-00/feature-00/module-000009.ts",
+                " M src/package-00/feature-01/module-000010.ts",
+                " M src/package-00/feature-01/module-000011.ts"
+              ]
+            }
+          },
+          "wasmLinearMemoryBytes": 16777216,
+          "storage": {
+            "quota": 10738148671,
+            "usage": 730431,
+            "usageDetails": {
+              "fileSystem": 730431
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 25.150667000001704,
+            "filesystemAndRuntimeMs": 18.32499998807907,
+            "cloneMs": 278.75,
+            "firstCleanStatusMs": 232.43000000715256,
+            "warmCleanStatusMs": 218.77000004053116,
+            "write10FilesMs": 17.780000030994415,
+            "modifiedStatusMs": 46.52500003576279,
+            "stage10FilesMs": 83.74500000476837,
+            "commitMs": 76.27500003576279,
+            "checkoutOriginalMs": 65.01999998092651,
+            "checkoutModifiedMs": 77.75999999046326,
+            "reopenReadyMs": 77.89249999999447,
+            "restoreMs": 4.740000009536743,
+            "reopenFirstStatusMs": 70.95999997854233,
+            "reopenWarmStatusMs": 30.850000023841858,
+            "reopenTotalMs": 153.59249998807354,
+            "reopenRuntimeMs": 69.66499996185303
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313886000,
+              "afterMtimeMs": 1792313886000,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": {
+              "expected": "bb",
+              "actual": "aabb",
+              "passed": false,
+              "benchmarkUsesExplicitTruncatingWrite": true
+            },
+            "reopen": {
+              "firstDirtyCount": 100,
+              "warmDirtyCount": 100,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": [
+                " M src/package-00/feature-00/module-000000.ts",
+                " M src/package-00/feature-00/module-000001.ts",
+                " M src/package-00/feature-00/module-000002.ts",
+                " M src/package-00/feature-00/module-000003.ts",
+                " M src/package-00/feature-00/module-000004.ts",
+                " M src/package-00/feature-00/module-000005.ts",
+                " M src/package-00/feature-00/module-000006.ts",
+                " M src/package-00/feature-00/module-000007.ts",
+                " M src/package-00/feature-00/module-000008.ts",
+                " M src/package-00/feature-00/module-000009.ts",
+                " M src/package-00/feature-01/module-000010.ts",
+                " M src/package-00/feature-01/module-000011.ts"
+              ]
+            }
+          },
+          "wasmLinearMemoryBytes": 16777216,
+          "storage": {
+            "quota": 10738148671,
+            "usage": 730431,
+            "usageDetails": {
+              "fileSystem": 730431
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 24.185624999998254,
+            "filesystemAndRuntimeMs": 17.35499995946884,
+            "cloneMs": 290.2699999809265,
+            "firstCleanStatusMs": 220,
+            "warmCleanStatusMs": 246.46999996900558,
+            "write10FilesMs": 9.475000023841858,
+            "modifiedStatusMs": 36.894999980926514,
+            "stage10FilesMs": 79.38999998569489,
+            "commitMs": 91.52000004053116,
+            "checkoutOriginalMs": 71.43500000238419,
+            "checkoutModifiedMs": 76.67500001192093,
+            "reopenReadyMs": 78.68770799999766,
+            "restoreMs": 4.475000023841858,
+            "reopenFirstStatusMs": 79.06000000238419,
+            "reopenWarmStatusMs": 35.94999998807907,
+            "reopenTotalMs": 162.2227080262237,
+            "reopenRuntimeMs": 67.83499997854233
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313898000,
+              "afterMtimeMs": 1792313898000,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": {
+              "expected": "bb",
+              "actual": "aabb",
+              "passed": false,
+              "benchmarkUsesExplicitTruncatingWrite": true
+            },
+            "reopen": {
+              "firstDirtyCount": 100,
+              "warmDirtyCount": 100,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": [
+                " M src/package-00/feature-00/module-000000.ts",
+                " M src/package-00/feature-00/module-000001.ts",
+                " M src/package-00/feature-00/module-000002.ts",
+                " M src/package-00/feature-00/module-000003.ts",
+                " M src/package-00/feature-00/module-000004.ts",
+                " M src/package-00/feature-00/module-000005.ts",
+                " M src/package-00/feature-00/module-000006.ts",
+                " M src/package-00/feature-00/module-000007.ts",
+                " M src/package-00/feature-00/module-000008.ts",
+                " M src/package-00/feature-00/module-000009.ts",
+                " M src/package-00/feature-01/module-000010.ts",
+                " M src/package-00/feature-01/module-000011.ts"
+              ]
+            }
+          },
+          "wasmLinearMemoryBytes": 16777216,
+          "storage": {
+            "quota": 10738148520,
+            "usage": 730280,
+            "usageDetails": {
+              "fileSystem": 730280
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 25.71679199999926,
+            "filesystemAndRuntimeMs": 19.160000026226044,
+            "cloneMs": 281.83999997377396,
+            "firstCleanStatusMs": 103.35499995946884,
+            "warmCleanStatusMs": 95.39999997615814,
+            "write10FilesMs": 11.745000004768372,
+            "modifiedStatusMs": 63.160000026226044,
+            "stage10FilesMs": 113.72500002384186,
+            "commitMs": 94.62000000476837,
+            "checkoutOriginalMs": 69.47499996423721,
+            "checkoutModifiedMs": 82.14499998092651,
+            "reopenReadyMs": 67.52404200000456,
+            "restoreMs": 4.605000019073486,
+            "reopenFirstStatusMs": 68.56499999761581,
+            "reopenWarmStatusMs": 40.985000014305115,
+            "reopenTotalMs": 140.69404201669386,
+            "reopenRuntimeMs": 60.61500000953674
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313912000,
+              "afterMtimeMs": 1792313912000,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": {
+              "expected": "bb",
+              "actual": "aabb",
+              "passed": false,
+              "benchmarkUsesExplicitTruncatingWrite": true
+            },
+            "reopen": {
+              "firstDirtyCount": 100,
+              "warmDirtyCount": 100,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": [
+                " M src/package-00/feature-00/module-000000.ts",
+                " M src/package-00/feature-00/module-000001.ts",
+                " M src/package-00/feature-00/module-000002.ts",
+                " M src/package-00/feature-00/module-000003.ts",
+                " M src/package-00/feature-00/module-000004.ts",
+                " M src/package-00/feature-00/module-000005.ts",
+                " M src/package-00/feature-00/module-000006.ts",
+                " M src/package-00/feature-00/module-000007.ts",
+                " M src/package-00/feature-00/module-000008.ts",
+                " M src/package-00/feature-00/module-000009.ts",
+                " M src/package-00/feature-01/module-000010.ts",
+                " M src/package-00/feature-01/module-000011.ts"
+              ]
+            }
+          },
+          "wasmLinearMemoryBytes": 16777216,
+          "storage": {
+            "quota": 10738148670,
+            "usage": 730430,
+            "usageDetails": {
+              "fileSystem": 730430
+            }
+          }
+        }
+      ]
+    },
+    {
+      "profile": "small",
+      "configuration": {
+        "label": "wasm-opfs-jspi",
+        "engine": "wasm",
+        "storage": "opfs",
+        "variant": "jspi"
+      },
+      "fileCount": 100,
+      "totalBytes": 409600,
+      "metrics": {
+        "readyMs": {
+          "samples": 5,
+          "medianMs": 24.98058300000048,
+          "p95Ms": 26.976582999996026,
+          "minMs": 22.74470900000233,
+          "maxMs": 26.976582999996026,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 5,
+          "medianMs": 17.705000042915344,
+          "p95Ms": 19.3299999833107,
+          "minMs": 15.919999957084656,
+          "maxMs": 19.3299999833107,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 5,
+          "medianMs": 303.6200000047684,
+          "p95Ms": 312.29499995708466,
+          "minMs": 300.82499998807907,
+          "maxMs": 312.29499995708466,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 14.120000004768372,
+          "p95Ms": 16.18499994277954,
+          "minMs": 8.990000009536743,
+          "maxMs": 16.18499994277954,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 10.615000009536743,
+          "p95Ms": 11.115000009536743,
+          "minMs": 6.129999995231628,
+          "maxMs": 11.115000009536743,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 5,
+          "medianMs": 17.0799999833107,
+          "p95Ms": 20.00499999523163,
+          "minMs": 15.5450000166893,
+          "maxMs": 20.00499999523163,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 5,
+          "medianMs": 3.5850000381469727,
+          "p95Ms": 3.759999990463257,
+          "minMs": 2.935000002384186,
+          "maxMs": 3.759999990463257,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 5,
+          "medianMs": 56.939999997615814,
+          "p95Ms": 59.144999980926514,
+          "minMs": 55.030000030994415,
+          "maxMs": 59.144999980926514,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 5,
+          "medianMs": 72.53000003099442,
+          "p95Ms": 76.68000000715256,
+          "minMs": 68.29000002145767,
+          "maxMs": 76.68000000715256,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 5,
+          "medianMs": 23.65499997138977,
+          "p95Ms": 24.990000009536743,
+          "minMs": 23.139999985694885,
+          "maxMs": 24.990000009536743,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 5,
+          "medianMs": 23.42500001192093,
+          "p95Ms": 24.950000047683716,
+          "minMs": 23.09500002861023,
+          "maxMs": 24.950000047683716,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenReadyMs": {
+          "samples": 5,
+          "medianMs": 21.91824999999517,
+          "p95Ms": 22.7879580000008,
+          "minMs": 20.44549999999981,
+          "maxMs": 22.7879580000008,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "restoreMs": {
+          "samples": 5,
+          "medianMs": 182.8100000023842,
+          "p95Ms": 192.76499998569489,
+          "minMs": 174.21000003814697,
+          "maxMs": 192.76499998569489,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenFirstStatusMs": {
+          "samples": 5,
+          "medianMs": 25.24500000476837,
+          "p95Ms": 25.439999997615814,
+          "minMs": 24.355000019073486,
+          "maxMs": 25.439999997615814,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenWarmStatusMs": {
+          "samples": 5,
+          "medianMs": 11.185000002384186,
+          "p95Ms": 11.419999957084656,
+          "minMs": 10.159999966621399,
+          "maxMs": 11.419999957084656,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenTotalMs": {
+          "samples": 5,
+          "medianMs": 229.95295802145847,
+          "p95Ms": 238.27049998807888,
+          "minMs": 220.43987499523428,
+          "maxMs": 238.27049998807888,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenRuntimeMs": {
+          "samples": 5,
+          "medianMs": 13.069999992847443,
+          "p95Ms": 15.019999980926514,
+          "minMs": 12.115000009536743,
+          "maxMs": 15.019999980926514,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 0,
+        "sameSecondRapidRewrites": 4,
+        "stockOverwriteFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 24.98058300000048,
+            "filesystemAndRuntimeMs": 17.705000042915344,
+            "cloneMs": 300.82499998807907,
+            "firstCleanStatusMs": 14.769999980926514,
+            "warmCleanStatusMs": 10.4549999833107,
+            "write10FilesMs": 17.040000021457672,
+            "modifiedStatusMs": 2.935000002384186,
+            "stage10FilesMs": 55.785000026226044,
+            "commitMs": 76.68000000715256,
+            "checkoutOriginalMs": 23.65499997138977,
+            "checkoutModifiedMs": 23.42500001192093,
+            "reopenReadyMs": 20.44549999999981,
+            "restoreMs": 192.76499998569489,
+            "reopenFirstStatusMs": 25.060000002384186,
+            "reopenWarmStatusMs": 11.185000002384186,
+            "reopenTotalMs": 238.27049998807888,
+            "reopenRuntimeMs": 15.019999980926514
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313862979,
+              "afterMtimeMs": 1792313863011,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10738148327,
+            "usage": 730087,
+            "usageDetails": {
+              "fileSystem": 730087
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 22.74470900000233,
+            "filesystemAndRuntimeMs": 15.919999957084656,
+            "cloneMs": 303.3949999809265,
+            "firstCleanStatusMs": 16.18499994277954,
+            "warmCleanStatusMs": 11.115000009536743,
+            "write10FilesMs": 20.00499999523163,
+            "modifiedStatusMs": 3.759999990463257,
+            "stage10FilesMs": 56.939999997615814,
+            "commitMs": 72.53000003099442,
+            "checkoutOriginalMs": 23.32499998807907,
+            "checkoutModifiedMs": 23.225000023841858,
+            "reopenReadyMs": 20.80987500000265,
+            "restoreMs": 174.21000003814697,
+            "reopenFirstStatusMs": 25.419999957084656,
+            "reopenWarmStatusMs": 11.240000009536743,
+            "reopenTotalMs": 220.43987499523428,
+            "reopenRuntimeMs": 12.115000009536743
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313869281,
+              "afterMtimeMs": 1792313869315,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10738148328,
+            "usage": 730088,
+            "usageDetails": {
+              "fileSystem": 730088
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 26.976582999996026,
+            "filesystemAndRuntimeMs": 19.3299999833107,
+            "cloneMs": 312.29499995708466,
+            "firstCleanStatusMs": 14.120000004768372,
+            "warmCleanStatusMs": 10.870000004768372,
+            "write10FilesMs": 15.5450000166893,
+            "modifiedStatusMs": 3.5850000381469727,
+            "stage10FilesMs": 59.144999980926514,
+            "commitMs": 73.97999995946884,
+            "checkoutOriginalMs": 23.139999985694885,
+            "checkoutModifiedMs": 23.09500002861023,
+            "reopenReadyMs": 21.91824999999517,
+            "restoreMs": 175.57499998807907,
+            "reopenFirstStatusMs": 25.439999997615814,
+            "reopenWarmStatusMs": 11.419999957084656,
+            "reopenTotalMs": 222.93324998569005,
+            "reopenRuntimeMs": 12.544999957084656
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313889265,
+              "afterMtimeMs": 1792313889298,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10738148326,
+            "usage": 730086,
+            "usageDetails": {
+              "fileSystem": 730086
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 25.867707999997947,
+            "filesystemAndRuntimeMs": 18.055000007152557,
+            "cloneMs": 303.6200000047684,
+            "firstCleanStatusMs": 14.035000026226044,
+            "warmCleanStatusMs": 10.615000009536743,
+            "write10FilesMs": 17.0799999833107,
+            "modifiedStatusMs": 3.5899999737739563,
+            "stage10FilesMs": 55.030000030994415,
+            "commitMs": 72.23000001907349,
+            "checkoutOriginalMs": 24.460000038146973,
+            "checkoutModifiedMs": 24.69999998807907,
+            "reopenReadyMs": 22.117167000003974,
+            "restoreMs": 189.3149999976158,
+            "reopenFirstStatusMs": 25.24500000476837,
+            "reopenWarmStatusMs": 10.699999988079071,
+            "reopenTotalMs": 236.67716700238816,
+            "reopenRuntimeMs": 13.909999966621399
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313895569,
+              "afterMtimeMs": 1792313895600,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10738148326,
+            "usage": 730086,
+            "usageDetails": {
+              "fileSystem": 730086
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 22.985999999997148,
+            "filesystemAndRuntimeMs": 16.3400000333786,
+            "cloneMs": 311.7649999856949,
+            "firstCleanStatusMs": 8.990000009536743,
+            "warmCleanStatusMs": 6.129999995231628,
+            "write10FilesMs": 17.839999973773956,
+            "modifiedStatusMs": 3.0300000309944153,
+            "stage10FilesMs": 58.47500002384186,
+            "commitMs": 68.29000002145767,
+            "checkoutOriginalMs": 24.990000009536743,
+            "checkoutModifiedMs": 24.950000047683716,
+            "reopenReadyMs": 22.7879580000008,
+            "restoreMs": 182.8100000023842,
+            "reopenFirstStatusMs": 24.355000019073486,
+            "reopenWarmStatusMs": 10.159999966621399,
+            "reopenTotalMs": 229.95295802145847,
+            "reopenRuntimeMs": 13.069999992847443
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313915088,
+              "afterMtimeMs": 1792313915107,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10738148326,
+            "usage": 730086,
+            "usageDetails": {
+              "fileSystem": 730086
+            }
+          }
+        }
+      ]
+    },
+    {
+      "profile": "small",
+      "configuration": {
+        "label": "wasm-opfs-asyncify",
+        "engine": "wasm",
+        "storage": "opfs",
+        "variant": "asyncify"
+      },
+      "fileCount": 100,
+      "totalBytes": 409600,
+      "metrics": {
+        "readyMs": {
+          "samples": 5,
+          "medianMs": 23.88816699999734,
+          "p95Ms": 25.398749999993015,
+          "minMs": 23.049333999995724,
+          "maxMs": 25.398749999993015,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 5,
+          "medianMs": 17.070000052452087,
+          "p95Ms": 18.42500001192093,
+          "minMs": 16.14000004529953,
+          "maxMs": 18.42500001192093,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 5,
+          "medianMs": 323.05000001192093,
+          "p95Ms": 328.80000001192093,
+          "minMs": 319.82499998807907,
+          "maxMs": 328.80000001192093,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 15.409999966621399,
+          "p95Ms": 17.524999976158142,
+          "minMs": 9.944999992847443,
+          "maxMs": 17.524999976158142,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 11.659999966621399,
+          "p95Ms": 11.839999973773956,
+          "minMs": 6.085000038146973,
+          "maxMs": 11.839999973773956,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 5,
+          "medianMs": 18.014999985694885,
+          "p95Ms": 22.274999976158142,
+          "minMs": 13.965000033378601,
+          "maxMs": 22.274999976158142,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 5,
+          "medianMs": 4.224999964237213,
+          "p95Ms": 5.629999995231628,
+          "minMs": 3.9300000071525574,
+          "maxMs": 5.629999995231628,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 5,
+          "medianMs": 57.30500000715256,
+          "p95Ms": 61.60499995946884,
+          "minMs": 54.77000004053116,
+          "maxMs": 61.60499995946884,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 5,
+          "medianMs": 73.99499994516373,
+          "p95Ms": 79.47499996423721,
+          "minMs": 69.69499999284744,
+          "maxMs": 79.47499996423721,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 5,
+          "medianMs": 25.125,
+          "p95Ms": 28.384999990463257,
+          "minMs": 22.05000001192093,
+          "maxMs": 28.384999990463257,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 5,
+          "medianMs": 25.15499997138977,
+          "p95Ms": 27.85999995470047,
+          "minMs": 21.330000042915344,
+          "maxMs": 27.85999995470047,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenReadyMs": {
+          "samples": 5,
+          "medianMs": 22.465666000000056,
+          "p95Ms": 24.287334000000556,
+          "minMs": 22.361375000000407,
+          "maxMs": 24.287334000000556,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "restoreMs": {
+          "samples": 5,
+          "medianMs": 174.65499997138977,
+          "p95Ms": 199.60000002384186,
+          "minMs": 166.2950000166893,
+          "maxMs": 199.60000002384186,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenFirstStatusMs": {
+          "samples": 5,
+          "medianMs": 32.29000002145767,
+          "p95Ms": 34.314999997615814,
+          "minMs": 31.100000023841858,
+          "maxMs": 34.314999997615814,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenWarmStatusMs": {
+          "samples": 5,
+          "medianMs": 12.490000009536743,
+          "p95Ms": 13.689999997615814,
+          "minMs": 12.15499997138977,
+          "maxMs": 13.689999997615814,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenTotalMs": {
+          "samples": 5,
+          "medianMs": 228.80587499523244,
+          "p95Ms": 257.2473339785429,
+          "minMs": 223.02079201430752,
+          "maxMs": 257.2473339785429,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenRuntimeMs": {
+          "samples": 5,
+          "medianMs": 15.034999966621399,
+          "p95Ms": 16.44999998807907,
+          "minMs": 12.75,
+          "maxMs": 16.44999998807907,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 0,
+        "sameSecondRapidRewrites": 5,
+        "stockOverwriteFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 25.231125000000247,
+            "filesystemAndRuntimeMs": 17.849999964237213,
+            "cloneMs": 325.3949999809265,
+            "firstCleanStatusMs": 9.944999992847443,
+            "warmCleanStatusMs": 6.085000038146973,
+            "write10FilesMs": 13.965000033378601,
+            "modifiedStatusMs": 3.9300000071525574,
+            "stage10FilesMs": 57.019999980926514,
+            "commitMs": 76.46999996900558,
+            "checkoutOriginalMs": 26.060000002384186,
+            "checkoutModifiedMs": 27.85999995470047,
+            "reopenReadyMs": 22.465666000000056,
+            "restoreMs": 190.79499995708466,
+            "reopenFirstStatusMs": 32.29000002145767,
+            "reopenWarmStatusMs": 13.689999997615814,
+            "reopenTotalMs": 245.55066597854238,
+            "reopenRuntimeMs": 15.034999966621399
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313865091,
+              "afterMtimeMs": 1792313865114,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10738148327,
+            "usage": 730087,
+            "usageDetails": {
+              "fileSystem": 730087
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 23.70391599999857,
+            "filesystemAndRuntimeMs": 16.674999952316284,
+            "cloneMs": 320.8550000190735,
+            "firstCleanStatusMs": 15.409999966621399,
+            "warmCleanStatusMs": 11.6700000166893,
+            "write10FilesMs": 16.35999995470047,
+            "modifiedStatusMs": 4.224999964237213,
+            "stage10FilesMs": 61.60499995946884,
+            "commitMs": 73.99499994516373,
+            "checkoutOriginalMs": 22.05000001192093,
+            "checkoutModifiedMs": 25.15499997138977,
+            "reopenReadyMs": 22.361375000000407,
+            "restoreMs": 171.9650000333786,
+            "reopenFirstStatusMs": 31.62999999523163,
+            "reopenWarmStatusMs": 12.490000009536743,
+            "reopenTotalMs": 225.95637502861064,
+            "reopenRuntimeMs": 12.949999988079071
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313867207,
+              "afterMtimeMs": 1792313867242,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10738148327,
+            "usage": 730087,
+            "usageDetails": {
+              "fileSystem": 730087
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 23.88816699999734,
+            "filesystemAndRuntimeMs": 17.070000052452087,
+            "cloneMs": 323.05000001192093,
+            "firstCleanStatusMs": 15.870000004768372,
+            "warmCleanStatusMs": 11.659999966621399,
+            "write10FilesMs": 18.014999985694885,
+            "modifiedStatusMs": 3.990000009536743,
+            "stage10FilesMs": 54.77000004053116,
+            "commitMs": 79.47499996423721,
+            "checkoutOriginalMs": 28.384999990463257,
+            "checkoutModifiedMs": 21.330000042915344,
+            "reopenReadyMs": 22.410792000002402,
+            "restoreMs": 166.2950000166893,
+            "reopenFirstStatusMs": 34.314999997615814,
+            "reopenWarmStatusMs": 12.490000009536743,
+            "reopenTotalMs": 223.02079201430752,
+            "reopenRuntimeMs": 16.44999998807907
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313891346,
+              "afterMtimeMs": 1792313891380,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10738148326,
+            "usage": 730086,
+            "usageDetails": {
+              "fileSystem": 730086
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 23.049333999995724,
+            "filesystemAndRuntimeMs": 16.14000004529953,
+            "cloneMs": 328.80000001192093,
+            "firstCleanStatusMs": 17.524999976158142,
+            "warmCleanStatusMs": 11.839999973773956,
+            "write10FilesMs": 22.274999976158142,
+            "modifiedStatusMs": 5.629999995231628,
+            "stage10FilesMs": 57.30500000715256,
+            "commitMs": 69.88999998569489,
+            "checkoutOriginalMs": 23.310000002384186,
+            "checkoutModifiedMs": 24.360000014305115,
+            "reopenReadyMs": 24.287334000000556,
+            "restoreMs": 199.60000002384186,
+            "reopenFirstStatusMs": 33.35999995470047,
+            "reopenWarmStatusMs": 12.15499997138977,
+            "reopenTotalMs": 257.2473339785429,
+            "reopenRuntimeMs": 12.75
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313893452,
+              "afterMtimeMs": 1792313893488,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10738148326,
+            "usage": 730086,
+            "usageDetails": {
+              "fileSystem": 730086
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 25.398749999993015,
+            "filesystemAndRuntimeMs": 18.42500001192093,
+            "cloneMs": 319.82499998807907,
+            "firstCleanStatusMs": 12.100000023841858,
+            "warmCleanStatusMs": 9.310000002384186,
+            "write10FilesMs": 18.939999997615814,
+            "modifiedStatusMs": 4.235000014305115,
+            "stage10FilesMs": 58.72000002861023,
+            "commitMs": 69.69499999284744,
+            "checkoutOriginalMs": 25.125,
+            "checkoutModifiedMs": 25.67500001192093,
+            "reopenReadyMs": 23.050875000000815,
+            "restoreMs": 174.65499997138977,
+            "reopenFirstStatusMs": 31.100000023841858,
+            "reopenWarmStatusMs": 12.2950000166893,
+            "reopenTotalMs": 228.80587499523244,
+            "reopenRuntimeMs": 16.060000002384186
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313917144,
+              "afterMtimeMs": 1792313917174,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10738148326,
+            "usage": 730086,
+            "usageDetails": {
+              "fileSystem": 730086
+            }
+          }
+        }
+      ]
+    },
+    {
+      "profile": "medium",
+      "configuration": {
+        "label": "isomorphic-memfs",
+        "engine": "isomorphic",
+        "storage": "memfs"
+      },
+      "fileCount": 1000,
+      "totalBytes": 4096000,
+      "metrics": {
+        "readyMs": {
+          "samples": 5,
+          "medianMs": 36.20662499999162,
+          "p95Ms": 37.353083000009065,
+          "minMs": 34.586999999999534,
+          "maxMs": 37.353083000009065,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "engineImportMs": {
+          "samples": 5,
+          "medianMs": 16.3850000500679,
+          "p95Ms": 16.805000007152557,
+          "minMs": 16.025000035762787,
+          "maxMs": 16.805000007152557,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 5,
+          "medianMs": 10.719999969005585,
+          "p95Ms": 12.275000035762787,
+          "minMs": 10.0799999833107,
+          "maxMs": 12.275000035762787,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 5,
+          "medianMs": 300.60499995946884,
+          "p95Ms": 419.19999998807907,
+          "minMs": 297.8550000190735,
+          "maxMs": 419.19999998807907,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 34.80500000715256,
+          "p95Ms": 35.27499997615814,
+          "minMs": 31.7399999499321,
+          "maxMs": 35.27499997615814,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 22.5,
+          "p95Ms": 23.555000007152557,
+          "minMs": 21.814999997615814,
+          "maxMs": 23.555000007152557,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 5,
+          "medianMs": 0.39499998092651367,
+          "p95Ms": 4.509999990463257,
+          "minMs": 0.2850000262260437,
+          "maxMs": 4.509999990463257,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 5,
+          "medianMs": 25.384999990463257,
+          "p95Ms": 33.50499999523163,
+          "minMs": 21.814999997615814,
+          "maxMs": 33.50499999523163,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 5,
+          "medianMs": 7.659999966621399,
+          "p95Ms": 8.959999978542328,
+          "minMs": 6.3950000405311584,
+          "maxMs": 8.959999978542328,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 5,
+          "medianMs": 43.31999999284744,
+          "p95Ms": 47.0349999666214,
+          "minMs": 42.25499999523163,
+          "maxMs": 47.0349999666214,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 5,
+          "medianMs": 24.775000035762787,
+          "p95Ms": 29.194999992847443,
+          "minMs": 24.134999990463257,
+          "maxMs": 29.194999992847443,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 5,
+          "medianMs": 21.12999999523163,
+          "p95Ms": 24.6149999499321,
+          "minMs": 20.405000030994415,
+          "maxMs": 24.6149999499321,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 5,
+        "sameSecondRapidRewrites": 5,
+        "stockOverwriteFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 37.353083000009065,
+            "engineImportMs": 16.30000001192093,
+            "filesystemAndRuntimeMs": 12.275000035762787,
+            "cloneMs": 419.19999998807907,
+            "firstCleanStatusMs": 34.80500000715256,
+            "warmCleanStatusMs": 23.555000007152557,
+            "write10FilesMs": 0.2850000262260437,
+            "modifiedStatusMs": 21.814999997615814,
+            "stage10FilesMs": 6.3950000405311584,
+            "commitMs": 47.0349999666214,
+            "checkoutOriginalMs": 24.134999990463257,
+            "checkoutModifiedMs": 21.12999999523163
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313919500,
+              "afterMtimeMs": 1792313919532,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 36.35649999999441,
+            "engineImportMs": 16.600000023841858,
+            "filesystemAndRuntimeMs": 11.330000042915344,
+            "cloneMs": 332.6599999666214,
+            "firstCleanStatusMs": 34.84999996423721,
+            "warmCleanStatusMs": 22.144999980926514,
+            "write10FilesMs": 0.375,
+            "modifiedStatusMs": 30.160000026226044,
+            "stage10FilesMs": 8.959999978542328,
+            "commitMs": 42.25499999523163,
+            "checkoutOriginalMs": 24.669999957084656,
+            "checkoutModifiedMs": 20.805000007152557
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314000750,
+              "afterMtimeMs": 1792314000779,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 35.39145799999824,
+            "engineImportMs": 16.3850000500679,
+            "filesystemAndRuntimeMs": 10.525000035762787,
+            "cloneMs": 300.60499995946884,
+            "firstCleanStatusMs": 31.7399999499321,
+            "warmCleanStatusMs": 21.814999997615814,
+            "write10FilesMs": 0.39499998092651367,
+            "modifiedStatusMs": 22.27000004053116,
+            "stage10FilesMs": 7.639999985694885,
+            "commitMs": 46.59500002861023,
+            "checkoutOriginalMs": 29.194999992847443,
+            "checkoutModifiedMs": 24.6149999499321
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314002684,
+              "afterMtimeMs": 1792314002712,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 36.20662499999162,
+            "engineImportMs": 16.805000007152557,
+            "filesystemAndRuntimeMs": 10.719999969005585,
+            "cloneMs": 300.4749999642372,
+            "firstCleanStatusMs": 35.27499997615814,
+            "warmCleanStatusMs": 22.5,
+            "write10FilesMs": 4.509999990463257,
+            "modifiedStatusMs": 25.384999990463257,
+            "stage10FilesMs": 7.659999966621399,
+            "commitMs": 43.31999999284744,
+            "checkoutOriginalMs": 24.775000035762787,
+            "checkoutModifiedMs": 20.405000030994415
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314081091,
+              "afterMtimeMs": 1792314081119,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 34.586999999999534,
+            "engineImportMs": 16.025000035762787,
+            "filesystemAndRuntimeMs": 10.0799999833107,
+            "cloneMs": 297.8550000190735,
+            "firstCleanStatusMs": 33.035000026226044,
+            "warmCleanStatusMs": 22.555000007152557,
+            "write10FilesMs": 0.7649999856948853,
+            "modifiedStatusMs": 33.50499999523163,
+            "stage10FilesMs": 7.879999995231628,
+            "commitMs": 43.05000001192093,
+            "checkoutOriginalMs": 26.009999990463257,
+            "checkoutModifiedMs": 23.439999997615814
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314083045,
+              "afterMtimeMs": 1792314083074,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        }
+      ]
+    },
+    {
+      "profile": "medium",
+      "configuration": {
+        "label": "wasm-memfs",
+        "engine": "wasm",
+        "storage": "memfs"
+      },
+      "fileCount": 1000,
+      "totalBytes": 4096000,
+      "metrics": {
+        "readyMs": {
+          "samples": 5,
+          "medianMs": 21.975917000003392,
+          "p95Ms": 23.78483399999095,
+          "minMs": 20.821292000007816,
+          "maxMs": 23.78483399999095,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 5,
+          "medianMs": 14.26500004529953,
+          "p95Ms": 15.150000035762787,
+          "minMs": 14.035000026226044,
+          "maxMs": 15.150000035762787,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 5,
+          "medianMs": 201.02499997615814,
+          "p95Ms": 207.55500000715256,
+          "minMs": 197.74000000953674,
+          "maxMs": 207.55500000715256,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 8.509999990463257,
+          "p95Ms": 8.930000007152557,
+          "minMs": 7.75,
+          "maxMs": 8.930000007152557,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 7.2200000286102295,
+          "p95Ms": 7.3950000405311584,
+          "minMs": 7.035000026226044,
+          "maxMs": 7.3950000405311584,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 5,
+          "medianMs": 0.75,
+          "p95Ms": 1.375,
+          "minMs": 0.3449999690055847,
+          "maxMs": 1.375,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 5,
+          "medianMs": 9.450000047683716,
+          "p95Ms": 12.009999990463257,
+          "minMs": 7.879999995231628,
+          "maxMs": 12.009999990463257,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 5,
+          "medianMs": 15.375,
+          "p95Ms": 20.139999985694885,
+          "minMs": 13.754999995231628,
+          "maxMs": 20.139999985694885,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 5,
+          "medianMs": 8.120000004768372,
+          "p95Ms": 9.585000038146973,
+          "minMs": 7.344999969005585,
+          "maxMs": 9.585000038146973,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 5,
+          "medianMs": 9.504999995231628,
+          "p95Ms": 9.649999976158142,
+          "minMs": 8.534999966621399,
+          "maxMs": 9.649999976158142,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 5,
+          "medianMs": 8.73499995470047,
+          "p95Ms": 9.760000050067902,
+          "minMs": 8.435000002384186,
+          "maxMs": 9.760000050067902,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 0,
+        "sameSecondRapidRewrites": 5,
+        "stockOverwriteFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 21.23895800000173,
+            "filesystemAndRuntimeMs": 14.035000026226044,
+            "cloneMs": 200.44499999284744,
+            "firstCleanStatusMs": 8.589999973773956,
+            "warmCleanStatusMs": 7.3950000405311584,
+            "write10FilesMs": 0.3449999690055847,
+            "modifiedStatusMs": 9.450000047683716,
+            "stage10FilesMs": 15.0799999833107,
+            "commitMs": 7.385000050067902,
+            "checkoutOriginalMs": 8.610000014305115,
+            "checkoutModifiedMs": 8.699999988079071
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313921303,
+              "afterMtimeMs": 1792313921317,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 20.821292000007816,
+            "filesystemAndRuntimeMs": 14.049999952316284,
+            "cloneMs": 197.74000000953674,
+            "firstCleanStatusMs": 8.509999990463257,
+            "warmCleanStatusMs": 7.259999990463257,
+            "write10FilesMs": 1.375,
+            "modifiedStatusMs": 9.105000019073486,
+            "stage10FilesMs": 13.754999995231628,
+            "commitMs": 7.344999969005585,
+            "checkoutOriginalMs": 9.649999976158142,
+            "checkoutModifiedMs": 8.73499995470047
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313998896,
+              "afterMtimeMs": 1792313998910,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 23.78483399999095,
+            "filesystemAndRuntimeMs": 15.150000035762787,
+            "cloneMs": 203.46999996900558,
+            "firstCleanStatusMs": 8.930000007152557,
+            "warmCleanStatusMs": 7.2200000286102295,
+            "write10FilesMs": 1.0450000166893005,
+            "modifiedStatusMs": 12.009999990463257,
+            "stage10FilesMs": 17.5799999833107,
+            "commitMs": 9.585000038146973,
+            "checkoutOriginalMs": 9.639999985694885,
+            "checkoutModifiedMs": 9.760000050067902
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314004514,
+              "afterMtimeMs": 1792314004527,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 22.08554100000765,
+            "filesystemAndRuntimeMs": 14.685000002384186,
+            "cloneMs": 201.02499997615814,
+            "firstCleanStatusMs": 7.75,
+            "warmCleanStatusMs": 7.035000026226044,
+            "write10FilesMs": 0.3450000286102295,
+            "modifiedStatusMs": 7.879999995231628,
+            "stage10FilesMs": 15.375,
+            "commitMs": 8.120000004768372,
+            "checkoutOriginalMs": 8.534999966621399,
+            "checkoutModifiedMs": 8.435000002384186
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314079308,
+              "afterMtimeMs": 1792314079321,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 21.975917000003392,
+            "filesystemAndRuntimeMs": 14.26500004529953,
+            "cloneMs": 207.55500000715256,
+            "firstCleanStatusMs": 8.300000011920929,
+            "warmCleanStatusMs": 7.120000004768372,
+            "write10FilesMs": 0.75,
+            "modifiedStatusMs": 10.225000023841858,
+            "stage10FilesMs": 20.139999985694885,
+            "commitMs": 9.4200000166893,
+            "checkoutOriginalMs": 9.504999995231628,
+            "checkoutModifiedMs": 8.819999992847443
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314084876,
+              "afterMtimeMs": 1792314084890,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10737418240,
+            "usage": 0,
+            "usageDetails": {}
+          }
+        }
+      ]
+    },
+    {
+      "profile": "medium",
+      "configuration": {
+        "label": "isomorphic-native-opfs",
+        "engine": "isomorphic",
+        "storage": "native-opfs"
+      },
+      "fileCount": 1000,
+      "totalBytes": 4096000,
+      "metrics": {
+        "readyMs": {
+          "samples": 5,
+          "medianMs": 25.859582999997656,
+          "p95Ms": 29.831999999994878,
+          "minMs": 25.447458000009647,
+          "maxMs": 29.831999999994878,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "engineImportMs": {
+          "samples": 5,
+          "medianMs": 16.52999997138977,
+          "p95Ms": 18.355000019073486,
+          "minMs": 16.22999995946884,
+          "maxMs": 18.355000019073486,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 5,
+          "medianMs": 1.1700000166893005,
+          "p95Ms": 1.4049999713897705,
+          "minMs": 1.0399999618530273,
+          "maxMs": 1.4049999713897705,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 5,
+          "medianMs": 1415.6049999594688,
+          "p95Ms": 1688.175000011921,
+          "minMs": 1407.0699999928474,
+          "maxMs": 1688.175000011921,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 710.9599999785423,
+          "p95Ms": 713.0349999666214,
+          "minMs": 676.4850000143051,
+          "maxMs": 713.0349999666214,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 787.2549999952316,
+          "p95Ms": 832.0649999976158,
+          "minMs": 755.9650000333786,
+          "maxMs": 832.0649999976158,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 5,
+          "medianMs": 16.735000014305115,
+          "p95Ms": 18.219999969005585,
+          "minMs": 13.844999969005585,
+          "maxMs": 18.219999969005585,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 5,
+          "medianMs": 681.6949999928474,
+          "p95Ms": 998.1750000119209,
+          "minMs": 589.8049999475479,
+          "maxMs": 998.1750000119209,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 5,
+          "medianMs": 22.384999990463257,
+          "p95Ms": 22.774999976158142,
+          "minMs": 21.334999978542328,
+          "maxMs": 22.774999976158142,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 5,
+          "medianMs": 368.2999999523163,
+          "p95Ms": 389.49000000953674,
+          "minMs": 350.35000002384186,
+          "maxMs": 389.49000000953674,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 5,
+          "medianMs": 469.63499999046326,
+          "p95Ms": 499.2900000214577,
+          "minMs": 281.3349999785423,
+          "maxMs": 499.2900000214577,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 5,
+          "medianMs": 279.08000004291534,
+          "p95Ms": 359.5149999856949,
+          "minMs": 273.66000002622604,
+          "maxMs": 359.5149999856949,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenReadyMs": {
+          "samples": 5,
+          "medianMs": 79.54320799998823,
+          "p95Ms": 108.84491600000183,
+          "minMs": 49.03316700000141,
+          "maxMs": 108.84491600000183,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "restoreMs": {
+          "samples": 5,
+          "medianMs": 0.014999985694885254,
+          "p95Ms": 0.019999980926513672,
+          "minMs": 0.009999990463256836,
+          "maxMs": 0.019999980926513672,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenFirstStatusMs": {
+          "samples": 5,
+          "medianMs": 703.089999973774,
+          "p95Ms": 713.4399999976158,
+          "minMs": 679.1150000095367,
+          "maxMs": 713.4399999976158,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenWarmStatusMs": {
+          "samples": 5,
+          "medianMs": 655.3799999952316,
+          "p95Ms": 705.9000000357628,
+          "minMs": 607.4800000190735,
+          "maxMs": 705.9000000357628,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenTotalMs": {
+          "samples": 5,
+          "medianMs": 792.163207945152,
+          "p95Ms": 811.944915964239,
+          "minMs": 728.163166995233,
+          "maxMs": 811.944915964239,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenRuntimeMs": {
+          "samples": 5,
+          "medianMs": 29.759999990463257,
+          "p95Ms": 46.464999973773956,
+          "minMs": 11.644999980926514,
+          "maxMs": 46.464999973773956,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 2,
+        "sameSecondRapidRewrites": 2,
+        "stockOverwriteFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 25.859582999997656,
+            "engineImportMs": 16.52999997138977,
+            "filesystemAndRuntimeMs": 1.0399999618530273,
+            "cloneMs": 1407.0699999928474,
+            "firstCleanStatusMs": 711.8600000143051,
+            "warmCleanStatusMs": 832.0649999976158,
+            "write10FilesMs": 16.735000014305115,
+            "modifiedStatusMs": 670.4449999928474,
+            "stage10FilesMs": 21.334999978542328,
+            "commitMs": 387.9650000333786,
+            "checkoutOriginalMs": 281.3349999785423,
+            "checkoutModifiedMs": 273.66000002622604,
+            "reopenReadyMs": 49.03316700000141,
+            "restoreMs": 0.014999985694885254,
+            "reopenFirstStatusMs": 679.1150000095367,
+            "reopenWarmStatusMs": 705.9000000357628,
+            "reopenTotalMs": 728.163166995233,
+            "reopenRuntimeMs": 11.644999980926514
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313925672,
+              "afterMtimeMs": 1792313926384,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": null,
+          "storage": {
+            "quota": 10744371461,
+            "usage": 6953221,
+            "usageDetails": {
+              "fileSystem": 6953221
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 27.246500000008382,
+            "engineImportMs": 16.540000021457672,
+            "filesystemAndRuntimeMs": 1.4049999713897705,
+            "cloneMs": 1688.175000011921,
+            "firstCleanStatusMs": 710.9599999785423,
+            "warmCleanStatusMs": 755.9650000333786,
+            "write10FilesMs": 18.219999969005585,
+            "modifiedStatusMs": 996.085000038147,
+            "stage10FilesMs": 22.475000023841858,
+            "commitMs": 364.4200000166893,
+            "checkoutOriginalMs": 284.22500002384186,
+            "checkoutModifiedMs": 280.7750000357628,
+            "reopenReadyMs": 57.381374999997206,
+            "restoreMs": 0.014999985694885254,
+            "reopenFirstStatusMs": 713.4399999976158,
+            "reopenWarmStatusMs": 607.4800000190735,
+            "reopenTotalMs": 770.8363749833079,
+            "reopenRuntimeMs": 15.814999997615814
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313988288,
+              "afterMtimeMs": 1792313988941,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": null,
+          "storage": {
+            "quota": 10744371461,
+            "usage": 6953221,
+            "usageDetails": {
+              "fileSystem": 6953221
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 25.617666000005556,
+            "engineImportMs": 16.22999995946884,
+            "filesystemAndRuntimeMs": 1.1700000166893005,
+            "cloneMs": 1477.050000011921,
+            "firstCleanStatusMs": 686.1150000095367,
+            "warmCleanStatusMs": 761.339999973774,
+            "write10FilesMs": 13.844999969005585,
+            "modifiedStatusMs": 589.8049999475479,
+            "stage10FilesMs": 22.774999976158142,
+            "commitMs": 368.2999999523163,
+            "checkoutOriginalMs": 499.2900000214577,
+            "checkoutModifiedMs": 279.08000004291534,
+            "reopenReadyMs": 79.54320799998823,
+            "restoreMs": 0.019999980926513672,
+            "reopenFirstStatusMs": 712.5999999642372,
+            "reopenWarmStatusMs": 675.375,
+            "reopenTotalMs": 792.163207945152,
+            "reopenRuntimeMs": 29.759999990463257
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314008867,
+              "afterMtimeMs": 1792314009551,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": null,
+          "storage": {
+            "quota": 10744371461,
+            "usage": 6953221,
+            "usageDetails": {
+              "fileSystem": 6953221
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 29.831999999994878,
+            "engineImportMs": 18.355000019073486,
+            "filesystemAndRuntimeMs": 1.4049999713897705,
+            "cloneMs": 1415.6049999594688,
+            "firstCleanStatusMs": 676.4850000143051,
+            "warmCleanStatusMs": 787.2549999952316,
+            "write10FilesMs": 17.865000009536743,
+            "modifiedStatusMs": 681.6949999928474,
+            "stage10FilesMs": 22.155000030994415,
+            "commitMs": 389.49000000953674,
+            "checkoutOriginalMs": 486.2099999785423,
+            "checkoutModifiedMs": 359.5149999856949,
+            "reopenReadyMs": 108.84491600000183,
+            "restoreMs": 0.009999990463256836,
+            "reopenFirstStatusMs": 703.089999973774,
+            "reopenWarmStatusMs": 655.3799999952316,
+            "reopenTotalMs": 811.944915964239,
+            "reopenRuntimeMs": 46.464999973773956
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314068393,
+              "afterMtimeMs": 1792314069068,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": null,
+          "storage": {
+            "quota": 10744371461,
+            "usage": 6953221,
+            "usageDetails": {
+              "fileSystem": 6953221
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 25.447458000009647,
+            "engineImportMs": 16.3400000333786,
+            "filesystemAndRuntimeMs": 1.0400000214576721,
+            "cloneMs": 1412.9049999713898,
+            "firstCleanStatusMs": 713.0349999666214,
+            "warmCleanStatusMs": 791.9399999976158,
+            "write10FilesMs": 15.599999964237213,
+            "modifiedStatusMs": 998.1750000119209,
+            "stage10FilesMs": 22.384999990463257,
+            "commitMs": 350.35000002384186,
+            "checkoutOriginalMs": 469.63499999046326,
+            "checkoutModifiedMs": 274.9200000166893,
+            "reopenReadyMs": 104.93524999998044,
+            "restoreMs": 0.010000050067901611,
+            "reopenFirstStatusMs": 692.9300000071526,
+            "reopenWarmStatusMs": 652.6899999976158,
+            "reopenTotalMs": 797.8752500572009,
+            "reopenRuntimeMs": 40.93000000715256
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314089233,
+              "afterMtimeMs": 1792314089899,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": null,
+          "storage": {
+            "quota": 10744371461,
+            "usage": 6953221,
+            "usageDetails": {
+              "fileSystem": 6953221
+            }
+          }
+        }
+      ]
+    },
+    {
+      "profile": "medium",
+      "configuration": {
+        "label": "wasm-opfs-pthreads",
+        "engine": "wasm",
+        "storage": "opfs",
+        "variant": "pthreads"
+      },
+      "fileCount": 1000,
+      "totalBytes": 4096000,
+      "metrics": {
+        "readyMs": {
+          "samples": 5,
+          "medianMs": 26.197333999996772,
+          "p95Ms": 26.864792000007583,
+          "minMs": 26.166583999991417,
+          "maxMs": 26.864792000007583,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 5,
+          "medianMs": 19.205000042915344,
+          "p95Ms": 19.555000007152557,
+          "minMs": 18.900000035762787,
+          "maxMs": 19.555000007152557,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 5,
+          "medianMs": 1568.2450000047684,
+          "p95Ms": 1666.6100000143051,
+          "minMs": 1512.7900000214577,
+          "maxMs": 1666.6100000143051,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 1265.375,
+          "p95Ms": 1681.2549999952316,
+          "minMs": 238.9399999976158,
+          "maxMs": 1681.2549999952316,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 1252.875,
+          "p95Ms": 1695.5750000476837,
+          "minMs": 257.51500004529953,
+          "maxMs": 1695.5750000476837,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 5,
+          "medianMs": 11.2049999833107,
+          "p95Ms": 14.430000007152557,
+          "minMs": 7.6700000166893005,
+          "maxMs": 14.430000007152557,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 5,
+          "medianMs": 238.95000004768372,
+          "p95Ms": 325.3799999952316,
+          "minMs": 216.88999998569489,
+          "maxMs": 325.3799999952316,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 5,
+          "medianMs": 309.2649999856949,
+          "p95Ms": 432.8449999690056,
+          "minMs": 291.43000000715256,
+          "maxMs": 432.8449999690056,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 5,
+          "medianMs": 129.65499997138977,
+          "p95Ms": 165.66500002145767,
+          "minMs": 113.62999999523163,
+          "maxMs": 165.66500002145767,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 5,
+          "medianMs": 264.8299999833107,
+          "p95Ms": 465.6299999952316,
+          "minMs": 260.0400000214577,
+          "maxMs": 465.6299999952316,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 5,
+          "medianMs": 301.0799999833107,
+          "p95Ms": 352.45500004291534,
+          "minMs": 267.78500002622604,
+          "maxMs": 352.45500004291534,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenReadyMs": {
+          "samples": 5,
+          "medianMs": 56.889624999981606,
+          "p95Ms": 67.82454199998756,
+          "minMs": 27.891208999993978,
+          "maxMs": 67.82454199998756,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "restoreMs": {
+          "samples": 5,
+          "medianMs": 5.365000009536743,
+          "p95Ms": 5.905000030994415,
+          "minMs": 4.6700000166893005,
+          "maxMs": 5.905000030994415,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenFirstStatusMs": {
+          "samples": 5,
+          "medianMs": 447.25999999046326,
+          "p95Ms": 460.2999999523163,
+          "minMs": 429.875,
+          "maxMs": 460.2999999523163,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenWarmStatusMs": {
+          "samples": 5,
+          "medianMs": 249.1799999475479,
+          "p95Ms": 262.4200000166893,
+          "minMs": 241.1449999809265,
+          "maxMs": 262.4200000166893,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenTotalMs": {
+          "samples": 5,
+          "medianMs": 503.67024996184045,
+          "p95Ms": 520.2995419642248,
+          "minMs": 483.77620899045723,
+          "maxMs": 520.2995419642248,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenRuntimeMs": {
+          "samples": 5,
+          "medianMs": 30.5,
+          "p95Ms": 47.219999969005585,
+          "minMs": 16.7049999833107,
+          "maxMs": 47.219999969005585,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 0,
+        "sameSecondRapidRewrites": 0,
+        "stockOverwriteFailures": 5,
+        "reopenStatusFailures": 5,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 26.197333999996772,
+            "filesystemAndRuntimeMs": 19.205000042915344,
+            "cloneMs": 1652.5249999761581,
+            "firstCleanStatusMs": 1265.375,
+            "warmCleanStatusMs": 1252.875,
+            "write10FilesMs": 14.430000007152557,
+            "modifiedStatusMs": 238.95000004768372,
+            "stage10FilesMs": 309.2649999856949,
+            "commitMs": 165.66500002145767,
+            "checkoutOriginalMs": 264.8299999833107,
+            "checkoutModifiedMs": 275.00999999046326,
+            "reopenReadyMs": 27.891208999993978,
+            "restoreMs": 4.6700000166893005,
+            "reopenFirstStatusMs": 451.21499997377396,
+            "reopenWarmStatusMs": 241.1449999809265,
+            "reopenTotalMs": 483.77620899045723,
+            "reopenRuntimeMs": 16.7049999833107
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313940000,
+              "afterMtimeMs": 1792313942000,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": {
+              "expected": "bb",
+              "actual": "aabb",
+              "passed": false,
+              "benchmarkUsesExplicitTruncatingWrite": true
+            },
+            "reopen": {
+              "firstDirtyCount": 1000,
+              "warmDirtyCount": 1000,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": [
+                " M src/package-00/feature-00/module-000000.ts",
+                " M src/package-00/feature-00/module-000001.ts",
+                " M src/package-00/feature-00/module-000002.ts",
+                " M src/package-00/feature-00/module-000003.ts",
+                " M src/package-00/feature-00/module-000004.ts",
+                " M src/package-00/feature-00/module-000005.ts",
+                " M src/package-00/feature-00/module-000006.ts",
+                " M src/package-00/feature-00/module-000007.ts",
+                " M src/package-00/feature-00/module-000008.ts",
+                " M src/package-00/feature-00/module-000009.ts",
+                " M src/package-00/feature-01/module-000010.ts",
+                " M src/package-00/feature-01/module-000011.ts"
+              ]
+            }
+          },
+          "wasmLinearMemoryBytes": 16777216,
+          "storage": {
+            "quota": 10744319975,
+            "usage": 6901735,
+            "usageDetails": {
+              "fileSystem": 6901735
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 26.166583999991417,
+            "filesystemAndRuntimeMs": 18.900000035762787,
+            "cloneMs": 1568.2450000047684,
+            "firstCleanStatusMs": 1681.2549999952316,
+            "warmCleanStatusMs": 1695.5750000476837,
+            "write10FilesMs": 11.2049999833107,
+            "modifiedStatusMs": 325.3799999952316,
+            "stage10FilesMs": 291.43000000715256,
+            "commitMs": 129.65499997138977,
+            "checkoutOriginalMs": 260.0400000214577,
+            "checkoutModifiedMs": 301.0799999833107,
+            "reopenReadyMs": 59.42666699999245,
+            "restoreMs": 5.7950000166893005,
+            "reopenFirstStatusMs": 429.875,
+            "reopenWarmStatusMs": 259.4150000214577,
+            "reopenTotalMs": 495.09666701668175,
+            "reopenRuntimeMs": 47.219999969005585
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313975000,
+              "afterMtimeMs": 1792313979000,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": {
+              "expected": "bb",
+              "actual": "aabb",
+              "passed": false,
+              "benchmarkUsesExplicitTruncatingWrite": true
+            },
+            "reopen": {
+              "firstDirtyCount": 1000,
+              "warmDirtyCount": 1000,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": [
+                " M src/package-00/feature-00/module-000000.ts",
+                " M src/package-00/feature-00/module-000001.ts",
+                " M src/package-00/feature-00/module-000002.ts",
+                " M src/package-00/feature-00/module-000003.ts",
+                " M src/package-00/feature-00/module-000004.ts",
+                " M src/package-00/feature-00/module-000005.ts",
+                " M src/package-00/feature-00/module-000006.ts",
+                " M src/package-00/feature-00/module-000007.ts",
+                " M src/package-00/feature-00/module-000008.ts",
+                " M src/package-00/feature-00/module-000009.ts",
+                " M src/package-00/feature-01/module-000010.ts",
+                " M src/package-00/feature-01/module-000011.ts"
+              ]
+            }
+          },
+          "wasmLinearMemoryBytes": 16777216,
+          "storage": {
+            "quota": 10744319973,
+            "usage": 6901733,
+            "usageDetails": {
+              "fileSystem": 6901733
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 26.864792000007583,
+            "filesystemAndRuntimeMs": 19.555000007152557,
+            "cloneMs": 1530.1349999904633,
+            "firstCleanStatusMs": 1446.7049999833107,
+            "warmCleanStatusMs": 1417.1050000190735,
+            "write10FilesMs": 7.6700000166893005,
+            "modifiedStatusMs": 216.88999998569489,
+            "stage10FilesMs": 432.8449999690056,
+            "commitMs": 123.18999999761581,
+            "checkoutOriginalMs": 261.9950000047684,
+            "checkoutModifiedMs": 267.78500002622604,
+            "reopenReadyMs": 38.00524999998743,
+            "restoreMs": 5.365000009536743,
+            "reopenFirstStatusMs": 460.2999999523163,
+            "reopenWarmStatusMs": 249.1799999475479,
+            "reopenTotalMs": 503.67024996184045,
+            "reopenRuntimeMs": 21.694999992847443
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314023000,
+              "afterMtimeMs": 1792314026000,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": {
+              "expected": "bb",
+              "actual": "aabb",
+              "passed": false,
+              "benchmarkUsesExplicitTruncatingWrite": true
+            },
+            "reopen": {
+              "firstDirtyCount": 1000,
+              "warmDirtyCount": 1000,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": [
+                " M src/package-00/feature-00/module-000000.ts",
+                " M src/package-00/feature-00/module-000001.ts",
+                " M src/package-00/feature-00/module-000002.ts",
+                " M src/package-00/feature-00/module-000003.ts",
+                " M src/package-00/feature-00/module-000004.ts",
+                " M src/package-00/feature-00/module-000005.ts",
+                " M src/package-00/feature-00/module-000006.ts",
+                " M src/package-00/feature-00/module-000007.ts",
+                " M src/package-00/feature-00/module-000008.ts",
+                " M src/package-00/feature-00/module-000009.ts",
+                " M src/package-00/feature-01/module-000010.ts",
+                " M src/package-00/feature-01/module-000011.ts"
+              ]
+            }
+          },
+          "wasmLinearMemoryBytes": 16777216,
+          "storage": {
+            "quota": 10744319976,
+            "usage": 6901736,
+            "usageDetails": {
+              "fileSystem": 6901736
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 26.166874999995343,
+            "filesystemAndRuntimeMs": 18.974999964237213,
+            "cloneMs": 1666.6100000143051,
+            "firstCleanStatusMs": 668.6949999928474,
+            "warmCleanStatusMs": 646.5,
+            "write10FilesMs": 7.974999964237213,
+            "modifiedStatusMs": 271.6749999523163,
+            "stage10FilesMs": 336.02499997615814,
+            "commitMs": 160.6500000357628,
+            "checkoutOriginalMs": 330.2450000047684,
+            "checkoutModifiedMs": 352.45500004291534,
+            "reopenReadyMs": 67.82454199998756,
+            "restoreMs": 5.214999973773956,
+            "reopenFirstStatusMs": 447.25999999046326,
+            "reopenWarmStatusMs": 262.4200000166893,
+            "reopenTotalMs": 520.2995419642248,
+            "reopenRuntimeMs": 30.5
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314057000,
+              "afterMtimeMs": 1792314058000,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": {
+              "expected": "bb",
+              "actual": "aabb",
+              "passed": false,
+              "benchmarkUsesExplicitTruncatingWrite": true
+            },
+            "reopen": {
+              "firstDirtyCount": 1000,
+              "warmDirtyCount": 1000,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": [
+                " M src/package-00/feature-00/module-000000.ts",
+                " M src/package-00/feature-00/module-000001.ts",
+                " M src/package-00/feature-00/module-000002.ts",
+                " M src/package-00/feature-00/module-000003.ts",
+                " M src/package-00/feature-00/module-000004.ts",
+                " M src/package-00/feature-00/module-000005.ts",
+                " M src/package-00/feature-00/module-000006.ts",
+                " M src/package-00/feature-00/module-000007.ts",
+                " M src/package-00/feature-00/module-000008.ts",
+                " M src/package-00/feature-00/module-000009.ts",
+                " M src/package-00/feature-01/module-000010.ts",
+                " M src/package-00/feature-01/module-000011.ts"
+              ]
+            }
+          },
+          "wasmLinearMemoryBytes": 16777216,
+          "storage": {
+            "quota": 10744319825,
+            "usage": 6901585,
+            "usageDetails": {
+              "fileSystem": 6901585
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 26.291333000001032,
+            "filesystemAndRuntimeMs": 19.339999973773956,
+            "cloneMs": 1512.7900000214577,
+            "firstCleanStatusMs": 238.9399999976158,
+            "warmCleanStatusMs": 257.51500004529953,
+            "write10FilesMs": 12.009999990463257,
+            "modifiedStatusMs": 231.89000004529953,
+            "stage10FilesMs": 297.58999997377396,
+            "commitMs": 113.62999999523163,
+            "checkoutOriginalMs": 465.6299999952316,
+            "checkoutModifiedMs": 325.56999999284744,
+            "reopenReadyMs": 56.889624999981606,
+            "restoreMs": 5.905000030994415,
+            "reopenFirstStatusMs": 443.99000000953674,
+            "reopenWarmStatusMs": 248.24500000476837,
+            "reopenTotalMs": 506.78462504051276,
+            "reopenRuntimeMs": 35.464999973773956
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314101000,
+              "afterMtimeMs": 1792314102000,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": {
+              "expected": "bb",
+              "actual": "aabb",
+              "passed": false,
+              "benchmarkUsesExplicitTruncatingWrite": true
+            },
+            "reopen": {
+              "firstDirtyCount": 1000,
+              "warmDirtyCount": 1000,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": [
+                " M src/package-00/feature-00/module-000000.ts",
+                " M src/package-00/feature-00/module-000001.ts",
+                " M src/package-00/feature-00/module-000002.ts",
+                " M src/package-00/feature-00/module-000003.ts",
+                " M src/package-00/feature-00/module-000004.ts",
+                " M src/package-00/feature-00/module-000005.ts",
+                " M src/package-00/feature-00/module-000006.ts",
+                " M src/package-00/feature-00/module-000007.ts",
+                " M src/package-00/feature-00/module-000008.ts",
+                " M src/package-00/feature-00/module-000009.ts",
+                " M src/package-00/feature-01/module-000010.ts",
+                " M src/package-00/feature-01/module-000011.ts"
+              ]
+            }
+          },
+          "wasmLinearMemoryBytes": 16777216,
+          "storage": {
+            "quota": 10744319975,
+            "usage": 6901735,
+            "usageDetails": {
+              "fileSystem": 6901735
+            }
+          }
+        }
+      ]
+    },
+    {
+      "profile": "medium",
+      "configuration": {
+        "label": "wasm-opfs-jspi",
+        "engine": "wasm",
+        "storage": "opfs",
+        "variant": "jspi"
+      },
+      "fileCount": 1000,
+      "totalBytes": 4096000,
+      "metrics": {
+        "readyMs": {
+          "samples": 5,
+          "medianMs": 24.990041000011843,
+          "p95Ms": 26.015459000016563,
+          "minMs": 23.175792000009096,
+          "maxMs": 26.015459000016563,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 5,
+          "medianMs": 17.025000035762787,
+          "p95Ms": 18.314999997615814,
+          "minMs": 16.459999978542328,
+          "maxMs": 18.314999997615814,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 5,
+          "medianMs": 1793.375,
+          "p95Ms": 1944.3550000190735,
+          "minMs": 1765.800000011921,
+          "maxMs": 1944.3550000190735,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 41.769999980926514,
+          "p95Ms": 55.769999980926514,
+          "minMs": 15.5799999833107,
+          "maxMs": 55.769999980926514,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 38.86500000953674,
+          "p95Ms": 51.52000004053116,
+          "minMs": 13.77999997138977,
+          "maxMs": 51.52000004053116,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 5,
+          "medianMs": 22.560000002384186,
+          "p95Ms": 27.764999985694885,
+          "minMs": 16.785000026226044,
+          "maxMs": 27.764999985694885,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 5,
+          "medianMs": 8.930000007152557,
+          "p95Ms": 16.064999997615814,
+          "minMs": 8.26500004529953,
+          "maxMs": 16.064999997615814,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 5,
+          "medianMs": 61.844999969005585,
+          "p95Ms": 87.72000002861023,
+          "minMs": 59.60000002384186,
+          "maxMs": 87.72000002861023,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 5,
+          "medianMs": 115.35000002384186,
+          "p95Ms": 124.76999998092651,
+          "minMs": 105.86000001430511,
+          "maxMs": 124.76999998092651,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 5,
+          "medianMs": 30.589999973773956,
+          "p95Ms": 43.685000002384186,
+          "minMs": 29.67500001192093,
+          "maxMs": 43.685000002384186,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 5,
+          "medianMs": 31.610000014305115,
+          "p95Ms": 48.89999997615814,
+          "minMs": 29.664999961853027,
+          "maxMs": 48.89999997615814,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenReadyMs": {
+          "samples": 5,
+          "medianMs": 36.25991699998849,
+          "p95Ms": 64.64895800000522,
+          "minMs": 21.71745799999917,
+          "maxMs": 64.64895800000522,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "restoreMs": {
+          "samples": 5,
+          "medianMs": 1286.6299999952316,
+          "p95Ms": 1296.464999973774,
+          "minMs": 1239.1150000095367,
+          "maxMs": 1296.464999973774,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenFirstStatusMs": {
+          "samples": 5,
+          "medianMs": 98.50999999046326,
+          "p95Ms": 112.62000000476837,
+          "minMs": 87.25,
+          "maxMs": 112.62000000476837,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenWarmStatusMs": {
+          "samples": 5,
+          "medianMs": 87.19499999284744,
+          "p95Ms": 93.76499998569489,
+          "minMs": 79.87000000476837,
+          "maxMs": 93.76499998569489,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenTotalMs": {
+          "samples": 5,
+          "medianMs": 1421.635541964235,
+          "p95Ms": 1467.0789580071578,
+          "minMs": 1348.8374580047675,
+          "maxMs": 1467.0789580071578,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenRuntimeMs": {
+          "samples": 5,
+          "medianMs": 25.089999973773956,
+          "p95Ms": 37.08500003814697,
+          "minMs": 13.325000047683716,
+          "maxMs": 37.08500003814697,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 0,
+        "sameSecondRapidRewrites": 4,
+        "stockOverwriteFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 23.922082999997656,
+            "filesystemAndRuntimeMs": 16.634999990463257,
+            "cloneMs": 1829.7549999952316,
+            "firstCleanStatusMs": 41.769999980926514,
+            "warmCleanStatusMs": 38.86500000953674,
+            "write10FilesMs": 22.560000002384186,
+            "modifiedStatusMs": 16.064999997615814,
+            "stage10FilesMs": 87.72000002861023,
+            "commitMs": 124.76999998092651,
+            "checkoutOriginalMs": 43.685000002384186,
+            "checkoutModifiedMs": 48.89999997615814,
+            "reopenReadyMs": 64.64895800000522,
+            "restoreMs": 1289.8100000023842,
+            "reopenFirstStatusMs": 112.62000000476837,
+            "reopenWarmStatusMs": 87.19499999284744,
+            "reopenTotalMs": 1467.0789580071578,
+            "reopenRuntimeMs": 37.08500003814697
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313950731,
+              "afterMtimeMs": 1792313950847,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10744319632,
+            "usage": 6901392,
+            "usageDetails": {
+              "fileSystem": 6901392
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 23.175792000009096,
+            "filesystemAndRuntimeMs": 16.459999978542328,
+            "cloneMs": 1944.3550000190735,
+            "firstCleanStatusMs": 15.5799999833107,
+            "warmCleanStatusMs": 13.77999997138977,
+            "write10FilesMs": 27.764999985694885,
+            "modifiedStatusMs": 12.060000002384186,
+            "stage10FilesMs": 65.30500000715256,
+            "commitMs": 115.35000002384186,
+            "checkoutOriginalMs": 30.209999978542328,
+            "checkoutModifiedMs": 29.664999961853027,
+            "reopenReadyMs": 21.71745799999917,
+            "restoreMs": 1239.1150000095367,
+            "reopenFirstStatusMs": 88.00499999523163,
+            "reopenWarmStatusMs": 81.19000005722046,
+            "reopenTotalMs": 1348.8374580047675,
+            "reopenRuntimeMs": 13.325000047683716
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313967166,
+              "afterMtimeMs": 1792313967201,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10744319629,
+            "usage": 6901389,
+            "usageDetails": {
+              "fileSystem": 6901389
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 26.015459000016563,
+            "filesystemAndRuntimeMs": 18.314999997615814,
+            "cloneMs": 1793.375,
+            "firstCleanStatusMs": 51.875,
+            "warmCleanStatusMs": 47.375,
+            "write10FilesMs": 25.67500001192093,
+            "modifiedStatusMs": 8.705000042915344,
+            "stage10FilesMs": 61.844999969005585,
+            "commitMs": 110.43999999761581,
+            "checkoutOriginalMs": 32.00499999523163,
+            "checkoutModifiedMs": 31.610000014305115,
+            "reopenReadyMs": 26.660541999997804,
+            "restoreMs": 1296.464999973774,
+            "reopenFirstStatusMs": 98.50999999046326,
+            "reopenWarmStatusMs": 93.76499998569489,
+            "reopenTotalMs": 1421.635541964235,
+            "reopenRuntimeMs": 16.365000009536743
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314034934,
+              "afterMtimeMs": 1792314035038,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10744319631,
+            "usage": 6901391,
+            "usageDetails": {
+              "fileSystem": 6901391
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 25.596458999993047,
+            "filesystemAndRuntimeMs": 17.335000038146973,
+            "cloneMs": 1765.800000011921,
+            "firstCleanStatusMs": 20.155000030994415,
+            "warmCleanStatusMs": 16.7849999666214,
+            "write10FilesMs": 22.35499995946884,
+            "modifiedStatusMs": 8.930000007152557,
+            "stage10FilesMs": 59.60000002384186,
+            "commitMs": 105.86000001430511,
+            "checkoutOriginalMs": 29.67500001192093,
+            "checkoutModifiedMs": 30.230000019073486,
+            "reopenReadyMs": 48.17300000000978,
+            "restoreMs": 1277.949999988079,
+            "reopenFirstStatusMs": 109.89499998092651,
+            "reopenWarmStatusMs": 88.44499999284744,
+            "reopenTotalMs": 1436.0179999690154,
+            "reopenRuntimeMs": 30.855000019073486
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314051220,
+              "afterMtimeMs": 1792314051265,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10744319632,
+            "usage": 6901392,
+            "usageDetails": {
+              "fileSystem": 6901392
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 24.990041000011843,
+            "filesystemAndRuntimeMs": 17.025000035762787,
+            "cloneMs": 1783.5149999856949,
+            "firstCleanStatusMs": 55.769999980926514,
+            "warmCleanStatusMs": 51.52000004053116,
+            "write10FilesMs": 16.785000026226044,
+            "modifiedStatusMs": 8.26500004529953,
+            "stage10FilesMs": 61.089999973773956,
+            "commitMs": 118.12000000476837,
+            "checkoutOriginalMs": 30.589999973773956,
+            "checkoutModifiedMs": 31.90499997138977,
+            "reopenReadyMs": 36.25991699998849,
+            "restoreMs": 1286.6299999952316,
+            "reopenFirstStatusMs": 87.25,
+            "reopenWarmStatusMs": 79.87000000476837,
+            "reopenTotalMs": 1410.1399169952201,
+            "reopenRuntimeMs": 25.089999973773956
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314110025,
+              "afterMtimeMs": 1792314110133,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10744319632,
+            "usage": 6901392,
+            "usageDetails": {
+              "fileSystem": 6901392
+            }
+          }
+        }
+      ]
+    },
+    {
+      "profile": "medium",
+      "configuration": {
+        "label": "wasm-opfs-asyncify",
+        "engine": "wasm",
+        "storage": "opfs",
+        "variant": "asyncify"
+      },
+      "fileCount": 1000,
+      "totalBytes": 4096000,
+      "metrics": {
+        "readyMs": {
+          "samples": 5,
+          "medianMs": 25.47341699997196,
+          "p95Ms": 28.20625000000291,
+          "minMs": 23.584625000017695,
+          "maxMs": 28.20625000000291,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 5,
+          "medianMs": 18.644999980926514,
+          "p95Ms": 20.22999995946884,
+          "minMs": 16.259999990463257,
+          "maxMs": 20.22999995946884,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 5,
+          "medianMs": 1956.199999988079,
+          "p95Ms": 2097.8050000071526,
+          "minMs": 1868.9800000190735,
+          "maxMs": 2097.8050000071526,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 34.485000014305115,
+          "p95Ms": 48.32499998807907,
+          "minMs": 24.305000007152557,
+          "maxMs": 48.32499998807907,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 5,
+          "medianMs": 29.314999997615814,
+          "p95Ms": 63.30000001192093,
+          "minMs": 20.259999990463257,
+          "maxMs": 63.30000001192093,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 5,
+          "medianMs": 21.860000014305115,
+          "p95Ms": 24.944999992847443,
+          "minMs": 16.219999969005585,
+          "maxMs": 24.944999992847443,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 5,
+          "medianMs": 14.375,
+          "p95Ms": 21.139999985694885,
+          "minMs": 13.014999985694885,
+          "maxMs": 21.139999985694885,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 5,
+          "medianMs": 71.69999998807907,
+          "p95Ms": 79.04000002145767,
+          "minMs": 67.58499997854233,
+          "maxMs": 79.04000002145767,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 5,
+          "medianMs": 117.06000000238419,
+          "p95Ms": 132.23500001430511,
+          "minMs": 104.05000001192093,
+          "maxMs": 132.23500001430511,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 5,
+          "medianMs": 31.649999976158142,
+          "p95Ms": 33.10000002384186,
+          "minMs": 30.84500002861023,
+          "maxMs": 33.10000002384186,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 5,
+          "medianMs": 33.25999999046326,
+          "p95Ms": 35.27999997138977,
+          "minMs": 32.580000042915344,
+          "maxMs": 35.27999997138977,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenReadyMs": {
+          "samples": 5,
+          "medianMs": 39.15441699999792,
+          "p95Ms": 41.060708000004524,
+          "minMs": 27.66416700000991,
+          "maxMs": 41.060708000004524,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "restoreMs": {
+          "samples": 5,
+          "medianMs": 1259.8849999904633,
+          "p95Ms": 1309.9449999928474,
+          "minMs": 1198.2599999904633,
+          "maxMs": 1309.9449999928474,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenFirstStatusMs": {
+          "samples": 5,
+          "medianMs": 96.06999999284744,
+          "p95Ms": 123.73000001907349,
+          "minMs": 93.91499996185303,
+          "maxMs": 123.73000001907349,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenWarmStatusMs": {
+          "samples": 5,
+          "medianMs": 86.77999997138977,
+          "p95Ms": 89.37000000476837,
+          "minMs": 86.14000004529953,
+          "maxMs": 89.37000000476837,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenTotalMs": {
+          "samples": 5,
+          "medianMs": 1393.139417014303,
+          "p95Ms": 1453.1507080333831,
+          "minMs": 1320.381207952334,
+          "maxMs": 1453.1507080333831,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenRuntimeMs": {
+          "samples": 5,
+          "medianMs": 21.365000009536743,
+          "p95Ms": 29.5799999833107,
+          "minMs": 16.6700000166893,
+          "maxMs": 29.5799999833107,
+          "p95Method": "nearest-rank",
+          "p95Note": "5 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 0,
+        "sameSecondRapidRewrites": 4,
+        "stockOverwriteFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 28.20625000000291,
+            "filesystemAndRuntimeMs": 20.22999995946884,
+            "cloneMs": 1891.1550000309944,
+            "firstCleanStatusMs": 24.305000007152557,
+            "warmCleanStatusMs": 20.259999990463257,
+            "write10FilesMs": 24.12000000476837,
+            "modifiedStatusMs": 14.375,
+            "stage10FilesMs": 71.69999998807907,
+            "commitMs": 104.05000001192093,
+            "checkoutOriginalMs": 30.84500002861023,
+            "checkoutModifiedMs": 32.72499996423721,
+            "reopenReadyMs": 39.15441699999792,
+            "restoreMs": 1235.9599999785423,
+            "reopenFirstStatusMs": 118.02500003576279,
+            "reopenWarmStatusMs": 87.62999999523163,
+            "reopenTotalMs": 1393.139417014303,
+            "reopenRuntimeMs": 29.5799999833107
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313956294,
+              "afterMtimeMs": 1792313956353,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10744319629,
+            "usage": 6901389,
+            "usageDetails": {
+              "fileSystem": 6901389
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 25.449084000007133,
+            "filesystemAndRuntimeMs": 17.30000001192093,
+            "cloneMs": 1956.199999988079,
+            "firstCleanStatusMs": 44.60499995946884,
+            "warmCleanStatusMs": 63.30000001192093,
+            "write10FilesMs": 16.219999969005585,
+            "modifiedStatusMs": 13.014999985694885,
+            "stage10FilesMs": 76.18500000238419,
+            "commitMs": 132.23500001430511,
+            "checkoutOriginalMs": 33.10000002384186,
+            "checkoutModifiedMs": 32.580000042915344,
+            "reopenReadyMs": 27.66416700000991,
+            "restoreMs": 1259.8849999904633,
+            "reopenFirstStatusMs": 96.06999999284744,
+            "reopenWarmStatusMs": 86.51499998569489,
+            "reopenTotalMs": 1383.6191669833206,
+            "reopenRuntimeMs": 17.110000014305115
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792313961719,
+              "afterMtimeMs": 1792313961871,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10744319629,
+            "usage": 6901389,
+            "usageDetails": {
+              "fileSystem": 6901389
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 26.447040999977617,
+            "filesystemAndRuntimeMs": 18.685000002384186,
+            "cloneMs": 2097.8050000071526,
+            "firstCleanStatusMs": 34.485000014305115,
+            "warmCleanStatusMs": 29.314999997615814,
+            "write10FilesMs": 19.19999998807907,
+            "modifiedStatusMs": 13.794999957084656,
+            "stage10FilesMs": 69.41999995708466,
+            "commitMs": 120.47499996423721,
+            "checkoutOriginalMs": 31.660000026226044,
+            "checkoutModifiedMs": 33.25999999046326,
+            "reopenReadyMs": 28.206208000017796,
+            "restoreMs": 1198.2599999904633,
+            "reopenFirstStatusMs": 93.91499996185303,
+            "reopenWarmStatusMs": 86.77999997138977,
+            "reopenTotalMs": 1320.381207952334,
+            "reopenRuntimeMs": 16.6700000166893
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314040514,
+              "afterMtimeMs": 1792314040594,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10744319631,
+            "usage": 6901391,
+            "usageDetails": {
+              "fileSystem": 6901391
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 23.584625000017695,
+            "filesystemAndRuntimeMs": 16.259999990463257,
+            "cloneMs": 1959.1800000071526,
+            "firstCleanStatusMs": 48.32499998807907,
+            "warmCleanStatusMs": 43.69999998807907,
+            "write10FilesMs": 21.860000014305115,
+            "modifiedStatusMs": 21.139999985694885,
+            "stage10FilesMs": 79.04000002145767,
+            "commitMs": 117.06000000238419,
+            "checkoutOriginalMs": 31.649999976158142,
+            "checkoutModifiedMs": 33.9200000166893,
+            "reopenReadyMs": 41.060708000004524,
+            "restoreMs": 1288.3600000143051,
+            "reopenFirstStatusMs": 123.73000001907349,
+            "reopenWarmStatusMs": 89.37000000476837,
+            "reopenTotalMs": 1453.1507080333831,
+            "reopenRuntimeMs": 29.4200000166893
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314045872,
+              "afterMtimeMs": 1792314046005,
+              "sameTimestampSecond": false,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10744319629,
+            "usage": 6901389,
+            "usageDetails": {
+              "fileSystem": 6901389
+            }
+          }
+        },
+        {
+          "metrics": {
+            "readyMs": 25.47341699997196,
+            "filesystemAndRuntimeMs": 18.644999980926514,
+            "cloneMs": 1868.9800000190735,
+            "firstCleanStatusMs": 25.319999992847443,
+            "warmCleanStatusMs": 21.240000009536743,
+            "write10FilesMs": 24.944999992847443,
+            "modifiedStatusMs": 15.479999959468842,
+            "stage10FilesMs": 67.58499997854233,
+            "commitMs": 113.5900000333786,
+            "checkoutOriginalMs": 31.02000004053116,
+            "checkoutModifiedMs": 35.27999997138977,
+            "reopenReadyMs": 39.41354199999478,
+            "restoreMs": 1309.9449999928474,
+            "reopenFirstStatusMs": 95.05500000715256,
+            "reopenWarmStatusMs": 86.14000004529953,
+            "reopenTotalMs": 1444.4135419999948,
+            "reopenRuntimeMs": 21.365000009536743
+          },
+          "correctness": {
+            "initialTree": "b342c0d73116109556c27a1a4b0c00a60b724071",
+            "modifiedTree": "206d916ecd7e35c84db152fcaa7d25d5490fe536",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1792314115322,
+              "afterMtimeMs": 1792314115382,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10744319631,
+            "usage": 6901391,
+            "usageDetails": {
+              "fileSystem": 6901391
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "sourceSha256": {
+    "git-browser-benchmark.mjs": "1c8e1c9b8b0ac0c86c440eec3f9be7b5e8d0ce78bd941f960c5ef4734ebe67d9",
+    "git-benchmark-worker.mjs": "b49b7763563da645a17edfc5154464cea89e2ab8616a9c79dfb8335b23892e78",
+    "git-benchmark-fs.mjs": "d756ccbe207735e4925ef6196fab1fb787362bd44823b69cc9790e7862f9e7e9",
+    "git-benchmark-fixture.mjs": "33606a3d47ac66504f7a0755fdcda9bde3bca5289f713f8d9e2feacb0bbe15b4",
+    "git-benchmark-isomorphic.mjs": "15001f79c33f5001b15bf5d3d6f4fbc46968cd3096df1f62641096c3585889e9"
+  },
+  "status": "completed",
+  "versions": {
+    "isomorphic-git": "1.44.3",
+    "wasm-git": "0.0.17"
+  }
+}
