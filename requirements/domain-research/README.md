@@ -140,6 +140,9 @@ PTC Windchill / Teamcenter（PLM）、西门子 Opcenter（MES）。
    已否决的保留一句话结论，防止本目录变成第二个想法回收站
 5. **立项时复核事实**——能力事实会随 story 关闭过期（如 FTS 放行、adapter 转正），
    立项时必须对照 [capability-matrix](../capability-matrix.md) 复核研究文件里的事实声明
+6. **领域代码的合并受分支治理约束**——领域功能不经评审不进 main；领域分支对 `packages/*` 的
+   改动先单独提取、评审并单独合并进 main，再从 main 合并回领域分支
+   （见 [CONTRIBUTING](../../CONTRIBUTING.md) 与 [AGENTS.md](../../AGENTS.md)）
 
 ## 毕业路径
 
