@@ -3,7 +3,7 @@
     <div>
       <p class="page-eyebrow">物料影响追踪</p>
       <h1>反查</h1>
-      <p class="panel-desc">从一个零件出发，找到使用它的组件和整机。默认以 M3 螺钉为例。</p>
+      <p class="panel-desc">从一个零件出发，沿使用关系树找到它的父组件和整机。默认以 M3 螺钉为例。</p>
     </div>
     <label class="hero-control">
       评估日
@@ -16,8 +16,8 @@
   <details class="panel details-panel">
     <summary>如何理解反查路径与评估日</summary>
     <ul class="note-list">
-      <li>1 跳表示父件直接使用该物料；2 跳及以上表示还经过其他组件。</li>
-      <li>M3 螺钉既可以直接用于 SC-100，也可以先用于 WH-01，再用于 SC-100，两条路径分别保留。</li>
+      <li>树根是查询物料，下一级是使用它的父件。1 跳表示直接使用，2 跳及以上表示经过其他组件。</li>
+      <li>M3 螺钉既可以直接用于电动滑板车（SC-100），也可以先用于线束组件（WH-01），再装入整机，两条路径分别保留。</li>
       <li>评估日决定哪些使用关系已生效。更换日期后，请重新点击反查。</li>
     </ul>
   </details>

@@ -46,7 +46,7 @@
         整机实例
         <select [(ngModel)]="rootId" [disabled]="busy() || !ready()" data-testid="instance-root-select">
           @for (root of roots(); track root.id) {
-            <option [value]="root.id">{{ root.itemNo }} · {{ root.serialNumber }}</option>
+            <option [value]="root.id">{{ materialLabel(root.itemNo) }} · {{ root.serialNumber }}</option>
           }
         </select>
       </label>
@@ -68,7 +68,13 @@
       </button>
     </div>
     <div class="instance-tree" data-testid="instance-tree">
+      @if (treeStale()) {
+        <p class="error-box" role="status">条件已修改，当前仍为上次查询的安装记录，请重新查看实例树。</p>
+      }
       @if (tree(); as result) {
+        @if (treeQuery(); as query) {
+          <p class="hint">查询时点：{{ query.history ? '全部安装历史' : query.date }}</p>
+        }
         @if (result.truncated) {
           <p class="error-box">实例结果已截断，请缩小查询范围。</p>
         }
@@ -94,7 +100,7 @@
                     [attr.data-serial]="node.serialNumber"
                   >
                     <td [style.paddingLeft.px]="12 + node.depth * 20">
-                      <strong>{{ node.itemNo }}</strong>
+                      <strong>{{ materialLabel(node.itemNo) }}</strong>
                     </td>
                     <td>{{ node.revisionNo }}</td>
                     <td>{{ node.serialNumber ?? '—' }}</td>
@@ -146,7 +152,16 @@
         追溯到整机
       </button>
     </div>
+    @if (traceStale()) {
+      <p class="error-box" role="status">条件已修改，请重新追溯，以下结果仍对应上次查询。</p>
+    }
     @if (trace(); as result) {
+      @if (traceQuery(); as query) {
+        <p class="hint">
+          查询依据：{{ query.kind === 'serial' ? '序列号' : '批次' }} {{ query.value }} ·
+          {{ query.history ? '全部安装历史' : query.date }}
+        </p>
+      }
       @if (result.truncated) {
         <p class="error-box">追溯结果已截断，请缩小查询范围。</p>
       }
@@ -168,11 +183,11 @@
               @for (match of result.matches; track match.node.id) {
                 <tr data-testid="instance-trace-row">
                   <td>
-                    <strong>{{ match.root.itemNo }}</strong>
+                    <strong>{{ materialLabel(match.root.itemNo) }}</strong>
                     <span class="cell-note">{{ match.root.serialNumber }}</span>
                   </td>
                   <td>
-                    {{ match.node.itemNo }}
+                    {{ materialLabel(match.node.itemNo) }}
                     <span class="cell-note">{{ match.node.serialNumber ?? match.node.lotCode }}</span>
                   </td>
                   <td>{{ match.node.revisionNo }}</td>
@@ -200,10 +215,15 @@
   <section class="panel">
     <div class="panel-head">
       <h2>电池换件</h2>
-      <p class="panel-desc">为 SN-001 将 PACK-001 换成 PACK-003。先截止旧安装，再追加新记录，历史保持可查。</p>
+      <p class="panel-desc">
+        为电动滑板车（SC-100）SN-001 将电池组（BATT）PACK-001 换成 PACK-003。先截止旧安装，再追加新记录，历史保持可查。
+      </p>
     </div>
+    @if (stateLoading()) {
+      <p class="hint" role="status">正在核对已保存的换件记录…</p>
+    }
     @if (rootId() !== firstInstanceId) {
-      <p class="hint">此示例只为 SN-001 换电池，请先在上方选择 SC-100 · SN-001。</p>
+      <p class="hint">此示例只为 SN-001 换电池，请先在上方选择电动滑板车（SC-100）· SN-001。</p>
     }
     <div class="toolbar">
       <label>
@@ -217,7 +237,7 @@
       </label>
       <button
         class="btn btn-primary"
-        [disabled]="busy() || !ready() || replaced() || rootId() !== firstInstanceId"
+        [disabled]="busy() || stateLoading() || !ready() || replaced() || rootId() !== firstInstanceId"
         (click)="replace()"
         data-testid="instance-replace"
       >
@@ -234,7 +254,7 @@
     <section class="advanced-section">
       <div class="panel-head">
         <h2>主数据改版对照</h2>
-        <p class="panel-desc">发布 BATT 的 B 修订后，再查询同一装机时点。已有电池的实际修订仍为 A。</p>
+        <p class="panel-desc">发布电池组（BATT）的 B 修订后，再查询同一装机时点。已有电池的实际修订仍为 A。</p>
       </div>
       <div class="toolbar">
         <label>
@@ -248,7 +268,7 @@
         </label>
         <button
           class="btn"
-          [disabled]="busy() || !ready() || revised()"
+          [disabled]="busy() || stateLoading() || !ready() || revised()"
           (click)="reviseMaster()"
           data-testid="instance-master-revise"
         >
@@ -257,6 +277,8 @@
       </div>
       @if (masterResult()) {
         <p class="hint" data-testid="instance-master-result" role="status">{{ masterResult() }}</p>
+      } @else if (revised()) {
+        <p class="hint" role="status">已存在电池 B 版修订，主数据改版示例已完成。</p>
       }
     </section>
 

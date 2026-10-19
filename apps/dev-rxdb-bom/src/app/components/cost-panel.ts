@@ -6,10 +6,22 @@ import {
   type CostRollupResult
 } from '@aiao/rxdb-plugin-bom';
 import { COPRODUCT_DATASET } from '@aiao/rxdb-plugin-bom/testing';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BomDemoService } from '../bom-demo.service';
+import { BomWorkspaceState } from '../bom-workspace-state';
 import { formatDecimal } from '../presentation/decimal-format';
+import { materialLabel } from '../presentation/material-label';
 
 interface CostRawField {
   label: string;
@@ -228,17 +240,34 @@ const sumAmounts = (values: readonly string[]): string =>
           <select
             [(ngModel)]="costRootKey"
             [disabled]="busy()"
-            (ngModelChange)="clearResult()"
+            (ngModelChange)="changeRoot($event)"
             data-testid="cost-root-select"
           >
-            <option value="SC-100">SC-100</option>
-            <option value="COST-DEMO">COST-DEMO（故意缺成本）</option>
+            <option value="SC-100">{{ materialLabel('SC-100') }}</option>
+            <option value="COST-DEMO">{{ materialLabel('COST-DEMO') }} · 故意缺成本</option>
             @if (jointReady()) {
-              <option value="JOINT-MAIN">JOINT-MAIN（基准 100 kg 联合生产）</option>
-              <option value="JOINT-CONSUMER">JOINT-CONSUMER（消费联产品 10 kg）</option>
+              <option value="JOINT-MAIN">{{ materialLabel('JOINT-MAIN') }} · 基准 100 kg 联合生产</option>
+              <option value="JOINT-CONSUMER">{{ materialLabel('JOINT-CONSUMER') }} · 消费联产品 10 kg</option>
+            }
+            @for (key of otherRoots(); track key) {
+              <option [value]="key">{{ materialLabel(key) }}</option>
             }
           </select>
         </label>
+        <label
+          >核算批量<input
+            [(ngModel)]="workspace.plannedQty"
+            [disabled]="busy()"
+            data-testid="cost-planned-qty"
+            inputmode="decimal"
+        /></label>
+        <label
+          >单位<select [(ngModel)]="workspace.plannedUom" [disabled]="busy()" data-testid="cost-uom">
+            <option value="pcs">件（pcs）</option>
+            <option value="kg">千克（kg）</option>
+            <option value="m">米（m）</option>
+          </select></label
+        >
         @if (jointReady() && costRootKey() === dataset.consumerKey) {
           <label>
             联产成本来源
@@ -249,11 +278,15 @@ const sumAmounts = (values: readonly string[]): string =>
               data-testid="joint-source-select"
             >
               <option value="">请选择已发布生产头</option>
-              <option value="JOINT-MAIN">JOINT-MAIN（固定份额 0.6 / 0.4）</option>
+              <option value="JOINT-MAIN">{{ materialLabel('JOINT-MAIN') }} · 固定份额 0.6 / 0.4</option>
             </select>
           </label>
         }
-        <button class="btn btn-primary" [disabled]="busy() || !ready()" (click)="runRollup()">
+        <button
+          class="btn btn-primary"
+          [disabled]="busy() || !ready() || !!workspace.validationError()"
+          (click)="runRollup()"
+        >
           {{ busy() ? '处理中…' : '卷算' }}
         </button>
         <button class="btn btn-secondary" [disabled]="busy() || !ready() || jointReady()" (click)="loadCoproductDemo()">
@@ -263,6 +296,14 @@ const sumAmounts = (values: readonly string[]): string =>
           jointReady() ? '联产演示已装载' : '联产演示尚未装载'
         }}</span>
       </div>
+      @if (workspace.validationError()) {
+        <p class="error-box" role="alert">{{ workspace.validationError() }}</p>
+      }
+      @if (stale()) {
+        <p class="workspace-stale" data-testid="cost-stale" role="status">
+          条件已修改。下方为上次确认的成本，请重新卷算。
+        </p>
+      }
       @if (costError()) {
         <div class="error-box" data-testid="cost-error" role="alert">{{ costError() }}</div>
       }
@@ -270,7 +311,7 @@ const sumAmounts = (values: readonly string[]): string =>
         @if (costSummary(); as summary) {
           <section class="cost-summary" aria-label="本次卷算结果" data-testid="cost-summary">
             <p class="cost-context">
-              <strong>{{ itemNo(result.root.itemId) }}</strong>
+              <strong>{{ materialLabel(itemNo(result.root.itemId)) }}</strong>
               <span
                 >{{ resultDate() }} · {{ result.context.bomType.toUpperCase() }} · {{ result.context.currency }}</span
               >
@@ -345,7 +386,7 @@ const sumAmounts = (values: readonly string[]): string =>
           <table class="data-table cost-table">
             <caption class="sr-only">
               {{
-                itemNo(result.root.itemId)
+                materialLabel(itemNo(result.root.itemId))
               }}
               的成本组成与逐层明细，金额单位
               {{
@@ -402,11 +443,22 @@ const sumAmounts = (values: readonly string[]): string =>
 })
 export class CostPanel {
   private readonly service = inject(BomDemoService);
+  private requestId = 0;
+  private revision = this.service.dataRevision();
+  readonly workspace = inject(BomWorkspaceState);
   readonly asOfDate = input.required<string>();
   readonly ready = this.service.ready;
   readonly itemNos = this.service.itemNos;
-  readonly costRootKey = signal('SC-100');
-  readonly costResult = signal<CostRollupResult | null>(null);
+  readonly costRootKey = this.workspace.rootKey;
+  readonly costResult = signal<CostRollupResult | null>(this.workspace.cost()?.result ?? null);
+  readonly resultKey = signal(this.workspace.cost()?.key ?? '');
+  readonly requestKey = computed(() =>
+    JSON.stringify({ ...this.workspace.context(), asOfDate: this.asOfDate(), jointSource: this.jointSourceKey() })
+  );
+  readonly stale = computed(() => this.costResult() !== null && this.resultKey() !== this.requestKey());
+  readonly otherRoots = computed(() =>
+    [...this.itemNos().values()].filter(key => !['SC-100', 'COST-DEMO', 'JOINT-MAIN', 'JOINT-CONSUMER'].includes(key))
+  );
   readonly costRows = computed(() => {
     const result = this.costResult();
     return result === null ? [] : flattenCost(this.itemNo.bind(this), result.root, result.context.currency);
@@ -426,21 +478,26 @@ export class CostPanel {
   readonly costError = signal('');
   readonly busy = signal(false);
   readonly dataset = COPRODUCT_DATASET;
-  readonly jointSourceKey = signal('');
+  readonly jointSourceKey = this.workspace.jointSourceKey;
   readonly jointReady = computed(() => [...this.itemNos().values()].includes(COPRODUCT_DATASET.primaryKey));
   readonly amount = amountText;
   readonly unit = unitText;
+  readonly materialLabel = materialLabel;
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => this.requestId++);
     effect(() => {
-      if (this.service.ready()) {
+      const epoch = this.service.dataEpoch();
+      const revision = this.service.dataRevision();
+      const cache = untracked(this.workspace.cost);
+      if (!this.service.ready() || (cache !== null && cache.epoch !== epoch)) {
+        this.requestId++;
+        this.busy.set(false);
         this.clearResult();
-        if (!this.jointReady()) {
-          this.jointSourceKey.set('');
-          const root = untracked(this.costRootKey);
-          if (root === COPRODUCT_DATASET.primaryKey || root === COPRODUCT_DATASET.consumerKey)
-            this.costRootKey.set('SC-100');
-        }
+      }
+      if (revision !== this.revision) {
+        this.revision = revision;
+        this.clearResult();
       }
     });
   }
@@ -451,41 +508,73 @@ export class CostPanel {
 
   clearResult(): void {
     this.costResult.set(null);
+    this.workspace.cost.set(null);
     this.costError.set('');
   }
 
   /** 沿用显式生产来源与原始领域错误，失败时不保留上一份结果。 */
   async runRollup(): Promise<void> {
+    if (this.busy() || !this.ready() || this.service.resetting() || this.workspace.validationError()) return;
+    const id = ++this.requestId;
+    const epoch = this.service.dataEpoch();
+    const revision = this.service.dataRevision();
+    const key = this.requestKey();
     this.busy.set(true);
     this.clearResult();
     try {
       const root = this.costRootKey();
-      const joint = root === COPRODUCT_DATASET.primaryKey || root === COPRODUCT_DATASET.consumerKey;
       const result = await this.service.rollup(root, this.asOfDate(), {
-        ...(joint ? { plannedQty: { value: root === COPRODUCT_DATASET.primaryKey ? '100' : '1', uom: 'kg' } } : {}),
+        ...this.workspace.resolutionOptions(),
+        plannedQty: { value: this.workspace.plannedQty(), uom: this.workspace.plannedUom() },
         ...(root === COPRODUCT_DATASET.consumerKey && this.jointSourceKey() === COPRODUCT_DATASET.primaryKey ?
           { jointCostSources: { [COPRODUCT_DATASET.ids.coproductRevisionId]: COPRODUCT_DATASET.ids.producerHeaderId } }
         : {})
       });
+      if (
+        id !== this.requestId ||
+        epoch !== this.service.dataEpoch() ||
+        revision !== this.service.dataRevision() ||
+        !this.ready()
+      )
+        return;
       this.costResult.set(result);
+      this.resultKey.set(key);
+      this.workspace.cost.set({ result, key, epoch });
     } catch (error) {
-      this.costError.set(String(error));
+      if (id === this.requestId && epoch === this.service.dataEpoch()) this.costError.set(String(error));
     } finally {
-      this.busy.set(false);
+      if (id === this.requestId) this.busy.set(false);
     }
+  }
+
+  /** 切换联合生产场景时明确使用其标准批量与计量单位。 */
+  changeRoot(root: string): void {
+    this.clearResult();
+    this.jointSourceKey.set('');
+    const uom = this.service.itemUoms().get(root)!;
+    const ordinaryQty = this.workspace.plannedUom() === uom ? this.workspace.plannedQty() : '1';
+    const plannedQty =
+      root === COPRODUCT_DATASET.primaryKey ? '100'
+      : root === COPRODUCT_DATASET.consumerKey ? '1'
+      : ordinaryQty;
+    this.workspace.update({ rootKey: root, plannedQty, plannedUom: uom });
   }
 
   /** 按需追加联产场景，保留已发布生产头的显式选择。 */
   async loadCoproductDemo(): Promise<void> {
+    if (this.busy() || !this.ready() || this.service.resetting()) return;
+    const id = ++this.requestId;
+    const epoch = this.service.dataEpoch();
     this.busy.set(true);
     this.clearResult();
     try {
       await this.service.loadCoproductDemo();
-      this.costRootKey.set(COPRODUCT_DATASET.primaryKey);
+      if (id !== this.requestId || epoch !== this.service.dataEpoch() || !this.ready()) return;
+      this.changeRoot(COPRODUCT_DATASET.primaryKey);
     } catch (error) {
-      this.costError.set(String(error));
+      if (id === this.requestId && epoch === this.service.dataEpoch()) this.costError.set(String(error));
     } finally {
-      this.busy.set(false);
+      if (id === this.requestId) this.busy.set(false);
     }
   }
 }
@@ -504,7 +593,7 @@ const flattenCost = (
       depth,
       kind: 'head',
       itemNo: itemNo(node.itemId),
-      label: `${itemNo(node.itemId)} · ${depth === 0 ? '产品成本' : '子件成本'}`,
+      label: `${materialLabel(itemNo(node.itemId))} · ${depth === 0 ? '产品成本' : '子件成本'}`,
       basis: `批量 ${unitText(node.batchQty)} ${node.baseUom} · 单位 ${currency} ${unitText(node.unitCost)} / ${node.baseUom}`,
       amount: node.batchCost,
       rawFields: [
@@ -531,7 +620,7 @@ const flattenCost = (
         depth: depth + 1,
         kind: 'joint-output' as const,
         itemNo: itemNo(output.itemId),
-        label: `${output.kind === 'primary' ? '第一主产物' : '联产品'} ${itemNo(output.itemId)}`,
+        label: `${output.kind === 'primary' ? '第一主产物' : '联产品'} ${materialLabel(itemNo(output.itemId))}`,
         basis: `产量 ${unitText(output.qty)} ${output.uom} · 份额 ${unitText(output.share)} · 单位 ${currency} ${unitText(output.unitCost)} / ${output.uom}`,
         amount: output.batchCost,
         rawFields: [
@@ -549,7 +638,7 @@ const flattenCost = (
       depth: depth + 1,
       kind: 'material' as const,
       itemNo: itemNo(line.childItemId),
-      label: `材料 ${itemNo(line.childItemId)}`,
+      label: `材料 ${materialLabel(itemNo(line.childItemId))}`,
       basis: `需求 ${unitText(line.demand)} ${line.demandUom} × 单位 ${currency} ${unitText(line.unitCost)}`,
       amount: line.amount,
       rawFields: [
@@ -591,7 +680,7 @@ const flattenCost = (
       depth: depth + 1,
       kind: 'credit' as const,
       itemNo: itemNo(line.childItemId),
-      label: `副产抵减 ${itemNo(line.childItemId)}`,
+      label: `副产抵减 ${materialLabel(itemNo(line.childItemId))}`,
       basis: `产出 ${unitText(line.outQty)} ${line.outUom} × 抵减价 ${currency} ${unitText(line.creditPrice)}`,
       amount: `-${line.amount}`,
       rawFields: [

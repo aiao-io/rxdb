@@ -24,7 +24,7 @@
   <section class="panel">
     <div class="panel-head">
       <h2>变更日程</h2>
-      <p class="panel-desc">从早到晚排列；状态标签表示变更单当前处于哪个阶段。</p>
+      <p class="panel-desc">从早到晚排列；点击一张变更单，联动查看下方影响、差异与可执行操作。</p>
     </div>
     @if (entries().length === 0) {
       <div class="empty-state">暂无变更单。先到概览装载示例数据，再查看这里的变更日程。</div>
@@ -33,7 +33,15 @@
         @for (entry of entries(); track entry.id) {
           <div class="timeline-item">
             <span class="timeline-dot"></span>
-            <div class="timeline-card">
+            <button
+              class="timeline-card"
+              [attr.aria-pressed]="panel()?.selectedEcnId() === entry.id"
+              [class.selected]="panel()?.selectedEcnId() === entry.id"
+              [disabled]="panel()?.busy()"
+              (click)="selectEcn(entry.id)"
+              data-testid="timeline-select"
+              type="button"
+            >
               <div class="timeline-head">
                 <span class="timeline-no">{{ entry.ecnNo }}</span>
                 <span
@@ -46,7 +54,7 @@
                 </span>
               </div>
               <div class="timeline-meta">生效日 {{ entry.effectiveDate }}</div>
-            </div>
+            </button>
           </div>
         }
       </div>

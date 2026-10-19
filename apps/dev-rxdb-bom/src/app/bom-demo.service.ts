@@ -11,8 +11,10 @@ import {
   BomLineDesignator,
   BomLineOccurrence,
   BomSubstituteGroup,
+  confirmMapping,
   mappingCoverage,
   mappingGaps,
+  normalizeBomError,
   rollupCost,
   rxDBPluginBom,
   type BomInstanceTraceResult,
@@ -23,7 +25,9 @@ import {
   type ExpansionResult,
   type ExplosionResult,
   type MappingCoverageResult,
-  type MappingGapsResult
+  type MappingGapsResult,
+  type RequirementLine,
+  type ResolutionContext
 } from '@aiao/rxdb-plugin-bom';
 import {
   deterministicId,
@@ -40,9 +44,24 @@ import {
 } from '@aiao/rxdb-plugin-bom/testing';
 import { computed, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import type { RequirementCalculationBasis } from './components/step-panel';
+import { loadRequirementBasis } from './presentation/requirement-basis';
 
 /** demo 库名（reset 删除的 IndexedDB 库）。 */
 export const BOM_DEMO_DB_NAME = 'dev-rxdb-bom';
+
+/** 跨页面共用的解析条件，计划单位只交给数量接口。 */
+export type BomDemoResolutionOptions = Partial<Omit<ResolutionContext, 'asOfDate'>> & { plannedUom?: string };
+
+/** 可从数据库恢复并逐项核对的待发布结构。 */
+export interface ImportedDraftSummary {
+  headerId: string;
+  itemNo: string;
+  revisionNo: string;
+  bomType: string;
+  orgId: string;
+  lineCount: number;
+}
 
 /**
  * demo 数据服务：连接（IDBBatchAtomicVFS + BOM 插件）→ 装载 SC-100 种子 →
@@ -50,6 +69,7 @@ export const BOM_DEMO_DB_NAME = 'dev-rxdb-bom';
  */
 @Injectable({ providedIn: 'root' })
 export class BomDemoService {
+  readonly #operations = new Set<Promise<unknown>>();
   private rxdb?: RxDB;
   private adapter?: RxDBAdapterWaSqlite;
   /** 直连演示用的 draft 头（挂在 PCBA 的演示修订下，环演示边经它插入）。 */
@@ -57,13 +77,20 @@ export class BomDemoService {
   private demoRevisionId?: string;
   /** 进行中的连接（页面自动连接与手动重置共用一把互斥，防双实例）。 */
   private connectPromise?: Promise<void>;
-  /** 现场新建并发布的 ECN id（取消演示的对象；未建为 null）。 */
-  private liveEcnId?: string;
+  /** 所有重置入口共享同一个完整操作，阻塞期间不创建第二个删除请求。 */
+  private resetPromise?: Promise<void>;
+  readonly liveEcnId = signal<string | null>(null);
+  readonly resetting = signal(false);
+  readonly resetStatus = signal('');
+  readonly dataEpoch = signal(0);
+  readonly dataRevision = signal(0);
+  readonly importedDrafts = signal<ImportedDraftSummary[]>([]);
   readonly ready = signal(false);
   readonly seedBatchNo = SCOOTER_SEED_BATCH_NO;
   readonly seedTimestamp = SCOOTER_SEED_TIMESTAMP;
   /** itemId → itemNo（业务键，种子 itemNo 即业务键）。 */
   readonly itemNos = signal(new Map<string, string>());
+  readonly itemUoms = signal(new Map<string, string>());
   /** occurrenceId → 位号清单（AC#2 的行级位号展示）。 */
   readonly designators = signal(new Map<string, string[]>());
   readonly itemCount = computed(() => this.itemNos().size);
@@ -74,23 +101,803 @@ export class BomDemoService {
   readonly protectedInstanceSourceId = deterministicId(SCOOTER_DATASET_F.sourceOccurrenceSeed);
 
   /** 重置并装载种子（两遍执行结果逐字节相同，AC#1）。 */
-  async resetAndSeed(): Promise<void> {
+  resetAndSeed(): Promise<void> {
+    if (this.resetPromise) return this.resetPromise;
+    this.resetting.set(true);
+    this.resetStatus.set('正在等待当前操作完成…');
+    this.dataEpoch.update(value => value + 1);
+    this.dataRevision.update(value => value + 1);
     this.ready.set(false);
+    this.importedDrafts.set([]);
+    this.itemUoms.set(new Map());
+    this.liveEcnId.set(null);
+    this.resetPromise = this.#resetAndSeed().finally(() => {
+      this.resetPromise = undefined;
+      this.resetting.set(false);
+      this.resetStatus.set('');
+    });
+    return this.resetPromise;
+  }
+
+  /** 连接既有库（页面重载的路径：插件触发器幂等安装，种子行原样可用）。 */
+  async connectExisting(): Promise<void> {
+    if (this.resetPromise) return this.resetPromise;
+    if (this.rxdb) return;
+    this.ready.set(false);
+    await this.#connect();
+  }
+
+  /** 按评估日与计划量展开（父修订按时点取最新；根物料可选，默认整机 SC-100）。 */
+  async explode(
+    asOfDate: string,
+    plannedQty: string,
+    rootKey = 'SC-100',
+    effectivity: BomDemoResolutionOptions = { unit: 137 }
+  ): Promise<ExplosionResult> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      return this.rxdb.bom.explodeBom(
+        {
+          ...this.#resolution(asOfDate, effectivity),
+          configSelection: effectivity.configSelection ?? { 颜色: ['红'] }
+        },
+        { parentItemId: this.#itemId(rootKey) },
+        { plannedQty: { value: plannedQty, uom: effectivity.plannedUom ?? 'pcs' } }
+      );
+    });
+  }
+
+  /** 扩展属性演示（US-525 AC#17）：经实体 API 写 ext（BomRepository 按 attr_def 校验）。 */
+  async extWrite(itemKey: string, ext: Record<string, unknown>): Promise<string> {
+    return this.#run(() => this.#writeExt(itemKey, () => ext));
+  }
+
+  /** 只修改本次编辑的属性，其他已保存字段继续保留。 */
+  async extPatch(itemKey: string, patch: Record<string, unknown>): Promise<string> {
+    return this.#run(() => this.#writeExt(itemKey, current => ({ ...current, ...patch })));
+  }
+
+  /** 读取物料的当前 ext（面板展示 eq 过滤结果面）。 */
+  async extRead(itemKey: string): Promise<string> {
+    return this.#run(async () => {
+      if (!this.adapter) throw new Error('demo 未就绪');
+      const result = (await this.adapter.rawQuery(
+        `SELECT "ext" FROM "bom$item" WHERE "id" = '${goldenItemId(itemKey)}'`
+      )) as unknown as { results?: { rows: unknown[][] }[]; rows?: unknown[][] };
+      const rows = Array.isArray(result.results) ? result.results[0].rows : (result.rows ?? []);
+      return rows.length > 0 && rows[0][0] !== null ? String(rows[0][0]) : '{}';
+    });
+  }
+
+  /** 按声明的属性类型过滤物料，缺字段与显式空值由查询合同统一处理。 */
+  async filterExt(op: 'eq' | 'ne', value: string): Promise<{ itemNo: string; ext: string }[]> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      const rows = await this.rxdb.bom.filterByAttr('item', [{ code: 'rohs', op, value }]);
+      return rows.map(row => ({ itemNo: String(row['itemNo']), ext: String(row['ext']) }));
+    });
+  }
+
+  /** 导出领域合同的完整快照，十进制字段与解析依据随文件交付。 */
+  async exportBom(
+    asOfDate: string,
+    rootKey: string,
+    plannedQty: string,
+    unitOrOptions?: number | BomDemoResolutionOptions
+  ): Promise<string> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      const payload = await this.rxdb.bom.exportBom(
+        {
+          configSelection: { 颜色: ['红'] },
+          ...this.#resolution(asOfDate, typeof unitOrOptions === 'number' ? { unit: unitOrOptions } : unitOrOptions)
+        },
+        { parentItemId: this.#itemId(rootKey) },
+        {
+          plannedQty: {
+            value: plannedQty,
+            uom: typeof unitOrOptions === 'object' ? (unitOrOptions.plannedUom ?? 'pcs') : 'pcs'
+          }
+        }
+      );
+      payload.manifest['plannedQty'] = {
+        value: plannedQty,
+        uom: typeof unitOrOptions === 'object' ? (unitOrOptions.plannedUom ?? 'pcs') : 'pcs'
+      };
+      return JSON.stringify(payload, null, 2);
+    });
+  }
+
+  /** 导入文件至草稿，返回整批结果与逐条诊断。 */
+  async importBom(payload: unknown) {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      const epoch = this.dataEpoch();
+      const result = await this.rxdb.bom.importBomDraft(payload);
+      if (result.committed && epoch === this.dataEpoch()) await this.#loadImportedDrafts();
+      return result;
+    });
+  }
+
+  /** 恢复数据库中的实际草稿，不依赖页面暂存结果或物料与修订号约定。 */
+  async refreshImportedDrafts(): Promise<void> {
+    return this.#run(async () => {
+      await this.#loadImportedDrafts();
+    });
+  }
+
+  /** 显式发布导入成功的修订与头，再刷新可展开物料清单。 */
+  async publishImported(headerIds: string[], effectiveFrom: string): Promise<void> {
+    return this.#run(async () => {
+      if (headerIds.length === 0) throw new Error('没有可发布的导入草稿');
+      if (!this.adapter) throw new Error('demo 未就绪');
+      const instant = this.#date(effectiveFrom);
+      try {
+        await this.adapter.transaction(async executor => {
+          const headers = executor.getRepository(BomHeader);
+          const revisions = executor.getRepository(BomItemRevision);
+          const selected: BomHeader[] = [];
+          const released = new Set<string>();
+          for (const id of new Set(headerIds)) {
+            const [header] = await headers.find({
+              where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: id }] }
+            });
+            if (!header) throw new Error(`导入草稿不存在：${id}`);
+            if (header.state !== 'draft') throw new Error(`结构已不是草稿：${id}`);
+            selected.push(header);
+          }
+          for (const header of selected) {
+            if (released.has(header.parentRevisionId)) continue;
+            const [revision] = await revisions.find({
+              where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: header.parentRevisionId }] }
+            });
+            if (!revision) throw new Error(`导入修订不存在：${header.parentRevisionId}`);
+            if (revision.state === 'draft')
+              await revisions.update(revision, { effectiveFrom: instant, state: 'released' });
+            released.add(revision.id);
+          }
+          for (const header of selected) await headers.update(header, { state: 'released' });
+        });
+      } catch (error) {
+        throw normalizeBomError(error) ?? error;
+      }
+      this.dataRevision.update(value => value + 1);
+      await this.#loadItemNos();
+      await this.#loadImportedDrafts();
+    });
+  }
+
+  /** 按安装事实查询整机；省略时点时保留全部安装历史。 */
+  async instanceTree(rootId: string, asOfDate?: string): Promise<BomInstanceTreeResult> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      const options = asOfDate === undefined ? {} : { asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) };
+      return this.rxdb.bom.expandInstance(rootId, options);
+    });
+  }
+
+  /** 按实际序列号或批次追溯到安装它的整机。 */
+  async traceInstance(kind: 'serial' | 'lot', value: string, asOfDate?: string): Promise<BomInstanceTraceResult> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      const target = kind === 'serial' ? { serialNumber: value } : { lotCode: value };
+      const options = asOfDate === undefined ? {} : { asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) };
+      return this.rxdb.bom.whereUsedInstance(target, options);
+    });
+  }
+
+  /** 依次截止旧电池安装、追加新电池安装，旧事实保持可查。 */
+  async replaceDemoInstance(installedAt: string): Promise<void> {
+    return this.#run(async () => {
+      if (!this.rxdb || !this.adapter) throw new Error('demo 未就绪');
+      const rxdb = this.rxdb;
+      const instant = this.#date(installedAt);
+      try {
+        await this.adapter.transaction(async executor => {
+          const repository = executor.getRepository(BomInstanceNode);
+          const [old] = await repository.find({
+            where: {
+              combinator: 'and',
+              rules: [{ field: 'id', operator: '=', value: deterministicId('instance:BATT:PACK-001') }]
+            }
+          });
+          if (!old) throw new Error('原电池安装记录不存在');
+          if (old.removedAt !== null) throw new Error('SN-001 已记录换件，请查看现有安装历史');
+          if (instant < old.installedAt) throw new Error('换件日期不能早于原电池安装日期');
+          await repository.update(old, { removedAt: instant });
+          const replacement = rxdb.entityManager.instantiate(BomInstanceNode);
+          Object.assign(replacement, {
+            itemRevisionId: old.itemRevisionId,
+            parentInstanceId: old.parentInstanceId,
+            sourceOccurrenceId: old.sourceOccurrenceId,
+            serialNumber: 'PACK-003',
+            lotCode: 'PACK-LOT-B',
+            installedAt: instant,
+            removedAt: null
+          });
+          await repository.create(replacement);
+        });
+      } catch (error) {
+        throw normalizeBomError(error) ?? error;
+      }
+      this.dataRevision.update(value => value + 1);
+    });
+  }
+
+  /** 从已经保存的安装与修订事实恢复演示操作状态。 */
+  async readDemoInstanceState(): Promise<{ replacementDate: string | null; masterRevised: boolean }> {
+    return this.#run(async () => {
+      if (!this.adapter) throw new Error('demo 未就绪');
+      const rows = this.#rows(
+        await this.adapter.rawQuery(
+          'SELECT (SELECT "removedAt" FROM "bom$bom_instance_node" WHERE "id" = ?), EXISTS(SELECT 1 FROM "bom$item_revision" WHERE "itemId" = ? AND "revisionNo" = ? AND "state" = ?)',
+          [deterministicId('instance:BATT:PACK-001'), goldenItemId('BATT'), 'B', 'released']
+        )
+      );
+      return {
+        replacementDate: rows[0]?.[0] == null ? null : new Date(String(rows[0][0])).toISOString().slice(0, 10),
+        masterRevised: Boolean(rows[0]?.[1])
+      };
+    });
+  }
+
+  /** 发布未来生效的电池 B 版，用实际查询回读发布结果。 */
+  async reviseDemoInstanceMaster(effectiveFrom: string): Promise<string> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      const revision = this.rxdb.entityManager.instantiate(BomItemRevision);
+      revision.itemId = this.#itemId('BATT');
+      revision.revisionNo = 'B';
+      revision.effectiveFrom = new Date(`${effectiveFrom}T00:00:00.000Z`);
+      await revision.save();
+      revision.state = 'released';
+      await revision.save();
+      this.dataRevision.update(value => value + 1);
+      const resolved = await this.rxdb.bom.resolve(
+        {
+          bomType: 'ebom',
+          orgId: 'org-x',
+          asOfDate: revision.effectiveFrom,
+          unit: 137,
+          configSelection: { 颜色: ['红'] }
+        },
+        { parentItemId: this.#itemId('BATT') }
+      );
+      if (resolved.manifest.parentRevisionId !== revision.id) throw new Error('主数据未解析到新发布修订');
+      return `电池组（BATT） · B 发布成功（生效日 ${effectiveFrom}）`;
+    });
+  }
+
+  /** 直连删除被实例引用的草稿来源，展示存储层的引用保护错误。 */
+  async deleteDemoInstanceSource(): Promise<string> {
+    return this.#run(async () => {
+      if (!this.adapter) throw new Error('demo 未就绪');
+      try {
+        await this.adapter.rawQuery(
+          `DELETE FROM "bom$bom_line_occurrence" WHERE "id" = '${this.protectedInstanceSourceId}'`
+        );
+        return '来源删除成功';
+      } catch (error) {
+        return String(error);
+      }
+    });
+  }
+
+  /** EBOM / MBOM 双图展开（US-525 AC#13：SHEET-ASSY 钣金外壳两张图）。 */
+  async dualExplode(asOfDate: string): Promise<{ ebom: ExplosionResult; mbom: ExplosionResult }> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      const ebomContext = { bomType: 'ebom' as const, orgId: 'org-x', asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) };
+      const [ebom, mbom] = await Promise.all([
+        this.rxdb.bom.explodeBom(
+          ebomContext,
+          { parentItemId: goldenItemId('SHEET-ASSY') },
+          { plannedQty: { value: '1', uom: 'pcs' } }
+        ),
+        this.rxdb.bom.explodeBom(
+          { ...ebomContext, bomType: 'mbom' },
+          { parentItemId: goldenItemId('SHEET-ASSY-M') },
+          { plannedQty: { value: '1', uom: 'pcs' } }
+        )
+      ]);
+      return { ebom, mbom };
+    });
+  }
+
+  /** 映射覆盖率（US-516 AC#5/#6 / US-525 AC#13）：路径级优先、未覆盖报出。 */
+  async mapCoverage(asOfDate: string): Promise<MappingCoverageResult> {
+    return this.#run(async () => {
+      if (!this.adapter) throw new Error('demo 未就绪');
+      return mappingCoverage(this.adapter, deterministicId('map-scope:D'), {
+        bomType: 'ebom',
+        orgId: 'org-x',
+        asOfDate: new Date(`${asOfDate}T00:00:00.000Z`)
+      });
+    });
+  }
+
+  /** 映射跟进缺口（US-516 AC#16~#22）：解析步骤集合比对。 */
+  async mapGaps(asOfDate: string): Promise<MappingGapsResult> {
+    return this.#run(async () => {
+      if (!this.adapter) throw new Error('demo 未就绪');
+      return mappingGaps(this.adapter, deterministicId('map-scope:D'), {
+        bomType: 'ebom',
+        orgId: 'org-x',
+        asOfDate: new Date(`${asOfDate}T00:00:00.000Z`)
+      });
+    });
+  }
+
+  /** 路径显示业务物料与行号，完整标识仍由调用方保留。 */
+  async mappingLabels(): Promise<Map<string, string>> {
+    return this.#run(async () => {
+      if (!this.adapter) throw new Error('demo 未就绪');
+      const rows = this.#rows(
+        await this.adapter.rawQuery(
+          'SELECT l."id", o."id", p."itemNo", l."lineNo", c."itemNo" FROM "bom$bom_line" l JOIN "bom$bom_header" h ON h."id" = l."headerId" JOIN "bom$item_revision" r ON r."id" = h."parentRevisionId" JOIN "bom$item" p ON p."id" = r."itemId" LEFT JOIN "bom$bom_line_occurrence" o ON o."lineId" = l."id" LEFT JOIN "bom$item" c ON c."id" = o."childItemId" ORDER BY l."lineNo", o."effectiveFrom"'
+        )
+      );
+      const labels = new Map<string, string>();
+      for (const row of rows) {
+        labels.set(String(row[0]), `${row[2]} · 行 ${row[3]}`);
+        if (row[1] !== null) labels.set(String(row[1]), `${row[2]} · 行 ${row[3]} · ${row[4]}`);
+      }
+      return labels;
+    });
+  }
+
+  /** 唯一解析目标发生项后推进映射基线，不以空值覆盖未裁决目标。 */
+  async confirmMap(mappingId: string, asOfDate: string): Promise<void> {
+    return this.#run(async () => {
+      if (!this.adapter || !this.rxdb) throw new Error('demo 未就绪');
+      const rows = this.#rows(
+        await this.adapter.rawQuery(
+          'SELECT m."relation", m."targetLineId", h."parentRevisionId", h."orgId", h."alternativeNo" FROM "bom$bom_map" m LEFT JOIN "bom$bom_line" l ON l."id" = m."targetLineId" LEFT JOIN "bom$bom_header" h ON h."id" = l."headerId" WHERE m."id" = ?',
+          [mappingId]
+        )
+      );
+      const row = rows[0];
+      if (!row) throw new Error('映射不存在，请重新查询');
+      let targetOccurrenceId: string | null = null;
+      if (row[0] !== 'removed') {
+        if (row[1] === null || row[2] === null) throw new Error('映射缺少制造目标行，不能确认跟进');
+        const resolved = await this.rxdb.bom.resolve(
+          this.#resolution(asOfDate, {
+            bomType: 'mbom',
+            orgId: String(row[3]),
+            alternativeNo: Number(row[4])
+          }),
+          { parentRevisionId: String(row[2]) }
+        );
+        const candidates = resolved.occurrences.filter(value => value.lineId === row[1]);
+        if (resolved.manifest.unresolved.length > 0 || candidates.length !== 1)
+          throw new Error('制造目标尚未唯一解析，请先核对评估日与适用条件');
+        targetOccurrenceId = candidates[0].occurrenceId;
+      }
+      await confirmMapping(this.adapter, mappingId, targetOccurrenceId, this.#resolution(asOfDate));
+    });
+  }
+
+  /** 成本卷算（US-525 AC#14/#15）：逐层明细树，金额为规范十进制串。 */
+  async rollup(
+    rootKey: string,
+    asOfDate: string,
+    options: BomDemoResolutionOptions & {
+      jointCostSources?: Readonly<Record<string, string>>;
+      plannedQty?: { value: string; uom: string };
+    } = {}
+  ): Promise<CostRollupResult> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      const day = new Date(`${asOfDate}T00:00:00.000Z`);
+      return rollupCost(
+        this.adapter!,
+        {
+          ...this.#resolution(asOfDate, options),
+          currency: 'CNY',
+          rateDate: day,
+          ...(options.jointCostSources === undefined ? {} : { jointCostSources: options.jointCostSources })
+        },
+        { parentItemId: this.#itemId(rootKey) },
+        options.plannedQty ?? { value: '1', uom: 'pcs' }
+      );
+    });
+  }
+
+  /** 显式追加联产演示，不改变默认SC-100种子及其原有验收行数。 */
+  async loadCoproductDemo(): Promise<void> {
+    return this.#run(async () => {
+      if (!this.adapter) throw new Error('demo 未就绪');
+      await loadCoproductDataset(this.adapter, { itemExt: { rohs: 'yes' } });
+      await this.#hydrate();
+    });
+  }
+
+  /** 替代组发布拒绝演示（US-525 AC#7 ②）：draft 组 0.5/0.3 发布 → 拒绝并给实际合计 0.8。 */
+  async demoSubstitutePublishRejection(): Promise<string> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      try {
+        // 演示头挂 COVER-ASSY 的新建 draft 修订（种子已发布头占着唯一键；成员行不构成自环）
+        const revision = new BomItemRevision();
+        revision.revisionNo = 'E';
+        revision.itemId = goldenItemId('COVER-ASSY');
+        await revision.save();
+        const draftHeader = new BomHeader();
+        draftHeader.parentRevisionId = revision.id;
+        draftHeader.bomType = 'ebom';
+        draftHeader.orgId = 'org-x';
+        await draftHeader.save();
+        const group = new BomSubstituteGroup();
+        group.headerId = draftHeader.id;
+        group.code = 'G-DEMO';
+        group.strategy = 'proportional';
+        await group.save();
+        const addMember = async (
+          childKey: string,
+          role: 'primary' | 'substitute',
+          probability: string
+        ): Promise<void> => {
+          const line = new BomLine();
+          line.headerId = draftHeader.id;
+          line.lineNo = 10 + Math.floor(Math.random() * 100000);
+          await line.save();
+          const occurrence = new BomLineOccurrence();
+          occurrence.lineId = line.id;
+          occurrence.childItemId = goldenItemId(childKey);
+          occurrence.qty = '100';
+          occurrence.uom = 'pcs';
+          occurrence.effectiveFrom = new Date('2026-01-01T00:00:00.000Z');
+          await occurrence.save();
+          occurrence.substituteGroupId = group.id;
+          occurrence.substituteRole = role;
+          occurrence.usageProbability = probability;
+          occurrence.equivQty = '1';
+          await occurrence.save();
+        };
+        await addMember('R10K', 'primary', '0.5');
+        await addMember('R10K-ALT1', 'substitute', '0.3');
+        draftHeader.state = 'released';
+        await draftHeader.save();
+        return '发布成功（不应发生：合计 0.8 未校验）';
+      } catch (error) {
+        return String(error);
+      }
+    });
+  }
+
+  /** where-used 反查（AC#6：M3 螺钉的全部父件与路径，含虚拟件路径）。 */
+  async whereUsed(asOfDate: string, childItemId: string): Promise<ExpansionResult> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      return this.rxdb.bom.whereUsed(
+        { bomType: 'ebom', orgId: 'org-x', asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) },
+        { childItemId }
+      );
+    });
+  }
+
+  /** 发布演示头（AC#3：39/100 位号计数违约，错误同时给两个数）。 */
+  async publishDemoHeader(): Promise<string> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      const headerId = this.demoHeaderId;
+      if (!headerId) throw new Error('演示头未就绪');
+      // 在演示 draft 头下建 managed 行 qty=100 + 39 个位号（保存草稿允许）
+      const line = new BomLine();
+      line.headerId = headerId;
+      line.lineNo = 77;
+      await line.save();
+      const occurrence = new BomLineOccurrence();
+      occurrence.lineId = line.id;
+      occurrence.childItemId = goldenItemId('R10K');
+      occurrence.qty = '100';
+      occurrence.uom = 'pcs';
+      occurrence.designatorManaged = true;
+      occurrence.effectiveFrom = new Date('2026-01-01T00:00:00.000Z');
+      await occurrence.save();
+      for (let index = 1; index <= 39; index++) {
+        const designator = new BomLineDesignator();
+        designator.occurrenceId = occurrence.id;
+        designator.designator = `D${index}`;
+        await designator.save();
+      }
+      // 发布转移：存储层校验位号数 39 ≠ qty 100（经实体 API，走发布触发器）
+      try {
+        const headers = await firstValueFrom(
+          BomHeader.find({
+            where: {
+              combinator: 'and',
+              rules: [{ field: 'parentRevisionId', operator: '=', value: this.demoRevisionId ?? '' }]
+            }
+          })
+        );
+        const header = headers[0];
+        if (!header) return '演示头未找到';
+        header.state = 'released';
+        await header.save();
+        return '发布成功（不应发生：位号计数未校验）';
+      } catch (error) {
+        return String(error);
+      }
+    });
+  }
+
+  /** 行数统计（AC#1 的页面可见面：两遍 seed 后行数一致）。 */
+  async dumpRowCounts(): Promise<string> {
+    return this.#run(async () => {
+      if (!this.adapter) return '';
+      const tables = [
+        'item',
+        'item_revision',
+        'bom_header',
+        'bom_line',
+        'bom_line_occurrence',
+        'bom_line_designator',
+        'bom_history_batch',
+        'ecn',
+        'bom_instance_node'
+      ];
+      const lines: string[] = [];
+      for (const name of tables) {
+        const result = (await this.adapter.rawQuery(`SELECT COUNT(*) AS c FROM "bom$${name}"`)) as unknown as
+          { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
+        const rows = 'results' in result ? result.results[0].rows : result.rows;
+        lines.push(`${name}=${String(rows[0][0])}`);
+      }
+      return lines.join('\n');
+    });
+  }
+
+  /**
+   * 直连写入一条「PCBA 指回 SC-100」的成环边（US-525 AC#5）：绕过应用层校验直写库，
+   * 环约束必须由存储层拒绝并给出错误码与路径。
+   */
+  async rawCycleInsert(): Promise<string> {
+    return this.#run(async () => {
+      if (!this.adapter) throw new Error('demo 未就绪');
+      const headerId = this.demoHeaderId;
+      if (!headerId) throw new Error('演示头未就绪');
+      // 行号随机：重复点击会留空行，固定行号会撞 (headerId, lineNo) 唯一约束
+      const lineId = crypto.randomUUID();
+      const occurrenceId = crypto.randomUUID();
+      const lineNo = 500 + Math.floor(Math.random() * 400);
+      const now = '2026-01-01T00:00:00.000Z';
+      try {
+        await this.adapter.rawQuery(
+          `INSERT INTO "bom$bom_line" ("id", "headerId", "lineNo", "createdAt", "updatedAt") VALUES ('${lineId}', '${headerId}', ${lineNo}, '${now}', '${now}')`
+        );
+      } catch (error) {
+        return String(error);
+      }
+      try {
+        await this.adapter.rawQuery(
+          `INSERT INTO "bom$bom_line_occurrence" ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "createdAt", "updatedAt") VALUES ('${occurrenceId}', '${lineId}', '${goldenItemId('SC-100')}', '1', 'pcs', '${now}', '${now}', '${now}')`
+        );
+        return '写入成功（不应发生：环约束未生效）';
+      } catch (error) {
+        return String(error);
+      }
+    });
+  }
+
+  /** 同一成环边经表单（实体 API）写入——必须与直连得到同一存储层错误码。 */
+  async formCycleInsert(): Promise<string> {
+    return this.#run(async () => {
+      if (!this.demoHeaderId) throw new Error('演示头未就绪');
+      try {
+        const line = new BomLine();
+        line.headerId = this.demoHeaderId;
+        // 行号随机（同直连按钮：重复点击不撞 (headerId, lineNo) 唯一）
+        line.lineNo = 500 + Math.floor(Math.random() * 400);
+        await line.save();
+        const occurrence = new BomLineOccurrence();
+        occurrence.lineId = line.id;
+        occurrence.childItemId = goldenItemId('SC-100');
+        occurrence.qty = '1';
+        occurrence.uom = 'pcs';
+        occurrence.effectiveFrom = new Date('2026-01-01T00:00:00.000Z');
+        await occurrence.save();
+        return '写入成功（不应发生：环约束未生效）';
+      } catch (error) {
+        return String(error);
+      }
+    });
+  }
+
+  /** 影响面（US-515 AC#1 / US-525 AC#11）：整机与命中路径。 */
+  async ecnImpact(ecnId: string): Promise<EcnImpactResult> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      return this.rxdb.bom.ecnImpact(ecnId);
+    });
+  }
+
+  /** 差异（US-515 AC#2 / US-525 AC#11）：新增/删除/改量/改版四类。 */
+  async ecnDiff(ecnId: string): Promise<EcnDiffResult> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      return this.rxdb.bom.ecnDiff(ecnId);
+    });
+  }
+
+  /**
+   * 现场新建并发布一张同样改 5 行、生效日晚于宿主 UTC 当日的 ECN（US-525 AC#12 ①）：
+   * 改 SC-100 / PCBA / BATT 三张头的 5 行（新增 / 截止 / 改量 / 改版 ×2），发布成功返回空串。
+   */
+  async demoCreateAndReleaseEcn(): Promise<string> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      try {
+        // 生效日 = 宿主 UTC 当日 + 1 天（未生效：发布与取消都在生效前窗口内）
+        const tomorrow = new Date();
+        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+        const effectiveDate = `${tomorrow.toISOString().slice(0, 10)}`;
+        const ecn = new BomEcn();
+        ecn.ecnNo = `ECN-LIVE-${Math.random().toString(36).slice(2, 8)}`;
+        ecn.effectiveDate = new Date(`${effectiveDate}T00:00:00.000Z`);
+        await ecn.save();
+        this.liveEcnId.set(ecn.id);
+        // 改 3 张头的 5 行：SC-100 新增 SEAT-LIVE、截止 WH-01；PCBA 的 R10K 第二行改量 3→4；BATT 的 CELL 行改量 10→11（避开种子 ECN 已截止的旧段）
+        const sc100 = goldenItemId('SC-100');
+        const seat2Id = deterministicId('item:SEAT-LIVE');
+        // 现场新物料
+        const seat2 = new BomItem();
+        (seat2 as unknown as { id: string }).id = seat2Id;
+        seat2.itemNo = 'SEAT-LIVE';
+        seat2.ext = JSON.stringify({ rohs: 'yes' });
+        await seat2.save();
+        const table = (name: string): string => `"bom$${name}"`;
+        const scHeader = (await this.adapter!.rawQuery(
+          `SELECT h."id" FROM ${table('bom_header')} h JOIN ${table('item_revision')} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${sc100}'`
+        )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
+        const scHeaderRows = 'results' in scHeader ? scHeader.results[0].rows : scHeader.rows;
+        const scHeaderId = String(scHeaderRows[0][0]);
+        // ① SC-100：截止 WH-01 行（index 2）+ 新增 SEAT-LIVE 行
+        const scWhOcc = deterministicId('occurrence:SC-100:A:2');
+        await this.adapter!.rawQuery(
+          `UPDATE ${table('bom_line_occurrence')} SET "ecnOutId" = '${ecn.id}', "effectiveTo" = '${effectiveDate}T00:00:00.000Z' WHERE "id" = '${scWhOcc}'`
+        );
+        const seatLine = new BomLine();
+        seatLine.headerId = scHeaderId;
+        const nextLine = (await this.adapter!.rawQuery(
+          `SELECT MAX("lineNo") + 10 FROM ${table('bom_line')} WHERE "headerId" = '${scHeaderId}'`
+        )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
+        const nextLineRows = 'results' in nextLine ? nextLine.results[0].rows : nextLine.rows;
+        seatLine.lineNo = Number(nextLineRows[0][0]);
+        seatLine.ecnInId = ecn.id;
+        await seatLine.save();
+        const seatOcc = new BomLineOccurrence();
+        seatOcc.lineId = seatLine.id;
+        seatOcc.childItemId = seat2.id;
+        seatOcc.qty = '1';
+        seatOcc.uom = 'pcs';
+        seatOcc.ecnInId = ecn.id;
+        seatOcc.effectiveFrom = new Date(`${effectiveDate}T00:00:00.000Z`);
+        await seatOcc.save();
+        // ② PCBA：R10K 第二行（index 2，未被种子 ECN 碰过）改量 3→4
+        const r10kOcc = deterministicId('occurrence:PCBA:A:2');
+        await this.adapter!.rawQuery(
+          `UPDATE ${table('bom_line_occurrence')} SET "ecnOutId" = '${ecn.id}', "effectiveTo" = '${effectiveDate}T00:00:00.000Z' WHERE "id" = '${r10kOcc}'`
+        );
+        const r10kLineId = deterministicId('line:PCBA:A:2');
+        const r10kNew = new BomLineOccurrence();
+        r10kNew.lineId = r10kLineId;
+        r10kNew.childItemId = goldenItemId('R10K');
+        r10kNew.qty = '4';
+        r10kNew.uom = 'pcs';
+        r10kNew.ecnInId = ecn.id;
+        r10kNew.effectiveFrom = new Date(`${effectiveDate}T00:00:00.000Z`);
+        await r10kNew.save();
+        // ③ BATT：CELL 行（index 0，未被种子 ECN 碰过）改量 10→11
+        const bmsOcc = deterministicId('occurrence:BATT:A:0');
+        await this.adapter!.rawQuery(
+          `UPDATE ${table('bom_line_occurrence')} SET "ecnOutId" = '${ecn.id}', "effectiveTo" = '${effectiveDate}T00:00:00.000Z' WHERE "id" = '${bmsOcc}'`
+        );
+        const bmsLineId = deterministicId('line:BATT:A:0');
+        const bmsNew = new BomLineOccurrence();
+        bmsNew.lineId = bmsLineId;
+        bmsNew.childItemId = goldenItemId('CELL');
+        bmsNew.qty = '11';
+        bmsNew.uom = 'pcs';
+        bmsNew.ecnInId = ecn.id;
+        bmsNew.effectiveFrom = new Date(`${effectiveDate}T00:00:00.000Z`);
+        await bmsNew.save();
+        // 发布（生效日在未来 → 通过追溯检查与投影校验）
+        ecn.state = 'released';
+        await ecn.save();
+        this.dataRevision.update(value => value + 1);
+        await this.#loadEcns();
+        return '';
+      } catch (error) {
+        return String(error);
+      }
+    });
+  }
+
+  /** 取消现场 ECN（US-525 AC#12 ①）：未生效 → 5 行整体回退。 */
+  async demoCancelLiveEcn(): Promise<string> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      const liveEcnId = this.liveEcnId();
+      if (!liveEcnId) return '现场 ECN 未创建';
+      try {
+        const table = '"bom$ecn"';
+        await this.adapter!.rawQuery(`UPDATE ${table} SET "state" = 'cancelled' WHERE "id" = '${liveEcnId}'`);
+        this.dataRevision.update(value => value + 1);
+        await this.#loadEcns();
+        return '';
+      } catch (error) {
+        return String(error);
+      }
+    });
+  }
+
+  /** 对用户选中的变更单执行取消，状态合法性继续由存储层裁决。 */
+  async cancelEcn(ecnId: string): Promise<string> {
+    return this.#run(async () => {
+      if (!this.adapter) throw new Error('demo 未就绪');
+      try {
+        await this.adapter.transaction(async executor => {
+          const repository = executor.getRepository(BomEcn);
+          const [ecn] = await repository.find({
+            where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: ecnId }] }
+          });
+          if (!ecn) throw new Error('变更单不存在，请重新查询');
+          if (ecn.state === 'cancelled') throw new Error('该变更单已经取消');
+          await repository.update(ecn, { state: 'cancelled' });
+        });
+        this.dataRevision.update(value => value + 1);
+        await this.#loadEcns();
+        return '';
+      } catch (error) {
+        return String(normalizeBomError(error) ?? error);
+      }
+    });
+  }
+
+  /** 对已生效的种子 ECN 点取消（US-525 AC#12 ②）：拒绝并提示改走更正 ECN。 */
+  async demoCancelEffectiveEcn(): Promise<string> {
+    return this.#run(async () => {
+      if (!this.rxdb) throw new Error('demo 未就绪');
+      try {
+        const table = '"bom$ecn"';
+        await this.adapter!.rawQuery(
+          `UPDATE ${table} SET "state" = 'cancelled' WHERE "id" = '${deterministicId('ecn:ECN-2026-005')}'`
+        );
+        return '取消成功（不应发生：已生效 ECN 不可取消）';
+      } catch (error) {
+        return String(error);
+      }
+    });
+  }
+
+  /** 在一致快照内读取所选需求的计算系数，页面不直接访问连接。 */
+  async readCalculationBasis(line: RequirementLine): Promise<RequirementCalculationBasis> {
+    return this.#run(async () => {
+      if (!this.adapter) throw new Error('demo 未就绪');
+      return loadRequirementBasis(this.adapter, line);
+    });
+  }
+
+  async #resetAndSeed(): Promise<void> {
+    await Promise.allSettled([...this.#operations]);
     // 等页面自动连接收尾再断（否则 deleteDatabase 与双实例竞态）
     await this.connectPromise?.catch(() => undefined);
     // 先断开旧连接（连接开着时 deleteDatabase 会 blocked），再删库。
     // wa-sqlite 的 IDBBatchAtomicVFS 把全部 dbName 存在同一个 IndexedDB 库「IDBBatchAtomicVFS」
     // （实测 indexedDB.databases()），demo 的 reset 删整个库——dev 环境专用，注释写明
     if (this.rxdb) {
-      await this.rxdb.disconnectAll().catch(() => undefined);
+      await this.rxdb.disconnectAll();
       this.rxdb = undefined;
+      this.adapter = undefined;
     }
-    await new Promise<void>(resolve => {
+    await new Promise<void>((resolve, reject) => {
+      this.resetStatus.set('正在清空并重新装载演示数据…');
       const request = indexedDB.deleteDatabase('IDBBatchAtomicVFS');
       request.onsuccess = () => resolve();
-      request.onerror = () => resolve();
-      // blocked 意味着还有连接握着：先 resolve 让本轮失败在重连时暴露（页面可重试）
-      request.onblocked = () => resolve();
+      request.onerror = () => reject(request.error ?? new Error('删除演示数据失败，请重试'));
+      request.onblocked = () => this.resetStatus.set('其他页面仍在使用演示数据，请关闭相关页面；关闭后会继续重置。');
     });
     await this.#connect();
     const itemIds = await loadScooterDataset(this.adapter!);
@@ -104,574 +911,27 @@ export class BomDemoService {
     await this.#hydrate();
   }
 
-  /** 连接既有库（页面重载的路径：插件触发器幂等安装，种子行原样可用）。 */
-  async connectExisting(): Promise<void> {
-    if (this.rxdb) return;
-    this.ready.set(false);
-    await this.#connect();
-  }
-
-  /** 按评估日与计划量展开（父修订按时点取最新；根物料可选，默认整机 SC-100）。 */
-  async explode(
-    asOfDate: string,
-    plannedQty: string,
-    rootKey = 'SC-100',
-    effectivity: { unit?: number; lot?: string; configSelection?: Record<string, string[]> } = { unit: 137 }
-  ): Promise<ExplosionResult> {
+  async #writeExt(
+    itemKey: string,
+    edit: (current: Record<string, unknown>) => Record<string, unknown>
+  ): Promise<string> {
     if (!this.rxdb) throw new Error('demo 未就绪');
-    return this.rxdb.bom.explodeBom(
-      {
-        bomType: 'ebom',
-        orgId: 'org-x',
-        asOfDate: new Date(`${asOfDate}T00:00:00.000Z`),
-        unit: effectivity.unit,
-        lot: effectivity.lot,
-        configSelection: effectivity.configSelection ?? { 颜色: ['红'] }
-      },
-      { parentItemId: this.#itemId(rootKey) },
-      { plannedQty: { value: plannedQty, uom: 'pcs' } }
-    );
-  }
-
-  /** 扩展属性演示（US-525 AC#17）：经实体 API 写 ext（BomRepository 按 attr_def 校验）。 */
-  async extWrite(itemKey: string, ext: Record<string, unknown>): Promise<string> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    try {
-      const found = await firstValueFrom(
-        BomItem.find({ where: { combinator: 'and', rules: [{ field: 'itemNo', operator: '=', value: itemKey }] } })
-      );
-      const item = found[0];
-      if (!item) return '物料未找到';
-      item.ext = JSON.stringify(ext);
-      await item.save();
-      return '';
-    } catch (error) {
-      return String(error);
-    }
-  }
-
-  /** 读取物料的当前 ext（面板展示 eq 过滤结果面）。 */
-  async extRead(itemKey: string): Promise<string> {
-    if (!this.adapter) throw new Error('demo 未就绪');
-    const result = (await this.adapter.rawQuery(
-      `SELECT "ext" FROM "bom$item" WHERE "id" = '${goldenItemId(itemKey)}'`
-    )) as unknown as { results?: { rows: unknown[][] }[]; rows?: unknown[][] };
-    const rows = Array.isArray(result.results) ? result.results[0].rows : (result.rows ?? []);
-    return rows.length > 0 && rows[0][0] !== null ? String(rows[0][0]) : '{}';
-  }
-
-  /** 按声明的属性类型过滤物料，缺字段与显式空值由查询合同统一处理。 */
-  async filterExt(op: 'eq' | 'ne', value: string): Promise<{ itemNo: string; ext: string }[]> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    const rows = await this.rxdb.bom.filterByAttr('item', [{ code: 'rohs', op, value }]);
-    return rows.map(row => ({ itemNo: String(row['itemNo']), ext: String(row['ext']) }));
-  }
-
-  /** 导出领域合同的完整快照，十进制字段与解析依据随文件交付。 */
-  async exportBom(asOfDate: string, rootKey: string, plannedQty: string, unit?: number): Promise<string> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    const payload = await this.rxdb.bom.exportBom(
-      {
-        bomType: 'ebom',
-        orgId: 'org-x',
-        asOfDate: new Date(`${asOfDate}T00:00:00.000Z`),
-        unit,
-        configSelection: { 颜色: ['红'] }
-      },
-      { parentItemId: this.#itemId(rootKey) },
-      { plannedQty: { value: plannedQty, uom: 'pcs' } }
-    );
-    return JSON.stringify(payload, null, 2);
-  }
-
-  /** 导入文件至草稿，返回整批结果与逐条诊断。 */
-  async importBom(payload: unknown) {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    return this.rxdb.bom.importBomDraft(payload);
-  }
-
-  /** 显式发布导入成功的修订与头，再刷新可展开物料清单。 */
-  async publishImported(headerIds: string[], effectiveFrom: string): Promise<void> {
-    if (headerIds.length === 0) throw new Error('没有可发布的导入草稿');
-    const headers = await firstValueFrom(BomHeader.find({ where: { combinator: 'and', rules: [] } }));
-    const revisions = await firstValueFrom(BomItemRevision.find({ where: { combinator: 'and', rules: [] } }));
-    const importedHeaders = headerIds.map(id => {
-      const header = headers.find(value => value.id === id);
-      if (!header) throw new Error(`导入草稿不存在：${id}`);
-      return header;
-    });
-    for (const header of importedHeaders) {
-      const revision = revisions.find(value => value.id === header.parentRevisionId);
-      if (!revision) throw new Error(`导入修订不存在：${header.parentRevisionId}`);
-      revision.effectiveFrom = new Date(`${effectiveFrom}T00:00:00.000Z`);
-      revision.state = 'released';
-      await revision.save();
-      header.state = 'released';
-      await header.save();
-    }
-    await this.#loadItemNos();
-  }
-
-  /** 按安装事实查询整机；省略时点时保留全部安装历史。 */
-  async instanceTree(rootId: string, asOfDate?: string): Promise<BomInstanceTreeResult> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    const options = asOfDate === undefined ? {} : { asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) };
-    return this.rxdb.bom.expandInstance(rootId, options);
-  }
-
-  /** 按实际序列号或批次追溯到安装它的整机。 */
-  async traceInstance(kind: 'serial' | 'lot', value: string, asOfDate?: string): Promise<BomInstanceTraceResult> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    const target = kind === 'serial' ? { serialNumber: value } : { lotCode: value };
-    const options = asOfDate === undefined ? {} : { asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) };
-    return this.rxdb.bom.whereUsedInstance(target, options);
-  }
-
-  /** 依次截止旧电池安装、追加新电池安装，旧事实保持可查。 */
-  async replaceDemoInstance(installedAt: string): Promise<void> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    const nodes = await firstValueFrom(
-      BomInstanceNode.find({
-        where: {
-          combinator: 'and',
-          rules: [{ field: 'id', operator: '=', value: deterministicId('instance:BATT:PACK-001') }]
-        }
+    const found = await firstValueFrom(
+      BomItem.find({
+        where: { combinator: 'and', rules: [{ field: 'itemNo', operator: '=', value: itemKey }] }
       })
     );
-    const old = nodes[0];
-    if (!old) throw new Error('原电池安装记录不存在');
-    if (old.removedAt !== null) throw new Error('SN-001 已记录换件，请重置种子后重新演示');
-    const instant = new Date(`${installedAt}T00:00:00.000Z`);
-    old.removedAt = instant;
-    await old.save();
-    const replacement = this.rxdb.entityManager.instantiate(BomInstanceNode);
-    replacement.itemRevisionId = old.itemRevisionId;
-    replacement.parentInstanceId = old.parentInstanceId;
-    replacement.sourceOccurrenceId = old.sourceOccurrenceId;
-    replacement.serialNumber = 'PACK-003';
-    replacement.lotCode = 'PACK-LOT-B';
-    replacement.installedAt = instant;
-    replacement.removedAt = null;
-    await replacement.save();
-  }
-
-  /** 发布未来生效的电池 B 版，用实际查询回读发布结果。 */
-  async reviseDemoInstanceMaster(effectiveFrom: string): Promise<string> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    const revision = this.rxdb.entityManager.instantiate(BomItemRevision);
-    revision.itemId = this.#itemId('BATT');
-    revision.revisionNo = 'B';
-    revision.effectiveFrom = new Date(`${effectiveFrom}T00:00:00.000Z`);
-    await revision.save();
-    revision.state = 'released';
-    await revision.save();
-    const resolved = await this.rxdb.bom.resolve(
-      {
-        bomType: 'ebom',
-        orgId: 'org-x',
-        asOfDate: revision.effectiveFrom,
-        unit: 137,
-        configSelection: { 颜色: ['红'] }
-      },
-      { parentItemId: this.#itemId('BATT') }
-    );
-    if (resolved.manifest.parentRevisionId !== revision.id) throw new Error('主数据未解析到新发布修订');
-    return `BATT · B 发布成功（生效日 ${effectiveFrom}）`;
-  }
-
-  /** 直连删除被实例引用的草稿来源，展示存储层的引用保护错误。 */
-  async deleteDemoInstanceSource(): Promise<string> {
-    if (!this.adapter) throw new Error('demo 未就绪');
+    const item = found[0];
+    if (!item) return '物料未找到';
+    const previous = item.ext;
     try {
-      await this.adapter.rawQuery(
-        `DELETE FROM "bom$bom_line_occurrence" WHERE "id" = '${this.protectedInstanceSourceId}'`
-      );
-      return '来源删除成功';
-    } catch (error) {
-      return String(error);
-    }
-  }
-
-  /** EBOM / MBOM 双图展开（US-525 AC#13：SHEET-ASSY 钣金外壳两张图）。 */
-  async dualExplode(asOfDate: string): Promise<{ ebom: ExplosionResult; mbom: ExplosionResult }> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    const ebomContext = { bomType: 'ebom' as const, orgId: 'org-x', asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) };
-    const [ebom, mbom] = await Promise.all([
-      this.rxdb.bom.explodeBom(
-        ebomContext,
-        { parentItemId: goldenItemId('SHEET-ASSY') },
-        { plannedQty: { value: '1', uom: 'pcs' } }
-      ),
-      this.rxdb.bom.explodeBom(
-        { ...ebomContext, bomType: 'mbom' },
-        { parentItemId: goldenItemId('SHEET-ASSY-M') },
-        { plannedQty: { value: '1', uom: 'pcs' } }
-      )
-    ]);
-    return { ebom, mbom };
-  }
-
-  /** 映射覆盖率（US-516 AC#5/#6 / US-525 AC#13）：路径级优先、未覆盖报出。 */
-  async mapCoverage(asOfDate: string): Promise<MappingCoverageResult> {
-    if (!this.adapter) throw new Error('demo 未就绪');
-    return mappingCoverage(this.adapter, deterministicId('map-scope:D'), {
-      bomType: 'ebom',
-      orgId: 'org-x',
-      asOfDate: new Date(`${asOfDate}T00:00:00.000Z`)
-    });
-  }
-
-  /** 映射跟进缺口（US-516 AC#16~#22）：解析步骤集合比对。 */
-  async mapGaps(asOfDate: string): Promise<MappingGapsResult> {
-    if (!this.adapter) throw new Error('demo 未就绪');
-    return mappingGaps(this.adapter, deterministicId('map-scope:D'), {
-      bomType: 'ebom',
-      orgId: 'org-x',
-      asOfDate: new Date(`${asOfDate}T00:00:00.000Z`)
-    });
-  }
-
-  /** 成本卷算（US-525 AC#14/#15）：逐层明细树，金额为规范十进制串。 */
-  async rollup(
-    rootKey: string,
-    asOfDate: string,
-    options: {
-      jointCostSources?: Readonly<Record<string, string>>;
-      plannedQty?: { value: string; uom: string };
-    } = {}
-  ): Promise<CostRollupResult> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    const day = new Date(`${asOfDate}T00:00:00.000Z`);
-    return rollupCost(
-      this.adapter!,
-      {
-        bomType: 'ebom',
-        orgId: 'org-x',
-        asOfDate: day,
-        currency: 'CNY',
-        rateDate: day,
-        ...(options.jointCostSources === undefined ? {} : { jointCostSources: options.jointCostSources })
-      },
-      { parentItemId: goldenItemId(rootKey) },
-      options.plannedQty ?? { value: '1', uom: 'pcs' }
-    );
-  }
-
-  /** 显式追加联产演示，不改变默认SC-100种子及其原有验收行数。 */
-  async loadCoproductDemo(): Promise<void> {
-    if (!this.adapter) throw new Error('demo 未就绪');
-    await loadCoproductDataset(this.adapter, { itemExt: { rohs: 'yes' } });
-    await this.#hydrate();
-  }
-
-  /** 替代组发布拒绝演示（US-525 AC#7 ②）：draft 组 0.5/0.3 发布 → 拒绝并给实际合计 0.8。 */
-  async demoSubstitutePublishRejection(): Promise<string> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    try {
-      // 演示头挂 COVER-ASSY 的新建 draft 修订（种子已发布头占着唯一键；成员行不构成自环）
-      const revision = new BomItemRevision();
-      revision.revisionNo = 'E';
-      revision.itemId = goldenItemId('COVER-ASSY');
-      await revision.save();
-      const draftHeader = new BomHeader();
-      draftHeader.parentRevisionId = revision.id;
-      draftHeader.bomType = 'ebom';
-      draftHeader.orgId = 'org-x';
-      await draftHeader.save();
-      const group = new BomSubstituteGroup();
-      group.headerId = draftHeader.id;
-      group.code = 'G-DEMO';
-      group.strategy = 'proportional';
-      await group.save();
-      const addMember = async (
-        childKey: string,
-        role: 'primary' | 'substitute',
-        probability: string
-      ): Promise<void> => {
-        const line = new BomLine();
-        line.headerId = draftHeader.id;
-        line.lineNo = 10 + Math.floor(Math.random() * 100000);
-        await line.save();
-        const occurrence = new BomLineOccurrence();
-        occurrence.lineId = line.id;
-        occurrence.childItemId = goldenItemId(childKey);
-        occurrence.qty = '100';
-        occurrence.uom = 'pcs';
-        occurrence.effectiveFrom = new Date('2026-01-01T00:00:00.000Z');
-        await occurrence.save();
-        occurrence.substituteGroupId = group.id;
-        occurrence.substituteRole = role;
-        occurrence.usageProbability = probability;
-        occurrence.equivQty = '1';
-        await occurrence.save();
-      };
-      await addMember('R10K', 'primary', '0.5');
-      await addMember('R10K-ALT1', 'substitute', '0.3');
-      draftHeader.state = 'released';
-      await draftHeader.save();
-      return '发布成功（不应发生：合计 0.8 未校验）';
-    } catch (error) {
-      return String(error);
-    }
-  }
-
-  /** where-used 反查（AC#6：M3 螺钉的全部父件与路径，含虚拟件路径）。 */
-  async whereUsed(asOfDate: string, childItemId: string): Promise<ExpansionResult> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    return this.rxdb.bom.whereUsed(
-      { bomType: 'ebom', orgId: 'org-x', asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) },
-      { childItemId }
-    );
-  }
-
-  /** 发布演示头（AC#3：39/100 位号计数违约，错误同时给两个数）。 */
-  async publishDemoHeader(): Promise<string> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    const headerId = this.demoHeaderId;
-    if (!headerId) throw new Error('演示头未就绪');
-    // 在演示 draft 头下建 managed 行 qty=100 + 39 个位号（保存草稿允许）
-    const line = new BomLine();
-    line.headerId = headerId;
-    line.lineNo = 77;
-    await line.save();
-    const occurrence = new BomLineOccurrence();
-    occurrence.lineId = line.id;
-    occurrence.childItemId = goldenItemId('R10K');
-    occurrence.qty = '100';
-    occurrence.uom = 'pcs';
-    occurrence.designatorManaged = true;
-    occurrence.effectiveFrom = new Date('2026-01-01T00:00:00.000Z');
-    await occurrence.save();
-    for (let index = 1; index <= 39; index++) {
-      const designator = new BomLineDesignator();
-      designator.occurrenceId = occurrence.id;
-      designator.designator = `D${index}`;
-      await designator.save();
-    }
-    // 发布转移：存储层校验位号数 39 ≠ qty 100（经实体 API，走发布触发器）
-    try {
-      const headers = await firstValueFrom(
-        BomHeader.find({
-          where: {
-            combinator: 'and',
-            rules: [{ field: 'parentRevisionId', operator: '=', value: this.demoRevisionId ?? '' }]
-          }
-        })
-      );
-      const header = headers[0];
-      if (!header) return '演示头未找到';
-      header.state = 'released';
-      await header.save();
-      return '发布成功（不应发生：位号计数未校验）';
-    } catch (error) {
-      return String(error);
-    }
-  }
-
-  /** 行数统计（AC#1 的页面可见面：两遍 seed 后行数一致）。 */
-  async dumpRowCounts(): Promise<string> {
-    if (!this.adapter) return '';
-    const tables = [
-      'item',
-      'item_revision',
-      'bom_header',
-      'bom_line',
-      'bom_line_occurrence',
-      'bom_line_designator',
-      'bom_history_batch',
-      'ecn',
-      'bom_instance_node'
-    ];
-    const lines: string[] = [];
-    for (const name of tables) {
-      const result = (await this.adapter.rawQuery(`SELECT COUNT(*) AS c FROM "bom$${name}"`)) as unknown as
-        { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
-      const rows = 'results' in result ? result.results[0].rows : result.rows;
-      lines.push(`${name}=${String(rows[0][0])}`);
-    }
-    return lines.join('\n');
-  }
-
-  /**
-   * 直连写入一条「PCBA 指回 SC-100」的成环边（US-525 AC#5）：绕过应用层校验直写库，
-   * 环约束必须由存储层拒绝并给出错误码与路径。
-   */
-  async rawCycleInsert(): Promise<string> {
-    if (!this.adapter) throw new Error('demo 未就绪');
-    const headerId = this.demoHeaderId;
-    if (!headerId) throw new Error('演示头未就绪');
-    // 行号随机：重复点击会留空行，固定行号会撞 (headerId, lineNo) 唯一约束
-    const lineId = crypto.randomUUID();
-    const occurrenceId = crypto.randomUUID();
-    const lineNo = 500 + Math.floor(Math.random() * 400);
-    const now = '2026-01-01T00:00:00.000Z';
-    try {
-      await this.adapter.rawQuery(
-        `INSERT INTO "bom$bom_line" ("id", "headerId", "lineNo", "createdAt", "updatedAt") VALUES ('${lineId}', '${headerId}', ${lineNo}, '${now}', '${now}')`
-      );
-    } catch (error) {
-      return String(error);
-    }
-    try {
-      await this.adapter.rawQuery(
-        `INSERT INTO "bom$bom_line_occurrence" ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "createdAt", "updatedAt") VALUES ('${occurrenceId}', '${lineId}', '${goldenItemId('SC-100')}', '1', 'pcs', '${now}', '${now}', '${now}')`
-      );
-      return '写入成功（不应发生：环约束未生效）';
-    } catch (error) {
-      return String(error);
-    }
-  }
-
-  /** 同一成环边经表单（实体 API）写入——必须与直连得到同一存储层错误码。 */
-  async formCycleInsert(): Promise<string> {
-    if (!this.demoHeaderId) throw new Error('演示头未就绪');
-    try {
-      const line = new BomLine();
-      line.headerId = this.demoHeaderId;
-      // 行号随机（同直连按钮：重复点击不撞 (headerId, lineNo) 唯一）
-      line.lineNo = 500 + Math.floor(Math.random() * 400);
-      await line.save();
-      const occurrence = new BomLineOccurrence();
-      occurrence.lineId = line.id;
-      occurrence.childItemId = goldenItemId('SC-100');
-      occurrence.qty = '1';
-      occurrence.uom = 'pcs';
-      occurrence.effectiveFrom = new Date('2026-01-01T00:00:00.000Z');
-      await occurrence.save();
-      return '写入成功（不应发生：环约束未生效）';
-    } catch (error) {
-      return String(error);
-    }
-  }
-
-  /** 影响面（US-515 AC#1 / US-525 AC#11）：整机与命中路径。 */
-  async ecnImpact(ecnId: string): Promise<EcnImpactResult> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    return this.rxdb.bom.ecnImpact(ecnId);
-  }
-
-  /** 差异（US-515 AC#2 / US-525 AC#11）：新增/删除/改量/改版四类。 */
-  async ecnDiff(ecnId: string): Promise<EcnDiffResult> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    return this.rxdb.bom.ecnDiff(ecnId);
-  }
-
-  /**
-   * 现场新建并发布一张同样改 5 行、生效日晚于宿主 UTC 当日的 ECN（US-525 AC#12 ①）：
-   * 改 SC-100 / PCBA / BATT 三张头的 5 行（新增 / 截止 / 改量 / 改版 ×2），发布成功返回空串。
-   */
-  async demoCreateAndReleaseEcn(): Promise<string> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    try {
-      // 生效日 = 宿主 UTC 当日 + 1 天（未生效：发布与取消都在生效前窗口内）
-      const tomorrow = new Date();
-      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-      const effectiveDate = `${tomorrow.toISOString().slice(0, 10)}`;
-      const ecn = new BomEcn();
-      ecn.ecnNo = `ECN-LIVE-${Math.random().toString(36).slice(2, 8)}`;
-      ecn.effectiveDate = new Date(`${effectiveDate}T00:00:00.000Z`);
-      await ecn.save();
-      this.liveEcnId = ecn.id;
-      // 改 3 张头的 5 行：SC-100 新增 SEAT-LIVE、截止 WH-01；PCBA 的 R10K 第二行改量 3→4；BATT 的 CELL 行改量 10→11（避开种子 ECN 已截止的旧段）
-      const sc100 = goldenItemId('SC-100');
-      const seat2Id = deterministicId('item:SEAT-LIVE');
-      // 现场新物料
-      const seat2 = new BomItem();
-      (seat2 as unknown as { id: string }).id = seat2Id;
-      seat2.itemNo = 'SEAT-LIVE';
-      seat2.ext = JSON.stringify({ rohs: 'yes' });
-      await seat2.save();
-      const table = (name: string): string => `"bom$${name}"`;
-      const scHeader = (await this.adapter!.rawQuery(
-        `SELECT h."id" FROM ${table('bom_header')} h JOIN ${table('item_revision')} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${sc100}'`
-      )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
-      const scHeaderRows = 'results' in scHeader ? scHeader.results[0].rows : scHeader.rows;
-      const scHeaderId = String(scHeaderRows[0][0]);
-      // ① SC-100：截止 WH-01 行（index 2）+ 新增 SEAT-LIVE 行
-      const scWhOcc = deterministicId('occurrence:SC-100:A:2');
-      await this.adapter!.rawQuery(
-        `UPDATE ${table('bom_line_occurrence')} SET "ecnOutId" = '${ecn.id}', "effectiveTo" = '${effectiveDate}T00:00:00.000Z' WHERE "id" = '${scWhOcc}'`
-      );
-      const seatLine = new BomLine();
-      seatLine.headerId = scHeaderId;
-      const nextLine = (await this.adapter!.rawQuery(
-        `SELECT MAX("lineNo") + 10 FROM ${table('bom_line')} WHERE "headerId" = '${scHeaderId}'`
-      )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
-      const nextLineRows = 'results' in nextLine ? nextLine.results[0].rows : nextLine.rows;
-      seatLine.lineNo = Number(nextLineRows[0][0]);
-      seatLine.ecnInId = ecn.id;
-      await seatLine.save();
-      const seatOcc = new BomLineOccurrence();
-      seatOcc.lineId = seatLine.id;
-      seatOcc.childItemId = seat2.id;
-      seatOcc.qty = '1';
-      seatOcc.uom = 'pcs';
-      seatOcc.ecnInId = ecn.id;
-      seatOcc.effectiveFrom = new Date(`${effectiveDate}T00:00:00.000Z`);
-      await seatOcc.save();
-      // ② PCBA：R10K 第二行（index 2，未被种子 ECN 碰过）改量 3→4
-      const r10kOcc = deterministicId('occurrence:PCBA:A:2');
-      await this.adapter!.rawQuery(
-        `UPDATE ${table('bom_line_occurrence')} SET "ecnOutId" = '${ecn.id}', "effectiveTo" = '${effectiveDate}T00:00:00.000Z' WHERE "id" = '${r10kOcc}'`
-      );
-      const r10kLineId = deterministicId('line:PCBA:A:2');
-      const r10kNew = new BomLineOccurrence();
-      r10kNew.lineId = r10kLineId;
-      r10kNew.childItemId = goldenItemId('R10K');
-      r10kNew.qty = '4';
-      r10kNew.uom = 'pcs';
-      r10kNew.ecnInId = ecn.id;
-      r10kNew.effectiveFrom = new Date(`${effectiveDate}T00:00:00.000Z`);
-      await r10kNew.save();
-      // ③ BATT：CELL 行（index 0，未被种子 ECN 碰过）改量 10→11
-      const bmsOcc = deterministicId('occurrence:BATT:A:0');
-      await this.adapter!.rawQuery(
-        `UPDATE ${table('bom_line_occurrence')} SET "ecnOutId" = '${ecn.id}', "effectiveTo" = '${effectiveDate}T00:00:00.000Z' WHERE "id" = '${bmsOcc}'`
-      );
-      const bmsLineId = deterministicId('line:BATT:A:0');
-      const bmsNew = new BomLineOccurrence();
-      bmsNew.lineId = bmsLineId;
-      bmsNew.childItemId = goldenItemId('CELL');
-      bmsNew.qty = '11';
-      bmsNew.uom = 'pcs';
-      bmsNew.ecnInId = ecn.id;
-      bmsNew.effectiveFrom = new Date(`${effectiveDate}T00:00:00.000Z`);
-      await bmsNew.save();
-      // 发布（生效日在未来 → 通过追溯检查与投影校验）
-      ecn.state = 'released';
-      await ecn.save();
-      await this.#loadEcns();
+      const current: Record<string, unknown> = JSON.parse(previous ?? '{}');
+      item.ext = JSON.stringify(edit(current));
+      await item.save();
+      this.dataRevision.update(value => value + 1);
       return '';
     } catch (error) {
-      return String(error);
-    }
-  }
-
-  /** 取消现场 ECN（US-525 AC#12 ①）：未生效 → 5 行整体回退。 */
-  async demoCancelLiveEcn(): Promise<string> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    const liveEcnId = this.liveEcnId;
-    if (!liveEcnId) return '现场 ECN 未创建';
-    try {
-      const table = '"bom$ecn"';
-      await this.adapter!.rawQuery(`UPDATE ${table} SET "state" = 'cancelled' WHERE "id" = '${liveEcnId}'`);
-      await this.#loadEcns();
-      return '';
-    } catch (error) {
-      return String(error);
-    }
-  }
-
-  /** 对已生效的种子 ECN 点取消（US-525 AC#12 ②）：拒绝并提示改走更正 ECN。 */
-  async demoCancelEffectiveEcn(): Promise<string> {
-    if (!this.rxdb) throw new Error('demo 未就绪');
-    try {
-      const table = '"bom$ecn"';
-      await this.adapter!.rawQuery(
-        `UPDATE ${table} SET "state" = 'cancelled' WHERE "id" = '${deterministicId('ecn:ECN-2026-005')}'`
-      );
-      return '取消成功（不应发生：已生效 ECN 不可取消）';
-    } catch (error) {
+      item.ext = previous;
       return String(error);
     }
   }
@@ -716,9 +976,14 @@ export class BomDemoService {
     await this.#loadDesignators();
     await this.#loadEcns();
     await this.#loadInstanceRoots();
-    if (this.itemCount() === 0) return;
+    if (this.itemCount() === 0) {
+      this.dataRevision.update(value => value + 1);
+      return;
+    }
     await this.#ensureDemoHeader();
+    await this.#loadImportedDrafts();
     this.ready.set(true);
+    this.dataRevision.update(value => value + 1);
   }
 
   async #loadInstanceRoots(): Promise<void> {
@@ -753,14 +1018,79 @@ export class BomDemoService {
         ])
       )
     );
+    const live = rows.findLast(row => String(row[1]).startsWith('ECN-LIVE-') && row[2] !== 'cancelled');
+    this.liveEcnId.set(live ? String(live[0]) : null);
+  }
+
+  async #loadImportedDrafts(): Promise<void> {
+    if (!this.adapter) throw new Error('demo 未就绪');
+    const epoch = this.dataEpoch();
+    const rows = this.#rows(
+      await this.adapter.rawQuery(
+        'SELECT h."id", i."itemNo", r."revisionNo", h."bomType", h."orgId", COUNT(l."id") FROM "bom$bom_header" h JOIN "bom$item_revision" r ON r."id" = h."parentRevisionId" JOIN "bom$item" i ON i."id" = r."itemId" LEFT JOIN "bom$bom_line" l ON l."headerId" = h."id" WHERE h."state" = ? AND h."id" <> ? GROUP BY h."id" ORDER BY i."itemNo", r."revisionNo", h."bomType", h."orgId"',
+        ['draft', deterministicId('header:BATT:F')]
+      )
+    );
+    if (epoch !== this.dataEpoch()) return;
+    this.importedDrafts.set(
+      rows.map(row => ({
+        headerId: String(row[0]),
+        itemNo: String(row[1]),
+        revisionNo: String(row[2]),
+        bomType: String(row[3]),
+        orgId: String(row[4]),
+        lineCount: Number(row[5])
+      }))
+    );
+  }
+
+  #rows(result: unknown): unknown[][] {
+    const value = result as { results?: { rows: unknown[][] }[]; rows?: unknown[][] };
+    return value.results ? value.results[0].rows : (value.rows ?? []);
+  }
+
+  #date(value: string): Date {
+    const date = new Date(`${value}T00:00:00.000Z`);
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+      !Number.isFinite(date.getTime()) ||
+      date.toISOString().slice(0, 10) !== value
+    )
+      throw new Error('请输入有效日期');
+    return date;
+  }
+
+  #resolution(asOfDate: string, options: BomDemoResolutionOptions = {}): ResolutionContext {
+    return {
+      bomType: options.bomType ?? 'ebom',
+      orgId: options.orgId ?? 'org-x',
+      asOfDate: this.#date(asOfDate),
+      ...(options.unit === undefined ? {} : { unit: options.unit }),
+      ...(options.lot === undefined ? {} : { lot: options.lot }),
+      ...(options.alternativeNo === undefined ? {} : { alternativeNo: options.alternativeNo }),
+      ...(options.configSelection === undefined ? {} : { configSelection: options.configSelection }),
+      ...(options.substituteSelections === undefined ? {} : { substituteSelections: options.substituteSelections }),
+      ...(options.substituteAvailabilities === undefined ?
+        {}
+      : { substituteAvailabilities: options.substituteAvailabilities })
+    };
+  }
+
+  #run<T>(work: () => Promise<T>): Promise<T> {
+    if (this.resetting()) return Promise.reject(new Error('正在重置演示数据，请稍后重试'));
+    const operation = work();
+    this.#operations.add(operation);
+    void operation.finally(() => this.#operations.delete(operation)).catch(() => undefined);
+    return operation;
   }
 
   async #loadItemNos(): Promise<void> {
     if (!this.adapter) return;
-    const result = (await this.adapter.rawQuery(`SELECT "id", "itemNo" FROM "bom$item"`)) as unknown as
+    const result = (await this.adapter.rawQuery(`SELECT "id", "itemNo", "stockUom" FROM "bom$item"`)) as unknown as
       { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
     const rows = 'results' in result ? result.results[0].rows : result.rows;
     this.itemNos.set(new Map(rows.map(row => [String(row[0]), String(row[1])])));
+    this.itemUoms.set(new Map(rows.map(row => [String(row[1]), String(row[2])])));
   }
 
   async #loadDesignators(): Promise<void> {

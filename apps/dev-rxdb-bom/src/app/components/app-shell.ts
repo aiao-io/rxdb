@@ -1,10 +1,14 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
+  Injector,
   OnInit,
   signal,
+  untracked,
   viewChild,
   type ElementRef
 } from '@angular/core';
@@ -12,6 +16,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { BomDemoService } from '../bom-demo.service';
+import { BomWorkspaceState } from '../bom-workspace-state';
+import { materialLabel } from '../presentation/material-label';
+import { WorkflowJourney } from './workflow-journey';
 
 interface NavItem {
   path: string;
@@ -24,15 +31,19 @@ interface NavItem {
 @Component({
   selector: 'bom-app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
-  host: { '(keydown.escape)': 'closeNavigation()' },
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, WorkflowJourney],
+  host: {
+    '(keydown.escape)': 'closeNavigation()',
+    '(keydown.tab)': 'trapNavigation($event)',
+    '(keydown.shift.tab)': 'trapNavigation($event)'
+  },
   template: `
     <a class="skip-link" href="#main-content">跳到主要内容</a>
     <div class="shell" [class.navigation-open]="navigationOpen()">
       @if (navigationOpen()) {
         <button class="navigation-backdrop" (click)="closeNavigation()" aria-label="关闭导航"></button>
       }
-      <aside class="sidebar" id="bom-navigation" aria-label="演示场景导航">
+      <aside class="sidebar" id="bom-navigation" #navigation aria-label="演示场景导航">
         <a class="brand" (click)="closeNavigation()" aria-label="BOM 演示中心首页" routerLink="/">
           <span class="brand-mark" aria-hidden="true">
             <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
@@ -50,8 +61,9 @@ interface NavItem {
                 <a
                   class="nav-item"
                   [attr.aria-label]="item.label"
+                  [queryParams]="workspaceState.queryParams()"
                   [routerLink]="item.path"
-                  [routerLinkActiveOptions]="{ exact: item.exact }"
+                  [routerLinkActiveOptions]="navigationMatch"
                   (click)="closeNavigation()"
                   ariaCurrentWhenActive="page"
                   routerLinkActive="active"
@@ -73,14 +85,14 @@ interface NavItem {
           <div class="dataset-card">
             <span class="dataset-icon" aria-hidden="true">SC</span>
             <div>
-              <strong>SC-100 电动滑板车</strong
+              <strong>电动滑板车（SC-100）</strong
               ><small>{{ ready() ? itemCount() + ' 项物料 · 可开始体验' : '从准备演示数据开始' }}</small>
             </div>
           </div>
           <p>本地演示 · 数据保存在当前浏览器</p>
         </div>
       </aside>
-      <div class="workspace">
+      <div class="workspace" [attr.inert]="navigationOpen() ? '' : null">
         <header class="header">
           <div class="header-location">
             <button
@@ -88,7 +100,7 @@ interface NavItem {
               #menuToggle
               [attr.aria-expanded]="navigationOpen()"
               [attr.aria-label]="navigationOpen() ? '关闭导航' : '打开导航'"
-              (click)="navigationOpen.update(toggle)"
+              (click)="openNavigation()"
               aria-controls="bom-navigation"
             >
               <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
@@ -111,7 +123,7 @@ interface NavItem {
             </span>
             <button
               class="btn btn-quiet reset-button"
-              [disabled]="resetting() || initializing()"
+              [disabled]="resetting() || serviceResetting() || initializing()"
               (click)="resetAll()"
               aria-label="重置演示数据"
             >
@@ -122,11 +134,32 @@ interface NavItem {
             </button>
           </div>
         </header>
+        @if (ready()) {
+          <div class="workspace-context" aria-label="当前分析条件">
+            <div>
+              <strong>{{ materialLabel(workspaceState.rootKey()) }}</strong
+              ><span
+                >{{ workspaceState.asOfDate() }} · {{ workspaceState.plannedQty() }}
+                {{ workspaceState.plannedUom() }}</span
+              >
+            </div>
+            <nav aria-label="连续分析">
+              <a [queryParams]="workspaceState.queryParams()" routerLink="/explosion">结构与用量</a>
+              <a [queryParams]="workspaceState.queryParams()" routerLink="/cost">成本来源</a>
+              <a [queryParams]="workspaceState.queryParams()" routerLink="/where-used">使用影响</a>
+            </nav>
+          </div>
+        }
         <main class="content" id="main-content" tabindex="-1">
+          <bom-workflow-journey />
+          @if (serviceResetting()) {
+            <p class="workspace-notice hint" role="status">{{ resetStatus() }}</p>
+          }
           @if (connectionError()) {
             <div class="error-box workspace-notice connection-error" role="alert">
               <strong>演示数据连接失败</strong>
               <div>请查看原因，或重置演示数据后重试。</div>
+              <button class="btn" [disabled]="initializing()" (click)="connect()">重新连接，保留现有数据</button>
               <details>
                 <summary>查看详细原因</summary>
                 <p>{{ connectionError() }}</p>
@@ -154,6 +187,8 @@ export class AppShell implements OnInit {
   private readonly service = inject(BomDemoService);
   private readonly router = inject(Router);
   private readonly menuToggle = viewChild.required<ElementRef<HTMLButtonElement>>('menuToggle');
+  private readonly navigation = viewChild.required<ElementRef<HTMLElement>>('navigation');
+  private readonly injector = inject(Injector);
   private readonly currentUrl = toSignal(
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -162,7 +197,17 @@ export class AppShell implements OnInit {
     { initialValue: this.router.url }
   );
 
+  readonly workspaceState = inject(BomWorkspaceState);
+  readonly navigationMatch = {
+    paths: 'exact',
+    queryParams: 'ignored',
+    matrixParams: 'ignored',
+    fragment: 'ignored'
+  } as const;
+  readonly materialLabel = materialLabel;
   readonly ready = this.service.ready;
+  readonly serviceResetting = this.service.resetting;
+  readonly resetStatus = this.service.resetStatus;
   readonly itemCount = this.service.itemCount;
   readonly resetting = signal(false);
   readonly connectionError = signal('');
@@ -243,15 +288,31 @@ export class AppShell implements OnInit {
   });
 
   readonly statusLabel = computed(() => {
-    if (this.resetting()) return '正在恢复数据…';
+    if (this.resetting() || this.serviceResetting()) return '正在恢复数据…';
     if (this.initializing()) return '正在连接…';
     if (this.connectionError()) return '连接失败';
     return this.ready() ? `数据已就绪 · ${this.itemCount()} 项物料` : '待准备演示数据';
   });
 
-  readonly toggle = (value: boolean): boolean => !value;
+  constructor() {
+    effect(() => {
+      this.service.dataRevision();
+      untracked(() => {
+        this.workspaceState.explosion.set(null);
+        this.workspaceState.cost.set(null);
+      });
+    });
+  }
 
   ngOnInit(): void {
+    this.workspaceState.bindRouter(this.router);
+    this.connect();
+  }
+
+  /** 无损重连，清空演示作为独立操作保留。 */
+  connect(): void {
+    this.initializing.set(true);
+    this.connectionError.set('');
     void this.service
       .connectExisting()
       .catch(error => this.connectionError.set(String(error)))
@@ -261,11 +322,48 @@ export class AppShell implements OnInit {
   closeNavigation(): void {
     const wasOpen = this.navigationOpen();
     this.navigationOpen.set(false);
-    if (wasOpen) this.menuToggle().nativeElement.focus();
+    if (wasOpen)
+      afterNextRender(
+        () => {
+          if (!this.navigationOpen()) this.menuToggle().nativeElement.focus();
+        },
+        { injector: this.injector }
+      );
+  }
+
+  /** 打开导航后移入当前页面，并隔离背景交互。 */
+  openNavigation(): void {
+    this.navigationOpen.set(true);
+    afterNextRender(
+      () => {
+        if (!this.navigationOpen()) return;
+        const navigation = this.navigation().nativeElement;
+        const target =
+          navigation.querySelector<HTMLAnchorElement>('a[aria-current="page"]') ??
+          navigation.querySelector<HTMLAnchorElement>('a');
+        target?.focus();
+      },
+      { injector: this.injector }
+    );
+  }
+
+  /** 抽屉内循环焦点，Escape 的关闭行为由宿主处理。 */
+  trapNavigation(event: Event): void {
+    if (!this.navigationOpen() || !(event instanceof KeyboardEvent)) return;
+    const links = this.navigation().nativeElement.querySelectorAll<HTMLAnchorElement>('a[href]');
+    const target = event.shiftKey ? links[links.length - 1] : links[0];
+    const boundary = event.shiftKey ? links[0] : links[links.length - 1];
+    if (document.activeElement !== boundary) return;
+    event.preventDefault();
+    target?.focus();
   }
 
   async resetAll(): Promise<void> {
-    if (this.resetting() || !window.confirm('将清空当前演示数据中的修改，并恢复 SC-100 的完整示例数据。是否继续？'))
+    if (
+      this.resetting() ||
+      this.serviceResetting() ||
+      !window.confirm('将清空当前演示数据中的修改，并恢复电动滑板车（SC-100）的完整示例数据。是否继续？')
+    )
       return;
     this.resetting.set(true);
     this.connectionError.set('');

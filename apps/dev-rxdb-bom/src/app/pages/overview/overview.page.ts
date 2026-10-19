@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { BomDemoService } from '../../bom-demo.service';
+import { BomWorkspaceState } from '../../bom-workspace-state';
 import { ExtPanel } from '../../components/ext-panel';
+import { materialName } from '../../presentation/material-label';
 
 /** 从真实已有数据进入物料和六个业务场景。 */
 @Component({
@@ -33,6 +35,15 @@ import { ExtPanel } from '../../components/ext-panel';
         width: 64px;
         color: var(--color-text-muted);
         font-variant-numeric: tabular-nums;
+      }
+
+      .material-name {
+        min-width: 160px;
+        font-weight: 600;
+      }
+
+      .material-code {
+        color: var(--color-text-secondary);
       }
 
       .data-table th {
@@ -83,18 +94,22 @@ import { ExtPanel } from '../../components/ext-panel';
 })
 export class OverviewPage {
   private readonly service = inject(BomDemoService);
+  private readonly router = inject(Router);
   private readonly statisticsRevision = signal(0);
+  readonly workspace = inject(BomWorkspaceState);
 
   readonly ready = this.service.ready;
+  readonly resetting = this.service.resetting;
   readonly itemNos = this.service.itemNos;
   readonly itemCount = this.service.itemCount;
   readonly changeCount = computed(() => this.service.ecns().size);
   readonly instanceCount = computed(() => this.service.instanceRoots().length);
   readonly inventory = computed(() => [...this.itemNos().values()].sort());
+  readonly materialName = materialName;
   readonly filter = signal('');
   readonly filteredInventory = computed(() => {
     const query = this.filter().trim().toLowerCase();
-    return this.inventory().filter(itemNo => itemNo.toLowerCase().includes(query));
+    return this.inventory().filter(itemNo => `${materialName(itemNo)} ${itemNo}`.toLowerCase().includes(query));
   });
   readonly seedBatchNo = this.service.seedBatchNo;
   readonly seedTimestamp = this.service.seedTimestamp;
@@ -142,7 +157,7 @@ export class OverviewPage {
 
   /** 确认清空后重新准备演示数据，阻止重复提交。 */
   async resetAndSeed(): Promise<void> {
-    if (this.busy()) return;
+    if (this.busy() || this.resetting()) return;
     if (!window.confirm('这会清空当前演示数据并重新准备示例，你的修改将不会保留。确定继续？')) return;
     this.busy.set(true);
     this.resetError.set('');
@@ -160,5 +175,34 @@ export class OverviewPage {
   /** 重新读取数据统计，不清空或修改业务数据。 */
   refreshStatistics(): void {
     this.statisticsRevision.update(value => value + 1);
+  }
+
+  /** 体验场景显式设置条件，避免跨页偷偷改动评估日期。 */
+  async startWorkflow(kind: 'plan' | 'change' | 'trace'): Promise<void> {
+    if (kind === 'plan') {
+      this.workspace.update({
+        rootKey: 'SC-100',
+        asOfDate: '2026-09-22',
+        plannedQty: '10',
+        plannedUom: 'pcs',
+        unit: 137,
+        lot: '',
+        alternativeNo: null,
+        configSelection: { 颜色: ['红'] },
+        substituteSelections: {}
+      });
+      this.workspace.guideStep.set(1);
+    }
+    if (kind === 'change') this.workspace.update({ asOfDate: '2026-10-15' });
+    const path = { plan: '/explosion', change: '/timeline', trace: '/instances' }[kind];
+    await this.router.navigate([path], { queryParams: this.workspace.queryParams() });
+  }
+
+  materialParams(item: string, target: 'root' | 'item'): Record<string, string> {
+    return {
+      ...this.workspace.queryParams(),
+      [target]: item,
+      ...(target === 'root' ? { uom: this.service.itemUoms().get(item)! } : {})
+    };
   }
 }

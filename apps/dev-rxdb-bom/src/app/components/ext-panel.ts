@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BomDemoService } from '../bom-demo.service';
+import { materialLabel } from '../presentation/material-label';
 
 /** 维护物料合规属性，再按属性查找物料。 */
 @Component({
@@ -11,14 +12,34 @@ import { BomDemoService } from '../bom-demo.service';
     <section class="panel" [attr.aria-busy]="busy()">
       <div class="panel-head">
         <h2>物料扩展属性</h2>
-        <p class="panel-desc">为 B-01 维护 RoHS 合规状态，再按属性筛选物料。yes 表示符合，no 表示不符合。</p>
+        <p class="panel-desc">
+          为合规演示件（B-01）维护 RoHS 合规状态，再按属性筛选物料。yes 表示符合，no 表示不符合。
+        </p>
       </div>
+      <p class="hint" data-testid="ext-current">
+        已保存：{{
+          savedValue() === null ? '正在读取'
+          : savedValue() === 'yes' ? '符合（yes）'
+          : savedValue() === 'no' ? '不符合（no）'
+          : '未设置'
+        }}
+      </p>
+      @if (loadFailed()) {
+        <button class="btn" [disabled]="busy() || !ready() || resetting()" (click)="loadCurrent()">
+          重新读取当前属性
+        </button>
+      }
       <div class="toolbar">
         <label>
-          B-01 的合规状态
+          合规演示件（B-01）的合规状态
           <input [(ngModel)]="value" [disabled]="busy()" data-testid="ext-value" placeholder="yes 或 no" />
         </label>
-        <button class="btn btn-primary" [disabled]="busy() || !ready()" (click)="write(false)" data-testid="ext-save">
+        <button
+          class="btn btn-primary"
+          [disabled]="busy() || !ready() || resetting() || savedValue() === null"
+          (click)="write(false)"
+          data-testid="ext-save"
+        >
           保存属性
         </button>
       </div>
@@ -61,7 +82,7 @@ import { BomDemoService } from '../bom-demo.service';
         <p class="hint result-title" role="status">找到 {{ current.length }} 项物料</p>
         @for (row of current; track row.itemNo) {
           <div class="where-used-row" data-testid="ext-filter-row">
-            <strong>{{ row.itemNo }}</strong>
+            <strong>{{ materialLabel(row.itemNo) }}</strong>
             <details>
               <summary>查看物料属性</summary>
               <code>{{ row.ext }}</code>
@@ -110,9 +131,13 @@ import { BomDemoService } from '../bom-demo.service';
 })
 export class ExtPanel {
   private readonly service = inject(BomDemoService);
+  readonly materialLabel = materialLabel;
   readonly ready = this.service.ready;
+  readonly resetting = this.service.resetting;
   readonly busy = signal(false);
   readonly value = signal('yes');
+  readonly savedValue = signal<string | null>(null);
+  readonly loadFailed = signal(false);
   readonly filterValue = signal('yes');
   readonly op = signal<'eq' | 'ne'>('eq');
   readonly message = signal('');
@@ -121,24 +146,50 @@ export class ExtPanel {
 
   constructor() {
     effect(() => {
-      if (this.ready()) return;
+      this.service.dataEpoch();
       this.message.set('');
       this.rows.set(null);
+      this.savedValue.set(null);
+      this.loadFailed.set(false);
+      if (this.ready()) void this.loadCurrent();
     });
   }
 
-  /** 提交完整属性，保留必填与枚举值的业务校验。 */
+  /** 重开与失败重试均读取已经落库的值，不把默认输入当成保存事实。 */
+  async loadCurrent(): Promise<void> {
+    if (!this.ready() || this.resetting()) return;
+    const epoch = this.service.dataEpoch();
+    this.busy.set(true);
+    this.loadFailed.set(false);
+    try {
+      await this.#readCurrent(epoch);
+    } catch (error) {
+      if (epoch !== this.service.dataEpoch()) return;
+      this.loadFailed.set(true);
+      this.failed.set(true);
+      this.message.set(`当前属性读取失败：${String(error)}`);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** 正常保存仅修改RoHS，保护用例仍提交完整空对象验证必填拒绝。 */
   async write(empty: boolean): Promise<void> {
-    if (this.busy() || !this.ready()) return;
+    if (this.busy() || !this.ready() || this.resetting()) return;
+    const epoch = this.service.dataEpoch();
     this.busy.set(true);
     this.message.set('');
     this.rows.set(null);
     this.failed.set(false);
     try {
-      const error = await this.service.extWrite('B-01', empty ? {} : { rohs: this.value() });
+      const error =
+        empty ? await this.service.extWrite('B-01', {}) : await this.service.extPatch('B-01', { rohs: this.value() });
+      if (epoch !== this.service.dataEpoch()) return;
       this.failed.set(error.length > 0);
       this.message.set(error || '保存成功：属性已更新。');
+      if (!error) await this.#readCurrent(epoch);
     } catch (error) {
+      if (epoch !== this.service.dataEpoch()) return;
       this.failed.set(true);
       this.message.set(String(error));
     } finally {
@@ -148,18 +199,30 @@ export class ExtPanel {
 
   /** 按声明的属性类型执行筛选。 */
   async filter(): Promise<void> {
-    if (this.busy() || !this.ready()) return;
+    if (this.busy() || !this.ready() || this.resetting()) return;
+    const epoch = this.service.dataEpoch();
     this.busy.set(true);
     this.message.set('');
     this.failed.set(false);
     this.rows.set(null);
     try {
-      this.rows.set(await this.service.filterExt(this.op(), this.filterValue()));
+      const rows = await this.service.filterExt(this.op(), this.filterValue());
+      if (epoch !== this.service.dataEpoch()) return;
+      this.rows.set(rows);
     } catch (error) {
+      if (epoch !== this.service.dataEpoch()) return;
       this.failed.set(true);
       this.message.set(String(error));
     } finally {
       this.busy.set(false);
     }
+  }
+
+  async #readCurrent(epoch: number): Promise<void> {
+    const current = JSON.parse(await this.service.extRead('B-01')) as Record<string, unknown>;
+    if (epoch !== this.service.dataEpoch()) return;
+    const value = typeof current['rohs'] === 'string' ? current['rohs'] : '';
+    this.savedValue.set(value);
+    this.value.set(value);
   }
 }

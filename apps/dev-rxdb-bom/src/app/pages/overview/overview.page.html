@@ -1,9 +1,24 @@
 <div class="page">
   <section class="page-hero">
     <div>
-      <p class="page-eyebrow">BOM 演示中心 · SC-100 电动滑板车</p>
+      <p class="page-eyebrow">BOM 演示中心 · 电动滑板车（SC-100）</p>
       <h1>物料概览</h1>
       <p class="panel-desc">从一份整机数据出发，查看物料需求、工程变更、成本和实际安装结构。</p>
+      @if (ready()) {
+        <div class="toolbar result-title" aria-label="选择业务任务">
+          <button class="btn btn-primary" (click)="startWorkflow('plan')" data-testid="start-planning">
+            生产 10 台，需要哪些物料？
+          </button>
+          <button class="btn" (click)="startWorkflow('change')">评估一次工程变更</button>
+          <button class="btn" (click)="startWorkflow('trace')">追溯实物与批次</button>
+        </div>
+        <p class="hint result-title">
+          生产体验使用 2026-09-22、10 台、序列 137；变更体验切换到 2026-10-15。也可从左侧自由探索。
+        </p>
+        <a class="btn btn-quiet" [queryParams]="workspace.queryParams()" [routerLink]="workspace.resumePath()">
+          继续上次工作
+        </a>
+      }
     </div>
   </section>
 
@@ -22,23 +37,26 @@
         }
       </p>
     </div>
-    <div class="summary-grid">
-      <div class="metric-card">
-        <span class="metric-label">物料</span>
-        <strong class="metric-value" data-testid="overview-item-count">{{ itemCount() }}</strong>
-        <span class="metric-note">当前已有物料</span>
+    <details class="details-panel">
+      <summary>查看当前数据统计</summary>
+      <div class="summary-grid">
+        <div class="metric-card">
+          <span class="metric-label">物料</span>
+          <strong class="metric-value" data-testid="overview-item-count">{{ itemCount() }}</strong>
+          <span class="metric-note">当前已有物料</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">工程变更单</span>
+          <strong class="metric-value">{{ changeCount() }}</strong>
+          <span class="metric-note">用于查看结构随日期变化</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">整机实例</span>
+          <strong class="metric-value">{{ instanceCount() }}</strong>
+          <span class="metric-note">用于追溯安装与换件</span>
+        </div>
       </div>
-      <div class="metric-card">
-        <span class="metric-label">工程变更单</span>
-        <strong class="metric-value">{{ changeCount() }}</strong>
-        <span class="metric-note">用于查看结构随日期变化</span>
-      </div>
-      <div class="metric-card">
-        <span class="metric-label">整机实例</span>
-        <strong class="metric-value">{{ instanceCount() }}</strong>
-        <span class="metric-note">用于追溯安装与换件</span>
-      </div>
-    </div>
+    </details>
     <div class="toolbar result-title">
       @if (ready() && itemCount() > 0) {
         <a class="btn btn-primary" data-testid="overview-start" routerLink="/explosion">查看整机展开</a>
@@ -47,7 +65,7 @@
         class="btn"
         [class.btn-danger]="itemCount() > 0"
         [class.btn-primary]="itemCount() === 0"
-        [disabled]="busy()"
+        [disabled]="busy() || resetting()"
         (click)="resetAndSeed()"
         data-testid="prepare-data"
       >
@@ -102,13 +120,18 @@
   <section class="panel" data-testid="item-inventory">
     <div class="panel-head">
       <h2 data-testid="item-inventory-toggle">物料清单（{{ inventory().length }} 项）</h2>
-      <p class="panel-desc">按物料编码查找，展开结构时可以选择这些物料。</p>
+      <p class="panel-desc">按中文名称或编码查找物料。名称帮助识别，编码用于准确核对。</p>
     </div>
     @if (inventory().length > 0) {
       <div class="toolbar inventory-toolbar">
         <label>
           筛选物料
-          <input [(ngModel)]="filter" data-testid="item-filter" placeholder="输入物料编码，例如 SC-100" type="search" />
+          <input
+            [(ngModel)]="filter"
+            data-testid="item-filter"
+            placeholder="输入名称或编码，例如 电池、BATT"
+            type="search"
+          />
         </label>
         <span class="hint" role="status">显示 {{ filteredInventory().length }} / {{ inventory().length }} 项</span>
       </div>
@@ -117,18 +140,26 @@
           <thead>
             <tr>
               <th class="item-index" scope="col">序号</th>
+              <th scope="col">物料名称</th>
               <th scope="col">物料编码</th>
+              <th scope="col">操作</th>
             </tr>
           </thead>
           <tbody>
             @for (itemNo of filteredInventory(); track itemNo) {
               <tr data-testid="item-inventory-row">
                 <td class="item-index">{{ $index + 1 }}</td>
-                <td>{{ itemNo }}</td>
+                <td class="material-name">{{ materialName(itemNo) }}</td>
+                <td class="material-code">{{ itemNo }}</td>
+                <td class="inventory-actions">
+                  <a [queryParams]="materialParams(itemNo, 'root')" [routerLink]="'/explosion'">展开</a>
+                  ·
+                  <a [queryParams]="materialParams(itemNo, 'item')" [routerLink]="'/where-used'">反查</a>
+                </td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="2"><div class="empty-state">没有匹配的物料，请换一个编码查找。</div></td>
+                <td colspan="4"><div class="empty-state">没有匹配的物料，请换一个名称或编码查找。</div></td>
               </tr>
             }
           </tbody>

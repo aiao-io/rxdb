@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { BomWorkspaceState } from '../../bom-workspace-state';
 import { MappingPanel } from '../../components/mapping-panel';
 
 /**
@@ -14,5 +15,6 @@ import { MappingPanel } from '../../components/mapping-panel';
 })
 export class MappingPage {
   /** 评估日（阶段 D 的双图与 split 映射在 2026-10-15 口径完整）。 */
-  readonly asOfDate = signal('2026-10-15');
+  readonly workspace = inject(BomWorkspaceState);
+  readonly asOfDate = this.workspace.asOfDate;
 }

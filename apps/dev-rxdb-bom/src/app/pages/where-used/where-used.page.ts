@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { BomWorkspaceState } from '../../bom-workspace-state';
 import { WhereUsedPanel } from '../../components/where-used-panel';
 
 /**
@@ -14,5 +15,6 @@ import { WhereUsedPanel } from '../../components/where-used-panel';
 })
 export class WhereUsedPage {
   /** 评估日（种子 ECN 生效前口径，与验收面板默认一致）。 */
-  readonly asOfDate = signal('2026-09-22');
+  readonly workspace = inject(BomWorkspaceState);
+  readonly asOfDate = this.workspace.asOfDate;
 }

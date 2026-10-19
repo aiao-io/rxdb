@@ -332,6 +332,33 @@
   margin: 24px 32px 0;
 }
 
+.workspace-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 32px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 13px;
+}
+
+.workspace-context > div,
+.workspace-context nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.workspace-context span {
+  color: var(--color-text-secondary);
+}
+
+.workspace-context a {
+  color: var(--color-primary);
+}
+
 @media (max-width: 1180px) {
   .sidebar {
     width: 222px;

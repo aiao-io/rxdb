@@ -889,3 +889,17 @@ button:disabled {
     transition: none !important;
   }
 }
+
+.workspace-stale {
+  margin: 12px 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--color-warning);
+  background: var(--color-warning-bg);
+  color: var(--color-text);
+  border-radius: 4px;
+}
+
+.inventory-actions {
+  min-width: 108px;
+  white-space: nowrap;
+}

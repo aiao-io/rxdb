@@ -9,7 +9,12 @@ const makeService = (names = ['SC-100', 'B-01', 'R10K'], ready = true) => {
   const itemNos = signal(new Map(names.map((name, index) => [`item-${index}`, name])));
   return {
     ready: signal(ready),
+    dataEpoch: signal(0),
+    resetting: signal(false),
+    extRead: vi.fn().mockResolvedValue('{"rohs":"yes"}'),
+    extPatch: vi.fn().mockResolvedValue(''),
     itemNos,
+    itemUoms: signal(new Map(names.map(name => [name, 'pcs']))),
     itemCount: computed(() => itemNos().size),
     ecns: signal(new Map<string, { ecnNo: string; state: string; effectiveDate: string }>()),
     instanceRoots: signal<{ id: string; itemNo: string; serialNumber: string | null }[]>([]),
@@ -155,5 +160,30 @@ describe('物料概览的真实状态与操作', () => {
       '/instances'
     ]);
     expect(links.every(link => link.textContent?.trim())).toBe(true);
+  });
+
+  it('物料清单先显示中文名称，可按中文搜索并保留原编码', async () => {
+    const fixture = await mount(makeService(['SC-100', 'PCBA', 'BATT', 'R10K']));
+    const root = element(fixture);
+    expect(root.querySelector('thead')?.textContent).toContain('物料名称');
+    expect(root.querySelector('thead')?.textContent).toContain('物料编码');
+    const filter = root.querySelector<HTMLInputElement>('[data-testid=item-filter]')!;
+    filter.value = ' 控制板 ';
+    filter.dispatchEvent(new Event('input', { bubbles: true }));
+    await fixture.whenStable();
+    const rows = root.querySelectorAll('[data-testid=item-inventory-row]');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain('控制板');
+    expect(rows[0].textContent).toContain('PCBA');
+    expect(root.querySelector('[data-testid=overview-item-count]')?.textContent).toContain('4');
+  });
+
+  it('物料搜索结果提供直接展开与反查，路径携带目标物料', async () => {
+    const fixture = await mount(makeService(['BATT']));
+    const row = element(fixture).querySelector('[data-testid=item-inventory-row]')!;
+    const links = Array.from(row.querySelectorAll('a'));
+    expect(links.map(link => link.textContent?.trim())).toEqual(['展开', '反查']);
+    expect(links[0].getAttribute('href')).toContain('root=BATT');
+    expect(links[1].getAttribute('href')).toContain('item=BATT');
   });
 });

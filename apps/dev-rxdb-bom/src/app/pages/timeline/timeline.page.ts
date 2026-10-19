@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, viewChild } from '@angular/core';
 import { BomDemoService } from '../../bom-demo.service';
 import { EcnPanel } from '../../components/ecn-panel';
 
@@ -23,6 +23,7 @@ interface TimelineEntry {
 })
 export class TimelinePage {
   private readonly service = inject(BomDemoService);
+  readonly panel = viewChild(EcnPanel);
 
   /** 时间轴条目：ecnId → { ecnNo, state, effectiveDate } 按生效日升序。 */
   readonly entries = computed<TimelineEntry[]>(() =>
@@ -32,6 +33,11 @@ export class TimelinePage {
   );
   readonly releasedCount = computed(() => this.entries().filter(entry => entry.state === 'released').length);
   readonly draftCount = computed(() => this.entries().filter(entry => entry.state === 'draft').length);
+
+  /** 选择时间轴条目后，查询和操作继续使用同一张变更单。 */
+  selectEcn(id: string): void {
+    void this.panel()?.inspectEcn(id);
+  }
 
   /** 状态中文标签（ECN 下拉里保持原样英文 state，此处仅时间轴展示用）。 */
   stateLabel(state: string): string {

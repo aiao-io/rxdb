@@ -56,6 +56,17 @@ const result = (root: CostNodeDetail = node()): CostRollupResult => ({
 
 const serviceDouble = (value: CostRollupResult = result()) => ({
   ready: signal(true),
+  dataEpoch: signal(0),
+  dataRevision: signal(0),
+  resetting: signal(false),
+  itemUoms: signal(
+    new Map([
+      ['SC-100', 'pcs'],
+      ['COST-DEMO', 'pcs'],
+      ['JOINT-MAIN', 'kg'],
+      ['JOINT-CONSUMER', 'kg']
+    ])
+  ),
   itemNos: signal(
     new Map([
       ['root', 'SC-100'],
@@ -96,6 +107,33 @@ const text = (root: ParentNode, id: string): string =>
   required(root, `[data-testid="${id}"]`).textContent?.trim() ?? '';
 
 describe('成本结果展示', () => {
+  it('物料展示中文名称和编码，选择与成本行继续保留原编码', async () => {
+    const service = serviceDouble();
+    const fixture = await mount(service);
+    const root = element(fixture);
+    const select = required<HTMLSelectElement>(root, '[data-testid="cost-root-select"]');
+    const option = required<HTMLOptionElement>(select, 'option[value="SC-100"]');
+
+    expect(select.value).toBe('SC-100');
+    expect(option.textContent).toMatch(/[\u4e00-\u9fff]+（SC-100）/);
+    expect(required<HTMLOptionElement>(select, 'option[value="COST-DEMO"]').textContent).toMatch(
+      /[\u4e00-\u9fff]+（COST-DEMO）/
+    );
+
+    await click(fixture, '卷算');
+
+    expect(service.rollup).toHaveBeenLastCalledWith('SC-100', '2026-10-15', {
+      unit: 137,
+      plannedUom: 'pcs',
+      configSelection: { 颜色: ['红'] },
+      plannedQty: { value: '1', uom: 'pcs' }
+    });
+    expect(required(root, '.cost-context strong').textContent).toMatch(/[\u4e00-\u9fff]+（SC-100）/);
+    expect(required(root, '.cost-row[data-kind="material"][data-item="PCBA"] .label').textContent).toBe(
+      '材料 控制板（PCBA）'
+    );
+  });
+
   it('根成本先汇总当前层投入，不重复累加子件明细，并保留每行原始金额', async () => {
     const child = node({
       itemId: 'child',
@@ -277,7 +315,15 @@ describe('成本结果展示', () => {
     await click(fixture, '装载联产演示');
     await click(fixture, '卷算');
     const root = element(fixture);
+    const rootSelect = required<HTMLSelectElement>(root, '[data-testid="cost-root-select"]');
+    expect(required(rootSelect, 'option[value="JOINT-MAIN"]').textContent).toMatch(/[\u4e00-\u9fff]+（JOINT-MAIN）/);
+    expect(required(rootSelect, 'option[value="JOINT-CONSUMER"]').textContent).toMatch(
+      /[\u4e00-\u9fff]+（JOINT-CONSUMER）/
+    );
     expect(service.rollup).toHaveBeenLastCalledWith('JOINT-MAIN', '2026-10-15', {
+      unit: 137,
+      plannedUom: 'kg',
+      configSelection: { 颜色: ['红'] },
       plannedQty: { value: '100', uom: 'kg' }
     });
     expect(required(root, '[data-testid="cost-joint-net"] [data-amount]').getAttribute('data-amount')).toBe('220');
@@ -291,22 +337,33 @@ describe('成本结果展示', () => {
         'data-amount'
       )
     ).toBe('88');
+    expect(required(root, '.cost-row[data-kind="joint-output"][data-item="JOINT-CO"] .label').textContent).toMatch(
+      /联产品 [\u4e00-\u9fff]+（JOINT-CO）/
+    );
     expect(root.textContent).toContain('1.76');
 
     fixture.componentInstance.costRootKey.set('JOINT-CONSUMER');
+    fixture.componentInstance.changeRoot('JOINT-CONSUMER');
     await fixture.whenStable();
     service.rollup.mockRejectedValueOnce(new Error('来源未解析'));
     await click(fixture, '卷算');
     expect(text(root, 'cost-error')).toContain('来源未解析');
     expect(service.rollup).toHaveBeenLastCalledWith('JOINT-CONSUMER', '2026-10-15', {
+      unit: 137,
+      plannedUom: 'kg',
+      configSelection: { 颜色: ['红'] },
       plannedQty: { value: '1', uom: 'kg' }
     });
     const source = required<HTMLSelectElement>(root, '[data-testid="joint-source-select"]');
+    expect(required(source, 'option[value="JOINT-MAIN"]').textContent).toMatch(/[\u4e00-\u9fff]+（JOINT-MAIN）/);
     source.value = 'JOINT-MAIN';
     source.dispatchEvent(new Event('change', { bubbles: true }));
     await fixture.whenStable();
     await click(fixture, '卷算');
     expect(service.rollup).toHaveBeenLastCalledWith('JOINT-CONSUMER', '2026-10-15', {
+      unit: 137,
+      plannedUom: 'kg',
+      configSelection: { 颜色: ['红'] },
       plannedQty: { value: '1', uom: 'kg' },
       jointCostSources: { [COPRODUCT_DATASET.ids.coproductRevisionId]: COPRODUCT_DATASET.ids.producerHeaderId }
     });

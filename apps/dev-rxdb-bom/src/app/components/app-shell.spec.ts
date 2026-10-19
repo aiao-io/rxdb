@@ -9,6 +9,9 @@ const mount = async () => {
   const service = {
     ready: signal(true),
     itemCount: signal(41),
+    dataRevision: signal(0),
+    resetting: signal(false),
+    resetStatus: signal(''),
     connectExisting: vi.fn().mockResolvedValue(undefined),
     resetAndSeed: vi.fn().mockResolvedValue(undefined)
   };
@@ -87,5 +90,13 @@ describe('BOM 工作区交互', () => {
     await fixture.whenStable();
     expect(toggle?.getAttribute('aria-expanded')).toBe('false');
     expect(document.activeElement).toBe(toggle);
+  });
+
+  it('打开导航时进入当前页面链接并阻止背景参与键盘导航', async () => {
+    const { fixture, root } = await mount();
+    root.querySelector<HTMLButtonElement>('[aria-controls=bom-navigation]')!.click();
+    await fixture.whenStable();
+    expect(root.querySelector('#bom-navigation')?.contains(document.activeElement)).toBe(true);
+    expect(root.querySelector('.workspace')?.hasAttribute('inert')).toBe(true);
   });
 });

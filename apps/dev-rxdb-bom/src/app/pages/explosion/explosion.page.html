@@ -5,6 +5,10 @@
       <h1>整机展开</h1>
       <p class="panel-desc">先设置展开条件，再查看需要哪些物料。选中一行，可以了解这份用量是怎样算出的。</p>
     </div>
+    <div class="toolbar">
+      <a class="btn" [queryParams]="workspace.queryParams()" [routerLink]="'/cost'">按当前条件看成本</a>
+      <a class="btn" [queryParams]="workspace.queryParams()" [routerLink]="'/where-used'">反查所选物料</a>
+    </div>
   </section>
 
   <section class="panel">
@@ -23,10 +27,23 @@
       </label>
       <label>
         展开物料
-        <select [(ngModel)]="rootKey" [disabled]="busy()" data-testid="root-select">
+        <select
+          [(ngModel)]="rootKey"
+          [disabled]="busy()"
+          (ngModelChange)="changeRoot($event)"
+          data-testid="root-select"
+        >
           @for (key of itemNos().values(); track key) {
-            <option [value]="key">{{ key }}</option>
+            <option [value]="key">{{ materialLabel(key) }}</option>
           }
+        </select>
+      </label>
+      <label>
+        批量单位
+        <select [(ngModel)]="workspace.plannedUom" [disabled]="busy()" data-testid="planned-uom">
+          <option value="pcs">件（pcs）</option>
+          <option value="kg">千克（kg）</option>
+          <option value="m">米（m）</option>
         </select>
       </label>
       <label>
@@ -41,10 +58,21 @@
           type="number"
         />
       </label>
-      <button class="btn btn-primary" [disabled]="busy() || !ready()" (click)="runExplode()">
+      <label>
+        批次
+        <input [(ngModel)]="workspace.lot" [disabled]="busy()" data-testid="lot-input" placeholder="不限批次" />
+      </label>
+      <button
+        class="btn btn-primary"
+        [disabled]="busy() || !ready() || !!workspace.validationError()"
+        (click)="runExplode()"
+      >
         {{ busy() ? '正在展开…' : '展开整机' }}
       </button>
     </div>
+    @if (workspace.validationError()) {
+      <p class="error-box" role="alert">{{ workspace.validationError() }}</p>
+    }
     @if (!ready()) {
       <p class="hint result-title">
         请先在
@@ -59,6 +87,11 @@
       <h2 id="explosion-result-title">展开结果</h2>
       <p class="panel-desc">左侧查看需求结构，右侧查看所选物料的用量计算。</p>
     </div>
+    @if (stale()) {
+      <div class="workspace-stale" data-testid="result-stale" role="status">
+        条件已修改。下方保留上次确认的结果，请重新展开后再下载。
+      </div>
+    }
     @if (busy()) {
       <div class="empty-state" data-testid="explosion-loading" role="status">正在展开物料需求，请稍候…</div>
     } @else if (explodeError()) {
@@ -71,17 +104,27 @@
       </div>
     } @else if (view(); as current) {
       <p class="hint" role="status">
-        按 {{ current.result.manifest.context.asOfDate.toISOString().slice(0, 10) }} 计算， 共
+        {{ materialLabel(current.context.rootKey) }} · {{ current.context.asOfDate }} · 计划
+        {{ current.context.plannedQty }} {{ current.context.plannedUom }} ·
+        {{ current.context.unit === null ? '未指定序列' : '序列 ' + current.context.unit
+        }}{{ current.context.lot ? ' · 批次 ' + current.context.lot : '' }}，共
         {{ current.result.requirementLines.length }} 条物料需求、{{ current.result.outputs.length }} 条产出。
       </p>
-      <div class="main">
+      @if (!complete()) {
+        <p class="workspace-stale" role="status">
+          当前结构尚未完整，请处理下方适用条件或缩小查询范围，完整后才可下载。
+        </p>
+      }
+      <div class="main" [class.has-selection]="!!current.selected">
         <div class="panel-inset tree result-panel">
           <h2>物料需求结构</h2>
           <bom-req-tree
             [designators]="designators()"
             [itemNos]="itemNos()"
             [result]="current.result"
+            [rootLabel]="materialLabel(current.context.rootKey)"
             [selected]="current.selected"
+            (conditionRequest)="applyCondition($event)"
             (rowSelect)="select($event)"
           />
           @if (current.result.requirementLines.length === 0 && current.result.outputs.length === 0) {
@@ -90,21 +133,26 @@
             </div>
           }
         </div>
-        <div class="panel-inset result-panel">
-          <h2>所选物料的用量计算</h2>
+        <div class="panel-inset result-panel calculation-panel">
+          <button class="btn mobile-back" (click)="clearSelection()">返回物料结构</button>
+          <h2 tabindex="-1">所选物料的用量计算</h2>
           <p class="selected-material" data-testid="selected-material">
             @if (selectedItemNo(); as itemNo) {
               当前物料
-              <strong>{{ itemNo }}</strong>
+              <strong>{{ materialLabel(itemNo) }}</strong>
             } @else {
               从左侧选择一条需求行，查看它的用量来源。
             }
           </p>
           <bom-step-panel
+            [basis]="basis()"
             [itemNos]="itemNos()"
             [line]="current.selected"
             [penetrations]="penetrationsOn(current.selected)"
           />
+          @if (basisError()) {
+            <p class="error-box" role="alert">原始依据暂时无法读取：{{ basisError() }}</p>
+          }
         </div>
       </div>
     } @else {
@@ -121,8 +169,10 @@
     <summary>导入与导出</summary>
     <bom-integration-panel
       [asOfDate]="asOfDate()"
-      [expanded]="view() !== null"
+      [expanded]="exportable()"
+      [expectedManifest]="view()?.result?.manifest ?? null"
       [plannedQty]="plannedQty()"
+      [resolutionOptions]="workspace.resolutionOptions()"
       [rootKey]="rootKey()"
       [unit]="unit() ?? undefined"
     />

@@ -1,6 +1,8 @@
+import type { ExplosionManifest, ImportDiagnostic } from '@aiao/rxdb-plugin-bom';
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { BomDemoService } from '../bom-demo.service';
+import { BomDemoService, type BomDemoResolutionOptions } from '../bom-demo.service';
+import { assertExportSnapshot, ExportSnapshotChangedError } from '../presentation/export-snapshot';
 
 /** 下载结构快照，或将文件导入草稿并经明确操作发布。 */
 @Component({
@@ -19,7 +21,7 @@ import { BomDemoService } from '../bom-demo.service';
           <p class="hint">文件包含当前展开条件与对应的结构数据。</p>
           <button
             class="btn result-title"
-            [disabled]="busy() || !ready() || !expanded()"
+            [disabled]="busy() || !ready() || resetting() || !expanded() || expectedManifest() === null"
             (click)="download()"
             data-testid="export-bom"
           >
@@ -95,23 +97,49 @@ import { BomDemoService } from '../bom-demo.service';
           <summary>查看 {{ diagnostics().length }} 条记录的问题</summary>
           <ul class="diagnostics" data-testid="import-diagnostics">
             @for (diagnostic of diagnostics(); track $index) {
-              <li>{{ diagnostic }}</li>
+              <li>
+                <strong>{{ diagnosticKind(diagnostic.kind) }}</strong>
+                <code>{{ diagnostic.naturalKey }}</code>
+                <p>{{ diagnostic.message }}</p>
+              </li>
             }
           </ul>
         </details>
       }
-      @if (headerIds().length > 0) {
+      @if (drafts().length > 0) {
         <section class="panel-inset result-title">
           <h3>核对并发布</h3>
-          <p class="hint">本次已保存 {{ headerIds().length }} 份结构草稿。确认生效日期后发布，之后才能按该日期展开。</p>
+          <p class="hint">
+            数据库中有 {{ drafts().length }} 份待发布结构。勾选本次要发布的对象，再核对生效日期；未勾选的草稿保持原样。
+          </p>
+          <button class="btn" [disabled]="busy() || resetting()" (click)="selectAllDrafts()">全选待发布草稿</button>
+          <ul class="draft-list">
+            @for (draft of drafts(); track draft.headerId) {
+              <li>
+                <label>
+                  <input
+                    [checked]="headerIds().includes(draft.headerId)"
+                    [disabled]="busy() || resetting()"
+                    (change)="toggleDraft(draft.headerId)"
+                    data-testid="import-draft-select"
+                    type="checkbox"
+                  />
+                  {{ draft.itemNo }} · 修订 {{ draft.revisionNo }} · {{ draft.bomType }} · {{ draft.orgId }} ·
+                  {{ draft.lineCount }} 行
+                </label>
+              </li>
+            }
+          </ul>
+          <p class="hint">已选 {{ headerIds().length }} 份；发布失败时整批保留草稿，可修正后重试。</p>
+          <p class="hint">输入日期只用于新修订。已有发布修订和发生项保留原日期，请按各自的实际生效条件核对展开结果。</p>
           <div class="toolbar result-title">
             <label
-              >发布生效日期
+              >新修订生效日期
               <input [(ngModel)]="publishDate" [disabled]="busy()" data-testid="import-publish-date" type="date"
             /></label>
             <button
               class="btn btn-primary"
-              [disabled]="busy() || !ready()"
+              [disabled]="busy() || !ready() || resetting() || headerIds().length === 0 || !publishDate()"
               (click)="publish()"
               data-testid="import-publish"
             >
@@ -150,8 +178,12 @@ export class IntegrationPanel {
   readonly rootKey = input.required<string>();
   readonly plannedQty = input.required<string>();
   readonly unit = input<number>();
+  readonly resolutionOptions = input<BomDemoResolutionOptions>({});
+  readonly expectedManifest = input<ExplosionManifest | null>(null);
   readonly expanded = input(false);
   readonly ready = this.service.ready;
+  readonly resetting = this.service.resetting;
+  readonly drafts = this.service.importedDrafts;
   readonly busy = signal(false);
   readonly failed = signal(false);
   readonly file = signal<File | null>(null);
@@ -160,13 +192,17 @@ export class IntegrationPanel {
   readonly exportStatus = signal('');
   readonly exportFailed = signal(false);
   readonly exportReason = signal('');
-  readonly diagnostics = signal<string[]>([]);
+  readonly diagnostics = signal<ImportDiagnostic[]>([]);
   readonly headerIds = signal<string[]>([]);
   readonly publishDate = signal(new Date().toISOString().slice(0, 10));
 
   constructor() {
     effect(() => {
-      if (this.ready()) return;
+      const epoch = this.service.dataEpoch();
+      if (this.ready() && !this.resetting()) {
+        void this.#recoverDrafts(epoch);
+        return;
+      }
       this.headerIds.set([]);
       this.status.set('');
       this.reason.set('');
@@ -176,25 +212,59 @@ export class IntegrationPanel {
     });
   }
 
-  /** 新文件对应新一批操作，不继续展示上一批的发布入口。 */
+  /** 文件选择只清理文件诊断，已经保存的待发布草稿继续可见。 */
   chooseFile(event: Event): void {
     if (this.busy() || !(event.target instanceof HTMLInputElement)) return;
     this.file.set(event.target.files?.[0] ?? null);
     this.status.set('');
     this.reason.set('');
     this.diagnostics.set([]);
-    this.headerIds.set([]);
+  }
+
+  toggleDraft(headerId: string): void {
+    this.headerIds.update(current =>
+      current.includes(headerId) ? current.filter(id => id !== headerId) : [...current, headerId]
+    );
+  }
+
+  selectAllDrafts(): void {
+    this.headerIds.set(this.drafts().map(draft => draft.headerId));
+  }
+
+  diagnosticKind(kind: ImportDiagnostic['kind']): string {
+    const labels: Record<ImportDiagnostic['kind'], string> = {
+      item: '物料',
+      revision: '修订',
+      header: '结构头',
+      line: '逻辑行',
+      occurrence: '发生项',
+      designator: '位号',
+      substitute_group: '替代组',
+      operation_split: '工序分摊'
+    };
+    return labels[kind];
   }
 
   /** 下载保留原始十进制字符串与解析依据的结构文件。 */
   async download(): Promise<void> {
-    if (this.busy() || !this.ready() || !this.expanded()) return;
+    if (this.busy() || !this.ready() || this.resetting() || !this.expanded() || this.expectedManifest() === null)
+      return;
+    const epoch = this.service.dataEpoch();
+    const revision = this.service.dataRevision();
+    const expected = this.expectedManifest();
+    if (expected === null) return;
     this.busy.set(true);
     this.exportStatus.set('');
     this.exportReason.set('');
     this.exportFailed.set(false);
     try {
-      const json = await this.service.exportBom(this.asOfDate(), this.rootKey(), this.plannedQty(), this.unit());
+      const json = await this.service.exportBom(this.asOfDate(), this.rootKey(), this.plannedQty(), {
+        unit: this.unit(),
+        ...this.resolutionOptions()
+      });
+      if (epoch !== this.service.dataEpoch()) return;
+      if (!this.expanded() || revision !== this.service.dataRevision()) throw new ExportSnapshotChangedError();
+      assertExportSnapshot(json, expected);
       const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -203,8 +273,11 @@ export class IntegrationPanel {
       URL.revokeObjectURL(url);
       this.exportStatus.set('导出成功：结构文件已下载，可用于备份或交换。');
     } catch (error) {
+      if (epoch !== this.service.dataEpoch()) return;
       this.exportFailed.set(true);
-      this.exportStatus.set('导出失败：无法生成当前结构文件。');
+      this.exportStatus.set(
+        error instanceof ExportSnapshotChangedError ? error.message : '导出失败：无法生成当前结构文件。'
+      );
       this.exportReason.set(String(error));
     } finally {
       this.busy.set(false);
@@ -214,7 +287,8 @@ export class IntegrationPanel {
   /** 整批校验后导入草稿，失败保留具体记录的诊断。 */
   async importDraft(): Promise<void> {
     const file = this.file();
-    if (this.busy() || !this.ready() || !file) return;
+    if (this.busy() || !this.ready() || this.resetting() || !file) return;
+    const epoch = this.service.dataEpoch();
     this.busy.set(true);
     this.status.set('');
     this.reason.set('');
@@ -223,14 +297,17 @@ export class IntegrationPanel {
     this.headerIds.set([]);
     try {
       const payload: unknown = JSON.parse(await file.text());
+      if (epoch !== this.service.dataEpoch() || this.resetting() || !this.ready()) return;
       const result = await this.service.importBom(payload);
+      if (epoch !== this.service.dataEpoch()) return;
       this.failed.set(!result.committed);
-      this.diagnostics.set(result.diagnostics.map(value => value.message));
-      this.headerIds.set(result.headerIds);
+      this.diagnostics.set(result.diagnostics);
+      if (result.committed) this.headerIds.set(result.headerIds);
       this.status.set(
         result.committed ? '导入成功：已保存草稿，核对后再发布。' : '导入失败：整批未写入，请查看校验问题。'
       );
     } catch (error) {
+      if (epoch !== this.service.dataEpoch()) return;
       this.failed.set(true);
       this.status.set('导入失败：请检查文件内容后重试。');
       this.reason.set(String(error));
@@ -241,7 +318,8 @@ export class IntegrationPanel {
 
   /** 使用用户确认的生效日期发布本次导入草稿。 */
   async publish(): Promise<void> {
-    if (this.busy() || !this.ready() || this.headerIds().length === 0) return;
+    if (this.busy() || !this.ready() || this.resetting() || this.headerIds().length === 0) return;
+    const epoch = this.service.dataEpoch();
     this.busy.set(true);
     this.status.set('');
     this.reason.set('');
@@ -249,14 +327,29 @@ export class IntegrationPanel {
     const effectiveDate = this.publishDate();
     try {
       await this.service.publishImported(this.headerIds(), effectiveDate);
+      if (epoch !== this.service.dataEpoch()) return;
       this.headerIds.set([]);
-      this.status.set(`发布成功：从 ${effectiveDate} 起可按生效日期展开导入物料。`);
+      this.status.set(
+        `发布成功：所选结构已发布。新修订生效日期为 ${effectiveDate}；已有发布修订和发生项保留原生效日期，请按实际条件重新展开核对。`
+      );
     } catch (error) {
+      if (epoch !== this.service.dataEpoch()) return;
       this.failed.set(true);
-      this.status.set('发布失败：请检查草稿与生效日期。');
+      this.status.set('发布失败：整批未发布，请检查草稿与生效日期后重试。');
       this.reason.set(String(error));
     } finally {
       this.busy.set(false);
+    }
+  }
+
+  async #recoverDrafts(epoch: number): Promise<void> {
+    try {
+      await this.service.refreshImportedDrafts();
+    } catch (error) {
+      if (epoch !== this.service.dataEpoch()) return;
+      this.failed.set(true);
+      this.status.set('草稿恢复失败，请重新打开面板或重试。');
+      this.reason.set(String(error));
     }
   }
 }

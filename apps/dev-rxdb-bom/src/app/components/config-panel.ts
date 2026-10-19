@@ -2,6 +2,7 @@ import type { ExplosionResult } from '@aiao/rxdb-plugin-bom';
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BomDemoService } from '../bom-demo.service';
+import { materialLabel } from '../presentation/material-label';
 import { ReqTree } from './req-tree';
 
 /** 按颜色选择查看物料选用结果，同时保留冲突与缺少配置的验证入口。 */
@@ -13,7 +14,10 @@ import { ReqTree } from './req-tree';
     <section class="panel" [attr.aria-busy]="busy()">
       <div class="panel-head">
         <h2>产品配置</h2>
-        <p class="panel-desc">为 CONFIG-DEMO 选择颜色。红色使用 CONFIG-PART，蓝色不使用；必须选择一种颜色。</p>
+        <p class="panel-desc">
+          为 {{ materialLabel('CONFIG-DEMO') }} 选择颜色。红色使用
+          {{ materialLabel('CONFIG-PART') }}，蓝色不使用；必须选择一种颜色。
+        </p>
       </div>
       <div class="toolbar" aria-label="产品颜色" role="group">
         <label><input [(ngModel)]="red" [disabled]="busy()" data-testid="config-red" type="checkbox" />红色</label>
@@ -60,6 +64,7 @@ export class ConfigPanel {
   readonly asOfDate = input.required<string>();
   readonly ready = this.service.ready;
   readonly itemNos = this.service.itemNos;
+  readonly materialLabel = materialLabel;
   readonly designators = this.service.designators;
   readonly red = signal(true);
   readonly blue = signal(false);

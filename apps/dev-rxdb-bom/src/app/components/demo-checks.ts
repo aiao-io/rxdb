@@ -26,7 +26,9 @@ import { BomDemoService } from '../bom-demo.service';
       <div class="check-grid">
         <div class="check-card">
           <h3>循环引用保护</h3>
-          <p class="check-desc">尝试让 PCBA 再引用整机 SC-100。结构会绕回自身，这种修改应被拒绝。</p>
+          <p class="check-desc">
+            尝试让控制板（PCBA）再引用整机电动滑板车（SC-100）。结构会绕回自身，这种修改应被拒绝。
+          </p>
           <div class="toolbar">
             <button class="btn" [disabled]="busy() || !ready()" (click)="runRawCycle()">直接写入循环引用</button>
             <button class="btn" [disabled]="busy() || !ready()" (click)="runFormCycle()">通过表单写入循环引用</button>

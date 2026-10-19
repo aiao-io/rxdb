@@ -22,7 +22,7 @@ const PAGE_HEADINGS = {
 } as const;
 
 const openPage = async (page: Page, name: keyof typeof PAGE_HEADINGS): Promise<void> => {
-  await page.getByRole('link', { name, exact: true }).click();
+  await page.getByRole('navigation', { name: '主导航', exact: true }).getByRole('link', { name, exact: true }).click();
   await expect(page.getByRole('heading', { name: PAGE_HEADINGS[name], exact: true })).toBeVisible();
 };
 
@@ -157,7 +157,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     await resetAndSeed(page);
     await openPage(page, '展开');
     // 根物料选 COVER-ASSY
-    await page.getByTestId('root-select').selectOption({ label: 'COVER-ASSY' });
+    await page.getByTestId('root-select').selectOption('COVER-ASSY');
     await clickButton(page, '展开整机');
     const r10k = page.locator('.requirement-row[data-item="R10K"] .qty');
     await expect(r10k).toHaveText('50 pcs', { timeout: 30000 });
@@ -175,7 +175,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
   test('US-525 AC#8 外壳下料：consume 需求 2、by_product 0.3、scrap_out 0.1 分列', async ({ page }) => {
     await resetAndSeed(page);
     await openPage(page, '展开');
-    await page.getByTestId('root-select').selectOption({ label: 'HOUSING' });
+    await page.getByTestId('root-select').selectOption('HOUSING');
     await clickButton(page, '展开整机');
     await expect(page.locator('.requirement-row[data-item="SHEET"] .qty')).toHaveText('2 pcs', { timeout: 30000 });
     // 产出区块：副产与废料不进需求行
@@ -187,7 +187,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
   test('US-525 AC#9 工序损耗与分摊：PROCESS-01 需求 101.8，面板第 5 步显示累乘', async ({ page }) => {
     await resetAndSeed(page);
     await openPage(page, '展开');
-    await page.getByTestId('root-select').selectOption({ label: 'PROCESS-01' });
+    await page.getByTestId('root-select').selectOption('PROCESS-01');
     await page.getByTestId('planned-qty').fill('100');
     await clickButton(page, '展开整机');
     const material = page.locator('.requirement-row[data-item="P-MATERIAL"] .qty');
@@ -210,20 +210,33 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
   test('AC#6 M3 螺钉 where-used：全部父件与路径，含经由虚拟件的那条', async ({ page }) => {
     await resetAndSeed(page);
     await openPage(page, '反查');
-    await clickButton(page, '反查 M3');
+    await clickButton(page, '反查.*M3');
+    const tree = page.getByLabel('物料使用关系树', { exact: true });
     const lines = page.getByTestId('where-used-line');
-    // 全部父件与每条路径：SC-100 直连、WH-01 直连、SC-100 经 WH-01（2 跳，虚拟件路径）
     await expect(lines).toHaveCount(3, { timeout: 30000 });
-    for (const line of await lines.all()) {
-      await line.locator('summary').click();
-      await expect(line.locator('details')).toHaveAttribute('open', '');
-      await expect(line.locator('code')).toBeVisible();
+    await expect(tree).toBeVisible();
+    await expect(tree.getByText('M3 螺钉（M3）', { exact: true })).toBeVisible();
+    await expect(tree.locator('[data-testid="where-used-line"][data-item="SC-100"]')).toHaveCount(2);
+    const harness = tree.locator('[data-testid="where-used-line"][data-item="WH-01"]');
+    await expect(harness).toHaveCount(1);
+    await expect(harness.locator(':scope > .usage-card')).toContainText('线束组件（WH-01）');
+    await expect(harness.locator('[data-testid="where-used-line"][data-item="SC-100"]')).toHaveCount(1);
+    const paths = [
+      { item: 'SC-100', depth: 1, keys: ['occurrence:SC-100:A:4'] },
+      { item: 'WH-01', depth: 1, keys: ['occurrence:WH-01:D:3'] },
+      { item: 'SC-100', depth: 2, keys: ['occurrence:SC-100:A:2', 'occurrence:WH-01:D:3'] }
+    ];
+    for (const { item, depth, keys } of paths) {
+      const line = tree.locator(`[data-testid="where-used-line"][data-item="${item}"][data-depth="${depth}"]`);
+      await expect(line).toBeVisible();
+      await expect(line).toHaveAttribute('data-path', JSON.stringify(keys.map(deterministicId)));
+      await expect(line.locator(':scope > .usage-card')).toContainText(`${depth} 跳`);
     }
-    const texts = await lines.allTextContents();
-    // SC-100 出现两条：直连（1 跳）与经 WH-01（2 跳，路径中段的 WH-01 以发生项 id 前缀显示）
-    expect(texts.filter(text => text.includes('SC-100')).length).toBe(2);
-    expect(texts.some(text => text.includes('2 跳') && text.includes('SC-100'))).toBe(true);
-    expect(texts.some(text => text.includes('1 跳') && text.includes('WH-01'))).toBe(true);
+    await openDetails(page, '查看路径记录');
+    const records = page.locator('details').filter({ has: page.locator('summary', { hasText: '查看路径记录' }) });
+    await expect(records.locator('code')).toHaveCount(3);
+    for (const { keys } of paths)
+      await expect(records.getByText(keys.map(deterministicId).join(' → '), { exact: true })).toBeVisible();
   });
 
   test('US-525 AC#10 评估日切换：两段生效期行集不同且各自自洽（不读系统时钟）', async ({ page }) => {
@@ -276,7 +289,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     const actionResult = page.getByTestId('ecn-action-result');
     await expect(actionResult).toContainText('发布成功', { timeout: 30000 });
     page.once('dialog', dialog => dialog.accept());
-    await clickButton(page, '取消现场 ECN');
+    await page.getByTestId('ecn-cancel-selected').click();
     await expect(actionResult).toContainText('取消成功', { timeout: 30000 });
     // 页面刷新后不存在「部分行已生效、部分未生效」的中间态：评估日切到明天仍是 A/B 层结构
     await page.reload();
@@ -372,7 +385,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
   test('US-525 AC#15 缺成本子件：卷算报缺失项而非 0', async ({ page }) => {
     await resetAndSeed(page);
     await openPage(page, '成本卷算');
-    await page.getByTestId('cost-root-select').selectOption({ label: 'COST-DEMO（故意缺成本）' });
+    await page.getByTestId('cost-root-select').selectOption('COST-DEMO');
     await clickButton(page, '卷算');
     const error = page.getByTestId('cost-error');
     // 错误消息点名缺成本的物料 id（COST-MISSING 的确定性 id，不经 0 兜底）
@@ -434,6 +447,8 @@ test.describe('BOM demo（US-525 阶段 E）', () => {
     await expect(page.getByTestId('ext-filter-row').locator('code')).toBeAttached();
     await expect(page.getByTestId('ext-filter-row')).toContainText('B-01');
     await page.getByTestId('ext-filter-op').selectOption('ne');
+    await page.getByTestId('ext-filter').click();
+    await expect(page.getByTestId('ext-filter-row')).toHaveCount(0);
     await page.getByTestId('ext-filter-value').fill('no');
     await page.getByTestId('ext-filter').click();
     await expect(page.getByTestId('ext-filter-row')).toHaveCount(1);
@@ -586,12 +601,12 @@ test.describe('BOM demo（US-525 阶段 F）', () => {
     const asOf = page.getByTestId('instance-as-of');
     const tree = page.getByTestId('instance-tree');
     const load = page.getByTestId('instance-load');
-    await root.selectOption({ label: 'SC-100 · SN-001' });
+    await root.selectOption({ label: '电动滑板车（SC-100） · SN-001' });
     await asOf.fill('2026-10-17');
     await load.click();
     await expect(tree.locator('[data-serial="SN-001"][data-item="SC-100"]')).toHaveCount(1);
     await expect(tree.locator('[data-serial="PACK-001"][data-item="BATT"][data-revision="A"]')).toHaveCount(1);
-    await root.selectOption({ label: 'SC-100 · SN-002' });
+    await root.selectOption({ label: '电动滑板车（SC-100） · SN-002' });
     await load.click();
     await expect(tree.locator('[data-serial="SN-002"][data-item="SC-100"]')).toHaveCount(1);
     await expect(tree.locator('[data-serial="PACK-002"][data-item="BATT"]')).toHaveCount(1);
@@ -608,7 +623,7 @@ test.describe('BOM demo（US-525 阶段 F）', () => {
     await expect(page.getByTestId('instance-trace-row')).toHaveCount(1);
     await expect(page.getByTestId('instance-trace-row')).toContainText('SN-001');
 
-    await root.selectOption({ label: 'SC-100 · SN-001' });
+    await root.selectOption({ label: '电动滑板车（SC-100） · SN-001' });
     await page.getByTestId('instance-replace-date').fill('2026-11-01');
     page.once('dialog', dialog => dialog.accept());
     await page.getByTestId('instance-replace').click();
@@ -648,21 +663,21 @@ test.describe('BOM demo（US-525 阶段 F）', () => {
     await openDetails(page, '高级验证：改版与来源保护');
     await page.getByTestId('instance-master-effective-date').fill('2099-01-01');
     await page.getByTestId('instance-master-revise').click();
-    await expect(page.getByTestId('instance-master-result')).toContainText('BATT · B');
+    await expect(page.getByTestId('instance-master-result')).toContainText('电池组（BATT） · B');
     await expect(page.getByTestId('instance-master-result')).toContainText('发布成功');
     await load.click();
     await expect(tree).toHaveText(installedBeforeRevision, { useInnerText: true });
     await expect(tree.locator('[data-serial="PACK-003"][data-revision="A"]')).toHaveCount(1);
     await page.reload();
     await expect(page.getByRole('heading', { name: '实例追溯', exact: true })).toBeVisible();
-    await root.selectOption({ label: 'SC-100 · SN-001' });
+    await root.selectOption({ label: '电动滑板车（SC-100） · SN-001' });
     await asOf.fill('2099-01-02');
     await load.click();
     await expect(tree).toHaveText(installedBeforeRevision, { useInnerText: true });
   });
 
   test('US-525 AC#22 草稿来源直连删除被拒，点名发生项与一个实例引用且树不变', async ({ page }) => {
-    await page.getByTestId('instance-root-select').selectOption({ label: 'SC-100 · SN-002' });
+    await page.getByTestId('instance-root-select').selectOption({ label: '电动滑板车（SC-100） · SN-002' });
     await page.getByTestId('instance-as-of').fill('2026-10-17');
     await page.getByTestId('instance-load').click();
     const tree = page.getByTestId('instance-tree');
