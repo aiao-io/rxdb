@@ -98,6 +98,17 @@ git config core.ignorecase false
 
 详细流程请参考相关规范。
 
+### 候选领域合并治理
+
+候选领域（[`requirements/domain-research`](requirements/domain-research/README.md)）衍生的功能分支受额外约束：
+
+- **候选领域功能不能轻易合并 `main`**：领域功能分支（demo、领域产品、探索代码）不随功能开发直接
+  进 `main`，合入前需按毕业路径完成立项 / 范围评审。
+- **对 `packages/*` 的更改必须单独提取、单独评审、单独合并**：领域分支开发过程中对引擎 / 共享库
+  的修改，在领域功能合并 `main` 之前先提取成独立 PR，经评审后**单独合并进 `main`**；随后领域分支
+  从 `main` 合并回来，同步这些已入库的改动，领域功能本身才能继续走合并流程。
+- **禁止**把领域功能与引擎改动混在一个 PR 里直接进 `main`；任何领域都不能绕过上面的提取流程改 `main`。
+
 ### 提交信息规范
 
 使用 **Conventional Commits** 格式：
