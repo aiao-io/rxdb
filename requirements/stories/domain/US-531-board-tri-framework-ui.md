@@ -71,6 +71,12 @@ tags: [domain, board, angular, react, vue, ui]
 别名这类端差异是 rxdb-model 三包已复核过的设计选择（T050），看板视图沿用同款边界：差异写进
 源文件注释互相声明等价，不靠口头约定。
 
+**交互参照 GitHub Projects，但字段分组模型不随 MVP。** 卡片内联编辑字段、列头菜单、拖拽
+手感直接抄 GitHub Projects 的看板；它的列是单选字段的值分组（拖卡 = 改字段值），与本故事
+消费的 Trello 式列实体（[US-526](US-526-board-column-task-skeleton.md)）是「看板是视图还是
+产品」的分野。MVP 维持列实体；「按字段分组的看板视图」记为与工作台（admin-framework 候选）
+融合时的升级路径——US-028 分组排序域按任意分组字段，引擎侧迁移成本为零，主要工作在应用层配置。
+
 **落点：`packages/rxdb-plugin-board`** 的三框架绑定（BOM 先例：US-522 的绑定在
 `packages/rxdb-plugin-bom`），三端 demo 各自消费。
 
@@ -95,4 +101,5 @@ tags: [domain, board, angular, react, vue, ui]
 - [US-028 可排序实体](../core/US-028-sortable-entity.md) — 三端 Playwright 真实拖拽验收先例（阶段 B）
 - [US-027 实体操作权限模型](../core/US-027-entity-permission-model.md) — `deriveEntityCapabilities()` 派生
 - [US-522 BOM 三框架 UI](US-522-bom-tri-framework-ui.md) — 领域三框架绑定的同型故事
+- [GitHub Projects 文档](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects) — 交互参照：卡片内联编辑、列头菜单、拖拽手感
 - [roadmap 零散收尾项](../../roadmap.md#零散收尾项不成故事随手可带) — T049 / T050 对拍口径

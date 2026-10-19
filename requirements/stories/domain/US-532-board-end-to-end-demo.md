@@ -139,3 +139,4 @@ Angular 应用，三端对称是 US-531 的事。
 - [US-525 BOM 端到端 demo](US-525-bom-end-to-end-demo.md) — 同型故事：确定性种子、分层种子、既有库重开、单端先例
 - [US-214 HTTP 适配器浏览器端到端 demo](../adapter/US-214-http-browser-demo.md) — 单端先例
 - [domain-research 产品形态](../../domain-research/README.md#产品形态零后端单机版) — 坑 ① 备份一等公民
+- [GitHub Projects 文档](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects) — demo 的卡片与列头交互参照

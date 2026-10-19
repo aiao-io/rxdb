@@ -13,7 +13,8 @@ owner: jimmy
 让一个 Trello 类的**单人任务看板**成为 RxDB 的「下一个完整演示应用」：Board / Column / Task
 三层模型、跨列拖动、任务详情、重开恢复与备份导出闭环，三端一致交互，**全部建在引擎已有能力上**。
 团队版（Supabase 同步与身份）另行；评论 / @ 提醒明确出界。对标：Trello（品类鼻祖，RxDB 上游
-经典 demo 原型）；Asana / Teambition / 飞书项目；Jira 的重协作侧不在对标范围。
+经典 demo 原型）；Asana / Teambition / 飞书项目；交互参照 GitHub Projects（卡片内联编辑、列头
+菜单，见 [US-531](../stories/domain/US-531-board-tri-framework-ui.md)）；Jira 的重协作侧不在对标范围。
 
 ## 为什么单列一个 Epic
 
@@ -131,4 +132,6 @@ owner: jimmy
 - **多租户 RBAC**——US-029 仍价值待证，单团队场景用 US-027 已足够（domain-research 结论）；
 - **移动端原生 / 小程序宿主**——后续按 adapter 放行表核对，不随本 Epic 承诺；
 - **实时协同（Google Docs 级）**——首发后置（rejected-domains 维持原判）；
-- **性能基准**——种子数据集按「覆盖全部硬用例」设计，不按「压出规模」设计（US-532）。
+- **性能基准**——种子数据集按「覆盖全部硬用例」设计，不按「压出规模」设计（US-532）；
+- **多视图工作台**（Teable 类表格 / 画册 / 日历 / 表单视图）——与工作台融合的 v2 方向，记在
+  [domain-research 草稿区](../domain-research/README.md#草稿区)；本 Epic 只交付看板视图。
