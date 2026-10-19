@@ -171,7 +171,7 @@ jobs:
 
       - uses: ./.github/actions/setup-workspace
 
-      - uses: nrwl/nx-set-shas@e602fada7ad5987b0f7b1905e7a99ea1c661514c # v5
+      - uses: nrwl/nx-set-shas@afb73a62d26e41464e9254689e1fd6122ee683c1 # v5
 
       # project graph 构建失败要在这里就炸，而不是让 8 个下游 job 各炸一次。
       - name: Validate Nx project graph
