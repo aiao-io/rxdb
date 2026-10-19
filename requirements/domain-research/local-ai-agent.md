@@ -13,19 +13,20 @@
 
 ## 契合点：现有能力逐项映射
 
-| 产品功能        | 引擎现有能力                                                              | 出处                                                                                                             |
-| --------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| 长时记忆        | 记忆 / 片段 / 会话即实体，本地留存；加密 keyring 保护私人记忆             | [epic-001](../epics/epic-001-core-mvp.md) · [US-803](../stories/future/US-803-local-encryption.md)               |
-| 记忆检索        | FTS5（关键词）+ sqliteai 向量列与 AI SQL 函数（语义）——混合检索原语已交付 | [US-702](../stories/future/US-702-full-text-search.md) · [US-205](../stories/adapter/US-205-sqliteai-adapter.md) |
-| 运行日志 / 会话 | append 实体 + 活查询面板（任务、步骤、工具调用实时刷新）                  | [epic-001](../epics/epic-001-core-mvp.md)                                                                        |
-| 失败调试        | 会话录制回放（US-909 已交付）——agent run 的可观测性现成                   | [US-909](../stories/future/US-909-session-replay-debugging.md)                                                   |
-| 设置 / 表单     | `@aiao/rxdb-model` 驱动提示词、工具、模型配置页                           | [vision](../vision.md) 阶段 4                                                                                    |
-| 数据安全        | 一致性备份与恢复（记忆是用户最不想丢的东西）                              | [US-217](../stories/adapter/US-217-local-database-backup-restore.md)                                             |
+| 产品功能        | 引擎现有能力                                                                                             | 出处                                                                                                             |
+| --------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 长时记忆        | 记忆 / 片段 / 会话即实体，本地留存；加密 keyring 保护私人记忆                                            | [epic-001](../epics/epic-001-core-mvp.md) · [US-803](../stories/future/US-803-local-encryption.md)               |
+| 记忆检索        | FTS5（关键词）+ sqliteai 向量列与 AI SQL 函数（语义）——混合检索原语已交付                                | [US-702](../stories/future/US-702-full-text-search.md) · [US-205](../stories/adapter/US-205-sqliteai-adapter.md) |
+| 运行日志 / 会话 | append 实体 + 活查询面板（任务、步骤、工具调用实时刷新）                                                 | [epic-001](../epics/epic-001-core-mvp.md)                                                                        |
+| 失败调试        | 会话录制回放（US-909 已交付，rrweb DOM 录制）——UI 操作可复现；模型请求、工具调用与任务恢复需独立事件模型 | [US-909](../stories/future/US-909-session-replay-debugging.md)                                                   |
+| 设置 / 表单     | `@aiao/rxdb-model` 驱动提示词、工具、模型配置页                                                          | [vision](../vision.md) 阶段 4                                                                                    |
+| 数据安全        | 一致性备份与恢复（记忆是用户最不想丢的东西）                                                             | [US-217](../stories/adapter/US-217-local-database-backup-restore.md)                                             |
 
 ## 引擎缺口
 
 - **混合检索编排**：FTS 与向量检索的统一编排是 vision 阶段 6 的方向、未交付——
   两个原语已交付，应用层组合可用
+- **加密字段检索**：同字段「加密 + 可搜索」互斥（引擎会拒绝），加密记忆的全文 / 向量检索需应用层方案
 - **本地 embedding 生成**：也是阶段 6 方向——可用外部 embedding API 绕开
 
 ## 引擎外成本

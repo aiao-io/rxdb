@@ -3,9 +3,9 @@
 > 本文是候选领域分析，不是用户故事，不参与状态统计。状态与维护规则见
 > [本目录 README](README.md)。
 
-2026-10-18 [优先级复核](priority-review-2026-10-18.md)建议先做**给定实体 schema 的单人 Web 本地数据工作台**。
+2026-10-18 优先级复核确定本候选为**第一顺位**：首版做给定实体 schema 的单人 Web 本地数据工作台。
 下文是早期能力映射：现有权限是实体操作约束，生成器输出实体代码；多用户后台、完整应用生成和跨宿主 UI
-仍需额外实现，首版范围与证据以该评审为准。
+仍需额外实现，首版边界与验收见文末。
 
 **一句话结论**：后台管理 = 看数据 + 提交数据的重复劳动；把 `EntityMetadata` 作为唯一真相源，
 从同一份 schema 派生表单、表格、查询构建器、校验、权限与审计——`rxdb-model` 四包与 demo 的
@@ -15,24 +15,24 @@
 
 **对标产品**：react-admin / refine（React 系，绑 REST/GraphQL 后端）；AdminJS（Node 系）；
 vben admin / ng-alain / Ant Design Pro（框架模板系）；Airtable（数据表格 UX 标杆）。
-本地优先 admin 框架目前是市场空白。
+本地优先 admin 框架暂无知名对标（是否空白与采用情况未经商业验证）。
 
 ## 契合点：现有能力逐项映射
 
-| 产品功能                  | 引擎现有能力                                                                    | 出处                                                                                                                                                                                                                                                                    |
-| ------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 列表 / 分页 / 筛选 / 统计 | useFind / useFindByCursor / useCount + InfiniteScroll，响应式即时刷新           | [capability-matrix](../capability-matrix.md) 跨框架矩阵                                                                                                                                                                                                                 |
-| 中文搜索                  | FTS5 + CJK bigram（`useSearch`）——列表搜索零成本                                | [US-702](../stories/future/US-702-full-text-search.md)                                                                                                                                                                                                                  |
-| 表单三模式 + 校验         | `rxdb-model` entity-form（create / edit / view）+ 字段校验                      | `@aiao/rxdb-model` 包                                                                                                                                                                                                                                                   |
-| 可编辑表格                | `rxdb-model` entity-table（VTable 15 种编辑器、剪贴板 / 键盘 / 拖拽重排）       | `@aiao/rxdb-model` 包                                                                                                                                                                                                                                                   |
-| 可视化查询构建器          | `rxdb-model` query-builder（操作符注册表、即时校验、`toRxDBQuery`）             | `@aiao/rxdb-model` 包                                                                                                                                                                                                                                                   |
-| 数据库层校验              | 声明式约束 CHECK / 条件唯一 / 区间排他——同一份 schema，前后端校验不写两遍       | [US-030](../stories/core/US-030-declarative-storage-constraints.md)                                                                                                                                                                                                     |
-| 权限                      | 实体操作权限模型（行级）                                                        | [US-027](../stories/core/US-027-entity-permission-model.md)                                                                                                                                                                                                             |
-| 审计（谁改了什么）        | working-tree commit graph——提交即 commit，带作者 / 时间 / 消息、可 diff、可回滚 | [epic-006](../epics/epic-006-working-tree-commits.md)                                                                                                                                                                                                                   |
-| 菜单树 / 组织树           | 树插件（单父邻接表），GeneratorPage 已内置 Menu 实体 demo                       | [capability-matrix](../capability-matrix.md) · apps/dev-rxdb-vue GeneratorPage                                                                                                                                                                                          |
-| 骨架生成                  | demo GeneratorPage 已能从 `EntityMetadata` 生成源码 zip                         | apps/dev-rxdb-vue GeneratorPage                                                                                                                                                                                                                                         |
-| 离线 / 多端 / 备份        | 本地 SQLite + 同步适配器 + 一致性备份                                           | [epic-002](../epics/epic-002-data-sync.md) · [US-217](../stories/adapter/US-217-local-database-backup-restore.md)                                                                                                                                                       |
-| 生成物多宿主部署          | Web / Electron / Tauri / 小程序适配器——同一份应用，静态托管或桌面打包           | [US-207](../stories/adapter/US-207-desktop-local-database.md) · [US-208](../stories/adapter/US-208-electron-pglite-data-directory.md) · [US-210](../stories/adapter/US-210-tauri-sqlite-local-database.md) · [US-209](../stories/adapter/US-209-miniprogram-adapter.md) |
+| 产品功能                  | 引擎现有能力                                                                                                               | 出处                                                                                                                                                                                                                                                                    |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 列表 / 分页 / 筛选 / 统计 | useFind / useFindByCursor / useCount + InfiniteScroll，响应式即时刷新                                                      | [capability-matrix](../capability-matrix.md) 跨框架矩阵                                                                                                                                                                                                                 |
+| 中文搜索                  | FTS5 + CJK bigram（`useSearch`）——列表搜索零成本                                                                           | [US-702](../stories/future/US-702-full-text-search.md)                                                                                                                                                                                                                  |
+| 表单三模式 + 校验         | `rxdb-model` entity-form（create / edit / view）+ 字段校验                                                                 | `@aiao/rxdb-model` 包                                                                                                                                                                                                                                                   |
+| 可编辑表格                | `rxdb-model` entity-table（VTable 15 种编辑器、剪贴板 / 键盘 / 拖拽重排）                                                  | `@aiao/rxdb-model` 包                                                                                                                                                                                                                                                   |
+| 可视化查询构建器          | `rxdb-model` query-builder（操作符注册表、即时校验、`toRxDBQuery`）                                                        | `@aiao/rxdb-model` 包                                                                                                                                                                                                                                                   |
+| 数据库层校验              | 声明式约束 CHECK / 条件唯一 / 区间排他——同一份 schema，前后端校验不写两遍                                                  | [US-030](../stories/core/US-030-declarative-storage-constraints.md)                                                                                                                                                                                                     |
+| 权限                      | 实体操作入口约束（`both / system`）；角色 / owner / 多租户行级隔离仍未设计                                                 | [US-027](../stories/core/US-027-entity-permission-model.md) · [US-029](../stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                            |
+| 审计（谁改了什么）        | working-tree commit graph——提交即 commit，带作者（调用方提供）/ 时间 / 消息、可 diff、可回滚；身份、授权与远程提交协议另做 | [epic-006](../epics/epic-006-working-tree-commits.md)                                                                                                                                                                                                                   |
+| 菜单树 / 组织树           | 树插件（单父邻接表），GeneratorPage 已内置 Menu 实体 demo                                                                  | [capability-matrix](../capability-matrix.md) · apps/dev-rxdb-vue GeneratorPage                                                                                                                                                                                          |
+| 骨架生成                  | demo GeneratorPage 已能从 `EntityMetadata` 生成实体 JS 与类型声明；完整应用壳、路由、依赖与发布模板未生成                  | apps/dev-rxdb-vue GeneratorPage                                                                                                                                                                                                                                         |
+| 离线 / 多端 / 备份        | 本地 SQLite + 同步适配器 + 一致性备份                                                                                      | [epic-002](../epics/epic-002-data-sync.md) · [US-217](../stories/adapter/US-217-local-database-backup-restore.md)                                                                                                                                                       |
+| 生成物多宿主部署          | Web / Electron / Tauri / 小程序适配器——同一份应用，静态托管或桌面打包                                                      | [US-207](../stories/adapter/US-207-desktop-local-database.md) · [US-208](../stories/adapter/US-208-electron-pglite-data-directory.md) · [US-210](../stories/adapter/US-210-tauri-sqlite-local-database.md) · [US-209](../stories/adapter/US-209-miniprogram-adapter.md) |
 
 ## 生成物跨宿主（Web / 桌面 / 小程序）
 
@@ -63,6 +63,23 @@ vben admin / ng-alain / Ant Design Pro（框架模板系）；Airtable（数据�
 - **[ai-native-builder](ai-native-builder.md)**：本候选是其「低代码数据应用」形态的确定性
   版本——AI 生成器走的是同一个 `rxdb-model` 生成路径；本候选不需要 LLM
 - 其余候选不重叠：本候选是开发者工具向，不是终端产品领域
+
+## 首版边界与验收（2026-10-18 优先级评审确定）
+
+首版只交付**单人 Web 本地数据工作台**：
+
+1. 开发者预置两三个有关联的实体 schema，明确哪些实体可见；用现有列表与详情组件构成导航。
+2. 创建、编辑、删除、校验反馈与查询筛选；覆盖加载、失败和空态。
+3. 本地持久化，刷新 / 关闭重开后可继续编辑。
+4. 备份，在独立环境恢复，再查询和继续编辑；明确失败结果与数据保留状态。
+5. 一份独立消费接入示例，记录新增代码、依赖与样式要求，验证它确实能降低接入成本。
+
+首版先固定 Web 宿主与已验证的本地适配器，复用现有三框架组件；新增公共框架 API 时仍需三端对称。
+任意运行时建表 / schema 编辑、完整应用源码生成、多用户 RBAC、协作、附件同步与 AI 不进入这轮
+闭环。任务看板也不在同一轮额外开发。
+
+**成功信号**：具名试用者带入自己的实体与数据，独立完成录入 / 编辑 / 筛选 / 重开 / 备份 / 恢复，
+并能指出减少了哪些重复接线。不预设没有基线支持的工期、采用率或代码量阈值。
 
 ## 立项前置
 
