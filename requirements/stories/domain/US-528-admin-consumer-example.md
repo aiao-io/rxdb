@@ -75,5 +75,5 @@ tags: [domain, admin-framework, docs, consumer-example]
 
 - [epic-010 模型驱动后台管理框架](../../epics/epic-010-model-driven-admin-framework.md)
 - [admin-framework 候选分析](../../domain-research/admin-framework.md) — 设计依据（首版边界第 5 条与成功信号）
-- [US-526 模型驱动数据工作台](US-526-admin-workbench.md) — 前置：工作台已证明最小闭环
+- [US-526 模型驱动数据工作台](US-526-admin-workbench.md) — 对照基线：工作台已证明最小闭环，两份应用的接入成本直接对照（阶段 A 无硬前置）
 - [entity-model 文档](../../../website/docs/entity-model/README.md) — 文档写法与示例来源先例
