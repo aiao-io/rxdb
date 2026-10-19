@@ -11,14 +11,15 @@
 | ✅ Done        | 75   |
 | 🚧 In Progress | 1    |
 | 👀 In Review   | 2    |
-| 📝 Backlog     | 22   |
+| 📝 Backlog     | 30   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 100  |
+| **合计**       | 108  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **22 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
+> **30 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
+> 任务看板领域模型 8 条于 2026-10-19 由 owner 解锁进批次 5（驱动者 = 下一个完整演示应用，见 [epic-010 解锁记录](epics/epic-010-task-board-domain-model.md#价值待证整个-epic)），其中 US-533 团队版仍价值待证；
 > [US-911](stories/future/US-911-client-i18n.md) 阶段 A～C 无硬前置、可开工，在立项池待 owner 定批次；[US-029](stories/core/US-029-rbac-owner-role-permission.md)
 > 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
 > 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
@@ -204,6 +205,23 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 - ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 实例结构（`parent_instance_id`）与主数据可达性分离；源发生项删除受限
 - ⬜ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — 四阶段；路线一律落在本仓；US-520 与 US-514 加工费的那一端，是二者的硬前置
 - ⬜ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
+
+### [任务看板领域模型](epics/epic-010-task-board-domain-model.md)
+
+**已解锁（2026-10-19，owner 决定）**：驱动者 = 下一个完整演示应用（`apps/dev-rxdb-board` 独立 app 展示全域能力，US-532 阶段 A～B）。
+豁免依据见 [epic-010 解锁记录](epics/epic-010-task-board-domain-model.md#价值待证整个-epic)，排期见 [roadmap 批次 5](roadmap.md#批次-5看板首轮切片epic-010-已解锁)。
+与 BOM 的差别在引擎侧：零缺口，8 条故事全部消费已 Done 的能力（排序域 US-028、备份 US-217、撤销 US-302、搜索 US-702 / US-703、Supabase US-218 / US-220），
+领域语义全部落在应用层。开工前先拿种子样本复核默认决策 1～6，见 [epic-010 首轮可开工切片](epics/epic-010-task-board-domain-model.md#首轮可开工切片)。
+US-533 团队版仍价值待证（入场条件 = 具名团队「离线拖拽任务、回网后互相覆盖」的具体症状）。
+
+- ⬜ [US-526 看板领域模型骨架：Board / Column / Task 与按列排序域](stories/domain/US-526-board-column-task-skeleton.md) — 三个实体 + 按列排序域；task 不挂 board_id（board 由列推导）；删除级联在应用层事务内
+- ⬜ [US-527 跨列移动与批量改序的领域语义](stories/domain/US-527-cross-column-move-ordering.md) — 纯领域接线：三种落点、批量改序事务回滚、拖回原列、undo 反转整个移动事务
+- ⬜ [US-528 任务详情与编辑：标签、截止日与撤销重做](stories/domain/US-528-task-detail-editing.md) — board 级标签 + 多对多引用；详情复用 rxdb-model `EntityDetail`；撤销重做纯接线
+- ⬜ [US-529 重开恢复与备份导出](stories/domain/US-529-board-backup-restore.md) — 零后端单机版的命门对策；US-217 接线 + 主线程连接约束如实提示
+- ⬜ [US-530 看板任务搜索：FTS 接线](stories/domain/US-530-board-task-search.md) — 纯接线零新抽象；板内 scope；中文分词按既有边界不承诺优化；独立后置
+- ⬜ [US-531 三框架看板视图与交互](stories/domain/US-531-board-tri-framework-ui.md) — 三端同功能同 API，单端缺失 = 未完成；落点判定表三端同一张（US-031 先例）
+- ⬜ [US-532 看板端到端 demo：一份数据集走完全域](stories/domain/US-532-board-end-to-end-demo.md) — 两阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；确定性种子 + 拖拽后 DB 重查 + 备份导出循环 + 既有库重开
+- ⬜ [US-533 团队版看板：Supabase 同步与身份](stories/domain/US-533-board-team-sync.md) — **价值待证**：入场条件未满足，不随解锁记录解锁；离线并发合并规则是其核心设计输入
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
