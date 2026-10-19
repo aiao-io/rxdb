@@ -210,16 +210,16 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 
 **范围共 8 条，7 条已解锁（2026-10-19，owner 决定）**：US-526～US-532 交付单人任务看板与独立演示应用；US-533 团队版不随之解锁。
 豁免依据见 [epic-010 解锁记录](epics/epic-010-task-board-domain-model.md#价值待证整个-epic)，排期见 [roadmap 批次 5](roadmap.md#批次-5看板首轮切片epic-010-已解锁)。
-首轮消费已有排序、事务、历史、备份与搜索能力，应用层仍须实现 executor 批量排序、板级搜索过滤 / 分页、空目标恢复 / 切换与三端交互。
-团队身份、成员写门禁、RLS 接线与冲突规则尚未交付。开工前先拿种子样本复核默认决策 1～6，见 [epic-010 首轮可开工切片](epics/epic-010-task-board-domain-model.md#首轮可开工切片)。
+首轮消费已有排序、事务、历史、备份与搜索能力，应用层仍须实现 executor 本列排序、板级搜索过滤 / 分页、连接前恢复与重载切换、落点换算与三端交互；存储组合为 sqlite-wasm 主线程 `vfs: 'idb'`。
+团队身份、成员写门禁、RLS 接线与冲突规则尚未交付。开工前先拿种子样本复核默认决策 1～6 并实测存储组合，见 [epic-010 首轮可开工切片](epics/epic-010-task-board-domain-model.md#首轮可开工切片)。
 US-533 团队版仍价值待证（入场条件 = 具名团队「离线拖拽任务、回网后互相覆盖」的具体症状）。
 
 - ⬜ [US-526 看板领域模型骨架：Board / Column / Task 与按列排序域](stories/domain/US-526-board-column-task-skeleton.md) — Board / Column / Task 与按列排序域；板归属由列推导；应用入口约束与确认后事务内复核删除
-- ⬜ [US-527 跨列移动与批量改序的领域语义](stories/domain/US-527-cross-column-move-ordering.md) — 单卡拖拽走 reorder；批量改序用一个 executor 校验并写排序键；失败整批回滚与事务级 undo
-- ⬜ [US-528 任务详情与编辑：标签、截止日与撤销重做](stories/domain/US-528-task-detail-editing.md) — 同板标签与纯日期；复用 EntityDetail；一次保存一个事务、取消零写、undo 按保存反转
-- ⬜ [US-529 重开恢复与备份导出](stories/domain/US-529-board-backup-restore.md) — PGlite 主线程持久化闭环；连接前恢复入口、新空目标成功后切换、失败保留原库
-- ⬜ [US-530 看板任务搜索：FTS 接线](stories/domain/US-530-board-task-search.md) — 板级搜索源收齐命中后关联归属、过滤分页；切板 / 变更使旧查询失效；依赖 US-526 / US-528
-- ⬜ [US-531 三框架看板视图与交互](stories/domain/US-531-board-tri-framework-ui.md) — 两阶段：A 创建 / 编辑 / 删除 / 拖拽 / 备份，B 搜索；同后端三端对拍与键盘等价路径
+- ⬜ [US-527 跨列移动与本列排序的领域语义](stories/domain/US-527-cross-column-move-ordering.md) — 单卡拖拽走 reorder；本列排序用一个 executor 重读整列并写排序键；落点换算核心包一份；失败整批回滚与事务级 undo
+- ⬜ [US-528 任务详情与编辑：标签、截止日与撤销重做](stories/domain/US-528-task-detail-editing.md) — 同板标签与纯日期；看板自建详情面板；一次保存一个事务、取消零写、会话内 undo 按保存反转
+- ⬜ [US-529 重开恢复与备份导出](stories/domain/US-529-board-backup-restore.md) — sqlite-wasm 主线程持久化闭环；连接前恢复到新库名、整页重载读回后切换、失败保留原库；归档只恢复到同结构版本
+- ⬜ [US-530 看板任务搜索：FTS 接线](stories/domain/US-530-board-task-search.md) — 板级搜索源一次取全命中、与当前板任务求交后分页；切板 / 变更使旧查询失效；依赖 US-526 / US-528
+- ⬜ [US-531 三框架看板视图与交互](stories/domain/US-531-board-tri-framework-ui.md) — 两阶段：A 创建 / 编辑 / 删除 / 拖拽 / 本列排序 / 备份，B 搜索；三个绑定包，宿主为现有三端 demo 的看板页；同后端三端对拍与键盘等价路径
 - ⬜ [US-532 看板端到端 demo：一份数据集走完全域](stories/domain/US-532-board-end-to-end-demo.md) — 两阶段；A 依赖 US-531 A，B 依赖 US-530 与 US-531 B；确定性种子贯穿单人闭环与多板搜索隔离
 - ⬜ [US-533 团队版看板：Supabase 同步与身份](stories/domain/US-533-board-team-sync.md) — **价值待证**：身份 / 成员写权限 / RLS / 冲突规则均由本故事定义与验收；US-027 仅约束公开 / 系统入口
 

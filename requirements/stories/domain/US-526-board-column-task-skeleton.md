@@ -23,10 +23,12 @@ tags: [domain, board, schema]
 
 - 三个实体：`board`（标题必填、描述）、`column`（标题必填，属 board）、`task`（标题必填，属 column）；
   标题统一去除首尾空白后校验，空串或全空白拒绝，创建、内联编辑与详情保存共用校验
-- **按列排序域**：`task` 声明 `manualOrder: { groupBy: ['columnId'] }`（分组字段强制非空），
-  列内手动排序、按组创建追加、默认排序带分组字段——全部由 [US-028 阶段 D](../core/US-028-sortable-entity.md)
-  已交付的分组排序域承载，本故事只做声明与实体
-- **列序**：`column` 声明 `manualOrder: { groupBy: ['boardId'] }`（板内拖列）
+- **按列排序域**：`task` 声明 `manualOrder: { groupBy: ['columnId'] }`，`columnId` 由本故事声明为非空外键
+  （引擎允许可空分组字段，非空不是排序域自带的约束，见技术笔记）；列内手动排序、按组创建追加、默认排序带分组字段——
+  全部由 [US-028 阶段 D](../core/US-028-sortable-entity.md) 已交付的分组排序域承载，本故事只做声明与实体
+- **列序**：`column` 声明 `manualOrder: { groupBy: ['boardId'] }`（板内拖列），`boardId` 同样是非空外键
+- **恢复中写门禁**：任一页面开始恢复（[US-529](US-529-board-backup-restore.md)）后，全部应用写入口在领域服务层拒绝，
+  恢复失败解除后照常可写；单人版没有只读宿主
 - **结构归属**：task 无独立 `board_id`，board 由 column 推导（单一真相源，见技术笔记）；
   `column.board_id` 在全部应用写入口中创建后不可改；任务创建时目标列必须属于当前板，普通编辑
   不接受归属字段，跨列移动的源列与目标列必须存在且属于同一板（跨列移动
@@ -39,7 +41,7 @@ tags: [domain, board, schema]
 
 ### Out of Scope
 
-- 跨列移动与批量改序语义（→ [US-527](US-527-cross-column-move-ordering.md)）
+- 跨列移动与本列排序语义（→ [US-527](US-527-cross-column-move-ordering.md)）
 - 任务详情字段：描述、标签、截止日（→ [US-528](US-528-task-detail-editing.md)）
 - 备份导出与重开恢复（→ [US-529](US-529-board-backup-restore.md)）
 - 任务搜索（→ [US-530](US-530-board-task-search.md)）
@@ -59,18 +61,19 @@ tags: [domain, board, schema]
 | 7   | 删除级联执行到一半（模拟中断）                  | 检查库状态                                                                       | 不存在「列已删、任务还在」的半状态：级联要么整批提交要么整批回滚                                                            | ⬜   |
 | 8   | 既有库已装其他插件与实体                        | 重开后再装看板插件并建板                                                         | 新实体表在既有库上正常创建，既有实体数据不受影响（既有库重开的组合验收在 [US-532](US-532-board-end-to-end-demo.md) 阶段 A） | ⬜   |
 | 9   | 已展示删除清单，尚未确认                        | 取消；或另一入口新增、移走任务后再确认                                           | 取消零写；删除集合不同则本次事务零写退出，展示新清单并重新确认；相同数量但 ID 不同也必须识别                                | ⬜   |
-| 10  | 只读上下文或恢复切换已开始                      | 从 UI 与应用服务直接请求创建、编辑、删除、移动、批量、撤销重做或另一次恢复       | 共用写门禁拒绝，库与历史零变化；浏览和能力支持时的导出仍可用；恢复完成后按宿主上下文重新判定                                | ⬜   |
+| 10  | 另一页面已开始恢复                              | 经应用服务直接请求创建、编辑、删除、移动、本列排序、撤销重做或另一次恢复         | 共用写门禁拒绝，库与历史零变化；浏览与导出不受影响；恢复失败解除后照常可写（页面入口状态由 US-531 验收）                    | ⬜   |
+| 11  | 删除列 C1（含任务）的事务已提交                 | 调用一次 `undo()`                                                                | 列、任务及其关联按原 ID 全部插回，不撞外键；C1 的列序与任务顺序复原                                                         | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 ## 技术笔记
 
-**应用写上下文是共同门禁。** 宿主显式提供当前板、是否可写与是否正处于恢复切换；单人 demo
-正常打开时可写，只读宿主与恢复期间不可写。创建、编辑、移动、批量排序、删除、撤销重做及
-恢复入口都先校验这份上下文，再检查涉及实体的公开操作权限；导出是读取能力，单独判断支持
-组合。三端入口状态与领域服务使用同一门禁，不能只禁用按钮。`deriveEntityCapabilities()`
-只派生实体 CRUD 声明，不能替代宿主的可写上下文；团队版再由 US-533 将登录与成员资格加入
-同一判定。此处定义的是应用服务契约，不为引擎增加权限 API。
+**「恢复中」是共同写门禁。** 宿主提供当前板与是否正处于恢复（任一页面开始恢复即进入，见 US-529）。
+创建、编辑、移动、本列排序、删除、撤销重做及另一次恢复都先校验它，再用公开
+`assertEntityOperationAllowed` 检查涉及实体的操作权限；导出是读取能力，只按支持组合判断。
+三端入口状态与领域服务使用同一门禁，不能只禁用按钮。`deriveEntityCapabilities()`（`@aiao/rxdb-model`）
+只派生实体 CRUD 声明；单人版没有只读宿主，只读、登录与成员资格由 US-533 加入同一判定。
+此处定义的是应用服务契约，不为引擎增加权限 API。门禁的状态由宿主注入，服务层用例不依赖 UI 即可验收。
 
 **引擎缺口为零，本故事必须新建 schema 但不需要新建引擎能力。** 排序域（含分组排序域与跨组移动）
 已由 [US-028](../core/US-028-sortable-entity.md) 交付（阶段 A～E 全 ✅）：core 的排序模块提供
@@ -79,6 +82,13 @@ tags: [domain, board, schema]
 `manualOrderGroupFields(metadata)` 只读取声明，不能替代 `manualOrder.groupBy`。写集合最小——
 组内移动只写 `sortOrder`，跨组移动在一个事务内只写分组字段与 `sortOrder`。本故事只做三件事：
 实体声明、结构归属约束、删除级联的领域语义。
+
+**分组外键必须由 schema 声明非空。** 引擎允许可空分组字段，[`ManualOrderOptions`](../../../packages/rxdb/src/sortable/sortable.interface.ts)
+注释写明「NULL 是一个独立的组，默认排序里排在最前」。外键的默认删除行为来自
+[`get_default_cascade_options`](../../../packages/rxdb/src/entity/metadata-cascade-default.ts)：多对一非空为
+`RESTRICT`，可空为 `SET_NULL`。所以 `task.columnId` 与 `column.boardId` 都声明为非空——可空时删列会把任务
+悄悄移进 NULL 组。门面 `Repository.create()` 会按组自动追加 `sortOrder`；executor 仓储不追加、不校验键、
+不查权限、不补默认排序，所以创建走门面，executor 只用于删除、详情保存与本列排序这类显式事务。
 
 **为什么 task 不挂 `board_id`。** 若 task 同时有 `board_id` 与 `column_id`，「task 属于哪个板」
 就有两个真相源，`task.board_id ≠ task.column.board_id` 的漂移没有任何一方会报错。单一真相源是
@@ -93,11 +103,13 @@ AC#13），是因为改归属会悄悄改变判环图；看板没有图的完整
 **为什么列序也是一个排序域。** Trello 支持拖列。列序以 `boardId` 为分组字段声明排序域即可，
 与 task 的按列排序域同一条引擎路径，不新增任何原语。
 
-**落点：新建 `packages/rxdb-plugin-board`**（BOM 先例：`packages/rxdb-plugin-bom`，owner 2026-10-02
-决定新建包而非扩 graph 插件）。看板实体与仓储是该包的最小内核，三框架绑定见
-[US-531](US-531-board-tri-framework-ui.md)。**不复用 `rxdb-test` 的 `Task` 实体**——现有
-[`Task`](../../../packages/rxdb-test/entities/Task.ts) 是带排序的 Todo 数据，不包含 Board / Column /
-跨列移动产品（2026-10-18 优先级评审核对后的事实），看板需要自己的三个实体。
+**落点：新建 `packages/rxdb-plugin-board`**（新建包而非扩现有插件，先例是 BOM 的 `packages/rxdb-plugin-bom`，
+owner 2026-10-02 决定）。核心包零框架依赖，承载实体、仓储、领域服务、落点换算、搜索源、恢复状态机与
+`./testing` 种子；三框架绑定是 `rxdb-plugin-board-{angular,react,vue}` 三个独立包，与 search / tree / replay
+同构（[US-531](US-531-board-tri-framework-ui.md)）。看板实体放在独立命名空间 `board`。**不复用 `rxdb-test`
+的 `Task` 实体**——现有 [`Task`](../../../packages/rxdb-test/entities/Task.ts) 是带排序的 Todo 数据，不包含
+Board / Column / 跨列移动产品，看板需要自己的三个实体；同一 RxDB 实例里同名同命名空间的实体会在建表时报
+「实体命名冲突」，独立命名空间避免这一点。
 
 **删除级联为什么不靠存储层触发器。** 级联本身可以由外键 `ON DELETE CASCADE` 表达，但看板的
 删除是**用户可见的产品动作**：先计算包含行 ID 的删除清单并等待确认，此时不持有事务。
@@ -105,12 +117,15 @@ AC#13），是因为改归属会悄悄改变判环图；看板没有图的完整
 任何变化都退出并重新确认，不在事务里等待用户。集合不变才通过 `executor.getRepository()`
 依次删除关联、任务、列、标签定义、板；删列保留板级标签定义。任务删除同样先清 `task_label`。
 所有实体变更走 executor 仓储并保留 `RxDBChange`，权限在进入受信 executor 前用公开
-`assertEntityOperationAllowed` 检查各实体的删除操作；中途失败回滚整个删除动作。US-528 引入
-标签实体时必须扩展这一份删除服务及验收，不能另开一条漏清关联的删除入口。
+`assertEntityOperationAllowed` 检查各实体的删除操作；中途失败回滚整个删除动作。子先父后的删除顺序
+既满足非空外键的 `RESTRICT`，也让撤销能按原 ID 插回：撤销按变更 id 降序生成插入
+（[`get_switch_version_actions`](../../../packages/rxdb-plugin-history/src/switch-branch-actions.ts)），
+于是先插父、后插子，不撞外键（AC#11）。US-528 引入标签实体时必须扩展这一份删除服务及验收，
+不能另开一条漏清关联的删除入口。
 
-**关闭条件**：三个实体在既有库上可建；task 的 board 由 column 推导且无第二真相源；
+**关闭条件**：三个实体在既有库上可建；task 的 board 由 column 推导且无第二真相源，分组外键非空；
 应用入口禁止修改 `column.board_id`、禁止跨板任务归属；确认在事务外、删除集合在事务内复核；
-删除级联包含当期全部关联并保持原子。US-526 的基础验收不等待标签实体；US-528 安装标签时
+删除级联包含当期全部关联、保持原子且可整体撤销；恢复中写门禁在服务层生效。US-526 的基础验收不等待标签实体；US-528 安装标签时
 负责关闭带标签的级联扩展与组合验收。
 
 ## 价值待证

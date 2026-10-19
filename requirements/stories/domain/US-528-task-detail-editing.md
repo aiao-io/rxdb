@@ -22,25 +22,28 @@ tags: [domain, board, detail, label]
 ### In Scope
 
 - **标题与描述编辑**：创建、标题内联编辑和详情保存共用 [US-526](US-526-board-column-task-skeleton.md)
-  的标题校验（去除首尾空白后非空），描述为可选多行文本；内联编辑只提交标题，不带入其它草稿
+  的标题校验（去除首尾空白后非空），描述为可选多行文本；内联编辑只提交标题，不带入其它草稿。
+  标题与描述在本故事声明为可搜索字段（`searchable: true`），随首个持久化版本一起就位，板内搜索源由
+  [US-530](US-530-board-task-search.md) 交付（归档只恢复到结构指纹一致的版本，schema 不在阶段之间变化，见 epic）
 - **board 级标签**：`board_label`（board 内唯一的名字 + 颜色）是 board 的 1:N 子表；task 以
   多对多引用标签（一张 `task_label` 关联表，同一任务与标签组合唯一）。标签创建、改名、改色
   是独立显式操作；改名、改色立即反映到引用卡片。标签名去除首尾空白后非空、板内精确唯一，
-  保留大小写。任务只能引用所属板的标签，重复添加不生成重复关联
+  保留大小写。任务只能引用所属板的标签，重复添加不生成重复关联。卡片与标签管理入口里的标签
+  按创建时间升序、同时刻按 `id` 排列（种子时间戳固定，三端对拍顺序确定）
 - **标签删除与级联**：一次事务内删除标签及全部 `task_label` 关联，失败整批回滚；任务、列、
   板删除扩展 [US-526](US-526-board-column-task-skeleton.md) 的同一份级联服务，不留悬空引用
 - **截止日**：task 可选 `dueDate`（存储列 `due_date`），值为合法公历日期 `YYYY-MM-DD` 或
   `null`；清空存 `null`，不经 `Date` / UTC 时间戳转换。逾期由 UI 按本机日历日派生，早于今天
   才逾期、今天不逾期（[US-531](US-531-board-tri-framework-ui.md)），本故事只存值
-- **详情对话框复用**：三端 rxdb-model 的 `EntityDetail` 已交付列表 / 详情 / 表单（2026-10-18
-  优先级评审核对后的事实），本故事在其上做看板字段接线，不自造第二个详情 UI
+- **看板详情面板（自建）**：详情编辑服务在核心包，面板由三端看板绑定自建（[US-531](US-531-board-tri-framework-ui.md)），
+  不使用 rxdb-model 的 `EntityDetail`——它满足不了本故事的事务、草稿与纯日期要求，理由见技术笔记
 - **详情保存边界**：打开后只编辑内存草稿，选择已有标签也不立即写库；一次显式保存将标题、
   描述、截止日与标签关联差集放入同一个事务。取消、Esc、关闭或未改变内容的保存均零写，
   不新增历史；标签定义管理使用单独入口，不隐式夹在任务草稿中保存
 - **撤销重做**：任务的全部编辑（含标签引用增删、截止日）经 `RxDBChange` 记录；一次保存
-  对应一个 `transactionId`，`undo()` 反转最近一次已提交事务、`redo()` 整体重放（会话级），
-  语义沿用 [US-302](../collaboration/US-302-undo-redo.md)
-  已交付行为（durable undo + 会话级 redo + 新操作清空 redo 栈），本故事只做入口接线
+  对应一个 `transactionId`，`undo()` 反转最近一次已提交事务、`redo()` 整体重放，
+  语义沿用 [US-302](../collaboration/US-302-undo-redo.md) 已交付行为：撤销范围是本次会话（会话起点之后
+  提交的事务），redo 栈在每个页面的内存里，新的成功写入清空 redo 栈。本故事只做入口接线
 
 ### Out of Scope
 
@@ -60,7 +63,7 @@ tags: [domain, board, detail, label]
 | 4   | 标签名 `工作` 已存在                                          | 同板创建或改名为 `工作`；异板建 `工作`                 | 同板去空白后重名拒绝、零写；异板可建同名，空白名拒绝                                                | ⬜   |
 | 5   | task T 设截止日 2026-12-31                                    | 保存并重开库                                           | 截止日原值保留（纯日期，无时区换算漂移）                                                            | ⬜   |
 | 6   | 一次详情保存同时改标题、描述、标签与截止日                    | 调用一次 `undo()`，再调用一次 `redo()`                 | 四类变更整体回退、整体重放；新的成功保存清空 redo 栈，失败、取消和零改动不新增历史                  | ⬜   |
-| 7   | 分别「改标题→保存」「贴标签→保存」「设截止日→保存」           | 连续 `undo()` 三次                                     | 每次反转一个保存事务，三次后回到初始状态；页面刷新后仍可 undo，redo 刷新后清空                      | ⬜   |
+| 7   | 分别「改标题→保存」「贴标签→保存」「设截止日→保存」           | 连续 `undo()` 三次；另一轮保存后只开一个页面并刷新     | 每次反转一个保存事务，三次后回到初始状态；刷新后此前的保存不可撤销、撤销入口禁用，redo 同时清空     | ⬜   |
 | 8   | 描述粘贴 100 KiB 文本                                         | 保存并重开库                                           | 接受且逐字完整读回，换行保留，无静默截断                                                            | ⬜   |
 | 9   | 详情中同时修改字段与标签                                      | 取消、Esc 或关闭；无改动保存                           | 库、列表和历史均零变化，不创建撤销项                                                                | ⬜   |
 | 10  | 一次详情保存包含字段改动与标签关联改动                        | 在关联写入时注入失败                                   | 字段与关联全部回滚，原值及历史不变；提示失败并保留草稿供修正，不显示成功                            | ⬜   |
@@ -75,10 +78,18 @@ tags: [domain, board, detail, label]
 
 ## 技术笔记
 
-**详情对话框是复用不是新建。** 三端 rxdb-model 已交付 `EntityDetail`（列表、详情、表单、查询
-构建器；跨框架对拍 T049 与三端对称复核 T050 已关，见 roadmap 零散收尾项），看板的任务详情是
-它的一个消费页面——本故事只做字段接线（标题 / 描述 / 标签多对多 / 截止日），任何「自造第二个
-详情 UI」的倾向都违反复用。
+**详情面板为什么自建。** 三端 rxdb-model 的 `EntityDetail` 是通用实体表单，和本故事的保存边界冲突，三端一致：
+
+- 编辑态在组件内部直接调用实体 `save()`（[`EntityDetailComponent`](../../../packages/rxdb-model-angular/src/entity-detail/entity-detail.ts)），
+  `delegateSave` 只作用于新建态，没有保存回调可接领域服务；US-526 要求编辑不得绕过领域服务。
+- 多对多不是表单字段而是关系标签页：「添加」立即保存父实体，删一行调用 `remove()` 删除关联实体本身，
+  取消不等于零写；关系标签页也不能隐藏。
+- 日期只能挂在 `PropertyType.date` 上，表单解析经 `parseDate` 转成 `toISOString()`
+  （[`entity-value.utils.ts`](../../../packages/rxdb-model/src/entity-value.utils.ts)），正是本故事禁止的 UTC 换算；
+  也没有自定义字段渲染入口。
+
+所以草稿、差集与一次保存的逻辑放在核心包的详情编辑服务，三端面板由看板绑定自建，只消费这份服务。
+不为单个 demo 给 rxdb-model 加编辑态委托保存、多对多草稿选择器与纯日期格式这类通用扩展点。
 
 **标签为什么是 board 级定义 + 多对多引用。** Trello 的标签是板级调色板，任务从板级标签里选。
 两级建模（`board_label` 1:N 属 board，`task_label` N:M 关联）与「task 直接存标签数组」的差别在
@@ -86,7 +97,7 @@ tags: [domain, board, detail, label]
 每条任务的数组逐条改写，且同名标签改色要全板扫描。看板不引入通用标签引擎——一个 1:N + 一个
 关联表就是全部，新增抽象只有 `board_label` 一项，不值得为它做可复用组件。
 
-**一次保存就是一次事务。** 服务先校验 US-526 的应用可写上下文，再做共用字段校验和公开 `assertEntityOperationAllowed` 检查，
+**一次保存就是一次事务。** 服务先校验 US-526 的恢复中写门禁，再做共用字段校验和公开 `assertEntityOperationAllowed` 检查，
 再通过 `adapter.transaction(async executor => ...)` 读取任务当前列、板、已有标签关联与全部
 待引用标签。任务、列、标签必须存在且同板；对照草稿打开时的值复核待修改字段与标签引用，
 冲突则整体拒绝。只写草稿实际修改的字段，不带入列归属、排序键或其它入口的未修改字段。
@@ -100,17 +111,21 @@ tags: [domain, board, detail, label]
 各自形成一次显式事务；删除复用 US-526 的事务外确认、事务内复核流程。任务、列、板的删除
 都先清 `task_label`，删板再清 `board_label`，与 US-526 共用一份删除路径。
 
-**撤销重做按事务，不按字段或 `RxDBChange` 条数。** US-302 已交付 durable undo（基于
-`RxDBChange.inversePatch`）与会话级 redo。一次保存可能产生多条变更，必须共享一个
-`transactionId`，一次 undo 同时反转任务字段与关联；三次显式保存才对应三次 undo。页面刷新
-仍可 undo，redo 刷新即清空，新成功写入清空 redo 栈。批量改序按同一规则整体撤销，见
-[US-527](US-527-cross-column-move-ordering.md)。
+**撤销重做按事务，不按字段或 `RxDBChange` 条数。** US-302 的 undo 基于 `RxDBChange.inversePatch`，
+按 `transactionId` 分组；一次保存可能产生多条变更，必须共享一个 `transactionId`，一次 undo 同时反转任务字段
+与关联，三次显式保存才对应三次 undo。任务与 `task_label` 同属一个事务，只能用数据库级 history
+（`rxdb.versionManager.history()`）；仓储级范围会因拆开事务抛 `RxDBCrossScopeTransactionError`。
+
+撤销范围是本次会话：候选只取 `createdAt` 不早于会话起点的变更（[`undo-redo-apply.ts`](../../../packages/rxdb-plugin-history/src/undo-redo-apply.ts)
+的 `getFirstConnectedAt()` 过滤，起点是仍打开的各标签页中最早的首次连接时刻），用例「不应撤销当前 session
+连接前的历史」钉住这一点。所以只剩一个页面时刷新或重开，此前的保存不再可撤销；redo 刷新即清空，
+新成功写入清空 redo 栈。本列排序按同一规则整体撤销，见 [US-527](US-527-cross-column-move-ordering.md)。
 
 **落点：`packages/rxdb-plugin-board`** 的标签仓储与详情编辑服务；三端交互见 US-531。
 
 **关闭条件**：任务全部字段（含标签与截止日）编辑持久化且重开不丢；删标签无悬空引用；
-标签只可同板引用；详情取消零写、一次保存原子；编辑按保存事务 undo（durable），redo 语义
-与 US-302 一致；内联与详情共用校验；纯日期跨时区不漂移；无第二套详情 UI。
+标签只可同板引用；详情取消零写、一次保存原子；编辑按保存事务在本次会话内 undo，redo 语义
+与 US-302 一致；内联与详情共用校验；纯日期跨时区不漂移；标题与描述的可搜索声明随首版 schema 就位。
 
 ## 价值待证
 
@@ -120,13 +135,12 @@ tags: [domain, board, detail, label]
 
 ## 实现文件
 
-- `packages/rxdb-plugin-board/` — 待建；`board_label` / `task_label` 实体与标签仓储、详情编辑服务
+- `packages/rxdb-plugin-board/` — 待建；`board_label` / `task_label` 实体与标签仓储、详情编辑服务（草稿差集与一次保存）、task 可搜索字段声明
 
 ## References
 
 - [epic-010 任务看板领域模型](../../epics/epic-010-task-board-domain-model.md)
 - [US-526 看板领域模型骨架](US-526-board-column-task-skeleton.md) — 前置：task 实体
-- [US-302 撤销/重做](../collaboration/US-302-undo-redo.md) — `undo()` / `redo()` 已交付语义
+- [US-302 撤销/重做](../collaboration/US-302-undo-redo.md) — `undo()` / `redo()` 已交付语义（撤销范围是本次会话）
 - [US-027 实体操作权限模型](../core/US-027-entity-permission-model.md) — 公开写入口判定（编辑都走普通变更路径的底座）
-- [rxdb-model 实体模型库](../../../packages/rxdb-model/src/index.ts) — `EntityDetail` 复用点
-- [roadmap 零散收尾项](../../roadmap.md#零散收尾项不成故事随手可带) — T049 / T050 对拍与对称复核记录
+- [rxdb-model 实体模型库](../../../packages/rxdb-model/src/index.ts) — `EntityDetail` 不复用的依据见技术笔记
