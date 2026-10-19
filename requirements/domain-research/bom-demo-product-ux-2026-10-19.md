@@ -64,9 +64,9 @@
 
 证据：
 
-- [展开状态与请求](../../apps/dev-rxdb-bom/src/app/pages/explosion/explosion.page.ts:63)：输入和 `view` 独立；仅数据未就绪时清结果。
-- [导出面板输入](../../apps/dev-rxdb-bom/src/app/pages/explosion/explosion.page.html:121)：传入当前表单值，是否可导出只取决于已有 `view`。
-- [下载重新计算](../../apps/dev-rxdb-bom/src/app/components/integration-panel.ts:197)。
+- [展开状态与请求](../../apps/dev-rxdb-bom/src/app/pages/explosion/explosion.page.ts)：输入和 `view` 独立；仅数据未就绪时清结果。
+- [导出面板输入](../../apps/dev-rxdb-bom/src/app/pages/explosion/explosion.page.html)：传入当前表单值，是否可导出只取决于已有 `view`。
+- [下载重新计算](../../apps/dev-rxdb-bom/src/app/components/integration-panel.ts)。
 
 改进：分开保存“正在编辑的条件”与“本次结果的条件”。结果头完整展示物料、日期、数量及关键适用条件；改条件后保留旧结果供参考，但明确标为待更新，停止将它用于导出或写入。导出基于已确认的条件与数据版本；如果领域导出必须重新查询，至少核对 manifest，并在期间数据变化时要求重新确认。
 
@@ -76,7 +76,7 @@
 
 ### 4.2 发布与换件缺少整次操作边界（P1，代码风险）
 
-[发布导入草稿](../../apps/dev-rxdb-bom/src/app/bom-demo.service.ts:194) 在循环中分别保存修订与头；[实例换件](../../apps/dev-rxdb-bom/src/app/bom-demo.service.ts:230) 先保存旧件截止时间，再保存新安装。当前调用处看不到包含全部写入的事务边界，后一步拒绝时存在前一步已提交的风险。
+[发布导入草稿](../../apps/dev-rxdb-bom/src/app/bom-demo.service.ts) 在循环中分别保存修订与头；[实例换件](../../apps/dev-rxdb-bom/src/app/bom-demo.service.ts) 先保存旧件截止时间，再保存新安装。当前调用处看不到包含全部写入的事务边界，后一步拒绝时存在前一步已提交的风险。
 
 改进：使用领域仓储和同一事务执行器完成校验与多步写入；不把独立实体 `save()` 简单包进适配器事务，以免事务内外连接排队。执行前展示明确对象、日期和变化；成功后自动回读实际结构与历史。刷新后从持久事实恢复已完成状态，避免要求用户重置整库再演示。
 
@@ -84,7 +84,7 @@
 
 ### 4.3 导入草稿离页后丢失操作入口（P1，代码确认）
 
-发布入口依赖组件内的 [headerIds](../../apps/dev-rxdb-bom/src/app/components/integration-panel.ts:164)。离页销毁或选择新文件时数组清空，已导入草稿仍在数据库，却没有重新找到它们的列表。
+发布入口依赖组件内的 [headerIds](../../apps/dev-rxdb-bom/src/app/components/integration-panel.ts)。离页销毁或选择新文件时数组清空，已导入草稿仍在数据库，却没有重新找到它们的列表。
 
 改进：提供“待处理草稿”，按实际数据库状态回读；显示物料、修订、类型、生效日和待处理原因。导入诊断保留实体类型、自然键与来源记录，不能只显示消息字符串。发布完成提供“查看该日期的结构”入口。
 
@@ -92,7 +92,7 @@
 
 ### 4.4 展开列表的缩进不等于父子层级（P1，代码确认）
 
-[需求组件](../../apps/dev-rxdb-bom/src/app/components/req-tree.ts:63) 直接按结果数组顺序渲染，用路径长度缩进；[展开引擎](../../packages/rxdb-plugin-bom/src/quantity/explosion.ts:540) 按逐层 frontier 处理。浏览器也观察到顶层车架、控制板、电池组、螺钉先出现，随后才出现芯片、电阻、电芯等下一层节点。仅靠缩进不能让用户准确知道下一层属于哪个装配。
+[需求组件](../../apps/dev-rxdb-bom/src/app/components/req-tree.ts) 直接按结果数组顺序渲染，用路径长度缩进；[展开引擎](../../packages/rxdb-plugin-bom/src/quantity/explosion.ts) 按逐层 frontier 处理。浏览器也观察到顶层车架、控制板、电池组、螺钉先出现，随后才出现芯片、电阻、电芯等下一层节点。仅靠缩进不能让用户准确知道下一层属于哪个装配。
 
 改进：用完整 occurrence path 构建展示树，按父分支排列；保留同物料的不同发生项和位号。虚拟件应保留可解释的穿透位置或路径说明。选中节点显示完整业务路径，并提供分支折叠与“反查此物料”。可先复用反查已有的路径树经验，计算仍使用领域层原结果。
 
@@ -102,7 +102,7 @@
 
 实际观察：从计划量 20 的展开页进入成本页，评估日变为 2026-10-15，批量没有延续；返回展开页后计划量回到 1，查询结果消失。路由当前没有携带这些条件。
 
-证据：[展开默认值](../../apps/dev-rxdb-bom/src/app/pages/explosion/explosion.page.ts:63)、[成本默认日](../../apps/dev-rxdb-bom/src/app/pages/cost/cost.page.ts:14)、[普通成本默认批量](../../apps/dev-rxdb-bom/src/app/bom-demo.service.ts:356)。成本引擎接受解析上下文与批量，主要是 Demo 接入没有传递完整上下文。
+证据：[展开默认值](../../apps/dev-rxdb-bom/src/app/pages/explosion/explosion.page.ts)、[成本默认日](../../apps/dev-rxdb-bom/src/app/pages/cost/cost.page.ts)、[普通成本默认批量](../../apps/dev-rxdb-bom/src/app/bom-demo.service.ts)。成本引擎接受解析上下文与批量，主要是 Demo 接入没有传递完整上下文。
 
 改进：为整机分析提供共享条件条，物料、组织、类型、日期为共同基础；批量、序列、批次、配置、替代选择按任务适用。概览物料行提供“展开、反查”；展开结果提供“按当前条件看成本”。查询条件进入 URL，返回和刷新可恢复；结果缓存需要核对数据代次，不能把长期缓存当成当前事实。
 
@@ -116,13 +116,13 @@
 
 改进：空库首屏聚焦“开始体验”，已存在数据则聚焦“继续查看”；数据统计降为次要信息。给出三个带业务问题的步骤：生产 10 台需要哪些物料 → 为什么同一种螺钉有不同路径 → 一次工程变更影响哪里。场景预设显式应用，保留自由探索入口；异常校验继续放在高级演示区。
 
-[未裁决提示](../../apps/dev-rxdb-bom/src/app/components/req-tree.ts:20) 当前要求填写批次或选择备选，但只展示候选，主表单也只有序列号。应按原因显示对应输入或选择入口，应用后重新展开。用量详情应展示本行具体系数、阶梯命中区间与来源，不只给“计入损耗”等通用描述。
+[未裁决提示](../../apps/dev-rxdb-bom/src/app/components/req-tree.ts) 当前要求填写批次或选择备选，但只展示候选，主表单也只有序列号。应按原因显示对应输入或选择入口，应用后重新展开。用量详情应展示本行具体系数、阶梯命中区间与来源，不只给“计入损耗”等通用描述。
 
 最小验收：首次用户不读文档完成一条展开并指出一条用量的来源；遇到批次或手工替代未裁决时能就地解决；输入错误指出字段和合法范围，保留输入与已确认结果。
 
 ### 4.7 ECN 与双图映射应完成业务闭环（P2，代码确认）
 
-[时间轴卡片](../../apps/dev-rxdb-bom/src/app/pages/timeline/timeline.page.html:33) 不参与选择；下方另选变更单。切换单据后旧影响/差异不自动失效；取消现场 ECN 操作的还是服务内存中记录的对象。[映射面板](../../apps/dev-rxdb-bom/src/app/components/mapping-panel.ts:171) 将结构化结果压成字符串，无法从缺口定位两侧路径。
+[时间轴卡片](../../apps/dev-rxdb-bom/src/app/pages/timeline/timeline.page.html) 不参与选择；下方另选变更单。切换单据后旧影响/差异不自动失效；取消现场 ECN 操作的还是服务内存中记录的对象。[映射面板](../../apps/dev-rxdb-bom/src/app/components/mapping-panel.ts) 将结构化结果压成字符串，无法从缺口定位两侧路径。
 
 改进：时间轴选中与影响、差异、操作对象统一；执行前核对对象，完成后进入生效前/后比较。映射缺口用结构化行呈现，点击联动定位 EBOM/MBOM，核对后调用已有确认能力；条件不充分时说明缺什么，不提供看似有效的确认。
 
@@ -130,7 +130,7 @@
 
 ### 4.8 属性编辑先回读，再局部保存（P1，代码确认）
 
-[属性面板](../../apps/dev-rxdb-bom/src/app/components/ext-panel.ts:119) 默认 `yes`，没有加载已保存值；[extWrite](../../apps/dev-rxdb-bom/src/app/bom-demo.service.ts:145) 覆盖完整属性对象。重开表单可能显示错误默认值，未来维护多个属性时还可能丢失未编辑字段。
+[属性面板](../../apps/dev-rxdb-bom/src/app/components/ext-panel.ts) 默认 `yes`，没有加载已保存值；[extWrite](../../apps/dev-rxdb-bom/src/app/bom-demo.service.ts) 覆盖完整属性对象。重开表单可能显示错误默认值，未来维护多个属性时还可能丢失未编辑字段。
 
 改进：读取当前值，显示“符合、不符合、未设置”；区分已保存值与未保存修改。更新时保留未编辑字段，保存成功回读，并分别处理写入失败与筛选失败。
 
@@ -138,7 +138,7 @@
 
 ### 4.9 重置、异步与移动焦点（P1/P2，代码风险）
 
-页头和概览重置各有独立 busy；服务的 [resetAndSeed](../../apps/dev-rxdb-bom/src/app/bom-demo.service.ts:77) 没有覆盖整次重置的统一互斥。在途查询也没有数据代次校验。移动导航已有遮罩、Escape 和关闭回焦，但打开只切换 boolean，没有焦点进入或背景隔离，见 [app-shell](../../apps/dev-rxdb-bom/src/app/components/app-shell.ts:91)。
+页头和概览重置各有独立 busy；服务的 [resetAndSeed](../../apps/dev-rxdb-bom/src/app/bom-demo.service.ts) 没有覆盖整次重置的统一互斥。在途查询也没有数据代次校验。移动导航已有遮罩、Escape 和关闭回焦，但打开只切换 boolean，没有焦点进入或背景隔离，见 [app-shell](../../apps/dev-rxdb-bom/src/app/components/app-shell.ts)。
 
 改进：统一服务级重置状态，操作期间禁用冲突命令；重置切换数据代次，晚返回结果不得重新显示。重置保留现有确认，并明确影响；连接故障先提供无损重连，重置只作为独立的破坏性选项。移动导航打开时移入焦点、约束导航内循环并阻止背景交互。
 
@@ -176,7 +176,7 @@
 
 研究没有发现需要先新增账号、权限、云同步、审批中心或完整 ERP 模块才能改善上述体验的依据。这些能力应等待具体使用场景另行立项。
 
-## 7. 实施记录（2026-10-19）
+## 7. 实施记录（
 
 本次已将研究中的三批改善落实到现有 Demo，沿用七条路由与同一份领域数据；前文保留研究时的观察，以下是实施后的对应行为。
 
