@@ -123,6 +123,7 @@ export default function WorkingTreePage(): React.JSX.Element {
   /** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
   const mergePreviewRequest = useRef(0);
   const compareRequest = useRef(0);
+  const createBranchCheckRequest = useRef(0);
   /** 应用内确认框请求（替代原生 confirm）。 */
   const [confirm, setConfirm] = useState<
     { kind: 'discard'; message: string } | { kind: 'delete-branch'; branchId: string } | null
@@ -669,27 +670,28 @@ export default function WorkingTreePage(): React.JSX.Element {
   };
 
   /**
-   * 打开「Create a branch」：先摆出对话框，再问这个提交建不建得了分支；迟到的预检不落进换了提交的对话框。
-   *
-   * 预检回来时比对的是**当前**的对话框：await 之后闭包里的 `createBranchDialog` 已是旧值，走函数式更新取现值。
+   * 打开「Create a branch」：先摆出对话框，再问这个提交建不建得了分支。
+   * 预检带请求代号：对话框关掉或重开之后，迟到的结果——无论成败——都不落进新状态。
    */
   const openCreateBranch = async (entry: CommitLogEntry, from: CreateBranchDialogState['from']): Promise<void> => {
+    const request = ++createBranchCheckRequest.current;
     const base = { commitId: entry.commitId, summary: entry.message.split('\n')[0] ?? '' };
     setCreateBranchName('');
     setCreateBranchError(null);
     setCreateBranchDialog({ base, from, availability: 'checking' });
     try {
       const check = await tree.checkBranchFromCommit(base.commitId);
-      setCreateBranchDialog(dialog =>
-        dialog?.base.commitId === base.commitId ? { ...dialog, availability: check.ok ? 'ok' : check.reason } : dialog
-      );
+      if (request !== createBranchCheckRequest.current) return;
+      setCreateBranchDialog({ base, from, availability: check.ok ? 'ok' : check.reason });
     } catch (e: unknown) {
-      setCreateBranchDialog(null);
+      if (request !== createBranchCheckRequest.current) return;
+      closeCreateBranchDialog();
       showToast('error', e instanceof Error ? e.message : 'Could not check this commit.');
     }
   };
 
   const closeCreateBranchDialog = (): void => {
+    createBranchCheckRequest.current++;
     setCreateBranchDialog(null);
     setCreateBranchName('');
     setCreateBranchError(null);
@@ -698,6 +700,8 @@ export default function WorkingTreePage(): React.JSX.Element {
   /**
    * 「Create branch」：建好之后切过去（GitHub Desktop 建完总会检出新分支）。工作树有改动时切换被拒，
    * 照常弹「Switch branch」；在那里取消的话分支已经建好、留在原分支上，与 GitHub Desktop 一致。
+   *
+   * 建分支进行中对话框关不掉（见对话框组件的 `requestClose`），被拒与报错因此总是落回这一个对话框。
    */
   const confirmCreateBranch = async (name: string): Promise<void> => {
     const dialog = createBranchDialog;

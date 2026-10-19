@@ -16,7 +16,7 @@
  * 必填的上下文形状与另外两套相同：六个后端各写三个调用点，形状分叉的话写调用点的人就得逐套件回忆参数。
  *
  * 从提交建分支（US-314 阶段 A）也收在这里：判据同口径——切到新分支读到的，与那次 `commit()` 刚完成时读到的逐行一致。
- * 这套的调用点建得了分支（`SyncType.None`），捕获套件那边建不了。
+ * 这套的调用点建得了分支（`SyncType.None`），捕获套件那边建不了。不切换的对比与合并预览（US-312）的真库冒烟同理收在这里。
  *
  * @module @aiao/rxdb-plugin-working-tree/testing
  */
@@ -581,6 +581,63 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
 
         const error = await database.workingTree.checkouts.open({ commitId: first }).catch(e => e);
         expect((error as WorktreeUnavailableError).reason).toBe('restoring_working_tree');
+      });
+    });
+
+    describe('对比与合并预览（US-312，真库冒烟）', () => {
+      // 两者的区间查询（`id > 起点 AND id <= 终点 AND revertChangeId = null`）在每个后端的规则引擎上各翻译一遍。
+      // 判据是「切过去读到的」与「合并真正落的」；只比任务的标题与存在性——补丁不解码，布尔、日期、加密列各后端存法不同
+      it('compareBranches 列出的任务与切过去读到的一致；previewMerge 的条目就是随后 mergeBranch 落的', async () => {
+        const { main } = await seedTwoBranches(database);
+        const taskName = getEntityMetadata(WorktreeConformanceTask).name;
+        const titles = async (): Promise<Map<string, unknown>> =>
+          new Map((await rowsOf(database, WorktreeConformanceTask)).map(row => [String(row['id']), row['title']]));
+        const titleOf = (patch: Record<string, unknown> | null): unknown => patch?.['title'];
+        const onMain = await titles();
+        await database.versionManager.switchBranch(FEATURE);
+        const onFeature = await titles();
+        await database.versionManager.switchBranch(main);
+
+        const compared = (await database.versionManager.compareBranches(main, FEATURE)).entries.filter(
+          entry => entry.entity === taskName
+        );
+        const idsOf = (operation: string) =>
+          compared
+            .filter(entry => entry.operation === operation)
+            .map(entry => String(entry.entityId))
+            .sort();
+        expect(idsOf('INSERT')).toEqual([...onFeature.keys()].filter(id => !onMain.has(id)).sort());
+        expect(idsOf('DELETE')).toEqual([...onMain.keys()].filter(id => !onFeature.has(id)).sort());
+        const retitled = compared.filter(entry => entry.operation === 'UPDATE' && titleOf(entry.patch) !== undefined);
+        expect(retitled.map(entry => String(entry.entityId)).sort()).toEqual(
+          [...onFeature]
+            .filter(([id, title]) => onMain.has(id) && onMain.get(id) !== title)
+            .map(([id]) => id)
+            .sort()
+        );
+        for (const entry of retitled) {
+          expect([titleOf(entry.patch), titleOf(entry.inversePatch)]).toEqual([
+            onFeature.get(String(entry.entityId)),
+            onMain.get(String(entry.entityId))
+          ]);
+        }
+
+        // 合并的结果进工作树：先把主线的未提交改动提交掉，合并落的就只有源分支那一份
+        await commitAll(database, '合并之前');
+        const preview = await database.versionManager.previewMerge(FEATURE);
+        const merged = await database.versionManager.mergeBranch(FEATURE);
+        expect(merged.merged).toBe(preview.merged);
+        const afterMerge = await titles();
+        const previewed = preview.entries.filter(entry => entry.entity === taskName);
+        for (const entry of previewed) {
+          const id = String(entry.entityId);
+          if (entry.operation === 'DELETE') expect(afterMerge.has(id)).toBe(false);
+          else if (titleOf(entry.patch) !== undefined) expect(afterMerge.get(id)).toBe(titleOf(entry.patch));
+          else expect(afterMerge.has(id)).toBe(true);
+        }
+        for (const [id, title] of onMain) {
+          if (!previewed.some(entry => String(entry.entityId) === id)) expect(afterMerge.get(id)).toBe(title);
+        }
       });
     });
 

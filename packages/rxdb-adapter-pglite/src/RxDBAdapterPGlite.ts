@@ -347,7 +347,8 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    *
    * @remarks
    * 会话默认值管不住本适配器开的事务：`SELECT set_config('default_transaction_read_only', 'off', false)`
-   * 是一条读语句，过得了只读钩子的 raw 门，执行之后新开的事务就是可写的。所以封印之后每个事务开头都
+   * 长得像一条读语句，只读钩子的 raw 门如今认得它，但不经那道门的路径照样改得动会话默认值，改了之后新开的事务
+   * 就是可写的。所以封印之后每个事务开头都
    * `SET TRANSACTION READ ONLY`：事务执行过查询之后就改不回可写，`set_config('transaction_read_only', …)`
    * 写在 `SELECT` 里因此当场报错。会话默认值留着，管的是不经事务的内部查询。
    */

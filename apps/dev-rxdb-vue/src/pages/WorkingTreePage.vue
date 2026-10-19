@@ -108,6 +108,7 @@ const switching = ref(false);
 /** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
 let mergePreviewRequest = 0;
 let compareRequest = 0;
+let createBranchCheckRequest = 0;
 /** 应用内确认框请求（替代原生 confirm）。 */
 const confirmRequest = ref<{ kind: 'discard'; message: string } | { kind: 'delete-branch'; branchId: string } | null>(
   null
@@ -639,19 +640,23 @@ async function openNewBranch(): Promise<void> {
   }
 }
 
-/** 打开「Create a branch」：先摆出对话框，再问这个提交建不建得了分支；迟到的预检不落进换了提交的对话框。 */
+/**
+ * 打开「Create a branch」：先摆出对话框，再问这个提交建不建得了分支。
+ * 预检带请求代号：对话框关掉或重开之后，迟到的结果——无论成败——都不落进新状态。
+ */
 async function openCreateBranch(entry: CommitLogEntry, from: CreateBranchDialogState['from']): Promise<void> {
+  const request = ++createBranchCheckRequest;
   const base = { commitId: entry.commitId, summary: entry.message.split('\n')[0] ?? '' };
   createBranchName.value = '';
   createBranchError.value = null;
   createBranchDialog.value = { base, from, availability: 'checking' };
   try {
     const check = await tree.checkBranchFromCommit(base.commitId);
-    const dialog = createBranchDialog.value;
-    if (dialog?.base.commitId !== base.commitId) return;
-    createBranchDialog.value = { ...dialog, availability: check.ok ? 'ok' : check.reason };
+    if (request !== createBranchCheckRequest) return;
+    createBranchDialog.value = { base, from, availability: check.ok ? 'ok' : check.reason };
   } catch (e: unknown) {
-    createBranchDialog.value = null;
+    if (request !== createBranchCheckRequest) return;
+    closeCreateBranchDialog();
     showToast('error', e instanceof Error ? e.message : 'Could not check this commit.');
   }
 }
@@ -659,6 +664,8 @@ async function openCreateBranch(entry: CommitLogEntry, from: CreateBranchDialogS
 /**
  * 「Create branch」：建好之后切过去（GitHub Desktop 建完总会检出新分支）。工作树有改动时切换被拒，
  * 照常弹「Switch branch」；在那里取消的话分支已经建好、留在原分支上，与 GitHub Desktop 一致。
+ *
+ * 建分支进行中对话框关不掉（见对话框组件的 `requestClose`），被拒与报错因此总是落回这一个对话框。
  */
 async function confirmCreateBranch(name: string): Promise<void> {
   const dialog = createBranchDialog.value;
@@ -681,6 +688,7 @@ async function confirmCreateBranch(name: string): Promise<void> {
 }
 
 function closeCreateBranchDialog(): void {
+  createBranchCheckRequest++;
   createBranchDialog.value = null;
   createBranchName.value = '';
   createBranchError.value = null;

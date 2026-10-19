@@ -63,7 +63,10 @@ describe('createReadOnlyCaptureHook', () => {
     'SELECT 1; PRAGMA query_only = 0',
     'SET SESSION default_transaction_read_only = off',
     'set transaction read write',
-    'PRAGMA table_info(todo)'
+    'PRAGMA table_info(todo)',
+    // 首词是 select 的会话设置：读语句的外形，改的是会话默认值（RV-083 P2-12）
+    "SELECT set_config('default_transaction_read_only', 'off', false)",
+    "select pg_catalog.set_config('transaction_read_only', 'off', true)"
   ])('会话设置 %s 拒绝且不下发', async sql => {
     const hook = createReadOnlyCaptureHook();
     const execute = vi.fn(async () => 'rows');

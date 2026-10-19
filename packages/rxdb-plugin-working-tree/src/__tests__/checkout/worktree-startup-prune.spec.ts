@@ -47,6 +47,8 @@ interface SceneOptions {
   readonly existing?: boolean;
   /** 连接前先建好实例，给调用方拿 `config.dbName` 去拿锁 */
   readonly beforeConnect?: (database: RxDB) => Promise<void>;
+  /** 再配一个远端适配器并连上：只断本地时还有别的适配器连着，插件不随之重装 */
+  readonly withRemote?: boolean;
 }
 
 interface Scene {
@@ -59,9 +61,12 @@ interface Scene {
 const connectScene = async (options: SceneOptions): Promise<Scene> => {
   databaseSequence += 1;
   const database = new RxDB({
-    dbName: `rxdb-plugin-worktree-startup-prune-${databaseSequence}`,
+    dbName: `rxdb-plugin-working-tree-startup-prune-${databaseSequence}`,
     entities: [],
-    sync: { local: { adapter: 'local' }, type: SyncType.None }
+    sync:
+      options.withRemote ?
+        { local: { adapter: 'local' }, remote: { adapter: 'remote' }, type: SyncType.Full }
+      : { local: { adapter: 'local' }, type: SyncType.None }
   });
   const adapter = createMockAdapter(database);
   vi.mocked(adapter.isTableExisted).mockResolvedValue(options.existing ?? true);
@@ -93,6 +98,10 @@ const connectScene = async (options: SceneOptions): Promise<Scene> => {
   databases.add(database);
   await options.beforeConnect?.(database);
   await database.connect('local');
+  if (options.withRemote) {
+    database.adapter('remote', db => createMockAdapter(db));
+    await database.connect('remote');
+  }
   return { database, adapter, registryFind };
 };
 
@@ -199,6 +208,26 @@ describe('启动清理：连接期判定有没有孤儿，有才在连上之后�
     await vi.waitFor(() => expect(prune).toHaveBeenCalledTimes(1));
 
     await database.disconnectAll();
+    await database.connect('local');
+
+    await vi.waitFor(() => expect(prune).toHaveBeenCalledTimes(2));
+    await settle();
+    expect(prune).toHaveBeenCalledTimes(2);
+  });
+
+  // 还有别的适配器连着时只断本地：全局拆卸不跑，插件不重装，`install()` 里那个订阅还是同一个。
+  // 它只取第一次连上的话，重连时引导事务新判定出的孤儿就没人回收，直到整页刷新（RV-083 P2-11）
+  it('只断本地适配器再连回来（远端一直连着）：重新判定，还有孤儿就再回收一次', async () => {
+    const prune = vi.spyOn(WorktreeManager.prototype, 'prune').mockResolvedValue([]);
+    const { database } = await connectScene({
+      worktrees: true,
+      enabled: true,
+      registry: [record('wt-1', 'session', 'ready')],
+      withRemote: true
+    });
+    await vi.waitFor(() => expect(prune).toHaveBeenCalledTimes(1));
+
+    await database.disconnect('local');
     await database.connect('local');
 
     await vi.waitFor(() => expect(prune).toHaveBeenCalledTimes(2));

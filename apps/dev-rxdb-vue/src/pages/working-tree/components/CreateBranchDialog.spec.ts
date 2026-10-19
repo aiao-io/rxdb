@@ -128,6 +128,15 @@ describe('CreateBranchDialog', () => {
     expect([confirmButton(creating).element.disabled, confirmButton(creating).text()]).toEqual([true, 'Creating…']);
   });
 
+  it('建分支进行中关不掉：Cancel 置灰，Escape 与点背板都不理', async () => {
+    const wrapper = mountDialog({ name: 'y', creating: true });
+
+    expect(wrapper.get<HTMLButtonElement>('[data-testid="wt-create-branch-cancel"]').element.disabled).toBe(true);
+    await wrapper.get('[data-testid="wt-create-branch-dialog"]').trigger('keydown', { key: 'Escape' });
+    await wrapper.get('[aria-label="Close dialog"]').trigger('click');
+    expect(wrapper.emitted('closeRequested')).toBeUndefined();
+  });
+
   it('名字框里组字中的 Escape 是输入法在取消候选词，不关对话框', async () => {
     const wrapper = mountDialog({ name: 'feature/y' });
     const input = wrapper.get('[data-testid="wt-create-branch-name"]');

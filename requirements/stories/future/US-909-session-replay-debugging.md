@@ -73,7 +73,7 @@ INVEST 检查清单:
 5. **数据版本控制基建已存在**：working-tree 写捕获与提交（US-305 / US-306 `Done`）；`restore({ commitId }, credentials)`
    （[US-307](../collaboration/US-307-restore-session.md) `Done`）把当前分支 HEAD 可达的历史 commit 内容作为未提交变更写回
    工作树，HEAD 不动。门面 [`WorkingTreeManager`](../../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts)
-   的方法都是 Promise；commit 生命周期事件经阶段 C 新增的只读 `commits$` 发出（见技术笔记「commit 关联挂点」）。工作树状态全在库内的表里（working-tree 贡献的十张系统表），全库备份连同
+   的方法都是 Promise；commit 生命周期事件经阶段 C 新增的只读 `commits$` 发出（见技术笔记「commit 关联挂点」）。工作树状态全在库内的表里（working-tree 贡献的十二张系统表），全库备份连同
    未提交条目一起带走。Angular demo 在空库启动时 `enableIfEmpty()`，e2e 每个用例都是新库名；除了设
    `rxdb-e2e-skip-working-tree-auto-enable` 的两个 working-tree spec，其余 spec 都不提交，失败时刻写下的数据都是未提交条目
    （按 spec 源码判断）。`dev-rxdb-angular` 的 working-tree 页已有 `listCommits` + `restore`、提交与整棵工作树 `discard()` 的界面
@@ -82,7 +82,7 @@ INVEST 检查清单:
    默认 tracked，untracked 只有 [epic-006](../../epics/epic-006-working-tree-commits.md)「版本化域」列出的几类，新增一类须先改该节
    （硬规则）。录制事件若作为普通实体写进启用了 working-tree 的库，每条事件都是一条未提交条目。插件可在 `connect()`
    之前经 `registerSystemEntities()`（[`system-entities.ts`](../../../packages/rxdb/src/system/system-entities.ts)）追加系统表，
-   捕获按目标类别 `system` 跳过，working-tree 自己的十张表就走这条（读源码，未实测）。
+   捕获按目标类别 `system` 跳过，working-tree 自己的十二张表就走这条（读源码，未实测）。
 7. **rrweb 的位置**：MIT；回放是录制 DOM 的重新渲染，**不重执行应用代码**。它在 e2e 路径上相对 trace 的增量只有
    「动作之间连续的 DOM 变化可检查」：trace 只有每个动作前后的 DOM 快照，阶段 A 按 research D6 关掉 `screenshots` 后，
    动作之间连 screencast 帧也没有了；需要时可按 spec 临时打开 `screenshots` 或 `video: 'retain-on-failure'`。目前没有

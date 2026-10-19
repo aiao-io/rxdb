@@ -50,6 +50,8 @@ const UNAVAILABLE_REASONS: Readonly<Record<WorkingTreeBranchFromCommitRejection,
  *
  * 打开时页面先问一句这个提交建不建得了分支（`checkBranchFromCommit`），建不了就写明原因、Create 置灰，
  * 不让人先填名字再碰壁。外壳见 {@link WorkingTreeDialogShellComponent}。
+ *
+ * 建分支进行中关不掉：Cancel 置灰，Escape 与点背板都不理（见 {@link WorkingTreeCreateBranchDialogComponent.requestClose}）。
  */
 @Component({
   selector: 'app-working-tree-create-branch-dialog',
@@ -59,7 +61,7 @@ const UNAVAILABLE_REASONS: Readonly<Record<WorkingTreeBranchFromCommitRejection,
   template: `
     @if (dialog(); as dialog) {
       <app-working-tree-dialog-shell
-        (closeRequested)="closeRequested.emit()"
+        (closeRequested)="requestClose()"
         labelledBy="wt-create-branch-title"
         testId="wt-create-branch-dialog"
       >
@@ -109,7 +111,8 @@ const UNAVAILABLE_REASONS: Readonly<Record<WorkingTreeBranchFromCommitRejection,
         <div class="flex justify-end gap-2">
           <button
             class="gd-btn-secondary"
-            (click)="closeRequested.emit()"
+            [disabled]="creating()"
+            (click)="requestClose()"
             data-testid="wt-create-branch-cancel"
             type="button"
           >
@@ -140,7 +143,7 @@ export class WorkingTreeCreateBranchDialogComponent {
   readonly name = model('');
   /** 上一次建分支的报错（名字不可用、已存在）；没有时为 `null` */
   readonly error = input<string | null>(null);
-  /** 建分支进行中：Create 置灰 */
+  /** 建分支进行中：Create 与 Cancel 置灰，对话框关不掉 */
   readonly creating = input(false);
 
   /** 确认：交出去掉首尾空白的名字 */
@@ -189,5 +192,16 @@ export class WorkingTreeCreateBranchDialogComponent {
   submit(): void {
     if (!this.canCreate()) return;
     this.confirmRequested.emit(this.name().trim());
+  }
+
+  /**
+   * Cancel、Escape、点背板：建分支进行中不理。
+   *
+   * GitHub Desktop 进行中把控件全置灰，Escape 却仍能关，关了之后分支照样建好、检出，被拒则另弹错误框。
+   * 这里干脆不让关：被拒与报错总是落回这一个对话框，用不着为「关掉之后才被拒」另找出口；进行中只有一个事务那么长。
+   */
+  requestClose(): void {
+    if (this.creating()) return;
+    this.closeRequested.emit();
   }
 }

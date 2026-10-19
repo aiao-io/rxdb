@@ -245,7 +245,7 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
 - `packages/rxdb-plugin-working-tree-{angular,react,vue}` — `useWorktrees()`
 - `packages/rxdb/src/entity/entity-manager.ts` — 只读实例不跟可写实例抢共用类的静态解析
 - `packages/rxdb-model/src/entity-capabilities.ts`、`entity-table/` — 只读能力推导；建表后给 VTable 的焦点输入框补可读名
-- `apps/dev-rxdb-{angular,react,vue}` 与对应 `-e2e` — 菜单「Open read-only」、只读查看器、快照适配器配置与用例
+- 三端 demo 不提供只读入口（见设计决定 8），worktree 界面随 [US-314](US-314-writable-worktrees.md)
 - `website/docs/plugins/rxdb-plugin-working-tree/README.md`、`website/docs/collaboration/branch.md` — 只读检出位文档
 
 ## References

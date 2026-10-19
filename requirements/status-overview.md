@@ -11,9 +11,9 @@
 | ✅ Done        | 75   |
 | 🚧 In Progress | 2    |
 | 👀 In Review   | 6    |
-| 📝 Backlog     | 22   |
+| 📝 Backlog     | 23   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 105  |
+| **合计**       | 106  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
@@ -166,8 +166,9 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 - 👀 [US-312 不切换分支就对比两条分支、预览一次合并（含覆盖标注）](stories/collaboration/US-312-branch-compare-merge-preview.md) — `compareBranches()` / `previewMerge()` 只读、不切换，预览标出四类覆盖；三端 demo 的合并预览与 History 顶部的分支对比；是多检出位阶段 2
 - 👀 [US-313 只读检出位：不切换分支就打开另一条分支或一个可达提交的完整数据](stories/collaboration/US-313-read-only-checkout.md) — 只读快照库 + 第二实例 + 生命周期与回收 + 三端绑定；是多检出位阶段 3，owner 2026-10-16 决定与 US-312 同在 #122 交付
 - 🚧 [US-314 可写检出位与从提交建分支：对齐 GitHub Desktop 3.6 的 worktree](stories/collaboration/US-314-writable-worktrees.md) — 阶段 A（从提交建分支）代码完成，与 #122 一起交付；可写检出位（库内影子表）与三端 Worktree 下拉未开始；是多检出位阶段 5
+- ⬜ [US-315 撤销子分支已继承的变更之后，切回父分支写错数据](stories/collaboration/US-315-undo-inherited-change-switch-corruption.md) — 父分支撤销了子分支分叉时继承、子分支随后又改过的变更，切回父分支读到旧值；对比与合并预览跟着失真。PR #122 评审中复现，修法（禁止撤销已被继承的变更 / 切换时从父分支一侧重算）待 owner 定
 
-多检出位（v1 之后）阶段 4～5 尚无故事认领，解锁条件见 [epic-006 分期与解锁条件](epics/epic-006-working-tree-commits.md#分期与解锁条件)。
+多检出位（v1 之后）阶段 4 尚无故事认领；阶段 5 是 US-314（阶段 A 已随 #122 交付，B / C 未开始）。解锁条件见 [epic-006 分期与解锁条件](epics/epic-006-working-tree-commits.md#分期与解锁条件)。
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 

@@ -12,23 +12,23 @@ import { divergeBranches } from './working-tree-branches.js';
  *
  * @remarks
  * 2026-09-18 二版重构为 GitHub Desktop 形态（顶部分支栏 + 变更/历史标签页 +
- * 右栏详情）之后，这份 Angular 拷贝仍是**新设计的参考实现**；React / Vue 的
- * 两份拷贝仍对应旧版 API 驱动面板，待移植后重新对齐。契约值不变：live region、
+ * 右栏详情）之后，这份 Angular 拷贝仍是**新设计的参考实现**，React / Vue 的
+ * 两份拷贝逐条移植自它。契约值不变：live region、
  * 四态 axe 零违规、键盘可达、SC-005 归档。
  *
  * 扫描范围锁在 `[data-testid="working-tree-page"]`：页面外的导航壳由
  * `search.a11y.spec.ts` 那一路覆盖，混进来只会让这份用例因为别处的回归而红。
- * 分支下拉与创建弹层是**内联**渲染（面板 div 内的子节点，见 branch-menu 的 TSDoc——
+ * 分支下拉是**内联**渲染（面板 div 内的子节点，见 branch-menu 的 TSDoc——
  * CDK overlay 会把节点追加到 body 末尾，Tab 顺序排在面板之后，键盘走不进去），
- * 因此它们在扫描与走查范围里；合并对话框是 fixed 定位的面板子元素，同样在内。
+ * 因此它在扫描与走查范围里；合并、Switch branch 与 Create a branch 三个模态对话框是 fixed 定位的面板子元素，同样在内。
  *
- * **面板上只有一处 disabled 按钮**：提交按钮在摘要为空时禁用（GitHub Desktop 的
+ * **禁用态只用 `.gd-btn-primary:disabled` 那一套配色**：提交按钮在摘要为空时禁用（GitHub Desktop 的
  * `isSummaryBlank` 同款交互，它的 tooltip 原文 "A commit summary is required to
- * commit"）。其余地方不做禁用态——daisyUI 的禁用态文字是 `base-content/20%`，白底上
- * 合成 `#d1d1d1`，对比度 1.52，必然触发 axe 的 `color-contrast`（见
- * `search.a11y.spec.ts` 里记下的同一个坑）。提交按钮的禁用配色是专门选过的
- * （白字压 `#6b7280`，≈4.8:1，见 styles.scss 的 `.gd-btn-primary:disabled`），
- * 两套主题都过 axe；键盘走查前先填摘要让按钮回到可用态（disabled 不进 Tab 序列）。
+ * commit"），合并、Switch branch 与 Create a branch 的确认按钮在还不能确认时禁用。daisyUI 的禁用态文字是
+ * `base-content/20%`，白底上合成 `#d1d1d1`，对比度 1.52，必然触发 axe 的 `color-contrast`（见
+ * `search.a11y.spec.ts` 里记下的同一个坑）；`.gd-btn-primary:disabled` 的配色是专门选过的
+ * （白字压 `#6b7280`，≈4.8:1，见 styles.scss），两套主题都过 axe。Create a branch 的 Cancel 只在建分支进行中那一瞬置灰，
+ * 扫描不落在那一刻。键盘走查前先填摘要让提交按钮回到可用态（disabled 不进 Tab 序列）。
  *
  * 面板不造数据：写 Todo 走 /todo 页（`writeTodo`），和真实用户流一致。
  */
@@ -449,16 +449,18 @@ test.describe('Working Tree Page A11y', () => {
     await writeFile(
       join(REPORTS_DIR, `working-tree-ui-first-visible-${FRAMEWORK}.json`),
       `${JSON.stringify(
+        // 键按字母序写：仓库的 prettier 用 `prettier-plugin-sort-json` 把 JSON 排成字母序，写入序与它不同的话，
+        // 每跑一次 e2e，提交进仓库的这份归档就过不了 `nx format:check`
         {
-          metric: 'working-tree-panel-first-visible-state',
-          framework: FRAMEWORK,
-          route: '/working-tree',
           // 空库在应用启动时已被自动启用，第一个可见状态因此通常是 `success` / `empty`；
           // 一并记下来，免得后来人把这个数字读成「读一次 status 要多久」。
           firstPhase,
           firstVisibleMs,
+          framework: FRAMEWORK,
+          metric: 'working-tree-panel-first-visible-state',
+          note: 'SC-005：浏览器不承诺绝对数字，本指标不进 benchmark JSON 的 measurements，单独归档',
           recordedAt: new Date().toISOString(),
-          note: 'SC-005：浏览器不承诺绝对数字，本指标不进 benchmark JSON 的 measurements，单独归档'
+          route: '/working-tree'
         },
         null,
         2

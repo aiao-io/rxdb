@@ -93,6 +93,9 @@ Web Lock 先释放、同步访问句柄后关闭，于是新页面落进上面�
   - `OPFSAnyContextVFS`：不开同步访问句柄（读走 `getFile()`、写走 `createWritable()`），打开只取文件句柄
   - `AccessHandlePoolVFS`：建 VFS 时就整池开句柄，撞上占用抛的是 `NoModificationAllowedError` 而不是 `SQLITE_CANTOPEN`；
     池里是随机文件名，没有 `<库名>.sqlite` 可探测；部分失败时已开的句柄不关，同一上下文重试会撞上自己
+- `@aiao/rxdb-adapter-sqlite`（官方 sqlite，oo1 `OpfsDb`）与 `@aiao/rxdb-adapter-sqliteai`：两者的 OPFS 走 SQLite 官方的
+  `sqlite3-opfs-async-proxy.js`，它取同步访问句柄时自己就退避重试（`getSyncHandle()`，最多 6 次），不再套一层。三端 demo 默认都用
+  sqlite-wasm，不落在这两个后端上
 
 ## 验收标准
 

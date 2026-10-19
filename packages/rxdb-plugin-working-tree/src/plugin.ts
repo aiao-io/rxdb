@@ -24,7 +24,7 @@ import {
   type RxDBSystemContribution
 } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
-import { filter, take } from 'rxjs';
+import { filter } from 'rxjs';
 import { PACKAGE_SPECIFIER, WORKING_TREE_CAPABILITY } from './capability-identity.js';
 import type { RxDBPluginWorkingTreeOptions } from './checkout/worktree-options.js';
 import { findReclaimCandidates, hasOrphanedWorktree } from './checkout/worktree-startup-reclaim.js';
@@ -305,13 +305,16 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
     // 关掉或崩掉的标签页留下的会话归属检出位，就靠这一次被收走。
     //
     // 等的是 `adapterConnected$` 而不是 `localAdapter$`：后者在 `init()` 时就发出适配器，那时这条连接的引导判定
-    // 还没做；前者在 `bootstrapExisting()` 之后才置位，而且只是通知，不会替应用发起连接
+    // 还没做；前者在 `bootstrapExisting()` 之后才置位，而且只是通知，不会替应用发起连接。
+    //
+    // 每次连上都接，不只接第一次：还有别的适配器连着时只断本地再连回来，插件不重装、订阅还是这一个，
+    // 引导事务却会重新判定。一次判定只回收一次由 `#reclaimPending` 管，不靠订阅的次数
     const localAdapterName = this.rxdb.config.sync.local?.adapter;
     if (!this.#worktreesConfigured || localAdapterName === undefined) return;
     scope.acquire(() => {
       const subscription = this.rxdb
         .adapterConnected$(localAdapterName)
-        .pipe(filter(Boolean), take(1))
+        .pipe(filter(Boolean))
         .subscribe(() => void this.#pruneWorktrees());
       return () => subscription.unsubscribe();
     }, 'workingTree:worktree-prune');

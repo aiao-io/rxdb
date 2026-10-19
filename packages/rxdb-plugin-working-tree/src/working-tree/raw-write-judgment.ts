@@ -523,11 +523,17 @@ function isWriteStatement(words: readonly string[]): boolean {
   return !NON_WRITE_LEADING_KEYWORDS.has(leading);
 }
 
-/** 这条语句会改会话状态吗；见 {@link SESSION_STATE_LEADING_KEYWORDS}。 */
+/**
+ * 这条语句会改会话状态吗；见 {@link SESSION_STATE_LEADING_KEYWORDS}。
+ *
+ * @remarks
+ * 首词之外还认 Postgres 的 `set_config()`：`SELECT set_config('default_transaction_read_only', 'off', false)`
+ * 首词是 `select`，长得像一条读，改的却是会话默认值。
+ */
 function isSessionStatement(words: readonly string[]): boolean {
   const leading = words[0];
   if (leading === undefined) return false;
-  return SESSION_STATE_LEADING_KEYWORDS.has(leading);
+  return SESSION_STATE_LEADING_KEYWORDS.has(leading) || words.includes('set_config');
 }
 
 /**
@@ -781,7 +787,7 @@ export function judgeRawWrite(sql: string, context: RawWriteJudgmentContext): Ra
 }
 
 /**
- * 这批语句在只读连接上该不该拒：会改数据的语句，加上会改会话状态的 `PRAGMA` / `SET`。
+ * 这批语句在只读连接上该不该拒：会改数据的语句，加上会改会话状态的 `PRAGMA` / `SET` / `set_config()`。
  *
  * @param sql - 原始语句，可以是以分号分隔的语句批
  * @returns 有一条该拒即为 `true`；「会改数据」与 {@link judgeRawWrite} 的第 2 步同一口径

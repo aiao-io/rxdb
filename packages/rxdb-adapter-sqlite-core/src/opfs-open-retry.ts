@@ -7,6 +7,7 @@
  * 再 `createSyncAccessHandle()`。整页刷新时上一个页面的 Worker 正在销毁：锁先释放、句柄后关闭，新页面拿到锁去开句柄
  * 就撞上 `NoModificationAllowedError`。VFS 把这个错误打到控制台后吞掉，`open_v2` 只抛打开失败码 `SQLITE_CANTOPEN`，
  * 所以这里按失败码判定、退避重试；重试用尽后亲自试一次句柄，确实被占用就报占用，否则原样抛出最后一次的错误。
+ * 探针自己失败时判不出占用，报的仍是那次打开失败，探针的错写进消息——它只是用来把错误说清楚的，不能顶替原因。
  * 每次重试都新建 VFS；失败那一次的 VFS 要用 {@link releaseOpfsCoopSyncHandles} 交出它留下的句柄，否则重试撞上的是自己。
  */
 
@@ -41,7 +42,7 @@ export interface OpfsOpenRetryOptions {
  * @param open - 一次完整的打开（每次都新建 VFS 与连接）
  * @param options - 见 {@link OpfsOpenRetryOptions}
  * @returns `open` 的结果
- * @throws {@link RxDBAdapterSqliteError} 重试用尽、句柄仍被占用时；原错误挂在 `cause` 上
+ * @throws {@link RxDBAdapterSqliteError} 重试用尽、句柄仍被占用时，或探针自己失败、判不出占用时；最后一次的打开错误挂在 `cause` 上
  */
 export async function openOpfsWithRetry<T>(open: () => Promise<T>, options: OpfsOpenRetryOptions): Promise<T> {
   const delays = options.delaysMs ?? OPFS_OPEN_RETRY_DELAYS_MS;
@@ -55,13 +56,34 @@ export async function openOpfsWithRetry<T>(open: () => Promise<T>, options: Opfs
         await sleep(delays[attempt]);
         continue;
       }
-      if (!(await options.isAccessHandleBusy())) throw error;
+      if (!(await isBusyOrExplain(options, error))) throw error;
       const waited = delays.reduce((sum, ms) => sum + ms, 0);
       throw new RxDBAdapterSqliteError(
         `OPFS database file "${options.fileName}" is held by another context (its sync access handle was not released within ${waited}ms)`,
         { cause: error }
       );
     }
+  }
+}
+
+/**
+ * 重试用尽后问一次句柄是否被占。
+ *
+ * @param options - 带探针的选项
+ * @param lastError - 最后一次打开失败的错误
+ * @returns 是否被占用
+ * @throws {@link RxDBAdapterSqliteError} 探针自己失败时（比如在开不了同步访问句柄的上下文里）：`cause` 是 `lastError`，
+ * 探针的错写进消息
+ */
+async function isBusyOrExplain(options: OpfsOpenRetryOptions, lastError: unknown): Promise<boolean> {
+  try {
+    return await options.isAccessHandleBusy();
+  } catch (probeError) {
+    const reason = probeError instanceof Error ? probeError.message : String(probeError);
+    throw new RxDBAdapterSqliteError(
+      `OPFS database file "${options.fileName}" could not be opened (SQLITE_CANTOPEN), and checking whether another context holds its sync access handle failed: ${reason}`,
+      { cause: lastError }
+    );
   }
 }
 

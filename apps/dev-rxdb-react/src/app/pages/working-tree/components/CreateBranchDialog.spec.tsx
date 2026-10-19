@@ -115,6 +115,15 @@ describe('WorkingTreeCreateBranchDialog', () => {
     expect([confirmButton().disabled, confirmButton().textContent]).toEqual([true, 'Creating…']);
   });
 
+  it('建分支进行中关不掉：Cancel 置灰，Escape 与点背板都不理', () => {
+    const { onCloseRequested } = renderDialog({ name: 'y', creating: true });
+
+    expect(screen.getByTestId<HTMLButtonElement>('wt-create-branch-cancel').disabled).toBe(true);
+    fireEvent.keyDown(screen.getByTestId('wt-create-branch-dialog'), { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+    expect(onCloseRequested).not.toHaveBeenCalled();
+  });
+
   it('名字框里组字中的 Escape 是输入法在取消候选词，不关对话框', () => {
     const { onCloseRequested } = renderDialog({ name: 'feature/y' });
     const input = screen.getByTestId('wt-create-branch-name');

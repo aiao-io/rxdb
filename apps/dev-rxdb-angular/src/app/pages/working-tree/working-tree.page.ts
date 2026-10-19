@@ -134,6 +134,7 @@ export default class WorkingTreePage implements OnInit {
   /** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
   #mergePreviewRequest = 0;
   #compareRequest = 0;
+  #createBranchCheckRequest = 0;
   private readonly createdAt = performance.now();
   private readonly destroyRef = inject(DestroyRef);
   private readonly toastTimer = new ResettableTimer();
@@ -689,19 +690,23 @@ export default class WorkingTreePage implements OnInit {
     }
   }
 
-  /** 打开「Create a branch」：先摆出对话框，再问这个提交建不建得了分支；迟到的预检不落进换了提交的对话框。 */
+  /**
+   * 打开「Create a branch」：先摆出对话框，再问这个提交建不建得了分支。
+   * 预检带请求代号：对话框关掉或重开之后，迟到的结果——无论成败——都不落进新状态。
+   */
   async openCreateBranch(entry: CommitLogEntry, from: CreateBranchDialogState['from']): Promise<void> {
+    const request = ++this.#createBranchCheckRequest;
     const base = { commitId: entry.commitId, summary: entry.message.split('\n')[0] ?? '' };
     this.$createBranchName.set('');
     this.$createBranchError.set(null);
     this.$createBranchDialog.set({ base, from, availability: 'checking' });
     try {
       const check = await this.tree.checkBranchFromCommit(base.commitId);
-      const dialog = this.$createBranchDialog();
-      if (dialog?.base.commitId !== base.commitId) return;
-      this.$createBranchDialog.set({ ...dialog, availability: check.ok ? 'ok' : check.reason });
+      if (request !== this.#createBranchCheckRequest) return;
+      this.$createBranchDialog.set({ base, from, availability: check.ok ? 'ok' : check.reason });
     } catch (e: unknown) {
-      this.$createBranchDialog.set(null);
+      if (request !== this.#createBranchCheckRequest) return;
+      this.closeCreateBranchDialog();
       this.showToast('error', e instanceof Error ? e.message : 'Could not check this commit.');
     }
   }
@@ -709,6 +714,8 @@ export default class WorkingTreePage implements OnInit {
   /**
    * 「Create branch」：建好之后切过去（GitHub Desktop 建完总会检出新分支）。工作树有改动时切换被拒，
    * 照常弹「Switch branch」；在那里取消的话分支已经建好、留在原分支上，与 GitHub Desktop 一致。
+   *
+   * 建分支进行中对话框关不掉（见对话框组件的 `requestClose`），被拒与报错因此总是落回这一个对话框。
    */
   async confirmCreateBranch(name: string): Promise<void> {
     const dialog = this.$createBranchDialog();
@@ -731,6 +738,7 @@ export default class WorkingTreePage implements OnInit {
   }
 
   closeCreateBranchDialog(): void {
+    this.#createBranchCheckRequest++;
     this.$createBranchDialog.set(null);
     this.$createBranchName.set('');
     this.$createBranchError.set(null);

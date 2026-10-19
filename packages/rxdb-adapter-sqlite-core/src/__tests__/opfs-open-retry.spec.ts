@@ -60,6 +60,26 @@ describe('openOpfsWithRetry', () => {
     expect(open).toHaveBeenCalledTimes(3);
   });
 
+  // 探针只是用来把错误说清楚的：它自己失败（比如在开不了同步访问句柄的上下文里）时，用户该看到的仍是那次打开失败，
+  // 不能被一个与原因无关的探针错误顶替（RV-083 P2-13）；探针的错也不能吞掉，写进消息里
+  it('重试用尽、探针自己失败：报真正那次打开失败（挂在 cause 上），探针的错写进消息，不顶替它', async () => {
+    const last = cantOpen();
+    const open = vi.fn().mockRejectedValue(last);
+    const probeFailure = new DOMException('createSyncAccessHandle is unavailable here', 'SecurityError');
+
+    const error = await openOpfsWithRetry(open, {
+      fileName: 'a.sqlite',
+      delaysMs: [1],
+      sleep: () => Promise.resolve(),
+      isAccessHandleBusy: () => Promise.reject(probeFailure)
+    }).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(RxDBAdapterSqliteError);
+    expect((error as RxDBAdapterSqliteError).cause).toBe(last);
+    expect((error as RxDBAdapterSqliteError).message).toContain('a.sqlite');
+    expect((error as RxDBAdapterSqliteError).message).toContain('createSyncAccessHandle is unavailable here');
+  });
+
   it('重试用尽、句柄没被占用：不是这类问题，原样抛出最后一次的错误', async () => {
     const last = cantOpen();
     const open = vi.fn().mockRejectedValue(last);

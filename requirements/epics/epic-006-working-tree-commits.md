@@ -658,6 +658,7 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
 - [US-312 不切换分支就对比两条分支、预览一次合并（含覆盖标注）](../stories/collaboration/US-312-branch-compare-merge-preview.md) (High) — 多检出位阶段 2
 - [US-313 只读检出位：不切换分支就打开另一条分支或一个可达提交的完整数据](../stories/collaboration/US-313-read-only-checkout.md) (Medium) — 多检出位阶段 3
 - [US-314 可写检出位与从提交建分支：对齐 GitHub Desktop 3.6 的 worktree](../stories/collaboration/US-314-writable-worktrees.md) (Medium) — 多检出位阶段 5
+- [US-315 撤销子分支已继承的变更之后，切回父分支写错数据](../stories/collaboration/US-315-undo-inherited-change-switch-corruption.md) (High) — 切换增量的缺陷，牵连对比与合并预览
 
 ## 性能预算的口径
 
@@ -1043,7 +1044,8 @@ demo 的工作树页对齐 GitHub Desktop（3.6 起的 worktree 是可写的）�
 
 多检出位下的后果：
 
-- 预览与只读检出位展示的是文件的当前内容，界面标明「不随版本」；
+- 只读检出位里，文件元数据（`StorageFileMeta`）是打开那一刻的（`refresh()` 才更新），按路径读到的文件内容是读取时的当前字节——
+  文件不进快照；界面标明「不随版本」；
 - 按检出位分表（场景一）时，storage 元数据表保持全库共享、不进副本，否则别的检出位的文件会成为看不见的孤儿；
 - 隔离写入方导入的文件直接进共享命名空间，不随那条线丢弃，审阅界面要单列出来。
 
@@ -1083,7 +1085,7 @@ demo 的工作树页对齐 GitHub Desktop（3.6 起的 worktree 是可写的）�
 | 2    | 只读的对比与合并预览 API（含覆盖标注）（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)）                                                                              | 场景二的对比部分         | 阶段 1                                                              | 不提供完整视图           |
 | 3    | 只读检出位：快照库 + 第二实例 + 生命周期与回收 + 三端绑定（[US-313](../stories/collaboration/US-313-read-only-checkout.md)）                                                                     | 场景二、场景一的只读部分 | 阶段 2                                                              | 不可写；不实时           |
 | 4    | 写进非 active 线的原语 + 隔离写入方 + 合并前覆盖检测                                                                                                                                             | 场景三                   | 具名使用方（批量导入或 agent），或 owner 判定「同步即变脏」不可接受 | 不改默认同步语义         |
-| 5    | 可写检出位（库内影子表，[存储方案](../stories/collaboration/US-314-storage-options.md)）与从提交建分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md)）                        | 场景一                   | 具名需求                                                            | —                        |
+| 5    | 可写检出位（库内影子表，[存储方案](../stories/collaboration/US-314-storage-options.md)）与从提交建分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md)；从提交建分支已交付）    | 场景一                   | 具名需求                                                            | —                        |
 
 ## 非目标
 

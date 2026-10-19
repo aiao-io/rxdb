@@ -15,9 +15,11 @@ import {
   RxDBMigration,
   RxDBSystemMigrationLockError,
   SyncType,
-  UnsupportedRxDBSystemVersionError
+  UnsupportedRxDBSystemVersionError,
+  uuid
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -235,6 +237,26 @@ const createDiskLegacyAdapter = async (dataDir: string, dbName: string): Promise
   adapters.add(adapter);
   await adapter.connect();
   return adapter;
+};
+
+/** 工作树插件后加的两张系统表：只读检出位的登记表（US-313）与提交的分叉点（US-314） */
+const laterWorkingTreeTables = (rxdb: RxDB) =>
+  rxdb.systemEntities.filter(EntityClass =>
+    ['Worktree', 'CommitForkPoint'].includes(getEntityMetadata(EntityClass).name)
+  );
+
+/** 提交工作树里的全部改动，交回提交 id。 */
+const commitAll = async (rxdb: RxDB, message: string): Promise<string> => {
+  const status = await rxdb.workingTree.status();
+  const result = await rxdb.workingTree.commit(message, {
+    expectedBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
+    expectedHeadRevision: status.headRevision,
+    expectedWorkingTreeRevision: status.workingTreeRevision,
+    authorId: 'working-tree-reopen',
+    operationId: uuid()
+  });
+  if (!result.ok) throw new Error(`提交「${message}」没落库：${JSON.stringify(result.conflict)}`);
+  return result.commitId;
 };
 
 afterEach(async () => {
@@ -604,6 +626,61 @@ describe('PGlite system schema migration', () => {
     await expect(adapter.migrateSystemSchema()).resolves.toBeUndefined();
 
     expect(await getChangeRejectionColumns(adapter)).toHaveLength(2);
+  });
+
+  // 工作树插件后加的两张系统表：只读检出位的登记表（US-313）与提交的分叉点（US-314）。在它们出现之前建的库上重开，
+  // 连接期要把它们补建出来、旧数据与旧提交都还在；旧提交没有分叉点，从它建分支报 fork_point_unknown（RV-083 P2-3）
+  it('工作树插件后加的系统表：既有库重开时补建，旧提交照常可读，旧提交建不了分支、新提交建得了', async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), 'aiao-pglite-working-tree-reopen-'));
+    temporaryDirectories.add(dataDir);
+    const dbName = `pglite-working-tree-reopen-${++databaseIndex}`;
+    const open = async (): Promise<{ rxdb: RxDB; adapter: RxDBAdapterPGlite }> => {
+      const rxdb = new RxDB({
+        dbName,
+        entities: [PGliteLegacyTodo],
+        sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+      });
+      rxdb.adapter('pglite', database => new RxDBAdapterPGlite(database, { dataDir }));
+      rxdb.use(rxDBPluginHistory);
+      rxdb.use(rxDBPluginWorkingTree);
+      const adapter = await rxdb.connect('pglite');
+      databases.add(rxdb);
+      return { rxdb, adapter };
+    };
+    const saveTodo = async (rxdb: RxDB, title: string) => {
+      const todo = rxdb.entityManager.instantiate(PGliteLegacyTodo);
+      todo.title = title;
+      await todo.save();
+    };
+
+    const initial = await open();
+    await initial.rxdb.workingTree.enable();
+    await saveTodo(initial.rxdb, 'old');
+    const oldCommit = await commitAll(initial.rxdb, 'old');
+    // 退回两张表出现之前的形状
+    await initial.adapter.internalQuery(`DROP TABLE "rxdb"."rxdb_worktree"`);
+    await initial.adapter.internalQuery(`DROP TABLE "rxdb"."rxdb_commit_fork_point"`);
+    await initial.rxdb.disconnectAll();
+    databases.delete(initial.rxdb);
+
+    const reopened = await open();
+    for (const EntityClass of laterWorkingTreeTables(reopened.rxdb)) {
+      expect(await reopened.adapter.isTableExisted(EntityClass)).toBe(true);
+    }
+    expect(
+      await reopened.adapter.getRepository(PGliteLegacyTodo).find({ where: { combinator: 'and', rules: [] } })
+    ).toHaveLength(1);
+    expect((await reopened.rxdb.workingTree.listCommits()).entries.map(entry => entry.commitId)).toContain(oldCommit);
+    await expect(reopened.rxdb.workingTree.checkBranchFromCommit(oldCommit)).resolves.toEqual({
+      ok: false,
+      reason: 'fork_point_unknown'
+    });
+
+    await saveTodo(reopened.rxdb, 'new');
+    const newCommit = await commitAll(reopened.rxdb, 'new');
+    await expect(reopened.rxdb.workingTree.createBranchFromCommit('from-new', newCommit)).resolves.toMatchObject({
+      ok: true
+    });
   });
 
   it('高版本水位在 ALTER 或业务写入前 fail-fast', async () => {

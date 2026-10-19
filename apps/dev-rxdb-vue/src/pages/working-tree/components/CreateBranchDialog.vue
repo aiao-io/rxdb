@@ -40,6 +40,8 @@ const UNAVAILABLE_REASONS: Readonly<Record<WorkingTreeBranchFromCommitRejection,
  *
  * 打开时页面先问一句这个提交建不建得了分支（`checkBranchFromCommit`），建不了就写明原因、Create 置灰，
  * 不让人先填名字再碰壁。外壳见 `DialogShell.vue`。
+ *
+ * 建分支进行中关不掉：Cancel 置灰，Escape 与点背板都不理（见 `requestClose`）。
  */
 const props = defineProps<{
   dialog: CreateBranchDialogState | null;
@@ -47,7 +49,7 @@ const props = defineProps<{
   activeBranch: string;
   /** 上一次建分支的报错（名字不可用、已存在）；没有时为 `null` */
   error: string | null;
-  /** 建分支进行中：Create 置灰 */
+  /** 建分支进行中：Create 与 Cancel 置灰，对话框关不掉 */
   creating: boolean;
 }>();
 
@@ -103,12 +105,23 @@ function submit(): void {
   if (!canCreate.value) return;
   emit('confirmRequested', name.value.trim());
 }
+
+/**
+ * Cancel、Escape、点背板：建分支进行中不理。
+ *
+ * GitHub Desktop 进行中把控件全置灰，Escape 却仍能关，关了之后分支照样建好、检出，被拒则另弹错误框。
+ * 这里干脆不让关：被拒与报错总是落回这一个对话框，用不着为「关掉之后才被拒」另找出口；进行中只有一个事务那么长。
+ */
+function requestClose(): void {
+  if (props.creating) return;
+  emit('closeRequested');
+}
 </script>
 
 <template>
   <DialogShell
     v-if="dialog !== null"
-    @close-requested="emit('closeRequested')"
+    @close-requested="requestClose"
     labelled-by="wt-create-branch-title"
     test-id="wt-create-branch-dialog"
   >
@@ -182,7 +195,8 @@ function submit(): void {
     <div class="flex justify-end gap-2">
       <button
         class="gd-btn-secondary"
-        @click="emit('closeRequested')"
+        :disabled="creating"
+        @click="requestClose"
         data-testid="wt-create-branch-cancel"
         type="button"
       >

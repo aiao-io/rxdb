@@ -9,6 +9,9 @@
 - **rxdb:** `cloneEntityClasses()` 从 `@aiao/rxdb/testing` 提为主入口公开 API；新增 `RxDBOptions.readOnly` 与 `RxDBReadOnlyError`；适配器新增可选的快照原语（`readWorktreeSnapshotPage` / `importWorktreeSnapshot` / `adoptWorktreeEncryption` / `sealWorktreeReadOnly`）与删库能力（`dropStorage()` / `canDropStorage()`）（US-313）
 - **rxdb-adapter-pglite / -sqlite / -sqlite-wasm / -sqliteai / -wa-sqlite / -electron:** 实现快照原语与 `dropStorage()`；Electron 桌面线协议新增 `drop` 请求，老宿主在任何副作用之前就拒绝不认识的请求，协议版本不变（US-313）
 - **rxdb-model / -angular / -react / -vue:** `deriveEntityCapabilities` 认实例侧的 `readOnly`：只读实例上实体列表不出新建、编辑与删除（US-313）
+- **rxdb-plugin-working-tree:** 从提交建分支 `rxdb.workingTree.createBranchFromCommit(branchId, commitId)`：新分支的 HEAD 就是当前分支历史里的那个提交（与源分支共享之前的历史），工作树为空，切过去读到那次 `commit()` 刚完成时的数据；只建不切。`checkBranchFromCommit(commitId)` 先判建不建得了，被拒三种走返回值（`unreachable_target` / `fork_point_unknown` / `history_rewritten`）。分叉点在提交时同一事务记进新的系统表 `rxdb_commit_fork_point`，既有库连接时补建，补建之前的提交不能拿来建分支（US-314）
+- **rxdb-plugin-working-tree-angular / -react / -vue:** `useWorkingTree()` 新增 `checkBranchFromCommit()` / `createBranchFromCommit()` 与两格命令状态（US-314）
+- **rxdb:** 建分支上下文 `RxDBBranchCreationContext` 新增可选的 `fromCommitId`，原样转交给系统贡献方（US-314）
 
 ### 🩹 Fixes
 

@@ -22,8 +22,7 @@ import {
   LucideDynamicIcon,
   LucideMoreVertical as MoreVertical,
   LucidePlus as Plus,
-  LucideSearch as Search,
-  LucideTrash2 as Trash2
+  LucideSearch as Search
 } from '@lucide/angular';
 import { gdRelativeTime } from '../working-tree.gd';
 import { isImeComposing } from '../working-tree.ime';
@@ -263,7 +262,6 @@ export class WorkingTreeBranchMenuComponent {
   readonly gdRelativeTime = gdRelativeTime;
   readonly GitBranch = GitBranch;
   readonly GitMerge = GitMerge;
-  readonly Trash2 = Trash2;
   readonly Plus = Plus;
   readonly ChevronDown = ChevronDown;
   readonly ChevronRight = ChevronRight;
