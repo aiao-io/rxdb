@@ -223,6 +223,22 @@ export class EntityManager {
   }
 
   /**
+   * 本实例换挂表集之后（US-314 B1.4）：清掉实体身份缓存，让全部活查询重跑；仓储与订阅原样保留。
+   *
+   * @remarks
+   * 同一个 id 在两套表里是两份数据：不清身份缓存，换挂之后读出来的行会被并进换挂之前那份实例。
+   * 不走 {@link EntityManager.cleanAllCache}：那会销毁仓储，活查询的观察者随之 complete，订阅方再也收不到结果。
+   * 没有 `refreshAllQueries` 的仓储（不继承核心 `Repository` 的自定义仓储）没有交给 QueryManager 的活查询，跳过。
+   */
+  resetForWorktreeTableSet(): void {
+    this.#entity_cache_map.clear();
+    this.#entity_repository_map.forEach(repository => {
+      const refreshable = repository as { refreshAllQueries?: () => void };
+      if (typeof refreshable.refreshAllQueries === 'function') refreshable.refreshAllQueries();
+    });
+  }
+
+  /**
    * 清理所有缓存
    *
    * @remarks

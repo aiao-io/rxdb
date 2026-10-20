@@ -331,6 +331,7 @@ export declare type RxDBChangeOrderByField =
 declare type RxDBBranchRule =
   | StringRules<RxDBBranch, 'id'>
   | BooleanRules<RxDBBranch, 'activated'>
+  | StringRules<RxDBBranch, 'activeKey'>
   | NumberRules<RxDBBranch, 'fromChangeId'>
   | BooleanRules<RxDBBranch, 'local'>
   | BooleanRules<RxDBBranch, 'remote'>
@@ -391,6 +392,7 @@ export declare type RxDBBranchRuleGroup = RuleGroupBase<
   typeof RxDBBranch,
   | 'id'
   | 'activated'
+  | 'activeKey'
   | 'fromChangeId'
   | 'local'
   | 'remote'

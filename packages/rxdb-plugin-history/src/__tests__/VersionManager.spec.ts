@@ -11,6 +11,7 @@ import {
   takeDeclaredWrite,
   TRANSACTION_BEGIN,
   TRANSACTION_COMMIT,
+  WorktreeTableSet,
   type EntityType,
   type SwitchBranchOptions
 } from '@aiao/rxdb';
@@ -197,6 +198,9 @@ describe('VersionManager', () => {
       },
       localAdapter$: of(mockAdapter),
       connected$: of(true),
+      // 没换挂过的实例挂的是主表集（US-314 B1.4）
+      worktreeTableSet: WorktreeTableSet.MAIN,
+      worktreeTableSet$: of(WorktreeTableSet.MAIN),
       firstConnectedAt: new Date(),
       entityManager: {
         instantiate: vi.fn(EntityType => Object.create(EntityType.prototype)),

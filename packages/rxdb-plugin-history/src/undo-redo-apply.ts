@@ -80,12 +80,8 @@ export async function fetchLatestHistories(
 ): Promise<{ histories: HistoryItem[]; lastPushedMap: Map<string, number>; forks: ChildFork[] }> {
   const { changeRepository: adapter, branchRepository } = await host.rxdb.versionManager.getLocalRepositories();
 
-  const branches = await branchRepository.find({
-    where: {
-      combinator: 'and',
-      rules: [{ field: 'activated', operator: '=', value: true }]
-    }
-  });
+  // 本实例的当前分支：挂的那套表持有的分支（US-314 B1.4）
+  const branches = await branchRepository.find({ where: host.rxdb.worktreeTableSet.heldBranchWhere });
 
   if (branches.length === 0) {
     return { histories: [], lastPushedMap: new Map(), forks: [] };
@@ -268,12 +264,7 @@ export async function updatePushableCount(host: UndoRedoApplyHost): Promise<void
     const RxDBSyncRepo = getLocalRxDBSyncRepository(localAdapter);
     const changeRepository = host.rxdb.entityManager.getRepository(RxDBChange);
     const branch = await firstValueFrom(
-      host.rxdb.entityManager.getRepository(RxDBBranch).findOne({
-        where: {
-          combinator: 'and',
-          rules: [{ field: 'activated', operator: '=', value: true }]
-        }
-      })
+      host.rxdb.entityManager.getRepository(RxDBBranch).findOne({ where: host.rxdb.worktreeTableSet.heldBranchWhere })
     );
 
     if (!branch) {

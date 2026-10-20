@@ -116,7 +116,11 @@ export async function execute_switch_actions(
       // 只重挂本实例这套表的触发器，不碰分支表（US-314 B1.3）：从前复用切分支的整段 SQL，每批拉取都捎带一条
       // 分支表的恒等 UPDATE，NOTIFY 再异步派出一条谁都没做过的 RxDBBranch 更新；挂在可写检出位上时，
       // 那条 UPDATE 会把检出位持有的分支点亮。
-      const rebuildTriggers = generateBranchTriggerSql(adapter, sink.tableSet, await readCurrentBranchId(sink));
+      const rebuildTriggers = generateBranchTriggerSql(
+        adapter,
+        sink.tableSet,
+        await readCurrentBranchId(sink, sink.tableSet)
+      );
       if (rebuildTriggers) await executeSwitchStatements(sink, rebuildTriggers);
     }
   }, false);

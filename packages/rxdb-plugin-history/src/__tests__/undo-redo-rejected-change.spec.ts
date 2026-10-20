@@ -25,6 +25,7 @@ import {
   RxDBSync,
   SKIP_BRANCH_SWITCH_PREPARE,
   SyncType,
+  WorktreeTableSet,
   type RemoteChangeRejection,
   type RxDB,
   type UUID
@@ -212,6 +213,9 @@ const createCountHarness = (lastPushedChangeId: number | null) => {
       remote: { adapter: 'remote' }
     }),
     connected$: of(true),
+    // 没换挂过的实例挂的是主表集（US-314 B1.4）
+    worktreeTableSet: WorktreeTableSet.MAIN,
+    worktreeTableSet$: of(WorktreeTableSet.MAIN),
     localAdapter$: of({
       getRepository: vi.fn((entity: unknown) => (entity === RxDBSync ? { find: syncFind } : null))
     }),
@@ -316,6 +320,9 @@ describe('HistoryManager.history().undo() 对被拒变更（公开入口）', ()
         remote: { adapter: 'remote' }
       }),
       connected$,
+      // 没换挂过的实例挂的是主表集（US-314 B1.4）
+      worktreeTableSet: WorktreeTableSet.MAIN,
+      worktreeTableSet$: of(WorktreeTableSet.MAIN),
       firstConnectedAt,
       localAdapter$: of({
         getRepository: vi.fn((entity: unknown) => (entity === RxDBSync ? { find: syncFind } : null))

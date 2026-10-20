@@ -9,7 +9,7 @@
  * 本包要守的是**传过去的是不是原件**：选项与结果原样交出，两边的口径才不会漂。
  */
 
-import { RxDB, RxDBBranch, RxDBChange, RxDBPartialSyncError } from '@aiao/rxdb';
+import { RxDB, RxDBBranch, RxDBChange, RxDBPartialSyncError, WorktreeTableSet } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncManager } from '../SyncManager.js';
@@ -136,6 +136,8 @@ function createHarness(entities: unknown[] = []): Harness {
       }
     },
     localAdapter$: of(localAdapter),
+    // 没换挂过的实例挂的是主表集，当前分支按它读（US-314 B1.4）
+    worktreeTableSet: WorktreeTableSet.MAIN,
     remoteAdapter$: of(remoteAdapter),
     connected$: of(false),
     addEventListener: vi.fn(),

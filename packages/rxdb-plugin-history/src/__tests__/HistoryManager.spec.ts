@@ -1,4 +1,14 @@
-import { HistoryItem, HistoryScope, RxDB, RxDBBranch, RxDBChange, RxDBSync, SyncType, UUID } from '@aiao/rxdb';
+import {
+  HistoryItem,
+  HistoryScope,
+  RxDB,
+  RxDBBranch,
+  RxDBChange,
+  RxDBSync,
+  SyncType,
+  UUID,
+  WorktreeTableSet
+} from '@aiao/rxdb';
 import { BehaviorSubject, config, filter, firstValueFrom, Observable, of, skip, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -326,6 +336,9 @@ describe('HistoryManager - Class Methods', () => {
         sync: { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } }
       },
       connected$: of(true),
+      // 没换挂过的实例挂的是主表集（US-314 B1.4）
+      worktreeTableSet: WorktreeTableSet.MAIN,
+      worktreeTableSet$: of(WorktreeTableSet.MAIN),
       firstConnectedAt: new Date('2026-07-10T07:00:00.000Z'),
       localAdapter$: of({
         getRepository: vi.fn(entity => {

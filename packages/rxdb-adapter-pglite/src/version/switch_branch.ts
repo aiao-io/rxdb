@@ -200,6 +200,11 @@ const assertBranchNotHeld = async (reader: PGliteRowReader, branchId: string): P
  */
 export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchBranchOptions) => {
   const { branchId, actions, prepare } = options;
+  // 挂在可写检出位上的实例不能真切分支（US-314 B1.4）：熄灭、点亮写的是主检出位那一行。
+  // 留在当前分支（撤销 / 重做）不受影响，那一支只重挂本实例这套表的触发器。
+  if (branchId !== undefined && !adapter.tableSet.isMain) {
+    throw new RxdbAdapterPGliteError(`挂在可写检出位上的实例不能切分支（表集 ${adapter.tableSet.suffix}）`);
+  }
 
   const switchAction = actions && (await convertSwitchResultToSql(adapter, actions));
   let branchSwitchResult: Results<Record<string, unknown>> | undefined;
@@ -213,7 +218,7 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
       const sink = (executor as PGliteTransactionExecutor).adapter;
       // 省略 branchId = 「作用于当前激活分支」，必须在本事务内解析：在事务外采样再传进来，
       // 采样与提交之间的一次真实切换会让这条调用把 activated 与全部触发器倒回旧分支。
-      targetBranchId ??= await readCurrentBranchId(sink);
+      targetBranchId ??= await readCurrentBranchId(sink, sink.tableSet);
       // 目标分支在可写检出位手里就拒。排在前置校验之前，与 git 同序：先答「这条分支能不能检出」，
       // 再问「工作树干不干净」；也排在动第一行之前，被拒时连触发器都还在。留在当前分支时没有要拿下的分支，不查。
       if (branchId !== undefined) await assertBranchNotHeld(sink, targetBranchId);

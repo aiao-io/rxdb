@@ -77,6 +77,7 @@ import { createMigrationWatermarks, runMigrations } from './system/migration-run
 import { RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
 import { CORE_SYSTEM_ENTITIES, isSystemEntity, registerSystemEntities } from './system/system-entities.js';
+import { WorktreeTableSet } from './system/worktree-table-set.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
@@ -87,6 +88,8 @@ export type { IRepositoryConfig } from './rxdb.types.js';
  */
 export class RxDB {
   #local_adapter_sub = new BehaviorSubject<string>('');
+  /** 本实例挂的那一套业务表（US-314），见 {@link RxDB.mountWorktreeTableSet} */
+  readonly #worktree_table_set$ = new BehaviorSubject<WorktreeTableSet>(WorktreeTableSet.MAIN);
   #remote_adapter_sub = new BehaviorSubject<string>('');
   #config!: RxDBConfig;
 
@@ -357,6 +360,11 @@ export class RxDB {
    * 只有让这个空值参与去重，重连时同名的适配器才会被认作一次变化并重新求值。反过来先 filter，
    * 空值被吞掉，去重看到的永远是同一个名字，仍在订阅中的实时查询就会一直挂在已断开的适配器上。
    */
+  /**
+   * {@link RxDB.worktreeTableSet} 的流：订阅时先交出当前那一套，换挂时发出新的一套（US-314 B1.4）
+   */
+  public readonly worktreeTableSet$: Observable<WorktreeTableSet> = this.#worktree_table_set$.asObservable();
+
   public readonly localAdapter$: Observable<LocalRxDBAdapter> = this.#local_adapter_sub.asObservable().pipe(
     distinctUntilChanged(),
     filter(Boolean),
@@ -497,6 +505,16 @@ export class RxDB {
    */
   get readOnly(): boolean {
     return this.#config.readOnly === true;
+  }
+
+  /**
+   * 本实例挂的那一套业务表（US-314 可写检出位）：没换挂过就是主表集
+   *
+   * @remarks
+   * 一个实例同一时刻只挂一套表，状态只存在这里；适配器的 `tableSet` 转读它。
+   */
+  get worktreeTableSet(): WorktreeTableSet {
+    return this.#worktree_table_set$.value;
   }
 
   /**
@@ -1268,6 +1286,34 @@ export class RxDB {
       // 重连建出的新实例永远推不到仍在订阅的调用方手上（它们还指着已断开的旧实例）。
       this.#retract_adapter_name(adapterName);
     }
+  }
+
+  /**
+   * 换挂一套业务表（US-314 B1.4）：此后本实例的读写都落在这套表上，当前分支是它持有的那条分支。
+   *
+   * @param tableSet - 要挂的表集；给 {@link WorktreeTableSet.MAIN} 即挂回主检出位
+   * @throws {@link RxDBError} 影子表集没有持有任何分支时（检出位还没打开，或已经关掉）
+   *
+   * @remarks
+   * 一个实例同一时刻只挂一套表。换挂在适配器的事务队列里完成，与在飞的读写串行：排在它前面的事务按旧那一套跑完，
+   * 排在后面的一律按新的一套。换完清掉实体身份缓存（同一个 id 在两套表里是两份数据），并让全部活查询重跑——
+   * 订阅原样保留，发出的是新那套表里的结果。
+   *
+   * 「持有」按 {@link WorktreeTableSet.heldBranchWhere} 核对：没有持有分支的表集挂上之后连当前分支都读不出来。
+   * 表集本身（建表、写持有键、播种）由打开检出位的流程准备，这里只管挂。
+   */
+  async mountWorktreeTableSet(tableSet: WorktreeTableSet): Promise<void> {
+    if (tableSet === this.worktreeTableSet) return;
+    const adapter = this.localAdapterSync;
+    await adapter.transaction(async executor => {
+      if (!tableSet.isMain) {
+        const held = await executor.getRepository(RxDBBranch).find({ where: tableSet.heldBranchWhere });
+        if (held.length === 0) throw new RxDBError(`表集 ${tableSet.suffix} 没有持有任何分支，挂不上`);
+      }
+      this.#worktree_table_set$.next(tableSet);
+      adapter.worktreeTableSetMounted();
+    }, false);
+    this.entityManager.resetForWorktreeTableSet();
   }
 
   /**

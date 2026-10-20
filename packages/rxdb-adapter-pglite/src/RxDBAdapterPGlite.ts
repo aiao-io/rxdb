@@ -206,17 +206,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   /** PGlite NOTIFY 变更处理错误流。 */
   readonly changeErrors$ = this.#changeErrors.asObservable();
 
-  /**
-   * 本实例挂的那一套业务表（US-314 库内影子表）。
-   *
-   * @remarks
-   * 读写业务表的 SQL 都按它解析 schema；系统表、QueryCache 这类没有副本的实体无论挂哪一套都落主表集。
-   * 现在只会是主表集。
-   */
-  get tableSet(): WorktreeTableSet {
-    return WorktreeTableSet.MAIN;
-  }
-
   get encryptionContext(): EncryptionContext {
     return {
       keyring: this.#keyring,

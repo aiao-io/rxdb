@@ -12,6 +12,7 @@ import { RxDB } from './RxDB.js';
 import { SwitchVersionActions } from './sync-contract/VersionManager.interface.js';
 import { RxDBChange } from './system/change.js';
 import { IRxDBChange, RemoteChange } from './system/system.interface.js';
+import type { WorktreeTableSet } from './system/worktree-table-set.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 import type {
   WorktreeSnapshotCursor,
@@ -468,6 +469,18 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
   }
 
   /**
+   * 本实例挂的那一套业务表（US-314 库内影子表）
+   *
+   * @remarks
+   * 存在 RxDB 实例上（{@link RxDB.worktreeTableSet}），这里只是转读：一个实例同一时刻只挂一套表，
+   * 适配器再存一份就是第二份真相。读写业务表的 SQL 都按它解析物理名；系统表、QueryCache 这类没有副本的实体
+   * 无论挂哪一套都落主表集。
+   */
+  get tableSet(): WorktreeTableSet {
+    return this.rxdb.worktreeTableSet;
+  }
+
+  /**
    * 装上或卸下捕获运行时（adapter-contract.md §1 的四个挂载点）。
    *
    * @param hook - 接管四个挂载点的运行时；`undefined` 卸载
@@ -519,6 +532,19 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    * 只声明位置与语义，不替六个后端决定有没有。
    */
   isEncryptedAtRest?(value: unknown): boolean;
+
+  /**
+   * 本实例换挂表集之后调用（US-314 B1.4）：清掉本适配器按物理表记的缓存。默认无事可做。
+   *
+   * @remarks
+   * 由 {@link RxDB.mountWorktreeTableSet} 在换挂的那个事务里调。SQLite 系的行号缓存按物理表记，换了一套表，
+   * 同一个行号指的就是另一行。
+   *
+   * @internal
+   */
+  worktreeTableSetMounted(): void {
+    // 基类没有按物理表记的缓存；SQLite 系覆写它清行号缓存
+  }
 
   /**
    * 一张实体表在本适配器发出的 SQL 里可能被写成的全部名字。

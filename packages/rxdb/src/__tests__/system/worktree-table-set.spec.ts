@@ -90,4 +90,17 @@ describe('WorktreeTableSet', () => {
       expect(WorktreeTableSet.suffixOfHolderKey(key), key).toBeNull();
     }
   });
+
+  // 「本实例的当前分支」= 本实例挂的那套表持有的分支（US-314 B1.4）。主表集照旧按 `activated` 查：
+  // 系统迁移补出 `activeKey` 之前的库也得读得到当前分支，而迁移完成后两者等价。
+  it('持有的分支怎么查：主表集按 activated，影子表集按持有键', () => {
+    expect(WorktreeTableSet.MAIN.heldBranchWhere).toEqual({
+      combinator: 'and',
+      rules: [{ field: 'activated', operator: '=', value: true }]
+    });
+    expect(WorktreeTableSet.of('wt_a1', [Todo]).heldBranchWhere).toEqual({
+      combinator: 'and',
+      rules: [{ field: 'activeKey', operator: '=', value: '*worktree:wt_a1*' }]
+    });
+  });
 });

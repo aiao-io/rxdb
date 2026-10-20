@@ -1,3 +1,4 @@
+import type { WorktreeTableSet } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interface.js';
 import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
@@ -19,6 +20,7 @@ export type SqlExecutor = {
  * 读当前分支 id（activated 优先，否则 main），供重建触发器使用。
  *
  * @param tx - 当前事务的执行器
+ * @param tableSet - 本实例挂的表集：挂在可写检出位上时读的是那套表持有的分支（US-314 B1.4）
  * @returns 当前活跃分支 id
  * @throws {@link RxDBAdapterSqliteError} 元数据缺列或读不到任何分支时抛出，让事务回滚
  *
@@ -33,12 +35,12 @@ export type SqlExecutor = {
  * （包在 `results[0]` 里）摊成那一份要的扁平形状：两份各写一遍的时候，`?? 'id'` 兜底的
  * 那次删除只落在了其中一份上。
  */
-export function readCurrentBranchId(tx: SqlExecutor): Promise<string> {
+export function readCurrentBranchId(tx: SqlExecutor, tableSet: WorktreeTableSet): Promise<string> {
   return readCurrentBranchIdWith(async (sql, params) => {
     const result = await tx.execute(sql, params);
     const first = result.results[0];
     return { columns: first?.columns ?? [], rows: first?.rows ?? [] };
-  });
+  }, tableSet);
 }
 
 /**
@@ -101,7 +103,7 @@ export async function withTriggersDisabled<T>(
   // 不各自抄一遍：判定逻辑分成两份时，其中一份漏改的问题在 `readCurrentBranchId` 上出现过
   // 一次（两边的列名解析各自漂移，见该函数 TSDoc），这里不重蹈。
   const restoreTriggers = async (): Promise<void> => {
-    const rebuildTriggers = generate_table_set_trigger_sql(adapter, tableSet, await readCurrentBranchId(tx));
+    const rebuildTriggers = generate_table_set_trigger_sql(adapter, tableSet, await readCurrentBranchId(tx, tableSet));
     if (rebuildTriggers) await tx.execute(rebuildTriggers);
   };
 

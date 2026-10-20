@@ -2710,6 +2710,10 @@
         "kind": "both"
       },
       {
+        "name": "WorktreeHeldBranchWhere",
+        "kind": "type"
+      },
+      {
         "name": "WorktreeSnapshotCursor",
         "kind": "type"
       },

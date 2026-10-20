@@ -6,7 +6,7 @@
  * 的三件事：生命周期、本地事件过滤、分支编排。
  */
 
-import { ENTITY_LOCAL_CREATE_EVENT, RxDB, RxDBBranch, RxDBChange, type EntityType } from '@aiao/rxdb';
+import { ENTITY_LOCAL_CREATE_EVENT, RxDB, RxDBBranch, RxDBChange, WorktreeTableSet, type EntityType } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { VersionManager } from '../VersionManager.js';
@@ -194,6 +194,9 @@ function createHarness(): Harness {
     localAdapter$: of(localAdapter),
     remoteAdapter$: of(remoteAdapter),
     connected$: of(false),
+    // 没换挂过的实例挂的是主表集（US-314 B1.4）
+    worktreeTableSet: WorktreeTableSet.MAIN,
+    worktreeTableSet$: of(WorktreeTableSet.MAIN),
     // 没有能力插件贡献：切换前的前置判定短路，编排顺序与今天一致。
     systemContributions: [],
     addEventListener,

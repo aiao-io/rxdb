@@ -133,8 +133,16 @@ INVEST 检查清单:
   - 系统迁移给每一套现存的影子表集按持有分支重建触发器，成员按物理表认；认不出的持有键整条回滚。
   - 隔离探针：sqlite-core 共享套件 `worktreeTableSetSuite`（五个 SQLite 系后端与 Tauri）与 PGlite 的同名用例。普通事务、关触发器的写、
     撤销 / 重做、主检出位真切分支都不动影子表，也不把影子表的触发器挂到别的分支。
-  - 「当前分支」仍按主检出位的激活分支读（每个记日志事务首尾的重建、`withTriggersDisabled` 都是）；统一成「`activeKey` 等于
-    本实例表集的持有键那一行」在 B1.4，那时挂在可写检出位上的实例才读得到自己的分支。
+- **实例挂可写检出位**（阶段 B1.4a）：
+  - 一个实例同一时刻挂一套表，状态只存在 RxDB 实例上（`rxdb.worktreeTableSet` / `worktreeTableSet$`），适配器的 `tableSet` 转读它。
+  - `rxdb.mountWorktreeTableSet(tableSet)` 换挂：在适配器的事务队列里核对这套表持有分支、换上，SQLite 系清行号缓存；
+    换完清实体身份缓存（同一个 id 在两套表里是两份数据）、重跑全部活查询，订阅原样保留。没有持有分支的表集挂不上。
+  - 「当前分支」统一成「挂的那套表持有的分支」（`WorktreeTableSet.heldBranchWhere`：主表集照旧按 `activated`，影子表集按持有键）。
+    核心 `getCurrentBranch`、两个适配器读当前分支（每个记日志事务首尾的重建、`withTriggersDisabled` 都在用）、历史插件的当前分支流、
+    撤销 / 重做与可推送计数都走它；影子表集持有的分支不见了就抛，不回退 main。
+  - 挂在可写检出位上的实例不能真切分支（熄灭、点亮写的是主检出位那一行；检出位里切分支归 B2），撤销 / 重做照常、只动这套表。
+  - 留给 B1.4b：本地实体事件带分支、按分支过滤；工作树捕获按分支筛变更行、当前分支令牌按持有键读；挂在检出位上不跑同步。
+    `compute_switch_branch_actions` 与建分支时找父分支变更仍按主检出位读，随 B2 的检出位里切分支、建分支一起改。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -155,6 +163,9 @@ INVEST 检查清单:
   `createWorktreeTableSet` / `dropWorktreeTableSet` 与系统迁移、`version/switch_branch.ts`、`with_triggers_disabled.ts` /
   `execute_switch_actions.ts` — 按表集建表与重建触发器；`packages/rxdb-adapter-sqlite-core/src/__tests__/shared-worktree-table-set.suite.ts`、
   `packages/rxdb-adapter-pglite/src/__tests__/worktree-table-set.spec.ts` — 隔离探针
+- `packages/rxdb/src/RxDB.ts`（`mountWorktreeTableSet` / `worktreeTableSet$`）、`system/worktree-table-set.ts`（`heldBranchWhere`）、
+  `system/system-repositories.ts`、`entity/entity-manager.ts`（`resetForWorktreeTableSet`）、两个适配器的 `version/read_current_branch_id.ts`、
+  `packages/rxdb-plugin-history/src/HistoryManager.ts` / `undo-redo-apply.ts` — 实例挂可写检出位；挂载用例在上面两份隔离探针里
 - `packages/rxdb/src/system/active-branch-guard.ts`（`WorktreeBranchHeldError`）、`system/system-repositories.ts`、
   两个适配器的 `version/switch_branch.ts` 与系统迁移（sqlite-core `RxDBAdapterSqliteBase.ts`、PGlite `system/migrate_system_schema.ts`）
   — 分支持有模型

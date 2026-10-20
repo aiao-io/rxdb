@@ -25,6 +25,17 @@ const SUFFIX_PATTERN = new RegExp(`^${SUFFIX_BODY}$`);
 /** 影子表集的持有键：`*worktree:<后缀>*`，见 {@link WorktreeTableSet.holderKey} */
 const HOLDER_KEY_PATTERN = new RegExp(`^\\*worktree:(${SUFFIX_BODY})\\*$`);
 
+/**
+ * {@link WorktreeTableSet.heldBranchWhere} 的形状：只有一条规则的条件组
+ *
+ * @remarks
+ * 写成具体的字面量形状，不写成分支表的规则组类型：它要同时交给系统表仓储（`RxDBBranchRuleGroup`）与通用仓储
+ * （`RuleGroup<RxDBBranch>`），这两个类型互不可赋值，具体形状对两边都可赋值。
+ */
+export type WorktreeHeldBranchWhere =
+  | { combinator: 'and'; rules: [{ field: 'activated'; operator: '='; value: true }] }
+  | { combinator: 'and'; rules: [{ field: 'activeKey'; operator: '='; value: string }] };
+
 /** 实体身份：命名空间 + 实体名。不用表名——两个命名空间下可以有同表名的实体。 */
 const identityOf = (metadata: EntityMetadata): string => `${metadata.namespace}\u0000${metadata.name}`;
 
@@ -65,6 +76,20 @@ export class WorktreeTableSet {
    */
   get holderKey(): string {
     return this.suffix === null ? ACTIVE_BRANCH_KEY : `*worktree:${this.suffix}*`;
+  }
+
+  /**
+   * 这套表的检出位持有的那条分支怎么查：主表集是 `activated = true`，影子表集是 `activeKey = 持有键`
+   *
+   * @remarks
+   * 「本实例的当前分支」就是本实例挂的那套表持有的分支（US-314 B1.4），核心与插件凡是要读当前分支的地方都用它，
+   * 不再各写一份 `activated = true`。主表集照旧按 `activated` 查而不是按哨兵查：系统迁移补出 `activeKey` 之前的
+   * 库也得读得到当前分支，迁移完成之后两者等价（`activated ⇔ activeKey = 哨兵`）。
+   */
+  get heldBranchWhere(): WorktreeHeldBranchWhere {
+    return this.suffix === null ?
+        { combinator: 'and', rules: [{ field: 'activated', operator: '=', value: true }] }
+      : { combinator: 'and', rules: [{ field: 'activeKey', operator: '=', value: this.holderKey }] };
   }
 
   private constructor(suffix: string | null, members: ReadonlySet<string>) {

@@ -15,7 +15,8 @@ import {
   RxDBSync,
   type SwitchVersionActions,
   SyncType,
-  type UUID
+  type UUID,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { BehaviorSubject, EMPTY, firstValueFrom, Observable, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -179,6 +180,9 @@ const createHarness = (
       sync: PUSHABLE_SYNC
     },
     connected$,
+    // 没换挂过的实例挂的是主表集（US-314 B1.4）
+    worktreeTableSet: WorktreeTableSet.MAIN,
+    worktreeTableSet$: of(WorktreeTableSet.MAIN),
     entityManager: { getRepository },
     firstConnectedAt: options.firstConnectedAt,
     localAdapter$: of(localAdapter),
@@ -199,6 +203,9 @@ const createHarness = (
     branchFindOne,
     changeFind,
     connected$,
+    // 没换挂过的实例挂的是主表集（US-314 B1.4）
+    worktreeTableSet: WorktreeTableSet.MAIN,
+    worktreeTableSet$: of(WorktreeTableSet.MAIN),
     getCurrentBranch,
     getLocalRepositories,
     getRepository,

@@ -217,6 +217,15 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * 里这还会拖住进程退出。`clear()` 同时递增代次，销毁瞬间还在飞的同步回来时不会把
    * 记忆写回一个已经死掉的仓储。
    */
+  /**
+   * 重跑本仓储的全部活查询（US-314 B1.4）：本实例换挂了表集，订阅原样保留，发出的是新那套表里的结果。
+   *
+   * @internal
+   */
+  refreshAllQueries(): void {
+    this.queryManager.refreshAllTasks();
+  }
+
   destroy() {
     this.#destroyed = true;
     if (this.#isQueryCache) {

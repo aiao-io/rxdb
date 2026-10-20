@@ -26,7 +26,8 @@ import {
   RxDBChange,
   RxDBSync,
   type SyncOptions,
-  SyncType
+  SyncType,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -200,6 +201,8 @@ const setup = (options: SetupOptions = {}) => {
     },
     reachability,
     localAdapter$: of(localAdapter),
+    // 没换挂过的实例挂的是主表集，当前分支按它读（US-314 B1.4）
+    worktreeTableSet: WorktreeTableSet.MAIN,
     // 取远端适配器的正路：直接给实例，不附带任何仓储。
     remoteAdapter$: of(remoteAdapter)
   } as unknown as RxDB;

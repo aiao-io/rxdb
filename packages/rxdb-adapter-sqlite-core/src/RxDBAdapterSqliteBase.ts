@@ -559,17 +559,6 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    */
   protected abstract createClient(): Promise<SqliteClientLike>;
 
-  /**
-   * 本实例挂的那一套业务表（US-314 库内影子表）。
-   *
-   * @remarks
-   * 读写业务表的 SQL 都按它解析物理名；系统表、QueryCache 这类没有副本的实体无论挂哪一套都落主表集。
-   * 现在只会是主表集。
-   */
-  get tableSet(): WorktreeTableSet {
-    return WorktreeTableSet.MAIN;
-  }
-
   get encryptionContext(): EncryptionContext {
     return {
       keyring: this.#keyring,
@@ -1226,6 +1215,15 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   cleanAllCache() {
     this.#row_id_map.clear();
     this.#entity_row_id_map = new WeakMap<InstanceType<EntityType>, RowId>();
+  }
+
+  /**
+   * 本实例换挂表集之后清掉行号缓存（US-314 B1.4）：行号按物理表记，换了一套表，同一个行号指的是另一行。
+   *
+   * @internal
+   */
+  override worktreeTableSetMounted(): void {
+    this.cleanAllCache();
   }
 
   public query(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> {
@@ -1962,7 +1960,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         //
         // executor 此刻已建但 BEGIN 尚未发出，这次读跑在 autocommit 下 —— 与翻转前
         // 走快路径的实际行为一致。
-        const currentBranchId = await read_current_branch_id(executor);
+        const currentBranchId = await read_current_branch_id(executor, this.tableSet);
         log_begin = generate_table_set_trigger_sql(this, this.tableSet, currentBranchId, transactionId);
         log_commit = generate_table_set_trigger_sql(this, this.tableSet, currentBranchId);
       }

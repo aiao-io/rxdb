@@ -183,5 +183,95 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
         adapter.createWorktreeTableSet(WorktreeTableSet.of('wt_branch', [RxDBBranch]), heldBranch)
       ).rejects.toThrow(/变更日志/);
     });
+
+    // 实例挂在可写检出位上（US-314 B1.4）：读写落在影子表、记在持有分支，当前分支是持有分支；挂回主表集一切照旧。
+    describe('实例挂在可写检出位上（US-314 B1.4）', () => {
+      const titlesThroughRepository = async (): Promise<string[]> =>
+        (
+          await firstValueFrom(
+            adapter.rxdb.entityManager.getRepository(Todo).findAll({ where: { combinator: 'and', rules: [] } })
+          )
+        )
+          .map(todo => todo.title)
+          .sort();
+
+      // 先挂回主表集再清库：外层的清库删的就是这套影子表
+      afterEach(async () => {
+        await adapter.rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+      });
+
+      it('挂上之后读写落在影子表、记在持有分支，当前分支是持有分支；挂回主表集一切照旧', async () => {
+        await rawInsert(WorktreeTableSet.MAIN, 'main-row');
+
+        await adapter.rxdb.mountWorktreeTableSet(tableSet);
+
+        expect((await adapter.rxdb.versionManager.getCurrentBranch()).id).toBe(heldBranch);
+        const todo = new Todo();
+        todo.title = 'in-worktree';
+        await todo.save();
+        expect(await titlesOf(tableSet)).toEqual(['in-worktree']);
+        expect(await titlesOf(WorktreeTableSet.MAIN)).toEqual(['main-row']);
+        expect(await branchesOfChanges(todo.id)).toEqual([heldBranch]);
+        expect(await titlesThroughRepository()).toEqual(['in-worktree']);
+
+        await adapter.rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+
+        expect((await adapter.rxdb.versionManager.getCurrentBranch()).id).toBe('main');
+        expect(await titlesThroughRepository()).toEqual(['main-row']);
+      });
+
+      it('活查询跟着重跑：挂上之后发出影子表的行，挂回之后发出主表的行', async () => {
+        await rawInsert(WorktreeTableSet.MAIN, 'main-row');
+        await rawInsert(tableSet, 'shadow-row');
+        let latest: string[] = [];
+        const subscription = adapter.rxdb.entityManager
+          .getRepository(Todo)
+          .findAll({ where: { combinator: 'and', rules: [] } })
+          .subscribe(rows => (latest = rows.map(row => row.title).sort()));
+        try {
+          await expect.poll(() => latest).toEqual(['main-row']);
+          await adapter.rxdb.mountWorktreeTableSet(tableSet);
+          await expect.poll(() => latest).toEqual(['shadow-row']);
+          await adapter.rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+          await expect.poll(() => latest).toEqual(['main-row']);
+        } finally {
+          subscription.unsubscribe();
+        }
+      });
+
+      it('撤销 / 重做撤的是影子表里的写，主表集不动', async () => {
+        await rawInsert(WorktreeTableSet.MAIN, 'main-row');
+        await adapter.rxdb.mountWorktreeTableSet(tableSet);
+        const todo = new Todo();
+        todo.title = 'undo-in-worktree';
+        await todo.save();
+        const history = adapter.rxdb.versionManager.history();
+        // 撤销会话跟着当前分支换到了持有分支，靠这里的本地写入异步恢复：等它可撤销了再撤
+        await expect.poll(() => firstValueFrom(history.undoCount$)).toBe(1);
+
+        await history.undo();
+        expect(await titlesOf(tableSet)).toEqual([]);
+        expect(await titlesOf(WorktreeTableSet.MAIN)).toEqual(['main-row']);
+
+        await history.redo();
+        expect(await titlesOf(tableSet)).toEqual(['undo-in-worktree']);
+        expect(await titlesOf(WorktreeTableSet.MAIN)).toEqual(['main-row']);
+      });
+
+      it('挂在可写检出位上不能真切分支', async () => {
+        await adapter.rxdb.versionManager.createBranch('feature');
+        await adapter.rxdb.mountWorktreeTableSet(tableSet);
+
+        await expect(adapter.rxdb.versionManager.switchBranch('feature')).rejects.toThrow(/可写检出位/);
+        expect((await adapter.rxdb.versionManager.getCurrentBranch()).id).toBe(heldBranch);
+      });
+
+      it('没有持有分支的表集挂不上', async () => {
+        await expect(adapter.rxdb.mountWorktreeTableSet(WorktreeTableSet.of('wt_none', [Todo]))).rejects.toThrow(
+          /持有/
+        );
+        expect(adapter.rxdb.worktreeTableSet).toBe(WorktreeTableSet.MAIN);
+      });
+    });
   });
 }

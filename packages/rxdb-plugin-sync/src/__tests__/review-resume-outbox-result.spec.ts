@@ -11,7 +11,8 @@ import {
   RxDBSync,
   type SyncOptions,
   SyncStateHub,
-  SyncType
+  SyncType,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { BehaviorSubject, of, throwError } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
@@ -96,6 +97,8 @@ const createHarness = (failure?: Error) => {
     reachability,
     syncState,
     localAdapter$: of(local),
+    // 没换挂过的实例挂的是主表集，当前分支按它读（US-314 B1.4）
+    worktreeTableSet: WorktreeTableSet.MAIN,
     remoteAdapter$: of(remote),
     entityManager: { getRepository: () => ({ count: () => of(pending().length) }) },
     addEventListener: vi.fn(),

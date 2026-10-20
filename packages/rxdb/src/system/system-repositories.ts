@@ -15,6 +15,7 @@
  */
 import { firstValueFrom } from 'rxjs';
 import type { RxDB } from '../RxDB.js';
+import { RxDBError } from '../RxDBError.js';
 import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID, WorktreeBranchHeldError } from './active-branch-guard.js';
 import { RxDBBranch } from './branch.js';
 import { RxDBChange } from './change.js';
@@ -108,9 +109,14 @@ export const getRemoteSystemRepositories = async (rxdb: RxDB) => {
 };
 
 /**
- * 取当前分支；没有激活分支时激活（或新建）`main`。
+ * 取当前分支：本实例挂的那套表持有的分支；主表集没有激活分支时激活（或新建）`main`。
  *
  * @param rxdb - RxDB 实例
+ * @throws {@link RxDBError} 挂在可写检出位上、而那套表持有的分支已经不见了时
+ *
+ * @remarks
+ * 查法取 `WorktreeTableSet.heldBranchWhere`（US-314 B1.4）：主表集照旧按 `activated` 查。
+ * 影子表集没有「恢复」一说——持有分支不见了就是检出位已经关掉，替它挑一条分支等于把写入挪到别的分支名下。
  *
  * @remarks
  * 分两段是有意的：
@@ -122,18 +128,14 @@ export const getRemoteSystemRepositories = async (rxdb: RxDB) => {
  */
 export const getCurrentBranch = async (rxdb: RxDB): Promise<InstanceType<typeof RxDBBranch>> => {
   const { branchRepository, adapter } = await getLocalSystemRepositories(rxdb);
-  const activeBranch = (
-    await branchRepository.find({
-      where: {
-        combinator: 'and',
-        rules: [{ field: 'activated', operator: '=', value: true }]
-      },
-      limit: 1
-    })
-  )[0];
+  const tableSet = rxdb.worktreeTableSet;
+  const activeBranch = (await branchRepository.find({ where: tableSet.heldBranchWhere, limit: 1 }))[0];
 
   if (activeBranch) {
     return activeBranch;
+  }
+  if (!tableSet.isMain) {
+    throw new RxDBError(`表集 ${tableSet.suffix} 持有的分支不见了：可写检出位可能已经关掉`);
   }
 
   return adapter.transaction(async executor =>

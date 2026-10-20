@@ -74,14 +74,18 @@ export const resolveBranchColumns = (metadata: EntityMetadata): BranchColumnName
 });
 
 /**
- * 在给定事务内读出当前激活的分支 id
+ * 在给定事务内读出本实例的当前分支 id：挂的那套表持有的分支
  *
  * @param read - 直发当前事务的最小读门面
+ * @param tableSet - 本实例挂的表集
  * @returns 当前分支 id
- * @throws {@link RxDBAdapterSqliteError} 元数据缺列（见 {@link resolveBranchColumns}），或既没有激活分支也没有 `main` 时
+ * @throws {@link RxDBAdapterSqliteError} 元数据缺列（见 {@link resolveBranchColumns}）；主表集既没有激活分支也没有 `main`；
+ *   或影子表集持有的分支不见了时
  *
  * @remarks
- * 语义对齐 `VersionManager.getCurrentBranch()`：先取 `activated` 的分支，没有则回退 `main`。
+ * 语义对齐 `VersionManager.getCurrentBranch()`：主表集先取 `activated` 的分支，没有则回退 `main`；
+ * 挂在可写检出位上（US-314 B1.4）按持有键查那一条，没有回退——持有分支不见了就是检出位已经关掉，
+ * 回退等于把这套表的写入记到别的分支名下。
  *
  * 必须经当前事务读，且读点必须落在使用它的那个事务内部——分支 id 一旦在事务外采样，
  * 采样与使用之间的任何一次真实分支切换都会让调用方拿着过期 id 重建触发器 / 改写 `activated`。
@@ -93,7 +97,7 @@ export const resolveBranchColumns = (metadata: EntityMetadata): BranchColumnName
  * 列名解析、结果取值与报错文案各自漂移过一轮——判定同一件事的代码分成两份时，修好的那次
  * 修复只会落在其中一份上（`?? 'id'` 兜底当年就只在 pglite 侧被删掉）。
  */
-export const readCurrentBranchId = async (read: SqliteBranchRowReader): Promise<string> => {
+export const readCurrentBranchId = async (read: SqliteBranchRowReader, tableSet: WorktreeTableSet): Promise<string> => {
   const metadata = getEntityMetadata(RxDBBranch);
   const table = quote_sql_identifier(get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN));
   const { idColumnName, activatedColumnName } = resolveBranchColumns(metadata);
@@ -118,6 +122,15 @@ export const readCurrentBranchId = async (read: SqliteBranchRowReader): Promise<
     return typeof value === 'string' ? value : undefined;
   };
 
+  if (!tableSet.isMain) {
+    const activeKeyColumn = quote_sql_identifier(branchColumnName(metadata, 'activeKey'));
+    const heldBranchId = await readId(`${activeKeyColumn} = ?`, [tableSet.holderKey]);
+    if (heldBranchId === undefined) {
+      throw new RxDBAdapterSqliteError(`表集 ${tableSet.suffix} 持有的分支不见了：可写检出位可能已经关掉`);
+    }
+    return heldBranchId;
+  }
+
   const branchId = (await readId(`${activatedColumn} = ?`, [1])) ?? (await readId(`${idColumn} = ?`, [MAIN_BRANCH_ID]));
   // 读不到分支的调用方都在写路径上（重建触发器 / 切分支），此时必须让事务回滚：
   // 继续下去会提交一个永久没有触发器、或把投影写错分支的库。
@@ -131,8 +144,11 @@ export const readCurrentBranchId = async (read: SqliteBranchRowReader): Promise<
  * {@link readCurrentBranchId} 的 `SqliteTransactionExecutor` 入口
  *
  * @param executor - 当前事务的执行器
+ * @param tableSet - 本实例挂的表集
  * @returns 当前分支 id
  * @throws {@link RxDBAdapterSqliteError} 见 {@link readCurrentBranchId}
  */
-export const read_current_branch_id = (executor: SqliteTransactionExecutor): Promise<string> =>
-  readCurrentBranchId((sql, params) => executor.query(sql, params));
+export const read_current_branch_id = (
+  executor: SqliteTransactionExecutor,
+  tableSet: WorktreeTableSet
+): Promise<string> => readCurrentBranchId((sql, params) => executor.query(sql, params), tableSet);

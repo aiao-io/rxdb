@@ -225,6 +225,17 @@ export class QueryManager<T extends EntityType> {
     }
   }
 
+  /**
+   * 重跑全部查询任务（US-314 B1.4）。
+   *
+   * @remarks
+   * 本实例换挂了一套业务表，所有结果都可能换了一份，没有「只重跑相关的」可言。
+   * 内部接口：给 `Repository.refreshAllQueries` 调用，不属于公开 API。
+   */
+  refreshAllTasks(): void {
+    for (const task of Array.from(this.#query_task_map.values())) task.refresh();
+  }
+
   registerMergeCreateFn(taskType: string, fn: MergeQueryTaskCreateFn<T>) {
     this.#query_task_merge_create_map.set(taskType, fn);
   }
