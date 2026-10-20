@@ -5,7 +5,7 @@ import {
   SCOOTER_DATASET_E
 } from '@aiao/rxdb-plugin-bom/testing';
 import { describe, expect, it } from 'vitest';
-import { materialLabel, materialName } from './material-label';
+import { itemLabelById, itemNoById, materialLabel, materialName } from './material-label';
 
 describe('演示物料名称', () => {
   it('所有示例物料都有中文名称，保留可核对的完整编码', () => {
@@ -51,5 +51,15 @@ describe('演示物料名称', () => {
   it('未命名的导入物料明确提示缺名称，完整编码仍可识别', () => {
     expect(materialName('CUSTOM-001')).toBe('未命名物料');
     expect(materialLabel('CUSTOM-001')).toBe('未命名物料（CUSTOM-001）');
+  });
+
+  it('物料 id 映射缺项显式标出未知物料并保留完整 id，不截断成看似正常的短码', () => {
+    const itemNos = new Map([['pcba-id', 'PCBA']]);
+    const missing = '0f8fad5b-d9cb-469f-a165-70867728950e';
+
+    expect(itemNoById(itemNos, 'pcba-id')).toBe('PCBA');
+    expect(itemLabelById(itemNos, 'pcba-id')).toBe('控制板（PCBA）');
+    expect(itemNoById(itemNos, missing)).toBe(`未知物料（${missing}）`);
+    expect(itemLabelById(itemNos, missing)).toBe(`未知物料（${missing}）`);
   });
 });

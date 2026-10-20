@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { BomHeader, BomItem, BomItemRevision } from '../entities.js';
+import type { BomLocalAdapter } from '../resolve/bom-adapter.js';
 import { bomSqlDialectFor } from '../resolve/bom-sql.js';
 import {
   BomExportRejectedError,
@@ -33,6 +34,7 @@ import {
   type ImportRecord
 } from '../resolve/import-contract.js';
 import { exportBom, importBomDraft } from '../resolve/integration.js';
+import { DECIMAL_FIELD_DOMAINS } from '../resolve/write-rules.js';
 import { BomDecimalFormatError } from '../types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
 
@@ -436,6 +438,52 @@ describe('US-521 导入契约解析（import-contract.parseImportPayload）', ()
       'usageProbability',
       'equivQty'
     ]);
+    // 导入契约的十进制列是入口域规则表（写入入口共用）在导入记录层上的子集：同列同域
+    for (const field of DECIMAL_FIELDS) expect(DECIMAL_FIELD_DOMAINS[field]).toBeDefined();
+  });
+
+  it('P1-8 自然键构造失败统一为 BomImportContractError（点名自然键与字段），不逃逸裸异常', () => {
+    const base = occurrenceOf('A001', 'RevA', 10, '2024-01-01', 'B001', 'o-bad');
+    const cases: [string, unknown][] = [
+      ['lotCodes', 5],
+      ['lotCodes', { A: 1 }],
+      ['lotCodes', '{oops'],
+      ['lotCodes', '"AB"'],
+      ['lotCodes', '[1,2]'],
+      ['effectiveFrom', 'not-a-date'],
+      ['effectiveFrom', 0],
+      ['effectiveFrom', '0']
+    ];
+    for (const [field, value] of cases) {
+      const label = `${field}=${JSON.stringify(value)}`;
+      expect(() => naturalKeyFor('occurrence', { ...base, [field]: value }), label).toThrow(BomImportContractError);
+      expect(() => naturalKeyFor('occurrence', { ...base, [field]: value }), label).toThrow(
+        new RegExp(`naturalKey\\(occurrence\\)\\.${field}`)
+      );
+      expect(() => parse([{ ...base, [field]: value }]), label).toThrow(BomImportContractError);
+    }
+    // 非键日期列同一日期契约：epoch 数值不再经 new Date("0") 静默变成 2000-01-01
+    expect(() => parse([{ ...base, effectiveTo: 0 }])).toThrow(/records\[0\]\.effectiveTo/);
+    expect(() => parse([{ ...base, effectiveTo: 'never' }])).toThrow(BomImportContractError);
+    // 合法形态照常：批次集合数组 / JSON 文本、Date 与 ISO 文本同键
+    expect(naturalKeyFor('occurrence', { ...base, lotCodes: ['B', 'A'] })).toBe(
+      naturalKeyFor('occurrence', { ...base, lotCodes: '["A","B"]' })
+    );
+    expect(naturalKeyFor('occurrence', { ...base, effectiveFrom: new Date('2024-01-01T00:00:00.000Z') })).toBe(
+      naturalKeyFor('occurrence', base)
+    );
+  });
+
+  it('P1-8 导出体行构造自然键失败：BomImportContractError 点名分桶与行，不逃逸裸异常', async () => {
+    const unreachable: BomLocalAdapter = {
+      name: 'wa-sqlite',
+      transaction: () => Promise.reject(new Error('结构违约应在读库之前拒绝'))
+    };
+    for (const lotCodes of [5, '{oops']) {
+      const payload = serialize([{ table: 'occurrence', values: [occurrenceRow({ lotCodes })] }]);
+      await expect(importBomDraft(unreachable, payload)).rejects.toThrow(BomImportContractError);
+      await expect(importBomDraft(unreachable, payload)).rejects.toThrow(/occurrences\[0\].*lotCodes/);
+    }
   });
 });
 
@@ -908,6 +956,85 @@ for (const backend of ['wa-sqlite', 'pglite'] satisfies BomTestBackend[]) {
       } finally {
         if (destination !== undefined) await disposeBomTestAdapter(destination);
         await disposeBomTestAdapter(source);
+      }
+    });
+
+    it('根头选备选 2 时子装配按其唯一已发布头补齐替代组成员；子装配多备选即拒绝导出', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const items: Record<string, BomItem> = {};
+        for (const key of ['ALT-R', 'ALT-S', 'ALT-S2', 'ALT-L', 'ALT-P1', 'ALT-P2']) {
+          const item = new BomItem();
+          item.itemNo = key;
+          await item.save();
+          items[key] = item;
+        }
+        const from = new Date('2020-01-01T00:00:00.000Z');
+        const line = (lineNo: number, child: BomItem) => ({
+          lineNo,
+          occurrences: [{ childItemId: child.id, qty: '1', effectiveFrom: from }]
+        });
+        await loadHistory(adapter, {
+          batchNo: 'alt-root-groups',
+          revisions: ['ALT-R', 'ALT-S', 'ALT-S2'].map(key => ({
+            itemId: items[key].id,
+            revisionNo: 'A',
+            effectiveFrom: from
+          })),
+          headers: [
+            {
+              revisionIndex: 0,
+              bomType: 'ebom',
+              orgId: 'org-x',
+              alternativeNo: 1,
+              lines: [line(10, items['ALT-L']), line(20, items['ALT-S2'])]
+            },
+            {
+              revisionIndex: 0,
+              bomType: 'ebom',
+              orgId: 'org-x',
+              alternativeNo: 2,
+              lines: [line(10, items['ALT-S']), line(20, items['ALT-P1']), line(30, items['ALT-P2'])],
+              substituteGroups: [
+                {
+                  code: 'G',
+                  strategy: 'manual',
+                  allowMix: false,
+                  members: [
+                    { occurrenceIndex: 1, role: 'primary', equivQty: '1' },
+                    { occurrenceIndex: 2, role: 'substitute', equivQty: '1' }
+                  ]
+                }
+              ]
+            },
+            { revisionIndex: 1, bomType: 'ebom', orgId: 'org-x', lines: [line(10, items['ALT-L'])] },
+            { revisionIndex: 2, bomType: 'ebom', orgId: 'org-x', alternativeNo: 1, lines: [line(10, items['ALT-L'])] },
+            { revisionIndex: 2, bomType: 'ebom', orgId: 'org-x', alternativeNo: 2, lines: [line(10, items['ALT-L'])] }
+          ]
+        });
+        const context = {
+          bomType: 'ebom' as const,
+          orgId: 'org-x',
+          asOfDate: new Date('2021-01-01T00:00:00.000Z'),
+          alternativeNo: 2,
+          substituteSelections: { G: { memberKey: items['ALT-P2'].id } }
+        };
+        const payload = await exportBom(adapter, context, { parentItemId: items['ALT-R'].id });
+        const childColumn = EXPORT_TABLE_COLUMNS.occurrence.indexOf('childItemNo');
+        expect((payload.occurrences as unknown[][]).map(row => row[childColumn]).sort()).toEqual(
+          ['ALT-L', 'ALT-P1', 'ALT-P2', 'ALT-S'].sort()
+        );
+        expect(payload.headers).toHaveLength(2);
+        // 备选 1 下挂的子装配 ALT-S2 有两个已发布备选头：alternativeNo 只裁决根头，导出按不完整结构拒绝
+        await expect(
+          exportBom(
+            adapter,
+            { bomType: 'ebom', orgId: 'org-x', asOfDate: context.asOfDate, alternativeNo: 1 },
+            { parentItemId: items['ALT-R'].id }
+          )
+        ).rejects.toThrow(/备选|候选|alternativeNo/);
+      } finally {
+        await disposeBomTestAdapter(adapter);
       }
     });
 

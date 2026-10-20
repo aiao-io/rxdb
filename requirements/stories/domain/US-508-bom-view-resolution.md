@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-18
+updated: 2026-10-20
 tags: [domain, bom, query]
 ---
 
@@ -154,4 +154,4 @@ manifest 记录结构依据（头、修订、发生项 ID），[US-511](US-511-b
 
 ## 最终验收
 
-最终完整affected351任务EXIT0、三端共享51/51、demo24/24、Tauri额外门禁及8包严格覆盖率全部通过，本故事全部功能AC与最终门禁已关闭，status为Done。证据及失败/修复历史见[最终验收](../../../specs/021-bom-closure/closure-map.md)。
+最终完整affected351任务EXIT0、三端共享51/51、demo24/24（2026-10-18时点）、Tauri额外门禁及8包严格覆盖率全部通过，本故事全部功能AC与最终门禁已关闭，status为Done。证据及失败/修复历史见[最终验收](../../../specs/021-bom-closure/closure-map.md)。

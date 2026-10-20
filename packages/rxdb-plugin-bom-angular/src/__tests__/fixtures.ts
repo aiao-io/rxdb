@@ -1,5 +1,8 @@
 import { initialBomViewState, type BomViewCommands, type BomViewNode, type BomViewState } from '@aiao/rxdb-plugin-bom';
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
+
+/** 每个共享命令都是可断言的 mock；三端夹具同名、同默认值。 */
+export type MockCommands = { [K in keyof BomViewCommands]: Mock<BomViewCommands[K]> };
 
 export const viewState = (overrides: Partial<BomViewState> = {}): BomViewState => ({
   ...initialBomViewState(),
@@ -26,13 +29,13 @@ export const viewNode = (path: string[], overrides: Partial<BomViewNode> = {}): 
   ...overrides
 });
 
-export const viewCommands = (): BomViewCommands => ({
-  setInput: vi.fn(),
-  refresh: vi.fn(),
-  toggle: vi.fn(),
-  loadOccurrence: vi.fn(async () => undefined),
-  saveOccurrence: vi.fn(async () => undefined),
-  calculate: vi.fn(async () => {
+export const viewCommands = (): MockCommands => ({
+  setInput: vi.fn<BomViewCommands['setInput']>(),
+  refresh: vi.fn<BomViewCommands['refresh']>(),
+  toggle: vi.fn<BomViewCommands['toggle']>(),
+  loadOccurrence: vi.fn<BomViewCommands['loadOccurrence']>(async () => undefined),
+  saveOccurrence: vi.fn<BomViewCommands['saveOccurrence']>(async () => undefined),
+  calculate: vi.fn<BomViewCommands['calculate']>(async () => {
     throw new Error('测试未提供完整数量结果');
   })
 });

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `claude/bom-related-work-77235b`
 **Created**: 2026-10-13
-**Status**: Approved for implementation
+**Status**: Implemented
 **Input**: owner 解锁 epic-009（2026-10-12），第 0 步样本与决策复核已就位；按 [epic 首轮可开工切片](../../../requirements/epics/epic-009-bom-domain-model.md#首轮可开工切片) 推进第 1 步。
 
 权威规格见各故事文件，本 spec 是第 1 步的**实现范围编译**，冲突以故事为准：

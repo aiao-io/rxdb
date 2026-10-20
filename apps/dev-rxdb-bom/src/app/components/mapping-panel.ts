@@ -247,10 +247,6 @@ export class MappingPanel {
     return gap.undecidable !== null || gap.differences.length > 0 || gap.appeared.length > 0;
   }
 
-  itemNo(itemId: string): string {
-    return this.itemNos().get(itemId) ?? itemId.slice(0, 8);
-  }
-
   /** 双图并排展开（US-525 AC#13）：EBOM / MBOM 两张图同评估日。 */
   async runDualExplode(): Promise<void> {
     if (this.busy() || !this.ready()) return;

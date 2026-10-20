@@ -1,6 +1,7 @@
 import type { MigrationType, TransactionExecutor } from '@aiao/rxdb';
-import { buildReachCycleDdl } from './cycle-ddl.js';
-import { buildReachMaintenanceDdl } from './reach-ddl.js';
+import { readTableCatalog } from '../storage-catalog.js';
+import { BOM_GRAPH_ENTITIES } from './entities.js';
+import { buildReachInstallDdl } from './install.js';
 import { reachSqlFor, unionEdgesSql, type ReachSql } from './reach-sql.js';
 
 /** 已发布后保持稳定的可达性迁移水位。 */
@@ -33,17 +34,30 @@ export const assertReachComplete = async (executor: TransactionExecutor, adapter
   if (result.rows.length > 0) throw new Error('[rxdb-plugin-bom] 可达性派生表不完整，必须在显式迁移中重建');
 };
 
-/** 在同一个迁移事务中回填并安装依赖闭包的存储约束。 */
+const graphTablesPresent = async (executor: TransactionExecutor, postgres: boolean): Promise<boolean> => {
+  for (const Entity of BOM_GRAPH_ENTITIES) {
+    if ((await readTableCatalog(executor, postgres, executor.tableRef(Entity))).columns.size === 0) return false;
+  }
+  return true;
+};
+
+/**
+ * 在同一个迁移事务中回填并安装依赖闭包的存储约束。
+ *
+ * @remarks
+ * 系统迁移排在缺表补建之前：同一版本首次引入 BOM 实体的既有库此刻还没有源表，
+ * 内连接的并集边集为空、没有可回填的对；判环与维护随插件 install 在建表之后安装。
+ */
 export const createReachMigration = (adapterName: string): MigrationType => ({
   name: BOM_REACH_MIGRATION,
   async up(executor) {
     const sql = reachSqlFor(adapterName);
+    if (!(await graphTablesPresent(executor, sql.postgres))) return;
     const cycle = await executor.query(`${closureCteSql(sql)} SELECT 1 FROM closure WHERE a = d LIMIT 1`);
     if (cycle.rows.length > 0) throw new Error('[rxdb-plugin-bom] 旧主数据并集包含有向环，不能建立可达性');
     await executor.query(backfillReachSql(sql));
     await assertReachComplete(executor, adapterName);
-    for (const statement of [...buildReachCycleDdl(adapterName), ...buildReachMaintenanceDdl(adapterName)])
-      await executor.query(statement);
+    for (const statement of buildReachInstallDdl(adapterName)) await executor.query(statement);
   },
   down: () => Promise.reject(new Error('[rxdb-plugin-bom] 可达性迁移不可逆，禁止删除已启用的写入约束'))
 });

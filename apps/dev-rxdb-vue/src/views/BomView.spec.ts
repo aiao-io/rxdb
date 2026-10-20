@@ -1,5 +1,7 @@
+import { useBomView } from '@aiao/rxdb-plugin-bom-vue';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { toValue } from 'vue';
 import BomView from './BomView.vue';
 interface DatabaseProbe {
   config: { dbName: string; entities: readonly unknown[] };
@@ -34,7 +36,10 @@ const deferred = () => {
   });
   return { promise, resolve };
 };
-const fixture = { ids: {}, inputFor: vi.fn(() => ({})) };
+const fixture = {
+  ids: {},
+  inputFor: vi.fn((root: string, overrides: object) => ({ target: { parentItemId: root }, ...overrides }))
+};
 beforeEach(() => {
   probes.databases.length = 0;
   probes.connect.mockReset().mockResolvedValue(undefined);
@@ -81,6 +86,23 @@ describe('Vue BOM 页面资源边界', () => {
     await flushPromises();
     expect(probes.loadFixture).not.toHaveBeenCalled();
     expect(probes.databases[0].destroy).toHaveBeenCalledOnce();
+  });
+  it('输入控件经响应式 getter 交给绑定，页面不再手写 setInput 同步', async () => {
+    const page = createPage();
+    await flushPromises();
+    const [database, source] = vi.mocked(useBomView).mock.calls.at(-1)!;
+    expect(database).toBe(probes.databases[0]);
+    await page.get('select[name="bom-root"]').setValue('manual');
+    await page.get('input[name="bom-planned"]').setValue('7');
+    await page.get('input[name="bom-depth"]').setValue('2');
+    await page.get('input[name="bom-date"]').setValue('2099-01-02T12:30');
+    expect(toValue(source)).toEqual({
+      target: { parentItemId: 'manual' },
+      context: { asOfDate: new Date('2099-01-02T12:30Z') },
+      plannedQty: { value: '7', uom: 'pcs' },
+      budgets: { depth: 2 }
+    });
+    expect(vi.mocked(useBomView).mock.results.at(-1)!.value.commands.setInput).not.toHaveBeenCalled();
   });
   it('种子失败立即释放并呈现原错误，随后卸载不重复释放', async () => {
     probes.loadFixture.mockRejectedValueOnce(new Error('BOM种子失败'));

@@ -47,10 +47,12 @@ const withContextFixture = async (
 const pathsOf = (result: ExpansionResult): ExpectedPath[] =>
   result.nodes.map(node => [node.itemId, node.path, node.revisionId]);
 
-const alternativePaths = (fixture: BomViewFixture): ExpectedPath[] => [
+/** 指定备选后的展开：根 + 被选备选头的那一支（alternativeNo 只裁决根头，不合并其它备选）。 */
+const alternativePaths = (fixture: BomViewFixture, alternativeNo: 1 | 2): ExpectedPath[] => [
   [fixture.ids.items.alternative, [], fixture.ids.revisions.alternative],
-  [fixture.ids.items.red, [fixture.ids.occurrences.alternative1], fixture.ids.revisions.red],
-  [fixture.ids.items.blue, [fixture.ids.occurrences.alternative2], fixture.ids.revisions.blue]
+  alternativeNo === 1 ?
+    [fixture.ids.items.red, [fixture.ids.occurrences.alternative1], fixture.ids.revisions.red]
+  : [fixture.ids.items.blue, [fixture.ids.occurrences.alternative2], fixture.ids.revisions.blue]
 ];
 
 const expectExpansion = async (
@@ -163,7 +165,7 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
         ];
         const before = await readReachRows(adapter);
         const pairs = await readReachPairs(adapter);
-        for (const alternativeNo of [1, 2]) {
+        for (const alternativeNo of [1, 2] as const) {
           const input = fixture.inputFor('alternative', { context: { alternativeNo } });
           const selected = alternativeNo === 1 ? 'red' : 'blue';
           const occurrence = alternativeNo === 1 ? occurrences.alternative1 : occurrences.alternative2;
@@ -174,7 +176,7 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
           expect(
             resolved.occurrences.map(row => [row.childItemId, row.occurrenceId, row.resolvedChildRevisionId])
           ).toEqual([[items[selected], occurrence, revisions[selected]]]);
-          await expectExpansion(adapter, input.context, input.target, alternativePaths(fixture));
+          await expectExpansion(adapter, input.context, input.target, alternativePaths(fixture, alternativeNo));
           await expectUsage(adapter, input.context, items.alternative, items.red, [[occurrences.alternative1]]);
           await expectUsage(adapter, input.context, items.alternative, items.blue, [[occurrences.alternative2]]);
           const quantity = await explodeBom(adapter, input.context, input.target, { plannedQty: input.plannedQty });
@@ -206,7 +208,13 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
         expect(
           unresolved.manifest.unresolved.map(row => row.candidates.map(candidate => candidate.alternativeNo))
         ).toEqual([[1, 2]]);
-        await expectExpansion(adapter, alternative.context, alternative.target, alternativePaths(fixture));
+        // 未指定备选：展开只给根节点并列出两个候选，不下钻、不合并任一备选的发生项
+        const expansion = await expandBom(adapter, alternative.context, alternative.target);
+        expect(pathsOf(expansion)).toEqual([[fixture.ids.items.alternative, [], fixture.ids.revisions.alternative]]);
+        expect(
+          (expansion.unresolved ?? []).map(row => row.candidates.map(candidate => candidate.alternativeNo))
+        ).toEqual([[1, 2]]);
+        expect(() => assertCompleteResolution(expansion)).toThrow(/未裁决|unresolved|备选/);
         expect(() => assertCompleteResolution(unresolved)).toThrow(/未裁决|unresolved|备选/);
         await expect(
           explodeBom(adapter, alternative.context, alternative.target, { plannedQty: alternative.plannedQty })

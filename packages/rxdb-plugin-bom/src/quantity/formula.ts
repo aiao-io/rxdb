@@ -24,6 +24,12 @@ import {
 /** 公式语法版本：语法升级时递增，旧公式按旧版本求值。 */
 export const FORMULA_GRAMMAR_VERSION = '1';
 
+/**
+ * 括号嵌套深度上限：业务公式（如 长×宽×厚×密度）远用不到；递归下降每层占三帧，
+ * 超深嵌套在爆炸期会撑爆调用栈（RangeError），解析期按此拒绝为领域错误。
+ */
+const FORMULA_MAX_DEPTH = 64;
+
 type Token =
   | { kind: 'number'; text: string }
   | { kind: 'ident'; name: string }
@@ -74,83 +80,148 @@ const tokenize = (formula: string): Token[] => {
   return tokens;
 };
 
-/** 解析期上下文：公式原文与参数表（报错点名用）。 */
-interface ParseContext {
-  formula: string;
-  params: Record<string, string>;
-  tokens: Token[];
-  position: number;
+/** 因子：字面量（解析期已规范化）、命名参数或括号内的子表达式。 */
+type Factor = { kind: 'literal'; value: Decimal } | { kind: 'param'; name: string } | { kind: 'group'; expr: Expr };
+
+/** 左结合链：首项依次与后续项运算——求值逐项循环，递归深度只随括号增长、不随链长增长。 */
+interface Chain<Operand, Operator> {
+  first: Operand;
+  rest: { op: Operator; operand: Operand }[];
 }
 
-const literalValue = (context: ParseContext, text: string): Decimal => {
+type Term = Chain<Factor, '*' | '/'>;
+type Expr = Chain<Term, '+' | '-'>;
+
+/** 解析期上下文：公式原文（报错点名用）与记号游标。 */
+interface ParseContext {
+  formula: string;
+  tokens: Token[];
+  position: number;
+  /** 当前括号嵌套深度。 */
+  depth: number;
+}
+
+const literalValue = (formula: string, text: string): Decimal => {
   try {
-    return decimalFromCanonical(normalizeDecimalString(text, `公式 ${context.formula} 的字面量`));
+    return decimalFromCanonical(normalizeDecimalString(text, `公式 ${formula} 的字面量`));
   } catch (error) {
     throw new BomQuantityError(String((error as Error).message).replace(/^\[rxdb-plugin-bom\]\s*/, ''));
   }
 };
 
 /** factor := literal | ident | '(' expr ')' */
-const parseFactor = (context: ParseContext): Decimal => {
+const parseFactor = (context: ParseContext): Factor => {
   const token = context.tokens[context.position];
   if (!token) throw new BomQuantityError(`公式 ${context.formula} 意外结束`);
   if (token.kind === 'number') {
     context.position += 1;
-    return literalValue(context, token.text);
+    return { kind: 'literal', value: literalValue(context.formula, token.text) };
   }
   if (token.kind === 'ident') {
     context.position += 1;
-    const value = context.params[token.name];
-    if (value === undefined) {
-      throw new BomQuantityError(`公式 ${context.formula} 缺参数 ${token.name}`);
-    }
-    return literalValue(context, value);
+    return { kind: 'param', name: token.name };
   }
   if (token.kind === 'lparen') {
+    if (context.depth >= FORMULA_MAX_DEPTH) {
+      throw new BomQuantityError(`公式 ${context.formula} 括号嵌套深度超过 ${FORMULA_MAX_DEPTH}`);
+    }
     context.position += 1;
-    const inner = parseExpr(context);
+    context.depth += 1;
+    const expr = parseExpr(context);
+    context.depth -= 1;
     const closing = context.tokens[context.position];
     if (!closing || closing.kind !== 'rparen') {
       throw new BomQuantityError(`公式 ${context.formula} 缺右括号`);
     }
     context.position += 1;
-    return inner;
+    return { kind: 'group', expr };
   }
   throw new BomQuantityError(`公式 ${context.formula} 位置 ${context.position} 语法错误`);
 };
 
-/** term := factor (('*'|'/') factor)* */
-const parseTerm = (context: ParseContext): Decimal => {
-  let value = parseFactor(context);
+/** 解析一条左结合链：`operand (op operand)*`，op 取自 `operators`。 */
+const parseChain = <Operand, Operator extends '+' | '-' | '*' | '/'>(
+  context: ParseContext,
+  operators: readonly Operator[],
+  parseOperand: (context: ParseContext) => Operand
+): Chain<Operand, Operator> => {
+  const chain: Chain<Operand, Operator> = { first: parseOperand(context), rest: [] };
   for (;;) {
     const token = context.tokens[context.position];
-    if (!token || token.kind !== 'op' || (token.text !== '*' && token.text !== '/')) break;
+    if (!token || token.kind !== 'op' || !(operators as readonly string[]).includes(token.text)) return chain;
     context.position += 1;
-    const right = parseFactor(context);
-    if (token.text === '*') {
+    chain.rest.push({ op: token.text as Operator, operand: parseOperand(context) });
+  }
+};
+
+/** term := factor (('*'|'/') factor)* */
+const parseTerm = (context: ParseContext): Term => parseChain(context, ['*', '/'] as const, parseFactor);
+
+/** expr := term (('+'|'-') term)* */
+const parseExpr = (context: ParseContext): Expr => parseChain(context, ['+', '-'] as const, parseTerm);
+
+/** 解析整条公式：语法错、非法字面量、括号超深、多余记号都在这里拒绝（不需要参数值）。 */
+const parseFormula = (formula: string): Expr => {
+  const context: ParseContext = { formula, tokens: tokenize(formula), position: 0, depth: 0 };
+  const expr = parseExpr(context);
+  if (context.position !== context.tokens.length) {
+    throw new BomQuantityError(`公式 ${formula} 位置 ${context.position} 有多余记号`);
+  }
+  return expr;
+};
+
+/** 求值期作用域：公式原文与参数表（报错点名用）。 */
+interface EvaluationScope {
+  formula: string;
+  params: Record<string, string>;
+}
+
+const evaluateFactor = (factor: Factor, scope: EvaluationScope): Decimal => {
+  if (factor.kind === 'literal') return factor.value;
+  if (factor.kind === 'group') return evaluateExpr(factor.expr, scope);
+  const value = scope.params[factor.name];
+  if (value === undefined) throw new BomQuantityError(`公式 ${scope.formula} 缺参数 ${factor.name}`);
+  return literalValue(scope.formula, value);
+};
+
+const evaluateTerm = (term: Term, scope: EvaluationScope): Decimal => {
+  let value = evaluateFactor(term.first, scope);
+  for (const { op, operand } of term.rest) {
+    const right = evaluateFactor(operand, scope);
+    if (op === '*') {
       value = decimalMul(value, right);
-    } else {
-      try {
-        value = decimalDiv(value, right);
-      } catch {
-        throw new BomQuantityError(`公式 ${context.formula} 除数为零`);
-      }
+      continue;
+    }
+    try {
+      value = decimalDiv(value, right);
+    } catch {
+      throw new BomQuantityError(`公式 ${scope.formula} 除数为零`);
     }
   }
   return value;
 };
 
-/** expr := term (('+'|'-') term)* */
-const parseExpr = (context: ParseContext): Decimal => {
-  let value = parseTerm(context);
-  for (;;) {
-    const token = context.tokens[context.position];
-    if (!token || token.kind !== 'op' || (token.text !== '+' && token.text !== '-')) break;
-    context.position += 1;
-    const right = parseTerm(context);
-    value = token.text === '+' ? decimalAdd(value, right) : decimalSub(value, right);
+const evaluateExpr = (expr: Expr, scope: EvaluationScope): Decimal => {
+  let value = evaluateTerm(expr.first, scope);
+  for (const { op, operand } of expr.rest) {
+    const right = evaluateTerm(operand, scope);
+    value = op === '+' ? decimalAdd(value, right) : decimalSub(value, right);
   }
   return value;
+};
+
+/**
+ * 公式的纯语法校验（写入期用）：不需要参数值，只判定语法、字面量与括号深度。
+ *
+ * @remarks
+ * 与 {@link evaluateFormula} 同一解析器，判定不会漂移；缺参、除零与负结果依赖参数值，只能在求值期判定。
+ *
+ * @param formula - 公式文本
+ *
+ * @throws {@link BomQuantityError} 语法错 / 非法字面量 / 括号嵌套超 64 层 / 多余记号
+ */
+export const assertFormulaSyntax = (formula: string): void => {
+  parseFormula(formula);
 };
 
 /**
@@ -160,14 +231,10 @@ const parseExpr = (context: ParseContext): Decimal => {
  * @param params - 命名参数（值走入口规范化，接受指数写法）
  * @returns 规范十进制串（34 位有效数字、half-even 中间量）
  *
- * @throws {@link BomQuantityError} 缺参 / 语法错 / 除零 / 负结果
+ * @throws {@link BomQuantityError} 缺参 / 语法错 / 括号嵌套超 64 层 / 除零 / 负结果
  */
 export const evaluateFormula = (formula: string, params: Record<string, string>): string => {
-  const context: ParseContext = { formula, params, tokens: tokenize(formula), position: 0 };
-  const value = parseExpr(context);
-  if (context.position !== context.tokens.length) {
-    throw new BomQuantityError(`公式 ${formula} 位置 ${context.position} 有多余记号`);
-  }
+  const value = evaluateExpr(parseFormula(formula), { formula, params });
   if (decimalIsNegative(value)) {
     throw new BomQuantityError(`公式 ${formula} 结果为负（首期没有负需求）`);
   }

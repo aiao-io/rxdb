@@ -71,7 +71,7 @@ BOM19条及US-030已完成，未列入上表未完成需求；最终证据见[�
 
 ### 批次 4：BOM 首轮切片（epic-009 已解锁）
 
-BOM本轮已完成：Epic009的19条故事全部Done，跨域前置US-030也已Done。最终完整351任务、共享51/51/demo24/24与8包严格覆盖率全部通过；该批次以下为历史排期记录，最终结果见[验收](../specs/021-bom-closure/closure-map.md)。
+BOM本轮已完成：Epic009的19条故事全部Done，跨域前置US-030也已Done。最终完整351任务、共享51/51/demo24/24（2026-10-18时点；现demo共34条）与8包严格覆盖率全部通过；该批次以下为历史排期记录，最终结果见[验收](../specs/021-bom-closure/closure-map.md)。
 
 owner 2026-10-12 解锁 [epic-009](epics/epic-009-bom-domain-model.md)：驱动者 = **完整功能的 BOM 演示应用**——
 `apps/dev-rxdb-bom` 独立 app 展示全域能力（[US-525](stories/domain/US-525-bom-end-to-end-demo.md) 阶段 A～F）。

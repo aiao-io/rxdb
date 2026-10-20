@@ -79,9 +79,9 @@ export interface BomViewState {
 
 /** 三框架绑定原样透传的共享命令。 */
 export interface BomViewCommands {
-  /** 替换完整查询输入，迟到结果不得覆盖新输入。 */
+  /** 替换完整查询输入，迟到结果不得覆盖新输入；换目标时展开状态回到默认（只展开根），同一目标只改参数时保留。 */
   setInput(input: BomViewInput): void;
-  /** 重订阅当前输入，允许失败后重试。 */
+  /** 显式重读当前输入：源正常时共享任务只重读一次，源失败后重订阅以重试。 */
   refresh(): void;
   /** 只切换给定发生项路径的展开状态。 */
   toggle(path: readonly string[]): void;
@@ -89,7 +89,7 @@ export interface BomViewCommands {
   loadOccurrence(id: string): Promise<void>;
   /** 保存当前发生项；已发布既有行拒绝，draft ECN新行的日期仍由ECN派生，失败保留领域错误。 */
   saveOccurrence(patch: BomOccurrencePatch): Promise<void>;
-  /** 重读当前完整输入；数量错误、未裁决候选或截断时明确拒绝。 */
+  /** 重读当前完整输入；数量错误、未裁决候选、截断或读取期间输入被替换时明确拒绝。 */
   calculate(): Promise<ExplosionResult>;
 }
 

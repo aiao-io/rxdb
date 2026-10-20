@@ -2,7 +2,7 @@
 
 **Feature Branch**: `claude/bom-related-work-77235b`
 **Created**: 2026-10-14
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: 第 1、2 步已交付（US-030 A/B/C、US-507 A/B、US-508 首轮 AC、US-509 首轮 AC、US-510 阶段 A，affected 272/272 全绿）；按 [epic 切片表](../../../requirements/epics/epic-009-bom-domain-model.md#首轮可开工切片) 推进第 3 步。
 

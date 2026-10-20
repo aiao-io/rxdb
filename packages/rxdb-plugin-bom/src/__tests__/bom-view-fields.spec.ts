@@ -18,4 +18,22 @@ describe('共享 BOM 编辑表单', () => {
     expect(patch.effectiveFrom?.toISOString()).toBe('2099-01-01T12:34:56.789Z');
     expect(bomEditorFields(null)).toMatchObject({ qty: '', effectiveFrom: '', effectiveTo: '' });
   });
+  it('生效期按 UTC 墙钟呈现，往返不随运行机时区平移', () => {
+    const value = {
+      occurrenceId: 'occurrence',
+      qty: '1',
+      componentScrap: '0',
+      operationSeq: null,
+      effectiveFrom: new Date('2099-01-01T00:00:00.000Z'),
+      effectiveTo: new Date('2099-01-02T03:04:05.006Z'),
+      editable: true,
+      readOnlyReason: null
+    };
+    const display = bomEditorFields(value);
+    expect(display).toMatchObject({ effectiveFrom: '2099-01-01T00:00:00.000', effectiveTo: '2099-01-02T03:04:05.006' });
+    expect(parseBomEditorFields(display)).toMatchObject({
+      effectiveFrom: value.effectiveFrom,
+      effectiveTo: value.effectiveTo
+    });
+  });
 });

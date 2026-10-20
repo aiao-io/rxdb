@@ -12,7 +12,7 @@ const makeService = (names = ['SC-100', 'B-01', 'R10K'], ready = true) => {
     dataEpoch: signal(0),
     resetting: signal(false),
     extRead: vi.fn().mockResolvedValue('{"rohs":"yes"}'),
-    extPatch: vi.fn().mockResolvedValue(''),
+    extPatch: vi.fn().mockResolvedValue({ ok: true }),
     itemNos,
     itemUoms: signal(new Map(names.map(name => [name, 'pcs']))),
     itemCount: computed(() => itemNos().size),

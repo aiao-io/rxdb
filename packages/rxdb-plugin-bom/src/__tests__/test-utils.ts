@@ -181,3 +181,26 @@ export const buildQuantityFixture = async (
     }))
   });
 };
+
+// -----------------------------------------------------[ 引入 BOM 之前的旧库 ]
+
+/** 建一个不装 BOM 插件、不含任何 BOM 实体的持久库并关闭，模拟引入 BOM 之前的应用版本。 */
+export const createPlainPersistentDatabase = async (backend: BomTestBackend, dbName: string): Promise<void> => {
+  const rxdb = new RxDB({ dbName, entities: [], sync: { local: { adapter: backend }, type: SyncType.None } });
+  rxdb.adapter(backend, db =>
+    backend === 'wa-sqlite' ?
+      new RxDBAdapterWaSqlite(db, {
+        vfs: 'IDBBatchAtomicVFS',
+        async: true,
+        worker: false,
+        wasmPath: asyncWasmPath,
+        batchTimeout: 1
+      })
+    : new RxDBAdapterPGlite(db, { store: 'idb' })
+  );
+  try {
+    await rxdb.connect(backend);
+  } finally {
+    await rxdb.disconnectAll();
+  }
+};

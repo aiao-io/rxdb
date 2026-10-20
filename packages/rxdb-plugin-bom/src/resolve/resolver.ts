@@ -65,12 +65,39 @@ export const assertContext = (context: ResolutionContext): void => {
 };
 
 /**
+ * 根修订的备选头裁决（{@link ResolutionContext.alternativeNo} 只裁决根头，四引擎共用）。
+ *
+ * @param headers - 根修订在上下文下的已发布头（含备选编号）
+ * @param context - 解析上下文
+ * @param parentRevisionId - 根修订 id（错误点名用）
+ * @returns 指定时为命中的那个头；未指定时原样返回全部（调用方按 0 / 1 / 多 处理，多 = unresolved）
+ * @throws {@link BomResolutionError} 指定了根修订在上下文下不存在的备选编号（字段 `alternativeNo`）
+ */
+export const selectRootAlternatives = <T extends { alternativeNo: number }>(
+  headers: readonly T[],
+  context: ResolutionContext,
+  parentRevisionId: string
+): T[] => {
+  if (context.alternativeNo === undefined) return [...headers];
+  const selected = headers.filter(header => header.alternativeNo === context.alternativeNo);
+  if (selected.length === 0) {
+    const existing = headers.map(header => header.alternativeNo).join('、');
+    throw new BomResolutionError(
+      'alternativeNo',
+      `根修订 ${parentRevisionId} 在上下文下没有备选 ${context.alternativeNo}（已发布备选：${existing || '无'}）`
+    );
+  }
+  return selected;
+};
+
+/**
  * 按上下文解析父修订 / 头 / 行发生项，返回有效行集与 manifest。
  *
  * @param adapter - 本地适配器（全部读取在 `adapter.transaction` 的一个读事务里，AC#15）
  * @param context - 解析上下文
  * @param target - 解析目标（按时点或显式修订）
  * @returns 解析结果；多备选且未指定时 `occurrences` 为空、manifest 标 `unresolved`
+ * @throws {@link BomResolutionError} 指定的 `alternativeNo` 在根修订上不存在
  */
 export const resolveBom = async (
   adapter: BomLocalAdapter,
@@ -117,10 +144,7 @@ export const resolveBom = async (
       headerId: String(row[columnIndexOf(headersResult.columns, 'headerId')]),
       alternativeNo: Number(row[columnIndexOf(headersResult.columns, 'alternativeNo')])
     }));
-    const selectedHeaders =
-      context.alternativeNo !== undefined ?
-        headers.filter(header => header.alternativeNo === context.alternativeNo)
-      : headers;
+    const selectedHeaders = selectRootAlternatives(headers, context, parentRevisionId);
 
     const unresolved: ResolutionManifest['unresolved'] =
       selectedHeaders.length > 1 ?
@@ -143,7 +167,7 @@ export const resolveBom = async (
         parentRevisionId,
         bomType: context.bomType,
         orgId: context.orgId,
-        alternativeNo: context.alternativeNo
+        alternativeNo: selectedHeaders[0].alternativeNo
       });
       const occResult = await query(occSql.sql, occSql.params);
       const cols = occResult.columns;

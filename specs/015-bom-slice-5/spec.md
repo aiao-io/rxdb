@@ -2,7 +2,7 @@
 
 **Feature Branch**: `claude/bom-related-work-77235b`
 **Created**: 2026-10-14
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: 第 1~4 步已交付（首轮切片闭环，affected 279/279 全绿）；按 [epic 切片表](../../../requirements/epics/epic-009-bom-domain-model.md#首轮可开工切片) 推进第 5 步——US-525 阶段 B（数量的三个硬用例：替代组 / 多输出 / 工序）的前置故事群。
 

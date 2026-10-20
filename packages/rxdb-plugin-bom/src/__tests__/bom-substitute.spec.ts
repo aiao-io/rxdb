@@ -9,9 +9,10 @@
 import { RxDBCheckViolationError } from '@aiao/rxdb';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BomHeader, BomItem, BomLine, BomLineOccurrence, BomSubstituteGroup } from '../entities.js';
+import { BomCostError, rollupCost } from '../quantity/cost.js';
 import { explodeBom } from '../quantity/explosion.js';
 import { loadHistory } from '../resolve/history-loader.js';
-import { BomDecimalFormatError, BomPublishValidationError, BomWriteProtocolError } from '../types.js';
+import { BomDecimalFormatError, BomPublishValidationError, BomQuantityError, BomWriteProtocolError } from '../types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
@@ -20,12 +21,16 @@ const day = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 
 const CONTEXT = { bomType: 'ebom' as const, orgId: 'org-x', asOfDate: day('2026-01-01') };
 
-const makeItem = async (prefix: string): Promise<BomItem> => {
+const makeItem = async (prefix: string, unitPrice: string | null = null): Promise<BomItem> => {
   const item = new BomItem();
   item.itemNo = `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
+  item.unitPrice = unitPrice;
+  item.priceCurrency = unitPrice === null ? null : 'CNY';
   await item.save();
   return item;
 };
+
+const COST_CONTEXT = { ...CONTEXT, currency: 'CNY', rateDate: day('2026-01-01') };
 
 /** 建 draft 头（挂在指定物料已发布修订下）。 */
 const setup = async (adapter: BomTestAdapter, parent: BomItem): Promise<BomHeader> => {
@@ -408,6 +413,251 @@ for (const backend of BACKENDS) {
       );
       expect(selected.unresolved.length).toBe(0);
       expect(selected.requirementLines.find(line => line.itemId === b.id)?.qty).toBe('100');
+    });
+
+    /**
+     * priority × allow_mix=true、最高者 equiv_qty ≠ 1：B（优先 2，equiv 2）→ C（优先 1，equiv 0.5），
+     * primary 需求 100。份额按成员单位输出（primary 需求 × equiv），可用量上限也按成员单位比较。
+     */
+    const buildPriorityGroup = async (): Promise<{
+      header: BomHeader;
+      group: BomSubstituteGroup;
+      a: BomItem;
+      b: BomItem;
+      c: BomItem;
+    }> => {
+      const parent = await makeItem('sub-pe');
+      const header = await setup(adapter, parent);
+      const group = await makeGroup(header, { strategy: 'priority', allowMix: true });
+      const a = await makeItem('sub-pe-a', '1');
+      const b = await makeItem('sub-pe-b', '1');
+      const c = await makeItem('sub-pe-c', '2');
+      await makeMember(header, group, a, { substituteRole: 'primary', usageProbability: null, substitutePriority: 9 });
+      await makeMember(header, group, b, { usageProbability: null, substitutePriority: 2, equivQty: '2' });
+      await makeMember(header, group, c, { usageProbability: null, substitutePriority: 1, equivQty: '0.5' });
+      header.costLotQty = '1';
+      header.state = 'released';
+      await header.save();
+      return { header, group, a, b, c };
+    };
+
+    it('AC#2/#4 priority 最高者 equiv=2：充足时输出 200 件（成员单位），不足时按序补足 60 + 35', async () => {
+      const { header, a, b, c } = await buildPriorityGroup();
+      const explode = (availabilities?: Record<string, { value: string; uom: string }>) =>
+        explodeBom(
+          adapter,
+          { ...CONTEXT, substituteAvailabilities: availabilities },
+          { parentRevisionId: header.parentRevisionId },
+          { plannedQty: { value: '100', uom: 'pcs' } }
+        );
+      const qtyOf = (lines: { itemId: string; qty: string }[], item: BomItem): string[] =>
+        lines.filter(line => line.itemId === item.id).map(line => line.qty);
+      // 充足：100 primary 单位 × equiv 2 = 200 件 B
+      const ample = await explode();
+      expect(qtyOf(ample.requirementLines, b)).toEqual(['200']);
+      expect(qtyOf(ample.requirementLines, a)).toEqual([]);
+      expect(qtyOf(ample.requirementLines, c)).toEqual([]);
+      // 不足：B 上限 60 件（承接 30 primary 单位）→ 余 70 × 0.5 = 35 件 C
+      const mixed = await explode({ [b.id]: { value: '60', uom: 'pcs' } });
+      expect(qtyOf(mixed.requirementLines, b)).toEqual(['60']);
+      expect(qtyOf(mixed.requirementLines, c)).toEqual(['35']);
+    });
+
+    it('AC#4 priority 全部成员耗尽仍短缺：拒绝并点名组与剩余短缺，不静默丢需求', async () => {
+      const { header, group, b, c } = await buildPriorityGroup();
+      // B 60 件承接 30、C 20 件承接 40 → 仍短缺 30 primary 单位
+      const error = await explodeBom(
+        adapter,
+        {
+          ...CONTEXT,
+          substituteAvailabilities: { [b.id]: { value: '60', uom: 'pcs' }, [c.id]: { value: '20', uom: 'pcs' } }
+        },
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '100', uom: 'pcs' } }
+      ).then(
+        () => null,
+        (cause: unknown) => cause
+      );
+      expect(error).toBeInstanceOf(BomQuantityError);
+      expect(String((error as Error).message)).toContain(group.code);
+      expect(String((error as Error).message)).toContain('短缺 30');
+    });
+
+    it('AC#4 可用量值走入口十进制规范化：非法串与负值拒绝并点名组与成员（数量与成本同口径）', async () => {
+      const { header, group, b } = await buildPriorityGroup();
+      const explode = (value: string) =>
+        explodeBom(
+          adapter,
+          { ...CONTEXT, substituteAvailabilities: { [b.id]: { value, uom: 'pcs' } } },
+          { parentRevisionId: header.parentRevisionId },
+          { plannedQty: { value: '100', uom: 'pcs' } }
+        ).then(
+          () => null,
+          (cause: unknown) => cause
+        );
+      for (const [value, pattern] of [
+        ['abc', /非法十进制语法/],
+        ['-5', /负值/]
+      ] as const) {
+        const error = await explode(value);
+        expect(error, value).toBeInstanceOf(BomQuantityError);
+        expect(String((error as Error).message), value).toMatch(pattern);
+        expect(String((error as Error).message), value).toContain(group.code);
+        expect(String((error as Error).message), value).toContain(b.id);
+      }
+      const cost = await rollupCost(
+        adapter,
+        { ...COST_CONTEXT, substituteAvailabilities: { [b.id]: { value: '-5', uom: 'pcs' } } },
+        { parentRevisionId: header.parentRevisionId },
+        { value: '100', uom: 'pcs' }
+      ).then(
+        () => null,
+        (cause: unknown) => cause
+      );
+      expect(cost).toBeInstanceOf(BomCostError);
+      expect(String((cost as Error).message)).toMatch(/负值/);
+      expect(String((cost as Error).message)).toContain(b.id);
+    });
+
+    it('AC#4 可用量单位与成员发生项单位不同：显式拒绝，不按裸数值比较', async () => {
+      const { header, b } = await buildPriorityGroup();
+      await expect(
+        explodeBom(
+          adapter,
+          { ...CONTEXT, substituteAvailabilities: { [b.id]: { value: '60', uom: 'kg' } } },
+          { parentRevisionId: header.parentRevisionId },
+          { plannedQty: { value: '100', uom: 'pcs' } }
+        )
+      ).rejects.toThrow(/单位 kg/);
+    });
+
+    it('零份额成员（概率 0 / 分配 0）不产出需求行，卷算也不要求其成本数据', async () => {
+      const parent = await makeItem('sub-z');
+      const header = await setup(adapter, parent);
+      const proportional = await makeGroup(header);
+      const manual = await makeGroup(header, { strategy: 'manual', allowMix: true });
+      const a = await makeItem('sub-z-a', '1');
+      const b = await makeItem('sub-z-b', '1');
+      const idle = await makeItem('sub-z-idle');
+      const m1 = await makeItem('sub-z-m1', '1');
+      const m2 = await makeItem('sub-z-m2');
+      await makeMember(header, proportional, a, { substituteRole: 'primary', usageProbability: '0.5' });
+      await makeMember(header, proportional, b, { usageProbability: '0.5' });
+      await makeMember(header, proportional, idle, { usageProbability: '0' });
+      await makeMember(header, manual, m1, { substituteRole: 'primary', usageProbability: null });
+      await makeMember(header, manual, m2, { usageProbability: null });
+      header.costLotQty = '1';
+      header.state = 'released';
+      await header.save();
+      const selections = { [manual.code]: { allocation: { [m1.id]: '1', [m2.id]: '0' } } };
+      const result = await explodeBom(
+        adapter,
+        { ...CONTEXT, substituteSelections: selections },
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '100', uom: 'pcs' } }
+      );
+      expect(result.requirementLines.map(line => [line.itemId, line.qty]).sort()).toEqual(
+        [
+          [a.id, '50'],
+          [b.id, '50'],
+          [m1.id, '100']
+        ].sort()
+      );
+      // idle / m2 没有价格：零份额不消耗，卷算不因它们缺成本而拒绝
+      const cost = await rollupCost(
+        adapter,
+        { ...COST_CONTEXT, substituteSelections: selections },
+        { parentRevisionId: header.parentRevisionId },
+        { value: '100', uom: 'pcs' }
+      );
+      expect(cost.root.batchCost).toBe('200');
+      expect(cost.root.material.map(line => line.childItemId).sort()).toEqual([a.id, b.id, m1.id].sort());
+    });
+
+    it('manual 分配：键须为组成员、份额合计精确为 1（不归一化），空 / 全 0 / 负值同样拒绝；数量与成本同口径', async () => {
+      const parent = await makeItem('sub-alloc');
+      const header = await setup(adapter, parent);
+      const group = await makeGroup(header, { strategy: 'manual', allowMix: true });
+      const m1 = await makeItem('sub-alloc-m1', '1');
+      const m2 = await makeItem('sub-alloc-m2', '2');
+      const stranger = await makeItem('sub-alloc-x');
+      await makeMember(header, group, m1, { substituteRole: 'primary', usageProbability: null });
+      await makeMember(header, group, m2, { usageProbability: null });
+      header.costLotQty = '1';
+      header.state = 'released';
+      await header.save();
+      const explode = (selection: { memberKey?: string; allocation?: Record<string, string> }) =>
+        explodeBom(
+          adapter,
+          { ...CONTEXT, substituteSelections: { [group.code]: selection } },
+          { parentRevisionId: header.parentRevisionId },
+          { plannedQty: { value: '100', uom: 'pcs' } }
+        );
+      const rejected = async (
+        selection: { memberKey?: string; allocation?: Record<string, string> },
+        pattern: RegExp
+      ): Promise<void> => {
+        const error = await explode(selection).then(
+          () => null,
+          (cause: unknown) => cause
+        );
+        expect(error, JSON.stringify(selection)).toBeInstanceOf(BomQuantityError);
+        expect(String((error as Error).message), JSON.stringify(selection)).toMatch(pattern);
+        expect(String((error as Error).message), JSON.stringify(selection)).toContain(group.code);
+      };
+      await rejected({ allocation: { [m1.id]: '0.3' } }, /合计.*0\.3/);
+      await rejected({ allocation: { [m1.id]: '0.5', [m2.id]: '0.5', [stranger.id]: '0' } }, new RegExp(stranger.id));
+      await rejected({ allocation: {} }, /合计.*实际 0/);
+      await rejected({ allocation: { [m1.id]: '0', [m2.id]: '0' } }, /合计.*实际 0/);
+      await rejected({}, /合计.*实际 0/);
+      await rejected({ allocation: { [m1.id]: '1.5', [m2.id]: '-0.5' } }, /负值/);
+      const valid = await explode({ allocation: { [m1.id]: '0.25', [m2.id]: '0.75' } });
+      expect(valid.requirementLines.map(line => [line.itemId, line.qty]).sort()).toEqual(
+        [
+          [m1.id, '25'],
+          [m2.id, '75']
+        ].sort()
+      );
+      const rollup = (allocation: Record<string, string>) =>
+        rollupCost(
+          adapter,
+          { ...COST_CONTEXT, substituteSelections: { [group.code]: { allocation } } },
+          { parentRevisionId: header.parentRevisionId },
+          { value: '100', uom: 'pcs' }
+        );
+      expect((await rollup({ [m1.id]: '0.25', [m2.id]: '0.75' })).root.batchCost).toBe('175');
+      const short = await rollup({ [m1.id]: '0.3' }).then(
+        () => null,
+        (cause: unknown) => cause
+      );
+      expect(short).toBeInstanceOf(BomCostError);
+      expect(String((short as Error).message)).toMatch(/合计.*0\.3/);
+    });
+
+    it('AC#2/#4 成本卷算同口径：充足 200×1、不足 60×1 + 35×2 = 130、耗尽拒绝为 BomCostError', async () => {
+      const { header, b, c } = await buildPriorityGroup();
+      const rollup = (availabilities?: Record<string, { value: string; uom: string }>) =>
+        rollupCost(
+          adapter,
+          { ...COST_CONTEXT, substituteAvailabilities: availabilities },
+          { parentRevisionId: header.parentRevisionId },
+          { value: '100', uom: 'pcs' }
+        );
+      const ample = await rollup();
+      expect(ample.root.material.map(line => [line.childItemId, line.demand])).toEqual([[b.id, '200']]);
+      expect(ample.root.batchCost).toBe('200');
+      const mixed = await rollup({ [b.id]: { value: '60', uom: 'pcs' } });
+      expect(mixed.root.material.map(line => [line.childItemId, line.demand, line.amount])).toEqual([
+        [b.id, '60', '60'],
+        [c.id, '35', '70']
+      ]);
+      expect(mixed.root.batchCost).toBe('130');
+      const exhausted = await rollup({ [b.id]: { value: '60', uom: 'pcs' }, [c.id]: { value: '20', uom: 'pcs' } }).then(
+        () => null,
+        (cause: unknown) => cause
+      );
+      expect(exhausted).toBeInstanceOf(BomCostError);
+      expect(String((exhausted as Error).message)).toContain('短缺 30');
     });
   });
 }

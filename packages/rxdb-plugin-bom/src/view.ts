@@ -4,7 +4,6 @@ import { explodeBom } from './quantity/explosion-api.js';
 import type { BomLocalAdapter } from './resolve/bom-adapter.js';
 import { bomSqlDialectFor } from './resolve/bom-sql.js';
 import { expandBom } from './resolve/expansion.js';
-import { resolveViewAlternatives } from './view-alternatives.js';
 import type { BomViewInput, BomViewSnapshot } from './view-types.js';
 
 const scopedAdapter = (adapter: BomLocalAdapter, executor: TransactionExecutor): BomLocalAdapter => ({
@@ -19,11 +18,7 @@ export const readBomViewSnapshot = async (db: RxDB, input: BomViewInput): Promis
   return adapter.transaction(async executor => {
     const scoped = scopedAdapter(adapter, executor);
     const dialect = bomSqlDialectFor(adapter.name);
-    const expansion = await resolveViewAlternatives(
-      executor,
-      dialect,
-      await expandBom(scoped, input.context, input.target, { budgets: input.budgets })
-    );
+    const expansion = await expandBom(scoped, input.context, input.target, { budgets: input.budgets });
     let explosion: BomViewSnapshot['explosion'] = null;
     let quantityError: unknown = null;
     try {

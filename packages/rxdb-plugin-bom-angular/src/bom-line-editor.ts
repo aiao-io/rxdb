@@ -17,7 +17,16 @@ const inputs: readonly { field: keyof BomEditorFields; label: string; type: stri
   { field: 'effectiveTo', label: '生效终点', type: 'datetime-local' }
 ];
 
-/** 经共享领域命令保存合法发生项的原生表单。 */
+// 每个实例独立的说明元素 id，供 aria-describedby 关联
+let editorSequence = 0;
+
+/**
+ * 经共享领域命令保存合法发生项的原生表单（对齐 React `BomLineEditor`、Vue `BomLineEditor`）。
+ *
+ * @remarks
+ * 生效期按 UTC 填写与显示（`datetime-local` 不带时区），说明经 `aria-describedby` 关联到日期字段；
+ * 保存失败与共享字段校验失败原样展示，切换发生项时重置表单。
+ */
 @Component({
   selector: 'ao-bom-line-editor',
   standalone: true,
@@ -35,10 +44,12 @@ const inputs: readonly { field: keyof BomEditorFields; label: string; type: stri
       @if (editor().value !== null) {
         <form (submit)="save($event)">
           <h3>BOM 行编辑</h3>
+          <p [id]="utcHintId">生效期按 UTC 填写与显示</p>
           @for (input of inputs; track input.field) {
             <label
               >{{ input.label }}
               <input
+                [attr.aria-describedby]="input.type === 'datetime-local' ? utcHintId : null"
                 [attr.step]="input.type === 'datetime-local' ? '0.001' : null"
                 [disabled]="disabled()"
                 [name]="input.field"
@@ -64,7 +75,10 @@ const inputs: readonly { field: keyof BomEditorFields; label: string; type: stri
   `
 })
 export class BomLineEditor {
+  protected readonly utcHintId = `ao-bom-line-editor-utc-${++editorSequence}`;
+  /** 共享控制器发布的视图状态（`useBomView` 的 `state()`）。 */
   readonly state = input.required<BomViewState>();
+  /** 共享控制器命令，原样透传。 */
   readonly commands = input.required<BomViewCommands>();
   readonly inputs = inputs;
   readonly editor = computed(() => this.state().editor);

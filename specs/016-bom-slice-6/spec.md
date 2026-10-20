@@ -2,7 +2,7 @@
 
 **Feature Branch**: `claude/bom-related-work-77235b`
 **Created**: 2026-10-15
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: 第 1~5 步已交付（含第 5 步的替代组/多输出/路线/工序损耗，affected 279/279 全绿）；按 [epic 切片表](../../../requirements/epics/epic-009-bom-domain-model.md#首轮可开工切片) 推进第 6 步——US-525 阶段 C（时间轴：评估日、ECN 影响面与整体回退）的前置 US-515。
 

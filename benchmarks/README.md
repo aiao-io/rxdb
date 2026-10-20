@@ -67,6 +67,33 @@ pnpm nx bench-sortable-batch benchmarks
 > `bench-push-receipts` 没有自动门禁（新基准，无历史基线可比，见该文件头 TSDoc），
 > 只打印 avg/p50/p95 与两场景差值，不接入下方「自动门禁」清单。
 
+### BOM 基准手动门禁
+
+BOM 插件（epic-009）两个 Node 基准都跑 PGlite memory，依赖 `rxdb-plugin-bom` 与 `rxdb-adapter-pglite` 的构建产物（target 已声明 `dependsOn`）：
+
+```bash
+# 活视图 100 节点：watchView 首份完整快照 p95 ≤ 16ms、保存与保存后快照 p95 ≤ 100ms（不达标退出码 1）；
+# resolve / explode / export / 单条保存 / 千条导入只记录、不判定。报告写入被忽略的 reports/bom-latest.json
+pnpm nx run benchmarks:benchmark-bom
+
+# 可达性闭包（spec024）：写入维护 p95 ≤ 100ms（不达标退出码 1），需独占 CPU（GC 与校验不计时）
+pnpm nx run benchmarks:benchmark-bom-reach
+# 剪枝原型对照：写 reports/bom-reach-pruning-prototype.json
+pnpm nx run benchmarks:benchmark-bom-reach-prototype
+```
+
+两者**不进共享 CI**：预算是本机（Apple M1 Max / Node 26）标定的绝对 p95，共享 runner 更慢且抖动大（同分支三端
+100 节点首屏本地约 0.8～1.2s、CI 实测 1.3～2.7s，见 `modules/e2e-parity/bom-view-parity.mjs` 的阈值注释）；仓库在共享
+runner 上的硬门禁只用相对比值（`bench-working-tree` 比同画像冻结 reference，`bench-sortable-batch` 同次自比）。
+因此改动 `packages/rxdb-plugin-bom*`、BOM 存储 DDL 或其依赖的核心查询/写入路径时，合并与发布前在本机独占 CPU 各跑一次
+上面两个门禁并在 PR 描述里贴结论；要接入 CI 需先改成比值口径，不能直接搬绝对预算。
+
+`benchmark-bom-reach` 每次运行都会**覆盖**签入的 `reports/bom-reach-baseline.json` 与 `reports/bom-reach-comparison.json`
+（原型 target 覆盖 `reports/bom-reach-pruning-prototype.json`）。它们是 [spec024 验收](../specs/024-bom-reach/quickstart.md)
+引用的证据，所以保持签入：只在有意刷新证据时提交重跑结果，并同步更新 spec024 quickstart 里的数字与生成时间；
+日常复跑后用 `git restore benchmarks/reports/bom-reach-*.json` 还原。`bom-reach-pruning-prototype-unisolated.json`、
+`bom-view-*`、`bom-hot-fields*.json` 与 `bom-bundle.json` 是手工归档的一次性证据，没有 target 会改写它们。
+
 ### 浏览器内搜索 benchmark（CI）
 
 ```bash
@@ -165,6 +192,7 @@ benchmarks/
 仅有以下指标被**自动门禁**：
 
 - `search-ci`：独立运行 3 次并按中位数判定，INSERT→查询 P90 ≤ 100ms、批量 100 写入→查询 P95 ≤ 5000ms
+- `benchmark-bom` / `benchmark-bom-reach`：BOM 活视图与闭包写入维护的绝对 p95 预算，**本机手动门禁、不进 CI**，见上文「BOM 基准手动门禁」
 - `bench-hot-path`：非加密热路径相对基线回归 ≤ 2%
 - `bench-working-tree`：工作树 `status` / `diff` / `restore` / `commit` 的 p95 ÷ 同次 control p95，≤ 冻结 reference median × 该项容差（读项 130%，写项 110%；PR CI 唯一硬门禁，口径与冻结规则见 [epic-006](../requirements/epics/epic-006-working-tree-commits.md)「性能预算的口径」「reference 的冻结与复冻」）
   - reference 按**比值画像**（系统/架构 + CPU 型号 + Node 主版本）分份放在 `reports/working-tree-reference/`，只和同画像的比；本机画像没有 reference 时以 `benchmark_environment_mismatch` 失败，不降级为通过

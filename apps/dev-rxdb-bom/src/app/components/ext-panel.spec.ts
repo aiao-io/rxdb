@@ -13,8 +13,8 @@ describe('物料扩展属性的物料名称', () => {
       resetting: signal(false),
       dataEpoch: signal(0),
       extRead: vi.fn().mockResolvedValue('{"rohs":"yes"}'),
-      extPatch: vi.fn().mockResolvedValue(''),
-      extWrite: vi.fn().mockResolvedValue(''),
+      extPatch: vi.fn().mockResolvedValue({ ok: true }),
+      extWrite: vi.fn().mockResolvedValue({ ok: true }),
       filterExt: vi.fn().mockResolvedValue([{ itemNo: 'B-01', ext: '{"rohs":"yes"}' }])
     };
     TestBed.configureTestingModule({ providers: [{ provide: BomDemoService, useValue: service }] });
@@ -41,8 +41,8 @@ describe('物料扩展属性的物料名称', () => {
         .fn()
         .mockResolvedValueOnce('{"rohs":"no","custom":"保留"}')
         .mockResolvedValue('{"rohs":"yes","custom":"保留"}'),
-      extPatch: vi.fn().mockResolvedValue(''),
-      extWrite: vi.fn().mockResolvedValue(''),
+      extPatch: vi.fn().mockResolvedValue({ ok: true }),
+      extWrite: vi.fn().mockResolvedValue({ ok: true }),
       filterExt: vi.fn()
     };
     TestBed.configureTestingModule({ providers: [{ provide: BomDemoService, useValue: service }] });
@@ -65,17 +65,43 @@ describe('物料扩展属性的物料名称', () => {
       dataEpoch: signal(0),
       extRead: vi.fn().mockResolvedValue('{"rohs":"no"}'),
       extPatch: vi.fn(),
-      extWrite: vi.fn().mockResolvedValue('rohs 是必填属性'),
+      extWrite: vi.fn().mockResolvedValue({ ok: false, error: new Error('rohs 是必填属性') }),
       filterExt: vi.fn()
     };
     TestBed.configureTestingModule({ providers: [{ provide: BomDemoService, useValue: service }] });
     const fixture = TestBed.createComponent(ExtPanel);
     await fixture.whenStable();
     await fixture.componentInstance.write(true);
+    await fixture.whenStable();
 
     expect(service.extWrite).toHaveBeenCalledExactlyOnceWith('B-01', {});
     expect(service.extPatch).not.toHaveBeenCalled();
     expect(fixture.componentInstance.value()).toBe('no');
-    expect(fixture.componentInstance.failed()).toBe(true);
+    expect(fixture.componentInstance.failure()).toBe('rejected');
+    const result = (fixture.nativeElement as HTMLElement).querySelector('[data-testid=ext-result]');
+    expect(result?.textContent).toContain('请检查输入内容');
+    expect(result?.querySelector('pre')?.textContent).toContain('rohs 是必填属性');
+  });
+
+  it('意外错误不再冒充输入校验结论', async () => {
+    const service = {
+      ready: signal(true),
+      resetting: signal(false),
+      dataEpoch: signal(0),
+      extRead: vi.fn().mockResolvedValue('{"rohs":"no"}'),
+      extPatch: vi.fn().mockRejectedValue(new Error('database is locked')),
+      extWrite: vi.fn(),
+      filterExt: vi.fn()
+    };
+    TestBed.configureTestingModule({ providers: [{ provide: BomDemoService, useValue: service }] });
+    const fixture = TestBed.createComponent(ExtPanel);
+    await fixture.whenStable();
+    await fixture.componentInstance.write(false);
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.failure()).toBe('error');
+    const result = (fixture.nativeElement as HTMLElement).querySelector('[data-testid=ext-result]');
+    expect(result?.textContent).not.toContain('请检查输入内容');
+    expect(result?.querySelector('pre')?.textContent).toContain('database is locked');
   });
 });

@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { evaluateFormula, FORMULA_GRAMMAR_VERSION } from '../../quantity/formula.js';
+import { assertFormulaSyntax, evaluateFormula, FORMULA_GRAMMAR_VERSION } from '../../quantity/formula.js';
 import { BomQuantityError } from '../../types.js';
 
 describe('公式求值器：四则与优先级', () => {
@@ -71,5 +71,45 @@ describe('公式求值器：拒绝语义（AC#14）', () => {
 
   it('负结果拒绝（首期没有负需求）', () => {
     expect(() => evaluateFormula('1-2', {})).toThrow(BomQuantityError);
+  });
+
+  it('括号嵌套深度上限 64：上限内照常求值，超限与超深嵌套都抛领域错误（不是栈溢出 RangeError）', () => {
+    const nested = (depth: number): string => `${'('.repeat(depth)}2${')'.repeat(depth)}`;
+    expect(evaluateFormula(nested(64), {})).toBe('2');
+    for (const depth of [65, 100_000]) {
+      const error = (() => {
+        try {
+          evaluateFormula(nested(depth), {});
+          return null;
+        } catch (cause) {
+          return cause;
+        }
+      })();
+      expect(error, String(depth)).toBeInstanceOf(BomQuantityError);
+      expect(String((error as Error).message), String(depth)).toContain('嵌套深度');
+    }
+  });
+});
+
+describe('公式纯语法校验（写入期，不需要参数值）', () => {
+  it('合法公式放行：参数名不必给值，参数相关的除零只在求值期判定', () => {
+    for (const formula of ['长*宽', '(长 + 宽) * 2 / 厚', 'a/(b-1)', '1.5E-3 * 密度', '2']) {
+      expect(() => assertFormulaSyntax(formula), formula).not.toThrow();
+    }
+  });
+
+  it('语法错、非法字面量与超深嵌套在写入期即拒绝（与求值期同一领域错误）', () => {
+    const nested = `${'('.repeat(65)}2${')'.repeat(65)}`;
+    for (const formula of ['长 *', '(长 + 宽', '长 宽', '1..2', '@', '', '1e99999', nested]) {
+      expect(() => assertFormulaSyntax(formula), formula).toThrow(BomQuantityError);
+    }
+  });
+
+  it('长链公式按循环求值：数万项的加减 / 乘除链不撑爆调用栈', () => {
+    const terms = 20_000;
+    const sum = Array.from({ length: terms }, () => 'x').join('+');
+    expect(() => assertFormulaSyntax(sum)).not.toThrow();
+    expect(evaluateFormula(sum, { x: '1' })).toBe(String(terms));
+    expect(evaluateFormula(Array.from({ length: terms }, () => '1').join('*'), {})).toBe('1');
   });
 });

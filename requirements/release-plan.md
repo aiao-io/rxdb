@@ -54,7 +54,7 @@
 
 ## 开项：迁移发布须承接的发布说明
 
-下面三条**不影响门禁**，但都必须在迁移发布当下人工承接。
+下面四条**不影响门禁**，但都必须在迁移发布当下人工承接。
 
 ### ① 有一类库「未认领能力守卫」接不住
 
@@ -85,6 +85,14 @@
 **版本号按发布当下的实况写**：`v0.0.26` 之后的发布写「3 → 7」。中间的 4、5、6、7 这几级从未单独发布，用户手里不存在停在这些水位的客户端
 （4 / 5 / 6 来自 epic-006，7 来自 US-218 阶段 B）。**没有缓解措施，也不该造一个**：让新库对旧客户端「看起来能打开」需要向下兼容地写系统表，
 那正是 fail-closed 要挡的事。说明里给出的动作只有一个——**升级客户端**。
+
+### ④ BOM 四包尚未首发
+
+`@aiao/rxdb-plugin-bom` 与 `@aiao/rxdb-plugin-bom-{angular,react,vue}` 已在 [package-graph.json](package-graph.json) 登记、
+受 [api-baseline](api-baseline/) 保护，但 npm 上从未发布（2026-10-19 `npm view` 为 404）：随下一次发布**首发**，release note 按新包写，
+不写成破坏性变更。四包对 `@aiao/rxdb` 的 peer 是 `workspace:^`，必须与同一次发布的核心包一起发，不能单独对已发布的 `0.0.26` 核心补发。
+首发前 BOM 分支的 `packages/*` 改动要按 [AGENTS.md 候选领域合并治理](../AGENTS.md#候选领域合并治理) 先提取评审合入 `main`，发布以 `main` 为准。
+BOM 基准（`benchmarks:benchmark-bom` / `benchmark-bom-reach`）不进共享 CI，发布前的手动门禁见 [benchmarks/README.md](../benchmarks/README.md#bom-基准手动门禁)。
 
 ## 下一次发布：迁移发布（schema 3→7）
 

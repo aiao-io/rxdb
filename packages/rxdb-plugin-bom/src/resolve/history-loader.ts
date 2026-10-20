@@ -8,7 +8,6 @@
  */
 
 import type { EntityType } from '@aiao/rxdb';
-import { normalizeDecimalString } from '../decimal.utils.js';
 import {
   BomEcn,
   BomHeader,
@@ -25,6 +24,7 @@ import {
 } from '../entities.js';
 import type { BomEntityFactory, BomLocalAdapter } from './bom-adapter.js';
 import { BomType } from './resolution.js';
+import { assertFormulaGrammar, normalizeDecimalColumns } from './write-rules.js';
 
 /** 一条历史修订输入。 */
 export interface HistoryRevisionInput {
@@ -199,6 +199,66 @@ export interface HistoryBatchInput {
   updatedAt?: Date;
 }
 
+/** 实体构造：多实例下经 entityManager.instantiate（缺省时退化 new）。 */
+type Construct = <T extends EntityType>(EntityType: T, initData?: Partial<InstanceType<T>>) => InstanceType<T>;
+
+/** 与仓储同一入口口径：十进制列规范化并按存储层域校验（原地回写）。 */
+const normalizeDecimals = <T extends object>(entity: T): T => {
+  const record = entity as unknown as Record<string, unknown>;
+  Object.assign(record, normalizeDecimalColumns(record));
+  return entity;
+};
+
+/**
+ * 历史发生项输入 → 实体：未给的列取存储默认值；十进制列与仓储同一入口口径规范化并判域，
+ * 公式行断言当前公式语法版本（历史通道不经仓储门面，入口规则在这里兑现）。
+ */
+const occurrenceEntity = (construct: Construct, lineId: string, input: HistoryOccurrenceInput): BomLineOccurrence => {
+  const occurrence = construct(BomLineOccurrence);
+  const writable = occurrence as unknown as { id: string; createdAt: Date; updatedAt: Date };
+  if (input.id) writable.id = input.id;
+  if (input.createdAt) writable.createdAt = input.createdAt;
+  if (input.updatedAt) writable.updatedAt = input.updatedAt;
+  Object.assign(occurrence, {
+    lineId,
+    childItemId: input.childItemId,
+    childRevisionId: input.childRevisionId ?? null,
+    qty: input.qty ?? null,
+    qtyFormula: input.qtyFormula ?? null,
+    formulaGrammarVersion: input.formulaGrammarVersion ?? null,
+    effectiveFrom: input.effectiveFrom,
+    effectiveTo: input.effectiveTo ?? null,
+    uom: input.uom ?? 'pcs',
+    isFixedQty: input.isFixedQty ?? false,
+    tierGroupNo: input.tierGroupNo ?? null,
+    lotsizeFrom: input.lotsizeFrom ?? null,
+    lotsizeTo: input.lotsizeTo ?? null,
+    componentScrap: input.componentScrap ?? '0',
+    componentScrapConvention: input.componentScrapConvention ?? 'additive',
+    componentScrapFixed: input.componentScrapFixed ?? '0',
+    uomConversion: input.uomConversion ?? null,
+    phantomOverride: input.phantomOverride ?? null,
+    designatorManaged: input.designatorManaged ?? false,
+    supplyToVendor: input.supplyToVendor ?? false,
+    flowDirection: input.flowDirection ?? 'consume',
+    jointCostShare: input.jointCostShare ?? null,
+    operationSeq: input.operationSeq ?? null,
+    unitFrom: input.unitFrom ?? null,
+    unitTo: input.unitTo ?? null,
+    lotCodes: input.lotCodes ?? null,
+    selectionConditionId: input.selectionConditionId ?? null,
+    ext: input.ext ?? null,
+    substituteRole: input.substituteRole ?? null,
+    substitutePriority: input.substitutePriority ?? null,
+    usageProbability: input.usageProbability ?? null,
+    equivQty: input.equivQty ?? null,
+    ecnInId: input.ecnInId ?? null,
+    ecnOutId: input.ecnOutId ?? null
+  } satisfies Partial<BomLineOccurrence>);
+  assertFormulaGrammar(occurrence as unknown as Record<string, unknown>);
+  return normalizeDecimals(occurrence);
+};
+
 /**
  * 把一批历史结构经审计通道写入并发布。
  *
@@ -209,8 +269,10 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
   await adapter.transaction(async executor => {
     // 多实例下 new Entity() 无法判目标库：经 entityManager.instantiate 构造（缺省时退化 new）
     const factory: BomEntityFactory | undefined = adapter.rxdb?.entityManager;
-    const construct = <T extends EntityType>(EntityType: T, initData?: Partial<InstanceType<T>>): InstanceType<T> =>
-      factory ? factory.instantiate(EntityType, initData) : new (EntityType as unknown as new () => InstanceType<T>)();
+    const construct: Construct = (EntityType, initData) =>
+      factory ?
+        factory.instantiate(EntityType, initData)
+      : new (EntityType as unknown as new () => InstanceType<typeof EntityType>)();
     // 1. 开启态批次行（发布触发器据此跳过追溯检查）
     const batchEntity = construct(BomHistoryBatch);
     if (batch.id) (batchEntity as unknown as { id: string }).id = batch.id;
@@ -271,11 +333,8 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       header.assemblyScrap = headerInput.assemblyScrap ?? '0';
       header.assemblyScrapConvention = headerInput.assemblyScrapConvention ?? 'additive';
       header.costLotQty = headerInput.costLotQty ?? null;
-      header.jointCostShare =
-        headerInput.jointCostShare == null ?
-          null
-        : normalizeDecimalString(headerInput.jointCostShare, 'jointCostShare');
-      await executor.getRepository(BomHeader).create(header);
+      header.jointCostShare = headerInput.jointCostShare ?? null;
+      await executor.getRepository(BomHeader).create(normalizeDecimals(header));
       const lines: { line: BomLine; occurrence: BomLineOccurrence }[] = [];
       for (const lineInput of headerInput.lines) {
         const line = construct(BomLine);
@@ -287,52 +346,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
         line.ecnInId = lineInput.ecnInId ?? null;
         await executor.getRepository(BomLine).create(line);
         for (const occurrenceInput of lineInput.occurrences) {
-          const occurrence = construct(BomLineOccurrence);
-          if (occurrenceInput.id) (occurrence as unknown as { id: string }).id = occurrenceInput.id;
-          if (occurrenceInput.createdAt)
-            (occurrence as unknown as { createdAt: Date }).createdAt = occurrenceInput.createdAt;
-          if (occurrenceInput.updatedAt)
-            (occurrence as unknown as { updatedAt: Date }).updatedAt = occurrenceInput.updatedAt;
-          occurrence.lineId = line.id;
-          occurrence.childItemId = occurrenceInput.childItemId;
-          occurrence.childRevisionId = occurrenceInput.childRevisionId ?? null;
-          occurrence.qty = occurrenceInput.qty != null ? normalizeDecimalString(occurrenceInput.qty, 'qty') : null;
-          occurrence.qtyFormula = occurrenceInput.qtyFormula ?? null;
-          occurrence.formulaGrammarVersion = occurrenceInput.formulaGrammarVersion ?? null;
-          occurrence.effectiveFrom = occurrenceInput.effectiveFrom;
-          occurrence.effectiveTo = occurrenceInput.effectiveTo ?? null;
-          occurrence.uom = occurrenceInput.uom ?? 'pcs';
-          occurrence.isFixedQty = occurrenceInput.isFixedQty ?? false;
-          occurrence.tierGroupNo = occurrenceInput.tierGroupNo ?? null;
-          occurrence.lotsizeFrom = occurrenceInput.lotsizeFrom ?? null;
-          occurrence.lotsizeTo = occurrenceInput.lotsizeTo ?? null;
-          occurrence.componentScrap = normalizeDecimalString(occurrenceInput.componentScrap ?? '0', 'componentScrap');
-          occurrence.componentScrapConvention = occurrenceInput.componentScrapConvention ?? 'additive';
-          occurrence.componentScrapFixed = normalizeDecimalString(
-            occurrenceInput.componentScrapFixed ?? '0',
-            'componentScrapFixed'
-          );
-          occurrence.uomConversion = occurrenceInput.uomConversion ?? null;
-          occurrence.phantomOverride = occurrenceInput.phantomOverride ?? null;
-          occurrence.designatorManaged = occurrenceInput.designatorManaged ?? false;
-          occurrence.supplyToVendor = occurrenceInput.supplyToVendor ?? false;
-          occurrence.flowDirection = occurrenceInput.flowDirection ?? 'consume';
-          occurrence.jointCostShare =
-            occurrenceInput.jointCostShare == null ?
-              null
-            : normalizeDecimalString(occurrenceInput.jointCostShare, 'jointCostShare');
-          occurrence.operationSeq = occurrenceInput.operationSeq ?? null;
-          occurrence.unitFrom = occurrenceInput.unitFrom ?? null;
-          occurrence.unitTo = occurrenceInput.unitTo ?? null;
-          occurrence.lotCodes = occurrenceInput.lotCodes ?? null;
-          occurrence.selectionConditionId = occurrenceInput.selectionConditionId ?? null;
-          occurrence.ext = occurrenceInput.ext ?? null;
-          occurrence.substituteRole = occurrenceInput.substituteRole ?? null;
-          occurrence.substitutePriority = occurrenceInput.substitutePriority ?? null;
-          occurrence.usageProbability = occurrenceInput.usageProbability ?? null;
-          occurrence.equivQty = occurrenceInput.equivQty ?? null;
-          occurrence.ecnInId = occurrenceInput.ecnInId ?? null;
-          occurrence.ecnOutId = occurrenceInput.ecnOutId ?? null;
+          const occurrence = occurrenceEntity(construct, line.id, occurrenceInput);
           await executor.getRepository(BomLineOccurrence).create(occurrence);
           lines.push({ line, occurrence });
           for (const designator of occurrenceInput.designators ?? []) {
@@ -361,13 +375,16 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
         for (const member of groupInput.members) {
           const target = lines[member.occurrenceIndex];
           if (!target) throw new Error(`替代组成员引用不存在行的序号 ${member.occurrenceIndex}`);
-          await executor.getRepository(BomLineOccurrence).update(target.occurrence, {
-            substituteGroupId: group.id,
-            substituteRole: member.role,
-            substitutePriority: member.priority ?? null,
-            usageProbability: member.probability ?? null,
-            equivQty: member.equivQty ?? null
-          } as Partial<BomLineOccurrence>);
+          await executor.getRepository(BomLineOccurrence).update(
+            target.occurrence,
+            normalizeDecimals({
+              substituteGroupId: group.id,
+              substituteRole: member.role,
+              substitutePriority: member.priority ?? null,
+              usageProbability: member.probability ?? null,
+              equivQty: member.equivQty ?? null
+            }) as Partial<BomLineOccurrence>
+          );
         }
       }
       // B 层：工艺路线 + 工序 + 投料分摊（头挂 routingId）
@@ -393,7 +410,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
           operation.workCenterId = center.id;
           operation.operationScrap = op.scrap ?? '0';
           operation.scrapConvention = op.convention ?? 'additive';
-          await executor.getRepository(BomRoutingOperation).create(operation);
+          await executor.getRepository(BomRoutingOperation).create(normalizeDecimals(operation));
         }
         for (const allocation of headerInput.routing.allocations) {
           const target = lines[allocation.occurrenceIndex];
@@ -409,7 +426,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
             splitEntity.occurrenceId = target.occurrence.id;
             splitEntity.operationSeq = splitInput.operationSeq;
             splitEntity.ratio = splitInput.ratio;
-            await executor.getRepository(BomLineOperationSplit).create(splitEntity);
+            await executor.getRepository(BomLineOperationSplit).create(normalizeDecimals(splitEntity));
           }
         }
         await executor.getRepository(BomHeader).update(header, { routingId: routing.id } as Partial<BomHeader>);
@@ -432,7 +449,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
         if (Object.keys(patch).length > 0) {
           const headerTarget = construct(BomHeader);
           (headerTarget as unknown as { id: string }).id = overlay.headerId;
-          await executor.getRepository(BomHeader).update(headerTarget, patch as Partial<BomHeader>);
+          await executor.getRepository(BomHeader).update(headerTarget, normalizeDecimals(patch) as Partial<BomHeader>);
         }
       }
       for (const cutoff of overlay.cutoffs ?? []) {
@@ -447,51 +464,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       }
       const writeOccurrences = async (lineId: string, inputs: HistoryOccurrenceInput[]): Promise<void> => {
         for (const occurrenceInput of inputs) {
-          const occurrence = construct(BomLineOccurrence);
-          if (occurrenceInput.id) (occurrence as unknown as { id: string }).id = occurrenceInput.id;
-          if (occurrenceInput.createdAt)
-            (occurrence as unknown as { createdAt: Date }).createdAt = occurrenceInput.createdAt;
-          if (occurrenceInput.updatedAt)
-            (occurrence as unknown as { updatedAt: Date }).updatedAt = occurrenceInput.updatedAt;
-          occurrence.lineId = lineId;
-          occurrence.childItemId = occurrenceInput.childItemId;
-          occurrence.childRevisionId = occurrenceInput.childRevisionId ?? null;
-          occurrence.qty = occurrenceInput.qty != null ? normalizeDecimalString(occurrenceInput.qty, 'qty') : null;
-          occurrence.qtyFormula = occurrenceInput.qtyFormula ?? null;
-          occurrence.formulaGrammarVersion = occurrenceInput.formulaGrammarVersion ?? null;
-          occurrence.effectiveFrom = occurrenceInput.effectiveFrom;
-          occurrence.effectiveTo = occurrenceInput.effectiveTo ?? null;
-          occurrence.uom = occurrenceInput.uom ?? 'pcs';
-          occurrence.isFixedQty = occurrenceInput.isFixedQty ?? false;
-          occurrence.tierGroupNo = occurrenceInput.tierGroupNo ?? null;
-          occurrence.lotsizeFrom = occurrenceInput.lotsizeFrom ?? null;
-          occurrence.lotsizeTo = occurrenceInput.lotsizeTo ?? null;
-          occurrence.componentScrap = normalizeDecimalString(occurrenceInput.componentScrap ?? '0', 'componentScrap');
-          occurrence.componentScrapConvention = occurrenceInput.componentScrapConvention ?? 'additive';
-          occurrence.componentScrapFixed = normalizeDecimalString(
-            occurrenceInput.componentScrapFixed ?? '0',
-            'componentScrapFixed'
-          );
-          occurrence.uomConversion = occurrenceInput.uomConversion ?? null;
-          occurrence.phantomOverride = occurrenceInput.phantomOverride ?? null;
-          occurrence.designatorManaged = occurrenceInput.designatorManaged ?? false;
-          occurrence.flowDirection = occurrenceInput.flowDirection ?? 'consume';
-          occurrence.jointCostShare =
-            occurrenceInput.jointCostShare == null ?
-              null
-            : normalizeDecimalString(occurrenceInput.jointCostShare, 'jointCostShare');
-          occurrence.operationSeq = occurrenceInput.operationSeq ?? null;
-          occurrence.unitFrom = occurrenceInput.unitFrom ?? null;
-          occurrence.unitTo = occurrenceInput.unitTo ?? null;
-          occurrence.lotCodes = occurrenceInput.lotCodes ?? null;
-          occurrence.selectionConditionId = occurrenceInput.selectionConditionId ?? null;
-          occurrence.ext = occurrenceInput.ext ?? null;
-          occurrence.substituteRole = occurrenceInput.substituteRole ?? null;
-          occurrence.substitutePriority = occurrenceInput.substitutePriority ?? null;
-          occurrence.usageProbability = occurrenceInput.usageProbability ?? null;
-          occurrence.equivQty = occurrenceInput.equivQty ?? null;
-          occurrence.ecnInId = occurrenceInput.ecnInId ?? null;
-          occurrence.ecnOutId = occurrenceInput.ecnOutId ?? null;
+          const occurrence = occurrenceEntity(construct, lineId, occurrenceInput);
           await executor.getRepository(BomLineOccurrence).create(occurrence);
         }
       };

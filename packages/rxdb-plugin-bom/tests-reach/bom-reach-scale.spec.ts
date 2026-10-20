@@ -71,6 +71,42 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
       }
     }, 60_000);
 
+    it('24串菱形（1677万条路径）上挂新父与闭环插入都在有界时间内判定，不枚举路径', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const shape = reachDiamonds(24);
+        const { ids, revisions } = await seedReachGraph(adapter, { ...shape, items: [...shape.items, 'new-parent'] });
+        const insertEdge = async (parent: string, child: string) => {
+          const line = await newReachLine(adapter, revisions.get(parent)!);
+          const occurrence = adapter.rxdb.entityManager.instantiate(BomLineOccurrence, {
+            lineId: line.id,
+            childItemId: ids.get(child)!,
+            qty: '1',
+            effectiveFrom: new Date('2026-01-01T00:00:00.000Z')
+          });
+          const start = performance.now();
+          const failure = await occurrence.save().then(
+            () => null,
+            (error: unknown) => error
+          );
+          return { failure, elapsedMs: performance.now() - start };
+        };
+        const attached = await insertEdge('new-parent', 'root');
+        expect(attached.failure).toBeNull();
+        expect(attached.elapsedMs).toBeLessThan(2000);
+        const closing = await insertEdge('bottom-23', 'root');
+        expect(closing.failure).toBeInstanceOf(BomCycleError);
+        expect((closing.failure as BomCycleError).path).toHaveLength(49);
+        expect(closing.elapsedMs).toBeLessThan(2000);
+        console.info(
+          `24串菱形 [${backend}] 挂新父 ${attached.elapsedMs.toFixed(1)}ms，闭环拒绝 ${closing.elapsedMs.toFixed(1)}ms`
+        );
+        await expectReachMatches(adapter);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    }, 120_000);
+
     it('闭包未命中也不能绕过原有128层判定硬停，被拒后派生行不变', async () => {
       const adapter = await createBomTestAdapter(backend);
       try {

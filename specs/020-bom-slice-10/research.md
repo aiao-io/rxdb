@@ -123,20 +123,20 @@
 
 ### 第三轮完整e2e首屏失败
 
-`/private/tmp/bom-affected-complete3.log`中的Vue181/182、React198/199通过，各自唯一失败均为BOM100节点首屏：2504.4/2512.9ms超过1500ms；输入p95为10.4/40.4ms，仍低于100ms。两者实际采用各自Playwright默认8 workers，不是Nx并行；原始报告保留在`benchmarks/reports/bom-view-{vue,react}-performance-8-workers.json`。前轮三端51条通过仅为历史，不作为本轮结论。
+本地日志`bom-affected-complete3.log`（未留存）中的Vue181/182、React198/199通过，各自唯一失败均为BOM100节点首屏：2504.4/2512.9ms超过1500ms；输入p95为10.4/40.4ms，仍低于100ms。两者实际采用各自Playwright默认8 workers，不是Nx并行；原始报告保留在`benchmarks/reports/bom-view-{vue,react}-performance-8-workers.json`。前轮三端51条通过仅为历史，不作为本轮结论。
 
-冷启动trace包含全局宿主DB和BOM独立DB两份WASM初始化，单凭该观察没有归因。full3最终349任务、39m44、166本地缓存命中，仅Vue/React两e2e失败，其余347通过或使用有效缓存。主会话随后对未修改的同一构建产物以`grep=100 节点性能`、workers=1及excludeTaskDependencies做冷控制，Vue1/1（3.2s）、React1/1（3.1s）通过，日志`/private/tmp/bom-e2e-performance-control.log`；保留原8 workers失败报告。
+冷启动trace包含全局宿主DB和BOM独立DB两份WASM初始化，单凭该观察没有归因。full3最终349任务、39m44、166本地缓存命中，仅Vue/React两e2e失败，其余347通过或使用有效缓存。主会话随后对未修改的同一构建产物以`grep=100 节点性能`、workers=1及excludeTaskDependencies做冷控制，Vue1/1（3.2s）、React1/1（3.1s）通过，本地日志`bom-e2e-performance-control.log`（未留存）；保留原8 workers失败报告。
 
-最小配置修正仅将Vue/React两份Playwright配置的workers从`isCI ? 2 : 8`改为1，1500ms首屏阈值、100ms输入阈值及无本地重试保持。随后Vue完整182/182通过；React先因OPFS目录导航同步导致198/199，修正helper后2/2定向绿，再跑完整仍198/199，唯一失败变为共享search-handle的auditTime旧词在clear后复活。证据分别为`/private/tmp/bom-e2e-final-serial.log`、`/private/tmp/bom-react-opfs-navigation-green.log`及`/private/tmp/bom-react-e2e-final-complete.log`。该搜索缺陷当时修复后通过完整Node297；追加pending竞态后最终Node299和完整e2e均通过，见下方。Angular当时full3以2 workers完成203/203（3.0m），firstData1088.7ms/输入p95=14ms和468px等高仅为历史，不代表最新完整共享通过。
+最小配置修正仅将Vue/React两份Playwright配置的workers从`isCI ? 2 : 8`改为1，1500ms首屏阈值、100ms输入阈值及无本地重试保持。随后Vue完整182/182通过；React先因OPFS目录导航同步导致198/199，修正helper后2/2定向绿，再跑完整仍198/199，唯一失败变为共享search-handle的auditTime旧词在clear后复活。证据分别为本地日志`bom-e2e-final-serial.log`、`bom-react-opfs-navigation-green.log`及`bom-react-e2e-final-complete.log`（均未留存）。该搜索缺陷当时修复后通过完整Node297；追加pending竞态后最终Node299和完整e2e均通过，见下方。Angular当时full3以2 workers完成203/203（3.0m），firstData1088.7ms/输入p95=14ms和468px等高仅为历史，不代表最新完整共享通过。
 
 ### 对称性修复与最终冻结
 
-React aria-selected、Angular/React叶子Space不应toggle及disabled submit保护三处差异，经7条增强行为红绿后完成最小修复。`/private/tmp/bom-components-symmetry-green.log`确认Angular15、React17、Vue18全部通过；四项分别99.01/100/100/98.66、89.31/87.30/95.34/92.59、100/97.36/100/100%。搜索首轮Node297及91.13/80.39/94.88/92.80%仅为历史轮次；追加pending竞态后的Node299和真实browser52已合并93.50/84.80/96.80/94.70%，正式8包审计已逐包通过，见下方最终结果。
+React aria-selected、Angular/React叶子Space不应toggle及disabled submit保护三处差异，经7条增强行为红绿后完成最小修复。本地日志`bom-components-symmetry-green.log`（未留存）确认Angular15、React17、Vue18全部通过；四项分别99.01/100/100/98.66、89.31/87.30/95.34/92.59、100/97.36/100/100%。搜索首轮Node297及91.13/80.39/94.88/92.80%仅为历史轮次；追加pending竞态后的Node299和真实browser52已合并93.50/84.80/96.80/94.70%，正式8包审计已逐包通过，见下方最终结果。
 
 首个final.log主动exit130、350任务Angular1622.6ms失败及1340ms单worker控制均保留历史；搜索pending第二批2红后Node299/browser52真实合并通过，refresh专用过滤保持debounced输入合同。
 
-最终完整affected EXIT0：86项目、351任务、324本地缓存、12m14（`/private/tmp/bom-affected-final-serial.log`）。三端共享51/51、demo24/24通过；Angular203/203（5.8m）、React199/199（5.5m）、Vue182/182有效缓存。最终首屏/输入p95分别1206/15.6、1105.2/42.2、796.3/9.5ms，均满足1500/100ms原预算，三端tree/editor均468px。
+最终完整affected EXIT0：86项目、351任务、324本地缓存、12m14（本地日志`bom-affected-final-serial.log`，未留存）。三端共享51/51、demo24/24通过；Angular203/203（5.8m）、React199/199（5.5m）、Vue182/182有效缓存。最终首屏/输入p95分别1206/15.6、1105.2/42.2、796.3/9.5ms，均满足1500/100ms原预算，三端tree/editor均468px。
 
-PGlite真实summary/final已从有效本地缓存恢复：13任务、12缓存、791ms，日志`/private/tmp/bom-pglite-final-coverage-restored.log`。严格8包官方coverage逐包执行8次全部EXIT0，证据`/private/tmp/bom-final-coverage-eight-packages.log`；SQLite/PGlite两条趋势软提示保留、均达门槛，baseline未改。早期仅评估rxdb一包的日志不作为8包证据。
+PGlite真实summary/final已从有效本地缓存恢复：13任务、12缓存、791ms，本地日志`bom-pglite-final-coverage-restored.log`（未留存）。严格8包官方coverage逐包执行8次全部EXIT0，证据为本地日志`bom-final-coverage-eight-packages.log`（未留存）；SQLite/PGlite两条趋势软提示保留、均达门槛，baseline未改。早期仅评估rxdb一包的日志不作为8包证据。
 
 本轮18条任务全部关闭，spec011～024共256/256完成，19条BOM故事、US-522 AC#1与US-030均Done。失败/控制历史、正式审计与最终结果见[最终验收](../021-bom-closure/closure-map.md)。

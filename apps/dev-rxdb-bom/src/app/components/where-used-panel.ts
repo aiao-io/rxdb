@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, si
 import { FormsModule } from '@angular/forms';
 import { BomDemoService } from '../bom-demo.service';
 import { BomWorkspaceState } from '../bom-workspace-state';
-import { materialLabel } from '../presentation/material-label';
+import { itemLabelById, itemNoById, materialLabel } from '../presentation/material-label';
 import { buildWhereUsedTree } from '../presentation/where-used-tree';
 
 /**
@@ -66,11 +66,11 @@ export class WhereUsedPanel {
   }
 
   itemNo(itemId: string): string {
-    return this.itemNos().get(itemId) ?? itemId.slice(0, 8);
+    return itemNoById(this.itemNos(), itemId);
   }
 
   itemLabel(itemId: string): string {
-    return materialLabel(this.itemNo(itemId));
+    return itemLabelById(this.itemNos(), itemId);
   }
 
   toggleBranch(key: string): void {

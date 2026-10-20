@@ -8,7 +8,12 @@ import {
 import { useRef, useState, type KeyboardEvent, type ReactElement } from 'react';
 
 /**
- * 渲染共享控制器提供的可见 BOM 路径、候选与查询状态。
+ * 渲染共享控制器提供的可见 BOM 路径、候选与查询状态（对齐 Angular `ao-bom-tree`、Vue `BomTree`）。
+ *
+ * @remarks
+ * 交互一律经 `commands` 回到共享控制器。键盘遵循 WAI-ARIA tree 模式：方向键移动焦点
+ * （ArrowLeft 无父节点时不动），Home/End 跳到首尾，Space 切换展开，Enter 加载发生项；
+ * 当前焦点节点不在可见节点中时首行是 Tab 入口。
  *
  * @param props - 共享状态与命令
  * @returns 支持键盘操作的 BOM 树

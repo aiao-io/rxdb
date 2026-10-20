@@ -20,12 +20,12 @@ pnpm nx run rxdb-plugin-bom:test-pg
 
 主会话于 2026-10-18 执行同一目标，真实 PostgreSQL **8/8 通过**：原样部署、Read Committed 等锁重检、两类固定快照隔离级别拒绝、跨作用域 `40P01`、自环/方向更新及类型/组织隔离全部通过。临时集群成功启动并清理，US-509 AC#13 据此关闭。
 
-后续Reach远端回归扩展至真实PostgreSQL12/12通过，覆盖拓扑UPDATE/DELETE串行与隔离边界，并确认导出DDL保留调用方事务，ROLLBACK撤销派生表和约束安装；证据为`/private/tmp/bom-reach-pg-12-green.log`，详见[024验证记录](../024-bom-reach/quickstart.md)。上述8例为首轮历史证据，不代表当前全部用例数。
+后续Reach远端回归扩展至真实PostgreSQL12/12通过，覆盖拓扑UPDATE/DELETE串行与隔离边界，并确认导出DDL保留调用方事务，ROLLBACK撤销派生表和约束安装；证据为本地日志`bom-reach-pg-12-green.log`（未留存），详见[024验证记录](../024-bom-reach/quickstart.md)。上述8例为首轮历史证据，不代表当前全部用例数。
 
 ## 最终完整验收
 
-最终完整affected EXIT0：86项目、351任务、324本地缓存、12m14（`/private/tmp/bom-affected-final-serial.log`）。三端共享51/51、demo24/24通过；Angular203/203（5.8m）、React199/199（5.5m）、Vue182/182有效缓存。最终首屏/输入p95分别1206/15.6、1105.2/42.2、796.3/9.5ms，均满足1500/100ms原预算，三端tree/editor均468px。
+最终完整affected EXIT0：86项目、351任务、324本地缓存、12m14（本地日志`bom-affected-final-serial.log`，未留存）。三端共享51/51、demo24/24通过；Angular203/203（5.8m）、React199/199（5.5m）、Vue182/182有效缓存。最终首屏/输入p95分别1206/15.6、1105.2/42.2、796.3/9.5ms，均满足1500/100ms原预算，三端tree/editor均468px。
 
-PGlite真实summary/final已从有效本地缓存恢复：13任务、12缓存、791ms，日志`/private/tmp/bom-pglite-final-coverage-restored.log`。严格8包官方coverage逐包执行8次全部EXIT0，证据`/private/tmp/bom-final-coverage-eight-packages.log`；SQLite/PGlite两条趋势软提示保留、均达门槛，baseline未改。早期仅评估rxdb一包的日志不作为8包证据。
+PGlite真实summary/final已从有效本地缓存恢复：13任务、12缓存、791ms，本地日志`bom-pglite-final-coverage-restored.log`（未留存）。严格8包官方coverage逐包执行8次全部EXIT0，证据为本地日志`bom-final-coverage-eight-packages.log`（未留存）；SQLite/PGlite两条趋势软提示保留、均达门槛，baseline未改。早期仅评估rxdb一包的日志不作为8包证据。
 
 本轮18条任务全部关闭，spec011～024共256/256完成，19条BOM故事、US-522 AC#1与US-030均Done。失败/控制历史、正式审计与最终结果见[最终验收](../021-bom-closure/closure-map.md)。

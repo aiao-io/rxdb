@@ -35,6 +35,7 @@ import {
   BomImportContractError,
   DECIMAL_FIELDS,
   IMPORT_KINDS,
+  importDate,
   naturalKeyFor,
   parseImportPayload,
   validateImportRecords,
@@ -198,11 +199,14 @@ const retainGroupMembers = async (
   );
   const resolvedChildIds = new Map<string, string>();
   if (selectedGroupIds.size === 0) return resolvedChildIds;
-  const parentRevisionIds = new Set(
-    snapshot.header.filter(row => headerIds.has(String(row['id']))).map(row => String(row['parentRevisionId']))
-  );
-  for (const parentRevisionId of parentRevisionIds) {
-    const members = await resolveBom(adapter, context, { parentRevisionId });
+  // 展开选中的每张头按它自己的备选号逐张解析：alternativeNo 只裁决根头，根的编号不能套到子修订上；
+  // 子装配头是该修订唯一的已发布头（多备选的子装配已在展开阶段按不完整结构拒绝，到不了这里）
+  for (const header of snapshot.header.filter(row => headerIds.has(String(row['id'])))) {
+    const members = await resolveBom(
+      adapter,
+      { ...context, alternativeNo: Number(header['alternativeNo']) },
+      { parentRevisionId: String(header['parentRevisionId']) }
+    );
     validateExportReady(
       { truncated: null },
       members.manifest.unresolved.map(row => ({ lineId: row.parentRevisionId, candidates: row.candidates }))
@@ -313,6 +317,16 @@ export const exportBom = async (
     return payload;
   });
 
+/** 导出体行的稳定源标识 = 该行自然键；构造不出（键段违约）即按分桶与行下标点名，导出体行没有别的身份。 */
+const rowSourceRef = (where: string, kind: ImportKind, data: Row): string => {
+  try {
+    return naturalKeyFor(kind, data);
+  } catch (cause) {
+    if (!(cause instanceof BomImportContractError)) throw cause;
+    throw new BomImportContractError(where, `${cause.subject}：${cause.detail}`);
+  }
+};
+
 const recordsFromPayload = (payload: unknown): { rows: unknown[]; dependencies?: unknown[] } => {
   if (Array.isArray(payload)) {
     if (payload.some(row => row !== null && typeof row === 'object' && (row as Row)['flowDirection'] === 'produce'))
@@ -338,14 +352,14 @@ const recordsFromPayload = (payload: unknown): { rows: unknown[]; dependencies?:
   const decode = (kind: ImportKind, rows: unknown, rowVersion: string): Row[] => {
     const columns = exportColumnsFor(rowVersion, kind);
     if (!Array.isArray(rows)) throw new BomImportContractError(buckets[kind], '必须是行数组');
-    return rows.map(row => {
+    return rows.map((row, index) => {
       if (!Array.isArray(row) || row.length !== columns.length)
         throw new BomImportContractError(buckets[kind], '行宽与导出契约不符');
       const data = Object.fromEntries(columns.map((column, offset) => [column, row[offset]]));
       if (version === EXPORT_CONTRACT_VERSION && data['flowDirection'] === 'produce')
         throw new BomImportContractError('version', 'v1不能承载produce，必须使用v2保存联产份额');
       if ('historyBatchNo' in data) data['historyBatchNo'] = null;
-      return { kind, source_ref: naturalKeyFor(kind, data), ...data };
+      return { kind, source_ref: rowSourceRef(`${buckets[kind]}[${index}]`, kind, data), ...data };
     });
   };
   const rows = IMPORT_KINDS.flatMap(kind => {
@@ -508,7 +522,8 @@ const importEntityData = (record: ImportRecord, indexes: Record<ImportKind, Map<
     data['state'] = 'draft';
     data['historyBatchNo'] = null;
   }
-  for (const field of DATE_FIELDS) if (data[field] != null) data[field] = new Date(asText(data[field]));
+  for (const field of DATE_FIELDS)
+    if (data[field] != null) data[field] = importDate(`${record.kind}.${field}`, data[field]);
   if (Array.isArray(data['lotCodes']))
     data['lotCodes'] = JSON.stringify([...new Set(data['lotCodes'] as string[])].sort());
   return data;

@@ -9,7 +9,7 @@
  * `jsonb_array_elements_text`，触发器 SQL 不用正则）。
  *
  * 消息前缀 `rxdb:bom_effectivity_overlap:`（与 US-030 的归一约定同构），错误带三维
- * 相交的 detail 文本。DDL 幂等：SQLite `CREATE TRIGGER IF NOT EXISTS`，PG 函数
+ * 相交的 detail 文本。DDL 幂等且升级即替换：SQLite `DROP TRIGGER IF EXISTS` + `CREATE TRIGGER`，PG 函数
  * `CREATE OR REPLACE` + DO 块内 `DROP TRIGGER IF EXISTS`（PGlite 0.5.8 解析器坑：
  * 裸 `CREATE TRIGGER` 走 DO 块、`EXECUTE FUNCTION` 目标不带引号，照抄现有先例）。
  *
@@ -33,10 +33,11 @@ const pgTableRef = (metadata: EntityMetadata): string =>
 const column = (metadata: EntityMetadata, field: string): string =>
   quoteSqlIdentifier(getEntityColumnName(metadata, field) as string);
 
-const sqliteTrigger = (tableRef: string, name: string, timing: string, body: string): string =>
-  [`CREATE TRIGGER IF NOT EXISTS ${quoteSqlIdentifier(name)}`, `${timing} ON ${tableRef}`, `BEGIN`, body, `END;`].join(
-    '\n'
-  );
+/** 先删后建：插件升级后旧版本的同名触发器体被替换，不与新体并存。 */
+const sqliteTrigger = (tableRef: string, name: string, timing: string, body: string): string[] => [
+  `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier(name)};`,
+  [`CREATE TRIGGER ${quoteSqlIdentifier(name)}`, `${timing} ON ${tableRef}`, `BEGIN`, body, `END;`].join('\n')
+];
 
 const pgFunctionHeader = (metadata: EntityMetadata, name: string): string =>
   `CREATE OR REPLACE FUNCTION ${quoteSqlIdentifier(metadata.namespace)}.${quoteSqlIdentifier(name)}() RETURNS trigger AS $$\nBEGIN`;
@@ -61,11 +62,12 @@ const pgCreateTrigger = (
 
 /**
  * 日期半开相交（两后端同一文本，ISO 文本比较）：
- * `aTo 无界 或 aFrom < bTo` 且 `bTo 无界 或 bFrom < aTo`。
+ * `bTo 无界 或 aFrom 无界 或 aFrom < bTo` 且 `aTo 无界 或 bFrom 无界 或 bFrom < aTo`。
+ * 下界 NULL 按无下界参与判定（与序列维折叠 NULL 下界同一口径）：三值逻辑下 NULL 恒不吞拒绝。
  */
 const dateOverlap = (a: string, b: string): string =>
-  `(${b}."effectiveTo" IS NULL OR ${a}."effectiveFrom" < ${b}."effectiveTo") AND ` +
-  `(${a}."effectiveTo" IS NULL OR ${b}."effectiveFrom" < ${a}."effectiveTo")`;
+  `(${b}."effectiveTo" IS NULL OR ${a}."effectiveFrom" IS NULL OR ${a}."effectiveFrom" < ${b}."effectiveTo") AND ` +
+  `(${a}."effectiveTo" IS NULL OR ${b}."effectiveFrom" IS NULL OR ${b}."effectiveFrom" < ${a}."effectiveTo")`;
 
 /**
  * 序列闭区间相交（NULL 侧 = 1 / 无上界）：`COALESCE(a.unitFrom, 1) ≤ b.unitTo`
@@ -94,9 +96,9 @@ const pgLotOverlap = (a: string, b: string): string =>
 
 // -----------------------------------------------------[ 消息 detail 文本 ]
 
-/** SQLite 侧日期区间文本：`[from, to)`，无上界记 `+∞`。 */
+/** SQLite 侧日期区间文本：`[from, to)`，无下界记 `-∞`、无上界记 `+∞`（NULL 不让整条消息塌成 NULL）。 */
 const sqliteDateText = (row: string): string =>
-  `'[' || ${row}."effectiveFrom" || ', ' || COALESCE(${row}."effectiveTo", '+∞') || ')'`;
+  `'[' || COALESCE(${row}."effectiveFrom", '-∞') || ', ' || COALESCE(${row}."effectiveTo", '+∞') || ')'`;
 
 /** SQLite 侧序列区间文本：闭区间，NULL 下界折叠为 1。 */
 const sqliteUnitText = (row: string): string =>
@@ -106,9 +108,9 @@ const sqliteUnitText = (row: string): string =>
 const sqliteLotText = (row: string): string =>
   `COALESCE((SELECT '{' || group_concat(je.value, ',') || '}' FROM json_each(${row}."lotCodes") je), '全部')`;
 
-/** PGlite 侧日期区间文本（`::text` 保证串接）。 */
+/** PGlite 侧日期区间文本（`::text` 保证串接；NULL 消息会让 `IF violation IS NOT NULL` 静默放行）。 */
 const pgDateText = (row: string): string =>
-  `'[' || ${row}."effectiveFrom"::text || ', ' || COALESCE(${row}."effectiveTo"::text, '+∞') || ')'`;
+  `'[' || COALESCE(${row}."effectiveFrom"::text, '-∞') || ', ' || COALESCE(${row}."effectiveTo"::text, '+∞') || ')'`;
 
 /** PGlite 侧序列区间文本。 */
 const pgUnitText = (row: string): string =>
@@ -144,8 +146,8 @@ export const buildUnitLotOverlapGuardSqlite = (metadata: EntityMetadata): string
     ` AND ${dateOverlap(row, 'b')} AND ${unitOverlap(row, 'b')} AND ${sqliteLotOverlap(row, 'b')}` +
     ` LIMIT 1;`;
   return [
-    sqliteTrigger(tableRef, 'bom_line_occurrence_unit_lot_overlap_i', 'BEFORE INSERT', guard),
-    sqliteTrigger(tableRef, 'bom_line_occurrence_unit_lot_overlap_u', 'BEFORE UPDATE', guard)
+    ...sqliteTrigger(tableRef, 'bom_line_occurrence_unit_lot_overlap_i', 'BEFORE INSERT', guard),
+    ...sqliteTrigger(tableRef, 'bom_line_occurrence_unit_lot_overlap_u', 'BEFORE UPDATE', guard)
   ];
 };
 

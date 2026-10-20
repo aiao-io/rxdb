@@ -8,13 +8,12 @@
  * 另加十进制值合同的格式触发器（US-511 AC#23 的存储段）。
  *
  * 消息前缀 `rxdb:<kind>:`（与 US-030 的归一约定同构），错误类归插件（见 `types.ts`）。
- * 触发器 DDL 幂等：SQLite `CREATE TRIGGER IF NOT EXISTS`，PG 函数 `CREATE OR REPLACE` +
- * `DROP TRIGGER IF EXISTS`。声明只覆盖**状态转移与直连 SQL** 的判定面，跨行聚合
+ * 触发器 DDL 幂等且升级即替换：SQLite `DROP TRIGGER IF EXISTS` + `CREATE TRIGGER`，PG 函数
+ * `CREATE OR REPLACE` + `DROP TRIGGER IF EXISTS`。声明只覆盖**状态转移与直连 SQL** 的判定面，跨行聚合
  * （位号计数等）随 US-507 阶段 C 接进发布转移。
  */
 
 import { EntityMetadata, getEntityColumnName, quoteSqlIdentifier } from '@aiao/rxdb';
-import { BOM_CYCLE_DEPTH_LIMIT } from './constants.js';
 import {
   buildPgCoproductDdl,
   buildPgCoproductProjectionChecks,
@@ -24,8 +23,6 @@ import {
 import { buildPgInstanceNodeDdl, buildSqliteInstanceNodeDdl } from './instance-node-ddl.js';
 import { buildPgInstanceSourceDdl, buildSqliteInstanceSourceDdl } from './instance-source-ddl.js';
 import { buildUnitLotOverlapGuardPg, buildUnitLotOverlapGuardSqlite } from './unit-lot-trigger-ddl.js';
-
-export { BOM_CYCLE_DEPTH_LIMIT } from './constants.js';
 
 /** SQLite 物理表名：`namespace$tableName`（与 sqlite-core 的表名约定一致）。 */
 const sqliteTableRef = (metadata: EntityMetadata): string =>
@@ -46,12 +43,6 @@ const PUBLISH_VALIDATION = (subject: string, detail: string): string =>
 const DECIMAL_FORMAT = (field: string, detail?: string): string =>
   `rxdb:bom_decimal_format:${field}${detail ? `:${detail}` : ''}`;
 
-/** 环错误消息前缀（US-509「环错误码」：归一为 BomCycleError，携带路径）。 */
-const CYCLE = (path: string): string => `rxdb:bom_cycle:${path}`;
-
-/** 深度上限错误（同一前缀，路径段为空——归一为 BomCycleError 且 path 为空）。 */
-const CYCLE_DEPTH_LIMIT_MESSAGE = 'rxdb:bom_cycle:depth_limit';
-
 /** 结构归属列的不可改判据（SQLite：`IS NOT`，PG：`IS DISTINCT FROM` 的反）。 */
 const STRUCTURAL_COLUMNS: ReadonlyMap<string, readonly string[]> = new Map([
   ['BomItemRevision', ['itemId']],
@@ -68,15 +59,22 @@ const STRUCTURAL_COLUMNS: ReadonlyMap<string, readonly string[]> = new Map([
 const raiseWhen = (message: string, condition: string): string =>
   `  SELECT RAISE(ABORT, '${message}') WHERE ${condition};`;
 
-const sqliteTrigger = (tableRef: string, name: string, timing: string, body: string, when?: string): string =>
+/**
+ * 先删后建的触发器语句对：插件升级后旧版本的同名触发器体在下一次连接被替换，不与新体并存
+ *（`IF NOT EXISTS` 会让旧体静默保留）。每次连接按安装序重建，同表同事件的执行序
+ *（SQLite 逆创建序）在新库与重连库上一致。
+ */
+const sqliteTrigger = (tableRef: string, name: string, timing: string, body: string, when?: string): string[] => [
+  `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier(name)};`,
   [
-    `CREATE TRIGGER IF NOT EXISTS ${quoteSqlIdentifier(name)}`,
+    `CREATE TRIGGER ${quoteSqlIdentifier(name)}`,
     `${timing} ON ${tableRef}`,
     ...(when ? [`WHEN ${when}`] : []),
     `BEGIN`,
     body,
     `END;`
-  ].join('\n');
+  ].join('\n')
+];
 
 const sqliteStructuralTrigger = (metadata: EntityMetadata): string[] => {
   const columns = STRUCTURAL_COLUMNS.get(metadata.name) ?? [];
@@ -90,7 +88,7 @@ const sqliteStructuralTrigger = (metadata: EntityMetadata): string[] => {
       )
     )
     .join('\n');
-  return [sqliteTrigger(tableRef, `${metadata.tableName}_structural`, 'BEFORE UPDATE', body)];
+  return sqliteTrigger(tableRef, `${metadata.tableName}_structural`, 'BEFORE UPDATE', body);
 };
 
 const sqlitePublishedRevisionTrigger = (metadata: EntityMetadata): string[] => {
@@ -103,7 +101,7 @@ const sqlitePublishedRevisionTrigger = (metadata: EntityMetadata): string[] => {
     WRITE_PROTOCOL('item_revision', '已发布修订除状态转移外不可改（改虚拟件标记须发布新修订）'),
     '1'
   );
-  return [sqliteTrigger(sqliteTableRef(metadata), 'item_revision_published', 'BEFORE UPDATE', body, when)];
+  return sqliteTrigger(sqliteTableRef(metadata), 'item_revision_published', 'BEFORE UPDATE', body, when);
 };
 
 const sqlitePublishTransitionTrigger = (metadata: EntityMetadata): string[] => {
@@ -121,7 +119,7 @@ const sqlitePublishTransitionTrigger = (metadata: EntityMetadata): string[] => {
       `NEW.${effectiveFrom} IS NOT NULL AND NEW.${effectiveFrom} < date('now') AND NOT EXISTS (SELECT 1 FROM ${batchTable} b WHERE b."batchNo" = NEW.${historyBatchNo} AND b."state" = 'open')`
     )
   ].join('\n');
-  return [sqliteTrigger(sqliteTableRef(metadata), 'item_revision_publish', 'BEFORE UPDATE', body, when)];
+  return sqliteTrigger(sqliteTableRef(metadata), 'item_revision_publish', 'BEFORE UPDATE', body, when);
 };
 
 /** 批次表 append-only（US-508 AC#14）：拒绝删除，UPDATE 只允许 open → closed。 */
@@ -130,13 +128,13 @@ const sqliteHistoryBatchTriggers = (metadata: EntityMetadata): string[] => {
   const tableRef = sqliteTableRef(metadata);
   const state = column(metadata, 'state');
   return [
-    sqliteTrigger(
+    ...sqliteTrigger(
       tableRef,
       'bom_history_batch_append_only_d',
       'BEFORE DELETE',
       raiseWhen(WRITE_PROTOCOL('bom_history_batch', '批次表只追加，不允许删除'), '1')
     ),
-    sqliteTrigger(
+    ...sqliteTrigger(
       tableRef,
       'bom_history_batch_transition_u',
       'BEFORE UPDATE',
@@ -144,88 +142,6 @@ const sqliteHistoryBatchTriggers = (metadata: EntityMetadata): string[] => {
         WRITE_PROTOCOL('bom_history_batch', '批次行不可改写，只允许 open → closed 转移'),
         `NOT (OLD.${state} = 'open' AND NEW.${state} = 'closed')`
       )
-    )
-  ];
-};
-
-/**
- * 判环触发器（US-509）：同一 `(bom_type, org_id)` 内全部已存 consume 行发生项按物料级并集
- * 判环。入口只有发生项的 INSERT 与 `child_item_id` 变化（UPDATE 按行自身排除旧边、补新边）；
- * 自环是路径长度 0 的退化环，由同一递归命中。并集边不过滤头状态与日期——草稿头与
- * 未生效发生项同样计入（解析不可见 ≠ 判环不可见）。
- */
-const sqliteCycleTriggers = (metadata: EntityMetadata): string[] => {
-  if (metadata.name !== 'BomLineOccurrence') return [];
-  const tableRef = sqliteTableRef(metadata);
-  const occurrence = tableRef;
-  const line = quoteSqlIdentifier('bom$bom_line');
-  const header = quoteSqlIdentifier('bom$bom_header');
-  const revision = quoteSqlIdentifier('bom$item_revision');
-
-  // NEW 行的作用域（bom_type / org_id）与父物料——内联标量子查询：
-  // SQLite 不允许递归 CTE 的递归项子查询引用外层 CTE（`no such column: s.x`）
-  const scopeType = (row: string): string =>
-    `(SELECT h."bomType" FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" WHERE l."id" = ${row}."lineId")`;
-  const scopeOrg = (row: string): string =>
-    `(SELECT h."orgId" FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" WHERE l."id" = ${row}."lineId")`;
-  const parentItem = (row: string): string =>
-    `(SELECT r."itemId" FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" JOIN ${revision} r ON r."id" = h."parentRevisionId" WHERE l."id" = ${row}."lineId")`;
-
-  // 并集边（物料级）：表内边排除被更新的行自身，再补 NEW 边
-  const edgesSql = (row: string): string =>
-    `SELECT r."itemId" AS parent_item_id, occ."childItemId" AS child_item_id` +
-    ` FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId"` +
-    ` JOIN ${header} h ON h."id" = l."headerId" JOIN ${revision} r ON r."id" = h."parentRevisionId"` +
-    ` WHERE h."bomType" = ${scopeType(row)} AND h."orgId" = ${scopeOrg(row)} AND occ."id" IS NOT ${row}."id"` +
-    // US-513：只有 consume 边进入并集图（by_product / scrap_out 是反向物料流）
-    ` AND occ."flowDirection" = 'consume'` +
-    ` UNION ALL SELECT ${parentItem(row)}, ${row}."childItemId" WHERE ${row}."flowDirection" = 'consume'`;
-
-  // WITH 必须在语句顶层（SQLite 不接受 `FROM (WITH ...)` 的括号形态），
-  // 末段 SELECT RAISE 在触发器体内对 verdict 行触发。
-  // 递归项到达父物料即停止延伸：路径终止于父（正是错误消息要的环路径），
-  // 多重边成环时递归不会沿环重复枚举（UNION ALL 不去重，会指数爆炸）
-  const cycleCheck = (row: string): string => {
-    const edges = edgesSql(row);
-    return [
-      `WITH reach(item_id, path, depth) AS (`,
-      `  SELECT ${row}."childItemId", CAST(${row}."childItemId" AS TEXT), 0`,
-      `  UNION ALL`,
-      `  SELECT e.child_item_id, reach.path || '>' || e.child_item_id, reach.depth + 1`,
-      `  FROM reach JOIN (${edges}) e ON e.parent_item_id = reach.item_id`,
-      `  WHERE reach.depth < ${BOM_CYCLE_DEPTH_LIMIT} AND reach.item_id <> ${parentItem(row)}`,
-      `),`,
-      `found AS (SELECT reach.path FROM reach WHERE reach.item_id = ${parentItem(row)} LIMIT 1),`,
-      `truncated AS (`,
-      `  SELECT 1 AS hit FROM reach JOIN (${edges}) e ON e.parent_item_id = reach.item_id`,
-      `  WHERE reach.depth >= ${BOM_CYCLE_DEPTH_LIMIT} LIMIT 1`,
-      `),`,
-      `verdict AS (`,
-      `  SELECT CASE WHEN EXISTS (SELECT 1 FROM found)` +
-        ` THEN (SELECT '${CYCLE('')}' || path FROM found)` +
-        ` WHEN EXISTS (SELECT 1 FROM truncated) THEN '${CYCLE_DEPTH_LIMIT_MESSAGE}' END AS msg`,
-      `)`,
-      `SELECT RAISE(ABORT, verdict.msg) FROM verdict WHERE verdict.msg IS NOT NULL`
-    ].join('\n');
-  };
-
-  const body = (row: string): string => `  ${cycleCheck(row)};`;
-
-  // US-513：非 consume 边（by_product / scrap_out）是反向物料流，整体不进入判环
-  return [
-    sqliteTrigger(
-      tableRef,
-      'bom_line_occurrence_cycle_i',
-      'BEFORE INSERT',
-      body('NEW'),
-      `NEW."flowDirection" = 'consume'`
-    ),
-    sqliteTrigger(
-      tableRef,
-      'bom_line_occurrence_cycle_u',
-      'BEFORE UPDATE',
-      body('NEW'),
-      `NEW."flowDirection" = 'consume' AND NEW."childItemId" IS NOT OLD."childItemId"`
     )
   ];
 };
@@ -270,7 +186,7 @@ const sqliteEcnOccurrenceGuards = (metadata: EntityMetadata): string[] => {
     `(NEW."ecnOutId" IS NOT NULL AND NOT ${historicalInsert}) OR NEW."effectiveTo" IS NOT NULL) OR ` +
     `(NEW."ecnInId" IS NULL AND NEW."ecnOutId" IS NOT NULL AND NOT ${historicalInsert})`;
   guards.push(
-    sqliteTrigger(
+    ...sqliteTrigger(
       tableRef,
       'bom_line_occurrence_ecn_derive_i',
       'BEFORE INSERT',
@@ -293,7 +209,7 @@ const sqliteEcnOccurrenceGuards = (metadata: EntityMetadata): string[] => {
     `(NEW."ecnInId" IS NOT NULL AND NEW."effectiveFrom" IS NOT ${derivedFrom('NEW')}) OR ` +
     `(NEW."ecnOutId" IS NOT NULL AND NEW."ecnOutId" IS OLD."ecnOutId" AND NEW."effectiveTo" IS NOT ${derivedTo('NEW')})`;
   guards.push(
-    sqliteTrigger(
+    ...sqliteTrigger(
       tableRef,
       'bom_line_occurrence_ecn_derive_u',
       'BEFORE UPDATE',
@@ -379,19 +295,19 @@ const sqliteReleasedHeaderMembersGuard = (metadata: EntityMetadata): string[] =>
       '已发布头的逻辑行：仅放行挂 draft ECN 的插入与挂 draft/cancelled ECN 的删除'
     );
     guards.push(
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         `${metadata.tableName}_released_header_i`,
         'BEFORE INSERT',
         raiseWhen(message, `EXISTS (${releasedJoin('NEW')}) AND NOT (${ecnAttachable('NEW."ecnInId"')})`)
       ),
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         `${metadata.tableName}_released_header_u`,
         'BEFORE UPDATE',
         raiseWhen(message, `EXISTS (${releasedJoin('NEW')})`)
       ),
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         `${metadata.tableName}_released_header_d`,
         'BEFORE DELETE',
@@ -431,7 +347,7 @@ const sqliteReleasedHeaderMembersGuard = (metadata: EntityMetadata): string[] =>
     `NEW."ecnInId" IS NULL OR NOT ${ecnAttachable('NEW."ecnInId"')} OR ${lineOwnerViolation('NEW')} OR ${groupOwnerViolation('NEW')} OR ` +
     `NEW."effectiveFrom" IS NOT ${derivedFrom('NEW')} OR NEW."ecnOutId" IS NOT NULL OR NEW."effectiveTo" IS NOT NULL`;
   guards.push(
-    sqliteTrigger(
+    ...sqliteTrigger(
       tableRef,
       `${metadata.tableName}_released_header_i`,
       'BEFORE INSERT',
@@ -464,8 +380,7 @@ const sqliteReleasedHeaderMembersGuard = (metadata: EntityMetadata): string[] =>
     `(NEW."ecnOutId" IS NULL OR NEW."ecnOutId" IS NOT OLD."ecnOutId" OR ` +
     `NEW."effectiveTo" IS NOT ${derivedTo('NEW')} OR NEW."effectiveFrom" IS NOT OLD."effectiveFrom" OR (${untouchedColumns}))`;
   guards.push(
-    `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier(`${metadata.tableName}_released_header_u`)}`,
-    sqliteTrigger(
+    ...sqliteTrigger(
       tableRef,
       `${metadata.tableName}_released_header_u`,
       'BEFORE UPDATE',
@@ -478,7 +393,7 @@ const sqliteReleasedHeaderMembersGuard = (metadata: EntityMetadata): string[] =>
 
   // DELETE：挂 draft/cancelled ECN（取消 / 撤回级联）
   guards.push(
-    sqliteTrigger(
+    ...sqliteTrigger(
       tableRef,
       `${metadata.tableName}_released_header_d`,
       'BEFORE DELETE',
@@ -497,31 +412,42 @@ const sqliteReleasedHeaderMembersGuard = (metadata: EntityMetadata): string[] =>
  * 1. 全串只含数字与至多一个小数点（`[^0-9.]` 反类一次判全串）；
  * 2. 以数字开头（顺带保证非空、无符号）；
  * 3. 无前导零（单个 `0` 或 `0.` 开头除外）；
- * 4. 含小数点时末位不是 `0`（无尾随零）。
+ * 4. 含小数点时末位是 `1`～`9`（小数部分非空且无尾随零：`1.` / `0.` 与 `1.50` 同样拒绝）。
  */
 const canonicalGlob = (field: string): string => `(
   NEW."${field}" NOT GLOB '*[^0-9.]*' AND
   length(replace(NEW."${field}", '.', '')) >= length(NEW."${field}") - 1 AND
   substr(NEW."${field}", 1, 1) BETWEEN '0' AND '9' AND
   (substr(NEW."${field}", 1, 1) <> '0' OR NEW."${field}" = '0' OR substr(NEW."${field}", 1, 2) = '0.') AND
-  (instr(NEW."${field}", '.') = 0 OR substr(NEW."${field}", -1, 1) <> '0')
+  (instr(NEW."${field}", '.') = 0 OR substr(NEW."${field}", -1, 1) BETWEEN '1' AND '9')
 )`;
 
-/** 需要格式触发器兜底的十进制列（qty 可空：公式行的 qty 为空，跳过检查）。 */
-const SQLITE_DECIMAL_FORMAT_COLUMNS: { entity: string; field: string; nullable: boolean }[] = [
+/**
+ * 规范十进制串格式触发器覆盖的列（两后端共用同一清单，可空列的 NULL 跳过检查——如公式行的 qty）。
+ * 按十进制值合同存取的列都在此登记；`jointCostShare` 例外，由联产守卫的份额谓词判定
+ * （规范串 ∩ [0,1] ∩ 小数至多 9 位，见 coproduct-trigger-ddl）。值域守卫（良率制、阶梯边界、
+ * [0,1] 九位小数）另装触发器叠加在格式检查之上。
+ */
+const DECIMAL_FORMAT_COLUMNS: readonly { entity: string; field: string; nullable: boolean }[] = [
   { entity: 'BomLineOccurrence', field: 'qty', nullable: true },
   { entity: 'BomLineOccurrence', field: 'componentScrap', nullable: false },
   { entity: 'BomLineOccurrence', field: 'componentScrapFixed', nullable: false },
   { entity: 'BomLineOccurrence', field: 'lotsizeFrom', nullable: true },
   { entity: 'BomLineOccurrence', field: 'lotsizeTo', nullable: true },
   { entity: 'BomLineOccurrence', field: 'uomConversion', nullable: true },
+  { entity: 'BomLineOccurrence', field: 'usageProbability', nullable: true },
+  { entity: 'BomLineOccurrence', field: 'equivQty', nullable: true },
   { entity: 'BomHeader', field: 'baseQty', nullable: false },
   { entity: 'BomHeader', field: 'assemblyScrap', nullable: false },
+  { entity: 'BomHeader', field: 'costLotQty', nullable: true },
   { entity: 'BomRoutingOperation', field: 'setupTime', nullable: false },
   { entity: 'BomRoutingOperation', field: 'runTime', nullable: false },
   { entity: 'BomRoutingOperation', field: 'fixedTime', nullable: false },
+  { entity: 'BomRoutingOperation', field: 'operationScrap', nullable: false },
+  { entity: 'BomLineOperationSplit', field: 'ratio', nullable: false },
   { entity: 'BomWorkCenter', field: 'overheadRate', nullable: true },
-  { entity: 'BomHeader', field: 'costLotQty', nullable: true },
+  { entity: 'BomActivityRate', field: 'rate', nullable: false },
+  { entity: 'BomItem', field: 'uomConversion', nullable: true },
   { entity: 'BomItem', field: 'unitPrice', nullable: true },
   { entity: 'BomItem', field: 'creditPrice', nullable: true }
 ];
@@ -548,23 +474,21 @@ const sqliteLotsizeBoundGuard = (field: string): string => {
 };
 
 const sqliteDecimalFormatTriggers = (metadata: EntityMetadata): string[] => {
-  if (!['BomLineOccurrence', 'BomHeader', 'BomRoutingOperation', 'BomWorkCenter', 'BomItem'].includes(metadata.name))
-    return [];
   const tableRef = sqliteTableRef(metadata);
   const statements: string[] = [];
-  for (const { entity, field, nullable } of SQLITE_DECIMAL_FORMAT_COLUMNS) {
+  for (const { entity, field, nullable } of DECIMAL_FORMAT_COLUMNS) {
     if (entity !== metadata.name) continue;
     const violation =
       nullable ? `NEW."${field}" IS NOT NULL AND NOT ${canonicalGlob(field)}` : `NOT ${canonicalGlob(field)}`;
     const message = DECIMAL_FORMAT(field);
     statements.push(
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         `${metadata.tableName}_${field}_decimal_i`,
         'BEFORE INSERT',
         raiseWhen(message, violation)
       ),
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         `${metadata.tableName}_${field}_decimal_u`,
         'BEFORE UPDATE',
@@ -576,13 +500,13 @@ const sqliteDecimalFormatTriggers = (metadata: EntityMetadata): string[] => {
   if (metadata.name === 'BomHeader') {
     const message = DECIMAL_FORMAT('assemblyScrap', '良率制损耗必须在 [0,1)（s = 1 拒绝）');
     statements.push(
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_header_assembly_scrap_yield_i',
         'BEFORE INSERT',
         raiseWhen(message, sqliteYieldScrapGuard('assemblyScrap', 'assemblyScrapConvention'))
       ),
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_header_assembly_scrap_yield_u',
         'BEFORE UPDATE',
@@ -593,13 +517,13 @@ const sqliteDecimalFormatTriggers = (metadata: EntityMetadata): string[] => {
   if (metadata.name === 'BomLineOccurrence') {
     const message = DECIMAL_FORMAT('componentScrap', '良率制损耗必须在 [0,1)（s = 1 拒绝）');
     statements.push(
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_line_occurrence_component_scrap_yield_i',
         'BEFORE INSERT',
         raiseWhen(message, sqliteYieldScrapGuard('componentScrap', 'componentScrapConvention'))
       ),
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_line_occurrence_component_scrap_yield_u',
         'BEFORE UPDATE',
@@ -610,13 +534,13 @@ const sqliteDecimalFormatTriggers = (metadata: EntityMetadata): string[] => {
     for (const field of ['lotsizeFrom', 'lotsizeTo'] as const) {
       const boundMessage = DECIMAL_FORMAT(field, '阶梯边界限 15 位有效数字、整数与小数部分各 ≤ 15 位');
       statements.push(
-        sqliteTrigger(
+        ...sqliteTrigger(
           tableRef,
           `bom_line_occurrence_${field}_bound_i`,
           'BEFORE INSERT',
           raiseWhen(boundMessage, `NEW."${field}" IS NOT NULL AND ${sqliteLotsizeBoundGuard(field)}`)
         ),
-        sqliteTrigger(
+        ...sqliteTrigger(
           tableRef,
           `bom_line_occurrence_${field}_bound_u`,
           'BEFORE UPDATE',
@@ -662,15 +586,13 @@ const sqliteTierPublishGuard = (metadata: EntityMetadata): string[] => {
     `  AND ${overlap('a', 'b', 'lotsize')}`,
     `LIMIT 1;`
   ].join('\n');
-  return [
-    sqliteTrigger(
-      tableRef,
-      'bom_header_tier_publish_trg',
-      'BEFORE UPDATE OF "state"',
-      sql,
-      `OLD."state" = 'draft' AND NEW."state" = 'released'`
-    )
-  ];
+  return sqliteTrigger(
+    tableRef,
+    'bom_header_tier_publish_trg',
+    'BEFORE UPDATE OF "state"',
+    sql,
+    `OLD."state" = 'draft' AND NEW."state" = 'released'`
+  );
 };
 /**
  * 位号的已发布头协议（US-507 阶段 C + US-515 矩阵）：位号的增删经 occurrence → line → header
@@ -691,14 +613,19 @@ const sqliteDesignatorReleasedGuard = (metadata: EntityMetadata): string[] => {
   const ownerAttachable = (row: string): string =>
     `EXISTS (SELECT 1 FROM ${occurrence} occ WHERE occ."id" = ${row}."occurrenceId" AND ${ecnAttachable('occ."ecnInId"')})`;
   return [
-    sqliteTrigger(
+    ...sqliteTrigger(
       tableRef,
       'bom_line_designator_released_i',
       'BEFORE INSERT',
       raiseWhen(message, `${releasedJoin('NEW')} AND NOT (${ownerAttachable('NEW')})`)
     ),
-    sqliteTrigger(tableRef, 'bom_line_designator_released_u', 'BEFORE UPDATE', raiseWhen(message, releasedJoin('NEW'))),
-    sqliteTrigger(
+    ...sqliteTrigger(
+      tableRef,
+      'bom_line_designator_released_u',
+      'BEFORE UPDATE',
+      raiseWhen(message, releasedJoin('NEW'))
+    ),
+    ...sqliteTrigger(
       tableRef,
       'bom_line_designator_released_d',
       'BEFORE DELETE',
@@ -735,33 +662,13 @@ const sqliteDesignatorCountGuard = (metadata: EntityMetadata): string[] => {
     `  AND ${count('occ')} <> ${expected('occ')}`,
     `LIMIT 1;`
   ].join('\n');
-  return [
-    sqliteTrigger(
-      tableRef,
-      'bom_header_designator_publish_trg',
-      'BEFORE UPDATE OF "state"',
-      sql,
-      `OLD."state" = 'draft' AND NEW."state" = 'released'`
-    )
-  ];
-};
-/**
- * 位号级联删除（US-507 阶段 C）：发生项删除时先删其位号。PGlite 0.5.8 的
- * DEFERRABLE FK CASCADE 不生效（探针：FK 声明 confdeltype 'c' 但删除父行后子行仍在），
- * SQLite 侧 FK 级联正常、重复删除无碍——两后端都用触发器兜底，直连删除也自洽。
- */
-const sqliteDesignatorCascadeTrigger = (metadata: EntityMetadata): string[] => {
-  if (metadata.name !== 'BomLineOccurrence') return [];
-  const tableRef = sqliteTableRef(metadata);
-  const designator = quoteSqlIdentifier('bom$bom_line_designator');
-  return [
-    sqliteTrigger(
-      tableRef,
-      'bom_line_occurrence_designator_cascade_trg',
-      'BEFORE DELETE',
-      `DELETE FROM ${designator} WHERE "occurrenceId" = OLD."id";`
-    )
-  ];
+  return sqliteTrigger(
+    tableRef,
+    'bom_header_designator_publish_trg',
+    'BEFORE UPDATE OF "state"',
+    sql,
+    `OLD."state" = 'draft' AND NEW."state" = 'released'`
+  );
 };
 /**
  * by_product 子件不得是头父件（US-513 AC#11）：主产物就是头父件，副产自己的头父件
@@ -784,15 +691,13 @@ const sqliteByProductGuard = (metadata: EntityMetadata): string[] => {
     `WHERE l."headerId" = NEW."id" AND occ."flowDirection" = 'by_product' AND occ."childItemId" = r."itemId"`,
     `LIMIT 1;`
   ].join('\n');
-  return [
-    sqliteTrigger(
-      tableRef,
-      'bom_header_by_product_guard_trg',
-      'BEFORE UPDATE OF "state"',
-      sql,
-      `OLD."state" = 'draft' AND NEW."state" = 'released'`
-    )
-  ];
+  return sqliteTrigger(
+    tableRef,
+    'bom_header_by_product_guard_trg',
+    'BEFORE UPDATE OF "state"',
+    sql,
+    `OLD."state" = 'draft' AND NEW."state" = 'released'`
+  );
 };
 /**
  * 替代组的保存期守卫（US-512）：
@@ -813,13 +718,13 @@ const sqliteSubstituteGuards = (metadata: EntityMetadata): string[] => {
       `NEW."usageProbability" = '0' OR NEW."usageProbability" = '1' OR ` +
       `(substr(NEW."usageProbability", 1, 2) = '0.' AND length(NEW."usageProbability") <= 11))`;
     statements.push(
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_line_occurrence_probability_domain_i',
         'BEFORE INSERT',
         raiseWhen(probabilityMessage, probabilityViolation)
       ),
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_line_occurrence_probability_domain_u',
         'BEFORE UPDATE',
@@ -830,13 +735,13 @@ const sqliteSubstituteGuards = (metadata: EntityMetadata): string[] => {
     const crossViolation = (row: string): string =>
       `EXISTS (SELECT 1 FROM ${group} g JOIN ${line} l ON l."id" = ${row}."lineId" WHERE g."id" = ${row}."substituteGroupId" AND g."headerId" <> l."headerId")`;
     statements.push(
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_line_occurrence_substitute_cross_i',
         'BEFORE INSERT',
         raiseWhen(crossMessage, crossViolation('NEW'))
       ),
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_line_occurrence_substitute_cross_u',
         'BEFORE UPDATE',
@@ -854,19 +759,19 @@ const sqliteSubstituteGuards = (metadata: EntityMetadata): string[] => {
     const releasedJoin = (row: string): string =>
       `EXISTS (SELECT 1 FROM ${header} h WHERE h."id" = ${row}."headerId" AND h."state" = 'released')`;
     statements.push(
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_substitute_group_released_i',
         'BEFORE INSERT',
         raiseWhen(message, `${releasedJoin('NEW')} AND NOT (${ecnAttachable('NEW."ecnInId"')})`)
       ),
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_substitute_group_released_u',
         'BEFORE UPDATE',
         raiseWhen(message, releasedJoin('NEW'))
       ),
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_substitute_group_released_d',
         'BEFORE DELETE',
@@ -877,73 +782,108 @@ const sqliteSubstituteGuards = (metadata: EntityMetadata): string[] => {
   return statements;
 };
 
+/** 定点整数（10⁹ 为 1）还原规范串：整数段（长度 > 9 时取前缀）+ '.' + 右 9 位小数段（SQLite）。 */
+const sqliteFixedText = (total: string): string =>
+  `CASE WHEN length(CAST(${total} AS TEXT)) > 9` +
+  ` THEN substr(CAST(${total} AS TEXT), 1, length(CAST(${total} AS TEXT)) - 9) || '.' || substr('000000000' || CAST(${total} AS TEXT), -9)` +
+  ` ELSE '0.' || substr('000000000' || CAST(${total} AS TEXT), -9) END`;
+
 /**
- * 替代组发布转移聚合校验（US-512 AC#5/#7/#11/#12/#15）：按生效域桶——
- * 恰好一个 primary（两 primary 相交即违约）、priority 不并列（两非空相等 priority 相交即违约）、
- * proportional 合计恒 1（定点整数 10⁹ 比较，substitute 成员概率不计 primary）。
+ * 替代组切片聚合（US-512 技术笔记「切片」，SQLite）：头发布与 ECN 投影共用的同一口径——
+ * 检查点 = 校验起点 ∪ 其后的成员区间端点（无起点取全时间轴的全部端点），每个**非空**切片
+ * 恰好一个 primary、priority 不并列（NULL 优先级彼此不算并列）、proportional 定点合计恒 1
+ * （NULL 概率按 0、`1` 按 10⁹ 计，与运行期 `usageProbability ?? '0'` 同口径）。
+ *
+ * @param members - 成员行查询（列 `gid` / `f` / `t` / `role` / `prio` / `prob`）
+ * @param startDate - 校验起点表达式；`null` 取全时间轴（头发布）
+ * @param subject - 消息主体（`bom_header` / `ecn`）
+ * @param skip - 整体跳过条件（历史装载；无则 `'0'`）
+ * @returns 三条触发器体顶层语句，依次校验 primary / priority / proportional
+ */
+const sqliteSubstituteSliceChecks = (
+  members: string,
+  startDate: string | null,
+  subject: string,
+  skip: string
+): string[] => {
+  const group = quoteSqlIdentifier('bom$bom_substitute_group');
+  const points =
+    startDate === null ?
+      `SELECT m."f" AS "p" FROM members m UNION SELECT m."t" FROM members m WHERE m."t" IS NOT NULL`
+    : `SELECT ${startDate} AS "p" UNION SELECT m."f" FROM members m WHERE m."f" > ${startDate}` +
+      ` UNION SELECT m."t" FROM members m WHERE m."t" > ${startDate}`;
+  const cte =
+    `WITH members AS (${members}), points AS (${points}), active AS (` +
+    `SELECT a."gid", po."p", a."role", a."prio", a."prob" FROM members a JOIN points po` +
+    ` ON a."f" <= po."p" AND (a."t" IS NULL OR a."t" > po."p"))`;
+  const code = `(SELECT g."code" FROM ${group} g WHERE g."id" = bad."gid")`;
+  const strategyIs = (strategy: string): string =>
+    `(SELECT g."strategy" FROM ${group} g WHERE g."id" = a."gid") = '${strategy}'`;
+  const fixedProb =
+    `CASE WHEN a."prob" IS NULL THEN 0 WHEN a."prob" = '1' THEN 1000000000` +
+    ` ELSE CAST(substr(a."prob" || '000000000', 3, 9) AS INTEGER) END`;
+  const raise = (detail: string, suffix: string, violations: string): string =>
+    `${cte} SELECT RAISE(ABORT, '${PUBLISH_VALIDATION(subject, detail)}' || ${code} || ':' || bad."p"${suffix})` +
+    ` FROM (${violations} LIMIT 1) bad WHERE NOT (${skip});`;
+  return [
+    raise(
+      '替代组切片缺 primary 或不止一个 primary：',
+      '',
+      `SELECT a."gid", a."p" FROM active a GROUP BY a."gid", a."p"` +
+        ` HAVING SUM(CASE WHEN a."role" = 'primary' THEN 1 ELSE 0 END) <> 1`
+    ),
+    raise(
+      'priority 组切片优先级并列：',
+      ` || ':并列' || bad."dup"`,
+      `SELECT a."gid", a."p", COUNT(a."prio") - COUNT(DISTINCT a."prio") AS "dup" FROM active a` +
+        ` WHERE ${strategyIs('priority')} GROUP BY a."gid", a."p" HAVING COUNT(a."prio") <> COUNT(DISTINCT a."prio")`
+    ),
+    raise(
+      '替代组概率合计 ≠ 1：',
+      ` || ':' || ${sqliteFixedText('bad."total"')}`,
+      `SELECT a."gid", a."p", SUM(${fixedProb}) AS "total" FROM active a` +
+        ` WHERE ${strategyIs('proportional')} GROUP BY a."gid", a."p" HAVING SUM(${fixedProb}) <> 1000000000`
+    )
+  ];
+};
+
+/**
+ * 替代组发布转移聚合校验（US-512 AC#5/#7/#9/#11/#12/#14/#15）：零成员或从无 primary 的组拒绝，
+ * 其余按原子切片校验（{@link sqliteSubstituteSliceChecks}，与 ECN 投影同一口径）。单个触发器内
+ * 逐条校验，先违约者报错（与 PG 侧函数同序）。
  */
 const sqliteSubstitutePublishGuard = (metadata: EntityMetadata): string[] => {
   if (metadata.name !== 'BomHeader') return [];
-  const tableRef = sqliteTableRef(metadata);
   const group = quoteSqlIdentifier('bom$bom_substitute_group');
   const member = quoteSqlIdentifier('bom$bom_line_occurrence');
-  const dateOverlap = (a: string, b: string): string =>
-    `(${a}."effectiveTo" IS NULL OR ${b}."effectiveFrom" < ${a}."effectiveTo") AND ` +
-    `(${b}."effectiveTo" IS NULL OR ${a}."effectiveFrom" < ${b}."effectiveTo")`;
-  const groupIds = `SELECT g."id" FROM ${group} g WHERE g."headerId" = NEW."id"`;
-  const messages: [string, string][] = [
-    [
-      `${PUBLISH_VALIDATION('bom_header', '替代组零成员或缺 primary')}`,
-      `EXISTS (SELECT 1 FROM ${group} g WHERE g."headerId" = NEW."id" AND (` +
-        `NOT EXISTS (SELECT 1 FROM ${member} m WHERE m."substituteGroupId" = g."id") OR ` +
-        `NOT EXISTS (SELECT 1 FROM ${member} m WHERE m."substituteGroupId" = g."id" AND m."substituteRole" = 'primary')))`
-    ],
-    [
-      `${PUBLISH_VALIDATION('bom_header', '替代组同一切片出现两个 primary')}`,
-      `EXISTS (SELECT 1 FROM ${member} a JOIN ${member} b ON b."id" <> a."id" AND b."substituteGroupId" = a."substituteGroupId" AND b."substituteRole" = 'primary'` +
-        ` WHERE a."substituteRole" = 'primary' AND a."substituteGroupId" IN (${groupIds}) AND ${dateOverlap('a', 'b')})`
-    ],
-    [
-      `${PUBLISH_VALIDATION('bom_header', 'priority 组优先级并列')}`,
-      `EXISTS (SELECT 1 FROM ${member} a JOIN ${member} b ON b."id" <> a."id" AND b."substituteGroupId" = a."substituteGroupId" AND b."substitutePriority" = a."substitutePriority"` +
-        ` JOIN ${group} g ON g."id" = a."substituteGroupId"` +
-        ` WHERE g."headerId" = NEW."id" AND g."strategy" = 'priority'` +
-        ` AND a."substitutePriority" IS NOT NULL AND ${dateOverlap('a', 'b')})`
-    ]
+  const hasMember = (condition: string): string =>
+    `EXISTS (SELECT 1 FROM ${member} m WHERE m."substituteGroupId" = g."id"${condition})`;
+  const members =
+    `SELECT m."substituteGroupId" AS "gid", m."effectiveFrom" AS "f", m."effectiveTo" AS "t",` +
+    ` m."substituteRole" AS "role", m."substitutePriority" AS "prio", m."usageProbability" AS "prob"` +
+    ` FROM ${member} m JOIN ${group} g ON g."id" = m."substituteGroupId" WHERE g."headerId" = NEW."id"`;
+  const body = [
+    raiseWhen(
+      PUBLISH_VALIDATION('bom_header', '替代组零成员或缺 primary'),
+      `EXISTS (SELECT 1 FROM ${group} g WHERE g."headerId" = NEW."id" AND ` +
+        `(NOT ${hasMember('')} OR NOT ${hasMember(` AND m."substituteRole" = 'primary'`)}))`
+    ),
+    ...sqliteSubstituteSliceChecks(members, null, 'bom_header', '0')
+  ].join('\n');
+  // 旧版拆成四个触发器（逆创建序执行，与 PG 校验序相反）：合并后旧名一并删除
+  const retired = ['trg_0', 'trg_1', 'trg_2', 'total_trg'].map(
+    suffix => `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier(`bom_header_substitute_publish_${suffix}`)};`
+  );
+  return [
+    ...retired,
+    ...sqliteTrigger(
+      sqliteTableRef(metadata),
+      'bom_header_substitute_publish_trg',
+      'BEFORE UPDATE OF "state"',
+      body,
+      `OLD."state" = 'draft' AND NEW."state" = 'released'`
+    )
   ];
-  const statements = messages.map(([message, violation], index) =>
-    sqliteTrigger(
-      tableRef,
-      `bom_header_substitute_publish_trg_${index}`,
-      'BEFORE UPDATE OF "state"',
-      raiseWhen(message, violation),
-      `OLD."state" = 'draft' AND NEW."state" = 'released'`
-    )
-  );
-  // proportional 合计（按生效域桶分组；定点整数比较；报错还原合计值）
-  // 定点整数还原规范串：整数段（长度 > 9 时取前缀）+ '.' + 右 9 位小数段
-  const totalSql =
-    `SELECT g."code" || ':' || CASE WHEN length(CAST(t."total" AS TEXT)) > 9` +
-    ` THEN substr(CAST(t."total" AS TEXT), 1, length(CAST(t."total" AS TEXT)) - 9) || '.' || substr('000000000' || CAST(t."total" AS TEXT), -9)` +
-    ` ELSE '0.' || substr('000000000' || CAST(t."total" AS TEXT), -9) END AS "msg"` +
-    ` FROM (SELECT m."substituteGroupId", m."effectiveFrom", m."effectiveTo",` +
-    ` SUM(CASE WHEN m."usageProbability" IS NULL THEN 0 ELSE CAST(substr(m."usageProbability" || '000000000', 3, 9) AS INTEGER) END) AS "total"` +
-    ` FROM ${member} m JOIN ${group} g ON g."id" = m."substituteGroupId"` +
-    ` WHERE g."headerId" = NEW."id" AND g."strategy" = 'proportional'` +
-    ` GROUP BY m."substituteGroupId", m."effectiveFrom", m."effectiveTo"` +
-    ` HAVING SUM(CASE WHEN m."usageProbability" IS NULL THEN 0 ELSE CAST(substr(m."usageProbability" || '000000000', 3, 9) AS INTEGER) END) <> 1000000000` +
-    ` LIMIT 1) t JOIN ${group} g ON g."id" = t."substituteGroupId"`;
-  const totalMessage = `'${PUBLISH_VALIDATION('bom_header', '替代组概率合计 ≠ 1：')}' || (${totalSql})`;
-  statements.push(
-    sqliteTrigger(
-      tableRef,
-      'bom_header_substitute_publish_total_trg',
-      'BEFORE UPDATE OF "state"',
-      `SELECT RAISE(ABORT, ${totalMessage}) WHERE EXISTS (${totalSql});`,
-      `OLD."state" = 'draft' AND NEW."state" = 'released'`
-    )
-  );
-  return statements;
 };
 /**
  * 工艺路线的存储守卫（US-524/520）：
@@ -959,13 +899,18 @@ const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
     const message = DECIMAL_FORMAT('ratio', '分摊比例限 [0,1]、小数至多 9 位');
     const violation = `NOT (NEW."ratio" = '0' OR NEW."ratio" = '1' OR (substr(NEW."ratio", 1, 2) = '0.' AND length(NEW."ratio") <= 11))`;
     statements.push(
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_line_operation_split_ratio_domain_i',
         'BEFORE INSERT',
         raiseWhen(message, violation)
       ),
-      sqliteTrigger(tableRef, 'bom_line_operation_split_ratio_domain_u', 'BEFORE UPDATE', raiseWhen(message, violation))
+      ...sqliteTrigger(
+        tableRef,
+        'bom_line_operation_split_ratio_domain_u',
+        'BEFORE UPDATE',
+        raiseWhen(message, violation)
+      )
     );
     // US-520 AC#6：行既有 operation_seq 又有分摊行——两种表达互斥
     const occurrence = quoteSqlIdentifier('bom$bom_line_occurrence');
@@ -975,13 +920,13 @@ const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
     );
     const exclusiveViolation = `EXISTS (SELECT 1 FROM ${occurrence} occ WHERE occ."id" = NEW."occurrenceId" AND occ."operationSeq" IS NOT NULL)`;
     statements.push(
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_line_operation_split_exclusive_i',
         'BEFORE INSERT',
         raiseWhen(exclusiveMessage, exclusiveViolation)
       ),
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_line_operation_split_exclusive_u',
         'BEFORE UPDATE',
@@ -1002,19 +947,19 @@ const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
     const ownerAttachable = (row: string): string =>
       `EXISTS (SELECT 1 FROM ${occurrence} occ WHERE occ."id" = ${row}."occurrenceId" AND ${ecnAttachable('occ."ecnInId"')})`;
     statements.push(
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_line_operation_split_released_i',
         'BEFORE INSERT',
         raiseWhen(protocolMessage, `${releasedJoin('NEW')} AND NOT (${ownerAttachable('NEW')})`)
       ),
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_line_operation_split_released_u',
         'BEFORE UPDATE',
         raiseWhen(protocolMessage, releasedJoin('NEW'))
       ),
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_line_operation_split_released_d',
         'BEFORE DELETE',
@@ -1025,21 +970,29 @@ const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
       )
     );
   }
-  // US-520 AC#5/#7：行的 operation_seq 在保存期即校验（头已挂路由时必须在工序序集内）
+  // US-520 AC#5/#7：行的 operation_seq 在保存期即校验（头已挂路由时必须在工序序集内）；
+  // AC#6 互斥的发生项一侧：已有分摊行时不得再挂 operation_seq（分摊行一侧见上）
   if (metadata.name === 'BomLineOccurrence') {
     const tableRef = sqliteTableRef(metadata);
     const line = quoteSqlIdentifier('bom$bom_line');
     const header = quoteSqlIdentifier('bom$bom_header');
     const operation = quoteSqlIdentifier('bom$routing_operation');
-    const message = WRITE_PROTOCOL('bom_line_occurrence', '投料工序不属于头选定的路线');
-    const violation =
+    const split = quoteSqlIdentifier('bom$bom_line_operation_split');
+    const routingViolation =
       `NEW."operationSeq" IS NOT NULL AND EXISTS (` +
       `SELECT 1 FROM ${line} l JOIN ${header} h ON h."id" = l."headerId"` +
       ` WHERE l."id" = NEW."lineId" AND h."routingId" IS NOT NULL` +
       ` AND NOT EXISTS (SELECT 1 FROM ${operation} op WHERE op."routingId" = h."routingId" AND op."operationSeq" = NEW."operationSeq"))`;
+    const body = [
+      raiseWhen(WRITE_PROTOCOL('bom_line_occurrence', '投料工序不属于头选定的路线'), routingViolation),
+      raiseWhen(
+        WRITE_PROTOCOL('bom_line_occurrence', '行既有 operation_seq 又有分摊行（两种表达互斥）'),
+        `NEW."operationSeq" IS NOT NULL AND EXISTS (SELECT 1 FROM ${split} s WHERE s."occurrenceId" = NEW."id")`
+      )
+    ].join('\n');
     statements.push(
-      sqliteTrigger(tableRef, 'bom_line_occurrence_operation_seq_i', 'BEFORE INSERT', raiseWhen(message, violation)),
-      sqliteTrigger(tableRef, 'bom_line_occurrence_operation_seq_u', 'BEFORE UPDATE', raiseWhen(message, violation))
+      ...sqliteTrigger(tableRef, 'bom_line_occurrence_operation_seq_i', 'BEFORE INSERT', body),
+      ...sqliteTrigger(tableRef, 'bom_line_occurrence_operation_seq_u', 'BEFORE UPDATE', body)
     );
   }
   if (metadata.name === 'BomRoutingOperation') {
@@ -1047,8 +1000,8 @@ const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
     const message = DECIMAL_FORMAT('operationScrap', '良率制损耗必须在 [0,1)（s = 1 拒绝）');
     const violation = `NEW."scrapConvention" = 'yield' AND NEW."operationScrap" <> '0' AND substr(NEW."operationScrap", 1, 2) <> '0.'`;
     statements.push(
-      sqliteTrigger(tableRef, 'bom_routing_operation_scrap_yield_i', 'BEFORE INSERT', raiseWhen(message, violation)),
-      sqliteTrigger(tableRef, 'bom_routing_operation_scrap_yield_u', 'BEFORE UPDATE', raiseWhen(message, violation))
+      ...sqliteTrigger(tableRef, 'bom_routing_operation_scrap_yield_i', 'BEFORE INSERT', raiseWhen(message, violation)),
+      ...sqliteTrigger(tableRef, 'bom_routing_operation_scrap_yield_u', 'BEFORE UPDATE', raiseWhen(message, violation))
     );
   }
   if (metadata.name === 'BomHeader') {
@@ -1069,7 +1022,7 @@ const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
       ` WHERE l."headerId" = NEW."id"` +
       ` AND NOT EXISTS (SELECT 1 FROM ${operation} op WHERE op."routingId" = NEW."routingId" AND op."operationSeq" = s."operationSeq"))`;
     statements.push(
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_header_routing_seqs_trg',
         'BEFORE UPDATE OF "state"',
@@ -1077,17 +1030,18 @@ const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
         `OLD."state" = 'draft' AND NEW."state" = 'released'`
       )
     );
-    // 分摊合计 = 1（按发生项分组；定点整数 10⁹）
+    // 分摊合计 = 1（按发生项分组；定点整数 10⁹，报错按统一定点格式还原合计）
+    const splitTotal = `SUM(CAST(substr(replace(s."ratio", '.', '') || '000000000', 1, 10) AS INTEGER))`;
     const totalSql =
-      `SELECT occ."id" || ':' || '0.' || substr('000000000' || CAST(SUM(CAST(substr(replace(s."ratio", '.', '') || '000000000', 1, 10) AS INTEGER)) AS TEXT), -9) AS "msg"` +
+      `SELECT occ."id" || ':' || ${sqliteFixedText(splitTotal)} AS "msg"` +
       ` FROM ${split} s JOIN ${occurrence} occ ON occ."id" = s."occurrenceId" JOIN ${line} l ON l."id" = occ."lineId"` +
       ` WHERE l."headerId" = NEW."id"` +
       ` GROUP BY s."occurrenceId"` +
-      ` HAVING SUM(CAST(substr(replace(s."ratio", '.', '') || '000000000', 1, 10) AS INTEGER)) <> 1000000000` +
+      ` HAVING ${splitTotal} <> 1000000000` +
       ` LIMIT 1`;
     const totalMessage = `'${PUBLISH_VALIDATION('bom_header', '投料分摊合计 ≠ 1：')}' || (${totalSql})`;
     statements.push(
-      sqliteTrigger(
+      ...sqliteTrigger(
         tableRef,
         'bom_header_split_total_trg',
         'BEFORE UPDATE OF "state"',
@@ -1098,6 +1052,15 @@ const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
   }
   return statements;
 };
+/** 历史装载覆盖补丁（loadHistory 的 headerOverlays）对已发布头可写的列，及随任何写入刷新的审计列。 */
+const HEADER_HISTORY_PATCH_FIELDS: ReadonlySet<string> = new Set(['costLotQty', 'routingId', 'updatedAt', 'updatedBy']);
+
+/** 已发布头在开启态批次下仍锁定的列：除补丁列外的全部列（新增列默认锁定）。 */
+const headerLockedColumns = (metadata: EntityMetadata): string[] =>
+  [...metadata.propertyMap.keys(), ...metadata.foreignKeyRelationMap.keys()]
+    .filter(field => !HEADER_HISTORY_PATCH_FIELDS.has(field))
+    .map(field => column(metadata, field));
+
 /**
  * 已发布头的字段全拒守卫（US-515 AC#22）：`bom_header` 一旦 released，任何列改动
  * （base_qty / base_uom / 装配损耗 / cost_lot_qty / routing_id 等）都拒绝——头字段要改
@@ -1105,18 +1068,20 @@ const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
  */
 const sqliteReleasedHeaderGuard = (metadata: EntityMetadata): string[] => {
   if (metadata.name !== 'BomHeader') return [];
-  // 历史装载通道豁免：存在开启态批次即豁免（loadHistory 补 cost_lot_qty / routing_id；
-  // 补丁不改头的批次号，故按「通道开放」判定而非行级批次）
+  // 历史装载通道：存在开启态批次时只放行覆盖补丁列（loadHistory 补 cost_lot_qty / routing_id；
+  // 补丁不改头的批次号，只能按「通道开放」判定而非行级批次）——其余列与状态照旧锁定，
+  // 悬空的开启态批次借不到整张已发布头的写权限
   const historical = `EXISTS (SELECT 1 FROM ${quoteSqlIdentifier('bom$bom_history_batch')} b WHERE b."state" = 'open')`;
-  return [
-    sqliteTrigger(
-      sqliteTableRef(metadata),
-      'bom_header_released_fields_u',
-      'BEFORE UPDATE',
-      raiseWhen(WRITE_PROTOCOL(metadata.tableName, '已发布头字段不可改（改头字段须发布新修订）'), '1'),
-      `OLD."state" = 'released' AND NOT (${historical})`
-    )
-  ];
+  const lockedChanged = headerLockedColumns(metadata)
+    .map(field => `NEW.${field} IS NOT OLD.${field}`)
+    .join(' OR ');
+  return sqliteTrigger(
+    sqliteTableRef(metadata),
+    'bom_header_released_fields_u',
+    'BEFORE UPDATE',
+    raiseWhen(WRITE_PROTOCOL(metadata.tableName, '已发布头字段不可改（改头字段须发布新修订）'), '1'),
+    `OLD."state" = 'released' AND (NOT (${historical}) OR ${lockedChanged})`
+  );
 };
 
 /**
@@ -1124,7 +1089,8 @@ const sqliteReleasedHeaderGuard = (metadata: EntityMetadata): string[] => {
  * 改期（released 且生效日变，未生效才可、不得越过同一逻辑行后继 ECN、级联先收窄后放宽）、
  * 取消 / 撤回（released → cancelled 未生效才可、draft → cancelled 即撤回；级联删除该 ECN
  * 引入的位号 / 分摊 / 发生项 / 逻辑行 / 替代组并清截止标记）。级联在触发器里执行
- * （recursive_triggers 默认关，不递归触发成员表守卫——级联是真相源派生的权威写入）；
+ * （级联 DML 照常触发成员表守卫——recursive_triggers 只禁同一触发器自递归——级联形态
+ * 落在守卫放行面内：派生区间、draft / cancelled ECN 的删除）；
  * 任一校验失败 RAISE，级联随语句整体回滚（AC#4 不留半生效状态）。
  * 「当日」= 存储层 UTC：`date('now')`。投影校验见 {@link sqliteEcnProjectionChecks}。
  */
@@ -1142,8 +1108,7 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
 
   // 发布：禁止追溯生效（指向开启态历史批次的行跳过——历史装载通道）
   const publish = [
-    `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier('ecn_publish_trg')};`,
-    sqliteTrigger(
+    ...sqliteTrigger(
       tableRef,
       'ecn_publish_trg',
       'AFTER UPDATE',
@@ -1164,8 +1129,7 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
     ` WHERE o."ecnInId" = OLD."id" AND o."ecnOutId" IS NOT NULL AND o."ecnOutId" <> OLD."id"` +
     ` AND ${dateOf('e')} < ${dateOf('NEW')})`;
   const reschedule = [
-    `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier('ecn_reschedule_trg')};`,
-    sqliteTrigger(
+    ...sqliteTrigger(
       tableRef,
       'ecn_reschedule_trg',
       'AFTER UPDATE',
@@ -1191,7 +1155,7 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
           metadata,
           'OLD."id"',
           `CASE WHEN NEW."effectiveDate" < OLD."effectiveDate" THEN NEW."effectiveDate" ELSE OLD."effectiveDate" END`,
-          'NULL'
+          'OLD."historyBatchNo"'
         )
       ].join('\n'),
       `OLD."state" = 'released' AND NEW."state" = 'released' AND ${dateOf('OLD')} <> ${dateOf('NEW')}`
@@ -1208,8 +1172,7 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
     `EXISTS (SELECT 1 FROM ${occurrence} o WHERE o."substituteGroupId" IN (SELECT g."id" FROM ${group} g WHERE g."ecnInId" = OLD."id")` +
     ` AND o."ecnInId" IS NOT NULL AND o."ecnInId" <> OLD."id")`;
   const cancel = [
-    `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier('ecn_cancel_trg')};`,
-    sqliteTrigger(
+    ...sqliteTrigger(
       tableRef,
       'ecn_cancel_trg',
       'AFTER UPDATE',
@@ -1238,7 +1201,8 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
         `DELETE FROM ${group} WHERE "ecnInId" = OLD."id";`,
         // 清截止标记并恢复区间
         `UPDATE ${occurrence} SET "ecnOutId" = NULL, "effectiveTo" = NULL WHERE "ecnOutId" = OLD."id";`,
-        ...sqliteEcnProjectionChecks(metadata, 'OLD."id"', 'OLD."effectiveDate"', 'NULL')
+        // 历史装载豁免与发布同口径：按目标 ECN 装载时的批次号判定（取消可能顺带改写批次号，取 OLD）
+        ...sqliteEcnProjectionChecks(metadata, 'OLD."id"', 'OLD."effectiveDate"', 'OLD."historyBatchNo"')
       ].join('\n'),
       `(OLD."state" = 'released' OR OLD."state" = 'draft') AND NEW."state" = 'cancelled'`
     )
@@ -1246,7 +1210,7 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
 
   // 其余转移拒绝：released → draft、cancelled → *、released 改其他列、任何状态改 ecnNo
   const guard = [
-    sqliteTrigger(
+    ...sqliteTrigger(
       tableRef,
       'ecn_state_guard_trg',
       'BEFORE UPDATE',
@@ -1275,10 +1239,10 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
  * 转换后运行投影校验（US-515 AC#9/#23/#24/#25 + US-512 AC#6/#9/#14 + 阶梯 / 位号 / 分摊，
  * SQLite 侧）：ECN 的发布 / 改期 / 取消三种转换在「转换后运行投影」上对全部已发布头做
  * 跨行聚合校验——投影成员排除未发布 ECN 引入的发生项、未发布 ECN 的截止不采信（视为 +∞）；
- * 替代组按「检查点切片」聚合（检查点 = 校验起点 ∪ 成员区间端点，空切片不校验）；
+ * 替代组按「检查点切片」聚合（与头发布同一口径，见 {@link sqliteSubstituteSliceChecks}）；
  * 位号计数与分摊合计对目标 ECN 引入的行逐行校验；阶梯按投影成员两两相交校验。
- * 历史装载（目标 ECN 指向开启态批次）跳过全部投影校验——历史结构是既成事实，装载时
- * 已按当时的头发布校验通过。
+ * 历史装载（目标 ECN 指向开启态批次）的三种转换都跳过全部投影校验——历史结构是既成事实，
+ * 装载时已按当时的头发布校验通过。
  *
  * @param metadata - BomEcn 的实体元数据
  * @param target - 目标 ECN 的 id 表达式（触发器行引用）
@@ -1296,7 +1260,6 @@ const sqliteEcnProjectionChecks = (
   const line = quoteSqlIdentifier('bom$bom_line');
   const header = quoteSqlIdentifier('bom$bom_header');
   const ecn = quoteSqlIdentifier('bom$ecn');
-  const group = quoteSqlIdentifier('bom$bom_substitute_group');
   const designator = quoteSqlIdentifier('bom$bom_line_designator');
   const split = quoteSqlIdentifier('bom$bom_line_operation_split');
   const batch = quoteSqlIdentifier('bom$bom_history_batch');
@@ -1316,29 +1279,11 @@ const sqliteEcnProjectionChecks = (
     `THEN ${alias}."effectiveTo" ELSE NULL END`;
 
   // 替代组成员（投影 + 采信区间 + 已发布头）
-  const membersCte = [
-    `WITH members AS (`,
-    `  SELECT m."id" AS "mid", m."substituteGroupId" AS "gid", m."effectiveFrom" AS "f",`,
-    `    ${trustedTo('m')} AS "t", m."substituteRole" AS "role", m."substitutePriority" AS "prio", m."usageProbability" AS "prob"`,
-    `  FROM ${occurrence} m JOIN ${line} l ON l."id" = m."lineId" JOIN ${header} h ON h."id" = l."headerId"`,
-    `  WHERE h."state" = 'released' AND m."substituteGroupId" IS NOT NULL AND ${visible('m')}`,
-    `),`,
-    `points AS (`,
-    `  SELECT ${startDate} AS "p"`,
-    `  UNION SELECT DISTINCT m."f" FROM members m WHERE m."f" > ${startDate}`,
-    `  UNION SELECT DISTINCT m."t" FROM members m WHERE m."t" > ${startDate}`,
-    `),`,
-    `active AS (`,
-    `  SELECT a."gid", po."p", a."role", a."prio", a."prob" FROM members a JOIN points po ON a."f" <= po."p" AND (a."t" IS NULL OR a."t" > po."p")`,
-    `)`
-  ].join('\n');
-
-  // 定点整数合计还原规范串（与头发布校验同口径）
-  const totalText = (total: string): string =>
-    `CASE WHEN length(CAST(${total} AS TEXT)) > 9` +
-    ` THEN substr(CAST(${total} AS TEXT), 1, length(CAST(${total} AS TEXT)) - 9) || '.' || substr('000000000' || CAST(${total} AS TEXT), -9)` +
-    ` ELSE '0.' || substr('000000000' || CAST(${total} AS TEXT), -9) END`;
-  const fixedProb = `CAST(substr(a."prob" || '000000000', 3, 9) AS INTEGER)`;
+  const members =
+    `SELECT m."substituteGroupId" AS "gid", m."effectiveFrom" AS "f", ${trustedTo('m')} AS "t",` +
+    ` m."substituteRole" AS "role", m."substitutePriority" AS "prio", m."usageProbability" AS "prob"` +
+    ` FROM ${occurrence} m JOIN ${line} l ON l."id" = m."lineId" JOIN ${header} h ON h."id" = l."headerId"` +
+    ` WHERE h."state" = 'released' AND m."substituteGroupId" IS NOT NULL AND ${visible('m')}`;
 
   const guards: string[] = buildSqliteCoproductProjectionChecks(metadata, target, startDate, historyBatchNo);
 
@@ -1359,53 +1304,16 @@ const sqliteEcnProjectionChecks = (
   );
 
   // 分摊合计（目标 ECN 引入的发生项，逐发生项定点合计 = 1）
-  const splitMessage = `'${PUBLISH_VALIDATION('ecn', '投料分摊合计 ≠ 1：')}' || s."occurrenceId" || ':' || '0.' || substr('000000000' || CAST(SUM(CAST(substr(replace(s."ratio", '.', '') || '000000000', 1, 10) AS INTEGER)) AS TEXT), -9)`;
+  const splitTotal = `SUM(CAST(substr(replace(s."ratio", '.', '') || '000000000', 1, 10) AS INTEGER))`;
+  const splitMessage = `'${PUBLISH_VALIDATION('ecn', '投料分摊合计 ≠ 1：')}' || s."occurrenceId" || ':' || ${sqliteFixedText(splitTotal)}`;
   guards.push(
     `SELECT RAISE(ABORT, ${splitMessage}) FROM ${split} s JOIN ${occurrence} o ON o."id" = s."occurrenceId"` +
       ` WHERE o."ecnInId" = ${target} AND NOT (${historical})` +
-      ` GROUP BY s."occurrenceId" HAVING SUM(CAST(substr(replace(s."ratio", '.', '') || '000000000', 1, 10) AS INTEGER)) <> 1000000000 LIMIT 1;`
+      ` GROUP BY s."occurrenceId" HAVING ${splitTotal} <> 1000000000 LIMIT 1;`
   );
 
-  // 替代组：每检查点活动成员非空时恰好一个 primary（空切片不校验，US-512 AC#14）
-  const primaryMessage =
-    `'${PUBLISH_VALIDATION('ecn', '替代组切片缺 primary 或不止一个 primary：')}'` +
-    ` || (SELECT g."code" FROM ${group} g WHERE g."id" = bad."gid") || ':' || bad."p"`;
-  guards.push(
-    `${membersCte}` +
-      ` SELECT RAISE(ABORT, ${primaryMessage}) FROM (` +
-      `SELECT a."gid", a."p" FROM active a` +
-      ` GROUP BY a."gid", a."p" HAVING COUNT(*) > 0 AND SUM(CASE WHEN a."role" = 'primary' THEN 1 ELSE 0 END) <> 1 LIMIT 1) bad` +
-      ` WHERE NOT (${historical});`
-  );
-
-  // priority 组：每检查点优先级不并列（NULL 优先级成员彼此不去重）
-  const priorityMessage =
-    `'${PUBLISH_VALIDATION('ecn', 'priority 组切片优先级并列：')}'` +
-    ` || (SELECT g."code" FROM ${group} g WHERE g."id" = bad."gid") || ':' || bad."p" || ':并列' || bad."dup"`;
-  guards.push(
-    `${membersCte}` +
-      ` SELECT RAISE(ABORT, ${priorityMessage}) FROM (` +
-      `SELECT a."gid", a."p", (SELECT g."strategy" FROM ${group} g WHERE g."id" = a."gid") AS "strategy",` +
-      ` COUNT(*) - COUNT(DISTINCT a."prio") - SUM(CASE WHEN a."prio" IS NULL THEN 1 ELSE 0 END) AS "dup"` +
-      ` FROM active a GROUP BY a."gid", a."p"` +
-      ` HAVING COUNT(*) > 0 AND (SELECT g."strategy" FROM ${group} g WHERE g."id" = a."gid") = 'priority'` +
-      ` AND COUNT(*) <> COUNT(DISTINCT a."prio") + SUM(CASE WHEN a."prio" IS NULL THEN 1 ELSE 0 END) LIMIT 1) bad` +
-      ` WHERE NOT (${historical});`
-  );
-
-  // proportional 组：每检查点定点合计 = 1（错误给出切片与实际合计）
-  const totalMessage =
-    `'${PUBLISH_VALIDATION('ecn', '替代组概率合计 ≠ 1：')}'` +
-    ` || (SELECT g."code" FROM ${group} g WHERE g."id" = bad."gid") || ':' || bad."p" || ':' || ${totalText('bad."total"')}`;
-  guards.push(
-    `${membersCte}` +
-      ` SELECT RAISE(ABORT, ${totalMessage}) FROM (` +
-      `SELECT a."gid", a."p", SUM(${fixedProb}) AS "total" FROM active a` +
-      ` GROUP BY a."gid", a."p"` +
-      ` HAVING COUNT(*) > 0 AND (SELECT g."strategy" FROM ${group} g WHERE g."id" = a."gid") = 'proportional'` +
-      ` AND SUM(${fixedProb}) <> 1000000000 LIMIT 1) bad` +
-      ` WHERE NOT (${historical});`
-  );
+  // 替代组：检查点切片聚合（与头发布同一口径，空切片不校验，US-512 AC#6/#9/#14）
+  guards.push(...sqliteSubstituteSliceChecks(members, startDate, 'ecn', historical));
 
   // 阶梯：投影成员两两「日期段与批量段同时相交」（同头同组；与头发布校验同谓词形态）
   const tierMessage =
@@ -1446,8 +1354,8 @@ const sqliteMapNullRuleTriggers = (metadata: EntityMetadata): string[] => {
     `(${row}."relation" = 'removed' AND (${row}."targetLineId" IS NOT NULL OR ${row}."sourceLineId" IS NULL)) OR ` +
     `(${row}."relation" NOT IN ('added', 'removed') AND (${row}."sourceLineId" IS NULL OR ${row}."targetLineId" IS NULL))`;
   return [
-    sqliteTrigger(tableRef, 'bom_map_null_rule_i', 'BEFORE INSERT', raiseWhen(message, violation('NEW'))),
-    sqliteTrigger(tableRef, 'bom_map_null_rule_u', 'BEFORE UPDATE', raiseWhen(message, violation('NEW')))
+    ...sqliteTrigger(tableRef, 'bom_map_null_rule_i', 'BEFORE INSERT', raiseWhen(message, violation('NEW'))),
+    ...sqliteTrigger(tableRef, 'bom_map_null_rule_u', 'BEFORE UPDATE', raiseWhen(message, violation('NEW')))
   ];
 };
 
@@ -1473,12 +1381,10 @@ export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => 
   ...sqliteTierPublishGuard(metadata),
   ...sqliteDesignatorCountGuard(metadata),
   ...sqliteDesignatorReleasedGuard(metadata),
-  ...sqliteDesignatorCascadeTrigger(metadata),
   ...sqliteByProductGuard(metadata),
   ...sqliteSubstituteGuards(metadata),
   ...sqliteSubstitutePublishGuard(metadata),
-  ...sqliteRoutingGuards(metadata),
-  ...sqliteCycleTriggers(metadata)
+  ...sqliteRoutingGuards(metadata)
 ];
 
 // -----------------------------------------------------[ PGlite ]
@@ -1597,75 +1503,6 @@ const pgHistoryBatchFunction = (metadata: EntityMetadata): string[] => {
       'bom_history_batch__append_trg',
       'BEFORE DELETE OR UPDATE',
       'bom_history_batch__append_guard'
-    )
-  ];
-};
-
-/**
- * PG 判环触发器函数（US-509）：与 SQLite 同口径——同一 `(bom_type, org_id)` 物料级并集、
- * 行自身排除 + NEW 边补充、深度硬上限、三态判定。
- */
-const pgCycleFunction = (metadata: EntityMetadata): string[] => {
-  if (metadata.name !== 'BomLineOccurrence') return [];
-  const tableRef = pgTableRef(metadata);
-  const occurrence = tableRef;
-  const line = pgNamedTable(metadata, 'bom_line');
-  const header = pgNamedTable(metadata, 'bom_header');
-  const revision = pgNamedTable(metadata, 'item_revision');
-  const limit = BOM_CYCLE_DEPTH_LIMIT;
-
-  // 递归 CTE 的递归项子查询里引用不了兄弟 CTE（PG 报 missing FROM-clause，SQLite 报
-  // no such column）——作用域三元组（bomType / orgId / parentItemId）一律内联成标量子查询，
-  // 与 SQLite 触发器同口径；PG 递归 CTE 还必须写 RECURSIVE 关键字，裸 WITH 的自引用会被
-  // 当成普通表查找（relation "reach" does not exist）
-  const scopeType = `(SELECT h."bomType" FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" WHERE l."id" = NEW."lineId")`;
-  const scopeOrg = `(SELECT h."orgId" FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" WHERE l."id" = NEW."lineId")`;
-  const parentItem = `(SELECT r."itemId" FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" JOIN ${revision} r ON r."id" = h."parentRevisionId" WHERE l."id" = NEW."lineId")`;
-
-  // 并集边（物料级）：表内边排除被更新的行自身，再补 NEW 边
-  const edgesSql =
-    `SELECT r."itemId" AS parent_item_id, occ."childItemId" AS child_item_id` +
-    ` FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId"` +
-    ` JOIN ${header} h ON h."id" = l."headerId" JOIN ${revision} r ON r."id" = h."parentRevisionId"` +
-    ` WHERE h."bomType" = ${scopeType} AND h."orgId" = ${scopeOrg} AND occ."id" IS DISTINCT FROM NEW."id"` +
-    ` AND occ."flowDirection" = 'consume'` +
-    ` UNION ALL SELECT ${parentItem}, NEW."childItemId" WHERE NEW."flowDirection" = 'consume'`;
-
-  const body =
-    `  IF NEW."flowDirection" <> 'consume' THEN\n` +
-    `    RETURN NEW;\n` +
-    `  END IF;\n` +
-    `  IF TG_OP = 'UPDATE' AND OLD."childItemId" IS NOT DISTINCT FROM NEW."childItemId" THEN\n` +
-    `    RETURN NEW;\n` +
-    `  END IF;\n` +
-    `  WITH RECURSIVE reach(item_id, path, depth) AS (\n` +
-    `    SELECT NEW."childItemId", NEW."childItemId"::text, 0\n` +
-    `    UNION ALL\n` +
-    `    SELECT e.child_item_id, reach.path || '>' || e.child_item_id, reach.depth + 1\n` +
-    `    FROM reach JOIN (${edgesSql}) e ON e.parent_item_id = reach.item_id\n` +
-    `    WHERE reach.depth < ${limit} AND reach.item_id <> ${parentItem}\n` +
-    `  ),\n` +
-    `  found AS (SELECT reach.path FROM reach WHERE reach.item_id = ${parentItem} LIMIT 1),\n` +
-    `  truncated AS (SELECT 1 AS hit FROM reach JOIN (${edgesSql}) e ON e.parent_item_id = reach.item_id WHERE reach.depth >= ${limit} LIMIT 1)\n` +
-    `  SELECT CASE\n` +
-    `    WHEN EXISTS (SELECT 1 FROM found) THEN '${CYCLE('')}' || (SELECT path FROM found)\n` +
-    `    WHEN EXISTS (SELECT 1 FROM truncated) THEN '${CYCLE_DEPTH_LIMIT_MESSAGE}'\n` +
-    `  END INTO msg FROM (SELECT 1) AS seed;\n` +
-    `  IF msg IS NOT NULL THEN\n` +
-    `    RAISE EXCEPTION '%', msg;\n` +
-    `  END IF;`;
-
-  // DECLARE 必须在 BEGIN 之前（plpgsql 块结构），函数头单独拼
-  const functionHeader = `CREATE OR REPLACE FUNCTION ${quoteSqlIdentifier(metadata.namespace)}.${quoteSqlIdentifier('bom_line_occurrence__cycle_guard')}() RETURNS trigger AS $$\nDECLARE msg text;\nBEGIN`;
-  const functionFooter = `\n  RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;`;
-  return [
-    `${functionHeader}\n${body}${functionFooter}`,
-    pgCreateTrigger(
-      metadata,
-      tableRef,
-      'bom_line_occurrence__cycle_trg',
-      'BEFORE INSERT OR UPDATE',
-      'bom_line_occurrence__cycle_guard'
     )
   ];
 };
@@ -1866,14 +1703,17 @@ const pgEcnOccurrenceFunction = (metadata: EntityMetadata): string[] => {
 };
 
 /**
- * 已发布头的字段全拒守卫（PG 侧，US-515 AC#22）。
+ * 已发布头的字段全拒守卫（PG 侧，US-515 AC#22；开启态批次只放行覆盖补丁列，与 SQLite 同口径）。
  */
 const pgReleasedHeaderFunction = (metadata: EntityMetadata): string[] => {
   if (metadata.name !== 'BomHeader') return [];
   const state = column(metadata, 'state');
+  const lockedChanged = headerLockedColumns(metadata)
+    .map(field => `NEW.${field} IS DISTINCT FROM OLD.${field}`)
+    .join(' OR ');
   const body =
-    `  IF TG_OP = 'UPDATE' AND OLD.${state} = 'released' AND NOT EXISTS (` +
-    `SELECT 1 FROM ${pgNamedTable(metadata, 'bom_history_batch')} b WHERE b."state" = 'open') THEN\n` +
+    `  IF TG_OP = 'UPDATE' AND OLD.${state} = 'released' AND (NOT EXISTS (` +
+    `SELECT 1 FROM ${pgNamedTable(metadata, 'bom_history_batch')} b WHERE b."state" = 'open') OR ${lockedChanged}) THEN\n` +
     `    RAISE EXCEPTION '${WRITE_PROTOCOL('bom_header', '已发布头字段不可改（改头字段须发布新修订）')}';\n` +
     `  END IF;`;
   return [
@@ -1890,7 +1730,7 @@ const pgReleasedHeaderFunction = (metadata: EntityMetadata): string[] => {
 
 /**
  * ECN 状态机（US-515 存储层，PG 侧，与 SQLite 同口径）：发布 / 改期 / 取消三种转换，
- * 级联在触发器函数里执行（PGlite 0.5.8 行级触发器内 DML 不触发其他触发器，探针实证；
+ * 级联在触发器函数里执行（级联 DML 照常触发成员表守卫，PGlite 0.5.10 探针实证；
  * RAISE 后级联随语句回滚）。「当日」= `(now() AT TIME ZONE 'UTC')::date`。
  */
 const pgEcnStateMachineFunction = (metadata: EntityMetadata): string[] => {
@@ -1945,7 +1785,7 @@ const pgEcnStateMachineFunction = (metadata: EntityMetadata): string[] => {
       metadata,
       'OLD',
       'CASE WHEN NEW."effectiveDate" < OLD."effectiveDate" THEN NEW."effectiveDate" ELSE OLD."effectiveDate" END',
-      'NULL'
+      'OLD."historyBatchNo"'
     ),
     `    RETURN NEW;`,
     `  END IF;`,
@@ -1980,7 +1820,8 @@ const pgEcnStateMachineFunction = (metadata: EntityMetadata): string[] => {
     `    DELETE FROM ${line} WHERE "ecnInId" = OLD."id";`,
     `    DELETE FROM ${group} WHERE "ecnInId" = OLD."id";`,
     `    UPDATE ${occurrence} SET "ecnOutId" = NULL, "effectiveTo" = NULL WHERE "ecnOutId" = OLD."id";`,
-    ...pgEcnProjectionChecks(metadata, 'OLD', 'OLD."effectiveDate"', 'NULL'),
+    // 历史装载豁免与发布同口径：按目标 ECN 装载时的批次号判定
+    ...pgEcnProjectionChecks(metadata, 'OLD', 'OLD."effectiveDate"', 'OLD."historyBatchNo"'),
     `    RETURN NEW;`,
     `  END IF;`,
     `  IF (OLD."state" = 'released' AND NEW."state" = 'draft') OR OLD."state" = 'cancelled' THEN`,
@@ -1997,6 +1838,75 @@ const pgEcnStateMachineFunction = (metadata: EntityMetadata): string[] => {
   return [
     `${pgFunctionHeader(metadata, 'ecn__state_machine')}\n${body}${pgFunctionFooter}`,
     pgCreateTrigger(metadata, tableRef, 'ecn__state_machine_trg', 'AFTER UPDATE', 'ecn__state_machine')
+  ];
+};
+
+/** 定点整数（10⁹ 为 1）还原规范串（PG 侧，与 {@link sqliteFixedText} 同口径）。 */
+const pgFixedText = (total: string): string =>
+  `CASE WHEN length(${total}::text) > 9` +
+  ` THEN left(${total}::text, length(${total}::text) - 9) || '.' || right(${total}::text, 9)` +
+  ` ELSE '0.' || right('000000000' || ${total}::text, 9) END`;
+
+/** 一个校验一个 DECLARE 块：`SELECT ... INTO msg` 命中即 `RAISE EXCEPTION '%', msg`。 */
+const pgRaiseBlock = (violation: string): string =>
+  `    DECLARE msg text;\n    BEGIN\n      ${violation} INTO msg;\n      IF msg IS NOT NULL THEN\n        RAISE EXCEPTION '%', msg;\n      END IF;\n    END;`;
+
+/**
+ * 替代组切片聚合（PG 侧，与 {@link sqliteSubstituteSliceChecks} 同一口径；头发布与 ECN 投影共用）。
+ *
+ * @param metadata - 任一 BOM 实体元数据（取命名空间）
+ * @param members - 成员行查询（列 `gid` / `f` / `t` / `role` / `prio` / `prob`）
+ * @param startDate - 校验起点表达式；`null` 取全时间轴（头发布）
+ * @param subject - 消息主体（`bom_header` / `ecn`）
+ * @param skip - 整体跳过条件（历史装载；无则 `'FALSE'`）
+ * @returns plpgsql 语句，依次校验 primary / priority / proportional
+ */
+const pgSubstituteSliceChecks = (
+  metadata: EntityMetadata,
+  members: string,
+  startDate: string | null,
+  subject: string,
+  skip: string
+): string[] => {
+  const group = pgNamedTable(metadata, 'bom_substitute_group');
+  const points =
+    startDate === null ?
+      `SELECT m.f AS p FROM members m UNION SELECT m.t FROM members m WHERE m.t IS NOT NULL`
+    : `SELECT ${startDate} AS p UNION SELECT m.f FROM members m WHERE m.f > ${startDate}` +
+      ` UNION SELECT m.t FROM members m WHERE m.t > ${startDate}`;
+  const cte =
+    `WITH members AS (${members}), points AS (${points}), active AS (` +
+    `SELECT a.gid, po.p, a.role, a.prio, a.prob FROM members a JOIN points po ON a.f <= po.p AND (a.t IS NULL OR a.t > po.p))`;
+  const strategyIs = (strategy: string): string =>
+    `(SELECT g."strategy" FROM ${group} g WHERE g."id" = a.gid) = '${strategy}'`;
+  const fixedProb =
+    `CASE WHEN a.prob IS NULL THEN 0 WHEN a.prob = '1' THEN 1000000000` +
+    ` ELSE (substr(a.prob || '000000000', 3, 9))::bigint END`;
+  const check = (detail: string, suffix: string, violations: string): string =>
+    pgRaiseBlock(
+      `${cte} SELECT '${PUBLISH_VALIDATION(subject, detail)}' || g."code" || ':' || bad.p::text${suffix}` +
+        ` FROM (${violations} LIMIT 1) bad JOIN ${group} g ON g."id" = bad.gid`
+    );
+  return [
+    `    IF NOT (${skip}) THEN`,
+    check(
+      '替代组切片缺 primary 或不止一个 primary：',
+      '',
+      `SELECT a.gid, a.p FROM active a GROUP BY a.gid, a.p HAVING SUM(CASE WHEN a.role = 'primary' THEN 1 ELSE 0 END) <> 1`
+    ),
+    check(
+      'priority 组切片优先级并列：',
+      ` || ':并列' || bad.dup::text`,
+      `SELECT a.gid, a.p, COUNT(a.prio) - COUNT(DISTINCT a.prio) AS dup FROM active a` +
+        ` WHERE ${strategyIs('priority')} GROUP BY a.gid, a.p HAVING COUNT(a.prio) <> COUNT(DISTINCT a.prio)`
+    ),
+    check(
+      '替代组概率合计 ≠ 1：',
+      ` || ':' || ${pgFixedText('bad.total')}`,
+      `SELECT a.gid, a.p, SUM(${fixedProb}) AS total FROM active a` +
+        ` WHERE ${strategyIs('proportional')} GROUP BY a.gid, a.p HAVING SUM(${fixedProb}) <> 1000000000`
+    ),
+    `    END IF;`
   ];
 };
 
@@ -2019,7 +1929,6 @@ const pgEcnProjectionChecks = (
   const line = pgNamedTable(metadata, 'bom_line');
   const header = pgNamedTable(metadata, 'bom_header');
   const ecn = pgNamedTable(metadata, 'ecn');
-  const group = pgNamedTable(metadata, 'bom_substitute_group');
   const designator = pgNamedTable(metadata, 'bom_line_designator');
   const split = pgNamedTable(metadata, 'bom_line_operation_split');
   const batch = pgNamedTable(metadata, 'bom_history_batch');
@@ -2035,36 +1944,19 @@ const pgEcnProjectionChecks = (
     `CASE WHEN ${alias}."ecnOutId" IS NULL OR ${alias}."ecnOutId" = ${target}."id" OR ` +
     `EXISTS (SELECT 1 FROM ${ecn} e WHERE e."id" = ${alias}."ecnOutId" AND e."state" = 'released') ` +
     `THEN ${alias}."effectiveTo" ELSE NULL END`;
-  const fixedProb = `(substr(a."prob" || '000000000', 3, 9))::bigint`;
-  const totalText = (total: string): string =>
-    `CASE WHEN length(${total}::text) > 9` +
-    ` THEN left(${total}::text, length(${total}::text) - 9) || '.' || right('000000000' || ${total}::text, 9)` +
-    ` ELSE '0.' || right('000000000' || ${total}::text, 9) END`;
-
-  const membersCte = (start: string): string =>
-    `WITH members AS (` +
-    `SELECT m."id" AS mid, m."substituteGroupId" AS gid, m."effectiveFrom" AS f,` +
-    ` ${trustedTo('m')} AS t, m."substituteRole" AS role, m."substitutePriority" AS prio, m."usageProbability" AS prob` +
+  // 替代组成员（投影 + 采信区间 + 已发布头）
+  const members =
+    `SELECT m."substituteGroupId" AS gid, m."effectiveFrom" AS f, ${trustedTo('m')} AS t,` +
+    ` m."substituteRole" AS role, m."substitutePriority" AS prio, m."usageProbability" AS prob` +
     ` FROM ${occurrence} m JOIN ${line} l ON l."id" = m."lineId" JOIN ${header} h ON h."id" = l."headerId"` +
-    ` WHERE h."state" = 'released' AND m."substituteGroupId" IS NOT NULL AND ${visible('m')}` +
-    `), points AS (` +
-    `SELECT ${start} AS p` +
-    ` UNION SELECT DISTINCT m.f FROM members m WHERE m.f > ${start}` +
-    ` UNION SELECT DISTINCT m.t FROM members m WHERE m.t > ${start}` +
-    `), active AS (` +
-    `SELECT a.gid, po.p, a.role, a.prio, a.prob FROM members a JOIN points po ON a.f <= po.p AND (a.t IS NULL OR a.t > po.p)` +
-    `)`;
-
-  // 每个校验一个 DECLARE 块：SELECT ... INTO msg → RAISE EXCEPTION '%', msg
-  const checkBlock = (violation: string): string =>
-    `    DECLARE msg text;\n    BEGIN\n      ${violation} INTO msg;\n      IF msg IS NOT NULL THEN\n        RAISE EXCEPTION '%', msg;\n      END IF;\n    END;`;
+    ` WHERE h."state" = 'released' AND m."substituteGroupId" IS NOT NULL AND ${visible('m')}`;
 
   const checks: string[] = buildPgCoproductProjectionChecks(metadata, target, startDate, historyBatchNo);
 
   // 位号计数（目标 ECN 引入的 managed 行）
   checks.push(
     `    IF NOT (${historical}) THEN`,
-    checkBlock(
+    pgRaiseBlock(
       `SELECT '${PUBLISH_VALIDATION('ecn', '位号计数违约：')}' || occ."id" || ':位号数' || ` +
         `(SELECT COUNT(*) FROM ${designator} d WHERE d."occurrenceId" = occ."id") || ':qty' || occ."qty"` +
         ` FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId"` +
@@ -2075,60 +1967,26 @@ const pgEcnProjectionChecks = (
     `    END IF;`
   );
 
-  // 分摊合计（目标 ECN 引入的发生项）
+  // 分摊合计（目标 ECN 引入的发生项；合计还原走统一定点格式）
+  const splitTotal = `SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint)`;
   checks.push(
     `    IF NOT (${historical}) THEN`,
-    checkBlock(
-      `SELECT '${PUBLISH_VALIDATION('ecn', '投料分摊合计 ≠ 1：')}' || s."occurrenceId" || ':' || ` +
-        `CASE WHEN length(SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint)::text) > 9` +
-        ` THEN left(SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint)::text, length(SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint)::text) - 9) || '.' || right(SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint)::text, 9)` +
-        ` ELSE '0.' || right(SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint)::text, 9) END` +
+    pgRaiseBlock(
+      `SELECT '${PUBLISH_VALIDATION('ecn', '投料分摊合计 ≠ 1：')}' || s."occurrenceId" || ':' || ${pgFixedText(splitTotal)}` +
         ` FROM ${split} s JOIN ${occurrence} o ON o."id" = s."occurrenceId"` +
         ` WHERE o."ecnInId" = ${target}."id"` +
-        ` GROUP BY s."occurrenceId" HAVING SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint) <> 1000000000 LIMIT 1`
+        ` GROUP BY s."occurrenceId" HAVING ${splitTotal} <> 1000000000 LIMIT 1`
     ),
     `    END IF;`
   );
 
-  // 替代组：primary / priority / proportional（检查点切片）
-  checks.push(
-    `    IF NOT (${historical}) THEN`,
-    checkBlock(
-      `${membersCte(startDate)}` +
-        ` SELECT '${PUBLISH_VALIDATION('ecn', '替代组切片缺 primary 或不止一个 primary：')}' || g."code" || ':' || bad.p::text` +
-        ` FROM (SELECT a.gid, a.p FROM active a` +
-        ` GROUP BY a.gid, a.p HAVING COUNT(*) > 0 AND SUM(CASE WHEN a.role = 'primary' THEN 1 ELSE 0 END) <> 1 LIMIT 1) bad` +
-        ` JOIN ${group} g ON g."id" = bad.gid`
-    ),
-    `    END IF;`,
-    `    IF NOT (${historical}) THEN`,
-    checkBlock(
-      `${membersCte(startDate)}` +
-        ` SELECT '${PUBLISH_VALIDATION('ecn', 'priority 组切片优先级并列：')}' || g."code" || ':' || bad.p::text || ':并列' || bad.dup::text` +
-        ` FROM (SELECT a.gid, a.p, COUNT(*) - COUNT(DISTINCT a.prio) - SUM(CASE WHEN a.prio IS NULL THEN 1 ELSE 0 END) AS dup` +
-        ` FROM active a GROUP BY a.gid, a.p` +
-        ` HAVING COUNT(*) > 0 AND (SELECT g."strategy" FROM ${group} g WHERE g."id" = a.gid) = 'priority'` +
-        ` AND COUNT(*) <> COUNT(DISTINCT a.prio) + SUM(CASE WHEN a.prio IS NULL THEN 1 ELSE 0 END) LIMIT 1) bad` +
-        ` JOIN ${group} g ON g."id" = bad.gid`
-    ),
-    `    END IF;`,
-    `    IF NOT (${historical}) THEN`,
-    checkBlock(
-      `${membersCte(startDate)}` +
-        ` SELECT '${PUBLISH_VALIDATION('ecn', '替代组概率合计 ≠ 1：')}' || g."code" || ':' || bad.p::text || ':' || ${totalText('bad.total')}` +
-        ` FROM (SELECT a.gid, a.p, SUM(${fixedProb}) AS total FROM active a` +
-        ` GROUP BY a.gid, a.p` +
-        ` HAVING COUNT(*) > 0 AND (SELECT g."strategy" FROM ${group} g WHERE g."id" = a.gid) = 'proportional'` +
-        ` AND SUM(${fixedProb}) <> 1000000000 LIMIT 1) bad` +
-        ` JOIN ${group} g ON g."id" = bad.gid`
-    ),
-    `    END IF;`
-  );
+  // 替代组：检查点切片聚合（与头发布同一口径）
+  checks.push(...pgSubstituteSliceChecks(metadata, members, startDate, 'ecn', historical));
 
   // 阶梯：投影成员两两相交
   checks.push(
     `    IF NOT (${historical}) THEN`,
-    checkBlock(
+    pgRaiseBlock(
       `SELECT '${PUBLISH_VALIDATION('ecn', '阶梯切片重叠：')}' || a."tierGroupNo" || ':' || a."id" || ':' || b."id" || ':日期段与批量段同时相交'` +
         ` FROM ${occurrence} a JOIN ${line} la ON la."id" = a."lineId" JOIN ${header} ha ON ha."id" = la."headerId"` +
         ` JOIN ${occurrence} b ON b."id" <> a."id" AND b."tierGroupNo" = a."tierGroupNo"` +
@@ -2147,31 +2005,10 @@ const pgEcnProjectionChecks = (
 
 const PG_CANONICAL_RE = `'^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$'`;
 
-/** PG 侧格式触发器兜底的十进制列（与 SQLite 侧同清单）。 */
-const PG_DECIMAL_FORMAT_COLUMNS: { entity: string; field: string; nullable: boolean }[] = [
-  { entity: 'BomLineOccurrence', field: 'qty', nullable: true },
-  { entity: 'BomLineOccurrence', field: 'componentScrap', nullable: false },
-  { entity: 'BomLineOccurrence', field: 'componentScrapFixed', nullable: false },
-  { entity: 'BomLineOccurrence', field: 'lotsizeFrom', nullable: true },
-  { entity: 'BomLineOccurrence', field: 'lotsizeTo', nullable: true },
-  { entity: 'BomLineOccurrence', field: 'uomConversion', nullable: true },
-  { entity: 'BomHeader', field: 'baseQty', nullable: false },
-  { entity: 'BomHeader', field: 'assemblyScrap', nullable: false },
-  { entity: 'BomRoutingOperation', field: 'setupTime', nullable: false },
-  { entity: 'BomRoutingOperation', field: 'runTime', nullable: false },
-  { entity: 'BomRoutingOperation', field: 'fixedTime', nullable: false },
-  { entity: 'BomWorkCenter', field: 'overheadRate', nullable: true },
-  { entity: 'BomHeader', field: 'costLotQty', nullable: true },
-  { entity: 'BomItem', field: 'unitPrice', nullable: true },
-  { entity: 'BomItem', field: 'creditPrice', nullable: true }
-];
-
 const pgDecimalFormatFunction = (metadata: EntityMetadata): string[] => {
-  if (!['BomLineOccurrence', 'BomHeader', 'BomRoutingOperation', 'BomWorkCenter', 'BomItem'].includes(metadata.name))
-    return [];
   const tableRef = pgTableRef(metadata);
   const guards: string[] = [];
-  for (const { entity, field, nullable } of PG_DECIMAL_FORMAT_COLUMNS) {
+  for (const { entity, field, nullable } of DECIMAL_FORMAT_COLUMNS) {
     if (entity !== metadata.name) continue;
     const violation =
       nullable ?
@@ -2336,8 +2173,8 @@ const pgDesignatorCountFunction = (metadata: EntityMetadata): string[] => {
     )
   ];
 };
-// 位号级联不落 PG 触发器：PGlite 0.5.8 行级触发器内 DML 不触发（探针实证），
-// 级联由 BomRepository.remove 应用层完成（两后端一致）
+// 位号 / 分摊行随发生项删除：两后端都由实体声明的外键 ON DELETE CASCADE 完成（PGlite 0.5.10
+// 探针实证生效；SQLite 各适配器连接即 foreign_keys = ON），不另装级联触发器
 /**
  * by_product 子件不得是头父件（PG 侧，同 SQLite 口径）。
  */
@@ -2429,52 +2266,29 @@ const pgSubstituteGuards = (metadata: EntityMetadata): string[] => {
 };
 
 /**
- * 替代组发布转移聚合校验（PG 侧，与 SQLite 同口径；定点整数 10⁹ 比较）。
+ * 替代组发布转移聚合校验（PG 侧，与 SQLite 同口径）：零成员或从无 primary 的组拒绝，
+ * 其余按原子切片校验（{@link pgSubstituteSliceChecks}，与 ECN 投影同一口径）。
  */
 const pgSubstitutePublishFunction = (metadata: EntityMetadata): string[] => {
   if (metadata.name !== 'BomHeader') return [];
   const tableRef = pgTableRef(metadata);
   const group = pgNamedTable(metadata, 'bom_substitute_group');
   const member = pgNamedTable(metadata, 'bom_line_occurrence');
-  const dateOverlap = (a: string, b: string): string =>
-    `(${a}."effectiveTo" IS NULL OR ${b}."effectiveFrom" < ${a}."effectiveTo") AND ` +
-    `(${b}."effectiveTo" IS NULL OR ${a}."effectiveFrom" < ${b}."effectiveTo")`;
-  const groupIds = `SELECT g."id" FROM ${group} g WHERE g."headerId" = NEW."id"`;
-  // 定点整数还原规范串（与 SQLite 同口径）
-  const totalExpr =
-    `(SELECT CASE WHEN length(t."total"::text) > 9` +
-    ` THEN left(t."total"::text, length(t."total"::text) - 9) || '.' || right('000000000' || t."total"::text, 9)` +
-    ` ELSE '0.' || right('000000000' || t."total"::text, 9) END` +
-    ` FROM (SELECT m."substituteGroupId", m."effectiveFrom", m."effectiveTo",` +
-    ` SUM(CASE WHEN m."usageProbability" IS NULL THEN 0 ELSE (substr(m."usageProbability" || '000000000', 3, 9))::integer END) AS "total"` +
-    ` FROM ${member} m JOIN ${group} g ON g."id" = m."substituteGroupId"` +
-    ` WHERE g."headerId" = NEW."id" AND g."strategy" = 'proportional'` +
-    ` GROUP BY m."substituteGroupId", m."effectiveFrom", m."effectiveTo"` +
-    ` HAVING SUM(CASE WHEN m."usageProbability" IS NULL THEN 0 ELSE (substr(m."usageProbability" || '000000000', 3, 9))::integer END) <> 1000000000` +
-    ` LIMIT 1) t)`;
-  const body =
-    `  IF OLD."state" = 'draft' AND NEW."state" = 'released' THEN\n` +
-    `    DECLARE violation text;\n    BEGIN\n` +
-    `      SELECT '${PUBLISH_VALIDATION('bom_header', '替代组零成员或缺 primary')}' INTO violation` +
-    `        WHERE EXISTS (SELECT 1 FROM ${group} g WHERE g."headerId" = NEW."id" AND (` +
-    `          NOT EXISTS (SELECT 1 FROM ${member} m WHERE m."substituteGroupId" = g."id") OR ` +
-    `          NOT EXISTS (SELECT 1 FROM ${member} m WHERE m."substituteGroupId" = g."id" AND m."substituteRole" = 'primary')));\n` +
-    `      IF violation IS NULL THEN\n` +
-    `        SELECT '${PUBLISH_VALIDATION('bom_header', '替代组同一切片出现两个 primary')}' INTO violation` +
-    `          WHERE EXISTS (SELECT 1 FROM ${member} a JOIN ${member} b ON b."id" <> a."id" AND b."substituteGroupId" = a."substituteGroupId" AND b."substituteRole" = 'primary'` +
-    `            WHERE a."substituteRole" = 'primary' AND a."substituteGroupId" IN (${groupIds}) AND ${dateOverlap('a', 'b')});\n` +
-    `      END IF;\n` +
-    `      IF violation IS NULL THEN\n` +
-    `        SELECT '${PUBLISH_VALIDATION('bom_header', 'priority 组优先级并列')}' INTO violation` +
-    `          WHERE EXISTS (SELECT 1 FROM ${member} a JOIN ${member} b ON b."id" <> a."id" AND b."substituteGroupId" = a."substituteGroupId" AND b."substitutePriority" = a."substitutePriority"` +
-    `            JOIN ${group} g ON g."id" = a."substituteGroupId"` +
-    `            WHERE g."headerId" = NEW."id" AND g."strategy" = 'priority' AND a."substitutePriority" IS NOT NULL AND ${dateOverlap('a', 'b')});\n` +
-    `      END IF;\n` +
-    `      IF violation IS NULL THEN\n` +
-    `        SELECT '${PUBLISH_VALIDATION('bom_header', '替代组概率合计 ≠ 1：')}' || ${totalExpr} INTO violation;\n` +
-    `      END IF;\n` +
-    `      IF violation IS NOT NULL THEN\n        RAISE EXCEPTION '%', violation;\n      END IF;\n` +
-    `    END;\n  END IF;`;
+  const hasMember = (condition: string): string =>
+    `EXISTS (SELECT 1 FROM ${member} m WHERE m."substituteGroupId" = g."id"${condition})`;
+  const members =
+    `SELECT m."substituteGroupId" AS gid, m."effectiveFrom" AS f, m."effectiveTo" AS t,` +
+    ` m."substituteRole" AS role, m."substitutePriority" AS prio, m."usageProbability" AS prob` +
+    ` FROM ${member} m JOIN ${group} g ON g."id" = m."substituteGroupId" WHERE g."headerId" = NEW."id"`;
+  const body = [
+    `  IF OLD."state" = 'draft' AND NEW."state" = 'released' THEN`,
+    `    IF EXISTS (SELECT 1 FROM ${group} g WHERE g."headerId" = NEW."id" AND ` +
+      `(NOT ${hasMember('')} OR NOT ${hasMember(` AND m."substituteRole" = 'primary'`)})) THEN`,
+    `      RAISE EXCEPTION '${PUBLISH_VALIDATION('bom_header', '替代组零成员或缺 primary')}';`,
+    `    END IF;`,
+    ...pgSubstituteSliceChecks(metadata, members, null, 'bom_header', 'FALSE'),
+    `  END IF;`
+  ].join('\n');
   return [
     `${pgFunctionHeader(metadata, 'bom_header__substitute_publish_guard')}\n${body}${pgFunctionFooter}`,
     pgCreateTrigger(
@@ -2548,13 +2362,17 @@ const pgRoutingGuards = (metadata: EntityMetadata): string[] => {
     const line = pgNamedTable(metadata, 'bom_line');
     const header = pgNamedTable(metadata, 'bom_header');
     const operation = pgNamedTable(metadata, 'routing_operation');
+    const split = pgNamedTable(metadata, 'bom_line_operation_split');
     const message = WRITE_PROTOCOL('bom_line_occurrence', '投料工序不属于头选定的路线');
+    // AC#6 互斥的发生项一侧：已有分摊行时不得再挂 operation_seq（与 SQLite 同口径）
     const body =
       `  IF NEW."operationSeq" IS NOT NULL AND EXISTS (` +
       `SELECT 1 FROM ${line} l JOIN ${header} h ON h."id" = l."headerId"` +
       ` WHERE l."id" = NEW."lineId" AND h."routingId" IS NOT NULL` +
       ` AND NOT EXISTS (SELECT 1 FROM ${operation} op WHERE op."routingId" = h."routingId" AND op."operationSeq" = NEW."operationSeq")) THEN\n` +
-      `    RAISE EXCEPTION '${message}';\n  END IF;`;
+      `    RAISE EXCEPTION '${message}';\n  END IF;\n` +
+      `  IF NEW."operationSeq" IS NOT NULL AND EXISTS (SELECT 1 FROM ${split} s WHERE s."occurrenceId" = NEW."id") THEN\n` +
+      `    RAISE EXCEPTION '${WRITE_PROTOCOL('bom_line_occurrence', '行既有 operation_seq 又有分摊行（两种表达互斥）')}';\n  END IF;`;
     statements.push(
       `${pgFunctionHeader(metadata, 'bom_line_occurrence__operation_seq_guard')}\n${body}${pgFunctionFooter}`,
       pgCreateTrigger(
@@ -2590,12 +2408,14 @@ const pgRoutingGuards = (metadata: EntityMetadata): string[] => {
     const line = pgNamedTable(metadata, 'bom_line');
     const operation = pgNamedTable(metadata, 'routing_operation');
     const seqMessage = PUBLISH_VALIDATION('bom_header', '投料工序 / 分摊行不在路由工序序集内（挂了必须可解析）');
+    // 违约消息点名发生项并按统一定点格式还原合计（与 SQLite 同口径）
+    const splitTotal = `SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint)`;
     const totalExpr =
-      `(SELECT '0.' || right('000000000' || (SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::integer))::text, 9)` +
+      `(SELECT s."occurrenceId" || ':' || ${pgFixedText(splitTotal)}` +
       ` FROM ${split} s JOIN ${occurrence} occ ON occ."id" = s."occurrenceId" JOIN ${line} l ON l."id" = occ."lineId"` +
       ` WHERE l."headerId" = NEW."id"` +
       ` GROUP BY s."occurrenceId"` +
-      ` HAVING SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::integer) <> 1000000000` +
+      ` HAVING ${splitTotal} <> 1000000000` +
       ` LIMIT 1)`;
     const body =
       `  IF OLD."state" = 'draft' AND NEW."state" = 'released' THEN\n` +
@@ -2673,6 +2493,5 @@ export const buildPgBomTriggerDdl = (metadata: EntityMetadata): string[] => [
   ...pgByProductFunction(metadata),
   ...pgSubstituteGuards(metadata),
   ...pgSubstitutePublishFunction(metadata),
-  ...pgRoutingGuards(metadata),
-  ...pgCycleFunction(metadata)
+  ...pgRoutingGuards(metadata)
 ];

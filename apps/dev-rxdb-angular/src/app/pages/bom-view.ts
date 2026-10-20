@@ -13,15 +13,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  Injector,
   ViewEncapsulation,
   computed,
   inject,
   input,
   output,
-  runInInjectionContext,
   signal,
-  type OnChanges,
   type OnDestroy,
   type OnInit
 } from '@angular/core';
@@ -94,29 +91,20 @@ const createDatabase = (): RxDB => {
   imports: [BomTree, BomLineEditor],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (view(); as view) {
-      <div class="bom-demo-panels">
-        <ao-bom-tree [commands]="view.commands" [state]="view.state()" />
-        <ao-bom-line-editor [commands]="view.commands" [state]="view.state()" />
-      </div>
-    }
+    <div class="bom-demo-panels">
+      <ao-bom-tree [commands]="view.commands" [state]="view.state()" />
+      <ao-bom-line-editor [commands]="view.commands" [state]="view.state()" />
+    </div>
   `
 })
-class BomDemoPanels implements OnInit, OnChanges, OnDestroy {
-  private readonly injector = inject(Injector);
+class BomDemoPanels implements OnInit, OnDestroy {
   readonly db = input.required<RxDB>();
   readonly query = input.required<BomViewInput>();
   readonly viewChange = output<BomViewBinding | null>();
-  readonly view = signal<BomViewBinding | null>(null);
+  readonly view = useBomView(this.db, this.query);
 
   ngOnInit(): void {
-    const view = runInInjectionContext(this.injector, () => useBomView(this.db(), this.query()));
-    this.view.set(view);
-    this.viewChange.emit(view);
-  }
-
-  ngOnChanges(): void {
-    this.view()?.commands.setInput(this.query());
+    this.viewChange.emit(this.view);
   }
 
   ngOnDestroy(): void {

@@ -18,7 +18,7 @@ import {
   type ConditionAst
 } from './config-condition.js';
 import { BomResolutionError, type ResolutionContext, type UnresolvedAlternative } from './resolution.js';
-import { lotMatches, parseLotCodes, unitIntervalMatches } from './unit-lot.js';
+import { lotMatches, parseLotCodes, unitIntervalMatches, unitIntervalOverlaps } from './unit-lot.js';
 
 /** 行 / 列位置的人读形式；无位置信息（手工构造的 AST）时省略。 */
 const positionOf = (expression: string, offset: number | undefined): string =>
@@ -263,6 +263,24 @@ export interface ResolutionFilterRow {
   selectionConditionId: string | null;
 }
 
+/** 候选两两满足 disjoint（单个候选恒真）。 */
+const pairwise = <T>(rows: T[], disjoint: (left: T, right: T) => boolean): boolean =>
+  rows.every((left, index) => rows.slice(index + 1).every(right => disjoint(left, right)));
+
+/**
+ * 同逻辑行多候选的未解析原因：点名能消歧的那一维。存储层三维重叠守卫保证同行同日的发生项在序列或批次上
+ * 不相交（选择条件不参与该守卫，配置条件不会造成同行歧义）：未给序列且候选序列段两两不相交 → `unit`；
+ * 否则缺批次 → `lot`（指定后剩余候选批次必相交、序列段必两两不相交，下一轮点名 `unit`）。
+ */
+const ambiguityReason = (group: ResolutionFilterRow[], context: ResolutionContext): 'unit' | 'lot' => {
+  const unitDisjoint = pairwise(
+    group,
+    (left, right) => !unitIntervalOverlaps([left.unitFrom, left.unitTo], [right.unitFrom, right.unitTo])
+  );
+  if (context.unit === undefined && unitDisjoint) return 'unit';
+  return context.lot === undefined ? 'lot' : 'unit';
+};
+
 /** 依次按序列、批次、配置过滤，同逻辑行多候选显式标未解析。 */
 export const filterResolutionRows = async <T extends ResolutionFilterRow>(
   query: ConfigurationQuery,
@@ -292,8 +310,7 @@ export const filterResolutionRows = async <T extends ResolutionFilterRow>(
   const ambiguous = new Set<string>();
   for (const group of byLine.values()) {
     if (group.length < 2) continue;
-    const reason =
-      context.unit === undefined && group.some(row => row.unitFrom !== null || row.unitTo !== null) ? 'unit' : 'lot';
+    const reason = ambiguityReason(group, context);
     if (unresolved === undefined)
       throw new BomResolutionError(reason, `存在未解析的序列 / 批次候选：逻辑行 ${group[0].lineId}，请指定 ${reason}`);
     ambiguous.add(group[0].lineId);

@@ -99,10 +99,30 @@ export const seedReachUpgradeDatabase = async (adapter: BomTestAdapter): Promise
 /** 模拟约束缺失的旧库坏图，验证升级失败会回滚水位与回填。 */
 export const corruptReachUpgradeGraph = async (adapter: BomTestAdapter): Promise<void> => {
   const dialect = bomSqlDialectFor(adapter.name);
+  await adapter.transaction(async executor => {
+    if (adapter.name === 'pglite') {
+      await executor.query(
+        `DROP TRIGGER IF EXISTS "bom_line_occurrence__cycle_trg" ON ${dialect.table('bom_line_occurrence')}`
+      );
+    } else {
+      await executor.query('DROP TRIGGER IF EXISTS "bom_line_occurrence_cycle_i"');
+      await executor.query('DROP TRIGGER IF EXISTS "bom_line_occurrence_cycle_u"');
+    }
+  }, false);
+  await insertReachUpgradeClosingEdge(adapter);
+};
+
+/** 在 UPGRADE-C 下补一条指回 UPGRADE-A 的 consume 边，闭合 A→B→C→A。 */
+export const insertReachUpgradeClosingEdge = (adapter: BomTestAdapter): Promise<void> =>
+  insertReachUpgradeEdge(adapter, 'UPGRADE-C', 'UPGRADE-A');
+
+/** 在 parent 的修订下新建草稿头与行，补一条指向 child 物料的 consume 边。 */
+export const insertReachUpgradeEdge = async (adapter: BomTestAdapter, parent: string, child: string): Promise<void> => {
+  const dialect = bomSqlDialectFor(adapter.name);
   const revision = await adapter.transaction(
     executor =>
       executor.query(`SELECT "id" FROM ${dialect.table('item_revision')} WHERE "itemId" = ${dialect.placeholder(0)}`, [
-        deterministicId('reach-upgrade:UPGRADE-C')
+        deterministicId(`reach-upgrade:${parent}`)
       ]),
     false
   );
@@ -114,20 +134,10 @@ export const corruptReachUpgradeGraph = async (adapter: BomTestAdapter): Promise
   await header.save();
   const line = adapter.rxdb.entityManager.instantiate(BomLine, { headerId: header.id, lineNo: 10 });
   await line.save();
-  await adapter.transaction(async executor => {
-    if (adapter.name === 'pglite') {
-      await executor.query(
-        `DROP TRIGGER IF EXISTS "bom_line_occurrence__cycle_trg" ON ${dialect.table('bom_line_occurrence')}`
-      );
-    } else {
-      await executor.query('DROP TRIGGER IF EXISTS "bom_line_occurrence_cycle_i"');
-      await executor.query('DROP TRIGGER IF EXISTS "bom_line_occurrence_cycle_u"');
-    }
-  }, false);
   await adapter.rxdb.entityManager
     .instantiate(BomLineOccurrence, {
       lineId: line.id,
-      childItemId: deterministicId('reach-upgrade:UPGRADE-A'),
+      childItemId: deterministicId(`reach-upgrade:${child}`),
       qty: '1',
       effectiveFrom: new Date('2026-01-01T00:00:00.000Z')
     })

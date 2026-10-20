@@ -1,22 +1,19 @@
 import { expect, test, type Download, type Page } from '@playwright/test';
+import { SCOOTER_SEED_ROWS, acceptDialog, openDetails } from './support';
 
 const prepare = async (page: Page): Promise<void> => {
   await page.goto('/');
-  page.once('dialog', dialog => dialog.accept());
-  await page.getByTestId('prepare-data').click();
-  await expect(page.getByTestId('overview-data-status')).toContainText('已有 41 项物料', { timeout: 30000 });
+  await acceptDialog(page, () => page.getByTestId('prepare-data').click());
+  await expect(page.getByTestId('overview-data-status')).toContainText(`已有 ${SCOOTER_SEED_ROWS.item} 项物料`, {
+    timeout: 30000
+  });
 };
 
 const openPage = async (page: Page, name: string): Promise<void> => {
   await page.getByRole('navigation', { name: '主导航', exact: true }).getByRole('link', { name, exact: true }).click();
 };
 
-const openIntegration = async (page: Page): Promise<void> => {
-  const summary = page.locator('summary').filter({ hasText: /^导入与导出$/ });
-  const details = summary.locator('..');
-  if ((await details.getAttribute('open')) === null) await summary.click();
-  await expect(details).toHaveAttribute('open', '');
-};
+const openIntegration = (page: Page): Promise<void> => openDetails(page, /^导入与导出$/);
 
 const explode = async (page: Page, quantity: string): Promise<void> => {
   await page.getByRole('button', { name: '展开整机', exact: true }).click();

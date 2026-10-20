@@ -17,8 +17,15 @@ import {
 } from '../coproduct.js';
 import type { BomLocalAdapter } from '../resolve/bom-adapter.js';
 import { bomSqlDialectFor, buildAlternativeHeadersSql, buildParentRevisionSql } from '../resolve/bom-sql.js';
-import type { ResolutionContext } from '../resolve/resolution.js';
-import { assertContext, columnIndexOf, type BomQueryExecutor, type ResolveTarget } from '../resolve/resolver.js';
+import { BomResolutionError, type ResolutionContext } from '../resolve/resolution.js';
+import {
+  assertContext,
+  columnIndexOf,
+  selectRootAlternatives,
+  type BomQueryExecutor,
+  type ResolveTarget
+} from '../resolve/resolver.js';
+import { BomError } from '../types.js';
 import { BomCostError } from './cost-error.js';
 import {
   decimalAdd,
@@ -29,7 +36,13 @@ import {
   decimalToCanonical,
   type Decimal
 } from './decimal.js';
-import { fetchHeaderRows, resolveChildHeader, rowRates, type ResolvedChildHeader } from './explosion.js';
+import {
+  fetchHeaderRows,
+  resolveChildHeader,
+  rowHopRates,
+  substituteMemberOf,
+  type ResolvedChildHeader
+} from './explosion.js';
 import { allocateJointCost, type JointCostSummary } from './joint-cost.js';
 import {
   allocateSubstituteShares,
@@ -39,8 +52,7 @@ import {
   operationScrapChain,
   scrap,
   selectTierRows,
-  type LayerRoutingOp,
-  type SubstituteMember
+  type LayerRoutingOp
 } from './layer.js';
 import { routingUncoveredReason } from './routing-effectivity.js';
 import { convertUom } from './uom.js';
@@ -173,8 +185,9 @@ const fetchRate = async (
   const rateTable = dialect.table('activity_rate');
   const rows = await queryRows(
     query,
-    `SELECT "rate", "rateUom", "currency" FROM ${rateTable} WHERE "workCenterId" = '${workCenterId}' AND "activityTypeId" = '${activityTypeId}'` +
-      ` AND "validFrom" <= '${rateDate.toISOString()}' ORDER BY "validFrom" DESC LIMIT 1`
+    `SELECT "rate", "rateUom", "currency" FROM ${rateTable} WHERE "workCenterId" = ${dialect.placeholder(0)} AND "activityTypeId" = ${dialect.placeholder(1)}` +
+      ` AND "validFrom" <= ${dialect.placeholder(2)} ORDER BY "validFrom" DESC LIMIT 1`,
+    [workCenterId, activityTypeId, dialect.encode(rateDate)]
   );
   if (rows.length === 0) {
     throw new BomCostError(
@@ -210,7 +223,8 @@ const fetchRoutingOps = async (
   const routingTable = dialect.table('routing');
   const routingRows = await queryRows(
     query,
-    `SELECT "validFrom" AS "validFrom", "disabledAt" AS "disabledAt" FROM ${routingTable} WHERE "id" = '${routingId}'`
+    `SELECT "validFrom" AS "validFrom", "disabledAt" AS "disabledAt" FROM ${routingTable} WHERE "id" = ${dialect.placeholder(0)}`,
+    [routingId]
   );
   const validity = routingRows[0];
   const uncoveredReason = routingUncoveredReason(
@@ -220,7 +234,8 @@ const fetchRoutingOps = async (
   const opTable = dialect.table('routing_operation');
   const rows = await queryRows(
     query,
-    `SELECT "operationSeq", "operationScrap", "scrapConvention", "setupTime", "runTime", "fixedTime", "timeUom", "workCenterId" FROM ${opTable} WHERE "routingId" = '${routingId}' ORDER BY "operationSeq" ASC`
+    `SELECT "operationSeq", "operationScrap", "scrapConvention", "setupTime", "runTime", "fixedTime", "timeUom", "workCenterId" FROM ${opTable} WHERE "routingId" = ${dialect.placeholder(0)} ORDER BY "operationSeq" ASC`,
+    [routingId]
   );
   return {
     uncoveredReason,
@@ -251,7 +266,8 @@ const fetchItemCost = async (
 }> => {
   const rows = await queryRows(
     query,
-    `SELECT "unitPrice", "priceUom", "priceCurrency", "creditPrice", "uomConversion" FROM ${dialect.table('item')} WHERE "id" = '${itemId}'`
+    `SELECT "unitPrice", "priceUom", "priceCurrency", "creditPrice", "uomConversion" FROM ${dialect.table('item')} WHERE "id" = ${dialect.placeholder(0)}`,
+    [itemId]
   );
   if (rows.length === 0) throw new BomCostError(`物料 ${itemId}`, '不存在');
   return {
@@ -271,7 +287,8 @@ const fetchCenterCost = async (
 ): Promise<{ overheadRate: string | null; overheadCurrency: string | null }> => {
   const rows = await queryRows(
     query,
-    `SELECT "overheadRate", "overheadCurrency" FROM ${dialect.table('work_center')} WHERE "id" = '${workCenterId}'`
+    `SELECT "overheadRate", "overheadCurrency" FROM ${dialect.table('work_center')} WHERE "id" = ${dialect.placeholder(0)}`,
+    [workCenterId]
   );
   return {
     overheadRate: rows[0][0] === null ? null : String(rows[0][0]),
@@ -287,31 +304,121 @@ const fetchActivityTypeId = async (
 ): Promise<string> => {
   const rows = await queryRows(
     query,
-    `SELECT "id" FROM ${dialect.table('activity_type')} WHERE "workCenterId" = '${workCenterId}' ORDER BY "code" LIMIT 1`
+    `SELECT "id" FROM ${dialect.table('activity_type')} WHERE "workCenterId" = ${dialect.placeholder(0)} ORDER BY "code" LIMIT 1`,
+    [workCenterId]
   );
   if (rows.length === 0) throw new BomCostError(`工作中心 ${workCenterId}`, '没有作业类型，费率无从取值');
   return String(rows[0][0]);
 };
 
-/** 行发生项的分摊（按 occurrenceId 收集）。 */
+/** IN 列表分块大小（避开两后端的绑定变量上限，与展开引擎同值）。 */
+const SPLIT_CHUNK_SIZE = 200;
+
+/** 行发生项的分摊（按 occurrenceId 收集；IN 列表走占位符分块绑定）。 */
 const fetchSplits = async (
   query: CostQuery,
   dialect: ReturnType<typeof bomSqlDialectFor>,
   occurrenceIds: string[]
 ): Promise<Map<string, { operationSeq: number; ratio: string }[]>> => {
   const map = new Map<string, { operationSeq: number; ratio: string }[]>();
-  if (occurrenceIds.length === 0) return map;
-  const inList = occurrenceIds.map(id => `'${id}'`).join(', ');
-  const rows = await queryRows(
-    query,
-    `SELECT "occurrenceId", "operationSeq", "ratio" FROM ${dialect.table('bom_line_operation_split')} WHERE "occurrenceId" IN (${inList}) ORDER BY "operationSeq" ASC`
-  );
-  for (const row of rows) {
-    const list = map.get(String(row[0])) ?? [];
-    list.push({ operationSeq: Number(row[1]), ratio: String(row[2]) });
-    map.set(String(row[0]), list);
+  for (let offset = 0; offset < occurrenceIds.length; offset += SPLIT_CHUNK_SIZE) {
+    const chunk = occurrenceIds.slice(offset, offset + SPLIT_CHUNK_SIZE);
+    const rows = await queryRows(
+      query,
+      `SELECT "occurrenceId", "operationSeq", "ratio" FROM ${dialect.table('bom_line_operation_split')} WHERE "occurrenceId" IN (${chunk.map((_, index) => dialect.placeholder(index)).join(', ')}) ORDER BY "operationSeq" ASC`,
+      chunk
+    );
+    for (const row of rows) {
+      const list = map.get(String(row[0])) ?? [];
+      list.push({ operationSeq: Number(row[1]), ratio: String(row[2]) });
+      map.set(String(row[0]), list);
+    }
   }
   return map;
+};
+
+/** cost_lot_qty 是 unit_cost 的分母（US-514 卷算必填）：缺失即拒绝。 */
+const requireCostLotQty = (headerMeta: HeaderMeta): string => {
+  if (headerMeta.costLotQty === null) {
+    throw new BomCostError(`头 ${headerMeta.headerId} 的 cost_lot_qty`, '卷算必填，缺失即拒绝');
+  }
+  return headerMeta.costLotQty;
+};
+
+/** 阶梯选行（与爆炸引擎同口径）；无命中按卷算违约点名头。 */
+const selectCostTierRows = (headerId: string, rows: ExplosionRowLike[], plannedQty: Decimal): ExplosionRowLike[] => {
+  try {
+    return selectTierRows(rows, plannedQty);
+  } catch (error) {
+    throw new BomCostError(`头 ${headerId}`, (error as Error).message);
+  }
+};
+
+/** 卷算行：普通行原样；替代组成员带分流后的份额毛需求（成员单位）。 */
+type CostRow = ExplosionRowLike & { gross?: Decimal };
+
+/**
+ * 替代组分流（AC#2：按 usage_probability × equiv_qty 加权；AC#11：manual 未选即拒绝），
+ * 与爆炸引擎共用同一个纯函数，返回普通行 + 带份额的成员行。
+ */
+const groupSubstituteRows = (
+  effectiveRows: ExplosionRowLike[],
+  pPrime: Decimal,
+  context: CostRollupContext
+): CostRow[] => {
+  const groups = new Map<string, ExplosionRowLike[]>();
+  for (const row of effectiveRows) {
+    if (row.substituteGroupId === null) continue;
+    const list = groups.get(row.substituteGroupId) ?? [];
+    list.push(row);
+    groups.set(row.substituteGroupId, list);
+  }
+  const grouped: CostRow[] = effectiveRows.filter(row => row.substituteGroupId === null);
+  for (const [groupId, members] of groups) {
+    const primary = members.find(member => member.substituteRole === 'primary');
+    if (!primary) continue; // 发布转移已校验恰好一个 primary
+    const primaryGross = computeGross(primary, {
+      plannedPrime: pPrime,
+      headerBaseQty: primary.headerBaseQty,
+      formulaParams: context.formulaParams,
+      routingOps: [],
+      splits: []
+    });
+    const allocated = (() => {
+      try {
+        return allocateSubstituteShares(
+          members.map(substituteMemberOf),
+          primaryGross,
+          context.substituteAvailabilities,
+          context.substituteSelections
+        );
+      } catch (error) {
+        throw new BomCostError(`替代组 ${primary.substituteGroupCode ?? groupId}`, (error as Error).message);
+      }
+    })();
+    if (allocated.unresolved) {
+      throw new BomCostError(
+        `manual 替代组 ${allocated.unresolved.groupCode}`,
+        '未给选择，卷算拒绝不按候选集任意一个计算'
+      );
+    }
+    for (const { member, gross } of allocated.shares) {
+      const source = members.find(candidate => candidate.occurrenceId === member.occurrenceId);
+      if (source) grouped.push({ ...source, gross });
+    }
+  }
+  return grouped;
+};
+
+/**
+ * 卷算拒绝统一为 {@link BomCostError}（cost-error.ts 的合同：缺成本、缺费率、币种不符、环、
+ * unresolved / truncated）：数量、解析、配置等领域错误包一层并以 `cause` 保留原错误；
+ * 非领域错误（程序缺陷）原样抛出，不伪装成卷算违约。
+ */
+const asCostError = (error: unknown): unknown => {
+  if (error instanceof BomCostError) return error;
+  if (!(error instanceof BomError) && !(error instanceof BomResolutionError)) return error;
+  return new BomCostError(error.name, error.message.replace(/^\[rxdb-plugin-bom\]\s*/, ''), { cause: error });
 };
 
 /**
@@ -320,9 +427,24 @@ const fetchSplits = async (
  * @param adapter - 本地适配器（全部读取在一个事务快照内）
  * @param context - 卷算上下文（币种/费率日/评估日必填）
  * @param target - 根目标（父修订）
- * @param batchQty - 根件的批量（缺省按根头 cost_lot_qty）
+ * @param batchQty - 根件的批量（缺省按根头 cost_lot_qty；根头 cost_lot_qty 仍必填，它是 unit_cost 的分母）
+ *
+ * @throws {@link BomCostError} 一切卷算拒绝（数量 / 解析 / 配置违约经 `cause` 保留原错误）
  */
 export const rollupCost = async (
+  adapter: BomLocalAdapter,
+  context: CostRollupContext,
+  target: ResolveTarget,
+  batchQty?: { value: string; uom: string }
+): Promise<CostRollupResult> => {
+  try {
+    return await rollupCostInSnapshot(adapter, context, target, batchQty);
+  } catch (error) {
+    throw asCostError(error);
+  }
+};
+
+const rollupCostInSnapshot = async (
   adapter: BomLocalAdapter,
   context: CostRollupContext,
   target: ResolveTarget,
@@ -364,17 +486,21 @@ export const rollupCost = async (
       orgId: context.orgId
     });
     const headersResult = await query(headersSql.sql, headersSql.params);
-    const headerRows = headersResult.rows.filter(
-      row =>
-        context.alternativeNo === undefined ||
-        Number(row[columnIndexOf(headersResult.columns, 'alternativeNo')]) === context.alternativeNo
+    // 备选裁决与解析 / 展开 / 数量同口径（alternativeNo 只裁决根头；指定但零匹配即拒绝）
+    const headerRows = selectRootAlternatives(
+      headersResult.rows.map(row => ({
+        row,
+        alternativeNo: Number(row[columnIndexOf(headersResult.columns, 'alternativeNo')])
+      })),
+      context,
+      parentRevisionId
     );
     if (headerRows.length !== 1)
       throw new BomCostError(
         '根头',
         headerRows.length === 0 ? '评估日没有已发布 BOM 头' : '存在未裁决的备选，请指定 alternativeNo'
       );
-    const readHeader = (name: string): unknown => headerRows[0][columnIndexOf(headersResult.columns, name)];
+    const readHeader = (name: string): unknown => headerRows[0].row[columnIndexOf(headersResult.columns, name)];
     const rootHeader: HeaderMeta = {
       headerId: String(readHeader('headerId')),
       parentItemId,
@@ -387,13 +513,11 @@ export const rollupCost = async (
       routingId: readHeader('routingId') === null ? null : String(readHeader('routingId'))
     };
 
-    // 根批量：显式 batchQty（归一到基准单位）或 cost_lot_qty
-    const rootL: Decimal =
-      batchQty ? decimalFromCanonical(convertUom(batchQty.value, batchQty.uom, rootHeader.baseUom))
-      : rootHeader.costLotQty !== null ? decimalFromCanonical(rootHeader.costLotQty)
-      : ((): never => {
-          throw new BomCostError('根头的 cost_lot_qty', '卷算必填，缺失即拒绝');
-        })();
+    // 根批量：显式 batchQty（归一到基准单位）或 cost_lot_qty；cost_lot_qty 是 unit_cost 的分母，显式批量也替代不了
+    const rootLotQty = requireCostLotQty(rootHeader);
+    const rootL = decimalFromCanonical(
+      batchQty ? convertUom(batchQty.value, batchQty.uom, rootHeader.baseUom) : rootLotQty
+    );
 
     // unit_cost 独立 memo：键 = 头 + 上下文（节点是已解析头，AC#8 不串）；
     // batch_cost 随请求批量变，本层每次现算、子件只取 unit_cost（拓扑逆序单遍的实质）
@@ -435,13 +559,11 @@ export const rollupCost = async (
           : '卷算检出环（写入期约束可能被绕过），不死循环'
         );
       }
-      if (headerMeta.costLotQty === null) {
-        throw new BomCostError(`头 ${headerMeta.headerId} 的 cost_lot_qty`, '卷算必填，缺失即拒绝');
-      }
+      const lotQty = requireCostLotQty(headerMeta);
       stack.push(headerMeta.headerId);
-      const batch = await batchCostOf(headerMeta, decimalFromCanonical(headerMeta.costLotQty));
+      const batch = await batchCostOf(headerMeta, decimalFromCanonical(lotQty));
       stack.pop();
-      const unit = decimalToCanonical(decimalDiv(batch, decimalFromCanonical(headerMeta.costLotQty)));
+      const unit = decimalToCanonical(decimalDiv(batch, decimalFromCanonical(lotQty)));
       unitCostCache.set(key, unit);
       return unit;
     };
@@ -489,7 +611,7 @@ export const rollupCost = async (
     const batchCostOf = async (headerMeta: HeaderMeta, L: Decimal): Promise<Decimal> => {
       const byHeader = await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId]);
       const rows = byHeader.get(headerMeta.headerId) ?? [];
-      const effectiveRows = selectTierRows(rows, L);
+      const effectiveRows = selectCostTierRows(headerMeta.headerId, rows, L);
       if (
         !effectiveRows.some(row => row.flowDirection === 'consume') &&
         !(rows.length === 0 && byHeader.has(headerMeta.headerId))
@@ -528,78 +650,22 @@ export const rollupCost = async (
       }
       let total: Decimal = { coeff: 0n, exp: 0 };
 
-      // 替代组分流（AC#2：按 usage_probability × equiv_qty 加权；AC#11：manual 未选即拒绝）
-      const substituteRows = effectiveRows.filter(row => row.substituteGroupId !== null);
-      const plainRows = effectiveRows.filter(row => row.substituteGroupId === null);
-      const substituteGroups = new Map<string, typeof substituteRows>();
-      for (const row of substituteRows) {
-        const list = substituteGroups.get(row.substituteGroupId as string);
-        if (list) list.push(row);
-        else substituteGroups.set(row.substituteGroupId as string, [row]);
-      }
-      const groupedRows: (ExplosionRowLike & { gross?: Decimal })[] = [...plainRows];
-      for (const members of substituteGroups.values()) {
-        const primary = members.find(member => member.substituteRole === 'primary');
-        if (!primary) continue;
-        const primaryGross = computeGross(primary, {
-          plannedPrime: pPrime,
-          headerBaseQty: primary.headerBaseQty,
-          formulaParams: context.formulaParams,
-          routingOps: [],
-          splits: []
-        });
-        const allocated = (() => {
-          try {
-            return allocateSubstituteShares(
-              members.map(
-                member =>
-                  ({
-                    childItemId: member.childItemId,
-                    occurrenceId: member.occurrenceId,
-                    substituteRole: member.substituteRole,
-                    substitutePriority: member.substitutePriority,
-                    usageProbability: member.usageProbability,
-                    equivQty: member.equivQty,
-                    substituteGroupCode: member.substituteGroupCode ?? (member.substituteGroupId as string).slice(0, 8),
-                    substituteStrategy: member.substituteStrategy ?? 'proportional',
-                    substituteAllowMix: member.substituteAllowMix ?? true,
-                    occurrenceUom: member.occurrenceUom
-                  }) satisfies SubstituteMember
-              ),
-              primaryGross,
-              context.substituteAvailabilities,
-              context.substituteSelections
-            );
-          } catch (error) {
-            throw new BomCostError(
-              `替代组 ${primary.substituteGroupCode ?? primary.substituteGroupId}`,
-              error instanceof Error ? error.message : String(error)
-            );
-          }
-        })();
-        if (allocated.unresolved) {
-          throw new BomCostError(
-            `manual 替代组 ${allocated.unresolved.groupCode}`,
-            '未给选择，卷算拒绝不按候选集任意一个计算'
-          );
-        }
-        for (const { member, gross } of allocated.shares) {
-          const source = members.find(candidate => candidate.occurrenceId === member.occurrenceId);
-          if (!source) continue;
-          groupedRows.push({ ...source, gross });
-        }
-      }
+      // 替代组分流（共享纯函数，与爆炸引擎同口径）
+      const groupedRows = groupSubstituteRows(effectiveRows, pPrime, context);
 
-      for (const entry of groupedRows) {
-        const row = entry;
+      for (const row of groupedRows) {
         if (row.flowDirection !== 'consume') {
           if (row.flowDirection === 'by_product') {
             // 副产抵减：产出量 → 库存单位 → × credit_price（以物料 stock_uom 计）
             const itemRow = await fetchItemCost(q, dialect, row.childItemId);
             if (itemRow.creditPrice !== null) {
-              const out = computeOutputQuantity(row.qty, row.isFixedQty, pPrime, row.headerBaseQty);
-              const rates = rowRates(row);
-              const outInStock = convertUom(decimalToCanonical(out), row.occurrenceUom, row.childStockUom, rates);
+              const out = computeOutputQuantity(row, pPrime, row.headerBaseQty, context.formulaParams);
+              const outInStock = convertUom(
+                decimalToCanonical(out),
+                row.occurrenceUom,
+                row.childStockUom,
+                rowHopRates(row).toStock
+              );
               total = decimalSub(
                 total,
                 decimalMul(decimalFromCanonical(outInStock), decimalFromCanonical(itemRow.creditPrice))
@@ -610,7 +676,7 @@ export const rollupCost = async (
         }
         // 本层需求（第 2~6 步共享实现，不取整）：G → G′ → G″ → 换算
         const gross =
-          (row as { gross?: Decimal }).gross ??
+          row.gross ??
           computeGross(row, {
             plannedPrime: pPrime,
             headerBaseQty: row.headerBaseQty,
@@ -625,11 +691,16 @@ export const rollupCost = async (
           routingOps,
           splits: splitsByOccurrence.get(row.occurrenceId) ?? []
         });
-        const rates = rowRates(row);
-        const demandInStock = convertUom(decimalToCanonical(layer.net), row.occurrenceUom, row.childStockUom, rates);
+        const hops = rowHopRates(row);
+        const demandInStock = convertUom(
+          decimalToCanonical(layer.net),
+          row.occurrenceUom,
+          row.childStockUom,
+          hops.toStock
+        );
         const jointPrice = await jointUnitCost(row.resolvedChildRevisionId);
         if (jointPrice !== null) {
-          const demand = convertUom(demandInStock, row.childStockUom, jointPrice.uom, rates);
+          const demand = convertUom(demandInStock, row.childStockUom, jointPrice.uom, hops.fromStock);
           total = decimalAdd(
             total,
             decimalMul(decimalFromCanonical(demand), decimalFromCanonical(jointPrice.unitCost))
@@ -640,7 +711,7 @@ export const rollupCost = async (
         // 爆炸层已拒绝 unresolved（US-514 AC#11），此处 null 不可达。
         const childHeader = await resolveChildHeader(query, dialect, resolutionContext, row.resolvedChildRevisionId!);
         if (childHeader !== null) {
-          const childDemand = convertUom(demandInStock, row.childStockUom, childHeader.baseUom, rates);
+          const childDemand = convertUom(demandInStock, row.childStockUom, childHeader.baseUom, hops.fromStock);
           const childUnit = await unitCostOf(
             headerMetaOf(childHeader, row.childItemId, row.resolvedChildRevisionId as string)
           );
@@ -658,7 +729,7 @@ export const rollupCost = async (
             );
           }
           const priceDemand = convertUom(demandInStock, row.childStockUom, itemRow.priceUom ?? row.childStockUom, {
-            itemRate: itemRow.uomConversion
+            itemRate: hops.fromStock.itemRate
           });
           total = decimalAdd(
             total,
@@ -710,9 +781,10 @@ export const rollupCost = async (
 
     // 明细树：根按请求批量展开；children 按各自的本层需求批量展开（unit_cost 共享缓存）
     const buildDetail = async (headerMeta: HeaderMeta, L: Decimal): Promise<CostNodeDetail> => {
+      const costLotQty = requireCostLotQty(headerMeta);
       const byHeader = await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId]);
       const rows = byHeader.get(headerMeta.headerId) ?? [];
-      const effectiveRows = selectTierRows(rows, L);
+      const effectiveRows = selectCostTierRows(headerMeta.headerId, rows, L);
       const pPrime = scrap(L, headerMeta.assemblyScrap, headerMeta.assemblyScrapConvention);
       const routingOps: LayerRoutingOp[] = [];
       const splitsByOccurrence = await fetchSplits(
@@ -747,75 +819,20 @@ export const rollupCost = async (
       let creditTotal: Decimal = { coeff: 0n, exp: 0 };
 
       // 替代组分流（与 batchCostOf 同口径）
-      const substituteRows = effectiveRows.filter(row => row.substituteGroupId !== null);
-      const plainRows = effectiveRows.filter(row => row.substituteGroupId === null);
-      const substituteGroups = new Map<string, typeof substituteRows>();
-      for (const row of substituteRows) {
-        const list = substituteGroups.get(row.substituteGroupId as string);
-        if (list) list.push(row);
-        else substituteGroups.set(row.substituteGroupId as string, [row]);
-      }
-      const groupedRows: (ExplosionRowLike & { gross?: Decimal })[] = [...plainRows];
-      for (const members of substituteGroups.values()) {
-        const primary = members.find(member => member.substituteRole === 'primary');
-        if (!primary) continue;
-        const primaryGross = computeGross(primary, {
-          plannedPrime: pPrime,
-          headerBaseQty: primary.headerBaseQty,
-          formulaParams: context.formulaParams,
-          routingOps: [],
-          splits: []
-        });
-        const allocated = (() => {
-          try {
-            return allocateSubstituteShares(
-              members.map(
-                member =>
-                  ({
-                    childItemId: member.childItemId,
-                    occurrenceId: member.occurrenceId,
-                    substituteRole: member.substituteRole,
-                    substitutePriority: member.substitutePriority,
-                    usageProbability: member.usageProbability,
-                    equivQty: member.equivQty,
-                    substituteGroupCode: member.substituteGroupCode ?? (member.substituteGroupId as string).slice(0, 8),
-                    substituteStrategy: member.substituteStrategy ?? 'proportional',
-                    substituteAllowMix: member.substituteAllowMix ?? true,
-                    occurrenceUom: member.occurrenceUom
-                  }) satisfies SubstituteMember
-              ),
-              primaryGross,
-              context.substituteAvailabilities,
-              context.substituteSelections
-            );
-          } catch (error) {
-            throw new BomCostError(
-              `替代组 ${primary.substituteGroupCode ?? primary.substituteGroupId}`,
-              error instanceof Error ? error.message : String(error)
-            );
-          }
-        })();
-        if (allocated.unresolved) {
-          throw new BomCostError(
-            `manual 替代组 ${allocated.unresolved.groupCode}`,
-            '未给选择，卷算拒绝不按候选集任意一个计算'
-          );
-        }
-        for (const { member, gross } of allocated.shares) {
-          const source = members.find(candidate => candidate.occurrenceId === member.occurrenceId);
-          if (!source) continue;
-          groupedRows.push({ ...source, gross });
-        }
-      }
+      const groupedRows = groupSubstituteRows(effectiveRows, pPrime, context);
 
       for (const row of groupedRows) {
         if (row.flowDirection !== 'consume') {
           if (row.flowDirection === 'by_product') {
             const itemRow = await fetchItemCost(q, dialect, row.childItemId);
             if (itemRow.creditPrice !== null) {
-              const out = computeOutputQuantity(row.qty, row.isFixedQty, pPrime, row.headerBaseQty);
-              const rates = rowRates(row);
-              const outInStock = convertUom(decimalToCanonical(out), row.occurrenceUom, row.childStockUom, rates);
+              const out = computeOutputQuantity(row, pPrime, row.headerBaseQty, context.formulaParams);
+              const outInStock = convertUom(
+                decimalToCanonical(out),
+                row.occurrenceUom,
+                row.childStockUom,
+                rowHopRates(row).toStock
+              );
               const amount = decimalMul(decimalFromCanonical(outInStock), decimalFromCanonical(itemRow.creditPrice));
               creditTotal = decimalAdd(creditTotal, amount);
               credits.push({
@@ -846,11 +863,16 @@ export const rollupCost = async (
           routingOps,
           splits: splitsByOccurrence.get(row.occurrenceId) ?? []
         });
-        const rates = rowRates(row);
-        const demandInStock = convertUom(decimalToCanonical(layer.net), row.occurrenceUom, row.childStockUom, rates);
+        const hops = rowHopRates(row);
+        const demandInStock = convertUom(
+          decimalToCanonical(layer.net),
+          row.occurrenceUom,
+          row.childStockUom,
+          hops.toStock
+        );
         const jointPrice = await jointUnitCost(row.resolvedChildRevisionId);
         if (jointPrice !== null) {
-          const demand = convertUom(demandInStock, row.childStockUom, jointPrice.uom, rates);
+          const demand = convertUom(demandInStock, row.childStockUom, jointPrice.uom, hops.fromStock);
           const amount = decimalMul(decimalFromCanonical(demand), decimalFromCanonical(jointPrice.unitCost));
           materialTotal = decimalAdd(materialTotal, amount);
           material.push({
@@ -866,7 +888,7 @@ export const rollupCost = async (
         // 爆炸层已拒绝 unresolved（US-514 AC#11），此处 null 不可达。
         const childHeader = await resolveChildHeader(query, dialect, resolutionContext, row.resolvedChildRevisionId!);
         if (childHeader !== null) {
-          const childDemand = convertUom(demandInStock, row.childStockUom, childHeader.baseUom, rates);
+          const childDemand = convertUom(demandInStock, row.childStockUom, childHeader.baseUom, hops.fromStock);
           const childUnit = await unitCostOf(
             headerMetaOf(childHeader, row.childItemId, row.resolvedChildRevisionId as string)
           );
@@ -898,7 +920,7 @@ export const rollupCost = async (
             );
           }
           const priceDemand = convertUom(demandInStock, row.childStockUom, itemRow.priceUom ?? row.childStockUom, {
-            itemRate: itemRow.uomConversion
+            itemRate: hops.fromStock.itemRate
           });
           const amount = decimalMul(decimalFromCanonical(priceDemand), decimalFromCanonical(itemRow.unitPrice));
           materialTotal = decimalAdd(materialTotal, amount);
@@ -973,15 +995,12 @@ export const rollupCost = async (
       const batchCost = decimalSub(decimalAdd(decimalAdd(materialTotal, processingTotal), overheadAmount), creditTotal);
       const allocated = await allocate(headerMeta, L, batchCost);
       const unitCost = await unitCostOf(headerMeta);
-      if (headerMeta.costLotQty === null) {
-        throw new BomCostError(`头 ${headerMeta.headerId} 的 cost_lot_qty`, '卷算必填，缺失即拒绝');
-      }
       return {
         headerId: headerMeta.headerId,
         itemId: headerMeta.parentItemId,
         batchQty: decimalToCanonical(L),
         baseUom: headerMeta.baseUom,
-        costLotQty: headerMeta.costLotQty,
+        costLotQty,
         batchCost: decimalToCanonical(allocated.batch),
         unitCost,
         material,

@@ -8,9 +8,19 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { BomConfigChar, BomConfigCharValue, BomConfigCondition, BomConfigConstraint, BomItem } from '../entities.js';
+import {
+  BomConfigChar,
+  BomConfigCharValue,
+  BomConfigCondition,
+  BomConfigConstraint,
+  BomHeader,
+  BomItem,
+  BomLine,
+  BomLineOccurrence
+} from '../entities.js';
 import { rollupCost } from '../quantity/cost.js';
 import { explodeBom } from '../quantity/explosion.js';
+import { bomSqlDialectFor, sqliteBomDialect } from '../resolve/bom-sql.js';
 import {
   BomConfigError,
   BomConfigSyntaxError,
@@ -22,12 +32,16 @@ import {
 import {
   checkConfigCompleteness,
   checkConfigConflicts,
+  filterResolutionRows,
   validateConditionReferences,
-  type ConfigConstraintInput
+  type ConfigConstraintInput,
+  type ResolutionFilterRow
 } from '../resolve/config-validate.js';
 import { expandBom, whereUsed } from '../resolve/expansion.js';
 import { loadHistory } from '../resolve/history-loader.js';
+import type { ResolutionContext, UnresolvedAlternative } from '../resolve/resolution.js';
 import { resolveBom } from '../resolve/resolver.js';
+import { BomWriteProtocolError } from '../types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 /** 捕获函数抛出的错误（「应当抛出」断言）。 */
@@ -445,3 +459,138 @@ for (const backend of ['wa-sqlite', 'pglite'] as const satisfies readonly BomTes
     });
   });
 }
+
+describe('评审 P2-7 同行多候选的未解析原因：点名真正能消歧的维度', () => {
+  const row = (
+    occurrenceId: string,
+    domain: { unitFrom?: number; unitTo?: number; lotCodes?: string[] }
+  ): ResolutionFilterRow => ({
+    headerId: 'h',
+    alternativeNo: 1,
+    parentItemId: 'p',
+    parentRevisionId: 'pr',
+    lineId: 'l',
+    occurrenceId,
+    childItemId: `c-${occurrenceId}`,
+    unitFrom: domain.unitFrom ?? null,
+    unitTo: domain.unitTo ?? null,
+    lotCodes: domain.lotCodes === undefined ? null : JSON.stringify(domain.lotCodes),
+    selectionConditionId: null
+  });
+  const noConfigQuery = (): Promise<never> => Promise.reject(new Error('无选择条件时不读配置'));
+  const resolveRows = async (rows: ResolutionFilterRow[], extra: Partial<ResolutionContext> = {}) => {
+    const unresolved: UnresolvedAlternative[] = [];
+    const context = { bomType: 'ebom' as const, orgId: 'org-x', asOfDate: new Date('2026-06-01T00:00:00.000Z') };
+    const selected = await filterResolutionRows(
+      noConfigQuery,
+      sqliteBomDialect,
+      { ...context, ...extra },
+      rows,
+      unresolved
+    );
+    return { selected: selected.map(entry => entry.occurrenceId), reasons: unresolved.map(entry => entry.reason) };
+  };
+
+  it('序列段相交、批次不相交：点名 lot——指定序列消不了歧', async () => {
+    const rows = [
+      row('a', { unitFrom: 1, unitTo: 100, lotCodes: ['A'] }),
+      row('b', { unitFrom: 50, unitTo: 200, lotCodes: ['B'] })
+    ];
+    expect((await resolveRows(rows)).reasons).toEqual(['lot']);
+    expect((await resolveRows(rows, { unit: 75 })).reasons).toEqual(['lot']);
+    expect((await resolveRows(rows, { lot: 'B' })).selected).toEqual(['b']);
+  });
+
+  it('序列段两两不相交：点名 unit；已给批次时仍缺的是 unit', async () => {
+    const rows = [row('a', { unitTo: 100, lotCodes: ['A'] }), row('b', { unitFrom: 101, lotCodes: ['A'] })];
+    expect((await resolveRows(rows)).reasons).toEqual(['unit']);
+    expect((await resolveRows(rows, { lot: 'A' })).reasons).toEqual(['unit']);
+    expect((await resolveRows(rows, { unit: 150 })).selected).toEqual(['b']);
+  });
+
+  it('两维都要指定时先点名批次，指定后剩余候选按序列再点名', async () => {
+    const rows = [
+      row('a', { unitTo: 10, lotCodes: ['A'] }),
+      row('b', { unitFrom: 11, lotCodes: ['A'] }),
+      row('c', { lotCodes: ['B'] })
+    ];
+    expect((await resolveRows(rows)).reasons).toEqual(['lot']);
+    expect((await resolveRows(rows, { lot: 'A' })).reasons).toEqual(['unit']);
+    expect((await resolveRows(rows, { lot: 'A', unit: 5 })).selected).toEqual(['a']);
+  });
+
+  for (const backend of ['wa-sqlite', 'pglite'] as const satisfies readonly BomTestBackend[]) {
+    it(`[${backend}] 同逻辑行同日期 × 序列 × 批次的两条发生项不能靠不同选择条件并存（配置条件不构成同行歧义）`, async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const { conditions, context } = await configFixture(adapter);
+        const parent = new BomItem();
+        parent.itemNo = 'config-draft-parent';
+        await parent.save();
+        const child = new BomItem();
+        child.itemNo = 'config-draft-child';
+        await child.save();
+        await loadHistory(adapter, {
+          batchNo: 'config-draft-revision',
+          revisions: [{ itemId: parent.id, revisionNo: 'A', effectiveFrom: context.asOfDate }],
+          headers: []
+        });
+        const revisionTable = backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"';
+        const header = new BomHeader();
+        header.parentRevisionId = String(
+          (await adapter.rawQuery(`SELECT "id" FROM ${revisionTable} WHERE "itemId" = '${parent.id}'`)).rows[0][0]
+        );
+        header.bomType = 'sales';
+        header.orgId = context.orgId;
+        await header.save();
+        const line = new BomLine();
+        line.headerId = header.id;
+        line.lineNo = 10;
+        await line.save();
+        const occurrenceWith = (conditionId: string): BomLineOccurrence => {
+          const occurrence = new BomLineOccurrence();
+          occurrence.lineId = line.id;
+          occurrence.childItemId = child.id;
+          occurrence.qty = '1';
+          occurrence.effectiveFrom = context.asOfDate;
+          occurrence.selectionConditionId = conditionId;
+          return occurrence;
+        };
+        await occurrenceWith(conditions[0].id).save();
+        await expect(occurrenceWith(conditions[1].id).save()).rejects.toThrow(BomWriteProtocolError);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+  }
+});
+
+describe('评审 P3 依赖约束种类有存储层兜底', () => {
+  for (const backend of ['wa-sqlite', 'pglite'] as const satisfies readonly BomTestBackend[]) {
+    it(`[${backend}] 直连 SQL 写入未知 kind 被列级 CHECK 拒绝，exclude / require 照常`, async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const { conditions, context } = await configFixture(adapter);
+        const dialect = bomSqlDialectFor(backend);
+        const insert = (code: string, kind: string) =>
+          adapter.rawQuery(
+            `INSERT INTO ${dialect.table('config_constraint')} ("id", "orgId", "code", "kind", "leftConditionId", "rightConditionId", "createdAt", "updatedAt") VALUES (${[0, 1, 2, 3, 4, 5, 6, 7].map(index => dialect.placeholder(index)).join(', ')})`,
+            [
+              crypto.randomUUID(),
+              context.orgId,
+              code,
+              kind,
+              conditions[0].id,
+              conditions[1].id,
+              '2026-01-01T00:00:00.000Z',
+              '2026-01-01T00:00:00.000Z'
+            ]
+          );
+        await expect(insert('raw-require', 'require')).resolves.toBeDefined();
+        await expect(insert('raw-bogus', 'bogus')).rejects.toThrow();
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+  }
+});

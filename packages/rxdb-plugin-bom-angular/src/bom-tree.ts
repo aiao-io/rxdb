@@ -15,7 +15,14 @@ import {
   type ElementRef
 } from '@angular/core';
 
-/** 展示共享可见路径与查询状态的 BOM 树。 */
+/**
+ * 展示共享可见路径与查询状态的 BOM 树（对齐 React `BomTree`、Vue `BomTree`）。
+ *
+ * @remarks
+ * 交互一律经 `commands` 回到共享控制器，不发出组件事件。键盘遵循 WAI-ARIA tree 模式：
+ * 方向键移动焦点（ArrowLeft 无父节点时不动），Home/End 跳到首尾，Space 切换展开，
+ * Enter 加载发生项；当前焦点节点不在可见节点中时首行是 Tab 入口。
+ */
 @Component({
   selector: 'ao-bom-tree',
   standalone: true,
@@ -120,7 +127,9 @@ import {
   `
 })
 export class BomTree {
+  /** 共享控制器发布的视图状态（`useBomView` 的 `state()`）。 */
   readonly state = input.required<BomViewState>();
+  /** 共享控制器命令，原样透传。 */
   readonly commands = input.required<BomViewCommands>();
   readonly rows = viewChildren<ElementRef<HTMLLIElement>>('row');
   readonly focused = signal<string | null>(null);
@@ -152,7 +161,13 @@ export class BomTree {
     if (event.key === 'ArrowRight' && node.expanded && next && next.depth > node.depth) this.focus(index + 1);
     if (event.key !== 'ArrowLeft') return;
     if (node.hasChildren && node.expanded) this.commands().toggle(node.path);
-    else this.focus(this.state().nodes.findIndex(parent => parent.key === JSON.stringify(node.path.slice(0, -1))));
+    else this.focusParent(node);
+  }
+
+  /** WAI-ARIA tree：有父节点才移动焦点，没有父节点时保持不动。 */
+  private focusParent(node: BomViewNode): void {
+    const parent = this.state().nodes.findIndex(candidate => candidate.key === JSON.stringify(node.path.slice(0, -1)));
+    if (parent >= 0) this.focus(parent);
   }
 
   private focus(index: number): void {

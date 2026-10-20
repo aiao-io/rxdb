@@ -2,7 +2,7 @@
 
 **Feature Branch**: `claude/bom-related-work-77235b`
 **Created**: 2026-10-13
-**Status**: Approved for implementation
+**Status**: Implemented
 **Input**: 第 1 步已交付（US-030 A/B/C + US-507 A/B + Tauri rusqlite 0.33 + qty 存储段，affected 272/272 全绿）；按 [epic 切片表](../../../requirements/epics/epic-009-bom-domain-model.md#首轮可开工切片) 推进第 2 步。
 
 权威规格见各故事文件，本 spec 是第 2 步的**实现范围编译**，冲突以故事为准：

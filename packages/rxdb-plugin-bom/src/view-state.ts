@@ -4,7 +4,7 @@ import { BomHeader } from './entities.js';
 import type { BomRepository } from './repository.js';
 import { assertCompleteResolution } from './resolve/expansion.js';
 import { BomResolutionError } from './resolve/resolution.js';
-import { assertContext } from './resolve/resolver.js';
+import { assertContext, type ResolveTarget } from './resolve/resolver.js';
 import { BomTruncationError } from './types.js';
 import { loadViewOccurrence, saveViewOccurrence } from './view-editor.js';
 import { projectViewNodes, viewCandidates, viewPathKey } from './view-projection.js';
@@ -17,6 +17,10 @@ import type {
   BomViewState
 } from './view-types.js';
 import { readBomViewSnapshot } from './view.js';
+
+/** 展开状态按目标划分：同一目标只改参数时保留，换目标回到默认展开根。 */
+const sameTarget = (left: ResolveTarget, right: ResolveTarget): boolean =>
+  left.parentItemId === right.parentItemId && left.parentRevisionId === right.parentRevisionId;
 
 /** 每个绑定各自创建初态，不共享可变的节点或编辑对象。 */
 export const initialBomViewState = (): BomViewState => ({
@@ -65,6 +69,7 @@ class BomViewController implements BomViewHandle {
 
   setInput = (input: BomViewInput): void => {
     this.#assertAlive();
+    if (!sameTarget(this.#input.target, input.target)) this.#resetExpanded();
     this.#input = structuredClone(input);
     this.#snapshot = null;
     this.#publish({
@@ -81,16 +86,14 @@ class BomViewController implements BomViewHandle {
 
   refresh = (): void => {
     this.#assertAlive();
-    this.#start();
-    if (this.#subscribers === 0) return;
-    try {
-      assertContext(this.#input.context);
-      this.db.entityManager
-        .getRepository<typeof BomHeader, BomRepository<typeof BomHeader>>(BomHeader)
-        .refreshView(this.#input);
-    } catch (error) {
-      this.#publish({ phase: 'error', error, refreshing: false });
+    // 源已失败或尚未订阅时重订阅即重读；源正常时只让共享任务重读一次，不能两条路都走
+    if (this.#source === null) {
+      this.#start();
+      return;
     }
+    this.db.entityManager
+      .getRepository<typeof BomHeader, BomRepository<typeof BomHeader>>(BomHeader)
+      .refreshView(this.#input);
   };
 
   toggle = (path: readonly string[]): void => {
@@ -133,9 +136,10 @@ class BomViewController implements BomViewHandle {
 
   calculate = async () => {
     this.#assertAlive();
-    const input = structuredClone(this.#input);
-    const snapshot = await readBomViewSnapshot(this.db, input);
+    const input = this.#input;
+    const snapshot = await readBomViewSnapshot(this.db, structuredClone(input));
     this.#assertAlive();
+    if (input !== this.#input) throw new BomResolutionError('input', '计算期间输入已替换，旧输入的结果作废');
     assertCompleteResolution(snapshot.expansion);
     if (snapshot.quantityError !== null) throw snapshot.quantityError;
     if (viewCandidates(snapshot).length > 0) throw new BomResolutionError('candidates', '存在未裁决的候选');
@@ -183,7 +187,12 @@ class BomViewController implements BomViewHandle {
           if (generation === this.#generation) this.#accept(snapshot);
         },
         error: (error: unknown) => {
-          if (generation === this.#generation) this.#publish({ phase: 'error', error, refreshing: false });
+          if (generation !== this.#generation) return;
+          this.#stop();
+          this.#publish({ phase: 'error', error, refreshing: false });
+        },
+        complete: () => {
+          if (generation === this.#generation) this.#stop();
         }
       })
     );
@@ -211,6 +220,11 @@ class BomViewController implements BomViewHandle {
       error: null,
       refreshing: false
     });
+  }
+
+  #resetExpanded(): void {
+    this.#expanded.clear();
+    this.#expanded.add(viewPathKey([]));
   }
 
   #editor(patch: Partial<BomLineEditorState>): void {

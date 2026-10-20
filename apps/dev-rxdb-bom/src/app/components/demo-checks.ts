@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal, type WritableSignal } from '@angular/core';
-import { BomDemoService } from '../bom-demo.service';
+import { BomDemoService, type BomDemoOutcome } from '../bom-demo.service';
 
 /** 把循环引用、位号和替代分配的异常保护集中在独立示例中。 */
 @Component({
@@ -33,16 +33,16 @@ import { BomDemoService } from '../bom-demo.service';
             <button class="btn" [disabled]="busy() || !ready()" (click)="runRawCycle()">直接写入循环引用</button>
             <button class="btn" [disabled]="busy() || !ready()" (click)="runFormCycle()">通过表单写入循环引用</button>
           </div>
-          @if (rawResult()) {
+          @if (rawResult(); as outcome) {
             <details class="check-result" data-testid="raw-cycle-result">
               <summary>查看直接写入结果</summary>
-              <pre>{{ rawResult() }}</pre>
+              <pre>{{ outcomeText(outcome) }}</pre>
             </details>
           }
-          @if (formResult()) {
+          @if (formResult(); as outcome) {
             <details class="check-result" data-testid="form-cycle-result">
               <summary>查看表单写入结果</summary>
-              <pre>{{ formResult() }}</pre>
+              <pre>{{ outcomeText(outcome) }}</pre>
             </details>
           }
           @if (!rawResult() && !formResult()) {
@@ -53,10 +53,10 @@ import { BomDemoService } from '../bom-demo.service';
           <h3>位号数量保护</h3>
           <p class="check-desc">某行用量为100，却只填写39个位号。草稿可继续编辑，发布时应指出数量不一致。</p>
           <button class="btn" [disabled]="busy() || !ready()" (click)="publishDemoHeader()">检查位号不足的发布</button>
-          @if (publishResult()) {
+          @if (publishResult(); as outcome) {
             <details class="check-result" data-testid="publish-result">
               <summary>查看发布结果</summary>
-              <pre>{{ publishResult() }}</pre>
+              <pre>{{ outcomeText(outcome) }}</pre>
             </details>
           } @else {
             <p class="hint">预期指出39个位号与用量100不一致。</p>
@@ -66,10 +66,10 @@ import { BomDemoService } from '../bom-demo.service';
           <h3>替代分配比例保护</h3>
           <p class="check-desc">两个替代物料分配50%与30%，合计只有80%。发布时应拒绝缺少分配的结构。</p>
           <button class="btn" [disabled]="busy() || !ready()" (click)="runSubstituteDemo()">检查分配不足的发布</button>
-          @if (substituteResult()) {
+          @if (substituteResult(); as outcome) {
             <details class="check-result" data-testid="substitute-result">
               <summary>查看分配校验结果</summary>
-              <pre>{{ substituteResult() }}</pre>
+              <pre>{{ outcomeText(outcome) }}</pre>
             </details>
           } @else {
             <p class="hint">分配比例必须合计100%。</p>
@@ -99,20 +99,20 @@ import { BomDemoService } from '../bom-demo.service';
 export class DemoChecks {
   private readonly service = inject(BomDemoService);
   readonly ready = this.service.ready;
-  readonly rawResult = signal('');
-  readonly formResult = signal('');
-  readonly publishResult = signal('');
-  readonly substituteResult = signal('');
+  readonly rawResult = signal<BomDemoOutcome | null>(null);
+  readonly formResult = signal<BomDemoOutcome | null>(null);
+  readonly publishResult = signal<BomDemoOutcome | null>(null);
+  readonly substituteResult = signal<BomDemoOutcome | null>(null);
   readonly actionError = signal('');
   readonly busy = signal(false);
 
   constructor() {
     effect(() => {
       if (this.ready()) return;
-      this.rawResult.set('');
-      this.formResult.set('');
-      this.publishResult.set('');
-      this.substituteResult.set('');
+      this.rawResult.set(null);
+      this.formResult.set(null);
+      this.publishResult.set(null);
+      this.substituteResult.set(null);
       this.actionError.set('');
     });
   }
@@ -133,11 +133,19 @@ export class DemoChecks {
     return this.runCheck(() => this.service.demoSubstitutePublishRejection(), this.substituteResult);
   }
 
-  private async runCheck(check: () => Promise<string>, result: WritableSignal<string>): Promise<void> {
+  /** 每个示例都期望被拒绝：拒绝时给出原始错误，写入成功说明保护未生效。 */
+  outcomeText(outcome: BomDemoOutcome): string {
+    return outcome.ok ? '写入未被拒绝：保护未生效（不应发生）' : String(outcome.error);
+  }
+
+  private async runCheck(
+    check: () => Promise<BomDemoOutcome>,
+    result: WritableSignal<BomDemoOutcome | null>
+  ): Promise<void> {
     if (this.busy() || !this.ready()) return;
     this.busy.set(true);
     this.actionError.set('');
-    result.set('');
+    result.set(null);
     try {
       result.set(await check());
     } catch (error) {

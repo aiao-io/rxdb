@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { buildPgBomTriggerDdl, buildSqliteBomTriggerDdl } from '../backend/bom-trigger-ddl.js';
 import { BomItem, BomLineOccurrence } from '../entities.js';
 import { assertBomSyncNotDeclared, resolveBomBackend } from '../plugin.js';
+import { buildReachCycleDdl } from '../reach/cycle-ddl.js';
 import { cycleConstraintDdlForRemotePg } from '../resolve/cycle-constraint-ddl.js';
 import { BomResolutionError } from '../resolve/resolution.js';
 import {
@@ -48,11 +49,16 @@ describe('resolveBomBackend（AC#6）', () => {
     expect(await resolveBomBackend('pglite')).toBe(buildPgBomTriggerDdl);
   });
 
-  it('构造器对发生项元数据产出非空 DDL（判环触发器在列）', () => {
+  it('构造器对发生项元数据产出非空 DDL；判环只由可达闭包版 DDL 提供', () => {
     const metadata = getEntityMetadata(BomLineOccurrence);
     const sqlite = buildSqliteBomTriggerDdl(metadata).join('\n');
-    expect(sqlite).toContain('bom_line_occurrence_cycle_i');
-    const pg = buildPgBomTriggerDdl(metadata).join('\n');
+    expect(sqlite).toContain('CREATE TRIGGER');
+    expect(sqlite).not.toContain('bom_line_occurrence_cycle_i');
+    const pgBackend = buildPgBomTriggerDdl(metadata).join('\n');
+    expect(pgBackend).toContain('CREATE OR REPLACE FUNCTION');
+    expect(pgBackend).not.toContain('bom_line_occurrence__cycle_guard');
+    expect(buildReachCycleDdl('wa-sqlite').join('\n')).toContain('bom_line_occurrence_cycle_i');
+    const pg = buildReachCycleDdl('pglite').join('\n');
     expect(pg).toContain('bom_line_occurrence__cycle_guard');
     expect(pg).toContain('WITH RECURSIVE');
   });
@@ -86,6 +92,20 @@ describe('normalizeBomError（触发器消息归一）', () => {
     expect(publish).toBeInstanceOf(BomPublishValidationError);
     const protocol = normalizeBomError(new Error(`${BOM_WRITE_PROTOCOL_PREFIX}bom_line 已发布头的成员写入被拒`));
     expect(protocol).toBeInstanceOf(BomWriteProtocolError);
+  });
+
+  it('十进制违约保留触发器给的域细节；无细节时才用通用描述', () => {
+    const domain = normalizeBomError(
+      new Error('wrap', {
+        cause: new Error(`${BOM_DECIMAL_FORMAT_PREFIX}usageProbability:替代概率限 [0,1]、小数至多 9 位`)
+      })
+    );
+    expect(domain).toBeInstanceOf(BomDecimalFormatError);
+    expect((domain as BomDecimalFormatError).field).toBe('usageProbability');
+    expect((domain as BomDecimalFormatError).detail).toBe('替代概率限 [0,1]、小数至多 9 位');
+    const bare = normalizeBomError(new Error(`${BOM_DECIMAL_FORMAT_PREFIX}qty`)) as BomDecimalFormatError;
+    expect(bare.field).toBe('qty');
+    expect(bare.detail).toBe('存储层拒绝非规范十进制串');
   });
 
   it('沿 cause 链找到内层触发器消息；非 BOM 消息返回 undefined', () => {

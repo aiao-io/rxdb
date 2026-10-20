@@ -50,3 +50,13 @@ const MATERIAL_NAMES = new Map<string, string>([
 export const materialName = (itemNo: string): string => MATERIAL_NAMES.get(itemNo) ?? '未命名物料';
 
 export const materialLabel = (itemNo: string): string => `${materialName(itemNo)}（${itemNo}）`;
+
+/** 物料 id → 业务编码；映射缺项说明数据不一致，显式标「未知物料」并保留完整 id 供追查。 */
+export const itemNoById = (itemNos: ReadonlyMap<string, string>, itemId: string): string =>
+  itemNos.get(itemId) ?? `未知物料（${itemId}）`;
+
+/** 物料 id → 「中文名（编码）」；缺项不再套名称，直接给出未知物料与完整 id。 */
+export const itemLabelById = (itemNos: ReadonlyMap<string, string>, itemId: string): string => {
+  const itemNo = itemNos.get(itemId);
+  return itemNo === undefined ? itemNoById(itemNos, itemId) : materialLabel(itemNo);
+};

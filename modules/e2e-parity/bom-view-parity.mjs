@@ -515,9 +515,12 @@ export function registerBomViewParity(test, expect) {
         contentType: 'application/json'
       });
       expect(records.visibleNodes).toBe(100);
-      // sanity 上限（CI 2vCPU 机器显著慢于本地；阈值只拦「退化到秒级」）
-      expect(records.firstDataMs).toBeLessThan(4000);
-      expect(measured.p95).toBeLessThan(250);
+      // 阈值依据：PR CI 2026-10-18～19 的 22 次三端实测——run 39119429030 失败日志 9 次（2129～2692ms），
+      // run 39122511023～39218306973 的 bom-input-to-dom-performance.json 附件 13 次。
+      // firstDataMs 观测 1307～2707ms，本地预算 1500ms 在共享 runner 上不可达，取最大观测 × 1.33 ≈ 3600ms；
+      // 输入 p95 观测 12.5～31.8ms，保持原预算 100ms（此前放宽到 250ms 没有任何观测依据）
+      expect(records.firstDataMs).toBeLessThan(3600);
+      expect(measured.p95).toBeLessThan(100);
     });
   });
 }

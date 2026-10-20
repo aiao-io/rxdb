@@ -75,7 +75,15 @@ const deletionCtes = (sql: ReachSql): string => {
     )`;
 };
 
-/** 删除重检的硬限判断，无法完成否定证明时让源写入回滚。 */
+/**
+ * 删除重检的硬限判断，无法完成否定证明时让源写入回滚。
+ *
+ * @remarks
+ * 删除 consume 发生项（或把它改为非 consume、换子件）后，要在 {@link BOM_CYCLE_DEPTH_LIMIT}（128）层内
+ * 证明受影响的祖先×后代对已无其他支持路径。物料图深度超过该层数时证明无法完成，写入以
+ * `rxdb:bom_cycle:depth_limit`（归一为 `BomCycleError`，路径为空）整体拒绝——这是对外的硬限制，
+ * 不降级为保留可能陈旧的可达对。
+ */
 export const deletionDepthExceededSql = (sql: ReachSql): string => `${deletionCtes(sql)}
   SELECT 1 FROM visited v JOIN edges e ON e.p = v.d WHERE v.depth >= ${BOM_CYCLE_DEPTH_LIMIT} LIMIT 1`;
 

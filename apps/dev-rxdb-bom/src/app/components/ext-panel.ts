@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BomDemoService } from '../bom-demo.service';
 import { materialLabel } from '../presentation/material-label';
@@ -51,7 +51,7 @@ import { materialLabel } from '../presentation/material-label';
           data-testid="ext-result"
         >
           @if (failed()) {
-            <p>属性操作未完成，请检查输入内容。</p>
+            <p>{{ failure() === 'rejected' ? '属性操作未完成，请检查输入内容。' : '属性操作出错，请稍后重试。' }}</p>
             <details>
               <summary>查看具体原因</summary>
               <pre>{{ message() }}</pre>
@@ -141,7 +141,9 @@ export class ExtPanel {
   readonly filterValue = signal('yes');
   readonly op = signal<'eq' | 'ne'>('eq');
   readonly message = signal('');
-  readonly failed = signal(false);
+  /** 失败分两类：校验拒绝提示检查输入，意外错误不冒充输入问题。 */
+  readonly failure = signal<'rejected' | 'error' | null>(null);
+  readonly failed = computed(() => this.failure() !== null);
   readonly rows = signal<{ itemNo: string; ext: string }[] | null>(null);
 
   constructor() {
@@ -166,7 +168,7 @@ export class ExtPanel {
     } catch (error) {
       if (epoch !== this.service.dataEpoch()) return;
       this.loadFailed.set(true);
-      this.failed.set(true);
+      this.failure.set('error');
       this.message.set(`当前属性读取失败：${String(error)}`);
     } finally {
       this.busy.set(false);
@@ -180,17 +182,21 @@ export class ExtPanel {
     this.busy.set(true);
     this.message.set('');
     this.rows.set(null);
-    this.failed.set(false);
+    this.failure.set(null);
     try {
-      const error =
+      const outcome =
         empty ? await this.service.extWrite('B-01', {}) : await this.service.extPatch('B-01', { rohs: this.value() });
       if (epoch !== this.service.dataEpoch()) return;
-      this.failed.set(error.length > 0);
-      this.message.set(error || '保存成功：属性已更新。');
-      if (!error) await this.#readCurrent(epoch);
+      if (!outcome.ok) {
+        this.failure.set('rejected');
+        this.message.set(String(outcome.error));
+        return;
+      }
+      this.message.set('保存成功：属性已更新。');
+      await this.#readCurrent(epoch);
     } catch (error) {
       if (epoch !== this.service.dataEpoch()) return;
-      this.failed.set(true);
+      this.failure.set('error');
       this.message.set(String(error));
     } finally {
       this.busy.set(false);
@@ -203,7 +209,7 @@ export class ExtPanel {
     const epoch = this.service.dataEpoch();
     this.busy.set(true);
     this.message.set('');
-    this.failed.set(false);
+    this.failure.set(null);
     this.rows.set(null);
     try {
       const rows = await this.service.filterExt(this.op(), this.filterValue());
@@ -211,7 +217,7 @@ export class ExtPanel {
       this.rows.set(rows);
     } catch (error) {
       if (epoch !== this.service.dataEpoch()) return;
-      this.failed.set(true);
+      this.failure.set('error');
       this.message.set(String(error));
     } finally {
       this.busy.set(false);

@@ -7,7 +7,14 @@
 
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { BomHeader, BomItem, BomLine, BomLineDesignator, BomLineOccurrence } from '../entities.js';
+import {
+  BomHeader,
+  BomItem,
+  BomLine,
+  BomLineDesignator,
+  BomLineOccurrence,
+  BomLineOperationSplit
+} from '../entities.js';
 import { explodeBom } from '../quantity/explosion.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { BomPublishValidationError, BomWriteProtocolError } from '../types.js';
@@ -169,6 +176,43 @@ for (const backend of BACKENDS) {
         (error: unknown) => error
       );
       expect(moved).toBeInstanceOf(BomWriteProtocolError);
+    });
+
+    it('直连 SQL 删除发生项：位号与分摊行经外键级联删除，两后端都不留孤儿', async () => {
+      const { occurrence } = await setup(adapter);
+      await addDesignator(occurrence, 'R1');
+      await addDesignator(occurrence, 'R2');
+      const split = new BomLineOperationSplit();
+      split.occurrenceId = occurrence.id;
+      split.operationSeq = 10;
+      split.ratio = '1';
+      await split.save();
+      const table = (name: string): string => (backend === 'wa-sqlite' ? `"bom$${name}"` : `"bom"."${name}"`);
+      const count = async (name: string): Promise<number> =>
+        adapter.transaction(
+          async executor =>
+            Number(
+              (await executor.query(`SELECT COUNT(*) FROM ${table(name)} WHERE "occurrenceId" = '${occurrence.id}'`))
+                .rows[0][0]
+            ),
+          false
+        );
+      expect(await count('bom_line_designator')).toBe(2);
+      expect(await count('bom_line_operation_split')).toBe(1);
+      await adapter.rawQuery(`DELETE FROM ${table('bom_line_occurrence')} WHERE "id" = '${occurrence.id}'`);
+      expect(await count('bom_line_designator')).toBe(0);
+      expect(await count('bom_line_operation_split')).toBe(0);
+    });
+
+    it('已发布头直连删除带位号的发生项：两后端同以发生项写入协议拒绝（不先级联位号）', async () => {
+      const { header, occurrence } = await setup(adapter, { designatorManaged: false, qty: '2' });
+      await addDesignator(occurrence, 'R1');
+      header.state = 'released';
+      await header.save();
+      const table = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
+      await expect(adapter.rawQuery(`DELETE FROM ${table} WHERE "id" = '${occurrence.id}'`)).rejects.toThrow(
+        'rxdb:bom_write_protocol:bom_line_occurrence:'
+      );
     });
 
     it('同发生项同位号唯一；位号随发生项删除级联', async () => {

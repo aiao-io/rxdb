@@ -181,8 +181,12 @@ describe('三维重叠触发器 DDL（US-518）', () => {
   it('SQLite 守卫：INSERT/UPDATE 触发器含三维谓词与 detail 消息', () => {
     const metadata = getEntityMetadata(BomLineOccurrence);
     const sql = buildUnitLotOverlapGuardSqlite(metadata).join('\n');
-    expect(sql).toContain('CREATE TRIGGER IF NOT EXISTS "bom_line_occurrence_unit_lot_overlap_i"');
-    expect(sql).toContain('CREATE TRIGGER IF NOT EXISTS "bom_line_occurrence_unit_lot_overlap_u"');
+    // 先删后建：升级后旧版本同名触发器体被替换（IF NOT EXISTS 会让旧体静默保留）
+    expect(sql).toContain('DROP TRIGGER IF EXISTS "bom_line_occurrence_unit_lot_overlap_i"');
+    expect(sql).toContain('DROP TRIGGER IF EXISTS "bom_line_occurrence_unit_lot_overlap_u"');
+    expect(sql).toContain('CREATE TRIGGER "bom_line_occurrence_unit_lot_overlap_i"');
+    expect(sql).toContain('CREATE TRIGGER "bom_line_occurrence_unit_lot_overlap_u"');
+    expect(sql).not.toContain('IF NOT EXISTS');
     expect(sql).toContain('BEFORE INSERT');
     expect(sql).toContain('BEFORE UPDATE');
     expect(sql).toContain('RAISE(ABORT');
@@ -203,6 +207,18 @@ describe('三维重叠触发器 DDL（US-518）', () => {
     expect(sql).toContain("'、序列 '");
     expect(sql).toContain("'、批次 '");
     expect(sql).toContain('group_concat');
+  });
+
+  it('日期维下界 NULL 显式按无下界参与判定（与序列维同一防御口径），消息不因 NULL 塌成空', () => {
+    const metadata = getEntityMetadata(BomLineOccurrence);
+    const sqlite = buildUnitLotOverlapGuardSqlite(metadata).join('\n');
+    expect(sqlite).toContain('NEW."effectiveFrom" IS NULL OR NEW."effectiveFrom" < b."effectiveTo"');
+    expect(sqlite).toContain('b."effectiveFrom" IS NULL OR b."effectiveFrom" < NEW."effectiveTo"');
+    expect(sqlite).toContain(`COALESCE(NEW."effectiveFrom", '-∞')`);
+    const pg = buildUnitLotOverlapGuardPg(metadata).join('\n');
+    expect(pg).toContain('NEW."effectiveFrom" IS NULL OR NEW."effectiveFrom" < b."effectiveTo"');
+    expect(pg).toContain('b."effectiveFrom" IS NULL OR b."effectiveFrom" < NEW."effectiveTo"');
+    expect(pg).toContain(`COALESCE(NEW."effectiveFrom"::text, '-∞')`);
   });
 
   it('PGlite 守卫：plpgsql 函数 + DO 块触发器，裸 EXECUTE FUNCTION', () => {

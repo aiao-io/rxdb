@@ -171,6 +171,33 @@ export const buildAlternativeHeadersSql = (
 };
 
 /**
+ * 生成「前沿修订的备选头」查询（US-510 下钻按修订裁决备选）：给定修订集下的 released 头，
+ * 行列为 `headerId, parentRevisionId, parentItemId, alternativeNo`，按修订与备选编号排序。
+ */
+export const buildRevisionHeadersSql = (
+  dialect: BomSqlDialect,
+  params: { bomType: string; orgId: string; revisionIds: string[] }
+): { sql: string; params: unknown[] } => {
+  const bind: unknown[] = [];
+  const p = (value: unknown): string => {
+    bind.push(dialect.encode(value));
+    return dialect.placeholder(bind.length - 1);
+  };
+  const sql = [
+    `SELECT h."id" AS "headerId", h."parentRevisionId" AS "parentRevisionId", r."itemId" AS "parentItemId",`,
+    `  h."alternativeNo" AS "alternativeNo"`,
+    `FROM ${dialect.table('bom_header')} h`,
+    `JOIN ${dialect.table('item_revision')} r ON r."id" = h."parentRevisionId"`,
+    `WHERE h."state" = 'released'`,
+    `  AND h."bomType" = ${p(params.bomType)}`,
+    `  AND h."orgId" = ${p(params.orgId)}`,
+    `  AND h."parentRevisionId" IN (${params.revisionIds.map(id => p(id)).join(', ')})`,
+    `ORDER BY h."parentRevisionId" ASC, h."alternativeNo" ASC`
+  ].join('\n');
+  return { sql, params: bind };
+};
+
+/**
  * 生成「父修订选择」查询：显式 id 或「评估日前已发布的最新修订」（US-508 AC#6）。
  */
 export const buildParentRevisionSql = (

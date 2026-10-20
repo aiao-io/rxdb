@@ -14,6 +14,18 @@
         "kind": "type"
       },
       {
+        "name": "BomViewCommands",
+        "kind": "type"
+      },
+      {
+        "name": "BomViewInput",
+        "kind": "type"
+      },
+      {
+        "name": "BomViewState",
+        "kind": "type"
+      },
+      {
         "name": "useBomView",
         "kind": "value"
       }

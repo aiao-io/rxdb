@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BomEcn, BomHeader, BomItem, BomLine, BomLineOccurrence } from '../entities.js';
 import { ecnDiff, ecnImpact } from '../resolve/ecn.js';
 import { loadHistory } from '../resolve/history-loader.js';
+import { BomResolutionError } from '../resolve/resolution.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
@@ -189,6 +190,140 @@ for (const backend of BACKENDS) {
       const qtyChanged = diff.headers.flatMap(header => header.entries).find(entry => entry.kind === 'qty_changed');
       expect(qtyChanged?.before?.qty).toBe('2');
       expect(qtyChanged?.after?.qty).toBe('3');
+    });
+
+    /** 指定作用域的已发布头：每行一个或多个发生项（默认 qty 1、2026-01-01 起）。 */
+    const scopedHeader = async (
+      parent: BomItem,
+      scope: { bomType: 'ebom' | 'mbom'; orgId: string },
+      specs: { child: BomItem; occurrences?: Partial<BomLineOccurrence>[] }[]
+    ): Promise<{ header: BomHeader; lines: BomLine[]; occurrences: BomLineOccurrence[][] }> => {
+      const rows = (await adapter.rawQuery(
+        `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${parent.id}'`
+      )) as unknown as { rows: unknown[][] };
+      const header = new BomHeader();
+      header.parentRevisionId = String(rows.rows[0][0]);
+      header.bomType = scope.bomType;
+      header.orgId = scope.orgId;
+      await header.save();
+      const lines: BomLine[] = [];
+      const occurrences: BomLineOccurrence[][] = [];
+      for (const [index, spec] of specs.entries()) {
+        const line = new BomLine();
+        line.headerId = header.id;
+        line.lineNo = (index + 1) * 10;
+        await line.save();
+        const saved: BomLineOccurrence[] = [];
+        for (const overrides of spec.occurrences ?? [{}]) {
+          const occurrence = new BomLineOccurrence();
+          occurrence.lineId = line.id;
+          occurrence.childItemId = spec.child.id;
+          occurrence.qty = '1';
+          occurrence.uom = 'pcs';
+          occurrence.effectiveFrom = day('2026-01-01');
+          Object.assign(occurrence, overrides);
+          await occurrence.save();
+          saved.push(occurrence);
+        }
+        lines.push(line);
+        occurrences.push(saved);
+      }
+      header.state = 'released';
+      await header.save();
+      return { header, lines, occurrences };
+    };
+
+    /** 已发布 ECN：每条改动截止旧发生项、同逻辑行引入新发生项（区间与序列维沿用旧发生项）。 */
+    const releasedEcn = async (
+      effectiveDate: Date,
+      changes: { occurrence: BomLineOccurrence; qty: string }[]
+    ): Promise<BomEcn> => {
+      const ecn = new BomEcn();
+      ecn.ecnNo = `ECN-${Math.random().toString(36).slice(2, 8)}`;
+      ecn.effectiveDate = effectiveDate;
+      await ecn.save();
+      for (const { occurrence, qty } of changes) {
+        occurrence.ecnOutId = ecn.id;
+        occurrence.effectiveTo = effectiveDate;
+        await occurrence.save();
+        const next = new BomLineOccurrence();
+        next.lineId = occurrence.lineId;
+        next.childItemId = occurrence.childItemId;
+        next.qty = qty;
+        next.uom = 'pcs';
+        next.unitFrom = occurrence.unitFrom;
+        next.unitTo = occurrence.unitTo;
+        next.ecnInId = ecn.id;
+        next.effectiveFrom = effectiveDate;
+        await next.save();
+      }
+      ecn.state = 'released';
+      await ecn.save();
+      return ecn;
+    };
+
+    it('P1-6 影响面与差异按成员头自身的 (bomType, orgId) 作用域计算：多组织 / 多类型不串用 org-x EBOM', async () => {
+      // B：org-x EBOM（T2 使用，不改）与 org-y MBOM（T 使用，ECN 改量 5→7）；D：org-x EBOM（T3 使用，ECN 改量 1→4）
+      const t = await makeItem('sc-t');
+      const t2 = await makeItem('sc-t2');
+      const t3 = await makeItem('sc-t3');
+      const b = await makeItem('sc-b');
+      const d = await makeItem('sc-d');
+      const c = await makeItem('sc-c');
+      const orgY = { bomType: 'mbom' as const, orgId: 'org-y' };
+      const orgX = { bomType: 'ebom' as const, orgId: 'org-x' };
+      await scopedHeader(b, orgX, [{ child: c, occurrences: [{ qty: '2' }] }]);
+      const bMbom = await scopedHeader(b, orgY, [{ child: c, occurrences: [{ qty: '5' }] }]);
+      const dEbom = await scopedHeader(d, orgX, [{ child: c }]);
+      await scopedHeader(t, orgY, [{ child: b }]);
+      await scopedHeader(t2, orgX, [{ child: b }]);
+      await scopedHeader(t3, orgX, [{ child: d }]);
+      const ecn = await releasedEcn(day('2027-05-01'), [
+        { occurrence: bMbom.occurrences[0][0], qty: '7' },
+        { occurrence: dEbom.occurrences[0][0], qty: '4' }
+      ]);
+
+      const impact = await ecnImpact(adapter, ecn.id);
+      expect([...impact.affectedItemIds].sort()).toEqual([b.id, d.id].sort());
+      expect(impact.topItems.map(top => top.itemId).sort()).toEqual([t.id, t3.id].sort());
+
+      const diff = await ecnDiff(adapter, ecn.id);
+      const byHeader = new Map(
+        diff.headers.map(header => [
+          header.headerId,
+          header.entries.map(entry => [entry.kind, entry.before?.qty, entry.after?.qty])
+        ])
+      );
+      expect(byHeader.get(bMbom.header.id)).toEqual([['qty_changed', '5', '7']]);
+      expect(byHeader.get(dEbom.header.id)).toEqual([['qty_changed', '1', '4']]);
+      expect(diff.headers).toHaveLength(2);
+    });
+
+    it('P2-4 M7 差异涉及的逻辑行解析不出唯一发生项即拒绝；未改动的多候选行不影响其它行的差异', async () => {
+      const parent = await makeItem('m7-p');
+      const child = await makeItem('m7-c');
+      const other = await makeItem('m7-o');
+      const header = await scopedHeader(parent, { bomType: 'ebom', orgId: 'org-x' }, [
+        { child, occurrences: [{ unitTo: 100 }, { unitFrom: 101 }] },
+        { child: other, occurrences: [{ qty: '2' }] }
+      ]);
+      // 只改普通行：多候选行两侧候选集相同，差异照常给出
+      const plain = await releasedEcn(day('2027-05-01'), [{ occurrence: header.occurrences[1][0], qty: '4' }]);
+      const plainDiff = await ecnDiff(adapter, plain.id);
+      expect(plainDiff.headers.flatMap(entry => entry.entries.map(row => [row.kind, row.lineId]))).toEqual([
+        ['qty_changed', header.lines[1].id]
+      ]);
+      // 改序列分段行：生效前后候选集不同，差异无法按行对齐 → 拒绝并点名
+      const split = await releasedEcn(day('2027-07-01'), [{ occurrence: header.occurrences[0][0], qty: '3' }]);
+      await expect(ecnDiff(adapter, split.id)).rejects.toThrow(BomResolutionError);
+      await expect(ecnDiff(adapter, split.id)).rejects.toThrow(header.lines[0].id);
+    });
+
+    it('P2-5 ECN 标识走绑定参数：注入串不读出别的 ECN', async () => {
+      const injected = `' OR '1'='1`;
+      const notFound = backend === 'wa-sqlite' ? /ECN 不存在/ : /uuid/i;
+      await expect(ecnImpact(adapter, injected)).rejects.toThrow(notFound);
+      await expect(ecnDiff(adapter, injected)).rejects.toThrow(notFound);
     });
   });
 }

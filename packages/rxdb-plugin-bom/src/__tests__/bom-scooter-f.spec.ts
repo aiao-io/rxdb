@@ -1,7 +1,15 @@
 /** @fileoverview 阶段 F 真实种子、既有整机计算与实例来源保护的双后端回归。 */
 
 import { describe, expect, it } from 'vitest';
-import { BomHeader, BomInstanceNode, BomItem, BomLine, BomLineOccurrence } from '../entities.js';
+import {
+  BomEcn,
+  BomHeader,
+  BomHistoryBatch,
+  BomInstanceNode,
+  BomItem,
+  BomLine,
+  BomLineOccurrence
+} from '../entities.js';
 import { rollupCost, type CostRollupContext, type CostRollupResult } from '../quantity/cost.js';
 import { explodeBom, type ExplosionResult } from '../quantity/explosion.js';
 import type { ResolutionContext } from '../resolve/resolution.js';
@@ -11,7 +19,8 @@ import {
   loadScooterDatasetC,
   loadScooterDatasetD,
   loadScooterDatasetE,
-  loadScooterDatasetF
+  loadScooterDatasetF,
+  SCOOTER_SEED_ROW_COUNTS
 } from '../testing/index.js';
 import { createBomTestAdapter, disposeBomTestAdapter } from './test-utils.js';
 
@@ -60,6 +69,14 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
         }
         const installed = await adapter.getRepository(BomInstanceNode).find(allRows);
         expect(installed).toHaveLength(5);
+        // 全量种子行数常量（demo 概览与 e2e 期望共用）由真实落库行数守住：改种子不改常量即红
+        expect({
+          item: (await adapter.getRepository(BomItem).find(allRows)).length,
+          bomLineOccurrence: (await adapter.getRepository(BomLineOccurrence).find(allRows)).length,
+          ecn: (await adapter.getRepository(BomEcn).find(allRows)).length,
+          historyBatch: (await adapter.getRepository(BomHistoryBatch).find(allRows)).length,
+          instanceNode: installed.length
+        }).toEqual(SCOOTER_SEED_ROW_COUNTS);
         const serialized = (await adapter.getRepository(BomItem).find(allRows)).filter(item =>
           ['SC-100', 'BATT'].includes(item.itemNo)
         );

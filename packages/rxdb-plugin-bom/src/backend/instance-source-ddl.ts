@@ -16,14 +16,17 @@ const sourceViolation = (tables: SourceTables, condition: string): string =>
   ` FROM ${tables.occurrence} o JOIN ${tables.instance} n ON n."sourceOccurrenceId" = o."id"` +
   ` WHERE ${condition} GROUP BY o."id" ORDER BY o."id" LIMIT 1`;
 
-const sqliteGuard = (name: string, table: string, event: string, violation: string, when?: string): string =>
+/** 先删后建：插件升级后旧版本的同名触发器体被替换，不与新体并存。 */
+const sqliteGuard = (name: string, table: string, event: string, violation: string, when?: string): string[] => [
+  `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier(name)};`,
   [
-    `CREATE TRIGGER IF NOT EXISTS ${quoteSqlIdentifier(name)} ${event} ON ${table}`,
+    `CREATE TRIGGER ${quoteSqlIdentifier(name)} ${event} ON ${table}`,
     ...(when === undefined ? [] : [`WHEN ${when}`]),
     `BEGIN`,
     `  SELECT RAISE(ABORT, (${violation})) WHERE EXISTS (${violation});`,
     `END;`
-  ].join('\n');
+  ].join('\n')
+];
 
 /** 仅实例实体已注册时安装 SQLite 跨表守卫，错误包含发生项及全部历史引用数。 */
 export const buildSqliteInstanceSourceDdl = (metadata: EntityMetadata): string[] => {
@@ -35,13 +38,13 @@ export const buildSqliteInstanceSourceDdl = (metadata: EntityMetadata): string[]
     ecn: table('ecn')
   };
   return [
-    sqliteGuard(
+    ...sqliteGuard(
       'bom_instance_source_delete',
       tables.occurrence,
       'BEFORE DELETE',
       sourceViolation(tables, 'o."id" = OLD."id"')
     ),
-    sqliteGuard(
+    ...sqliteGuard(
       'bom_instance_source_cancel',
       tables.ecn,
       'BEFORE UPDATE OF "state"',

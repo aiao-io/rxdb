@@ -195,7 +195,7 @@
 
 领域计算与三框架公共导出保持原合同。规模测试仅验证展示边界，不将合成数据的单测耗时宣传为真实浏览器或生产大库性能。
 
-最终验证已通过，证据为 `/private/tmp/bom-product-full3.log`：
+最终验证已通过，证据为 本地日志`bom-product-full3.log`（未留存）：
 
 - 两个受影响项目及依赖共 37 个 Nx 任务通过，27 项有效本地缓存，耗时 1 分 50 秒。
 - `lint` 零警告、`typecheck`、`spec-typecheck`、`test`、`build`、`e2e` 全部通过。

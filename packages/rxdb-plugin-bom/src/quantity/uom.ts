@@ -44,6 +44,61 @@ export interface UomConversionRates {
 }
 
 /**
+ * 换算是否要经显式换算率（与 {@link convertUom} 同判据）：同单位、同为时间单位、同词根标准系数都不需要；
+ * 一方时间一方非时间是量纲不兼容（convertUom 直接拒绝），也不消耗换算率。
+ *
+ * @param from - 源单位
+ * @param to - 目标单位
+ */
+export const uomNeedsRate = (from: string, to: string): boolean => {
+  if (from === to || TIME_UNITS[from] !== undefined || TIME_UNITS[to] !== undefined) return false;
+  const fromUnit = METRIC_UNITS[from];
+  const toUnit = METRIC_UNITS[to];
+  return !(fromUnit && toUnit && fromUnit.root === toUnit.root);
+};
+
+/** 一行发生项两跳换算各自可用的换算率（见 {@link splitHopRates}）。 */
+export interface HopConversionRates {
+  /** 第一跳：行 UoM → 子件库存 UoM。 */
+  toStock: UomConversionRates;
+  /** 第二跳：子件库存 UoM → 子头基准 UoM（穿透 / 下传 / 成本计价）。 */
+  fromStock: UomConversionRates;
+}
+
+/**
+ * 把一行的行级 / 物料级换算率分配到两跳：每个声明的率只服务一跳跨量纲换算。
+ *
+ * @remarks
+ * 一个率只描述一对单位的关系，跨跳复用必错一跳（行 m → 库存 kg → 子头 件 时 1 kg = 2 m 不可能同时是
+ * 1 件 = 2 kg）。第一跳跨量纲时消耗行级率（缺则物料级率），第二跳只剩未被消耗的物料级率、没有即拒绝；
+ * 第一跳无需换算率时，行级率覆盖第二跳的物料级率（US-511 AC#9：行级 1 盒 = 4 件覆盖物料级 1 盒 = 10 件）。
+ *
+ * @param lineUom - 行 UoM
+ * @param stockUom - 子件库存 UoM
+ * @param lineRate - 行级换算率
+ * @param itemRate - 物料级换算率
+ */
+export const splitHopRates = (
+  lineUom: string,
+  stockUom: string,
+  lineRate: string | null,
+  itemRate: string | null
+): HopConversionRates => {
+  if (!uomNeedsRate(lineUom, stockUom)) return { toStock: {}, fromStock: { lineRate, itemRate } };
+  return { toStock: { lineRate, itemRate }, fromStock: lineRate === null ? {} : { itemRate } };
+};
+
+/**
+ * 本次换算实际使用的率（manifest 记录口径）：无需显式率的换算记 null，不记声明了但没用上的率。
+ *
+ * @param from - 源单位
+ * @param to - 目标单位
+ * @param rates - 该跳可用的换算率
+ */
+export const appliedUomRate = (from: string, to: string, rates: UomConversionRates): string | null =>
+  uomNeedsRate(from, to) ? (rates.lineRate ?? rates.itemRate ?? null) : null;
+
+/**
  * 把规范十进制串从 `from` 单位换算到 `to` 单位。
  *
  * @param value - 规范十进制串

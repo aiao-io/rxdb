@@ -1,7 +1,7 @@
 import type { PenetrationRecord, RequirementLine } from '@aiao/rxdb-plugin-bom';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { formatDecimal } from '../presentation/decimal-format';
-import { materialLabel } from '../presentation/material-label';
+import { itemLabelById } from '../presentation/material-label';
 
 interface StepRow {
   key: string;
@@ -155,12 +155,8 @@ export class StepPanel {
   readonly itemNos = input.required<Map<string, string>>();
   readonly basis = input<RequirementCalculationBasis | null>(null);
 
-  itemNo(itemId: string): string {
-    return this.itemNos().get(itemId) ?? itemId.slice(0, 8);
-  }
-
   itemLabel(itemId: string): string {
-    return materialLabel(this.itemNo(itemId));
+    return itemLabelById(this.itemNos(), itemId);
   }
 
   quantity(value: string | null): string {

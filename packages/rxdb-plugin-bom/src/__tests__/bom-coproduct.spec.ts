@@ -338,12 +338,24 @@ for (const backend of ['wa-sqlite', 'pglite'] satisfies BomTestBackend[]) {
         { childRevisionId: null },
         { isFixedQty: true },
         { componentScrap: '0.1' },
-        { unitFrom: 1 }
+        { unitFrom: 1 },
+        { unitTo: 5 },
+        { lotCodes: '["L1"]' }
       ]) {
         const fixture = await makeFixture(adapter, { released: false });
         Object.assign(fixture.output, fields);
         await expect(fixture.output.save()).rejects.toThrow(/produce|联产|输出/);
       }
+      // 选择条件同样不许挂在 produce 行上（仓储先校验条件存在，这里直连 SQL 直达存储层守卫）：
+      // 序列 / 批次 / 配置三维门控因此对 produce 行恒为空，联产读取不需要再过一遍三维过滤
+      const gated = await makeFixture(adapter, { released: false });
+      const dialect = bomSqlDialectFor(adapter.name);
+      await expect(
+        adapter.rawQuery(
+          `UPDATE ${dialect.table('bom_line_occurrence')} SET "selectionConditionId" = ${dialect.placeholder(0)} WHERE "id" = ${dialect.placeholder(1)}`,
+          [crypto.randomUUID(), gated.output.id]
+        )
+      ).rejects.toThrow(/selectionConditionId:produce/);
       const valid = await makeFixture(adapter);
       expect((await production(adapter, valid))?.outputs.map(output => [output.revisionId, output.share])).toEqual([
         [valid.primary.revisionId, '0.6'],

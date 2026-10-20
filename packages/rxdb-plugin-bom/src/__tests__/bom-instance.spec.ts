@@ -445,6 +445,28 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
       });
     });
 
+    it('展开与反查同一 maxDepth 口径：深度 ≤ maxDepth 的节点都在，深一层才截断', async () => {
+      await withFixture(backend, async fixture => {
+        const device = await root(fixture);
+        const part = await child(fixture, device);
+        const deepest = await child(fixture, part, { serialNumber: 'DEEPEST' });
+        const expandAt = (maxDepth: number) => fixture.adapter.rxdb.bom.expandInstance(device.id, { maxDepth });
+        const traceAt = (maxDepth: number) =>
+          fixture.adapter.rxdb.bom.whereUsedInstance({ serialNumber: 'DEEPEST' }, { maxDepth });
+        // 命中节点深度 2：maxDepth = 2 时两边都完整，maxDepth = 1 时两边都截断
+        expect((await expandAt(2)).nodes.map(value => value.id)).toContain(deepest.id);
+        expect((await expandAt(2)).truncated).toBe(false);
+        expect((await traceAt(2)).matches.map(match => match.path.map(value => value.id))).toEqual([
+          [device.id, part.id, deepest.id]
+        ]);
+        expect((await traceAt(2)).truncated).toBe(false);
+        expect((await expandAt(1)).nodes.map(value => value.id)).not.toContain(deepest.id);
+        expect((await expandAt(1)).truncated).toBe(true);
+        expect((await traceAt(1)).matches).toEqual([]);
+        expect((await traceAt(1)).truncated).toBe(true);
+      });
+    });
+
     it('缺失根与无匹配目标返回空，非法目标、时点及预算明确报错', async () => {
       await withFixture(backend, async fixture => {
         const id = crypto.randomUUID();

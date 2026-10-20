@@ -14,7 +14,7 @@ import {
   untracked
 } from '@angular/core';
 import { formatDecimal } from '../presentation/decimal-format';
-import { materialLabel } from '../presentation/material-label';
+import { itemLabelById, itemNoById } from '../presentation/material-label';
 import {
   buildRequirementTree,
   flattenRequirementTree,
@@ -365,10 +365,10 @@ export class ReqTree {
   }
 
   itemNo(itemId: string): string {
-    return this.itemNos().get(itemId) ?? itemId.slice(0, 8);
+    return itemNoById(this.itemNos(), itemId);
   }
   itemLabel(itemId: string): string {
-    return materialLabel(this.itemNo(itemId));
+    return itemLabelById(this.itemNos(), itemId);
   }
   label(node: RequirementTreeNode): string {
     return node.kind === 'root' ? (this.rootLabel() ?? this.itemLabel(node.itemId)) : this.itemLabel(node.itemId);

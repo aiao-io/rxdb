@@ -18,6 +18,7 @@ import {
 } from '@aiao/rxdb';
 import { BOM_ENTITIES, BomHeader, BomItem, BomLineOccurrence } from './entities.js';
 import { BomExtAttrError, type ExtAttrScope } from './resolve/ext-attr.js';
+import { readTableCatalog } from './storage-catalog.js';
 
 /** 单个作用域内需要透明提升的 JSON 标量属性。 */
 export interface BomHotField {
@@ -114,13 +115,58 @@ const auditedDocument = (
   return value as Record<string, unknown>;
 };
 
-const auditTable = async (
+/** 一个作用域待补的热字段列：审计用键与类型，安装用 DDL。 */
+interface PendingColumn {
+  readonly key: string;
+  readonly dataType: JsonScalarDataType;
+  readonly ddl: string;
+}
+
+/** 一张表待补的托管对象；目录里已有的同名列 / 索引不重复下发。 */
+interface PendingStorage {
+  readonly table: string;
+  readonly columns: readonly PendingColumn[];
+  readonly indexes: readonly string[];
+}
+
+/**
+ * 按目录算出一张表还缺的生成列与索引。
+ *
+ * @remarks
+ * 托管对象名内嵌声明定义哈希：同名即同一声明，只补缺失对象，「新增热字段 + 声明全集 +
+ * 新迁移名」不再撞重复列。同名对象的实际定义由同一次连接紧随迁移的漂移检查逐项核对，
+ * 被改形的对象以 Changed definitions 拒绝连接，不会静默接受。表还不存在时返回 undefined：
+ * 同一版本首次引入的实体随后由缺表补建按声明建出，自带生成列与索引。
+ */
+const pendingStorage = async (
   executor: TransactionExecutor,
+  entity: EntityType,
   metadata: EntityMetadata,
   dialect: StorageDialect
+): Promise<PendingStorage | undefined> => {
+  const table = executor.tableRef(entity);
+  const catalog = await readTableCatalog(executor, dialect === 'postgres', table);
+  if (catalog.columns.size === 0) return undefined;
+  const columns = generatedColumnsOf(metadata).flatMap(declaration => {
+    const column = compileGeneratedColumn(metadata, declaration, dialect);
+    if (catalog.columns.has(column.columnName)) return [];
+    const ddl =
+      `ALTER TABLE ${table} ADD COLUMN ${quoteSqlIdentifier(column.columnName)} ${column.sqlType}` +
+      ` GENERATED ALWAYS AS (${column.expression}) ${column.storage.toUpperCase()}`;
+    return [{ key: declaration.expression.key, dataType: declaration.expression.dataType, ddl }];
+  });
+  const existingIndexes = [...catalog.indexes].map(name => `INDEX ${quoteSqlIdentifier(name)} ON `);
+  const indexes = advancedIndexStatements(metadata, dialect, table).filter(
+    statement => !existingIndexes.some(prefix => statement.includes(prefix))
+  );
+  return columns.length + indexes.length === 0 ? undefined : { table, columns, indexes };
+};
+
+const auditTable = async (
+  executor: TransactionExecutor,
+  { table, columns }: PendingStorage,
+  dialect: StorageDialect
 ): Promise<void> => {
-  const table = executor.tableRef(scopeEntities.get(metadata.tableName as ExtAttrScope)!);
-  const fields = generatedColumnsOf(metadata).filter(column => column.expression.property === 'ext');
   let after: unknown;
   let hasAfter = false;
   let remaining = true;
@@ -135,10 +181,9 @@ const auditTable = async (
         table,
         rowId,
         raw,
-        fields.map(field => field.expression.key)
+        columns.map(column => column.key)
       );
-      for (const field of fields)
-        validateStoredValue(table, rowId, document, field.expression.key, field.expression.dataType);
+      for (const column of columns) validateStoredValue(table, rowId, document, column.key, column.dataType);
     }
     remaining = rows.rows.length === 1000;
     after = rows.rows.at(-1)?.[0];
@@ -159,26 +204,18 @@ const validateStoredValue = (
   throw new BomExtAttrError(`${table}/${String(rowId)}/${key}`, `存量热字段类型必须为 ${dataType}`);
 };
 
-const installDeclarations = async (
-  executor: TransactionExecutor,
-  entity: EntityType,
-  metadata: EntityMetadata,
-  dialect: StorageDialect
-): Promise<void> => {
-  const table = executor.tableRef(entity);
-  for (const declaration of generatedColumnsOf(metadata)) {
-    const column = compileGeneratedColumn(metadata, declaration, dialect);
-    await executor.query(
-      `ALTER TABLE ${table} ADD COLUMN ${quoteSqlIdentifier(column.columnName)} ${column.sqlType}` +
-        ` GENERATED ALWAYS AS (${column.expression}) ${column.storage.toUpperCase()}`
-    );
-  }
-  for (const statement of advancedIndexStatements(metadata, dialect, table)) {
-    await executor.query(statement);
-  }
+const installPending = async (executor: TransactionExecutor, { columns, indexes }: PendingStorage): Promise<void> => {
+  for (const column of columns) await executor.query(column.ddl);
+  for (const statement of indexes) await executor.query(statement);
 };
 
-/** 先审计原始 JSON 与热键类型，再在既有用户迁移事务内安装声明。 */
+/**
+ * 先审计原始 JSON 与待补热键的类型，再在既有用户迁移事务内补齐缺失的存储声明。
+ *
+ * @remarks
+ * 只下发目录中缺失的托管列与索引：声明可增量演进（新迁移名 + 声明全集）；尚无表的实体
+ * 跳过审计与 DDL，由缺表补建按声明建表。
+ */
 export const createBomExtStorageMigration = (
   name: string,
   dialect: StorageDialect,
@@ -199,8 +236,13 @@ export const createBomExtStorageMigration = (
   return {
     name,
     async up(executor) {
-      for (const { metadata } of plan) await auditTable(executor, metadata, dialect);
-      for (const { entity, metadata } of plan) await installDeclarations(executor, entity, metadata, dialect);
+      const pending: PendingStorage[] = [];
+      for (const { entity, metadata } of plan) {
+        const work = await pendingStorage(executor, entity, metadata, dialect);
+        if (work !== undefined) pending.push(work);
+      }
+      for (const work of pending) await auditTable(executor, work, dialect);
+      for (const work of pending) await installPending(executor, work);
     },
     async down() {
       throw new BomExtAttrError(name, '迁移接口不提供反向事务执行器；请用新 up 迁移显式移除存储声明');

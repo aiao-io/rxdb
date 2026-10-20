@@ -79,7 +79,7 @@ export const inDriftScope = (name: string): boolean =>
   STORAGE_CONSTRAINT_NAME_PREFIXES.some(prefix => name.startsWith(prefix));
 
 /**
- * 实体是否声明了任何声明式存储约束（CHECK / 条件唯一索引 / 区间排他，含继承来的）。
+ * 实体是否声明了任何声明式存储约束（CHECK / 条件唯一索引 / 区间排他 / 生成列 / 高级索引，含继承与存储覆盖来的）。
  *
  * @remarks
  * 能力判定（AC#6：适配器没有漂移检查即报不支持）与 SQLite 宿主版本门槛（AC#7）都以它为准：

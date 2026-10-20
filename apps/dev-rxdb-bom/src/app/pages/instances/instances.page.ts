@@ -1,7 +1,7 @@
 import type { BomInstanceTraceResult, BomInstanceTreeResult } from '@aiao/rxdb-plugin-bom';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { BomDemoService } from '../../bom-demo.service';
+import { BomDemoService, type BomDemoOutcome } from '../../bom-demo.service';
 import { materialLabel } from '../../presentation/material-label';
 
 /** 独立于主数据的实际装机、安装历史与追溯页面。 */
@@ -33,7 +33,7 @@ export class InstancesPage {
   readonly error = signal('');
   readonly actionResult = signal('');
   readonly masterResult = signal('');
-  readonly sourceResult = signal('');
+  readonly sourceResult = signal<BomDemoOutcome | null>(null);
   readonly replaced = signal(false);
   readonly revised = signal(false);
   readonly stateLoading = signal(true);
@@ -75,7 +75,7 @@ export class InstancesPage {
       this.error.set('');
       this.actionResult.set('');
       this.masterResult.set('');
-      this.sourceResult.set('');
+      this.sourceResult.set(null);
       this.replaced.set(false);
       this.revised.set(false);
       this.stateLoading.set(ready && !resetting);
@@ -198,10 +198,10 @@ export class InstancesPage {
       return;
     const current = this.beginRequest();
     this.error.set('');
-    this.sourceResult.set('');
+    this.sourceResult.set(null);
     try {
-      const result = await this.service.deleteDemoInstanceSource();
-      if (current()) this.sourceResult.set(result);
+      const outcome = await this.service.deleteDemoInstanceSource();
+      if (current()) this.sourceResult.set(outcome);
     } catch (error) {
       if (current()) this.error.set(String(error));
     } finally {

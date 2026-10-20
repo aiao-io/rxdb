@@ -1,8 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BomDemoService } from '../bom-demo.service';
-import { materialLabel } from '../presentation/material-label';
+import { itemLabelById } from '../presentation/material-label';
 import { LineList } from './line-list';
+
+/** 操作反馈按判别字段渲染：成功给结论，未完成保留可核对的原因原文。 */
+export type EcnActionFeedback =
+  { readonly ok: true; readonly message: string } | { readonly ok: false; readonly detail: string };
 
 /**
  * ECN 变更管理面板：ECN 选择 + 影响面/差异查询 + 现场 ECN 新建/取消演示。
@@ -24,9 +28,9 @@ import { LineList } from './line-list';
           变更单
           <select [(ngModel)]="selectedEcnId" [disabled]="busy() || !ready()" data-testid="ecn-select">
             <option [ngValue]="null">请选择变更单</option>
-            @for (entry of ecns().values(); track entry.ecnNo) {
-              <option [attr.data-state]="entry.state" [ngValue]="ecnsKey(entry.ecnNo)">
-                {{ entry.ecnNo }}（{{ entry.state }}，{{ entry.effectiveDate }}）
+            @for (ecn of ecnOptions(); track ecn.id) {
+              <option [attr.data-state]="ecn.state" [value]="ecn.id">
+                {{ ecn.ecnNo }}（{{ ecn.state }}，{{ ecn.effectiveDate }}）
               </option>
             }
           </select>
@@ -89,15 +93,15 @@ import { LineList } from './line-list';
           取消当前变更单{{ selectedEcn() ? ' · ' + selectedEcn()!.ecnNo : '' }}
         </button>
       </div>
-      @if (ecnActionResult()) {
+      @if (ecnActionResult(); as feedback) {
         <div data-testid="ecn-action-result" role="status">
-          @if (ecnActionResult().startsWith('发布成功') || ecnActionResult().startsWith('取消成功')) {
-            <p class="hint">{{ ecnActionResult() }}</p>
+          @if (feedback.ok) {
+            <p class="hint">{{ feedback.message }}</p>
           } @else {
             <div class="error-box">操作未完成。请展开详情核对原因后重试。</div>
             <details class="details-panel">
               <summary>查看操作详情</summary>
-              <pre>{{ ecnActionResult() }}</pre>
+              <pre>{{ feedback.detail }}</pre>
             </details>
           }
         </div>
@@ -135,11 +139,12 @@ export class EcnPanel {
   readonly ready = this.service.ready;
   readonly ecns = this.service.ecns;
   readonly selectedEcnId = signal<string | null>(null);
+  readonly ecnOptions = computed(() => [...this.ecns()].map(([id, entry]) => ({ id, ...entry })));
   readonly selectedEcn = computed(() => this.ecns().get(this.selectedEcnId() ?? '') ?? null);
   readonly queryEcnId = signal<string | null>(null);
   readonly impactLines = signal<string[]>([]);
   readonly diffLines = signal<string[]>([]);
-  readonly ecnActionResult = signal('');
+  readonly ecnActionResult = signal<EcnActionFeedback | null>(null);
   readonly busy = signal(false);
   readonly queryError = signal('');
   readonly diffLoaded = signal(false);
@@ -152,7 +157,7 @@ export class EcnPanel {
       this.request += 1;
       this.selectedEcnId.set(null);
       this.clearQuery();
-      this.ecnActionResult.set('');
+      this.ecnActionResult.set(null);
       this.busy.set(false);
     });
     effect(() => {
@@ -163,20 +168,8 @@ export class EcnPanel {
     });
   }
 
-  /** ecnNo → ecnId 反查（ECN 下拉的 option 值）。 */
-  ecnsKey(ecnNo: string): string {
-    for (const [id, entry] of this.ecns().entries()) {
-      if (entry.ecnNo === ecnNo) return id;
-    }
-    return ecnNo;
-  }
-
-  itemNo(itemId: string): string {
-    return this.service.itemNos().get(itemId) ?? itemId.slice(0, 8);
-  }
-
   itemLabel(itemId: string): string {
-    return materialLabel(this.itemNo(itemId));
+    return itemLabelById(this.service.itemNos(), itemId);
   }
 
   /** 选中 ECN 并查影响面（AC#1 / US-525 AC#11）。 */
@@ -268,33 +261,19 @@ export class EcnPanel {
   async runCreateAndReleaseEcn(): Promise<void> {
     if (this.busy() || !this.ready()) return;
     const current = this.beginRequest();
-    this.ecnActionResult.set('');
+    this.ecnActionResult.set(null);
     try {
-      const error = await this.service.demoCreateAndReleaseEcn();
+      const outcome = await this.service.demoCreateAndReleaseEcn();
       if (!current()) return;
-      this.ecnActionResult.set(error || '发布成功（现场 ECN 已就位，可取消演示整体回退）');
-      const ecnId = this.service.liveEcnId();
-      if (error || !ecnId) return;
+      if (!outcome.ok) {
+        this.ecnActionResult.set({ ok: false, detail: String(outcome.error) });
+        return;
+      }
+      this.ecnActionResult.set({ ok: true, message: '发布成功（现场 ECN 已就位，可取消演示整体回退）' });
       this.busy.set(false);
-      await this.inspectEcn(ecnId);
+      await this.inspectEcn(outcome.ecnId);
     } catch (error) {
-      if (current()) this.ecnActionResult.set(String(error));
-    } finally {
-      if (current()) this.busy.set(false);
-    }
-  }
-
-  /** 取消现场 ECN（US-525 AC#12 ①）：未生效 → 5 行整体回退。 */
-  async runCancelLiveEcn(): Promise<void> {
-    if (!window.confirm('取消现场 ECN 将整体撤回 3 张物料清单的 5 行变更。确认取消？')) return;
-    if (this.busy() || !this.ready()) return;
-    const current = this.beginRequest();
-    try {
-      const error = await this.service.demoCancelLiveEcn();
-      if (!current()) return;
-      this.ecnActionResult.set(error || '取消成功：现场 ECN 的 5 行整体回退（无部分生效中间态）');
-    } catch (error) {
-      if (current()) this.ecnActionResult.set(String(error));
+      if (current()) this.ecnActionResult.set({ ok: false, detail: String(error) });
     } finally {
       if (current()) this.busy.set(false);
     }
@@ -309,30 +288,37 @@ export class EcnPanel {
     const current = this.beginRequest();
     this.clearQuery();
     this.queryEcnId.set(ecnId);
-    this.ecnActionResult.set('');
+    this.ecnActionResult.set(null);
     try {
-      const error = await this.service.cancelEcn(ecnId);
+      const outcome = await this.service.cancelEcn(ecnId);
       if (!current()) return;
-      this.ecnActionResult.set(error || `取消成功：${label}，正在回读变更后的影响和差异。`);
-      if (error) return;
+      if (!outcome.ok) {
+        this.ecnActionResult.set({ ok: false, detail: String(outcome.error) });
+        return;
+      }
+      this.ecnActionResult.set({ ok: true, message: `取消成功：${label}，正在回读变更后的影响和差异。` });
       this.busy.set(false);
       await this.inspectEcn(ecnId);
     } catch (error) {
-      if (current()) this.ecnActionResult.set(String(error));
+      if (current()) this.ecnActionResult.set({ ok: false, detail: String(error) });
     } finally {
       if (current()) this.busy.set(false);
     }
   }
 
-  /** 对已生效的种子 ECN 点取消（US-525 AC#12 ②）：拒绝。 */
+  /** 对已生效的种子 ECN 点取消（US-525 AC#12 ②）：期望被拒绝，放行即保护未生效。 */
   async runCancelEffectiveEcn(): Promise<void> {
     if (this.busy() || !this.ready()) return;
     const current = this.beginRequest();
     try {
-      const result = await this.service.demoCancelEffectiveEcn();
-      if (current()) this.ecnActionResult.set(result);
+      const outcome = await this.service.demoCancelEffectiveEcn();
+      if (!current()) return;
+      this.ecnActionResult.set({
+        ok: false,
+        detail: outcome.ok ? '取消未被拒绝：已生效变更单的保护未生效（不应发生）' : String(outcome.error)
+      });
     } catch (error) {
-      if (current()) this.ecnActionResult.set(String(error));
+      if (current()) this.ecnActionResult.set({ ok: false, detail: String(error) });
     } finally {
       if (current()) this.busy.set(false);
     }

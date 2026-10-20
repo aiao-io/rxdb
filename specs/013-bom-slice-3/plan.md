@@ -53,7 +53,7 @@
 3. 七步公式（见 spec 功能需求 1）；公式参数由调用方给，缺参 / 错 → 整次拒绝
 4. phantom = `COALESCE(occurrence.phantomOverride, revision.defaultPhantom)`：真 → 换算到子头基准 UoM 作 P 下钻（不产出需求行、不舍入）；假 → `ceilTo(stockUomDecimals)` 产出需求行；虚拟件无已发布头 → 整次拒绝（AC#18）；非虚拟件无头 → 叶子需求行
 5. 需求行 `{ path, itemId, revisionId, qty, uom, rounded }`；预算结算复用（深度 / 展开数 / 路径数 / signal → `truncated`）
-6. manifest 追加：`conversions`（用到的换算率）、`formulaParams`、`formulaGrammarVersion`、`algorithmVersion`（`'1'`：34 位 + half-even + 七步顺序 + 需求行向上取整）
+6. manifest 追加：`conversions`（用到的换算率）、`formulaParams`、`formulaGrammarVersion`、`algorithmVersion`（本步取 `'1'`：34 位 + half-even + 七步顺序 + 需求行向上取整；第 5 步升为 `'2'`）
 
 ### 6. 阶梯切片发布校验（`backend/bom-trigger-ddl.ts` 扩展）
 

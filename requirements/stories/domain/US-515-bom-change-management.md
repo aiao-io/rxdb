@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-18
+updated: 2026-10-20
 tags: [domain, bom, change-management]
 ---
 
@@ -201,3 +201,7 @@ AC#4 的「不留半生效状态」需要同一事务边界：一次 ECN 取消�
 - [US-510 多级展开与 where-used 反查](US-510-bom-multilevel-explosion.md) — 前置；AC#1 影响面
 - [US-523 as-built / as-maintained 实例 BOM](US-523-bom-as-built-instance.md) — 下游约束：ECN 引入的发生项被实例引用时不可撤回、不可取消（AC#7），在本故事的取消校验上追加
 - [`WorkingTreeDiffOptions`](../../../packages/rxdb-plugin-working-tree/src/working-tree/diff.ts) — 单轴 diff 的证据锚点
+
+## 验收依据
+
+当前验收结论见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，阶段记录见[第 6 步 quickstart](../../../specs/016-bom-slice-6/quickstart.md)。

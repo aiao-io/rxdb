@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-17
+updated: 2026-10-20
 tags: [domain, bom, demo, e2e, angular]
 ---
 
@@ -16,7 +16,7 @@ INVEST 检查清单:
 - [x] Valuable: 各故事的 AC 都是**单点断言**，而 BOM 的典型缺陷出在组合处——七步公式乘序、可达性剪枝与生效期的二次过滤、替代组加权与损耗的先后。单点全绿不蕴含组合正确，今天没有任何一处会让组合错误显形
 - [x] Estimable: 一个 Angular app（展开树 + 算式面板 + 评估日切换 + 双图对比）、一份确定性种子、一个 playwright e2e app
 - [x] Small: 体量偏大，按 CONVENTIONS「大故事分阶段」切 A～F 六阶段，不拆子文件；阶段 A 可独立交付并独立有价值
-- [x] Testable: 22 条 AC（阶段 A～F）；23 条 playwright 回归通过（含两条既有库重开回归），工程门禁见 AC#16；页面验收均使用**看得见的具体数字或具体拒绝**
+- [x] Testable: 22 条 AC（阶段 A～F）；demo e2e 现共 34 条（AC 回归 23 条含两条既有库重开、联产 1 条、产品体验 10 条），工程门禁见 AC#16；页面验收均使用**看得见的具体数字或具体拒绝**
 -->
 
 # 用户故事：BOM 端到端 demo：一份数据集走完全域
@@ -123,12 +123,12 @@ INVEST 检查清单:
 
 ### 阶段 D：双图、卷算与门禁
 
-| #   | 前置条件                                      | 操作                                                                           | 预期结果                                                                                                                                                                 | 状态 |
-| --- | --------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 13  | EBOM 一个钣金外壳，MBOM 拆成板材 + 2 个工序件 | 双图并排                                                                       | `relation = 'split'` 双向可追溯；两侧层级结构不同且各自自洽；某 EBOM 行无映射时覆盖率页报**未覆盖**，不静默算 `removed`（[US-516](US-516-ebom-mbom-mapping.md) AC#1/#6） | ✅   |
-| 14  | 整机 5 层 + 工艺路线 + 副产品，成本输入齐全   | 卷算                                                                           | 逐层明细可展开审计；材料、加工、制费、副产抵减与总额逐项等于手工 golden 表（[US-514](US-514-bom-cost-rollup.md) AC#1 / #5 / #7）                                         | ✅   |
-| 15  | 同 #14，其中一个子件**故意不给成本**          | 卷算                                                                           | 缺成本的那件**明确报缺失项**，页面上该项显示为缺失而**不是 0**（US-514 AC#6）                                                                                            | ✅   |
-| 16  | 两个新 project 已建                           | `pnpm nx run-many -t lint test build --projects=dev-rxdb-bom,dev-rxdb-bom-e2e` | 全绿、零 ESLint 警告；各可演示 AC 至少一条 playwright 用例（阶段 F 完成后共 23 条，含两条既有库重开回归）；两个 project 打上与既有 demo 一致的 tag                       | ✅   |
+| #   | 前置条件                                      | 操作                                                                           | 预期结果                                                                                                                                                                                        | 状态 |
+| --- | --------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 13  | EBOM 一个钣金外壳，MBOM 拆成板材 + 2 个工序件 | 双图并排                                                                       | `relation = 'split'` 双向可追溯；两侧层级结构不同且各自自洽；某 EBOM 行无映射时覆盖率页报**未覆盖**，不静默算 `removed`（[US-516](US-516-ebom-mbom-mapping.md) AC#1/#6）                        | ✅   |
+| 14  | 整机 5 层 + 工艺路线 + 副产品，成本输入齐全   | 卷算                                                                           | 逐层明细可展开审计；材料、加工、制费、副产抵减与总额逐项等于手工 golden 表（[US-514](US-514-bom-cost-rollup.md) AC#1 / #5 / #7）                                                                | ✅   |
+| 15  | 同 #14，其中一个子件**故意不给成本**          | 卷算                                                                           | 缺成本的那件**明确报缺失项**，页面上该项显示为缺失而**不是 0**（US-514 AC#6）                                                                                                                   | ✅   |
+| 16  | 两个新 project 已建                           | `pnpm nx run-many -t lint test build --projects=dev-rxdb-bom,dev-rxdb-bom-e2e` | 全绿、零 ESLint 警告；各可演示 AC 至少一条 playwright 用例（阶段 F 完成时 23 条，含两条既有库重开回归；此后联产扩展 +1、产品体验改进 +10，现共 34 条）；两个 project 打上与既有 demo 一致的 tag | ✅   |
 
 ### 阶段 E：模型扩展与集成
 
@@ -224,7 +224,9 @@ owner 需要一个**完整功能的 BOM 演示应用**（`apps/dev-rxdb-bom` 独
 | E    | `apps/dev-rxdb-bom/` 扩展属性、序列 / 批次、配置与导出 / 导入面板     | 已交付                                   |
 | F    | `apps/dev-rxdb-bom/src/app/pages/instances/` 与 `bom-demo.service.ts` | 已交付；实例树、换件历史、追溯与来源保护 |
 
-本轮联产扩展另落在`packages/rxdb-plugin-bom/src/testing/coproduct-dataset.ts`、`apps/dev-rxdb-bom/src/app/pages/cost/cost.page.ts`及`apps/dev-rxdb-bom-e2e/src/bom-coproduct.spec.ts`；种子6/6已通过，包含新增联产的demo24/24已通过。
+本轮联产扩展另落在`packages/rxdb-plugin-bom/src/testing/coproduct-dataset.ts`、`apps/dev-rxdb-bom/src/app/pages/cost/cost.page.ts`及`apps/dev-rxdb-bom-e2e/src/bom-coproduct.spec.ts`；种子6/6已通过，包含新增联产的demo24/24已通过（2026-10-18时点）。
+
+产品体验改进另落在`apps/dev-rxdb-bom-e2e/src/bom-redesign.spec.ts`（4 条）与`bom-product-workflow.spec.ts`（6 条），共用期望值与交互助手在`apps/dev-rxdb-bom-e2e/src/support.ts`；demo e2e 现共 34 条，入账与 CI 证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-525)。
 
 ## 首轮切片第 4 步关闭记录
 

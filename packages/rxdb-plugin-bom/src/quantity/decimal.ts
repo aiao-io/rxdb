@@ -110,29 +110,46 @@ export const decimalMul = (a: Decimal, b: Decimal): Decimal =>
   roundToSignificant({ coeff: a.coeff * b.coeff, exp: a.exp + b.exp });
 
 /**
+ * 非负精确商 `quotient + remainder / divisor` 一次性 half-even 收敛到 34 位有效数字。
+ *
+ * @remarks
+ * 整数商超出 34 位时，被舍去的低位与余数合在一起同「一半」比较（交叉相乘，不先按余数进位）——
+ * 先进位再收敛是双重舍入，平局附近会差 1 ulp。
+ *
+ * @returns 收敛后的系数与需追加到指数上的位移
+ */
+const roundExactQuotient = (quotient: bigint, remainder: bigint, divisor: bigint): { coeff: bigint; shift: number } => {
+  const shift = Math.max(0, digitCount(quotient) - DECIMAL_KERNEL_SIGNIFICANT_DIGITS);
+  const unit = pow10(shift);
+  const kept = quotient / unit;
+  // 被舍部分 = (quotient % unit + remainder / divisor) / unit，与 1/2 交叉相乘比较
+  const twice = 2n * ((quotient % unit) * divisor + remainder);
+  const whole = unit * divisor;
+  const up = twice > whole || (twice === whole && (kept & 1n) === 1n);
+  return { coeff: up ? kept + 1n : kept, shift };
+};
+
+/**
  * 除法（34 位有效数字 half-even；除数为零抛错）。
  *
  * @remarks
- * 放大被除数到商恰有 34 位有效数字，整除后按余数 half-even——中间不产生浮点。
+ * 在绝对值上放大被除数到商至少 34 位有效数字，整除后连同余数只舍入一次，最后再补符号——
+ * 中间不产生浮点，舍入方向与符号象限无关。
  */
 export const decimalDiv = (a: Decimal, b: Decimal): Decimal => {
   if (b.coeff === 0n) throw new Error('十进制除法：除数为零');
   if (a.coeff === 0n) return { coeff: 0n, exp: 0 };
-  const numeratorDigits = digitCount(a.coeff);
-  const denominatorDigits = digitCount(b.coeff);
-  // 商的有效位数 ≈ 分子位数 − 分母位数（+1）；补足到 34
-  const scale = Math.max(0, DECIMAL_KERNEL_SIGNIFICANT_DIGITS - (numeratorDigits - denominatorDigits));
-  const numerator = a.coeff * pow10(scale);
-  let quotient = numerator / b.coeff;
-  const remainder = numerator % b.coeff;
+  const dividend = a.coeff < 0n ? -a.coeff : a.coeff;
+  const divisor = b.coeff < 0n ? -b.coeff : b.coeff;
+  // 商的有效位数 ≈ 被除数位数 − 除数位数（+1）；补足到 34（被除数本身已超 34 位时不缩放）
+  const scale = Math.max(0, DECIMAL_KERNEL_SIGNIFICANT_DIGITS - (digitCount(dividend) - digitCount(divisor)));
+  const numerator = dividend * pow10(scale);
+  const rounded = roundExactQuotient(numerator / divisor, numerator % divisor, divisor);
   const negative = a.coeff < 0n !== b.coeff < 0n;
-  const abs = negative ? -quotient : quotient;
-  const absRemainder = negative ? -remainder : remainder;
-  const absDivisor = b.coeff < 0n ? -b.coeff : b.coeff;
-  if (absRemainder * 2n > absDivisor || (absRemainder * 2n === absDivisor && (abs & 1n) === 1n)) {
-    quotient = negative ? -(abs + 1n) : abs + 1n;
-  }
-  return roundToSignificant({ coeff: quotient, exp: a.exp - b.exp - scale });
+  return stripTrailingZeros({
+    coeff: negative ? -rounded.coeff : rounded.coeff,
+    exp: a.exp - b.exp - scale + rounded.shift
+  });
 };
 
 /**

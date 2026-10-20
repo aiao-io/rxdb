@@ -1,6 +1,5 @@
 import type { EntityType, RxDB, RxDBSystemContribution } from '@aiao/rxdb';
-import { BomHeader, BomItemRevision, BomLine, BomLineOccurrence } from '../entities.js';
-import { BomReach } from './entities.js';
+import { BOM_GRAPH_ENTITIES, BomReach } from './entities.js';
 import { assertReachComplete, createReachMigration } from './migration.js';
 
 const noWork = (): Promise<void> => Promise.resolve();
@@ -11,10 +10,17 @@ const adapterName = (db: RxDB): string => {
   return name;
 };
 
-/** 只有完整的图实体配置才接入图维护，部分主数据配置仍保持可用。 */
+/**
+ * 图源实体齐全才接入可达性迁移与图维护。
+ *
+ * @remarks
+ * 不含发生项的部分配置（如只配物料/修订主数据）没有并集边，不需要图维护且照常可用；
+ * 含发生项却缺图源实体的配置不合法，由插件 install 期的依赖校验在任何 DDL 之前拒绝，
+ * 两后端同一时点失败。因此配置合法时本判定等价于「配置了发生项」。
+ */
 export const hasCompleteBomGraph = (db: RxDB): boolean => {
   const entities: readonly EntityType[] = db.config.entities;
-  return [BomItemRevision, BomHeader, BomLine, BomLineOccurrence].every(Entity => entities.includes(Entity));
+  return BOM_GRAPH_ENTITIES.every(Entity => entities.includes(Entity));
 };
 
 /** 在建表前贡献内部实体，并将旧库回填交给已有原子迁移机制。 */

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `claude/bom-related-work-77235b`
 **Created**: 2026-10-15
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: 首轮切片第 1~6 步已交付（建图 → 视图 → 展开 → 反查 → 数量 → 时间轴，affected 全绿）；本步按 [epic 切片表](../../../requirements/epics/epic-009-bom-domain-model.md#首轮可开工切片) 第 5 步的「演示与真实需求驱动的后续阶段」与 [US-525 阶段 D](../../../requirements/stories/domain/US-525-bom-end-to-end-demo.md) 的引导，交付双图、卷算与门禁。
 

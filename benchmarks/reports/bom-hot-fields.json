@@ -592,6 +592,6 @@
   "quantileMethod": "nearest-rank",
   "remainingGatesTrackedIn": "specs/023-bom-hot-fields/validation.md",
   "scope": "023 targeted functional, query plan, migration and performance evidence",
-  "sourceLog": "/private/tmp/bom-full-coverage.log",
+  "sourceLog": "bom-full-coverage.log（本地会话日志，未归档）",
   "status": "passed"
 }

@@ -1,12 +1,30 @@
-import { mount } from '@vue/test-utils';
+import { mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { BomLineEditor } from '../index.js';
-import { commands, editableState, state } from './test-utils.js';
+import { editorState, viewCommands, viewState } from './fixtures.js';
+
+/** 在固定时区下运行，结束后恢复原时区；用于证明日期字段与运行机时区无关。 */
+const inTimeZone = async (zone: string, run: () => Promise<void>): Promise<void> => {
+  const previous = process.env['TZ'];
+  process.env['TZ'] = zone;
+  try {
+    await run();
+  } finally {
+    if (previous === undefined) delete process.env['TZ'];
+    else process.env['TZ'] = previous;
+  }
+};
+
+const description = (wrapper: VueWrapper, name: string): string =>
+  (wrapper.get(`input[name="${name}"]`).attributes('aria-describedby') ?? '')
+    .split(' ')
+    .map(id => wrapper.find(`[id="${id}"]`).text())
+    .join(' ');
 
 describe('Vue BomLineEditor', () => {
   it('四类字段有中文标签，十进制字符串经共享转换后原样保存', async () => {
-    const actions = commands();
-    const wrapper = mount(BomLineEditor, { props: { state: editableState(), commands: actions } });
+    const actions = viewCommands();
+    const wrapper = mount(BomLineEditor, { props: { state: editorState(), commands: actions } });
     expect(wrapper.findAll('label').map(label => label.text())).toEqual([
       '用量',
       '组件损耗',
@@ -30,15 +48,33 @@ describe('Vue BomLineEditor', () => {
     wrapper.unmount();
   });
 
-  it('已发布发生项显示只读原因，保存时显示进度并禁用控件', async () => {
-    const value = editableState();
-    if (!value.editor.value) throw new Error('编辑 fixture 缺值');
-    value.editor.value.editable = false;
-    value.editor.value.readOnlyReason = '已发布发生项只读';
-    const wrapper = mount(BomLineEditor, { props: { state: value, commands: commands() } });
+  it('生效期字段声明 UTC 口径，东八区运行机上编辑仍按 UTC 往返', async () => {
+    await inTimeZone('Asia/Shanghai', async () => {
+      const actions = viewCommands();
+      const wrapper = mount(BomLineEditor, { props: { state: editorState(), commands: actions } });
+      for (const name of ['effectiveFrom', 'effectiveTo']) expect(description(wrapper, name)).toContain('UTC');
+      expect(wrapper.get('input[name="qty"]').attributes('aria-describedby')).toBeUndefined();
+      expect((wrapper.get('input[name="effectiveFrom"]').element as HTMLInputElement).value).toBe('2099-01-01T00:00');
+      await wrapper.get('input[name="effectiveFrom"]').setValue('2099-01-02T03:04');
+      await wrapper.get('form').trigger('submit');
+      expect(actions.saveOccurrence).toHaveBeenCalledWith(
+        expect.objectContaining({ effectiveFrom: new Date('2099-01-02T03:04Z') })
+      );
+      wrapper.unmount();
+    });
+  });
+
+  it('已发布发生项禁用全部字段和保存并显示只读原因，保存时显示进度', async () => {
+    const actions = viewCommands();
+    const wrapper = mount(BomLineEditor, { props: { state: editorState(false), commands: actions } });
     expect(wrapper.text()).toContain('已发布发生项只读');
+    for (const name of ['qty', 'componentScrap', 'operationSeq', 'effectiveFrom', 'effectiveTo']) {
+      expect(wrapper.get(`input[name="${name}"]`).attributes('disabled')).toBeDefined();
+    }
     expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined();
-    const saving = editableState();
+    await wrapper.find('form').trigger('submit');
+    expect(actions.saveOccurrence).not.toHaveBeenCalled();
+    const saving = editorState();
     saving.editor.saving = true;
     await wrapper.setProps({ state: saving });
     expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined();
@@ -47,35 +83,41 @@ describe('Vue BomLineEditor', () => {
   });
 
   it('没有目标、加载和原始领域错误均有可访问提示', async () => {
-    const wrapper = mount(BomLineEditor, { props: { state: state(), commands: commands() } });
+    const wrapper = mount(BomLineEditor, { props: { state: viewState(), commands: viewCommands() } });
+    expect(wrapper.find('button[type="submit"]').exists()).toBe(false);
     expect(wrapper.find('[role="status"]').text()).toMatch(/选择/);
-    await wrapper.setProps({ state: state({ editor: { phase: 'loading', value: null, saving: false, error: null } }) });
+    await wrapper.setProps({
+      state: viewState({ editor: { phase: 'loading', value: null, saving: false, error: null } })
+    });
     expect(wrapper.find('[role="status"]').text()).toMatch(/加载/);
-    const failed = editableState();
+    const failed = editorState();
     failed.editor.error = Object.assign(new Error('原始成环消息'), {
       code: 'BOM_CYCLE',
-      payload: { occurrenceId: 'draft' }
+      payload: { path: ['A', 'B', 'A'] }
     });
     await wrapper.setProps({ state: failed });
-    expect(wrapper.find('[role="alert"]').text()).toContain('原始成环消息');
+    const message = wrapper.find('[role="alert"]').text();
+    expect(message).toContain('原始成环消息');
+    expect(message).toContain('BOM_CYCLE');
+    expect(message).toContain('"path"');
     wrapper.unmount();
   });
 
   it('共享字段校验失败与仓储拒绝都原样显示，切换目标重置表单', async () => {
-    const actions = commands();
-    const wrapper = mount(BomLineEditor, { props: { state: editableState(), commands: actions } });
+    const actions = viewCommands();
+    const wrapper = mount(BomLineEditor, { props: { state: editorState(), commands: actions } });
     await wrapper.find('input[name="operationSeq"]').setValue('1.5');
     await wrapper.find('form').trigger('submit');
     expect(wrapper.find('[role="alert"]').text()).toContain('投料工序必须是正整数');
     expect(actions.saveOccurrence).not.toHaveBeenCalled();
     await wrapper.find('input[name="operationSeq"]').setValue('20');
     actions.saveOccurrence.mockRejectedValueOnce(
-      Object.assign(new Error('保存原始错误'), { code: 'DOMAIN', payload: { id: 'draft' } })
+      Object.assign(new Error('保存原始错误'), { code: 'DOMAIN', payload: { id: 'occurrence-1' } })
     );
     await wrapper.find('form').trigger('submit');
     expect(wrapper.find('[role="alert"]').text()).toContain('保存原始错误');
     expect(wrapper.find('[role="alert"]').text()).toContain('DOMAIN');
-    const next = editableState();
+    const next = editorState();
     if (!next.editor.value) throw new Error('编辑 fixture 缺值');
     next.editor.value.occurrenceId = 'another';
     next.editor.value.qty = '7';

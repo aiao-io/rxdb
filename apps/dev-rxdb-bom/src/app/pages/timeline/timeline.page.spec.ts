@@ -14,7 +14,6 @@ describe('变更时间轴选择', () => {
       ready: signal(true),
       dataEpoch: signal(0),
       resetting: signal(false),
-      liveEcnId: signal<string | null>(null),
       ecns: signal(new Map([['ecn-a', { ecnNo: 'ECN-A', state: 'released', effectiveDate: '2099-01-01' }]])),
       itemNos: signal(new Map<string, string>()),
       ecnImpact: vi.fn().mockResolvedValue({ affectedItemIds: [], topItems: [] }),

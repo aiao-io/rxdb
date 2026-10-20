@@ -1,8 +1,9 @@
 import type { RxDB } from '@aiao/rxdb';
 import { filter, firstValueFrom, ReplaySubject, timeout } from 'rxjs';
 import { describe, expect, it } from 'vitest';
-import { createBomView } from '../index.js';
+import { BomItem, createBomView } from '../index.js';
 import { BOM_VIEW_FIXTURE_DATES, loadBomViewFixture, type BomViewFixture } from '../testing/bom-view-fixture.js';
+import { deterministicId } from '../testing/scooter-dataset.js';
 import type { BomViewHandle, BomViewInput, BomViewSnapshot, BomViewState } from '../view-types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
 
@@ -62,6 +63,67 @@ const showRoot = async (view: BomViewHandle): Promise<BomViewState> => {
   const state = await ready(view);
   if (state.nodes.find(node => node.depth === 0)?.expanded !== true) view.toggle([]);
   return stateOf(view, state => state.nodes.some(node => node.depth === 1));
+};
+
+/** 根有备选 1/2、备选 2 引用只有一张头的子装配；返回根、子装配与叶子的物料 id。 */
+const loadAlternativeSubtree = async (db: RxDB) => {
+  const id = (key: string) => deterministicId(`bom-view-alternative-subtree:${key}`);
+  const stamp = new Date(BOM_VIEW_FIXTURE_DATES.baseline);
+  const audit = { createdAt: stamp, updatedAt: stamp };
+  const keys = ['root', 'sub', 'leaf'] as const;
+  for (const key of keys) {
+    await db.entityManager
+      .instantiate(BomItem, {
+        ...audit,
+        id: id(`item:${key}`),
+        itemNo: `BOM-VIEW-ALT-${key.toUpperCase()}`,
+        description: key,
+        stockUom: 'pcs',
+        uomDecimals: 0,
+        uomConversion: null,
+        unitPrice: key === 'leaf' ? '1' : null,
+        priceUom: 'pcs',
+        priceCurrency: 'CNY'
+      } as Partial<BomItem>)
+      .save();
+  }
+  const occurrence = (key: string, child: (typeof keys)[number], qty: string) => ({
+    ...audit,
+    id: id(`occurrence:${key}`),
+    childItemId: id(`item:${child}`),
+    qty,
+    effectiveFrom: stamp
+  });
+  const header = (
+    key: string,
+    revisionIndex: number,
+    child: (typeof keys)[number],
+    qty: string,
+    alternativeNo = 1
+  ) => ({
+    ...audit,
+    id: id(`header:${key}`),
+    revisionIndex,
+    alternativeNo,
+    bomType: 'ebom' as const,
+    orgId: 'bom-view-org',
+    costLotQty: '1',
+    lines: [{ ...audit, id: id(`line:${key}`), lineNo: 10, occurrences: [occurrence(key, child, qty)] }]
+  });
+  await db.bom.loadHistory({
+    ...audit,
+    batchNo: 'bom-view-alternative-subtree',
+    id: id('batch'),
+    revisions: keys.map(key => ({
+      ...audit,
+      id: id(`revision:${key}`),
+      itemId: id(`item:${key}`),
+      revisionNo: 'A',
+      effectiveFrom: stamp
+    })),
+    headers: [header('root:1', 0, 'leaf', '5'), header('root:2', 0, 'sub', '3', 2), header('sub', 1, 'leaf', '2')]
+  });
+  return { root: id('item:root'), sub: id('occurrence:root:2'), leaf: id('occurrence:sub') };
 };
 
 for (const backend of ['wa-sqlite', 'pglite'] as const) {
@@ -219,6 +281,33 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
       });
     });
 
+    it('子装配只有一张头、根指定 alternativeNo=2 时子树照常可见', async () => {
+      await withFixture(backend, async (db, fixture) => {
+        const ids = await loadAlternativeSubtree(db);
+        const view = createBomView(
+          db,
+          fixture.inputFor('main', { target: { parentItemId: ids.root }, context: { alternativeNo: 2 } })
+        );
+        try {
+          await showRoot(view);
+          view.toggle([ids.sub]);
+          const state = await stateOf(view, value => value.nodes.some(node => node.depth === 2));
+          expect(state.unresolved).toEqual([]);
+          expect(state.nodes.map(node => node.path)).toEqual([[], [ids.sub], [ids.sub, ids.leaf]]);
+          expect(state.nodes.map(node => node.quantity?.value)).toEqual(['1', '3', '6']);
+          const explosion = await view.calculate();
+          expect(new Map(explosion.requirementLines.map(line => [JSON.stringify(line.path), line.qty]))).toEqual(
+            new Map([
+              [JSON.stringify([ids.sub]), '3'],
+              [JSON.stringify([ids.sub, ids.leaf]), '6']
+            ])
+          );
+        } finally {
+          view.destroy();
+        }
+      });
+    });
+
     it('AC#5/#10：三重边不合并，共享子装配按完整路径独立惰性展开', async () => {
       await withFixture(backend, async (db, fixture) => {
         const view = createBomView(db, fixture.input);
@@ -246,6 +335,36 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
             ...secondPath,
             fixture.ids.occurrences.assemblyWire
           ]);
+        } finally {
+          view.destroy();
+        }
+      });
+    });
+
+    it('同目标只改参数保留展开状态，换目标按默认展开新根', async () => {
+      await withFixture(backend, async (db, fixture) => {
+        const view = createBomView(db, fixture.input);
+        try {
+          await showRoot(view);
+          const shared = fixture.ids.occurrences.shared1;
+          view.toggle([shared]);
+          await stateOf(view, state => state.nodes.some(node => node.depth === 2));
+          view.setInput(fixture.inputFor('main', { plannedQty: { value: '2', uom: 'pcs' } }));
+          const retained = await stateOf(
+            view,
+            state => state.phase === 'success' && !state.refreshing && state.nodes.some(node => node.depth === 2)
+          );
+          expect(retained.nodes.find(node => node.occurrenceId === shared)?.expanded).toBe(true);
+          view.toggle([]);
+          await stateOf(view, state => state.nodes.length === 1);
+          view.setInput(fixture.inputFor('formula'));
+          const switched = await stateOf(
+            view,
+            state =>
+              state.phase === 'success' && !state.refreshing && state.nodes[0]?.itemId === fixture.ids.items.formula
+          );
+          expect(switched.nodes[0].expanded).toBe(true);
+          expect(switched.nodes.some(node => node.depth === 1)).toBe(true);
         } finally {
           view.destroy();
         }

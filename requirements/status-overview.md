@@ -175,7 +175,7 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 
 ### [BOM 领域模型](epics/epic-009-bom-domain-model.md)
 
-19条故事全部Done，跨域前置US-030也已Done。最终86项目351任务通过、三端共享51/51、demo24/24、Tauri及8包严格覆盖率均通过；失败/控制历史和最终性能原始样本见[最终验收](../specs/021-bom-closure/closure-map.md)。
+19条故事全部Done，跨域前置US-030也已Done。最终86项目351任务通过、三端共享51/51、demo24/24（2026-10-18时点；现demo共34条）、Tauri及8包严格覆盖率均通过；失败/控制历史和最终性能原始样本见[最终验收](../specs/021-bom-closure/closure-map.md)。
 
 - ✅ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md) — 阶段 A/B/C 全部交付（第 4 步：`bom_line_designator` 位号子表 + 发布转移位号计数校验，AC#4/#5/#12 与 AC#13 位号部分，2026-10-14；AC#10 随第 6 步关闭：已发布头的写入协议矩阵放行挂 draft ECN 的新对象）；`bom_header` 挂修订、带 `draft` / `released`；逻辑行与行发生项分层，跨行聚合在发布转移上校验
 - ✅ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md) — 全部18项解析AC已通过，含US-515的ECN状态/日期可见性和同事务快照；旧等待说明已纠正，最终分支门禁已通过，故事已Done。
@@ -183,7 +183,7 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 - ✅ [US-510 多级展开与where-used反查](stories/domain/US-510-bom-multilevel-explosion.md) — 阶段A已交付，阶段B由真实主数据反查热路径触发；最小childItemId索引将10k场景p95由236.24降至7.60ms，闭包维护/判环与52条兼容回归已通过。隔离原型及维护成本已验收，默认不启用读取剪枝，不把索引收益算作闭包收益；最终统一门禁通过，见spec024。
 - ✅ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md) — 阶段 A/C/B1/B2 全部交付（第 3、5 步，2026-10-14）：十进制 kernel（34 位 half-even）、公式求值器、单位换算、`explodeBom` 七步展开、阶梯/损耗/虚拟件穿透、阶梯切片发布校验、第 5 步工序损耗（AC#1/#13 golden）；全部 AC 关闭
 - ✅ [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md) — 非 ECN 场景已交付（第 5 步，2026-10-14）：组实体、发布切片聚合校验（定点整数合计）、展开分流（proportional/priority/manual）；ECN 场景随第 6 步交付（2026-10-15）：AC#6/#9/#14 在转换后运行投影上按检查点切片校验（空切片不校验） — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化
-- ✅ [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md) — 阶段A与固定份额联产已实现，四值物料流、L比例产出、显式修订来源、联合成本和v2依赖合同已有真实双后端证据；完整demo24/24含新联产与原23条全部通过，阶段B/C14功能验收已关闭，最终统一门禁已通过，故事已Done。
+- ✅ [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md) — 阶段A与固定份额联产已实现，四值物料流、L比例产出、显式修订来源、联合成本和v2依赖合同已有真实双后端证据；完整demo24/24（2026-10-18时点）含新联产与原23条全部通过，阶段B/C14功能验收已关闭，最终统一门禁已通过，故事已Done。
 - ✅ [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md) — 全部 19 个 AC 交付（第 7 步，2026-10-16）：拓扑逆序单遍、`unit_cost` = `batch_cost` / `cost_lot_qty`（节点是已解析的头）、34 位有效数字（half-even）纯 BigInt 定点内核；材料/加工/制费/副产抵减四项构成与逐层明细树；替代组加权、副产抵减、工时三量与 W_op 加工量、precise/imprecise 缓存不串、unresolved/truncated 拒绝、缺成本/缺费率/币种不符报缺失不以 0 兜底；demo 卷算面板与 e2e AC#14/#15 同断言
 - ✅ [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md) — 全部 26 个 AC 交付（第 6 步，2026-10-15）：`ecn` 实体（draft/released/cancelled，`effective` 派生态不存）、发生项区间由 ECN 派生（真相源唯一）、写入协议矩阵、发布/改期/取消状态机与转换后运行投影切片校验、影响面与差异查询；已生效 ECN 不可取消、改走更正 ECN
 - ✅ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md) — 全部 22 个 AC 交付（第 7 步，2026-10-16）：六态 `relation` + NULL 规则下沉存储层触发器、保存校验（两侧类型/组织/范围成员资格/路径相邻与末元素/修订边界）、路径级覆盖率优先行级兜底、跟进基线与缺口按解析步骤集合比对（祖先变/解析修订变/unresolved/truncated 都点名）、确认跟进整体推进；demo 双图并排 + 覆盖率/缺口面板 + e2e AC#13
@@ -195,7 +195,7 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 - ✅ [US-522 三框架BOM编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md) — 三端API与行为对称、共享51/51、组件15/17/18及四项、100节点性能/布局均通过；最终Angular203、React199、Vue182完整通过，AC#1与故事已Done，见[020](../specs/020-bom-slice-10/quickstart.md)。
 - ✅ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 第 9 步：实际安装事实、换件历史、序列/批次反查与来源保护；双后端各 10 万实例节点验证主数据隔离。
 - ✅ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — A/B/C/D功能均已交付，原剩AC#7路线停用消费与US-520 #11共用54项双后端通过证据，最终统一门禁已通过，故事已Done。
-- ✅ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 阶段 A～F 已交付：SC-100 一份数据集覆盖数量、ECN、双图、成本、配置、属性、集成与实例追溯；七页应用、23 条 e2e。US-522可复用三框架绑定另由spec020实施验收，原23条演示基线保持。
+- ✅ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 阶段 A～F 已交付：SC-100 一份数据集覆盖数量、ECN、双图、成本、配置、属性、集成与实例追溯；七页应用、34 条 e2e（AC 回归 23、联产 1、产品体验 10）。US-522可复用三框架绑定另由spec020实施验收，原23条演示基线保持。
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

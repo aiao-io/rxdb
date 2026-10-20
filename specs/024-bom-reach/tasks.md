@@ -22,14 +22,14 @@
 ## Phase 3: US3 存储层判环、ECN和迁移，先红后绿
 
 - [x] R011 [US3] `tests-reach/bom-reach-maintenance.spec.ts` / `bom-reach-ecn.spec.ts` 覆盖直连、draft头/ECN、未生效ECN、取消/撤回、方向切回与非法归属拒绝后的闭包不变。
-- [x] R012 [US3] `tests-reach/bom-reach-upgrade.spec.ts` / `bom-reach-scale.spec.ts` 验证旧库回填、重连、坏闭包拒绝、坏旧图水位回滚与128硬停；新增 `bom-reach-backup.spec.ts` 双后端2/2通过：真实无闭包/无水位旧库经物理备份恢复到当前插件，五张主表原行保真，connect回填3对与唯一水位，继续增删边维护后重连不重建派生行。证据：`/private/tmp/bom-full-coverage.log`。
+- [x] R012 [US3] `tests-reach/bom-reach-upgrade.spec.ts` / `bom-reach-scale.spec.ts` 验证旧库回填、重连、坏闭包拒绝、坏旧图水位回滚与128硬停；新增 `bom-reach-backup.spec.ts` 双后端2/2通过：真实无闭包/无水位旧库经物理备份恢复到当前插件，五张主表原行保真，connect回填3对与唯一水位，继续增删边维护后重连不重建派生行。证据：本地日志`bom-full-coverage.log`（未留存）。
 - [x] R013 [US3] `src/reach/cycle-ddl.ts` 已接点查与单分支有界见证，排除OLD取得真实路径；128硬停和41节点见证22.01/6.30ms实测通过。
 - [x] R014 [US3] `src/reach/system.ts` / `migration.ts` 经现有系统迁移原子回填并启用约束，重连只验证、不删除重建，缺失/错误闭包明确失败。
-- [x] R015 [US3] `src/resolve/cycle-constraint-ddl.ts` 导出的远端DDL接入可达维护，拓扑新增/更新/删除复用作用域锁与Read Committed检查；真实PostgreSQL12/12通过，覆盖反向边排队、提前快照隔离拒绝、跨作用域死锁、删除/反向插入串行和调用方事务ROLLBACK撤销表/约束安装。证据：`/private/tmp/bom-reach-pg-12-green.log`。
+- [x] R015 [US3] `src/resolve/cycle-constraint-ddl.ts` 导出的远端DDL接入可达维护，拓扑新增/更新/删除复用作用域锁与Read Committed检查；真实PostgreSQL12/12通过，覆盖反向边排队、提前快照隔离拒绝、跨作用域死锁、删除/反向插入串行和调用方事务ROLLBACK撤销表/约束安装。证据：本地日志`bom-reach-pg-12-green.log`（未留存）。
 
 ## Phase 4: US2 读取兼容与预算，先红后绿
 
-- [x] R016 [US2] `tests-reach/bom-reach-context.spec.ts`双后端新增8/8通过：逐路径核对历史日期/修订、draft头/ECN与未来ECN、备选/配置/序列/批次。Reach只作并集；备选选择与候选由resolveBom及完整消费入口负责，expandBom/whereUsed保留既有首轮多头路径与排序，不更改原合同。证据：`/private/tmp/bom-reach-context-green.log`。
+- [x] R016 [US2] `tests-reach/bom-reach-context.spec.ts`双后端新增8/8通过：逐路径核对历史日期/修订、draft头/ECN与未来ECN、备选/配置/序列/批次。Reach只作并集；备选选择与候选由resolveBom及完整消费入口负责，expandBom/whereUsed保留既有首轮多头路径与排序，不更改原合同。证据：本地日志`bom-reach-context-green.log`（未留存）。
 - [x] R017 [US2] `tests-reach/bom-reach-scale.spec.ts` 证明20菱形1810对，上下查询恰好10000节点且reason=paths，128写入判定不退化；其余既有预算回归随全套门禁。
 - [x] R018 [US2] 最小childItemId元数据索引已接入。公平同事务原型只对空结果有31.33%局部收益，原路径已在16ms内；非空和极限路径为负收益，因此保留原上下文裁决/BFS读取，默认不启用reach剪枝。
 - [x] R019 [US2] 回归 `quantity/explosion.ts`、`quantity/cost.ts`、`resolve/integration.ts` 的未解析/截断拒绝，及三框架共享视图/原BOM演示；检查物化不削弱任何完整性守卫。

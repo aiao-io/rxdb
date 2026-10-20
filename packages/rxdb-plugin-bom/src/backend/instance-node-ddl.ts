@@ -44,15 +44,20 @@ const sqliteCycleGuard = (metadata: EntityMetadata): string =>
   `SELECT RAISE(ABORT, '${BOM_INSTANCE_PREFIX}实例图成环：' || NEW.${column(metadata, 'id')}) ` +
   `WHERE EXISTS (SELECT 1 FROM ancestors WHERE "id" = NEW.${column(metadata, 'id')});`;
 
-const sqliteTrigger = (metadata: EntityMetadata, operation: 'INSERT' | 'UPDATE', body: string[]): string =>
-  `CREATE TRIGGER IF NOT EXISTS ${quoteSqlIdentifier(`bom_instance_node_guard_${operation === 'INSERT' ? 'i' : 'u'}`)} ` +
-  `BEFORE ${operation} ON ${sqliteTable(metadata)} BEGIN\n${body.join('\n')}\nEND;`;
+/** 先删后建：插件升级后旧版本的同名触发器体被替换，不与新体并存。 */
+const sqliteTrigger = (metadata: EntityMetadata, operation: 'INSERT' | 'UPDATE', body: string[]): string[] => {
+  const name = quoteSqlIdentifier(`bom_instance_node_guard_${operation === 'INSERT' ? 'i' : 'u'}`);
+  return [
+    `DROP TRIGGER IF EXISTS ${name};`,
+    `CREATE TRIGGER ${name} BEFORE ${operation} ON ${sqliteTable(metadata)} BEGIN\n${body.join('\n')}\nEND;`
+  ];
+};
 
 /**
  * 为实例安装表生成 SQLite 守卫，声明式 CHECK 与排他仍由实体元数据负责。
  *
  * @param metadata - 实体元数据；其他实体返回空数组
- * @returns 幂等的 INSERT / UPDATE 触发器
+ * @returns 幂等的 INSERT / UPDATE 触发器（先删后建，重连即替换旧版本触发器体）
  */
 export const buildSqliteInstanceNodeDdl = (metadata: EntityMetadata): string[] => {
   if (metadata.name !== 'BomInstanceNode') return [];
@@ -63,8 +68,8 @@ export const buildSqliteInstanceNodeDdl = (metadata: EntityMetadata): string[] =
   );
   const immutable = `SELECT RAISE(ABORT, '${BOM_INSTANCE_PREFIX}安装事实不可改写，换父或重装须先截止旧区间再新增记录') WHERE ${changed};`;
   return [
-    sqliteTrigger(metadata, 'INSERT', [serial, cycle]),
-    sqliteTrigger(metadata, 'UPDATE', [immutable, serial, cycle])
+    ...sqliteTrigger(metadata, 'INSERT', [serial, cycle]),
+    ...sqliteTrigger(metadata, 'UPDATE', [immutable, serial, cycle])
   ];
 };
 

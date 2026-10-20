@@ -1315,6 +1315,21 @@ export const SCOOTER_DATASET_F = {
   ]
 } as const;
 
+/**
+ * SC-100 全量种子（A～F 层依次装载）落库后的行数：demo 概览「数据版本与记录统计」与 e2e 期望共用。
+ *
+ * @remarks
+ * 手写常量，由 `bom-scooter-f.spec.ts` 装载全量种子后按真实落库行数守住——改种子而不改这里即测试失败，
+ * 不必在 e2e、demo 文案里各抄一份。
+ */
+export const SCOOTER_SEED_ROW_COUNTS = {
+  item: 41,
+  bomLineOccurrence: 43,
+  ecn: 4,
+  historyBatch: 4,
+  instanceNode: SCOOTER_DATASET_F.nodes.length
+} as const;
+
 /** 装载独立安装事实，仅增加草稿来源样本并标记已有整机与电池为序列化物料。 */
 export const loadScooterDatasetF = async (adapter: BomLocalAdapter, itemIds: ScooterItemIds): Promise<void> => {
   const { BomHeader, BomInstanceNode, BomItemRevision, BomLine, BomLineOccurrence } = await import('../entities.js');

@@ -9,7 +9,7 @@ import {
   type BomViewFixture,
   type BomViewFixtureRoot
 } from '@aiao/rxdb-plugin-bom/testing';
-import { computed, effectScope, onMounted, onUnmounted, ref, shallowRef, watch, type EffectScope } from 'vue';
+import { computed, effectScope, onMounted, onUnmounted, ref, shallowRef, type EffectScope } from 'vue';
 import wasmUrl from 'wa-sqlite/dist/wa-sqlite-async.wasm?url';
 
 const evaluation = ref(BOM_VIEW_FIXTURE_DATES.evaluation.slice(0, 16));
@@ -85,7 +85,7 @@ const mountView = (): void => {
   scope?.stop();
   const currentScope = effectScope();
   scope = currentScope;
-  binding.value = currentScope.run(() => useBomView(db, input())) ?? null;
+  binding.value = currentScope.run(() => useBomView(db, input)) ?? null;
 };
 
 const unmountView = (): void => {
@@ -145,8 +145,6 @@ const exportBom = async (): Promise<void> => {
     params: current.params
   });
 };
-
-watch([target, evaluation, planned, depth], () => binding.value?.commands.setInput(input()));
 
 const initialize = async (): Promise<void> => {
   const db = new RxDB({

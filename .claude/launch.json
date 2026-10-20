@@ -1,21 +1,92 @@
 {
-  "version": "0.0.1",
   "configurations": [
     {
-      "name": "dev-rxdb-bom",
-      "runtimeExecutable": "pnpm",
+      "name": "dev-rxdb-angular",
+      "runtimeExecutable": "sh",
       "runtimeArgs": [
-        "nx",
-        "serve",
-        "dev-rxdb-bom"
+        "-c",
+        "pnpm nx serve dev-rxdb-angular --port=${PORT:-4200}"
       ],
-      "port": 4311
+      "autoPort": true
     },
     {
-      "name": "bom-demo-static",
+      "name": "dev-rxdb-react",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "pnpm nx serve dev-rxdb-react --port=${PORT:-4201}"
+      ],
+      "autoPort": true
+    },
+    {
+      "name": "dev-rxdb-vue",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "pnpm nx serve dev-rxdb-vue --port=${PORT:-4203}"
+      ],
+      "autoPort": true
+    },
+    {
+      "name": "website-docs",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["scripts/e2e-static-server.mjs", "--root", "dist/apps/dev-rxdb-bom/browser", "--port", "4322"],
+      "runtimeArgs": [
+        "website/scripts/preview-with-redirects.mjs",
+        "--port",
+        "3000"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "dev-rxdb-angular-e2e-static",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/e2e-static-server.mjs",
+        "--root",
+        "dist/apps/dev-rxdb-angular/browser",
+        "--port",
+        "8200"
+      ],
+      "port": 8200
+    },
+    {
+      "name": "dev-rxdb-angular-static-4206",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/e2e-static-server.mjs",
+        "--root",
+        "dist/apps/dev-rxdb-angular/browser",
+        "--port",
+        "4206"
+      ],
+      "port": 4206
+    },
+    {
+      "name": "dev-rxdb-angular-attach",
+      "url": "http://localhost:4200",
+      "port": 4200
+    },
+    {
+      "name": "dev-rxdb-bom",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "pnpm nx serve dev-rxdb-bom --port=${PORT:-4311}"
+      ],
+      "autoPort": true
+    },
+    {
+      "name": "dev-rxdb-bom-static",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/e2e-static-server.mjs",
+        "--root",
+        "dist/apps/dev-rxdb-bom/browser",
+        "--port",
+        "4322"
+      ],
       "port": 4322
     }
-  ]
+  ],
+  "version": "0.0.1"
 }

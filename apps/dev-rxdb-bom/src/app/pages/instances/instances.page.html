@@ -301,13 +301,17 @@
       >
         直连删除草稿来源
       </button>
-      @if (sourceResult()) {
+      @if (sourceResult(); as outcome) {
         <div data-testid="instance-source-delete-result" role="status">
-          <p class="hint">操作结果已返回，请展开核对来源保护的具体结果。</p>
-          <details class="details-panel">
-            <summary>查看来源操作详情</summary>
-            <pre>{{ sourceResult() }}</pre>
-          </details>
+          @if (outcome.ok) {
+            <div class="error-box">删除未被拒绝：来源保护未生效（不应发生）。</div>
+          } @else {
+            <p class="hint">删除已被拒绝，请展开核对来源保护的具体原因。</p>
+            <details class="details-panel">
+              <summary>查看来源操作详情</summary>
+              <pre>{{ outcome.error }}</pre>
+            </details>
+          }
         </div>
       }
     </section>

@@ -11,7 +11,6 @@ describe('EcnPanel 取消确认', () => {
     ready: signal(true),
     dataEpoch: signal(0),
     resetting: signal(false),
-    liveEcnId: signal<string | null>('ecn-live'),
     ecns: signal(new Map()),
     itemNos: signal(
       new Map([
@@ -24,9 +23,11 @@ describe('EcnPanel 取消确认', () => {
       topItems: [{ itemId: 'root', paths: [['occurrence-1']] }]
     }),
     ecnDiff: vi.fn().mockResolvedValue({ headers: [] }),
-    cancelEcn: vi.fn().mockResolvedValue(''),
-    demoCancelLiveEcn: vi.fn().mockResolvedValue(''),
-    demoCancelEffectiveEcn: vi.fn().mockResolvedValue('已生效，请使用更正变更单')
+    cancelEcn: vi.fn().mockResolvedValue({ ok: true }),
+    demoCreateAndReleaseEcn: vi.fn().mockResolvedValue({ ok: true, ecnId: 'ecn-live' }),
+    demoCancelEffectiveEcn: vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: new Error('已生效的 ECN 不可取消，改走更正 ECN') })
   };
 
   beforeEach(() => {
@@ -44,27 +45,66 @@ describe('EcnPanel 取消确认', () => {
     else Reflect.deleteProperty(window, 'confirm');
   });
 
-  it('拒绝确认时不取消现场变更单', async () => {
+  it('拒绝确认时不取消当前变更单', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false);
     const panel = TestBed.runInInjectionContext(() => new EcnPanel());
+    panel.selectedEcnId.set('ecn-live');
 
-    await panel.runCancelLiveEcn();
+    await panel.runCancelSelectedEcn();
 
     expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('取消'));
-    expect(service.demoCancelLiveEcn).not.toHaveBeenCalled();
+    expect(service.cancelEcn).not.toHaveBeenCalled();
     expect(service.demoCancelEffectiveEcn).not.toHaveBeenCalled();
     expect(panel.busy()).toBe(false);
   });
 
-  it('确认取消现场变更后保留原服务调用及操作结果', async () => {
+  it('确认取消后按判别结果给出成功结论', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const panel = TestBed.runInInjectionContext(() => new EcnPanel());
+    panel.selectedEcnId.set('ecn-live');
 
-    await panel.runCancelLiveEcn();
+    await panel.runCancelSelectedEcn();
 
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('5 行'));
-    expect(service.demoCancelLiveEcn).toHaveBeenCalledOnce();
-    expect(panel.ecnActionResult()).toContain('取消成功');
+    expect(service.cancelEcn).toHaveBeenCalledExactlyOnceWith('ecn-live');
+    expect(panel.ecnActionResult()).toEqual({ ok: true, message: expect.stringContaining('取消成功') });
+  });
+
+  it('新建失败按判别字段渲染为未完成，不再按消息前缀猜成功', async () => {
+    service.demoCreateAndReleaseEcn.mockResolvedValueOnce({ ok: false, error: new Error('发布成功前的投影校验失败') });
+    const fixture = TestBed.createComponent(EcnPanel);
+    await fixture.whenStable();
+
+    await fixture.componentInstance.runCreateAndReleaseEcn();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.ecnActionResult()).toEqual({
+      ok: false,
+      detail: 'Error: 发布成功前的投影校验失败'
+    });
+    const result = (fixture.nativeElement as HTMLElement).querySelector('[data-testid=ecn-action-result]');
+    expect(result?.querySelector('.error-box')?.textContent).toContain('操作未完成');
+    expect(result?.querySelector('pre')?.textContent).toContain('发布成功前的投影校验失败');
+    expect(service.ecnImpact).not.toHaveBeenCalled();
+  });
+
+  it('新建成功后用返回的单据标识回读影响面', async () => {
+    const panel = TestBed.runInInjectionContext(() => new EcnPanel());
+
+    await panel.runCreateAndReleaseEcn();
+
+    expect(service.ecnImpact).toHaveBeenCalledExactlyOnceWith('ecn-live');
+    expect(panel.ecnActionResult()).toEqual({ ok: true, message: expect.stringContaining('发布成功') });
+  });
+
+  it('已生效变更单的取消被拒绝时展示原因；意外放行显示为保护未生效而不是成功', async () => {
+    const panel = TestBed.runInInjectionContext(() => new EcnPanel());
+
+    await panel.runCancelEffectiveEcn();
+    expect(panel.ecnActionResult()).toEqual({ ok: false, detail: expect.stringContaining('更正') });
+
+    service.demoCancelEffectiveEcn.mockResolvedValueOnce({ ok: true });
+    await panel.runCancelEffectiveEcn();
+    expect(panel.ecnActionResult()).toEqual({ ok: false, detail: expect.stringContaining('保护未生效') });
   });
 
   it('影响面使用物料中文名并保留原变更单与技术路径标识', async () => {

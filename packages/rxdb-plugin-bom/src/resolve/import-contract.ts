@@ -53,6 +53,9 @@ export const DECIMAL_FIELDS = [
   'equivQty'
 ] as const;
 
+/** 导入记录里的日期列（生效区间两端）：同一日期契约（{@link importDate}）。 */
+const DATE_FIELDS = ['effectiveFrom', 'effectiveTo'] as const;
+
 /** 导入契约违约（结构校验 / 自然键构造失败）；消息点名记录下标与字段。 */
 export class BomImportContractError extends BomError {
   constructor(
@@ -114,6 +117,54 @@ const KEY_SEGMENT_FIELDS: Record<ImportKind, readonly string[]> = {
 /** 把标识列值归一为键段文本（数值列取十进制文本、Date 取 ISO 文本——同值同键）。 */
 const normalizeKeySegment = (value: unknown): string => (value instanceof Date ? value.toISOString() : String(value));
 
+/** ISO 8601 日期起首（`YYYY-MM-DD`，其后为结尾、`T` 或空格接时刻）。 */
+const ISO_DATE_PREFIX = /^\d{4}-\d{2}-\d{2}(?:$|[T ])/;
+
+/**
+ * 导入契约的日期值：Date，或以 ISO 8601 日期起首的文本，且须解析为有效时刻。
+ *
+ * @remarks
+ * 数值（epoch）等其余形态一律拒绝——`new Date("0")` 在 V8 上静默解析为 2000-01-01，
+ * 非法文本则在 `toISOString()` 处抛裸 RangeError；两者都不能带进自然键与存储。
+ *
+ * @param subject - 违约点（如 `records[3].effectiveTo`）
+ * @param value - 日期值
+ * @returns 有效时刻
+ * @throws {@link BomImportContractError} 非 Date / 非 ISO 日期文本 / 无效时刻
+ */
+export const importDate = (subject: string, value: unknown): Date => {
+  const date =
+    value instanceof Date ? value
+    : typeof value === 'string' && ISO_DATE_PREFIX.test(value) ? new Date(value)
+    : null;
+  if (date === null || Number.isNaN(date.getTime())) {
+    const shown =
+      typeof value === 'string' ? JSON.stringify(value)
+      : value instanceof Date ? 'Invalid Date'
+      : typeof value;
+    throw new BomImportContractError(subject, `必须是 ISO 8601 日期文本或 Date，收到 ${shown}`);
+  }
+  return date;
+};
+
+/** 批次集合键段：存储文本（JSON 数组）或数组，须是字符串数组（与解析侧 parseLotCodes 同口径）；去重排序。 */
+const lotCodesSegment = (kind: ImportKind, value: unknown): string => {
+  if (value === undefined || value === null) return '';
+  const subject = `naturalKey(${kind}).lotCodes`;
+  let codes: unknown = value;
+  if (typeof value === 'string') {
+    try {
+      codes = JSON.parse(value);
+    } catch {
+      throw new BomImportContractError(subject, `批次集合不是合法 JSON 数组文本：${value}`);
+    }
+  }
+  if (!Array.isArray(codes) || codes.some(code => typeof code !== 'string')) {
+    throw new BomImportContractError(subject, `批次集合必须是字符串数组，收到 ${JSON.stringify(value)}`);
+  }
+  return JSON.stringify([...new Set(codes as string[])].sort());
+};
+
 /**
  * 按「父键 + 标识列」构造自然键（JSON 数组文本，如 `["revision","A001","RevA"]`）。
  *
@@ -121,7 +172,8 @@ const normalizeKeySegment = (value: unknown): string => (value instanceof Date ?
  * @param data - 记录数据（须携带本层全部标识列）
  * @returns 自然键文本
  *
- * @throws {@link BomImportContractError} 标识列缺失或为空
+ * @throws {@link BomImportContractError} 标识列缺失或为空、批次集合不是字符串数组、生效日不是有效日期
+ *   （点名自然键与字段，不逃逸 TypeError / SyntaxError / RangeError）
  *
  * @remarks 库内已有键集（{@link ExistingBomKeySets}）也用本函数构造，保证同口径可比。
  */
@@ -129,14 +181,13 @@ export const naturalKeyFor = (kind: ImportKind, data: Record<string, unknown>): 
   const segments = KEY_SEGMENT_FIELDS[kind].map(field => {
     const value = data[field];
     if (field === 'unitFrom') return value == null ? '' : String(value);
-    if (field === 'lotCodes') {
-      const codes: unknown = typeof value === 'string' ? JSON.parse(value) : value;
-      return codes == null ? '' : JSON.stringify([...new Set(codes as string[])].sort());
-    }
+    if (field === 'lotCodes') return lotCodesSegment(kind, value);
     if (value === undefined || value === null || (typeof value === 'string' && value.length === 0)) {
       throw new BomImportContractError(`naturalKey(${kind}).${field}`, '自然键组成列缺失或为空');
     }
-    return field === 'effectiveFrom' ? new Date(String(value)).toISOString() : normalizeKeySegment(value);
+    return field === 'effectiveFrom' ?
+        importDate(`naturalKey(${kind}).${field}`, value).toISOString()
+      : normalizeKeySegment(value);
   });
   return JSON.stringify([kind, ...segments]);
 };
@@ -183,7 +234,8 @@ export interface ImportRecord {
  *
  * 结构校验：记录数组；`kind` 合法；`source_ref` 必带（稳定源记录标识，诊断按它点名，
  * 不按行号）；自然键标识列必填（数值列须是有限整数或文本）；十进制字段（{@link DECIMAL_FIELDS}）
- * 收到 JSON number / boolean 等非字符串即拒绝，`null` 放行（可空字段）。
+ * 收到 JSON number / boolean 等非字符串即拒绝，`null` 放行（可空字段）；生效区间两端须是有效日期
+ * （{@link importDate}）；批次集合须是字符串数组。
  * 字符串值原样保留、不做规范化——规范判定只来自存储层触发器，应用层不复刻（US-521 技术笔记）。
  *
  * @param payload - 已解析的 JSON 值（记录数组）
@@ -235,6 +287,9 @@ const parseImportRecord = (raw: unknown, index: number): ImportRecord => {
         `十进制字段必须是字符串，收到 ${typeof value}（精度已在调用方的 JSON 解析中丢失，拒绝导入）`
       );
     }
+  }
+  for (const field of DATE_FIELDS) {
+    if (data[field] != null) importDate(`${where}.${field}`, data[field]);
   }
   return { kind: importKind, naturalKey: naturalKeyFor(importKind, data), data };
 };

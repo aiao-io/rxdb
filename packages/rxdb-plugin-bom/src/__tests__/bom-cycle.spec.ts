@@ -5,8 +5,11 @@
  * 跨类型 / 跨组织放行、草稿头反向边拒绝、union_only 标记。
  */
 
+import { getEntityMetadata } from '@aiao/rxdb';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { BomHeader, BomItem, BomLine, BomLineOccurrence } from '../entities.js';
+import { buildPgBomTriggerDdl, buildSqliteBomTriggerDdl } from '../backend/bom-trigger-ddl.js';
+import { BOM_ENTITIES, BomHeader, BomItem, BomLine, BomLineOccurrence } from '../entities.js';
+import { buildReachInstallDdl } from '../reach/install.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { BomCycleError } from '../types.js';
 import { BomTestAdapter, createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
@@ -261,5 +264,55 @@ for (const backend of BACKENDS) {
       expect(cycle).toBeInstanceOf(BomCycleError);
       expect(cycle.unionOnly).toBe(true);
     });
+  });
+}
+
+describe('判环只有可达闭包版一份实现', () => {
+  it('后端触发器 DDL 不再生成路径枚举判环，判环对象只来自可达性 DDL', () => {
+    const metadata = getEntityMetadata(BomLineOccurrence);
+    for (const backend of BACKENDS) {
+      const build = backend === 'pglite' ? buildPgBomTriggerDdl : buildSqliteBomTriggerDdl;
+      const backendDdl = build(metadata).join('\n');
+      expect(backendDdl).not.toMatch(/bom_line_occurrence_+cycle/);
+      expect(backendDdl).not.toContain('rxdb:bom_cycle');
+      const reachDdl = buildReachInstallDdl(backend).join('\n');
+      expect(reachDdl).toContain(
+        backend === 'pglite' ? 'bom_line_occurrence__cycle_guard' : 'bom_line_occurrence_cycle_i'
+      );
+      expect(reachDdl).toContain('rxdb:bom_cycle');
+    }
+  });
+});
+
+/** 当前生效的判环触发器体（SQLite 取触发器 SQL，PG 取守卫函数源码）。 */
+const activeCycleGuard = async (adapter: BomTestAdapter): Promise<string> => {
+  const result = await adapter.bootstrapTransaction(
+    executor =>
+      executor.query(
+        adapter.name === 'pglite' ?
+          `SELECT p.prosrc FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'bom' AND p.proname = 'bom_line_occurrence__cycle_guard'`
+        : `SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name IN ('bom_line_occurrence_cycle_i', 'bom_line_occurrence_cycle_u') ORDER BY name`
+      ),
+    false
+  );
+  return result.rows.map(row => String(row[0])).join('\n');
+};
+
+for (const backend of BACKENDS) {
+  describe(`判环安装 [${backend}]`, () => {
+    it('重放全部后端 DDL（重连的实体段）不会把判环换回路径枚举实现', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        expect(await activeCycleGuard(adapter)).toContain('bom_reach');
+        const build = backend === 'pglite' ? buildPgBomTriggerDdl : buildSqliteBomTriggerDdl;
+        const statements = BOM_ENTITIES.flatMap(Entity => build(getEntityMetadata(Entity)));
+        await adapter.bootstrapTransaction(async executor => {
+          for (const statement of statements) await executor.query(statement);
+        }, false);
+        expect(await activeCycleGuard(adapter)).toContain('bom_reach');
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    }, 60_000);
   });
 }

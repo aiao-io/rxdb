@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-18
+updated: 2026-10-20
 tags: [domain, bom, calculation, cost]
 ---
 
@@ -148,3 +148,7 @@ AC#6 遵守本仓「无 fallback 兜底」铁律：缺成本以 0 计会产出�
 - [US-518 序列与批次有效性](US-518-bom-unit-lot-effectivity.md) — 仅本故事 AC#11 的序列 / 批次候选未定 `unresolved`（其 AC#6）依赖它，其余 AC 不受影响
 - [US-520 工艺路线挂接与工序投料分摊](US-520-bom-routing-operation.md) — 前置；行到工序的挂接
 - [US-524 工艺路线本体](US-524-routing-master-model.md) — 前置（阶段 A～C）；三类工时与 `time_uom`、费率与 `rate_uom` 的来源（本故事 AC#18 / #19）
+
+## 验收依据
+
+当前验收结论见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，阶段记录见[第 7 步 quickstart](../../../specs/017-bom-slice-7/quickstart.md)。

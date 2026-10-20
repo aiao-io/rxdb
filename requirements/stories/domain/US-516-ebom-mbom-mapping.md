@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-18
+updated: 2026-10-20
 tags: [domain, bom, integration]
 ---
 
@@ -174,3 +174,7 @@ MBOM 随后也改了——映射前后都是同一对 ID，引用本身不知道
 - [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — 非前置；换算率与 `qty_formula` 参数不进跟进基线，数字差异比对它追加到 manifest 的值
 - [US-514 成本卷算](US-514-bom-cost-rollup.md) — 非前置；费率、价格与 `cost_lot_qty` 不进跟进基线，成本差异比对它追加到 manifest 的值
 - [US-515 变更管理](US-515-bom-change-management.md) — 本故事 AC#16 / #19 的「ECN 生效」情景以它为前置；成员资格含挂在 `draft` ECN 上的候选发生项；撤回 / 取消的级联使映射「路径失效」
+
+## 验收依据
+
+当前验收结论见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，阶段记录见[第 7 步 quickstart](../../../specs/017-bom-slice-7/quickstart.md)。

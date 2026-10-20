@@ -1,33 +1,34 @@
 import { expect, test, type Page } from '@playwright/test';
+import { SCOOTER_SEED_ROWS, acceptDialog, dismissDialog } from './support';
+
+const loadedItems = `已有 ${SCOOTER_SEED_ROWS.item} 项物料`;
 
 const prepare = async (page: Page): Promise<void> => {
   await page.goto('/');
-  page.once('dialog', dialog => dialog.accept());
-  await page.getByTestId('prepare-data').click();
-  await expect(page.getByTestId('overview-data-status')).toContainText('已有 41 项物料', { timeout: 30000 });
+  await acceptDialog(page, () => page.getByTestId('prepare-data').click());
+  await expect(page.getByTestId('overview-data-status')).toContainText(loadedItems, { timeout: 30000 });
 };
 
 test('已有数据重开后直接可用，取消重置不丢失数据，场景入口与筛选清晰', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await prepare(page);
   await page.reload();
-  await expect(page.getByTestId('overview-data-status')).toContainText('已有 41 项物料', { timeout: 30000 });
+  await expect(page.getByTestId('overview-data-status')).toContainText(loadedItems, { timeout: 30000 });
   await expect(page.getByText('尚未装载种子', { exact: false })).toHaveCount(0);
   await expect(page.getByTestId('workflow-card')).toHaveCount(6);
   await page.getByTestId('item-filter').fill(' pcba ');
   await expect(page.getByTestId('item-inventory-row')).toHaveCount(1);
-  await expect(page.getByTestId('overview-item-count')).toHaveText('41');
+  await expect(page.getByTestId('overview-item-count')).toHaveText(String(SCOOTER_SEED_ROWS.item));
   await expect(page.getByTestId('item-inventory-row')).toContainText('控制板');
   await page.getByTestId('item-filter').fill('电池');
   await expect(page.getByTestId('item-inventory-row')).toHaveCount(4);
   await expect(page.getByTestId('item-inventory-row').filter({ hasText: 'BATT' })).toContainText('电池组');
   await page.getByTestId('item-filter').fill('');
-  page.once('dialog', dialog => dialog.dismiss());
-  await page.getByRole('button', { name: '重置演示数据', exact: true }).click();
-  await expect(page.getByTestId('overview-item-count')).toHaveText('41');
+  await dismissDialog(page, () => page.getByRole('button', { name: '重置演示数据', exact: true }).click());
+  await expect(page.getByTestId('overview-item-count')).toHaveText(String(SCOOTER_SEED_ROWS.item));
   await expect(page.getByTestId('overview-data-status')).toContainText('数据可用');
   await page.reload();
-  await expect(page.getByTestId('overview-data-status')).toContainText('已有 41 项物料', { timeout: 30000 });
+  await expect(page.getByTestId('overview-data-status')).toContainText(loadedItems, { timeout: 30000 });
   await page.screenshot({ path: 'test-output/bom-redesign-overview-desktop.png', animations: 'disabled' });
 });
 

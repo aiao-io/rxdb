@@ -51,7 +51,7 @@ pnpm nx run-many -t cargo-clippy cargo-test test-conformance -p rxdb-adapter-tau
 
 ## 2026-10-18 Tauri额外门禁通过
 
-主会话运行上述入口，Nx共21任务通过、16项有效缓存，耗时2m35；日志`/private/tmp/bom-tauri-final-gates.log`。
+主会话运行上述入口，Nx共21任务通过、16项有效缓存，耗时2m35；本地日志`bom-tauri-final-gates.log`（未留存）。
 
 | 目标             | 本轮结果                                                                        |
 | ---------------- | ------------------------------------------------------------------------------- |

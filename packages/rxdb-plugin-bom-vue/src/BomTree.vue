@@ -1,19 +1,26 @@
 <script setup lang="ts">
+/**
+ * BOM 展开树（对齐 Angular `ao-bom-tree`、React `BomTree`）。
+ *
+ * 渲染共享控制器给出的可见路径、未裁决候选、截断原因与查询状态。交互一律经 `commands`
+ * 回到共享控制器，组件不发出事件。键盘遵循 WAI-ARIA tree 模式：方向键移动焦点
+ * （ArrowLeft 无父节点时不动），Home/End 跳到首尾，Space 切换展开，Enter 加载发生项；
+ * 当前焦点节点不在可见节点中时首行是 Tab 入口。
+ */
 import { BOM_VIEW_STYLES, bomErrorText } from '@aiao/rxdb-plugin-bom';
 import type { BomViewCommands, BomViewNode, BomViewState } from '@aiao/rxdb-plugin-bom';
-import { nextTick, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, ref, shallowRef } from 'vue';
 
-const props = defineProps<{ state: BomViewState; commands: BomViewCommands }>();
+const props = defineProps<{
+  /** 共享控制器发布的视图状态（`useBomView` 的 `state.value`）。 */
+  state: BomViewState;
+  /** 共享控制器命令，原样透传。 */
+  commands: BomViewCommands;
+}>();
 const tree = ref<HTMLElement>();
-const focused = ref('[]');
+const focused = ref<string | null>(null);
+const hasFocused = computed(() => props.state.nodes.some(node => node.key === focused.value));
 const interactionError = shallowRef<unknown>(null);
-
-watch(
-  () => props.state.nodes,
-  nodes => {
-    if (!nodes.some(node => node.key === focused.value)) focused.value = nodes[0]?.key ?? '[]';
-  }
-);
 
 const focus = (index: number): void => {
   const node = props.state.nodes[index];
@@ -45,16 +52,12 @@ const moveRight = (node: BomViewNode, index: number): void => {
   if ((props.state.nodes[index + 1]?.depth ?? 0) > node.depth) focus(index + 1);
 };
 
-const moveLeft = (node: BomViewNode, index: number): void => {
+const moveLeft = (node: BomViewNode): void => {
   if (node.hasChildren && node.expanded) {
     props.commands.toggle(node.path);
     return;
   }
-  focus(
-    props.state.nodes.findLastIndex(
-      (candidate, candidateIndex) => candidateIndex < index && candidate.depth === node.depth - 1
-    )
-  );
+  focus(props.state.nodes.findIndex(candidate => candidate.key === JSON.stringify(node.path.slice(0, -1))));
 };
 
 const keydown = (event: KeyboardEvent, node: BomViewNode, index: number): void => {
@@ -64,7 +67,7 @@ const keydown = (event: KeyboardEvent, node: BomViewNode, index: number): void =
     Home: () => focus(0),
     End: () => focus(props.state.nodes.length - 1),
     ArrowRight: () => moveRight(node, index),
-    ArrowLeft: () => moveLeft(node, index),
+    ArrowLeft: () => moveLeft(node),
     Enter: () => {
       void select(node);
     },
@@ -133,7 +136,7 @@ const keydown = (event: KeyboardEvent, node: BomViewNode, index: number): void =
         :aria-level="node.depth + 1"
         :aria-expanded="node.hasChildren ? node.expanded : undefined"
         :aria-selected="node.occurrenceId !== null && state.editor.value?.occurrenceId === node.occurrenceId"
-        :tabindex="focused === node.key ? 0 : -1"
+        :tabindex="focused === node.key || (!hasFocused && index === 0) ? 0 : -1"
         @focus="focused = node.key"
         @keydown="keydown($event, node, index)"
         @click="activate(node, index)"
@@ -169,7 +172,7 @@ const keydown = (event: KeyboardEvent, node: BomViewNode, index: number): void =
       </li>
     </ul>
     <section
-      v-if="state.unresolved.length"
+      v-if="state.unresolved.length > 0"
       aria-label="未解析候选"
     >
       <h3>未解析</h3>
@@ -189,7 +192,7 @@ const keydown = (event: KeyboardEvent, node: BomViewNode, index: number): void =
       </div>
     </section>
     <p
-      v-if="state.truncated"
+      v-if="state.truncated !== null"
       role="note"
       >结果已截断：{{ state.truncated.reason }}</p
     >

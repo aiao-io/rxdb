@@ -5,16 +5,19 @@ const changed = (postgres: boolean): string =>
     `OLD."childItemId" IS DISTINCT FROM NEW."childItemId" OR OLD."flowDirection" IS DISTINCT FROM NEW."flowDirection"`
   : `OLD."childItemId" IS NOT NEW."childItemId" OR OLD."flowDirection" IS NOT NEW."flowDirection"`;
 
-const sqliteTrigger = (sql: ReachSql, suffix: string, event: string, body: string, when?: string): string =>
-  `CREATE TRIGGER IF NOT EXISTS "bom_reach_${suffix}" ${event} ON ${sql.dialect.table('bom_line_occurrence')}
-    ${when === undefined ? '' : `WHEN ${when}`} BEGIN ${body} END;`;
+/** 先删后建：插件升级后同名旧触发器体在下一次连接被替换，不与新体并存（`IF NOT EXISTS` 会静默保留旧体）。 */
+const sqliteTrigger = (sql: ReachSql, suffix: string, event: string, body: string, when?: string): string[] => [
+  `DROP TRIGGER IF EXISTS "bom_reach_${suffix}";`,
+  `CREATE TRIGGER "bom_reach_${suffix}" ${event} ON ${sql.dialect.table('bom_line_occurrence')}
+    ${when === undefined ? '' : `WHEN ${when}`} BEGIN ${body} END;`
+];
 
 const sqliteMaintenance = (sql: ReachSql): string[] => {
   const remove = `SELECT RAISE(ABORT, 'rxdb:bom_cycle:depth_limit') WHERE EXISTS (${deletionDepthExceededSql(sql)}); ${deleteReachSql(sql)}`;
   return [
-    sqliteTrigger(sql, 'insert', 'AFTER INSERT', insertReachSql(sql), `NEW."flowDirection" = 'consume'`),
-    sqliteTrigger(sql, 'delete', 'AFTER DELETE', remove, `OLD."flowDirection" = 'consume'`),
-    sqliteTrigger(
+    ...sqliteTrigger(sql, 'insert', 'AFTER INSERT', insertReachSql(sql), `NEW."flowDirection" = 'consume'`),
+    ...sqliteTrigger(sql, 'delete', 'AFTER DELETE', remove, `OLD."flowDirection" = 'consume'`),
+    ...sqliteTrigger(
       sql,
       'update',
       'AFTER UPDATE OF "childItemId", "flowDirection"',

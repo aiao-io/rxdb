@@ -1,11 +1,11 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
-import { createBomView, type BomViewHandle, type BomViewInput, type BomViewState } from '@aiao/rxdb-plugin-bom';
+import { createBomView, type BomViewHandle } from '@aiao/rxdb-plugin-bom';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useBomView } from '../index.js';
+import { useBomView, type BomViewCommands, type BomViewInput, type BomViewState } from '../index.js';
 import { viewCommands, viewNode, viewState } from './fixtures.js';
 
 vi.mock('@aiao/rxdb-plugin-bom', async importOriginal => ({
@@ -25,8 +25,9 @@ const probeHandle = () => {
   const subject = new BehaviorSubject(viewState());
   let destroyed = false;
   const counts = { active: 0 };
+  const commands: BomViewCommands = viewCommands();
   const handle: BomViewHandle = {
-    ...viewCommands(),
+    ...commands,
     state$: new Observable<BomViewState>(subscriber => {
       if (destroyed) throw new Error('已销毁的 handle 不能重订阅');
       counts.active += 1;
@@ -139,11 +140,13 @@ describe('React BOM 显式绑定与生命周期', () => {
     expect(handles.map(probe => probe.counts.active)).toEqual([0, 1]);
   });
 
-  it('卸载释放订阅和共享 handle，重复挂载创建新的 handle', () => {
+  it('卸载释放订阅和共享 handle，重复挂载创建新的 handle，卸载后命令明确拒绝', () => {
     const first = renderHook(() => useBomView(db, input));
+    const commands = first.result.current.commands;
     first.unmount();
     expect(handles[0].handle.destroy).toHaveBeenCalledOnce();
     expect(handles[0].counts.active).toBe(0);
+    expect(() => commands.refresh()).toThrow('BOM 视图尚未挂载或已经卸载');
     const second = renderHook(() => useBomView(db, input));
     expect(handles).toHaveLength(2);
     expect(handles[1].counts.active).toBe(1);

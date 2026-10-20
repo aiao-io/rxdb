@@ -21,7 +21,7 @@ import { FormsModule } from '@angular/forms';
 import { BomDemoService } from '../bom-demo.service';
 import { BomWorkspaceState } from '../bom-workspace-state';
 import { formatDecimal } from '../presentation/decimal-format';
-import { materialLabel } from '../presentation/material-label';
+import { itemLabelById, itemNoById, materialLabel } from '../presentation/material-label';
 
 interface CostRawField {
   label: string;
@@ -311,7 +311,7 @@ const sumAmounts = (values: readonly string[]): string =>
         @if (costSummary(); as summary) {
           <section class="cost-summary" aria-label="本次卷算结果" data-testid="cost-summary">
             <p class="cost-context">
-              <strong>{{ materialLabel(itemNo(result.root.itemId)) }}</strong>
+              <strong>{{ itemLabel(result.root.itemId) }}</strong>
               <span
                 >{{ resultDate() }} · {{ result.context.bomType.toUpperCase() }} · {{ result.context.currency }}</span
               >
@@ -386,7 +386,7 @@ const sumAmounts = (values: readonly string[]): string =>
           <table class="data-table cost-table">
             <caption class="sr-only">
               {{
-                materialLabel(itemNo(result.root.itemId))
+                itemLabel(result.root.itemId)
               }}
               的成本组成与逐层明细，金额单位
               {{
@@ -461,7 +461,7 @@ export class CostPanel {
   );
   readonly costRows = computed(() => {
     const result = this.costResult();
-    return result === null ? [] : flattenCost(this.itemNo.bind(this), result.root, result.context.currency);
+    return result === null ? [] : flattenCost(this.itemNos(), result.root, result.context.currency);
   });
   readonly costSummary = computed(() => {
     const root = this.costResult()?.root;
@@ -502,8 +502,8 @@ export class CostPanel {
     });
   }
 
-  itemNo(itemId: string): string {
-    return this.itemNos().get(itemId) ?? itemId.slice(0, 8);
+  itemLabel(itemId: string): string {
+    return itemLabelById(this.itemNos(), itemId);
   }
 
   clearResult(): void {
@@ -581,7 +581,7 @@ export class CostPanel {
 
 /** 层级路径作为行身份，金额与原始字段不做展示舍入。 */
 const flattenCost = (
-  itemNo: (id: string) => string,
+  itemNos: ReadonlyMap<string, string>,
   node: CostNodeDetail,
   currency: string,
   depth = 0,
@@ -592,8 +592,8 @@ const flattenCost = (
       key: `${path}/head`,
       depth,
       kind: 'head',
-      itemNo: itemNo(node.itemId),
-      label: `${materialLabel(itemNo(node.itemId))} · ${depth === 0 ? '产品成本' : '子件成本'}`,
+      itemNo: itemNoById(itemNos, node.itemId),
+      label: `${itemLabelById(itemNos, node.itemId)} · ${depth === 0 ? '产品成本' : '子件成本'}`,
       basis: `批量 ${unitText(node.batchQty)} ${node.baseUom} · 单位 ${currency} ${unitText(node.unitCost)} / ${node.baseUom}`,
       amount: node.batchCost,
       rawFields: [
@@ -619,8 +619,8 @@ const flattenCost = (
         key: `${path}/joint-output:${index}`,
         depth: depth + 1,
         kind: 'joint-output' as const,
-        itemNo: itemNo(output.itemId),
-        label: `${output.kind === 'primary' ? '第一主产物' : '联产品'} ${materialLabel(itemNo(output.itemId))}`,
+        itemNo: itemNoById(itemNos, output.itemId),
+        label: `${output.kind === 'primary' ? '第一主产物' : '联产品'} ${itemLabelById(itemNos, output.itemId)}`,
         basis: `产量 ${unitText(output.qty)} ${output.uom} · 份额 ${unitText(output.share)} · 单位 ${currency} ${unitText(output.unitCost)} / ${output.uom}`,
         amount: output.batchCost,
         rawFields: [
@@ -637,8 +637,8 @@ const flattenCost = (
       key: `${path}/material:${line.occurrenceId}`,
       depth: depth + 1,
       kind: 'material' as const,
-      itemNo: itemNo(line.childItemId),
-      label: `材料 ${materialLabel(itemNo(line.childItemId))}`,
+      itemNo: itemNoById(itemNos, line.childItemId),
+      label: `材料 ${itemLabelById(itemNos, line.childItemId)}`,
       basis: `需求 ${unitText(line.demand)} ${line.demandUom} × 单位 ${currency} ${unitText(line.unitCost)}`,
       amount: line.amount,
       rawFields: [
@@ -679,8 +679,8 @@ const flattenCost = (
       key: `${path}/credit:${line.occurrenceId}`,
       depth: depth + 1,
       kind: 'credit' as const,
-      itemNo: itemNo(line.childItemId),
-      label: `副产抵减 ${materialLabel(itemNo(line.childItemId))}`,
+      itemNo: itemNoById(itemNos, line.childItemId),
+      label: `副产抵减 ${itemLabelById(itemNos, line.childItemId)}`,
       basis: `产出 ${unitText(line.outQty)} ${line.outUom} × 抵减价 ${currency} ${unitText(line.creditPrice)}`,
       amount: `-${line.amount}`,
       rawFields: [
@@ -691,7 +691,7 @@ const flattenCost = (
     }))
   );
   node.children.forEach((child, index) => {
-    rows.push(...flattenCost(itemNo, child, currency, depth + 1, `${path}/child:${index}`));
+    rows.push(...flattenCost(itemNos, child, currency, depth + 1, `${path}/child:${index}`));
   });
   return rows;
 };

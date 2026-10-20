@@ -22,6 +22,7 @@ import {
 } from '../entities.js';
 import { BomCostError, rollupCost, type CostRollupContext } from '../quantity/cost.js';
 import { loadHistory } from '../resolve/history-loader.js';
+import { BomQuantityError } from '../types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
@@ -267,6 +268,149 @@ for (const backend of BACKENDS) {
       expect(result.root.material[0].demand).toBe('0.5');
       expect(result.root.material[0].demandUom).toBe('kg');
       expect(result.root.material[0].amount).toBe('15');
+    });
+
+    it('二次换算：子头基准只用物料级率（行级率已服务行 → 库存），10 m → 5 kg → 10 件', async () => {
+      const leaf = await makeItem('hop-c', { unitPrice: '1' });
+      const sub = await makeItem('hop-b', { stockUom: 'kg', uomConversion: '0.5' });
+      const root = await makeItem('hop-a');
+      await makeHeader(sub, [{ child: leaf, qty: '1' }], { baseUom: 'pcs', costLotQty: '1' });
+      const { header } = await makeHeader(root, [{ child: sub, qty: '10', uom: 'm', uomConversion: '2' }]);
+      const result = await rollupCost(adapter, COST_CTX, { parentRevisionId: header.parentRevisionId });
+      expect(result.root.material[0]).toMatchObject({ demand: '10', demandUom: 'pcs', amount: '10' });
+      expect(result.root.children[0].batchQty).toBe('10');
+    });
+
+    it('二次换算：物料级率已被行 → 库存消耗时，计价单位换算缺率即拒绝（不复用同一个率）', async () => {
+      const leaf = await makeItem('hop-p', { stockUom: 'kg', uomConversion: '2', unitPrice: '1', priceUom: 'pcs' });
+      const root = await makeItem('hop-q');
+      const { header } = await makeHeader(root, [{ child: leaf, qty: '10', uom: 'm' }]);
+      await expect(rollupCost(adapter, COST_CTX, { parentRevisionId: header.parentRevisionId })).rejects.toThrow(
+        /从 kg 换算到 pcs 缺换算率/
+      );
+    });
+
+    it('卷算拒绝统一为 BomCostError：数量违约（缺换算率）经 cause 保留 BomQuantityError', async () => {
+      const leaf = await makeItem('wrap-c', { stockUom: 'kg', unitPrice: '1', priceUom: 'kg' });
+      const root = await makeItem('wrap-a');
+      const { header } = await makeHeader(root, [{ child: leaf, qty: '2', uom: 'm' }]);
+      const error = await rollupCost(adapter, COST_CTX, { parentRevisionId: header.parentRevisionId }).then(
+        () => null,
+        (cause: unknown) => cause
+      );
+      expect(error).toBeInstanceOf(BomCostError);
+      expect((error as Error).cause).toBeInstanceOf(BomQuantityError);
+      expect(String((error as Error).message)).toContain('缺换算率');
+    });
+
+    it('卷算拒绝统一为 BomCostError：阶梯组无命中点名头与组号（不以裸 Error 透出）', async () => {
+      const part = await makeItem('tier-c', { unitPrice: '1' });
+      const root = await makeItem('tier-a');
+      const headerId = crypto.randomUUID();
+      await loadHistory(adapter, {
+        batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
+        revisions: [{ itemId: root.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }],
+        headers: [
+          {
+            id: headerId,
+            revisionIndex: 0,
+            bomType: 'ebom',
+            orgId: 'org-x',
+            costLotQty: '150',
+            lines: [
+              {
+                lineNo: 10,
+                occurrences: [
+                  {
+                    childItemId: part.id,
+                    qty: '1',
+                    tierGroupNo: 'g9',
+                    lotsizeFrom: '0',
+                    lotsizeTo: '100',
+                    effectiveFrom: day('2026-01-01')
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      });
+      const error = await rollupCost(adapter, COST_CTX, { parentItemId: root.id }).then(
+        () => null,
+        (cause: unknown) => cause
+      );
+      expect(error).toBeInstanceOf(BomCostError);
+      expect(String((error as Error).message)).toContain(headerId);
+      expect(String((error as Error).message)).toContain('g9');
+    });
+
+    it('根头缺 cost_lot_qty：显式 batchQty 也替代不了（它是 unit_cost 的分母），卷算拒绝', async () => {
+      const part = await makeItem('lot-c', { unitPrice: '1' });
+      const root = await makeItem('lot-a');
+      await loadHistory(adapter, {
+        batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
+        revisions: [{ itemId: root.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }],
+        headers: [
+          {
+            revisionIndex: 0,
+            bomType: 'ebom',
+            orgId: 'org-x',
+            lines: [{ lineNo: 10, occurrences: [{ childItemId: part.id, qty: '1', effectiveFrom: day('2026-01-01') }] }]
+          }
+        ]
+      });
+      for (const batchQty of [undefined, { value: '5', uom: 'pcs' }]) {
+        const error = await rollupCost(adapter, COST_CTX, { parentItemId: root.id }, batchQty).then(
+          () => null,
+          (cause: unknown) => cause
+        );
+        expect(error).toBeInstanceOf(BomCostError);
+        expect(String((error as Error).message)).toContain('cost_lot_qty');
+      }
+    });
+
+    it('副产公式行（qty 为空、只有 qty_formula）按语法版本求值后抵减，不以 0 兜底', async () => {
+      const r = await makeItem('bpf-r', { unitPrice: '1' });
+      const s = await makeItem('bpf-s', { creditPrice: '0.5' });
+      const m = await makeItem('bpf-m');
+      await loadHistory(adapter, {
+        batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
+        revisions: [{ itemId: m.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }],
+        headers: [
+          {
+            revisionIndex: 0,
+            bomType: 'ebom',
+            orgId: 'org-x',
+            costLotQty: '1',
+            lines: [
+              { lineNo: 10, occurrences: [{ childItemId: r.id, qty: '10', effectiveFrom: day('2026-01-01') }] },
+              {
+                lineNo: 20,
+                occurrences: [
+                  {
+                    childItemId: s.id,
+                    qty: null,
+                    qtyFormula: '长*宽',
+                    formulaGrammarVersion: '1',
+                    flowDirection: 'by_product',
+                    effectiveFrom: day('2026-01-01')
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      });
+      const result = await rollupCost(
+        adapter,
+        { ...COST_CTX, formulaParams: { 长: '3', 宽: '4' } },
+        { parentItemId: m.id }
+      );
+      // 材料 10×1 = 10；副产 3×4 = 12 件 × 0.5 = 6 → 批成本 4
+      expect(result.root.credits.map(credit => [credit.childItemId, credit.outQty, credit.amount])).toEqual([
+        [s.id, '12', '6']
+      ]);
+      expect(result.root.batchCost).toBe('4');
     });
 
     it('AC#17 副产抵减：M 批 100kg（R 110×2 + S 10×0.5）→ 215、unit 2.15/kg', async () => {

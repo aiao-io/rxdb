@@ -382,14 +382,26 @@ export class RxDBExclusionViolationError extends RxDBError {
   }
 }
 
+/** 多余对象的可操作说明：点名其中出现的托管保留前缀；没有前缀形态的名字不加说明。 */
+const reservedPrefixHint = (extra: readonly string[]): string => {
+  const prefixes = [...new Set(extra.flatMap(name => /^[a-z]{2}_/.exec(name)?.[0] ?? []))].sort();
+  if (prefixes.length === 0) return '';
+  return (
+    `Names prefixed ${prefixes.join(' / ')} are reserved for RxDB-managed storage objects: ` +
+    `rename or drop an undeclared object with such a name in a migration, or declare it in entity metadata / entityStorage. `
+  );
+};
+
 /**
  * 已有表上的存储约束与实体元数据声明不一致（US-030，`init()` 时抛出）。
  *
  * @remarks
  * 漂移检查是只读比对：元数据确定性生成的约束名集合与数据库目录里实际的同类对象集合，
- * 缺失与多余分别列出。比对纳入三类：`ck_` CHECK、`uq_` 条件唯一索引、`ex_` 区间排他
- * （PG 是 `EXCLUDE` 约束，SQLite 是它的 `_i` / `_u` 两个触发器）。不自动补建——补建由用户写进
- * `migrations`，它恰好排在漂移检查之前执行；用户迁移补上后再 `init()` 即通过（AC#10）。
+ * 缺失与多余分别列出。比对纳入：`ck_` CHECK、`uq_` 条件唯一索引、`ex_` 区间排他
+ * （PG 是 `EXCLUDE` 约束，SQLite 是它的 `_i` / `_u` 两个触发器）、`gc_` 生成列与 `sx_` 高级索引。
+ * 不自动补建——补建由用户写进 `migrations`，它恰好排在漂移检查之前执行；用户迁移补上后再
+ * `init()` 即通过（AC#10）。这些前缀是托管对象的保留命名空间：库里未声明的同前缀对象（包括
+ * 用户自建的存量列 / 索引）一律算多余，消息会点名前缀并给出改名、删除或补声明的处理方式。
  *
  * 外键约束、`idx_` 普通索引、系统 CRUD 触发器与 FTS 触发器都不在比对范围（AC#16）。
  *
@@ -429,6 +441,7 @@ export class RxDBConstraintDriftError extends RxDBError {
       : `Entity '${entity}' (table '${tableName}') storage constraints drifted. ` +
           `Missing: [${missing.join(', ')}]. Extra: [${extra.join(', ')}]. ` +
           (changed.length > 0 ? `Changed definitions: [${changed.join(', ')}]. ` : '') +
+          reservedPrefixHint(extra) +
           `Apply a migration to add/drop the listed constraints before init.`
     );
     this.name = 'RxDBConstraintDriftError';

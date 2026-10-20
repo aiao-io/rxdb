@@ -4,6 +4,18 @@ import { describe, expect, it, vi } from 'vitest';
 import { BomLineEditor, BomTree } from '../index.js';
 import { editorState, viewCommands, viewNode, viewState } from './fixtures.js';
 
+/** 在固定时区下运行，结束后恢复原时区；用于证明日期字段与运行机时区无关。 */
+const inTimeZone = async (zone: string, run: () => Promise<void>): Promise<void> => {
+  const previous = process.env['TZ'];
+  process.env['TZ'] = zone;
+  try {
+    await run();
+  } finally {
+    if (previous === undefined) delete process.env['TZ'];
+    else process.env['TZ'] = previous;
+  }
+};
+
 const mountTree = async (state: BomViewState, commands: BomViewCommands) => {
   const fixture = TestBed.createComponent(BomTree);
   fixture.componentRef.setInput('state', state);
@@ -31,6 +43,19 @@ const labeledInput = (root: HTMLElement, label: string): HTMLInputElement => {
   expect(input.labels).toContain(element);
   return input;
 };
+const typeInto = (root: HTMLElement, label: string, value: string): void => {
+  const input = labeledInput(root, label);
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+};
+const submit = (root: HTMLElement): void => {
+  root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+};
+const description = (root: HTMLElement, input: HTMLInputElement): string =>
+  (input.getAttribute('aria-describedby') ?? '')
+    .split(' ')
+    .map(id => root.querySelector(`[id="${id}"]`)?.textContent ?? '')
+    .join(' ');
 
 describe('Angular BOM 树真实挂载', () => {
   it('四状态、后台刷新和错误重试可见', async () => {
@@ -142,6 +167,50 @@ describe('Angular BOM 树真实挂载', () => {
     expect(commands.loadOccurrence).toHaveBeenCalledTimes(2);
   });
 
+  it('树节点的选中语义跟随当前编辑发生项并可清除', async () => {
+    const commands = viewCommands();
+    const nodes = [viewNode([]), viewNode(['occurrence-1']), viewNode(['occurrence-2'])];
+    const initial = viewState({ phase: 'success', nodes });
+    const mounted = await mountTree(initial, commands);
+    const rows = Array.from(element(mounted).querySelectorAll<HTMLElement>('[role=treeitem]'));
+    expect(rows.map(row => row.getAttribute('aria-selected'))).toEqual(['false', 'false', 'false']);
+    rows[1].click();
+    await mounted.whenStable();
+    expect(commands.loadOccurrence).toHaveBeenCalledWith('occurrence-1');
+    mounted.componentRef.setInput('state', { ...editorState(), nodes });
+    await mounted.whenStable();
+    expect(rows.map(row => row.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
+    mounted.componentRef.setInput('state', initial);
+    await mounted.whenStable();
+    expect(rows.map(row => row.getAttribute('aria-selected'))).toEqual(['false', 'false', 'false']);
+  });
+
+  it('没有根节点的视图首行是 Tab 入口，焦点节点消失后入口回到首行', async () => {
+    const commands = viewCommands();
+    const nodes = [viewNode(['first']), viewNode(['second'])];
+    const mounted = await mountTree(viewState({ phase: 'success', nodes }), commands);
+    const tabIndexes = () =>
+      Array.from(element(mounted).querySelectorAll<HTMLElement>('[role=treeitem]')).map(row => row.tabIndex);
+    expect(tabIndexes()).toEqual([0, -1]);
+    element(mounted).querySelectorAll<HTMLElement>('[role=treeitem]')[1].focus();
+    await mounted.whenStable();
+    expect(tabIndexes()).toEqual([-1, 0]);
+    mounted.componentRef.setInput('state', viewState({ phase: 'success', nodes: [nodes[0]] }));
+    await mounted.whenStable();
+    expect(tabIndexes()).toEqual([0]);
+  });
+
+  it('没有父节点时 ArrowLeft 保持焦点不动（WAI-ARIA tree）', async () => {
+    const commands = viewCommands();
+    const nodes = [viewNode(['first']), viewNode(['second'])];
+    const mounted = await mountTree(viewState({ phase: 'success', nodes }), commands);
+    const rows = Array.from(element(mounted).querySelectorAll<HTMLElement>('[role=treeitem]'));
+    rows[1].focus();
+    key(rows[1], 'ArrowLeft');
+    expect(document.activeElement).toBe(rows[1]);
+    expect(commands.toggle).not.toHaveBeenCalled();
+  });
+
   it('候选、截断和数量拒绝保持可见，不自动裁决', async () => {
     const commands = viewCommands();
     const mounted = await mountTree(
@@ -238,6 +307,55 @@ describe('Angular BOM 行编辑器真实挂载', () => {
     expect(message).toContain(failure.message);
     expect(message).toContain('BOM_CYCLE');
     expect(message).toContain('"path"');
+  });
+
+  it('生效期字段声明 UTC 口径，东八区运行机上编辑仍按 UTC 往返', async () => {
+    await inTimeZone('Asia/Shanghai', async () => {
+      const commands = viewCommands();
+      const mounted = await mountEditor(editorState(), commands);
+      for (const label of ['生效起点', '生效终点']) {
+        expect(description(element(mounted), labeledInput(element(mounted), label))).toContain('UTC');
+      }
+      expect(labeledInput(element(mounted), '用量').hasAttribute('aria-describedby')).toBe(false);
+      expect(labeledInput(element(mounted), '生效起点').value).toBe('2099-01-01T00:00');
+      typeInto(element(mounted), '生效起点', '2099-01-02T03:04');
+      submit(element(mounted));
+      await mounted.whenStable();
+      expect(commands.saveOccurrence).toHaveBeenCalledWith(
+        expect.objectContaining({ effectiveFrom: new Date('2099-01-02T03:04Z') })
+      );
+    });
+  });
+
+  it('共享字段校验失败与仓储拒绝都原样显示，切换目标重置表单', async () => {
+    const commands = viewCommands();
+    const mounted = await mountEditor(editorState(), commands);
+    typeInto(element(mounted), '投料工序', '1.5');
+    submit(element(mounted));
+    await mounted.whenStable();
+    expect(element(mounted).querySelector('[role=alert]')?.textContent).toContain('投料工序必须是正整数');
+    expect(commands.saveOccurrence).not.toHaveBeenCalled();
+    typeInto(element(mounted), '投料工序', '20');
+    commands.saveOccurrence.mockRejectedValueOnce(
+      Object.assign(new Error('保存原始错误'), { code: 'DOMAIN', payload: { id: 'occurrence-1' } })
+    );
+    submit(element(mounted));
+    await mounted.whenStable();
+    expect(element(mounted).querySelector('[role=alert]')?.textContent).toContain('保存原始错误');
+    expect(element(mounted).querySelector('[role=alert]')?.textContent).toContain('DOMAIN');
+    const next = editorState();
+    mounted.componentRef.setInput('state', {
+      ...next,
+      editor: { ...next.editor, value: { ...next.editor.value!, occurrenceId: 'another', qty: '7' } }
+    });
+    await mounted.whenStable();
+    expect(labeledInput(element(mounted), '用量').value).toBe('7');
+    expect(element(mounted).querySelector('[role=alert]')).toBeNull();
+    mounted.componentRef.setInput('state', { ...next, editor: { ...next.editor, saving: true } });
+    await mounted.whenStable();
+    submit(element(mounted));
+    await mounted.whenStable();
+    expect(commands.saveOccurrence).toHaveBeenCalledTimes(1);
   });
 
   it('未选择与加载状态明确，不伪造发生项或可保存表单', async () => {

@@ -336,6 +336,54 @@ for (const backend of BACKENDS) {
       }
     });
 
+    it('直连 SQL 的十进制格式判定与 DECIMAL_CANONICAL_RE 逐值等价（尾点 / 前导零 / 符号 / 空白）', async () => {
+      const { header } = await setup();
+      const child = await makeChildItem('canonical-child');
+      const candidates = [
+        '0',
+        '1',
+        '10',
+        '0.5',
+        '1.05',
+        '100.25',
+        '1.',
+        '0.',
+        '10.',
+        '.5',
+        '00',
+        '01',
+        '0.0',
+        '1.50',
+        '-0',
+        '-1',
+        '+1',
+        ' 1',
+        '1 ',
+        '1e3',
+        '1..2',
+        '1.2.3',
+        ''
+      ];
+      let lineNo = 10;
+      for (const candidate of candidates) {
+        // 每个候选值一条独立逻辑行：被接受的行互不构成有效域重叠
+        const line = await addLine(header, lineNo);
+        lineNo += 10;
+        const result = await settled(
+          adapter.rawQuery(
+            `INSERT INTO ${tableRef(backend, 'bom_line_occurrence')} ("id", "lineId", "childItemId", "qty", "effectiveFrom", "createdAt", "updatedAt") ` +
+              `VALUES ('${uuid()}', '${line.id}', '${child.id}', '${candidate}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
+          )
+        );
+        expect(result.ok, `'${candidate}'`).toBe(DECIMAL_CANONICAL_RE.test(candidate));
+        if (!result.ok) {
+          expect(String((result as { error: Error }).error.message), `'${candidate}'`).toContain(
+            'rxdb:bom_decimal_format:qty'
+          );
+        }
+      }
+    });
+
     it('入口拒绝非法值：语法错 / 非有限 / 空串 / 35 位 / 负值（US-511 AC#23）', () => {
       for (const bad of ['1e', 'NaN', 'Infinity', '', '12345678901234567890123456789012345', '-1']) {
         expect(() => normalizeDecimalString(bad, 'qty'), bad).toThrow(BomDecimalFormatError);

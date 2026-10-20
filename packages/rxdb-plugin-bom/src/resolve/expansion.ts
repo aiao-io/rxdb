@@ -18,6 +18,7 @@ import {
   buildChildrenOfRevisionsSql,
   buildParentRevisionSql,
   buildParentsOfItemsSql,
+  buildRevisionHeadersSql,
   type BomSqlDialect
 } from './bom-sql.js';
 import { filterResolutionRows } from './config-validate.js';
@@ -27,7 +28,14 @@ import {
   type ResolutionResult,
   type UnresolvedAlternative
 } from './resolution.js';
-import { assertContext, columnIndexOf, normalizeDate, type BomQueryExecutor, type ResolveTarget } from './resolver.js';
+import {
+  assertContext,
+  columnIndexOf,
+  normalizeDate,
+  selectRootAlternatives,
+  type BomQueryExecutor,
+  type ResolveTarget
+} from './resolver.js';
 
 /** 展开 / 反查预算（US-510 AC#1/#10）：深度、展开数、返回路径数，任一触顶即截断。 */
 export interface ExpansionBudgets {
@@ -120,6 +128,14 @@ interface ChildRow {
   effectiveTo: Date | null;
 }
 
+/** 前沿修订的一张已发布头（备选裁决的输入）。 */
+interface RevisionHeader {
+  headerId: string;
+  parentRevisionId: string;
+  parentItemId: string;
+  alternativeNo: number;
+}
+
 /** 反查层的一行使用方发生项。 */
 interface UsageRow {
   parentItemId: string;
@@ -192,12 +208,72 @@ const filteredQueryRows = async (
   return filtered.map(row => row.row);
 };
 
-/** 按前沿修订集取一层子件发生项（分块 IN）。 */
+/** 按前沿修订集取已发布头（分块 IN），按修订分组。 */
+const fetchRevisionHeaders = async (
+  query: BomQueryExecutor['query'],
+  dialect: BomSqlDialect,
+  context: ResolutionContext,
+  revisionIds: string[]
+): Promise<Map<string, RevisionHeader[]>> => {
+  const byRevision = new Map<string, RevisionHeader[]>();
+  for (let offset = 0; offset < revisionIds.length; offset += CHUNK_SIZE) {
+    const built = buildRevisionHeadersSql(dialect, {
+      bomType: context.bomType,
+      orgId: context.orgId,
+      revisionIds: revisionIds.slice(offset, offset + CHUNK_SIZE)
+    });
+    const result = await query(built.sql, built.params);
+    const read = (row: unknown[], name: string): unknown => row[columnIndexOf(result.columns, name)];
+    for (const row of result.rows) {
+      const header: RevisionHeader = {
+        headerId: String(read(row, 'headerId')),
+        parentRevisionId: String(read(row, 'parentRevisionId')),
+        parentItemId: String(read(row, 'parentItemId')),
+        alternativeNo: Number(read(row, 'alternativeNo'))
+      };
+      const list = byRevision.get(header.parentRevisionId) ?? [];
+      list.push(header);
+      byRevision.set(header.parentRevisionId, list);
+    }
+  }
+  return byRevision;
+};
+
+/**
+ * 每个前沿修订可下钻的头（`alternativeNo` 只裁决根头，与解析 / 数量 / 成本同口径）：
+ * 根按 {@link selectRootAlternatives} 裁决，子装配只认唯一已发布头；仍有多个候选的修订标
+ * unresolved（列候选，同一修订只记一次），不下钻、也不合并任何备选的发生项。
+ */
+const selectExpandableHeaders = (
+  revisionIds: readonly string[],
+  byRevision: ReadonlyMap<string, RevisionHeader[]>,
+  context: ResolutionContext,
+  rootRevisionId: string,
+  unresolved: UnresolvedAlternative[]
+): Set<string> => {
+  const allowed = new Set<string>();
+  for (const revisionId of revisionIds) {
+    const headers = byRevision.get(revisionId) ?? [];
+    const candidates = revisionId === rootRevisionId ? selectRootAlternatives(headers, context, revisionId) : headers;
+    if (candidates.length === 1) allowed.add(candidates[0].headerId);
+    if (candidates.length < 2) continue;
+    if (unresolved.some(group => group.reason === undefined && group.parentRevisionId === revisionId)) continue;
+    unresolved.push({
+      parentItemId: candidates[0].parentItemId,
+      parentRevisionId: revisionId,
+      candidates: candidates.map(header => ({ headerId: header.headerId, alternativeNo: header.alternativeNo }))
+    });
+  }
+  return allowed;
+};
+
+/** 按前沿修订集取一层子件发生项（分块 IN）；只保留可下钻头的发生项，再过序列 / 批次 / 配置。 */
 const fetchChildren = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
   context: ResolutionContext,
   revisionIds: string[],
+  allowedHeaders: ReadonlySet<string>,
   unresolved: UnresolvedAlternative[]
 ): Promise<ChildRow[]> => {
   const rows: ChildRow[] = [];
@@ -209,7 +285,12 @@ const fetchChildren = async (
       orgId: context.orgId,
       revisionIds: chunk
     });
-    const result = await query(built.sql, built.params);
+    const fetched = await query(built.sql, built.params);
+    const headerIndex = columnIndexOf(fetched.columns, 'headerId');
+    const result = {
+      columns: fetched.columns,
+      rows: fetched.rows.filter(row => allowedHeaders.has(String(row[headerIndex])))
+    };
     for (const row of await filteredQueryRows(query, dialect, context, result, unresolved)) {
       rows.push({
         parentRevisionId: String(row[columnIndexOf(result.columns, 'parentRevisionId')]),
@@ -286,11 +367,12 @@ const groupUsageByChild = (rows: UsageRow[]): Map<string, UsageRow[]> => {
   return byChild;
 };
 
-/** 下钻一层：把前沿里每个父修订的已解析子件生成新节点。 */
+/** 下钻一层：先按修订裁决备选头，再把前沿里每个父修订的已解析子件生成新节点。 */
 const expandLevel = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
   context: ResolutionContext,
+  rootRevisionId: string,
   frontier: { nodeIndex: number; revisionId: string }[],
   nodes: readonly ExpansionNode[],
   budget: ResolvedBudgets,
@@ -298,7 +380,14 @@ const expandLevel = async (
   unresolved: UnresolvedAlternative[]
 ): Promise<ExpandLevelStep> => {
   const revisionIds = [...new Set(frontier.map(entry => entry.revisionId))];
-  const byParent = groupChildrenByParent(await fetchChildren(query, dialect, context, revisionIds, unresolved));
+  const byRevision = await fetchRevisionHeaders(query, dialect, context, revisionIds);
+  const allowedHeaders = selectExpandableHeaders(revisionIds, byRevision, context, rootRevisionId, unresolved);
+  const expandable = revisionIds.filter(revisionId =>
+    (byRevision.get(revisionId) ?? []).some(header => allowedHeaders.has(header.headerId))
+  );
+  const byParent = groupChildrenByParent(
+    await fetchChildren(query, dialect, context, expandable, allowedHeaders, unresolved)
+  );
   const added: ExpansionNode[] = [];
   const next: ExpandLevelStep['next'] = [];
   for (const entry of frontier) {
@@ -367,10 +456,12 @@ const usageLevel = async (
  * 多级展开（下钻）：从父修订出发，返回各级子件、层级与路径（行发生项 id 序列）。
  *
  * @param adapter - 本地适配器（全部读取在一个读事务里）
- * @param context - 解析上下文（`asOfDate` 生效窗口、`bomType` / `orgId` 作用域；首轮不裁决备选，`alternativeNo` 不参与）
+ * @param context - 解析上下文（`asOfDate` 生效窗口、`bomType` / `orgId` 作用域；`alternativeNo` 只裁决根头，
+ *   多备选未裁决的根 / 子装配标 `unresolved` 且不下钻，见 {@link ResolutionContext.alternativeNo}）
  * @param target - 展开目标（按时点选父修订，或显式修订）
  * @param options - 预算与取消信号
- * @returns BFS 序节点（根节点在首位）+ 截断标记
+ * @returns BFS 序节点（根节点在首位）+ 截断标记 + 未裁决备选
+ * @throws {@link BomResolutionError} 指定的 `alternativeNo` 在根修订上不存在
  */
 export const expandBom = async (
   adapter: BomLocalAdapter,
@@ -421,7 +512,17 @@ export const expandBom = async (
     const unresolved: UnresolvedAlternative[] = [];
     let frontier: { nodeIndex: number; revisionId: string }[] = [{ nodeIndex: 0, revisionId: parentRevisionId }];
     while (frontier.length > 0) {
-      const step = await expandLevel(query, dialect, context, frontier, nodes, budget, options.signal, unresolved);
+      const step = await expandLevel(
+        query,
+        dialect,
+        context,
+        parentRevisionId,
+        frontier,
+        nodes,
+        budget,
+        options.signal,
+        unresolved
+      );
       nodes.push(...step.added);
       if (step.truncated !== null) {
         truncated = step.truncated;
@@ -487,7 +588,7 @@ export const assertCompleteResolution = (result: ResolutionResult | ExpansionRes
     if (reason !== undefined) throw new BomResolutionError(reason, `存在未解析的序列 / 批次候选：请先指定 ${reason}`);
     throw new BomResolutionError(
       'alternativeNo',
-      '存在未裁决的备选：先选 alternativeNo 再交给数量 / 成本 / 导出消费方'
+      '存在未裁决的备选：根头先指定 alternativeNo（只裁决根头），子装配多备选先消除歧义，再交给数量 / 成本 / 导出消费方'
     );
   }
 };

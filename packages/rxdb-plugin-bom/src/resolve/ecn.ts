@@ -2,20 +2,39 @@
  * @fileoverview ECN 影响面与差异查询（US-515 AC#1/#2）
  *
  * 影响面：ECN 的成员发生项（`ecn_in_id` / `ecn_out_id` 引用本 ECN）归属的头 → 父物料，
- * 按 ECN 生效日（生效后的结构）经 where-used 向上走到无父物料（整机），返回整机列表
- * 与命中路径。差异：按「生效日前一天」与「生效日」两个评估日对涉及的头各解析一次，
- * 按逻辑行对齐对比——新增 / 删除（截止）/ 改量 / 改版（换子件）四类各就其位。
+ * 按 ECN 生效日（生效后的结构）在**该头自己的作用域** `(bom_type, org_id)` 内经 where-used 向上走到
+ * 无父物料（整机），返回整机列表与命中路径。差异：按「生效日前一天」与「生效日」两个评估日对涉及的头
+ * 各解析一次（作用域与备选号取该头自身），按逻辑行对齐对比——新增 / 删除（截止）/ 改量 / 改版（换子件）
+ * 四类各就其位；涉及的逻辑行解析不出唯一发生项时差异无法判定，显式拒绝。全部 SQL 走方言占位符绑定。
  */
 
 import type { BomLocalAdapter } from './bom-adapter.js';
 import { bomSqlDialectFor, buildParentsOfItemsSql } from './bom-sql.js';
-import type { ResolutionContext, ResolutionResult, ResolvedLineOccurrence } from './resolution.js';
+import {
+  BomResolutionError,
+  type BomType,
+  type ResolutionContext,
+  type ResolutionResult,
+  type ResolvedLineOccurrence
+} from './resolution.js';
 import { resolveBom } from './resolver.js';
 
-/** rawQuery 是接口的可选成员（部分适配器不声明）：缺失即显式拒绝，不静默降级。 */
-const rawQuery = async (adapter: BomLocalAdapter, sql: string, params?: unknown[]): Promise<unknown> => {
+/** rawQuery 是接口的可选成员（部分适配器不声明）：缺失即显式拒绝，不静默降级；结果按列名取值。 */
+const queryRecords = async (
+  adapter: BomLocalAdapter,
+  sql: string,
+  params: unknown[] = []
+): Promise<Record<string, unknown>[]> => {
   if (!adapter.rawQuery) throw new Error(`[rxdb-plugin-bom] 适配器 ${adapter.name} 缺少 rawQuery 读路径`);
-  return adapter.rawQuery(sql, params);
+  const dialect = bomSqlDialectFor(adapter.name);
+  const result = (await adapter.rawQuery(
+    sql,
+    params.map(value => dialect.encode(value))
+  )) as {
+    columns: string[];
+    rows: unknown[][];
+  };
+  return result.rows.map(row => Object.fromEntries(result.columns.map((column, index) => [column, row[index]])));
 };
 
 /** ECN 影响面结果（AC#1）：被改的父物料 + 按 where-used 走到顶的整机与路径。 */
@@ -26,7 +45,7 @@ export interface EcnImpactResult {
   effectiveDate: Date;
   /** 被 ECN 改动的 BOM 的父物料（成员发生项归属头的父物料，去重）。 */
   affectedItemIds: string[];
-  /** 顶层整机（无父物料）与命中路径（行发生项 ID 序列）。 */
+  /** 顶层整机（在被改头的作用域内无父物料）与命中路径（行发生项 ID 序列）。 */
   topItems: { itemId: string; paths: string[][] }[];
 }
 
@@ -56,117 +75,141 @@ interface EcnRow {
   effectiveDate: Date;
 }
 
+/** ECN 成员发生项归属的头：父修订 / 父物料，与该头的状态、作用域和备选号。 */
+interface AffectedHeader {
+  headerId: string;
+  parentRevisionId: string;
+  parentItemId: string;
+  state: string;
+  bomType: BomType;
+  orgId: string;
+  alternativeNo: number;
+}
+
 const readEcnRow = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnRow> => {
   const dialect = bomSqlDialectFor(adapter.name);
-  const ecnTable = dialect.table('ecn');
-  const result = await rawQuery(
+  const rows = await queryRecords(
     adapter,
-    `SELECT "id", "ecnNo", "state", "effectiveDate" FROM ${ecnTable} WHERE "id" = '${ecnId}'`
+    `SELECT "id", "ecnNo", "state", "effectiveDate" FROM ${dialect.table('ecn')} WHERE "id" = ${dialect.placeholder(0)}`,
+    [ecnId]
   );
-  const shape = result as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
-  const rows = 'results' in shape ? shape.results[0].rows : shape.rows;
   if (rows.length === 0) throw new Error(`[rxdb-plugin-bom] ECN 不存在：${ecnId}`);
+  const row = rows[0];
   return {
-    id: String(rows[0][0]),
-    ecnNo: String(rows[0][1]),
-    state: String(rows[0][2]),
-    effectiveDate: new Date(String(rows[0][3]))
+    id: String(row['id']),
+    ecnNo: String(row['ecnNo']),
+    state: String(row['state']),
+    effectiveDate: row['effectiveDate'] instanceof Date ? row['effectiveDate'] : new Date(String(row['effectiveDate']))
   };
 };
 
-/** ECN 成员发生项归属头的父修订集合（影响面 / 差异的起点）。 */
-const affectedParentRevisions = async (
-  adapter: BomLocalAdapter,
-  ecnId: string
-): Promise<{ headerId: string; parentRevisionId: string }[]> => {
+/** ECN 成员（发生项引入 / 截止、新建逻辑行）归属的头，带作用域（影响面 / 差异的起点）。 */
+const affectedHeaders = async (adapter: BomLocalAdapter, ecnId: string): Promise<AffectedHeader[]> => {
   const dialect = bomSqlDialectFor(adapter.name);
-  const occurrence = dialect.table('bom_line_occurrence');
   const line = dialect.table('bom_line');
-  const header = dialect.table('bom_header');
   const sql = [
-    `SELECT DISTINCT h."id" AS "headerId", h."parentRevisionId" AS "parentRevisionId"`,
-    `FROM ${occurrence} occ`,
-    `JOIN ${line} l ON l."id" = occ."lineId"`,
-    `JOIN ${header} h ON h."id" = l."headerId"`,
-    `WHERE occ."ecnInId" = '${ecnId}' OR occ."ecnOutId" = '${ecnId}'`,
-    `UNION`,
-    `SELECT DISTINCT h."id" AS "headerId", h."parentRevisionId" AS "parentRevisionId"`,
-    `FROM ${line} l JOIN ${header} h ON h."id" = l."headerId"`,
-    `WHERE l."ecnInId" = '${ecnId}'`,
-    `ORDER BY "headerId"`
+    `SELECT h."id" AS "headerId", h."parentRevisionId" AS "parentRevisionId", r."itemId" AS "parentItemId",`,
+    `  h."state" AS "state", h."bomType" AS "bomType", h."orgId" AS "orgId", h."alternativeNo" AS "alternativeNo"`,
+    `FROM ${dialect.table('bom_header')} h JOIN ${dialect.table('item_revision')} r ON r."id" = h."parentRevisionId"`,
+    `WHERE EXISTS (SELECT 1 FROM ${line} l JOIN ${dialect.table('bom_line_occurrence')} occ ON occ."lineId" = l."id"`,
+    `  WHERE l."headerId" = h."id" AND (occ."ecnInId" = ${dialect.placeholder(0)} OR occ."ecnOutId" = ${dialect.placeholder(1)}))`,
+    `OR EXISTS (SELECT 1 FROM ${line} l WHERE l."headerId" = h."id" AND l."ecnInId" = ${dialect.placeholder(2)})`,
+    `ORDER BY h."id"`
   ].join('\n');
-  const result = (await rawQuery(adapter, sql)) as unknown as
-    { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
-  const rows = 'results' in result ? result.results[0].rows : result.rows;
-  return rows.map(row => ({ headerId: String(row[0]), parentRevisionId: String(row[1]) }));
+  return (await queryRecords(adapter, sql, [ecnId, ecnId, ecnId])).map(row => ({
+    headerId: String(row['headerId']),
+    parentRevisionId: String(row['parentRevisionId']),
+    parentItemId: String(row['parentItemId']),
+    state: String(row['state']),
+    bomType: String(row['bomType']) as BomType,
+    orgId: String(row['orgId']),
+    alternativeNo: Number(row['alternativeNo'])
+  }));
+};
+
+/** 数组值 Map 的追加（缺键即建）。 */
+const appendTo = <V>(map: Map<string, V[]>, key: string, values: V[]): void => {
+  const list = map.get(key);
+  if (list) list.push(...values);
+  else map.set(key, [...values]);
+};
+
+/** 按作用域 `(bom_type, org_id)` 分组被改物料（同一物料在两个作用域里各算一次）。 */
+const itemsByScope = (headers: AffectedHeader[]): { bomType: BomType; orgId: string; itemIds: string[] }[] => {
+  const groups = new Map<string, { bomType: BomType; orgId: string; itemIds: string[] }>();
+  for (const header of headers) {
+    const key = JSON.stringify([header.bomType, header.orgId]);
+    const group = groups.get(key) ?? { bomType: header.bomType, orgId: header.orgId, itemIds: [] };
+    if (!group.itemIds.includes(header.parentItemId)) group.itemIds.push(header.parentItemId);
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+};
+
+/** 一层反查：前沿物料在作用域内的使用方（父物料 + 到达它的发生项）。 */
+const parentsOf = async (
+  adapter: BomLocalAdapter,
+  context: ResolutionContext,
+  itemIds: string[]
+): Promise<Map<string, { parentItemId: string; occurrenceId: string }[]>> => {
+  const built = buildParentsOfItemsSql(bomSqlDialectFor(adapter.name), {
+    asOfDate: context.asOfDate,
+    bomType: context.bomType,
+    orgId: context.orgId,
+    itemIds
+  });
+  const parents = new Map<string, { parentItemId: string; occurrenceId: string }[]>();
+  for (const row of await queryRecords(adapter, built.sql, built.params)) {
+    appendTo(parents, String(row['childItemId']), [
+      { parentItemId: String(row['parentItemId']), occurrenceId: String(row['occurrenceId']) }
+    ]);
+  }
+  return parents;
 };
 
 /**
- * ECN 影响面（AC#1）：成员发生项的头物料按生效日 where-used 走到顶的整机与路径。
+ * 从被改物料在作用域内 where-used 逐层向上到无父物料（整机）；命中路径以「物料 → 父物料」逐跳
+ * 追加到达父物料的发生项 id。
+ */
+const topItemsOf = async (
+  adapter: BomLocalAdapter,
+  context: ResolutionContext,
+  itemId: string
+): Promise<Map<string, string[][]>> => {
+  const top = new Map<string, string[][]>();
+  const seen = new Set<string>([itemId]);
+  let frontier: { itemId: string; path: string[] }[] = [{ itemId, path: [] }];
+  while (frontier.length > 0) {
+    const parentsByChild = await parentsOf(
+      adapter,
+      context,
+      frontier.map(entry => entry.itemId)
+    );
+    const next: { itemId: string; path: string[] }[] = [];
+    for (const entry of frontier) {
+      const parents = parentsByChild.get(entry.itemId) ?? [];
+      if (parents.length === 0) appendTo(top, entry.itemId, [entry.path]);
+      for (const parent of parents.filter(candidate => !seen.has(candidate.parentItemId))) {
+        seen.add(parent.parentItemId);
+        next.push({ itemId: parent.parentItemId, path: [...entry.path, parent.occurrenceId] });
+      }
+    }
+    frontier = next;
+  }
+  return top;
+};
+
+/**
+ * ECN 影响面（AC#1）：成员发生项的头物料按生效日、在该头自己的作用域内 where-used 走到顶的整机与路径。
  */
 export const ecnImpact = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnImpactResult> => {
   const ecn = await readEcnRow(adapter, ecnId);
-  const dialect = bomSqlDialectFor(adapter.name);
-  const headers = await affectedParentRevisions(adapter, ecnId);
-  const affectedItemIds: string[] = [];
-  const affectedRevisions: string[] = [];
-  for (const { parentRevisionId } of headers) {
-    if (affectedRevisions.includes(parentRevisionId)) continue;
-    affectedRevisions.push(parentRevisionId);
-    const revision = dialect.table('item_revision');
-    const row = (await rawQuery(
-      adapter,
-      `SELECT "itemId" FROM ${revision} WHERE "id" = '${parentRevisionId}'`
-    )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
-    const rows = 'results' in row ? row.results[0].rows : row.rows;
-    if (rows.length > 0) affectedItemIds.push(String(rows[0][0]));
-  }
-  // 从被改物料出发，where-used 逐层向上到无父物料；命中路径以物料 → 父物料逐层收集
-  const context: ResolutionContext = {
-    bomType: 'ebom',
-    orgId: 'org-x',
-    asOfDate: ecn.effectiveDate
-  };
+  const headers = await affectedHeaders(adapter, ecnId);
   const top = new Map<string, string[][]>();
-  // 每个被改物料独立 where-used 一遍（其向上闭包合并到顶层集合）
-  for (const itemId of affectedItemIds) {
-    let frontier: { itemId: string; path: string[] }[] = [{ itemId, path: [] }];
-    const seen = new Set<string>([itemId]);
-    while (frontier.length > 0) {
-      const next: { itemId: string; path: string[] }[] = [];
-      const sql = buildParentsOfItemsSql(dialect, {
-        asOfDate: context.asOfDate,
-        bomType: context.bomType,
-        orgId: context.orgId,
-        itemIds: frontier.map(f => f.itemId)
-      });
-      const result = (await rawQuery(adapter, sql.sql, sql.params)) as unknown as { rows: unknown[][] };
-      const parentsByChild = new Map<string, { itemId: string; path: string[] }[]>();
-      for (const row of result.rows) {
-        const childItemId = String(row[5]);
-        const parentItemId = String(row[0]);
-        const occurrenceId = String(row[4]);
-        const path = frontier.find(f => f.itemId === childItemId)?.path ?? [];
-        const list = parentsByChild.get(childItemId) ?? [];
-        list.push({ itemId: parentItemId, path: [...path, occurrenceId] });
-        parentsByChild.set(childItemId, list);
-      }
-      for (const f of frontier) {
-        const parents = parentsByChild.get(f.itemId) ?? [];
-        if (parents.length === 0) {
-          // 无父物料 = 顶层整机
-          const paths = top.get(f.itemId) ?? [];
-          paths.push(f.path);
-          top.set(f.itemId, paths);
-          continue;
-        }
-        for (const parent of parents) {
-          if (seen.has(parent.itemId)) continue;
-          seen.add(parent.itemId);
-          next.push(parent);
-        }
-      }
-      frontier = next;
+  for (const scope of itemsByScope(headers)) {
+    const context: ResolutionContext = { bomType: scope.bomType, orgId: scope.orgId, asOfDate: ecn.effectiveDate };
+    for (const itemId of scope.itemIds) {
+      for (const [topItemId, paths] of await topItemsOf(adapter, context, itemId)) appendTo(top, topItemId, paths);
     }
   }
   return {
@@ -174,7 +217,7 @@ export const ecnImpact = async (adapter: BomLocalAdapter, ecnId: string): Promis
     ecnNo: ecn.ecnNo,
     state: ecn.state,
     effectiveDate: ecn.effectiveDate,
-    affectedItemIds,
+    affectedItemIds: [...new Set(headers.map(header => header.parentItemId))],
     topItems: [...top.entries()].map(([itemId, paths]) => ({ itemId, paths }))
   };
 };
@@ -186,18 +229,57 @@ const dayBefore = (date: Date): Date => {
   return copy;
 };
 
+/** 未裁决的逻辑行 → 候选发生项集合（无逻辑行的未裁决记在空键下）。 */
+const ambiguousLines = (result: ResolutionResult): Map<string, string> =>
+  new Map(
+    result.manifest.unresolved.map(entry => [
+      entry.lineId ?? '',
+      entry.candidates
+        .map(candidate => candidate.occurrenceId ?? candidate.headerId)
+        .sort()
+        .join(',')
+    ])
+  );
+
 /**
- * ECN 差异（AC#2）：按生效前后两个评估日对涉及的头各解析一次，按逻辑行对齐。
+ * 差异可判定（M7）：逻辑行在两个评估日都解析不出唯一发生项、但候选集相同即未变，不入差异；
+ * 候选集不同（含一侧唯一、一侧多候选）就是变了却无法按行对齐，拒绝并点名，不给出漏行的差异。
+ */
+const assertDiffable = (
+  ecn: EcnRow,
+  header: AffectedHeader,
+  before: ResolutionResult,
+  after: ResolutionResult
+): void => {
+  const beforeLines = ambiguousLines(before);
+  const afterLines = ambiguousLines(after);
+  for (const lineId of new Set([...beforeLines.keys(), ...afterLines.keys()])) {
+    if (beforeLines.get(lineId) === afterLines.get(lineId)) continue;
+    const entry = [...before.manifest.unresolved, ...after.manifest.unresolved].find(
+      unresolved => (unresolved.lineId ?? '') === lineId
+    );
+    throw new BomResolutionError(
+      entry?.reason ?? 'alternativeNo',
+      `ECN ${ecn.ecnNo} 差异无法判定：头 ${header.headerId} 的逻辑行 ${lineId || '（备选）'} 在生效前后解析不出唯一发生项`
+    );
+  }
+};
+
+/**
+ * ECN 差异（AC#2）：按生效前后两个评估日对涉及的已发布头各解析一次（作用域与备选号取该头自身），
+ * 按逻辑行对齐。草稿头不入解析结果，没有生效前后之分，不列。
  */
 export const ecnDiff = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnDiffResult> => {
   const ecn = await readEcnRow(adapter, ecnId);
-  const headers = await affectedParentRevisions(adapter, ecnId);
-  const base = { bomType: 'ebom' as const, orgId: 'org-x' as const };
   const diffHeaders: EcnDiffResult['headers'] = [];
-  for (const { headerId, parentRevisionId } of headers) {
-    const before = await resolveBom(adapter, { ...base, asOfDate: dayBefore(ecn.effectiveDate) }, { parentRevisionId });
-    const after = await resolveBom(adapter, { ...base, asOfDate: ecn.effectiveDate }, { parentRevisionId });
-    diffHeaders.push({ headerId, entries: alignByLine(before, after) });
+  const released = (await affectedHeaders(adapter, ecnId)).filter(header => header.state === 'released');
+  for (const header of released) {
+    const scope = { bomType: header.bomType, orgId: header.orgId, alternativeNo: header.alternativeNo };
+    const target = { parentRevisionId: header.parentRevisionId };
+    const before = await resolveBom(adapter, { ...scope, asOfDate: dayBefore(ecn.effectiveDate) }, target);
+    const after = await resolveBom(adapter, { ...scope, asOfDate: ecn.effectiveDate }, target);
+    assertDiffable(ecn, header, before, after);
+    diffHeaders.push({ headerId: header.headerId, entries: alignByLine(before, after) });
   }
   return { ecnId: ecn.id, ecnNo: ecn.ecnNo, effectiveDate: ecn.effectiveDate, headers: diffHeaders };
 };

@@ -1,9 +1,9 @@
 /**
  * @fileoverview BOM 仓储门面
  *
- * 十进制值合同的**入口规范化**只发生在这里：`qty` 等十进制字段写前规范成规范串
- * （接受指数写法、前导零、尾随零），存储层不替调用方规范化。违约（CHECK / 排他 /
- * BOM 触发器消息）归一为类型化错误类再上抛。
+ * 十进制值合同的**入口规范化**发生在这里：全部十进制列写前规范成规范串（接受指数写法、前导零、
+ * 尾随零）并按存储层同一域规则校验（规则表见 resolve/write-rules.ts，整批导入与历史通道共用），
+ * 存储层不替调用方规范化。违约（CHECK / 排他 / BOM 触发器消息）归一为类型化错误类再上抛。
  */
 
 import type { EntityType, QueryTask, RxDB, TransactionExecutor } from '@aiao/rxdb';
@@ -16,12 +16,11 @@ import {
   Repository
 } from '@aiao/rxdb';
 import { firstValueFrom, type Observable } from 'rxjs';
-import { normalizeDecimalString } from './decimal.utils.js';
-import { BOM_ENTITIES, BomHeader, BomInstanceNode, BomItem, BomLineDesignator, BomLineOccurrence } from './entities.js';
+import { BOM_ENTITIES, BomHeader, BomInstanceNode, BomItem, BomLineOccurrence } from './entities.js';
 import { bomSqlDialectFor, type BomSqlDialect } from './resolve/bom-sql.js';
 import { BomConfigError, CONDITION_GRAMMAR_VERSION } from './resolve/config-condition.js';
 import { validateConditionReferences } from './resolve/config-validate.js';
-import { attachUnionOnlyMark } from './resolve/cycle-analysis.js';
+import { attachUnionOnlyMark, type AttemptedOccurrence } from './resolve/cycle-analysis.js';
 import {
   BomExtAttrError,
   normalizeExtValue,
@@ -32,6 +31,7 @@ import {
 import { BomResolutionError } from './resolve/resolution.js';
 import type { BomQueryExecutor } from './resolve/resolver.js';
 import { parseLotCodes } from './resolve/unit-lot.js';
+import { assertFormulaGrammar, normalizeDecimalColumns } from './resolve/write-rules.js';
 import { BomCycleError, BomInstanceError, normalizeBomError } from './types.js';
 import type { BomViewInput, BomViewSnapshot } from './view-types.js';
 import { bomViewRunner } from './view.js';
@@ -41,33 +41,6 @@ declare module '@aiao/rxdb' {
     bomView: { type: 'bomView'; options: BomViewInput; entityType?: T };
   }
 }
-
-/** 需要入口规范化的十进制字段（US-511 按十进制值合同扩列）。 */
-const DECIMAL_FIELDS = [
-  'jointCostShare',
-  'qty',
-  'baseQty',
-  'assemblyScrap',
-  'componentScrap',
-  'componentScrapFixed',
-  'lotsizeFrom',
-  'lotsizeTo',
-  'uomConversion'
-] as const;
-
-/** 把实体上的十进制字段规范成规范串（原地赋值，不做数值运算）。 */
-const normalizeDecimalFields = (entity: Record<string, unknown>): void => {
-  for (const field of DECIMAL_FIELDS) {
-    if (field in entity && entity[field] !== undefined && entity[field] !== null) {
-      entity[field] = normalizeDecimalString(entity[field], field);
-    }
-  }
-};
-
-/**
- * 把底层适配器错误归一为 BOM 错误类；不是 BOM 违约时原样上抛。
- * 环错误附加 `unionOnly` 标记（US-509 AC#9：并集环与真环的区分只服务于产品判断）。
- */
 
 /** 实体类型 → ext 作用域（US-519 写入期按 attr_def 校验的入口）。 */
 const EXT_APPLIES_TO: Record<string, 'item' | 'bom_header' | 'bom_line_occurrence'> = {
@@ -186,7 +159,10 @@ export const validateBomWrite = async (
     await conditionById(query, dialect, data['leftConditionId'], data['orgId']);
     await conditionById(query, dialect, data['rightConditionId'], data['orgId']);
   }
+  // 导入通道不经仓储的规范化回写：共用校验点按存储层同一域再判一次（仓储路径已规范化，判定幂等）
+  normalizeDecimalColumns(data);
   if (entityName !== 'BomLineOccurrence') return;
+  assertFormulaGrammar(data);
   for (const field of ['unitFrom', 'unitTo']) {
     const value = data[field];
     if (value != null && (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1))
@@ -202,17 +178,26 @@ export const validateBomWrite = async (
   await conditionById(query, dialect, data['selectionConditionId'], headers[0]?.['orgId']);
 };
 
+/** 被拒的发生项写入（定 union_only 的判环作用域与闭合边区间）；不是发生项写入时为 undefined。 */
+const attemptedOccurrence = (record: Record<string, unknown> | undefined): AttemptedOccurrence | undefined => {
+  if (record === undefined || typeof record['lineId'] !== 'string') return undefined;
+  const time = (value: unknown): number | null => (value instanceof Date ? value.getTime() : null);
+  return {
+    lineId: record['lineId'],
+    ...(typeof record['id'] === 'string' ? { id: record['id'] } : {}),
+    from: time(record['effectiveFrom']),
+    to: time(record['effectiveTo'])
+  };
+};
+
+/**
+ * 把底层适配器错误归一为 BOM 错误类；不是 BOM 违约时原样上抛。
+ * 环错误附加 `unionOnly` 标记（US-509 AC#9：并集环与真环的区分只服务于产品判断）。
+ */
 const rethrowBomError = async (rxdb: RxDB, cause: unknown, attempted?: Record<string, unknown>): Promise<never> => {
   const normalized = normalizeBomError(cause) ?? cause;
   if (normalized instanceof BomCycleError) {
-    const interval =
-      attempted ?
-        {
-          from: attempted['effectiveFrom'] instanceof Date ? (attempted['effectiveFrom'] as Date).getTime() : null,
-          to: attempted['effectiveTo'] instanceof Date ? (attempted['effectiveTo'] as Date).getTime() : null
-        }
-      : undefined;
-    throw await attachUnionOnlyMark(rxdb, normalized, interval);
+    throw await attachUnionOnlyMark(rxdb, normalized, attemptedOccurrence(attempted));
   }
   throw normalized;
 };
@@ -249,8 +234,8 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
   }
 
   override async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
-    normalizeDecimalFields(entity as unknown as Record<string, unknown>);
     const data = entity as unknown as Record<string, unknown>;
+    Object.assign(data, normalizeDecimalColumns(data));
     await validateBomWrite(
       this.rawQuery.bind(this),
       bomSqlDialectFor(this.rxdb.localAdapterSync?.name),
@@ -263,7 +248,7 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
     try {
       return await super.create(entity);
     } catch (error) {
-      return await rethrowBomError(this.rxdb, error, entity as unknown as Record<string, unknown>);
+      return await rethrowBomError(this.rxdb, error, data);
     }
   }
 
@@ -284,12 +269,16 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
 
   async #updatePrepared(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     const patchRecord = patch as unknown as Record<string, unknown>;
+    const entityRecord = entity as unknown as Record<string, unknown>;
     const data = new Proxy(patchRecord, {
-      get: (target, property) =>
-        property in target ?
-          target[property as string]
-        : (entity as unknown as Record<string, unknown>)[property as string]
+      get: (target, property) => (property in target ? target[property as string] : entityRecord[property as string])
     });
+    // 规范化只在插件入口：按补丁覆盖实体的合并视图判域（只改损耗记法也重判良率制域），只回写补丁里的列
+    for (const [field, normalized] of Object.entries(normalizeDecimalColumns(data))) {
+      if (!(field in patchRecord)) continue;
+      if (entityRecord[field] === patchRecord[field]) entityRecord[field] = normalized;
+      patchRecord[field] = normalized;
+    }
     await validateBomWrite(
       this.rawQuery.bind(this),
       bomSqlDialectFor(this.rxdb.localAdapterSync?.name),
@@ -299,19 +288,10 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
       'ext' in patchRecord,
       this.rxdb
     );
-    // 规范化只在插件入口：patch 里的十进制字段同样经规范串入存储
-    for (const [field, value] of Object.entries(patch)) {
-      if ((DECIMAL_FIELDS as readonly string[]).includes(field) && value !== undefined && value !== null) {
-        const normalized = normalizeDecimalString(value, field);
-        (patch as Record<string, unknown>)[field] = normalized;
-        const entityRecord = entity as unknown as Record<string, unknown>;
-        if (entityRecord[field] === value) entityRecord[field] = normalized;
-      }
-    }
     try {
       return await super.update(entity, patch);
     } catch (error) {
-      return await rethrowBomError(this.rxdb, error, entity as unknown as Record<string, unknown>);
+      return await rethrowBomError(this.rxdb, error, data);
     }
   }
 
@@ -338,16 +318,13 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
     });
   }
 
+  /** 删除发生项：实例来源引用检查与删除同一事务；位号与分摊行由两后端的外键 CASCADE 级联。 */
   async #removeOccurrence(entity: InstanceType<T>): Promise<InstanceType<T>> {
     const adapter = await firstValueFrom(this.rxdb.localAdapter$);
     const dialect = bomSqlDialectFor(adapter.name);
     const hasInstances = this.rxdb.config.entities.includes(BomInstanceNode);
     return adapter.transaction(async executor => {
       if (hasInstances) await assertOccurrenceUnreferenced(executor, dialect, entity.id);
-      await executor.query(
-        `DELETE FROM ${executor.tableRef(BomLineDesignator)} WHERE "occurrenceId" = ${dialect.placeholder(0)}`,
-        [entity.id]
-      );
       return executor.getRepository(this.EntityType).remove(entity);
     });
   }

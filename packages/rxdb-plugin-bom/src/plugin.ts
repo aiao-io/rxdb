@@ -5,14 +5,25 @@
  * `install()` 被调用时本地适配器引导链（迁移、建表、索引收敛）已跑完；DDL 经
  * `bootstrapTransaction` 执行（此刻 `RxDB.connect()` 还卡在等插件安装，裸查询会等自己）。
  * 后端按适配器名分叉：SQLite 家族与 PGlite 各一份 DDL，其余显式声明不支持（US-030 AC#6）。
- * DDL 幂等（`IF NOT EXISTS` / `CREATE OR REPLACE`），重连不产生第二份对象。
+ * 判环只有可达闭包版一份实现（`reach/`），随发生项与全部实体 DDL 在同一事务里下发：
+ * 先做纯校验（同步策略 / 适配器仓储轴 / 实体依赖闭合），再整批执行，全有或全无。
+ * DDL 幂等（`DROP … IF EXISTS` + `CREATE` / `CREATE OR REPLACE`），重连不产生第二份对象。
  */
 
-import type { EntityType, IRxDBPlugin, Plugin, RxDB } from '@aiao/rxdb';
+import type { EntityMetadata, EntityType, IRxDBPlugin, Plugin, RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { getEntityMetadata, RxDBPluginBase, SyncType } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
 import { firstValueFrom, Observable } from 'rxjs';
-import { BOM_ENTITIES, BomHeader } from './entities.js';
+import {
+  BOM_ENTITIES,
+  BomAttrDef,
+  BomConfigChar,
+  BomConfigCharValue,
+  BomConfigCondition,
+  BomHeader,
+  BomItem,
+  BomLineOccurrence
+} from './entities.js';
 import type {
   BomInstanceQueryOptions,
   BomInstanceTraceResult,
@@ -23,7 +34,8 @@ import { rollupCost as runRollupCost } from './quantity/cost-api.js';
 import type { CostRollupContext, CostRollupResult } from './quantity/cost.js';
 import { explodeBom as runExplodeBom } from './quantity/explosion-api.js';
 import type { ExplosionOptions, ExplosionResult } from './quantity/explosion.js';
-import { createBomReachSystem, hasCompleteBomGraph } from './reach/system.js';
+import { buildReachInstallDdl } from './reach/install.js';
+import { createBomReachSystem } from './reach/system.js';
 import { BomRepository } from './repository.js';
 import { cycleConstraintDdlForRemotePg } from './resolve/cycle-constraint-ddl.js';
 import { ecnDiff as runEcnDiff, ecnImpact as runEcnImpact } from './resolve/ecn-api.js';
@@ -43,7 +55,7 @@ import { exportBom as runExportBom, importBomDraft as runImportBomDraft } from '
 import type { BomImportResult } from './resolve/integration.js';
 import type { ResolutionContext, ResolutionResult } from './resolve/resolution.js';
 import { resolveBom, type ResolveTarget } from './resolve/resolver.js';
-import { BomBackendCapabilityError, BomSyncUnsupportedError } from './types.js';
+import { BomBackendCapabilityError, BomError, BomSyncUnsupportedError } from './types.js';
 import type { BomViewInput, BomViewSnapshot } from './view-types.js';
 
 /** SQLite 家族适配器名（与各适配器包的 `ADAPTER_NAME` 一致）。 */
@@ -88,6 +100,99 @@ export const resolveBomBackend = async (adapterName: string | undefined): Promis
     );
   }
   throw new BomBackendCapabilityError(adapterName ?? '(no local adapter)');
+};
+
+/** install 期取仓储与执行 DDL 所需的本地适配器能力。 */
+type BomInstallAdapter = Pick<NonNullable<RxDB['localAdapterSync']>, 'name' | 'getRepository'>;
+
+/**
+ * 适配器仓储轴校验：BOM 实体声明的仓储名必须已在适配器 `options.repositories` 注册。
+ *
+ * @remarks
+ * 门面轴随 `use()` 注册，适配器轴只能由宿主在构造适配器时给出；漏配时建表与触发器
+ * 都能成功，直到第一次读写才炸。install 期逐实体取一次仓储，把接线遗漏前移成可操作的
+ * {@link BomBackendCapabilityError}。
+ */
+const assertBomRepositoriesRegistered = (adapter: BomInstallAdapter, entities: readonly EntityType[]): void => {
+  for (const EntityType of entities) {
+    try {
+      adapter.getRepository(EntityType);
+    } catch (cause) {
+      const { repository } = getEntityMetadata(EntityType);
+      const implementation = adapter.name === 'pglite' ? 'PGliteRepository' : 'SqliteRepository';
+      throw new BomBackendCapabilityError(
+        adapter.name,
+        `适配器仓储轴未注册 ${repository}（${cause instanceof Error ? cause.message : String(cause)}）；` +
+          `请在适配器 options.repositories 中注册 { ${repository}: ${implementation} }`
+      );
+    }
+  }
+};
+
+/**
+ * 仓储写入期校验会读、却不经关系 / 外键声明的实体（DDL 推不出，显式登记）。
+ *
+ * @remarks
+ * 与 `repository.ts` 的 `validateBomWrite` 同步维护：ext 作用域实体创建时按 `attr_def` 校验扩展属性，
+ * 配置条件写入时按特征 / 特征值校验表达式。关系与外键的目标由核心在连接期校验，不在此列。
+ */
+const WRITE_PATH_DEPENDENCIES: ReadonlyMap<EntityType, readonly EntityType[]> = new Map<
+  EntityType,
+  readonly EntityType[]
+>([
+  [BomItem, [BomAttrDef]],
+  [BomHeader, [BomAttrDef]],
+  [BomLineOccurrence, [BomAttrDef]],
+  [BomConfigCondition, [BomConfigChar, BomConfigCharValue]]
+]);
+
+/** 识别 DDL 对一张 BOM 表的引用：SQLite `"bom$表"`，PG `"bom"."表"` / `bom.表`。 */
+const tableReference = ({ namespace, tableName }: EntityMetadata): RegExp =>
+  new RegExp(`"${namespace}\\$${tableName}"|(?:"${namespace}"|\\b${namespace})\\."?${tableName}(?!\\w)`);
+
+/**
+ * 实体依赖闭合校验：在列实体的存储层 DDL 与仓储写入校验读取的每张 BOM 表都必须在 `entities` 里。
+ *
+ * @param statements - 每个在列实体的后端 DDL
+ * @param reach - 判环与可达维护 DDL，计入发生项的依赖
+ * @throws {@link BomError} 点名缺依赖的实体与它们读取却未配置的实体
+ *
+ * @remarks
+ * 存储层依赖取自即将下发的 DDL 文本本身，随触发器演进自动同步；写入路径依赖见
+ * {@link WRITE_PATH_DEPENDENCIES}。合法的部分配置是依赖闭合的子集（如物料 + 扩展属性定义，
+ * 再加修订 + 历史批次）；不闭合时两后端在任何 DDL 之前同一时点拒绝，而不是把「表不存在」
+ * 推迟到首次写入（SQLite 在语句编译期、PG 在函数执行到对应分支时才暴露，时点不一致）。
+ */
+const assertBomEntityDependencies = (
+  statements: ReadonlyMap<EntityType, readonly string[]>,
+  reach: readonly string[]
+): void => {
+  const absent = BOM_ENTITIES.filter(EntityType => !statements.has(EntityType));
+  const gaps = [...statements].flatMap(([EntityType, ddl]) => {
+    const text = [...ddl, ...(EntityType === BomLineOccurrence ? reach : [])].join('\n');
+    const writes = WRITE_PATH_DEPENDENCIES.get(EntityType) ?? [];
+    const missing = absent.filter(
+      Other => writes.includes(Other) || tableReference(getEntityMetadata(Other)).test(text)
+    );
+    if (missing.length === 0) return [];
+    return [
+      `${getEntityMetadata(EntityType).name} → ${missing.map(Other => getEntityMetadata(Other).name).join('、')}`
+    ];
+  });
+  if (gaps.length > 0) {
+    throw new BomError(
+      `BOM 实体配置不闭合，存储层约束或仓储写入校验读取了未配置的实体：${gaps.join('；')}。` +
+        '请把它们一并加入 entities（部分配置只支持依赖闭合的子集，如物料 + 扩展属性定义）'
+    );
+  }
+};
+
+const executeDdl = async (executor: TransactionExecutor, statement: string): Promise<void> => {
+  try {
+    await executor.query(statement);
+  } catch (error) {
+    throw new Error(`BOM 触发器 DDL 安装失败：${statement}`, { cause: error });
+  }
 };
 
 /** 活视图快照（US-522）：结构恒在，数量违约时 explosion 为 null、quantityError 携带原因。 */
@@ -230,7 +335,14 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
     return this.#installTriggers(scope);
   }
 
-  /** 对 schema 里存在的每个 BOM 实体下发存储层触发器（幂等）。 */
+  /**
+   * 对 schema 里存在的每个 BOM 实体下发存储层触发器与可达维护（幂等、单事务）。
+   *
+   * @remarks
+   * 校验全部排在第一条 DDL 之前。全部语句在一个引导事务里执行：任一失败整体回滚
+   * （PG 首条失败即中止事务），不留「部分实体装上新触发器」的半成品。作用域在开事务前
+   * 已失活就收手——DDL 幂等，新纪元从头重装；事务一旦开始就整体提交或整体回滚。
+   */
   async #installTriggers(scope: LifecycleScope): Promise<void> {
     const adapterName = this.rxdb.config.sync?.local?.adapter;
     const buildDdl = await resolveBomBackend(adapterName);
@@ -246,24 +358,18 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
     if (this.rxdb.entitySync) {
       assertBomSyncNotDeclared(this.rxdb.entitySync, presentEntities);
     }
-    for (const EntityType of presentEntities) {
-      if (scope.state !== 'active') return;
-      const statements = buildDdl(getEntityMetadata(EntityType));
-      if (statements.length === 0) continue;
-      await adapter.bootstrapTransaction(async executor => {
-        for (const statement of statements) {
-          try {
-            await executor.query(statement);
-          } catch (error) {
-            throw new Error(`BOM 触发器 DDL 安装失败：${statement}`, { cause: error });
-          }
-        }
-      }, false);
-    }
-    if (hasCompleteBomGraph(this.rxdb)) {
-      const { installReachMaintenance } = await import('./reach/install.js');
-      await adapter.bootstrapTransaction(executor => installReachMaintenance(executor, adapter.name), false);
-    }
+    assertBomRepositoriesRegistered(adapter, presentEntities);
+    const statements = new Map(
+      presentEntities.map(EntityType => [EntityType, buildDdl(getEntityMetadata(EntityType))])
+    );
+    // 判环与可达维护随发生项下发，排在全部实体 DDL 之后（SQLite 同事件触发器逆创建序执行，判环最先触发）
+    const reach = statements.has(BomLineOccurrence) ? buildReachInstallDdl(adapter.name) : [];
+    assertBomEntityDependencies(statements, reach);
+    const all = [...[...statements.values()].flat(), ...reach];
+    if (all.length === 0 || scope.state !== 'active') return;
+    await adapter.bootstrapTransaction(async executor => {
+      for (const statement of all) await executeDdl(executor, statement);
+    }, false);
   }
 }
 

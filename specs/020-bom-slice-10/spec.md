@@ -2,7 +2,7 @@
 
 **Feature Branch**: `claude/bom-related-work-77235b`
 **Created**: 2026-10-17
-**Status**: Draft
+**Status**: Implemented
 **Input**: 第 9 步已交付。在当前分支完成 [US-522](../../requirements/stories/domain/US-522-bom-tri-framework-ui.md) 全部 12 条 AC；先补齐真实前置缺口 [US-520 AC#11](../../requirements/stories/domain/US-520-bom-routing-operation.md) 与 [US-524 AC#7](../../requirements/stories/domain/US-524-routing-master-model.md) 的路线停用消费行为。
 
 ## User Scenarios & Testing

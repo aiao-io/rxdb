@@ -5,10 +5,18 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { BomItem } from '../entities.js';
+import { BomHeader, BomItem, BomLine, BomLineOccurrence } from '../entities.js';
+import { BomCostError, rollupCost } from '../quantity/cost.js';
 import { explodeBom, type RequirementLine } from '../quantity/explosion.js';
 import { loadHistory } from '../resolve/history-loader.js';
-import { BomTestAdapter, createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
+import { BomQuantityError } from '../types.js';
+import {
+  BomTestAdapter,
+  buildQuantityFixture,
+  createBomTestAdapter,
+  disposeBomTestAdapter,
+  type BomTestBackend
+} from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
 
@@ -287,6 +295,188 @@ for (const backend of BACKENDS) {
       await expect(
         explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '1', uom: 'pcs' } })
       ).rejects.toThrow();
+    });
+
+    /**
+     * 两跳都跨量纲（行 m → 库存 kg → 子头 件）：行级率（1 kg = 2 m）只服务第一跳，
+     * 第二跳只剩物料级率（1 件 = 0.5 kg）。10 m → 5 kg → 10 件；复用行级率会得 5 ÷ 2 = 2.5。
+     */
+    const buildTwoHop = async (phantom: boolean, itemRate: string, lineRate: string | null) => {
+      const finished = await makeItem('hop-fin');
+      const sub = await makeItem('hop-sub', 'kg', 0, itemRate);
+      const leaf = await makeItem('hop-leaf');
+      await buildQuantityFixture(adapter, [
+        { item: finished, occurrences: [{ child: sub, qty: '10', uom: 'm', uomConversion: lineRate }] },
+        { item: sub, defaultPhantom: phantom, baseUom: 'pcs', baseQty: '1', occurrences: [{ child: leaf, qty: '1' }] }
+      ]);
+      return { finished, sub, leaf };
+    };
+
+    it('二次换算（穿透）：第二跳只用物料级率，manifest 记实际所用的率', async () => {
+      const { finished, leaf } = await buildTwoHop(true, '0.5', '2');
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
+      expect(result.penetrations[0].converted).toEqual({ value: '5', uom: 'kg' });
+      expect(result.penetrations[0].childPlanned).toEqual({ value: '10', uom: 'pcs' });
+      expect(qtyOf(result.requirementLines, leaf)).toEqual(['10']);
+      expect(result.manifest.conversions).toEqual([
+        { from: 'm', to: 'kg', rate: '2' },
+        { from: 'kg', to: 'pcs', rate: '0.5' }
+      ]);
+    });
+
+    it('二次换算（非虚拟件下传）：取整后的 5 kg 按物料级率归一为 10 件', async () => {
+      const { finished, sub, leaf } = await buildTwoHop(false, '0.5', '2');
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
+      expect(qtyOf(result.requirementLines, sub)).toEqual(['5']);
+      expect(qtyOf(result.requirementLines, leaf)).toEqual(['10']);
+    });
+
+    it('物料级率已被第一跳消耗时第二跳缺率：拒绝，不把同一个率复用到另一对单位', async () => {
+      const { finished } = await buildTwoHop(true, '2', null);
+      const error = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      ).then(
+        () => null,
+        (cause: unknown) => cause
+      );
+      expect(error).toBeInstanceOf(BomQuantityError);
+      expect(String((error as Error).message)).toContain('从 kg 换算到 pcs 缺换算率');
+    });
+
+    it('公式行语法版本不是当前版本：数量与成本都在求值前拒绝并点名发生项与版本', async () => {
+      const finished = await makeItem('gv-fin');
+      const part = await makeItem('gv-part');
+      part.unitPrice = '1';
+      part.priceCurrency = 'CNY';
+      await part.save();
+      await loadHistory(adapter, {
+        batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
+        revisions: [{ itemId: finished.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }],
+        headers: []
+      });
+      const revisionTable = backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"';
+      const revisionRows = (await adapter.rawQuery(
+        `SELECT "id" FROM ${revisionTable} WHERE "itemId" = '${finished.id}'`
+      )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
+      const header = new BomHeader();
+      header.parentRevisionId = String(('results' in revisionRows ? revisionRows.results[0] : revisionRows).rows[0][0]);
+      header.bomType = 'ebom';
+      header.orgId = 'org-x';
+      header.costLotQty = '1';
+      await header.save();
+      const line = new BomLine();
+      line.headerId = header.id;
+      line.lineNo = 10;
+      await line.save();
+      const occurrence = new BomLineOccurrence();
+      occurrence.lineId = line.id;
+      occurrence.childItemId = part.id;
+      occurrence.qty = null;
+      occurrence.qtyFormula = '长*宽';
+      occurrence.formulaGrammarVersion = '1';
+      occurrence.effectiveFrom = day('2020-01-01');
+      await occurrence.save();
+      // 绕过入口（导入通道 / 直连 SQL 的形态）把语法版本写成未知的 9
+      const occurrenceTable = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
+      await adapter.rawQuery(
+        `UPDATE ${occurrenceTable} SET "formulaGrammarVersion" = '9' WHERE "id" = '${occurrence.id}'`
+      );
+      header.state = 'released';
+      await header.save();
+      const params = { 长: '3', 宽: '4' };
+      const quantity = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '1', uom: 'pcs' }, params }
+      ).then(
+        () => null,
+        (cause: unknown) => cause
+      );
+      expect(quantity).toBeInstanceOf(BomQuantityError);
+      expect(String((quantity as Error).message)).toContain(occurrence.id);
+      expect(String((quantity as Error).message)).toContain('语法版本「9」');
+      const cost = await rollupCost(
+        adapter,
+        { ...CONTEXT, currency: 'CNY', rateDate: day('2026-01-01'), formulaParams: params },
+        { parentRevisionId: header.parentRevisionId }
+      ).then(
+        () => null,
+        (cause: unknown) => cause
+      );
+      expect(cost).toBeInstanceOf(BomCostError);
+      expect(String((cost as Error).message)).toContain('语法版本「9」');
+    });
+
+    it('副产公式行（qty 为空、只有 qty_formula）按语法版本求值产出量，不以 0 兜底', async () => {
+      const finished = await makeItem('bp-fin');
+      const part = await makeItem('bp-part');
+      const byproduct = await makeItem('bp-out');
+      await loadHistory(adapter, {
+        batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
+        revisions: [{ itemId: finished.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }],
+        headers: [
+          {
+            revisionIndex: 0,
+            bomType: 'ebom',
+            orgId: 'org-x',
+            baseQty: '2',
+            lines: [
+              { lineNo: 10, occurrences: [{ childItemId: part.id, qty: '1', effectiveFrom: day('2020-01-01') }] },
+              {
+                lineNo: 20,
+                occurrences: [
+                  {
+                    childItemId: byproduct.id,
+                    qty: null,
+                    qtyFormula: '长*宽',
+                    formulaGrammarVersion: '1',
+                    flowDirection: 'by_product',
+                    effectiveFrom: day('2020-01-01')
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '10', uom: 'pcs' }, params: { 长: '3', 宽: '4' } }
+      );
+      // q = 3×4 = 12，按批缩放 12 × P′(10) ÷ base_qty(2) = 60
+      expect(result.outputs.map(output => [output.itemId, output.direction, output.qty])).toEqual([
+        [byproduct.id, 'by_product', '60']
+      ]);
+    });
+
+    it('manifest 的换算记录：同量纲标准系数记 null，不记行上声明但未使用的率', async () => {
+      const finished = await makeItem('rec-fin');
+      const part = await makeItem('rec-part', 'kg', 3, '0.5');
+      await buildFixture(adapter, [{ item: finished, occurrences: [{ child: part, qty: '500', uom: 'g' }] }]);
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
+      expect(qtyOf(result.requirementLines, part)).toEqual(['0.5']);
+      expect(result.manifest.conversions).toEqual([{ from: 'g', to: 'kg', rate: null }]);
     });
   });
 }

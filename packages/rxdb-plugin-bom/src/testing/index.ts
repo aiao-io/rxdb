@@ -19,6 +19,7 @@ export {
   SCOOTER_DATASET_E,
   SCOOTER_DATASET_F,
   SCOOTER_SEED_BATCH_NO,
+  SCOOTER_SEED_ROW_COUNTS,
   SCOOTER_SEED_TIMESTAMP,
   deterministicId,
   loadScooterDataset,

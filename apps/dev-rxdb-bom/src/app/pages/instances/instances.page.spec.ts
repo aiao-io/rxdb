@@ -32,7 +32,9 @@ describe('InstancesPage 危险操作确认', () => {
     replaceDemoInstance: vi.fn().mockResolvedValue(undefined),
     instanceTree: vi.fn().mockResolvedValue({ rootId: 'instance-1', nodes: [], truncated: false }),
     readDemoInstanceState: vi.fn().mockResolvedValue({ replacementDate: null, masterRevised: false }),
-    deleteDemoInstanceSource: vi.fn().mockResolvedValue('来源受到实例引用保护')
+    deleteDemoInstanceSource: vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: new Error('发生项 source-1 被 1 个实例引用，禁止删除来源') })
   };
 
   beforeEach(() => {
@@ -90,6 +92,26 @@ describe('InstancesPage 危险操作确认', () => {
     expect(service.deleteDemoInstanceSource).not.toHaveBeenCalled();
     expect(page.busy()).toBe(false);
     expect(page.replaced()).toBe(false);
+  });
+
+  it('来源删除被拒绝时展开可核对原因；意外放行显示为保护未生效', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const fixture = TestBed.createComponent(InstancesPage);
+    await fixture.whenStable();
+    const root = fixture.nativeElement as HTMLElement;
+
+    await fixture.componentInstance.deleteSource();
+    await fixture.whenStable();
+    const refused = root.querySelector('[data-testid=instance-source-delete-result]');
+    expect(refused?.querySelector('pre')?.textContent).toContain('被 1 个实例引用');
+    expect(refused?.querySelector('.error-box')).toBeNull();
+
+    service.deleteDemoInstanceSource.mockResolvedValueOnce({ ok: true });
+    await fixture.componentInstance.deleteSource();
+    await fixture.whenStable();
+    const allowed = root.querySelector('[data-testid=instance-source-delete-result]');
+    expect(allowed?.querySelector('.error-box')?.textContent).toContain('保护未生效');
+    expect(allowed?.querySelector('pre')).toBeNull();
   });
 
   it('确认换件时点名旧电池并按原日期保存', async () => {

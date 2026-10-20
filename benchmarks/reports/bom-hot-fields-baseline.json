@@ -103,6 +103,6 @@
     }
   ],
   "plannerOverrides": false,
-  "sourceLog": "/private/tmp/bom-hot-replay-save-green.log",
+  "sourceLog": "bom-hot-replay-save-green.log（本地会话日志，未归档）",
   "status": "baseline-before-read-only-transaction-fix"
 }

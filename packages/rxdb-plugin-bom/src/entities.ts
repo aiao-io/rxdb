@@ -820,8 +820,6 @@ export class BomInstanceNode extends EntityBase {
   removedAt!: Date | null;
 }
 
-/** BOM 实体全集（触发器安装按此清单在 schema 里找实体）。 */
-
 /**
  * 作业类型（`bom$activity_type`，US-524 阶段 B）：工作中心内的作业种类，
  * `(workCenterId, code)` 唯一；费率按 `(work_center, activity_type, valid_from)` 取值。
@@ -1051,6 +1049,7 @@ export class BomConfigCondition extends EntityBase {
 /**
  * 依赖约束（`bom$config_constraint`，US-517）：`exclude` 互斥 / `require` 蕴含；
  * 两侧各是一条选择条件；`(orgId, code)` 唯一；求值冲突点名约束与两侧条件（AC#2）。
+ * `kind` 是枚举列：两后端建表即带列级 CHECK，直连 SQL 写入未知种类同样被拒（仓储入口另有校验）。
  */
 @Entity({
   name: 'BomConfigConstraint',
@@ -1060,7 +1059,7 @@ export class BomConfigCondition extends EntityBase {
   properties: [
     { name: 'orgId', type: PropertyType.string },
     { name: 'code', type: PropertyType.string },
-    { name: 'kind', type: PropertyType.string },
+    { name: 'kind', type: PropertyType.enum, enum: ['exclude', 'require'] },
     { name: 'leftConditionId', type: PropertyType.uuid },
     { name: 'rightConditionId', type: PropertyType.uuid }
   ],

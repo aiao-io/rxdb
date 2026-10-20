@@ -1,7 +1,17 @@
 import type { QueryManager, RxDB } from '@aiao/rxdb';
-import { filter, firstValueFrom, from, Observable, ReplaySubject, Subject, timeout, type Subscriber } from 'rxjs';
+import {
+  filter,
+  firstValueFrom,
+  from,
+  Observable,
+  ReplaySubject,
+  Subject,
+  throwError,
+  timeout,
+  type Subscriber
+} from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
-import { BomHeader, createBomView } from '../index.js';
+import { BomHeader, createBomView, type BomRepository } from '../index.js';
 import { loadBomViewFixture, type BomViewFixture } from '../testing/bom-view-fixture.js';
 import type { BomViewHandle, BomViewInput, BomViewSnapshot, BomViewState } from '../view-types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
@@ -173,6 +183,56 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
         } finally {
           first.destroy();
           second.destroy();
+        }
+      });
+    });
+
+    it('显式 refresh：源正常时只让共享任务重读一次，源失败后才重订阅', async () => {
+      await withFixture(backend, async (db, fixture) => {
+        const repository = db.entityManager.getRepository<typeof BomHeader, BomRepository<typeof BomHeader>>(BomHeader);
+        const refreshView = vi.spyOn(repository, 'refreshView');
+        const watch = vi.spyOn(db.bom, 'watchView');
+        const view = createBomView(db, fixture.input);
+        const recorded = observe(view);
+        try {
+          await ready(recorded);
+          const count = recorded.values.length;
+          view.refresh();
+          await recorded.until(
+            state => recorded.values.length > count && state.phase === 'success' && !state.refreshing
+          );
+          expect(recorded.values.slice(count).some(state => state.refreshing)).toBe(true);
+          expect(watch).toHaveBeenCalledOnce();
+          expect(refreshView).toHaveBeenCalledOnce();
+          watch.mockReturnValueOnce(throwError(() => new Error('受控读取失败')));
+          view.setInput(fixture.inputFor('main', { plannedQty: { value: '2', uom: 'pcs' } }));
+          await recorded.until(state => state.phase === 'error');
+          view.refresh();
+          await recorded.until(state => state.phase === 'success' && !state.refreshing && state.error === null);
+          expect(watch).toHaveBeenCalledTimes(3);
+          expect(refreshView).toHaveBeenCalledOnce();
+        } finally {
+          recorded.stop();
+          view.destroy();
+        }
+      });
+    });
+
+    it('calculate 期间替换输入时明确拒绝旧结果，新输入可重新计算', async () => {
+      await withFixture(backend, async (db, fixture) => {
+        const view = createBomView(db, fixture.input);
+        const recorded = observe(view);
+        try {
+          await ready(recorded);
+          const stale = view.calculate();
+          view.setInput(fixture.inputFor('formula'));
+          await expect(stale).rejects.toThrow(/输入已替换/);
+          await expect(view.calculate()).resolves.toMatchObject({
+            manifest: { parentItemId: fixture.ids.items.formula }
+          });
+        } finally {
+          recorded.stop();
+          view.destroy();
         }
       });
     });

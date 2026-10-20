@@ -6,8 +6,14 @@
  * where-used 全部路径（含虚拟件路径）。
  */
 
-import { deterministicId } from '@aiao/rxdb-plugin-bom/testing';
-import { expect, Page, test } from '@playwright/test';
+import {
+  SCOOTER_DATASET_F,
+  SCOOTER_SEED_BATCH_NO,
+  SCOOTER_SEED_TIMESTAMP,
+  deterministicId
+} from '@aiao/rxdb-plugin-bom/testing';
+import { Page, expect, test } from '@playwright/test';
+import { SCOOTER_REQUIREMENT_ROWS, SCOOTER_SEED_ROWS, acceptDialog, instanceRootId, openDetails } from './support';
 
 const BASE = '/';
 
@@ -26,33 +32,27 @@ const openPage = async (page: Page, name: keyof typeof PAGE_HEADINGS): Promise<v
   await expect(page.getByRole('heading', { name: PAGE_HEADINGS[name], exact: true })).toBeVisible();
 };
 
+/** 按可访问名称的子串点按钮（字面匹配，不当正则解释）。 */
 const clickButton = async (page: Page, text: string): Promise<void> => {
-  await page.getByRole('button', { name: new RegExp(text) }).click();
-};
-
-const openDetails = async (page: Page, label: string | RegExp): Promise<void> => {
-  const summary = page.locator('summary').filter({ hasText: label });
-  const details = summary.locator('..');
-  if ((await details.getAttribute('open')) === null) await summary.click();
-  await expect(details).toHaveAttribute('open', '');
+  await page.getByRole('button', { name: text }).click();
 };
 
 const resetAndSeed = async (page: Page): Promise<void> => {
   await openPage(page, '概览');
-  page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: /^(重新)?准备演示数据$/ }).click();
-  // 种子装载（wa-sqlite 启动 + 装载）需要数秒
-  // 阶段 E：A/B 层、C 层、D 层与 E 层各一个历史批次
+  await acceptDialog(page, () => page.getByRole('button', { name: /^(重新)?准备演示数据$/ }).click());
+  // 种子装载（wa-sqlite 启动 + 装载）需要数秒；A/B 层、C 层、D 层与 E 层各一个历史批次
   await expect(page.getByTestId('overview-data-status')).toContainText('数据可用', { timeout: 30000 });
   await openDetails(page, '数据版本与记录统计');
   await expect(page.getByTestId('row-counts')).toBeVisible();
-  await expect(page.getByTestId('row-counts')).toContainText('bom_history_batch=4', { timeout: 30000 });
+  await expect(page.getByTestId('row-counts')).toContainText(`bom_history_batch=${SCOOTER_SEED_ROWS.historyBatch}`, {
+    timeout: 30000
+  });
 };
 
 const explode = async (page: Page): Promise<void> => {
   await openPage(page, '展开');
   await clickButton(page, '展开整机');
-  await expect(page.locator('.requirement-row')).toHaveCount(14, { timeout: 30000 });
+  await expect(page.locator('.requirement-row')).toHaveCount(SCOOTER_REQUIREMENT_ROWS, { timeout: 30000 });
 };
 
 test.describe('BOM demo（US-525 阶段 A）', () => {
@@ -73,8 +73,8 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     await test.info().attach('first-paint.json', { body: JSON.stringify(paint), contentType: 'application/json' });
     console.info(`BOM 首屏测量：${JSON.stringify(paint)}`);
     const first = await page.getByTestId('row-counts').textContent();
-    await expect(page.getByTestId('item-inventory-toggle')).toContainText('41');
-    await expect(page.getByTestId('item-inventory-row')).toHaveCount(41);
+    await expect(page.getByTestId('item-inventory-toggle')).toContainText(String(SCOOTER_SEED_ROWS.item));
+    await expect(page.getByTestId('item-inventory-row')).toHaveCount(SCOOTER_SEED_ROWS.item);
     await expect(page.getByTestId('item-inventory-row').first()).toBeVisible();
     await expect(page.getByTestId('item-inventory')).toContainText('SC-100');
     await expect(page.getByTestId('item-inventory')).toContainText('B-01');
@@ -83,12 +83,12 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     const second = await page.getByTestId('row-counts').textContent();
     expect(second).toBe(first);
     // 阶段 E 接回三个部位；阶段 F 追加一个草稿来源与五条安装记录。
-    expect(second).toContain('item=41');
-    expect(second).toContain('bom_line_occurrence=43');
-    expect(second).toContain('ecn=4');
-    expect(second).toContain('bom_instance_node=5');
-    await expect(page.getByTestId('seed-info')).toContainText('scooter-seed-a');
-    await expect(page.getByTestId('seed-info')).toContainText('2026-01-01T00:00:00.000Z');
+    expect(second).toContain(`item=${SCOOTER_SEED_ROWS.item}`);
+    expect(second).toContain(`bom_line_occurrence=${SCOOTER_SEED_ROWS.bomLineOccurrence}`);
+    expect(second).toContain(`ecn=${SCOOTER_SEED_ROWS.ecn}`);
+    expect(second).toContain(`bom_instance_node=${SCOOTER_SEED_ROWS.instanceNode}`);
+    await expect(page.getByTestId('seed-info')).toContainText(SCOOTER_SEED_BATCH_NO);
+    await expect(page.getByTestId('seed-info')).toContainText(SCOOTER_SEED_TIMESTAMP);
   });
 
   test('AC#2 同一 10kΩ 电阻三行独立可见，位号清单各自完整', async ({ page }) => {
@@ -210,7 +210,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
   test('AC#6 M3 螺钉 where-used：全部父件与路径，含经由虚拟件的那条', async ({ page }) => {
     await resetAndSeed(page);
     await openPage(page, '反查');
-    await clickButton(page, '反查.*M3');
+    await clickButton(page, '反查 M3 螺钉（M3）');
     const tree = page.getByLabel('物料使用关系树', { exact: true });
     const lines = page.getByTestId('where-used-line');
     await expect(lines).toHaveCount(3, { timeout: 30000 });
@@ -261,8 +261,8 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
   test('US-525 AC#11 ECN-2026-014 影响面与差异：整机、四类变更各自可见', async ({ page }) => {
     await resetAndSeed(page);
     await openPage(page, '时间轴');
-    // 选中 ECN-2026-014
-    await page.getByTestId('ecn-select').selectOption({ label: 'ECN-2026-014（released，2026-10-01）' });
+    // 选中 ECN-2026-014（按种子确定性 id 选值，不绑定含状态与日期的展示文案）
+    await page.getByTestId('ecn-select').selectOption(deterministicId('ecn:ECN-2026-014'));
     await clickButton(page, '查影响面');
     const impactLines = page.getByTestId('ecn-impact-line');
     await expect(impactLines.first()).toContainText('SC-100', { timeout: 30000 });
@@ -288,8 +288,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     await clickButton(page, '现场新建并发布 ECN');
     const actionResult = page.getByTestId('ecn-action-result');
     await expect(actionResult).toContainText('发布成功', { timeout: 30000 });
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByTestId('ecn-cancel-selected').click();
+    await acceptDialog(page, () => page.getByTestId('ecn-cancel-selected').click());
     await expect(actionResult).toContainText('取消成功', { timeout: 30000 });
     // 页面刷新后不存在「部分行已生效、部分未生效」的中间态：评估日切到明天仍是 A/B 层结构
     await page.reload();
@@ -444,7 +443,7 @@ test.describe('BOM demo（US-525 阶段 E）', () => {
     await page.getByTestId('ext-filter').click();
     await expect(page.getByTestId('ext-filter-row')).toHaveCount(1);
     await openDetails(page, '查看物料属性');
-    await expect(page.getByTestId('ext-filter-row').locator('code')).toBeAttached();
+    await expect(page.getByTestId('ext-filter-row').locator('code')).toBeVisible();
     await expect(page.getByTestId('ext-filter-row')).toContainText('B-01');
     await page.getByTestId('ext-filter-op').selectOption('ne');
     await page.getByTestId('ext-filter').click();
@@ -453,7 +452,7 @@ test.describe('BOM demo（US-525 阶段 E）', () => {
     await page.getByTestId('ext-filter').click();
     await expect(page.getByTestId('ext-filter-row')).toHaveCount(1);
     await openDetails(page, '查看物料属性');
-    await expect(page.getByTestId('ext-filter-row').locator('code')).toBeAttached();
+    await expect(page.getByTestId('ext-filter-row').locator('code')).toBeVisible();
     await expect(page.getByTestId('ext-filter-row')).toContainText('B-01');
   });
 
@@ -601,12 +600,12 @@ test.describe('BOM demo（US-525 阶段 F）', () => {
     const asOf = page.getByTestId('instance-as-of');
     const tree = page.getByTestId('instance-tree');
     const load = page.getByTestId('instance-load');
-    await root.selectOption({ label: '电动滑板车（SC-100） · SN-001' });
+    await root.selectOption(instanceRootId('SN-001'));
     await asOf.fill('2026-10-17');
     await load.click();
     await expect(tree.locator('[data-serial="SN-001"][data-item="SC-100"]')).toHaveCount(1);
     await expect(tree.locator('[data-serial="PACK-001"][data-item="BATT"][data-revision="A"]')).toHaveCount(1);
-    await root.selectOption({ label: '电动滑板车（SC-100） · SN-002' });
+    await root.selectOption(instanceRootId('SN-002'));
     await load.click();
     await expect(tree.locator('[data-serial="SN-002"][data-item="SC-100"]')).toHaveCount(1);
     await expect(tree.locator('[data-serial="PACK-002"][data-item="BATT"]')).toHaveCount(1);
@@ -623,10 +622,9 @@ test.describe('BOM demo（US-525 阶段 F）', () => {
     await expect(page.getByTestId('instance-trace-row')).toHaveCount(1);
     await expect(page.getByTestId('instance-trace-row')).toContainText('SN-001');
 
-    await root.selectOption({ label: '电动滑板车（SC-100） · SN-001' });
+    await root.selectOption(instanceRootId('SN-001'));
     await page.getByTestId('instance-replace-date').fill('2026-11-01');
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByTestId('instance-replace').click();
+    await acceptDialog(page, () => page.getByTestId('instance-replace').click());
     await expect(page.getByTestId('instance-action-result')).toContainText('换件成功');
     await asOf.fill('2026-10-31');
     await load.click();
@@ -670,26 +668,25 @@ test.describe('BOM demo（US-525 阶段 F）', () => {
     await expect(tree.locator('[data-serial="PACK-003"][data-revision="A"]')).toHaveCount(1);
     await page.reload();
     await expect(page.getByRole('heading', { name: '实例追溯', exact: true })).toBeVisible();
-    await root.selectOption({ label: '电动滑板车（SC-100） · SN-001' });
+    await root.selectOption(instanceRootId('SN-001'));
     await asOf.fill('2099-01-02');
     await load.click();
     await expect(tree).toHaveText(installedBeforeRevision, { useInnerText: true });
   });
 
   test('US-525 AC#22 草稿来源直连删除被拒，点名发生项与一个实例引用且树不变', async ({ page }) => {
-    await page.getByTestId('instance-root-select').selectOption({ label: '电动滑板车（SC-100） · SN-002' });
+    await page.getByTestId('instance-root-select').selectOption(instanceRootId('SN-002'));
     await page.getByTestId('instance-as-of').fill('2026-10-17');
     await page.getByTestId('instance-load').click();
     const tree = page.getByTestId('instance-tree');
     await expect(tree.locator('[data-item="CELL"]')).toHaveCount(1);
     const before = await tree.innerText();
     await openDetails(page, '高级验证：改版与来源保护');
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByTestId('instance-source-delete').click();
+    await acceptDialog(page, () => page.getByTestId('instance-source-delete').click());
     const result = page.getByTestId('instance-source-delete-result');
     await openDetails(page, '查看来源操作详情');
     await expect(result.locator('pre')).toBeVisible();
-    await expect(result).toContainText(deterministicId('occurrence:BATT:F:0'));
+    await expect(result).toContainText(deterministicId(SCOOTER_DATASET_F.sourceOccurrenceSeed));
     await expect(result).toContainText(/实例.*1|1.*实例/);
     await page.getByTestId('instance-load').click();
     await expect(tree).toHaveText(before, { useInnerText: true });

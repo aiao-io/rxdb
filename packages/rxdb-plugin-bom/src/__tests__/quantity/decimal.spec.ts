@@ -116,3 +116,184 @@ describe('十进制 kernel 比较', () => {
     expect(decimalCmp(d('100'), d('99.99'))).toBe(1);
   });
 });
+
+describe('十进制 kernel 除法舍入回归', () => {
+  it('四个符号象限的 half-even 一致（余数符号跟随被除数，不跟随商）', () => {
+    expect(s(decimalDiv(d('2'), d('3')))).toBe('0.6666666666666666666666666666666667');
+    expect(s(decimalDiv(d('-2'), d('3')))).toBe('-0.6666666666666666666666666666666667');
+    expect(s(decimalDiv(d('2'), d('-3')))).toBe('-0.6666666666666666666666666666666667');
+    expect(s(decimalDiv(d('-2'), d('-3')))).toBe('0.6666666666666666666666666666666667');
+  });
+
+  it('35 位商只舍入一次：(41×10^32 + 6) ÷ 41 = 10^32 + 0.1（双重舍入会得 0.2）', () => {
+    const dividend = { coeff: 41n * 10n ** 32n + 6n, exp: 0 };
+    expect(s(decimalDiv(dividend, d('41')))).toBe('100000000000000000000000000000000.1');
+  });
+
+  it('被除数超 34 位（缩放夹到 0）时同样只舍入一次', () => {
+    // 精确商 10^34 + 14.75：34 位应舍去尾位 4.75 → 10^34 + 10；先按余数进位成 …15 再收敛会得 …20
+    const dividend = { coeff: 4n * 10n ** 34n + 59n, exp: 0 };
+    expect(s(decimalDiv(dividend, d('4')))).toBe('10000000000000000000000000000000010');
+  });
+});
+
+// -----------------------------------------------------[ 性质测试：对拍 BigInt 有理数参考实现 ]
+
+/** 精确有理数（分母恒正）。 */
+interface Rational {
+  num: bigint;
+  den: bigint;
+}
+
+const pow10n = (exponent: number): bigint => 10n ** BigInt(exponent);
+
+const absBig = (value: bigint): bigint => (value < 0n ? -value : value);
+
+const rationalOf = (decimal: Decimal): Rational =>
+  decimal.exp >= 0 ?
+    { num: decimal.coeff * pow10n(decimal.exp), den: 1n }
+  : { num: decimal.coeff, den: pow10n(-decimal.exp) };
+
+/** 参考格式化：系数 × 10^指数 → 规范串（独立于 kernel 的 decimalToCanonical）。 */
+const formatReference = (coeff: bigint, exponent: number): string => {
+  if (coeff === 0n) return '0';
+  let digits = absBig(coeff).toString();
+  let exp = exponent;
+  while (digits.length > 1 && digits.endsWith('0')) {
+    digits = digits.slice(0, -1);
+    exp += 1;
+  }
+  const sign = coeff < 0n ? '-' : '';
+  if (exp >= 0) return `${sign}${digits}${'0'.repeat(exp)}`;
+  const point = digits.length + exp;
+  if (point > 0) return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`;
+  return `${sign}0.${'0'.repeat(-point)}${digits}`;
+};
+
+/** 参考舍入：精确有理数一次性 half-even 收敛到 `digits` 位有效数字。 */
+const roundReference = ({ num, den }: Rational, digits = 34): string => {
+  if (num === 0n) return '0';
+  const magnitude = absBig(num);
+  const lower = pow10n(digits - 1);
+  const upper = pow10n(digits);
+  let exponent = magnitude.toString().length - den.toString().length - digits;
+  for (;;) {
+    const scaledNum = exponent >= 0 ? magnitude : magnitude * pow10n(-exponent);
+    const scaledDen = exponent >= 0 ? den * pow10n(exponent) : den;
+    const kept = scaledNum / scaledDen;
+    if (kept >= upper) exponent += 1;
+    else if (kept < lower) exponent -= 1;
+    else {
+      const twice = 2n * (scaledNum % scaledDen);
+      const up = twice > scaledDen || (twice === scaledDen && (kept & 1n) === 1n);
+      const rounded = up ? kept + 1n : kept;
+      return formatReference(num < 0n ? -rounded : rounded, exponent);
+    }
+  }
+};
+
+/** 参考向上取整（数学 ceil）到 `places` 位小数。 */
+const ceilReference = ({ num, den }: Rational, places: number): string => {
+  const scaled = num * pow10n(places);
+  const floor = scaled / den - (scaled % den !== 0n && scaled < 0n ? 1n : 0n);
+  return formatReference(scaled % den === 0n ? floor : floor + 1n, -places);
+};
+
+/** 固定种子伪随机（mulberry32，不引依赖）。 */
+const seededRandom = (seed: number): (() => number) => {
+  let state = seed;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let mixed = Math.imul(state ^ (state >>> 15), 1 | state);
+    mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed;
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+/** 随机系数：普通随机位、全 9（进位边界）、10 的幂、以 5 结尾（half-even 平局）四种形状。 */
+const randomCoefficient = (random: () => number, maxDigits: number): bigint => {
+  const length = 1 + Math.floor(random() * maxDigits);
+  const shape = Math.floor(random() * 4);
+  if (shape === 1) return pow10n(length) - 1n;
+  if (shape === 2) return pow10n(length - 1);
+  let text = String(1 + Math.floor(random() * 9));
+  for (let index = 1; index < length; index += 1) text += String(Math.floor(random() * 10));
+  if (shape === 3) text = `${text.slice(0, -1)}5`;
+  return BigInt(text);
+};
+
+const randomDecimal = (random: () => number, maxDigits = 34): Decimal => {
+  const coeff = randomCoefficient(random, maxDigits);
+  return { coeff: random() < 0.5 ? -coeff : coeff, exp: Math.floor(random() * 81) - 40 };
+};
+
+const describeDecimal = (decimal: Decimal): string => `${decimal.coeff}e${decimal.exp}`;
+
+const CASES = 3000;
+
+describe('十进制 kernel 性质测试（对拍有理数参考实现，34 位 half-even）', () => {
+  it('加减乘：结果等于精确值的一次 half-even 舍入', () => {
+    const random = seededRandom(20261019);
+    for (let index = 0; index < CASES; index += 1) {
+      const a = randomDecimal(random);
+      const b = randomDecimal(random);
+      const ra = rationalOf(a);
+      const rb = rationalOf(b);
+      const label = `${describeDecimal(a)} ∘ ${describeDecimal(b)}`;
+      expect(s(decimalAdd(a, b)), `add ${label}`).toBe(
+        roundReference({ num: ra.num * rb.den + rb.num * ra.den, den: ra.den * rb.den })
+      );
+      expect(s(decimalSub(a, b)), `sub ${label}`).toBe(
+        roundReference({ num: ra.num * rb.den - rb.num * ra.den, den: ra.den * rb.den })
+      );
+      expect(s(decimalMul(a, b)), `mul ${label}`).toBe(roundReference({ num: ra.num * rb.num, den: ra.den * rb.den }));
+    }
+  });
+
+  it('除法：四个符号象限、被除数超 34 位都只舍入一次', () => {
+    const random = seededRandom(5112026);
+    for (let index = 0; index < CASES; index += 1) {
+      const a = randomDecimal(random, 40);
+      const b = randomDecimal(random);
+      const ra = rationalOf(a);
+      const rb = rationalOf(b);
+      const num = ra.num * rb.den * (rb.num < 0n ? -1n : 1n);
+      expect(s(decimalDiv(a, b)), `div ${describeDecimal(a)} ÷ ${describeDecimal(b)}`).toBe(
+        roundReference({ num, den: ra.den * absBig(rb.num) })
+      );
+    }
+  });
+
+  it('roundToSignificant 任意位数、ceilToDecimalPlaces 任意小数位与参考一致', () => {
+    const random = seededRandom(34);
+    for (let index = 0; index < CASES; index += 1) {
+      const value = randomDecimal(random, 40);
+      const digits = 1 + Math.floor(random() * 34);
+      const places = Math.floor(random() * 12);
+      expect(s(roundToSignificant(value, digits)), `round ${describeDecimal(value)} @${digits}`).toBe(
+        roundReference(rationalOf(value), digits)
+      );
+      expect(s(ceilToDecimalPlaces(value, places)), `ceil ${describeDecimal(value)} @${places}`).toBe(
+        ceilReference(rationalOf(value), places)
+      );
+    }
+  });
+
+  it('比较：与精确差值的符号一致；规范串往返逐字一致', () => {
+    const random = seededRandom(7);
+    for (let index = 0; index < CASES; index += 1) {
+      const a = randomDecimal(random);
+      const b = random() < 0.2 ? { coeff: a.coeff * 10n, exp: a.exp - 1 } : randomDecimal(random);
+      const ra = rationalOf(a);
+      const rb = rationalOf(b);
+      const difference = ra.num * rb.den - rb.num * ra.den;
+      const expected =
+        difference === 0n ? 0
+        : difference < 0n ? -1
+        : 1;
+      expect(decimalCmp(a, b), `cmp ${describeDecimal(a)} ${describeDecimal(b)}`).toBe(expected);
+      const canonical = formatReference(a.coeff, a.exp);
+      expect(s(d(canonical))).toBe(canonical);
+    }
+  });
+});

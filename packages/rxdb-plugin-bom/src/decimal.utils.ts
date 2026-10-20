@@ -15,6 +15,16 @@ import { BomDecimalFormatError } from './types.js';
  */
 export const DECIMAL_CANONICAL_RE = /^(0|[1-9][0-9]*)(\.[0-9]*[1-9])?$/;
 
+/**
+ * 指数写法的指数绝对值上限（6144 = decimal128 的 Emax）。
+ *
+ * @remarks
+ * kernel 是 34 位有效数字的 decimal128 语义，指数超出这一量级的值本就不可表示；正向幅值另受
+ * 34 位有效数字规则约束（整数部分至多 34 位），本上限只为展开设界：展开后的串长 ≤ 输入长度 + 6144，
+ * `1e1000000000` 这类 12 字符的外部载荷不再放大成 GB 级字符串。
+ */
+const DECIMAL_MAX_EXPONENT = 6144;
+
 /** 入口十进制语法的手写解析（线性扫描，无正则——正则版是 CodeQL ReDoS 告警面）。 */
 const parseDecimalInput = (input: string): { sign: string; mantissa: string; exponent: number } | null => {
   let index = 0;
@@ -44,7 +54,8 @@ const parseDecimalInput = (input: string): { sign: string; mantissa: string; exp
     }
     let expDigits = 0;
     while (index < input.length && input[index] >= '0' && input[index] <= '9') {
-      exponent = exponent * 10 + (input.charCodeAt(index) - 48);
+      // 越过上限即饱和：超长指数串不累积成不精确的大浮点数，由调用方按上限拒绝
+      exponent = Math.min(exponent * 10 + (input.charCodeAt(index) - 48), DECIMAL_MAX_EXPONENT + 1);
       index += 1;
       expDigits += 1;
     }
@@ -91,7 +102,7 @@ const expandExponent = (mantissa: string, exponent: number): string => {
  * @param field - 字段名（错误消息点名用）
  * @returns 规范十进制串
  *
- * @throws {@link BomDecimalFormatError} 非有限值、空串、语法错、超 34 位有效数字、负值（首期）
+ * @throws {@link BomDecimalFormatError} 非有限值、空串、语法错、指数绝对值超 6144、超 34 位有效数字、负值（首期）
  */
 export const normalizeDecimalString = (input: unknown, field: string): string => {
   if (typeof input !== 'string' || input.length === 0) {
@@ -102,6 +113,9 @@ export const normalizeDecimalString = (input: unknown, field: string): string =>
     throw new BomDecimalFormatError(field, `非法十进制语法：${input}`);
   }
   const { sign, mantissa, exponent } = parsed;
+  if (Math.abs(exponent) > DECIMAL_MAX_EXPONENT) {
+    throw new BomDecimalFormatError(field, `指数绝对值超过 ${DECIMAL_MAX_EXPONENT}（decimal128 指数上限），不展开`);
+  }
   // `-0` 写作 `0`：值为零时符号无意义，先归零再拒绝其余负值（首期没有允许负值的字段）。
   // 全零判定不用正则（`0*\.?0*` 对长串是多项式回溯，CodeQL ReDoS 告警面）
   const mantissaIsZero = [...mantissa].every(ch => ch === '0' || ch === '.');

@@ -7,6 +7,8 @@
  * 卷算不重新实现数量逻辑——两处漂移的代价是成本与数量对不上账（US-514 技术笔记）。
  */
 
+import { normalizeDecimalString } from '../decimal.utils.js';
+import { BomQuantityError } from '../types.js';
 import {
   decimalAdd,
   decimalCmp,
@@ -17,7 +19,7 @@ import {
   decimalToCanonical,
   type Decimal
 } from './decimal.js';
-import { evaluateFormula } from './formula.js';
+import { evaluateFormula, FORMULA_GRAMMAR_VERSION } from './formula.js';
 
 /** 损耗：加成制 x×(1+s)；良率制 x÷(1−s)（与爆炸引擎同定义，本模块持有避免循环依赖）。 */
 export const scrap = (value: Decimal, rate: string, convention: 'additive' | 'yield'): Decimal => {
@@ -37,8 +39,11 @@ export interface LayerRoutingOp {
 
 /** 一行发生项参与本层计算的字段子集。 */
 export interface LayerRow {
+  occurrenceId: string;
   qty: string | null;
   qtyFormula: string | null;
+  /** 公式行持久化的语法版本（qty 行为 null）。 */
+  formulaGrammarVersion: string | null;
   isFixedQty: boolean;
   componentScrap: string;
   componentScrapConvention: 'additive' | 'yield';
@@ -55,18 +60,31 @@ export interface LayerContext {
   splits: { operationSeq: number; ratio: string }[];
 }
 
-/** 第 3 步：行的组件毛需求 G（定量行即 qty；否则 qty × P′ ÷ base_qty；公式行先求值）。 */
-export const computeGross = (row: LayerRow, context: LayerContext): Decimal => {
-  const quantity =
-    row.qty !== null ?
-      decimalFromCanonical(row.qty)
-    : decimalFromCanonical(evaluateFormula(row.qtyFormula as string, context.formulaParams ?? {}));
-  return row.isFixedQty ? quantity : (
-      decimalMul(quantity, decimalDiv(plannedPrime(context), decimalFromCanonical(context.headerBaseQty)))
+/** 行的基础用量 q 所需字段（消耗行与反向物料流行共用）。 */
+type QuantityRow = Pick<LayerRow, 'occurrenceId' | 'qty' | 'qtyFormula' | 'formulaGrammarVersion' | 'isFixedQty'>;
+
+/**
+ * 行的基础用量 q：qty，或按持久化语法版本求值的 qty_formula（存储层保证二者恰好一项）。
+ * 公式只认当前语法版本（formula.ts 头注：语法升级不改旧公式的含义）：导入通道写入的未知版本、
+ * 语法升级前的旧版本都在求值前拒绝，不按当前语法静默解释。
+ */
+const rowQuantity = (row: QuantityRow, formulaParams: Record<string, string> | undefined): Decimal => {
+  if (row.qty !== null) return decimalFromCanonical(row.qty);
+  if (row.formulaGrammarVersion !== FORMULA_GRAMMAR_VERSION) {
+    throw new BomQuantityError(
+      `发生项 ${row.occurrenceId} 的公式语法版本「${row.formulaGrammarVersion}」不受支持（当前版本 ${FORMULA_GRAMMAR_VERSION}）`
     );
+  }
+  return decimalFromCanonical(evaluateFormula(row.qtyFormula as string, formulaParams ?? {}));
 };
 
-const plannedPrime = (context: LayerContext): Decimal => context.plannedPrime;
+/** q 按批缩放：定量行即 q；否则 q × 计划量 ÷ base_qty。 */
+const scaledQuantity = (row: QuantityRow, quantity: Decimal, planned: Decimal, headerBaseQty: string): Decimal =>
+  row.isFixedQty ? quantity : decimalMul(quantity, decimalDiv(planned, decimalFromCanonical(headerBaseQty)));
+
+/** 第 3 步：行的组件毛需求 G（定量行即 qty；否则 qty × P′ ÷ base_qty；公式行先核对语法版本再求值）。 */
+export const computeGross = (row: LayerRow, context: LayerContext): Decimal =>
+  scaledQuantity(row, rowQuantity(row, context.formulaParams), context.plannedPrime, context.headerBaseQty);
 
 /** 从给定工序（含）至末工序逐道累乘损耗（US-511 第 5 步方向，与爆炸引擎同定义）。 */
 export const operationScrapChain = (value: Decimal, ops: LayerRoutingOp[], fromSeq: number): Decimal => {
@@ -163,11 +181,138 @@ export interface UnresolvedGroup {
   candidates: { itemId: string; role: 'primary' | 'substitute'; occurrenceId: string }[];
 }
 
-/** 分流后每个成员的「本层份额毛需求」（equiv_qty 已乘）。 */
+/** 分流后每个成员的「本层份额毛需求」（equiv_qty 已乘，成员发生项单位）。 */
 export interface SubstituteShare {
   member: SubstituteMember;
   gross: Decimal;
 }
+
+const ZERO: Decimal = { coeff: 0n, exp: 0 };
+
+const ONE: Decimal = { coeff: 1n, exp: 0 };
+
+/** 精确求和（不收敛到 34 位）：判「合计恰为 1」时 34 位舍入会把 0.(35 个 9) 误收成 1。 */
+const exactSum = (values: readonly Decimal[]): Decimal =>
+  values.reduce((sum, value) => {
+    const exp = Math.min(sum.exp, value.exp);
+    return { coeff: sum.coeff * 10n ** BigInt(sum.exp - exp) + value.coeff * 10n ** BigInt(value.exp - exp), exp };
+  }, ZERO);
+
+/**
+ * manual 分配校验（与 US-512 AC#5「拒绝而不归一化」同一裁决）：键必须是组成员物料 id，份额走入口十进制
+ * 规范化（拒负值与非法串），合计按定点精确等于 1；空分配、全 0 同样拒绝，不让 primary 需求静默消失。
+ *
+ * @returns 规范化后的分配（成员物料 id → 规范十进制串）
+ */
+const checkedAllocation = (
+  code: string,
+  members: readonly SubstituteMember[],
+  allocation: Record<string, string>
+): Record<string, string> => {
+  const memberIds = new Set(members.map(member => member.childItemId));
+  const strangers = Object.keys(allocation).filter(key => !memberIds.has(key));
+  if (strangers.length > 0) {
+    throw new Error(`manual 组 ${code} 的分配含非组成员：${strangers.join('、')}`);
+  }
+  const normalized = Object.fromEntries(
+    Object.entries(allocation).map(([key, value]) => [
+      key,
+      normalizeDecimalString(value, `manual 组 ${code} 的分配 ${key}`)
+    ])
+  );
+  const total = exactSum(Object.values(normalized).map(value => decimalFromCanonical(value)));
+  if (decimalCmp(total, ONE) !== 0) {
+    throw new Error(`manual 组 ${code} 的分配合计必须精确为 1（不归一化），实际 ${decimalToCanonical(total)}`);
+  }
+  return normalized;
+};
+
+/** 成员承担的份额毛需求（成员单位）：primary 即 primary 需求份额，替代成员再乘 equiv_qty。 */
+const memberGross = (member: SubstituteMember, primaryShare: Decimal): Decimal =>
+  member.substituteRole === 'primary' ?
+    primaryShare
+  : decimalMul(primaryShare, decimalFromCanonical(member.equivQty ?? '1'));
+
+/**
+ * 按比例分摊 primary 需求（proportional 的概率 / manual 的分配）：比例缺失或为 0 的成员不承担需求，
+ * 不产出份额——不留 qty=0 的需求行占路径预算，卷算也不因未消耗成员缺成本数据而拒绝。
+ */
+const ratioShares = (
+  members: readonly SubstituteMember[],
+  primaryGross: Decimal,
+  ratioOf: (member: SubstituteMember) => string | null | undefined
+): SubstituteShare[] =>
+  members.flatMap(member => {
+    const ratio = ratioOf(member);
+    if (ratio === null || ratio === undefined) return [];
+    const value = decimalFromCanonical(ratio);
+    if (decimalCmp(value, ZERO) <= 0) return [];
+    return [{ member, gross: memberGross(member, decimalMul(primaryGross, value)) }];
+  });
+
+/**
+ * 成员的可用量上限（成员发生项单位）：值走入口十进制规范化（非法串 / 负值拒绝，与 manual 份额同口径）；
+ * 单位不同即拒绝——裸数值跨单位比较没有意义。
+ */
+const memberCapacity = (
+  code: string,
+  member: SubstituteMember,
+  availabilities: Record<string, { value: string; uom: string }> | undefined
+): Decimal | null => {
+  const availability = availabilities?.[member.childItemId];
+  if (availability === undefined) return null;
+  if (availability.uom !== member.occurrenceUom) {
+    throw new Error(
+      `priority 组 ${code} 成员 ${member.childItemId} 的可用量单位 ${availability.uom} 与发生项单位 ${member.occurrenceUom} 不同`
+    );
+  }
+  return decimalFromCanonical(
+    normalizeDecimalString(availability.value, `priority 组 ${code} 成员 ${member.childItemId} 的可用量`)
+  );
+};
+
+/**
+ * priority 分流（US-512 技术笔记的策略表）：替代成员按 `substitute_priority` 降序择优，
+ * 每个成员承担「剩余 primary 需求 × equiv_qty」（成员单位）；超出可用量上限时 allow_mix=false 拒绝、
+ * allow_mix=true 取满上限并把剩余（换回 primary 单位）交给下一位。全部成员耗尽仍有剩余即拒绝，
+ * 不让需求静默蒸发；零份额成员不产出份额。
+ */
+const allocatePriorityShares = (
+  primary: SubstituteMember,
+  members: readonly SubstituteMember[],
+  primaryGross: Decimal,
+  availabilities: Record<string, { value: string; uom: string }> | undefined
+): SubstituteShare[] => {
+  const code = primary.substituteGroupCode;
+  const substitutes = members
+    .filter(member => member.substituteRole !== 'primary')
+    .sort((a, b) => (b.substitutePriority ?? 0) - (a.substitutePriority ?? 0));
+  let remaining = primaryGross;
+  const shares: SubstituteShare[] = [];
+  for (const member of substitutes) {
+    const equiv = decimalFromCanonical(member.equivQty ?? '1');
+    const needed = decimalMul(remaining, equiv);
+    const capacity = memberCapacity(code, member, availabilities);
+    if (capacity === null || decimalCmp(needed, capacity) <= 0) {
+      shares.push({ member, gross: needed });
+      return shares;
+    }
+    if (!primary.substituteAllowMix) {
+      throw new Error(
+        `priority 组 ${code} 最高者可用量不足（需 ${decimalToCanonical(needed)} ${member.occurrenceUom}，上限 ${decimalToCanonical(capacity)} ${member.occurrenceUom}）`
+      );
+    }
+    if (decimalCmp(capacity, ZERO) > 0) shares.push({ member, gross: capacity });
+    remaining = decimalSub(remaining, decimalDiv(capacity, equiv));
+    if (decimalCmp(remaining, ZERO) <= 0) return shares;
+  }
+  if (decimalCmp(remaining, ZERO) > 0) {
+    throw new Error(
+      `priority 组 ${code} 的替代成员可用量耗尽，仍短缺 ${decimalToCanonical(remaining)} ${primary.occurrenceUom}（primary 需求单位）`
+    );
+  }
+  return shares;
+};
 
 /**
  * 替代组分流（US-512，与爆炸引擎同语义的纯函数）：proportional 按概率分摊、
@@ -185,45 +330,11 @@ export const allocateSubstituteShares = (
   const code = primary.substituteGroupCode;
   const strategy = primary.substituteStrategy;
   const allowMix = primary.substituteAllowMix;
-  if (strategy === 'proportional') {
-    return {
-      shares: members.map(member => ({
-        member,
-        gross:
-          member.substituteRole === 'primary' ?
-            decimalMul(primaryGross, decimalFromCanonical(member.usageProbability ?? '0'))
-          : decimalMul(
-              decimalMul(primaryGross, decimalFromCanonical(member.usageProbability ?? '0')),
-              decimalFromCanonical(member.equivQty ?? '1')
-            )
-      }))
-    };
-  }
   if (strategy === 'priority') {
-    const substitutes = members
-      .filter(member => member.substituteRole !== 'primary')
-      .sort((a, b) => (b.substitutePriority ?? 0) - (a.substitutePriority ?? 0));
-    let remaining = primaryGross;
-    const shares: SubstituteShare[] = [];
-    for (const member of substitutes) {
-      const equiv = decimalFromCanonical(member.equivQty ?? '1');
-      const needed = decimalMul(remaining, equiv);
-      const availability = availabilities?.[member.childItemId];
-      if (availability !== undefined && decimalCmp(needed, decimalFromCanonical(availability.value)) > 0) {
-        if (!allowMix) {
-          throw new Error(
-            `priority 组 ${code} 最高者可用量不足（需 ${decimalToCanonical(needed)} ${member.occurrenceUom}，上限 ${availability.value} ${availability.uom}）`
-          );
-        }
-        const taken = decimalDiv(decimalFromCanonical(availability.value), equiv);
-        shares.push({ member, gross: taken });
-        remaining = decimalSub(remaining, taken);
-        continue;
-      }
-      shares.push({ member, gross: remaining });
-      break;
-    }
-    return { shares };
+    return { shares: allocatePriorityShares(primary, members, primaryGross, availabilities) };
+  }
+  if (strategy === 'proportional') {
+    return { shares: ratioShares(members, primaryGross, member => member.usageProbability) };
   }
   const selection = selections?.[code];
   if (selection === undefined) {
@@ -244,45 +355,30 @@ export const allocateSubstituteShares = (
     if (!member) {
       throw new Error(`manual 组 ${code} 的选择 ${selection.memberKey} 不是组成员`);
     }
-    return {
-      shares: [
-        {
-          member,
-          gross:
-            member.substituteRole === 'primary' ?
-              primaryGross
-            : decimalMul(primaryGross, decimalFromCanonical(member.equivQty ?? '1'))
-        }
-      ]
-    };
+    return { shares: [{ member, gross: memberGross(member, primaryGross) }] };
   }
-  const allocatedMembers = Object.entries(selection.allocation ?? {}).filter(([, value]) => value !== '0');
+  // 既无唯一选择也无分配 = 空分配：与全 0 一样按合计 0 拒绝
+  const allocation = checkedAllocation(code, members, selection.allocation ?? {});
+  const allocatedMembers = Object.values(allocation).filter(value => value !== '0');
   if (!allowMix && allocatedMembers.length > 1) {
     throw new Error(`manual 组 ${code}（allow_mix=false）的分配涉及 ${allocatedMembers.length} 个成员，须唯一选择`);
   }
-  return {
-    shares: members.map(member => {
-      const shareValue = selection.allocation?.[member.childItemId] ?? '0';
-      const share = decimalMul(primaryGross, decimalFromCanonical(shareValue));
-      return {
-        member,
-        gross:
-          member.substituteRole === 'primary' ? share : decimalMul(share, decimalFromCanonical(member.equivQty ?? '1'))
-      };
-    })
-  };
+  return { shares: ratioShares(members, primaryGross, member => allocation[member.childItemId]) };
 };
 
 /**
- * 反向物料流的产出量（US-513）：qty × P′ ÷ base_qty（定量按批），
- * 与爆炸引擎的输出列表同口径；副产抵减的 `out(b, L)` 同源。
+ * 反向物料流的产出量（US-513）：q × 计划量 ÷ base_qty（定量按批），与爆炸引擎的输出列表同口径；
+ * 副产抵减的 `out(b, L)` 同源。by_product / scrap_out 行可以是公式行（存储层只保证 qty 与 qty_formula
+ * 恰好一项），与消耗行同一套求值与语法版本断言，不以 0 兜底。
+ *
+ * @param row - 产出行（qty 或 qty_formula + 语法版本、定量标记）
+ * @param planned - 计划量（produce 取损耗前 P，by_product / scrap_out 取 P′）
+ * @param headerBaseQty - 头基准量
+ * @param formulaParams - 公式参数
  */
 export const computeOutputQuantity = (
-  qty: string | null,
-  isFixedQty: boolean,
-  plannedPrime: Decimal,
-  headerBaseQty: string
-): Decimal =>
-  isFixedQty ?
-    decimalFromCanonical(qty ?? '0')
-  : decimalMul(decimalFromCanonical(qty ?? '0'), decimalDiv(plannedPrime, decimalFromCanonical(headerBaseQty)));
+  row: QuantityRow,
+  planned: Decimal,
+  headerBaseQty: string,
+  formulaParams: Record<string, string> | undefined
+): Decimal => scaledQuantity(row, rowQuantity(row, formulaParams), planned, headerBaseQty);

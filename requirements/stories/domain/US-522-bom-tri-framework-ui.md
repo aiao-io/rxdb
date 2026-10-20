@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-18
+updated: 2026-10-20
 tags: [domain, bom, angular, react, vue, ui]
 ---
 
@@ -112,9 +112,9 @@ AC#10 是它在路径维度上的同一要求：同一子装配经两条路径�
 
 最终完整affected为86项目351任务EXIT0、324本地缓存、12m14；Angular203/203（5.8m）、React199/199（5.5m）、Vue182/182有效缓存，三端共享51/51。100节点首屏/输入p95分别1206/15.6、1105.2/42.2、796.3/9.5ms，均通过1500/100ms原预算，三端tree/editor均高468px。
 
-独立demo24/24、领域886、搜索Node299/browser52真实合并、Tauri及恢复后的PGlite产物通过；8包官方覆盖率审计逐包执行8次全部EXIT0，AC#1及整故事已Done。
+独立demo24/24（2026-10-18时点）、领域886、搜索Node299/browser52真实合并、Tauri及恢复后的PGlite产物通过；8包官方覆盖率审计逐包执行8次全部EXIT0，AC#1及整故事已Done。
 
-各轮真实失败、主动中断、OPFS/搜索修复、Angular1622.6ms失败与1340ms控制及原始报告均保留在[020记录](../../../specs/020-bom-slice-10/quickstart.md)，最终证据见[验收结果](../../../specs/021-bom-closure/closure-map.md)。三端workers=1，预算及零重试保持。
+各轮真实失败、主动中断、OPFS/搜索修复、Angular1622.6ms失败与1340ms控制及原始报告均保留在[020记录](../../../specs/020-bom-slice-10/quickstart.md)，最终证据见[验收结果](../../../specs/021-bom-closure/closure-map.md)。三端workers=1，预算及零重试保持；CI 共享 runner 上的首屏断言另按实测校准为 3600ms、输入 p95 仍为 100ms，见验收结果的 2026-10-19 补记。
 
 ## References
 

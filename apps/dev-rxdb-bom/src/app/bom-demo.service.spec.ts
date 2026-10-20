@@ -1,5 +1,15 @@
 import type { EntityType } from '@aiao/rxdb';
-import { BomEcn, BomHeader, BomInstanceNode, BomItem, BomItemRevision, rollupCost } from '@aiao/rxdb-plugin-bom';
+import {
+  BomEcn,
+  BomExtAttrError,
+  BomHeader,
+  BomInstanceNode,
+  BomItem,
+  BomItemRevision,
+  BomLine,
+  BomLineOccurrence,
+  rollupCost
+} from '@aiao/rxdb-plugin-bom';
 import { deterministicId } from '@aiao/rxdb-plugin-bom/testing';
 import { TestBed } from '@angular/core/testing';
 import { DatabaseSync } from 'node:sqlite';
@@ -13,10 +23,11 @@ vi.mock('@aiao/rxdb-plugin-bom', async importOriginal => ({
 }));
 
 type Stored = Record<string, unknown> & { id: string };
+type FindOptions = { where: { rules: { field: string; value: unknown }[] } };
 
 const restoreStatics: (() => void)[] = [];
 
-const installFind = (entityType: EntityType, find: () => unknown): void => {
+const installFind = (entityType: EntityType, find: (options: FindOptions) => unknown): void => {
   const descriptor = Object.getOwnPropertyDescriptor(entityType, 'find');
   Object.defineProperty(entityType, 'find', { configurable: true, value: find });
   restoreStatics.push(() => {
@@ -26,7 +37,11 @@ const installFind = (entityType: EntityType, find: () => unknown): void => {
 };
 
 /** 模拟事务提交边界，故障后只回滚执行器内的写入，裸保存会暴露部分提交。 */
-const transactionHarness = (initial: [EntityType, Stored[]][], fail: (entity: EntityType, row: Stored) => boolean) => {
+const transactionHarness = (
+  initial: [EntityType, Stored[]][],
+  fail: (entity: EntityType, row: Stored) => boolean,
+  failure: () => unknown = () => new Error('故障注入：后续写入失败')
+) => {
   const tables = new Map(
     initial.map(([entity, rows]) => [entity, new Map(rows.map(row => [row.id, structuredClone(row)]))])
   );
@@ -38,7 +53,7 @@ const transactionHarness = (initial: [EntityType, Stored[]][], fail: (entity: En
     return created;
   };
   const persist = (entity: EntityType, row: Stored): void => {
-    if (fail(entity, row)) throw new Error('故障注入：后续写入失败');
+    if (fail(entity, row)) throw failure();
     rows(entity).set(
       row.id,
       structuredClone(
@@ -51,12 +66,12 @@ const transactionHarness = (initial: [EntityType, Stored[]][], fail: (entity: En
     const value = structuredClone(row);
     return Object.assign(value, { save: async () => legacySave(entity, value) });
   };
+  const matching = (entity: EntityType, options: FindOptions): Stored[] =>
+    [...rows(entity).values()]
+      .filter(row => options.where.rules.every(rule => row[rule.field] === rule.value))
+      .map(row => materialize(entity, row));
   const repository = (entity: EntityType) => ({
-    find: vi.fn(async (options: { where: { rules: { field: string; value: unknown }[] } }) =>
-      [...rows(entity).values()]
-        .filter(row => options.where.rules.every(rule => row[rule.field] === rule.value))
-        .map(row => materialize(entity, row))
-    ),
+    find: vi.fn(async (options: FindOptions) => matching(entity, options)),
     update: vi.fn(async (row: Stored, patch: Partial<Stored>) => {
       const updated = { ...row, ...patch };
       persist(entity, updated);
@@ -67,7 +82,13 @@ const transactionHarness = (initial: [EntityType, Stored[]][], fail: (entity: En
       return row;
     })
   });
-  const executor = { getRepository: vi.fn(repository) };
+  const query = vi.fn<
+    (
+      sql: string,
+      params?: readonly unknown[]
+    ) => Promise<{ rows: unknown[][]; columns: string[]; rowsAffected: number }>
+  >(async () => ({ rows: [[20]], columns: [], rowsAffected: 1 }));
+  const executor = { getRepository: vi.fn(repository), query, tableRef: () => '"bom$table"' };
   const adapter = {
     rawQuery: vi.fn().mockResolvedValue({ rows: [] }),
     transaction: vi.fn(async (work: (value: typeof executor) => Promise<unknown>) => {
@@ -81,16 +102,18 @@ const transactionHarness = (initial: [EntityType, Stored[]][], fail: (entity: En
       }
     })
   };
+  let instantiated = 0;
   const rxdb = {
     bom: { explodeBom: vi.fn(), exportBom: vi.fn().mockResolvedValue({ manifest: {} }), importBomDraft: vi.fn() },
-    entityManager: { instantiate: (entity: EntityType) => materialize(entity, { id: 'created-instance' }) }
+    entityManager: {
+      instantiate: (entity: EntityType) => materialize(entity, { id: `created-instance-${++instantiated}` })
+    }
   };
-  for (const [entity] of initial)
-    installFind(entity, () => of([...rows(entity).values()].map(row => materialize(entity, row))));
+  for (const [entity] of initial) installFind(entity, (options: FindOptions) => of(matching(entity, options)));
   const service = TestBed.inject(BomDemoService);
   Object.assign(service, { adapter, rxdb });
   service.ready.set(true);
-  return { service, adapter, rxdb, rows, legacySave };
+  return { service, adapter, rxdb, rows, legacySave, query };
 };
 
 describe('BomDemoService', () => {
@@ -326,13 +349,130 @@ describe('BomDemoService', () => {
     expect(service.ready()).toBe(false);
   });
 
-  it('成功取消变更递增数据版本但保持代际，失败写入不失效成功反馈', async () => {
-    const { service } = transactionHarness([[BomEcn, [{ id: 'live-ecn', state: 'released' }]]], () => false);
-    expect(await service.cancelEcn('live-ecn')).toBe('');
+  it('取消变更：成功递增数据版本但保持代际，存储层拒绝进判别结果，找不到单据照常抛错', async () => {
+    const refusal = new Error(
+      'SQLITE_CONSTRAINT: rxdb:bom_write_protocol: ecn 已生效的 ECN 不可取消，改走更正 ECN（AC#7）'
+    );
+    const { service } = transactionHarness(
+      [
+        [
+          BomEcn,
+          [
+            { id: 'live-ecn', state: 'released' },
+            { id: 'effective-ecn', state: 'released' }
+          ]
+        ]
+      ],
+      (_, row) => row.id === 'effective-ecn' && row['state'] === 'cancelled',
+      () => refusal
+    );
+
+    expect(await service.cancelEcn('live-ecn')).toEqual({ ok: true });
     expect(service.dataRevision()).toBe(1);
     expect(service.dataEpoch()).toBe(0);
-    expect(await service.cancelEcn('missing-ecn')).toContain('不存在');
+    expect(await service.cancelEcn('effective-ecn')).toEqual({ ok: false, error: refusal });
+    await expect(service.cancelEcn('missing-ecn')).rejects.toThrow('不存在');
     expect(service.dataRevision()).toBe(1);
+  });
+
+  it('直连删除来源：存储层拒绝保留原始错误，落空删除与意外错误照常抛出', async () => {
+    const { service, adapter } = transactionHarness([], () => false);
+    const refusal = new Error(
+      `SQLITE_CONSTRAINT: rxdb:bom_instance: 发生项 ${service.protectedInstanceSourceId} 被 1 个实例引用，禁止删除来源`
+    );
+    adapter.rawQuery.mockRejectedValueOnce(refusal);
+    expect(await service.deleteDemoInstanceSource()).toEqual({ ok: false, error: refusal });
+    expect(adapter.rawQuery).toHaveBeenLastCalledWith(expect.stringContaining('DELETE'), [
+      service.protectedInstanceSourceId
+    ]);
+
+    adapter.rawQuery.mockRejectedValueOnce(new Error('disk I/O error'));
+    await expect(service.deleteDemoInstanceSource()).rejects.toThrow('disk I/O error');
+    adapter.rawQuery.mockResolvedValueOnce({ rows: [], columns: [], rowsAffected: 0 });
+    await expect(service.deleteDemoInstanceSource()).rejects.toThrow('来源发生项不存在');
+    adapter.rawQuery.mockResolvedValueOnce({ rows: [], columns: [], rowsAffected: 1 });
+    expect(await service.deleteDemoInstanceSource()).toEqual({ ok: true });
+  });
+
+  it('直连成环：只有成环那条写入的存储层拒绝进结果，前置建行失败照常抛出', async () => {
+    const { service, adapter } = transactionHarness([], () => false);
+    Object.assign(service, { demoHeaderId: 'demo-header' });
+    const cycle = new Error('SQLITE_CONSTRAINT: rxdb:bom_cycle:a>b>a');
+    adapter.rawQuery.mockResolvedValueOnce({ rows: [], columns: [], rowsAffected: 1 }).mockRejectedValueOnce(cycle);
+
+    expect(await service.rawCycleInsert()).toEqual({ ok: false, error: cycle });
+    adapter.rawQuery.mockRejectedValueOnce(new Error('UNIQUE constraint failed: bom$bom_line.id'));
+    await expect(service.rawCycleInsert()).rejects.toThrow('UNIQUE');
+  });
+
+  it('扩展属性校验拒绝保留原始错误且不推进数据版本，物料缺失照常抛错', async () => {
+    const refusal = new BomExtAttrError('rohs', '值 "maybe" 不在枚举 [yes, no] 中');
+    const fixture = transactionHarness(
+      [[BomItem, [{ id: 'b01', itemNo: 'B-01', ext: '{"rohs":"yes"}' }]]],
+      (_, row) => String(row['ext']).includes('maybe'),
+      () => refusal
+    );
+
+    expect(await fixture.service.extPatch('B-01', { rohs: 'maybe' })).toEqual({ ok: false, error: refusal });
+    expect(JSON.parse(String(fixture.rows(BomItem).get('b01')?.['ext']))).toEqual({ rohs: 'yes' });
+    expect(fixture.service.dataRevision()).toBe(0);
+    expect(await fixture.service.extPatch('B-01', { rohs: 'no' })).toEqual({ ok: true });
+    expect(fixture.service.dataRevision()).toBe(1);
+    await expect(fixture.service.extPatch('MISSING', { rohs: 'yes' })).rejects.toThrow('物料不存在');
+  });
+
+  it('现场 ECN 在同一事务内写完并发布，返回新单据标识', async () => {
+    const fixture = transactionHarness(
+      [
+        [BomEcn, []],
+        [BomItem, []],
+        [BomLine, []],
+        [BomLineOccurrence, []]
+      ],
+      () => false
+    );
+
+    const outcome = await fixture.service.demoCreateAndReleaseEcn();
+
+    const [ecn] = [...fixture.rows(BomEcn).values()];
+    expect(outcome).toEqual({ ok: true, ecnId: ecn.id });
+    expect(ecn['state']).toBe('released');
+    expect(fixture.adapter.transaction).toHaveBeenCalledOnce();
+    expect(fixture.legacySave).not.toHaveBeenCalled();
+    expect(fixture.rows(BomItem).get(deterministicId('item:SEAT-LIVE'))?.['itemNo']).toBe('SEAT-LIVE');
+    expect([...fixture.rows(BomLineOccurrence).values()].map(row => row['qty'])).toEqual(['1', '4', '11']);
+    for (const seed of ['occurrence:SC-100:A:2', 'occurrence:PCBA:A:2', 'occurrence:BATT:A:0'])
+      expect(fixture.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE'), [
+        ecn.id,
+        expect.any(String),
+        deterministicId(seed)
+      ]);
+    expect(fixture.service.dataRevision()).toBe(1);
+  });
+
+  it('现场 ECN 的种子发生项落空时整体回滚，不留半张变更单也不伪装成发布结果', async () => {
+    const fixture = transactionHarness(
+      [
+        [BomEcn, []],
+        [BomItem, []],
+        [BomLine, []],
+        [BomLineOccurrence, []]
+      ],
+      () => false
+    );
+    const missing = deterministicId('occurrence:PCBA:A:2');
+    fixture.query.mockImplementation(async (sql: string, params?: readonly unknown[]) => ({
+      rows: [[20]],
+      columns: [],
+      rowsAffected: sql.startsWith('UPDATE') && params?.[2] === missing ? 0 : 1
+    }));
+
+    await expect(fixture.service.demoCreateAndReleaseEcn()).rejects.toThrow('occurrence:PCBA:A:2');
+
+    expect(fixture.rows(BomEcn).size).toBe(0);
+    expect(fixture.rows(BomItem).size).toBe(0);
+    expect(fixture.rows(BomLineOccurrence).size).toBe(0);
+    expect(fixture.service.dataRevision()).toBe(0);
   });
 
   it('重置等待已开始的写入结束，阻塞删除保持互斥且失败不伪装成功', async () => {

@@ -50,22 +50,22 @@
 
 全部任务由主会话集中运行，实施代理没有自行启动Nx或数据库服务。
 
-| 阶段                        | 实际结果                                                                                                                                 | 证据                                                                                      |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| 最小schema后的维护红        | 14例中12失败/2通过；表存在但闭包为空，与独立oracle不符                                                                                   | `/private/tmp/bom-reach-red-isolated.log`                                                 |
-| 初版维护绿                  | 双后端14/14通过                                                                                                                          | `/private/tmp/bom-reach-maintenance-green.log`                                            |
-| 升级/方向回归               | 真实旧库无回填、方向切回consume漏检被复现；WA测试另修49字节库名问题，该基础设施失败不作为功能红                                          | `/private/tmp/bom-reach-upgrade-red.log`                                                  |
-| 迁移/判环/规模绿            | 双后端24/24通过                                                                                                                          | `/private/tmp/bom-reach-scale-green.log`                                                  |
-| 真实PostgreSQL回归          | 8/8通过，含反向边排队、RR/Serializable拒绝、跨作用域死锁                                                                                 | `/private/tmp/bom-reach-pg-green.log`                                                     |
-| 完整Reach矩阵               | 双后端42/42通过；含非拓扑零DML、固定种子随机oracle、ECN和坏闭包/水位回滚                                                                 | `/private/tmp/bom-reach-final-green.log`                                                  |
-| 拓扑UPDATE/DELETE远端回归   | 真实PostgreSQL11/11通过，新增隔离拒绝和删除/反向插入锁串行                                                                               | `/private/tmp/bom-reach-pg-final-green.log`                                               |
-| 真实旧物理备份恢复红        | WA恢复修订行失败：独立唯一索引晚于灌行，外键目标索引尚未建立；PG已恢复并完成拓扑操作，仅末尾重连误用旧adapter，该测试错误不作为功能红    | `/private/tmp/bom-reach-backup-green.log`（该文件名不代表当次已通过）                     |
-| 真实旧物理备份恢复绿        | 双后端2/2通过，共14.112s；WA0.915s、PGlite13.197s                                                                                        | `/private/tmp/bom-full-coverage.log`                                                      |
-| 含旧备份的Reach矩阵（历史） | 默认BOM套件当次收集的44/44条Reach通过；当次全套另有旧`DECIMAL_FIELDS`清单断言遗漏新增`jointCostShare`，修复后已合并入下方当前886/886结果 | `/private/tmp/bom-full-coverage.log`                                                      |
-| 远端事务边界最终回归        | 真实PostgreSQL12/12通过，新增导出DDL保留调用方事务、ROLLBACK撤销派生表与约束安装                                                         | `/private/tmp/bom-reach-pg-12-green.log`                                                  |
-| SQLite共同层完整回归        | 64文件、1502通过/21既有跳过；语句/分支/函数/行覆盖率94.79/90.09/93.78/95.92%，四项均≥80%                                                 | `/private/tmp/bom-sqlite-core-final-green.log`、`/private/tmp/bom-affected-complete3.log` |
-| WA通用备份恢复兼容          | 22文件、878通过/14既有跳过；备份套件72例中58例实际执行，含新增复合唯一外键及触发器恢复回归                                               | `/private/tmp/bom-affected-complete3.log`                                                 |
-| 当前BOM完整领域回归         | 60文件、886/886通过，含52条Reach、49条联产、16条v2集成、6条联产种子及55条旧import；语句/分支/函数/行95.05/85.72/96.21/96.56%，四项均≥80% | `/private/tmp/bom-affected-complete3.log`                                                 |
+| 阶段                        | 实际结果                                                                                                                                 | 证据                                                                                |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 最小schema后的维护红        | 14例中12失败/2通过；表存在但闭包为空，与独立oracle不符                                                                                   | 本地日志`bom-reach-red-isolated.log`（未留存）                                      |
+| 初版维护绿                  | 双后端14/14通过                                                                                                                          | 本地日志`bom-reach-maintenance-green.log`（未留存）                                 |
+| 升级/方向回归               | 真实旧库无回填、方向切回consume漏检被复现；WA测试另修49字节库名问题，该基础设施失败不作为功能红                                          | 本地日志`bom-reach-upgrade-red.log`（未留存）                                       |
+| 迁移/判环/规模绿            | 双后端24/24通过                                                                                                                          | 本地日志`bom-reach-scale-green.log`（未留存）                                       |
+| 真实PostgreSQL回归          | 8/8通过，含反向边排队、RR/Serializable拒绝、跨作用域死锁                                                                                 | 本地日志`bom-reach-pg-green.log`（未留存）                                          |
+| 完整Reach矩阵               | 双后端42/42通过；含非拓扑零DML、固定种子随机oracle、ECN和坏闭包/水位回滚                                                                 | 本地日志`bom-reach-final-green.log`（未留存）                                       |
+| 拓扑UPDATE/DELETE远端回归   | 真实PostgreSQL11/11通过，新增隔离拒绝和删除/反向插入锁串行                                                                               | 本地日志`bom-reach-pg-final-green.log`（未留存）                                    |
+| 真实旧物理备份恢复红        | WA恢复修订行失败：独立唯一索引晚于灌行，外键目标索引尚未建立；PG已恢复并完成拓扑操作，仅末尾重连误用旧adapter，该测试错误不作为功能红    | 本地日志`bom-reach-backup-green.log`（未留存；该文件名不代表当次已通过）            |
+| 真实旧物理备份恢复绿        | 双后端2/2通过，共14.112s；WA0.915s、PGlite13.197s                                                                                        | 本地日志`bom-full-coverage.log`（未留存）                                           |
+| 含旧备份的Reach矩阵（历史） | 默认BOM套件当次收集的44/44条Reach通过；当次全套另有旧`DECIMAL_FIELDS`清单断言遗漏新增`jointCostShare`，修复后已合并入下方当前886/886结果 | 本地日志`bom-full-coverage.log`（未留存）                                           |
+| 远端事务边界最终回归        | 真实PostgreSQL12/12通过，新增导出DDL保留调用方事务、ROLLBACK撤销派生表与约束安装                                                         | 本地日志`bom-reach-pg-12-green.log`（未留存）                                       |
+| SQLite共同层完整回归        | 64文件、1502通过/21既有跳过；语句/分支/函数/行覆盖率94.79/90.09/93.78/95.92%，四项均≥80%                                                 | 本地日志`bom-sqlite-core-final-green.log`、`bom-affected-complete3.log`（均未留存） |
+| WA通用备份恢复兼容          | 22文件、878通过/14既有跳过；备份套件72例中58例实际执行，含新增复合唯一外键及触发器恢复回归                                               | 本地日志`bom-affected-complete3.log`（未留存）                                      |
+| 当前BOM完整领域回归         | 60文件、886/886通过，含52条Reach、49条联产、16条v2集成、6条联产种子及55条旧import；语句/分支/函数/行95.05/85.72/96.21/96.56%，四项均≥80% | 本地日志`bom-affected-complete3.log`（未留存）                                      |
 
 规模验收已实测：20串菱形61物料/80边物化1810对，上下查询恰好10000路径并标`paths`。真实成环点查与41节点单见证耗时：WA22.01ms、PGlite6.30ms；130节点链的新父插入仍在128判定硬停时拒绝，原可达表不变。
 
@@ -88,14 +88,14 @@ pnpm nx run benchmarks:benchmark-bom-reach-prototype
 
 ## 2026-10-18 上下文兼容追加验证
 
-主会话已确认`tests-reach/bom-reach-context.spec.ts`新增双后端 **8/8通过**，证据为`/private/tmp/bom-reach-context-green.log`。覆盖历史D/E与precise锁版、draft头/未发布与未来ECN，以及备选/配置/序列/批次的逐路径上下查询；闭包命中不能使上下文不可用的行进入完整消费。
+主会话已确认`tests-reach/bom-reach-context.spec.ts`新增双后端 **8/8通过**，证据为本地日志`bom-reach-context-green.log`（未留存）。覆盖历史D/E与precise锁版、draft头/未发布与未来ECN，以及备选/配置/序列/批次的逐路径上下查询；闭包命中不能使上下文不可用的行进入完整消费。
 
 Reach只作并集；备选选择与候选由resolveBom和完整消费入口负责，expandBom/whereUsed沿既有首轮多头路径合同，测试精确保留该基线。首跑中误把备选裁决套在expandBom上的断言已修正，未为测试改变原API行为。quantity仍保留既有未解析/截断标记，成本与导出明确拒绝完整性不足；R019的完整领域、24条demo、最终三端51条与351任务联合验收均已通过。
 
 旧维护/备份44条与新上下文8条合计52条，现已随60文件、886/886的完整默认BOM套件通过；真实PG12条另有独立通过证据。原型隔离复测及R020写入/迁移/维护成本已完成，R019/R021/R022已随最终三端51/51与统一门禁全部关闭，受GC或并行污染的旧原型数字不作结论。
 
-最终完整affected EXIT0：86项目、351任务、324本地缓存、12m14（`/private/tmp/bom-affected-final-serial.log`）。三端共享51/51、demo24/24通过；Angular203/203（5.8m）、React199/199（5.5m）、Vue182/182有效缓存。最终首屏/输入p95分别1206/15.6、1105.2/42.2、796.3/9.5ms，均满足1500/100ms原预算，三端tree/editor均468px。
+最终完整affected EXIT0：86项目、351任务、324本地缓存、12m14（本地日志`bom-affected-final-serial.log`，未留存）。三端共享51/51、demo24/24通过；Angular203/203（5.8m）、React199/199（5.5m）、Vue182/182有效缓存。最终首屏/输入p95分别1206/15.6、1105.2/42.2、796.3/9.5ms，均满足1500/100ms原预算，三端tree/editor均468px。
 
-PGlite真实summary/final已从有效本地缓存恢复：13任务、12缓存、791ms，日志`/private/tmp/bom-pglite-final-coverage-restored.log`。严格8包官方coverage逐包执行8次全部EXIT0，证据`/private/tmp/bom-final-coverage-eight-packages.log`；SQLite/PGlite两条趋势软提示保留、均达门槛，baseline未改。早期仅评估rxdb一包的日志不作为8包证据。
+PGlite真实summary/final已从有效本地缓存恢复：13任务、12缓存、791ms，本地日志`bom-pglite-final-coverage-restored.log`（未留存）。严格8包官方coverage逐包执行8次全部EXIT0，证据为本地日志`bom-final-coverage-eight-packages.log`（未留存）；SQLite/PGlite两条趋势软提示保留、均达门槛，baseline未改。早期仅评估rxdb一包的日志不作为8包证据。
 
 本轮18条任务全部关闭，spec011～024共256/256完成，19条BOM故事、US-522 AC#1与US-030均Done。失败/控制历史、正式审计与最终结果见[最终验收](../021-bom-closure/closure-map.md)。 R001～R022全部完成，隔离原型及迁移/大扇出成本边界保留。

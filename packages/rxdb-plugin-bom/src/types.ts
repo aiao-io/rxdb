@@ -222,8 +222,11 @@ export const normalizeBomError = (cause: unknown): BomError | undefined => {
     return new BomCycleError(path);
   }
   if (message.includes(BOM_DECIMAL_FORMAT_PREFIX)) {
-    const field = message.split(BOM_DECIMAL_FORMAT_PREFIX)[1]?.split(/[:']/)[0] ?? 'qty';
-    return new BomDecimalFormatError(field, '存储层拒绝非规范十进制串');
+    // 载荷 `字段[:域细节]`：域违约（概率 [0,1]、良率制等）保留触发器原话，纯格式违约才用通用描述
+    const payload = message.split(BOM_DECIMAL_FORMAT_PREFIX)[1].split(/[\n']/)[0];
+    const separator = payload.indexOf(':');
+    if (separator === -1) return new BomDecimalFormatError(payload.trim(), '存储层拒绝非规范十进制串');
+    return new BomDecimalFormatError(payload.slice(0, separator).trim(), payload.slice(separator + 1).trim());
   }
   if (message.includes(BOM_PUBLISH_VALIDATION_PREFIX)) {
     const detail = message.split(BOM_PUBLISH_VALIDATION_PREFIX)[1]?.trim() ?? '';

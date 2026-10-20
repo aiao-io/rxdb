@@ -31,7 +31,13 @@ import {
 } from '../resolve/bom-sql.js';
 import { filterResolutionRows } from '../resolve/config-validate.js';
 import { BomResolutionError, type ResolutionContext, type UnresolvedAlternative } from '../resolve/resolution.js';
-import { assertContext, columnIndexOf, type BomQueryExecutor, type ResolveTarget } from '../resolve/resolver.js';
+import {
+  assertContext,
+  columnIndexOf,
+  selectRootAlternatives,
+  type BomQueryExecutor,
+  type ResolveTarget
+} from '../resolve/resolver.js';
 import { BomQuantityError, type TruncationReason } from '../types.js';
 import { ceilToDecimalPlaces, decimalFromCanonical, decimalToCanonical, type Decimal } from './decimal.js';
 import { FORMULA_GRAMMAR_VERSION } from './formula.js';
@@ -46,7 +52,7 @@ import {
   type SubstituteMember
 } from './layer.js';
 import { routingUncoveredReason } from './routing-effectivity.js';
-import { convertUom } from './uom.js';
+import { appliedUomRate, convertUom, splitHopRates, type HopConversionRates } from './uom.js';
 
 import { EXPLOSION_ALGORITHM_VERSION } from './versions.js';
 export { EXPLOSION_ALGORITHM_VERSION } from './versions.js';
@@ -346,13 +352,32 @@ export const fetchHeaderRows = async (
   return byHeader;
 };
 
-/** 行的换算率链（行级覆盖物料级）。 */
-export const rowRates = (row: ExplosionRow): { lineRate?: string | null; itemRate?: string | null } => ({
-  lineRate: row.occurrenceUomConversion,
-  itemRate: row.childItemUomConversion
-});
+/** 行的两跳换算率（行级覆盖物料级；每个声明的率只服务一跳跨量纲换算，见 {@link splitHopRates}）。 */
+export const rowHopRates = (row: ExplosionRow): HopConversionRates =>
+  splitHopRates(row.occurrenceUom, row.childStockUom, row.occurrenceUomConversion, row.childItemUomConversion);
 
-/** 子头选择：该修订在上下文下的 released 头（恰好一个；多备选未裁决拒绝）。 */
+/**
+ * 替代组成员的分流输入（数量与成本共用）。组字段来自 `bom_substitute_group` 的 LEFT JOIN：
+ * 成员外键保证组存在、组的 code / strategy / allow_mix 非空，缺失即数据损坏，直接拒绝不猜默认值。
+ */
+export const substituteMemberOf = (row: ExplosionRow): SubstituteMember => {
+  if (row.substituteGroupCode === null || row.substituteStrategy === null || row.substituteAllowMix === null) {
+    throw new Error(`发生项 ${row.occurrenceId} 引用的替代组 ${row.substituteGroupId} 不存在或字段缺失`);
+  }
+  return {
+    childItemId: row.childItemId,
+    occurrenceId: row.occurrenceId,
+    substituteRole: row.substituteRole,
+    substitutePriority: row.substitutePriority,
+    usageProbability: row.usageProbability,
+    equivQty: row.equivQty,
+    substituteGroupCode: row.substituteGroupCode,
+    substituteStrategy: row.substituteStrategy,
+    substituteAllowMix: row.substituteAllowMix,
+    occurrenceUom: row.occurrenceUom
+  };
+};
+
 /** 子头（含成本卷算所需的头字段；多备选未裁决拒绝）。 */
 export interface ResolvedChildHeader {
   headerId: string;
@@ -364,7 +389,10 @@ export interface ResolvedChildHeader {
   routingId: string | null;
 }
 
-/** 子头选择：该修订在上下文下的 released 头（恰好一个；多备选未裁决拒绝）。 */
+/**
+ * 子头选择：该修订在上下文下的 released 头（恰好一个）。`alternativeNo` 只裁决根头，
+ * 子装配有多个已发布备选头即拒绝（不按根的编号去挑子头，也不擅自取一个）。
+ */
 export const resolveChildHeader = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
@@ -380,7 +408,11 @@ export const resolveChildHeader = async (
   const headers = result.rows;
   if (headers.length === 0) return null;
   if (headers.length > 1) {
-    throw new BomResolutionError('alternativeNo', `修订 ${revisionId} 存在多个备选头，数量展开需要裁决`);
+    const alternatives = headers.map(row => Number(row[columnIndexOf(result.columns, 'alternativeNo')])).join('、');
+    throw new BomResolutionError(
+      'alternativeNo',
+      `子装配修订 ${revisionId} 存在多个已发布备选头（${alternatives}）：alternativeNo 只裁决根头，子装配多备选需先消除歧义`
+    );
   }
   return {
     headerId: String(headers[0][columnIndexOf(result.columns, 'headerId')]),
@@ -449,16 +481,17 @@ export const explodeBom = async (
       orgId: context.orgId
     });
     const rootHeadersResult = await query(rootHeadersSql.sql, rootHeadersSql.params);
-    const rootHeaders = rootHeadersResult.rows;
-    if (rootHeaders.length > 1 && context.alternativeNo === undefined) {
-      throw new BomResolutionError('alternativeNo', '根头存在多个备选，数量展开需要裁决');
+    const selectedRootHeaders = selectRootAlternatives(
+      rootHeadersResult.rows.map(row => ({
+        row,
+        alternativeNo: Number(row[columnIndexOf(rootHeadersResult.columns, 'alternativeNo')])
+      })),
+      context,
+      parentRevisionId
+    );
+    if (selectedRootHeaders.length > 1) {
+      throw new BomResolutionError('alternativeNo', '根头存在多个备选，数量展开需要裁决（指定 alternativeNo）');
     }
-    const selectedRootHeaders =
-      context.alternativeNo !== undefined ?
-        rootHeaders.filter(
-          row => Number(row[columnIndexOf(rootHeadersResult.columns, 'alternativeNo')]) === context.alternativeNo
-        )
-      : rootHeaders;
     if (selectedRootHeaders.length === 0) {
       throw new BomResolutionError('parentRevisionId', '根修订在上下文下没有已发布头');
     }
@@ -511,7 +544,7 @@ export const explodeBom = async (
     };
 
     // 根节点：plannedQty 归一到根头基准单位（buildAlternativeHeadersSql 已带 baseUom 列）
-    const rootHeader = selectedRootHeaders[0];
+    const rootHeader = selectedRootHeaders[0].row;
     const rootHeaderId = String(rootHeader[columnIndexOf(rootHeadersResult.columns, 'headerId')]);
     const rootBaseUom = readString(rootHeader, rootHeadersResult.columns, 'baseUom');
     const rootPlanned = convertUom(options.plannedQty.value, options.plannedQty.uom, rootBaseUom);
@@ -613,12 +646,16 @@ export const explodeBom = async (
           const net = layer.net;
           const operationScrappedValue: Decimal = layer.net;
           const hasOperation = layer.hasOperation;
-          // 6. 单位换算（行 UoM → 子件库存 UoM）
-          const rates = rowRates(row);
+          // 6. 单位换算（行 UoM → 子件库存 UoM）；第 7 步的库存 → 子头基准只用剩下未被消耗的率
+          const hops = rowHopRates(row);
           const demand = decimalFromCanonical(
-            convertUom(decimalToCanonical(operationScrappedValue), row.occurrenceUom, row.childStockUom, rates)
+            convertUom(decimalToCanonical(operationScrappedValue), row.occurrenceUom, row.childStockUom, hops.toStock)
           );
-          recordConversion(row.occurrenceUom, row.childStockUom, rates.lineRate ?? rates.itemRate ?? null);
+          recordConversion(
+            row.occurrenceUom,
+            row.childStockUom,
+            appliedUomRate(row.occurrenceUom, row.childStockUom, hops.toStock)
+          );
           // 7. 穿透 / 产出需求行
           const phantomSource =
             row.phantomOverride !== null ? ('override' as const)
@@ -639,8 +676,17 @@ export const explodeBom = async (
                 row.occurrenceId
               ]);
             }
-            const childPlanned = convertUom(decimalToCanonical(demand), row.childStockUom, childHeader.baseUom, rates);
-            recordConversion(row.childStockUom, childHeader.baseUom, rates.lineRate ?? rates.itemRate ?? null);
+            const childPlanned = convertUom(
+              decimalToCanonical(demand),
+              row.childStockUom,
+              childHeader.baseUom,
+              hops.fromStock
+            );
+            recordConversion(
+              row.childStockUom,
+              childHeader.baseUom,
+              appliedUomRate(row.childStockUom, childHeader.baseUom, hops.fromStock)
+            );
             penetrations.push({
               path: [...node.path, row.occurrenceId],
               occurrenceId: row.occurrenceId,
@@ -687,9 +733,13 @@ export const explodeBom = async (
                   decimalToCanonical(rounded),
                   row.childStockUom,
                   childHeader.baseUom,
-                  rates
+                  hops.fromStock
                 );
-                recordConversion(row.childStockUom, childHeader.baseUom, rates.lineRate ?? rates.itemRate ?? null);
+                recordConversion(
+                  row.childStockUom,
+                  childHeader.baseUom,
+                  appliedUomRate(row.childStockUom, childHeader.baseUom, hops.fromStock)
+                );
                 nextFrontier.push(
                   nodes.push({
                     path: [...node.path, row.occurrenceId],
@@ -734,10 +784,10 @@ export const explodeBom = async (
         for (const row of effectiveRows) {
           if (row.flowDirection !== 'consume') {
             const outputQuantity = computeOutputQuantity(
-              row.qty,
-              row.isFixedQty,
+              row,
               row.flowDirection === 'produce' ? node.plannedQty : plannedPrime,
-              row.headerBaseQty
+              row.headerBaseQty,
+              options.params
             );
             outputs.push({
               path: [...node.path, row.occurrenceId],
@@ -758,28 +808,14 @@ export const explodeBom = async (
         }
 
         // 替代组分流（AC#1/#2/#4/#8；共享纯函数，US-514 同源）
-        for (const [groupId, members] of substituteGroups) {
+        for (const members of substituteGroups.values()) {
           const primary = members.find(member => member.substituteRole === 'primary');
           if (!primary) continue; // 发布转移已校验恰好一个 primary
           const primaryGross = grossOf(primary);
           const allocated = (() => {
             try {
               return allocateSubstituteShares(
-                members.map(
-                  member =>
-                    ({
-                      childItemId: member.childItemId,
-                      occurrenceId: member.occurrenceId,
-                      substituteRole: member.substituteRole,
-                      substitutePriority: member.substitutePriority,
-                      usageProbability: member.usageProbability,
-                      equivQty: member.equivQty,
-                      substituteGroupCode: member.substituteGroupCode ?? groupId.slice(0, 8),
-                      substituteStrategy: member.substituteStrategy ?? 'proportional',
-                      substituteAllowMix: member.substituteAllowMix ?? true,
-                      occurrenceUom: member.occurrenceUom
-                    }) satisfies SubstituteMember
-                ),
+                members.map(substituteMemberOf),
                 primaryGross,
                 context.substituteAvailabilities,
                 context.substituteSelections

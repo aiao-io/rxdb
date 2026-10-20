@@ -4,7 +4,9 @@ BOM本轮已完成：spec011～024的256条任务全部勾选，19条BOM故事�
 
 ## 最终完整门禁
 
-`/private/tmp/bom-affected-final-serial.log`确认最终完整affected EXIT0：86项目、351任务、324本地缓存命中、12m14。lint、typecheck、spec-typecheck、test、test-memory、test-browser、build、audit-lazy-backend、e2e全部通过。
+> 证据说明（2026-10-19 补记）：本页与各切片记录里的「本地日志」都是当时会话写在本机 `/private/tmp` 的临时日志，未归档，已不可复核，文中只保留文件名作历史标识。可复核的证据是仓库内 `benchmarks/reports/` 的归档报告，以及 PR #129 的 CI：[run 39191346858](https://github.com/aiao-io/rxdb/actions/runs/39191346858)（评审头 17a0ef5f）与 [run 39218306973](https://github.com/aiao-io/rxdb/actions/runs/39218306973)（d8542b3c），两轮均 25/25 job 通过；Playwright 附件保留 7 天。
+
+本地日志`bom-affected-final-serial.log`（未留存）确认最终完整affected EXIT0：86项目、351任务、324本地缓存命中、12m14。lint、typecheck、spec-typecheck、test、test-memory、test-browser、build、audit-lazy-backend、e2e全部通过。
 
 | 端      | 完整e2e           | BOM共享 | 100节点首屏ms | 输入p95 ms | tree/editor高度px |
 | ------- | ----------------- | ------- | ------------: | ---------: | ----------------: |
@@ -12,7 +14,9 @@ BOM本轮已完成：spec011～024的256条任务全部勾选，19条BOM故事�
 | React   | 199/199，5.5m     | 17/17   |        1105.2 |       42.2 |           468/468 |
 | Vue     | 182/182，有效缓存 | 17/17   |         796.3 |        9.5 |           468/468 |
 
-BOM共享合计51/51，独立BOM demo24/24（新增联产及原23条）通过。三端均workers=1，首屏1500ms/输入p95 100ms预算及零重试保持。当前六份performance/layout JSON保留实际原始样本；输入2次预热、20个测量样本，100个可见节点。首屏为本次导航的firstData耗时，不冒称首屏p95。
+BOM共享合计51/51，独立BOM demo24/24（新增联产及原23条）通过。三端均workers=1，首屏1500ms/输入p95 100ms预算及零重试保持。
+
+2026-10-19 补记：demo 此后另有产品体验回归 10 条，现共 34 条，入账与 CI 证据（run 39218306973 34 passed）见[验收留档](story-validation-history.md#us-525)。共享 runner 上首屏实测 1307～2707ms，CI 的三端共享性能用例改为 firstData<3600ms、输入 p95<100ms，1500ms 仍是本地预算，依据见 `modules/e2e-parity/bom-view-parity.mjs` 的阈值注释。当前六份performance/layout JSON保留实际原始样本；输入2次预热、20个测量样本，100个可见节点。首屏为本次导航的firstData耗时，不冒称首屏p95。
 
 ## 覆盖率与宿主
 
@@ -29,15 +33,15 @@ BOM共享合计51/51，独立BOM demo24/24（新增联产及原23条）通过。
 | rxdb-plugin-bom-vue      |   100 | 97.36 |   100 |   100 |   80 |
 | rxdb-plugin-search       | 93.50 | 84.80 | 96.80 | 94.70 |   80 |
 
-正式证据为`/private/tmp/bom-final-coverage-eight-packages.log`。每包分别执行一次`pnpm nx run @aiao/source:audit-coverage --args='--projects=<name> --check'`，共8次；Nx23会拆逗号args列表，早期`bom-final-coverage-audit.log`仅评估rxdb一包，不作为8包结论。
+正式证据为本地日志`bom-final-coverage-eight-packages.log`（未留存）。每包分别执行一次`pnpm nx run @aiao/source:audit-coverage --args='--projects=<name> --check'`，共8次；Nx23会拆逗号args列表，早期`bom-final-coverage-audit.log`仅评估rxdb一包，不作为8包结论。
 
-PGlite默认full会恢复无coverage产物；最后full后已用原显式Nx命令从有效本地缓存恢复真实summary/final（13任务、12缓存、791ms），证据`/private/tmp/bom-pglite-final-coverage-restored.log`。SQLite共同层和PGlite有两条历史趋势下降软提示，均达80%硬门槛，未改coverage baseline；正式审计如实保留提示。
+PGlite默认full会恢复无coverage产物；最后full后已用原显式Nx命令从有效本地缓存恢复真实summary/final（13任务、12缓存、791ms），证据为本地日志`bom-pglite-final-coverage-restored.log`（未留存）。SQLite共同层和PGlite有两条历史趋势下降软提示，均达80%硬门槛，未改coverage baseline；正式审计如实保留提示。
 
-Tauri额外门禁通过：clippy零警告；Rust163通过/1既有doc ignored；conformance15文件691通过/9既有skip，覆盖52MiB、真实disk_full、备份恢复内存曲线。Nx21任务、16缓存、2m35，见`/private/tmp/bom-tauri-final-gates.log`。核心2660/1既有skip、SQLite1502/21既有skip、BOM886、搜索Node299/browser52均有有效通过证据。
+Tauri额外门禁通过：clippy零警告；Rust163通过/1既有doc ignored；conformance15文件691通过/9既有skip，覆盖52MiB、真实disk_full、备份恢复内存曲线。Nx21任务、16缓存、2m35，见本地日志`bom-tauri-final-gates.log`（未留存）。核心2660/1既有skip、SQLite1502/21既有skip、BOM886、搜索Node299/browser52均有有效通过证据。
 
 ## 根审计与体积
 
-API54公开包/86入口、构建入口47包、需求一致性均通过；包图更新后check通过（55登记包、34已发布v0.0.26、9情景），两种包数口径不混用。证据为`/private/tmp/bom-final-root-audits.log`及`/private/tmp/bom-package-graph-final-{update,check}.log`。最终状态回写后的需求与包图检查均通过，证据为`/private/tmp/bom-final-state-audits-clean.log`；格式检查通过，证据为`/private/tmp/bom-final-format-check.log`。运行代码与配置在最终351任务后保持冻结。
+API54公开包/86入口、构建入口47包、需求一致性均通过；包图更新后check通过（55登记包、34已发布v0.0.26、9情景），两种包数口径不混用。证据为本地日志`bom-final-root-audits.log`及`bom-package-graph-final-{update,check}.log`（均未留存）。最终状态回写后的需求与包图检查均通过，证据为本地日志`bom-final-state-audits-clean.log`（未留存）；格式检查通过，证据为本地日志`bom-final-format-check.log`（未留存）。运行代码与配置在最终351任务后保持冻结。
 
 | 入口        | 静态gzip字节 | 完整可达gzip字节 |
 | ----------- | -----------: | ---------------: |
@@ -82,7 +86,7 @@ API54公开包/86入口、构建入口47包、需求一致性均通过；包图�
 - full3为349任务、166缓存、39m44，Vue/React默认8 workers仅首屏失败；同产物单worker控制后改为1，保留两份8-workers原始报告。后续OPFS同步定向2绿，搜索clear及pending两批真实红绿保留；pending第二批先2失败/10通过，再完整Node299绿，最终browser52合并达标。
 - `bom-affected-final.log`是主动中断exit130，非测试失败、不计完成。`bom-affected-final-complete.log`是350任务、291缓存、17m13，唯一Angular202/203首屏1622.6ms失败，输入p95=16.1ms正常；该轮完整共享50/51。旧full3 Angular203/1088.7ms不作为这轮通过证据。
 - Angular同一未改产物workers1单性能控制1/1通过，firstData1340ms、输入p95=14.7/max15.1ms；两份`bom-view-angular-performance-{2-workers,1-worker-control}.json`均保留。随后仅Angular workers2→1，三端统一1，最终新完整full和51/51才据此关闭。
-- A/R两条expect-expect旧误报只追加真实含expect的`expectFitsHorizontally`本地登记，未改运行/测试行为；两项目`--max-warnings=0`零警告通过，证据`/private/tmp/bom-e2e-lint-final-zero.log`。不以旧86项目lint记录替代最终证据。
+- A/R两条expect-expect旧误报只追加真实含expect的`expectFitsHorizontally`本地登记，未改运行/测试行为；两项目`--max-warnings=0`零警告通过，证据为本地日志`bom-e2e-lint-final-zero.log`（未留存）。不以旧86项目lint记录替代最终证据。
 - Reach读取默认不启用闭包剪枝；10k改善236.24→7.60ms归最小childItemId索引。隔离原型非空9.376→10.327ms、空1.798→1.235ms、10000路径17.943→18.852ms如实保留；440对小图迁移19.613ms不能外推大库，大扇出写入不由代表性单边样本外推。
 
 ## 证据入口

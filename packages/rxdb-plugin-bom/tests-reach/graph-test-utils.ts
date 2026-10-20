@@ -8,12 +8,12 @@ interface Graph {
   edges: [string, string][];
 }
 
-/** 20串菱形只有61个物料与80条边，路径数另由预算控制。 */
-export const reachDiamonds = (): Graph => {
+/** n串菱形只有3n+1个物料与4n条边（默认20串：61物料/80边），路径数2^n另由预算控制。 */
+export const reachDiamonds = (layers = 20): Graph => {
   const items = ['root'];
   const edges: Graph['edges'] = [];
   let top = 'root';
-  for (let index = 0; index < 20; index += 1) {
+  for (let index = 0; index < layers; index += 1) {
     const left = `left-${index}`;
     const right = `right-${index}`;
     const bottom = `bottom-${index}`;

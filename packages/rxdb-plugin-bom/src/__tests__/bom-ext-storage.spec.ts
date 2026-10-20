@@ -1,5 +1,8 @@
 import {
+  advancedIndexesOf,
+  compileAdvancedIndex,
   compileGeneratedColumn,
+  generatedColumnsOf,
   getEntityMetadata,
   getEntityStorageMetadata,
   RxDBConstraintDriftError,
@@ -13,7 +16,35 @@ import { createBomExtStorage, createBomExtStorageMigration, type BomExtStorageOp
 import { bomSqlDialectFor } from '../resolve/bom-sql.js';
 import { BomExtAttrError, buildExtFilterSql } from '../resolve/ext-attr.js';
 import { deterministicId } from '../testing/scooter-dataset.js';
-import { createBomTestAdapter, disposeBomTestAdapter } from './test-utils.js';
+import {
+  createBomTestAdapter,
+  createPlainPersistentDatabase,
+  disposeBomTestAdapter,
+  type BomTestAdapter
+} from './test-utils.js';
+
+/** 声明对应的托管生成列与索引在目录中的物理名。 */
+const managedNames = (declarations: readonly EntityStorageOverride[], dialect: 'sqlite' | 'postgres') => {
+  const metadata = getEntityStorageMetadata({ config: { entityStorage: declarations } }, BomItem);
+  return {
+    columns: generatedColumnsOf(metadata).map(column => compileGeneratedColumn(metadata, column, dialect).columnName),
+    indexes: advancedIndexesOf(metadata).flatMap(index => compileAdvancedIndex(metadata, index, dialect)?.name ?? [])
+  };
+};
+
+/** 读物料表上实际存在的托管索引名（`sx_` 前缀）。 */
+const managedIndexesOnItem = async (adapter: BomTestAdapter): Promise<string[]> => {
+  const result = await adapter.transaction(
+    executor =>
+      executor.query(
+        adapter.name === 'pglite' ?
+          `SELECT indexname FROM pg_indexes WHERE schemaname = 'bom' AND tablename = 'item' AND left(indexname, 3) = 'sx_' ORDER BY 1`
+        : `SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'bom$item' AND name LIKE 'sx\\_%' ESCAPE '\\' ORDER BY 1`
+      ),
+    false
+  );
+  return result.rows.map(row => String(row[0]));
+};
 
 const measureMigration = (migration: MigrationType, backend: string): MigrationType => ({
   ...migration,
@@ -188,6 +219,144 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
         migrations: [migration]
       });
       await disposeBomTestAdapter(reopened);
+    }, 60_000);
+
+    it('同一版本首次引入 BOM 实体与热字段迁移：缺表不审计不补 DDL，建表路径带上生成列与索引', async () => {
+      const dbName = `h-${crypto.randomUUID()}`;
+      const declarations = createBomExtStorage({
+        hotFields: [{ scope: 'item', code: 'rohs_status', dataType: 'string' }],
+        gin: true
+      });
+      const migration = createBomExtStorageMigration('023-introduce-storage', dialect, declarations);
+      const open = () =>
+        createBomTestAdapter(backend, BOM_ENTITIES, {
+          dbName,
+          persistent: true,
+          entityStorage: declarations,
+          migrations: [migration]
+        });
+      await createPlainPersistentDatabase(backend, dbName);
+      const names = managedNames(declarations, dialect);
+      const introduced = await open();
+      try {
+        const ext = '{"rohs_status":"yes"}';
+        const table = bomSqlDialectFor(backend).table('item');
+        await introduced.transaction(
+          executor =>
+            executor.query(
+              `INSERT INTO ${table} ("id", "createdAt", "updatedAt", "itemNo", "ext") VALUES ('${deterministicId(`introduce-${backend}`)}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 'introduced', '${ext}')`
+            ),
+          false
+        );
+        const rows = await introduced.transaction(
+          executor => executor.query(`SELECT "ext", "${names.columns[0]}" FROM ${table}`),
+          false
+        );
+        expect(rows.rows).toEqual([[ext, 'yes']]);
+        expect(await managedIndexesOnItem(introduced)).toEqual([...names.indexes].sort());
+        const watermarks = await introduced.transaction(
+          executor =>
+            executor.query(
+              `SELECT "name" FROM ${backend === 'pglite' ? '"rxdb"."rxdb_migration"' : '"rxdb$rxdb_migration"'} WHERE "name" = '023-introduce-storage'`
+            ),
+          false
+        );
+        expect(watermarks.rows).toEqual([['023-introduce-storage']]);
+      } finally {
+        await disposeBomTestAdapter(introduced);
+      }
+      await disposeBomTestAdapter(await open());
+    }, 60_000);
+
+    it('v2 增加热字段并以新迁移名重放声明全集：只补缺失的列与索引，不撞重复列', async () => {
+      const dbName = `h-${crypto.randomUUID()}`;
+      const rohs = { scope: 'item', code: 'rohs_status', dataType: 'string' } as const;
+      const lead = { scope: 'item', code: 'lead_days', dataType: 'number' } as const;
+      const v1 = createBomExtStorage({ hotFields: [rohs], gin: true });
+      const v2 = createBomExtStorage({ hotFields: [rohs, lead], gin: true });
+      const migrations = [
+        createBomExtStorageMigration('023-hot-v1', dialect, v1),
+        createBomExtStorageMigration('023-hot-v2', dialect, v2)
+      ];
+      await disposeBomTestAdapter(
+        await createBomTestAdapter(backend, BOM_ENTITIES, {
+          dbName,
+          persistent: true,
+          entityStorage: v1,
+          migrations: migrations.slice(0, 1)
+        })
+      );
+      const open = () =>
+        createBomTestAdapter(backend, BOM_ENTITIES, { dbName, persistent: true, entityStorage: v2, migrations });
+      const upgraded = await open();
+      const names = managedNames(v2, dialect);
+      try {
+        const table = bomSqlDialectFor(backend).table('item');
+        await upgraded.transaction(
+          executor =>
+            executor.query(
+              `INSERT INTO ${table} ("id", "createdAt", "updatedAt", "itemNo", "ext") VALUES ('${deterministicId(`incremental-${backend}`)}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 'incremental', '{"rohs_status":"yes","lead_days":3}')`
+            ),
+          false
+        );
+        const rows = await upgraded.transaction(
+          executor => executor.query(`SELECT ${names.columns.map(column => `"${column}"`).join(', ')} FROM ${table}`),
+          false
+        );
+        expect(rows.rows.map(([rohsValue, leadValue]) => [rohsValue, Number(leadValue)])).toEqual([['yes', 3]]);
+        expect(await managedIndexesOnItem(upgraded)).toEqual([...names.indexes].sort());
+      } finally {
+        await disposeBomTestAdapter(upgraded);
+      }
+      await disposeBomTestAdapter(await open());
+    }, 60_000);
+
+    it('同名托管索引被改成别的定义：漂移检查报 Changed definitions，增量迁移也不静默接受', async () => {
+      const dbName = `h-${crypto.randomUUID()}`;
+      const rohs = { scope: 'item', code: 'rohs_status', dataType: 'string' } as const;
+      const v1 = createBomExtStorage({ hotFields: [rohs] });
+      const v2 = createBomExtStorage({ hotFields: [rohs, { scope: 'item', code: 'lead_days', dataType: 'number' }] });
+      const m1 = createBomExtStorageMigration('023-tamper-v1', dialect, v1);
+      const [indexName] = managedNames(v1, dialect).indexes;
+      const tamper = await createBomTestAdapter(backend, BOM_ENTITIES, {
+        dbName,
+        persistent: true,
+        entityStorage: v1,
+        migrations: [m1]
+      });
+      try {
+        await tamper.transaction(async executor => {
+          await executor.query(backend === 'pglite' ? `DROP INDEX "bom"."${indexName}"` : `DROP INDEX "${indexName}"`);
+          await executor.query(`CREATE INDEX "${indexName}" ON ${executor.tableRef(BomItem)} ("itemNo")`);
+        }, false);
+      } finally {
+        await disposeBomTestAdapter(tamper);
+      }
+      const attempts = [
+        { entityStorage: v1, migrations: [m1] },
+        { entityStorage: v2, migrations: [m1, createBomExtStorageMigration('023-tamper-v2', dialect, v2)] }
+      ];
+      for (const attempt of attempts) {
+        const failure = await createBomTestAdapter(backend, BOM_ENTITIES, {
+          dbName,
+          persistent: true,
+          ...attempt
+        }).then(
+          async adapter => {
+            await disposeBomTestAdapter(adapter);
+            return null;
+          },
+          (cause: unknown) => cause
+        );
+        expect(failure).toBeInstanceOf(RxDBConstraintDriftError);
+        const drift = failure as RxDBConstraintDriftError;
+        expect({ missing: drift.missing, extra: drift.extra, changed: drift.changed }).toEqual({
+          missing: [],
+          extra: [],
+          changed: [indexName]
+        });
+        expect(drift.message).toContain('Changed definitions');
+      }
     }, 60_000);
 
     for (const [label, ext] of [
