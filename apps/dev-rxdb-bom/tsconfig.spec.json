@@ -23,6 +23,7 @@
     { "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json" },
     { "path": "../../packages/rxdb/tsconfig.lib.json" },
     { "path": "../../packages/utils/tsconfig.lib.json" },
-    { "path": "../../packages/rxdb-angular/tsconfig.lib.json" }
+    { "path": "../../packages/rxdb-angular/tsconfig.lib.json" },
+    { "path": "../../packages/rxdb-devtools/tsconfig.lib.json" }
   ]
 }

@@ -1,4 +1,4 @@
-import type { EntityType } from '@aiao/rxdb';
+import { getEntityMetadata, type EntityType, type RxDB } from '@aiao/rxdb';
 import {
   BomEcn,
   BomExtAttrError,
@@ -15,11 +15,16 @@ import { TestBed } from '@angular/core/testing';
 import { DatabaseSync } from 'node:sqlite';
 import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BomDemoService } from './bom-demo.service';
+import { BomDemoService, connectDevTools } from './bom-demo.service';
 
 vi.mock('@aiao/rxdb-plugin-bom', async importOriginal => ({
   ...(await importOriginal<typeof import('@aiao/rxdb-plugin-bom')>()),
   rollupCost: vi.fn()
+}));
+
+const { initDevTools } = vi.hoisted(() => ({ initDevTools: vi.fn() }));
+vi.mock('@aiao/rxdb-devtools', () => ({
+  getDevToolsConnector: vi.fn(() => ({ init: initDevTools }))
 }));
 
 type Stored = Record<string, unknown> & { id: string };
@@ -512,5 +517,16 @@ describe('BomDemoService', () => {
     expect(disconnect).toHaveBeenCalledOnce();
     expect(service.ready()).toBe(false);
     expect(service.resetting()).toBe(false);
+  });
+});
+
+describe('connectDevTools', () => {
+  it('把 RxDB 实例挂到 DevTools 连接器并传入实体元数据读取函数', async () => {
+    const instance = { rxdb: true } as unknown as RxDB;
+
+    connectDevTools(instance);
+
+    await vi.waitFor(() => expect(initDevTools).toHaveBeenCalledOnce());
+    expect(initDevTools).toHaveBeenCalledWith(instance, getEntityMetadata);
   });
 });

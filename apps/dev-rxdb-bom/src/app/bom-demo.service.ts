@@ -1,4 +1,4 @@
-import { RxDB, SyncType, type EntityType, type TransactionExecutor, type UUID } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType, type EntityType, type TransactionExecutor, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite, SqliteRepository, type WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqlite';
 import {
   BOM_ENTITIES,
@@ -50,6 +50,23 @@ import { loadRequirementBasis } from './presentation/requirement-basis';
 
 /** demo 库名（reset 删除的 IndexedDB 库）。 */
 const BOM_DEMO_DB_NAME = 'dev-rxdb-bom';
+
+/**
+ * 把已连接的 RxDB 实例挂到 RxDB DevTools 连接器，供 DevTools 扩展检查。
+ *
+ * @remarks
+ * 动态 `import()` 换的是初始 chunk 的体积：`project.json` 的 production budget 卡在
+ * initial 3mb，把整套 v2 线协议静态拉进首屏等于让调试设施消耗验收预算。晚到不影响
+ * 可用性：面板连上后由 background 发 `PING`，连接器收到会重发握手，在那之前页面侧
+ * 的事件先进缓冲区。
+ *
+ * 模块级导出是给单测留的直接打点口；生产路径只有 {@link BomDemoService} 的连接流程一处调用。
+ */
+export const connectDevTools = (instance: RxDB): void => {
+  void import('@aiao/rxdb-devtools').then(({ getDevToolsConnector }) => {
+    getDevToolsConnector().init(instance, getEntityMetadata);
+  });
+};
 
 /** 跨页面共用的解析条件，计划单位只交给数量接口。 */
 export type BomDemoResolutionOptions = Partial<Omit<ResolutionContext, 'asOfDate'>> & { plannedUom?: string };
@@ -932,6 +949,7 @@ export class BomDemoService {
       return adapter;
     });
     await rxdb.connect('wa-sqlite');
+    connectDevTools(rxdb);
     this.rxdb = rxdb;
     this.adapter = adapter!;
   }

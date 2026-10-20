@@ -15,10 +15,13 @@
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "references": [
     {
-      "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb/tsconfig.lib.json"
