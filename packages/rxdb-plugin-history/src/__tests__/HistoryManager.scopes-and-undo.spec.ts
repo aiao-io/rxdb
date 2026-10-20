@@ -203,9 +203,6 @@ const createHarness = (
     branchFindOne,
     changeFind,
     connected$,
-    // 没换挂过的实例挂的是主表集（US-314 B1.4）
-    worktreeTableSet: WorktreeTableSet.MAIN,
-    worktreeTableSet$: of(WorktreeTableSet.MAIN),
     getCurrentBranch,
     getLocalRepositories,
     getRepository,
