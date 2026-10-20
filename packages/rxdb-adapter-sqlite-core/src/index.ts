@@ -61,13 +61,8 @@ export {
   SQLITE_MAX_BIND_VARIABLES,
   deserializeFromEnvelope,
   getEntityObjectFromResult,
-  getTableColumnIndexName,
   get_sql_value,
   get_sql_with_params,
-  get_table_name,
-  get_table_name_by_entity_type,
-  get_table_name_by_metadata,
-  get_table_name_info,
   isSqlResultEmpty,
   isTableExistedSql,
   normalizeCreateEntity,
@@ -81,6 +76,17 @@ export {
   transformValueSqliteToJs
 } from './sqlite-core.utils.js';
 export type { EncryptionContext } from './sqlite-core.utils.js';
+
+// 表名解析器（US-314）：业务实体的物理名只从这里出
+export {
+  getTableColumnIndexName,
+  get_companion_table_name,
+  get_storage_object_name,
+  get_table_name,
+  get_table_name_by_entity_type,
+  get_table_name_by_metadata,
+  get_table_name_info
+} from './table-name-resolver.js';
 
 // 实体 SQL 生成
 export { generate_entity_delete_sql } from './entity/delete_sql.js';

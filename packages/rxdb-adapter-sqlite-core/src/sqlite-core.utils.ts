@@ -2,9 +2,6 @@ import {
   EntityData,
   EntityMetadata,
   EntityPropertyMetadata,
-  EntityRelationMetadata,
-  EntityType,
-  getEntityMetadata,
   KeyValuePropertyMetadata,
   PropertyType,
   quoteSqlIdentifier,
@@ -294,43 +291,6 @@ export const transformValueSqliteToJs = (
 };
 
 /**
- * 获取表名
- * @param name 表名
- * @param namespace 命名空间
- * @returns 完整的表名
- */
-export const get_table_name = (name: string, namespace: string) => `${namespace}$${name}`;
-
-/**
- * 解析表名信息
- * @param tableName 完整表名
- * @returns [命名空间, 表名] 元组
- */
-export const get_table_name_info = (tableName: string): [string, string] => {
-  const index = tableName.indexOf('$');
-  if (index === -1) {
-    return ['', tableName];
-  }
-  return [tableName.substring(0, index), tableName.substring(index + 1)];
-};
-
-/**
- * 通过元数据获取表名
- * @param metadata 实体元数据
- * @returns 完整的表名
- */
-export const get_table_name_by_metadata = (metadata: EntityMetadata) =>
-  get_table_name(metadata.tableName, metadata.namespace);
-
-/**
- * 通过实体类型获取表名
- * @param EntityType 实体类型
- * @returns 完整的表名
- */
-export const get_table_name_by_entity_type = (EntityType: EntityType) =>
-  get_table_name_by_metadata(getEntityMetadata(EntityType));
-
-/**
  * 获取主键的物理列名
  *
  * @remarks
@@ -344,17 +304,6 @@ export const get_table_name_by_entity_type = (EntityType: EntityType) =>
  */
 export const get_primary_key_column = (metadata: EntityMetadata): string =>
   metadata.propertyMap?.get('id')?.columnName ?? 'id';
-
-/**
- * 获取表列索引名称
- * @param metadata 实体元数据
- * @param property 属性或关系元数据
- * @returns 索引名称
- */
-export const getTableColumnIndexName = (
-  metadata: EntityMetadata,
-  property: EntityPropertyMetadata | EntityRelationMetadata
-) => `idx_${get_table_name_by_metadata(metadata)}_${property.name}`;
 
 /**
  * RxDB SQLite 适配器错误类

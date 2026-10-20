@@ -1,4 +1,4 @@
-import { ENTITY_LOCAL_CREATE_EVENT, type EntityLocalCreatedEvent } from '@aiao/rxdb';
+import { ENTITY_LOCAL_CREATE_EVENT, type EntityLocalCreatedEvent, WorktreeTableSet } from '@aiao/rxdb';
 // 只为把 `declare module '@aiao/rxdb'` 的 `versionManager` 声明带进本编译单元：
 // 历史 / 撤销重做 / 分支自 US-025 阶段 C 起住在这个插件里，核心 `RxDB` 上没有这个成员。
 // 共享套件本身不 `use()` 它 —— 装插件是 `AdapterFactory` 的活（见 `testing.ts` 的契约）。
@@ -39,7 +39,7 @@ import { generateSwitchBranchSql } from '../version/switch_branch.js';
  */
 export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {
   await cleanupSqliteTestAdapter(adapter, {
-    removeTriggersSql: remove_all_triggers_sql(adapter),
+    removeTriggersSql: remove_all_triggers_sql(adapter, WorktreeTableSet.MAIN),
     // main 分支行本身由共享工具按默认 INSERT 补回（那条字面量与本包此前自带的逐字节相同），
     // 这段 switch SQL 负责把触发器按 main 重新装回去。
     resetToMainBranchSql: () => generateSwitchBranchSql(adapter, 'main'),

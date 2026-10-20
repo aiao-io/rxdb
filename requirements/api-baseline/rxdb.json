@@ -2722,6 +2722,10 @@
         "kind": "type"
       },
       {
+        "name": "WorktreeTableSet",
+        "kind": "both"
+      },
+      {
         "name": "WRITE_ENTRANCES",
         "kind": "value"
       },

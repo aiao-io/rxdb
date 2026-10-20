@@ -258,6 +258,7 @@ export * from './system/system.interface.js';
 export * from './system/types.js';
 export * from './system/types.local.js';
 export * from './system/types.remote.js';
+export * from './system/worktree-table-set.js';
 export * from './transaction/transaction-executor.interface.js';
 // 受信写声明通道（epic-006「受信调用点登记表」）。**整条留在核心**：`declareTrustedWrite` 对未登记的
 // 三段身份当场抛错，这道 fail-closed 门必须对所有用户无条件生效，不能变成「装了插件才有」。

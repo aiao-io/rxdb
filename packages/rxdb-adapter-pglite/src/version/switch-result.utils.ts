@@ -41,12 +41,12 @@ import update_sql from '../entity/update_sql.js';
 import {
   getSqlWithParams,
   getSwitchUpdatedAt,
-  getTableNameByMetadata,
   normalizeUpdateEntity,
   transformValuePGliteToJs
 } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { unenvelopePlaintextPatches } from '../system/encrypt-patch.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 import { SwitchVersionSqlResult } from './switch-result.interface.js';
 
 /**
@@ -208,7 +208,7 @@ export const convertSwitchResultToSql = async (
 
   for (const [key, idSet] of needDeleteEntitiesMap) {
     const metadata = getGroupedMetadata(adapter, key);
-    const tableName = getTableNameByMetadata(metadata);
+    const tableName = getTableNameByMetadata(metadata, adapter.tableSet);
     const idType = metadata.propertyMap.get('id')?.type;
 
     // PostgreSQL 使用 = ANY($1) 语法，支持参数化数组
@@ -278,7 +278,7 @@ export const convertSwitchResultToSql = async (
         columns: insertedColumns,
         sql: insertSql,
         params: insertParams
-      } = await insert_sql(metadata, entityData, {
+      } = await insert_sql(metadata, adapter.tableSet, entityData, {
         returning: false,
         encryption
       });
@@ -352,6 +352,7 @@ export const convertSwitchResultToSql = async (
         : undefined;
       const { sql: updateSql, params: updateParams } = await update_sql<VersionEntityType>(
         metadata,
+        adapter.tableSet,
         { id },
         updateData,
         {

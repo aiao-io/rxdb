@@ -4,6 +4,7 @@ import {
   EntityLocalUpdatedEvent,
   RxDB,
   SyncType,
+  WorktreeTableSet,
   type EntityType,
   type RxDBEntityLocalUpdatedEventData,
   type SwitchBranchOptions,
@@ -76,6 +77,7 @@ const createSwitchAdapter = (options: SwitchAdapterOptions = {}) => {
   } as unknown as SqliteClientLike;
 
   const adapter = {
+    tableSet: WorktreeTableSet.MAIN,
     transaction: async (run: (tx: SqliteClientLike) => Promise<unknown>) => run(client),
     encryptionContext: { keyring: null, namespace: 'switch-branch-test' },
     cacheRowIdEntity: () => undefined,

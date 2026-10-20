@@ -1,4 +1,4 @@
-import { getEntityMetadata, type EntityMetadata } from '@aiao/rxdb';
+import { getEntityMetadata, WorktreeTableSet, type EntityMetadata } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '@aiao/rxdb-adapter-sqlite-core';
 import { describe, expect, it } from 'vitest';
 import { GraphEntity } from '../@GraphEntity.js';
@@ -31,7 +31,7 @@ class UndirectedNode extends GraphEntityBase {}
 })
 class DirectedNode extends GraphEntityBase {}
 
-const adapter = {} as RxDBAdapterSqliteBase;
+const adapter = { tableSet: WorktreeTableSet.MAIN } as RxDBAdapterSqliteBase;
 const undirected: EntityMetadata = getEntityMetadata(UndirectedNode);
 const directed: EntityMetadata = getEntityMetadata(DirectedNode);
 

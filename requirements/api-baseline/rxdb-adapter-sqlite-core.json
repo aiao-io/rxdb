@@ -222,6 +222,10 @@
         "kind": "value"
       },
       {
+        "name": "get_companion_table_name",
+        "kind": "value"
+      },
+      {
         "name": "get_field_sql",
         "kind": "value"
       },
@@ -255,6 +259,10 @@
       },
       {
         "name": "get_sql_with_params",
+        "kind": "value"
+      },
+      {
+        "name": "get_storage_object_name",
         "kind": "value"
       },
       {

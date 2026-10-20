@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../../RxDBAdapterSqliteBase.js';
 import type { SqliteResult } from '../../sqlite-core.interface.js';
@@ -15,6 +15,7 @@ rxdb.entityManager.init();
 
 // 纯 SQL 生成场景，轻量 mock 即可——同 create_tables_sql.spec.ts / switch_branch.spec.ts 的取舍。
 const adapter = {
+  tableSet: WorktreeTableSet.MAIN,
   rxdb: { config: rxdb.config },
   encryptionContext: { keyring: null, namespace: 'with-triggers-disabled-test' }
 } as unknown as RxDBAdapterSqliteBase;

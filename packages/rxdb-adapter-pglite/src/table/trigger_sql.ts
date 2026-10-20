@@ -6,9 +6,11 @@ import {
   RXDB_CHANGE_ENTITY_ID_PREFIX,
   RXDB_CHANGE_SCHEMA_VERSION,
   RXDB_CHANGE_VALUE_ENVELOPE_KEY,
-  RxDBChange
+  RxDBChange,
+  WorktreeTableSet
 } from '@aiao/rxdb';
-import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { getChangeTriggerFunctionName, getTableNameByMetadata } from '../table-name-resolver.js';
 
 /**
  * 对用于 SQL 中的标识符进行基本校验，防止注入非法字符。
@@ -55,6 +57,11 @@ interface TriggerOptions {
    * 它们给出的是一个有理由的取值，不是一个没人填所以顶上来的取值。
    */
   branchId: string;
+  /**
+   * 触发器挂在哪一套业务表上——**必填**，理由同 {@link TriggerOptions.branchId}：
+   * 挂错一套，那一套的写入照样成功，只是记成了别的检出位的分支（US-314）。
+   */
+  tableSet: WorktreeTableSet;
   /** 事务 ID (可选，用于事务内的变更追踪) */
   transactionId?: string;
   resolveEntityMetadata?: (entity: string, namespace: string) => EntityMetadata | undefined;
@@ -84,9 +91,10 @@ interface TriggerOptions {
  * ```
  */
 export function generate_trigger_sql(entityMetadata: EntityMetadata, options: TriggerOptions): string {
-  const tableName = getTableNameByMetadata(entityMetadata);
+  const tableName = getTableNameByMetadata(entityMetadata, options.tableSet);
   const rxDBChangeMetadata = getEntityMetadata(RxDBChange);
-  const rxDBChangeTableName = getTableNameByMetadata(rxDBChangeMetadata);
+  // 变更日志全库只有一份，不分套
+  const rxDBChangeTableName = getTableNameByMetadata(rxDBChangeMetadata, WorktreeTableSet.MAIN);
 
   const {
     propertyMap,
@@ -103,7 +111,6 @@ export function generate_trigger_sql(entityMetadata: EntityMetadata, options: Tr
   }
 
   const safeEntityTableName = escapeIdentifier(entityTableName);
-  const safeNamespace = escapeIdentifier(namespace);
 
   // 触发器名称（使用 tableName，因为触发器作用于表）
   const triggerName = `"${safeEntityTableName}_change_trigger"`;
@@ -185,7 +192,7 @@ export function generate_trigger_sql(entityMetadata: EntityMetadata, options: Tr
 
   // 触发器函数名 - PostgreSQL 标准格式: schema.function_name
   // 使用 tableName 来命名函数
-  const functionFullName = `"${safeNamespace}"."${safeEntityTableName}_change_trigger_fn"`;
+  const functionFullName = getChangeTriggerFunctionName(entityMetadata, options.tableSet);
 
   // entity 字段存储实体名称（不是表名），用于标识变更来源
   const values =

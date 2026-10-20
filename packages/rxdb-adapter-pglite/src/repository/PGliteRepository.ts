@@ -55,7 +55,7 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
   }
 
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
-    const { sql, params } = await generate_entity_insert_sql(this.metadata, entity, {
+    const { sql, params } = await generate_entity_insert_sql(this.metadata, this.adapter.tableSet, entity, {
       ...this.rxdb.context,
       encryption: this.adapter.encryptionContext
     });
@@ -71,7 +71,7 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
   }
 
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
-    const { sql, params } = await generate_entity_update_sql(this.metadata, entity, patch, {
+    const { sql, params } = await generate_entity_update_sql(this.metadata, this.adapter.tableSet, entity, patch, {
       ...this.rxdb.context,
       updatedAt: getMonotonicUpdatedAt(entity),
       encryption: this.adapter.encryptionContext
@@ -93,7 +93,7 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
       throw new RxdbAdapterPGliteError(`Remove Error${meta.name}(${entity.id}) not saved local.`);
     }
 
-    const { sql, params } = generate_entity_delete_sql(this.metadata, entity);
+    const { sql, params } = generate_entity_delete_sql(this.metadata, this.adapter.tableSet, entity);
     await this.adapter.writeQuery(sql, params);
     dispatchUnloggedRemovals(this.adapter.rxdb, [entity], new Date());
 

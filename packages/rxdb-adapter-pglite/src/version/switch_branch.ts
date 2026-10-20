@@ -6,12 +6,14 @@ import {
   getEntityMetadata,
   RxDBBranch,
   RxDBEntityLocalUpdatedEventData,
-  SwitchBranchOptions
+  SwitchBranchOptions,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import type { Results } from '@electric-sql/pglite';
 
-import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { RxdbAdapterPGliteError } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 import remove_all_triggers_sql from '../table/remove_trigger_sql.js';
 import generate_trigger_sql from '../table/trigger_sql.js';
 import type { PGliteTransactionExecutor } from '../transaction/PGliteTransactionExecutor.js';
@@ -49,7 +51,7 @@ function convertResultsToPGliteExecuteResult<T>(results: Results<T>): PGliteExec
  * 污染下一个用例的事件监听窗口。
  */
 export const generateBranchTriggerSql = (adapter: RxDBAdapterPGlite, branchId: string): string =>
-  generateBranchTriggerSqlFor(adapter, branchId, adapter.rxdb.config.entities);
+  generateBranchTriggerSqlFor(adapter, adapter.tableSet, branchId, adapter.rxdb.config.entities);
 
 /**
  * 同 {@link generateBranchTriggerSql}，但只重挂**指定的**那几个实体
@@ -67,6 +69,7 @@ export const generateBranchTriggerSql = (adapter: RxDBAdapterPGlite, branchId: s
  */
 export const generateBranchTriggerSqlFor = (
   adapter: RxDBAdapterPGlite,
+  tableSet: WorktreeTableSet,
   branchId: string,
   EntityTypes: readonly EntityType[]
 ): string => {
@@ -80,6 +83,7 @@ export const generateBranchTriggerSqlFor = (
     if (metadata.log !== false) {
       const triggerSql = generate_trigger_sql(metadata, {
         branchId,
+        tableSet,
         resolveEntityMetadata: adapter.encryptionContext.resolveEntityMetadata
       });
       if (triggerSql.trim()) {
@@ -119,7 +123,7 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: st
 
   // 获取分支表的元数据和表名
   const metadata = getEntityMetadata(RxDBBranch);
-  const tableName = getTableNameByMetadata(metadata);
+  const tableName = getTableNameByMetadata(metadata, WorktreeTableSet.MAIN);
 
   // 转义分支 ID 中的单引号，防止 SQL 注入
   const escapedBranchId = branchId.replace(/'/g, "''");
@@ -188,7 +192,7 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
         throw error;
       });
       // 移除所有表触发器，避免触发器在批量操作时干扰数据
-      const removeAllTriggers = remove_all_triggers_sql(sink);
+      const removeAllTriggers = remove_all_triggers_sql(sink, sink.tableSet);
       if (removeAllTriggers) await executeSwitchStatements(sink, removeAllTriggers);
 
       // 执行切换分支的操作

@@ -8,11 +8,13 @@ import {
   RxDBEntityLocalCreatedEventData,
   RxDBEntityLocalRemovedEventData,
   RxDBEntityLocalUpdatedEventData,
-  toStorageConstraintViolationError
+  toStorageConstraintViolationError,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
-import { get_sql_value, get_table_name_by_metadata, quote_sql_identifier } from '../sqlite-core.utils.js';
+import { get_sql_value, quote_sql_identifier } from '../sqlite-core.utils.js';
 import { envelopePlaintextPatches } from '../system/encrypt-patch.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import { remove_entity_ids_from_cache, transaction_sqlite_result } from '../transaction_sqlite_result.js';
 import {
   executeSqliteSelectStatements,
@@ -211,7 +213,7 @@ async function buildLocalChangesSql(
   localChanges: Omit<RxDBChange, 'id'>[]
 ): Promise<string> {
   const rxDBChangeMetadata = getEntityMetadata(RxDBChange);
-  const tableName = get_table_name_by_metadata(rxDBChangeMetadata);
+  const tableName = get_table_name_by_metadata(rxDBChangeMetadata, WorktreeTableSet.MAIN);
   const columns = [
     'type',
     'namespace',

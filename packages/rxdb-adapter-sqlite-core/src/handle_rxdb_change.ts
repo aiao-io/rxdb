@@ -15,8 +15,9 @@ import { SqliteRepository } from './repository/SqliteRepository.js';
 import type { RxDBAdapterSqliteBase } from './RxDBAdapterSqliteBase.js';
 import { SQLiteChangeType } from './sqlite-backend.interface.js';
 import { getRxDBChangeEventType, SqliteChangeEvent } from './sqlite-core.interface.js';
-import { get_table_name_info, RxDBAdapterSqliteError } from './sqlite-core.utils.js';
+import { RxDBAdapterSqliteError } from './sqlite-core.utils.js';
 import { unenvelopePlaintextPatches } from './system/encrypt-patch.js';
+import { get_table_name_info } from './table-name-resolver.js';
 
 type EntityMetadata = ReturnType<typeof getEntityMetadata>;
 type EntityPatch<T extends EntityType> = Readonly<Partial<InstanceType<T>>>;

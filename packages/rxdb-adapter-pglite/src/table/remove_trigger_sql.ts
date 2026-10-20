@@ -1,7 +1,7 @@
-import type { EntityMetadata } from '@aiao/rxdb';
+import type { EntityMetadata, WorktreeTableSet } from '@aiao/rxdb';
 import { getEntityMetadata } from '@aiao/rxdb';
-import { getTableNameByMetadata } from '../pglite.utils.js';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { getChangeTriggerFunctionName, getTableNameByMetadata } from '../table-name-resolver.js';
 
 /**
  * 生成删除单个实体触发器的 SQL
@@ -21,15 +21,15 @@ import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
  * // DROP FUNCTION IF EXISTS "public"."todos_change_trigger_fn"() CASCADE
  * ```
  */
-export function remove_trigger_sql(entityMetadata: EntityMetadata): string {
-  const tableName = getTableNameByMetadata(entityMetadata);
-  const { tableName: entityTableName, namespace } = entityMetadata;
+export function remove_trigger_sql(entityMetadata: EntityMetadata, tableSet: WorktreeTableSet): string {
+  const tableName = getTableNameByMetadata(entityMetadata, tableSet);
+  const { tableName: entityTableName } = entityMetadata;
 
   // 触发器名称(使用 tableName，因为触发器作用于表)
   const triggerName = `"${entityTableName}_change_trigger"`;
 
   // 触发器函数名(带 schema，使用 tableName)
-  const functionFullName = `"${namespace}"."${entityTableName}_change_trigger_fn"`;
+  const functionFullName = getChangeTriggerFunctionName(entityMetadata, tableSet);
 
   // 1. 删除触发器
   const dropTrigger = `DROP TRIGGER IF EXISTS ${triggerName} ON ${tableName}`;
@@ -58,7 +58,7 @@ export function remove_trigger_sql(entityMetadata: EntityMetadata): string {
  * }
  * ```
  */
-export function remove_all_triggers_sql(adapter: RxDBAdapterPGlite): string {
+export function remove_all_triggers_sql(adapter: RxDBAdapterPGlite, tableSet: WorktreeTableSet): string {
   const sqlParts: string[] = [];
 
   adapter.rxdb.config.entities.forEach(EntityType => {
@@ -66,7 +66,7 @@ export function remove_all_triggers_sql(adapter: RxDBAdapterPGlite): string {
 
     // 只删除启用了日志功能的实体的触发器
     if (metadata.log !== false) {
-      sqlParts.push(remove_trigger_sql(metadata));
+      sqlParts.push(remove_trigger_sql(metadata, tableSet));
     }
   });
 

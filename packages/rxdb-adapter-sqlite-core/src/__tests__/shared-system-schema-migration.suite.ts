@@ -7,13 +7,15 @@ import {
   RxDBChange,
   RxDBMigration,
   UnsupportedRxDBSystemVersionError,
+  WorktreeTableSet,
   encodeRxDBChangeEntityId,
   getEntityMetadata
 } from '@aiao/rxdb';
 import { filter, firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
-import { getTableColumnIndexName, get_table_name_by_metadata, quote_sql_identifier } from '../sqlite-core.utils.js';
+import { quote_sql_identifier } from '../sqlite-core.utils.js';
+import { getTableColumnIndexName, get_table_name_by_metadata } from '../table-name-resolver.js';
 import type { AdapterFactory } from './adapter-factory.js';
 import { Todo } from './fixtures/Todo.js';
 import { SUITE_DEADLINE_MS } from './test-utils.js';
@@ -23,7 +25,9 @@ const currentWatermarks = [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATER
 const placeholders = currentWatermarks.map(() => '?').join(', ');
 
 const readWatermarks = async (adapter: RxDBAdapterSqliteBase): Promise<Array<[number, string]>> => {
-  const table = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
+  const table = quote_sql_identifier(
+    get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+  );
   const result = await adapter.internalQuery(
     `SELECT "id", "name" FROM ${table} WHERE "name" IN (${placeholders}) ORDER BY "id"`,
     [...currentWatermarks]
@@ -68,9 +72,15 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
     it(
       '升级旧 UUID/plain JSON change，重复执行不改写历史',
       async () => {
-        const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
-        const changeTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBChange)));
-        const todoTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(Todo)));
+        const migrationTable = quote_sql_identifier(
+          get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+        );
+        const changeTable = quote_sql_identifier(
+          get_table_name_by_metadata(getEntityMetadata(RxDBChange), WorktreeTableSet.MAIN)
+        );
+        const todoTable = quote_sql_identifier(
+          get_table_name_by_metadata(getEntityMetadata(Todo), WorktreeTableSet.MAIN)
+        );
         const legacyId = '550e8400-e29b-41d4-a716-446655440000';
         const now = new Date().toISOString();
         const legacyCreatedAt = new Date(Date.now() + 60_000).toISOString();
@@ -155,8 +165,12 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
     );
 
     it('迁移失败完整回滚，重新打开后自动重试且不改写 change', async () => {
-      const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
-      const changeTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBChange)));
+      const migrationTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+      );
+      const changeTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBChange), WorktreeTableSet.MAIN)
+      );
       const failureTrigger = quote_sql_identifier('reject_codec_watermark');
       const changesBefore = await readRows(
         adapter,
@@ -202,13 +216,15 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
     // v4 水位线**之后**才进 schema 的，而既有库的升级路径只按表粒度补建、从不看列——不在这里补，
     // 那批库的约束就永远缺席，且不报任何错。
     it('给既有库补 activeKey 列与唯一索引；多 active 时整体回滚', async () => {
-      const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
+      const migrationTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+      );
       const branchMetadata = getEntityMetadata(RxDBBranch);
-      const branchTableName = get_table_name_by_metadata(branchMetadata);
+      const branchTableName = get_table_name_by_metadata(branchMetadata, WorktreeTableSet.MAIN);
       const branchTable = quote_sql_identifier(branchTableName);
       const activeKeyProperty = branchMetadata.properties.find(property => property.name === 'activeKey');
       if (!activeKeyProperty) throw new Error('RxDBBranch metadata is missing the "activeKey" property.');
-      const indexName = getTableColumnIndexName(branchMetadata, activeKeyProperty);
+      const indexName = getTableColumnIndexName(branchMetadata, activeKeyProperty, WorktreeTableSet.MAIN);
       const readBranchRows = async (): Promise<unknown[][]> =>
         readRows(adapter, `SELECT "id", "activated", "activeKey" FROM ${branchTable} ORDER BY "id"`);
       const readBranchColumns = async (): Promise<unknown[]> =>
@@ -266,9 +282,11 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
     // 而不只是「写回同一个值」——`rxdb_branch` 上挂着变更派发，白写一遍就会多出一条谁都没做过的
     // UPDATE，落进调用方的事件流，且没有任何东西会报错。
     it('库已是目标形态时一行都不写', async () => {
-      const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
+      const migrationTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+      );
       const branchMetadata = getEntityMetadata(RxDBBranch);
-      const branchTable = quote_sql_identifier(get_table_name_by_metadata(branchMetadata));
+      const branchTable = quote_sql_identifier(get_table_name_by_metadata(branchMetadata, WorktreeTableSet.MAIN));
       // 不依赖上一个用例留下的库态：先把「恰好一个 active 且哨兵值已就位」这个前提写死。
       await adapter.internalQuery(`UPDATE ${branchTable} SET "activated" = 0, "activeKey" = NULL WHERE "id" != 'main'`);
       await adapter.internalQuery(`UPDATE ${branchTable} SET "activated" = 1, "activeKey" = ? WHERE "id" = 'main'`, [
@@ -307,10 +325,18 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
     // 且不报任何错。pglite 侧（`system/migrate_system_schema.ts`）一直是读活动分支再传：
     // 两端形状必须一致，否则同一个库换个后端打开就是另一套行为。
     it('迁移重建的变更触发器按活动分支写，而不是固定 main', async () => {
-      const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
-      const changeTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBChange)));
-      const todoTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(Todo)));
-      const branchTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBBranch)));
+      const migrationTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+      );
+      const changeTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBChange), WorktreeTableSet.MAIN)
+      );
+      const todoTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(Todo), WorktreeTableSet.MAIN)
+      );
+      const branchTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN)
+      );
       const branchId = 'migration-trigger-branch';
 
       await adapter.rxdb.versionManager.createBranch(branchId);
@@ -353,7 +379,9 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
     });
 
     it('高版本水位 fail-fast', async () => {
-      const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
+      const migrationTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+      );
       await adapter.internalQuery(
         `INSERT INTO ${migrationTable} ("name", "executedAt") VALUES (?, CURRENT_TIMESTAMP)`,
         ['__rxdb_change_codec__:2']

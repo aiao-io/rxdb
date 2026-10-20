@@ -5,7 +5,7 @@
 
 import type { EntityBaseType, EntityType } from '@aiao/rxdb';
 import {
-  get_table_name as sqliteGetTableName,
+  get_companion_table_name,
   get_table_name_by_metadata as sqliteGetTableNameByMetadata,
   SqliteRepository,
   type RxDBAdapterSqliteBase
@@ -231,7 +231,7 @@ export class SqliteGraphRepository<
       if (allNodeIds.size > 0) {
         const nodeIdArray = Array.from(allNodeIds);
         const placeholders = nodeIdArray.map((_, i) => `$${i + 1}`).join(',');
-        const nodeQuery = `SELECT * FROM "${sqliteGetTableNameByMetadata(this.metadata)}" WHERE id IN (${placeholders})`;
+        const nodeQuery = `SELECT * FROM "${sqliteGetTableNameByMetadata(this.metadata, this.adapter.tableSet)}" WHERE id IN (${placeholders})`;
         const nodeResult = await executor.execute(nodeQuery, nodeIdArray);
 
         const nodeRows = nodeResult.results[0].rows;
@@ -354,7 +354,8 @@ export class SqliteGraphRepository<
   }
 
   private getEdgeTableName(): string {
-    return `"${sqliteGetTableName(this.metadata.name + '_edges', this.metadata.namespace)}"`;
+    // 边表跟着节点实体落同一套业务表
+    return `"${get_companion_table_name(this.metadata, this.metadata.name + '_edges', this.adapter.tableSet)}"`;
   }
 
   private buildAddEdgeSql(

@@ -30,7 +30,7 @@ vi.mock('../../transaction_pglite_result.js', async importOriginal => {
   };
 });
 
-import { RxDBBranch, type SwitchBranchOptions } from '@aiao/rxdb';
+import { RxDBBranch, WorktreeTableSet, type SwitchBranchOptions } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { RxdbAdapterPGliteError } from '../../pglite.utils.js';
 import { generateSwitchBranchSql, switch_branch } from '../../version/switch_branch.js';
@@ -61,6 +61,7 @@ const makeAdapter = (overrides: Record<string, unknown> = {}): MockAdapter => {
   const query = vi.fn().mockResolvedValue({ rows: [{ id: 'main', activated: true }], affectedRows: 1, fields: [] });
   const adapter: MockAdapter = {
     query,
+    tableSet: WorktreeTableSet.MAIN,
     transaction: vi.fn((fn: (executor: { adapter: unknown }) => Promise<unknown>) => fn({ adapter })),
     setRxDBChangeSequence: vi.fn(),
     encryptionContext: { resolveEntityMetadata: vi.fn() },

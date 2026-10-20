@@ -40,11 +40,12 @@ import {
   RxDB,
   RxDBBranch,
   SyncType,
+  WorktreeTableSet,
   type IRxDBAdapter,
   type RxDBEntityId
 } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
-import { getTableNameByMetadata } from '../../pglite.utils.js';
+import { getTableNameByMetadata } from '../../table-name-resolver.js';
 import { dispatch_switch_events, execute_switch_actions } from '../../version/execute_switch_actions.js';
 import type { SwitchVersionSqlResult } from '../../version/switch-result.interface.js';
 
@@ -57,7 +58,7 @@ const metadata = getEntityMetadata(Todo);
  * `tableName` 之后替身会安静地退回 `rows: []`，而 `readCurrentBranchId` 的 fail-fast 抛出来
  * 的是「currentBranch is undefined」——读起来像生产缺陷，其实是替身过期了。
  */
-const BRANCH_TABLE = getTableNameByMetadata(getEntityMetadata(RxDBBranch));
+const BRANCH_TABLE = getTableNameByMetadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN);
 
 const baseAction = (overrides: Record<string, unknown> = {}) => ({
   metadata,
@@ -112,6 +113,7 @@ describe('execute_switch_actions unit edges', () => {
   const makeAdapter = () => {
     const dispatchEvent = vi.fn();
     const adapter = {
+      tableSet: WorktreeTableSet.MAIN,
       transaction: vi.fn(async (fn: () => Promise<void>) => {
         await fn();
       }),
@@ -154,7 +156,7 @@ describe('execute_switch_actions unit edges', () => {
     await execute_switch_actions(adapter as never, switchAction, undefined, true);
 
     expect(adapter.runInTransaction).toHaveBeenCalledTimes(1);
-    expect(removeAllTriggersSqlMock).toHaveBeenCalledWith(adapter);
+    expect(removeAllTriggersSqlMock).toHaveBeenCalledWith(adapter, WorktreeTableSet.MAIN);
     expect(adapter.query).toHaveBeenCalledWith('DROP TRIGGER...');
     expect(
       adapter.rxdb.versionManager.getCurrentBranch,

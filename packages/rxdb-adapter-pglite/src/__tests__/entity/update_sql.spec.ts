@@ -1,4 +1,10 @@
-import { PropertyType, transitionMetadata, type EntityMetadata, type EntityPropertyMetadataOptions } from '@aiao/rxdb';
+import {
+  PropertyType,
+  transitionMetadata,
+  WorktreeTableSet,
+  type EntityMetadata,
+  type EntityPropertyMetadataOptions
+} from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import generate_entity_update_sql from '../../entity/update_sql.js';
 
@@ -23,7 +29,9 @@ describe('update_sql (PGlite)', () => {
       { name: 'id', type: PropertyType.uuid },
       { name: 'name', type: PropertyType.string }
     ]);
-    const result = await generate_entity_update_sql(metadata, new TestEntity('e-1'), { name: 'new' });
+    const result = await generate_entity_update_sql(metadata, WorktreeTableSet.MAIN, new TestEntity('e-1'), {
+      name: 'new'
+    });
     expect(result.sql).toContain('UPDATE "test"."TestEntity" SET "name" = $1 WHERE id = $2 RETURNING *');
     expect(result.params).toEqual(['new', 'e-1']);
   });
@@ -38,6 +46,7 @@ describe('update_sql (PGlite)', () => {
     const when = new Date('2024-01-01T00:00:00.000Z');
     const result = await generate_entity_update_sql(
       metadata,
+      WorktreeTableSet.MAIN,
       new TestEntity('e-1'),
       { name: 'x' },
       { userId: 'u-1', updatedAt: when }
@@ -56,6 +65,7 @@ describe('update_sql (PGlite)', () => {
     ]);
     const result = await generate_entity_update_sql(
       metadata,
+      WorktreeTableSet.MAIN,
       [new TestEntity('e-1'), new TestEntity('e-2')],
       { name: 'batch' },
       { returning: false }
@@ -77,6 +87,7 @@ describe('update_sql (PGlite)', () => {
     await expect(
       generate_entity_update_sql(
         metadata,
+        WorktreeTableSet.MAIN,
         [new TestEntity('e-1'), new TestEntity('e-2')],
         { secret: 'x' },
         { encryption }
@@ -92,7 +103,9 @@ describe('update_sql (PGlite)', () => {
     ]);
     expect(metadata.encryptedPropertyMap?.size ?? 0).toBeGreaterThan(0);
     // 补丁只包含未加密列 → hasEncryptedPatch 为 false。
-    const result = await generate_entity_update_sql(metadata, new TestEntity('e-9'), { name: 'plain' });
+    const result = await generate_entity_update_sql(metadata, WorktreeTableSet.MAIN, new TestEntity('e-9'), {
+      name: 'plain'
+    });
     expect(result.sql).toContain('WHERE id = $2');
     expect(result.params).toEqual(['plain', 'e-9']);
   });

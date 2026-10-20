@@ -8,7 +8,7 @@
  * @packageDocumentation
  */
 
-import type { EntityMetadata } from '@aiao/rxdb';
+import { WorktreeTableSet, type EntityMetadata } from '@aiao/rxdb';
 import { get_table_name_by_metadata, type FtsField } from '@aiao/rxdb-adapter-sqlite-core';
 import { SearchEncryptedFieldError } from '../types.js';
 import { SEARCHABLE_PROPERTY_TYPES } from './schema-validator.js';
@@ -71,7 +71,8 @@ export const extractFtsPlanFromMetadata = (metadata: EntityMetadata): FtsInstall
   if (fields.length === 0) return null;
   return {
     tableName: metadata.tableName,
-    sqlTableName: get_table_name_by_metadata(metadata),
+    // 全文索引只挂主表集
+    sqlTableName: get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN),
     namespace: metadata.namespace,
     primaryKey: primaryKey ?? 'id',
     fields,

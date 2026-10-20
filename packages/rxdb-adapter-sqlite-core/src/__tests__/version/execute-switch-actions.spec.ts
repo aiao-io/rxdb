@@ -5,6 +5,7 @@ import {
   RxDB,
   SyncType,
   transitionMetadata,
+  WorktreeTableSet,
   type EntityUpdateData,
   type RxDBChange
 } from '@aiao/rxdb';
@@ -64,6 +65,7 @@ describe('execute_switch_actions', () => {
     } as unknown as SqliteClientLike;
 
     const adapter = {
+      tableSet: WorktreeTableSet.MAIN,
       transaction: async (run: (tx: SqliteClientLike) => Promise<unknown>) => run(client),
       runInTransaction: async (run: (tx: SqliteClientLike) => Promise<unknown>) => run(client),
       encryptionContext: { keyring: null, namespace: 'execute-review' },
@@ -120,6 +122,7 @@ describe('execute_switch_actions', () => {
     const metadata = getEntityMetadata(Todo);
     const dispatched: unknown[] = [];
     const adapter = {
+      tableSet: WorktreeTableSet.MAIN,
       encryptionContext: { keyring: null, namespace: 'event-review' },
       cacheRowIdEntity: () => undefined,
       rxdb: {
@@ -174,6 +177,7 @@ describe('execute_switch_actions', () => {
   it('恢复 INSERT 全量刷新缓存实体的字段与 origin', async () => {
     const metadata = getEntityMetadata(Todo);
     const adapter = {
+      tableSet: WorktreeTableSet.MAIN,
       encryptionContext: { keyring: null, namespace: 'restore-insert-review' },
       cacheRowIdEntity: () => undefined,
       rxdb: {
@@ -235,6 +239,7 @@ describe('execute_switch_actions', () => {
     const metadata = getEntityMetadata(Todo);
     const dispatched: unknown[] = [];
     const adapter = {
+      tableSet: WorktreeTableSet.MAIN,
       encryptionContext: { keyring: null, namespace: 'typed-event-review' },
       cacheRowIdEntity: () => undefined,
       rxdb: {
@@ -304,6 +309,7 @@ describe('execute_switch_actions', () => {
     } as unknown as SqliteClientLike;
     const internalQuery = vi.fn(async () => successResult('internal'));
     const adapter = {
+      tableSet: WorktreeTableSet.MAIN,
       transaction: async (run: (tx: SqliteClientLike) => Promise<unknown>) => run(client),
       runInTransaction: async (run: (tx: SqliteClientLike) => Promise<unknown>) => run(client),
       internalQuery,
@@ -362,6 +368,7 @@ describe('execute_switch_actions', () => {
       }
     } as unknown as SqliteClientLike;
     const adapter = {
+      tableSet: WorktreeTableSet.MAIN,
       transaction: async (run: (tx: SqliteClientLike) => Promise<unknown>) => run(client),
       runInTransaction: async (run: (tx: SqliteClientLike) => Promise<unknown>) => run(client),
       encryptionContext: { keyring, namespace: 'secure' },
@@ -411,6 +418,7 @@ describe('execute_switch_actions', () => {
     const metadata = getEntityMetadata(Todo);
     const dispatched: unknown[] = [];
     const adapter = {
+      tableSet: WorktreeTableSet.MAIN,
       encryptionContext: { keyring: null, namespace: 'event-fallback-review' },
       cacheRowIdEntity: () => undefined,
       rxdb: {

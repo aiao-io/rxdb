@@ -5,14 +5,14 @@ status: In Progress
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-10-17
-updated: 2026-10-18
+updated: 2026-10-21
 tags: [collaboration, branch, worktree, history, tri-framework]
 ---
 
 <!--
 INVEST 检查清单:
 - [x] Independent (独立): 建在 US-313 的检出位登记与生命周期之上；不依赖往非 active 线写的原语（阶段 4）
-- [ ] Negotiable (可协商): 存储方案已定为库内影子表（[对比](US-314-storage-options.md)）；可写检出位下谁接收同步，待 owner 定
+- [x] Negotiable (可协商): 存储方案已定为库内影子表（[对比](US-314-storage-options.md)）；多检出位下只有主检出位同步（owner 2026-10-21 定）
 - [x] Valuable (有价值): 今天换一条线就得先清空或带着改动切走当前工作树；历史里的提交建不了分支
 - [x] Estimable (可估算): 粗估阶段 A 5～8 人日，阶段 B、C 合计约 40～55 人日（[分期](US-314-storage-options.md#分期)）
 - [ ] Small (小): 按交付阶段 A～C 拆
@@ -63,7 +63,7 @@ INVEST 检查清单:
 | 阶段 | 交付                                                                                 | 状态 |
 | ---- | ------------------------------------------------------------------------------------ | ---- |
 | A    | 从提交建分支：库 API、六个后端一致性、三端 demo 的提交右键与建分支对话框             | ✅   |
-| B    | 可写检出位：库内影子表的底座（B1）与完整语义（B2）、读写与提交、分支独占、关闭与回收 | ⬜   |
+| B    | 可写检出位：库内影子表的底座（B1）与完整语义（B2）、读写与提交、分支独占、关闭与回收 | ⚠️   |
 | C    | 三端绑定与三端 demo 的 Worktree 下拉、New Worktree…、Rename… / Delete…               | ⬜   |
 
 ## 验收标准
@@ -99,6 +99,16 @@ INVEST 检查清单:
   「留在原分支 / 带去新分支」两个去处都不同。GitHub Desktop 在非默认分支上还让人挑基于默认分支还是当前分支，
   从提交建分支只认当前分支历史上的提交，这里只基于当前分支。
 - **存储方案**：库内影子表（owner 2026-10-17 定）；与分库的对比、证据与分期见 [US-314-storage-options.md](US-314-storage-options.md)。
+  阶段 B1 由 owner 2026-10-21 先行解锁，不等具名需求。
+- **同步归属**（owner 2026-10-21 定）：多检出位下只有主检出位同步。拉取、推送照旧只作用于主检出位所在的分支，挂在可写检出位上的实例不跑同步；
+  检出位上的提交等那条分支回到主检出位、或合并进主线之后才进同步（epic-006 设计指点 12）。
+- **表名解析器**（阶段 B1 的底座）：业务实体的物理名只从两个适配器的解析器出，表集（核心的 `WorktreeTableSet`）参数必填。
+  - 主表集的名字与引入检出位之前逐字相同，存量库零迁移。
+  - 影子表集：SQLite 系给表名加后缀（`<命名空间>$<表名>$<后缀>`），条件唯一索引与区间排他触发器这类库级对象换掉名字末尾的定义哈希，
+    违约消息里仍嵌约束的逻辑名；PGlite 换 schema（`<命名空间>$<后缀>`），表名、索引名、约束名不变，变更触发器函数跟着换 schema。
+  - 系统表、QueryCache、关掉变更日志的实体没有副本，无论哪一套都落主表集。
+  - 公开的表名函数与 SQL 生成函数随之多了必填参数，迁移见文档站的 table-set-parameter；
+    `scripts/audit/table-name-resolver.mjs`（CI setup job）守着「解析器之外不推物理名」。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -113,6 +123,8 @@ INVEST 检查清单:
 - `packages/rxdb-plugin-working-tree/src/working-tree/testing/worktree.suite.ts` — 六个后端的从提交建分支用例
 - `packages/rxdb-plugin-working-tree-{angular,react,vue}/` — 三端绑定（`checkBranchFromCommit` / `createBranchFromCommit`）
 - `apps/dev-rxdb-{angular,react,vue}` 与对应 `-e2e` — 「Create a branch」对话框、History 右键；可写检出位的 Worktree 下拉随阶段 C
+- `packages/rxdb/src/system/worktree-table-set.ts`、`packages/rxdb-adapter-sqlite-core/src/table-name-resolver.ts`、
+  `packages/rxdb-adapter-pglite/src/table-name-resolver.ts` — 表集与两个适配器的表名解析器；`scripts/audit/table-name-resolver.mjs` — 门禁
 
 ## References
 

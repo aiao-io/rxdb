@@ -1,6 +1,7 @@
-import { getEntityMetadata, MAIN_BRANCH_ID, RxDBBranch, type EntityMetadata } from '@aiao/rxdb';
+import { getEntityMetadata, MAIN_BRANCH_ID, RxDBBranch, WorktreeTableSet, type EntityMetadata } from '@aiao/rxdb';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
-import { get_table_name_by_metadata, quote_sql_identifier, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { quote_sql_identifier, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import type { SqliteTransactionExecutor } from '../transaction/SqliteTransactionExecutor.js';
 
 /**
@@ -94,7 +95,7 @@ export const resolveBranchColumns = (metadata: EntityMetadata): BranchColumnName
  */
 export const readCurrentBranchId = async (read: SqliteBranchRowReader): Promise<string> => {
   const metadata = getEntityMetadata(RxDBBranch);
-  const table = quote_sql_identifier(get_table_name_by_metadata(metadata));
+  const table = quote_sql_identifier(get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN));
   const { idColumnName, activatedColumnName } = resolveBranchColumns(metadata);
   const idColumn = quote_sql_identifier(idColumnName);
   const activatedColumn = quote_sql_identifier(activatedColumnName);

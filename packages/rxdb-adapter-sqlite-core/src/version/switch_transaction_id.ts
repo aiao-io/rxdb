@@ -15,6 +15,7 @@ export const switch_transaction_id = (adapter: RxDBAdapterSqliteBase, branchId: 
     if (metadata.log !== false) {
       const trigger_sql = generate_table_trigger_sql(metadata, {
         branchId,
+        tableSet: adapter.tableSet,
         transactionId,
         resolveEntityMetadata: adapter.encryptionContext.resolveEntityMetadata
       });

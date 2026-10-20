@@ -187,22 +187,6 @@ export const quoteIdentifier = (value: string): string => quoteSqlIdentifier(val
 export const quoteLiteral = (value: string): string => sqlStringLiteral(value);
 
 /**
- * 拼出形如 `"public"."users"` 的完全限定表名（带双引号转义）。
- *
- * @param entityName - 表名
- * @param namespace - schema 名，默认 `public`
- * @returns 双引号包裹的 `"schema"."table"` 字符串，可直接插入 SQL
- */
-export const getTableName = (entityName: string, namespace: string = 'public') =>
-  `${quoteIdentifier(namespace)}.${quoteIdentifier(entityName)}`;
-
-/**
- * 根据 EntityMetadata 得到完全限定表名，等价于 `getTableName(metadata.tableName, metadata.namespace)`。
- */
-export const getTableNameByMetadata = (metadata: EntityMetadata) =>
-  getTableName(metadata.tableName, metadata.namespace);
-
-/**
  * PostgreSQL 协议单次查询最大参数数量（int16）。
  * 按列数将大批量数据切片，避免 INSERT ... VALUES (...) 超限。
  */

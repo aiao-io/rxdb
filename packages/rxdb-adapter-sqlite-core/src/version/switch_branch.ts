@@ -6,20 +6,20 @@ import {
   RxDBBranch,
   RxDBChange,
   RxDBEntityLocalUpdatedEventData,
-  SwitchBranchOptions
+  SwitchBranchOptions,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SqliteSuccessResult } from '../sqlite-core.interface.js';
 import {
   build_set_sequence_statements,
   get_sql_value,
-  get_table_name_by_entity_type,
-  get_table_name_by_metadata,
   quote_sql_identifier,
   ROWID,
   RxDBAdapterSqliteError,
   SQLITE_NOW_ISO_SQL
 } from '../sqlite-core.utils.js';
+import { get_table_name_by_entity_type, get_table_name_by_metadata } from '../table-name-resolver.js';
 import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
 import { generate_table_trigger_sql } from '../table/trigger_sql.js';
 import { transaction_sqlite_result } from '../transaction_sqlite_result.js';
@@ -51,6 +51,7 @@ export const generateSwitchBranchStatements = (adapter: RxDBAdapterSqliteBase, b
       // 否则该表会在无触发器的状态下继续接受 CRUD，静默丢掉历史、undo/redo 与同步。
       const triggerSql = generate_table_trigger_sql(metadata, {
         branchId,
+        tableSet: adapter.tableSet,
         resolveEntityMetadata: adapter.encryptionContext.resolveEntityMetadata
       });
       if (triggerSql.trim()) {
@@ -60,7 +61,7 @@ export const generateSwitchBranchStatements = (adapter: RxDBAdapterSqliteBase, b
   });
 
   const metadata = getEntityMetadata(RxDBBranch);
-  const tableName = get_table_name_by_metadata(metadata);
+  const tableName = get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN);
 
   const branchIdSql = get_sql_value(branchId);
 
@@ -176,7 +177,7 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
         throw error;
       });
       // 移除所有表触发器，避免触发器在批量操作时干扰数据
-      const remove_all_triggers = remove_all_triggers_sql(adapter);
+      const remove_all_triggers = remove_all_triggers_sql(adapter, adapter.tableSet);
       if (remove_all_triggers) {
         await tx.execute(remove_all_triggers);
       }
@@ -187,7 +188,7 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
 
       // 更新 RxDBChange 序列号（如果提供）——走 tx 保持原子，不旁路 #internal_exec
       if (actions?.updateRxDBChangeSequence !== undefined) {
-        const seqTable = get_table_name_by_entity_type(RxDBChange);
+        const seqTable = get_table_name_by_entity_type(RxDBChange, WorktreeTableSet.MAIN);
         for (const stmt of build_set_sequence_statements(seqTable, actions.updateRxDBChangeSequence)) {
           await tx.execute(stmt.sql, stmt.params);
         }

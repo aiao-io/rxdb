@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 
-import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from '@aiao/rxdb';
+import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID, WorktreeTableSet } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import remove_all_triggers_sql from './table/remove_trigger_sql.js';
 import { generateBranchTriggerSql } from './version/switch_branch.js';
@@ -151,7 +151,7 @@ export const dumpPGliteUserTables = async (adapter: unknown): Promise<Uint8Array
 export const cleanup_db = async (adapter: RxDBAdapterPGlite): Promise<void> => {
   adapter.rxdb.entityManager.cleanAllCache();
 
-  const remove_trigger_sql = remove_all_triggers_sql(adapter);
+  const remove_trigger_sql = remove_all_triggers_sql(adapter, WorktreeTableSet.MAIN);
   if (remove_trigger_sql) {
     const statements = remove_trigger_sql.split('---STATEMENT_SEPARATOR---').filter((s: string) => s.trim());
     for (const stmt of statements) {

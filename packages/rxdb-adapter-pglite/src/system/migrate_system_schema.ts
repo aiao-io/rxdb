@@ -14,19 +14,20 @@ import {
   RxDBBranch,
   RxDBChange,
   RxDBMigration,
-  RxDBSystemMigrationLockError
+  RxDBSystemMigrationLockError,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { AsyncQueueExecutor } from '@aiao/utils';
 import {
   type EncryptionContext,
   getTableColumnIndexName,
-  getTableNameByMetadata,
   quoteIdentifier,
   RxdbAdapterPGliteError,
   rxDBColumnTypeToPGliteType,
   rxDBColumnTypeToPGliteTypeIndexName
 } from '../pglite.utils.js';
 import type { IPGliteClient } from '../PGliteClient.js';
+import { getSchemaName, getTableNameByMetadata } from '../table-name-resolver.js';
 import { remove_trigger_sql } from '../table/remove_trigger_sql.js';
 import generate_trigger_sql from '../table/trigger_sql.js';
 
@@ -59,9 +60,10 @@ const ensureChangeRejectionColumns = async (
   changeMetadata: EntityMetadata,
   existingTables: ReadonlySet<string>
 ): Promise<void> => {
-  if (!existingTables.has(`${changeMetadata.namespace}\u0000${changeMetadata.tableName}`)) return;
+  if (!existingTables.has(`${getSchemaName(changeMetadata, WorktreeTableSet.MAIN)}\u0000${changeMetadata.tableName}`))
+    return;
 
-  const changeTable = getTableNameByMetadata(changeMetadata);
+  const changeTable = getTableNameByMetadata(changeMetadata, WorktreeTableSet.MAIN);
   for (const propertyName of CHANGE_REJECTION_PROPERTY_NAMES) {
     const property = changeMetadata.properties.find(candidate => candidate.name === propertyName);
     if (!property) {
@@ -70,7 +72,7 @@ const ensureChangeRejectionColumns = async (
     const columnResult = await tx.query<{ column_name: string }>(
       `SELECT column_name FROM information_schema.columns
        WHERE table_schema = $1::text AND table_name = $2::text AND column_name = $3::text`,
-      [changeMetadata.namespace, changeMetadata.tableName, property.columnName]
+      [getSchemaName(changeMetadata, WorktreeTableSet.MAIN), changeMetadata.tableName, property.columnName]
     );
     if (columnResult.rows.length > 0) continue;
     await tx.query(
@@ -131,19 +133,20 @@ const ensureBranchActiveKey = async (
   branchMetadata: EntityMetadata,
   existingTables: ReadonlySet<string>
 ): Promise<void> => {
-  if (!existingTables.has(`${branchMetadata.namespace}\u0000${branchMetadata.tableName}`)) return;
+  if (!existingTables.has(`${getSchemaName(branchMetadata, WorktreeTableSet.MAIN)}\u0000${branchMetadata.tableName}`))
+    return;
 
   const activeKeyProperty = branchMetadata.properties.find(property => property.name === 'activeKey');
   if (!activeKeyProperty) {
     throw new RxdbAdapterPGliteError('RxDBBranch metadata is missing the "activeKey" property.');
   }
-  const branchTable = getTableNameByMetadata(branchMetadata);
+  const branchTable = getTableNameByMetadata(branchMetadata, WorktreeTableSet.MAIN);
   const activeKeyColumn = quoteIdentifier(activeKeyProperty.columnName);
 
   const columnResult = await tx.query<{ column_name: string }>(
     `SELECT column_name FROM information_schema.columns
      WHERE table_schema = $1::text AND table_name = $2::text AND column_name = $3::text`,
-    [branchMetadata.namespace, branchMetadata.tableName, activeKeyProperty.columnName]
+    [getSchemaName(branchMetadata, WorktreeTableSet.MAIN), branchMetadata.tableName, activeKeyProperty.columnName]
   );
   if (columnResult.rows.length === 0) {
     // 列类型走与建表同一个 helper：新库与升级库的形状必须逐字节一致，各写一份字面量
@@ -213,17 +216,21 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
         const existingMetadata: EntityMetadata[] = [];
         for (const EntityType of host.entities) {
           const metadata = getEntityMetadata(EntityType);
-          if (existingTables.has(`${metadata.namespace}\u0000${metadata.tableName}`)) {
+          if (existingTables.has(`${getSchemaName(metadata, WorktreeTableSet.MAIN)}\u0000${metadata.tableName}`)) {
             existingMetadata.push(metadata);
           }
         }
 
         const migrationMetadata = getEntityMetadata(RxDBMigration);
-        if (!existingTables.has(`${migrationMetadata.namespace}\u0000${migrationMetadata.tableName}`)) {
+        if (
+          !existingTables.has(
+            `${getSchemaName(migrationMetadata, WorktreeTableSet.MAIN)}\u0000${migrationMetadata.tableName}`
+          )
+        ) {
           throw new RxdbAdapterPGliteError('RxDB system migration table is missing.');
         }
 
-        const migrationTable = getTableNameByMetadata(migrationMetadata);
+        const migrationTable = getTableNameByMetadata(migrationMetadata, WorktreeTableSet.MAIN);
         const watermarkResult = await tx.query<{ name: string }>(
           `SELECT "name" FROM ${migrationTable}
            WHERE left("name", $1::integer) = $2::text OR left("name", $3::integer) = $4::text`,
@@ -242,7 +249,7 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
 
         try {
           await tx.query(
-            `LOCK TABLE ${existingMetadata.map(getTableNameByMetadata).join(', ')} IN ACCESS EXCLUSIVE MODE NOWAIT`
+            `LOCK TABLE ${existingMetadata.map(metadata => getTableNameByMetadata(metadata, WorktreeTableSet.MAIN)).join(', ')} IN ACCESS EXCLUSIVE MODE NOWAIT`
           );
         } catch (cause) {
           throw new RxDBSystemMigrationLockError(cause);
@@ -250,9 +257,11 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
 
         const branchMetadata = getEntityMetadata(RxDBBranch);
         let activeBranchId: string = MAIN_BRANCH_ID;
-        if (existingTables.has(`${branchMetadata.namespace}\u0000${branchMetadata.tableName}`)) {
+        if (
+          existingTables.has(`${getSchemaName(branchMetadata, WorktreeTableSet.MAIN)}\u0000${branchMetadata.tableName}`)
+        ) {
           const branchResult = await tx.query<{ id: string }>(
-            `SELECT "id" FROM ${getTableNameByMetadata(branchMetadata)}
+            `SELECT "id" FROM ${getTableNameByMetadata(branchMetadata, WorktreeTableSet.MAIN)}
              WHERE "activated" IS TRUE LIMIT 1`
           );
           activeBranchId = branchResult.rows[0]?.id ?? activeBranchId;
@@ -260,7 +269,9 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
 
         const loggedMetadata = existingMetadata.filter(metadata => metadata.log !== false);
         for (const metadata of loggedMetadata) {
-          for (const statement of remove_trigger_sql(metadata).split('---STATEMENT_SEPARATOR---')) {
+          for (const statement of remove_trigger_sql(metadata, WorktreeTableSet.MAIN).split(
+            '---STATEMENT_SEPARATOR---'
+          )) {
             await tx.query(statement.trim());
           }
         }
@@ -269,7 +280,7 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
         const columnResult = await tx.query<{ data_type: string }>(
           `SELECT data_type FROM information_schema.columns
            WHERE table_schema = $1::text AND table_name = $2::text AND column_name = 'entityId'`,
-          [changeMetadata.namespace, changeMetadata.tableName]
+          [getSchemaName(changeMetadata, WorktreeTableSet.MAIN), changeMetadata.tableName]
         );
         const entityIdType = columnResult.rows[0]?.data_type;
         if (!entityIdType) {
@@ -279,13 +290,14 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
           if (entityIdType !== 'uuid' && entityIdType !== 'character varying') {
             throw new RxdbAdapterPGliteError(`Unsupported legacy RxDBChange.entityId column type: ${entityIdType}`);
           }
-          const changeTable = getTableNameByMetadata(changeMetadata);
+          const changeTable = getTableNameByMetadata(changeMetadata, WorktreeTableSet.MAIN);
           await tx.query(`ALTER TABLE ${changeTable} ALTER COLUMN "entityId" TYPE text USING "entityId"::text`);
         }
 
         for (const metadata of loggedMetadata) {
           const triggerSql = generate_trigger_sql(metadata, {
             branchId: activeBranchId,
+            tableSet: WorktreeTableSet.MAIN,
             resolveEntityMetadata: host.encryptionContext.resolveEntityMetadata
           });
           for (const statement of triggerSql.split('---STATEMENT_SEPARATOR---')) {

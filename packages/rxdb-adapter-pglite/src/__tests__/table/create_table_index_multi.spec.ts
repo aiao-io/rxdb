@@ -1,4 +1,4 @@
-import { Entity, EntityBase, PropertyType, RxDB, SyncType, getEntityMetadata } from '@aiao/rxdb';
+import { Entity, EntityBase, getEntityMetadata, PropertyType, RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../../index.js';
 import generate_table_create_sql from '../../table/create_table_sql.js';
@@ -50,7 +50,7 @@ describe('create_table_sql - 多个索引 (PGlite)', () => {
     await rxdb.connect('pglite');
 
     const metadata = getEntityMetadata(MultiIdx);
-    const sql = generate_table_create_sql(adapter as RxDBAdapterPGlite, metadata);
+    const sql = generate_table_create_sql(adapter as RxDBAdapterPGlite, metadata, WorktreeTableSet.MAIN);
 
     expect(sql).toContain('CREATE INDEX "idx_MultiIdx_parent_sort"');
     expect(sql).toContain('"parentId"');

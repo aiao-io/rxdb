@@ -1,7 +1,8 @@
-import { getEntityMetadata, MAIN_BRANCH_ID, RxDBBranch, type EntityMetadata } from '@aiao/rxdb';
+import { getEntityMetadata, MAIN_BRANCH_ID, RxDBBranch, WorktreeTableSet, type EntityMetadata } from '@aiao/rxdb';
 import type { Results } from '@electric-sql/pglite';
 
-import { getTableNameByMetadata, quoteIdentifier, RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { quoteIdentifier, RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 /**
  * 能在**当前**事务连接上直发 SQL 的最小门面。
@@ -103,7 +104,7 @@ export async function readCurrentBranchId(tx: PGliteRowReader): Promise<string> 
  */
 async function readActiveBranchId(tx: PGliteRowReader): Promise<string | undefined> {
   const metadata = getEntityMetadata(RxDBBranch);
-  const table = getTableNameByMetadata(metadata);
+  const table = getTableNameByMetadata(metadata, WorktreeTableSet.MAIN);
   const { idColumnName, activatedColumnName } = resolveBranchColumns(metadata);
   const idColumn = quoteIdentifier(idColumnName);
   const activatedColumn = quoteIdentifier(activatedColumnName);
@@ -145,7 +146,7 @@ async function readActiveBranchId(tx: PGliteRowReader): Promise<string | undefin
  * 触发器钉在根分支，它的变更会一直记在根分支名下直到下一次切分支，而那批已经记错的行不会被追回。
  */
 export async function readBranchIdForNewTables(tx: PGliteRowReader): Promise<string> {
-  const table = getTableNameByMetadata(getEntityMetadata(RxDBBranch));
+  const table = getTableNameByMetadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN);
   const probe = await tx.query<{ present: boolean }>(`SELECT to_regclass($1::text) IS NOT NULL AS present`, [table]);
   if (probe.rows[0]?.present !== true) return MAIN_BRANCH_ID;
   return (await readActiveBranchId(tx)) ?? MAIN_BRANCH_ID;

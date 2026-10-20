@@ -103,7 +103,7 @@ export async function execute_switch_actions(
     const sink = (executor as PGliteTransactionExecutor).adapter;
 
     if (disableTriggers) {
-      const removeTriggers = remove_all_triggers_sql(sink);
+      const removeTriggers = remove_all_triggers_sql(sink, sink.tableSet);
       if (removeTriggers) await executeSwitchStatements(sink, removeTriggers);
     }
 

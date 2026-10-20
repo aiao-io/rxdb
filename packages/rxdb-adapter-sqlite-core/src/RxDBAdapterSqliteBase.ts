@@ -43,7 +43,8 @@ import {
   TransactionCommitEvent,
   TransactionRollbackEvent,
   tryAcquireRxDBBackupLock,
-  uuid
+  uuid,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import {
   createKeyring,
@@ -102,10 +103,7 @@ import {
   chunkBySqliteBindLimit,
   type EncryptionContext,
   get_primary_key_column,
-  get_table_name_by_entity_type,
-  get_table_name_by_metadata,
   getEntityObjectFromResult,
-  getTableColumnIndexName,
   isSqlResultEmpty,
   isTableExistedSql,
   quote_sql_identifier,
@@ -114,6 +112,11 @@ import {
   SQLITE_NOW_ISO_SQL
 } from './sqlite-core.utils.js';
 import { assertSqliteHostVersion } from './system/sqlite-version.js';
+import {
+  get_table_name_by_entity_type,
+  get_table_name_by_metadata,
+  getTableColumnIndexName
+} from './table-name-resolver.js';
 import { check_entity_constraints_sqlite } from './table/check-entity-constraints.js';
 import { create_tables_sql } from './table/create_tables_sql.js';
 import { remove_all_triggers_sql } from './table/remove_trigger_sql.js';
@@ -167,7 +170,7 @@ export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } fro
  * 引导链路。
  */
 const readActiveBranchIdOrMain = async (tx: SqlExecutor): Promise<string> => {
-  const branchTableName = get_table_name_by_metadata(getEntityMetadata(RxDBBranch));
+  const branchTableName = get_table_name_by_metadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN);
   const tableResult = await tx.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
     branchTableName
   ]);
@@ -196,7 +199,7 @@ const CHANGE_REJECTION_PROPERTY_NAMES = ['rejectedAt', 'rejection'] as const;
  */
 const ensureChangeRejectionColumns = async (client: SqliteClientLike): Promise<void> => {
   const changeMetadata = getEntityMetadata(RxDBChange);
-  const changeTableName = get_table_name_by_metadata(changeMetadata);
+  const changeTableName = get_table_name_by_metadata(changeMetadata, WorktreeTableSet.MAIN);
   const tableResult = await client.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
     changeTableName
   ]);
@@ -252,7 +255,7 @@ const ensureChangeRejectionColumns = async (client: SqliteClientLike): Promise<v
  */
 const ensureBranchActiveKey = async (client: SqliteClientLike): Promise<void> => {
   const branchMetadata = getEntityMetadata(RxDBBranch);
-  const branchTableName = get_table_name_by_metadata(branchMetadata);
+  const branchTableName = get_table_name_by_metadata(branchMetadata, WorktreeTableSet.MAIN);
   const tableResult = await client.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
     branchTableName
   ]);
@@ -283,7 +286,7 @@ const ensureBranchActiveKey = async (client: SqliteClientLike): Promise<void> =>
 
   await client.execute(
     `CREATE UNIQUE INDEX IF NOT EXISTS ${quote_sql_identifier(
-      getTableColumnIndexName(branchMetadata, activeKeyProperty)
+      getTableColumnIndexName(branchMetadata, activeKeyProperty, WorktreeTableSet.MAIN)
     )} ON ${branchTable}(${activeKeyColumn})`
   );
 
@@ -484,6 +487,17 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 具体 adapter 用各自后端的逻辑实现此方法。
    */
   protected abstract createClient(): Promise<SqliteClientLike>;
+
+  /**
+   * 本实例挂的那一套业务表（US-314 库内影子表）。
+   *
+   * @remarks
+   * 读写业务表的 SQL 都按它解析物理名；系统表、QueryCache 这类没有副本的实体无论挂哪一套都落主表集。
+   * 现在只会是主表集。
+   */
+  get tableSet(): WorktreeTableSet {
+    return WorktreeTableSet.MAIN;
+  }
 
   get encryptionContext(): EncryptionContext {
     return {
@@ -721,7 +735,10 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   override async checkEntityConstraints(EntityTypes: EntityType[]): Promise<void> {
     // 必须走 bootstrapTransaction：connect() 引导期内 ready() 等的是当前 connect
     // promise，直接 query() 会等自己、永久挂起（与 rawQuery 引导窗分支同口径）。
-    await this.bootstrapTransaction(executor => check_entity_constraints_sqlite(executor, EntityTypes), false);
+    await this.bootstrapTransaction(
+      executor => check_entity_constraints_sqlite(executor, WorktreeTableSet.MAIN, EntityTypes),
+      false
+    );
   }
 
   public async disconnect() {
@@ -888,7 +905,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
 
   public async isTableExisted<T extends EntityType>(EntityType: T): Promise<boolean> {
     const metadata = getEntityMetadata(EntityType);
-    const tableName = get_table_name_by_metadata(metadata);
+    const tableName = get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN);
     const { sql, params } = isTableExistedSql(tableName);
     const result = await this.#internal_exec(sql, params);
     return isSqlResultEmpty(result) === false;
@@ -907,7 +924,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       // 对刚建出的同一批表再做一遍 DROP+CREATE 重建」的两阶段写法——省掉一次重复 DDL，
       // 也不会让触发器在事务内出现过写着错误分支的中间状态（哪怕最终会被覆盖）。
       const branchId = await readActiveBranchIdOrMain(executor);
-      const sql = await create_tables_sql(this, EntityTypes, branchId, entities);
+      const sql = await create_tables_sql(this, WorktreeTableSet.MAIN, EntityTypes, branchId, entities);
       await executor.execute(sql);
     }, false);
     return true;
@@ -928,7 +945,9 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         }
 
         const migrationMetadata = getEntityMetadata(RxDBMigration);
-        const migrationTable = quote_sql_identifier(get_table_name_by_metadata(migrationMetadata));
+        const migrationTable = quote_sql_identifier(
+          get_table_name_by_metadata(migrationMetadata, WorktreeTableSet.MAIN)
+        );
         const watermarkResult = await client.execute(
           `SELECT "name" FROM ${migrationTable}
            WHERE substr("name", 1, ?) = ? OR substr("name", 1, ?) = ?`,
@@ -951,7 +970,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           for (const EntityType of this.rxdb.config.entities) {
             const metadata = getEntityMetadata(EntityType);
             if (metadata.log === false) continue;
-            const tableName = get_table_name_by_metadata(metadata);
+            const tableName = get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN);
             const tableResult = await client.execute(
               `SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
               [tableName]
@@ -965,12 +984,13 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           // `#run_transaction` → `switch_transaction_id` 会按真实分支重建全部触发器，但在那之前，
           // 迁移刚结束这段窗口里的裸写（不经 `transaction()`）会被永久记到错误的分支名下，且不报错。
           const migrationBranchId = await readActiveBranchIdOrMain(client);
-          const removeTriggersSql = remove_all_triggers_sql(this);
+          const removeTriggersSql = remove_all_triggers_sql(this, WorktreeTableSet.MAIN);
           if (removeTriggersSql) await client.execute(removeTriggersSql);
           for (const metadata of existingLoggedMetadata) {
             await client.execute(
               generate_table_trigger_sql(metadata, {
                 branchId: migrationBranchId,
+                tableSet: WorktreeTableSet.MAIN,
                 resolveEntityMetadata: this.encryptionContext.resolveEntityMetadata
               })
             );
@@ -989,7 +1009,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           );
           await client.execute(
             `CREATE UNIQUE INDEX IF NOT EXISTS ${quote_sql_identifier(
-              getTableColumnIndexName(migrationMetadata, nameProperty)
+              getTableColumnIndexName(migrationMetadata, nameProperty, WorktreeTableSet.MAIN)
             )} ON ${migrationTable}("name")`
           );
 
@@ -1040,7 +1060,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 一条在本后端本来也跑不通的语句；少认的那一个恰好是绕过捕获的写会用的名字。
    */
   override physicalTableNames(metadata: EntityMetadata): readonly string[] {
-    return [...super.physicalTableNames(metadata), get_table_name_by_metadata(metadata)];
+    return [...super.physicalTableNames(metadata), get_table_name_by_metadata(metadata, this.tableSet)];
   }
 
   async switchBranch(options: SwitchBranchOptions): Promise<void> {
@@ -1200,13 +1220,13 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   async getRxDBChangeSequence() {
-    const tableName = get_table_name_by_entity_type(RxDBChange);
+    const tableName = get_table_name_by_entity_type(RxDBChange, WorktreeTableSet.MAIN);
     const result = await this.#internal_exec(`SELECT seq FROM sqlite_sequence WHERE name = ?`, [tableName]);
     return (result.results[0]?.rows?.[0]?.[0] ?? 0) as number;
   }
 
   async setRxDBChangeSequence(sequence: number) {
-    const tableName = get_table_name_by_entity_type(RxDBChange);
+    const tableName = get_table_name_by_entity_type(RxDBChange, WorktreeTableSet.MAIN);
     await this.transaction(async executor => {
       for (const stmt of build_set_sequence_statements(tableName, sequence)) {
         await executor.execute(stmt.sql, stmt.params);
@@ -1554,7 +1574,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     const idColumn = quote_sql_identifier(get_primary_key_column(metadata));
     for (const idsChunk of chunkBySqliteBindLimit(cachedIds)) {
       const sql = generate_sql({
-        tableName: get_table_name_by_metadata(metadata),
+        tableName: get_table_name_by_metadata(metadata, this.tableSet),
         where: `${idColumn} IN (${idsChunk.map(() => '?').join(', ')})`,
         metadata
       });
@@ -1566,7 +1586,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 把 QueryCache 传入的**逻辑实体名**解析为物理表名与 `updatedAt` 的实际列名。
    *
    * @remarks
-   * 本包所有物理表名都由 `get_table_name(name, namespace) => \`${namespace}$${name}\`` 生成，
+   * 本包所有物理表名都由表名解析器（`table-name-resolver.ts`）给出，形如 `<命名空间>$<表名>`，
    * 而 `QueryCacheEngine` 传进来的是逻辑实体名（如 `'Todo'`）。直接把它当表名用，
    * 真机执行必然 `no such table: Todo`。`updatedAt` 同理要经 `propertyMap` 映射，
    * 否则自定义 `columnName` 的实体会再次失败。与 PGlite 适配器的同名方法保持一致。
@@ -1597,7 +1617,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       metadata,
       idColumn,
       updatedAtColumn,
-      tableName: get_table_name_by_metadata(metadata),
+      tableName: get_table_name_by_metadata(metadata, this.tableSet),
       columnNames: query_cache_column_names(metadata, idColumn, updatedAtColumn)
     };
   }

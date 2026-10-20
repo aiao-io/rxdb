@@ -10,9 +10,10 @@ import type {
 } from '@aiao/rxdb';
 import { getEntityMetadata, getEntityMutations } from '@aiao/rxdb';
 import type { Results, Transaction } from '@electric-sql/pglite';
-import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { RxdbAdapterPGliteError } from '../pglite.utils.js';
 import rxdb_adapter_mutations from '../rxdb_adapter_mutations.js';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 /**
  * 把适配器包装成「所有 `query()` 都落在指定事务里」的门面。
@@ -128,7 +129,7 @@ export class PGliteTransactionExecutor implements TransactionExecutor {
    * 不另写一份拼法 —— 两份拼法一旦分叉，CAS 会打在一张不存在的表上。
    */
   tableRef(EntityType: EntityType): string {
-    return getTableNameByMetadata(getEntityMetadata(EntityType));
+    return getTableNameByMetadata(getEntityMetadata(EntityType), this.#adapter.tableSet);
   }
 
   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {

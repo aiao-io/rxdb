@@ -25,7 +25,7 @@
  * `unenvelopePlaintextPatches` 都指向核心 / `@aiao/rxdb-adapter-encrypted` 的同一份实现，
  * 不是各写一遍。新增逻辑先问一句「这一格与方言有关吗」——无关的往那两处放。
  */
-import type { EntityData, EntityMetadata, RxDBEntityId, SwitchVersionActions } from '@aiao/rxdb';
+import type { EntityData, EntityMetadata, RxDBEntityId, SwitchVersionActions, WorktreeTableSet } from '@aiao/rxdb';
 import { orderExclusionUpdates, ordersWritesForExclusion, parseRxDBChangeKey } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { generate_entity_insert_sql } from '../entity/insert_sql.js';
@@ -34,7 +34,6 @@ import type { SQLiteCompatibleType, SqliteSuccessResult } from '../sqlite-core.i
 import {
   chunkBySqliteBindLimit,
   get_primary_key_column,
-  get_table_name_by_metadata,
   getSwitchUpdatedAt,
   normalizeUpdateEntity,
   quote_sql_identifier,
@@ -42,6 +41,7 @@ import {
   transformValueSqliteToJs
 } from '../sqlite-core.utils.js';
 import { unenvelopePlaintextPatches } from '../system/encrypt-patch.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 
 const decryptEntityDataForApply = async (
   adapter: RxDBAdapterSqliteBase,
@@ -124,8 +124,12 @@ const toSqliteStatement = (statement: { sql: string; params?: SQLiteCompatibleTy
 
 const placeholders = (count: number): string => Array.from({ length: count }, () => '?').join(',');
 
-const buildSelectStatements = (metadata: EntityMetadata, ids: Set<RxDBEntityId>): SqliteStatement[] | undefined => {
-  const tableName = quote_sql_identifier(get_table_name_by_metadata(metadata));
+const buildSelectStatements = (
+  metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
+  ids: Set<RxDBEntityId>
+): SqliteStatement[] | undefined => {
+  const tableName = quote_sql_identifier(get_table_name_by_metadata(metadata, tableSet));
   const statements = chunkBySqliteBindLimit(Array.from(ids)).map(params => ({
     sql: `SELECT _.rowid as ${quote_sql_identifier(ROWID)}, _.* FROM ${tableName} _ WHERE _.${quote_sql_identifier(get_primary_key_column(metadata))} in (${placeholders(params.length)});`,
     params
@@ -195,7 +199,7 @@ export const convertSwitchResultToSql = async (
 
   for (const [key, ids] of deleteIdsByEntity) {
     const metadata = getMetadata(adapter, key);
-    const tableName = quote_sql_identifier(get_table_name_by_metadata(metadata));
+    const tableName = quote_sql_identifier(get_table_name_by_metadata(metadata, adapter.tableSet));
     const statements = chunkBySqliteBindLimit(Array.from(ids)).map(params => ({
       sql: `DELETE FROM ${tableName} WHERE ${quote_sql_identifier(get_primary_key_column(metadata))} in (${placeholders(params.length)});`,
       params
@@ -233,14 +237,14 @@ export const convertSwitchResultToSql = async (
           entityData[propertyName] = typeof property.default === 'function' ? property.default() : property.default;
         }
       }
-      const statement = await generate_entity_insert_sql(metadata, entityData, {
+      const statement = await generate_entity_insert_sql(metadata, adapter.tableSet, entityData, {
         useReplace: true,
         encryption
       });
       statements.push(toSqliteStatement(statement));
     }
     const ids = new Set(rawEntities.map(entity => entity['id'] as RxDBEntityId));
-    const selectStatements = buildSelectStatements(metadata, ids);
+    const selectStatements = buildSelectStatements(metadata, adapter.tableSet, ids);
     result.inserts.push({
       metadata,
       ids,
@@ -309,7 +313,7 @@ export const convertSwitchResultToSql = async (
       // PGlite 的同名文件也不展开 —— 这里曾经是唯一的例外。
       statements.push(
         toSqliteStatement(
-          await update_sql(metadata, { id }, patch, {
+          await update_sql(metadata, adapter.tableSet, { id }, patch, {
             encryption,
             updatedAt
           })
@@ -322,7 +326,7 @@ export const convertSwitchResultToSql = async (
       metadata,
       ids,
       statements,
-      selectStatements: buildSelectStatements(metadata, ids),
+      selectStatements: buildSelectStatements(metadata, adapter.tableSet, ids),
       changes,
       beforeInserts: ordersWritesForExclusion(metadata)
     });

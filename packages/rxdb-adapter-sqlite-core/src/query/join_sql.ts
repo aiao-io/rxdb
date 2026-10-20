@@ -11,12 +11,8 @@ import {
   RuleGroup
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
-import {
-  get_primary_key_column,
-  get_table_name_by_metadata,
-  quote_sql_identifier,
-  RxDBAdapterSqliteError
-} from '../sqlite-core.utils.js';
+import { get_primary_key_column, quote_sql_identifier, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import {
   format_qualified_identifier,
   format_table_alias,
@@ -540,7 +536,7 @@ export const build_rule_group_join = (
   // 生成查询 JOIN
   const joinParts: string[] = [];
   for (const [metadata, joinOptions] of context.joinMap.entries()) {
-    const tableName = get_table_name_by_metadata(metadata);
+    const tableName = get_table_name_by_metadata(metadata, adapter.tableSet);
     for (const joinOption of joinOptions) {
       joinParts.push(
         ` LEFT JOIN ${quote_sql_identifier(tableName)} ${quote_sql_identifier(joinOption.joinTableName)} ON ${joinOption.on}`

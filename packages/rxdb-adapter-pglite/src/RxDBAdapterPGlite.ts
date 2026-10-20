@@ -28,7 +28,8 @@ import {
   RxDBBackupError,
   RxDBChange,
   toStorageConstraintViolationError,
-  TransactionFun
+  TransactionFun,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import {
   createKeyring,
@@ -77,6 +78,7 @@ import { buildQueryCacheUpsertStatements } from './query-cache/upsert_many_sql.j
 import { PGliteRepository } from './repository/PGliteRepository.js';
 import { PGliteTreeRepository } from './repository/PGliteTreeRepository.js';
 import { migrateSystemSchema } from './system/migrate_system_schema.js';
+import { getSchemaName } from './table-name-resolver.js';
 import { check_entity_constraints_pglite } from './table/check-entity-constraints.js';
 import { create_table_indexes_sql } from './table/create_table_sql.js';
 import { create_tables_statements } from './table/create_tables_sql.js';
@@ -203,6 +205,17 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
 
   /** PGlite NOTIFY 变更处理错误流。 */
   readonly changeErrors$ = this.#changeErrors.asObservable();
+
+  /**
+   * 本实例挂的那一套业务表（US-314 库内影子表）。
+   *
+   * @remarks
+   * 读写业务表的 SQL 都按它解析 schema；系统表、QueryCache 这类没有副本的实体无论挂哪一套都落主表集。
+   * 现在只会是主表集。
+   */
+  get tableSet(): WorktreeTableSet {
+    return WorktreeTableSet.MAIN;
+  }
 
   get encryptionContext(): EncryptionContext {
     return {
@@ -479,7 +492,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     await this.transaction(async executor => {
       for (const [type, group] of groups) {
         const metadata = getEntityMetadata(type);
-        for (const statement of generate_entity_deletes_sql(metadata, group)) {
+        for (const statement of generate_entity_deletes_sql(metadata, this.tableSet, group)) {
           await executor.query(statement.sql, statement.params);
         }
       }
@@ -505,7 +518,13 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
         const metadata = getEntityMetadata(EntityType);
         const rows = upsertRowsOf(metadata, list);
         // 生成批量插入 SQL（使用 ON CONFLICT DO UPDATE 实现 UPSERT）
-        const sql = await generate_entity_upserts_sql(metadata, rows, this.rxdb.context, this.encryptionContext);
+        const sql = await generate_entity_upserts_sql(
+          metadata,
+          this.tableSet,
+          rows,
+          this.rxdb.context,
+          this.encryptionContext
+        );
         try {
           await executor.query(sql);
         } catch (error) {
@@ -674,7 +693,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   async createTables<T extends EntityType>(EntityTypes: T[], entities?: InstanceType<T>[]): Promise<boolean> {
     return this.bootstrapTransaction(async executor => {
-      const statements = await create_tables_statements(this, EntityTypes, entities);
+      const statements = await create_tables_statements(this, WorktreeTableSet.MAIN, EntityTypes, entities);
       for (const statement of statements) {
         await (executor as PGliteTransactionExecutor).queryRaw(statement);
       }
@@ -686,7 +705,10 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       const sink = (executor as PGliteTransactionExecutor).adapter;
       const branchId = await readBranchIdForNewTables(sink);
       if (branchId !== MAIN_BRANCH_ID) {
-        await executeSwitchStatements(sink, generateBranchTriggerSqlFor(this, branchId, EntityTypes));
+        await executeSwitchStatements(
+          sink,
+          generateBranchTriggerSqlFor(this, WorktreeTableSet.MAIN, branchId, EntityTypes)
+        );
       }
       return true;
     }, false);
@@ -696,7 +718,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     await this.bootstrapTransaction(async executor => {
       for (const EntityType of EntityTypes) {
         const metadata = getEntityMetadata(EntityType);
-        const statements = create_table_indexes_sql(metadata, true)
+        const statements = create_table_indexes_sql(metadata, WorktreeTableSet.MAIN, true)
           .split(/;\s*/)
           .map(statement => statement.trim())
           .filter(Boolean);
@@ -717,7 +739,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     await this.bootstrapTransaction(async executor => {
       // 传门面（executor）而非真实适配器：门面的 queryRaw 落在当前事务里；
       // 真实适配器的 query 会重新入队排在自己身后，永久挂起。
-      await check_entity_constraints_pglite(executor as PGliteTransactionExecutor, EntityTypes);
+      await check_entity_constraints_pglite(executor as PGliteTransactionExecutor, WorktreeTableSet.MAIN, EntityTypes);
     }, false);
   }
 
@@ -745,7 +767,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       WHERE
         table_schema = $1 AND
         table_name = $2);`,
-      [metadata.namespace, metadata.tableName]
+      [getSchemaName(metadata, WorktreeTableSet.MAIN), metadata.tableName]
     );
     return result.rows[0]?.exists;
   }
@@ -763,7 +785,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     WHERE table_schema = $1
     AND table_name = $2
     ORDER BY ordinal_position;`,
-      [metadata.namespace, metadata.tableName]
+      [getSchemaName(metadata, WorktreeTableSet.MAIN), metadata.tableName]
     );
     return result.rows as PgliteTableColumn[];
   }

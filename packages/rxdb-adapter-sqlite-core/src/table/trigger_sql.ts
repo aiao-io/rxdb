@@ -6,15 +6,16 @@ import {
   RXDB_CHANGE_ENTITY_ID_PREFIX,
   RXDB_CHANGE_SCHEMA_VERSION,
   RXDB_CHANGE_VALUE_ENVELOPE_KEY,
-  RxDBChange
+  RxDBChange,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import {
   get_primary_key_column,
   get_sql_value,
-  get_table_name_by_metadata,
   quote_sql_identifier,
   RxDBAdapterSqliteError
 } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 
 interface TriggerOptions {
   /**
@@ -30,6 +31,11 @@ interface TriggerOptions {
    */
   branchId: string;
   /**
+   * 触发器挂在哪一套业务表上——**必填**，理由同 {@link TriggerOptions.branchId}：
+   * 挂错一套，那一套的写入照样成功，只是记成了别的检出位的分支（US-314）。
+   */
+  tableSet: WorktreeTableSet;
+  /**
    * 事务 ID
    */
   transactionId?: string;
@@ -42,9 +48,12 @@ interface TriggerOptions {
  * @param options 触发器选项，见 {@link TriggerOptions}
  */
 export const generate_table_trigger_sql = (entityMetadata: EntityMetadata, options: TriggerOptions) => {
-  const tableName = get_table_name_by_metadata(entityMetadata);
+  const tableName = get_table_name_by_metadata(entityMetadata, options.tableSet);
   const rxDBChangeMetadata = getEntityMetadata(RxDBChange);
-  const rxDBChangeTableName = quote_sql_identifier(get_table_name_by_metadata(rxDBChangeMetadata));
+  // 变更日志全库只有一份，不分套
+  const rxDBChangeTableName = quote_sql_identifier(
+    get_table_name_by_metadata(rxDBChangeMetadata, WorktreeTableSet.MAIN)
+  );
   const { propertyMap, name, foreignKeyNames, foreignKeyColumnNames, namespace } = entityMetadata;
 
   const isJsonStoredType = (type?: PropertyType): boolean =>

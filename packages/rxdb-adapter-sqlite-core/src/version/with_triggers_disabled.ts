@@ -90,7 +90,7 @@ export async function withTriggersDisabled<T>(
   tx: SqlExecutor,
   body: () => Promise<T>
 ): Promise<T> {
-  const removeTriggers = remove_all_triggers_sql(adapter);
+  const removeTriggers = remove_all_triggers_sql(adapter, adapter.tableSet);
   if (removeTriggers) {
     await tx.execute(removeTriggers);
   }

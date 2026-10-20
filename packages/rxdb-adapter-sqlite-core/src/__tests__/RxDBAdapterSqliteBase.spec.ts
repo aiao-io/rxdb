@@ -17,6 +17,7 @@ import {
   TRANSACTION_BEGIN,
   TRANSACTION_ROLLBACK,
   transitionMetadata,
+  WorktreeTableSet,
   type EntityType,
   type EntityUpdateData,
   type RxDBMutationsMap,
@@ -30,7 +31,8 @@ import { SqliteRepository } from '../repository/SqliteRepository.js';
 import { RxDBAdapterSqliteBase, type SqliteBaseOptions, type SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
 import { SQLiteChangeType } from '../sqlite-backend.interface.js';
 import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteSuccessResult } from '../sqlite-core.interface.js';
-import { get_table_name_by_metadata, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import { Todo } from './fixtures/Todo.js';
 
 @Entity({
@@ -2132,7 +2134,9 @@ describe('RxDBAdapterSqliteBase', () => {
 
       // 这条断言是这次改动的**全部意义**：名字由 `get_table_name_by_metadata()` 给出，
       // 而不是在别处按 `'$'` 再拼一遍。拼法一改，这里跟着变；抄来的那一份不会。
-      expect(adapter.physicalTableNames(metadata)).toContain(get_table_name_by_metadata(metadata));
+      expect(adapter.physicalTableNames(metadata)).toContain(
+        get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN)
+      );
     });
   });
 });

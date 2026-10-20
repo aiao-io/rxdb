@@ -1,4 +1,4 @@
-import { PropertyType, RelationKind, transitionMetadata, type FindOptions } from '@aiao/rxdb';
+import { PropertyType, RelationKind, transitionMetadata, WorktreeTableSet, type FindOptions } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { count_sql } from '../query/count_sql.js';
@@ -13,6 +13,7 @@ import {
 import { create_table_sql } from '../table/create_table_sql.js';
 
 const adapter = {
+  tableSet: WorktreeTableSet.MAIN,
   rxdb: { schemaManager: { getEntityMetadata: () => undefined } }
 } as unknown as RxDBAdapterSqliteBase;
 
@@ -49,7 +50,7 @@ describe('SQLite bigint/binary contract', () => {
     expect(() => rxDBColumnTypeToSqliteType({ type: 'unknown' })).toThrow(/unknown/i);
     expect(() => rxDBColumnTypeToSqliteType({ type: 'unknown', encrypted: true })).toThrow(/unknown/i);
 
-    const sql = create_table_sql(adapter, metadata);
+    const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
     expect(sql).toContain('"id" INTEGER PRIMARY KEY');
     expect(sql).toContain('"payload" BLOB');
 
@@ -57,7 +58,7 @@ describe('SQLite bigint/binary contract', () => {
       name: 'BigIntDefault',
       properties: [{ name: 'value', type: PropertyType.bigint, default: 7n }]
     });
-    expect(create_table_sql(adapter, constantDefault)).toContain('"value" INTEGER DEFAULT 7');
+    expect(create_table_sql(adapter, constantDefault, WorktreeTableSet.MAIN)).toContain('"value" INTEGER DEFAULT 7');
   });
 
   it('never executes factory or binary defaults while generating DDL', () => {
@@ -69,7 +70,7 @@ describe('SQLite bigint/binary contract', () => {
         { name: 'payload', type: PropertyType.binary, default: new Uint8Array([1, 2]) }
       ]
     });
-    const sql = create_table_sql(adapter, withDefaults);
+    const sql = create_table_sql(adapter, withDefaults, WorktreeTableSet.MAIN);
 
     expect(factory).not.toHaveBeenCalled();
     expect(sql).not.toContain('DEFAULT 7');

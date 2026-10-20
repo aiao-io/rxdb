@@ -6,12 +6,20 @@
  * 例如「无可更新列必须发 DO NOTHING」：PG 的 NOT NULL 检查先于冲突判定，
  * EntityBase 实体永远走不到那个分支，只能在语句层面锁定。
  */
-import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind, type EntityType } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  getEntityMetadata,
+  PropertyType,
+  RelationKind,
+  WorktreeTableSet,
+  type EntityType
+} from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import { getTableNameByMetadata } from '../../pglite.utils.js';
 import { RxDBQueryCacheRowContractError } from '../../query-cache/query_cache_row_contract.js';
 import type { QueryCacheTarget } from '../../query-cache/query_cache_target.js';
 import { buildQueryCacheUpsertStatements } from '../../query-cache/upsert_many_sql.js';
+import { getTableNameByMetadata } from '../../table-name-resolver.js';
 
 @Entity({
   name: 'QcUnitTeam',
@@ -77,7 +85,7 @@ const targetOf = (EntityClass: EntityType): QueryCacheTarget => {
     // 单测里也填 `metadata.name`，那个前缀就永远走不到任何一条断言上。
     entityName: `${metadata.namespace || 'public'}:${metadata.name}`,
     metadata,
-    tableName: getTableNameByMetadata(metadata),
+    tableName: getTableNameByMetadata(metadata, WorktreeTableSet.MAIN),
     idColumn: 'id'
   };
 };

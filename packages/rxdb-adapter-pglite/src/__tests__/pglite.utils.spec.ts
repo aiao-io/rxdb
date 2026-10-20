@@ -5,7 +5,8 @@ import {
   EntityPropertyMetadata,
   EntityRelationMetadata,
   getEntityMetadata,
-  PropertyType
+  PropertyType,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import {
   createKeyring,
@@ -19,7 +20,6 @@ import {
   getSqlValue,
   getSqlWithParams,
   getTableColumnIndexName,
-  getTableNameByMetadata,
   normalizeCreateEntity,
   normalizeUpdateEntity,
   RxdbAdapterPGliteError,
@@ -30,6 +30,7 @@ import {
   transformValueJsToPGlite,
   transformValuePGliteToJs
 } from '../pglite.utils.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 class MemoryKeyringStorage implements KeyringStorageBinding {
   private row: KeyringRow | null = null;
@@ -68,17 +69,17 @@ describe('pglite.utils', () => {
     it('should return quoted table name with schema (using tableName if available)', async () => {
       // Todo 实体的 tableName 为 'todos'，因此应使用它。
       const metadata = { namespace: 'public', name: 'Todo', tableName: 'todos' } as EntityMetadata;
-      expect(getTableNameByMetadata(metadata)).toBe('"public"."todos"');
+      expect(getTableNameByMetadata(metadata, WorktreeTableSet.MAIN)).toBe('"public"."todos"');
     });
 
     it('should use tableName matching name', async () => {
       const metadata = { namespace: 'public', name: 'SomeEntity', tableName: 'SomeEntity' } as EntityMetadata;
-      expect(getTableNameByMetadata(metadata)).toBe('"public"."SomeEntity"');
+      expect(getTableNameByMetadata(metadata, WorktreeTableSet.MAIN)).toBe('"public"."SomeEntity"');
     });
 
     it('should handle custom schema', async () => {
       const metadata = { namespace: 'myschema', name: 'User', tableName: 'User' } as EntityMetadata;
-      expect(getTableNameByMetadata(metadata)).toBe('"myschema"."User"');
+      expect(getTableNameByMetadata(metadata, WorktreeTableSet.MAIN)).toBe('"myschema"."User"');
     });
   });
 

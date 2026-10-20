@@ -106,11 +106,19 @@
         "kind": "value"
       },
       {
+        "name": "getChangeTriggerFunctionName",
+        "kind": "value"
+      },
+      {
         "name": "getEntityObjectFromResult",
         "kind": "value"
       },
       {
         "name": "getMonotonicUpdatedAt",
+        "kind": "value"
+      },
+      {
+        "name": "getSchemaName",
         "kind": "value"
       },
       {

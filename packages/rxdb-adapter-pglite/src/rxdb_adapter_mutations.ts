@@ -111,6 +111,7 @@ export default async <T extends EntityType = EntityType>(
     // 生成 INSERT SQL
     const insertSql = await generate_entity_inserts_sql(
       meta,
+      adapter.tableSet,
       entities,
       adapter.rxdb.context,
       adapter.encryptionContext
@@ -152,7 +153,7 @@ export default async <T extends EntityType = EntityType>(
     // 逐个实体生成 UPDATE SQL
     for (const entity of entities) {
       const status = getEntityStatus(entity);
-      const { sql, params } = await generate_entity_update_sql(meta, entity, status.patch || {}, {
+      const { sql, params } = await generate_entity_update_sql(meta, adapter.tableSet, entity, status.patch || {}, {
         ...adapter.rxdb.context,
         returning: false,
         updatedAt: now,
@@ -185,7 +186,7 @@ export default async <T extends EntityType = EntityType>(
     const meta = getEntityMetadata(EntityType);
 
     // 生成 DELETE SQL
-    for (const statement of generate_entity_deletes_sql(meta, entities)) {
+    for (const statement of generate_entity_deletes_sql(meta, adapter.tableSet, entities)) {
       await adapter.query(statement.sql, statement.params);
     }
 
