@@ -495,6 +495,31 @@ function readFile(
   return bytesRead;
 }
 
+/** {@link extendFileData} 换缓冲时至少多留的字节数。 */
+const FILE_DATA_MIN_HEADROOM = 1 << 20;
+
+/**
+ * 把逻辑文件的缓冲加长到 `size` 字节，加长的部分为 0。
+ *
+ * @param data - 当前缓冲；它的底层 `ArrayBuffer` 在 `data.length` 之后的字节都是 0
+ * @param size - 新长度，大于 `data.length`
+ * @returns 长度为 `size` 的视图：底层缓冲放得下就共用，放不下就换一块更大的
+ *
+ * @remarks
+ * SQLite 逐页往库尾追加。按精确大小扩容的话每追加一页都要换一块缓冲、把整库拷一遍（写 9 MiB 约 2300 次），
+ * 拷贝量随库大小平方增长。换缓冲时多留 `max(1 MiB, size / 8)`，追加的总拷贝量随库大小线性增长，多占的内存不超过这份余量。
+ *
+ * 底层缓冲在长度之后的字节恒为 0：新缓冲本来就是 0，写入只落在加长后的长度之内，截短换的是一块恰好大小的新缓冲。
+ * 落盘拷的是视图（`Uint8Array.from`），余量不会写进宿主文件。
+ */
+export function extendFileData(data: Uint8Array, size: number): Uint8Array {
+  if (data.byteOffset === 0 && data.buffer.byteLength >= size) return new Uint8Array(data.buffer, 0, size);
+  const capacity = size + Math.max(FILE_DATA_MIN_HEADROOM, Math.floor(size / 8));
+  const expanded = new Uint8Array(new ArrayBuffer(capacity), 0, size);
+  expanded.set(data);
+  return expanded;
+}
+
 function writeFile(
   file: BufferedFile,
   module: WaSqliteEmscriptenModule,
@@ -504,11 +529,7 @@ function writeFile(
 ): void {
   if (!file.writable) throw new Error(`file is read-only: ${file.path}`);
   const required = position + length;
-  if (required > file.data.length) {
-    const expanded = new Uint8Array(required);
-    expanded.set(file.data);
-    file.data = expanded;
-  }
+  if (required > file.data.length) file.data = extendFileData(file.data, required);
   file.data.set(module.HEAPU8.subarray(input, input + length), position);
   markDirty(file, position, required);
 }
