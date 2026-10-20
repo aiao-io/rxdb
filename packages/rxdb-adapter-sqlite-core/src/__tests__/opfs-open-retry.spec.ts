@@ -31,6 +31,21 @@ describe('openOpfsWithRetry', () => {
     expect(sleep.mock.calls.map(([ms]) => ms)).toEqual(OPFS_OPEN_RETRY_DELAYS_MS.slice(0, 2));
   });
 
+  // 新建 VFS 时它先删别的实例留下的临时目录（`.ahp-*`），判据只看目录的锁：上一个页面的 Worker 正在销毁时锁先放、
+  // 临时文件的句柄后关，`removeEntry` 就抛这个——与库文件的 `SQLITE_CANTOPEN` 是同一场竞态
+  it('新建 VFS 时删临时目录撞上没关的句柄（NoModificationAllowedError）：同样按退避重试', async () => {
+    const busyTemporary = new DOMException('temporary directory still has open handles', 'NoModificationAllowedError');
+    const open = vi.fn().mockRejectedValueOnce(busyTemporary).mockResolvedValue('db');
+    const sleep = vi.fn<(ms: number) => Promise<void>>(() => Promise.resolve());
+
+    await expect(
+      openOpfsWithRetry(open, { fileName: 'a.sqlite', sleep, isAccessHandleBusy: () => Promise.resolve(false) })
+    ).resolves.toBe('db');
+
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(sleep.mock.calls.map(([ms]) => ms)).toEqual(OPFS_OPEN_RETRY_DELAYS_MS.slice(0, 1));
+  });
+
   it('其它错误不重试，原样抛出', async () => {
     const failure = Object.assign(new Error('file is not a database'), { code: 26 });
     const open = vi.fn().mockRejectedValue(failure);
@@ -98,6 +113,13 @@ describe('openOpfsWithRetry', () => {
 /** 只要 `close()` 的假句柄。 */
 const fakeHandle = () => ({ close: vi.fn() });
 
+/** 只带上游 `OPFSCoopSyncVFS` 那三个公开字段的假实例。 */
+const fakeVfs = (persistentFiles: Map<string, { accessHandle: ReturnType<typeof fakeHandle> | null }>) => ({
+  persistentFiles,
+  unboundAccessHandles: new Set([fakeHandle(), fakeHandle()]),
+  releaser: vi.fn()
+});
+
 describe('releaseOpfsCoopSyncHandles', () => {
   it('关掉 persistentFiles 上已开的句柄；之后才赋上的句柄一赋值就关，读出来是 null', () => {
     const journal = fakeHandle();
@@ -106,7 +128,7 @@ describe('releaseOpfsCoopSyncHandles', () => {
       ['/a.sqlite-wal', { accessHandle: null as ReturnType<typeof fakeHandle> | null }]
     ]);
 
-    releaseOpfsCoopSyncHandles({ persistentFiles: files });
+    releaseOpfsCoopSyncHandles(fakeVfs(files));
     expect(journal.close).toHaveBeenCalledOnce();
 
     // 上游 `#requestAccessHandle()` 里还在开的那个句柄，失败之后才落到 `accessHandle` 上
@@ -117,8 +139,24 @@ describe('releaseOpfsCoopSyncHandles', () => {
     expect(wal.accessHandle).toBeNull();
   });
 
-  it('实例上没有 persistentFiles 登记表：上游实现变了，报错而不是默默跳过', () => {
+  // 下一次新建 VFS 要删这个实例的临时目录：先关目录里的句柄、再放开目录的锁。只放锁不关句柄，删目录必失败；
+  // 两样都不做，就得等垃圾回收，重试窗口里等不到
+  it('关掉临时目录里没绑定的句柄，再放开临时目录的锁', () => {
+    const vfs = fakeVfs(new Map());
+    const order: string[] = [];
+    for (const handle of vfs.unboundAccessHandles) handle.close.mockImplementation(() => void order.push('close'));
+    vfs.releaser.mockImplementation(() => void order.push('release'));
+
+    releaseOpfsCoopSyncHandles(vfs);
+
+    expect(order).toEqual(['close', 'close', 'release']);
+  });
+
+  it('实例上缺 persistentFiles、unboundAccessHandles 或 releaser：上游实现变了，报错而不是默默跳过', () => {
+    const { persistentFiles, unboundAccessHandles, releaser } = fakeVfs(new Map());
     expect(() => releaseOpfsCoopSyncHandles({})).toThrow(RxDBAdapterSqliteError);
+    expect(() => releaseOpfsCoopSyncHandles({ persistentFiles, releaser })).toThrow(RxDBAdapterSqliteError);
+    expect(() => releaseOpfsCoopSyncHandles({ persistentFiles, unboundAccessHandles })).toThrow(RxDBAdapterSqliteError);
   });
 });
 

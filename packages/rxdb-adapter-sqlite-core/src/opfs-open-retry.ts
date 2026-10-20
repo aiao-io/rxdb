@@ -8,7 +8,12 @@
  * 就撞上 `NoModificationAllowedError`。VFS 把这个错误打到控制台后吞掉，`open_v2` 只抛打开失败码 `SQLITE_CANTOPEN`，
  * 所以这里按失败码判定、退避重试；重试用尽后亲自试一次句柄，确实被占用就报占用，否则原样抛出最后一次的错误。
  * 探针自己失败时判不出占用，报的仍是那次打开失败，探针的错写进消息——它只是用来把错误说清楚的，不能顶替原因。
- * 每次重试都新建 VFS；失败那一次的 VFS 要用 {@link releaseOpfsCoopSyncHandles} 交出它留下的句柄，否则重试撞上的是自己。
+ *
+ * 同一场竞态还会提前一步出现：VFS 新建时先删别的实例留下的临时目录（`.ahp-*`），判据只看目录的锁，
+ * 上一个页面的 Worker 锁已放、临时文件的句柄还没关，`removeEntry` 就抛 `NoModificationAllowedError`。它也退避重试。
+ *
+ * 每次重试都新建 VFS；失败那一次的 VFS 要用 {@link releaseOpfsCoopSyncHandles} 交出它留下的句柄与临时目录，
+ * 否则重试撞上的是自己。
  */
 
 import { RxDBAdapterSqliteError } from './sqlite-core.utils.js';
@@ -21,6 +26,10 @@ const SQLITE_CANTOPEN = 14;
 
 const isCantOpen = (error: unknown): boolean =>
   typeof error === 'object' && error !== null && (error as { code?: unknown }).code === SQLITE_CANTOPEN;
+
+/** 退避重试的两种失败：库文件的句柄被占（`SQLITE_CANTOPEN`），或新建 VFS 时临时目录里还有没关的句柄。 */
+const isRetryable = (error: unknown): boolean =>
+  isCantOpen(error) || (error instanceof DOMException && error.name === 'NoModificationAllowedError');
 
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -37,7 +46,7 @@ export interface OpfsOpenRetryOptions {
 }
 
 /**
- * 打开 OPFS 库；打开失败码为 `SQLITE_CANTOPEN` 时按退避序列重试。
+ * 打开 OPFS 库；打开失败码为 `SQLITE_CANTOPEN`、或新建 VFS 时撞上没关的临时句柄时，按退避序列重试。
  *
  * @param open - 一次完整的打开（每次都新建 VFS 与连接）
  * @param options - 见 {@link OpfsOpenRetryOptions}
@@ -51,7 +60,7 @@ export async function openOpfsWithRetry<T>(open: () => Promise<T>, options: Opfs
     try {
       return await open();
     } catch (error) {
-      if (!isCantOpen(error)) throw error;
+      if (!isRetryable(error)) throw error;
       if (attempt < delays.length) {
         await sleep(delays[attempt]);
         continue;
@@ -92,19 +101,33 @@ interface CoopSyncPersistentFile {
   accessHandle: FileSystemSyncAccessHandle | null;
 }
 
-const persistentFilesOf = (vfs: object): ReadonlyMap<string, CoopSyncPersistentFile> => {
-  const files: unknown = Reflect.get(vfs, 'persistentFiles');
-  if (files instanceof Map) return files;
+/** 上游 `OPFSCoopSyncVFS` 交出句柄要用的三个公开字段；缺一个就是上游实现变了。 */
+interface CoopSyncVfsParts {
+  readonly persistentFiles: ReadonlyMap<string, CoopSyncPersistentFile>;
+  /** 临时目录里开好、还没绑到文件上的同步访问句柄 */
+  readonly unboundAccessHandles: ReadonlySet<FileSystemSyncAccessHandle>;
+  /** 放开临时目录的 Web Lock；上游只在实例被垃圾回收时调它 */
+  readonly releaser: () => void;
+}
+
+const partsOf = (vfs: object): CoopSyncVfsParts => {
+  const persistentFiles: unknown = Reflect.get(vfs, 'persistentFiles');
+  const unboundAccessHandles: unknown = Reflect.get(vfs, 'unboundAccessHandles');
+  const releaser: unknown = Reflect.get(vfs, 'releaser');
+  if (persistentFiles instanceof Map && unboundAccessHandles instanceof Set && typeof releaser === 'function') {
+    return { persistentFiles, unboundAccessHandles, releaser: releaser as () => void };
+  }
   throw new RxDBAdapterSqliteError(
-    'OPFSCoopSyncVFS has no persistentFiles map: the upstream VFS changed, its leftover sync access handles cannot be released'
+    'OPFSCoopSyncVFS lacks persistentFiles / unboundAccessHandles / releaser: the upstream VFS changed, its leftover sync access handles cannot be released'
   );
 };
 
 /**
- * 交出 `OPFSCoopSyncVFS` 登记着的库文件同步访问句柄，包括此后才开出来的（US-221）。
+ * 交出 `OPFSCoopSyncVFS` 留下的同步访问句柄与临时目录：库文件的句柄（包括此后才开出来的）、临时目录里的句柄，
+ * 再放开临时目录的锁（US-221）。
  *
  * @param vfs - 不再使用的 `OPFSCoopSyncVFS` 实例（wa-sqlite 与 `@subframe7536/sqlite-wasm` 是同一份实现）
- * @throws {@link RxDBAdapterSqliteError} 实例上没有上游的 `persistentFiles` 登记表（上游实现变了）
+ * @throws {@link RxDBAdapterSqliteError} 实例上缺上游的 `persistentFiles` / `unboundAccessHandles` / `releaser`（上游实现变了）
  *
  * @remarks
  * 上游 `#requestAccessHandle()` 用 `Promise.all` 并行开库文件与 `-journal` / `-wal` 的句柄：库文件先失败时另外两个还在开，
@@ -112,15 +135,22 @@ const persistentFilesOf = (vfs: object): ReadonlyMap<string, CoopSyncPersistentF
  * 才放开，{@link openOpfsWithRetry} 的退避窗口里等不到。这里关掉已开的，并让之后才赋上的句柄一赋值就关，
  * 所以只能用在不再使用的实例上。库文件自己的登记在打开失败时已被 VFS 换掉：刷新竞态里上一个页面的三个句柄一起放，
  * 不会出现旁文件被占、库文件却开出来的局面。
+ *
+ * 临时目录：每个实例建 VFS 时开一个 `.ahp-*` 目录、预先开好几个临时文件的句柄，目录由同名 Web Lock 护着，上游只在
+ * 实例被垃圾回收时放锁。下一次重试新建的 VFS 要删掉它，判据只看锁：先关目录里的句柄、再放锁，删目录才成功；
+ * 只放锁不关句柄删目录必失败，两样都不做就得等垃圾回收。
  */
 export function releaseOpfsCoopSyncHandles(vfs: object): void {
-  for (const file of persistentFilesOf(vfs).values()) {
+  const { persistentFiles, unboundAccessHandles, releaser } = partsOf(vfs);
+  for (const file of persistentFiles.values()) {
     file.accessHandle?.close();
     Object.defineProperty(file, 'accessHandle', {
       get: () => null,
       set: (handle: FileSystemSyncAccessHandle | null) => handle?.close()
     });
   }
+  for (const handle of unboundAccessHandles) handle.close();
+  releaser();
 }
 
 /**

@@ -132,10 +132,18 @@ describe('WaSqliteClient · 打开撞上同步访问句柄被占（US-221）', (
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('OPFSCoopSyncVFS 的 close() 交出上游登记在 persistentFiles 上的句柄：上游没有 close，失败那次的 VFS 靠它放手', async () => {
+  it('OPFSCoopSyncVFS 的 close() 交出上游登记的句柄与临时目录：上游没有 close，失败那次的 VFS 靠它放手', async () => {
     const journal = { close: vi.fn() };
+    const temporary = { close: vi.fn() };
+    const releaser = vi.fn();
     const persistentFiles = new Map([['/db.sqlite-journal', { accessHandle: journal as { close: Mock } | null }]]);
-    state.coopSyncCreate.mockResolvedValue({ close: () => undefined, persistentFiles });
+    // 与上游实例同形：库文件与旁文件的登记、临时目录里没绑定的句柄、放开临时目录锁的回调
+    state.coopSyncCreate.mockResolvedValue({
+      close: () => undefined,
+      persistentFiles,
+      unboundAccessHandles: new Set([temporary]),
+      releaser
+    });
     const config = WA_SQLITE_VFS_LIST.find(candidate => candidate.name === 'OPFSCoopSyncVFS')!;
 
     const vfs = await (await config.vfsModule()).create('OPFSCoopSyncVFS', {});
@@ -143,5 +151,7 @@ describe('WaSqliteClient · 打开撞上同步访问句柄被占（US-221）', (
 
     expect(journal.close).toHaveBeenCalledOnce();
     expect(persistentFiles.get('/db.sqlite-journal')!.accessHandle).toBeNull();
+    expect(temporary.close).toHaveBeenCalledOnce();
+    expect(releaser).toHaveBeenCalledOnce();
   });
 });

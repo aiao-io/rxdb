@@ -119,6 +119,11 @@ Web Lock 先释放、同步访问句柄后关闭，于是新页面落进上面�
 - **失败那次留下的句柄**（2026-10-16 查清）：上游 `#requestAccessHandle()` 用 `Promise.all` 并行开库文件与 `-journal` / `-wal`
   的句柄，库文件先失败时另外两个后开出来、没人关，上游也没有 `close()`。同一个 Worker 里的重试于是撞上自己留下的句柄，
   要等垃圾回收才放开（实测从数百毫秒到超出 3 秒的重试窗口都有）。每次失败先用 `releaseOpfsCoopSyncHandles()` 交出这些句柄再重开。
+- **临时目录也是同一场竞态**（PR #122 的 CI 上 `coverage-acceptance` 实测）：每个 VFS 实例建出来时开一个 `.ahp-*` 临时目录、
+  预先开好几个临时文件的句柄，目录由同名 Web Lock 护着；新建的 VFS 先删锁已放开的旧目录。上一个实例的锁先放、临时句柄后关时
+  （上一个页面的 Worker 正在销毁，或同一个 Worker 里上一次重试的实例等着垃圾回收），`removeEntry` 抛 `NoModificationAllowedError`，
+  在打开库文件之前就失败。所以它也退避重试；`releaseOpfsCoopSyncHandles()` 连临时目录里的句柄一起关、再放开目录的锁，
+  同一个 Worker 里的下一次重试删得掉旧目录。
 - **修法候选**：
   1. 适配器内重试：`sqliteLoad()` 外包一层，只对 `NoModificationAllowedError`（或它导致的 `sqlite3_open_v2`
      失败，需确认错误能否区分）做指数退避，总时长有上限；重试前确保上一次失败的连接已清理。

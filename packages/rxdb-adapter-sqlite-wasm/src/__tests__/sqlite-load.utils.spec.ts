@@ -215,7 +215,12 @@ describe('sqlite-load.utils', () => {
       vi.stubGlobal('WorkerGlobalScope', WorkerScope);
       storageMocks.useOpfsStorage.mockReturnValue({ kind: 'opfs' });
       const journal = { close: vi.fn() };
-      const failedVfs = { persistentFiles: new Map([['/db.sqlite-journal', { accessHandle: journal }]]) };
+      // 与上游实例同形：库文件与旁文件的登记、临时目录里没绑定的句柄、放开临时目录锁的回调
+      const failedVfs = {
+        persistentFiles: new Map([['/db.sqlite-journal', { accessHandle: journal }]]),
+        unboundAccessHandles: new Set(),
+        releaser: vi.fn()
+      };
       storageMocks.initSQLiteCore.mockImplementationOnce(async (options: { beforeOpen: (vfs: object) => void }) => {
         options.beforeOpen(failedVfs);
         throw Object.assign(new Error('sqlite3_open_v2'), { code: 14 });

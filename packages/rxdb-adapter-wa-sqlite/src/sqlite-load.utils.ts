@@ -73,11 +73,11 @@ const syncWebSQLiteModuleFactory = async (): Promise<WebSQLiteModuleFactory> => 
 export const DEFAULT_VFS: SupportVFS = 'IDBBatchAtomicVFS';
 
 /**
- * 给 `OPFSCoopSyncVFS` 补上 `close()`：交出它登记着的库文件同步访问句柄。
+ * 给 `OPFSCoopSyncVFS` 补上 `close()`：交出它留下的同步访问句柄与临时目录。
  *
  * @remarks
- * 上游没有实现 `close()`，打开失败时留下的句柄要等垃圾回收才放开；同一个 Worker 里的退避重试（US-221）会撞上自己留下的句柄。
- * 打开失败与断开时客户端都会关 VFS，见 `releaseOpfsCoopSyncHandles`。
+ * 上游没有实现 `close()`，打开失败时留下的句柄、临时目录的锁都要等垃圾回收才放开；同一个 Worker 里的退避重试（US-221）
+ * 会撞上自己留下的句柄，新建的 VFS 也删不掉上一个实例的临时目录。打开失败与断开时客户端都会关 VFS，见 `releaseOpfsCoopSyncHandles`。
  */
 const closingAccessHandles = (factory: WaSqliteVfsFactory): WaSqliteVfsFactory => ({
   create: async (name, module, options) => {
