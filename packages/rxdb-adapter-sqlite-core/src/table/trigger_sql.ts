@@ -7,8 +7,10 @@ import {
   RXDB_CHANGE_SCHEMA_VERSION,
   RXDB_CHANGE_VALUE_ENVELOPE_KEY,
   RxDBChange,
-  WorktreeTableSet
+  WorktreeTableSet,
+  type UUID
 } from '@aiao/rxdb';
+import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import {
   get_primary_key_column,
   get_sql_value,
@@ -243,3 +245,55 @@ export const generate_table_trigger_sql = (entityMetadata: EntityMetadata, optio
 
   return insert_trigger + '\n' + update_trigger + '\n' + delete_trigger;
 };
+
+/**
+ * 一套表里挂变更触发器的实体：记变更日志、且这套表里有它自己那张表。
+ *
+ * @param adapter - SQLite 适配器
+ * @param tableSet - 哪一套表
+ * @returns 主表集是全部记日志的实体；影子表集只有它登记的成员
+ *
+ * @remarks
+ * 不收窄的话，非成员实体经解析器落回主表名：删 / 重建影子表集的触发器就会删掉、或按持有分支重烙主表集的触发器——
+ * QueryCache 实体记日志又从不进影子表集，正中这一条（US-314 B1.3）。
+ */
+export const table_set_logged_metadata = (
+  adapter: RxDBAdapterSqliteBase,
+  tableSet: WorktreeTableSet
+): EntityMetadata[] =>
+  adapter.rxdb.config.entities
+    .map(EntityType => getEntityMetadata(EntityType))
+    .filter(metadata => metadata.log !== false && (tableSet.isMain || tableSet.has(metadata)));
+
+/**
+ * 只重建一套表的变更触发器：表集与分支都由调用方给，不碰分支表。
+ *
+ * @param adapter - SQLite 适配器
+ * @param tableSet - 重建哪一套表的触发器
+ * @param branchId - 触发器写进变更日志的分支
+ * @param transactionId - 烙进触发器的事务 id；只有每个记日志事务首尾那两次重建才给
+ * @returns 每个实体先 `DROP TRIGGER IF EXISTS` 再 `CREATE TRIGGER`；这套表里没有记日志的实体时为空串
+ *
+ * @remarks
+ * 每个记日志事务首尾、切分支、`withTriggersDisabled` 之后、系统迁移、建表集都走这一个入口（US-314 B1.3）。
+ * 「改激活态」与它拆开：只有真正的切分支才写 `rxdb_branch`（`version/switch_branch.ts`）。
+ *
+ * 不吞异常：任一实体的触发器生成失败都要让调用方那次写整体回滚，否则那张表会在没有触发器的状态下
+ * 继续接受写入，静默丢掉历史、撤销重做与同步。
+ */
+export const generate_table_set_trigger_sql = (
+  adapter: RxDBAdapterSqliteBase,
+  tableSet: WorktreeTableSet,
+  branchId: string,
+  transactionId?: UUID
+): string =>
+  table_set_logged_metadata(adapter, tableSet)
+    .map(metadata =>
+      generate_table_trigger_sql(metadata, {
+        branchId,
+        tableSet,
+        transactionId,
+        resolveEntityMetadata: adapter.encryptionContext.resolveEntityMetadata
+      })
+    )
+    .join('\n');

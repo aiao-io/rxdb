@@ -46,6 +46,8 @@ const createCleanupAdapter = (
     encryptionContext: { resolveEntityMetadata: undefined },
     cleanAllCache: vi.fn(),
     query: vi.fn().mockResolvedValue(emptyResult()),
+    // 清库第一步找残留的影子表集（US-314 B1.3）：答一个空库，这一步就什么都不删
+    internalQuery: vi.fn().mockResolvedValue(emptyResult()),
     transaction: async <T>(
       callback: (tx: {
         execute: (sql: string) => Promise<SqliteSuccessResult>;

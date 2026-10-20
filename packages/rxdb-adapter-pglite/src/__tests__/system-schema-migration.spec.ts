@@ -17,7 +17,8 @@ import {
   SyncType,
   UnsupportedRxDBSystemVersionError,
   uuid,
-  WorktreeBranchHeldError
+  WorktreeBranchHeldError,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
@@ -27,6 +28,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { PGliteRepository } from '../repository/PGliteRepository.js';
+import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
 
 const adapters = new Set<RxDBAdapterPGlite>();
 const databases = new Set<RxDB>();
@@ -604,7 +606,7 @@ describe('PGlite system schema migration', () => {
   // 一律清掉——那时这一列只有哨兵一种非空值。持有键不是哨兵：清掉它等于把检出位手里的分支悄悄放掉，
   // 唯一索引从此拦不住别的检出位再拿它，也没有任何东西会报错。
   describe('可写检出位的持有键（US-314 B1.2）', () => {
-    const holderKey = '*worktree:wt1*';
+    const holderKey = WorktreeTableSet.of('wt_held', []).holderKey;
 
     /**
      * 造一张「当前形态、只差水位线」的分支表，再按给定的键回填。
@@ -679,6 +681,76 @@ describe('PGlite system schema migration', () => {
         { id: 'main', activated: false, activeKey: holderKey }
       ]);
       expect(await getWatermarks(adapter)).toEqual([]);
+    });
+  });
+
+  // 系统模式升级会改触发器的形状：影子表集的触发器同样是旧的，要按各自持有分支重建（US-314 B1.3）。
+  // 迁移跑在插件装好之前，读不到检出位登记表，靠的是持有键本身就是表集后缀。
+  describe('可写检出位的表集（US-314 B1.3）', () => {
+    /** 真库：带业务实体与历史插件，系统迁移能整条跑完 */
+    const createMemoryDatabase = async (): Promise<{ rxdb: RxDB; adapter: RxDBAdapterPGlite }> => {
+      const rxdb = new RxDB({
+        dbName: `pglite-worktree-table-set-${++databaseIndex}`,
+        entities: [PGliteLegacyTodo],
+        sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+      });
+      rxdb.adapter('pglite', database => new RxDBAdapterPGlite(database, { store: 'memory' }));
+      rxdb.use(rxDBPluginHistory);
+      const adapter = await rxdb.connect('pglite');
+      databases.add(rxdb);
+      return { rxdb, adapter };
+    };
+
+    /** 把系统模式水位退回上一版，让 migrateSystemSchema 整条重跑 */
+    const rewindSystemSchema = async (adapter: RxDBAdapterPGlite): Promise<void> => {
+      await adapter.internalQuery(`DELETE FROM "rxdb"."rxdb_migration" WHERE "name" = $1::text`, [
+        RXDB_SYSTEM_SCHEMA_WATERMARK
+      ]);
+      await adapter.internalQuery(
+        `INSERT INTO "rxdb"."rxdb_migration" ("name", "executedAt") VALUES ($1::text, now())`,
+        [`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}${RXDB_SYSTEM_SCHEMA_VERSION - 1}`]
+      );
+    };
+
+    it('给每一套现存的影子表集按持有分支重建触发器', async () => {
+      const { rxdb, adapter } = await createMemoryDatabase();
+      const tableSet = WorktreeTableSet.of('wt_mig', [PGliteLegacyTodo]);
+      await rxdb.versionManager.createBranch('held');
+      await adapter.internalQuery(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = $1::text WHERE "id" = 'held'`, [
+        tableSet.holderKey
+      ]);
+      await adapter.createWorktreeTableSet(tableSet, 'held');
+      // 模拟升级前的旧触发器：先把影子表的触发器删光，迁移要把它们按持有分支建回来
+      for (const statement of remove_all_triggers_sql(adapter, tableSet).split('---STATEMENT_SEPARATOR---')) {
+        if (statement.trim()) await adapter.internalQuery(statement.trim());
+      }
+      await rewindSystemSchema(adapter);
+
+      await adapter.migrateSystemSchema();
+
+      const metadata = getEntityMetadata(PGliteLegacyTodo);
+      const id = uuid();
+      await adapter.internalQuery(
+        `INSERT INTO "public$wt_mig"."${metadata.tableName}" ("id", "title", "createdAt", "updatedAt")
+         VALUES ($1::uuid, $2::text, now(), now())`,
+        [id, 'in worktree']
+      );
+      const change = await adapter.internalQuery<{ branchId: string }>(
+        `SELECT "branchId" FROM "rxdb"."rxdb_change" WHERE "entityId" = $1::text`,
+        [encodeRxDBChangeEntityId(id)]
+      );
+      expect(change.rows).toEqual([{ branchId: 'held' }]);
+    });
+
+    it('认不出的持有键整体回滚：不知道该重建哪一套表', async () => {
+      const { rxdb, adapter } = await createMemoryDatabase();
+      await rxdb.versionManager.createBranch('held');
+      await adapter.internalQuery(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = '*worktree:wt1*' WHERE "id" = 'held'`);
+      await rewindSystemSchema(adapter);
+
+      await expect(adapter.migrateSystemSchema()).rejects.toThrow(/持有键/);
+
+      expect((await getWatermarks(adapter)).map(row => row.name)).not.toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
     });
   });
 

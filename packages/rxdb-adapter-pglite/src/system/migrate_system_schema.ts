@@ -214,6 +214,70 @@ const ensureBranchActiveKey = async (
 };
 
 /**
+ * 系统迁移给每一套现存的影子表集按持有分支重建变更触发器（US-314 B1.3）。
+ *
+ * @param tx - 迁移那个事务
+ * @param host - 实体清单与加密上下文
+ * @param branchMetadata - `RxDBBranch` 的元数据
+ * @param existingTables - 库里现有的 `schema\0tableName` 集合
+ * @throws {@link RxdbAdapterPGliteError} 分支表上有认不出的持有键时；一行都不改，由调用方回滚整条迁移
+ *
+ * @remarks
+ * 主表集的触发器在前面按主检出位的分支重建；影子表集的触发器同样是旧形状，要按各自的持有分支重建。
+ * 迁移跑在插件装好之前，读不到检出位登记表，靠的是持有键本身就是表集后缀（`WorktreeTableSet.holderKey`）。
+ * 认不出的持有键不跳过：跳过就是让那套表带着旧触发器继续收写入，而且没有任何报错。
+ *
+ * 成员按物理表认：建出来的成员表才重建，建到一半就中断的表集不会在这里撞「表不存在」。
+ * 排在 {@link ensureBranchActiveKey} 之后：持有键所在的列是它补出来的。
+ *
+ * 与 sqlite 侧 `RxDBAdapterSqliteBase.ts` 的同名步骤逐语义对齐，改动两端同改。
+ */
+const rebuildWorktreeTableSetTriggers = async (
+  tx: Pick<IPGliteClient, 'query'>,
+  host: SystemSchemaMigrationHost,
+  branchMetadata: EntityMetadata,
+  existingTables: ReadonlySet<string>
+): Promise<void> => {
+  if (!existingTables.has(`${getSchemaName(branchMetadata, WorktreeTableSet.MAIN)}\u0000${branchMetadata.tableName}`))
+    return;
+
+  const holderResult = await tx.query<{ id: string; activeKey: string }>(
+    `SELECT "id", "activeKey" FROM ${getTableNameByMetadata(branchMetadata, WorktreeTableSet.MAIN)}
+     WHERE "activeKey" IS NOT NULL AND "activeKey" <> $1::text ORDER BY "id"`,
+    [ACTIVE_BRANCH_KEY]
+  );
+  for (const { id: branchId, activeKey } of holderResult.rows) {
+    const suffix = WorktreeTableSet.suffixOfHolderKey(activeKey);
+    if (suffix === null) {
+      throw new RxdbAdapterPGliteError(`分支 ${branchId} 上的持有键 ${activeKey} 认不出是哪一套表`);
+    }
+    const candidates = WorktreeTableSet.of(suffix, host.entities);
+    const members = host.entities.filter(EntityType => {
+      const metadata = getEntityMetadata(EntityType);
+      return (
+        metadata.log !== false &&
+        existingTables.has(`${getSchemaName(metadata, candidates)}\u0000${metadata.tableName}`)
+      );
+    });
+    const tableSet = WorktreeTableSet.of(suffix, members);
+    for (const EntityType of members) {
+      const metadata = getEntityMetadata(EntityType);
+      for (const statement of remove_trigger_sql(metadata, tableSet).split('---STATEMENT_SEPARATOR---')) {
+        await tx.query(statement.trim());
+      }
+      const triggerSql = generate_trigger_sql(metadata, {
+        branchId,
+        tableSet,
+        resolveEntityMetadata: host.encryptionContext.resolveEntityMetadata
+      });
+      for (const statement of triggerSql.split('---STATEMENT_SEPARATOR---')) {
+        await tx.query(statement.trim());
+      }
+    }
+  }
+};
+
+/**
  * 把系统表升级到当前水位线。
  *
  * `storage-peer` 在事务回调之后抛 {@link RxDBSystemMigrationLockError}：
@@ -341,6 +405,7 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
         );
 
         await ensureBranchActiveKey(tx, branchMetadata, existingTables);
+        await rebuildWorktreeTableSetTriggers(tx, host, branchMetadata, existingTables);
         await ensureChangeRejectionColumns(tx, changeMetadata, existingTables);
 
         for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {

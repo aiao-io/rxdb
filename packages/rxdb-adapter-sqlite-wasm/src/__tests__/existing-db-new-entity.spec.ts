@@ -39,7 +39,7 @@ interface OpenOptions {
  *
  * @remarks
  * sqlite 侧每个带日志的事务开头都会按 `config.entities` 的**全部**实体重建变更触发器
- * （`#run_transaction` → `switch_transaction_id`）。既有库上新实体的表要等到
+ * （`#run_transaction` → `generate_table_set_trigger_sql`）。既有库上新实体的表要等到
  * `RxDB.#ensureEntityTables`（在系统迁移与接入方迁移**之后**）才补建，所以迁移那次事务
  * 若写日志，就会对一张还不存在的表 `CREATE TRIGGER`，整条 `connect()` 以
  * `no such table` 失败。工作树插件贡献了系统迁移，装了它的库每次 `connect()` 都会开这次事务

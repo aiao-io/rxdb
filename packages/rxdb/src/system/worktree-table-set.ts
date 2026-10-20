@@ -9,6 +9,7 @@ import type { EntityType } from '../entity/entity.interface.js';
 import type { EntityMetadata } from '../entity/metadata.interface.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDBError } from '../RxDBError.js';
+import { ACTIVE_BRANCH_KEY } from './active-branch-guard.js';
 
 /**
  * 后缀形状：`wt_` 加 1～12 位小写字母或数字。
@@ -17,7 +18,12 @@ import { RxDBError } from '../RxDBError.js';
  * 只用现有物理名里本来就有的字符，没加引号的 SQL 位置也安全；`wt_` 开头让影子表一眼认得出，
  * 也不会与哪个实体的真名撞上。12 位上限给 PGlite 的 schema 名（命名空间 + `$` + 后缀）留足 63 字节的余量。
  */
-const SUFFIX_PATTERN = /^wt_[a-z0-9]{1,12}$/;
+const SUFFIX_BODY = 'wt_[a-z0-9]{1,12}';
+
+const SUFFIX_PATTERN = new RegExp(`^${SUFFIX_BODY}$`);
+
+/** 影子表集的持有键：`*worktree:<后缀>*`，见 {@link WorktreeTableSet.holderKey} */
+const HOLDER_KEY_PATTERN = new RegExp(`^\\*worktree:(${SUFFIX_BODY})\\*$`);
 
 /** 实体身份：命名空间 + 实体名。不用表名——两个命名空间下可以有同表名的实体。 */
 const identityOf = (metadata: EntityMetadata): string => `${metadata.namespace}\u0000${metadata.name}`;
@@ -47,6 +53,20 @@ export class WorktreeTableSet {
     return this.suffix === null;
   }
 
+  /**
+   * 这套表的检出位持有分支时写进 `rxdb_branch.activeKey` 的键
+   *
+   * @remarks
+   * 主表集是主检出位：哨兵 {@link ACTIVE_BRANCH_KEY}；影子表集是 `*worktree:<后缀>*`（US-314 B1.3）。
+   *
+   * 由表集推出而不是另起一个 id：分支表这一行于是同时说清「谁持有」与「是哪一套表」。系统迁移跑在插件装好之前，
+   * 不靠插件的检出位登记表也能找回每一套表该挂哪条分支；也没有第二份登记会与它漂移。`*` 是分支 id 的保留字符，
+   * 持有键不会被认成分支名。
+   */
+  get holderKey(): string {
+    return this.suffix === null ? ACTIVE_BRANCH_KEY : `*worktree:${this.suffix}*`;
+  }
+
   private constructor(suffix: string | null, members: ReadonlySet<string>) {
     this.suffix = suffix;
     this.#members = members;
@@ -67,6 +87,16 @@ export class WorktreeTableSet {
     const members = new Set<string>();
     for (const EntityType of entities) members.add(identityOf(getEntityMetadata(EntityType)));
     return new WorktreeTableSet(suffix, members);
+  }
+
+  /**
+   * 从持有键读回影子表集的后缀。
+   *
+   * @param activeKey - `rxdb_branch.activeKey` 上的值
+   * @returns 后缀；主检出位的哨兵、或不是 {@link WorktreeTableSet.holderKey} 形状的值返回 `null`
+   */
+  static suffixOfHolderKey(activeKey: string): string | null {
+    return HOLDER_KEY_PATTERN.exec(activeKey)?.[1] ?? null;
   }
 
   /**

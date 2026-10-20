@@ -136,6 +136,18 @@ describe('remove_trigger_sql', () => {
     });
   });
 
+  // 影子表集（US-314 B1.3）：非成员经解析器落回主表集的名字，不收窄就会把主表集的触发器一起删掉
+  describe('remove_all_triggers_sql (影子表集)', () => {
+    it('只删成员自己那张表的触发器与函数，主表集的一个都不碰', () => {
+      const sql = remove_all_triggers_sql(adapter, WorktreeTableSet.of('wt_a1', [Todo]));
+
+      expect(sql).toContain('ON "public$wt_a1"."todos"');
+      expect(sql).toContain('"public$wt_a1"."todos_change_trigger_fn"');
+      expect(sql).not.toContain('"shop"."user"');
+      expect(sql).not.toContain('"public"."todos"');
+    });
+  });
+
   describe('边界情况', () => {
     it('应该处理只有系统表的情况', () => {
       // 系统表 (log=false) 不应该生成触发器删除语句

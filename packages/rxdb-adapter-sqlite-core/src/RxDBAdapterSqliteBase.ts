@@ -121,14 +121,13 @@ import {
 import { check_entity_constraints_sqlite } from './table/check-entity-constraints.js';
 import { create_tables_sql } from './table/create_tables_sql.js';
 import { remove_all_triggers_sql } from './table/remove_trigger_sql.js';
-import { generate_table_trigger_sql } from './table/trigger_sql.js';
+import { generate_table_set_trigger_sql, generate_table_trigger_sql } from './table/trigger_sql.js';
 import { SqliteTransactionExecutor } from './transaction/SqliteTransactionExecutor.js';
 import { remove_entity_ids_from_cache, transaction_sqlite_result } from './transaction_sqlite_result.js';
 import { applySwitchActions, execute_switch_actions } from './version/execute_switch_actions.js';
 import { read_current_branch_id } from './version/read_current_branch_id.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { switch_branch } from './version/switch_branch.js';
-import { switch_transaction_id } from './version/switch_transaction_id.js';
 import { type SqlExecutor, withTriggersDisabled } from './version/with_triggers_disabled.js';
 import { importSnapshotTable, readSnapshotPage } from './worktree/worktree-snapshot.js';
 export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } from './sqlite-core.types.js';
@@ -329,6 +328,63 @@ const ensureBranchActiveKey = async (client: SqliteClientLike): Promise<void> =>
     ACTIVE_BRANCH_KEY,
     MAIN_BRANCH_ID
   ]);
+};
+
+/**
+ * 系统迁移给每一套现存的影子表集按持有分支重建变更触发器（US-314 B1.3）。
+ *
+ * @param client - 迁移事务所在的客户端（调用方已 `BEGIN`）
+ * @param adapter - 用来认实体、生成触发器
+ * @throws {@link RxDBAdapterSqliteError} 分支表上有认不出的持有键时；一行都不改，由调用方回滚整条迁移
+ *
+ * @remarks
+ * 主表集的触发器在迁移前段按主检出位的分支重建；影子表集的触发器同样是旧形状，要按各自的持有分支重建。
+ * 迁移跑在插件装好之前，读不到检出位登记表，靠的是持有键本身就是表集后缀（`WorktreeTableSet.holderKey`）。
+ * 认不出的持有键不跳过：跳过就是让那套表带着旧触发器继续收写入，而且没有任何报错。
+ *
+ * 成员按物理表认：建出来的成员表才重建，建到一半就中断的表集不会在这里撞「表不存在」。
+ * 排在 {@link ensureBranchActiveKey} 之后：持有键所在的列是它补出来的。
+ *
+ * 与 PGlite 侧 `system/migrate_system_schema.ts` 的同名步骤逐语义对齐，改动两端同改。
+ */
+const rebuildWorktreeTableSetTriggers = async (
+  client: SqliteClientLike,
+  adapter: RxDBAdapterSqliteBase
+): Promise<void> => {
+  const branchTableName = get_table_name_by_metadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN);
+  const tableResult = await client.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
+    branchTableName
+  ]);
+  if (!tableResult.results.some(result => result.rows.length > 0)) return;
+
+  const holderResult = await client.execute(
+    `SELECT "id", "activeKey" FROM ${quote_sql_identifier(branchTableName)}
+     WHERE "activeKey" IS NOT NULL AND "activeKey" != ? ORDER BY "id"`,
+    [ACTIVE_BRANCH_KEY]
+  );
+  for (const [branchId, holderKey] of holderResult.results.flatMap(result => result.rows)) {
+    const suffix = WorktreeTableSet.suffixOfHolderKey(String(holderKey));
+    if (suffix === null) {
+      throw new RxDBAdapterSqliteError(`分支 ${String(branchId)} 上的持有键 ${String(holderKey)} 认不出是哪一套表`);
+    }
+    const candidates = WorktreeTableSet.of(suffix, adapter.rxdb.config.entities);
+    const members: EntityType[] = [];
+    for (const EntityType of adapter.rxdb.config.entities) {
+      const metadata = getEntityMetadata(EntityType);
+      if (metadata.log === false) continue;
+      const memberResult = await client.execute(
+        `SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
+        [get_table_name_by_metadata(metadata, candidates)]
+      );
+      if (memberResult.results.some(result => result.rows.length > 0)) members.push(EntityType);
+    }
+    const rebuildTriggers = generate_table_set_trigger_sql(
+      adapter,
+      WorktreeTableSet.of(suffix, members),
+      String(branchId)
+    );
+    if (rebuildTriggers) await client.execute(rebuildTriggers);
+  }
 };
 
 /**
@@ -945,6 +1001,59 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     return true;
   }
 
+  /**
+   * 建一套可写检出位的表：每个成员实体一张表，变更触发器挂在持有分支上（US-314 B1.3）。
+   *
+   * @param tableSet - 要建的表集；成员由调用方定（版本化域里的实体）
+   * @param branchId - 持有分支：成员表上的写记在它名下
+   * @throws {@link RxDBAdapterSqliteError} 给的是主表集，或成员里有不记变更日志的实体时
+   *
+   * @remarks
+   * 只建表与触发器，不播种数据、不写持有键：打开检出位的流程（B1.5）把它们排进自己的步骤。
+   * 成员必须记变更日志：没有触发器的成员表，写进去的东西进不了历史，提交与同步都看不见。
+   * 主表集随建库建表（{@link RxDBAdapterSqliteBase.createTables}），不经这里。
+   */
+  async createWorktreeTableSet(tableSet: WorktreeTableSet, branchId: string): Promise<void> {
+    if (tableSet.isMain) {
+      throw new RxDBAdapterSqliteError('createWorktreeTableSet 只建可写检出位的表集，主表集随建库建表');
+    }
+    const members = this.rxdb.config.entities.filter(EntityType => tableSet.has(getEntityMetadata(EntityType)));
+    const unlogged = members
+      .map(EntityType => getEntityMetadata(EntityType))
+      .filter(metadata => metadata.log === false);
+    if (unlogged.length > 0) {
+      const names = unlogged.map(metadata => `${metadata.namespace}.${metadata.name}`).join(', ');
+      throw new RxDBAdapterSqliteError(`表集成员必须记变更日志：${names}`);
+    }
+    const sql = await create_tables_sql(this, tableSet, members, branchId);
+    await this.transaction(async executor => {
+      await executor.execute(sql);
+    }, false);
+  }
+
+  /**
+   * 删掉一套可写检出位的表：成员表连同它们的触发器、索引一起删（US-314 B1.3）。
+   *
+   * @param tableSet - 要删的表集
+   * @throws {@link RxDBAdapterSqliteError} 给的是主表集时
+   *
+   * @remarks
+   * 用 `DROP TABLE IF EXISTS`：建到一半就中断的表集（打开流程崩在半路）也要删得干净，删除因此必须可重入。
+   * 分支表上的持有键不归这里放，关闭检出位的流程（B1.5）自己放。
+   */
+  async dropWorktreeTableSet(tableSet: WorktreeTableSet): Promise<void> {
+    if (tableSet.isMain) throw new RxDBAdapterSqliteError('dropWorktreeTableSet 不删主表集');
+    const sql = this.rxdb.config.entities
+      .map(EntityType => getEntityMetadata(EntityType))
+      .filter(metadata => tableSet.has(metadata))
+      .map(metadata => `DROP TABLE IF EXISTS ${quote_sql_identifier(get_table_name_by_metadata(metadata, tableSet))};`)
+      .join('\n');
+    if (!sql) return;
+    await this.transaction(async executor => {
+      await executor.execute(sql);
+    }, false);
+  }
+
   override async migrateSystemSchema(): Promise<void> {
     const client = await this.#client();
     await this.#queue.addTask(async () => {
@@ -996,7 +1105,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           }
 
           // 重建的触发器必须按库此刻停在的分支写。自愈只能兜住一部分：下一个默认事务 COMMIT 时
-          // `#run_transaction` → `switch_transaction_id` 会按真实分支重建全部触发器，但在那之前，
+          // `#run_transaction` → `generate_table_set_trigger_sql` 会按真实分支重建全部触发器，但在那之前，
           // 迁移刚结束这段窗口里的裸写（不经 `transaction()`）会被永久记到错误的分支名下，且不报错。
           const migrationBranchId = await readActiveBranchIdOrMain(client);
           const removeTriggersSql = remove_all_triggers_sql(this, WorktreeTableSet.MAIN);
@@ -1029,6 +1138,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           );
 
           await ensureBranchActiveKey(client);
+          await rebuildWorktreeTableSetTriggers(client, this);
           await ensureChangeRejectionColumns(client);
 
           for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {
@@ -1853,8 +1963,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         // executor 此刻已建但 BEGIN 尚未发出，这次读跑在 autocommit 下 —— 与翻转前
         // 走快路径的实际行为一致。
         const currentBranchId = await read_current_branch_id(executor);
-        log_begin = switch_transaction_id(this, currentBranchId, transactionId);
-        log_commit = switch_transaction_id(this, currentBranchId);
+        log_begin = generate_table_set_trigger_sql(this, this.tableSet, currentBranchId, transactionId);
+        log_commit = generate_table_set_trigger_sql(this, this.tableSet, currentBranchId);
       }
 
       // 封成只读之后（只读检出位，US-313）开延迟事务：`BEGIN IMMEDIATE` 要拿写锁，`query_only` 下连读事务都开不了

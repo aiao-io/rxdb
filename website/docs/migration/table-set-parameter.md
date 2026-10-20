@@ -53,6 +53,8 @@ const table = get_table_name_by_metadata(metadata, adapter.tableSet);
 | `remove_all_triggers_sql`       | `(adapter, tableSet)`                                     |
 | `generate_table_trigger_sql`    | `(metadata, { branchId, tableSet, … })`：`tableSet` 必填  |
 
+`switch_transaction_id(adapter, branchId, transactionId?)` 去掉了，改用 `generate_table_set_trigger_sql(adapter, tableSet, branchId, transactionId?)`：按表集重建变更触发器的唯一入口，只给这套表里记日志、且有自己那张表的实体生成。
+
 查询类函数（`find_sql`、`count_sql`、关联与树查询）本来就收 `adapter`，签名不变，内部取 `adapter.tableSet`。
 
 **`@aiao/rxdb-adapter-pglite`**
@@ -72,3 +74,5 @@ const table = get_table_name_by_metadata(metadata, adapter.tableSet);
 - 两个适配器的 `adapter.tableSet`：本实例挂的表集。
 - sqlite-core 的 `get_companion_table_name`（附属表，如图插件的边表）与 `get_storage_object_name`（条件唯一索引、区间排他触发器这类库级对象的名字）。
 - PGlite 的 `getSchemaName` 与 `getChangeTriggerFunctionName`。
+- `WorktreeTableSet.holderKey` 与 `WorktreeTableSet.suffixOfHolderKey`：检出位持有分支时写进 `rxdb_branch.activeKey` 的键由表集推出。
+- 两个适配器的 `createWorktreeTableSet(tableSet, branchId)` / `dropWorktreeTableSet(tableSet)`：建 / 删一套可写检出位的表。

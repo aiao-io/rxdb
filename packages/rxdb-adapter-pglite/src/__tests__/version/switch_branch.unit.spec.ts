@@ -32,8 +32,9 @@ vi.mock('../../transaction_pglite_result.js', async importOriginal => {
 
 import { RxDBBranch, WorktreeBranchHeldError, WorktreeTableSet, type SwitchBranchOptions } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
+import { User } from '@aiao/rxdb-test/shop';
 import { RxdbAdapterPGliteError } from '../../pglite.utils.js';
-import { generateSwitchBranchSql, switch_branch } from '../../version/switch_branch.js';
+import { generateBranchTriggerSqlFor, generateSwitchBranchSql, switch_branch } from '../../version/switch_branch.js';
 
 type MockAdapter = {
   query: ReturnType<typeof vi.fn>;
@@ -281,6 +282,38 @@ describe('switch_branch pure unit edges', () => {
     expect(error).toMatchObject({ branchId: 'feature', holderKey: '*worktree:wt1*' });
     expect(options.prepare).not.toHaveBeenCalled();
     expect(adapter.query).toHaveBeenCalledTimes(1);
+  });
+
+  // 影子表集（US-314 B1.3）：非成员经解析器落回主表集的名字，不收窄就会按持有分支重烙主表集的触发器
+  it('generateBranchTriggerSqlFor 对影子表集只给成员挂触发器', () => {
+    const sql = generateBranchTriggerSqlFor(makeAdapter() as never, WorktreeTableSet.of('wt_a1', [Todo]), 'held', [
+      Todo,
+      User
+    ]);
+
+    expect(sql).toContain('"public$wt_a1"."todos"');
+    expect(sql).toContain('held');
+    expect(sql).not.toContain('"shop"."user"');
+    expect(sql).not.toContain('"public"."todos"');
+  });
+
+  // 省略 branchId（撤销 / 重做、重做栈失效）= 留在当前分支、只套用 actions。从前也照跑熄灭 + 点亮两条 UPDATE，
+  // 点亮那条的 RETURNING 行还派出一条「activated 翻转了」的假事件（US-314 B1.3）。没有要拿下的分支，也就不查持有。
+  it('省略 branchId 时只按当前分支重挂触发器：分支表一行不写，也不派分支事件', async () => {
+    const adapter = makeAdapter({ rxdb: { config: { entities: [Todo] }, dispatchEvent: vi.fn() } });
+    adapter.query.mockResolvedValue({ rows: [{ id: 'feature' }], affectedRows: 0, fields: [] });
+    const prepare = vi.fn(async () => undefined);
+
+    await switch_branch(adapter as never, {
+      actions: { deletes: new Map(), updates: new Map(), inserts: new Map() },
+      prepare
+    });
+
+    expect(prepare).toHaveBeenCalledWith({ executor: expect.anything(), targetBranchId: 'feature' });
+    const statements = adapter.query.mock.calls.map(call => String(call[0]));
+    expect(statements.some(sql => sql.includes('"rxdb"."rxdb_branch"') && !sql.startsWith('SELECT'))).toBe(false);
+    expect(statements.some(sql => sql.includes('CREATE') && sql.includes('feature'))).toBe(true);
+    expect(adapter.rxdb.dispatchEvent).not.toHaveBeenCalled();
   });
 
   it('switch_branch transaction failure is wrapped', async () => {

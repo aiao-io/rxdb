@@ -22,7 +22,7 @@ import { remove_entity_ids_from_cache, transaction_pglite_result } from '../tran
 import { executeSwitchStatements } from './execute_switch_statements.js';
 import { readCurrentBranchId } from './read_current_branch_id.js';
 import { SwitchVersionSqlItem, SwitchVersionSqlResult } from './switch-result.interface.js';
-import { generateSwitchBranchSql } from './switch_branch.js';
+import { generateBranchTriggerSql } from './switch_branch.js';
 
 type EntityId = RxDBEntityId;
 type SwitchEntity = EntityData & { id: EntityId; createdAt?: Date; updatedAt?: Date };
@@ -112,7 +112,12 @@ export async function execute_switch_actions(
     if (disableTriggers) {
       // 分支 id 必须经**本事务**读（见 readCurrentBranchId）：走 versionManager.getCurrentBranch()
       // 的话，外层已开着事务时那次读会重新入队，排在自己身后永久挂起。
-      await executeSwitchStatements(sink, generateSwitchBranchSql(adapter, await readCurrentBranchId(sink)));
+      //
+      // 只重挂本实例这套表的触发器，不碰分支表（US-314 B1.3）：从前复用切分支的整段 SQL，每批拉取都捎带一条
+      // 分支表的恒等 UPDATE，NOTIFY 再异步派出一条谁都没做过的 RxDBBranch 更新；挂在可写检出位上时，
+      // 那条 UPDATE 会把检出位持有的分支点亮。
+      const rebuildTriggers = generateBranchTriggerSql(adapter, sink.tableSet, await readCurrentBranchId(sink));
+      if (rebuildTriggers) await executeSwitchStatements(sink, rebuildTriggers);
     }
   }, false);
 

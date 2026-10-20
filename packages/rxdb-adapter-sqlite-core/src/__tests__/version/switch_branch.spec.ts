@@ -48,6 +48,8 @@ interface SwitchAdapterOptions {
   failOn?: string;
   /** 目标分支此刻的 `activeKey`；不给就是没人持有 */
   targetActiveKey?: string | null;
+  /** 「当前分支」那次读的答案（省略 branchId 时用）；不给就是 main */
+  currentBranchId?: string;
   /** 覆盖 config.entities */
   entities?: EntityType[];
 }
@@ -80,6 +82,14 @@ const createSwitchAdapter = (options: SwitchAdapterOptions = {}) => {
         ]);
       }
       return successResult(sql, 1);
+    },
+    // 省略 branchId 时适配器经 `query` 读当前分支（`read_current_branch_id`）
+    query: async (sql: string, params?: SQLiteCompatibleType[]) => {
+      calls.push({ sql, params });
+      if (sql.includes('"activated" = ?')) {
+        return { rowsAffected: 0, columns: ['id'], rows: [[options.currentBranchId ?? 'main']] };
+      }
+      return { rowsAffected: 0, columns: [], rows: [] };
     }
   } as unknown as SqliteClientLike;
 
@@ -325,6 +335,25 @@ describe('switch_branch', () => {
     expect(error).toMatchObject({ branchId: 'feature', holderKey: '*worktree:wt1*' });
     expect(options.prepare).not.toHaveBeenCalled();
     expect(calls).toEqual([{ sql: 'SELECT activeKey FROM "rxdb$rxdb_branch" WHERE id = ?', params: ['feature'] }]);
+    expect(dispatched).toEqual([]);
+  });
+
+  // 省略 branchId（撤销 / 重做、重做栈失效）= 留在当前分支、只套用 actions。从前这里也照跑熄灭 + 点亮两条 UPDATE，
+  // 点亮那条的 RETURNING 行还派出一条「activated 翻转了」的假事件（US-314 B1.3）。没有要拿下的分支，也就不查持有。
+  it('省略 branchId 时只按当前分支重挂触发器：分支表一行不写，也不派分支事件', async () => {
+    const { adapter, calls, dispatched } = createSwitchAdapter({
+      currentBranchId: 'feature',
+      branchRows: [[1, 'feature', 1, 1, 0, '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z']]
+    });
+    const prepare = vi.fn<SwitchBranchOptions['prepare']>(async () => undefined);
+
+    await switch_branch(adapter, { prepare, actions: { deletes: new Map(), inserts: new Map(), updates: new Map() } });
+
+    expect(prepare).toHaveBeenCalledWith({ executor: expect.anything(), targetBranchId: 'feature' });
+    expect(calls.some(call => call.sql.includes('"rxdb$rxdb_branch"') && !call.sql.includes('"activated" = ?'))).toBe(
+      false
+    );
+    expect(calls.some(call => call.sql.includes('CREATE TRIGGER') && call.sql.includes(`'feature'`))).toBe(true);
     expect(dispatched).toEqual([]);
   });
 

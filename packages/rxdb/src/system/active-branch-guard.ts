@@ -210,10 +210,8 @@ export class NoActiveBranchError extends RxDBError {
  *
  * 唯一索引兜不住这一条：主检出位点亮一条分支时写的是哨兵，正好把持有键**覆盖**掉，索引里自始至终
  * 只有一个哨兵，撞不上。所以每一处让主检出位持有某条分支的写（切分支、零 active 时点亮 `main`、
- * 系统迁移回填哨兵）都要先过 {@link WorktreeBranchHeldError.throwIfHeld}。重建触发器时顺手重跑的
- * 那条激活（sqlite 的 `withTriggersDisabled`、PGlite 的 `execute_switch_actions`）目标是当前分支，
- * 恰好一行 active 时那正是主检出位已经持有的分支；这两条路径在 US-314 B1.3 改成只重建触发器、
- * 不写分支表。
+ * 系统迁移回填哨兵）都要先过 {@link WorktreeBranchHeldError.throwIfHeld}。只重挂触发器、不碰分支表的路径
+ * （关触发器的写、省略目标分支的切换，US-314 B1.3）不拿下任何分支，不在此列。
  *
  * 只拒，不抢也不换：抢了，那个检出位还以为分支是自己的；换一条分支点亮，是替用户切分支。
  */

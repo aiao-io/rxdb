@@ -56,6 +56,19 @@ describe('withTriggersDisabled', () => {
     expect(calls.some(sql => sql.includes('CREATE TRIGGER'))).toBe(true);
   });
 
+  // 拉取回填与 QueryCache 写入每次都走这里。重建只重挂本实例这套表的触发器，不碰分支表：从前复用切分支的整段 SQL，
+  // 每次都捎带一条分支表的恒等 UPDATE（US-314 B1.3）；挂在可写检出位上时，那条 UPDATE 会把检出位持有的分支点亮。
+  it('重建只重挂触发器、按当前分支烙，分支表一行不写', async () => {
+    const { tx, calls } = createRecordingExecutor();
+
+    await withTriggersDisabled(adapter, tx, async () => 'ok');
+
+    expect(calls.some(sql => sql.includes('UPDATE "rxdb$rxdb_branch"'))).toBe(false);
+    const rebuilt = calls.filter(sql => sql.includes('CREATE TRIGGER'));
+    expect(rebuilt).toHaveLength(1);
+    expect(rebuilt[0]).toContain(`'main'`);
+  });
+
   // body 抛错时，重建触发器那一步（原来紧跟在 `await body()` 之后的下一行）会被
   // 跳过，永久留下一个没有触发器的库——生产调用点都在 `this.transaction()` 里，body 抛错
   // 连带整个事务回滚，这个中间态从未真正提交过，掩盖了问题；但本函数经 `src/index.ts`

@@ -185,7 +185,7 @@ const BRANCH_TABLE_EXISTENCE_PROBE_PATTERN = /^SELECT 1 FROM sqlite_master WHERE
  * 「分支表是否存在」探针查询。
  *
  * @remarks
- * C2 起 `#run_transaction` 在 BEGIN 之前会先读一次当前分支（供 `switch_transaction_id` 用），
+ * C2 起 `#run_transaction` 在 BEGIN 之前会先读一次当前分支（供 `generate_table_set_trigger_sql` 用），
  * 于是它排在 `executedSqls()` 的最前面；`createTables` 在 BEGIN 之后、真正的建表 SQL 之前，
  * 又会先经 `readActiveBranchIdOrMain` 探一次分支表是否存在（必要时再读一次活动分支）。
  * 断言 `sqls[0]` 是 BEGIN、`sqls[1]` 是业务 SQL 的用例本意是「事务的第一条 / 第二条语句」，

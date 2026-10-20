@@ -411,7 +411,9 @@ describe('execute_switch_actions', () => {
     expect(localChangesSql).not.toContain('old-secret');
     expect(localChangesSql).toContain('NULL');
     expect(encrypt).toHaveBeenCalledTimes(2);
-    expect(calls.some(sql => sql.includes("id = 'feature'"))).toBe(true);
+    // 触发器按当前分支（feature）重挂；分支表不写（US-314 B1.3）
+    expect(calls.some(sql => sql.includes('CREATE TRIGGER') && sql.includes(`'feature'`))).toBe(true);
+    expect(calls.some(sql => sql.includes('UPDATE "rxdb$rxdb_branch"'))).toBe(false);
   });
 
   it('派发删除、创建和更新事件时覆盖缺失 change 与缺失 SELECT 结果', async () => {

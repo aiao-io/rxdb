@@ -8,7 +8,7 @@ import { RxDBAdapterSqlite } from '../RxDBAdapterSqlite.js';
  *
  * @remarks
  * `#run_transaction` 已经跑在 `#queue.addTask` 的任务里（并发度 1）。`transactionLog` 为 true 时
- * 它要先取当前分支 id 才能生成 `switch_transaction_id` 语句 —— 这次读**必须**直发同一连接，
+ * 它要先取当前分支 id 才能生成重建触发器的语句（`generate_table_set_trigger_sql`） —— 这次读**必须**直发同一连接，
  * 不能走 `adapter.query()`：后者在非事务上下文会重新入队，排在自己身后，永久挂起。
  *
  * 历史上它靠 `#transaction_lock` 的直通快路径侥幸绕过。那条快路径是 C2（`SQLC-001`）要删的东西，

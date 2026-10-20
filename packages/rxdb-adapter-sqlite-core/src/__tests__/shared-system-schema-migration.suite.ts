@@ -17,6 +17,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { quote_sql_identifier } from '../sqlite-core.utils.js';
 import { getTableColumnIndexName, get_table_name_by_metadata } from '../table-name-resolver.js';
+import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
 import type { AdapterFactory } from './adapter-factory.js';
 import { Todo } from './fixtures/Todo.js';
 import { SUITE_DEADLINE_MS } from './test-utils.js';
@@ -324,7 +325,7 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
     // 一律清掉——那时这一列只有哨兵一种非空值。持有键不是哨兵：清掉它等于把检出位手里的分支悄悄放掉，
     // 唯一索引从此拦不住别的检出位再拿它，也没有任何东西会报错。
     describe('可写检出位的持有键（US-314 B1.2）', () => {
-      const holderKey = '*worktree:wt1*';
+      const holderKey = WorktreeTableSet.of('wt_held', []).holderKey;
       const heldBranch = 'held-branch';
       const branchTableOf = (): string =>
         quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN));
@@ -398,10 +399,57 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
         expect(await readBranchRows()).toEqual(rowsBefore);
         expect(await readWatermarks(adapter)).toEqual([]);
       });
+
+      // 系统模式升级会改触发器的形状：影子表集的触发器同样是旧的，要按各自持有分支重建（US-314 B1.3）。
+      // 迁移跑在插件装好之前，读不到检出位登记表，靠的是持有键本身就是表集后缀。
+      it('给每一套现存的影子表集按持有分支重建触发器', async () => {
+        const tableSet = WorktreeTableSet.of('wt_mig', [Todo]);
+        await adapter.internalQuery(`UPDATE ${branchTableOf()} SET "activeKey" = ? WHERE "id" = ?`, [
+          tableSet.holderKey,
+          heldBranch
+        ]);
+        await adapter.createWorktreeTableSet(tableSet, heldBranch);
+        try {
+          // 模拟升级前的旧触发器：先把影子表的触发器删光，迁移要把它们按持有分支建回来
+          await adapter.internalQuery(remove_all_triggers_sql(adapter, tableSet));
+          await dropWatermarks();
+
+          await adapter.migrateSystemSchema();
+
+          const changeTable = quote_sql_identifier(
+            get_table_name_by_metadata(getEntityMetadata(RxDBChange), WorktreeTableSet.MAIN)
+          );
+          const shadowTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(Todo), tableSet));
+          const todoId = crypto.randomUUID();
+          const now = new Date().toISOString();
+          await adapter.internalQuery(
+            `INSERT INTO ${shadowTable} ("id", "title", "completed", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?)`,
+            [todoId, 'in worktree', 0, now, now]
+          );
+          const changeRows = await adapter.internalQuery(`SELECT "branchId" FROM ${changeTable} WHERE "entityId" = ?`, [
+            encodeRxDBChangeEntityId(todoId)
+          ]);
+          expect(changeRows.results.flatMap(item => item.rows)).toEqual([[heldBranch]]);
+        } finally {
+          await adapter.dropWorktreeTableSet(tableSet);
+        }
+      });
+
+      it('认不出的持有键整体回滚：不知道该重建哪一套表', async () => {
+        await adapter.internalQuery(`UPDATE ${branchTableOf()} SET "activeKey" = ? WHERE "id" = ?`, [
+          '*worktree:wt1*',
+          heldBranch
+        ]);
+        await dropWatermarks();
+
+        await expect(adapter.migrateSystemSchema()).rejects.toThrow(/持有键/);
+
+        expect(await readWatermarks(adapter)).toEqual([]);
+      });
     });
 
     // 迁移重建变更触发器时必须按库此刻停在的分支写。sqlite 侧确实有自愈——每个默认事务
-    // COMMIT 时 `#run_transaction` → `switch_transaction_id` 会按真实分支重建全部触发器——
+    // COMMIT 时 `#run_transaction` → `generate_table_set_trigger_sql` 会按真实分支重建全部触发器——
     // 但自愈要等到**下一个**默认事务，迁移结束到那一刻之间的裸写会被永久记到错误的分支名下，
     // 且不报任何错。pglite 侧（`system/migrate_system_schema.ts`）一直是读活动分支再传：
     // 两端形状必须一致，否则同一个库换个后端打开就是另一套行为。

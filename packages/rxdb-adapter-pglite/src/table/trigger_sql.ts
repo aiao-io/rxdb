@@ -283,4 +283,19 @@ CREATE TRIGGER ${triggerName}
   return [triggerFunction, dropTrigger, createTrigger].join('\n---STATEMENT_SEPARATOR---\n');
 }
 
+/**
+ * 这个实体在这套表里挂不挂变更触发器：记变更日志、且这套表里有它自己那张表。
+ *
+ * @param entityMetadata - 实体元数据
+ * @param tableSet - 哪一套表
+ * @returns 主表集是全部记日志的实体；影子表集只有它登记的成员
+ *
+ * @remarks
+ * 不收窄的话，非成员实体经解析器落回主表集的名字：删 / 重挂影子表集的触发器就会删掉、或按持有分支重烙主表集的触发器——
+ * QueryCache 实体记日志又从不进影子表集，正中这一条（US-314 B1.3）。sqlite-core 的 `table_set_logged_metadata` 同口径。
+ */
+export function hasChangeTriggerInTableSet(entityMetadata: EntityMetadata, tableSet: WorktreeTableSet): boolean {
+  return entityMetadata.log !== false && (tableSet.isMain || tableSet.has(entityMetadata));
+}
+
 export default generate_trigger_sql;

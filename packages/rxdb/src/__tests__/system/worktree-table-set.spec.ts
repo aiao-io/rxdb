@@ -12,6 +12,7 @@ import { Entity } from '../../entity/entity.decorator.js';
 import { PropertyType } from '../../entity/metadata-options.interface.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
 import { RxDBError } from '../../RxDBError.js';
+import { ACTIVE_BRANCH_KEY } from '../../system/active-branch-guard.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { WorktreeTableSet } from '../../system/worktree-table-set.js';
 
@@ -63,4 +64,30 @@ describe('WorktreeTableSet', () => {
       expect(() => WorktreeTableSet.of(suffix, [Todo])).toThrow(RxDBError);
     }
   );
+
+  // 持有键（US-314 B1.3）：检出位持有分支时写进 `rxdb_branch.activeKey` 的值。由表集推出，分支表这一行
+  // 就同时说清「谁持有」与「是哪一套表」：系统迁移跑在插件装好之前，不靠插件的登记表也能找回每一套表该挂哪条分支。
+  it('持有键由表集推出：主表集是主检出位的哨兵，影子表集是 *worktree:<后缀>*', () => {
+    expect(WorktreeTableSet.MAIN.holderKey).toBe(ACTIVE_BRANCH_KEY);
+    expect(WorktreeTableSet.of('wt_a1', [Todo]).holderKey).toBe('*worktree:wt_a1*');
+  });
+
+  it('从持有键读回后缀；主检出位的哨兵与别的形状都读不出', () => {
+    expect(WorktreeTableSet.suffixOfHolderKey('*worktree:wt_a1*')).toBe('wt_a1');
+    expect(WorktreeTableSet.suffixOfHolderKey(WorktreeTableSet.of('wt_0123456789ab', []).holderKey)).toBe(
+      'wt_0123456789ab'
+    );
+    for (const key of [
+      ACTIVE_BRANCH_KEY,
+      '*worktree:wt1*',
+      '*worktree:wt_A1*',
+      '*worktree:wt_0123456789abc*',
+      'worktree:wt_a1',
+      '*worktree:wt_a1',
+      '*worktree:*',
+      ''
+    ]) {
+      expect(WorktreeTableSet.suffixOfHolderKey(key), key).toBeNull();
+    }
+  });
 });

@@ -37,7 +37,29 @@ import { generateSwitchBranchSql } from '../version/switch_branch.js';
  * 属于上一个测试（表现为 `自定义主键列 > 事件：change 表按自定义主键列记录 entityId`
  * 这类按机器负载偶发的假红）。序列不重置后，跨测试的 id 不再重叠，陈旧缓存无从冒充新行。
  */
+/**
+ * 删掉库里全部可写检出位的表集（US-314 B1.3）。
+ *
+ * @remarks
+ * 它们不在建库形态里：逐表 DELETE 只会把影子表清空、还留着表和触发器，下一条用例再建同名表集就撞「表已存在」。
+ * 后缀从物理名里认（`<命名空间>$<表名>$wt_…`），成员按全部实体给：删除是 `IF EXISTS`，多给的落空即可。
+ */
+const drop_worktree_table_sets = async (adapter: RxDBAdapterSqliteBase): Promise<void> => {
+  const result = await adapter.internalQuery(
+    `SELECT "name" FROM sqlite_master WHERE "type" = 'table' AND "name" LIKE '%$wt\\_%' ESCAPE '\\'`
+  );
+  const suffixes = new Set<string>();
+  for (const [name] of result.results.flatMap(item => item.rows)) {
+    const suffix = String(name).slice(String(name).lastIndexOf('$') + 1);
+    if (/^wt_[a-z0-9]{1,12}$/.test(suffix)) suffixes.add(suffix);
+  }
+  for (const suffix of suffixes) {
+    await adapter.dropWorktreeTableSet(WorktreeTableSet.of(suffix, adapter.rxdb.config.entities));
+  }
+};
+
 export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {
+  await drop_worktree_table_sets(adapter);
   await cleanupSqliteTestAdapter(adapter, {
     removeTriggersSql: remove_all_triggers_sql(adapter, WorktreeTableSet.MAIN),
     // main 分支行本身由共享工具按默认 INSERT 补回（那条字面量与本包此前自带的逐字节相同），

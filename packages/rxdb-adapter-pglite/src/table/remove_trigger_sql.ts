@@ -2,6 +2,7 @@ import type { EntityMetadata, WorktreeTableSet } from '@aiao/rxdb';
 import { getEntityMetadata } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { getChangeTriggerFunctionName, getTableNameByMetadata } from '../table-name-resolver.js';
+import { hasChangeTriggerInTableSet } from './trigger_sql.js';
 
 /**
  * 生成删除单个实体触发器的 SQL
@@ -64,8 +65,8 @@ export function remove_all_triggers_sql(adapter: RxDBAdapterPGlite, tableSet: Wo
   adapter.rxdb.config.entities.forEach(EntityType => {
     const metadata = getEntityMetadata(EntityType);
 
-    // 只删除启用了日志功能的实体的触发器
-    if (metadata.log !== false) {
+    // 只删这套表里挂着触发器的实体：记日志、且影子表集只算成员（见 hasChangeTriggerInTableSet）
+    if (hasChangeTriggerInTableSet(metadata, tableSet)) {
       sqlParts.push(remove_trigger_sql(metadata, tableSet));
     }
   });

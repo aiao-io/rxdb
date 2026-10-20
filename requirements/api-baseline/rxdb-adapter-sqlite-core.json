@@ -198,6 +198,10 @@
         "kind": "value"
       },
       {
+        "name": "generate_table_set_trigger_sql",
+        "kind": "value"
+      },
+      {
         "name": "generate_table_trigger_sql",
         "kind": "value"
       },
@@ -659,10 +663,6 @@
       },
       {
         "name": "switch_branch",
-        "kind": "value"
-      },
-      {
-        "name": "switch_transaction_id",
         "kind": "value"
       },
       {
@@ -1411,6 +1411,10 @@
       },
       {
         "name": "versionBranchSuite",
+        "kind": "value"
+      },
+      {
+        "name": "worktreeTableSetSuite",
         "kind": "value"
       }
     ]

@@ -16,7 +16,7 @@ import { RxdbAdapterPGliteError } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { getTableNameByMetadata } from '../table-name-resolver.js';
 import remove_all_triggers_sql from '../table/remove_trigger_sql.js';
-import generate_trigger_sql from '../table/trigger_sql.js';
+import generate_trigger_sql, { hasChangeTriggerInTableSet } from '../table/trigger_sql.js';
 import type { PGliteTransactionExecutor } from '../transaction/PGliteTransactionExecutor.js';
 import { PGliteExecuteResult, transaction_pglite_result } from '../transaction_pglite_result.js';
 import { applySwitchActions, dispatch_switch_events } from './execute_switch_actions.js';
@@ -51,8 +51,11 @@ function convertResultsToPGliteExecuteResult<T>(results: Results<T>): PGliteExec
  * 却仍会触发行级 NOTIFY，异步派发成一条 `inversePatch:{}` 的裸 RxDBBranch UPDATE 事件，
  * 污染下一个用例的事件监听窗口。
  */
-export const generateBranchTriggerSql = (adapter: RxDBAdapterPGlite, branchId: string): string =>
-  generateBranchTriggerSqlFor(adapter, adapter.tableSet, branchId, adapter.rxdb.config.entities);
+export const generateBranchTriggerSql = (
+  adapter: RxDBAdapterPGlite,
+  tableSet: WorktreeTableSet,
+  branchId: string
+): string => generateBranchTriggerSqlFor(adapter, tableSet, branchId, adapter.rxdb.config.entities);
 
 /**
  * 同 {@link generateBranchTriggerSql}，但只重挂**指定的**那几个实体
@@ -76,12 +79,11 @@ export const generateBranchTriggerSqlFor = (
 ): string => {
   const sqlParts: string[] = [];
 
-  // 遍历给定实体，为启用了日志功能的实体重新生成触发器
+  // 遍历给定实体，只给这套表里挂触发器的实体重挂：记日志、且影子表集只算成员（见 hasChangeTriggerInTableSet）
   EntityTypes.forEach(EntityType => {
     const metadata = getEntityMetadata(EntityType);
 
-    // 只为启用了日志功能的实体生成触发器
-    if (metadata.log !== false) {
+    if (hasChangeTriggerInTableSet(metadata, tableSet)) {
       const triggerSql = generate_trigger_sql(metadata, {
         branchId,
         tableSet,
@@ -120,7 +122,7 @@ export const generateBranchTriggerSqlFor = (
  * 而 `RETURNING` 少一条就意味着那一侧翻转过的行不进事件派发。
  */
 export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: string): string => {
-  const triggerSql = generateBranchTriggerSql(adapter, branchId);
+  const triggerSql = generateBranchTriggerSql(adapter, adapter.tableSet, branchId);
 
   // 获取分支表的元数据和表名
   const metadata = getEntityMetadata(RxDBBranch);
@@ -192,7 +194,8 @@ const assertBranchNotHeld = async (reader: PGliteRowReader, branchId: string): P
  * 切换到指定分支
  *
  * @param adapter - PGlite 适配器实例
- * @param options - 分支切换选项；省略 `branchId` 即「留在当前激活分支」，仅套用 actions
+ * @param options - 分支切换选项；省略 `branchId` 即「留在当前激活分支」，仅套用 actions：
+ *   不查持有、不写分支表，只按当前分支重挂触发器
  * @throws {@link WorktreeBranchHeldError} 目标分支在可写检出位手里时；原样抛出，一行都没动
  */
 export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchBranchOptions) => {
@@ -212,8 +215,8 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
       // 采样与提交之间的一次真实切换会让这条调用把 activated 与全部触发器倒回旧分支。
       targetBranchId ??= await readCurrentBranchId(sink);
       // 目标分支在可写检出位手里就拒。排在前置校验之前，与 git 同序：先答「这条分支能不能检出」，
-      // 再问「工作树干不干净」；也排在动第一行之前，被拒时连触发器都还在。
-      await assertBranchNotHeld(sink, targetBranchId);
+      // 再问「工作树干不干净」；也排在动第一行之前，被拒时连触发器都还在。留在当前分支时没有要拿下的分支，不查。
+      if (branchId !== undefined) await assertBranchNotHeld(sink, targetBranchId);
       // 前置校验排在这里而不是本事务之外：外面那一版留下一个「校验通过到真正切换」的窗口，
       // 窗口里的一次写能让刚判过的「工作树干净」变成假的，而切换照样完成。
       // 抛出即整次回滚——此刻一行都还没动，连触发器都还在。
@@ -240,6 +243,14 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
           'rxdb.rxdb_change_id_seq',
           actions.updateRxDBChangeSequence
         ]);
+      }
+
+      // 留在当前分支（撤销 / 重做、重做栈失效）只重挂本实例这套表的触发器，不写分支表：从前也照跑熄灭 + 点亮，
+      // 点亮那条的 RETURNING 行还派出一条「activated 翻转了」的假事件（US-314 B1.3）。
+      if (branchId === undefined) {
+        const rebuildTriggers = generateBranchTriggerSql(adapter, sink.tableSet, targetBranchId);
+        if (rebuildTriggers) await executeSwitchStatements(sink, rebuildTriggers);
+        return undefined;
       }
 
       // 恢复 trigger 和更新分支状态必须与数据变更共用同一事务，失败时整体回滚。

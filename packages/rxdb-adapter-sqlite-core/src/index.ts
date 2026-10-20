@@ -142,7 +142,7 @@ export { SqliteTreeRepository } from './repository/SqliteTreeRepository.js';
 export { create_table_sql } from './table/create_table_sql.js';
 export { create_tables_sql } from './table/create_tables_sql.js';
 export { remove_all_triggers_sql } from './table/remove_trigger_sql.js';
-export { generate_table_trigger_sql } from './table/trigger_sql.js';
+export { generate_table_set_trigger_sql, generate_table_trigger_sql } from './table/trigger_sql.js';
 
 // 版本管理
 export { dispatch_switch_events, execute_switch_actions } from './version/execute_switch_actions.js';
@@ -150,7 +150,6 @@ export { convertSwitchResultToSql } from './version/switch-result.utils.js';
 // 各具体适配器的 `dropStorage()` 共用的删存储工具（只读检出位回收快照库，US-313）
 export type { SqliteStatement, SwitchVersionSqlItem, SwitchVersionSqlResult } from './version/switch-result.utils.js';
 export { generateSwitchBranchSql, generateSwitchBranchStatements, switch_branch } from './version/switch_branch.js';
-export { switch_transaction_id } from './version/switch_transaction_id.js';
 export { readCurrentBranchId, withTriggersDisabled, type SqlExecutor } from './version/with_triggers_disabled.js';
 export { deleteIndexedDatabase, removeOpfsFiles } from './worktree/drop-storage.js';
 

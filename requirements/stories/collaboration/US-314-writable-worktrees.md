@@ -116,10 +116,25 @@ INVEST 检查清单:
     两个适配器的 `switchBranch` 在切换事务里、动第一行之前查，被占就抛 `WorktreeBranchHeldError`（git：`already used by worktree`）；
     零 active 时点亮 `main` 的两处（首次启用迁移、`resolve_current_branch`）与系统迁移回填哨兵同样先查，被占就拒，不抢也不换。
   - 系统迁移只清旧哨兵，不再按「非空」清，后者会把持有键一起抹掉。
-  - 重建触发器时顺手重跑的那条激活（sqlite `withTriggersDisabled`、PGlite `execute_switch_actions`）目标是当前分支，
-    B1.3 改成只重建触发器、不写分支表。
+  - 关触发器的写与省略目标分支的切换不拿下任何分支：B1.3 起它们只重挂触发器、不写分支表（见下）。
   - 验收 4 的主检出位这一半就位；可写检出位那一半（再开一个检出位检出被占的分支）随 B1.5 的打开流程。
   - **已知限制**：B1.2 之前的版本不认持有键，在带持有键的库上切分支会直接覆盖它。检出位是本地概念，不保证跨版本降级。
+- **按表集建表与重建触发器**（阶段 B1.3）：
+  - 持有键由表集推出（`WorktreeTableSet.holderKey`）：主表集是哨兵，影子表集是 `*worktree:<后缀>*`。分支表这一行同时说清
+    「谁持有」与「是哪一套表」，系统迁移跑在插件装好之前也找得回每一套表该挂哪条分支，没有第二份登记会漂移。
+  - 两个适配器新增 `createWorktreeTableSet(tableSet, branchId)` / `dropWorktreeTableSet(tableSet)`：只建 / 删成员表与触发器，
+    不播种、不写持有键（归 B1.5 的打开、关闭流程）；成员必须记变更日志。删除可重入：SQLite 系 `DROP TABLE IF EXISTS`，
+    PGlite 删整个 `<命名空间>$<后缀>` schema。
+  - 重建触发器只有一个入口，表集与分支都显式给：sqlite-core 的 `generate_table_set_trigger_sql`（取代 `switch_transaction_id`），
+    PGlite 的 `generateBranchTriggerSql(For)`。实体收窄到「记日志、且这套表里有它自己那张表」：不收窄的话非成员落回主表名，
+    删 / 重建影子表集的触发器会误伤主表集（QueryCache 实体记日志又从不进影子表集，正中这一条）。
+  - 只有真正的切分支写分支表。关触发器的写（拉取、QueryCache）与省略目标分支的切换（撤销 / 重做、重做栈失效）只重挂触发器；
+    此前它们每次都捎带一条分支表的恒等 UPDATE，省略目标分支的那条还派出一条「activated 翻转了」的假事件。
+  - 系统迁移给每一套现存的影子表集按持有分支重建触发器，成员按物理表认；认不出的持有键整条回滚。
+  - 隔离探针：sqlite-core 共享套件 `worktreeTableSetSuite`（五个 SQLite 系后端与 Tauri）与 PGlite 的同名用例。普通事务、关触发器的写、
+    撤销 / 重做、主检出位真切分支都不动影子表，也不把影子表的触发器挂到别的分支。
+  - 「当前分支」仍按主检出位的激活分支读（每个记日志事务首尾的重建、`withTriggersDisabled` 都是）；统一成「`activeKey` 等于
+    本实例表集的持有键那一行」在 B1.4，那时挂在可写检出位上的实例才读得到自己的分支。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -136,6 +151,10 @@ INVEST 检查清单:
 - `apps/dev-rxdb-{angular,react,vue}` 与对应 `-e2e` — 「Create a branch」对话框、History 右键；可写检出位的 Worktree 下拉随阶段 C
 - `packages/rxdb/src/system/worktree-table-set.ts`、`packages/rxdb-adapter-sqlite-core/src/table-name-resolver.ts`、
   `packages/rxdb-adapter-pglite/src/table-name-resolver.ts` — 表集与两个适配器的表名解析器；`scripts/audit/table-name-resolver.mjs` — 门禁
+- `packages/rxdb-adapter-sqlite-core/src/table/trigger_sql.ts`（`generate_table_set_trigger_sql`）、两个适配器的
+  `createWorktreeTableSet` / `dropWorktreeTableSet` 与系统迁移、`version/switch_branch.ts`、`with_triggers_disabled.ts` /
+  `execute_switch_actions.ts` — 按表集建表与重建触发器；`packages/rxdb-adapter-sqlite-core/src/__tests__/shared-worktree-table-set.suite.ts`、
+  `packages/rxdb-adapter-pglite/src/__tests__/worktree-table-set.spec.ts` — 隔离探针
 - `packages/rxdb/src/system/active-branch-guard.ts`（`WorktreeBranchHeldError`）、`system/system-repositories.ts`、
   两个适配器的 `version/switch_branch.ts` 与系统迁移（sqlite-core `RxDBAdapterSqliteBase.ts`、PGlite `system/migrate_system_schema.ts`）
   — 分支持有模型

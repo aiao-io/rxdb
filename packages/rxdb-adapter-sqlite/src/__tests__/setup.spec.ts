@@ -19,7 +19,8 @@ import {
   transactionSqliteResultSuite,
   treeIntegrationSuite,
   undoRedoSuite,
-  versionBranchSuite
+  versionBranchSuite,
+  worktreeTableSetSuite
 } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { sqliteOfficialFactory } from './sqlite-official-factory.js';
 
@@ -48,3 +49,4 @@ treeIntegrationSuite(sqliteOfficialFactory);
 
 versionBranchSuite(sqliteOfficialFactory);
 undoRedoSuite(sqliteOfficialFactory);
+worktreeTableSetSuite(sqliteOfficialFactory);

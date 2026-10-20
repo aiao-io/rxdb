@@ -1,8 +1,8 @@
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interface.js';
 import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
+import { generate_table_set_trigger_sql } from '../table/trigger_sql.js';
 import { readCurrentBranchId as readCurrentBranchIdWith } from './read_current_branch_id.js';
-import { generateSwitchBranchSql } from './switch_branch.js';
 
 /**
  * 能直发 SQL 的事务门面。
@@ -62,8 +62,9 @@ export function readCurrentBranchId(tx: SqlExecutor): Promise<string> {
  * （见 {@link readCurrentBranchId} 的说明），而且中间那个没有触发器的已提交窗口会对并发写敞开 ——
  * 那些写入的历史将永久丢失。
  *
- * 重建复用 {@link generateSwitchBranchSql}（"切到当前分支"），因此它捎带的分支表 UPDATE 是
- * 恒等写：`RxDBBranch` 自身 `log: false`，不会因此产生变更行。
+ * 删与重建都只动本实例挂的那一套表（`adapter.tableSet`），重建按当前分支烙，**不碰分支表**（US-314 B1.3）。
+ * 从前重建复用切分支的整段 SQL，每次拉取都捎带一条分支表的恒等 UPDATE；挂在可写检出位上时，那条 UPDATE
+ * 会把检出位持有的分支点亮。
  *
  * **重建触发器是「不论成功失败都必须跑」的收尾，且不用 `try/finally` 实现**：本函数的生产
  * 调用点都在 `this.transaction()` 里，`body` 抛错时整个事务连带回滚，中间那个「触发器已删、
@@ -90,7 +91,8 @@ export async function withTriggersDisabled<T>(
   tx: SqlExecutor,
   body: () => Promise<T>
 ): Promise<T> {
-  const removeTriggers = remove_all_triggers_sql(adapter, adapter.tableSet);
+  const tableSet = adapter.tableSet;
+  const removeTriggers = remove_all_triggers_sql(adapter, tableSet);
   if (removeTriggers) {
     await tx.execute(removeTriggers);
   }
@@ -98,8 +100,10 @@ export async function withTriggersDisabled<T>(
   // 重建这一步无论 body 成功还是失败都要跑——收成局部函数供下面两条路径共用同一份实现，
   // 不各自抄一遍：判定逻辑分成两份时，其中一份漏改的问题在 `readCurrentBranchId` 上出现过
   // 一次（两边的列名解析各自漂移，见该函数 TSDoc），这里不重蹈。
-  const restoreTriggers = (): Promise<unknown> =>
-    readCurrentBranchId(tx).then(branchId => tx.execute(generateSwitchBranchSql(adapter, branchId)));
+  const restoreTriggers = async (): Promise<void> => {
+    const rebuildTriggers = generate_table_set_trigger_sql(adapter, tableSet, await readCurrentBranchId(tx));
+    if (rebuildTriggers) await tx.execute(rebuildTriggers);
+  };
 
   let outcome: { ok: true; value: T } | { ok: false; error: unknown };
   try {
