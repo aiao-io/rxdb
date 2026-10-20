@@ -5,7 +5,7 @@ status: In Review
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-20
 tags: [collaboration, workspace, storage, working-tree, version-control]
 ---
 
@@ -57,6 +57,8 @@ demo 的草稿页只显示 `entity === 'Todo'` 的条目（`workspace.page.ts` �
    CREATE / UPDATE / REMOVE 只从 `rxdb_change` 行派生（sqlite-core 与 PGlite 各自的 `handle_rxdb_change.ts`），而 `log: false`
    的表不建变更日志触发器。草稿缓存只在 CREATE / REMOVE 时收尾，`log: false` 实体的草稿于是永远等不到清除。
    `StorageFileMeta` 声明了 `log: false`，由 `StorageService` 经 `entityManager.instantiate()` 造出。
+   后来 [US-222](../adapter/US-222-unlogged-entity-delete-live-query.md) 让删行（`remove()` 与批量删除）为这类实体补派 REMOVE；
+   保存仍不派 CREATE，草稿照样等不到清除，排除照旧成立。
 3. **版本化域对 `log: false` 的业务实体前后不一。** [`versioned-domain.ts`](../../../packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts)
    的 `buildVersionedDomain` 只把 QueryCache 判成 untracked，`StorageFileMeta` 被判成 tracked：事务写入口从不捕获它
    （挂载点 1 只读变更日志增量），批量写入口却按版本化实体拒绝（`gateBulkWrite` 抛 `WorkingTreeWriteRejectedError`），
@@ -77,7 +79,8 @@ demo 的草稿页只显示 `entity === 'Todo'` 的条目（`workspace.page.ts` �
 
 ### Out of Scope
 
-- 让 `log: false` 的写派发 CREATE / UPDATE / REMOVE 事件：各适配器的实体事件都只从变更日志派生，storage 自带 `watch()`
+- 让 `log: false` 的写派发 CREATE / UPDATE / REMOVE 事件：各适配器的实体事件都只从变更日志派生，storage 自带 `watch()`。
+  其中 REMOVE 后来由 [US-222](../adapter/US-222-unlogged-entity-delete-live-query.md) 补上
 - storage 文件转内容寻址：触发条件见 [epic-006 多检出位](../../epics/epic-006-working-tree-commits.md#rxdb-plugin-storage文件不进版本控制)
 - 多检出位的任何阶段
 

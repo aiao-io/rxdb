@@ -9,6 +9,7 @@ import {
   getEntityStatus,
   PropertyType,
   RxDB,
+  RxDBBranch,
   RxDBChange,
   SyncType
 } from '@aiao/rxdb';
@@ -225,6 +226,28 @@ describe('handle_rxdb_change', () => {
     expect(event.entities[0]).toMatchObject({ type: 'DELETE', id: 'todo-3', patch: null });
     expect((event.entities[0].inversePatch as { title?: string }).title).toBe('removed');
     expect(event.entities[0].recordAt).toBeInstanceOf(Date);
+  });
+
+  it('关掉变更日志的表 DELETE 事件不回查、不派发：删除由删行路径直接派（US-222）', async () => {
+    const rxdb = createRxdb('sqlite-core-change-unlogged-delete');
+    const adapter = new ChangeTestAdapter(rxdb);
+    // 裸 SQL 清库删掉的行不标 removed：回查会命中这个旧实体，按它的 id 派出一条过期的删除
+    const branch = rxdb.entityManager.createEntityRef(
+      RxDBBranch,
+      { id: 'main', activated: true, createdAt: new Date(ISO), updatedAt: new Date(ISO) } as EntityUpdateData<
+        typeof RxDBBranch
+      >,
+      { local: true, modified: false }
+    );
+    adapter.cacheRowIdEntity(7n, branch);
+    const dispatchSpy = vi.spyOn(rxdb, 'dispatchEvent');
+    const repositorySpy = vi.spyOn(adapter, 'getRepository');
+
+    handle_rxdb_change(adapter, changeEvent('rxdb$rxdb_branch', SQLiteChangeType.SQLITE_DELETE, [7n]));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(repositorySpy).not.toHaveBeenCalled();
+    expect(dispatchSpy).not.toHaveBeenCalled();
   });
 
   it('rxdb_change 表 INSERT 按变更类型分组派发事件并追加元事件', async () => {

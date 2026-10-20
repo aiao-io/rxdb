@@ -231,4 +231,19 @@ describe('cleanup_db', () => {
     expect(executedSql.filter(sql => sql.includes('sqlite_sequence'))).toEqual([]);
     expect(executedSql.filter(sql => sql.includes('sqlite_stat1'))).toEqual([]);
   });
+
+  // 清空 undo 会话之后，下一条用例的第一次写入要靠「记录时间严格晚于清空时刻」恢复会话，
+  // 记录时间是毫秒精度：清库若在清空的那一毫秒里就返回，紧接着的写入可能与清空同一毫秒，会话恢复不了
+  it('返回时时钟已走过清空 undo 会话的那一毫秒', async () => {
+    const { adapter } = createCleanupAdapter([['public$todos', 'CREATE TABLE "public$todos" (...)']]);
+    let clearedAt = Number.NaN;
+    vi.mocked(adapter.rxdb.versionManager.resetSessionState).mockImplementation(() => {
+      clearedAt = Date.now();
+    });
+
+    for (let round = 0; round < 5; round++) {
+      await cleanup_db(adapter);
+      expect(Date.now()).toBeGreaterThan(clearedAt);
+    }
+  });
 });

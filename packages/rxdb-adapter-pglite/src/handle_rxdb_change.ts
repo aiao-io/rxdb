@@ -243,6 +243,9 @@ export const handle_rxdb_change = <T extends EntityType = EntityType>(
     console.warn(`Metadata not found for entity ${namespace}.${name}`);
     return Promise.resolve();
   }
+  // 关掉变更日志的表，删除由删行路径直接派（US-222）。NOTIFY 带的是 id，按 id 回查查不到被删的行；
+  // 同 id 又补回时查到的是新行（测试清库裸删 main 又补回），派出去就是一条把它从活查询里抹掉的过期删除
+  if (event.type === PGliteChangeType.DELETE && metadata.log === false) return Promise.resolve();
 
   const uniqueRowIds = unionBy(event.rowIds, rowIdKey);
   if (uniqueRowIds.length === 0) return Promise.resolve();

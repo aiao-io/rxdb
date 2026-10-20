@@ -14,6 +14,7 @@ import generate_entity_insert_sql from '../entity/insert_sql.js';
 import generate_entity_update_sql from '../entity/update_sql.js';
 import { getMonotonicUpdatedAt, RxdbAdapterPGliteError } from '../pglite.utils.js';
 import { generate_count_sql, generate_find_sql } from '../query/query_sql.js';
+import { dispatchUnloggedRemovals } from '../unlogged-removal-events.js';
 import { PGliteRepositoryBase } from './PGliteRepositoryBase.js';
 
 export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase<T> implements IRepository<T> {
@@ -94,6 +95,7 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
 
     const { sql, params } = generate_entity_delete_sql(this.metadata, entity);
     await this.adapter.writeQuery(sql, params);
+    dispatchUnloggedRemovals(this.adapter.rxdb, [entity], new Date());
 
     status.origin = structuredClone({ ...entity });
     status.modified = false;

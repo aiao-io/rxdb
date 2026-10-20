@@ -654,6 +654,33 @@ test.describe('从提交建分支', () => {
  * 新建分支与分支下拉的输入法守卫：组字期间的 Enter 是「上屏」、Escape 是「取消组字」，都属于输入法，
  * 不能被当成提交或关闭吃掉。
  */
+test.describe('删分支（US-222）', () => {
+  test('分支下拉里删掉一条不是当前的分支，再打开下拉就没有它', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await createBranchFromDropdown(page, 'feature/to-delete');
+    // 当前分支删不了（右键菜单里没有删除项）：先切回 main
+    await openBranchMenu(page);
+    await branchRow(page, 'main').click();
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('main', { timeout: 30000 });
+
+    await openBranchMenu(page);
+    await branchRow(page, 'feature/to-delete').click({ button: 'right' });
+    await page.getByTestId('wt-branch-menu-delete').click();
+    await expect(page.getByTestId('wt-confirm-dialog')).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('wt-confirm-ok').click();
+    await expect(page.getByTestId('wt-confirm-dialog')).toHaveCount(0);
+    // 删完页面会收起分支下拉：等提示出来再打开，否则刚打开的下拉会被它收掉
+    await expect(page.getByTestId('wt-toast')).toContainText('Branch "feature/to-delete" deleted.', { timeout: 30000 });
+
+    // 分支列表是分支表的活查询：分支表不写变更日志，删行曾经派不出删除事件，列表里还留着删掉的那条。
+    // 先确认下拉里列出了 main，再断言删掉的那条不在：下拉没打开时两条都「找不到」
+    await openBranchMenu(page);
+    await expect(branchRow(page, 'main')).toHaveCount(1);
+    await expect(branchRow(page, 'feature/to-delete')).toHaveCount(0, { timeout: 10000 });
+  });
+});
+
 test.describe('新建分支与分支下拉：输入法组字', () => {
   test('组字中的回车不提交、Escape 不关对话框与菜单；同一个事件去掉 isComposing 就照常生效', async ({ page }) => {
     await openPanel(page);

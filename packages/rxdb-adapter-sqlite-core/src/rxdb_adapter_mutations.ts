@@ -23,6 +23,7 @@ import {
   quote_sql_identifier,
   ROWID
 } from './sqlite-core.utils.js';
+import { dispatch_unlogged_removals } from './unlogged-removal-events.js';
 
 export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
   adapter: RxDBAdapterSqliteBase,
@@ -198,6 +199,12 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
   for (const step of planMutationWrites(mutations)) {
     await apply[step.kind](step.EntityType, step.entities);
   }
+  // 在下面标 removed、清缓存之前取快照：事件里的 inversePatch 要的是删之前的值
+  dispatch_unlogged_removals(
+    adapter.rxdb,
+    [...mutations.remove.values()].flatMap(entities => [...entities]),
+    now
+  );
 
   // 更新 remove 实体状态（上面已加入 all_entities，这里只需同步状态）
   mutations.remove.forEach(entities =>

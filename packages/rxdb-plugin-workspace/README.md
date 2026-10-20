@@ -9,7 +9,7 @@ RxDB Workspace 插件为**尚未入库的 NEW 实体草稿**提供本地恢复�
 - 监听 NEW 事件并缓存完整草稿，不写主表。
 - NEW 草稿的顶层属性后续变化会重新排队，恢复或跨标签页收到的 entity ref 也遵循同一规则。
 - `entity.save()`（CREATE）、REMOVE 或 `discard()` 会清理对应草稿。
-- 两类实体不收草稿：系统表（核心与插件登记的，如工作树插件的提交表），以及关闭变更日志（`@Entity({ log: false })`）的实体，如 storage 插件的文件元数据。后者保存与删除不派发 CREATE / REMOVE，草稿会一直等不到清理。旧版本留在 IndexedDB 里的这两类草稿在 `install()` 时删除。
+- 两类实体不收草稿：系统表（核心与插件登记的，如工作树插件的提交表），以及关闭变更日志（`@Entity({ log: false })`）的实体，如 storage 插件的文件元数据。后者保存时不派发 CREATE，草稿会一直等不到清理。旧版本留在 IndexedDB 里的这两类草稿在 `install()` 时删除。
 - `install()` 会自动读取 IndexedDB；已注册 EntityType 的草稿会恢复为 entity ref，尚未注册类型的草稿仍保留在 `list()` 中。首次读取失败会让 `ready` reject，修复环境后可再次调用 `install()` 重试。
 - `list()` 返回基于 `structuredClone()` 的深快照，不与内部缓存共享嵌套引用；草稿含不可克隆值时同步抛 `DataCloneError`。
 - `flush()` 是 IndexedDB 写入屏障。底层写入失败时会 reject 并恢复待写/待删集合，不会在后台无限重试；修复环境后再次显式调用即可重试。不可克隆草稿会以 `WorkspaceFlushError.cacheIds` 点名，其他可克隆草稿照常落盘。

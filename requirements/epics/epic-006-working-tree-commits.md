@@ -665,7 +665,7 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
 - [US-313 只读检出位：不切换分支就打开另一条分支或一个可达提交的完整数据](../stories/collaboration/US-313-read-only-checkout.md) (Medium) — 多检出位阶段 3
 - [US-314 可写检出位与从提交建分支：对齐 GitHub Desktop 3.6 的 worktree](../stories/collaboration/US-314-writable-worktrees.md) (Medium) — 多检出位阶段 5
 - [US-315 撤销子分支已继承的变更之后，切回父分支写错数据](../stories/collaboration/US-315-undo-inherited-change-switch-corruption.md) (High) — 撤销 / 重做停在子分支分叉点（修法 A）
-- [US-222 删分支之后按活查询列分支的地方不刷新：`log: false` 的实体删行派不出本地事件](../stories/adapter/US-222-unlogged-entity-delete-live-query.md) (Medium) — 分支列表删分支后不刷新
+- [US-222 删分支之后按活查询列分支的地方不刷新：`log: false` 的实体删行派不出本地事件](../stories/adapter/US-222-unlogged-entity-delete-live-query.md) (Medium) — 关掉变更日志的实体删行之后直接派删除事件（修法 A）
 
 ## 性能预算的口径
 
@@ -1071,7 +1071,7 @@ demo 的工作树页对齐 GitHub Desktop（3.6 起的 worktree 是可写的）�
 
 - 草稿存在 IndexedDB（库名即 `dbName`，对象仓库 `workspace`），经 BroadcastChannel 同步到所有标签页；键是 `namespace:entity:id`，不带分支。
 - 草稿不感知分支：切分支后草稿还在，保存时落进**保存那一刻**的 active 分支。
-- 草稿缓存不收两类实体：系统表（每次判定读活登记），与关闭变更日志的实体——后者保存与删除不派发 CREATE / REMOVE，
+- 草稿缓存不收两类实体：系统表（每次判定读活登记），与关闭变更日志的实体——后者保存时不派发 CREATE，
   草稿等不到收尾。这与多检出位无关，由 [US-311](../stories/collaboration/US-311-unlogged-entities-scope.md) 交付，
   症状与 demo 实测见该故事。
 

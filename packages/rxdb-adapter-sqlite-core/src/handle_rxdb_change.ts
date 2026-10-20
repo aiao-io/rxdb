@@ -248,8 +248,11 @@ export const handle_rxdb_change = <T extends EntityType>(
   const [namespace, table_name] = get_table_name_info(tableName);
   const EntityType = adapter.rxdb.schemaManager.getEntityTypeByTableName<T>(table_name, namespace);
   if (!EntityType) return Promise.resolve();
-  const repository = adapter.getRepository<T, SqliteRepository<T>>(EntityType);
   const metadata = getEntityMetadata(EntityType);
+  // 关掉变更日志的表，删除由删行路径直接派（US-222）。按行号回查查不到被删的行，只会撞上实体缓存里的旧实体
+  // 或复用了这个行号的新行：测试清库裸删 main 又补回，这样一条迟到的删除会把补回的 main 从活查询里抹掉
+  if (event.type === SQLiteChangeType.SQLITE_DELETE && metadata.log === false) return Promise.resolve();
+  const repository = adapter.getRepository<T, SqliteRepository<T>>(EntityType);
   const rxdb_change_meta = getEntityMetadata(RxDBChange);
 
   const { rowIds } = event;

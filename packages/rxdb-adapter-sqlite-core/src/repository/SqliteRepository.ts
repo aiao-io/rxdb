@@ -13,6 +13,7 @@ import { update_sql as generate_entity_update_sql } from '../entity/update_sql.j
 import { count_sql as generate_query_count_sql } from '../query/count_sql.js';
 import { find_sql as generate_query_find_sql } from '../query/find_sql.js';
 import { getMonotonicUpdatedAt, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { dispatch_unlogged_removals } from '../unlogged-removal-events.js';
 import { SqliteRepositoryBase } from './SqliteRepositoryBase.js';
 
 /**
@@ -110,6 +111,7 @@ export class SqliteRepository<T extends EntityType> extends SqliteRepositoryBase
     if (status.local === true) {
       const { sql, params } = generate_entity_delete_sql(this.metadata, entity);
       await this.adapter.writeQuery(sql, params);
+      dispatch_unlogged_removals(this.adapter.rxdb, [entity], new Date());
       _update_entity_status();
       return entity;
     }

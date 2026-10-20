@@ -68,6 +68,13 @@ export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {
   // 会话态归 `@aiao/rxdb-plugin-history` 管。这里不做存在性判断：`AdapterFactory` 的契约
   // 要求交出的实例已装该插件，没装就该在这一行炸掉，而不是把一批脏会话态悄悄带进下一条用例。
   adapter.rxdb.versionManager.resetSessionState();
+  // 清空之后，下一条用例的第一次写入要靠变更行的记录时间（毫秒）**严格晚于**清空时刻，才能把
+  // undo 会话恢复过来：同一毫秒里的写入分不清是清空前迟到的通知还是清空后的新写入，一律不恢复
+  // （`HistoryManager.resetSyncCleared`）。不等时钟走过这一毫秒，紧接着的写入就可能撞上它，
+  // 那条用例的撤销数一直是 0。从前清库后的行号回查要排队查一趟库，碰巧拖过了这一毫秒；
+  // US-222 起关掉变更日志的表的删除不再回查，这个等待就得写明。
+  const clearedAt = Date.now();
+  while (Date.now() <= clearedAt) await new Promise(resolve => setTimeout(resolve, 1));
   await Promise.resolve();
   await adapter.query('SELECT 1;');
 };
