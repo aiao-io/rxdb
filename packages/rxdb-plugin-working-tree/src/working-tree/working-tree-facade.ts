@@ -502,7 +502,7 @@ export class WorkingTreeManager {
     });
     if (!precheck.ok) return precheck;
     await assert_branch_id_free_on_remote(this.#rxdb.versionManager, branchId);
-    return this.runEnabled(async executor => {
+    const result = await this.runEnabled(async executor => {
       await assertBranchIdFreeLocally(executor, branchId);
       const plan = await planBranchFromCommit(executor, commitId);
       if (!plan.ok) return plan;
@@ -512,8 +512,12 @@ export class WorkingTreeManager {
         fromChangeId: plan.forkPoint.changeId,
         fromCommitId: commitId
       });
-      return { ok: true, branch };
+      return { ok: true as const, branch };
     });
+    // 新分支可能继承了当前分支上的变更：撤销 / 重做的视图要跟着停到分叉点（US-315）。分支行不写变更日志，
+    // 历史插件收不到这次写，只能在事务提交之后显式通知
+    if (result.ok) this.#rxdb.versionManager.refreshChildForks();
+    return result;
   }
 
   /**

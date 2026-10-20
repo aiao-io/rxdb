@@ -44,10 +44,12 @@ INVEST 检查清单:
 ## 根因
 
 - `RxDBBranch` 声明 `log: false`（`packages/rxdb/src/system/branch.ts`），没有变更日志触发器。
-- 适配器的本地实体事件（`EntityLocalCreatedEvent` / `EntityLocalUpdatedEvent` / `EntityLocalRemovedEvent`）由变更日志行推导
-  （各适配器的 `handle_rxdb_change.ts`）；没有变更日志的实体，删行推不出事件。
-- `remove_branch` 在事务里用 `executor.removeMany([...变更行, 分支行])` 删掉分支行，活查询收不到这次删除。
-- 建分支能被看到走的是另一条路径，具体是哪一条还没追到；修之前要先查清，不然只改一半，插入也可能跟着失效。
+- 写变更日志的实体，本地事件（`EntityLocalCreatedEvent` / `EntityLocalUpdatedEvent` / `EntityLocalRemovedEvent`）由变更日志行推导，
+  删除带着 `inversePatch`。不写变更日志的表走另一条路：SQLite 系靠 `update_hook`、PGlite 靠 `NOTIFY`，只拿到被改的行号，
+  `handle_rxdb_change.ts` 再按行号回查行、据此派事件（sqlite-core 的 `handle_system_table`，PGlite 的 `dispatchEntityTableEvent`）。
+- 插入、更新时回查得到行，事件里有实体；**删除时行已经没了，回查为空**：sqlite-core 派出一个不含实体的删除事件，PGlite 直接不派。
+  活查询无从删起。建分支能被看到、删分支看不到，就是这个差别。
+- `remove_branch` 在事务里用 `executor.removeMany([...变更行, 分支行])` 删掉分支行，正落在这条路上。
 - 同样的原因也让激活状态的变化不一定传到活查询：`findOne({ activated: true })` 这类查询在来回切分支、再清库之后可能停在旧分支上
   （US-315 的共享套件在 SQLite 系与 Tauri 上实测）。`VersionManager` 切分支后显式调 `HistoryManager.setUndoBranch()`，就是因为不能信它。
 - 同样声明 `log: false` 的还有 storage 插件的 `StorageFileMeta`（[US-311](../collaboration/US-311-unlogged-entities-scope.md)），
@@ -67,10 +69,10 @@ INVEST 检查清单:
 
 ## 修复方向（待 owner 定）
 
-| 修法                                     | 做法                                                                                                     | 代价                                                                                        |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| A 适配器为 `log: false` 实体补派本地事件 | mutations 落库之后按写下的行，为 `log: false` 实体派发 created / updated / removed（不经变更日志）       | 修一次覆盖所有 `log: false` 实体；动六个后端的事件派发路径，要防住 `log: true` 实体被派两次 |
-| B 分支拓扑单独通知                       | 建、删、合并删源分支之后由 `VersionManager` 派一个分支变更信号，分支列表的活查询（或它的订阅方）据此重查 | 只修分支表，改动集中在历史插件；其余 `log: false` 实体的同类问题另算                        |
+| 修法                         | 做法                                                                                                                                              | 代价                                                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| A 批量删除路径直接派删除事件 | `rxdb_adapter_mutations` 删行时手里就有被删的实体：对不写变更日志的实体，在事务提交之后按这些实体派 `EntityLocalRemovedEvent`；行号回查那条路不动 | 覆盖所有不写变更日志的实体；只有两份实现（sqlite-core 供 SQLite 系与 Tauri，PGlite 一份）；裸 SQL 删行照旧看不见（只有测试清库这么删） |
+| B 分支拓扑单独通知           | 建、删、合并删源分支之后由 `VersionManager` 派一个分支变更信号，分支列表的活查询（或它的订阅方）据此重查                                          | 只修分支表，改动集中在历史插件；其余不写变更日志的实体同样的问题另算                                                                   |
 
 ## 验收标准
 
@@ -85,10 +87,10 @@ INVEST 检查清单:
 
 ## 技术笔记
 
-- **US-315 的绕行**：历史插件的子分支分叉点不信分支表活查询的结果，只把它的发出当成信号，每次现查库里的激活分支与它的子分支；
-  建、删、合并分支之后由 `VersionManager` 调 `HistoryManager.refreshChildForks()` 补一次信号，切分支时 `setUndoBranch()` 也补
-  （[US-315](../collaboration/US-315-undo-inherited-change-switch-corruption.md)）。本故事修好之后，补信号的那几处可以去掉；
-  现查要保留，因为增量合并出来的结果靠不靠得住，取决于事件派没派到。
+- **US-315 的绕行**：历史插件的子分支分叉点不订阅分支表的活查询，每次现查库里的激活分支与它的子分支，
+  在建、删、合并、切分支与从提交建分支之后显式重查（[US-315](../collaboration/US-315-undo-inherited-change-switch-corruption.md)）。
+  常驻一条「全部分支」的活查询会被别人同条件的查询共用：sqlite / sqliteai 上建分支的事件也没送到，共用的缓存停在旧值，
+  检出位一致性套件因此读到 `['main']`。插入在这两个后端上也靠不住，修的时候要一并核对。
 - **来源**：US-315 补「删掉子分支之后限制解除」用例时，撤销视图在删分支之后不更新，追下去是这条活查询收不到删除。
 
 ## 实现文件

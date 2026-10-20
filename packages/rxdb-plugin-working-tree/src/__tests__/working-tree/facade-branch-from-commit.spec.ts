@@ -29,8 +29,8 @@ const FORK_POINT = { id: 'c1', branchId: 'main', changeId: 7 } as unknown as Com
 
 let scene: WorkingTreeScene;
 let created: RxDBBranch;
-/** 本场景没装历史插件，远端查重读的 `versionManager` 用一个记得住身份的替身 */
-const versionManager = { name: 'version-manager-stub' };
+/** 本场景没装历史插件：远端查重读的 `versionManager` 用一个记得住身份的替身，建好之后通知它重查分叉点（US-315） */
+const versionManager = { name: 'version-manager-stub', refreshChildForks: vi.fn() };
 
 beforeEach(() => {
   scene = createWorkingTreeScene();
@@ -77,6 +77,8 @@ describe('createBranchFromCommit', () => {
       fromChangeId: 7,
       fromCommitId: 'c1'
     });
+    // 新分支可能继承了当前分支的变更：建好之后通知历史插件重查撤销 / 重做的分叉点
+    expect(versionManager.refreshChildForks).toHaveBeenCalledOnce();
   });
 
   it('第一笔就被拒：交回成因，不发远端查重，不写', async () => {
@@ -88,6 +90,7 @@ describe('createBranchFromCommit', () => {
     });
     expect(vi.mocked(assert_branch_id_free_on_remote)).not.toHaveBeenCalled();
     expect(vi.mocked(write_new_branch)).not.toHaveBeenCalled();
+    expect(versionManager.refreshChildForks).not.toHaveBeenCalled();
   });
 
   it('远端查重之后库变了、第二笔重判被拒：交回新的成因，不写', async () => {

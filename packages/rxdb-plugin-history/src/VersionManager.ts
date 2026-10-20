@@ -256,8 +256,21 @@ export class VersionManager {
    */
   async createBranch(branchId: string, fromChangeId?: number): Promise<InstanceType<typeof RxDBBranch>> {
     const branch = await create_branch(this, branchId, fromChangeId);
-    this.historyManager.refreshChildForks();
+    this.refreshChildForks();
     return branch;
+  }
+
+  /**
+   * 分支拓扑变了，重查撤销 / 重做视图用的子分支分叉点（US-315）。
+   *
+   * @remarks
+   * 本类自己的建、删、合并、切分支已经调过；给经别的路径写分支行的插件用（工作树插件的从提交建分支）。
+   * 分支表不写变更日志，活查询看不见这些写，只能显式通知。只影响视图：`undo()` / `redo()` 执行前本来就现查。
+   *
+   * @internal
+   */
+  refreshChildForks(): void {
+    this.historyManager.refreshChildForks();
   }
 
   /**
@@ -267,7 +280,7 @@ export class VersionManager {
   async removeBranch(branchId: string): Promise<void> {
     await remove_branch(this, branchId);
     // 被它继承的变更重新可撤销；分支表不写变更日志，活查询看不见这次删除，得显式重查
-    this.historyManager.refreshChildForks();
+    this.refreshChildForks();
   }
 
   /**
@@ -415,7 +428,7 @@ export class VersionManager {
         this.historyManager.clearUndoHistory();
       }
       // 合并可能顺手删了源分支（`deleteSource`），它是当前分支的子分支时分叉点跟着变
-      this.historyManager.refreshChildForks();
+      this.refreshChildForks();
 
       this.rxdb.dispatchEvent(new MergeBranchCommitEvent(sourceBranchId, targetBranchId));
       return result;

@@ -161,7 +161,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.switchBranch',
     intent: TrustedWriteIntent.branch_materialization,
     entrance: 'projection_rewrite',
-    verifiedAtLine: 280
+    verifiedAtLine: 331
   },
   {
     file: 'restore-entity.ts',

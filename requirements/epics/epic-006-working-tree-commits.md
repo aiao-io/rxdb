@@ -369,7 +369,7 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 
 | #   | 文件（基名）            | 符号                        | 写原语                            | 行   | 意图          | 产生工作树单元 |
 | --- | ----------------------- | --------------------------- | --------------------------------- | ---- | ------------- | -------------- |
-| 1   | `VersionManager.ts`     | `switchBranch`              | `adapter.switchBranch`            | 280  | 分支物化      | **不产生**     |
+| 1   | `VersionManager.ts`     | `switchBranch`              | `adapter.switchBranch`            | 331  | 分支物化      | **不产生**     |
 | 2   | `restore-entity.ts`     | `restore_entity`            | `executor.mergeChanges(…, false)` | 94   | 实体恢复      | **必须产生**   |
 | 3   | `HistoryManager.ts`     | `invalidateRedoStack`       | `adapter.switchBranch`            | 661  | redo 失效标记 | **不产生**     |
 | 4   | `undo-redo-apply.ts`    | `applyUndoRedoHistories`    | `adapter.switchBranch`            | 204  | 撤销 / 重做   | **必须产生**   |

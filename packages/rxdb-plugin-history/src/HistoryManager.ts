@@ -21,11 +21,11 @@ import {
   firstValueFrom,
   from,
   map,
-  merge,
   NEVER,
   Observable,
   ReplaySubject,
   shareReplay,
+  startWith,
   Subject,
   Subscription,
   switchMap,
@@ -154,7 +154,8 @@ export class HistoryManager {
    * 当前分支的子分支分叉点，由活查询喂（US-315）。
    *
    * @remarks
-   * 第一次查回来之前、以及刚换分支时是空的：此时撤销 / 重做的**视图**可能把被继承的项算成可撤销的。
+   * 第一次查回来之前、以及刚换分支时是空的；别的标签页、别的路径建出的子分支要等下一次重查或一次撤销 / 重做才看得到。
+   * 这些时候撤销 / 重做的**视图**可能把被继承的项算成可撤销的。
    * 执行不看它——`undo()` / `redo()` 现查分叉点，写事务里再按事务内读到的复核一次。
    */
   readonly #childForks$ = new BehaviorSubject<ChildFork[]>([]);
@@ -225,18 +226,14 @@ export class HistoryManager {
     );
 
     // 当前分支的子分支分叉点：不晚于它的变更已被子分支继承，撤销 / 重做都停在这里（US-315）。
-    // 不跟着历史流重算：建分支、删分支不写变更日志，历史流不会因此再发一次。
-    // 每次都现查「库里当前激活的分支 + 它的子分支」，分支表的活查询与 {@link refreshChildForks} 只当信号：
-    // 分支表不写变更日志，适配器派不出它的事件——删分支看不见，切分支后 `current_branch$` 也可能停在旧分支上，
-    // 按它给的分支 id 去查，会把别的分支的子分支当成当前分支的（增量合并出来的行同样靠不住）。
+    // 每次都现查「库里当前激活的分支 + 它的子分支」；连上时查一次，此后只在 {@link refreshChildForks} 时重查，
+    // `undo()` / `redo()` 执行时现查到的也写回来（见 {@link #publishChildForks}）。
+    // 不订阅分支表的活查询：它不写变更日志，适配器派不出它的事件，有的后端连建分支都看不见、删分支一律看不见；
+    // 常驻一条还会被别人同条件的查询共用，把旧缓存发给它们（工作树的一致性套件在 sqlite / sqliteai 上撞过）。
     this.#subscriptions.push(
       this.rxdb.connected$
         .pipe(
-          switchMap(connected =>
-            connected ?
-              merge(branchRepository.findAll({ where: { combinator: 'and', rules: [] } }), this.#childForksRefresh$)
-            : NEVER
-          ),
+          switchMap(connected => (connected ? this.#childForksRefresh$.pipe(startWith(undefined)) : NEVER)),
           // 一次查询失败只报出去、保留上一次的分叉点，不让整条流就此停摆
           switchMap(() =>
             from(this.#fetch_child_forks()).pipe(
@@ -249,10 +246,7 @@ export class HistoryManager {
           takeUntil(this.#destroy$)
         )
         .subscribe({
-          // 没变就不推：每推一次，撤销视图就要再查一遍同步水位
-          next: forks => {
-            if (!sameChildForks(forks, this.#childForks$.value)) this.#childForks$.next(forks);
-          },
+          next: forks => this.#publishChildForks(forks),
           error: error => this.#reportStreamError('子分支分叉点的查询已中断', error)
         })
     );
@@ -474,8 +468,8 @@ export class HistoryManager {
    * 重查当前分支的子分支分叉点，刷新撤销 / 重做的视图（US-315）。
    *
    * @remarks
-   * 分支表不写变更日志，适配器派不出它的事件，分支表的活查询看不见删分支；建分支、删分支、合并（可能删源分支）之后由
-   * `VersionManager` 调这里补一次，换分支时 {@link setUndoBranch} 也调。只影响视图：`undo()` / `redo()` 执行前本来就现查。
+   * 分支表不写变更日志，适配器派不出它的事件，靠不上活查询；建分支、删分支、合并（可能删源分支）之后由 `VersionManager`
+   * 调这里补一次，换分支时 {@link setUndoBranch} 也调。只影响视图：`undo()` / `redo()` 执行前本来就现查。
    *
    * @internal
    */
@@ -797,10 +791,12 @@ export class HistoryManager {
   async #fetch_latest_histories(
     undoBoundary: UndoBoundary
   ): Promise<{ histories: HistoryItem[]; lastPushedMap: Map<string, number>; forks: ChildFork[] }> {
-    return fetchLatestHistories(this.#applyHost, undoBoundary);
+    const latest = await fetchLatestHistories(this.#applyHost, undoBoundary);
+    this.#publishChildForks(latest.forks);
+    return latest;
   }
 
-  /** 绕过活查询，直接查当前分支的子分支分叉点（重做执行前用） */
+  /** 直接查当前分支的子分支分叉点，查到的顺手写回视图 */
   async #fetch_child_forks(): Promise<ChildFork[]> {
     const { branchRepository } = await this.rxdb.versionManager.getLocalRepositories();
     const [branch] = await branchRepository.find({
@@ -810,7 +806,20 @@ export class HistoryManager {
       },
       limit: 1
     });
-    return branch ? fetchChildForks(branchRepository, branch.id) : [];
+    const forks = branch ? await fetchChildForks(branchRepository, branch.id) : [];
+    this.#publishChildForks(forks);
+    return forks;
+  }
+
+  /**
+   * 把现查到的分叉点写回视图；没变就不推，每推一次撤销视图都要再查一遍同步水位。
+   *
+   * @remarks
+   * `undo()` / `redo()` 执行前现查的结果也走这里：别的标签页、别的路径建出的子分支本标签页收不到信号，
+   * 用户一点撤销，视图就跟着纠正过来，而不是停在一个点了没反应的按钮上。
+   */
+  #publishChildForks(forks: ChildFork[]): void {
+    if (!sameChildForks(forks, this.#childForks$.value)) this.#childForks$.next(forks);
   }
 
   readonly #onRepositorySyncComplete = () => {
