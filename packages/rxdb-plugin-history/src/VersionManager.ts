@@ -255,7 +255,9 @@ export class VersionManager {
    * @param fromChangeId 从哪个 changeId 创建新分支
    */
   async createBranch(branchId: string, fromChangeId?: number): Promise<InstanceType<typeof RxDBBranch>> {
-    return create_branch(this, branchId, fromChangeId);
+    const branch = await create_branch(this, branchId, fromChangeId);
+    this.historyManager.refreshChildForks();
+    return branch;
   }
 
   /**
@@ -263,7 +265,9 @@ export class VersionManager {
    * @param branchId 分支 id
    */
   async removeBranch(branchId: string): Promise<void> {
-    return remove_branch(this, branchId);
+    await remove_branch(this, branchId);
+    // 被它继承的变更重新可撤销；分支表不写变更日志，活查询看不见这次删除，得显式重查
+    this.historyManager.refreshChildForks();
   }
 
   /**
@@ -410,6 +414,8 @@ export class VersionManager {
       if (result.merged > 0) {
         this.historyManager.clearUndoHistory();
       }
+      // 合并可能顺手删了源分支（`deleteSource`），它是当前分支的子分支时分叉点跟着变
+      this.historyManager.refreshChildForks();
 
       this.rxdb.dispatchEvent(new MergeBranchCommitEvent(sourceBranchId, targetBranchId));
       return result;

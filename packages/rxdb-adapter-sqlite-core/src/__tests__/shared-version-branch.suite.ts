@@ -11,6 +11,7 @@ import {
   type SwitchVersionChange
 } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
+import { firstValueFrom } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { SQLITE_NOW_ISO_SQL } from '../sqlite-core.utils.js';
@@ -866,6 +867,75 @@ export function versionBranchSuite(factory: AdapterFactory) {
         const result = await rxdb.versionManager.mergeBranch('feature');
         expect(preview.merged).toBe(result.merged);
         expect(await todo_titles()).toEqual(['added', 'from-feature', 'title-from-feature']);
+      });
+    });
+
+    // ================================================================
+    // 4b. 撤销 / 重做与子分支（US-315）
+    // ================================================================
+    describe('已被子分支继承的变更不能撤销 / 重做（US-315）', () => {
+      const titleOf = async (id: Todo['id']) =>
+        (
+          await adapter.getRepository(Todo).find({
+            where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: id }] }
+          })
+        )[0]?.title;
+
+      const inheritedBy = (...branchIds: string[]) => ({ reason: 'inherited_by_branch', branchIds });
+
+      afterEach(async () => await cleanup_db(adapter));
+
+      it('父分支撤销不了子分支已继承的变更：撤销栈停在分叉点并说明原因，切换往返之后 main 仍是撤销前的值', async () => {
+        const todo = new Todo();
+        todo.title = 'a';
+        await todo.save();
+        todo.title = 'b';
+        await todo.save();
+        await rxdb.versionManager.createBranch('feature');
+        await rxdb.versionManager.switchBranch('feature');
+        todo.title = 'c';
+        await todo.save();
+        await rxdb.versionManager.switchBranch('main');
+
+        const history = rxdb.versionManager.history();
+        await expect.poll(() => firstValueFrom(history.undoCount$)).toBe(0);
+        expect(await firstValueFrom(history.undoBarrier$)).toEqual(inheritedBy('feature'));
+        await history.undo();
+        expect(await titleOf(todo.id)).toBe('b');
+
+        await rxdb.versionManager.switchBranch('feature');
+        expect(await titleOf(todo.id)).toBe('c');
+        await rxdb.versionManager.switchBranch('main');
+        expect(await titleOf(todo.id)).toBe('b');
+      });
+
+      it('重做同理：分叉时还撤销着、却落在继承范围里的变更不能重做', async () => {
+        const x = new Todo();
+        x.title = 'x1';
+        await x.save();
+        const y = new Todo();
+        y.title = 'y';
+        await y.save();
+        x.title = 'x2';
+        await x.save();
+        const scoped = rxdb.versionManager.history(x);
+        // 撤销会话被别的操作清空过的话，靠这里的本地写入异步恢复：等两步都可撤销了再撤
+        await expect.poll(() => firstValueFrom(scoped.undoCount$)).toBe(2);
+        await scoped.undo();
+        await scoped.undo();
+        expect(await titleOf(x.id)).toBeUndefined();
+        await rxdb.versionManager.createBranch('feature');
+
+        await expect.poll(() => firstValueFrom(scoped.redoCount$)).toBe(0);
+        expect(await firstValueFrom(scoped.redoBarrier$)).toEqual(inheritedBy('feature'));
+        await scoped.redo();
+        expect(await titleOf(x.id)).toBeUndefined();
+
+        await rxdb.versionManager.switchBranch('feature');
+        expect(await titleOf(x.id)).toBeUndefined();
+        expect(await titleOf(y.id)).toBe('y');
+        await rxdb.versionManager.switchBranch('main');
+        expect(await titleOf(x.id)).toBeUndefined();
       });
     });
 

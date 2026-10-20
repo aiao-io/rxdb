@@ -177,7 +177,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.switchBranch',
     intent: TrustedWriteIntent.redo_invalidation,
     entrance: 'projection_rewrite',
-    verifiedAtLine: 537
+    verifiedAtLine: 661
   },
   {
     file: 'undo-redo-apply.ts',
@@ -185,7 +185,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.switchBranch',
     intent: TrustedWriteIntent.undo_redo,
     entrance: 'domain_recompute',
-    verifiedAtLine: 171
+    verifiedAtLine: 204
   },
   {
     file: 'merge-branch.ts',

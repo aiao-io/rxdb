@@ -16,6 +16,7 @@ import {
   commitRowMove,
   defaultListOrderBy,
   deriveEntityCapabilities,
+  describeHistoryBarrier,
   extractFieldsFromMetadata,
   organizeFields,
   parsePropertyColumnValue,
@@ -254,9 +255,13 @@ export class EntityListComponent {
   readonly #vHistory = (this.#rxdb as unknown as { versionManager?: VersionManager }).versionManager?.history() ?? {
     undoCount$: of(0),
     redoCount$: of(0),
+    undoBarrier$: of(null),
+    redoBarrier$: of(null),
     undo: async () => undefined,
     redo: async () => undefined
   };
+  readonly #undoBarrier = toSignal(this.#vHistory.undoBarrier$, { initialValue: null });
+  readonly #redoBarrier = toSignal(this.#vHistory.redoBarrier$, { initialValue: null });
   readonly #entityKey = computed(() => `${this.namespace()}:${this.name()}`);
   readonly #currentList = signal<InfiniteScrollingList<EntityType> | undefined>(undefined);
 
@@ -411,6 +416,10 @@ export class EntityListComponent {
   readonly redoCount = toSignal(this.#vHistory.redoCount$, { initialValue: 0 });
   readonly canUndo = computed(() => this.undoCount() > 0);
   readonly canRedo = computed(() => this.redoCount() > 0);
+  /** 撤销按钮停用时的说明：栈停在子分支分叉点（US-315）；能撤销或不是这个原因时为 `null` */
+  readonly undoHint = computed(() => (this.canUndo() ? null : describeHistoryBarrier('undo', this.#undoBarrier())));
+  /** 重做按钮停用时的说明，同 {@link undoHint} */
+  readonly redoHint = computed(() => (this.canRedo() ? null : describeHistoryBarrier('redo', this.#redoBarrier())));
 
   readonly queryBuilderFields = computed<FieldMetadata[]>(() => {
     const cls = this.#entityCls();

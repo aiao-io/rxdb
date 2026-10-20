@@ -1,9 +1,19 @@
-import { cloneEntityClasses, Entity, EntityBase, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
+import {
+  cloneEntityClasses,
+  Entity,
+  EntityBase,
+  PropertyType,
+  RelationKind,
+  RxDB,
+  type EntityType,
+  type HistoryScopeAPI
+} from '@aiao/rxdb';
 import { isRowDragEnabled, type EntityTableRecord } from '@aiao/rxdb-model';
 import { Account, AuditLog, Contract, Invoice, Task, Todo } from '@aiao/rxdb-test/entities';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { of } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityListComponent } from '../../entity-list/entity-list.component';
 import { QueryTableComponent } from '../../entity-table/query-table/query-table.component';
@@ -236,6 +246,29 @@ describe('EntityListComponent（真实组件）', () => {
     await vi.waitFor(() => {
       expect(component.tableRecords().map(r => r['title'])).toContain('changed');
     });
+  });
+
+  it('撤销 / 重做栈被子分支分叉点拦住：按钮停用并说明原因（US-315）', async () => {
+    const versionManager = (rxdb as unknown as { versionManager: { history(): HistoryScopeAPI } }).versionManager;
+    const inherited = { reason: 'inherited_by_branch' as const, branchIds: ['feature'] };
+    const history = vi.spyOn(versionManager, 'history').mockReturnValue({
+      ...versionManager.history(),
+      undoCount$: of(0),
+      redoCount$: of(0),
+      undoBarrier$: of(inherited),
+      redoBarrier$: of(inherited)
+    });
+    try {
+      const { fixture } = await renderList();
+      fixture.detectChanges();
+      const button = (label: string) =>
+        fixture.nativeElement.querySelector(`[aria-label="${label}"]`) as HTMLButtonElement;
+      expect(button('撤销 (Ctrl+Z)').disabled).toBe(true);
+      expect(button('撤销 (Ctrl+Z)').title).toBe('更早的改动已被分支 feature 继承，撤销不了');
+      expect(button('重做 (Ctrl+Shift+Z)').title).toBe('要重做的改动已被分支 feature 继承，重做不了');
+    } finally {
+      history.mockRestore();
+    }
   });
 
   /**

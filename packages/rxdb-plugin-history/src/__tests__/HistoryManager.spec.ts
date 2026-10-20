@@ -289,6 +289,7 @@ describe('HistoryManager - Class Methods', () => {
   let mockBranchRepository: {
     findOne: ReturnType<typeof vi.fn>;
     find: ReturnType<typeof vi.fn>;
+    findAll: ReturnType<typeof vi.fn>;
   };
   let mockChangeRepository: {
     count: ReturnType<typeof vi.fn>;
@@ -303,7 +304,9 @@ describe('HistoryManager - Class Methods', () => {
     const activeBranch = { id: 'main', activated: true };
     mockBranchRepository = {
       findOne: vi.fn().mockReturnValue(of(activeBranch)),
-      find: vi.fn().mockResolvedValue([activeBranch])
+      find: vi.fn().mockResolvedValue([activeBranch]),
+      // 子分支分叉点的活查询（US-315）：默认没有子分支
+      findAll: vi.fn().mockReturnValue(of([]))
     };
 
     mockChangeRepository = {

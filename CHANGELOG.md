@@ -12,9 +12,12 @@
 - **rxdb-plugin-working-tree:** 从提交建分支 `rxdb.workingTree.createBranchFromCommit(branchId, commitId)`：新分支的 HEAD 就是当前分支历史里的那个提交（与源分支共享之前的历史），工作树为空，切过去读到那次 `commit()` 刚完成时的数据；只建不切。`checkBranchFromCommit(commitId)` 先判建不建得了，被拒三种走返回值（`unreachable_target` / `fork_point_unknown` / `history_rewritten`）。分叉点在提交时同一事务记进新的系统表 `rxdb_commit_fork_point`，既有库连接时补建，补建之前的提交不能拿来建分支（US-314）
 - **rxdb-plugin-working-tree-angular / -react / -vue:** `useWorkingTree()` 新增 `checkBranchFromCommit()` / `createBranchFromCommit()` 与两格命令状态（US-314）
 - **rxdb:** 建分支上下文 `RxDBBranchCreationContext` 新增可选的 `fromCommitId`，原样转交给系统贡献方（US-314）
+- **rxdb:** `HistoryScopeAPI` 新增 `undoBarrier$` / `redoBarrier$`：撤销 / 重做栈停在子分支分叉点时给出原因（`{ reason: 'inherited_by_branch', branchIds }`），否则 `null`。自己实现 `HistoryScopeAPI` 的（如测试替身、没装历史插件时的兜底对象）要补上这两个成员（US-315）
+- **rxdb-model / -angular / -react / -vue:** 实体列表的撤销 / 重做按钮因子分支分叉点停用时，`title` 说明是哪条分支继承了下一步；文案在 `describeHistoryBarrier()`（US-315）
 
 ### 🩹 Fixes
 
+- **rxdb-plugin-history:** 父分支上已被子分支继承的变更（不晚于子分支分叉点的）不能再撤销 / 重做。此前父分支撤销了子分支分叉时继承、子分支随后又改过的变更，切到子分支再切回来，父分支读到撤销之前的值且不报错，对比与合并预览跟着失真。撤销栈现在停在分叉点，`undo()` / `redo()` 撤到那一步什么也不做；写事务里再按事务内读到的子分支复核一次。删掉继承它们的子分支之后限制解除（US-315）
 - **rxdb:** 多对多解绑后保存，中间行留在根实体的待删集合里；切走再切回来那一行被切换插回，下一次哪怕只改一个标量的 `save()` 都会把它再删一遍。两端都不记日志（`log: false`）时，生成的中间表也不再记日志（US-313）
 - **rxdb:** 只读实例与可写实例共用一个实体类时（核心系统实体每个实例都登记），`RxDBBranch.find()` 这类静态调用落到可写的那个，不再报多实例；两个可写实例共用一个类照旧报错（US-313）
 - **rxdb-adapter-pglite:** 断开时关掉 IdbFs 留着的 IndexedDB 连接，此前之后的 `deleteDatabase` 会一直卡在 `blocked`（US-313）

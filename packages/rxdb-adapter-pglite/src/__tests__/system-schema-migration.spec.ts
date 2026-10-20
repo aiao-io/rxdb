@@ -328,10 +328,14 @@ describe('PGlite system schema migration', () => {
     ).toHaveLength(1);
     await reopened.rxdb.versionManager.switchBranch('main');
 
+    // legacy-history 继承了这条旧 change：它在的时候撤销不了（US-315），删掉之后照常撤销
+    const legacyTodos = () =>
+      reopened.adapter.getRepository(PGliteLegacyTodo).find({ where: { combinator: 'and', rules: [] } });
     await reopened.rxdb.versionManager.history(PGliteLegacyTodo).undo();
-    expect(
-      await reopened.adapter.getRepository(PGliteLegacyTodo).find({ where: { combinator: 'and', rules: [] } })
-    ).toHaveLength(0);
+    expect(await legacyTodos()).toHaveLength(1);
+    await reopened.rxdb.versionManager.removeBranch('legacy-history');
+    await reopened.rxdb.versionManager.history(PGliteLegacyTodo).undo();
+    expect(await legacyTodos()).toHaveLength(0);
   });
 
   it('把旧 UUID entityId 升级为 text，保留旧 change，并且重复执行不改写水位', async () => {

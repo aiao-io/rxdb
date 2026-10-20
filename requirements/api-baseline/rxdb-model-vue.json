@@ -194,6 +194,10 @@
         "kind": "value"
       },
       {
+        "name": "describeHistoryBarrier",
+        "kind": "value"
+      },
+      {
         "name": "DetailFormTab",
         "kind": "type"
       },

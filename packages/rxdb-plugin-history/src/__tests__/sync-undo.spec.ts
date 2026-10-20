@@ -57,7 +57,9 @@ const createHarness = (): Harness => {
   const changes$ = new BehaviorSubject<RxDBChange[]>([]);
   const branchRepository = {
     find: vi.fn().mockResolvedValue([activeBranch]),
-    findOne: vi.fn(() => of(activeBranch))
+    findOne: vi.fn(() => of(activeBranch)),
+    // 子分支分叉点的活查询（US-315）：没有子分支
+    findAll: vi.fn(() => of([]))
   };
   const changeRepository = {
     count: vi.fn(() => of(0)),

@@ -120,12 +120,16 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
         ).toHaveLength(1);
         await adapter.rxdb.versionManager.switchBranch('main');
 
-        await history.undo();
-        expect(
-          await adapter.getRepository(Todo).find({
+        // legacy-history 继承了这条旧 change：它在的时候撤销不了（US-315），删掉之后照常撤销
+        const legacyTodos = () =>
+          adapter.getRepository(Todo).find({
             where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: legacyId }] }
-          })
-        ).toHaveLength(0);
+          });
+        await history.undo();
+        expect(await legacyTodos()).toHaveLength(1);
+        await adapter.rxdb.versionManager.removeBranch('legacy-history');
+        await history.undo();
+        expect(await legacyTodos()).toHaveLength(0);
         const firstWatermarks = await readWatermarks(adapter);
         expect(firstWatermarks.map(row => row[1])).toEqual(currentWatermarks);
         // 水位的 executedAt 与建表默认值同为 ISO-8601 UTC；裸 CURRENT_TIMESTAMP 的空格格式在 iOS 上解析失败

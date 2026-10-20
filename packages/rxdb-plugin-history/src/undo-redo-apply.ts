@@ -5,19 +5,20 @@ import {
   type HistoryItem,
   type IRepository,
   isAdapterShutdownError,
+  type LocalRxDBBranchRepository,
   type RxDB,
   type RxDBAdapterLocalBase,
   RxDBBranch,
   RxDBChange,
   type RxDBChangeRuleGroup,
+  RxDBError,
   RxDBSync,
   type RxDBSyncOrderByField,
   type RxDBSyncRuleGroup,
-  SKIP_BRANCH_SWITCH_PREPARE,
   TrustedWriteIntent
 } from '@aiao/rxdb';
 import { BehaviorSubject, firstValueFrom, Subject } from 'rxjs';
-import { buildLastPushedMap } from './history-filters.js';
+import { buildLastPushedMap, type ChildFork, childForksOf, inheritedFloorOf } from './history-filters.js';
 import { convertChangesToHistories } from './history-item-builder.js';
 import type { ActiveUndoSession, UndoBoundary } from './history-undo-session.types.js';
 import { get_switch_version_actions } from './switch-branch-actions.js';
@@ -50,11 +51,33 @@ export interface UndoRedoApplyHost {
   removeFromRedoStack(items: HistoryItem[]): HistoryItem[];
 }
 
-/** 绕过 Observable 缓存，直接查最新变更再转成历史项。 */
+/**
+ * 查一条分支的子分支分叉点。
+ *
+ * @param branchRepository - 查分支的仓库；在写事务里复核时传事务内的那一份
+ * @param branchId - 分支 id
+ * @returns 见 {@link childForksOf}
+ */
+export async function fetchChildForks(
+  branchRepository: LocalRxDBBranchRepository,
+  branchId: string
+): Promise<ChildFork[]> {
+  const children = await branchRepository.find({
+    where: {
+      combinator: 'and',
+      rules: [{ field: 'parentId', operator: '=', value: branchId }]
+    },
+    // 默认只取 100 行；少一条子分支就少一个分叉点，被它继承的变更就成了可撤销的
+    limit: Number.MAX_SAFE_INTEGER
+  });
+  return childForksOf(children, branchId);
+}
+
+/** 绕过 Observable 缓存，直接查最新变更再转成历史项；子分支分叉点一并查出。 */
 export async function fetchLatestHistories(
   host: UndoRedoApplyHost,
   undoBoundary: UndoBoundary
-): Promise<{ histories: HistoryItem[]; lastPushedMap: Map<string, number> }> {
+): Promise<{ histories: HistoryItem[]; lastPushedMap: Map<string, number>; forks: ChildFork[] }> {
   const { changeRepository: adapter, branchRepository } = await host.rxdb.versionManager.getLocalRepositories();
 
   const branches = await branchRepository.find({
@@ -65,10 +88,11 @@ export async function fetchLatestHistories(
   });
 
   if (branches.length === 0) {
-    return { histories: [], lastPushedMap: new Map() };
+    return { histories: [], lastPushedMap: new Map(), forks: [] };
   }
 
   const branch = branches[0];
+  const forks = await fetchChildForks(branchRepository, branch.id);
 
   const localAdapter = await firstValueFrom(host.rxdb.localAdapter$);
   const repoSyncRepo = getLocalRxDBSyncRepository(localAdapter);
@@ -105,13 +129,19 @@ export async function fetchLatestHistories(
     orderBy: [{ field: 'id', sort: 'desc' }]
   });
 
-  return { histories: convertChangesToHistories(allChanges), lastPushedMap };
+  return { histories: convertChangesToHistories(allChanges), lastPushedMap, forks };
 }
 
 /**
  * 应用 undo/redo：提取排序 → switchBranch actions → 元数据 → 身份检查 → 切分支 → 栈。
  *
  * undo 在 `adapter.switchBranch` 前必须做 session 对象身份检查。
+ *
+ * @remarks
+ * 调用方按选候选时读到的子分支分叉点排除了被继承的变更（US-315），但从选候选到写入之间，
+ * 另一个标签页可能刚从本分支建出子分支，这批变更就成了被继承的。写事务的前置钩子按事务内读到的
+ * 子分支再判一次，撞上就回滚：什么也不写、栈不动，与撤销 / 重做停在分叉点同一个结果，原因由
+ * `undoBarrier$` / `redoBarrier$` 给出。建分支与这次写入同在写队列里，二者只能一先一后。
  */
 export async function applyUndoRedoHistories(
   host: UndoRedoApplyHost,
@@ -128,6 +158,7 @@ export async function applyUndoRedoHistories(
 
     const actions = get_switch_version_actions(changes, operation === 'redo');
     const stateUpdatedAt = host.getNextRevertStateUpdatedAt(changes);
+    let redoInvalidationFloor: number | null = null;
 
     if (operation === 'undo') {
       const { adapter } = await host.rxdb.versionManager.getLocalRepositories();
@@ -148,7 +179,8 @@ export async function applyUndoRedoHistories(
         });
       });
       actions.updateRxDBChangeSequence = seq + changes.length;
-      host.redoInvalidationFloor = seq + changes.length;
+      // 写成功之后才抬水位：回滚了的话序列号没被占用，下一条本地变更正好落在水位之下，它的 redo 失效会被当成迟到通知跳过
+      redoInvalidationFloor = seq + changes.length;
     } else {
       changes.forEach(change => {
         const changeKey = `rxdb:RxDBChange:${change.id}`;
@@ -176,9 +208,29 @@ export async function applyUndoRedoHistories(
     });
     // 不传 branchId：回放只作用于当前分支。在事务外采样分支 id 会让这次写入在并发切换时
     // 把 activated 与全部触发器倒回旧分支（见 SwitchBranchOptions.branchId）。
-    // 分支一动不动，所以没有前置条件可校验——这里的豁免是一句「我确实不需要」，不是漏传。
-    await adapter.switchBranch({ actions, prepare: SKIP_BRANCH_SWITCH_PREPARE });
+    // 分支一动不动，前置条件只有一条：这批变更此刻还没被子分支继承。`targetBranchId` 就是当前分支。
+    // 回滚靠抛错，判没判中靠标志：适配器的事务包装层可能改写异常身份，不拿错误对象做比较。
+    let inherited = false;
+    try {
+      await adapter.switchBranch({
+        actions,
+        prepare: async ({ executor, targetBranchId }) => {
+          const branchRepository = executor.getRepository(RxDBBranch) as unknown as LocalRxDBBranchRepository;
+          const floor = inheritedFloorOf(await fetchChildForks(branchRepository, targetBranchId));
+          if (changes.some(change => change.id <= floor)) {
+            inherited = true;
+            throw new RxDBError(
+              `${operation} aborted: the changes were inherited by a child branch since they were selected`
+            );
+          }
+        }
+      });
+    } catch (error) {
+      if (inherited) return;
+      throw error;
+    }
 
+    if (redoInvalidationFloor !== null) host.redoInvalidationFloor = redoInvalidationFloor;
     host.pushableCountTrigger$.next(Date.now());
     host.setRevertStateWatermarks(changes, operation === 'undo', stateUpdatedAt);
 

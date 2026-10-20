@@ -6,9 +6,40 @@ import {
   type HistoryScopeAPI,
   RxDBEntityId
 } from '@aiao/rxdb';
-import { firstValueFrom, map, Observable, shareReplay } from 'rxjs';
-import { filterHistoriesByScope, filterUndoableHistories, getScopeKey } from './history-filters.js';
+import { distinctUntilChanged, map, Observable, shareReplay } from 'rxjs';
+import {
+  type ChildFork,
+  filterHistoriesByScope,
+  getScopeKey,
+  type HistoryBarrier,
+  historyBarrierOf,
+  inheritedFloorOf,
+  isHistoryShownInScope,
+  partitionUndoableHistories,
+  splitRedoableHistories,
+  type UndoablePartition
+} from './history-filters.js';
 import type { ActiveUndoSession, UndoBoundary, UndoSession } from './history-undo-session.types.js';
+
+/** 当前分支的撤销状态：两组历史（整库口径），连同算它们用的子分支分叉点 */
+export interface UndoState extends UndoablePartition {
+  readonly forks: ChildFork[];
+}
+
+/** 原始重做栈（栈顶在前），连同当前分支的子分支分叉点 */
+export interface RedoState {
+  readonly stack: HistoryItem[];
+  readonly forks: ChildFork[];
+}
+
+/** 拦住栈的原因是否相同：同一组子分支就不必再通知一次 */
+const sameBarrier = (a: HistoryBarrier | null, b: HistoryBarrier | null): boolean =>
+  a === b ||
+  (a !== null &&
+    b !== null &&
+    a.branchIds.length === b.branchIds.length &&
+    a.branchIds.every((branchId, index) => branchId === b.branchIds[index]));
+
 /**
  * `history()` 工厂所需的可变状态与委托。
  *
@@ -18,14 +49,19 @@ export interface HistoryScopeApiHost {
   readonly history_cache: Map<string, HistoryScopeAPI>;
   readonly history_ref_counts: Map<string, number>;
   readonly histories$: Observable<HistoryItem[]>;
-  readonly undoHistories$: Observable<HistoryItem[]>;
-  readonly redoHistories$: Observable<HistoryItem[]>;
+  readonly undoState$: Observable<UndoState>;
+  readonly redoState$: Observable<RedoState>;
   readonly undoSession$: { readonly value: UndoSession };
+  /** 原始重做栈的当前快照（栈顶在前） */
+  redoStackSnapshot(): HistoryItem[];
   runSerialized<T>(task: () => Promise<T>): Promise<T>;
   fetchLatestHistories(boundary: UndoBoundary): Promise<{
     histories: HistoryItem[];
     lastPushedMap: Map<string, number>;
+    forks: ChildFork[];
   }>;
+  /** 直接查当前分支的子分支分叉点 */
+  fetchChildForks(): Promise<ChildFork[]>;
   isUndoSessionCurrent(session: ActiveUndoSession): boolean;
   selectWholeTransactions(histories: HistoryItem[], scope: HistoryScope, step: number): HistoryItem[];
   applyUndoRedoHistories(
@@ -117,15 +153,51 @@ export function createHistoryScopeApi<T extends EntityType>(
     shareReplay({ bufferSize: 1, refCount: true })
   );
   const scoped_histories$ = wrapObservable(base_histories$);
+
+  // 被继承的历史项都比可撤销的早，作用域里最新的那一项就是撤销栈下一步会撞上的
+  const scoped_undo_state$ = host.undoState$.pipe(
+    map(({ undoable, inherited, forks }) => {
+      const blockedBy = inherited.find(history => isHistoryShownInScope(history, scope));
+      return {
+        histories: filterHistoriesByScope(undoable, scope),
+        barrier: blockedBy === undefined ? null : historyBarrierOf(blockedBy, forks)
+      };
+    }),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+  const scoped_redo_state$ = host.redoState$.pipe(
+    map(({ stack, forks }) => {
+      const { redoable, blockedBy } = splitRedoableHistories(stack, scope, inheritedFloorOf(forks));
+      return {
+        histories: filterHistoriesByScope(redoable, scope),
+        barrier: blockedBy === null ? null : historyBarrierOf(blockedBy, forks)
+      };
+    }),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
   const scoped_undo_histories$ = wrapObservable(
-    host.undoHistories$.pipe(
-      map(histories => filterHistoriesByScope(histories, scope)),
+    scoped_undo_state$.pipe(
+      map(state => state.histories),
       shareReplay({ bufferSize: 1, refCount: true })
     )
   );
   const scoped_redo_histories$ = wrapObservable(
-    host.redoHistories$.pipe(
-      map(histories => filterHistoriesByScope(histories, scope)),
+    scoped_redo_state$.pipe(
+      map(state => state.histories),
+      shareReplay({ bufferSize: 1, refCount: true })
+    )
+  );
+  const scoped_undo_barrier$ = wrapObservable(
+    scoped_undo_state$.pipe(
+      map(state => state.barrier),
+      distinctUntilChanged(sameBarrier),
+      shareReplay({ bufferSize: 1, refCount: true })
+    )
+  );
+  const scoped_redo_barrier$ = wrapObservable(
+    scoped_redo_state$.pipe(
+      map(state => state.barrier),
+      distinctUntilChanged(sameBarrier),
       shareReplay({ bufferSize: 1, refCount: true })
     )
   );
@@ -156,20 +228,23 @@ export function createHistoryScopeApi<T extends EntityType>(
     count$: scoped_count$,
     undoCount$: scoped_undo_count$,
     redoCount$: scoped_redo_count$,
+    undoBarrier$: scoped_undo_barrier$,
+    redoBarrier$: scoped_redo_barrier$,
 
     undo: (step = 1) =>
       host.runSerialized(async () => {
         const undoSession = host.undoSession$.value;
         if (undoSession.state === 'cleared') return;
 
-        const { histories, lastPushedMap } = await host.fetchLatestHistories(undoSession.boundary);
+        const { histories, lastPushedMap, forks } = await host.fetchLatestHistories(undoSession.boundary);
         if (!host.isUndoSessionCurrent(undoSession)) return;
 
-        const undoable = filterUndoableHistories(
+        const { undoable } = partitionUndoableHistories(
           histories,
           lastPushedMap,
           undoSession.boundary.changeId,
-          undoSession.boundary.createdAfter
+          undoSession.boundary.createdAfter,
+          inheritedFloorOf(forks)
         );
         const toUndo = host.selectWholeTransactions(undoable, scope, step);
         if (toUndo.length === 0) return;
@@ -178,8 +253,10 @@ export function createHistoryScopeApi<T extends EntityType>(
 
     redo: (step = 1) =>
       host.runSerialized(async () => {
-        const histories = await firstValueFrom(host.redoHistories$);
-        const toRedo = host.selectWholeTransactions(histories, scope, step);
+        // 分叉点现查：活查询可能还没跟上刚建的子分支
+        const forks = await host.fetchChildForks();
+        const { redoable } = splitRedoableHistories(host.redoStackSnapshot(), scope, inheritedFloorOf(forks));
+        const toRedo = host.selectWholeTransactions(redoable, scope, step);
         if (toRedo.length === 0) return;
         await host.applyUndoRedoHistories('redo', toRedo);
       })

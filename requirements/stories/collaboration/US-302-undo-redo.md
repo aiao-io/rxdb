@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-002-data-sync
 created: 2025-12-08
-updated: 2026-09-20
+updated: 2026-10-20
 tags: [collaboration, undo]
 ---
 
@@ -54,6 +54,8 @@ tags: [collaboration, undo]
 - 失效逻辑：undo 后执行新操作，清空 redo 栈
 - 事务级撤销：同一事务内所有变更一起撤销
 - 存储：undo 历史来自数据库中的 `RxDBChange` 表（刷新后仍可 undo）；redo 栈仅存在于内存，刷新即清空
+- 子分支分叉点：当前分支上不晚于某条子分支分叉点的变更已被子分支继承，undo / redo 都停在那里，原因由 `undoBarrier$` / `redoBarrier$` 给出；
+  删掉继承它们的子分支之后限制解除（[US-315](US-315-undo-inherited-change-switch-corruption.md)）
 
 ## 实现文件
 

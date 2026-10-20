@@ -221,18 +221,18 @@ CRUD 的前置条件，多标签页下所有在途 `save()` 都会失败，与 F
 US-306 US2-AC8（其他 realm 编辑同一实体属正常行为）直接冲突。`activationRevision` 则相反：它是调用方捕获型，
 因为「实体属于哪个分支」必须以读取时的分支为准，这正是 `stale_active_branch` 的判据。
 
-| 操作                      | 同一事务必须校验                                                              | 成功后递增                                                   |
-| ------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| 普通 INSERT/UPDATE/DELETE | active branch token（捕获型）；working-tree revision 读改写                   | working-tree revision                                        |
-| remote entity apply       | active branch token（捕获型）、sync 水位；working-tree revision 读改写        | 有实体净变化时递增 working-tree revision                     |
-| merge / undo / redo       | active branch token、expected working-tree + 操作自身 revision                | 有逻辑工作树变化时递增 working-tree revision                 |
-| commit                    | active branch token、expected head + working-tree revision                    | head、working-tree revision                                  |
-| restore                   | active branch token、expected head + working-tree revision                    | working-tree revision                                        |
-| discard                   | active branch token、expected head + working-tree revision                    | working-tree revision                                        |
-| switch branch             | expected activation revision、来源/目标分支状态或物化快照                     | activation revision                                          |
-| create branch             | active branch token、来源 head + working-tree revision                        | 新 ref/state 从 revision 0 开始；来源状态不变                |
-| create branch from commit | active branch token；目标在 HEAD 可达父链上、分叉点之前那段谱系的回滚状态未变 | 新 ref/state 从 revision 0 开始、HEAD 是该提交；来源状态不变 |
-| remove branch             | expected activation revision、目标 ref/state revision、非 active              | 原子删除目标可变状态；revision 不复用                        |
+| 操作                      | 同一事务必须校验                                                                                                 | 成功后递增                                                   |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| 普通 INSERT/UPDATE/DELETE | active branch token（捕获型）；working-tree revision 读改写                                                      | working-tree revision                                        |
+| remote entity apply       | active branch token（捕获型）、sync 水位；working-tree revision 读改写                                           | 有实体净变化时递增 working-tree revision                     |
+| merge / undo / redo       | active branch token、expected working-tree + 操作自身 revision；undo / redo 另验这批变更未被子分支继承（US-315） | 有逻辑工作树变化时递增 working-tree revision                 |
+| commit                    | active branch token、expected head + working-tree revision                                                       | head、working-tree revision                                  |
+| restore                   | active branch token、expected head + working-tree revision                                                       | working-tree revision                                        |
+| discard                   | active branch token、expected head + working-tree revision                                                       | working-tree revision                                        |
+| switch branch             | expected activation revision、来源/目标分支状态或物化快照                                                        | activation revision                                          |
+| create branch             | active branch token、来源 head + working-tree revision                                                           | 新 ref/state 从 revision 0 开始；来源状态不变                |
+| create branch from commit | active branch token；目标在 HEAD 可达父链上、分叉点之前那段谱系的回滚状态未变                                    | 新 ref/state 从 revision 0 开始、HEAD 是该提交；来源状态不变 |
+| remove branch             | expected activation revision、目标 ref/state revision、非 active                                                 | 原子删除目标可变状态；revision 不复用                        |
 
 commit 成功后工作树清空并以新 HEAD 为基线，不存在需要 rebase 的残量。
 **commit 会因并发编辑而失败**：它捕获 `workingTreeRevision`，另一个 Tab 的 `save()` 推进该值即返回
@@ -244,6 +244,12 @@ commit 成功后工作树清空并以新 HEAD 为基线，不存在需要 rebase
 在「检测并阻止静默覆盖」这条前提下（见「非目标」），让用户刷新后重试是唯一诚实的出口。三框架入口 MUST 把这次
 失败呈现为**可重试**的提示、不得静默吞掉（归 US-306 阶段 C 的扩展点协议）。要改这条结论必须改本节，
 不能在某条 story 里把 undo/redo 悄悄改成读改写型。
+
+**undo/redo 不越过子分支的分叉点。** 当前分支上不晚于某条子分支分叉点的变更已被那条子分支继承：撤销或重做它们会让子分支
+记下的反向补丁过期，切回当前分支读到错值，对比与合并预览也跟着失真。撤销 / 重做的候选因此去掉它们，栈停在分叉点，原因由
+`undoBarrier$` / `redoBarrier$` 给出；写事务里按事务内读到的子分支再复核一次，挡住选候选之后才建出来的子分支
+（[US-315](../stories/collaboration/US-315-undo-inherited-change-switch-corruption.md)）。与 git「分支所基于的历史不改写」一致；
+删掉继承它们的子分支之后限制解除。
 
 `CommitConflict` 是一次失败命令的类型化诊断值，不是持久状态。普通 commit/switch CAS 失败只返回该值，
 不得把 `status()` 永久标成 conflicted；刷新后状态按最新持久 revision 重建。`status().conflicted` 只允许由仍存在的
@@ -365,8 +371,8 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 | --- | ----------------------- | --------------------------- | --------------------------------- | ---- | ------------- | -------------- |
 | 1   | `VersionManager.ts`     | `switchBranch`              | `adapter.switchBranch`            | 280  | 分支物化      | **不产生**     |
 | 2   | `restore-entity.ts`     | `restore_entity`            | `executor.mergeChanges(…, false)` | 94   | 实体恢复      | **必须产生**   |
-| 3   | `HistoryManager.ts`     | `invalidateRedoStack`       | `adapter.switchBranch`            | 537  | redo 失效标记 | **不产生**     |
-| 4   | `undo-redo-apply.ts`    | `applyUndoRedoHistories`    | `adapter.switchBranch`            | 171  | 撤销 / 重做   | **必须产生**   |
+| 3   | `HistoryManager.ts`     | `invalidateRedoStack`       | `adapter.switchBranch`            | 661  | redo 失效标记 | **不产生**     |
+| 4   | `undo-redo-apply.ts`    | `applyUndoRedoHistories`    | `adapter.switchBranch`            | 204  | 撤销 / 重做   | **必须产生**   |
 | 5   | `merge-branch.ts`       | `merge_branch`（逐条分支）  | `executor.mergeChanges(…, false)` | 196  | 逐条合并      | **必须产生**   |
 | 6   | `merge-branch.ts`       | `merge_branch`（压缩分支）  | `executor.mergeChanges(…, false)` | 236  | 压缩合并      | **必须产生**   |
 | 7   | `pull-batch.ts`         | `pullBatchOnce`             | `executor.mergeChanges(…, true)`  | 349  | `remote_sync` | **必须产生**   |
@@ -658,7 +664,8 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
 - [US-312 不切换分支就对比两条分支、预览一次合并（含覆盖标注）](../stories/collaboration/US-312-branch-compare-merge-preview.md) (High) — 多检出位阶段 2
 - [US-313 只读检出位：不切换分支就打开另一条分支或一个可达提交的完整数据](../stories/collaboration/US-313-read-only-checkout.md) (Medium) — 多检出位阶段 3
 - [US-314 可写检出位与从提交建分支：对齐 GitHub Desktop 3.6 的 worktree](../stories/collaboration/US-314-writable-worktrees.md) (Medium) — 多检出位阶段 5
-- [US-315 撤销子分支已继承的变更之后，切回父分支写错数据](../stories/collaboration/US-315-undo-inherited-change-switch-corruption.md) (High) — 切换增量的缺陷，牵连对比与合并预览
+- [US-315 撤销子分支已继承的变更之后，切回父分支写错数据](../stories/collaboration/US-315-undo-inherited-change-switch-corruption.md) (High) — 撤销 / 重做停在子分支分叉点（修法 A）
+- [US-222 删分支之后按活查询列分支的地方不刷新：`log: false` 的实体删行派不出本地事件](../stories/adapter/US-222-unlogged-entity-delete-live-query.md) (Medium) — 分支列表删分支后不刷新
 
 ## 性能预算的口径
 

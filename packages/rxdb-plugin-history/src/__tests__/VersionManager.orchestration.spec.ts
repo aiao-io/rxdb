@@ -27,6 +27,7 @@ const doubles = vi.hoisted(() => ({
     clearAllUndoHistory: vi.fn<() => void>(),
     resetPullableCount: vi.fn<() => void>(),
     clearRedoStack: vi.fn<() => void>(),
+    refreshChildForks: vi.fn<() => void>(),
     setUndoBranch: vi.fn<(branchId: string) => void>(),
     syncing: vi.fn<(operation: DetachedOperation) => void>(),
     history: vi.fn<(options?: unknown) => unknown>(),
@@ -87,6 +88,10 @@ vi.mock('../HistoryManager.js', () => ({
 
     clearRedoStack(): void {
       doubles.history.clearRedoStack();
+    }
+
+    refreshChildForks(): void {
+      doubles.history.refreshChildForks();
     }
 
     setUndoBranch(branchId: string): void {
@@ -340,6 +345,17 @@ describe('VersionManager 对协作模块的编排契约', () => {
 
     expect(doubles.delegates.createBranch).toHaveBeenCalledWith(harness.manager, 'feature', 17);
     expect(doubles.delegates.removeBranch).toHaveBeenCalledWith(harness.manager, 'obsolete');
+    // 建、删分支之后各补一次分叉点重查：删分支派不出删除事件，撤销 / 重做的视图靠它跟上（US-315）
+    expect(doubles.history.refreshChildForks).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not refresh child forks when the branch operation fails', async () => {
+    const harness = createHarness();
+    doubles.delegates.removeBranch.mockRejectedValueOnce(new Error('has child branches'));
+
+    await expect(harness.manager.removeBranch('parent')).rejects.toThrow('has child branches');
+
+    expect(doubles.history.refreshChildForks).not.toHaveBeenCalled();
   });
 
   it('returns local and remote system repositories from their adapter streams', async () => {
@@ -442,6 +458,8 @@ describe('VersionManager 对协作模块的编排契约', () => {
       strategy: 'squash'
     });
     expect(doubles.history.clearUndoHistory).toHaveBeenCalledOnce();
+    // 合并可能删了源分支：两次合并各补一次分叉点重查
+    expect(doubles.history.refreshChildForks).toHaveBeenCalledTimes(2);
     expect(harness.dispatchEvent.mock.calls.map(([event]) => event.type)).toEqual([
       'MERGE_BRANCH_BEGIN',
       'MERGE_BRANCH_COMMIT',
