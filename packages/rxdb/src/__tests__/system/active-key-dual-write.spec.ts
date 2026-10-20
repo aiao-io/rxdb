@@ -12,7 +12,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import type { RxDB } from '../../RxDB.js';
-import { ACTIVE_BRANCH_KEY } from '../../system/active-branch-guard.js';
+import { ACTIVE_BRANCH_KEY, WorktreeBranchHeldError } from '../../system/active-branch-guard.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { resolve_current_branch } from '../../system/system-repositories.js';
 import type { LocalRxDBBranchRepository } from '../../system/types.local.js';
@@ -58,6 +58,19 @@ describe('activated / activeKey 双写', () => {
     expect(branch.activated).toBe(true);
     expect(branch.activeKey).toBe(ACTIVE_BRANCH_KEY);
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ id: 'main', activeKey: ACTIVE_BRANCH_KEY }));
+  });
+
+  // 写哨兵之前先看 `main` 在不在可写检出位手里：在的话照写就把持有键覆盖了（US-314 B1.2）。
+  // 内存里的那个实例也不能先改后抛——调用方的实体缓存里拿着的就是它。
+  it('resolve_current_branch 零 active 而 main 被可写检出位持有：抛错，库与内存态都不动', async () => {
+    const main = { id: 'main', activated: false, activeKey: '*worktree:wt1*' };
+    const { repository, update, create } = createBranchRepository([main]);
+
+    await expect(resolve_current_branch(repository, createRxDBHost())).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+    expect(update).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(main).toEqual({ id: 'main', activated: false, activeKey: '*worktree:wt1*' });
   });
 
   it('已有 active 分支时原样返回，不去改任何一行', async () => {

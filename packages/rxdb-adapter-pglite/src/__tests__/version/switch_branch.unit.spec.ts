@@ -30,7 +30,7 @@ vi.mock('../../transaction_pglite_result.js', async importOriginal => {
   };
 });
 
-import { RxDBBranch, WorktreeTableSet, type SwitchBranchOptions } from '@aiao/rxdb';
+import { RxDBBranch, WorktreeBranchHeldError, WorktreeTableSet, type SwitchBranchOptions } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { RxdbAdapterPGliteError } from '../../pglite.utils.js';
 import { generateSwitchBranchSql, switch_branch } from '../../version/switch_branch.js';
@@ -250,7 +250,7 @@ describe('switch_branch pure unit edges', () => {
     });
   });
 
-  it('prepare 被拒时原样抛出，且一条语句都没执行过', async () => {
+  it('prepare 被拒时原样抛出，且一条写都没发过', async () => {
     const adapter = makeAdapter();
     adapter.query.mockResolvedValue({ rows: [], affectedRows: 0, fields: [] });
     const options = switchOptions('feature');
@@ -260,10 +260,27 @@ describe('switch_branch pure unit edges', () => {
     // 两条断言各管一件事：
     // 1. **原样抛出**——前置校验的拒绝是调用方的领域错误（`WorkingTreeDirtyError` 之类），
     //    包成 RxdbAdapterPGliteError 会让调用方的 `instanceof` 全部落空。
-    // 2. **一条 SQL 都没发**——只断错误类型的话，一个「先删触发器再校验」的实现照样能过，
-    //    而那正是两事务版本留下的那个窗口。
+    // 2. **一条写都没发**——只断错误类型的话，一个「先删触发器再校验」的实现照样能过，
+    //    而那正是两事务版本留下的那个窗口。排在它前面的只有一次只读：目标分支有没有被持有。
     await expect(switch_branch(adapter as never, options)).rejects.toBe(rejection);
-    expect(adapter.query).not.toHaveBeenCalled();
+    expect(adapter.query.mock.calls).toEqual([
+      ['SELECT "activeKey" FROM "rxdb"."rxdb_branch" WHERE id = $1::text', ['feature']]
+    ]);
+  });
+
+  // 目标分支在可写检出位手里（US-314 B1.2）：点亮写的是哨兵，会把持有键覆盖掉，唯一索引撞不上，
+  // 只能在点亮之前读一次。排在前置校验之前（与 git 同序：先答能不能检出，再问工作树干不干净）。
+  it('目标分支被可写检出位持有时原样抛出 WorktreeBranchHeldError，prepare 没调、一条写都没发', async () => {
+    const adapter = makeAdapter();
+    adapter.query.mockResolvedValue({ rows: [{ activeKey: '*worktree:wt1*' }], affectedRows: 0, fields: [] });
+    const options = switchOptions('feature');
+
+    const error = await switch_branch(adapter as never, options).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(WorktreeBranchHeldError);
+    expect(error).toMatchObject({ branchId: 'feature', holderKey: '*worktree:wt1*' });
+    expect(options.prepare).not.toHaveBeenCalled();
+    expect(adapter.query).toHaveBeenCalledTimes(1);
   });
 
   it('switch_branch transaction failure is wrapped', async () => {

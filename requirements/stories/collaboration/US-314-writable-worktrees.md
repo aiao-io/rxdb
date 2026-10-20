@@ -109,6 +109,17 @@ INVEST 检查清单:
   - 系统表、QueryCache、关掉变更日志的实体没有副本，无论哪一套都落主表集。
   - 公开的表名函数与 SQL 生成函数随之多了必填参数，迁移见文档站的 table-set-parameter；
     `scripts/audit/table-name-resolver.mjs`（CI setup job）守着「解析器之外不推物理名」。
+- **分支持有模型**（阶段 B1.2）：`rxdb_branch.activeKey` 有三种值，`NULL` 是没人持有，`'*active*'` 是主检出位持有
+  （与 `activated` 同进同出），其余是可写检出位的持有键（形状由 B1.5 的打开流程定，那一行 `activated` 为假）。
+  - 唯一索引加上一格只放一个值，检出位与分支一一对应。但主检出位点亮分支时写的是哨兵，正好把持有键覆盖掉，索引撞不上，
+    所以主检出位要持有一条分支之前都先过核心的 `WorktreeBranchHeldError.throwIfHeld`：
+    两个适配器的 `switchBranch` 在切换事务里、动第一行之前查，被占就抛 `WorktreeBranchHeldError`（git：`already used by worktree`）；
+    零 active 时点亮 `main` 的两处（首次启用迁移、`resolve_current_branch`）与系统迁移回填哨兵同样先查，被占就拒，不抢也不换。
+  - 系统迁移只清旧哨兵，不再按「非空」清，后者会把持有键一起抹掉。
+  - 重建触发器时顺手重跑的那条激活（sqlite `withTriggersDisabled`、PGlite `execute_switch_actions`）目标是当前分支，
+    B1.3 改成只重建触发器、不写分支表。
+  - 验收 4 的主检出位这一半就位；可写检出位那一半（再开一个检出位检出被占的分支）随 B1.5 的打开流程。
+  - **已知限制**：B1.2 之前的版本不认持有键，在带持有键的库上切分支会直接覆盖它。检出位是本地概念，不保证跨版本降级。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -125,6 +136,9 @@ INVEST 检查清单:
 - `apps/dev-rxdb-{angular,react,vue}` 与对应 `-e2e` — 「Create a branch」对话框、History 右键；可写检出位的 Worktree 下拉随阶段 C
 - `packages/rxdb/src/system/worktree-table-set.ts`、`packages/rxdb-adapter-sqlite-core/src/table-name-resolver.ts`、
   `packages/rxdb-adapter-pglite/src/table-name-resolver.ts` — 表集与两个适配器的表名解析器；`scripts/audit/table-name-resolver.mjs` — 门禁
+- `packages/rxdb/src/system/active-branch-guard.ts`（`WorktreeBranchHeldError`）、`system/system-repositories.ts`、
+  两个适配器的 `version/switch_branch.ts` 与系统迁移（sqlite-core `RxDBAdapterSqliteBase.ts`、PGlite `system/migrate_system_schema.ts`）
+  — 分支持有模型
 
 ## References
 

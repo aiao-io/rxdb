@@ -44,6 +44,7 @@ import {
   TransactionRollbackEvent,
   tryAcquireRxDBBackupLock,
   uuid,
+  WorktreeBranchHeldError,
   WorktreeTableSet
 } from '@aiao/rxdb';
 import {
@@ -227,6 +228,8 @@ const ensureChangeRejectionColumns = async (client: SqliteClientLike): Promise<v
  *
  * @param client - 迁移事务所在的客户端（调用方已 `BEGIN`）
  * @throws {@link AmbiguousActiveBranchError} 库里有多行 `activated` 时；一行都不改，由调用方回滚整条迁移
+ * @throws {@link WorktreeBranchHeldError} 主检出位要持有的那一行（停着的分支，零 active 时是 `main`）
+ *   在可写检出位手里时；同样一行都不改
  *
  * @remarks
  * 与 PGlite 侧 `system/migrate_system_schema.ts` 的同名步骤逐语义对齐——两端形状必须一致，
@@ -239,8 +242,12 @@ const ensureChangeRejectionColumns = async (client: SqliteClientLike): Promise<v
  * 探列在 SQLite 这边是**必需的而非优化**：`ALTER TABLE ... ADD COLUMN` 没有 `IF NOT EXISTS`，
  * 重复执行会直接报错。
  *
- * 回填写成「先全清、再点亮」两条语句，而不是一条 `CASE`：唯一索引是**逐行立即**检查的，
+ * 回填写成「先清旧哨兵、再点亮」两条语句，而不是一条 `CASE`：唯一索引是**逐行立即**检查的，
  * 把哨兵值从一行搬到另一行会按行处理顺序瞬时自撞。
+ *
+ * 清的只是**哨兵**，不是所有非空键：这一列上别的非空值是可写检出位的持有键（US-314 B1.2，
+ * 口径见 `WorktreeBranchHeldError`），按「非空」清会把检出位手里的分支悄悄放掉。点亮之前先看
+ * 目标行在不在可写检出位手里——在的话两边都认为分支是自己的，回填就是在抢，只能整条回滚。
  *
  * 两条语句都必须在库态已经正确时**一行都不写**。本步骤不只跑在旧库上：水位线是
  * `migrateSystemSchema()` 最后才写的，所以新库第一次 connect() 同样会走完这里。把同一个值
@@ -284,27 +291,35 @@ const ensureBranchActiveKey = async (client: SqliteClientLike): Promise<void> =>
   const activeBranchIds = activeResult.results.flatMap(result => result.rows).map(row => String(row[0]));
   if (activeBranchIds.length > 1) throw new AmbiguousActiveBranchError(activeBranchIds);
 
+  const activeBranchId = activeBranchIds[0];
+  // 主检出位要持有的那一行：停着的那条；零 active 时是恢复目标 main（行不在也照问，读出来是空）。
+  const holdingBranchId = activeBranchId ?? MAIN_BRANCH_ID;
+  const holderResult = await client.execute(`SELECT ${activeKeyColumn} FROM ${branchTable} WHERE "id" = ?`, [
+    holdingBranchId
+  ]);
+  const holderKey = holderResult.results.flatMap(result => result.rows)[0]?.[0];
+  WorktreeBranchHeldError.throwIfHeld(holdingBranchId, typeof holderKey === 'string' ? holderKey : null);
+
   await client.execute(
     `CREATE UNIQUE INDEX IF NOT EXISTS ${quote_sql_identifier(
       getTableColumnIndexName(branchMetadata, activeKeyProperty, WorktreeTableSet.MAIN)
     )} ON ${branchTable}(${activeKeyColumn})`
   );
 
-  const activeBranchId = activeBranchIds[0];
   // 两条 UPDATE 都带着「已经对了就别碰」的谓词。清空那条顺便把目标行排除在外——它本来就要被
   // 点亮，先清再写等于凭空重写一次。排除它不会削弱两条语句拆开的初衷：哨兵值从 A 行搬到 B 行时
   // A 仍在清空范围内，索引照样不会瞬时自撞。
   await client.execute(
     `UPDATE ${branchTable} SET ${activeKeyColumn} = NULL
-     WHERE ${activeKeyColumn} IS NOT NULL AND "id" != ?`,
-    [activeBranchId ?? MAIN_BRANCH_ID]
+     WHERE ${activeKeyColumn} = ? AND "id" != ?`,
+    [ACTIVE_BRANCH_KEY, holdingBranchId]
   );
 
   if (activeBranchId !== undefined) {
-    // `IS NOT` 在 SQLite 里是 null 安全的比较，列为 NULL 时照样成立。
+    // 持有键在上面已经拒了，目标行的键此刻只会是 NULL 或哨兵：`IS NULL` 就是「还没回填」。
     await client.execute(
-      `UPDATE ${branchTable} SET ${activeKeyColumn} = ? WHERE "id" = ? AND ${activeKeyColumn} IS NOT ?`,
-      [ACTIVE_BRANCH_KEY, activeBranchId, ACTIVE_BRANCH_KEY]
+      `UPDATE ${branchTable} SET ${activeKeyColumn} = ? WHERE "id" = ? AND ${activeKeyColumn} IS NULL`,
+      [ACTIVE_BRANCH_KEY, activeBranchId]
     );
     return;
   }

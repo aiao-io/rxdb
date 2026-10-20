@@ -7,12 +7,13 @@ import {
   RxDBChange,
   RxDBMigration,
   UnsupportedRxDBSystemVersionError,
+  WorktreeBranchHeldError,
   WorktreeTableSet,
   encodeRxDBChangeEntityId,
   getEntityMetadata
 } from '@aiao/rxdb';
 import { filter, firstValueFrom } from 'rxjs';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { quote_sql_identifier } from '../sqlite-core.utils.js';
 import { getTableColumnIndexName, get_table_name_by_metadata } from '../table-name-resolver.js';
@@ -317,6 +318,86 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
         await adapter.internalQuery(`DROP TRIGGER "rxdb_branch_write_probe_watch"`);
         await adapter.internalQuery(`DROP TABLE "rxdb_branch_write_probe"`);
       }
+    });
+
+    // 可写检出位在 `activeKey` 上写自己的持有键（US-314 B1.2）。这一步从前把「不是 active 行的非空键」
+    // 一律清掉——那时这一列只有哨兵一种非空值。持有键不是哨兵：清掉它等于把检出位手里的分支悄悄放掉，
+    // 唯一索引从此拦不住别的检出位再拿它，也没有任何东西会报错。
+    describe('可写检出位的持有键（US-314 B1.2）', () => {
+      const holderKey = '*worktree:wt1*';
+      const heldBranch = 'held-branch';
+      const branchTableOf = (): string =>
+        quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN));
+      const migrationTableOf = (): string =>
+        quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN));
+      const readBranchRows = async (): Promise<unknown[][]> =>
+        readRows(adapter, `SELECT "id", "activated", "activeKey" FROM ${branchTableOf()} ORDER BY "id"`);
+      const dropWatermarks = async (): Promise<void> => {
+        await adapter.internalQuery(`DELETE FROM ${migrationTableOf()} WHERE "name" IN (${placeholders})`, [
+          ...currentWatermarks
+        ]);
+      };
+
+      // 不依赖前面用例留下的库态：只留 main 与一条待持有的分支，main 是主检出位停着的那条。
+      beforeAll(async () => {
+        await adapter.rxdb.versionManager.createBranch(heldBranch);
+      });
+
+      // 还原成「main 被主检出位持有、别的分支没人持有」，再把水位线补回来：后面的用例要一个已是当前版本的库。
+      afterEach(async () => {
+        await adapter.internalQuery(
+          `UPDATE ${branchTableOf()} SET "activated" = 0, "activeKey" = NULL WHERE "id" != 'main'`
+        );
+        await adapter.internalQuery(
+          `UPDATE ${branchTableOf()} SET "activated" = 1, "activeKey" = ? WHERE "id" = 'main'`,
+          [ACTIVE_BRANCH_KEY]
+        );
+        await adapter.migrateSystemSchema();
+      });
+
+      it('重跑迁移不抹持有键', async () => {
+        await adapter.internalQuery(`UPDATE ${branchTableOf()} SET "activeKey" = ? WHERE "id" = ?`, [
+          holderKey,
+          heldBranch
+        ]);
+        await dropWatermarks();
+
+        await adapter.migrateSystemSchema();
+
+        expect(await readBranchRows()).toEqual(
+          expect.arrayContaining([
+            [heldBranch, 0, holderKey],
+            ['main', 1, ACTIVE_BRANCH_KEY]
+          ])
+        );
+        expect((await readWatermarks(adapter)).map(row => row[1])).toEqual(currentWatermarks);
+      });
+
+      // 主检出位停在一条分支上（`activated`），这条分支的 `activeKey` 却是别人的持有键：两边都认为分支是自己的。
+      // 回填哨兵等于替主检出位把它抢过来，只能整条迁移回滚，留给人去看。
+      it('主检出位停着的分支上是持有键时整体回滚', async () => {
+        await adapter.internalQuery(`UPDATE ${branchTableOf()} SET "activeKey" = ? WHERE "id" = 'main'`, [holderKey]);
+        await dropWatermarks();
+        const rowsBefore = await readBranchRows();
+
+        await expect(adapter.migrateSystemSchema()).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+        expect(await readBranchRows()).toEqual(rowsBefore);
+        expect(await readWatermarks(adapter)).toEqual([]);
+      });
+
+      // 零 active 的恢复目标是确定的 main，而 main 在可写检出位手里。点亮它就是抢，换一条点亮是替用户切分支。
+      it('零 active 而 main 被持有时整体回滚，不抢持有键', async () => {
+        await adapter.internalQuery(`UPDATE ${branchTableOf()} SET "activated" = 0, "activeKey" = NULL`);
+        await adapter.internalQuery(`UPDATE ${branchTableOf()} SET "activeKey" = ? WHERE "id" = 'main'`, [holderKey]);
+        await dropWatermarks();
+        const rowsBefore = await readBranchRows();
+
+        await expect(adapter.migrateSystemSchema()).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+        expect(await readBranchRows()).toEqual(rowsBefore);
+        expect(await readWatermarks(adapter)).toEqual([]);
+      });
     });
 
     // 迁移重建变更触发器时必须按库此刻停在的分支写。sqlite 侧确实有自愈——每个默认事务

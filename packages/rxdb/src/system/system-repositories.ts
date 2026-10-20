@@ -15,7 +15,7 @@
  */
 import { firstValueFrom } from 'rxjs';
 import type { RxDB } from '../RxDB.js';
-import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from './active-branch-guard.js';
+import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID, WorktreeBranchHeldError } from './active-branch-guard.js';
 import { RxDBBranch } from './branch.js';
 import { RxDBChange } from './change.js';
 import type { LocalRxDBBranchRepository, LocalRxDBChangeRepository } from './types.local.js';
@@ -62,6 +62,9 @@ export const resolve_current_branch = async (
   )[0];
 
   if (mainBranch) {
+    // 点亮之前先看 `main` 在不在可写检出位手里：在的话照写就把持有键覆盖成了哨兵。
+    // 排在改内存态之前——调用方实体缓存里拿着的就是这个实例，先改后抛等于只回滚了一半。
+    WorktreeBranchHeldError.throwIfHeld(MAIN_BRANCH_ID, mainBranch.activeKey);
     // 冗余列与 `activated` 必须同写（`system/branch.ts` 的可空唯一列就架在它上面）。
     // 漏写一处，那一行就绕过唯一约束，而 schema 那一半的保护正好在这种漏写上失效。
     mainBranch.activated = true;

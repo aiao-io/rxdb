@@ -7,6 +7,7 @@ import {
   RxDBChange,
   RxDBEntityLocalUpdatedEventData,
   SwitchBranchOptions,
+  WorktreeBranchHeldError,
   WorktreeTableSet
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
@@ -22,6 +23,7 @@ import {
 import { get_table_name_by_entity_type, get_table_name_by_metadata } from '../table-name-resolver.js';
 import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
 import { generate_table_trigger_sql } from '../table/trigger_sql.js';
+import type { SqliteTransactionExecutor } from '../transaction/SqliteTransactionExecutor.js';
 import { transaction_sqlite_result } from '../transaction_sqlite_result.js';
 import { applySwitchActions, dispatch_switch_events } from './execute_switch_actions.js';
 import { read_current_branch_id } from './read_current_branch_id.js';
@@ -121,6 +123,31 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterSqliteBase, branchId
   generateSwitchBranchStatements(adapter, branchId).join('');
 
 /**
+ * 主检出位要切到 `branchId` 之前的检查：它在可写检出位手里就抛（US-314 B1.2）。
+ *
+ * @param executor - 切换事务的执行器
+ * @param branchId - 目标分支
+ * @throws {@link WorktreeBranchHeldError} 目标分支的 `activeKey` 是可写检出位的持有键时
+ *
+ * @remarks
+ * 唯一索引兜不住这一条：点亮那条 UPDATE 写的是哨兵，正好把持有键覆盖掉，索引里始终只有一个哨兵。
+ * 只能在点亮之前读一次，而且必须在切换事务里读——在事务外读，读与点亮之间写下的持有键照样会被覆盖。
+ * 列名与下面熄灭、点亮两条语句同写字面量：三处指的必须是同一列。走 `execute` 而不是 `query`，
+ * 与本函数所在事务里的其它语句同一个入口。
+ *
+ * **另一个后端有一份同样的检查**（`packages/rxdb-adapter-pglite/src/version/switch_branch.ts`），
+ * 判定本身在核心（`WorktreeBranchHeldError.throwIfHeld`），两端各自只剩读那一格的 SQL。
+ */
+const assertBranchNotHeld = async (executor: SqliteTransactionExecutor, branchId: string): Promise<void> => {
+  const tableName = get_table_name_by_metadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN);
+  const result = await executor.execute(`SELECT activeKey FROM ${quote_sql_identifier(tableName)} WHERE id = ?`, [
+    branchId
+  ]);
+  const activeKey = result.results.flatMap(item => item.rows)[0]?.[0];
+  WorktreeBranchHeldError.throwIfHeld(branchId, typeof activeKey === 'string' ? activeKey : null);
+};
+
+/**
  * 派发 RxDBBranch 表的 UPDATE 事件。
  * inversePatch 记录 activated 字段的逆向值（分支切换仅改变 activated），
  * 供撤销/回滚消费者还原前一状态。
@@ -147,12 +174,13 @@ const _dispatch_branch_update_event = (
 /**
  * 切换当前活跃分支并应用所需的数据迁移。
  *
- * 整个流程在单事务内完成：解析目标分支 → {@link SwitchBranchOptions.prepare} 前置校验 →
- * 移除触发器 → 数据迁移 → 更新 RxDBChange 序列 → 重建触发器 + 更新 activated 标志，
- * 保证原子性；事件在提交成功后派发。
+ * 整个流程在单事务内完成：解析目标分支 → 目标分支没被可写检出位持有 →
+ * {@link SwitchBranchOptions.prepare} 前置校验 → 移除触发器 → 数据迁移 → 更新 RxDBChange 序列 →
+ * 重建触发器 + 更新 activated 标志，保证原子性；事件在提交成功后派发。
  *
  * @param adapter - SQLite 适配器
  * @param options - 包含可选的目标 branchId（省略即「留在当前激活分支」）与 SwitchVersionActions
+ * @throws {@link WorktreeBranchHeldError} 目标分支在可写检出位手里时；原样抛出，一行都没动
  * @throws 任意事务内 SQL 错误（触发回滚）
  */
 export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: SwitchBranchOptions) => {
@@ -169,6 +197,9 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
       // 省略 branchId = 「作用于当前激活分支」，必须在本事务内解析：在事务外采样再传进来，
       // 采样与提交之间的一次真实切换会让这条调用把 activated 与全部触发器倒回旧分支。
       targetBranchId ??= await read_current_branch_id(tx);
+      // 目标分支在可写检出位手里就拒。排在前置校验之前，与 git 同序：先答「这条分支能不能检出」，
+      // 再问「工作树干不干净」；也排在动第一行之前，被拒时连触发器都还在。
+      await assertBranchNotHeld(tx, targetBranchId);
       // 前置校验排在这里而不是本事务之外：外面那一版留下一个「校验通过到真正切换」的窗口，
       // 窗口里的一次写能让刚判过的「工作树干净」变成假的，而切换照样完成。
       // 抛出即整次回滚——此刻一行都还没动，连触发器都还在。
@@ -220,7 +251,8 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
     // `prepare` 的拒绝是**调用方的领域错误**（工作树不干净、凭据过期……），调用方按类型接住它。
     // 包进 RxDBAdapterSqliteError 会把类型抹平成「适配器出错」，`instanceof WorkingTreeDirtyError`
     // 这类判断随之全部失效——而这条路径上一行都没动过，本来就不是适配器的故障。
-    if (prepareRejected) throw error;
+    // 目标分支被可写检出位持有同理。
+    if (prepareRejected || error instanceof WorktreeBranchHeldError) throw error;
     throw new RxDBAdapterSqliteError(`switch branch ${targetBranchId ?? '<current>'} failed`, { cause: error });
   }
 };

@@ -7,6 +7,7 @@ import {
   RxDBBranch,
   RxDBEntityLocalUpdatedEventData,
   SwitchBranchOptions,
+  WorktreeBranchHeldError,
   WorktreeTableSet
 } from '@aiao/rxdb';
 import type { Results } from '@electric-sql/pglite';
@@ -20,7 +21,7 @@ import type { PGliteTransactionExecutor } from '../transaction/PGliteTransaction
 import { PGliteExecuteResult, transaction_pglite_result } from '../transaction_pglite_result.js';
 import { applySwitchActions, dispatch_switch_events } from './execute_switch_actions.js';
 import { executeSwitchStatements } from './execute_switch_statements.js';
-import { readCurrentBranchId } from './read_current_branch_id.js';
+import { readCurrentBranchId, type PGliteRowReader } from './read_current_branch_id.js';
 import { convertSwitchResultToSql } from './switch-result.utils.js';
 
 /**
@@ -163,10 +164,36 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: st
 };
 
 /**
+ * 主检出位要切到 `branchId` 之前的检查：它在可写检出位手里就抛（US-314 B1.2）。
+ *
+ * @param reader - 切换事务的直发门面
+ * @param branchId - 目标分支
+ * @throws {@link WorktreeBranchHeldError} 目标分支的 `activeKey` 是可写检出位的持有键时
+ *
+ * @remarks
+ * 唯一索引兜不住这一条：点亮那条 UPDATE 写的是哨兵，正好把持有键覆盖掉，索引里始终只有一个哨兵。
+ * 只能在点亮之前读一次，而且必须在切换事务里读——在事务外读，读与点亮之间写下的持有键照样会被覆盖。
+ * 列名与 {@link generateSwitchBranchSql} 里熄灭、点亮两条语句同写字面量：三处指的必须是同一列。
+ *
+ * **另一个后端有一份同样的检查**（`packages/rxdb-adapter-sqlite-core/src/version/switch_branch.ts`），
+ * 判定本身在核心（`WorktreeBranchHeldError.throwIfHeld`），两端各自只剩读那一格的 SQL。
+ */
+const assertBranchNotHeld = async (reader: PGliteRowReader, branchId: string): Promise<void> => {
+  const tableName = getTableNameByMetadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN);
+  const result = await reader.query<{ activeKey: unknown }>(
+    `SELECT "activeKey" FROM ${tableName} WHERE id = $1::text`,
+    [branchId]
+  );
+  const activeKey = result.rows[0]?.activeKey;
+  WorktreeBranchHeldError.throwIfHeld(branchId, typeof activeKey === 'string' ? activeKey : null);
+};
+
+/**
  * 切换到指定分支
  *
  * @param adapter - PGlite 适配器实例
  * @param options - 分支切换选项；省略 `branchId` 即「留在当前激活分支」，仅套用 actions
+ * @throws {@link WorktreeBranchHeldError} 目标分支在可写检出位手里时；原样抛出，一行都没动
  */
 export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchBranchOptions) => {
   const { branchId, actions, prepare } = options;
@@ -184,6 +211,9 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
       // 省略 branchId = 「作用于当前激活分支」，必须在本事务内解析：在事务外采样再传进来，
       // 采样与提交之间的一次真实切换会让这条调用把 activated 与全部触发器倒回旧分支。
       targetBranchId ??= await readCurrentBranchId(sink);
+      // 目标分支在可写检出位手里就拒。排在前置校验之前，与 git 同序：先答「这条分支能不能检出」，
+      // 再问「工作树干不干净」；也排在动第一行之前，被拒时连触发器都还在。
+      await assertBranchNotHeld(sink, targetBranchId);
       // 前置校验排在这里而不是本事务之外：外面那一版留下一个「校验通过到真正切换」的窗口，
       // 窗口里的一次写能让刚判过的「工作树干净」变成假的，而切换照样完成。
       // 抛出即整次回滚——此刻一行都还没动，连触发器都还在。
@@ -247,7 +277,8 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
     // `prepare` 的拒绝是**调用方的领域错误**（工作树不干净、凭据过期……），调用方按类型接住它。
     // 包进 RxdbAdapterPGliteError 会把类型抹平成「适配器出错」，`instanceof WorkingTreeDirtyError`
     // 这类判断随之全部失效——而这条路径上一行都没动过，本来就不是适配器的故障。
-    if (prepareRejected) throw cause;
+    // 目标分支被可写检出位持有同理。
+    if (prepareRejected || cause instanceof WorktreeBranchHeldError) throw cause;
     const message = cause instanceof Error ? cause.message : String(cause);
     const originalError = cause instanceof Error ? cause : new Error(message, { cause });
     throw new RxdbAdapterPGliteError(

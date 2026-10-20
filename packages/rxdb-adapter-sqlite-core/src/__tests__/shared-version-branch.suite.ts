@@ -1,4 +1,5 @@
 import {
+  ACTIVE_BRANCH_KEY,
   Entity,
   EntityBase,
   PropertyType,
@@ -7,6 +8,8 @@ import {
   RxDBChange,
   SKIP_BRANCH_SWITCH_PREPARE,
   SwitchVersionActions,
+  WorktreeBranchHeldError,
+  encodeRxDBChangeEntityId,
   getEntityMetadata,
   type SwitchVersionChange
 } from '@aiao/rxdb';
@@ -1005,6 +1008,39 @@ export function versionBranchSuite(factory: AdapterFactory) {
         } finally {
           subscription.unsubscribe();
         }
+      });
+    });
+
+    // ================================================================
+    // 4d. 被可写检出位持有的分支（US-314 B1.2）
+    // ================================================================
+    // 一条分支至多被一个检出位持有。主检出位点亮目标分支时写的是哨兵，正好把持有键覆盖掉，
+    // 唯一索引里始终只有一个哨兵、撞不上——只能在点亮之前问一句「它在不在别人手里」。
+    describe('主检出位不能切到被可写检出位持有的分支（US-314 B1.2）', () => {
+      const holderKey = '*worktree:wt1*';
+
+      afterEach(async () => await cleanup_db(adapter));
+
+      it('切过去被拒：分支表一行不动，之后的写入仍记在原分支', async () => {
+        await rxdb.versionManager.createBranch('held');
+        await adapter.internalQuery(`UPDATE "rxdb$rxdb_branch" SET "activeKey" = ? WHERE "id" = 'held'`, [holderKey]);
+
+        await expect(rxdb.versionManager.switchBranch('held')).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+        const { rows } = await adapter.rawQuery(
+          `SELECT "id", "activated", "activeKey" FROM "rxdb$rxdb_branch" ORDER BY "id"`
+        );
+        expect(rows).toEqual([
+          ['held', 0, holderKey],
+          ['main', 1, ACTIVE_BRANCH_KEY]
+        ]);
+        const todo = new Todo();
+        todo.title = 'after-rejected-switch';
+        await todo.save();
+        const changes = await adapter.rawQuery(`SELECT "branchId" FROM "rxdb$rxdb_change" WHERE "entityId" = ?`, [
+          encodeRxDBChangeEntityId(todo.id)
+        ]);
+        expect(changes.rows).toEqual([['main']]);
       });
     });
 

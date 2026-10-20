@@ -16,7 +16,8 @@ import {
   RxDBSystemMigrationLockError,
   SyncType,
   UnsupportedRxDBSystemVersionError,
-  uuid
+  uuid,
+  WorktreeBranchHeldError
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
@@ -597,6 +598,88 @@ describe('PGlite system schema migration', () => {
       { id: 'feature-x', activated: false, activeKey: null },
       { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY }
     ]);
+  });
+
+  // 可写检出位在 `activeKey` 上写自己的持有键（US-314 B1.2）。这一步从前把「不是 active 行的非空键」
+  // 一律清掉——那时这一列只有哨兵一种非空值。持有键不是哨兵：清掉它等于把检出位手里的分支悄悄放掉，
+  // 唯一索引从此拦不住别的检出位再拿它，也没有任何东西会报错。
+  describe('可写检出位的持有键（US-314 B1.2）', () => {
+    const holderKey = '*worktree:wt1*';
+
+    /**
+     * 造一张「当前形态、只差水位线」的分支表，再按给定的键回填。
+     *
+     * @param branches - 分支行与各自的 `activeKey`
+     */
+    const createCurrentBranchTable = async (
+      adapter: RxDBAdapterPGlite,
+      branches: ReadonlyArray<{ id: string; activated: boolean; activeKey: string | null }>
+    ): Promise<void> => {
+      await createLegacyBranchTable(adapter, branches);
+      await adapter.internalQuery(`ALTER TABLE "rxdb"."rxdb_branch" ADD COLUMN "activeKey" varchar`);
+      await adapter.internalQuery(
+        `CREATE UNIQUE INDEX "idx_rxdb_rxdb_branch_activeKey" ON "rxdb"."rxdb_branch" ("activeKey" bpchar_ops)`
+      );
+      for (const branch of branches) {
+        await adapter.internalQuery(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = $1::text WHERE "id" = $2::text`, [
+          branch.activeKey,
+          branch.id
+        ]);
+      }
+    };
+
+    it('重跑迁移不抹持有键，也不重写任何一行', async () => {
+      const adapter = await createLegacyDatabase();
+      await createCurrentBranchTable(adapter, [
+        { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY },
+        { id: 'feature-x', activated: false, activeKey: holderKey }
+      ]);
+      const versionsBefore = await getBranchRowVersions(adapter);
+
+      await adapter.migrateSystemSchema();
+
+      expect(await getBranchRowVersions(adapter)).toEqual(versionsBefore);
+      expect(await getBranchRows(adapter)).toEqual([
+        { id: 'feature-x', activated: false, activeKey: holderKey },
+        { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY }
+      ]);
+    });
+
+    // 主检出位停在一条分支上（`activated`），这条分支的 `activeKey` 却是别人的持有键：两边都认为分支是自己的。
+    // 回填哨兵等于替主检出位把它抢过来，只能整条迁移回滚，留给人去看。
+    it('主检出位停着的分支上是持有键时整体回滚', async () => {
+      const adapter = await createLegacyDatabase();
+      await createCurrentBranchTable(adapter, [
+        { id: 'main', activated: true, activeKey: holderKey },
+        { id: 'feature-x', activated: false, activeKey: null }
+      ]);
+
+      await expect(adapter.migrateSystemSchema()).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+      expect(await getBranchRows(adapter)).toEqual([
+        { id: 'feature-x', activated: false, activeKey: null },
+        { id: 'main', activated: true, activeKey: holderKey }
+      ]);
+      expect(await getWatermarks(adapter)).toEqual([]);
+      expect(await getEntityIdColumnType(adapter)).toBe('uuid');
+    });
+
+    // 零 active 的恢复目标是确定的 main，而 main 在可写检出位手里。点亮它就是抢，换一条点亮是替用户切分支。
+    it('零 active 而 main 被持有时整体回滚，不抢持有键', async () => {
+      const adapter = await createLegacyDatabase();
+      await createCurrentBranchTable(adapter, [
+        { id: 'main', activated: false, activeKey: holderKey },
+        { id: 'feature-x', activated: false, activeKey: null }
+      ]);
+
+      await expect(adapter.migrateSystemSchema()).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+      expect(await getBranchRows(adapter)).toEqual([
+        { id: 'feature-x', activated: false, activeKey: null },
+        { id: 'main', activated: false, activeKey: holderKey }
+      ]);
+      expect(await getWatermarks(adapter)).toEqual([]);
+    });
   });
 
   // US-218 FR-021：模式 7 给 RxDBChange 加 rejectedAt / rejection 两列。既有库按表粒度补建、从不看列，
