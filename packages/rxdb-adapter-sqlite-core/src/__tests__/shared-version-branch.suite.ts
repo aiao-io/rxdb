@@ -891,15 +891,18 @@ export function versionBranchSuite(factory: AdapterFactory) {
         await todo.save();
         todo.title = 'b';
         await todo.save();
+        const history = rxdb.versionManager.history();
+        // 撤销会话被前面的合并用例清空过的话，靠这里的本地写入异步恢复：等两步都可撤销了再往下走，
+        // 不然下面「撤销数为 0」可能只是会话还没恢复
+        await expect.poll(() => firstValueFrom(history.undoCount$)).toBe(2);
         await rxdb.versionManager.createBranch('feature');
         await rxdb.versionManager.switchBranch('feature');
         todo.title = 'c';
         await todo.save();
         await rxdb.versionManager.switchBranch('main');
 
-        const history = rxdb.versionManager.history();
-        await expect.poll(() => firstValueFrom(history.undoCount$)).toBe(0);
-        expect(await firstValueFrom(history.undoBarrier$)).toEqual(inheritedBy('feature'));
+        await expect.poll(() => firstValueFrom(history.undoBarrier$)).toEqual(inheritedBy('feature'));
+        expect(await firstValueFrom(history.undoCount$)).toBe(0);
         await history.undo();
         expect(await titleOf(todo.id)).toBe('b');
 

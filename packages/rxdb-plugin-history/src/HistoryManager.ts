@@ -16,7 +16,6 @@ import {
   BehaviorSubject,
   catchError,
   combineLatest,
-  distinctUntilChanged,
   EMPTY,
   filter,
   firstValueFrom,
@@ -25,10 +24,8 @@ import {
   merge,
   NEVER,
   Observable,
-  of,
   ReplaySubject,
   shareReplay,
-  startWith,
   Subject,
   Subscription,
   switchMap,
@@ -157,7 +154,7 @@ export class HistoryManager {
    * 当前分支的子分支分叉点，由活查询喂（US-315）。
    *
    * @remarks
-   * 活查询跟上之前、以及刚换分支时是空的：此时撤销 / 重做的**视图**可能把被继承的项算成可撤销的。
+   * 第一次查回来之前、以及刚换分支时是空的：此时撤销 / 重做的**视图**可能把被继承的项算成可撤销的。
    * 执行不看它——`undo()` / `redo()` 现查分叉点，写事务里再按事务内读到的复核一次。
    */
   readonly #childForks$ = new BehaviorSubject<ChildFork[]>([]);
@@ -229,34 +226,25 @@ export class HistoryManager {
 
     // 当前分支的子分支分叉点：不晚于它的变更已被子分支继承，撤销 / 重做都停在这里（US-315）。
     // 不跟着历史流重算：建分支、删分支不写变更日志，历史流不会因此再发一次。
-    // 子分支的活查询只当信号用，每次都现查：分支表不写变更日志，适配器派不出删除事件，活查询看不见删分支，
-    // 它增量合并出来的结果可能还留着删掉的那条；删、合并之后由 {@link refreshChildForks} 补一次信号。
-    // 换分支先清空，不拿上一条分支的分叉点去算这一条。
+    // 每次都现查「库里当前激活的分支 + 它的子分支」，分支表的活查询与 {@link refreshChildForks} 只当信号：
+    // 分支表不写变更日志，适配器派不出它的事件——删分支看不见，切分支后 `current_branch$` 也可能停在旧分支上，
+    // 按它给的分支 id 去查，会把别的分支的子分支当成当前分支的（增量合并出来的行同样靠不住）。
     this.#subscriptions.push(
-      current_branch$
+      this.rxdb.connected$
         .pipe(
-          map(branch => branch?.id ?? null),
-          distinctUntilChanged(),
-          switchMap(branchId =>
-            branchId === null ?
-              of([])
-            : merge(
-                branchRepository.findAll({
-                  where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: branchId }] }
-                }),
-                this.#childForksRefresh$
-              ).pipe(
-                // 一次查询失败只报出去、保留上一次的分叉点，不让整条流就此停摆
-                switchMap(() =>
-                  from(this.#fetch_child_forks_of(branchId)).pipe(
-                    catchError((error: unknown) => {
-                      this.#reportStreamError('子分支分叉点的查询', error);
-                      return EMPTY;
-                    })
-                  )
-                ),
-                startWith([])
-              )
+          switchMap(connected =>
+            connected ?
+              merge(branchRepository.findAll({ where: { combinator: 'and', rules: [] } }), this.#childForksRefresh$)
+            : NEVER
+          ),
+          // 一次查询失败只报出去、保留上一次的分叉点，不让整条流就此停摆
+          switchMap(() =>
+            from(this.#fetch_child_forks()).pipe(
+              catchError((error: unknown) => {
+                this.#reportStreamError('子分支分叉点的查询', error);
+                return EMPTY;
+              })
+            )
           ),
           takeUntil(this.#destroy$)
         )
@@ -486,8 +474,8 @@ export class HistoryManager {
    * 重查当前分支的子分支分叉点，刷新撤销 / 重做的视图（US-315）。
    *
    * @remarks
-   * 分支表不写变更日志，适配器派不出删除事件，子分支的活查询看不见删分支；删分支、合并（可能删源分支）之后由
-   * `VersionManager` 调这里补一次。只影响视图：`undo()` / `redo()` 执行前本来就现查。
+   * 分支表不写变更日志，适配器派不出它的事件，分支表的活查询看不见删分支；建分支、删分支、合并（可能删源分支）之后由
+   * `VersionManager` 调这里补一次，换分支时 {@link setUndoBranch} 也调。只影响视图：`undo()` / `redo()` 执行前本来就现查。
    *
    * @internal
    */
@@ -513,6 +501,9 @@ export class HistoryManager {
   /** switchBranch 提交后同步切 undo session，避免 await 中间引用比对失配 */
   setUndoBranch(branchId: string): void {
     this.#switchUndoSessionBranch(branchId);
+    // 子分支分叉点跟着换（US-315）：先清掉上一条分支的，不拿它去算这一条，再重查
+    if (this.#childForks$.value.length > 0) this.#childForks$.next([]);
+    this.refreshChildForks();
   }
 
   /** 清空当前分支 undo/redo；连接级重置用 {@link clearAllUndoHistory} */
@@ -820,12 +811,6 @@ export class HistoryManager {
       limit: 1
     });
     return branch ? fetchChildForks(branchRepository, branch.id) : [];
-  }
-
-  /** 直接查某条分支的子分支分叉点 */
-  async #fetch_child_forks_of(branchId: string): Promise<ChildFork[]> {
-    const { branchRepository } = await this.rxdb.versionManager.getLocalRepositories();
-    return fetchChildForks(branchRepository, branchId);
   }
 
   readonly #onRepositorySyncComplete = () => {

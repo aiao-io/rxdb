@@ -63,8 +63,8 @@ describe('已被子分支继承的变更不能撤销 / 重做（US-315）', () =
     await rxdb.versionManager.switchBranch('main');
 
     const history = rxdb.versionManager.history();
-    await expect.poll(() => firstValueFrom(history.undoCount$)).toBe(0);
-    expect(await firstValueFrom(history.undoBarrier$)).toEqual(inheritedBy('feature'));
+    await expect.poll(() => firstValueFrom(history.undoBarrier$)).toEqual(inheritedBy('feature'));
+    expect(await firstValueFrom(history.undoCount$)).toBe(0);
     await history.undo();
     expect(await titleOf(todo.id)).toBe('b');
 
@@ -128,7 +128,8 @@ describe('已被子分支继承的变更不能撤销 / 重做（US-315）', () =
 
     await rxdb.versionManager.switchBranch('main');
     const onMain = rxdb.versionManager.history();
-    expect(await firstValueFrom(onMain.undoBarrier$)).toEqual(inheritedBy('a'));
+    // 切分支后视图的分叉点先清空、再重查，是最终一致的；执行路径每次现查，下面的 undo() 不依赖它
+    await expect.poll(() => firstValueFrom(onMain.undoBarrier$)).toEqual(inheritedBy('a'));
     await onMain.undo();
     expect(await titleOf(todo.id)).toBe('1');
 

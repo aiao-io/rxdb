@@ -266,9 +266,10 @@ describe('历史流、作用域与撤销重做执行', () => {
       countMock.mockReturnValue(EMPTY);
       findAllMock.mockReturnValue(of([createChange(1)]));
       const harness = createHarness({ firstConnectedAt });
-      // 活跃分支流连上之后才查：undo session 跟随、子分支分叉点、待推数、历史流四条常驻订阅先各查一次（都得拿到分支，
+      // 活跃分支流连上之后才查：undo session 跟随、待推数、历史流三条常驻订阅先各查一次（都得拿到分支，
       // 历史流才会发出），此后 `undoHistories$` 自己那次查询才看到「没有活跃分支」。
-      const LONG_LIVED_BRANCH_STREAMS = 4;
+      // 子分支分叉点不走这条流：它每次现查库里的激活分支（US-315）。
+      const LONG_LIVED_BRANCH_STREAMS = 3;
       harness.branchFindOne.mockImplementation(() =>
         of(harness.branchFindOne.mock.calls.length > LONG_LIVED_BRANCH_STREAMS ? null : activeBranch)
       );

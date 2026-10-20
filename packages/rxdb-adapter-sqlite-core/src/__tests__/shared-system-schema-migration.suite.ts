@@ -221,6 +221,10 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
           )
         ).map(row => row[0]);
 
+      // 「多 active」要两行：自带第二条分支，不靠前面的用例留下分支（单跑这一条时前面那条根本没跑）
+      const otherBranch = 'second-branch';
+      await adapter.rxdb.versionManager.createBranch(otherBranch);
+
       // 退回 v4 形态。索引得先掉，否则 SQLite 不让 DROP COLUMN。
       await adapter.internalQuery(`DROP INDEX ${quote_sql_identifier(indexName)}`);
       await adapter.internalQuery(`ALTER TABLE ${branchTable} DROP COLUMN "activeKey"`);
@@ -243,15 +247,16 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
       expect(await readBranchColumns()).toContain('activeKey');
       expect(await readBranchIndexes()).toContain(indexName);
       expect(await readBranchRows()).toEqual([
-        ['legacy-history', 0, null],
-        ['main', 1, ACTIVE_BRANCH_KEY]
+        ['main', 1, ACTIVE_BRANCH_KEY],
+        [otherBranch, 0, null]
       ]);
 
       // 索引得真的在管事。只断言它存在的话，建到别的列上（比如 `activated`）照样能过，
       // 而那样的索引对「两行 active」毫无阻挡。
       await expect(
-        adapter.internalQuery(`UPDATE ${branchTable} SET "activeKey" = ? WHERE "id" = 'legacy-history'`, [
-          ACTIVE_BRANCH_KEY
+        adapter.internalQuery(`UPDATE ${branchTable} SET "activeKey" = ? WHERE "id" = ?`, [
+          ACTIVE_BRANCH_KEY,
+          otherBranch
         ])
       ).rejects.toThrow();
     });

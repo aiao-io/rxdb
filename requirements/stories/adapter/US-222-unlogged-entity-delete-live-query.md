@@ -48,6 +48,8 @@ INVEST 检查清单:
   （各适配器的 `handle_rxdb_change.ts`）；没有变更日志的实体，删行推不出事件。
 - `remove_branch` 在事务里用 `executor.removeMany([...变更行, 分支行])` 删掉分支行，活查询收不到这次删除。
 - 建分支能被看到走的是另一条路径，具体是哪一条还没追到；修之前要先查清，不然只改一半，插入也可能跟着失效。
+- 同样的原因也让激活状态的变化不一定传到活查询：`findOne({ activated: true })` 这类查询在来回切分支、再清库之后可能停在旧分支上
+  （US-315 的共享套件在 SQLite 系与 Tauri 上实测）。`VersionManager` 切分支后显式调 `HistoryManager.setUndoBranch()`，就是因为不能信它。
 - 同样声明 `log: false` 的还有 storage 插件的 `StorageFileMeta`（[US-311](../collaboration/US-311-unlogged-entities-scope.md)），
   以及只读检出位快照实例的全部实体（[US-313](../collaboration/US-313-read-only-checkout.md)）。它们的活查询有没有同样的缺口要一起核对。
 
@@ -83,10 +85,10 @@ INVEST 检查清单:
 
 ## 技术笔记
 
-- **US-315 的绕行**：历史插件的子分支分叉点不信这条活查询的增量结果，只把它的发出当成信号、每次现查；删分支、合并之后由
-  `VersionManager` 调 `HistoryManager.refreshChildForks()` 补一次信号
+- **US-315 的绕行**：历史插件的子分支分叉点不信分支表活查询的结果，只把它的发出当成信号，每次现查库里的激活分支与它的子分支；
+  建、删、合并分支之后由 `VersionManager` 调 `HistoryManager.refreshChildForks()` 补一次信号，切分支时 `setUndoBranch()` 也补
   （[US-315](../collaboration/US-315-undo-inherited-change-switch-corruption.md)）。本故事修好之后，补信号的那几处可以去掉；
-  现查要保留，因为增量合并出来的结果靠不靠得住，取决于删除事件派没派到。
+  现查要保留，因为增量合并出来的结果靠不靠得住，取决于事件派没派到。
 - **来源**：US-315 补「删掉子分支之后限制解除」用例时，撤销视图在删分支之后不更新，追下去是这条活查询收不到删除。
 
 ## 实现文件
