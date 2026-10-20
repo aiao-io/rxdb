@@ -4,7 +4,7 @@ import type {
   MiniProgramWechatApi,
   WaSqliteEmscriptenModule
 } from '../mini-program.interface.js';
-import { createWechatFileVFS } from '../wechat-file-vfs.js';
+import { createWechatFileVFS, extendFileData } from '../wechat-file-vfs.js';
 
 const SQLITE_OPEN_READWRITE = 0x00000002;
 const SQLITE_OPEN_CREATE = 0x00000004;
@@ -265,5 +265,59 @@ describe('createWechatFileVFS', () => {
     } finally {
       await handle.vfs.close();
     }
+  });
+
+  it('截短之后再越过末尾写：中间的空洞读出 0，落盘的文件不多不少', async () => {
+    const fileSystem = new MemoryFileSystem();
+    const wechat: MiniProgramWechatApi = {
+      env: { USER_DATA_PATH: '/data' },
+      getFileSystemManager: () => fileSystem
+    };
+    const module = createModule(new Map([[64, 'hole.sqlite']]));
+    const handle = createWechatFileVFS(module, { databaseName: 'hole.sqlite', fileSystem, wechat });
+    const flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_MAIN_DB;
+
+    try {
+      expect(await handle.vfs.xOpen(0, 64, 128, flags, 32)).toBe(0);
+      module.HEAPU8.fill(0xff, 1024, 2048);
+      expect(await handle.vfs.xWrite(128, 1024, 1024, 0, 0)).toBe(0);
+      expect(await handle.vfs.xTruncate(128, 16, 0)).toBe(0);
+      module.HEAPU8[1024] = 7;
+      expect(await handle.vfs.xWrite(128, 1024, 1, 600, 0)).toBe(0);
+
+      expect(await handle.vfs.xRead(128, 2048, 601, 0, 0)).toBe(0);
+      expect(module.HEAPU8.subarray(2048, 2064).every(byte => byte === 0xff)).toBe(true);
+      expect(module.HEAPU8.subarray(2064, 2648).every(byte => byte === 0)).toBe(true);
+      expect(module.HEAPU8[2648]).toBe(7);
+      expect(await handle.vfs.xSync(128, 0)).toBe(0);
+      expect([...fileSystem.files.values()].map(file => file.length)).toEqual([601]);
+      expect(await handle.vfs.xClose(128)).toBe(0);
+    } finally {
+      await handle.vfs.close();
+    }
+  });
+});
+
+describe('extendFileData', () => {
+  it('加长后保留原内容，加长的部分为 0', () => {
+    expect([...extendFileData(Uint8Array.of(1, 2, 3), 8)]).toEqual([1, 2, 3, 0, 0, 0, 0, 0]);
+  });
+
+  it('逐页追加 4 MiB：缓冲只换新几次，不是每追加一页就整库重拷一遍', () => {
+    const page = 4096;
+    const pages = 1024;
+    let data: Uint8Array = new Uint8Array(0);
+    let reallocations = 0;
+    for (let index = 0; index < pages; index++) {
+      const next = extendFileData(data, (index + 1) * page);
+      if (next.buffer !== data.buffer) reallocations++;
+      next.fill(index % 251, index * page);
+      data = next;
+    }
+
+    // 余量至少 1 MiB：4 MiB 里换新不超过每 MiB 一次，外加起步那一次
+    expect(reallocations).toBeLessThanOrEqual(5);
+    expect(data.length).toBe(pages * page);
+    for (let index = 0; index < pages; index++) expect(data[index * page]).toBe(index % 251);
   });
 });
