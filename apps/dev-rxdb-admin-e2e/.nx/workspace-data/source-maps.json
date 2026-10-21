@@ -1,0 +1,80 @@
+{
+  ".": {
+    "root": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "tags": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:private": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageName": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageVersion": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.isInPackageManagerWorkspaces": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "targets": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "$schema": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "// targets": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "implicitDependencies": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "implicitDependencies.dev-rxdb-admin": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.e2e": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.e2e.dependsOn.0": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.e2e.dependsOn": [
+      "project.json",
+      "nx/core/project-json"
+    ]
+  }
+}

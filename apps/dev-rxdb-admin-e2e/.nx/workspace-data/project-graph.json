@@ -1,0 +1,49 @@
+{
+  "nodes": {
+    "dev-rxdb-admin-e2e": {
+      "name": "dev-rxdb-admin-e2e",
+      "type": "e2e",
+      "data": {
+        "root": ".",
+        "name": "dev-rxdb-admin-e2e",
+        "tags": [
+          "npm:private"
+        ],
+        "metadata": {
+          "targetGroups": {},
+          "js": {
+            "packageName": "dev-rxdb-admin-e2e",
+            "packageVersion": "0.0.1",
+            "isInPackageManagerWorkspaces": false
+          }
+        },
+        "targets": {
+          "e2e": {
+            "dependsOn": [
+              "dev-rxdb-admin:build"
+            ],
+            "configurations": {},
+            "options": {},
+            "parallelism": true,
+            "executor": "nx:noop"
+          }
+        },
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "projectType": "application",
+        "sourceRoot": "apps/dev-rxdb-admin-e2e/src",
+        "implicitDependencies": []
+      }
+    }
+  },
+  "externalNodes": {},
+  "dependencies": {
+    "dev-rxdb-admin-e2e": []
+  },
+  "version": "6.0",
+  "errors": [
+    {
+      "name": "WorkspaceValidityError"
+    }
+  ],
+  "computedAt": 1792582792678
+}
