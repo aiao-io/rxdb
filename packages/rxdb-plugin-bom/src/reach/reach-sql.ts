@@ -89,6 +89,18 @@ const deletionCtes = (sql: ReachSql): string => {
 export const deletionDepthExceededSql = (sql: ReachSql): string => `${deletionCtes(sql)}
   SELECT 1 FROM visited v JOIN edges e ON e.p = v.d WHERE v.depth >= ${BOM_CYCLE_DEPTH_LIMIT} LIMIT 1`;
 
+/**
+ * 否定证明「受影响对已无其他支持路径」：visited 里没有该对。两种写法同义，形态按后端计划器取舍：
+ * PG 把物化 CTE 上的 NOT EXISTS 计划成嵌套循环反连接，每个目标对线性扫一遍 visited（长链删中间边时
+ * 目标对 × visited 达百万级比较）；行值 NOT IN 只建一次哈希子计划。SQLite 相反：NOT EXISTS 给物化 CTE
+ * 建自动索引，行值 NOT IN 反而慢一个数量级。NOT IN 遇空值整体为 UNKNOWN（该对不删、闭包留陈旧对）：
+ * 目标对两端是可达表的非空列，visited 排除空值后两种写法在任何输入上逐行同义。
+ */
+const unsupportedPair = (sql: ReachSql): string =>
+  sql.postgres ?
+    `(target."ancestorItemId", target."descendantItemId") NOT IN (SELECT v.a, v.d FROM visited v WHERE v.a IS NOT NULL AND v.d IS NOT NULL)`
+  : `NOT EXISTS (SELECT 1 FROM visited v WHERE v.a = target."ancestorItemId" AND v.d = target."descendantItemId")`;
+
 /** 只移除已不再由真实发生项支持的受影响物料对。 */
 export const deleteReachSql = (sql: ReachSql): string => {
   const reach = sql.dialect.table('bom_reach');
@@ -97,6 +109,6 @@ export const deleteReachSql = (sql: ReachSql): string => {
     SELECT target."id" FROM ${reach} target JOIN scope s ON target."bomType" = s.t AND target."orgId" = s.o
     WHERE target."ancestorItemId" IN (SELECT a FROM ancestors)
       AND target."descendantItemId" IN (SELECT d FROM descendants)
-      AND NOT EXISTS (SELECT 1 FROM visited v WHERE v.a = target."ancestorItemId" AND v.d = target."descendantItemId")
+      AND ${unsupportedPair(sql)}
   );`;
 };

@@ -17,6 +17,7 @@ import { loadHistory } from '../resolve/history-loader.js';
 import { exportBom } from '../resolve/integration.js';
 import type { ResolutionContext } from '../resolve/resolution.js';
 import { BomQuantityError } from '../types.js';
+import { writeBypassingGuards } from './guard-bypass.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
@@ -164,30 +165,49 @@ const rowsOf = (result: unknown): unknown[][] => {
   return Array.isArray(shaped.results) ? shaped.results[0].rows : (shaped.rows ?? []);
 };
 
-const headerTable = (adapter: BomTestAdapter): string =>
-  adapter.name === 'wa-sqlite' ? '"bom$bom_header"' : '"bom"."bom_header"';
+const tableRef = (adapter: BomTestAdapter, table: string): string =>
+  adapter.name === 'wa-sqlite' ? `"bom$${table}"` : `"bom"."${table}"`;
+
+const headerTable = (adapter: BomTestAdapter): string => tableRef(adapter, 'bom_header');
 
 /**
  * 把已发布头的路线摘掉，造出「行声明了投料工序、头未选路线」的不一致状态：存储层守卫正是拒绝这个状态，
- * 这里模拟迁移 / 直连绕过——头表触发器全部暂停后直连改写，再原样恢复（SQLite 无停用开关，删后按原文重建）。
+ * 这里模拟迁移 / 直连绕过。
  */
-const detachRouting = async (adapter: BomTestAdapter, header: BomHeader): Promise<void> => {
-  const update = `UPDATE ${headerTable(adapter)} SET "routingId" = NULL WHERE "id" = '${header.id}'`;
-  if (adapter.name !== 'wa-sqlite') {
-    await adapter.rawQuery(`ALTER TABLE "bom"."bom_header" DISABLE TRIGGER USER`);
-    await adapter.rawQuery(update);
-    await adapter.rawQuery(`ALTER TABLE "bom"."bom_header" ENABLE TRIGGER USER`);
-    return;
-  }
-  const triggers = rowsOf(
-    await adapter.rawQuery(
-      `SELECT "name", "sql" FROM "sqlite_master" WHERE "type" = 'trigger' AND "tbl_name" = 'bom$bom_header' ORDER BY "rowid"`
-    )
+const detachRouting = (adapter: BomTestAdapter, header: BomHeader): Promise<void> =>
+  writeBypassingGuards(
+    adapter,
+    'bom_header',
+    `UPDATE ${headerTable(adapter)} SET "routingId" = NULL WHERE "id" = '${header.id}'`
   );
-  for (const [name] of triggers) await adapter.rawQuery(`DROP TRIGGER "${String(name)}"`);
-  await adapter.rawQuery(update);
-  for (const [, sql] of triggers) await adapter.rawQuery(String(sql));
+
+/**
+ * 事后改动路线工序（改号或删除），造出「投料工序 / 分摊行引用的工序号不在头所选路线的工序集内」的状态：
+ * 存储层守卫拒绝改动被已发布头引用的工序，这里同样模拟迁移 / 直连绕过。
+ */
+const rewriteRoutingOperation = (
+  adapter: BomTestAdapter,
+  routing: BomRouting,
+  operationSeq: number,
+  change: { renumberTo: number } | 'delete'
+): Promise<void> => {
+  const table = tableRef(adapter, 'routing_operation');
+  const target = `"routingId" = '${routing.id}' AND "operationSeq" = ${operationSeq}`;
+  return writeBypassingGuards(
+    adapter,
+    'routing_operation',
+    change === 'delete' ?
+      `DELETE FROM ${table} WHERE ${target}`
+    : `UPDATE ${table} SET "operationSeq" = ${change.renumberTo} WHERE ${target}`
+  );
 };
+
+const operationSeqsOf = async (adapter: BomTestAdapter, routing: BomRouting): Promise<number[]> =>
+  rowsOf(
+    await adapter.rawQuery(
+      `SELECT "operationSeq" FROM ${tableRef(adapter, 'routing_operation')} WHERE "routingId" = '${routing.id}' ORDER BY "operationSeq"`
+    )
+  ).map(([seq]) => Number(seq));
 
 const routingIdOf = async (adapter: BomTestAdapter, header: BomHeader): Promise<unknown> =>
   rowsOf(await adapter.rawQuery(`SELECT "routingId" FROM ${headerTable(adapter)} WHERE "id" = '${header.id}'`))[0][0];
@@ -206,6 +226,24 @@ const expectRoutingMissing = async (
   expect(error).toHaveProperty('message', expect.stringContaining('路线未覆盖'));
   expect(error).toHaveProperty('message', expect.stringContaining('头未选路线'));
   expect(error).toHaveProperty('message', expect.stringContaining(fixture.header.id));
+  expect(error).toHaveProperty('message', expect.stringContaining(fixture.occurrence.id));
+};
+
+/** 投料工序不在所选路线的工序集内：与「路线未覆盖」同一错误类与口径，点名路线、发生项与缺失的工序号。 */
+const expectOperationMissing = async (
+  result: Promise<unknown>,
+  fixture: LayerFixture,
+  operationSeq: number,
+  errorType: typeof BomQuantityError | typeof BomCostError
+): Promise<void> => {
+  const error = await result.then(
+    () => null,
+    (failure: unknown) => failure
+  );
+  expect(error).toBeInstanceOf(errorType);
+  expect(error).toHaveProperty('message', expect.stringContaining('路线未覆盖'));
+  expect(error).toHaveProperty('message', expect.stringContaining(`工序 ${operationSeq} 不在路线工序集内`));
+  expect(error).toHaveProperty('message', expect.stringContaining(fixture.routing!.id));
   expect(error).toHaveProperty('message', expect.stringContaining(fixture.occurrence.id));
 };
 
@@ -449,6 +487,83 @@ for (const backend of BACKENDS) {
         await expectRoutingMissing(
           rollupCost(adapter, costContextAt(date), { parentRevisionId: target.header.parentRevisionId }),
           fixture,
+          BomCostError
+        );
+      }
+    });
+  });
+
+  describe(`投料工序不在头所选路线的工序集内（工序事后改号 / 删除，守卫被绕过）[${backend}]`, () => {
+    const date = COVERED_DATES[0];
+    let adapter: BomTestAdapter;
+    let renumbered: LayerFixture;
+    let deleted: LayerFixture;
+    let nestedRenumbered: LayerFixture;
+    let nestedDeleted: LayerFixture;
+
+    beforeAll(async () => {
+      adapter = await createBomTestAdapter(backend);
+      const child = await makeItem('2');
+      renumbered = await makeLayer(adapter, child, { routing: 'single' });
+      deleted = await makeLayer(adapter, child, { routing: 'split', qty: '100' });
+      nestedRenumbered = await makeLayer(adapter, renumbered.parent, { qty: '2' });
+      nestedDeleted = await makeLayer(adapter, deleted.parent, { qty: '2' });
+      // 投料工序 20 改号为 30：从 20 起算的剩余工序链会把 30 的损耗静默挂上；分摊行引用的 20 被删：那份静默少算损耗
+      await rewriteRoutingOperation(adapter, renumbered.routing!, 20, { renumberTo: 30 });
+      await rewriteRoutingOperation(adapter, deleted.routing!, 20, 'delete');
+    });
+
+    afterAll(async () => {
+      await disposeBomTestAdapter(adapter).catch(() => undefined);
+    });
+
+    it('构造前提：路线只剩改号 / 删除后的工序，投料工序与分摊行仍引用工序 20', async () => {
+      expect(await operationSeqsOf(adapter, renumbered.routing!)).toEqual([30]);
+      expect(await operationSeqsOf(adapter, deleted.routing!)).toEqual([40]);
+      expect(renumbered.occurrence.operationSeq).toBe(20);
+    });
+
+    it('数量展开：单工序与分摊行都拒绝整次计算（根层与子层），不按剩余工序链静默计算', async () => {
+      for (const [fixture, target] of [
+        [renumbered, renumbered],
+        [deleted, deleted],
+        [renumbered, nestedRenumbered],
+        [deleted, nestedDeleted]
+      ] as const) {
+        await expectOperationMissing(
+          explodeBom(
+            adapter,
+            contextAt(date),
+            { parentRevisionId: target.header.parentRevisionId },
+            { plannedQty: { value: '1', uom: 'pcs' } }
+          ),
+          fixture,
+          20,
+          BomQuantityError
+        );
+      }
+    });
+
+    it('导出经数量展开同样拒绝', async () => {
+      await expectOperationMissing(
+        exportBom(adapter, contextAt(date), { parentRevisionId: renumbered.header.parentRevisionId }),
+        renumbered,
+        20,
+        BomQuantityError
+      );
+    });
+
+    it('成本卷算：根层明细与子装配单位成本都拒绝，不按剩余工序链静默少算', async () => {
+      for (const [fixture, target] of [
+        [renumbered, renumbered],
+        [deleted, deleted],
+        [renumbered, nestedRenumbered],
+        [deleted, nestedDeleted]
+      ] as const) {
+        await expectOperationMissing(
+          rollupCost(adapter, costContextAt(date), { parentRevisionId: target.header.parentRevisionId }),
+          fixture,
+          20,
           BomCostError
         );
       }

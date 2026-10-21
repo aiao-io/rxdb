@@ -10,6 +10,7 @@ import { BomCostError, rollupCost } from '../quantity/cost.js';
 import { explodeBom, type RequirementLine } from '../quantity/explosion.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { BomQuantityError } from '../types.js';
+import { writeBypassingGuards } from './guard-bypass.js';
 import {
   BomTestAdapter,
   buildQuantityFixture,
@@ -356,16 +357,33 @@ for (const backend of BACKENDS) {
       expect(String((error as Error).message)).toContain('从 kg 换算到 pcs 缺换算率');
     });
 
-    it('换算率为 0（物料级 / 行级，写入期合法）：整次拒绝为 BomQuantityError 并点名单位对，不以裸除零错误逃逸', async () => {
-      for (const [itemRate, lineRate, level] of [
-        ['0', null, '物料级'],
-        ['2', '0', '行级']
+    it('换算率为 0：物料级 / 行级都在写入期拒绝；守卫上线前写入的存量 0 整次拒绝为 BomQuantityError 并点名单位对，不以裸除零错误逃逸', async () => {
+      await expect(makeItem('zero-rate-new', 'kg', 0, '0')).rejects.toThrow(/uomConversion 换算率必须大于 0/);
+      const fresh = await makeItem('zero-rate-new-part', 'kg');
+      await expect(
+        buildFixture(adapter, [
+          {
+            item: await makeItem('zero-rate-new-fin'),
+            occurrences: [{ child: fresh, qty: '10', uom: 'm', uomConversion: '0' }]
+          }
+        ])
+      ).rejects.toThrow(/uomConversion 换算率必须大于 0/);
+      // 存量：按正数建好后绕过守卫直写 0（行级覆盖物料级，只改哪一级就点名哪一级）
+      const tableRef = (name: string): string => (backend === 'wa-sqlite' ? `"bom$${name}"` : `"bom"."${name}"`);
+      for (const [table, key, lineRate, level] of [
+        ['item', 'id', null, '物料级'],
+        ['bom_line_occurrence', 'childItemId', '2', '行级']
       ] as const) {
         const finished = await makeItem('zero-rate-fin');
-        const part = await makeItem('zero-rate-part', 'kg', 0, itemRate);
+        const part = await makeItem('zero-rate-part', 'kg', 0, '2');
         await buildFixture(adapter, [
           { item: finished, occurrences: [{ child: part, qty: '10', uom: 'm', uomConversion: lineRate }] }
         ]);
+        await writeBypassingGuards(
+          adapter,
+          table,
+          `UPDATE ${tableRef(table)} SET "uomConversion" = '0' WHERE "${key}" = '${part.id}'`
+        );
         const error = await explodeBom(
           adapter,
           CONTEXT,
@@ -380,26 +398,39 @@ for (const backend of BACKENDS) {
       }
     });
 
-    it('头基准量 base_qty 为 0（写入期合法）：按批缩放的数量与成本都拒绝并点名头基准量，不以裸除零错误逃逸', async () => {
+    it('头基准量 base_qty 为 0：写入期拒绝；守卫上线前写入的存量 0 让按批缩放的数量与成本都拒绝并点名头基准量，不以裸除零错误逃逸', async () => {
       const finished = await makeItem('zero-base-fin');
       const part = await makeItem('zero-base-part');
       part.unitPrice = '1';
       part.priceCurrency = 'CNY';
       await part.save();
-      await loadHistory(adapter, {
-        batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
-        revisions: [{ itemId: finished.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }],
-        headers: [
-          {
-            revisionIndex: 0,
-            bomType: 'ebom',
-            orgId: 'org-x',
-            baseQty: '0',
-            costLotQty: '1',
-            lines: [{ lineNo: 10, occurrences: [{ childItemId: part.id, qty: '2', effectiveFrom: day('2020-01-01') }] }]
-          }
-        ]
-      });
+      const headerId = crypto.randomUUID();
+      const load = (baseQty: string): Promise<void> =>
+        loadHistory(adapter, {
+          batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
+          revisions: [{ itemId: finished.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }],
+          headers: [
+            {
+              id: headerId,
+              revisionIndex: 0,
+              bomType: 'ebom',
+              orgId: 'org-x',
+              baseQty,
+              costLotQty: '1',
+              lines: [
+                { lineNo: 10, occurrences: [{ childItemId: part.id, qty: '2', effectiveFrom: day('2020-01-01') }] }
+              ]
+            }
+          ]
+        });
+      await expect(load('0')).rejects.toThrow(/baseQty 头基准量必须大于 0/);
+      // 存量：按正数装载后绕过守卫直写 0
+      await load('1');
+      await writeBypassingGuards(
+        adapter,
+        'bom_header',
+        `UPDATE ${backend === 'wa-sqlite' ? '"bom$bom_header"' : '"bom"."bom_header"'} SET "baseQty" = '0' WHERE "id" = '${headerId}'`
+      );
       const quantity = await explodeBom(
         adapter,
         CONTEXT,

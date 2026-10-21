@@ -77,6 +77,12 @@ const REROUTE_UNCOVERED = WRITE_PROTOCOL(
   'bom_header',
   '已发布头改挂的路线不含投料工序 / 分摊行的工序（不在路由工序序集内）'
 );
+// 已发布头的投料工序 / 分摊行按 (routing_id, operation_seq) 解析：被引用的工序删除、改号或移出路线
+// 都让发布时校验过的引用事后悬空；只被草稿头引用时放行（发布门重验）
+const OPERATION_REFERENCED = WRITE_PROTOCOL(
+  'routing_operation',
+  '工序被已发布头的投料工序 / 分摊行引用，不可删除、改号或移出路线（挂了必须可解析）'
+);
 
 /** 另一实体的表引用（按方言）。 */
 type TableOf = (Entity: EntityType) => string;
@@ -112,6 +118,19 @@ const releasedUnroutedHeader = (table: TableOf, owner: 'occurrence' | 'split'): 
       `FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" WHERE l."id" = NEW."lineId"`
     : `FROM ${table(BomLineOccurrence)} occ JOIN ${line} l ON l."id" = occ."lineId" JOIN ${header} h ON h."id" = l."headerId" WHERE occ."id" = NEW."occurrenceId"`;
   return `EXISTS (SELECT 1 ${scope} AND h."state" = 'released' AND h."routingId" IS NULL)`;
+};
+
+/**
+ * 工序键 `(routingId, operationSeq)` 被已发布头引用（`OLD` 为工序行）：挂该路线的已发布头下有发生项
+ * 以它为投料工序、或有分摊行分摊到它。不分生效期——截止的发生项在历史时点照样要解析。
+ */
+const releasedOperationReferenced = (table: TableOf): string => {
+  const members = `FROM ${table(BomHeader)} h JOIN ${table(BomLine)} l ON l."headerId" = h."id" JOIN ${table(BomLineOccurrence)} occ ON occ."lineId" = l."id"`;
+  const released = `h."routingId" = OLD."routingId" AND h."state" = 'released'`;
+  return (
+    `EXISTS (SELECT 1 ${members} WHERE ${released} AND occ."operationSeq" = OLD."operationSeq") OR ` +
+    `EXISTS (SELECT 1 ${members} JOIN ${table(BomLineOperationSplit)} s ON s."occurrenceId" = occ."id" WHERE ${released} AND s."operationSeq" = OLD."operationSeq")`
+  );
 };
 
 /** 结构归属列的不可改判据（SQLite：`IS NOT`，PG：`IS DISTINCT FROM` 的反）。 */
@@ -503,11 +522,22 @@ const canonicalGlob = (field: string): string => `(
  * 实体上由规范串格式触发器判定的十进制列（两后端同源：取自十进制列登记 decimal-columns，登记序即安装序）。
  * 可空列的 NULL 跳过检查（如公式行的 qty），可空性取自实体元数据；`jointCostShare` 例外，由联产守卫的
  * 份额谓词判定（规范串 ∩ [0,1] ∩ 小数至多 9 位，见 coproduct-trigger-ddl）。值域守卫（良率制、阶梯边界、
- * [0,1] 九位小数）另装触发器叠加在格式检查之上。
+ * [0,1] 九位小数、正数）另装触发器叠加在格式检查之上。
  */
 const decimalFormatColumns = (metadata: EntityMetadata): { field: string; nullable: boolean }[] =>
   DECIMAL_COLUMNS.filter(({ storage, entities }) => storage === 'canonical' && isEntity(metadata, ...entities)).map(
     ({ field }) => ({ field, nullable: metadata.propertyMap.get(field)?.nullable === true })
+  );
+
+/**
+ * 实体上的正数域列与其违约消息（取自十进制列登记，两后端同源）。规范串里零只有 `'0'` 一种写法，
+ * 「> 0」即 `s = '0'` 的反（格式触发器先保证规范串；NULL 比较为 NULL，可空列的空值不触发）。
+ */
+const positiveColumns = (metadata: EntityMetadata): { field: string; message: string }[] =>
+  DECIMAL_COLUMNS.flatMap(({ field, domain, entities }) =>
+    domain.kind === 'positive' && isEntity(metadata, ...entities) ?
+      [{ field, message: DECIMAL_FORMAT(field, `${domain.label}必须大于 0`) }]
+    : []
   );
 
 /**
@@ -550,6 +580,23 @@ const sqliteDecimalFormatTriggers = (metadata: EntityMetadata): string[] => {
         `${metadata.tableName}_${field}_decimal_u`,
         'BEFORE UPDATE',
         raiseWhen(message, violation)
+      )
+    );
+  }
+  // 正数域（换算率、头基准量、标准成本批量）
+  for (const { field, message } of positiveColumns(metadata)) {
+    statements.push(
+      ...sqliteTrigger(
+        tableRef,
+        `${metadata.tableName}_${field}_positive_i`,
+        'BEFORE INSERT',
+        raiseWhen(message, `NEW."${field}" = '0'`)
+      ),
+      ...sqliteTrigger(
+        tableRef,
+        `${metadata.tableName}_${field}_positive_u`,
+        'BEFORE UPDATE',
+        raiseWhen(message, `NEW."${field}" = '0'`)
       )
     );
   }
@@ -994,7 +1041,8 @@ const sqliteSubstitutePublishGuard = (metadata: EntityMetadata): string[] => {
  * 1. 分摊比例域 `[0,1]`、小数至多 9 位（与 usage_probability 同域，保存期拒绝）；
  * 2. 工序损耗良率制 `[0,1)`（US-511 记法同域）；
  * 3. 发布转移：头挂路由时投料工序与分摊行必须在路由序集内（挂了必须可解析）；
- *    分摊合计恒 1（按发生项分组，随发生项生效域不跨期相加）。
+ *    分摊合计恒 1（按发生项分组，随发生项生效域不跨期相加）；
+ * 4. 发布之后：已发布头引用的工序键 `(routing_id, operation_seq)` 不可删除、改号或移出路线（US-520 AC#13）。
  */
 const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
   const statements: string[] = [];
@@ -1119,9 +1167,19 @@ const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
     const tableRef = sqliteTableRef(metadata);
     const message = DECIMAL_FORMAT('operationScrap', '良率制损耗必须在 [0,1)（s = 1 拒绝）');
     const violation = `NEW."scrapConvention" = 'yield' AND NEW."operationScrap" <> '0' AND substr(NEW."operationScrap", 1, 2) <> '0.'`;
+    const referenced = raiseWhen(OPERATION_REFERENCED, releasedOperationReferenced(sqliteTableOf));
     statements.push(
       ...sqliteTrigger(tableRef, 'bom_routing_operation_scrap_yield_i', 'BEFORE INSERT', raiseWhen(message, violation)),
-      ...sqliteTrigger(tableRef, 'bom_routing_operation_scrap_yield_u', 'BEFORE UPDATE', raiseWhen(message, violation))
+      ...sqliteTrigger(tableRef, 'bom_routing_operation_scrap_yield_u', 'BEFORE UPDATE', raiseWhen(message, violation)),
+      // 已发布头引用的工序键不可改号、移出路线或删除；非键列（损耗、工时等）照常可改
+      ...sqliteTrigger(
+        tableRef,
+        'bom_routing_operation_referenced_u',
+        'BEFORE UPDATE',
+        referenced,
+        `NEW."routingId" IS NOT OLD."routingId" OR NEW."operationSeq" IS NOT OLD."operationSeq"`
+      ),
+      ...sqliteTrigger(tableRef, 'bom_routing_operation_referenced_d', 'BEFORE DELETE', referenced)
     );
   }
   if (isEntity(metadata, BomHeader)) {
@@ -2053,6 +2111,9 @@ const pgDecimalFormatFunction = (metadata: EntityMetadata): string[] => {
       : `NEW."${field}" !~ ${PG_CANONICAL_RE}`;
     guards.push(`  IF ${violation} THEN\n    RAISE EXCEPTION '${DECIMAL_FORMAT(field)}';\n  END IF;`);
   }
+  for (const { field, message } of positiveColumns(metadata)) {
+    guards.push(`  IF NEW."${field}" = '0' THEN\n    RAISE EXCEPTION '${message}';\n  END IF;`);
+  }
   if (isEntity(metadata, BomHeader)) {
     guards.push(
       `  IF NEW."assemblyScrapConvention" = 'yield' AND NEW."assemblyScrap" <> '0' AND left(NEW."assemblyScrap", 2) <> '0.' THEN`
@@ -2434,6 +2495,11 @@ const pgRoutingGuards = (metadata: EntityMetadata): string[] => {
     const body =
       `  IF NEW."scrapConvention" = 'yield' AND NEW."operationScrap" <> '0' AND left(NEW."operationScrap", 2) <> '0.' THEN\n` +
       `    RAISE EXCEPTION '${message}';\n  END IF;`;
+    // 已发布头引用的工序键不可改号、移出路线或删除（与 SQLite 同口径）
+    const keyChanged = `(CASE WHEN TG_OP = 'DELETE' THEN TRUE ELSE NEW."routingId" IS DISTINCT FROM OLD."routingId" OR NEW."operationSeq" IS DISTINCT FROM OLD."operationSeq" END)`;
+    const referencedBody =
+      `  IF ${keyChanged} AND (${releasedOperationReferenced(pgTableOf)}) THEN\n` +
+      `    RAISE EXCEPTION '${OPERATION_REFERENCED}';\n  END IF;`;
     statements.push(
       pgTriggerFunction(metadata, 'bom_routing_operation__scrap_guard', body),
       pgCreateTrigger(
@@ -2442,6 +2508,14 @@ const pgRoutingGuards = (metadata: EntityMetadata): string[] => {
         'bom_routing_operation__scrap_trg',
         'BEFORE INSERT OR UPDATE',
         'bom_routing_operation__scrap_guard'
+      ),
+      pgTriggerFunction(metadata, 'bom_routing_operation__referenced_guard', referencedBody),
+      pgCreateTrigger(
+        metadata,
+        tableRef,
+        'bom_routing_operation__referenced_trg',
+        'BEFORE UPDATE OR DELETE',
+        'bom_routing_operation__referenced_guard'
       )
     );
   }

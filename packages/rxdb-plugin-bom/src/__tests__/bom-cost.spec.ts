@@ -23,6 +23,7 @@ import {
 import { BomCostError, rollupCost, type CostRollupContext } from '../quantity/cost.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { BomQuantityError } from '../types.js';
+import { writeBypassingGuards } from './guard-bypass.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
@@ -303,15 +304,23 @@ for (const backend of BACKENDS) {
       expect(String((error as Error).message)).toContain('缺换算率');
     });
 
-    it('卷算拒绝统一为 BomCostError：换算率为 0 经 cause 保留 BomQuantityError（不以裸除零错误透出）', async () => {
+    it('卷算拒绝统一为 BomCostError：换算率为 0 写入期拒绝；守卫上线前写入的存量 0 经 cause 保留 BomQuantityError（不以裸除零错误透出）', async () => {
+      await expect(makeItem('zero-rate-new', { stockUom: 'kg', uomConversion: '0' })).rejects.toThrow(
+        /uomConversion 换算率必须大于 0/
+      );
       const leaf = await makeItem('zero-rate-c', {
         stockUom: 'kg',
-        uomConversion: '0',
+        uomConversion: '2',
         unitPrice: '1',
         priceUom: 'kg'
       });
       const root = await makeItem('zero-rate-a');
       const { header } = await makeHeader(root, [{ child: leaf, qty: '2', uom: 'm' }]);
+      await writeBypassingGuards(
+        adapter,
+        'item',
+        `UPDATE ${backend === 'wa-sqlite' ? '"bom$item"' : '"bom"."item"'} SET "uomConversion" = '0' WHERE "id" = '${leaf.id}'`
+      );
       const error = await rollupCost(adapter, COST_CTX, { parentRevisionId: header.parentRevisionId }).then(
         () => null,
         (cause: unknown) => cause
@@ -387,12 +396,20 @@ for (const backend of BACKENDS) {
       }
     });
 
-    it('cost_lot_qty 为 0（写入期合法）：它是 unit_cost 的分母，根头与子装配都拒绝为 BomCostError，不以裸除零错误透出', async () => {
+    it('cost_lot_qty 为 0：写入期拒绝；守卫上线前写入的存量 0 是 unit_cost 的分母，根头与子装配都拒绝为 BomCostError，不以裸除零错误透出', async () => {
       const leaf = await makeItem('zero-lot-c', { unitPrice: '1' });
+      await expect(
+        makeHeader(await makeItem('zero-lot-new'), [{ child: leaf, qty: '1' }], { costLotQty: '0' })
+      ).rejects.toThrow(/costLotQty 标准成本批量必须大于 0/);
       const sub = await makeItem('zero-lot-b');
       const root = await makeItem('zero-lot-a');
-      const { header: subHeader } = await makeHeader(sub, [{ child: leaf, qty: '1' }], { costLotQty: '0' });
+      const { header: subHeader } = await makeHeader(sub, [{ child: leaf, qty: '1' }]);
       const { header: rootHeader } = await makeHeader(root, [{ child: sub, qty: '1' }]);
+      await writeBypassingGuards(
+        adapter,
+        'bom_header',
+        `UPDATE ${backend === 'wa-sqlite' ? '"bom$bom_header"' : '"bom"."bom_header"'} SET "costLotQty" = '0' WHERE "id" = '${subHeader.id}'`
+      );
       for (const header of [subHeader, rootHeader]) {
         const error = await rollupCost(adapter, COST_CTX, { parentRevisionId: header.parentRevisionId }).then(
           () => null,

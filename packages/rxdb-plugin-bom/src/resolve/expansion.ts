@@ -37,13 +37,16 @@ import {
   type ResolveTarget
 } from './resolver.js';
 
-/** 展开 / 反查预算（US-510 AC#1/#10）：深度、展开数、返回路径数，任一触顶即截断。 */
+/**
+ * 展开 / 反查预算（US-510 AC#1/#10）：深度、展开数、返回路径数，任一触顶即截断。
+ * 数量展开（`explodeBom`）复用同一结算，节点即它生成的路径节点（需求行与虚拟件穿透）。
+ */
 export interface ExpansionBudgets {
   /** 结果节点距根的最大边数（根 = 0），默认 128。 */
   depth?: number;
-  /** 展开次数（每生成一个非根节点计一次），默认 100,000。 */
+  /** 展开次数（每生成一个非根节点计一次，根不计），默认 100,000。 */
   expansions?: number;
-  /** 返回节点数（含根），默认 100,000。 */
+  /** 返回节点数：结果里的全部节点（下钻含根；反查没有根节点），默认 100,000。 */
   paths?: number;
 }
 
@@ -100,11 +103,7 @@ export const DEFAULT_EXPANSION_BUDGETS: Readonly<Required<ExpansionBudgets>> = {
 /** 前沿集合 IN 列表的分块大小（避开两后端的绑定变量上限）。 */
 const CHUNK_SIZE = 200;
 
-interface ResolvedBudgets {
-  depth: number;
-  expansions: number;
-  paths: number;
-}
+type ResolvedBudgets = Readonly<Required<ExpansionBudgets>>;
 
 /** 一层下钻的结果：本层新节点 + 下一层前沿 + 触顶标记。 */
 interface ExpandLevelStep {
@@ -156,25 +155,26 @@ interface UsageRow {
 const resolveBudgets = (budgets?: ExpansionBudgets): ResolvedBudgets => ({ ...DEFAULT_EXPANSION_BUDGETS, ...budgets });
 
 /**
- * 生成新节点前的预算结算（顺序：取消 → 深度 → 返回路径数 → 展开数）。
+ * 生成新节点前的预算结算（顺序：取消 → 深度 → 返回路径数 → 展开数），下钻、反查与数量展开（US-511）共用：
+ * 展开数只数生成的非根节点（根不是一次展开），返回路径数是结果里的全部节点——下钻与数量展开的结果含根，
+ * 反查没有根节点。三处按同一口径截断，触顶即停，不静默超预算。
  *
- * @param baseNodes - 已提交节点数（含根；本层内不变）
- * @param added - 本层已生成但未提交的节点数
+ * @param usage - 已生成的非根节点数（含本层已生成未提交的）与结果是否含根节点
  * @param parentDepth - 生成该节点的父节点深度
  * @returns 触顶原因；null = 放行
  */
-const checkBudgets = (
-  baseNodes: number,
-  added: number,
+export const checkBudgets = (
+  usage: { generated: number; withRoot: boolean },
   parentDepth: number,
   budget: ResolvedBudgets,
   signal?: AbortSignal
 ): TruncationReason | null => {
   if (signal?.aborted) return 'cancelled';
   if (parentDepth + 1 > budget.depth) return 'depth';
-  if (baseNodes + added + 1 > budget.paths) return 'paths';
-  // 展开数 = 已生成的非根节点数；本节点是第 (baseNodes - 1 + added + 1) 次展开
-  if (baseNodes - 1 + added + 1 > budget.expansions) return 'expansions';
+  // 计入本节点后的展开数；返回节点数再加上结果里的根
+  const generated = usage.generated + 1;
+  if (generated + (usage.withRoot ? 1 : 0) > budget.paths) return 'paths';
+  if (generated > budget.expansions) return 'expansions';
   return null;
 };
 
@@ -399,7 +399,9 @@ const expandLevel = async (
   for (const entry of frontier) {
     for (const child of byParent.get(entry.revisionId) ?? []) {
       const parent = nodes[entry.nodeIndex];
-      const reason = checkBudgets(nodes.length, added.length, parent.depth, budget, signal);
+      // 下钻结果以根开头：已生成的非根节点 = 已提交节点去掉根 + 本层已生成
+      const generated = nodes.length - 1 + added.length;
+      const reason = checkBudgets({ generated, withRoot: true }, parent.depth, budget, signal);
       if (reason !== null) return { added, next, truncated: { reason } };
       added.push({
         path: [...parent.path, child.occurrenceId],
@@ -438,7 +440,9 @@ const usageLevel = async (
   for (const entry of frontier) {
     for (const usage of byChild.get(entry.itemId) ?? []) {
       const parentDepth = entry.nodeIndex === null ? 0 : nodes[entry.nodeIndex].depth;
-      const reason = checkBudgets(nodes.length, added.length, parentDepth, budget, signal);
+      // 反查结果没有根节点：已提交与本层已生成的都是使用方节点
+      const generated = nodes.length + added.length;
+      const reason = checkBudgets({ generated, withRoot: false }, parentDepth, budget, signal);
       if (reason !== null) return { added, next, truncated: { reason } };
       const parentPath = entry.nodeIndex === null ? [] : nodes[entry.nodeIndex].path;
       added.push({

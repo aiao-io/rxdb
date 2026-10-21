@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-20
+updated: 2026-10-21
 tags: [domain, bom, calculation, cost]
 ---
 
@@ -24,7 +24,8 @@ tags: [domain, bom, calculation, cost]
 - 自底向上按**拓扑逆序**单遍卷算
 - 四项构成：材料（`consume` 行 × 子件单件成本）、加工（工序工时 × 费率）、制费、副产抵减
 - **成本有量纲**：`batch_cost(n, L)` 是节点 n 生产 L 个基准单位的整批成本；`unit_cost(n) = batch_cost(n, L_n) / L_n`，
-  `L_n` 是 n 的 BOM 头上的标准成本批量 `cost_lot_qty`（卷算必填，缺失即拒绝）；父件只乘子件的 `unit_cost`，
+  `L_n` 是 n 的 BOM 头上的标准成本批量 `cost_lot_qty`（卷算必填，缺失即拒绝；它是分母，必须大于 0，写 0 保存即拒，
+  见 [US-511](US-511-bom-quantity-semantics.md) AC#27）；父件只乘子件的 `unit_cost`，
   不乘根级累计展开量
 - **成本有单位**（见技术笔记「单位」）：`cost_lot_qty` 以头的 `base_uom` 计，`unit_cost` 是「币种 / 头 `base_uom`」；本层需求 `req(l, L)`
   以子件库存单位计，相乘前按 [US-511](US-511-bom-quantity-semantics.md) 第 7 步**同一个**换算（行级覆盖优先于物料级）转到子头 `base_uom`。

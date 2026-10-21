@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-20
+updated: 2026-10-21
 tags: [domain, bom, routing, cost]
 ---
 
@@ -33,7 +33,8 @@ AC 的阶段归属：A 关闭 AC#1 / #2 / #7 / #8 / #10 / #11；B 关闭 AC#3 / 
 ### In Scope
 
 - `routing` 的唯一键与 BOM 头逐列对齐：`(parent_revision_id, bom_type, org_id, alternative_no)`，同 [US-507](US-507-bom-graph-skeleton.md) 的 `bom_header` 唯一键（AC#11）
-- `routing_operation` 的身份是 `(routing_id, operation_seq)`——这正是 US-520 引用完整性要指向的东西
+- `routing_operation` 的身份是 `(routing_id, operation_seq)`——这正是 US-520 引用完整性要指向的东西；
+  被已发布头的投料工序 / 分摊行引用的工序不可删除、改号或移出路线（[US-520](US-520-bom-routing-operation.md) AC#13），路线退役走 `disabled_at` 停用（AC#7）
 - 费率按 `(work_center, activity_type, valid_from)` 取值，取不到就报错，不以 0 兜底；币种与计费单位 `rate_uom` 随费率存，卷算时币种与上下文币种比对（[US-514](US-514-bom-cost-rollup.md) AC#10）、工时先换到计费单位再乘费率（US-514 AC#19）
 - **路线一律落在本仓**：BOM 头的 `routing_id` 只能指向本仓 `routing`。不存在「路线由外部系统提供、本仓只存一个外部 ID」的半支持态；
   头可以不挂路线（`routing_id` 为 NULL，即无加工工序），此时行上不得有投料工序或分摊行（发布与已发布头写入都拒绝，[US-520](US-520-bom-routing-operation.md) AC#12）；挂了就必须可解析

@@ -3,7 +3,8 @@
  *
  * - 十进制列：列与其存储层域取自十进制列登记（decimal-columns，backend 的格式触发器同源派生）。
  *   入口先把值规范成规范十进制串（语法、指数、34 位有效数字、非负，见 {@link normalizeDecimalString}），
- *   再按列校验域——阶梯边界 15 位、[0,1] 且小数至多 9 位的份额 / 概率 / 分摊比例、良率制损耗 [0,1)。
+ *   再按列校验域——阶梯边界 15 位、[0,1] 且小数至多 9 位的份额 / 概率 / 分摊比例、良率制损耗 [0,1)、
+ *   正数的换算率 / 头基准量 / 标准成本批量。
  *   违约一律 {@link BomDecimalFormatError} 并点名列与域，不留到存储层才以笼统的「非规范串」拒绝。
  * - 公式行：qtyFormula 写入必须同时记录当前公式语法版本（{@link FORMULA_GRAMMAR_VERSION}）且能按该语法解析，
  *   与选择条件的语法版本同为写入期断言；语法升级后旧版本的公式不会被按新语法静默求值。
@@ -44,6 +45,9 @@ const assertDomain = (field: string, canonical: string, domain: DecimalDomain, r
   }
   if (domain.kind === 'fraction' && !isUnitFraction(canonical)) {
     throw new BomDecimalFormatError(field, `${domain.label}限 [0,1]、小数至多 9 位：${canonical}`);
+  }
+  if (domain.kind === 'positive' && canonical === '0') {
+    throw new BomDecimalFormatError(field, `${domain.label}必须大于 0：${canonical}`);
   }
   if (
     domain.kind === 'scrap' &&

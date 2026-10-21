@@ -80,8 +80,8 @@ const rowQuantity = (row: QuantityRow, formulaParams: Record<string, string> | u
 };
 
 /**
- * q 按批缩放：定量行即 q；否则 q × 计划量 ÷ base_qty。base_qty 为 0 是写入期合法的规范串，
- * 但无从按批缩放：按数量违约拒绝，不让 kernel 的除零错误裸抛。
+ * q 按批缩放：定量行即 q；否则 q × 计划量 ÷ base_qty。base_qty 写入期已限定大于 0（正数域）；
+ * 这里是绕过守卫的存量数据的第二道防线：为 0 即按数量违约拒绝，不让 kernel 的除零错误裸抛。
  */
 const scaledQuantity = (row: QuantityRow, quantity: Decimal, planned: Decimal, headerBaseQty: string): Decimal => {
   if (row.isFixedQty) return quantity;

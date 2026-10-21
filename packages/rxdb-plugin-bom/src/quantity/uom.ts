@@ -144,7 +144,8 @@ export const convertUom = (value: string, from: string, to: string, rates: UomCo
     throw new BomQuantityError(`从 ${from} 换算到 ${to} 缺换算率（跨量纲只经行级 / 物料级显式换算率，不默认 1）`);
   }
   const divisor = decimalFromCanonical(rate);
-  // 0 是写入期合法的规范串，但「1 目标单位含 0 源单位」不构成换算：按数量违约拒绝，不让 kernel 的除零错误裸抛
+  // 换算率写入期已限定大于 0（正数域）；绕过守卫的存量 0 是第二道防线：「1 目标单位含 0 源单位」不构成换算，
+  // 按数量违约拒绝，不让 kernel 的除零错误裸抛
   if (decimalIsZero(divisor)) {
     const level = rates.lineRate === null || rates.lineRate === undefined ? '物料级' : '行级';
     throw new BomQuantityError(`从 ${from} 换算到 ${to} 的${level}换算率为 0（1 ${to} 含 0 ${from} 不构成换算）`);

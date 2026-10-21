@@ -4,7 +4,8 @@
  * 双后端同断言：工序按序返回、工作中心引用完整性、路线唯一键与 BOM 头对齐、
  * 头 routing_id 指向不存在的路线保存拒绝（FK）、工序损耗记法可读、
  * 分摊比例域与发布合计校验、投料工序与分摊行在路由序集内校验；
- * 头未挂路线时投料工序与分摊行在发布门、已发布头写入与历史通道补丁三处都拒绝（挂了必须可解析）。
+ * 头未挂路线时投料工序与分摊行在发布门、已发布头写入与历史通道补丁三处都拒绝（挂了必须可解析）；
+ * 被已发布头的投料工序 / 分摊行引用的工序不可删除、改号或移出路线（发布后不被事后打破）。
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -71,20 +72,31 @@ const makeWorkCenter = async (code: string): Promise<BomWorkCenter> => {
   return center;
 };
 
-const makeRouting = async (header: BomHeader, center: BomWorkCenter): Promise<BomRouting> => {
+const saveOperation = async (
+  routing: BomRouting,
+  center: BomWorkCenter,
+  operationSeq: number
+): Promise<BomRoutingOperation> => {
+  const operation = new BomRoutingOperation();
+  operation.routingId = routing.id;
+  operation.operationSeq = operationSeq;
+  operation.workCenterId = center.id;
+  await operation.save();
+  return operation;
+};
+
+const makeRouting = async (
+  header: BomHeader,
+  center: BomWorkCenter,
+  seqs: readonly number[] = [10, 20, 30]
+): Promise<BomRouting> => {
   const routing = new BomRouting();
   routing.parentRevisionId = header.parentRevisionId;
   routing.bomType = 'ebom';
   routing.orgId = 'org-x';
   routing.validFrom = day('2020-01-01');
   await routing.save();
-  for (const seq of [10, 20, 30]) {
-    const operation = new BomRoutingOperation();
-    operation.routingId = routing.id;
-    operation.operationSeq = seq;
-    operation.workCenterId = center.id;
-    await operation.save();
-  }
+  for (const seq of seqs) await saveOperation(routing, center, seq);
   return routing;
 };
 
@@ -638,6 +650,66 @@ for (const backend of BACKENDS) {
           headerOverlays: [{ headerId: bare.id, headerPatch: { routingId: null } }]
         })
       ).resolves.toBeUndefined();
+    });
+
+    it('已发布头引用的工序：删除、改号、移出路线都拒绝（挂了必须可解析）；未引用 / 只被草稿头引用的工序、非键列与路线停用照常放行', async () => {
+      const center = await makeWorkCenter('WC-REF');
+      const header = await setup(adapter, await makeItem('rt-ref'));
+      const routing = await makeRouting(header, center, []);
+      const operations: BomRoutingOperation[] = [];
+      for (const seq of [10, 20, 30, 40]) operations.push(await saveOperation(routing, center, seq));
+      const [op10, op20, op30, op40] = operations;
+      header.routingId = routing.id;
+      await header.save();
+      // 10 是投料工序、20 是分摊目标；30 / 40 未被引用
+      await addOccurrence(header, await makeItem('rt-ref-a'), { operationSeq: 10 });
+      await addSplit(await addOccurrence(header, await makeItem('rt-ref-b')), 20, '1');
+      header.state = 'released';
+      await header.save();
+      // 只被草稿头引用的路线：草稿由发布门兜住，工序照常可删
+      const draft = await setup(adapter, await makeItem('rt-ref-d'));
+      const draftRouting = await makeRouting(draft, center, []);
+      const draftOperation = await saveOperation(draftRouting, center, 10);
+      draft.routingId = draftRouting.id;
+      await draft.save();
+      await addOccurrence(draft, await makeItem('rt-ref-d-c'), { operationSeq: 10 });
+
+      const table = adapter.name === 'wa-sqlite' ? '"bom$routing_operation"' : '"bom"."routing_operation"';
+      const expectReferenced = (error: unknown): void => {
+        expect(error).toBeInstanceOf(BomWriteProtocolError);
+        expect((error as Error).message).toContain('工序被已发布头的投料工序 / 分摊行引用');
+      };
+      // 直连 SQL 的原生错误经归一入口（仓储门面已归一）
+      const direct = async (sql: string): Promise<unknown> => normalizeBomError(await settled(adapter.rawQuery(sql)));
+      // 被引用工序的非键列照常可改（不影响可解析性）
+      op10.description = '下料';
+      await expect(op10.save()).resolves.toBeDefined();
+      // 仓储门面与直连 SQL 同口径拒绝：删除、改号、移到别的路线
+      expectReferenced(await settled(op10.remove()));
+      op20.operationSeq = 25;
+      expectReferenced(await settled(op20.save()));
+      expectReferenced(await direct(`DELETE FROM ${table} WHERE "id" = '${op20.id}'`));
+      expectReferenced(await direct(`UPDATE ${table} SET "operationSeq" = 15 WHERE "id" = '${op10.id}'`));
+      expectReferenced(
+        await direct(`UPDATE ${table} SET "routingId" = '${draftRouting.id}' WHERE "id" = '${op20.id}'`)
+      );
+      // 未被引用的工序照常改号与删除；路线停用不是删除，照常放行
+      op30.operationSeq = 35;
+      await expect(op30.save()).resolves.toBeDefined();
+      await expect(op40.remove()).resolves.toBeDefined();
+      routing.disabledAt = day('2099-01-01');
+      await expect(routing.save()).resolves.toBeDefined();
+      // 被拒的写入没有留下半截状态：已发布头照常展开
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
+      expect(result.requirementLines).toHaveLength(2);
+      await expect(draftOperation.remove()).resolves.toBeDefined();
+      draft.state = 'released';
+      expect(await settled(draft.save())).toBeInstanceOf(BomPublishValidationError);
     });
   });
 }

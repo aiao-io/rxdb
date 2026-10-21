@@ -4,7 +4,8 @@
  * - P1-5：凡写入 qtyFormula 的入口（仓储、历史通道、整批导入）断言 formulaGrammarVersion 是当前公式语法版本，
  *   不让惰性列携带求值期无法兑现的版本承诺；
  * - P2-12：入口对每个十进制列按存储层同一域规则规范化并校验（工序工时 / 制费 / 价格 / 费率 / 工序损耗同样
- *   规范化；阶梯边界 15 位、[0,1] 九位小数、良率制 [0,1) 在入口点名列与域）。
+ *   规范化；阶梯边界 15 位、[0,1] 九位小数、良率制 [0,1)、换算率 / 头基准量 / 标准成本批量的正数域
+ *   在入口点名列与域）。
  *
  * 双后端（wa-sqlite / pglite）同断言。
  */
@@ -317,6 +318,76 @@ for (const backend of BACKENDS) {
         ]);
         expect(result.committed).toBe(false);
         expect(result.diagnostics.map(row => row.message).join('|')).toMatch(/o-tier.*阶梯边界/);
+      });
+
+      it('换算率 / 头基准量 / 标准成本批量限正数：仓储、历史通道与整批导入在入口点名列与域拒绝 0（含非规范零）', async () => {
+        const rejected = async (write: Promise<unknown>, pattern: RegExp): Promise<void> => {
+          const failure = await write.then(
+            () => undefined,
+            (error: unknown) => error
+          );
+          expect(failure).toBeInstanceOf(BomDecimalFormatError);
+          expect(String((failure as Error).message)).toMatch(pattern);
+        };
+        // 物料级换算率：非规范零先规范成 0 再判域
+        for (const uomConversion of ['0', '0.00', '0e3']) {
+          const item = new BomItem();
+          item.itemNo = `wv-rate-${rand()}`;
+          item.uomConversion = uomConversion;
+          await rejected(item.save(), /uomConversion 换算率必须大于 0/);
+        }
+        // 行级换算率
+        const { line, child } = await draftLine();
+        await rejected(occurrenceOn(line, child, { uomConversion: '0' }).save(), /uomConversion 换算率必须大于 0/);
+        // 头基准量与标准成本批量：新建与更新同口径
+        const revisionId = await revisionIdOf(await makeItem('wv-base'));
+        const headerWith = (overrides: Partial<BomHeader>): BomHeader =>
+          Object.assign(new BomHeader(), {
+            parentRevisionId: revisionId,
+            bomType: 'ebom',
+            orgId: 'org-x',
+            ...overrides
+          });
+        await rejected(headerWith({ baseQty: '0' }).save(), /baseQty 头基准量必须大于 0/);
+        await rejected(headerWith({ costLotQty: '0.0' }).save(), /costLotQty 标准成本批量必须大于 0/);
+        const header = headerWith({ baseQty: '0.5', costLotQty: '2' });
+        await header.save();
+        expect(await storedValue('bom_header', 'baseQty', header.id)).toBe('0.5');
+        header.costLotQty = '0';
+        await rejected(header.save(), /costLotQty 标准成本批量必须大于 0/);
+        // 历史通道：新头的基准量与覆盖补丁的标准成本批量
+        const parent = await makeItem('wv-base-h');
+        await expect(
+          loadHistory(adapter, {
+            batchNo: `batch-${rand()}`,
+            revisions: [{ itemId: parent.id, revisionNo: 'B', effectiveFrom: day('2021-01-01') }],
+            headers: [{ revisionIndex: 0, bomType: 'ebom', orgId: 'org-x', baseQty: '0', lines: [] }]
+          })
+        ).rejects.toThrow(/baseQty 头基准量必须大于 0/);
+        await expect(
+          loadHistory(adapter, {
+            batchNo: `batch-${rand()}`,
+            revisions: [],
+            headers: [],
+            headerOverlays: [{ headerId: header.id, headerPatch: { costLotQty: '0' } }]
+          })
+        ).rejects.toThrow(/costLotQty 标准成本批量必须大于 0/);
+        // 整批导入：诊断点名源记录与域
+        const key = rand();
+        const identity = {
+          itemNo: `IMZ-${key}`,
+          revisionNo: 'RevA',
+          bomType: 'ebom',
+          orgId: 'org-x',
+          alternativeNo: 1
+        };
+        const result = await importBomDraft(adapter, [
+          { kind: 'item', source_ref: 'i-p', itemNo: `IMZ-${key}` },
+          { kind: 'revision', source_ref: 'r-p', itemNo: `IMZ-${key}`, revisionNo: 'RevA', state: 'draft' },
+          { kind: 'header', source_ref: 'h-zero', ...identity, state: 'draft', baseUom: 'pcs', baseQty: '0' }
+        ]);
+        expect(result.committed).toBe(false);
+        expect(result.diagnostics.map(row => row.message).join('|')).toMatch(/h-zero.*头基准量必须大于 0/);
       });
     });
   });

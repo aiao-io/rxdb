@@ -1,15 +1,17 @@
 /**
  * @fileoverview EBOM↔MBOM 映射的保存校验、覆盖率与跟进基线（US-516）
  *
- * 保存校验（TS 层）：两侧 `bom_type` / `org_id` 与范围一致（AC#10）；源行必须是范围
- * 成员——从 EBOM 根头出发、逐跳可证明的头链（头链一跳 = 前一行存在某个 consume 发生项、
- * 后一行所在头是该发生项可选到的、与范围同类型同组织的子件头，不按生效期；precise 行只可达
- * 锁定的修订头，AC#12/#15）；路径级映射的 `sourceLinePath` 首元素是根头行、逐级相邻、
- * 末元素等于 `sourceLineId`（AC#13）。NULL 规则由存储层触发器兜底（AC#9）。
+ * 保存校验（TS 层）：两侧 `bom_type` / `org_id` 与范围一致（AC#10）；两侧行都必须是范围
+ * 成员——源行从 EBOM 根头、目标行从 MBOM 根头出发、逐跳可证明的头链（两侧同一判据；头链一跳 =
+ * 前一行存在某个 consume 发生项、后一行所在头是该发生项可选到的、与该侧同类型、与范围同组织的子件头，
+ * 不按生效期；precise 行只可达锁定的修订头，AC#12/#15；目标侧本期只按行定义）；路径级映射的
+ * `sourceLinePath` 首元素是根头行、逐级相邻、末元素等于 `sourceLineId`（AC#13）。NULL 规则由存储层触发器兜底（AC#9）。
  * 覆盖率（AC#5/#6/#13/#14）与跟进基线/缺口（AC#4/#7/#8/#16~#22）随本文件其余导出：三处都自范围
  * EBOM 根头展开，截断与未裁决（与 assertCompleteResolution 同口径）的展开不当完整结构消费——覆盖率要整棵
  * 结构，不完整即拒绝；缺口与确认跟进逐映射判定（AC#22）：只有源行可能被未裁决跳 / 截断遮住的映射无法判定
- * 并点名那一跳，不影响其它映射。全部 SQL 走方言占位符绑定。
+ * 并点名那一跳，不影响其它映射。已存发生项消失（草稿头删除 / ECN 撤回取消级联）后，三处按保存的同一判据
+ * 重判两侧成员资格与路径相邻性：失效即「路径失效」——覆盖率列入 `invalid` 且不算覆盖，缺口标 `invalid`，
+ * 确认跟进拒绝。全部 SQL 走方言占位符绑定。
  */
 
 import { BomMap } from '../entities.js';
@@ -123,14 +125,36 @@ const linesOfHeaders = async (adapter: BomLocalAdapter, headerIds: string[]): Pr
     }))
   ).map(row => String(row[0]));
 
+/** 范围的一侧：成员资格自该侧根头出发，一跳只走与该侧同类型的子件头。 */
+interface ScopeSide {
+  label: string;
+  bomType: 'ebom' | 'mbom';
+  rootHeaderId: string;
+}
+
+/** 源侧：自 EBOM 根头（行级与路径级映射）。 */
+const sourceSide = (scope: MapScopeInfo): ScopeSide => ({
+  label: '源行',
+  bomType: 'ebom',
+  rootHeaderId: scope.ebomRootHeaderId
+});
+
+/** 目标侧：自 MBOM 根头（本期只按行定义，不带路径）。 */
+const targetSide = (scope: MapScopeInfo): ScopeSide => ({
+  label: '目标行',
+  bomType: 'mbom',
+  rootHeaderId: scope.mbomRootHeaderId
+});
+
 /**
  * 头链一跳（AC#12/#15）：给定头（`column = 'headerId'`）或行（`column = 'id'`）上的 consume
  * 发生项可选到的子件头——父修订属于该发生项的子件物料，precise 只认锁定的修订、imprecise 认该物料
- * 任一已发布修订；子件头须与范围同为 EBOM、同组织。不按生效期（物料级并集图只剪枝）。
+ * 任一已发布修订；子件头须与该侧同类型（源侧 EBOM / 目标侧 MBOM）、与范围同组织。不按生效期（物料级并集图只剪枝）。
  */
 const childHeadersOf = async (
   adapter: BomLocalAdapter,
   scope: MapScopeInfo,
+  side: ScopeSide,
   column: 'headerId' | 'id',
   ids: string[]
 ): Promise<string[]> =>
@@ -143,42 +167,100 @@ const childHeadersOf = async (
         `  AND (r."id" = occ."childRevisionId" OR (occ."childRevisionId" IS NULL AND r."state" = 'released'))`,
         `JOIN ${dialect.table('bom_header')} ch ON ch."parentRevisionId" = r."id"`,
         `WHERE l."${column}" IN (${placeholders(dialect, chunk.length)}) AND occ."flowDirection" = 'consume'`,
-        `  AND ch."bomType" = 'ebom' AND ch."orgId" = ${dialect.placeholder(chunk.length)}`
+        `  AND ch."bomType" = ${dialect.placeholder(chunk.length)} AND ch."orgId" = ${dialect.placeholder(chunk.length + 1)}`
       ].join('\n'),
-      params: [...chunk, scope.orgId]
+      params: [...chunk, side.bomType, scope.orgId]
     }))
   ).map(row => String(row[0]));
 
-/** 范围成员资格（AC#12/#15）：从 EBOM 根头按头链逐层 BFS，返回可达行集合。 */
-const reachableSourceLines = async (adapter: BomLocalAdapter, scope: MapScopeInfo): Promise<Set<string>> => {
+/** 范围成员资格（AC#12/#15，两侧同一判据）：从该侧根头按头链逐层 BFS，返回可达行集合。 */
+const reachableLines = async (adapter: BomLocalAdapter, scope: MapScopeInfo, side: ScopeSide): Promise<Set<string>> => {
   const reachable = new Set<string>();
-  const visited = new Set<string>([scope.ebomRootHeaderId]);
-  let frontier = [scope.ebomRootHeaderId];
+  const visited = new Set<string>([side.rootHeaderId]);
+  let frontier = [side.rootHeaderId];
   while (frontier.length > 0) {
     for (const lineId of await linesOfHeaders(adapter, frontier)) reachable.add(lineId);
-    frontier = (await childHeadersOf(adapter, scope, 'headerId', frontier)).filter(id => !visited.has(id));
+    frontier = (await childHeadersOf(adapter, scope, side, 'headerId', frontier)).filter(id => !visited.has(id));
     for (const headerId of frontier) visited.add(headerId);
   }
   return reachable;
 };
 
-/** 一侧行的类型与组织须与范围一致（AC#10）。 */
+/** 一侧行的类型与组织须与范围一致（AC#10）：违约点名该行、所在头与范围。 */
 const assertLineSide = async (
   adapter: BomLocalAdapter,
   scope: MapScopeInfo,
   lineId: string,
-  side: { label: string; bomType: 'ebom' | 'mbom' }
+  side: ScopeSide
 ): Promise<void> => {
   const header = await lineHeader(adapter, lineId);
   if (header.bomType !== side.bomType) {
-    throw new BomMapError(`${side.label} ${lineId}`, `所在头类型 ${header.bomType} 不是 ${side.bomType.toUpperCase()}`);
+    throw new BomMapError(
+      `${side.label} ${lineId}`,
+      `所在头 ${header.headerId} 的类型 ${header.bomType} 不是 ${side.bomType.toUpperCase()}（范围 ${scope.scopeId}）`
+    );
   }
   if (header.orgId !== scope.orgId) {
-    throw new BomMapError(`${side.label} ${lineId}`, `所在头组织 ${header.orgId} 与范围 ${scope.orgId} 不符`);
+    throw new BomMapError(
+      `${side.label} ${lineId}`,
+      `所在头 ${header.headerId} 的组织 ${header.orgId} 与范围 ${scope.scopeId} 的组织 ${scope.orgId} 不符`
+    );
   }
 };
 
-/** 路径级映射（AC#13）：首元素是根头行、逐级相邻（头链一跳）、末元素 = sourceLineId。 */
+/**
+ * 范围成员资格的违约文本（AC#12/#15；保存拒绝与「路径失效」同一判据）：行不在该侧根头的可达行集合里
+ * 即点名该侧根头；是成员为 null。
+ */
+const outsideScope = (members: Set<string>, side: ScopeSide, lineId: string): string | null =>
+  members.has(lineId) ? null : (
+    `不可由范围 ${side.bomType.toUpperCase()} 根头（${side.rootHeaderId}）到达，不是范围成员`
+  );
+
+/** 一侧行须是该侧的范围成员（根层的行所在头等于该侧根头，更深的行有一条自根头出发的头链）。 */
+const assertScopeMember = async (
+  adapter: BomLocalAdapter,
+  scope: MapScopeInfo,
+  lineId: string,
+  side: ScopeSide
+): Promise<void> => {
+  const outside = outsideScope(await reachableLines(adapter, scope, side), side, lineId);
+  if (outside !== null) throw new BomMapError(`${side.label} ${lineId}`, outside);
+};
+
+/** 一组逻辑行所在的头（行 → 头；已不存在的行不在表里）。 */
+const headersOfLines = async (adapter: BomLocalAdapter, lineIds: string[]): Promise<Map<string, string>> =>
+  new Map(
+    (
+      await queryInChunks(adapter, [...new Set(lineIds)], (dialect, chunk) => ({
+        sql: `SELECT l."id", l."headerId" FROM ${dialect.table('bom_line')} l WHERE l."id" IN (${placeholders(dialect, chunk.length)})`,
+        params: chunk
+      }))
+    ).map(row => [String(row[0]), String(row[1])])
+  );
+
+/**
+ * 路径的相邻性（AC#13；保存拒绝与「路径失效」同一判据）：首元素所在头是范围 EBOM 根头、逐跳是头链一跳
+ * （不按生效期）；断开时点名那一跳（已不存在的行不与任何行相邻），相邻为 null。
+ */
+const pathBreak = async (adapter: BomLocalAdapter, scope: MapScopeInfo, path: string[]): Promise<string | null> => {
+  const headers = await headersOfLines(adapter, path);
+  const rootHeader = headers.get(path[0]);
+  if (rootHeader === undefined) return `首元素 ${path[0]} 不存在`;
+  if (rootHeader !== scope.ebomRootHeaderId) {
+    return `首元素所在头 ${rootHeader} 不是范围 EBOM 根头 ${scope.ebomRootHeaderId}`;
+  }
+  for (let index = 1; index < path.length; index++) {
+    const next = headers.get(path[index]);
+    const children = await childHeadersOf(adapter, scope, sourceSide(scope), 'id', [path[index - 1]]);
+    if (next === undefined || !children.includes(next)) {
+      return `第 ${index} 跳（${path[index - 1]} → ${path[index]}）失去相邻性`;
+    }
+  }
+  return null;
+};
+
+/** 路径级映射（AC#13）：末元素 = sourceLineId，且首元素是根头行、逐级相邻。 */
 const assertSourcePath = async (
   adapter: BomLocalAdapter,
   scope: MapScopeInfo,
@@ -186,38 +268,24 @@ const assertSourcePath = async (
   sourceLineId: string | null | undefined
 ): Promise<void> => {
   if (path[path.length - 1] !== sourceLineId) throw new BomMapError('sourceLinePath', '末元素必须等于 sourceLineId');
-  const first = await lineHeader(adapter, path[0]);
-  if (first.headerId !== scope.ebomRootHeaderId) {
-    throw new BomMapError(
-      'sourceLinePath',
-      `首元素所在头 ${first.headerId} 不是范围 EBOM 根头 ${scope.ebomRootHeaderId}`
-    );
-  }
-  for (let index = 1; index < path.length; index++) {
-    const next = await lineHeader(adapter, path[index]);
-    const children = await childHeadersOf(adapter, scope, 'id', [path[index - 1]]);
-    if (!children.includes(next.headerId)) {
-      throw new BomMapError('sourceLinePath', `第 ${index} 跳（${path[index - 1]} → ${path[index]}）失去相邻性`);
-    }
-  }
+  const broken = await pathBreak(adapter, scope, path);
+  if (broken !== null) throw new BomMapError('sourceLinePath', broken);
 };
 
 /**
- * 保存映射（US-516）：两侧类型/组织、范围成员资格、路径相邻与末元素；通过后经实例的实体构造门面落库
- * （多实例并存时 `new BomMap()` 判不出目标库）。
+ * 保存映射（US-516）：两侧类型/组织与两侧范围成员资格（源行自 EBOM 根头、目标行自 MBOM 根头，同一判据）、
+ * 路径相邻与末元素；通过后经实例的实体构造门面落库（多实例并存时 `new BomMap()` 判不出目标库）。
  */
 export const saveMapping = async (adapter: BomLocalAdapter, input: MappingSaveInput): Promise<{ mapId: string }> => {
   const scope = await readScope(adapter, input.scopeId);
   const sourceLineId = input.sourceLineId ?? null;
   const targetLineId = input.targetLineId ?? null;
-  if (sourceLineId !== null) await assertLineSide(adapter, scope, sourceLineId, { label: '源行', bomType: 'ebom' });
-  if (targetLineId !== null) await assertLineSide(adapter, scope, targetLineId, { label: '目标行', bomType: 'mbom' });
-  if (sourceLineId !== null && !(await reachableSourceLines(adapter, scope)).has(sourceLineId)) {
-    throw new BomMapError(
-      `源行 ${sourceLineId}`,
-      `不可由范围 EBOM 根头（${scope.ebomRootHeaderId}）到达，不是范围成员`
-    );
-  }
+  const sides: [string, ScopeSide][] = [];
+  if (sourceLineId !== null) sides.push([sourceLineId, sourceSide(scope)]);
+  if (targetLineId !== null) sides.push([targetLineId, targetSide(scope)]);
+  // 两侧类型/组织先于成员资格（头链 BFS）判定
+  for (const [lineId, side] of sides) await assertLineSide(adapter, scope, lineId, side);
+  for (const [lineId, side] of sides) await assertScopeMember(adapter, scope, lineId, side);
   const path = input.sourceLinePath ?? null;
   if (path !== null && path.length === 0) {
     // 空路径既不是行级（省略路径）也指不到任何路径：存下去后路径键恒为空串，缺口与覆盖率都看不见它
@@ -243,7 +311,10 @@ export interface MappingCoverageResult {
   covered: { lineId: string; pathKey: string; mappingId: string }[];
   /** 未覆盖的源行与出现路径（未覆盖 ≠ removed，AC#6）。 */
   uncovered: { lineId: string; paths: string[][] }[];
-  /** 失效映射：路径失去相邻性或行失去成员资格，不静默算覆盖（AC#13）。 */
+  /**
+   * 失效映射（「路径失效」，AC#13）：路径级映射失去相邻性、源行或目标行失去该侧范围成员资格（与保存同一判据，
+   * 不按生效期；含只有目标行的 `added`）；不算作任何路径的覆盖。
+   */
   invalid: { mappingId: string; reason: string }[];
 }
 
@@ -262,6 +333,11 @@ export interface MappingGap {
   targetLineId: string | null;
   /** 无法判定（unresolved / truncated）：点名原因，不算无缺口（AC#22）。 */
   undecidable: { reason: string } | null;
+  /**
+   * 路径失效（与覆盖率 `invalid` 同一判据与原因文本）：路径级映射失去相邻性、源行或目标行失去该侧范围成员资格；
+   * 不算无缺口，也不只靠差异步骤消失来表达。差异照常给出；仍有效为 null。
+   */
+  invalid: { reason: string } | null;
   /** 逐步差异：基线步骤 → 当前步骤（null = 消失；kind = 变化类别）。 */
   differences: { baseline: MappingStep; current: MappingStep | null; kind: 'changed' | 'missing' }[];
   /** 当前新出现（基线没有）的步骤。 */
@@ -368,6 +444,59 @@ const readMapping = async (adapter: BomLocalAdapter, mappingId: string): Promise
   );
   if (rows.length === 0) throw new BomMapError('mappingId', `映射不存在：${mappingId}`);
   return storedMapping(rows[0]);
+};
+
+/** 两侧根头的可达行集合（一次查询内各算一遍，供逐映射判定）。 */
+interface ScopeMembers {
+  source: Set<string>;
+  target: Set<string>;
+}
+
+/**
+ * 一条映射的「路径失效」原因（与保存同一判据）：路径级映射看相邻性（自根头逐跳，蕴含源行成员资格），
+ * 行级映射看源行成员资格，有目标行再看目标行成员资格；仍有效为 null。
+ */
+const lapseOf = async (
+  adapter: BomLocalAdapter,
+  scope: MapScopeInfo,
+  members: ScopeMembers,
+  mapping: StoredMapping
+): Promise<string | null> => {
+  const reasons: string[] = [];
+  if (mapping.sourceLinePath !== null) {
+    const broken = await pathBreak(adapter, scope, mapping.sourceLinePath);
+    if (broken !== null) reasons.push(`路径 ${mapping.sourceLinePath.join('>')}：${broken}`);
+  } else if (mapping.sourceLineId !== null) {
+    const outside = outsideScope(members.source, sourceSide(scope), mapping.sourceLineId);
+    if (outside !== null) reasons.push(`源行 ${mapping.sourceLineId} ${outside}`);
+  }
+  if (mapping.targetLineId !== null) {
+    const outside = outsideScope(members.target, targetSide(scope), mapping.targetLineId);
+    if (outside !== null) reasons.push(`目标行 ${mapping.targetLineId} ${outside}`);
+  }
+  return reasons.length === 0 ? null : `${reasons.join('；')}（路径失效）`;
+};
+
+/**
+ * 「路径失效」逐映射判定（US-516：已存发生项经草稿头删除或 ECN 撤回 / 取消级联消失后）：覆盖率、缺口与
+ * 确认跟进共用，映射 id → 原因；仍有效的不在表里。
+ */
+const lapsedMappings = async (
+  adapter: BomLocalAdapter,
+  scope: MapScopeInfo,
+  mappings: StoredMapping[]
+): Promise<Map<string, string>> => {
+  const lapsed = new Map<string, string>();
+  if (mappings.length === 0) return lapsed;
+  const members: ScopeMembers = {
+    source: await reachableLines(adapter, scope, sourceSide(scope)),
+    target: await reachableLines(adapter, scope, targetSide(scope))
+  };
+  for (const mapping of mappings) {
+    const reason = await lapseOf(adapter, scope, members, mapping);
+    if (reason !== null) lapsed.set(mapping.id, reason);
+  }
+  return lapsed;
 };
 
 /** 源侧展开：根级失败（expandBom 直接拒绝：根备选零匹配、配置违约等）全局无法判定；否则给出展开（可能不完整）。 */
@@ -494,20 +623,21 @@ const sourceLinePaths = (
   return linePaths;
 };
 
-/** 映射失效原因（AC#13）：源行失去成员资格，或路径级映射的那一条路径不再出现；仍有效为 null。 */
-const invalidReason = (mapping: StoredMapping, reachable: Set<string>, paths: string[][]): string | null => {
-  if (!reachable.has(mapping.sourceLineId as string)) {
-    return `源行 ${mapping.sourceLineId} 失去范围成员资格（路径失效）`;
-  }
-  if (mapping.sourceLinePath === null) return null;
-  const pathKey = mapping.sourceLinePath.join('>');
-  return paths.some(path => path.join('>') === pathKey) ? null : `路径 ${pathKey} 失去相邻性（路径失效）`;
+/**
+ * 一条有效映射在本次展开里覆盖的路径键：行级 = 源行出现的全部路径，路径级 = 恰为 `sourceLinePath` 的那一条
+ * （只认展开里实际出现的路径：评估日下不出现的路径不覆盖任何东西，也不是失效）。
+ */
+const coveredPathKeys = (mapping: StoredMapping, paths: string[][]): string[] => {
+  const keys = paths.map(path => path.join('>'));
+  const own = mapping.sourceLinePath?.join('>');
+  return own === undefined ? keys : keys.filter(key => key === own);
 };
 
 /**
  * 覆盖率查询（AC#5/#6/#13/#14）：展开 EBOM 根，按路径计覆盖——路径级映射只覆盖
  * 那一条路径、行级映射覆盖该逻辑行出现的全部路径；未覆盖报出（不静默视作 removed）；
- * 失去相邻性的路径级映射与失去成员资格的行级映射标「路径失效」。截断 / 未裁决即拒绝。
+ * 「路径失效」的映射（路径级失去相邻性、源行或目标行失去成员资格，含 `added`）列入 `invalid`、不算覆盖。
+ * 截断 / 未裁决即拒绝。
  */
 export const mappingCoverage = async (
   adapter: BomLocalAdapter,
@@ -515,26 +645,25 @@ export const mappingCoverage = async (
   context: ResolutionContext
 ): Promise<MappingCoverageResult> => {
   const scope = await readScope(adapter, scopeId);
-  const mappings = (await readMappings(adapter, scopeId)).filter(mapping => mapping.sourceLineId !== null);
+  const mappings = await readMappings(adapter, scopeId);
   const expansion = decidedExpansion(await expandScope(adapter, scope, context), '覆盖率');
   const linePaths = sourceLinePaths(expansion, await lineLookup(adapter, expansion));
-  const reachable = await reachableSourceLines(adapter, scope);
+  const lapsed = await lapsedMappings(adapter, scope, mappings);
   const covered: MappingCoverageResult['covered'] = [];
   const invalid: MappingCoverageResult['invalid'] = [];
   const coveredKeys = new Map<string, Set<string>>();
   for (const mapping of mappings) {
-    const lineId = mapping.sourceLineId as string;
-    const paths = linePaths.get(lineId) ?? [];
-    const reason = invalidReason(mapping, reachable, paths);
-    if (reason !== null) {
+    const reason = lapsed.get(mapping.id);
+    if (reason !== undefined) {
       invalid.push({ mappingId: mapping.id, reason });
       continue;
     }
-    const keys =
-      mapping.sourceLinePath === null ? paths.map(path => path.join('>')) : [mapping.sourceLinePath.join('>')];
+    // 只有目标行的 added 不覆盖任何源路径
+    if (mapping.sourceLineId === null) continue;
+    const lineId = mapping.sourceLineId;
     const seen = coveredKeys.get(lineId) ?? new Set<string>();
     coveredKeys.set(lineId, seen);
-    for (const pathKey of keys.filter(key => !seen.has(key))) {
+    for (const pathKey of coveredPathKeys(mapping, linePaths.get(lineId) ?? []).filter(key => !seen.has(key))) {
       seen.add(pathKey);
       covered.push({ lineId, pathKey, mappingId: mapping.id });
     }
@@ -678,8 +807,8 @@ const collectSteps = (
 
 /**
  * 确认跟进（AC#7/#19）：把映射的基线整体推进到当前解析依据（到源行为止的解析步骤集合）
- * 与当前目标发生项；不是只改末端发生项。与缺口同一逐映射判定：本映射的源侧解析可能被截断 /
- * 未裁决遮住（或根级解析失败）即拒绝并点名，基线不动；展开别处不完整不影响本映射。
+ * 与当前目标发生项；不是只改末端发生项。与缺口同一逐映射判定：本映射「路径失效」，或源侧解析可能被
+ * 截断 / 未裁决遮住（或根级解析失败）即拒绝并点名，基线不动；展开别处不完整不影响本映射。
  */
 export const confirmMapping = async (
   adapter: BomLocalAdapter,
@@ -688,9 +817,12 @@ export const confirmMapping = async (
   context: ResolutionContext
 ): Promise<void> => {
   const mapping = await readMapping(adapter, mappingId);
+  const scope = await readScope(adapter, mapping.scopeId);
+  // 失效映射的「当前依据」不再是范围内的结构：推进基线会把失效吞成无缺口
+  const lapsed = (await lapsedMappings(adapter, scope, [mapping])).get(mapping.id);
+  if (lapsed !== undefined) throw new BomMapError('确认跟进', `映射已失效，基线不动：${lapsed}`);
   const steps: MappingStep[] = [];
   if (mapping.sourceLineId !== null) {
-    const scope = await readScope(adapter, mapping.scopeId);
     const expanded = await expandScope(adapter, scope, context);
     if ('undecidable' in expanded) throw new BomMapError('确认跟进', `源侧解析无法判定：${expanded.undecidable}`);
     const lineOf = await lineLookup(adapter, expanded.expansion);
@@ -709,8 +841,14 @@ export const confirmMapping = async (
 /** 步骤身份：逻辑行 + 发生项 + 解析修订，三者同才算同一步。 */
 const stepKey = (step: MappingStep): string => `${step.lineId}:${step.occurrenceId}:${step.revisionId ?? ''}`;
 
+/** 缺口项的「路径失效」标记（逐映射判定表里有原因即失效）。 */
+const lapseMark = (lapsed: Map<string, string>, mapping: StoredMapping): MappingGap['invalid'] => {
+  const reason = lapsed.get(mapping.id);
+  return reason === undefined ? null : { reason };
+};
+
 /** 一条已确认映射的基线 / 当前逐步比较：消失或变化的基线步骤 + 新出现的当前步骤。 */
-const compareSteps = (mapping: StoredMapping, current: MappingStep[]): MappingGap => {
+const compareSteps = (mapping: StoredMapping, current: MappingStep[], lapsed: Map<string, string>): MappingGap => {
   const baseline = mapping.baselineSteps ?? [];
   const baselineKeys = new Set(baseline.map(stepKey));
   const currentKeys = new Set(current.map(stepKey));
@@ -720,6 +858,7 @@ const compareSteps = (mapping: StoredMapping, current: MappingStep[]): MappingGa
     relation: mapping.relation,
     targetLineId: mapping.targetLineId,
     undecidable: null,
+    invalid: lapseMark(lapsed, mapping),
     differences: baseline
       .filter(step => !currentKeys.has(stepKey(step)))
       .map((step): MappingGap['differences'][number] => {
@@ -731,11 +870,12 @@ const compareSteps = (mapping: StoredMapping, current: MappingStep[]): MappingGa
 };
 
 /** 无法判定的缺口项：不算无缺口，点名原因。 */
-const undecidableGap = (mapping: StoredMapping, reason: string): MappingGap => ({
+const undecidableGap = (mapping: StoredMapping, reason: string, lapsed: Map<string, string>): MappingGap => ({
   mappingId: mapping.id,
   relation: mapping.relation,
   targetLineId: mapping.targetLineId,
   undecidable: { reason },
+  invalid: lapseMark(lapsed, mapping),
   differences: [],
   appeared: []
 });
@@ -744,7 +884,8 @@ const undecidableGap = (mapping: StoredMapping, reason: string): MappingGap => (
  * 跟进缺口查询（AC#4/#8/#16~#22）：按 ResolutionContext 自范围根头求当前解析依据，
  * 与基线逐步比较——任一步的发生项或解析修订不同、出现或消失即为缺口。逐映射判定（AC#22）：
  * 根级解析失败时全部无法判定；展开截断 / 含未裁决跳时只有源行可能被遮住的映射标「无法判定」
- * 并点名那一跳，其余映射照常比较。未确认过（无基线）的映射不列。
+ * 并点名那一跳，其余映射照常比较。「路径失效」的映射另标 `invalid`（与覆盖率同一判据与原因），
+ * 差异照常给出。未确认过（无基线）的映射不列。
  */
 export const mappingGaps = async (
   adapter: BomLocalAdapter,
@@ -756,8 +897,9 @@ export const mappingGaps = async (
     mapping => mapping.sourceLineId !== null && mapping.baselineSteps !== null
   );
   const expanded = await expandScope(adapter, scope, context);
+  const lapsed = await lapsedMappings(adapter, scope, mappings);
   if ('undecidable' in expanded) {
-    return { scopeId, gaps: mappings.map(mapping => undecidableGap(mapping, expanded.undecidable)) };
+    return { scopeId, gaps: mappings.map(mapping => undecidableGap(mapping, expanded.undecidable, lapsed)) };
   }
   const lineOf = await lineLookup(adapter, expanded.expansion);
   const reasons = await undecidableReasons(adapter, scope, expanded.expansion, lineOf, mappings);
@@ -765,10 +907,11 @@ export const mappingGaps = async (
     scopeId,
     gaps: mappings.map(mapping => {
       const reason = reasons.get(mapping.id);
-      if (reason !== undefined) return undecidableGap(mapping, reason);
+      if (reason !== undefined) return undecidableGap(mapping, reason, lapsed);
       return compareSteps(
         mapping,
-        collectSteps(expanded.expansion, lineOf, mapping.sourceLineId as string, mapping.sourceLinePath)
+        collectSteps(expanded.expansion, lineOf, mapping.sourceLineId as string, mapping.sourceLinePath),
+        lapsed
       );
     })
   };

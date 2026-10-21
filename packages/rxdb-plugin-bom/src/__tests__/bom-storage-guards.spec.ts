@@ -4,7 +4,8 @@
  * 双后端同断言：投料工序与分摊行互斥的两侧都在保存期拒绝（US-520 AC#6）；分摊合计违约消息
  * 按统一定点格式还原（整数段保留、小数段补足 9 位）；开启态历史批次只放行历史覆盖补丁的
  * 两列，已发布头的其余字段与状态不能借开放批次改写（US-515 AC#22）；全部十进制串列的
- * 直连 SQL 写入按规范十进制串判定（US-511 AC#23 存储段）。
+ * 直连 SQL 写入按规范十进制串判定（US-511 AC#23 存储段），正数域列（换算率、头基准量、
+ * 标准成本批量）直连写 0 拒绝。
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -268,6 +269,37 @@ for (const backend of BACKENDS) {
         }
         await expect(write(good), `${column} = '${good}'`).resolves.toBeDefined();
       }
+    });
+
+    it('正数域（物料级 / 行级换算率、头基准量、标准成本批量）：直连 SQL 插入或改成 0 两后端都拒绝并点名列与域', async () => {
+      const header = await draftHeader();
+      const occurrence = await addOccurrence(header);
+      const item = await makeItem('guard-positive');
+      const stamp = `'2026-01-01T00:00:00.000Z'`;
+      const cases: { table: string; id: string; column: string; domain: string }[] = [
+        { table: 'item', id: item.id, column: 'uomConversion', domain: '换算率' },
+        { table: 'bom_line_occurrence', id: occurrence.id, column: 'uomConversion', domain: '换算率' },
+        { table: 'bom_header', id: header.id, column: 'baseQty', domain: '头基准量' },
+        { table: 'bom_header', id: header.id, column: 'costLotQty', domain: '标准成本批量' }
+      ];
+      for (const { table: name, id, column, domain } of cases) {
+        const write = (value: string): Promise<unknown> =>
+          adapter.rawQuery(`UPDATE ${table(name)} SET "${column}" = '${value}' WHERE "id" = '${id}'`);
+        await expect(write('0'), column).rejects.toThrow(`rxdb:bom_decimal_format:${column}:${domain}必须大于 0`);
+        await expect(write('0.5'), column).resolves.toBeDefined();
+      }
+      await expect(
+        adapter.rawQuery(
+          `INSERT INTO ${table('item')} ("id", "itemNo", "uomConversion", "createdAt", "updatedAt") ` +
+            `VALUES ('${crypto.randomUUID()}', 'guard-zero-${Math.random().toString(36).slice(2, 10)}', '0', ${stamp}, ${stamp})`
+        )
+      ).rejects.toThrow('rxdb:bom_decimal_format:uomConversion:换算率必须大于 0');
+      await expect(
+        adapter.rawQuery(
+          `INSERT INTO ${table('bom_header')} ("id", "parentRevisionId", "bomType", "orgId", "alternativeNo", "baseQty", "createdAt", "updatedAt") ` +
+            `VALUES ('${crypto.randomUUID()}', '${header.parentRevisionId}', 'ebom', 'org-x', 2, '0', ${stamp}, ${stamp})`
+        )
+      ).rejects.toThrow('rxdb:bom_decimal_format:baseQty:头基准量必须大于 0');
     });
   });
 }

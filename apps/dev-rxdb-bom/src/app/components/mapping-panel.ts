@@ -112,6 +112,12 @@ interface DualView {
                 <summary>查看判定原因</summary>
                 <p>{{ unknown.reason }}</p>
               </details>
+            } @else if (gap.invalid; as lapsed) {
+              <p class="error-box">这条映射已失效：原来对应的结构不再属于本次映射范围，需要重新建立映射。</p>
+              <details>
+                <summary>查看失效原因</summary>
+                <p>{{ lapsed.reason }}</p>
+              </details>
             } @else {
               @for (change of gap.differences; track change.baseline.lineId + change.baseline.occurrenceId) {
                 <p>
@@ -137,14 +143,16 @@ interface DualView {
                 >
                   定位设计路径
                 </button>
-                <button
-                  class="btn btn-primary"
-                  [disabled]="busy() || stale()"
-                  (click)="confirmGap(gap)"
-                  data-testid="mapping-confirm"
-                >
-                  确认当前映射
-                </button>
+                @if (!gap.invalid) {
+                  <button
+                    class="btn btn-primary"
+                    [disabled]="busy() || stale()"
+                    (click)="confirmGap(gap)"
+                    data-testid="mapping-confirm"
+                  >
+                    确认当前映射
+                  </button>
+                }
               }
             </div>
             <details class="details-panel">
@@ -244,7 +252,7 @@ export class MappingPanel {
   }
 
   needsFollowUp(gap: MappingGap): boolean {
-    return gap.undecidable !== null || gap.differences.length > 0 || gap.appeared.length > 0;
+    return gap.undecidable !== null || gap.invalid !== null || gap.differences.length > 0 || gap.appeared.length > 0;
   }
 
   /** 双图并排展开（US-525 AC#13）：EBOM / MBOM 两张图同评估日。 */
@@ -362,7 +370,8 @@ export class MappingPanel {
 
   /** 推进完整基线后重新读取，成功提示不代替实际缺口结果。 */
   async confirmGap(gap: MappingGap): Promise<void> {
-    if (this.busy() || this.stale() || !this.ready() || gap.undecidable) return;
+    // 失效映射的确认必被拒（基线不动），不发请求
+    if (this.busy() || this.stale() || !this.ready() || gap.undecidable || gap.invalid) return;
     const current = this.beginRequest();
     const date = this.gapsDate()!;
     this.confirmationResult.set('');
@@ -402,6 +411,7 @@ export class MappingPanel {
     this.gapLines.set(
       gaps.gaps.map(gap => {
         if (gap.undecidable !== null) return `无法判定：${gap.undecidable.reason}`;
+        if (gap.invalid !== null) return `路径失效：${gap.invalid.reason}`;
         const diff =
           gap.differences
             .map(

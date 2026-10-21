@@ -82,7 +82,6 @@ const occurrenceGuards = (metadata: EntityMetadata, backend: Backend): Guard[] =
         `(${unitRoot('NEW."uom"')} = 'time') <> (${unitRoot('i."stockUom"')} = 'time') OR (` +
         `${unitRoot('NEW."uom"')} <> ${unitRoot('i."stockUom"')} AND COALESCE(NEW."uomConversion", i."uomConversion") IS NULL)))`
     ],
-    ['uomConversion', `NEW."uomConversion" = '0'`],
     ['isFixedQty', 'NEW."isFixedQty" = true'],
     ['componentScrap', 'NEW."componentScrap" <> \'0\''],
     ['componentScrapConvention', 'NEW."componentScrapConvention" <> \'additive\''],

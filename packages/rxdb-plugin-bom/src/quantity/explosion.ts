@@ -30,6 +30,7 @@ import {
   type BomSqlDialect
 } from '../resolve/bom-sql.js';
 import { filterResolutionRows } from '../resolve/config-validate.js';
+import { checkBudgets, DEFAULT_EXPANSION_BUDGETS, type ExpansionBudgets } from '../resolve/expansion.js';
 import { BomResolutionError, type ResolutionContext, type UnresolvedAlternative } from '../resolve/resolution.js';
 import {
   assertContext,
@@ -52,7 +53,7 @@ import {
   type LayerRoutingOp,
   type SubstituteMember
 } from './layer.js';
-import { routingUncoveredReason } from './routing-effectivity.js';
+import { findMissingOperation, routingUncoveredReason } from './routing-effectivity.js';
 import { appliedUomRate, convertUom, splitHopRates, type HopConversionRates } from './uom.js';
 
 import { EXPLOSION_ALGORITHM_VERSION } from './versions.js';
@@ -69,8 +70,12 @@ export interface ExplosionOptions {
   plannedQty: PlannedQuantity;
   /** 公式参数（公式行按语法版本求值用）。 */
   params?: Record<string, string>;
-  /** 预算（深度 / 展开数 / 需求行数）与取消信号，触顶标 truncated。 */
-  budgets?: { depth?: number; expansions?: number; paths?: number };
+  /**
+   * 预算，与 `expandBom` 同一结算（取消 → 深度 → 返回路径数 → 展开数），触顶标 truncated：路径节点是需求行与
+   * 虚拟件穿透，返回路径数含根。产出行（副产 / 废料 / 联产品）、未命中的阶梯行、未分摊的替代成员及其下的子树
+   * 不是数量遍历的路径节点、不计预算，这类结构上展开可能先于数量展开截断。
+   */
+  budgets?: ExpansionBudgets;
   signal?: AbortSignal;
 }
 
@@ -237,14 +242,6 @@ interface ExplosionNode {
   plannedQty: Decimal;
   baseUom: string;
 }
-
-interface ResolvedBudgets {
-  depth: number;
-  expansions: number;
-  paths: number;
-}
-
-const DEFAULT_BUDGETS: ResolvedBudgets = { depth: 128, expansions: 100_000, paths: 100_000 };
 
 const CHUNK_SIZE = 200;
 
@@ -545,7 +542,7 @@ interface ExplosionRun {
   dialect: BomSqlDialect;
   context: ResolutionContext;
   options: ExplosionOptions;
-  budget: ResolvedBudgets;
+  budget: Readonly<Required<ExpansionBudgets>>;
   routing: RoutingData;
   /** 子头按修订缓存（同一修订在多条路径上只解析一次）。 */
   childHeaders: Map<string, ResolvedChildHeader | null>;
@@ -599,8 +596,9 @@ const selectNodeTierRows = (rows: readonly ExplosionRow[], node: ExplosionNode):
 };
 
 /**
- * 第 5 步的前提：声明了投料工序（operation_seq 或分摊行）的行，其头必须选了评估日可用的路线。
- * 头未选路线与路线未覆盖同样拒绝整次计算，不按空工序链静默少算工序损耗。
+ * 第 5 步的前提：声明了投料工序（operation_seq 或分摊行）的行，其头必须选了评估日可用的路线，
+ * 且声明的工序号都在该路线的工序集内。头未选路线、路线未覆盖与工序缺失（事后改号 / 删除）同样拒绝整次计算，
+ * 不按空工序链或剩余工序链静默少算工序损耗。
  */
 const assertNodeRouting = (
   run: ExplosionRun,
@@ -617,9 +615,21 @@ const assertNodeRouting = (
     );
   }
   const uncoveredReason = run.routing.routingUncovered.get(headerRoutingId);
-  if (uncoveredReason === undefined) return;
+  if (uncoveredReason !== undefined) {
+    throw new BomQuantityError(
+      `路线未覆盖（${uncoveredReason}）：路线 ${headerRoutingId}、发生项 ${routed.occurrenceId} 的投料工序在评估日不可用`,
+      node.path
+    );
+  }
+  // 路线没有工序时不在工序表里出现：空集让任何声明的工序都判缺失
+  const missing = findMissingOperation(
+    rows,
+    occurrenceId => run.routing.splitsByOccurrence.get(occurrenceId) ?? [],
+    run.routing.opsByRouting.get(headerRoutingId) ?? []
+  );
+  if (missing === null) return;
   throw new BomQuantityError(
-    `路线未覆盖（${uncoveredReason}）：路线 ${headerRoutingId}、发生项 ${routed.occurrenceId} 的投料工序在评估日不可用`,
+    `路线未覆盖（工序 ${missing.operationSeq} 不在路线工序集内）：路线 ${headerRoutingId}、发生项 ${missing.row.occurrenceId} 的投料工序 ${missing.operationSeq} 无从解析`,
     node.path
   );
 };
@@ -634,14 +644,12 @@ const grossOf = (run: ExplosionRun, layer: NodeLayer, row: ExplosionRow): Decima
     splits: []
   });
 
-/** 发射一条消耗行前的预算判定：取消 → 深度 → 需求行数 → 展开数，顺序即优先级。 */
-const budgetTruncation = (run: ExplosionRun, depth: number): TruncationReason | null => {
-  if (run.options.signal?.aborted) return 'cancelled';
-  if (depth > run.budget.depth) return 'depth';
-  if (run.requirementLines.length + 1 > run.budget.paths) return 'paths';
-  if (run.expansions + 1 > run.budget.expansions) return 'expansions';
-  return null;
-};
+/**
+ * 发射一条消耗行前的预算判定：复用 `expandBom` 的结算（取消 → 深度 → 返回路径数 → 展开数）。
+ * 已生成的路径节点（需求行与穿透）即展开数，结果与下钻一样含根，同一预算下与展开在同一处截断。
+ */
+const budgetTruncation = (run: ExplosionRun, node: ExplosionNode): TruncationReason | null =>
+  checkBudgets({ generated: run.expansions, withRoot: true }, node.depth, run.budget, run.options.signal);
 
 /** 第 7 步的 phantom 判定：COALESCE(phantom_override, default_phantom)，两者皆空按非虚拟件。 */
 const phantomOf = (row: ExplosionRow): Pick<ExplosionSteps['phantom'], 'value' | 'source'> => {
@@ -770,7 +778,7 @@ const emitConsumeLine = async (
   row: ExplosionRow,
   gross: Decimal
 ): Promise<TruncationReason | null> => {
-  const truncation = budgetTruncation(run, layer.node.depth + 1);
+  const truncation = budgetTruncation(run, layer.node);
   if (truncation !== null) return truncation;
   run.expansions += 1;
   run.occurrenceIds.push(row.occurrenceId);
@@ -973,7 +981,7 @@ export const explodeBom = async (
     throw new BomResolutionError('parent', '需要 parentItemId 或 parentRevisionId 之一');
   }
   const dialect = bomSqlDialectFor(adapter.name);
-  const budget = { ...DEFAULT_BUDGETS, ...options.budgets };
+  const budget = { ...DEFAULT_EXPANSION_BUDGETS, ...options.budgets };
 
   return adapter.transaction(async executor => {
     const query = (executor as unknown as BomQueryExecutor).query.bind(executor);

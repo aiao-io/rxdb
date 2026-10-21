@@ -4,7 +4,7 @@ import { BomLineOccurrence } from '../src/entities.js';
 import { bomSqlDialectFor } from '../src/resolve/bom-sql.js';
 import { assertCompleteResolution } from '../src/resolve/expansion.js';
 import { BomCycleError, normalizeBomError } from '../src/types.js';
-import { newReachLine, reachChain, reachDiamonds, seedReachGraph } from './graph-test-utils.js';
+import { newReachLine, reachChain, reachDiamonds, seedDraftReachGraph, seedReachGraph } from './graph-test-utils.js';
 import { expectReachMatches, readReachPairs, readReachRows } from './reach-test-utils.js';
 
 for (const backend of ['wa-sqlite', 'pglite'] as const) {
@@ -106,6 +106,29 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
         await disposeBomTestAdapter(adapter);
       }
     }, 120_000);
+
+    it('120层链删中间一条边：否定证明不随目标对×visited线性放大，有界时间内删净3600对且与oracle一致', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const { occurrences } = await seedDraftReachGraph(adapter, reachChain(120));
+        expect(await readReachPairs(adapter)).toHaveLength(7140);
+        const dialect = bomSqlDialectFor(backend);
+        const start = performance.now();
+        await adapter.transaction(executor =>
+          executor.query(`DELETE FROM ${dialect.table('bom_line_occurrence')} WHERE "id" = ${dialect.placeholder(0)}`, [
+            occurrences[59]
+          ])
+        );
+        const elapsedMs = performance.now() - start;
+        console.info(`120层链删中间边 [${backend}] ${elapsedMs.toFixed(1)}ms`);
+        // 60 个祖先 × 60 个后代全部失去支持；visited 有 1830 行，逐对线性扫描约 660 万次比较
+        expect(await readReachPairs(adapter)).toHaveLength(7140 - 3600);
+        expect(elapsedMs).toBeLessThan(400);
+        await expectReachMatches(adapter);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    }, 60_000);
 
     it('闭包未命中也不能绕过原有128层判定硬停，被拒后派生行不变', async () => {
       const adapter = await createBomTestAdapter(backend);

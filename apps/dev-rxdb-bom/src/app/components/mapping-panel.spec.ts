@@ -95,6 +95,7 @@ describe('设计与制造清单的物料名称', () => {
       relation: 'equivalent',
       targetLineId: 'target-line',
       undecidable: null,
+      invalid: null,
       differences: [
         {
           kind: 'changed',
@@ -132,5 +133,41 @@ describe('设计与制造清单的物料名称', () => {
     expect(service.confirmMap).toHaveBeenCalledExactlyOnceWith('mapping-full-id', '2026-10-15');
     expect(service.mapGaps).toHaveBeenCalledTimes(2);
     expect(host.textContent).toContain('已确认');
+  });
+
+  it('路径失效的映射计入待跟进、显示失效原因，且不提供必被拒的确认', async () => {
+    const lapsed = {
+      mappingId: 'mapping-lapsed',
+      relation: 'one_to_one',
+      targetLineId: 'target-line',
+      undecidable: null,
+      invalid: { reason: '目标行 target-line 不可由范围 MBOM 根头到达（路径失效）' },
+      differences: [],
+      appeared: []
+    };
+    const service = {
+      ready: signal(true),
+      dataEpoch: signal(0),
+      resetting: signal(false),
+      itemNos: signal(new Map<string, string>()),
+      designators: signal(new Map<string, string[]>()),
+      mappingLabels: vi.fn().mockResolvedValue(new Map([['target-line', '钣金外壳 · 制造清单 · 行10']])),
+      mapGaps: vi.fn().mockResolvedValue({ scopeId: 'scope', gaps: [lapsed] }),
+      confirmMap: vi.fn().mockResolvedValue(undefined)
+    };
+    TestBed.configureTestingModule({ providers: [{ provide: BomDemoService, useValue: service }] });
+    const fixture = TestBed.createComponent(MappingPanel);
+    fixture.componentRef.setInput('asOfDate', '2026-10-15');
+    await fixture.whenStable();
+    await fixture.componentInstance.runGaps();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(fixture.componentInstance.pendingCount()).toBe(1);
+    expect(host.textContent).not.toContain('已一致');
+    expect(host.textContent).toContain('不可由范围 MBOM 根头到达');
+    expect(host.querySelector('[data-testid=mapping-confirm]')).toBeNull();
+    await fixture.componentInstance.confirmGap(lapsed);
+    expect(service.confirmMap).not.toHaveBeenCalled();
   });
 });

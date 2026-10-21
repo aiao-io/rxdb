@@ -134,23 +134,27 @@ const loadWideBom = async (adapter: BomTestAdapter): Promise<{ input: BomViewInp
 };
 
 /**
- * 两遍遍历发散的最小结构：根下叶子在前、子装配在后，子装配的一条逻辑行按序列号分给 red / blue。
- * paths=2 时展开连根只收两个节点、不进子装配；爆炸只数需求行，继续下钻并报告序列候选。
+ * 两遍遍历发散的最小结构：根下叶子、副产行在前，子装配在后，子装配的一条逻辑行按序列号分给 red / blue。
+ * 两遍预算同一结算，发散来自节点集：副产行是展开节点、不是数量遍历的路径节点。paths=3 时展开连根收三个节点就截断、
+ * 不进子装配；爆炸不为副产计预算，继续下钻并报告序列候选。
  */
 const loadDivergentBom = async (db: RxDB): Promise<BomViewInput> => {
   const id = (key: string) => deterministicId(`bom-view-divergent:${key}`);
   const stamp = new Date(BOM_VIEW_FIXTURE_DATES.baseline);
-  const keys = ['root', 'sub', 'leaf', 'red', 'blue'] as const;
+  const keys = ['root', 'sub', 'leaf', 'byp', 'red', 'blue'] as const;
   for (const key of keys) {
     await db.entityManager
       .instantiate(BomItem, { id: id(`item:${key}`), itemNo: `BOM-VIEW-DIV-${key.toUpperCase()}` } as Partial<BomItem>)
       .save();
   }
-  const occurrence = (child: (typeof keys)[number], range: { unitFrom?: number; unitTo?: number } = {}) => ({
+  const occurrence = (
+    child: (typeof keys)[number],
+    extra: { unitFrom?: number; unitTo?: number; flowDirection?: 'by_product' } = {}
+  ) => ({
     childItemId: id(`item:${child}`),
     qty: '1',
     effectiveFrom: stamp,
-    ...range
+    ...extra
   });
   await db.bom.loadHistory({
     batchNo: 'bom-view-divergent',
@@ -166,6 +170,7 @@ const loadDivergentBom = async (db: RxDB): Promise<BomViewInput> => {
         orgId: 'bom-view-divergent',
         lines: [
           { lineNo: 10, occurrences: [occurrence('leaf')] },
+          { lineNo: 15, occurrences: [occurrence('byp', { flowDirection: 'by_product' })] },
           { lineNo: 20, occurrences: [occurrence('sub')] }
         ]
       },
@@ -184,7 +189,7 @@ const loadDivergentBom = async (db: RxDB): Promise<BomViewInput> => {
     context: { bomType: 'ebom', orgId: 'bom-view-divergent', asOfDate: new Date(BOM_VIEW_FIXTURE_DATES.evaluation) },
     target: { parentItemId: id('item:root') },
     plannedQty: { value: '1', uom: 'pcs' },
-    budgets: { paths: 2 }
+    budgets: { paths: 3 }
   };
 };
 
@@ -323,7 +328,11 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
             )
           );
           expect(state.truncated?.reason).toBe('paths');
-          expect(state.nodes.map(node => node.itemNo)).toEqual(['BOM-VIEW-DIV-ROOT', 'BOM-VIEW-DIV-LEAF']);
+          expect(state.nodes.map(node => node.itemNo)).toEqual([
+            'BOM-VIEW-DIV-ROOT',
+            'BOM-VIEW-DIV-LEAF',
+            'BOM-VIEW-DIV-BYP'
+          ]);
           expect(state.unresolved.map(group => group.kind)).toEqual(['unit']);
           expect(state.unresolved[0].candidates.map(candidate => candidate.label).sort()).toEqual([
             'BOM-VIEW-DIV-BLUE',

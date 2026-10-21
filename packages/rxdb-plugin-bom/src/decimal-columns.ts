@@ -4,7 +4,7 @@
  * 一张表登记全部按十进制值合同存取的列：列名、存储层域（同名列在不同实体上同域）、所在实体，
  * 以及存储层由谁判定格式。三处消费方都从本表派生，不再各自手写清单：
  * - 入口规范化与判域（write-rules 的 `DECIMAL_FIELD_DOMAINS`）；
- * - 存储层格式触发器（backend 按实体取列，可空性取自实体元数据）；
+ * - 存储层格式触发器（backend 按实体取列，可空性取自实体元数据）与正数域触发器（按域取列）；
  * - 导入契约的十进制字段（import-contract 的 `DECIMAL_FIELDS`，按导入记录层的实体取列）。
  */
 
@@ -19,12 +19,16 @@ import {
   BomWorkCenter
 } from './entities.js';
 
-/** 一列十进制值的域：规范串即可、阶梯边界、[0,1] 九位小数，或随损耗记法的良率制 [0,1)。 */
+/**
+ * 一列十进制值的域：规范串即可、阶梯边界、[0,1] 九位小数、随损耗记法的良率制 [0,1)，或正数
+ * （比例与分母上 0 没有合法含义；规范串里零只有 `0` 一种写法，「> 0」即逐字节谓词 `s <> '0'`）。
+ */
 export type DecimalDomain =
   | { kind: 'canonical' }
   | { kind: 'lotsize' }
   | { kind: 'fraction'; label: string }
-  | { kind: 'scrap'; convention: string };
+  | { kind: 'scrap'; convention: string }
+  | { kind: 'positive'; label: string };
 
 /** 一个十进制列名的登记项。 */
 export interface DecimalColumn {
@@ -54,7 +58,8 @@ export const DECIMAL_COLUMNS: readonly DecimalColumn[] = [
     storage: 'share'
   },
   { field: 'qty', domain: CANONICAL, entities: [BomLineOccurrence], storage: 'canonical' },
-  { field: 'baseQty', domain: CANONICAL, entities: [BomHeader], storage: 'canonical' },
+  // 头基准量是按批缩放的分母（q × P' ÷ base_qty）
+  { field: 'baseQty', domain: { kind: 'positive', label: '头基准量' }, entities: [BomHeader], storage: 'canonical' },
   {
     field: 'assemblyScrap',
     domain: { kind: 'scrap', convention: 'assemblyScrapConvention' },
@@ -70,8 +75,20 @@ export const DECIMAL_COLUMNS: readonly DecimalColumn[] = [
   { field: 'componentScrapFixed', domain: CANONICAL, entities: [BomLineOccurrence], storage: 'canonical' },
   { field: 'lotsizeFrom', domain: { kind: 'lotsize' }, entities: [BomLineOccurrence], storage: 'canonical' },
   { field: 'lotsizeTo', domain: { kind: 'lotsize' }, entities: [BomLineOccurrence], storage: 'canonical' },
-  { field: 'uomConversion', domain: CANONICAL, entities: [BomLineOccurrence, BomItem], storage: 'canonical' },
-  { field: 'costLotQty', domain: CANONICAL, entities: [BomHeader], storage: 'canonical' },
+  // 换算率是比例（1 目标单位含多少库存单位），行级与物料级同域
+  {
+    field: 'uomConversion',
+    domain: { kind: 'positive', label: '换算率' },
+    entities: [BomLineOccurrence, BomItem],
+    storage: 'canonical'
+  },
+  // 标准成本批量是 unit_cost 的分母（batch_cost ÷ cost_lot_qty）
+  {
+    field: 'costLotQty',
+    domain: { kind: 'positive', label: '标准成本批量' },
+    entities: [BomHeader],
+    storage: 'canonical'
+  },
   { field: 'unitPrice', domain: CANONICAL, entities: [BomItem], storage: 'canonical' },
   { field: 'creditPrice', domain: CANONICAL, entities: [BomItem], storage: 'canonical' },
   {

@@ -55,7 +55,7 @@ import {
   selectTierRows,
   type LayerRoutingOp
 } from './layer.js';
-import { routingUncoveredReason } from './routing-effectivity.js';
+import { findMissingOperation, routingUncoveredReason } from './routing-effectivity.js';
 import { convertUom } from './uom.js';
 
 export { BomCostError } from './cost-error.js';
@@ -356,6 +356,24 @@ const assertRoutedRowsHaveRouting = (
   );
 };
 
+/**
+ * 声明的投料工序（operation_seq 与分摊行的工序号）必须在头所选路线的工序集内：工序事后改号 / 删除与
+ * 「路线未覆盖」同口径拒绝，不按剩余工序链静默少算工序损耗（与数量展开共用判定）。
+ */
+const assertDeclaredOperations = (
+  headerMeta: HeaderMeta,
+  rows: readonly ExplosionRowLike[],
+  splitsByOccurrence: ReadonlyMap<string, readonly { operationSeq: number }[]>,
+  operations: readonly { operationSeq: number }[]
+): void => {
+  const missing = findMissingOperation(rows, occurrenceId => splitsByOccurrence.get(occurrenceId) ?? [], operations);
+  if (missing === null) return;
+  throw new BomCostError(
+    `路线 ${headerMeta.routingId}（发生项 ${missing.row.occurrenceId}）`,
+    `路线未覆盖：投料工序 ${missing.operationSeq} 不在路线工序集内，成本不能按剩余工序链静默计算`
+  );
+};
+
 /** 路线的一道工序（工时、损耗与工作中心）。 */
 type RoutingOperation = Awaited<ReturnType<typeof fetchRoutingOps>>['operations'][number];
 
@@ -367,8 +385,8 @@ interface LayerRouting {
 }
 
 /**
- * 读本层的路线与分摊（batch_cost 与明细树同一份）：路线未覆盖、头未选路线而行声明了投料工序都拒绝，
- * 两条路径不各自维护一份判定。
+ * 读本层的路线与分摊（batch_cost 与明细树同一份）：路线未覆盖、头未选路线而行声明了投料工序、
+ * 声明的工序不在路线工序集内都拒绝，两条路径不各自维护一份判定。
  */
 const loadLayerRouting = async (
   query: CostQuery,
@@ -396,6 +414,7 @@ const loadLayerRouting = async (
     );
   }
   assertRoutedRowsHaveRouting(headerMeta, effectiveRows, splitsByOccurrence);
+  assertDeclaredOperations(headerMeta, effectiveRows, splitsByOccurrence, routingDetail.operations);
   return {
     operations: routingDetail.operations,
     routingOps: routingDetail.operations.map(operation => ({
@@ -480,7 +499,10 @@ const overheadOf = async (
   return decimalMul(decimalFromCanonical(rateHours), decimalFromCanonical(centerRow.overheadRate));
 };
 
-/** cost_lot_qty 是 unit_cost 的分母（US-514 卷算必填）：缺失或为 0（写入期合法的规范串）即拒绝。 */
+/**
+ * cost_lot_qty 是 unit_cost 的分母（US-514 卷算必填）：缺失即拒绝；写入期已限定大于 0（正数域），
+ * 为 0 的拒绝是绕过守卫的存量数据的第二道防线。
+ */
 const requireCostLotQty = (headerMeta: HeaderMeta): string => {
   if (headerMeta.costLotQty === null) {
     throw new BomCostError(`头 ${headerMeta.headerId} 的 cost_lot_qty`, '卷算必填，缺失即拒绝');

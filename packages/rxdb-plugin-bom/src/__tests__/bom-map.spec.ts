@@ -15,6 +15,7 @@ import {
   mappingCoverage,
   mappingGaps,
   saveMapping,
+  type MappingSaveInput,
   type MappingStep
 } from '../resolve/bom-map.js';
 import { bomSqlDialectFor } from '../resolve/bom-sql.js';
@@ -824,12 +825,13 @@ describe('评审修复：完整性守卫 / 基线收集 / 参数绑定（P1-4 / 
         revisionId: string,
         bomType: 'ebom' | 'mbom',
         specs: { child: BomItem; occurrences?: Partial<BomLineOccurrence>[] }[],
-        alternativeNo = 1
+        alternativeNo = 1,
+        orgId = 'org-x'
       ): Promise<{ header: BomHeader; lines: BomLine[]; occurrences: BomLineOccurrence[][] }> => {
         const header = new BomHeader();
         header.parentRevisionId = revisionId;
         header.bomType = bomType;
-        header.orgId = 'org-x';
+        header.orgId = orgId;
         header.alternativeNo = alternativeNo;
         await header.save();
         const lines: BomLine[] = [];
@@ -1167,6 +1169,281 @@ describe('评审修复：完整性守卫 / 基线收集 / 参数绑定（P1-4 / 
             targetLineId: mbom.lines[0].id
           })
         ).rejects.toThrow(/成员/);
+      });
+
+      /**
+       * 目标侧成员资格夹具（AC#12/#15 target 侧）：范围 MBOM 根头 = 根物料修订 A 的 MBOM 头，三行
+       * a（imprecise）、c（precise 锁修订 A）、e（imprecise，e 只有 EBOM 头）；EBOM 根头一行 x。
+       * 另建：a 的 MBOM 头（imprecise 下钻可达）、c 修订 A / B 的 MBOM 头（只有锁定的 A 可达）、根物料修订 B 的
+       * MBOM 头与只挂在它下面的 y 的 MBOM 头、根修订 A 的备选 2 MBOM 头、e 的 EBOM 头之下 f 的 MBOM 头
+       * （只经 EBOM 头可达）、范围外物料的 MBOM 头。
+       */
+      const targetScopeFixture = async () => {
+        const items: BomItem[] = [];
+        for (const key of ['t-root', 't-a', 't-c', 't-e', 't-f', 't-x', 't-y']) items.push(await itemOnly(key));
+        const [root, a, c, e, f, x, y] = items;
+        const rootRevision = await revisionOf(root);
+        const cRevisionA = await revisionOf(c);
+        const ebom = await releasedHeader(rootRevision, 'ebom', [{ child: x }]);
+        const mbom = await releasedHeader(rootRevision, 'mbom', [
+          { child: a },
+          { child: c, occurrences: [{ childRevisionId: cRevisionA }] },
+          { child: e }
+        ]);
+        const scope = await scopeOf(ebom.header, mbom.header);
+        const leafHeader = async (revisionId: string, alternativeNo = 1) =>
+          releasedHeader(revisionId, 'mbom', [{ child: await itemOnly('t-leaf') }], alternativeNo);
+        const deep = await releasedHeader(await revisionOf(a), 'mbom', [{ child: x }]);
+        const lockedRevision = await leafHeader(cRevisionA);
+        const unlockedRevision = await leafHeader(await revisionOf(c, 'B', day('2021-01-01')));
+        const otherRevisionRoot = await releasedHeader(await revisionOf(root, 'B', day('2021-01-01')), 'mbom', [
+          { child: y }
+        ]);
+        const onlyViaOtherRevision = await leafHeader(await revisionOf(y));
+        const otherAlternative = await leafHeader(rootRevision, 2);
+        await releasedHeader(await revisionOf(e), 'ebom', [{ child: f }]);
+        const onlyViaEbom = await leafHeader(await revisionOf(f));
+        const outside = await leafHeader(await revisionOf(await itemOnly('t-out')));
+        const outsiders: [string, { lines: BomLine[] }][] = [
+          ['同物料另一修订的根行', otherRevisionRoot],
+          ['同修订另一备选的根行', otherAlternative],
+          ['仅另一修订可达', onlyViaOtherRevision],
+          ['precise 未选中的修订', unlockedRevision],
+          ['只经 EBOM 头可达', onlyViaEbom],
+          ['范围外', outside]
+        ];
+        return { ebom, mbom, scope, deep, lockedRevision, outsiders };
+      };
+
+      const mappingIdsOf = async (scopeId: string): Promise<unknown[][]> =>
+        shapeRows(await adapter.rawQuery(`SELECT "id" FROM ${table('bom_map')} WHERE "scopeId" = '${scopeId}'`));
+
+      it('目标侧范围成员资格（AC#12/#15 target 侧）：同物料另一修订 / 另一备选的根行、仅另一修订可达、precise 未选中的修订、只经 EBOM 头可达、范围外的 MBOM 行都拒绝，点名 MBOM 根头与该行', async () => {
+        const { ebom, mbom, scope, outsiders } = await targetScopeFixture();
+        const cases = outsiders.flatMap(([label, header]) => [
+          {
+            label: `${label} / one_to_one`,
+            input: { relation: 'one_to_one' as const, sourceLineId: ebom.lines[0].id, targetLineId: header.lines[0].id }
+          },
+          { label: `${label} / added`, input: { relation: 'added' as const, targetLineId: header.lines[0].id } }
+        ]);
+        /** 拒绝须是 BomMapError，且点名范围 MBOM 根头、该行与成员资格。 */
+        const verdictOf = (failure: unknown, targetLineId: string): string => {
+          if (!(failure instanceof BomMapError)) return `未拒绝或非 BomMapError：${String(failure)}`;
+          const named = [mbom.header.id, targetLineId, '成员'].every(part => failure.message.includes(part));
+          return named ? '拒绝并点名' : `点名不全：${failure.message}`;
+        };
+        const verdicts: string[] = [];
+        for (const { label, input } of cases) {
+          const failure = await saveMapping(adapter, { scopeId: scope.id, ...input }).then(
+            () => null,
+            (error: unknown) => error
+          );
+          verdicts.push(`${label}：${verdictOf(failure, input.targetLineId)}`);
+        }
+        expect(verdicts).toEqual(cases.map(({ label }) => `${label}：拒绝并点名`));
+        // EBOM 头的行作目标：类型不匹配（AC#10），在成员资格之前拒绝
+        await expect(
+          saveMapping(adapter, { scopeId: scope.id, relation: 'added', targetLineId: ebom.lines[0].id })
+        ).rejects.toThrow(/类型 ebom 不是 MBOM/);
+        expect(await mappingIdsOf(scope.id)).toEqual([]);
+      });
+
+      it('目标侧范围成员资格：MBOM 根头行、imprecise 下钻与 precise 选中修订之下的行都是成员；目标比源深一层（下沉）照常接受', async () => {
+        const { ebom, mbom, scope, deep, lockedRevision } = await targetScopeFixture();
+        for (const targetLineId of [mbom.lines[0].id, deep.lines[0].id, lockedRevision.lines[0].id]) {
+          await saveMapping(adapter, {
+            scopeId: scope.id,
+            relation: 'split',
+            sourceLineId: ebom.lines[0].id,
+            targetLineId
+          });
+        }
+        await saveMapping(adapter, { scopeId: scope.id, relation: 'added', targetLineId: deep.lines[0].id });
+        expect(await mappingIdsOf(scope.id)).toHaveLength(4);
+      });
+
+      it('AC#10 两侧类型 / 组织违约：错误点名该行、所在头与范围（源行与目标行同口径）', async () => {
+        const child = await itemOnly('n-c');
+        const rootRevision = await revisionOf(await itemOnly('n-root'));
+        const ebom = await releasedHeader(rootRevision, 'ebom', [{ child }]);
+        const mbom = await releasedHeader(rootRevision, 'mbom', [{ child }]);
+        const scope = await scopeOf(ebom.header, mbom.header);
+        const foreignRevision = await revisionOf(await itemOnly('n-foreign'));
+        const foreignEbom = await releasedHeader(foreignRevision, 'ebom', [{ child }], 1, 'org-y');
+        const foreignMbom = await releasedHeader(foreignRevision, 'mbom', [{ child }], 1, 'org-y');
+        const cases: {
+          label: string;
+          input: Omit<MappingSaveInput, 'scopeId'>;
+          lineId: string;
+          headerId: string;
+          pattern: RegExp;
+        }[] = [
+          {
+            label: '源行属 MBOM 头',
+            input: { relation: 'one_to_one', sourceLineId: mbom.lines[0].id, targetLineId: mbom.lines[0].id },
+            lineId: mbom.lines[0].id,
+            headerId: mbom.header.id,
+            pattern: /类型 mbom 不是 EBOM/
+          },
+          {
+            label: '目标行属 EBOM 头',
+            input: { relation: 'added', targetLineId: ebom.lines[0].id },
+            lineId: ebom.lines[0].id,
+            headerId: ebom.header.id,
+            pattern: /类型 ebom 不是 MBOM/
+          },
+          {
+            label: '源行组织不符',
+            input: { relation: 'removed', sourceLineId: foreignEbom.lines[0].id },
+            lineId: foreignEbom.lines[0].id,
+            headerId: foreignEbom.header.id,
+            pattern: /组织 org-y .*org-x/
+          },
+          {
+            label: '目标行组织不符',
+            input: { relation: 'added', targetLineId: foreignMbom.lines[0].id },
+            lineId: foreignMbom.lines[0].id,
+            headerId: foreignMbom.header.id,
+            pattern: /组织 org-y .*org-x/
+          }
+        ];
+        const verdicts: string[] = [];
+        for (const { label, input, lineId, headerId, pattern } of cases) {
+          const failure = await saveMapping(adapter, { scopeId: scope.id, ...input }).then(
+            () => null,
+            (error: unknown) => error
+          );
+          const message =
+            failure instanceof BomMapError ? failure.message : `未拒绝或非 BomMapError：${String(failure)}`;
+          const named = [lineId, headerId, scope.id].every(part => message.includes(part)) && pattern.test(message);
+          verdicts.push(`${label}：${named ? '点名该行、所在头与范围' : message}`);
+        }
+        expect(verdicts).toEqual(cases.map(({ label }) => `${label}：点名该行、所在头与范围`));
+        expect(await mappingIdsOf(scope.id)).toEqual([]);
+      });
+
+      /**
+       * 「路径失效」夹具（已存发生项经 ECN 取消级联消失）：EBOM 根一行 L1 → a，a 头一行 LA1 → x；
+       * MBOM 根一行 M1 → c。ECN E（2027-01-01 生效，发布后仍未生效、可取消）在 a 头引入行 LA2 → b
+       * （b 头一行 LB1 → c），在 MBOM 根引入行 M2 → p（p 的 MBOM 头一行 MP1 → q）。取消 E 即级联删除
+       * LA2 / M2：LB1、MP1 分别失去 EBOM / MBOM 侧的范围成员资格，路径 L1 → LA2 → LB1 失去相邻性。
+       */
+      const lapseFixture = async () => {
+        const items: BomItem[] = [];
+        for (const key of ['l-root', 'l-a', 'l-b', 'l-c', 'l-p', 'l-q', 'l-x']) items.push(await itemOnly(key));
+        const [root, a, b, c, p, q, x] = items;
+        const rootRevision = await revisionOf(root);
+        const ebom = await releasedHeader(rootRevision, 'ebom', [{ child: a }]);
+        const ebomA = await releasedHeader(await revisionOf(a), 'ebom', [{ child: x }]);
+        const ebomB = await releasedHeader(await revisionOf(b), 'ebom', [{ child: c }]);
+        const mbom = await releasedHeader(rootRevision, 'mbom', [{ child: c }]);
+        const mbomP = await releasedHeader(await revisionOf(p), 'mbom', [{ child: q }]);
+        const ecn = new BomEcn();
+        ecn.ecnNo = `L-ECN-${rand()}`;
+        ecn.effectiveDate = day('2027-01-01');
+        await ecn.save();
+        /** E 在已发布头上引入一行（行与发生项都挂 E）。 */
+        const introduce = async (headerId: string, child: BomItem): Promise<BomLine> => {
+          const line = new BomLine();
+          line.headerId = headerId;
+          line.lineNo = 20;
+          line.ecnInId = ecn.id;
+          await line.save();
+          const occurrence = new BomLineOccurrence();
+          occurrence.lineId = line.id;
+          occurrence.childItemId = child.id;
+          occurrence.qty = '1';
+          occurrence.uom = 'pcs';
+          occurrence.ecnInId = ecn.id;
+          occurrence.effectiveFrom = day('2027-01-01');
+          await occurrence.save();
+          return line;
+        };
+        const introduced = await introduce(ebomA.header.id, b);
+        await introduce(mbom.header.id, p);
+        ecn.state = 'released';
+        await ecn.save();
+        const scope = await scopeOf(ebom.header, mbom.header);
+        const save = async (input: Omit<MappingSaveInput, 'scopeId'>): Promise<string> =>
+          (await saveMapping(adapter, { scopeId: scope.id, ...input })).mapId;
+        const cancel = async (): Promise<void> => {
+          ecn.state = 'cancelled';
+          await ecn.save();
+        };
+        return { ebom, ebomB, mbom, mbomP, introduced, scope, save, cancel };
+      };
+
+      it('路径失效（源侧）：引入那一跳的 ECN 取消后，失去成员资格的行级映射与失去相邻性的路径级映射在覆盖率与缺口里都标失效，确认跟进拒绝、基线不动', async () => {
+        const { ebom, ebomB, mbom, introduced, scope, save, cancel } = await lapseFixture();
+        const base = { relation: 'one_to_one' as const, targetLineId: mbom.lines[0].id };
+        const control = await save({ ...base, sourceLineId: ebom.lines[0].id });
+        const lineLevel = await save({ ...base, sourceLineId: ebomB.lines[0].id });
+        const pathLevel = await save({
+          ...base,
+          sourceLineId: ebomB.lines[0].id,
+          sourceLinePath: [ebom.lines[0].id, introduced.id, ebomB.lines[0].id]
+        });
+        // 相邻性与成员资格不按生效期：E 尚未生效的评估日，路径不在展开里也不是失效
+        expect((await mappingCoverage(adapter, scope.id, ctx('2026-09-22'))).invalid).toEqual([]);
+        for (const mapId of [control, lineLevel, pathLevel])
+          await confirmMapping(adapter, mapId, null, ctx('2027-02-01'));
+        const baselines = [await baselineOf(lineLevel), await baselineOf(pathLevel)];
+        await cancel();
+        const coverage = await mappingCoverage(adapter, scope.id, ctx('2027-02-01'));
+        const reasons = new Map(coverage.invalid.map(entry => [entry.mappingId, entry.reason]));
+        expect([...reasons.keys()].sort()).toEqual([lineLevel, pathLevel].sort());
+        for (const part of [ebomB.lines[0].id, ebom.header.id, '成员', '路径失效']) {
+          expect(reasons.get(lineLevel)).toContain(part);
+        }
+        for (const part of [`${ebom.lines[0].id} → ${introduced.id}`, '相邻', '路径失效']) {
+          expect(reasons.get(pathLevel)).toContain(part);
+        }
+        expect(coverage.covered.map(entry => entry.mappingId)).toEqual([control]);
+        const gaps = new Map(
+          (await mappingGaps(adapter, scope.id, ctx('2027-02-01'))).gaps.map(gap => [gap.mappingId, gap])
+        );
+        expect(gaps.get(control)?.invalid).toBeNull();
+        expect(gaps.get(control)?.differences).toEqual([]);
+        for (const mapId of [lineLevel, pathLevel]) {
+          expect(gaps.get(mapId)?.invalid).toEqual({ reason: reasons.get(mapId) });
+          // 差异照常给出（消失的步骤逐一点名），失效标记不靠差异
+          expect(gaps.get(mapId)?.differences.map(change => change.kind)).toEqual(['missing', 'missing', 'missing']);
+          await expect(confirmMapping(adapter, mapId, null, ctx('2027-02-01'))).rejects.toThrow(/路径失效/);
+        }
+        expect([await baselineOf(lineLevel), await baselineOf(pathLevel)]).toEqual(baselines);
+      });
+
+      it('路径失效（目标侧）：目标行失去 MBOM 侧成员资格的映射（含只有目标行的 added）在覆盖率与缺口里标失效、不再算作覆盖，确认跟进拒绝', async () => {
+        const { ebom, mbom, mbomP, scope, save, cancel } = await lapseFixture();
+        const lapsing = await save({
+          relation: 'one_to_one',
+          sourceLineId: ebom.lines[0].id,
+          targetLineId: mbomP.lines[0].id
+        });
+        const added = await save({ relation: 'added', targetLineId: mbomP.lines[0].id });
+        await confirmMapping(adapter, lapsing, null, ctx('2026-09-22'));
+        const before = await mappingCoverage(adapter, scope.id, ctx('2026-09-22'));
+        expect(before.invalid).toEqual([]);
+        expect(before.covered.map(entry => entry.mappingId)).toEqual([lapsing]);
+        await cancel();
+        const coverage = await mappingCoverage(adapter, scope.id, ctx('2026-09-22'));
+        expect(coverage.covered).toEqual([]);
+        expect(coverage.uncovered.map(entry => entry.lineId)).toContain(ebom.lines[0].id);
+        const reasons = new Map(coverage.invalid.map(entry => [entry.mappingId, entry.reason]));
+        expect([...reasons.keys()].sort()).toEqual([lapsing, added].sort());
+        for (const reason of reasons.values()) {
+          for (const part of [mbomP.lines[0].id, mbom.header.id, '成员', '路径失效']) expect(reason).toContain(part);
+        }
+        const gap = (await mappingGaps(adapter, scope.id, ctx('2026-09-22'))).gaps.find(
+          entry => entry.mappingId === lapsing
+        );
+        // 源侧依据没变：只有失效标记，不能因差异为空而算无缺口
+        expect(gap?.invalid).toEqual({ reason: reasons.get(lapsing) });
+        expect(gap?.differences).toEqual([]);
+        for (const mapId of [lapsing, added]) {
+          await expect(confirmMapping(adapter, mapId, null, ctx('2026-09-22'))).rejects.toThrow(/路径失效/);
+        }
       });
 
       it('P2-4 M8 多实例并存：saveMapping 经实例的实体构造门面落库', async () => {
