@@ -55,6 +55,8 @@ await rxdb.versionManager.mergeBranch('feature-a');
 
 `history()` 的作用域按入参解析：无参 = 整库，传实体类 = 该仓储，传实例 = 该行。撤销一个跨作用域事务时抛 `RxDBCrossScopeTransactionError`，而不是只撤一半——半个事务比失败难查得多。
 
+实例挂在可写检出位上时（工作树插件的 `checkouts.mount()`），当前分支是那套表持有的分支：`mergeBranch()` 合进它、落在那套表里，只合进得了这套表的实体，`previewMerge()` 同一口径；可推送计数是 0（只有主检出位同步）。被可写检出位持有的分支 `removeBranch()` 删不掉，抛 `WorktreeBranchHeldError`。
+
 ## 没装插件时
 
 `rxdb.versionManager` **不存在**（读到 `undefined`），核心不给一个什么都不做的空壳。这对下游是可见的契约而非退化路径：

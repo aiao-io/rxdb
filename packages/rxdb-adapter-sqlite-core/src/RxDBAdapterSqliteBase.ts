@@ -1348,6 +1348,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   // internalQuery 仅保留给真正的内部建表/探测路径（它们本就运行在 connect 内）。
   //
   // 两个写方法都裹在 withTriggersDisabled 里：它们抄的是**远端副本**，不是本地变更。
+  // QueryCache 同步的实体只在主表集，所以摘、挂的是主表集的触发器，挂在可写检出位上也一样（US-314 B2.1）。
   // 表上的 AFTER INSERT/UPDATE/DELETE 触发器不区分写入来源，不摘掉的话每次拉取回填都会
   // 往 rxdb_change 里堆一批伪本地改动 —— 一旦离线写把那张表当出站队列用，
   // 这些行就会被当成待推变更再发回远端，形成 pull → log → push → pull 的回声环。
@@ -1408,7 +1409,12 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           // 后一次早了就看不见刚写的行；拆成多个事务还会在嵌套事务下自死锁
           // （withTriggersDisabled 的同款约束）。
           const preImages = await this.#readQueryCacheRowImages(executor, target, ids);
-          await withTriggersDisabled(this, executor, () => this.#writeQueryCacheRows(executor, target, data));
+          await withTriggersDisabled(
+            this,
+            executor,
+            () => this.#writeQueryCacheRows(executor, target, data),
+            WorktreeTableSet.MAIN
+          );
           const postImages = await this.#readQueryCacheRowImages(executor, target, ids);
           return { preImages, postImages };
         }, false)
@@ -1432,7 +1438,12 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       return from(
         this.transaction(async executor => {
           const preImages = await this.#readQueryCacheRowImages(executor, target, ids);
-          await withTriggersDisabled(this, executor, () => this.#deleteQueryCacheRows(executor, target, ids));
+          await withTriggersDisabled(
+            this,
+            executor,
+            () => this.#deleteQueryCacheRows(executor, target, ids),
+            WorktreeTableSet.MAIN
+          );
           return preImages;
         }, false).then(preImages => {
           // 行没了，缓存里那个实例还标着 local=true。不标 removed 的话，

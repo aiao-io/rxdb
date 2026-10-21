@@ -188,9 +188,31 @@ INVEST 检查清单:
     删掉检出位再切过去历史里有这个提交）、验收 4（再开被占的分支、开主检出位的当前分支、主检出位切过去都被拒，删掉之后放行）、
     播种 / 写过之后与「删掉检出位再切过去」逐行一致、开删不改主表原值也不写变更日志、密钥环上锁照样开得了、会话与持久归属的回收、
     `in_use`。适配器级（sqlite-core 共享套件与 PGlite 同名用例）：播种不记日志、增量越界整笔拒绝、按目录删、自增序列对齐。
-  - **已知限制**（B2 之前）：多个标签页同时挂不同的检出位（跨标签页转发的实体事件不分检出位）；全文检索、草稿缓存、图的边表只在
-    主表集；整数自增主键跨套可能撞 id（owner 定：播种时对齐序列，记限制）；被持有的分支删得掉（删掉之后检出位挂不上，`prune()` 回收）；
-    远端分支要先物化才能开；检出位里不能切分支与合并。
+  - **已知限制**（B2 之前；B2.1 起去掉了已解决的项）：多个标签页同时挂不同的检出位（跨标签页转发的实体事件不分检出位）；
+    全文检索、草稿缓存只在主表集；整数自增主键跨套可能撞 id（owner 定：播种时对齐序列，记限制）；远端分支要先物化才能开；
+    检出位里不能切分支。
+- **守卫与修复**（阶段 B2.1，2026-10-21 调研查出 B1 交付里的缺陷，先修再做 B2 的新能力）：
+  - 被可写检出位持有的分支删不掉：`remove_branch` 在 `activated` 之外再看 `activeKey`（核心的 `WorktreeBranchHeldError.heldBy`，
+    在事务里返回、事务外抛），git 的 `Cannot delete branch … checked out at …`。从前持有分支的 `activated` 为假、照删不误，
+    检出位里没提交的改动（这条分支的变更行）跟着一起没了，挂在它上面的实例甚至能删掉自己的当前分支。合并带 `deleteSource`
+    遇到被持有的源分支，合并照常、源分支留着，`sourceDeleteError` 是这个错误。
+  - 检出位里合并：目标是持有分支，落进挂着的那套影子表、捕获进它的工作树。只合这套表的成员：源分支里记日志却不进影子表的实体
+    （QueryCache 同步的实体）按解析器落回主表，照合会改主检出位的表、记在主检出位的分支名下。判定只有一份，在历史插件的
+    `table-set-scope.ts`（主表集什么都管，影子表集只管成员），合并、合并预览与可写检出位的播种都用它。
+  - QueryCache 只在主表集：SQLite 的关触发器写（`withTriggersDisabled`）多了表集参数，QueryCache 的两处写摘、挂的是主表集——
+    从前摘的是挂着那套的触发器，挂在检出位上回填照样记进主分支的日志，挂回主检出位后出站队列当离线写推回远端；
+    出站队列四处读分支（`getCurrentBranch` / `findCurrentSyncRecord` 多了可选的表集参数）都按主表集读——从前读成检出位的分支，
+    待推集合是空的，对账会删掉离线新建的行。PGlite 的 QueryCache 写从前根本不摘触发器（主检出位上也记日志，修 main），
+    改成同一做法，摘掉触发器之后同事务里读回写入前后的行，提交之后补刷实体缓存、补发实体事件（与 sqlite-core 同口径）。
+  - 挂在可写检出位上可推送计数为 0：推送一进门就抛，照分支累计只会显示一个推不出去的数。
+  - PGlite 播种：增量带来的行可能用了比主表序列大的 id（别的检出位在自己的序列上发的号），叠完增量之后影子表的 `serial`
+    序列要是还会发出表里已有的号，就推到列里的最大值之上；SQLite 的 `AUTOINCREMENT` 插入时自己往前推。
+  - 图：边表是插件单独登记的实体（`<节点>_edges`），本来就进影子表集（B1 文档写错了「只在主表集」）。改成按边实体自己的
+    元数据解析（去掉 sqlite-core 未发布的 `get_companion_table_name`），节点与边一个进影子表、一个不进时图查询直接拒绝，
+    边实体随节点继承 `log: false`（与多对多中间表同一条规则）。
+  - 一致性：检出位套件（六个后端）加「被持有的分支删不掉」「检出位里合并」；sqlite-core 共享套件与 PGlite 同名用例加
+    「挂在检出位上合并只合成员」「挂在检出位上写 QueryCache 不进日志」（PGlite 另验主检出位上也不进）、PGlite「增量后序列不撞号」；
+    图插件 `graph-worktree-table-set.spec.ts`；同步的出站队列、历史的删分支 / 合并 / 可推送计数单测。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -225,6 +247,10 @@ INVEST 检查清单:
   `packages/rxdb-plugin-history/src/VersionManager.ts`、`packages/rxdb-plugin-sync/src/sync-manager.utils.ts`
   （`assertSyncOnMainCheckout`）/ `SyncManager.ts` / `sync-listeners.ts` 与四处写事务 — 当前分支贯穿捕获、历史与同步；
   六个后端的用例在 `working-tree/testing/worktree.suite.ts`
+- `packages/rxdb-plugin-history/src/remove-branch.ts`、`merge-branch.ts`、`branch-compare.ts`、`table-set-scope.ts`、`undo-redo-apply.ts`；
+  `packages/rxdb-plugin-sync/src/query-cache-outbox.ts`；`packages/rxdb-adapter-sqlite-core/src/version/with_triggers_disabled.ts`；
+  `packages/rxdb-adapter-pglite/src/version/with_triggers_disabled.ts`、`query-cache/query_cache_events.ts`、`worktree/worktree-table-set.ts`；
+  `packages/rxdb-plugin-graph/src/sqlite/graph_edge_table.ts`、`graph_edge_entity.ts` — 守卫与修复（B2.1）
 - `packages/rxdb/src/system/active-branch-guard.ts`（`WorktreeBranchHeldError`）、`system/system-repositories.ts`、
   两个适配器的 `version/switch_branch.ts` 与系统迁移（sqlite-core `RxDBAdapterSqliteBase.ts`、PGlite `system/migrate_system_schema.ts`）
   — 分支持有模型

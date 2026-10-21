@@ -17,12 +17,10 @@ import type { PGliteTransactionExecutor } from '../transaction/PGliteTransaction
 
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { getEntityObjectFromResult } from '../pglite.utils.js';
-import remove_all_triggers_sql from '../table/remove_trigger_sql.js';
 import { remove_entity_ids_from_cache, transaction_pglite_result } from '../transaction_pglite_result.js';
 import { executeSwitchStatements } from './execute_switch_statements.js';
-import { readCurrentBranchId } from './read_current_branch_id.js';
 import { SwitchVersionSqlItem, SwitchVersionSqlResult } from './switch-result.interface.js';
-import { generateBranchTriggerSql } from './switch_branch.js';
+import { withTriggersDisabled } from './with_triggers_disabled.js';
 
 type EntityId = RxDBEntityId;
 type SwitchEntity = EntityData & { id: EntityId; createdAt?: Date; updatedAt?: Date };
@@ -101,28 +99,10 @@ export async function execute_switch_actions(
     // 占住队列唯一槽位；此时闭包里的 `adapter.query()` 是外部调用，会重新入队排在自己身后 ——
     // 永久挂起。sqlite 侧的同名函数一直用的是回调参数 `tx`，所以没这个问题。
     const sink = (executor as PGliteTransactionExecutor).adapter;
+    const apply = () => applySwitchActions(sink, switchAction);
 
-    if (disableTriggers) {
-      const removeTriggers = remove_all_triggers_sql(sink, sink.tableSet);
-      if (removeTriggers) await executeSwitchStatements(sink, removeTriggers);
-    }
-
-    await applySwitchActions(sink, switchAction);
-
-    if (disableTriggers) {
-      // 分支 id 必须经**本事务**读（见 readCurrentBranchId）：走 versionManager.getCurrentBranch()
-      // 的话，外层已开着事务时那次读会重新入队，排在自己身后永久挂起。
-      //
-      // 只重挂本实例这套表的触发器，不碰分支表（US-314 B1.3）：从前复用切分支的整段 SQL，每批拉取都捎带一条
-      // 分支表的恒等 UPDATE，NOTIFY 再异步派出一条谁都没做过的 RxDBBranch 更新；挂在可写检出位上时，
-      // 那条 UPDATE 会把检出位持有的分支点亮。
-      const rebuildTriggers = generateBranchTriggerSql(
-        adapter,
-        sink.tableSet,
-        await readCurrentBranchId(sink, sink.tableSet)
-      );
-      if (rebuildTriggers) await executeSwitchStatements(sink, rebuildTriggers);
-    }
+    // 拉取回填摘、挂的是本实例这套表的触发器，只重挂、不碰分支表（US-314 B1.3，见 withTriggersDisabled）
+    await (disableTriggers ? withTriggersDisabled(sink, sink.tableSet, apply) : apply());
   }, false);
 
   await dispatch_switch_events(adapter, switchAction);

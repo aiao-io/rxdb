@@ -231,22 +231,42 @@ export class WorktreeBranchHeldError extends RxDBError {
   }
 
   /**
-   * 主检出位要持有 `branchId` 之前的检查：它在可写检出位手里就抛。
+   * 判 `branchId` 是不是在别人手里：没人持有、或持有的就是 `ownKey` 自己时返回 `null`，否则返回要抛的错。
    *
-   * @param branchId - 主检出位要持有的分支
+   * @param branchId - 要持有（或要删）的分支
    * @param activeKey - 这条分支此刻的 `activeKey`；`null` 与 `undefined`（行不存在、或实体上没有这一列的值）都是没人持有
-   * @throws {@link WorktreeBranchHeldError} `activeKey` 既不为空、也不是 {@link ACTIVE_BRANCH_KEY} 时
+   * @param ownKey - 调用方自己的持有键，缺省是主检出位的 {@link ACTIVE_BRANCH_KEY}；可写检出位传自己那套表的持有键
+   * @returns 被别人持有时的错误，否则 `null`
    *
    * @remarks
-   * 「哪些值算被占」只能有一份：核心的两处点亮 `main`、两个适配器的切分支与系统迁移都调它。
-   * 各写一份比较的话，某一端把持有键当成空闲不会有任何报错，只会把它悄悄覆盖成哨兵。
+   * 「哪些值算被占」只能有一份：核心的两处点亮 `main`、两个适配器的切分支与系统迁移、删分支、打开可写检出位都经它判。
+   * 各写一份比较的话，某一端把持有键当成空闲不会有任何报错，只会把它悄悄覆盖掉。
+   *
+   * 返回而不是就地抛：删分支的校验要在事务里**返回**拒绝、到事务外再抛（抛在事务里会被适配器的包装层换掉错误类型）。
    *
    * 挂在错误类上而不是另导出一个函数：核心新增导出要过 SC-014 的前缀门禁（`Worktree*`），
    * 小写开头的函数名满足不了大小写敏感的前缀判定，而判定与它抛的错本来就是一回事。
    */
-  static throwIfHeld(branchId: string, activeKey: string | null | undefined): void {
-    if (activeKey === undefined || activeKey === null || activeKey === ACTIVE_BRANCH_KEY) return;
-    throw new WorktreeBranchHeldError(branchId, activeKey);
+  static heldBy(
+    branchId: string,
+    activeKey: string | null | undefined,
+    ownKey: string = ACTIVE_BRANCH_KEY
+  ): WorktreeBranchHeldError | null {
+    if (activeKey === undefined || activeKey === null || activeKey === ownKey) return null;
+    return new WorktreeBranchHeldError(branchId, activeKey);
+  }
+
+  /**
+   * 持有 `branchId` 之前的检查：它在别人手里就抛，判定见 {@link WorktreeBranchHeldError.heldBy}。
+   *
+   * @param branchId - 要持有的分支
+   * @param activeKey - 这条分支此刻的 `activeKey`
+   * @param ownKey - 调用方自己的持有键，缺省是主检出位的 {@link ACTIVE_BRANCH_KEY}
+   * @throws {@link WorktreeBranchHeldError} 分支被别人持有时
+   */
+  static throwIfHeld(branchId: string, activeKey: string | null | undefined, ownKey?: string): void {
+    const held = WorktreeBranchHeldError.heldBy(branchId, activeKey, ownKey);
+    if (held) throw held;
   }
 }
 

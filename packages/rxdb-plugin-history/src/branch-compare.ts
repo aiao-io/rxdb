@@ -31,6 +31,7 @@ import {
   type BranchPoint,
   type SwitchBranchActionReaders
 } from './switch-branch-actions.js';
+import type { ChangeInTableSet } from './table-set-scope.js';
 
 /** 一个实体在两侧之间的净操作。 */
 export type BranchDiffOperation = 'INSERT' | 'UPDATE' | 'DELETE';
@@ -404,6 +405,7 @@ const mergeBasePoint = (branches: readonly RxDBBranch[], source: BranchPoint, ta
  * @param sourceBranchId - 源分支
  * @param targetBranchId - 目标分支（`VersionManager.previewMerge()` 传当前 active 分支）
  * @param options - 见 {@link MergePreviewOptions}
+ * @param inTableSet - 只预览落在目标那套表里的变更，与 `mergeBranch()` 传同一份判定
  * @returns 合并会落的实体、`merged` 计数与覆盖标注
  * @throws {@link RxDBError} 合并进自己、或任一分支不存在时，与 `mergeBranch()` 同一句报错
  *
@@ -427,14 +429,15 @@ export const preview_merge = async (
   readers: SwitchBranchActionReaders,
   sourceBranchId: string,
   targetBranchId: string,
-  options?: MergePreviewOptions
+  options?: MergePreviewOptions,
+  inTableSet?: ChangeInTableSet
 ): Promise<MergePreview> => {
   const strategy = options?.strategy ?? 'squash';
   if (sourceBranchId === targetBranchId) throw merge_into_itself_error(sourceBranchId);
   const branches = await allBranches(readers);
   const source = branchOf(branches, sourceBranchId);
   const targetBranch = branchOf(branches, targetBranchId);
-  const sourceChanges = await find_source_changes(readers.changeRepository, source);
+  const sourceChanges = await find_source_changes(readers.changeRepository, source, inTableSet);
   const incoming = squash_source_changes(sourceChanges);
   const netCount = incoming.inserts.size + incoming.updates.size + incoming.deletes.size;
   const merged = strategy === 'normal' ? sourceChanges.length : netCount;

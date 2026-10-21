@@ -208,6 +208,31 @@ describe('WorktreeBranchHeldError.throwIfHeld', () => {
     });
     expect((error as Error).message).toBe(`Branch (feature-x) is already used by a worktree (${HOLDER_KEY}).`);
   });
+
+  // 可写检出位要持有一条分支时，自己的键是持有键：主检出位的哨兵对它来说就是「别人」（US-314 B2）
+  it('带上调用方自己的持有键：自己持有的放行，主检出位的哨兵与别的持有键都算被占', () => {
+    expect(() => WorktreeBranchHeldError.throwIfHeld('feature-x', HOLDER_KEY, HOLDER_KEY)).not.toThrow();
+    expect(() => WorktreeBranchHeldError.throwIfHeld('feature-x', null, HOLDER_KEY)).not.toThrow();
+    expect(() => WorktreeBranchHeldError.throwIfHeld('feature-x', ACTIVE_BRANCH_KEY, HOLDER_KEY)).toThrow(
+      WorktreeBranchHeldError
+    );
+    expect(() => WorktreeBranchHeldError.throwIfHeld('feature-x', '*worktree:wt_other*', HOLDER_KEY)).toThrow(
+      WorktreeBranchHeldError
+    );
+  });
+});
+
+// 删分支要在事务里**返回**拒绝、事务外再抛，所以判定还有一个不抛的出口
+describe('WorktreeBranchHeldError.heldBy', () => {
+  it('没人持有或持有的就是自己时返回 null，否则返回带持有键的错误', () => {
+    expect(WorktreeBranchHeldError.heldBy('feature-x', null)).toBeNull();
+    expect(WorktreeBranchHeldError.heldBy('feature-x', ACTIVE_BRANCH_KEY)).toBeNull();
+    expect(WorktreeBranchHeldError.heldBy('feature-x', HOLDER_KEY, HOLDER_KEY)).toBeNull();
+    expect(WorktreeBranchHeldError.heldBy('feature-x', HOLDER_KEY)).toMatchObject({
+      branchId: 'feature-x',
+      holderKey: HOLDER_KEY
+    });
+  });
 });
 
 // 哨兵 `'*active*'` 与用户分支 id 同处一列。它的安全性此前**只有注释**在保证

@@ -99,20 +99,6 @@ export const get_table_name_by_entity_type = (EntityType: EntityType, tableSet: 
 export const get_table_set_table_glob = (tableSet: WorktreeTableSet): string => `*$${tableSet.suffix}`;
 
 /**
- * 属于某个实体的附属表（如图插件的边表）在给定表集里的物理名：跟着所属实体落同一套。
- *
- * @param metadata - 所属实体的元数据
- * @param companionName - 附属表的逻辑名
- * @param tableSet - 表集
- * @returns 未加引号的物理表名
- */
-export const get_companion_table_name = (
-  metadata: EntityMetadata,
-  companionName: string,
-  tableSet: WorktreeTableSet
-): string => physical_name(metadata, companionName, tableSet);
-
-/**
  * 列（或关系列）索引名：`idx_<物理表名>_<属性名>`，跟着物理表名走，所以各套天然不撞。
  *
  * @param metadata - 实体元数据

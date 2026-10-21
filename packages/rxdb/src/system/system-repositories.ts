@@ -32,6 +32,7 @@ const heldBranchMissingError = (tableSet: WorktreeTableSet): RxDBError =>
  *
  * @param branchRepository - 分支仓库
  * @param rxdb - RxDB 实例，只用于 `worktreeTableSet` 与 `entityManager.instantiate`
+ * @param tableSet - 读哪一套表持有的分支，缺省是本实例挂的那套；只在主表集的实体（QueryCache）传主表集
  * @throws {@link RxDBError} 挂在可写检出位上、而那套表持有的分支已经不见了时
  * @throws {@link WorktreeBranchHeldError} 主表集没有激活分支、而 `main` 在可写检出位手里时
  *
@@ -46,9 +47,9 @@ const heldBranchMissingError = (tableSet: WorktreeTableSet): RxDBError =>
  */
 export const resolve_current_branch = async (
   branchRepository: LocalRxDBBranchRepository,
-  rxdb: RxDB
+  rxdb: RxDB,
+  tableSet: WorktreeTableSet = rxdb.worktreeTableSet
 ): Promise<InstanceType<typeof RxDBBranch>> => {
-  const tableSet = rxdb.worktreeTableSet;
   const activeBranch = (await branchRepository.find({ where: tableSet.heldBranchWhere, limit: 1 }))[0];
 
   if (activeBranch) {
@@ -116,6 +117,8 @@ export const getRemoteSystemRepositories = async (rxdb: RxDB) => {
  * 取当前分支：本实例挂的那套表持有的分支；主表集没有激活分支时激活（或新建）`main`。
  *
  * @param rxdb - RxDB 实例
+ * @param tableSet - 读哪一套表持有的分支，缺省是本实例挂的那套。QueryCache 同步的实体只在主表集，
+ *   它的变更记在主检出位的分支名下：出站队列挂在可写检出位上也按主表集读（US-314 B2.1）
  * @throws {@link RxDBError} 挂在可写检出位上、而那套表持有的分支已经不见了时
  *
  * @remarks
@@ -130,9 +133,11 @@ export const getRemoteSystemRepositories = async (rxdb: RxDB) => {
  * - **冷路径**（查不到激活分支）才开事务，并在事务内**重做一遍检查**（双重检查）。
  *   否则两个并发调用会双双走到 `create`，第二个撞主键报错。
  */
-export const getCurrentBranch = async (rxdb: RxDB): Promise<InstanceType<typeof RxDBBranch>> => {
+export const getCurrentBranch = async (
+  rxdb: RxDB,
+  tableSet: WorktreeTableSet = rxdb.worktreeTableSet
+): Promise<InstanceType<typeof RxDBBranch>> => {
   const { branchRepository, adapter } = await getLocalSystemRepositories(rxdb);
-  const tableSet = rxdb.worktreeTableSet;
   const activeBranch = (await branchRepository.find({ where: tableSet.heldBranchWhere, limit: 1 }))[0];
 
   if (activeBranch) {
@@ -141,6 +146,6 @@ export const getCurrentBranch = async (rxdb: RxDB): Promise<InstanceType<typeof 
   if (!tableSet.isMain) throw heldBranchMissingError(tableSet);
 
   return adapter.transaction(async executor =>
-    resolve_current_branch(executor.getRepository(RxDBBranch) as unknown as LocalRxDBBranchRepository, rxdb)
+    resolve_current_branch(executor.getRepository(RxDBBranch) as unknown as LocalRxDBBranchRepository, rxdb, tableSet)
   );
 };

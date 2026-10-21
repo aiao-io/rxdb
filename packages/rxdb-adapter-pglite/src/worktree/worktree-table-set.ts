@@ -88,6 +88,30 @@ const columnsOf = async (
   ).rows.map(row => row.column_name);
 
 /**
+ * 一张表某一列背后的 `serial` 序列。
+ *
+ * @param executor - 调用方的事务
+ * @param metadata - 实体
+ * @param set - 哪一套表
+ * @param column - 列名
+ * @returns 序列名（目录交回的、已按需加好引号）；不是 `serial` 列时为 `null`
+ */
+const serialSequenceOf = async (
+  executor: PGliteTransactionExecutor,
+  metadata: EntityMetadata,
+  set: WorktreeTableSet,
+  column: string
+): Promise<string | null> => {
+  const [row] = (
+    await executor.queryRaw<{ seq: string | null }>(`SELECT pg_get_serial_sequence($1, $2) AS seq`, [
+      getTableNameByMetadata(metadata, set),
+      column
+    ])
+  ).rows;
+  return row?.seq ?? null;
+};
+
+/**
  * 把影子表 `serial` 列的序列对齐到主表那一列的序列。
  *
  * @param executor - 调用方的事务
@@ -101,19 +125,10 @@ const alignSerialSequences = async (
   tableSet: WorktreeTableSet,
   columns: readonly string[]
 ): Promise<void> => {
-  const sequenceOf = async (set: WorktreeTableSet, column: string): Promise<string | null> => {
-    const [row] = (
-      await executor.queryRaw<{ seq: string | null }>(`SELECT pg_get_serial_sequence($1, $2) AS seq`, [
-        getTableNameByMetadata(metadata, set),
-        column
-      ])
-    ).rows;
-    return row?.seq ?? null;
-  };
   for (const column of columns) {
-    const shadowSequence = await sequenceOf(tableSet, column);
+    const shadowSequence = await serialSequenceOf(executor, metadata, tableSet, column);
     if (shadowSequence === null) continue;
-    const mainSequence = await sequenceOf(WorktreeTableSet.MAIN, column);
+    const mainSequence = await serialSequenceOf(executor, metadata, WorktreeTableSet.MAIN, column);
     if (mainSequence === null) continue;
     // 序列名取自目录（`pg_get_serial_sequence` 交回的已按需加好引号），不是外部输入
     const [state] = (
@@ -127,6 +142,40 @@ const alignSerialSequences = async (
       String(state.last_value),
       state.is_called
     ]);
+  }
+};
+
+/**
+ * 叠完增量之后，影子表 `serial` 列的序列要是还会发出表里已有的号，就推到列里的最大值之上。
+ *
+ * @param executor - 调用方的事务
+ * @param metadata - 成员实体
+ * @param tableSet - 影子表集
+ *
+ * @remarks
+ * 增量带来的行可能用了比主表序列大的 id：别的检出位在自己的序列上发的号，随那条分支的变更进了增量。
+ * 显式插入不推进序列，只对齐到主表的话，序列停在这些行下面，检出位里插到那个号就撞主键（US-314 B2.1）。
+ * 只在会撞的时候才推：不会撞就保持与主表对齐，主表删掉的号照样不再发。SQLite 的 `AUTOINCREMENT` 插入时自己往前推，没有这个问题。
+ */
+const raiseSerialSequencesPastRows = async (
+  executor: PGliteTransactionExecutor,
+  metadata: EntityMetadata,
+  tableSet: WorktreeTableSet
+): Promise<void> => {
+  const table = getTableNameByMetadata(metadata, tableSet);
+  for (const column of await columnsOf(executor, metadata, tableSet)) {
+    const sequence = await serialSequenceOf(executor, metadata, tableSet, column);
+    if (sequence === null) continue;
+    // int8 驱动可能交回 bigint 或字符串：一律转成文本再比、再交给 setval 的签名转回 bigint
+    const [state] = (
+      await executor.queryRaw<{ next: string; max: string | null }>(
+        `SELECT (CASE WHEN is_called THEN last_value + 1 ELSE last_value END)::text AS "next",
+                (SELECT MAX(${quoteIdentifier(column)}) FROM ${table})::text AS "max"
+           FROM ${sequence}`
+      )
+    ).rows;
+    if (state.max === null || BigInt(state.max) < BigInt(state.next)) continue;
+    await executor.queryRaw(`SELECT setval($1::regclass, $2::bigint, true)`, [sequence, state.max]);
   }
 };
 
@@ -188,6 +237,8 @@ export const createSeededTableSet = async (
   for (const EntityType of members) await copyMainRows(executor, getEntityMetadata(EntityType), tableSet);
   const delta = await convertSwitchResultToSql(adapter, seed.actions, { envelopePassthrough: true, tableSet });
   await applySwitchActions(sink, delta);
+  for (const EntityType of members)
+    await raiseSerialSequencesPastRows(executor, getEntityMetadata(EntityType), tableSet);
   await executeSwitchStatements(sink, generateBranchTriggerSqlFor(adapter, tableSet, seed.branchId, members));
 };
 

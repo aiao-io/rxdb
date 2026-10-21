@@ -80,7 +80,6 @@ export type { EncryptionContext } from './sqlite-core.utils.js';
 // 表名解析器（US-314）：业务实体的物理名只从这里出
 export {
   getTableColumnIndexName,
-  get_companion_table_name,
   get_storage_object_name,
   get_table_name,
   get_table_name_by_entity_type,

@@ -15,6 +15,9 @@ export default (meta: EntityMetadata): EntityMetadataOptions => {
   const edgeOptions: EntityMetadataOptions = {
     name: (meta.name + '_edges') as Capitalize<string>,
     namespace: meta.namespace,
+    // 节点不写变更日志时边也不写，与多对多中间表同一条规则：只记边的变更，撤销与同步只能还原一半的图；
+    // 可写检出位的成员也按记不记日志判，节点与边一个进影子表、一个不进，图查询会拼出两个检出位的图（US-314 B2.1）
+    ...(meta.log === false ? { log: false } : {}),
     relations: [
       {
         // source 关系：指向源节点；CASCADE 确保节点删除时同步清理边

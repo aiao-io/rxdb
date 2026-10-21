@@ -1,20 +1,15 @@
 /**
- * @fileoverview 可写检出位在主库里的几步（US-314 B1.5）：持有分支、放开分支、只留成员的增量、建删表集的槽位。
+ * @fileoverview 可写检出位在主库里的几步（US-314 B1.5）：持有分支、放开分支、建删表集的槽位。
+ *
+ * 增量只留成员由历史插件的 `keep_table_set_actions` 做，与检出位上的切分支、合并同一份判定（B2.1）。
  *
  * @remarks
  * 打开与关闭各是主库上的一笔受管事务：登记行、分支表上的持有键与那套影子表在同一笔里建、在同一笔里删，崩在哪里都不会留下半套。
  * 持有分支要先看那一行有没有被占：`activeKey` 的唯一索引只拦「两行写同一个键」，拦不住把别人的键覆盖掉。
  */
 
-import type {
-  LocalRxDBAdapter,
-  RxDB,
-  SwitchVersionActions,
-  SwitchVersionChange,
-  TransactionExecutor,
-  WorktreeTableSet
-} from '@aiao/rxdb';
-import { ACTIVE_BRANCH_KEY, parseRxDBChangeKey, RxDBBranch, sha256Hex, WorktreeBranchHeldError } from '@aiao/rxdb';
+import type { LocalRxDBAdapter, TransactionExecutor, WorktreeTableSet } from '@aiao/rxdb';
+import { ACTIVE_BRANCH_KEY, RxDBBranch, sha256Hex, WorktreeBranchHeldError } from '@aiao/rxdb';
 import { WorktreeUnavailableError } from './worktree-errors.js';
 
 /** 适配器上建、删表集的两个槽位都在的适配器。 */
@@ -85,31 +80,4 @@ export const releaseBranch = async (executor: TransactionExecutor, tableSet: Wor
   const branches = executor.getRepository(RxDBBranch);
   const [held] = await branches.find({ where: tableSet.heldBranchWhere, limit: 1 });
   if (held) await branches.update(held, { activeKey: null });
-};
-
-/**
- * 增量只留这套表的成员。
- *
- * @param rxdb - 主实例
- * @param actions - 「主检出位所在分支 → 持有分支」的增量
- * @param tableSet - 影子表集
- * @returns 只含成员实体的增量
- *
- * @remarks
- * 记日志却不进影子表集的实体（QueryCache）也会出现在增量里：它们按解析器落回主表名，叠上去就改写了主检出位的表。
- */
-export const onlyMembers = (
-  rxdb: RxDB,
-  actions: SwitchVersionActions,
-  tableSet: WorktreeTableSet
-): SwitchVersionActions => {
-  const keep = (changes: Map<string, SwitchVersionChange>): Map<string, SwitchVersionChange> =>
-    new Map(
-      [...changes].filter(([key]) => {
-        const [namespace, entity] = parseRxDBChangeKey(key);
-        const metadata = rxdb.schemaManager.getEntityMetadata(entity, namespace);
-        return metadata !== undefined && tableSet.has(metadata);
-      })
-    );
-  return { inserts: keep(actions.inserts), updates: keep(actions.updates), deletes: keep(actions.deletes) };
 };

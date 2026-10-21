@@ -4,7 +4,8 @@ import {
   MAIN_BRANCH_ID,
   RxDBBranch,
   RxDBChange,
-  RxDBError
+  RxDBError,
+  WorktreeBranchHeldError
 } from '@aiao/rxdb';
 import { VersionManager } from './VersionManager.js';
 
@@ -55,6 +56,13 @@ export const remove_branch = async (version: VersionManager, branchId: string) =
       return `Cannot remove active branch '${branchId}'. Switch to another branch first.`;
     }
 
+    // 被可写检出位持有的分支不能删（git：`Cannot delete branch … checked out at …`）：它的 `activated` 为假，
+    // 但检出位里没提交的改动就是这条分支的变更行，删了就一起没了，挂在那套表上的实例也读不出当前分支（US-314 B2.1）
+    const held = WorktreeBranchHeldError.heldBy(branchId, branch.activeKey);
+    if (held) {
+      return held;
+    }
+
     // 检查是否有子分支依赖于该分支
     //
     // 必须直接查 `parentId`：拿「父分支有哪些 change、子分支的 fromChangeId 是否落在其中」
@@ -95,6 +103,6 @@ export const remove_branch = async (version: VersionManager, branchId: string) =
   });
 
   if (rejection) {
-    throw new RxDBError(rejection);
+    throw typeof rejection === 'string' ? new RxDBError(rejection) : rejection;
   }
 };

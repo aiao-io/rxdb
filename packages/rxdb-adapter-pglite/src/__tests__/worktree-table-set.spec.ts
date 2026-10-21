@@ -311,6 +311,35 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
       );
       expect(nextId).toBe(lastId + 1);
     });
+
+    // 增量带来的行可能用了比主表序列大的 id（别的检出位在自己的序列上发的号，随那条分支的变更进了增量）。
+    // 序列只对齐到主表的话，停在这些行下面，检出位里插到那个号就撞主键（US-314 B2.1）
+    it('增量带来比主表序列大的 id：影子表的序列推到它们之上，下一次插入不撞号', async () => {
+      const seqSet = WorktreeTableSet.of('wt_seq', [WorktreeSeqNote]);
+      const { namespace, name } = getEntityMetadata(WorktreeSeqNote);
+      const farId = 500;
+      const key = getRxDBChangeKey({ namespace, entity: name, entityId: farId } as IRxDBChange);
+      const now = new Date();
+      await holdBranchFor(seqSet, 'seq-held');
+
+      await createTableSet(seqSet, 'seq-held', {
+        ...emptyActions(),
+        inserts: new Map([
+          [key, { patch: { id: farId, title: 'far', createdAt: now, updatedAt: now }, inversePatch: null }]
+        ])
+      });
+      await adapter.internalQuery(
+        `INSERT INTO "wtseq$wt_seq"."wtseq_note" ("title", "createdAt", "updatedAt") VALUES ('next', now(), now())`
+      );
+
+      // 主表上别的用例留下的行也会复制进来（清库不清 wtseq 这个 schema），只看这一次插入拿到的号
+      const [inserted] = (
+        await adapter.internalQuery<{ id: number }>(
+          `SELECT "id" FROM "wtseq$wt_seq"."wtseq_note" WHERE "title" = 'next'`
+        )
+      ).rows;
+      expect(Number(inserted.id)).toBe(farId + 1);
+    });
   });
 
   // 实例挂在可写检出位上（US-314 B1.4）：与 sqlite-core 共享套件的同名一组逐条对应
@@ -327,6 +356,52 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
     // 先挂回主表集再清库：外层的清库删的就是这套影子表
     afterEach(async () => {
       await rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+    });
+
+    // 检出位里合并只合这套表的成员（US-314 B2.1）：`WorktreeSeqNote` 记日志、不是这套影子表的成员，照合会落回主表、
+    // 记在主检出位的分支名下（与 QueryCache 同步的实体同一种处境）
+    it('挂在检出位上合并：只合这套表的成员，非成员的变更不落主表、不进日志', async () => {
+      await rxdb.versionManager.createBranch('merge-src');
+      await rxdb.versionManager.switchBranch('merge-src');
+      // 裸写：主表集的触发器此刻挂在 merge-src 上，两行都记在它名下
+      await rawInsert(WorktreeTableSet.MAIN, 'from-src');
+      await adapter.internalQuery(
+        `INSERT INTO "wtseq"."wtseq_note" ("title", "createdAt", "updatedAt") VALUES ('not-a-member', now(), now())`
+      );
+      await rxdb.versionManager.switchBranch('main');
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      const before = await countChanges();
+      const result = await rxdb.versionManager.mergeBranch('merge-src');
+
+      expect(result.merged).toBe(1);
+      expect(await titlesOf(tableSet)).toEqual(['from-src']);
+      // 清库不清 wtseq 这个 schema：别的用例留下的行还在，只看非成员那一行有没有落进主表
+      const titles = (await adapter.internalQuery<{ title: string }>(`SELECT "title" FROM "wtseq"."wtseq_note"`)).rows;
+      expect(titles.map(row => row.title)).not.toContain('not-a-member');
+      expect(await countChanges()).toBe(before + 1);
+    });
+
+    // QueryCache 抄的是远端副本，不是本地变更：回填不进变更日志，否则出站队列把它当离线写推回远端。
+    // 从前 PGlite 的 QueryCache 写根本不摘触发器（主检出位上也记日志）；同步的实体只在主表集，挂在检出位上
+    // 摘的也必须是主表集的触发器（US-314 B2.1）。`WorktreeSeqNote` 记日志、不是这套影子表的成员，处境相同。
+    it.each([
+      ['主检出位', () => WorktreeTableSet.MAIN],
+      ['挂在检出位上', () => tableSet]
+    ])('%s写 QueryCache：行不进变更日志，主表与影子表的触发器都照旧挂在各自的分支', async (_label, mountedSet) => {
+      await rxdb.mountWorktreeTableSet(mountedSet());
+      const before = await countChanges();
+
+      await firstValueFrom(
+        adapter.upsertMany('wtseq:WorktreeSeqNote', [
+          { id: 7, title: 'cached', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        ])
+      );
+      await firstValueFrom(adapter.deleteByIds('wtseq:WorktreeSeqNote', ['7']));
+
+      expect(await countChanges()).toBe(before);
+      expect(await branchesOfChanges(await rawInsert(WorktreeTableSet.MAIN, 'main'))).toEqual(['main']);
+      expect(await branchesOfChanges(await rawInsert(tableSet, 'shadow'))).toEqual([heldBranch]);
     });
 
     it('挂上之后读写落在影子表、记在持有分支，当前分支是持有分支；挂回主表集一切照旧', async () => {

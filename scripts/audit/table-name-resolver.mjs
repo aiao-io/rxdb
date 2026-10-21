@@ -59,7 +59,6 @@ export const RESOLVER_VOCABULARY = Object.freeze({
     'get_table_name_info',
     'get_table_name_by_metadata',
     'get_table_name_by_entity_type',
-    'get_companion_table_name',
     'getTableColumnIndexName',
     'get_storage_object_name'
   ],

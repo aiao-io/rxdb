@@ -5,7 +5,6 @@
 
 import type { EntityBaseType, EntityType } from '@aiao/rxdb';
 import {
-  get_companion_table_name,
   get_table_name_by_metadata as sqliteGetTableNameByMetadata,
   SqliteRepository,
   type RxDBAdapterSqliteBase
@@ -26,6 +25,7 @@ import {
   NeighborResult
 } from '../graph-repository.interface.js';
 import { normalizeNeighborsOptions, normalizePathsOptions } from '../utils.js';
+import { graph_edge_table_name } from './graph_edge_table.js';
 import {
   generate_entity_count_neighbors_sql,
   generate_entity_find_neighbors_sql,
@@ -354,8 +354,8 @@ export class SqliteGraphRepository<
   }
 
   private getEdgeTableName(): string {
-    // 边表跟着节点实体落同一套业务表
-    return `"${get_companion_table_name(this.metadata, this.metadata.name + '_edges', this.adapter.tableSet)}"`;
+    // 边表按它自己的实体元数据解析，节点与边不在同一套表里就拒绝（US-314 B2.1）
+    return graph_edge_table_name(this.adapter, this.metadata);
   }
 
   private buildAddEdgeSql(

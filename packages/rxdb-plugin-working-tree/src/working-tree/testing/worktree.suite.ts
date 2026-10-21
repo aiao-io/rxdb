@@ -898,6 +898,46 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
         expect(await activeBranchOf(database)).toBe(FEATURE);
       });
 
+      // git：`Cannot delete branch … checked out at …`（US-314 B2.1）。被持有的分支 `activated` 为假，从前照删不误，
+      // 检出位里没提交的改动（都是这条分支的变更行）跟着一起没了
+      it('被可写检出位持有的分支删不掉，挂在它上面的实例也删不掉自己的当前分支；删掉检出位之后删得掉', async () => {
+        await seedTwoBranches(database);
+        const worktree = await checkoutsOf().add(FEATURE);
+
+        await expect(database.versionManager.removeBranch(FEATURE)).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+        await checkoutsOf().mount(worktree.id);
+        await expect(database.versionManager.removeBranch(FEATURE)).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+        await checkoutsOf().mountMain();
+        expect(await branchIdsOf(database)).toContain(FEATURE);
+
+        await checkoutsOf().remove(worktree.id);
+        await database.versionManager.removeBranch(FEATURE);
+        expect(await branchIdsOf(database)).not.toContain(FEATURE);
+      });
+
+      // 检出位里合并（US-314 B2.1）：目标是持有分支，落进这套影子表、捕获进它的工作树
+      it('检出位里合并：主线合进持有分支、落在影子表里，主检出位不动；源分支被检出位持有时 deleteSource 合并照常、删不掉', async () => {
+        const { main, shared } = await seedTwoBranches(database);
+        const before = await mainStateOf(database);
+        const worktree = await checkoutsOf().add(FEATURE);
+        await checkoutsOf().mount(worktree.id);
+
+        const merged = await database.versionManager.mergeBranch(main);
+
+        expect(merged.merged).toBeGreaterThan(0);
+        expect((await rowsOf(database, WorktreeConformanceTask)).find(row => row.id === shared.id)).toMatchObject({
+          priority: 2
+        });
+        expect(await database.workingTree.status()).toMatchObject({ branchId: FEATURE, clean: false });
+        await checkoutsOf().mountMain();
+        expect(await mainStateOf(database)).toEqual(before);
+
+        const result = await database.versionManager.mergeBranch(FEATURE, { deleteSource: true });
+        expect(result).toMatchObject({ sourceDeleted: false });
+        expect(result.sourceDeleteError).toBeInstanceOf(WorktreeBranchHeldError);
+        expect(await branchIdsOf(database)).toContain(FEATURE);
+      });
+
       it('播种出来的与切过去读到的逐行一致；检出位里写过之后，删掉检出位再切过去读到的也一致', async () => {
         const { main, featureOnly, sharedLabel } = await seedTwoBranches(database);
         const seededCheckout = await checkoutsOf().add(FEATURE);

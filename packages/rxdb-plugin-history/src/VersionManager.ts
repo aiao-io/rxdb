@@ -44,6 +44,7 @@ import { remove_branch } from './remove-branch.js';
 import { restore_entity } from './restore-entity.js';
 import { switch_branch_actions } from './switch-branch-actions.js';
 import { createSyncHistoryBridge, type SyncHistoryBridge } from './sync-history-bridge.js';
+import { table_set_scope } from './table-set-scope.js';
 import { getEarliestRecordAt, getRxDBChangeEventBranchId, getRxDBChangeEventId } from './version-manager.utils.js';
 /**
  * 版本管理器
@@ -431,7 +432,14 @@ export class VersionManager {
     try {
       this.rxdb.dispatchEvent(new MergeBranchBeginEvent(sourceBranchId, targetBranchId));
 
-      const result = await merge_branch(this, sourceBranchId, targetBranchId, options);
+      // 挂在可写检出位上只合这套表的成员（US-314 B2.1），预览传同一份判定
+      const result = await merge_branch(
+        this,
+        sourceBranchId,
+        targetBranchId,
+        options,
+        table_set_scope(this.rxdb, this.rxdb.worktreeTableSet)
+      );
 
       // 合并有变更时清空 undo/redo 历史
       if (result.merged > 0) {
@@ -495,7 +503,13 @@ export class VersionManager {
     if (!currentBranch) {
       throw new RxDBError('No active branch found');
     }
-    return preview_merge(await this.getLocalRepositories(), sourceBranchId, currentBranch.id, options);
+    return preview_merge(
+      await this.getLocalRepositories(),
+      sourceBranchId,
+      currentBranch.id,
+      options,
+      table_set_scope(this.rxdb, this.rxdb.worktreeTableSet)
+    );
   }
 
   /**

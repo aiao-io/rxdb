@@ -31,7 +31,7 @@ import {
 } from '@aiao/rxdb';
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { countQueryCacheOutbox, flushQueryCacheOutbox } from '../query-cache-outbox.js';
+import { countQueryCacheOutbox, flushQueryCacheOutbox, pendingQueryCacheWriteIds } from '../query-cache-outbox.js';
 import { detachedReachability } from './fixtures/reachability.js';
 
 @Entity({
@@ -225,6 +225,22 @@ const setup = (options: SetupOptions = {}) => {
 const flush = (ctx: ReturnType<typeof setup>, entity = 'CachedRecipe') =>
   flushQueryCacheOutbox(ctx.rxdb, NAMESPACE, entity);
 
+/** 检出位持有的分支：挂在可写检出位上时，「当前分支」读出来是它 */
+const CHECKOUT_BRANCH = 'checkout-branch';
+
+/**
+ * 把假件挂到一套影子表上（US-314 B2.1）：分支仓储按查询条件作答，按主表集查得到主分支，
+ * 按这套表的持有键查得到检出位的分支。读错了表集，查询里的分支就是检出位的那条。
+ */
+const mountOnCheckout = (ctx: ReturnType<typeof setup>): void => {
+  const tableSet = WorktreeTableSet.of('wt_outbox', [CachedRecipe]);
+  Object.assign(ctx.rxdb, { worktreeTableSet: tableSet });
+  ctx.branchRepo.find.mockImplementation(async (query?: unknown) => {
+    const onCheckout = rulesOf(query).some(rule => rule.field === 'activeKey' && rule.value === tableSet.holderKey);
+    return [onCheckout ? { id: CHECKOUT_BRANCH, activated: false } : { id: BRANCH, activated: true }];
+  });
+};
+
 /** 从 change repo 拿到的那次查询里，把 and 规则摊平出来 */
 const rulesOf = (query: unknown): Array<{ field: string; operator: string; value: unknown }> =>
   (query as { where: { rules: Array<{ field: string; operator: string; value: unknown }> } }).where.rules;
@@ -250,6 +266,26 @@ describe('flushQueryCacheOutbox', () => {
           { field: 'id', operator: '>', value: 7 }
         ])
       );
+    });
+
+    // QueryCache 同步的实体只在主表集，出站行记在主检出位的分支名下：挂在可写检出位上照「当前分支」取，
+    // 待推集合是空的，对账就把离线新建的行当孤儿删掉（US-314 B2.1）
+    it('挂在可写检出位上：flush、对账的待推集合、积压计数都按主检出位持有的分支取行', async () => {
+      const ctx = setup({ changes: [], sync: {} });
+      mountOnCheckout(ctx);
+
+      await flush(ctx);
+      await pendingQueryCacheWriteIds(ctx.rxdb, NAMESPACE, 'CachedRecipe');
+      await countQueryCacheOutbox(ctx.rxdb);
+
+      const branchRules = [...ctx.changeQueries, ...ctx.countQueries].map(query =>
+        rulesOf(query).find(rule => rule.field === 'branchId')
+      );
+      expect(branchRules).toEqual([
+        { field: 'branchId', operator: '=', value: BRANCH },
+        { field: 'branchId', operator: '=', value: BRANCH },
+        { field: 'branchId', operator: '=', value: BRANCH }
+      ]);
     });
 
     // 水位线为 null 表示「从未推过」，此时加一条 `id > null` 会把整批筛空

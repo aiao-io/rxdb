@@ -30,7 +30,11 @@ import {
   uuid,
   WorktreeTableSet
 } from '@aiao/rxdb';
-import { compute_switch_branch_actions, get_branch_max_change } from '@aiao/rxdb-plugin-history';
+import {
+  compute_switch_branch_actions,
+  get_branch_max_change,
+  keep_table_set_actions
+} from '@aiao/rxdb-plugin-history';
 import { createCommitWriteContext } from '../commit/commit-context.js';
 import { classifyBranchMaterialization } from '../working-tree/branch-materialization.js';
 import { assertSwitchTargetIntact } from '../working-tree/switch-branch-options.js';
@@ -55,7 +59,7 @@ import {
 } from './worktree-snapshot.js';
 import { isPrunable, readHeldKeys } from './worktree-startup-reclaim.js';
 import { isWorktreeCommitTarget, type WorktreeTarget } from './worktree-target.js';
-import { holdBranch, onlyMembers, releaseBranch, tableSetHostOf, tableSetSuffixOf } from './worktree-writable.js';
+import { holdBranch, releaseBranch, tableSetHostOf, tableSetSuffixOf } from './worktree-writable.js';
 import { Worktree, type WorktreeOwner } from './worktree.entity.js';
 
 /** {@link WorktreeManager.open} 的选项。 */
@@ -327,7 +331,7 @@ export class WorktreeManager {
         const actions = await compute_switch_branch_actions({ branchRepository, changeRepository }, branchId, main.id);
         await host.createWorktreeTableSet(executor, tableSet, {
           branchId,
-          actions: onlyMembers(this.#rxdb, actions, tableSet)
+          actions: keep_table_set_actions(this.#rxdb, actions, tableSet)
         });
         const row = this.#writableRecord({
           id,

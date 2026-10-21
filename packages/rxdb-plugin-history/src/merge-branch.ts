@@ -12,6 +12,7 @@ import {
 import { VersionManager } from './VersionManager.js';
 import { remove_branch } from './remove-branch.js';
 import { get_switch_version_actions, type BranchChangeReader } from './switch-branch-actions.js';
+import type { ChangeInTableSet } from './table-set-scope.js';
 
 /**
  * 「合并进自己」的报错；合并与合并预览说同一句。
@@ -39,18 +40,23 @@ export const branch_not_found_error = (branchId: string): RxDBError => new RxDBE
  *
  * @param changeRepository - 见 {@link BranchChangeReader}
  * @param sourceBranch - 源分支行
+ * @param inTableSet - 只留落在目标那套表里的变更，缺省全留；见 `table_set_scope`
  * @returns 合并要搬的那一批变更
  *
  * @remarks
  * 合并与合并预览取的必须是同一批：预览多算或少算一条，`merged` 就对不上真实合并。
  *
+ * 挂在可写检出位上合并时，源分支里不进影子表集的实体（QueryCache 同步的实体）落不进这套表：照写会改主检出位的表、
+ * 记在主检出位的分支名下（US-314 B2.1），所以在这里一并滤掉，`merged` 也只数真正落下的。
+ *
  * @internal
  */
-export const find_source_changes = (
+export const find_source_changes = async (
   changeRepository: BranchChangeReader,
-  sourceBranch: RxDBBranch
-): Promise<RxDBChange[]> =>
-  changeRepository.find({
+  sourceBranch: RxDBBranch,
+  inTableSet: ChangeInTableSet = () => true
+): Promise<RxDBChange[]> => {
+  const changes = await changeRepository.find({
     where: {
       combinator: 'and',
       rules: [
@@ -63,6 +69,8 @@ export const find_source_changes = (
     },
     orderBy: [{ field: 'id', sort: 'asc' }]
   });
+  return changes.filter(change => inTableSet(change.namespace, change.entity));
+};
 
 /**
  * 把源分支的变更压缩成合并要落的最小操作集：折叠后滤掉源分支里先建后删的实体。
@@ -101,13 +109,15 @@ export const squash_source_changes = (sourceChanges: RxDBChange[]): SwitchVersio
  * @param sourceBranchId - 源分支 ID
  * @param currentBranchId - 当前激活分支 ID（由调用方提供，避免重复查询）
  * @param options - 合并选项
+ * @param inTableSet - 只合落在目标那套表里的变更，缺省全合；见 {@link find_source_changes}
  * @returns 合并结果
  */
 export const merge_branch = async (
   version: VersionManager,
   sourceBranchId: string,
   currentBranchId: string,
-  options?: MergeBranchOptions
+  options?: MergeBranchOptions,
+  inTableSet?: ChangeInTableSet
 ): Promise<MergeBranchResult> => {
   const strategy = options?.strategy ?? 'squash';
   const deleteSource = options?.deleteSource ?? false;
@@ -135,7 +145,7 @@ export const merge_branch = async (
   }
 
   // 查询源分支从 fromChangeId 之后的所有有效变更
-  const sourceChanges = await find_source_changes(changeRepository, sourceBranch);
+  const sourceChanges = await find_source_changes(changeRepository, sourceBranch, inTableSet);
 
   /**
    * 删源分支：合并落库之后的收尾动作。

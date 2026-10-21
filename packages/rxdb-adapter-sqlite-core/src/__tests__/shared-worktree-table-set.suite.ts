@@ -323,6 +323,54 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
         await adapter.rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
       });
 
+      // 检出位里合并只合这套表的成员（US-314 B2.1）：`WorktreeSeqNote` 记日志、不是这套影子表的成员，照合会落回主表、
+      // 记在主检出位的分支名下（与 QueryCache 同步的实体同一种处境）
+      it('挂在检出位上合并：只合这套表的成员，非成员的变更不落主表、不进日志', async () => {
+        const versionManager = adapter.rxdb.versionManager;
+        const seqTable = quote_sql_identifier(
+          get_table_name_by_metadata(getEntityMetadata(WorktreeSeqNote), WorktreeTableSet.MAIN)
+        );
+        const now = new Date().toISOString();
+        await versionManager.createBranch('merge-src');
+        await versionManager.switchBranch('merge-src');
+        // 裸写：主表集的触发器此刻挂在 merge-src 上，两行都记在它名下
+        await rawInsert(WorktreeTableSet.MAIN, 'from-src');
+        await adapter.internalQuery(`INSERT INTO ${seqTable} ("title", "createdAt", "updatedAt") VALUES (?, ?, ?)`, [
+          'not-a-member',
+          now,
+          now
+        ]);
+        await versionManager.switchBranch('main');
+
+        await adapter.rxdb.mountWorktreeTableSet(tableSet);
+        const before = await countChanges();
+        const result = await versionManager.mergeBranch('merge-src');
+
+        expect(result.merged).toBe(1);
+        expect(await titlesOf(tableSet)).toEqual(['from-src']);
+        expect(await readRows(`SELECT "title" FROM ${seqTable}`)).toEqual([]);
+        expect(await countChanges()).toBe(before + 1);
+      });
+
+      // QueryCache 同步的实体只在主表集（不进影子表集）：挂在检出位上回填缓存，要摘的是主表集的触发器，
+      // 否则回填被记进主分支的日志，挂回主检出位后出站队列把它当离线写推回远端（US-314 B2.1）。
+      // `WorktreeSeqNote` 记日志、不是这套影子表的成员，落回主表，与 QueryCache 的表同一种处境。
+      it('挂在检出位上写 QueryCache：主表的行不进变更日志，主表与影子表的触发器都照旧挂在各自的分支', async () => {
+        await adapter.rxdb.mountWorktreeTableSet(tableSet);
+        const before = await countChanges();
+
+        await firstValueFrom(
+          adapter.upsertMany('wtseq:WorktreeSeqNote', [
+            { id: 7, title: 'cached', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+          ])
+        );
+        await firstValueFrom(adapter.deleteByIds('wtseq:WorktreeSeqNote', ['7']));
+
+        expect(await countChanges()).toBe(before);
+        expect(await branchesOfChanges(await rawInsert(WorktreeTableSet.MAIN, 'main'))).toEqual(['main']);
+        expect(await branchesOfChanges(await rawInsert(tableSet, 'shadow'))).toEqual([heldBranch]);
+      });
+
       it('挂上之后读写落在影子表、记在持有分支，当前分支是持有分支；挂回主表集一切照旧', async () => {
         await rawInsert(WorktreeTableSet.MAIN, 'main-row');
 

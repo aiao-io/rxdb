@@ -125,6 +125,24 @@ describe('merge_branch', () => {
       expect(query.where.rules).toEqual(expect.arrayContaining([{ field: 'id', operator: '>', value: 5 }]));
     });
 
+    // 挂在可写检出位上合并：源分支里不进那套表的实体（QueryCache 同步的实体）照写会改主检出位的表（US-314 B2.1）
+    it('只合落在目标那套表里的变更，两种策略的 merged 都只数真正落下的', async () => {
+      mockBranchRepository.find.mockResolvedValue([{ id: 'feature', fromChangeId: 5, parentId: 'main' }]);
+      mockChangeRepository.find.mockResolvedValue([
+        { id: 6, branchId: 'feature', namespace: 'public', entity: 'Item', entityId: 'a', type: 'INSERT', patch: {} },
+        { id: 7, branchId: 'feature', namespace: 'public', entity: 'Cached', entityId: 'c', type: 'INSERT', patch: {} }
+      ]);
+      const onlyItems = (_namespace: string, entity: string) => entity === 'Item';
+
+      const squash = await merge_branch(mockVersion, 'feature', 'main', undefined, onlyItems);
+      const normal = await merge_branch(mockVersion, 'feature', 'main', { strategy: 'normal' }, onlyItems);
+
+      expect(squash.merged).toBe(1);
+      expect(normal.merged).toBe(1);
+      const merged = mockAdapter.mergeChanges.mock.calls.map(([actions]) => [...actions.inserts.keys()]);
+      expect(merged).toEqual([[changeKey('Item', 'a')], [changeKey('Item', 'a')]]);
+    });
+
     it('fromChangeId 为 null（根分支）时不加 id 边界', async () => {
       mockBranchRepository.find.mockResolvedValue([{ id: 'feature', fromChangeId: null, parentId: null }]);
       mockChangeRepository.find.mockResolvedValue([]);
