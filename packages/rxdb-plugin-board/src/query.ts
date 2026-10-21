@@ -1,7 +1,7 @@
 import { firstValueFrom, type Observable } from 'rxjs';
 
 /**
- * 查询辅助（US-526 / US-527 / US-528 共用）。
+ * 查询辅助（US-534 / US-535 / US-536 共用）。
  *
  * @remarks
  * 门面仓储的 `find` 返回活查询 Observable（手动排序实体的默认排序
@@ -13,7 +13,11 @@ import { firstValueFrom, type Observable } from 'rxjs';
 export const eq = <F extends string, V>(field: F, value: V) => ({ field, operator: '=' as const, value });
 
 /** `field IN [...]` 规则。 */
-export const inRule = <F extends string, V>(field: F, values: readonly V[]) => ({ field, operator: 'in' as const, value: [...values] });
+export const inRule = <F extends string, V>(field: F, values: readonly V[]) => ({
+  field,
+  operator: 'in' as const,
+  value: [...values]
+});
 
 /** 匹配全部行的空规则组。 */
 export const matchAll = () => ({ combinator: 'and' as const, rules: [] });
@@ -25,4 +29,7 @@ export const readFirst = async <T>(query: Observable<readonly T[]> | Promise<T[]
 };
 
 /** `field = value` 规则组。 */
-export const whereEq = <F extends string, V>(field: F, value: V) => ({ combinator: 'and' as const, rules: [eq(field, value)] });
+export const whereEq = <F extends string, V>(field: F, value: V) => ({
+  combinator: 'and' as const,
+  rules: [eq(field, value)]
+});

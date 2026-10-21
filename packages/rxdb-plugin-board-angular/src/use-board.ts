@@ -1,4 +1,3 @@
-import { DestroyRef, inject, signal, type Signal } from '@angular/core';
 import { type RxDB, type UUID } from '@aiao/rxdb';
 import {
   Board,
@@ -22,6 +21,7 @@ import {
   type TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
 import type {} from '@aiao/rxdb-plugin-history';
+import { DestroyRef, inject, signal, type Signal } from '@angular/core';
 import { BehaviorSubject, combineLatest, map, of, Subscription, switchMap } from 'rxjs';
 
 import { eq, inRule } from './query-helpers.js';
@@ -35,12 +35,12 @@ import { eq, inRule } from './query-helpers.js';
  * 命名与 React / Vue 绑定层一致（`useBoard`）。
  *
  * 板选择与恢复中状态由绑定自持：当前板记在本地（`rxdb-board-last-board`），
- * 打开时进入上次打开的板、没有则进第一块（US-531）。
+ * 打开时进入上次打开的板、没有则进第一块（US-539）。
  *
  * @packageDocumentation
  */
 
-/** 上一次打开板的本地记录键（US-531：打开时进入上次打开的板）。 */
+/** 上一次打开板的本地记录键（US-539：打开时进入上次打开的板）。 */
 export const LAST_BOARD_KEY = 'rxdb-board-last-board';
 
 export interface UseBoardStorage {
@@ -68,7 +68,7 @@ export interface UseBoardReturn {
   readonly labels: Signal<readonly BoardLabel[]>;
   /** 任务 → 其标签（按标签创建顺序）。 */
   readonly taskLabels: Signal<ReadonlyMap<string, readonly BoardLabel[]>>;
-  /** 恢复中写门禁（US-526 / US-529）。 */
+  /** 恢复中写门禁（US-534 / US-537）。 */
   readonly restoring: Signal<boolean>;
   /** 本次会话可撤销事务数（undo 入口禁用判据）。 */
   readonly undoCount: Signal<number>;
@@ -110,7 +110,7 @@ export interface UseBoardActions {
 }
 
 const defaultStorage = (): UseBoardStorage => {
-  const candidate = typeof localStorage !== 'undefined' ? ((localStorage as unknown) as UseBoardStorage | null) : null;
+  const candidate = typeof localStorage !== 'undefined' ? (localStorage as unknown as UseBoardStorage | null) : null;
   // happy-dom 等环境的 localStorage 可能是没有方法的占位对象，逐方法探测
   if (candidate && typeof candidate.get === 'function' && typeof candidate.set === 'function') return candidate;
   const memory = new Map<string, string>();
@@ -181,13 +181,25 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   );
   // 列 / 任务 / 标签随当前板切换（活查询 switchMap；signal 只是流的镜像）
   const columns$ = boardId$.pipe(
-    switchMap(boardId => (boardId === null ? of([] as readonly Column[]) : columnRepo.find({ where: eq('boardId', boardId) })))
+    switchMap(boardId =>
+      boardId === null ? of([] as readonly Column[]) : columnRepo.find({ where: eq('boardId', boardId) })
+    )
   );
   bind(columns$, columns, subs);
   const tasks$ = combineLatest([boardId$, columns$]).pipe(
     switchMap(([boardId, cols]) => {
       if (boardId === null || cols.length === 0) return of([] as readonly Task[]);
-      return taskRepo.find({ where: { combinator: 'and', rules: [inRule('columnId', cols.map(column => column.id))] } });
+      return taskRepo.find({
+        where: {
+          combinator: 'and',
+          rules: [
+            inRule(
+              'columnId',
+              cols.map(column => column.id)
+            )
+          ]
+        }
+      });
     })
   );
   bind(tasks$, tasks, subs);
@@ -232,7 +244,11 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   const history = rxdb.versionManager.history();
   bind(history.undoCount$, undoCount, subs);
   bind(history.redoCount$, redoCount, subs);
-  subs.add(notifier.events$.subscribe(event => writeEvent.set({ kind: event.kind, reason: 'reason' in event ? event.reason : undefined })));
+  subs.add(
+    notifier.events$.subscribe(event =>
+      writeEvent.set({ kind: event.kind, reason: 'reason' in event ? event.reason : undefined })
+    )
+  );
   subs.add(restoring$.subscribe(value => restoring.set(value)));
 
   // 当前板初始选择：本地记录 → 第一块板（板列表首个快照到达时确定）

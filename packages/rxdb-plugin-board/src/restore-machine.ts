@@ -1,10 +1,10 @@
 /**
- * @fileoverview 恢复编排状态机（US-529）
+ * @fileoverview 恢复编排状态机（US-537）
  *
  * 备份 / 恢复的产品闭环：在 `rxdb.connect()` 之前把同 adapter、实体结构指纹一致的
  * 归档恢复到一个**新的库名**，恢复完成后整页重载，启动时连接新库并读回成功才把它
  * 记为活动位置；失败或取消保留原库与原活动位置。状态机放在核心包、三端共用，
- * 同一组输入必须产出相同的状态序列与失败去向（US-529 AC#10）。
+ * 同一组输入必须产出相同的状态序列与失败去向（US-537 AC#10）。
  */
 
 /** 恢复状态。 */
@@ -30,7 +30,10 @@ export interface RestoreSnapshot {
   readonly restoringMarker: boolean;
   /** 待切换记录是否在写（重载后据此连接新库并读回）。 */
   readonly pendingSwitch: boolean;
-  readonly failure: { readonly kind: 'archive_invalid' | 'restore_failed' | 'readback_failed'; readonly reason: string } | null;
+  readonly failure: {
+    readonly kind: 'archive_invalid' | 'restore_failed' | 'readback_failed';
+    readonly reason: string;
+  } | null;
 }
 
 export const initialRestoreSnapshot: RestoreSnapshot = {
@@ -44,7 +47,7 @@ export const initialRestoreSnapshot: RestoreSnapshot = {
 /**
  * 纯函数状态机：`(快照, 输入) → 新快照`。
  *
- * 状态转换（US-529 技术笔记「切换用整页重载」表）：
+ * 状态转换（US-537 技术笔记「切换用整页重载」表）：
  * - 启动选择：无活动位置记录时选择新建、装载演示数据或恢复；只有新建与装载才连接；
  *   恢复失败 / 取消后回到这里或原看板（由宿主按是否有活动位置决定）。
  * - 选择备份：文件选择本身不写库；已有库恢复先确认，取消不启动恢复。
@@ -60,57 +63,55 @@ export const restoreStateMachine = (snapshot: RestoreSnapshot, input: RestoreInp
     case 'choose_restore':
       // 启动选择或工具菜单都可进入；已有恢复中标记时拒绝重复进入（写门禁层面兜底）
       return snapshot.state === 'restoring' || snapshot.state === 'switching' ?
-        snapshot
-      : { ...initialRestoreSnapshot, state: 'selecting_archive' };
+          snapshot
+        : { ...initialRestoreSnapshot, state: 'selecting_archive' };
 
     case 'archive_selected':
       return snapshot.state === 'selecting_archive' ?
-        { ...snapshot, state: 'restoring', restoringMarker: true }
-      : snapshot;
+          { ...snapshot, state: 'restoring', restoringMarker: true }
+        : snapshot;
 
     case 'cancel':
       // 取消：清理本次目标与标记，回到原看板或启动选择（宿主决定）
-      return snapshot.state === 'selecting_archive' ?
-        { ...initialRestoreSnapshot, state: 'startup_choice' }
-      : snapshot.state === 'restoring' ?
-        { ...initialRestoreSnapshot, state: 'startup_choice' }
-      : snapshot;
+      return (
+        snapshot.state === 'selecting_archive' ? { ...initialRestoreSnapshot, state: 'startup_choice' }
+        : snapshot.state === 'restoring' ? { ...initialRestoreSnapshot, state: 'startup_choice' }
+        : snapshot
+      );
 
     case 'archive_invalid':
       return snapshot.state === 'selecting_archive' ?
-        {
-          ...initialRestoreSnapshot,
-          state: 'failed',
-          failure: { kind: 'archive_invalid', reason: input.reason }
-        }
-      : snapshot;
+          {
+            ...initialRestoreSnapshot,
+            state: 'failed',
+            failure: { kind: 'archive_invalid', reason: input.reason }
+          }
+        : snapshot;
 
     case 'restore_succeeded':
       return snapshot.state === 'restoring' ?
-        { ...snapshot, state: 'switching', restoringMarker: false, pendingSwitch: true }
-      : snapshot;
+          { ...snapshot, state: 'switching', restoringMarker: false, pendingSwitch: true }
+        : snapshot;
 
     case 'readback_succeeded':
-      return snapshot.state === 'switching' ?
-        { ...snapshot, state: 'restored', pendingSwitch: false }
-      : snapshot;
+      return snapshot.state === 'switching' ? { ...snapshot, state: 'restored', pendingSwitch: false } : snapshot;
 
     case 'restore_failed':
       return snapshot.state === 'restoring' ?
-        {
-          ...initialRestoreSnapshot,
-          state: 'failed',
-          failure: { kind: 'restore_failed', reason: input.reason }
-        }
-      : snapshot;
+          {
+            ...initialRestoreSnapshot,
+            state: 'failed',
+            failure: { kind: 'restore_failed', reason: input.reason }
+          }
+        : snapshot;
 
     case 'readback_failed':
       return snapshot.state === 'switching' ?
-        {
-          ...initialRestoreSnapshot,
-          state: 'failed',
-          failure: { kind: 'readback_failed', reason: input.reason }
-        }
-      : snapshot;
+          {
+            ...initialRestoreSnapshot,
+            state: 'failed',
+            failure: { kind: 'readback_failed', reason: input.reason }
+          }
+        : snapshot;
   }
 };

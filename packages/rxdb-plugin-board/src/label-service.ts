@@ -9,11 +9,11 @@ import { readFirst, whereEq } from './query.js';
 import { normalizeBoardTitle } from './title.js';
 
 /**
- * 板级标签服务（US-528）：创建 / 改名 / 改色 / 删除。
+ * 板级标签服务（US-536）：创建 / 改名 / 改色 / 删除。
  *
  * @remarks
  * 标签是 board 级 1:N 定义 + 任务 N:M 引用。创建、改名、改色是独立显式操作；
- * 改名 / 改色立即反映到引用卡片（引用行不变，定义行变）。删除复用 US-526 的
+ * 改名 / 改色立即反映到引用卡片（引用行不变，定义行变）。删除复用 US-534 的
  * 「确认在事务外、集合在事务内复核」流程：一次事务内删除标签及全部 `task_label`
  * 关联，失败整批回滚。标签名去首尾空白后非空、板内精确唯一（保留大小写），
  * 存储层唯一约束兜底并发竞态。
@@ -39,7 +39,9 @@ export class BoardLabelService {
     await this.assertNameFree(boardId, name);
     const repository = this.rxdb.entityManager.getRepository(BoardLabel);
     try {
-      return await repository.create(this.rxdb.entityManager.instantiate(BoardLabel, { boardId, name, color: input.color }));
+      return await repository.create(
+        this.rxdb.entityManager.instantiate(BoardLabel, { boardId, name, color: input.color })
+      );
     } catch (error) {
       // 并发竞态兜底：唯一约束已拒绝，翻查确认后给可判别错误码
       await this.assertNameFree(boardId, name);
@@ -65,7 +67,9 @@ export class BoardLabelService {
   async planLabelDelete(labelId: UUID): Promise<LabelDeletePlan> {
     assertBoardWritable(this.ctx());
     const label = await this.requireLabelInBoard(labelId);
-    const links = await readFirst(this.rxdb.entityManager.getRepository(TaskLabel).find({ where: whereEq('labelId', labelId) }));
+    const links = await readFirst(
+      this.rxdb.entityManager.getRepository(TaskLabel).find({ where: whereEq('labelId', labelId) })
+    );
     return { labelId, labelName: label.name, taskLabelIds: links.map(link => link.id) };
   }
 
@@ -87,19 +91,25 @@ export class BoardLabelService {
     });
   }
 
-  /** 当前板全部标签（创建时间升序、同时刻按 id，US-528 三端对拍顺序）。 */
+  /** 当前板全部标签（创建时间升序、同时刻按 id，US-536 三端对拍顺序）。 */
   async listLabels(): Promise<InstanceType<typeof BoardLabel>[]> {
     const boardId = requireBoardId(this.ctx());
     return readFirst(
-      this.rxdb.entityManager
-        .getRepository(BoardLabel)
-        .find({ where: whereEq('boardId', boardId), orderBy: [{ field: 'createdAt', sort: 'asc' }, { field: 'id', sort: 'asc' }] })
+      this.rxdb.entityManager.getRepository(BoardLabel).find({
+        where: whereEq('boardId', boardId),
+        orderBy: [
+          { field: 'createdAt', sort: 'asc' },
+          { field: 'id', sort: 'asc' }
+        ]
+      })
     );
   }
 
   private async requireLabelInBoard(labelId: UUID): Promise<InstanceType<typeof BoardLabel>> {
     const boardId = requireBoardId(this.ctx());
-    const found = await readFirst(this.rxdb.entityManager.getRepository(BoardLabel).find({ where: whereEq('id', labelId) }));
+    const found = await readFirst(
+      this.rxdb.entityManager.getRepository(BoardLabel).find({ where: whereEq('id', labelId) })
+    );
     if (found.length === 0) throw new BoardDomainError('label_not_found', `标签不存在：${labelId}`);
     if (found[0].boardId !== boardId) throw new BoardDomainError('cross_board', '标签不属于当前看板');
     return found[0];

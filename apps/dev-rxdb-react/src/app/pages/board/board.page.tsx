@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { firstValueFrom } from 'rxjs';
 
 /**
- * 看板页（US-531 阶段 A 宿主半边）：独立 RxDB 实例——
+ * 看板页（US-539 阶段 A 宿主半边）：独立 RxDB 实例——
  * sqlite-wasm 主线程 `vfs: 'idb'`、独立库名、看板实体在 `board` 命名空间，
  * 进入本页才创建连接，不复用宿主的 RxDB 上下文。
  */

@@ -7,7 +7,7 @@ import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { firstValueFrom } from 'rxjs';
 
 /**
- * 看板实例工厂与恢复编排（US-529 宿主半边）。
+ * 看板实例工厂与恢复编排（US-537 宿主半边）。
  *
  * 首轮支持组合：sqlite-wasm 主线程 `vfs: 'idb'`；归档只恢复到同 adapter、
  * 未连接的新库名，恢复完成后整页重载、读回成功才把新库写成活动位置。
@@ -37,7 +37,7 @@ export const connectBoardRxdb = async (db: RxDB): Promise<void> => {
   await db.connect('sqlite-wasm');
 };
 
-/** 装载演示数据：只装进新库（US-529 演示数据只进新库，避免固定 ID 撞主键）。 */
+/** 装载演示数据：只装进新库（US-537 演示数据只进新库，避免固定 ID 撞主键）。 */
 export const seedBoardDemo = async (db: RxDB): Promise<void> => {
   const boardRepo = db.entityManager.getRepository(Board);
   const boards = await firstValueFrom(boardRepo.count({ where: { combinator: 'and', rules: [] } }));

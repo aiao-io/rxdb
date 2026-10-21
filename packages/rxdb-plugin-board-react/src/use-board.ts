@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
 import { type RxDB, type UUID } from '@aiao/rxdb';
 import {
   Board,
@@ -24,6 +23,7 @@ import {
   type TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
 import type {} from '@aiao/rxdb-plugin-history';
+import { useEffect, useRef, useState } from 'react';
 import { BehaviorSubject, combineLatest, map, of, Subscription, switchMap } from 'rxjs';
 
 /**
@@ -98,8 +98,14 @@ const defaultStorage = (): UseBoardStorage => {
   return { get: key => memory.get(key) ?? null, set: (key, value) => void memory.set(key, value) };
 };
 
-const eq = <F extends string, V>(field: F, value: V) => ({ combinator: 'and' as const, rules: [{ field, operator: '=' as const, value }] });
-const inRule = <F extends string, V>(field: F, values: readonly V[]) => ({ combinator: 'and' as const, rules: [{ field, operator: 'in' as const, value: [...values] }] });
+const eq = <F extends string, V>(field: F, value: V) => ({
+  combinator: 'and' as const,
+  rules: [{ field, operator: '=' as const, value }]
+});
+const inRule = <F extends string, V>(field: F, values: readonly V[]) => ({
+  combinator: 'and' as const,
+  rules: [{ field, operator: 'in' as const, value: [...values] }]
+});
 
 /**
  * 看板领域桥：React state + 动作集合。卸载时自动释放全部订阅。
@@ -157,14 +163,32 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
       ]
     });
     subs.add(boards$.subscribe(setBoards));
-    subs.add(combineLatest([boards$, boardId$]).subscribe(([list, id]) => setCurrentBoard(list.find(board => board.id === id) ?? null)));
+    subs.add(
+      combineLatest([boards$, boardId$]).subscribe(([list, id]) =>
+        setCurrentBoard(list.find(board => board.id === id) ?? null)
+      )
+    );
 
-    const columns$ = boardId$.pipe(switchMap(boardId => (boardId === null ? of([] as readonly Column[]) : columnRepo.find({ where: eq('boardId', boardId) }))));
+    const columns$ = boardId$.pipe(
+      switchMap(boardId =>
+        boardId === null ? of([] as readonly Column[]) : columnRepo.find({ where: eq('boardId', boardId) })
+      )
+    );
     subs.add(columns$.subscribe(setColumns));
     const tasks$ = combineLatest([boardId$, columns$]).pipe(
       switchMap(([boardId, cols]) => {
         if (boardId === null || cols.length === 0) return of([] as readonly Task[]);
-        return taskRepo.find({ where: { combinator: 'and', rules: [inRule('columnId', cols.map(column => column.id))] } });
+        return taskRepo.find({
+          where: {
+            combinator: 'and',
+            rules: [
+              inRule(
+                'columnId',
+                cols.map(column => column.id)
+              )
+            ]
+          }
+        });
       })
     );
     subs.add(tasks$.subscribe(setTasks));
@@ -207,7 +231,11 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     const history = rxdb.versionManager.history();
     subs.add(history.undoCount$.subscribe(setUndoCount));
     subs.add(history.redoCount$.subscribe(setRedoCount));
-    subs.add(notifier.events$.subscribe(event => setWriteEvent({ kind: event.kind, reason: 'reason' in event ? event.reason : undefined })));
+    subs.add(
+      notifier.events$.subscribe(event =>
+        setWriteEvent({ kind: event.kind, reason: 'reason' in event ? event.reason : undefined })
+      )
+    );
     subs.add(restoring$.subscribe(setRestoringState));
 
     let picked = false;

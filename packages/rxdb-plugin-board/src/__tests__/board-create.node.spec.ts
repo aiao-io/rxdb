@@ -8,10 +8,10 @@ import { BoardDomainError } from '../errors.js';
 import { inRule, matchAll, readFirst, whereEq } from '../query.js';
 
 /**
- * 创建与归属（US-526 AC#1～5）：真实 PGlite 上验收实体、排序域追加与领域入口约束。
+ * 创建与归属（US-534 AC#1～5）：真实 PGlite 上验收实体、排序域追加与领域入口约束。
  * 重开、删除级联、撤销与恢复中门禁的完整验收在后续 spec 与本包浏览器趟补齐。
  */
-describe('BoardDomain 创建与归属（US-526 AC#1～5）', () => {
+describe('BoardDomain 创建与归属（US-534 AC#1～5）', () => {
   let rxdb: RxDB;
   let domain: BoardDomain;
   let ctx: { boardId: string | null; restoring: boolean };
@@ -122,7 +122,9 @@ describe('BoardDomain 创建与归属（US-526 AC#1～5）', () => {
     const before = (await allTasks()).length;
 
     // 在板 B 语境下向板 A 的列建任务 → 拒绝
-    await expect(domain.createTask({ columnId: columnA.id, title: 'x' })).rejects.toMatchObject({ code: 'cross_board' });
+    await expect(domain.createTask({ columnId: columnA.id, title: 'x' })).rejects.toMatchObject({
+      code: 'cross_board'
+    });
     // 在板 B 语境下改板 A 的列标题 → 拒绝
     await expect(domain.updateColumn(columnA.id, { title: 'y' })).rejects.toMatchObject({ code: 'cross_board' });
     // 板 B 语境下自己的列照常可写
@@ -135,16 +137,20 @@ describe('BoardDomain 创建与归属（US-526 AC#1～5）', () => {
     expect(columnARow[0].boardId).toBe(boardA.id);
   });
 
-  it('恢复中写门禁：创建被拒且库零变化（US-526 AC#10 服务层半边）', async () => {
+  it('恢复中写门禁：创建被拒且库零变化（US-534 AC#10 服务层半边）', async () => {
     await createActiveBoard();
     const column = await domain.createColumn({ title: 'C1' });
     const before = (await allTasks()).length;
 
     ctx.restoring = true;
-    await expect(domain.createTask({ columnId: column.id, title: 'x' })).rejects.toMatchObject({ code: 'restore_in_progress' });
+    await expect(domain.createTask({ columnId: column.id, title: 'x' })).rejects.toMatchObject({
+      code: 'restore_in_progress'
+    });
     await expect(domain.createColumn({ title: 'C2' })).rejects.toMatchObject({ code: 'restore_in_progress' });
     await expect(domain.createBoard({ title: 'B2' })).rejects.toMatchObject({ code: 'restore_in_progress' });
-    await expect(domain.updateColumn(column.id, { title: '改' })).rejects.toMatchObject({ code: 'restore_in_progress' });
+    await expect(domain.updateColumn(column.id, { title: '改' })).rejects.toMatchObject({
+      code: 'restore_in_progress'
+    });
 
     ctx.restoring = false;
     const created = await domain.createTask({ columnId: column.id, title: '恢复后可写' });

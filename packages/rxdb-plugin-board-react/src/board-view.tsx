@@ -1,9 +1,7 @@
 'use client';
 
-import { useMemo, useState, type DragEvent, type ReactNode } from 'react';
 import type { UUID } from '@aiao/rxdb';
 import {
-  Board,
   Column,
   Task,
   resolveCardDrop,
@@ -12,21 +10,22 @@ import {
   type CardDropTarget,
   type TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
+import { useMemo, useState, type DragEvent, type ReactNode } from 'react';
 
-import { useBoard, type UseBoardReturn } from './use-board.js';
+import { useBoard } from './use-board.js';
 
 /**
- * 看板视图组件（US-531 阶段 A）：列 + 卡片 + 拖拽 + 本列排序 + 详情面板 +
+ * 看板视图组件（US-539 阶段 A）：列 + 卡片 + 拖拽 + 本列排序 + 详情面板 +
  * 标签管理 + 撤销重做 + 备份入口占位 + 删除确认。
  *
  * 三端只采集指针事件，落点换算调用核心包同一份 `resolveCardDrop` /
  * `resolveColumnDrop`；全部写入口经 {@link useBoard} 的领域动作。
- * 与 Angular / Vue 同功能同领域 API（交互约定见 US-531）。
+ * 与 Angular / Vue 同功能同领域 API（交互约定见 US-539）。
  */
 export interface BoardViewProps {
   /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
   readonly rxdb: Parameters<typeof useBoard>[0];
-  /** 备份导出回调（US-529 编排由宿主接线；缺省展示占位提示）。 */
+  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。 */
   readonly onExportBackup?: () => void | Promise<void>;
 }
 
@@ -117,13 +116,21 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     return resolveCardDrop(views, movedId, clientX, clientY);
   };
 
-  const resolveColumnTarget = (movedId: UUID, clientX: number): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null => {
+  const resolveColumnTarget = (
+    movedId: UUID,
+    clientX: number
+  ): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null => {
     const views = board.columns.map(column => {
       const headerEl = document.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`);
       const rect = headerEl?.getBoundingClientRect();
       return { columnId: column.id, rect: { left: rect?.left ?? 0, right: rect?.right ?? 0 } };
     });
-    const target = resolveColumnDrop(views, board.columns.map(column => column.id), movedId, clientX);
+    const target = resolveColumnDrop(
+      views,
+      board.columns.map(column => column.id),
+      movedId,
+      clientX
+    );
     return target ? { prevId: target.prevId as UUID, nextId: target.nextId as UUID } : null;
   };
 
@@ -153,7 +160,12 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const openDetail = async (taskId: UUID): Promise<void> => {
     const snap = await board.actions.openSnapshot(taskId);
     setSnapshot(snap);
-    setDraft({ title: snap.title, description: snap.description ?? '', dueDate: snap.dueDate ?? '', labelIds: [...snap.labelIds] });
+    setDraft({
+      title: snap.title,
+      description: snap.description ?? '',
+      dueDate: snap.dueDate ?? '',
+      labelIds: [...snap.labelIds]
+    });
     setDetailTaskId(taskId);
   };
   const saveDetail = async (): Promise<void> => {
@@ -177,7 +189,9 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= ids.length) return;
     const target =
-      direction < 0 ? { prevId: ids[targetIndex - 1] ?? null, nextId: ids[targetIndex] } : { prevId: ids[targetIndex], nextId: ids[targetIndex + 1] ?? null };
+      direction < 0 ?
+        { prevId: ids[targetIndex - 1] ?? null, nextId: ids[targetIndex] }
+      : { prevId: ids[targetIndex], nextId: ids[targetIndex + 1] ?? null };
     await guard(() => board.actions.moveColumn(columnId, target));
   };
 
@@ -192,7 +206,13 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const confirmBoardDelete = async (): Promise<void> => {
     if (!current) return;
     const plan = await board.actions.planBoardDelete(current.id);
-    setConfirm({ kind: 'board', boardId: current.id, title: plan.boardTitle, count: plan.taskIds.length, columns: plan.columnIds.length });
+    setConfirm({
+      kind: 'board',
+      boardId: current.id,
+      title: plan.boardTitle,
+      count: plan.taskIds.length,
+      columns: plan.columnIds.length
+    });
   };
   const executeConfirmedDelete = async (): Promise<void> => {
     if (!confirm) return;
@@ -211,7 +231,11 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     if (!due) return '';
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    return due < today ? `已逾期 ${due}` : due === today ? '今天到期' : due;
+    return (
+      due < today ? `已逾期 ${due}`
+      : due === today ? '今天到期'
+      : due
+    );
   };
 
   const labelsOf = (taskId: UUID): readonly BoardLabel[] => board.taskLabels.get(taskId) ?? [];
@@ -219,10 +243,10 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const current = board.currentBoard;
   if (!current) {
     return (
-      <section className="board-view" data-testid="board-view">
-        <div className="empty-board" data-testid="empty-board">
+      <section className='board-view' data-testid='board-view'>
+        <div className='empty-board' data-testid='empty-board'>
           <p>没有看板</p>
-          <button onClick={() => void createBoard()} data-testid="create-board-empty" disabled={board.restoring}>
+          <button onClick={() => void createBoard()} data-testid='create-board-empty' disabled={board.restoring}>
             新建板
           </button>
         </div>
@@ -232,18 +256,18 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   return (
     <section
-      className="board-view"
-      data-testid="board-view"
+      className='board-view'
+      data-testid='board-view'
       onDragOver={event => event.preventDefault()}
       onDrop={event => void onColumnDrop(event)}
     >
-      <header className="board-header" data-testid="board-header">
+      <header className='board-header' data-testid='board-header'>
         <select
-          className="board-selector"
+          className='board-selector'
           value={board.currentBoardId ?? ''}
           onChange={event => board.selectBoard(event.target.value)}
-          data-testid="board-selector"
-          aria-label="选择看板"
+          data-testid='board-selector'
+          aria-label='选择看板'
         >
           {board.boards.map(item => (
             <option key={item.id} value={item.id}>
@@ -252,50 +276,56 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           ))}
         </select>
         <button
-          className="header-button"
+          className='header-button'
           onClick={() => {
             const title = promptTitle('改板标题', current.title);
             if (title !== null) void guard(() => board.actions.updateBoard(current.id, { title }));
           }}
-          data-testid="rename-board"
-          aria-label="改板标题"
+          data-testid='rename-board'
+          aria-label='改板标题'
         >
           {current.title}
         </button>
-        {board.restoring ? (
-          <span className="restoring-badge" data-testid="restoring-badge" aria-live="polite">
+        {board.restoring ?
+          <span className='restoring-badge' data-testid='restoring-badge' aria-live='polite'>
             恢复中
           </span>
-        ) : null}
-        <div className="header-actions">
-          <button onClick={() => void createBoard()} data-testid="create-board" disabled={board.restoring}>
+        : null}
+        <div className='header-actions'>
+          <button onClick={() => void createBoard()} data-testid='create-board' disabled={board.restoring}>
             新建板
           </button>
-          <button onClick={() => void confirmBoardDelete()} data-testid="delete-board" disabled={board.restoring}>
+          <button onClick={() => void confirmBoardDelete()} data-testid='delete-board' disabled={board.restoring}>
             删除看板
           </button>
-          <button onClick={() => void createColumn()} data-testid="create-column" disabled={board.restoring}>
+          <button onClick={() => void createColumn()} data-testid='create-column' disabled={board.restoring}>
             新建列
           </button>
-          <button
-            onClick={() => void createLabel()}
-            data-testid="create-label"
-            disabled={board.restoring}
-          >
+          <button onClick={() => void createLabel()} data-testid='create-label' disabled={board.restoring}>
             新建标签
           </button>
-          <button onClick={() => void guard(() => board.actions.undo())} data-testid="undo" disabled={board.restoring || board.undoCount === 0} aria-label="撤销">
+          <button
+            onClick={() => void guard(() => board.actions.undo())}
+            data-testid='undo'
+            disabled={board.restoring || board.undoCount === 0}
+            aria-label='撤销'
+          >
             撤销
           </button>
-          <button onClick={() => void guard(() => board.actions.redo())} data-testid="redo" disabled={board.restoring || board.redoCount === 0} aria-label="重做">
+          <button
+            onClick={() => void guard(() => board.actions.redo())}
+            data-testid='redo'
+            disabled={board.restoring || board.redoCount === 0}
+            aria-label='重做'
+          >
             重做
           </button>
           <button
             onClick={() => {
               if (onExportBackup) void onExportBackup();
-              else setNotice('备份导出由宿主接线（US-529）');
+              else setNotice('备份导出由宿主接线（US-537）');
             }}
-            data-testid="export-backup"
+            data-testid='export-backup'
             disabled={board.restoring}
           >
             导出备份
@@ -303,32 +333,34 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         </div>
       </header>
 
-      {board.restoring ? (
-        <p className="restoring-note" data-testid="restoring-note">
+      {board.restoring ?
+        <p className='restoring-note' data-testid='restoring-note'>
           恢复进行中：浏览可用，写入口已暂停。
         </p>
-      ) : null}
+      : null}
 
-      {board.labels.length > 0 ? (
-        <div className="label-strip" data-testid="label-strip">
+      {board.labels.length > 0 ?
+        <div className='label-strip' data-testid='label-strip'>
           {board.labels.map(label => (
-            <span key={label.id} className="label-chip" style={{ background: label.color }} data-testid="label-chip">
+            <span key={label.id} className='label-chip' style={{ background: label.color }} data-testid='label-chip'>
               <button
-                className="label-name"
+                className='label-name'
                 onClick={() => {
                   const name = promptTitle('改标签名', label.name);
                   if (name !== null) void guard(() => board.actions.renameLabel(label.id, name));
                 }}
-                aria-label="改名"
+                aria-label='改名'
               >
                 {label.name}
               </button>
               <button
-                className="label-delete"
+                className='label-delete'
                 onClick={() => {
                   void (async () => {
                     const plan = await board.actions.planLabelDelete(label.id);
-                    if (window.confirm(`删除标签「${plan.labelName}」？将移除 ${plan.taskLabelIds.length} 条任务关联。`)) {
+                    if (
+                      window.confirm(`删除标签「${plan.labelName}」？将移除 ${plan.taskLabelIds.length} 条任务关联。`)
+                    ) {
                       await guard(() => board.actions.executeLabelDelete(plan));
                     }
                   })();
@@ -340,115 +372,167 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             </span>
           ))}
         </div>
-      ) : null}
+      : null}
 
-      {notice ? (
-        <p className="board-notice" role="alert" data-testid="board-notice">
+      {notice ?
+        <p className='board-notice' role='alert' data-testid='board-notice'>
           {notice}
         </p>
-      ) : null}
+      : null}
 
-      <div className="columns" data-testid="columns">
+      <div className='columns' data-testid='columns'>
         {board.columns.map(column => (
           <section
             key={column.id}
-            className="column"
+            className='column'
             data-column-id={column.id}
             onDragOver={event => event.preventDefault()}
             onDrop={event => void onTaskDrop(event, column)}
-            data-testid="column"
+            data-testid='column'
           >
             <header
-              className="column-header"
+              className='column-header'
               data-column-header-id={column.id}
               draggable
               onDragStart={event => onColumnDragStart(event, column)}
-              data-testid="column-header"
+              data-testid='column-header'
             >
-              <h2 className="column-title" data-testid="column-title">
+              <h2 className='column-title' data-testid='column-title'>
                 {column.title}
               </h2>
-              <span className="column-count" data-testid="column-count">
+              <span className='column-count' data-testid='column-count'>
                 {(taskMap.get(column.id) ?? []).length}
               </span>
-              <div className="column-menu">
+              <div className='column-menu'>
                 <button
                   onClick={() => {
                     const title = promptTitle('改列标题', column.title);
                     if (title !== null) void guard(() => board.actions.updateColumn(column.id, { title }));
                   }}
-                  data-testid="column-rename"
-                  aria-label="改列名"
+                  data-testid='column-rename'
+                  aria-label='改列名'
                 >
                   改名
                 </button>
-                <button onClick={() => void moveColumnBy(column.id, -1)} data-testid="column-move-back" aria-label="前移">
+                <button
+                  onClick={() => void moveColumnBy(column.id, -1)}
+                  data-testid='column-move-back'
+                  aria-label='前移'
+                >
                   前移
                 </button>
-                <button onClick={() => void moveColumnBy(column.id, 1)} data-testid="column-move-forward" aria-label="后移">
+                <button
+                  onClick={() => void moveColumnBy(column.id, 1)}
+                  data-testid='column-move-forward'
+                  aria-label='后移'
+                >
                   后移
                 </button>
-                <button onClick={() => void sortColumnBy(column.id, 'dueDate')} data-testid="column-sort-due" aria-label="按截止日排序">
+                <button
+                  onClick={() => void sortColumnBy(column.id, 'dueDate')}
+                  data-testid='column-sort-due'
+                  aria-label='按截止日排序'
+                >
                   按截止日
                 </button>
-                <button onClick={() => void sortColumnBy(column.id, 'title')} data-testid="column-sort-title" aria-label="按标题排序">
+                <button
+                  onClick={() => void sortColumnBy(column.id, 'title')}
+                  data-testid='column-sort-title'
+                  aria-label='按标题排序'
+                >
                   按标题
                 </button>
-                <button onClick={() => void confirmColumnDelete(column)} data-testid="column-delete" aria-label="删除列">
+                <button
+                  onClick={() => void confirmColumnDelete(column)}
+                  data-testid='column-delete'
+                  aria-label='删除列'
+                >
                   删除
                 </button>
               </div>
             </header>
-            <div className="cards">
+            <div className='cards'>
               {(taskMap.get(column.id) ?? []).map(task => (
-                <article key={task.id} className="card" data-task-id={task.id} draggable onDragStart={event => onTaskDragStart(event, task)} data-testid="task-card">
-                  {editTitleTaskId === task.id ? (
+                <article
+                  key={task.id}
+                  className='card'
+                  data-task-id={task.id}
+                  draggable
+                  onDragStart={event => onTaskDragStart(event, task)}
+                  data-testid='task-card'
+                >
+                  {editTitleTaskId === task.id ?
                     <>
                       <input
-                        className="title-editor"
+                        className='title-editor'
                         value={editTitleValue}
                         onChange={event => setEditTitleValue(event.target.value)}
                         onKeyDown={event => {
                           if (event.key === 'Enter') void commitEditTitle(task);
                           if (event.key === 'Escape') setEditTitleTaskId(null);
                         }}
-                        data-testid="task-title-editor"
-                        aria-label="任务标题"
+                        data-testid='task-title-editor'
+                        aria-label='任务标题'
                       />
-                      <button onClick={() => void commitEditTitle(task)} data-testid="task-title-save" aria-label="保存标题">
+                      <button
+                        onClick={() => void commitEditTitle(task)}
+                        data-testid='task-title-save'
+                        aria-label='保存标题'
+                      >
                         保存
                       </button>
-                      <button onClick={() => setEditTitleTaskId(null)} data-testid="task-title-cancel" aria-label="取消">
+                      <button
+                        onClick={() => setEditTitleTaskId(null)}
+                        data-testid='task-title-cancel'
+                        aria-label='取消'
+                      >
                         取消
                       </button>
                     </>
-                  ) : (
-                    <>
-                      <button className="card-title" onClick={() => void openDetail(task.id)} data-testid="task-title">
+                  : <>
+                      <button className='card-title' onClick={() => void openDetail(task.id)} data-testid='task-title'>
                         {task.title}
                       </button>
-                      <button className="card-edit" onClick={() => startEditTitle(task)} data-testid="task-edit-title" aria-label="编辑标题">
+                      <button
+                        className='card-edit'
+                        onClick={() => startEditTitle(task)}
+                        data-testid='task-edit-title'
+                        aria-label='编辑标题'
+                      >
                         编辑
                       </button>
                     </>
-                  )}
-                  {labelsOf(task.id).length > 0 ? (
-                    <div className="card-labels">
+                  }
+                  {labelsOf(task.id).length > 0 ?
+                    <div className='card-labels'>
                       {labelsOf(task.id).map(label => (
-                        <span key={label.id} className="card-label" style={{ background: label.color }} aria-label={label.name}>
+                        <span
+                          key={label.id}
+                          className='card-label'
+                          style={{ background: label.color }}
+                          aria-label={label.name}
+                        >
                           {label.name}
                         </span>
                       ))}
                     </div>
-                  ) : null}
-                  {dueDateText(task) ? (
-                    <span className={`card-due${dueDateText(task).startsWith('已逾期') ? ' overdue' : ''}`} data-testid="task-due">
+                  : null}
+                  {dueDateText(task) ?
+                    <span
+                      className={`card-due${dueDateText(task).startsWith('已逾期') ? 'overdue' : ''}`}
+                      data-testid='task-due'
+                    >
                       {dueDateText(task)}
                     </span>
-                  ) : null}
+                  : null}
                 </article>
               ))}
-              <button className="add-task" onClick={() => void createTask(column.id)} disabled={board.restoring} data-testid="add-task">
+              <button
+                className='add-task'
+                onClick={() => void createTask(column.id)}
+                disabled={board.restoring}
+                data-testid='add-task'
+              >
                 添加任务
               </button>
             </div>
@@ -456,74 +540,89 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         ))}
       </div>
 
-      {detailTaskId ? (
-        <aside className="detail-panel" data-testid="detail-panel">
+      {detailTaskId ?
+        <aside className='detail-panel' data-testid='detail-panel'>
           <h3>任务详情</h3>
           <label>
             标题
-            <input value={draft.title} onChange={event => setDraft({ ...draft, title: event.target.value })} data-testid="detail-title" />
+            <input
+              value={draft.title}
+              onChange={event => setDraft({ ...draft, title: event.target.value })}
+              data-testid='detail-title'
+            />
           </label>
           <label>
             描述
-            <textarea value={draft.description} onChange={event => setDraft({ ...draft, description: event.target.value })} data-testid="detail-description" />
+            <textarea
+              value={draft.description}
+              onChange={event => setDraft({ ...draft, description: event.target.value })}
+              data-testid='detail-description'
+            />
           </label>
           <label>
             截止日（YYYY-MM-DD）
-            <input value={draft.dueDate} onChange={event => setDraft({ ...draft, dueDate: event.target.value })} placeholder="YYYY-MM-DD" data-testid="detail-due" />
+            <input
+              value={draft.dueDate}
+              onChange={event => setDraft({ ...draft, dueDate: event.target.value })}
+              placeholder='YYYY-MM-DD'
+              data-testid='detail-due'
+            />
           </label>
           <fieldset>
             <legend>标签</legend>
             {board.labels.map(label => (
-              <label key={label.id} className="detail-label">
+              <label key={label.id} className='detail-label'>
                 <input
-                  type="checkbox"
+                  type='checkbox'
                   checked={draft.labelIds.includes(label.id)}
                   onChange={() =>
                     setDraft({
                       ...draft,
-                      labelIds: draft.labelIds.includes(label.id) ? draft.labelIds.filter(id => id !== label.id) : [...draft.labelIds, label.id]
+                      labelIds:
+                        draft.labelIds.includes(label.id) ?
+                          draft.labelIds.filter(id => id !== label.id)
+                        : [...draft.labelIds, label.id]
                     })
                   }
-                  data-testid="detail-label-check"
+                  data-testid='detail-label-check'
                 />
                 <span style={{ background: label.color }}>{label.name}</span>
               </label>
             ))}
           </fieldset>
-          <div className="detail-actions">
-            <button onClick={() => void saveDetail()} data-testid="detail-save">
+          <div className='detail-actions'>
+            <button onClick={() => void saveDetail()} data-testid='detail-save'>
               保存
             </button>
-            <button onClick={() => setDetailTaskId(null)} data-testid="detail-cancel">
+            <button onClick={() => setDetailTaskId(null)} data-testid='detail-cancel'>
               取消
             </button>
           </div>
         </aside>
-      ) : null}
+      : null}
 
-      {confirm ? (
-        <aside className="confirm-panel" data-testid="confirm-delete">
-          {confirm.kind === 'task' ? (
+      {confirm ?
+        <aside className='confirm-panel' data-testid='confirm-delete'>
+          {confirm.kind === 'task' ?
             <p>删除任务「{confirm.title}」？</p>
-          ) : confirm.kind === 'column' ? (
+          : confirm.kind === 'column' ?
             <p>
               删除列「{confirm.title}」及其 {confirm.count} 个任务？
             </p>
-          ) : (
-            <p>
+          : <p>
               删除看板「{confirm.title}」（{confirm.columns} 列、{confirm.count} 任务、含全部标签定义与关联）？
             </p>
-          )}
-          <div className="confirm-actions">
-            <button onClick={() => void executeConfirmedDelete()} data-testid="confirm-delete-yes">
+          }
+          <div className='confirm-actions'>
+            <button onClick={() => void executeConfirmedDelete()} data-testid='confirm-delete-yes'>
               确认删除
             </button>
-            <button onClick={() => setConfirm(null)} data-testid="confirm-delete-no">
+            <button onClick={() => setConfirm(null)} data-testid='confirm-delete-no'>
               取消
             </button>
           </div>
         </aside>
-      ) : null}
+      : null}
     </section>
   );
 }
@@ -531,4 +630,10 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 type ConfirmState =
   | { readonly kind: 'task'; readonly taskId: UUID; readonly title: string }
   | { readonly kind: 'column'; readonly columnId: UUID; readonly title: string; readonly count: number }
-  | { readonly kind: 'board'; readonly boardId: UUID; readonly title: string; readonly count: number; readonly columns: number };
+  | {
+      readonly kind: 'board';
+      readonly boardId: UUID;
+      readonly title: string;
+      readonly count: number;
+      readonly columns: number;
+    };

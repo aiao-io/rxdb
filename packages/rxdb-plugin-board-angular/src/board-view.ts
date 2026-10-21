@@ -1,3 +1,12 @@
+import type { UUID } from '@aiao/rxdb';
+import {
+  Column,
+  resolveCardDrop,
+  resolveColumnDrop,
+  Task,
+  type CardDropTarget,
+  type TaskDraftSnapshot
+} from '@aiao/rxdb-plugin-board';
 import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -5,28 +14,19 @@ import {
   computed,
   ElementRef,
   inject,
-  input,
   Injector,
+  input,
   OnInit,
   runInInjectionContext,
   signal,
   viewChild
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import type { UUID } from '@aiao/rxdb';
-import {
-  Column,
-  Task,
-  resolveCardDrop,
-  resolveColumnDrop,
-  type CardDropTarget,
-  type TaskDraftSnapshot
-} from '@aiao/rxdb-plugin-board';
 
 import { useBoard, type UseBoardReturn } from './use-board.js';
 
 /**
- * 看板视图组件（US-531 阶段 A）：列 + 卡片 + 拖拽 + 本列排序 + 详情面板 +
+ * 看板视图组件（US-539 阶段 A）：列 + 卡片 + 拖拽 + 本列排序 + 详情面板 +
  * 标签管理 + 撤销重做 + 备份入口占位 + 删除确认。
  *
  * 三端只采集指针事件，落点换算调用核心包同一份 `resolveCardDrop` /
@@ -43,7 +43,7 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
 export class BoardViewComponent implements OnInit {
   /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
   readonly rxdb = input.required<Parameters<typeof useBoard>[0]>();
-  /** 备份导出回调（US-529 编排由宿主接线；缺省展示占位提示）。 */
+  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。 */
   readonly exportBackup = input<() => void | Promise<void>>();
 
   /** 输入绑定完成后（ngOnInit）安装的领域桥；首帧为 null。 */
@@ -73,7 +73,13 @@ export class BoardViewComponent implements OnInit {
   protected readonly confirmDelete = signal<
     | { readonly kind: 'task'; readonly taskId: UUID; readonly title: string }
     | { readonly kind: 'column'; readonly columnId: UUID; readonly title: string; readonly taskCount: number }
-    | { readonly kind: 'board'; readonly boardId: UUID; readonly title: string; readonly columnCount: number; readonly taskCount: number }
+    | {
+        readonly kind: 'board';
+        readonly boardId: UUID;
+        readonly title: string;
+        readonly columnCount: number;
+        readonly taskCount: number;
+      }
     | null
   >(null);
   protected readonly notice = signal<string | null>(null);
@@ -171,7 +177,8 @@ export class BoardViewComponent implements OnInit {
 
   protected async onTaskDrop(event: DragEvent, column: Column): Promise<void> {
     event.preventDefault();
-    const movedId = (event.dataTransfer?.getData('application/x-board-task') ?? this.dragging()?.id) as UUID | undefined;
+    const movedId = (event.dataTransfer?.getData('application/x-board-task') ?? this.dragging()?.id) as
+      UUID | undefined;
     if (!movedId) return;
     this.dragging.set(null);
     const area = this.boardArea()?.nativeElement;
@@ -183,7 +190,8 @@ export class BoardViewComponent implements OnInit {
 
   protected async onColumnDrop(event: DragEvent): Promise<void> {
     event.preventDefault();
-    const movedId = (event.dataTransfer?.getData('application/x-board-column') ?? this.dragging()?.id) as UUID | undefined;
+    const movedId = (event.dataTransfer?.getData('application/x-board-column') ?? this.dragging()?.id) as
+      UUID | undefined;
     if (!movedId) return;
     this.dragging.set(null);
     const area = this.boardArea()?.nativeElement;
@@ -193,7 +201,13 @@ export class BoardViewComponent implements OnInit {
     await this.guard(() => this.boardRef.actions.moveColumn(movedId, target));
   }
 
-  private resolveTaskTarget(column: Column, movedId: UUID, clientX: number, clientY: number, area: HTMLElement): CardDropTarget | null {
+  private resolveTaskTarget(
+    column: Column,
+    movedId: UUID,
+    clientX: number,
+    clientY: number,
+    area: HTMLElement
+  ): CardDropTarget | null {
     const views = this.boardRef.columns().map(viewColumn => {
       const columnEl = area.querySelector<HTMLElement>(`[data-column-id="${viewColumn.id}"]`);
       const rect = columnEl?.getBoundingClientRect();
@@ -212,13 +226,22 @@ export class BoardViewComponent implements OnInit {
     return resolveCardDrop(views, movedId, clientX, clientY);
   }
 
-  private resolveColumnTarget(movedId: UUID, clientX: number, area: HTMLElement): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null {
+  private resolveColumnTarget(
+    movedId: UUID,
+    clientX: number,
+    area: HTMLElement
+  ): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null {
     const views = this.boardRef.columns().map(column => {
       const headerEl = area.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`);
       const rect = headerEl?.getBoundingClientRect();
       return { columnId: column.id, rect: { left: rect?.left ?? 0, right: rect?.right ?? 0 } };
     });
-    const target = resolveColumnDrop(views, this.boardRef.columns().map(column => column.id), movedId, clientX);
+    const target = resolveColumnDrop(
+      views,
+      this.boardRef.columns().map(column => column.id),
+      movedId,
+      clientX
+    );
     return target ? { prevId: target.prevId as UUID, nextId: target.nextId as UUID } : null;
   }
 
@@ -235,9 +258,10 @@ export class BoardViewComponent implements OnInit {
     if (index < 0) return;
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= ids.length) return;
-    const target = direction < 0 ?
-      { prevId: ids[targetIndex - 1] ?? null, nextId: ids[targetIndex] }
-    : { prevId: ids[targetIndex], nextId: ids[targetIndex + 1] ?? null };
+    const target =
+      direction < 0 ?
+        { prevId: ids[targetIndex - 1] ?? null, nextId: ids[targetIndex] }
+      : { prevId: ids[targetIndex], nextId: ids[targetIndex + 1] ?? null };
     await this.guard(() => this.boardRef.actions.moveColumn(columnId, target));
   }
 
@@ -317,7 +341,12 @@ export class BoardViewComponent implements OnInit {
 
   protected async confirmColumnDelete(column: Column): Promise<void> {
     const plan = await this.boardRef.actions.planColumnDelete(column.id);
-    this.confirmDelete.set({ kind: 'column', columnId: column.id, title: plan.columnTitle, taskCount: plan.taskIds.length });
+    this.confirmDelete.set({
+      kind: 'column',
+      columnId: column.id,
+      title: plan.columnTitle,
+      taskCount: plan.taskIds.length
+    });
   }
 
   protected async confirmBoardDelete(): Promise<void> {
@@ -363,13 +392,13 @@ export class BoardViewComponent implements OnInit {
     await this.guard(() => this.boardRef.actions.redo());
   }
 
-  /** 备份导出入口（US-529 编排由宿主接线；缺省展示占位提示）。 */
+  /** 备份导出入口（US-537 编排由宿主接线；缺省展示占位提示）。 */
   protected async onExportBackup(): Promise<void> {
     const callback = this.exportBackup();
     if (callback) {
       await callback();
     } else {
-      this.notice.set('备份导出由宿主接线（US-529）');
+      this.notice.set('备份导出由宿主接线（US-537）');
     }
   }
 
@@ -388,9 +417,13 @@ export class BoardViewComponent implements OnInit {
   protected dueDateText(task: Task): string {
     const due = task.dueDate;
     if (!due) return '';
-    // 纯日期比较：早于本地今天才逾期、今天不逾期（US-531 AC#12）
+    // 纯日期比较：早于本地今天才逾期、今天不逾期（US-539 AC#12）
     const today = this.localToday();
-    return due < today ? `已逾期 ${due}` : due === today ? `今天到期` : due;
+    return (
+      due < today ? `已逾期 ${due}`
+      : due === today ? `今天到期`
+      : due
+    );
   }
 
   private localToday(): string {

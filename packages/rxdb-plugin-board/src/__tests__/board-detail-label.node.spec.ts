@@ -7,16 +7,16 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BoardDomain } from '../board-domain.js';
 import { BoardDeleteService } from '../delete-service.js';
 import { BoardDetailService } from '../detail-service.js';
-import { BoardLabelService } from '../label-service.js';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '../entities/index.js';
+import { BoardLabelService } from '../label-service.js';
 import { matchAll, readFirst, whereEq } from '../query.js';
 
 /**
- * 任务详情与标签（US-528）：真实 PGlite + 历史插件。
- * 详情面板的三端交互在 US-531 阶段 A 验收；本套用例钉住草稿差集、一次保存原子、
+ * 任务详情与标签（US-536）：真实 PGlite + 历史插件。
+ * 详情面板的三端交互在 US-539 阶段 A 验收；本套用例钉住草稿差集、一次保存原子、
  * 快照复核拒绝与标签级联的服务层语义。
  */
-describe('BoardDetailService / BoardLabelService（US-528）', () => {
+describe('BoardDetailService / BoardLabelService（US-536）', () => {
   let rxdb: RxDB;
   let domain: BoardDomain;
   let details: BoardDetailService;
@@ -116,7 +116,7 @@ describe('BoardDetailService / BoardLabelService（US-528）', () => {
     expect(await readFirst(labelRepo().find({ where: whereEq('id', l1.id) }))).toHaveLength(0);
     expect(await readFirst(linkRepo().find({ where: matchAll() }))).toHaveLength(0);
 
-    // 删任务 / 删列 / 删板沿用 US-526 服务：不留孤儿
+    // 删任务 / 删列 / 删板沿用 US-534 服务：不留孤儿
     await domain.createTask({ columnId: column.id, title: '任务 3' });
     const l2 = await labels.createLabel({ name: '标签 2', color: '#16a34a' });
     const snap3 = await details.openSnapshot(task2.id);
@@ -137,7 +137,9 @@ describe('BoardDetailService / BoardLabelService（US-528）', () => {
   it('AC#4：同板重名拒绝零写，异板可建同名，空白名拒绝', async () => {
     const { board } = await seedTask();
     await labels.createLabel({ name: ' 工作 ', color: '#e11d48' });
-    await expect(labels.createLabel({ name: '工作', color: '#2563eb' })).rejects.toMatchObject({ code: 'duplicate_label' });
+    await expect(labels.createLabel({ name: '工作', color: '#2563eb' })).rejects.toMatchObject({
+      code: 'duplicate_label'
+    });
     await expect(labels.createLabel({ name: '   ', color: '#2563eb' })).rejects.toMatchObject({ code: 'empty_title' });
     await expect(labels.renameLabel('00000000-0000-4000-8000-0000000000ff', 'x')).rejects.toMatchObject({
       code: 'label_not_found'
@@ -218,13 +220,19 @@ describe('BoardDetailService / BoardLabelService（US-528）', () => {
     const otherBoard = await domain.createBoard({ title: '异板' });
     ctx.boardId = otherBoard.id;
     const foreignLabel = await labels.createLabel({ name: '异板标签', color: '#e11d48' });
-    ctx.boardId = (await readFirst(rxdb.entityManager.getRepository(Board).find({ where: whereEq('title', '板') })))[0].id;
+    ctx.boardId = (
+      await readFirst(rxdb.entityManager.getRepository(Board).find({ where: whereEq('title', '板') }))
+    )[0].id;
 
     await expect(
       details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: snapshot.title, labelIds: [foreignLabel.id] })
     ).rejects.toMatchObject({ code: 'label_cross_board' });
     await expect(
-      details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: snapshot.title, labelIds: ['00000000-0000-4000-8000-0000000000ff'] })
+      details.saveTaskDraft(task.id, snapshot, {
+        ...snapshot,
+        title: snapshot.title,
+        labelIds: ['00000000-0000-4000-8000-0000000000ff']
+      })
     ).rejects.toMatchObject({ code: 'label_not_found' });
     expect((await taskOf(task.id)).title).toBe('任务');
     expect(await linksOf(task.id)).toHaveLength(0);
@@ -234,7 +242,9 @@ describe('BoardDetailService / BoardLabelService（US-528）', () => {
     const { task } = await seedTask();
     const snapshot = await details.openSnapshot(task.id);
 
-    await expect(details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: '   ', dueDate: null })).rejects.toMatchObject({
+    await expect(
+      details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: '   ', dueDate: null })
+    ).rejects.toMatchObject({
       code: 'empty_title'
     });
     await expect(
@@ -245,7 +255,11 @@ describe('BoardDetailService / BoardLabelService（US-528）', () => {
     ).rejects.toMatchObject({ code: 'invalid_due_date' });
 
     // 合法闰日保留；清空存 null；内联改标题与详情保存共用校验
-    const withLeap = await details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: '改', dueDate: '2024-02-29' });
+    const withLeap = await details.saveTaskDraft(task.id, snapshot, {
+      ...snapshot,
+      title: '改',
+      dueDate: '2024-02-29'
+    });
     expect(withLeap.kind).toBe('saved');
     const afterLeap = await details.openSnapshot(task.id);
     expect(afterLeap.dueDate).toBe('2024-02-29');
@@ -256,7 +270,11 @@ describe('BoardDetailService / BoardLabelService（US-528）', () => {
 
     // 内联改标题后重取快照，再清空截止日
     const afterInline = await details.openSnapshot(task.id);
-    const cleared = await details.saveTaskDraft(task.id, afterInline, { ...afterInline, title: '内联改', dueDate: null });
+    const cleared = await details.saveTaskDraft(task.id, afterInline, {
+      ...afterInline,
+      title: '内联改',
+      dueDate: null
+    });
     expect(cleared.kind).toBe('saved');
     expect((await taskOf(task.id)).dueDate).toBeNull();
   });
@@ -276,9 +294,9 @@ describe('BoardDetailService / BoardLabelService（US-528）', () => {
 
     // 另一入口改标题
     await domain.updateTaskTitle(task.id, '外部修改');
-    await expect(
-      details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: '我的草稿' })
-    ).rejects.toMatchObject({ code: 'task_stale' });
+    await expect(details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: '我的草稿' })).rejects.toMatchObject({
+      code: 'task_stale'
+    });
     expect((await taskOf(task.id)).title).toBe('外部修改');
 
     // 另一入口删任务

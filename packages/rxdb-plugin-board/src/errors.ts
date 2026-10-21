@@ -1,5 +1,5 @@
 /**
- * @fileoverview 看板领域错误（US-526）
+ * @fileoverview 看板领域错误（US-534）
  *
  * 领域服务入口统一抛 {@link BoardDomainError}，`code` 是稳定错误码——
  * UI 据此展示可操作提示，测试据此断言拒绝语义，不解析 message 文本。

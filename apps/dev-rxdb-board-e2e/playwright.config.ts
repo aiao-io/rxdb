@@ -6,7 +6,7 @@ import { APP_BASE_URL, APP_PORT } from './src/env';
 const isCI = Boolean(process.env['CI']);
 
 /**
- * 看板 demo e2e（US-532）：串行——用例共享同一个浏览器上下文外的前端静态产物，
+ * 看板 demo e2e（US-540）：串行——用例共享同一个浏览器上下文外的前端静态产物，
  * 且每个用例都在全新浏览器上下文里从启动页开始（种子 / 空库初态按 AC 各自指定）。
  */
 export default defineConfig({

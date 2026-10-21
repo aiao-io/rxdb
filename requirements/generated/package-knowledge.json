@@ -1926,7 +1926,7 @@
         "version": "0.0.26"
       },
       {
-        "description": "看板插件（rxdb-plugin-board）的 Angular 绑定：useBoard() 领域数据 signal 桥接与领域动作集合（epic-011 / US-531）。",
+        "description": "看板插件（rxdb-plugin-board）的 Angular 绑定：useBoard() 领域数据 signal 桥接与领域动作集合（epic-011 / US-539）。",
         "framework": "angular",
         "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
@@ -1953,7 +1953,7 @@
         "version": "0.0.26"
       },
       {
-        "description": "看板插件（rxdb-plugin-board）的 React 绑定：useBoard() 领域数据 state 桥接与领域动作集合（epic-011 / US-531）。",
+        "description": "看板插件（rxdb-plugin-board）的 React 绑定：useBoard() 领域数据 state 桥接与领域动作集合（epic-011 / US-539）。",
         "framework": "react",
         "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
@@ -1980,7 +1980,7 @@
         "version": "0.0.26"
       },
       {
-        "description": "看板插件（rxdb-plugin-board）的 Vue 绑定：useBoard() 领域数据 ref 桥接与领域动作集合（epic-011 / US-531）。",
+        "description": "看板插件（rxdb-plugin-board）的 Vue 绑定：useBoard() 领域数据 ref 桥接与领域动作集合（epic-011 / US-539）。",
         "framework": "vue",
         "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
@@ -3060,7 +3060,7 @@
       }
     ]
   },
-  "digest": "cf15b6d882eb0c8ea200bf3229c536d10b240ebb63fca6486b66a86b2faf28c8",
+  "digest": "119d979697621869158e4e4224849607461c53f4e18650e1eda9622a30459f45",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

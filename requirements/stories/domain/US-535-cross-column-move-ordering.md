@@ -1,5 +1,5 @@
 ---
-id: US-527
+id: US-535
 title: 跨列移动与本列排序的领域语义
 status: Backlog
 priority: Low
@@ -34,12 +34,12 @@ tags: [domain, board, ordering, drag]
 - **失败恢复**：落库失败（含 `staleTarget` / `notFound` / `PermissionDeniedError`）时，移动服务状态机发布
   失败原因并要求重查已提交数据；UI 据此恢复显示，不复活已删除邻居，不静默重试（US-028 阶段 B 先例）
 - **撤销重做**：移动与本列排序经 `RxDBChange` 记录，一次 `undo()` 反转整个事务（[US-302](../collaboration/US-302-undo-redo.md)
-  已交付，范围是本次会话；接线见 [US-528](US-528-task-detail-editing.md)）
+  已交付，范围是本次会话；接线见 [US-536](US-536-task-detail-editing.md)）
 
 ### Out of Scope
 
-- 三端 UI 组件与拖拽交互（→ [US-531](US-531-board-tri-framework-ui.md)，本故事只定语义、落点换算与状态机）
-- 离线双端并发冲突的合并规则（→ [US-533](US-533-board-team-sync.md)，本故事定义的
+- 三端 UI 组件与拖拽交互（→ [US-539](US-539-board-tri-framework-ui.md)，本故事只定语义、落点换算与状态机）
+- 离线双端并发冲突的合并规则（→ [US-541](US-541-board-team-sync.md)，本故事定义的
   单人语义是其设计输入）
 - 跨板移动、多选拖拽、持久排序模式（按字段自动保持顺序）、自定义排序字段
 - 引擎新原语：批量重排 API、跨列拖拽原语；不改 `packages/rxdb`，不调用内部 `reorderRow`
@@ -55,7 +55,7 @@ tags: [domain, board, ordering, drag]
 | 5   | 本列排序第 3 次 executor 写入注入后端失败                 | 观察库、历史与状态机                    | 全事务回滚，排序键与变更历史均无部分提交；状态机发布失败并要求重查已提交数据，可再次执行                                        | ⬜   |
 | 6   | 移动前目标邻居被另一入口删除                              | 执行跨列移动                            | 拒绝（`staleTarget`），零写；状态机要求重查已提交顺序，不显示已删除邻居（US-028 AC#15 已交付行为，本故事接线）                  | ⬜   |
 | 7   | 完成一次跨列移动                                          | 调用 `undo()`                           | 任务回到原列原位置（整个移动事务一并反转）；redo 栈行为随 US-302 已交付语义                                                     | ⬜   |
-| 8   | 任务拖到不存在的列 / 目标列与任务不同板                   | 执行移动                                | 拒绝，零写，状态机发布可展示的原因（列必须存在且与任务同板——board 由列推导，见 [US-526](US-526-board-column-task-skeleton.md)） | ⬜   |
+| 8   | 任务拖到不存在的列 / 目标列与任务不同板                   | 执行移动                                | 拒绝，零写，状态机发布可展示的原因（列必须存在且与任务同板——board 由列推导，见 [US-534](US-534-board-column-task-skeleton.md)） | ⬜   |
 | 9   | 列已按截止日排好                                          | 再次执行「按截止日排序」                | 零写，且不新增撤销项                                                                                                            | ⬜   |
 | 10  | 标题含中英文、数字与重名                                  | 执行「按标题排序」                      | 顺序按 `Intl.Collator('zh-Hans-CN', { numeric: true })`，重名按 `id`；同一数据多次执行结果一致                                  | ⬜   |
 | 11  | 完成一次本列排序；另有 remote-only / QueryCache 配置      | undo / redo；在不完整本地序列上排序     | 一次 undo / redo 还原 / 重放整列；不完整本地序列配置在写入前明确拒绝，不能拿缓存子集算键                                        | ⬜   |
@@ -83,13 +83,13 @@ tags: [domain, board, ordering, drag]
   `reorder()`、普通 `adapter.query()`、`undo()` 或未绑定 executor 的实体保存。
 - **冲突语义的单人边界**：单人版没有远端同步，`staleTarget` 可来自同设备的另一写入口
   （另一标签页经 US-009 跨页事件更新的活查询）。本故事的单人语义提供设计输入；离线双端的
-  合并规则由 US-533 定义并实现，本故事不提前定义冲突胜负。
+  合并规则由 US-541 定义并实现，本故事不提前定义冲突胜负。
 
 **本列排序的事务算法。** 输入为列 ID 与排序方式（截止日 / 标题）。只支持配置为本地完整版本化主端的看板：
 先用公开 [`getEntitySync`](../../../packages/rxdb/src/entity/primary-adapter.ts) 读取 task 的同步配置，
 remote-only（只有 remote、没有 local）与 QueryCache 在写入前拒绝——remote-only 下 `localAdapter$` 不会发出，
 必须先判配置再取主端。再用公开 `assertEntityOperationAllowed(Task, 'update')` 检查实体操作权限并通过
-US-526 的恢复中写门禁，然后取本地主端调用一次 `adapter.transaction(async executor => ...)`：
+US-534 的恢复中写门禁，然后取本地主端调用一次 `adapter.transaction(async executor => ...)`：
 
 1. 通过 `executor.getRepository(Column/Task).find()` 重读列、板归属与整列任务，不分页；显式指定
    `sortOrder asc, id asc`，executor 仓储不补默认排序。目标列必须属于当前板。
@@ -127,7 +127,7 @@ API。几十条卡片的整列读写可直接验收，不引入后台重试或�
 - [epic-011 任务看板领域模型](../../epics/epic-011-task-board-domain-model.md)
 - [US-028 可排序实体](../core/US-028-sortable-entity.md) — 前置：跨组移动原语（阶段 D ✅）、`reorder()`、`reorderTargetForDrop`、失败语义；看板跨列拖拽 UI 在其范围外
 - [US-031 树形实体迁移到排序模块](../core/US-031-tree-sortable-migration.md) — 树的落点判定是三个 demo 各一份的同名拷贝；看板改为核心包一份
-- [US-526 看板领域模型骨架](US-526-board-column-task-skeleton.md) — 前置：实体、排序域与恢复中写门禁
+- [US-534 看板领域模型骨架](US-534-board-column-task-skeleton.md) — 前置：实体、排序域与恢复中写门禁
 - [US-008 事务支持](../core/US-008-transaction-support.md) — 本列排序的事务底座
 - [US-302 撤销/重做](../collaboration/US-302-undo-redo.md) — `undo()` 接线（范围是本次会话）
-- [US-533 团队版看板](US-533-board-team-sync.md) — 离线并发合并规则（设计输入，实现另行）
+- [US-541 团队版看板](US-541-board-team-sync.md) — 离线并发合并规则（设计输入，实现另行）

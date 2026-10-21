@@ -1,5 +1,5 @@
 ---
-id: US-533
+id: US-541
 title: 团队版看板：Supabase 同步与身份
 status: Backlog
 priority: Low
@@ -37,7 +37,7 @@ tags: [domain, board, supabase, sync, collaboration]
   不提供用户身份或成员授权；通用角色与所有权写授权（US-029）不是前置
 - **远端写入边界**：部署与该团队对应的 Supabase RLS，按服务端身份和成员记录校验业务写入；
   沿用 US-218 的日志表写入收口，客户端声明的作者 / 团队 ID 不能替代服务端授权
-- **离线并发合并规则**：离线双端移动同一任务 / 编辑同一任务回网后的合并——[US-527](US-527-cross-column-move-ordering.md)
+- **离线并发合并规则**：离线双端移动同一任务 / 编辑同一任务回网后的合并——[US-535](US-535-cross-column-move-ordering.md)
   的单人语义是其设计输入，本故事定义与实现冲突语义（本地优先冲突检测底座见
   [US-308](../collaboration/US-308-branch-isolation-conflict.md)，多成员协作语义见
   [epic-006](../../epics/epic-006-working-tree-commits.md) 已交付的工作树与 commit graph，
@@ -50,7 +50,7 @@ tags: [domain, board, supabase, sync, collaboration]
 - 多租户、通用角色 / 所有权写授权（US-029 价值待证）、板级角色与按成员区分的行级读隔离；本故事只承诺单团队共享数据集，
   不得将它部署为包含非公开数据的多团队混合全量同步库
 - 评论 / @ 提醒 / 实时协作（引擎外通道，epic 非目标）
-- 跨板全局搜索的工作区版本（[US-530](US-530-board-task-search.md) 只承诺板内；本故事立项时
+- 跨板全局搜索的工作区版本（[US-538](US-538-board-task-search.md) 只承诺板内；本故事立项时
   一并评估）
 - 工作区 / 组织 / 邀请管理
 
@@ -79,7 +79,7 @@ tags: [domain, board, supabase, sync, collaboration]
 「只接线」或宣称引擎已覆盖全部团队底座。
 
 **应用门禁、实体入口声明、服务端授权各有落点。** US-027 的 `both / system` 只判断实体操作
-是否允许公开入口调用，不读取当前用户、团队或角色。看板应用服务在 US-526 的共同写门禁（单人版只有「恢复中」）上叠加只读、身份与成员判定，为创建 / 更新 / 删除 /
+是否允许公开入口调用，不读取当前用户、团队或角色。看板应用服务在 US-534 的共同写门禁（单人版只有「恢复中」）上叠加只读、身份与成员判定，为创建 / 更新 / 删除 /
 移动 / 本列排序 / 撤销重做统一检查登录身份和成员写资格，在产生本地变更前拒绝无资格操作；UI
 禁用只是同一状态的反馈。US-027 继续防止公开误写系统实体。服务端 RLS 则以实际认证身份和
 服务端成员记录决定推送能否落库，且普通客户端不能直接写 `rxdb_change`；两层不能相互替代。
@@ -91,7 +91,7 @@ tags: [domain, board, supabase, sync, collaboration]
 待推变更绑定原用户与团队，重开不丢失，切换用户不得串用队列或改署名。退出 / 到期保留已有
 待推变更和可见状态，不能静默丢弃，也不能继续以缓存身份推送。
 
-**冲突规则的定义和实现全部属于本故事。** US-527 只提供单人移动输入和排序不变量。立项时为
+**冲突规则的定义和实现全部属于本故事。** US-535 只提供单人移动输入和排序不变量。立项时为
 以下情况冻结可重复验证的决策表：不同字段并发修改、同字段冲突、同任务双端移动、移动与目标列
 删除并发、修改与任务删除并发。不同字段修改保留双方结果；同字段或位置冲突须有确定仲裁和
 持久化双方候选值 / 作者 / 解决记录；到达顺序、设备本地时钟或未记录的「最后写入」不能成为
@@ -116,7 +116,7 @@ tags: [domain, board, supabase, sync, collaboration]
 ## References
 
 - [epic-011 任务看板领域模型](../../epics/epic-011-task-board-domain-model.md)
-- [US-527 跨列移动与本列排序的领域语义](US-527-cross-column-move-ordering.md) — 单人语义（冲突规则的设计输入）
+- [US-535 跨列移动与本列排序的领域语义](US-535-cross-column-move-ordering.md) — 单人语义（冲突规则的设计输入）
 - [US-218](../adapter/US-218-supabase-rls-push-integrity.md) / [US-220](../adapter/US-220-supabase-update-push-semantics.md) — 前置：Supabase RLS 推送完整性（✅）
 - [US-027 实体操作权限模型](../core/US-027-entity-permission-model.md) — 已有：公开 / 系统入口声明（✅），不提供身份授权
 - [US-029 RBAC](../core/US-029-rbac-owner-role-permission.md) — 价值待证，非本故事前置

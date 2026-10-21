@@ -1,5 +1,5 @@
 ---
-id: US-529
+id: US-537
 title: 重开恢复与备份导出
 status: Backlog
 priority: Low
@@ -22,7 +22,7 @@ tags: [domain, board, backup, restore]
 ### In Scope
 
 - **重开恢复**：刷新 / 重开浏览器后板、列、任务、标签与排序全部原样（持久化验收，与
-  [US-526](US-526-board-column-task-skeleton.md) AC#3、[US-528](US-528-task-detail-editing.md) AC#1
+  [US-534](US-534-board-column-task-skeleton.md) AC#3、[US-536](US-536-task-detail-editing.md) AC#1
   的重开断言同源，本故事把「重开」做成产品入口与验收闭环）
 - **备份导出**：以 [US-217](../adapter/US-217-local-database-backup-restore.md) 已交付的备份 API
   生成完整归档并交给浏览器下载（归档可带走，与站点数据隔离）。页面只能确认「归档已完整生成」，
@@ -35,7 +35,7 @@ tags: [domain, board, backup, restore]
 - **演示数据只进新库**：启动页「装载演示数据」与工具菜单「重置为演示数据」都在新库名上建库并装载种子，
   后者与恢复走同一套两阶段切换；不向已有库追加，避免种子的固定 ID 撞主键
 - **UI 状态**：生成备份中 / 备份已生成 / 选择备份 / 恢复中 / 切换中 / 已恢复 / 失败或取消；三端交互由
-  [US-531](US-531-board-tri-framework-ui.md) 接线，本故事冻结状态转换与失败后去向
+  [US-539](US-539-board-tri-framework-ui.md) 接线，本故事冻结状态转换与失败后去向
 - **首轮支持组合**：三端宿主与 demo 使用 US-217 阶段 B 已支持的 **sqlite-wasm 主线程 `vfs: 'idb'`**，
   导出和恢复保持同 adapter、同兼容配置；必须实跑导出 → 清站点数据 → 启动恢复 → 重开闭环
 - **额外连接形态**：OPFS 专用 Worker / IDB SharedWorker 等不在备份矩阵内的组合必须如实拒绝；
@@ -46,7 +46,7 @@ tags: [domain, board, backup, restore]
 
 ### Out of Scope
 
-- 跨端同步备份（→ [US-533](US-533-board-team-sync.md)）
+- 跨端同步备份（→ [US-541](US-541-board-team-sync.md)）
 - 云备份 / 自动定时备份
 - 备份加密与 keyring 语义——US-217 已覆盖（加密字段保持密文、密钥不进入归档），本故事不扩展；看板实体不加密
 - 损坏数据库的自动修复（US-217 边界：只允许拒绝，不得猜测性恢复）
@@ -67,7 +67,7 @@ tags: [domain, board, backup, restore]
 | 7   | 已有本地板 A，归档包含另一份状态 B                  | 确认恢复并完成                                                   | B 恢复到新库名、整页重载后读回成功才成为活动位置；A 不被写入且原样保留；切换提交前取消或失败均继续打开 A                                                     | ⬜   |
 | 8   | 另一标签页打开着看板                                | 在本页发起恢复，期间在另一页尝试建任务或再发起一次恢复           | 恢复开始后所有页面进入「恢复中」，写入口与第二次恢复被拒；切换成功后其他页面随活动位置变更重载到新库；失败或取消后各页回到原库并恢复可写                     | ⬜   |
 | 9   | 恢复正在写入、读回或切换                            | 取消、注入配额不足或关闭页面后重开                               | 读回成功前活动位置保持原值；重开时检测到未完成的恢复先清理本次目标再打开原库并提示，不把半恢复库当空库初始化；配额不足给出释放空间的提示，清理只处理本次目标 | ⬜   |
-| 10  | 核心包恢复状态机                                    | 以同一组输入驱动：启动恢复、已有库恢复、损坏归档、取消、读回失败 | 产出相同的状态序列与失败去向；种子不会抢先初始化恢复目标（三端接线由 US-531 AC#4 验收）                                                                      | ⬜   |
+| 10  | 核心包恢复状态机                                    | 以同一组输入驱动：启动恢复、已有库恢复、损坏归档、取消、读回失败 | 产出相同的状态序列与失败去向；种子不会抢先初始化恢复目标（三端接线由 US-539 AC#4 验收）                                                                      | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -122,7 +122,7 @@ React / Vue 虽能换实例，三端数据 hooks 在库关闭后都不重新订�
 
 **关闭条件**：首轮支持组合在三端完成持久化导出 → 清站点数据 → 连接前恢复 → 重开闭环；
 已有库恢复到新库名、整页重载读回成功才切换，失败保留原库；多页面「恢复中」暂停写入、取消、中断与失败路径
-符合上述状态流；不支持组合与不兼容归档如实拒绝；恢复后继续编辑和导出正常。US-532 AC#6 复用连接前启动恢复路径。
+符合上述状态流；不支持组合与不兼容归档如实拒绝；恢复后继续编辑和导出正常。US-540 AC#6 复用连接前启动恢复路径。
 
 ## 价值待证
 
@@ -133,13 +133,13 @@ React / Vue 虽能换实例，三端数据 hooks 在库关闭后都不重新订�
 ## 实现文件
 
 - `packages/rxdb-plugin-board/` — 待建；备份 / 恢复编排状态机、活动位置与待切换记录、「恢复中」跨页标记（三端共用）
-- `packages/rxdb-plugin-board-{angular,react,vue}/` — 待建；三端入口与状态接线，随 [US-531](US-531-board-tri-framework-ui.md)
-- `apps/dev-rxdb-board/` — 待建；sqlite-wasm 主线程 `vfs: 'idb'` 配置与启动页接线，贯穿闭环随 [US-532](US-532-board-end-to-end-demo.md)
+- `packages/rxdb-plugin-board-{angular,react,vue}/` — 待建；三端入口与状态接线，随 [US-539](US-539-board-tri-framework-ui.md)
+- `apps/dev-rxdb-board/` — 待建；sqlite-wasm 主线程 `vfs: 'idb'` 配置与启动页接线，贯穿闭环随 [US-540](US-540-board-end-to-end-demo.md)
 
 ## References
 
 - [epic-011 任务看板领域模型](../../epics/epic-011-task-board-domain-model.md)
 - [US-217 本地数据库一致性备份与恢复](../adapter/US-217-local-database-backup-restore.md) — 前置：备份 / 恢复 API 与边界（同 adapter、连接前恢复、损坏拒绝、结构指纹、加密字段）
 - [US-909 会话录制回放](../future/US-909-session-replay-debugging.md) — 阶段 B 实测：Worker / SharedWorker 连接返回 `unsupported_combination`
-- [US-526 看板领域模型骨架](US-526-board-column-task-skeleton.md) — 前置：实体与恢复中写门禁
+- [US-534 看板领域模型骨架](US-534-board-column-task-skeleton.md) — 前置：实体与恢复中写门禁
 - [domain-research 产品形态](../../domain-research/README.md#产品形态零后端单机版) — 坑 ①：浏览器清数据即丢库

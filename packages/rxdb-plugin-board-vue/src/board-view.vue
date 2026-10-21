@@ -12,17 +12,17 @@ import {
 import { useBoard } from './use-board.js';
 
 /**
- * 看板视图组件（US-531 阶段 A）：列 + 卡片 + 拖拽 + 本列排序 + 详情面板 +
+ * 看板视图组件（US-539 阶段 A）：列 + 卡片 + 拖拽 + 本列排序 + 详情面板 +
  * 标签管理 + 撤销重做 + 备份入口占位 + 删除确认。
  *
  * 三端只采集指针事件，落点换算调用核心包同一份 `resolveCardDrop` /
  * `resolveColumnDrop`；全部写入口经 {@link useBoard} 的领域动作。
- * 与 Angular / React 同功能同领域 API（交互约定见 US-531）。
+ * 与 Angular / React 同功能同领域 API（交互约定见 US-539）。
  */
 const props = defineProps<{
   /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
   rxdb: Parameters<typeof useBoard>[0];
-  /** 备份导出回调（US-529 编排由宿主接线；缺省展示占位提示）。 */
+  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。 */
   onExportBackup?: () => void | Promise<void>;
 }>();
 
@@ -39,7 +39,7 @@ const confirm = ref<ConfirmState | null>(null);
 const notice = ref<string | null>(null);
 
 const taskMap = computed(() => {
-  const grouped = new Map<UUID, typeof board.tasks.value[number][]>();
+  const grouped = new Map<UUID, (typeof board.tasks.value)[number][]>();
   for (const column of board.columns.value) grouped.set(column.id, []);
   for (const task of board.tasks.value) {
     const list = grouped.get(task.columnId) ?? [];
@@ -49,7 +49,7 @@ const taskMap = computed(() => {
   return grouped;
 });
 
-const guard = async <T>(operation: () => Promise<T>): Promise<T | undefined> => {
+const guard = async <T,>(operation: () => Promise<T>): Promise<T | undefined> => {
   try {
     notice.value = null;
     return await operation();
@@ -115,13 +115,21 @@ const resolveTaskTarget = (movedId: UUID, clientX: number, clientY: number): Car
   return resolveCardDrop(views, movedId, clientX, clientY);
 };
 
-const resolveColumnTarget = (movedId: UUID, clientX: number): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null => {
+const resolveColumnTarget = (
+  movedId: UUID,
+  clientX: number
+): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null => {
   const views = board.columns.value.map(column => {
     const headerEl = document.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`);
     const rect = headerEl?.getBoundingClientRect();
     return { columnId: column.id, rect: { left: rect?.left ?? 0, right: rect?.right ?? 0 } };
   });
-  const target = resolveColumnDrop(views, board.columns.value.map(column => column.id), movedId, clientX);
+  const target = resolveColumnDrop(
+    views,
+    board.columns.value.map(column => column.id),
+    movedId,
+    clientX
+  );
   return target ? { prevId: target.prevId as UUID, nextId: target.nextId as UUID } : null;
 };
 
@@ -155,14 +163,21 @@ const moveColumnBy = async (columnId: UUID, direction: -1 | 1): Promise<void> =>
   const targetIndex = index + direction;
   if (targetIndex < 0 || targetIndex >= ids.length) return;
   const target =
-    direction < 0 ? { prevId: ids[targetIndex - 1] ?? null, nextId: ids[targetIndex] } : { prevId: ids[targetIndex], nextId: ids[targetIndex + 1] ?? null };
+    direction < 0 ?
+      { prevId: ids[targetIndex - 1] ?? null, nextId: ids[targetIndex] }
+    : { prevId: ids[targetIndex], nextId: ids[targetIndex + 1] ?? null };
   await guard(() => board.actions.moveColumn(columnId, target));
 };
 
 const openDetail = async (taskId: UUID): Promise<void> => {
   const snap = await board.actions.openSnapshot(taskId);
   snapshot.value = snap;
-  draft.value = { title: snap.title, description: snap.description ?? '', dueDate: snap.dueDate ?? '', labelIds: [...snap.labelIds] };
+  draft.value = {
+    title: snap.title,
+    description: snap.description ?? '',
+    dueDate: snap.dueDate ?? '',
+    labelIds: [...snap.labelIds]
+  };
   detailTaskId.value = taskId;
 };
 const saveDetail = async (): Promise<void> => {
@@ -179,8 +194,9 @@ const saveDetail = async (): Promise<void> => {
   snapshot.value = null;
 };
 const toggleDraftLabel = (labelId: UUID): void => {
-  draft.value.labelIds = draft.value.labelIds.includes(labelId)
-    ? draft.value.labelIds.filter(id => id !== labelId)
+  draft.value.labelIds =
+    draft.value.labelIds.includes(labelId) ?
+      draft.value.labelIds.filter(id => id !== labelId)
     : [...draft.value.labelIds, labelId];
 };
 
@@ -216,7 +232,13 @@ const confirmBoardDelete = async (): Promise<void> => {
   const current = board.currentBoard.value;
   if (!current) return;
   const plan = await board.actions.planBoardDelete(current.id);
-  confirm.value = { kind: 'board', boardId: current.id, title: plan.boardTitle, count: plan.taskIds.length, columns: plan.columnIds.length };
+  confirm.value = {
+    kind: 'board',
+    boardId: current.id,
+    title: plan.boardTitle,
+    count: plan.taskIds.length,
+    columns: plan.columnIds.length
+  };
 };
 const executeConfirmedDelete = async (): Promise<void> => {
   const pending = confirm.value;
@@ -238,7 +260,11 @@ const dueDateText = (due: string | null): string => {
   if (!due) return '';
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  return due < today ? `已逾期 ${due}` : due === today ? '今天到期' : due;
+  return (
+    due < today ? `已逾期 ${due}`
+    : due === today ? '今天到期'
+    : due
+  );
 };
 
 const labelsOf = (taskId: UUID): readonly BoardLabel[] => board.taskLabels.value.get(taskId) ?? [];
@@ -263,22 +289,46 @@ const onRenameColumn = (columnId: UUID): void => {
 
 const exportBackup = (): void => {
   if (props.onExportBackup) void props.onExportBackup();
-  else notice.value = '备份导出由宿主接线（US-529）';
+  else notice.value = '备份导出由宿主接线（US-537）';
 };
 
 type ConfirmState =
   | { readonly kind: 'task'; readonly taskId: UUID; readonly title: string }
   | { readonly kind: 'column'; readonly columnId: UUID; readonly title: string; readonly count: number }
-  | { readonly kind: 'board'; readonly boardId: UUID; readonly title: string; readonly count: number; readonly columns: number };
+  | {
+      readonly kind: 'board';
+      readonly boardId: UUID;
+      readonly title: string;
+      readonly count: number;
+      readonly columns: number;
+    };
 </script>
 
 <template>
-  <section class="board-view" data-testid="board-view" @dragover.prevent @drop="onColumnDrop">
-
+  <section
+    class="board-view"
+    data-testid="board-view"
+    @dragover.prevent
+    @drop="onColumnDrop"
+  >
     <template v-if="board.currentBoard.value">
-      <header class="board-header" data-testid="board-header">
-        <select class="board-selector" :value="board.currentBoardId.value ?? ''" @change="onSelectBoard" data-testid="board-selector" aria-label="选择看板">
-          <option v-for="item in board.boards.value" :key="item.id" :value="item.id">{{ item.title }}</option>
+      <header
+        class="board-header"
+        data-testid="board-header"
+      >
+        <select
+          class="board-selector"
+          :value="board.currentBoardId.value ?? ''"
+          @change="onSelectBoard"
+          data-testid="board-selector"
+          aria-label="选择看板"
+        >
+          <option
+            v-for="item in board.boards.value"
+            :key="item.id"
+            :value="item.id"
+            >{{ item.title }}</option
+          >
         </select>
         <button
           class="header-button"
@@ -288,30 +338,107 @@ type ConfirmState =
         >
           {{ board.currentBoard.value.title }}
         </button>
-        <span v-if="board.restoring.value" class="restoring-badge" data-testid="restoring-badge" aria-live="polite">恢复中</span>
+        <span
+          v-if="board.restoring.value"
+          class="restoring-badge"
+          data-testid="restoring-badge"
+          aria-live="polite"
+          >恢复中</span
+        >
         <div class="header-actions">
-          <button @click="createBoard" data-testid="create-board" :disabled="board.restoring.value">新建板</button>
-          <button @click="confirmBoardDelete" data-testid="delete-board" :disabled="board.restoring.value">删除看板</button>
-          <button @click="createColumn" data-testid="create-column" :disabled="board.restoring.value">新建列</button>
-          <button @click="createLabel" data-testid="create-label" :disabled="board.restoring.value">新建标签</button>
-          <button @click="() => void guard(() => board.actions.undo())" data-testid="undo" :disabled="board.restoring.value || board.undoCount.value === 0" aria-label="撤销">撤销</button>
-          <button @click="() => void guard(() => board.actions.redo())" data-testid="redo" :disabled="board.restoring.value || board.redoCount.value === 0" aria-label="重做">重做</button>
-          <button @click="exportBackup" data-testid="export-backup" :disabled="board.restoring.value">导出备份</button>
+          <button
+            @click="createBoard"
+            data-testid="create-board"
+            :disabled="board.restoring.value"
+            >新建板</button
+          >
+          <button
+            @click="confirmBoardDelete"
+            data-testid="delete-board"
+            :disabled="board.restoring.value"
+            >删除看板</button
+          >
+          <button
+            @click="createColumn"
+            data-testid="create-column"
+            :disabled="board.restoring.value"
+            >新建列</button
+          >
+          <button
+            @click="createLabel"
+            data-testid="create-label"
+            :disabled="board.restoring.value"
+            >新建标签</button
+          >
+          <button
+            @click="() => void guard(() => board.actions.undo())"
+            data-testid="undo"
+            :disabled="board.restoring.value || board.undoCount.value === 0"
+            aria-label="撤销"
+            >撤销</button
+          >
+          <button
+            @click="() => void guard(() => board.actions.redo())"
+            data-testid="redo"
+            :disabled="board.restoring.value || board.redoCount.value === 0"
+            aria-label="重做"
+            >重做</button
+          >
+          <button
+            @click="exportBackup"
+            data-testid="export-backup"
+            :disabled="board.restoring.value"
+            >导出备份</button
+          >
         </div>
       </header>
 
-      <p v-if="board.restoring.value" class="restoring-note" data-testid="restoring-note">恢复进行中：浏览可用，写入口已暂停。</p>
+      <p
+        v-if="board.restoring.value"
+        class="restoring-note"
+        data-testid="restoring-note"
+        >恢复进行中：浏览可用，写入口已暂停。</p
+      >
 
-      <div v-if="board.labels.value.length > 0" class="label-strip" data-testid="label-strip">
-        <span v-for="label in board.labels.value" :key="label.id" class="label-chip" :style="{ background: label.color }" data-testid="label-chip">
-          <button class="label-name" @click="renameLabel(label.id)" aria-label="改名">{{ label.name }}</button>
-          <button class="label-delete" @click="deleteLabel(label.id)" :aria-label="`删除标签 ${label.name}`">×</button>
+      <div
+        v-if="board.labels.value.length > 0"
+        class="label-strip"
+        data-testid="label-strip"
+      >
+        <span
+          v-for="label in board.labels.value"
+          :key="label.id"
+          class="label-chip"
+          :style="{ background: label.color }"
+          data-testid="label-chip"
+        >
+          <button
+            class="label-name"
+            @click="renameLabel(label.id)"
+            aria-label="改名"
+            >{{ label.name }}</button
+          >
+          <button
+            class="label-delete"
+            @click="deleteLabel(label.id)"
+            :aria-label="`删除标签 ${label.name}`"
+            >×</button
+          >
         </span>
       </div>
 
-      <p v-if="notice" class="board-notice" role="alert" data-testid="board-notice">{{ notice }}</p>
+      <p
+        v-if="notice"
+        class="board-notice"
+        role="alert"
+        data-testid="board-notice"
+        >{{ notice }}</p
+      >
 
-      <div class="columns" data-testid="columns">
+      <div
+        class="columns"
+        data-testid="columns"
+      >
         <section
           v-for="column in board.columns.value"
           :key="column.id"
@@ -321,9 +448,23 @@ type ConfirmState =
           @drop="event => void onTaskDrop(event, column.id)"
           data-testid="column"
         >
-          <header class="column-header" :data-column-header-id="column.id" draggable="true" @dragstart="event => onColumnDragStart(event, column.id)" data-testid="column-header">
-            <h2 class="column-title" data-testid="column-title">{{ column.title }}</h2>
-            <span class="column-count" data-testid="column-count">{{ (taskMap.get(column.id) ?? []).length }}</span>
+          <header
+            class="column-header"
+            :data-column-header-id="column.id"
+            draggable="true"
+            @dragstart="event => onColumnDragStart(event, column.id)"
+            data-testid="column-header"
+          >
+            <h2
+              class="column-title"
+              data-testid="column-title"
+              >{{ column.title }}</h2
+            >
+            <span
+              class="column-count"
+              data-testid="column-count"
+              >{{ (taskMap.get(column.id) ?? []).length }}</span
+            >
             <div class="column-menu">
               <button
                 @click="onRenameColumn(column.id)"
@@ -332,11 +473,36 @@ type ConfirmState =
               >
                 改名
               </button>
-              <button @click="moveColumnBy(column.id, -1)" data-testid="column-move-back" aria-label="前移">前移</button>
-              <button @click="moveColumnBy(column.id, 1)" data-testid="column-move-forward" aria-label="后移">后移</button>
-              <button @click="sortColumnBy(column.id, 'dueDate')" data-testid="column-sort-due" aria-label="按截止日排序">按截止日</button>
-              <button @click="sortColumnBy(column.id, 'title')" data-testid="column-sort-title" aria-label="按标题排序">按标题</button>
-              <button @click="confirmColumnDelete(column.id)" data-testid="column-delete" aria-label="删除列">删除</button>
+              <button
+                @click="moveColumnBy(column.id, -1)"
+                data-testid="column-move-back"
+                aria-label="前移"
+                >前移</button
+              >
+              <button
+                @click="moveColumnBy(column.id, 1)"
+                data-testid="column-move-forward"
+                aria-label="后移"
+                >后移</button
+              >
+              <button
+                @click="sortColumnBy(column.id, 'dueDate')"
+                data-testid="column-sort-due"
+                aria-label="按截止日排序"
+                >按截止日</button
+              >
+              <button
+                @click="sortColumnBy(column.id, 'title')"
+                data-testid="column-sort-title"
+                aria-label="按标题排序"
+                >按标题</button
+              >
+              <button
+                @click="confirmColumnDelete(column.id)"
+                data-testid="column-delete"
+                aria-label="删除列"
+                >删除</button
+              >
             </div>
           </header>
           <div class="cards">
@@ -350,64 +516,171 @@ type ConfirmState =
               data-testid="task-card"
             >
               <template v-if="editTitleTaskId === task.id">
-                <input v-model="editTitleValue" class="title-editor" @keydown.enter="commitEditTitle(task.id)" @keydown.escape="editTitleTaskId = null" data-testid="task-title-editor" aria-label="任务标题" />
-                <button @click="commitEditTitle(task.id)" data-testid="task-title-save" aria-label="保存标题">保存</button>
-                <button @click="editTitleTaskId = null" data-testid="task-title-cancel" aria-label="取消">取消</button>
+                <input
+                  v-model="editTitleValue"
+                  class="title-editor"
+                  @keydown.enter="commitEditTitle(task.id)"
+                  @keydown.escape="editTitleTaskId = null"
+                  data-testid="task-title-editor"
+                  aria-label="任务标题"
+                />
+                <button
+                  @click="commitEditTitle(task.id)"
+                  data-testid="task-title-save"
+                  aria-label="保存标题"
+                  >保存</button
+                >
+                <button
+                  @click="editTitleTaskId = null"
+                  data-testid="task-title-cancel"
+                  aria-label="取消"
+                  >取消</button
+                >
               </template>
               <template v-else>
-                <button class="card-title" @click="openDetail(task.id)" data-testid="task-title">{{ task.title }}</button>
-                <button class="card-edit" @click="startEditTitle(task.id, task.title)" data-testid="task-edit-title" aria-label="编辑标题">编辑</button>
+                <button
+                  class="card-title"
+                  @click="openDetail(task.id)"
+                  data-testid="task-title"
+                  >{{ task.title }}</button
+                >
+                <button
+                  class="card-edit"
+                  @click="startEditTitle(task.id, task.title)"
+                  data-testid="task-edit-title"
+                  aria-label="编辑标题"
+                  >编辑</button
+                >
               </template>
-              <div v-if="labelsOf(task.id).length > 0" class="card-labels">
-                <span v-for="label in labelsOf(task.id)" :key="label.id" class="card-label" :style="{ background: label.color }" :aria-label="label.name">{{ label.name }}</span>
+              <div
+                v-if="labelsOf(task.id).length > 0"
+                class="card-labels"
+              >
+                <span
+                  v-for="label in labelsOf(task.id)"
+                  :key="label.id"
+                  class="card-label"
+                  :style="{ background: label.color }"
+                  :aria-label="label.name"
+                  >{{ label.name }}</span
+                >
               </div>
-              <span v-if="dueDateText(task.dueDate)" class="card-due" :class="{ overdue: dueDateText(task.dueDate).startsWith('已逾期') }" data-testid="task-due">{{ dueDateText(task.dueDate) }}</span>
+              <span
+                v-if="dueDateText(task.dueDate)"
+                class="card-due"
+                :class="{ overdue: dueDateText(task.dueDate).startsWith('已逾期') }"
+                data-testid="task-due"
+                >{{ dueDateText(task.dueDate) }}</span
+              >
             </article>
-            <button class="add-task" @click="createTask(column.id)" :disabled="board.restoring.value" data-testid="add-task">添加任务</button>
+            <button
+              class="add-task"
+              @click="createTask(column.id)"
+              :disabled="board.restoring.value"
+              data-testid="add-task"
+              >添加任务</button
+            >
           </div>
         </section>
       </div>
 
-      <aside v-if="detailTaskId" class="detail-panel" data-testid="detail-panel">
+      <aside
+        v-if="detailTaskId"
+        class="detail-panel"
+        data-testid="detail-panel"
+      >
         <h3>任务详情</h3>
         <label>
           标题
-          <input v-model="draft.title" data-testid="detail-title" />
+          <input
+            v-model="draft.title"
+            data-testid="detail-title"
+          />
         </label>
         <label>
           描述
-          <textarea v-model="draft.description" data-testid="detail-description"></textarea>
+          <textarea
+            v-model="draft.description"
+            data-testid="detail-description"
+          ></textarea>
         </label>
         <label>
           截止日（YYYY-MM-DD）
-          <input v-model="draft.dueDate" placeholder="YYYY-MM-DD" data-testid="detail-due" />
+          <input
+            v-model="draft.dueDate"
+            placeholder="YYYY-MM-DD"
+            data-testid="detail-due"
+          />
         </label>
         <fieldset>
           <legend>标签</legend>
-          <label v-for="label in board.labels.value" :key="label.id" class="detail-label">
-            <input type="checkbox" :checked="draft.labelIds.includes(label.id)" @change="toggleDraftLabel(label.id)" data-testid="detail-label-check" />
+          <label
+            v-for="label in board.labels.value"
+            :key="label.id"
+            class="detail-label"
+          >
+            <input
+              type="checkbox"
+              :checked="draft.labelIds.includes(label.id)"
+              @change="toggleDraftLabel(label.id)"
+              data-testid="detail-label-check"
+            />
             <span :style="{ background: label.color }">{{ label.name }}</span>
           </label>
         </fieldset>
         <div class="detail-actions">
-          <button @click="saveDetail" data-testid="detail-save">保存</button>
-          <button @click="detailTaskId = null" data-testid="detail-cancel">取消</button>
+          <button
+            @click="saveDetail"
+            data-testid="detail-save"
+            >保存</button
+          >
+          <button
+            @click="detailTaskId = null"
+            data-testid="detail-cancel"
+            >取消</button
+          >
         </div>
       </aside>
 
-      <aside v-if="confirm" class="confirm-panel" data-testid="confirm-delete">
+      <aside
+        v-if="confirm"
+        class="confirm-panel"
+        data-testid="confirm-delete"
+      >
         <p v-if="confirm.kind === 'task'">删除任务「{{ confirm.title }}」？</p>
         <p v-else-if="confirm.kind === 'column'">删除列「{{ confirm.title }}」及其 {{ confirm.count }} 个任务？</p>
-        <p v-else>删除看板「{{ confirm.title }}」（{{ confirm.columns }} 列、{{ confirm.count }} 任务、含全部标签定义与关联）？</p>
+        <p v-else
+          >删除看板「{{ confirm.title }}」（{{ confirm.columns }} 列、{{
+            confirm.count
+          }}
+          任务、含全部标签定义与关联）？</p
+        >
         <div class="confirm-actions">
-          <button @click="executeConfirmedDelete" data-testid="confirm-delete-yes">确认删除</button>
-          <button @click="confirm = null" data-testid="confirm-delete-no">取消</button>
+          <button
+            @click="executeConfirmedDelete"
+            data-testid="confirm-delete-yes"
+            >确认删除</button
+          >
+          <button
+            @click="confirm = null"
+            data-testid="confirm-delete-no"
+            >取消</button
+          >
         </div>
       </aside>
     </template>
-    <div v-else class="empty-board" data-testid="empty-board">
+    <div
+      v-else
+      class="empty-board"
+      data-testid="empty-board"
+    >
       <p>没有看板</p>
-      <button @click="createBoard" data-testid="create-board-empty" :disabled="board.restoring.value">新建板</button>
+      <button
+        @click="createBoard"
+        data-testid="create-board-empty"
+        :disabled="board.restoring.value"
+        >新建板</button
+      >
     </div>
   </section>
 </template>

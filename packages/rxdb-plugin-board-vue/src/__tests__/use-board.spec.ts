@@ -1,10 +1,10 @@
-import { mount } from '@vue/test-utils';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import { defineComponent, h } from 'vue';
+import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { defineComponent, h } from 'vue';
 
 import { useBoard, type UseBoardReturn } from '../use-board.js';
 
@@ -85,12 +85,18 @@ describe('useBoard（Vue 桥接）', () => {
     const task = await board().actions.createTask({ columnId: c1.id, title: '任务' });
     const label = await board().actions.createLabel({ name: '核心', color: '#e11d48' });
     const snapshot = await board().actions.openSnapshot(task.id);
-    await board().actions.saveTaskDraft(task.id, snapshot, { ...snapshot, title: snapshot.title, labelIds: [label.id] });
+    await board().actions.saveTaskDraft(task.id, snapshot, {
+      ...snapshot,
+      title: snapshot.title,
+      labelIds: [label.id]
+    });
     await waitFor(() => (board().taskLabels.value.get(task.id) ?? []).length === 1, '任务标签');
     expect(board().taskLabels.value.get(task.id)?.[0].name).toBe('核心');
 
     board().setRestoring(true);
-    await expect(board().actions.createTask({ columnId: c1.id, title: 'x' })).rejects.toMatchObject({ code: 'restore_in_progress' });
+    await expect(board().actions.createTask({ columnId: c1.id, title: 'x' })).rejects.toMatchObject({
+      code: 'restore_in_progress'
+    });
     board().setRestoring(false);
 
     await waitFor(() => board().undoCount.value >= 1, 'undo 计数');

@@ -7,11 +7,11 @@ import { BoardDomain } from '../board-domain.js';
 import { BoardColumnSortService } from '../column-sort-service.js';
 import { BoardDeleteService } from '../delete-service.js';
 import { resolveColumnDrop } from '../drop-resolution.js';
-import { BoardMoveService } from '../move-service.js';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '../entities/index.js';
-import { BoardWriteNotifier } from '../write-notifier.js';
+import { BoardMoveService } from '../move-service.js';
 import { matchAll, readFirst, whereEq } from '../query.js';
 import { isValidDueDate, normalizeBoardTitle } from '../title.js';
+import { BoardWriteNotifier } from '../write-notifier.js';
 
 /** 边界与错误分支的定向用例：补齐覆盖率缺口并钉住可判别行为。 */
 describe('看板领域边界用例', () => {
@@ -41,7 +41,9 @@ describe('看板领域边界用例', () => {
     deletes = new BoardDeleteService(rxdb, () => ctx);
     notifier = new BoardWriteNotifier();
     events = [];
-    notifier.events$.subscribe(event => events.push({ kind: event.kind, columnId: 'columnId' in event ? event.columnId : undefined }));
+    notifier.events$.subscribe(event =>
+      events.push({ kind: event.kind, columnId: 'columnId' in event ? event.columnId : undefined })
+    );
     moves = new BoardMoveService(rxdb, () => ctx, notifier);
     sorts = new BoardColumnSortService(rxdb, () => ctx, notifier);
   });
@@ -51,7 +53,7 @@ describe('看板领域边界用例', () => {
     if (rxdb) await rxdb.disconnectAll();
   });
 
-  it('纯日期校验：合法 / 非法 / 闰日 / 格式（US-528 AC#13 服务层）', () => {
+  it('纯日期校验：合法 / 非法 / 闰日 / 格式（US-536 AC#13 服务层）', () => {
     expect(isValidDueDate('2024-02-29')).toBe(true);
     expect(isValidDueDate('2026-02-29')).toBe(false);
     expect(isValidDueDate('2026-13-01')).toBe(false);
@@ -73,15 +75,19 @@ describe('看板领域边界用例', () => {
   it('任务与板不存在时给出可判别错误；listTasksOfBoard 汇总板内任务', async () => {
     const board = await domain.createBoard({ title: 'B' });
     ctx.boardId = board.id;
-    await expect(domain.updateTaskTitle('00000000-0000-4000-8000-0000000000ff', 'x')).rejects.toMatchObject({ code: 'task_not_found' });
-    await expect(domain.requireBoard('00000000-0000-4000-8000-0000000000ff')).rejects.toMatchObject({ code: 'board_not_found' });
+    await expect(domain.updateTaskTitle('00000000-0000-4000-8000-0000000000ff', 'x')).rejects.toMatchObject({
+      code: 'task_not_found'
+    });
+    await expect(domain.requireBoard('00000000-0000-4000-8000-0000000000ff')).rejects.toMatchObject({
+      code: 'board_not_found'
+    });
 
     const c1 = await domain.createColumn({ title: 'C1' });
     const c2 = await domain.createColumn({ title: 'C2' });
     await domain.createTask({ columnId: c1.id, title: 't1' });
     await domain.createTask({ columnId: c1.id, title: 't2' });
     await domain.createTask({ columnId: c2.id, title: 't3' });
-    expect((await domain.listTasksOfBoard(board.id))).toHaveLength(3);
+    expect(await domain.listTasksOfBoard(board.id)).toHaveLength(3);
 
     const emptyBoard = await domain.createBoard({ title: '空板' });
     expect(await domain.listTasksOfBoard(emptyBoard.id)).toHaveLength(0);
@@ -96,7 +102,7 @@ describe('看板领域边界用例', () => {
     expect(renamed.title).toBe('B2');
   });
 
-  it('拖列：板内列序重排（US-527 列序路径）', async () => {
+  it('拖列：板内列序重排（US-535 列序路径）', async () => {
     const board = await domain.createBoard({ title: 'B' });
     ctx.boardId = board.id;
     const c1 = await domain.createColumn({ title: 'C1' });
@@ -116,7 +122,11 @@ describe('看板领域边界用例', () => {
     );
     expect(target).toEqual({ prevId: null, nextId: c1.id });
     await moves.moveColumn(c3.id, target!);
-    expect((await readFirst(columnRepo().find({ where: whereEq('boardId', board.id) }))).map(c => c.id)).toEqual([c3.id, c1.id, c2.id]);
+    expect((await readFirst(columnRepo().find({ where: whereEq('boardId', board.id) }))).map(c => c.id)).toEqual([
+      c3.id,
+      c1.id,
+      c2.id
+    ]);
     expect(events).toContainEqual({ kind: 'column-move-committed', columnId: c3.id });
 
     // 原位：拖 C3 到它自己列头 → 拒绝落点（null）
@@ -137,7 +147,9 @@ describe('看板领域边界用例', () => {
     ctx.boardId = otherBoard.id;
     const foreign = await domain.createColumn({ title: '异板列' });
 
-    await expect(moves.moveColumn(c1.id, { prevId: null, nextId: foreign.id })).rejects.toMatchObject({ code: 'cross_board' });
+    await expect(moves.moveColumn(c1.id, { prevId: null, nextId: foreign.id })).rejects.toMatchObject({
+      code: 'cross_board'
+    });
     expect(events.some(e => e.kind === 'column-move-failed' && e.columnId === c1.id)).toBe(true);
     void board;
   });
@@ -148,7 +160,9 @@ describe('看板领域边界用例', () => {
     await expect(sorts.sortColumn('00000000-0000-4000-8000-0000000000ff', 'title')).rejects.toMatchObject({
       code: 'column_not_found'
     });
-    expect(events.some(e => e.kind === 'sort-failed' && e.columnId === '00000000-0000-4000-8000-0000000000ff')).toBe(true);
+    expect(events.some(e => e.kind === 'sort-failed' && e.columnId === '00000000-0000-4000-8000-0000000000ff')).toBe(
+      true
+    );
   });
 
   it('板删除的确认集合变化：新增板级标签后零写退出', async () => {
@@ -161,7 +175,9 @@ describe('看板领域边界用例', () => {
       .create(rxdb.entityManager.instantiate(BoardLabel, { boardId: board.id, name: '新标签', color: '#000000' }));
 
     await expect(deletes.executeDelete(plan)).rejects.toMatchObject({ code: 'confirm_stale' });
-    expect(await readFirst(rxdb.entityManager.getRepository(Board).find({ where: whereEq('id', board.id) }))).toHaveLength(1);
+    expect(
+      await readFirst(rxdb.entityManager.getRepository(Board).find({ where: whereEq('id', board.id) }))
+    ).toHaveLength(1);
   });
 
   it('describeBoardFailure 对非 Error 值也给出可展示文本', async () => {
@@ -198,10 +214,14 @@ describe('看板领域边界用例', () => {
 
     ctx.restoring = true;
     await expect(deletes.planTaskDelete(task.id)).rejects.toMatchObject({ code: 'restore_in_progress' });
-    await expect(deletes.executeDelete({ kind: 'task', taskId: task.id, taskTitle: 't', taskLabelIds: [] })).rejects.toMatchObject({
+    await expect(
+      deletes.executeDelete({ kind: 'task', taskId: task.id, taskTitle: 't', taskLabelIds: [] })
+    ).rejects.toMatchObject({
       code: 'restore_in_progress'
     });
-    await expect(moves.moveTask(task.id, { kind: 'end', columnId: c1.id })).rejects.toMatchObject({ code: 'restore_in_progress' });
+    await expect(moves.moveTask(task.id, { kind: 'end', columnId: c1.id })).rejects.toMatchObject({
+      code: 'restore_in_progress'
+    });
     await expect(sorts.sortColumn(c1.id, 'title')).rejects.toMatchObject({ code: 'restore_in_progress' });
     ctx.restoring = false;
   });

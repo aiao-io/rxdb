@@ -1,7 +1,7 @@
 import {
   ENTITY_LOCAL_CREATE_EVENT,
-  ENTITY_LOCAL_UPDATE_EVENT,
   ENTITY_LOCAL_REMOVE_EVENT,
+  ENTITY_LOCAL_UPDATE_EVENT,
   type RxDB,
   type UUID
 } from '@aiao/rxdb';
@@ -21,7 +21,7 @@ import { BoardHostContext } from '../host-context.js';
 import { matchAll, readFirst, whereEq } from '../query.js';
 
 /**
- * @fileoverview 板级搜索源（US-530）
+ * @fileoverview 板级搜索源（US-538）
  *
  * 现有 scope 只到实体、不到行：`SearchOptions.collections` 是实体名 / 表名 allowlist，
  * `SearchResult` 没有板或列字段。所以板内搜索由领域源完成：
@@ -53,7 +53,12 @@ export const DEFAULT_BOARD_SEARCH_PAGE_SIZE = 5;
 
 /** 等上游句柄离开 loading（success / empty / error）；error 时抛出执行错误。 */
 const waitUpstreamSettled = async (handle: SearchHandle): Promise<void> => {
-  const state = await firstValueFrom(handle.state$.pipe(filter(s => s !== 'loading'), take(1)));
+  const state = await firstValueFrom(
+    handle.state$.pipe(
+      filter(s => s !== 'loading'),
+      take(1)
+    )
+  );
   if (state === 'error') {
     const error = await firstValueFrom(handle.error$);
     throw error ?? new Error('搜索执行失败');
@@ -63,7 +68,7 @@ const waitUpstreamSettled = async (handle: SearchHandle): Promise<void> => {
 /**
  * 板级搜索源：符合 {@link SearchSourceLike}，三端绑定消费同一实现。
  * 上游全文源由宿主注入（插件实例），未安装或 adapter 不支持由宿主在入口禁用
- * （US-530 AC#5），本类在 `search()` 前不做能力预检。
+ * （US-538 AC#5），本类在 `search()` 前不做能力预检。
  */
 export class BoardSearchSource implements SearchSourceLike {
   constructor(
@@ -107,7 +112,13 @@ export class BoardSearchSource implements SearchSourceLike {
       const boardTaskIds = new Set(await this.currentBoardTaskIds(boardId));
       const filtered = hits
         .filter(hit => boardTaskIds.has(hit.id))
-        .sort((a, b) => a.rank - b.rank || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+        .sort(
+          (a, b) =>
+            a.rank - b.rank ||
+            (a.id < b.id ? -1
+            : a.id > b.id ? 1
+            : 0)
+        );
 
       const pageSize = this.options.pageSize ?? DEFAULT_BOARD_SEARCH_PAGE_SIZE;
       const slice = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -123,7 +134,9 @@ export class BoardSearchSource implements SearchSourceLike {
 
   /** 当前板全部任务 id（板由列推导，命中 id 与视图已加载的任务求交）。 */
   private async currentBoardTaskIds(boardId: UUID): Promise<readonly string[]> {
-    const columns = await readFirst(this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', boardId) }));
+    const columns = await readFirst(
+      this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', boardId) })
+    );
     const columnIds = columns.map(column => column.id);
     if (columnIds.length === 0) return [];
     const tasks = await readFirst(
@@ -136,8 +149,13 @@ export class BoardSearchSource implements SearchSourceLike {
 
   /** 任务 / 列的数据变更使本次请求失效并重查（事务内的事件在 COMMIT 后派发）。 */
   private subscribeBoardChanges(onChange: () => void): () => void {
-    const listener = (event: { readonly type: string; readonly entities?: readonly { namespace?: string; entity?: string }[] }): void => {
-      const relevant = event.entities?.some(data => data.namespace === 'board' && (data.entity === 'Task' || data.entity === 'Column'));
+    const listener = (event: {
+      readonly type: string;
+      readonly entities?: readonly { namespace?: string; entity?: string }[];
+    }): void => {
+      const relevant = event.entities?.some(
+        data => data.namespace === 'board' && (data.entity === 'Task' || data.entity === 'Column')
+      );
       if (relevant) onChange();
     };
     this.rxdb.addEventListener(ENTITY_LOCAL_CREATE_EVENT, listener);

@@ -1,13 +1,13 @@
-import { Component, OnInit, signal } from '@angular/core';
 import { RxDB } from '@aiao/rxdb';
 import { ACTIVE_DB_KEY, Board, PENDING_SWITCH_KEY, RESTORING_MARKER_KEY } from '@aiao/rxdb-plugin-board';
 import { BoardViewComponent } from '@aiao/rxdb-plugin-board-angular';
+import { Component, OnInit, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { connectBoardRxdb, createBoardRxdb, nextBoardDbName, restoreBoardArchive, seedBoardDemo } from './board-rxdb';
 
 /**
- * 看板 demo 壳（US-532 / US-529）：
+ * 看板 demo 壳（US-540 / US-537）：
  *
  * - 启动选择：无活动位置记录时先显示「新建空看板 / 装载演示数据 / 从备份恢复」，
  *   选择前不连接数据库、不建表、不装载种子；
@@ -30,11 +30,11 @@ import { connectBoardRxdb, createBoardRxdb, nextBoardDbName, restoreBoardArchive
             <button (click)="startSeed()" data-testid="start-seed">装载演示数据</button>
             <label class="file-picker">
               从备份恢复
-              <input type="file" accept=".rxdb" (change)="onRestoreFile($event)" data-testid="restore-file" hidden />
+              <input (change)="onRestoreFile($event)" accept=".rxdb" data-testid="restore-file" hidden type="file" />
             </label>
           </div>
           @if (error(); as message) {
-            <p class="app-error" role="alert" data-testid="app-error">{{ message }}</p>
+            <p class="app-error" data-testid="app-error" role="alert">{{ message }}</p>
           }
         </div>
       }
@@ -45,15 +45,21 @@ import { connectBoardRxdb, createBoardRxdb, nextBoardDbName, restoreBoardArchive
       }
       @default {
         @if (error(); as message) {
-          <p class="app-error" role="alert" data-testid="app-error">{{ message }}</p>
+          <p class="app-error" data-testid="app-error" role="alert">{{ message }}</p>
         }
         @if (rxdb(); as db) {
-          <board-view [rxdb]="db" [exportBackup]="onExportBackup" />
+          <board-view [exportBackup]="onExportBackup" [rxdb]="db" />
           <footer class="board-tools" data-testid="board-tools">
             <button (click)="onResetDemo()" data-testid="reset-demo">重置为演示数据</button>
             <label class="file-picker">
               从备份恢复…
-              <input type="file" accept=".rxdb" (change)="onRestoreFile($event)" data-testid="restore-file-menu" hidden />
+              <input
+                (change)="onRestoreFile($event)"
+                accept=".rxdb"
+                data-testid="restore-file-menu"
+                hidden
+                type="file"
+              />
             </label>
           </footer>
         } @else {
@@ -198,7 +204,9 @@ export class App implements OnInit {
     const db = createBoardRxdb(target);
     try {
       await connectBoardRxdb(db);
-      const boards = await firstValueFrom(db.entityManager.getRepository(Board).find({ where: { combinator: 'and', rules: [] } }));
+      const boards = await firstValueFrom(
+        db.entityManager.getRepository(Board).find({ where: { combinator: 'and', rules: [] } })
+      );
       if (boards.length === 0) throw new Error('读回失败：恢复库中没有看板数据');
       this.writeStorage(ACTIVE_DB_KEY, target);
       this.clearStorage(PENDING_SWITCH_KEY);

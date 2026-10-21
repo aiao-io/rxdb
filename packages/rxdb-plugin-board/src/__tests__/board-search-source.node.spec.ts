@@ -11,7 +11,7 @@ import { BoardSearchSource, type BoardSearchUpstream } from '../search/board-sea
 import { ISOLATION_BOARD_ID, RELEASE_BOARD_ID, seedReleaseBoardDataset } from '../testing/index.js';
 
 /**
- * 板级搜索源（US-530 服务层）：真实 PGlite 上的板数据 + 桩上游全文源。
+ * 板级搜索源（US-538 服务层）：真实 PGlite 上的板数据 + 桩上游全文源。
  * 上游是引擎（FTS5 / pg-tsvector），本套用例钉住领域源的过滤、分页、
  * 请求失效与失败三来源的区分；真实 FTS 组合在浏览器趟与 demo e2e 验收。
  */
@@ -47,7 +47,7 @@ const stubUpstream = (hits: SearchResult[], options: { delayMs?: number; fail?: 
   return { upstream, calls: () => calls };
 };
 
-describe('BoardSearchSource 板级搜索源（US-530）', () => {
+describe('BoardSearchSource 板级搜索源（US-538）', () => {
   /** 等句柄状态离开 loading / idle 后读取结果快照。 */
   const settledResults = async (handle: SearchHandle) => {
     await firstValueFrom(
@@ -79,18 +79,25 @@ describe('BoardSearchSource 板级搜索源（US-530）', () => {
     ctx = { boardId: null, restoring: false };
     domain = new BoardDomain(rxdb, () => ctx);
 
-    const mainColumns = await readFirst(rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', RELEASE_BOARD_ID) }));
+    const mainColumns = await readFirst(
+      rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', RELEASE_BOARD_ID) })
+    );
     const isolationColumns = await readFirst(
       rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', ISOLATION_BOARD_ID) })
     );
     mainTaskIds = (
       await readFirst(
-        taskRepo().find({ where: { combinator: 'and', rules: [{ field: 'columnId', operator: 'in', value: mainColumns.map(c => c.id) }] } })
+        taskRepo().find({
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'columnId', operator: 'in', value: mainColumns.map(c => c.id) }]
+          }
+        })
       )
     ).map(t => t.id);
-    isolationTaskIds = (
-      await readFirst(taskRepo().find({ where: whereEq('columnId', isolationColumns[0].id) }))
-    ).map(t => t.id);
+    isolationTaskIds = (await readFirst(taskRepo().find({ where: whereEq('columnId', isolationColumns[0].id) }))).map(
+      t => t.id
+    );
   });
 
   afterEach(async () => {
@@ -138,7 +145,12 @@ describe('BoardSearchSource 板级搜索源（US-530）', () => {
     ctx.boardId = RELEASE_BOARD_ID;
     const { upstream } = stubUpstream([]);
     const handle = new BoardSearchSource(rxdb, () => ctx, upstream, { debounceMs: 0 }).search('zzzz');
-    await firstValueFrom(handle.state$.pipe(filter(s => s !== 'loading' && s !== 'idle'), take(1)));
+    await firstValueFrom(
+      handle.state$.pipe(
+        filter(s => s !== 'loading' && s !== 'idle'),
+        take(1)
+      )
+    );
     expect(await firstValueFrom(handle.state$)).toBe('empty');
 
     const idleHandle = new BoardSearchSource(rxdb, () => ctx, upstream, { debounceMs: 0 }).search('');
@@ -151,7 +163,12 @@ describe('BoardSearchSource 板级搜索源（US-530）', () => {
     ctx.boardId = RELEASE_BOARD_ID;
     const { upstream } = stubUpstream([], { fail: true });
     const handle = new BoardSearchSource(rxdb, () => ctx, upstream, { debounceMs: 0 }).search('同步');
-    await firstValueFrom(handle.state$.pipe(filter(s => s === 'error'), take(1)));
+    await firstValueFrom(
+      handle.state$.pipe(
+        filter(s => s === 'error'),
+        take(1)
+      )
+    );
     expect(await firstValueFrom(handle.state$)).toBe('error');
     expect(await firstValueFrom(handle.error$)).toBeInstanceOf(Error);
     handle.destroy();
@@ -178,7 +195,9 @@ describe('BoardSearchSource 板级搜索源（US-530）', () => {
     const before = calls();
 
     // 建任务触发事件 → 变更绕过防抖直通重查
-    const column = (await readFirst(rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', RELEASE_BOARD_ID) })))[0];
+    const column = (
+      await readFirst(rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', RELEASE_BOARD_ID) }))
+    )[0];
     await domain.createTask({ columnId: column.id, title: '同步新任务' });
     await new Promise(resolve => setTimeout(resolve, 200));
     expect(calls()).toBeGreaterThan(before);

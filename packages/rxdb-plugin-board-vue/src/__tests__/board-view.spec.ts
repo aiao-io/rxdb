@@ -1,15 +1,15 @@
-import { mount } from '@vue/test-utils';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import BoardView from '../board-view.vue';
 
 /**
- * BoardView 组件（US-531 阶段 A 的 Vue 半边）：与 Angular / React 同组验收语义。
+ * BoardView 组件（US-539 阶段 A 的 Vue 半边）：与 Angular / React 同组验收语义。
  * 真实拖拽与 a11y 在 demo e2e。
  */
 describe('BoardView（Vue 视图）', () => {
@@ -43,7 +43,12 @@ describe('BoardView（Vue 视图）', () => {
     expect(fixture.findAll('[data-testid="column"]')).toHaveLength(4);
     expect(fixture.findAll('[data-testid="task-card"]')).toHaveLength(12);
     expect(fixture.findAll('[data-testid="label-chip"]')).toHaveLength(4);
-    expect(fixture.findAll('[data-testid="column-title"]').map(el => el.text().trim())).toEqual(['To do', 'Doing', 'Done', 'Ideas']);
+    expect(fixture.findAll('[data-testid="column-title"]').map(el => el.text().trim())).toEqual([
+      'To do',
+      'Doing',
+      'Done',
+      'Ideas'
+    ]);
     fixture.unmount();
   });
 

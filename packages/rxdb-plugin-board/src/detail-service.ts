@@ -3,22 +3,22 @@ import { firstValueFrom } from 'rxjs';
 
 import { BoardLabel } from './entities/board-label.entity.js';
 import { Column } from './entities/column.entity.js';
-import { Task } from './entities/task.entity.js';
 import { TaskLabel } from './entities/task-label.entity.js';
+import { Task } from './entities/task.entity.js';
 import { BoardDomainError } from './errors.js';
 import { assertBoardWritable, type BoardHostContext, requireBoardId } from './host-context.js';
 import { inRule, readFirst, whereEq } from './query.js';
 import { isValidDueDate, normalizeBoardTitle } from './title.js';
 
 /**
- * 详情编辑服务（US-528）：草稿差集与一次保存。
+ * 详情编辑服务（US-536）：草稿差集与一次保存。
  *
  * @remarks
  * 打开后只编辑内存草稿，选择已有标签也不立即写库；一次显式保存将标题、描述、
  * 截止日与标签关联差集放入同一个事务（同一个 `transactionId`，一次 undo 整体反转）。
  * 取消、Esc、关闭或未改变内容的保存均零写。事务内对照草稿打开时的快照复核待修改
  * 字段与标签引用：任务被删、被移动、字段或标签引用已被其它入口改变 → 整体拒绝、
- * 保留草稿要求刷新后重新确认（US-528 AC#15）。标签同板是领域校验：关联写入的
+ * 保留草稿要求刷新后重新确认（US-536 AC#15）。标签同板是领域校验：关联写入的
  * 同一事务内比较 `board_label` 的 board，不能仅靠下拉框过滤（AC#11）。
  */
 
@@ -40,8 +40,7 @@ export interface TaskDraft {
 }
 
 export type SaveTaskDraftResult =
-  | { readonly kind: 'saved'; readonly task: InstanceType<typeof Task> }
-  | { readonly kind: 'unchanged' };
+  { readonly kind: 'saved'; readonly task: InstanceType<typeof Task> } | { readonly kind: 'unchanged' };
 
 const sameIdSet = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && new Set(a).size === b.length && a.every(id => b.includes(id));
@@ -58,11 +57,15 @@ export class BoardDetailService {
     const tasks = await readFirst(this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('id', taskId) }));
     if (tasks.length === 0) throw new BoardDomainError('task_not_found', `任务不存在：${taskId}`);
     const task = tasks[0];
-    const columns = await readFirst(this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', task.columnId) }));
+    const columns = await readFirst(
+      this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', task.columnId) })
+    );
     if (columns.length === 0 || columns[0].boardId !== boardId) {
       throw new BoardDomainError('cross_board', '任务不属于当前看板');
     }
-    const links = await readFirst(this.rxdb.entityManager.getRepository(TaskLabel).find({ where: whereEq('taskId', taskId) }));
+    const links = await readFirst(
+      this.rxdb.entityManager.getRepository(TaskLabel).find({ where: whereEq('taskId', taskId) })
+    );
     return {
       title: task.title,
       description: task.description ?? null,
@@ -100,7 +103,11 @@ export class BoardDetailService {
       if (task.columnId !== snapshot.columnId) {
         throw new BoardDomainError('task_stale', '任务已被移动，请刷新后重新确认');
       }
-      if (task.title !== snapshot.title || (task.description ?? null) !== snapshot.description || (task.dueDate ?? null) !== snapshot.dueDate) {
+      if (
+        task.title !== snapshot.title ||
+        (task.description ?? null) !== snapshot.description ||
+        (task.dueDate ?? null) !== snapshot.dueDate
+      ) {
         throw new BoardDomainError('task_stale', '任务字段已被其它入口修改，请刷新后重新确认');
       }
 
@@ -111,7 +118,11 @@ export class BoardDetailService {
       }
       const draftIds = [...new Set(draft.labelIds)];
       const labels =
-        draftIds.length === 0 ? [] : await executor.getRepository(BoardLabel).find({ where: { combinator: 'and', rules: [inRule('id', draftIds)] } });
+        draftIds.length === 0 ?
+          []
+        : await executor
+            .getRepository(BoardLabel)
+            .find({ where: { combinator: 'and', rules: [inRule('id', draftIds)] } });
       const labelById = new Map(labels.map(label => [label.id, label]));
       for (const labelId of draftIds) {
         const label = labelById.get(labelId);
@@ -123,7 +134,11 @@ export class BoardDetailService {
       const toRemove = currentIds.filter(id => !draftIds.includes(id));
 
       let changed = false;
-      if (task.title !== title || (task.description ?? null) !== description || (task.dueDate ?? null) !== draft.dueDate) {
+      if (
+        task.title !== title ||
+        (task.description ?? null) !== description ||
+        (task.dueDate ?? null) !== draft.dueDate
+      ) {
         const patch: Partial<InstanceType<typeof Task>> = {};
         if (task.title !== title) patch.title = title;
         if ((task.description ?? null) !== description) patch.description = description;
@@ -146,7 +161,9 @@ export class BoardDetailService {
       return changed;
     });
     if (!saved) return { kind: 'unchanged' };
-    const refreshed = await readFirst(this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('id', taskId) }));
+    const refreshed = await readFirst(
+      this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('id', taskId) })
+    );
     return { kind: 'saved', task: refreshed[0] };
   }
 }

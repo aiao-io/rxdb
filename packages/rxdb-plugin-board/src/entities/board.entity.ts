@@ -1,7 +1,7 @@
 import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
 
 /**
- * `Board` —— 看板的板：标题必填，描述可选；列与板级标签都挂在板上（US-526 / US-528）。
+ * `Board` —— 看板的板：标题必填，描述可选；列与板级标签都挂在板上（US-534 / US-536）。
  */
 @Entity({
   name: 'Board',

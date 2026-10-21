@@ -10,10 +10,10 @@ import { Board, BoardLabel, Column, Task, TaskLabel } from '../entities/index.js
 import { matchAll, readFirst, whereEq } from '../query.js';
 
 /**
- * 删除确认 / 级联 / 撤销（US-526 AC#6 / #7 / #9 / #11）：真实 PGlite + 历史插件。
- * 带标签的级联扩展随 US-528 验收（schema 自首版就含标签表，本套用例已含关联行）。
+ * 删除确认 / 级联 / 撤销（US-534 AC#6 / #7 / #9 / #11）：真实 PGlite + 历史插件。
+ * 带标签的级联扩展随 US-536 验收（schema 自首版就含标签表，本套用例已含关联行）。
  */
-describe('BoardDeleteService 删除级联与撤销（US-526）', () => {
+describe('BoardDeleteService 删除级联与撤销（US-534）', () => {
   let rxdb: RxDB;
   let domain: BoardDomain;
   let deletes: BoardDeleteService;

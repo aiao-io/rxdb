@@ -2,7 +2,7 @@ import { test as base, expect, type Page } from '@playwright/test';
 import { APP_BASE_URL } from './env';
 
 /**
- * 看板 demo 首轮闭环（US-532 阶段 A AC#2～8）：
+ * 看板 demo 首轮闭环（US-540 阶段 A AC#2～8）：
  * 每个用例都在全新浏览器上下文从启动页开始（种子 / 空库初态按 AC 各自指定），
  * 拖拽用真实拖拽且拖后刷新读回（US-028 AC#18 先例）。
  */
@@ -187,7 +187,7 @@ test('AC#6：导出 → 清站点数据 → 启动页从备份恢复 → 重开�
   await page.reload();
   await expect(page.getByTestId('startup-page')).toBeVisible();
 
-  // 选择前没有连接、没有引擎表或种子：启动页可见即证明（US-529 AC#3）
+  // 选择前没有连接、没有引擎表或种子：启动页可见即证明（US-537 AC#3）
   // 从备份恢复
   await page.getByTestId('restore-file').setInputFiles(archivePath!);
   await expect(page.getByTestId('board-view')).toBeVisible({ timeout: 30000 });

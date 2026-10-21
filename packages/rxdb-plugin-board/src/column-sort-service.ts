@@ -1,15 +1,22 @@
-import { assertEntityOperationAllowed, assertSortOrderKey, getEntitySync, SyncType, type RxDB, type UUID } from '@aiao/rxdb';
+import {
+  assertEntityOperationAllowed,
+  assertSortOrderKey,
+  getEntitySync,
+  SyncType,
+  type RxDB,
+  type UUID
+} from '@aiao/rxdb';
 import { generateKeysBetween } from '@aiao/utils';
 import { firstValueFrom } from 'rxjs';
 
 import { Column } from './entities/column.entity.js';
 import { Task } from './entities/task.entity.js';
 import { BoardDomainError } from './errors.js';
-import { assertBoardWritable, type BoardHostContext, requireBoardId } from './host-context.js';
+import { assertBoardWritable, requireBoardId, type BoardHostContext } from './host-context.js';
 import { whereEq } from './query.js';
 import { BoardWriteNotifier, describeBoardFailure } from './write-notifier.js';
 
-/** 本列排序方式（US-527 AC#4 / #10）。 */
+/** 本列排序方式（US-535 AC#4 / #10）。 */
 export type ColumnSortMode = 'dueDate' | 'title';
 
 /** 本列排序结果：是否实际写入（已是目标顺序则零写）。 */
@@ -20,9 +27,17 @@ export interface ColumnSortResult {
 /** 标题比较器：`Intl.Collator('zh-Hans-CN', { numeric: true })`，重名按 `id`。 */
 const TITLE_COLLATOR = new Intl.Collator('zh-Hans-CN', { numeric: true });
 
-type SortableTask = { readonly id: UUID; readonly title: string; readonly dueDate: string | null; readonly sortOrder: string };
+type SortableTask = {
+  readonly id: UUID;
+  readonly title: string;
+  readonly dueDate: string | null;
+  readonly sortOrder: string;
+};
 
-const compareById = (a: SortableTask, b: SortableTask): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+const compareById = (a: SortableTask, b: SortableTask): number =>
+  a.id < b.id ? -1
+  : a.id > b.id ? 1
+  : 0;
 
 const compareByTitle = (a: SortableTask, b: SortableTask): number => {
   const order = TITLE_COLLATOR.compare(a.title, b.title);
@@ -38,7 +53,7 @@ const compareByDueDate = (a: SortableTask, b: SortableTask): number => {
 };
 
 /**
- * 本列排序（US-527）：列菜单「按截止日排序」「按标题排序」的一次性重排。
+ * 本列排序（US-535）：列菜单「按截止日排序」「按标题排序」的一次性重排。
  *
  * @remarks
  * 不是持久排序模式：之后新建的任务仍追加到列尾，拖拽照常生效。

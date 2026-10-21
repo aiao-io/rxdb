@@ -7,8 +7,7 @@
  * @packageDocumentation
  */
 
-export { useBoard, LAST_BOARD_KEY, type UseBoardActions, type UseBoardOptions, type UseBoardReturn, type UseBoardStorage } from './use-board.js';
-export { BoardView, type BoardViewProps } from './board-view.js';
+export { BoardDomainError, resolveCardDrop, resolveColumnDrop } from '@aiao/rxdb-plugin-board';
 export type {
   Board,
   BoardHostContext,
@@ -24,4 +23,12 @@ export type {
   TaskDraft,
   TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
-export { BoardDomainError, resolveCardDrop, resolveColumnDrop } from '@aiao/rxdb-plugin-board';
+export { BoardView, type BoardViewProps } from './board-view.js';
+export {
+  LAST_BOARD_KEY,
+  useBoard,
+  type UseBoardActions,
+  type UseBoardOptions,
+  type UseBoardReturn,
+  type UseBoardStorage
+} from './use-board.js';

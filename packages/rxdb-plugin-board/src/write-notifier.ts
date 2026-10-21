@@ -1,7 +1,7 @@
 import { Observable, Subject } from 'rxjs';
 
 /**
- * @fileoverview 看板写入状态机（US-527 失败恢复）
+ * @fileoverview 看板写入状态机（US-535 失败恢复）
  *
  * 移动与本列排序的落库结果经这里发布：成功发布已提交事件，失败发布原因并要求
  * 调用方重查已提交数据（UI 据此恢复显示，不复活已删除邻居、不静默重试）。
@@ -32,6 +32,7 @@ export class BoardWriteNotifier {
 
 /** 把任意错误归纳成可展示的原因（不解析 message 文本的调用方也拿得到稳定语义）。 */
 export const describeBoardFailure = (error: unknown): string => {
-  if (error instanceof Error) return error.name === 'SortOrderError' || error.name === 'RxDBError' ? error.name : error.message;
+  if (error instanceof Error)
+    return error.name === 'SortOrderError' || error.name === 'RxDBError' ? error.name : error.message;
   return String(error);
 };

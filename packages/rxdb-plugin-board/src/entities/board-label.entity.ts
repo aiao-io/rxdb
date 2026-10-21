@@ -1,7 +1,7 @@
 import { Entity, EntityBase, PropertyType, RelationKind, type UUID } from '@aiao/rxdb';
 
 /**
- * `BoardLabel` —— 板级标签定义：板内唯一的名字 + 颜色，任务以多对多引用（US-528）。
+ * `BoardLabel` —— 板级标签定义：板内唯一的名字 + 颜色，任务以多对多引用（US-536）。
  *
  * @remarks
  * 唯一约束 `(boardId, name)` 精确比较、保留大小写（`normalized` 为假），
@@ -17,7 +17,13 @@ import { Entity, EntityBase, PropertyType, RelationKind, type UUID } from '@aiao
     { name: 'color', type: PropertyType.string, displayName: '颜色' }
   ],
   relations: [
-    { name: 'board', columnName: 'board_id', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Board', mappedProperty: 'labels' },
+    {
+      name: 'board',
+      columnName: 'board_id',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'Board',
+      mappedProperty: 'labels'
+    },
     { name: 'tasks', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'TaskLabel', mappedProperty: 'label' }
   ],
   indexes: [{ name: 'board_name', properties: ['boardId', 'name'], unique: true }]

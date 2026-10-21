@@ -1,5 +1,5 @@
 ---
-id: US-530
+id: US-538
 title: 看板任务搜索：FTS 接线
 status: Backlog
 priority: Low
@@ -96,7 +96,7 @@ tags: [domain, board, search]
 `SearchUnsupportedAdapterError`，可先用公开的 `lookupSearchBackendDescriptor` 预检——这两种禁用入口。
 插件安装失败（如已有库的可搜索字段集变化抛 `SearchSchemaMismatchError`）会让 `plugin.ready` reject，
 宿主 [`awaitPluginInstalls`](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts) 随即抛出，整个 `db.connect()` 失败——
-这属于应用的连接失败页，不在搜索框局部重试；可搜索字段随首版 schema 定稿（US-528）正是为了不在升级时触发它。
+这属于应用的连接失败页，不在搜索框局部重试；可搜索字段随首版 schema 定稿（US-536）正是为了不在升级时触发它。
 查询执行失败经句柄 `error$` 给出 `SearchExecutionError`，可 `retry()`。
 
 **中文搜索沿用实际后端契约。** sqlite-wasm 的 FTS5 索引侧同时写单字与双字（[`cjk-bigram.ts`](../../../packages/rxdb-adapter-sqlite-core/src/fts5/cjk-bigram.ts)
@@ -104,7 +104,7 @@ tags: [domain, board, search]
 不承诺词典级分词与召回排序，不改变既有搜索引擎的召回预算。
 
 **关闭条件**：板内隔离、完整分页、结果定位、变更重查与请求失效全部可复验；不支持、查询失败与连接失败能被用户区分。
-US-530 依赖 US-526 / US-528 的实体与字段，搜索 UI 由 US-531 阶段 B 消费；本故事不反向依赖 UI。
+US-538 依赖 US-534 / US-536 的实体与字段，搜索 UI 由 US-539 阶段 B 消费；本故事不反向依赖 UI。
 
 ## 价值待证
 
@@ -120,5 +120,5 @@ US-530 依赖 US-526 / US-528 的实体与字段，搜索 UI 由 US-531 阶段 B
 
 - [epic-011 任务看板领域模型](../../epics/epic-011-task-board-domain-model.md)
 - [US-702 全文搜索](../future/US-702-full-text-search.md) — 全文引擎（FTS5 与中日韩单双字补偿）、搜索句柄与三端绑定
-- [US-526 看板领域模型骨架](US-526-board-column-task-skeleton.md) — 前置：task / column 归属
-- [US-528 任务详情与编辑](US-528-task-detail-editing.md) — 前置：task 描述字段与可搜索声明
+- [US-534 看板领域模型骨架](US-534-board-column-task-skeleton.md) — 前置：task / column 归属
+- [US-536 任务详情与编辑](US-536-task-detail-editing.md) — 前置：task 描述字段与可搜索声明

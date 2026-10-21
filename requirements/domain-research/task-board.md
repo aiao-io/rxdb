@@ -2,7 +2,7 @@
 
 > **已孵化（2026-10-19，owner 决定）**：本文件冻结为设计依据，不再独立演进——候选已建成
 > [epic-011 任务看板领域模型](../epics/epic-011-task-board-domain-model.md) 与
-> [US-526～US-533](../stories/domain/)，内容并入对应故事（孵化即冻结，见
+> [US-534～US-541](../stories/domain/)，内容并入对应故事（孵化即冻结，见
 > [本目录 README](README.md) 维护规则 3）。下文保留候选定位，执行范围与能力边界以
 > 各故事与 [capability-matrix](../capability-matrix.md) 为准。
 >
@@ -29,8 +29,8 @@ Jira（重协作侧）。
 ## 引擎缺口
 
 单人版按现有公开能力设计，无计划内引擎前置；可组合事务与板内搜索的实现边界见
-[US-527](../stories/domain/US-527-cross-column-move-ordering.md) 与
-[US-530](../stories/domain/US-530-board-task-search.md)。团队版不能由单人底座直接推定完成。
+[US-535](../stories/domain/US-535-cross-column-move-ordering.md) 与
+[US-538](../stories/domain/US-538-board-task-search.md)。团队版不能由单人底座直接推定完成。
 
 ## 引擎外成本
 

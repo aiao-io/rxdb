@@ -1,15 +1,15 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { BoardView } from '../board-view.js';
 
 /**
- * BoardView 组件（US-531 阶段 A 的 React 半边）：与 Angular 同组验收语义。
+ * BoardView 组件（US-539 阶段 A 的 React 半边）：与 Angular 同组验收语义。
  * 真实拖拽与 a11y 在 demo e2e。
  */
 describe('BoardView（React 视图）', () => {
@@ -41,7 +41,12 @@ describe('BoardView（React 视图）', () => {
     await waitFor(() => expect(screen.getAllByTestId('column')).toHaveLength(4));
     await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(12));
     expect(screen.getAllByTestId('label-chip')).toHaveLength(4);
-    expect(screen.getAllByTestId('column-title').map(el => el.textContent)).toEqual(['To do', 'Doing', 'Done', 'Ideas']);
+    expect(screen.getAllByTestId('column-title').map(el => el.textContent)).toEqual([
+      'To do',
+      'Doing',
+      'Done',
+      'Ideas'
+    ]);
     fixture.unmount();
   });
 

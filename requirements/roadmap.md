@@ -31,7 +31,7 @@
 （驱动者 = 完整功能的演示应用，见 epic [解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)），
 排在[批次 4](#批次-4bom-首轮切片epic-009-已解锁)。从它拆出的 [US-030](stories/core/US-030-declarative-storage-constraints.md)
 阶段 A～C 仍在[批次 3](#批次-3能力补齐可并行开-pr)，是首轮切片第 1 步的前置。
-[epic-011 任务看板领域模型](epics/epic-011-task-board-domain-model.md) 范围共 8 条，其中 US-526～US-532 共 7 条于 2026-10-19 由
+[epic-011 任务看板领域模型](epics/epic-011-task-board-domain-model.md) 范围共 8 条，其中 US-534～US-540 共 7 条于 2026-10-19 由
 owner 解锁（驱动者 = 下一个完整演示应用，见 epic [解锁记录](epics/epic-011-task-board-domain-model.md#价值待证整个-epic)），
 排在[批次 6](#批次-6看板首轮切片epic-011-已解锁)，与批次 3 / 4 无先后依赖。
 
@@ -42,7 +42,7 @@ owner 解锁（驱动者 = 下一个完整演示应用，见 epic [解锁记录]
 | [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md)           | 📝 Backlog     | 未立项；**价值待证**（评审 `git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`：已去掉多租户，仍无具名使用方）。前置 US-027 与 US-218 均已 Done                                                                                                                                                                                                                                                                                                                                                                                                      | 立项池   |
 | [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                                  | 📝 Backlog     | 未立项（待 owner 定批次）；阶段 A（盘点与可行性）→ B（`@aiao/rxdb-i18n` 核心 + 三端 `useI18n()`）→ C（rxdb-model 去硬编码 + 三端 demo 切换器）均无硬前置、全本地能力；阶段 D（目录 QueryCache 分发 + DevTools 面板）复用已 Done 的 US-212 / US-023 / US-902，独立后置关闭。与 US-910 的协调点：fallback 链与「用户显示偏好」只实现一份；`rxdb-plugin-i18n`（数据翻译）与 `@aiao/rxdb-i18n`（UI 文案）包名重叠由 owner 裁决                                                                                                                                                  | 立项池   |
 | [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md) 19 条（已解锁 2026-10-12）                | 📝 Backlog     | 第 0 步复核决策 1～8 与演示范围（US-525 阶段 A～F）→ 首轮切片第 1～4 步 → 演示阶段 B～F 的消费方按前置接入；US-513 阶段 B 联产品与 US-519 AC#3 / #7 仍价值待证                                                                                                                                                                                                                                                                                                                                                                                                              | 批次 4   |
-| [epic-011 任务看板领域模型](epics/epic-011-task-board-domain-model.md) 8 条（7 条已解锁，团队版待证） | 🚧 In Progress | 首轮切片第 1 步：US-526 + US-527 → 第 2 步：US-528 + US-529 → 第 3 步：US-531 阶段 A + US-532 阶段 A → US-530 → US-531 B → US-532 B 后续接入；US-533 团队版仍价值待证                                                                                                                                                                                                                                                                                                                                                                                                       | 批次 5   |
+| [epic-011 任务看板领域模型](epics/epic-011-task-board-domain-model.md) 8 条（7 条已解锁，团队版待证） | 🚧 In Progress | 首轮切片第 1 步：US-534 + US-535 → 第 2 步：US-536 + US-537 → 第 3 步：US-539 阶段 A + US-540 阶段 A → US-538 → US-539 B → US-540 B 后续接入；US-541 团队版仍价值待证                                                                                                                                                                                                                                                                                                                                                                                                       | 批次 5   |
 
 ## 即办清单
 
@@ -87,15 +87,15 @@ owner 2026-10-12 解锁 [epic-009](epics/epic-009-bom-domain-model.md)：驱动�
 ### 批次 6：看板首轮切片（epic-011 已解锁）
 
 owner 2026-10-19 解锁 [epic-011](epics/epic-011-task-board-domain-model.md)：驱动者 = **下一个完整演示应用**——
-`apps/dev-rxdb-board` 独立 app 展示全域能力（[US-532](stories/domain/US-532-board-end-to-end-demo.md) 阶段 A～B）。
-范围共 8 条，仅 US-526～US-532 共 7 条已解锁，US-533 仍价值待证。与批次 3 / 4 无先后依赖；
+`apps/dev-rxdb-board` 独立 app 展示全域能力（[US-540](stories/domain/US-540-board-end-to-end-demo.md) 阶段 A～B）。
+范围共 8 条，仅 US-534～US-540 共 7 条已解锁，US-541 仍价值待证。与批次 3 / 4 无先后依赖；
 首轮使用已有公开能力，在应用层补齐 executor 本列排序、落点换算、板级搜索协调与连接前恢复 / 重载切换流程。
 
 | 顺序 | 交付                                                                                      | 关闭判据                                                                                                                                                           |
 | ---- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0    | 演示范围与默认决策 1～6 对照种子样本（US-532 阶段 A～B 覆盖的 story）复核，并实测存储组合 | 决策与样本无冲突；核对事务组合、连接前恢复与重载切换、多板搜索和三端阶段边界；sqlite-wasm 主线程 `vfs: 'idb'` 实测多页并发写、多页导出、恢复到新库名与中文词中检索 |
-| 1～3 | 首轮切片第 1～3 步：US-526 + US-527、US-528 + US-529、US-531 阶段 A + US-532 阶段 A       | 各步「可以验收」子集见 [epic 切片表](epics/epic-011-task-board-domain-model.md#首轮可开工切片)；故事不提前置 Done                                                  |
-| 后续 | US-530 → US-531 阶段 B → US-532 阶段 B                                                    | US-530 在 US-526 / US-528 就绪后可与 UI 阶段 A 并行；US-533 团队版仍价值待证（入场条件 = 具名团队「离线拖拽任务、回网后互相覆盖」的具体症状）                      |
+| 0    | 演示范围与默认决策 1～6 对照种子样本（US-540 阶段 A～B 覆盖的 story）复核，并实测存储组合 | 决策与样本无冲突；核对事务组合、连接前恢复与重载切换、多板搜索和三端阶段边界；sqlite-wasm 主线程 `vfs: 'idb'` 实测多页并发写、多页导出、恢复到新库名与中文词中检索 |
+| 1～3 | 首轮切片第 1～3 步：US-534 + US-535、US-536 + US-537、US-539 阶段 A + US-540 阶段 A       | 各步「可以验收」子集见 [epic 切片表](epics/epic-011-task-board-domain-model.md#首轮可开工切片)；故事不提前置 Done                                                  |
+| 后续 | US-538 → US-539 阶段 B → US-540 阶段 B                                                    | US-538 在 US-534 / US-536 就绪后可与 UI 阶段 A 并行；US-541 团队版仍价值待证（入场条件 = 具名团队「离线拖拽任务、回网后互相覆盖」的具体症状）                      |
 
 ### 线 A：桥接版本发布（owner 门控）
 

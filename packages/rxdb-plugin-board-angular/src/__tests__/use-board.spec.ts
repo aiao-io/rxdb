@@ -1,14 +1,14 @@
-import { TestBed } from '@angular/core/testing';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { useBoard, type UseBoardReturn } from '../use-board.js';
 
 /**
- * useBoard 桥接（US-531 阶段 A 的领域数据半边）：真实 PGlite + 历史插件。
+ * useBoard 桥接（US-539 阶段 A 的领域数据半边）：真实 PGlite + 历史插件。
  * 三端视图与交互在各自 demo 的 e2e 验收；本套用例钉住 signal 桥接、
  * 切板过滤、动作透传与恢复中门禁。
  */
@@ -104,7 +104,9 @@ describe('useBoard（Angular 桥接）', () => {
 
     board.setRestoring(true);
     expect(board.restoring()).toBe(true);
-    await expect(board.actions.createTask({ columnId: c1.id, title: 'x' })).rejects.toMatchObject({ code: 'restore_in_progress' });
+    await expect(board.actions.createTask({ columnId: c1.id, title: 'x' })).rejects.toMatchObject({
+      code: 'restore_in_progress'
+    });
     await expect(board.actions.createColumn({ title: 'C2' })).rejects.toMatchObject({ code: 'restore_in_progress' });
 
     board.setRestoring(false);
@@ -135,7 +137,14 @@ describe('useBoard（Angular 桥接）', () => {
 
     const result = await board.actions.sortColumn(c1.id, 'title');
     expect(result.written).toBe(true);
-    await waitFor(() => board.tasks().map(t => t.title).join(',') === 'a,b,c', '排序生效');
+    await waitFor(
+      () =>
+        board
+          .tasks()
+          .map(t => t.title)
+          .join(',') === 'a,b,c',
+      '排序生效'
+    );
     await waitFor(() => board.writeEvent()?.kind === 'sort-committed', '写入事件');
   });
 });

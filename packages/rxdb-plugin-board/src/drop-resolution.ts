@@ -1,7 +1,7 @@
 import { reorderTargetForDrop, type UUID } from '@aiao/rxdb';
 
 /**
- * @fileoverview 落点换算（US-527）
+ * @fileoverview 落点换算（US-535）
  *
  * 核心包内一份纯函数换算表，三端只采集指针事件后调用同一份函数。
  * 仓库里没有可复用的看板落点实现：US-031 的 `resolveTreeDrop` / `treeDropPosition`
@@ -23,7 +23,12 @@ export interface CardDropColumnView {
 }
 
 /** 被拖行当前的前后邻居是否恰好就是目标（原位落点零写）。 */
-const isCurrentPlacement = (groupIds: readonly UUID[], movedId: UUID, prevId: UUID | null, nextId: UUID | null): boolean => {
+const isCurrentPlacement = (
+  groupIds: readonly UUID[],
+  movedId: UUID,
+  prevId: UUID | null,
+  nextId: UUID | null
+): boolean => {
   const index = groupIds.indexOf(movedId);
   if (index < 0) return false;
   return (groupIds[index - 1] ?? null) === prevId && (groupIds[index + 1] ?? null) === nextId;
@@ -44,7 +49,9 @@ export const resolveCardDrop = (
   x: number,
   y: number
 ): CardDropTarget | null => {
-  const column = columns.find(view => x >= view.rect.left && x < view.rect.right && y >= view.rect.top && y < view.rect.bottom);
+  const column = columns.find(
+    view => x >= view.rect.left && x < view.rect.right && y >= view.rect.top && y < view.rect.bottom
+  );
   if (!column) return null;
 
   // 卡片上下两半：上半 before、下半 after；拖到自己卡片上 = 原位，零写
@@ -53,12 +60,14 @@ export const resolveCardDrop = (
       if (card.id === movedId) return null;
       const position = y < (card.top + card.bottom) / 2 ? 'before' : 'after';
       const target = reorderTargetForDrop(column.taskIds, movedId, card.id, position);
-      return target ? { kind: 'between', columnId: column.columnId, prevId: target.prevId, nextId: target.nextId } : null;
+      return target ?
+          { kind: 'between', columnId: column.columnId, prevId: target.prevId, nextId: target.nextId }
+        : null;
     }
   }
 
   if (column.taskIds.length === 0) {
-    // 空列：整区都是列尾，追加到空组末尾（US-527 AC#2 的 `{ group: { columnId } }` 目标）
+    // 空列：整区都是列尾，追加到空组末尾（US-535 AC#2 的 `{ group: { columnId } }` 目标）
     return { kind: 'end', columnId: column.columnId };
   }
 

@@ -1,6 +1,11 @@
 import type { RxDB } from '@aiao/rxdb';
 import { sqliteWasmFactory } from '@aiao/rxdb-adapter-sqlite-wasm/testing';
-import { rxDBPluginSearch, type RxDBPluginSearch, type SearchHandle, type SearchResult } from '@aiao/rxdb-plugin-search';
+import {
+  rxDBPluginSearch,
+  type RxDBPluginSearch,
+  type SearchHandle,
+  type SearchResult
+} from '@aiao/rxdb-plugin-search';
 import { filter, firstValueFrom, take, type Observable } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -9,13 +14,13 @@ import { BoardSearchSource } from '../search/board-search-source.js';
 import { ISOLATION_BOARD_ID, RELEASE_BOARD_ID, seedReleaseBoardDataset } from '../testing/index.js';
 
 /**
- * 板内搜索的真实 FTS 组合（US-530）：sqlite-wasm FTS5 中日韩单双字索引。
+ * 板内搜索的真实 FTS 组合（US-538）：sqlite-wasm FTS5 中日韩单双字索引。
  *
  * 索引侧同时写单字与双字，查询侧两字以上编译成双字的 AND 链，所以「登录」
- * 能命中「修复登录 bug」这类词中位置（US-530 技术笔记「中文搜索沿用实际后端契约」）。
+ * 能命中「修复登录 bug」这类词中位置（US-538 技术笔记「中文搜索沿用实际后端契约」）。
  * 领域源的过滤 / 分页 / 失效逻辑在 node 趟（桩上游）验收，本趟只验真实引擎组合。
  */
-describe('BoardSearchSource 真实 sqlite-wasm FTS5（US-530）', () => {
+describe('BoardSearchSource 真实 sqlite-wasm FTS5（US-538）', () => {
   const adapters: { disconnect(): Promise<void> }[] = [];
   let rxdb: RxDB;
   let ctx: { boardId: string | null; restoring: boolean };
@@ -48,7 +53,12 @@ describe('BoardSearchSource 真实 sqlite-wasm FTS5（US-530）', () => {
 
   /** 等句柄离开 loading / idle 后读取结果快照。 */
   const settled = async (handle: SearchHandle): Promise<readonly SearchResult[]> => {
-    await firstValueFrom(handle.state$.pipe(filter(s => s === 'success' || s === 'empty' || s === 'error'), take(1)));
+    await firstValueFrom(
+      handle.state$.pipe(
+        filter(s => s === 'success' || s === 'empty' || s === 'error'),
+        take(1)
+      )
+    );
     return firstValueFrom(handle.results$ as Observable<readonly SearchResult[]>);
   };
 
@@ -73,14 +83,21 @@ describe('BoardSearchSource 真实 sqlite-wasm FTS5（US-530）', () => {
       rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', ISOLATION_BOARD_ID) })
     );
     const isolationIds = new Set(
-      (await readFirst(rxdb.entityManager.getRepository(Task).find({ where: whereEq('columnId', isolationColumns[0].id) }))).map(
-        task => task.id
-      )
+      (
+        await readFirst(
+          rxdb.entityManager.getRepository(Task).find({ where: whereEq('columnId', isolationColumns[0].id) })
+        )
+      ).map(task => task.id)
     );
 
     // 上游原始顺序：隔离板短标题 bm25 高排位（第 0 步实测的排位断言）
     const upstream = plugin.searchCollection('Task', '同步', { pageSize: 30 });
-    const upstreamHits = await firstValueFrom(upstream.results$.pipe(filter(list => list.length > 0), take(1)));
+    const upstreamHits = await firstValueFrom(
+      upstream.results$.pipe(
+        filter(list => list.length > 0),
+        take(1)
+      )
+    );
     const firstHitId = upstreamHits[0].id;
     const isolationFirst = upstreamHits.findIndex(hit => isolationIds.has(hit.id));
     const mainFirst = upstreamHits.findIndex(hit => !isolationIds.has(hit.id));
@@ -106,9 +123,11 @@ describe('BoardSearchSource 真实 sqlite-wasm FTS5（US-530）', () => {
       rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', ISOLATION_BOARD_ID) })
     );
     const isolationIds = new Set(
-      (await readFirst(rxdb.entityManager.getRepository(Task).find({ where: whereEq('columnId', isolationColumns[0].id) }))).map(
-        task => task.id
-      )
+      (
+        await readFirst(
+          rxdb.entityManager.getRepository(Task).find({ where: whereEq('columnId', isolationColumns[0].id) })
+        )
+      ).map(task => task.id)
     );
     ctx.boardId = ISOLATION_BOARD_ID;
     const handle = searchBoard('同步');

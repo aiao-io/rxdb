@@ -6,17 +6,17 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BoardDomain } from '../board-domain.js';
 import { BoardColumnSortService } from '../column-sort-service.js';
 import { BoardDeleteService } from '../delete-service.js';
-import { BoardMoveService } from '../move-service.js';
 import { resolveCardDrop, type CardDropColumnView } from '../drop-resolution.js';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '../entities/index.js';
-import { BoardWriteNotifier } from '../write-notifier.js';
+import { BoardMoveService } from '../move-service.js';
 import { matchAll, readFirst, whereEq } from '../query.js';
+import { BoardWriteNotifier } from '../write-notifier.js';
 
 /**
- * 跨列移动 / 同列改序 / 本列排序（US-527 AC#1～12 服务层）：真实 PGlite + 历史插件。
- * 拖拽几何由核心包换算表驱动；三端 Playwright 真实拖拽在 US-531 阶段 A 验收。
+ * 跨列移动 / 同列改序 / 本列排序（US-535 AC#1～12 服务层）：真实 PGlite + 历史插件。
+ * 拖拽几何由核心包换算表驱动；三端 Playwright 真实拖拽在 US-539 阶段 A 验收。
  */
-describe('BoardMoveService / BoardColumnSortService（US-527）', () => {
+describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
   let rxdb: RxDB;
   let domain: BoardDomain;
   let moves: BoardMoveService;
@@ -43,7 +43,13 @@ describe('BoardMoveService / BoardColumnSortService（US-527）', () => {
     domain = new BoardDomain(rxdb, () => ctx);
     notifier = new BoardWriteNotifier();
     events = [];
-    notifier.events$.subscribe(event => events.push({ kind: event.kind, taskId: 'taskId' in event ? event.taskId : undefined, columnId: 'columnId' in event ? event.columnId : undefined }));
+    notifier.events$.subscribe(event =>
+      events.push({
+        kind: event.kind,
+        taskId: 'taskId' in event ? event.taskId : undefined,
+        columnId: 'columnId' in event ? event.columnId : undefined
+      })
+    );
     moves = new BoardMoveService(rxdb, () => ctx, notifier);
     sorts = new BoardColumnSortService(rxdb, () => ctx, notifier);
   });
@@ -155,9 +161,13 @@ describe('BoardMoveService / BoardColumnSortService（US-527）', () => {
     const otherBoard = await domain.createBoard({ title: '异板' });
     ctx.boardId = otherBoard.id;
     const foreignColumn = await domain.createColumn({ title: '异板列' });
-    ctx.boardId = (await readFirst(rxdb.entityManager.getRepository(Board).find({ where: whereEq('title', '看板') })))[0].id;
+    ctx.boardId = (
+      await readFirst(rxdb.entityManager.getRepository(Board).find({ where: whereEq('title', '看板') }))
+    )[0].id;
 
-    await expect(moves.moveTask(t1[0], { kind: 'end', columnId: '00000000-0000-4000-8000-0000000000ff' })).rejects.toMatchObject({
+    await expect(
+      moves.moveTask(t1[0], { kind: 'end', columnId: '00000000-0000-4000-8000-0000000000ff' })
+    ).rejects.toMatchObject({
       code: 'column_not_found'
     });
     await expect(moves.moveTask(t1[0], { kind: 'end', columnId: foreignColumn.id })).rejects.toMatchObject({
@@ -176,9 +186,19 @@ describe('BoardMoveService / BoardColumnSortService（US-527）', () => {
     // b2 下半 → after b2 → 邻居 (b2, b3)
     expect(resolveCardDrop(geo, t1[0], 150, 175)).toMatchObject({ kind: 'between', prevId: t2[1], nextId: t2[2] });
     // 列首空区（拖 a3 到列首）
-    expect(resolveCardDrop(geo, t1[2], 50, 0)).toMatchObject({ kind: 'between', columnId: c1.id, prevId: null, nextId: t1[0] });
+    expect(resolveCardDrop(geo, t1[2], 50, 0)).toMatchObject({
+      kind: 'between',
+      columnId: c1.id,
+      prevId: null,
+      nextId: t1[0]
+    });
     // 列尾空区
-    expect(resolveCardDrop(geo, t1[0], 50, 390)).toMatchObject({ kind: 'between', columnId: c1.id, prevId: t1[2], nextId: null });
+    expect(resolveCardDrop(geo, t1[0], 50, 390)).toMatchObject({
+      kind: 'between',
+      columnId: c1.id,
+      prevId: t1[2],
+      nextId: null
+    });
     // 空列整区
     expect(resolveCardDrop(geo, t1[0], 250, 50)).toEqual({ kind: 'end', columnId: c3.id });
     // 指针不在任何列容器

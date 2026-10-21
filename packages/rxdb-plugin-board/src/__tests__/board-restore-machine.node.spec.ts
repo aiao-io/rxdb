@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  initialRestoreSnapshot,
-  restoreStateMachine,
-  type RestoreSnapshot
-} from '../restore-machine.js';
-import {
   clearPendingSwitch,
   clearRestoringMarker,
   nextRestoreDbName,
@@ -17,6 +12,7 @@ import {
   writeRestoringMarker,
   type BoardStorage
 } from '../board-storage.js';
+import { initialRestoreSnapshot, restoreStateMachine, type RestoreSnapshot } from '../restore-machine.js';
 
 /** 内存存储：代替浏览器 localStorage，纯函数语义可复验。 */
 const memoryStorage = (): BoardStorage & { data: Map<string, string> } => {
@@ -30,10 +26,10 @@ const memoryStorage = (): BoardStorage & { data: Map<string, string> } => {
 };
 
 /**
- * 恢复编排状态机（US-529 AC#10）：同一组输入驱动启动恢复、已有库恢复、
+ * 恢复编排状态机（US-537 AC#10）：同一组输入驱动启动恢复、已有库恢复、
  * 损坏归档、取消与读回失败，产出相同的状态序列与失败去向。
  */
-describe('restoreStateMachine（US-529 AC#10）', () => {
+describe('restoreStateMachine（US-537 AC#10）', () => {
   const drive = (inputs: Parameters<typeof restoreStateMachine>[1][], from: RestoreSnapshot = initialRestoreSnapshot) =>
     inputs.reduce((snapshot, input) => restoreStateMachine(snapshot, input), from);
 
@@ -65,19 +61,12 @@ describe('restoreStateMachine（US-529 AC#10）', () => {
     expect(cancelled).toEqual(initialRestoreSnapshot);
 
     // 恢复中取消：清理标记与目标
-    const midCancel = drive([
-      { kind: 'choose_restore' },
-      { kind: 'archive_selected' },
-      { kind: 'cancel' }
-    ]);
+    const midCancel = drive([{ kind: 'choose_restore' }, { kind: 'archive_selected' }, { kind: 'cancel' }]);
     expect(midCancel).toEqual(initialRestoreSnapshot);
   });
 
   it('损坏 / 不兼容归档：失败去向可判别，未完成目标不作为活动位置', () => {
-    const end = drive([
-      { kind: 'choose_restore' },
-      { kind: 'archive_invalid', reason: 'incompatible_archive' }
-    ]);
+    const end = drive([{ kind: 'choose_restore' }, { kind: 'archive_invalid', reason: 'incompatible_archive' }]);
     expect(end.state).toBe('failed');
     expect(end.failure).toEqual({ kind: 'archive_invalid', reason: 'incompatible_archive' });
     expect(end.pendingSwitch).toBe(false);

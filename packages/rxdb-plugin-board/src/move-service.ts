@@ -1,15 +1,15 @@
 import { type RxDB, type UUID } from '@aiao/rxdb';
 
+import type { CardDropTarget } from './drop-resolution.js';
 import { Column } from './entities/column.entity.js';
 import { Task } from './entities/task.entity.js';
 import { BoardDomainError } from './errors.js';
 import { assertBoardWritable, type BoardHostContext, requireBoardId } from './host-context.js';
 import { readFirst, whereEq } from './query.js';
-import type { CardDropTarget } from './drop-resolution.js';
 import { BoardWriteNotifier, describeBoardFailure } from './write-notifier.js';
 
 /**
- * 移动服务（US-527）：跨列移动 / 同列改序 / 拖列。
+ * 移动服务（US-535）：跨列移动 / 同列改序 / 拖列。
  *
  * @remarks
  * 领域服务先校验源列与目标列存在且同板，再由单卡 `Repository.reorder()` 在一个
@@ -68,7 +68,9 @@ export class BoardMoveService {
   }
 
   private async requireColumnInBoard(columnId: UUID, boardId: UUID): Promise<InstanceType<typeof Column>> {
-    const found = await readFirst(this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', columnId) }));
+    const found = await readFirst(
+      this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', columnId) })
+    );
     if (found.length === 0) throw new BoardDomainError('column_not_found', `列不存在：${columnId}`);
     if (found[0].boardId !== boardId) {
       throw new BoardDomainError('cross_board', '目标列不属于当前看板');

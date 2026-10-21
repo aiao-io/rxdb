@@ -9,13 +9,13 @@ import { readFirst, whereEq } from './query.js';
 import { normalizeBoardTitle } from './title.js';
 
 /**
- * 看板领域服务（US-526）：建板 / 建列 / 建任务与改名入口。
+ * 看板领域服务（US-534）：建板 / 建列 / 建任务与改名入口。
  *
  * @remarks
  * 创建一律走门面仓储（自动按组追加 `sortOrder`、过 US-027 操作权限判定）；
  * 结构归属规则（`column.board_id` 创建后不可改、任务只可属当前板、任务创建的目标列
  * 必须属于当前板）由本服务入口校验——直连 SQL 与适配器接口是受信维护入口，
- * 只由外键守引用存在性，本服务不承诺在那里拒绝归属改写（US-526 技术笔记）。
+ * 只由外键守引用存在性，本服务不承诺在那里拒绝归属改写（US-534 技术笔记）。
  * 每个实例绑定一个 RxDB 与一个宿主上下文。
  */
 export class BoardDomain {
@@ -58,7 +58,10 @@ export class BoardDomain {
   }
 
   /** 改板标题 / 描述：只写给定字段，不接受归属字段。 */
-  async updateBoard(boardId: UUID, patch: { title?: string; description?: string }): Promise<InstanceType<typeof Board>> {
+  async updateBoard(
+    boardId: UUID,
+    patch: { title?: string; description?: string }
+  ): Promise<InstanceType<typeof Board>> {
     assertBoardWritable(this.ctx());
     const board = await this.requireBoard(boardId);
     const next: Partial<InstanceType<typeof Board>> = {};
@@ -74,7 +77,7 @@ export class BoardDomain {
     return this.rxdb.entityManager.getRepository(Column).update(column, { title: this.requireTitle(patch.title) });
   }
 
-  /** 内联 / 详情共用：改任务标题，只写标题（US-528 内联编辑只提交标题）。 */
+  /** 内联 / 详情共用：改任务标题，只写标题（US-536 内联编辑只提交标题）。 */
   async updateTaskTitle(taskId: UUID, title: string): Promise<InstanceType<typeof Task>> {
     assertBoardWritable(this.ctx());
     const task = await this.requireTaskInBoard(taskId, requireBoardId(this.ctx()));
@@ -90,7 +93,9 @@ export class BoardDomain {
 
   /** 列存在且属于指定板（跨板任务归属与跨板移动都在这里拒绝）。 */
   async requireColumnInBoard(columnId: UUID, boardId: UUID): Promise<InstanceType<typeof Column>> {
-    const found = await readFirst(this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', columnId) }));
+    const found = await readFirst(
+      this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', columnId) })
+    );
     if (found.length === 0) throw new BoardDomainError('column_not_found', `列不存在：${columnId}`);
     if (found[0].boardId !== boardId) {
       throw new BoardDomainError('cross_board', '目标列不属于当前看板');
@@ -114,7 +119,9 @@ export class BoardDomain {
     const columnIds = columns.map(column => column.id);
     if (columnIds.length === 0) return [];
     return readFirst(
-      this.rxdb.entityManager.getRepository(Task).find({ where: { combinator: 'and', rules: [{ field: 'columnId', operator: 'in', value: columnIds }] } })
+      this.rxdb.entityManager
+        .getRepository(Task)
+        .find({ where: { combinator: 'and', rules: [{ field: 'columnId', operator: 'in', value: columnIds }] } })
     );
   }
 
