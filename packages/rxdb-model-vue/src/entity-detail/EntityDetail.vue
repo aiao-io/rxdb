@@ -101,6 +101,15 @@ const handleError = (error: unknown): void => {
   console.error('[EntityDetail]', error);
 };
 
+/** 校验错误面板：最近一次提交的校验结果（React/Angular 同语义，US-104）。 */
+const formErrors = ref<FormValidationResult | null>(null);
+/** 保存失败原因（校验错误以外的落库错误）。 */
+const saveError = ref<string | null>(null);
+
+/** 落库失败：可读原因进错误面板（不再只进 console，US-104）。 */
+const saveErrorMessage = (error: unknown): string =>
+  `保存失败：${error instanceof Error ? error.message : String(error)}`;
+
 /** create 模式下的草稿实体实例（立即创建，不保存） */
 const draftEntity = shallowRef<EntityInstance | null>(null);
 
@@ -290,7 +299,7 @@ const selectTab = (key: string): void => {
     const merged = fixed ? { ...data, ...fixed } : data;
     const result = validateForm(fields, merged);
     if (!result.valid) {
-      emit('validationErrors', result);
+      onValidationErrors(result);
       return;
     }
     syncDraftEntity();
@@ -322,7 +331,9 @@ const onFormSubmitted = (data: EntityFormData): void => {
       dialogContext?.close('saved');
       emit('formSubmitted', data);
     })
-    .catch(handleError);
+    .catch(e => {
+      saveError.value = saveErrorMessage(e);
+    });
 };
 
 const onFormCancelled = (): void => {
@@ -335,10 +346,14 @@ const onFieldChanged = (event: FormFieldChangeEvent): void => {
   if (isCreateMode.value) {
     draftFormData.value = { ...draftFormData.value, [event.field]: event.value };
   }
+  formErrors.value = null;
+  saveError.value = null;
   emit('fieldChanged', event);
 };
 
 const onValidationErrors = (result: FormValidationResult): void => {
+  formErrors.value = result;
+  saveError.value = null;
   emit('validationErrors', result);
 };
 
@@ -350,7 +365,7 @@ const onSave = (): void => {
   const merged = fixed ? { ...data, ...fixed } : data;
   const result = validateForm(fields, merged);
   if (!result.valid) {
-    emit('validationErrors', result);
+    onValidationErrors(result);
     return;
   }
   if (draftEntity.value) {
@@ -361,7 +376,9 @@ const onSave = (): void => {
         draftEntity.value = null;
         dialogContext?.close('saved');
       })
-      .catch(handleError);
+      .catch(e => {
+        saveError.value = saveErrorMessage(e);
+      });
   } else {
     emit('formSubmitted', merged);
     dialogContext?.close();
@@ -502,6 +519,27 @@ defineExpose({
             />
           </div>
         </template>
+      </div>
+
+      <!-- 校验 / 保存错误面板（US-104）：只转发不渲染时用户看不到任何反馈 -->
+      <div
+        v-if="formErrors !== null || saveError !== null"
+        class="border-base-300 flex shrink-0 flex-col gap-1 border-t px-4 py-3 text-sm"
+        data-testid="entity-detail-errors"
+        role="alert"
+      >
+        <span
+          v-for="error in formErrors?.errors ?? []"
+          :key="`${error.field}:${error.message}`"
+          class="text-error"
+        >
+          {{ error.message }}
+        </span>
+        <span
+          v-if="saveError !== null"
+          class="text-error"
+          >{{ saveError }}</span
+        >
       </div>
 
       <!-- Save/Cancel buttons for create mode (below tabs) -->
