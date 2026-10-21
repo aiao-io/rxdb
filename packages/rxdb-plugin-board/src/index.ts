@@ -44,3 +44,9 @@ export { BoardDomainError, type BoardErrorCode } from './errors.js';
 export { assertBoardWritable, requireBoardId, type BoardHostContext } from './host-context.js';
 export { isValidDueDate, normalizeBoardTitle } from './title.js';
 export { eq, inRule, matchAll, readFirst, whereEq } from './query.js';
+export {
+  BoardSearchSource,
+  DEFAULT_BOARD_SEARCH_PAGE_SIZE,
+  type BoardSearchSourceOptions,
+  type BoardSearchUpstream
+} from './search/board-search-source.js';

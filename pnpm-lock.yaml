@@ -1823,6 +1823,9 @@ importers:
 
   packages/rxdb-plugin-board:
     dependencies:
+      '@aiao/rxdb-plugin-search':
+        specifier: workspace:^
+        version: link:../rxdb-plugin-search
       '@aiao/utils':
         specifier: workspace:^
         version: link:../utils
@@ -1839,9 +1842,6 @@ importers:
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../rxdb-plugin-history
-      '@aiao/rxdb-plugin-search':
-        specifier: workspace:*
-        version: link:../rxdb-plugin-search
 
   packages/rxdb-plugin-graph:
     dependencies:
