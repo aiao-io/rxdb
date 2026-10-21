@@ -245,6 +245,12 @@
     },
     {
       "path": "./apps/dev-rxdb-admin"
+    },
+    {
+      "path": "./apps/dev-rxdb-admin-consumer-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-admin-consumer"
     }
   ]
 }

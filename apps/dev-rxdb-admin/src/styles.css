@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@aiao/rxdb-model-react/tailwind.css';
 
 @plugin 'daisyui/index.js' {
   themes:
