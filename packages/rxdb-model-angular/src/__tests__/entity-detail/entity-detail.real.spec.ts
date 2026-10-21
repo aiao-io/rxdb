@@ -436,6 +436,13 @@ describe('EntityDetailComponent（真实组件）', () => {
     expect(component.activeRelationName()).toBe('children');
   });
 
+  it('tab 可见文字随 radio 渲染（input 伪元素不渲染文字回归）', () => {
+    const { fixture } = createWithDialog(dialogData());
+
+    const tabs = [...fixture.nativeElement.querySelectorAll<HTMLElement>('[role="tab"]')];
+    expect(tabs.map(t => t.closest('label')?.textContent?.trim())).toEqual(['基本信息', '子项']);
+  });
+
   it('buildFixedQuery 覆盖 MANY_TO_MANY 与不支持的关系类型', () => {
     const { component } = createWithDialog(dialogData());
     const draftId = component.draftEntitySignal()!.id as string;

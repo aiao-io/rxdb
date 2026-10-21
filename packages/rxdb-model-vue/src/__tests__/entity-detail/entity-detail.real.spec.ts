@@ -340,6 +340,14 @@ describe('EntityDetail（真实组件）', () => {
     expect(component.activeRelationName).toBe('children');
   });
 
+  it('tab 可见文字随 radio 渲染（input 伪元素不渲染文字回归）', async () => {
+    const { wrapper } = createWithDialog(dialogData());
+    await FLUSH();
+
+    const tabs = wrapper.findAll('[role="tab"]');
+    expect(tabs.map(t => t.element.closest('label')?.textContent?.trim())).toEqual(['基本信息', '子项']);
+  });
+
   it('buildFixedQuery 覆盖 MANY_TO_MANY 与不支持的关系类型', async () => {
     const { component } = createWithDialog(dialogData());
     await FLUSH();

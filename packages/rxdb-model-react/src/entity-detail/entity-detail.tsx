@@ -31,7 +31,7 @@ import {
   validateForm
 } from '@aiao/rxdb-model';
 import { useRxDBOptional } from '@aiao/rxdb-react';
-import { useCallback, useContext, useEffect, useMemo, useRef, useState, type JSX } from 'react';
+import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { DialogContext } from '../dialog/dialog';
 import { EntityDialog } from '../entity-dialog/entity-dialog';
 import { EntityForm } from '../entity-form/entity-form';
@@ -425,16 +425,18 @@ export function EntityDetail({
         {/* Tab Bar */}
         <div className='tabs tabs-border min-h-0 flex-1 overflow-x-auto' role='tablist'>
           {tabs.map(tab => (
-            <div className='contents' key={tab.key}>
-              <input
-                className='tab'
-                aria-label={tab.label}
-                checked={tab.key === activeTabKey}
-                name={tabGroupName}
-                role='tab'
-                type='radio'
-                onChange={() => selectTab(tab.key)}
-              />
+            <Fragment key={tab.key}>
+              <label className='tab'>
+                <input
+                  aria-label={tab.label}
+                  checked={tab.key === activeTabKey}
+                  name={tabGroupName}
+                  role='tab'
+                  type='radio'
+                  onChange={() => selectTab(tab.key)}
+                />
+                {tab.label}
+              </label>
               <div
                 className={cn(
                   'tab-content border-base-300 bg-base-100 order-1 flex w-full flex-col',
@@ -468,7 +470,7 @@ export function EntityDetail({
                   />
                 }
               </div>
-            </div>
+            </Fragment>
           ))}
         </div>
 

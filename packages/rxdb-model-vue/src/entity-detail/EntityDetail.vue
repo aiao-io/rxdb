@@ -478,15 +478,17 @@ defineExpose({
           v-for="tab in tabs"
           :key="tab.key"
         >
-          <input
-            class="tab"
-            :aria-label="tab.label"
-            :checked="tab.key === activeTabKey"
-            :name="tabGroupName"
-            role="tab"
-            type="radio"
-            @change="selectTab(tab.key)"
-          />
+          <label class="tab">
+            <input
+              :aria-label="tab.label"
+              :checked="tab.key === activeTabKey"
+              :name="tabGroupName"
+              role="tab"
+              type="radio"
+              @change="selectTab(tab.key)"
+            />
+            {{ tab.label }}
+          </label>
           <div
             class="tab-content border-base-300 bg-base-100 order-1 flex w-full flex-col"
             :class="tab.type === 'form' ? ['overflow-auto', { 'p-4': true }] : 'overflow-hidden'"

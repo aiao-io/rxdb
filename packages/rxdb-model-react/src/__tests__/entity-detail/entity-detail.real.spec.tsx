@@ -259,6 +259,13 @@ describe('EntityDetail（真实组件）', () => {
     expect((container.querySelectorAll('[role="tab"]')[1] as HTMLInputElement).checked).toBe(true);
   });
 
+  it('tab 可见文字随 radio 渲染（input 伪元素不渲染文字回归）', () => {
+    const { container } = renderWithDialog(dialogData());
+
+    const tabs = [...container.querySelectorAll('[role="tab"]')];
+    expect(tabs.map(t => t.closest('label')?.textContent?.trim())).toEqual(['基本信息', '子项']);
+  });
+
   it('creationChain 阻断循环创建：链上实体不再出表 tab', () => {
     const { container } = renderWithDialog(dialogData({ creationChain: ['test:DetailGroup', 'test:DetailChild'] }));
 
@@ -382,8 +389,8 @@ describe('EntityDetail（真实组件）', () => {
     const { container } = renderWithRouteInputs('public', 'Account', account.id);
     const panelOf = (label: string): Element => {
       const tab = [...container.querySelectorAll('[role="tab"]')].find(t => t.getAttribute('aria-label') === label);
-      // tab 输入框紧跟着它的内容面板（daisyUI tabs 结构）
-      const panel = tab?.nextElementSibling;
+      // tab 所在 label 紧跟着它的内容面板（daisyUI tabs 结构）
+      const panel = tab?.closest('label')?.nextElementSibling;
       if (!panel) throw new Error(`没有「${label}」关系 tab`);
       return panel;
     };
