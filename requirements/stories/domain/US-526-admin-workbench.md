@@ -94,7 +94,7 @@ OPFS 系 VFS 与 worker/sharedWorker transport 都报 `unsupported_combination`�
 
 ## 实现文件
 
-- `apps/dev-rxdb-admin/` — 待建；工作台应用（壳、预置 schema、导航、CRUD 接线、持久化）
+- `apps/dev-rxdb-admin/` — 工作台应用（壳、预置 schema、导航、CRUD 接线、持久化；`@aiao/rxdb-devtools` 经 `getDevToolsConnector` 接线）
 - `apps/dev-rxdb-admin-e2e/` — 待建；端到端组合验收（domain/ 目录硬约束的领域测试应用）
 
 ## References

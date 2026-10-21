@@ -44,6 +44,9 @@
       "path": "../../packages/rxdb-model-react/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
     },
     {
