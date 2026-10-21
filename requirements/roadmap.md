@@ -10,13 +10,13 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 75     |
-| 🚧 In Progress | 1      |
+| 🚧 In Progress | 2      |
 | 👀 In Review   | 2      |
-| 📝 Backlog     | 30     |
+| 📝 Backlog     | 29     |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **33** |
 
-仓库还剩 **33 条**未关闭故事（1 In Progress + 2 In Review + 30 Backlog + 0 Blocked）。
+仓库还剩 **33 条**未关闭故事（2 In Progress + 2 In Review + 29 Backlog + 0 Blocked）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > rxdb-model 实体模型库与三框架 UI 组件集没有故事文件，三框架代码已随 #62 合入；剩下的跨框架对拍、三端对称复核与文档
@@ -42,7 +42,7 @@ owner 解锁（驱动者 = 下一个完整演示应用，见 epic [解锁记录]
 | [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md)           | 📝 Backlog     | 未立项；**价值待证**（评审 `git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`：已去掉多租户，仍无具名使用方）。前置 US-027 与 US-218 均已 Done                                                                                                                                                                                                                                                                                                                                                                                                      | 立项池   |
 | [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                                  | 📝 Backlog     | 未立项（待 owner 定批次）；阶段 A（盘点与可行性）→ B（`@aiao/rxdb-i18n` 核心 + 三端 `useI18n()`）→ C（rxdb-model 去硬编码 + 三端 demo 切换器）均无硬前置、全本地能力；阶段 D（目录 QueryCache 分发 + DevTools 面板）复用已 Done 的 US-212 / US-023 / US-902，独立后置关闭。与 US-910 的协调点：fallback 链与「用户显示偏好」只实现一份；`rxdb-plugin-i18n`（数据翻译）与 `@aiao/rxdb-i18n`（UI 文案）包名重叠由 owner 裁决                                                                                                                                                  | 立项池   |
 | [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md) 19 条（已解锁 2026-10-12）                | 📝 Backlog     | 第 0 步复核决策 1～8 与演示范围（US-525 阶段 A～F）→ 首轮切片第 1～4 步 → 演示阶段 B～F 的消费方按前置接入；US-513 阶段 B 联产品与 US-519 AC#3 / #7 仍价值待证                                                                                                                                                                                                                                                                                                                                                                                                              | 批次 4   |
-| [epic-010 任务看板领域模型](epics/epic-010-task-board-domain-model.md) 8 条（7 条已解锁，团队版待证） | 📝 Backlog     | 第 0 步复核默认决策 1～6、演示范围（US-532 阶段 A～B）并实测 sqlite-wasm 主线程存储 → 首轮切片第 1～3 步 → US-530 → US-531 B → US-532 B 后续接入；US-533 团队版仍价值待证                                                                                                                                                                                                                                                                                                                                                                                                   | 批次 5   |
+| [epic-010 任务看板领域模型](epics/epic-010-task-board-domain-model.md) 8 条（7 条已解锁，团队版待证） | 🚧 In Progress | 首轮切片第 1 步：US-526 + US-527 → 第 2 步：US-528 + US-529 → 第 3 步：US-531 阶段 A + US-532 阶段 A → US-530 → US-531 B → US-532 B 后续接入；US-533 团队版仍价值待证                                                                                                                                                                                                                                                                                                                                                                                                   | 批次 5   |
 
 ## 即办清单
 

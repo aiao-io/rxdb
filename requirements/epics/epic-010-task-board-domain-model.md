@@ -1,6 +1,6 @@
 ---
 id: epic-010-task-board-domain-model
-status: Backlog
+status: In Progress
 startDate: 2026-10-19
 targetDate: TBD
 owner: jimmy

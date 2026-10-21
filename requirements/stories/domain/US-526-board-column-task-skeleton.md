@@ -1,11 +1,11 @@
 ---
 id: US-526
 title: 看板领域模型骨架：Board / Column / Task 与按列排序域
-status: Backlog
+status: In Progress
 priority: Low
 epic: epic-010-task-board-domain-model
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-21
 tags: [domain, board, schema]
 ---
 
