@@ -70,7 +70,7 @@ INVEST 检查清单:
 
 ## 修法 A：删行时手上有实体就直接派删除事件
 
-owner 2026-10-20 定，随 PR #140 交付。删行的两条路——批量写入（`rxdb_adapter_mutations`，`removeMany()` / `mutations()` 走这里）
+owner 2026-10-20 定，随 PR #122 交付（原 #140，2026-10-21 并入 #122）。删行的两条路——批量写入（`rxdb_adapter_mutations`，`removeMany()` / `mutations()` 走这里）
 与仓库的单删（`entity.remove()` 走这里）——删的时候手上都有被删的实体：对关掉变更日志的实体，删完就按这些实体派
 `EntityLocalRemovedEvent`。行号回查那条路改为跳过这些表的删除，见下。
 
