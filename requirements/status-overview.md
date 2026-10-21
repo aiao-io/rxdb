@@ -8,10 +8,10 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 75   |
-| 🚧 In Progress | 2    |
+| ✅ Done        | 77   |
+| 🚧 In Progress | 6    |
 | 👀 In Review   | 2    |
-| 📝 Backlog     | 29   |
+| 📝 Backlog     | 23   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 108  |
 
@@ -19,19 +19,19 @@
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
 > **30 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
-> 任务看板领域模型共 8 条，其中 US-534～US-540 共 7 条于 2026-10-19 由 owner 解锁进批次 6（驱动者 = 下一个完整演示应用，见 [epic-011 解锁记录](epics/epic-011-task-board-domain-model.md#价值待证整个-epic)），US-534 已开工，US-541 团队版仍价值待证；
+> 任务看板领域模型共 8 条，其中 US-534～US-540 共 7 条于 2026-10-19 由 owner 解锁进批次 6（驱动者 = 下一个完整演示应用，见 [epic-011 解锁记录](epics/epic-011-task-board-domain-model.md#价值待证整个-epic)），US-534～US-540 阶段 A 已交付（US-535 / US-536 Done，其余随 US-539 阶段 B 收尾），US-541 团队版仍价值待证；
 > [US-911](stories/future/US-911-client-i18n.md) 阶段 A～C 无硬前置、可开工，在立项池待 owner 定批次；[US-029](stories/core/US-029-rbac-owner-role-permission.md)
 > 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
 > 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（2 条）
+## 进行中（6 条）
 
 | Story                                                                                                              | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)                                     | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
-| [US-534 看板领域模型骨架：Board / Column / Task 与按列排序域](stories/domain/US-534-board-column-task-skeleton.md) | 2026-10-21 开工：`packages/rxdb-plugin-board` 待建，实体、排序域声明与领域服务按 AC 逐条推进                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| [US-534 看板领域模型骨架：Board / Column / Task 与按列排序域](stories/domain/US-534-board-column-task-skeleton.md) | 2026-10-21 阶段 A 交付：实体、排序域与领域服务 AC#1～7 / #9～11 全绿；AC#8 既有库重开组合验收随 US-540 阶段 A 一并待补                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 ## 待评审（2 条）
 
@@ -216,12 +216,12 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 US-541 团队版仍价值待证（入场条件 = 具名团队「离线拖拽任务、回网后互相覆盖」的具体症状）。
 
 - 🚧 [US-534 看板领域模型骨架：Board / Column / Task 与按列排序域](stories/domain/US-534-board-column-task-skeleton.md) — Board / Column / Task 与按列排序域；板归属由列推导；应用入口约束与确认后事务内复核删除
-- ⬜ [US-535 跨列移动与本列排序的领域语义](stories/domain/US-535-cross-column-move-ordering.md) — 单卡拖拽走 reorder；本列排序用一个 executor 重读整列并写排序键；落点换算核心包一份；失败整批回滚与事务级 undo
-- ⬜ [US-536 任务详情与编辑：标签、截止日与撤销重做](stories/domain/US-536-task-detail-editing.md) — 同板标签与纯日期；看板自建详情面板；一次保存一个事务、取消零写、会话内 undo 按保存反转
-- ⬜ [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md) — sqlite-wasm 主线程持久化闭环；连接前恢复到新库名、整页重载读回后切换、失败保留原库；归档只恢复到同结构版本
-- ⬜ [US-538 看板任务搜索：FTS 接线](stories/domain/US-538-board-task-search.md) — 板级搜索源一次取全命中、与当前板任务求交后分页；切板 / 变更使旧查询失效；依赖 US-534 / US-536
-- ⬜ [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md) — 两阶段：A 创建 / 编辑 / 删除 / 拖拽 / 本列排序 / 备份，B 搜索；三个绑定包，宿主为现有三端 demo 的看板页；同后端三端对拍与键盘等价路径
-- ⬜ [US-540 看板端到端 demo：一份数据集走完全域](stories/domain/US-540-board-end-to-end-demo.md) — 两阶段；A 依赖 US-539 A，B 依赖 US-538 与 US-539 B；确定性种子贯穿单人闭环与多板搜索隔离
+- ✅ [US-535 跨列移动与本列排序的领域语义](stories/domain/US-535-cross-column-move-ordering.md) — 单卡拖拽走 reorder；本列排序用一个 executor 重读整列并写排序键；落点换算核心包一份；失败整批回滚与事务级 undo
+- ✅ [US-536 任务详情与编辑：标签、截止日与撤销重做](stories/domain/US-536-task-detail-editing.md) — 同板标签与纯日期；看板自建详情面板；一次保存一个事务、取消零写、会话内 undo 按保存反转
+- 🚧 [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md) — sqlite-wasm 主线程持久化闭环；连接前恢复到新库名、整页重载读回后切换、失败保留原库；归档只恢复到同结构版本
+- 🚧 [US-538 看板任务搜索：FTS 接线](stories/domain/US-538-board-task-search.md) — 板级搜索源一次取全命中、与当前板任务求交后分页；切板 / 变更使旧查询失效；依赖 US-534 / US-536
+- 🚧 [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md) — 两阶段：A 创建 / 编辑 / 删除 / 拖拽 / 本列排序 / 备份，B 搜索；三个绑定包，宿主为现有三端 demo 的看板页；同后端三端对拍与键盘等价路径
+- 🚧 [US-540 看板端到端 demo：一份数据集走完全域](stories/domain/US-540-board-end-to-end-demo.md) — 两阶段；A 依赖 US-539 A，B 依赖 US-538 与 US-539 B；确定性种子贯穿单人闭环与多板搜索隔离
 - ⬜ [US-541 团队版看板：Supabase 同步与身份](stories/domain/US-541-board-team-sync.md) — **价值待证**：身份 / 成员写权限 / RLS / 冲突规则均由本故事定义与验收；US-027 仅约束公开 / 系统入口
 
 ## 前置阻塞（不体现在 Blocked 计数里）
