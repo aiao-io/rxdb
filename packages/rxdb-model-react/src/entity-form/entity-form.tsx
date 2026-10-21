@@ -409,21 +409,30 @@ export function EntityForm({
         );
       }
       case 'oneToOne':
-      case 'manyToOne':
+      case 'manyToOne': {
+        const relatedItems = relatedItemsMap.get(field.field) ?? [];
         return (
-          <select
-            className='select'
-            value={(formData[field.field] as string) ?? ''}
-            onChange={event => onFieldChange(field, event.target.value)}
-          >
-            <option value=''>(空)</option>
-            {(relatedItemsMap.get(field.field) ?? []).map(item => (
-              <option key={item.id} value={item.id}>
-                {item.displayName}
-              </option>
-            ))}
-          </select>
+          <>
+            <select
+              className='select'
+              value={(formData[field.field] as string) ?? ''}
+              onChange={event => onFieldChange(field, event.target.value)}
+            >
+              <option value=''>(空)</option>
+              {relatedItems.map(item => (
+                <option key={item.id} value={item.id}>
+                  {item.displayName}
+                </option>
+              ))}
+            </select>
+            {relatedItems.length === 0 && (
+              <span className='text-warning text-xs' data-testid='relation-empty-hint'>
+                暂无「{field.displayName}」可选，请先创建对应记录
+              </span>
+            )}
+          </>
         );
+      }
       default:
         if (field.format?.kind === 'color') {
           return (

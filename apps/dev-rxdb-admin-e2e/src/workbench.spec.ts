@@ -103,6 +103,15 @@ test.describe('模型驱动数据工作台', () => {
     await expectListHasRows(page);
   });
 
+  test('空库下必填关联给出创建提示（评审反馈回归）', async ({ page }) => {
+    await page.goto('/entities/assets/AssetEvent');
+    await openCreateDialog(page);
+    // 暂无资产可关联：下拉只有 (空)，提示先创建对应记录
+    await expect(page.getByTestId('relation-empty-hint')).toContainText('暂无「所属资产」可选');
+    await page.getByRole('button', { name: '关闭' }).click();
+    await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
+  });
+
   test('AC#6 查询筛选：按关联字段与标量字段过滤', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');

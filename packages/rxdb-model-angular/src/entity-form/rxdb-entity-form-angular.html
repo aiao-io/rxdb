@@ -117,6 +117,11 @@
                 <option [value]="item.id">{{ item.displayName }}</option>
               }
             </select>
+            @if (getRelatedItems(field).length === 0) {
+              <span class="text-warning text-xs" data-testid="relation-empty-hint">
+                暂无「{{ field.displayName }}」可选，请先创建对应记录
+              </span>
+            }
           }
           @default {
             <input
