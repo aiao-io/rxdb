@@ -109,7 +109,9 @@ export interface UseBoardActions {
 }
 
 const defaultStorage = (): UseBoardStorage => {
-  if (typeof localStorage !== 'undefined') return localStorage;
+  const candidate = typeof localStorage !== 'undefined' ? (localStorage as UseBoardStorage | null) : null;
+  // happy-dom 等环境的 localStorage 可能是没有方法的占位对象，逐方法探测
+  if (candidate && typeof candidate.get === 'function' && typeof candidate.set === 'function') return candidate;
   const memory = new Map<string, string>();
   return { get: key => memory.get(key) ?? null, set: (key, value) => void memory.set(key, value) };
 };

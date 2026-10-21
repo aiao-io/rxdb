@@ -9,6 +9,7 @@
  */
 
 export { useBoard, LAST_BOARD_KEY, type UseBoardActions, type UseBoardOptions, type UseBoardReturn, type UseBoardStorage } from './use-board.js';
+export { BoardViewComponent } from './board-view.js';
 export type {
   Board,
   BoardHostContext,

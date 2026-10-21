@@ -1,0 +1,159 @@
+<section class="board-view" #boardArea (dragover)="onTaskDragOver($event)" (drop)="onColumnDrop($event)" data-testid="board-view">
+@if (board(); as b) {
+  <!-- 页头：板选择器、板标题、新建列、标签管理、撤销/重做、备份入口 -->
+  <header class="board-header" data-testid="board-header">
+    <select class="board-selector" [ngModel]="b.currentBoardId()" (ngModelChange)="b.selectBoard($event)" data-testid="board-selector" aria-label="选择看板">
+      @for (item of b.boards(); track item.id) {
+        <option [value]="item.id">{{ item.title }}</option>
+      }
+    </select>
+    @if (b.currentBoard(); as current) {
+      <button class="header-button" (click)="renameBoard()" data-testid="rename-board" aria-label="改板标题">{{ current.title }}</button>
+    }
+    @if (b.restoring()) {
+      <span class="restoring-badge" data-testid="restoring-badge" aria-live="polite">恢复中</span>
+    }
+    <div class="header-actions">
+      <button (click)="createBoard()" data-testid="create-board" [disabled]="b.restoring()">新建板</button>
+      <button (click)="createColumn()" data-testid="create-column" [disabled]="b.restoring() || !b.currentBoard()">新建列</button>
+      <button (click)="createLabel()" data-testid="create-label" [disabled]="b.restoring() || !b.currentBoard()">新建标签</button>
+      <button (click)="undo()" data-testid="undo" [disabled]="b.restoring() || b.undoCount() === 0" aria-label="撤销">撤销</button>
+      <button (click)="redo()" data-testid="redo" [disabled]="b.restoring() || b.redoCount() === 0" aria-label="重做">重做</button>
+      <button (click)="exportBackup()" data-testid="export-backup" [disabled]="b.restoring()">导出备份</button>
+    </div>
+  </header>
+
+  @if (b.restoring()) {
+    <p class="restoring-note" data-testid="restoring-note">恢复进行中：浏览可用，写入口已暂停。</p>
+  }
+
+  <!-- 标签管理条 -->
+  @if (b.labels().length > 0) {
+    <div class="label-strip" data-testid="label-strip">
+      @for (label of b.labels(); track label.id) {
+        <span class="label-chip" [style.background]="label.color" data-testid="label-chip">
+          <button class="label-name" (click)="renameLabel(label.id)" aria-label="改名">{{ label.name }}</button>
+          <button class="label-delete" (click)="deleteLabel(label.id)" [attr.aria-label]="'删除标签 ' + label.name">×</button>
+        </span>
+      }
+    </div>
+  }
+
+  @if (notice(); as message) {
+    <p class="board-notice" role="alert" data-testid="board-notice">{{ message }}</p>
+  }
+
+  <!-- 列区 -->
+  @if (b.currentBoard(); as current) {
+    <div class="columns" data-testid="columns">
+      @for (column of b.columns(); track column.id) {
+        <section
+          class="column"
+          [attr.data-column-id]="column.id"
+          (dragover)="onColumnDragOver($event)"
+          (drop)="onTaskDrop($event, column)"
+          data-testid="column"
+        >
+          <header class="column-header" [attr.data-column-header-id]="column.id" draggable="true" (dragstart)="onColumnDragStart($event, column)" data-testid="column-header">
+            <h2 class="column-title" data-testid="column-title">{{ column.title }}</h2>
+            <span class="column-count" data-testid="column-count">{{ (taskMap().get(column.id) ?? []).length }}</span>
+            <div class="column-menu">
+              <button (click)="renameColumn(column.id)" data-testid="column-rename" aria-label="改列名">改名</button>
+              <button (click)="moveColumnBy(column.id, -1)" data-testid="column-move-back" aria-label="前移">前移</button>
+              <button (click)="moveColumnBy(column.id, 1)" data-testid="column-move-forward" aria-label="后移">后移</button>
+              <button (click)="sortColumnBy(column.id, 'dueDate')" data-testid="column-sort-due" aria-label="按截止日排序">按截止日</button>
+              <button (click)="sortColumnBy(column.id, 'title')" data-testid="column-sort-title" aria-label="按标题排序">按标题</button>
+              <button (click)="confirmColumnDelete(column)" data-testid="column-delete" aria-label="删除列">删除</button>
+            </div>
+          </header>
+          <div class="cards">
+            @for (task of taskMap().get(column.id) ?? []; track task.id) {
+              <article
+                class="card"
+                [attr.data-task-id]="task.id"
+                draggable="true"
+                (dragstart)="onTaskDragStart($event, task)"
+                data-testid="task-card"
+              >
+                @if (editTitle() === task.id) {
+                  <input class="title-editor" [ngModel]="draftTitle()" (ngModelChange)="draftTitle.set($event)" (keydown.enter)="commitEditTitle(task)" (keydown.escape)="cancelEditTitle()" data-testid="task-title-editor" aria-label="任务标题" />
+                  <button (click)="commitEditTitle(task)" data-testid="task-title-save" aria-label="保存标题">保存</button>
+                  <button (click)="cancelEditTitle()" data-testid="task-title-cancel" aria-label="取消">取消</button>
+                } @else {
+                  <button class="card-title" (click)="openDetail(task.id)" data-testid="task-title">{{ task.title }}</button>
+                  <button class="card-edit" (click)="startEditTitle(task)" data-testid="task-edit-title" aria-label="编辑标题">编辑</button>
+                }
+                @if (labelsOf(task.id).length > 0) {
+                  <div class="card-labels">
+                    @for (label of labelsOf(task.id); track label.id) {
+                      <span class="card-label" [style.background]="label.color" [attr.aria-label]="label.name">{{ label.name }}</span>
+                    }
+                  </div>
+                }
+                @if (dueDateText(task); as dueText) {
+                  <span class="card-due" [class.overdue]="dueText.startsWith('已逾期')" data-testid="task-due">{{ dueText }}</span>
+                }
+              </article>
+            }
+            <button class="add-task" (click)="createTask(column.id)" [disabled]="b.restoring()" data-testid="add-task">添加任务</button>
+          </div>
+        </section>
+      }
+    </div>
+  } @else {
+    <div class="empty-board" data-testid="empty-board">
+      <p>没有看板</p>
+      <button (click)="createBoard()" data-testid="create-board-empty" [disabled]="b.restoring()">新建板</button>
+    </div>
+  }
+
+  <!-- 详情面板 -->
+  @if (detailTaskId(); as taskId) {
+    <aside class="detail-panel" data-testid="detail-panel">
+      <h3>任务详情</h3>
+      <label>
+        标题
+        <input [(ngModel)]="draftTitle" data-testid="detail-title" />
+      </label>
+      <label>
+        描述
+        <textarea [(ngModel)]="draftDescription" data-testid="detail-description"></textarea>
+      </label>
+      <label>
+        截止日（YYYY-MM-DD）
+        <input [(ngModel)]="draftDueDate" placeholder="YYYY-MM-DD" data-testid="detail-due" />
+      </label>
+      <fieldset>
+        <legend>标签</legend>
+        @for (label of b.labels(); track label.id) {
+          <label class="detail-label">
+            <input type="checkbox" [checked]="draftLabelIds().includes(label.id)" (change)="toggleDraftLabel(label.id)" data-testid="detail-label-check" />
+            <span [style.background]="label.color">{{ label.name }}</span>
+          </label>
+        }
+      </fieldset>
+      <div class="detail-actions">
+        <button (click)="saveDetail()" data-testid="detail-save">保存</button>
+        <button (click)="closeDetail()" data-testid="detail-cancel">取消</button>
+      </div>
+    </aside>
+  }
+
+  <!-- 删除确认 -->
+  @if (confirmDelete(); as pending) {
+    <aside class="confirm-panel" data-testid="confirm-delete">
+      @if (pending.kind === 'task') {
+        <p>删除任务「{{ pending.title }}」？</p>
+      } @else if (pending.kind === 'column') {
+        <p>删除列「{{ pending.title }}」及其 {{ pending.taskCount }} 个任务？</p>
+      } @else {
+        <p>删除看板「{{ pending.title }}」（{{ pending.columnCount }} 列、{{ pending.taskCount }} 任务、含全部标签定义与关联）？</p>
+      }
+      <div class="confirm-actions">
+        <button (click)="executeConfirmedDelete()" data-testid="confirm-delete-yes">确认删除</button>
+        <button (click)="cancelDelete()" data-testid="confirm-delete-no">取消</button>
+      </div>
+    </aside>
+  }
+}
+</section>
