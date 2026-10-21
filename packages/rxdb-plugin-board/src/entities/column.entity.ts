@@ -1,4 +1,4 @@
-import { Entity, EntityBase, PropertyType, RelationKind, type ISortableEntity, type SortOrderKey } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RelationKind, type ISortableEntity, type SortOrderKey, type UUID } from '@aiao/rxdb';
 
 /**
  * `Column` —— 看板的列：以 `boardId` 为分组字段的排序域（板内拖列）。
@@ -23,5 +23,7 @@ import { Entity, EntityBase, PropertyType, RelationKind, type ISortableEntity, t
   ]
 })
 export class Column extends EntityBase implements ISortableEntity {
+  boardId!: UUID;
+  title!: string;
   sortOrder!: SortOrderKey;
 }

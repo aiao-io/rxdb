@@ -1,4 +1,4 @@
-import { assertEntityOperationAllowed, assertSortOrderKey, getEntitySync, SyncType, type RxDB } from '@aiao/rxdb';
+import { assertEntityOperationAllowed, assertSortOrderKey, getEntitySync, SyncType, type RxDB, type UUID } from '@aiao/rxdb';
 import { generateKeysBetween } from '@aiao/utils';
 import { firstValueFrom } from 'rxjs';
 
@@ -20,7 +20,7 @@ export interface ColumnSortResult {
 /** 标题比较器：`Intl.Collator('zh-Hans-CN', { numeric: true })`，重名按 `id`。 */
 const TITLE_COLLATOR = new Intl.Collator('zh-Hans-CN', { numeric: true });
 
-type SortableTask = { readonly id: string; readonly title: string; readonly dueDate: string | null; readonly sortOrder: string };
+type SortableTask = { readonly id: UUID; readonly title: string; readonly dueDate: string | null; readonly sortOrder: string };
 
 const compareById = (a: SortableTask, b: SortableTask): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
@@ -55,7 +55,7 @@ export class BoardColumnSortService {
     private readonly notifier: BoardWriteNotifier
   ) {}
 
-  async sortColumn(columnId: string, mode: ColumnSortMode): Promise<ColumnSortResult> {
+  async sortColumn(columnId: UUID, mode: ColumnSortMode): Promise<ColumnSortResult> {
     assertBoardWritable(this.ctx());
     const sync = getEntitySync(Task, this.rxdb.entitySync);
     if (sync?.type === SyncType.QueryCache || (!sync?.local && sync?.remote)) {

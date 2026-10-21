@@ -1,7 +1,7 @@
 # 候选领域：任务看板 / 项目管理（Trello 类）
 
 > **已孵化（2026-10-19，owner 决定）**：本文件冻结为设计依据，不再独立演进——候选已建成
-> [epic-010 任务看板领域模型](../epics/epic-010-task-board-domain-model.md) 与
+> [epic-011 任务看板领域模型](../epics/epic-011-task-board-domain-model.md) 与
 > [US-526～US-533](../stories/domain/)，内容并入对应故事（孵化即冻结，见
 > [本目录 README](README.md) 维护规则 3）。下文保留候选定位，执行范围与能力边界以
 > 各故事与 [capability-matrix](../capability-matrix.md) 为准。

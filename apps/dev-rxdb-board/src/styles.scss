@@ -1,0 +1,11 @@
+/* 看板 demo 的最小样式：交给宿主应用，不随包发布 */
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* 固定工具条不遮挡看板内容的交互元素 */
+.board-view {
+  display: block;
+  padding-bottom: 4rem;
+}

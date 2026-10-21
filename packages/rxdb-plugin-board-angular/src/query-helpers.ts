@@ -1,9 +1,13 @@
-import type { RuleGroup } from '@aiao/rxdb';
+/**
+ * 查询辅助（与核心包 `eq` / `inRule` 同语义）。
+ *
+ * @remarks
+ * `field` 泛型收窄为字面量：返回对象直接满足 `FindOptions.where` 的
+ * `StringKey<T>` 字段联合，生产构建的 partial 模板编译按此收窄。
+ */
+export const eq = <F extends string, V>(field: F, value: V) => ({ combinator: 'and' as const, rules: [{ field, operator: '=' as const, value }] });
 
-/** `field = value` 规则（与核心包 `eq` 同语义，绑定层不依赖核心包查询辅助导出）。 */
-export const eq = (field: string, value: string): RuleGroup<never> =>
-  ({ combinator: 'and', rules: [{ field, operator: '=', value }] }) as RuleGroup<never>;
-
-/** `field IN [...]` 规则。 */
-export const inRule = (field: string, values: readonly string[]): RuleGroup<never> =>
-  ({ combinator: 'and', rules: [{ field, operator: 'in', value: [...values] }] }) as RuleGroup<never>;
+export const inRule = <F extends string, V>(field: F, values: readonly V[]) => ({
+  combinator: 'and' as const,
+  rules: [{ field, operator: 'in' as const, value: [...values] }]
+});

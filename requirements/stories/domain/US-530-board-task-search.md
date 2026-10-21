@@ -3,7 +3,7 @@ id: US-530
 title: 看板任务搜索：FTS 接线
 status: Backlog
 priority: Low
-epic: epic-010-task-board-domain-model
+epic: epic-011-task-board-domain-model
 created: 2026-10-19
 updated: 2026-10-19
 tags: [domain, board, search]
@@ -108,7 +108,7 @@ US-530 依赖 US-526 / US-528 的实体与字段，搜索 UI 由 US-531 阶段 B
 
 ## 价值待证
 
-本故事随 [epic-010 解锁记录](../../epics/epic-010-task-board-domain-model.md#价值待证整个-epic)
+本故事随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
 解锁（2026-10-19，owner 决定）。新增工作是板级搜索源、归属过滤与分页协调，不新增全文检索原语；
 演示价值入场的依据与边界见 epic。
 
@@ -118,7 +118,7 @@ US-530 依赖 US-526 / US-528 的实体与字段，搜索 UI 由 US-531 阶段 B
 
 ## References
 
-- [epic-010 任务看板领域模型](../../epics/epic-010-task-board-domain-model.md)
+- [epic-011 任务看板领域模型](../../epics/epic-011-task-board-domain-model.md)
 - [US-702 全文搜索](../future/US-702-full-text-search.md) — 全文引擎（FTS5 与中日韩单双字补偿）、搜索句柄与三端绑定
 - [US-526 看板领域模型骨架](US-526-board-column-task-skeleton.md) — 前置：task / column 归属
 - [US-528 任务详情与编辑](US-528-task-detail-editing.md) — 前置：task 描述字段与可搜索声明

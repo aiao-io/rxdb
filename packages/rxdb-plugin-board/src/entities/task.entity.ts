@@ -1,4 +1,4 @@
-import { Entity, EntityBase, PropertyType, RelationKind, type ISortableEntity, type SortOrderKey } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RelationKind, type ISortableEntity, type SortOrderKey, type UUID } from '@aiao/rxdb';
 
 /**
  * `Task` —— 看板任务：以 `columnId` 为分组字段的排序域（列内手动排序）。
@@ -26,5 +26,9 @@ import { Entity, EntityBase, PropertyType, RelationKind, type ISortableEntity, t
   ]
 })
 export class Task extends EntityBase implements ISortableEntity {
+  columnId!: UUID;
+  title!: string;
+  description: string | null = null;
+  dueDate: string | null = null;
   sortOrder!: SortOrderKey;
 }

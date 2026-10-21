@@ -3,7 +3,7 @@ id: US-527
 title: 跨列移动与本列排序的领域语义
 status: Backlog
 priority: Low
-epic: epic-010-task-board-domain-model
+epic: epic-011-task-board-domain-model
 created: 2026-10-19
 updated: 2026-10-19
 tags: [domain, board, ordering, drag]
@@ -114,7 +114,7 @@ API。几十条卡片的整列读写可直接验收，不引入后台重试或�
 
 ## 价值待证
 
-本故事已随 [epic-010 解锁记录](../../epics/epic-010-task-board-domain-model.md#价值待证整个-epic)
+本故事已随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
 解锁（2026-10-19，owner 决定）：新增跨列移动与本列排序语义对应零个已知病灶，「病灶数 ≥ 抽象数」
 按 owner 决定豁免（演示价值入场），依据与边界见 epic。
 
@@ -124,7 +124,7 @@ API。几十条卡片的整列读写可直接验收，不引入后台重试或�
 
 ## References
 
-- [epic-010 任务看板领域模型](../../epics/epic-010-task-board-domain-model.md)
+- [epic-011 任务看板领域模型](../../epics/epic-011-task-board-domain-model.md)
 - [US-028 可排序实体](../core/US-028-sortable-entity.md) — 前置：跨组移动原语（阶段 D ✅）、`reorder()`、`reorderTargetForDrop`、失败语义；看板跨列拖拽 UI 在其范围外
 - [US-031 树形实体迁移到排序模块](../core/US-031-tree-sortable-migration.md) — 树的落点判定是三个 demo 各一份的同名拷贝；看板改为核心包一份
 - [US-526 看板领域模型骨架](US-526-board-column-task-skeleton.md) — 前置：实体、排序域与恢复中写门禁

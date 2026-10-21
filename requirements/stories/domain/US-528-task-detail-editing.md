@@ -3,7 +3,7 @@ id: US-528
 title: 任务详情与编辑：标签、截止日与撤销重做
 status: Backlog
 priority: Low
-epic: epic-010-task-board-domain-model
+epic: epic-011-task-board-domain-model
 created: 2026-10-19
 updated: 2026-10-19
 tags: [domain, board, detail, label]
@@ -129,7 +129,7 @@ tags: [domain, board, detail, label]
 
 ## 价值待证
 
-本故事已随 [epic-010 解锁记录](../../epics/epic-010-task-board-domain-model.md#价值待证整个-epic)
+本故事已随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
 解锁（2026-10-19，owner 决定）：新增 `board_label` 抽象对应零个已知病灶，「病灶数 ≥ 抽象数」
 按 owner 决定豁免（演示价值入场），依据与边界见 epic。
 
@@ -139,7 +139,7 @@ tags: [domain, board, detail, label]
 
 ## References
 
-- [epic-010 任务看板领域模型](../../epics/epic-010-task-board-domain-model.md)
+- [epic-011 任务看板领域模型](../../epics/epic-011-task-board-domain-model.md)
 - [US-526 看板领域模型骨架](US-526-board-column-task-skeleton.md) — 前置：task 实体
 - [US-302 撤销/重做](../collaboration/US-302-undo-redo.md) — `undo()` / `redo()` 已交付语义（撤销范围是本次会话）
 - [US-027 实体操作权限模型](../core/US-027-entity-permission-model.md) — 公开写入口判定（编辑都走普通变更路径的底座）

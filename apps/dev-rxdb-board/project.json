@@ -1,0 +1,85 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "dev-rxdb-board",
+  "prefix": "app",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-board/src",
+  "tags": ["angular-app"],
+  "targets": {
+    "build": {
+      "defaultConfiguration": "production",
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/dev-rxdb-board/public"
+          },
+          {
+            "glob": "wa-sqlite.wasm",
+            "input": "./packages/rxdb-adapter-sqlite-wasm/node_modules/@subframe7536/sqlite-wasm/dist",
+            "output": "./sqlite-wasm/",
+            "followSymlinks": true
+          },
+          {
+            "glob": "wa-sqlite-async.wasm",
+            "input": "./packages/rxdb-adapter-sqlite-wasm/node_modules/@subframe7536/sqlite-wasm/dist",
+            "output": "./sqlite-wasm/",
+            "followSymlinks": true
+          }
+        ],
+        "browser": "apps/dev-rxdb-board/src/main.ts",
+        "inlineStyleLanguage": "scss",
+        "outputPath": "dist/apps/dev-rxdb-board",
+        "polyfills": [],
+        "styles": ["apps/dev-rxdb-board/src/styles.scss"],
+        "tsConfig": "apps/dev-rxdb-board/tsconfig.app.json"
+      },
+      "configurations": {
+        "development": {
+          "extractLicenses": false,
+          "optimization": false,
+          "sourceMap": true
+        },
+        "production": {}
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "configurations": {
+        "production": {
+          "buildTarget": "dev-rxdb-board:build:production"
+        },
+        "development": {
+          "buildTarget": "dev-rxdb-board:build:development"
+        }
+      },
+      "defaultConfiguration": "development",
+      "options": {
+        "port": 4312
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "dev-rxdb-board:build",
+        "port": 4312,
+        "spa": true
+      }
+    },
+    "serve-e2e": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "dev-rxdb-board:build",
+        "port": 4312,
+        "spa": true,
+        "staticFilePath": "dist/apps/dev-rxdb-board/browser"
+      }
+    },
+    "extract-i18n": {
+      "executor": "@angular/build:extract-i18n"
+    }
+  }
+}

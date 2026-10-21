@@ -44,7 +44,7 @@ SaaS 订阅可行性未经采用验证。
 数据工作台**，首版交付录入、编辑、筛选、持久化与备份恢复闭环。它已有最多可以直接复用的产品
 交互，也最容易让外部开发者验证「定义实体之后少写了多少 CRUD」。
 
-单人任务看板已孵化为 [epic-010](../epics/epic-010-task-board-domain-model.md)
+单人任务看板已孵化为 [epic-011](../epics/epic-011-task-board-domain-model.md)
 （2026-10-19，owner 决定，演示价值入场，先例 BOM），移出候选排序。个人消费产品优先考虑文本 SRS 或健身记录，具体顺序由真实使用者与内容决定。
 AI 构建器和小游戏适合继续做有边界的技术 / 玩法验证，当前不作为最快交付主线。
 
@@ -82,7 +82,7 @@ AI 构建器和小游戏适合继续做有边界的技术 / 玩法验证，当�
 | 协同知识库 / 笔记            | [knowledge-base.md](knowledge-base.md)               | 研究中 | 第二梯队           | 能力齐，缺实时协同与附件                                                          |
 | 外勤 / 现场作业采集          | [field-data-collection.md](field-data-collection.md) | 研究中 | 客户触发           | 能力使用面最广；硬缺口恰在现场刚需（照片）                                        |
 | 零售 POS / 进销存            | [retail-pos.md](retail-pos.md)                       | 研究中 | 客户触发且后置     | 引擎内全绿；离线支付授权与硬件在引擎外                                            |
-| 任务看板 / 项目管理          | [task-board.md](task-board.md)（已冻结，指针见下）   | 已孵化 | 已孵化，单独处理   | 单人看板已解锁，[epic-010](../epics/epic-010-task-board-domain-model.md) 演示驱动 |
+| 任务看板 / 项目管理          | [task-board.md](task-board.md)（已冻结，指针见下）   | 已孵化 | 已孵化，单独处理   | 单人看板已解锁，[epic-011](../epics/epic-011-task-board-domain-model.md) 演示驱动 |
 | 微信客户端部分功能           | [wechat-client.md](wechat-client.md)                 | 研究中 | 暂缓               | 契合度并列第一，缺口仅发送队列；六成体验在引擎外                                  |
 | 间隔重复学习                 | [anki-srs.md](anki-srs.md)                           | 研究中 | 第一梯队替代项     | 本地优先鼻祖（Anki 重构）；引擎使用面最广，外部成本低                             |
 | 密码管理器                   | [password-manager.md](password-manager.md)           | 研究中 | 暂缓               | 加密是品类生死线，keyring 内建；零知识协议在引擎外                                |
@@ -174,7 +174,7 @@ AI 构建器和小游戏适合继续做有边界的技术 / 玩法验证，当�
 
 ## 已孵化：任务看板 / 项目管理
 
-候选分析的结论与解锁过程记录在 [epic-010 的解锁记录](../epics/epic-010-task-board-domain-model.md#价值待证整个-epic)，
+候选分析的结论与解锁过程记录在 [epic-011 的解锁记录](../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)，
 此处不复制内容。单人版复用排序、事务、备份、撤销与搜索底座，仍需应用层批量改序、板内搜索协调、
 空目标恢复流程和三端交互。范围共 8 条，US-526～US-532 共 7 条按演示价值解锁
 （`apps/dev-rxdb-board`，owner 2026-10-19 决定）；US-533 团队版保持价值待证，身份、成员权限、
@@ -256,7 +256,7 @@ PTC Windchill / Teamcenter（PLM）、西门子 Opcenter（MES）。
 | 2026-10-18 | 新增「人生快进中」小游戏研究；先收敛一局玩法并验证 Cocos 小游戏存档，尚未承诺完整 MVP                    | 用户 V0.1 策划评审，见 [life-fast-forward](life-fast-forward.md)                                                                          |
 | 2026-10-18 | 按「尽快交付并验证 RxDB」复核候选；首选模型驱动后台的单人本地数据工作台，任务看板第二顺位                | 用户确认评估目标，评审记录见本 README「优先级结论 / 优先级评审 / 复核纠偏」节                                                             |
 | 2026-10-19 | 优先级评审文档并入本 README，纠偏结论同步落回候选文件                                                    | owner 指示文档整理                                                                                                                        |
-| 2026-10-19 | 任务看板解锁为 epic-010                                                                                  | owner 决定（演示价值入场，先例 epic-009 BOM），记录见 [epic-010 解锁记录](../epics/epic-010-task-board-domain-model.md#价值待证整个-epic) |
+| 2026-10-19 | 任务看板解锁为 epic-011                                                                                  | owner 决定（演示价值入场，先例 epic-009 BOM），记录见 [epic-011 解锁记录](../epics/epic-011-task-board-domain-model.md#价值待证整个-epic) |
 
 ## 维护规则
 

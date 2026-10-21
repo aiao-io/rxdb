@@ -1,5 +1,5 @@
 ---
-id: epic-010-task-board-domain-model
+id: epic-011-task-board-domain-model
 status: In Progress
 startDate: 2026-10-19
 targetDate: TBD
@@ -72,7 +72,7 @@ US-532 消费其他故事，不新增领域能力；US-530 仍需实现板级搜
 **US-533 不随本记录解锁**：入场条件是具名团队出现「离线拖拽任务、回网后互相覆盖」的具体症状，
 或 owner 另行决定推进团队演示。US-527 的单人移动语义只提供设计输入；身份与冲突规则的定义、实现和验收均归 US-533。
 
-`priority` 保持 `Low`，执行次序以 [roadmap 批次 5](../roadmap.md#批次-5看板首轮切片epic-010-已解锁)
+`priority` 保持 `Low`，执行次序以 [roadmap 批次 5](../roadmap.md#批次-5看板首轮切片epic-011-已解锁)
 为准；`targetDate` 保持 `TBD`，不估完整 8 条的交期。
 
 ## 首轮可开工切片

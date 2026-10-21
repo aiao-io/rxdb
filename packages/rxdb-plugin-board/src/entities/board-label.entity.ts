@@ -1,4 +1,4 @@
-import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RelationKind, type UUID } from '@aiao/rxdb';
 
 /**
  * `BoardLabel` —— 板级标签定义：板内唯一的名字 + 颜色，任务以多对多引用（US-528）。
@@ -22,4 +22,8 @@ import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
   ],
   indexes: [{ name: 'board_name', properties: ['boardId', 'name'], unique: true }]
 })
-export class BoardLabel extends EntityBase {}
+export class BoardLabel extends EntityBase {
+  boardId!: UUID;
+  name!: string;
+  color!: string;
+}

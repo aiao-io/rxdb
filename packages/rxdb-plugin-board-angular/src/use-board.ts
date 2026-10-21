@@ -1,5 +1,5 @@
 import { DestroyRef, inject, signal, type Signal } from '@angular/core';
-import { type RxDB } from '@aiao/rxdb';
+import { type RxDB, type UUID } from '@aiao/rxdb';
 import {
   Board,
   BoardColumnSortService,
@@ -21,6 +21,7 @@ import {
   type TaskDraft,
   type TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
+import type {} from '@aiao/rxdb-plugin-history';
 import { BehaviorSubject, combineLatest, map, of, Subscription, switchMap } from 'rxjs';
 
 import { eq, inRule } from './query-helpers.js';
@@ -56,7 +57,7 @@ export interface UseBoardReturn {
   /** 全部板（创建时间升序、同时刻按 id）。 */
   readonly boards: Signal<readonly Board[]>;
   /** 当前板 id（本地记录持久化）。 */
-  readonly currentBoardId: Signal<string | null>;
+  readonly currentBoardId: Signal<UUID | null>;
   /** 当前板；无板为 `null`。 */
   readonly currentBoard: Signal<Board | null>;
   /** 当前板的列（板内列序）。 */
@@ -76,7 +77,7 @@ export interface UseBoardReturn {
   /** 最近一次移动 / 排序写入事件（成功或失败）。 */
   readonly writeEvent: Signal<{ readonly kind: string; readonly reason?: string } | null>;
   /** 切板：写本地记录并切换数据流。 */
-  readonly selectBoard: (boardId: string) => void;
+  readonly selectBoard: (boardId: UUID) => void;
   /** 进入 / 退出恢复中（恢复编排由宿主驱动，本绑定只持状态）。 */
   readonly setRestoring: (value: boolean) => void;
   /** 领域动作（全部过核心包服务的写门禁与校验）。 */
@@ -86,30 +87,30 @@ export interface UseBoardReturn {
 export interface UseBoardActions {
   createBoard(input: { title: string; description?: string }): Promise<Board>;
   createColumn(input: { title: string }): Promise<Column>;
-  createTask(input: { columnId: string; title: string }): Promise<Task>;
-  updateBoard(boardId: string, patch: { title?: string; description?: string }): Promise<Board>;
-  updateColumn(columnId: string, patch: { title: string }): Promise<Column>;
-  updateTaskTitle(taskId: string, title: string): Promise<Task>;
-  openSnapshot(taskId: string): Promise<TaskDraftSnapshot>;
-  saveTaskDraft(taskId: string, snapshot: TaskDraftSnapshot, draft: TaskDraft): Promise<SaveTaskDraftResult>;
-  planTaskDelete(taskId: string): ReturnType<BoardDeleteService['planTaskDelete']>;
-  planColumnDelete(columnId: string): ReturnType<BoardDeleteService['planColumnDelete']>;
-  planBoardDelete(boardId: string): ReturnType<BoardDeleteService['planBoardDelete']>;
+  createTask(input: { columnId: UUID; title: string }): Promise<Task>;
+  updateBoard(boardId: UUID, patch: { title?: string; description?: string }): Promise<Board>;
+  updateColumn(columnId: UUID, patch: { title: string }): Promise<Column>;
+  updateTaskTitle(taskId: UUID, title: string): Promise<Task>;
+  openSnapshot(taskId: UUID): Promise<TaskDraftSnapshot>;
+  saveTaskDraft(taskId: UUID, snapshot: TaskDraftSnapshot, draft: TaskDraft): Promise<SaveTaskDraftResult>;
+  planTaskDelete(taskId: UUID): ReturnType<BoardDeleteService['planTaskDelete']>;
+  planColumnDelete(columnId: UUID): ReturnType<BoardDeleteService['planColumnDelete']>;
+  planBoardDelete(boardId: UUID): ReturnType<BoardDeleteService['planBoardDelete']>;
   executeDelete(plan: DeletePlan): Promise<void>;
-  moveTask(taskId: string, target: CardDropTarget): Promise<void>;
-  moveColumn(columnId: string, target: { readonly prevId: string | null; readonly nextId: string | null }): Promise<void>;
-  sortColumn(columnId: string, mode: ColumnSortMode): Promise<{ readonly written: boolean }>;
+  moveTask(taskId: UUID, target: CardDropTarget): Promise<void>;
+  moveColumn(columnId: UUID, target: { readonly prevId: UUID | null; readonly nextId: UUID | null }): Promise<void>;
+  sortColumn(columnId: UUID, mode: ColumnSortMode): Promise<{ readonly written: boolean }>;
   createLabel(input: { name: string; color: string }): Promise<BoardLabel>;
-  renameLabel(labelId: string, name: string): Promise<BoardLabel>;
-  recolorLabel(labelId: string, color: string): Promise<BoardLabel>;
-  planLabelDelete(labelId: string): Promise<LabelDeletePlan>;
+  renameLabel(labelId: UUID, name: string): Promise<BoardLabel>;
+  recolorLabel(labelId: UUID, color: string): Promise<BoardLabel>;
+  planLabelDelete(labelId: UUID): Promise<LabelDeletePlan>;
   executeLabelDelete(plan: LabelDeletePlan): Promise<void>;
   undo(): Promise<void>;
   redo(): Promise<void>;
 }
 
 const defaultStorage = (): UseBoardStorage => {
-  const candidate = typeof localStorage !== 'undefined' ? (localStorage as UseBoardStorage | null) : null;
+  const candidate = typeof localStorage !== 'undefined' ? ((localStorage as unknown) as UseBoardStorage | null) : null;
   // happy-dom 等环境的 localStorage 可能是没有方法的占位对象，逐方法探测
   if (candidate && typeof candidate.get === 'function' && typeof candidate.set === 'function') return candidate;
   const memory = new Map<string, string>();
@@ -131,11 +132,11 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   const storage: UseBoardStorage = options?.storage ?? defaultStorage();
 
   // 流源是 Subject，signal 是其镜像：切板 / 恢复中经 Subject 驱动，UI 经 signal 读
-  const boardId$ = new BehaviorSubject<string | null>(null);
+  const boardId$ = new BehaviorSubject<UUID | null>(null);
   const restoring$ = new BehaviorSubject<boolean>(false);
 
   const boards = signal<readonly Board[]>([]);
-  const currentBoardId = signal<string | null>(null);
+  const currentBoardId = signal<UUID | null>(null);
   const currentBoard = signal<Board | null>(null);
   const columns = signal<readonly Column[]>([]);
   const tasks = signal<readonly Task[]>([]);
@@ -207,12 +208,12 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   // 任务 → 标签：当前板全部关联与标签定义求交
   const taskLabels$ = combineLatest([boardId$, tasks$, labels$]).pipe(
     switchMap(([boardId, currentTasks, currentLabels]) => {
-      if (boardId === null || currentTasks.length === 0) return of(new Map<string, readonly BoardLabel[]>());
+      if (boardId === null || currentTasks.length === 0) return of(new Map<UUID, readonly BoardLabel[]>());
       const ids = currentTasks.map(task => task.id);
       return linkRepo.find({ where: { combinator: 'and', rules: [inRule('taskId', ids)] } }).pipe(
         map(links => {
           const labelById = new Map(currentLabels.map(label => [label.id, label]));
-          const grouped = new Map<string, BoardLabel[]>();
+          const grouped = new Map<UUID, BoardLabel[]>();
           for (const link of links) {
             const label = labelById.get(link.labelId);
             if (!label) continue;
@@ -247,7 +248,7 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     })
   );
 
-  const selectBoard = (boardId: string): void => {
+  const selectBoard = (boardId: UUID): void => {
     storage.set(LAST_BOARD_KEY, boardId);
     boardId$.next(boardId);
     currentBoardId.set(boardId);

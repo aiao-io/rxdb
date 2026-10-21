@@ -3,7 +3,7 @@ id: US-532
 title: 看板端到端 demo：一份数据集走完全域
 status: Backlog
 priority: Low
-epic: epic-010-task-board-domain-model
+epic: epic-011-task-board-domain-model
 created: 2026-10-19
 updated: 2026-10-19
 tags: [domain, board, demo, e2e, angular]
@@ -37,7 +37,7 @@ INVEST 检查清单:
 | **B** | 板内搜索、隔离与升级重开验收                                           | AC#9～13 全绿                                 | US-530、US-531 阶段 B、阶段 A                    | ⬜   |
 
 **各阶段可用的页面**：阶段 A 只有看板页（列 + 卡片 + 拖拽 + 详情面板 + 备份入口）；搜索框到
-阶段 B 才出现，A 阶段不放空搜索框。阶段 A 有独立价值：它是[首轮可开工切片](../../epics/epic-010-task-board-domain-model.md#首轮可开工切片)
+阶段 B 才出现，A 阶段不放空搜索框。阶段 A 有独立价值：它是[首轮可开工切片](../../epics/epic-011-task-board-domain-model.md#首轮可开工切片)
 的**验收手段**，不依赖 B 就能被用来判断那五条故事是否真的交付了。**全部阶段关闭后才置 `Done`**
 （[CONVENTIONS 大故事分阶段](../../CONVENTIONS.md#大故事分阶段不拆子故事文件硬规则)）。
 
@@ -136,7 +136,7 @@ AC#6 验两条成功路径，AC#8 验失败后保留源库并继续写入；清�
 
 ## 价值待证
 
-本故事已随 [epic-010 解锁记录](../../epics/epic-010-task-board-domain-model.md#价值待证整个-epic)
+本故事已随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
 解锁（2026-10-19，owner 决定）：本故事不新增抽象，全部行为归属 US-526～US-531；「demo 不当
 业务需求证据」的顾虑与豁免边界见 epic 解锁记录。
 
@@ -151,7 +151,7 @@ AC#6 验两条成功路径，AC#8 验失败后保留源库并继续写入；清�
 
 ## References
 
-- [epic-010 任务看板领域模型](../../epics/epic-010-task-board-domain-model.md)
+- [epic-011 任务看板领域模型](../../epics/epic-011-task-board-domain-model.md)
 - [US-526](US-526-board-column-task-skeleton.md) / [US-527](US-527-cross-column-move-ordering.md) / [US-528](US-528-task-detail-editing.md) / [US-529](US-529-board-backup-restore.md) / [US-530](US-530-board-task-search.md) / [US-531](US-531-board-tri-framework-ui.md) — 前置
 - [US-525 BOM 端到端 demo](US-525-bom-end-to-end-demo.md) — 同型故事：确定性种子、既有库重开、单端划界
 - [US-214 HTTP 适配器浏览器端到端 demo](../adapter/US-214-http-browser-demo.md) — 单端先例

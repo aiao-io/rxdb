@@ -1,4 +1,4 @@
-import { assertEntityOperationAllowed, type InstanceType, type RxDB } from '@aiao/rxdb';
+import { assertEntityOperationAllowed, type RxDB, type UUID } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 
 import { BoardLabel } from './entities/board-label.entity.js';
@@ -21,9 +21,9 @@ import { normalizeBoardTitle } from './title.js';
 
 /** 标签删除清单（确认在事务外读取）。 */
 export interface LabelDeletePlan {
-  readonly labelId: string;
+  readonly labelId: UUID;
   readonly labelName: string;
-  readonly taskLabelIds: readonly string[];
+  readonly taskLabelIds: readonly UUID[];
 }
 
 export class BoardLabelService {
@@ -47,7 +47,7 @@ export class BoardLabelService {
     }
   }
 
-  async renameLabel(labelId: string, name: string): Promise<InstanceType<typeof BoardLabel>> {
+  async renameLabel(labelId: UUID, name: string): Promise<InstanceType<typeof BoardLabel>> {
     assertBoardWritable(this.ctx());
     const label = await this.requireLabelInBoard(labelId);
     const next = this.requireLabelName(name);
@@ -55,14 +55,14 @@ export class BoardLabelService {
     return this.rxdb.entityManager.getRepository(BoardLabel).update(label, { name: next });
   }
 
-  async recolorLabel(labelId: string, color: string): Promise<InstanceType<typeof BoardLabel>> {
+  async recolorLabel(labelId: UUID, color: string): Promise<InstanceType<typeof BoardLabel>> {
     assertBoardWritable(this.ctx());
     const label = await this.requireLabelInBoard(labelId);
     return this.rxdb.entityManager.getRepository(BoardLabel).update(label, { color });
   }
 
   /** 删除清单：标签与全部关联行（事务外读取）。 */
-  async planLabelDelete(labelId: string): Promise<LabelDeletePlan> {
+  async planLabelDelete(labelId: UUID): Promise<LabelDeletePlan> {
     assertBoardWritable(this.ctx());
     const label = await this.requireLabelInBoard(labelId);
     const links = await readFirst(this.rxdb.entityManager.getRepository(TaskLabel).find({ where: whereEq('labelId', labelId) }));
@@ -97,7 +97,7 @@ export class BoardLabelService {
     );
   }
 
-  private async requireLabelInBoard(labelId: string): Promise<InstanceType<typeof BoardLabel>> {
+  private async requireLabelInBoard(labelId: UUID): Promise<InstanceType<typeof BoardLabel>> {
     const boardId = requireBoardId(this.ctx());
     const found = await readFirst(this.rxdb.entityManager.getRepository(BoardLabel).find({ where: whereEq('id', labelId) }));
     if (found.length === 0) throw new BoardDomainError('label_not_found', `标签不存在：${labelId}`);
@@ -105,7 +105,7 @@ export class BoardLabelService {
     return found[0];
   }
 
-  private async assertNameFree(boardId: string, name: string, excludeId?: string): Promise<void> {
+  private async assertNameFree(boardId: UUID, name: string, excludeId?: string): Promise<void> {
     const existing = await readFirst(
       this.rxdb.entityManager.getRepository(BoardLabel).find({ where: whereEq('boardId', boardId) })
     );

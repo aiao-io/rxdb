@@ -1,4 +1,4 @@
-import { Entity, EntityBase, RelationKind } from '@aiao/rxdb';
+import { Entity, EntityBase, RelationKind, type UUID } from '@aiao/rxdb';
 
 /**
  * `TaskLabel` —— 任务与板级标签的多对多关联表（US-528）。
@@ -19,4 +19,7 @@ import { Entity, EntityBase, RelationKind } from '@aiao/rxdb';
   ],
   indexes: [{ name: 'task_label', properties: ['taskId', 'labelId'], unique: true }]
 })
-export class TaskLabel extends EntityBase {}
+export class TaskLabel extends EntityBase {
+  taskId!: UUID;
+  labelId!: UUID;
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, type DragEvent, type ReactNode } from 'react';
+import type { UUID } from '@aiao/rxdb';
 import {
   Board,
   Column,
@@ -31,16 +32,16 @@ export interface BoardViewProps {
 
 export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const board = useBoard(rxdb);
-  const [editTitleTaskId, setEditTitleTaskId] = useState<string | null>(null);
+  const [editTitleTaskId, setEditTitleTaskId] = useState<UUID | null>(null);
   const [editTitleValue, setEditTitleValue] = useState<string>('');
-  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
-  const [draft, setDraft] = useState({ title: '', description: '', dueDate: '', labelIds: [] as readonly string[] });
+  const [detailTaskId, setDetailTaskId] = useState<UUID | null>(null);
+  const [draft, setDraft] = useState({ title: '', description: '', dueDate: '', labelIds: [] as readonly UUID[] });
   const [snapshot, setSnapshot] = useState<TaskDraftSnapshot | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const taskMap = useMemo(() => {
-    const grouped = new Map<string, Task[]>();
+    const grouped = new Map<UUID, Task[]>();
     for (const column of board.columns) grouped.set(column.id, []);
     for (const task of board.tasks) {
       const list = grouped.get(task.columnId) ?? [];
@@ -75,7 +76,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     if (title === null) return;
     await guard(() => board.actions.createColumn({ title }));
   };
-  const createTask = async (columnId: string): Promise<void> => {
+  const createTask = async (columnId: UUID): Promise<void> => {
     const title = promptTitle('新建任务：标题');
     if (title === null) return;
     await guard(() => board.actions.createTask({ columnId, title }));
@@ -91,13 +92,13 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   };
 
   const onTaskDragStart = (event: DragEvent, task: Task): void => {
-    event.dataTransfer.setData('text/plain', task.id);
+    event.dataTransfer.setData('application/x-board-task', task.id);
   };
   const onColumnDragStart = (event: DragEvent, column: Column): void => {
-    event.dataTransfer.setData('text/plain', column.id);
+    event.dataTransfer.setData('application/x-board-column', column.id);
   };
 
-  const resolveTaskTarget = (movedId: string, clientX: number, clientY: number): CardDropTarget | null => {
+  const resolveTaskTarget = (movedId: UUID, clientX: number, clientY: number): CardDropTarget | null => {
     const views = board.columns.map(column => {
       const columnEl = document.querySelector<HTMLElement>(`[data-column-id="${column.id}"]`);
       const rect = columnEl?.getBoundingClientRect();
@@ -116,18 +117,19 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     return resolveCardDrop(views, movedId, clientX, clientY);
   };
 
-  const resolveColumnTarget = (movedId: string, clientX: number): { readonly prevId: string | null; readonly nextId: string | null } | null => {
+  const resolveColumnTarget = (movedId: UUID, clientX: number): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null => {
     const views = board.columns.map(column => {
       const headerEl = document.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`);
       const rect = headerEl?.getBoundingClientRect();
       return { columnId: column.id, rect: { left: rect?.left ?? 0, right: rect?.right ?? 0 } };
     });
-    return resolveColumnDrop(views, board.columns.map(column => column.id), movedId, clientX);
+    const target = resolveColumnDrop(views, board.columns.map(column => column.id), movedId, clientX);
+    return target ? { prevId: target.prevId as UUID, nextId: target.nextId as UUID } : null;
   };
 
   const onTaskDrop = async (event: DragEvent, column: Column): Promise<void> => {
     event.preventDefault();
-    const movedId = event.dataTransfer.getData('text/plain');
+    const movedId = event.dataTransfer.getData('application/x-board-task') as UUID;
     if (!movedId) return;
     const target = resolveTaskTarget(movedId, event.clientX, event.clientY);
     if (!target) return;
@@ -136,19 +138,19 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const onColumnDrop = async (event: DragEvent): Promise<void> => {
     event.preventDefault();
-    const movedId = event.dataTransfer.getData('text/plain');
+    const movedId = event.dataTransfer.getData('application/x-board-column') as UUID;
     if (!movedId) return;
     const target = resolveColumnTarget(movedId, event.clientX);
     if (!target) return;
     await guard(() => board.actions.moveColumn(movedId, target));
   };
 
-  const sortColumnBy = async (columnId: string, mode: 'dueDate' | 'title'): Promise<void> => {
+  const sortColumnBy = async (columnId: UUID, mode: 'dueDate' | 'title'): Promise<void> => {
     const result = await guard(() => board.actions.sortColumn(columnId, mode));
     if (result && !result.written) setNotice('已按目标顺序排列，无变化');
   };
 
-  const openDetail = async (taskId: string): Promise<void> => {
+  const openDetail = async (taskId: UUID): Promise<void> => {
     const snap = await board.actions.openSnapshot(taskId);
     setSnapshot(snap);
     setDraft({ title: snap.title, description: snap.description ?? '', dueDate: snap.dueDate ?? '', labelIds: [...snap.labelIds] });
@@ -168,7 +170,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     setSnapshot(null);
   };
 
-  const moveColumnBy = async (columnId: string, direction: -1 | 1): Promise<void> => {
+  const moveColumnBy = async (columnId: UUID, direction: -1 | 1): Promise<void> => {
     const ids = board.columns.map(column => column.id);
     const index = ids.indexOf(columnId);
     if (index < 0) return;
@@ -212,7 +214,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     return due < today ? `已逾期 ${due}` : due === today ? '今天到期' : due;
   };
 
-  const labelsOf = (taskId: string): readonly BoardLabel[] => board.taskLabels.get(taskId) ?? [];
+  const labelsOf = (taskId: UUID): readonly BoardLabel[] => board.taskLabels.get(taskId) ?? [];
 
   const current = board.currentBoard;
   if (!current) {
@@ -527,6 +529,6 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 }
 
 type ConfirmState =
-  | { readonly kind: 'task'; readonly taskId: string; readonly title: string }
-  | { readonly kind: 'column'; readonly columnId: string; readonly title: string; readonly count: number }
-  | { readonly kind: 'board'; readonly boardId: string; readonly title: string; readonly count: number; readonly columns: number };
+  | { readonly kind: 'task'; readonly taskId: UUID; readonly title: string }
+  | { readonly kind: 'column'; readonly columnId: UUID; readonly title: string; readonly count: number }
+  | { readonly kind: 'board'; readonly boardId: UUID; readonly title: string; readonly count: number; readonly columns: number };

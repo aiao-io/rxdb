@@ -1,4 +1,4 @@
-import { assertEntityOperationAllowed, type InstanceType, type RxDB } from '@aiao/rxdb';
+import { assertEntityOperationAllowed, type RxDB, type UUID } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 
 import { Board } from './entities/board.entity.js';
@@ -25,30 +25,30 @@ import { inRule, readFirst, whereEq } from './query.js';
 /** 任务删除清单。 */
 export interface TaskDeletePlan {
   readonly kind: 'task';
-  readonly taskId: string;
+  readonly taskId: UUID;
   /** 确认时展示的任务标题。 */
   readonly taskTitle: string;
-  readonly taskLabelIds: readonly string[];
+  readonly taskLabelIds: readonly UUID[];
 }
 
 /** 列删除清单。 */
 export interface ColumnDeletePlan {
   readonly kind: 'column';
-  readonly columnId: string;
+  readonly columnId: UUID;
   readonly columnTitle: string;
-  readonly taskIds: readonly string[];
-  readonly taskLabelIds: readonly string[];
+  readonly taskIds: readonly UUID[];
+  readonly taskLabelIds: readonly UUID[];
 }
 
 /** 板删除清单。 */
 export interface BoardDeletePlan {
   readonly kind: 'board';
-  readonly boardId: string;
+  readonly boardId: UUID;
   readonly boardTitle: string;
-  readonly columnIds: readonly string[];
-  readonly taskIds: readonly string[];
-  readonly taskLabelIds: readonly string[];
-  readonly boardLabelIds: readonly string[];
+  readonly columnIds: readonly UUID[];
+  readonly taskIds: readonly UUID[];
+  readonly taskLabelIds: readonly UUID[];
+  readonly boardLabelIds: readonly UUID[];
 }
 
 export type DeletePlan = TaskDeletePlan | ColumnDeletePlan | BoardDeletePlan;
@@ -63,7 +63,7 @@ export class BoardDeleteService {
   ) {}
 
   /** 任务删除清单（事务外读取，不持有事务）。 */
-  async planTaskDelete(taskId: string): Promise<TaskDeletePlan> {
+  async planTaskDelete(taskId: UUID): Promise<TaskDeletePlan> {
     assertBoardWritable(this.ctx());
     const tasks = await readFirst(this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('id', taskId) }));
     if (tasks.length === 0) throw new BoardDomainError('task_not_found', `任务不存在：${taskId}`);
@@ -79,7 +79,7 @@ export class BoardDeleteService {
   }
 
   /** 列删除清单（事务外读取）。 */
-  async planColumnDelete(columnId: string): Promise<ColumnDeletePlan> {
+  async planColumnDelete(columnId: UUID): Promise<ColumnDeletePlan> {
     assertBoardWritable(this.ctx());
     const columns = await readFirst(
       this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', columnId) })
@@ -107,7 +107,7 @@ export class BoardDeleteService {
   }
 
   /** 板删除清单（事务外读取）。 */
-  async planBoardDelete(boardId: string): Promise<BoardDeletePlan> {
+  async planBoardDelete(boardId: UUID): Promise<BoardDeletePlan> {
     assertBoardWritable(this.ctx());
     const boards = await readFirst(this.rxdb.entityManager.getRepository(Board).find({ where: whereEq('id', boardId) }));
     if (boards.length === 0) throw new BoardDomainError('board_not_found', `看板不存在：${boardId}`);

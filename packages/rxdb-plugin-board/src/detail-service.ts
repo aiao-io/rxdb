@@ -1,4 +1,4 @@
-import { assertEntityOperationAllowed, type InstanceType, type RxDB } from '@aiao/rxdb';
+import { assertEntityOperationAllowed, type RxDB, type UUID } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 
 import { BoardLabel } from './entities/board-label.entity.js';
@@ -27,8 +27,8 @@ export interface TaskDraftSnapshot {
   readonly title: string;
   readonly description: string | null;
   readonly dueDate: string | null;
-  readonly columnId: string;
-  readonly labelIds: readonly string[];
+  readonly columnId: UUID;
+  readonly labelIds: readonly UUID[];
 }
 
 /** 详情草稿：打开后只编辑内存态。 */
@@ -36,7 +36,7 @@ export interface TaskDraft {
   readonly title: string;
   readonly description: string;
   readonly dueDate: string | null;
-  readonly labelIds: readonly string[];
+  readonly labelIds: readonly UUID[];
 }
 
 export type SaveTaskDraftResult =
@@ -53,7 +53,7 @@ export class BoardDetailService {
   ) {}
 
   /** 打开详情：读取当前状态作为快照（不持有事务）。 */
-  async openSnapshot(taskId: string): Promise<TaskDraftSnapshot> {
+  async openSnapshot(taskId: UUID): Promise<TaskDraftSnapshot> {
     const boardId = requireBoardId(this.ctx());
     const tasks = await readFirst(this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('id', taskId) }));
     if (tasks.length === 0) throw new BoardDomainError('task_not_found', `任务不存在：${taskId}`);
@@ -73,7 +73,7 @@ export class BoardDetailService {
   }
 
   /** 一次保存 = 一次事务：字段差集 + 标签关联差集原子提交；未改变内容零写。 */
-  async saveTaskDraft(taskId: string, snapshot: TaskDraftSnapshot, draft: TaskDraft): Promise<SaveTaskDraftResult> {
+  async saveTaskDraft(taskId: UUID, snapshot: TaskDraftSnapshot, draft: TaskDraft): Promise<SaveTaskDraftResult> {
     assertBoardWritable(this.ctx());
     const boardId = requireBoardId(this.ctx());
     const title = normalizeBoardTitle(draft.title);

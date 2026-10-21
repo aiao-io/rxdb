@@ -3,7 +3,7 @@ id: US-529
 title: 重开恢复与备份导出
 status: Backlog
 priority: Low
-epic: epic-010-task-board-domain-model
+epic: epic-011-task-board-domain-model
 created: 2026-10-19
 updated: 2026-10-19
 tags: [domain, board, backup, restore]
@@ -126,7 +126,7 @@ React / Vue 虽能换实例，三端数据 hooks 在库关闭后都不重新订�
 
 ## 价值待证
 
-本故事已随 [epic-010 解锁记录](../../epics/epic-010-task-board-domain-model.md#价值待证整个-epic)
+本故事已随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
 解锁（2026-10-19，owner 决定）：备份导出流程对应零个已知看板病灶（引擎能力已由 US-217 交付），
 「病灶数 ≥ 抽象数」按 owner 决定豁免（演示价值入场），依据与边界见 epic。
 
@@ -138,7 +138,7 @@ React / Vue 虽能换实例，三端数据 hooks 在库关闭后都不重新订�
 
 ## References
 
-- [epic-010 任务看板领域模型](../../epics/epic-010-task-board-domain-model.md)
+- [epic-011 任务看板领域模型](../../epics/epic-011-task-board-domain-model.md)
 - [US-217 本地数据库一致性备份与恢复](../adapter/US-217-local-database-backup-restore.md) — 前置：备份 / 恢复 API 与边界（同 adapter、连接前恢复、损坏拒绝、结构指纹、加密字段）
 - [US-909 会话录制回放](../future/US-909-session-replay-debugging.md) — 阶段 B 实测：Worker / SharedWorker 连接返回 `unsupported_combination`
 - [US-526 看板领域模型骨架](US-526-board-column-task-skeleton.md) — 前置：实体与恢复中写门禁

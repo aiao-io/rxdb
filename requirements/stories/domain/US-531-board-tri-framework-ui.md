@@ -3,7 +3,7 @@ id: US-531
 title: 三框架看板视图与交互
 status: Backlog
 priority: Low
-epic: epic-010-task-board-domain-model
+epic: epic-011-task-board-domain-model
 created: 2026-10-19
 updated: 2026-10-19
 tags: [domain, board, angular, react, vue, ui]
@@ -157,7 +157,7 @@ sqlite-wasm 主线程 `vfs: 'idb'`、独立库名、看板实体在 `board` 命�
 
 ## 价值待证
 
-本故事已随 [epic-010 解锁记录](../../epics/epic-010-task-board-domain-model.md#价值待证整个-epic)
+本故事已随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
 解锁（2026-10-19，owner 决定）：三端看板视图对应零个已知病灶，「病灶数 ≥ 抽象数」按 owner
 决定豁免（演示价值入场），依据与边界见 epic。
 
@@ -173,7 +173,7 @@ sqlite-wasm 主线程 `vfs: 'idb'`、独立库名、看板实体在 `board` 命�
 
 ## References
 
-- [epic-010 任务看板领域模型](../../epics/epic-010-task-board-domain-model.md)
+- [epic-011 任务看板领域模型](../../epics/epic-011-task-board-domain-model.md)
 - [US-526](US-526-board-column-task-skeleton.md) / [US-527](US-527-cross-column-move-ordering.md) / [US-528](US-528-task-detail-editing.md) / [US-529](US-529-board-backup-restore.md) / [US-530](US-530-board-task-search.md) — 前置语义
 - [US-031 树形实体迁移到排序模块](../core/US-031-tree-sortable-migration.md) — 树的落点判定是三个 demo 各一份的同名拷贝，看板改为核心包一份
 - [US-028 可排序实体](../core/US-028-sortable-entity.md) — 三端 Playwright 真实拖拽验收先例（阶段 B）

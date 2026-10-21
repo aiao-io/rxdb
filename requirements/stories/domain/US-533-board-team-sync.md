@@ -3,7 +3,7 @@ id: US-533
 title: 团队版看板：Supabase 同步与身份
 status: Backlog
 priority: Low
-epic: epic-010-task-board-domain-model
+epic: epic-011-task-board-domain-model
 created: 2026-10-19
 updated: 2026-10-19
 tags: [domain, board, supabase, sync, collaboration]
@@ -19,7 +19,7 @@ tags: [domain, board, supabase, sync, collaboration]
 
 ## 价值待证
 
-**本故事不随 [epic-010 解锁记录](../../epics/epic-010-task-board-domain-model.md#价值待证整个-epic)
+**本故事不随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
 解锁，保持价值待证**（与 BOM 的 US-513 阶段 B 同型）。入场条件是
 [domain-research 的判据](../../domain-research/task-board.md#入场条件什么信号才值得立项)：
 **出现具名团队「离线拖拽任务、回网后互相覆盖」的具体症状**，或 owner 决定把演示推进到团队版。
@@ -115,7 +115,7 @@ tags: [domain, board, supabase, sync, collaboration]
 
 ## References
 
-- [epic-010 任务看板领域模型](../../epics/epic-010-task-board-domain-model.md)
+- [epic-011 任务看板领域模型](../../epics/epic-011-task-board-domain-model.md)
 - [US-527 跨列移动与本列排序的领域语义](US-527-cross-column-move-ordering.md) — 单人语义（冲突规则的设计输入）
 - [US-218](../adapter/US-218-supabase-rls-push-integrity.md) / [US-220](../adapter/US-220-supabase-update-push-semantics.md) — 前置：Supabase RLS 推送完整性（✅）
 - [US-027 实体操作权限模型](../core/US-027-entity-permission-model.md) — 已有：公开 / 系统入口声明（✅），不提供身份授权

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, toRaw } from 'vue';
+import type { UUID } from '@aiao/rxdb';
 import {
   resolveCardDrop,
   resolveColumnDrop,
@@ -29,16 +30,16 @@ const props = defineProps<{
 // 会丢私有成员与原型链，必须取回原始对象（Vue 官方 toRaw 语义）
 const board = useBoard(toRaw(props.rxdb));
 
-const editTitleTaskId = ref<string | null>(null);
+const editTitleTaskId = ref<UUID | null>(null);
 const editTitleValue = ref('');
-const detailTaskId = ref<string | null>(null);
-const draft = ref({ title: '', description: '', dueDate: '', labelIds: [] as readonly string[] });
+const detailTaskId = ref<UUID | null>(null);
+const draft = ref({ title: '', description: '', dueDate: '', labelIds: [] as readonly UUID[] });
 const snapshot = ref<TaskDraftSnapshot | null>(null);
 const confirm = ref<ConfirmState | null>(null);
 const notice = ref<string | null>(null);
 
 const taskMap = computed(() => {
-  const grouped = new Map<string, typeof board.tasks.value[number][]>();
+  const grouped = new Map<UUID, typeof board.tasks.value[number][]>();
   for (const column of board.columns.value) grouped.set(column.id, []);
   for (const task of board.tasks.value) {
     const list = grouped.get(task.columnId) ?? [];
@@ -73,29 +74,29 @@ const createColumn = async (): Promise<void> => {
   if (title === null) return;
   await guard(() => board.actions.createColumn({ title }));
 };
-const createTask = async (columnId: string): Promise<void> => {
+const createTask = async (columnId: UUID): Promise<void> => {
   const title = promptTitle('新建任务：标题');
   if (title === null) return;
   await guard(() => board.actions.createTask({ columnId, title }));
 };
 
-const startEditTitle = (taskId: string, title: string): void => {
+const startEditTitle = (taskId: UUID, title: string): void => {
   editTitleValue.value = title;
   editTitleTaskId.value = taskId;
 };
-const commitEditTitle = async (taskId: string): Promise<void> => {
+const commitEditTitle = async (taskId: UUID): Promise<void> => {
   editTitleTaskId.value = null;
   await guard(() => board.actions.updateTaskTitle(taskId, editTitleValue.value));
 };
 
-const onTaskDragStart = (event: DragEvent, taskId: string): void => {
-  event.dataTransfer?.setData('text/plain', taskId);
+const onTaskDragStart = (event: DragEvent, taskId: UUID): void => {
+  event.dataTransfer?.setData('application/x-board-task', taskId);
 };
-const onColumnDragStart = (event: DragEvent, columnId: string): void => {
-  event.dataTransfer?.setData('text/plain', columnId);
+const onColumnDragStart = (event: DragEvent, columnId: UUID): void => {
+  event.dataTransfer?.setData('application/x-board-column', columnId);
 };
 
-const resolveTaskTarget = (movedId: string, clientX: number, clientY: number): CardDropTarget | null => {
+const resolveTaskTarget = (movedId: UUID, clientX: number, clientY: number): CardDropTarget | null => {
   const views = board.columns.value.map(column => {
     const columnEl = document.querySelector<HTMLElement>(`[data-column-id="${column.id}"]`);
     const rect = columnEl?.getBoundingClientRect();
@@ -114,18 +115,19 @@ const resolveTaskTarget = (movedId: string, clientX: number, clientY: number): C
   return resolveCardDrop(views, movedId, clientX, clientY);
 };
 
-const resolveColumnTarget = (movedId: string, clientX: number): { readonly prevId: string | null; readonly nextId: string | null } | null => {
+const resolveColumnTarget = (movedId: UUID, clientX: number): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null => {
   const views = board.columns.value.map(column => {
     const headerEl = document.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`);
     const rect = headerEl?.getBoundingClientRect();
     return { columnId: column.id, rect: { left: rect?.left ?? 0, right: rect?.right ?? 0 } };
   });
-  return resolveColumnDrop(views, board.columns.value.map(column => column.id), movedId, clientX);
+  const target = resolveColumnDrop(views, board.columns.value.map(column => column.id), movedId, clientX);
+  return target ? { prevId: target.prevId as UUID, nextId: target.nextId as UUID } : null;
 };
 
-const onTaskDrop = async (event: DragEvent, columnId: string): Promise<void> => {
+const onTaskDrop = async (event: DragEvent, columnId: UUID): Promise<void> => {
   event.preventDefault();
-  const movedId = event.dataTransfer?.getData('text/plain') ?? '';
+  const movedId = event.dataTransfer?.getData('application/x-board-task') as UUID | undefined;
   if (!movedId) return;
   const target = resolveTaskTarget(movedId, event.clientX, event.clientY);
   if (!target) return;
@@ -134,19 +136,19 @@ const onTaskDrop = async (event: DragEvent, columnId: string): Promise<void> => 
 
 const onColumnDrop = async (event: DragEvent): Promise<void> => {
   event.preventDefault();
-  const movedId = event.dataTransfer?.getData('text/plain') ?? '';
+  const movedId = event.dataTransfer?.getData('application/x-board-column') as UUID | undefined;
   if (!movedId) return;
   const target = resolveColumnTarget(movedId, event.clientX);
   if (!target) return;
   await guard(() => board.actions.moveColumn(movedId, target));
 };
 
-const sortColumnBy = async (columnId: string, mode: 'dueDate' | 'title'): Promise<void> => {
+const sortColumnBy = async (columnId: UUID, mode: 'dueDate' | 'title'): Promise<void> => {
   const result = await guard(() => board.actions.sortColumn(columnId, mode));
   if (result && !result.written) notice.value = '已按目标顺序排列，无变化';
 };
 
-const moveColumnBy = async (columnId: string, direction: -1 | 1): Promise<void> => {
+const moveColumnBy = async (columnId: UUID, direction: -1 | 1): Promise<void> => {
   const ids = board.columns.value.map(column => column.id);
   const index = ids.indexOf(columnId);
   if (index < 0) return;
@@ -157,7 +159,7 @@ const moveColumnBy = async (columnId: string, direction: -1 | 1): Promise<void> 
   await guard(() => board.actions.moveColumn(columnId, target));
 };
 
-const openDetail = async (taskId: string): Promise<void> => {
+const openDetail = async (taskId: UUID): Promise<void> => {
   const snap = await board.actions.openSnapshot(taskId);
   snapshot.value = snap;
   draft.value = { title: snap.title, description: snap.description ?? '', dueDate: snap.dueDate ?? '', labelIds: [...snap.labelIds] };
@@ -176,7 +178,7 @@ const saveDetail = async (): Promise<void> => {
   detailTaskId.value = null;
   snapshot.value = null;
 };
-const toggleDraftLabel = (labelId: string): void => {
+const toggleDraftLabel = (labelId: UUID): void => {
   draft.value.labelIds = draft.value.labelIds.includes(labelId)
     ? draft.value.labelIds.filter(id => id !== labelId)
     : [...draft.value.labelIds, labelId];
@@ -189,24 +191,24 @@ const createLabel = async (): Promise<void> => {
   if (color === null) return;
   await guard(() => board.actions.createLabel({ name, color }));
 };
-const renameLabel = async (labelId: string): Promise<void> => {
+const renameLabel = async (labelId: UUID): Promise<void> => {
   const label = board.labels.value.find(item => item.id === labelId);
   if (!label) return;
   const name = promptTitle('改标签名', label.name);
   if (name === null) return;
   await guard(() => board.actions.renameLabel(labelId, name));
 };
-const deleteLabel = async (labelId: string): Promise<void> => {
+const deleteLabel = async (labelId: UUID): Promise<void> => {
   const plan = await board.actions.planLabelDelete(labelId);
   if (!window.confirm(`删除标签「${plan.labelName}」？将移除 ${plan.taskLabelIds.length} 条任务关联。`)) return;
   await guard(() => board.actions.executeLabelDelete(plan));
 };
 
-const confirmTaskDelete = async (taskId: string): Promise<void> => {
+const confirmTaskDelete = async (taskId: UUID): Promise<void> => {
   const plan = await board.actions.planTaskDelete(taskId);
   confirm.value = { kind: 'task', taskId, title: plan.taskTitle };
 };
-const confirmColumnDelete = async (columnId: string): Promise<void> => {
+const confirmColumnDelete = async (columnId: UUID): Promise<void> => {
   const plan = await board.actions.planColumnDelete(columnId);
   confirm.value = { kind: 'column', columnId, title: plan.columnTitle, count: plan.taskIds.length };
 };
@@ -239,7 +241,7 @@ const dueDateText = (due: string | null): string => {
   return due < today ? `已逾期 ${due}` : due === today ? '今天到期' : due;
 };
 
-const labelsOf = (taskId: string): readonly BoardLabel[] => board.taskLabels.value.get(taskId) ?? [];
+const labelsOf = (taskId: UUID): readonly BoardLabel[] => board.taskLabels.value.get(taskId) ?? [];
 
 const onSelectBoard = (event: Event): void => {
   board.selectBoard((event.target as HTMLSelectElement).value);
@@ -252,7 +254,7 @@ const onRenameBoard = (): void => {
   if (title !== null) void guard(() => board.actions.updateBoard(current.id, { title }));
 };
 
-const onRenameColumn = (columnId: string): void => {
+const onRenameColumn = (columnId: UUID): void => {
   const column = board.columns.value.find(item => item.id === columnId);
   if (!column) return;
   const title = promptTitle('改列标题', column.title);
@@ -265,9 +267,9 @@ const exportBackup = (): void => {
 };
 
 type ConfirmState =
-  | { readonly kind: 'task'; readonly taskId: string; readonly title: string }
-  | { readonly kind: 'column'; readonly columnId: string; readonly title: string; readonly count: number }
-  | { readonly kind: 'board'; readonly boardId: string; readonly title: string; readonly count: number; readonly columns: number };
+  | { readonly kind: 'task'; readonly taskId: UUID; readonly title: string }
+  | { readonly kind: 'column'; readonly columnId: UUID; readonly title: string; readonly count: number }
+  | { readonly kind: 'board'; readonly boardId: UUID; readonly title: string; readonly count: number; readonly columns: number };
 </script>
 
 <template>

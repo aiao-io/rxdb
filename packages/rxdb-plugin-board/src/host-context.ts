@@ -1,3 +1,5 @@
+import type { UUID } from '@aiao/rxdb';
+
 import { BoardDomainError } from './errors.js';
 
 /**
@@ -10,7 +12,7 @@ import { BoardDomainError } from './errors.js';
  */
 export interface BoardHostContext {
   /** 当前板 id；尚未选板（启动选择阶段）为 `null`。 */
-  readonly boardId: string | null;
+  readonly boardId: UUID | null;
   /** 任一页面开始恢复即进入；恢复失败解除后恢复可写。 */
   readonly restoring: boolean;
 }
@@ -26,7 +28,7 @@ export const assertBoardWritable = (ctx: BoardHostContext): void => {
 };
 
 /** 取当前板 id：无板时报 `board_not_found`。 */
-export const requireBoardId = (ctx: BoardHostContext): string => {
+export const requireBoardId = (ctx: BoardHostContext): UUID => {
   if (ctx.boardId === null) {
     throw new BoardDomainError('board_not_found', '当前没有打开的看板');
   }

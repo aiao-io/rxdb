@@ -1,4 +1,4 @@
-import { type InstanceType, type RxDB } from '@aiao/rxdb';
+import { type RxDB, type UUID } from '@aiao/rxdb';
 
 import { Board } from '../entities/board.entity.js';
 import { BoardLabel } from '../entities/board-label.entity.js';
@@ -45,8 +45,8 @@ export const RELEASE_LABEL_IDS = [
   'a0000000-0000-4000-8000-000000000004'
 ] as const;
 
-const taskId = (index: number): string => `e0000000-0000-4000-8000-${String(index).padStart(12, '0')}`;
-const linkId = (index: number): string => `f0000000-0000-4000-8000-${String(index).padStart(12, '0')}`;
+const taskId = (index: number): UUID => `e0000000-0000-4000-8000-${String(index).padStart(12, '0')}` as UUID;
+const linkId = (index: number): UUID => `f0000000-0000-4000-8000-${String(index).padStart(12, '0')}` as UUID;
 
 /** 主板任务：标题 / 描述 / 截止日 / 标签下标（空数组 = 无标签）。 */
 interface SeedTask {

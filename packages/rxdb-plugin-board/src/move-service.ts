@@ -1,4 +1,4 @@
-import { type InstanceType, type RxDB } from '@aiao/rxdb';
+import { type RxDB, type UUID } from '@aiao/rxdb';
 
 import { Column } from './entities/column.entity.js';
 import { Task } from './entities/task.entity.js';
@@ -26,7 +26,7 @@ export class BoardMoveService {
   ) {}
 
   /** 单卡移动：目标来自 {@link resolveCardDrop} 的同一份换算表。 */
-  async moveTask(taskId: string, target: CardDropTarget): Promise<void> {
+  async moveTask(taskId: UUID, target: CardDropTarget): Promise<void> {
     assertBoardWritable(this.ctx());
     const boardId = requireBoardId(this.ctx());
     const repository = this.rxdb.entityManager.getRepository(Task);
@@ -51,8 +51,8 @@ export class BoardMoveService {
 
   /** 拖列：板内列序重排（`boardId` 分组排序域）。 */
   async moveColumn(
-    columnId: string,
-    target: { readonly prevId: string | null; readonly nextId: string | null }
+    columnId: UUID,
+    target: { readonly prevId: UUID | null; readonly nextId: UUID | null }
   ): Promise<void> {
     assertBoardWritable(this.ctx());
     const boardId = requireBoardId(this.ctx());
@@ -67,7 +67,7 @@ export class BoardMoveService {
     }
   }
 
-  private async requireColumnInBoard(columnId: string, boardId: string): Promise<InstanceType<typeof Column>> {
+  private async requireColumnInBoard(columnId: UUID, boardId: UUID): Promise<InstanceType<typeof Column>> {
     const found = await readFirst(this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', columnId) }));
     if (found.length === 0) throw new BoardDomainError('column_not_found', `列不存在：${columnId}`);
     if (found[0].boardId !== boardId) {

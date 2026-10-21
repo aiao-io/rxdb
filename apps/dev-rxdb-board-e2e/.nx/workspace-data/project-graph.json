@@ -1,0 +1,39 @@
+{
+  "nodes": {
+    "dev-rxdb-board-e2e": {
+      "name": "dev-rxdb-board-e2e",
+      "type": "e2e",
+      "data": {
+        "root": ".",
+        "name": "dev-rxdb-board-e2e",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "projectType": "application",
+        "sourceRoot": "apps/dev-rxdb-board-e2e/src",
+        "implicitDependencies": [],
+        "targets": {
+          "e2e": {
+            "dependsOn": [
+              "dev-rxdb-board:build"
+            ],
+            "configurations": {},
+            "options": {},
+            "parallelism": true,
+            "executor": "nx:noop"
+          }
+        },
+        "tags": []
+      }
+    }
+  },
+  "externalNodes": {},
+  "dependencies": {
+    "dev-rxdb-board-e2e": []
+  },
+  "version": "6.0",
+  "errors": [
+    {
+      "name": "WorkspaceValidityError"
+    }
+  ],
+  "computedAt": 1792563542211
+}

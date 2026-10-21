@@ -19,7 +19,7 @@
       <button (click)="createLabel()" data-testid="create-label" [disabled]="b.restoring() || !b.currentBoard()">新建标签</button>
       <button (click)="undo()" data-testid="undo" [disabled]="b.restoring() || b.undoCount() === 0" aria-label="撤销">撤销</button>
       <button (click)="redo()" data-testid="redo" [disabled]="b.restoring() || b.redoCount() === 0" aria-label="重做">重做</button>
-      <button (click)="exportBackup()" data-testid="export-backup" [disabled]="b.restoring()">导出备份</button>
+      <button (click)="onExportBackup()" data-testid="export-backup" [disabled]="b.restoring()">导出备份</button>
     </div>
   </header>
 

@@ -106,7 +106,7 @@ Epic：
 - [epic-007 公开 API 门禁](epics/epic-007-public-api-gates.md)
 - [epic-008 生命周期作用域](epics/epic-008-lifecycle-scope.md)
 - [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md)
-- [epic-010 任务看板领域模型](epics/epic-010-task-board-domain-model.md)
+- [epic-011 任务看板领域模型](epics/epic-011-task-board-domain-model.md)
 
 视图：
 

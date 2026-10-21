@@ -2,7 +2,8 @@ import {
   ENTITY_LOCAL_CREATE_EVENT,
   ENTITY_LOCAL_UPDATE_EVENT,
   ENTITY_LOCAL_REMOVE_EVENT,
-  type RxDB
+  type RxDB,
+  type UUID
 } from '@aiao/rxdb';
 import {
   createSearchHandle,
@@ -121,7 +122,7 @@ export class BoardSearchSource implements SearchSourceLike {
   }
 
   /** 当前板全部任务 id（板由列推导，命中 id 与视图已加载的任务求交）。 */
-  private async currentBoardTaskIds(boardId: string): Promise<readonly string[]> {
+  private async currentBoardTaskIds(boardId: UUID): Promise<readonly string[]> {
     const columns = await readFirst(this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', boardId) }));
     const columnIds = columns.map(column => column.id);
     if (columnIds.length === 0) return [];

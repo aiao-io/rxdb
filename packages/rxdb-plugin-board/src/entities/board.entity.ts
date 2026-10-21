@@ -17,4 +17,7 @@ import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
     { name: 'labels', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'BoardLabel', mappedProperty: 'board' }
   ]
 })
-export class Board extends EntityBase {}
+export class Board extends EntityBase {
+  title!: string;
+  description: string | null = null;
+}

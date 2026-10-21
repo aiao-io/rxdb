@@ -1,4 +1,4 @@
-import { reorderTargetForDrop } from '@aiao/rxdb';
+import { reorderTargetForDrop, type UUID } from '@aiao/rxdb';
 
 /**
  * @fileoverview 落点换算（US-527）
@@ -11,19 +11,19 @@ import { reorderTargetForDrop } from '@aiao/rxdb';
 
 /** 卡片落点：两邻之间（首部 `prevId=null`、尾部 `nextId=null`）或空列追加。 */
 export type CardDropTarget =
-  | { readonly kind: 'between'; readonly columnId: string; readonly prevId: string | null; readonly nextId: string | null }
-  | { readonly kind: 'end'; readonly columnId: string };
+  | { readonly kind: 'between'; readonly columnId: UUID; readonly prevId: UUID | null; readonly nextId: UUID | null }
+  | { readonly kind: 'end'; readonly columnId: UUID };
 
 /** 列视图：容器矩形 + 可见卡片矩形 + 完整任务序列（含被过滤或不在渲染窗口内的行）。 */
 export interface CardDropColumnView {
-  readonly columnId: string;
+  readonly columnId: UUID;
   readonly rect: { readonly left: number; readonly right: number; readonly top: number; readonly bottom: number };
-  readonly cards: readonly { readonly id: string; readonly top: number; readonly bottom: number }[];
-  readonly taskIds: readonly string[];
+  readonly cards: readonly { readonly id: UUID; readonly top: number; readonly bottom: number }[];
+  readonly taskIds: readonly UUID[];
 }
 
 /** 被拖行当前的前后邻居是否恰好就是目标（原位落点零写）。 */
-const isCurrentPlacement = (groupIds: readonly string[], movedId: string, prevId: string | null, nextId: string | null): boolean => {
+const isCurrentPlacement = (groupIds: readonly UUID[], movedId: UUID, prevId: UUID | null, nextId: UUID | null): boolean => {
   const index = groupIds.indexOf(movedId);
   if (index < 0) return false;
   return (groupIds[index - 1] ?? null) === prevId && (groupIds[index + 1] ?? null) === nextId;
@@ -40,7 +40,7 @@ const isCurrentPlacement = (groupIds: readonly string[], movedId: string, prevId
  */
 export const resolveCardDrop = (
   columns: readonly CardDropColumnView[],
-  movedId: string,
+  movedId: UUID,
   x: number,
   y: number
 ): CardDropTarget | null => {
@@ -79,7 +79,7 @@ export const resolveCardDrop = (
 
 /** 列头横向拖动的视图：列头矩形 + 板内完整列序。 */
 export interface ColumnDropView {
-  readonly columnId: string;
+  readonly columnId: UUID;
   readonly rect: { readonly left: number; readonly right: number };
 }
 
@@ -88,10 +88,10 @@ export interface ColumnDropView {
  */
 export const resolveColumnDrop = (
   columns: readonly ColumnDropView[],
-  columnIds: readonly string[],
-  movedId: string,
+  columnIds: readonly UUID[],
+  movedId: UUID,
   x: number
-): { readonly prevId: string | null; readonly nextId: string | null } | null => {
+): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null => {
   const over = columns.find(view => x >= view.rect.left && x < view.rect.right);
   if (!over || over.columnId === movedId) return null;
   const position = x < (over.rect.left + over.rect.right) / 2 ? 'before' : 'after';

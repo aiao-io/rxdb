@@ -3,7 +3,7 @@ id: US-526
 title: 看板领域模型骨架：Board / Column / Task 与按列排序域
 status: In Progress
 priority: Low
-epic: epic-010-task-board-domain-model
+epic: epic-011-task-board-domain-model
 created: 2026-10-19
 updated: 2026-10-21
 tags: [domain, board, schema]
@@ -130,7 +130,7 @@ Board / Column / 跨列移动产品，看板需要自己的三个实体；同一
 
 ## 价值待证
 
-本故事已随 [epic-010 解锁记录](../../epics/epic-010-task-board-domain-model.md#价值待证整个-epic)
+本故事已随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
 解锁（2026-10-19，owner 决定）：新增 `board` / `column` / `task` 抽象对应零个已知病灶，
 「病灶数 ≥ 抽象数」按 owner 决定豁免（演示价值入场），依据与边界见 epic。
 
@@ -140,7 +140,7 @@ Board / Column / 跨列移动产品，看板需要自己的三个实体；同一
 
 ## References
 
-- [epic-010 任务看板领域模型](../../epics/epic-010-task-board-domain-model.md)
+- [epic-011 任务看板领域模型](../../epics/epic-011-task-board-domain-model.md)
 - [US-028 可排序实体](../core/US-028-sortable-entity.md) — 前置：分组排序域（阶段 D ✅）、`reorder()`、默认排序带分组字段
 - [US-001 定义数据模型](../core/US-001-model-definition.md)、[US-005 关系映射](../core/US-005-relationship-mapping.md)、[US-008 事务支持](../core/US-008-transaction-support.md) — 已交付底座
 - [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 结构归属列先例（看板选择应用层而非触发器，理由见技术笔记）

@@ -89,6 +89,7 @@
       "@aiao/rxdb-plugin-sync": ["./packages/rxdb-plugin-sync/src/index.ts"],
       "@aiao/rxdb-plugin-tree": ["./packages/rxdb-plugin-tree/src/index.ts"],
       "@aiao/rxdb-plugin-board": ["./packages/rxdb-plugin-board/src/index.ts"],
+      "@aiao/rxdb-plugin-board/testing": ["./packages/rxdb-plugin-board/src/testing/index.ts"],
       "@aiao/rxdb-plugin-board-angular": ["./packages/rxdb-plugin-board-angular/src/index.ts"],
       "@aiao/rxdb-plugin-board-react": ["./packages/rxdb-plugin-board-react/src/index.ts"],
       "@aiao/rxdb-plugin-board-vue": ["./packages/rxdb-plugin-board-vue/src/index.ts"],

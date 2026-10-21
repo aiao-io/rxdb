@@ -13,8 +13,8 @@ import {
   viewChild
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import type { UUID } from '@aiao/rxdb';
 import {
-  Board,
   Column,
   Task,
   resolveCardDrop,
@@ -43,6 +43,8 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
 export class BoardViewComponent implements OnInit {
   /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
   readonly rxdb = input.required<Parameters<typeof useBoard>[0]>();
+  /** 备份导出回调（US-529 编排由宿主接线；缺省展示占位提示）。 */
+  readonly exportBackup = input<() => void | Promise<void>>();
 
   /** 输入绑定完成后（ngOnInit）安装的领域桥；首帧为 null。 */
   protected readonly board = signal<UseBoardReturn | null>(null);
@@ -67,18 +69,18 @@ export class BoardViewComponent implements OnInit {
     readonly id: string;
   } | null>(null);
   protected readonly dragPointer = signal<{ readonly x: number; readonly y: number }>({ x: 0, y: 0 });
-  protected readonly detailTaskId = signal<string | null>(null);
+  protected readonly detailTaskId = signal<UUID | null>(null);
   protected readonly confirmDelete = signal<
-    | { readonly kind: 'task'; readonly taskId: string; readonly title: string }
-    | { readonly kind: 'column'; readonly columnId: string; readonly title: string; readonly taskCount: number }
-    | { readonly kind: 'board'; readonly boardId: string; readonly title: string; readonly columnCount: number; readonly taskCount: number }
+    | { readonly kind: 'task'; readonly taskId: UUID; readonly title: string }
+    | { readonly kind: 'column'; readonly columnId: UUID; readonly title: string; readonly taskCount: number }
+    | { readonly kind: 'board'; readonly boardId: UUID; readonly title: string; readonly columnCount: number; readonly taskCount: number }
     | null
   >(null);
   protected readonly notice = signal<string | null>(null);
   protected readonly boardArea = viewChild<ElementRef<HTMLElement>>('boardArea');
 
   protected readonly taskMap = computed(() => {
-    const grouped = new Map<string, Task[]>();
+    const grouped = new Map<UUID, Task[]>();
     const installed = this.board();
     if (!installed) return grouped;
     for (const column of installed.columns()) grouped.set(column.id, []);
@@ -104,7 +106,7 @@ export class BoardViewComponent implements OnInit {
     await this.guard(() => this.boardRef.actions.createColumn({ title }));
   }
 
-  protected async createTask(columnId: string): Promise<void> {
+  protected async createTask(columnId: UUID): Promise<void> {
     const title = window.prompt('新建任务：标题');
     if (title === null) return;
     await this.guard(() => this.boardRef.actions.createTask({ columnId, title }));
@@ -120,7 +122,7 @@ export class BoardViewComponent implements OnInit {
     await this.guard(() => this.boardRef.actions.updateBoard(current.id, { title }));
   }
 
-  protected async renameColumn(columnId: string): Promise<void> {
+  protected async renameColumn(columnId: UUID): Promise<void> {
     const column = this.boardRef.columns().find(c => c.id === columnId);
     if (!column) return;
     const title = window.prompt('改列标题', column.title);
@@ -128,7 +130,7 @@ export class BoardViewComponent implements OnInit {
     await this.guard(() => this.boardRef.actions.updateColumn(columnId, { title }));
   }
 
-  protected editTitle = signal<string | null>(null);
+  protected editTitle = signal<UUID | null>(null);
 
   protected async startEditTitle(task: Task): Promise<void> {
     this.draftTitle.set(task.title);
@@ -148,7 +150,7 @@ export class BoardViewComponent implements OnInit {
   // ---------- 拖拽（只采集指针事件，落点由核心包换算） ----------
 
   protected onTaskDragStart(event: DragEvent, task: Task): void {
-    event.dataTransfer?.setData('text/plain', task.id);
+    event.dataTransfer?.setData('application/x-board-task', task.id);
     this.dragging.set({ kind: 'task', id: task.id });
   }
 
@@ -158,7 +160,7 @@ export class BoardViewComponent implements OnInit {
   }
 
   protected onColumnDragStart(event: DragEvent, column: Column): void {
-    event.dataTransfer?.setData('text/plain', column.id);
+    event.dataTransfer?.setData('application/x-board-column', column.id);
     this.dragging.set({ kind: 'column', id: column.id });
   }
 
@@ -169,7 +171,7 @@ export class BoardViewComponent implements OnInit {
 
   protected async onTaskDrop(event: DragEvent, column: Column): Promise<void> {
     event.preventDefault();
-    const movedId = event.dataTransfer?.getData('text/plain') ?? this.dragging()?.id;
+    const movedId = (event.dataTransfer?.getData('application/x-board-task') ?? this.dragging()?.id) as UUID | undefined;
     if (!movedId) return;
     this.dragging.set(null);
     const area = this.boardArea()?.nativeElement;
@@ -181,7 +183,7 @@ export class BoardViewComponent implements OnInit {
 
   protected async onColumnDrop(event: DragEvent): Promise<void> {
     event.preventDefault();
-    const movedId = event.dataTransfer?.getData('text/plain') ?? this.dragging()?.id;
+    const movedId = (event.dataTransfer?.getData('application/x-board-column') ?? this.dragging()?.id) as UUID | undefined;
     if (!movedId) return;
     this.dragging.set(null);
     const area = this.boardArea()?.nativeElement;
@@ -191,7 +193,7 @@ export class BoardViewComponent implements OnInit {
     await this.guard(() => this.boardRef.actions.moveColumn(movedId, target));
   }
 
-  private resolveTaskTarget(column: Column, movedId: string, clientX: number, clientY: number, area: HTMLElement): CardDropTarget | null {
+  private resolveTaskTarget(column: Column, movedId: UUID, clientX: number, clientY: number, area: HTMLElement): CardDropTarget | null {
     const views = this.boardRef.columns().map(viewColumn => {
       const columnEl = area.querySelector<HTMLElement>(`[data-column-id="${viewColumn.id}"]`);
       const rect = columnEl?.getBoundingClientRect();
@@ -210,23 +212,24 @@ export class BoardViewComponent implements OnInit {
     return resolveCardDrop(views, movedId, clientX, clientY);
   }
 
-  private resolveColumnTarget(movedId: string, clientX: number, area: HTMLElement): { readonly prevId: string | null; readonly nextId: string | null } | null {
+  private resolveColumnTarget(movedId: UUID, clientX: number, area: HTMLElement): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null {
     const views = this.boardRef.columns().map(column => {
       const headerEl = area.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`);
       const rect = headerEl?.getBoundingClientRect();
       return { columnId: column.id, rect: { left: rect?.left ?? 0, right: rect?.right ?? 0 } };
     });
-    return resolveColumnDrop(views, this.boardRef.columns().map(column => column.id), movedId, clientX);
+    const target = resolveColumnDrop(views, this.boardRef.columns().map(column => column.id), movedId, clientX);
+    return target ? { prevId: target.prevId as UUID, nextId: target.nextId as UUID } : null;
   }
 
   // ---------- 本列排序 / 移动（键盘等价路径） ----------
 
-  protected async sortColumnBy(columnId: string, mode: 'dueDate' | 'title'): Promise<void> {
+  protected async sortColumnBy(columnId: UUID, mode: 'dueDate' | 'title'): Promise<void> {
     const result = await this.guard(() => this.boardRef.actions.sortColumn(columnId, mode));
     if (result && !result.written) this.notice.set('已按目标顺序排列，无变化');
   }
 
-  protected async moveColumnBy(columnId: string, direction: -1 | 1): Promise<void> {
+  protected async moveColumnBy(columnId: UUID, direction: -1 | 1): Promise<void> {
     const ids = this.boardRef.columns().map(column => column.id);
     const index = ids.indexOf(columnId);
     if (index < 0) return;
@@ -243,10 +246,10 @@ export class BoardViewComponent implements OnInit {
   protected readonly draftTitle = signal<string>('');
   protected readonly draftDescription = signal<string>('');
   protected readonly draftDueDate = signal<string>('');
-  protected readonly draftLabelIds = signal<readonly string[]>([]);
+  protected readonly draftLabelIds = signal<readonly UUID[]>([]);
   private snapshot: TaskDraftSnapshot | null = null;
 
-  protected async openDetail(taskId: string): Promise<void> {
+  protected async openDetail(taskId: UUID): Promise<void> {
     const snap = await this.boardRef.actions.openSnapshot(taskId);
     this.snapshot = snap;
     this.detailTaskId.set(taskId);
@@ -275,7 +278,7 @@ export class BoardViewComponent implements OnInit {
     this.closeDetail();
   }
 
-  protected toggleDraftLabel(labelId: string): void {
+  protected toggleDraftLabel(labelId: UUID): void {
     const current = this.draftLabelIds();
     this.draftLabelIds.set(current.includes(labelId) ? current.filter(id => id !== labelId) : [...current, labelId]);
   }
@@ -290,7 +293,7 @@ export class BoardViewComponent implements OnInit {
     await this.guard(() => this.boardRef.actions.createLabel({ name, color }));
   }
 
-  protected async renameLabel(labelId: string): Promise<void> {
+  protected async renameLabel(labelId: UUID): Promise<void> {
     const label = this.boardRef.labels().find(item => item.id === labelId);
     if (!label) return;
     const name = window.prompt('改标签名', label.name);
@@ -298,7 +301,7 @@ export class BoardViewComponent implements OnInit {
     await this.guard(() => this.boardRef.actions.renameLabel(labelId, name));
   }
 
-  protected async deleteLabel(labelId: string): Promise<void> {
+  protected async deleteLabel(labelId: UUID): Promise<void> {
     const plan = await this.boardRef.actions.planLabelDelete(labelId);
     const confirmed = window.confirm(`删除标签「${plan.labelName}」？将移除 ${plan.taskLabelIds.length} 条任务关联。`);
     if (!confirmed) return;
@@ -360,9 +363,14 @@ export class BoardViewComponent implements OnInit {
     await this.guard(() => this.boardRef.actions.redo());
   }
 
-  /** 备份导出入口（US-529 编排由宿主接线；本组件只暴露占位回调）。 */
-  protected async exportBackup(): Promise<void> {
-    this.notice.set('备份导出由宿主接线（US-529）');
+  /** 备份导出入口（US-529 编排由宿主接线；缺省展示占位提示）。 */
+  protected async onExportBackup(): Promise<void> {
+    const callback = this.exportBackup();
+    if (callback) {
+      await callback();
+    } else {
+      this.notice.set('备份导出由宿主接线（US-529）');
+    }
   }
 
   /** 统一写入口错误反馈：失败保留输入并提示，不静默。 */
@@ -393,6 +401,6 @@ export class BoardViewComponent implements OnInit {
     return `${year}-${month}-${day}`;
   }
 
-  protected readonly labelsOf = (taskId: string): readonly import('@aiao/rxdb-plugin-board').BoardLabel[] =>
+  protected readonly labelsOf = (taskId: UUID): readonly import('@aiao/rxdb-plugin-board').BoardLabel[] =>
     this.board()?.taskLabels().get(taskId) ?? [];
 }

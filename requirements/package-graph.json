@@ -279,7 +279,7 @@
     },
     {
       "name": "@aiao/rxdb-plugin-board",
-      "description": "看板领域模型：Board / Column / Task 实体、排序域与跨列移动、删除级联、详情草稿、恢复编排等单人看板领域服务，附确定性种子（epic-010）。",
+      "description": "看板领域模型：Board / Column / Task 实体、排序域与跨列移动、删除级联、详情草稿、恢复编排等单人看板领域服务，附确定性种子（epic-011）。",
       "role": "model",
       "hosts": [
         "browser",
@@ -290,7 +290,7 @@
     },
     {
       "name": "@aiao/rxdb-plugin-board-angular",
-      "description": "看板插件（rxdb-plugin-board）的 Angular 绑定：useBoard() 领域数据 signal 桥接与领域动作集合（epic-010 / US-531）。",
+      "description": "看板插件（rxdb-plugin-board）的 Angular 绑定：useBoard() 领域数据 signal 桥接与领域动作集合（epic-011 / US-531）。",
       "role": "binding",
       "hosts": [
         "browser",
@@ -301,7 +301,7 @@
     },
     {
       "name": "@aiao/rxdb-plugin-board-react",
-      "description": "看板插件（rxdb-plugin-board）的 React 绑定：useBoard() 领域数据 state 桥接与领域动作集合（epic-010 / US-531）。",
+      "description": "看板插件（rxdb-plugin-board）的 React 绑定：useBoard() 领域数据 state 桥接与领域动作集合（epic-011 / US-531）。",
       "role": "binding",
       "hosts": [
         "browser",
@@ -312,7 +312,7 @@
     },
     {
       "name": "@aiao/rxdb-plugin-board-vue",
-      "description": "看板插件（rxdb-plugin-board）的 Vue 绑定：useBoard() 领域数据 ref 桥接与领域动作集合（epic-010 / US-531）。",
+      "description": "看板插件（rxdb-plugin-board）的 Vue 绑定：useBoard() 领域数据 ref 桥接与领域动作集合（epic-011 / US-531）。",
       "role": "binding",
       "hosts": [
         "browser",
