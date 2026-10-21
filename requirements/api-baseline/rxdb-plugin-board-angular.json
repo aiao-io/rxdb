@@ -18,6 +18,10 @@
         "kind": "type"
       },
       {
+        "name": "BoardViewComponent",
+        "kind": "both"
+      },
+      {
         "name": "BoardWriteEvent",
         "kind": "type"
       },

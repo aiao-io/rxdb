@@ -8,6 +8,7 @@
  */
 
 export { useBoard, LAST_BOARD_KEY, type UseBoardActions, type UseBoardOptions, type UseBoardReturn, type UseBoardStorage } from './use-board.js';
+export { default as BoardView } from './board-view.vue';
 export type {
   Board,
   BoardHostContext,

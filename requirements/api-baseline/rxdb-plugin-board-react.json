@@ -18,6 +18,14 @@
         "kind": "type"
       },
       {
+        "name": "BoardView",
+        "kind": "value"
+      },
+      {
+        "name": "BoardViewProps",
+        "kind": "type"
+      },
+      {
         "name": "BoardWriteEvent",
         "kind": "type"
       },
