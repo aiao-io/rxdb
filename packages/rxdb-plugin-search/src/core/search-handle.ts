@@ -19,6 +19,7 @@ import {
   auditTime,
   BehaviorSubject,
   distinctUntilChanged,
+  filter,
   merge,
   skip,
   Subject,
@@ -192,7 +193,9 @@ export const createSearchHandle = (opts: CreateSearchHandleOptions): SearchHandl
     merge(
       debounced$,
       // 合并窗口只作用于数据变更通道，不影响用户输入的 debounce 语义
-      refreshAuditMs > 0 ? trigger$.pipe(auditTime(refreshAuditMs)) : trigger$
+      (refreshAuditMs > 0 ? trigger$.pipe(auditTime(refreshAuditMs)) : trigger$).pipe(
+        filter(q => q === currentQuery && q === query$.getValue())
+      )
     ).subscribe({
       next: q => {
         void enqueueQuery(q, 0);
