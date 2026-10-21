@@ -719,7 +719,14 @@ describe('PGlite system schema migration', () => {
       await adapter.internalQuery(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = $1::text WHERE "id" = 'held'`, [
         tableSet.holderKey
       ]);
-      await adapter.createWorktreeTableSet(tableSet, 'held');
+      await adapter.transaction(
+        executor =>
+          adapter.createWorktreeTableSet(executor, tableSet, {
+            branchId: 'held',
+            actions: { inserts: new Map(), updates: new Map(), deletes: new Map() }
+          }),
+        false
+      );
       // 模拟升级前的旧触发器：先把影子表的触发器删光，迁移要把它们按持有分支建回来
       for (const statement of remove_all_triggers_sql(adapter, tableSet).split('---STATEMENT_SEPARATOR---')) {
         if (statement.trim()) await adapter.internalQuery(statement.trim());

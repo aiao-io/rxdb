@@ -169,6 +169,13 @@ export interface SwitchSqlOptions {
    * 快照库的密文必须是主库信封的逐字节拷贝；解开再加密会换掉随机数，还要求密钥环已解锁。
    */
   readonly envelopePassthrough?: boolean;
+  /**
+   * 写到哪一套业务表上；不给就是适配器所属实例挂着的那一套。
+   *
+   * @remarks
+   * 给可写检出位播种时（US-314 B1.5）实例还挂在主表集上，增量要落进正在建的那套影子表。
+   */
+  readonly tableSet?: WorktreeTableSet;
 }
 
 export const convertSwitchResultToSql = async (
@@ -177,6 +184,7 @@ export const convertSwitchResultToSql = async (
   options: SwitchSqlOptions = {}
 ): Promise<SwitchVersionSqlResult> => {
   const passthrough = options.envelopePassthrough === true;
+  const tableSet = options.tableSet ?? adapter.tableSet;
   const encryption =
     passthrough ? { ...adapter.encryptionContext, envelopePassthrough: true } : adapter.encryptionContext;
   const prepareEntityData = async (metadata: EntityMetadata, entityData: EntityData): Promise<EntityData> =>
@@ -199,7 +207,7 @@ export const convertSwitchResultToSql = async (
 
   for (const [key, ids] of deleteIdsByEntity) {
     const metadata = getMetadata(adapter, key);
-    const tableName = quote_sql_identifier(get_table_name_by_metadata(metadata, adapter.tableSet));
+    const tableName = quote_sql_identifier(get_table_name_by_metadata(metadata, tableSet));
     const statements = chunkBySqliteBindLimit(Array.from(ids)).map(params => ({
       sql: `DELETE FROM ${tableName} WHERE ${quote_sql_identifier(get_primary_key_column(metadata))} in (${placeholders(params.length)});`,
       params
@@ -237,14 +245,14 @@ export const convertSwitchResultToSql = async (
           entityData[propertyName] = typeof property.default === 'function' ? property.default() : property.default;
         }
       }
-      const statement = await generate_entity_insert_sql(metadata, adapter.tableSet, entityData, {
+      const statement = await generate_entity_insert_sql(metadata, tableSet, entityData, {
         useReplace: true,
         encryption
       });
       statements.push(toSqliteStatement(statement));
     }
     const ids = new Set(rawEntities.map(entity => entity['id'] as RxDBEntityId));
-    const selectStatements = buildSelectStatements(metadata, adapter.tableSet, ids);
+    const selectStatements = buildSelectStatements(metadata, tableSet, ids);
     result.inserts.push({
       metadata,
       ids,
@@ -313,7 +321,7 @@ export const convertSwitchResultToSql = async (
       // PGlite 的同名文件也不展开 —— 这里曾经是唯一的例外。
       statements.push(
         toSqliteStatement(
-          await update_sql(metadata, adapter.tableSet, { id }, patch, {
+          await update_sql(metadata, tableSet, { id }, patch, {
             encryption,
             updatedAt
           })
@@ -326,7 +334,7 @@ export const convertSwitchResultToSql = async (
       metadata,
       ids,
       statements,
-      selectStatements: buildSelectStatements(metadata, adapter.tableSet, ids),
+      selectStatements: buildSelectStatements(metadata, tableSet, ids),
       changes,
       beforeInserts: ordersWritesForExclusion(metadata)
     });

@@ -20,7 +20,7 @@ import { getTableColumnIndexName, get_table_name_by_metadata } from '../table-na
 import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
 import type { AdapterFactory } from './adapter-factory.js';
 import { Todo } from './fixtures/Todo.js';
-import { SUITE_DEADLINE_MS } from './test-utils.js';
+import { SUITE_DEADLINE_MS, create_worktree_table_set, drop_worktree_table_set } from './test-utils.js';
 
 const currentWatermarks = [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK] as const;
 
@@ -408,7 +408,7 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
           tableSet.holderKey,
           heldBranch
         ]);
-        await adapter.createWorktreeTableSet(tableSet, heldBranch);
+        await create_worktree_table_set(adapter, tableSet, heldBranch);
         try {
           // 模拟升级前的旧触发器：先把影子表的触发器删光，迁移要把它们按持有分支建回来
           await adapter.internalQuery(remove_all_triggers_sql(adapter, tableSet));
@@ -431,7 +431,7 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
           ]);
           expect(changeRows.results.flatMap(item => item.rows)).toEqual([[heldBranch]]);
         } finally {
-          await adapter.dropWorktreeTableSet(tableSet);
+          await drop_worktree_table_set(adapter, tableSet);
         }
       });
 

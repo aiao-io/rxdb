@@ -18,8 +18,8 @@
  * 从提交建分支（US-314 阶段 A）也收在这里：判据同口径——切到新分支读到的，与那次 `commit()` 刚完成时读到的逐行一致。
  * 这套的调用点建得了分支（`SyncType.None`），捕获套件那边建不了。不切换的对比与合并预览（US-312）的真库冒烟同理收在这里。
  *
- * 可写检出位（US-314 B1.4）同理：实例挂上那套表之后，写捕获进持有分支的工作树、提交进它的历史，主检出位一处不动。
- * B1.5 补上打开 / 关闭可写检出位的公开入口之前，用例手工布景（持有键经系统仓库写，表集经适配器建）。
+ * 可写检出位（US-314 B1.5）同理：`checkouts.add()` 开出来、`mount()` 挂上之后，写捕获进持有分支的工作树、提交进它的历史，
+ * 主检出位一处不动；播种出来的、在检出位里写过的，都与「删掉检出位再切过去读到的」逐行一致。
  *
  * @module @aiao/rxdb-plugin-working-tree/testing
  */
@@ -42,9 +42,11 @@ import {
   RxDBChange,
   RxDBReadOnlyError,
   uuid,
+  WorktreeBranchHeldError,
   WorktreeTableSet
 } from '@aiao/rxdb';
 import { WorktreeUnavailableError } from '../../checkout/worktree-errors.js';
+import { holdWorktreeLock, worktreeLockName } from '../../checkout/worktree-locks.js';
 import type { WorktreeView } from '../../checkout/worktree-manager.js';
 import type { WorktreeTarget } from '../../checkout/worktree-target.js';
 import { CommitForkPoint } from '../../commit/commit-fork-point.entity.js';
@@ -59,16 +61,6 @@ import {
 
 /** 套件里另开的那条分支。 */
 const FEATURE = 'worktree-feature';
-
-/**
- * 两个后端都有的建表集入口（US-314 B1.3）。
- *
- * @remarks
- * 不在核心的适配器接口上：B1.5 的检出位生命周期才是它的正式调用方，这之前套件结构化地问。
- */
-interface WritableTableSetHost {
-  createWorktreeTableSet(tableSet: WorktreeTableSet, branchId: string): Promise<void>;
-}
 
 /** 两个后端的加密门面都长这样；套件只用解锁与上锁。 */
 interface EncryptionCapable {
@@ -283,6 +275,15 @@ const storedColumnOf = async (rxdb: RxDB, EntityClass: EntityType, column: strin
   return adapter.transaction(async executor => {
     const { rows } = await executor.query(`SELECT "${column}" FROM ${executor.tableRef(EntityClass)}`);
     return rows.map(row => row[0]);
+  }, false);
+};
+
+/** 变更日志的行数：开、删检出位都不该多出一行。 */
+const changeCountOf = async (rxdb: RxDB): Promise<number> => {
+  const adapter = await localAdapterOf(rxdb);
+  return adapter.transaction(async executor => {
+    const { rows } = await executor.query(`SELECT count(*) FROM ${executor.tableRef(RxDBChange)}`);
+    return Number(rows[0][0]);
   }, false);
 };
 
@@ -846,60 +847,182 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
     });
 
     // 持有分支在主检出位写任何东西之前建好：B1.5 的播种还没有，空的影子表正好就是它的内容
-    describe('挂在可写检出位上的写（US-314 B1.4）', () => {
-      /**
-       * 让 `branchId` 被一个可写检出位持有，并建出那套表
-       *
-       * @param branchId - 被持有的分支
-       * @param members - 表集成员；正常是版本化域里的全部实体
-       */
-      const holdWritable = async (branchId: string, members: readonly EntityType[]): Promise<WorktreeTableSet> => {
+    describe('可写检出位（US-314 AC3、AC4）', () => {
+      const checkoutsOf = () => database.workingTree.checkouts;
+
+      // 用例中途失败也要还锁、挂回主检出位：认领着的检出位握着锁，库换了也不会自己放
+      afterEach(async () => {
+        for (const row of await checkoutsOf().list()) {
+          if (row.mode === 'writable') await checkoutsOf().release(row.id);
+        }
+      });
+
+      it('AC3：检出位里写并提交，提交进那条分支的历史；主检出位的分支、工作树与业务表一处不动', async () => {
+        const { featureCommitId } = await seedTwoBranches(database);
+        const before = await mainStateOf(database);
+        const worktree = await checkoutsOf().add(FEATURE);
+        expect(worktree).toMatchObject({ mode: 'writable', kind: 'branch', branchId: FEATURE, owner: 'persistent' });
+
+        await checkoutsOf().mount(worktree.id);
+        expect(await activeBranchOf(database)).toBe(FEATURE);
+        // 特性分支自己的未提交改动（seedTwoBranches 最后那次改优先级）跟着分支走
+        expect(await database.workingTree.status()).toMatchObject({ branchId: FEATURE, clean: false });
+        await save(database, WorktreeConformanceTask, { title: '检出位里写的', priority: 3, dueAt: null, meta: null });
+        const commitId = await commitAll(database, 'in worktree');
+        expect((await historyOf(database)).slice(0, 2)).toEqual([commitId, featureCommitId]);
+        expect((await database.workingTree.status()).clean).toBe(true);
+
+        await checkoutsOf().mountMain();
+        expect(await mainStateOf(database)).toEqual(before);
+        await checkoutsOf().remove(worktree.id);
+        expect(await mainStateOf(database)).toEqual(before);
+        expect(await checkoutsOf().list()).toEqual([]);
+
+        await database.versionManager.switchBranch(FEATURE);
+        expect((await historyOf(database))[0]).toBe(commitId);
+      });
+
+      it('AC4：再开被占用的分支、开主检出位的当前分支、主检出位切过去，都被拒；删掉之后都放行', async () => {
+        const { main } = await seedTwoBranches(database);
+        const worktree = await checkoutsOf().add(FEATURE);
+
+        await expect(checkoutsOf().add(FEATURE)).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+        await expect(checkoutsOf().add(main)).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+        await expect(database.versionManager.switchBranch(FEATURE)).rejects.toThrow(/already used by a worktree/);
+        expect((await checkoutsOf().list()).map(row => row.id)).toEqual([worktree.id]);
+
+        await checkoutsOf().remove(worktree.id);
+        const again = await checkoutsOf().add(FEATURE);
+        await checkoutsOf().remove(again.id);
+        await database.versionManager.switchBranch(FEATURE);
+        expect(await activeBranchOf(database)).toBe(FEATURE);
+      });
+
+      it('播种出来的与切过去读到的逐行一致；检出位里写过之后，删掉检出位再切过去读到的也一致', async () => {
+        const { main, featureOnly, sharedLabel } = await seedTwoBranches(database);
+        const seededCheckout = await checkoutsOf().add(FEATURE);
+        await checkoutsOf().mount(seededCheckout.id);
+        const seeded = await tablesOf(database);
+        await checkoutsOf().remove(seededCheckout.id);
+        await database.versionManager.switchBranch(FEATURE);
+        expect(await tablesOf(database)).toEqual(seeded);
+
+        await database.versionManager.switchBranch(main);
+        const writtenCheckout = await checkoutsOf().add(FEATURE);
+        await checkoutsOf().mount(writtenCheckout.id);
+        const [task] = await firstValueFrom(
+          database.entityManager
+            .getRepository(WorktreeConformanceTask)
+            .findAll({ where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: featureOnly.id }] } })
+        );
+        task.title = '检出位里改名';
+        task.labels$.remove(sharedLabel);
+        await task.save();
+        await save(database, WorktreeConformanceLabel, { name: '检出位里加的标签' });
+        const written = await tablesOf(database);
+        await checkoutsOf().remove(writtenCheckout.id);
+        await database.versionManager.switchBranch(FEATURE);
+        expect(await tablesOf(database)).toEqual(written);
+      });
+
+      // 隔离探针：开、删都只动这套影子表、分支表上的持有键与登记行。SQLite 删表时先隐式删行再删表，
+      // 中间表的级联删除若被还挂着的触发器记下来，变更日志就会凭空多出一批持有分支上的删除
+      it('开、删检出位不改主表的原值、不写变更日志；删表引起的中间表级联也不记', async () => {
+        await seedTwoBranches(database);
+        const stored = await storedTablesOf(database);
+        const changes = await changeCountOf(database);
+
+        const worktree = await checkoutsOf().add(FEATURE);
+        expect(await storedTablesOf(database)).toEqual(stored);
+        expect(await changeCountOf(database)).toBe(changes);
+
+        await checkoutsOf().remove(worktree.id);
+        expect(await storedTablesOf(database)).toEqual(stored);
+        expect(await changeCountOf(database)).toBe(changes);
+      });
+
+      it('密钥环上锁时也开得了；挂上之后读到的密文是主库已有信封的逐字节拷贝', async () => {
+        const { secret } = await seedTwoBranches(database);
+        const envelopes = await mainEnvelopesOf(database, 'note');
+        const encryption = await encryptionOf(database);
+
+        encryption.lock();
+        const worktree = await checkoutsOf().add(FEATURE);
+        await encryption.unlock({ keyBytes: WORKTREE_CONFORMANCE_KEY, idleTimeoutMs: 0 });
+        await checkoutsOf().mount(worktree.id);
+
+        const copied = await storedColumnOf(database, WorktreeConformanceSecret, 'note');
+        expect(copied.length).toBeGreaterThan(0);
+        for (const value of copied) expect(envelopes.has(value), `密文 ${String(value)} 不是主库已有的信封`).toBe(true);
+        const [worktreeSecret] = await rowsOf(database, WorktreeConformanceSecret);
+        expect(worktreeSecret).toMatchObject({ id: secret.id, note: '特性的秘密' });
+      });
+
+      it('会话归属：release() 之后 prune() 收走它，分支放开；持久归属的留着，任何一处都能再 mount()', async () => {
+        await database.versionManager.createBranch(FEATURE);
+        const session = await checkoutsOf().add(FEATURE, { owner: 'session' });
+        await checkoutsOf().release(session.id);
+        expect(await checkoutsOf().prune()).toEqual([session.id]);
+        expect(await checkoutsOf().list()).toEqual([]);
+
+        const persistent = await checkoutsOf().add(FEATURE);
+        await checkoutsOf().release(persistent.id);
+        expect(await checkoutsOf().prune()).toEqual([]);
+        await checkoutsOf().mount(persistent.id);
+        expect(await activeBranchOf(database)).toBe(FEATURE);
+        await checkoutsOf().remove(persistent.id);
+        expect(database.worktreeTableSet.isMain).toBe(true);
+        await database.versionManager.switchBranch(FEATURE);
+        expect(await activeBranchOf(database)).toBe(FEATURE);
+      });
+
+      it('锁在别处时 mount() / remove() 报 in_use；挂在它上面时 remove() 先挂回主检出位', async () => {
+        const main = await activeBranchOf(database);
+        await database.versionManager.createBranch(FEATURE);
+        const worktree = await checkoutsOf().add(FEATURE);
+        await checkoutsOf().release(worktree.id);
+
+        const elsewhere = (await holdWorktreeLock(worktreeLockName(database.config.dbName, worktree.id)))!;
+        const mounted = await checkoutsOf()
+          .mount(worktree.id)
+          .catch((error: unknown) => error);
+        expect((mounted as WorktreeUnavailableError).reason).toBe('in_use');
+        const removed = await checkoutsOf()
+          .remove(worktree.id)
+          .catch((error: unknown) => error);
+        expect((removed as WorktreeUnavailableError).reason).toBe('in_use');
+        await elsewhere();
+
+        await checkoutsOf().mount(worktree.id);
+        await checkoutsOf().remove(worktree.id);
+        expect(database.worktreeTableSet.isMain).toBe(true);
+        expect(await activeBranchOf(database)).toBe(main);
+      });
+
+      // 漏登记的那张表还是主检出位的表，触发器把变更记在主检出位的分支名下：捕获进持有分支的工作树就是一笔错账。
+      // `add()` 的成员总是整个版本化域，造不出这种表集，这里经适配器的槽位手工建
+      it('表集漏登记了版本化实体：写落到主检出位的表上，整笔被拒、一行都不落', async () => {
+        await database.versionManager.createBranch(FEATURE);
+        const before = await storedTablesOf(database);
+        const members = [...WORKTREE_CONFORMANCE_ENTITIES, labelsJunction()].filter(
+          EntityClass => EntityClass !== WorktreeConformanceSecret
+        );
         const tableSet = WorktreeTableSet.of('wt_conform', members);
         const adapter = await localAdapterOf(database);
         await adapter.transaction(async executor => {
           const branches = executor.getRepository(RxDBBranch);
           const [branch] = await branches.find({
-            where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: branchId }] },
+            where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: FEATURE }] },
             limit: 1
           });
-          if (!branch) throw new Error(`分支 ${branchId} 不存在`);
+          if (!branch) throw new Error(`分支 ${FEATURE} 不存在`);
           await branches.update(branch, { activeKey: tableSet.holderKey });
-        });
-        await (adapter as unknown as WritableTableSetHost).createWorktreeTableSet(tableSet, branchId);
-        return tableSet;
-      };
-
-      /** 版本化域的全部实体：套件实体加任务与标签的中间表 */
-      const versionedEntities = (): EntityType[] => [...WORKTREE_CONFORMANCE_ENTITIES, labelsJunction()];
-
-      it('写捕获进持有分支的工作树、提交进它的历史；主检出位的工作树与业务表一处不动', async () => {
-        await database.versionManager.createBranch(FEATURE);
-        await save(database, WorktreeConformanceTask, { title: '主线', priority: null, dueAt: null, meta: null });
-        const mainCommitId = await commitAll(database, 'main base');
-        const before = await mainStateOf(database);
-        const tableSet = await holdWritable(FEATURE, versionedEntities());
-
+          await adapter.createWorktreeTableSet!(executor, tableSet, {
+            branchId: FEATURE,
+            actions: { inserts: new Map(), updates: new Map(), deletes: new Map() }
+          });
+        }, false);
         await database.mountWorktreeTableSet(tableSet);
-        expect(await activeBranchOf(database)).toBe(FEATURE);
-        await save(database, WorktreeConformanceTask, { title: '检出位里写的', priority: 2, dueAt: null, meta: null });
-        expect(await database.workingTree.status()).toMatchObject({ branchId: FEATURE, clean: false, entryCount: 1 });
-        const commitId = await commitAll(database, 'in worktree');
-        const history = await historyOf(database);
-        expect(history[0]).toBe(commitId);
-        expect(history).not.toContain(mainCommitId);
-        expect((await database.workingTree.status()).clean).toBe(true);
-
-        await database.mountWorktreeTableSet(WorktreeTableSet.MAIN);
-        expect(await mainStateOf(database)).toEqual(before);
-        expect((await historyOf(database))[0]).toBe(mainCommitId);
-      });
-
-      // 漏登记的那张表还是主检出位的表，触发器把变更记在主检出位的分支名下：捕获进持有分支的工作树就是一笔错账
-      it('表集漏登记了版本化实体：写落到主检出位的表上，整笔被拒、一行都不落', async () => {
-        await database.versionManager.createBranch(FEATURE);
-        const before = await storedTablesOf(database);
-        const members = versionedEntities().filter(EntityClass => EntityClass !== WorktreeConformanceSecret);
-        await database.mountWorktreeTableSet(await holdWritable(FEATURE, members));
 
         await expect(save(database, WorktreeConformanceSecret, { title: '漏登记', note: '不该落库' })).rejects.toThrow(
           /不是本实例的当前分支/

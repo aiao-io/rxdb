@@ -12,7 +12,7 @@ import { RxDB } from './RxDB.js';
 import { SwitchVersionActions } from './sync-contract/VersionManager.interface.js';
 import { RxDBChange } from './system/change.js';
 import { IRxDBChange, RemoteChange } from './system/system.interface.js';
-import type { WorktreeTableSet } from './system/worktree-table-set.js';
+import type { WorktreeTableSet, WorktreeTableSetSeed } from './system/worktree-table-set.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 import type {
   WorktreeSnapshotCursor,
@@ -808,6 +808,35 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    * 快照工厂配错、指到主库存储时那就是主库。而建得出却删不掉的快照库，关闭时抛错，之后每次回收都报错。
    */
   canDropStorage?(): boolean;
+
+  /**
+   * 在调用方的事务里建一套可写检出位的表并播种（US-314 B1.5）。
+   *
+   * @param executor - 主库上一个事务的执行器；建表、复制、增量、挂触发器都在这一笔里，打开流程在同一笔里写持有键
+   * @param tableSet - 要建的表集，不能是主表集；成员必须记变更日志
+   * @param seed - 持有分支与要叠上的增量
+   *
+   * @remarks
+   * 主表集的行原样复制（存储形态，不解密）、自增序列对齐、叠上增量，都不记变更日志、不派发事件；
+   * 最后把成员表的变更触发器挂到持有分支。与 {@link RxDBAdapterLocalBase.readWorktreeSnapshotPage} 同属可选能力槽位：
+   * 缺席时工作树插件打开可写检出位报不支持。
+   */
+  createWorktreeTableSet?(
+    executor: TransactionExecutor,
+    tableSet: WorktreeTableSet,
+    seed: WorktreeTableSetSeed
+  ): Promise<void>;
+
+  /**
+   * 在调用方的事务里删掉一套可写检出位的表（US-314 B1.5）。
+   *
+   * @param executor - 主库上一个事务的执行器；关闭流程在同一笔里放持有键、删登记行
+   * @param tableSet - 要删的表集，不能是主表集
+   *
+   * @remarks
+   * 按库里的目录找这套表，建到一半的、成员已从配置里移除的也一并删掉，可重入；删表引起的级联删除不记进变更日志。
+   */
+  dropWorktreeTableSet?(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void>;
 
   abstract switchBranch(options: SwitchBranchOptions): Promise<void>;
 

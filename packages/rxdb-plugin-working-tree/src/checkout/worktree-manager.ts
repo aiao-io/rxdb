@@ -1,8 +1,8 @@
 /**
- * @fileoverview `rxdb.workingTree.checkouts`：只读检出位的入口（US-313）。
+ * @fileoverview `rxdb.workingTree.checkouts`：检出位的入口，只读检出位（US-313）与可写检出位（US-314）。
  *
  * @remarks
- * 打开一个检出位：先拿下它的 Web Lock，再是三笔主库事务夹着快照库的建立——
+ * 打开一个只读检出位：先拿下它的 Web Lock，再是三笔主库事务夹着快照库的建立——
  *
  * 1. 校验目标、写登记行（`building`）——先登记再建库，崩在后面任何一步，回收时都按登记行找得到库；
  * 2. 连上快照实例（建表在这一步，不占着主库）；主库一笔事务里算增量、读业务表、写进快照库；
@@ -12,16 +12,35 @@
  * 关闭是反过来：断开快照实例、删快照库、删登记行，最后还锁。锁一直握在打开它的上下文手里，
  * 于是「锁没人持有」就是「没人在用」：`prune()` 只回收拿得到锁的会话归属检出位与没建完的检出位。
  *
+ * 可写检出位是同一个库里的一套影子表，动词照 GitHub Desktop 的 worktree：`add()` 登记、持有分支、建表、播种，一笔主库事务做完；
+ * `mount()` 让主实例挂上它读写、提交，`mountMain()` 挂回主检出位；`remove()` 一笔事务删表、放持有键、删登记，未提交的改动留在分支上。
+ * 认领用同一把锁：`add()` 与 `mount()` 拿下、`release()` 与 `remove()` 还掉，握在认领它的上下文手里，别处 `mount()` 报 `in_use`。
+ *
  * 主库事务都经工作树门面的受管事务（`WorkingTreeManager.runEnabled`）：与工作树的其它命令同一道门禁，
  * 未启用的库上拒绝。
  */
 
 import type { EntityType, LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
-import { computeRxDBSchemaFingerprint, RxDBBranch, RxDBError, sha256Hex, uuid } from '@aiao/rxdb';
+import {
+  computeRxDBSchemaFingerprint,
+  RxDBBranch,
+  RxDBChange,
+  RxDBError,
+  sha256Hex,
+  uuid,
+  WorktreeTableSet
+} from '@aiao/rxdb';
+import { compute_switch_branch_actions, get_branch_max_change } from '@aiao/rxdb-plugin-history';
 import { createCommitWriteContext } from '../commit/commit-context.js';
 import { classifyBranchMaterialization } from '../working-tree/branch-materialization.js';
+import { assertSwitchTargetIntact } from '../working-tree/switch-branch-options.js';
 import { planCommitView } from './worktree-commit-view.js';
-import { worktreeCopiedEntities, worktreeDeclaredEntities, worktreeEntityOf } from './worktree-entities.js';
+import {
+  worktreeCopiedEntities,
+  worktreeDeclaredEntities,
+  worktreeEntityOf,
+  worktreeTableSetMembers
+} from './worktree-entities.js';
 import { WorktreeUnavailableError } from './worktree-errors.js';
 import { holdWorktreeLock, worktreeLockName, type WorktreeLockRelease } from './worktree-locks.js';
 import type { WorktreeOptions } from './worktree-options.js';
@@ -34,8 +53,9 @@ import {
   markSnapshotComplete,
   sealSnapshot
 } from './worktree-snapshot.js';
-import { isReclaimCandidate } from './worktree-startup-reclaim.js';
+import { isPrunable, readHeldKeys } from './worktree-startup-reclaim.js';
 import { isWorktreeCommitTarget, type WorktreeTarget } from './worktree-target.js';
+import { holdBranch, onlyMembers, releaseBranch, tableSetHostOf, tableSetSuffixOf } from './worktree-writable.js';
 import { Worktree, type WorktreeOwner } from './worktree.entity.js';
 
 /** {@link WorktreeManager.open} 的选项。 */
@@ -46,6 +66,20 @@ export interface WorktreeOpenOptions {
    * @remarks
    * `session`：打开它的标签页（或 Node 进程）一结束，任何一处的 `prune()` 都能回收它。
    * `persistent`：刷新之后仍在登记里，用 {@link WorktreeManager.attach} 再打开；不用了显式 `close()`。
+   */
+  readonly owner?: WorktreeOwner;
+}
+
+/** {@link WorktreeManager.add} 的选项。 */
+export interface WorktreeAddOptions {
+  /** 名字（GitHub Desktop 的 Worktree name），缺省用分支 id */
+  readonly name?: string;
+  /**
+   * 归属，缺省 `persistent`。
+   *
+   * @remarks
+   * `persistent`：与 git、GitHub Desktop 一致，重启之后还在，分支一直被占到 {@link WorktreeManager.remove}。
+   * `session`：认领它的标签页（或 Node 进程）一结束，任何一处的 `prune()` 都能回收它；未提交的改动留在分支上。
    */
   readonly owner?: WorktreeOwner;
 }
@@ -100,11 +134,13 @@ export type WorktreeTransactionRunner = <T>(
   run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
 ) => Promise<T>;
 
-/** 只读检出位的入口：`rxdb.workingTree.checkouts`。 */
+/** 检出位的入口：`rxdb.workingTree.checkouts`。 */
 export class WorktreeManager {
   readonly #rxdb: RxDB;
   readonly #runEnabled: WorktreeTransactionRunner;
   readonly #options: WorktreeOptions | undefined;
+  /** 本上下文认领着的可写检出位：id → 它的锁与表集后缀 */
+  readonly #claims = new Map<string, WritableClaim>();
 
   /**
    * 由工作树门面构造，一个 RxDB 实例一个。
@@ -168,19 +204,21 @@ export class WorktreeManager {
         record: (await findRecords(executor, id))[0],
         mainAdapter: adapter
       }));
-      if (!record || record.owner !== 'persistent' || record.state !== 'ready') {
-        throw new WorktreeUnavailableError('not_found', `没有持久归属、已建完的检出位 ${id}`);
+      if (
+        !record ||
+        record.mode !== 'read_only' ||
+        record.dbName === null ||
+        record.owner !== 'persistent' ||
+        record.state !== 'ready'
+      ) {
+        throw new WorktreeUnavailableError('not_found', `没有持久归属、已建完的只读检出位 ${id}`);
       }
+      const { dbName } = record;
       const copied = worktreeCopiedEntities(this.#rxdb);
       if (record.schemaFingerprint !== computeRxDBSchemaFingerprint(copied)) {
         throw new WorktreeUnavailableError('schema_mismatch', `检出位 ${id} 建好之后应用的实体结构变了`);
       }
-      snapshot = createSnapshotDatabase(
-        mainAdapter,
-        record.dbName,
-        worktreeDeclaredEntities(this.#rxdb, copied),
-        worktrees
-      );
+      snapshot = createSnapshotDatabase(mainAdapter, dbName, worktreeDeclaredEntities(this.#rxdb, copied), worktrees);
       const snapshotAdapter = await connectSnapshotDatabase(snapshot);
       if (!(await isSnapshotComplete(snapshotAdapter))) {
         // 连上的是这一刻才建出来的空库：快照库已经不在了。连同登记行一起回收，免得下一次 attach() 又交回一张张空表；
@@ -196,7 +234,7 @@ export class WorktreeManager {
         record.kind === 'commit' && record.commitId !== null ?
           { commitId: record.commitId }
         : { branchId: record.branchId };
-      return this.#view({ id, target, owner: 'persistent', dbName: record.dbName }, snapshot, snapshotAdapter, release);
+      return this.#view({ id, target, owner: 'persistent', dbName }, snapshot, snapshotAdapter, release);
     } catch (error) {
       await snapshot?.disconnectAll();
       await release();
@@ -219,30 +257,32 @@ export class WorktreeManager {
   }
 
   /**
-   * 回收没人在用的检出位：会话归属的，与没建完的（`building`）。持久归属且已建完的留着。
+   * 回收没人在用的检出位：会话归属的，没建完的（`building`），以及持有的分支已经不在了的可写检出位。持久归属且已建完的留着。
    *
    * @returns 回收掉的检出位 id
    * @throws AggregateError 有检出位没回收掉；其余的照常回收
    *
    * @remarks
-   * 只碰拿得到锁的：别的标签页（或本页）正打开着的检出位，锁在它们手里。删库之前先用空实体集连一次快照库，
+   * 只碰拿得到锁的：别的标签页（或本页）正打开着、认领着的检出位，锁在它们手里。删库之前先用空实体集连一次快照库，
    * 标记迁移在不是快照库的已有库上会当场失败——工厂配错、指到了主库存储时，这里报错而不是把主库删掉。
-   * 连接期判定有孤儿（会话归属或没建完、且锁没人持有）时，插件在连上之后跑一次，见 `worktree-startup-reclaim.ts`。
+   * 没配快照库时只读检出位跳过（它们的库连不上）；可写检出位的表在主库里，照常回收。
+   * 连接期判定有孤儿（判据同上、且锁没人持有）时，插件在连上之后跑一次，见 `worktree-startup-reclaim.ts`。
    */
   async prune(): Promise<readonly string[]> {
-    const worktrees = this.#requireOptions();
-    const { records, mainAdapter } = await this.#runEnabled(async (executor, adapter) => ({
+    const { records, heldKeys, mainAdapter } = await this.#runEnabled(async (executor, adapter) => ({
       records: await executor.getRepository(Worktree).find({ where: { combinator: 'and', rules: [] } }),
+      heldKeys: await readHeldKeys(executor),
       mainAdapter: adapter
     }));
     const pruned: string[] = [];
     const failures: unknown[] = [];
     for (const record of records) {
-      if (!isReclaimCandidate(record)) continue;
+      if (!isPrunable(record, heldKeys, this.#options !== undefined)) continue;
       const release = await holdWorktreeLock(this.#lockName(record.id), true);
       if (!release) continue;
       try {
-        await this.#reclaim(record, mainAdapter, worktrees);
+        if (record.mode === 'writable') await this.#dropWritable(record.id);
+        else await this.#reclaim(record, mainAdapter, this.#requireOptions());
         pruned.push(record.id);
       } catch (error) {
         failures.push(error);
@@ -250,8 +290,171 @@ export class WorktreeManager {
         await release();
       }
     }
-    if (failures.length > 0) throw new AggregateError(failures, `${failures.length} 个只读检出位没回收掉`);
+    if (failures.length > 0) throw new AggregateError(failures, `${failures.length} 个检出位没回收掉`);
     return pruned;
+  }
+
+  /**
+   * 开一个可写检出位：登记、持有分支、建那套影子表、播种，一笔主库事务做完；建好不挂，本上下文认领它。
+   *
+   * @param branchId - 要在检出位里检出的分支；本地要有完整数据
+   * @param options - 见 {@link WorktreeAddOptions}
+   * @returns 登记行
+   * @throws {@link WorktreeUnavailableError} `unsupported_adapter`：主库适配器建不了表集；`branch_not_found` /
+   * `branch_not_materialized`；运行时没有 Web Locks（`locks_unavailable`）
+   * @throws {@link WorktreeBranchHeldError} 分支已被持有：主检出位正停在它上面，或另一个可写检出位持有它（git：`already used by worktree`）
+   *
+   * @remarks
+   * 播种 = 主表集的行原样复制，再叠上「主检出位所在分支 → 这条分支」的增量，与切过去读到的逐行一致；都不记进变更日志。
+   * 不推进激活态：主检出位的工作树、当前分支与 `activationRevision` 一处不动。GitHub Desktop 建完会切过去，对应 {@link WorktreeManager.mount}。
+   */
+  async add(branchId: string, options: WorktreeAddOptions = {}): Promise<Worktree> {
+    const id = uuid();
+    const members = worktreeTableSetMembers(this.#rxdb);
+    const tableSet = WorktreeTableSet.of(tableSetSuffixOf(id), members);
+    // 新 id 上的锁不会被别人占着；登记行写下之前就握住，别处的 prune() 才不会把建好的检出位当孤儿收走
+    const release = (await holdWorktreeLock(this.#lockName(id)))!;
+    try {
+      const record = await this.#runEnabled(async (executor, adapter) => {
+        const host = tableSetHostOf(adapter);
+        await assertBranchReadable(executor, branchId);
+        await holdBranch(executor, branchId, tableSet);
+        await assertSwitchTargetIntact(executor, branchId);
+        const branchRepository = executor.getRepository(RxDBBranch);
+        const changeRepository = executor.getRepository(RxDBChange);
+        const [main] = await branchRepository.find({ where: WorktreeTableSet.MAIN.heldBranchWhere, limit: 1 });
+        if (!main) throw new RxDBError('主检出位没有 active 分支：开不了可写检出位');
+        const actions = await compute_switch_branch_actions({ branchRepository, changeRepository }, branchId, main.id);
+        await host.createWorktreeTableSet(executor, tableSet, {
+          branchId,
+          actions: onlyMembers(this.#rxdb, actions, tableSet)
+        });
+        const row = this.#writableRecord({
+          id,
+          branchId,
+          name: options.name ?? branchId,
+          owner: options.owner ?? 'persistent',
+          tableSet,
+          schemaFingerprint: computeRxDBSchemaFingerprint(members),
+          sourceBranchId: main.id,
+          sourceChangeId: (await get_branch_max_change(changeRepository, main.id))?.id ?? null,
+          targetChangeId: (await get_branch_max_change(changeRepository, branchId))?.id ?? null
+        });
+        await executor.saveMany([row]);
+        return row;
+      });
+      this.#claims.set(id, { release, suffix: tableSet.suffix });
+      return record;
+    } catch (error) {
+      await release();
+      throw error;
+    }
+  }
+
+  /**
+   * 让主实例挂上一个可写检出位：此后读写都落在那套影子表上，捕获、提交记在它持有的分支上。
+   *
+   * @param id - 检出位 id（{@link WorktreeManager.list} 里那一行）
+   * @throws {@link WorktreeUnavailableError} `in_use`：它被别处认领着；`not_found`：不是已建好的可写检出位，或它持有的分支已经不在了；
+   * `schema_mismatch`：建它之后应用的实体结构变了
+   *
+   * @remarks
+   * 没认领的先认领（拿下它的锁），挂不上就还掉。换挂换的是整个实例：实体缓存清空、活查询全部重跑、撤销栈跟着换到那条分支。
+   * 已经挂在它上面时什么也不做。
+   */
+  async mount(id: string): Promise<void> {
+    const release = this.#claims.has(id) ? undefined : await this.#acquire(id);
+    try {
+      const tableSet = await this.#runEnabled(async executor => {
+        const [record] = await findRecords(executor, id);
+        if (!record || record.mode !== 'writable' || record.state !== 'ready' || record.tableSetSuffix === null) {
+          throw new WorktreeUnavailableError('not_found', `没有已建好的可写检出位 ${id}`);
+        }
+        const members = worktreeTableSetMembers(this.#rxdb);
+        if (record.schemaFingerprint !== computeRxDBSchemaFingerprint(members)) {
+          throw new WorktreeUnavailableError('schema_mismatch', `可写检出位 ${id} 建好之后应用的实体结构变了`);
+        }
+        const set = WorktreeTableSet.of(record.tableSetSuffix, members);
+        const [held] = await executor.getRepository(RxDBBranch).find({ where: set.heldBranchWhere, limit: 1 });
+        if (!held) throw new WorktreeUnavailableError('not_found', `可写检出位 ${id} 持有的分支已经不在了`);
+        await executor.getRepository(Worktree).update(record, { lastAccessedAt: new Date() });
+        return set;
+      });
+      if (release) this.#claims.set(id, { release, suffix: tableSet.suffix });
+      if (this.#rxdb.worktreeTableSet.suffix !== tableSet.suffix) await this.#rxdb.mountWorktreeTableSet(tableSet);
+    } catch (error) {
+      if (release) {
+        this.#claims.delete(id);
+        await release();
+      }
+      throw error;
+    }
+  }
+
+  /** 让主实例挂回主检出位；认领着的可写检出位照旧认领着。 */
+  async mountMain(): Promise<void> {
+    await this.#rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+  }
+
+  /**
+   * 交出对一个可写检出位的认领：挂在它上面就先挂回主检出位，再还锁。表集、持有键与登记行都留着。
+   *
+   * @param id - 检出位 id；本上下文没认领它时什么也不做
+   *
+   * @remarks
+   * 持久归属的之后任何一处都能再 {@link WorktreeManager.mount}；会话归属的留给 `prune()` 回收。
+   */
+  async release(id: string): Promise<void> {
+    const claim = this.#claims.get(id);
+    if (!claim) return;
+    if (this.#rxdb.worktreeTableSet.suffix === claim.suffix) await this.mountMain();
+    this.#claims.delete(id);
+    await claim.release();
+  }
+
+  /**
+   * 删掉一个可写检出位：挂在它上面就先挂回主检出位，再一笔事务删表集、放开持有的分支、删登记行。
+   *
+   * @param id - 检出位 id；登记行已经不在时什么也不做
+   * @throws {@link WorktreeUnavailableError} `in_use`：它被别处认领着；`not_found`：它是只读检出位（用视图的 `close()`）
+   *
+   * @remarks
+   * 未提交的改动留在分支上：检出位里的写都记进了那条分支的变更日志，之后切过去照样读得到（git 删 worktree 时它们会丢，这里不会）。
+   */
+  async remove(id: string): Promise<void> {
+    const release = this.#claims.get(id)?.release ?? (await this.#acquire(id));
+    try {
+      const [record] = await this.#runEnabled(executor => findRecords(executor, id));
+      if (!record) return;
+      if (record.mode !== 'writable') {
+        throw new WorktreeUnavailableError('not_found', `检出位 ${id} 是只读检出位：用视图的 close() 关掉它`);
+      }
+      if (this.#rxdb.worktreeTableSet.suffix === record.tableSetSuffix) await this.mountMain();
+      await this.#dropWritable(id);
+    } finally {
+      this.#claims.delete(id);
+      await release();
+    }
+  }
+
+  /** 拿下一个检出位的锁；拿不到就是别处认领着。 */
+  async #acquire(id: string): Promise<WorktreeLockRelease> {
+    const release = await holdWorktreeLock(this.#lockName(id), true);
+    if (!release) throw new WorktreeUnavailableError('in_use', `检出位 ${id} 正在别处打开着`);
+    return release;
+  }
+
+  /** 一笔事务删掉一个可写检出位：表集、持有键、登记行；登记行已经不在就什么都不做。 */
+  async #dropWritable(id: string): Promise<void> {
+    await this.#runEnabled(async (executor, adapter) => {
+      const [record] = await findRecords(executor, id);
+      if (!record) return;
+      if (record.tableSetSuffix === null) throw new RxDBError(`可写检出位 ${id} 的登记行没有表集后缀`);
+      const tableSet = WorktreeTableSet.of(record.tableSetSuffix, []);
+      await tableSetHostOf(adapter).dropWorktreeTableSet(executor, tableSet);
+      await releaseBranch(executor, tableSet);
+      await executor.getRepository(Worktree).remove(record);
+    });
   }
 
   #requireOptions(): WorktreeOptions {
@@ -359,8 +562,9 @@ export class WorktreeManager {
     await this.#unregister(id);
   }
 
-  /** 回收一个没人在用的检出位：先确认它是快照库，再删库、删登记行。 */
+  /** 回收一个没人在用的只读检出位：先确认它是快照库，再删库、删登记行。 */
   async #reclaim(record: Worktree, mainAdapter: LocalRxDBAdapter, worktrees: WorktreeOptions): Promise<void> {
+    if (record.dbName === null) throw new RxDBError(`只读检出位 ${record.id} 的登记行没有快照库名`);
     const snapshot = createSnapshotDatabase(mainAdapter, record.dbName, [], worktrees);
     const snapshotAdapter = await connectSnapshotDatabase(snapshot);
     await this.#discard(record.id, snapshot, snapshotAdapter);
@@ -372,6 +576,7 @@ export class WorktreeManager {
     const record = this.#rxdb.entityManager.instantiate(Worktree);
     Object.assign(record, {
       id,
+      mode: 'read_only',
       kind: isWorktreeCommitTarget(target) ? 'commit' : 'branch',
       branchId,
       commitId: isWorktreeCommitTarget(target) ? target.commitId : null,
@@ -379,9 +584,35 @@ export class WorktreeManager {
       sourceChangeId: null,
       targetChangeId: null,
       dbName,
+      tableSetSuffix: null,
+      name: null,
       owner,
       state: 'building',
       schemaFingerprint: computeRxDBSchemaFingerprint(copied),
+      createdAt: now,
+      lastAccessedAt: now
+    } satisfies Worktree);
+    return record;
+  }
+
+  #writableRecord(identity: WritableRecordIdentity): Worktree {
+    const now = new Date();
+    const record = this.#rxdb.entityManager.instantiate(Worktree);
+    Object.assign(record, {
+      id: identity.id,
+      mode: 'writable',
+      kind: 'branch',
+      branchId: identity.branchId,
+      commitId: null,
+      sourceBranchId: identity.sourceBranchId,
+      sourceChangeId: identity.sourceChangeId,
+      targetChangeId: identity.targetChangeId,
+      dbName: null,
+      tableSetSuffix: identity.tableSet.suffix,
+      name: identity.name,
+      owner: identity.owner,
+      state: 'ready',
+      schemaFingerprint: identity.schemaFingerprint,
       createdAt: now,
       lastAccessedAt: now
     } satisfies Worktree);
@@ -413,6 +644,25 @@ interface WorktreeViewIdentity {
   readonly target: WorktreeTarget;
   readonly owner: WorktreeOwner;
   readonly dbName: string;
+}
+
+/** 本上下文对一个可写检出位的认领：握着的锁，与它那套表的后缀（判断此刻挂没挂在它上面）。 */
+interface WritableClaim {
+  readonly release: WorktreeLockRelease;
+  readonly suffix: string | null;
+}
+
+/** 可写检出位登记行里由打开流程决定的那几列。 */
+interface WritableRecordIdentity {
+  readonly id: string;
+  readonly branchId: string;
+  readonly name: string;
+  readonly owner: WorktreeOwner;
+  readonly tableSet: WorktreeTableSet;
+  readonly schemaFingerprint: string;
+  readonly sourceBranchId: string;
+  readonly sourceChangeId: number | null;
+  readonly targetChangeId: number | null;
 }
 
 /** 登记行里由打开参数决定的那几列。 */

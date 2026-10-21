@@ -142,8 +142,9 @@ const createSystemContribution = (rxdb: RxDB, startup: StartupReclaimHooks): RxD
       // 绕一层只是白费，出错时还多一层要排除的嫌疑。
       if (capabilityEnabled) await assertSingleActiveBranch(executor);
       // 启动清理的判定也在这一笔里读：连上之后再开一笔事务去看，正赶上别的连接拿系统迁移锁时它就连不上，
-      // 见 `worktree-startup-reclaim.ts`。未启用的库上 checkouts 整体不可用，不读
-      const candidates = capabilityEnabled && startup.configured() ? await findReclaimCandidates(executor) : [];
+      // 见 `worktree-startup-reclaim.ts`。未启用的库上 checkouts 整体不可用，不读。没配快照库也要读：
+      // 可写检出位（US-314）的表在主库里，不靠快照库就收得了，只读检出位那时不算
+      const candidates = capabilityEnabled ? await findReclaimCandidates(executor, startup.configured()) : [];
       return { enabled: capabilityEnabled, reclaimCandidates: candidates };
     }, false);
     // 未启用的库上一次都不装，于是四个写原语连一层转发都没有——FR-046 要求的「零行为差异」
@@ -301,8 +302,9 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
       return () => this.rxdb.removeEventListener(CAPABILITY_ENABLED_EVENT, onCapabilityEnabled);
     }, 'workingTree:capability-enabled');
 
-    // 只读检出位（US-313）：连接期的引导事务判定有孤儿时，连上之后在后台回收一次。
-    // 关掉或崩掉的标签页留下的会话归属检出位，就靠这一次被收走。
+    // 检出位（US-313 / US-314）：连接期的引导事务判定有孤儿时，连上之后在后台回收一次。
+    // 关掉或崩掉的标签页留下的会话归属检出位，丢了持有分支的可写检出位，就靠这一次被收走。
+    // 没配快照库也装：可写检出位不需要快照库。
     //
     // 等的是 `adapterConnected$` 而不是 `localAdapter$`：后者在 `init()` 时就发出适配器，那时这条连接的引导判定
     // 还没做；前者在 `bootstrapExisting()` 之后才置位，而且只是通知，不会替应用发起连接。
@@ -310,7 +312,7 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
     // 每次连上都接，不只接第一次：还有别的适配器连着时只断本地再连回来，插件不重装、订阅还是这一个，
     // 引导事务却会重新判定。一次判定只回收一次由 `#reclaimPending` 管，不靠订阅的次数
     const localAdapterName = this.rxdb.config.sync.local?.adapter;
-    if (!this.#worktreesConfigured || localAdapterName === undefined) return;
+    if (localAdapterName === undefined) return;
     scope.acquire(() => {
       const subscription = this.rxdb
         .adapterConnected$(localAdapterName)
@@ -321,11 +323,11 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
   }
 
   /**
-   * 后台回收一次只读检出位；引导期没判定出孤儿就什么都不做。
+   * 后台回收一次检出位；引导期没判定出孤儿就什么都不做。
    *
    * @remarks
    * 判定只在既有库的连接期做（`bootstrapExisting()`），新库的登记表是这次建表刚建的，必然没有孤儿。
-   * 没有调用方可以把错误交回去，打到控制台：回收失败只是留下几个没删的快照库，下一个连接纪元会再试。
+   * 没有调用方可以把错误交回去，打到控制台：回收失败只是留下几个没删的快照库或影子表，下一个连接纪元会再试。
    */
   async #pruneWorktrees(): Promise<void> {
     if (!this.#reclaimPending) return;
@@ -333,7 +335,7 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
     try {
       await this.rxdb.workingTree.checkouts.prune();
     } catch (error) {
-      console.error('[rxdb-plugin-working-tree] 回收只读检出位失败', error);
+      console.error('[rxdb-plugin-working-tree] 回收检出位失败', error);
     }
   }
 }

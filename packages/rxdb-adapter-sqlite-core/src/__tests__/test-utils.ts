@@ -1,4 +1,9 @@
-import { ENTITY_LOCAL_CREATE_EVENT, type EntityLocalCreatedEvent, WorktreeTableSet } from '@aiao/rxdb';
+import {
+  ENTITY_LOCAL_CREATE_EVENT,
+  type EntityLocalCreatedEvent,
+  type SwitchVersionActions,
+  WorktreeTableSet
+} from '@aiao/rxdb';
 // 只为把 `declare module '@aiao/rxdb'` 的 `versionManager` 声明带进本编译单元：
 // 历史 / 撤销重做 / 分支自 US-025 阶段 C 起住在这个插件里，核心 `RxDB` 上没有这个成员。
 // 共享套件本身不 `use()` 它 —— 装插件是 `AdapterFactory` 的活（见 `testing.ts` 的契约）。
@@ -37,12 +42,40 @@ import { generateSwitchBranchSql } from '../version/switch_branch.js';
  * 属于上一个测试（表现为 `自定义主键列 > 事件：change 表按自定义主键列记录 entityId`
  * 这类按机器负载偶发的假红）。序列不重置后，跨测试的 id 不再重叠，陈旧缓存无从冒充新行。
  */
+/** 空增量：只复制主表集、不叠任何改动的播种 */
+const EMPTY_ACTIONS = (): SwitchVersionActions => ({ inserts: new Map(), updates: new Map(), deletes: new Map() });
+
+/**
+ * 在一笔不记日志的事务里建一套可写检出位的表并播种（US-314 B1.5）。
+ *
+ * @param adapter - 适配器
+ * @param tableSet - 影子表集
+ * @param branchId - 持有分支
+ * @param actions - 叠在复制结果上的增量；不给就只复制主表集
+ */
+export const create_worktree_table_set = (
+  adapter: RxDBAdapterSqliteBase,
+  tableSet: WorktreeTableSet,
+  branchId: string,
+  actions: SwitchVersionActions = EMPTY_ACTIONS()
+): Promise<void> =>
+  adapter.transaction(executor => adapter.createWorktreeTableSet(executor, tableSet, { branchId, actions }), false);
+
+/**
+ * 在一笔不记日志的事务里删掉一套可写检出位的表（US-314 B1.5）：按目录找，成员可以不给。
+ *
+ * @param adapter - 适配器
+ * @param tableSet - 影子表集
+ */
+export const drop_worktree_table_set = (adapter: RxDBAdapterSqliteBase, tableSet: WorktreeTableSet): Promise<void> =>
+  adapter.transaction(executor => adapter.dropWorktreeTableSet(executor, tableSet), false);
+
 /**
  * 删掉库里全部可写检出位的表集（US-314 B1.3）。
  *
  * @remarks
  * 它们不在建库形态里：逐表 DELETE 只会把影子表清空、还留着表和触发器，下一条用例再建同名表集就撞「表已存在」。
- * 后缀从物理名里认（`<命名空间>$<表名>$wt_…`），成员按全部实体给：删除是 `IF EXISTS`，多给的落空即可。
+ * 后缀从物理名里认（`<命名空间>$<表名>$wt_…`）；删表集按目录找这套表，成员不用给。
  */
 const drop_worktree_table_sets = async (adapter: RxDBAdapterSqliteBase): Promise<void> => {
   const result = await adapter.internalQuery(
@@ -53,9 +86,7 @@ const drop_worktree_table_sets = async (adapter: RxDBAdapterSqliteBase): Promise
     const suffix = String(name).slice(String(name).lastIndexOf('$') + 1);
     if (/^wt_[a-z0-9]{1,12}$/.test(suffix)) suffixes.add(suffix);
   }
-  for (const suffix of suffixes) {
-    await adapter.dropWorktreeTableSet(WorktreeTableSet.of(suffix, adapter.rxdb.config.entities));
-  }
+  for (const suffix of suffixes) await drop_worktree_table_set(adapter, WorktreeTableSet.of(suffix, []));
 };
 
 export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {

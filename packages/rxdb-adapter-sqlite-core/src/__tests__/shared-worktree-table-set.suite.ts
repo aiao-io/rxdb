@@ -1,4 +1,15 @@
-import { RxDBBranch, RxDBChange, WorktreeTableSet, encodeRxDBChangeEntityId, getEntityMetadata } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  type IRxDBChange,
+  PropertyType,
+  RxDBBranch,
+  RxDBChange,
+  WorktreeTableSet,
+  encodeRxDBChangeEntityId,
+  getEntityMetadata,
+  getRxDBChangeKey
+} from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
@@ -8,7 +19,21 @@ import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import { execute_switch_actions } from '../version/execute_switch_actions.js';
 import type { AdapterFactory } from './adapter-factory.js';
 import { Todo } from './fixtures/Todo.js';
-import { cleanup_db } from './test-utils.js';
+import { cleanup_db, create_worktree_table_set, drop_worktree_table_set } from './test-utils.js';
+
+/** 整数主键（SQLite 上是 `AUTOINCREMENT`）：播种要把主表的序列对齐过去（US-314 B1.5） */
+@Entity({
+  name: 'WorktreeSeqNote',
+  namespace: 'wtseq',
+  tableName: 'wtseq_note',
+  properties: [
+    { name: 'id', type: PropertyType.integer, primary: true, readonly: true },
+    { name: 'title', type: PropertyType.string }
+  ]
+})
+class WorktreeSeqNote extends EntityBase<number> {
+  declare title: string;
+}
 
 /**
  * 可写检出位的表集（US-314 B1.3）：建表集、删表集，以及主检出位的各条写路径都不碰别的表集。
@@ -84,8 +109,26 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
       }
     };
 
+    /** 建一条分支，让 `set` 持有它（写持有键） */
+    const holdBranchFor = async (set: WorktreeTableSet, branchId: string): Promise<void> => {
+      await adapter.rxdb.versionManager.createBranch(branchId);
+      await adapter.internalQuery(`UPDATE ${branchTable} SET "activeKey" = ? WHERE "id" = ?`, [
+        set.holderKey,
+        branchId
+      ]);
+    };
+
+    const countChanges = async (): Promise<number> =>
+      Number((await readRows(`SELECT count(*) FROM ${changeTable}`))[0][0]);
+
+    /** 一行 Todo 的变更键：`<命名空间>:<实体>:<身份键>` */
+    const todoKey = (id: string): string => {
+      const { namespace, name } = getEntityMetadata(Todo);
+      return getRxDBChangeKey({ namespace, entity: name, entityId: id } as IRxDBChange);
+    };
+
     beforeAll(async () => {
-      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [Todo] });
+      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [Todo, WorktreeSeqNote] });
     });
 
     afterAll(async () => {
@@ -99,7 +142,7 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
         tableSet.holderKey,
         heldBranch
       ]);
-      await adapter.createWorktreeTableSet(tableSet, heldBranch);
+      await create_worktree_table_set(adapter, tableSet, heldBranch);
     });
 
     afterEach(async () => await cleanup_db(adapter));
@@ -164,7 +207,7 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
     });
 
     it('删表集：成员那张表连同触发器一起没了，主表集原样', async () => {
-      await adapter.dropWorktreeTableSet(tableSet);
+      await drop_worktree_table_set(adapter, tableSet);
 
       expect(await objectsOf('table', '%$wt\\_probe')).toEqual([]);
       expect(await objectsOf('trigger', '%$wt\\_probe\\_%')).toEqual([]);
@@ -176,12 +219,92 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
       expect(await branchesOfChanges(await rawInsert(WorktreeTableSet.MAIN, 'main'))).toEqual(['main']);
     });
 
+    // 删表集按目录找（US-314 B1.5）：建到一半的、成员已从配置里移除的也删得掉
+    it('删表集按目录找：成员不给也删得掉，删两遍不报错', async () => {
+      await drop_worktree_table_set(adapter, WorktreeTableSet.of('wt_probe', []));
+      expect(await objectsOf('table', '%$wt\\_probe')).toEqual([]);
+
+      await drop_worktree_table_set(adapter, WorktreeTableSet.of('wt_probe', []));
+    });
+
     it('主表集不经这里建，成员也必须记变更日志', async () => {
-      await expect(adapter.createWorktreeTableSet(WorktreeTableSet.MAIN, 'main')).rejects.toThrow(/主表集/);
-      await expect(adapter.dropWorktreeTableSet(WorktreeTableSet.MAIN)).rejects.toThrow(/主表集/);
+      await expect(create_worktree_table_set(adapter, WorktreeTableSet.MAIN, 'main')).rejects.toThrow(/主表集/);
+      await expect(drop_worktree_table_set(adapter, WorktreeTableSet.MAIN)).rejects.toThrow(/主表集/);
       await expect(
-        adapter.createWorktreeTableSet(WorktreeTableSet.of('wt_branch', [RxDBBranch]), heldBranch)
+        create_worktree_table_set(adapter, WorktreeTableSet.of('wt_branch', [RxDBBranch]), heldBranch)
       ).rejects.toThrow(/变更日志/);
+    });
+
+    // 打开可写检出位的播种（US-314 B1.5）：建表、复制主表集、叠增量都在调用方那一笔事务里，都不记进变更日志
+    describe('播种（US-314 B1.5）', () => {
+      it('主表的行原样复制、叠上增量，都不记进变更日志；之后的写记在持有分支', async () => {
+        const seeded = WorktreeTableSet.of('wt_seed', [Todo]);
+        await rawInsert(WorktreeTableSet.MAIN, 'keep');
+        const gone = await rawInsert(WorktreeTableSet.MAIN, 'gone');
+        await holdBranchFor(seeded, 'seed-held');
+        const changes = await countChanges();
+        const added = crypto.randomUUID();
+        const now = new Date().toISOString();
+
+        await create_worktree_table_set(adapter, seeded, 'seed-held', {
+          inserts: new Map([
+            [
+              todoKey(added),
+              { patch: { id: added, title: 'added', completed: 0, createdAt: now, updatedAt: now }, inversePatch: null }
+            ]
+          ]),
+          updates: new Map(),
+          deletes: new Map([[todoKey(gone), { patch: null, inversePatch: null }]])
+        });
+
+        expect(await titlesOf(seeded)).toEqual(['added', 'keep']);
+        expect(await titlesOf(WorktreeTableSet.MAIN)).toEqual(['gone', 'keep']);
+        expect(await countChanges()).toBe(changes);
+        expect(await branchesOfChanges(await rawInsert(seeded, 'later'))).toEqual(['seed-held']);
+      });
+
+      // 非成员按解析器落回主表名：叠上去就改写了主检出位的表
+      it('增量里有表集之外的实体：整笔拒绝，一张表都不建', async () => {
+        const stray = WorktreeTableSet.of('wt_stray', [Todo]);
+        await holdBranchFor(stray, 'stray-held');
+        const { namespace, name } = getEntityMetadata(WorktreeSeqNote);
+        const outside = getRxDBChangeKey({ namespace, entity: name, entityId: 1 } as IRxDBChange);
+
+        await expect(
+          create_worktree_table_set(adapter, stray, 'stray-held', {
+            inserts: new Map([[outside, { patch: { id: 1, title: 'outside' }, inversePatch: null }]]),
+            updates: new Map(),
+            deletes: new Map()
+          })
+        ).rejects.toThrow(/表集之外/);
+        expect(await objectsOf('table', '%$wt\\_stray')).toEqual([]);
+      });
+
+      // 显式插入只会把影子表的序列抬到它自己的最大 id：主表删掉的 id 会被影子表再发一次
+      it('对齐自增序列：主表删掉的 id，影子表不再发', async () => {
+        const metadata = getEntityMetadata(WorktreeSeqNote);
+        const seqSet = WorktreeTableSet.of('wt_seq', [WorktreeSeqNote]);
+        const mainTable = quote_sql_identifier(get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN));
+        const shadowTable = quote_sql_identifier(get_table_name_by_metadata(metadata, seqSet));
+        const insertNote = async (table: string, title: string): Promise<void> => {
+          const now = new Date().toISOString();
+          await adapter.internalQuery(`INSERT INTO ${table} ("title", "createdAt", "updatedAt") VALUES (?, ?, ?)`, [
+            title,
+            now,
+            now
+          ]);
+        };
+        for (const title of ['a', 'b', 'c']) await insertNote(mainTable, title);
+        const [[lastId]] = await readRows(`SELECT max("id") FROM ${mainTable}`);
+        await adapter.internalQuery(`DELETE FROM ${mainTable} WHERE "id" = ?`, [Number(lastId)]);
+        await holdBranchFor(seqSet, 'seq-held');
+
+        await create_worktree_table_set(adapter, seqSet, 'seq-held');
+        await insertNote(shadowTable, 'd');
+
+        const [[nextId]] = await readRows(`SELECT max("id") FROM ${shadowTable}`);
+        expect(Number(nextId)).toBe(Number(lastId) + 1);
+      });
     });
 
     // 实例挂在可写检出位上（US-314 B1.4）：读写落在影子表、记在持有分支，当前分支是持有分支；挂回主表集一切照旧。

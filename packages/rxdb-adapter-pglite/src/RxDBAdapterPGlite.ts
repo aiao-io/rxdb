@@ -14,7 +14,8 @@ import type {
   TransactionExecutor,
   WorktreeSnapshotCursor,
   WorktreeSnapshotImport,
-  WorktreeSnapshotPage
+  WorktreeSnapshotPage,
+  WorktreeTableSetSeed
 } from '@aiao/rxdb';
 import {
   gateRawWrite,
@@ -91,6 +92,7 @@ import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { generateBranchTriggerSqlFor, switch_branch } from './version/switch_branch.js';
 import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.js';
 import { importSnapshotTable, readSnapshotPage } from './worktree/worktree-snapshot.js';
+import { createSeededTableSet, dropTableSet } from './worktree/worktree-table-set.js';
 
 /**
  * 适配器生命周期状态。
@@ -704,68 +706,37 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   }
 
   /**
-   * 建一套可写检出位的表：每个成员实体一张表，变更触发器挂在持有分支上（US-314 B1.3）。
+   * 在调用方的事务里建一套可写检出位的表并播种（US-314 B1.5），做法见 `worktree/worktree-table-set.ts`。
    *
+   * @param executor - 本适配器上一个事务的执行器
    * @param tableSet - 要建的表集；成员由调用方定（版本化域里的实体）
-   * @param branchId - 持有分支：成员表上的写记在它名下
-   * @throws {@link RxdbAdapterPGliteError} 给的是主表集，或成员里有不记变更日志的实体时
+   * @param seed - 持有分支与要叠上的增量
+   * @throws {@link RxdbAdapterPGliteError} 给的是主表集、成员里有不记变更日志的实体、增量落在表集之外，或主表缺列时
    *
    * @remarks
-   * 与 sqlite-core 的同名方法同口径：只建表与触发器，不播种数据、不写持有键，成员必须记变更日志。
-   * 影子表集落在 `<命名空间>$<后缀>` 这个 schema 里（见 `getSchemaName`），建表语句自带 `CREATE SCHEMA`。
-   * 变更触发器先按根分支生成（纯生成器读不到分支），同一个事务里再按持有分支重挂，外面看不到中间态。
+   * 与 sqlite-core 的同名方法同口径。影子表集落在 `<命名空间>$<后缀>` 这个 schema 里（见 `getSchemaName`）。
+   * 不写持有键：打开检出位的流程在同一笔事务里自己写。
    */
-  async createWorktreeTableSet(tableSet: WorktreeTableSet, branchId: string): Promise<void> {
-    if (tableSet.isMain) {
-      throw new RxdbAdapterPGliteError('createWorktreeTableSet 只建可写检出位的表集，主表集随建库建表');
-    }
-    const members = this.rxdb.config.entities.filter(EntityType => tableSet.has(getEntityMetadata(EntityType)));
-    const unlogged = members
-      .map(EntityType => getEntityMetadata(EntityType))
-      .filter(metadata => metadata.log === false);
-    if (unlogged.length > 0) {
-      const names = unlogged.map(metadata => `${metadata.namespace}.${metadata.name}`).join(', ');
-      throw new RxdbAdapterPGliteError(`表集成员必须记变更日志：${names}`);
-    }
-    await this.transaction(async executor => {
-      const transactionExecutor = executor as PGliteTransactionExecutor;
-      for (const statement of await create_tables_statements(this, tableSet, members)) {
-        await transactionExecutor.queryRaw(statement);
-      }
-      // 必须用 executor 的门面，理由同 createTables
-      await executeSwitchStatements(
-        transactionExecutor.adapter,
-        generateBranchTriggerSqlFor(this, tableSet, branchId, members)
-      );
-    }, false);
+  override async createWorktreeTableSet(
+    executor: TransactionExecutor,
+    tableSet: WorktreeTableSet,
+    seed: WorktreeTableSetSeed
+  ): Promise<void> {
+    await createSeededTableSet(this, executor as PGliteTransactionExecutor, tableSet, seed);
   }
 
   /**
-   * 删掉一套可写检出位的表：成员所在的 schema 整个删掉，表、触发器与触发器函数一起没了（US-314 B1.3）。
+   * 在调用方的事务里删掉一套可写检出位的表（US-314 B1.5）：按目录找这套表的 schema，整个删掉。
    *
+   * @param executor - 本适配器上一个事务的执行器
    * @param tableSet - 要删的表集
    * @throws {@link RxdbAdapterPGliteError} 给的是主表集时
    *
    * @remarks
-   * 用 `DROP SCHEMA IF EXISTS … CASCADE`：影子表集独占这些 schema，里面没有别的东西；建到一半就中断的表集也要删得干净，
-   * 删除因此必须可重入。分支表上的持有键不归这里放，关闭检出位的流程（B1.5）自己放。
+   * 分支表上的持有键不归这里放，关闭检出位的流程在同一笔事务里自己放。
    */
-  async dropWorktreeTableSet(tableSet: WorktreeTableSet): Promise<void> {
-    if (tableSet.isMain) throw new RxdbAdapterPGliteError('dropWorktreeTableSet 不删主表集');
-    const schemas = new Set(
-      this.rxdb.config.entities
-        .map(EntityType => getEntityMetadata(EntityType))
-        .filter(metadata => tableSet.has(metadata))
-        .map(metadata => getSchemaName(metadata, tableSet))
-    );
-    if (schemas.size === 0) return;
-    await this.transaction(async executor => {
-      for (const schema of schemas) {
-        await (executor as PGliteTransactionExecutor).queryRaw(
-          `DROP SCHEMA IF EXISTS ${quoteIdentifier(schema)} CASCADE`
-        );
-      }
-    }, false);
+  override async dropWorktreeTableSet(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void> {
+    await dropTableSet(executor as PGliteTransactionExecutor, tableSet);
   }
 
   override async reconcileEntityIndexes(EntityTypes: EntityType[]): Promise<void> {

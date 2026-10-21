@@ -33,8 +33,17 @@ const settle = async (): Promise<void> => {
   for (let round = 0; round < 5; round++) await new Promise(resolve => setTimeout(resolve, 0));
 };
 
-/** 登记表里的一行，只给判定读得到的字段 */
+/** 登记表里的一行（只读检出位），只给判定读得到的字段 */
 const record = (id: string, owner: Worktree['owner'], state: Worktree['state']): object => ({ id, owner, state });
+
+/** 登记表里的一行可写检出位（US-314 B1.5） */
+const writableRecord = (id: string, owner: Worktree['owner'], tableSetSuffix: string): object => ({
+  id,
+  mode: 'writable',
+  owner,
+  state: 'ready',
+  tableSetSuffix
+});
 
 interface SceneOptions {
   /** 装插件时给 `worktrees` */
@@ -49,6 +58,8 @@ interface SceneOptions {
   readonly beforeConnect?: (database: RxDB) => Promise<void>;
   /** 再配一个远端适配器并连上：只断本地时还有别的适配器连着，插件不随之重装 */
   readonly withRemote?: boolean;
+  /** 分支表里的行；不给就只有一行 active 的 `main` */
+  readonly branches?: readonly object[];
 }
 
 interface Scene {
@@ -73,7 +84,7 @@ const connectScene = async (options: SceneOptions): Promise<Scene> => {
   const registryFind = vi.fn(async () => options.registry);
   const rows = new Map<EntityType, readonly object[]>([
     [CommitCapabilityState, [{ ...createCapabilityStateRow(), enabled: options.enabled }]],
-    [RxDBBranch, [{ id: 'main', activated: true }]]
+    [RxDBBranch, options.branches ?? [{ id: 'main', activated: true }]]
   ]);
   const defaultGetRepository = adapter.getRepository.getMockImplementation();
   adapter.getRepository.mockImplementation(EntityType => {
@@ -83,7 +94,14 @@ const connectScene = async (options: SceneOptions): Promise<Scene> => {
     const stubbed = rows.get(EntityType);
     if (!stubbed) return defaultGetRepository?.(EntityType) as never;
     return {
-      find: vi.fn(async () => stubbed),
+      // 分支表按等值条件筛：active 分支的基数校验与持有键的读法查的是同一张表、不同的条件
+      find: vi.fn(async (query?: { where?: { rules?: readonly { field: string; value: unknown }[] } }) =>
+        EntityType === RxDBBranch ?
+          stubbed.filter(row =>
+            (query?.where?.rules ?? []).every(rule => (row as Record<string, unknown>)[rule.field] === rule.value)
+          )
+        : stubbed
+      ),
       count: vi.fn(async () => stubbed.length),
       create: vi.fn(async (entity: object) => entity),
       update: vi.fn(async (entity: object) => entity),
@@ -169,7 +187,9 @@ describe('启动清理：连接期判定有没有孤儿，有才在连上之后�
     expect(prune).not.toHaveBeenCalled();
   });
 
-  it('没配快照库：不读登记表，也不回收', async () => {
+  // 可写检出位（US-314 B1.5）的表在主库里，不靠快照库就收得了：没配快照库也要在引导事务里读一次登记表，
+  // 只读检出位那时不算（它们的快照库连不上）
+  it('没配快照库：只读检出位不回收', async () => {
     const prune = vi.spyOn(WorktreeManager.prototype, 'prune').mockResolvedValue([]);
 
     const { registryFind } = await connectScene({
@@ -179,7 +199,54 @@ describe('启动清理：连接期判定有没有孤儿，有才在连上之后�
     });
     await settle();
 
-    expect(registryFind).not.toHaveBeenCalled();
+    expect(registryFind).toHaveBeenCalledTimes(1);
+    expect(prune).not.toHaveBeenCalled();
+  });
+
+  it('没配快照库：会话归属的可写检出位照样回收', async () => {
+    const prune = vi.spyOn(WorktreeManager.prototype, 'prune').mockResolvedValue([]);
+
+    await connectScene({
+      worktrees: false,
+      enabled: true,
+      registry: [writableRecord('wt-2', 'session', 'wt_abc')],
+      branches: [
+        { id: 'main', activated: true, activeKey: '*active*' },
+        { id: 'feature', activated: false, activeKey: '*worktree:wt_abc*' }
+      ]
+    });
+
+    await vi.waitFor(() => expect(prune).toHaveBeenCalledTimes(1));
+  });
+
+  // 分支被删了，或 B1.2 之前的客户端切分支时抹掉了持有键：这一行再也挂不上，持久归属也按孤儿回收
+  it('持久归属的可写检出位丢了持有键：回收', async () => {
+    const prune = vi.spyOn(WorktreeManager.prototype, 'prune').mockResolvedValue([]);
+
+    await connectScene({
+      worktrees: false,
+      enabled: true,
+      registry: [writableRecord('wt-3', 'persistent', 'wt_abc')],
+      branches: [{ id: 'main', activated: true, activeKey: '*active*' }]
+    });
+
+    await vi.waitFor(() => expect(prune).toHaveBeenCalledTimes(1));
+  });
+
+  it('持久归属的可写检出位持有键还在：不回收', async () => {
+    const prune = vi.spyOn(WorktreeManager.prototype, 'prune').mockResolvedValue([]);
+
+    await connectScene({
+      worktrees: false,
+      enabled: true,
+      registry: [writableRecord('wt-3', 'persistent', 'wt_abc')],
+      branches: [
+        { id: 'main', activated: true, activeKey: '*active*' },
+        { id: 'feature', activated: false, activeKey: '*worktree:wt_abc*' }
+      ]
+    });
+    await settle();
+
     expect(prune).not.toHaveBeenCalled();
   });
 
@@ -243,6 +310,6 @@ describe('启动清理：连接期判定有没有孤儿，有才在连上之后�
 
     await connectScene({ worktrees: true, enabled: true, registry: [record('wt-1', 'session', 'ready')] });
 
-    await vi.waitFor(() => expect(report).toHaveBeenCalledWith(expect.stringContaining('回收只读检出位失败'), failure));
+    await vi.waitFor(() => expect(report).toHaveBeenCalledWith(expect.stringContaining('回收检出位失败'), failure));
   });
 });

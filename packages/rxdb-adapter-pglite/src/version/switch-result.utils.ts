@@ -33,7 +33,8 @@ import {
   parseRxDBChangeKey,
   PropertyType,
   RxDBEntityId,
-  SwitchVersionActions
+  SwitchVersionActions,
+  type WorktreeTableSet
 } from '@aiao/rxdb';
 
 import insert_sql from '../entity/insert_sql.js';
@@ -164,6 +165,13 @@ export interface SwitchSqlOptions {
    * 快照库的密文必须是主库信封的逐字节拷贝；解开再加密会换掉随机数，还要求密钥环已解锁。
    */
   readonly envelopePassthrough?: boolean;
+  /**
+   * 写到哪一套业务表上；不给就是适配器所属实例挂着的那一套。
+   *
+   * @remarks
+   * 给可写检出位播种时（US-314 B1.5）实例还挂在主表集上，增量要落进正在建的那套影子表。
+   */
+  readonly tableSet?: WorktreeTableSet;
 }
 
 export const convertSwitchResultToSql = async (
@@ -172,6 +180,7 @@ export const convertSwitchResultToSql = async (
   options: SwitchSqlOptions = {}
 ): Promise<SwitchVersionSqlResult> => {
   const passthrough = options.envelopePassthrough === true;
+  const tableSet = options.tableSet ?? adapter.tableSet;
   const encryption =
     passthrough ? { ...adapter.encryptionContext, envelopePassthrough: true } : adapter.encryptionContext;
   const prepareEntityData = async (metadata: EntityMetadata, entityData: EntityData): Promise<EntityData> =>
@@ -208,7 +217,7 @@ export const convertSwitchResultToSql = async (
 
   for (const [key, idSet] of needDeleteEntitiesMap) {
     const metadata = getGroupedMetadata(adapter, key);
-    const tableName = getTableNameByMetadata(metadata, adapter.tableSet);
+    const tableName = getTableNameByMetadata(metadata, tableSet);
     const idType = metadata.propertyMap.get('id')?.type;
 
     // PostgreSQL 使用 = ANY($1) 语法，支持参数化数组
@@ -278,7 +287,7 @@ export const convertSwitchResultToSql = async (
         columns: insertedColumns,
         sql: insertSql,
         params: insertParams
-      } = await insert_sql(metadata, adapter.tableSet, entityData, {
+      } = await insert_sql(metadata, tableSet, entityData, {
         returning: false,
         encryption
       });
@@ -352,7 +361,7 @@ export const convertSwitchResultToSql = async (
         : undefined;
       const { sql: updateSql, params: updateParams } = await update_sql<VersionEntityType>(
         metadata,
-        adapter.tableSet,
+        tableSet,
         { id },
         updateData,
         {

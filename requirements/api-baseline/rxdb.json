@@ -2734,6 +2734,10 @@
         "kind": "both"
       },
       {
+        "name": "WorktreeTableSetSeed",
+        "kind": "type"
+      },
+      {
         "name": "WRITE_ENTRANCES",
         "kind": "value"
       },

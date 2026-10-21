@@ -146,6 +146,10 @@
         "kind": "value"
       },
       {
+        "name": "getTableSetSchemaSuffix",
+        "kind": "value"
+      },
+      {
         "name": "INVALID_QUERY_ERROR_CODE",
         "kind": "value"
       },

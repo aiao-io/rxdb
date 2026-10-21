@@ -26,6 +26,19 @@ export const worktreeCopiedEntities = (rxdb: RxDB): EntityType[] =>
   });
 
 /**
+ * 可写检出位那套影子表的成员：要复制的表里记变更日志的那些（US-314 B1.5）。
+ *
+ * @param rxdb - 主实例
+ * @returns 主实例上的实体类，含生成的类（多对多中间表）
+ *
+ * @remarks
+ * 关掉变更日志（`log: false`）的实体不进影子表：写进去的东西进不了历史，提交与切分支都看不见它；
+ * 它们留在主表集里，各检出位共用一份（存储插件的文件元数据就是这样）。
+ */
+export const worktreeTableSetMembers = (rxdb: RxDB): EntityType[] =>
+  worktreeCopiedEntities(rxdb).filter(EntityClass => getEntityMetadata(EntityClass).log !== false);
+
+/**
  * 要克隆给快照实例的实体类：复制的表去掉生成的类。
  *
  * @param rxdb - 主实例

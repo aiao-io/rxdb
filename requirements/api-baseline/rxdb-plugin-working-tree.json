@@ -722,6 +722,10 @@
         "kind": "type"
       },
       {
+        "name": "WorktreeAddOptions",
+        "kind": "type"
+      },
+      {
         "name": "WorktreeAsyncStates",
         "kind": "type"
       },
@@ -752,6 +756,10 @@
       {
         "name": "WorktreeManager",
         "kind": "both"
+      },
+      {
+        "name": "WorktreeMode",
+        "kind": "type"
       },
       {
         "name": "WorktreeOpenOptions",

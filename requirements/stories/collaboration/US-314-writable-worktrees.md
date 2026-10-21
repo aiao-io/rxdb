@@ -72,8 +72,8 @@ INVEST 检查清单:
 | --- | ---- | ------------------------------------------ | --------------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
 | 1   | A    | 当前分支上一个可达提交，工作树有未提交改动 | 从它建分支并切过去                      | 业务表与「那次 `commit()` 刚完成时读到的数据」逐行一致；新分支的 HEAD 是该提交；原分支的改动还在 | ✅   |
 | 2   | A    | 三端 demo                                  | 历史行右键「Create branch from commit」 | 弹「Create a branch」对话框，写明基于哪个提交；建完切到新分支                                    | ✅   |
-| 3   | B    | 主检出位有未提交改动                       | 新建可写检出位，在上面写并提交          | 主检出位的业务表、工作树与 active 分支都不变；提交进那条分支的历史                               | ⬜   |
-| 4   | B    | 一条分支已被一个可写检出位检出             | 在别处再检出它                          | 拒绝（git：`already used by worktree`）                                                          | ⬜   |
+| 3   | B    | 主检出位有未提交改动                       | 新建可写检出位，在上面写并提交          | 主检出位的业务表、工作树与 active 分支都不变；提交进那条分支的历史                               | ✅   |
+| 4   | B    | 一条分支已被一个可写检出位检出             | 在别处再检出它                          | 拒绝（git：`already used by worktree`）                                                          | ✅   |
 | 5   | C    | 三端 demo，有一个链接检出位                | 工具栏 Worktree 下拉选中它              | 分两组列出；切过去之后 Changes、History、Current Branch 都换到它上                               | ⬜   |
 | 6   | C    | 三端 demo                                  | New Worktree… / Rename… / Delete…       | 与 GitHub Desktop 3.6 同流程；主检出位不能改名或删除；有未提交改动时删除先确认                   | ⬜   |
 | 7   | C    | 三端 demo                                  | a11y 走查                               | Worktree 下拉与三个对话框 axe 零违规、键盘可达                                                   | ⬜   |
@@ -122,9 +122,8 @@ INVEST 检查清单:
 - **按表集建表与重建触发器**（阶段 B1.3）：
   - 持有键由表集推出（`WorktreeTableSet.holderKey`）：主表集是哨兵，影子表集是 `*worktree:<后缀>*`。分支表这一行同时说清
     「谁持有」与「是哪一套表」，系统迁移跑在插件装好之前也找得回每一套表该挂哪条分支，没有第二份登记会漂移。
-  - 两个适配器新增 `createWorktreeTableSet(tableSet, branchId)` / `dropWorktreeTableSet(tableSet)`：只建 / 删成员表与触发器，
-    不播种、不写持有键（归 B1.5 的打开、关闭流程）；成员必须记变更日志。删除可重入：SQLite 系 `DROP TABLE IF EXISTS`，
-    PGlite 删整个 `<命名空间>$<后缀>` schema。
+  - 两个适配器新增建 / 删表集：只建 / 删成员表与触发器，不写持有键；成员必须记变更日志。B1.5 改成在调用方的事务里做、建时播种，
+    见下面的 B1.5。
   - 重建触发器只有一个入口，表集与分支都显式给：sqlite-core 的 `generate_table_set_trigger_sql`（取代 `switch_transaction_id`），
     PGlite 的 `generateBranchTriggerSql(For)`。实体收窄到「记日志、且这套表里有它自己那张表」：不收窄的话非成员落回主表名，
     删 / 重建影子表集的触发器会误伤主表集（QueryCache 实体记日志又从不进影子表集，正中这一条）。
@@ -163,6 +162,35 @@ INVEST 检查清单:
     表名中间，多对多中间表的两条外键截成同一个名字，建不出来。改成沿用主表集那一份（外键约束名只在同一张表内唯一）。
   - 留给 B2：本地实体事件带分支、活查询按检出位过滤。只有多个标签页同时挂不同检出位时才用得上，与多标签页一起设计、验证；
     此前跨标签页网关转发的实体事件不分检出位。`compute_switch_branch_actions` 仍按主检出位读，随检出位里切分支一起改。
+- **可写检出位的生命周期**（阶段 B1.5，owner 2026-10-21 定四项）：
+  - 公开 API 在 `rxdb.workingTree.checkouts` 上，动词照 GitHub Desktop：`add(branchId, { name?, owner? })` 开、`mount(id)` 挂上、
+    `mountMain()` 挂回主检出位、`release(id)` 交出认领、`remove(id)` 删；`list()` / `prune()` 两类检出位都管，登记行的 `mode` 区分。
+    只读检出位的 `open()` / `attach()` 不变。三端绑定随阶段 C。
+  - 打开是一笔主库受管事务：分支读得出完整数据、提交图完好 → 持有分支 → 建表集并播种 → 写 `ready` 的登记行。DDL 可回滚，
+    崩在哪里都不留半套，也就没有只读检出位那样的 `building` 中间态。不推进激活态，主检出位的工作树与 `activationRevision` 不动。
+  - 持有分支先看那一行：`activeKey` 的唯一索引只拦两行写同一个键，拦不住覆盖别人的键。被主检出位或另一个可写检出位持有就抛
+    `WorktreeBranchHeldError`，验收 4 的可写检出位这一半就位。
+  - 播种：成员表照主表集的定义建好（先不挂触发器），主表的行原样复制（库内 `INSERT … SELECT`，加密列的信封逐字节不变，不要密钥环），
+    整数自增主键的序列对齐过去（SQLite 抄 `sqlite_sequence`，PGlite `setval`），再叠上「主检出位所在分支 → 这条分支」的增量
+    （只留成员；QueryCache 记日志却不进影子表），最后把触发器挂到持有分支。复制与增量都不记变更日志、不派事件。
+    适配器槽位因此改成收调用方的执行器：`createWorktreeTableSet(executor, tableSet, seed)` / `dropWorktreeTableSet(executor, tableSet)`，
+    核心只加可选槽位声明与 `WorktreeTableSetSeed`；`convertSwitchResultToSql` 的选项多了 `tableSet`。
+  - 关闭是一笔事务：删表集 → 放开持有的分支 → 删登记行。删表集按库里的目录找（后缀匹配），建到一半的、成员已从配置里移除的也删得掉；
+    SQLite 系先摘掉这套表的全部触发器，再按「引用别人的先删」把行删空，最后逐张 DROP：`foreign_keys` 开着时 DROP 先隐式删行并执行
+    外键动作，触发器还挂着的话多对多中间表的级联删除会被记成持有分支上的删除；先 DROP 了被引用的表，再删引用它的表时级联撞上
+    已经不在的表，整笔报 `no such table`（一致性套件在五个 SQLite 系后端上跑出来的）。未提交的改动不丢：检出位里的写都记进了那条分支的变更日志。
+  - 认领用检出位的 Web Lock（与只读检出位同一把）：`add()` / `mount()` 拿下、`release()` / `remove()` 还掉，别处认领着时报 `in_use`。
+    缺省持久归属（owner 定，与 git、GitHub Desktop 一致）。`prune()` 与启动清理还回收持有的分支已经不在了的可写检出位，
+    不需要配快照库：启动清理在能力启用的库上总读登记表（同在引导事务里），只读检出位在没配快照库时不算。
+  - 登记表 `Worktree` 加 `mode`、`tableSetSuffix`、`name` 三列，`dbName` 改可空（owner 定：随 #122 同一次发布，这张表没发布过，零迁移）。
+    表集后缀取检出位 id 的哈希：`uuid()` 是 v7，直接截前 12 位就是毫秒时间戳，同一毫秒开的两个检出位会撞。
+  - 一致性（检出位套件，六个后端）：验收 3（主检出位有未提交改动时在检出位里写并提交，主检出位的分支、工作树、业务表不变，
+    删掉检出位再切过去历史里有这个提交）、验收 4（再开被占的分支、开主检出位的当前分支、主检出位切过去都被拒，删掉之后放行）、
+    播种 / 写过之后与「删掉检出位再切过去」逐行一致、开删不改主表原值也不写变更日志、密钥环上锁照样开得了、会话与持久归属的回收、
+    `in_use`。适配器级（sqlite-core 共享套件与 PGlite 同名用例）：播种不记日志、增量越界整笔拒绝、按目录删、自增序列对齐。
+  - **已知限制**（B2 之前）：多个标签页同时挂不同的检出位（跨标签页转发的实体事件不分检出位）；全文检索、草稿缓存、图的边表只在
+    主表集；整数自增主键跨套可能撞 id（owner 定：播种时对齐序列，记限制）；被持有的分支删得掉（删掉之后检出位挂不上，`prune()` 回收）；
+    远端分支要先物化才能开；检出位里不能切分支与合并。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -186,6 +214,11 @@ INVEST 检查清单:
 - `packages/rxdb/src/RxDB.ts`（`mountWorktreeTableSet` / `worktreeTableSet$`）、`system/worktree-table-set.ts`（`heldBranchWhere`）、
   `system/system-repositories.ts`、`entity/entity-manager.ts`（`resetForWorktreeTableSet`）、两个适配器的 `version/read_current_branch_id.ts`、
   `packages/rxdb-plugin-history/src/HistoryManager.ts` / `undo-redo-apply.ts` — 实例挂可写检出位；挂载用例在上面两份隔离探针里
+- `packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts`（`add` / `mount` / `mountMain` / `release` / `remove` / `prune`）、
+  `checkout/worktree-writable.ts`、`checkout/worktree.entity.ts`、`checkout/worktree-startup-reclaim.ts`、`plugin.ts`；
+  `packages/rxdb-adapter-sqlite-core/src/worktree/worktree-table-set.ts`、`packages/rxdb-adapter-pglite/src/worktree/worktree-table-set.ts`、
+  两个适配器的 `version/switch-result.utils.ts` 与 `table-name-resolver.ts`；`packages/rxdb/src/rxdb-adapter.ts`（可选槽位）、
+  `system/worktree-table-set.ts`（`WorktreeTableSetSeed`） — 可写检出位的生命周期；六个后端的用例在 `working-tree/testing/worktree.suite.ts`
 - `packages/rxdb/src/transaction/transaction-executor.interface.ts`（`tableSet`）与两个适配器的事务执行器、
   `packages/rxdb/src/system/system-repositories.ts`（`resolve_current_branch`）、
   `packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts` / `capture-hook.ts`、`checkout/worktree-snapshot.ts`、

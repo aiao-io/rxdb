@@ -9,7 +9,26 @@ import type { EntityType } from '../entity/entity.interface.js';
 import type { EntityMetadata } from '../entity/metadata.interface.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDBError } from '../RxDBError.js';
+import type { SwitchVersionActions } from '../sync-contract/VersionManager.interface.js';
 import { ACTIVE_BRANCH_KEY } from './active-branch-guard.js';
+
+/**
+ * 建一套可写检出位的表时铺进去的数据（US-314 B1.5），见适配器的 `createWorktreeTableSet`。
+ *
+ * @remarks
+ * 主表集的行原样复制过去，再叠上 {@link WorktreeTableSetSeed.actions}；最后成员表的变更触发器挂到 {@link WorktreeTableSetSeed.branchId}。
+ */
+export interface WorktreeTableSetSeed {
+  /** 持有分支：此后这套表上的写记在它名下 */
+  readonly branchId: string;
+  /**
+   * 主检出位所在分支走到持有分支的增量。
+   *
+   * @remarks
+   * 补丁是变更日志里的存储形态，加密列是信封；只含这套表的成员实体，落在表集之外的键整笔拒绝。
+   */
+  readonly actions: SwitchVersionActions;
+}
 
 /**
  * 后缀形状：`wt_` 加 1～12 位小写字母或数字。

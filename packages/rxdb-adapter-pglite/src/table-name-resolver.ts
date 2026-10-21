@@ -41,6 +41,18 @@ export const getSchemaName = (metadata: EntityMetadata, tableSet: WorktreeTableS
   tableSet.has(metadata) ? `${metadata.namespace}$${tableSet.suffix}` : metadata.namespace;
 
 /**
+ * 一套影子表集的 schema 名后缀：`$<后缀>`。目录里名字以它结尾的 schema 都属于这套表。
+ *
+ * @param tableSet - 影子表集
+ * @returns schema 名后缀
+ *
+ * @remarks
+ * 删表集按目录找 schema（US-314 B1.5），覆盖建到一半的、成员已从配置里移除的。前面紧跟的 `$` 让一个后缀不会匹配到
+ * 另一个以它结尾的后缀。按后缀比对而不是 `LIKE`：`wt_` 里的下划线在 `LIKE` 里是通配符。
+ */
+export const getTableSetSchemaSuffix = (tableSet: WorktreeTableSet): string => `$${tableSet.suffix}`;
+
+/**
  * 实体在给定表集里的完全限定表名。
  *
  * @param metadata - 实体元数据

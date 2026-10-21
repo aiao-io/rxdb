@@ -79,6 +79,6 @@ const table = get_table_name_by_metadata(metadata, adapter.tableSet);
 - sqlite-core 的 `get_companion_table_name`（附属表，如图插件的边表）与 `get_storage_object_name`（条件唯一索引、区间排他触发器这类库级对象的名字）。
 - PGlite 的 `getSchemaName` 与 `getChangeTriggerFunctionName`。
 - `WorktreeTableSet.holderKey` 与 `WorktreeTableSet.suffixOfHolderKey`：检出位持有分支时写进 `rxdb_branch.activeKey` 的键由表集推出。
-- 两个适配器的 `createWorktreeTableSet(tableSet, branchId)` / `dropWorktreeTableSet(tableSet)`：建 / 删一套可写检出位的表。
+- 两个适配器的 `createWorktreeTableSet(executor, tableSet, seed)` / `dropWorktreeTableSet(executor, tableSet)`：在调用方的事务里建一套可写检出位的表并播种、按目录删；平常经 `db.workingTree.checkouts` 用，不必直接调。
 - `rxdb.mountWorktreeTableSet(tableSet)` 与 `rxdb.worktreeTableSet` / `worktreeTableSet$`：实例换挂一套表；适配器的 `tableSet` 转读实例上的这一份。
 - `WorktreeTableSet.heldBranchWhere`：这套表持有的分支怎么查，「当前分支」一律按它读。

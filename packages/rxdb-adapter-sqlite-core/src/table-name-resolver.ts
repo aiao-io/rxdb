@@ -87,6 +87,18 @@ export const get_table_name_by_entity_type = (EntityType: EntityType, tableSet: 
   get_table_name_by_metadata(getEntityMetadata(EntityType), tableSet);
 
 /**
+ * 一套影子表集在 `sqlite_master` 里的表名匹配式（GLOB）：物理名以 `$<后缀>` 结尾的表都属于它，附属表也在内。
+ *
+ * @param tableSet - 影子表集
+ * @returns GLOB 匹配式
+ *
+ * @remarks
+ * 删表集按目录找表（US-314 B1.5），覆盖建到一半的、成员已从配置里移除的表。后缀只含 `[a-z0-9_]`，
+ * 在 GLOB 里没有要转义的字符；前面紧跟的 `$` 让一个后缀不会匹配到另一个以它结尾的后缀。
+ */
+export const get_table_set_table_glob = (tableSet: WorktreeTableSet): string => `*$${tableSet.suffix}`;
+
+/**
  * 属于某个实体的附属表（如图插件的边表）在给定表集里的物理名：跟着所属实体落同一套。
  *
  * @param metadata - 所属实体的元数据

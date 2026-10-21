@@ -2946,7 +2946,7 @@
       }
     ]
   },
-  "digest": "56cee5f5e9979b891c8fae2c06e7235a99bffc2073e0070988680248f2089146",
+  "digest": "2d9f5cf8bf4daecf284a771ac302e17dd14e63b8e35ccb4eafa9db509ca21724",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

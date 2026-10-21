@@ -11,7 +11,8 @@ import type {
   TransactionExecutor,
   WorktreeSnapshotCursor,
   WorktreeSnapshotImport,
-  WorktreeSnapshotPage
+  WorktreeSnapshotPage,
+  WorktreeTableSetSeed
 } from '@aiao/rxdb';
 import {
   ACTIVE_BRANCH_KEY,
@@ -130,6 +131,7 @@ import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { switch_branch } from './version/switch_branch.js';
 import { type SqlExecutor, withTriggersDisabled } from './version/with_triggers_disabled.js';
 import { importSnapshotTable, readSnapshotPage } from './worktree/worktree-snapshot.js';
+import { createSeededTableSet, dropTableSet } from './worktree/worktree-table-set.js';
 export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } from './sqlite-core.types.js';
 
 /**
@@ -991,56 +993,36 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   /**
-   * 建一套可写检出位的表：每个成员实体一张表，变更触发器挂在持有分支上（US-314 B1.3）。
+   * 在调用方的事务里建一套可写检出位的表并播种（US-314 B1.5），做法见 `worktree/worktree-table-set.ts`。
    *
+   * @param executor - 本适配器上一个事务的执行器
    * @param tableSet - 要建的表集；成员由调用方定（版本化域里的实体）
-   * @param branchId - 持有分支：成员表上的写记在它名下
-   * @throws {@link RxDBAdapterSqliteError} 给的是主表集，或成员里有不记变更日志的实体时
+   * @param seed - 持有分支与要叠上的增量
+   * @throws {@link RxDBAdapterSqliteError} 给的是主表集、成员里有不记变更日志的实体、增量落在表集之外，或主表缺列时
    *
    * @remarks
-   * 只建表与触发器，不播种数据、不写持有键：打开检出位的流程（B1.5）把它们排进自己的步骤。
-   * 成员必须记变更日志：没有触发器的成员表，写进去的东西进不了历史，提交与同步都看不见。
-   * 主表集随建库建表（{@link RxDBAdapterSqliteBase.createTables}），不经这里。
+   * 不写持有键：打开检出位的流程在同一笔事务里自己写。主表集随建库建表（{@link RxDBAdapterSqliteBase.createTables}），不经这里。
    */
-  async createWorktreeTableSet(tableSet: WorktreeTableSet, branchId: string): Promise<void> {
-    if (tableSet.isMain) {
-      throw new RxDBAdapterSqliteError('createWorktreeTableSet 只建可写检出位的表集，主表集随建库建表');
-    }
-    const members = this.rxdb.config.entities.filter(EntityType => tableSet.has(getEntityMetadata(EntityType)));
-    const unlogged = members
-      .map(EntityType => getEntityMetadata(EntityType))
-      .filter(metadata => metadata.log === false);
-    if (unlogged.length > 0) {
-      const names = unlogged.map(metadata => `${metadata.namespace}.${metadata.name}`).join(', ');
-      throw new RxDBAdapterSqliteError(`表集成员必须记变更日志：${names}`);
-    }
-    const sql = await create_tables_sql(this, tableSet, members, branchId);
-    await this.transaction(async executor => {
-      await executor.execute(sql);
-    }, false);
+  override async createWorktreeTableSet(
+    executor: TransactionExecutor,
+    tableSet: WorktreeTableSet,
+    seed: WorktreeTableSetSeed
+  ): Promise<void> {
+    await createSeededTableSet(this, executor as SqliteTransactionExecutor, tableSet, seed);
   }
 
   /**
-   * 删掉一套可写检出位的表：成员表连同它们的触发器、索引一起删（US-314 B1.3）。
+   * 在调用方的事务里删掉一套可写检出位的表（US-314 B1.5）：按目录找，先摘触发器再删表。
    *
+   * @param executor - 本适配器上一个事务的执行器
    * @param tableSet - 要删的表集
    * @throws {@link RxDBAdapterSqliteError} 给的是主表集时
    *
    * @remarks
-   * 用 `DROP TABLE IF EXISTS`：建到一半就中断的表集（打开流程崩在半路）也要删得干净，删除因此必须可重入。
-   * 分支表上的持有键不归这里放，关闭检出位的流程（B1.5）自己放。
+   * 分支表上的持有键不归这里放，关闭检出位的流程在同一笔事务里自己放。
    */
-  async dropWorktreeTableSet(tableSet: WorktreeTableSet): Promise<void> {
-    if (tableSet.isMain) throw new RxDBAdapterSqliteError('dropWorktreeTableSet 不删主表集');
-    const sql = this.rxdb.config.entities
-      .map(EntityType => getEntityMetadata(EntityType))
-      .filter(metadata => tableSet.has(metadata))
-      .map(metadata => `DROP TABLE IF EXISTS ${quote_sql_identifier(get_table_name_by_metadata(metadata, tableSet))};`)
-      .join('\n');
-    if (!sql) return;
-    await this.transaction(async executor => {
-      await executor.execute(sql);
-    }, false);
+  override async dropWorktreeTableSet(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void> {
+    await dropTableSet(executor as SqliteTransactionExecutor, tableSet);
   }
 
   override async migrateSystemSchema(): Promise<void> {

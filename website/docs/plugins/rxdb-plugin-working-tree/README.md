@@ -565,6 +565,62 @@ await view.close(); // 断开只读实例，删快照库与登记
 
 首批六个后端：PGlite、sqlite-wasm、wa-sqlite、sqlite（官方）、sqliteai、Electron。快照原语（读页、导入、接手密钥环、封印）与删库（`dropStorage()`）由适配器提供。按当前配置删不掉自己存储的后端由 `canDropStorage()` 答 `false`，`open()` 在建快照之前就以 `unsupported_adapter` 拒绝：sqlite-wasm 的 `fs-handle`、wa-sqlite 的 `AccessHandlePoolVFS`、PGlite 内存与 `idb://` 之外的数据目录、Electron PGlite。Tauri 等没有快照原语的适配器同样报 `unsupported_adapter`。
 
+## 可写检出位
+
+像 GitHub Desktop 3.6 的 worktree 那样，在另一条分支上读写、提交，主检出位的分支、工作树与业务表一处不动（US-314）。可写检出位是**同一个库里的一套影子表**：`checkouts.add()` 开出来，`mount()` 让主实例挂上它，此后的读写、捕获、提交都落在它持有的分支上。
+
+```typescript
+const { checkouts } = db.workingTree;
+
+const worktree = await checkouts.add('feature/x', { name: 'feature-x' }); // 登记、持有分支、建表、播种；建好不挂
+await checkouts.mount(worktree.id); // 主实例换挂：实体缓存清空、活查询重跑、撤销栈换到那条分支
+
+const todo = new Todo();
+todo.title = '在检出位里写';
+await todo.save();
+await db.workingTree.commit('在检出位里提交', await credentials()); // 提交进 feature/x 的历史
+
+await checkouts.mountMain(); // 挂回主检出位
+await checkouts.remove(worktree.id); // 删那套表、放开分支、删登记；未提交的改动留在分支上
+```
+
+| 方法                               | 说明                                                                                                                              |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `add(branchId, { name?, owner? })` | 一笔事务里登记、持有分支、建表、播种（主表集的行原样复制，再叠上「主检出位所在分支 → 这条分支」的增量）；建好不挂，本上下文认领它 |
+| `mount(id)`                        | 让主实例挂上它；没认领的先认领                                                                                                    |
+| `mountMain()`                      | 挂回主检出位；认领照旧                                                                                                            |
+| `release(id)`                      | 交出认领：挂在它上面就先挂回主检出位，表、持有与登记都留着                                                                        |
+| `remove(id)`                       | 挂在它上面就先挂回主检出位，再一笔事务删表、放开分支、删登记                                                                      |
+| `list()` / `prune()`               | 只读与可写两类都列、都收，登记行的 `mode` 区分                                                                                    |
+
+### 一条分支只能被一个检出位持有
+
+主检出位正停在上面的分支、已被另一个可写检出位持有的分支，`add()` 都抛 `WorktreeBranchHeldError`（git：`already used by worktree`）；主检出位 `switchBranch()` 切到被持有的分支同样被拒。删掉那个检出位就放开了。只读检出位不占分支。
+
+### 挂在可写检出位上时
+
+- 当前分支是它持有的分支：`status()`、`commit()`、撤销 / 重做、建分支的父分支都跟着它。
+- **不同步**：只有主检出位同步，推拉同步的入口一进门就抛，QueryCache 的自动回推等挂回主检出位再跑。检出位上的提交等那条分支回到主检出位、或合并进主线之后再进同步。
+- 不能切分支：在检出位里切分支、合并属后续阶段。
+
+### 生命周期与回收
+
+- 缺省**持久归属**（与 git、GitHub Desktop 一致）：重启之后还在，分支一直被占到 `remove()`；任何一处都能 `mount(id)` 再认领。`owner: 'session'` 的在认领它的标签页结束之后由 `prune()` 回收。
+- 认领用检出位的 Web Lock：`add()` / `mount()` 拿下，`release()` / `remove()` 还掉；别处认领着时 `mount()` / `remove()` 报 `in_use`。
+- `prune()` 与启动清理还回收**持有的分支已经不在了**的可写检出位。可写检出位的表在主库里，不配快照库也收得了。
+- 关掉检出位时未提交的改动不会丢：检出位里的写都记进了那条分支的变更日志，切过去照样读得到（git 删 worktree 会丢，这里不会）。
+
+### 已知限制
+
+- 多个标签页同时挂不同的检出位还不支持：跨标签页转发的实体事件不分检出位。
+- 全文检索、草稿缓存与图的边表只建在主检出位那一套表上。
+- 实体用整数自增主键时，两套表各自递增，跨套可能分出相同的 id（播种时已对齐序列）。
+- 被检出位持有的分支删得掉；删掉之后那个检出位挂不上，`prune()` 回收它。
+- 远端分支要先切过去一次、把数据物化到本地，才能开检出位。
+- 检出位是本地概念，不保证降级：B1.2 之前的版本在带持有键的库上切分支会把持有键抹掉。
+
+PGlite 与 SQLite 系（wa-sqlite、sqlite-wasm、sqlite、sqliteai、Electron）都支持，一致性套件同一份。适配器没有建删表集的槽位（`createWorktreeTableSet` / `dropWorktreeTableSet`）时 `add()` 报 `unsupported_adapter`。
+
 ## 未认领能力守卫
 
 `enable()` 过的库会在 `rxdb_migration` 里留下一行能力水位（`__rxdb_capability__:workingTree:1:@aiao/rxdb-plugin-working-tree`）。**没装本包的客户端再打开这个库时，核心拒绝连接**并把该装的包名原样报出来：
@@ -771,7 +827,8 @@ const save = async (): Promise<void> => {
 | `WorkingTreeEntryCountMismatchError` | 冗余列与实际条目行数对不上——库里两份真相对不上                                                                           | 诊断数据现场                                          |
 | `WorkingTreeDirtyError`              | `switchBranch(..., { requireClean: true })` 撞上非空工作树（`code: 'working_tree_dirty'`，带 `branchId` / `entryCount`） | 先 `commit()` 或 `discard()`，或不传 `requireClean`   |
 | `StaleActiveBranchError`             | `expectedActivationRevision` 与库里的激活代际对不上（`code: 'stale_active_branch'`，带 `expected` / `actual` 两个令牌）  | 重读 `status()` 再切                                  |
-| `WorktreeUnavailableError`           | 只读检出位打不开（`reason`：没配快照库、后端不支持、分支不存在、提交不可达、有进行中的恢复、`in_use` 等十三种）          | 按 `reason` 处理；提交视图的拒绝与 `restore()` 同口径 |
+| `WorktreeUnavailableError`           | 检出位打不开（`reason`：没配快照库、后端不支持、分支不存在、提交不可达、有进行中的恢复、`in_use` 等十三种）              | 按 `reason` 处理；提交视图的拒绝与 `restore()` 同口径 |
+| `WorktreeBranchHeldError`（核心）    | 开可写检出位或主检出位切分支时，分支已被另一个检出位持有（`code: 'worktree_branch_held'`，带 `branchId` / `holderKey`）  | 换一条分支，或先删掉持有它的检出位                    |
 | `RxDBReadOnlyError`（核心）          | 在只读检出位的实例上写                                                                                                   | 回主实例写                                            |
 
 ## 一致性套件
