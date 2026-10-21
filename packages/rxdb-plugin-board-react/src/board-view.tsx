@@ -11,6 +11,7 @@ import {
   type TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
 import { useMemo, useState, type DragEvent, type ReactNode } from 'react';
+import './board-view.css';
 
 import { useBoard } from './use-board.js';
 

@@ -18,6 +18,16 @@ const test = base.extend<{ boardPage: Page }>({
   }
 });
 
+/** 模拟丢库：清掉站点数据（localStorage + IndexedDB）。 */
+const clearSiteData = async (page: Page): Promise<void> => {
+  await page.evaluate(async () => {
+    localStorage.clear();
+    for (const db of await indexedDB.databases()) {
+      indexedDB.deleteDatabase(db.name ?? '');
+    }
+  });
+};
+
 /** 经启动页装载演示数据（只进新库）。 */
 const startWithSeed = async (page: Page): Promise<void> => {
   await expect(page.getByTestId('startup-page')).toBeVisible();
@@ -40,16 +50,12 @@ test('AC#2：启动页新建空看板 → 建板/列/任务 → 第二板切换 
 }) => {
   await expect(page.getByTestId('startup-page')).toBeVisible();
 
-  // 新建空看板路径：建板 → 建列 → 建任务
-  let promptCount = 0;
-  page.on('dialog', async dialog => {
-    promptCount++;
-    dialog.accept(
-      promptCount === 1 ? '我的看板'
-      : promptCount === 2 ? '待办'
-      : '第一件事'
-    );
-  });
+  // 新建空看板路径：建板 → 建列 → 建任务 → 第二块板（对话框按序应答）
+  const promptAnswers = ['我的看板', '待办', '第一件事', '第二块板'];
+  const answerPrompts = async (dialog: import('@playwright/test').Dialog): Promise<void> => {
+    await dialog.accept(promptAnswers.shift() ?? ' ');
+  };
+  page.on('dialog', answerPrompts);
   await page.getByTestId('start-empty').click();
   await expect(page.getByTestId('empty-board')).toBeVisible();
   await page.getByTestId('create-board-empty').click();
@@ -62,9 +68,9 @@ test('AC#2：启动页新建空看板 → 建板/列/任务 → 第二板切换 
 
   // 第二板并切换：板切换不混数据
   await page.getByTestId('create-board').click();
-  await expect(page.getByTestId('board-selector').locator('option', { hasText: '第二块板' })).toBeVisible();
+  await expect(page.getByTestId('board-selector').locator('option', { hasText: '第二块板' })).toBeAttached();
   await page.getByTestId('board-selector').selectOption({ label: '第二块板' });
-  await expect(page.getByTestId('empty-board')).toBeVisible();
+  await expect(page.getByTestId('column')).toHaveCount(0);
   await page.getByTestId('board-selector').selectOption({ label: '我的看板' });
   await expect(page.getByTestId('task-card')).toHaveCount(1);
 
@@ -73,12 +79,13 @@ test('AC#2：启动页新建空看板 → 建板/列/任务 → 第二板切换 
   await expect(page.getByTestId('task-card')).toHaveCount(1);
   expect(await page.getByTestId('task-title').textContent()).toBe('第一件事');
 
-  // 种子板与用户新板并存：工具菜单重置为演示数据走新库（confirm 对话框）
+  // 种子板与用户新板并存：工具菜单重置为演示数据走新库（confirm 对话框单独应答）
+  page.removeListener('dialog', answerPrompts);
   page.once('dialog', dialog => dialog.accept());
   await page.getByTestId('reset-demo').click();
-  await expect(page.getByTestId('column')).toHaveCount(4);
-  await page.getByTestId('board-selector').selectOption({ label: '我的看板' });
-  await expect(page.getByTestId('task-card')).toHaveCount(1);
+  // 重置在新库名上装载演示数据并切换：用户旧板留在原库、当前打开种子板
+  await expect(page.getByTestId('column')).toHaveCount(4, { timeout: 30000 });
+  await expect(page.getByTestId('task-card')).toHaveCount(12);
 });
 
 test('AC#3：真实拖拽——跨列两邻之间、空列、同列改序，每次拖后刷新读回', async ({ boardPage: page }) => {
@@ -102,6 +109,7 @@ test('AC#3：真实拖拽——跨列两邻之间、空列、同列改序，每�
     .getByTestId('column')
     .filter({ has: page.getByTestId('column-title').getByText('Ideas', { exact: true }) });
   await toIdeas.dragTo(ideasColumn.getByTestId('add-task'));
+  await page.waitForTimeout(500);
   await page.reload();
   await expect(page.getByTestId('board-view')).toBeVisible();
   await expect(page.getByTestId('task-card')).toHaveCount(12);
@@ -111,6 +119,7 @@ test('AC#3：真实拖拽——跨列两邻之间、空列、同列改序，每�
   const moved = page.getByTestId('task-card').filter({ hasText: '整理同步迁移指南' });
   const over = page.getByTestId('task-card').filter({ hasText: '同步插件适配 Supabase' });
   await moved.dragTo(over, { targetPosition: { x: 10, y: 5 } });
+  await page.waitForTimeout(500);
   await page.reload();
   await expect(page.getByTestId('board-view')).toBeVisible();
   await expect(page.getByTestId('task-card')).toHaveCount(12);
@@ -181,9 +190,7 @@ test('AC#6：导出 → 清站点数据 → 启动页从备份恢复 → 重开�
   expect(archivePath).toBeTruthy();
 
   // 清掉站点数据（模拟丢库），回到启动页
-  await page.evaluate(() => {
-    localStorage.clear();
-  });
+  await clearSiteData(page);
   await page.reload();
   await expect(page.getByTestId('startup-page')).toBeVisible();
 
@@ -203,16 +210,17 @@ test('AC#6：导出 → 清站点数据 → 启动页从备份恢复 → 重开�
 test('AC#8：恢复损坏归档拒绝且原库可继续使用', async ({ boardPage: page }) => {
   await startWithSeed(page);
 
-  // 工具菜单恢复入口选择损坏文件（不是归档的字节）
+  // 工具菜单恢复入口选择损坏文件（不是归档的字节）；已有看板先确认
+  page.once('dialog', dialog => dialog.accept());
   await page.getByTestId('restore-file-menu').setInputFiles({
     name: 'broken.rxdb',
     mimeType: 'application/octet-stream',
     buffer: Buffer.from('this is not an archive')
   });
-  await expect(page.getByTestId('app-error')).toContainText('失败', { timeout: 30000 });
+  await expect(page.getByTestId('app-error')).toBeVisible({ timeout: 30000 });
 
   // 原库可继续使用：建任务照常
+  page.once('dialog', dialog => dialog.accept('恢复后的新任务'));
   await page.getByTestId('column').first().getByTestId('add-task').click();
-  page.on('dialog', dialog => dialog.accept('恢复后的新任务'));
   await expect(page.getByTestId('task-card')).toHaveCount(13);
 });

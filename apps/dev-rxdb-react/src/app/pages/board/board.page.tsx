@@ -2,6 +2,7 @@ import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { BoardView } from '@aiao/rxdb-plugin-board-react';
+import '@aiao/rxdb-plugin-board-react/board-view.css';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { useEffect, useState } from 'react';

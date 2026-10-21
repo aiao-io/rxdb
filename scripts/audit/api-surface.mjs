@@ -86,6 +86,7 @@ const ASSET_SUBPATHS = new Map([
   ['rxdb-adapter-miniprogram', ['./alipay-random-worker.js']],
   ['rxdb-model-angular', ['./tailwind.css']],
   ['rxdb-model-react', ['./index.css', './tailwind.css']],
+  ['rxdb-plugin-board-react', ['./board-view.css']],
   ['rxdb-model-vue', ['./index.css', './tailwind.css']]
 ]);
 

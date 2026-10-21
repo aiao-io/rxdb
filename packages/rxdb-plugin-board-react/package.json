@@ -32,7 +32,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    }
+    },
+    "./board-view.css": "./dist/board-view.css"
   },
   "publishConfig": {
     "access": "public"
