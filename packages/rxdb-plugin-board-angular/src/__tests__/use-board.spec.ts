@@ -53,7 +53,7 @@ describe('useBoard（Angular 桥接）', () => {
 
     const c1 = await board.actions.createColumn({ title: 'To do' });
     const c2 = await board.actions.createColumn({ title: 'Done' });
-    const t1 = await board.actions.createTask({ columnId: c1.id, title: '任务 1' });
+    await board.actions.createTask({ columnId: c1.id, title: '任务 1' });
     await board.actions.createTask({ columnId: c1.id, title: '任务 2' });
     await board.actions.createTask({ columnId: c2.id, title: '任务 3' });
 
@@ -88,7 +88,12 @@ describe('useBoard（Angular 桥接）', () => {
     const task = await board.actions.createTask({ columnId: c1.id, title: '任务' });
     const label = await board.actions.createLabel({ name: '核心', color: '#e11d48' });
     const snapshot = await board.actions.openSnapshot(task.id);
-    await board.actions.saveTaskDraft(task.id, snapshot, { ...snapshot, title: snapshot.title, labelIds: [label.id] });
+    await board.actions.saveTaskDraft(task.id, snapshot, {
+      title: snapshot.title,
+      description: snapshot.description ?? '',
+      dueDate: snapshot.dueDate,
+      labelIds: [label.id]
+    });
 
     await waitFor(() => (board.taskLabels().get(task.id) ?? []).length === 1, '任务标签');
     expect(board.taskLabels().get(task.id)?.[0].name).toBe('核心');
@@ -120,7 +125,12 @@ describe('useBoard（Angular 桥接）', () => {
     const c1 = await board.actions.createColumn({ title: 'C1' });
     const task = await board.actions.createTask({ columnId: c1.id, title: '任务' });
     const snapshot = await board.actions.openSnapshot(task.id);
-    await board.actions.saveTaskDraft(task.id, snapshot, { ...snapshot, title: '改', dueDate: '2026-12-31' });
+    await board.actions.saveTaskDraft(task.id, snapshot, {
+      title: '改',
+      description: snapshot.description ?? '',
+      dueDate: '2026-12-31',
+      labelIds: snapshot.labelIds
+    });
     await waitFor(() => board.undoCount() >= 1, 'undo 计数');
 
     await board.actions.undo();

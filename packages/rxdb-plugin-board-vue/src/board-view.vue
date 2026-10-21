@@ -270,7 +270,7 @@ const dueDateText = (due: string | null): string => {
 const labelsOf = (taskId: UUID): readonly BoardLabel[] => board.taskLabels.value.get(taskId) ?? [];
 
 const onSelectBoard = (event: Event): void => {
-  board.selectBoard((event.target as HTMLSelectElement).value);
+  board.selectBoard((event.target as HTMLSelectElement).value as UUID);
 };
 
 const onRenameBoard = (): void => {
@@ -538,44 +538,6 @@ type ConfirmState =
                 >
               </template>
 
-<style scoped>
-/* 看板布局（US-539 交互约定：列横向排列、任务卡片纵向堆叠、列横向滚动；详情/确认面板固定右侧） */
-.board-view { display: block; padding-bottom: 4rem; }
-.board-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; flex-wrap: wrap; }
-.board-selector { padding: 0.25rem; }
-.header-button { background: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; }
-.header-actions { display: flex; gap: 0.375rem; flex-wrap: wrap; }
-.restoring-badge { background: #f59e0b; color: #fff; padding: 0 0.375rem; border-radius: 0.25rem; font-size: 0.75rem; }
-.restoring-note { padding: 0.25rem 1rem; color: #92400e; }
-.label-strip { display: flex; gap: 0.375rem; padding: 0.25rem 1rem; flex-wrap: wrap; }
-.label-chip { display: inline-flex; align-items: center; gap: 0.25rem; border-radius: 0.25rem; padding: 0 0.375rem; color: #fff; font-size: 0.75rem; }
-.label-name, .label-delete { background: none; border: none; color: inherit; cursor: pointer; font-size: inherit; padding: 0; }
-.board-notice { padding: 0.25rem 1rem; color: #b91c1c; }
-.columns { display: flex; gap: 0.75rem; overflow-x: auto; padding: 0.5rem 1rem; align-items: flex-start; }
-.column { flex: 0 0 17rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
-.column-header { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem; }
-.column-title { margin: 0; font-size: 0.875rem; font-weight: 600; flex: 1; }
-.column-count { font-size: 0.75rem; color: #64748b; }
-.column-menu { display: flex; gap: 0.125rem; flex-wrap: wrap; }
-.column-menu button { font-size: 0.75rem; padding: 0.125rem 0.25rem; }
-.cards { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.375rem; }
-.card { background: #fff; border-radius: 0.375rem; padding: 0.5rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); }
-.card-title { display: block; background: none; border: none; cursor: pointer; font-size: 0.875rem; text-align: left; padding: 0; width: 100%; }
-.card-edit { font-size: 0.75rem; }
-.card-labels { display: flex; gap: 0.25rem; margin-top: 0.25rem; flex-wrap: wrap; }
-.card-label { padding: 0 0.375rem; border-radius: 0.25rem; color: #fff; font-size: 0.75rem; }
-.card-due { display: block; margin-top: 0.25rem; font-size: 0.75rem; color: #64748b; }
-.card-due.overdue { color: #dc2626; }
-.add-task { width: 100%; margin-top: 0.25rem; }
-.title-editor { width: 100%; box-sizing: border-box; }
-.empty-board { padding: 2rem; }
-.detail-panel, .confirm-panel { position: fixed; right: 1rem; top: 4rem; width: 20rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); z-index: 10; max-height: calc(100vh - 6rem); overflow-y: auto; }
-.detail-panel label { display: block; margin-bottom: 0.5rem; }
-.detail-panel input, .detail-panel textarea { width: 100%; box-sizing: border-box; }
-.detail-actions, .confirm-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
-.board-connecting { padding: 2rem; color: #666; }
-</style>
-
               <template v-else>
                 <button
                   class="card-title"
@@ -591,44 +553,6 @@ type ConfirmState =
                   >编辑</button
                 >
               </template>
-
-<style scoped>
-/* 看板布局（US-539 交互约定：列横向排列、任务卡片纵向堆叠、列横向滚动；详情/确认面板固定右侧） */
-.board-view { display: block; padding-bottom: 4rem; }
-.board-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; flex-wrap: wrap; }
-.board-selector { padding: 0.25rem; }
-.header-button { background: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; }
-.header-actions { display: flex; gap: 0.375rem; flex-wrap: wrap; }
-.restoring-badge { background: #f59e0b; color: #fff; padding: 0 0.375rem; border-radius: 0.25rem; font-size: 0.75rem; }
-.restoring-note { padding: 0.25rem 1rem; color: #92400e; }
-.label-strip { display: flex; gap: 0.375rem; padding: 0.25rem 1rem; flex-wrap: wrap; }
-.label-chip { display: inline-flex; align-items: center; gap: 0.25rem; border-radius: 0.25rem; padding: 0 0.375rem; color: #fff; font-size: 0.75rem; }
-.label-name, .label-delete { background: none; border: none; color: inherit; cursor: pointer; font-size: inherit; padding: 0; }
-.board-notice { padding: 0.25rem 1rem; color: #b91c1c; }
-.columns { display: flex; gap: 0.75rem; overflow-x: auto; padding: 0.5rem 1rem; align-items: flex-start; }
-.column { flex: 0 0 17rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
-.column-header { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem; }
-.column-title { margin: 0; font-size: 0.875rem; font-weight: 600; flex: 1; }
-.column-count { font-size: 0.75rem; color: #64748b; }
-.column-menu { display: flex; gap: 0.125rem; flex-wrap: wrap; }
-.column-menu button { font-size: 0.75rem; padding: 0.125rem 0.25rem; }
-.cards { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.375rem; }
-.card { background: #fff; border-radius: 0.375rem; padding: 0.5rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); }
-.card-title { display: block; background: none; border: none; cursor: pointer; font-size: 0.875rem; text-align: left; padding: 0; width: 100%; }
-.card-edit { font-size: 0.75rem; }
-.card-labels { display: flex; gap: 0.25rem; margin-top: 0.25rem; flex-wrap: wrap; }
-.card-label { padding: 0 0.375rem; border-radius: 0.25rem; color: #fff; font-size: 0.75rem; }
-.card-due { display: block; margin-top: 0.25rem; font-size: 0.75rem; color: #64748b; }
-.card-due.overdue { color: #dc2626; }
-.add-task { width: 100%; margin-top: 0.25rem; }
-.title-editor { width: 100%; box-sizing: border-box; }
-.empty-board { padding: 2rem; }
-.detail-panel, .confirm-panel { position: fixed; right: 1rem; top: 4rem; width: 20rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); z-index: 10; max-height: calc(100vh - 6rem); overflow-y: auto; }
-.detail-panel label { display: block; margin-bottom: 0.5rem; }
-.detail-panel input, .detail-panel textarea { width: 100%; box-sizing: border-box; }
-.detail-actions, .confirm-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
-.board-connecting { padding: 2rem; color: #666; }
-</style>
 
               <div
                 v-if="labelsOf(task.id).length > 0"
@@ -713,6 +637,11 @@ type ConfirmState =
             >保存</button
           >
           <button
+            @click="confirmTaskDelete(detailTaskId!)"
+            data-testid="detail-delete"
+            >删除任务</button
+          >
+          <button
             @click="detailTaskId = null"
             data-testid="detail-cancel"
             >取消</button
@@ -748,44 +677,6 @@ type ConfirmState =
       </aside>
     </template>
 
-<style scoped>
-/* 看板布局（US-539 交互约定：列横向排列、任务卡片纵向堆叠、列横向滚动；详情/确认面板固定右侧） */
-.board-view { display: block; padding-bottom: 4rem; }
-.board-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; flex-wrap: wrap; }
-.board-selector { padding: 0.25rem; }
-.header-button { background: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; }
-.header-actions { display: flex; gap: 0.375rem; flex-wrap: wrap; }
-.restoring-badge { background: #f59e0b; color: #fff; padding: 0 0.375rem; border-radius: 0.25rem; font-size: 0.75rem; }
-.restoring-note { padding: 0.25rem 1rem; color: #92400e; }
-.label-strip { display: flex; gap: 0.375rem; padding: 0.25rem 1rem; flex-wrap: wrap; }
-.label-chip { display: inline-flex; align-items: center; gap: 0.25rem; border-radius: 0.25rem; padding: 0 0.375rem; color: #fff; font-size: 0.75rem; }
-.label-name, .label-delete { background: none; border: none; color: inherit; cursor: pointer; font-size: inherit; padding: 0; }
-.board-notice { padding: 0.25rem 1rem; color: #b91c1c; }
-.columns { display: flex; gap: 0.75rem; overflow-x: auto; padding: 0.5rem 1rem; align-items: flex-start; }
-.column { flex: 0 0 17rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
-.column-header { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem; }
-.column-title { margin: 0; font-size: 0.875rem; font-weight: 600; flex: 1; }
-.column-count { font-size: 0.75rem; color: #64748b; }
-.column-menu { display: flex; gap: 0.125rem; flex-wrap: wrap; }
-.column-menu button { font-size: 0.75rem; padding: 0.125rem 0.25rem; }
-.cards { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.375rem; }
-.card { background: #fff; border-radius: 0.375rem; padding: 0.5rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); }
-.card-title { display: block; background: none; border: none; cursor: pointer; font-size: 0.875rem; text-align: left; padding: 0; width: 100%; }
-.card-edit { font-size: 0.75rem; }
-.card-labels { display: flex; gap: 0.25rem; margin-top: 0.25rem; flex-wrap: wrap; }
-.card-label { padding: 0 0.375rem; border-radius: 0.25rem; color: #fff; font-size: 0.75rem; }
-.card-due { display: block; margin-top: 0.25rem; font-size: 0.75rem; color: #64748b; }
-.card-due.overdue { color: #dc2626; }
-.add-task { width: 100%; margin-top: 0.25rem; }
-.title-editor { width: 100%; box-sizing: border-box; }
-.empty-board { padding: 2rem; }
-.detail-panel, .confirm-panel { position: fixed; right: 1rem; top: 4rem; width: 20rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); z-index: 10; max-height: calc(100vh - 6rem); overflow-y: auto; }
-.detail-panel label { display: block; margin-bottom: 0.5rem; }
-.detail-panel input, .detail-panel textarea { width: 100%; box-sizing: border-box; }
-.detail-actions, .confirm-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
-.board-connecting { padding: 2rem; color: #666; }
-</style>
-
     <div
       v-else
       class="empty-board"
@@ -804,39 +695,198 @@ type ConfirmState =
 
 <style scoped>
 /* 看板布局（US-539 交互约定：列横向排列、任务卡片纵向堆叠、列横向滚动；详情/确认面板固定右侧） */
-.board-view { display: block; padding-bottom: 4rem; }
-.board-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; flex-wrap: wrap; }
-.board-selector { padding: 0.25rem; }
-.header-button { background: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; }
-.header-actions { display: flex; gap: 0.375rem; flex-wrap: wrap; }
-.restoring-badge { background: #f59e0b; color: #fff; padding: 0 0.375rem; border-radius: 0.25rem; font-size: 0.75rem; }
-.restoring-note { padding: 0.25rem 1rem; color: #92400e; }
-.label-strip { display: flex; gap: 0.375rem; padding: 0.25rem 1rem; flex-wrap: wrap; }
-.label-chip { display: inline-flex; align-items: center; gap: 0.25rem; border-radius: 0.25rem; padding: 0 0.375rem; color: #fff; font-size: 0.75rem; }
-.label-name, .label-delete { background: none; border: none; color: inherit; cursor: pointer; font-size: inherit; padding: 0; }
-.board-notice { padding: 0.25rem 1rem; color: #b91c1c; }
-.columns { display: flex; gap: 0.75rem; overflow-x: auto; padding: 0.5rem 1rem; align-items: flex-start; }
-.column { flex: 0 0 17rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
-.column-header { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem; }
-.column-title { margin: 0; font-size: 0.875rem; font-weight: 600; flex: 1; }
-.column-count { font-size: 0.75rem; color: #64748b; }
-.column-menu { display: flex; gap: 0.125rem; flex-wrap: wrap; }
-.column-menu button { font-size: 0.75rem; padding: 0.125rem 0.25rem; }
-.cards { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.375rem; }
-.card { background: #fff; border-radius: 0.375rem; padding: 0.5rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); }
-.card-title { display: block; background: none; border: none; cursor: pointer; font-size: 0.875rem; text-align: left; padding: 0; width: 100%; }
-.card-edit { font-size: 0.75rem; }
-.card-labels { display: flex; gap: 0.25rem; margin-top: 0.25rem; flex-wrap: wrap; }
-.card-label { padding: 0 0.375rem; border-radius: 0.25rem; color: #fff; font-size: 0.75rem; }
-.card-due { display: block; margin-top: 0.25rem; font-size: 0.75rem; color: #64748b; }
-.card-due.overdue { color: #dc2626; }
-.add-task { width: 100%; margin-top: 0.25rem; }
-.title-editor { width: 100%; box-sizing: border-box; }
-.empty-board { padding: 2rem; }
-.detail-panel, .confirm-panel { position: fixed; right: 1rem; top: 4rem; width: 20rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); z-index: 10; max-height: calc(100vh - 6rem); overflow-y: auto; }
-.detail-panel label { display: block; margin-bottom: 0.5rem; }
-.detail-panel input, .detail-panel textarea { width: 100%; box-sizing: border-box; }
-.detail-actions, .confirm-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
-.board-connecting { padding: 2rem; color: #666; }
+.board-view {
+  display: block;
+  padding-bottom: 4rem;
+}
+.board-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  flex-wrap: wrap;
+}
+.board-selector {
+  padding: 0.25rem;
+}
+.header-button {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.header-actions {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+.restoring-badge {
+  background: #f59e0b;
+  color: #fff;
+  padding: 0 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+}
+.restoring-note {
+  padding: 0.25rem 1rem;
+  color: #92400e;
+}
+.label-strip {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0.25rem 1rem;
+  flex-wrap: wrap;
+}
+.label-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.25rem;
+  padding: 0 0.375rem;
+  color: #fff;
+  font-size: 0.75rem;
+}
+.label-name,
+.label-delete {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+}
+.board-notice {
+  padding: 0.25rem 1rem;
+  color: #b91c1c;
+}
+.columns {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding: 0.5rem 1rem;
+  align-items: flex-start;
+}
+.column {
+  flex: 0 0 17rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+}
+.column-header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+}
+.column-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  flex: 1;
+}
+.column-count {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+.column-menu {
+  display: flex;
+  gap: 0.125rem;
+  flex-wrap: wrap;
+}
+.column-menu button {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.25rem;
+}
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.375rem;
+}
+.card {
+  background: #fff;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+.card-title {
+  display: block;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-align: left;
+  padding: 0;
+  width: 100%;
+}
+.card-edit {
+  font-size: 0.75rem;
+}
+.card-labels {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  flex-wrap: wrap;
+}
+.card-label {
+  padding: 0 0.375rem;
+  border-radius: 0.25rem;
+  color: #fff;
+  font-size: 0.75rem;
+}
+.card-due {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+.card-due.overdue {
+  color: #dc2626;
+}
+.add-task {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+.title-editor {
+  width: 100%;
+  box-sizing: border-box;
+}
+.empty-board {
+  padding: 2rem;
+}
+.detail-panel,
+.confirm-panel {
+  position: fixed;
+  right: 1rem;
+  top: 4rem;
+  width: 20rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  z-index: 10;
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+}
+.detail-panel label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+.detail-panel input,
+.detail-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.detail-actions,
+.confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.board-connecting {
+  padding: 2rem;
+  color: #666;
+}
 </style>
-

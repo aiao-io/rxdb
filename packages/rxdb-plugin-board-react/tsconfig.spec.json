@@ -2,6 +2,9 @@
   "compilerOptions": {
     "outDir": "./out-tsc/vitest",
     "types": ["vitest/globals", "vite/client", "node", "vitest"],
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "rootDir": "."
   },
   "extends": "../../tsconfig.base.json",

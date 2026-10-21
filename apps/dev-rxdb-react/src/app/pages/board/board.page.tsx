@@ -1,8 +1,10 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
+import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { BoardView } from '@aiao/rxdb-plugin-board-react';
 import '@aiao/rxdb-plugin-board-react/board-view.css';
+import './board-page.css';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { useEffect, useState } from 'react';
@@ -16,6 +18,7 @@ import { firstValueFrom } from 'rxjs';
 export default function BoardPage() {
   const [rxdb, setRxdb] = useState<RxDB | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [seedError, setSeedError] = useState<string | null>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -43,14 +46,16 @@ export default function BoardPage() {
 
   const exportBackup = async (): Promise<void> => {
     if (!rxdb) return;
-    const adapter = await firstValueFrom(rxdb.localAdapter$);
+    const adapter = (await firstValueFrom(rxdb.localAdapter$)) as unknown as {
+      backup(sink: WritableStream<Uint8Array>): Promise<unknown>;
+    };
     const chunks: Uint8Array[] = [];
     await adapter.backup(
       new WritableStream<Uint8Array>({
         write: chunk => void chunks.push(chunk)
       })
     );
-    const blob = new Blob(chunks);
+    const blob = new Blob(chunks as BlobPart[]);
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -73,5 +78,37 @@ export default function BoardPage() {
       </p>
     );
   }
-  return <BoardView rxdb={rxdb} onExportBackup={() => void exportBackup()} />;
+  /** 装载演示数据：只装进空库（种子固定 ID，不向已有库追加）。 */
+  const seedDemo = async (): Promise<void> => {
+    if (!rxdb) return;
+    try {
+      const boards = await firstValueFrom(
+        rxdb.entityManager.getRepository(Board).count({ where: { combinator: 'and', rules: [] } })
+      );
+      if (boards > 0) {
+        setSeedError('演示数据只能装进空库');
+        return;
+      }
+      await seedReleaseBoardDataset(rxdb);
+      setSeedError(null);
+    } catch (cause) {
+      setSeedError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+
+  return (
+    <>
+      <BoardView rxdb={rxdb} onExportBackup={() => void exportBackup()} />
+      <footer className='board-tools' data-testid='board-tools'>
+        <button type='button' data-testid='seed-demo' onClick={() => void seedDemo()}>
+          装载演示数据
+        </button>
+      </footer>
+      {seedError ? (
+        <p className='board-notice' role='alert' data-testid='board-notice-host'>
+          {seedError}
+        </p>
+      ) : null}
+    </>
+  );
 }

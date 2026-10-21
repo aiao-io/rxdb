@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDB, SyncType, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { createSearchHandle, type SearchHandle, type SearchResult } from '@aiao/rxdb-plugin-search';
 import { filter, firstValueFrom, take } from 'rxjs';
@@ -61,9 +61,9 @@ describe('BoardSearchSource 板级搜索源（US-538）', () => {
 
   let rxdb: RxDB;
   let domain: BoardDomain;
-  let ctx: { boardId: string | null; restoring: boolean };
-  let mainTaskIds: string[] = [];
-  let isolationTaskIds: string[] = [];
+  let ctx: { boardId: UUID | null; restoring: boolean };
+  let mainTaskIds: UUID[] = [];
+  let isolationTaskIds: UUID[] = [];
 
   const taskRepo = () => rxdb.entityManager.getRepository(Task);
 
@@ -117,7 +117,7 @@ describe('BoardSearchSource 板级搜索源（US-538）', () => {
 
     const first = await settledResults(handle);
     expect(first).toHaveLength(5);
-    expect(first.every(r => mainTaskIds.includes(r.id))).toBe(true);
+    expect(first.every(r => mainTaskIds.some(id => id === r.id))).toBe(true);
     expect(first.map(r => r.rank)).toEqual([100, 101, 102, 103, 104]);
     expect(await firstValueFrom(handle.hasMore$)).toBe(true);
 

@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDB, SyncType, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { firstValueFrom } from 'rxjs';
@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { BoardDomain } from '../board-domain.js';
 import { BoardDeleteService } from '../delete-service.js';
-import { BoardDetailService } from '../detail-service.js';
+import { BoardDetailService, type TaskDraftSnapshot } from '../detail-service.js';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '../entities/index.js';
 import { BoardLabelService } from '../label-service.js';
 import { matchAll, readFirst, whereEq } from '../query.js';
@@ -22,14 +22,33 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
   let details: BoardDetailService;
   let labels: BoardLabelService;
   let deletes: BoardDeleteService;
-  let ctx: { boardId: string | null; restoring: boolean };
+  let ctx: { boardId: UUID | null; restoring: boolean };
 
   const taskRepo = () => rxdb.entityManager.getRepository(Task);
   const labelRepo = () => rxdb.entityManager.getRepository(BoardLabel);
   const linkRepo = () => rxdb.entityManager.getRepository(TaskLabel);
 
-  const taskOf = async (id: string) => (await readFirst(taskRepo().find({ where: whereEq('id', id) })))[0];
-  const linksOf = (taskId: string) => readFirst(linkRepo().find({ where: whereEq('taskId', taskId) }));
+  const taskOf = async (id: UUID) => (await readFirst(taskRepo().find({ where: whereEq('id', id) })))[0];
+  const linksOf = (taskId: UUID) => readFirst(linkRepo().find({ where: whereEq('taskId', taskId) }));
+
+  /**
+   * 快照 → 草稿：TaskDraft 不含 columnId（列在保存时重查），描述取非空串，
+   * 空串由服务归一化为 null（US-536 AC#8）。
+   */
+  const draftFrom = (
+    snapshot: TaskDraftSnapshot,
+    patch: {
+      title?: string;
+      description?: string;
+      dueDate?: string | null;
+      labelIds?: readonly UUID[];
+    }
+  ) => ({
+    title: patch.title ?? snapshot.title,
+    description: patch.description ?? snapshot.description ?? '',
+    dueDate: patch.dueDate !== undefined ? patch.dueDate : snapshot.dueDate,
+    labelIds: patch.labelIds ?? snapshot.labelIds
+  });
 
   beforeEach(async () => {
     rxdb = new RxDB({
@@ -87,7 +106,7 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
     const l1 = await labels.createLabel({ name: '核心', color: '#e11d48' });
     const l2 = await labels.createLabel({ name: '文档', color: '#2563eb' });
     const snapshot = await details.openSnapshot(task.id);
-    await details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: snapshot.title, labelIds: [l1.id, l2.id] });
+    await details.saveTaskDraft(task.id, snapshot, draftFrom(snapshot, { labelIds: [l1.id, l2.id] }));
 
     expect((await linksOf(task.id)).map(link => link.labelId).sort()).toEqual([l1.id, l2.id].sort());
 
@@ -106,8 +125,8 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
     const l1 = await labels.createLabel({ name: '标签', color: '#e11d48' });
     const snap1 = await details.openSnapshot(task.id);
     const snap2 = await details.openSnapshot(task2.id);
-    await details.saveTaskDraft(task.id, snap1, { ...snap1, title: snap1.title, labelIds: [l1.id] });
-    await details.saveTaskDraft(task2.id, snap2, { ...snap2, title: snap2.title, labelIds: [l1.id] });
+    await details.saveTaskDraft(task.id, snap1, draftFrom(snap1, { labelIds: [l1.id] }));
+    await details.saveTaskDraft(task2.id, snap2, draftFrom(snap2, { labelIds: [l1.id] }));
 
     // 删标签：定义与全部引用原子移除
     const plan = await labels.planLabelDelete(l1.id);
@@ -120,7 +139,7 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
     await domain.createTask({ columnId: column.id, title: '任务 3' });
     const l2 = await labels.createLabel({ name: '标签 2', color: '#16a34a' });
     const snap3 = await details.openSnapshot(task2.id);
-    await details.saveTaskDraft(task2.id, snap3, { ...snap3, title: snap3.title, labelIds: [l2.id] });
+    await details.saveTaskDraft(task2.id, snap3, draftFrom(snap3, { labelIds: [l2.id] }));
     const taskPlan = await deletes.planTaskDelete(task2.id);
     await deletes.executeDelete(taskPlan);
     expect(await readFirst(linkRepo().find({ where: whereEq('labelId', l2.id) }))).toHaveLength(0);
@@ -169,10 +188,10 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
     });
     // 第二次保存：改标签（加 l2）
     const snap2 = await details.openSnapshot(task.id);
-    await details.saveTaskDraft(task.id, snap2, { ...snap2, title: snap2.title, labelIds: [l1.id, l2.id] });
+    await details.saveTaskDraft(task.id, snap2, draftFrom(snap2, { labelIds: [l1.id, l2.id] }));
     // 第三次保存：只改截止日
     const snap3 = await details.openSnapshot(task.id);
-    await details.saveTaskDraft(task.id, snap3, { ...snap3, title: snap3.title, dueDate: '2026-12-02' });
+    await details.saveTaskDraft(task.id, snap3, draftFrom(snap3, { dueDate: '2026-12-02' }));
 
     const history = rxdb.versionManager.history();
     await history.undo();
@@ -192,7 +211,7 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
 
     // 新成功写入清空 redo 栈（失效是事件驱动的异步任务，轮询等待落定）
     const snap4 = await details.openSnapshot(task.id);
-    await details.saveTaskDraft(task.id, snap4, { ...snap4, title: '改 2' });
+    await details.saveTaskDraft(task.id, snap4, draftFrom(snap4, { title: '改 2' }));
     await waitForRedoCount(0);
   });
 
@@ -225,14 +244,14 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
     )[0].id;
 
     await expect(
-      details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: snapshot.title, labelIds: [foreignLabel.id] })
+      details.saveTaskDraft(task.id, snapshot, draftFrom(snapshot, { labelIds: [foreignLabel.id] }))
     ).rejects.toMatchObject({ code: 'label_cross_board' });
     await expect(
-      details.saveTaskDraft(task.id, snapshot, {
-        ...snapshot,
-        title: snapshot.title,
-        labelIds: ['00000000-0000-4000-8000-0000000000ff']
-      })
+      details.saveTaskDraft(
+        task.id,
+        snapshot,
+        draftFrom(snapshot, { labelIds: ['00000000-0000-4000-8000-0000000000ff'] })
+      )
     ).rejects.toMatchObject({ code: 'label_not_found' });
     expect((await taskOf(task.id)).title).toBe('任务');
     expect(await linksOf(task.id)).toHaveLength(0);
@@ -243,23 +262,23 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
     const snapshot = await details.openSnapshot(task.id);
 
     await expect(
-      details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: '   ', dueDate: null })
+      details.saveTaskDraft(task.id, snapshot, draftFrom(snapshot, { title: '   ', dueDate: null }))
     ).rejects.toMatchObject({
       code: 'empty_title'
     });
     await expect(
-      details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: 'x', dueDate: '2026-02-29' })
+      details.saveTaskDraft(task.id, snapshot, draftFrom(snapshot, { title: 'x', dueDate: '2026-02-29' }))
     ).rejects.toMatchObject({ code: 'invalid_due_date' });
     await expect(
-      details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: 'x', dueDate: '2026-13-01' })
+      details.saveTaskDraft(task.id, snapshot, draftFrom(snapshot, { title: 'x', dueDate: '2026-13-01' }))
     ).rejects.toMatchObject({ code: 'invalid_due_date' });
 
     // 合法闰日保留；清空存 null；内联改标题与详情保存共用校验
-    const withLeap = await details.saveTaskDraft(task.id, snapshot, {
-      ...snapshot,
-      title: '改',
-      dueDate: '2024-02-29'
-    });
+    const withLeap = await details.saveTaskDraft(
+      task.id,
+      snapshot,
+      draftFrom(snapshot, { title: '改', dueDate: '2024-02-29' })
+    );
     expect(withLeap.kind).toBe('saved');
     const afterLeap = await details.openSnapshot(task.id);
     expect(afterLeap.dueDate).toBe('2024-02-29');
@@ -270,11 +289,7 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
 
     // 内联改标题后重取快照，再清空截止日
     const afterInline = await details.openSnapshot(task.id);
-    const cleared = await details.saveTaskDraft(task.id, afterInline, {
-      ...afterInline,
-      title: '内联改',
-      dueDate: null
-    });
+    const cleared = await details.saveTaskDraft(task.id, afterInline, draftFrom(afterInline, { dueDate: null }));
     expect(cleared.kind).toBe('saved');
     expect((await taskOf(task.id)).dueDate).toBeNull();
   });
@@ -282,7 +297,7 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
   it('AC#13：时区改变不改日期（纯日期串不经 Date 换算）', async () => {
     const { task } = await seedTask();
     const snapshot = await details.openSnapshot(task.id);
-    await details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: snapshot.title, dueDate: '2026-12-31' });
+    await details.saveTaskDraft(task.id, snapshot, draftFrom(snapshot, { dueDate: '2026-12-31' }));
     // 保存与读回全程是字符串比较，任何时区下字节不变
     expect((await taskOf(task.id)).dueDate).toBe('2026-12-31');
     expect(typeof (await taskOf(task.id)).dueDate).toBe('string');
@@ -294,7 +309,9 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
 
     // 另一入口改标题
     await domain.updateTaskTitle(task.id, '外部修改');
-    await expect(details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: '我的草稿' })).rejects.toMatchObject({
+    await expect(
+      details.saveTaskDraft(task.id, snapshot, draftFrom(snapshot, { title: '我的草稿' }))
+    ).rejects.toMatchObject({
       code: 'task_stale'
     });
     expect((await taskOf(task.id)).title).toBe('外部修改');
@@ -303,7 +320,7 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
     const staleSnapshot = await details.openSnapshot(task.id);
     await deletes.executeDelete(await deletes.planTaskDelete(task.id));
     await expect(
-      details.saveTaskDraft(task.id, staleSnapshot, { ...staleSnapshot, title: '复活？' })
+      details.saveTaskDraft(task.id, staleSnapshot, draftFrom(staleSnapshot, { title: '复活？' }))
     ).rejects.toMatchObject({ code: 'task_stale' });
     // 不复活任务
     expect(await readFirst(taskRepo().find({ where: whereEq('id', task.id) }))).toHaveLength(0);
@@ -317,7 +334,7 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
     // 草稿包含 l1，但保存前 l1 已被删 → 事务内 label_not_found，字段与关联全部零写
     await labels.executeLabelDelete(await labels.planLabelDelete(l1.id));
     await expect(
-      details.saveTaskDraft(task.id, snapshot, { ...snapshot, title: '改', labelIds: [l1.id] })
+      details.saveTaskDraft(task.id, snapshot, draftFrom(snapshot, { title: '改', labelIds: [l1.id] }))
     ).rejects.toMatchObject({ code: 'label_not_found' });
     expect((await taskOf(task.id)).title).toBe('任务');
     expect(await linksOf(task.id)).toHaveLength(0);

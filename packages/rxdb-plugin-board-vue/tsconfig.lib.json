@@ -18,7 +18,7 @@
     "src/**/__tests__/**/*"
   ],
   "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
   "references": [
     {
       "path": "../rxdb-plugin-board/tsconfig.lib.json"

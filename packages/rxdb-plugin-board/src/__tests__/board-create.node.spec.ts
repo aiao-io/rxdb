@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDB, SyncType, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -14,7 +14,7 @@ import { inRule, matchAll, readFirst, whereEq } from '../query.js';
 describe('BoardDomain 创建与归属（US-534 AC#1～5）', () => {
   let rxdb: RxDB;
   let domain: BoardDomain;
-  let ctx: { boardId: string | null; restoring: boolean };
+  let ctx: { boardId: UUID | null; restoring: boolean };
 
   const boardRepo = () => rxdb.entityManager.getRepository(Board);
   const columnRepo = () => rxdb.entityManager.getRepository(Column);
@@ -47,11 +47,11 @@ describe('BoardDomain 创建与归属（US-534 AC#1～5）', () => {
 
   it('AC#1：板下建列、列下建任务，任务经列推导所属板', async () => {
     const board = await createActiveBoard('rxdb 1.0 发布计划');
-    const columnIds: string[] = [];
+    const columnIds: UUID[] = [];
     for (const title of ['To do', 'Doing', 'Done']) {
       columnIds.push((await domain.createColumn({ title })).id);
     }
-    const taskIds: string[] = [];
+    const taskIds: UUID[] = [];
     for (const columnId of columnIds) {
       taskIds.push((await domain.createTask({ columnId, title: `任务-${columnId}-1` })).id);
       taskIds.push((await domain.createTask({ columnId, title: `任务-${columnId}-2` })).id);
@@ -68,7 +68,7 @@ describe('BoardDomain 创建与归属（US-534 AC#1～5）', () => {
   });
 
   it('AC#2：列内创建追加到列尾，默认排序按「分组字段 + sortOrder」，列间互不影响', async () => {
-    const board = await createActiveBoard();
+    await createActiveBoard();
     const c1 = await domain.createColumn({ title: 'C1' });
     const c2 = await domain.createColumn({ title: 'C2' });
 
@@ -96,7 +96,7 @@ describe('BoardDomain 创建与归属（US-534 AC#1～5）', () => {
   });
 
   it('AC#4：空 / 全空白标题拒绝且零写入，合法标题去首尾空白后保存', async () => {
-    const board = await createActiveBoard();
+    await createActiveBoard();
     const before = (await allTasks()).length;
     const firstColumn = await domain.createColumn({ title: '首列' });
 

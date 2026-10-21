@@ -1,6 +1,7 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
+import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { BoardViewComponent } from '@aiao/rxdb-plugin-board-angular';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
@@ -23,6 +24,12 @@ import { getSqliteWasmUrl } from '../../rxdb/demo-rxdb-config';
   template: `
     @if (rxdb(); as db) {
       <board-view [exportBackup]="onExportBackup" [rxdb]="db" />
+      <footer class="board-tools" data-testid="board-tools">
+        <button (click)="onSeedDemo()" data-testid="seed-demo">装载演示数据</button>
+      </footer>
+      @if (pageError(); as message) {
+        <p class="board-notice" role="alert" data-testid="board-notice-host">{{ message }}</p>
+      }
     } @else {
       <p class="board-connecting" data-testid="board-connecting">正在连接看板数据库…</p>
     }
@@ -33,6 +40,19 @@ import { getSqliteWasmUrl } from '../../rxdb/demo-rxdb-config';
         padding: 2rem;
         color: var(--text-secondary, #666);
       }
+      .board-tools {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 0.5rem 1rem;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+      }
+      .board-notice {
+        color: #b91c1c;
+        padding: 0.25rem 1rem;
+      }
     `
   ]
 })
@@ -40,6 +60,7 @@ export default class BoardPage implements OnInit {
   private readonly baseHref = inject(APP_BASE_HREF);
 
   protected readonly rxdb = signal<RxDB | null>(null);
+  protected readonly pageError = signal<string | null>(null);
 
   ngOnInit(): void {
     const dbName = 'aiao-board';
@@ -65,18 +86,37 @@ export default class BoardPage implements OnInit {
   protected readonly onExportBackup = async (): Promise<void> => {
     const db = this.rxdb();
     if (!db) return;
-    const adapter = await firstValueFrom(db.localAdapter$);
+    const adapter = (await firstValueFrom(db.localAdapter$)) as unknown as {
+      backup(sink: WritableStream<Uint8Array>): Promise<unknown>;
+    };
     const chunks: Uint8Array[] = [];
     const sink = new WritableStream<Uint8Array>({
       write: chunk => void chunks.push(chunk)
     });
     await adapter.backup(sink);
-    const blob = new Blob(chunks);
+    const blob = new Blob(chunks as BlobPart[]);
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = `board-backup-${db.config.dbName}.rxdb`;
     anchor.click();
     URL.revokeObjectURL(url);
+  };
+
+  /** 装载演示数据：只装进空库（种子固定 ID，不向已有库追加）。 */
+  protected readonly onSeedDemo = async (): Promise<void> => {
+    const db = this.rxdb();
+    if (!db) return;
+    try {
+      const boards = await firstValueFrom(db.entityManager.getRepository(Board).count({ where: { combinator: 'and', rules: [] } }));
+      if (boards > 0) {
+        this.pageError.set('演示数据只能装进空库');
+        return;
+      }
+      await seedReleaseBoardDataset(db);
+      this.pageError.set(null);
+    } catch (cause) {
+      this.pageError.set(cause instanceof Error ? cause.message : String(cause));
+    }
   };
 }

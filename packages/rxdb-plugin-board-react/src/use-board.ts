@@ -91,7 +91,7 @@ export interface UseBoardActions {
 }
 
 const defaultStorage = (): UseBoardStorage => {
-  const candidate = typeof localStorage !== 'undefined' ? (localStorage as UseBoardStorage | null) : null;
+  const candidate = typeof localStorage !== 'undefined' ? (localStorage as unknown as UseBoardStorage | null) : null;
   // happy-dom 等环境的 localStorage 可能是没有方法的占位对象，逐方法探测
   if (candidate && typeof candidate.get === 'function' && typeof candidate.set === 'function') return candidate;
   const memory = new Map<string, string>();
@@ -133,7 +133,7 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   // 服务与 Subject 在实例生命周期内保持同一引用；state 更新经 setState
   const stateRef = useRef({
     rxdb,
-    boardId$: new BehaviorSubject<string | null>(null),
+    boardId$: new BehaviorSubject<UUID | null>(null),
     restoring$: new BehaviorSubject<boolean>(false)
   });
   const { boardId$, restoring$ } = stateRef.current;

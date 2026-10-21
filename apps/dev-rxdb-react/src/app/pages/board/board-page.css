@@ -1,0 +1,14 @@
+/* 看板页宿主工具条（US-539 阶段 A）：与 Angular / Vue 宿主同款布局语义 */
+.board-tools {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.5rem 1rem;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+.board-notice {
+  color: #b91c1c;
+  padding: 0.25rem 1rem;
+}

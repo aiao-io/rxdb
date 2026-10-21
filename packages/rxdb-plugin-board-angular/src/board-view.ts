@@ -79,27 +79,12 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
   ]
 })
 export class BoardViewComponent implements OnInit {
-  /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
-  readonly rxdb = input.required<Parameters<typeof useBoard>[0]>();
-  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。 */
-  readonly exportBackup = input<() => void | Promise<void>>();
-
-  /** 输入绑定完成后（ngOnInit）安装的领域桥；首帧为 null。 */
-  protected readonly board = signal<UseBoardReturn | null>(null);
-
   private readonly injectorRef = inject(Injector);
 
-  ngOnInit(): void {
-    // 显式注入上下文：JIT + zoneless 下生命周期钩子不保证自带注入上下文
-    const installed = runInInjectionContext(this.injectorRef, () => useBoard(this.rxdb()));
-    this.board.set(installed);
-  }
+  /** 输入绑定完成后（ngOnInit）安装的领域桥；首帧为 null。 */
+  private snapshot: TaskDraftSnapshot | null = null;
 
-  protected get boardRef(): UseBoardReturn {
-    const installed = this.board();
-    if (!installed) throw new Error('board 尚未安装');
-    return installed;
-  }
+  protected readonly board = signal<UseBoardReturn | null>(null);
 
   /** 正在拖拽的任务 / 列与指针轨迹。 */
   protected readonly dragging = signal<{
@@ -135,6 +120,29 @@ export class BoardViewComponent implements OnInit {
     }
     return grouped;
   });
+
+  protected editTitle = signal<UUID | null>(null);
+
+  protected readonly draftTitle = signal<string>('');
+  protected readonly draftDescription = signal<string>('');
+  protected readonly draftDueDate = signal<string>('');
+  protected readonly draftLabelIds = signal<readonly UUID[]>([]);
+  protected get boardRef(): UseBoardReturn {
+    const installed = this.board();
+    if (!installed) throw new Error('board 尚未安装');
+    return installed;
+  }
+
+  /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
+  readonly rxdb = input.required<Parameters<typeof useBoard>[0]>();
+  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。 */
+  readonly exportBackup = input<() => void | Promise<void>>();
+
+  ngOnInit(): void {
+    // 显式注入上下文：JIT + zoneless 下生命周期钩子不保证自带注入上下文
+    const installed = runInInjectionContext(this.injectorRef, () => useBoard(this.rxdb()));
+    this.board.set(installed);
+  }
 
   // ---------- 创建 ----------
 
@@ -173,8 +181,6 @@ export class BoardViewComponent implements OnInit {
     if (title === null) return;
     await this.guard(() => this.boardRef.actions.updateColumn(columnId, { title }));
   }
-
-  protected editTitle = signal<UUID | null>(null);
 
   protected async startEditTitle(task: Task): Promise<void> {
     this.draftTitle.set(task.title);
@@ -239,52 +245,6 @@ export class BoardViewComponent implements OnInit {
     await this.guard(() => this.boardRef.actions.moveColumn(movedId, target));
   }
 
-  private resolveTaskTarget(
-    column: Column,
-    movedId: UUID,
-    clientX: number,
-    clientY: number,
-    area: HTMLElement
-  ): CardDropTarget | null {
-    const views = this.boardRef.columns().map(viewColumn => {
-      const columnEl = area.querySelector<HTMLElement>(`[data-column-id="${viewColumn.id}"]`);
-      const rect = columnEl?.getBoundingClientRect();
-      const cards = (this.taskMap().get(viewColumn.id) ?? []).map(task => {
-        const cardEl = area.querySelector<HTMLElement>(`[data-task-id="${task.id}"]`);
-        const cardRect = cardEl?.getBoundingClientRect();
-        return { id: task.id, top: cardRect?.top ?? 0, bottom: cardRect?.bottom ?? 0 };
-      });
-      return {
-        columnId: viewColumn.id,
-        rect: { left: rect?.left ?? 0, right: rect?.right ?? 0, top: rect?.top ?? 0, bottom: rect?.bottom ?? 0 },
-        cards,
-        taskIds: (this.taskMap().get(viewColumn.id) ?? []).map(task => task.id)
-      };
-    });
-    return resolveCardDrop(views, movedId, clientX, clientY);
-  }
-
-  private resolveColumnTarget(
-    movedId: UUID,
-    clientX: number,
-    area: HTMLElement
-  ): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null {
-    const views = this.boardRef.columns().map(column => {
-      const headerEl = area.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`);
-      const rect = headerEl?.getBoundingClientRect();
-      return { columnId: column.id, rect: { left: rect?.left ?? 0, right: rect?.right ?? 0 } };
-    });
-    const target = resolveColumnDrop(
-      views,
-      this.boardRef.columns().map(column => column.id),
-      movedId,
-      clientX
-    );
-    return target ? { prevId: target.prevId as UUID, nextId: target.nextId as UUID } : null;
-  }
-
-  // ---------- 本列排序 / 移动（键盘等价路径） ----------
-
   protected async sortColumnBy(columnId: UUID, mode: 'dueDate' | 'title'): Promise<void> {
     const result = await this.guard(() => this.boardRef.actions.sortColumn(columnId, mode));
     if (result && !result.written) this.notice.set('已按目标顺序排列，无变化');
@@ -304,12 +264,6 @@ export class BoardViewComponent implements OnInit {
   }
 
   // ---------- 详情面板 ----------
-
-  protected readonly draftTitle = signal<string>('');
-  protected readonly draftDescription = signal<string>('');
-  protected readonly draftDueDate = signal<string>('');
-  protected readonly draftLabelIds = signal<readonly UUID[]>([]);
-  private snapshot: TaskDraftSnapshot | null = null;
 
   protected async openDetail(taskId: UUID): Promise<void> {
     const snap = await this.boardRef.actions.openSnapshot(taskId);
@@ -371,6 +325,14 @@ export class BoardViewComponent implements OnInit {
   }
 
   // ---------- 删除确认（确认在事务外、集合在事务内复核） ----------
+
+  /** 详情面板删除入口：先出确认（确认在事务外，集合在事务内复核）。 */
+  protected async deleteDetailTask(): Promise<void> {
+    const taskId = this.detailTaskId();
+    if (!taskId) return;
+    const task = this.board()?.tasks().find(candidate => candidate.id === taskId);
+    if (task) await this.confirmTaskDelete(task);
+  }
 
   protected async confirmTaskDelete(task: Task): Promise<void> {
     const plan = await this.boardRef.actions.planTaskDelete(task.id);
@@ -441,17 +403,6 @@ export class BoardViewComponent implements OnInit {
   }
 
   /** 统一写入口错误反馈：失败保留输入并提示，不静默。 */
-  private async guard<T>(operation: () => Promise<T>): Promise<T | undefined> {
-    try {
-      this.notice.set(null);
-      return await operation();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.notice.set(message);
-      return undefined;
-    }
-  }
-
   protected dueDateText(task: Task): string {
     const due = task.dueDate;
     if (!due) return '';
@@ -464,6 +415,67 @@ export class BoardViewComponent implements OnInit {
     );
   }
 
+  protected labelsOf(taskId: UUID): readonly import('@aiao/rxdb-plugin-board').BoardLabel[] {
+    return this.board()?.taskLabels().get(taskId) ?? [];
+  }
+
+  private resolveTaskTarget(
+    column: Column,
+    movedId: UUID,
+    clientX: number,
+    clientY: number,
+    area: HTMLElement
+  ): CardDropTarget | null {
+    const views = this.boardRef.columns().map(viewColumn => {
+      const columnEl = area.querySelector<HTMLElement>(`[data-column-id="${viewColumn.id}"]`);
+      const rect = columnEl?.getBoundingClientRect();
+      const cards = (this.taskMap().get(viewColumn.id) ?? []).map(task => {
+        const cardEl = area.querySelector<HTMLElement>(`[data-task-id="${task.id}"]`);
+        const cardRect = cardEl?.getBoundingClientRect();
+        return { id: task.id, top: cardRect?.top ?? 0, bottom: cardRect?.bottom ?? 0 };
+      });
+      return {
+        columnId: viewColumn.id,
+        rect: { left: rect?.left ?? 0, right: rect?.right ?? 0, top: rect?.top ?? 0, bottom: rect?.bottom ?? 0 },
+        cards,
+        taskIds: (this.taskMap().get(viewColumn.id) ?? []).map(task => task.id)
+      };
+    });
+    return resolveCardDrop(views, movedId, clientX, clientY);
+  }
+
+  private resolveColumnTarget(
+    movedId: UUID,
+    clientX: number,
+    area: HTMLElement
+  ): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null {
+    const views = this.boardRef.columns().map(column => {
+      const headerEl = area.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`);
+      const rect = headerEl?.getBoundingClientRect();
+      return { columnId: column.id, rect: { left: rect?.left ?? 0, right: rect?.right ?? 0 } };
+    });
+    const target = resolveColumnDrop(
+      views,
+      this.boardRef.columns().map(column => column.id),
+      movedId,
+      clientX
+    );
+    return target ? { prevId: target.prevId as UUID, nextId: target.nextId as UUID } : null;
+  }
+
+  // ---------- 本列排序 / 移动（键盘等价路径） ----------
+
+  private async guard<T>(operation: () => Promise<T>): Promise<T | undefined> {
+    try {
+      this.notice.set(null);
+      return await operation();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.notice.set(message);
+      return undefined;
+    }
+  }
+
   private localToday(): string {
     const now = new Date();
     const year = now.getFullYear();
@@ -472,6 +484,4 @@ export class BoardViewComponent implements OnInit {
     return `${year}-${month}-${day}`;
   }
 
-  protected readonly labelsOf = (taskId: UUID): readonly import('@aiao/rxdb-plugin-board').BoardLabel[] =>
-    this.board()?.taskLabels().get(taskId) ?? [];
 }

@@ -4,6 +4,7 @@
     "outDir": "dist",
     "tsBuildInfoFile": "out-tsc/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": true,
+    "jsx": "react-jsx",
     "types": ["node", "vite/client"]
   },
   "exclude": [

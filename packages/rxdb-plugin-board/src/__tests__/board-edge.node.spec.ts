@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDB, SyncType, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -22,10 +22,9 @@ describe('看板领域边界用例', () => {
   let sorts: BoardColumnSortService;
   let notifier: BoardWriteNotifier;
   let events: { kind: string; columnId?: string }[];
-  let ctx: { boardId: string | null; restoring: boolean };
+  let ctx: { boardId: UUID | null; restoring: boolean };
 
   const columnRepo = () => rxdb.entityManager.getRepository(Column);
-  const taskRepo = () => rxdb.entityManager.getRepository(Task);
 
   beforeEach(async () => {
     rxdb = new RxDB({
@@ -69,7 +68,9 @@ describe('看板领域边界用例', () => {
 
   it('无当前板时建列 / 改列给出 board_not_found', async () => {
     await expect(domain.createColumn({ title: 'x' })).rejects.toMatchObject({ code: 'board_not_found' });
-    await expect(domain.updateColumn('任意', { title: 'x' })).rejects.toMatchObject({ code: 'board_not_found' });
+    await expect(domain.updateColumn('00000000-0000-4000-8000-0000000000aa', { title: 'x' })).rejects.toMatchObject({
+      code: 'board_not_found'
+    });
   });
 
   it('任务与板不存在时给出可判别错误；listTasksOfBoard 汇总板内任务', async () => {

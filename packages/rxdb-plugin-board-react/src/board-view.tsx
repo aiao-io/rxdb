@@ -76,6 +76,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     if (title === null) return;
     await guard(() => board.actions.createColumn({ title }));
   };
+  const createLabel = async (): Promise<void> => {
+    const name = promptTitle('新建标签：名称');
+    if (name === null) return;
+    const color = promptTitle('标签颜色（#rrggbb）', '#e11d48');
+    if (color === null) return;
+    await guard(() => board.actions.createLabel({ name, color }));
+  };
+
   const createTask = async (columnId: UUID): Promise<void> => {
     const title = promptTitle('新建任务：标题');
     if (title === null) return;
@@ -196,6 +204,8 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     await guard(() => board.actions.moveColumn(columnId, target));
   };
 
+  const detailTask = detailTaskId ? board.tasks.find(task => task.id === detailTaskId) : undefined;
+
   const confirmTaskDelete = async (task: Task): Promise<void> => {
     const plan = await board.actions.planTaskDelete(task.id);
     setConfirm({ kind: 'task', taskId: task.id, title: plan.taskTitle });
@@ -266,7 +276,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         <select
           className='board-selector'
           value={board.currentBoardId ?? ''}
-          onChange={event => board.selectBoard(event.target.value)}
+          onChange={event => board.selectBoard(event.target.value as UUID)}
           data-testid='board-selector'
           aria-label='选择看板'
         >
@@ -594,6 +604,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           <div className='detail-actions'>
             <button onClick={() => void saveDetail()} data-testid='detail-save'>
               保存
+            </button>
+            <button
+              onClick={() => {
+                if (detailTask) void confirmTaskDelete(detailTask);
+              }}
+              data-testid='detail-delete'
+            >
+              删除任务
             </button>
             <button onClick={() => setDetailTaskId(null)} data-testid='detail-cancel'>
               取消

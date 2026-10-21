@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDB, SyncType, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { firstValueFrom } from 'rxjs';
@@ -17,7 +17,7 @@ describe('BoardDeleteService 删除级联与撤销（US-534）', () => {
   let rxdb: RxDB;
   let domain: BoardDomain;
   let deletes: BoardDeleteService;
-  let ctx: { boardId: string | null; restoring: boolean };
+  let ctx: { boardId: UUID | null; restoring: boolean };
 
   const boardRepo = () => rxdb.entityManager.getRepository(Board);
   const columnRepo = () => rxdb.entityManager.getRepository(Column);

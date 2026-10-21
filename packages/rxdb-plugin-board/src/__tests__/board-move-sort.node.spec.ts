@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDB, SyncType, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -23,12 +23,12 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
   let sorts: BoardColumnSortService;
   let notifier: BoardWriteNotifier;
   let events: { kind: string; taskId?: string; columnId?: string }[];
-  let ctx: { boardId: string | null; restoring: boolean };
+  let ctx: { boardId: UUID | null; restoring: boolean };
 
   const columnRepo = () => rxdb.entityManager.getRepository(Column);
   const taskRepo = () => rxdb.entityManager.getRepository(Task);
 
-  const tasksOf = (columnId: string) => readFirst(taskRepo().find({ where: whereEq('columnId', columnId) }));
+  const tasksOf = (columnId: UUID) => readFirst(taskRepo().find({ where: whereEq('columnId', columnId) }));
 
   beforeEach(async () => {
     rxdb = new RxDB({
@@ -66,16 +66,19 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
     const c1 = await domain.createColumn({ title: 'C1' });
     const c2 = await domain.createColumn({ title: 'C2' });
     const c3 = await domain.createColumn({ title: 'C3' });
-    const t1: string[] = [];
-    const t2: string[] = [];
+    const t1: UUID[] = [];
+    const t2: UUID[] = [];
     for (const title of ['a1', 'a2', 'a3']) t1.push((await domain.createTask({ columnId: c1.id, title })).id);
     for (const title of ['b1', 'b2', 'b3']) t2.push((await domain.createTask({ columnId: c2.id, title })).id);
     return { board, c1, c2, c3, t1, t2 };
   };
 
+  /** 几何占位用的空列 id（指针从不落在这些列内，仅占矩形布局）。 */
+  const NO_COLUMN: UUID = '00000000-0000-4000-8000-0000000000ee';
+
   /** 三列并排的合成几何：每列宽 100、高 400，卡片从 y=100 起每 50 一张。 */
-  const geometry = (c1: string, c2: string, c3: string, t1: string[], t2: string[]): CardDropColumnView[] => {
-    const column = (columnId: string, left: number, taskIds: string[]): CardDropColumnView => ({
+  const geometry = (c1: UUID, c2: UUID, c3: UUID, t1: UUID[], t2: UUID[]): CardDropColumnView[] => {
+    const column = (columnId: UUID, left: number, taskIds: UUID[]): CardDropColumnView => ({
       columnId,
       rect: { left, right: left + 100, top: 0, bottom: 400 },
       cards: taskIds.map((id, index) => ({ id, top: 100 + index * 50, bottom: 100 + index * 50 + 30 })),
@@ -90,7 +93,7 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
     const before2 = await tasksOf(c2.id);
 
     // 指针落在 C2 的 b2 卡片上半 → before b2 → 邻居 (b1, b2)
-    const target = resolveCardDrop(geometry(c1.id, c2.id, '', t1, t2), t1[0], 150, 115);
+    const target = resolveCardDrop(geometry(c1.id, c2.id, NO_COLUMN, t1, t2), t1[0], 150, 115);
     expect(target).toMatchObject({ kind: 'between', columnId: c2.id, prevId: t2[0], nextId: t2[1] });
     await moves.moveTask(t1[0], target!);
 
@@ -107,7 +110,7 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
 
   it('AC#2：空列落点用 { group } 目标，任务落入空列', async () => {
     const { c1, c3, t1 } = await seedColumns();
-    const target = resolveCardDrop(geometry(c1.id, '', c3.id, t1, []), t1[0], 250, 50);
+    const target = resolveCardDrop(geometry(c1.id, NO_COLUMN, c3.id, t1, []), t1[0], 250, 50);
     expect(target).toEqual({ kind: 'end', columnId: c3.id });
     await moves.moveTask(t1[0], target!);
     expect((await tasksOf(c3.id)).map(t => t.id)).toEqual([t1[0]]);
@@ -116,14 +119,14 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
   it('AC#3：同列改序只写 sortOrder；原位落点零写', async () => {
     const { c1, t1 } = await seedColumns();
     // 把 a3 拖到 a1 的上半（首部）
-    const target = resolveCardDrop(geometry(c1.id, '', '', t1, []), t1[2], 50, 100);
+    const target = resolveCardDrop(geometry(c1.id, NO_COLUMN, NO_COLUMN, t1, []), t1[2], 50, 100);
     expect(target).toMatchObject({ kind: 'between', columnId: c1.id, prevId: null, nextId: t1[0] });
     await moves.moveTask(t1[2], target!);
     expect((await tasksOf(c1.id)).map(t => t.id)).toEqual([t1[2], t1[0], t1[1]]);
     expect((await tasksOf(c1.id)).map(t => t.columnId)).toEqual([c1.id, c1.id, c1.id]);
 
     // 原位：a2 仍在原位，落点换算返回 null，不发起重排
-    const inPlace = resolveCardDrop(geometry(c1.id, '', '', [t1[2], t1[0], t1[1]], []), t1[1], 50, 210);
+    const inPlace = resolveCardDrop(geometry(c1.id, NO_COLUMN, NO_COLUMN, [t1[2], t1[0], t1[1]], []), t1[1], 50, 210);
     expect(inPlace).toBeNull();
     const before = await tasksOf(c1.id);
     expect(before.map(t => t.id)).toEqual([t1[2], t1[0], t1[1]]);
@@ -131,7 +134,7 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
 
   it('AC#6：目标邻居被另一入口删除 → 拒绝（staleTarget），零写，状态机发布失败', async () => {
     const { c2, t1, t2 } = await seedColumns();
-    const target = resolveCardDrop(geometry('', c2.id, '', [], t2), t1[0], 150, 115);
+    const target = resolveCardDrop(geometry(NO_COLUMN, c2.id, NO_COLUMN, [], t2), t1[0], 150, 115);
     expect(target).toMatchObject({ prevId: t2[0], nextId: t2[1] });
     // 几何计算后 b1 被删除
     const deletes = new BoardDeleteService(rxdb, () => ctx);
@@ -147,7 +150,7 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
 
   it('AC#7：一次 undo 反转整个移动事务', async () => {
     const { c1, c2, t1, t2 } = await seedColumns();
-    const target = resolveCardDrop(geometry(c1.id, c2.id, '', t1, t2), t1[0], 150, 115);
+    const target = resolveCardDrop(geometry(c1.id, c2.id, NO_COLUMN, t1, t2), t1[0], 150, 115);
     await moves.moveTask(t1[0], target!);
     expect((await tasksOf(c2.id)).map(t => t.id)).toContain(t1[0]);
 
@@ -243,7 +246,7 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
       await deletes.executeDelete(await deletes.planTaskDelete(task.id));
     }
     // 乱序标题：排序可写；再排一次零写
-    const ids: string[] = [];
+    const ids: UUID[] = [];
     for (const title of ['c', 'a', 'b']) ids.push((await domain.createTask({ columnId: c1.id, title })).id);
 
     const result = await sorts.sortColumn(c1.id, 'title');
@@ -269,7 +272,7 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
     for (const title of titles) await domain.createTask({ columnId: c1.id, title });
     // 同标题「任务 2」两条，按 id 决胜
     const duplicates = await tasksOf(c1.id);
-    const idsByTitle = new Map<string, string[]>();
+    const idsByTitle = new Map<string, UUID[]>();
     for (const task of duplicates) {
       idsByTitle.set(task.title, [...(idsByTitle.get(task.title) ?? []), task.id]);
     }
@@ -296,7 +299,7 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
     for (const task of await tasksOf(c1.id)) {
       await deletes.executeDelete(await deletes.planTaskDelete(task.id));
     }
-    const ids: string[] = [];
+    const ids: UUID[] = [];
     for (const title of ['c', 'a', 'b']) ids.push((await domain.createTask({ columnId: c1.id, title })).id);
     const beforeKeys = (await tasksOf(c1.id)).map(t => t.sortOrder);
 
@@ -316,13 +319,15 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
     const remoteRxdb = new RxDB({
       dbName: `board-remote-${Math.random().toString(36).slice(2)}`,
       entities: [Board, Column, Task, BoardLabel, TaskLabel],
-      sync: { remote: { adapter: 'pglite' }, type: SyncType.Full }
+      sync: { remote: { adapter: 'pglite' }, type: SyncType.None }
     });
     remoteRxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' }));
     await remoteRxdb.connect('pglite');
     ctx.boardId = null;
     const remoteSorts = new BoardColumnSortService(remoteRxdb, () => ctx, notifier);
-    await expect(remoteSorts.sortColumn('任意', 'title')).rejects.toMatchObject({ code: 'cross_board' });
+    await expect(remoteSorts.sortColumn('00000000-0000-4000-8000-0000000000aa', 'title')).rejects.toMatchObject({
+      code: 'cross_board'
+    });
     await remoteRxdb.disconnectAll();
   });
 });

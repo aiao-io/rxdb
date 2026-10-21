@@ -81,8 +81,9 @@ describe('useBoard（React 桥接）', () => {
     const label = await board().actions.createLabel({ name: '核心', color: '#e11d48' });
     const snapshot = await board().actions.openSnapshot(task.id);
     await board().actions.saveTaskDraft(task.id, snapshot, {
-      ...snapshot,
       title: snapshot.title,
+      description: snapshot.description ?? '',
+      dueDate: snapshot.dueDate,
       labelIds: [label.id]
     });
     await waitFor(() => (board().taskLabels.get(task.id) ?? []).length === 1, '任务标签');

@@ -23,9 +23,9 @@ import { Task } from '../entities/task.entity.js';
 export const SEED_TIMESTAMP = new Date('2026-10-01T00:00:00.000Z');
 
 /** 主板 id。 */
-export const RELEASE_BOARD_ID = 'b0000000-0000-4000-8000-000000000001';
+export const RELEASE_BOARD_ID: UUID = 'b0000000-0000-4000-8000-000000000001';
 /** 隔离板 id（板内搜索的同词隔离验收）。 */
-export const ISOLATION_BOARD_ID = 'b0000000-0000-4000-8000-000000000002';
+export const ISOLATION_BOARD_ID: UUID = 'b0000000-0000-4000-8000-000000000002';
 
 /** 主板列：To do / Doing / Done / Ideas（末列空）。 */
 export const RELEASE_COLUMN_IDS = [
@@ -35,7 +35,7 @@ export const RELEASE_COLUMN_IDS = [
   'c0000000-0000-4000-8000-000000000004'
 ] as const;
 
-export const ISOLATION_COLUMN_ID = 'c0000000-0000-4000-8000-000000000005';
+export const ISOLATION_COLUMN_ID: UUID = 'c0000000-0000-4000-8000-000000000005';
 
 /** 主板标签：核心 / 文档 / 测试 / 发布。 */
 export const RELEASE_LABEL_IDS = [

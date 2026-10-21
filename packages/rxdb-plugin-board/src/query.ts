@@ -10,10 +10,14 @@ import { firstValueFrom, type Observable } from 'rxjs';
  */
 
 /** `field = value` 规则（泛型收窄字段与值类型）。 */
-export const eq = <F extends string, V>(field: F, value: V) => ({ field, operator: '=' as const, value });
+export const eq = <F extends string, V extends string>(field: F, value: V) => ({
+  field,
+  operator: '=' as const,
+  value
+});
 
 /** `field IN [...]` 规则。 */
-export const inRule = <F extends string, V>(field: F, values: readonly V[]) => ({
+export const inRule = <F extends string, V extends string>(field: F, values: readonly V[]) => ({
   field,
   operator: 'in' as const,
   value: [...values]
@@ -29,7 +33,7 @@ export const readFirst = async <T>(query: Observable<readonly T[]> | Promise<T[]
 };
 
 /** `field = value` 规则组。 */
-export const whereEq = <F extends string, V>(field: F, value: V) => ({
+export const whereEq = <F extends string, V extends string>(field: F, value: V) => ({
   combinator: 'and' as const,
   rules: [eq(field, value)]
 });

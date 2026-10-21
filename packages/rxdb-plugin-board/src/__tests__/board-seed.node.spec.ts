@@ -41,7 +41,9 @@ describe('release-board-dataset 确定性种子（US-540 AC#1）', () => {
 
   /** 五张业务表按主键排序后的原始行快照（物理表 = schema "board" + 逻辑表名）。 */
   const businessSnapshot = async (rxdb: RxDB): Promise<Record<string, unknown>> => {
-    const adapter = await firstValueFrom(rxdb.localAdapter$);
+    const adapter = (await firstValueFrom(rxdb.localAdapter$)) as unknown as {
+      rawQuery(sql: string): Promise<{ rows: unknown[] }>;
+    };
     const snapshot: Record<string, unknown> = {};
     for (const table of ['board', 'column', 'task', 'board_label', 'task_label']) {
       const raw = await adapter.rawQuery(`SELECT * FROM "board"."${table}" ORDER BY id`);
@@ -81,14 +83,12 @@ describe('release-board-dataset 确定性种子（US-540 AC#1）', () => {
 
     // 主板至少 6 条任务含「同步」（板内分页超过一页的搜索验收前置）
     const allReleaseTasks = await readFirst(
-      first.entityManager
-        .getRepository(Task)
-        .find({
-          where: {
-            combinator: 'and',
-            rules: [{ field: 'columnId', operator: 'in', value: [...columns.map(c => c.id)] }]
-          }
-        })
+      first.entityManager.getRepository(Task).find({
+        where: {
+          combinator: 'and',
+          rules: [{ field: 'columnId', operator: 'in', value: [...columns.map(c => c.id)] }]
+        }
+      })
     );
     const withSync = allReleaseTasks.filter(task => `${task.title}${task.description ?? ''}`.includes('同步'));
     expect(withSync.length).toBeGreaterThanOrEqual(6);

@@ -1,4 +1,4 @@
-import type { RxDB } from '@aiao/rxdb';
+import type { RxDB, UUID } from '@aiao/rxdb';
 import { sqliteWasmFactory } from '@aiao/rxdb-adapter-sqlite-wasm/testing';
 import {
   rxDBPluginSearch,
@@ -23,11 +23,11 @@ import { ISOLATION_BOARD_ID, RELEASE_BOARD_ID, seedReleaseBoardDataset } from '.
 describe('BoardSearchSource 真实 sqlite-wasm FTS5（US-538）', () => {
   const adapters: { disconnect(): Promise<void> }[] = [];
   let rxdb: RxDB;
-  let ctx: { boardId: string | null; restoring: boolean };
+  let ctx: { boardId: UUID | null; restoring: boolean };
   let plugin: RxDBPluginSearch;
 
   beforeEach(async () => {
-    const adapter = await sqliteWasmFactory.createAdapter({
+    const adapter = await sqliteWasmFactory.createAdapter<{ rxdb: RxDB; disconnect(): Promise<void> }>({
       entities: [Board, Column, Task, BoardLabel, TaskLabel],
       plugins: [rxDBPluginSearch]
     });
@@ -82,7 +82,7 @@ describe('BoardSearchSource 真实 sqlite-wasm FTS5（US-538）', () => {
     const isolationColumns = await readFirst(
       rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', ISOLATION_BOARD_ID) })
     );
-    const isolationIds = new Set(
+    const isolationIds = new Set<string>(
       (
         await readFirst(
           rxdb.entityManager.getRepository(Task).find({ where: whereEq('columnId', isolationColumns[0].id) })
@@ -122,7 +122,7 @@ describe('BoardSearchSource 真实 sqlite-wasm FTS5（US-538）', () => {
     const isolationColumns = await readFirst(
       rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', ISOLATION_BOARD_ID) })
     );
-    const isolationIds = new Set(
+    const isolationIds = new Set<string>(
       (
         await readFirst(
           rxdb.entityManager.getRepository(Task).find({ where: whereEq('columnId', isolationColumns[0].id) })
