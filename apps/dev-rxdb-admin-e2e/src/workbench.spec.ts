@@ -79,6 +79,30 @@ test.describe('模型驱动数据工作台', () => {
     await expect(page.getByText('暂无数据')).toBeVisible();
   });
 
+  test('维护记录：日期选择器与必填关联校验（评审反馈回归）', async ({ page }) => {
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '办公设备');
+    await page.goto('/entities/assets/Asset');
+    await createAsset(page, '笔记本', '办公设备');
+    await page.goto('/entities/assets/AssetEvent');
+
+    // 必填关联：不选所属资产提交 → 表单层校验反馈，不打到数据库
+    // （事项/日期/所属资产三条必填同时报错，取第一条断言）
+    await openCreateDialog(page);
+    await page.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(page.getByText(/是必填项/).first()).toBeVisible();
+    await page.getByRole('button', { name: '关闭' }).click();
+
+    // 日期选择器 + 关联选择：完整新建
+    await openCreateDialog(page);
+    await fillField(page, '事项', '更换电池');
+    await page.getByRole('group', { name: '日期' }).locator('input[type="date"]').fill('2026-10-21');
+    await page.getByRole('group', { name: '所属资产' }).getByRole('combobox').selectOption({ label: '笔记本' });
+    await page.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
+    await expectListHasRows(page);
+  });
+
   test('AC#6 查询筛选：按关联字段与标量字段过滤', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');

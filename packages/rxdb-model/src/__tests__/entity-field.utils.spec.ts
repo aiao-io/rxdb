@@ -255,6 +255,7 @@ describe('extractEntityFields', () => {
       displayName: '作者',
       type: 'manyToOne',
       nullable: true,
+      required: false,
       relatedEntityName: 'User',
       relatedNamespace: 'public'
     });
@@ -279,6 +280,27 @@ describe('extractEntityFields', () => {
     });
     const fields = extractEntityFields(meta);
     expect(fields[0].type).toBe('oneToOne');
+  });
+
+  it('should mark non-nullable relation as required', () => {
+    const meta = makeMeta({
+      foreignKeyRelationMap: new Map([
+        [
+          'assetId',
+          {
+            name: 'asset',
+            columnName: 'asset_id',
+            kind: RelationKind.MANY_TO_ONE,
+            displayName: '所属资产',
+            mappedEntity: 'Asset',
+            mappedNamespace: 'assets',
+            mappedProperty: 'events'
+          } as EntityRelationMetadata
+        ]
+      ])
+    });
+    const fields = extractEntityFields(meta);
+    expect(fields[0]).toMatchObject({ field: 'assetId', required: true, nullable: false });
   });
 
   it('should combine properties, computed, and relations', () => {

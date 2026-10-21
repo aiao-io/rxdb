@@ -42,7 +42,13 @@ export class AssetCategory extends EntityBase {
     { name: 'name', type: PropertyType.string, unique: true, required: true, displayName: '名称' },
     { name: 'status', type: PropertyType.string, displayName: '状态', default: '在用', nullable: true },
     { name: 'purchasePrice', type: PropertyType.number, displayName: '购入价', nullable: true },
-    { name: 'purchaseDate', type: PropertyType.string, displayName: '购入日期', nullable: true }
+    {
+      name: 'purchaseDate',
+      type: PropertyType.date,
+      format: { kind: 'dateTime', display: 'date' },
+      displayName: '购入日期',
+      nullable: true
+    }
   ],
   relations: [
     {
@@ -77,7 +83,13 @@ export class Asset extends EntityBase {
   properties: [
     { name: 'summary', type: PropertyType.string, required: true, displayName: '事项' },
     { name: 'cost', type: PropertyType.number, displayName: '费用', nullable: true },
-    { name: 'happenedAt', type: PropertyType.string, required: true, displayName: '日期' }
+    {
+      name: 'happenedAt',
+      type: PropertyType.date,
+      format: { kind: 'dateTime', display: 'date' },
+      required: true,
+      displayName: '日期'
+    }
   ],
   relations: [
     {

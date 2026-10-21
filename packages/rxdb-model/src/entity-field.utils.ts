@@ -141,11 +141,14 @@ function propertyToField(key: string, prop: EntityPropertyMetadata): EntityField
  * 将关系元数据转换为字段配置
  */
 function relationToField(fkField: string, relation: EntityRelationMetadata): EntityFieldConfig {
+  const nullable = (relation as Record<string, unknown>)['nullable'] === true;
   return {
     field: fkField,
     displayName: relation.displayName ?? fkField,
     type: relation.kind === RelationKind.ONE_TO_ONE ? 'oneToOne' : 'manyToOne',
-    nullable: (relation as Record<string, unknown>)['nullable'] === true,
+    nullable,
+    // 非空关联在表单层必填：校验先于数据库约束，避免 NOT NULL 打到用户脸上
+    required: !nullable,
     relatedEntityName: relation.mappedEntity,
     relatedNamespace: relation.mappedNamespace
   };
