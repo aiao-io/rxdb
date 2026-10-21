@@ -16,6 +16,7 @@ import {
   gateRawWrite,
   getEntityMetadata,
   getEntityMutations,
+  getEntityStorageMetadata,
   getRxDBSystemVersionState,
   hasRxDBBackupWebLocks,
   isCurrentRxDBSystemVersion,
@@ -653,7 +654,11 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   override async checkEntityConstraints(EntityTypes: EntityType[]): Promise<void> {
     // 必须走 bootstrapTransaction：connect() 引导期内 ready() 等的是当前 connect
     // promise，直接 query() 会等自己、永久挂起（与 rawQuery 引导窗分支同口径）。
-    await this.bootstrapTransaction(executor => check_entity_constraints_sqlite(executor, EntityTypes), false);
+    await this.bootstrapTransaction(
+      executor =>
+        check_entity_constraints_sqlite(executor, EntityTypes, entity => getEntityStorageMetadata(this.rxdb, entity)),
+      false
+    );
   }
 
   public async disconnect() {
@@ -1557,17 +1562,20 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
 
   /**
    * 宿主版本门槛（US-030 AC#7）：`SELECT sqlite_version()` 只查一次，低于门槛
-   * fail-fast 点名实际版本与门槛。只在有实体声明存储约束（checks / 条件唯一 where /
-   * exclusions）时生效——一项都不用的应用不被旧宿主拦在门外。区间排他的触发器消息
-   * 要带冲突区间，靠的正是 `RAISE()` 接受表达式（3.47.0 起）。
+   * fail-fast 点名实际版本、门槛与声明了存储约束的实体。只在有实体声明存储约束（checks /
+   * 条件唯一 where / exclusions / 生成列 / 高级索引）时生效——一项都不用的应用不被旧宿主拦在门外。
+   * 区间排他的触发器消息要带冲突区间，靠的正是 `RAISE()` 接受表达式（3.47.0 起）。
    */
   async #assert_sqlite_host_version(client: SqliteClientLike): Promise<void> {
     if (this.#sqlite_host_version_checked) return;
-    const declaring = this.rxdb.config.entities.some(entity => declaresStorageConstraints(getEntityMetadata(entity)));
-    if (!declaring) return;
+    const declaring = this.rxdb.config.entities
+      .map(entity => getEntityStorageMetadata(this.rxdb, entity))
+      .filter(declaresStorageConstraints)
+      .map(metadata => metadata.name);
+    if (declaring.length === 0) return;
     const result = await client.execute('SELECT sqlite_version() AS version');
     const version = String(result.results[0]?.rows[0]?.[0] ?? '');
-    assertSqliteHostVersion(version);
+    assertSqliteHostVersion(version, declaring);
     this.#sqlite_host_version_checked = true;
   }
 

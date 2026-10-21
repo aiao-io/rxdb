@@ -2,6 +2,7 @@ import type { RxDB, RxDBRestoreOptions, RxDBRestoreResult } from '@aiao/rxdb';
 import {
   assertRxDBBackupCompatible,
   classifyBackupIoError,
+  getEntityStorageMetadata,
   hasRxDBBackupWebLocks,
   isRxDBBackupError,
   RxDBBackupArchiveReader,
@@ -226,7 +227,9 @@ const restoreToMemory = async (
     ...resolvePGliteInitOptions(
       dbName,
       target.options,
-      pgliteServerExtensionRequirementsOf(target.rxdb.config.entities)
+      pgliteServerExtensionRequirementsOf(target.rxdb.config.entities, entity =>
+        getEntityStorageMetadata(target.rxdb, entity)
+      )
     ),
     dataDir: undefined,
     fs: new RestoreMemoryFs(feed)
@@ -281,7 +284,9 @@ const writeIdbTarget = async (
     ...resolvePGliteInitOptions(
       target.rxdb.config.dbName,
       target.options,
-      pgliteServerExtensionRequirementsOf(target.rxdb.config.entities)
+      pgliteServerExtensionRequirementsOf(target.rxdb.config.entities, entity =>
+        getEntityStorageMetadata(target.rxdb, entity)
+      )
     ),
     dataDir: undefined,
     fs

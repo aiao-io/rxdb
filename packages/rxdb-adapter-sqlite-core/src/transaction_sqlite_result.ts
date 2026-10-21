@@ -5,6 +5,7 @@ import {
   EntityType,
   getEntityMetadata,
   getEntityStatus,
+  getEntityStorageMetadata,
   RxDBChange
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from './RxDBAdapterSqliteBase.js';
@@ -89,7 +90,7 @@ export const transaction_sqlite_result = async <T extends EntityType>(
   mergeExternalChanges = false
 ): Promise<InstanceType<T>[]> => {
   const result: InstanceType<T>[] = [];
-  const metadata = getEntityMetadata(EntityType);
+  const metadata = getEntityStorageMetadata(adapter.rxdb, EntityType);
   const isRxDBChange = metadata === getEntityMetadata(RxDBChange);
   const em = adapter.rxdb.entityManager;
   // 结果集里的列名是物理列名，主键列可被 columnName 改写（SQLC-014）

@@ -1,4 +1,4 @@
-import { EntityMetadata, EntityType, getEntityMetadata, getEntityStatus, RepositoryBase } from '@aiao/rxdb';
+import { EntityMetadata, EntityType, getEntityStatus, getEntityStorageMetadata, RepositoryBase } from '@aiao/rxdb';
 import { find_by_row_ids_sql } from '../query/find_by_row_ids_sql.js';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { RowId, SqliteSuccessResult } from '../sqlite-core.interface.js';
@@ -23,7 +23,7 @@ export class SqliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
     EntityType: T
   ) {
     super(adapter.rxdb, EntityType);
-    this.metadata = getEntityMetadata(EntityType);
+    this.metadata = getEntityStorageMetadata(adapter.rxdb, EntityType);
   }
 
   async findByRowIds(rowIds: RowId[], forceRefresh = false): Promise<InstanceType<T>[]> {

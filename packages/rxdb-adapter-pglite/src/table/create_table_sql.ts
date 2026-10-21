@@ -1,4 +1,5 @@
 import {
+  advancedIndexStatements,
   compileCheckConstraint,
   compileConditionalUniqueIndex,
   compileExclusionConstraint,
@@ -8,7 +9,9 @@ import {
   EntityRelationManyToOneMetadata,
   EnumProperty,
   exclusionRangeExpressionPG,
+  generatedColumnDefinitions,
   getEntityColumnName,
+  isAdvancedIndex,
   isConditionalUniqueIndex,
   PropertyType,
   RelationKind,
@@ -104,7 +107,7 @@ const _create_table_column_sql = (metadata: EntityMetadata) => {
     const { name, expression } = compileCheckConstraint(metadata, check);
     column_check_sql.push(`CONSTRAINT ${quoteIdentifier(name)} CHECK (${expression})`);
   }
-  const need_column_sql = [...column_sql, ...column_check_sql];
+  const need_column_sql = [...column_sql, ...generatedColumnDefinitions(metadata, 'postgres'), ...column_check_sql];
   if (need_column_sql.length) {
     runSQL += need_column_sql.map(sql => `\n${sql}`).join(',');
     runSQL += '\n);';
@@ -161,7 +164,7 @@ export const create_table_indexes_sql = (metadata: EntityMetadata, ifNotExists =
   // 添加实体定义的索引（包括组合索引）
   if (metadata.indexMap && metadata.indexMap.size > 0) {
     metadata.indexMap.forEach(index => {
-      if (isConditionalUniqueIndex(index)) return;
+      if (isConditionalUniqueIndex(index) || isAdvancedIndex(metadata, index)) return;
       const indexName = `idx_${metadata.tableName}_${index.name}`;
       const columns =
         index.properties?.map(prop => getIndexColumnSql(metadata, prop, index.normalized)).join(', ') ||
@@ -348,6 +351,7 @@ export default (adapter: RxDBAdapterPGlite, metadata: EntityMetadata) => {
   create_table_sql += _create_table_foreign_keys_sql(adapter, metadata);
   create_table_sql += _create_table_exclusions_sql(metadata);
   create_table_sql += create_table_indexes_sql(metadata);
+  create_table_sql += '\n' + advancedIndexStatements(metadata, 'postgres', getTableNameByMetadata(metadata)).join('\n');
   create_table_sql += create_table_conditional_unique_indexes_sql(metadata);
   return create_table_sql;
 };

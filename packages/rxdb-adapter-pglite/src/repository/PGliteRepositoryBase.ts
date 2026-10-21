@@ -2,8 +2,8 @@ import {
   EntityMetadata,
   EntityStaticType,
   EntityType,
-  getEntityMetadata,
   getEntityStatus,
+  getEntityStorageMetadata,
   RepositoryBase
 } from '@aiao/rxdb';
 import { Results } from '@electric-sql/pglite';
@@ -20,7 +20,7 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
     EntityType: T
   ) {
     super(adapter.rxdb, EntityType);
-    this.metadata = getEntityMetadata(EntityType);
+    this.metadata = getEntityStorageMetadata(adapter.rxdb, EntityType);
   }
 
   /**

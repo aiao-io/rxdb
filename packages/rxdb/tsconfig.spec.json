@@ -21,7 +21,8 @@
     "src/**/*.spec.jsx",
     "src/__tests__/**/fixtures/**/*.ts",
     "src/**/*.d.ts",
-    "package.json"
+    "package.json",
+    "src/__tests__/entity/storage-test-fixtures.ts"
   ],
   "references": [
     {

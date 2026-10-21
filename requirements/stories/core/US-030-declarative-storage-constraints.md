@@ -5,7 +5,7 @@ status: In Review
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-22
-updated: 2026-10-13
+updated: 2026-10-21
 tags: [core, schema, integrity]
 ---
 
@@ -24,17 +24,20 @@ tags: [core, schema, integrity]
 | A    | 属性级与实体级 CHECK 约束；SQLite 宿主版本门槛（AC#7），同 PR 把 Tauri 升到 rusqlite ≥ 0.33，门槛不打掉仓内任何宿主 | ✅   |
 | B    | 条件唯一索引（`where`）                                                                                             | ✅   |
 | C    | 区间排他约束：PG `EXCLUDE` + SQLite 触发器等价物，错误语义统一                                                      | ✅   |
-| D    | 生成列（generated column）、表达式索引（`expression`）与索引方法（`method`：GIN / GiST）声明                        | ⬜   |
+| D    | 生成列（generated column）、表达式索引（`expression`）与索引方法（`method`：GIN / GiST）声明                        | ⚠️   |
 
 阶段归属：A 关闭 AC#1 / #2 / #7～#9 / #11 / #15～#17，以及 AC#6 / #10 的 CHECK 部分；B 关闭 AC#3 与 AC#6 / #10 的条件唯一部分；
 C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分；D 关闭 AC#5。AC#11 / #15 的命名规则与 AC#16 的漂移扫描范围在 A 定下，B / C 沿用。
-表达式索引唯一的消费方是 US-519 的可选加速（阶段 D），所以随 D 价值待证，不进 B。
+表达式索引归阶段 D，不进 B。阶段 D 的引擎能力（声明、两后端 DDL、目录漂移核对、实例级 `entityStorage` 覆盖）代码完成、待评审；
+AC#5 只差「按该列过滤走索引」的查询计划证据：引擎不提供按生成列过滤的查询入口，唯一消费方是 US-519 的热字段提升，
+在 BOM 领域 [PR #129](https://github.com/aiao-io/rxdb/pull/129) 里，证据随它合入后回写，届时 AC#5 与阶段 D 改 ✅（见「阶段 D 验收依据」）。
 
 ## 范围边界
 
 ### In Scope
 
-- `EntityMetadataOptions` 增 `checks`（阶段 A）与 `exclusions`（阶段 C）；`EntityIndexMetadataOptions` 增 `where`（阶段 B），`expression` / `method` 归阶段 D
+- `EntityMetadataOptions` 增 `checks`（阶段 A）与 `exclusions`（阶段 C）；`EntityIndexMetadataOptions` 增 `where`（阶段 B），`expression` / `method` / `dialects` 归阶段 D；
+  阶段 D 另增 `EntityMetadataOptions.generatedColumns` 与 `RxDBOptions.entityStorage`（实例级只读生成列与非唯一加速索引）
 - 声明语法：CHECK 与条件唯一共用收窄后的 `RuleGroup`；区间排他是「相等列 + 区间维」，见技术笔记各节
 - CHECK 表达式复用查询 `RuleGroup` 的形状，收窄为单行子集，另补字段对字段比较（见技术笔记「CHECK 的声明语法」）
 - 已有表与声明的约束不一致时 `init()` fail-fast，指向用户迁移（AC#10 / #11）
@@ -42,7 +45,7 @@ C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分；D 关闭 AC#5�
 - 无原生能力的后端（SQLite 的 `EXCLUDE`）用触发器补齐，且两侧抛同一个错误码
 - 违约错误进 `RxDBError` 体系，携带冲突列与冲突值
 - **SQLite 宿主版本门槛 ≥ 3.47.0**：触发器错误要携带冲突值，需要 `RAISE()` 接受表达式；低于门槛的宿主在 `init()` 即 fail-fast（AC#7）。
-  门槛只对声明了存储约束（`checks` / 条件唯一 `where` / `exclusions` 任一项）的应用生效，一项都不用的应用不受影响
+  门槛只对声明了存储约束（`checks` / 条件唯一 `where` / `exclusions` / 生成列 / 高级索引任一项，含 `entityStorage` 覆盖）的应用生效，一项都不用的应用不受影响
 
 ### Out of Scope
 
@@ -62,7 +65,7 @@ C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分；D 关闭 AC#5�
 | 2   | 实体级 CHECK「两字段二选一」                                                                                      | 两字段同时给值                                            | 拒绝                                                                                              | ✅   |
 | 3   | 索引声明 `where`                                                                                                  | 写入不满足条件的重复行                                    | 不被唯一约束误拒                                                                                  | ✅   |
 | 4   | 区间排他约束                                                                                                      | 插入重叠区间                                              | 两个后端均拒绝，错误指出冲突区间                                                                  | ✅   |
-| 5   | 声明生成列 + GIN                                                                                                  | 按该列过滤                                                | 走索引；原字段的读写方式不变                                                                      | ⬜   |
+| 5   | 声明生成列 + GIN                                                                                                  | 按该列过滤                                                | 走索引；原字段的读写方式不变                                                                      | ⚠️   |
 | 6   | 后端不支持某项声明                                                                                                | `init()`                                                  | 建元数据期抛错，不静默降级为应用层校验                                                            | ✅   |
 | 7   | SQLite 宿主版本 < 3.47.0                                                                                          | `init()`                                                  | 抛错并点名实际版本与门槛，不退化为常量错误消息                                                    | ✅   |
 | 8   | 实体级 CHECK `unit_from <= unit_to`（字段对字段）                                                                 | 写入 `unit_from > unit_to`；另写一行 `unit_from` 为 NULL  | 前者两后端均拒绝；后者两后端均放行（SQL 三值逻辑，要拒 NULL 须另加 `notNull`）                    | ✅   |
@@ -277,6 +280,23 @@ PG 上 `ck_` 读 `pg_constraint`（`contype = 'c'`）、`ex_` 读 `pg_constraint
 PG 虽能 `ADD CONSTRAINT`，但老数据违约时，启动就成了一次无界的数据校验。补建由用户写进 `migrations`，它恰好排在漂移检查之前执行。
 本故事声明的约束类索引（带 `where` 的唯一索引）与区间排他同样只走漂移检查，`reconcileEntityIndexes` 补建时跳过它们。
 
+**生成列、表达式索引与索引方法（阶段 D）。**
+
+- **生成列**走 `EntityMetadataOptions.generatedColumns`，独立于可写属性：来源只能是同实体一个 JSON 属性（或显式 `jsonText: true` 的字符串列）的单个字面键，
+  值类型限 `string` / `number` / `boolean`，类型不符或缺键得 NULL，不进补丁、日志与重放值。物理列名 `gc_<name>_<定义哈希>`，SQLite 建 `VIRTUAL`、PG 建 `STORED`；
+  两适配器读行时跳过这些列，原字段的读写方式不变（[`compileGeneratedColumn`](../../../packages/rxdb/src/entity/generated-column.ts)、
+  [`compileStorageExpression`](../../../packages/rxdb/src/entity/storage-expression.ts)）。
+- **高级索引**仍写在 `indexes` 里：带 `expression`（白名单 JSON 表达式，与 `properties` 互斥、不收 SQL 字符串）、`method`（`btree` / `gin` / `gist`）、`dialects`
+  任一项或引用生成列即走新路径，名为 `sx_<表名>_<name>_<定义哈希>`（与 `uq_` 同一命名规则）。GIN 只收整份 JSON 文档并固定 `jsonb_ops`，标量 GiST 要 `btree_gist`（与区间排他同一装载判定），
+  SQLite 只支持 B-tree，未限定方言的 GIN / GiST 在 SQLite 上按 AC#6 显式拒绝（[`compileAdvancedIndex`](../../../packages/rxdb/src/entity/advanced-index.ts)）。
+  普通、`normalized` 与条件唯一索引不改路径。
+- **实例级覆盖** `RxDBOptions.entityStorage`：同一实体类在不同库上声明不同的生成列与**非唯一**加速索引，构造时深快照冻结、不改类元数据；
+  不能覆盖系统实体、不能新增唯一性、不能替换被唯一索引引用的生成列（[`snapshotEntityStorage`](../../../packages/rxdb/src/entity/storage-override.ts)）。
+  两适配器的建表、写入、回填、漂移检查与 SQLite 版本门槛都经 `getEntityStorageMetadata` 读生效元数据。
+- **漂移检查扩到 `gc_` / `sx_`**：除缺失 / 多余外，同名对象的实际定义（列类型、生成模式、表达式、索引方法、运算符类、有效性）与声明不符即报 `changed`；
+  表达式按白名单结构比对（[`storageExpressionIdentity`](../../../packages/rxdb/src/entity/storage-catalog.ts)），不比原文。两个前缀是托管保留命名空间，
+  库里未声明的同前缀对象（含用户自建列）一律算多余，[`RxDBConstraintDriftError`](../../../packages/rxdb/src/RxDBError.ts) 点名前缀并给出改名、删除或补声明的处理方式。
+
 **与既有写入路径的交互。** 同步拉取把整批应用与水位推进放在一个事务里
 （[`pull-batch.ts`](../../../packages/rxdb-plugin-sync/src/pull-batch.ts) / [`pull-repository.ts`](../../../packages/rxdb-plugin-sync/src/pull-repository.ts)）。
 远端行违反本地约束时事务回滚、水位不动，下次拉取重取同一行、再失败，直到有人修远端数据或改本地约束。今天的唯一冲突已经是这个行为，
@@ -293,10 +313,12 @@ PG 虽能 `ADD CONSTRAINT`，但老数据违约时，启动就成了一次无界
 
 ## 价值待证
 
-本故事**价值待证**：今天没有任何已交付故事因缺这四项能力而出缺陷——
+本故事立项时标为**价值待证**：当时没有任何已交付故事因缺这四项能力而出缺陷——
 `normalized` 已经单点解决了实际踩到的那一个。
 
-**解锁记录（2026-10-02，owner 决定）**：阶段 A～C 提前解锁、进批次 3，`priority` 由 Low 升为 Medium；阶段 D 仍价值待证。
+**解锁记录（2026-10-02，owner 决定）**：阶段 A～C 提前解锁、进批次 3，`priority` 由 Low 升为 Medium；阶段 D 当时仍价值待证。
+**阶段 D 启动（2026-10-18，owner 决定）**：随 BOM 完整范围授权一并启动，消费方是 US-519 的热字段提升；引擎改动按
+[候选领域合并治理](../../../AGENTS.md#候选领域合并治理)自 BOM 领域 [PR #129](https://github.com/aiao-io/rxdb/pull/129) 提取、单独评审，先于 BOM 合入 `main`。
 依据是 owner 已确认 [epic-009 默认决策](../../epics/epic-009-bom-domain-model.md#解锁前须先处理) 1～8 条，A～C 正是那份模型在存储层的落点（epic-009 第 1 步前置）。这**不是**发现了独立病灶——「病灶数 ≥ 抽象数」此处由 owner 决定豁免，写在这里，免得后来者把它读成已有缺陷驱动。
 **设计取舍确认（2026-10-02，owner）**：同步拉取遇本地约束拒绝记为已知限制、不做隔离；区间排他保留 AC#14，改执行顺序支持「截旧 + 新开」的重放，区间互换不支持；
 继承同名约束子覆盖父；约束 `name` 只允许 `[a-z0-9_]`；表达式索引归阶段 D。
@@ -320,11 +342,32 @@ epic-009 其余故事仍等第 0 步的真实样本；若最终没有样本出�
 - `packages/rxdb/src/system/` — `check-violation.ts` / `exclusion-violation.ts`（违约归一化）、`constraint-drift.ts`（漂移比对共享核心）、
   `exclusion-write-order.ts`（AC#14 的执行顺序）
 - `packages/rxdb/src/RxDB.ts` — AC#6 的能力判定与 `init()` 漂移检查的调用点（与 `reconcileEntityIndexes` 同一时机）
+- `packages/rxdb/src/entity/` — 阶段 D 的 `generated-column.ts`、`storage-expression.ts`、`advanced-index.ts`、`storage-override.ts`、`storage-catalog.ts`
+  与 `storage-ddl.ts`：生成列 / 高级索引声明编译、实例级覆盖快照、目录定义的结构解析与两后端 DDL 片段
 - `packages/rxdb-adapter-sqlite-core/` — SQLite family 的 DDL（`table/create_table_sql.ts`、`table/exclusion_trigger_sql.ts`）、漂移检查、
   写入路径归一化；`version/execute_switch_actions.ts` 与 `rxdb_adapter_mutations.ts` 的执行顺序（AC#14）
 - `packages/rxdb-adapter-pglite/` — PG 侧 DDL、`btree_gist` 装载（`pglite-server-extensions.ts`）、漂移检查、写入路径归一化；执行顺序同上
+- 两适配器的 `table/check-storage-declarations.ts` — 阶段 D 的 `gc_` / `sx_` 目录核对；生成列与高级索引接入既有建表 / 写入 / 回填 / 恢复路径
 - `packages/rxdb-test/src/check-constraint/` — 两后端共用的契约套件（CHECK / 条件唯一 / 区间排他）
 - `requirements/api-baseline/rxdb.json` — 三个新错误类是 `packages/rxdb` 的新导出，跑 `pnpm audit:api-surface:update` 同步基线并补 TSDoc
+
+## 阶段 D 验收依据
+
+引擎侧证据，复验：`pnpm nx test rxdb`、`pnpm nx test rxdb-adapter-sqlite-core`、`pnpm nx test rxdb-adapter-pglite`。
+
+- 声明编译与注册期校验：[`generated-column.spec.ts`](../../../packages/rxdb/src/__tests__/entity/generated-column.spec.ts)、
+  [`storage-expression.spec.ts`](../../../packages/rxdb/src/__tests__/entity/storage-expression.spec.ts)、
+  [`advanced-index.spec.ts`](../../../packages/rxdb/src/__tests__/entity/advanced-index.spec.ts)、
+  [`storage-metadata.spec.ts`](../../../packages/rxdb/src/__tests__/entity/storage-metadata.spec.ts)（`invalidGeneratedColumn` / `invalidAdvancedIndex`）
+- 实例级覆盖：[`storage-override.spec.ts`](../../../packages/rxdb/src/__tests__/entity/storage-override.spec.ts)
+- 目录比对与 DDL：[`storage-catalog.spec.ts`](../../../packages/rxdb/src/__tests__/entity/storage-catalog.spec.ts)；
+  真实引擎上的 `gc_` 漂移 [SQLite](../../../packages/rxdb-adapter-sqlite-core/src/table/check-storage-declarations.spec.ts) /
+  [PGlite](../../../packages/rxdb-adapter-pglite/src/__tests__/check-storage-declarations.spec.ts)；
+  保留前缀提示与「只声明生成列 / 高级索引也触发门槛」见 [`constraint-drift.spec.ts`](../../../packages/rxdb/src/__tests__/system/constraint-drift.spec.ts)
+- 版本门槛消息点名声明种类与实体：[`sqlite-version.spec.ts`](../../../packages/rxdb-adapter-sqlite-core/src/system/sqlite-version.spec.ts)
+
+**待 BOM 领域 PR #129 合入后回写**：AC#5「按生成列过滤走索引」的查询计划（`EXPLAIN`）证据与真实消费方（US-519 热字段提升）。
+引擎侧上面的用例只证到 DDL 与目录层；回写后阶段 D 与 AC#5 改 ✅，故事按 [CONVENTIONS](../../CONVENTIONS.md) 的状态定义转 `Done`。
 
 ## References
 
