@@ -53,7 +53,7 @@ describe('BoardView（React 视图）', () => {
   it('创建板/列/任务后渲染更新', async () => {
     const fixture = render(<BoardView rxdb={rxdb} />);
     await screen.findByTestId('empty-board');
-    const prompts = ['看板 A', 'C1', '任务 1'];
+    const prompts = ['看板 A', 'C1'];
     const originalPrompt = window.prompt;
     window.prompt = () => prompts.shift() ?? null;
     try {
@@ -62,6 +62,10 @@ describe('BoardView（React 视图）', () => {
       screen.getByTestId('create-column').click();
       await waitFor(() => expect(screen.getAllByTestId('column')).toHaveLength(1));
       screen.getByTestId('add-task').click();
+      // 点击后表单渲染有异步竞态（React 并发渲染 + 建列写入链），等表单出现再填
+      await waitFor(() => expect(screen.getByTestId('add-task-input')).toBeTruthy());
+      fireEvent.change(screen.getByTestId('add-task-input'), { target: { value: '任务 1' } });
+      fireEvent.keyDown(screen.getByTestId('add-task-input'), { key: 'Enter' });
       await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(1));
       expect(screen.getByTestId('task-title').textContent).toBe('任务 1');
     } finally {

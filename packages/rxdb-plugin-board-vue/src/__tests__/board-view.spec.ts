@@ -55,7 +55,7 @@ describe('BoardView（Vue 视图）', () => {
   it('创建板/列/任务后渲染更新', async () => {
     const fixture = mount(BoardView, { props: { rxdb } });
     await new Promise(resolve => setTimeout(resolve, 200));
-    const prompts = ['看板 A', 'C1', '任务 1'];
+    const prompts = ['看板 A', 'C1'];
     const originalPrompt = window.prompt;
     window.prompt = () => prompts.shift() ?? null;
     try {
@@ -66,6 +66,8 @@ describe('BoardView（Vue 视图）', () => {
       await new Promise(resolve => setTimeout(resolve, 300));
       expect(fixture.findAll('[data-testid="column"]')).toHaveLength(1);
       await fixture.get('[data-testid="add-task"]').trigger('click');
+      await fixture.get('[data-testid="add-task-input"]').setValue('任务 1');
+      await fixture.get('[data-testid="add-task-input"]').trigger('keydown.enter');
       await new Promise(resolve => setTimeout(resolve, 300));
       expect(fixture.findAll('[data-testid="task-card"]')).toHaveLength(1);
       expect(fixture.get('[data-testid="task-title"]').text()).toBe('任务 1');

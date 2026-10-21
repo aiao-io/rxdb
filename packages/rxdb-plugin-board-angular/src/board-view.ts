@@ -303,6 +303,9 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   });
 
   protected editTitle = signal<UUID | null>(null);
+  /** 内联建任务（GitHub Projects 同款：列底输入框，Enter 提交 / Esc 取消）。 */
+  protected readonly addTaskColumnId = signal<UUID | null>(null);
+  protected readonly addTaskTitle = signal('');
 
   protected readonly draftTitle = signal<string>('');
   protected readonly draftDescription = signal<string>('');
@@ -363,10 +366,26 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     await this.guard(() => this.boardRef.actions.createColumn({ title }));
   }
 
-  protected async createTask(columnId: UUID): Promise<void> {
-    const title = window.prompt('新建任务：标题');
-    if (title === null) return;
-    await this.guard(() => this.boardRef.actions.createTask({ columnId, title }));
+  protected openAddTask(columnId: UUID): void {
+    this.addTaskColumnId.set(columnId);
+    this.addTaskTitle.set('');
+  }
+
+  protected cancelAddTask(): void {
+    this.addTaskColumnId.set(null);
+    this.addTaskTitle.set('');
+  }
+
+  protected async commitAddTask(): Promise<void> {
+    const columnId = this.addTaskColumnId();
+    const title = this.addTaskTitle().trim();
+    if (columnId === null || title === '') {
+      this.cancelAddTask();
+      return;
+    }
+    const created = await this.guard(() => this.boardRef.actions.createTask({ columnId, title }));
+    // 失败（空标题等）保留输入，成功收起清空
+    if (created !== undefined) this.cancelAddTask();
   }
 
   // ---------- 标题内联编辑 ----------

@@ -80,7 +80,7 @@ describe('BoardViewComponent（Angular 视图）', () => {
   it('创建板/列/任务后渲染更新；恢复中写入口禁用', async () => {
     const fixture = await mount();
     // 空态下经入口建板（window.prompt 打桩）
-    const prompts: string[] = ['看板 A', 'C1', '任务 1'];
+    const prompts: string[] = ['看板 A', 'C1'];
     const originalPrompt = window.prompt;
     window.prompt = () => prompts.shift() ?? null;
     try {
@@ -89,13 +89,20 @@ describe('BoardViewComponent（Angular 视图）', () => {
       await new Promise(r => setTimeout(r, 500));
       await waitFor(
         fixture,
-        () => fixture.nativeElement.querySelector('[data-testid="column"]') === null && prompts.length === 2,
+        () => fixture.nativeElement.querySelector('[data-testid="column"]') === null && prompts.length === 1,
         '建板'
       );
-      // 板已建后 prompt 剩余 C1 / 任务 1；空列无列时建列入口在页头
+      // 板已建后 prompt 剩 C1；空列无列时建列入口在页头
       (fixture.nativeElement.querySelector('[data-testid="create-column"]') as HTMLButtonElement).click();
       await waitFor(fixture, () => fixture.nativeElement.querySelector('[data-testid="column"]') !== null, '建列');
+      // 内联建任务（GitHub Projects 风格）：输入 + Enter
       (fixture.nativeElement.querySelector('[data-testid="add-task"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      const input = fixture.nativeElement.querySelector('[data-testid="add-task-input"]') as HTMLInputElement;
+      input.value = '任务 1';
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       await waitFor(fixture, () => fixture.nativeElement.querySelector('[data-testid="task-card"]') !== null, '建任务');
       expect(fixture.nativeElement.querySelector('[data-testid="task-title"]')?.textContent?.trim()).toBe('任务 1');
     } finally {

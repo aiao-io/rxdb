@@ -209,12 +209,19 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
   test('AC#7：空库闭环——建板 / 建列 / 建任务、第二块板切换、重开原样', async ({ boardPage: page }) => {
     await expect(page.getByTestId('empty-board')).toBeVisible();
 
-    const stopPrompts = answerPrompts(page, ['我的看板', '待办', '第一件事', '第二块板']);
+    const stopPrompts = answerPrompts(page, ['我的看板', '待办', '第二块板']);
     await page.getByTestId('create-board-empty').click();
     await expect(page.getByTestId('column')).toHaveCount(0);
     await page.getByTestId('create-column').click();
     await expect(page.getByTestId('column')).toHaveCount(1);
+    // 内联建任务（GitHub Projects 风格）：Esc 取消零写，Enter 提交
     await page.getByTestId('add-task').click();
+    await page.getByTestId('add-task-input').fill('第一件事');
+    await page.getByTestId('add-task-input').press('Escape');
+    await expect(page.getByTestId('task-card')).toHaveCount(0);
+    await page.getByTestId('add-task').click();
+    await page.getByTestId('add-task-input').fill('第一件事');
+    await page.getByTestId('add-task-input').press('Enter');
     await expect(page.getByTestId('task-card')).toHaveCount(1);
     await expect(page.getByTestId('task-title')).toHaveText('第一件事');
 

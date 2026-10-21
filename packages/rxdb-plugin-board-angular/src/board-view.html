@@ -245,11 +245,41 @@
               <button
                 class="add-task"
                 [disabled]="b.restoring()"
-                (click)="createTask(column.id)"
+                (click)="openAddTask(column.id)"
                 data-testid="add-task"
               >
-                添加任务
+                + 添加任务
               </button>
+              @if (addTaskColumnId() === column.id) {
+                <div class="add-task-form" data-testid="add-task-form">
+                  <input
+                    class="add-task-input"
+                    [ngModel]="addTaskTitle()"
+                    (keydown.enter)="commitAddTask()"
+                    (keydown.escape)="cancelAddTask()"
+                    (ngModelChange)="addTaskTitle.set($event)"
+                    aria-label="新任务标题"
+                    data-testid="add-task-input"
+                    placeholder="输入任务标题"
+                  />
+                  <button
+                    class="add-task-submit"
+                    [disabled]="addTaskTitle().trim() === ''"
+                    (click)="commitAddTask()"
+                    data-testid="add-task-submit"
+                  >
+                    添加
+                  </button>
+                  <button
+                    class="add-task-cancel"
+                    (click)="cancelAddTask()"
+                    aria-label="取消"
+                    data-testid="add-task-cancel"
+                  >
+                    ×
+                  </button>
+                </div>
+              }
             </div>
           </section>
         }

@@ -42,7 +42,7 @@ const titlesOfColumn = async (page: Page, columnTitle: string): Promise<string[]
   const column = page
     .getByTestId('column')
     .filter({ has: page.getByTestId('column-title').getByText(columnTitle, { exact: true }) });
-  return column.getByTestId('task-title').allTextContents();
+  return (await column.getByTestId('task-title').allTextContents()).map(text => text.trim());
 };
 
 test('AC#2：启动页新建空看板 → 建板/列/任务 → 第二板切换 → 重开原样；种子板与用户新板并存', async ({
@@ -50,8 +50,8 @@ test('AC#2：启动页新建空看板 → 建板/列/任务 → 第二板切换 
 }) => {
   await expect(page.getByTestId('startup-page')).toBeVisible();
 
-  // 新建空看板路径：建板 → 建列 → 建任务 → 第二块板（对话框按序应答）
-  const promptAnswers = ['我的看板', '待办', '第一件事', '第二块板'];
+  // 新建空看板路径：建板 → 建列（对话框按序应答）→ 内联建任务 → 第二块板
+  const promptAnswers = ['我的看板', '待办', '第二块板'];
   const answerPrompts = async (dialog: import('@playwright/test').Dialog): Promise<void> => {
     await dialog.accept(promptAnswers.shift() ?? ' ');
   };
@@ -63,8 +63,10 @@ test('AC#2：启动页新建空看板 → 建板/列/任务 → 第二板切换 
   await page.getByTestId('create-column').click();
   await expect(page.getByTestId('column')).toHaveCount(1);
   await page.getByTestId('add-task').click();
+  await page.getByTestId('add-task-input').fill('第一件事');
+  await page.getByTestId('add-task-input').press('Enter');
   await expect(page.getByTestId('task-card')).toHaveCount(1);
-  expect(await page.getByTestId('task-title').textContent()).toBe('第一件事');
+  await expect(page.getByTestId('task-title')).toHaveText('第一件事');
 
   // 第二板并切换：板切换不混数据
   await page.getByTestId('create-board').click();
@@ -77,7 +79,7 @@ test('AC#2：启动页新建空看板 → 建板/列/任务 → 第二板切换 
   // 重开：板 / 列 / 任务 / 顺序原样
   await page.reload();
   await expect(page.getByTestId('task-card')).toHaveCount(1);
-  expect(await page.getByTestId('task-title').textContent()).toBe('第一件事');
+  await expect(page.getByTestId('task-title')).toHaveText('第一件事');
 
   // 种子板与用户新板并存：工具菜单重置为演示数据走新库（confirm 对话框单独应答）
   page.removeListener('dialog', answerPrompts);
@@ -219,8 +221,9 @@ test('AC#8：恢复损坏归档拒绝且原库可继续使用', async ({ boardPa
   });
   await expect(page.getByTestId('app-error')).toBeVisible({ timeout: 30000 });
 
-  // 原库可继续使用：建任务照常
-  page.once('dialog', dialog => dialog.accept('恢复后的新任务'));
+  // 原库可继续使用：内联建任务照常
   await page.getByTestId('column').first().getByTestId('add-task').click();
+  await page.getByTestId('add-task-input').fill('恢复后的新任务');
+  await page.getByTestId('add-task-input').press('Enter');
   await expect(page.getByTestId('task-card')).toHaveCount(13);
 });

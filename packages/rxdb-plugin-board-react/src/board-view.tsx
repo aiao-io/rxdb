@@ -176,10 +176,24 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     await guard(() => board.actions.createLabel({ name, color }));
   };
 
-  const createTask = async (columnId: UUID): Promise<void> => {
-    const title = promptTitle('新建任务：标题');
-    if (title === null) return;
-    await guard(() => board.actions.createTask({ columnId, title }));
+  /** 内联建任务（GitHub Projects 同款：列底输入框，Enter 提交 / Esc 取消）。 */
+  const [addTaskColumnId, setAddTaskColumnId] = useState<UUID | null>(null);
+  const [addTaskTitle, setAddTaskTitle] = useState('');
+
+  const cancelAddTask = (): void => {
+    setAddTaskColumnId(null);
+    setAddTaskTitle('');
+  };
+
+  const commitAddTask = async (): Promise<void> => {
+    const title = addTaskTitle.trim();
+    if (addTaskColumnId === null || title === '') {
+      cancelAddTask();
+      return;
+    }
+    const created = await guard(() => board.actions.createTask({ columnId: addTaskColumnId, title }));
+    // 失败（空标题等）保留输入，成功收起清空
+    if (created !== undefined) cancelAddTask();
   };
 
   const startEditTitle = (task: Task): void => {
@@ -815,12 +829,47 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               ))}
               <button
                 className='add-task'
-                onClick={() => void createTask(column.id)}
+                onClick={() => {
+                  setAddTaskColumnId(column.id);
+                  setAddTaskTitle('');
+                }}
                 disabled={board.restoring}
                 data-testid='add-task'
               >
-                添加任务
+                + 添加任务
               </button>
+              {addTaskColumnId === column.id ?
+                <div className='add-task-form' data-testid='add-task-form'>
+                  <input
+                    className='add-task-input'
+                    value={addTaskTitle}
+                    onChange={event => setAddTaskTitle(event.target.value)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') void commitAddTask();
+                      if (event.key === 'Escape') cancelAddTask();
+                    }}
+                    placeholder='输入任务标题'
+                    aria-label='新任务标题'
+                    data-testid='add-task-input'
+                  />
+                  <button
+                    className='add-task-submit'
+                    onClick={() => void commitAddTask()}
+                    disabled={addTaskTitle.trim() === ''}
+                    data-testid='add-task-submit'
+                  >
+                    添加
+                  </button>
+                  <button
+                    className='add-task-cancel'
+                    onClick={cancelAddTask}
+                    aria-label='取消'
+                    data-testid='add-task-cancel'
+                  >
+                    ×
+                  </button>
+                </div>
+              : null}
             </div>
           </section>
         ))}

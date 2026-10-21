@@ -165,10 +165,25 @@ const createColumn = async (): Promise<void> => {
   if (title === null) return;
   await guard(() => board.actions.createColumn({ title }));
 };
-const createTask = async (columnId: UUID): Promise<void> => {
-  const title = promptTitle('新建任务：标题');
-  if (title === null) return;
-  await guard(() => board.actions.createTask({ columnId, title }));
+/** 内联建任务（GitHub Projects 同款：列底输入框，Enter 提交 / Esc 取消）。 */
+const addTaskColumnId = ref<UUID | null>(null);
+const addTaskTitle = ref('');
+
+const cancelAddTask = (): void => {
+  addTaskColumnId.value = null;
+  addTaskTitle.value = '';
+};
+
+const commitAddTask = async (): Promise<void> => {
+  const columnId = addTaskColumnId.value;
+  const title = addTaskTitle.value.trim();
+  if (columnId === null || title === '') {
+    cancelAddTask();
+    return;
+  }
+  const created = await guard(() => board.actions.createTask({ columnId, title }));
+  // 失败（空标题等）保留输入，成功收起清空
+  if (created !== undefined) cancelAddTask();
 };
 
 const startEditTitle = (taskId: UUID, title: string): void => {
@@ -827,11 +842,43 @@ type ConfirmState =
             </article>
             <button
               class="add-task"
-              @click="createTask(column.id)"
+              @click="
+                addTaskColumnId = column.id;
+                addTaskTitle = '';
+              "
               :disabled="board.restoring.value"
               data-testid="add-task"
-              >添加任务</button
+              >+ 添加任务</button
             >
+            <div
+              v-if="addTaskColumnId === column.id"
+              class="add-task-form"
+              data-testid="add-task-form"
+            >
+              <input
+                class="add-task-input"
+                v-model="addTaskTitle"
+                @keydown.enter="commitAddTask"
+                @keydown.esc="cancelAddTask"
+                placeholder="输入任务标题"
+                aria-label="新任务标题"
+                data-testid="add-task-input"
+              />
+              <button
+                class="add-task-submit"
+                @click="commitAddTask"
+                :disabled="addTaskTitle.trim() === ''"
+                data-testid="add-task-submit"
+                >添加</button
+              >
+              <button
+                class="add-task-cancel"
+                @click="cancelAddTask"
+                aria-label="取消"
+                data-testid="add-task-cancel"
+                >×</button
+              >
+            </div>
           </div>
         </section>
       </div>
@@ -1114,6 +1161,22 @@ type ConfirmState =
 }
 .card-due.overdue {
   color: #dc2626;
+}
+.add-task-form {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+.add-task-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+}
+.add-task-cancel {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
 }
 .add-task {
   width: 100%;
