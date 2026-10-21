@@ -497,7 +497,10 @@ export function EntityForm({
           data-field={field.field}
           key={field.field}
         >
-          <legend className='fieldset-legend'>{field.displayName}</legend>
+          <legend className='fieldset-legend'>
+            {field.displayName}
+            {field.required && <span className='text-error'> *</span>}
+          </legend>
           {renderFieldInput(field)}
           {field.helpText && <p className='label'>{field.helpText}</p>}
         </fieldset>

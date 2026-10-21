@@ -264,6 +264,8 @@ export function EntityList({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [localDraftItems, setLocalDraftItems] = useState<EntityInstance[]>([]);
   const [openDialog, setOpenDialog] = useState<OpenDialog | null>(null);
+  /** 删除确认目标行：删除前经确认弹层（误删成本高，撤销入口不显眼）。 */
+  const [deleteConfirm, setDeleteConfirm] = useState<EntityTableRecord | null>(null);
   /** 已入队但还没落定的行内编辑批次数（排队中或写入中都不许拖拽排序） */
   const [pendingEditBatches, setPendingEditBatches] = useState(0);
   const [reorderPending, setReorderPending] = useState(false);
@@ -680,24 +682,32 @@ export function EntityList({
         return;
       }
       if (event.name !== 'delete-action') return;
-      const id = event.record['id'] as string;
-
-      const draftInst = localDraftItemsRef.current.find(i => i.id === id);
-      if (draftInst) {
-        setLocalDraftItems(items => items.filter(i => i.id !== id));
-        return;
-      }
-
-      const inst = instancesRef.current.find(i => i.id === id);
-      if (!inst) return;
-      try {
-        await inst.remove();
-      } catch (error) {
-        console.error(error);
-      }
+      setDeleteConfirm(event.record);
     },
     [onViewEntity, openViewDialog]
   );
+
+  /** 确认弹层里的删除执行（与删除图标同一条路径）。 */
+  const confirmDelete = useCallback(async (): Promise<void> => {
+    const record = deleteConfirm;
+    setDeleteConfirm(null);
+    if (!record) return;
+    const id = record['id'] as string;
+
+    const draftInst = localDraftItemsRef.current.find(i => i.id === id);
+    if (draftInst) {
+      setLocalDraftItems(items => items.filter(i => i.id !== id));
+      return;
+    }
+
+    const inst = instancesRef.current.find(i => i.id === id);
+    if (!inst) return;
+    try {
+      await inst.remove();
+    } catch (error) {
+      console.error(error);
+    }
+  }, [deleteConfirm]);
 
   const onRowDeleted = useCallback(
     async (record: EntityTableRecord): Promise<void> => {
@@ -1081,6 +1091,33 @@ export function EntityList({
           className='entity-detail-dialog'
         >
           <EntityDetail {...openDialog.data} />
+        </Dialog>
+      )}
+
+      {/* 删除确认弹层 */}
+      {deleteConfirm !== null && (
+        <Dialog
+          open
+          onClose={() => setDeleteConfirm(null)}
+          width='min(420px, calc(100vw - 1rem))'
+          className='entity-delete-confirm-dialog'
+        >
+          <EntityDialog title='删除确认' onCloseRequested={() => setDeleteConfirm(null)}>
+            <p className='text-sm'>确定删除这条{displayName}记录？删除后可用「撤销」恢复。</p>
+            <div className='flex justify-end gap-2 pt-3'>
+              <button className='btn btn-sm' onClick={() => setDeleteConfirm(null)} type='button'>
+                取消
+              </button>
+              <button
+                className='btn btn-error btn-sm'
+                data-testid='delete-confirm-submit'
+                onClick={() => void confirmDelete()}
+                type='button'
+              >
+                删除
+              </button>
+            </div>
+          </EntityDialog>
         </Dialog>
       )}
 

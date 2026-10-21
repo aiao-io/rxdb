@@ -1,10 +1,34 @@
-import { RxDBProvider, useRxDB } from '@aiao/rxdb-react';
-import { Suspense } from 'react';
+import type { EntityType } from '@aiao/rxdb';
+import { RxDBProvider, useCount, useRxDB } from '@aiao/rxdb-react';
+import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { visibleEntityEntries } from './entities/entity-registry';
+import { findWorkbenchEntity, visibleEntityEntries, type WorkbenchEntityEntry } from './entities/entity-registry';
 import setup_rxdb from './rxdb/setup_rxdb';
 
 const db = setup_rxdb();
+
+/**
+ * 实体计数徽标：只在本地适配器已连接后挂载查询——查询会触发自动连接，
+ * 在空库恢复流程（/backup 先恢复后连接）里提前查询会破坏恢复前置。
+ */
+function EntityCountBadge({ entry }: { entry: WorkbenchEntityEntry }) {
+  const rxdb = useRxDB();
+  const [connected, setConnected] = useState(false);
+  useEffect(() => {
+    const subscription = rxdb.adapterConnected$('wa-sqlite').subscribe(setConnected);
+    return () => subscription.unsubscribe();
+  }, [rxdb]);
+  if (!connected) return null;
+  return <CountValue entry={entry} />;
+}
+
+function CountValue({ entry }: { entry: WorkbenchEntityEntry }) {
+  const rxdb = useRxDB();
+  // 导航条目即来自同一实体注册表，构造上必然命中
+  const cls = findWorkbenchEntity(rxdb.config.entities, entry.namespace, entry.name) as EntityType;
+  const count = useCount(cls, { where: { combinator: 'and', rules: [] } });
+  return <span className='badge badge-ghost badge-xs'>{count.value ?? 0}</span>;
+}
 
 /** 左侧导航：工作台可见实体 + 备份 / 恢复入口（实体可见性由 entity-registry 派生）。 */
 function AppNav() {
@@ -21,13 +45,18 @@ function AppNav() {
             className={({ isActive }) => (isActive ? 'menu-active' : '')}
             data-testid='entity-nav-link'
           >
-            {entry.displayName}
+            <span className='truncate'>{entry.displayName}</span>
+            <EntityCountBadge entry={entry} />
           </NavLink>
         ))}
       </nav>
       <h2 className='menu-title'>数据</h2>
       <nav className='menu w-full'>
-        <NavLink to='/backup' className={({ isActive }) => (isActive ? 'menu-active' : '')} data-testid='backup-nav-link'>
+        <NavLink
+          to='/backup'
+          className={({ isActive }) => (isActive ? 'menu-active' : '')}
+          data-testid='backup-nav-link'
+        >
           备份 / 恢复
         </NavLink>
       </nav>

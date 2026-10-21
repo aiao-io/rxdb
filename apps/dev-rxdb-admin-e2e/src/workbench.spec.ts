@@ -73,9 +73,11 @@ test.describe('模型驱动数据工作台', () => {
     await page.getByRole('button', { name: '关闭' }).click();
     await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
 
-    // 删除：行消失、回到空态
+    // 删除：确认弹层 → 行消失、回到空态
     const del = await expectActionIcon(page, 'delete-action', 1);
     await page.mouse.click(del.x, del.y);
+    await expect(page.getByTestId('delete-confirm-submit')).toBeVisible();
+    await page.getByTestId('delete-confirm-submit').click();
     await expect(page.getByText('暂无数据')).toBeVisible();
   });
 
@@ -110,6 +112,28 @@ test.describe('模型驱动数据工作台', () => {
     await expect(page.getByTestId('relation-empty-hint')).toContainText('暂无「所属资产」可选');
     await page.getByRole('button', { name: '关闭' }).click();
     await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
+  });
+
+  test('probe：资产列表表头与行数据', async ({ page }) => {
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '办公设备');
+    await page.goto('/entities/assets/Asset');
+    await createAsset(page, '笔记本', '办公设备');
+    await expectListHasRows(page);
+    const dump = await page
+      .getByTestId('entity-shell')
+      .locator('canvas')
+      .first()
+      .evaluate(el => {
+        const t = (
+          el as unknown as {
+            __vtable__: { colCount: number; records: unknown[]; getHeaderField(c: number, r: number): unknown };
+          }
+        ).__vtable__;
+        const headers = Array.from({ length: t.colCount }, (_, c) => t.getHeaderField(c, 0));
+        return { headers, firstRow: t.records[0] };
+      });
+    console.log('[probe-headers]', JSON.stringify(dump));
   });
 
   test('AC#6 查询筛选：按关联字段与标量字段过滤', async ({ page }) => {

@@ -344,7 +344,13 @@ defineExpose({
       :class="{ 'md:col-span-2': isWideField(field) }"
     >
       <legend class="fieldset-legend">
-        {{ field.displayName }}
+        {{ field.displayName
+        }}<span
+          v-if="field.required"
+          class="text-error"
+        >
+          *</span
+        >
       </legend>
       <div
         v-if="isFieldReadonly(field)"

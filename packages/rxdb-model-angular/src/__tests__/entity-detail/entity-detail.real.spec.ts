@@ -439,7 +439,7 @@ describe('EntityDetailComponent（真实组件）', () => {
   it('tab 可见文字随 radio 渲染（input 伪元素不渲染文字回归）', () => {
     const { fixture } = createWithDialog(dialogData());
 
-    const tabs = [...fixture.nativeElement.querySelectorAll<HTMLElement>('[role="tab"]')];
+    const tabs = [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="tab"]')];
     expect(tabs.map(t => t.closest('label')?.textContent?.trim())).toEqual(['基本信息', '子项']);
   });
 

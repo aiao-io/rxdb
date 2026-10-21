@@ -1,0 +1,274 @@
+{
+  "version": "6.0",
+  "nxVersion": "23.3.0",
+  "pathMappings": {},
+  "nxJsonPlugins": [],
+  "fileMap": {
+    "projectFileMap": {
+      "rxdb-model-angular": [
+        {
+          "file": "README.md",
+          "hash": "10071937245874998845"
+        },
+        {
+          "file": "ng-package.json",
+          "hash": "17036401803060402072"
+        },
+        {
+          "file": "package.json",
+          "hash": "4453642001828581178"
+        },
+        {
+          "file": "project.json",
+          "hash": "10188578734191029357"
+        },
+        {
+          "file": "src/__tests__/entity-detail/entity-detail.real.spec.ts",
+          "hash": "12291194176289435955"
+        },
+        {
+          "file": "src/__tests__/entity-dialog/entity-dialog.real.spec.ts",
+          "hash": "7359677085188454931"
+        },
+        {
+          "file": "src/__tests__/entity-form/rxdb-entity-form-angular.real.spec.ts",
+          "hash": "4706049449498423668"
+        },
+        {
+          "file": "src/__tests__/entity-list/entity-list.real.spec.ts",
+          "hash": "12061477538424860329"
+        },
+        {
+          "file": "src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts",
+          "hash": "6839482528558536561"
+        },
+        {
+          "file": "src/__tests__/entity-table/query-table/query-table.component.real.spec.ts",
+          "hash": "2203821086735704498"
+        },
+        {
+          "file": "src/__tests__/public-api/public-api.spec.ts",
+          "hash": "1811919307232816173"
+        },
+        {
+          "file": "src/__tests__/query-builder/operator-selector/operator-selector.component.spec.ts",
+          "hash": "2789745814895435137"
+        },
+        {
+          "file": "src/__tests__/query-builder/popover-select/popover-select.real.spec.ts",
+          "hash": "3358924820331223057"
+        },
+        {
+          "file": "src/__tests__/query-builder/query-builder/query-builder.real.spec.ts",
+          "hash": "4582450637702184491"
+        },
+        {
+          "file": "src/__tests__/query-builder/query-group/query-group.real.spec.ts",
+          "hash": "8087039227540781024"
+        },
+        {
+          "file": "src/__tests__/query-builder/query-rule/query-rule.real.spec.ts",
+          "hash": "7207711914497862371"
+        },
+        {
+          "file": "src/__tests__/query-builder/subquery-builder/subquery-builder.real.spec.ts",
+          "hash": "16237768862655867727"
+        },
+        {
+          "file": "src/__tests__/query-builder/tree-select/tree-select.real.spec.ts",
+          "hash": "4989310319899671642"
+        },
+        {
+          "file": "src/__tests__/query-builder/value-input/value-input.real.spec.ts",
+          "hash": "1766007728440464502"
+        },
+        {
+          "file": "src/__tests__/testing/fake-vtable-editors.ts",
+          "hash": "15562307912997977806"
+        },
+        {
+          "file": "src/__tests__/testing/fake-vtable.ts",
+          "hash": "7942321225907838663"
+        },
+        {
+          "file": "src/__tests__/testing/in-memory-rxdb.ts",
+          "hash": "15420116574300832752"
+        },
+        {
+          "file": "src/entity-detail/entity-detail.html",
+          "hash": "1790758380747235758"
+        },
+        {
+          "file": "src/entity-detail/entity-detail.scss",
+          "hash": "12722525907833928136"
+        },
+        {
+          "file": "src/entity-detail/entity-detail.ts",
+          "hash": "10914366437311880436"
+        },
+        {
+          "file": "src/entity-detail/index.ts",
+          "hash": "3073291003942141796"
+        },
+        {
+          "file": "src/entity-dialog/entity-dialog.component.html",
+          "hash": "12169081213205156096"
+        },
+        {
+          "file": "src/entity-dialog/entity-dialog.component.scss",
+          "hash": "10383415344250182831"
+        },
+        {
+          "file": "src/entity-dialog/entity-dialog.component.ts",
+          "hash": "8966383332200630710"
+        },
+        {
+          "file": "src/entity-dialog/index.ts",
+          "hash": "10435820158814252536"
+        },
+        {
+          "file": "src/entity-form/index.ts",
+          "hash": "317762917123139238"
+        },
+        {
+          "file": "src/entity-form/rxdb-entity-form-angular.html",
+          "hash": "496587558815911865"
+        },
+        {
+          "file": "src/entity-form/rxdb-entity-form-angular.scss",
+          "hash": "3244421341483603138"
+        },
+        {
+          "file": "src/entity-form/rxdb-entity-form-angular.ts",
+          "hash": "15329511153809109280"
+        },
+        {
+          "file": "src/entity-list/entity-list.component.html",
+          "hash": "18235188940285113383"
+        },
+        {
+          "file": "src/entity-list/entity-list.component.ts",
+          "hash": "5626801637480908285"
+        },
+        {
+          "file": "src/entity-table/config.ts",
+          "hash": "6366805901366403332"
+        },
+        {
+          "file": "src/entity-table/entity-table/entity-table.component.html",
+          "hash": "10158918522815744992"
+        },
+        {
+          "file": "src/entity-table/entity-table/entity-table.component.scss",
+          "hash": "10387090463480391295"
+        },
+        {
+          "file": "src/entity-table/entity-table/entity-table.component.ts",
+          "hash": "13521602441785745908"
+        },
+        {
+          "file": "src/entity-table/index.ts",
+          "hash": "2236274329342738851"
+        },
+        {
+          "file": "src/entity-table/query-table/query-table.component.html",
+          "hash": "9524421379301337090"
+        },
+        {
+          "file": "src/entity-table/query-table/query-table.component.scss",
+          "hash": "7748849042102054165"
+        },
+        {
+          "file": "src/entity-table/query-table/query-table.component.ts",
+          "hash": "11845131348609053217"
+        },
+        {
+          "file": "src/index.ts",
+          "hash": "18129032433216483099"
+        },
+        {
+          "file": "src/query-builder/field-selector/field-selector.component.ts",
+          "hash": "6071659166258172472"
+        },
+        {
+          "file": "src/query-builder/index.ts",
+          "hash": "1123998532867674968"
+        },
+        {
+          "file": "src/query-builder/operator-selector/operator-selector.component.ts",
+          "hash": "4472390319913476312"
+        },
+        {
+          "file": "src/query-builder/popover-select/popover-select.component.ts",
+          "hash": "10921252542491384666"
+        },
+        {
+          "file": "src/query-builder/query-builder/query-builder.component.ts",
+          "hash": "7482352902192420141"
+        },
+        {
+          "file": "src/query-builder/query-group/query-group.component.ts",
+          "hash": "13950228536098787983"
+        },
+        {
+          "file": "src/query-builder/query-rule/query-rule.component.ts",
+          "hash": "17588753138723484044"
+        },
+        {
+          "file": "src/query-builder/subquery-builder/subquery-builder.component.ts",
+          "hash": "11477932403152507348"
+        },
+        {
+          "file": "src/query-builder/theme/default-query-builder-theme.ts",
+          "hash": "10542920242816338968"
+        },
+        {
+          "file": "src/query-builder/theme/index.ts",
+          "hash": "920501389154965523"
+        },
+        {
+          "file": "src/query-builder/theme/query-builder-theme.token.ts",
+          "hash": "6925900407452660714"
+        },
+        {
+          "file": "src/query-builder/tree-select/tree-select.component.ts",
+          "hash": "12763423551400704633"
+        },
+        {
+          "file": "src/query-builder/value-input/value-input.component.ts",
+          "hash": "4086786582222704291"
+        },
+        {
+          "file": "src/test-setup.ts",
+          "hash": "17648888248849450808"
+        },
+        {
+          "file": "tailwind.css",
+          "hash": "4934320792292756585"
+        },
+        {
+          "file": "tsconfig.json",
+          "hash": "9665935810817437693"
+        },
+        {
+          "file": "tsconfig.lib.json",
+          "hash": "4051765234466521653"
+        },
+        {
+          "file": "tsconfig.lib.prod.json",
+          "hash": "11657043449554165473"
+        },
+        {
+          "file": "tsconfig.spec.json",
+          "hash": "4963544703457441021"
+        },
+        {
+          "file": "vite.config.mts",
+          "hash": "6050856112183303355"
+        }
+      ]
+    },
+    "nonProjectFiles": []
+  },
+  "externalNodesHash": "3244421341483603138"
+}

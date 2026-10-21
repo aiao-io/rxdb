@@ -232,6 +232,8 @@ test.describe('Entity Model Pages', () => {
       const remove = await findActionIcon(page, 'delete-action');
       expect(remove).not.toBeNull();
       await page.mouse.click(remove!.x, remove!.y);
+      await expect(page.getByTestId('delete-confirm-submit')).toBeVisible();
+      await page.getByTestId('delete-confirm-submit').click();
       await expect(page.getByText('暂无数据')).toBeVisible();
     });
 

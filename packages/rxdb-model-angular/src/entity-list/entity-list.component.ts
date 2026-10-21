@@ -180,6 +180,9 @@ function parseInitialFilter(raw: string | undefined): FilterQuery | undefined {
  */
 export class EntityListComponent {
   #m2mDialogRef: DialogRef<unknown, void> | null = null;
+  /** 待确认删除的行；非空即弹层打开。 */
+  readonly #deleteConfirmRecord = signal<EntityTableRecord | null>(null);
+  #deleteConfirmRef: DialogRef<unknown, void> | null = null;
   // ── Service injections ────────────────────────────────────────────────
   readonly #rxdb = inject(RxDB);
   readonly #injector = inject(Injector);
@@ -459,6 +462,8 @@ export class EntityListComponent {
   readonly isM2m = computed(() => this.relationKind() === RelationKind.MANY_TO_MANY);
 
   readonly m2mSelectTpl = viewChild<TemplateRef<void>>('m2mSelectTpl');
+  /** 删除确认弹层模板（误删成本高，撤销入口不显眼）。 */
+  readonly deleteConfirmTpl = viewChild<TemplateRef<void>>('deleteConfirmTpl');
 
   // ── Manual order (US-028) ─────────────────────────────────────────────
   /** 最近一次拖放排序落库失败的提示；`null` 为无错误 */
@@ -593,21 +598,33 @@ export class EntityListComponent {
       return;
     }
     if (event.name !== 'delete-action') return;
-    const id = event.record['id'] as string;
+    this.#openDeleteConfirm(event.record);
+  }
+
+  /** 确认弹层里的删除执行（与删除图标同一条路径）。 */
+  async confirmDelete(): Promise<void> {
+    const record = this.#deleteConfirmRecord();
+    if (!record) return;
+    const id = record['id'] as string;
 
     const draftInst = this.#localDraftItems().find(i => i.id === id);
     if (draftInst) {
       this.#localDraftItems.update(items => items.filter(i => i.id !== id));
-      return;
+    } else {
+      const inst = this.#instances().find(i => i.id === id);
+      if (inst) {
+        try {
+          await inst.remove();
+        } catch (e) {
+          this.#errorHandler.handleError(e);
+        }
+      }
     }
+    this.#deleteConfirmRef?.close();
+  }
 
-    const inst = this.#instances().find(i => i.id === id);
-    if (!inst) return;
-    try {
-      await inst.remove();
-    } catch (e) {
-      this.#errorHandler.handleError(e);
-    }
+  cancelDelete(): void {
+    this.#deleteConfirmRef?.close();
   }
 
   async onRowDeleted(event: EntityTableRecord): Promise<void> {
@@ -755,6 +772,23 @@ export class EntityListComponent {
    * 「查看」行 → 打开详情对话框：可写行走 edit 模式（内置弹窗修改），`_readonly` 行走 view 模式（无保存入口）。
    * 关系 Tab 内嵌的列表同样走这里，套娃下钻；`editChain` 命中或未落库草稿时只 emit 不打开。
    */
+  /** 打开删除确认弹层。 */
+  #openDeleteConfirm(record: EntityTableRecord): void {
+    if (this.#deleteConfirmRef) return;
+    const tpl = this.deleteConfirmTpl();
+    if (!tpl) return;
+    this.#deleteConfirmRecord.set(record);
+    const ref = this.#dialog.open(tpl, {
+      width: 'min(420px, calc(100vw - 1rem))',
+      panelClass: 'entity-delete-confirm-dialog'
+    });
+    this.#deleteConfirmRef = ref;
+    ref.closed.subscribe(() => {
+      this.#deleteConfirmRef = null;
+      this.#deleteConfirmRecord.set(null);
+    });
+  }
+
   async #openViewDialog(record: EntityTableRecord): Promise<void> {
     const id = record['id'];
     if (typeof id !== 'string' || !id) return;

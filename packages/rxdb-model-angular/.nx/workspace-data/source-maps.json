@@ -1,0 +1,240 @@
+{
+  ".": {
+    "root": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "tags": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:public": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:aiao": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:rxdb": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:angular": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:entity": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:form": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:table": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:query-builder": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.description": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageName": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageVersion": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageExports": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.isInPackageManagerWorkspaces": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "targets": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.executor": [
+      "package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.dependsOn.0": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.nx-release-publish.dependsOn": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.nx-release-publish.options": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "prefix": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "release": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "tags.angular-lib": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.typecheck": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.typecheck.executor": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.typecheck.dependsOn.0": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.typecheck.dependsOn": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.typecheck.// command": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.typecheck.options.cwd": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.typecheck.options.command": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.typecheck.options": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.executor": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.outputs.0": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.outputs": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.defaultConfiguration": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.options.project": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.options.tsConfig": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.options": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.configurations.production.tsConfig": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.configurations.production": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.configurations.development": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.configurations": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.nx-release-publish.dependsOn.1": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.nx-release-publish.options.packageRoot": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.link-release-peers": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.link-release-peers.executor": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.link-release-peers.cache": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.link-release-peers.dependsOn.0": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.link-release-peers.dependsOn": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.link-release-peers.options.command": [
+      "project.json",
+      "nx/core/project-json"
+    ],
+    "targets.link-release-peers.options": [
+      "project.json",
+      "nx/core/project-json"
+    ]
+  }
+}

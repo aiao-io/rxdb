@@ -4,7 +4,12 @@
       class="fieldset"
       [class.md:col-span-2]="field.span === 2 || field.type === 'json' || field.type === 'keyValue'"
     >
-      <legend class="fieldset-legend">{{ field.displayName }}</legend>
+      <legend class="fieldset-legend">
+        {{ field.displayName }}
+        @if (field.required) {
+          <span class="text-error">*</span>
+        }
+      </legend>
 
       @if (isFieldReadonly(field)) {
         <div class="input input-ghost flex min-h-10 items-center">{{ getDisplayValue(field) }}</div>

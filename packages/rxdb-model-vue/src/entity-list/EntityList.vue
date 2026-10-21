@@ -572,7 +572,18 @@ const onIconClicked = async (event: { name: string; record: EntityTableRecord })
     return;
   }
   if (event.name !== 'delete-action') return;
-  const id = event.record['id'] as string;
+  deleteConfirmRecord.value = event.record;
+};
+
+/** 待确认删除的行；非空即弹层打开。 */
+const deleteConfirmRecord = ref<EntityTableRecord | null>(null);
+
+/** 确认弹层里的删除执行（与删除图标同一条路径）。 */
+const confirmDelete = async (): Promise<void> => {
+  const record = deleteConfirmRecord.value;
+  deleteConfirmRecord.value = null;
+  if (!record) return;
+  const id = record['id'] as string;
 
   const draftInst = localDraftItems.value.find(i => i.id === id);
   if (draftInst) {
@@ -587,6 +598,10 @@ const onIconClicked = async (event: { name: string; record: EntityTableRecord })
   } catch (e) {
     handleError(e);
   }
+};
+
+const cancelDelete = (): void => {
+  deleteConfirmRecord.value = null;
 };
 
 const onRowDeleted = async (event: EntityTableRecord): Promise<void> => {
@@ -1208,6 +1223,37 @@ defineExpose({
       @closed="onViewDialogClosed"
     >
       <EntityDetail v-bind="viewDialogData" />
+    </DialogPortal>
+
+    <!-- 删除确认弹层 -->
+    <DialogPortal
+      v-if="deleteConfirmRecord"
+      panel-class="entity-delete-confirm-dialog"
+      width="min(420px, calc(100vw - 1rem))"
+      @closed="cancelDelete"
+    >
+      <EntityDialog
+        title="删除确认"
+        @close-requested="cancelDelete"
+      >
+        <p class="text-sm">确定删除这条{{ displayName }}记录？删除后可用「撤销」恢复。</p>
+        <div class="flex justify-end gap-2 pt-3">
+          <button
+            class="btn btn-sm"
+            type="button"
+            @click="cancelDelete"
+            >取消</button
+          >
+          <button
+            class="btn btn-error btn-sm"
+            data-testid="delete-confirm-submit"
+            type="button"
+            @click="confirmDelete"
+          >
+            删除
+          </button>
+        </div>
+      </EntityDialog>
     </DialogPortal>
 
     <!-- M2M Selection Dialog -->
