@@ -1,6 +1,8 @@
-import { firstValueFrom, NEVER, Observable, of } from 'rxjs';
+import { firstValueFrom, NEVER, Observable, of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { EntityStatus } from '../../entity/entity-status.js';
 import { ENTITY_STATIC_TYPES, EntityType } from '../../entity/entity.interface.js';
+import { setSafeObjectKey } from '../../entity/entity.utils.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
 import type { FindByCursorOptions, FindOneOptions, FindOptions } from '../../repository/query-options.interface.js';
 import type { Rule, RuleGroup } from '../../repository/query.interface.js';
@@ -73,7 +75,14 @@ const createEntity = (id: string, extra: Partial<TestEntity> = {}): TestEntity =
   entity.value = extra.value;
   // 这份替身要覆盖 Repository 实际读到的槽位：_setLocal 除了写 local 还会看 patch
   // （只有「无未保存改动」才把 modified 归零），缺 patch 就是替身比真实 EntityStatus 少一块。
-  Object.assign(entity, { [STATUS]: { local: false, modified: false, patch: {} } });
+  Object.assign(entity, {
+    [STATUS]: {
+      local: false,
+      modified: false,
+      patch: {},
+      prepareUpdate: vi.fn(() => ({ release: vi.fn() }))
+    }
+  });
   return entity;
 };
 
@@ -129,6 +138,23 @@ const setupRepository = (): Setup => {
   const repository = new TestRepository(rxdb, of(localRepo), queryManager);
 
   return { repository, localRepo, queryManager, rxdb };
+};
+
+const attachUpdateState = (rxdb: RxDB, entity: TestEntity): EntityStatus<TestEntityCtor> => {
+  const status = new EntityStatus<TestEntityCtor>(rxdb, { target: entity, local: true, modified: false });
+  setSafeObjectKey(status, 'proxyTarget', entity);
+  Object.assign(entity, { [STATUS]: status });
+  return status;
+};
+
+const applySubmittedUpdate = async (entity: TestEntity, patch: Partial<TestEntity>): Promise<TestEntity> => {
+  const pending = getEntityStatus(entity).prepareUpdate(patch);
+  try {
+    pending.apply(patch);
+    return entity;
+  } finally {
+    pending.release();
+  }
 };
 
 const baseWhere = (): RuleGroup<TestEntity> => ({ combinator: 'and', rules: [] });
@@ -690,6 +716,59 @@ describe('Repository', () => {
     expect(result.value).toBe(2);
     expect(getEntityStatus(entity).local).toBe(true);
     expect(localRepo.update).toHaveBeenCalledWith(entity, { value: 2 });
+  });
+
+  it('主端尚未就绪期间撤回原值，提交完成仍保留可再次保存的差异', async () => {
+    const { repository, localRepo, rxdb } = setupRepository();
+    const entity = createEntity('entity-update-wait', { value: 1 });
+    const status = attachUpdateState(rxdb, entity);
+    const primary = new Subject<LocalRepo>();
+    Object.assign(repository, { primary$: primary });
+    localRepo.update.mockImplementation(applySubmittedUpdate);
+    entity.value = 2;
+    status.markChanged('value');
+    status.modified = true;
+    const saving = repository.update(entity, { value: 2 });
+    expect(localRepo.update).not.toHaveBeenCalled();
+    entity.value = 1;
+    status.markChanged('value');
+    status.modified = true;
+    expect(status.patch).toEqual({});
+    primary.next(localRepo);
+    await saving;
+
+    expect(entity.value).toBe(1);
+    expect(status.origin.value).toBe(2);
+    expect(status.patch).toEqual({ value: 1 });
+    expect(status.modified).toBe(true);
+    expect(status.local).toBe(true);
+    expect(primary.observed).toBe(false);
+    primary.complete();
+  });
+
+  it('失败后释放提交起点，同一patch重试以新的干净实体为准', async () => {
+    const { repository, localRepo, rxdb } = setupRepository();
+    const entity = createEntity('entity-update-retry', { value: 1 });
+    const status = attachUpdateState(rxdb, entity);
+    const patch = { value: 2 };
+    const failure = new Error('受控写入失败');
+    localRepo.update.mockRejectedValueOnce(failure);
+    await expect(repository.update(entity, patch)).rejects.toBe(failure);
+    expect(entity.value).toBe(1);
+    expect(status.origin.value).toBe(1);
+
+    entity.value = 3;
+    status.markChanged('value');
+    status.modified = true;
+    status.replace({ value: 3 });
+    localRepo.update.mockImplementation(applySubmittedUpdate);
+    await repository.update(entity, patch);
+
+    expect(entity.value).toBe(2);
+    expect(status.origin.value).toBe(2);
+    expect(status.patch).toEqual({});
+    expect(status.modified).toBe(false);
+    expect(localRepo.update).toHaveBeenNthCalledWith(2, entity, patch);
   });
 
   it('remove 委托给本地仓储', async () => {

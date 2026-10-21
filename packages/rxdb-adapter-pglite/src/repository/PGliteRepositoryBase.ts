@@ -39,7 +39,8 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
 
   protected async addQueryCache(
     result: Results<Record<string, unknown>>,
-    forcedUpdate = true
+    forcedUpdate = true,
+    applySaved?: (data: Partial<InstanceType<T>>) => void
   ): Promise<InstanceType<T>[]> {
     return await Promise.all(
       result.rows.map(async row => {
@@ -51,7 +52,8 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
         if (super.hasEntityRef(id)) {
           // 同下面那条边界：`getEntityRef` 也已如实返回 `EntityInstanceType<T>`。
           entity = super.getEntityRef(id)! as InstanceType<T>;
-          if (forcedUpdate) super.updateEntity(entity, entityData);
+          if (applySaved !== undefined) applySaved(entityData);
+          else if (forcedUpdate) super.updateEntity(entity, entityData);
         } else {
           // `RepositoryBase.createEntityRef` 现在如实返回实例类型（从前是塌陷成 `any` 的
           // `InstanceType<T>`）。本包这条链上的 `InstanceType<T>` 还没跟着改——改它会一路

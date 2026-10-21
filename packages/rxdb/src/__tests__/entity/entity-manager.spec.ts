@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import { ENTITY_STATIC_TYPES, type EntityType, UUID } from '../../entity/entity.interface.js';
@@ -10,6 +10,7 @@ import { ENTITY_LOCAL_NEW_EVENT } from '../../rxdb-events.js';
 import { getEntityStatus, uuid } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBError } from '../../RxDBError.js';
+import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
 import { collectGarbageUntil } from '../fixtures/gc.js';
 import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
 
@@ -602,6 +603,125 @@ describe('EntityManager', () => {
       orphan.entityManager.init();
 
       await expect(orphan.entityManager.saveMany([])).resolves.toEqual([]);
+    });
+  });
+
+  describe('门面仓储的批量写钩子（writeMutations）', () => {
+    const log: string[] = [];
+    let afterWrite: () => void = () => undefined;
+
+    class GuardedRepository<T extends EntityType> extends Repository<T> {
+      override async writeMutations<M extends EntityType>(
+        _executor: TransactionExecutor,
+        mutations: RxDBMutationsMap<M>,
+        next: () => Promise<InstanceType<M>[]>
+      ): Promise<InstanceType<M>[]> {
+        log.push(`hook:before:${[...mutations.create.values()].reduce((count, set) => count + set.size, 0)}`);
+        const saved = await next();
+        log.push('hook:after');
+        afterWrite();
+        return saved;
+      }
+    }
+
+    @Entity({
+      name: 'GuardedNote',
+      repository: 'GuardedRepository',
+      properties: [{ name: 'title', type: PropertyType.string }]
+    })
+    class GuardedNote extends EntityBase {
+      static [ENTITY_STATIC_TYPES]: { idType: UUID };
+      title!: string;
+    }
+
+    /** 带事务的替身：记下批量写入走的是 adapter.mutations 还是事务内的 executor.mutations */
+    const createGuardedDb = (dbName: string): RxDB => {
+      const executor = {
+        mutations: async (options: RxDBMutationsMap) => {
+          log.push('executor.mutations');
+          return mockAdapter.mutations(options);
+        }
+      };
+      const adapter = {
+        ...mockAdapter,
+        mutations: async (options: RxDBMutationsMap) => {
+          log.push('adapter.mutations');
+          return mockAdapter.mutations(options);
+        },
+        transaction: async <R>(work: (value: typeof executor) => Promise<R>): Promise<R> => {
+          log.push('begin');
+          try {
+            const result = await work(executor);
+            log.push('commit');
+            return result;
+          } catch (error) {
+            log.push('rollback');
+            throw error;
+          }
+        }
+      };
+      adapter.getRepository = () => adapter;
+      const db = trackRxDB(
+        new RxDB({
+          dbName,
+          entities: [Todo, GuardedNote],
+          sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+        })
+      );
+      db.repository('GuardedRepository', { class: GuardedRepository });
+      db.adapter('sqlite', () => adapter as unknown as IRxDBAdapter);
+      db.init();
+      return db;
+    };
+
+    const dirtyNote = (db: RxDB): GuardedNote => {
+      const note = db.entityManager.createEntityRef(GuardedNote, { title: 'n', id: uuid() });
+      note.title = 'dirty';
+      return note;
+    };
+
+    beforeEach(() => {
+      log.length = 0;
+      afterWrite = () => undefined;
+    });
+
+    it('批内有门面实现钩子：同一事务里由钩子包住 executor.mutations，不走 adapter.mutations', async () => {
+      const db = createGuardedDb('GuardedBatch');
+
+      await db.entityManager.saveMany([dirtyNote(db)]);
+
+      expect(log).toEqual(['begin', 'hook:before:1', 'executor.mutations', 'hook:after', 'commit']);
+    });
+
+    it('钩子在写入之后拒绝：整批随事务回滚，调用方拿到钩子的错误', async () => {
+      const db = createGuardedDb('GuardedBatchRejected');
+      afterWrite = () => {
+        throw new RxDBError('批量校验拒绝');
+      };
+
+      await expect(db.entityManager.saveMany([dirtyNote(db)])).rejects.toThrow('批量校验拒绝');
+
+      expect(log).toEqual(['begin', 'hook:before:1', 'executor.mutations', 'hook:after', 'rollback']);
+    });
+
+    it('混合批次只调用实现了钩子的门面一次，整批仍是一次 executor.mutations', async () => {
+      const db = createGuardedDb('GuardedBatchMixed');
+      const todo = db.entityManager.createEntityRef(Todo, { title: 't', id: uuid() });
+      todo.title = 'dirty';
+
+      await db.entityManager.saveMany([todo, dirtyNote(db)]);
+
+      expect(log).toEqual(['begin', 'hook:before:2', 'executor.mutations', 'hook:after', 'commit']);
+    });
+
+    it('批内没有门面实现钩子时照旧走 adapter.mutations，不额外开事务', async () => {
+      const db = createGuardedDb('GuardedBatchPlain');
+      const todo = db.entityManager.createEntityRef(Todo, { title: 't', id: uuid() });
+      todo.title = 'dirty';
+
+      await db.entityManager.saveMany([todo]);
+
+      expect(log).toEqual(['adapter.mutations']);
     });
   });
 

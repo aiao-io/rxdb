@@ -1,7 +1,8 @@
 import { isEqual, pick } from '@aiao/utils';
 import { shareReplay, Subject } from 'rxjs';
-import { RxDB } from '../RxDB.js';
+import { isStaleEventPayload } from '../query/stale-event.utils.js';
 import { getEntityStatus } from '../rxdb-utils.js';
+import { RxDB } from '../RxDB.js';
 import { getRxDBEntityIdentityKey } from '../system/change-codec.js';
 import { EntityPatch, IEntityStatus } from './entity-status.interface.js';
 import { EntityInstanceType, EntityType } from './entity.interface.js';
@@ -17,6 +18,14 @@ import { EntityRelationCache, RelationObservableEntry } from './relation-cache.j
  * 超出上限后丢弃最旧记录（先进先出），与常见编辑器撤销历史的有界语义一致。
  */
 const MAX_PATCH_HISTORY = 100;
+
+/** 一轮更新的快照，见 {@link EntityStatus.prepareUpdate} */
+interface UpdateSnapshot {
+  /** 编辑起点：取首次 prepare */
+  readonly version: number;
+  /** 本次写入各键的基线值：取最近一次 prepare */
+  baseline: ReadonlyMap<string, unknown>;
+}
 
 /**
  * 实体状态管理器
@@ -59,6 +68,9 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    * @private
    */
   #changed_keys = new Set<keyof InstanceType<T>>();
+  #editVersion = 0;
+  readonly #fieldEditVersions = new Map<string, number>();
+  readonly #updates = new WeakMap<object, UpdateSnapshot>();
 
   /**
    * reset/replace 各自递增的代数
@@ -329,6 +341,7 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    */
   markChanged(key: keyof InstanceType<T>) {
     this.#changed_keys.add(key);
+    this.#fieldEditVersions.set(String(key), ++this.#editVersion);
   }
 
   /**
@@ -348,6 +361,10 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
   reset() {
     const target = this.proxyTarget as Record<string, unknown>;
     const origin = this.origin as Record<string, unknown>;
+    const keys = new Set([...Object.keys(target), ...Object.keys(origin)]);
+    for (const key of keys) {
+      if (!isEqual(target[key], origin[key])) this.#fieldEditVersions.set(key, ++this.#editVersion);
+    }
     for (const key of Object.keys(target)) {
       if (!(key in origin)) delete target[key];
     }
@@ -406,27 +423,50 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    * （确实无需再写）；`_modified` 也据此重算，而不是被无条件归零。
    */
   mergeExternal(data: Partial<InstanceType<T>>) {
-    const target = this.target as Record<string, unknown>;
+    this.#mergeExternal(data, new Set(Object.keys(this.patch)));
+  }
+
+  /**
+   * 捕获一次更新的编辑起点，供仓储门面、验证层与适配器写回共享。
+   *
+   * @param patch - 同一轮更新沿仓储链传递的补丁对象
+   * @returns `apply` 合入本次 UPDATE 的回填行；`release` 结束本轮，结束后可用同一补丁重新尝试
+   *
+   * @remarks
+   * **补丁按引用识别**：快照以 `patch` 对象为键，门面、验证层（如 BOM 仓储）与适配器各自调用本方法，
+   * 靠同一个引用取到同一份快照。中间层不得克隆或重建 `patch`——换了引用，适配器那一层会另起快照，
+   * 门面之后、写入之前的编辑（含改回原值）在回填时不再受保护，被回填行静默盖掉。
+   *
+   * 快照的两部分取自不同时刻：编辑版本取**首次** prepare，写入期间的编辑都要保护；写入各键的基线取
+   * **最近一次** prepare，即适配器紧挨着计算写入时间戳的那一刻，此前合入的外部值都早于本次写入。
+   *
+   * `apply` 的合并规则：
+   * - 回填行不早于当前基线：整行推进基线，仍有差异或写入期间编辑过的键保留本地值；
+   * - 回填行早于当前基线（与外部事件同一判据 `isStaleEventPayload`）：UPDATE 提交后又有更晚的来源先合入，
+   *   整行合入会连同 `updatedAt` 把那次外部写回退——缓存与库分叉、之后 `save()` 静默 no-op。此时只认
+   *   本次写入的键：基线自 prepare 起没动过的照常推进；已被更晚来源改写的基线不回退，本地值若只是这次
+   *   写入的值（写入期间没再编辑）就随新基线收敛。其余键（含 `updatedAt`）一律不动。
+   *
+   * **只有本地 SQL 仓储消费 `apply`**（sqlite-core / PGlite 适配器的 `update`）。远端主端不调用它：
+   * Supabase 成功路径返回新建实例，调用方实体的基线不前移、`patch` 不清空；QueryCache 主端远端写成功时只把
+   * 返回字段 `Object.assign` 回实体，基线靠本地落地回刷推进，不受这里的写入期编辑保护（离线降级转给本地
+   * SQL 仓储，仍走 `apply`；均为既有行为）。
+   */
+  prepareUpdate(patch: Partial<InstanceType<T>>): {
+    apply: (data: Partial<InstanceType<T>>) => void;
+    release: () => void;
+  } {
     const origin = this._origin as Record<string, unknown>;
-    const protectedKeys = new Set(Object.keys(this.patch));
-
-    for (const key of Object.keys(data) as (keyof InstanceType<T>)[]) {
-      const incoming = (data as Record<string, unknown>)[key as string];
-      // 基线一律前移
-      origin[key as string] = structuredClone(incoming);
-      // 当前 patch 没有真实差异的键才同步可见值；仍有本地编辑的保留本地值
-      if (!protectedKeys.has(key as string)) {
-        target[key as string] = incoming;
+    const baseline = new Map(Object.keys(patch).map(key => [key, origin[key]]));
+    const snapshot = this.#updates.get(patch) ?? { version: this.#editVersion, baseline };
+    snapshot.baseline = baseline;
+    this.#updates.set(patch, snapshot);
+    return {
+      apply: data => this.#applySaved(snapshot, data),
+      release: () => {
+        if (this.#updates.get(patch) === snapshot) this.#updates.delete(patch);
       }
-    }
-
-    // 不推进内容修订号：适配器写回 computed 列时会先经 proxy 把实体标脏，随后正是走这条分支
-    // （`status.modified ? mergeExternal(row) : replace(row)`），在这里推进同样会自激
-    this.#clear_cache(false);
-    // 同 {@link replace}：只回灌外键，不清未保存的关系编辑
-    this.#relations.syncObservableForeignKeys();
-    // 按新基线重算是否仍有未保存改动，而不是无条件归零
-    this._modified = Object.keys(this.patch).length > 0;
+    };
   }
 
   /**
@@ -603,6 +643,58 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    */
   markContentChanged(): void {
     this.#clear_cache(true);
+  }
+
+  /** 合入一轮更新的回填行，规则见 {@link prepareUpdate} */
+  #applySaved(snapshot: UpdateSnapshot, data: Partial<InstanceType<T>>) {
+    const editedKeys = new Set<string>();
+    for (const [key, version] of this.#fieldEditVersions) {
+      if (version > snapshot.version) editedKeys.add(key);
+    }
+    const protectedKeys = new Set([...Object.keys(this.patch), ...editedKeys]);
+    if (!isStaleEventPayload(this._origin, data)) {
+      this.#mergeExternal(data, protectedKeys);
+      return;
+    }
+    const origin = this._origin as Record<string, unknown>;
+    const target = this.target as Record<string, unknown>;
+    const row = data as Record<string, unknown>;
+    const saved: Record<string, unknown> = {};
+    for (const [key, before] of snapshot.baseline) {
+      if (!(key in row)) continue;
+      if (isEqual(origin[key], before)) {
+        saved[key] = row[key];
+      } else if (!editedKeys.has(key) && isEqual(target[key], row[key])) {
+        // 已被更晚来源改写，本地值只是这次被覆盖的写入：随新基线收敛，而不是残留成待保存再写回去
+        saved[key] = origin[key];
+        protectedKeys.delete(key);
+      }
+    }
+    this.#mergeExternal(saved as Partial<InstanceType<T>>, protectedKeys);
+  }
+
+  #mergeExternal(data: Partial<InstanceType<T>>, protectedKeys: ReadonlySet<string>) {
+    const target = this.target as Record<string, unknown>;
+    const origin = this._origin as Record<string, unknown>;
+
+    for (const key of Object.keys(data) as (keyof InstanceType<T>)[]) {
+      const incoming = (data as Record<string, unknown>)[key as string];
+      // 基线一律前移
+      origin[key as string] = structuredClone(incoming);
+      if (protectedKeys.has(key as string)) this.#changed_keys.add(key);
+      // 当前 patch 没有真实差异的键才同步可见值；仍有本地编辑的保留本地值
+      if (!protectedKeys.has(key as string)) {
+        target[key as string] = incoming;
+      }
+    }
+
+    // 不推进内容修订号：适配器写回 computed 列时会先经 proxy 把实体标脏，随后正是走这条分支
+    // （`status.modified ? mergeExternal(row) : replace(row)`），在这里推进同样会自激
+    this.#clear_cache(false);
+    // 同 {@link replace}：只回灌外键，不清未保存的关系编辑
+    this.#relations.syncObservableForeignKeys();
+    // 按新基线重算是否仍有未保存改动，而不是无条件归零
+    this._modified = Object.keys(this.patch).length > 0;
   }
 
   /**
