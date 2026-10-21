@@ -18,6 +18,8 @@
 - **rxdb / rxdb-adapter-sqlite-core / -pglite / rxdb-plugin-history:** 实例挂可写检出位：`rxdb.mountWorktreeTableSet()` 换挂一套表（核对持有、清实体缓存、重跑活查询），`rxdb.worktreeTableSet` / `worktreeTableSet$`；当前分支统一成挂的那套表持有的分支（`WorktreeTableSet.heldBranchWhere`），历史插件的撤销 / 重做跟着走；挂在可写检出位上不能真切分支（US-314）
 - **rxdb-adapter-sqlite-core / -pglite / rxdb-plugin-history / -working-tree:** 可写检出位里切分支：`switchBranch()` 放开原来持有的分支、持有目标分支，这套表按增量改过去，改动留在原分支，登记行的分支跟着走；目标被主检出位或别的检出位持有时抛 `WorktreeBranchHeldError`，本地只有元数据的远端分支报 `branch_not_materialized`。激活版本号按表集：每个可写检出位一行，检出位里切分支不再让主检出位手上的提交凭据失效（US-314）
 - **rxdb / rxdb-adapter-sqlite-core / -pglite / rxdb-plugin-search:** 实体事件按表集路由：本地实体事件多了可选的 `tableSetSuffix`（写在可写检出位影子表上的带那套表的后缀，主表集上的不带、形状不变），`WorktreeTableSet#accepts()` / `ownerSuffixOf()` / `eventTagOf()`；查询管理器的增量合并与搜索插件只收本实例挂着那套表读得到的事件，多个标签页可以一个挂主检出位、一个挂可写检出位。`worktreeTableSet$` 改在清空实体缓存之后才发（US-314）
+- **rxdb-plugin-workspace:** 草稿缓存按检出位分区：挂在可写检出位上新建的草稿只在这个检出位上看得到（IndexedDB 键前面加表集后缀，主检出位的键不变、不用迁移），`list()` / `discard()` / 跨标签页同步只看本实例此刻挂的那一套；换挂时先把排队的写落盘、再换成新挂那一套的草稿（US-314）
+- **rxdb:** 换挂之后旧的实体对象写不进另一套表：`EntityStatus.tableSet` 记下建出、读出实体时挂的那套表，公开写入口发出写之前核对，不符抛 `WorktreeTableSetMismatchError`（US-314）
 - **rxdb-plugin-working-tree:** `checkouts.rename(id, name)` 给可写检出位改名（`invalid_name` / `name_taken` / `not_found`）；`add()` 同样校验名字，没给名字时取分支 id、被占了加 `-2`、`-3`；登记表 `name` 加唯一索引。`WorktreeUnavailableError` 的文案改为「检出位操作被拒（reason）」（US-314）
 - **rxdb-plugin-history:** 挂在可写检出位上合并：合进它持有的分支、落在那套影子表里，只合进得了这套表的实体（QueryCache 同步的这类只在主检出位那套表里的实体不合），`previewMerge()` 同一口径；挂在可写检出位上可推送计数为 0（US-314）
 - **rxdb:** `getCurrentBranch(rxdb, tableSet?)` 与 `findCurrentSyncRecord(…, tableSet?)` 多了可选的表集参数：读哪一套表持有的分支，缺省是本实例挂的那套（US-314）

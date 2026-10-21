@@ -14,7 +14,19 @@
  * 只排除 `*.spec.*`，独立的夹具文件会被打进发布产物。
  */
 
-import { Entity, EntityBase, PropertyType, RxDB, SyncType, type EntityType, type UUID } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  PropertyType,
+  RxDB,
+  RxDBBranch,
+  SyncType,
+  WorktreeTableSet,
+  WorktreeTableSetMismatchError,
+  type EntityType,
+  type TransactionExecutor,
+  type UUID
+} from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -737,6 +749,91 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       await closeHarness(harness);
 
       await expect(pending).rejects.toThrow(/released with unflushed changes/);
+    });
+  });
+  // ------------------------------------------------- 检出位分区（US-314 B2.4）
+
+  describe('换挂之后草稿按检出位分区（真实 mountWorktreeTableSet）', () => {
+    /**
+     * 开一套可写检出位的表：插一条分支、写上这套表的持有键，建表并播种；与工作树插件 `checkouts.add()` 落库的形状相同。
+     * 不经工作树插件：本包不依赖它，换挂只需要核心与适配器。
+     */
+    const openCheckout = async (harness: Harness, tableSet: WorktreeTableSet): Promise<void> => {
+      await harness.adapter.transaction(async (executor: TransactionExecutor) => {
+        const branch = harness.rxdb.entityManager.createEntityRef(RxDBBranch, {
+          id: 'ws-feature',
+          activated: false,
+          activeKey: tableSet.holderKey,
+          fromChangeId: null,
+          local: true,
+          remote: false
+        } as never);
+        await executor.getRepository(RxDBBranch).create(branch);
+        await harness.adapter.createWorktreeTableSet(executor, tableSet, {
+          branchId: 'ws-feature',
+          actions: { inserts: new Map(), updates: new Map(), deletes: new Map() }
+        });
+      }, false);
+    };
+
+    const titles = (workspace: RxDBPluginWorkspace) => drafts(workspace).map(entry => entry.data['title']);
+
+    it('检出位上的草稿存在带后缀的键下；挂回主检出位看不到它，再挂上原样恢复', async () => {
+      const harness = await open(nextDbName());
+      const { Draft, idbName, rxdb, workspace } = harness;
+      await workspace.ready;
+      const tableSet = WorktreeTableSet.of('wt_ws', [Draft]);
+      await openCheckout(harness, tableSet);
+
+      const mainDraft = new Draft({ title: '主检出位上的' });
+      await settle();
+      await workspace.flush();
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      await workspace.ready;
+      expect(titles(workspace)).toEqual([]);
+
+      const checkoutDraft = new Draft({ title: '检出位里的' });
+      await settle();
+      await workspace.flush();
+      expect(titles(workspace)).toEqual(['检出位里的']);
+      const stored = await readStore(idbName);
+      expect(stored.has(cacheIdOf(mainDraft))).toBe(true);
+      expect(stored.has(`wt_ws:${cacheIdOf(checkoutDraft)}`)).toBe(true);
+      expect(stored.has(cacheIdOf(checkoutDraft))).toBe(false);
+
+      await rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+      await workspace.ready;
+      expect(titles(workspace)).toEqual(['主检出位上的']);
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      await workspace.ready;
+      expect(titles(workspace)).toEqual(['检出位里的']);
+    });
+
+    it('换挂之前的实体对象存不进另一套表；在挂着的那套表上恢复出来的草稿照常存', async () => {
+      const harness = await open(nextDbName());
+      const { Draft, rxdb, workspace } = harness;
+      await workspace.ready;
+      const tableSet = WorktreeTableSet.of('wt_ws', [Draft]);
+      await openCheckout(harness, tableSet);
+      const stale = new Draft({ title: '主检出位上新建的' });
+      await settle();
+      await workspace.flush();
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      await workspace.ready;
+      await expect((stale as unknown as { save(): Promise<unknown> }).save()).rejects.toBeInstanceOf(
+        WorktreeTableSetMismatchError
+      );
+
+      await rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+      await workspace.ready;
+      const [restored] = drafts(workspace);
+      const draft = rxdb.entityManager.getEntityRef(Draft, restored.id) as unknown as { save(): Promise<unknown> };
+      await draft.save();
+      // 草稿由适配器按变更行异步派出的 CREATE 收尾
+      await expect.poll(() => titles(workspace)).toEqual([]);
     });
   });
 });

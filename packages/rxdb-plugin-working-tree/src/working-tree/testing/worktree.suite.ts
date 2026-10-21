@@ -43,7 +43,8 @@ import {
   RxDBReadOnlyError,
   uuid,
   WorktreeBranchHeldError,
-  WorktreeTableSet
+  WorktreeTableSet,
+  WorktreeTableSetMismatchError
 } from '@aiao/rxdb';
 import { WorktreeUnavailableError } from '../../checkout/worktree-errors.js';
 import { holdWorktreeLock, worktreeLockName } from '../../checkout/worktree-locks.js';
@@ -977,6 +978,23 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
         expect(await tablesOf(database)).toEqual(inCheckout);
         await database.versionManager.switchBranch(FEATURE);
         expect((await rowsOf(database, WorktreeConformanceTask)).map(row => row.id)).toContain(written.id);
+      });
+
+      // 换挂之后旧的实体对象写不进另一套表（US-314 B2.4）：照存的话主检出位上新建的实体会落进检出位的影子表
+      it('主检出位上新建、还没存的实体，挂到检出位之后存被拒、一行不落；挂回主检出位照常存', async () => {
+        await seedTwoBranches(database);
+        const pending = database.entityManager.instantiate(WorktreeConformanceTask);
+        Object.assign(pending, { title: '主检出位上没存的', priority: 1, dueAt: null, meta: null });
+        const worktree = await checkoutsOf().add(FEATURE);
+        await checkoutsOf().mount(worktree.id);
+        const before = await tablesOf(database);
+
+        await expect(pending.save()).rejects.toBeInstanceOf(WorktreeTableSetMismatchError);
+        expect(await tablesOf(database)).toEqual(before);
+
+        await checkoutsOf().mountMain();
+        await pending.save();
+        expect((await rowsOf(database, WorktreeConformanceTask)).map(row => row.id)).toContain(pending.id);
       });
 
       it('检出位里切到被占的分支：主检出位的当前分支、另一个检出位持有的，都被拒，一处不动', async () => {

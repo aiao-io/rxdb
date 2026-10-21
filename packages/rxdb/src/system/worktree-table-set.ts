@@ -198,3 +198,32 @@ export class WorktreeTableSet {
     return suffix === undefined ? {} : { tableSetSuffix: suffix };
   }
 }
+
+/**
+ * 要写的实体不是在本实例此刻挂的那套表上建出、读出的，写被拒（US-314 B2.4）。
+ *
+ * @remarks
+ * 换挂（`mountWorktreeTableSet`）清掉了实体身份缓存，可调用方手里还可能攥着换挂之前的实体对象（表单、草稿缓存）。
+ * 照存的话它会写进另一套表：主检出位上新建的实体存进检出位的影子表，主表上读出的行拿主表上的值改影子表里同 id 的那一行。
+ * 在挂着的那套表上重新读出来（或重新建）再存；挂回建出它的那套表也能存。
+ */
+export class WorktreeTableSetMismatchError extends RxDBError {
+  /** 稳定错误码，恒为 `'worktree_table_set_mismatch'` */
+  readonly code = 'worktree_table_set_mismatch';
+
+  constructor(
+    /** 实体，`<namespace>.<name>` */
+    readonly entity: string,
+    /** 这个实体的写当初落在哪套表：影子表集的后缀，主表集为 `null` */
+    readonly entityTableSet: string | null,
+    /** 本实例此刻挂的那套表上它的写落在哪套表：影子表集的后缀，主表集为 `null` */
+    readonly mountedTableSet: string | null
+  ) {
+    super(
+      `Entity ${entity} was created or read on table set ${entityTableSet ?? 'main'}, but this instance is mounted on ` +
+        `${mountedTableSet ?? 'main'}; read it again on the mounted worktree before writing it.`
+    );
+    this.name = 'WorktreeTableSetMismatchError';
+    Object.setPrototypeOf(this, WorktreeTableSetMismatchError.prototype);
+  }
+}

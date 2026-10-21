@@ -3,6 +3,7 @@ import { assertEntityOperationAllowed } from '../entity/entity-permissions.js';
 import { EntityStaticType, EntityType } from '../entity/entity.interface.js';
 import { SyncOptions, SyncType } from '../entity/metadata-options.interface.js';
 import { selectPrimaryAdapterKind } from '../entity/primary-adapter.js';
+import { assertMountedTableSet } from '../entity/worktree-table-set-guard.js';
 import type { RawQueryResult } from '../rxdb-adapter.js';
 import { REMOTE_ENTITY_INVALIDATED_EVENT, RemoteEntityInvalidatedEvent } from '../rxdb-events.js';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
@@ -438,10 +439,12 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * @param entity 要创建的实体实例
    * @throws {@link RxDBReadOnlyError} 只读实例（以 rejected Promise 给出）
    * @throws {@link PermissionDeniedError} 实体声明 `create: 'system'`（以 rejected Promise 给出）
+   * @throws {@link WorktreeTableSetMismatchError} 实体不是在本实例此刻挂的那套表上建出的（以 rejected Promise 给出）
    */
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
     // 判定在 `primary$` 之前：与主端选哪边无关，被拒时连适配器都不碰（US-027）
     this.#assertWritable('create');
+    assertMountedTableSet(this.rxdb, [entity]);
     assertEntityOperationAllowed(this.EntityType, 'create');
     const metadata = getEntityMetadata(this.EntityType);
     if (isManualOrderEntity(metadata)) {
@@ -462,12 +465,14 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * @throws {@link RxDBReadOnlyError} 只读实例（以 rejected Promise 给出）
    * @throws {@link PermissionDeniedError} 实体声明 `update: 'system'`（以 rejected Promise 给出）
    * @throws {@link SortOrderError} 手动排序键不合法；改分组字段落在 remote-only / QueryCache 主端
+   * @throws {@link WorktreeTableSetMismatchError} 实体不是在本实例此刻挂的那套表上读出的（以 rejected Promise 给出）
    *
    * @remarks
    * 分组手动排序实体改了分组字段而没给 `sortOrder` 时，在主适配器事务内追加到新组末尾（US-028 AC#16）。
    */
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     this.#assertWritable('update');
+    assertMountedTableSet(this.rxdb, [entity]);
     assertEntityOperationAllowed(this.EntityType, 'update');
     const metadata = getEntityMetadata(this.EntityType);
     if (isManualOrderEntity(metadata) && SORT_ORDER_FIELD in patch) {
@@ -486,9 +491,11 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * @param entity 要删除的实体实例
    * @throws {@link RxDBReadOnlyError} 只读实例（以 rejected Promise 给出）
    * @throws {@link PermissionDeniedError} 实体声明 `delete: 'system'`（以 rejected Promise 给出）
+   * @throws {@link WorktreeTableSetMismatchError} 实体不是在本实例此刻挂的那套表上读出的（以 rejected Promise 给出）
    */
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
     this.#assertWritable('delete');
+    assertMountedTableSet(this.rxdb, [entity]);
     assertEntityOperationAllowed(this.EntityType, 'delete');
     const observer = this.primary$.pipe(switchMap(repo => repo.remove(entity)));
     return firstValueFrom(observer);

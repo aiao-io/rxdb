@@ -191,7 +191,7 @@ INVEST 检查清单:
     删掉检出位再切过去历史里有这个提交）、验收 4（再开被占的分支、开主检出位的当前分支、主检出位切过去都被拒，删掉之后放行）、
     播种 / 写过之后与「删掉检出位再切过去」逐行一致、开删不改主表原值也不写变更日志、密钥环上锁照样开得了、会话与持久归属的回收、
     `in_use`。适配器级（sqlite-core 共享套件与 PGlite 同名用例）：播种不记日志、增量越界整笔拒绝、按目录删、自增序列对齐。
-  - **已知限制**（B2 之前；B2.1 起去掉了已解决的项）：全文检索、草稿缓存只在主表集；整数自增主键跨套可能撞 id
+  - **已知限制**（B2 之前；B2.1 起去掉了已解决的项）：全文检索只在主表集；整数自增主键跨套可能撞 id
     （owner 定：播种时对齐序列，记限制）；远端分支要先在主检出位上物化才能开、才能在检出位里切过去。
 - **守卫与修复**（阶段 B2.1，2026-10-21 调研查出 B1 交付里的缺陷，先修再做 B2 的新能力）：
   - 被可写检出位持有的分支删不掉：`remove_branch` 在 `activated` 之外再看 `activeKey`（核心的 `WorktreeBranchHeldError.heldBy`，
@@ -267,6 +267,24 @@ INVEST 检查清单:
     一端断开另一端照常读写与收事件且新标签页还能连、孤儿事务被下一个拿锁的回滚；客户端的持有者计数、重复交还、孤儿回滚），
     修之前适配器那三条在两个后端上都红；wa-sqlite `worktree-cross-connection.spec.ts` 按 IndexedDB 多连接与 SharedWorker
     共用连接各跑一遍（共用连接时变更事件由 update hook 直接派给两边，路由同样要挡住）。
+- **草稿缓存按检出位、换挂之后旧实体对象存不进另一套表**（阶段 B2.4）：
+  - 草稿缓存（`@aiao/rxdb-plugin-workspace`）按分区存：分区就是草稿存下去会写进哪套表（NEW 事件的 `tableSetSuffix`），
+    主表集的草稿键照旧 `namespace:entity:id`，可写检出位的草稿键前面加表集后缀（`wt_x:namespace:entity:id`）。
+    计划里设想的 `v2:` 前缀与迁移没做：主表集的键不改，旧草稿原样认得，四段键靠首段是不是表集后缀区分。
+  - 内存里只有本实例此刻挂的那套表读得到的草稿（视图），判定与活查询的事件路由同一个（`WorktreeTableSet.accepts`）：
+    进影子表集的实体只认挂着那套表的分区，不进的（QueryCache 同步的这类）只认主表集，查不到的实体照收。
+    `list()` / `discard()`、NEW / CREATE / REMOVE 事件、跨标签页的 add / remove（消息多了可选的 `partition`，旧版本不带、按主表集认）都只看视图。
+  - 换挂：插件订阅 `worktreeTableSet$`（B2.3a 已挪到清实体缓存之后发），清掉内存视图，先让排着队的写落盘
+    （入队时就按草稿的分区算定了键，换挂之后照常落到旧分区上），再按新挂的那套表装载；`ready` 等它装完。
+    装载途中又换了挂、断了连，旧的那一轮按视图的代让位。
+  - 保存守卫（核心）：`EntityStatus.tableSet` 记下建出、读出实体时本实例挂的那套表；门面 Repository 的 create / update / remove
+    与 `EntityManager.mutations` 在发出写之前核对「这个实体的写落在哪套表」，不符抛 `WorktreeTableSetMismatchError`、一条不写。
+    换挂清掉了实体身份缓存，可调用方手里还攥着旧对象（表单、草稿），照存会写进另一套表。不进影子表集的实体、
+    同一个检出位重新挂上（后缀相同）都不拦；执行器上的写（事务里的内部写）不过这一道。
+  - 一致性：工作区插件单测（检出位上的草稿键、只恢复视图里的、换挂先落盘再换视图且挂回原样恢复、别的表集上的 CREATE 不清草稿、
+    广播带分区且收方按视图收、discard 删带后缀的键）与浏览器集成用例（真实 `mountWorktreeTableSet` + 真 IndexedDB：
+    分区往返、换挂前的实体存被拒、挂回之后恢复出来的草稿照常存）；核心守卫单测（各写入口、批量整批拒、挂回放行、
+    同后缀重挂放行、不进影子表的实体放行）；检出位套件（六个后端）加「主检出位上新建还没存的实体，挂到检出位之后存被拒、一行不落，挂回照常存」。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -317,6 +335,9 @@ INVEST 检查清单:
   （`release` / `rollbackOrphanTransaction`）、`handle_rxdb_change.ts`；`packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts`、
   `packages/rxdb-adapter-sqlite-wasm/src/SqliteClient.ts` 与两个包的 `create_sqlite_client.ts` / `RxDBAdapterSqlite.ts`；
   两个包的 `__tests__/shared-client.spec.ts` 与 SharedWorker 夹具 — SharedWorker 共用连接（B2.3b）
+- `packages/rxdb-plugin-workspace/src/workspace-entry.ts`（`workspaceStorageKeyOf` / `splitWorkspaceStorageKey`）、`RxDBPluginWorkspace.ts`；
+  `packages/rxdb/src/system/worktree-table-set.ts`（`WorktreeTableSetMismatchError`）、`entity/entity-status.ts`（`tableSet`）、
+  `entity/worktree-table-set-guard.ts`、`repository/Repository.ts`、`entity/entity-manager.ts` — 草稿缓存按检出位与保存守卫（B2.4）
 - `packages/rxdb/src/system/active-branch-guard.ts`（`WorktreeBranchHeldError`）、`system/system-repositories.ts`、
   两个适配器的 `version/switch_branch.ts` 与系统迁移（sqlite-core `RxDBAdapterSqliteBase.ts`、PGlite `system/migrate_system_schema.ts`）
   — 分支持有模型
