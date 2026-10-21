@@ -19,7 +19,7 @@
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
 > **30 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
-> 任务看板领域模型共 8 条，其中 US-526～US-532 共 7 条于 2026-10-19 由 owner 解锁进批次 5（驱动者 = 下一个完整演示应用，见 [epic-011 解锁记录](epics/epic-011-task-board-domain-model.md#价值待证整个-epic)），US-526 已开工，US-533 团队版仍价值待证；
+> 任务看板领域模型共 8 条，其中 US-526～US-532 共 7 条于 2026-10-19 由 owner 解锁进批次 6（驱动者 = 下一个完整演示应用，见 [epic-011 解锁记录](epics/epic-011-task-board-domain-model.md#价值待证整个-epic)），US-526 已开工，US-533 团队版仍价值待证；
 > [US-911](stories/future/US-911-client-i18n.md) 阶段 A～C 无硬前置、可开工，在立项池待 owner 定批次；[US-029](stories/core/US-029-rbac-owner-role-permission.md)
 > 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
 > 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
@@ -210,7 +210,7 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 ### [任务看板领域模型](epics/epic-011-task-board-domain-model.md)
 
 **范围共 8 条，7 条已解锁（2026-10-19，owner 决定）**：US-526～US-532 交付单人任务看板与独立演示应用；US-533 团队版不随之解锁。
-豁免依据见 [epic-011 解锁记录](epics/epic-011-task-board-domain-model.md#价值待证整个-epic)，排期见 [roadmap 批次 5](roadmap.md#批次-5看板首轮切片epic-011-已解锁)。
+豁免依据见 [epic-011 解锁记录](epics/epic-011-task-board-domain-model.md#价值待证整个-epic)，排期见 [roadmap 批次 6](roadmap.md#批次-6看板首轮切片epic-011-已解锁)。
 首轮消费已有排序、事务、历史、备份与搜索能力，应用层仍须实现 executor 本列排序、板级搜索过滤 / 分页、连接前恢复与重载切换、落点换算与三端交互；存储组合为 sqlite-wasm 主线程 `vfs: 'idb'`。
 团队身份、成员写门禁、RLS 接线与冲突规则尚未交付。开工前先拿种子样本复核默认决策 1～6 并实测存储组合，见 [epic-011 首轮可开工切片](epics/epic-011-task-board-domain-model.md#首轮可开工切片)。
 US-533 团队版仍价值待证（入场条件 = 具名团队「离线拖拽任务、回网后互相覆盖」的具体症状）。
