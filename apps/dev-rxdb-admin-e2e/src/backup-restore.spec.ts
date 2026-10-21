@@ -2,15 +2,7 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  createAsset,
-  createCategory,
-  expectActionIcon,
-  expectFilteredCount,
-  expectListEmpty,
-  expectListHasRows,
-  resetE2eState
-} from './e2e-utils.js';
+import { createAsset, createCategory, expectActionIcon, expectListHasRows, resetE2eState } from './e2e-utils.js';
 
 /**
  * US-527 备份恢复闭环：备份产出可下载归档；独立环境（全新 browser context =
@@ -71,8 +63,8 @@ test.describe('工作台备份与恢复', () => {
       await fresh.getByRole('link', { name: /去实体列表继续编辑/ }).click();
       await fresh.waitForURL('**/entities/assets/Asset');
       await expectListHasRows(fresh);
-      // 恢复后继续编辑：改名保存，刷新重开仍在
-      const edit = await expectActionIcon(fresh, 'edit-action', 1);
+      // 恢复后继续编辑：查看即编辑模式，改名保存，刷新重开仍在
+      const edit = await expectActionIcon(fresh, 'view-action', 1);
       await fresh.mouse.click(edit.x, edit.y);
       await expect(fresh.getByRole('tab', { name: '基本信息' })).toBeVisible();
       await fresh.getByRole('group', { name: '名称' }).getByRole('textbox').fill('工作站');
