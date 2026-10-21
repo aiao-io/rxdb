@@ -11,7 +11,7 @@
       <select
         class="board-selector"
         [ngModel]="b.currentBoardId()"
-        (ngModelChange)="b.selectBoard($event)"
+        (ngModelChange)="onSelectBoard($event)"
         aria-label="选择看板"
         data-testid="board-selector"
       >
@@ -79,6 +79,52 @@
       <p class="board-notice" data-testid="board-notice" role="alert">{{ message }}</p>
     }
 
+    <!-- 板内搜索（US-539 阶段 B） -->
+    @if (b.searchSource) {
+      <div class="board-search" data-testid="board-search">
+        <input
+          class="search-input"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchInput($event)"
+          aria-label="搜索当前板任务"
+          data-testid="board-search-input"
+          placeholder="搜索当前板任务"
+        />
+        @if (searchQuery().trim() !== '') {
+          <div class="search-results" data-testid="board-search-results">
+            @switch (searchState()) {
+              @case ('loading') {
+                <p class="search-state" data-testid="board-search-loading">搜索中…</p>
+              }
+              @case ('error') {
+                <p class="search-state" data-testid="board-search-error">{{ searchErrorText() }}</p>
+              }
+              @case ('empty') {
+                <p class="search-state" data-testid="board-search-empty">无匹配</p>
+              }
+              @default {
+                @for (result of searchResults(); track result.id) {
+                  <button
+                    class="search-result"
+                    [disabled]="searchState() === 'loading'"
+                    (click)="onSearchResultClick(result)"
+                    data-testid="board-search-result"
+                  >
+                    <span class="search-result-title">{{ searchResultTitle(result) }}</span>
+                    <span class="search-result-column">{{ searchColumnTitle(result) }}</span>
+                    <span class="search-result-snippet">{{ result.snippet }}</span>
+                  </button>
+                }
+                @if (searchHasMore()) {
+                  <button class="search-more" (click)="onSearchMore()" data-testid="board-search-more">加载更多</button>
+                }
+              }
+            }
+          </div>
+        }
+      </div>
+    }
+
     <!-- 列区 -->
     @if (b.currentBoard(); as current) {
       <div class="columns" data-testid="columns">
@@ -131,6 +177,7 @@
                 <article
                   class="card"
                   [attr.data-task-id]="task.id"
+                  [class.search-hit]="searchHighlightId() === task.id"
                   (dragstart)="onTaskDragStart($event, task)"
                   data-testid="task-card"
                   draggable="true"

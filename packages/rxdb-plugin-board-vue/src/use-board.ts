@@ -8,10 +8,12 @@ import {
   BoardLabel,
   BoardLabelService,
   BoardMoveService,
+  BoardSearchSource,
   BoardWriteNotifier,
   Column,
   Task,
   TaskLabel,
+  type BoardSearchUpstream,
   type CardDropTarget,
   type ColumnSortMode,
   type DeletePlan,
@@ -44,9 +46,13 @@ export interface UseBoardStorage {
 
 export interface UseBoardOptions {
   readonly storage?: UseBoardStorage;
+  /** 板内搜索（US-539 阶段 B）：注入上游全文源（搜索插件实例）。不传则无搜索能力。 */
+  readonly search?: { readonly upstream: BoardSearchUpstream };
 }
 
 export interface UseBoardReturn {
+  /** 板级搜索源（US-539 阶段 B）；宿主未注入上游时为 `null`（入口禁用）。 */
+  readonly searchSource: BoardSearchSource | null;
   readonly boards: Ref<readonly Board[]>;
   readonly currentBoardId: Ref<UUID | null>;
   readonly currentBoard: Ref<Board | null>;
@@ -130,10 +136,12 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   const restoring$ = new BehaviorSubject<boolean>(false);
 
   let actions!: UseBoardActions;
+  let searchSource: BoardSearchSource | null = null;
 
   const scope = effectScope();
   scope.run(() => {
     const ctx = () => ({ boardId: boardId$.value, restoring: restoring$.value });
+    searchSource = options?.search ? new BoardSearchSource(rxdb, ctx, options.search.upstream, {}) : null;
     const domain = new BoardDomain(rxdb, ctx);
     const deletes = new BoardDeleteService(rxdb, ctx);
     const details = new BoardDetailService(rxdb, ctx);
@@ -289,6 +297,7 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   };
 
   return {
+    searchSource,
     boards: readonly(boards),
     currentBoardId: readonly(currentBoardId),
     currentBoard: readonly(currentBoard),

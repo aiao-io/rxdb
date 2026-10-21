@@ -97,7 +97,7 @@ describe('BoardViewComponent（Angular 视图）', () => {
       await waitFor(fixture, () => fixture.nativeElement.querySelector('[data-testid="column"]') !== null, '建列');
       (fixture.nativeElement.querySelector('[data-testid="add-task"]') as HTMLButtonElement).click();
       await waitFor(fixture, () => fixture.nativeElement.querySelector('[data-testid="task-card"]') !== null, '建任务');
-      expect(fixture.nativeElement.querySelector('[data-testid="task-title"]')?.textContent).toBe('任务 1');
+      expect(fixture.nativeElement.querySelector('[data-testid="task-title"]')?.textContent?.trim()).toBe('任务 1');
     } finally {
       window.prompt = originalPrompt;
     }

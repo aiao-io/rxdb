@@ -8,10 +8,14 @@ import {
   resolveColumnDrop,
   Task,
   type BoardLabel,
+  type BoardSearchUpstream,
   type CardDropTarget,
+  type SearchHandle,
+  type SearchResult,
   type TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
-import { useMemo, useState, type DragEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { Subscription } from 'rxjs';
 import './board-view.css';
 
 import { useBoard } from './use-board.js';
@@ -32,13 +36,83 @@ export interface BoardViewProps {
 }
 
 export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
-  const board = useBoard(rxdb);
+  const searchUpstream = rxdb.getPlugins('search')[0];
+  const board = useBoard(
+    rxdb,
+    searchUpstream ? { search: { upstream: searchUpstream as unknown as BoardSearchUpstream } } : undefined
+  );
   const [editTitleTaskId, setEditTitleTaskId] = useState<UUID | null>(null);
   const [editTitleValue, setEditTitleValue] = useState<string>('');
   const [detailTaskId, setDetailTaskId] = useState<UUID | null>(null);
   const [draft, setDraft] = useState({ title: '', description: '', dueDate: '', labelIds: [] as readonly UUID[] });
   const [snapshot, setSnapshot] = useState<TaskDraftSnapshot | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+
+  // ---------- 板内搜索（US-539 阶段 B） ----------
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchState, setSearchState] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
+  const [searchResults, setSearchResults] = useState<readonly SearchResult[]>([]);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchErrorText, setSearchErrorText] = useState<string | null>(null);
+  const [searchHighlightId, setSearchHighlightId] = useState<UUID | null>(null);
+  const searchHandleRef = useRef<SearchHandle | null>(null);
+  const searchSubsRef = useRef<Subscription | null>(null);
+  const highlightTimerRef = useRef<number | null>(null);
+
+  const destroySearch = (): void => {
+    searchHandleRef.current?.destroy();
+    searchHandleRef.current = null;
+    setSearchState('idle');
+    setSearchResults([]);
+    setSearchHasMore(false);
+    setSearchErrorText(null);
+  };
+
+  const onSearchInput = (value: string): void => {
+    setSearchQuery(value);
+    const query = value.trim();
+    if (query === '') {
+      destroySearch();
+      return;
+    }
+    const source = board.searchSource;
+    if (!source) return;
+    if (searchHandleRef.current === null) {
+      const handle = source.search(query);
+      searchHandleRef.current = handle;
+      // 上一组句柄订阅先退订（destroy 不保证上游 observable 不再发射）
+      searchSubsRef.current?.unsubscribe();
+      const subs = new Subscription();
+      subs.add(handle.state$.subscribe(state => setSearchState(state)));
+      subs.add(handle.results$.subscribe(results => setSearchResults(results)));
+      subs.add(handle.hasMore$.subscribe(more => setSearchHasMore(more)));
+      subs.add(handle.error$.subscribe(error => setSearchErrorText(String(error))));
+      searchSubsRef.current = subs;
+    } else {
+      searchHandleRef.current.setQuery(query);
+    }
+  };
+
+  /** 点结果：滚动到目标卡片并短暂高亮（更新中不可点）。 */
+  const onSearchResultClick = (result: SearchResult): void => {
+    if (searchState === 'loading') return;
+    document.querySelector<HTMLElement>(`[data-task-id="${result.id}"]`)?.scrollIntoView({ block: 'center' });
+    const targetId = result.id as UUID;
+    setSearchHighlightId(targetId);
+    if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = window.setTimeout(() => {
+      setSearchHighlightId(current => (current === targetId ? null : current));
+    }, 2000);
+  };
+
+  useEffect(
+    () => () => {
+      if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
+      searchSubsRef.current?.unsubscribe();
+      searchHandleRef.current?.destroy();
+    },
+    []
+  );
   const [notice, setNotice] = useState<string | null>(null);
 
   const taskMap = useMemo(() => {
@@ -257,11 +331,21 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const labelsOf = (taskId: UUID): readonly BoardLabel[] => board.taskLabels.get(taskId) ?? [];
 
+  const onSelectBoard = (boardId: UUID): void => {
+    board.selectBoard(boardId);
+    // 切板丢弃旧板结果：销毁重建句柄重发（setQuery 同词会被 distinctUntilChanged 吞掉）
+    const query = searchQuery.trim();
+    if (query !== '') {
+      destroySearch();
+      onSearchInput(query);
+    }
+  };
+
   const boardSelector = (
     <select
       className='board-selector'
       value={board.currentBoardId ?? ''}
-      onChange={event => board.selectBoard(event.target.value as UUID)}
+      onChange={event => onSelectBoard(event.target.value as UUID)}
       data-testid='board-selector'
       aria-label='选择看板'
     >
@@ -410,6 +494,67 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         </p>
       : null}
 
+      {/* 板内搜索（US-539 阶段 B） */}
+      {board.searchSource ?
+        <div className='board-search' data-testid='board-search'>
+          <input
+            className='search-input'
+            value={searchQuery}
+            onChange={event => onSearchInput(event.target.value)}
+            placeholder='搜索当前板任务'
+            aria-label='搜索当前板任务'
+            data-testid='board-search-input'
+          />
+          {searchQuery.trim() !== '' ?
+            <div className='search-results' data-testid='board-search-results'>
+              {searchState === 'loading' ?
+                <p className='search-state' data-testid='board-search-loading'>
+                  搜索中…
+                </p>
+              : searchState === 'error' ?
+                <p className='search-state' data-testid='board-search-error'>
+                  {searchErrorText}
+                </p>
+              : searchState === 'empty' ?
+                <p className='search-state' data-testid='board-search-empty'>
+                  无匹配
+                </p>
+              : <>
+                  {searchResults.map(result => (
+                    <button
+                      key={result.id}
+                      className='search-result'
+                      onClick={() => onSearchResultClick(result)}
+                      data-testid='board-search-result'
+                    >
+                      <span className='search-result-title'>
+                        {board.tasks.find(task => task.id === (result.id as UUID))?.title ?? ''}
+                      </span>
+                      <span className='search-result-column'>
+                        {board.columns.find(column => {
+                          const task = board.tasks.find(candidate => candidate.id === (result.id as UUID));
+                          return task ? column.id === task.columnId : false;
+                        })?.title ?? ''}
+                      </span>
+                      <span className='search-result-snippet'>{result.snippet}</span>
+                    </button>
+                  ))}
+                  {searchHasMore ?
+                    <button
+                      className='search-more'
+                      onClick={() => void searchHandleRef.current?.loadMore()}
+                      data-testid='board-search-more'
+                    >
+                      加载更多
+                    </button>
+                  : null}
+                </>
+              }
+            </div>
+          : null}
+        </div>
+      : null}
+
       <div className='columns' data-testid='columns'>
         {board.columns.map(column => (
           <section
@@ -485,7 +630,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               {(taskMap.get(column.id) ?? []).map(task => (
                 <article
                   key={task.id}
-                  className='card'
+                  className={searchHighlightId === task.id ? 'card search-hit' : 'card'}
                   data-task-id={task.id}
                   draggable
                   onDragStart={event => onTaskDragStart(event, task)}

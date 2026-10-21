@@ -8,10 +8,12 @@ import {
   BoardLabel,
   BoardLabelService,
   BoardMoveService,
+  BoardSearchSource,
   BoardWriteNotifier,
   Column,
   Task,
   TaskLabel,
+  type BoardSearchUpstream,
   type CardDropTarget,
   type ColumnSortMode,
   type DeletePlan,
@@ -51,9 +53,13 @@ export interface UseBoardStorage {
 export interface UseBoardOptions {
   /** 本地记录存储（默认 localStorage；测试注入内存表）。 */
   readonly storage?: UseBoardStorage;
+  /** 板内搜索（US-539 阶段 B）：注入上游全文源（搜索插件实例）。不传则无搜索能力。 */
+  readonly search?: { readonly upstream: BoardSearchUpstream };
 }
 
 export interface UseBoardReturn {
+  /** 板级搜索源（US-539 阶段 B）；宿主未注入上游时为 `null`（入口禁用）。 */
+  readonly searchSource: BoardSearchSource | null;
   /** 全部板（创建时间升序、同时刻按 id）。 */
   readonly boards: Signal<readonly Board[]>;
   /** 当前板 id（本地记录持久化）。 */
@@ -148,6 +154,7 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   const writeEvent = signal<{ readonly kind: string; readonly reason?: string } | null>(null);
 
   const ctx = () => ({ boardId: boardId$.value, restoring: restoring$.value });
+  const searchSource = options?.search ? new BoardSearchSource(rxdb, ctx, options.search.upstream, {}) : null;
   const domain = new BoardDomain(rxdb, ctx);
   const deletes = new BoardDeleteService(rxdb, ctx);
   const details = new BoardDetailService(rxdb, ctx);
@@ -305,6 +312,7 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   };
 
   return {
+    searchSource,
     boards: boards.asReadonly(),
     currentBoardId: currentBoardId.asReadonly(),
     currentBoard: currentBoard.asReadonly(),

@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { computed, ref, toRaw } from 'vue';
+import { computed, onBeforeUnmount, ref, toRaw } from 'vue';
 import type { UUID } from '@aiao/rxdb';
 import {
   labelTextColor,
   resolveCardDrop,
   resolveColumnDrop,
   type BoardLabel,
+  type BoardSearchUpstream,
   type CardDropTarget,
+  type SearchHandle,
+  type SearchResult,
   type TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
+import { Subscription } from 'rxjs';
 
 import { useBoard } from './use-board.js';
 
@@ -29,7 +33,11 @@ const props = defineProps<{
 
 // Vue 会把 props 包成 reactive 代理：类实例（EntityManager 等）经代理调用
 // 会丢私有成员与原型链，必须取回原始对象（Vue 官方 toRaw 语义）
-const board = useBoard(toRaw(props.rxdb));
+const searchUpstream = toRaw(props.rxdb).getPlugins('search')[0];
+const board = useBoard(
+  toRaw(props.rxdb),
+  searchUpstream ? { search: { upstream: searchUpstream as unknown as BoardSearchUpstream } } : undefined
+);
 
 const editTitleTaskId = ref<UUID | null>(null);
 const editTitleValue = ref('');
@@ -37,6 +45,79 @@ const detailTaskId = ref<UUID | null>(null);
 const draft = ref({ title: '', description: '', dueDate: '', labelIds: [] as readonly UUID[] });
 const snapshot = ref<TaskDraftSnapshot | null>(null);
 const confirm = ref<ConfirmState | null>(null);
+
+// ---------- 板内搜索（US-539 阶段 B） ----------
+const searchQuery = ref('');
+const searchState = ref<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
+const searchResults = ref<readonly SearchResult[]>([]);
+const searchHasMore = ref(false);
+const searchErrorText = ref<string | null>(null);
+const searchHighlightId = ref<UUID | null>(null);
+let searchHandle: SearchHandle | null = null;
+let searchSubs: Subscription | null = null;
+let highlightTimer: number | null = null;
+
+const destroySearch = (): void => {
+  searchHandle?.destroy();
+  searchHandle = null;
+  searchState.value = 'idle';
+  searchResults.value = [];
+  searchHasMore.value = false;
+  searchErrorText.value = null;
+};
+
+const onSearchInputValue = (value: string): void => {
+  searchQuery.value = value;
+  const query = value.trim();
+  if (query === '') {
+    destroySearch();
+    return;
+  }
+  const source = board.searchSource;
+  if (!source) return;
+  if (searchHandle === null) {
+    const handle = source.search(query);
+    searchHandle = handle;
+    // 上一组句柄订阅先退订（destroy 不保证上游 observable 不再发射）
+    searchSubs?.unsubscribe();
+    const subs = new Subscription();
+    subs.add(handle.state$.subscribe(state => (searchState.value = state)));
+    subs.add(handle.results$.subscribe(results => (searchResults.value = results)));
+    subs.add(handle.hasMore$.subscribe(more => (searchHasMore.value = more)));
+    subs.add(handle.error$.subscribe(error => (searchErrorText.value = String(error))));
+    searchSubs = subs;
+  } else {
+    searchHandle.setQuery(query);
+  }
+};
+
+const onSearchInput = (event: Event): void => {
+  onSearchInputValue((event.target as HTMLInputElement).value);
+};
+
+/** 点结果：滚动到目标卡片并短暂高亮（更新中由「搜索中」状态接管，无结果可点）。 */
+const onSearchResultClick = (result: SearchResult): void => {
+  document.querySelector<HTMLElement>(`[data-task-id="${result.id}"]`)?.scrollIntoView({ block: 'center' });
+  const targetId = result.id as UUID;
+  searchHighlightId.value = targetId;
+  if (highlightTimer !== null) window.clearTimeout(highlightTimer);
+  highlightTimer = window.setTimeout(() => {
+    if (searchHighlightId.value === targetId) searchHighlightId.value = null;
+  }, 2000);
+};
+
+const searchResultTitle = (result: SearchResult): string =>
+  board.tasks.value.find(task => task.id === (result.id as UUID))?.title ?? '';
+const searchResultColumn = (result: SearchResult): string => {
+  const task = board.tasks.value.find(candidate => candidate.id === (result.id as UUID));
+  return task ? (board.columns.value.find(column => column.id === task.columnId)?.title ?? '') : '';
+};
+
+onBeforeUnmount(() => {
+  if (highlightTimer !== null) window.clearTimeout(highlightTimer);
+  searchSubs?.unsubscribe();
+  searchHandle?.destroy();
+});
 const notice = ref<string | null>(null);
 
 const taskMap = computed(() => {
@@ -274,6 +355,12 @@ const labelsOf = (taskId: UUID): readonly BoardLabel[] => board.taskLabels.value
 
 const onSelectBoard = (event: Event): void => {
   board.selectBoard((event.target as HTMLSelectElement).value as UUID);
+  // 切板丢弃旧板结果：销毁重建句柄重发（setQuery 同词会被 distinctUntilChanged 吞掉）
+  const query = searchQuery.value.trim();
+  if (query !== '') {
+    destroySearch();
+    onSearchInputValue(query);
+  }
 };
 
 const onRenameBoard = (): void => {
@@ -438,6 +525,66 @@ type ConfirmState =
         >{{ notice }}</p
       >
 
+      <!-- 板内搜索（US-539 阶段 B） -->
+      <div
+        v-if="board.searchSource"
+        class="board-search"
+        data-testid="board-search"
+      >
+        <input
+          class="search-input"
+          :value="searchQuery"
+          @input="onSearchInput"
+          placeholder="搜索当前板任务"
+          aria-label="搜索当前板任务"
+          data-testid="board-search-input"
+        />
+        <div
+          v-if="searchQuery.trim() !== ''"
+          class="search-results"
+          data-testid="board-search-results"
+        >
+          <p
+            v-if="searchState === 'loading'"
+            class="search-state"
+            data-testid="board-search-loading"
+            >搜索中…</p
+          >
+          <p
+            v-else-if="searchState === 'error'"
+            class="search-state"
+            data-testid="board-search-error"
+            >{{ searchErrorText }}</p
+          >
+          <p
+            v-else-if="searchState === 'empty'"
+            class="search-state"
+            data-testid="board-search-empty"
+            >无匹配</p
+          >
+          <template v-else>
+            <button
+              v-for="result in searchResults"
+              :key="result.id"
+              class="search-result"
+              @click="onSearchResultClick(result)"
+              data-testid="board-search-result"
+            >
+              <span class="search-result-title">{{ searchResultTitle(result) }}</span>
+              <span class="search-result-column">{{ searchResultColumn(result) }}</span>
+              <span class="search-result-snippet">{{ result.snippet }}</span>
+            </button>
+            <button
+              v-if="searchHasMore"
+              class="search-more"
+              @click="searchHandle?.loadMore()"
+              data-testid="board-search-more"
+              >加载更多</button
+            >
+          </template>
+        </div>
+      </div>
+
       <div
         class="columns"
         data-testid="columns"
@@ -512,7 +659,7 @@ type ConfirmState =
             <article
               v-for="task in taskMap.get(column.id) ?? []"
               :key="task.id"
-              class="card"
+              :class="{ card: true, 'search-hit': searchHighlightId === task.id }"
               :data-task-id="task.id"
               draggable="true"
               @dragstart="event => onTaskDragStart(event, task.id)"

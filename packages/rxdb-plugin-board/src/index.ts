@@ -1,3 +1,4 @@
+export type { SearchHandle, SearchResult } from '@aiao/rxdb-plugin-search';
 export { BoardDomain } from './board-domain.js';
 export {
   ACTIVE_DB_KEY,

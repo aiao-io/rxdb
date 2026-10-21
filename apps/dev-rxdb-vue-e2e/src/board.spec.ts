@@ -37,7 +37,7 @@ const titlesOfColumn = async (page: Page, columnTitle: string): Promise<string[]
   const column = page
     .getByTestId('column')
     .filter({ has: page.getByTestId('column-title').getByText(columnTitle, { exact: true }) });
-  return column.getByTestId('task-title').allTextContents();
+  return (await column.getByTestId('task-title').allTextContents()).map(text => text.trim());
 };
 
 test.describe('看板页对齐（US-539 阶段 A）', () => {
@@ -379,5 +379,67 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
       ['修复登录 bug', '写发布说明', '同步插件适配 Supabase', '回归测试：工作树同步', '整理同步迁移指南'],
       { timeout: 15000 }
     );
+  });
+
+  test('AC#15：板内搜索——命中片段与所在列、点结果定位高亮、清空退出（US-539 阶段 B）', async ({ boardPage: page }) => {
+    await startWithSeed(page);
+
+    const input = page.getByTestId('board-search-input');
+    await input.fill('登录');
+    await expect(page.getByTestId('board-search-results')).toBeVisible();
+    // 命中「修复登录 bug」（词中位置），所在列 To do
+    const result = page.getByTestId('board-search-result').filter({ hasText: '修复登录 bug' });
+    await expect(result).toHaveCount(1);
+    await expect(result.getByText('To do')).toBeVisible();
+
+    // 点结果：目标卡片滚动可见并短暂高亮
+    await result.click();
+    const card = page.getByTestId('task-card').filter({ hasText: '修复登录 bug' });
+    await expect(card).toHaveClass(/search-hit/);
+    await expect(card).toBeInViewport();
+
+    // 清空退出搜索态
+    await input.fill('');
+    await expect(page.getByTestId('board-search-results')).toBeHidden();
+    await expect(card).not.toHaveClass(/search-hit/, { timeout: 5000 });
+  });
+
+  test('AC#16：多板同词隔离与分页——异板高排位不挤空当前板，切板只显所选板（US-539 阶段 B）', async ({
+    boardPage: page
+  }) => {
+    await startWithSeed(page);
+
+    // 主板 6 条命中「同步」，隔离板 8 条；当前板首屏 5 条、翻页补齐 6 条，无重复
+    await page.getByTestId('board-search-input').fill('同步');
+    await expect(page.getByTestId('board-search-result')).toHaveCount(5);
+    const expectedMain = new Set([
+      '同步插件适配 Supabase',
+      '整理同步迁移指南',
+      '回归测试：工作树同步',
+      '同步水位线调优',
+      'DevTools 同步面板重构',
+      '全量同步测试门禁接通'
+    ]);
+    const titlesOf = async (): Promise<string[]> =>
+      (await page.getByTestId('board-search-result').locator('.search-result-title').allTextContents()).map(text =>
+        text.trim()
+      );
+    await expect(page.getByTestId('board-search-result')).toHaveCount(5);
+    const firstPage = await titlesOf();
+    expect(new Set(firstPage).size).toBe(5);
+    for (const title of firstPage) {
+      expect(expectedMain.has(title), `首屏结果标题：${JSON.stringify(firstPage)}`).toBe(true);
+    }
+    await page.getByTestId('board-search-more').click();
+    await expect(page.getByTestId('board-search-result')).toHaveCount(6);
+    expect(new Set(await titlesOf())).toEqual(expectedMain);
+
+    // 切到隔离板搜同词：只显示隔离板 8 条
+    await page.getByTestId('board-selector').selectOption({ label: '引擎研究草稿' });
+    await expect(page.getByTestId('board-search-result')).toHaveCount(5);
+    await page.getByTestId('board-search-more').click();
+    await expect(page.getByTestId('board-search-result')).toHaveCount(8);
+    const titles = await page.getByTestId('board-search-result').allTextContents();
+    expect(titles.every(text => text.includes('同步'))).toBe(true);
   });
 });

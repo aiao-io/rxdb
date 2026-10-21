@@ -5,7 +5,10 @@ import {
   resolveCardDrop,
   resolveColumnDrop,
   Task,
+  type BoardSearchUpstream,
   type CardDropTarget,
+  type SearchHandle,
+  type SearchResult,
   type TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
 import { CommonModule } from '@angular/common';
@@ -17,12 +20,15 @@ import {
   inject,
   Injector,
   input,
+  OnDestroy,
   OnInit,
   runInInjectionContext,
   signal,
   viewChild
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+
+import { Subscription } from 'rxjs';
 
 import { useBoard, type UseBoardReturn } from './use-board.js';
 
@@ -240,8 +246,11 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
     `
   ]
 })
-export class BoardViewComponent implements OnInit {
+export class BoardViewComponent implements OnInit, OnDestroy {
   private readonly injectorRef = inject(Injector);
+
+  private searchHandle: SearchHandle | null = null;
+  private searchSubs = new Subscription();
 
   /** 输入绑定完成后（ngOnInit）安装的领域桥；首帧为 null。 */
   private snapshot: TaskDraftSnapshot | null = null;
@@ -289,6 +298,13 @@ export class BoardViewComponent implements OnInit {
   protected readonly draftDescription = signal<string>('');
   protected readonly draftDueDate = signal<string>('');
   protected readonly draftLabelIds = signal<readonly UUID[]>([]);
+  protected readonly searchQuery = signal('');
+  protected readonly searchState = signal<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
+  protected readonly searchResults = signal<readonly SearchResult[]>([]);
+  protected readonly searchHasMore = signal(false);
+  protected readonly searchErrorText = signal<string | null>(null);
+  protected readonly searchHighlightId = signal<UUID | null>(null);
+
   protected get boardRef(): UseBoardReturn {
     const installed = this.board();
     if (!installed) throw new Error('board 尚未安装');
@@ -302,8 +318,19 @@ export class BoardViewComponent implements OnInit {
 
   ngOnInit(): void {
     // 显式注入上下文：JIT + zoneless 下生命周期钩子不保证自带注入上下文
-    const installed = runInInjectionContext(this.injectorRef, () => useBoard(this.rxdb()));
+    const installed = runInInjectionContext(this.injectorRef, () => {
+      const upstream = this.rxdb().getPlugins('search')[0];
+      return useBoard(
+        this.rxdb(),
+        upstream ? { search: { upstream: upstream as unknown as BoardSearchUpstream } } : undefined
+      );
+    });
     this.board.set(installed);
+  }
+
+  ngOnDestroy(): void {
+    this.searchSubs.unsubscribe();
+    this.destroySearch();
   }
 
   /** 标签文字色（对比度，US-539 AC#6）：模板无法直接调模块级函数，包一层成员。 */
@@ -588,6 +615,91 @@ export class BoardViewComponent implements OnInit {
 
   protected labelsOf(taskId: UUID): readonly import('@aiao/rxdb-plugin-board').BoardLabel[] {
     return this.board()?.taskLabels().get(taskId) ?? [];
+  }
+
+  // ---------- 板内搜索（US-539 阶段 B） ----------
+
+  /** 输入变化：空查询销毁句柄退出搜索态；否则按防抖复用同一句柄。 */
+  /** 切板：先切换，再销毁重建句柄重发当前查询（setQuery 同词会被 distinctUntilChanged 吞掉）。 */
+  protected onSelectBoard(boardId: UUID): void {
+    this.boardRef.selectBoard(boardId);
+    const query = this.searchQuery().trim();
+    if (query !== '') {
+      this.destroySearch();
+      this.onSearchInput(query);
+    }
+  }
+
+  protected onSearchInput(value: string): void {
+    this.searchQuery.set(value);
+    const query = value.trim();
+    if (query === '') {
+      this.destroySearch();
+      return;
+    }
+    const source = this.board()?.searchSource;
+    if (!source) return;
+    if (this.searchHandle === null) {
+      const handle = source.search(query);
+      this.searchHandle = handle;
+      // 上一组句柄订阅先退订（destroy 不保证上游 observable 不再发射）
+      this.searchSubs.unsubscribe();
+      this.searchSubs = new Subscription();
+      this.searchSubs.add(handle.state$.subscribe(state => this.searchState.set(state)));
+      this.searchSubs.add(handle.results$.subscribe(results => this.searchResults.set(results)));
+      this.searchSubs.add(handle.hasMore$.subscribe(more => this.searchHasMore.set(more)));
+      this.searchSubs.add(handle.error$.subscribe(error => this.searchErrorText.set(String(error))));
+    } else {
+      this.searchHandle.setQuery(query);
+    }
+  }
+
+  protected onSearchMore(): void {
+    if (this.searchState() === 'loading') return;
+    void this.searchHandle?.loadMore();
+  }
+
+  /** 点结果：滚动到目标卡片并短暂高亮（更新中不可点）。 */
+  protected onSearchResultClick(result: SearchResult): void {
+    if (this.searchState() === 'loading') return;
+    const area = this.boardArea()?.nativeElement;
+    const taskElement = area?.querySelector<HTMLElement>(`[data-task-id="${result.id}"]`);
+    taskElement?.scrollIntoView({ block: 'center' });
+    const targetId = result.id as UUID;
+    this.searchHighlightId.set(targetId);
+    window.setTimeout(() => {
+      if (this.searchHighlightId() === targetId) this.searchHighlightId.set(null);
+    }, 2000);
+  }
+
+  protected searchColumnTitle(result: SearchResult): string {
+    const task = this.board()
+      ?.tasks()
+      .find(candidate => candidate.id === (result.id as UUID));
+    const column =
+      task ?
+        this.board()
+          ?.columns()
+          .find(candidate => candidate.id === task.columnId)
+      : undefined;
+    return column?.title ?? '';
+  }
+
+  protected searchResultTitle(result: SearchResult): string {
+    return (
+      this.board()
+        ?.tasks()
+        .find(candidate => candidate.id === (result.id as UUID))?.title ?? ''
+    );
+  }
+
+  private destroySearch(): void {
+    this.searchHandle?.destroy();
+    this.searchHandle = null;
+    this.searchState.set('idle');
+    this.searchResults.set([]);
+    this.searchHasMore.set(false);
+    this.searchErrorText.set(null);
   }
 
   private resolveTaskTarget(
