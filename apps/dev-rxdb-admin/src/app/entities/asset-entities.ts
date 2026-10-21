@@ -15,11 +15,17 @@ import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
   tableName: 'asset_category',
   displayName: '资产分类',
   properties: [
-    { name: 'name', type: PropertyType.string, unique: true, displayName: '分类名' },
+    { name: 'name', type: PropertyType.string, unique: true, required: true, displayName: '分类名' },
     { name: 'description', type: PropertyType.string, displayName: '说明', nullable: true }
   ],
   relations: [
-    { name: 'assets', displayName: '资产', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'Asset', mappedProperty: 'category' }
+    {
+      name: 'assets',
+      displayName: '资产',
+      kind: RelationKind.ONE_TO_MANY,
+      mappedEntity: 'Asset',
+      mappedProperty: 'category'
+    }
   ]
 })
 export class AssetCategory extends EntityBase {
@@ -33,14 +39,26 @@ export class AssetCategory extends EntityBase {
   tableName: 'asset',
   displayName: '资产',
   properties: [
-    { name: 'name', type: PropertyType.string, unique: true, displayName: '名称' },
+    { name: 'name', type: PropertyType.string, unique: true, required: true, displayName: '名称' },
     { name: 'status', type: PropertyType.string, displayName: '状态', default: '在用', nullable: true },
     { name: 'purchasePrice', type: PropertyType.number, displayName: '购入价', nullable: true },
     { name: 'purchaseDate', type: PropertyType.string, displayName: '购入日期', nullable: true }
   ],
   relations: [
-    { name: 'category', displayName: '分类', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'AssetCategory', mappedProperty: 'assets' },
-    { name: 'events', displayName: '维护记录', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'AssetEvent', mappedProperty: 'asset' }
+    {
+      name: 'category',
+      displayName: '分类',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'AssetCategory',
+      mappedProperty: 'assets'
+    },
+    {
+      name: 'events',
+      displayName: '维护记录',
+      kind: RelationKind.ONE_TO_MANY,
+      mappedEntity: 'AssetEvent',
+      mappedProperty: 'asset'
+    }
   ]
 })
 export class Asset extends EntityBase {
@@ -57,12 +75,18 @@ export class Asset extends EntityBase {
   tableName: 'asset_event',
   displayName: '维护记录',
   properties: [
-    { name: 'summary', type: PropertyType.string, displayName: '事项' },
+    { name: 'summary', type: PropertyType.string, required: true, displayName: '事项' },
     { name: 'cost', type: PropertyType.number, displayName: '费用', nullable: true },
-    { name: 'happenedAt', type: PropertyType.string, displayName: '日期' }
+    { name: 'happenedAt', type: PropertyType.string, required: true, displayName: '日期' }
   ],
   relations: [
-    { name: 'asset', displayName: '所属资产', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Asset', mappedProperty: 'events' }
+    {
+      name: 'asset',
+      displayName: '所属资产',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'Asset',
+      mappedProperty: 'events'
+    }
   ]
 })
 export class AssetEvent extends EntityBase {

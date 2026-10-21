@@ -9,9 +9,9 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 75   |
-| 🚧 In Progress | 2    |
-| 👀 In Review   | 2    |
-| 📝 Backlog     | 25   |
+| 🚧 In Progress | 1    |
+| 👀 In Review   | 6    |
+| 📝 Backlog     | 22   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 104  |
 
@@ -26,19 +26,22 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（2 条）
+## 进行中（1 条）
 
-| Story                                                                                             | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-104 rxdb-model 表单校验反馈与保存失败的展示](stories/framework/US-104-validation-feedback.md) | 三端 `EntityDetail` 只转发校验结果、保存失败只进 console——对话框内无可见反馈；三端同改（错误面板：role=alert + data-testid=entity-detail-errors），包内 spec 已补、工作台 e2e 回归随 US-526                                                                                                                                                                                                                                                                                                                                                                                             |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)                    | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
+| Story                                                                          | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
 
-## 待评审（2 条）
+## 待评审（6 条）
 
-| Story                                                                                         | 进展                                                                                                                                                                                                                                                                                                                                                         |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
+| Story                                                                                             | 进展                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [US-104 rxdb-model 表单校验反馈与保存失败的展示](stories/framework/US-104-validation-feedback.md) | 三端 EntityDetail 错误面板已交付：校验逐条显示、保存失败可读、字段变更清空；三端包内 spec（create/edit 校验、保存失败注入、清空）+ 工作台 e2e AC#4 全绿                                                                                                                                                                                                      |
+| [US-526 模型驱动数据工作台](stories/domain/US-526-admin-workbench.md)                             | 三阶段全部交付：预置 schema + 导航（A）、CRUD 与加载 / 失败 / 空态（B）、持久化重开 + e2e（C）；工作台 e2e 8/8 绿                                                                                                                                                                                                                                            |
+| [US-527 工作台备份恢复闭环](stories/domain/US-527-admin-backup-restore.md)                        | 备份下载、独立环境恢复后继续编辑、损坏归档与已有数据拒绝均 e2e 绿（4/4）                                                                                                                                                                                                                                                                                     |
+| [US-528 独立消费接入示例](stories/domain/US-528-admin-consumer-example.md)                        | 消费应用 + e2e 全绿；接入成本文档（约 334 行 / 业务代码 26 行）已发布                                                                                                                                                                                                                                                                                        |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)     | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)        | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
 
 ## 阻塞（0 条）
 
@@ -122,7 +125,7 @@
 - ✅ [US-220 Supabase 推送 UPDATE 的落库语义](stories/adapter/US-220-supabase-update-push-semantics.md) — 评审 US-218 时发现：推送把 UPDATE 当 `INSERT … ON CONFLICT DO UPDATE` 落库，拟插入行要过 NOT NULL、INSERT 与 SELECT 策略：NOT NULL 列报 23502（Todo 只改 `completed` 即中招），owner 型 RLS 下改自己的行、共享编辑表上改别人的行都误报 42501，整批卡住；改走普通 UPDATE（`rxdb_mutations` 新参数 `p_updates`），被拒抛 42501、行已不存在抛 `RX001`，存在性探针 `rxdb_existing_ids` 与 US-218 阶段 A 共用；已落地，与 US-218 合并为 #99 合入
 - ✅ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做，B / C 的价值门禁豁免。三阶段合为 #85 一次合入，AC#1～17 全 ✅：A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`（`screenshots: false`），开销实测 +32.7%，上限经 owner 裁决由 +10% 改为 +33%；B Angular e2e 失败现场数据原样归档与 `dev-rxdb-angular` 导入入口，demo 的 Worker / SharedWorker 连接备份被拒（US-217 只交付主线程连接），IDB 档经同库名的主线程第二连接绕开（spike 2026-10-02 通过）；C 新包 `@aiao/rxdb-plugin-replay`（rrweb 应用内录制，独立录制库，单会话 16 MiB + 总量 128 MiB，门面 `commits$` 关联 commit）加 `rxdb-plugin-replay-{angular,react,vue}` 三框架 Replayer，`dev-rxdb-angular` opt-in 演示
 - ⬜ [US-910 数据国际化 / 本地化](stories/future/US-910-data-i18n.md) — 生产方案收敛为 C-L；阶段 A 依赖 Full/Filter/tombstone 同步夹具，暂不排期
-- 🚧 [US-104 rxdb-model 表单校验反馈与保存失败的展示](stories/framework/US-104-validation-feedback.md) — 三端 EntityDetail 错误面板（US-526 AC#4 触发）
+- 👀 [US-104 rxdb-model 表单校验反馈与保存失败的展示](stories/framework/US-104-validation-feedback.md) — 三端 EntityDetail 错误面板（US-526 AC#4 触发）
 - ⬜ [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md) — UI 文案与 locale 状态：intl-messageformat 消息引擎 + `I18nSettings` 单行实体 + 三端 `useI18n()`；rxdb-model 去硬编码（默认 zh-Hans 目录随包发布）；阶段 A～C 无硬前置，阶段 D 目录 QueryCache 分发独立后置
 - ✅ [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包，A～E 全部交付；破坏性变更清单见 [release-plan「约束 12 修订」](release-plan.md#约束-12-修订破坏性改动如实声明)
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏与 typedoc 收录；含 flatten 坏链修复
@@ -212,14 +215,15 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 
 **已解锁（2026-10-21，owner 决定）**：驱动者 = 需要一个可用的单人本地数据工作台——首版闭环
 （录入 / 编辑 / 筛选 / 持久化 / 备份恢复 + 独立消费示例）直接验证「定义实体之后少写了多少 CRUD」。
+三条故事均已实现并端到端验收，待评审（In Review）。
 三条故事不新增引擎抽象、对应零个已知病灶，「病灶数 ≥ 抽象数」按 owner 决定豁免，写进
 [epic-010 解锁记录](epics/epic-010-model-driven-admin-framework.md#价值待证整个-epic)，
 排期见 [roadmap 批次 5](roadmap.md#批次-5模型驱动后台首版epic-010-已解锁)。
 候选分析见 [domain-research](domain-research/admin-framework.md)。
 
-- ⬜ [US-526 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环](stories/domain/US-526-admin-workbench.md) — 三阶段；应用壳与预置 schema + 导航（A）、CRUD 接线与加载 / 失败 / 空态（B）、持久化重开 + e2e 组合验收（C）；复用 rxdb-model 组件与三端 demo 实体页，不新增公共框架 API
-- ⬜ [US-527 工作台备份恢复闭环：失败语义与数据保留](stories/domain/US-527-admin-backup-restore.md) — 两阶段；复用 US-217 的备份 / 恢复契约与错误分类，只做入口与失败语义接线；恢复失败不得破坏当前库
-- ⬜ [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md) — 两阶段；只用发布包从零接线的最小应用 + 代码行数 / 依赖 / 样式成本记录
+- 👀 [US-526 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环](stories/domain/US-526-admin-workbench.md) — 三阶段；应用壳与预置 schema + 导航（A）、CRUD 接线与加载 / 失败 / 空态（B）、持久化重开 + e2e 组合验收（C）；复用 rxdb-model 组件与三端 demo 实体页，不新增公共框架 API
+- 👀 [US-527 工作台备份恢复闭环：失败语义与数据保留](stories/domain/US-527-admin-backup-restore.md) — 两阶段；复用 US-217 的备份 / 恢复契约与错误分类，只做入口与失败语义接线；恢复失败不得破坏当前库
+- 👀 [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md) — 两阶段；只用发布包从零接线的最小应用 + 代码行数 / 依赖 / 样式成本记录
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

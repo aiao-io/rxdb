@@ -14,7 +14,7 @@ import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
   tableName: 'bookmark',
   displayName: '书签',
   properties: [
-    { name: 'title', type: PropertyType.string, displayName: '标题' },
+    { name: 'title', type: PropertyType.string, required: true, displayName: '标题' },
     { name: 'url', type: PropertyType.string, displayName: '链接', nullable: true },
     { name: 'note', type: PropertyType.string, displayName: '备注', nullable: true }
   ]

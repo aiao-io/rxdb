@@ -1,6 +1,6 @@
 ---
 id: epic-010-model-driven-admin-framework
-status: Backlog
+status: In Progress
 startDate: 2026-10-21
 targetDate: TBD
 owner: jimmy

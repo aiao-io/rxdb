@@ -279,6 +279,31 @@ describe('EntityDetail（真实组件）', () => {
     expect(container.querySelector('[role="tab"]')).toBeTruthy();
   });
 
+  it('edit 模式校验失败在对话框内给出可读反馈（US-104 AC#2）', async () => {
+    const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '旧标题' });
+    await inst.save();
+
+    const utils = render(
+      <RxDBProvider db={rxdb}>
+        <EntityDetail namespace='test' name='DetailGroup' entityId={inst.id} />
+      </RxDBProvider>
+    );
+    await waitFor(() => {
+      expect((utils.container.querySelector('[data-field="title"] input') as HTMLInputElement).value).toBe('旧标题');
+    });
+
+    // 清空必填标题后保存：edit 模式同样走校验面板，不落库、对话框保持打开
+    fireEvent.change(utils.container.querySelector('[data-field="title"] input') as HTMLInputElement, {
+      target: { value: '' }
+    });
+    fireEvent.click([...utils.container.querySelectorAll('button')].find(b => b.textContent?.trim() === '保存')!);
+
+    await waitFor(() => {
+      const panel = utils.container.querySelector('[data-testid="entity-detail-errors"]');
+      expect(panel?.textContent).toContain('是必填项');
+    });
+  });
+
   it('edit 模式内部保存：formSubmitted 变更落库并 emit（保存成功后）', async () => {
     const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '旧标题' });
     await inst.save();
