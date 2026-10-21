@@ -30,6 +30,7 @@ import { Worktree } from '../../checkout/worktree.entity.js';
 import { rxDBPluginWorkingTree } from '../../plugin.js';
 import { classifyBranchMaterialization } from '../../working-tree/branch-materialization.js';
 import { assertSwitchTargetIntact } from '../../working-tree/switch-branch-options.js';
+import { WorkingTreeActivationState } from '../../working-tree/working-tree-activation-state.entity.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 
 vi.mock('@aiao/rxdb-plugin-history', async importOriginal => ({
@@ -58,6 +59,8 @@ const matches = (row: Row, where: { rules: { field: string; value: unknown }[] }
 
 const databases: RxDBInstance[] = [];
 let rows: Worktree[];
+/** 每套表的激活态行（US-314 B2.2）：与登记行分开收 */
+let activations: WorkingTreeActivationState[];
 let branches: Row[];
 let createWorktreeTableSet: ReturnType<typeof vi.fn>;
 let dropWorktreeTableSet: ReturnType<typeof vi.fn>;
@@ -90,14 +93,18 @@ const noteKey = (id: string): string => {
 
 beforeEach(() => {
   rows = [];
+  activations = [];
   mounted = WorktreeTableSet.MAIN;
   branches = [
     { id: 'main', activated: true, activeKey: '*active*' },
     { id: 'feature', activated: false, activeKey: null }
   ];
   const executor = {
-    saveMany: vi.fn(async (entities: Worktree[]) => {
-      rows.push(...entities);
+    saveMany: vi.fn(async (entities: (Worktree | WorkingTreeActivationState)[]) => {
+      for (const entity of entities) {
+        if (entity instanceof WorkingTreeActivationState) activations.push(entity);
+        else rows.push(entity);
+      }
       return entities;
     }),
     getRepository: (EntityClass: EntityType) => {
@@ -108,6 +115,15 @@ beforeEach(() => {
         };
       }
       if (EntityClass === RxDBChange) return { find: async () => [] };
+      if (EntityClass === WorkingTreeActivationState) {
+        return {
+          find: async ({ where }: { where: never }) => activations.filter(row => matches(row as unknown as Row, where)),
+          remove: async (row: WorkingTreeActivationState) => {
+            activations.splice(activations.indexOf(row), 1);
+            return row;
+          }
+        };
+      }
       return {
         find: async ({ where }: { where: never }) => rows.filter(row => matches(row as unknown as Row, where)),
         update: async (row: Worktree, patch: Partial<Worktree>) => Object.assign(row, patch),
@@ -342,6 +358,8 @@ describe('WorktreeManager.prune：可写检出位', () => {
 
     expect([...pruned].sort()).toEqual([session.id, lost.id].sort());
     expect(rows.map(row => row.id).sort()).toEqual([kept.id, 'ro-1'].sort());
+    // 被回收的连这套表的激活态行一起删（US-314 B2.2）
+    expect(activations.map(row => row.id)).toEqual([WorktreeTableSet.of(kept.tableSetSuffix!, []).holderKey]);
     expect(branches.find(row => row.id === 'feature')).toMatchObject({ activeKey: null });
   });
 

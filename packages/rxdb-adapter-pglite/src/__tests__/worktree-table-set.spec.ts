@@ -8,6 +8,7 @@
  */
 
 import {
+  ACTIVE_BRANCH_KEY,
   encodeRxDBChangeEntityId,
   Entity,
   EntityBase,
@@ -20,6 +21,7 @@ import {
   type SwitchVersionActions,
   SyncType,
   uuid,
+  WorktreeBranchHeldError,
   WorktreeTableSet
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
@@ -460,11 +462,54 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
       expect(await titlesOf(WorktreeTableSet.MAIN)).toEqual(['main-row']);
     });
 
-    it('挂在可写检出位上不能真切分支', async () => {
+    /** 两次快照之间被重写过的分支行 */
+    const rewrittenBranches = async (body: () => Promise<unknown>): Promise<string[]> => {
+      const before = new Map((await branchRowVersions()).map(row => [row.id, row.xmin]));
+      await body();
+      return (await branchRowVersions())
+        .filter(row => before.get(row.id) !== row.xmin)
+        .map(row => row.id)
+        .sort();
+    };
+
+    // 检出位里切分支（US-314 B2.2）：与 sqlite-core 共享套件的同名用例逐条对应
+    it('挂在检出位上切分支：只动这套表与持有键，主检出位的行不动；之后的写记在新分支，切回来改动还在', async () => {
+      await rxdb.mountWorktreeTableSet(tableSet);
+      const heldOnly = await rawInsert(tableSet, 'on-held');
       await rxdb.versionManager.createBranch('feature');
+
+      const written = await rewrittenBranches(() => rxdb.versionManager.switchBranch('feature'));
+
+      expect(written).toEqual(['feature', heldBranch]);
+      expect((await rxdb.versionManager.getCurrentBranch()).id).toBe('feature');
+      const rows = await adapter.internalQuery<{ id: string; activated: boolean; activeKey: string | null }>(
+        `SELECT "id", "activated", "activeKey" FROM "rxdb"."rxdb_branch" WHERE "id" IN ('feature', $1::text, 'main') ORDER BY "id"`,
+        [heldBranch]
+      );
+      expect(rows.rows).toEqual([
+        { id: 'feature', activated: false, activeKey: tableSet.holderKey },
+        { id: heldBranch, activated: false, activeKey: null },
+        { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY }
+      ]);
+      const featureId = await rawInsert(tableSet, 'on-feature');
+      expect(await branchesOfChanges(featureId)).toEqual(['feature']);
+      expect(await branchesOfChanges(await rawInsert(WorktreeTableSet.MAIN, 'main-row'))).toEqual(['main']);
+
+      await rxdb.versionManager.switchBranch(heldBranch);
+      expect(await titlesOf(tableSet)).toEqual(['on-held']);
+      expect(await branchesOfChanges(heldOnly)).toEqual([heldBranch]);
+    });
+
+    it('挂在检出位上切到被占的分支：主检出位的当前分支、别的检出位持有的，都一行不动地拒绝', async () => {
+      await holdBranchFor(WorktreeTableSet.of('wt_other', [Todo]), 'other-held');
       await rxdb.mountWorktreeTableSet(tableSet);
 
-      await expect(rxdb.versionManager.switchBranch('feature')).rejects.toThrow(/可写检出位/);
+      const written = await rewrittenBranches(async () => {
+        await expect(rxdb.versionManager.switchBranch('main')).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+        await expect(rxdb.versionManager.switchBranch('other-held')).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+      });
+
+      expect(written).toEqual([]);
       expect((await rxdb.versionManager.getCurrentBranch()).id).toBe(heldBranch);
     });
 

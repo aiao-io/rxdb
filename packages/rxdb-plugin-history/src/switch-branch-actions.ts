@@ -12,10 +12,11 @@ import { VersionManager } from './VersionManager.js';
  * 计算切换分支所需的操作
  * @param version
  * @param branchId 要切换到的分支ID
+ * @param fromBranchId 从哪条分支切过去，缺省是主检出位激活的那一条；挂在可写检出位上时传那套表持有的分支（US-314 B2.2）
  * @returns 返回切换分支所需的操作序列
  */
-export const switch_branch_actions = async (version: VersionManager, branchId: string) =>
-  compute_switch_branch_actions(await version.getLocalRepositories(), branchId);
+export const switch_branch_actions = async (version: VersionManager, branchId: string, fromBranchId?: string) =>
+  compute_switch_branch_actions(await version.getLocalRepositories(), branchId, fromBranchId);
 
 /**
  * 算切换分支所需操作要用到的最小仓库能力。

@@ -28,6 +28,7 @@ import { filter } from 'rxjs';
 import { PACKAGE_SPECIFIER, WORKING_TREE_CAPABILITY } from './capability-identity.js';
 import type { RxDBPluginWorkingTreeOptions } from './checkout/worktree-options.js';
 import { findReclaimCandidates, hasOrphanedWorktree } from './checkout/worktree-startup-reclaim.js';
+import { recordCheckoutBranch } from './checkout/worktree-writable.js';
 import { Worktree } from './checkout/worktree.entity.js';
 import { removeBranchCommitRows, writeNewBranchCommitRows } from './commit/branch-commit-rows.js';
 import { CommitBranchRef } from './commit/commit-branch-ref.entity.js';
@@ -166,7 +167,10 @@ const createSystemContribution = (rxdb: RxDB, startup: StartupReclaimHooks): RxD
     // （见 `activation-cas.ts` › advanceActivationRevision）。
     // 漏掉这一步的代价是 `main → feature → main` 走完之后代际原地不动，
     // 于是走之前捕获的 token 在走回来之后仍然验得过——三位并发仲裁里的第一位变成常数。
+    // 推进的是本实例挂的那套表的那一行：可写检出位里切分支不动主检出位的凭据（US-314 B2.2）。
     await advanceActivationRevision(executor);
+    // 可写检出位里切分支：登记行的分支跟着走，与切换一起提交、一起回滚
+    if (!executor.tableSet.isMain) await recordCheckoutBranch(executor, executor.tableSet, targetBranchId);
   },
   takeOverBranchSwitch: context =>
     // 接管判据整个在 `materialize-branch.ts`：它要连着开五六笔事务、中间夹着网络 I/O，

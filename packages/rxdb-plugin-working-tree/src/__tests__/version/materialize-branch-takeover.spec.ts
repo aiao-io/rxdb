@@ -42,9 +42,10 @@ import type {
   RxDBSystemContribution,
   SwitchVersionActions
 } from '@aiao/rxdb';
-import { branchMaterializationPageFingerprint, RxDBBranch, RxDBError } from '@aiao/rxdb';
+import { branchMaterializationPageFingerprint, RxDBBranch, RxDBError, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { WORKING_TREE_CAPABILITY } from '../../capability-identity.js';
+import { WorktreeUnavailableError } from '../../checkout/worktree-errors.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
@@ -238,8 +239,8 @@ function seedStage(scene: WorkingTreeScene, seed: StageSeed): void {
  * 代际发放那两条语句由 `runBranchGenerationSql` 替布景执行：屏障末尾要给目标分支发一个
  * 新代际，而探针不执行 SQL——不补这两下，成功那一支会红在「读回 0 行」上。
  */
-function createTakeoverScene(): WorkingTreeScene {
-  const scene = createWorkingTreeScene({ onQuery: runBranchGenerationSql });
+function createTakeoverScene(tableSet?: WorktreeTableSet): WorkingTreeScene {
+  const scene = createWorkingTreeScene({ onQuery: runBranchGenerationSql, tableSet });
   const { entityManager } = scene.database;
 
   const target = entityManager.instantiate(RxDBBranch);
@@ -391,6 +392,19 @@ describe('该不该接管这次切换（FR-044/049）', () => {
       // 调用方拿着它去 `discardMaterializationAttempt()`，而那一次删中的可能是别人的。
       attemptId: null
     });
+    expect(stagingOf(scene).stages).toBe(0);
+  });
+
+  // 挂在可写检出位上（US-314 B2.2）：拉页、封口与屏障都按主检出位那套表写，检出位里接不住，与打开检出位同口径
+  it('挂在可写检出位上切到只有 metadata 的分支：拒（branch_not_materialized），来源一次都不碰', async () => {
+    const scene = createTakeoverScene(WorktreeTableSet.of('wt_mat', []));
+    const source = createSource(scene);
+
+    const error = await captureRejection(takeOver(scene, source));
+
+    expect(error).toBeInstanceOf(WorktreeUnavailableError);
+    expect((error as WorktreeUnavailableError).reason).toBe('branch_not_materialized');
+    expect(source.freezeSeenTransactions).toEqual([]);
     expect(stagingOf(scene).stages).toBe(0);
   });
 

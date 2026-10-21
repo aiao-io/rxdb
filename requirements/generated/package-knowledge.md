@@ -1,6 +1,6 @@
 # Aiao 包组合知识（v0.0.26）
 
-事实摘要：`2d9f5cf8bf4daecf284a771ac302e17dd14e63b8e35ccb4eafa9db509ca21724`。本文件由事实源、manifest、插件源码与已验证样例生成。
+事实摘要：`885c7e1cd9589861bb7ee6f9deed7c04eb0bf75ac62e68de91d7caacb84c3097`。本文件由事实源、manifest、插件源码与已验证样例生成。
 安装清单只包含此发布标签树里的包；工作区新增能力见同目录 JSON 的 development 部分。
 情景的插件组合与下方样例取自工作区源码（样例在 CI 中执行过），可能新于此发布标签。
 

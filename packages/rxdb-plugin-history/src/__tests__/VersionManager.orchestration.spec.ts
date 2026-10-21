@@ -443,7 +443,8 @@ describe('VersionManager 对协作模块的编排契约', () => {
 
     await harness.manager.switchBranch('feature');
 
-    expect(doubles.delegates.switchBranchActions).toHaveBeenCalledWith(harness.manager, 'feature');
+    // 主检出位上不传起点（缺省就是激活的那一条，US-314 B2.2）；主表集上只留成员是原样返回，`actions` 还是同一个对象
+    expect(doubles.delegates.switchBranchActions).toHaveBeenCalledWith(harness.manager, 'feature', undefined);
     expect(harness.localAdapter.switchBranch).toHaveBeenCalledWith({
       branchId: 'feature',
       actions,

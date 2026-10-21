@@ -59,7 +59,16 @@ import {
 } from './worktree-snapshot.js';
 import { isPrunable, readHeldKeys } from './worktree-startup-reclaim.js';
 import { isWorktreeCommitTarget, type WorktreeTarget } from './worktree-target.js';
-import { holdBranch, releaseBranch, tableSetHostOf, tableSetSuffixOf } from './worktree-writable.js';
+import {
+  assertCheckoutName,
+  defaultCheckoutName,
+  dropActivationRow,
+  holdBranch,
+  openActivationRow,
+  releaseBranch,
+  tableSetHostOf,
+  tableSetSuffixOf
+} from './worktree-writable.js';
 import { Worktree, type WorktreeOwner } from './worktree.entity.js';
 
 /** {@link WorktreeManager.open} 的选项。 */
@@ -305,12 +314,15 @@ export class WorktreeManager {
    * @param options - 见 {@link WorktreeAddOptions}
    * @returns 登记行
    * @throws {@link WorktreeUnavailableError} `unsupported_adapter`：主库适配器建不了表集；`branch_not_found` /
-   * `branch_not_materialized`；运行时没有 Web Locks（`locks_unavailable`）
+   * `branch_not_materialized`；`invalid_name` / `name_taken`：给的名字是空的或已被另一个可写检出位用了；
+   * 运行时没有 Web Locks（`locks_unavailable`）
    * @throws {@link WorktreeBranchHeldError} 分支已被持有：主检出位正停在它上面，或另一个可写检出位持有它（git：`already used by worktree`）
    *
    * @remarks
    * 播种 = 主表集的行原样复制，再叠上「主检出位所在分支 → 这条分支」的增量，与切过去读到的逐行一致；都不记进变更日志。
-   * 不推进激活态：主检出位的工作树、当前分支与 `activationRevision` 一处不动。GitHub Desktop 建完会切过去，对应 {@link WorktreeManager.mount}。
+   * 不推进激活态：主检出位的工作树、当前分支与 `activationRevision` 一处不动；这套表自己的激活态行在同一笔事务里建
+   * （检出位里切分支只推进它，B2.2）。没给名字时取分支 id，被占了就加 `-2`、`-3`。
+   * GitHub Desktop 建完会切过去，对应 {@link WorktreeManager.mount}。
    */
   async add(branchId: string, options: WorktreeAddOptions = {}): Promise<Worktree> {
     const id = uuid();
@@ -321,6 +333,10 @@ export class WorktreeManager {
     try {
       const record = await this.#runEnabled(async (executor, adapter) => {
         const host = tableSetHostOf(adapter);
+        const name =
+          options.name === undefined ?
+            await defaultCheckoutName(executor, branchId)
+          : await assertCheckoutName(executor, options.name);
         await assertBranchReadable(executor, branchId);
         await holdBranch(executor, branchId, tableSet);
         await assertSwitchTargetIntact(executor, branchId);
@@ -336,7 +352,7 @@ export class WorktreeManager {
         const row = this.#writableRecord({
           id,
           branchId,
-          name: options.name ?? branchId,
+          name,
           owner: options.owner ?? 'persistent',
           tableSet,
           schemaFingerprint: computeRxDBSchemaFingerprint(members),
@@ -345,6 +361,7 @@ export class WorktreeManager {
           targetChangeId: (await get_branch_max_change(changeRepository, branchId))?.id ?? null
         });
         await executor.saveMany([row]);
+        await openActivationRow(executor, this.#rxdb.entityManager, tableSet);
         return row;
       });
       this.#claims.set(id, { release, suffix: tableSet.suffix });
@@ -441,6 +458,26 @@ export class WorktreeManager {
     }
   }
 
+  /**
+   * 给一个可写检出位改名（GitHub Desktop 的 Rename…）。
+   *
+   * @param id - 检出位 id
+   * @param name - 新名字：去掉首尾空白后不能为空，不能与另一个可写检出位重名
+   * @returns 改名之后的登记行
+   * @throws {@link WorktreeUnavailableError} `invalid_name` / `name_taken`；`not_found`：没有这个检出位，或它是只读检出位
+   *
+   * @remarks
+   * 主检出位没有登记行，改不了名。名字只是给人看的标签：表集、持有键与锁都按 id 走，改名不碰它们，也不用认领。
+   */
+  async rename(id: string, name: string): Promise<Worktree> {
+    return this.#runEnabled(async executor => {
+      const [record] = await findRecords(executor, id);
+      if (record?.mode !== 'writable') throw new WorktreeUnavailableError('not_found', `没有可写检出位 ${id}`);
+      const trimmed = await assertCheckoutName(executor, name, id);
+      return executor.getRepository(Worktree).update(record, { name: trimmed });
+    });
+  }
+
   /** 拿下一个检出位的锁；拿不到就是别处认领着。 */
   async #acquire(id: string): Promise<WorktreeLockRelease> {
     const release = await holdWorktreeLock(this.#lockName(id), true);
@@ -448,7 +485,7 @@ export class WorktreeManager {
     return release;
   }
 
-  /** 一笔事务删掉一个可写检出位：表集、持有键、登记行；登记行已经不在就什么都不做。 */
+  /** 一笔事务删掉一个可写检出位：表集、持有键、这套表的激活态行、登记行；登记行已经不在就什么都不做。 */
   async #dropWritable(id: string): Promise<void> {
     await this.#runEnabled(async (executor, adapter) => {
       const [record] = await findRecords(executor, id);
@@ -457,6 +494,7 @@ export class WorktreeManager {
       const tableSet = WorktreeTableSet.of(record.tableSetSuffix, []);
       await tableSetHostOf(adapter).dropWorktreeTableSet(executor, tableSet);
       await releaseBranch(executor, tableSet);
+      await dropActivationRow(executor, tableSet);
       await executor.getRepository(Worktree).remove(record);
     });
   }

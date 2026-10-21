@@ -1,10 +1,12 @@
 import {
+  ACTIVE_BRANCH_KEY,
   Entity,
   EntityBase,
   type IRxDBChange,
   PropertyType,
   RxDBBranch,
   RxDBChange,
+  WorktreeBranchHeldError,
   WorktreeTableSet,
   encodeRxDBChangeEntityId,
   getEntityMetadata,
@@ -429,12 +431,49 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
         expect(await titlesOf(WorktreeTableSet.MAIN)).toEqual(['main-row']);
       });
 
-      it('挂在可写检出位上不能真切分支', async () => {
-        await adapter.rxdb.versionManager.createBranch('feature');
+      // 检出位里切分支（US-314 B2.2）：放开原分支、持有目标分支，只动这套影子表与分支表上这两行的持有键；
+      // 主检出位那一行（activated 与哨兵）一格不动，原分支上没提交的改动留在原分支（设计指点 4）
+      it('挂在检出位上切分支：只动这套表与持有键，主检出位的行不动；之后的写记在新分支，切回来改动还在', async () => {
+        const versionManager = adapter.rxdb.versionManager;
+        await adapter.rxdb.mountWorktreeTableSet(tableSet);
+        const heldOnly = await rawInsert(tableSet, 'on-held');
+        await versionManager.createBranch('feature');
+
+        const written = await branchWritesDuring(() => versionManager.switchBranch('feature'));
+
+        expect([...written].sort()).toEqual(['feature', heldBranch]);
+        expect((await versionManager.getCurrentBranch()).id).toBe('feature');
+        expect(
+          await readRows(
+            `SELECT "id", "activated", "activeKey" FROM ${branchTable} WHERE "id" IN (?, ?, ?) ORDER BY "id"`,
+            ['feature', heldBranch, 'main']
+          )
+        ).toEqual([
+          ['feature', 0, tableSet.holderKey],
+          [heldBranch, 0, null],
+          ['main', 1, ACTIVE_BRANCH_KEY]
+        ]);
+        const featureId = await rawInsert(tableSet, 'on-feature');
+        expect(await branchesOfChanges(featureId)).toEqual(['feature']);
+        expect(await branchesOfChanges(await rawInsert(WorktreeTableSet.MAIN, 'main-row'))).toEqual(['main']);
+
+        await versionManager.switchBranch(heldBranch);
+        expect(await titlesOf(tableSet)).toEqual(['on-held']);
+        expect(await branchesOfChanges(heldOnly)).toEqual([heldBranch]);
+      });
+
+      it('挂在检出位上切到被占的分支：主检出位的当前分支、别的检出位持有的，都一行不动地拒绝', async () => {
+        const versionManager = adapter.rxdb.versionManager;
+        await holdBranchFor(WorktreeTableSet.of('wt_other', [Todo]), 'other-held');
         await adapter.rxdb.mountWorktreeTableSet(tableSet);
 
-        await expect(adapter.rxdb.versionManager.switchBranch('feature')).rejects.toThrow(/可写检出位/);
-        expect((await adapter.rxdb.versionManager.getCurrentBranch()).id).toBe(heldBranch);
+        const written = await branchWritesDuring(async () => {
+          await expect(versionManager.switchBranch('main')).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+          await expect(versionManager.switchBranch('other-held')).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+        });
+
+        expect(written).toEqual([]);
+        expect((await versionManager.getCurrentBranch()).id).toBe(heldBranch);
       });
 
       // 建分支在事务里取「当前分支」做父分支：挂在可写检出位上时是持有分支，不是主检出位激活的那一条
