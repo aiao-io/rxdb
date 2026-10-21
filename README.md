@@ -257,7 +257,7 @@ aiao/
 下一批能力补齐，顺序与理由见 [roadmap 批次 3](requirements/roadmap.md#批次-3能力补齐可并行开-pr)：
 
 - 🚧 **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）与 👀 **Taro 插件一行接入**（[US-219](requirements/stories/adapter/US-219-taro-plugin.md)）见上方「进行中 / 待评审」
-- ⬜ **实体元数据层的声明式存储约束**（[US-030](requirements/stories/core/US-030-declarative-storage-constraints.md)）— 阶段 A～C 已解锁进批次 3，阶段 D 仍价值待证
+- 👀 **实体元数据层的声明式存储约束**（[US-030](requirements/stories/core/US-030-declarative-storage-constraints.md)）— 阶段 A～C 已随 [#114](https://github.com/aiao-io/rxdb/pull/114) 合入；阶段 D（生成列、表达式索引与索引方法）引擎代码待评审，AC#5 的查询计划证据待 BOM 合入后回写
 
 ## 路线图
 
