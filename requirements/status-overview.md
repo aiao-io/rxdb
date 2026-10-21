@@ -11,15 +11,14 @@
 | ✅ Done        | 75   |
 | 🚧 In Progress | 1    |
 | 👀 In Review   | 2    |
-| 📝 Backlog     | 25   |
+| 📝 Backlog     | 22   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 103  |
+| **合计**       | 100  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **25 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
-> [模型驱动后台](epics/epic-010-model-driven-admin-framework.md) 首版切片 3 条（US-526~528）已孵化但 epic **未解锁、价值待证**；
+> **22 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
 > [US-911](stories/future/US-911-client-i18n.md) 阶段 A～C 无硬前置、可开工，在立项池待 owner 定批次；[US-029](stories/core/US-029-rbac-owner-role-permission.md)
 > 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
 > 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
@@ -205,16 +204,6 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 - ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 实例结构（`parent_instance_id`）与主数据可达性分离；源发生项删除受限
 - ⬜ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — 四阶段；路线一律落在本仓；US-520 与 US-514 加工费的那一端，是二者的硬前置
 - ⬜ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
-
-### [模型驱动后台管理框架](epics/epic-010-model-driven-admin-framework.md)
-
-**未解锁（价值待证）**：三条故事写不出「今天用户踩得到的具体症状」——无具名试用者、仓库未自举；
-解锁条件与不随首版立项的范围见 [epic-010](epics/epic-010-model-driven-admin-framework.md#价值待证整个-epic)，
-候选分析见 [domain-research](domain-research/admin-framework.md)。
-
-- ⬜ [US-526 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环](stories/domain/US-526-admin-workbench.md) — 三阶段；应用壳与预置 schema + 导航（A）、CRUD 接线与加载 / 失败 / 空态（B）、持久化重开 + e2e 组合验收（C）；复用 rxdb-model 组件与三端 demo 实体页，不新增公共框架 API
-- ⬜ [US-527 工作台备份恢复闭环：失败语义与数据保留](stories/domain/US-527-admin-backup-restore.md) — 两阶段；复用 US-217 的备份 / 恢复契约与错误分类，只做入口与失败语义接线；恢复失败不得破坏当前库
-- ⬜ [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md) — 两阶段；只用发布包从零接线的最小应用 + 代码行数 / 依赖 / 样式成本记录
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
