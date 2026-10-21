@@ -59,8 +59,8 @@ test.describe('模型驱动数据工作台', () => {
     await page.getByRole('button', { name: '关闭' }).click();
     await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
 
-    // 编辑：改名称并保存
-    const edit = await expectActionIcon(page, 'edit-action', 1);
+    // 编辑：权限齐备时「查看」打开的就是 edit 模式（操作列没有独立编辑图标，与 Todo 同款）
+    const edit = await expectActionIcon(page, 'view-action', 1);
     await page.mouse.click(edit.x, edit.y);
     await expect(page.getByRole('tab', { name: '基本信息' })).toBeVisible();
     await fillField(page, '名称', '工作站');

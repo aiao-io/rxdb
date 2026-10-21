@@ -42,7 +42,7 @@ interface ActionIconHit {
 async function findActionIcon(page: Page, iconName: string, row = 1): Promise<ActionIconHit | null> {
   const canvas = page.getByTestId('entity-shell').locator('canvas').first();
   return canvas.evaluate(
-    (el, [name, targetRow]) => {
+    async (el, [name, targetRow]) => {
       interface SceneNode {
         name?: string;
         globalAABBBounds: { x1: number; x2: number; y1: number; y2: number };
@@ -61,6 +61,8 @@ async function findActionIcon(page: Page, iconName: string, row = 1): Promise<Ac
       );
       if (col === undefined) throw new Error('表格没有操作列');
       table.scrollToCell({ col, row: targetRow });
+      // 横向滚动触发异步重渲染：滚动后的下一帧场景树才带上图标，立即读会拿到空单元格
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       let icon: SceneNode | undefined;
       const visit = (node: SceneNode): void => {
         if (!icon && node.name === name) icon = node;
@@ -82,9 +84,7 @@ async function findActionIcon(page: Page, iconName: string, row = 1): Promise<Ac
 
 /** 等第 `row` 行的操作列图标出现并返回其坐标；图标不存在时抛错。 */
 export async function expectActionIcon(page: Page, iconName: string, row = 1): Promise<ActionIconHit> {
-  await expect
-    .poll(async () => findActionIcon(page, iconName, row), { timeout: 15000 })
-    .not.toBeNull();
+  await expect.poll(async () => findActionIcon(page, iconName, row), { timeout: 15000 }).not.toBeNull();
   const hit = await findActionIcon(page, iconName, row);
   if (hit === null) throw new Error(`操作列没有 ${iconName} 图标`);
   return hit;
