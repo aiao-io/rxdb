@@ -1926,6 +1926,33 @@
         "version": "0.0.26"
       },
       {
+        "description": "看板插件（rxdb-plugin-board）的 Angular 绑定：useBoard() 领域数据 signal 桥接与领域动作集合（epic-010 / US-531）。",
+        "framework": "angular",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-board",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-board-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
         "description": "> Implements: [US-503 图数据插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-503-graph-data.md)",
         "framework": null,
         "homepage": "https://rxdb.aiao.io/docs/plugins",
@@ -2979,7 +3006,7 @@
       }
     ]
   },
-  "digest": "7bd5d4b8adf4ed516462886c480c26be001988530fc2beb4ce41f4cb697f4ea0",
+  "digest": "f2d113e1e0b3fa0482deaa42ee5bb8feb4c3b14a74ff5a48a7237202cb5dd9a4",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

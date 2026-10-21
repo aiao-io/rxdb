@@ -289,6 +289,17 @@
       "framework": null
     },
     {
+      "name": "@aiao/rxdb-plugin-board-angular",
+      "description": "看板插件（rxdb-plugin-board）的 Angular 绑定：useBoard() 领域数据 signal 桥接与领域动作集合（epic-010 / US-531）。",
+      "role": "binding",
+      "hosts": [
+        "browser",
+        "node"
+      ],
+      "slots": [],
+      "framework": "angular"
+    },
+    {
       "name": "@aiao/rxdb-plugin-graph",
       "description": "> Implements: [US-503 图数据插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-503-graph-data.md)",
       "role": "plugin",
