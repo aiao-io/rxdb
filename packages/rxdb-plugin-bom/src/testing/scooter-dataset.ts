@@ -678,15 +678,16 @@ export const loadScooterDataset = async (adapter: BomLocalAdapter): Promise<Scoo
 };
 
 /**
- * SC-100 数据集阶段 D 层（US-525 AC#13~#15）：EBOM↔MBOM 拆分映射（钣金 SHEET-ASSY：
- * EBOM 一张头拆成 MBOM 的板材 + 2 个工序件）；成本输入齐全——全部外购叶子价格 1 元、
- * 副产 OFFCUT 抵减价 1、HOUSING 挂路线（工序 10：run 0.5 h/件、费率 2/h、制费 0.4/h）、
- * 全部头 `cost_lot_qty = 1`；MCU 下补 MCU-DIE → DIE-PART 两层（整机 5 层）；
- * `COST-DEMO` 头挂无价的 `COST-MISSING`（AC#15 的缺失演示面）。
+ * SC-100 数据集阶段 D 层（US-525 AC#13~#15）：EBOM↔MBOM 拆分映射（钣金 SHEET-ASSY 同一修订 A
+ * 上的两张头：EBOM 一行板材，MBOM 拆成板材 + 2 个工序件；变换范围要求两侧父件同一物料）；
+ * 成本输入齐全——全部外购叶子价格 1 元、副产 OFFCUT 抵减价 1、HOUSING 挂路线（工序 10：
+ * run 0.5 h/件、费率 2/h、制费 0.4/h）、全部头 `cost_lot_qty = 1`；MCU 下补 MCU-DIE → DIE-PART
+ * 两层（整机 5 层）；`COST-DEMO` 头挂无价的 `COST-MISSING`（AC#15 的缺失演示面）。
  */
 export const SCOOTER_DATASET_D: {
   items: ScooterItemSpec[];
-  headers: ScooterHeaderSpec[];
+  /** 头的类型逐头显式给出：同一修订可同时挂 EBOM 与 MBOM 头（头唯一键含类型）。 */
+  headers: (ScooterHeaderSpec & { bomType: 'ebom' | 'mbom' })[];
   pricePatches: { itemKey: string; unitPrice: string; priceUom?: string }[];
   creditPatches: { itemKey: string; creditPrice: string }[];
   routingPatches: {
@@ -700,7 +701,6 @@ export const SCOOTER_DATASET_D: {
 } = {
   items: [
     { key: 'SHEET-ASSY' },
-    { key: 'SHEET-ASSY-M' },
     { key: 'WIP-BEND' },
     { key: 'WIP-CUT' },
     { key: 'MCU-DIE' },
@@ -709,13 +709,15 @@ export const SCOOTER_DATASET_D: {
     { key: 'COST-MISSING' }
   ],
   headers: [
-    // SHEET-ASSY 的 MBOM 头（EBOM 头在下层——SHEET-ASSY 是新物料，两层头都在这建）
+    // SHEET-ASSY 双图：同一修订 A 上的 EBOM 头（设计：一行板材）与 MBOM 头（制造：板材 + 2 个工序件）
     {
       itemKey: 'SHEET-ASSY',
+      bomType: 'ebom',
       occurrences: [{ childKey: 'SHEET', qty: '1' }]
     },
     {
-      itemKey: 'SHEET-ASSY-M',
+      itemKey: 'SHEET-ASSY',
+      bomType: 'mbom',
       occurrences: [
         { childKey: 'SHEET', qty: '1' },
         { childKey: 'WIP-BEND', qty: '1' },
@@ -725,15 +727,18 @@ export const SCOOTER_DATASET_D: {
     // MCU-V2 与 MCU-DIE 的新头（整机 5 层）
     {
       itemKey: 'MCU-V2',
+      bomType: 'ebom',
       occurrences: [{ childKey: 'MCU-DIE', qty: '1' }]
     },
     {
       itemKey: 'MCU-DIE',
+      bomType: 'ebom',
       occurrences: [{ childKey: 'DIE-PART', qty: '1' }]
     },
     // 成本缺失演示头
     {
       itemKey: 'COST-DEMO',
+      bomType: 'ebom',
       occurrences: [{ childKey: 'COST-MISSING', qty: '1' }]
     }
   ],
@@ -772,6 +777,16 @@ export const SCOOTER_DATASET_D: {
     }
   ]
 };
+
+/** D 层头规格（带显式清单类型）。 */
+type ScooterDatasetDHeader = (typeof SCOOTER_DATASET_D)['headers'][number];
+
+/** D 层修订的确定性键 `物料:修订号`：同一修订上的多张头共用一个修订。 */
+const revisionKeyOfD = (header: ScooterDatasetDHeader): string => `${header.itemKey}:${header.revisionNo ?? 'A'}`;
+
+/** D 层头的确定性键：EBOM 头沿用修订键（与 A～C 层同形），同一修订上的 MBOM 头追加类型。 */
+const headerKeyOfD = (header: ScooterDatasetDHeader): string =>
+  header.bomType === 'ebom' ? revisionKeyOfD(header) : `${revisionKeyOfD(header)}:${header.bomType}`;
 
 /**
  * 装载 SC-100 种子 D 层（在 C 层之后调用）：新物料 → 新头（SHEET-ASSY 双图 / 成本演示头 /
@@ -850,6 +865,9 @@ export const loadScooterDatasetD = async (adapter: BomLocalAdapter, itemIds: Sco
   operation.runTime = '0.5';
   operation.timeUom = 'h';
   await operation.save();
+  // 修订按「物料:修订号」去重（SHEET-ASSY 的 EBOM / MBOM 两张头共用修订 A），头按修订键引用本批修订
+  const revisionHeaders = new Map(SCOOTER_DATASET_D.headers.map(header => [revisionKeyOfD(header), header]));
+  const revisionKeys = [...revisionHeaders.keys()];
   // D 层头（SHEET-ASSY 双图 / MCU-V2 / MCU-DIE / COST-DEMO）+ 头字段补丁经 open 批次通道
   await loadHistory(adapter, {
     batchNo: 'scooter-seed-d',
@@ -868,8 +886,8 @@ export const loadScooterDatasetD = async (adapter: BomLocalAdapter, itemIds: Sco
         updatedAt: new Date(SCOOTER_SEED_TIMESTAMP)
       }
     ],
-    revisions: SCOOTER_DATASET_D.headers.map(header => ({
-      id: deterministicId(`revision:${header.itemKey}:${header.revisionNo ?? 'A'}`),
+    revisions: [...revisionHeaders].map(([revisionKey, header]) => ({
+      id: deterministicId(`revision:${revisionKey}`),
       itemId: itemIds[header.itemKey]!,
       revisionNo: header.revisionNo ?? 'A',
       effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
@@ -877,22 +895,21 @@ export const loadScooterDatasetD = async (adapter: BomLocalAdapter, itemIds: Sco
       createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
       updatedAt: new Date(SCOOTER_SEED_TIMESTAMP)
     })),
-    headers: SCOOTER_DATASET_D.headers.map((header, headerIndex) => ({
-      revisionIndex: headerIndex,
-      // SHEET-ASSY-M 是 MBOM 头（EBOM↔MBOM 拆分演示）；其余为 EBOM
-      bomType: header.itemKey.endsWith('-M') ? 'mbom' : 'ebom',
+    headers: SCOOTER_DATASET_D.headers.map(header => ({
+      revisionIndex: revisionKeys.indexOf(revisionKeyOfD(header)),
+      bomType: header.bomType,
       orgId: 'org-x',
-      id: deterministicId(`header:${header.itemKey}:${header.revisionNo ?? 'A'}`),
+      id: deterministicId(`header:${headerKeyOfD(header)}`),
       createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
       updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
       lines: header.occurrences.map((occurrence, occurrenceIndex) => ({
-        id: deterministicId(`line:${header.itemKey}:${header.revisionNo ?? 'A'}:${occurrenceIndex}`),
+        id: deterministicId(`line:${headerKeyOfD(header)}:${occurrenceIndex}`),
         createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
         updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
         lineNo: 10 + occurrenceIndex * 10,
         occurrences: [
           {
-            id: deterministicId(`occurrence:${header.itemKey}:${header.revisionNo ?? 'A'}:${occurrenceIndex}`),
+            id: deterministicId(`occurrence:${headerKeyOfD(header)}:${occurrenceIndex}`),
             createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
             updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
             childItemId: itemIds[occurrence.childKey]!,
@@ -904,31 +921,22 @@ export const loadScooterDatasetD = async (adapter: BomLocalAdapter, itemIds: Sco
       }))
     })),
     headerOverlays: [
-      ...(() => {
-        const patches: { headerId: string; headerPatch: { costLotQty: string } }[] = [];
-        // 全部头 cost_lot_qty = 1（卷算必填）
-        for (const headerKey of [
-          'SC-100',
-          'PCBA',
-          'WH-01',
-          'BATT',
-          'MCU-V2',
-          'MCU-DIE',
-          'HOUSING',
-          'SHEET-ASSY',
-          'SHEET-ASSY-M',
-          'COVER-ASSY',
-          'PROCESS-01',
-          'ECN-DEMO',
-          'COST-DEMO'
-        ]) {
-          patches.push({
-            headerId: deterministicId(`header:${headerKey}:${headerKey === 'WH-01' ? 'D' : 'A'}`),
-            headerPatch: { costLotQty: '1' }
-          });
-        }
-        return patches;
-      })(),
+      // 全部头 cost_lot_qty = 1（卷算必填）；键即头的确定性键（`物料:修订号`，同修订上的 MBOM 头追加类型）
+      ...[
+        'SC-100:A',
+        'PCBA:A',
+        'WH-01:D',
+        'BATT:A',
+        'MCU-V2:A',
+        'MCU-DIE:A',
+        'HOUSING:A',
+        'SHEET-ASSY:A',
+        'SHEET-ASSY:A:mbom',
+        'COVER-ASSY:A',
+        'PROCESS-01:A',
+        'ECN-DEMO:A',
+        'COST-DEMO:A'
+      ].map(headerKey => ({ headerId: deterministicId(`header:${headerKey}`), headerPatch: { costLotQty: '1' } })),
       {
         headerId: housingHeaderId,
         headerPatch: { routingId: routing.id }
@@ -961,9 +969,9 @@ export const loadScooterDatasetD = async (adapter: BomLocalAdapter, itemIds: Sco
     ]
   });
 
-  // SHEET-ASSY 双图与映射（同物料两张头 + scope + split 1:3；行 id 按头查得）
+  // SHEET-ASSY 双图与映射（同物料同修订的 EBOM / MBOM 两张头 + scope + split 1:3；行 id 按头查得）
   const sheetAssyEbom = deterministicId('header:SHEET-ASSY:A');
-  const sheetAssyMbom = deterministicId('header:SHEET-ASSY-M:A');
+  const sheetAssyMbom = deterministicId('header:SHEET-ASSY:A:mbom');
   const scope = new BomMapScope();
   (scope as unknown as { id: string }).id = deterministicId('map-scope:D');
   scope.orgId = 'org-x';
@@ -1323,7 +1331,7 @@ export const SCOOTER_DATASET_F = {
  * 不必在 e2e、demo 文案里各抄一份。
  */
 export const SCOOTER_SEED_ROW_COUNTS = {
-  item: 41,
+  item: 40,
   bomLineOccurrence: 43,
   ecn: 4,
   historyBatch: 4,

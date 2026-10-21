@@ -11,11 +11,16 @@ import { bomSqlDialectFor } from '../src/resolve/bom-sql.js';
 import { loadHistory } from '../src/resolve/history-loader.js';
 import { deterministicId } from '../src/testing/scooter-dataset.js';
 
-/** 在同一持久库上分别装配升级前实体/触发器和当前插件，不伪造派生数据。 */
+/**
+ * 在同一持久库上分别装配升级前实体/触发器和当前插件，不伪造派生数据。
+ *
+ * @param observe - 适配器建出、连接开始之前调用，用于包装引导事务以观察连接期执行的语句
+ */
 export const connectReachUpgradeDatabase = async (
   backend: BomTestBackend,
   dbName: string,
-  legacy: boolean
+  legacy: boolean,
+  observe?: (adapter: BomTestAdapter) => void
 ): Promise<BomTestAdapter> => {
   const db = new RxDB({
     dbName,
@@ -45,6 +50,11 @@ export const connectReachUpgradeDatabase = async (
     local = instance;
     return instance;
   });
+  if (observe !== undefined) {
+    await db.getAdapter(backend);
+    if (local === undefined) throw new Error('升级测试适配器未建立');
+    observe(local);
+  }
   await db.connect(backend).catch(async cause => {
     await db.destroy();
     throw cause;

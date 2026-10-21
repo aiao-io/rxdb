@@ -118,7 +118,9 @@
       "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"],
       "@aiao/rxdb-plugin-bom": ["./packages/rxdb-plugin-bom/src/index.ts"],
       "@aiao/rxdb-plugin-bom/testing": ["./packages/rxdb-plugin-bom/src/testing/index.ts"],
-      "@aiao/rxdb-plugin-bom-angular": ["./packages/rxdb-plugin-bom-angular/src/index.ts"]
+      "@aiao/rxdb-plugin-bom-angular": ["./packages/rxdb-plugin-bom-angular/src/index.ts"],
+      "@aiao/rxdb-plugin-bom-react": ["./packages/rxdb-plugin-bom-react/src/index.ts"],
+      "@aiao/rxdb-plugin-bom-vue": ["./packages/rxdb-plugin-bom-vue/src/index.ts"]
     },
     "resolveJsonModule": true,
     "skipDefaultLibCheck": true,

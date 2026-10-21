@@ -9,54 +9,26 @@
  * `jsonb_array_elements_text`，触发器 SQL 不用正则）。
  *
  * 消息前缀 `rxdb:bom_effectivity_overlap:`（与 US-030 的归一约定同构），错误带三维
- * 相交的 detail 文本。DDL 幂等且升级即替换：SQLite `DROP TRIGGER IF EXISTS` + `CREATE TRIGGER`，PG 函数
- * `CREATE OR REPLACE` + DO 块内 `DROP TRIGGER IF EXISTS`（PGlite 0.5.8 解析器坑：
- * 裸 `CREATE TRIGGER` 走 DO 块、`EXECUTE FUNCTION` 目标不带引号，照抄现有先例）。
+ * 相交的 detail 文本。DDL 幂等且升级即替换（先删后建与 DO 块形态见 `ddl-kit`）。
  *
  * 另给 AC#4 的 `unit_from ≤ unit_to` 单行 CHECK 表达式文本（US-030 阶段 A 的落点）。
  */
 
-import { EntityMetadata, getEntityColumnName, quoteSqlIdentifier } from '@aiao/rxdb';
+import { EntityMetadata } from '@aiao/rxdb';
 
 // 触发器消息前缀：三维有效域重叠（归一入口在 types.normalizeBomError）。
+import { BomLineOccurrence } from '../entities.js';
 import { BOM_EFFECTIVITY_OVERLAP_PREFIX } from '../types.js';
+import {
+  column,
+  isEntity,
+  pgCreateTrigger,
+  pgTableRef,
+  pgTriggerFunction,
+  sqliteTableRef,
+  sqliteTrigger
+} from './ddl-kit.js';
 export { BOM_EFFECTIVITY_OVERLAP_PREFIX };
-
-/** SQLite 物理表名：`namespace$tableName`（与 sqlite-core 的表名约定一致）。 */
-const sqliteTableRef = (metadata: EntityMetadata): string =>
-  quoteSqlIdentifier(`${metadata.namespace}$${metadata.tableName}`);
-
-/** PG 表引用：`"schema"."table"`。 */
-const pgTableRef = (metadata: EntityMetadata): string =>
-  `${quoteSqlIdentifier(metadata.namespace)}.${quoteSqlIdentifier(metadata.tableName)}`;
-
-const column = (metadata: EntityMetadata, field: string): string =>
-  quoteSqlIdentifier(getEntityColumnName(metadata, field) as string);
-
-/** 先删后建：插件升级后旧版本的同名触发器体被替换，不与新体并存。 */
-const sqliteTrigger = (tableRef: string, name: string, timing: string, body: string): string[] => [
-  `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier(name)};`,
-  [`CREATE TRIGGER ${quoteSqlIdentifier(name)}`, `${timing} ON ${tableRef}`, `BEGIN`, body, `END;`].join('\n')
-];
-
-const pgFunctionHeader = (metadata: EntityMetadata, name: string): string =>
-  `CREATE OR REPLACE FUNCTION ${quoteSqlIdentifier(metadata.namespace)}.${quoteSqlIdentifier(name)}() RETURNS trigger AS $$\nBEGIN`;
-
-// 守卫函数只挂在 INSERT / UPDATE 上，放行一律 RETURN NEW（无 DELETE 分支）
-const pgFunctionFooter = `\n  RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;`;
-
-/**
- * PG 触发器创建语句：包进 `DO $$` 块（PGlite 0.5.8 解析不了裸 `CREATE TRIGGER`）；
- * `EXECUTE FUNCTION` 的目标**不得加引号**（探针：加引号报 `at end of input`）。
- */
-const pgCreateTrigger = (
-  metadata: EntityMetadata,
-  tableRef: string,
-  name: string,
-  events: string,
-  functionName: string
-): string =>
-  `DO $$\nBEGIN\n  DROP TRIGGER IF EXISTS ${quoteSqlIdentifier(name)} ON ${tableRef};\n  CREATE TRIGGER ${quoteSqlIdentifier(name)} ${events} ON ${tableRef} FOR EACH ROW EXECUTE FUNCTION ${metadata.namespace}.${functionName}();\nEND $$;`;
 
 // -----------------------------------------------------[ 三维判定谓词 ]
 
@@ -128,7 +100,7 @@ const pgLotText = (row: string): string =>
  * 不设头状态门槛——有效域交集是逻辑行的域不变量（同 US-508 日期排他的作用域）。
  */
 export const buildUnitLotOverlapGuardSqlite = (metadata: EntityMetadata): string[] => {
-  if (metadata.name !== 'BomLineOccurrence') return [];
+  if (!isEntity(metadata, BomLineOccurrence)) return [];
   const tableRef = sqliteTableRef(metadata);
   const occurrence = tableRef;
   const row = 'NEW';
@@ -158,7 +130,7 @@ export const buildUnitLotOverlapGuardSqlite = (metadata: EntityMetadata): string
  * 违规行 SELECT ... INTO violation → RAISE EXCEPTION '%'（先例：阶梯 / 位号发布校验）。
  */
 export const buildUnitLotOverlapGuardPg = (metadata: EntityMetadata): string[] => {
-  if (metadata.name !== 'BomLineOccurrence') return [];
+  if (!isEntity(metadata, BomLineOccurrence)) return [];
   const tableRef = pgTableRef(metadata);
   const occurrence = tableRef;
   const row = 'NEW';
@@ -178,7 +150,7 @@ export const buildUnitLotOverlapGuardPg = (metadata: EntityMetadata): string[] =
     `  DECLARE violation text;\n  BEGIN\n    ${violation} INTO violation;\n` +
     `    IF violation IS NOT NULL THEN\n      RAISE EXCEPTION '%', violation;\n    END IF;\n  END;`;
   return [
-    `${pgFunctionHeader(metadata, 'bom_line_occurrence__unit_lot_overlap_guard')}\n${body}${pgFunctionFooter}`,
+    pgTriggerFunction(metadata, 'bom_line_occurrence__unit_lot_overlap_guard', body),
     pgCreateTrigger(
       metadata,
       tableRef,

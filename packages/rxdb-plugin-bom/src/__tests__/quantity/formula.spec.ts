@@ -59,6 +59,22 @@ describe('公式求值器：拒绝语义（AC#14）', () => {
     }
   });
 
+  it('参数名与 Object 原型成员同名时按缺参拒绝（不沿原型链取到函数或原型对象）', () => {
+    for (const name of ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']) {
+      const error = (() => {
+        try {
+          evaluateFormula(`${name}*2`, {});
+          return null;
+        } catch (cause) {
+          return cause;
+        }
+      })();
+      expect(error, name).toBeInstanceOf(BomQuantityError);
+      expect(String((error as Error).message), name).toContain(`缺参数 ${name}`);
+    }
+    expect(evaluateFormula('constructor*2', { constructor: '3' })).toBe('6');
+  });
+
   it('语法错误拒绝', () => {
     for (const bad of ['1+', '1..2', 'a b', '', '()', '*3']) {
       expect(() => evaluateFormula(bad, {}), bad).toThrow(BomQuantityError);

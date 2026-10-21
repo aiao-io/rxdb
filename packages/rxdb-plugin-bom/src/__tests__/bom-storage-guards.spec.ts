@@ -105,6 +105,29 @@ for (const backend of BACKENDS) {
       await split.save();
     };
 
+    /** 给草稿头挂一条含给定工序的路线（已发布头新增分摊行要求头已挂路线）。 */
+    const attachRouting = async (header: BomHeader, operationSeqs: number[]): Promise<void> => {
+      const center = new BomWorkCenter();
+      center.code = `wc-${Math.random().toString(36).slice(2, 10)}`;
+      center.orgId = header.orgId;
+      await center.save();
+      const routing = new BomRouting();
+      routing.parentRevisionId = header.parentRevisionId;
+      routing.bomType = header.bomType;
+      routing.orgId = header.orgId;
+      routing.validFrom = day('2026-01-01');
+      await routing.save();
+      for (const operationSeq of operationSeqs) {
+        const operation = new BomRoutingOperation();
+        operation.routingId = routing.id;
+        operation.workCenterId = center.id;
+        operation.operationSeq = operationSeq;
+        await operation.save();
+      }
+      header.routingId = routing.id;
+      await header.save();
+    };
+
     it('发生项已有分摊行后再挂 operation_seq：插件入口与直连 SQL 都拒（AC#6 两侧互斥）', async () => {
       const header = await draftHeader();
       const occurrence = await addOccurrence(header);
@@ -131,6 +154,7 @@ for (const backend of BACKENDS) {
 
     it('ECN 投影的分摊合计违约消息小数段补足 9 位：0.05 报 0.050000000', async () => {
       const header = await draftHeader();
+      await attachRouting(header, [10]);
       header.state = 'released';
       await header.save();
       const ecn = new BomEcn();

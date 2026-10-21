@@ -64,11 +64,6 @@ const save = async (): Promise<void> => {
       role="status"
       >{{ state.editor.phase === 'loading' ? '正在加载发生项…' : '请选择一条 BOM 行进行编辑' }}</p
     >
-    <p
-      v-if="state.editor.saving"
-      role="status"
-      >正在保存发生项…</p
-    >
     <form
       v-if="state.editor.value"
       @submit.prevent="save"
@@ -93,6 +88,11 @@ const save = async (): Promise<void> => {
         v-if="state.editor.value.readOnlyReason !== null"
         role="note"
         >{{ state.editor.value.readOnlyReason }}</p
+      >
+      <p
+        v-if="state.editor.saving"
+        role="status"
+        >正在保存发生项…</p
       >
       <button
         type="submit"

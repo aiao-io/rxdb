@@ -2,7 +2,7 @@ import type { RxDB, UUID } from '@aiao/rxdb';
 import { filter, firstValueFrom, ReplaySubject, timeout } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { BomEcn, BomHeader, BomLineOccurrence, BomRouting } from '../entities.js';
-import { createBomView } from '../index.js';
+import { createBomView, initialBomViewState } from '../index.js';
 import { BOM_VIEW_FIXTURE_DATES, loadBomViewFixture, type BomViewFixture } from '../testing/bom-view-fixture.js';
 import { BomCycleError, BomWriteProtocolError } from '../types.js';
 import type { BomViewHandle, BomViewState } from '../view-types.js';
@@ -55,6 +55,28 @@ const failureOf = (operation: Promise<unknown>): Promise<unknown> =>
     () => null,
     (cause: unknown) => cause
   );
+
+const deferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>(done => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
+/** 让发生项仓储的 update 停在落库之前，直到 release；reached 在保存读完旧值、即将写入时兑现。 */
+const holdOccurrenceUpdate = (db: RxDB) => {
+  const repository = db.entityManager.getRepository(BomLineOccurrence);
+  const update = repository.update.bind(repository);
+  const reached = deferred();
+  const gate = deferred();
+  vi.spyOn(repository, 'update').mockImplementation(async (entity, patch) => {
+    reached.resolve();
+    await gate.promise;
+    return update(entity, patch);
+  });
+  return { reached: reached.promise, release: gate.resolve };
+};
 
 for (const backend of ['wa-sqlite', 'pglite'] as const) {
   describe(`BOM 共享发生项编辑 [${backend}]`, () => {
@@ -252,6 +274,76 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
             { plannedQty: input.plannedQty }
           );
           expect(historical.requirementLines).toMatchObject([{ qty: '2' }]);
+        } finally {
+          recorded.stop();
+          view.destroy();
+        }
+      });
+    });
+
+    it('保存未落库时发起的加载等保存结束再读，后发加载仍覆盖先发加载', async () => {
+      await withFixture(backend, async (db, fixture) => {
+        const view = createBomView(db, fixture.input);
+        const recorded = observe(view);
+        try {
+          await view.loadOccurrence(fixture.ids.occurrences.draft);
+          const held = holdOccurrenceUpdate(db);
+          const saving = view.saveOccurrence({ qty: '13' });
+          await held.reached;
+          const loads = Promise.all([
+            view.loadOccurrence(fixture.ids.occurrences.pending),
+            view.loadOccurrence(fixture.ids.occurrences.draft)
+          ]);
+          // 加载不能抢在保存落库前读到旧值
+          const first = await Promise.race([
+            loads.then(() => 'loaded'),
+            new Promise(done => setTimeout(done, 200, 'waiting'))
+          ]);
+          expect(first).toBe('waiting');
+          held.release();
+          await Promise.all([saving, loads]);
+          expect((await readOccurrence(db, fixture.ids.occurrences.draft)).qty).toBe('13');
+          const settled = await recorded.until(state => state.editor.phase === 'success' && !state.editor.saving);
+          expect(settled.editor.value).toMatchObject({ occurrenceId: fixture.ids.occurrences.draft, qty: '13' });
+          expect(settled.editor.error).toBeNull();
+        } finally {
+          recorded.stop();
+          view.destroy();
+        }
+      });
+    });
+
+    it('同一目标只改参数保留编辑器；换目标回到初态，在途加载与保存的结果作废但写入照常落库', async () => {
+      await withFixture(backend, async (db, fixture) => {
+        const view = createBomView(db, fixture.input);
+        const recorded = observe(view);
+        try {
+          await view.loadOccurrence(fixture.ids.occurrences.draft);
+          view.setInput(fixture.inputFor('main', { plannedQty: { value: '2', uom: 'pcs' } }));
+          const retained = await recorded.until(state => state.phase === 'success' && !state.refreshing);
+          expect(retained.editor).toMatchObject({
+            phase: 'success',
+            value: { occurrenceId: fixture.ids.occurrences.draft }
+          });
+          view.setInput(fixture.inputFor('formula'));
+          expect((await recorded.until(state => state.phase === 'success' && !state.refreshing)).editor).toEqual(
+            initialBomViewState().editor
+          );
+
+          const lateLoad = view.loadOccurrence(fixture.ids.occurrences.pending);
+          view.setInput(fixture.inputFor('main'));
+          await lateLoad;
+          expect((await recorded.until(state => state.phase === 'success' && !state.refreshing)).editor).toEqual(
+            initialBomViewState().editor
+          );
+
+          await view.loadOccurrence(fixture.ids.occurrences.draft);
+          const lateSave = view.saveOccurrence({ qty: '17' });
+          view.setInput(fixture.inputFor('formula'));
+          await lateSave;
+          expect((await readOccurrence(db, fixture.ids.occurrences.draft)).qty).toBe('17');
+          const after = await recorded.until(state => state.phase === 'success' && !state.refreshing);
+          expect(after.editor).toEqual(initialBomViewState().editor);
         } finally {
           recorded.stop();
           view.destroy();

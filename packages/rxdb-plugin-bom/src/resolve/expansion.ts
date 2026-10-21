@@ -90,8 +90,12 @@ export interface WhereUsedTarget {
   childItemId: string;
 }
 
-/** 预算默认值：深度 128（与判环硬上限同阶），展开数与路径数沿用 graph 插件的 100,000 先例。 */
-const DEFAULT_BUDGETS: Required<ExpansionBudgets> = { depth: 128, expansions: 100_000, paths: 100_000 };
+/** 预算默认值：深度 128（与判环硬上限同阶），展开数与路径数沿用 graph 插件的 100,000 先例（ECN 影响面同口径）。 */
+export const DEFAULT_EXPANSION_BUDGETS: Readonly<Required<ExpansionBudgets>> = {
+  depth: 128,
+  expansions: 100_000,
+  paths: 100_000
+};
 
 /** 前沿集合 IN 列表的分块大小（避开两后端的绑定变量上限）。 */
 const CHUNK_SIZE = 200;
@@ -143,12 +147,13 @@ interface UsageRow {
   lineNo: number;
   occurrenceId: string;
   childItemId: string;
-  qty: string;
+  /** 公式行为 null（与下钻同口径）。 */
+  qty: string | null;
   effectiveFrom: Date;
   effectiveTo: Date | null;
 }
 
-const resolveBudgets = (budgets?: ExpansionBudgets): ResolvedBudgets => ({ ...DEFAULT_BUDGETS, ...budgets });
+const resolveBudgets = (budgets?: ExpansionBudgets): ResolvedBudgets => ({ ...DEFAULT_EXPANSION_BUDGETS, ...budgets });
 
 /**
  * 生成新节点前的预算结算（顺序：取消 → 深度 → 返回路径数 → 展开数）。
@@ -336,7 +341,8 @@ const fetchParents = async (
         lineNo: Number(row[columnIndexOf(result.columns, 'lineNo')]),
         occurrenceId: String(row[columnIndexOf(result.columns, 'occurrenceId')]),
         childItemId: String(row[columnIndexOf(result.columns, 'childItemId')]),
-        qty: String(row[columnIndexOf(result.columns, 'qty')]),
+        qty:
+          row[columnIndexOf(result.columns, 'qty')] === null ? null : String(row[columnIndexOf(result.columns, 'qty')]),
         effectiveFrom: normalizeDate(row[columnIndexOf(result.columns, 'effectiveFrom')]) as Date,
         effectiveTo: normalizeDate(row[columnIndexOf(result.columns, 'effectiveTo')])
       });

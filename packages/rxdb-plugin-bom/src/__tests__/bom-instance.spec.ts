@@ -1,8 +1,10 @@
 /** @fileoverview US-523 实例安装事实、时间查询与写入约束的双后端回归。 */
 
-import { RxDBExclusionViolationError } from '@aiao/rxdb';
+import { RxDBExclusionViolationError, type TransactionExecutor, type TransactionFun } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { BomInstanceNode, BomItem } from '../entities.js';
+import { whereUsedInstance } from '../instance.js';
+import type { BomLocalAdapter } from '../resolve/bom-adapter.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { resolveBom } from '../resolve/resolver.js';
 import { BomCycleError, BomInstanceError } from '../types.js';
@@ -141,6 +143,29 @@ const child = async (
 
 const table = (fixture: InstanceFixture): string =>
   fixture.backend === 'pglite' ? '"bom"."bom_instance_node"' : '"bom$bom_instance_node"';
+
+/** 包一层计数：事务执行器的每次 query 记下 SQL，其余成员原样转发。 */
+const countingAdapter = (adapter: BomTestAdapter, statements: string[]): BomLocalAdapter => {
+  const counted = (executor: TransactionExecutor): TransactionExecutor =>
+    new Proxy(executor, {
+      get: (target, key) => {
+        if (key === 'query') {
+          return (sql: string, params?: readonly unknown[]) => {
+            statements.push(sql);
+            return target.query(sql, params);
+          };
+        }
+        const value: unknown = Reflect.get(target, key);
+        return typeof value === 'function' ? value.bind(target) : value;
+      }
+    });
+  return {
+    name: adapter.name,
+    rxdb: adapter.rxdb,
+    transaction: <T extends TransactionFun>(fun: T, transactionLog?: boolean) =>
+      adapter.transaction((executor => fun(counted(executor))) as T, transactionLog)
+  };
+};
 
 for (const backend of ['wa-sqlite', 'pglite'] as const) {
   describe(`实例 BOM [${backend}]`, () => {
@@ -491,6 +516,38 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
             fixture.adapter.rxdb.bom.whereUsedInstance({ serialNumber: 'MISSING' }, options)
           ).rejects.toBeInstanceOf(BomInstanceError);
         }
+      });
+    });
+
+    it('评审 P3 反查按层批量取父实例：3 个命中 × 2 层祖先只发 1 + 2 次读取，路径与预算口径不变', async () => {
+      await withFixture(backend, async fixture => {
+        const expected: string[][] = [];
+        for (let index = 0; index < 3; index += 1) {
+          const device = await root(fixture, `SN-BATCH-${index}`);
+          const part = await child(fixture, device);
+          const leaf = await child(fixture, part, {
+            itemRevisionId: fixture.bulkRevisionId,
+            serialNumber: null,
+            lotCode: 'SHARED-BATCH'
+          });
+          expected.push([device.id, part.id, leaf.id]);
+        }
+        const statements: string[] = [];
+        const trace = await whereUsedInstance(countingAdapter(fixture.adapter, statements), {
+          lotCode: 'SHARED-BATCH'
+        });
+        expect(trace.truncated).toBe(false);
+        expect(trace.matches.map(match => match.path.map(value => value.id)).sort()).toEqual(expected.sort());
+        expect(trace.matches.map(match => match.root.id).sort()).toEqual(expected.map(path => path[0]).sort());
+        // 预算口径同逐条追溯：命中按安装时刻、id 排序逐条追溯，第一条走完（3 个节点）后第二条只够访问命中本身
+        const budgeted = await whereUsedInstance(fixture.adapter, { lotCode: 'SHARED-BATCH' }, { maxNodes: 4 });
+        expect(budgeted.truncated).toBe(true);
+        const firstHit = [...expected].sort((left, right) => (left[2] < right[2] ? -1 : 1))[0];
+        expect(budgeted.matches.map(match => match.path.map(value => value.id))).toEqual([firstHit]);
+        const shallow = await whereUsedInstance(fixture.adapter, { lotCode: 'SHARED-BATCH' }, { maxDepth: 1 });
+        expect(shallow).toEqual({ matches: [], truncated: true });
+        // 命中 1 次 + 每层祖先 1 次（逐边单行时是 1 + 3 × 2）
+        expect(statements).toHaveLength(3);
       });
     });
   });

@@ -69,7 +69,7 @@ export const checkStorageDeclarationsPGlite = async (
   executor: CatalogExecutor,
   metadata: EntityMetadata,
   tableMissing: boolean,
-  hasGenerated: boolean,
+  hasManagedColumns: boolean,
   hasIndexes: boolean
 ): Promise<{ expected: string[]; actual: string[]; changed: string[] }> => {
   const columns = generatedColumnsOf(metadata).map(column => compileGeneratedColumn(metadata, column, 'postgres'));
@@ -81,10 +81,11 @@ export const checkStorageDeclarationsPGlite = async (
   if (tableMissing) return { expected, actual: [], changed: [] };
   const params = [metadata.namespace, metadata.tableName];
   const catalogColumns =
-    hasGenerated || columns.length > 0 ? (await executor.queryRaw<ColumnEntry>(COLUMN_SQL, params)).rows : [];
-  const actualColumns = catalogColumns.filter(
-    row => row.generated !== '' || columns.some(column => column.columnName === row.name)
-  );
+    hasManagedColumns || columns.length > 0 ? (await executor.queryRaw<ColumnEntry>(COLUMN_SQL, params)).rows : [];
+  // gc_ 是托管列的保留前缀：目录里的同前缀列不论是不是生成列都计入实际集合，用户自建的普通列判多余；
+  // 实体自己声明的属性 / 外键列即便同前缀也是已声明对象，不算多余
+  const ownColumns = new Set([...metadata.columnNameToPropertyName.keys(), ...metadata.foreignKeyColumnNames]);
+  const actualColumns = catalogColumns.filter(row => !ownColumns.has(row.name));
   const catalogIndexes = hasIndexes ? (await executor.queryRaw<IndexEntry>(INDEX_SQL, params)).rows : [];
   const actual = [...actualColumns.map(column => column.name), ...catalogIndexes.map(index => index.name)];
   const changed: string[] = [];

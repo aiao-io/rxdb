@@ -8,8 +8,10 @@
  * 四类各就其位；涉及的逻辑行解析不出唯一发生项时差异无法判定，显式拒绝。全部 SQL 走方言占位符绑定。
  */
 
+import { BomTruncationError } from '../types.js';
 import type { BomLocalAdapter } from './bom-adapter.js';
 import { bomSqlDialectFor, buildParentsOfItemsSql } from './bom-sql.js';
+import { DEFAULT_EXPANSION_BUDGETS } from './expansion.js';
 import {
   BomResolutionError,
   type BomType,
@@ -45,7 +47,7 @@ export interface EcnImpactResult {
   effectiveDate: Date;
   /** 被 ECN 改动的 BOM 的父物料（成员发生项归属头的父物料，去重）。 */
   affectedItemIds: string[];
-  /** 顶层整机（在被改头的作用域内无父物料）与命中路径（行发生项 ID 序列）。 */
+  /** 顶层整机（在被改头的作用域内无父物料）与命中路径（行发生项 ID 序列，子件 → 整机；经不同路径到达各一条）。 */
   topItems: { itemId: string; paths: string[][] }[];
 }
 
@@ -167,9 +169,44 @@ const parentsOf = async (
   return parents;
 };
 
+/** 反查前沿的一条路径：当前物料、到达它的命中路径（发生项 id，子件 → 整机序）与路径上的物料（判环用）。 */
+interface ImpactPath {
+  itemId: string;
+  path: string[];
+  items: ReadonlySet<string>;
+}
+
+/** 已生成的路径数（影响面路径预算的计数器）。 */
+interface PathBudget {
+  generated: number;
+}
+
+/**
+ * 一条路径向上一跳（新路径追加进 `next`）：每个使用方各成一条新路径（钻石的每条路都保留）；
+ * 回到本路径已有物料的边跳过——非 consume 流向不入存储层判环，反查可能成环。深度与路径数沿用
+ * where-used 默认预算；影响面没有截断标记，触顶即拒绝，不把部分影响面当完整结果。
+ */
+const climb = (
+  entry: ImpactPath,
+  parents: readonly { parentItemId: string; occurrenceId: string }[],
+  budget: PathBudget,
+  next: ImpactPath[]
+): void => {
+  for (const parent of parents.filter(candidate => !entry.items.has(candidate.parentItemId))) {
+    if (entry.path.length + 1 > DEFAULT_EXPANSION_BUDGETS.depth) throw new BomTruncationError('depth');
+    budget.generated += 1;
+    if (budget.generated > DEFAULT_EXPANSION_BUDGETS.paths) throw new BomTruncationError('paths');
+    next.push({
+      itemId: parent.parentItemId,
+      path: [...entry.path, parent.occurrenceId],
+      items: new Set([...entry.items, parent.parentItemId])
+    });
+  }
+};
+
 /**
  * 从被改物料在作用域内 where-used 逐层向上到无父物料（整机）；命中路径以「物料 → 父物料」逐跳
- * 追加到达父物料的发生项 id。
+ * 追加到达父物料的发生项 id。按路径而非物料去重：同一整机经不同路径到达时每条路径各记一次。
  */
 const topItemsOf = async (
   adapter: BomLocalAdapter,
@@ -177,22 +214,15 @@ const topItemsOf = async (
   itemId: string
 ): Promise<Map<string, string[][]>> => {
   const top = new Map<string, string[][]>();
-  const seen = new Set<string>([itemId]);
-  let frontier: { itemId: string; path: string[] }[] = [{ itemId, path: [] }];
+  const budget: PathBudget = { generated: 0 };
+  let frontier: ImpactPath[] = [{ itemId, path: [], items: new Set([itemId]) }];
   while (frontier.length > 0) {
-    const parentsByChild = await parentsOf(
-      adapter,
-      context,
-      frontier.map(entry => entry.itemId)
-    );
-    const next: { itemId: string; path: string[] }[] = [];
+    const parentsByChild = await parentsOf(adapter, context, [...new Set(frontier.map(entry => entry.itemId))]);
+    const next: ImpactPath[] = [];
     for (const entry of frontier) {
       const parents = parentsByChild.get(entry.itemId) ?? [];
       if (parents.length === 0) appendTo(top, entry.itemId, [entry.path]);
-      for (const parent of parents.filter(candidate => !seen.has(candidate.parentItemId))) {
-        seen.add(parent.parentItemId);
-        next.push({ itemId: parent.parentItemId, path: [...entry.path, parent.occurrenceId] });
-      }
+      climb(entry, parents, budget, next);
     }
     frontier = next;
   }
@@ -201,6 +231,8 @@ const topItemsOf = async (
 
 /**
  * ECN 影响面（AC#1）：成员发生项的头物料按生效日、在该头自己的作用域内 where-used 走到顶的整机与路径。
+ *
+ * @throws {@link BomTruncationError} 命中路径超出 where-used 默认预算（深度 128 / 路径 100,000）
  */
 export const ecnImpact = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnImpactResult> => {
   const ecn = await readEcnRow(adapter, ecnId);

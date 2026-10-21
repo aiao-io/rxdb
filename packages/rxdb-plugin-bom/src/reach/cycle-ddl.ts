@@ -1,4 +1,7 @@
+import { getEntityMetadata } from '@aiao/rxdb';
 import { BOM_CYCLE_DEPTH_LIMIT } from '../backend/constants.js';
+import { pgCreateTrigger, pgTriggerFunction, sqliteTrigger } from '../backend/ddl-kit.js';
+import { BomLineOccurrence } from '../entities.js';
 import { occurrenceScopeSql, reachSqlFor, unionEdgesSql, type ReachSql } from './reach-sql.js';
 
 const cycleScope = (sql: ReachSql): string => `scope AS MATERIALIZED (${occurrenceScopeSql(sql, 'NEW')})`;
@@ -34,17 +37,21 @@ const depthExceeded = (sql: ReachSql): string => `WITH RECURSIVE ${cycleScope(sq
   ) SELECT 1 FROM walk w JOIN edges e ON e.p = w.item WHERE w.depth >= ${BOM_CYCLE_DEPTH_LIMIT} LIMIT 1`;
 
 const sqliteCycleDdl = (sql: ReachSql): string[] => {
-  const body = `
-    SELECT RAISE(ABORT, 'rxdb:bom_cycle:' || COALESCE((${witness(sql)}), 'depth_limit')) WHERE EXISTS (${reverseHit(sql)});
-    SELECT RAISE(ABORT, 'rxdb:bom_cycle:depth_limit') WHERE EXISTS (${depthExceeded(sql)});`;
+  const body = [
+    `  SELECT RAISE(ABORT, 'rxdb:bom_cycle:' || COALESCE((${witness(sql)}), 'depth_limit')) WHERE EXISTS (${reverseHit(sql)});`,
+    `  SELECT RAISE(ABORT, 'rxdb:bom_cycle:depth_limit') WHERE EXISTS (${depthExceeded(sql)});`
+  ].join('\n');
   const table = sql.dialect.table('bom_line_occurrence');
+  const consume = `NEW."flowDirection" = 'consume'`;
   return [
-    'DROP TRIGGER IF EXISTS "bom_line_occurrence_cycle_i";',
-    'DROP TRIGGER IF EXISTS "bom_line_occurrence_cycle_u";',
-    `CREATE TRIGGER "bom_line_occurrence_cycle_i" BEFORE INSERT ON ${table} WHEN NEW."flowDirection" = 'consume' BEGIN ${body} END;`,
-    `CREATE TRIGGER "bom_line_occurrence_cycle_u" BEFORE UPDATE OF "childItemId", "flowDirection" ON ${table}
-      WHEN NEW."flowDirection" = 'consume' AND (OLD."childItemId" IS NOT NEW."childItemId" OR OLD."flowDirection" IS NOT NEW."flowDirection")
-      BEGIN ${body} END;`
+    ...sqliteTrigger(table, 'bom_line_occurrence_cycle_i', 'BEFORE INSERT', body, consume),
+    ...sqliteTrigger(
+      table,
+      'bom_line_occurrence_cycle_u',
+      'BEFORE UPDATE OF "childItemId", "flowDirection"',
+      body,
+      `${consume} AND (OLD."childItemId" IS NOT NEW."childItemId" OR OLD."flowDirection" IS NOT NEW."flowDirection")`
+    )
   ];
 };
 
@@ -62,22 +69,25 @@ const pgCycleDdl = (sql: ReachSql, remote: boolean): string[] => {
   const table = sql.dialect.table('bom_line_occurrence');
   const functionName = remote ? 'bom_cycle_guard_remote' : 'bom_line_occurrence__cycle_guard';
   const triggerName = remote ? 'bom_line_occurrence_cycle_remote_trg' : 'bom_line_occurrence__cycle_trg';
+  const body = `${remote ? remoteLock(sql) : ''}
+  IF NEW."flowDirection" <> 'consume' THEN RETURN NEW; END IF;
+  IF TG_OP = 'UPDATE' AND OLD."childItemId" IS NOT DISTINCT FROM NEW."childItemId" AND OLD."flowDirection" IS NOT DISTINCT FROM NEW."flowDirection" THEN RETURN NEW; END IF;
+  IF EXISTS (${reverseHit(sql)}) THEN
+    SELECT found.witness INTO cycle_path FROM (${witness(sql)}) found;
+    IF cycle_path IS NULL THEN RAISE EXCEPTION 'rxdb:bom_cycle:depth_limit'; END IF;
+    RAISE EXCEPTION 'rxdb:bom_cycle:%', cycle_path;
+  END IF;
+  IF EXISTS (${depthExceeded(sql)}) THEN RAISE EXCEPTION 'rxdb:bom_cycle:depth_limit'; END IF;`;
+  const occurrence = getEntityMetadata(BomLineOccurrence);
   return [
-    `CREATE OR REPLACE FUNCTION "bom"."${functionName}"() RETURNS trigger AS $$ DECLARE cycle_path text; lock_scope record; BEGIN
-      ${remote ? remoteLock(sql) : ''}
-      IF NEW."flowDirection" <> 'consume' THEN RETURN NEW; END IF;
-      IF TG_OP = 'UPDATE' AND OLD."childItemId" IS NOT DISTINCT FROM NEW."childItemId" AND OLD."flowDirection" IS NOT DISTINCT FROM NEW."flowDirection" THEN RETURN NEW; END IF;
-      IF EXISTS (${reverseHit(sql)}) THEN
-        SELECT found.witness INTO cycle_path FROM (${witness(sql)}) found;
-        IF cycle_path IS NULL THEN RAISE EXCEPTION 'rxdb:bom_cycle:depth_limit'; END IF;
-        RAISE EXCEPTION 'rxdb:bom_cycle:%', cycle_path;
-      END IF;
-      IF EXISTS (${depthExceeded(sql)}) THEN RAISE EXCEPTION 'rxdb:bom_cycle:depth_limit'; END IF;
-      RETURN NEW;
-    END; $$ LANGUAGE plpgsql;`,
-    `DROP TRIGGER IF EXISTS "${triggerName}" ON ${table};`,
-    `CREATE TRIGGER "${triggerName}" BEFORE INSERT OR UPDATE${remote ? ' OR DELETE' : ''} ON ${table}
-      FOR EACH ROW EXECUTE FUNCTION "bom"."${functionName}"();`
+    pgTriggerFunction(occurrence, functionName, body, 'cycle_path text; lock_scope record;'),
+    pgCreateTrigger(
+      occurrence,
+      table,
+      triggerName,
+      `BEFORE INSERT OR UPDATE${remote ? ' OR DELETE' : ''}`,
+      functionName
+    )
   ];
 };
 

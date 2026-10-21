@@ -58,6 +58,8 @@ export const insertReachSql = (sql: ReachSql): string => {
     ON CONFLICT ("bomType", "orgId", "ancestorItemId", "descendantItemId") DO NOTHING;`;
 };
 
+// visited 显式物化与同链其余 CTE 一致：PG 的递归 CTE 本就恒物化，SQLite 也只求值一次，
+// 提示只把 SQLite 的协程计划固定为物化，不依赖计划器的取舍
 const deletionCtes = (sql: ReachSql): string => {
   const reach = sql.dialect.table('bom_reach');
   return `WITH RECURSIVE scope AS MATERIALIZED (${occurrenceScopeSql(sql, 'OLD')}),
@@ -69,7 +71,7 @@ const deletionCtes = (sql: ReachSql): string => {
       UNION SELECT r."descendantItemId" FROM ${reach} r JOIN scope s ON r."bomType" = s.t AND r."orgId" = s.o WHERE r."ancestorItemId" = OLD."childItemId"
     ), edges AS MATERIALIZED (
       SELECT e.p, e.c FROM (${unionEdgesSql(sql, 'OLD."id"')}) e JOIN scope s ON e.t = s.t AND e.o = s.o
-    ), visited(a, d, depth) AS (
+    ), visited(a, d, depth) AS MATERIALIZED (
       SELECT a, a, 0 FROM ancestors
       UNION SELECT v.a, e.c, v.depth + 1 FROM visited v JOIN edges e ON e.p = v.d WHERE v.depth < ${BOM_CYCLE_DEPTH_LIMIT}
     )`;

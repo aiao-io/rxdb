@@ -172,6 +172,20 @@ describe('Vue BOM 作用域绑定', () => {
     }
   });
 
+  it('普通对象输入只在创建时读取一次：原地修改不会 setInput，切换须传 ref、getter 或响应式对象', async () => {
+    const query = structuredClone(input);
+    const { stop } = scoped(() => useBomView(db, query));
+    try {
+      query.plannedQty.value = '3';
+      handles[0].subject.next(viewState({ phase: 'success' }));
+      await nextTick();
+      expect(createBomView).toHaveBeenCalledTimes(1);
+      expect(handles[0].handle.setInput).not.toHaveBeenCalled();
+    } finally {
+      stop();
+    }
+  });
+
   it('更换显式数据库会释放旧 handle，旧流迟到值不会覆盖新数据库', async () => {
     const database = shallowRef(db);
     const query = ref(input);

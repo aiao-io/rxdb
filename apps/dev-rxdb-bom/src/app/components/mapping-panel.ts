@@ -57,7 +57,7 @@ interface DualView {
         <div class="dual">
           <div class="panel-inset tree" data-testid="ebom-tree">
             <h3>设计清单 · EBOM</h3>
-            <p class="panel-desc">{{ materialLabel('SHEET-ASSY') }}：设计需要哪些零件</p>
+            <p class="panel-desc">{{ materialLabel('SHEET-ASSY') }}的设计清单：设计需要哪些零件</p>
             <bom-req-tree
               [designators]="designators()"
               [itemNos]="itemNos()"
@@ -67,7 +67,7 @@ interface DualView {
           </div>
           <div class="panel-inset tree" data-testid="mbom-tree">
             <h3>制造清单 · MBOM</h3>
-            <p class="panel-desc">{{ materialLabel('SHEET-ASSY-M') }}：生产需要哪些材料与工序件</p>
+            <p class="panel-desc">{{ materialLabel('SHEET-ASSY') }}的制造清单：生产需要哪些材料与工序件</p>
             <bom-req-tree [designators]="designators()" [itemNos]="itemNos()" [result]="dualView()!.mbom" />
           </div>
         </div>

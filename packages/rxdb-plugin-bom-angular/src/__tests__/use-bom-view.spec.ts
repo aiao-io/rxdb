@@ -137,6 +137,22 @@ describe('Angular BOM 注入上下文绑定', () => {
     expect(handles[0].handle.saveOccurrence).toHaveBeenCalledWith({ qty: '3' });
   });
 
+  it('普通值输入只在创建时读取一次：原地修改后再跑变更检测不会 setInput，切换须传 Signal', async () => {
+    const query = structuredClone(input);
+    @Component({ standalone: true, template: '<output>{{ view.state().phase }}</output>' })
+    class PlainConsumer {
+      readonly view = useBomView(db, query);
+    }
+    const mounted = TestBed.createComponent(PlainConsumer);
+    await mounted.whenStable();
+    query.plannedQty.value = '3';
+    handles[0].subject.next(viewState({ phase: 'success' }));
+    await mounted.whenStable();
+    expect((mounted.nativeElement as HTMLElement).textContent).toBe('success');
+    expect(createBomView).toHaveBeenCalledTimes(1);
+    expect(handles[0].handle.setInput).not.toHaveBeenCalled();
+  });
+
   it('输入切换调用当前 handle，变更检测不销毁它', async () => {
     const mounted = TestBed.createComponent(SignalConsumer);
     await mounted.whenStable();

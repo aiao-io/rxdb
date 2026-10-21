@@ -28,9 +28,10 @@ export interface BomViewBinding {
  * 将显式数据库上的共享 BOM 控制器绑定到当前 Vue scope。
  *
  * @remarks
- * 与 Angular / React 的 `useBomView` 同一语义：`input` 按内容身份跟踪，内容变化（含响应式对象的
- * 原地修改）时自动 `setInput`，内容相同的新对象不会重载；`db` 身份变化时销毁旧控制器并以当前输入
- * 新建，旧流的迟到值不会写入状态。控制器随 setup 同步创建，scope 销毁之后调用命令会明确抛错。
+ * 与 Angular / React 的 `useBomView` 同一语义：输入按内容身份比较，内容相同的新对象不会重载；
+ * `db` 身份变化时销毁旧控制器并以当前输入新建，旧流的迟到值不会写入状态。跟踪来源是 ref、
+ * getter 或响应式对象：内容变化（含原地修改）时自动 `setInput`；普通对象只在创建时读取一次，
+ * 之后的原地修改不会生效。控制器随 setup 同步创建，scope 销毁之后调用命令会明确抛错。
  * 传给控制器的是去掉响应式代理的原始对象；数据库请用普通值、`shallowRef` 或 getter 传入。
  *
  * @example
@@ -39,8 +40,8 @@ export interface BomViewBinding {
  * const { state, commands } = useBomView(() => props.db, () => props.input);
  * ```
  *
- * @param db - 已连接并安装 BOM 插件的数据库；普通值、ref 或 getter
- * @param input - 完整的解析上下文、目标、计划量、预算与公式参数；普通值、ref 或 getter
+ * @param db - 已连接并安装 BOM 插件的数据库；普通值（只读一次）、ref 或 getter
+ * @param input - 完整的解析上下文、目标、计划量、预算与公式参数；普通值（只读一次）、ref、getter 或响应式对象
  * @returns 只读状态与共享命令，scope 销毁时自动释放订阅
  */
 export const useBomView = (db: MaybeRefOrGetter<RxDB>, input: MaybeRefOrGetter<BomViewInput>): BomViewBinding => {

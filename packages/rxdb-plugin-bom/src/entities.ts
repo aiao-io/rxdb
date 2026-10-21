@@ -892,6 +892,10 @@ export class BomActivityRate extends EntityBase {
  * EBOM↔MBOM 变换范围（`bom$bom_map_scope`，US-516）：一对根级头
  * `(ebom_root_header_id, mbom_root_header_id)`，两侧 org 相同、父件同一物料（修订可不同）；
  * 每条映射属于一个变换范围。
+ *
+ * @remarks
+ * 仓储保存期校验根头配对：两根头存在、类型分别为 EBOM / MBOM、组织与范围 `orgId` 一致、
+ * 父修订属于同一物料（头的修订 / 类型 / 组织与修订的物料创建后都不可改，配对只会在写范围时被破坏）。
  */
 @Entity({
   name: 'BomMapScope',
@@ -1090,6 +1094,10 @@ export class BomConfigConstraint extends EntityBase {
 /**
  * 扩展属性声明（`bom$attr_def`，US-519）：`(code, appliesTo)` 唯一（同一 code 可跨作用域，
  * AC#6）；写入期按声明校验（枚举/必填/作用域）；过滤查询按 `data_type` 比较。
+ *
+ * @remarks
+ * 声明自身由仓储保存期校验：`dataType` / `appliesTo` 只认白名单，`enumValues` 为 NULL 或 JSON 字符串数组
+ * （存储层不设 CHECK；直连 SQL 写坏的存量在读取侧点名该声明拒绝）。
  */
 @Entity({
   name: 'BomAttrDef',

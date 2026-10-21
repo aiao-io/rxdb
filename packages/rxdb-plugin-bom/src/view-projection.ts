@@ -2,11 +2,36 @@ import type { BomViewCandidate, BomViewInput, BomViewNode, BomViewSnapshot } fro
 
 export const viewPathKey = (path: readonly string[]): string => JSON.stringify(path);
 
+type CandidateSource = Pick<BomViewSnapshot, 'expansion' | 'explosion'>;
+
+/**
+ * 视图展示的未裁决候选：结构侧（备选 / 序列 / 批次）与 manual 替代组。
+ * 结构侧由展开与爆炸两遍各自报告，预算截断时两遍可能发散，因此两份都要合入。
+ */
+const candidateGroups = ({ expansion, explosion }: CandidateSource) => ({
+  structural: [...(expansion.unresolved ?? []), ...(explosion?.manifest.unresolved ?? [])],
+  manual: explosion?.unresolved ?? []
+});
+
+/** 需要显示信息的物料：展开节点与全部候选子件。与 {@link viewCandidates} 同源，保证每个候选都取到物料行。 */
+export const viewItemIds = (source: CandidateSource): string[] => {
+  const { structural, manual } = candidateGroups(source);
+  return [
+    ...new Set([
+      ...source.expansion.nodes.map(node => node.itemId),
+      ...structural.flatMap(group =>
+        group.candidates.flatMap(candidate => (candidate.childItemId === undefined ? [] : [candidate.childItemId]))
+      ),
+      ...manual.flatMap(group => group.candidates.map(candidate => candidate.itemId))
+    ])
+  ];
+};
+
 export const viewCandidates = (snapshot: BomViewSnapshot): BomViewCandidate[] => {
   const groups = new Map<string, BomViewCandidate>();
   const items = new Map(snapshot.items.map(item => [item.id, item.itemNo]));
-  const unresolved = [...(snapshot.expansion.unresolved ?? []), ...(snapshot.explosion?.manifest.unresolved ?? [])];
-  for (const group of unresolved) {
+  const { structural, manual } = candidateGroups(snapshot);
+  for (const group of structural) {
     const key = `${group.reason ?? 'alternative'}:${group.parentRevisionId}:${group.lineId ?? ''}`;
     groups.set(key, {
       key,
@@ -18,7 +43,7 @@ export const viewCandidates = (snapshot: BomViewSnapshot): BomViewCandidate[] =>
       }))
     });
   }
-  for (const group of snapshot.explosion?.unresolved ?? []) {
+  for (const group of manual) {
     groups.set(`manual:${group.groupCode}`, {
       key: `manual:${group.groupCode}`,
       kind: 'manual',

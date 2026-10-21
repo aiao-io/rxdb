@@ -1,16 +1,19 @@
 import { getEntityMetadata, type EntityType, type RxDB } from '@aiao/rxdb';
 import {
   BomEcn,
+  BomError,
   BomExtAttrError,
   BomHeader,
   BomInstanceNode,
   BomItem,
   BomItemRevision,
   BomLine,
+  BomLineDesignator,
   BomLineOccurrence,
+  BomSubstituteGroup,
   rollupCost
 } from '@aiao/rxdb-plugin-bom';
-import { deterministicId } from '@aiao/rxdb-plugin-bom/testing';
+import { deterministicId, goldenItemId } from '@aiao/rxdb-plugin-bom/testing';
 import { TestBed } from '@angular/core/testing';
 import { DatabaseSync } from 'node:sqlite';
 import { of } from 'rxjs';
@@ -329,6 +332,62 @@ describe('BomDemoService', () => {
     }
   });
 
+  it('双图展开同一物料（SHEET-ASSY）的设计与制造两张清单，只换清单类型', async () => {
+    const { service, rxdb } = transactionHarness([], () => false);
+    rxdb.bom.explodeBom.mockResolvedValueOnce('设计清单展开').mockResolvedValueOnce('制造清单展开');
+
+    const view = await service.dualExplode('2026-10-15');
+
+    const context = { orgId: 'org-x', asOfDate: new Date('2026-10-15T00:00:00.000Z') };
+    const root = { parentItemId: goldenItemId('SHEET-ASSY') };
+    const quantity = { plannedQty: { value: '1', uom: 'pcs' } };
+    expect(rxdb.bom.explodeBom.mock.calls).toEqual([
+      [{ ...context, bomType: 'ebom' }, root, quantity],
+      [{ ...context, bomType: 'mbom' }, root, quantity]
+    ]);
+    expect(view).toEqual({ ebom: '设计清单展开', mbom: '制造清单展开' });
+  });
+
+  it('映射路径标签区分同一物料的设计与制造清单，同行号不混淆', async () => {
+    const { service, adapter } = transactionHarness([], () => false);
+    const database = new DatabaseSync(':memory:');
+    try {
+      database.exec(`
+        CREATE TABLE "bom$item" ("id" TEXT PRIMARY KEY, "itemNo" TEXT);
+        CREATE TABLE "bom$item_revision" ("id" TEXT PRIMARY KEY, "itemId" TEXT);
+        CREATE TABLE "bom$bom_header" ("id" TEXT PRIMARY KEY, "parentRevisionId" TEXT, "bomType" TEXT);
+        CREATE TABLE "bom$bom_line" ("id" TEXT PRIMARY KEY, "headerId" TEXT, "lineNo" INTEGER);
+        CREATE TABLE "bom$bom_line_occurrence" ("id" TEXT PRIMARY KEY, "lineId" TEXT, "childItemId" TEXT, "effectiveFrom" TEXT);
+        INSERT INTO "bom$item" VALUES ('assy', 'SHEET-ASSY'), ('sheet', 'SHEET'), ('bend', 'WIP-BEND');
+        INSERT INTO "bom$item_revision" VALUES ('assy-a', 'assy');
+        INSERT INTO "bom$bom_header" VALUES ('design', 'assy-a', 'ebom'), ('manufacturing', 'assy-a', 'mbom');
+        INSERT INTO "bom$bom_line" VALUES ('design-10', 'design', 10), ('manufacturing-10', 'manufacturing', 10), ('manufacturing-20', 'manufacturing', 20);
+        INSERT INTO "bom$bom_line_occurrence" VALUES
+          ('design-10-a', 'design-10', 'sheet', '2026-01-01'),
+          ('manufacturing-10-a', 'manufacturing-10', 'sheet', '2026-01-01'),
+          ('manufacturing-20-a', 'manufacturing-20', 'bend', '2026-01-01');
+      `);
+      adapter.rawQuery.mockImplementation(async (sql: string) => {
+        const statement = database.prepare(sql);
+        statement.setReturnArrays(true);
+        return { rows: statement.all() };
+      });
+
+      const labels = await service.mappingLabels();
+
+      expect(Object.fromEntries(labels)).toEqual({
+        'design-10': 'SHEET-ASSY 设计清单 · 行 10',
+        'design-10-a': 'SHEET-ASSY 设计清单 · 行 10 · SHEET',
+        'manufacturing-10': 'SHEET-ASSY 制造清单 · 行 10',
+        'manufacturing-10-a': 'SHEET-ASSY 制造清单 · 行 10 · SHEET',
+        'manufacturing-20': 'SHEET-ASSY 制造清单 · 行 20',
+        'manufacturing-20-a': 'SHEET-ASSY 制造清单 · 行 20 · WIP-BEND'
+      });
+    } finally {
+      database.close();
+    }
+  });
+
   it('RoHS局部修改保留其他属性，故意缺必填演示继续完整替换', async () => {
     const fixture = transactionHarness(
       [[BomItem, [{ id: 'b01', itemNo: 'B-01', ext: '{"rohs":"yes","custom":"保留"}' }]]],
@@ -455,6 +514,65 @@ describe('BomDemoService', () => {
     expect(fixture.service.dataRevision()).toBe(1);
   });
 
+  it('现场 ECN 取消后重做复用已建的 SEAT-LIVE 物料，不撞固定主键', async () => {
+    const seatId = deterministicId('item:SEAT-LIVE');
+    const fixture = transactionHarness(
+      [
+        [BomEcn, []],
+        [BomItem, [{ id: seatId, itemNo: 'SEAT-LIVE' }]],
+        [BomLine, []],
+        [BomLineOccurrence, []]
+      ],
+      (entity, row) => entity === BomItem && row.id === seatId
+    );
+
+    const outcome = await fixture.service.demoCreateAndReleaseEcn();
+
+    expect(outcome.ok).toBe(true);
+    expect(fixture.rows(BomItem).size).toBe(1);
+    expect([...fixture.rows(BomLineOccurrence).values()].map(row => row['childItemId'])).toContain(seatId);
+  });
+
+  it('位号不足的发布演示只建一次草稿，重复点击复用它并得到同一拒绝', async () => {
+    const refusal = new BomError('位号数 39 与用量 100 不一致');
+    const headerId = 'demo-header';
+    const fixture = transactionHarness(
+      [
+        [BomHeader, [{ id: headerId, state: 'draft' }]],
+        [BomLine, []],
+        [BomLineOccurrence, []],
+        [BomLineDesignator, []]
+      ],
+      (entity, row) => entity === BomHeader && row['state'] === 'released',
+      () => refusal
+    );
+    Object.assign(fixture.service, { demoHeaderId: headerId });
+
+    expect(await fixture.service.publishDemoHeader()).toEqual({ ok: false, error: refusal });
+    expect(await fixture.service.publishDemoHeader()).toEqual({ ok: false, error: refusal });
+
+    expect(fixture.rows(BomLine).size).toBe(1);
+    expect(fixture.rows(BomLineOccurrence).size).toBe(1);
+    expect(fixture.rows(BomLineDesignator).size).toBe(39);
+    expect(fixture.rows(BomHeader).get(headerId)?.['state']).toBe('draft');
+  });
+
+  it('替代组发布拒绝演示整笔回滚，重复点击不堆积草稿修订、头与组', async () => {
+    const refusal = new BomError('替代组概率合计 0.8，必须为 1');
+    const draftTables = [BomItemRevision, BomHeader, BomSubstituteGroup, BomLine, BomLineOccurrence];
+    const fixture = transactionHarness(
+      draftTables.map(entity => [entity, []]),
+      (entity, row) => entity === BomHeader && row['state'] === 'released',
+      () => refusal
+    );
+
+    expect(await fixture.service.demoSubstitutePublishRejection()).toEqual({ ok: false, error: refusal });
+    expect(await fixture.service.demoSubstitutePublishRejection()).toEqual({ ok: false, error: refusal });
+
+    for (const entity of draftTables) expect(fixture.rows(entity).size).toBe(0);
+    expect(fixture.legacySave).not.toHaveBeenCalled();
+  });
+
   it('现场 ECN 的种子发生项落空时整体回滚，不留半张变更单也不伪装成发布结果', async () => {
     const fixture = transactionHarness(
       [
@@ -528,5 +646,20 @@ describe('connectDevTools', () => {
 
     await vi.waitFor(() => expect(initDevTools).toHaveBeenCalledOnce());
     expect(initDevTools).toHaveBeenCalledWith(instance, getEntityMetadata);
+  });
+
+  it('连接器加载或初始化失败时报告错误，不留未处理的拒绝', async () => {
+    const failure = new Error('chunk 加载失败');
+    initDevTools.mockImplementationOnce(() => {
+      throw failure;
+    });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      connectDevTools({ rxdb: true } as unknown as RxDB);
+
+      await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure));
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

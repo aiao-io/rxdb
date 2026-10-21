@@ -270,7 +270,7 @@ export const SCOOTER_GOLDEN_E: {
     ],
     redUnitCost: '42.12040816326530612244897959183674',
     blueUnitCost: '41.12040816326530612244897959183674',
-    counts: { items: 41, occurrences: 42, ecns: 4, batches: 4 }
+    counts: { items: 40, occurrences: 42, ecns: 4, batches: 4 }
   },
   unitDemo: {
     rootKey: 'UNIT-DEMO',

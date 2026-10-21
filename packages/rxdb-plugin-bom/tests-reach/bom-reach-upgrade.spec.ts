@@ -1,4 +1,4 @@
-import { RxDBMigration } from '@aiao/rxdb';
+import { RxDBMigration, type TransactionExecutor, type TransactionFun } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import {
   createPlainPersistentDatabase,
@@ -32,8 +32,85 @@ const installStaleReachMaintenance = (adapter: BomTestAdapter): Promise<unknown>
     await executor.query(`CREATE TRIGGER "bom_reach_insert" AFTER INSERT ON ${occurrence} BEGIN SELECT 1; END;`);
   }, false);
 
+/** 包装引导事务：每条经执行器发出、含全图闭包递归 CTE 的语句计一次。 */
+const countClosureStatements = (counter: { closures: number }) => (adapter: BomTestAdapter) => {
+  const original = adapter.bootstrapTransaction.bind(adapter);
+  const counting = (executor: TransactionExecutor): TransactionExecutor =>
+    new Proxy(executor, {
+      get: (target, key) => {
+        if (key === 'query')
+          return (sql: string, params?: readonly unknown[]) => {
+            if (sql.includes('closure(t, o, a, d)')) counter.closures += 1;
+            return target.query(sql, params);
+          };
+        const value: unknown = Reflect.get(target, key, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      }
+    });
+  adapter.bootstrapTransaction = (<T extends TransactionFun>(fun: T, transactionLog?: boolean) =>
+    original((executor => fun(counting(executor))) as T, transactionLog)) as typeof original;
+};
+
+/** 直连往派生表写一条并集里不存在的可达对（绕过存储层维护）。 */
+const insertSpuriousReachPair = (adapter: BomTestAdapter): Promise<unknown> => {
+  const dialect = bomSqlDialectFor(adapter.name);
+  const values = [
+    crypto.randomUUID(),
+    'ebom',
+    'reach-upgrade-org',
+    deterministicId('reach-upgrade:UPGRADE-C'),
+    deterministicId('reach-upgrade:UPGRADE-A'),
+    '2026-01-01T00:00:00.000Z',
+    '2026-01-01T00:00:00.000Z'
+  ];
+  return adapter.transaction(executor =>
+    executor.query(
+      `INSERT INTO ${dialect.table('bom_reach')} ("id", "bomType", "orgId", "ancestorItemId", "descendantItemId", "createdAt", "updatedAt")
+        VALUES (${values.map((_, index) => dialect.placeholder(index)).join(', ')})`,
+      values
+    )
+  );
+};
+
 for (const backend of ['wa-sqlite', 'pglite'] as const) {
   describe(`BOM 可达性升级与方向判环 [${backend}]`, () => {
+    it('旧库升级迁移只算一遍闭包（回填后逐边点查判环），之后每次连接的完整性断言各算一遍', async () => {
+      const name = `r-${crypto.randomUUID()}`;
+      let adapter = await connectReachUpgradeDatabase(backend, name, true);
+      try {
+        await seedReachUpgradeDatabase(adapter);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+      const upgrade = { closures: 0 };
+      adapter = await connectReachUpgradeDatabase(backend, name, false, countClosureStatements(upgrade));
+      try {
+        expect(await readReachPairs(adapter)).toHaveLength(3);
+        await expectReachMatches(adapter);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+      const reconnect = { closures: 0 };
+      adapter = await connectReachUpgradeDatabase(backend, name, false, countClosureStatements(reconnect));
+      try {
+        expect({ upgrade: upgrade.closures, reconnect: reconnect.closures }).toEqual({ upgrade: 2, reconnect: 1 });
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    }, 60_000);
+
+    it('迁移水位存在但派生表多出并集里没有的伪对时重连明确失败', async () => {
+      const name = `r-${crypto.randomUUID()}`;
+      const adapter = await connectReachUpgradeDatabase(backend, name, false);
+      try {
+        await seedReachUpgradeDatabase(adapter);
+        await insertSpuriousReachPair(adapter);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+      await expect(connectReachUpgradeDatabase(backend, name, false)).rejects.toThrow(/可达性派生表不完整/);
+    }, 60_000);
+
     it('重连按当前版本替换可达维护触发器体，旧体不与新体并存', async () => {
       const name = `r-${crypto.randomUUID()}`;
       let adapter = await connectReachUpgradeDatabase(backend, name, false);

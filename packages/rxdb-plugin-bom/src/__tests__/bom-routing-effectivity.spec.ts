@@ -11,11 +11,12 @@ import {
   BomRoutingOperation,
   BomWorkCenter
 } from '../entities.js';
-import { rollupCost, type CostRollupContext } from '../quantity/cost.js';
+import { BomCostError, rollupCost, type CostRollupContext } from '../quantity/cost.js';
 import { explodeBom } from '../quantity/explosion.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { exportBom } from '../resolve/integration.js';
 import type { ResolutionContext } from '../resolve/resolution.js';
+import { BomQuantityError } from '../types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
@@ -155,6 +156,57 @@ const saveSplits = async (occurrence: BomLineOccurrence): Promise<void> => {
     split.ratio = ratio;
     await split.save();
   }
+};
+
+/** rawQuery 双形状归一（wa-sqlite 带 results 包装）。 */
+const rowsOf = (result: unknown): unknown[][] => {
+  const shaped = result as { results?: { rows: unknown[][] }[]; rows?: unknown[][] };
+  return Array.isArray(shaped.results) ? shaped.results[0].rows : (shaped.rows ?? []);
+};
+
+const headerTable = (adapter: BomTestAdapter): string =>
+  adapter.name === 'wa-sqlite' ? '"bom$bom_header"' : '"bom"."bom_header"';
+
+/**
+ * 把已发布头的路线摘掉，造出「行声明了投料工序、头未选路线」的不一致状态：存储层守卫正是拒绝这个状态，
+ * 这里模拟迁移 / 直连绕过——头表触发器全部暂停后直连改写，再原样恢复（SQLite 无停用开关，删后按原文重建）。
+ */
+const detachRouting = async (adapter: BomTestAdapter, header: BomHeader): Promise<void> => {
+  const update = `UPDATE ${headerTable(adapter)} SET "routingId" = NULL WHERE "id" = '${header.id}'`;
+  if (adapter.name !== 'wa-sqlite') {
+    await adapter.rawQuery(`ALTER TABLE "bom"."bom_header" DISABLE TRIGGER USER`);
+    await adapter.rawQuery(update);
+    await adapter.rawQuery(`ALTER TABLE "bom"."bom_header" ENABLE TRIGGER USER`);
+    return;
+  }
+  const triggers = rowsOf(
+    await adapter.rawQuery(
+      `SELECT "name", "sql" FROM "sqlite_master" WHERE "type" = 'trigger' AND "tbl_name" = 'bom$bom_header' ORDER BY "rowid"`
+    )
+  );
+  for (const [name] of triggers) await adapter.rawQuery(`DROP TRIGGER "${String(name)}"`);
+  await adapter.rawQuery(update);
+  for (const [, sql] of triggers) await adapter.rawQuery(String(sql));
+};
+
+const routingIdOf = async (adapter: BomTestAdapter, header: BomHeader): Promise<unknown> =>
+  rowsOf(await adapter.rawQuery(`SELECT "routingId" FROM ${headerTable(adapter)} WHERE "id" = '${header.id}'`))[0][0];
+
+/** 头未选路线而行声明了投料工序：与「路线未覆盖」同一错误类与口径，点名头与发生项，不按空工序链静默少算。 */
+const expectRoutingMissing = async (
+  result: Promise<unknown>,
+  fixture: LayerFixture,
+  errorType: typeof BomQuantityError | typeof BomCostError
+): Promise<void> => {
+  const error = await result.then(
+    () => null,
+    (failure: unknown) => failure
+  );
+  expect(error).toBeInstanceOf(errorType);
+  expect(error).toHaveProperty('message', expect.stringContaining('路线未覆盖'));
+  expect(error).toHaveProperty('message', expect.stringContaining('头未选路线'));
+  expect(error).toHaveProperty('message', expect.stringContaining(fixture.header.id));
+  expect(error).toHaveProperty('message', expect.stringContaining(fixture.occurrence.id));
 };
 
 const expectUncovered = async (result: Promise<unknown>, fixture: LayerFixture): Promise<void> => {
@@ -327,6 +379,79 @@ for (const backend of BACKENDS) {
         parentRevisionId: noRouting.header.parentRevisionId
       });
       expect(exported.requirementLines).toMatchObject([{ qty: '10', uom: 'pcs' }]);
+    });
+  });
+
+  describe(`头未选路线而行声明了投料工序（守卫被绕过）[${backend}]`, () => {
+    const date = COVERED_DATES[0];
+    let adapter: BomTestAdapter;
+    let routed: LayerFixture;
+    let split: LayerFixture;
+    let nested: LayerFixture;
+    let nestedSplit: LayerFixture;
+
+    beforeAll(async () => {
+      adapter = await createBomTestAdapter(backend);
+      const child = await makeItem('2');
+      routed = await makeLayer(adapter, child, { routing: 'single' });
+      split = await makeLayer(adapter, child, { routing: 'split', qty: '100' });
+      nested = await makeLayer(adapter, routed.parent, { qty: '2' });
+      nestedSplit = await makeLayer(adapter, split.parent, { qty: '2' });
+      await detachRouting(adapter, routed.header);
+      await detachRouting(adapter, split.header);
+    });
+
+    afterAll(async () => {
+      await disposeBomTestAdapter(adapter).catch(() => undefined);
+    });
+
+    it('构造前提：两张已发布头的路线已摘掉，投料工序 / 分摊行仍在', async () => {
+      expect(await routingIdOf(adapter, routed.header)).toBeNull();
+      expect(await routingIdOf(adapter, split.header)).toBeNull();
+      expect(routed.occurrence.operationSeq).toBe(20);
+    });
+
+    it('数量展开：投料工序与分摊行都拒绝整次计算（根层与子层），不按无工序损耗少算', async () => {
+      for (const [fixture, target] of [
+        [routed, routed],
+        [split, split],
+        [routed, nested],
+        [split, nestedSplit]
+      ] as const) {
+        await expectRoutingMissing(
+          explodeBom(
+            adapter,
+            contextAt(date),
+            { parentRevisionId: target.header.parentRevisionId },
+            { plannedQty: { value: '1', uom: 'pcs' } }
+          ),
+          fixture,
+          BomQuantityError
+        );
+      }
+    });
+
+    it('导出经数量展开同样拒绝', async () => {
+      await expectRoutingMissing(
+        exportBom(adapter, contextAt(date), { parentRevisionId: routed.header.parentRevisionId }),
+        routed,
+        BomQuantityError
+      );
+    });
+
+    it('成本卷算：根层明细与子装配单位成本都拒绝，不退化成无路线', async () => {
+      for (const [fixture, target] of [
+        [routed, routed],
+        [split, split],
+        [routed, nested],
+        [split, nestedSplit]
+      ] as const) {
+        await expectRoutingMissing(
+          rollupCost(adapter, costContextAt(date), { parentRevisionId: target.header.parentRevisionId }),
+          fixture,
+          BomCostError
+        );
+      }
     });
   });
 }

@@ -31,6 +31,7 @@ import {
   decimalAdd,
   decimalDiv,
   decimalFromCanonical,
+  decimalIsZero,
   decimalMul,
   decimalSub,
   decimalToCanonical,
@@ -337,10 +338,155 @@ const fetchSplits = async (
   return map;
 };
 
-/** cost_lot_qty 是 unit_cost 的分母（US-514 卷算必填）：缺失即拒绝。 */
+/**
+ * 声明了投料工序（operation_seq 或分摊行）的行要求头选了路线：头未选路线与「路线未覆盖」同口径拒绝，
+ * 不按空工序链静默少算工序损耗。
+ */
+const assertRoutedRowsHaveRouting = (
+  headerMeta: HeaderMeta,
+  rows: readonly ExplosionRowLike[],
+  splitsByOccurrence: ReadonlyMap<string, unknown>
+): void => {
+  if (headerMeta.routingId !== null) return;
+  const routed = rows.find(row => row.operationSeq !== null || splitsByOccurrence.has(row.occurrenceId));
+  if (routed === undefined) return;
+  throw new BomCostError(
+    `头 ${headerMeta.headerId}（发生项 ${routed.occurrenceId}）`,
+    '路线未覆盖：头未选路线，但发生项声明了投料工序 / 分摊行，成本不能退化成无路线'
+  );
+};
+
+/** 路线的一道工序（工时、损耗与工作中心）。 */
+type RoutingOperation = Awaited<ReturnType<typeof fetchRoutingOps>>['operations'][number];
+
+/** 本层的路线：工序明细（加工与制费用）、工序损耗链（W_op 与第 5 步用）与行的投料分摊。 */
+interface LayerRouting {
+  operations: RoutingOperation[];
+  routingOps: LayerRoutingOp[];
+  splitsByOccurrence: Map<string, { operationSeq: number; ratio: string }[]>;
+}
+
+/**
+ * 读本层的路线与分摊（batch_cost 与明细树同一份）：路线未覆盖、头未选路线而行声明了投料工序都拒绝，
+ * 两条路径不各自维护一份判定。
+ */
+const loadLayerRouting = async (
+  query: CostQuery,
+  dialect: ReturnType<typeof bomSqlDialectFor>,
+  headerMeta: HeaderMeta,
+  effectiveRows: readonly ExplosionRowLike[],
+  asOfDate: Date
+): Promise<LayerRouting> => {
+  const splitsByOccurrence = await fetchSplits(
+    query,
+    dialect,
+    effectiveRows.map(row => row.occurrenceId)
+  );
+  const routingDetail =
+    headerMeta.routingId !== null ?
+      await fetchRoutingOps(query, dialect, headerMeta.routingId, asOfDate)
+    : { operations: [], uncoveredReason: null };
+  if (routingDetail.uncoveredReason !== null) {
+    const firstRouted = effectiveRows.find(
+      row => row.operationSeq !== null || splitsByOccurrence.has(row.occurrenceId)
+    );
+    throw new BomCostError(
+      `路线 ${headerMeta.routingId}${firstRouted !== undefined ? `（发生项 ${firstRouted.occurrenceId}）` : ''}`,
+      `路线未覆盖：${routingDetail.uncoveredReason}，成本不能继续使用工序或退化成无路线`
+    );
+  }
+  assertRoutedRowsHaveRouting(headerMeta, effectiveRows, splitsByOccurrence);
+  return {
+    operations: routingDetail.operations,
+    routingOps: routingDetail.operations.map(operation => ({
+      operationSeq: operation.operationSeq,
+      operationScrap: operation.operationScrap,
+      scrapConvention: operation.scrapConvention
+    })),
+    splitsByOccurrence
+  };
+};
+
+/** 副产抵减（US-513 产出量 → 物料库存单位 × credit_price）；物料未声明抵减价即不抵减。 */
+const creditOf = async (
+  query: CostQuery,
+  dialect: ReturnType<typeof bomSqlDialectFor>,
+  row: ExplosionRowLike,
+  pPrime: Decimal,
+  formulaParams: Record<string, string> | undefined
+): Promise<{ outInStock: string; creditPrice: string; amount: Decimal } | null> => {
+  const itemRow = await fetchItemCost(query, dialect, row.childItemId);
+  if (itemRow.creditPrice === null) return null;
+  const out = computeOutputQuantity(row, pPrime, row.headerBaseQty, formulaParams);
+  const outInStock = convertUom(
+    decimalToCanonical(out),
+    row.occurrenceUom,
+    row.childStockUom,
+    rowHopRates(row).toStock
+  );
+  return {
+    outInStock,
+    creditPrice: itemRow.creditPrice,
+    amount: decimalMul(decimalFromCanonical(outInStock), decimalFromCanonical(itemRow.creditPrice))
+  };
+};
+
+/** 一道工序的加工：setup + run × W_op + fixed 在 time_uom 下求和，换算一次到费率 rate_uom 后乘费率。 */
+const operationCostOf = async (
+  query: CostQuery,
+  dialect: ReturnType<typeof bomSqlDialectFor>,
+  operation: RoutingOperation,
+  pPrime: Decimal,
+  routingOps: LayerRoutingOp[],
+  context: CostRollupContext
+): Promise<{ hoursRaw: Decimal; rate: string; rateUom: string; rateHours: string; amount: Decimal }> => {
+  const wOp = operationScrapChain(pPrime, routingOps, operation.operationSeq);
+  const hoursRaw = decimalAdd(
+    decimalAdd(decimalFromCanonical(operation.setupTime), decimalMul(decimalFromCanonical(operation.runTime), wOp)),
+    decimalFromCanonical(operation.fixedTime)
+  );
+  const activityTypeId = await fetchActivityTypeId(query, dialect, operation.workCenterId);
+  const { rate, rateUom } = await fetchRate(
+    query,
+    dialect,
+    operation.workCenterId,
+    activityTypeId,
+    context.rateDate,
+    context.currency
+  );
+  const rateHours = convertUom(decimalToCanonical(hoursRaw), operation.timeUom, rateUom);
+  return {
+    hoursRaw,
+    rate,
+    rateUom,
+    rateHours,
+    amount: decimalMul(decimalFromCanonical(rateHours), decimalFromCanonical(rate))
+  };
+};
+
+/** 制费 = 换算后工时 × 工作中心 overhead_rate：未声明制费返回 null（不是错误），币种不符拒绝。 */
+const overheadOf = async (
+  query: CostQuery,
+  dialect: ReturnType<typeof bomSqlDialectFor>,
+  workCenterId: string,
+  rateHours: string,
+  currency: string
+): Promise<Decimal | null> => {
+  const centerRow = await fetchCenterCost(query, dialect, workCenterId);
+  if (centerRow.overheadRate === null) return null;
+  if (centerRow.overheadCurrency !== null && centerRow.overheadCurrency !== currency) {
+    throw new BomCostError('工作中心制费币种', `制费币种 ${centerRow.overheadCurrency} 与上下文币种 ${currency} 不符`);
+  }
+  return decimalMul(decimalFromCanonical(rateHours), decimalFromCanonical(centerRow.overheadRate));
+};
+
+/** cost_lot_qty 是 unit_cost 的分母（US-514 卷算必填）：缺失或为 0（写入期合法的规范串）即拒绝。 */
 const requireCostLotQty = (headerMeta: HeaderMeta): string => {
   if (headerMeta.costLotQty === null) {
     throw new BomCostError(`头 ${headerMeta.headerId} 的 cost_lot_qty`, '卷算必填，缺失即拒绝');
+  }
+  if (decimalIsZero(decimalFromCanonical(headerMeta.costLotQty))) {
+    throw new BomCostError(`头 ${headerMeta.headerId} 的 cost_lot_qty`, '为 0：它是 unit_cost 的分母，必须大于 0');
   }
   return headerMeta.costLotQty;
 };
@@ -620,60 +766,18 @@ const rollupCostInSnapshot = async (
       }
       // P′ = 装配损耗后的计划量（加工量与副产缩放共用）
       const pPrime = scrap(L, headerMeta.assemblyScrap, headerMeta.assemblyScrapConvention);
-
       // 路由工序链（批级加工量用）+ 加工明细
-      const routingOps: LayerRoutingOp[] = [];
-      const splitsByOccurrence = await fetchSplits(
-        q,
-        dialect,
-        effectiveRows.map(row => row.occurrenceId)
-      );
-      const routingDetail =
-        headerMeta.routingId !== null ?
-          await fetchRoutingOps(q, dialect, headerMeta.routingId, context.asOfDate)
-        : { operations: [], uncoveredReason: null };
-      if (routingDetail.uncoveredReason !== null) {
-        const firstRouted = effectiveRows.find(
-          row => row.operationSeq !== null || splitsByOccurrence.has(row.occurrenceId)
-        );
-        throw new BomCostError(
-          `路线 ${headerMeta.routingId}${firstRouted !== undefined ? `（发生项 ${firstRouted.occurrenceId}）` : ''}`,
-          `路线未覆盖：${routingDetail.uncoveredReason}，成本不能继续使用工序或退化成无路线`
-        );
-      }
-      for (const operation of routingDetail.operations) {
-        routingOps.push({
-          operationSeq: operation.operationSeq,
-          operationScrap: operation.operationScrap,
-          scrapConvention: operation.scrapConvention
-        });
-      }
+      const routing = await loadLayerRouting(q, dialect, headerMeta, effectiveRows, context.asOfDate);
       let total: Decimal = { coeff: 0n, exp: 0 };
 
       // 替代组分流（共享纯函数，与爆炸引擎同口径）
       const groupedRows = groupSubstituteRows(effectiveRows, pPrime, context);
 
       for (const row of groupedRows) {
-        if (row.flowDirection !== 'consume') {
-          if (row.flowDirection === 'by_product') {
-            // 副产抵减：产出量 → 库存单位 → × credit_price（以物料 stock_uom 计）
-            const itemRow = await fetchItemCost(q, dialect, row.childItemId);
-            if (itemRow.creditPrice !== null) {
-              const out = computeOutputQuantity(row, pPrime, row.headerBaseQty, context.formulaParams);
-              const outInStock = convertUom(
-                decimalToCanonical(out),
-                row.occurrenceUom,
-                row.childStockUom,
-                rowHopRates(row).toStock
-              );
-              total = decimalSub(
-                total,
-                decimalMul(decimalFromCanonical(outInStock), decimalFromCanonical(itemRow.creditPrice))
-              );
-            }
-          }
-          continue;
-        }
+        const credit =
+          row.flowDirection === 'by_product' ? await creditOf(q, dialect, row, pPrime, context.formulaParams) : null;
+        if (credit !== null) total = decimalSub(total, credit.amount);
+        if (row.flowDirection !== 'consume') continue;
         // 本层需求（第 2~6 步共享实现，不取整）：G → G′ → G″ → 换算
         const gross =
           row.gross ??
@@ -688,8 +792,8 @@ const rollupCostInSnapshot = async (
           plannedPrime: pPrime,
           headerBaseQty: row.headerBaseQty,
           formulaParams: context.formulaParams,
-          routingOps,
-          splits: splitsByOccurrence.get(row.occurrenceId) ?? []
+          routingOps: routing.routingOps,
+          splits: routing.splitsByOccurrence.get(row.occurrenceId) ?? []
         });
         const hops = rowHopRates(row);
         const demandInStock = convertUom(
@@ -738,43 +842,18 @@ const rollupCostInSnapshot = async (
         }
       }
 
-      // 加工 + 制费（头挂路由才有；无路线 = 加工项为空，明细注明）
-      if (headerMeta.routingId !== null && routingDetail.operations.length > 0) {
-        for (const operation of routingDetail.operations) {
-          const wOp = operationScrapChain(pPrime, routingOps, operation.operationSeq);
-          const hoursRaw = decimalAdd(
-            decimalAdd(
-              decimalFromCanonical(operation.setupTime),
-              decimalMul(decimalFromCanonical(operation.runTime), wOp)
-            ),
-            decimalFromCanonical(operation.fixedTime)
-          );
-          const activityTypeId = await fetchActivityTypeId(q, dialect, operation.workCenterId);
-          const { rate, rateUom } = await fetchRate(
-            q,
-            dialect,
-            operation.workCenterId,
-            activityTypeId,
-            context.rateDate,
-            context.currency
-          );
-          const rateHours = convertUom(decimalToCanonical(hoursRaw), operation.timeUom, rateUom);
-          total = decimalAdd(total, decimalMul(decimalFromCanonical(rateHours), decimalFromCanonical(rate)));
-          // 制费 = Σ 换算后工时 × 工作中心 overhead_rate（未声明 = 无制费，不是错误）
-          const centerRow = await fetchCenterCost(q, dialect, operation.workCenterId);
-          if (centerRow.overheadRate !== null) {
-            if (centerRow.overheadCurrency !== null && centerRow.overheadCurrency !== context.currency) {
-              throw new BomCostError(
-                '工作中心制费币种',
-                `制费币种 ${centerRow.overheadCurrency} 与上下文币种 ${context.currency} 不符`
-              );
-            }
-            total = decimalAdd(
-              total,
-              decimalMul(decimalFromCanonical(rateHours), decimalFromCanonical(centerRow.overheadRate))
-            );
-          }
-        }
+      // 加工 + 制费（头挂路由才有工序；无路线 = 加工项为空）
+      for (const operation of routing.operations) {
+        const operationCost = await operationCostOf(q, dialect, operation, pPrime, routing.routingOps, context);
+        total = decimalAdd(total, operationCost.amount);
+        const overhead = await overheadOf(
+          q,
+          dialect,
+          operation.workCenterId,
+          operationCost.rateHours,
+          context.currency
+        );
+        if (overhead !== null) total = decimalAdd(total, overhead);
       }
       return (await allocate(headerMeta, L, total)).batch;
     };
@@ -786,32 +865,7 @@ const rollupCostInSnapshot = async (
       const rows = byHeader.get(headerMeta.headerId) ?? [];
       const effectiveRows = selectCostTierRows(headerMeta.headerId, rows, L);
       const pPrime = scrap(L, headerMeta.assemblyScrap, headerMeta.assemblyScrapConvention);
-      const routingOps: LayerRoutingOp[] = [];
-      const splitsByOccurrence = await fetchSplits(
-        q,
-        dialect,
-        effectiveRows.map(row => row.occurrenceId)
-      );
-      const routingDetail =
-        headerMeta.routingId !== null ?
-          await fetchRoutingOps(q, dialect, headerMeta.routingId, context.asOfDate)
-        : { operations: [], uncoveredReason: null };
-      if (routingDetail.uncoveredReason !== null) {
-        const firstRouted = effectiveRows.find(
-          row => row.operationSeq !== null || splitsByOccurrence.has(row.occurrenceId)
-        );
-        throw new BomCostError(
-          `路线 ${headerMeta.routingId}${firstRouted !== undefined ? `（发生项 ${firstRouted.occurrenceId}）` : ''}`,
-          `路线未覆盖：${routingDetail.uncoveredReason}，成本不能继续使用工序或退化成无路线`
-        );
-      }
-      for (const operation of routingDetail.operations) {
-        routingOps.push({
-          operationSeq: operation.operationSeq,
-          operationScrap: operation.operationScrap,
-          scrapConvention: operation.scrapConvention
-        });
-      }
+      const routing = await loadLayerRouting(q, dialect, headerMeta, effectiveRows, context.asOfDate);
       const material: CostMaterialLine[] = [];
       const credits: CostCreditLine[] = [];
       const children: CostNodeDetail[] = [];
@@ -822,31 +876,20 @@ const rollupCostInSnapshot = async (
       const groupedRows = groupSubstituteRows(effectiveRows, pPrime, context);
 
       for (const row of groupedRows) {
-        if (row.flowDirection !== 'consume') {
-          if (row.flowDirection === 'by_product') {
-            const itemRow = await fetchItemCost(q, dialect, row.childItemId);
-            if (itemRow.creditPrice !== null) {
-              const out = computeOutputQuantity(row, pPrime, row.headerBaseQty, context.formulaParams);
-              const outInStock = convertUom(
-                decimalToCanonical(out),
-                row.occurrenceUom,
-                row.childStockUom,
-                rowHopRates(row).toStock
-              );
-              const amount = decimalMul(decimalFromCanonical(outInStock), decimalFromCanonical(itemRow.creditPrice));
-              creditTotal = decimalAdd(creditTotal, amount);
-              credits.push({
-                occurrenceId: row.occurrenceId,
-                childItemId: row.childItemId,
-                outQty: outInStock,
-                outUom: row.childStockUom,
-                creditPrice: itemRow.creditPrice,
-                amount: decimalToCanonical(amount)
-              });
-            }
-          }
-          continue;
+        const credit =
+          row.flowDirection === 'by_product' ? await creditOf(q, dialect, row, pPrime, context.formulaParams) : null;
+        if (credit !== null) {
+          creditTotal = decimalAdd(creditTotal, credit.amount);
+          credits.push({
+            occurrenceId: row.occurrenceId,
+            childItemId: row.childItemId,
+            outQty: credit.outInStock,
+            outUom: row.childStockUom,
+            creditPrice: credit.creditPrice,
+            amount: decimalToCanonical(credit.amount)
+          });
         }
+        if (row.flowDirection !== 'consume') continue;
         const gross =
           row.gross ??
           computeGross(row, {
@@ -860,8 +903,8 @@ const rollupCostInSnapshot = async (
           plannedPrime: pPrime,
           headerBaseQty: row.headerBaseQty,
           formulaParams: context.formulaParams,
-          routingOps,
-          splits: splitsByOccurrence.get(row.occurrenceId) ?? []
+          routingOps: routing.routingOps,
+          splits: routing.splitsByOccurrence.get(row.occurrenceId) ?? []
         });
         const hops = rowHopRates(row);
         const demandInStock = convertUom(
@@ -939,57 +982,30 @@ const rollupCostInSnapshot = async (
       let processingTotal: Decimal = { coeff: 0n, exp: 0 };
       let overheadAmount: Decimal = { coeff: 0n, exp: 0 };
       let overheadReason: CostNodeDetail['overheadReason'] = '无路线';
-      if (headerMeta.routingId !== null && routingDetail.operations.length > 0) {
-        for (const operation of routingDetail.operations) {
-          const wOp = operationScrapChain(pPrime, routingOps, operation.operationSeq);
-          const hoursRaw = decimalAdd(
-            decimalAdd(
-              decimalFromCanonical(operation.setupTime),
-              decimalMul(decimalFromCanonical(operation.runTime), wOp)
-            ),
-            decimalFromCanonical(operation.fixedTime)
-          );
-          const activityTypeId = await fetchActivityTypeId(q, dialect, operation.workCenterId);
-          const { rate, rateUom } = await fetchRate(
-            q,
-            dialect,
-            operation.workCenterId,
-            activityTypeId,
-            context.rateDate,
-            context.currency
-          );
-          const rateHours = convertUom(decimalToCanonical(hoursRaw), operation.timeUom, rateUom);
-          const amount = decimalMul(decimalFromCanonical(rateHours), decimalFromCanonical(rate));
-          processingTotal = decimalAdd(processingTotal, amount);
-          processing.push({
-            operationSeq: operation.operationSeq,
-            setup: operation.setupTime,
-            run: operation.runTime,
-            fixed: operation.fixedTime,
-            hours: decimalToCanonical(hoursRaw),
-            timeUom: operation.timeUom,
-            rateHours,
-            rateUom,
-            rate,
-            amount: decimalToCanonical(amount)
-          });
-          const centerRow = await fetchCenterCost(q, dialect, operation.workCenterId);
-          if (centerRow.overheadRate !== null) {
-            if (centerRow.overheadCurrency !== null && centerRow.overheadCurrency !== context.currency) {
-              throw new BomCostError(
-                '工作中心制费币种',
-                `制费币种 ${centerRow.overheadCurrency} 与上下文币种 ${context.currency} 不符`
-              );
-            }
-            overheadAmount = decimalAdd(
-              overheadAmount,
-              decimalMul(decimalFromCanonical(rateHours), decimalFromCanonical(centerRow.overheadRate))
-            );
-            overheadReason = '按工时计';
-          } else {
-            overheadReason = '工作中心未声明制费';
-          }
-        }
+      for (const operation of routing.operations) {
+        const operationCost = await operationCostOf(q, dialect, operation, pPrime, routing.routingOps, context);
+        processingTotal = decimalAdd(processingTotal, operationCost.amount);
+        processing.push({
+          operationSeq: operation.operationSeq,
+          setup: operation.setupTime,
+          run: operation.runTime,
+          fixed: operation.fixedTime,
+          hours: decimalToCanonical(operationCost.hoursRaw),
+          timeUom: operation.timeUom,
+          rateHours: operationCost.rateHours,
+          rateUom: operationCost.rateUom,
+          rate: operationCost.rate,
+          amount: decimalToCanonical(operationCost.amount)
+        });
+        const overhead = await overheadOf(
+          q,
+          dialect,
+          operation.workCenterId,
+          operationCost.rateHours,
+          context.currency
+        );
+        overheadReason = overhead === null ? '工作中心未声明制费' : '按工时计';
+        if (overhead !== null) overheadAmount = decimalAdd(overheadAmount, overhead);
       }
 
       const batchCost = decimalSub(decimalAdd(decimalAdd(materialTotal, processingTotal), overheadAmount), creditTotal);

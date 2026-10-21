@@ -14,7 +14,7 @@ import {
   BomSubstituteGroup
 } from '../entities.js';
 import { explodeBom, type ExplosionOptions } from '../quantity/explosion.js';
-import { validateBomWrite } from '../repository.js';
+import { validateBomWrite, type BomWriteValidationContext } from '../repository.js';
 import { BomCycleError, normalizeBomError } from '../types.js';
 import type { BomLocalAdapter } from './bom-adapter.js';
 import { bomSqlDialectFor } from './bom-sql.js';
@@ -542,6 +542,8 @@ interface ImportExecutionState {
   diagnostics: ImportDiagnostic[];
   headerIds: string[];
   successfulRecords: ImportRecord[];
+  /** 本次导入事务内的字典缓存：导入不写 attr_def，逐行校验共用一份，不随行数重读。 */
+  attrDefs: NonNullable<BomWriteValidationContext['attrDefs']>;
 }
 
 const IMPORT_REFERENCE_FIELDS = [
@@ -577,13 +579,15 @@ const writeImportRecord = async (
   const data = importEntityData(record, state.indexes);
   const Entity = ENTITY_OF[record.kind];
   await validateBomWrite(
-    executor.query.bind(executor),
-    bomSqlDialectFor(adapter.name),
+    {
+      query: executor.query.bind(executor),
+      dialect: bomSqlDialectFor(adapter.name),
+      rxdb: adapter.rxdb,
+      attrDefs: state.attrDefs
+    },
     getEntityMetadata(Entity).name,
     data,
-    'create',
-    true,
-    adapter.rxdb
+    'create'
   );
   const entity = constructImportEntity(adapter, Entity, data);
   const id = (entity as unknown as Row)['id'];
@@ -642,7 +646,8 @@ const createImportExecutionState = (
     existing,
     diagnostics: [...parsed.diagnostics, ...duplicates],
     headerIds: [],
-    successfulRecords: []
+    successfulRecords: [],
+    attrDefs: new Map()
   };
 };
 

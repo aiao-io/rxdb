@@ -23,10 +23,10 @@ export interface BomViewBinding {
  * 订阅显式数据库下的 BOM 视图，返回 React 快照与共享命令。
  *
  * @remarks
- * 与 Angular / Vue 的 `useBomView` 同一语义：`input` 按内容身份跟踪，内容变化时自动
- * `setInput`，内容相同的新对象不会重载；`db` 身份变化时销毁旧控制器并以当前输入新建，
- * 旧流的迟到值不会写入状态。控制器在首次提交的 layout effect 中创建，此前与卸载之后
- * 调用命令会明确抛错。
+ * 与 Angular / Vue 的 `useBomView` 同一语义：输入按内容身份比较，内容相同的新对象不会重载；
+ * `db` 身份变化时销毁旧控制器并以当前输入新建，旧流的迟到值不会写入状态。React 每次渲染
+ * 都按内容重新比较传入的 `input`，内容变化时自动 `setInput`。控制器在首次提交的 layout
+ * effect 中创建，此前与卸载之后调用命令会明确抛错。
  *
  * @param db - 已连接并安装BOM插件的显式数据库，可供多份绑定使用
  * @param input - 完整解析上下文、目标、计划量、预算与公式参数

@@ -5,11 +5,19 @@
  * 渲染共享控制器给出的可见路径、未裁决候选、截断原因与查询状态。交互一律经 `commands`
  * 回到共享控制器，组件不发出事件。键盘遵循 WAI-ARIA tree 模式：方向键移动焦点
  * （ArrowLeft 无父节点时不动），Home/End 跳到首尾，Space 切换展开，Enter 加载发生项；
- * 当前焦点节点不在可见节点中时首行是 Tab 入口。
+ * 当前焦点节点不在可见节点中时首行是 Tab 入口。行加载失败的原始错误只对发起时的那一版
+ * 节点列表显示：共享状态发布新的节点列表（换输入、换库、刷新出新结果、展开折叠）即撤下，
+ * 换之前发起、之后才失败的加载也不回写。
  */
 import { BOM_VIEW_STYLES, bomErrorText } from '@aiao/rxdb-plugin-bom';
 import type { BomViewCommands, BomViewNode, BomViewState } from '@aiao/rxdb-plugin-bom';
-import { computed, nextTick, ref, shallowRef } from 'vue';
+import { computed, ref, shallowRef } from 'vue';
+
+/** 一次行加载失败与发起时的那一版节点。 */
+interface TreeInteraction {
+  nodes: readonly BomViewNode[];
+  error: unknown;
+}
 
 const props = defineProps<{
   /** 共享控制器发布的视图状态（`useBomView` 的 `state.value`）。 */
@@ -20,27 +28,38 @@ const props = defineProps<{
 const tree = ref<HTMLElement>();
 const focused = ref<string | null>(null);
 const hasFocused = computed(() => props.state.nodes.some(node => node.key === focused.value));
-const interactionError = shallowRef<unknown>(null);
+const interaction = shallowRef<TreeInteraction | null>(null);
+// 按节点数组身份失效，对照行编辑器表单错误随 editor.value 重置
+const interactionError = computed(() =>
+  interaction.value !== null && interaction.value.nodes === props.state.nodes ? interaction.value.error : null
+);
+
+/** 按节点身份同步聚焦已渲染的行，焦点事件再回写 focused（与 Angular / React 同一时序）。 */
+const focusKey = (key: string): void => {
+  const rows = tree.value?.querySelectorAll<HTMLElement>('[role="treeitem"]') ?? [];
+  Array.from(rows)
+    .find(row => row.getAttribute('data-path') === key)
+    ?.focus();
+};
 
 const focus = (index: number): void => {
-  const node = props.state.nodes[index];
-  if (!node) return;
-  focused.value = node.key;
-  void nextTick(() => tree.value?.querySelectorAll<HTMLElement>('[role="treeitem"]')[index]?.focus());
+  const node = props.state.nodes[Math.max(0, Math.min(index, props.state.nodes.length - 1))];
+  if (node) focusKey(node.key);
 };
 
 const select = async (node: BomViewNode): Promise<void> => {
   if (node.occurrenceId === null) return;
-  interactionError.value = null;
+  const { nodes } = props.state;
+  interaction.value = null;
   try {
     await props.commands.loadOccurrence(node.occurrenceId);
   } catch (error) {
-    interactionError.value = error;
+    interaction.value = { nodes, error };
   }
 };
 
-const activate = (node: BomViewNode, index: number): void => {
-  focus(index);
+const activate = (node: BomViewNode): void => {
+  focusKey(node.key);
   void select(node);
 };
 
@@ -57,7 +76,7 @@ const moveLeft = (node: BomViewNode): void => {
     props.commands.toggle(node.path);
     return;
   }
-  focus(props.state.nodes.findIndex(candidate => candidate.key === JSON.stringify(node.path.slice(0, -1))));
+  focusKey(JSON.stringify(node.path.slice(0, -1)));
 };
 
 const keydown = (event: KeyboardEvent, node: BomViewNode, index: number): void => {
@@ -115,16 +134,10 @@ const keydown = (event: KeyboardEvent, node: BomViewNode, index: number): void =
       @click="commands.refresh()"
       >重试</button
     >
-    <p
-      v-if="interactionError !== null"
-      role="alert"
-      >{{ bomErrorText(interactionError) }}</p
-    >
     <ul
       ref="tree"
       role="tree"
       aria-label="BOM 结构"
-      :aria-busy="state.refreshing || state.phase === 'loading'"
     >
       <li
         v-for="(node, index) in state.nodes"
@@ -139,7 +152,7 @@ const keydown = (event: KeyboardEvent, node: BomViewNode, index: number): void =
         :tabindex="focused === node.key || (!hasFocused && index === 0) ? 0 : -1"
         @focus="focused = node.key"
         @keydown="keydown($event, node, index)"
-        @click="activate(node, index)"
+        @click="activate(node)"
       >
         <div
           class="bom-node-content"
@@ -200,6 +213,11 @@ const keydown = (event: KeyboardEvent, node: BomViewNode, index: number): void =
       v-if="state.quantityError !== null"
       role="alert"
       >{{ bomErrorText(state.quantityError) }}</p
+    >
+    <p
+      v-if="interactionError !== null"
+      role="alert"
+      >{{ bomErrorText(interactionError) }}</p
     >
   </section>
 </template>

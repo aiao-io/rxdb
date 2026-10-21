@@ -4,7 +4,7 @@
  * 运行前置是头/发生项的可空 jointCostShare 与 produce 枚举已加入实体声明。
  * 缺少 schema 前置导致的建库或保存错误不算联产业务功能红。
  */
-import type { EntityType, UUID } from '@aiao/rxdb';
+import type { EntityType, TransactionExecutor, TransactionFun, UUID } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
@@ -657,7 +657,7 @@ for (const backend of ['wa-sqlite', 'pglite'] satisfies BomTestBackend[]) {
       { submitted: '0.5', edited: '0.4', stored: '0.5' }
     ])('份额提交$submitted期间改为$edited，保存回填保留新编辑或撤回', async ({ submitted, edited, stored }) => {
       const fixture = await makeFixture(adapter, { released: false });
-      const original = adapter.rawQuery.bind(adapter);
+      const original = adapter.transaction.bind(adapter) as BomTestAdapter['transaction'];
       let entered!: () => void;
       let resume!: () => void;
       const reached = new Promise<void>(resolve => {
@@ -667,14 +667,27 @@ for (const backend of ['wa-sqlite', 'pglite'] satisfies BomTestBackend[]) {
         resume = resolve;
       });
       let blocked = false;
-      const spy = vi.spyOn(adapter, 'rawQuery').mockImplementation(async (sql, params) => {
-        if (!blocked && sql.includes('attr_def')) {
-          blocked = true;
-          entered();
-          await gate;
-        }
-        return original(sql, params);
-      });
+      // 保存期校验读与写入同一事务：在事务执行器的 query 上卡住第一次 attr_def 读取
+      const paused = (executor: TransactionExecutor): TransactionExecutor =>
+        new Proxy(executor, {
+          get(target, property) {
+            if (property === 'query') {
+              return async (sql: string, params?: readonly unknown[]) => {
+                if (!blocked && sql.includes('attr_def')) {
+                  blocked = true;
+                  entered();
+                  await gate;
+                }
+                return target.query(sql, params);
+              };
+            }
+            const value: unknown = Reflect.get(target, property, target);
+            return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+          }
+        });
+      const observed = (fun: TransactionFun, transactionLog?: boolean): Promise<unknown> =>
+        original(executor => fun(paused(executor)), transactionLog);
+      const spy = vi.spyOn(adapter, 'transaction').mockImplementation(observed as BomTestAdapter['transaction']);
       try {
         fixture.output.jointCostShare = submitted;
         fixture.output.ext = '{}';

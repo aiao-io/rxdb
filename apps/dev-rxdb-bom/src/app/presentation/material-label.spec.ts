@@ -46,6 +46,8 @@ describe('演示物料名称', () => {
     expect(materialLabel('PCBA')).toBe('控制板（PCBA）');
     expect(materialLabel('BATT')).toBe('电池组（BATT）');
     expect(materialLabel('R10K')).toBe('10kΩ 电阻（R10K）');
+    // 设计与制造两张清单挂在同一物料上，名称不再分设计件 / 制造件
+    expect(materialLabel('SHEET-ASSY')).toBe('钣金外壳（SHEET-ASSY）');
   });
 
   it('未命名的导入物料明确提示缺名称，完整编码仍可识别', () => {

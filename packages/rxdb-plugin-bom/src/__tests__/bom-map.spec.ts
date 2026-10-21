@@ -3,7 +3,8 @@
  *
  * 双后端（wa-sqlite / pglite）同断言：NULL 规则（AC#9）、六态 relation（AC#1/#2/#3）、
  * 两侧类型/组织与范围成员资格保存校验（AC#10/#12/#15）、路径级映射与覆盖率（AC#5/#6/#13/#14）、
- * 跟进基线与缺口查询（AC#4/#7/#8/#16~#22）。
+ * 跟进基线与缺口查询（AC#4/#7/#8/#16~#22）。变换范围的两根头一律挂在同一物料上（范围保存期校验，
+ * 修订可以不同）。
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -16,6 +17,7 @@ import {
   saveMapping,
   type MappingStep
 } from '../resolve/bom-map.js';
+import { bomSqlDialectFor } from '../resolve/bom-sql.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import type { ResolutionContext } from '../resolve/resolution.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
@@ -43,28 +45,30 @@ for (const backend of BACKENDS) {
       await disposeBomTestAdapter(adapter).catch(() => undefined);
     });
 
-    /** 建物料 + 已发布修订 + 指定类型的已发布头（一行一个子件）。 */
+    /**
+     * 物料的指定修订（缺则经历史通道装载为已发布修订；同一物料的已发布修订生效日须互异）+
+     * 指定类型的已发布头（一行一个子件）。变换范围的两根头挂同一物料（US-516）。
+     */
     const makeHeader = async (
-      itemKey: string,
+      item: BomItem,
       bomType: 'ebom' | 'mbom',
       children: BomItem[],
-      revisionNo = 'A'
-    ): Promise<{ item: BomItem; header: BomHeader; lines: BomLine[] }> => {
-      const item = new BomItem();
-      item.itemNo = `${itemKey}-${Math.random().toString(36).slice(2, 8)}`;
-      await item.save();
-      await loadHistory(adapter, {
-        batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
-        revisions: [{ itemId: item.id, revisionNo, effectiveFrom: day('2020-01-01') }],
-        headers: []
-      });
-      const revisionId = String(
+      revision = { revisionNo: 'A', effectiveFrom: day('2020-01-01') }
+    ): Promise<{ header: BomHeader; lines: BomLine[] }> => {
+      const findRevision = async (): Promise<unknown[][]> =>
         shapeRows(
           await adapter.rawQuery(
-            `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}' AND "revisionNo" = '${revisionNo}'`
+            `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}' AND "revisionNo" = '${revision.revisionNo}'`
           )
-        )[0][0]
-      );
+        );
+      if ((await findRevision()).length === 0) {
+        await loadHistory(adapter, {
+          batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
+          revisions: [{ itemId: item.id, ...revision }],
+          headers: []
+        });
+      }
+      const revisionId = String((await findRevision())[0][0]);
       const header = new BomHeader();
       header.parentRevisionId = revisionId;
       header.bomType = bomType;
@@ -89,7 +93,7 @@ for (const backend of BACKENDS) {
       }
       header.state = 'released';
       await header.save();
-      return { item, header, lines };
+      return { header, lines };
     };
 
     const makeItemOnly = async (key: string): Promise<BomItem> => {
@@ -101,8 +105,9 @@ for (const backend of BACKENDS) {
 
     it('AC#9 NULL 规则：one_to_one 两侧必填、added 只 source 空、removed 只 target 空、双 NULL 拒绝', async () => {
       const child = await makeItemOnly('m9');
-      const ebom = await makeHeader('m9-e', 'ebom', [child]);
-      const mbom = await makeHeader('m9-m', 'mbom', [child]);
+      const root = await makeItemOnly('m9-root');
+      const ebom = await makeHeader(root, 'ebom', [child]);
+      const mbom = await makeHeader(root, 'mbom', [child]);
       const scope = new BomMapScope();
       scope.orgId = 'org-x';
       scope.ebomRootHeaderId = ebom.header.id;
@@ -143,8 +148,9 @@ for (const backend of BACKENDS) {
 
     it('AC#2/#3 六态 relation 均可保存（added/split/merge）', async () => {
       const child = await makeItemOnly('m23');
-      const ebom = await makeHeader('m23-e', 'ebom', [child]);
-      const mbom = await makeHeader('m23-m', 'mbom', [child, child]);
+      const root = await makeItemOnly('m23-root');
+      const ebom = await makeHeader(root, 'ebom', [child]);
+      const mbom = await makeHeader(root, 'mbom', [child, child]);
       const scope = new BomMapScope();
       scope.orgId = 'org-x';
       scope.ebomRootHeaderId = ebom.header.id;
@@ -163,8 +169,11 @@ for (const backend of BACKENDS) {
       splitB.sourceLineId = ebom.lines[0].id;
       splitB.targetLineId = mbom.lines[1].id;
       await splitB.save();
-      // merge：两个源行 → 一个目标行
-      const ebom2 = await makeHeader('m23-e2', 'ebom', [child, child]);
+      // merge：两个源行 → 一个目标行（同一父件的另一修订上的 EBOM 根头：两侧修订可以不同）
+      const ebom2 = await makeHeader(root, 'ebom', [child, child], {
+        revisionNo: 'B',
+        effectiveFrom: day('2021-01-01')
+      });
       const scope2 = new BomMapScope();
       scope2.orgId = 'org-x';
       scope2.ebomRootHeaderId = ebom2.header.id;
@@ -269,10 +278,9 @@ describe('保存校验（AC#1/#10/#11/#12/#13/#15）', () => {
       it('AC#1 split 双向可追溯：一条源行映射到两个目标行', async () => {
         const { saveMapping } = await import('../resolve/bom-map.js');
         const sheet = await makeItemOnly('s1');
-        const ebomItem = await makeItemOnly('s1-e');
-        const mbomItem = await makeItemOnly('s1-m');
-        const ebom = await makeHeader(ebomItem, 'ebom', [sheet]);
-        const mbom = await makeHeader(mbomItem, 'mbom', [sheet, sheet]);
+        const rootItem = await makeItemOnly('s1-root');
+        const ebom = await makeHeader(rootItem, 'ebom', [sheet]);
+        const mbom = await makeHeader(rootItem, 'mbom', [sheet, sheet]);
         const scope = new BomMapScope();
         scope.orgId = 'org-x';
         scope.ebomRootHeaderId = ebom.header.id;
@@ -302,10 +310,9 @@ describe('保存校验（AC#1/#10/#11/#12/#13/#15）', () => {
       it('AC#10 两侧类型不匹配或组织不符：拒绝并点名', async () => {
         const { saveMapping } = await import('../resolve/bom-map.js');
         const child = await makeItemOnly('s10');
-        const ebomItem = await makeItemOnly('s10-e');
-        const mbomItem = await makeItemOnly('s10-m');
-        const ebom = await makeHeader(ebomItem, 'ebom', [child]);
-        const mbom = await makeHeader(mbomItem, 'mbom', [child]);
+        const rootItem = await makeItemOnly('s10-root');
+        const ebom = await makeHeader(rootItem, 'ebom', [child]);
+        const mbom = await makeHeader(rootItem, 'mbom', [child]);
         const scope = new BomMapScope();
         scope.orgId = 'org-x';
         scope.ebomRootHeaderId = ebom.header.id;
@@ -355,11 +362,10 @@ describe('保存校验（AC#1/#10/#11/#12/#13/#15）', () => {
       it('AC#12 源行所在头不可由范围根件到达：拒绝', async () => {
         const { saveMapping } = await import('../resolve/bom-map.js');
         const child = await makeItemOnly('s12');
-        const ebomItem = await makeItemOnly('s12-e');
-        const mbomItem = await makeItemOnly('s12-m');
+        const rootItem = await makeItemOnly('s12-root');
         const outsideItem = await makeItemOnly('s12-x');
-        const ebom = await makeHeader(ebomItem, 'ebom', [child]);
-        const mbom = await makeHeader(mbomItem, 'mbom', [child]);
+        const ebom = await makeHeader(rootItem, 'ebom', [child]);
+        const mbom = await makeHeader(rootItem, 'mbom', [child]);
         const outside = await makeHeader(outsideItem, 'ebom', [child]);
         const scope = new BomMapScope();
         scope.orgId = 'org-x';
@@ -379,10 +385,9 @@ describe('保存校验（AC#1/#10/#11/#12/#13/#15）', () => {
       it('AC#13 路径级映射：末元素不等于 sourceLineId 或中间断开的路径拒绝', async () => {
         const { saveMapping } = await import('../resolve/bom-map.js');
         const child = await makeItemOnly('s13');
-        const ebomItem = await makeItemOnly('s13-e');
-        const mbomItem = await makeItemOnly('s13-m');
-        const ebom = await makeHeader(ebomItem, 'ebom', [child]);
-        const mbom = await makeHeader(mbomItem, 'mbom', [child]);
+        const rootItem = await makeItemOnly('s13-root');
+        const ebom = await makeHeader(rootItem, 'ebom', [child]);
+        const mbom = await makeHeader(rootItem, 'mbom', [child]);
         const scope = new BomMapScope();
         scope.orgId = 'org-x';
         scope.ebomRootHeaderId = ebom.header.id;
@@ -477,9 +482,8 @@ describe('覆盖率查询（AC#5/#6/#13/#14）', () => {
         const a = await makeItemOnly('c6-a');
         const b = await makeItemOnly('c6-b');
         const rootItem = await makeItemOnly('c6-root');
-        const mRoot = await makeItemOnly('c6-mroot');
         const ebom = await makeHeader(rootItem, 'ebom', [a, b]);
-        const mbom = await makeHeader(mRoot, 'mbom', [a, b]);
+        const mbom = await makeHeader(rootItem, 'mbom', [a, b]);
         const scope = new BomMapScope();
         scope.orgId = 'org-x';
         scope.ebomRootHeaderId = ebom.header.id;
@@ -545,14 +549,13 @@ describe('覆盖率查询（AC#5/#6/#13/#14）', () => {
         const p1Item = await makeItemOnly('c13-p1');
         const p2Item = await makeItemOnly('c13-p2');
         const rootItem = await makeItemOnly('c13-root');
-        const mRoot = await makeItemOnly('c13-mroot');
         // EBOM 根用 P1、P2 各一行；共享子装配 S 头（同一批行经两条路径出现）
         const ebomRoot = await makeHeader(rootItem, 'ebom', [p1Item, p2Item]);
         const ebomP1 = await makeHeader(p1Item, 'ebom', [s]);
         await makeHeader(p2Item, 'ebom', [s]); // P2 头建出即达意：共享 S 行经两条路径出现（覆盖查询自行走头链）
         const sPart = await makeItemOnly('c13-sp');
         const ebomS = await makeHeader(s, 'ebom', [sPart]);
-        const mbom = await makeHeader(mRoot, 'mbom', [s, s]);
+        const mbom = await makeHeader(rootItem, 'mbom', [s, s]);
         const scope = new BomMapScope();
         scope.orgId = 'org-x';
         scope.ebomRootHeaderId = ebomRoot.header.id;
@@ -659,10 +662,9 @@ describe('跟进基线与缺口（AC#4/#7/#8/#20）', () => {
         const a = await makeItemOnly('g4-a');
         const b = await makeItemOnly('g4-b');
         const rootItem = await makeItemOnly('g4-root');
-        const mRoot = await makeItemOnly('g4-mroot');
         const ebom = await makeHeader(rootItem, 'ebom', [a]);
         const ebomB = await makeHeader(a, 'ebom', [b]);
-        const mbom = await makeHeader(mRoot, 'mbom', [b]);
+        const mbom = await makeHeader(rootItem, 'mbom', [b]);
         const scope = new BomMapScope();
         scope.orgId = 'org-x';
         scope.ebomRootHeaderId = ebom.header.id;
@@ -741,10 +743,9 @@ describe('跟进基线与缺口（AC#4/#7/#8/#20）', () => {
         const a = await makeItemOnly('g20-a');
         const b = await makeItemOnly('g20-b');
         const rootItem = await makeItemOnly('g20-root');
-        const mRoot = await makeItemOnly('g20-mroot');
         const ebom = await makeHeader(rootItem, 'ebom', [a]);
         const ebomB = await makeHeader(a, 'ebom', [b]);
-        const mbom = await makeHeader(mRoot, 'mbom', [b]);
+        const mbom = await makeHeader(rootItem, 'mbom', [b]);
         const scope = new BomMapScope();
         scope.orgId = 'org-x';
         scope.ebomRootHeaderId = ebom.header.id;
@@ -905,10 +906,11 @@ describe('评审修复：完整性守卫 / 基线收集 / 参数绑定（P1-4 / 
       const unitSplitFixture = async () => {
         const a = await itemOnly('u-a');
         const a2 = await itemOnly('u-a2');
-        const ebom = await releasedHeader(await revisionOf(await itemOnly('u-root')), 'ebom', [
+        const rootRevision = await revisionOf(await itemOnly('u-root'));
+        const ebom = await releasedHeader(rootRevision, 'ebom', [
           { child: a, occurrences: [{ unitTo: 100 }, { childItemId: a2.id, unitFrom: 101 }] }
         ]);
-        const mbom = await releasedHeader(await revisionOf(await itemOnly('u-mroot')), 'mbom', [{ child: a }]);
+        const mbom = await releasedHeader(rootRevision, 'mbom', [{ child: a }]);
         const scope = await scopeOf(ebom.header, mbom.header);
         const { mapId } = await saveMapping(adapter, {
           scopeId: scope.id,
@@ -953,12 +955,10 @@ describe('评审修复：完整性守卫 / 基线收集 / 参数绑定（P1-4 / 
 
       it('P2-4 M5 行级基线只收到源行为止：兄弟分支与源行以下的变更不产生假缺口，缺口附目标行', async () => {
         const a = await itemOnly('s-a');
-        const ebom = await releasedHeader(await revisionOf(await itemOnly('s-root')), 'ebom', [
-          { child: a },
-          { child: await itemOnly('s-b') }
-        ]);
+        const rootRevision = await revisionOf(await itemOnly('s-root'));
+        const ebom = await releasedHeader(rootRevision, 'ebom', [{ child: a }, { child: await itemOnly('s-b') }]);
         const ebomA = await releasedHeader(await revisionOf(a), 'ebom', [{ child: await itemOnly('s-x') }]);
-        const mbom = await releasedHeader(await revisionOf(await itemOnly('s-mroot')), 'mbom', [{ child: a }]);
+        const mbom = await releasedHeader(rootRevision, 'mbom', [{ child: a }]);
         const scope = await scopeOf(ebom.header, mbom.header);
         const { mapId } = await saveMapping(adapter, {
           scopeId: scope.id,
@@ -984,9 +984,10 @@ describe('评审修复：完整性守卫 / 基线收集 / 参数绑定（P1-4 / 
         const c = await itemOnly('p-c');
         const p = await itemOnly('p-p');
         await revisionOf(c);
-        const ebom = await releasedHeader(await revisionOf(await itemOnly('p-root')), 'ebom', [{ child: p }]);
+        const rootRevision = await revisionOf(await itemOnly('p-root'));
+        const ebom = await releasedHeader(rootRevision, 'ebom', [{ child: p }]);
         const ebomP = await releasedHeader(await revisionOf(p), 'ebom', [{ child: c }]);
-        const mbom = await releasedHeader(await revisionOf(await itemOnly('p-mroot')), 'mbom', [{ child: c }]);
+        const mbom = await releasedHeader(rootRevision, 'mbom', [{ child: c }]);
         const scope = await scopeOf(ebom.header, mbom.header);
         const { mapId } = await saveMapping(adapter, {
           scopeId: scope.id,
@@ -1029,9 +1030,7 @@ describe('评审修复：完整性守卫 / 基线收集 / 参数绑定（P1-4 / 
         const rootRevision = await revisionOf(root);
         const ebom = await releasedHeader(rootRevision, 'ebom', [{ child: await itemOnly('alt-a') }]);
         const other = await releasedHeader(rootRevision, 'ebom', [{ child: await itemOnly('alt-b') }], 2);
-        const mbom = await releasedHeader(await revisionOf(await itemOnly('alt-mroot')), 'mbom', [
-          { child: await itemOnly('alt-m') }
-        ]);
+        const mbom = await releasedHeader(rootRevision, 'mbom', [{ child: await itemOnly('alt-m') }]);
         const scope = await scopeOf(ebom.header, mbom.header);
         const { mapId } = await saveMapping(adapter, {
           scopeId: scope.id,
@@ -1057,13 +1056,11 @@ describe('评审修复：完整性守卫 / 基线收集 / 参数绑定（P1-4 / 
         const a = await itemOnly('pm-a');
         const b = await itemOnly('pm-b');
         const aRevision = await revisionOf(a);
-        const ebom = await releasedHeader(await revisionOf(await itemOnly('pm-root')), 'ebom', [
-          { child: a },
-          { child: b }
-        ]);
+        const rootRevision = await revisionOf(await itemOnly('pm-root'));
+        const ebom = await releasedHeader(rootRevision, 'ebom', [{ child: a }, { child: b }]);
         const ebomA = await releasedHeader(aRevision, 'ebom', [{ child: await itemOnly('pm-x') }]);
         const ebomB = await releasedHeader(await revisionOf(b), 'ebom', [{ child: await itemOnly('pm-y') }]);
-        const mbom = await releasedHeader(await revisionOf(await itemOnly('pm-mroot')), 'mbom', [{ child: a }]);
+        const mbom = await releasedHeader(rootRevision, 'mbom', [{ child: a }]);
         const scope = await scopeOf(ebom.header, mbom.header);
         const save = async (sourceLineId: string): Promise<string> =>
           (
@@ -1126,7 +1123,7 @@ describe('评审修复：完整性守卫 / 基线收集 / 参数绑定（P1-4 / 
         };
         const root = await lineOfItem(chain[0]);
         const first = await lineOfItem(chain[1]);
-        const mbom = await releasedHeader(await revisionOf(await itemOnly('tc-mroot')), 'mbom', [{ child: chain[2] }]);
+        const mbom = await releasedHeader(await revisionOf(chain[0]), 'mbom', [{ child: chain[2] }]);
         const scope = new BomMapScope();
         scope.orgId = 'org-x';
         scope.ebomRootHeaderId = root.headerId;
@@ -1156,10 +1153,11 @@ describe('评审修复：完整性守卫 / 基线收集 / 参数绑定（P1-4 / 
       it('范围成员资格的一跳只走同类型同组织的子件头：经 MBOM 头才可达的 EBOM 行不是成员', async () => {
         const a = await itemOnly('h-a');
         const b = await itemOnly('h-b');
-        const ebom = await releasedHeader(await revisionOf(await itemOnly('h-root')), 'ebom', [{ child: a }]);
+        const rootRevision = await revisionOf(await itemOnly('h-root'));
+        const ebom = await releasedHeader(rootRevision, 'ebom', [{ child: a }]);
         await releasedHeader(await revisionOf(a), 'mbom', [{ child: b }]);
         const ebomB = await releasedHeader(await revisionOf(b), 'ebom', [{ child: await itemOnly('h-x') }]);
-        const mbom = await releasedHeader(await revisionOf(await itemOnly('h-mroot')), 'mbom', [{ child: a }]);
+        const mbom = await releasedHeader(rootRevision, 'mbom', [{ child: a }]);
         const scope = await scopeOf(ebom.header, mbom.header);
         await expect(
           saveMapping(adapter, {
@@ -1173,8 +1171,9 @@ describe('评审修复：完整性守卫 / 基线收集 / 参数绑定（P1-4 / 
 
       it('P2-4 M8 多实例并存：saveMapping 经实例的实体构造门面落库', async () => {
         const child = await itemOnly('mi-c');
-        const ebom = await releasedHeader(await revisionOf(await itemOnly('mi-root')), 'ebom', [{ child }]);
-        const mbom = await releasedHeader(await revisionOf(await itemOnly('mi-mroot')), 'mbom', [{ child }]);
+        const rootRevision = await revisionOf(await itemOnly('mi-root'));
+        const ebom = await releasedHeader(rootRevision, 'ebom', [{ child }]);
+        const mbom = await releasedHeader(rootRevision, 'mbom', [{ child }]);
         const scope = await scopeOf(ebom.header, mbom.header);
         const other = await createBomTestAdapter(backend);
         try {
@@ -1202,6 +1201,83 @@ describe('评审修复：完整性守卫 / 基线收集 / 参数绑定（P1-4 / 
         await expect(confirmMapping(adapter, injected, null, ctx('2026-09-22', { unit: 50 }))).rejects.toThrow(
           notFound
         );
+      });
+
+      /** 两层 EBOM（根 → A → B）+ MBOM 一行；源行是 A 头里到 B 的行（行级映射，已确认）。 */
+      const confirmedFixture = async () => {
+        const b = await itemOnly('j-b');
+        const a = await itemOnly('j-a');
+        const rootRevision = await revisionOf(await itemOnly('j-root'));
+        const ebom = await releasedHeader(rootRevision, 'ebom', [{ child: a }]);
+        const ebomA = await releasedHeader(await revisionOf(a), 'ebom', [{ child: b }]);
+        const mbom = await releasedHeader(rootRevision, 'mbom', [{ child: b }]);
+        const scope = await scopeOf(ebom.header, mbom.header);
+        const { mapId } = await saveMapping(adapter, {
+          scopeId: scope.id,
+          relation: 'one_to_one',
+          sourceLineId: ebomA.lines[0].id,
+          targetLineId: mbom.lines[0].id
+        });
+        await confirmMapping(adapter, mapId, null, ctx('2026-09-22'));
+        return { ebom, ebomA, mbom, scope, mapId };
+      };
+
+      it('P2-8 空 sourceLinePath 保存即拒（行级映射省略路径），不落库成永远无缺口的映射', async () => {
+        const { ebomA, mbom, scope } = await confirmedFixture();
+        const before = shapeRows(
+          await adapter.rawQuery(`SELECT COUNT(*) FROM ${table('bom_map')} WHERE "scopeId" = '${scope.id}'`)
+        );
+        const empty = saveMapping(adapter, {
+          scopeId: scope.id,
+          relation: 'split',
+          sourceLineId: ebomA.lines[0].id,
+          targetLineId: mbom.lines[0].id,
+          sourceLinePath: []
+        });
+        await expect(empty).rejects.toThrow(BomMapError);
+        await expect(empty).rejects.toThrow(/sourceLinePath/);
+        expect(
+          shapeRows(await adapter.rawQuery(`SELECT COUNT(*) FROM ${table('bom_map')} WHERE "scopeId" = '${scope.id}'`))
+        ).toEqual(before);
+      });
+
+      it('P2-10 bom_map 的 JSON 列坏 JSON / 形状不对：覆盖率、缺口、确认跟进都点名映射行与列，不抛裸 SyntaxError', async () => {
+        const { scope, mapId } = await confirmedFixture();
+        const dialect = bomSqlDialectFor(backend);
+        const corrupt = async (column: 'sourceLinePath' | 'baselineSteps', raw: string): Promise<void> => {
+          await adapter.rawQuery(
+            `UPDATE ${table('bom_map')} SET "${column}" = ${dialect.placeholder(0)} WHERE "id" = ${dialect.placeholder(1)}`,
+            [raw, mapId]
+          );
+        };
+        const queries = [
+          () => mappingCoverage(adapter, scope.id, ctx('2026-09-22')),
+          () => mappingGaps(adapter, scope.id, ctx('2026-09-22')),
+          () => confirmMapping(adapter, mapId, null, ctx('2026-09-22'))
+        ];
+        const cases: ['sourceLinePath' | 'baselineSteps', string][] = [
+          ['baselineSteps', '{oops'],
+          ['baselineSteps', '{"lineId":"l"}'],
+          ['baselineSteps', '[{"lineId":"l","occurrenceId":7,"revisionId":null}]'],
+          ['sourceLinePath', 'not json'],
+          ['sourceLinePath', '[]'],
+          ['sourceLinePath', '["l", 2]']
+        ];
+        for (const [column, raw] of cases) {
+          await corrupt(column, raw);
+          for (const run of queries) {
+            const failure = await run().then(
+              () => null,
+              (error: unknown) => error
+            );
+            expect(failure, `${column} = ${raw}`).toBeInstanceOf(BomMapError);
+            expect(String((failure as Error).message)).toContain(mapId);
+            expect(String((failure as Error).message)).toContain(column);
+          }
+          await adapter.rawQuery(
+            `UPDATE ${table('bom_map')} SET "sourceLinePath" = NULL, "baselineSteps" = '[]' WHERE "id" = '${mapId}'`
+          );
+        }
       });
     });
   }

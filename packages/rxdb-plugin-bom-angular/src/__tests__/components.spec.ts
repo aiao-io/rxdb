@@ -58,6 +58,12 @@ const description = (root: HTMLElement, input: HTMLInputElement): string =>
     .join(' ');
 
 describe('Angular BOM 树真实挂载', () => {
+  it('忙碌状态只标在树区域外层，树本身不重复标注（三端同一结构）', async () => {
+    const mounted = await mountTree(viewState({ phase: 'loading' }), viewCommands());
+    const busy = [...element(mounted).querySelectorAll('[aria-busy]')];
+    expect(busy.map(node => [node.tagName, node.getAttribute('aria-busy')])).toEqual([['SECTION', 'true']]);
+  });
+
   it('四状态、后台刷新和错误重试可见', async () => {
     const commands = viewCommands();
     const mounted = await mountTree(viewState(), commands);
@@ -167,6 +173,79 @@ describe('Angular BOM 树真实挂载', () => {
     expect(commands.loadOccurrence).toHaveBeenCalledTimes(2);
   });
 
+  it('行加载错误只属于发起时的那一版节点：编辑器与刷新标记不撤下，换输入（含加载态被合并）后撤下', async () => {
+    const commands = viewCommands();
+    commands.loadOccurrence.mockRejectedValue(Object.assign(new Error('发生项已删除'), { code: 'BOM_ROW_GONE' }));
+    const loaded = viewState({ phase: 'success', nodes: [viewNode(['line'])] });
+    const mounted = await mountTree(loaded, commands);
+    const alerts = () => Array.from(element(mounted).querySelectorAll('[role=alert]')).map(alert => alert.textContent);
+    element(mounted).querySelector<HTMLElement>('[role=treeitem]')!.click();
+    await mounted.whenStable();
+    expect(alerts().join()).toContain('BOM_ROW_GONE');
+    // 同一批节点上的编辑器回写与后台刷新标记不撤下错误
+    mounted.componentRef.setInput('state', {
+      ...loaded,
+      refreshing: true,
+      editor: { ...loaded.editor, phase: 'error' }
+    });
+    await mounted.whenStable();
+    expect(alerts().join()).toContain('BOM_ROW_GONE');
+    // 绑定 setInput：共享状态回到加载态，随后给出新目标的节点
+    mounted.componentRef.setInput('state', viewState({ phase: 'loading', nodes: [] }));
+    await mounted.whenStable();
+    expect(alerts()).toEqual([]);
+    const next = viewState({ phase: 'success', nodes: [viewNode(['other'])] });
+    mounted.componentRef.setInput('state', next);
+    await mounted.whenStable();
+    expect(alerts()).toEqual([]);
+    // 热启动时加载态与结果同一轮发布、组件只看到最终节点，旧错误同样不残留
+    element(mounted).querySelector<HTMLElement>('[role=treeitem]')!.click();
+    await mounted.whenStable();
+    expect(alerts().join()).toContain('BOM_ROW_GONE');
+    mounted.componentRef.setInput('state', viewState({ phase: 'success', nodes: [viewNode(['other'])] }));
+    await mounted.whenStable();
+    expect(alerts()).toEqual([]);
+  });
+
+  it('换输入之前发起、之后才失败的行加载不把旧错误写到新树上', async () => {
+    const commands = viewCommands();
+    let fail: (error: unknown) => void = () => undefined;
+    commands.loadOccurrence.mockImplementationOnce(
+      () =>
+        new Promise<void>((_, reject) => {
+          fail = reject;
+        })
+    );
+    const mounted = await mountTree(viewState({ phase: 'success', nodes: [viewNode(['line'])] }), commands);
+    element(mounted).querySelector<HTMLElement>('[role=treeitem]')!.click();
+    await mounted.whenStable();
+    mounted.componentRef.setInput('state', viewState({ phase: 'success', nodes: [viewNode(['other'])] }));
+    await mounted.whenStable();
+    fail(Object.assign(new Error('旧查询的发生项读取失败'), { code: 'BOM_ROW_GONE' }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await mounted.whenStable();
+    expect(element(mounted).querySelector('[role=alert]')).toBeNull();
+  });
+
+  it('焦点按节点身份移动：同一轮重渲染插入展开的子节点时仍落在按键时的目标行', async () => {
+    const commands = viewCommands();
+    const nodes = [viewNode([]), viewNode(['assembly'], { hasChildren: true, expanded: false }), viewNode(['other'])];
+    const mounted = await mountTree(viewState({ phase: 'success', nodes }), commands);
+    const rows = Array.from(element(mounted).querySelectorAll<HTMLElement>('[role=treeitem]'));
+    rows[1].focus();
+    key(rows[1], 'ArrowDown');
+    mounted.componentRef.setInput(
+      'state',
+      viewState({
+        phase: 'success',
+        nodes: [nodes[0], { ...nodes[1], expanded: true }, viewNode(['assembly', 'child']), nodes[2]]
+      })
+    );
+    await mounted.whenStable();
+    expect(document.activeElement).toBe(rows[2]);
+    expect(document.activeElement?.getAttribute('data-path')).toBe('["other"]');
+  });
+
   it('树节点的选中语义跟随当前编辑发生项并可清除', async () => {
     const commands = viewCommands();
     const nodes = [viewNode([]), viewNode(['occurrence-1']), viewNode(['occurrence-2'])];
@@ -241,6 +320,17 @@ describe('Angular BOM 树真实挂载', () => {
 });
 
 describe('Angular BOM 行编辑器真实挂载', () => {
+  it('输入控件按字段命名（三端同一表单语义）', async () => {
+    const mounted = await mountEditor(editorState(), viewCommands());
+    expect([...element(mounted).querySelectorAll('input')].map(input => input.name)).toEqual([
+      'qty',
+      'componentScrap',
+      'operationSeq',
+      'effectiveFrom',
+      'effectiveTo'
+    ]);
+  });
+
   it('中文原生标签关联输入，保存经共享字段转换生成四字段 patch', async () => {
     const commands = viewCommands();
     const mounted = await mountEditor(editorState(), commands);
@@ -368,5 +458,20 @@ describe('Angular BOM 行编辑器真实挂载', () => {
     );
     await mounted.whenStable();
     expect(element(mounted).querySelector('[role=status]')?.textContent).toMatch(/加载/);
+  });
+
+  it('保存中的进度状态只在表单内出现，任一时刻至多一个 status 区域', async () => {
+    const statuses = (mounted: ComponentFixture<unknown>) =>
+      Array.from(element(mounted).querySelectorAll('[role=status]')).map(status => status.textContent?.trim());
+    const mounted = await mountEditor(
+      viewState({ editor: { phase: 'idle', value: null, saving: true, error: null } }),
+      viewCommands()
+    );
+    expect(statuses(mounted)).toEqual(['请选择一条 BOM 行进行编辑']);
+    const saving = editorState();
+    mounted.componentRef.setInput('state', { ...saving, editor: { ...saving.editor, saving: true } });
+    await mounted.whenStable();
+    expect(statuses(mounted)).toEqual(['正在保存发生项…']);
+    expect(element(mounted).querySelector('form [role=status]')).not.toBeNull();
   });
 });

@@ -58,4 +58,22 @@ describe('单位换算：显式换算率（AC#5 的跨量纲段）', () => {
   it('同量纲但不同词根（件 → 盒）无标准系数：同样拒绝', () => {
     expect(() => convertUom('1', 'pcs', '盒')).toThrow(BomQuantityError);
   });
+
+  it('换算率为 0（写入期合法的规范串）：拒绝为数量违约并点名换算率与单位对，不以裸除零错误逃逸', () => {
+    for (const [rates, level] of [
+      [{ lineRate: '0', itemRate: '10' }, '行级'],
+      [{ itemRate: '0' }, '物料级']
+    ] as const) {
+      const error = (() => {
+        try {
+          convertUom('4', 'pcs', '盒', rates);
+          return null;
+        } catch (cause) {
+          return cause;
+        }
+      })();
+      expect(error, level).toBeInstanceOf(BomQuantityError);
+      expect(String((error as Error).message), level).toContain(`从 pcs 换算到 盒 的${level}换算率为 0`);
+    }
+  });
 });

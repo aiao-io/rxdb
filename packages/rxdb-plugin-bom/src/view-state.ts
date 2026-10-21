@@ -10,6 +10,7 @@ import { loadViewOccurrence, saveViewOccurrence } from './view-editor.js';
 import { projectViewNodes, viewCandidates, viewPathKey } from './view-projection.js';
 import type {
   BomLineEditorState,
+  BomLineEditorValue,
   BomOccurrencePatch,
   BomViewHandle,
   BomViewInput,
@@ -18,9 +19,14 @@ import type {
 } from './view-types.js';
 import { readBomViewSnapshot } from './view.js';
 
-/** 展开状态按目标划分：同一目标只改参数时保留，换目标回到默认展开根。 */
+/** 编辑器以外的数据字段；成功结果按完整类型发布，状态增字段时编译期即暴露漏改。 */
+type BomViewData = Omit<BomViewState, 'editor'>;
+
+/** 展开与编辑器状态按目标划分：同一目标只改参数时保留，换目标回到默认。 */
 const sameTarget = (left: ResolveTarget, right: ResolveTarget): boolean =>
   left.parentItemId === right.parentItemId && left.parentRevisionId === right.parentRevisionId;
+
+const initialEditorState = (): BomLineEditorState => ({ phase: 'idle', value: null, saving: false, error: null });
 
 /** 每个绑定各自创建初态，不共享可变的节点或编辑对象。 */
 export const initialBomViewState = (): BomViewState => ({
@@ -31,8 +37,19 @@ export const initialBomViewState = (): BomViewState => ({
   quantityError: null,
   error: null,
   refreshing: false,
-  editor: { phase: 'idle', value: null, saving: false, error: null }
+  editor: initialEditorState()
 });
+
+const saveLoaded = async (
+  db: RxDB,
+  value: BomLineEditorValue | null,
+  patch: BomOccurrencePatch
+): Promise<BomLineEditorValue> => {
+  if (value === null) throw new BomResolutionError('occurrenceId', '请先加载发生项');
+  return saveViewOccurrence(db, value.occurrenceId, patch);
+};
+
+const ignore = (): void => undefined;
 
 class BomViewController implements BomViewHandle {
   #input: BomViewInput;
@@ -41,6 +58,8 @@ class BomViewController implements BomViewHandle {
   #subscribers = 0;
   #generation = 0;
   #editorGeneration = 0;
+  /** 已发起的保存全部落定（成败不论）后兑现。 */
+  #saves: Promise<void> = Promise.resolve();
   #destroyed = false;
   readonly #state = new BehaviorSubject(initialBomViewState());
   readonly #expanded = new Set([viewPathKey([])]);
@@ -69,18 +88,18 @@ class BomViewController implements BomViewHandle {
 
   setInput = (input: BomViewInput): void => {
     this.#assertAlive();
-    if (!sameTarget(this.#input.target, input.target)) this.#resetExpanded();
+    // 空态补丁从初态派生，状态增字段不必回来补清单
+    const { editor, ...data } = initialBomViewState();
+    const loading: Partial<BomViewState> = { ...data, phase: 'loading' };
+    if (!sameTarget(this.#input.target, input.target)) {
+      this.#resetExpanded();
+      // 换目标后旧发生项的加载 / 保存结果不再回填编辑器；保存本身照常落库
+      this.#editorGeneration += 1;
+      loading.editor = editor;
+    }
     this.#input = structuredClone(input);
     this.#snapshot = null;
-    this.#publish({
-      phase: 'loading',
-      nodes: [],
-      unresolved: [],
-      truncated: null,
-      quantityError: null,
-      error: null,
-      refreshing: false
-    });
+    this.#publish(loading);
     this.#start();
   };
 
@@ -109,8 +128,11 @@ class BomViewController implements BomViewHandle {
   loadOccurrence = async (id: string): Promise<void> => {
     this.#assertAlive();
     const generation = ++this.#editorGeneration;
-    this.#editor({ phase: 'loading', value: null, saving: false, error: null });
+    this.#editor({ ...initialEditorState(), phase: 'loading' });
     try {
+      // 保存未落库时先等它：否则读到保存前的旧值，而本次加载代次最新照常回填，保存结果反被丢弃
+      await this.#saves;
+      if (generation !== this.#editorGeneration) return;
       const value = await loadViewOccurrence(this.db, id);
       if (generation === this.#editorGeneration) this.#editor({ phase: 'success', value, error: null });
     } catch (error) {
@@ -121,12 +143,12 @@ class BomViewController implements BomViewHandle {
 
   saveOccurrence = async (patch: BomOccurrencePatch): Promise<void> => {
     this.#assertAlive();
-    const value = this.#state.value.editor.value;
     const generation = this.#editorGeneration;
+    const saving = saveLoaded(this.db, this.#state.value.editor.value, patch);
+    this.#saves = Promise.allSettled([this.#saves, saving]).then(ignore);
     this.#editor({ saving: true, error: null });
     try {
-      if (value === null) throw new BomResolutionError('occurrenceId', '请先加载发生项');
-      const saved = await saveViewOccurrence(this.db, value.occurrenceId, patch);
+      const saved = await saving;
       if (generation === this.#editorGeneration) this.#editor({ phase: 'success', value: saved, saving: false });
     } catch (error) {
       if (generation === this.#editorGeneration) this.#editor({ error, saving: false });
@@ -211,7 +233,7 @@ class BomViewController implements BomViewHandle {
         unresolved.length === 0 &&
         snapshot.expansion.truncated === null &&
         snapshot.explosion?.truncated == null);
-    this.#publish({
+    const data: BomViewData = {
       phase: empty ? 'empty' : 'success',
       nodes: empty ? [] : projectViewNodes(snapshot, this.#input, this.#expanded),
       unresolved,
@@ -219,7 +241,8 @@ class BomViewController implements BomViewHandle {
       quantityError: snapshot.quantityError,
       error: null,
       refreshing: false
-    });
+    };
+    this.#publish(data);
   }
 
   #resetExpanded(): void {

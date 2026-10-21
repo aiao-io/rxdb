@@ -10,10 +10,16 @@
 import { BomDecimalFormatError } from './types.js';
 
 /**
- * 规范十进制串的逐字节形状（存储层触发器与入口校验共用同一份定义）：
- * 无符号、无指数、无前导零（单个 `0` 除外）、小数无尾随零。
+ * 规范十进制串的逐字节形状：无符号、无指数、无前导零（单个 `0` 除外）、小数无尾随零。
+ *
+ * @remarks
+ * 正则源文本只此一份：入口校验（{@link DECIMAL_CANONICAL_RE}）与 PG 格式触发器（`~` 运算符）共用；
+ * SQLite 没有正则，存储层用同定义的逐字节谓词（见 backend 的 `canonicalGlob`）。
  */
-export const DECIMAL_CANONICAL_RE = /^(0|[1-9][0-9]*)(\.[0-9]*[1-9])?$/;
+export const DECIMAL_CANONICAL_PATTERN = '^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$';
+
+/** 规范十进制串的正则（{@link DECIMAL_CANONICAL_PATTERN}）。 */
+export const DECIMAL_CANONICAL_RE = new RegExp(DECIMAL_CANONICAL_PATTERN);
 
 /**
  * 指数写法的指数绝对值上限（6144 = decimal128 的 Emax）。

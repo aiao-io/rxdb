@@ -303,6 +303,24 @@ for (const backend of BACKENDS) {
       expect(String((error as Error).message)).toContain('缺换算率');
     });
 
+    it('卷算拒绝统一为 BomCostError：换算率为 0 经 cause 保留 BomQuantityError（不以裸除零错误透出）', async () => {
+      const leaf = await makeItem('zero-rate-c', {
+        stockUom: 'kg',
+        uomConversion: '0',
+        unitPrice: '1',
+        priceUom: 'kg'
+      });
+      const root = await makeItem('zero-rate-a');
+      const { header } = await makeHeader(root, [{ child: leaf, qty: '2', uom: 'm' }]);
+      const error = await rollupCost(adapter, COST_CTX, { parentRevisionId: header.parentRevisionId }).then(
+        () => null,
+        (cause: unknown) => cause
+      );
+      expect(error).toBeInstanceOf(BomCostError);
+      expect((error as Error).cause).toBeInstanceOf(BomQuantityError);
+      expect(String((error as Error).message)).toContain('从 m 换算到 kg 的物料级换算率为 0');
+    });
+
     it('卷算拒绝统一为 BomCostError：阶梯组无命中点名头与组号（不以裸 Error 透出）', async () => {
       const part = await makeItem('tier-c', { unitPrice: '1' });
       const root = await makeItem('tier-a');
@@ -366,6 +384,23 @@ for (const backend of BACKENDS) {
         );
         expect(error).toBeInstanceOf(BomCostError);
         expect(String((error as Error).message)).toContain('cost_lot_qty');
+      }
+    });
+
+    it('cost_lot_qty 为 0（写入期合法）：它是 unit_cost 的分母，根头与子装配都拒绝为 BomCostError，不以裸除零错误透出', async () => {
+      const leaf = await makeItem('zero-lot-c', { unitPrice: '1' });
+      const sub = await makeItem('zero-lot-b');
+      const root = await makeItem('zero-lot-a');
+      const { header: subHeader } = await makeHeader(sub, [{ child: leaf, qty: '1' }], { costLotQty: '0' });
+      const { header: rootHeader } = await makeHeader(root, [{ child: sub, qty: '1' }]);
+      for (const header of [subHeader, rootHeader]) {
+        const error = await rollupCost(adapter, COST_CTX, { parentRevisionId: header.parentRevisionId }).then(
+          () => null,
+          (cause: unknown) => cause
+        );
+        expect(error).toBeInstanceOf(BomCostError);
+        expect(String((error as Error).message)).toContain(`头 ${subHeader.id} 的 cost_lot_qty`);
+        expect(String((error as Error).message)).toContain('为 0');
       }
     });
 
@@ -612,61 +647,6 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
         return item;
       };
 
-      const makeReleasedHeader = async (
-        parent: BomItem,
-        lines: {
-          child: BomItem;
-          qty: string;
-          groupId?: string;
-          role?: 'primary' | 'substitute';
-          probability?: string;
-          equivQty?: string;
-        }[]
-      ): Promise<BomHeader> => {
-        await loadHistory(adapter, {
-          batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
-          revisions: [{ itemId: parent.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }],
-          headers: []
-        });
-        const header = new BomHeader();
-        header.parentRevisionId = String(
-          shapeRows(
-            await adapter.rawQuery(
-              `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${parent.id}'`
-            )
-          )[0][0]
-        );
-        header.bomType = 'ebom';
-        header.orgId = 'org-x';
-        header.costLotQty = '1';
-        await header.save();
-        let lineNo = 10;
-        for (const line of lines) {
-          const { BomLine, BomLineOccurrence } = await import('../entities.js');
-          const bomLine = new BomLine();
-          bomLine.headerId = header.id;
-          bomLine.lineNo = lineNo;
-          await bomLine.save();
-          const occ = new BomLineOccurrence();
-          occ.lineId = bomLine.id;
-          occ.childItemId = line.child.id;
-          occ.qty = line.qty;
-          occ.uom = 'pcs';
-          occ.effectiveFrom = day('2026-01-01');
-          if (line.groupId) {
-            occ.substituteGroupId = line.groupId;
-            occ.substituteRole = line.role ?? null;
-            occ.usageProbability = line.probability ?? null;
-            occ.equivQty = line.equivQty ?? null;
-          }
-          await occ.save();
-          lineNo += 10;
-        }
-        header.state = 'released';
-        await header.save();
-        return header;
-      };
-
       it('AC#2 proportional 替代组：按 usage_probability × equiv_qty 加权', async () => {
         const { BomSubstituteGroup } = await import('../entities.js');
         const primary = await makeItem('s2p', { unitPrice: '10' });
@@ -735,20 +715,85 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
       });
 
       it('AC#8 precise/imprecise 两版不串：D、E 两个节点各算各的', async () => {
-        // A 同时用 X 的 D 版（precise）与 E 版（imprecise→E），两版 BOM 成本不同
-        const x = await makeItem('x8', { unitPrice: '1' });
+        // X 的 D 版（2026-01-01 生效）每件用 2 L、E 版（2026-06-01 生效）每件用 5 L，L 单价 1：
+        // unit_cost(D) = 2、unit_cost(E) = 5。A 的 precise 行锁 D，imprecise 行按评估日 2026-09-22 解析到 E
+        const leaf = await makeItem('x8-leaf', { unitPrice: '1' });
+        const x = await makeItem('x8');
         const a = await makeItem('a8');
-        const { header: headerA } = await (async () => {
-          const header = await makeReleasedHeader(a, [
-            { child: x, qty: '1' },
-            { child: x, qty: '1' }
-          ]);
-          return { header };
-        })();
-        void headerA;
-        // 简化断言：卷算成功且两个材料行各自算（D/E 各一个节点）——构造 D/E 修订的头成本不同需要两个头
-        const result = await rollupCost(adapter, COST_CTX, { parentRevisionId: headerA.parentRevisionId });
-        expect(result.root.material).toHaveLength(2);
+        const ids = {
+          revisionD: crypto.randomUUID(),
+          revisionE: crypto.randomUUID(),
+          headerD: crypto.randomUUID(),
+          headerE: crypto.randomUUID(),
+          precise: crypto.randomUUID(),
+          imprecise: crypto.randomUUID()
+        };
+        const leafLines = (qty: string) => [
+          { lineNo: 10, occurrences: [{ childItemId: leaf.id, qty, effectiveFrom: day('2026-01-01') }] }
+        ];
+        await loadHistory(adapter, {
+          batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
+          revisions: [
+            { id: ids.revisionD, itemId: x.id, revisionNo: 'D', effectiveFrom: day('2026-01-01') },
+            { id: ids.revisionE, itemId: x.id, revisionNo: 'E', effectiveFrom: day('2026-06-01') },
+            { itemId: a.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }
+          ],
+          headers: [
+            {
+              id: ids.headerD,
+              revisionIndex: 0,
+              bomType: 'ebom',
+              orgId: 'org-x',
+              costLotQty: '1',
+              lines: leafLines('2')
+            },
+            {
+              id: ids.headerE,
+              revisionIndex: 1,
+              bomType: 'ebom',
+              orgId: 'org-x',
+              costLotQty: '1',
+              lines: leafLines('5')
+            },
+            {
+              revisionIndex: 2,
+              bomType: 'ebom',
+              orgId: 'org-x',
+              costLotQty: '1',
+              lines: [
+                {
+                  lineNo: 10,
+                  occurrences: [
+                    {
+                      id: ids.precise,
+                      childItemId: x.id,
+                      childRevisionId: ids.revisionD,
+                      qty: '1',
+                      effectiveFrom: day('2026-01-01')
+                    }
+                  ]
+                },
+                {
+                  lineNo: 20,
+                  occurrences: [{ id: ids.imprecise, childItemId: x.id, qty: '1', effectiveFrom: day('2026-01-01') }]
+                }
+              ]
+            }
+          ]
+        });
+        const result = await rollupCost(adapter, COST_CTX, { parentItemId: a.id });
+        // 节点是已解析头：同一物料 X 的两个修订各自成节点、各取各的 unit_cost，缓存不按物料串用
+        expect(
+          result.root.material.map(line => [line.occurrenceId, line.childItemId, line.unitCost, line.amount])
+        ).toEqual([
+          [ids.precise, x.id, '2', '2'],
+          [ids.imprecise, x.id, '5', '5']
+        ]);
+        expect(result.root.children.map(child => [child.headerId, child.itemId, child.unitCost])).toEqual([
+          [ids.headerD, x.id, '2'],
+          [ids.headerE, x.id, '5']
+        ]);
+        expect(result.root.batchCost).toBe('7');
       });
 
       it('AC#16 工序 10/20/30 各 run 1h、20 损耗 3%：加工量 103/103/100 → 306', async () => {

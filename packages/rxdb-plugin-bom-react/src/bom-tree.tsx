@@ -7,13 +7,21 @@ import {
 } from '@aiao/rxdb-plugin-bom';
 import { useRef, useState, type KeyboardEvent, type ReactElement } from 'react';
 
+/** 一次行加载失败与发起时的那一版节点。 */
+interface TreeInteraction {
+  nodes: readonly BomViewNode[];
+  error: unknown;
+}
+
 /**
  * 渲染共享控制器提供的可见 BOM 路径、候选与查询状态（对齐 Angular `ao-bom-tree`、Vue `BomTree`）。
  *
  * @remarks
  * 交互一律经 `commands` 回到共享控制器。键盘遵循 WAI-ARIA tree 模式：方向键移动焦点
  * （ArrowLeft 无父节点时不动），Home/End 跳到首尾，Space 切换展开，Enter 加载发生项；
- * 当前焦点节点不在可见节点中时首行是 Tab 入口。
+ * 当前焦点节点不在可见节点中时首行是 Tab 入口。行加载失败的原始错误只对发起时的那一版
+ * 节点列表显示：共享状态发布新的节点列表（换输入、换库、刷新出新结果、展开折叠）即撤下，
+ * 换之前发起、之后才失败的加载也不回写。
  *
  * @param props - 共享状态与命令
  * @returns 支持键盘操作的 BOM 树
@@ -21,18 +29,21 @@ import { useRef, useState, type KeyboardEvent, type ReactElement } from 'react';
 export const BomTree = ({ state, commands }: { state: BomViewState; commands: BomViewCommands }): ReactElement => {
   const rows = useRef(new Map<string, HTMLLIElement>());
   const [focused, setFocused] = useState<string | null>(null);
-  const [interactionError, setInteractionError] = useState<unknown>(null);
+  const [interaction, setInteraction] = useState<TreeInteraction | null>(null);
+  // 按节点数组身份失效，对照行编辑器表单错误随 editor.value 重置
+  const interactionError = interaction !== null && interaction.nodes === state.nodes ? interaction.error : null;
   const focus = (index: number): void => {
     const node = state.nodes[Math.max(0, Math.min(index, state.nodes.length - 1))];
     if (node) rows.current.get(node.key)?.focus();
   };
   const edit = async (node: BomViewNode): Promise<void> => {
     if (node.occurrenceId === null) return;
-    setInteractionError(null);
+    const { nodes } = state;
+    setInteraction(null);
     try {
       await commands.loadOccurrence(node.occurrenceId);
     } catch (error) {
-      setInteractionError(error);
+      setInteraction({ nodes, error });
     }
   };
   const keyDown = (event: KeyboardEvent<HTMLLIElement>, node: BomViewNode, index: number): void => {

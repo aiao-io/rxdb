@@ -63,9 +63,14 @@ const BOM_DEMO_DB_NAME = 'dev-rxdb-bom';
  * 模块级导出是给单测留的直接打点口；生产路径只有 {@link BomDemoService} 的连接流程一处调用。
  */
 export const connectDevTools = (instance: RxDB): void => {
-  void import('@aiao/rxdb-devtools').then(({ getDevToolsConnector }) => {
-    getDevToolsConnector().init(instance, getEntityMetadata);
-  });
+  void import('@aiao/rxdb-devtools')
+    .then(({ getDevToolsConnector }) => {
+      getDevToolsConnector().init(instance, getEntityMetadata);
+    })
+    .catch((error: unknown) => {
+      // 调试设施失败不该拖垮演示，但要报出来：chunk 加载失败多半是部署产物不全
+      console.error('[dev-rxdb-bom] DevTools 连接器加载失败', error);
+    });
 };
 
 /** 跨页面共用的解析条件，计划单位只交给数量接口。 */
@@ -88,6 +93,22 @@ const rejected = (error: unknown): { readonly ok: false; readonly error: unknown
 const assertSeedRow = (rowsAffected: number, subject: string, seed: string): void => {
   if (rowsAffected !== 1) throw new Error(`${subject}不存在或不唯一：${seed}（命中 ${rowsAffected} 行）`);
 };
+
+/** 经同一执行器建实体：演示写入要么整笔提交，要么随预期的拒绝整笔回滚。 */
+const executorCreate =
+  (executor: TransactionExecutor, rxdb: RxDB) =>
+  <T extends EntityType>(Entity: T, fields: Partial<InstanceType<T>>): Promise<InstanceType<T>> =>
+    executor.getRepository(Entity).create(Object.assign(rxdb.entityManager.instantiate(Entity), fields));
+
+/** 位号演示行的行号（演示头下唯一）。 */
+const DESIGNATOR_DEMO_LINE_NO = 77;
+
+/** 清单类型的业务名：映射路径标签靠它区分同一物料的设计 / 制造两张清单。 */
+const BOM_LIST_NAMES: ReadonlyMap<unknown, string> = new Map([
+  ['ebom', '设计清单'],
+  ['mbom', '制造清单'],
+  ['sales', '销售清单']
+]);
 
 /** 可从数据库恢复并逐项核对的待发布结构。 */
 export interface ImportedDraftSummary {
@@ -418,22 +439,18 @@ export class BomDemoService {
     });
   }
 
-  /** EBOM / MBOM 双图展开（US-525 AC#13：SHEET-ASSY 钣金外壳两张图）。 */
+  /**
+   * EBOM / MBOM 双图展开（US-525 AC#13）：钣金外壳 SHEET-ASSY 的设计 / 制造两张清单——变换范围两侧
+   * 父件同一物料（US-516），同一物料按清单类型各展开一次。
+   */
   async dualExplode(asOfDate: string): Promise<{ ebom: ExplosionResult; mbom: ExplosionResult }> {
     return this.#run(async () => {
       if (!this.rxdb) throw new Error('demo 未就绪');
       const ebomContext = { bomType: 'ebom' as const, orgId: 'org-x', asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) };
+      const root = { parentItemId: goldenItemId('SHEET-ASSY') };
       const [ebom, mbom] = await Promise.all([
-        this.rxdb.bom.explodeBom(
-          ebomContext,
-          { parentItemId: goldenItemId('SHEET-ASSY') },
-          { plannedQty: { value: '1', uom: 'pcs' } }
-        ),
-        this.rxdb.bom.explodeBom(
-          { ...ebomContext, bomType: 'mbom' },
-          { parentItemId: goldenItemId('SHEET-ASSY-M') },
-          { plannedQty: { value: '1', uom: 'pcs' } }
-        )
+        this.rxdb.bom.explodeBom(ebomContext, root, { plannedQty: { value: '1', uom: 'pcs' } }),
+        this.rxdb.bom.explodeBom({ ...ebomContext, bomType: 'mbom' }, root, { plannedQty: { value: '1', uom: 'pcs' } })
       ]);
       return { ebom, mbom };
     });
@@ -463,19 +480,25 @@ export class BomDemoService {
     });
   }
 
-  /** 路径显示业务物料与行号，完整标识仍由调用方保留。 */
+  /**
+   * 路径显示业务物料、清单类型与行号，完整标识仍由调用方保留：同一物料的设计 / 制造两张清单
+   * 行号可以相同，标签带清单类型才不混淆。
+   */
   async mappingLabels(): Promise<Map<string, string>> {
     return this.#run(async () => {
       if (!this.adapter) throw new Error('demo 未就绪');
       const rows = this.#rows(
         await this.adapter.rawQuery(
-          'SELECT l."id", o."id", p."itemNo", l."lineNo", c."itemNo" FROM "bom$bom_line" l JOIN "bom$bom_header" h ON h."id" = l."headerId" JOIN "bom$item_revision" r ON r."id" = h."parentRevisionId" JOIN "bom$item" p ON p."id" = r."itemId" LEFT JOIN "bom$bom_line_occurrence" o ON o."lineId" = l."id" LEFT JOIN "bom$item" c ON c."id" = o."childItemId" ORDER BY l."lineNo", o."effectiveFrom"'
+          'SELECT l."id", o."id", p."itemNo", l."lineNo", c."itemNo", h."bomType" FROM "bom$bom_line" l JOIN "bom$bom_header" h ON h."id" = l."headerId" JOIN "bom$item_revision" r ON r."id" = h."parentRevisionId" JOIN "bom$item" p ON p."id" = r."itemId" LEFT JOIN "bom$bom_line_occurrence" o ON o."lineId" = l."id" LEFT JOIN "bom$item" c ON c."id" = o."childItemId" ORDER BY l."lineNo", o."effectiveFrom"'
         )
       );
       const labels = new Map<string, string>();
       for (const row of rows) {
-        labels.set(String(row[0]), `${row[2]} · 行 ${row[3]}`);
-        if (row[1] !== null) labels.set(String(row[1]), `${row[2]} · 行 ${row[3]} · ${row[4]}`);
+        const listName = BOM_LIST_NAMES.get(row[5]);
+        if (listName === undefined) throw new Error(`逻辑行 ${String(row[0])} 所在头的清单类型未知：${String(row[5])}`);
+        const line = `${row[2]} ${listName} · 行 ${row[3]}`;
+        labels.set(String(row[0]), line);
+        if (row[1] !== null) labels.set(String(row[1]), `${line} · ${row[4]}`);
       }
       return labels;
     });
@@ -551,49 +574,11 @@ export class BomDemoService {
   /** 替代组发布拒绝演示（US-525 AC#7 ②）：draft 组 0.5/0.3 发布 → 拒绝并给实际合计 0.8。 */
   async demoSubstitutePublishRejection(): Promise<BomDemoOutcome> {
     return this.#run(async () => {
-      if (!this.rxdb) throw new Error('demo 未就绪');
-      // 演示头挂 COVER-ASSY 的新建 draft 修订（种子已发布头占着唯一键；成员行不构成自环）
-      const revision = new BomItemRevision();
-      revision.revisionNo = 'E';
-      revision.itemId = goldenItemId('COVER-ASSY');
-      await revision.save();
-      const draftHeader = new BomHeader();
-      draftHeader.parentRevisionId = revision.id;
-      draftHeader.bomType = 'ebom';
-      draftHeader.orgId = 'org-x';
-      await draftHeader.save();
-      const group = new BomSubstituteGroup();
-      group.headerId = draftHeader.id;
-      group.code = 'G-DEMO';
-      group.strategy = 'proportional';
-      await group.save();
-      const addMember = async (
-        childKey: string,
-        role: 'primary' | 'substitute',
-        probability: string
-      ): Promise<void> => {
-        const line = new BomLine();
-        line.headerId = draftHeader.id;
-        line.lineNo = 10 + Math.floor(Math.random() * 100000);
-        await line.save();
-        const occurrence = new BomLineOccurrence();
-        occurrence.lineId = line.id;
-        occurrence.childItemId = goldenItemId(childKey);
-        occurrence.qty = '100';
-        occurrence.uom = 'pcs';
-        occurrence.effectiveFrom = new Date('2026-01-01T00:00:00.000Z');
-        await occurrence.save();
-        occurrence.substituteGroupId = group.id;
-        occurrence.substituteRole = role;
-        occurrence.usageProbability = probability;
-        occurrence.equivQty = '1';
-        await occurrence.save();
-      };
-      await addMember('R10K', 'primary', '0.5');
-      await addMember('R10K-ALT1', 'substitute', '0.3');
-      draftHeader.state = 'released';
+      if (!this.rxdb || !this.adapter) throw new Error('demo 未就绪');
+      const rxdb = this.rxdb;
+      // 草稿与发布在同一事务：预期的拒绝整笔回滚，重复点击不堆积草稿修订
       try {
-        await draftHeader.save();
+        await this.adapter.transaction(executor => this.#writeSubstituteDemo(executor, rxdb));
       } catch (error) {
         return rejected(error);
       }
@@ -615,28 +600,12 @@ export class BomDemoService {
   /** 发布演示头（AC#3：39/100 位号计数违约，错误同时给两个数）。 */
   async publishDemoHeader(): Promise<BomDemoOutcome> {
     return this.#run(async () => {
-      if (!this.rxdb) throw new Error('demo 未就绪');
+      if (!this.rxdb || !this.adapter) throw new Error('demo 未就绪');
+      const rxdb = this.rxdb;
       const headerId = this.demoHeaderId;
       if (!headerId) throw new Error('演示头未就绪');
-      // 在演示 draft 头下建 managed 行 qty=100 + 39 个位号（保存草稿允许）
-      const line = new BomLine();
-      line.headerId = headerId;
-      line.lineNo = 77;
-      await line.save();
-      const occurrence = new BomLineOccurrence();
-      occurrence.lineId = line.id;
-      occurrence.childItemId = goldenItemId('R10K');
-      occurrence.qty = '100';
-      occurrence.uom = 'pcs';
-      occurrence.designatorManaged = true;
-      occurrence.effectiveFrom = new Date('2026-01-01T00:00:00.000Z');
-      await occurrence.save();
-      for (let index = 1; index <= 39; index++) {
-        const designator = new BomLineDesignator();
-        designator.occurrenceId = occurrence.id;
-        designator.designator = `D${index}`;
-        await designator.save();
-      }
+      // 草稿只建一次（保存草稿允许）：重复点击复用它重试发布，得到同一拒绝而不是撞 (headerId, lineNo) 唯一键
+      await this.adapter.transaction(executor => this.#ensureDesignatorDraft(executor, rxdb, headerId));
       // 发布转移：存储层校验位号数 39 ≠ qty 100（经实体 API，走发布触发器）
       const [header] = await firstValueFrom(
         BomHeader.find({ where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: headerId }] } })
@@ -879,10 +848,65 @@ export class BomDemoService {
     return { ok: true };
   }
 
+  /** 演示 draft 头下的 managed 行 qty=100 + 39 个位号；已建过就不再写。 */
+  async #ensureDesignatorDraft(executor: TransactionExecutor, rxdb: RxDB, headerId: string): Promise<void> {
+    const existing = await executor.getRepository(BomLine).find({
+      where: {
+        combinator: 'and',
+        rules: [
+          { field: 'headerId', operator: '=', value: headerId },
+          { field: 'lineNo', operator: '=', value: DESIGNATOR_DEMO_LINE_NO }
+        ]
+      }
+    });
+    if (existing.length > 0) return;
+    const create = executorCreate(executor, rxdb);
+    const line = await create(BomLine, { headerId, lineNo: DESIGNATOR_DEMO_LINE_NO });
+    const occurrence = await create(BomLineOccurrence, {
+      lineId: line.id,
+      childItemId: goldenItemId('R10K'),
+      qty: '100',
+      uom: 'pcs',
+      designatorManaged: true,
+      effectiveFrom: new Date('2026-01-01T00:00:00.000Z')
+    });
+    for (let index = 1; index <= 39; index++) {
+      await create(BomLineDesignator, { occurrenceId: occurrence.id, designator: `D${index}` });
+    }
+  }
+
+  async #writeSubstituteDemo(executor: TransactionExecutor, rxdb: RxDB): Promise<void> {
+    const create = executorCreate(executor, rxdb);
+    // 演示头挂 COVER-ASSY 的新建 draft 修订（种子已发布头占着唯一键；成员行不构成自环）
+    const revision = await create(BomItemRevision, { revisionNo: 'E', itemId: goldenItemId('COVER-ASSY') });
+    const header = await create(BomHeader, { parentRevisionId: revision.id, bomType: 'ebom', orgId: 'org-x' });
+    const group = await create(BomSubstituteGroup, { headerId: header.id, code: 'G-DEMO', strategy: 'proportional' });
+    const members = [
+      { childKey: 'R10K', role: 'primary', probability: '0.5' },
+      { childKey: 'R10K-ALT1', role: 'substitute', probability: '0.3' }
+    ] as const;
+    for (const [index, member] of members.entries()) {
+      const line = await create(BomLine, { headerId: header.id, lineNo: 10 * (index + 1) });
+      const occurrence = await create(BomLineOccurrence, {
+        lineId: line.id,
+        childItemId: goldenItemId(member.childKey),
+        qty: '100',
+        uom: 'pcs',
+        effectiveFrom: new Date('2026-01-01T00:00:00.000Z')
+      });
+      await executor.getRepository(BomLineOccurrence).update(occurrence, {
+        substituteGroupId: group.id,
+        substituteRole: member.role,
+        usageProbability: member.probability,
+        equivQty: '1'
+      });
+    }
+    await executor.getRepository(BomHeader).update(header, { state: 'released' });
+  }
+
   /** 现场 ECN 的全部写入走同一执行器；种子固定行必须恰好命中一行。 */
   async #writeLiveEcn(executor: TransactionExecutor, rxdb: RxDB, ecnNo: string, effectiveFrom: Date): Promise<string> {
-    const create = <T extends EntityType>(Entity: T, fields: Partial<InstanceType<T>>): Promise<InstanceType<T>> =>
-      executor.getRepository(Entity).create(Object.assign(rxdb.entityManager.instantiate(Entity), fields));
+    const create = executorCreate(executor, rxdb);
     const ecn = await create(BomEcn, { ecnNo, effectiveDate: effectiveFrom });
     const closeSeed = async (seed: string): Promise<void> => {
       const { rowsAffected } = await executor.query(
@@ -893,12 +917,14 @@ export class BomDemoService {
     };
     const addOccurrence = (lineId: string, childItemId: string, qty: string): Promise<BomLineOccurrence> =>
       create(BomLineOccurrence, { lineId, childItemId, qty, uom: 'pcs', ecnInId: ecn.id, effectiveFrom });
-    // ① SC-100：截止 WH-01 行（index 2）+ 新增 SEAT-LIVE 行
-    const seat = await create(BomItem, {
-      id: deterministicId('item:SEAT-LIVE'),
-      itemNo: 'SEAT-LIVE',
-      ext: JSON.stringify({ rohs: 'yes' })
+    // ① SC-100：截止 WH-01 行（index 2）+ 新增 SEAT-LIVE 行；物料 id 固定，取消后重做复用已建的那行
+    const seatId = deterministicId('item:SEAT-LIVE');
+    const [existingSeat] = await executor.getRepository(BomItem).find({
+      where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: seatId }] }
     });
+    const seat =
+      existingSeat ??
+      (await create(BomItem, { id: seatId, itemNo: 'SEAT-LIVE', ext: JSON.stringify({ rohs: 'yes' }) }));
     await closeSeed('occurrence:SC-100:A:2');
     const scHeaderId = deterministicId('header:SC-100:A');
     const next = await executor.query(

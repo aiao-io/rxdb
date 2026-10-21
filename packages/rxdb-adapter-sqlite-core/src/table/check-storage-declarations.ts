@@ -62,12 +62,19 @@ export const checkStorageDeclarationsSqlite = async (
   if (tableMissing) return { expected, actual: [], changed: [] };
   const expressions = storageGeneratedExpressions(tableSql);
   const managed = indexes.filter(index => index.name.startsWith('sx_'));
-  const actual = [...expressions.keys(), ...managed.map(index => index.name)];
-  const changed: string[] = [];
+  // gc_ 是托管列的保留前缀：实际集合按目录里的全部同前缀列取，而不是只取带表达式的生成列——
+  // 否则用户自建的同前缀普通列不报多余。建表文本含全部列名，里面没有 gc_ 就不必再查目录。
   const catalog =
-    columns.length > 0 || expressions.size > 0 ?
+    columns.length > 0 || tableSql.includes('gc_') ?
       await rowsOf(executor, `PRAGMA table_xinfo(${sqlStringLiteral(tableName)})`)
     : [];
+  // 实体自己声明的属性 / 外键列即便同前缀也是已声明对象，不算多余
+  const ownColumns = new Set([...metadata.columnNameToPropertyName.keys(), ...metadata.foreignKeyColumnNames]);
+  const actual = [
+    ...catalog.map(row => String(row[1])).filter(name => name.startsWith('gc_') && !ownColumns.has(name)),
+    ...managed.map(index => index.name)
+  ];
+  const changed: string[] = [];
   for (const column of columns) {
     const row = catalog.find(row => row[1] === column.columnName);
     if (row === undefined) continue;

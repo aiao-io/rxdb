@@ -9,6 +9,12 @@ const loaded = (overrides: Partial<BomViewState> = {}): BomViewState =>
   viewState({ phase: 'success', nodes: defaultNodes(), ...overrides });
 
 describe('Vue BomTree', () => {
+  it('忙碌状态只标在树区域外层，树本身不重复标注（三端同一结构）', () => {
+    const wrapper = mount(BomTree, { props: { state: viewState({ phase: 'loading' }), commands: viewCommands() } });
+    const busy = wrapper.findAll('[aria-busy]');
+    expect(busy.map(node => [node.element.tagName, node.attributes('aria-busy')])).toEqual([['SECTION', 'true']]);
+  });
+
   it('按完整路径挂载可见节点，携带层级、数量与展开语义', async () => {
     const actions = viewCommands();
     const wrapper = mount(BomTree, { props: { state: loaded(), commands: actions } });
@@ -184,6 +190,74 @@ describe('Vue BomTree', () => {
     await flushPromises();
     expect(wrapper.find('[role="alert"]').exists()).toBe(false);
     expect(actions.loadOccurrence).toHaveBeenCalledTimes(2);
+    wrapper.unmount();
+  });
+
+  it('行加载错误只属于发起时的那一版节点：编辑器与刷新标记不撤下，换输入（含加载态被合并）后撤下', async () => {
+    const actions = viewCommands();
+    actions.loadOccurrence.mockRejectedValue(Object.assign(new Error('发生项已删除'), { code: 'BOM_ROW_GONE' }));
+    const state = viewState({ phase: 'success', nodes: [viewNode(['line'])] });
+    const wrapper = mount(BomTree, { props: { state, commands: actions } });
+    const alerts = () => wrapper.findAll('[role="alert"]').map(alert => alert.text());
+    await wrapper.get('[role="treeitem"]').trigger('click');
+    await flushPromises();
+    expect(alerts().join()).toContain('BOM_ROW_GONE');
+    // 同一批节点上的编辑器回写与后台刷新标记不撤下错误
+    await wrapper.setProps({ state: { ...state, refreshing: true, editor: { ...state.editor, phase: 'error' } } });
+    expect(alerts().join()).toContain('BOM_ROW_GONE');
+    // 绑定 setInput：共享状态回到加载态，随后给出新目标的节点
+    await wrapper.setProps({ state: viewState({ phase: 'loading', nodes: [] }) });
+    expect(alerts()).toEqual([]);
+    await wrapper.setProps({ state: viewState({ phase: 'success', nodes: [viewNode(['other'])] }) });
+    expect(alerts()).toEqual([]);
+    // 热启动时加载态与结果同一轮发布、组件只看到最终节点，旧错误同样不残留
+    await wrapper.get('[role="treeitem"]').trigger('click');
+    await flushPromises();
+    expect(alerts().join()).toContain('BOM_ROW_GONE');
+    await wrapper.setProps({ state: viewState({ phase: 'success', nodes: [viewNode(['other'])] }) });
+    expect(alerts()).toEqual([]);
+    wrapper.unmount();
+  });
+
+  it('换输入之前发起、之后才失败的行加载不把旧错误写到新树上', async () => {
+    const actions = viewCommands();
+    let fail: (error: unknown) => void = () => undefined;
+    actions.loadOccurrence.mockImplementationOnce(
+      () =>
+        new Promise<void>((_, reject) => {
+          fail = reject;
+        })
+    );
+    const wrapper = mount(BomTree, {
+      props: { state: viewState({ phase: 'success', nodes: [viewNode(['line'])] }), commands: actions }
+    });
+    await wrapper.get('[role="treeitem"]').trigger('click');
+    await wrapper.setProps({ state: viewState({ phase: 'success', nodes: [viewNode(['other'])] }) });
+    fail(Object.assign(new Error('旧查询的发生项读取失败'), { code: 'BOM_ROW_GONE' }));
+    await flushPromises();
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('焦点按节点身份移动：同一轮重渲染插入展开的子节点时仍落在按键时的目标行', async () => {
+    const actions = viewCommands();
+    const nodes = [viewNode([]), viewNode(['assembly'], { hasChildren: true, expanded: false }), viewNode(['other'])];
+    const wrapper = mount(BomTree, {
+      attachTo: document.body,
+      props: { state: viewState({ phase: 'success', nodes }), commands: actions }
+    });
+    const rows = wrapper.findAll('[role="treeitem"]');
+    (rows[1].element as HTMLElement).focus();
+    // 按键与展开后的重渲染落在同一轮：不等按键返回的 nextTick 就推送新节点
+    void rows[1].trigger('keydown', { key: 'ArrowDown' });
+    await wrapper.setProps({
+      state: viewState({
+        phase: 'success',
+        nodes: [nodes[0], { ...nodes[1], expanded: true }, viewNode(['assembly', 'child']), nodes[2]]
+      })
+    });
+    expect(document.activeElement).toBe(rows[2].element);
+    expect(document.activeElement?.getAttribute('data-path')).toBe('["other"]');
     wrapper.unmount();
   });
 

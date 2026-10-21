@@ -3,11 +3,13 @@
  *
  * 双后端同断言：工序按序返回、工作中心引用完整性、路线唯一键与 BOM 头对齐、
  * 头 routing_id 指向不存在的路线保存拒绝（FK）、工序损耗记法可读、
- * 分摊比例域与发布合计校验、投料工序与分摊行在路由序集内校验。
+ * 分摊比例域与发布合计校验、投料工序与分摊行在路由序集内校验；
+ * 头未挂路线时投料工序与分摊行在发布门、已发布头写入与历史通道补丁三处都拒绝（挂了必须可解析）。
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  BomEcn,
   BomHeader,
   BomItem,
   BomLine,
@@ -19,7 +21,12 @@ import {
 } from '../entities.js';
 import { explodeBom } from '../quantity/explosion.js';
 import { loadHistory } from '../resolve/history-loader.js';
-import { BomDecimalFormatError, BomPublishValidationError } from '../types.js';
+import {
+  BomDecimalFormatError,
+  BomPublishValidationError,
+  BomWriteProtocolError,
+  normalizeBomError
+} from '../types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
@@ -99,6 +106,53 @@ const addOccurrence = async (
   Object.assign(occurrence, overrides);
   await occurrence.save();
   return occurrence;
+};
+
+const settled = (promise: Promise<unknown>): Promise<unknown> =>
+  promise.then(
+    () => null,
+    (error: unknown) => error
+  );
+
+/** 草稿 ECN：生效日在未来，其成员可在已发布头下增改（US-515 矩阵）。 */
+const makeDraftEcn = async (): Promise<BomEcn> => {
+  const ecn = new BomEcn();
+  ecn.ecnNo = `rt-ecn-${Math.random().toString(36).slice(2, 10)}`;
+  ecn.effectiveDate = day('2099-01-01');
+  await ecn.save();
+  return ecn;
+};
+
+/** 已发布头下经草稿 ECN 引入一行：逻辑行与发生项都挂该 ECN，生效日由 ECN 派生。 */
+const addEcnOccurrence = async (
+  header: BomHeader,
+  child: BomItem,
+  ecn: BomEcn,
+  overrides: Partial<BomLineOccurrence> = {}
+): Promise<BomLineOccurrence> => {
+  const line = new BomLine();
+  line.headerId = header.id;
+  line.lineNo = 10 + Math.floor(Math.random() * 100000);
+  line.ecnInId = ecn.id;
+  await line.save();
+  const occurrence = new BomLineOccurrence();
+  occurrence.lineId = line.id;
+  occurrence.childItemId = child.id;
+  occurrence.qty = '1';
+  occurrence.uom = 'pcs';
+  occurrence.effectiveFrom = ecn.effectiveDate;
+  occurrence.ecnInId = ecn.id;
+  Object.assign(occurrence, overrides);
+  await occurrence.save();
+  return occurrence;
+};
+
+const addSplit = async (occurrence: BomLineOccurrence, operationSeq: number, ratio: string): Promise<void> => {
+  const split = new BomLineOperationSplit();
+  split.occurrenceId = occurrence.id;
+  split.operationSeq = operationSeq;
+  split.ratio = ratio;
+  await split.save();
 };
 
 for (const backend of BACKENDS) {
@@ -475,6 +529,115 @@ for (const backend of BACKENDS) {
         (error: unknown) => error
       );
       expect(rejected).toBeInstanceOf(BomPublishValidationError);
+    });
+
+    it('P1-3 发布门：头未挂路线却有投料工序即拒绝；行先建、路线后挂的草稿序照常发布', async () => {
+      const header = await setup(adapter, await makeItem('rt-p13a'));
+      // 草稿头可暂缺路线（历史装载即先建行、再挂路线），保存期放行
+      await addOccurrence(header, await makeItem('rt-p13a-c'), { operationSeq: 10 });
+      header.state = 'released';
+      const unrouted = await settled(header.save());
+      expect(unrouted).toBeInstanceOf(BomPublishValidationError);
+      expect(String((unrouted as Error).message)).toContain('未挂工艺路线');
+      const routed = await setup(adapter, await makeItem('rt-p13a2'));
+      await addOccurrence(routed, await makeItem('rt-p13a2-c'), { operationSeq: 10 });
+      routed.routingId = (await makeRouting(routed, await makeWorkCenter('WC13A'))).id;
+      routed.state = 'released';
+      await expect(routed.save()).resolves.toBeDefined();
+    });
+
+    it('P1-3 发布门：头未挂路线却有分摊行即拒绝（合计恒 1，不被合计校验遮蔽）', async () => {
+      const header = await setup(adapter, await makeItem('rt-p13b'));
+      const occurrence = await addOccurrence(header, await makeItem('rt-p13b-c'));
+      await addSplit(occurrence, 10, '0.6');
+      await addSplit(occurrence, 30, '0.4');
+      header.state = 'released';
+      const unrouted = await settled(header.save());
+      expect(unrouted).toBeInstanceOf(BomPublishValidationError);
+      expect(String((unrouted as Error).message)).toContain('未挂工艺路线');
+    });
+
+    it('P1-3 已发布头未挂路线：ECN 引入或改挂投料工序、新增分摊行在保存期拒绝，挂了路线的头照常放行', async () => {
+      const header = await setup(adapter, await makeItem('rt-p13c'));
+      header.state = 'released';
+      await header.save();
+      const ecn = await makeDraftEcn();
+      const inserted = await settled(addEcnOccurrence(header, await makeItem('rt-p13c-1'), ecn, { operationSeq: 10 }));
+      expect(inserted).toBeInstanceOf(BomWriteProtocolError);
+      expect(String((inserted as Error).message)).toContain('未挂工艺路线');
+      // 不挂工序的 ECN 发生项照常引入；之后改挂工序（草稿 ECN 成员的可改列）同样拒绝
+      const plain = await addEcnOccurrence(header, await makeItem('rt-p13c-2'), ecn);
+      plain.operationSeq = 10;
+      const updated = await settled(plain.save());
+      expect(updated).toBeInstanceOf(BomWriteProtocolError);
+      expect(String((updated as Error).message)).toContain('未挂工艺路线');
+      const other = await addEcnOccurrence(header, await makeItem('rt-p13c-3'), ecn);
+      const split = await settled(addSplit(other, 10, '1'));
+      expect(split).toBeInstanceOf(BomWriteProtocolError);
+      expect(String((split as Error).message)).toContain('未挂工艺路线');
+      // 对照：挂了路线的已发布头，ECN 引入挂工序的发生项照常放行
+      const routed = await setup(adapter, await makeItem('rt-p13c4'));
+      routed.routingId = (await makeRouting(routed, await makeWorkCenter('WC13C'))).id;
+      await routed.save();
+      routed.state = 'released';
+      await routed.save();
+      const routedOccurrence = await addEcnOccurrence(routed, await makeItem('rt-p13c-4'), ecn, { operationSeq: 20 });
+      expect(routedOccurrence.operationSeq).toBe(20);
+    });
+
+    it('P1-3 历史通道补丁：已发布头有投料工序时 routing_id 不可置空、不可改挂不含该工序的路线', async () => {
+      const center = await makeWorkCenter('WC13D');
+      const header = await setup(adapter, await makeItem('rt-p13d'));
+      const routing = await makeRouting(header, center);
+      header.routingId = routing.id;
+      await header.save();
+      await addOccurrence(header, await makeItem('rt-p13d-c'), { operationSeq: 10 });
+      header.state = 'released';
+      await header.save();
+      const patch = (routingId: string | null): Promise<unknown> =>
+        settled(
+          loadHistory(adapter, {
+            batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
+            revisions: [],
+            headers: [],
+            headerOverlays: [{ headerId: header.id, headerPatch: { routingId } }]
+          })
+        );
+      // 开启态批次放行 routing_id 补丁列；置空会让投料工序失去可解析路线
+      const detached = normalizeBomError(await patch(null));
+      expect(detached).toBeInstanceOf(BomWriteProtocolError);
+      expect(detached?.message).toContain('未挂工艺路线');
+      // 改挂的路线不含工序 10（只有 20）
+      const narrow = new BomRouting();
+      narrow.parentRevisionId = header.parentRevisionId;
+      narrow.bomType = 'ebom';
+      narrow.orgId = 'org-x';
+      narrow.alternativeNo = 2;
+      narrow.validFrom = day('2020-01-01');
+      await narrow.save();
+      const operation = new BomRoutingOperation();
+      operation.routingId = narrow.id;
+      operation.operationSeq = 20;
+      operation.workCenterId = center.id;
+      await operation.save();
+      const uncovered = normalizeBomError(await patch(narrow.id));
+      expect(uncovered).toBeInstanceOf(BomWriteProtocolError);
+      expect(uncovered?.message).toContain('不在路由工序序集内');
+      // 对照：无投料工序 / 分摊行的已发布头，补丁照常改挂或置空（种子的 routing_id 补丁形态）
+      const bare = await setup(adapter, await makeItem('rt-p13d2'));
+      bare.routingId = (await makeRouting(bare, center)).id;
+      await bare.save();
+      await addOccurrence(bare, await makeItem('rt-p13d2-c'));
+      bare.state = 'released';
+      await bare.save();
+      await expect(
+        loadHistory(adapter, {
+          batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
+          revisions: [],
+          headers: [],
+          headerOverlays: [{ headerId: bare.id, headerPatch: { routingId: null } }]
+        })
+      ).resolves.toBeUndefined();
     });
   });
 }

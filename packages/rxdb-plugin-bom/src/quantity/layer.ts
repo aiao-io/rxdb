@@ -14,6 +14,7 @@ import {
   decimalCmp,
   decimalDiv,
   decimalFromCanonical,
+  decimalIsZero,
   decimalMul,
   decimalSub,
   decimalToCanonical,
@@ -78,9 +79,18 @@ const rowQuantity = (row: QuantityRow, formulaParams: Record<string, string> | u
   return decimalFromCanonical(evaluateFormula(row.qtyFormula as string, formulaParams ?? {}));
 };
 
-/** q 按批缩放：定量行即 q；否则 q × 计划量 ÷ base_qty。 */
-const scaledQuantity = (row: QuantityRow, quantity: Decimal, planned: Decimal, headerBaseQty: string): Decimal =>
-  row.isFixedQty ? quantity : decimalMul(quantity, decimalDiv(planned, decimalFromCanonical(headerBaseQty)));
+/**
+ * q 按批缩放：定量行即 q；否则 q × 计划量 ÷ base_qty。base_qty 为 0 是写入期合法的规范串，
+ * 但无从按批缩放：按数量违约拒绝，不让 kernel 的除零错误裸抛。
+ */
+const scaledQuantity = (row: QuantityRow, quantity: Decimal, planned: Decimal, headerBaseQty: string): Decimal => {
+  if (row.isFixedQty) return quantity;
+  const baseQty = decimalFromCanonical(headerBaseQty);
+  if (decimalIsZero(baseQty)) {
+    throw new BomQuantityError(`发生项 ${row.occurrenceId} 所在头的基准量 base_qty 为 0，无法按批缩放`);
+  }
+  return decimalMul(quantity, decimalDiv(planned, baseQty));
+};
 
 /** 第 3 步：行的组件毛需求 G（定量行即 qty；否则 qty × P′ ÷ base_qty；公式行先核对语法版本再求值）。 */
 export const computeGross = (row: LayerRow, context: LayerContext): Decimal =>

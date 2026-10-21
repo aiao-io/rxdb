@@ -2,8 +2,19 @@
  * @fileoverview 实例来源保护：直接删发生项与 ECN 撤回、取消都必须保留引用历史。
  */
 
-import { quoteSqlIdentifier, type EntityMetadata } from '@aiao/rxdb';
+import type { EntityMetadata } from '@aiao/rxdb';
+import { BomEcn, BomInstanceNode, BomLineOccurrence } from '../entities.js';
 import { BOM_INSTANCE_PREFIX } from '../types.js';
+import {
+  isEntity,
+  pgCreateTrigger,
+  pgTableOf,
+  pgTableRef,
+  pgTriggerFunction,
+  sqliteTableOf,
+  sqliteTableRef,
+  sqliteTrigger
+} from './ddl-kit.js';
 
 interface SourceTables {
   instance: string;
@@ -16,26 +27,17 @@ const sourceViolation = (tables: SourceTables, condition: string): string =>
   ` FROM ${tables.occurrence} o JOIN ${tables.instance} n ON n."sourceOccurrenceId" = o."id"` +
   ` WHERE ${condition} GROUP BY o."id" ORDER BY o."id" LIMIT 1`;
 
-/** 先删后建：插件升级后旧版本的同名触发器体被替换，不与新体并存。 */
-const sqliteGuard = (name: string, table: string, event: string, violation: string, when?: string): string[] => [
-  `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier(name)};`,
-  [
-    `CREATE TRIGGER ${quoteSqlIdentifier(name)} ${event} ON ${table}`,
-    ...(when === undefined ? [] : [`WHEN ${when}`]),
-    `BEGIN`,
-    `  SELECT RAISE(ABORT, (${violation})) WHERE EXISTS (${violation});`,
-    `END;`
-  ].join('\n')
-];
+/** 违约查询命中即以其消息中止（消息带发生项与引用数）。 */
+const sqliteGuard = (name: string, table: string, event: string, violation: string, when?: string): string[] =>
+  sqliteTrigger(table, name, event, `  SELECT RAISE(ABORT, (${violation})) WHERE EXISTS (${violation});`, when);
 
 /** 仅实例实体已注册时安装 SQLite 跨表守卫，错误包含发生项及全部历史引用数。 */
 export const buildSqliteInstanceSourceDdl = (metadata: EntityMetadata): string[] => {
-  if (metadata.name !== 'BomInstanceNode') return [];
-  const table = (name: string): string => quoteSqlIdentifier(`${metadata.namespace}$${name}`);
+  if (!isEntity(metadata, BomInstanceNode)) return [];
   const tables: SourceTables = {
-    instance: table(metadata.tableName),
-    occurrence: table('bom_line_occurrence'),
-    ecn: table('ecn')
+    instance: sqliteTableRef(metadata),
+    occurrence: sqliteTableOf(BomLineOccurrence),
+    ecn: sqliteTableOf(BomEcn)
   };
   return [
     ...sqliteGuard(
@@ -61,32 +63,26 @@ const pgGuard = (
   event: string,
   violation: string,
   condition: string
-): string[] => {
-  const qualified = `${quoteSqlIdentifier(metadata.namespace)}.${quoteSqlIdentifier(name)}`;
-  return [
-    `CREATE OR REPLACE FUNCTION ${qualified}() RETURNS trigger AS $$\n` +
-      `DECLARE blocked text;\nBEGIN\n` +
-      `  IF ${condition} THEN\n` +
+): string[] => [
+  pgTriggerFunction(
+    metadata,
+    name,
+    `  IF ${condition} THEN\n` +
       `    SELECT (${violation}) INTO blocked;\n` +
       `    IF blocked IS NOT NULL THEN\n      RAISE EXCEPTION '%', blocked;\n    END IF;\n` +
-      `  END IF;\n` +
-      `  IF TG_OP = 'DELETE' THEN\n    RETURN OLD;\n  END IF;\n` +
-      `  RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;`,
-    `DO $$\nBEGIN\n` +
-      `  DROP TRIGGER IF EXISTS ${quoteSqlIdentifier(name)} ON ${table};\n` +
-      `  CREATE TRIGGER ${quoteSqlIdentifier(name)} ${event} ON ${table} FOR EACH ROW EXECUTE FUNCTION ${metadata.namespace}.${name}();\n` +
-      `END $$;`
-  ];
-};
+      `  END IF;`,
+    'blocked text;'
+  ),
+  pgCreateTrigger(metadata, table, name, event, name)
+];
 
 /** 仅实例实体已注册时安装 PGlite 跨表守卫，取消校验先于全部级联写入。 */
 export const buildPgInstanceSourceDdl = (metadata: EntityMetadata): string[] => {
-  if (metadata.name !== 'BomInstanceNode') return [];
-  const table = (name: string): string => `${quoteSqlIdentifier(metadata.namespace)}.${quoteSqlIdentifier(name)}`;
+  if (!isEntity(metadata, BomInstanceNode)) return [];
   const tables: SourceTables = {
-    instance: table(metadata.tableName),
-    occurrence: table('bom_line_occurrence'),
-    ecn: table('ecn')
+    instance: pgTableRef(metadata),
+    occurrence: pgTableOf(BomLineOccurrence),
+    ecn: pgTableOf(BomEcn)
   };
   return [
     ...pgGuard(

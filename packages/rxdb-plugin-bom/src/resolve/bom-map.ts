@@ -25,6 +25,7 @@ export interface MappingSaveInput {
   relation: 'one_to_one' | 'split' | 'merge' | 'added' | 'removed' | 'resequenced';
   sourceLineId?: string | null;
   targetLineId?: string | null;
+  /** 路径级映射：自范围 EBOM 根头行起的逻辑行序列（非空、逐级相邻、末元素 = sourceLineId）；行级映射省略。 */
   sourceLinePath?: string[] | null;
 }
 
@@ -218,7 +219,11 @@ export const saveMapping = async (adapter: BomLocalAdapter, input: MappingSaveIn
     );
   }
   const path = input.sourceLinePath ?? null;
-  if (path !== null && path.length > 0) await assertSourcePath(adapter, scope, path, sourceLineId);
+  if (path !== null && path.length === 0) {
+    // 空路径既不是行级（省略路径）也指不到任何路径：存下去后路径键恒为空串，缺口与覆盖率都看不见它
+    throw new BomMapError('sourceLinePath', '路径级映射的路径不得为空（至少含源行）；行级映射省略 sourceLinePath');
+  }
+  if (path !== null) await assertSourcePath(adapter, scope, path, sourceLineId);
   const factory = adapter.rxdb?.entityManager;
   if (factory === undefined) throw new BomMapError('adapter', '保存映射需要实体构造门面（adapter.rxdb.entityManager）');
   const mapping = factory.instantiate(BomMap);
@@ -282,15 +287,65 @@ interface StoredMapping {
 
 const MAPPING_COLUMNS = `"id", "scopeId", "relation", "sourceLineId", "targetLineId", "sourceLinePath", "baselineSteps"`;
 
-const storedMapping = (row: unknown[]): StoredMapping => ({
-  id: String(row[0]),
-  scopeId: String(row[1]),
-  relation: String(row[2]),
-  sourceLineId: row[3] === null ? null : String(row[3]),
-  targetLineId: row[4] === null ? null : String(row[4]),
-  sourceLinePath: row[5] === null ? null : (JSON.parse(String(row[5])) as string[]),
-  baselineSteps: row[6] === null ? null : (JSON.parse(String(row[6])) as MappingStep[])
-});
+/**
+ * 映射行 JSON 列的解析（同 parseLotCodes 口径）：两列存储层只验类型不验形状，直连 SQL 可写入任意文本；
+ * 坏 JSON 或形状不对即点名映射行与列。这是数据契约破坏，整次查询拒绝——AC#22 的逐映射隔离只针对
+ * 展开不完整（未裁决 / 截断），不把损坏行当「无法判定」吞掉。
+ */
+const parseMappingJson = (mappingId: string, column: string, raw: unknown): unknown => {
+  try {
+    return JSON.parse(String(raw));
+  } catch {
+    throw new BomMapError(`映射 ${mappingId} 的 ${column}`, `不是合法 JSON：${String(raw)}`);
+  }
+};
+
+/** 一个解析步骤的形状：逻辑行 / 发生项是字符串，解析修订是字符串或 null。 */
+const isMappingStep = (value: unknown): value is MappingStep => {
+  if (typeof value !== 'object' || value === null) return false;
+  const step = value as Record<string, unknown>;
+  return (
+    typeof step['lineId'] === 'string' &&
+    typeof step['occurrenceId'] === 'string' &&
+    (step['revisionId'] === null || typeof step['revisionId'] === 'string')
+  );
+};
+
+/** 路径级映射的路径：非空的逻辑行 ID 数组（空路径与保存校验同样拒绝）；NULL = 行级映射。 */
+const parseSourceLinePath = (mappingId: string, raw: unknown): string[] | null => {
+  if (raw === null) return null;
+  const parsed = parseMappingJson(mappingId, 'sourceLinePath', raw);
+  if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some(lineId => typeof lineId !== 'string')) {
+    throw new BomMapError(`映射 ${mappingId} 的 sourceLinePath`, `必须是非空的逻辑行 ID 数组：${String(raw)}`);
+  }
+  return parsed as string[];
+};
+
+/** 跟进基线：解析步骤数组；NULL = 未确认过。 */
+const parseBaselineSteps = (mappingId: string, raw: unknown): MappingStep[] | null => {
+  if (raw === null) return null;
+  const parsed = parseMappingJson(mappingId, 'baselineSteps', raw);
+  if (!Array.isArray(parsed) || !parsed.every(isMappingStep)) {
+    throw new BomMapError(
+      `映射 ${mappingId} 的 baselineSteps`,
+      `必须是解析步骤数组（lineId / occurrenceId / revisionId）：${String(raw)}`
+    );
+  }
+  return parsed;
+};
+
+const storedMapping = (row: unknown[]): StoredMapping => {
+  const id = String(row[0]);
+  return {
+    id,
+    scopeId: String(row[1]),
+    relation: String(row[2]),
+    sourceLineId: row[3] === null ? null : String(row[3]),
+    targetLineId: row[4] === null ? null : String(row[4]),
+    sourceLinePath: parseSourceLinePath(id, row[5]),
+    baselineSteps: parseBaselineSteps(id, row[6])
+  };
+};
 
 /** 查某范围的映射行。 */
 const readMappings = async (adapter: BomLocalAdapter, scopeId: string): Promise<StoredMapping[]> => {

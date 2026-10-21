@@ -40,7 +40,7 @@ const TABLE_EXISTS_SQL = `
     WHERE ns.nspname = $1 AND cls.relname = $2
   ) AS exists,
   EXISTS (SELECT 1 FROM pg_attribute a JOIN pg_class t ON t.oid = a.attrelid JOIN pg_namespace n ON n.oid = t.relnamespace
-    WHERE n.nspname = $1 AND t.relname = $2 AND a.attgenerated <> '' AND left(a.attname, 3) = 'gc_') AS generated
+    WHERE n.nspname = $1 AND t.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped AND left(a.attname, 3) = 'gc_') AS managed
 `;
 
 /** 该表的全部 CHECK（`c`）与 EXCLUDE（`x`）约束名（含匿名自动命名），范围过滤在比对时做。 */
@@ -73,7 +73,7 @@ export const check_entity_constraints_pglite = async (
     const metadata = resolveMetadata(EntityType);
     const params = [metadata.namespace, metadata.tableName];
 
-    const existence = await adapter.queryRaw<{ exists: boolean; generated: boolean }>(TABLE_EXISTS_SQL, params);
+    const existence = await adapter.queryRaw<{ exists: boolean; managed: boolean }>(TABLE_EXISTS_SQL, params);
     const tableMissing = existence.rows.length === 0 || existence.rows[0].exists !== true;
 
     let actual: string[] = [];
@@ -95,7 +95,7 @@ export const check_entity_constraints_pglite = async (
       adapter,
       metadata,
       tableMissing,
-      existence.rows[0]?.generated === true,
+      existence.rows[0]?.managed === true,
       hasStorageIndexes
     );
     actual.push(...storage.actual);

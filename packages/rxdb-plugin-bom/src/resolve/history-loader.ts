@@ -5,9 +5,11 @@
  * `loadHistory(batch)` 一次事务：建开启态 `bom_history_batch` → 写 draft 修订/头（盖批次号）
  * → 发布转移（发布触发器只对指向开启态批次的行跳过追溯检查，其余校验照常）→ 关闭批次。
  * 批次号由调用方给定（确定性，AC#18）；批次表只追加（触发器兜底，AC#14）。
+ * 头与行发生项写入前经 {@link validateBomWrite}——与仓储门面、整批导入同一套保存期校验
+ * （扩展属性、选择条件所属组织、批次集合、序列边界、公式语法），读取在本事务内。
  */
 
-import type { EntityType } from '@aiao/rxdb';
+import { getEntityMetadata, type EntityType } from '@aiao/rxdb';
 import {
   BomEcn,
   BomHeader,
@@ -22,9 +24,11 @@ import {
   BomSubstituteGroup,
   BomWorkCenter
 } from '../entities.js';
+import { validateBomWrite, type BomWriteValidationContext } from '../repository.js';
 import type { BomEntityFactory, BomLocalAdapter } from './bom-adapter.js';
+import { bomSqlDialectFor } from './bom-sql.js';
 import { BomType } from './resolution.js';
-import { assertFormulaGrammar, normalizeDecimalColumns } from './write-rules.js';
+import { normalizeDecimalColumns } from './write-rules.js';
 
 /** 一条历史修订输入。 */
 export interface HistoryRevisionInput {
@@ -126,6 +130,8 @@ export interface HistoryHeaderInput {
   costLotQty?: string | null;
   /** 第一主产物的固定成本份额，旧单产留空。 */
   jointCostShare?: string | null;
+  /** 扩展属性（US-519）：JSON 文本，与仓储同按 attr_def 校验（字典声明了头的必填属性时必须给出）。 */
+  ext?: string | null;
   /** 确定性装载的显式 id（US-525 种子）。 */
   id?: string;
   createdAt?: Date;
@@ -210,8 +216,8 @@ const normalizeDecimals = <T extends object>(entity: T): T => {
 };
 
 /**
- * 历史发生项输入 → 实体：未给的列取存储默认值；十进制列与仓储同一入口口径规范化并判域，
- * 公式行断言当前公式语法版本（历史通道不经仓储门面，入口规则在这里兑现）。
+ * 历史发生项输入 → 实体：未给的列取存储默认值；十进制列与仓储同一入口口径规范化并判域
+ * （保存期校验只判不回写，规范串在这里落到实体上）。
  */
 const occurrenceEntity = (construct: Construct, lineId: string, input: HistoryOccurrenceInput): BomLineOccurrence => {
   const occurrence = construct(BomLineOccurrence);
@@ -255,7 +261,6 @@ const occurrenceEntity = (construct: Construct, lineId: string, input: HistoryOc
     ecnInId: input.ecnInId ?? null,
     ecnOutId: input.ecnOutId ?? null
   } satisfies Partial<BomLineOccurrence>);
-  assertFormulaGrammar(occurrence as unknown as Record<string, unknown>);
   return normalizeDecimals(occurrence);
 };
 
@@ -273,6 +278,18 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       factory ?
         factory.instantiate(EntityType, initData)
       : new (EntityType as unknown as new () => InstanceType<typeof EntityType>)();
+    // 本批不写字典：attr_def 按作用域只读一次
+    const validation: BomWriteValidationContext = {
+      query: executor.query.bind(executor),
+      dialect: bomSqlDialectFor(adapter.name),
+      rxdb: adapter.rxdb,
+      attrDefs: new Map()
+    };
+    const createValidated = async <T extends EntityType>(EntityType: T, entity: InstanceType<T>): Promise<void> => {
+      const record = entity as unknown as Record<string, unknown>;
+      await validateBomWrite(validation, getEntityMetadata(EntityType).name, record, 'create');
+      await executor.getRepository(EntityType).create(entity);
+    };
     // 1. 开启态批次行（发布触发器据此跳过追溯检查）
     const batchEntity = construct(BomHistoryBatch);
     if (batch.id) (batchEntity as unknown as { id: string }).id = batch.id;
@@ -334,7 +351,8 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       header.assemblyScrapConvention = headerInput.assemblyScrapConvention ?? 'additive';
       header.costLotQty = headerInput.costLotQty ?? null;
       header.jointCostShare = headerInput.jointCostShare ?? null;
-      await executor.getRepository(BomHeader).create(normalizeDecimals(header));
+      header.ext = headerInput.ext ?? null;
+      await createValidated(BomHeader, normalizeDecimals(header));
       const lines: { line: BomLine; occurrence: BomLineOccurrence }[] = [];
       for (const lineInput of headerInput.lines) {
         const line = construct(BomLine);
@@ -347,7 +365,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
         await executor.getRepository(BomLine).create(line);
         for (const occurrenceInput of lineInput.occurrences) {
           const occurrence = occurrenceEntity(construct, line.id, occurrenceInput);
-          await executor.getRepository(BomLineOccurrence).create(occurrence);
+          await createValidated(BomLineOccurrence, occurrence);
           lines.push({ line, occurrence });
           for (const designator of occurrenceInput.designators ?? []) {
             const designatorEntity = construct(BomLineDesignator);
@@ -464,8 +482,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       }
       const writeOccurrences = async (lineId: string, inputs: HistoryOccurrenceInput[]): Promise<void> => {
         for (const occurrenceInput of inputs) {
-          const occurrence = occurrenceEntity(construct, lineId, occurrenceInput);
-          await executor.getRepository(BomLineOccurrence).create(occurrence);
+          await createValidated(BomLineOccurrence, occurrenceEntity(construct, lineId, occurrenceInput));
         }
       };
       for (const lineInput of overlay.lines ?? []) {

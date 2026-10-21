@@ -13,6 +13,18 @@
  * 与输入行序无关（AC#5/#6/#10/#12）。
  */
 
+import type { EntityType } from '@aiao/rxdb';
+import { DECIMAL_COLUMNS } from '../decimal-columns.js';
+import {
+  BomHeader,
+  BomItem,
+  BomItemRevision,
+  BomLine,
+  BomLineDesignator,
+  BomLineOccurrence,
+  BomLineOperationSplit,
+  BomSubstituteGroup
+} from '../entities.js';
 import { BomError } from '../types.js';
 
 /** 导入记录层（与导出契约的同名层一一对应，见 export-contract.ts）。 */
@@ -30,28 +42,26 @@ export const IMPORT_KINDS = [
 /** 导入记录层。 */
 export type ImportKind = (typeof IMPORT_KINDS)[number];
 
+/** 导入记录层承载的实体（十进制字段清单由这些实体的十进制列派生）。 */
+const IMPORT_KIND_ENTITIES: Readonly<Record<ImportKind, EntityType>> = {
+  item: BomItem,
+  revision: BomItemRevision,
+  header: BomHeader,
+  line: BomLine,
+  substitute_group: BomSubstituteGroup,
+  occurrence: BomLineOccurrence,
+  designator: BomLineDesignator,
+  operation_split: BomLineOperationSplit
+};
+
 /**
  * 十进制字段清单（US-511 十进制值合同）：出现在记录里就必须是字符串，收到 JSON number 即拒绝
  * （AC#14——精度已在调用方的解析里丢失，不能装作没丢）；`null` 放行（可空字段）。
- * `ratio` 属 US-520 工序分摊子表。
+ * 由十进制列登记（decimal-columns）按导入记录层的实体派生（`ratio` 属 US-520 工序分摊子表），登记序即清单序。
  */
-export const DECIMAL_FIELDS = [
-  'jointCostShare',
-  'qty',
-  'baseQty',
-  'assemblyScrap',
-  'componentScrap',
-  'componentScrapFixed',
-  'lotsizeFrom',
-  'lotsizeTo',
-  'uomConversion',
-  'costLotQty',
-  'unitPrice',
-  'creditPrice',
-  'ratio',
-  'usageProbability',
-  'equivQty'
-] as const;
+export const DECIMAL_FIELDS: readonly string[] = DECIMAL_COLUMNS.filter(({ entities }) =>
+  entities.some(Entity => Object.values(IMPORT_KIND_ENTITIES).includes(Entity))
+).map(({ field }) => field);
 
 /** 导入记录里的日期列（生效区间两端）：同一日期契约（{@link importDate}）。 */
 const DATE_FIELDS = ['effectiveFrom', 'effectiveTo'] as const;

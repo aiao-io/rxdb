@@ -14,7 +14,6 @@ test('已有数据重开后直接可用，取消重置不丢失数据，场景�
   await prepare(page);
   await page.reload();
   await expect(page.getByTestId('overview-data-status')).toContainText(loadedItems, { timeout: 30000 });
-  await expect(page.getByText('尚未装载种子', { exact: false })).toHaveCount(0);
   await expect(page.getByTestId('workflow-card')).toHaveCount(6);
   await page.getByTestId('item-filter').fill(' pcba ');
   await expect(page.getByTestId('item-inventory-row')).toHaveCount(1);

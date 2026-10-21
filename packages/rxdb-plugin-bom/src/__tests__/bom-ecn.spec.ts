@@ -15,6 +15,7 @@ const nextLineNo = (): number => {
 };
 
 import { BomEcn, BomHeader, BomItem, BomLine, BomLineOccurrence } from '../entities.js';
+import { ecnImpact } from '../resolve/ecn.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { resolveBom } from '../resolve/resolver.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
@@ -715,6 +716,107 @@ describe('US-515 ECN 变更管理', () => {
         await expect(
           adapter.rawQuery(`UPDATE ${ecnTable} SET "state" = 'cancelled' WHERE "id" = '${ecnId}'`)
         ).rejects.toThrow(/更正|已生效|AC#7/);
+      });
+    });
+  }
+});
+
+describe('评审 P2-7 ECN 影响面按路径去重：钻石的每条命中路径都保留', () => {
+  for (const backend of BACKENDS) {
+    describe(`[${backend}]`, () => {
+      let adapter: BomTestAdapter;
+
+      beforeAll(async () => {
+        adapter = await createBomTestAdapter(backend);
+      });
+
+      afterAll(async () => {
+        await disposeBomTestAdapter(adapter).catch(() => undefined);
+      });
+
+      /** draft 头上追加一行一个发生项（默认 consume、qty 1、[2026-01-01, +∞)）。 */
+      const addUse = async (
+        header: BomHeader,
+        child: BomItem,
+        flowDirection: BomLineOccurrence['flowDirection'] = 'consume'
+      ): Promise<BomLineOccurrence> => {
+        const line = new BomLine();
+        line.headerId = header.id;
+        line.lineNo = nextLineNo();
+        await line.save();
+        const occurrence = new BomLineOccurrence();
+        occurrence.lineId = line.id;
+        occurrence.childItemId = child.id;
+        occurrence.qty = '1';
+        occurrence.uom = 'pcs';
+        occurrence.effectiveFrom = day('2026-01-01');
+        occurrence.flowDirection = flowDirection;
+        await occurrence.save();
+        return occurrence;
+      };
+
+      /** 被 ECN 改量的物料 X（其头的唯一行 qty 1→2，ECN 生效日 2026-11-01）。 */
+      const changedItem = async (prefix: string): Promise<{ item: BomItem; ecn: BomEcn }> => {
+        const item = await makeItem(adapter, `${prefix}-x`);
+        const leaf = await makeItem(adapter, `${prefix}-leaf`);
+        const { line, occurrence } = await setupReleasedHeader(adapter, item, leaf);
+        const ecn = await makeEcn(prefix, day('2026-11-01'));
+        occurrence.ecnOutId = ecn.id;
+        occurrence.effectiveTo = day('2026-11-01');
+        await occurrence.save();
+        const next = new BomLineOccurrence();
+        next.lineId = line.id;
+        next.childItemId = leaf.id;
+        next.qty = '2';
+        next.uom = 'pcs';
+        next.ecnInId = ecn.id;
+        next.effectiveFrom = day('2026-11-01');
+        await next.save();
+        return { item, ecn };
+      };
+
+      const sortedPaths = (paths: string[][]): string[][] =>
+        [...paths].sort((left, right) => left.join('>').localeCompare(right.join('>')));
+
+      it('X 经 P、Q 两条路与直连一条路到 T：T 的三条命中路径都在（子件 → 整机序）', async () => {
+        const { item: x, ecn } = await changedItem('dia');
+        const p = await makeItem(adapter, 'dia-p');
+        const q = await makeItem(adapter, 'dia-q');
+        const t = await makeItem(adapter, 'dia-t');
+        const viaP = (await setupReleasedHeader(adapter, p, x)).occurrence;
+        const viaQ = (await setupReleasedHeader(adapter, q, x)).occurrence;
+        let tq!: BomLineOccurrence;
+        let tx!: BomLineOccurrence;
+        const tp = (
+          await setupReleasedHeader(adapter, t, p, '1', async header => {
+            tq = await addUse(header, q);
+            tx = await addUse(header, x);
+          })
+        ).occurrence;
+        const impact = await ecnImpact(adapter, ecn.id);
+        expect(impact.affectedItemIds).toEqual([x.id]);
+        expect(impact.topItems.map(top => top.itemId)).toEqual([t.id]);
+        expect(sortedPaths(impact.topItems[0].paths)).toEqual(
+          sortedPaths([[viaP.id, tp.id], [viaQ.id, tq.id], [tx.id]])
+        );
+      });
+
+      it('非 consume 流向构成的反查环（T ⇄ S）按路径判环终止，不重复走环', async () => {
+        const { item: x, ecn } = await changedItem('loop');
+        const t = await makeItem(adapter, 'loop-t');
+        const s = await makeItem(adapter, 'loop-s');
+        const raw = await makeItem(adapter, 'loop-raw');
+        // T 消耗 X 与 S；S 消耗原料并把 T 记为副产品（by_product 不入 consume 判环，存储层允许）
+        await setupReleasedHeader(adapter, t, x, '1', async header => {
+          await addUse(header, s);
+        });
+        await setupReleasedHeader(adapter, s, raw, '1', async header => {
+          await addUse(header, t, 'by_product');
+        });
+        const impact = await ecnImpact(adapter, ecn.id);
+        expect(impact.affectedItemIds).toEqual([x.id]);
+        // 环上的物料都有使用方，不是整机（与按物料去重时同口径）
+        expect(impact.topItems).toEqual([]);
       });
     });
   }

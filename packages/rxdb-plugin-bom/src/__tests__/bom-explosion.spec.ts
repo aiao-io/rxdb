@@ -356,6 +356,74 @@ for (const backend of BACKENDS) {
       expect(String((error as Error).message)).toContain('从 kg 换算到 pcs 缺换算率');
     });
 
+    it('换算率为 0（物料级 / 行级，写入期合法）：整次拒绝为 BomQuantityError 并点名单位对，不以裸除零错误逃逸', async () => {
+      for (const [itemRate, lineRate, level] of [
+        ['0', null, '物料级'],
+        ['2', '0', '行级']
+      ] as const) {
+        const finished = await makeItem('zero-rate-fin');
+        const part = await makeItem('zero-rate-part', 'kg', 0, itemRate);
+        await buildFixture(adapter, [
+          { item: finished, occurrences: [{ child: part, qty: '10', uom: 'm', uomConversion: lineRate }] }
+        ]);
+        const error = await explodeBom(
+          adapter,
+          CONTEXT,
+          { parentItemId: finished.id },
+          { plannedQty: { value: '1', uom: 'pcs' } }
+        ).then(
+          () => null,
+          (cause: unknown) => cause
+        );
+        expect(error, level).toBeInstanceOf(BomQuantityError);
+        expect(String((error as Error).message), level).toContain(`从 m 换算到 kg 的${level}换算率为 0`);
+      }
+    });
+
+    it('头基准量 base_qty 为 0（写入期合法）：按批缩放的数量与成本都拒绝并点名头基准量，不以裸除零错误逃逸', async () => {
+      const finished = await makeItem('zero-base-fin');
+      const part = await makeItem('zero-base-part');
+      part.unitPrice = '1';
+      part.priceCurrency = 'CNY';
+      await part.save();
+      await loadHistory(adapter, {
+        batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
+        revisions: [{ itemId: finished.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }],
+        headers: [
+          {
+            revisionIndex: 0,
+            bomType: 'ebom',
+            orgId: 'org-x',
+            baseQty: '0',
+            costLotQty: '1',
+            lines: [{ lineNo: 10, occurrences: [{ childItemId: part.id, qty: '2', effectiveFrom: day('2020-01-01') }] }]
+          }
+        ]
+      });
+      const quantity = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      ).then(
+        () => null,
+        (cause: unknown) => cause
+      );
+      expect(quantity).toBeInstanceOf(BomQuantityError);
+      expect(String((quantity as Error).message)).toContain('base_qty 为 0');
+      const cost = await rollupCost(
+        adapter,
+        { ...CONTEXT, currency: 'CNY', rateDate: day('2026-01-01') },
+        { parentItemId: finished.id }
+      ).then(
+        () => null,
+        (cause: unknown) => cause
+      );
+      expect(cost).toBeInstanceOf(BomCostError);
+      expect((cost as Error).cause).toBeInstanceOf(BomQuantityError);
+      expect(String((cost as Error).message)).toContain('base_qty 为 0');
+    });
+
     it('公式行语法版本不是当前版本：数量与成本都在求值前拒绝并点名发生项与版本', async () => {
       const finished = await makeItem('gv-fin');
       const part = await makeItem('gv-part');

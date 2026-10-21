@@ -36,7 +36,7 @@ AC 的阶段归属：A 关闭 AC#1 / #2 / #7 / #8 / #10 / #11；B 关闭 AC#3 / 
 - `routing_operation` 的身份是 `(routing_id, operation_seq)`——这正是 US-520 引用完整性要指向的东西
 - 费率按 `(work_center, activity_type, valid_from)` 取值，取不到就报错，不以 0 兜底；币种与计费单位 `rate_uom` 随费率存，卷算时币种与上下文币种比对（[US-514](US-514-bom-cost-rollup.md) AC#10）、工时先换到计费单位再乘费率（US-514 AC#19）
 - **路线一律落在本仓**：BOM 头的 `routing_id` 只能指向本仓 `routing`。不存在「路线由外部系统提供、本仓只存一个外部 ID」的半支持态；
-  头可以不挂路线（`routing_id` 为 NULL，即无加工工序），但挂了就必须可解析
+  头可以不挂路线（`routing_id` 为 NULL，即无加工工序），此时行上不得有投料工序或分摊行（发布与已发布头写入都拒绝，[US-520](US-520-bom-routing-operation.md) AC#12）；挂了就必须可解析
 - 三个工时量各按自己的基数在卷算里正确：`setup_time`（每批）与 `fixed_time`（固定）一批一次，不随批量与加工量缩放；`run_time`（每件）乘的是工序加工量（[US-514](US-514-bom-cost-rollup.md) 的 `W_op`），不是无损耗的父计划量；
   三者以同一个 `time_uom` 计，求和后换算一次到费率的 `rate_uom`（US-514 AC#18 / #19）
 - 工时、费率与工序损耗率按 [US-511 十进制值合同](US-511-bom-quantity-semantics.md#技术笔记)存取

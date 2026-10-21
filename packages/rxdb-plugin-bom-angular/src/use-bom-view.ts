@@ -24,9 +24,11 @@ export interface BomViewBinding {
  * 在 Angular 注入上下文绑定显式数据库上的共享 BOM 控制器，随宿主销毁释放。
  *
  * @remarks
- * 与 React / Vue 的 `useBomView` 同一语义：`input` 按内容身份跟踪，内容变化时自动
- * `setInput`，内容相同的新对象不会重载；`db` 身份变化时销毁旧控制器并以当前输入新建，
- * 旧流的迟到值不会写入状态。控制器在宿主首次变更检测的 effect 中创建，此前与销毁之后
+ * 与 React / Vue 的 `useBomView` 同一语义：输入按内容身份比较，内容相同的新对象不会重载；
+ * `db` 身份变化时销毁旧控制器并以当前输入新建，旧流的迟到值不会写入状态。跟踪来源是
+ * `Signal`：`input` signal 换成内容不同的值时自动 `setInput`。普通值只在创建时读取一次
+ * （注入上下文里只调用一次，没有重读时机），之后的原地修改不会生效；需要切换请传 `Signal`
+ * 或直接调用 `commands.setInput`。控制器在宿主首次变更检测的 effect 中创建，此前与销毁之后
  * 调用命令会明确抛错。
  *
  * @example
@@ -36,8 +38,8 @@ export interface BomViewBinding {
  * readonly view = useBomView(this.db, this.query);
  * ```
  *
- * @param db - 已连接并安装 BOM 插件的数据库；普通值或 `Signal`
- * @param input - 完整解析上下文、目标、计划量、预算与公式参数；普通值或 `Signal`
+ * @param db - 已连接并安装 BOM 插件的数据库；普通值（只读一次）或 `Signal`
+ * @param input - 完整解析上下文、目标、计划量、预算与公式参数；普通值（只读一次）或 `Signal`
  * @returns 只读状态 signal 与共享领域命令
  */
 export const useBomView = (db: RxDB | Signal<RxDB>, input: BomViewInput | Signal<BomViewInput>): BomViewBinding => {

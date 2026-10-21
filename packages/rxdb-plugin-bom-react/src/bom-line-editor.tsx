@@ -77,6 +77,7 @@ export const BomLineEditor = ({
               {label}
               <input
                 aria-describedby={type === 'datetime-local' ? utcHintId : undefined}
+                name={field}
                 type={type}
                 step={type === 'datetime-local' ? '0.001' : undefined}
                 value={fields[field]}

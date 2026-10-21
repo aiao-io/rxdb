@@ -217,12 +217,39 @@ const tokenize = (expression: string): ConditionToken[] => {
   return tokens;
 };
 
+/**
+ * 嵌套深度上限（括号与 NOT 合计，与 US-511 公式的括号上限同值）：业务条件远用不到；递归下降每层括号占
+ * 四帧、求值与 AST 遍历每层再占帧，超深嵌套会在保存期与求值期撑爆调用栈（RangeError），解析期按此拒绝为语法错误。
+ */
+const CONDITION_MAX_DEPTH = 64;
+
 /** 解析期上下文：原文、记号流与当前位置。 */
 interface ConditionParseContext {
   expression: string;
   tokens: ConditionToken[];
   position: number;
+  /** 当前嵌套深度（括号与 NOT 合计）。 */
+  depth: number;
 }
+
+/** 在下一层嵌套里解析（`token` 是开启这一层的「(」或 NOT）：超过上限即语法错误，点名该记号。 */
+const parseNested = (
+  context: ConditionParseContext,
+  token: ConditionToken,
+  parse: (context: ConditionParseContext) => ConditionAst
+): ConditionAst => {
+  if (context.depth >= CONDITION_MAX_DEPTH) {
+    throw new BomConfigSyntaxError(
+      context.expression,
+      token.offset,
+      `嵌套深度超过 ${CONDITION_MAX_DEPTH}（括号与 NOT 合计）`
+    );
+  }
+  context.depth += 1;
+  const ast = parse(context);
+  context.depth -= 1;
+  return ast;
+};
 
 /** 当前记号（无更多记号时为 undefined）。 */
 const peekToken = (context: ConditionParseContext): ConditionToken | undefined => context.tokens[context.position];
@@ -356,7 +383,7 @@ const parsePrimary = (context: ConditionParseContext): ConditionAst => {
   if (token === undefined) throw unexpectedEnd(context, '意外结束：期望 ( 或原子谓词');
   if (token.kind === 'lparen') {
     context.position += 1;
-    const inner = parseOr(context);
+    const inner = parseNested(context, token, parseOr);
     const closing = peekToken(context);
     if (closing === undefined) throw unexpectedEnd(context, '意外结束：缺右括号');
     if (closing.kind !== 'rparen') {
@@ -370,8 +397,9 @@ const parsePrimary = (context: ConditionParseContext): ConditionAst => {
 
 /** notExpr := 'NOT' notExpr | primary（NOT 优先级最高，右结合） */
 const parseNot = (context: ConditionParseContext): ConditionAst => {
-  if (matchKeyword(context, 'NOT')) {
-    return { kind: 'not', operand: parseNot(context) };
+  const token = peekToken(context);
+  if (token !== undefined && matchKeyword(context, 'NOT')) {
+    return { kind: 'not', operand: parseNested(context, token, parseNot) };
   }
   return parsePrimary(context);
 };
@@ -408,14 +436,14 @@ const parseOr = (context: ConditionParseContext): ConditionAst => {
  * @param expression - 条件表达式文本（持久化时连同语法版本一起记入 config_condition）
  * @returns 解析结果（AST 的原子谓词带特征 / 值的位置信息，保存期校验点名用）
  *
- * @throws {@link BomConfigSyntaxError} 不合最小语法（点名行 / 列与原因）
+ * @throws {@link BomConfigSyntaxError} 不合最小语法，或括号与 NOT 合计嵌套超过 64 层（点名行 / 列与原因）
  */
 export const parseCondition = (expression: string): { ast: ConditionAst } => {
   const tokens = tokenize(expression);
   if (tokens.length === 0) {
     throw new BomConfigSyntaxError(expression, 0, '条件为空');
   }
-  const context: ConditionParseContext = { expression, tokens, position: 0 };
+  const context: ConditionParseContext = { expression, tokens, position: 0, depth: 0 };
   const ast = parseOr(context);
   if (context.position !== context.tokens.length) {
     const extra = context.tokens[context.position];

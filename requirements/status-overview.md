@@ -175,10 +175,10 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 
 ### [BOM 领域模型](epics/epic-009-bom-domain-model.md)
 
-19条故事全部Done，跨域前置US-030也已Done。最终86项目351任务通过、三端共享51/51、demo24/24（2026-10-18时点；现demo共34条）、Tauri及8包严格覆盖率均通过；失败/控制历史和最终性能原始样本见[最终验收](../specs/021-bom-closure/closure-map.md)。
+19条故事全部Done，跨域前置US-030也已Done。最终86项目351任务通过、三端共享51/51、demo 34/34（CI run 39218306973，见[验收留档](../specs/021-bom-closure/story-validation-history.md#us-525)）、Tauri及8包严格覆盖率均通过；失败/控制历史和最终性能原始样本见[最终验收](../specs/021-bom-closure/closure-map.md)。
 
 - ✅ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md) — 阶段 A/B/C 全部交付（第 4 步：`bom_line_designator` 位号子表 + 发布转移位号计数校验，AC#4/#5/#12 与 AC#13 位号部分，2026-10-14；AC#10 随第 6 步关闭：已发布头的写入协议矩阵放行挂 draft ECN 的新对象）；`bom_header` 挂修订、带 `draft` / `released`；逻辑行与行发生项分层，跨行聚合在发布转移上校验
-- ✅ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md) — 全部18项解析AC已通过，含US-515的ECN状态/日期可见性和同事务快照；旧等待说明已纠正，最终分支门禁已通过，故事已Done。
+- ✅ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md) — 全部18项解析AC已通过，含US-515的ECN状态/日期可见性和同事务快照；最终分支门禁已通过，故事已Done。
 - ✅ [US-509 DAG约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md) — 原并集判环及真实PostgreSQL AC#13已验证；远端最终12项事务/锁/回滚回归通过。Reach维护与判环追加段按spec024收口，最终完整门禁已通过。
 - ✅ [US-510 多级展开与where-used反查](stories/domain/US-510-bom-multilevel-explosion.md) — 阶段A已交付，阶段B由真实主数据反查热路径触发；最小childItemId索引将10k场景p95由236.24降至7.60ms，闭包维护/判环与52条兼容回归已通过。隔离原型及维护成本已验收，默认不启用读取剪枝，不把索引收益算作闭包收益；最终统一门禁通过，见spec024。
 - ✅ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md) — 阶段 A/C/B1/B2 全部交付（第 3、5 步，2026-10-14）：十进制 kernel（34 位 half-even）、公式求值器、单位换算、`explodeBom` 七步展开、阶梯/损耗/虚拟件穿透、阶梯切片发布校验、第 5 步工序损耗（AC#1/#13 golden）；全部 AC 关闭

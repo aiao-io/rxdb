@@ -73,6 +73,9 @@ interface QueryContext {
 
 type Predicate = (bind: (value: unknown) => string) => string;
 
+/** IN 列表分块大小（避开两后端的绑定变量上限，与展开同口径）。 */
+const CHUNK_SIZE = 200;
+
 const resolvedOptions = (options: BomInstanceQueryOptions): ResolvedOptions => {
   if (options === null || typeof options !== 'object') throw new BomInstanceError('查询选项必须是对象');
   const maxDepth = options.maxDepth ?? 64;
@@ -147,8 +150,8 @@ const readChildren = async (
   limit: number
 ): Promise<BomInstanceNodeView[]> => {
   const rows: BomInstanceNodeView[] = [];
-  for (let offset = 0; offset < parents.length && rows.length < limit; offset += 200) {
-    const chunk = parents.slice(offset, offset + 200);
+  for (let offset = 0; offset < parents.length && rows.length < limit; offset += CHUNK_SIZE) {
+    const chunk = parents.slice(offset, offset + CHUNK_SIZE);
     rows.push(
       ...(await readNodes(
         context,
@@ -230,9 +233,43 @@ const traceFilters = (target: BomInstanceTraceTarget): [keyof BomInstanceTraceTa
 interface TraceContext {
   query: QueryContext;
   loaded: Map<string, BomInstanceNodeView>;
+  /** 按层批量预取的祖先：值为 undefined 表示已查过、时点下不存在（逐条追溯不再单行重查）。 */
+  prefetched: Map<string, BomInstanceNodeView | undefined>;
   visited: Set<string>;
   truncated: boolean;
 }
+
+/** 按 id 批量读安装记录（200 行 IN 分块，与 readChildren 同法），按 id 索引。 */
+const readNodesById = async (context: QueryContext, ids: string[]): Promise<Map<string, BomInstanceNodeView>> => {
+  const nodes = new Map<string, BomInstanceNodeView>();
+  for (let offset = 0; offset < ids.length; offset += CHUNK_SIZE) {
+    const chunk = ids.slice(offset, offset + CHUNK_SIZE);
+    const rows = await readNodes(context, bind => `n."id" IN (${chunk.map(id => bind(id)).join(', ')})`, chunk.length);
+    for (const row of rows) nodes.set(row.id, row);
+  }
+  return nodes;
+};
+
+/**
+ * 按层批量预取命中的祖先，替代逐边单行读：只填预取表，命中、截断与成环仍由逐条追溯按原口径判定。
+ * 预取层数不超过 maxDepth、总量不超过 maxNodes（与逐条追溯的访问上限同阶；预算被前面的命中耗尽时，
+ * 后面命中的祖先预取了也不会被访问）。
+ */
+const prefetchAncestors = async (context: TraceContext, starts: BomInstanceNodeView[]): Promise<void> => {
+  const { maxDepth, maxNodes } = context.query.options;
+  const unknownParent = (node: BomInstanceNodeView): string[] => {
+    const parentId = node.parentInstanceId;
+    if (parentId === null || context.loaded.has(parentId) || context.prefetched.has(parentId)) return [];
+    return [parentId];
+  };
+  let frontier = starts;
+  for (let depth = 0; depth < maxDepth && frontier.length > 0; depth += 1) {
+    const ids = [...new Set(frontier.flatMap(unknownParent))].slice(0, maxNodes - context.prefetched.size);
+    const parents = await readNodesById(context.query, ids);
+    for (const id of ids) context.prefetched.set(id, parents.get(id));
+    frontier = [...parents.values()];
+  }
+};
 
 const readParent = async (context: TraceContext, id: string): Promise<BomInstanceNodeView | undefined> => {
   const cached = context.loaded.get(id);
@@ -241,7 +278,7 @@ const readParent = async (context: TraceContext, id: string): Promise<BomInstanc
     context.truncated = true;
     return undefined;
   }
-  const parent = await readNode(context.query, id);
+  const parent = context.prefetched.has(id) ? context.prefetched.get(id) : await readNode(context.query, id);
   if (parent !== undefined) context.loaded.set(id, parent);
   return parent;
 };
@@ -298,11 +335,14 @@ export const whereUsedInstance = async (
     const context: TraceContext = {
       query,
       loaded: new Map(candidates.map(value => [value.id, value])),
+      prefetched: new Map(),
       visited: new Set(),
       truncated: candidates.length > resolved.maxNodes
     };
+    const traced = candidates.slice(0, resolved.maxNodes);
+    await prefetchAncestors(context, traced);
     const matches: BomInstanceTraceMatch[] = [];
-    for (const node of candidates.slice(0, resolved.maxNodes)) {
+    for (const node of traced) {
       const path = await tracePath(context, node);
       if (path !== undefined) matches.push({ node, root: path[0], path });
     }

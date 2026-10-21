@@ -1,7 +1,7 @@
 /**
  * @fileoverview 写入入口的共用规则（仓储门面 / 整批导入 / 历史装载通道同一口径）
  *
- * - 十进制列：一张表登记全部 BOM 实体的十进制列与其存储层域（与 backend/ 的格式 / 域触发器同口径）。
+ * - 十进制列：列与其存储层域取自十进制列登记（decimal-columns，backend 的格式触发器同源派生）。
  *   入口先把值规范成规范十进制串（语法、指数、34 位有效数字、非负，见 {@link normalizeDecimalString}），
  *   再按列校验域——阶梯边界 15 位、[0,1] 且小数至多 9 位的份额 / 概率 / 分摊比例、良率制损耗 [0,1)。
  *   违约一律 {@link BomDecimalFormatError} 并点名列与域，不留到存储层才以笼统的「非规范串」拒绝。
@@ -9,48 +9,17 @@
  *   与选择条件的语法版本同为写入期断言；语法升级后旧版本的公式不会被按新语法静默求值。
  */
 
+import { DECIMAL_COLUMNS, type DecimalDomain } from '../decimal-columns.js';
 import { normalizeDecimalString } from '../decimal.utils.js';
 import { assertFormulaSyntax, FORMULA_GRAMMAR_VERSION } from '../quantity/formula.js';
 import { BomDecimalFormatError, BomQuantityError } from '../types.js';
 
-/** 一列十进制值的域：规范串即可、阶梯边界、[0,1] 九位小数，或随损耗记法的良率制 [0,1)。 */
-type DecimalDomain =
-  | { kind: 'canonical' }
-  | { kind: 'lotsize' }
-  | { kind: 'fraction'; label: string }
-  | { kind: 'scrap'; convention: string };
-
-const CANONICAL: DecimalDomain = { kind: 'canonical' };
-
 /**
- * 全部 BOM 实体的十进制列 → 存储层域（按列名登记，同名列在不同实体上同域）。
- *
- * @remarks
- * 导入契约的十进制字段清单（import-contract 的 `DECIMAL_FIELDS`）是本表在导入记录层上的子集。
+ * 全部 BOM 实体的十进制列 → 存储层域（按列名，同名列在不同实体上同域；登记序即判域序）。
  */
-export const DECIMAL_FIELD_DOMAINS: Readonly<Record<string, DecimalDomain>> = {
-  jointCostShare: { kind: 'fraction', label: '联产成本份额' },
-  qty: CANONICAL,
-  baseQty: CANONICAL,
-  assemblyScrap: { kind: 'scrap', convention: 'assemblyScrapConvention' },
-  componentScrap: { kind: 'scrap', convention: 'componentScrapConvention' },
-  componentScrapFixed: CANONICAL,
-  lotsizeFrom: { kind: 'lotsize' },
-  lotsizeTo: { kind: 'lotsize' },
-  uomConversion: CANONICAL,
-  costLotQty: CANONICAL,
-  unitPrice: CANONICAL,
-  creditPrice: CANONICAL,
-  ratio: { kind: 'fraction', label: '分摊比例' },
-  usageProbability: { kind: 'fraction', label: '替代概率' },
-  equivQty: CANONICAL,
-  operationScrap: { kind: 'scrap', convention: 'scrapConvention' },
-  setupTime: CANONICAL,
-  runTime: CANONICAL,
-  fixedTime: CANONICAL,
-  overheadRate: CANONICAL,
-  rate: CANONICAL
-};
+export const DECIMAL_FIELD_DOMAINS: Readonly<Record<string, DecimalDomain>> = Object.fromEntries(
+  DECIMAL_COLUMNS.map(({ field, domain }) => [field, domain])
+);
 
 /** 规范串的整数位数、小数位数与有效数字位数（有效数字 = 去小数点后去前导零，单个 0 计 1 位）。 */
 const digitCounts = (canonical: string): { integer: number; fraction: number; significant: number } => {

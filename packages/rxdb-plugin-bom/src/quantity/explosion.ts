@@ -48,6 +48,7 @@ import {
   computeOutputQuantity,
   scrap,
   selectTierRows,
+  type LayerNetResult,
   type LayerRoutingOp,
   type SubstituteMember
 } from './layer.js';
@@ -425,6 +426,533 @@ export const resolveChildHeader = async (
   };
 };
 
+/** 根：父修订（与 resolveBom 同口径，草稿不入展开）与根头（多备选未裁决拒绝）。 */
+interface ExplosionRoot {
+  parentItemId: string;
+  parentRevisionId: string;
+  headerId: string;
+  baseUom: string;
+}
+
+const resolveExplosionRoot = async (
+  query: BomQueryExecutor['query'],
+  dialect: BomSqlDialect,
+  context: ResolutionContext,
+  target: ResolveTarget
+): Promise<ExplosionRoot> => {
+  const parentSql = buildParentRevisionSql(dialect, {
+    itemId: target.parentItemId ?? '',
+    asOfDate: context.asOfDate,
+    explicitRevisionId: target.parentRevisionId
+  });
+  const parentResult = await query(parentSql.sql, parentSql.params);
+  const parentRow = parentResult.rows[0];
+  if (!parentRow) {
+    throw new BomResolutionError(
+      'parentRevisionId',
+      target.parentRevisionId !== undefined ? '父修订不存在' : '评估日前没有已发布的最新修订'
+    );
+  }
+  const parentRevisionId = readString(parentRow, parentResult.columns, 'revisionId');
+  const parentItemId = readString(parentRow, parentResult.columns, 'itemId');
+  if (parentRow[columnIndexOf(parentResult.columns, 'state')] !== 'released') {
+    throw new BomResolutionError('parentRevisionId', '父修订未发布，草稿不入数量展开');
+  }
+  const rootHeadersSql = buildAlternativeHeadersSql(dialect, {
+    parentRevisionId,
+    bomType: context.bomType,
+    orgId: context.orgId
+  });
+  const rootHeadersResult = await query(rootHeadersSql.sql, rootHeadersSql.params);
+  const selectedRootHeaders = selectRootAlternatives(
+    rootHeadersResult.rows.map(row => ({
+      row,
+      alternativeNo: Number(row[columnIndexOf(rootHeadersResult.columns, 'alternativeNo')])
+    })),
+    context,
+    parentRevisionId
+  );
+  if (selectedRootHeaders.length > 1) {
+    throw new BomResolutionError('alternativeNo', '根头存在多个备选，数量展开需要裁决（指定 alternativeNo）');
+  }
+  if (selectedRootHeaders.length === 0) {
+    throw new BomResolutionError('parentRevisionId', '根修订在上下文下没有已发布头');
+  }
+  const rootHeader = selectedRootHeaders[0].row;
+  return {
+    parentItemId,
+    parentRevisionId,
+    headerId: String(rootHeader[columnIndexOf(rootHeadersResult.columns, 'headerId')]),
+    baseUom: readString(rootHeader, rootHeadersResult.columns, 'baseUom')
+  };
+};
+
+/** 第 5 步的路线数据（全量加载一次）：按路线分组的工序链、评估日不可用的路线、按发生项分组的分摊。 */
+interface RoutingData {
+  opsByRouting: Map<string, LayerRoutingOp[]>;
+  routingUncovered: Map<string, string>;
+  splitsByOccurrence: Map<string, { operationSeq: number; ratio: string }[]>;
+}
+
+const loadRoutingData = async (
+  query: BomQueryExecutor['query'],
+  dialect: BomSqlDialect,
+  asOfDate: Date
+): Promise<RoutingData> => {
+  const opsByRouting = new Map<string, LayerRoutingOp[]>();
+  const opsResult = await query(
+    `SELECT "routingId", "operationSeq", "operationScrap", "scrapConvention" FROM ${dialect.table('routing_operation')} ORDER BY "operationSeq"`
+  );
+  for (const row of opsResult.rows) {
+    const routingId = readString(row, opsResult.columns, 'routingId');
+    const list = opsByRouting.get(routingId) ?? [];
+    list.push({
+      operationSeq: Number(row[columnIndexOf(opsResult.columns, 'operationSeq')]),
+      operationScrap: readString(row, opsResult.columns, 'operationScrap'),
+      scrapConvention: readString(row, opsResult.columns, 'scrapConvention') as 'additive' | 'yield'
+    });
+    opsByRouting.set(routingId, list);
+  }
+  const routingValidity = (
+    await query(
+      `SELECT "id" AS "id", "validFrom" AS "validFrom", "disabledAt" AS "disabledAt" FROM ${dialect.table('routing')}`
+    )
+  ).rows;
+  const routingUncovered = new Map<string, string>();
+  for (const row of routingValidity) {
+    const reason = routingUncoveredReason({ validFrom: row[1], disabledAt: row[2] }, asOfDate);
+    if (reason !== null) routingUncovered.set(String(row[0]), reason);
+  }
+  const splitsByOccurrence = new Map<string, { operationSeq: number; ratio: string }[]>();
+  const splitsResult = await query(
+    `SELECT "occurrenceId", "operationSeq", "ratio" FROM ${dialect.table('bom_line_operation_split')}`
+  );
+  for (const row of splitsResult.rows) {
+    const occurrenceId = readString(row, splitsResult.columns, 'occurrenceId');
+    const list = splitsByOccurrence.get(occurrenceId) ?? [];
+    list.push({
+      operationSeq: Number(row[columnIndexOf(splitsResult.columns, 'operationSeq')]),
+      ratio: readString(row, splitsResult.columns, 'ratio')
+    });
+    splitsByOccurrence.set(occurrenceId, list);
+  }
+  return { opsByRouting, routingUncovered, splitsByOccurrence };
+};
+
+/** 一次展开的共享状态：读事务内的查询、BFS 节点表、结果集与预算计数（各层累积）。 */
+interface ExplosionRun {
+  query: BomQueryExecutor['query'];
+  dialect: BomSqlDialect;
+  context: ResolutionContext;
+  options: ExplosionOptions;
+  budget: ResolvedBudgets;
+  routing: RoutingData;
+  /** 子头按修订缓存（同一修订在多条路径上只解析一次）。 */
+  childHeaders: Map<string, ResolvedChildHeader | null>;
+  /** 解析域的 unresolved（配置 / 序列 / 批次候选未定），随行查询累积。 */
+  domainUnresolved: UnresolvedAlternative[];
+  nodes: ExplosionNode[];
+  requirementLines: RequirementLine[];
+  outputs: OutputLine[];
+  penetrations: PenetrationRecord[];
+  unresolvedGroups: UnresolvedSubstituteGroup[];
+  occurrenceIds: string[];
+  conversions: ExplosionManifest['conversions'];
+  expansions: number;
+}
+
+/** 一个节点的本层上下文：第 2 步的 P′ 与头路由的工序链；下钻的子节点收进下一层前沿。 */
+interface NodeLayer {
+  node: ExplosionNode;
+  plannedPrime: Decimal;
+  routingOps: LayerRoutingOp[];
+  nextFrontier: number[];
+}
+
+/** 一条消耗行第 3~6 步的中间值（第 7 步穿透与产出需求行共用）。 */
+interface ConsumeValues {
+  gross: Decimal;
+  layerNet: LayerNetResult;
+  /** 第 6 步 D（子件库存单位）。 */
+  demand: Decimal;
+  hops: HopConversionRates;
+}
+
+const recordConversion = (run: ExplosionRun, from: string, to: string, rate: string | null): void => {
+  if (from !== to) run.conversions.push({ from, to, rate });
+};
+
+const readChildHeader = async (run: ExplosionRun, revisionId: string): Promise<ResolvedChildHeader | null> => {
+  if (!run.childHeaders.has(revisionId)) {
+    run.childHeaders.set(revisionId, await resolveChildHeader(run.query, run.dialect, run.context, revisionId));
+  }
+  return run.childHeaders.get(revisionId)!;
+};
+
+/** 第 3 步按损耗前 P 选阶梯行（普通行恒计入；共享实现，US-514 同源）；无命中按数量违约点名路径。 */
+const selectNodeTierRows = (rows: readonly ExplosionRow[], node: ExplosionNode): ExplosionRow[] => {
+  try {
+    return selectTierRows(rows, node.plannedQty);
+  } catch (error) {
+    throw new BomQuantityError(error instanceof Error ? error.message : String(error), node.path);
+  }
+};
+
+/**
+ * 第 5 步的前提：声明了投料工序（operation_seq 或分摊行）的行，其头必须选了评估日可用的路线。
+ * 头未选路线与路线未覆盖同样拒绝整次计算，不按空工序链静默少算工序损耗。
+ */
+const assertNodeRouting = (
+  run: ExplosionRun,
+  node: ExplosionNode,
+  rows: readonly ExplosionRow[],
+  headerRoutingId: string | null
+): void => {
+  const routed = rows.find(row => row.operationSeq !== null || run.routing.splitsByOccurrence.has(row.occurrenceId));
+  if (routed === undefined) return;
+  if (headerRoutingId === null) {
+    throw new BomQuantityError(
+      `路线未覆盖（头未选路线）：头 ${routed.headerId}、发生项 ${routed.occurrenceId} 声明了投料工序，工序损耗无从解析`,
+      node.path
+    );
+  }
+  const uncoveredReason = run.routing.routingUncovered.get(headerRoutingId);
+  if (uncoveredReason === undefined) return;
+  throw new BomQuantityError(
+    `路线未覆盖（${uncoveredReason}）：路线 ${headerRoutingId}、发生项 ${routed.occurrenceId} 的投料工序在评估日不可用`,
+    node.path
+  );
+};
+
+/** 第 3 步：行的组件毛需求（组 primary 与普通行共用；工序链与分摊只进第 5 步）。 */
+const grossOf = (run: ExplosionRun, layer: NodeLayer, row: ExplosionRow): Decimal =>
+  computeGross(row, {
+    plannedPrime: layer.plannedPrime,
+    headerBaseQty: row.headerBaseQty,
+    formulaParams: run.options.params,
+    routingOps: [],
+    splits: []
+  });
+
+/** 发射一条消耗行前的预算判定：取消 → 深度 → 需求行数 → 展开数，顺序即优先级。 */
+const budgetTruncation = (run: ExplosionRun, depth: number): TruncationReason | null => {
+  if (run.options.signal?.aborted) return 'cancelled';
+  if (depth > run.budget.depth) return 'depth';
+  if (run.requirementLines.length + 1 > run.budget.paths) return 'paths';
+  if (run.expansions + 1 > run.budget.expansions) return 'expansions';
+  return null;
+};
+
+/** 第 7 步的 phantom 判定：COALESCE(phantom_override, default_phantom)，两者皆空按非虚拟件。 */
+const phantomOf = (row: ExplosionRow): Pick<ExplosionSteps['phantom'], 'value' | 'source'> => {
+  if (row.phantomOverride !== null) return { value: row.phantomOverride, source: 'override' };
+  if (row.childRevisionPhantom !== null) return { value: row.childRevisionPhantom, source: 'revision' };
+  return { value: false, source: 'fallback' };
+};
+
+/** 第 7 步的第二跳：库存单位 → 子头基准单位，只用第一跳未消耗的率（见 {@link splitHopRates}）。 */
+const toChildBase = (
+  run: ExplosionRun,
+  row: ExplosionRow,
+  value: Decimal,
+  childHeader: ResolvedChildHeader,
+  hops: HopConversionRates
+): string => {
+  const childPlanned = convertUom(decimalToCanonical(value), row.childStockUom, childHeader.baseUom, hops.fromStock);
+  recordConversion(
+    run,
+    row.childStockUom,
+    childHeader.baseUom,
+    appliedUomRate(row.childStockUom, childHeader.baseUom, hops.fromStock)
+  );
+  return childPlanned;
+};
+
+/** 子头作为下一层节点下钻（P 已归一到子头基准单位）。 */
+const pushChildNode = (
+  run: ExplosionRun,
+  layer: NodeLayer,
+  row: ExplosionRow,
+  revisionId: string,
+  childHeader: ResolvedChildHeader,
+  childPlanned: string
+): void => {
+  layer.nextFrontier.push(
+    run.nodes.push({
+      path: [...layer.node.path, row.occurrenceId],
+      depth: layer.node.depth + 1,
+      headerId: childHeader.headerId,
+      itemId: row.childItemId,
+      revisionId,
+      plannedQty: decimalFromCanonical(childPlanned),
+      baseUom: childHeader.baseUom
+    }) - 1
+  );
+};
+
+/** 第 7 步（虚拟件）：不产需求行、不舍入，D 换算到子头基准单位作为 P 下钻；无已发布修订或头即拒绝。 */
+const penetrate = async (
+  run: ExplosionRun,
+  layer: NodeLayer,
+  row: ExplosionRow,
+  values: ConsumeValues,
+  source: 'override' | 'revision'
+): Promise<void> => {
+  if (row.resolvedChildRevisionId === null) {
+    throw new BomQuantityError(`虚拟件 ${row.childItemId} 在评估日没有已发布修订，无法穿透`, [
+      ...layer.node.path,
+      row.occurrenceId
+    ]);
+  }
+  const childHeader = await readChildHeader(run, row.resolvedChildRevisionId);
+  if (childHeader === null) {
+    throw new BomQuantityError(`虚拟件 ${row.childItemId} 在当前上下文下没有已发布 BOM 头`, [
+      ...layer.node.path,
+      row.occurrenceId
+    ]);
+  }
+  const childPlanned = toChildBase(run, row, values.demand, childHeader, values.hops);
+  run.penetrations.push({
+    path: [...layer.node.path, row.occurrenceId],
+    occurrenceId: row.occurrenceId,
+    childItemId: row.childItemId,
+    revisionId: row.resolvedChildRevisionId,
+    source,
+    converted: { value: decimalToCanonical(values.demand), uom: row.childStockUom },
+    childPlanned: { value: childPlanned, uom: childHeader.baseUom }
+  });
+  pushChildNode(run, layer, row, row.resolvedChildRevisionId, childHeader, childPlanned);
+};
+
+/** 第 7 步（非虚拟件）：按库存单位小数位向上取整产出需求行；子件在上下文里有已发布头时取整值下传。 */
+const emitRequirement = async (
+  run: ExplosionRun,
+  layer: NodeLayer,
+  row: ExplosionRow,
+  values: ConsumeValues,
+  phantom: Pick<ExplosionSteps['phantom'], 'value' | 'source'>
+): Promise<void> => {
+  const { node, plannedPrime } = layer;
+  const rounded = ceilToDecimalPlaces(values.demand, row.childUomDecimals);
+  run.requirementLines.push({
+    path: [...node.path, row.occurrenceId],
+    itemId: row.childItemId,
+    revisionId: row.resolvedChildRevisionId,
+    qty: decimalToCanonical(rounded),
+    uom: row.childStockUom,
+    steps: {
+      planned: { value: decimalToCanonical(node.plannedQty), uom: node.baseUom },
+      assemblyScrapped: { value: decimalToCanonical(plannedPrime), uom: node.baseUom },
+      gross: { value: decimalToCanonical(values.gross), uom: row.occurrenceUom },
+      componentScrapped: { value: decimalToCanonical(values.layerNet.net), uom: row.occurrenceUom },
+      operationScrapped:
+        values.layerNet.hasOperation ?
+          { value: decimalToCanonical(values.layerNet.net), uom: row.occurrenceUom }
+        : null,
+      converted: { value: decimalToCanonical(values.demand), uom: row.childStockUom },
+      phantom: { ...phantom, revisionId: row.resolvedChildRevisionId }
+    }
+  });
+  if (row.resolvedChildRevisionId === null) return;
+  const childHeader = await readChildHeader(run, row.resolvedChildRevisionId);
+  if (childHeader === null) return;
+  const childPlanned = toChildBase(run, row, rounded, childHeader, values.hops);
+  pushChildNode(run, layer, row, row.resolvedChildRevisionId, childHeader, childPlanned);
+};
+
+/**
+ * 第 4~7 步：组件损耗 + 固定损耗 + 工序损耗链 / 分摊（共享实现，US-514 同源）→ 换算到子件库存单位
+ * → 穿透或产出需求行。触顶返回截断原因（调用方终止整个展开），否则为 null。
+ */
+const emitConsumeLine = async (
+  run: ExplosionRun,
+  layer: NodeLayer,
+  row: ExplosionRow,
+  gross: Decimal
+): Promise<TruncationReason | null> => {
+  const truncation = budgetTruncation(run, layer.node.depth + 1);
+  if (truncation !== null) return truncation;
+  run.expansions += 1;
+  run.occurrenceIds.push(row.occurrenceId);
+  const layerNet = computeLayerNet(gross, row, {
+    plannedPrime: layer.plannedPrime,
+    headerBaseQty: row.headerBaseQty,
+    formulaParams: run.options.params,
+    routingOps: layer.routingOps,
+    splits: run.routing.splitsByOccurrence.get(row.occurrenceId) ?? []
+  });
+  // 6. 单位换算（行 UoM → 子件库存 UoM）；第 7 步的库存 → 子头基准只用剩下未被消耗的率
+  const hops = rowHopRates(row);
+  const demand = decimalFromCanonical(
+    convertUom(decimalToCanonical(layerNet.net), row.occurrenceUom, row.childStockUom, hops.toStock)
+  );
+  recordConversion(
+    run,
+    row.occurrenceUom,
+    row.childStockUom,
+    appliedUomRate(row.occurrenceUom, row.childStockUom, hops.toStock)
+  );
+  const values: ConsumeValues = { gross, layerNet, demand, hops };
+  const phantom = phantomOf(row);
+  if (phantom.value) await penetrate(run, layer, row, values, phantom.source === 'override' ? 'override' : 'revision');
+  else await emitRequirement(run, layer, row, values, phantom);
+  return null;
+};
+
+/** US-513：反向物料流（by_product / scrap_out / produce）只进产出量，不产需求行。 */
+const collectOutputs = (run: ExplosionRun, layer: NodeLayer, rows: readonly ExplosionRow[]): void => {
+  for (const row of rows) {
+    if (row.flowDirection === 'consume') continue;
+    const outputQuantity = computeOutputQuantity(
+      row,
+      row.flowDirection === 'produce' ? layer.node.plannedQty : layer.plannedPrime,
+      row.headerBaseQty,
+      run.options.params
+    );
+    run.outputs.push({
+      path: [...layer.node.path, row.occurrenceId],
+      itemId: row.childItemId,
+      direction: row.flowDirection,
+      qty: decimalToCanonical(outputQuantity),
+      uom: row.occurrenceUom
+    });
+    run.occurrenceIds.push(row.occurrenceId);
+  }
+};
+
+/** 不属替代组的 consume 行逐条发射。 */
+const emitPlainRows = async (
+  run: ExplosionRun,
+  layer: NodeLayer,
+  rows: readonly ExplosionRow[]
+): Promise<TruncationReason | null> => {
+  for (const row of rows) {
+    if (row.substituteGroupId !== null || row.flowDirection !== 'consume') continue;
+    const truncation = await emitConsumeLine(run, layer, row, grossOf(run, layer, row));
+    if (truncation !== null) return truncation;
+  }
+  return null;
+};
+
+/** 替代组分流（AC#1/#2/#4/#8；共享纯函数，US-514 同源）：分摊违约按数量违约点名 primary 路径。 */
+const allocateGroupShares = (
+  run: ExplosionRun,
+  layer: NodeLayer,
+  members: readonly ExplosionRow[],
+  primary: ExplosionRow
+): ReturnType<typeof allocateSubstituteShares> => {
+  const primaryGross = grossOf(run, layer, primary);
+  try {
+    return allocateSubstituteShares(
+      members.map(substituteMemberOf),
+      primaryGross,
+      run.context.substituteAvailabilities,
+      run.context.substituteSelections
+    );
+  } catch (error) {
+    throw new BomQuantityError(error instanceof Error ? error.message : String(error), [
+      ...layer.node.path,
+      primary.occurrenceId
+    ]);
+  }
+};
+
+/** US-512 替代组：组内成员按 primary 毛需求整体分摊、不走各自行的 qty；manual 未给选择记 unresolved。 */
+const emitSubstituteGroup = async (
+  run: ExplosionRun,
+  layer: NodeLayer,
+  members: readonly ExplosionRow[]
+): Promise<TruncationReason | null> => {
+  const primary = members.find(member => member.substituteRole === 'primary');
+  if (!primary) return null; // 发布转移已校验恰好一个 primary
+  const allocated = allocateGroupShares(run, layer, members, primary);
+  if (allocated.unresolved) {
+    run.unresolvedGroups.push({
+      groupCode: allocated.unresolved.groupCode,
+      candidates: allocated.unresolved.candidates
+    });
+    return null;
+  }
+  for (const { member, gross } of allocated.shares) {
+    const source = members.find(candidate => candidate.occurrenceId === member.occurrenceId);
+    if (!source) continue;
+    const truncation = await emitConsumeLine(run, layer, source, gross);
+    if (truncation !== null) return truncation;
+  }
+  return null;
+};
+
+const emitSubstituteGroups = async (
+  run: ExplosionRun,
+  layer: NodeLayer,
+  rows: readonly ExplosionRow[]
+): Promise<TruncationReason | null> => {
+  const groups = new Map<string, ExplosionRow[]>();
+  for (const row of rows) {
+    if (row.substituteGroupId === null) continue;
+    const list = groups.get(row.substituteGroupId) ?? [];
+    list.push(row);
+    groups.set(row.substituteGroupId, list);
+  }
+  for (const members of groups.values()) {
+    const truncation = await emitSubstituteGroup(run, layer, members);
+    if (truncation !== null) return truncation;
+  }
+  return null;
+};
+
+/** 一个节点的一层展开（第 2~7 步）：触顶返回截断原因（调用方终止整个展开），否则为 null。 */
+const explodeNode = async (
+  run: ExplosionRun,
+  node: ExplosionNode,
+  byHeader: Map<string, ExplosionRow[]>,
+  nextFrontier: number[]
+): Promise<TruncationReason | null> => {
+  const rows = byHeader.get(node.headerId) ?? [];
+  const headerRoutingId = rows[0]?.headerRoutingId ?? null;
+  // 2. 装配损耗
+  const plannedPrime = scrap(
+    node.plannedQty,
+    rows[0]?.headerAssemblyScrap ?? '0',
+    rows[0]?.headerAssemblyScrapConvention ?? 'additive'
+  );
+  const effectiveRows = selectNodeTierRows(rows, node);
+  assertNodeRouting(run, node, effectiveRows, headerRoutingId);
+  // US-513：只有 consume 行进入七步需求链路；by_product / scrap_out 是反向物料流。
+  // 「无投入」的头（有行但没有 consume 行）整次拒绝，不把空结果当成功。
+  if (rows.length === 0 && byHeader.has(node.headerId)) return null;
+  if (!effectiveRows.some(row => row.flowDirection === 'consume')) {
+    throw new BomQuantityError('头没有 consume 行（无投入）：副产与废料行不能单独构成层级', node.path);
+  }
+  const layer: NodeLayer = {
+    node,
+    plannedPrime,
+    routingOps: headerRoutingId === null ? [] : (run.routing.opsByRouting.get(headerRoutingId) ?? []),
+    nextFrontier
+  };
+  collectOutputs(run, layer, effectiveRows);
+  const truncation = await emitPlainRows(run, layer, effectiveRows);
+  if (truncation !== null) return truncation;
+  return emitSubstituteGroups(run, layer, effectiveRows);
+};
+
+/** BFS 逐层展开：每层一次批量取行；任一节点触顶即终止整个展开。 */
+const explodeLevels = async (run: ExplosionRun): Promise<ExplosionResult['truncated']> => {
+  let frontier = [0];
+  while (frontier.length > 0) {
+    if (run.options.signal?.aborted) return { reason: 'cancelled' };
+    const headerIds = [...new Set(frontier.map(index => run.nodes[index].headerId))];
+    const byHeader = await fetchHeaderRows(run.query, run.dialect, run.context, headerIds, run.domainUnresolved);
+    const nextFrontier: number[] = [];
+    for (const nodeIndex of frontier) {
+      const reason = await explodeNode(run, run.nodes[nodeIndex], byHeader, nextFrontier);
+      if (reason !== null) return { reason };
+    }
+    frontier = nextFrontier;
+  }
+  return null;
+};
+
 /**
  * 七步数量展开：从父修订出发，逐层按七步公式产出需求行（虚拟件穿透、非虚拟件取整下传）。
  *
@@ -449,419 +977,60 @@ export const explodeBom = async (
 
   return adapter.transaction(async executor => {
     const query = (executor as unknown as BomQueryExecutor).query.bind(executor);
-    const childHeaders = new Map<string, ResolvedChildHeader | null>();
-    const readChildHeader = async (revisionId: string): Promise<ResolvedChildHeader | null> => {
-      if (!childHeaders.has(revisionId))
-        childHeaders.set(revisionId, await resolveChildHeader(query, dialect, context, revisionId));
-      return childHeaders.get(revisionId)!;
-    };
-
     // 1. 父修订与根头（与 resolveBom 同口径；多备选未裁决拒绝）
-    const parentSql = buildParentRevisionSql(dialect, {
-      itemId: target.parentItemId ?? '',
-      asOfDate: context.asOfDate,
-      explicitRevisionId: target.parentRevisionId
-    });
-    const parentResult = await query(parentSql.sql, parentSql.params);
-    const parentRow = parentResult.rows[0];
-    if (!parentRow) {
-      throw new BomResolutionError(
-        'parentRevisionId',
-        target.parentRevisionId !== undefined ? '父修订不存在' : '评估日前没有已发布的最新修订'
-      );
-    }
-    const parentRevisionId = readString(parentRow, parentResult.columns, 'revisionId');
-    const parentItemId = readString(parentRow, parentResult.columns, 'itemId');
-    if (parentRow[columnIndexOf(parentResult.columns, 'state')] !== 'released') {
-      throw new BomResolutionError('parentRevisionId', '父修订未发布，草稿不入数量展开');
-    }
-    const rootHeadersSql = buildAlternativeHeadersSql(dialect, {
-      parentRevisionId,
-      bomType: context.bomType,
-      orgId: context.orgId
-    });
-    const rootHeadersResult = await query(rootHeadersSql.sql, rootHeadersSql.params);
-    const selectedRootHeaders = selectRootAlternatives(
-      rootHeadersResult.rows.map(row => ({
-        row,
-        alternativeNo: Number(row[columnIndexOf(rootHeadersResult.columns, 'alternativeNo')])
-      })),
+    const root = await resolveExplosionRoot(query, dialect, context, target);
+    const run: ExplosionRun = {
+      query,
+      dialect,
       context,
-      parentRevisionId
-    );
-    if (selectedRootHeaders.length > 1) {
-      throw new BomResolutionError('alternativeNo', '根头存在多个备选，数量展开需要裁决（指定 alternativeNo）');
-    }
-    if (selectedRootHeaders.length === 0) {
-      throw new BomResolutionError('parentRevisionId', '根修订在上下文下没有已发布头');
-    }
-
-    // 2. BFS 七步
-    const conversions: ExplosionManifest['conversions'] = [];
-    // 第 5 步的工序损耗与分摊数据（全量加载，按 routing / occurrence 分组）
-    const opsByRouting = new Map<
-      string,
-      { operationSeq: number; operationScrap: string; scrapConvention: 'additive' | 'yield' }[]
-    >();
-    const opsResult = await query(
-      `SELECT "routingId", "operationSeq", "operationScrap", "scrapConvention" FROM ${dialect.table('routing_operation')} ORDER BY "operationSeq"`
-    );
-    for (const row of opsResult.rows) {
-      const routingId = readString(row, opsResult.columns, 'routingId');
-      const list = opsByRouting.get(routingId) ?? [];
-      list.push({
-        operationSeq: Number(row[columnIndexOf(opsResult.columns, 'operationSeq')]),
-        operationScrap: readString(row, opsResult.columns, 'operationScrap'),
-        scrapConvention: readString(row, opsResult.columns, 'scrapConvention') as 'additive' | 'yield'
-      });
-      opsByRouting.set(routingId, list);
-    }
-    const routingValidity = (
-      await query(
-        `SELECT "id" AS "id", "validFrom" AS "validFrom", "disabledAt" AS "disabledAt" FROM ${dialect.table('routing')}`
-      )
-    ).rows;
-    const routingUncovered = new Map<string, string>();
-    for (const row of routingValidity) {
-      const reason = routingUncoveredReason({ validFrom: row[1], disabledAt: row[2] }, context.asOfDate);
-      if (reason !== null) routingUncovered.set(String(row[0]), reason);
-    }
-    const splitsByOccurrence = new Map<string, { operationSeq: number; ratio: string }[]>();
-    const splitsResult = await query(
-      `SELECT "occurrenceId", "operationSeq", "ratio" FROM ${dialect.table('bom_line_operation_split')}`
-    );
-    for (const row of splitsResult.rows) {
-      const occurrenceId = readString(row, splitsResult.columns, 'occurrenceId');
-      const list = splitsByOccurrence.get(occurrenceId) ?? [];
-      list.push({
-        operationSeq: Number(row[columnIndexOf(splitsResult.columns, 'operationSeq')]),
-        ratio: readString(row, splitsResult.columns, 'ratio')
-      });
-      splitsByOccurrence.set(occurrenceId, list);
-    }
-    const recordConversion = (from: string, to: string, rate: string | null): void => {
-      if (from !== to) conversions.push({ from, to, rate });
+      options,
+      budget,
+      routing: await loadRoutingData(query, dialect, context.asOfDate),
+      childHeaders: new Map(),
+      domainUnresolved: [],
+      nodes: [],
+      requirementLines: [],
+      outputs: [],
+      penetrations: [],
+      unresolvedGroups: [],
+      occurrenceIds: [],
+      conversions: [],
+      expansions: 0
     };
-
-    // 根节点：plannedQty 归一到根头基准单位（buildAlternativeHeadersSql 已带 baseUom 列）
-    const rootHeader = selectedRootHeaders[0].row;
-    const rootHeaderId = String(rootHeader[columnIndexOf(rootHeadersResult.columns, 'headerId')]);
-    const rootBaseUom = readString(rootHeader, rootHeadersResult.columns, 'baseUom');
-    const rootPlanned = convertUom(options.plannedQty.value, options.plannedQty.uom, rootBaseUom);
-    recordConversion(options.plannedQty.uom, rootBaseUom, null);
-
-    const nodeRoutingOps = new Map<string, LayerRoutingOp[]>();
-    const nodes: ExplosionNode[] = [
-      {
-        path: [],
-        depth: 0,
-        headerId: rootHeaderId,
-        itemId: parentItemId,
-        revisionId: parentRevisionId,
-        plannedQty: decimalFromCanonical(rootPlanned),
-        baseUom: rootBaseUom
-      }
-    ];
-    const requirementLines: RequirementLine[] = [];
-    const outputs: OutputLine[] = [];
-    const penetrations: PenetrationRecord[] = [];
-    const unresolvedGroups: UnresolvedSubstituteGroup[] = [];
-    const domainUnresolved: UnresolvedAlternative[] = [];
-    const occurrenceIds: string[] = [];
-    let truncated: ExplosionResult['truncated'] = null;
-    let expansions = 0;
-    let frontier = [0];
-
-    while (frontier.length > 0) {
-      if (options.signal?.aborted) {
-        truncated = { reason: 'cancelled' };
-        break;
-      }
-      const headerIds = [...new Set(frontier.map(index => nodes[index].headerId))];
-      const byHeader = await fetchHeaderRows(query, dialect, context, headerIds, domainUnresolved);
-      const nextFrontier: number[] = [];
-
-      nodeLoop: for (const nodeIndex of frontier) {
-        const node = nodes[nodeIndex];
-        const rows = byHeader.get(node.headerId) ?? [];
-        // 第 5 步：缓存头路由的工序链（行查询带 headerRoutingId）
-        if (rows[0]?.headerRoutingId) {
-          nodeRoutingOps.set(node.headerId, opsByRouting.get(rows[0].headerRoutingId) ?? []);
-        }
-        // 2. 装配损耗
-        const plannedPrime = scrap(
-          node.plannedQty,
-          rows[0]?.headerAssemblyScrap ?? '0',
-          rows[0]?.headerAssemblyScrapConvention ?? 'additive'
-        );
-        // 3. 阶梯按损耗前 P 选行（普通行恒计入；共享实现，US-514 同源）
-        let effectiveRows: ExplosionRow[];
-        try {
-          effectiveRows = selectTierRows(rows, node.plannedQty);
-        } catch (error) {
-          throw new BomQuantityError(error instanceof Error ? error.message : String(error), node.path);
-        }
-
-        for (const row of effectiveRows) {
-          if (row.operationSeq === null && !splitsByOccurrence.has(row.occurrenceId)) continue;
-          const headerRoutingId = rows[0]?.headerRoutingId ?? null;
-          if (headerRoutingId === null) continue;
-          const uncoveredReason = routingUncovered.get(headerRoutingId);
-          if (uncoveredReason !== undefined) {
-            throw new BomQuantityError(
-              `路线未覆盖（${uncoveredReason}）：路线 ${headerRoutingId}、发生项 ${row.occurrenceId} 的投料工序在评估日不可用`,
-              node.path
-            );
-          }
-        }
-
-        // US-513：只有 consume 行进入七步需求链路；by_product / scrap_out 是反向物料流。
-        // 「无投入」的头（有行但没有 consume 行）整次拒绝，不把空结果当成功。
-        if (rows.length === 0 && byHeader.has(node.headerId)) continue nodeLoop;
-        if (!effectiveRows.some(row => row.flowDirection === 'consume')) {
-          throw new BomQuantityError('头没有 consume 行（无投入）：副产与废料行不能单独构成层级', node.path);
-        }
-
-        // 第 4~7 步的公共发射（闭包捕获本节点上下文）；返回触顶原因（调用方 break 外层循环）
-        const emitConsumeLine = async (
-          row: ExplosionRow,
-          gross: Decimal
-        ): Promise<{ truncated: TruncationReason | null }> => {
-          if (options.signal?.aborted) return { truncated: 'cancelled' };
-          const depth = node.depth + 1;
-          if (depth > budget.depth) return { truncated: 'depth' };
-          if (requirementLines.length + 1 > budget.paths) return { truncated: 'paths' };
-          if (expansions + 1 > budget.expansions) return { truncated: 'expansions' };
-          expansions += 1;
-          occurrenceIds.push(row.occurrenceId);
-          // 4~5. 组件损耗 + 固定损耗 + 工序损耗链/分摊（共享实现，US-514 同源）
-          const splits = splitsByOccurrence.get(row.occurrenceId) ?? [];
-          const layer = computeLayerNet(gross, row, {
-            plannedPrime,
-            headerBaseQty: row.headerBaseQty,
-            formulaParams: options.params,
-            routingOps: nodeRoutingOps.get(node.headerId) ?? [],
-            splits
-          });
-          const net = layer.net;
-          const operationScrappedValue: Decimal = layer.net;
-          const hasOperation = layer.hasOperation;
-          // 6. 单位换算（行 UoM → 子件库存 UoM）；第 7 步的库存 → 子头基准只用剩下未被消耗的率
-          const hops = rowHopRates(row);
-          const demand = decimalFromCanonical(
-            convertUom(decimalToCanonical(operationScrappedValue), row.occurrenceUom, row.childStockUom, hops.toStock)
-          );
-          recordConversion(
-            row.occurrenceUom,
-            row.childStockUom,
-            appliedUomRate(row.occurrenceUom, row.childStockUom, hops.toStock)
-          );
-          // 7. 穿透 / 产出需求行
-          const phantomSource =
-            row.phantomOverride !== null ? ('override' as const)
-            : row.childRevisionPhantom !== null ? ('revision' as const)
-            : ('fallback' as const);
-          const phantom = row.phantomOverride ?? row.childRevisionPhantom ?? false;
-          if (phantom) {
-            if (row.resolvedChildRevisionId === null) {
-              throw new BomQuantityError(`虚拟件 ${row.childItemId} 在评估日没有已发布修订，无法穿透`, [
-                ...node.path,
-                row.occurrenceId
-              ]);
-            }
-            const childHeader = await readChildHeader(row.resolvedChildRevisionId);
-            if (childHeader === null) {
-              throw new BomQuantityError(`虚拟件 ${row.childItemId} 在当前上下文下没有已发布 BOM 头`, [
-                ...node.path,
-                row.occurrenceId
-              ]);
-            }
-            const childPlanned = convertUom(
-              decimalToCanonical(demand),
-              row.childStockUom,
-              childHeader.baseUom,
-              hops.fromStock
-            );
-            recordConversion(
-              row.childStockUom,
-              childHeader.baseUom,
-              appliedUomRate(row.childStockUom, childHeader.baseUom, hops.fromStock)
-            );
-            penetrations.push({
-              path: [...node.path, row.occurrenceId],
-              occurrenceId: row.occurrenceId,
-              childItemId: row.childItemId,
-              revisionId: row.resolvedChildRevisionId,
-              source: phantomSource === 'override' ? 'override' : 'revision',
-              converted: { value: decimalToCanonical(demand), uom: row.childStockUom },
-              childPlanned: { value: childPlanned, uom: childHeader.baseUom }
-            });
-            nextFrontier.push(
-              nodes.push({
-                path: [...node.path, row.occurrenceId],
-                depth,
-                headerId: childHeader.headerId,
-                itemId: row.childItemId,
-                revisionId: row.resolvedChildRevisionId,
-                plannedQty: decimalFromCanonical(childPlanned),
-                baseUom: childHeader.baseUom
-              }) - 1
-            );
-          } else {
-            const rounded = ceilToDecimalPlaces(demand, row.childUomDecimals);
-            requirementLines.push({
-              path: [...node.path, row.occurrenceId],
-              itemId: row.childItemId,
-              revisionId: row.resolvedChildRevisionId,
-              qty: decimalToCanonical(rounded),
-              uom: row.childStockUom,
-              steps: {
-                planned: { value: decimalToCanonical(node.plannedQty), uom: node.baseUom },
-                assemblyScrapped: { value: decimalToCanonical(plannedPrime), uom: node.baseUom },
-                gross: { value: decimalToCanonical(gross), uom: row.occurrenceUom },
-                componentScrapped: { value: decimalToCanonical(net), uom: row.occurrenceUom },
-                operationScrapped:
-                  hasOperation ? { value: decimalToCanonical(operationScrappedValue), uom: row.occurrenceUom } : null,
-                converted: { value: decimalToCanonical(demand), uom: row.childStockUom },
-                phantom: { value: phantom, source: phantomSource, revisionId: row.resolvedChildRevisionId }
-              }
-            });
-            if (row.resolvedChildRevisionId !== null) {
-              const childHeader = await readChildHeader(row.resolvedChildRevisionId);
-              if (childHeader !== null) {
-                const childPlanned = convertUom(
-                  decimalToCanonical(rounded),
-                  row.childStockUom,
-                  childHeader.baseUom,
-                  hops.fromStock
-                );
-                recordConversion(
-                  row.childStockUom,
-                  childHeader.baseUom,
-                  appliedUomRate(row.childStockUom, childHeader.baseUom, hops.fromStock)
-                );
-                nextFrontier.push(
-                  nodes.push({
-                    path: [...node.path, row.occurrenceId],
-                    depth,
-                    headerId: childHeader.headerId,
-                    itemId: row.childItemId,
-                    revisionId: row.resolvedChildRevisionId,
-                    plannedQty: decimalFromCanonical(childPlanned),
-                    baseUom: childHeader.baseUom
-                  }) - 1
-                );
-              }
-            }
-          }
-          return { truncated: null };
-        };
-
-        // 第 3 步：行的组件毛需求（组 primary 与普通行共用）
-        const grossOf = (row: ExplosionRow): Decimal =>
-          computeGross(row, {
-            plannedPrime,
-            headerBaseQty: row.headerBaseQty,
-            formulaParams: options.params,
-            routingOps: [],
-            splits: []
-          });
-
-        // US-512 替代组：组内成员整体分摊，不走各自行的 qty
-        const substituteRows = effectiveRows.filter(row => row.substituteGroupId !== null);
-        // 反向流（by_product / scrap_out）已在上面循环进 outputs，这里只剩 consume 行
-        const plainRows = effectiveRows.filter(
-          row => row.substituteGroupId === null && row.flowDirection === 'consume'
-        );
-        const substituteGroups = new Map<string, ExplosionRow[]>();
-        for (const row of substituteRows) {
-          const list = substituteGroups.get(row.substituteGroupId as string);
-          if (list) list.push(row);
-          else substituteGroups.set(row.substituteGroupId as string, [row]);
-        }
-
-        // 反向物料流与普通 consume 行
-        for (const row of effectiveRows) {
-          if (row.flowDirection !== 'consume') {
-            const outputQuantity = computeOutputQuantity(
-              row,
-              row.flowDirection === 'produce' ? node.plannedQty : plannedPrime,
-              row.headerBaseQty,
-              options.params
-            );
-            outputs.push({
-              path: [...node.path, row.occurrenceId],
-              itemId: row.childItemId,
-              direction: row.flowDirection,
-              qty: decimalToCanonical(outputQuantity),
-              uom: row.occurrenceUom
-            });
-            occurrenceIds.push(row.occurrenceId);
-          }
-        }
-        for (const row of plainRows) {
-          const emitted = await emitConsumeLine(row, grossOf(row));
-          if (emitted.truncated !== null) {
-            truncated = { reason: emitted.truncated };
-            break nodeLoop;
-          }
-        }
-
-        // 替代组分流（AC#1/#2/#4/#8；共享纯函数，US-514 同源）
-        for (const members of substituteGroups.values()) {
-          const primary = members.find(member => member.substituteRole === 'primary');
-          if (!primary) continue; // 发布转移已校验恰好一个 primary
-          const primaryGross = grossOf(primary);
-          const allocated = (() => {
-            try {
-              return allocateSubstituteShares(
-                members.map(substituteMemberOf),
-                primaryGross,
-                context.substituteAvailabilities,
-                context.substituteSelections
-              );
-            } catch (error) {
-              throw new BomQuantityError(error instanceof Error ? error.message : String(error), [
-                ...node.path,
-                primary.occurrenceId
-              ]);
-            }
-          })();
-          if (allocated.unresolved) {
-            unresolvedGroups.push({
-              groupCode: allocated.unresolved.groupCode,
-              candidates: allocated.unresolved.candidates
-            });
-            continue;
-          }
-          for (const { member, gross } of allocated.shares) {
-            const source = members.find(candidate => candidate.occurrenceId === member.occurrenceId);
-            if (!source) continue;
-            const emitted = await emitConsumeLine(source, gross);
-            if (emitted.truncated !== null) {
-              truncated = { reason: emitted.truncated };
-              break nodeLoop;
-            }
-          }
-        }
-      }
-      if (truncated !== null) break;
-      frontier = nextFrontier;
-    }
+    // 2. 根节点：plannedQty 归一到根头基准单位，再 BFS 七步
+    const rootPlanned = convertUom(options.plannedQty.value, options.plannedQty.uom, root.baseUom);
+    recordConversion(run, options.plannedQty.uom, root.baseUom, null);
+    run.nodes.push({
+      path: [],
+      depth: 0,
+      headerId: root.headerId,
+      itemId: root.parentItemId,
+      revisionId: root.parentRevisionId,
+      plannedQty: decimalFromCanonical(rootPlanned),
+      baseUom: root.baseUom
+    });
+    const truncated = await explodeLevels(run);
 
     const manifest: ExplosionManifest = {
       context,
-      parentItemId,
-      parentRevisionId,
-      headerIds: nodes.map(node => node.headerId),
-      occurrenceIds,
-      conversions,
+      parentItemId: root.parentItemId,
+      parentRevisionId: root.parentRevisionId,
+      headerIds: run.nodes.map(node => node.headerId),
+      occurrenceIds: run.occurrenceIds,
+      conversions: run.conversions,
       formulaParams: options.params,
       formulaGrammarVersion: FORMULA_GRAMMAR_VERSION,
       algorithmVersion: EXPLOSION_ALGORITHM_VERSION,
-      unresolved: domainUnresolved
+      unresolved: run.domainUnresolved
     };
-    return { manifest, requirementLines, outputs, penetrations, unresolved: unresolvedGroups, truncated };
+    return {
+      manifest,
+      requirementLines: run.requirementLines,
+      outputs: run.outputs,
+      penetrations: run.penetrations,
+      unresolved: run.unresolvedGroups,
+      truncated
+    };
   }, false);
 };
 

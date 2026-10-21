@@ -3,7 +3,7 @@
  *
  * 双后端（wa-sqlite / pglite）同断言：整机成本卷算逐项等于手写 golden D
  * （材料/加工/制费/抵减/总额）；缺成本子件报缺失不以 0 兜底；EBOM↔MBOM split 映射
- * 双向可追溯（同一源行三个目标行）。
+ * 双向可追溯（同一源行三个目标行，两张根头挂在同一物料的同一修订上）。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -114,7 +114,20 @@ for (const backend of BACKENDS) {
         await loadScooterDatasetD(adapter, itemIds);
         const scopeId = deterministicId('map-scope:D');
         const ebomHeaderId = deterministicId('header:SHEET-ASSY:A');
-        const mbomHeaderId = deterministicId('header:SHEET-ASSY-M:A');
+        const mbomHeaderId = deterministicId('header:SHEET-ASSY:A:mbom');
+        // 变换范围两侧父件同一物料（US-516）：两张头挂在 SHEET-ASSY 的同一修订 A 上
+        const headerTable = backend === 'wa-sqlite' ? '"bom$bom_header"' : '"bom"."bom_header"';
+        const revisionTable = backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"';
+        const roots = shapeRows(
+          await adapter.rawQuery(
+            `SELECT h."id", h."bomType", h."parentRevisionId", r."itemId" FROM ${headerTable} h JOIN ${revisionTable} r ON r."id" = h."parentRevisionId" WHERE h."id" IN ('${ebomHeaderId}', '${mbomHeaderId}') ORDER BY h."bomType"`
+          )
+        ).map(row => row.map(String));
+        const revisionId = deterministicId('revision:SHEET-ASSY:A');
+        expect(roots).toEqual([
+          [ebomHeaderId, 'ebom', revisionId, goldenItemId('SHEET-ASSY')],
+          [mbomHeaderId, 'mbom', revisionId, goldenItemId('SHEET-ASSY')]
+        ]);
         const lineTable = backend === 'wa-sqlite' ? '"bom$bom_line"' : '"bom"."bom_line"';
         const ebomLineId = String(
           shapeRows(
@@ -128,6 +141,7 @@ for (const backend of BACKENDS) {
             `SELECT l."id" FROM ${lineTable} l WHERE l."headerId" = '${mbomHeaderId}' ORDER BY l."lineNo" ASC`
           )
         ).map(row => String(row[0]));
+        expect(mbomLineIds).toHaveLength(3);
         const rows = shapeRows(
           await adapter.rawQuery(
             `SELECT "relation", "sourceLineId", "targetLineId" FROM ${backend === 'wa-sqlite' ? '"bom$bom_map"' : '"bom"."bom_map"'} WHERE "scopeId" = '${scopeId}' ORDER BY "targetLineId"`

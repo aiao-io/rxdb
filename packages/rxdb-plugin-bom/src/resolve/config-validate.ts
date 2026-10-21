@@ -24,24 +24,13 @@ import { lotMatches, parseLotCodes, unitIntervalMatches, unitIntervalOverlaps } 
 const positionOf = (expression: string, offset: number | undefined): string =>
   offset === undefined ? '' : `（${positionText(expression, offset)}）`;
 
-/**
- * 保存期校验选择条件的引用（AC#5）：解析后遍历 AST，特征与值必须存在于已知集合。
- *
- * @remarks
- * 语法错误由 {@link parseCondition} 原样上抛（BomConfigSyntaxError，是 BomConfigError 的子类）；
- * 未知标识逐个收集、一次性点名（每个都带行 / 列位置），不静默放行。
- *
- * @param expression - 条件表达式文本
- * @param knownChars - 已存在的特征 code 集合（如本组织的 config_char）
- * @param knownValues - 已存在的选项值集合（如本组织的 config_char_value）
- * @throws {@link BomConfigError} 引用未知特征 / 值（点名标识与位置）
- */
-export const validateConditionReferences = (
+/** 已解析条件的引用校验（求值期复用快照里的 AST，不再重解析）；口径同 {@link validateConditionReferences}。 */
+const assertAstReferences = (
   expression: string,
+  ast: ConditionAst,
   knownChars: Set<string>,
   knownValues: Set<string> | Map<string, Set<string>>
 ): void => {
-  const { ast } = parseCondition(expression);
   const problems: string[] = [];
   const visit = (node: ConditionAst): void => {
     switch (node.kind) {
@@ -71,6 +60,24 @@ export const validateConditionReferences = (
     throw new BomConfigError(`条件 ${expression}`, problems.join('；'));
   }
 };
+
+/**
+ * 保存期校验选择条件的引用（AC#5）：解析后遍历 AST，特征与值必须存在于已知集合。
+ *
+ * @remarks
+ * 语法错误由 {@link parseCondition} 原样上抛（BomConfigSyntaxError，是 BomConfigError 的子类）；
+ * 未知标识逐个收集、一次性点名（每个都带行 / 列位置），不静默放行。
+ *
+ * @param expression - 条件表达式文本
+ * @param knownChars - 已存在的特征 code 集合（如本组织的 config_char）
+ * @param knownValues - 已存在的选项值集合（如本组织的 config_char_value）
+ * @throws {@link BomConfigError} 引用未知特征 / 值（点名标识与位置）
+ */
+export const validateConditionReferences = (
+  expression: string,
+  knownChars: Set<string>,
+  knownValues: Set<string> | Map<string, Set<string>>
+): void => assertAstReferences(expression, parseCondition(expression).ast, knownChars, knownValues);
 
 /**
  * 必选特征完整性判定（AC#3）
@@ -154,49 +161,58 @@ export const checkConfigConflicts = (
   return conflicts;
 };
 
+/**
+ * 读事务执行器的查询面。
+ *
+ * @remarks
+ * 同一函数实例即同一读事务快照：组织级配置按函数实例缓存（见 {@link configSnapshots}），
+ * 调用方须在每个事务回调内新建绑定（`executor.query.bind(executor)`），不得跨事务复用同一实例。
+ */
 interface ConfigurationQuery {
   (sql: string, params?: unknown[]): Promise<{ columns: string[]; rows: unknown[][] }>;
 }
 
-/** 在调用方的快照内按组织读取配置，校验相关必选特征、输入取值与约束后求值。 */
-export const evaluateConfigConditions = async (
+/** 一个组织在一次读事务快照里的配置：四张表的读取结果，条件 AST 与引用校验按条件 id 记忆。 */
+interface OrgConfigSnapshot {
+  conditions: Map<string, { expression: string; version: string }>;
+  /** config_char 行（id / code / required，按 code 序）。 */
+  chars: unknown[][];
+  knownChars: Set<string>;
+  values: Map<string, Set<string>>;
+  /** config_constraint 行（code / kind / 左右条件 id，按 code 序）。 */
+  constraints: unknown[][];
+  asts: Map<string, ConditionAst>;
+  /** 已通过引用校验的条件 id：快照内特征 / 值集合不变，结论不变。 */
+  checked: Set<string>;
+}
+
+/**
+ * 读事务内的组织级配置快照：解析 / 下钻 / 反查 / 数量爆炸按层 × 分块多次求值，同一事务只读一次四张表、
+ * 每个条件只解析一次。以查询函数实例为键——读引擎都在事务回调内新建绑定，事务结束即随函数回收，不跨事务复用。
+ */
+const configSnapshots = new WeakMap<ConfigurationQuery, Map<string, OrgConfigSnapshot>>();
+
+/** 读一个组织的四张配置表（调用方的读事务快照内）。 */
+const loadOrgConfig = async (
   query: ConfigurationQuery,
   dialect: BomSqlDialect,
-  context: ResolutionContext,
-  conditionIds: string[]
-): Promise<Map<string, boolean>> => {
-  const truth = new Map<string, boolean>();
-  if (conditionIds.length === 0 && context.configSelection === undefined) return truth;
-  const selection = context.configSelection ?? {};
-  const org = [context.orgId];
+  orgId: string
+): Promise<OrgConfigSnapshot> => {
+  const org = [orgId];
   const conditionResult = await query(
     `SELECT "id", "expression", "grammarVersion" FROM ${dialect.table('config_condition')} WHERE "orgId" = ${dialect.placeholder(0)} ORDER BY "id"`,
     org
   );
-  const conditions = new Map(
-    conditionResult.rows.map(row => [String(row[0]), { expression: String(row[1]), version: String(row[2]) }])
-  );
-  const asts = new Map<string, ConditionAst>();
-  const astOf = (id: string): ConditionAst => {
-    const cached = asts.get(id);
-    if (cached !== undefined) return cached;
-    const condition = conditions.get(id);
-    if (condition === undefined) throw new BomConfigError(id, '选择条件不存在或不属于当前组织');
-    if (condition.version !== CONDITION_GRAMMAR_VERSION)
-      throw new BomConfigError(id, `不支持的条件语法版本「${condition.version}」`);
-    const ast = parseCondition(condition.expression).ast;
-    asts.set(id, ast);
-    return ast;
-  };
-  const relevant = new Set(conditionIds.flatMap(id => extractCharCodes(astOf(id))));
-  for (const code of Object.keys(selection)) relevant.add(code);
   const charResult = await query(
     `SELECT "id", "code", "required" FROM ${dialect.table('config_char')} WHERE "orgId" = ${dialect.placeholder(0)} ORDER BY "code"`,
     org
   );
-  const knownChars = new Set(charResult.rows.map(row => String(row[1])));
   const valuesResult = await query(
     `SELECT c."code", v."value" FROM ${dialect.table('config_char_value')} v JOIN ${dialect.table('config_char')} c ON c."id" = v."charId" WHERE c."orgId" = ${dialect.placeholder(0)}`,
+    org
+  );
+  const constraintResult = await query(
+    `SELECT "code", "kind", "leftConditionId", "rightConditionId" FROM ${dialect.table('config_constraint')} WHERE "orgId" = ${dialect.placeholder(0)} ORDER BY "code"`,
     org
   );
   const values = new Map<string, Set<string>>();
@@ -206,21 +222,66 @@ export const evaluateConfigConditions = async (
     list.add(String(row[1]));
     values.set(code, list);
   }
+  return {
+    conditions: new Map(
+      conditionResult.rows.map(row => [String(row[0]), { expression: String(row[1]), version: String(row[2]) }])
+    ),
+    chars: charResult.rows,
+    knownChars: new Set(charResult.rows.map(row => String(row[1]))),
+    values,
+    constraints: constraintResult.rows,
+    asts: new Map(),
+    checked: new Set()
+  };
+};
+
+/** 本读事务内该组织的配置快照：首次读取，其后复用。 */
+const orgConfigOf = async (
+  query: ConfigurationQuery,
+  dialect: BomSqlDialect,
+  orgId: string
+): Promise<OrgConfigSnapshot> => {
+  const byOrg = configSnapshots.get(query) ?? new Map<string, OrgConfigSnapshot>();
+  configSnapshots.set(query, byOrg);
+  const cached = byOrg.get(orgId);
+  if (cached !== undefined) return cached;
+  const snapshot = await loadOrgConfig(query, dialect, orgId);
+  byOrg.set(orgId, snapshot);
+  return snapshot;
+};
+
+/** 快照内条件的 AST（解析一次）：不存在 / 不属于当前组织、语法版本不支持即违约。 */
+const conditionAst = (config: OrgConfigSnapshot, id: string): ConditionAst => {
+  const cached = config.asts.get(id);
+  if (cached !== undefined) return cached;
+  const condition = config.conditions.get(id);
+  if (condition === undefined) throw new BomConfigError(id, '选择条件不存在或不属于当前组织');
+  if (condition.version !== CONDITION_GRAMMAR_VERSION)
+    throw new BomConfigError(id, `不支持的条件语法版本「${condition.version}」`);
+  const ast = parseCondition(condition.expression).ast;
+  config.asts.set(id, ast);
+  return ast;
+};
+
+/** 配置输入的特征与取值必须是本组织已定义的。 */
+const assertSelectionKnown = (config: OrgConfigSnapshot, selection: Record<string, string[]>): void => {
   for (const [code, selected] of Object.entries(selection)) {
-    if (!knownChars.has(code)) throw new BomConfigError('配置输入', `未知特征「${code}」`);
+    if (!config.knownChars.has(code)) throw new BomConfigError('配置输入', `未知特征「${code}」`);
     for (const value of selected) {
-      if (!values.get(code)?.has(value)) throw new BomConfigError('配置输入', `特征「${code}」未知值「${value}」`);
+      if (!config.values.get(code)?.has(value)) {
+        throw new BomConfigError('配置输入', `特征「${code}」未知值「${value}」`);
+      }
     }
   }
-  const constraintResult = await query(
-    `SELECT "code", "kind", "leftConditionId", "rightConditionId" FROM ${dialect.table('config_constraint')} WHERE "orgId" = ${dialect.placeholder(0)} ORDER BY "code"`,
-    org
-  );
-  const constraints = constraintResult.rows.map(row => ({
+};
+
+/** 与相关特征连通的依赖约束（按约束传递闭包扩张相关特征集，`relevant` 原地扩张）。 */
+const activeConstraints = (config: OrgConfigSnapshot, relevant: Set<string>): ConfigConstraintInput[] => {
+  const constraints = config.constraints.map(row => ({
     code: String(row[0]),
     kind: String(row[1]) as ConfigConstraintInput['kind'],
-    leftAst: astOf(String(row[2])),
-    rightAst: astOf(String(row[3]))
+    leftAst: conditionAst(config, String(row[2])),
+    rightAst: conditionAst(config, String(row[3]))
   }));
   const active = new Set<ConfigConstraintInput>();
   let count = -1;
@@ -233,17 +294,46 @@ export const evaluateConfigConditions = async (
       for (const code of codes) relevant.add(code);
     }
   }
-  const required = charResult.rows
+  return [...active];
+};
+
+/** 求值前的引用校验（与保存期同口径，不重解析）：快照内特征 / 值集合不变，每个条件只校验一次。 */
+const assertReferencesOnce = (config: OrgConfigSnapshot, id: string): void => {
+  const condition = config.conditions.get(id);
+  if (condition === undefined || config.checked.has(id)) return;
+  assertAstReferences(condition.expression, conditionAst(config, id), config.knownChars, config.values);
+  config.checked.add(id);
+};
+
+/**
+ * 在调用方的读事务快照内按组织读取配置（同一事务只读一次），校验相关必选特征、输入取值与约束后求值。
+ *
+ * @param query - 当前读事务的查询函数（每个事务新建，见 {@link ConfigurationQuery}）
+ */
+export const evaluateConfigConditions = async (
+  query: ConfigurationQuery,
+  dialect: BomSqlDialect,
+  context: ResolutionContext,
+  conditionIds: string[]
+): Promise<Map<string, boolean>> => {
+  const truth = new Map<string, boolean>();
+  if (conditionIds.length === 0 && context.configSelection === undefined) return truth;
+  const selection = context.configSelection ?? {};
+  const config = await orgConfigOf(query, dialect, context.orgId);
+  const relevant = new Set(conditionIds.flatMap(id => extractCharCodes(conditionAst(config, id))));
+  for (const code of Object.keys(selection)) relevant.add(code);
+  assertSelectionKnown(config, selection);
+  const active = activeConstraints(config, relevant);
+  const required = config.chars
     .filter(row => Boolean(row[2]) && relevant.has(String(row[1])))
     .map(row => String(row[1]));
   const missing = checkConfigCompleteness(selection, required);
   if (missing.length > 0) throw new BomConfigError('配置输入', `配置不完整：必选特征未赋值——${missing.join('、')}`);
-  const conflicts = checkConfigConflicts([...active], selection);
+  const conflicts = checkConfigConflicts(active, selection);
   if (conflicts.length > 0) throw new BomConfigError('配置输入', conflicts.join('；'));
   for (const id of conditionIds) {
-    const condition = conditions.get(id);
-    if (condition !== undefined) validateConditionReferences(condition.expression, knownChars, values);
-    truth.set(id, evaluateCondition(astOf(id), selection));
+    assertReferencesOnce(config, id);
+    truth.set(id, evaluateCondition(conditionAst(config, id), selection));
   }
   return truth;
 };
@@ -281,7 +371,11 @@ const ambiguityReason = (group: ResolutionFilterRow[], context: ResolutionContex
   return context.lot === undefined ? 'lot' : 'unit';
 };
 
-/** 依次按序列、批次、配置过滤，同逻辑行多候选显式标未解析。 */
+/**
+ * 依次按序列、批次、配置过滤，同逻辑行多候选显式标未解析。
+ *
+ * @param query - 当前读事务的查询函数（每个事务新建；同一实例内配置只读一次，见 {@link ConfigurationQuery}）
+ */
 export const filterResolutionRows = async <T extends ResolutionFilterRow>(
   query: ConfigurationQuery,
   dialect: BomSqlDialect,

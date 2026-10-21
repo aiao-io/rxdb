@@ -27,7 +27,7 @@ const result: ExplosionResult = {
 describe('设计与制造清单的物料名称', () => {
   afterEach(() => TestBed.resetTestingModule());
 
-  it('两张清单的描述同时包含中文名称与完整编码', async () => {
+  it('两张清单的描述是同一物料的中文名称与完整编码，并点明设计 / 制造清单', async () => {
     const service = {
       ready: signal(true),
       dataEpoch: signal(0),
@@ -44,11 +44,12 @@ describe('设计与制造清单的物料名称', () => {
     await fixture.whenStable();
     const host = fixture.nativeElement as HTMLElement;
 
+    // 变换范围两侧父件同一物料（US-516）：两张清单同名同码，靠设计 / 制造清单区分
     expect(host.querySelector('[data-testid=ebom-tree] .panel-desc')?.textContent).toMatch(
-      /[\u4e00-\u9fff]+（SHEET-ASSY）/
+      /[\u4e00-\u9fff]+（SHEET-ASSY）的设计清单：/
     );
     expect(host.querySelector('[data-testid=mbom-tree] .panel-desc')?.textContent).toMatch(
-      /[\u4e00-\u9fff]+（SHEET-ASSY-M）/
+      /[\u4e00-\u9fff]+（SHEET-ASSY）的制造清单：/
     );
     expect(service.dualExplode).toHaveBeenCalledExactlyOnceWith('2026-09-22');
   });

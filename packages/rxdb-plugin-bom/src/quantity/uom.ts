@@ -8,7 +8,7 @@
  */
 
 import { BomQuantityError } from '../types.js';
-import { decimalDiv, decimalFromCanonical, decimalMul, decimalToCanonical } from './decimal.js';
+import { decimalDiv, decimalFromCanonical, decimalIsZero, decimalMul, decimalToCanonical } from './decimal.js';
 
 /**
  * 时间单位表（US-514 AC#19）：60 进制不走 10 幂词根表，按秒数折算；
@@ -143,5 +143,11 @@ export const convertUom = (value: string, from: string, to: string, rates: UomCo
   if (!rate) {
     throw new BomQuantityError(`从 ${from} 换算到 ${to} 缺换算率（跨量纲只经行级 / 物料级显式换算率，不默认 1）`);
   }
-  return decimalToCanonical(decimalDiv(decimalFromCanonical(value), decimalFromCanonical(rate)));
+  const divisor = decimalFromCanonical(rate);
+  // 0 是写入期合法的规范串，但「1 目标单位含 0 源单位」不构成换算：按数量违约拒绝，不让 kernel 的除零错误裸抛
+  if (decimalIsZero(divisor)) {
+    const level = rates.lineRate === null || rates.lineRate === undefined ? '物料级' : '行级';
+    throw new BomQuantityError(`从 ${from} 换算到 ${to} 的${level}换算率为 0（1 ${to} 含 0 ${from} 不构成换算）`);
+  }
+  return decimalToCanonical(decimalDiv(decimalFromCanonical(value), divisor));
 };

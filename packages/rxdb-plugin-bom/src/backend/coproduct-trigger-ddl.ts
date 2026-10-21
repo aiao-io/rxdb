@@ -1,4 +1,25 @@
-import { EntityMetadata, quoteSqlIdentifier } from '@aiao/rxdb';
+import { EntityMetadata, type EntityType } from '@aiao/rxdb';
+import {
+  BomEcn,
+  BomHeader,
+  BomHistoryBatch,
+  BomItem,
+  BomItemRevision,
+  BomLine,
+  BomLineDesignator,
+  BomLineOccurrence,
+  BomLineOperationSplit
+} from '../entities.js';
+import {
+  isEntity,
+  pgCreateTrigger,
+  pgTableOf,
+  pgTableRef,
+  pgTriggerFunction,
+  sqliteTableOf,
+  sqliteTableRef,
+  sqliteTrigger
+} from './ddl-kit.js';
 
 type Backend = 'sqlite' | 'pg';
 type Guard = readonly [field: string, violation: string];
@@ -10,10 +31,8 @@ interface Projection {
   historical?: string;
 }
 
-const table = (metadata: EntityMetadata, backend: Backend, name: string): string =>
-  backend === 'sqlite' ?
-    quoteSqlIdentifier(`${metadata.namespace}$${name}`)
-  : `${quoteSqlIdentifier(metadata.namespace)}.${quoteSqlIdentifier(name)}`;
+const table = (backend: Backend, Entity: EntityType): string =>
+  backend === 'sqlite' ? sqliteTableOf(Entity) : pgTableOf(Entity);
 
 const publishError = (detail: string): string => `rxdb:bom_publish_validation:联产:${detail}`;
 const fieldError = (field: string): string =>
@@ -28,17 +47,10 @@ const shareValid = (backend: Backend): string =>
     `substr(NEW."jointCostShare", 3) NOT GLOB '*[^0-9]*' AND substr(NEW."jointCostShare", -1) BETWEEN '1' AND '9'))`
   : `NEW."jointCostShare" ~ '^(0|1|0\\.[0-9]{0,8}[1-9])$'`;
 
-const sqliteTrigger = (tableRef: string, name: string, event: string, body: string, when?: string): string[] => [
-  `DROP TRIGGER IF EXISTS ${quoteSqlIdentifier(name)};`,
-  `CREATE TRIGGER ${quoteSqlIdentifier(name)} ${event} ON ${tableRef}` +
-    `${when ? ` WHEN ${when}` : ''} BEGIN\n${body}\nEND;`
-];
-
+/** 联产守卫的触发器函数与触发器同名。 */
 const pgTrigger = (metadata: EntityMetadata, name: string, event: string, body: string): string[] => [
-  `CREATE OR REPLACE FUNCTION ${quoteSqlIdentifier(metadata.namespace)}.${quoteSqlIdentifier(name)}() RETURNS trigger AS $$\nBEGIN\n${body}\nRETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;`,
-  `DO $$ BEGIN DROP TRIGGER IF EXISTS ${quoteSqlIdentifier(name)} ON ${table(metadata, 'pg', metadata.tableName)}; ` +
-    `CREATE TRIGGER ${quoteSqlIdentifier(name)} ${event} ON ${table(metadata, 'pg', metadata.tableName)} ` +
-    `FOR EACH ROW EXECUTE FUNCTION ${metadata.namespace}.${name}(); END $$;`
+  pgTriggerFunction(metadata, name, body),
+  pgCreateTrigger(metadata, pgTableRef(metadata), name, event, name)
 ];
 
 const unitRoot = (value: string): string =>
@@ -48,10 +60,10 @@ const unitRoot = (value: string): string =>
   `WHEN ${value} IN ('s', 'min', 'h') THEN 'time' ELSE ${value} END`;
 
 const occurrenceGuards = (metadata: EntityMetadata, backend: Backend): Guard[] => {
-  const revision = table(metadata, backend, 'item_revision');
-  const line = table(metadata, backend, 'bom_line');
-  const header = table(metadata, backend, 'bom_header');
-  const item = table(metadata, backend, 'item');
+  const revision = table(backend, BomItemRevision);
+  const line = table(backend, BomLine);
+  const header = table(backend, BomHeader);
+  const item = table(backend, BomItem);
   const guards: Guard[] = [
     ['qty', `NEW."qty" IS NULL OR NEW."qty" = '0'`],
     [
@@ -96,14 +108,11 @@ const occurrenceGuards = (metadata: EntityMetadata, backend: Backend): Guard[] =
     'selectionConditionId'
   ];
   guards.push(...nullable.map(field => [field, `NEW."${field}" IS NOT NULL`] as const));
-  for (const [name, field] of [
-    ['bom_line_designator', 'designators'],
-    ['bom_line_operation_split', 'operationSplits']
+  for (const [Entity, field] of [
+    [BomLineDesignator, 'designators'],
+    [BomLineOperationSplit, 'operationSplits']
   ] as const) {
-    guards.push([
-      field,
-      `EXISTS (SELECT 1 FROM ${table(metadata, backend, name)} s WHERE s."occurrenceId" = NEW."id")`
-    ]);
+    guards.push([field, `EXISTS (SELECT 1 FROM ${table(backend, Entity)} s WHERE s."occurrenceId" = NEW."id")`]);
   }
   return [
     ['jointCostShare', `NEW."flowDirection" <> 'produce' AND NEW."jointCostShare" IS NOT NULL`],
@@ -113,15 +122,15 @@ const occurrenceGuards = (metadata: EntityMetadata, backend: Backend): Guard[] =
 };
 
 const rowGuards = (metadata: EntityMetadata, backend: Backend): Guard[] => {
-  if (metadata.name === 'BomHeader' || metadata.name === 'BomLineOccurrence') {
+  if (isEntity(metadata, BomHeader, BomLineOccurrence)) {
     const guards: Guard[] = [['jointCostShare', `NEW."jointCostShare" IS NOT NULL AND NOT (${shareValid(backend)})`]];
-    return metadata.name === 'BomLineOccurrence' ? [...guards, ...occurrenceGuards(metadata, backend)] : guards;
+    return isEntity(metadata, BomLineOccurrence) ? [...guards, ...occurrenceGuards(metadata, backend)] : guards;
   }
-  if (!['BomLineDesignator', 'BomLineOperationSplit'].includes(metadata.name)) return [];
+  if (!isEntity(metadata, BomLineDesignator, BomLineOperationSplit)) return [];
   return [
     [
-      metadata.name === 'BomLineDesignator' ? 'designators' : 'operationSplits',
-      `EXISTS (SELECT 1 FROM ${table(metadata, backend, 'bom_line_occurrence')} o ` +
+      isEntity(metadata, BomLineDesignator) ? 'designators' : 'operationSplits',
+      `EXISTS (SELECT 1 FROM ${table(backend, BomLineOccurrence)} o ` +
         `WHERE o."id" = NEW."occurrenceId" AND o."flowDirection" = 'produce')`
     ]
   ];
@@ -136,11 +145,11 @@ const fixedShare = (backend: Backend, expression: string): string => {
 };
 
 const projectionQuery = (metadata: EntityMetadata, backend: Backend, options: Projection): string => {
-  const header = table(metadata, backend, 'bom_header');
-  const revision = table(metadata, backend, 'item_revision');
-  const line = table(metadata, backend, 'bom_line');
-  const occurrence = table(metadata, backend, 'bom_line_occurrence');
-  const ecn = table(metadata, backend, 'ecn');
+  const header = table(backend, BomHeader);
+  const revision = table(backend, BomItemRevision);
+  const line = table(backend, BomLine);
+  const occurrence = table(backend, BomLineOccurrence);
+  const ecn = table(backend, BomEcn);
   const target = options.targetEcnId;
   const visible = (alias: string): string =>
     `(${alias}."ecnInId" IS NULL OR ` +
@@ -201,7 +210,7 @@ export const buildSqliteCoproductProjectionChecks = (
 ): string[] => {
   const historical =
     historyBatchNo === 'NULL' ? '0' : (
-      `EXISTS (SELECT 1 FROM ${table(metadata, 'sqlite', 'bom_history_batch')} b WHERE b."batchNo" = ${historyBatchNo} AND b."state" = 'open')`
+      `EXISTS (SELECT 1 FROM ${sqliteTableOf(BomHistoryBatch)} b WHERE b."batchNo" = ${historyBatchNo} AND b."state" = 'open')`
     );
   return [sqliteProjectionCheck(projectionQuery(metadata, 'sqlite', { targetEcnId, startDate, historical }))];
 };
@@ -215,7 +224,7 @@ export const buildPgCoproductProjectionChecks = (
 ): string[] => {
   const historical =
     historyBatchNo === 'NULL' ? 'FALSE' : (
-      `EXISTS (SELECT 1 FROM ${table(metadata, 'pg', 'bom_history_batch')} b WHERE b."batchNo" = ${historyBatchNo} AND b."state" = 'open')`
+      `EXISTS (SELECT 1 FROM ${pgTableOf(BomHistoryBatch)} b WHERE b."batchNo" = ${historyBatchNo} AND b."state" = 'open')`
     );
   return [pgProjectionCheck(projectionQuery(metadata, 'pg', { targetEcnId: `${target}."id"`, startDate, historical }))];
 };
@@ -224,14 +233,14 @@ export const buildPgCoproductProjectionChecks = (
 export const buildSqliteCoproductDdl = (metadata: EntityMetadata): string[] => {
   const guards = rowGuards(metadata, 'sqlite');
   if (guards.length === 0) return [];
-  const tableRef = table(metadata, 'sqlite', metadata.tableName);
+  const tableRef = sqliteTableRef(metadata);
   const body = guards
     .map(([field, violation]) => `SELECT RAISE(ABORT, '${fieldError(field)}') WHERE ${violation};`)
     .join('\n');
   const statements = ['INSERT', 'UPDATE'].flatMap(event =>
     sqliteTrigger(tableRef, `${metadata.tableName}_coproduct_${event.toLowerCase()}`, `BEFORE ${event}`, body)
   );
-  if (metadata.name !== 'BomHeader') return statements;
+  if (!isEntity(metadata, BomHeader)) return statements;
   const check = sqliteProjectionCheck(projectionQuery(metadata, 'sqlite', { headerId: 'NEW."id"' }));
   statements.push(
     ...sqliteTrigger(
@@ -267,7 +276,7 @@ export const buildPgCoproductDdl = (metadata: EntityMetadata): string[] => {
     .map(([field, violation]) => `IF ${violation} THEN RAISE EXCEPTION '${fieldError(field)}'; END IF;`)
     .join('\n');
   const statements = pgTrigger(metadata, `${metadata.tableName}__coproduct_guard`, 'BEFORE INSERT OR UPDATE', body);
-  if (metadata.name !== 'BomHeader') return statements;
+  if (!isEntity(metadata, BomHeader)) return statements;
   const check = pgProjectionCheck(projectionQuery(metadata, 'pg', { headerId: 'NEW."id"' }));
   statements.push(
     ...pgTrigger(

@@ -29,6 +29,7 @@ async function openIsolatedFolder(page: Page): Promise<void> {
   await folder.getByRole('button', { name }).click();
   await expect(page).toHaveURL(new RegExp(`/opfs/${name}$`));
   await expect(folder).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '上传文件', exact: true })).toBeVisible();
 }
 
 test.describe('OPFS Page', () => {

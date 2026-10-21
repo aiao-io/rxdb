@@ -9,7 +9,9 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BomEcn, BomHeader, BomItem, BomLine, BomLineOccurrence, BomSubstituteGroup } from '../entities.js';
+import { bomSqlDialectFor } from '../resolve/bom-sql.js';
 import { loadHistory } from '../resolve/history-loader.js';
+import { resolveBom } from '../resolve/resolver.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
@@ -149,6 +151,41 @@ for (const backend of BACKENDS) {
       await expect(releaseEcn(e1)).rejects.toThrow(/合计|1\.1|≠ 1/);
       // ② 单独发布 E2：0.5 + 0.4 = 0.9 → 拒
       await expect(releaseEcn(e2)).rejects.toThrow(/合计|0\.9|≠ 1/);
+      // ③ 改由一张 ECN 同时换 A、B：先撤回两张草稿（级联删除其引入、恢复截止标记），E3 截止 A、B 并引入
+      // 0.6 / 0.4；另留一张同日草稿 E4 往同组再加 0.3 的成员——E4 未发布，不进 E3 的运行投影
+      for (const draft of [e1, e2]) {
+        draft.state = 'cancelled';
+        await draft.save();
+      }
+      const e3 = await makeEcn('s23c', '2026-11-01');
+      const dialect = bomSqlDialectFor(backend);
+      for (const member of [memberA, memberB]) {
+        // 直连 SQL 打截止标记：内存实体仍是撤回前的旧值，经实体保存会算错补丁
+        await adapter.rawQuery(
+          `UPDATE ${dialect.table('bom_line_occurrence')} SET "ecnOutId" = ${dialect.placeholder(0)}, "effectiveTo" = ${dialect.placeholder(1)} WHERE "id" = ${dialect.placeholder(2)}`,
+          [e3.id, '2026-11-01T00:00:00.000Z', member.id]
+        );
+      }
+      const nextA = await addMember(header, child, groupId, 'primary', '0.6', null, undefined, e3);
+      const nextB = await addMember(header, child, groupId, 'substitute', '0.4', null, undefined, e3);
+      const e4 = await makeEcn('s23d', '2026-11-01');
+      const extra = await addMember(header, child, groupId, 'substitute', '0.3', null, undefined, e4);
+      await expect(releaseEcn(e3)).resolves.toBeUndefined();
+      const ecnRows = (await adapter.rawQuery(
+        `SELECT "state" FROM ${dialect.table('ecn')} WHERE "id" = ${dialect.placeholder(0)}`,
+        [e3.id]
+      )) as unknown as { rows: unknown[][] };
+      expect(ecnRows.rows.map(row => String(row[0]))).toEqual(['released']);
+      // 发布后的运行投影：生效日起是 A' / B'（0.6 + 0.4），旧成员截止、E4 的成员不可见
+      const after = await resolveBom(
+        adapter,
+        { bomType: 'ebom', orgId: 'org-x', asOfDate: day('2026-12-01') },
+        { parentItemId: parent.id }
+      );
+      expect(after.occurrences.map(occurrence => occurrence.occurrenceId).sort()).toEqual([nextA.id, nextB.id].sort());
+      expect(after.occurrences.map(occurrence => occurrence.occurrenceId)).not.toContain(extra.id);
+      // E4 自己发布时才计入：0.6 + 0.4 + 0.3 = 1.3 → 拒
+      await expect(releaseEcn(e4)).rejects.toThrow(/合计|1\.3|≠ 1/);
     });
 
     it('AC#24 另一张草稿让组合计非法：本次发布不受拖累；那张草稿自己发布时被拒', async () => {

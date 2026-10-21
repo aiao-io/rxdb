@@ -179,7 +179,8 @@ interface EvaluationScope {
 const evaluateFactor = (factor: Factor, scope: EvaluationScope): Decimal => {
   if (factor.kind === 'literal') return factor.value;
   if (factor.kind === 'group') return evaluateExpr(factor.expr, scope);
-  const value = scope.params[factor.name];
+  // 只认自有属性：参数名 constructor / __proto__ 之类沿原型链会取到函数或原型对象
+  const value = Object.hasOwn(scope.params, factor.name) ? scope.params[factor.name] : undefined;
   if (value === undefined) throw new BomQuantityError(`公式 ${scope.formula} 缺参数 ${factor.name}`);
   return literalValue(scope.formula, value);
 };

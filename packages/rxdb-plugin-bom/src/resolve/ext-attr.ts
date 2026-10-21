@@ -54,6 +54,23 @@ export type ExtWriteMode = 'create' | 'update-complete' | 'update-partial';
 /** attr_def.dataType 合法取值（超出即 fail-fast，不猜测语义）。 */
 const EXT_DATA_TYPES: readonly string[] = ['string', 'number', 'boolean', 'date'];
 
+/**
+ * 扩展属性作用域 → 承载 `ext` 的实体：键集就是 attr_def.appliesTo 的合法取值（写入白名单、过滤作用域、
+ * 热字段类型比对共用这一份）。
+ */
+export const EXT_SCOPE_ENTITIES = {
+  item: BomItem,
+  bom_header: BomHeader,
+  bom_line_occurrence: BomLineOccurrence
+} as const;
+
+/** 扩展属性所在的三种实体作用域。 */
+export type ExtAttrScope = keyof typeof EXT_SCOPE_ENTITIES;
+
+/** 是否为合法的扩展属性作用域（attr_def.appliesTo 白名单）。 */
+export const isExtAttrScope = (value: unknown): value is ExtAttrScope =>
+  typeof value === 'string' && Object.hasOwn(EXT_SCOPE_ENTITIES, value);
+
 const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 
 /** 纯日期或带时区偏移的完整时间戳；形似但不可解析（如 2026-02-30）拒绝。 */
@@ -192,6 +209,63 @@ export const validateExtWrite = (
       }
     }
   }
+};
+
+/** 错误消息里的存储原文（过长截断，只作点名用）。 */
+const clipText = (text: string): string => (text.length > 64 ? `${text.slice(0, 64)}…` : text);
+
+/**
+ * 解析 attr_def.enumValues 存储文本：NULL = 无枚举，否则必须是 JSON 字符串数组（`[]` 同样不约束）。
+ *
+ * @param code - 声明的 code（错误点名用）
+ * @param appliesTo - 声明的作用域（错误点名用）
+ * @param raw - enumValues 原值
+ * @returns 枚举取值；无枚举为 null
+ * @throws BomExtAttrError - 非文本、坏 JSON、非数组或含非字符串元素：点名该声明，
+ *   不抛裸 SyntaxError，也不把标量当作「无枚举」静默放行
+ */
+export const parseAttrDefEnumValues = (code: string, appliesTo: string, raw: unknown): string[] | null => {
+  if (raw === null || raw === undefined) return null;
+  const where = `声明（appliesTo = '${appliesTo}'）的 enumValues `;
+  if (typeof raw !== 'string') throw new BomExtAttrError(code, `${where}必须是 JSON 字符串数组文本：${valueText(raw)}`);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new BomExtAttrError(code, `${where}不是合法 JSON：${clipText(raw)}`);
+  }
+  if (!Array.isArray(parsed) || parsed.some(item => typeof item !== 'string')) {
+    throw new BomExtAttrError(code, `${where}必须是字符串数组：${clipText(raw)}`);
+  }
+  return parsed as string[];
+};
+
+/**
+ * attr_def 声明自身的写入期校验：dataType 与 appliesTo 只认白名单，enumValues 为 NULL 或 JSON 字符串数组。
+ *
+ * @remarks
+ * 拼错的 appliesTo 让声明永远匹配不到实体，其必填 / 枚举约束静默失效；未知 dataType 要到过滤查询才炸。
+ * 两者都在保存期拒绝，读取侧（{@link validateExtWrite} / {@link parseAttrDefEnumValues}）只剩直连 SQL 写坏的存量。
+ *
+ * @param data - attr_def 写入数据（创建为实体本身，更新为补丁覆盖实体的合并视图）
+ * @returns 校验通过的作用域
+ * @throws BomExtAttrError - 未知 dataType / appliesTo，或 enumValues 形状不对（点名该声明）
+ */
+export const validateAttrDefWrite = (data: Record<string, unknown>): ExtAttrScope => {
+  const code = String(data['code']);
+  const dataType = data['dataType'];
+  if (typeof dataType !== 'string' || !EXT_DATA_TYPES.includes(dataType)) {
+    throw new BomExtAttrError(code, `未知 dataType「${String(dataType)}」（合法取值 ${EXT_DATA_TYPES.join(' / ')}）`);
+  }
+  const appliesTo = data['appliesTo'];
+  if (!isExtAttrScope(appliesTo)) {
+    throw new BomExtAttrError(
+      code,
+      `未知 appliesTo「${String(appliesTo)}」（合法取值 ${Object.keys(EXT_SCOPE_ENTITIES).join(' / ')}）`
+    );
+  }
+  parseAttrDefEnumValues(code, appliesTo, data['enumValues']);
+  return appliesTo;
 };
 
 /** 过滤操作符（US-519：等值 / 不等 / 集合 / 数值与日期范围 / 存在性）。 */
@@ -347,9 +421,6 @@ export const buildExtFilterSql = (
 /** 查询时类型来自属性声明，调用方只提供字段、操作符与值。 */
 export type ExtAttrQueryFilter = Omit<ExtFilter, 'dataType'>;
 
-/** 扩展属性所在的三种实体作用域。 */
-export type ExtAttrScope = 'item' | 'bom_header' | 'bom_line_occurrence';
-
 /** 在同一快照内读取属性声明并执行过滤，未知属性或类型错误直接拒绝。 */
 export const filterByAttr = async (
   adapter: BomLocalAdapter,
@@ -357,8 +428,7 @@ export const filterByAttr = async (
   filters: ExtAttrQueryFilter[]
 ): Promise<Record<string, unknown>[]> =>
   adapter.transaction(async executor => {
-    if (!['item', 'bom_header', 'bom_line_occurrence'].includes(appliesTo))
-      throw new BomExtAttrError('appliesTo', `未知作用域「${String(appliesTo)}」`);
+    if (!isExtAttrScope(appliesTo)) throw new BomExtAttrError('appliesTo', `未知作用域「${String(appliesTo)}」`);
     const dialect = bomSqlDialectFor(adapter.name);
     const defs = await executor.query(
       `SELECT "code", "dataType" FROM ${dialect.table('attr_def')} WHERE "appliesTo" = ${dialect.placeholder(0)}`,
@@ -370,7 +440,7 @@ export const filterByAttr = async (
       if (dataType === undefined) throw new BomExtAttrError(filter.code, `未在作用域「${appliesTo}」声明`);
       return { ...filter, dataType };
     });
-    const entity = { item: BomItem, bom_header: BomHeader, bom_line_occurrence: BomLineOccurrence }[appliesTo];
+    const entity = EXT_SCOPE_ENTITIES[appliesTo];
     const metadata =
       adapter.rxdb === undefined ? getEntityMetadata(entity) : getEntityStorageMetadata(adapter.rxdb, entity);
     const { sql } = buildExtFilterSql(adapter.name === 'pglite' ? 'pglite' : 'sqlite', '', typed, metadata);

@@ -7,6 +7,7 @@
  * 由 resolveBom 接入选择条件后另行覆盖；本文件只测纯函数面。
  */
 
+import type { TransactionExecutor, TransactionFun } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import {
   BomConfigChar,
@@ -20,6 +21,7 @@ import {
 } from '../entities.js';
 import { rollupCost } from '../quantity/cost.js';
 import { explodeBom } from '../quantity/explosion.js';
+import type { BomLocalAdapter } from '../resolve/bom-adapter.js';
 import { bomSqlDialectFor, sqliteBomDialect } from '../resolve/bom-sql.js';
 import {
   BomConfigError,
@@ -588,6 +590,169 @@ describe('评审 P3 依赖约束种类有存储层兜底', () => {
           );
         await expect(insert('raw-require', 'require')).resolves.toBeDefined();
         await expect(insert('raw-bogus', 'bogus')).rejects.toThrow();
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+  }
+});
+
+describe('评审 P2-5 条件嵌套深度上限：超深嵌套是语法错误，不是调用栈溢出', () => {
+  /** depth 层括号包住一个原子谓词。 */
+  const parens = (depth: number): string => `${'('.repeat(depth)}颜色 = 红${')'.repeat(depth)}`;
+  /** depth 个 NOT 叠在一个原子谓词前（右结合，每个 NOT 一层）。 */
+  const nots = (depth: number): string => `${'NOT '.repeat(depth)}颜色 = 红`;
+
+  it('括号与 NOT 合计 64 层照常解析求值，第 65 层拒绝并点名该记号', () => {
+    expect(evaluateCondition(parseCondition(parens(64)).ast, { 颜色: ['红'] })).toBe(true);
+    expect(evaluateCondition(parseCondition(nots(64)).ast, { 颜色: ['红'] })).toBe(true);
+    const mixed = parseCondition(`${'NOT ('.repeat(32)}颜色 = 红${')'.repeat(32)}`).ast;
+    expect(evaluateCondition(mixed, { 颜色: ['红'] })).toBe(true);
+    const tooDeep = caught(() => parseCondition(parens(65)));
+    expect(tooDeep).toBeInstanceOf(BomConfigSyntaxError);
+    expect((tooDeep as BomConfigSyntaxError).offset).toBe(64);
+    expect(tooDeep.message).toMatch(/嵌套深度超过 64/);
+    expect((caught(() => parseCondition(nots(65))) as BomConfigSyntaxError).offset).toBe(4 * 64);
+    // 混合计数：33 组「NOT (」= 66 层，第 33 个 NOT 处触顶
+    expect((caught(() => parseCondition(`${'NOT ('.repeat(33)}颜色 = 红${')'.repeat(33)}`)) as Error).message).toMatch(
+      /嵌套深度超过 64/
+    );
+  });
+
+  it('约 4KB 的数千层嵌套：解析与保存期引用校验抛 BomConfigSyntaxError，不是 RangeError', () => {
+    for (const expression of [parens(2000), nots(5000)]) {
+      expect(caught(() => parseCondition(expression))).toBeInstanceOf(BomConfigSyntaxError);
+      expect(caught(() => validateConditionReferences(expression, new Set(['颜色']), new Set(['红'])))).toBeInstanceOf(
+        BomConfigSyntaxError
+      );
+    }
+  });
+
+  for (const backend of ['wa-sqlite', 'pglite'] as const satisfies readonly BomTestBackend[]) {
+    it(`[${backend}] 保存期（实体保存）与求值期（直连 SQL 写入的超深条件）都点名为语法错误`, async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const { parent, conditions, context } = await configFixture(adapter);
+        const condition = new BomConfigCondition();
+        condition.orgId = context.orgId;
+        condition.expression = parens(2000);
+        condition.grammarVersion = CONDITION_GRAMMAR_VERSION;
+        await expect(condition.save()).rejects.toThrow(BomConfigSyntaxError);
+        // 直连 SQL 绕过保存期校验：求值期解析同样点名，不以 RangeError 炸穿解析入口
+        const dialect = bomSqlDialectFor(backend);
+        await adapter.rawQuery(
+          `UPDATE ${dialect.table('config_condition')} SET "expression" = ${dialect.placeholder(0)} WHERE "id" = ${dialect.placeholder(1)}`,
+          [parens(2000), conditions[0].id]
+        );
+        const red = { ...context, configSelection: { 颜色: ['红'] } };
+        await expect(resolveBom(adapter, red, { parentItemId: parent.id })).rejects.toThrow(BomConfigSyntaxError);
+        await expect(expandBom(adapter, red, { parentItemId: parent.id })).rejects.toThrow(BomConfigSyntaxError);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+  }
+});
+
+describe('评审 P2-27 配置求值按读事务缓存组织级配置：配置表读取次数与层数无关', () => {
+  /** 四张组织级配置表的读取。 */
+  const isConfigRead = (sql: string): boolean => /config_(condition|char|constraint)/.test(sql);
+
+  /** 包一层计数：事务执行器的每次 query 记下 SQL，其余成员原样转发。 */
+  const countingAdapter = (adapter: BomTestAdapter, statements: string[]): BomLocalAdapter => {
+    const counted = (executor: TransactionExecutor): TransactionExecutor =>
+      new Proxy(executor, {
+        get: (target, key) => {
+          if (key === 'query') {
+            return (sql: string, params?: readonly unknown[]) => {
+              statements.push(sql);
+              return target.query(sql, params);
+            };
+          }
+          const value: unknown = Reflect.get(target, key);
+          return typeof value === 'function' ? value.bind(target) : value;
+        }
+      });
+    return {
+      name: adapter.name,
+      rxdb: adapter.rxdb,
+      rawQuery: (sql, params) => adapter.rawQuery(sql, params),
+      transaction: <T extends TransactionFun>(fun: T, transactionLog?: boolean) =>
+        adapter.transaction((executor => fun(counted(executor))) as T, transactionLog)
+    };
+  };
+
+  /** 配置型多层链 items[0] → items[1] → …，每行都挂同一选择条件（与 configFixture 同组织、同 sales 作用域）。 */
+  const configChain = async (
+    adapter: BomTestAdapter,
+    context: { orgId: string; asOfDate: Date },
+    conditionId: string,
+    length: number
+  ): Promise<BomItem[]> => {
+    const items: BomItem[] = [];
+    for (let index = 0; index < length; index += 1) {
+      const item = new BomItem();
+      item.itemNo = `config-chain-${index}`;
+      await item.save();
+      items.push(item);
+    }
+    await loadHistory(adapter, {
+      batchNo: 'config-chain',
+      revisions: items.map(item => ({ itemId: item.id, revisionNo: 'A', effectiveFrom: context.asOfDate })),
+      headers: items.slice(0, -1).map((_, index) => ({
+        revisionIndex: index,
+        bomType: 'sales' as const,
+        orgId: context.orgId,
+        costLotQty: '1',
+        lines: [
+          {
+            lineNo: 10,
+            occurrences: [
+              {
+                childItemId: items[index + 1].id,
+                qty: '1',
+                effectiveFrom: context.asOfDate,
+                selectionConditionId: conditionId
+              }
+            ]
+          }
+        ]
+      }))
+    });
+    return items;
+  };
+
+  for (const backend of ['wa-sqlite', 'pglite'] as const satisfies readonly BomTestBackend[]) {
+    it(`[${backend}] 四层配置型 BOM：解析 / 下钻 / 反查 / 数量爆炸各只读一次四张配置表；下一次调用读到其间的配置变化`, async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const { conditions, context } = await configFixture(adapter);
+        const chain = await configChain(adapter, context, conditions[0].id, 4);
+        const red = { ...context, configSelection: { 颜色: ['红'] } };
+        const root = { parentItemId: chain[0].id };
+        const statements: string[] = [];
+        const counted = countingAdapter(adapter, statements);
+        const configReads = async (run: (target: BomLocalAdapter) => Promise<unknown>): Promise<number> => {
+          statements.length = 0;
+          await run(counted);
+          return statements.filter(isConfigRead).length;
+        };
+        expect(await configReads(target => resolveBom(target, red, root))).toBe(4);
+        expect(await configReads(target => expandBom(target, red, root))).toBe(4);
+        expect(await configReads(target => whereUsed(target, red, { childItemId: chain[3].id }))).toBe(4);
+        expect(
+          await configReads(target => explodeBom(target, red, root, { plannedQty: { value: '1', uom: 'pcs' } }))
+        ).toBe(4);
+        expect((await expandBom(adapter, red, root)).nodes.map(node => node.itemId)).toEqual(
+          chain.map(item => item.id)
+        );
+        // 缓存只活在一次读事务里：其间提交的条件改写，下一次调用立即可见
+        const dialect = bomSqlDialectFor(backend);
+        await adapter.rawQuery(
+          `UPDATE ${dialect.table('config_condition')} SET "expression" = ${dialect.placeholder(0)} WHERE "id" = ${dialect.placeholder(1)}`,
+          ['颜色 = 蓝', conditions[0].id]
+        );
+        expect((await expandBom(counted, red, root)).nodes.map(node => node.itemId)).toEqual([chain[0].id]);
       } finally {
         await disposeBomTestAdapter(adapter);
       }

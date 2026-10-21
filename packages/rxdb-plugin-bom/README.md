@@ -140,7 +140,7 @@ try {
 
 `state.phase` 为idle/loading/empty/success/error，后台刷新保留旧节点并设refreshing。完整发生项路径是稳定key；相同物料的多重边和共享装配分别展开，不合并数量。候选显示物料编码，备选/manual/序列/批次未解析与截断可浏览，完整数量、成本和导出明确拒绝。空结构的数量拒绝仍通过quantityError保留。
 
-最后订阅释放会停止查询，可再次订阅；destroy幂等且永久终止handle。切换输入隔离迟到结果，无效评估日进入可恢复错误状态。数据库连接与销毁由创建数据库的宿主管理。
+最后订阅释放会停止查询，可再次订阅；destroy幂等且永久终止handle。切换输入隔离迟到结果，无效评估日进入可恢复错误状态。换目标（父件或父修订变化）时展开状态与行编辑器回到初态，在途的加载 / 保存结果不再回填（保存照常落库）；同一目标只改参数时两者保留。加载发生项会等在途保存落定后再读。连续写入触发的刷新合并为至多一次在途读取加一次尾随重读。数据库连接与销毁由创建数据库的宿主管理。
 
 发生项编辑独立于已发布树。草稿头可编辑用量、组件损耗、工序与生效区间；已发布头下的draft ECN新发生项可编辑协议允许的用量、损耗与工序，生效区间仍由ECN派生，直接改日期会被仓储拒绝。已发布既有行只读，保存沿既有ECN协议处理，错误保留code/payload/message。表单日期为UTC，保留毫秒。
 
@@ -148,11 +148,11 @@ try {
 
 三个框架包均导出 `useBomView`、`BomTree`、`BomLineEditor` 与 `BomViewBinding`，组件统一接收 `{state, commands}`：Angular的state为signal，React为普通快照，Vue为只读shallowRef。生命周期由各框架卸载钩子释放。使用方法见各包README；开发应用的“BOM 编辑与展开”导航进入 `/bom-view`，共用同一fixture和浏览器验收。
 
-| 绑定                                            | 状态读取                                                                   | 输入更新                                                                      | 订阅释放                                |
-| ----------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------- |
-| [Angular](../rxdb-plugin-bom-angular/README.md) | `Signal<BomViewState>`，模板/脚本读取 `state()`                            | 注入上下文创建，后续调用 `commands.setInput(nextInput)`                       | `DestroyRef`                            |
-| [React](../rxdb-plugin-bom-react/README.md)     | 普通 `BomViewState` 快照                                                   | Hook接收的完整input变化自动同步；也提供相同命令                               | `useLayoutEffect`清理，db变化重建handle |
-| [Vue](../rxdb-plugin-bom-vue/README.md)         | `Readonly<ShallowRef<BomViewState>>`，脚本读取 `state.value`，模板自动解包 | setup/effectScope创建；后续通过watch或事件调用 `commands.setInput(nextInput)` | `onScopeDispose`                        |
+| 绑定                                            | 状态读取                                                                   | 输入更新                                                                                                                      | 订阅释放                                |
+| ----------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| [Angular](../rxdb-plugin-bom-angular/README.md) | `Signal<BomViewState>`，模板/脚本读取 `state()`                            | 注入上下文创建；input 传 `Signal` 时内容变化自动同步（普通值只在创建时读取一次），也可调用 `commands.setInput`                | `DestroyRef`                            |
+| [React](../rxdb-plugin-bom-react/README.md)     | 普通 `BomViewState` 快照                                                   | 每次渲染按内容比较完整input，变化自动同步；也提供相同命令                                                                     | `useLayoutEffect`清理，db变化重建handle |
+| [Vue](../rxdb-plugin-bom-vue/README.md)         | `Readonly<ShallowRef<BomViewState>>`，脚本读取 `state.value`，模板自动解包 | setup/effectScope创建；input 传 ref / getter / 响应式对象时内容变化自动同步（普通对象只读一次），也可调用 `commands.setInput` | `onScopeDispose`                        |
 
 六个命令在三端相同：`setInput`、`refresh`、`toggle`、`loadOccurrence`、`saveOccurrence`、`calculate`。绑定释放共享handle与订阅，数据库资源仍由宿主管理。Angular/Vue绑定更换数据库时重建其组件或作用域。
 
@@ -205,7 +205,7 @@ db.use(rxDBPluginBom);
 
 部分 BOM 实体配置必须依赖闭合：插件安装期按即将下发的触发器 DDL 与仓储写入校验核对实体依赖（关系与外键目标由核心在连接期校验），缺依赖时（如配了发生项却缺位号、工序拆分，或配了物料却缺 `BomAttrDef`）两后端在任何 DDL 之前点名拒绝，不把「表不存在」推迟到首次写入。依赖闭合的子集（如物料 + 扩展属性定义 + 修订 + 历史批次）照常读写；不含发生项的配置没有并集边，不启用图维护。
 
-判环先点查可达对，再只取一条有界见证；保留128层硬限制和原错误code/payload/message、unionOnly语义。判环与可达维护只有闭包版一份实现，随全部实体触发器在同一事务里下发，任一语句失败整体回滚；SQLite 触发器每次连接先删后建，插件升级后旧触发器体不会残留。删除 consume 发生项（或把它改为非 consume / 换子件）要在128层内完成「已无其他支持路径」的否定证明，物料图深度超过128层时该写入以 `BomCycleError`（`depth_limit`）拒绝并整体回滚，这是硬限制。远端PostgreSQL的导出DDL同时覆盖INSERT/UPDATE/DELETE，要求Read Committed和作用域锁，部署不会提交调用方已有事务。
+判环先点查可达对，再只取一条有界见证；保留128层硬限制和原错误code/payload/message、unionOnly语义。判环与可达维护只有闭包版一份实现，随全部实体触发器在同一事务里下发，任一语句失败整体回滚；已装定义与本次一致时重连跳过安装（SQLite 逐条比对 `sqlite_master` 原文与创建序，PG 比对存于 `bom` schema 注释的定义指纹）；升级、缺失或创建序漂移时整批先删后建，插件升级后旧触发器体不会残留。删除 consume 发生项（或把它改为非 consume / 换子件）要在128层内完成「已无其他支持路径」的否定证明，物料图深度超过128层时该写入以 `BomCycleError`（`depth_limit`）拒绝并整体回滚，这是硬限制。远端PostgreSQL的导出DDL同时覆盖INSERT/UPDATE/DELETE，要求Read Committed和作用域锁，部署不会提交调用方已有事务。
 
 主数据 `expandBom` / `whereUsed` 保留既有上下文过滤、排序与路径预算。`alternativeNo` 只裁决根修订的备选头（`resolveBom` / `expandBom` / `explodeBom` / `rollupCost` 同一口径）：根或子装配仍有多个已发布备选头时，展开标 `unresolved` 并列出候选、不下钻也不合并任一备选，数量 / 成本 / 导出拒绝；指定的编号在根修订上不存在时抛 `BomResolutionError`。`whereUsed` 向上反查，列出各备选下的全部使用路径。1万物料的实测p95由236.24ms降到7.60ms，收益来自最小childItemId索引；不将其归给闭包。读取剪枝以独立原型验证，未经额外收益证明不启用。20串菱形仅物化1810对，仍按10000条实际发生项路径截断，物料对不替代路径。
 

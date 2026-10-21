@@ -48,6 +48,17 @@ describe('Vue BomLineEditor', () => {
     wrapper.unmount();
   });
 
+  it('输入控件按字段命名（三端同一表单语义）', () => {
+    const wrapper = mount(BomLineEditor, { props: { state: editorState(), commands: viewCommands() } });
+    expect(wrapper.findAll('input').map(input => input.attributes('name'))).toEqual([
+      'qty',
+      'componentScrap',
+      'operationSeq',
+      'effectiveFrom',
+      'effectiveTo'
+    ]);
+  });
+
   it('生效期字段声明 UTC 口径，东八区运行机上编辑仍按 UTC 往返', async () => {
     await inTimeZone('Asia/Shanghai', async () => {
       const actions = viewCommands();
@@ -100,6 +111,23 @@ describe('Vue BomLineEditor', () => {
     expect(message).toContain('原始成环消息');
     expect(message).toContain('BOM_CYCLE');
     expect(message).toContain('"path"');
+    wrapper.unmount();
+  });
+
+  it('保存中的进度状态只在表单内出现，任一时刻至多一个 status 区域', async () => {
+    const statuses = (wrapper: VueWrapper) => wrapper.findAll('[role="status"]').map(status => status.text());
+    const wrapper = mount(BomLineEditor, {
+      props: {
+        state: viewState({ editor: { phase: 'idle', value: null, saving: true, error: null } }),
+        commands: viewCommands()
+      }
+    });
+    expect(statuses(wrapper)).toEqual(['请选择一条 BOM 行进行编辑']);
+    const saving = editorState();
+    saving.editor.saving = true;
+    await wrapper.setProps({ state: saving });
+    expect(statuses(wrapper)).toEqual(['正在保存发生项…']);
+    expect(wrapper.find('form [role="status"]').exists()).toBe(true);
     wrapper.unmount();
   });
 
