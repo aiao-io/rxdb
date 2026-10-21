@@ -366,6 +366,34 @@ describe('importSnapshot', () => {
     expect(source).toEqual({ sourceBranchId: 'feature', sourceChangeId: null, targetChangeId: null });
   });
 
+  it('挂在可写检出位上打开第三条分支：增量从持有分支算起', async () => {
+    const tableSet = WorktreeTableSet.of('wt_snap', [SnapshotNote]);
+    const main = mainAdapterNamed('mock') as unknown as SnapshotCapableAdapter;
+    main.readWorktreeSnapshotPage.mockResolvedValue({ rows: [], count: 0, next: null });
+    vi.mocked(compute_switch_branch_actions).mockResolvedValue({
+      deletes: new Map(),
+      updates: new Map(),
+      inserts: new Map()
+    });
+    const target = new SnapshotCapableAdapter(main.rxdb);
+    const branches = [
+      { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY },
+      { id: 'feature', activated: false, activeKey: tableSet.holderKey },
+      { id: 'other', activated: false, activeKey: null }
+    ];
+
+    const source = await importSnapshot(
+      executorWith(branches, tableSet),
+      main as unknown as LocalRxDBAdapter,
+      snapshotWith(target),
+      [SnapshotNote],
+      { branchId: 'other' }
+    );
+
+    expect(compute_switch_branch_actions).toHaveBeenCalledWith(expect.anything(), 'other', 'feature');
+    expect(source.sourceBranchId).toBe('feature');
+  });
+
   it('挂在可写检出位上而持有分支不见了：branch_not_found', async () => {
     const main = mainAdapterNamed('mock');
     const target = new SnapshotCapableAdapter(main.rxdb);

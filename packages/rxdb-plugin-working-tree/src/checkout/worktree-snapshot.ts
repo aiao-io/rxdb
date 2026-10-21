@@ -224,8 +224,10 @@ export const importSnapshot = async (
  * 叠在当前分支快照上的增量。
  *
  * @remarks
- * 分支视图与切分支同一口径（active tip → 目标 tip）；提交视图从当前数据往回推（见 `worktree-commit-view.ts`），
+ * 分支视图与切分支同一口径（来源 tip → 目标 tip）；提交视图从当前数据往回推（见 `worktree-commit-view.ts`），
  * 可达路径在这个事务里重新算：登记之后 HEAD 可能又前进了。
+ *
+ * 起点显式给来源分支：挂在可写检出位上时它是那套表持有的分支（US-314 B1.4），不给的话历史插件按主检出位激活的那一条算。
  */
 const deltaOf = async (
   executor: TransactionExecutor,
@@ -240,7 +242,8 @@ const deltaOf = async (
   if (target.branchId === activeBranchId) return emptyActions();
   return compute_switch_branch_actions(
     { branchRepository: executor.getRepository(RxDBBranch), changeRepository: executor.getRepository(RxDBChange) },
-    target.branchId
+    target.branchId,
+    activeBranchId
   );
 };
 

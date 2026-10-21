@@ -46,6 +46,7 @@ export interface SwitchBranchActionReaders {
  *
  * @param readers - 见 {@link SwitchBranchActionReaders}
  * @param branchId - 要切换到的分支 id
+ * @param fromBranchId - 起点分支；不给就是主检出位激活的那一条
  * @returns 切换分支所需的操作序列
  *
  * @remarks
@@ -54,29 +55,25 @@ export interface SwitchBranchActionReaders {
  * 绑在适配器上的本地仓库会在同一条连接上等屏障自己那笔事务，死锁。另写一份同义计算，
  * 迟早会在「回滚标记算不算」上与普通切换分叉。
  *
+ * 起点不是主检出位那一条的调用方（US-314：挂在可写检出位上的实例，数据是那套表持有的分支）给 `fromBranchId`。
+ *
  * @internal
  */
 export const compute_switch_branch_actions = async (
   readers: SwitchBranchActionReaders,
-  branchId: string
+  branchId: string,
+  fromBranchId?: string
 ): Promise<SwitchVersionActions> => {
   const { branchRepository, changeRepository } = readers;
-  const current_branch = (
-    await branchRepository.find({
-      where: {
-        combinator: 'and',
-        rules: [{ field: 'activated', operator: '=', value: true }]
-      },
-      limit: 1
-    })
-  )[0];
-  if (!current_branch) throw new RxDBError('Current branch not found');
+  const sourceBranchId = fromBranchId ?? (await activeBranchIdOf(branchRepository));
   const all_branches = await branchRepository.find({
     where: {
       combinator: 'and',
       rules: []
     }
   });
+  const current_branch = all_branches.find(b => b.id === sourceBranchId);
+  if (!current_branch) throw new RxDBError(`Branch (${sourceBranchId}) not found`);
   const next_branch = all_branches.find(b => b.id === branchId);
   if (!next_branch) throw new RxDBError(`Branch (${branchId}) not found`);
   if (current_branch.id === next_branch.id) {
@@ -89,6 +86,25 @@ export const compute_switch_branch_actions = async (
     await branch_tip_point(changeRepository, current_branch),
     await branch_tip_point(changeRepository, next_branch)
   );
+};
+
+/**
+ * 主检出位激活的那一条分支的 id。
+ *
+ * @param branchRepository - 见 {@link SwitchBranchActionReaders.branchRepository}
+ * @returns 分支 id
+ * @throws {@link RxDBError} 一条激活分支都没有时
+ */
+const activeBranchIdOf = async (branchRepository: SwitchBranchActionReaders['branchRepository']): Promise<string> => {
+  const [active] = await branchRepository.find({
+    where: {
+      combinator: 'and',
+      rules: [{ field: 'activated', operator: '=', value: true }]
+    },
+    limit: 1
+  });
+  if (!active) throw new RxDBError('Current branch not found');
+  return active.id;
 };
 
 /**
