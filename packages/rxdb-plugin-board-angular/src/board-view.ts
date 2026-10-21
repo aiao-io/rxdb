@@ -6,6 +6,7 @@ import {
   resolveColumnDrop,
   Task,
   type BoardSearchUpstream,
+  type CardDropColumnView,
   type CardDropTarget,
   type SearchHandle,
   type SearchResult,
@@ -249,6 +250,8 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
 export class BoardViewComponent implements OnInit, OnDestroy {
   private readonly injectorRef = inject(Injector);
 
+  private noticeTimer: number | null = null;
+
   private searchHandle: SearchHandle | null = null;
   private searchSubs = new Subscription();
 
@@ -263,6 +266,13 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     readonly id: string;
   } | null>(null);
   protected readonly dragPointer = signal<{ readonly x: number; readonly y: number }>({ x: 0, y: 0 });
+  /** 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 空列占位）。 */
+  protected readonly dropTarget = signal<
+    | { readonly kind: 'task'; readonly columnId: UUID; readonly mode: 'before' | 'after'; readonly taskId: UUID }
+    | { readonly kind: 'task-end'; readonly columnId: UUID }
+    | { readonly kind: 'column'; readonly columnId: UUID; readonly mode: 'before' | 'after' }
+    | null
+  >(null);
   protected readonly detailTaskId = signal<UUID | null>(null);
   protected readonly confirmDelete = signal<
     | { readonly kind: 'task'; readonly taskId: UUID; readonly title: string }
@@ -329,6 +339,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.noticeTimer !== null) window.clearTimeout(this.noticeTimer);
     this.searchSubs.unsubscribe();
     this.destroySearch();
   }
@@ -401,6 +412,24 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   protected onTaskDragOver(event: DragEvent): void {
     event.preventDefault();
     this.dragPointer.set({ x: event.clientX, y: event.clientY });
+    const movedId = this.dragging()?.id as UUID | undefined;
+    const area = this.boardArea()?.nativeElement;
+    if (!movedId || !area) return;
+    const target = resolveCardDrop(this.columnViews(area), movedId, event.clientX, event.clientY);
+    if (!target) {
+      this.dropTarget.set(null);
+      return;
+    }
+    this.dropTarget.set(
+      target.kind === 'end' ?
+        { kind: 'task-end', columnId: target.columnId }
+      : {
+          kind: 'task',
+          columnId: target.columnId,
+          mode: target.prevId === null ? 'before' : 'after',
+          taskId: (target.prevId ?? target.nextId)!
+        }
+    );
   }
 
   protected onColumnDragStart(event: DragEvent, column: Column): void {
@@ -411,6 +440,24 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   protected onColumnDragOver(event: DragEvent): void {
     event.preventDefault();
     this.dragPointer.set({ x: event.clientX, y: event.clientY });
+    const movedId = this.dragging()?.id as UUID | undefined;
+    if (!movedId) return;
+    const target = resolveColumnDrop(
+      this.boardRef.columns().map(column => ({ columnId: column.id, rect: this.columnRect(column.id) })),
+      this.boardRef.columns().map(column => column.id),
+      movedId,
+      event.clientX
+    );
+    if (!target) {
+      this.dropTarget.set(null);
+      return;
+    }
+    const anchorId = target.prevId ?? target.nextId;
+    if (anchorId === null) {
+      this.dropTarget.set(null);
+      return;
+    }
+    this.dropTarget.set({ kind: 'column', columnId: anchorId, mode: target.prevId === null ? 'before' : 'after' });
   }
 
   protected async onTaskDrop(event: DragEvent, column: Column): Promise<void> {
@@ -418,7 +465,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const movedId = (event.dataTransfer?.getData('application/x-board-task') ?? this.dragging()?.id) as
       UUID | undefined;
     if (!movedId) return;
-    this.dragging.set(null);
+    this.clearDragFeedback();
     const area = this.boardArea()?.nativeElement;
     if (!area) return;
     const target = this.resolveTaskTarget(column, movedId, event.clientX, event.clientY, area);
@@ -431,7 +478,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const movedId = (event.dataTransfer?.getData('application/x-board-column') ?? this.dragging()?.id) as
       UUID | undefined;
     if (!movedId) return;
-    this.dragging.set(null);
+    this.clearDragFeedback();
     const area = this.boardArea()?.nativeElement;
     if (!area) return;
     const target = this.resolveColumnTarget(movedId, event.clientX, area);
@@ -693,6 +740,39 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     );
   }
 
+  /** 落点反馈判定（模板用）。 */
+  protected isDropBefore(task: Task): boolean {
+    const target = this.dropTarget();
+    return target?.kind === 'task' && target.taskId === task.id && target.mode === 'before';
+  }
+
+  protected isDropAfter(task: Task): boolean {
+    const target = this.dropTarget();
+    return target?.kind === 'task' && target.taskId === task.id && target.mode === 'after';
+  }
+
+  protected isDropEnd(column: Column): boolean {
+    return this.dropTarget()?.kind === 'task-end' && this.dropTarget()?.columnId === column.id;
+  }
+
+  protected isColumnDropBefore(column: Column): boolean {
+    const target = this.dropTarget();
+    return target?.kind === 'column' && target.columnId === column.id && target.mode === 'before';
+  }
+
+  protected isColumnDropAfter(column: Column): boolean {
+    const target = this.dropTarget();
+    return target?.kind === 'column' && target.columnId === column.id && target.mode === 'after';
+  }
+
+  protected isDraggingTask(task: Task): boolean {
+    return this.dragging()?.kind === 'task' && this.dragging()?.id === task.id;
+  }
+
+  protected isDraggingColumn(column: Column): boolean {
+    return this.dragging()?.kind === 'column' && this.dragging()?.id === column.id;
+  }
+
   private destroySearch(): void {
     this.searchHandle?.destroy();
     this.searchHandle = null;
@@ -702,14 +782,8 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     this.searchErrorText.set(null);
   }
 
-  private resolveTaskTarget(
-    column: Column,
-    movedId: UUID,
-    clientX: number,
-    clientY: number,
-    area: HTMLElement
-  ): CardDropTarget | null {
-    const views = this.boardRef.columns().map(viewColumn => {
+  private columnViews(area: HTMLElement): CardDropColumnView[] {
+    return this.boardRef.columns().map(viewColumn => {
       const columnEl = area.querySelector<HTMLElement>(`[data-column-id="${viewColumn.id}"]`);
       const rect = columnEl?.getBoundingClientRect();
       const cards = (this.taskMap().get(viewColumn.id) ?? []).map(task => {
@@ -724,7 +798,27 @@ export class BoardViewComponent implements OnInit, OnDestroy {
         taskIds: (this.taskMap().get(viewColumn.id) ?? []).map(task => task.id)
       };
     });
-    return resolveCardDrop(views, movedId, clientX, clientY);
+  }
+
+  private columnRect(columnId: UUID): { readonly left: number; readonly right: number } {
+    const header = this.boardArea()?.nativeElement.querySelector<HTMLElement>(`[data-column-header-id="${columnId}"]`);
+    const rect = header?.getBoundingClientRect();
+    return { left: rect?.left ?? 0, right: rect?.right ?? 0 };
+  }
+
+  private clearDragFeedback(): void {
+    this.dragging.set(null);
+    this.dropTarget.set(null);
+  }
+
+  private resolveTaskTarget(
+    column: Column,
+    movedId: UUID,
+    clientX: number,
+    clientY: number,
+    area: HTMLElement
+  ): CardDropTarget | null {
+    return resolveCardDrop(this.columnViews(area), movedId, clientX, clientY);
   }
 
   private resolveColumnTarget(
@@ -755,8 +849,15 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.notice.set(message);
+      this.scheduleNoticeClear();
       return undefined;
     }
+  }
+
+  /** 提示条 5 秒自动消退（GitHub 风格）；新提示重置计时。 */
+  private scheduleNoticeClear(): void {
+    if (this.noticeTimer !== null) window.clearTimeout(this.noticeTimer);
+    this.noticeTimer = window.setTimeout(() => this.notice.set(null), 5000);
   }
 
   private localToday(): string {

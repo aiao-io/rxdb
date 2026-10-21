@@ -250,3 +250,26 @@
 .search-more {
   margin: 0.25rem;
 }
+
+/* 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 源卡片半透明） */
+.card.dragging,
+.column-header.dragging {
+  opacity: 0.5;
+}
+.card.drop-before {
+  box-shadow: 0 -3px 0 0 #0969da;
+}
+.card.drop-after {
+  box-shadow: 0 3px 0 0 #0969da;
+}
+.column.drop-end {
+  outline: 3px dashed #0969da;
+  outline-offset: -3px;
+  border-radius: 0.5rem;
+}
+.column-header.drop-before {
+  box-shadow: -3px 0 0 0 #0969da;
+}
+.column-header.drop-after {
+  box-shadow: 3px 0 0 0 #0969da;
+}

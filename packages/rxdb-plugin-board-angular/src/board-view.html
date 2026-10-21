@@ -1,6 +1,7 @@
 <section
   class="board-view"
   #boardArea
+  (dragend)="clearDragFeedback()"
   (dragover)="onTaskDragOver($event)"
   (drop)="onColumnDrop($event)"
   data-testid="board-view"
@@ -76,7 +77,10 @@
     }
 
     @if (notice(); as message) {
-      <p class="board-notice" data-testid="board-notice" role="alert">{{ message }}</p>
+      <p class="board-notice" data-testid="board-notice" role="alert">
+        {{ message }}
+        <button (click)="notice.set(null)" aria-label="关闭提示" data-testid="board-notice-close">×</button>
+      </p>
     }
 
     <!-- 板内搜索（US-539 阶段 B） -->
@@ -132,6 +136,7 @@
           <section
             class="column"
             [attr.data-column-id]="column.id"
+            [class.drop-end]="isDropEnd(column)"
             (dragover)="onColumnDragOver($event)"
             (drop)="onTaskDrop($event, column)"
             data-testid="column"
@@ -139,6 +144,9 @@
             <header
               class="column-header"
               [attr.data-column-header-id]="column.id"
+              [class.dragging]="isDraggingColumn(column)"
+              [class.drop-after]="isColumnDropAfter(column)"
+              [class.drop-before]="isColumnDropBefore(column)"
               (dragstart)="onColumnDragStart($event, column)"
               data-testid="column-header"
               draggable="true"
@@ -177,6 +185,9 @@
                 <article
                   class="card"
                   [attr.data-task-id]="task.id"
+                  [class.dragging]="isDraggingTask(task)"
+                  [class.drop-after]="isDropAfter(task)"
+                  [class.drop-before]="isDropBefore(task)"
                   [class.search-hit]="searchHighlightId() === task.id"
                   (dragstart)="onTaskDragStart($event, task)"
                   data-testid="task-card"

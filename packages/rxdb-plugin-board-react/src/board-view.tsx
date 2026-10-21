@@ -9,6 +9,7 @@ import {
   Task,
   type BoardLabel,
   type BoardSearchUpstream,
+  type CardDropColumnView,
   type CardDropTarget,
   type SearchHandle,
   type SearchResult,
@@ -55,6 +56,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const [searchHasMore, setSearchHasMore] = useState(false);
   const [searchErrorText, setSearchErrorText] = useState<string | null>(null);
   const [searchHighlightId, setSearchHighlightId] = useState<UUID | null>(null);
+  /** 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 源卡片半透明）。 */
+  const [dragging, setDragging] = useState<{ readonly kind: 'task' | 'column'; readonly id: UUID } | null>(null);
+  const [dropTarget, setDropTarget] = useState<
+    | { readonly kind: 'task'; readonly columnId: UUID; readonly mode: 'before' | 'after'; readonly taskId: UUID }
+    | { readonly kind: 'task-end'; readonly columnId: UUID }
+    | { readonly kind: 'column'; readonly columnId: UUID; readonly mode: 'before' | 'after' }
+    | null
+  >(null);
   const searchHandleRef = useRef<SearchHandle | null>(null);
   const searchSubsRef = useRef<Subscription | null>(null);
   const highlightTimerRef = useRef<number | null>(null);
@@ -108,6 +117,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   useEffect(
     () => () => {
       if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
+      if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
       searchSubsRef.current?.unsubscribe();
       searchHandleRef.current?.destroy();
     },
@@ -126,12 +136,19 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     return grouped;
   }, [board.columns, board.tasks]);
 
+  const noticeTimerRef = useRef<number | null>(null);
+  const scheduleNoticeClear = (): void => {
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = window.setTimeout(() => setNotice(null), 5000);
+  };
+
   const guard = async <T,>(operation: () => Promise<T>): Promise<T | undefined> => {
     try {
       setNotice(null);
       return await operation();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : String(error));
+      scheduleNoticeClear();
       return undefined;
     }
   };
@@ -175,14 +192,74 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   };
 
   const onTaskDragStart = (event: DragEvent, task: Task): void => {
-    event.dataTransfer.setData('application/x-board-task', task.id);
+    // dataTransfer 在合成事件（e2e dispatchEvent）下为 null，与 Angular / Vue 同款可选链
+    event.dataTransfer?.setData('application/x-board-task', task.id);
+    setDragging({ kind: 'task', id: task.id });
   };
   const onColumnDragStart = (event: DragEvent, column: Column): void => {
-    event.dataTransfer.setData('application/x-board-column', column.id);
+    event.dataTransfer?.setData('application/x-board-column', column.id);
+    setDragging({ kind: 'column', id: column.id });
   };
 
-  const resolveTaskTarget = (movedId: UUID, clientX: number, clientY: number): CardDropTarget | null => {
-    const views = board.columns.map(column => {
+  /** 卡片落点反馈：dragover 时预计算落点并标在目标卡片 / 空列上。 */
+  const onTaskDragOver = (event: DragEvent): void => {
+    event.preventDefault();
+    const movedId = dragging?.id;
+    if (!movedId) return;
+    const target = resolveCardDrop(columnViews(), movedId, event.clientX, event.clientY);
+    if (!target) {
+      setDropTarget(null);
+      return;
+    }
+    setDropTarget(
+      target.kind === 'end' ?
+        { kind: 'task-end', columnId: target.columnId }
+      : {
+          kind: 'task',
+          columnId: target.columnId,
+          mode: target.prevId === null ? 'before' : 'after',
+          taskId: (target.prevId ?? target.nextId)!
+        }
+    );
+  };
+
+  /** 列头落点反馈：列间插入线。 */
+  const onColumnDragOver = (event: DragEvent): void => {
+    event.preventDefault();
+    const movedId = dragging?.id;
+    if (!movedId) return;
+    const target = resolveColumnDrop(
+      board.columns.map(column => ({
+        columnId: column.id,
+        rect: (() => {
+          const header = document.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`);
+          const rect = header?.getBoundingClientRect();
+          return { left: rect?.left ?? 0, right: rect?.right ?? 0 };
+        })()
+      })),
+      board.columns.map(column => column.id),
+      movedId,
+      event.clientX
+    );
+    if (!target) {
+      setDropTarget(null);
+      return;
+    }
+    const anchorId = target.prevId ?? target.nextId;
+    if (anchorId === null) {
+      setDropTarget(null);
+      return;
+    }
+    setDropTarget({ kind: 'column', columnId: anchorId, mode: target.prevId === null ? 'before' : 'after' });
+  };
+
+  const clearDragFeedback = (): void => {
+    setDragging(null);
+    setDropTarget(null);
+  };
+
+  const columnViews = (): CardDropColumnView[] =>
+    board.columns.map(column => {
       const columnEl = document.querySelector<HTMLElement>(`[data-column-id="${column.id}"]`);
       const rect = columnEl?.getBoundingClientRect();
       const cards = (taskMap.get(column.id) ?? []).map(task => {
@@ -197,8 +274,9 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         taskIds: (taskMap.get(column.id) ?? []).map(task => task.id)
       };
     });
-    return resolveCardDrop(views, movedId, clientX, clientY);
-  };
+
+  const resolveTaskTarget = (movedId: UUID, clientX: number, clientY: number): CardDropTarget | null =>
+    resolveCardDrop(columnViews(), movedId, clientX, clientY);
 
   const resolveColumnTarget = (
     movedId: UUID,
@@ -222,6 +300,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     event.preventDefault();
     const movedId = event.dataTransfer.getData('application/x-board-task') as UUID;
     if (!movedId) return;
+    clearDragFeedback();
     const target = resolveTaskTarget(movedId, event.clientX, event.clientY);
     if (!target) return;
     await guard(() => board.actions.moveTask(movedId, target));
@@ -231,6 +310,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     event.preventDefault();
     const movedId = event.dataTransfer.getData('application/x-board-column') as UUID;
     if (!movedId) return;
+    clearDragFeedback();
     const target = resolveColumnTarget(movedId, event.clientX);
     if (!target) return;
     await guard(() => board.actions.moveColumn(movedId, target));
@@ -380,6 +460,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       className='board-view'
       data-testid='board-view'
       onDragOver={event => event.preventDefault()}
+      onDragEnd={clearDragFeedback}
       onDrop={event => void onColumnDrop(event)}
     >
       <header className='board-header' data-testid='board-header'>
@@ -491,6 +572,9 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       {notice ?
         <p className='board-notice' role='alert' data-testid='board-notice'>
           {notice}
+          <button onClick={() => setNotice(null)} data-testid='board-notice-close' aria-label='关闭提示'>
+            ×
+          </button>
         </p>
       : null}
 
@@ -559,16 +643,30 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         {board.columns.map(column => (
           <section
             key={column.id}
-            className='column'
+            className={
+              dropTarget?.kind === 'task-end' && dropTarget.columnId === column.id ? 'column drop-end' : 'column'
+            }
             data-column-id={column.id}
-            onDragOver={event => event.preventDefault()}
+            onDragOver={event => onTaskDragOver(event)}
             onDrop={event => void onTaskDrop(event, column)}
             data-testid='column'
           >
             <header
-              className='column-header'
+              className={[
+                'column-header',
+                dropTarget?.kind === 'column' && dropTarget.columnId === column.id && dropTarget.mode === 'before' ?
+                  'drop-before'
+                : '',
+                dropTarget?.kind === 'column' && dropTarget.columnId === column.id && dropTarget.mode === 'after' ?
+                  'drop-after'
+                : '',
+                dragging?.kind === 'column' && dragging.id === column.id ? 'dragging' : ''
+              ]
+                .filter(Boolean)
+                .join(' ')}
               data-column-header-id={column.id}
               draggable
+              onDragOver={event => onColumnDragOver(event)}
               onDragStart={event => onColumnDragStart(event, column)}
               data-testid='column-header'
             >
@@ -630,7 +728,19 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               {(taskMap.get(column.id) ?? []).map(task => (
                 <article
                   key={task.id}
-                  className={searchHighlightId === task.id ? 'card search-hit' : 'card'}
+                  className={[
+                    'card',
+                    searchHighlightId === task.id ? 'search-hit' : '',
+                    dropTarget?.kind === 'task' && dropTarget.taskId === task.id && dropTarget.mode === 'before' ?
+                      'drop-before'
+                    : '',
+                    dropTarget?.kind === 'task' && dropTarget.taskId === task.id && dropTarget.mode === 'after' ?
+                      'drop-after'
+                    : '',
+                    dragging?.kind === 'task' && dragging.id === task.id ? 'dragging' : ''
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                   data-task-id={task.id}
                   draggable
                   onDragStart={event => onTaskDragStart(event, task)}

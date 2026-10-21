@@ -442,4 +442,47 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     const titles = await page.getByTestId('board-search-result').allTextContents();
     expect(titles.every(text => text.includes('同步'))).toBe(true);
   });
+
+  test('AC#2b：拖拽落点反馈——卡片间插入线、空列高亮、源卡片半透明、结束清除', async ({ boardPage: page }) => {
+    // 落点反馈由 dragstart + dragover 驱动；真实拖放端到端（落点持久化）由 AC#2 的 dragTo 覆盖。
+    // 悬停中途的裸鼠标序列在 headless Chromium 的原生拖拽循环下 dragover 派发不可靠，
+    // 用合成事件钉住「指针在某处 → 出现对应反馈」的渲染逻辑。
+    await startWithSeed(page);
+
+    const source = page.getByTestId('task-card').filter({ hasText: '修复登录 bug' });
+    const target = page.getByTestId('task-card').filter({ hasText: '树拖拽落点修复' });
+    const targetBox = (await target.boundingBox())!;
+
+    await source.dispatchEvent('dragstart');
+    await expect(source).toHaveClass(/dragging/);
+
+    // 目标卡片上半 → before 插入线
+    await target.dispatchEvent('dragover', { clientX: targetBox.x + 10, clientY: targetBox.y + 5 });
+    await expect(target).toHaveClass(/drop-before/);
+
+    // 下半 → after 插入线
+    await target.dispatchEvent('dragover', {
+      clientX: targetBox.x + 10,
+      clientY: targetBox.y + targetBox.height - 5
+    });
+    await expect(target).toHaveClass(/drop-after/);
+    await expect(target).not.toHaveClass(/drop-before/);
+
+    // 空列 Ideas → 整列落点高亮
+    const ideas = page
+      .getByTestId('column')
+      .filter({ has: page.getByTestId('column-title').getByText('Ideas', { exact: true }) });
+    const ideasBox = (await ideas.boundingBox())!;
+    await ideas.dispatchEvent('dragover', {
+      clientX: ideasBox.x + ideasBox.width / 2,
+      clientY: ideasBox.y + ideasBox.height / 2
+    });
+    await expect(ideas).toHaveClass(/drop-end/);
+
+    // 拖拽结束（dragend）清除全部反馈
+    await source.dispatchEvent('dragend');
+    await expect(source).not.toHaveClass(/dragging/);
+    await expect(ideas).not.toHaveClass(/drop-end/);
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+  });
 });

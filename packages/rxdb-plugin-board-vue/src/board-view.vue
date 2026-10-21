@@ -7,6 +7,7 @@ import {
   resolveColumnDrop,
   type BoardLabel,
   type BoardSearchUpstream,
+  type CardDropColumnView,
   type CardDropTarget,
   type SearchHandle,
   type SearchResult,
@@ -115,6 +116,7 @@ const searchResultColumn = (result: SearchResult): string => {
 
 onBeforeUnmount(() => {
   if (highlightTimer !== null) window.clearTimeout(highlightTimer);
+  if (noticeTimer !== null) window.clearTimeout(noticeTimer);
   searchSubs?.unsubscribe();
   searchHandle?.destroy();
 });
@@ -131,12 +133,19 @@ const taskMap = computed(() => {
   return grouped;
 });
 
+let noticeTimer: number | null = null;
+const scheduleNoticeClear = (): void => {
+  if (noticeTimer !== null) window.clearTimeout(noticeTimer);
+  noticeTimer = window.setTimeout(() => (notice.value = null), 5000);
+};
+
 const guard = async <T,>(operation: () => Promise<T>): Promise<T | undefined> => {
   try {
     notice.value = null;
     return await operation();
   } catch (error) {
     notice.value = error instanceof Error ? error.message : String(error);
+    scheduleNoticeClear();
     return undefined;
   }
 };
@@ -171,15 +180,26 @@ const commitEditTitle = async (taskId: UUID): Promise<void> => {
   await guard(() => board.actions.updateTaskTitle(taskId, editTitleValue.value));
 };
 
+/** 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 源卡片半透明）。 */
+const dragging = ref<{ readonly kind: 'task' | 'column'; readonly id: UUID } | null>(null);
+const dropTarget = ref<
+  | { readonly kind: 'task'; readonly columnId: UUID; readonly mode: 'before' | 'after'; readonly taskId: UUID }
+  | { readonly kind: 'task-end'; readonly columnId: UUID }
+  | { readonly kind: 'column'; readonly columnId: UUID; readonly mode: 'before' | 'after' }
+  | null
+>(null);
+
 const onTaskDragStart = (event: DragEvent, taskId: UUID): void => {
   event.dataTransfer?.setData('application/x-board-task', taskId);
+  dragging.value = { kind: 'task', id: taskId };
 };
 const onColumnDragStart = (event: DragEvent, columnId: UUID): void => {
   event.dataTransfer?.setData('application/x-board-column', columnId);
+  dragging.value = { kind: 'column', id: columnId };
 };
 
-const resolveTaskTarget = (movedId: UUID, clientX: number, clientY: number): CardDropTarget | null => {
-  const views = board.columns.value.map(column => {
+const columnViews = (): CardDropColumnView[] =>
+  board.columns.value.map(column => {
     const columnEl = document.querySelector<HTMLElement>(`[data-column-id="${column.id}"]`);
     const rect = columnEl?.getBoundingClientRect();
     const cards = (taskMap.value.get(column.id) ?? []).map(task => {
@@ -194,8 +214,62 @@ const resolveTaskTarget = (movedId: UUID, clientX: number, clientY: number): Car
       taskIds: (taskMap.value.get(column.id) ?? []).map(task => task.id)
     };
   });
-  return resolveCardDrop(views, movedId, clientX, clientY);
+
+/** 卡片落点反馈：dragover 时预计算落点并标在目标卡片 / 空列上。 */
+const onTaskDragOver = (event: DragEvent): void => {
+  event.preventDefault();
+  const movedId = dragging.value?.id;
+  if (!movedId) return;
+  const target = resolveCardDrop(columnViews(), movedId, event.clientX, event.clientY);
+  if (!target) {
+    dropTarget.value = null;
+    return;
+  }
+  dropTarget.value =
+    target.kind === 'end' ?
+      { kind: 'task-end', columnId: target.columnId }
+    : {
+        kind: 'task',
+        columnId: target.columnId,
+        mode: target.prevId === null ? 'before' : 'after',
+        taskId: (target.prevId ?? target.nextId)!
+      };
 };
+
+/** 列头落点反馈：列间插入线。 */
+const onColumnDragOver = (event: DragEvent): void => {
+  event.preventDefault();
+  const movedId = dragging.value?.id;
+  if (!movedId) return;
+  const target = resolveColumnDrop(
+    board.columns.value.map(column => {
+      const headerEl = document.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`);
+      const rect = headerEl?.getBoundingClientRect();
+      return { columnId: column.id, rect: { left: rect?.left ?? 0, right: rect?.right ?? 0 } };
+    }),
+    board.columns.value.map(column => column.id),
+    movedId,
+    event.clientX
+  );
+  if (!target) {
+    dropTarget.value = null;
+    return;
+  }
+  const anchorId = target.prevId ?? target.nextId;
+  if (anchorId === null) {
+    dropTarget.value = null;
+    return;
+  }
+  dropTarget.value = { kind: 'column', columnId: anchorId, mode: target.prevId === null ? 'before' : 'after' };
+};
+
+const clearDragFeedback = (): void => {
+  dragging.value = null;
+  dropTarget.value = null;
+};
+
+const resolveTaskTarget = (movedId: UUID, clientX: number, clientY: number): CardDropTarget | null =>
+  resolveCardDrop(columnViews(), movedId, clientX, clientY);
 
 const resolveColumnTarget = (
   movedId: UUID,
@@ -219,6 +293,7 @@ const onTaskDrop = async (event: DragEvent, columnId: UUID): Promise<void> => {
   event.preventDefault();
   const movedId = event.dataTransfer?.getData('application/x-board-task') as UUID | undefined;
   if (!movedId) return;
+  clearDragFeedback();
   const target = resolveTaskTarget(movedId, event.clientX, event.clientY);
   if (!target) return;
   await guard(() => board.actions.moveTask(movedId, target));
@@ -228,6 +303,7 @@ const onColumnDrop = async (event: DragEvent): Promise<void> => {
   event.preventDefault();
   const movedId = event.dataTransfer?.getData('application/x-board-column') as UUID | undefined;
   if (!movedId) return;
+  clearDragFeedback();
   const target = resolveColumnTarget(movedId, event.clientX);
   if (!target) return;
   await guard(() => board.actions.moveColumn(movedId, target));
@@ -399,6 +475,7 @@ type ConfirmState =
     class="board-view"
     data-testid="board-view"
     @dragover.prevent
+    @dragend="clearDragFeedback"
     @drop="onColumnDrop"
   >
     <template v-if="board.currentBoard.value">
@@ -522,7 +599,13 @@ type ConfirmState =
         class="board-notice"
         role="alert"
         data-testid="board-notice"
-        >{{ notice }}</p
+        >{{ notice }}
+        <button
+          @click="notice = null"
+          data-testid="board-notice-close"
+          aria-label="关闭提示"
+          >×</button
+        ></p
       >
 
       <!-- 板内搜索（US-539 阶段 B） -->
@@ -592,16 +675,24 @@ type ConfirmState =
         <section
           v-for="column in board.columns.value"
           :key="column.id"
-          class="column"
+          :class="{ column: true, 'drop-end': dropTarget?.kind === 'task-end' && dropTarget.columnId === column.id }"
           :data-column-id="column.id"
-          @dragover.prevent
+          @dragover="onTaskDragOver"
           @drop="event => void onTaskDrop(event, column.id)"
           data-testid="column"
         >
           <header
-            class="column-header"
+            :class="{
+              'column-header': true,
+              'drop-before':
+                dropTarget?.kind === 'column' && dropTarget.columnId === column.id && dropTarget.mode === 'before',
+              'drop-after':
+                dropTarget?.kind === 'column' && dropTarget.columnId === column.id && dropTarget.mode === 'after',
+              dragging: dragging?.kind === 'column' && dragging.id === column.id
+            }"
             :data-column-header-id="column.id"
             draggable="true"
+            @dragover="onColumnDragOver"
             @dragstart="event => onColumnDragStart(event, column.id)"
             data-testid="column-header"
           >
@@ -659,7 +750,15 @@ type ConfirmState =
             <article
               v-for="task in taskMap.get(column.id) ?? []"
               :key="task.id"
-              :class="{ card: true, 'search-hit': searchHighlightId === task.id }"
+              :class="{
+                card: true,
+                'search-hit': searchHighlightId === task.id,
+                'drop-before':
+                  dropTarget?.kind === 'task' && dropTarget.taskId === task.id && dropTarget.mode === 'before',
+                'drop-after':
+                  dropTarget?.kind === 'task' && dropTarget.taskId === task.id && dropTarget.mode === 'after',
+                dragging: dragging?.kind === 'task' && dragging.id === task.id
+              }"
               :data-task-id="task.id"
               draggable="true"
               @dragstart="event => onTaskDragStart(event, task.id)"
