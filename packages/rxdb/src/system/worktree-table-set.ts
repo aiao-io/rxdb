@@ -152,4 +152,49 @@ export class WorktreeTableSet {
   has(metadata: EntityMetadata): boolean {
     return this.#members.has(identityOf(metadata));
   }
+
+  /**
+   * 这套表上一个实体的写落在哪套表：有副本落在本套（返回后缀），没有副本落在主表集（返回 `undefined`）。
+   *
+   * @param metadata - 实体元数据
+   * @returns 影子表集的后缀；落在主表集时为 `undefined`
+   *
+   * @remarks
+   * 本地实体事件带上它（`tableSetSuffix`，US-314 B2.3）。变更行之外派事件的路径（切分支、撤销 / 重做、拉取回填、新建实体）
+   * 按发起写的那一套表打标，与 {@link WorktreeTableSet.accepts} 判的是同一件事。
+   */
+  ownerSuffixOf(metadata: EntityMetadata): string | undefined {
+    return this.has(metadata) ? (this.suffix ?? undefined) : undefined;
+  }
+
+  /**
+   * 挂着这套表的实例收不收一条实体事件：事件那一行所在的表，是不是这套表上这个实体读的那张。
+   *
+   * @param metadata - 事件里实体的元数据；查不到元数据（不认得的实体）照收
+   * @param eventSuffix - 事件的 `tableSetSuffix`：写落在哪套影子表上，缺省是主表集
+   * @returns 收为 `true`
+   *
+   * @remarks
+   * 没有副本的实体（系统表、QueryCache、关了变更日志的）无论挂哪套都读主表集，主表集上它们的事件对谁都照收；
+   * 有副本的实体只收自己这套表上的。主检出位上的几个标签页按表集判、不按分支判：一个标签页切了分支，
+   * 另一个标签页挂的还是同一套主表、读到的也是新分支的数据，按分支过滤会把这批事件挡在外面。
+   */
+  accepts(metadata: EntityMetadata | undefined, eventSuffix: string | undefined): boolean {
+    if (!metadata) return true;
+    return this.ownerSuffixOf(metadata) === eventSuffix;
+  }
+
+  /**
+   * 这套表上一个实体的事件要带的表集标记，展开进事件数据：写落在影子表上带 `tableSetSuffix`，落在主表集什么都不带。
+   *
+   * @param metadata - 实体元数据
+   * @returns `{ tableSetSuffix }` 或空对象
+   *
+   * @remarks
+   * 落在主表集时不带一个值为 `undefined` 的键：没有检出位的库，事件形状与从前逐字相同。
+   */
+  eventTagOf(metadata: EntityMetadata): { readonly tableSetSuffix?: string } {
+    const suffix = this.ownerSuffixOf(metadata);
+    return suffix === undefined ? {} : { tableSetSuffix: suffix };
+  }
 }

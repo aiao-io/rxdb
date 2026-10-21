@@ -665,8 +665,13 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
   #bindEntityEvents(scope: LifecycleScope): void {
     const dispatch = (event: EntityChangeEvent) => {
       if (this.#handleRegistrations.size === 0) return;
+      // 只认本实例挂着那套表读得到的写（US-314 B2.3）：别的可写检出位写的行不在这套表里，重查也查不到
+      const tableSet = this.rxdb.worktreeTableSet;
       const changedTables = new Set<string>();
       for (const e of event.entities) {
+        if (!tableSet.accepts(this.rxdb.schemaManager.getEntityMetadata(e.entity, e.namespace), e.tableSetSuffix)) {
+          continue;
+        }
         const table = this.#entityNameToTable.get(e.entity);
         if (table) changedTables.add(table);
       }

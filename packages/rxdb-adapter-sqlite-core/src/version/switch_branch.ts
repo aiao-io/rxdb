@@ -327,7 +327,7 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
     _dispatch_branch_update_event(adapter, getEntityMetadata(RxDBBranch), branchRows, tableSet);
 
     if (switchAction) {
-      await dispatch_switch_events(adapter, switchAction);
+      await dispatch_switch_events(adapter, switchAction, tableSet);
     }
   } catch (error) {
     // `prepare` 的拒绝是**调用方的领域错误**（工作树不干净、凭据过期……），调用方按类型接住它。

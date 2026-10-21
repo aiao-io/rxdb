@@ -68,16 +68,17 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 阶段 | 前置条件                                   | 操作                                     | 预期结果                                                                                         | 状态 |
-| --- | ---- | ------------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
-| 1   | A    | 当前分支上一个可达提交，工作树有未提交改动 | 从它建分支并切过去                       | 业务表与「那次 `commit()` 刚完成时读到的数据」逐行一致；新分支的 HEAD 是该提交；原分支的改动还在 | ✅   |
-| 2   | A    | 三端 demo                                  | 历史行右键「Create branch from commit」  | 弹「Create a branch」对话框，写明基于哪个提交；建完切到新分支                                    | ✅   |
-| 3   | B    | 主检出位有未提交改动                       | 新建可写检出位，在上面写并提交           | 主检出位的业务表、工作树与 active 分支都不变；提交进那条分支的历史                               | ✅   |
-| 4   | B    | 一条分支已被一个可写检出位检出             | 在别处再检出它                           | 拒绝（git：`already used by worktree`）                                                          | ✅   |
-| 5   | C    | 三端 demo，有一个链接检出位                | 工具栏 Worktree 下拉选中它               | 分两组列出；切过去之后 Changes、History、Current Branch 都换到它上                               | ⬜   |
-| 6   | C    | 三端 demo                                  | New Worktree… / Rename… / Delete…        | 与 GitHub Desktop 3.6 同流程；主检出位不能改名或删除；有未提交改动时删除先确认                   | ⬜   |
-| 7   | C    | 三端 demo                                  | a11y 走查                                | Worktree 下拉与三个对话框 axe 零违规、键盘可达                                                   | ⬜   |
-| 8   | B    | 挂在可写检出位上，持有的分支有未提交改动   | 在检出位里切到另一条分支，或合并别的分支 | 切分支：改动留在原分支，读到的与主检出位切过去逐行一致；合并落在这套表里；主检出位一处不动       | ✅   |
+| #   | 阶段 | 前置条件                                               | 操作                                               | 预期结果                                                                                         | 状态 |
+| --- | ---- | ------------------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
+| 1   | A    | 当前分支上一个可达提交，工作树有未提交改动             | 从它建分支并切过去                                 | 业务表与「那次 `commit()` 刚完成时读到的数据」逐行一致；新分支的 HEAD 是该提交；原分支的改动还在 | ✅   |
+| 2   | A    | 三端 demo                                              | 历史行右键「Create branch from commit」            | 弹「Create a branch」对话框，写明基于哪个提交；建完切到新分支                                    | ✅   |
+| 3   | B    | 主检出位有未提交改动                                   | 新建可写检出位，在上面写并提交                     | 主检出位的业务表、工作树与 active 分支都不变；提交进那条分支的历史                               | ✅   |
+| 4   | B    | 一条分支已被一个可写检出位检出                         | 在别处再检出它                                     | 拒绝（git：`already used by worktree`）                                                          | ✅   |
+| 5   | C    | 三端 demo，有一个链接检出位                            | 工具栏 Worktree 下拉选中它                         | 分两组列出；切过去之后 Changes、History、Current Branch 都换到它上                               | ⬜   |
+| 6   | C    | 三端 demo                                              | New Worktree… / Rename… / Delete…                  | 与 GitHub Desktop 3.6 同流程；主检出位不能改名或删除；有未提交改动时删除先确认                   | ⬜   |
+| 7   | C    | 三端 demo                                              | a11y 走查                                          | Worktree 下拉与三个对话框 axe 零违规、键盘可达                                                   | ⬜   |
+| 8   | B    | 挂在可写检出位上，持有的分支有未提交改动               | 在检出位里切到另一条分支，或合并别的分支           | 切分支：改动留在原分支，读到的与主检出位切过去逐行一致；合并落在这套表里；主检出位一处不动       | ✅   |
+| 9   | B    | 两个标签页共用一个库，一个挂主检出位、一个挂可写检出位 | 各自写入；改两套表里都有的同一行；在检出位里切分支 | 两边的活查询只收到自己那套表上的变更，同 id 的行不被另一边的值改掉                               | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -163,6 +164,7 @@ INVEST 检查清单:
     表名中间，多对多中间表的两条外键截成同一个名字，建不出来。改成沿用主表集那一份（外键约束名只在同一张表内唯一）。
   - 留给 B2：本地实体事件带分支、活查询按检出位过滤。只有多个标签页同时挂不同检出位时才用得上，与多标签页一起设计、验证；
     此前跨标签页网关转发的实体事件不分检出位。`compute_switch_branch_actions` 仍按主检出位读，随检出位里切分支一起改。
+    （两项分别在 B2.3a、B2.2 交付，见下。）
 - **可写检出位的生命周期**（阶段 B1.5，owner 2026-10-21 定四项）：
   - 公开 API 在 `rxdb.workingTree.checkouts` 上，动词照 GitHub Desktop：`add(branchId, { name?, owner? })` 开、`mount(id)` 挂上、
     `mountMain()` 挂回主检出位、`release(id)` 交出认领、`remove(id)` 删；`list()` / `prune()` 两类检出位都管，登记行的 `mode` 区分。
@@ -189,9 +191,8 @@ INVEST 检查清单:
     删掉检出位再切过去历史里有这个提交）、验收 4（再开被占的分支、开主检出位的当前分支、主检出位切过去都被拒，删掉之后放行）、
     播种 / 写过之后与「删掉检出位再切过去」逐行一致、开删不改主表原值也不写变更日志、密钥环上锁照样开得了、会话与持久归属的回收、
     `in_use`。适配器级（sqlite-core 共享套件与 PGlite 同名用例）：播种不记日志、增量越界整笔拒绝、按目录删、自增序列对齐。
-  - **已知限制**（B2 之前；B2.1 起去掉了已解决的项）：多个标签页同时挂不同的检出位（跨标签页转发的实体事件不分检出位）；
-    全文检索、草稿缓存只在主表集；整数自增主键跨套可能撞 id（owner 定：播种时对齐序列，记限制）；远端分支要先在主检出位上
-    物化才能开、才能在检出位里切过去。
+  - **已知限制**（B2 之前；B2.1 起去掉了已解决的项）：全文检索、草稿缓存只在主表集；整数自增主键跨套可能撞 id
+    （owner 定：播种时对齐序列，记限制）；远端分支要先在主检出位上物化才能开、才能在检出位里切过去。
 - **守卫与修复**（阶段 B2.1，2026-10-21 调研查出 B1 交付里的缺陷，先修再做 B2 的新能力）：
   - 被可写检出位持有的分支删不掉：`remove_branch` 在 `activated` 之外再看 `activeKey`（核心的 `WorktreeBranchHeldError.heldBy`，
     在事务里返回、事务外抛），git 的 `Cannot delete branch … checked out at …`。从前持有分支的 `activated` 为假、照删不误，
@@ -231,6 +232,25 @@ INVEST 检查清单:
     切到被占的分支被拒、激活版本号互不干扰（主检出位之前签出的凭据在检出位切过分支之后照样提交得进去）、激活态行随开删、
     `rename()` 的各种结果；适配器级（sqlite-core 共享套件与 PGlite 同名用例）：只动这套表与这两行的持有键、主检出位那一行不动、
     被占的目标一行不动地拒绝。
+- **事件按表集路由**（阶段 B2.3a，验收 9）：
+  - 本地实体事件多了可选的 `tableSetSuffix`：写在可写检出位影子表上的带那套表的后缀，主表集上的不带（没有检出位的库，
+    事件形状与从前逐字相同）。打标三处：变更行派的事件按「分支此刻被哪套表持有」查（变更行只记了分支；一条分支至多被一套表持有，
+    两个适配器的 `read_branch_holders.ts`）；切分支与撤销派的事件按写入的执行器挂的那套表；实体管理器的 NEW 事件与
+    `notifyExternalUpdate` 按实例挂的那套表。QueryCache、不记日志的实体、`RxDBBranch` / `RxDBChange` 这些只在主表集的不打。
+  - 收：`WorktreeTableSet#accepts(metadata, suffix)`，按表集判、不按分支判（主检出位上的几个标签页挂的是同一套主表，
+    一个切了分支，另一个读到的也是新分支的数据）。有副本的实体只收自己这套表上的，没副本的、不认得的照收。
+    查询管理器的增量合并与搜索插件的事件分派用它；历史插件的 `onLocalCreate` 照旧按变更行的分支判（B1.4b）。网关原样转发。
+  - 挂载信号挪到清实体缓存之后：`mountWorktreeTableSet` 在事务里换表集，收尾先 `resetForWorktreeTableSet()`、再发
+    `worktreeTableSet$`。订阅方（B2.4 的草稿、B2.5 的检索）拿到信号按新那套重填的缓存，不会被随后的清空抹掉。
+  - 能串表的只有增量合并：建行事件让活查询整查（读的是收方自己那套表）；改行事件的负载比收方缓存旧时当陈旧事件、同样整查。
+    切分支派出的改行事件带的是目标版本当初的 `updatedAt`，切换又把表里的行改成当下的时间，收方缓存多半更新、碰巧挡住——
+    目标版本比收方缓存新时才错合。没有路由时，同一行两套表各有一份、一边改它，另一边的活查询与实体缓存会被改成这边的值。
+  - 一致性：sqlite-core 共享套件与 PGlite 同名用例（影子表的写带后缀、主表的不带；检出位里切分支派出的事件带后缀；
+    挂载信号在清缓存之后）；wa-sqlite `worktree-cross-connection.spec.ts`（两个真实实例共享持久库，A 挂主、B 挂检出位：
+    各自建的行只进自己的活查询、同一行两边各改不串、B 在检出位里切分支不扰 A；关掉过滤时后两条变红）；
+    核心单测（`accepts`、查询管理器的过滤、网关原样转发）。
+  - 测试顺带修：PGlite 表集 spec 改成每条用例一个新库。撤销会话的边界（变更 id）留在实例内存里，`TRUNCATE … RESTART IDENTITY`
+    让变更 id 从 1 重新编号，上一条用例的边界会让下一条的写落在边界之内、不可撤销（用例间残留，不是产品缺陷）。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -273,6 +293,10 @@ INVEST 检查清单:
   `switch-branch-actions.ts`、`packages/rxdb-plugin-working-tree/src/working-tree/activation-state.ts`（`activationStateIdOf`）/
   `activation-cas.ts` / `materialize-branch.ts`、`checkout/worktree-writable.ts`（登记行跟随、激活态行、名字）/
   `worktree-manager.ts`（`rename`）/ `worktree.entity.ts`、`plugin.ts` — 检出位里切分支、激活版本号按表集、改名（B2.2）
+- `packages/rxdb/src/rxdb-events.ts`（`tableSetSuffix`）、`system/worktree-table-set.ts`（`accepts` / `ownerSuffixOf` / `eventTagOf`）、
+  `RxDB.ts`（挂载信号）、`entity/entity-manager.ts`、`repository/QueryManager.ts`；两个适配器的 `version/read_branch_holders.ts`、
+  `handle_rxdb_change.ts`、`version/execute_switch_actions.ts`；`packages/rxdb-plugin-search/src/plugin.ts`；
+  `packages/rxdb-adapter-wa-sqlite/src/__tests__/worktree-cross-connection.spec.ts` — 事件按表集路由（B2.3a）
 - `packages/rxdb/src/system/active-branch-guard.ts`（`WorktreeBranchHeldError`）、`system/system-repositories.ts`、
   两个适配器的 `version/switch_branch.ts` 与系统迁移（sqlite-core `RxDBAdapterSqliteBase.ts`、PGlite `system/migrate_system_schema.ts`）
   — 分支持有模型

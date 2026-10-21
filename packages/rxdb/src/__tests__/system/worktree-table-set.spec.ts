@@ -103,4 +103,36 @@ describe('WorktreeTableSet', () => {
       rules: [{ field: 'activeKey', operator: '=', value: '*worktree:wt_a1*' }]
     });
   });
+
+  // 本地实体事件按表集路由（US-314 B2.3）：事件带上写落在哪套表（`tableSetSuffix`），实例只收自己挂着那套读得到的
+  it('一个实体的写落在哪套表：有副本落本套，没有副本恒落主表集', () => {
+    const set = WorktreeTableSet.of('wt_a1', [Todo]);
+
+    expect(set.ownerSuffixOf(getEntityMetadata(Todo))).toBe('wt_a1');
+    expect(set.ownerSuffixOf(getEntityMetadata(Note))).toBeUndefined();
+    expect(WorktreeTableSet.MAIN.ownerSuffixOf(getEntityMetadata(Todo))).toBeUndefined();
+  });
+
+  it('收不收一条事件：有副本的实体只收本套表上的，没有副本的实体只收主表集上的，不认得的实体照收', () => {
+    const set = WorktreeTableSet.of('wt_a1', [Todo]);
+    const todo = getEntityMetadata(Todo);
+    const note = getEntityMetadata(Note);
+
+    expect(set.accepts(todo, 'wt_a1')).toBe(true);
+    expect(set.accepts(todo, undefined)).toBe(false);
+    expect(set.accepts(todo, 'wt_b2')).toBe(false);
+    expect(set.accepts(note, undefined)).toBe(true);
+    expect(set.accepts(note, 'wt_a1')).toBe(false);
+    expect(WorktreeTableSet.MAIN.accepts(todo, undefined)).toBe(true);
+    expect(WorktreeTableSet.MAIN.accepts(todo, 'wt_a1')).toBe(false);
+    expect(set.accepts(undefined, 'wt_b2')).toBe(true);
+  });
+
+  it('事件的表集标记：落在影子表上带后缀，落在主表集不带这个键', () => {
+    const set = WorktreeTableSet.of('wt_a1', [Todo]);
+
+    expect(set.eventTagOf(getEntityMetadata(Todo))).toEqual({ tableSetSuffix: 'wt_a1' });
+    expect('tableSetSuffix' in set.eventTagOf(getEntityMetadata(Note))).toBe(false);
+    expect('tableSetSuffix' in WorktreeTableSet.MAIN.eventTagOf(getEntityMetadata(Todo))).toBe(false);
+  });
 });

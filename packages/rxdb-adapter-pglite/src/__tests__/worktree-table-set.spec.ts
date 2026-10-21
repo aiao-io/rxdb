@@ -11,6 +11,8 @@ import {
   ACTIVE_BRANCH_KEY,
   encodeRxDBChangeEntityId,
   Entity,
+  ENTITY_LOCAL_CREATE_EVENT,
+  ENTITY_LOCAL_REMOVE_EVENT,
   EntityBase,
   getEntityMetadata,
   getRxDBChangeKey,
@@ -26,10 +28,9 @@ import {
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { Todo } from '@aiao/rxdb-test/entities';
-import { firstValueFrom } from 'rxjs';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { firstValueFrom, skip } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
-import { cleanup_db } from '../testing.js';
 import { execute_switch_actions } from '../version/execute_switch_actions.js';
 import { generateDbName } from './test-utils.js';
 
@@ -129,7 +130,10 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
       )
     ).rows.map(row => row.nspname);
 
-  beforeAll(async () => {
+  // 每条用例一个新库，自己开一套：持有分支、持有键、表集。不共用实例再清库：撤销会话的边界存在实例内存里，
+  // 清库（TRUNCATE … RESTART IDENTITY）让变更 id 从 1 重新编号，上一条用例恢复会话时留下的边界会把这一条的写
+  // 当成边界之前的旧变更，撤销数一直是 0（US-314 B2.3 时变更事件的时序一变就常挂）
+  beforeEach(async () => {
     rxdb = new RxDB({
       dbName: generateDbName(),
       entities: [Todo, WorktreeSeqNote],
@@ -138,14 +142,6 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
     rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' }));
     rxdb.use(rxDBPluginHistory);
     adapter = await rxdb.connect('pglite');
-  });
-
-  afterAll(async () => {
-    if (rxdb) await rxdb.disconnectAll();
-  });
-
-  // 每条用例自己开一套：持有分支、持有键、表集。清库连同影子表集的 schema 一起删（cleanup_db）。
-  beforeEach(async () => {
     await rxdb.versionManager.createBranch(heldBranch);
     await adapter.internalQuery(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = $1::text WHERE "id" = $2::text`, [
       tableSet.holderKey,
@@ -155,8 +151,7 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
   });
 
   afterEach(async () => {
-    await cleanup_db(adapter);
-    rxdb.versionManager.resetSessionState();
+    await rxdb.disconnectAll();
   });
 
   it('建出成员自己的表：影子表的写记在持有分支，主表的写照旧记在主检出位的分支', async () => {
@@ -355,9 +350,72 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
         .map(todo => String(todo.title))
         .sort();
 
-    // 先挂回主表集再清库：外层的清库删的就是这套影子表
+    // 先挂回主表集再断开：用例中途失败也不把实例留在影子表集上
     afterEach(async () => {
       await rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+    });
+
+    /** 开始收某类事件里 Todo 的那几条（id 与写在哪套表上），`stop()` 摘掉监听 */
+    const listenTodoEvents = (type: typeof ENTITY_LOCAL_CREATE_EVENT | typeof ENTITY_LOCAL_REMOVE_EVENT) => {
+      const seen: { id: unknown; tableSetSuffix?: string }[] = [];
+      const { name } = getEntityMetadata(Todo);
+      const listener = (event: { entities: { entity: string; id: unknown; tableSetSuffix?: string }[] }) =>
+        seen.push(
+          ...event.entities
+            .filter(entity => entity.entity === name)
+            .map(({ id, tableSetSuffix }) => ({ id, tableSetSuffix }))
+        );
+      rxdb.addEventListener(type, listener as never);
+      return { seen, stop: () => rxdb.removeEventListener(type, listener as never) };
+    };
+
+    // 本地实体事件按表集打标（US-314 B2.3）：与 sqlite-core 共享套件的同名用例逐条对应
+    it('事件带上写在哪套表上：影子表的写带后缀，主表的写不带', async () => {
+      const created = listenTodoEvents(ENTITY_LOCAL_CREATE_EVENT);
+      try {
+        const mainId = await rawInsert(WorktreeTableSet.MAIN, 'main-row');
+        const shadowId = await rawInsert(tableSet, 'shadow-row');
+        // 变更行的事件经 NOTIFY 异步派出
+        await expect.poll(() => created.seen.length).toBe(2);
+
+        expect(created.seen.find(event => event.id === mainId)).toEqual({ id: mainId, tableSetSuffix: undefined });
+        expect(created.seen.find(event => event.id === shadowId)).toEqual({
+          id: shadowId,
+          tableSetSuffix: tableSet.suffix
+        });
+      } finally {
+        created.stop();
+      }
+    });
+
+    it('检出位里切分支派出的事件带后缀', async () => {
+      await rxdb.mountWorktreeTableSet(tableSet);
+      await rxdb.versionManager.createBranch('feature');
+      await rxdb.versionManager.switchBranch('feature');
+      const featureOnly = await rawInsert(tableSet, 'on-feature');
+      const removed = listenTodoEvents(ENTITY_LOCAL_REMOVE_EVENT);
+
+      try {
+        await rxdb.versionManager.switchBranch(heldBranch);
+        expect(removed.seen).toEqual([{ id: featureOnly, tableSetSuffix: tableSet.suffix }]);
+      } finally {
+        removed.stop();
+      }
+    });
+
+    // 挂载信号在清实体缓存之后才发（US-314 B2.3）：订阅方拿到信号按新那套重填的缓存，不会被随后的清空抹掉
+    it('worktreeTableSet$ 在实体缓存清空之后才发出新的一套', async () => {
+      const todo = new Todo({ title: 'cached' });
+      await todo.save();
+      const cachedAtSignal: boolean[] = [];
+      const subscription = rxdb.worktreeTableSet$
+        .pipe(skip(1))
+        .subscribe(() => cachedAtSignal.push(rxdb.entityManager.hasEntityRef(Todo, todo.id)));
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      subscription.unsubscribe();
+
+      expect(cachedAtSignal).toEqual([false]);
     });
 
     // 检出位里合并只合这套表的成员（US-314 B2.1）：`WorktreeSeqNote` 记日志、不是这套影子表的成员，照合会落回主表、

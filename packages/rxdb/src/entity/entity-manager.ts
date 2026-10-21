@@ -212,7 +212,9 @@ export class EntityManager {
             id: entity.id,
             patch: entity,
             inversePatch: null,
-            recordAt: new Date()
+            recordAt: new Date(),
+            // 新建的实体存下去会落在本实例挂的那套表上（US-314 B2.3）
+            ...this.rxdb.worktreeTableSet.eventTagOf(meta)
           }
         ]);
         this.rxdb.dispatchEvent(entity_new_event);
@@ -624,7 +626,9 @@ export class EntityManager {
         id,
         patch,
         inversePatch: {} as Readonly<Partial<InstanceType<T>>>,
-        recordAt: new Date()
+        recordAt: new Date(),
+        // 外部改的是本实例挂的那套表上的这一行（US-314 B2.3）
+        ...this.rxdb.worktreeTableSet.eventTagOf(metadata)
       }
     ]);
     const hook = this.rxdb.workingTreeCaptureHook;

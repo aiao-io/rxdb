@@ -89,6 +89,8 @@ export type { IRepositoryConfig } from './rxdb.types.js';
 export class RxDB {
   #local_adapter_sub = new BehaviorSubject<string>('');
   /** 本实例挂的那一套业务表（US-314），见 {@link RxDB.mountWorktreeTableSet} */
+  #worktree_table_set: WorktreeTableSet = WorktreeTableSet.MAIN;
+  /** {@link RxDB.worktreeTableSet$} 的源：换挂收尾、实体缓存清空之后才发（US-314 B2.3） */
   readonly #worktree_table_set$ = new BehaviorSubject<WorktreeTableSet>(WorktreeTableSet.MAIN);
   #remote_adapter_sub = new BehaviorSubject<string>('');
   #config!: RxDBConfig;
@@ -362,6 +364,10 @@ export class RxDB {
    */
   /**
    * {@link RxDB.worktreeTableSet} 的流：订阅时先交出当前那一套，换挂时发出新的一套（US-314 B1.4）
+   *
+   * @remarks
+   * 换挂收尾之后才发：实体缓存已经清空、活查询已经开始按新那套重跑（US-314 B2.3）。订阅方拿到信号按新那套重填自己的缓存
+   * （草稿、全文检索的句柄），不会被随后的清空抹掉。
    */
   public readonly worktreeTableSet$: Observable<WorktreeTableSet> = this.#worktree_table_set$.asObservable();
 
@@ -514,7 +520,7 @@ export class RxDB {
    * 一个实例同一时刻只挂一套表，状态只存在这里；适配器的 `tableSet` 转读它。
    */
   get worktreeTableSet(): WorktreeTableSet {
-    return this.#worktree_table_set$.value;
+    return this.#worktree_table_set;
   }
 
   /**
@@ -1310,10 +1316,13 @@ export class RxDB {
         const held = await executor.getRepository(RxDBBranch).find({ where: tableSet.heldBranchWhere });
         if (held.length === 0) throw new RxDBError(`表集 ${tableSet.suffix} 没有持有任何分支，挂不上`);
       }
-      this.#worktree_table_set$.next(tableSet);
+      // 在适配器的事务队列里换：排在后面的读写一律按新的一套（适配器的 tableSet 读的就是这个字段）
+      this.#worktree_table_set = tableSet;
       adapter.worktreeTableSetMounted();
     }, false);
     this.entityManager.resetForWorktreeTableSet();
+    // 流在清空实体缓存之后才发：订阅方按新那套重填的缓存不会被清空抹掉（US-314 B2.3）
+    this.#worktree_table_set$.next(tableSet);
   }
 
   /**

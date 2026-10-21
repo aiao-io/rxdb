@@ -337,7 +337,7 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
 
     // 发送实体变更事件（复用公共逻辑）
     if (switchAction) {
-      await dispatch_switch_events(adapter, switchAction);
+      await dispatch_switch_events(adapter, switchAction, tableSet);
     }
   } catch (cause) {
     // `prepare` 的拒绝是**调用方的领域错误**（工作树不干净、凭据过期……），调用方按类型接住它。

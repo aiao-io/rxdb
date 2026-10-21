@@ -1,5 +1,7 @@
 import {
   ACTIVE_BRANCH_KEY,
+  ENTITY_LOCAL_CREATE_EVENT,
+  ENTITY_LOCAL_REMOVE_EVENT,
   Entity,
   EntityBase,
   type IRxDBChange,
@@ -12,7 +14,7 @@ import {
   getEntityMetadata,
   getRxDBChangeKey
 } from '@aiao/rxdb';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, skip } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
@@ -323,6 +325,71 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
       // 先挂回主表集再清库：外层的清库删的就是这套影子表
       afterEach(async () => {
         await adapter.rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+      });
+
+      /** 开始收某类事件里 Todo 的那几条（id 与写在哪套表上），收到的放进返回的数组，`stop()` 摘掉监听 */
+      const listenTodoEvents = (type: typeof ENTITY_LOCAL_CREATE_EVENT | typeof ENTITY_LOCAL_REMOVE_EVENT) => {
+        const seen: { id: unknown; tableSetSuffix?: string }[] = [];
+        const { name } = getEntityMetadata(Todo);
+        const listener = (event: { entities: { entity: string; id: unknown; tableSetSuffix?: string }[] }) =>
+          seen.push(
+            ...event.entities
+              .filter(entity => entity.entity === name)
+              .map(({ id, tableSetSuffix }) => ({ id, tableSetSuffix }))
+          );
+        adapter.rxdb.addEventListener(type, listener as never);
+        return { seen, stop: () => adapter.rxdb.removeEventListener(type, listener as never) };
+      };
+
+      // 本地实体事件按表集打标（US-314 B2.3）：写在影子表上的带后缀，主表上的不带，形状与从前逐字相同
+      it('事件带上写在哪套表上：影子表的写带后缀，主表的写不带', async () => {
+        const created = listenTodoEvents(ENTITY_LOCAL_CREATE_EVENT);
+        try {
+          const mainId = await rawInsert(WorktreeTableSet.MAIN, 'main-row');
+          const shadowId = await rawInsert(tableSet, 'shadow-row');
+          // 变更行的事件经更新钩子异步派出
+          await expect.poll(() => created.seen.length).toBe(2);
+
+          expect(created.seen.find(event => event.id === mainId)).toEqual({ id: mainId, tableSetSuffix: undefined });
+          expect(created.seen.find(event => event.id === shadowId)).toEqual({
+            id: shadowId,
+            tableSetSuffix: tableSet.suffix
+          });
+        } finally {
+          created.stop();
+        }
+      });
+
+      it('检出位里切分支派出的事件带后缀', async () => {
+        const versionManager = adapter.rxdb.versionManager;
+        await adapter.rxdb.mountWorktreeTableSet(tableSet);
+        await versionManager.createBranch('feature');
+        await versionManager.switchBranch('feature');
+        const featureOnly = await rawInsert(tableSet, 'on-feature');
+        const removed = listenTodoEvents(ENTITY_LOCAL_REMOVE_EVENT);
+
+        try {
+          await versionManager.switchBranch(heldBranch);
+          expect(removed.seen).toEqual([{ id: featureOnly, tableSetSuffix: tableSet.suffix }]);
+        } finally {
+          removed.stop();
+        }
+      });
+
+      // 挂载信号在清实体缓存之后才发（US-314 B2.3）：订阅方拿到信号按新那套重填的缓存，不会被随后的清空抹掉
+      it('worktreeTableSet$ 在实体缓存清空之后才发出新的一套', async () => {
+        const todo = new Todo();
+        todo.title = 'cached';
+        await todo.save();
+        const cachedAtSignal: boolean[] = [];
+        const subscription = adapter.rxdb.worktreeTableSet$
+          .pipe(skip(1))
+          .subscribe(() => cachedAtSignal.push(adapter.rxdb.entityManager.hasEntityRef(Todo, todo.id)));
+
+        await adapter.rxdb.mountWorktreeTableSet(tableSet);
+        subscription.unsubscribe();
+
+        expect(cachedAtSignal).toEqual([false]);
       });
 
       // 检出位里合并只合这套表的成员（US-314 B2.1）：`WorktreeSeqNote` 记日志、不是这套影子表的成员，照合会落回主表、
