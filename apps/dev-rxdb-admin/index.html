@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>模型驱动数据工作台</title>
+    <meta content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" name="viewport" />
+    <meta content="light dark" name="color-scheme" />
+    <meta content="基于 RxDB 的模型驱动本地数据工作台：预置实体 schema，录入、编辑、筛选与备份恢复" name="description" />
+    <script>
+      try {
+        let theme = localStorage.getItem('theme') || 'auto';
+        if (theme === 'auto') theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="/src/main.tsx" type="module"></script>
+  </body>
+</html>

@@ -239,6 +239,12 @@
     },
     {
       "path": "./packages/rxdb-plugin-tree-vue"
+    },
+    {
+      "path": "./apps/dev-rxdb-admin-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-admin"
     }
   ]
 }

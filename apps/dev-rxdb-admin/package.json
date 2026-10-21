@@ -1,0 +1,18 @@
+{
+  "name": "@aiao/dev-rxdb-admin",
+  "version": "0.0.1",
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
+    "@aiao/rxdb-model-react": "workspace:*",
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-react": "workspace:*",
+    "@aiao/rxdb-test": "workspace:*",
+    "lucide-react": "^1.57.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "daisyui": "^5.7.50",
+    "tailwindcss": "^4.3.3"
+  }
+}
