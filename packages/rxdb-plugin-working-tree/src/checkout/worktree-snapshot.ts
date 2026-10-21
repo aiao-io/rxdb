@@ -180,7 +180,8 @@ export const connectSnapshotDatabase = async (snapshot: RxDB): Promise<LocalRxDB
  * @param copied - 要复制的表（主实例上的实体类）
  * @param target - 检出位的 HEAD
  * @returns 主库此刻停在哪
- * @throws {@link WorktreeUnavailableError} 主库没有 active 分支；提交视图在这个事务里不可达或不兼容了
+ * @throws {@link WorktreeUnavailableError} 主库没有当前分支（挂在可写检出位上时是那套表持有的分支不见了）；
+ * 提交视图在这个事务里不可达或不兼容了
  */
 export const importSnapshot = async (
   executor: TransactionExecutor,
@@ -190,11 +191,16 @@ export const importSnapshot = async (
   target: WorktreeTarget
 ): Promise<WorktreeSnapshotSource> => {
   const changeRepository = executor.getRepository(RxDBChange);
-  const [active] = await executor.getRepository(RxDBBranch).find({
-    where: { combinator: 'and', rules: [{ field: 'activated', operator: '=', value: true }] },
-    limit: 1
-  });
-  if (!active) throw new WorktreeUnavailableError('branch_not_found', '主库没有 active 分支');
+  // 来源是本事务那套表持有的分支（US-314 B1.4）：下面复制的业务表经 `executor.tableRef` 读的就是那套表，
+  // 按主检出位激活的分支算增量，会把另一条分支的差异叠在这套表的数据上
+  const { tableSet } = executor;
+  const [active] = await executor.getRepository(RxDBBranch).find({ where: tableSet.heldBranchWhere, limit: 1 });
+  if (!active) {
+    throw new WorktreeUnavailableError(
+      'branch_not_found',
+      tableSet.isMain ? '主库没有 active 分支' : `表集 ${tableSet.suffix} 持有的分支不见了：可写检出位可能已经关掉`
+    );
+  }
   const actions = await deltaOf(executor, mainAdapter, active.id, target);
   const snapshotAdapter = await firstValueFrom(snapshot.localAdapter$);
   await snapshotAdapter.importWorktreeSnapshot!({

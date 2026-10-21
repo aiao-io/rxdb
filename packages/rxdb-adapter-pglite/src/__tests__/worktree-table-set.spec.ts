@@ -248,6 +248,15 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
       expect((await rxdb.versionManager.getCurrentBranch()).id).toBe(heldBranch);
     });
 
+    // 建分支在事务里取「当前分支」做父分支：挂在可写检出位上时是持有分支，不是主检出位激活的那一条
+    it('挂在可写检出位上建分支：父分支是持有分支', async () => {
+      await rxdb.mountWorktreeTableSet(tableSet);
+
+      const branch = await rxdb.versionManager.createBranch('from-worktree');
+
+      expect(branch.parentId).toBe(heldBranch);
+    });
+
     it('没有持有分支的表集挂不上', async () => {
       await expect(rxdb.mountWorktreeTableSet(WorktreeTableSet.of('wt_none', [Todo]))).rejects.toThrow(/持有/);
       expect(rxdb.worktreeTableSet).toBe(WorktreeTableSet.MAIN);

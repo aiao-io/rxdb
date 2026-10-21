@@ -32,7 +32,9 @@ const doubles = vi.hoisted(() => ({
     syncing: vi.fn<(operation: DetachedOperation) => void>(),
     history: vi.fn<(options?: unknown) => unknown>(),
     pushableCount$: { kind: 'pushable' },
-    pullableCount$: { kind: 'pullable' }
+    pullableCount$: { kind: 'pullable' },
+    /** 本实例的当前分支；`null` 表示还没解析出来 */
+    currentUndoBranchId: null as string | null
   },
   detachedError: {
     isIgnorable: vi.fn<(error: unknown) => boolean>()
@@ -52,6 +54,10 @@ vi.mock('../HistoryManager.js', () => ({
   HistoryManager: class HistoryManagerMock {
     readonly pushableCount$ = doubles.history.pushableCount$;
     readonly pullableCount$ = doubles.history.pullableCount$;
+
+    get currentUndoBranchId(): string | null {
+      return doubles.history.currentUndoBranchId;
+    }
 
     constructor(rxdb: unknown) {
       doubles.history.instances.push(this);
@@ -236,6 +242,7 @@ async function flushDetachedTask(): Promise<void> {
 beforeEach(() => {
   vi.resetAllMocks();
   doubles.history.instances.length = 0;
+  doubles.history.currentUndoBranchId = null;
   doubles.history.invalidateRedoStack.mockResolvedValue(undefined);
   doubles.history.isExecutingUndoRedo.mockReturnValue(false);
   doubles.history.history.mockReturnValue({ type: 'database' });
@@ -315,6 +322,49 @@ describe('VersionManager 对协作模块的编排契约', () => {
 
     expect(doubles.history.invalidateRedoStack).toHaveBeenCalledOnce();
     expect(doubles.history.resetSyncCleared).toHaveBeenCalledOnce();
+  });
+
+  // 变更元事件的 patch 是整行变更（两个后端都这么派），`branchId` 就在里面。一笔写只作废它所在分支的 redo 栈、
+  // 只恢复那条分支的 undo 会话（US-314 B1.4）：实例刚从可写检出位挂回主检出位时，检出位上那几笔写的通知可能迟到。
+  it('只认记在本实例当前分支上的变更', async () => {
+    const { manager, addEventListener } = createHarness();
+    doubles.history.currentUndoBranchId = 'main';
+    manager.init();
+    const listener = getLocalCreateListener(addEventListener);
+
+    listener({
+      entities: [{ namespace: 'rxdb', entity: 'RxDBChange', id: 51, patch: { id: 51, branchId: 'feature' } }]
+    });
+    await flushDetachedTask();
+
+    expect(doubles.history.invalidateRedoStack).not.toHaveBeenCalled();
+    expect(doubles.history.resetSyncCleared).not.toHaveBeenCalled();
+
+    listener({
+      entities: [
+        { namespace: 'rxdb', entity: 'RxDBChange', id: 52, patch: { id: 52, branchId: 'feature' } },
+        { namespace: 'rxdb', entity: 'RxDBChange', id: 53, patch: { id: 53, branchId: 'main' } }
+      ]
+    });
+    await flushDetachedTask();
+
+    expect(doubles.history.invalidateRedoStack).toHaveBeenCalledOnce();
+    expect(doubles.history.resetSyncCleared).toHaveBeenCalledWith([53]);
+  });
+
+  // 当前分支还没解析出来时无从比对，照旧按本分支的写处理 —— 与按分支过滤之前逐字相同
+  it('当前分支还没解析出来时照旧处理', async () => {
+    const { manager, addEventListener } = createHarness();
+    manager.init();
+    const listener = getLocalCreateListener(addEventListener);
+
+    listener({
+      entities: [{ namespace: 'rxdb', entity: 'RxDBChange', id: 61, patch: { id: 61, branchId: 'feature' } }]
+    });
+    await flushDetachedTask();
+
+    expect(doubles.history.invalidateRedoStack).toHaveBeenCalledOnce();
+    expect(doubles.history.resetSyncCleared).toHaveBeenCalledWith([61]);
   });
 
   it('logs detached failures but ignores shutdown failures', async () => {

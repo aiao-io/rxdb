@@ -107,7 +107,7 @@ export interface WorkingTreeCaptureRuntimeOptions {
 /** `rxdb_change` 的一行里捕获真正需要的那几列。 */
 type ChangeRow = Pick<
   RxDBChange,
-  'id' | 'type' | 'transactionId' | 'namespace' | 'entity' | 'entityId' | 'patch' | 'inversePatch'
+  'id' | 'type' | 'transactionId' | 'namespace' | 'entity' | 'entityId' | 'patch' | 'inversePatch' | 'branchId'
 >;
 
 /** {@link SwitchVersionActions} 的三张表各自对应的变更类型。 */
@@ -162,7 +162,8 @@ const sourceOfChangeRow = (row: ChangeRow): ChangeCaptureSource => ({
   entity: row.entity,
   entityId: String(row.entityId),
   patch: (row.patch as Record<string, unknown> | null) ?? null,
-  inversePatch: (row.inversePatch as Record<string, unknown> | null) ?? null
+  inversePatch: (row.inversePatch as Record<string, unknown> | null) ?? null,
+  branchId: row.branchId
 });
 
 /**
@@ -595,6 +596,17 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     const first = capturing[0];
     if (!first || first.decision.kind !== 'capture') return 0;
     const token = await readActiveBranchToken(executor);
+    // 本事务的变更都该记在本实例的当前分支上（US-314 B1.4）。记在别的分支名下，说明有写落到了不属于本实例
+    // 那套表的表里（比如可写检出位的表集漏登记了版本化实体）：捕获进本分支的工作树就是一笔错账，只能拒绝。
+    const foreign = capturing.find(
+      item => item.source.branchId !== undefined && item.source.branchId !== token.branchId
+    );
+    if (foreign) {
+      throw new RxDBError(
+        `变更 ${foreign.source.id} 记在分支 ${foreign.source.branchId} 名下，不是本实例的当前分支 ${token.branchId}：` +
+          '这次写落到了不属于本实例那套表的表里，不能捕获进当前分支的工作树。'
+      );
+    }
     return captureChanges(executor, this.#host, {
       token,
       unitId: this.#newUnitId(),

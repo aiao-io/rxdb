@@ -253,6 +253,7 @@ class SyncOverrideLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdap
     const executor: TransactionExecutor = {
       id: uuid(),
       state: 'active',
+      tableSet: this.tableSet,
       query: async () => ({ rowsAffected: 0, rows: [], columns: [] }),
       tableRef: EntityType => getEntityMetadata(EntityType).tableName,
       mutations: options => this.mutations(options as RxDBMutationsMap),

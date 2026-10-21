@@ -141,8 +141,27 @@ INVEST 检查清单:
     核心 `getCurrentBranch`、两个适配器读当前分支（每个记日志事务首尾的重建、`withTriggersDisabled` 都在用）、历史插件的当前分支流、
     撤销 / 重做与可推送计数都走它；影子表集持有的分支不见了就抛，不回退 main。
   - 挂在可写检出位上的实例不能真切分支（熄灭、点亮写的是主检出位那一行；检出位里切分支归 B2），撤销 / 重做照常、只动这套表。
-  - 留给 B1.4b：本地实体事件带分支、按分支过滤；工作树捕获按分支筛变更行、当前分支令牌按持有键读；挂在检出位上不跑同步。
-    `compute_switch_branch_actions` 与建分支时找父分支变更仍按主检出位读，随 B2 的检出位里切分支、建分支一起改。
+  - 本地实体事件带分支、按分支过滤原排在 B1.4，owner 2026-10-21 定挪到 B2、与多标签页一起做；B1.4b 见下。
+- **当前分支贯穿捕获、历史与同步**（阶段 B1.4b）：
+  - 事务执行器多了 `tableSet`：发起它的实例挂的那一套。事务里读「当前分支」的代码一律用它的 `heldBranchWhere`。
+  - 工作树：`readActiveBranchToken` 挂在可写检出位上按持有键读那一条，主表集照旧过「恰好一个 active」的守卫。
+    捕获核对变更行的 `branchId`：记在别的分支名下，说明有写落到了不属于这套表的表里（比如表集漏登记了版本化实体），
+    整笔拒绝，不捕获进当前分支的工作树。打开只读检出位时，快照的来源分支同样取这套表持有的分支。
+  - 核心 `resolve_current_branch` 同口径：挂在检出位上建分支，父分支是持有分支；工作树插件复制的未提交改动、共享的 HEAD
+    都从父分支推出，跟着一起对。
+  - 历史插件：重做栈失效与 undo 会话恢复只认记在本实例当前分支上的变更（`RxDBChange` 元事件 `patch` 里的 `branchId`）。
+    实例刚从检出位挂回主检出位时，检出位上那几笔写的通知可能迟到，不再作废主检出位的重做栈。
+  - 同步插件：挂在可写检出位上的实例不同步（上面「同步归属」）。会和远端交换数据、或替同步收拾本地副本的九个入口
+    （`syncBranches` / `pull` / `push` / `sync` / `pullRepository` / `pushRepository` / `syncRepository` / `cleanupExpired` /
+    `bulkSync`）一进门就抛；写业务表的同步事务（拉取应用、推送的被拒对齐、过期清理）在事务里再核对一次表集，
+    挡住同步跑到一半时换挂。QueryCache 出站队列的自动回推等实例挂回主检出位再跑：挂回那一刻判据翻真，补跑一轮。
+    只读的状态查询照常；待拉计数照旧按本实例的当前分支累计，与切分支之后同口径。
+  - 一致性：工作树插件的检出位套件（六个后端）加「挂在可写检出位上的写」：写捕获进持有分支的工作树、提交进它的历史，
+    主检出位的工作树与业务表一处不动；表集漏登记了版本化实体时整笔被拒、一行不落。两份隔离探针加「挂在检出位上建分支」。
+    这组用例在 PGlite 上跑出 B1.3 的一个问题：关系外键的约束名拿带 schema 的物理名拼，影子 schema 更长，63 字节截断提前落到
+    表名中间，多对多中间表的两条外键截成同一个名字，建不出来。改成沿用主表集那一份（外键约束名只在同一张表内唯一）。
+  - 留给 B2：本地实体事件带分支、活查询按检出位过滤。只有多个标签页同时挂不同检出位时才用得上，与多标签页一起设计、验证；
+    此前跨标签页网关转发的实体事件不分检出位。`compute_switch_branch_actions` 仍按主检出位读，随检出位里切分支一起改。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -166,6 +185,12 @@ INVEST 检查清单:
 - `packages/rxdb/src/RxDB.ts`（`mountWorktreeTableSet` / `worktreeTableSet$`）、`system/worktree-table-set.ts`（`heldBranchWhere`）、
   `system/system-repositories.ts`、`entity/entity-manager.ts`（`resetForWorktreeTableSet`）、两个适配器的 `version/read_current_branch_id.ts`、
   `packages/rxdb-plugin-history/src/HistoryManager.ts` / `undo-redo-apply.ts` — 实例挂可写检出位；挂载用例在上面两份隔离探针里
+- `packages/rxdb/src/transaction/transaction-executor.interface.ts`（`tableSet`）与两个适配器的事务执行器、
+  `packages/rxdb/src/system/system-repositories.ts`（`resolve_current_branch`）、
+  `packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts` / `capture-hook.ts`、`checkout/worktree-snapshot.ts`、
+  `packages/rxdb-plugin-history/src/VersionManager.ts`、`packages/rxdb-plugin-sync/src/sync-manager.utils.ts`
+  （`assertSyncOnMainCheckout`）/ `SyncManager.ts` / `sync-listeners.ts` 与四处写事务 — 当前分支贯穿捕获、历史与同步；
+  六个后端的用例在 `working-tree/testing/worktree.suite.ts`
 - `packages/rxdb/src/system/active-branch-guard.ts`（`WorktreeBranchHeldError`）、`system/system-repositories.ts`、
   两个适配器的 `version/switch_branch.ts` 与系统迁移（sqlite-core `RxDBAdapterSqliteBase.ts`、PGlite `system/migrate_system_schema.ts`）
   — 分支持有模型

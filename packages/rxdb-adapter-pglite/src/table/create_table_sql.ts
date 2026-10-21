@@ -13,7 +13,7 @@ import {
   PropertyType,
   RelationKind,
   UUIDProperty,
-  type WorktreeTableSet
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { isFunction, isString } from '@aiao/utils';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -257,7 +257,10 @@ const _create_table_relations_sql = (
           // 延迟外键约束的添加,避免表创建顺序问题
           // 外键约束将在所有表创建完成后统一添加
           const mappedTableName = getTableNameByMetadata(mappedMetadata, tableSet);
-          const fkName = `${tableName}_${columnName}_fk`.replace(/"/g, '');
+          // 约束名取主表集那一份：外键约束名只在同一张表内唯一，影子表集原样沿用不会撞（US-314）。拿影子 schema 拼的话
+          // 名字更长，63 字节截断提前落到表名中间，同一张中间表的两条外键会截成同一个名字
+          const mainTableName = getTableNameByMetadata(metadata, WorktreeTableSet.MAIN);
+          const fkName = `${mainTableName}_${columnName}_fk`.replace(/"/g, '');
 
           relationSql += `\nALTER TABLE ${tableName} ADD CONSTRAINT "${fkName}" FOREIGN KEY ("${columnName}") REFERENCES ${mappedTableName}("${primaryProperty.columnName}")`;
 

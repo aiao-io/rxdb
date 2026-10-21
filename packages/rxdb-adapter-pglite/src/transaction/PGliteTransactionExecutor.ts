@@ -6,7 +6,8 @@ import type {
   RxDBMutationsMap,
   SwitchVersionActions,
   TransactionExecutor,
-  TransactionExecutorState
+  TransactionExecutorState,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { getEntityMetadata, getEntityMutations } from '@aiao/rxdb';
 import type { Results, Transaction } from '@electric-sql/pglite';
@@ -81,6 +82,11 @@ export class PGliteTransactionExecutor implements TransactionExecutor {
 
   get state(): TransactionExecutorState {
     return this.#state;
+  }
+
+  /** 本事务落在哪一套业务表上：适配器所属实例挂的那一套 */
+  get tableSet(): WorktreeTableSet {
+    return this.#adapter.tableSet;
   }
 
   /**

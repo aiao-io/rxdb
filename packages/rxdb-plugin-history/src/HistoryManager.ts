@@ -195,6 +195,15 @@ export class HistoryManager {
     return this.#undoSession$.value.generation;
   }
 
+  /**
+   * 本实例的当前分支：跟着挂的那套表走（US-314 B1.4），换挂、切分支之后立刻跟上
+   *
+   * @returns 分支 id；活跃分支还没解析出来时为 `null`
+   */
+  get currentUndoBranchId(): string | null {
+    return this.#currentUndoBranchId;
+  }
+
   constructor(private rxdb: RxDB) {
     // Host 必须在任何订阅之前建好：pushableCount 订阅会同步触发 #updatePushableCount。
     this.#scopeHost = this.#createScopeHost();

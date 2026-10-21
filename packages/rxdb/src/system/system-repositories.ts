@@ -21,36 +21,40 @@ import { RxDBBranch } from './branch.js';
 import { RxDBChange } from './change.js';
 import type { LocalRxDBBranchRepository, LocalRxDBChangeRepository } from './types.local.js';
 import type { RemoteRxDBBranchRepository, RemoteRxDBChangeRepository } from './types.remote.js';
+import type { WorktreeTableSet } from './worktree-table-set.js';
+
+/** 影子表集读不到持有分支：检出位已经关掉，不替它挑别的分支 */
+const heldBranchMissingError = (tableSet: WorktreeTableSet): RxDBError =>
+  new RxDBError(`表集 ${tableSet.suffix} 持有的分支不见了：可写检出位可能已经关掉`);
 
 /**
- * 解析「当前分支」：取激活分支，没有则激活 `main`，`main` 也不存在则建一个。
+ * 解析「当前分支」：本实例挂的那套表持有的分支；主表集没有激活分支时激活 `main`，`main` 也不存在则建一个。
  *
  * @param branchRepository - 分支仓库
- * @param rxdb - RxDB 实例，只用于 `entityManager.instantiate`
+ * @param rxdb - RxDB 实例，只用于 `worktreeTableSet` 与 `entityManager.instantiate`
+ * @throws {@link RxDBError} 挂在可写检出位上、而那套表持有的分支已经不见了时
+ * @throws {@link WorktreeBranchHeldError} 主表集没有激活分支、而 `main` 在可写检出位手里时
  *
  * @remarks
  * 只接收仓库、不接收管理器：谁传进来的仓库属于哪个事务，这段逻辑就跑在哪个事务里，
  * 函数本身不做任何入队决策。{@link getCurrentBranch} 的冷路径与插件侧的 `create_branch`
  * （它自己已经开着事务，再走一次 `getCurrentBranch` 会经绑在适配器上的仓库重新入队，
  * 排在自己这个事务后面，队列并发度 1，永久挂起）共用它。
+ *
+ * 查法与 {@link getCurrentBranch} 同口径，取 `WorktreeTableSet.heldBranchWhere`（US-314 B1.4）：挂在可写检出位上时，
+ * 在事务里建分支取到的父分支是那套表持有的分支，不是主检出位激活的那一条。
  */
 export const resolve_current_branch = async (
   branchRepository: LocalRxDBBranchRepository,
   rxdb: RxDB
 ): Promise<InstanceType<typeof RxDBBranch>> => {
-  const activeBranch = (
-    await branchRepository.find({
-      where: {
-        combinator: 'and',
-        rules: [{ field: 'activated', operator: '=', value: true }]
-      },
-      limit: 1
-    })
-  )[0];
+  const tableSet = rxdb.worktreeTableSet;
+  const activeBranch = (await branchRepository.find({ where: tableSet.heldBranchWhere, limit: 1 }))[0];
 
   if (activeBranch) {
     return activeBranch;
   }
+  if (!tableSet.isMain) throw heldBranchMissingError(tableSet);
 
   const mainBranch = (
     await branchRepository.find({
@@ -134,9 +138,7 @@ export const getCurrentBranch = async (rxdb: RxDB): Promise<InstanceType<typeof 
   if (activeBranch) {
     return activeBranch;
   }
-  if (!tableSet.isMain) {
-    throw new RxDBError(`表集 ${tableSet.suffix} 持有的分支不见了：可写检出位可能已经关掉`);
-  }
+  if (!tableSet.isMain) throw heldBranchMissingError(tableSet);
 
   return adapter.transaction(async executor =>
     resolve_current_branch(executor.getRepository(RxDBBranch) as unknown as LocalRxDBBranchRepository, rxdb)

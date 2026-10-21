@@ -44,7 +44,7 @@ import { remove_branch } from './remove-branch.js';
 import { restore_entity } from './restore-entity.js';
 import { switch_branch_actions } from './switch-branch-actions.js';
 import { createSyncHistoryBridge, type SyncHistoryBridge } from './sync-history-bridge.js';
-import { getEarliestRecordAt, getRxDBChangeEventId } from './version-manager.utils.js';
+import { getEarliestRecordAt, getRxDBChangeEventBranchId, getRxDBChangeEventId } from './version-manager.utils.js';
 /**
  * 版本管理器
  *
@@ -188,8 +188,18 @@ export class VersionManager {
     // `rxdb-plugin-workspace` 在 NEW 事件上读它来防广播成环；但 version 子系统**不读**。
     // 理由：多 tab 共享同一份本地存储（同 dbName / OPFS），他 tab 的新写入对本 tab 而言
     // 同样让 redo 栈失效、同样可能恢复 undo 边界——按本地写入处理才是正确语义。
+    //
+    // 只认记在本实例当前分支上的变更（US-314 B1.4）：一笔写只作废它所在分支的 redo 栈、只恢复那条分支的
+    // undo 会话。实例刚从可写检出位挂回主检出位时，检出位上那几笔写的通知可能迟到。当前分支还没解析出来、
+    // 或元事件不带分支时无从比对，照旧处理。
     const onLocalCreate = (event: EntityLocalCreatedEvent) => {
-      const rxdbChanges = event.entities?.filter(e => e.namespace === 'rxdb' && e.entity === 'RxDBChange') ?? [];
+      const currentBranchId = this.historyManager.currentUndoBranchId;
+      const rxdbChanges =
+        event.entities?.filter(e => {
+          if (e.namespace !== 'rxdb' || e.entity !== 'RxDBChange') return false;
+          const branchId = getRxDBChangeEventBranchId(e);
+          return currentBranchId === null || branchId === null || branchId === currentBranchId;
+        }) ?? [];
       if (rxdbChanges.length > 0) {
         // 只有在非 undo/redo 操作时才失效 redo 栈
         if (!this.historyManager.isExecutingUndoRedo()) {

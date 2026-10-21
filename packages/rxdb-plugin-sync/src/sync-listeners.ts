@@ -213,19 +213,25 @@ async function resumeSync(sm: SyncManager): Promise<void> {
  *   断网时它照样报 connected；反过来网通了但适配器没连上，回推没有可用的本地仓储。
  * - **再试一次**：离线期间的退避节拍。它只按 `connected$` 过滤，**不**按 `online$` ——
  *   节拍存在的意义正是在判定为离线时驱动重试，用离线状态把它挡掉会让重试链彻底断掉。
+ *
+ * 两个触发源都还要求实例挂在主检出位上（US-314，owner 2026-10-21 定：只有主检出位同步）。
+ * QueryCache 的出站队列只落在主表集上、与挂哪套表无关，但挂在可写检出位上的实例照样不回推。
+ * 这一条并进「可回推了」的判据而不是另起一道闸：挂回主检出位那一刻判据翻真，补跑一轮 ——
+ * 否则挂在检出位上时错过的那次恢复，要等到下一次断网重连才补得上。
  */
 function createResumeTrigger(sm: SyncManager): Observable<unknown> {
   const connected$ = sm.rxdb.connected$;
-  const ready$ = combineLatest([connected$, sm.rxdb.reachability.online$]).pipe(
-    map(([connected, online]) => connected && online),
+  const onMainCheckout$ = sm.rxdb.worktreeTableSet$.pipe(map(tableSet => tableSet.isMain));
+  const ready$ = combineLatest([connected$, sm.rxdb.reachability.online$, onMainCheckout$]).pipe(
+    map(([connected, online, onMainCheckout]) => connected && online && onMainCheckout),
     distinctUntilChanged()
   );
 
   return merge(
     ready$.pipe(filter(ready => ready)),
     sm.rxdb.reachability.wakeup$.pipe(
-      withLatestFrom(connected$),
-      filter(([, connected]) => connected)
+      withLatestFrom(connected$, onMainCheckout$),
+      filter(([, connected, onMainCheckout]) => connected && onMainCheckout)
     )
   );
 }
@@ -234,7 +240,7 @@ function createResumeTrigger(sm: SyncManager): Observable<unknown> {
  * 设置 SyncManager 的同步监听器
  *
  * 包含两条 reactive 链路：
- * 1. 「已连接且网络可达」→ 自动重放 QueryCache 出站队列，离线期间由退避节拍驱动重试，
+ * 1. 「已连接、网络可达、挂在主检出位上」→ 自动重放 QueryCache 出站队列，离线期间由退避节拍驱动重试，
  *    每个仓库失败仅吞错。changelog 的 `push` 不在其中，见 {@link resumeSync}
  * 2. Remote 实体事件 → 累计 `pullableCount`（仅统计当前激活分支）
  *

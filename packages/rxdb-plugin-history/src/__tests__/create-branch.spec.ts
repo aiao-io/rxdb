@@ -9,7 +9,8 @@ import {
   RxDBError,
   type RxDBSystemContribution,
   SyncType,
-  type TransactionExecutor
+  type TransactionExecutor,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -144,7 +145,13 @@ describe('create_branch', () => {
     );
 
     mockVersion = {
-      rxdb: { config: { sync: syncConfig }, entityManager, systemContributions },
+      // 没换挂过的实例挂的是主表集：不点名来源时，父分支按它读（US-314 B1.4）
+      rxdb: {
+        config: { sync: syncConfig },
+        entityManager,
+        systemContributions,
+        worktreeTableSet: WorktreeTableSet.MAIN
+      },
       getLocalRepositories: vi.fn().mockResolvedValue({
         branchRepository: mockBranchRepository,
         changeRepository: mockChangeRepository,

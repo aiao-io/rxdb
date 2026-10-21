@@ -18,6 +18,9 @@
  * 从提交建分支（US-314 阶段 A）也收在这里：判据同口径——切到新分支读到的，与那次 `commit()` 刚完成时读到的逐行一致。
  * 这套的调用点建得了分支（`SyncType.None`），捕获套件那边建不了。不切换的对比与合并预览（US-312）的真库冒烟同理收在这里。
  *
+ * 可写检出位（US-314 B1.4）同理：实例挂上那套表之后，写捕获进持有分支的工作树、提交进它的历史，主检出位一处不动。
+ * B1.5 补上打开 / 关闭可写检出位的公开入口之前，用例手工布景（持有键经系统仓库写，表集经适配器建）。
+ *
  * @module @aiao/rxdb-plugin-working-tree/testing
  */
 
@@ -38,7 +41,8 @@ import {
   RxDBBranch,
   RxDBChange,
   RxDBReadOnlyError,
-  uuid
+  uuid,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { WorktreeUnavailableError } from '../../checkout/worktree-errors.js';
 import type { WorktreeView } from '../../checkout/worktree-manager.js';
@@ -55,6 +59,16 @@ import {
 
 /** 套件里另开的那条分支。 */
 const FEATURE = 'worktree-feature';
+
+/**
+ * 两个后端都有的建表集入口（US-314 B1.3）。
+ *
+ * @remarks
+ * 不在核心的适配器接口上：B1.5 的检出位生命周期才是它的正式调用方，这之前套件结构化地问。
+ */
+interface WritableTableSetHost {
+  createWorktreeTableSet(tableSet: WorktreeTableSet, branchId: string): Promise<void>;
+}
 
 /** 两个后端的加密门面都长这样；套件只用解锁与上锁。 */
 interface EncryptionCapable {
@@ -828,6 +842,73 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
         const lost = await persistent.workingTree.checkouts.attach(view.id).catch(e => e);
         expect((lost as WorktreeUnavailableError).reason).toBe('not_found');
         expect(await persistent.workingTree.checkouts.list()).toEqual([]);
+      });
+    });
+
+    // 持有分支在主检出位写任何东西之前建好：B1.5 的播种还没有，空的影子表正好就是它的内容
+    describe('挂在可写检出位上的写（US-314 B1.4）', () => {
+      /**
+       * 让 `branchId` 被一个可写检出位持有，并建出那套表
+       *
+       * @param branchId - 被持有的分支
+       * @param members - 表集成员；正常是版本化域里的全部实体
+       */
+      const holdWritable = async (branchId: string, members: readonly EntityType[]): Promise<WorktreeTableSet> => {
+        const tableSet = WorktreeTableSet.of('wt_conform', members);
+        const adapter = await localAdapterOf(database);
+        await adapter.transaction(async executor => {
+          const branches = executor.getRepository(RxDBBranch);
+          const [branch] = await branches.find({
+            where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: branchId }] },
+            limit: 1
+          });
+          if (!branch) throw new Error(`分支 ${branchId} 不存在`);
+          await branches.update(branch, { activeKey: tableSet.holderKey });
+        });
+        await (adapter as unknown as WritableTableSetHost).createWorktreeTableSet(tableSet, branchId);
+        return tableSet;
+      };
+
+      /** 版本化域的全部实体：套件实体加任务与标签的中间表 */
+      const versionedEntities = (): EntityType[] => [...WORKTREE_CONFORMANCE_ENTITIES, labelsJunction()];
+
+      it('写捕获进持有分支的工作树、提交进它的历史；主检出位的工作树与业务表一处不动', async () => {
+        await database.versionManager.createBranch(FEATURE);
+        await save(database, WorktreeConformanceTask, { title: '主线', priority: null, dueAt: null, meta: null });
+        const mainCommitId = await commitAll(database, 'main base');
+        const before = await mainStateOf(database);
+        const tableSet = await holdWritable(FEATURE, versionedEntities());
+
+        await database.mountWorktreeTableSet(tableSet);
+        expect(await activeBranchOf(database)).toBe(FEATURE);
+        await save(database, WorktreeConformanceTask, { title: '检出位里写的', priority: 2, dueAt: null, meta: null });
+        expect(await database.workingTree.status()).toMatchObject({ branchId: FEATURE, clean: false, entryCount: 1 });
+        const commitId = await commitAll(database, 'in worktree');
+        const history = await historyOf(database);
+        expect(history[0]).toBe(commitId);
+        expect(history).not.toContain(mainCommitId);
+        expect((await database.workingTree.status()).clean).toBe(true);
+
+        await database.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+        expect(await mainStateOf(database)).toEqual(before);
+        expect((await historyOf(database))[0]).toBe(mainCommitId);
+      });
+
+      // 漏登记的那张表还是主检出位的表，触发器把变更记在主检出位的分支名下：捕获进持有分支的工作树就是一笔错账
+      it('表集漏登记了版本化实体：写落到主检出位的表上，整笔被拒、一行都不落', async () => {
+        await database.versionManager.createBranch(FEATURE);
+        const before = await storedTablesOf(database);
+        const members = versionedEntities().filter(EntityClass => EntityClass !== WorktreeConformanceSecret);
+        await database.mountWorktreeTableSet(await holdWritable(FEATURE, members));
+
+        await expect(save(database, WorktreeConformanceSecret, { title: '漏登记', note: '不该落库' })).rejects.toThrow(
+          /不是本实例的当前分支/
+        );
+        expect((await database.workingTree.status()).clean).toBe(true);
+
+        await database.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+        expect(await storedTablesOf(database)).toEqual(before);
+        expect((await database.workingTree.status()).clean).toBe(true);
       });
     });
 

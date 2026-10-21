@@ -43,6 +43,7 @@ import { firstValueFrom } from 'rxjs';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { findBlockingDependency } from './cascade-blocking.js';
 import { buildDependencyGraph, type DependencyGraph, type RepositoryIdentifier } from './dependency-graph.js';
+import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
 import { dependencyEdgeForAction, type SortActionKind, topologicalSortForAction } from './topological-sort.js';
 /**
@@ -1260,6 +1261,9 @@ async function writePushReceipts(executor: TransactionExecutor, plan: Repository
  * active 分支经**本事务**读：走 `sm.getCurrentBranch()` 会排在已持有的事务后面。
  * 激活代际只覆盖本实例内的切换；跨标签页的切换只由持久化的 active 分支兜住，A→B→A 不可见。
  *
+ * 远端往返期间实例换挂到了可写检出位（US-314 B1.4）同样整轮失败：换挂不动 active 分支，上面两项都对得上，
+ * 但本事务落在检出位那套表上，被拒对齐会把远端值写进检出位的表。
+ *
  * 没有被拒时不校验：只写回执与水位线、不碰业务投影，不值得为一次分支切换让正常推送整轮重推。
  *
  * @internal
@@ -1271,6 +1275,7 @@ async function assertPlansOnActiveBranch(
 ): Promise<void> {
   if (!plans.some(plan => plan.rejectedEntries.length > 0)) return;
 
+  assertSyncOnMainCheckout(executor.tableSet, 'push');
   const active = await assertSingleActiveBranch(executor);
   const generation = sm.branchSwitchGeneration;
   const stale = plans.find(plan => plan.branchId !== active.id || plan.branchGeneration !== generation);

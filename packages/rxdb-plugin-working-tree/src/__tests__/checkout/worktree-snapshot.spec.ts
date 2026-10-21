@@ -17,13 +17,15 @@ import type {
   WorktreeSnapshotPage
 } from '@aiao/rxdb';
 import {
+  ACTIVE_BRANCH_KEY,
   Entity,
   EntityBase,
   getEntityMetadata,
   RxDBBranch,
   RxDB as RxDBClass,
   RxDBMigration,
-  SyncType
+  SyncType,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { compute_switch_branch_actions } from '@aiao/rxdb-plugin-history';
 import { of } from 'rxjs';
@@ -245,8 +247,12 @@ describe('importSnapshot', () => {
   ];
 
   /** 主库事务的执行器：分支表按 `activated` 过滤，变更表恒空。 */
-  const executorWith = (branches: readonly { id: string; activated: boolean }[]): TransactionExecutor =>
+  const executorWith = (
+    branches: readonly { id: string; activated: boolean; activeKey?: string | null }[],
+    tableSet: WorktreeTableSet = WorktreeTableSet.MAIN
+  ): TransactionExecutor =>
     ({
+      tableSet,
       getRepository: (EntityClass: EntityType) => ({
         find: async (options: { where: { rules: { field: string; value: unknown }[] } }) =>
           EntityClass === RxDBBranch ?
@@ -336,6 +342,44 @@ describe('importSnapshot', () => {
     expect(getEntityMetadata(SnapshotOther).name).toBe('SnapshotOther');
   });
 
+  // 挂在可写检出位上的实例（US-314 B1.4）：复制的业务表是那套影子表，来源分支就得是它持有的分支——
+  // 按主检出位激活的分支算增量，会把另一条分支的差异叠在影子表的数据上
+  it('挂在可写检出位上：来源是那套表持有的分支', async () => {
+    const tableSet = WorktreeTableSet.of('wt_snap', [SnapshotNote]);
+    const main = mainAdapterNamed('mock') as unknown as SnapshotCapableAdapter;
+    main.readWorktreeSnapshotPage.mockResolvedValue({ rows: [], count: 0, next: null });
+    const target = new SnapshotCapableAdapter(main.rxdb);
+    const branches = [
+      { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY },
+      { id: 'feature', activated: false, activeKey: tableSet.holderKey }
+    ];
+
+    const source = await importSnapshot(
+      executorWith(branches, tableSet),
+      main as unknown as LocalRxDBAdapter,
+      snapshotWith(target),
+      [SnapshotNote],
+      { branchId: 'feature' }
+    );
+
+    expect(compute_switch_branch_actions).not.toHaveBeenCalled();
+    expect(source).toEqual({ sourceBranchId: 'feature', sourceChangeId: null, targetChangeId: null });
+  });
+
+  it('挂在可写检出位上而持有分支不见了：branch_not_found', async () => {
+    const main = mainAdapterNamed('mock');
+    const target = new SnapshotCapableAdapter(main.rxdb);
+    const tableSet = WorktreeTableSet.of('wt_snap', [SnapshotNote]);
+
+    expect(
+      await reasonOf(
+        importSnapshot(executorWith(branchRows, tableSet), main, snapshotWith(target), [SnapshotNote], {
+          branchId: 'main'
+        })
+      )
+    ).toBe('branch_not_found');
+  });
+
   it('主库没有 active 分支：branch_not_found', async () => {
     const main = mainAdapterNamed('mock');
     const target = new SnapshotCapableAdapter(main.rxdb);
@@ -360,6 +404,7 @@ describe('importSnapshot 的提交视图', () => {
     });
     const target = new SnapshotCapableAdapter(main.rxdb);
     const executor = {
+      tableSet: WorktreeTableSet.MAIN,
       getRepository: (EntityClass: EntityType) => ({
         find: async () => (EntityClass === RxDBBranch ? [{ id: 'main', activated: true }] : [])
       })

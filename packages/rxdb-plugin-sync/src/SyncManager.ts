@@ -27,7 +27,12 @@ import { pushRepository, type PushRepositoryOptions, type PushRepositoryResult }
 import { push } from './push.js';
 import { syncBranches, type SyncBranchesResult } from './sync-branches.js';
 import { setupSyncListeners } from './sync-listeners.js';
-import { hasSyncedData, partialResultOf, partialSyncInvalidatesHistory } from './sync-manager.utils.js';
+import {
+  assertSyncOnMainCheckout,
+  hasSyncedData,
+  partialResultOf,
+  partialSyncInvalidatesHistory
+} from './sync-manager.utils.js';
 import { syncRepository, type SyncRepositoryOptions, type SyncRepositoryResult } from './sync-repository.js';
 import { topologicalSort, type SortDirection } from './topological-sort.js';
 
@@ -48,6 +53,10 @@ import { topologicalSort, type SortDirection } from './topological-sort.js';
  * 切开之后仍有一条**单向**耦合：一次同步往返结束时 undo 边界要作废、待拉计数要结算，
  * 而那些状态的主人是历史侧。它经 {@link SyncHistoryBridge} 这一张窄接口相遇 ——
  * 本插件 `inject: ['plugin:history']`，历史插件则对本包一无所知。
+ *
+ * 多检出位下只有主检出位同步（US-314，owner 2026-10-21 定）：实例挂在可写检出位上时，会和远端交换数据、
+ * 或替同步收拾本地副本的入口一进门就抛错，只读的状态查询照常；写业务表的同步事务里还会再核对一次
+ * 本事务落在的那套表，挡住同步跑到一半时换挂，见 {@link assertSyncOnMainCheckout}。
  */
 export class SyncManager {
   #event_removers: Array<() => void> = [];
@@ -150,6 +159,7 @@ export class SyncManager {
    * 纯本地分支 → 不受影响
    *
    * @returns 同步结果
+   * @throws RxDBError 实例挂在可写检出位上时（US-314：只有主检出位同步）
    *
    * @example
    * ```typescript
@@ -158,6 +168,7 @@ export class SyncManager {
    * ```
    */
   async syncBranches(): Promise<SyncBranchesResult> {
+    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'syncBranches');
     return syncBranches(this);
   }
 
@@ -168,6 +179,7 @@ export class SyncManager {
    *
    * @param options - 可选配置
    * @returns 拉取结果
+   * @throws RxDBError 实例挂在可写检出位上时（US-314：只有主检出位同步）
    *
    * @example
    * ```typescript
@@ -180,6 +192,7 @@ export class SyncManager {
    * ```
    */
   async pull(options?: PullOptions): Promise<PullResult> {
+    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pull');
     let result: PullResult;
     try {
       result = await this.history.syncing(() => this.#pullAndSettle(options));
@@ -216,6 +229,7 @@ export class SyncManager {
    *
    * @param options - 可选配置
    * @returns 推送结果
+   * @throws RxDBError 实例挂在可写检出位上时（US-314：只有主检出位同步）
    *
    * @example
    * ```typescript
@@ -228,6 +242,7 @@ export class SyncManager {
    * ```
    */
   async push(options?: PushOptions): Promise<PushResult> {
+    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'push');
     const result = await this.history.syncing(() => push(this, options));
 
     // 当 push 有数据变更时，清空 undo/redo 历史
@@ -248,6 +263,7 @@ export class SyncManager {
    *
    * @param options - 可选配置
    * @returns 同步结果（包含 pull 和 push 结果）
+   * @throws RxDBError 实例挂在可写检出位上时（US-314：只有主检出位同步）
    *
    * @example
    * ```typescript
@@ -257,6 +273,7 @@ export class SyncManager {
    * ```
    */
   async sync(options?: { pull?: PullOptions; push?: PushOptions }): Promise<SyncResult> {
+    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'sync');
     // pull 成功、push 才抛错时，这段进度不随返回值出来 —— 提到闭包外，catch 里才看得见
     // 「已经合并进来的那部分」。否则远端变更已落库，undo 边界却原地不动。
     let settledPull: PullResult | undefined;
@@ -297,6 +314,7 @@ export class SyncManager {
    * @param entity - 实体名称（如 "Todo"）
    * @param options - 拉取选项
    * @returns 拉取结果
+   * @throws RxDBError 实例挂在可写检出位上时（US-314：只有主检出位同步）
    *
    * @example
    * ```typescript
@@ -316,6 +334,7 @@ export class SyncManager {
     entity: string,
     options?: PullRepositoryOptions
   ): Promise<PullRepositoryResult> {
+    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pullRepository');
     let result: PullRepositoryResult;
     try {
       result = await this.history.syncing(() => pullRepository(this, namespace, entity, options));
@@ -346,6 +365,7 @@ export class SyncManager {
    * @param entity - 实体名称（如 "User"）
    * @param options - 推送选项
    * @returns 推送结果
+   * @throws RxDBError 实例挂在可写检出位上时（US-314：只有主检出位同步）
    *
    * @example
    * ```typescript
@@ -365,6 +385,7 @@ export class SyncManager {
     entity: string,
     options?: PushRepositoryOptions
   ): Promise<PushRepositoryResult> {
+    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pushRepository');
     const result = await this.history.syncing(() => pushRepository(this, namespace, entity, options));
 
     // 有数据变更时清空 undo/redo 历史
@@ -385,6 +406,7 @@ export class SyncManager {
    * @param entity - 实体名称（如 "Todo"）
    * @param options - 同步选项（分别配置 pull 和 push）
    * @returns 同步结果（包含 pull 和 push 结果）
+   * @throws RxDBError 实例挂在可写检出位上时（US-314：只有主检出位同步）
    *
    * @example
    * ```typescript
@@ -404,6 +426,7 @@ export class SyncManager {
     entity: string,
     options?: SyncRepositoryOptions
   ): Promise<SyncRepositoryResult> {
+    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'syncRepository');
     let result: SyncRepositoryResult;
     try {
       result = await this.history.syncing(() => syncRepository(this, namespace, entity, options));
@@ -434,6 +457,7 @@ export class SyncManager {
    * @param entity - 实体名称
    * @param options - 清理选项
    * @returns 清理结果
+   * @throws RxDBError 实例挂在可写检出位上时（US-314：只有主检出位同步）
    *
    * @example
    * ```ts
@@ -452,6 +476,7 @@ export class SyncManager {
     entity: string,
     options?: CleanupExpiredOptions
   ): Promise<CleanupExpiredResult> {
+    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'cleanupExpired');
     return cleanupExpired(this, namespace, entity, options);
   }
 
@@ -556,6 +581,7 @@ export class SyncManager {
    *
    * @param options - 批量同步选项
    * @returns 批量同步结果（包含成功/失败计数）
+   * @throws RxDBError 实例挂在可写检出位上时（US-314：只有主检出位同步）
    *
    * @example
    * ```typescript
@@ -589,6 +615,7 @@ export class SyncManager {
    * ```
    */
   async bulkSync(options?: BulkSyncOptions): Promise<BulkSyncResult> {
+    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'bulkSync');
     const result = await this.history.syncing(() => bulkSync(this.rxdb, options));
 
     // 与 pull/push/sync 保持一致：任一仓库产生数据变更时清空 undo/redo 历史，

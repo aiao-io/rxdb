@@ -6,7 +6,7 @@
  * 两个函数的形参都是 {@link SyncRepositoryResult}，这是同步侧的类型。
  */
 
-import { RxDBPartialSyncError } from '@aiao/rxdb';
+import { RxDBError, RxDBPartialSyncError, type WorktreeTableSet } from '@aiao/rxdb';
 import type { SyncRepositoryResult } from './sync-repository.js';
 
 /**
@@ -46,3 +46,20 @@ export const partialSyncInvalidatesHistory = (error: unknown): boolean =>
  */
 export const partialResultOf = (error: Error | undefined): SyncRepositoryResult | undefined =>
   error instanceof RxDBPartialSyncError ? (error.result as SyncRepositoryResult) : undefined;
+
+/**
+ * 同步只在主检出位上跑（US-314，owner 2026-10-21 定）：挂在可写检出位上时抛错。
+ *
+ * @param tableSet - 入口处传实例挂的那一套（`rxdb.worktreeTableSet`），写事务里传本事务落在的那一套（`executor.tableSet`）
+ * @param operation - 报错里点名的入口
+ * @throws RxDBError 挂在可写检出位上时
+ *
+ * @remarks
+ * 查两处。入口处挡住「挂在检出位上直接调用」；写业务表的同步事务里再查一次，挡住「同步跑到一半时换挂」——
+ * 排在换挂之后的事务落在新那套表上，接着写就是把主检出位那条分支的同步数据写进检出位的表。
+ * 只写系统表（变更日志、分支、水位线）的事务不必查：这几张表只有一份，不分检出位。
+ */
+export const assertSyncOnMainCheckout = (tableSet: WorktreeTableSet, operation: string): void => {
+  if (tableSet.isMain) return;
+  throw new RxDBError(`${operation}: 本实例挂在可写检出位上（表集 ${tableSet.suffix}），同步只在主检出位上跑`);
+};

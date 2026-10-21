@@ -163,6 +163,9 @@ interface HarnessOptions {
 
   /** 分支 id → 父分支 id，`getAncestorBranchIds` 沿它向上走 */
   branchParents?: Readonly<Record<string, string | null>>;
+
+  /** 应用事务落在哪一套业务表上，不给就是主表集 */
+  tableSet?: WorktreeTableSet;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -288,7 +291,7 @@ function createHarness(options: HarnessOptions = {}) {
   // 不模拟回滚——各测试断言的是「传播的错误」和「没有被提前落库的字段」，不依赖回滚语义。
   // C2：事务回调收到 executor；替身把 getRepository / mergeChanges 转发回本 mock 适配器
   const transaction = vi.fn(async (fn: (executor: never) => Promise<unknown>) =>
-    fn(createTransactionExecutorStub({ getRepository, mergeChanges }) as never)
+    fn(createTransactionExecutorStub({ getRepository, mergeChanges, tableSet: options.tableSet }) as never)
   );
   // `getAncestorBranchIds` 沿 parentId 逐级向上查，非 main 分支才会走到这里
   const branchParents = options.branchParents ?? {};
@@ -500,6 +503,26 @@ describe('pullRepository', () => {
 
     expect(syncRecord.lastPullRemoteChangeId).toBeNull();
     expect(harness.syncUpdate).not.toHaveBeenCalled();
+  });
+
+  // 拉取跑到一半时实例换挂到了可写检出位（US-314 B1.4）：本轮的应用事务落在检出位那套表上，
+  // 一行都不能写、游标也不能动——挂回主检出位之后的下一次拉取从原处接着拉。
+  it('应用事务落在可写检出位那套表上时，写之前拒绝且不推进游标', async () => {
+    const syncRecord = createSyncRecord('PullSliceItem');
+    const harness = createHarness({
+      syncRecords: [syncRecord],
+      remoteChanges: [createRemoteChange(1)],
+      tableSet: WorktreeTableSet.of('wt_a1', [])
+    });
+
+    await expect(pullRepository(harness.vm, 'public', 'PullSliceItem', { includeRelated: false })).rejects.toThrow(
+      /^pullRepository: .*可写检出位.*wt_a1/
+    );
+
+    expect(harness.mergeChanges).not.toHaveBeenCalled();
+    expect(harness.changeUpdate).not.toHaveBeenCalled();
+    expect(harness.syncUpdate).not.toHaveBeenCalled();
+    expect(syncRecord.lastPullRemoteChangeId).toBeNull();
   });
 
   it('冲突解决器错误原样传播且不应用、不推进游标', async () => {

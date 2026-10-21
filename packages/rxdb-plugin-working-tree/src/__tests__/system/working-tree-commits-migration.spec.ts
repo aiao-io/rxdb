@@ -33,7 +33,7 @@
  */
 
 import type { EntityManager, EntityType, IRepository, TransactionExecutor } from '@aiao/rxdb';
-import { RxDB, RxDBBranch, SyncType } from '@aiao/rxdb';
+import { RxDB, RxDBBranch, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
@@ -100,6 +100,7 @@ function createExecutorProbe(
   const executor: TransactionExecutor = {
     id: 'probe-executor',
     state: 'active',
+    tableSet: WorktreeTableSet.MAIN,
     query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
     tableRef: fakeTableRef,
     mutations: vi.fn(async () => []),

@@ -55,6 +55,8 @@ const table = get_table_name_by_metadata(metadata, adapter.tableSet);
 
 `readCurrentBranchId(tx)` 改为 `readCurrentBranchId(tx, tableSet)`：挂在可写检出位上时读的是那套表持有的分支，主表集照旧读激活的那一条。
 
+自己实现 `TransactionExecutor` 的适配器要补上只读成员 `tableSet`（本事务落在哪一套业务表上），取适配器的 `tableSet` 即可。事务里读当前分支的代码按它的 `heldBranchWhere` 查。
+
 `switch_transaction_id(adapter, branchId, transactionId?)` 去掉了，改用 `generate_table_set_trigger_sql(adapter, tableSet, branchId, transactionId?)`：按表集重建变更触发器的唯一入口，只给这套表里记日志、且有自己那张表的实体生成。
 
 查询类函数（`find_sql`、`count_sql`、关联与树查询）本来就收 `adapter`，签名不变，内部取 `adapter.tableSet`。

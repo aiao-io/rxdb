@@ -20,7 +20,7 @@
  */
 
 import type { EntityManager, EntityType, IRepository, RuleGroup, TransactionExecutor } from '@aiao/rxdb';
-import { getEntityMetadata, RxDBBranch } from '@aiao/rxdb';
+import { getEntityMetadata, RxDBBranch, WorktreeTableSet } from '@aiao/rxdb';
 import { vi } from 'vitest';
 import { fakeTableRef } from '../../fixtures/fake-table-ref.js';
 
@@ -196,6 +196,8 @@ export interface CommitGraphProbeOptions {
    * `@fileoverview` 里那条「只支持一点点」立刻失守。
    */
   readonly onQuery?: (sql: string, rowsOf: (EntityClass: EntityType) => object[]) => unknown[][];
+  /** 本事务落在哪一套业务表上；默认主表集。给影子表集的布景模拟挂在可写检出位上的实例（US-314 B1.4） */
+  readonly tableSet?: WorktreeTableSet;
 }
 
 /**
@@ -221,6 +223,7 @@ export function createCommitGraphProbe(options: CommitGraphProbeOptions = {}): C
   const executor: TransactionExecutor = {
     id: 'commit-graph-probe',
     state: 'active',
+    tableSet: options.tableSet ?? WorktreeTableSet.MAIN,
     query: vi.fn(async (sql: string) => {
       trace.push('query');
       statements.push(sql);

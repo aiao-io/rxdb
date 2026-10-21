@@ -527,6 +527,7 @@ export class InMemoryRxDBAdapter extends RxDBAdapterLocalBase implements IRxDBAd
     const executor: TransactionExecutor = {
       id: uuid(),
       state: 'active',
+      tableSet: this.tableSet,
       query: (sql: string, params?: readonly unknown[]): Promise<RawQueryResult> => {
         void sql;
         void params;

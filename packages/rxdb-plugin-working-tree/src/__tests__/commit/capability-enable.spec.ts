@@ -35,7 +35,8 @@ import {
   RxDB,
   RXDB_CHANGE_CODEC_VERSION,
   SyncType,
-  UnsupportedRxDBSystemVersionError
+  UnsupportedRxDBSystemVersionError,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -187,6 +188,7 @@ function createCapabilityProbe(row: CommitCapabilityState | null): CapabilityPro
   const executor: TransactionExecutor = {
     id: 'capability-probe-executor',
     state: 'active',
+    tableSet: WorktreeTableSet.MAIN,
     query: vi.fn(async (sql: string) => {
       statements.push(sql);
       if (!row || row.enabled) return { rowsAffected: 0, rows: [], columns: [] };

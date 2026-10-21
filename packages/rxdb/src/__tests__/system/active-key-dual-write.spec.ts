@@ -16,6 +16,7 @@ import { ACTIVE_BRANCH_KEY, WorktreeBranchHeldError } from '../../system/active-
 import { RxDBBranch } from '../../system/branch.js';
 import { resolve_current_branch } from '../../system/system-repositories.js';
 import type { LocalRxDBBranchRepository } from '../../system/types.local.js';
+import { WorktreeTableSet } from '../../system/worktree-table-set.js';
 
 /**
  * 造一个只认「按 `activated` 查」与「按 `id` 查」两种谓词的分支仓库桩。
@@ -34,9 +35,12 @@ const createBranchRepository = (rows: Partial<InstanceType<typeof RxDBBranch>>[]
   return { repository: { find, create, update } as unknown as LocalRxDBBranchRepository, find, create, update };
 };
 
-/** `resolve_current_branch` 只用 `rxdb.entityManager.instantiate`。 */
+/** `resolve_current_branch` 只用 `rxdb.entityManager.instantiate` 与本实例挂的表集（没换挂过的主表集）。 */
 const createRxDBHost = () =>
-  ({ entityManager: { instantiate: () => ({}) as InstanceType<typeof RxDBBranch> } }) as unknown as RxDB;
+  ({
+    worktreeTableSet: WorktreeTableSet.MAIN,
+    entityManager: { instantiate: () => ({}) as InstanceType<typeof RxDBBranch> }
+  }) as unknown as RxDB;
 
 describe('activated / activeKey 双写', () => {
   it('resolve_current_branch 激活既有 main 时，patch 里必须带上哨兵键', async () => {

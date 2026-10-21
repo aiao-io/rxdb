@@ -97,8 +97,9 @@ const createHarness = (failure?: Error) => {
     reachability,
     syncState,
     localAdapter$: of(local),
-    // 没换挂过的实例挂的是主表集，当前分支按它读（US-314 B1.4）
+    // 没换挂过的实例挂的是主表集，当前分支按它读；自动回推只在主检出位上跑（US-314 B1.4）
     worktreeTableSet: WorktreeTableSet.MAIN,
+    worktreeTableSet$: of(WorktreeTableSet.MAIN),
     remoteAdapter$: of(remote),
     entityManager: { getRepository: () => ({ count: () => of(pending().length) }) },
     addEventListener: vi.fn(),

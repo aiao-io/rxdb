@@ -116,7 +116,11 @@ function createSyncManager(localChanges: RxDBChange[], remoteAdapter: RemoteAdap
     saveMany
   };
   const transaction = vi.fn(async <T>(fun: TransactionExecutorFun<T>): Promise<T> => {
-    const executor = { getRepository: localAdapter.getRepository, saveMany } as unknown as TransactionExecutor;
+    const executor = {
+      getRepository: localAdapter.getRepository,
+      saveMany,
+      tableSet: WorktreeTableSet.MAIN
+    } as unknown as TransactionExecutor;
     return await fun(executor);
   });
   Object.assign(localAdapter, { transaction });

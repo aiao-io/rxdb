@@ -65,7 +65,8 @@ import {
   RxDBError,
   SKIP_BRANCH_SWITCH_PREPARE,
   SyncType,
-  TrustedWriteIntent
+  TrustedWriteIntent,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { EMPTY, type Observable } from 'rxjs';
 import { describe, expect, it } from 'vitest';
@@ -126,6 +127,8 @@ interface ChangeSeed {
   readonly entityId?: string;
   readonly patch?: Record<string, unknown> | null;
   readonly inversePatch?: Record<string, unknown> | null;
+  /** 变更记在哪条分支名下；不给就不带这一列 */
+  readonly branchId?: string;
 }
 
 /** 一套布景：探针、运行时、宿主，以及往变更日志里追加行的手。 */
@@ -167,9 +170,10 @@ function createMountTarget(host: WorkingTreeWriteHost): WorkingTreeCaptureMountT
  * 造一套布景
  *
  * @param newUnitId - 单元 id 生成器；默认发同一个值，便于断言「整批共享」
+ * @param tableSet - 本事务落在哪一套业务表上；默认主表集
  */
-function scene(newUnitId: () => string = () => 'unit-fixed'): CaptureScene {
-  const probe = createCommitGraphProbe();
+function scene(newUnitId: () => string = () => 'unit-fixed', tableSet?: WorktreeTableSet): CaptureScene {
+  const probe = createCommitGraphProbe({ tableSet });
   probe.seed(RxDBBranch, [
     { id: BRANCH_ID, local: true, remote: false, activated: true, activeKey: ACTIVE_BRANCH_KEY }
   ]);
@@ -418,6 +422,72 @@ describe('挂载点 1：transaction —— 事务增量即捕获源', () => {
 
     expect(stage.entries()).toHaveLength(0);
     expect(stage.workingTreeRevision()).toBe(0);
+  });
+});
+
+/**
+ * 挂在可写检出位上的实例（US-314 B1.4）：当前分支是本事务那套表持有的分支，不是主检出位激活的那一条。
+ * 变更行记在别的分支名下，说明有写落到了不属于这套表的表里——捕获进当前分支的工作树就是一笔错账。
+ */
+describe('挂载点 1：挂在可写检出位上', () => {
+  const HELD = 'branch-held';
+  const TABLE_SET = WorktreeTableSet.of('wt_cap', []);
+
+  /** 主检出位停在 {@link BRANCH_ID}；本事务落在可写检出位那套表上，它持有 {@link HELD} */
+  const heldScene = (): CaptureScene => {
+    const stage = scene(undefined, TABLE_SET);
+    stage.probe.seed(RxDBBranch, [
+      { id: HELD, local: true, remote: false, activated: false, activeKey: TABLE_SET.holderKey }
+    ]);
+    stage.probe.seed(WorkingTreeState, [
+      { id: HELD, branchId: HELD, baseHeadCommitId: null, workingTreeRevision: 0, entryCount: 0, updatedAt: new Date() }
+    ]);
+    return stage;
+  };
+
+  it('令牌是那套表持有的分支：变更捕获进它的工作树', async () => {
+    const stage = heldScene();
+
+    await stage.runtime.interceptTransaction(stage.host, transactionNext(stage.probe, {}), async () => {
+      stage.appendChange({ id: 1, entityId: 'p1', branchId: HELD });
+    });
+
+    expect(stage.entries().map(entry => [entry.branchId, entry.entityId])).toEqual([[HELD, 'p1']]);
+  });
+
+  it('变更记在别的分支名下：拒绝捕获，工作树一行不落', async () => {
+    const stage = heldScene();
+
+    await expect(
+      stage.runtime.interceptTransaction(stage.host, transactionNext(stage.probe, {}), async () => {
+        stage.appendChange({ id: 1, entityId: 'p1', branchId: BRANCH_ID });
+      })
+    ).rejects.toThrow(/不是本实例的当前分支/);
+    expect(stage.entries()).toEqual([]);
+  });
+
+  // 主检出位上同一条判据照样生效：变更记在主检出位分支之外，同样是写落错了表
+  it('主表集上变更记在别的分支名下：同样拒绝', async () => {
+    const stage = scene();
+
+    await expect(
+      stage.runtime.interceptTransaction(stage.host, transactionNext(stage.probe, {}), async () => {
+        stage.appendChange({ id: 1, entityId: 'p1', branchId: HELD });
+      })
+    ).rejects.toThrow(/不是本实例的当前分支/);
+    expect(stage.entries()).toEqual([]);
+  });
+
+  // 持有分支不见了就是检出位已经关掉：不能退回主检出位的分支，那等于把这套表上的写记进别的分支的工作树
+  it('持有分支不见了：拒绝捕获，不退回主检出位的分支', async () => {
+    const stage = scene(undefined, TABLE_SET);
+
+    await expect(
+      stage.runtime.interceptTransaction(stage.host, transactionNext(stage.probe, {}), async () => {
+        stage.appendChange({ id: 1, entityId: 'p1', branchId: HELD });
+      })
+    ).rejects.toThrow(/持有的分支不见了/);
+    expect(stage.entries()).toEqual([]);
   });
 });
 
