@@ -239,6 +239,9 @@
     },
     {
       "path": "./packages/rxdb-plugin-tree-vue"
+    },
+    {
+      "path": "./packages/rxdb-plugin-board"
     }
   ]
 }

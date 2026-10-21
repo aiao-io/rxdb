@@ -1893,6 +1893,33 @@
         "version": "0.0.26"
       },
       {
+        "description": "看板领域模型：Board / Column / Task 实体、排序域与跨列移动、删除级联、详情草稿、恢复编排等单人看板领域服务，附确定性种子（epic-010）。",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/utils",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-board",
+        "role": "model",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
         "description": "> Implements: [US-503 图数据插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-503-graph-data.md)",
         "framework": null,
         "homepage": "https://rxdb.aiao.io/docs/plugins",
@@ -2946,7 +2973,7 @@
       }
     ]
   },
-  "digest": "cf0a41073d728b37256069df076075b01a325299cc6e02b7db8a3950f81c4767",
+  "digest": "f07e2f81a2a2f95136652bc715e2ccc864c8c2aaa8f699c7f2f7cc375418fa33",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,
