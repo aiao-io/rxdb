@@ -57,6 +57,7 @@
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*"
   }
 }

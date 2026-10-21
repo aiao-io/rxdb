@@ -80,7 +80,10 @@ const RELEASE_TASKS: readonly SeedTask[][] = [
   ]
 ];
 
-/** 隔离板任务：全部短标题含「同步」，bm25 高排位（供板内过滤验收）。 */
+/**
+ * 隔离板任务：全部短标题含「同步」、短描述再含一次（bm25 高排位，供板内过滤验收——
+ * 主板任务的标题 + 长描述同样双命中，但文档更长、排位更低）。
+ */
 const ISOLATION_TITLES: readonly string[] = [
   '同步冲突检测',
   '同步协议草案',
@@ -91,6 +94,9 @@ const ISOLATION_TITLES: readonly string[] = [
   '同步权限模型',
   '同步回放机制'
 ];
+
+/** 隔离板任务的短描述：与标题同词一次，保持文档短而词频高。 */
+const ISOLATION_DESCRIPTION = '同步机制同步回放';
 
 /**
  * 装载确定性种子：主板 + 隔离板，固定 ID 与审计时间戳。
@@ -170,7 +176,7 @@ export async function seedReleaseBoardDataset(rxdb: RxDB): Promise<void> {
         id: taskId(taskIndex + index),
         columnId: ISOLATION_COLUMN_ID,
         title: ISOLATION_TITLES[index],
-        description: null,
+        description: ISOLATION_DESCRIPTION,
         dueDate: null,
         createdAt: SEED_TIMESTAMP, updatedAt: SEED_TIMESTAMP
       })
