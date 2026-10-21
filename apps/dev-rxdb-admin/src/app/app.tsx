@@ -1,11 +1,19 @@
 import type { EntityType } from '@aiao/rxdb';
 import { RxDBProvider, useCount, useRxDB } from '@aiao/rxdb-react';
-import { Suspense, useEffect, useState } from 'react';
+import { ArchiveRestore, Boxes, Database, PanelLeftClose, PanelLeftDashed, Tags, Wrench } from 'lucide-react';
+import { Suspense, useEffect, useState, type JSX } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { findWorkbenchEntity, visibleEntityEntries, type WorkbenchEntityEntry } from './entities/entity-registry';
 import setup_rxdb from './rxdb/setup_rxdb';
 
 const db = setup_rxdb();
+
+/** 实体图标（按实体名映射，未知实体用通用盒子图标）。 */
+const ENTITY_ICONS: Record<string, JSX.Element> = {
+  Asset: <Boxes size={16} />,
+  AssetCategory: <Tags size={16} />,
+  AssetEvent: <Wrench size={16} />
+};
 
 /**
  * 实体计数徽标：只在本地适配器已连接后挂载查询——查询会触发自动连接，
@@ -31,34 +39,59 @@ function CountValue({ entry }: { entry: WorkbenchEntityEntry }) {
 }
 
 /** 左侧导航：工作台可见实体 + 备份 / 恢复入口（实体可见性由 entity-registry 派生）。 */
-function AppNav() {
+function AppSidebar({ pinned, onToggle }: { pinned: boolean; onToggle: () => void }) {
   const rxdb = useRxDB();
   const entries = visibleEntityEntries(rxdb.config.entities);
   return (
-    <aside className='bg-base-200 flex h-full w-56 shrink-0 flex-col gap-1 overflow-auto p-3' data-testid='app-nav'>
-      <h2 className='menu-title'>实体</h2>
-      <nav className='menu w-full' data-testid='entity-catalog'>
-        {entries.map(entry => (
-          <NavLink
-            key={`${entry.namespace}/${entry.name}`}
-            to={`/entities/${entry.namespace}/${entry.name}`}
-            className={({ isActive }) => (isActive ? 'menu-active' : '')}
-            data-testid='entity-nav-link'
-          >
-            <span className='truncate'>{entry.displayName}</span>
-            <EntityCountBadge entry={entry} />
-          </NavLink>
-        ))}
-      </nav>
-      <h2 className='menu-title'>数据</h2>
-      <nav className='menu w-full'>
-        <NavLink
-          to='/backup'
-          className={({ isActive }) => (isActive ? 'menu-active' : '')}
-          data-testid='backup-nav-link'
+    <aside className='app-sidebar' data-testid='app-nav'>
+      <div className='bg-base-300 flex h-10 min-h-10 items-center justify-between p-1'>
+        <button
+          className='btn btn-ghost btn-sm hover:border-transparent hover:bg-transparent'
+          onClick={onToggle}
+          type='button'
+          aria-label='sidebar toggle'
         >
-          备份 / 恢复
-        </NavLink>
+          <Database size={16} />
+          <span className='sidebar-label'>工作台</span>
+        </button>
+        <button className='btn btn-ghost btn-sm' onClick={onToggle} type='button' aria-label='sidebar toggle'>
+          {pinned ?
+            <PanelLeftClose size={16} />
+          : <PanelLeftDashed size={16} />}
+        </button>
+      </div>
+      <nav className='bg-base-200 flex-1 overflow-y-auto p-1'>
+        <ul className='menu bg-base-200 rounded-box w-full p-1' data-testid='entity-catalog'>
+          <li className='menu-title'>
+            <span className='sidebar-label'>实体</span>
+          </li>
+          {entries.map(entry => (
+            <li key={`${entry.namespace}/${entry.name}`}>
+              <NavLink
+                to={`/entities/${entry.namespace}/${entry.name}`}
+                className={({ isActive }) => (isActive ? 'menu-active' : '')}
+                data-testid='entity-nav-link'
+              >
+                {ENTITY_ICONS[entry.name] ?? <Boxes size={16} />}
+                <span className='sidebar-label'>{entry.displayName}</span>
+                {pinned && <EntityCountBadge entry={entry} />}
+              </NavLink>
+            </li>
+          ))}
+          <li className='menu-title'>
+            <span className='sidebar-label'>数据</span>
+          </li>
+          <li>
+            <NavLink
+              to='/backup'
+              className={({ isActive }) => (isActive ? 'menu-active' : '')}
+              data-testid='backup-nav-link'
+            >
+              <ArchiveRestore size={16} />
+              <span className='sidebar-label'>备份 / 恢复</span>
+            </NavLink>
+          </li>
+        </ul>
       </nav>
     </aside>
   );
@@ -74,9 +107,27 @@ function AppHeader() {
 }
 
 function AppLayout() {
+  const [pinned, setPinned] = useState(() => {
+    try {
+      return localStorage.getItem('workbench-sidebar-pinned') !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const toggleSidebar = (): void =>
+    setPinned(current => {
+      const next = !current;
+      try {
+        localStorage.setItem('workbench-sidebar-pinned', next ? '1' : '0');
+      } catch {
+        // 隐私模式等场景 localStorage 不可用：仅本次会话生效
+      }
+      return next;
+    });
+
   return (
-    <div className='flex size-full' id='layout-main'>
-      <AppNav />
+    <div className={`flex size-full ${pinned ? 'left-menu-pinned' : ''}`} id='layout-main'>
+      <AppSidebar pinned={pinned} onToggle={toggleSidebar} />
       <div className='flex h-full min-w-0 grow flex-col overflow-hidden' id='layout-container'>
         <AppHeader />
         <div id='layout-content' className='flex min-h-0 flex-1 flex-col overflow-auto'>

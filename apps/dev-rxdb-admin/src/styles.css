@@ -17,3 +17,46 @@ body,
 #root {
   height: 100%;
 }
+
+/* ── 侧边栏：48px 图标轨 ↔ 240px 展开（对齐 dev-rxdb-angular 的交互）── */
+#layout-main .app-sidebar {
+  border-right: 1px solid color-mix(in oklch, var(--color-base-content), transparent 90%);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease-in-out;
+  width: 48px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+#layout-main.left-menu-pinned .app-sidebar {
+  border-color: transparent;
+  width: 240px;
+}
+
+#layout-main .app-sidebar .menu-title {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease-in-out;
+  overflow: hidden;
+}
+
+#layout-main .app-sidebar .menu-title > * {
+  overflow: hidden;
+}
+
+#layout-main .app-sidebar .sidebar-label {
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: opacity 0.3s ease-in-out;
+}
+
+#layout-main.left-menu-pinned .app-sidebar .menu-title {
+  grid-template-rows: 1fr;
+}
+
+#layout-main.left-menu-pinned .app-sidebar .sidebar-label {
+  opacity: 1;
+}
