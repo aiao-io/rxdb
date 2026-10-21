@@ -162,6 +162,39 @@ describe('EntityDetail（真实组件）', () => {
     expect(container.querySelector('[data-detail-save="true"]')).toBeTruthy();
   });
 
+  it('校验失败在对话框内给出可读反馈，修改字段后消失（US-104）', () => {
+    const { container } = renderWithDialog(dialogData());
+
+    fireEvent.click(container.querySelector('[data-detail-save="true"]') as HTMLElement);
+
+    const panel = container.querySelector('[data-testid="entity-detail-errors"]');
+    expect(panel).toBeTruthy();
+    expect(panel!.getAttribute('role')).toBe('alert');
+    expect(panel!.textContent).toContain('是必填项');
+
+    fireEvent.change(container.querySelector('[data-field="title"] input') as HTMLInputElement, {
+      target: { value: '第一组' }
+    });
+    expect(container.querySelector('[data-testid="entity-detail-errors"]')).toBeNull();
+  });
+
+  it('保存失败在对话框内给出可读反馈（US-104）', async () => {
+    const { container } = renderWithDialog(dialogData());
+
+    fireEvent.change(container.querySelector('[data-field="title"] input') as HTMLInputElement, {
+      target: { value: '落不进去' }
+    });
+    vi.spyOn(repoOf(), 'create').mockRejectedValueOnce(new Error('写入被拒'));
+    fireEvent.click(container.querySelector('[data-detail-save="true"]') as HTMLElement);
+
+    await waitFor(() => {
+      const panel = container.querySelector('[data-testid="entity-detail-errors"]');
+      expect(panel?.textContent).toContain('保存失败：写入被拒');
+    });
+    // 对话框未关闭
+    expect(container.querySelector('[data-detail-save="true"]')).toBeTruthy();
+  });
+
   it('补齐必填后保存才落库：草稿清空', async () => {
     const { container } = renderWithDialog(dialogData());
 

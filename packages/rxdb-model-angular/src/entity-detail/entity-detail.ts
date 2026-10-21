@@ -23,7 +23,6 @@ import {
   Component,
   computed,
   effect,
-  ErrorHandler,
   inject,
   input,
   linkedSignal,
@@ -76,7 +75,6 @@ export class EntityDetailComponent {
   readonly #dialogRef = inject(DialogRef, { optional: true });
   readonly #dialogData = inject(DIALOG_DATA, { optional: true }) as EntityDetailDialogData | null;
   readonly #rxdb = inject(RxDB, { optional: true }) as RxDB | null;
-  readonly #errorHandler = inject(ErrorHandler);
 
   /** 创建模式下的草稿实体实例（立即创建，不保存） */
   #draftEntity: EntityInstance | null = null;
@@ -185,6 +183,11 @@ export class EntityDetailComponent {
 
   /** 暴露草稿实体给模板（关系 tab 的 entity-list 需要） */
   readonly draftEntitySignal = signal<EntityInstance | null>(null);
+
+  /** 校验错误面板：最近一次提交的校验结果（React/Vue 同语义，US-104）。 */
+  readonly formErrors = signal<FormValidationResult | null>(null);
+  /** 保存失败原因（校验错误以外的落库错误）。 */
+  readonly saveError = signal<string | null>(null);
 
   /** 父实体（草稿或已保存实例），用于关系 tab 的 entity-list */
   readonly parentEntityForRelation = computed<EntityInstance | null>(() => {
@@ -304,7 +307,7 @@ export class EntityDetailComponent {
       const merged = fixed ? { ...data, ...fixed } : data;
       const result = validateForm(fields, merged);
       if (!result.valid) {
-        this.validationErrors.emit(result);
+        this.onValidationErrors(result);
         return;
       }
       this.#syncDraftEntity();
@@ -336,7 +339,7 @@ export class EntityDetailComponent {
         this.#dialogRef?.close('saved');
         this.formSubmitted.emit(data);
       })
-      .catch(e => this.#errorHandler.handleError(e));
+      .catch(e => this.saveError.set(this.#saveErrorMessage(e)));
   }
 
   onFormCancelled(): void {
@@ -349,10 +352,14 @@ export class EntityDetailComponent {
     if (this.isCreateMode()) {
       this.draftFormData.update(d => ({ ...d, [event.field]: event.value }));
     }
+    this.formErrors.set(null);
+    this.saveError.set(null);
     this.fieldChanged.emit(event);
   }
 
   onValidationErrors(result: FormValidationResult): void {
+    this.formErrors.set(result);
+    this.saveError.set(null);
     this.validationErrors.emit(result);
   }
 
@@ -364,7 +371,7 @@ export class EntityDetailComponent {
     const merged = fixed ? { ...data, ...fixed } : data;
     const result = validateForm(fields, merged);
     if (!result.valid) {
-      this.validationErrors.emit(result);
+      this.onValidationErrors(result);
       return;
     }
     if (this.#draftEntity) {
@@ -376,7 +383,7 @@ export class EntityDetailComponent {
           this.draftEntitySignal.set(null);
           this.#dialogRef?.close('saved');
         })
-        .catch(e => this.#errorHandler.handleError(e));
+        .catch(e => this.saveError.set(this.#saveErrorMessage(e)));
     } else {
       this.formSubmitted.emit(merged);
       this.#dialogRef?.close();
@@ -445,5 +452,10 @@ export class EntityDetailComponent {
     this.#rxdb.entityManager.removeEntityCache(this.#draftEntity);
     this.#draftEntity = null;
     this.draftEntitySignal.set(null);
+  }
+
+  /** 落库失败：可读原因进错误面板（不再只进 ErrorHandler，US-104）。 */
+  #saveErrorMessage(error: unknown): string {
+    return `保存失败：${error instanceof Error ? error.message : String(error)}`;
   }
 }
