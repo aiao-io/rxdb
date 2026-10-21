@@ -13,6 +13,7 @@ export type BoardErrorCode =
   | 'column_not_found'
   | 'task_not_found'
   | 'label_not_found'
+  | 'label_cross_board'
   | 'cross_board'
   | 'invalid_due_date'
   | 'duplicate_label'
