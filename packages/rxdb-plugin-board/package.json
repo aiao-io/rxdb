@@ -6,7 +6,13 @@
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },
-  "keywords": ["aiao", "rxdb", "board", "kanban", "typescript"],
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "board",
+    "kanban",
+    "typescript"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -44,7 +50,9 @@
   },
   "nx": {
     "name": "rxdb-plugin-board",
-    "tags": ["js-lib"]
+    "tags": [
+      "js-lib"
+    ]
   },
   "dependencies": {
     "@aiao/rxdb-plugin-search": "workspace:^",

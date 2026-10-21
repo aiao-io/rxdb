@@ -5,6 +5,7 @@ import { BoardLabel } from './entities/board-label.entity.js';
 import { TaskLabel } from './entities/task-label.entity.js';
 import { BoardDomainError } from './errors.js';
 import { assertBoardWritable, type BoardHostContext, requireBoardId } from './host-context.js';
+import { isHexColor } from './label-text-color.js';
 import { readFirst, whereEq } from './query.js';
 import { normalizeBoardTitle } from './title.js';
 
@@ -36,6 +37,7 @@ export class BoardLabelService {
     assertBoardWritable(this.ctx());
     const boardId = requireBoardId(this.ctx());
     const name = this.requireLabelName(input.name);
+    this.requireLabelColor(input.color);
     await this.assertNameFree(boardId, name);
     const repository = this.rxdb.entityManager.getRepository(BoardLabel);
     try {
@@ -60,6 +62,7 @@ export class BoardLabelService {
   async recolorLabel(labelId: UUID, color: string): Promise<InstanceType<typeof BoardLabel>> {
     assertBoardWritable(this.ctx());
     const label = await this.requireLabelInBoard(labelId);
+    this.requireLabelColor(color);
     return this.rxdb.entityManager.getRepository(BoardLabel).update(label, { color });
   }
 
@@ -128,5 +131,12 @@ export class BoardLabelService {
     const name = normalizeBoardTitle(raw);
     if (name === null) throw new BoardDomainError('empty_title', '标签名不能为空');
     return name;
+  }
+
+  /** 标签颜色必须是 #rgb / #rrggbb（US-539 AC#6 的对比度半边，非法格式显式拒绝）。 */
+  private requireLabelColor(color: string): void {
+    if (!isHexColor(color)) {
+      throw new BoardDomainError('invalid_color', `标签颜色必须是 #rgb 或 #rrggbb，收到 ${JSON.stringify(color)}`);
+    }
   }
 }

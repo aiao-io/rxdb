@@ -1,6 +1,7 @@
 import type { UUID } from '@aiao/rxdb';
 import {
   Column,
+  labelTextColor as pickLabelTextColor,
   resolveCardDrop,
   resolveColumnDrop,
   Task,
@@ -40,42 +41,203 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './board-view.html',
   styles: [
-    `/* 看板布局（US-539 交互约定：列横向排列、任务卡片纵向堆叠、列横向滚动；详情/确认面板固定右侧） */
-.board-view { display: block; padding-bottom: 4rem; }
-.board-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; flex-wrap: wrap; }
-.board-selector { padding: 0.25rem; }
-.header-button { background: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; }
-.header-actions { display: flex; gap: 0.375rem; flex-wrap: wrap; }
-.restoring-badge { background: #f59e0b; color: #fff; padding: 0 0.375rem; border-radius: 0.25rem; font-size: 0.75rem; }
-.restoring-note { padding: 0.25rem 1rem; color: #92400e; }
-.label-strip { display: flex; gap: 0.375rem; padding: 0.25rem 1rem; flex-wrap: wrap; }
-.label-chip { display: inline-flex; align-items: center; gap: 0.25rem; border-radius: 0.25rem; padding: 0 0.375rem; color: #fff; font-size: 0.75rem; }
-.label-name, .label-delete { background: none; border: none; color: inherit; cursor: pointer; font-size: inherit; padding: 0; }
-.board-notice { padding: 0.25rem 1rem; color: #b91c1c; }
-.columns { display: flex; gap: 0.75rem; overflow-x: auto; padding: 0.5rem 1rem; align-items: flex-start; }
-.column { flex: 0 0 17rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
-.column-header { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem; }
-.column-title { margin: 0; font-size: 0.875rem; font-weight: 600; flex: 1; }
-.column-count { font-size: 0.75rem; color: #64748b; }
-.column-menu { display: flex; gap: 0.125rem; flex-wrap: wrap; }
-.column-menu button { font-size: 0.75rem; padding: 0.125rem 0.25rem; }
-.cards { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.375rem; }
-.card { background: #fff; border-radius: 0.375rem; padding: 0.5rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); }
-.card-title { display: block; background: none; border: none; cursor: pointer; font-size: 0.875rem; text-align: left; padding: 0; width: 100%; }
-.card-edit { font-size: 0.75rem; }
-.card-labels { display: flex; gap: 0.25rem; margin-top: 0.25rem; flex-wrap: wrap; }
-.card-label { padding: 0 0.375rem; border-radius: 0.25rem; color: #fff; font-size: 0.75rem; }
-.card-due { display: block; margin-top: 0.25rem; font-size: 0.75rem; color: #64748b; }
-.card-due.overdue { color: #dc2626; }
-.add-task { width: 100%; margin-top: 0.25rem; }
-.title-editor { width: 100%; box-sizing: border-box; }
-.empty-board { padding: 2rem; }
-.detail-panel, .confirm-panel { position: fixed; right: 1rem; top: 4rem; width: 20rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); z-index: 10; max-height: calc(100vh - 6rem); overflow-y: auto; }
-.detail-panel label { display: block; margin-bottom: 0.5rem; }
-.detail-panel input, .detail-panel textarea { width: 100%; box-sizing: border-box; }
-.detail-actions, .confirm-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
-.board-connecting { padding: 2rem; color: #666; }
-`
+    `
+      /* 看板布局（US-539 交互约定：列横向排列、任务卡片纵向堆叠、列横向滚动；详情/确认面板固定右侧） */
+      .board-view {
+        display: block;
+        padding-bottom: 4rem;
+      }
+      .board-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        flex-wrap: wrap;
+      }
+      .board-selector {
+        padding: 0.25rem;
+      }
+      .header-button {
+        background: none;
+        border: none;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .header-actions {
+        display: flex;
+        gap: 0.375rem;
+        flex-wrap: wrap;
+      }
+      .restoring-badge {
+        background: #f59e0b;
+        color: #fff;
+        padding: 0 0.375rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+      }
+      .restoring-note {
+        padding: 0.25rem 1rem;
+        color: #92400e;
+      }
+      .label-strip {
+        display: flex;
+        gap: 0.375rem;
+        padding: 0.25rem 1rem;
+        flex-wrap: wrap;
+      }
+      .label-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        border-radius: 0.25rem;
+        padding: 0 0.375rem;
+        color: #fff;
+        font-size: 0.75rem;
+      }
+      .label-name,
+      .label-delete {
+        background: none;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        font-size: inherit;
+        padding: 0;
+      }
+      .board-notice {
+        padding: 0.25rem 1rem;
+        color: #b91c1c;
+      }
+      .columns {
+        display: flex;
+        gap: 0.75rem;
+        overflow-x: auto;
+        padding: 0.5rem 1rem;
+        align-items: flex-start;
+      }
+      .column {
+        flex: 0 0 17rem;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+      }
+      .column-header {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.5rem;
+      }
+      .column-title {
+        margin: 0;
+        font-size: 0.875rem;
+        font-weight: 600;
+        flex: 1;
+      }
+      .column-count {
+        font-size: 0.75rem;
+        color: #64748b;
+      }
+      .column-menu {
+        display: flex;
+        gap: 0.125rem;
+        flex-wrap: wrap;
+      }
+      .column-menu button {
+        font-size: 0.75rem;
+        padding: 0.125rem 0.25rem;
+      }
+      .cards {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+        padding: 0.375rem;
+      }
+      .card {
+        background: #fff;
+        border-radius: 0.375rem;
+        padding: 0.5rem;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+      }
+      .card-title {
+        display: block;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 0.875rem;
+        text-align: left;
+        padding: 0;
+        width: 100%;
+      }
+      .card-edit {
+        font-size: 0.75rem;
+      }
+      .card-labels {
+        display: flex;
+        gap: 0.25rem;
+        margin-top: 0.25rem;
+        flex-wrap: wrap;
+      }
+      .card-label {
+        padding: 0 0.375rem;
+        border-radius: 0.25rem;
+        color: #fff;
+        font-size: 0.75rem;
+      }
+      .card-due {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 0.75rem;
+        color: #64748b;
+      }
+      .card-due.overdue {
+        color: #dc2626;
+      }
+      .add-task {
+        width: 100%;
+        margin-top: 0.25rem;
+      }
+      .title-editor {
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .empty-board {
+        padding: 2rem;
+      }
+      .detail-panel,
+      .confirm-panel {
+        position: fixed;
+        right: 1rem;
+        top: 4rem;
+        width: 20rem;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        z-index: 10;
+        max-height: calc(100vh - 6rem);
+        overflow-y: auto;
+      }
+      .detail-panel label {
+        display: block;
+        margin-bottom: 0.5rem;
+      }
+      .detail-panel input,
+      .detail-panel textarea {
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .detail-actions,
+      .confirm-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+      }
+      .board-connecting {
+        padding: 2rem;
+        color: #666;
+      }
+    `
   ]
 })
 export class BoardViewComponent implements OnInit {
@@ -142,6 +304,11 @@ export class BoardViewComponent implements OnInit {
     // 显式注入上下文：JIT + zoneless 下生命周期钩子不保证自带注入上下文
     const installed = runInInjectionContext(this.injectorRef, () => useBoard(this.rxdb()));
     this.board.set(installed);
+  }
+
+  /** 标签文字色（对比度，US-539 AC#6）：模板无法直接调模块级函数，包一层成员。 */
+  protected labelTextColor(color: string): string {
+    return pickLabelTextColor(color);
   }
 
   // ---------- 创建 ----------
@@ -283,7 +450,7 @@ export class BoardViewComponent implements OnInit {
   protected async saveDetail(): Promise<void> {
     const taskId = this.detailTaskId();
     if (!taskId || !this.snapshot) return;
-    await this.guard(() =>
+    const result = await this.guard(() =>
       this.boardRef.actions.saveTaskDraft(taskId, this.snapshot!, {
         title: this.draftTitle(),
         description: this.draftDescription(),
@@ -291,6 +458,8 @@ export class BoardViewComponent implements OnInit {
         labelIds: this.draftLabelIds()
       })
     );
+    // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
+    if (result === undefined) return;
     this.closeDetail();
   }
 
@@ -330,7 +499,9 @@ export class BoardViewComponent implements OnInit {
   protected async deleteDetailTask(): Promise<void> {
     const taskId = this.detailTaskId();
     if (!taskId) return;
-    const task = this.board()?.tasks().find(candidate => candidate.id === taskId);
+    const task = this.board()
+      ?.tasks()
+      .find(candidate => candidate.id === taskId);
     if (task) await this.confirmTaskDelete(task);
   }
 
@@ -483,5 +654,4 @@ export class BoardViewComponent implements OnInit {
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
-
 }

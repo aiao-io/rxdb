@@ -29,7 +29,7 @@ const hit = (id: string, rank: number, snippet = `片段-${id}`): SearchResult =
 const stubUpstream = (hits: SearchResult[], options: { delayMs?: number; fail?: boolean } = {}) => {
   let calls = 0;
   const upstream: BoardSearchUpstream = {
-    searchCollection: (_collection, query, _options) => {
+    searchCollection: (_collection, query) => {
       calls++;
       const handle = createSearchHandle({
         performSearch: async () => {

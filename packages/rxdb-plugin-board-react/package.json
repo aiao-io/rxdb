@@ -6,7 +6,14 @@
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },
-  "keywords": ["aiao", "rxdb", "react", "board", "kanban", "hooks"],
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "react",
+    "board",
+    "kanban",
+    "hooks"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -40,7 +47,9 @@
   },
   "nx": {
     "name": "rxdb-plugin-board-react",
-    "tags": ["react-lib"]
+    "tags": [
+      "react-lib"
+    ]
   },
   "dependencies": {
     "@aiao/rxdb-plugin-board": "workspace:^"

@@ -8,6 +8,7 @@ import { BoardColumnSortService } from '../column-sort-service.js';
 import { BoardDeleteService } from '../delete-service.js';
 import { resolveColumnDrop } from '../drop-resolution.js';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '../entities/index.js';
+import { BoardLabelService } from '../label-service.js';
 import { BoardMoveService } from '../move-service.js';
 import { matchAll, readFirst, whereEq } from '../query.js';
 import { isValidDueDate, normalizeBoardTitle } from '../title.js';
@@ -185,6 +186,16 @@ describe('看板领域边界用例', () => {
     const { describeBoardFailure } = await import('../write-notifier.js');
     expect(describeBoardFailure('字符串错误')).toBe('字符串错误');
     expect(describeBoardFailure(new Error('真实错误'))).toContain('真实错误');
+  });
+
+  it('标签颜色必须是 #rgb / #rrggbb，非法格式显式拒绝（US-539 AC#6）', async () => {
+    const labels = new BoardLabelService(rxdb, () => ctx);
+    const board = await domain.createBoard({ title: 'B' });
+    ctx.boardId = board.id;
+    const label = await labels.createLabel({ name: '合法', color: '#16a34a' });
+    await expect(labels.createLabel({ name: '非法', color: 'red' })).rejects.toMatchObject({ code: 'invalid_color' });
+    await expect(labels.recolorLabel(label.id, '#12345')).rejects.toMatchObject({ code: 'invalid_color' });
+    expect(await readFirst(rxdb.entityManager.getRepository(BoardLabel).find({ where: matchAll() }))).toHaveLength(1);
   });
 
   it('任务不存在时 requireTaskInBoard 可判别', async () => {

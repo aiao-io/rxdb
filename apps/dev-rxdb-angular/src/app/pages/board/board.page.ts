@@ -1,8 +1,8 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
-import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { BoardViewComponent } from '@aiao/rxdb-plugin-board-angular';
+import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { APP_BASE_HREF } from '@angular/common';
@@ -28,7 +28,7 @@ import { getSqliteWasmUrl } from '../../rxdb/demo-rxdb-config';
         <button (click)="onSeedDemo()" data-testid="seed-demo">装载演示数据</button>
       </footer>
       @if (pageError(); as message) {
-        <p class="board-notice" role="alert" data-testid="board-notice-host">{{ message }}</p>
+        <p class="board-notice" data-testid="board-notice-host" role="alert">{{ message }}</p>
       }
     } @else {
       <p class="board-connecting" data-testid="board-connecting">正在连接看板数据库…</p>
@@ -108,7 +108,9 @@ export default class BoardPage implements OnInit {
     const db = this.rxdb();
     if (!db) return;
     try {
-      const boards = await firstValueFrom(db.entityManager.getRepository(Board).count({ where: { combinator: 'and', rules: [] } }));
+      const boards = await firstValueFrom(
+        db.entityManager.getRepository(Board).count({ where: { combinator: 'and', rules: [] } })
+      );
       if (boards > 0) {
         this.pageError.set('演示数据只能装进空库');
         return;

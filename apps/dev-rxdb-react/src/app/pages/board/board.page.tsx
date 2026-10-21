@@ -1,14 +1,14 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
-import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { BoardView } from '@aiao/rxdb-plugin-board-react';
 import '@aiao/rxdb-plugin-board-react/board-view.css';
-import './board-page.css';
+import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { useEffect, useState } from 'react';
 import { firstValueFrom } from 'rxjs';
+import './board-page.css';
 
 /**
  * 看板页（US-539 阶段 A 宿主半边）：独立 RxDB 实例——
@@ -104,11 +104,11 @@ export default function BoardPage() {
           装载演示数据
         </button>
       </footer>
-      {seedError ? (
+      {seedError ?
         <p className='board-notice' role='alert' data-testid='board-notice-host'>
           {seedError}
         </p>
-      ) : null}
+      : null}
     </>
   );
 }

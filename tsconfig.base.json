@@ -120,7 +120,8 @@
       "@modules/rxdb-devtools-panel/wire": ["./modules/rxdb-devtools-panel/wire/index.ts"],
       "@modules/recipes-domain": ["./modules/recipes-domain/src/index.ts"],
       "@modules/wujie": ["./modules/wujie/src/index.ts"],
-      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"]
+      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"],
+      "@aiao/rxdb-plugin-board-react/board-view.css": ["./packages/rxdb-plugin-board-react/src/board-view.css"]
     },
     "resolveJsonModule": true,
     "skipDefaultLibCheck": true,

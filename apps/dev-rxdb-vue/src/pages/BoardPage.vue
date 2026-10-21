@@ -81,7 +81,6 @@ const seedDemo = async (): Promise<void> => {
     seedError.value = cause instanceof Error ? cause.message : String(cause);
   }
 };
-
 </script>
 
 <template>
@@ -98,9 +97,20 @@ const seedDemo = async (): Promise<void> => {
     >正在连接看板数据库…</p
   >
   <template v-else>
-    <BoardView :rxdb="rxdb!" :on-export-backup="exportBackup" />
-    <footer class="board-tools" data-testid="board-tools">
-      <button type="button" data-testid="seed-demo" @click="seedDemo">装载演示数据</button>
+    <BoardView
+      :rxdb="rxdb!"
+      :on-export-backup="exportBackup"
+    />
+    <footer
+      class="board-tools"
+      data-testid="board-tools"
+    >
+      <button
+        type="button"
+        data-testid="seed-demo"
+        @click="seedDemo"
+        >装载演示数据</button
+      >
     </footer>
     <p
       v-if="seedError"

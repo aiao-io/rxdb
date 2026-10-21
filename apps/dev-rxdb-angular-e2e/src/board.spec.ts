@@ -1,0 +1,383 @@
+import AxeBuilder from '@axe-core/playwright';
+import type { Dialog, Page } from '@playwright/test';
+import { test as base, expect } from './fixtures.js';
+
+/**
+ * 看板页三端对齐验收（US-539 阶段 A 的 e2e 半边，AC#1～3 / #6～8 / #11 / #14）：
+ * 每个用例都在全新浏览器上下文进入 `/board`（干净 IndexedDB / localStorage 初态），
+ * 拖拽用真实拖拽且拖后刷新读回（US-028 AC#18 先例），种子来自「装载演示数据」入口
+ * （US-540 同一份确定性种子）。
+ *
+ * 本文件与 dev-rxdb-react-e2e / dev-rxdb-vue-e2e 的副本内容一致，
+ * 只允许一处差异：Angular 端从 `./fixtures.js` 取 test / expect（US-909 失败归档守卫），
+ * React / Vue 从 `@playwright/test` 取。改一处改三处。
+ */
+
+/** 每个用例一个全新浏览器上下文（干净 IndexedDB / localStorage 初态）。 */
+const test = base.extend<{ boardPage: Page }>({
+  boardPage: async ({ browser }, use) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto('/board');
+    await expect(page.getByTestId('board-view')).toBeVisible();
+    await use(page);
+    await context.close();
+  }
+});
+
+/** 经宿主工具条装载演示数据（只进空库），等种子渲染完成。 */
+const startWithSeed = async (page: Page): Promise<void> => {
+  await page.getByTestId('seed-demo').click();
+  await expect(page.getByTestId('column')).toHaveCount(4);
+  await expect(page.getByTestId('task-card')).toHaveCount(12);
+};
+
+/** 按列收集任务标题（库序）。 */
+const titlesOfColumn = async (page: Page, columnTitle: string): Promise<string[]> => {
+  const column = page
+    .getByTestId('column')
+    .filter({ has: page.getByTestId('column-title').getByText(columnTitle, { exact: true }) });
+  return column.getByTestId('task-title').allTextContents();
+};
+
+test.describe('看板页对齐（US-539 阶段 A）', () => {
+  /** 应答 window.prompt：按序给出答案，用尽后给空串。 */
+  const answerPrompts = (page: Page, answers: string[]): (() => void) => {
+    const queue = [...answers];
+    const handler = async (dialog: Dialog): Promise<void> => {
+      await dialog.accept(queue.shift() ?? ' ');
+    };
+    page.on('dialog', handler);
+    return () => page.removeListener('dialog', handler);
+  };
+
+  test('AC#1：装载演示数据——列头、任务、标签与截止日与种子一致，重开后原样', async ({ boardPage: page }) => {
+    await expect(page.getByTestId('empty-board')).toBeVisible();
+    await startWithSeed(page);
+
+    // 列头与列内数量
+    await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Doing', 'Done', 'Ideas']);
+    await expect(page.getByTestId('column-count')).toHaveText(['5', '4', '3', '0']);
+
+    // 标签与卡片上的标签 / 截止日
+    await expect(page.getByTestId('label-chip')).toHaveCount(4);
+    const firstCard = page.getByTestId('task-card').filter({ hasText: '修复登录 bug' });
+    await expect(firstCard.getByTestId('task-due')).toHaveText('2026-11-05');
+    await expect(firstCard.getByTestId('card-label')).toHaveText('核心');
+
+    // 重开：同一库名读回，实体与顺序原样
+    await page.reload();
+    await expect(page.getByTestId('board-view')).toBeVisible();
+    await expect(page.getByTestId('column')).toHaveCount(4);
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+    expect(await titlesOfColumn(page, 'To do')).toEqual([
+      '修复登录 bug',
+      '写发布说明',
+      '同步插件适配 Supabase',
+      '回归测试：工作树同步',
+      '整理同步迁移指南'
+    ]);
+  });
+
+  test('AC#2：真实拖拽——跨列两邻之间、空列、同列改序，每次拖后刷新读回', async ({ boardPage: page }) => {
+    await startWithSeed(page);
+
+    // 跨列：把 To do 第一张卡「修复登录 bug」拖到 Doing 的「树拖拽落点修复」之上
+    const source = page.getByTestId('task-card').filter({ hasText: '修复登录 bug' });
+    const target = page.getByTestId('task-card').filter({ hasText: '树拖拽落点修复' });
+    await source.dragTo(target, { targetPosition: { x: 10, y: 5 } });
+    const doingColumn = page
+      .getByTestId('column')
+      .filter({ has: page.getByTestId('column-title').getByText('Doing', { exact: true }) });
+    await expect(doingColumn.getByTestId('task-title').first()).toHaveText('修复登录 bug');
+    await page.reload();
+    await expect(page.getByTestId('board-view')).toBeVisible();
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+    expect(await titlesOfColumn(page, 'Doing')).toEqual([
+      '修复登录 bug',
+      '树拖拽落点修复',
+      '同步水位线调优',
+      'DevTools 同步面板重构',
+      '补齐三端对称'
+    ]);
+    expect(await titlesOfColumn(page, 'To do')).not.toContain('修复登录 bug');
+
+    // 空列：拖「写发布说明」到 Ideas（空列）
+    const toIdeas = page.getByTestId('task-card').filter({ hasText: '写发布说明' });
+    const ideasColumn = page
+      .getByTestId('column')
+      .filter({ has: page.getByTestId('column-title').getByText('Ideas', { exact: true }) });
+    await toIdeas.dragTo(ideasColumn.getByTestId('add-task'));
+    await expect(ideasColumn.getByTestId('task-title')).toHaveText('写发布说明');
+    await page.reload();
+    await expect(page.getByTestId('board-view')).toBeVisible();
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+    expect(await titlesOfColumn(page, 'Ideas')).toEqual(['写发布说明']);
+
+    // 同列改序：把 To do 的「整理同步迁移指南」拖到「同步插件适配 Supabase」之上
+    const moved = page.getByTestId('task-card').filter({ hasText: '整理同步迁移指南' });
+    const over = page.getByTestId('task-card').filter({ hasText: '同步插件适配 Supabase' });
+    await moved.dragTo(over, { targetPosition: { x: 10, y: 5 } });
+    const toDoColumn = page
+      .getByTestId('column')
+      .filter({ has: page.getByTestId('column-title').getByText('To do', { exact: true }) });
+    await expect(toDoColumn.getByTestId('task-title').first()).toHaveText('整理同步迁移指南');
+    await page.reload();
+    await expect(page.getByTestId('board-view')).toBeVisible();
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+    expect(await titlesOfColumn(page, 'To do')).toEqual([
+      '整理同步迁移指南',
+      '同步插件适配 Supabase',
+      '回归测试：工作树同步'
+    ]);
+  });
+
+  test('AC#3：内联改标题保存 / 取消；详情保存标题 / 描述 / 标签 / 截止日并重开读回', async ({ boardPage: page }) => {
+    await startWithSeed(page);
+
+    // 内联改标题：取消零写（编辑器渲染时卡片 hasText 过滤失效——标题被输入框替换，
+    // 编辑器 / 保存 / 取消一律用页面级定位）
+    const card = page.getByTestId('task-card').filter({ hasText: '写发布说明' });
+    await card.getByTestId('task-edit-title').click();
+    await expect(page.getByTestId('task-title-editor')).toBeVisible();
+    await page.getByTestId('task-title-editor').fill('写发布说明（取消）');
+    await page.getByTestId('task-title-cancel').click();
+    await expect(card.getByTestId('task-title')).toHaveText('写发布说明');
+
+    // 内联改标题：保存生效
+    await card.getByTestId('task-edit-title').click();
+    await page.getByTestId('task-title-editor').fill('写发布说明 v2');
+    await page.getByTestId('task-title-save').click();
+    await expect(card.getByTestId('task-title')).toHaveText('写发布说明 v2');
+
+    // 详情：改标题 / 描述 / 截止日，加「文档」标签，保存后重开读回
+    const detail = page.getByTestId('detail-panel');
+    await card.getByTestId('task-title').click();
+    await expect(detail).toBeVisible();
+    await detail.getByTestId('detail-title').fill('写发布说明 v3');
+    await detail.getByTestId('detail-description').fill('三端对齐的详情描述');
+    await detail.getByTestId('detail-due').fill('2026-12-31');
+    await detail.locator('label', { hasText: '文档' }).locator('input').check();
+    await detail.getByTestId('detail-save').click();
+    await expect(detail).toBeHidden();
+
+    await card.getByTestId('task-title').click();
+    await expect(detail.getByTestId('detail-title')).toHaveValue('写发布说明 v3');
+    await expect(detail.getByTestId('detail-description')).toHaveValue('三端对齐的详情描述');
+    await expect(detail.getByTestId('detail-due')).toHaveValue('2026-12-31');
+    await expect(detail.locator('input[data-testid="detail-label-check"]:checked')).toHaveCount(1);
+    await expect(detail.locator('label', { hasText: '文档' }).locator('input')).toBeChecked();
+    await detail.getByTestId('detail-cancel').click();
+
+    // 空标题拒绝且保留草稿
+    await card.getByTestId('task-title').click();
+    await detail.getByTestId('detail-title').fill('   ');
+    await detail.getByTestId('detail-save').click();
+    await expect(page.getByTestId('board-notice')).toBeVisible();
+    await expect(detail.getByTestId('detail-title')).toHaveValue('   ');
+  });
+
+  test('AC#6：axe 无违规；键盘等价路径——列前移 / 后移可完成等价移动', async ({ boardPage: page }) => {
+    await startWithSeed(page);
+    // 重开清空会话撤销栈：种子的写入也进撤销栈（异步注册），
+    // 否则一次 undo 可能先弹到种子条目而不是本用例的键盘移动
+    await page.reload();
+    await expect(page.getByTestId('board-view')).toBeVisible();
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+
+    // axe（US-539 AC#6 的 a11y 半边）
+    const results = await new AxeBuilder({ page }).include('[data-testid="board-view"]').analyze();
+    expect(results.violations).toEqual([]);
+
+    // 键盘：首列前移 / 末列后移零写（不可越界），「Doing」后移一次与 Done 换位
+    const columnHeader = (title: string) =>
+      page
+        .getByTestId('column-header')
+        .filter({ has: page.getByTestId('column-title').getByText(title, { exact: true }) });
+    await columnHeader('To do').getByTestId('column-move-back').click();
+    await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Doing', 'Done', 'Ideas']);
+    await columnHeader('Ideas').getByTestId('column-move-forward').click();
+    await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Doing', 'Done', 'Ideas']);
+    await columnHeader('Doing').getByTestId('column-move-forward').click();
+    await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Done', 'Doing', 'Ideas']);
+
+    // 键盘移动与拖动走同一领域路径：undo 一次还原
+    await page.getByTestId('undo').click();
+    await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Doing', 'Done', 'Ideas']);
+  });
+
+  test('AC#7：空库闭环——建板 / 建列 / 建任务、第二块板切换、重开原样', async ({ boardPage: page }) => {
+    await expect(page.getByTestId('empty-board')).toBeVisible();
+
+    const stopPrompts = answerPrompts(page, ['我的看板', '待办', '第一件事', '第二块板']);
+    await page.getByTestId('create-board-empty').click();
+    await expect(page.getByTestId('column')).toHaveCount(0);
+    await page.getByTestId('create-column').click();
+    await expect(page.getByTestId('column')).toHaveCount(1);
+    await page.getByTestId('add-task').click();
+    await expect(page.getByTestId('task-card')).toHaveCount(1);
+    await expect(page.getByTestId('task-title')).toHaveText('第一件事');
+
+    // 第二块板并来回切换：切板不混数据
+    await page.getByTestId('create-board').click();
+    await page.getByTestId('board-selector').selectOption({ label: '第二块板' });
+    await expect(page.getByTestId('column')).toHaveCount(0);
+    await page.getByTestId('board-selector').selectOption({ label: '我的看板' });
+    await expect(page.getByTestId('task-card')).toHaveCount(1);
+    stopPrompts();
+
+    // 重开：板 / 列 / 任务与顺序原样
+    await page.reload();
+    await expect(page.getByTestId('board-view')).toBeVisible();
+    await expect(page.getByTestId('task-card')).toHaveCount(1);
+    await expect(page.getByTestId('task-title')).toHaveText('第一件事');
+  });
+
+  test('AC#8：删除确认——取消零写；确认后级联数量正确且另一板不变；重开不复活', async ({ boardPage: page }) => {
+    await startWithSeed(page);
+
+    // 第二块板（删除确认只影响当前板）
+    const stopPrompts = answerPrompts(page, ['备份板']);
+    await page.getByTestId('create-board').click();
+    await page.getByTestId('board-selector').selectOption({ label: 'rxdb 1.0 发布计划' });
+    stopPrompts();
+
+    // 删任务：详情面板删除入口，取消零写，确认后卡片消失
+    const detail = page.getByTestId('detail-panel');
+    const card = page.getByTestId('task-card').filter({ hasText: '写发布说明' });
+    await card.getByTestId('task-title').click();
+    await detail.getByTestId('detail-delete').click();
+    await expect(page.getByTestId('confirm-delete')).toContainText('写发布说明');
+    await page.getByTestId('confirm-delete-no').click();
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+    await card.getByTestId('task-title').click();
+    await detail.getByTestId('detail-delete').click();
+    await page.getByTestId('confirm-delete-yes').click();
+    await expect(page.getByTestId('task-card')).toHaveCount(11);
+
+    // 删列：取消零写；确认提示含列内任务数（Doing 现在 5 张）并级联删除
+    const doingHeader = page
+      .getByTestId('column-header')
+      .filter({ has: page.getByTestId('column-title').getByText('Doing', { exact: true }) });
+    await doingHeader.getByTestId('column-delete').click();
+    await expect(page.getByTestId('confirm-delete')).toContainText('4');
+    await page.getByTestId('confirm-delete-no').click();
+    await expect(page.getByTestId('column')).toHaveCount(4);
+    await doingHeader.getByTestId('column-delete').click();
+    await page.getByTestId('confirm-delete-yes').click();
+    await expect(page.getByTestId('column')).toHaveCount(3);
+    await expect(page.getByTestId('task-card')).toHaveCount(7);
+
+    // 删板：确认提示含列 / 任务数；确认后切换到最近创建的备份板（零列零任务），
+    // 种子自带的隔离板「引擎研究草稿」不受影响；重开不复活
+    await page.getByTestId('delete-board').click();
+    await expect(page.getByTestId('confirm-delete')).toContainText('3');
+    await page.getByTestId('confirm-delete-yes').click();
+    await expect(page.getByTestId('board-selector').locator('option')).toHaveCount(2);
+    // 删除当前板后回到未选板空态，再手动切到另一块板
+    await expect(page.getByTestId('empty-board')).toBeVisible();
+    await page.getByTestId('board-selector').selectOption({ label: '引擎研究草稿' });
+    await expect(page.getByTestId('column')).toHaveCount(1);
+    await expect(page.getByTestId('task-card')).toHaveCount(8);
+    await page.reload();
+    await expect(page.getByTestId('board-view')).toBeVisible();
+    await expect(page.getByTestId('task-card')).toHaveCount(8);
+  });
+
+  test('AC#11：连续三次保存对应三次撤销 / 重做；新编辑清空 redo；重开后不可撤销', async ({ boardPage: page }) => {
+    await startWithSeed(page);
+    const detail = page.getByTestId('detail-panel');
+    const card = page.getByTestId('task-card').filter({ hasText: '修复登录 bug' });
+
+    // 第一次保存：改标题
+    await card.getByTestId('task-title').click();
+    await detail.getByTestId('detail-title').fill('修复登录 bug 改');
+    await detail.getByTestId('detail-save').click();
+    await expect(detail).toBeHidden();
+    await expect(page.getByTestId('undo')).toBeEnabled();
+
+    // 第二次保存：加「文档」标签
+    await card.getByTestId('task-title').click();
+    await detail.locator('label', { hasText: '文档' }).locator('input').check();
+    await detail.getByTestId('detail-save').click();
+    await expect(detail).toBeHidden();
+
+    // 第三次保存：改截止日
+    await card.getByTestId('task-title').click();
+    await detail.getByTestId('detail-due').fill('2026-12-01');
+    await detail.getByTestId('detail-save').click();
+    await expect(detail).toBeHidden();
+
+    // 撤销三次回到初始；重做三次重放
+    await page.getByTestId('undo').click();
+    await page.getByTestId('undo').click();
+    await page.getByTestId('undo').click();
+    await expect(card.getByTestId('task-title')).toHaveText('修复登录 bug');
+    await expect(card.getByTestId('task-due')).toHaveText('2026-11-05');
+    await card.getByTestId('task-title').click();
+    // 种子任务初始就带「核心」标签：三次撤销后回到初始（1 个选中）
+    await expect(detail.locator('input[data-testid="detail-label-check"]:checked')).toHaveCount(1);
+    await expect(detail.locator('label', { hasText: '核心' }).locator('input')).toBeChecked();
+    await detail.getByTestId('detail-cancel').click();
+    await expect(page.getByTestId('redo')).toBeEnabled();
+
+    await page.getByTestId('redo').click();
+    await page.getByTestId('redo').click();
+    await page.getByTestId('redo').click();
+    await expect(card.getByTestId('task-title')).toHaveText('修复登录 bug 改');
+    await expect(card.getByTestId('task-due')).toHaveText('2026-12-01');
+    await expect(page.getByTestId('redo')).toBeDisabled();
+
+    // 新编辑清空 redo：改标题保存后 redo 仍禁用
+    await card.getByTestId('task-title').click();
+    await detail.getByTestId('detail-title').fill('修复登录 bug 终');
+    await detail.getByTestId('detail-save').click();
+    await expect(page.getByTestId('redo')).toBeDisabled();
+
+    // 重开后不可撤销：undo / redo 都禁用
+    await page.reload();
+    await expect(page.getByTestId('board-view')).toBeVisible();
+    await expect(page.getByTestId('undo')).toBeDisabled();
+    await expect(page.getByTestId('redo')).toBeDisabled();
+  });
+
+  test('AC#14：本列排序——按截止日排序、已排好零写、一次 undo 还原整列', async ({ boardPage: page }) => {
+    await startWithSeed(page);
+    // 重开清空会话撤销栈：种子的写入也进撤销栈（异步注册），
+    // 否则一次 undo 可能先弹到种子条目而不是本用例的排序
+    await page.reload();
+    await expect(page.getByTestId('board-view')).toBeVisible();
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+
+    const toDoHeader = page
+      .getByTestId('column-header')
+      .filter({ has: page.getByTestId('column-title').getByText('To do', { exact: true }) });
+    const toDoColumn = page
+      .getByTestId('column')
+      .filter({ has: page.getByTestId('column-title').getByText('To do', { exact: true }) });
+    await toDoHeader.getByTestId('column-sort-due').click();
+    // 升序、空值在后；同日按标题（自动重试等排序事务落定）
+    await expect(toDoColumn.getByTestId('task-title')).toHaveText([
+      '修复登录 bug',
+      '同步插件适配 Supabase',
+      '回归测试：工作树同步',
+      '整理同步迁移指南',
+      '写发布说明'
+    ]);
+
+    // 已排好再排一次零写且不新增历史：undo 一次直接回到排序前
+    await toDoHeader.getByTestId('column-sort-due').click();
+    await expect(toDoColumn.getByTestId('task-title')).toHaveText([
+      '修复登录 bug',
+      '同步插件适配 Supabase',
+      '回归测试：工作树同步',
+      '整理同步迁移指南',
+      '写发布说明'
+    ]);
+    await page.getByTestId('undo').click();
+    await expect(toDoColumn.getByTestId('task-title')).toHaveText(
+      ['修复登录 bug', '写发布说明', '同步插件适配 Supabase', '回归测试：工作树同步', '整理同步迁移指南'],
+      { timeout: 15000 }
+    );
+  });
+});

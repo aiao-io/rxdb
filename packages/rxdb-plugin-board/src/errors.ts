@@ -16,6 +16,7 @@ export type BoardErrorCode =
   | 'label_cross_board'
   | 'cross_board'
   | 'invalid_due_date'
+  | 'invalid_color'
   | 'duplicate_label'
   | 'confirm_stale'
   | 'task_stale'

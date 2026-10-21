@@ -39,6 +39,7 @@ export { Board, BoardLabel, Column, Task, TaskLabel } from './entities/index.js'
 export { BoardDomainError, type BoardErrorCode } from './errors.js';
 export { assertBoardWritable, requireBoardId, type BoardHostContext } from './host-context.js';
 export { BoardLabelService, type LabelDeletePlan } from './label-service.js';
+export { isHexColor, labelTextColor } from './label-text-color.js';
 export { BoardMoveService } from './move-service.js';
 export { eq, inRule, matchAll, readFirst, whereEq } from './query.js';
 export {

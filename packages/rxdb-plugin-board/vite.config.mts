@@ -144,14 +144,15 @@ export default defineConfig(() => ({
       // 公开包门槛 80（核心四包是 90），见 scripts/audit/coverage-check.mjs。
       // node 趟覆盖领域服务主体；浏览器趟补 FTS 搜索源与持久化用例，只做补跑、不单独挂闸，
       // 合并后的总数由 `pnpm audit:coverage` 把关（与 rxdb-plugin-search 同款口径）。
-      thresholds: isBrowserTest ?
-        undefined
-      : {
-          statements: 80,
-          branches: 80,
-          functions: 80,
-          lines: 80
-        }
+      thresholds:
+        isBrowserTest ? undefined : (
+          {
+            statements: 80,
+            branches: 80,
+            functions: 80,
+            lines: 80
+          }
+        )
     }
   }
 }));

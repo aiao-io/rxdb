@@ -3,9 +3,10 @@
 import type { UUID } from '@aiao/rxdb';
 import {
   Column,
-  Task,
+  labelTextColor,
   resolveCardDrop,
   resolveColumnDrop,
+  Task,
   type BoardLabel,
   type CardDropTarget,
   type TaskDraftSnapshot
@@ -179,7 +180,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   };
   const saveDetail = async (): Promise<void> => {
     if (!detailTaskId || !snapshot) return;
-    await guard(() =>
+    const result = await guard(() =>
       board.actions.saveTaskDraft(detailTaskId, snapshot, {
         title: draft.title,
         description: draft.description,
@@ -187,6 +188,8 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         labelIds: draft.labelIds
       })
     );
+    // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
+    if (result === undefined) return;
     setDetailTaskId(null);
     setSnapshot(null);
   };
@@ -234,6 +237,9 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     } else if (confirm.kind === 'column') {
       const plan = await board.actions.planColumnDelete(confirm.columnId);
       await guard(() => board.actions.executeDelete(plan));
+    } else {
+      const plan = await board.actions.planBoardDelete(confirm.boardId);
+      await guard(() => board.actions.executeDelete(plan));
     }
   };
 
@@ -251,10 +257,30 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const labelsOf = (taskId: UUID): readonly BoardLabel[] => board.taskLabels.get(taskId) ?? [];
 
+  const boardSelector = (
+    <select
+      className='board-selector'
+      value={board.currentBoardId ?? ''}
+      onChange={event => board.selectBoard(event.target.value as UUID)}
+      data-testid='board-selector'
+      aria-label='选择看板'
+    >
+      {board.boards.map(item => (
+        <option key={item.id} value={item.id}>
+          {item.title}
+        </option>
+      ))}
+    </select>
+  );
+
   const current = board.currentBoard;
   if (!current) {
+    // 空态也保留选择器：删除当前板后仍能切到其余板（与 Angular / Vue 对称）
     return (
       <section className='board-view' data-testid='board-view'>
+        <header className='board-header' data-testid='board-header'>
+          {boardSelector}
+        </header>
         <div className='empty-board' data-testid='empty-board'>
           <p>没有看板</p>
           <button onClick={() => void createBoard()} data-testid='create-board-empty' disabled={board.restoring}>
@@ -273,19 +299,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       onDrop={event => void onColumnDrop(event)}
     >
       <header className='board-header' data-testid='board-header'>
-        <select
-          className='board-selector'
-          value={board.currentBoardId ?? ''}
-          onChange={event => board.selectBoard(event.target.value as UUID)}
-          data-testid='board-selector'
-          aria-label='选择看板'
-        >
-          {board.boards.map(item => (
-            <option key={item.id} value={item.id}>
-              {item.title}
-            </option>
-          ))}
-        </select>
+        {boardSelector}
         <button
           className='header-button'
           onClick={() => {
@@ -353,7 +367,12 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       {board.labels.length > 0 ?
         <div className='label-strip' data-testid='label-strip'>
           {board.labels.map(label => (
-            <span key={label.id} className='label-chip' style={{ background: label.color }} data-testid='label-chip'>
+            <span
+              key={label.id}
+              className='label-chip'
+              style={{ background: label.color, color: labelTextColor(label.color) }}
+              data-testid='label-chip'
+            >
               <button
                 className='label-name'
                 onClick={() => {
@@ -520,7 +539,8 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                         <span
                           key={label.id}
                           className='card-label'
-                          style={{ background: label.color }}
+                          style={{ background: label.color, color: labelTextColor(label.color) }}
+                          data-testid='card-label'
                           aria-label={label.name}
                         >
                           {label.name}
@@ -597,7 +617,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                   }
                   data-testid='detail-label-check'
                 />
-                <span style={{ background: label.color }}>{label.name}</span>
+                <span style={{ background: label.color, color: labelTextColor(label.color) }}>{label.name}</span>
               </label>
             ))}
           </fieldset>

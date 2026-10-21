@@ -2,6 +2,7 @@
 import { computed, ref, toRaw } from 'vue';
 import type { UUID } from '@aiao/rxdb';
 import {
+  labelTextColor,
   resolveCardDrop,
   resolveColumnDrop,
   type BoardLabel,
@@ -182,7 +183,7 @@ const openDetail = async (taskId: UUID): Promise<void> => {
 };
 const saveDetail = async (): Promise<void> => {
   if (!detailTaskId.value || !snapshot.value) return;
-  await guard(() =>
+  const result = await guard(() =>
     board.actions.saveTaskDraft(detailTaskId.value!, snapshot.value!, {
       title: draft.value.title,
       description: draft.value.description,
@@ -190,6 +191,8 @@ const saveDetail = async (): Promise<void> => {
       labelIds: draft.value.labelIds
     })
   );
+  // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
+  if (result === undefined) return;
   detailTaskId.value = null;
   snapshot.value = null;
 };
@@ -409,7 +412,7 @@ type ConfirmState =
           v-for="label in board.labels.value"
           :key="label.id"
           class="label-chip"
-          :style="{ background: label.color }"
+          :style="{ background: label.color, color: labelTextColor(label.color) }"
           data-testid="label-chip"
         >
           <button
@@ -562,7 +565,8 @@ type ConfirmState =
                   v-for="label in labelsOf(task.id)"
                   :key="label.id"
                   class="card-label"
-                  :style="{ background: label.color }"
+                  :style="{ background: label.color, color: labelTextColor(label.color) }"
+                  data-testid="card-label"
                   :aria-label="label.name"
                   >{{ label.name }}</span
                 >
@@ -627,7 +631,7 @@ type ConfirmState =
               @change="toggleDraftLabel(label.id)"
               data-testid="detail-label-check"
             />
-            <span :style="{ background: label.color }">{{ label.name }}</span>
+            <span :style="{ background: label.color, color: labelTextColor(label.color) }">{{ label.name }}</span>
           </label>
         </fieldset>
         <div class="detail-actions">
@@ -677,19 +681,40 @@ type ConfirmState =
       </aside>
     </template>
 
-    <div
-      v-else
-      class="empty-board"
-      data-testid="empty-board"
-    >
-      <p>没有看板</p>
-      <button
-        @click="createBoard"
-        data-testid="create-board-empty"
-        :disabled="board.restoring.value"
-        >新建板</button
+    <template v-else>
+      <!-- 空态也保留选择器：删除当前板后仍能切到其余板（与 Angular / React 对称） -->
+      <header
+        class="board-header"
+        data-testid="board-header"
       >
-    </div>
+        <select
+          class="board-selector"
+          :value="board.currentBoardId.value ?? ''"
+          @change="onSelectBoard"
+          data-testid="board-selector"
+          aria-label="选择看板"
+        >
+          <option
+            v-for="item in board.boards.value"
+            :key="item.id"
+            :value="item.id"
+            >{{ item.title }}</option
+          >
+        </select>
+      </header>
+      <div
+        class="empty-board"
+        data-testid="empty-board"
+      >
+        <p>没有看板</p>
+        <button
+          @click="createBoard"
+          data-testid="create-board-empty"
+          :disabled="board.restoring.value"
+          >新建板</button
+        >
+      </div>
+    </template>
   </section>
 </template>
 

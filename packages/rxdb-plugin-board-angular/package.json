@@ -6,7 +6,14 @@
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },
-  "keywords": ["aiao", "rxdb", "angular", "board", "kanban", "rxjs"],
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "angular",
+    "board",
+    "kanban",
+    "rxjs"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

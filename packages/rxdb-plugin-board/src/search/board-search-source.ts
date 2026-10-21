@@ -78,7 +78,7 @@ export class BoardSearchSource implements SearchSourceLike {
     private readonly options: BoardSearchSourceOptions = {}
   ) {}
 
-  search(query: string, _options?: SearchOptions): SearchHandle {
+  search(query: string): SearchHandle {
     const handle = createSearchHandle({
       performSearch: (q, page, signal) => this.performBoardSearch(q, page, signal),
       isSearchableQuery: q => q.trim().length > 0,
