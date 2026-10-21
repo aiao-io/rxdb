@@ -1,0 +1,50 @@
+{
+  "version": "6.0",
+  "nxVersion": "23.3.0",
+  "pathMappings": {},
+  "nxJsonPlugins": [],
+  "fileMap": {
+    "projectFileMap": {
+      "rxdb-plugin-board-react": [
+        {
+          "file": "package.json",
+          "hash": "8959968552127279661"
+        },
+        {
+          "file": "project.json",
+          "hash": "5899578957997906279"
+        },
+        {
+          "file": "src/__tests__/use-board.spec.tsx",
+          "hash": "13684503501812046908"
+        },
+        {
+          "file": "src/index.ts",
+          "hash": "3812296017322376546"
+        },
+        {
+          "file": "src/use-board.ts",
+          "hash": "1312458908016692206"
+        },
+        {
+          "file": "tsconfig.json",
+          "hash": "13561831075325514189"
+        },
+        {
+          "file": "tsconfig.lib.json",
+          "hash": "17916830573810165998"
+        },
+        {
+          "file": "tsconfig.spec.json",
+          "hash": "2289360342813216159"
+        },
+        {
+          "file": "vite.config.mts",
+          "hash": "4676135647814131990"
+        }
+      ]
+    },
+    "nonProjectFiles": []
+  },
+  "externalNodesHash": "3244421341483603138"
+}

@@ -1880,6 +1880,62 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass-embedded@1.104.1)(sass@1.105.1)(terser@5.51.2)(yaml@2.9.0))
 
+  packages/rxdb-plugin-board-react:
+    dependencies:
+      '@aiao/rxdb-plugin-board':
+        specifier: workspace:^
+        version: link:../rxdb-plugin-board
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/rxdb-adapter-pglite':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-pglite
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
+      react:
+        specifier: ^19.3.0
+        version: 19.3.1
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass-embedded@1.104.1)(sass@1.105.1)(terser@5.51.2)(yaml@2.9.0))
+
+  packages/rxdb-plugin-board-vue:
+    dependencies:
+      '@aiao/rxdb-plugin-board':
+        specifier: workspace:^
+        version: link:../rxdb-plugin-board
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/rxdb-adapter-pglite':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-pglite
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      '@vue/test-utils':
+        specifier: ^2.4.6
+        version: 2.5.1(@vue/compiler-dom@3.5.44)(@vue/server-renderer@3.5.44)(vue@3.5.44(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb)))
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass-embedded@1.104.1)(sass@1.105.1)(terser@5.51.2)(yaml@2.9.0))
+      vue:
+        specifier: ^3.5.43
+        version: 3.5.44(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
+
   packages/rxdb-plugin-graph:
     dependencies:
       '@aiao/rxdb':

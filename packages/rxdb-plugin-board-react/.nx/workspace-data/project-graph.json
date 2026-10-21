@@ -1,0 +1,72 @@
+{
+  "nodes": {
+    "rxdb-plugin-board-react": {
+      "name": "rxdb-plugin-board-react",
+      "type": "lib",
+      "data": {
+        "root": ".",
+        "name": "rxdb-plugin-board-react",
+        "tags": [
+          "npm:public",
+          "npm:aiao",
+          "npm:rxdb",
+          "npm:react",
+          "npm:board",
+          "npm:kanban",
+          "npm:hooks",
+          "react-lib"
+        ],
+        "metadata": {
+          "targetGroups": {},
+          "description": "React bindings for the Aiao RxDB board plugin.",
+          "js": {
+            "packageName": "@aiao/rxdb-plugin-board-react",
+            "packageVersion": "0.0.26",
+            "packageExports": {
+              "./package.json": "./package.json",
+              ".": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js",
+                "default": "./dist/index.js"
+              }
+            },
+            "packageMain": "./dist/index.js",
+            "isInPackageManagerWorkspaces": true
+          }
+        },
+        "targets": {
+          "nx-release-publish": {
+            "executor": "@nx/js:release-publish",
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "options": {},
+            "configurations": {},
+            "parallelism": true
+          },
+          "typecheck": {
+            "dependsOn": [
+              "build",
+              "^typecheck"
+            ],
+            "configurations": {},
+            "options": {},
+            "parallelism": true,
+            "executor": "nx:noop"
+          }
+        },
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "projectType": "library",
+        "sourceRoot": "packages/rxdb-plugin-board-react/src",
+        "implicitDependencies": []
+      }
+    }
+  },
+  "externalNodes": {},
+  "dependencies": {
+    "rxdb-plugin-board-react": []
+  },
+  "version": "6.0",
+  "errors": [],
+  "computedAt": 1792559578795
+}
