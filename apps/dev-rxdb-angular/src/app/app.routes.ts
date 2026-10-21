@@ -62,6 +62,10 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./pages/search/search.page')
   },
   {
+    path: 'board',
+    loadComponent: () => import('./pages/board/board.page')
+  },
+  {
     path: 'todo',
     loadComponent: () => import('@modules/angular-todo/todo-page')
   },

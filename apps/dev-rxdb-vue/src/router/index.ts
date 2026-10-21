@@ -31,6 +31,11 @@ const router = createRouter({
       path: '/todo',
       name: 'todo',
       component: () => import('../pages/TodoPage.vue')
+    ,
+    {
+      path: '/board',
+      name: 'board',
+      component: () => import('../pages/BoardPage.vue')
     },
     {
       path: '/todo-cursor',
