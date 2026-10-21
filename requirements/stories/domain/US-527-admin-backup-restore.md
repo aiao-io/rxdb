@@ -71,9 +71,9 @@ US-217 已交付的契约（证据见其[阶段 A / B 验收记录](../adapter/U
 
 ## 价值待证
 
-本故事随 [epic-010](../../epics/epic-010-model-driven-admin-framework.md) 成立但**未解锁**：写不出「今天用户
-踩得到的具体症状」（无具名试用者、仓库未自举），按 [CONVENTIONS](../../CONVENTIONS.md#价值待证) 留在 Backlog、
-不进排期批次。解锁条件见 epic 的「价值待证（整个 Epic）」。
+本故事已随 [epic-010 解锁记录](../../epics/epic-010-model-driven-admin-framework.md#价值待证整个-epic) 解锁
+（2026-10-21，owner 决定）：三条故事不新增引擎抽象、对应零个已知病灶，「病灶数 ≥ 抽象数」按 owner
+决定豁免，依据与边界见 epic。
 
 ## 实现文件
 

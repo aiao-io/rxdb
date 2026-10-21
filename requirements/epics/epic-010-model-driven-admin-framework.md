@@ -1,7 +1,7 @@
 ---
 id: epic-010-model-driven-admin-framework
 status: Backlog
-startDate: TBD
+startDate: 2026-10-21
 targetDate: TBD
 owner: jimmy
 ---
@@ -44,17 +44,21 @@ epic-001~006 按产品能力分组，[epic-009](epic-009-bom-domain-model.md) �
 
 ## 价值待证（整个 Epic）
 
-**本 Epic 未解锁**：三条故事没有一条能写出「今天用户踩得到的具体症状」——没有具名试用者，仓库自身
-也还没有用本框架管理 requirements。按 [CONVENTIONS 价值待证](../CONVENTIONS.md#价值待证) 留在 Backlog、
-不进任何排期批次。
+**解锁记录（2026-10-21，owner 决定）**：本 Epic 的 3 条故事原标价值待证、不进任何排期批次；
+owner 于 2026-10-21 决定解锁，**驱动者 = 尽快交付可用的单人本地数据工作台**——首版闭环
+（录入 / 编辑 / 筛选 / 持久化 / 备份恢复 + 独立消费示例）直接验证「定义实体之后少写了多少 CRUD」
+这一接入成本主张，正是 domain-research 优先级评审确定的第一顺位。
 
-**解锁条件**（出现其一即提请 owner 解锁，与[候选分析入场条件](../domain-research/admin-framework.md)一致）：
+原判据是 [CONVENTIONS 的病灶数 ≥ 抽象数](../CONVENTIONS.md#价值待证)：这三条故事**不新增引擎抽象**
+（全部行为复用 rxdb-model 四包与已 Done 的 US-217），对应零个已知病灶；入场条件（具名团队 CRUD
+重复劳动第三遍，或仓库自举）至今未出现。本记录按 **owner 决定豁免**（先例
+[epic-009](epic-009-bom-domain-model.md#价值待证整个-epic)），驱动者是产品交付与接入成本验证，
+不是缺陷；「空工作台只是更好看的 DevTools」的反方已由 US-526 的「会持续维护的真实数据」要求
+与 US-528 的成本记录承接。
 
-- 已有团队报告「又一个 CRUD 系统要写」——列表 + 表单 + 权限 + 审计的重复劳动出现第三遍；
-- 或自举：仓库自己的 requirements / roadmap / status-overview 改用本框架管理（story 实体、状态机、
-  批次排期），内部工具即活 demo。
-
-解锁后的推进顺序按 [roadmap 立项池](../roadmap.md#立项池待-owner-决策未进任何批次) 的登记执行。
+`priority` 保持 `Low`，排期以 roadmap 批次 5 为准；`startDate` 定为本记录日期，`targetDate` 仍 `TBD`
+（不估完整三条故事的交期）。开工顺序：US-526 阶段 A → B → C，随后 US-527、US-528（见
+[roadmap 批次 5](../roadmap.md#批次-5模型驱动后台首版epic-010-已解锁)）。
 
 ## 非目标
 

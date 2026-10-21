@@ -19,7 +19,7 @@
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
 > **25 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
-> [模型驱动后台](epics/epic-010-model-driven-admin-framework.md) 首版切片 3 条（US-526~528）已孵化但 epic **未解锁、价值待证**；
+> [模型驱动后台](epics/epic-010-model-driven-admin-framework.md) 首版切片 3 条（US-526~528）已孵化，2026-10-21 由 owner 解锁进批次 5（驱动者 = 可用的本地数据工作台，见 [epic-010 解锁记录](epics/epic-010-model-driven-admin-framework.md#价值待证整个-epic)）；
 > [US-911](stories/future/US-911-client-i18n.md) 阶段 A～C 无硬前置、可开工，在立项池待 owner 定批次；[US-029](stories/core/US-029-rbac-owner-role-permission.md)
 > 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
 > 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
@@ -208,8 +208,11 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 
 ### [模型驱动后台管理框架](epics/epic-010-model-driven-admin-framework.md)
 
-**未解锁（价值待证）**：三条故事写不出「今天用户踩得到的具体症状」——无具名试用者、仓库未自举；
-解锁条件与不随首版立项的范围见 [epic-010](epics/epic-010-model-driven-admin-framework.md#价值待证整个-epic)，
+**已解锁（2026-10-21，owner 决定）**：驱动者 = 需要一个可用的单人本地数据工作台——首版闭环
+（录入 / 编辑 / 筛选 / 持久化 / 备份恢复 + 独立消费示例）直接验证「定义实体之后少写了多少 CRUD」。
+三条故事不新增引擎抽象、对应零个已知病灶，「病灶数 ≥ 抽象数」按 owner 决定豁免，写进
+[epic-010 解锁记录](epics/epic-010-model-driven-admin-framework.md#价值待证整个-epic)，
+排期见 [roadmap 批次 5](roadmap.md#批次-5模型驱动后台首版epic-010-已解锁)。
 候选分析见 [domain-research](domain-research/admin-framework.md)。
 
 - ⬜ [US-526 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环](stories/domain/US-526-admin-workbench.md) — 三阶段；应用壳与预置 schema + 导航（A）、CRUD 接线与加载 / 失败 / 空态（B）、持久化重开 + e2e 组合验收（C）；复用 rxdb-model 组件与三端 demo 实体页，不新增公共框架 API
