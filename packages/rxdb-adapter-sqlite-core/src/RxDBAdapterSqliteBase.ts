@@ -553,6 +553,15 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     );
   });
 
+  /**
+   * 本适配器在客户端上的持有者键：`createClient()` 里 `init` 时交给客户端，登记监听、断开时交还都带它（US-314 B2.3b）。
+   *
+   * @remarks
+   * SharedWorker 里只有一个客户端，每个标签页的适配器都连着它；断开时按这个键只交还自己那一份、只摘自己的监听
+   *（{@link SqliteClientLike.release}）。不共用客户端的后端可以不理它。
+   */
+  protected readonly clientOwner: string = uuid();
+
   abstract readonly name: string;
 
   /**
@@ -814,7 +823,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       await this.#waitForChangeTasks();
       await this.#queue.waitForAll();
       if (this.#cached_client) {
-        await this.#cached_client.disconnect();
+        await this.#closeClient(this.#cached_client);
       }
     } finally {
       await this.#releaseAdoptedClient();
@@ -1027,7 +1036,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
 
   override async migrateSystemSchema(): Promise<void> {
     const client = await this.#client();
-    await this.#queue.addTask(async () => {
+    await this.#enqueue(async () => {
       let transactionStarted = false;
       let committed = false;
       try {
@@ -1218,7 +1227,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     // 就绪等待在**入队之前**完成；把它留在队列任务里会占用唯一槽位等一个只能由队列后方
     // 任务完成的 promise（首装死锁）。代价是「调用顺序」变成「就绪顺序」——已就绪时两者一致。
     if (this.#lifecycle_state !== 'bootstrap') return this.writeQuery(sql, bindings);
-    return this.ready().then(() => this.#queue.addTask(() => this.#exec(sql, bindings)));
+    return this.ready().then(() => this.#enqueue(() => this.#exec(sql, bindings)));
   }
 
   public writeQuery(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> {
@@ -1261,6 +1270,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
 
   // transaction() 与 query() 共用 #queue（并发度 1）串行通道。真实适配器入口总是重新入队，
   // 事务体内只有 callback executor 直接使用当前连接，因此外部调用不会被卷入当前事务。
+  // 客户端被多个标签页共用时，别的标签页的队列管不到，每个任务另在跨标签页的锁里跑（见 #enqueue）。
   public async transaction<T extends TransactionFun>(
     transactionFun: T,
     transactionLog: boolean = true
@@ -1269,7 +1279,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       throw new RxDBAdapterSqliteError('Adapter is disconnected', { code: 'adapter_disconnected' });
     }
     await this.ready(); // 与 query() 同口径：就绪等待必须在入队之前
-    return this.#queue.addTask(() => this.#run_transaction(transactionFun, transactionLog));
+    return this.#enqueue(() => this.#run_transaction(transactionFun, transactionLog));
   }
 
   /**
@@ -1294,7 +1304,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     if (this.#is_disconnected) {
       throw new RxDBAdapterSqliteError('Adapter is disconnected', { code: 'adapter_disconnected' });
     }
-    return this.#queue.addTask(() => this.#run_transaction(transactionFun, transactionLog));
+    return this.#enqueue(() => this.#run_transaction(transactionFun, transactionLog));
   }
 
   /**
@@ -1536,6 +1546,20 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    */
   protected ready(): Promise<void> {
     return this.rxdb.connect(this.name).then(() => undefined);
+  }
+
+  /**
+   * 客户端被多个标签页共用时，跨标签页串行事务用的 Web Lock 名；不共用返回 `undefined`（默认）。
+   *
+   * @returns 锁名；同一个共用连接上的适配器必须给出同一个名字
+   *
+   * @remarks
+   * SharedWorker 传输下，每个标签页的适配器只串行自己的队列：一个标签页的事务开着时，另一个标签页的语句会落进
+   * 这笔事务（US-314 B2.3b，修 main）。给了锁名，每个排队任务都在这把锁里跑，拿到锁先回滚死掉的标签页留下的事务
+   *（{@link SqliteClientLike.rollbackOrphanTransaction}），断开改成交还自己那一份（{@link SqliteClientLike.release}）。
+   */
+  protected sharedClientLockName(): string | undefined {
+    return undefined;
   }
 
   /**
@@ -1806,7 +1830,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           await this.#releaseStorageLock();
           if (client) {
             try {
-              await client.disconnect();
+              await this.#closeClient(client);
             } catch {
               // 忽略清理错误，保留原始失败信息
             }
@@ -1817,6 +1841,61 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       })();
     }
     return this.#client_promise;
+  }
+
+  /**
+   * 不用了的客户端：共用的交还本适配器那一份（别的标签页还连着），独占的整个关掉。
+   *
+   * @param client - 要放下的客户端
+   */
+  async #closeClient(client: SqliteClientLike): Promise<void> {
+    if (this.sharedClientLockName() === undefined) return client.disconnect();
+    if (!client.release) {
+      throw new RxDBAdapterSqliteError(
+        `Adapter "${this.name}" shares its client but the client cannot release a holder`
+      );
+    }
+    await client.release(this.clientOwner);
+  }
+
+  /**
+   * 排一个任务进本适配器的串行队列；客户端被多个标签页共用时，任务另在跨标签页的锁里跑。
+   *
+   * @param task - 要串行执行的工作
+   * @returns 任务的结果
+   */
+  #enqueue<T>(task: () => Promise<T>): Promise<T> {
+    return this.#queue.addTask(() => this.#withSharedClientLock(task));
+  }
+
+  /**
+   * 在跨标签页的锁里跑一个任务（US-314 B2.3b）；客户端不共用时直接跑。
+   *
+   * @param task - 要跑的工作
+   * @returns 任务的结果
+   * @throws {@link RxDBAdapterSqliteError} 客户端共用、环境里却没有 Web Locks
+   *
+   * @remarks
+   * 拿到锁先回滚死掉的标签页留下的事务：它的语句已经送到共用的连接上，`COMMIT` / `ROLLBACK` 再也不会来，
+   * 而它拿的锁随标签页一起放开了。只能在锁里查——锁外查到的「事务开着」可能是别的标签页正在跑的事务。
+   */
+  async #withSharedClientLock<T>(task: () => Promise<T>): Promise<T> {
+    const lockName = this.sharedClientLockName();
+    if (lockName === undefined) return task();
+    if (typeof navigator === 'undefined' || !navigator.locks) {
+      throw new RxDBAdapterSqliteError(
+        `Adapter "${this.name}" shares its client across tabs, which needs the Web Locks API (navigator.locks) to serialize transactions`
+      );
+    }
+    return navigator.locks.request(lockName, async () => {
+      const client = await this.#client();
+      if (await client.rollbackOrphanTransaction?.()) {
+        console.warn(
+          `[rxdb-adapter-sqlite-core] ${this.name}: rolled back a transaction left open on the shared connection`
+        );
+      }
+      return task();
+    });
   }
 
   #supportedBackupStorage(operation: string): SqliteSupportedBackupStorage {
@@ -1903,7 +1982,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     this.#cached_client = undefined;
     this.#client_promise = undefined;
     this.#listeners_registered = false;
-    await client.disconnect();
+    await this.#closeClient(client);
   }
 
   // query() 的实际执行体：client → execute。
@@ -2028,9 +2107,9 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     }
 
     try {
-      await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, this.#sqlite_change_handler);
-      await client.addEventListener(SQLiteChangeType.SQLITE_UPDATE, this.#sqlite_change_handler);
-      await client.addEventListener(SQLiteChangeType.SQLITE_DELETE, this.#sqlite_change_handler);
+      await client.addEventListener(SQLiteChangeType.SQLITE_INSERT, this.#sqlite_change_handler, this.clientOwner);
+      await client.addEventListener(SQLiteChangeType.SQLITE_UPDATE, this.#sqlite_change_handler, this.clientOwner);
+      await client.addEventListener(SQLiteChangeType.SQLITE_DELETE, this.#sqlite_change_handler, this.clientOwner);
       this.#listeners_registered = true;
     } catch (err) {
       throw new RxDBAdapterSqliteError('Failed to register SQLite change listeners', { cause: err });

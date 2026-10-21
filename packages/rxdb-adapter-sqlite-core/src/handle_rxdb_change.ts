@@ -286,6 +286,8 @@ export const handle_rxdb_change = <T extends EntityType>(
           handle_system_table(adapter, result, event, metadata);
         }
       } catch (error) {
+        // 派事件前还要回查分支的持有者（US-314 B2.3），同样可能撞上断开：与下面查变更行同口径，不算失败
+        if (error instanceof RxDBAdapterSqliteError && error.code === 'adapter_disconnected') return;
         adapter.emitChangeError({ error, tableName, rowIds, phase: 'process' });
       }
     })

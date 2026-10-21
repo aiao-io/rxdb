@@ -43,16 +43,29 @@ describe('createSqliteClient', () => {
     });
 
     expect(client).toBeInstanceOf(WaSqliteClient);
-    expect(init).toHaveBeenCalledWith('forward-options', {
-      vfs: 'MemoryAsyncVFS',
-      async: true,
-      worker: undefined,
-      sharedWorker: undefined,
-      wasmPath: undefined,
-      locateFile: undefined,
-      cacheSizeKb: 2048,
-      batchTimeout: 7
-    });
+    expect(init).toHaveBeenCalledWith(
+      'forward-options',
+      {
+        vfs: 'MemoryAsyncVFS',
+        async: true,
+        worker: undefined,
+        sharedWorker: undefined,
+        wasmPath: undefined,
+        locateFile: undefined,
+        cacheSizeKb: 2048,
+        batchTimeout: 7
+      },
+      undefined
+    );
+  });
+
+  // SharedWorker 上共用一个客户端时，适配器断开凭持有者键只交还自己那一份（US-314 B2.3b）
+  it('把持有者键原样传给 client.init', async () => {
+    const init = vi.spyOn(WaSqliteClient.prototype, 'init').mockResolvedValue(undefined);
+
+    await createSqliteClient('owned', { vfs: 'MemoryAsyncVFS', async: true }, 'owner-1');
+
+    expect(init).toHaveBeenCalledWith('owned', expect.objectContaining({ vfs: 'MemoryAsyncVFS' }), 'owner-1');
   });
 
   it.each([
@@ -106,6 +119,6 @@ describe('createSqliteClient', () => {
       batchTimeout: 0
     });
 
-    expect(init).toHaveBeenCalledWith('immediate-batch', expect.objectContaining({ batchTimeout: 0 }));
+    expect(init).toHaveBeenCalledWith('immediate-batch', expect.objectContaining({ batchTimeout: 0 }), undefined);
   });
 });

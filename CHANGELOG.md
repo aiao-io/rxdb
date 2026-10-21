@@ -36,6 +36,7 @@
 
 ### 🩹 Fixes
 
+- **rxdb-adapter-sqlite-core / -wa-sqlite / -sqlite-wasm:** SharedWorker 传输下多个标签页共用 worker 里那一个客户端：事务按库名在一把跨标签页的 Web Lock 里排队，不再落进别的标签页开着的事务（此前另一个标签页的 `BEGIN` 当场报「事务里不能再开事务」，普通语句随别人的事务一起提交或回滚）；拿到锁先回滚死在事务中间的标签页留下的事务；一个标签页断开只交还自己那一份、只摘自己的监听，不再把别的标签页还在用的连接关掉，最后一个断开时才关库、之后还能再连。客户端新增 `release(owner)` / `rollbackOrphanTransaction()`，`init()` 与 `addEventListener()` 多了可选的持有者键；SharedWorker 传输需要 Web Locks（US-314）
 - **rxdb-plugin-history:** 被可写检出位持有的分支删不掉：`removeBranch()` 抛 `WorktreeBranchHeldError`，合并带 `deleteSource` 遇到被持有的源分支时合并照常、源分支留着。此前持有分支的 `activated` 为假、照删不误，检出位里没提交的改动跟着一起没了（US-314）
 - **rxdb-adapter-sqlite-core / rxdb-plugin-sync:** 挂在可写检出位上时，QueryCache 的回填不再记进变更日志，出站队列也按主检出位的分支取待推行。此前回填摘的是检出位那套表的触发器、照样记进主分支的日志，挂回主检出位后被当成离线写推回远端；待推集合读成检出位的分支、是空的，对账会删掉离线新建的行（US-314）
 - **rxdb-adapter-pglite:** QueryCache 的回填与删除不再记进变更日志（主检出位上同样如此），写入期间摘掉触发器，提交之后补刷实体缓存、补发实体事件，与 sqlite-core 同口径；此前每次回填都会被出站队列当成离线写推回远端（US-314）

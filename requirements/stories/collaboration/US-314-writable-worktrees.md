@@ -251,6 +251,22 @@ INVEST 检查清单:
     核心单测（`accepts`、查询管理器的过滤、网关原样转发）。
   - 测试顺带修：PGlite 表集 spec 改成每条用例一个新库。撤销会话的边界（变更 id）留在实例内存里，`TRUNCATE … RESTART IDENTITY`
     让变更 id 从 1 重新编号，上一条用例的边界会让下一条的写落在边界之内、不可撤销（用例间残留，不是产品缺陷）。
+- **SharedWorker 共用连接**（阶段 B2.3b，修 main）：SharedWorker 里只有一个客户端，每个标签页的适配器都连着它，而适配器只串行
+  自己的队列。一个标签页的事务开着时，另一个标签页的 `BEGIN` 当场报「事务里不能再开事务」，普通语句落进别人的事务、随它提交或回滚；
+  一个标签页断开会把共用的连接关掉（wa-sqlite 的客户端关了还不能再开），别的标签页随后的读写全部失败。修法：
+  - 跨标签页串行：基类多了 `sharedClientLockName()`（wa-sqlite / sqlite-wasm 在 SharedWorker 传输下按适配器名与库名给锁名），
+    每个排队任务（`query` / `transaction` / 引导事务 / 系统迁移）都在这把 Web Lock 里跑，含事务开始之前读当前分支的那一次。
+  - 孤儿事务：标签页死在事务中间，它的语句已经送到连接上，锁随标签页放开；下一个拿到锁的先调客户端的
+    `rollbackOrphanTransaction()`（排在已送达的语句之后看 `get_autocommit`，有没结束的事务就回滚）。
+  - 断开只交还自己那一份：`init(dbName, options, owner)` 记下持有者，`addEventListener(type, listener, owner)` 按持有者登记监听，
+    适配器断开调 `release(owner)`——摘掉它的监听（Comlink 每传一次监听都在 worker 里造一个新代理，按引用摘不掉；摘下的代理一并释放），
+    最后一个持有者交还时才关库，关完回到能再 `init` 的状态。不共用的连法照旧 `disconnect()`。
+  - 静音（恢复整库用）是客户端全局的，写明即可：SharedWorker 传输不支持备份与恢复。
+  - 顺带修 B2.3a：变更行派事件前回查持有者那一次查询撞上断开时，与查变更行同口径不算失败（此前在断开的那一刻报一条 change-error）。
+  - 一致性：wa-sqlite 与 sqlite-wasm 的 `shared-client.spec.ts`（真实 SharedWorker：一个标签页的事务开着时另一个排在后面、
+    一端断开另一端照常读写与收事件且新标签页还能连、孤儿事务被下一个拿锁的回滚；客户端的持有者计数、重复交还、孤儿回滚），
+    修之前适配器那三条在两个后端上都红；wa-sqlite `worktree-cross-connection.spec.ts` 按 IndexedDB 多连接与 SharedWorker
+    共用连接各跑一遍（共用连接时变更事件由 update hook 直接派给两边，路由同样要挡住）。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -297,6 +313,10 @@ INVEST 检查清单:
   `RxDB.ts`（挂载信号）、`entity/entity-manager.ts`、`repository/QueryManager.ts`；两个适配器的 `version/read_branch_holders.ts`、
   `handle_rxdb_change.ts`、`version/execute_switch_actions.ts`；`packages/rxdb-plugin-search/src/plugin.ts`；
   `packages/rxdb-adapter-wa-sqlite/src/__tests__/worktree-cross-connection.spec.ts` — 事件按表集路由（B2.3a）
+- `packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts`（`sharedClientLockName` / `clientOwner`）、`sqlite-core.types.ts`
+  （`release` / `rollbackOrphanTransaction`）、`handle_rxdb_change.ts`；`packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts`、
+  `packages/rxdb-adapter-sqlite-wasm/src/SqliteClient.ts` 与两个包的 `create_sqlite_client.ts` / `RxDBAdapterSqlite.ts`；
+  两个包的 `__tests__/shared-client.spec.ts` 与 SharedWorker 夹具 — SharedWorker 共用连接（B2.3b）
 - `packages/rxdb/src/system/active-branch-guard.ts`（`WorktreeBranchHeldError`）、`system/system-repositories.ts`、
   两个适配器的 `version/switch_branch.ts` 与系统迁移（sqlite-core `RxDBAdapterSqliteBase.ts`、PGlite `system/migrate_system_schema.ts`）
   — 分支持有模型

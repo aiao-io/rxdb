@@ -14,11 +14,12 @@ import {
   get_cached_regexp,
   indexTextForFts,
   MAX_BATCH_WAIT_MS,
+  releaseComlinkProxy,
   SQLiteChangeType,
   validateSqliteNumericOption,
   WATCH_TABLES
 } from '@aiao/rxdb-adapter-sqlite-core';
-import { AsyncQueueExecutor, EventDispatcher, get } from '@aiao/utils';
+import { AsyncQueueExecutor, EventDispatcher, type EventListener, get } from '@aiao/utils';
 import { executeHelper } from './execute_helper.js';
 import type { SQLiteAPI } from './sqlite-api.type.js';
 import { sqliteLoad } from './sqlite-load.utils.js';
@@ -52,6 +53,9 @@ interface SqliteConnection {
   readonly vfs: { close(): void | Promise<void> };
 }
 
+/** 持有者带键登记的监听；三类变更的事件数据同形 */
+type OwnedListener = EventListener<SqliteChangeEvent>;
+
 export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
   // SQLite 后端
   #connection?: SqliteConnection;
@@ -68,15 +72,20 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
   #batch_timer?: ReturnType<typeof setTimeout>;
   #max_wait_timer?: ReturnType<typeof setTimeout>;
   #batch_timeout: number = DEFAULT_BATCH_TIMEOUT;
+  /** 带持有者键 `init` 过、还没交还的持有者 */
+  readonly #owners = new Set<string>();
+  /** 每个持有者带键登记的监听，交还时按它摘 */
+  readonly #owner_listeners = new Map<string, Array<readonly [keyof SqliteClientEvents, OwnedListener]>>();
 
   /**
    * 初始化数据库
    *
    * @param dbName - 数据库名称（不含 .sqlite 扩展名）
    * @param options - 加载选项
+   * @param owner - 持有者键：SharedWorker 上每个标签页的适配器各给一个，交还时凭它（{@link SqliteClient.release}）
    * @throws disconnect 进行中的客户端不可初始化
    */
-  async init(dbName: string, options: LoadModuleOptions): Promise<void> {
+  async init(dbName: string, options: LoadModuleOptions, owner?: string): Promise<void> {
     if (this.#is_disconnecting) {
       throw new Error('SqliteClient is disconnecting');
     }
@@ -85,8 +94,15 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
         cause: this.#disconnect_error
       });
     }
-    if (this.#is_init) return;
-    if (this.#init_promise) return this.#init_promise;
+    if (this.#is_init) {
+      this.#hold(owner);
+      return;
+    }
+    if (this.#init_promise) {
+      await this.#init_promise;
+      this.#hold(owner);
+      return;
+    }
 
     // 失败时 #is_init 保持 false，允许重试；并发调用复用同一 promise
     this.#init_promise = (async () => {
@@ -105,6 +121,64 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
     } finally {
       this.#init_promise = undefined;
     }
+    this.#hold(owner);
+  }
+
+  /**
+   * 登记变更监听。
+   *
+   * @param type - 变更类型
+   * @param listener - 监听器
+   * @param owner - 登记它的持有者；给了的话交还时一并摘掉（{@link SqliteClient.release}）
+   */
+  override addEventListener<T extends keyof SqliteClientEvents>(
+    type: T,
+    listener: EventListener<SqliteClientEvents[T]>,
+    owner?: string
+  ): void {
+    super.addEventListener(type, listener);
+    if (owner === undefined) return;
+    const listeners = this.#owner_listeners.get(owner) ?? [];
+    listeners.push([type, listener as OwnedListener]);
+    this.#owner_listeners.set(owner, listeners);
+  }
+
+  /**
+   * 一个持有者退出：摘掉它带键登记的监听，交还它那一份持有；最后一份交还时断开，之后还能再 `init`（US-314 B2.3b）。
+   *
+   * @param owner - `init` 时给的持有者键；没持有过的、已经交还过的只摘监听
+   *
+   * @remarks
+   * SharedWorker 里只有这一个客户端，每个标签页都连着它：一个标签页断开只交还自己那一份，不关别人还在用的连接。
+   * 监听经 Comlink 传进来时是 worker 里新造的代理，摘下之后一并释放，标签页那头暴露监听的端口随之关掉。
+   */
+  async release(owner: string): Promise<void> {
+    for (const [type, listener] of this.#owner_listeners.get(owner) ?? []) {
+      this.removeEventListener(type, listener);
+      releaseComlinkProxy(listener);
+    }
+    this.#owner_listeners.delete(owner);
+    if (!this.#owners.delete(owner) || this.#owners.size > 0) return;
+    await this.disconnect();
+  }
+
+  /**
+   * 连接上有没结束的事务就回滚它（US-314 B2.3b）。
+   *
+   * @returns 回滚了为 `true`；连接本来就在自动提交状态为 `false`
+   * @throws 客户端未初始化或已断开
+   *
+   * @remarks
+   * 排在已经送到这个客户端的语句后面判：死掉的标签页送来的语句先跑完，再看它留下的事务还开着没有。
+   * 调用方要拿着跨标签页的锁，否则回滚的可能是别的标签页正在跑的事务。
+   */
+  async rollbackOrphanTransaction(): Promise<boolean> {
+    const { sqlite, db } = this.#ready_connection();
+    return this.#queue.addTask(async () => {
+      if (sqlite.get_autocommit(db) !== 0) return false;
+      await executeHelper(sqlite, db, 'ROLLBACK');
+      return true;
+    });
   }
 
   /**
@@ -119,6 +193,9 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
    * 暂停 / 恢复变更事件采集。
    *
    * @param muted - `true` 时 update hook 直接忽略写入，不入批也不派发
+   *
+   * @remarks
+   * 静音是整个客户端的，不分持有者；SharedWorker 传输不支持恢复，共用的客户端不会被静音。
    */
   setChangeEventsMuted(muted: boolean): void {
     this.#change_events_muted = muted;
@@ -185,6 +262,16 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
    * @throws 客户端未初始化或已断开
    */
   async execute(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> {
+    const connection = this.#ready_connection();
+    return this.#queue.addTask(() => executeHelper(connection.sqlite, connection.db, sql, bindings));
+  }
+
+  #hold(owner: string | undefined): void {
+    if (owner !== undefined) this.#owners.add(owner);
+  }
+
+  /** 已打开的连接；断开了、还没初始化都抛 */
+  #ready_connection(): SqliteConnection {
     if (this.#is_disconnecting || this.#is_disconnected) {
       throw new Error('SqliteClient has been disconnected');
     }
@@ -192,7 +279,7 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
     if (!connection) {
       throw new Error('SqliteClient is not initialized');
     }
-    return this.#queue.addTask(() => executeHelper(connection.sqlite, connection.db, sql, bindings));
+    return connection;
   }
 
   async #performDisconnect(): Promise<void> {
@@ -224,6 +311,8 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
       throw error;
     } finally {
       this.removeAllEventListeners();
+      this.#owners.clear();
+      this.#owner_listeners.clear();
       this.#is_disconnecting = false;
     }
   }
