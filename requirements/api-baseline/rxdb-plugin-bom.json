@@ -222,7 +222,15 @@
         "kind": "both"
       },
       {
+        "name": "BomMap",
+        "kind": "both"
+      },
+      {
         "name": "BomMapError",
+        "kind": "both"
+      },
+      {
+        "name": "BomMapScope",
         "kind": "both"
       },
       {

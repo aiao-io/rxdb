@@ -68,6 +68,10 @@ export interface ResolvedLineOccurrence {
   resolvedChildRevisionId: string | null;
   /** 规范十进制串；公式行的 qty 为空（US-511 阶段 A）。 */
   qty: string | null;
+  /** 公式行的表达式；普通数量行不增加此字段。 */
+  qtyFormula?: string;
+  /** 公式行使用的语法版本。 */
+  formulaGrammarVersion?: string | null;
   effectiveFrom: Date;
   effectiveTo: Date | null;
 }

@@ -209,10 +209,11 @@ export const SCOOTER_GOLDEN_C: {
  * SC-100 阶段 D 的 golden（US-525 AC#14）：整机成本卷算（评估日 2026-10-15、币种 CNY、
  * 费率日同日）手写。根层子件贡献合计（子件单位成本 × 需求，含子件全部成本）：
  * SEAT 1 + PCBA（MCU-V2 下钻：DIE-PART 1 ÷ 0.98 = 1.0204…（34 位有效 half-even）+ R10K 7
- * = 8.0204…）+ WH-01（WIRE 1.2 + TERMINAL 2 + SHRINK 1 + M3 4 = 8.2）+ BATT 11
+ * = 8.0204…）+ WH-01 穿透后的四条材料（WIRE 1.2 + TERMINAL 2 + SHRINK 1 + M3 4 = 8.2）+ BATT 11
  * + M3 8 + HOUSING（SHEET 2 + 加工 1 + 制费 0.2 − 抵减 0.3 = 2.9）。HOUSING 节点逐项：
  * 材料 SHEET 2；加工 HOUSING 工序 10 run 0.5 h/件 × 费率 2 = 1；制费 0.5 h × 0.4 = 0.2；
- * 副产抵减 OFFCUT 0.3 × 1 = 0.3。全部头 cost_lot_qty = 1。
+ * 副产抵减 OFFCUT 0.3 × 1 = 0.3。WH-01 不产生成本节点，无加工、制费或抵减。
+ * 全部实体成本节点 cost_lot_qty = 1。
  */
 export const SCOOTER_GOLDEN_D: {
   context: { bomType: 'ebom'; orgId: 'org-x'; asOfDate: string; currency: string; rateDate: string };

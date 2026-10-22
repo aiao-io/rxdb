@@ -209,6 +209,15 @@ export const resolveBom = async (
               null
             : String(row[columnIndexOf(cols, 'resolvedChildRevisionId')]),
           qty: row[columnIndexOf(cols, 'qty')] === null ? null : String(row[columnIndexOf(cols, 'qty')]),
+          ...(row[columnIndexOf(cols, 'qtyFormula')] === null ?
+            {}
+          : {
+              qtyFormula: String(row[columnIndexOf(cols, 'qtyFormula')]),
+              formulaGrammarVersion:
+                row[columnIndexOf(cols, 'formulaGrammarVersion')] === null ?
+                  null
+                : String(row[columnIndexOf(cols, 'formulaGrammarVersion')])
+            }),
           effectiveFrom: normalizeDate(row[columnIndexOf(cols, 'effectiveFrom')]) as Date,
           effectiveTo: normalizeDate(row[columnIndexOf(cols, 'effectiveTo')])
         };

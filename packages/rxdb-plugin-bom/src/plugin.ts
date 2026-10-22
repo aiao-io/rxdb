@@ -15,6 +15,7 @@ import type { EntityMetadata, EntityType, IRxDBPlugin, Plugin, RxDB, Transaction
 import { getEntityMetadata, RxDBPluginBase, SyncType } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
 import { firstValueFrom, Observable } from 'rxjs';
+import type { BomTriggerDdlOptions } from './backend/bom-trigger-ddl.js';
 import {
   BOM_ENTITIES,
   BomAttrDef,
@@ -69,7 +70,10 @@ const SQLITE_ADAPTER_NAMES: ReadonlySet<string> = new Set([
   'sqlite-electron'
 ]);
 
-export type BomTriggerDdlBuilder = (metadata: ReturnType<typeof getEntityMetadata>) => string[];
+export type BomTriggerDdlBuilder = (
+  metadata: ReturnType<typeof getEntityMetadata>,
+  options?: BomTriggerDdlOptions
+) => string[];
 
 /**
  * US-509 AC#12 的校验函数（导出供单测）：BOM 实体生效的同步策略必须为 `None`。
@@ -494,8 +498,9 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
       assertBomSyncNotDeclared(this.rxdb.entitySync, presentEntities);
     }
     assertBomRepositoriesRegistered(adapter, presentEntities);
+    const ddlOptions: BomTriggerDdlOptions = { historyProjection: presentEntities.includes(BomHeader) };
     const statements = new Map(
-      presentEntities.map(EntityType => [EntityType, buildDdl(getEntityMetadata(EntityType))])
+      presentEntities.map(EntityType => [EntityType, buildDdl(getEntityMetadata(EntityType), ddlOptions)])
     );
     // 判环与可达维护随发生项下发，排在全部实体 DDL 之后（SQLite 同事件触发器逆创建序执行，判环最先触发）
     const reach = statements.has(BomLineOccurrence) ? buildReachInstallDdl(adapter.name) : [];

@@ -53,8 +53,10 @@ import {
   operationScrapChain,
   scrap,
   selectTierRows,
+  substitutePrimaryOf,
   type LayerRoutingOp
 } from './layer.js';
+import { normalizePlannedQuantity } from './planned-quantity.js';
 import { findMissingOperation, routingUncoveredReason } from './routing-effectivity.js';
 import { convertUom } from './uom.js';
 
@@ -155,6 +157,19 @@ interface HeaderMeta {
   costLotQty: string | null;
   routingId: string | null;
 }
+
+interface LayerCostDetail {
+  material: CostMaterialLine[];
+  processing: CostProcessingLine[];
+  credits: CostCreditLine[];
+  children: CostNodeDetail[];
+  batchCost: Decimal;
+  overhead: Decimal;
+  overheadReason: CostNodeDetail['overheadReason'];
+}
+
+const sumAmounts = (lines: readonly { amount: string }[]): Decimal =>
+  lines.reduce((total, line) => decimalAdd(total, decimalFromCanonical(line.amount)), { coeff: 0n, exp: 0 });
 
 const headerMetaOf = (child: ResolvedChildHeader, itemId: string, revisionId: string): HeaderMeta => ({
   headerId: child.headerId,
@@ -543,8 +558,7 @@ const groupSubstituteRows = (
   }
   const grouped: CostRow[] = effectiveRows.filter(row => row.substituteGroupId === null);
   for (const [groupId, members] of groups) {
-    const primary = members.find(member => member.substituteRole === 'primary');
-    if (!primary) continue; // 发布转移已校验恰好一个 primary
+    const primary = substitutePrimaryOf(members);
     const primaryGross = computeGross(primary, {
       plannedPrime: pPrime,
       headerBaseQty: primary.headerBaseQty,
@@ -683,8 +697,9 @@ const rollupCostInSnapshot = async (
 
     // 根批量：显式 batchQty（归一到基准单位）或 cost_lot_qty；cost_lot_qty 是 unit_cost 的分母，显式批量也替代不了
     const rootLotQty = requireCostLotQty(rootHeader);
+    const plannedQty = batchQty === undefined ? undefined : normalizePlannedQuantity(batchQty);
     const rootL = decimalFromCanonical(
-      batchQty ? convertUom(batchQty.value, batchQty.uom, rootHeader.baseUom) : rootLotQty
+      plannedQty ? convertUom(plannedQty.value, plannedQty.uom, rootHeader.baseUom) : rootLotQty
     );
 
     // unit_cost 独立 memo：键 = 头 + 上下文（节点是已解析头，AC#8 不串）；
@@ -702,6 +717,29 @@ const rollupCostInSnapshot = async (
       )
     );
     const stack: string[] = [];
+
+    const assertAcyclic = (headerMeta: HeaderMeta, path: readonly string[]): void => {
+      if (!path.includes(headerMeta.headerId)) return;
+      throw new BomCostError(`头 ${headerMeta.headerId}`, `卷算检出环：${[...path, headerMeta.headerId].join(' → ')}`);
+    };
+
+    const phantomChildOf = async (
+      row: CostRow,
+      demandInStock: string
+    ): Promise<{ header: HeaderMeta; planned: Decimal } | null> => {
+      if (!(row.phantomOverride ?? row.childRevisionPhantom ?? false)) return null;
+      const revisionId = row.resolvedChildRevisionId;
+      const child =
+        revisionId === null ? null : await resolveChildHeader(query, dialect, resolutionContext, revisionId);
+      if (child === null || revisionId === null)
+        throw new BomCostError(`虚拟件 ${row.childItemId}`, '评估日没有已发布 BOM 头，无法穿透');
+      return {
+        header: headerMetaOf(child, row.childItemId, revisionId),
+        planned: decimalFromCanonical(
+          convertUom(demandInStock, row.childStockUom, child.baseUom, rowHopRates(row).fromStock)
+        )
+      };
+    };
 
     const allocate = async (headerMeta: HeaderMeta, L: Decimal, total: Decimal) => {
       const production = await readJointProduction(query, dialect, {
@@ -776,7 +814,8 @@ const rollupCostInSnapshot = async (
     };
 
     /** 本层 batch_cost（不缓存；子件单位成本经 {@link unitCostOf} 缓存）。 */
-    const batchCostOf = async (headerMeta: HeaderMeta, L: Decimal): Promise<Decimal> => {
+    const batchCostOf = async (headerMeta: HeaderMeta, L: Decimal, path: readonly string[] = []): Promise<Decimal> => {
+      assertAcyclic(headerMeta, path);
       const byHeader = await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId]);
       const rows = byHeader.get(headerMeta.headerId) ?? [];
       const effectiveRows = selectCostTierRows(headerMeta.headerId, rows, L);
@@ -824,6 +863,11 @@ const rollupCostInSnapshot = async (
           row.childStockUom,
           hops.toStock
         );
+        const phantom = await phantomChildOf(row, demandInStock);
+        if (phantom !== null) {
+          total = decimalAdd(total, await batchCostOf(phantom.header, phantom.planned, [...path, headerMeta.headerId]));
+          continue;
+        }
         const jointPrice = await jointUnitCost(row.resolvedChildRevisionId);
         if (jointPrice !== null) {
           const demand = convertUom(demandInStock, row.childStockUom, jointPrice.uom, hops.fromStock);
@@ -833,7 +877,7 @@ const rollupCostInSnapshot = async (
           );
           continue;
         }
-        // 子件有头：换算到子头 base_uom × unit_cost（虚拟件同样走链式，穿透数值等价）。
+        // 普通子装配换算到子头基准单位后，按标准批量单位成本计价。
         // 爆炸层已拒绝 unresolved（US-514 AC#11），此处 null 不可达。
         const childHeader = await resolveChildHeader(query, dialect, resolutionContext, row.resolvedChildRevisionId!);
         if (childHeader !== null) {
@@ -877,12 +921,15 @@ const rollupCostInSnapshot = async (
         );
         if (overhead !== null) total = decimalAdd(total, overhead);
       }
-      return (await allocate(headerMeta, L, total)).batch;
+      return path.length === 0 ? (await allocate(headerMeta, L, total)).batch : total;
     };
 
-    // 明细树：根按请求批量展开；children 按各自的本层需求批量展开（unit_cost 共享缓存）
-    const buildDetail = async (headerMeta: HeaderMeta, L: Decimal): Promise<CostNodeDetail> => {
-      const costLotQty = requireCostLotQty(headerMeta);
+    const buildLayerDetail = async (
+      headerMeta: HeaderMeta,
+      L: Decimal,
+      path: readonly string[] = []
+    ): Promise<LayerCostDetail> => {
+      assertAcyclic(headerMeta, path);
       const byHeader = await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId]);
       const rows = byHeader.get(headerMeta.headerId) ?? [];
       const effectiveRows = selectCostTierRows(headerMeta.headerId, rows, L);
@@ -891,8 +938,12 @@ const rollupCostInSnapshot = async (
       const material: CostMaterialLine[] = [];
       const credits: CostCreditLine[] = [];
       const children: CostNodeDetail[] = [];
+      const processing: CostProcessingLine[] = [];
       let materialTotal: Decimal = { coeff: 0n, exp: 0 };
       let creditTotal: Decimal = { coeff: 0n, exp: 0 };
+      let processingTotal: Decimal = { coeff: 0n, exp: 0 };
+      let overheadAmount: Decimal = { coeff: 0n, exp: 0 };
+      let overheadReason: CostNodeDetail['overheadReason'] = '无路线';
 
       // 替代组分流（与 batchCostOf 同口径）
       const groupedRows = groupSubstituteRows(effectiveRows, pPrime, context);
@@ -935,6 +986,20 @@ const rollupCostInSnapshot = async (
           row.childStockUom,
           hops.toStock
         );
+        const phantom = await phantomChildOf(row, demandInStock);
+        if (phantom !== null) {
+          const detail = await buildLayerDetail(phantom.header, phantom.planned, [...path, headerMeta.headerId]);
+          material.push(...detail.material);
+          processing.push(...detail.processing);
+          credits.push(...detail.credits);
+          children.push(...detail.children);
+          materialTotal = decimalAdd(materialTotal, sumAmounts(detail.material));
+          processingTotal = decimalAdd(processingTotal, sumAmounts(detail.processing));
+          creditTotal = decimalAdd(creditTotal, sumAmounts(detail.credits));
+          overheadAmount = decimalAdd(overheadAmount, detail.overhead);
+          if (detail.overheadReason !== '无路线') overheadReason = detail.overheadReason;
+          continue;
+        }
         const jointPrice = await jointUnitCost(row.resolvedChildRevisionId);
         if (jointPrice !== null) {
           const demand = convertUom(demandInStock, row.childStockUom, jointPrice.uom, hops.fromStock);
@@ -1000,10 +1065,6 @@ const rollupCostInSnapshot = async (
         }
       }
 
-      const processing: CostProcessingLine[] = [];
-      let processingTotal: Decimal = { coeff: 0n, exp: 0 };
-      let overheadAmount: Decimal = { coeff: 0n, exp: 0 };
-      let overheadReason: CostNodeDetail['overheadReason'] = '无路线';
       for (const operation of routing.operations) {
         const operationCost = await operationCostOf(q, dialect, operation, pPrime, routing.routingOps, context);
         processingTotal = decimalAdd(processingTotal, operationCost.amount);
@@ -1031,7 +1092,13 @@ const rollupCostInSnapshot = async (
       }
 
       const batchCost = decimalSub(decimalAdd(decimalAdd(materialTotal, processingTotal), overheadAmount), creditTotal);
-      const allocated = await allocate(headerMeta, L, batchCost);
+      return { batchCost, material, processing, credits, children, overhead: overheadAmount, overheadReason };
+    };
+
+    const buildDetail = async (headerMeta: HeaderMeta, L: Decimal): Promise<CostNodeDetail> => {
+      const costLotQty = requireCostLotQty(headerMeta);
+      const detail = await buildLayerDetail(headerMeta, L);
+      const allocated = await allocate(headerMeta, L, detail.batchCost);
       const unitCost = await unitCostOf(headerMeta);
       return {
         headerId: headerMeta.headerId,
@@ -1041,12 +1108,12 @@ const rollupCostInSnapshot = async (
         costLotQty,
         batchCost: decimalToCanonical(allocated.batch),
         unitCost,
-        material,
-        processing,
-        overhead: decimalToCanonical(overheadAmount),
-        overheadReason,
-        credits,
-        children,
+        material: detail.material,
+        processing: detail.processing,
+        overhead: decimalToCanonical(detail.overhead),
+        overheadReason: detail.overheadReason,
+        credits: detail.credits,
+        children: detail.children,
         ...(allocated.joint === undefined ? {} : { jointCost: allocated.joint })
       };
     };

@@ -26,6 +26,7 @@ type Guard = readonly [field: string, violation: string];
 
 interface Projection {
   headerId?: string;
+  headerScope?: string;
   targetEcnId?: string;
   startDate?: string;
   historical?: string;
@@ -162,7 +163,10 @@ const projectionQuery = (metadata: EntityMetadata, backend: Backend, options: Pr
     options.startDate ?
       `CASE WHEN r."effectiveFrom" > ${options.startDate} ` + `THEN r."effectiveFrom" ELSE ${options.startDate} END`
     : 'r."effectiveFrom"';
-  const scope = options.headerId ? `h."id" = ${options.headerId}` : `h."state" = 'released'`;
+  const scope =
+    options.headerId ?
+      `h."id" = ${options.headerId}`
+    : `h."state" = 'released' AND (${options.headerScope ?? '1 = 1'})`;
   const message =
     `'${publishError('')}' || bad.hid || ':' || bad.p || ':' || ` +
     `CASE WHEN bad.main_share IS NULL THEN '缺主产物 jointCostShare' ` +
@@ -205,27 +209,32 @@ export const buildSqliteCoproductProjectionChecks = (
   metadata: EntityMetadata,
   targetEcnId: string,
   startDate: string,
-  historyBatchNo: string
+  historyBatchNo: string,
+  headerScope?: string
 ): string[] => {
   const historical =
     historyBatchNo === 'NULL' ? '0' : (
       `EXISTS (SELECT 1 FROM ${sqliteTableOf(BomHistoryBatch)} b WHERE b."batchNo" = ${historyBatchNo} AND b."state" = 'open')`
     );
-  return [sqliteProjectionCheck(projectionQuery(metadata, 'sqlite', { targetEcnId, startDate, historical }))];
+  return [
+    sqliteProjectionCheck(projectionQuery(metadata, 'sqlite', { targetEcnId, startDate, historical, headerScope }))
+  ];
 };
 
 /** ECN 级联完成后以十亿分之一整数校验联合输出。 */
 export const buildPgCoproductProjectionChecks = (
   metadata: EntityMetadata,
-  target: string,
+  target: string | null,
   startDate: string,
-  historyBatchNo: string
+  historyBatchNo: string,
+  headerScope?: string
 ): string[] => {
   const historical =
     historyBatchNo === 'NULL' ? 'FALSE' : (
       `EXISTS (SELECT 1 FROM ${pgTableOf(BomHistoryBatch)} b WHERE b."batchNo" = ${historyBatchNo} AND b."state" = 'open')`
     );
-  return [pgProjectionCheck(projectionQuery(metadata, 'pg', { targetEcnId: `${target}."id"`, startDate, historical }))];
+  const targetEcnId = target === null ? 'NULL' : `${target}."id"`;
+  return [pgProjectionCheck(projectionQuery(metadata, 'pg', { targetEcnId, startDate, historical, headerScope }))];
 };
 
 /** 联产保存期约束及头发布聚合；旧单产头保持可空份额合同。 */

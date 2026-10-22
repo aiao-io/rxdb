@@ -108,6 +108,7 @@ export const operationScrapChain = (value: Decimal, ops: LayerRoutingOp[], fromS
 
 /** 本层净需求（第 4~5 步）：G → G′（组件损耗 + 固定损耗）→ G″（工序损耗链 / 分摊）。 */
 export interface LayerNetResult {
+  afterComponent: Decimal;
   net: Decimal;
   hasOperation: boolean;
 }
@@ -127,11 +128,15 @@ export const computeLayerNet = (gross: Decimal, row: LayerRow, context: LayerCon
         const share = decimalMul(afterComponent, decimalFromCanonical(split.ratio));
         total = decimalAdd(total, operationScrapChain(share, routingOps, split.operationSeq));
       }
-      return { net: total, hasOperation: true };
+      return { afterComponent, net: total, hasOperation: true };
     }
-    return { net: operationScrapChain(afterComponent, routingOps, row.operationSeq as number), hasOperation: true };
+    return {
+      afterComponent,
+      net: operationScrapChain(afterComponent, routingOps, row.operationSeq as number),
+      hasOperation: true
+    };
   }
-  return { net: afterComponent, hasOperation: false };
+  return { afterComponent, net: afterComponent, hasOperation: false };
 };
 
 // -----------------------------------------------------[ 阶梯 / 替代组 / 副产（共享扩展） ]
@@ -200,6 +205,21 @@ export interface SubstituteShare {
 const ZERO: Decimal = { coeff: 0n, exp: 0 };
 
 const ONE: Decimal = { coeff: 1n, exp: 0 };
+
+/** 过滤后的替代组仍须有唯一原始需求成员。 */
+export const substitutePrimaryOf = <
+  T extends { substituteRole: 'primary' | 'substitute' | null; substituteGroupCode: string | null }
+>(
+  members: readonly T[]
+): T => {
+  const primary = members.filter(member => member.substituteRole === 'primary');
+  if (primary.length !== 1) {
+    throw new BomQuantityError(
+      `替代组 ${String(members[0]?.substituteGroupCode)} 的有效成员必须恰好有一个 primary，实际 ${primary.length}`
+    );
+  }
+  return primary[0];
+};
 
 /** 精确求和（不收敛到 34 位）：判「合计恰为 1」时 34 位舍入会把 0.(35 个 9) 误收成 1。 */
 const exactSum = (values: readonly Decimal[]): Decimal =>
@@ -335,8 +355,7 @@ export const allocateSubstituteShares = (
   availabilities: Record<string, { value: string; uom: string }> | undefined,
   selections: Record<string, { memberKey?: string; allocation?: Record<string, string> }> | undefined
 ): { shares: SubstituteShare[]; unresolved?: UnresolvedGroup } => {
-  const primary = members.find(member => member.substituteRole === 'primary');
-  if (!primary) return { shares: [] }; // 发布转移已校验恰好一个 primary
+  const primary = substitutePrimaryOf(members);
   const code = primary.substituteGroupCode;
   const strategy = primary.substituteStrategy;
   const allowMix = primary.substituteAllowMix;
@@ -344,6 +363,10 @@ export const allocateSubstituteShares = (
     return { shares: allocatePriorityShares(primary, members, primaryGross, availabilities) };
   }
   if (strategy === 'proportional') {
+    const total = exactSum(members.map(member => decimalFromCanonical(member.usageProbability ?? '0')));
+    if (decimalCmp(total, ONE) !== 0) {
+      throw new BomQuantityError(`替代组 ${code} 的有效成员概率合计必须精确为 1，实际 ${decimalToCanonical(total)}`);
+    }
     return { shares: ratioShares(members, primaryGross, member => member.usageProbability) };
   }
   const selection = selections?.[code];

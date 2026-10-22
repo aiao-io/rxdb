@@ -633,8 +633,8 @@ const flattenCost = (
     );
   }
   rows.push(
-    ...node.material.map(line => ({
-      key: `${path}/material:${line.occurrenceId}`,
+    ...node.material.map((line, index) => ({
+      key: `${path}/material:${index}:${line.occurrenceId}`,
       depth: depth + 1,
       kind: 'material' as const,
       itemNo: itemNoById(itemNos, line.childItemId),
@@ -649,8 +649,8 @@ const flattenCost = (
     }))
   );
   rows.push(
-    ...node.processing.map(line => ({
-      key: `${path}/processing:${line.operationSeq}`,
+    ...node.processing.map((line, index) => ({
+      key: `${path}/processing:${index}:${line.operationSeq}`,
       depth: depth + 1,
       kind: 'processing' as const,
       label: `加工 工序 ${line.operationSeq}`,
@@ -675,8 +675,8 @@ const flattenCost = (
       rawFields: [{ label: '金额', value: node.overhead }]
     });
   rows.push(
-    ...node.credits.map(line => ({
-      key: `${path}/credit:${line.occurrenceId}`,
+    ...node.credits.map((line, index) => ({
+      key: `${path}/credit:${index}:${line.occurrenceId}`,
       depth: depth + 1,
       kind: 'credit' as const,
       itemNo: itemNoById(itemNos, line.childItemId),

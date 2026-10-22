@@ -34,6 +34,8 @@ export {
   BomLineDesignator,
   BomLineOccurrence,
   BomLineOperationSplit,
+  BomMap,
+  BomMapScope,
   BomRouting,
   BomRoutingOperation,
   BomSubstituteGroup,

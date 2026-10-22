@@ -29,6 +29,7 @@ import {
 } from '../entities.js';
 import { installedBomDdl, rxDBPluginBom } from '../plugin.js';
 import { buildReachInstallDdl } from '../reach/install.js';
+import { loadHistory } from '../resolve/history-loader.js';
 import { BomBackendCapabilityError, BomError } from '../types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
@@ -225,6 +226,16 @@ for (const backend of BACKENDS) {
           false
         );
         expect(stored.rows).toEqual([['released']]);
+        await loadHistory(adapter, {
+          batchNo: `partial-history-${backend}`,
+          revisions: [{ itemId: item.id, revisionNo: 'H', effectiveFrom: new Date('2020-01-01T00:00:00.000Z') }],
+          headers: []
+        });
+        const history = await adapter.transaction(
+          executor => executor.query(`SELECT "state" FROM ${executor.tableRef(BomHistoryBatch)}`),
+          false
+        );
+        expect(history.rows).toEqual([['closed']]);
       } finally {
         await disposeBomTestAdapter(adapter);
       }

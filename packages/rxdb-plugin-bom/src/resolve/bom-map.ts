@@ -14,6 +14,7 @@
  * 确认跟进拒绝。全部 SQL 走方言占位符绑定。
  */
 
+import type { TransactionExecutor, TransactionFun } from '@aiao/rxdb';
 import { BomMap } from '../entities.js';
 import type { BomLocalAdapter } from './bom-adapter.js';
 import { bomSqlDialectFor, type BomSqlDialect } from './bom-sql.js';
@@ -53,6 +54,13 @@ export class BomMapError extends Error {
 
 /** IN 列表分块大小（避开两后端的绑定变量上限，与展开同口径）。 */
 const CHUNK_SIZE = 200;
+
+const scopedAdapter = (adapter: BomLocalAdapter, executor: TransactionExecutor): BomLocalAdapter => ({
+  name: adapter.name,
+  rxdb: adapter.rxdb,
+  rawQuery: (sql, params) => executor.query(sql, params),
+  transaction: <T extends TransactionFun>(fun: T) => executor.run(fun) as Promise<Awaited<ReturnType<T>>>
+});
 
 /** 绑定参数查询：rawQuery 缺席即显式拒绝（本地适配器必有），绑定值按方言编码，结果双形状归一。 */
 const queryRows = async (adapter: BomLocalAdapter, sql: string, params: unknown[] = []): Promise<unknown[][]> => {
@@ -507,32 +515,35 @@ const isUndecidable = (error: unknown): error is Error =>
   error instanceof BomResolutionError || error instanceof BomConfigError;
 
 /**
- * 自范围 EBOM 根头按上下文展开。上下文须与范围同为 EBOM、同组织；根头由范围钉住、不随上下文重选——
+ * 自范围指定侧根头按上下文展开。上下文须与该侧同类型、同组织；根头由范围钉住、不随上下文重选——
  * 根修订的备选取范围根头自己的编号（`alternativeNo` 只裁决根头），上下文另指即拒绝。
  */
 const expandScope = async (
   adapter: BomLocalAdapter,
   scope: MapScopeInfo,
-  context: ResolutionContext
+  context: ResolutionContext,
+  side: ScopeSide = sourceSide(scope)
 ): Promise<ScopeExpansion> => {
-  if (context.bomType !== 'ebom' || context.orgId !== scope.orgId) {
+  const label = side.bomType.toUpperCase();
+  const direction = side.bomType === 'ebom' ? '源侧' : '目标侧';
+  if (context.bomType !== side.bomType || context.orgId !== scope.orgId) {
     throw new BomMapError(
       'context',
-      `上下文 ${context.bomType}/${context.orgId} 与范围 ebom/${scope.orgId} 不符：源侧自范围 EBOM 根头解析`
+      `上下文 ${context.bomType}/${context.orgId} 与范围 ${side.bomType}/${scope.orgId} 不符：${direction}自范围 ${label} 根头解析`
     );
   }
   const dialect = bomSqlDialectFor(adapter.name);
   const rootRows = await queryRows(
     adapter,
     `SELECT h."parentRevisionId", h."alternativeNo" FROM ${dialect.table('bom_header')} h WHERE h."id" = ${dialect.placeholder(0)}`,
-    [scope.ebomRootHeaderId]
+    [side.rootHeaderId]
   );
-  if (rootRows.length === 0) throw new BomMapError('scope', `EBOM 根头不存在：${scope.ebomRootHeaderId}`);
+  if (rootRows.length === 0) throw new BomMapError('scope', `${label} 根头不存在：${side.rootHeaderId}`);
   const alternativeNo = Number(rootRows[0][1]);
   if (context.alternativeNo !== undefined && context.alternativeNo !== alternativeNo) {
     throw new BomMapError(
       'context',
-      `上下文备选 ${context.alternativeNo} 与范围 EBOM 根头的备选 ${alternativeNo} 不符：根头由范围钉住`
+      `上下文备选 ${context.alternativeNo} 与范围 ${label} 根头的备选 ${alternativeNo} 不符：根头由范围钉住`
     );
   }
   try {
@@ -809,8 +820,53 @@ const collectSteps = (
  * 确认跟进（AC#7/#19）：把映射的基线整体推进到当前解析依据（到源行为止的解析步骤集合）
  * 与当前目标发生项；不是只改末端发生项。与缺口同一逐映射判定：本映射「路径失效」，或源侧解析可能被
  * 截断 / 未裁决遮住（或根级解析失败）即拒绝并点名，基线不动；展开别处不完整不影响本映射。
+ * 非空目标须属于映射目标行，且出现在范围 MBOM 根头的当前解析结果中；校验、解析与基线写入共用一个事务。
  */
 export const confirmMapping = async (
+  adapter: BomLocalAdapter,
+  mappingId: string,
+  targetOccurrenceId: string | null,
+  context: ResolutionContext
+): Promise<void> =>
+  adapter.transaction(async executor => {
+    await confirmMappingSnapshot(scopedAdapter(adapter, executor), mappingId, targetOccurrenceId, context);
+  }, false);
+
+const assertTargetOccurrence = async (
+  adapter: BomLocalAdapter,
+  scope: MapScopeInfo,
+  mapping: StoredMapping,
+  occurrenceId: string,
+  context: ResolutionContext
+): Promise<void> => {
+  if (mapping.targetLineId === null) {
+    throw new BomMapError('targetOccurrenceId', `映射 ${mapping.id} 无目标行，不能确认目标发生项 ${occurrenceId}`);
+  }
+  const dialect = bomSqlDialectFor(adapter.name);
+  const rows = await queryRows(
+    adapter,
+    `SELECT "lineId" FROM ${dialect.table('bom_line_occurrence')} WHERE "id" = ${dialect.placeholder(0)}`,
+    [occurrenceId]
+  );
+  if (rows.length === 0) throw new BomMapError('targetOccurrenceId', `目标发生项不存在：${occurrenceId}`);
+  if (String(rows[0][0]) !== mapping.targetLineId) {
+    throw new BomMapError('targetOccurrenceId', `发生项 ${occurrenceId} 不属于目标行 ${mapping.targetLineId}`);
+  }
+  const expanded = await expandScope(
+    adapter,
+    scope,
+    { ...context, bomType: 'mbom', alternativeNo: undefined },
+    targetSide(scope)
+  );
+  if ('undecidable' in expanded) {
+    throw new BomMapError('targetOccurrenceId', `目标侧解析无法判定：${expanded.undecidable}`);
+  }
+  if (!expanded.expansion.nodes.some(node => node.occurrenceId === occurrenceId)) {
+    throw new BomMapError('targetOccurrenceId', `目标发生项 ${occurrenceId} 不在当前上下文的目标侧解析结果中`);
+  }
+};
+
+const confirmMappingSnapshot = async (
   adapter: BomLocalAdapter,
   mappingId: string,
   targetOccurrenceId: string | null,
@@ -830,6 +886,7 @@ export const confirmMapping = async (
     if (reason !== undefined) throw new BomMapError('确认跟进', `源侧解析无法判定，基线不动：${reason}`);
     steps.push(...collectSteps(expanded.expansion, lineOf, mapping.sourceLineId, mapping.sourceLinePath));
   }
+  if (targetOccurrenceId !== null) await assertTargetOccurrence(adapter, scope, mapping, targetOccurrenceId, context);
   const dialect = bomSqlDialectFor(adapter.name);
   await queryRows(
     adapter,

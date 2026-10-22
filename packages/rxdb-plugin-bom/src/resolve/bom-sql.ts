@@ -119,6 +119,8 @@ export const buildResolvedOccurrencesSql = (
     `  occ."childRevisionId" AS "childRevisionId",`,
     `  ${childRevisionExpr(dialect, revision, p, params.asOfDate, 'occ')} AS "resolvedChildRevisionId",`,
     `  occ."qty" AS "qty",`,
+    `  occ."qtyFormula" AS "qtyFormula",`,
+    `  occ."formulaGrammarVersion" AS "formulaGrammarVersion",`,
     `  occ."effectiveFrom" AS "effectiveFrom",`,
     `  occ."effectiveTo" AS "effectiveTo",`,
     `  occ."unitFrom" AS "unitFrom",`,

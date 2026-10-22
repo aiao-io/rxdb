@@ -179,7 +179,7 @@ export interface HistoryBatchInput {
   revisions: HistoryRevisionInput[];
   /** ECN 变更单（US-515 阶段 C 种子）：draft 装载 + 发布转移，盖批次号跳过追溯检查。 */
   ecns?: HistoryEcnInput[];
-  /** 既有已发布头的行操作（US-515 阶段 C 种子改下层头）：批次开放期间执行，ECN 须已在本批装载。 */
+  /** 既有头的行操作：批次开放期间执行，所有非空 ECN 引用须在本批装载；草稿头仍可不挂 ECN。 */
   headerOverlays?: {
     headerId: string;
     /** 头字段补丁（US-514 阶段 D 种子补 cost_lot_qty / routing_id；open 批次期间放行）。 */
@@ -290,6 +290,20 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       await validateBomWrite(validation, getEntityMetadata(EntityType).name, record, 'create');
       await executor.getRepository(EntityType).create(entity);
     };
+    const createOccurrence = async (lineId: string, input: HistoryOccurrenceInput): Promise<BomLineOccurrence> => {
+      const occurrence = occurrenceEntity(construct, lineId, input);
+      await createValidated(BomLineOccurrence, occurrence);
+      for (const designator of input.designators ?? []) {
+        const entity = construct(BomLineDesignator);
+        if (designator.id) (entity as unknown as { id: string }).id = designator.id;
+        if (input.createdAt) (entity as unknown as { createdAt: Date }).createdAt = input.createdAt;
+        if (input.updatedAt) (entity as unknown as { updatedAt: Date }).updatedAt = input.updatedAt;
+        entity.occurrenceId = occurrence.id;
+        entity.designator = designator.designator;
+        await executor.getRepository(BomLineDesignator).create(entity);
+      }
+      return occurrence;
+    };
     // 1. 开启态批次行（发布触发器据此跳过追溯检查）
     const batchEntity = construct(BomHistoryBatch);
     if (batch.id) (batchEntity as unknown as { id: string }).id = batch.id;
@@ -364,20 +378,8 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
         line.ecnInId = lineInput.ecnInId ?? null;
         await executor.getRepository(BomLine).create(line);
         for (const occurrenceInput of lineInput.occurrences) {
-          const occurrence = occurrenceEntity(construct, line.id, occurrenceInput);
-          await createValidated(BomLineOccurrence, occurrence);
+          const occurrence = await createOccurrence(line.id, occurrenceInput);
           lines.push({ line, occurrence });
-          for (const designator of occurrenceInput.designators ?? []) {
-            const designatorEntity = construct(BomLineDesignator);
-            if (designator.id) (designatorEntity as unknown as { id: string }).id = designator.id;
-            if (occurrenceInput.createdAt)
-              (designatorEntity as unknown as { createdAt: Date }).createdAt = occurrenceInput.createdAt;
-            if (occurrenceInput.updatedAt)
-              (designatorEntity as unknown as { updatedAt: Date }).updatedAt = occurrenceInput.updatedAt;
-            designatorEntity.occurrenceId = occurrence.id;
-            designatorEntity.designator = designator.designator;
-            await executor.getRepository(BomLineDesignator).create(designatorEntity);
-          }
         }
       }
       // B 层：替代组（成员引用本头行发生项，需在头发布前建）
@@ -459,6 +461,11 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
     for (const input of batch.ecns ?? []) {
       if (input.id) ecnEffectiveDates.set(input.id, input.effectiveDate);
     }
+    const assertOverlayEcn = (ecnId: string | null | undefined): void => {
+      if (ecnId != null && !ecnEffectiveDates.has(ecnId)) {
+        throw new Error(`overlay 引用的 ECN 未在本批装载：${ecnId}`);
+      }
+    };
     for (const overlay of batch.headerOverlays ?? []) {
       if (overlay.headerPatch) {
         const patch: Record<string, unknown> = {};
@@ -482,10 +489,13 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       }
       const writeOccurrences = async (lineId: string, inputs: HistoryOccurrenceInput[]): Promise<void> => {
         for (const occurrenceInput of inputs) {
-          await createValidated(BomLineOccurrence, occurrenceEntity(construct, lineId, occurrenceInput));
+          assertOverlayEcn(occurrenceInput.ecnInId);
+          assertOverlayEcn(occurrenceInput.ecnOutId);
+          await createOccurrence(lineId, occurrenceInput);
         }
       };
       for (const lineInput of overlay.lines ?? []) {
+        assertOverlayEcn(lineInput.ecnInId);
         const line = construct(BomLine);
         if (lineInput.id) (line as unknown as { id: string }).id = lineInput.id;
         if (lineInput.createdAt) (line as unknown as { createdAt: Date }).createdAt = lineInput.createdAt;

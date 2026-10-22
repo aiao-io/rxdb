@@ -347,7 +347,11 @@ const alignByLine = (before: ResolutionResult, after: ResolutionResult): EcnDiff
       beforeRow?.resolvedChildRevisionId !== afterRow?.resolvedChildRevisionId
     ) {
       entries.push({ kind: 'child_changed', lineId, lineNo, before: beforeRow, after: afterRow });
-    } else if (beforeRow?.qty !== afterRow?.qty) {
+    } else if (
+      beforeRow?.qty !== afterRow?.qty ||
+      beforeRow?.qtyFormula !== afterRow?.qtyFormula ||
+      beforeRow?.formulaGrammarVersion !== afterRow?.formulaGrammarVersion
+    ) {
       entries.push({ kind: 'qty_changed', lineId, lineNo, before: beforeRow, after: afterRow });
     }
   }

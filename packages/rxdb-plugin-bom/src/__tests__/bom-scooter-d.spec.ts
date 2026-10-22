@@ -57,26 +57,87 @@ for (const backend of BACKENDS) {
         );
         expect(result.root.batchCost).toBe(SCOOTER_GOLDEN_D.batchCost);
         expect(result.root.unitCost).toBe(SCOOTER_GOLDEN_D.unitCost);
-        // 根层子件贡献逐项（含 HOUSING 完整成本：材料 + 加工 + 制费 − 抵减）
-        const byItem = new Map(result.root.material.map(line => [line.childItemId, line.amount]));
-        expect(byItem.get(goldenItemId('SEAT'))).toBe('1');
-        expect(byItem.get(goldenItemId('PCBA'))).toBe('8.020408163265306122448979591836735');
-        expect(byItem.get(goldenItemId('WH-01'))).toBe('8.2');
-        expect(byItem.get(goldenItemId('BATT'))).toBe('11');
-        expect(byItem.get(goldenItemId('M3'))).toBe('8');
-        expect(byItem.get(goldenItemId('HOUSING'))).toBe('2.9');
+        // 虚拟线束的四条材料穿透到根层，M3 的线束用量和整机直接用量分别保留。
+        const materialRows = result.root.material.map(line => [
+          line.childItemId,
+          line.demand,
+          line.demandUom,
+          line.unitCost,
+          line.amount
+        ]);
+        expect(materialRows).toHaveLength(9);
+        expect(materialRows).toEqual(
+          expect.arrayContaining([
+            [goldenItemId('SEAT'), '1', 'pcs', '1', '1'],
+            [
+              goldenItemId('PCBA'),
+              '1',
+              'pcs',
+              '8.020408163265306122448979591836735',
+              '8.020408163265306122448979591836735'
+            ],
+            [goldenItemId('WIRE'), '1.2', 'm', '1', '1.2'],
+            [goldenItemId('TERMINAL'), '2', 'pcs', '1', '2'],
+            [goldenItemId('SHRINK'), '1', 'pcs', '1', '1'],
+            [goldenItemId('M3'), '4', 'pcs', '1', '4'],
+            [goldenItemId('BATT'), '1', 'pcs', '11', '11'],
+            [goldenItemId('M3'), '8', 'pcs', '1', '8'],
+            [goldenItemId('HOUSING'), '1', 'pcs', '2.9', '2.9']
+          ])
+        );
+        const phantomOccurrenceIds: string[] = [0, 1, 2, 3].map(index =>
+          deterministicId(`occurrence:WH-01:D:${index}`)
+        );
+        const phantomMaterials = result.root.material.filter(line => phantomOccurrenceIds.includes(line.occurrenceId));
+        expect(phantomMaterials.map(line => line.occurrenceId)).toEqual(phantomOccurrenceIds);
+        expect(decimalSum(phantomMaterials.map(line => line.amount))).toBe('8.2');
         const materialTotal = decimalSum(result.root.material.map(line => line.amount));
         expect(materialTotal).toBe(SCOOTER_GOLDEN_D.materialTotal);
+        expect(result.root.processing).toEqual([]);
+        expect(result.root.overhead).toBe('0');
+        expect(result.root.credits).toEqual([]);
+        expect(result.root.children.map(child => child.itemId)).toEqual([
+          goldenItemId('PCBA'),
+          goldenItemId('BATT'),
+          goldenItemId('HOUSING')
+        ]);
         // HOUSING 节点逐项：材料 SHEET 2 / 加工 0.5h × 2 / 制费 0.2 / 抵减 OFFCUT 0.3
         const housing = result.root.children.find(child => child.itemId === goldenItemId('HOUSING'));
         expect(housing).toBeDefined();
-        expect(decimalSum(housing!.material.map(line => line.amount))).toBe('2');
-        expect(housing!.processing).toHaveLength(1);
-        expect(housing!.processing[0].hours).toBe('0.5');
-        expect(housing!.processing[0].amount).toBe(SCOOTER_GOLDEN_D.processingTotal);
+        expect(housing!.material).toEqual([
+          expect.objectContaining({
+            childItemId: goldenItemId('SHEET'),
+            demand: '2',
+            demandUom: 'pcs',
+            unitCost: '1',
+            amount: '2'
+          })
+        ]);
+        expect(housing!.processing).toEqual([
+          {
+            operationSeq: 10,
+            setup: '0',
+            run: '0.5',
+            fixed: '0',
+            hours: '0.5',
+            timeUom: 'h',
+            rateHours: '0.5',
+            rateUom: 'h',
+            rate: '2',
+            amount: SCOOTER_GOLDEN_D.processingTotal
+          }
+        ]);
         expect(housing!.overhead).toBe(SCOOTER_GOLDEN_D.overhead);
-        expect(housing!.credits).toHaveLength(1);
-        expect(housing!.credits[0].amount).toBe(SCOOTER_GOLDEN_D.creditTotal);
+        expect(housing!.credits).toEqual([
+          expect.objectContaining({
+            childItemId: goldenItemId('OFFCUT'),
+            outQty: '0.3',
+            outUom: 'pcs',
+            creditPrice: '1',
+            amount: SCOOTER_GOLDEN_D.creditTotal
+          })
+        ]);
+        expect(housing!.batchCost).toBe('2.9');
       } finally {
         await disposeBomTestAdapter(adapter).catch(() => undefined);
       }

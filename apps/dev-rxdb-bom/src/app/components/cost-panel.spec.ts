@@ -184,6 +184,44 @@ describe('成本结果展示', () => {
     expect(root.textContent).not.toMatch(/US-\d+|AC#|十进制|kernel|half-even/);
   });
 
+  it('两条虚拟件路径穿透后的相同材料、工序和抵减保留独立行及原值展开状态', async () => {
+    const shared = node();
+    const value = result(
+      node({
+        batchCost: '306',
+        unitCost: '306',
+        material: [shared.material[0], { ...shared.material[0], demand: '2', amount: '200' }],
+        processing: [shared.processing[0], { ...shared.processing[0], hours: '2', rateHours: '2', amount: '6' }],
+        overhead: '0',
+        credits: [shared.credits[0], { ...shared.credits[0], outQty: '2', amount: '2' }]
+      })
+    );
+    const original = structuredClone(value);
+    const fixture = await mount(serviceDouble(value));
+    await fixture.componentInstance.runRollup();
+
+    const rows = fixture.componentInstance.costRows();
+    expect(rows).toHaveLength(7);
+    expect(new Set(rows.map(row => row.key)).size).toBe(rows.length);
+    await fixture.whenStable();
+    const root = element(fixture);
+    const amounts = (kind: string): (string | null)[] =>
+      Array.from(root.querySelectorAll(`.cost-row[data-kind="${kind}"] [data-amount]`)).map(amount =>
+        amount.getAttribute('data-amount')
+      );
+
+    expect(amounts('material')).toEqual(['100', '200']);
+    expect(amounts('processing')).toEqual(['3', '6']);
+    expect(amounts('credit')).toEqual(['-1', '-2']);
+    expect(text(root, 'cost-summary-total')).toBe('CNY 306.00');
+    const materialDetails = root.querySelectorAll<HTMLDetailsElement>('.cost-row[data-kind="material"] details');
+    required<HTMLElement>(materialDetails[0], 'summary').click();
+    await fixture.whenStable();
+    expect(materialDetails[0].open).toBe(true);
+    expect(materialDetails[1].open).toBe(false);
+    expect(value).toEqual(original);
+  });
+
   it.each([
     [LONG_COST, '8.02', '8.020408'],
     ['9007199254740993.125', '9,007,199,254,740,993.12', '9,007,199,254,740,993.125'],

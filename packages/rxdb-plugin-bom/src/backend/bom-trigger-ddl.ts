@@ -87,26 +87,67 @@ const OPERATION_REFERENCED = WRITE_PROTOCOL(
 /** 另一实体的表引用（按方言）。 */
 type TableOf = (Entity: EntityType) => string;
 
+export interface BomTriggerDdlOptions {
+  historyProjection: boolean;
+}
+
+const historyAffectedHeader = (table: TableOf, owner: string, batchNo: string): string => {
+  const fromBatch = (value: string): string =>
+    `EXISTS (SELECT 1 FROM ${table(BomEcn)} e WHERE e."id" = ${value} AND e."historyBatchNo" = ${batchNo})`;
+  return (
+    `(${owner}."historyBatchNo" = ${batchNo} OR EXISTS (` +
+    `SELECT 1 FROM ${table(BomLine)} affected_line LEFT JOIN ${table(BomLineOccurrence)} affected_occ` +
+    ` ON affected_occ."lineId" = affected_line."id" WHERE affected_line."headerId" = ${owner}."id" AND (` +
+    `${fromBatch('affected_line."ecnInId"')} OR ${fromBatch('affected_occ."ecnInId"')} OR ${fromBatch('affected_occ."ecnOutId"')}))` +
+    ` OR EXISTS (SELECT 1 FROM ${table(BomSubstituteGroup)} affected_group WHERE affected_group."headerId" = ${owner}."id"` +
+    ` AND ${fromBatch('affected_group."ecnInId"')}))`
+  );
+};
+
 /**
  * 头的路线可解析谓词（`NEW` 为头行；发布门与已发布头改挂路线共用）：头下的投料工序与分摊行
  * 要求头挂了路线（`unrouted` 的反）、且工序在该路线的序集内（`seqUncovered` / `splitUncovered` 的反）。
  */
 const headerRoutingViolations = (
-  table: TableOf
+  table: TableOf,
+  owner = 'NEW',
+  visible = '1 = 1'
 ): { unrouted: string; seqUncovered: string; splitUncovered: string } => {
   const occurrence = table(BomLineOccurrence);
   const line = table(BomLine);
-  const seqMembers = `SELECT 1 FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId" WHERE l."headerId" = NEW."id" AND occ."operationSeq" IS NOT NULL`;
+  const seqMembers = `SELECT 1 FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId" WHERE l."headerId" = ${owner}."id" AND (${visible}) AND occ."operationSeq" IS NOT NULL`;
   const splitMembers =
     `SELECT 1 FROM ${table(BomLineOperationSplit)} s JOIN ${occurrence} occ ON occ."id" = s."occurrenceId" JOIN ${line} l ON l."id" = occ."lineId"` +
-    ` WHERE l."headerId" = NEW."id"`;
+    ` WHERE l."headerId" = ${owner}."id" AND (${visible})`;
   const inRouting = (seq: string): string =>
-    `EXISTS (SELECT 1 FROM ${table(BomRoutingOperation)} op WHERE op."routingId" = NEW."routingId" AND op."operationSeq" = ${seq})`;
+    `EXISTS (SELECT 1 FROM ${table(BomRoutingOperation)} op WHERE op."routingId" = ${owner}."routingId" AND op."operationSeq" = ${seq})`;
   return {
-    unrouted: `NEW."routingId" IS NULL AND (EXISTS (${seqMembers}) OR EXISTS (${splitMembers}))`,
-    seqUncovered: `NEW."routingId" IS NOT NULL AND EXISTS (${seqMembers} AND NOT ${inRouting('occ."operationSeq"')})`,
-    splitUncovered: `NEW."routingId" IS NOT NULL AND EXISTS (${splitMembers} AND NOT ${inRouting('s."operationSeq"')})`
+    unrouted: `${owner}."routingId" IS NULL AND (EXISTS (${seqMembers}) OR EXISTS (${splitMembers}))`,
+    seqUncovered: `${owner}."routingId" IS NOT NULL AND EXISTS (${seqMembers} AND NOT ${inRouting('occ."operationSeq"')})`,
+    splitUncovered: `${owner}."routingId" IS NOT NULL AND EXISTS (${splitMembers} AND NOT ${inRouting('s."operationSeq"')})`
   };
+};
+
+const historyProjectionQueries = (table: TableOf, batchNo: string): string[] => {
+  const visible = (row: string): string =>
+    `(${row}."ecnInId" IS NULL OR EXISTS (SELECT 1 FROM ${table(BomEcn)} e WHERE e."id" = ${row}."ecnInId" AND e."state" = 'released'))`;
+  const routing = headerRoutingViolations(table, 'h', `${visible('occ')} AND ${visible('l')}`);
+  const affected = historyAffectedHeader(table, 'h', batchNo);
+  return [
+    `SELECT '${PUBLISH_VALIDATION('bom_header', '投料工序 / 分摊行不在路由工序序集内（挂了必须可解析）')}' AS message` +
+      ` FROM ${table(BomHeader)} h WHERE h."state" = 'released' AND ${affected}` +
+      ` AND (${routing.unrouted} OR ${routing.seqUncovered} OR ${routing.splitUncovered}) LIMIT 1`,
+    `SELECT '${PUBLISH_VALIDATION('bom_header', 'by_product 行的子件不得是头父件本身（主产物就是头父件）')}' AS message` +
+      ` FROM ${table(BomLineOccurrence)} o JOIN ${table(BomLine)} l ON l."id" = o."lineId"` +
+      ` JOIN ${table(BomHeader)} h ON h."id" = l."headerId" JOIN ${table(BomItemRevision)} r ON r."id" = h."parentRevisionId"` +
+      ` WHERE h."state" = 'released' AND ${affected} AND o."flowDirection" = 'by_product' AND o."childItemId" = r."itemId"` +
+      ` AND ${visible('o')} AND ${visible('l')} LIMIT 1`,
+    `SELECT '${PUBLISH_VALIDATION('bom_header', '替代组零成员或缺 primary')}' AS message` +
+      ` FROM ${table(BomSubstituteGroup)} g JOIN ${table(BomHeader)} h ON h."id" = g."headerId"` +
+      ` WHERE h."state" = 'released' AND ${affected} AND ${visible('g')} AND NOT EXISTS (` +
+      `SELECT 1 FROM ${table(BomLineOccurrence)} o JOIN ${table(BomLine)} l ON l."id" = o."lineId"` +
+      ` WHERE o."substituteGroupId" = g."id" AND o."substituteRole" = 'primary' AND ${visible('o')} AND ${visible('l')}) LIMIT 1`
+  ];
 };
 
 /** 发生项 / 分摊行所属的头已发布且未挂路线（`owner` 给出从行到头的连接与过滤）。 */
@@ -260,11 +301,20 @@ const sqlitePublishTransitionTrigger = (metadata: EntityMetadata): string[] => {
       `NEW.${effectiveFrom} IS NOT NULL AND NEW.${effectiveFrom} < date('now') AND NOT EXISTS (SELECT 1 FROM ${batchTable} b WHERE b."batchNo" = NEW.${historyBatchNo} AND b."state" = 'open')`
     )
   ].join('\n');
-  return sqliteTrigger(sqliteTableRef(metadata), 'item_revision_publish', 'BEFORE UPDATE', body, when);
+  return [
+    ...sqliteTrigger(sqliteTableRef(metadata), 'item_revision_publish', 'BEFORE UPDATE', body, when),
+    ...sqliteTrigger(
+      sqliteTableRef(metadata),
+      'item_revision_publish_i',
+      'BEFORE INSERT',
+      body,
+      `NEW.${state} = 'released'`
+    )
+  ];
 };
 
 /** 批次表 append-only（US-508 AC#14）：拒绝删除，UPDATE 只允许 open → closed。 */
-const sqliteHistoryBatchTriggers = (metadata: EntityMetadata): string[] => {
+const sqliteHistoryBatchTriggers = (metadata: EntityMetadata, historyProjection: boolean): string[] => {
   if (!isEntity(metadata, BomHistoryBatch)) return [];
   const tableRef = sqliteTableRef(metadata);
   const state = column(metadata, 'state');
@@ -279,10 +329,16 @@ const sqliteHistoryBatchTriggers = (metadata: EntityMetadata): string[] => {
       tableRef,
       'bom_history_batch_transition_u',
       'BEFORE UPDATE',
-      raiseWhen(
-        WRITE_PROTOCOL('bom_history_batch', '批次行不可改写，只允许 open → closed 转移'),
-        `NOT (OLD.${state} = 'open' AND NEW.${state} = 'closed')`
-      )
+      [
+        raiseWhen(
+          WRITE_PROTOCOL('bom_history_batch', '批次行不可改写，只允许 open → closed 转移'),
+          `NOT (OLD.${state} = 'open' AND NEW.${state} = 'closed')`
+        ),
+        ...(historyProjection ? sqliteEcnProjectionChecks(metadata, null, null, 'NULL', 'NEW."batchNo"') : []),
+        ...(historyProjection ? historyProjectionQueries(sqliteTableOf, 'NEW."batchNo"') : []).map(
+          query => `SELECT RAISE(ABORT, violation.message) FROM (${query}) violation;`
+        )
+      ].join('\n')
     )
   ];
 };
@@ -757,7 +813,7 @@ const sqliteDesignatorCountGuard = (metadata: EntityMetadata): string[] => {
     `CASE WHEN ${row}."qty" IS NULL OR instr(${row}."qty", '.') > 0 THEN -1 ELSE CAST(${row}."qty" AS INTEGER) END`;
   const message =
     `'${PUBLISH_VALIDATION('bom_header', '位号计数违约：')}'` +
-    ` || occ."id" || ':位号数' || ${count('occ')} || ':qty' || occ."qty"`;
+    ` || occ."id" || ':位号数' || ${count('occ')} || ':qty' || COALESCE(occ."qty", 'NULL')`;
   const sql = [
     `SELECT RAISE(ABORT, ${message})`,
     `FROM ${occurrence} occ`,
@@ -1421,19 +1477,19 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
  * 跨行聚合校验——投影成员排除未发布 ECN 引入的发生项、未发布 ECN 的截止不采信（视为 +∞）；
  * 替代组按「检查点切片」聚合（与头发布同一口径，见 {@link sqliteSubstituteSliceChecks}）；
  * 位号计数与分摊合计对目标 ECN 引入的行逐行校验；阶梯按投影成员两两相交校验。
- * 历史装载（目标 ECN 指向开启态批次）的三种转换都跳过全部投影校验——历史结构是既成事实，
- * 装载时已按当时的头发布校验通过。
+ * 历史装载的 ECN 转换暂缓投影校验，批次关闭时以空目标重验最终全时间轴投影。
  *
  * @param metadata - BomEcn 的实体元数据
- * @param target - 目标 ECN 的 id 表达式（触发器行引用）
- * @param startDate - 校验起点表达式（发布取生效日；改期取新旧生效日较小者；取消取原生效日）
+ * @param target - 目标 ECN 的 id 表达式；空值检查全部已发布成员
+ * @param startDate - 校验起点表达式；空值检查全时间轴
  * @param historyBatchNo - 目标 ECN 的批次号表达式（历史装载跳过用；运行时恒 NULL）
  */
 const sqliteEcnProjectionChecks = (
   metadata: EntityMetadata,
-  target: string,
-  startDate: string,
-  historyBatchNo: string
+  target: string | null,
+  startDate: string | null,
+  historyBatchNo: string,
+  batchNo?: string
 ): string[] => {
   const occurrence = sqliteTableOf(BomLineOccurrence);
   const line = sqliteTableOf(BomLine);
@@ -1442,6 +1498,9 @@ const sqliteEcnProjectionChecks = (
   const designator = sqliteTableOf(BomLineDesignator);
   const split = sqliteTableOf(BomLineOperationSplit);
   const batch = sqliteTableOf(BomHistoryBatch);
+  const targetId = target ?? 'NULL';
+  const inScope = (owner: string): string =>
+    batchNo === undefined ? '1 = 1' : historyAffectedHeader(sqliteTableOf, owner, batchNo);
 
   // 历史装载跳过：目标 ECN 的批次号指向开启态批次
   const historical =
@@ -1450,10 +1509,10 @@ const sqliteEcnProjectionChecks = (
     : '0';
   // 投影可见：未发布 ECN 引入的行排除；采信区间：未发布截止视为 +∞
   const visible = (alias: string): string =>
-    `(${alias}."ecnInId" IS NULL OR ${alias}."ecnInId" = ${target} OR ` +
+    `(${alias}."ecnInId" IS NULL OR ${alias}."ecnInId" = ${targetId} OR ` +
     `EXISTS (SELECT 1 FROM ${ecn} e WHERE e."id" = ${alias}."ecnInId" AND e."state" = 'released'))`;
   const trustedTo = (alias: string): string =>
-    `CASE WHEN ${alias}."ecnOutId" IS NULL OR ${alias}."ecnOutId" = ${target} OR ` +
+    `CASE WHEN ${alias}."ecnOutId" IS NULL OR ${alias}."ecnOutId" = ${targetId} OR ` +
     `EXISTS (SELECT 1 FROM ${ecn} e WHERE e."id" = ${alias}."ecnOutId" AND e."state" = 'released') ` +
     `THEN ${alias}."effectiveTo" ELSE NULL END`;
 
@@ -1462,9 +1521,16 @@ const sqliteEcnProjectionChecks = (
     `SELECT m."substituteGroupId" AS "gid", m."effectiveFrom" AS "f", ${trustedTo('m')} AS "t",` +
     ` m."substituteRole" AS "role", m."substitutePriority" AS "prio", m."usageProbability" AS "prob"` +
     ` FROM ${occurrence} m JOIN ${line} l ON l."id" = m."lineId" JOIN ${header} h ON h."id" = l."headerId"` +
-    ` WHERE h."state" = 'released' AND m."substituteGroupId" IS NOT NULL AND ${visible('m')}`;
+    ` WHERE h."state" = 'released' AND ${inScope('h')} AND m."substituteGroupId" IS NOT NULL AND ${visible('m')} AND ${visible('l')}`;
 
-  const guards: string[] = buildSqliteCoproductProjectionChecks(metadata, target, startDate, historyBatchNo);
+  const guards: string[] = buildSqliteCoproductProjectionChecks(
+    metadata,
+    targetId,
+    startDate ?? "'0001-01-01T00:00:00.000Z'",
+    historyBatchNo,
+    inScope('h')
+  );
+  const occurrenceScope = (row: string): string => (target === null ? visible(row) : `${row}."ecnInId" = ${targetId}`);
 
   // 位号计数（目标 ECN 引入的 managed 行，发布时逐行；AC#9 错误点名头与发生项）
   const designatorCount = (row: string): string =>
@@ -1473,13 +1539,13 @@ const sqliteEcnProjectionChecks = (
     `CASE WHEN ${row}."qty" IS NULL OR instr(${row}."qty", '.') > 0 THEN -1 ELSE CAST(${row}."qty" AS INTEGER) END`;
   const designatorMessage =
     `'${PUBLISH_VALIDATION('ecn', '位号计数违约：')}'` +
-    ` || occ."id" || ':位号数' || ${designatorCount('occ')} || ':qty' || occ."qty"`;
+    ` || occ."id" || ':位号数' || ${designatorCount('occ')} || ':qty' || COALESCE(occ."qty", 'NULL')`;
   guards.push(
-    `WITH occ AS (SELECT o."id", o."qty" FROM ${occurrence} o JOIN ${line} l ON l."id" = o."lineId" JOIN ${header} h ON h."id" = l."headerId" WHERE o."ecnInId" = ${target} AND h."state" = 'released')` +
-      ` SELECT RAISE(ABORT, ${designatorMessage}) FROM occ` +
-      ` WHERE NOT (${historical}) AND EXISTS (` +
-      `SELECT 1 FROM ${occurrence} o JOIN ${line} l ON l."id" = o."lineId" WHERE o."ecnInId" = ${target} AND o."designatorManaged" = true` +
-      ` AND ${designatorCount('o')} <> ${expectedQty('o')} LIMIT 1);`
+    `SELECT RAISE(ABORT, ${designatorMessage}) FROM ${occurrence} occ` +
+      ` JOIN ${line} l ON l."id" = occ."lineId" JOIN ${header} h ON h."id" = l."headerId"` +
+      ` WHERE ${occurrenceScope('occ')} AND h."state" = 'released' AND ${inScope('h')} AND ${visible('l')}` +
+      ` AND occ."designatorManaged" = true AND ${designatorCount('occ')} <> ${expectedQty('occ')}` +
+      ` AND NOT (${historical}) LIMIT 1;`
   );
 
   // 分摊合计（目标 ECN 引入的发生项，逐发生项定点合计 = 1）
@@ -1487,7 +1553,8 @@ const sqliteEcnProjectionChecks = (
   const splitMessage = `'${PUBLISH_VALIDATION('ecn', '投料分摊合计 ≠ 1：')}' || s."occurrenceId" || ':' || ${sqliteFixedText(splitTotal)}`;
   guards.push(
     `SELECT RAISE(ABORT, ${splitMessage}) FROM ${split} s JOIN ${occurrence} o ON o."id" = s."occurrenceId"` +
-      ` WHERE o."ecnInId" = ${target} AND NOT (${historical})` +
+      ` JOIN ${line} l ON l."id" = o."lineId" JOIN ${header} h ON h."id" = l."headerId"` +
+      ` WHERE ${occurrenceScope('o')} AND h."state" = 'released' AND ${inScope('h')} AND ${visible('l')} AND NOT (${historical})` +
       ` GROUP BY s."occurrenceId" HAVING ${splitTotal} <> 1000000000 LIMIT 1;`
   );
 
@@ -1499,8 +1566,8 @@ const sqliteEcnProjectionChecks = (
     `'${PUBLISH_VALIDATION('ecn', '阶梯切片重叠：')}'` +
     ` || a."tierGroupNo" || ':' || a."id" || ':' || b."id" || ':日期段与批量段同时相交'`;
   const dateOverlap = (x: string, y: string): string =>
-    `(${x}."effectiveTo" IS NULL OR ${y}."effectiveFrom" < ${x}."effectiveTo") AND ` +
-    `(${y}."effectiveTo" IS NULL OR ${x}."effectiveFrom" < ${y}."effectiveTo")`;
+    `(${trustedTo(x)} IS NULL OR ${y}."effectiveFrom" < ${trustedTo(x)}) AND ` +
+    `(${trustedTo(y)} IS NULL OR ${x}."effectiveFrom" < ${trustedTo(y)})`;
   const lotOverlap = (x: string, y: string, suffix: string): string =>
     `(${x}."${suffix}To" IS NULL OR CAST(${y}."${suffix}From" AS REAL) < CAST(${x}."${suffix}To" AS REAL)) AND ` +
     `(${y}."${suffix}To" IS NULL OR CAST(${x}."${suffix}From" AS REAL) < CAST(${y}."${suffix}To" AS REAL))`;
@@ -1509,8 +1576,9 @@ const sqliteEcnProjectionChecks = (
       ` FROM ${occurrence} a JOIN ${line} la ON la."id" = a."lineId" JOIN ${header} ha ON ha."id" = la."headerId"` +
       ` JOIN ${occurrence} b ON b."id" <> a."id" AND b."tierGroupNo" = a."tierGroupNo"` +
       ` JOIN ${line} lb ON lb."id" = b."lineId" JOIN ${header} hb ON hb."id" = lb."headerId"` +
-      ` WHERE ha."id" = hb."id" AND ha."state" = 'released' AND a."tierGroupNo" IS NOT NULL` +
-      ` AND ${visible('a')} AND ${visible('b')} AND ${dateOverlap('a', 'b')} AND ${lotOverlap('a', 'b', 'lotsize')}` +
+      ` WHERE ha."id" = hb."id" AND ha."state" = 'released' AND ${inScope('ha')} AND a."tierGroupNo" IS NOT NULL` +
+      ` AND ${visible('a')} AND ${visible('b')} AND ${visible('la')} AND ${visible('lb')}` +
+      ` AND ${dateOverlap('a', 'b')} AND ${lotOverlap('a', 'b', 'lotsize')}` +
       ` AND NOT (${historical}) LIMIT 1;`
   );
 
@@ -1540,7 +1608,10 @@ const sqliteMapNullRuleTriggers = (metadata: EntityMetadata): string[] => {
 
 /** 实体全部 SQLite 触发器 DDL（单条语句数组）。 */
 
-export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => [
+export const buildSqliteBomTriggerDdl = (
+  metadata: EntityMetadata,
+  options: BomTriggerDdlOptions = { historyProjection: true }
+): string[] => [
   ...buildSqliteCoproductDdl(metadata),
   ...buildSqliteInstanceNodeDdl(metadata),
   ...buildSqliteInstanceSourceDdl(metadata),
@@ -1550,7 +1621,7 @@ export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => 
   ...sqliteStructuralTrigger(metadata),
   ...sqlitePublishedRevisionTrigger(metadata),
   ...sqlitePublishTransitionTrigger(metadata),
-  ...sqliteHistoryBatchTriggers(metadata),
+  ...sqliteHistoryBatchTriggers(metadata, options.historyProjection),
   ...sqliteEcnStateMachineTriggers(metadata),
   ...sqliteReleasedHeaderMembersGuard(metadata),
   ...sqliteEcnOccurrenceGuards(metadata),
@@ -1621,7 +1692,7 @@ const pgPublishTransitionFunction = (metadata: EntityMetadata): string[] => {
   const historyBatchNo = column(metadata, 'historyBatchNo');
   const batchTable = pgTableOf(BomHistoryBatch);
   const body =
-    `  IF OLD.${state} = 'draft' AND NEW.${state} = 'released' THEN\n` +
+    `  IF NEW.${state} = 'released' AND (TG_OP = 'INSERT' OR OLD.${state} = 'draft') THEN\n` +
     `    IF NEW.${effectiveFrom} IS NULL THEN\n` +
     `      RAISE EXCEPTION '${PUBLISH_VALIDATION('item_revision', '发布要求 effective_from 非空')}';\n` +
     `    END IF;\n` +
@@ -1633,11 +1704,17 @@ const pgPublishTransitionFunction = (metadata: EntityMetadata): string[] => {
   const tableRef = pgTableRef(metadata);
   return [
     pgTriggerFunction(metadata, 'item_revision__publish_guard', body),
-    pgCreateTrigger(metadata, tableRef, 'item_revision__publish_trg', 'BEFORE UPDATE', 'item_revision__publish_guard')
+    pgCreateTrigger(
+      metadata,
+      tableRef,
+      'item_revision__publish_trg',
+      'BEFORE INSERT OR UPDATE',
+      'item_revision__publish_guard'
+    )
   ];
 };
 
-const pgHistoryBatchFunction = (metadata: EntityMetadata): string[] => {
+const pgHistoryBatchFunction = (metadata: EntityMetadata, historyProjection: boolean): string[] => {
   if (!isEntity(metadata, BomHistoryBatch)) return [];
   const state = column(metadata, 'state');
   const body =
@@ -1646,7 +1723,10 @@ const pgHistoryBatchFunction = (metadata: EntityMetadata): string[] => {
     `  END IF;\n` +
     `  IF TG_OP = 'UPDATE' AND NOT (OLD.${state} = 'open' AND NEW.${state} = 'closed') THEN\n` +
     `    RAISE EXCEPTION '${WRITE_PROTOCOL('bom_history_batch', '批次行不可改写，只允许 open → closed 转移')}';\n` +
-    `  END IF;`;
+    `  END IF;\n` +
+    (historyProjection ? pgEcnProjectionChecks(metadata, null, null, 'NULL', 'NEW."batchNo"') : []).join('\n') +
+    '\n' +
+    (historyProjection ? historyProjectionQueries(pgTableOf, 'NEW."batchNo"') : []).map(pgRaiseBlock).join('\n');
   const tableRef = pgTableRef(metadata);
   return [
     pgTriggerFunction(metadata, 'bom_history_batch__append_guard', body),
@@ -1864,6 +1944,9 @@ const pgEcnStateMachineFunction = (metadata: EntityMetadata): string[] => {
   const batch = pgTableOf(BomHistoryBatch);
   const ecn = tableRef;
   const body = [
+    `  IF NEW."ecnNo" IS DISTINCT FROM OLD."ecnNo" THEN`,
+    `    RAISE EXCEPTION '${WRITE_PROTOCOL('ecn', 'ecnNo 创建后不可改（结构归属列）')}';`,
+    `  END IF;`,
     `  IF OLD."state" = 'draft' AND NEW."state" = 'released' THEN`,
     `    IF NEW."effectiveDate"::date < (now() AT TIME ZONE 'UTC')::date AND NOT EXISTS (` +
       `SELECT 1 FROM ${batch} b WHERE b."batchNo" = NEW."historyBatchNo" AND b."state" = 'open') THEN`,
@@ -1950,9 +2033,6 @@ const pgEcnStateMachineFunction = (metadata: EntityMetadata): string[] => {
     `  IF OLD."state" = 'released' AND NEW."state" = 'released' AND OLD."effectiveDate" = NEW."effectiveDate" AND (` +
       `NEW."reason" IS DISTINCT FROM OLD."reason" OR NEW."historyBatchNo" IS DISTINCT FROM OLD."historyBatchNo") THEN`,
     `    RAISE EXCEPTION '${WRITE_PROTOCOL('ecn', '已发布 ECN 除改期与取消外不可改写')}';`,
-    `  END IF;`,
-    `  IF NEW."ecnNo" IS DISTINCT FROM OLD."ecnNo" THEN`,
-    `    RAISE EXCEPTION '${WRITE_PROTOCOL('ecn', 'ecnNo 创建后不可改（结构归属列）')}';`,
     `  END IF;`
   ].join('\n');
   return [
@@ -1969,7 +2049,7 @@ const pgFixedText = (total: string): string =>
 
 /** 一个校验一个 DECLARE 块：`SELECT ... INTO msg` 命中即 `RAISE EXCEPTION '%', msg`。 */
 const pgRaiseBlock = (violation: string): string =>
-  `    DECLARE msg text;\n    BEGIN\n      ${violation} INTO msg;\n      IF msg IS NOT NULL THEN\n        RAISE EXCEPTION '%', msg;\n      END IF;\n    END;`;
+  `    DECLARE msg text;\n    BEGIN\n      ${violation} INTO msg;\n      IF FOUND THEN\n        RAISE EXCEPTION '%', msg;\n      END IF;\n    END;`;
 
 const PG_SLICE: SliceDialect = {
   name: column => column,
@@ -2011,15 +2091,16 @@ const pgSubstituteSliceChecks = (
  * 转换后运行投影校验（PG 侧，与 SQLite 同口径的检查点切片聚合）。
  *
  * @param metadata - BomEcn 的实体元数据
- * @param target - 目标 ECN 行引用（`OLD` / `NEW`）
- * @param startDate - 校验起点表达式
+ * @param target - 目标 ECN 行引用（`OLD` / `NEW`）；空值检查全部已发布成员
+ * @param startDate - 校验起点表达式；空值检查全时间轴
  * @param historyBatchNo - 目标 ECN 的批次号表达式（历史装载跳过；运行时恒 `NULL`）
  */
 const pgEcnProjectionChecks = (
   metadata: EntityMetadata,
-  target: string,
-  startDate: string,
-  historyBatchNo: string
+  target: string | null,
+  startDate: string | null,
+  historyBatchNo: string,
+  batchNo?: string
 ): string[] => {
   const occurrence = pgTableOf(BomLineOccurrence);
   const line = pgTableOf(BomLine);
@@ -2028,16 +2109,19 @@ const pgEcnProjectionChecks = (
   const designator = pgTableOf(BomLineDesignator);
   const split = pgTableOf(BomLineOperationSplit);
   const batch = pgTableOf(BomHistoryBatch);
+  const targetId = target === null ? 'NULL' : `${target}."id"`;
+  const inScope = (owner: string): string =>
+    batchNo === undefined ? '1 = 1' : historyAffectedHeader(pgTableOf, owner, batchNo);
 
   const historical =
     historyBatchNo !== 'NULL' ?
       `EXISTS (SELECT 1 FROM ${batch} b WHERE b."batchNo" = ${historyBatchNo} AND b."state" = 'open')`
     : 'FALSE';
   const visible = (alias: string): string =>
-    `(${alias}."ecnInId" IS NULL OR ${alias}."ecnInId" = ${target}."id" OR ` +
+    `(${alias}."ecnInId" IS NULL OR ${alias}."ecnInId" = ${targetId} OR ` +
     `EXISTS (SELECT 1 FROM ${ecn} e WHERE e."id" = ${alias}."ecnInId" AND e."state" = 'released'))`;
   const trustedTo = (alias: string): string =>
-    `CASE WHEN ${alias}."ecnOutId" IS NULL OR ${alias}."ecnOutId" = ${target}."id" OR ` +
+    `CASE WHEN ${alias}."ecnOutId" IS NULL OR ${alias}."ecnOutId" = ${targetId} OR ` +
     `EXISTS (SELECT 1 FROM ${ecn} e WHERE e."id" = ${alias}."ecnOutId" AND e."state" = 'released') ` +
     `THEN ${alias}."effectiveTo" ELSE NULL END`;
   // 替代组成员（投影 + 采信区间 + 已发布头）
@@ -2045,18 +2129,25 @@ const pgEcnProjectionChecks = (
     `SELECT m."substituteGroupId" AS gid, m."effectiveFrom" AS f, ${trustedTo('m')} AS t,` +
     ` m."substituteRole" AS role, m."substitutePriority" AS prio, m."usageProbability" AS prob` +
     ` FROM ${occurrence} m JOIN ${line} l ON l."id" = m."lineId" JOIN ${header} h ON h."id" = l."headerId"` +
-    ` WHERE h."state" = 'released' AND m."substituteGroupId" IS NOT NULL AND ${visible('m')}`;
+    ` WHERE h."state" = 'released' AND ${inScope('h')} AND m."substituteGroupId" IS NOT NULL AND ${visible('m')} AND ${visible('l')}`;
 
-  const checks: string[] = buildPgCoproductProjectionChecks(metadata, target, startDate, historyBatchNo);
+  const checks: string[] = buildPgCoproductProjectionChecks(
+    metadata,
+    target,
+    startDate ?? "'0001-01-01T00:00:00.000Z'",
+    historyBatchNo,
+    inScope('h')
+  );
+  const occurrenceScope = (row: string): string => (target === null ? visible(row) : `${row}."ecnInId" = ${targetId}`);
 
   // 位号计数（目标 ECN 引入的 managed 行）
   checks.push(
     `    IF NOT (${historical}) THEN`,
     pgRaiseBlock(
       `SELECT '${PUBLISH_VALIDATION('ecn', '位号计数违约：')}' || occ."id" || ':位号数' || ` +
-        `(SELECT COUNT(*) FROM ${designator} d WHERE d."occurrenceId" = occ."id") || ':qty' || occ."qty"` +
-        ` FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId"` +
-        ` WHERE occ."ecnInId" = ${target}."id" AND occ."designatorManaged" = true` +
+        `(SELECT COUNT(*) FROM ${designator} d WHERE d."occurrenceId" = occ."id") || ':qty' || COALESCE(occ."qty", 'NULL')` +
+        ` FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId" JOIN ${header} h ON h."id" = l."headerId"` +
+        ` WHERE ${occurrenceScope('occ')} AND h."state" = 'released' AND ${inScope('h')} AND ${visible('l')} AND occ."designatorManaged" = true` +
         ` AND (SELECT COUNT(*) FROM ${designator} d WHERE d."occurrenceId" = occ."id") <> ` +
         `CASE WHEN occ."qty" IS NULL OR strpos(occ."qty", '.') > 0 THEN -1 ELSE occ."qty"::integer END LIMIT 1`
     ),
@@ -2070,7 +2161,8 @@ const pgEcnProjectionChecks = (
     pgRaiseBlock(
       `SELECT '${PUBLISH_VALIDATION('ecn', '投料分摊合计 ≠ 1：')}' || s."occurrenceId" || ':' || ${pgFixedText(splitTotal)}` +
         ` FROM ${split} s JOIN ${occurrence} o ON o."id" = s."occurrenceId"` +
-        ` WHERE o."ecnInId" = ${target}."id"` +
+        ` JOIN ${line} l ON l."id" = o."lineId" JOIN ${header} h ON h."id" = l."headerId"` +
+        ` WHERE ${occurrenceScope('o')} AND h."state" = 'released' AND ${inScope('h')} AND ${visible('l')}` +
         ` GROUP BY s."occurrenceId" HAVING ${splitTotal} <> 1000000000 LIMIT 1`
     ),
     `    END IF;`
@@ -2087,9 +2179,10 @@ const pgEcnProjectionChecks = (
         ` FROM ${occurrence} a JOIN ${line} la ON la."id" = a."lineId" JOIN ${header} ha ON ha."id" = la."headerId"` +
         ` JOIN ${occurrence} b ON b."id" <> a."id" AND b."tierGroupNo" = a."tierGroupNo"` +
         ` JOIN ${line} lb ON lb."id" = b."lineId" JOIN ${header} hb ON hb."id" = lb."headerId"` +
-        ` WHERE ha."id" = hb."id" AND ha."state" = 'released' AND a."tierGroupNo" IS NOT NULL` +
-        ` AND ${visible('a')} AND ${visible('b')}` +
-        ` AND (a."effectiveTo" IS NULL OR b."effectiveFrom" < a."effectiveTo") AND (b."effectiveTo" IS NULL OR a."effectiveFrom" < b."effectiveTo")` +
+        ` WHERE ha."id" = hb."id" AND ha."state" = 'released' AND ${inScope('ha')} AND a."tierGroupNo" IS NOT NULL` +
+        ` AND ${visible('a')} AND ${visible('b')} AND ${visible('la')} AND ${visible('lb')}` +
+        ` AND (${trustedTo('a')} IS NULL OR b."effectiveFrom" < ${trustedTo('a')})` +
+        ` AND (${trustedTo('b')} IS NULL OR a."effectiveFrom" < ${trustedTo('b')})` +
         ` AND (a."lotsizeTo" IS NULL OR b."lotsizeFrom"::numeric < a."lotsizeTo"::numeric) AND (b."lotsizeTo" IS NULL OR a."lotsizeFrom"::numeric < b."lotsizeTo"::numeric)` +
         ` LIMIT 1`
     ),
@@ -2250,7 +2343,7 @@ const pgDesignatorCountFunction = (metadata: EntityMetadata): string[] => {
   const count = `(SELECT COUNT(*) FROM ${designator} d WHERE d."occurrenceId" = occ."id")`;
   const expected = `CASE WHEN occ."qty" IS NULL OR strpos(occ."qty", '.') > 0 THEN -1 ELSE occ."qty"::integer END`;
   const violation =
-    `SELECT '${PUBLISH_VALIDATION('bom_header', '位号计数违约：')}' || occ."id" || ':位号数' || ${count} || ':qty' || occ."qty"` +
+    `SELECT '${PUBLISH_VALIDATION('bom_header', '位号计数违约：')}' || occ."id" || ':位号数' || ${count} || ':qty' || COALESCE(occ."qty", 'NULL')` +
     ` FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId"` +
     ` WHERE l."headerId" = NEW."id" AND occ."designatorManaged" = true` +
     ` AND ${count} <> ${expected} LIMIT 1`;
@@ -2258,7 +2351,7 @@ const pgDesignatorCountFunction = (metadata: EntityMetadata): string[] => {
     `  IF OLD."state" = 'draft' AND NEW."state" = 'released' THEN\n` +
     `    DECLARE violation text;\n    BEGIN\n` +
     `      ${violation} INTO violation;\n` +
-    `      IF violation IS NOT NULL THEN\n        RAISE EXCEPTION '%', violation;\n      END IF;\n` +
+    `      IF FOUND THEN\n        RAISE EXCEPTION '%', violation;\n      END IF;\n` +
     `    END;\n  END IF;`;
   return [
     pgTriggerFunction(metadata, 'bom_header__designator_publish_guard', body),
@@ -2587,7 +2680,10 @@ const pgMapNullRuleFunction = (metadata: EntityMetadata): string[] => {
 
 /** 实体全部 PGlite 触发器 DDL（单条语句数组）。 */
 
-export const buildPgBomTriggerDdl = (metadata: EntityMetadata): string[] => [
+export const buildPgBomTriggerDdl = (
+  metadata: EntityMetadata,
+  options: BomTriggerDdlOptions = { historyProjection: true }
+): string[] => [
   ...buildPgCoproductDdl(metadata),
   ...buildPgInstanceNodeDdl(metadata),
   ...buildPgInstanceSourceDdl(metadata),
@@ -2595,7 +2691,7 @@ export const buildPgBomTriggerDdl = (metadata: EntityMetadata): string[] => [
   ...pgStructuralFunction(metadata),
   ...pgPublishedRevisionFunction(metadata),
   ...pgPublishTransitionFunction(metadata),
-  ...pgHistoryBatchFunction(metadata),
+  ...pgHistoryBatchFunction(metadata, options.historyProjection),
   ...pgEcnStateMachineFunction(metadata),
   ...pgEcnOccurrenceFunction(metadata),
   ...pgReleasedHeaderMembersFunction(metadata),

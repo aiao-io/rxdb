@@ -49,10 +49,12 @@ import {
   computeOutputQuantity,
   scrap,
   selectTierRows,
+  substitutePrimaryOf,
   type LayerNetResult,
   type LayerRoutingOp,
   type SubstituteMember
 } from './layer.js';
+import { normalizePlannedQuantity } from './planned-quantity.js';
 import { findMissingOperation, routingUncoveredReason } from './routing-effectivity.js';
 import { appliedUomRate, convertUom, splitHopRates, type HopConversionRates } from './uom.js';
 
@@ -752,7 +754,7 @@ const emitRequirement = async (
       planned: { value: decimalToCanonical(node.plannedQty), uom: node.baseUom },
       assemblyScrapped: { value: decimalToCanonical(plannedPrime), uom: node.baseUom },
       gross: { value: decimalToCanonical(values.gross), uom: row.occurrenceUom },
-      componentScrapped: { value: decimalToCanonical(values.layerNet.net), uom: row.occurrenceUom },
+      componentScrapped: { value: decimalToCanonical(values.layerNet.afterComponent), uom: row.occurrenceUom },
       operationScrapped:
         values.layerNet.hasOperation ?
           { value: decimalToCanonical(values.layerNet.net), uom: row.occurrenceUom }
@@ -871,8 +873,7 @@ const emitSubstituteGroup = async (
   layer: NodeLayer,
   members: readonly ExplosionRow[]
 ): Promise<TruncationReason | null> => {
-  const primary = members.find(member => member.substituteRole === 'primary');
-  if (!primary) return null; // 发布转移已校验恰好一个 primary
+  const primary = substitutePrimaryOf(members);
   const allocated = allocateGroupShares(run, layer, members, primary);
   if (allocated.unresolved) {
     run.unresolvedGroups.push({
@@ -982,6 +983,7 @@ export const explodeBom = async (
   }
   const dialect = bomSqlDialectFor(adapter.name);
   const budget = { ...DEFAULT_EXPANSION_BUDGETS, ...options.budgets };
+  const planned = normalizePlannedQuantity(options.plannedQty);
 
   return adapter.transaction(async executor => {
     const query = (executor as unknown as BomQueryExecutor).query.bind(executor);
@@ -1006,7 +1008,7 @@ export const explodeBom = async (
       expansions: 0
     };
     // 2. 根节点：plannedQty 归一到根头基准单位，再 BFS 七步
-    const rootPlanned = convertUom(options.plannedQty.value, options.plannedQty.uom, root.baseUom);
+    const rootPlanned = convertUom(planned.value, planned.uom, root.baseUom);
     recordConversion(run, options.plannedQty.uom, root.baseUom, null);
     run.nodes.push({
       path: [],

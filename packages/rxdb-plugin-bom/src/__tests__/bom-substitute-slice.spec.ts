@@ -3,11 +3,13 @@
  *
  * 头发布与 ECN 投影两道门对替代组聚合约束用同一口径：检查点 = 成员区间端点，每个非空原子切片
  * 恰好一个 primary、priority 不并列、proportional 定点合计恒 1（NULL 概率按 0 计、`1` 按 10⁹ 计）；
- * 历史装载（目标 ECN 属开启态批次）的发布与取消同样跳过投影校验。双后端同断言。
+ * 历史装载（目标 ECN 属开启态批次）的发布与取消在转换期间暂缓投影校验，批次关闭时校验本批受影响头。
+ * 无关既有头的不完整投影不阻止合法批次关闭。双后端同断言。
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BomEcn, BomHeader, BomItem, BomLine, BomLineOccurrence, BomSubstituteGroup } from '../entities.js';
+import { bomSqlDialectFor } from '../resolve/bom-sql.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { BomPublishValidationError } from '../types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
@@ -227,7 +229,7 @@ for (const backend of BACKENDS) {
     describe('历史装载的投影豁免', () => {
       isolatedDatabase();
 
-      it('历史装载的取消 ECN 与发布同样跳过投影校验；运行时取消不豁免', async () => {
+      it('无关既有非法投影不阻止历史发布和取消批次关闭，运行时转换仍校验', async () => {
         // 投影与头发布的可见集合不同：草稿 ECN 引入的成员计入头发布、不计入运行投影——
         // 头发布合计 1 通过，运行投影只剩 0.5，任何非豁免的 ECN 转换都会撞上这处投影违约
         const pending = await makeEcn('s-pending', '2026-01-01');
@@ -243,18 +245,23 @@ for (const backend of BACKENDS) {
         const rejected = await settled(runtime.save());
         expect(rejected).toBeInstanceOf(BomPublishValidationError);
 
+        const batchNo = `batch-${Math.random().toString(36).slice(2, 10)}`;
+        const releasedId = crypto.randomUUID();
+        const cancelledId = crypto.randomUUID();
         await expect(
           loadHistory(adapter, {
-            batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
+            batchNo,
             revisions: [],
             headers: [],
             ecns: [
               {
+                id: releasedId,
                 ecnNo: `h-rel-${Math.random().toString(36).slice(2, 8)}`,
                 state: 'released',
                 effectiveDate: day('2099-02-01')
               },
               {
+                id: cancelledId,
                 ecnNo: `h-can-${Math.random().toString(36).slice(2, 8)}`,
                 state: 'cancelled',
                 effectiveDate: day('2099-03-01')
@@ -262,6 +269,25 @@ for (const backend of BACKENDS) {
             ]
           })
         ).resolves.toBeUndefined();
+        const dialect = bomSqlDialectFor(backend);
+        const storedEcns = await adapter.rawQuery(
+          `SELECT "id", "state", "historyBatchNo" FROM ${dialect.table('ecn')} WHERE "id" IN (${dialect.placeholder(0)}, ${dialect.placeholder(1)}) ORDER BY "state"`,
+          [releasedId, cancelledId]
+        );
+        expect(storedEcns.rows).toEqual([
+          [cancelledId, 'cancelled', batchNo],
+          [releasedId, 'released', batchNo]
+        ]);
+        const batch = await adapter.rawQuery(
+          `SELECT "state" FROM ${dialect.table('bom_history_batch')} WHERE "batchNo" = ${dialect.placeholder(0)}`,
+          [batchNo]
+        );
+        expect(batch.rows).toEqual([['closed']]);
+        const pendingState = await adapter.rawQuery(
+          `SELECT "state", "historyBatchNo" FROM ${dialect.table('ecn')} WHERE "id" = ${dialect.placeholder(0)}`,
+          [pending.id]
+        );
+        expect(pendingState.rows).toEqual([['draft', null]]);
       });
     });
   });
