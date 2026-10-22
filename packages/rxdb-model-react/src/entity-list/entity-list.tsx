@@ -50,7 +50,7 @@ import {
 import { useInfiniteScroll, useRxDB, type InfiniteScrollResource } from '@aiao/rxdb-react';
 import type { ListTableConstructorOptions } from '@visactor/vtable';
 import type { ColumnDefine } from '@visactor/vtable/es/ts-types/index.js';
-import { Funnel, Redo2, Undo2 } from 'lucide-react';
+import { Funnel, Redo2, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { of } from 'rxjs';
 import { Dialog } from '../dialog/dialog';
@@ -984,6 +984,18 @@ export function EntityList({
             onReset={resetFilter}
             onApply={applyFilter}
           />
+          {/* 快捷清除筛选：有筛选时工具栏一键还原 */}
+          {isQueryActive && !isSelectMode && (
+            <button
+              className='btn btn-ghost btn-sm gap-1'
+              onClick={resetFilter}
+              data-testid='clear-filter'
+              type='button'
+            >
+              <X className='h-3.5 w-3.5' size={14} />
+              清除筛选
+            </button>
+          )}
           {!isCreateBlocked &&
             (isSelectMode ?
               <button className='btn btn-sm btn-outline' onClick={openCreateDialog} type='button'>
@@ -1026,6 +1038,14 @@ export function EntityList({
             rowDragEnabled={rowDragEnabled}
             onRowMoved={onRowMoved}
             onSortClicked={onSortClicked}
+            emptyState={
+              <div className='flex flex-col items-center gap-1 py-10' data-testid='entity-empty-state'>
+                <span className='text-base-content/40 text-sm'>暂无数据</span>
+                {!isSelectMode && !isCreateBlocked && (
+                  <span className='text-base-content/40 text-sm'>点击「+ 新增」开始录入第一条{displayName}</span>
+                )}
+              </div>
+            }
           />
         )}
       </div>

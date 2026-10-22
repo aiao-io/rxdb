@@ -30,9 +30,10 @@ test.describe('模型驱动数据工作台', () => {
     await page.waitForURL('**/entities/assets/AssetCategory');
   });
 
-  test('AC#3 空列表显示空态', async ({ page }) => {
+  test('AC#3 空列表显示空态与录入引导', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     await expectListEmpty(page);
+    await expect(page.getByTestId('entity-empty-state')).toContainText('点击「+ 新增」开始录入第一条资产分类');
   });
 
   test('AC#4 缺少必填字段提交给出可读校验反馈，数据不入库', async ({ page }) => {
@@ -78,7 +79,7 @@ test.describe('模型驱动数据工作台', () => {
     await page.mouse.click(del.x, del.y);
     await expect(page.getByTestId('delete-confirm-submit')).toBeVisible();
     await page.getByTestId('delete-confirm-submit').click();
-    await expect(page.getByText('暂无数据')).toBeVisible();
+    await expectListEmpty(page);
   });
 
   test('维护记录：日期选择器与必填关联校验（评审反馈回归）', async ({ page }) => {
@@ -152,6 +153,11 @@ test.describe('模型驱动数据工作台', () => {
     await rule.locator('input[placeholder="输入值"]').fill('办公');
     await page.getByRole('button', { name: '确定' }).click();
     await expectFilteredCount(page, 1);
+
+    // 快捷清除筛选：工具栏一键还原
+    await page.getByTestId('clear-filter').click();
+    await expectListHasRows(page);
+    await expect(page.getByText('2 条记录')).toHaveCount(0);
   });
 
   test('AC#7 刷新与关闭重开浏览器标签后数据仍在', async ({ page }) => {

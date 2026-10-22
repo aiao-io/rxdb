@@ -2,7 +2,14 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createAsset, createCategory, expectActionIcon, expectListHasRows, resetE2eState } from './e2e-utils.js';
+import {
+  createAsset,
+  createCategory,
+  expectActionIcon,
+  expectListEmpty,
+  expectListHasRows,
+  resetE2eState
+} from './e2e-utils.js';
 
 /**
  * US-527 备份恢复闭环：备份产出可下载归档；独立环境（全新 browser context =
@@ -89,7 +96,7 @@ test.describe('工作台备份与恢复', () => {
       await expect(fresh.getByTestId('restore-result')).toContainText('归档文件损坏');
       // 失败后工作台仍可用：实体列表照常打开（空库保持空态）
       await fresh.goto('/entities/assets/AssetCategory');
-      await expect(fresh.getByText('暂无数据')).toBeVisible();
+      await expectListEmpty(fresh);
     } finally {
       await context.close();
     }

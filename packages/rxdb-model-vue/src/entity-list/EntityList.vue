@@ -44,7 +44,7 @@ import {
 } from '@aiao/rxdb-model';
 import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import { useInfiniteScroll, useRxDB, type InfiniteScrollResource } from '@aiao/rxdb-vue';
-import { Funnel as FunnelIcon, Redo2 as Redo2Icon, Undo2 as Undo2Icon } from '@lucide/vue';
+import { Funnel as FunnelIcon, Redo2 as Redo2Icon, Undo2 as Undo2Icon, X as XIcon } from '@lucide/vue';
 import type { ColumnsDefine, ListTableConstructorOptions } from '@visactor/vtable';
 import { of, type Observable } from 'rxjs';
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch, watchEffect } from 'vue';
@@ -1058,6 +1058,20 @@ defineExpose({
             >{{ filterQuery.rules.length }}</span
           >
         </button>
+        <!-- 快捷清除筛选：有筛选时工具栏一键还原 -->
+        <button
+          v-if="isQueryActive && !isSelectMode"
+          class="btn btn-ghost btn-sm gap-1"
+          data-testid="clear-filter"
+          type="button"
+          @click="resetFilter"
+        >
+          <XIcon
+            class="h-3.5 w-3.5"
+            :size="14"
+          />
+          清除筛选
+        </button>
         <button
           v-if="!isCreateBlocked && isSelectMode"
           class="btn btn-sm btn-outline"
@@ -1159,7 +1173,22 @@ defineExpose({
         @row-deleted="onRowDeleted"
         @row-moved="onRowMoved"
         @sort-clicked="onSortClicked"
-      />
+      >
+        <template #emptyState>
+          <div
+            class="flex flex-col items-center gap-1 py-10"
+            data-testid="entity-empty-state"
+          >
+            <span class="text-base-content/40 text-sm">暂无数据</span>
+            <span
+              v-if="!isSelectMode && !isCreateBlocked"
+              class="text-base-content/40 text-sm"
+            >
+              点击「+ 新增」开始录入第一条{{ displayName }}
+            </span>
+          </div>
+        </template>
+      </QueryTable>
     </div>
 
     <!-- Select mode footer -->

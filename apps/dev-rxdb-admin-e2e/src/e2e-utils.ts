@@ -120,14 +120,14 @@ export async function createAsset(page: Page, name: string, category: string): P
   await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
 }
 
-/** 空列表：空态文案可见。 */
+/** 空列表：空态容器可见（内含「暂无数据」与录入引导；组件的默认空态经 CSS 隐藏但仍占 DOM）。 */
 export async function expectListEmpty(page: Page): Promise<void> {
-  await expect(page.getByText('暂无数据')).toBeVisible();
+  await expect(page.getByTestId('entity-empty-state')).toBeVisible();
 }
 
-/** 列表有数据：空态文案消失（计数徽标只在有筛选时渲染，行本身在 canvas 上不可 DOM 定位）。 */
+/** 列表有数据：空态容器消失（计数徽标只在有筛选时渲染，行本身在 canvas 上不可 DOM 定位）。 */
 export async function expectListHasRows(page: Page): Promise<void> {
-  await expect(page.getByText('暂无数据')).toHaveCount(0);
+  await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
 }
 
 /** 应用筛选后的计数徽标文案（如「1 条记录」）。 */
