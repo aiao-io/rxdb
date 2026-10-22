@@ -28,6 +28,7 @@ import {
 import {
   branch_tip_point,
   compute_branch_transition_actions,
+  get_switch_version_actions,
   type BranchPoint,
   type SwitchBranchActionReaders
 } from './switch-branch-actions.js';
@@ -123,7 +124,7 @@ export interface MergePreviewEntry {
 /** `VersionManager.previewMerge()` 的选项。 */
 export interface MergePreviewOptions {
   /**
-   * 按哪种策略预览；只影响 {@link MergePreview.merged}，条目恒为净效果
+   * 按哪种策略预览；逐条合并保留会删除目标现存实体的源分支幽灵操作
    *
    * @defaultValue `'squash'`
    */
@@ -148,7 +149,8 @@ export interface MergePreview {
    * 合并会落的实体，按 `namespace:entity:entityId` 排序
    *
    * @remarks
-   * 两种策略落库后的终态相同，所以条目恒为净效果；逐条合并只是多记几条变更。
+   * 逐条策略按实体汇总最终操作。源分支先建后删、目标当前也不存在的实体不列条目；
+   * 目标独立创建了同主键实体时保留删除，因为合并确实会删掉它。
    */
   readonly entries: readonly MergePreviewEntry[];
 }
@@ -408,8 +410,8 @@ const mergeBasePoint = (branches: readonly RxDBBranch[], source: BranchPoint, ta
  * @throws {@link RxDBError} 合并进自己、或任一分支不存在时，与 `mergeBranch()` 同一句报错
  *
  * @remarks
- * 源分支的改动与合并取法相同（{@link find_source_changes}）、按同一份逻辑压缩（{@link squash_source_changes}），
- * 条目因此就是合并真正落的操作。
+ * 源分支的改动与合并取法相同（{@link find_source_changes}）。压缩策略复用 {@link squash_source_changes}；
+ * 逐条策略保留最终删除，仅在目标当前也不存在时滤掉幽灵条目，实际重放的变更仍全部计入 `merged`。
  *
  * 基准是源 tip 与目标 tip 的最近公共祖先点（merge base）：目标「分叉以来的改动」是基准到目标 tip 的增量，
  * 基准上的值取源 tip 到基准的增量（这一段没碰过的实体，基准上的值就是源 tip 上的值）。不取源分支自己的分叉点：
@@ -435,7 +437,8 @@ export const preview_merge = async (
   const source = branchOf(branches, sourceBranchId);
   const targetBranch = branchOf(branches, targetBranchId);
   const sourceChanges = await find_source_changes(readers.changeRepository, source);
-  const incoming = squash_source_changes(sourceChanges);
+  const squashed = squash_source_changes(sourceChanges);
+  const incoming = strategy === 'normal' ? get_switch_version_actions(sourceChanges, true) : squashed;
   const netCount = incoming.inserts.size + incoming.updates.size + incoming.deletes.size;
   const merged = strategy === 'normal' ? sourceChanges.length : netCount;
   if (netCount === 0) return { sourceBranchId, targetBranchId, strategy, merged, entries: [] };
@@ -448,6 +451,9 @@ export const preview_merge = async (
     base: await compute_branch_transition_actions(readers.changeRepository, branches, sourceTip, mergeBase),
     target: await compute_branch_transition_actions(readers.changeRepository, branches, mergeBase, targetTip)
   };
-  const entries = touchedKeys(incoming).map(key => previewEntry(sides, key));
+  const entries = touchedKeys(incoming).flatMap(key => {
+    const entry = previewEntry(sides, key);
+    return entry.operation === 'DELETE' && entry.inversePatch === null && !squashed.deletes.has(key) ? [] : [entry];
+  });
   return { sourceBranchId, targetBranchId, strategy, merged, entries };
 };

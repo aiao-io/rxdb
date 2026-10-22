@@ -9,13 +9,34 @@
  * PGlite 用 schema 分套，表名不变：
  * - **主表集**（{@link WorktreeTableSet.MAIN}）：schema 就是命名空间，与引入检出位之前逐字相同，存量库零迁移。
  * - **影子表集**：有副本的实体落 schema `<命名空间>$<后缀>`；没有副本的实体（系统表、QueryCache、
- *   关掉变更日志的实体）照旧落命名空间本身。
+ *   关掉变更日志的实体）照旧落命名空间本身；超长的影子 schema 只压缩命名空间、保留完整后缀。
  * PostgreSQL 的索引、函数按 schema 划分，触发器与约束按表划分，所以索引名、约束名、触发器名都不用跟着变；
  * 唯一要跟着换 schema 的是变更触发器函数（{@link getChangeTriggerFunctionName}）。
  */
 
-import type { EntityMetadata, WorktreeTableSet } from '@aiao/rxdb';
+import { hashConstraintDefinition, type EntityMetadata, type WorktreeTableSet } from '@aiao/rxdb';
 import { quoteIdentifier } from './pglite.utils.js';
+
+const MAX_IDENTIFIER_BYTES = 63;
+const utf8 = new TextEncoder();
+
+const truncateIdentifier = (value: string, maxBytes: number): string => {
+  let result = '';
+  let bytes = 0;
+  for (const character of value) {
+    bytes += utf8.encode(character).length;
+    if (bytes > maxBytes) break;
+    result += character;
+  }
+  return result;
+};
+
+const shadowSchemaName = (namespace: string, suffix: string): string => {
+  const ending = `$${suffix}`;
+  if (utf8.encode(namespace + ending).length <= MAX_IDENTIFIER_BYTES) return namespace + ending;
+  const hash = `$${hashConstraintDefinition(namespace)}`;
+  return truncateIdentifier(namespace, MAX_IDENTIFIER_BYTES - hash.length - ending.length) + hash + ending;
+};
 
 /**
  * 拼出形如 `"public"."users"` 的完全限定表名（带双引号转义）。
@@ -35,10 +56,16 @@ export const getTableName = (entityName: string, namespace: string = 'public') =
  *
  * @param metadata - 实体元数据
  * @param tableSet - 表集
- * @returns 未加引号的 schema 名：主表集或没有副本时就是命名空间，否则 `<命名空间>$<后缀>`
+ * @returns 未加引号的 schema 名：主表集或没有副本时就是命名空间，否则为保留完整表集后缀的影子 schema
+ *
+ * @remarks
+ * 超过 PostgreSQL 的 63 字节限制时，只截短命名空间并附上它的哈希：同前缀的命名空间仍能区分，
+ * 完整的 `$<后缀>` 则保留给目录删除与系统迁移。按 UTF-8 码点截短，中文不会被拆成无效字节。
  */
-export const getSchemaName = (metadata: EntityMetadata, tableSet: WorktreeTableSet): string =>
-  tableSet.has(metadata) ? `${metadata.namespace}$${tableSet.suffix}` : metadata.namespace;
+export const getSchemaName = (metadata: EntityMetadata, tableSet: WorktreeTableSet): string => {
+  const { suffix } = tableSet;
+  return suffix !== null && tableSet.has(metadata) ? shadowSchemaName(metadata.namespace, suffix) : metadata.namespace;
+};
 
 /**
  * 一套影子表集的 schema 名后缀：`$<后缀>`。目录里名字以它结尾的 schema 都属于这套表。

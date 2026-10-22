@@ -139,7 +139,7 @@ describe('写事务里复核分叉点（选候选之后才建出子分支）', (
   const session: ActiveUndoSession = { generation: 1, state: 'active', boundary: { changeId: 0, createdAfter: null } };
 
   /** switchBranch 照适配器的义务在事务里调 prepare；事务内读到的子分支由 `children` 给出。 */
-  const createHarness = (children: Array<{ id: string; fromChangeId: number | null }>) => {
+  const createHarness = (children: Array<{ id: string; fromChangeId: number | null }>, targetBranchId = 'main') => {
     const find = vi.fn().mockResolvedValue(children);
     const executor = {
       getRepository: (entity: unknown) => {
@@ -148,7 +148,7 @@ describe('写事务里复核分叉点（选候选之后才建出子分支）', (
       }
     };
     const switchBranch = vi.fn(async (options: { prepare: (context: unknown) => Promise<void> }) => {
-      await options.prepare({ executor, targetBranchId: 'main' });
+      await options.prepare({ executor, targetBranchId });
     });
     const adapter = { getRxDBChangeSequence: vi.fn().mockResolvedValue(10), switchBranch };
     const rxdb = {
@@ -201,6 +201,16 @@ describe('写事务里复核分叉点（选候选之后才建出子分支）', (
     expect(host.setRevertStateWatermarks).not.toHaveBeenCalled();
   });
 
+  it.each(['undo', 'redo'] as const)('选好历史后换挂分支：%s 不改业务表、日志或栈', async operation => {
+    const { host, find } = createHarness([], 'checkout-branch');
+    await applyUndoRedoHistories(host, operation, [history(change(5))], session);
+    expect(find).not.toHaveBeenCalled();
+    expect(host.pushToRedoStack).not.toHaveBeenCalled();
+    expect(host.removeFromRedoStack).not.toHaveBeenCalled();
+    expect(host.setRevertStateWatermarks).not.toHaveBeenCalled();
+    expect(host.redoInvalidationFloor).toBe(0);
+  });
+
   it('事务内的子分支只继承了更早的变更：照常写入、进栈、抬水位', async () => {
     const { host } = createHarness([
       { id: 'feature', fromChangeId: 4 },
@@ -212,6 +222,30 @@ describe('写事务里复核分叉点（选候选之后才建出子分支）', (
 
     expect(host.pushToRedoStack).toHaveBeenCalledWith([item]);
     expect(host.redoInvalidationFloor).toBe(11);
+  });
+
+  it('事务已提交但会话换走了：不把旧会话的重做项补回栈', async () => {
+    const { host } = createHarness([]);
+    vi.spyOn(host, 'isUndoSessionCurrent')
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(false);
+    await applyUndoRedoHistories(host, 'undo', [history(change(5))], session);
+    expect(host.setRevertStateWatermarks).toHaveBeenCalled();
+    expect(host.pushToRedoStack).not.toHaveBeenCalled();
+    expect(host.redoInvalidationFloor).toBe(11);
+  });
+
+  it.each(['undo', 'redo'] as const)('事务内读分叉点期间同步清了会话：%s 不回放', async operation => {
+    const { host, find } = createHarness([]);
+    find.mockImplementationOnce(async () => {
+      vi.spyOn(host, 'isUndoSessionCurrent').mockReturnValue(false);
+      return [];
+    });
+    await applyUndoRedoHistories(host, operation, [history(change(5))], session);
+    expect(host.setRevertStateWatermarks).not.toHaveBeenCalled();
+    expect(host.pushToRedoStack).not.toHaveBeenCalled();
+    expect(host.removeFromRedoStack).not.toHaveBeenCalled();
   });
 
   it('事务里别的错误照样抛出', async () => {

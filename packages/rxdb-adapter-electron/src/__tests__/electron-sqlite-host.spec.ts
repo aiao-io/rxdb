@@ -3,7 +3,7 @@ import {
   DESKTOP_HOST_PROTOCOL_VERSION,
   type DesktopHostChangeEventMessage
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -427,6 +427,17 @@ describe('close', () => {
     expect(await host.handle({ kind: 'version', sessionId: second })).toMatchObject({ code: 'session_closed' });
   });
 
+  it('关停时取消尚在等待删库的打开请求，之后仍能重新使用宿主', async () => {
+    const dropping = host.handle({ kind: 'drop', storage: sqliteStorage });
+    const opening = host.handle({ kind: 'open', storage: sqliteStorage });
+    host.closeAll();
+
+    await dropping;
+    expect(await opening).toMatchObject({ kind: 'error', code: 'host_unavailable' });
+    expect(host.openSessionCount).toBe(0);
+    expect(await openSession()).toBeTypeOf('string');
+  });
+
   // AC#6：Aiao 只动自己的系统对象，用户原有的业务表必须原样留着
   it('preserves unknown business tables that already live in the file', async () => {
     const seed = await openSession();
@@ -449,6 +460,37 @@ describe('close', () => {
 describe('drop', () => {
   const drop = (databaseName = 'app.sqlite3') =>
     host.handle({ kind: 'drop', storage: { engine: 'sqlite', databaseName } });
+
+  it.each(['app.sqlite3', 'APP.sqlite3'])(
+    '删库期间打开 %s：等删除结束再建会话，写入可以重新读回',
+    async databaseName => {
+      host = createElectronSqliteHost({
+        resolveDatabasePath: name => join(workspace, name.toLowerCase()),
+        postChange: message => changes.push(message)
+      });
+      writeFileSync(join(workspace, 'app.sqlite3'), 'old database');
+      const dropping = drop();
+      const opening = openSession(databaseName);
+
+      expect(await dropping).toEqual({ kind: 'drop', result: { dropped: true } });
+      const sessionId = await opening;
+      expect(existsSync(join(workspace, 'app.sqlite3'))).toBe(true);
+      await execute(sessionId, 'CREATE TABLE t (value TEXT)');
+      await execute(sessionId, 'INSERT INTO t VALUES (?)', ['persisted']);
+      await host.handle({ kind: 'close', sessionId });
+
+      const reopened = await openSession();
+      expect((await execute(reopened, 'SELECT value FROM t')).results[0]?.rows).toEqual([['persisted']]);
+    }
+  );
+
+  it('并发删除同一个库串行完成，第二次返回库已不存在', async () => {
+    writeFileSync(join(workspace, 'app.sqlite3'), 'old database');
+    expect(await Promise.all([drop(), drop()])).toEqual([
+      { kind: 'drop', result: { dropped: true } },
+      { kind: 'drop', result: { dropped: false } }
+    ]);
+  });
 
   it('removes the database file together with its journal sidecars', async () => {
     const sessionId = await openSession();

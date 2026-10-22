@@ -91,8 +91,10 @@ export class RxDBAdapterSqlite extends RxDBAdapterSqliteBase {
       case 'idb':
       case 'idb-memory':
         return () => deleteIndexedDatabase(`${file}.db`);
-      case 'opfs':
-        return () => removeOpfsFiles([file, `${file}-journal`, `${file}-wal`]);
+      case 'opfs': {
+        const path = new URL(file, 'file://').pathname.slice(1);
+        return () => removeOpfsFiles([path, `${path}-journal`, `${path}-wal`]);
+      }
       case 'fs-handle':
         return undefined;
     }

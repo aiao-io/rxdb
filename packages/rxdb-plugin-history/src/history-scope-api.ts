@@ -253,12 +253,15 @@ export function createHistoryScopeApi<T extends EntityType>(
 
     redo: (step = 1) =>
       host.runSerialized(async () => {
+        const undoSession = host.undoSession$.value;
+        if (undoSession.state === 'cleared') return;
         // 分叉点现查：活查询可能还没跟上刚建的子分支
         const forks = await host.fetchChildForks();
+        if (!host.isUndoSessionCurrent(undoSession)) return;
         const { redoable } = splitRedoableHistories(host.redoStackSnapshot(), scope, inheritedFloorOf(forks));
         const toRedo = host.selectWholeTransactions(redoable, scope, step);
         if (toRedo.length === 0) return;
-        await host.applyUndoRedoHistories('redo', toRedo);
+        await host.applyUndoRedoHistories('redo', toRedo, undoSession);
       })
   };
 

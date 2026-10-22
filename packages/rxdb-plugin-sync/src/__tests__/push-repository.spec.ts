@@ -356,6 +356,7 @@ function createHarness(options: HarnessOptions = {}) {
     },
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
+    history: { captureUndoHistory: () => () => undefined },
     getCurrentBranch: vi.fn(async () => currentBranch),
     pushInFlight
   } as unknown as SyncManager;

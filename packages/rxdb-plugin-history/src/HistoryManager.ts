@@ -161,6 +161,7 @@ export class HistoryManager {
   readonly #childForks$ = new BehaviorSubject<ChildFork[]>([]);
   /** 建、删、合并分支之后补的重查信号，见 {@link refreshChildForks} */
   readonly #childForksRefresh$ = new Subject<void>();
+  #childForksQueryGeneration = 0;
   /** 可撤销的与只因被子分支继承而撤销不了的两组历史，连同分叉点 */
   #undoState$!: Observable<UndoState>;
   /** 原始重做栈连同当前分支的子分支分叉点 */
@@ -253,7 +254,6 @@ export class HistoryManager {
           takeUntil(this.#destroy$)
         )
         .subscribe({
-          next: forks => this.#publishChildForks(forks),
           error: error => this.#reportStreamError('子分支分叉点的查询已中断', error)
         })
     );
@@ -499,9 +499,6 @@ export class HistoryManager {
   /** switchBranch 提交后同步切 undo session，避免 await 中间引用比对失配 */
   setUndoBranch(branchId: string): void {
     this.#switchUndoSessionBranch(branchId);
-    // 子分支分叉点跟着换（US-315）：先清掉上一条分支的，不拿它去算这一条，再重查
-    if (this.#childForks$.value.length > 0) this.#childForks$.next([]);
-    this.refreshChildForks();
   }
 
   /** 清空当前分支 undo/redo；连接级重置用 {@link clearAllUndoHistory} */
@@ -513,6 +510,34 @@ export class HistoryManager {
       clearedAt: new Date()
     });
     this.clearRedoStack();
+  }
+
+  /**
+   * 捕获同步来源分支的撤销会话，供成功或部分成功后失效。
+   *
+   * @param branchId - 本次同步读取的来源分支
+   * @returns 只影响该分支、该代会话的失效回调；换代或销毁后失效
+   * @internal
+   */
+  captureUndoHistory(branchId: string): () => void {
+    const session =
+      this.#undoSessions.get(branchId) ??
+      (this.#currentUndoBranchId === null ? this.#undoSession$.value : this.#inheritUndoSession());
+    this.#undoSessions.set(branchId, session);
+    return () => {
+      const latest = this.#undoSessions.get(branchId);
+      if (this.#destroyed || latest?.generation !== session.generation) return;
+      const cleared: UndoSession = {
+        generation: this.#nextUndoSessionGeneration(),
+        state: 'cleared',
+        boundary: latest.boundary,
+        clearedAt: new Date()
+      };
+      this.#undoSessions.set(branchId, cleared);
+      if (branchId !== this.#currentUndoBranchId) return;
+      this.#undoSession$.next(cleared);
+      this.clearRedoStack();
+    };
   }
 
   /** 清空所有分支 undo/redo，并推进 {@link #undoSessionFloor} */
@@ -715,6 +740,9 @@ export class HistoryManager {
   #switchUndoSessionBranch(branchId: string | null): void {
     if (branchId === this.#currentUndoBranchId) return;
 
+    if (this.#currentUndoBranchId !== null) this.clearRedoStack();
+    this.#childForksQueryGeneration += 1;
+    if (this.#childForks$.value.length > 0) this.#childForks$.next([]);
     if (this.#currentUndoBranchId === null && branchId !== null && !this.#undoSessions.has(branchId)) {
       this.#undoSessions.set(branchId, this.#undoSession$.value);
     }
@@ -725,6 +753,7 @@ export class HistoryManager {
     const session = existing ?? this.#inheritUndoSession();
     this.#undoSessions.set(branchId, session);
     this.#undoSession$.next(session);
+    this.refreshChildForks();
   }
 
   /** 首次访问某个分支时按 {@link #undoSessionFloor} 建它自己的 session */
@@ -795,17 +824,34 @@ export class HistoryManager {
   async #fetch_latest_histories(
     undoBoundary: UndoBoundary
   ): Promise<{ histories: HistoryItem[]; lastPushedMap: Map<string, number>; forks: ChildFork[] }> {
+    const generation = ++this.#childForksQueryGeneration;
+    const tableSet = this.rxdb.worktreeTableSet;
+    const session = this.#undoSession$.value;
     const latest = await fetchLatestHistories(this.#applyHost, undoBoundary);
-    this.#publishChildForks(latest.forks);
+    if (
+      generation === this.#childForksQueryGeneration &&
+      tableSet === this.rxdb.worktreeTableSet &&
+      session === this.#undoSession$.value
+    ) {
+      this.#publishChildForks(latest.forks);
+    }
     return latest;
   }
 
   /** 直接查当前分支的子分支分叉点，查到的顺手写回视图 */
   async #fetch_child_forks(): Promise<ChildFork[]> {
+    const generation = ++this.#childForksQueryGeneration;
+    const tableSet = this.rxdb.worktreeTableSet;
     const { branchRepository } = await this.rxdb.versionManager.getLocalRepositories();
-    const [branch] = await branchRepository.find({ where: this.rxdb.worktreeTableSet.heldBranchWhere, limit: 1 });
+    const [branch] = await branchRepository.find({ where: tableSet.heldBranchWhere, limit: 1 });
     const forks = branch ? await fetchChildForks(branchRepository, branch.id) : [];
-    this.#publishChildForks(forks);
+    if (
+      generation === this.#childForksQueryGeneration &&
+      tableSet === this.rxdb.worktreeTableSet &&
+      (branch?.id ?? null) === this.#currentUndoBranchId
+    ) {
+      this.#publishChildForks(forks);
+    }
     return forks;
   }
 

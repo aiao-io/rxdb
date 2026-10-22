@@ -687,6 +687,39 @@ describe('历史流、作用域与撤销重做执行', () => {
   describe('branch-scoped undo sessions (RXD-026)', () => {
     const featureBranch = { activated: true, id: 'feature' } as RxDBBranch;
 
+    it('同步来源回调在换挂后只清 main，保留另一分支的 undo 与 redo', async () => {
+      findAllMock.mockReturnValue(of([createChange(3), createChange(2)]));
+      const harness = createHarness({ connected: true, firstConnectedAt });
+      const invalidate = harness.historyManager.captureUndoHistory('main');
+      harness.activeBranch$.next(featureBranch);
+      harness.historyManager.pushToRedoStack([createHistory(createChange(4, { branchId: 'feature' }))]);
+      const featureGeneration = harness.historyManager.undoSessionGeneration;
+
+      invalidate();
+
+      expect(harness.historyManager.undoSessionGeneration).toBe(featureGeneration);
+      await expect(firstValueFrom(harness.historyManager.undoHistories$)).resolves.toHaveLength(2);
+      await expect(firstValueFrom(harness.historyManager.redoCount$)).resolves.toBe(1);
+      harness.activeBranch$.next(activeBranch);
+      await expect(firstValueFrom(harness.historyManager.undoHistories$)).resolves.toEqual([]);
+      harness.activeBranch$.next(featureBranch);
+      await expect(firstValueFrom(harness.historyManager.undoHistories$)).resolves.toHaveLength(2);
+    });
+
+    it('旧同步回调不清后来换代且已被新本地写恢复的 main 会话', async () => {
+      findAllMock.mockReturnValue(of([createChange(3), createChange(2)]));
+      const harness = createHarness({ connected: true, firstConnectedAt });
+      const invalidate = harness.historyManager.captureUndoHistory('main');
+      harness.historyManager.clearUndoHistory();
+      harness.historyManager.resetSyncCleared([3]);
+      const generation = harness.historyManager.undoSessionGeneration;
+
+      invalidate();
+
+      expect(harness.historyManager.undoSessionGeneration).toBe(generation);
+      await expect(firstValueFrom(harness.historyManager.undoHistories$)).resolves.toHaveLength(1);
+    });
+
     it('clears undo history only on the branch that synced', async () => {
       findAllMock.mockReturnValue(of([createChange(3), createChange(2)]));
       const harness = createHarness({ connected: true, firstConnectedAt });

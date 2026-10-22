@@ -501,15 +501,19 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
         try {
           const view = await open(FEATURE);
           const ViewTask = view.entityOf(WorktreeConformanceTask);
+          const delivered = Promise.withResolvers<void>();
           view.rxdb.addEventListener(ENTITY_LOCAL_NEW_EVENT, event => {
-            for (const { id } of event.entities) seenOnView.push(String(id));
+            for (const { id } of event.entities) {
+              seenOnView.push(String(id));
+              if (id === fresh) delivered.resolve();
+            }
           });
           await firstValueFrom(
             view.rxdb.entityManager.getRepository(ViewTask).findAll({ where: { combinator: 'and', rules: [] } })
           );
           view.rxdb.entityManager.instantiate(ViewTask, { id: fresh });
-          // NEW 在构造之后的微任务里才派发：等它派完再看
-          await Promise.resolve();
+          // 微任务只保证开始派发；有事件事务上下文时还要等 COMMIT 放行。
+          await delivered.promise;
         } finally {
           database.removeEventListener(ENTITY_LOCAL_NEW_EVENT, record);
         }

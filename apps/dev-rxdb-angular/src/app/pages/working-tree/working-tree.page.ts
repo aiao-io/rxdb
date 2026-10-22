@@ -526,7 +526,7 @@ export default class WorkingTreePage implements OnInit {
   }
 
   /**
-   * 重读 status，并顺带刷新紧随其后的两个读数。
+   * 重读工作树状态、差异、恢复会话与当前分支对比。
    *
    * diff 跟着重读：面板没有变更流（见 `useWorkingTree` 的 TSDoc），本页发起的写
    * （写 Todo、提交、丢弃、合并、恢复）之后不补这一句，「未提交改动」区就会停在旧内容。
@@ -541,6 +541,8 @@ export default class WorkingTreePage implements OnInit {
     } else {
       this.$restoreSession.set(null);
     }
+    const compare = this.$historyCompare();
+    if (compare !== null) this.compareWith(compare.branchId);
   }
 
   async readCommits(): Promise<void> {

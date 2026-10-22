@@ -475,7 +475,7 @@ export class VersionManager {
    * 预览把一条分支合并进当前 active 分支会落什么，不写库。
    *
    * @param sourceBranchId - 源分支
-   * @param options - 见 {@link MergePreviewOptions}；只有策略会影响 `merged`
+   * @param options - 见 {@link MergePreviewOptions}；按合并策略计算条目与 `merged`
    * @returns 合并会落的实体、与随后 {@link mergeBranch} 一致的 `merged` 计数，以及覆盖标注
    * @throws {@link RxDBError} 没有 active 分支、合并进自己或源分支不存在时，与 {@link mergeBranch} 同一句报错
    *

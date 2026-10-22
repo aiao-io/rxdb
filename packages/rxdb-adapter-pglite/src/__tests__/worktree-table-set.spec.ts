@@ -5,6 +5,7 @@
  * 与 sqlite-core 的 `shared-worktree-table-set.suite.ts` 逐条对应。断言一律落在裸读出来的行与变更日志上，
  * 不走仓库：实体缓存挡在中间时，「表里有没有这行」读的是缓存。往表里写也用裸写，测的是「这张表的触发器此刻挂在哪条分支」。
  * 分支表有没有被写过看行的 `xmin`：行被重写过它就变。
+ * 每条用例一个新库与实例：历史会话的撤销边界跟着日志序号走，清表重置序列却复用会话会保留上一条用例的边界。
  */
 
 import {
@@ -25,9 +26,8 @@ import {
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
-import { cleanup_db } from '../testing.js';
 import { execute_switch_actions } from '../version/execute_switch_actions.js';
 import { generateDbName } from './test-utils.js';
 
@@ -127,7 +127,7 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
       )
     ).rows.map(row => row.nspname);
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     rxdb = new RxDB({
       dbName: generateDbName(),
       entities: [Todo, WorktreeSeqNote],
@@ -136,14 +136,6 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
     rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' }));
     rxdb.use(rxDBPluginHistory);
     adapter = await rxdb.connect('pglite');
-  });
-
-  afterAll(async () => {
-    if (rxdb) await rxdb.disconnectAll();
-  });
-
-  // 每条用例自己开一套：持有分支、持有键、表集。清库连同影子表集的 schema 一起删（cleanup_db）。
-  beforeEach(async () => {
     await rxdb.versionManager.createBranch(heldBranch);
     await adapter.internalQuery(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = $1::text WHERE "id" = $2::text`, [
       tableSet.holderKey,
@@ -153,8 +145,7 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
   });
 
   afterEach(async () => {
-    await cleanup_db(adapter);
-    rxdb.versionManager.resetSessionState();
+    if (rxdb) await rxdb.disconnectAll();
   });
 
   it('建出成员自己的表：影子表的写记在持有分支，主表的写照旧记在主检出位的分支', async () => {
@@ -192,7 +183,7 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
     const todo = new Todo({ title: 'undo-me' });
     await todo.save();
     const history = rxdb.versionManager.history();
-    // 撤销会话每条用例都被清空过，靠这里的本地写入异步恢复：等它可撤销了再撤
+    // 每例一个新实例，撤销会话从空状态恢复：等本次写入可撤销了再撤
     await expect.poll(() => firstValueFrom(history.undoCount$)).toBe(1);
     const versionsBefore = await branchRowVersions();
 
@@ -323,11 +314,6 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
       )
         .map(todo => String(todo.title))
         .sort();
-
-    // 先挂回主表集再清库：外层的清库删的就是这套影子表
-    afterEach(async () => {
-      await rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
-    });
 
     it('挂上之后读写落在影子表、记在持有分支，当前分支是持有分支；挂回主表集一切照旧', async () => {
       await rawInsert(WorktreeTableSet.MAIN, 'main-row');

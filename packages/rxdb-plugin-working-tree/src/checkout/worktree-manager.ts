@@ -31,6 +31,7 @@ import {
   WorktreeTableSet
 } from '@aiao/rxdb';
 import { compute_switch_branch_actions, get_branch_max_change } from '@aiao/rxdb-plugin-history';
+import { AsyncQueueExecutor } from '@aiao/utils';
 import { createCommitWriteContext } from '../commit/commit-context.js';
 import { classifyBranchMaterialization } from '../working-tree/branch-materialization.js';
 import { assertSwitchTargetIntact } from '../working-tree/switch-branch-options.js';
@@ -141,6 +142,7 @@ export class WorktreeManager {
   readonly #options: WorktreeOptions | undefined;
   /** 本上下文认领着的可写检出位：id → 它的锁与表集后缀 */
   readonly #claims = new Map<string, WritableClaim>();
+  readonly #lifecycle = new AsyncQueueExecutor(1);
 
   /**
    * 由工作树门面构造，一个 RxDB 实例一个。
@@ -268,7 +270,74 @@ export class WorktreeManager {
    * 没配快照库时只读检出位跳过（它们的库连不上）；可写检出位的表在主库里，照常回收。
    * 连接期判定有孤儿（判据同上、且锁没人持有）时，插件在连上之后跑一次，见 `worktree-startup-reclaim.ts`。
    */
-  async prune(): Promise<readonly string[]> {
+  prune(): Promise<readonly string[]> {
+    return this.#lifecycle.addTask(() => this.#prune());
+  }
+
+  /**
+   * 开一个可写检出位：登记、持有分支、建那套影子表、播种，一笔主库事务做完；建好不挂，本上下文认领它。
+   *
+   * @param branchId - 要在检出位里检出的分支；本地要有完整数据
+   * @param options - 见 {@link WorktreeAddOptions}
+   * @returns 登记行
+   * @throws {@link WorktreeUnavailableError} `unsupported_adapter`：主库适配器建不了表集；`branch_not_found` /
+   * `branch_not_materialized`；运行时没有 Web Locks（`locks_unavailable`）
+   * @throws {@link WorktreeBranchHeldError} 分支已被持有：主检出位正停在它上面，或另一个可写检出位持有它（git：`already used by worktree`）
+   *
+   * @remarks
+   * 播种 = 主表集的行原样复制，再叠上「主检出位所在分支 → 这条分支」的增量，与切过去读到的逐行一致；都不记进变更日志。
+   * 不推进激活态：主检出位的工作树、当前分支与 `activationRevision` 一处不动。GitHub Desktop 建完会切过去，对应 {@link WorktreeManager.mount}。
+   */
+  add(branchId: string, options: WorktreeAddOptions = {}): Promise<Worktree> {
+    return this.#lifecycle.addTask(() => this.#add(branchId, options));
+  }
+
+  /**
+   * 让主实例挂上一个可写检出位：此后读写都落在那套影子表上，捕获、提交记在它持有的分支上。
+   *
+   * @param id - 检出位 id（{@link WorktreeManager.list} 里那一行）
+   * @throws {@link WorktreeUnavailableError} `in_use`：它被别处认领着；`not_found`：不是已建好的可写检出位，或它持有的分支已经不在了；
+   * `schema_mismatch`：建它之后应用的实体结构变了
+   *
+   * @remarks
+   * 没认领的先认领（拿下它的锁），挂不上就还掉。换挂换的是整个实例：实体缓存清空、活查询全部重跑、撤销栈跟着换到那条分支。
+   * 已经挂在它上面时什么也不做。
+   */
+  mount(id: string): Promise<void> {
+    return this.#lifecycle.addTask(() => this.#mount(id));
+  }
+
+  /** 让主实例挂回主检出位；认领着的可写检出位照旧认领着。 */
+  mountMain(): Promise<void> {
+    return this.#lifecycle.addTask(() => this.#mountMain());
+  }
+
+  /**
+   * 交出对一个可写检出位的认领：挂在它上面就先挂回主检出位，再还锁。表集、持有键与登记行都留着。
+   *
+   * @param id - 检出位 id；本上下文没认领它时什么也不做
+   *
+   * @remarks
+   * 持久归属的之后任何一处都能再 {@link WorktreeManager.mount}；会话归属的留给 `prune()` 回收。
+   */
+  release(id: string): Promise<void> {
+    return this.#lifecycle.addTask(() => this.#release(id));
+  }
+
+  /**
+   * 删掉一个可写检出位：挂在它上面就先挂回主检出位，再一笔事务删表集、放开持有的分支、删登记行。
+   *
+   * @param id - 检出位 id；登记行已经不在时什么也不做
+   * @throws {@link WorktreeUnavailableError} `in_use`：它被别处认领着；`not_found`：它是只读检出位（用视图的 `close()`）
+   *
+   * @remarks
+   * 未提交的改动留在分支上：检出位里的写都记进了那条分支的变更日志，之后切过去照样读得到（git 删 worktree 时它们会丢，这里不会）。
+   */
+  remove(id: string): Promise<void> {
+    return this.#lifecycle.addTask(() => this.#remove(id));
+  }
+
+  async #prune(): Promise<readonly string[]> {
     const { records, heldKeys, mainAdapter } = await this.#runEnabled(async (executor, adapter) => ({
       records: await executor.getRepository(Worktree).find({ where: { combinator: 'and', rules: [] } }),
       heldKeys: await readHeldKeys(executor),
@@ -294,21 +363,7 @@ export class WorktreeManager {
     return pruned;
   }
 
-  /**
-   * 开一个可写检出位：登记、持有分支、建那套影子表、播种，一笔主库事务做完；建好不挂，本上下文认领它。
-   *
-   * @param branchId - 要在检出位里检出的分支；本地要有完整数据
-   * @param options - 见 {@link WorktreeAddOptions}
-   * @returns 登记行
-   * @throws {@link WorktreeUnavailableError} `unsupported_adapter`：主库适配器建不了表集；`branch_not_found` /
-   * `branch_not_materialized`；运行时没有 Web Locks（`locks_unavailable`）
-   * @throws {@link WorktreeBranchHeldError} 分支已被持有：主检出位正停在它上面，或另一个可写检出位持有它（git：`already used by worktree`）
-   *
-   * @remarks
-   * 播种 = 主表集的行原样复制，再叠上「主检出位所在分支 → 这条分支」的增量，与切过去读到的逐行一致；都不记进变更日志。
-   * 不推进激活态：主检出位的工作树、当前分支与 `activationRevision` 一处不动。GitHub Desktop 建完会切过去，对应 {@link WorktreeManager.mount}。
-   */
-  async add(branchId: string, options: WorktreeAddOptions = {}): Promise<Worktree> {
+  async #add(branchId: string, options: WorktreeAddOptions): Promise<Worktree> {
     const id = uuid();
     const members = worktreeTableSetMembers(this.#rxdb);
     const tableSet = WorktreeTableSet.of(tableSetSuffixOf(id), members);
@@ -351,18 +406,7 @@ export class WorktreeManager {
     }
   }
 
-  /**
-   * 让主实例挂上一个可写检出位：此后读写都落在那套影子表上，捕获、提交记在它持有的分支上。
-   *
-   * @param id - 检出位 id（{@link WorktreeManager.list} 里那一行）
-   * @throws {@link WorktreeUnavailableError} `in_use`：它被别处认领着；`not_found`：不是已建好的可写检出位，或它持有的分支已经不在了；
-   * `schema_mismatch`：建它之后应用的实体结构变了
-   *
-   * @remarks
-   * 没认领的先认领（拿下它的锁），挂不上就还掉。换挂换的是整个实例：实体缓存清空、活查询全部重跑、撤销栈跟着换到那条分支。
-   * 已经挂在它上面时什么也不做。
-   */
-  async mount(id: string): Promise<void> {
+  async #mount(id: string): Promise<void> {
     const release = this.#claims.has(id) ? undefined : await this.#acquire(id);
     try {
       const tableSet = await this.#runEnabled(async executor => {
@@ -391,49 +435,35 @@ export class WorktreeManager {
     }
   }
 
-  /** 让主实例挂回主检出位；认领着的可写检出位照旧认领着。 */
-  async mountMain(): Promise<void> {
-    await this.#rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+  #mountMain(): Promise<void> {
+    return this.#rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
   }
 
-  /**
-   * 交出对一个可写检出位的认领：挂在它上面就先挂回主检出位，再还锁。表集、持有键与登记行都留着。
-   *
-   * @param id - 检出位 id；本上下文没认领它时什么也不做
-   *
-   * @remarks
-   * 持久归属的之后任何一处都能再 {@link WorktreeManager.mount}；会话归属的留给 `prune()` 回收。
-   */
-  async release(id: string): Promise<void> {
+  async #release(id: string): Promise<void> {
     const claim = this.#claims.get(id);
     if (!claim) return;
-    if (this.#rxdb.worktreeTableSet.suffix === claim.suffix) await this.mountMain();
+    if (this.#rxdb.worktreeTableSet.suffix === claim.suffix) await this.#mountMain();
     this.#claims.delete(id);
     await claim.release();
   }
 
-  /**
-   * 删掉一个可写检出位：挂在它上面就先挂回主检出位，再一笔事务删表集、放开持有的分支、删登记行。
-   *
-   * @param id - 检出位 id；登记行已经不在时什么也不做
-   * @throws {@link WorktreeUnavailableError} `in_use`：它被别处认领着；`not_found`：它是只读检出位（用视图的 `close()`）
-   *
-   * @remarks
-   * 未提交的改动留在分支上：检出位里的写都记进了那条分支的变更日志，之后切过去照样读得到（git 删 worktree 时它们会丢，这里不会）。
-   */
-  async remove(id: string): Promise<void> {
-    const release = this.#claims.get(id)?.release ?? (await this.#acquire(id));
+  async #remove(id: string): Promise<void> {
+    const claim = this.#claims.get(id);
+    const release = claim?.release ?? (await this.#acquire(id));
     try {
       const [record] = await this.#runEnabled(executor => findRecords(executor, id));
       if (!record) return;
       if (record.mode !== 'writable') {
         throw new WorktreeUnavailableError('not_found', `检出位 ${id} 是只读检出位：用视图的 close() 关掉它`);
       }
-      if (this.#rxdb.worktreeTableSet.suffix === record.tableSetSuffix) await this.mountMain();
+      if (this.#rxdb.worktreeTableSet.suffix === record.tableSetSuffix) await this.#mountMain();
       await this.#dropWritable(id);
     } finally {
-      this.#claims.delete(id);
-      await release();
+      const stillMounted = claim !== undefined && this.#rxdb.worktreeTableSet.suffix === claim.suffix;
+      if (!stillMounted) {
+        this.#claims.delete(id);
+        await release();
+      }
     }
   }
 

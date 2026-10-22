@@ -78,7 +78,8 @@ function createValidationHarness(options: ValidationHarnessOptions = {}) {
       // 没换挂过的实例挂的是主表集，当前分支按它读（US-314 B1.4）
       worktreeTableSet: WorktreeTableSet.MAIN
     },
-    getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
+    history: { captureUndoHistory: () => () => undefined },
+    getCurrentBranch: vi.fn(async () => ({ id: 'main', activated: true })),
     pushInFlight: emptyPushInFlight(),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter }))
   } as unknown as SyncManager;
@@ -137,7 +138,8 @@ function createEmptyPushHarness() {
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
+    history: { captureUndoHistory: () => () => undefined },
+    getCurrentBranch: vi.fn(async () => ({ id: 'main', activated: true })),
     pushInFlight: emptyPushInFlight()
   } as unknown as SyncManager;
 

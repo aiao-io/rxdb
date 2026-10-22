@@ -79,16 +79,20 @@ type AdapterStub = {
  * `syncing` 透传而不是吞掉：同步 guard 的语义是「包住它跑」，替身把回调丢掉的话，
  * 下面每一条 `expect(delegates.pull).toHaveBeenCalledWith(...)` 都会变成空断言。
  */
-const createBridge = () => ({
-  pushInFlight: { kind: 'push-in-flight' },
-  syncing: vi.fn(<T>(operation: () => Promise<T>) => operation()),
-  clearUndoHistory: vi.fn<() => void>(),
-  beginPullableSettlement: vi.fn<() => number>(() => 7),
-  settlePull: vi.fn<(token: number, options: unknown, result: unknown) => void>(),
-  settleAbortedPull: vi.fn<(token: number, pulled: number) => void>(),
-  reconcilePullableCount: vi.fn<(token: number, count: number) => void>(),
-  incrementPullableCount: vi.fn<(count: number) => void>()
-});
+const createBridge = () => {
+  const clearUndoHistory = vi.fn<() => void>();
+  return {
+    pushInFlight: { kind: 'push-in-flight' },
+    syncing: vi.fn(<T>(operation: () => Promise<T>) => operation()),
+    clearUndoHistory,
+    captureUndoHistory: vi.fn<(branchId: string) => () => void>(() => clearUndoHistory),
+    beginPullableSettlement: vi.fn<() => number>(() => 7),
+    settlePull: vi.fn<(token: number, options: unknown, result: unknown) => void>(),
+    settleAbortedPull: vi.fn<(token: number, pulled: number) => void>(),
+    reconcilePullableCount: vi.fn<(token: number, count: number) => void>(),
+    incrementPullableCount: vi.fn<(count: number) => void>()
+  };
+};
 
 type Bridge = ReturnType<typeof createBridge>;
 
@@ -114,6 +118,7 @@ function createRepository(): RepositoryStub {
 
 function createHarness(entities: unknown[] = []): Harness {
   const localBranchRepository = createRepository();
+  localBranchRepository.find.mockResolvedValue([{ id: 'main', activated: true }]);
   const localChangeRepository = createRepository();
   const remoteBranchRepository = createRepository();
   const remoteChangeRepository = createRepository();

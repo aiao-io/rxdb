@@ -186,6 +186,25 @@ const toErrorResponse = (error: unknown): DesktopHostResponse => {
 export function createElectronSqliteHost(options: ElectronSqliteHostOptions): ElectronSqliteHost {
   /** 会话表；记下逻辑库名，删库时据此判断「还有没有人开着」。 */
   const sessions = new Map<string, { readonly engine: NodeSqliteEngine; readonly databaseName: string }>();
+  const storageOperations = new Map<string, Promise<unknown>>();
+  let storageGeneration = 0;
+
+  const withDatabaseAccess = <T>(databaseName: string, operation: () => T | Promise<T>): Promise<T> => {
+    const key = databaseName.toLowerCase();
+    const generation = storageGeneration;
+    const previous = storageOperations.get(key) ?? Promise.resolve();
+    const run = (): T | Promise<T> => {
+      if (generation !== storageGeneration) {
+        throw new RxDBAdapterDesktopError('host_unavailable', 'the host closed before the storage operation started');
+      }
+      return operation();
+    };
+    const result = previous.then(run, run);
+    storageOperations.set(key, result);
+    return result.finally(() => {
+      if (storageOperations.get(key) === result) storageOperations.delete(key);
+    });
+  };
 
   const deliver = (sessionId: string, event: SqliteChangeEvent): void => {
     try {
@@ -250,6 +269,7 @@ export function createElectronSqliteHost(options: ElectronSqliteHostOptions): El
    * 本 host 上还有会话开着同名库就报 `database_busy`，一个字节都不删：会话没关时 unlink 掉文件，POSIX 下
    * 那条连接会对着一个已经不在目录里的 inode 继续写，写进去的东西随连接关闭凭空消失。库名按小写比：
    * 白名单只有 ASCII，而 macOS 与 Windows 的默认文件系统不分大小写，`App.sqlite3` 与 `app.sqlite3` 是同一个文件。
+   * 打开与删除共用按库名串行的队列，检查会话到删完文件之间不会插入一个新连接。
    * 别的进程开着同一个文件这里看不见——快照库由检出位的 Web Lock 独占，发起删库的一方手里正握着它。
    *
    * 先删旁文件、最后删库文件：中途失败时留下的是一个还能再删一次的库文件；反过来先删库文件，
@@ -318,7 +338,7 @@ export function createElectronSqliteHost(options: ElectronSqliteHostOptions): El
       case 'handshake':
         return { kind: 'handshake', result: { protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION } };
       case 'open':
-        return open(request);
+        return withDatabaseAccess(request.storage.databaseName, () => open(request));
       case 'close':
         return close(request.sessionId);
       case 'version':
@@ -329,7 +349,7 @@ export function createElectronSqliteHost(options: ElectronSqliteHostOptions): El
       case 'execute':
         return execute(request);
       case 'drop':
-        return drop(request);
+        return withDatabaseAccess(request.storage.databaseName, () => drop(request));
       default: {
         const _exhaustive: never = request;
         // 走到这里说明校验层放进了一个本模块不认识的种类，按协议违规回给调用方。
@@ -353,6 +373,7 @@ export function createElectronSqliteHost(options: ElectronSqliteHostOptions): El
       return sessions.size;
     },
     closeAll: (): void => {
+      storageGeneration++;
       for (const { engine } of sessions.values()) engine.close();
       sessions.clear();
     }

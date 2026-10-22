@@ -123,6 +123,7 @@ export default function WorkingTreePage(): React.JSX.Element {
   /** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
   const mergePreviewRequest = useRef(0);
   const compareRequest = useRef(0);
+  const comparedBranchId = useRef<string | null>(null);
   const createBranchCheckRequest = useRef(0);
   /** 应用内确认框请求（替代原生 confirm）。 */
   const [confirm, setConfirm] = useState<
@@ -496,7 +497,7 @@ export default function WorkingTreePage(): React.JSX.Element {
   };
 
   /**
-   * 重读 status，并顺带刷新紧随其后的两个读数。
+   * 重读工作树状态、差异、恢复会话与当前分支对比。
    *
    * diff 跟着重读：面板没有变更流（见 `useWorkingTree` 的 TSDoc），本页发起的写
    * （写 Todo、提交、丢弃、合并、恢复）之后不补这一句，「未提交改动」区就会停在旧内容。
@@ -511,6 +512,8 @@ export default function WorkingTreePage(): React.JSX.Element {
     } else {
       setRestoreSession(null);
     }
+    const branchId = comparedBranchId.current;
+    if (branchId !== null) compareWith(branchId);
   };
 
   const readCommits = async (): Promise<void> => {
@@ -891,6 +894,7 @@ export default function WorkingTreePage(): React.JSX.Element {
   /** 拿一条分支和当前分支对比（只读，不切换）：字段读作「当前分支的值 → 那条分支的值」。 */
   const compareWith = (branchId: string) => {
     const request = ++compareRequest.current;
+    comparedBranchId.current = branchId;
     setHistoryCompare({ branchId, comparison: { phase: 'loading' } });
     void rxdb.versionManager.compareBranches(activeBranch, branchId).then(
       value => {
@@ -908,6 +912,7 @@ export default function WorkingTreePage(): React.JSX.Element {
   /** 清除对比，回到历史。 */
   const clearCompare = () => {
     compareRequest.current++;
+    comparedBranchId.current = null;
     setHistoryCompare(null);
   };
 

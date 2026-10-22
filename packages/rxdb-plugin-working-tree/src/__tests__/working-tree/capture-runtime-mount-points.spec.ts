@@ -881,6 +881,22 @@ const namespaceFoldingAdapter = {
 describe('createWorkingTreeCaptureRuntime —— 按实体登记造域', () => {
   const databaseSync: SyncOptions = { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } };
 
+  it('安装后新增的物理表也进入 raw 门禁，不必重装捕获钩子', async () => {
+    const names = ['post'];
+    const runtime = createWorkingTreeCaptureRuntime(
+      { physicalTableNames: () => names },
+      entityManager,
+      [CaptureRuntimePost],
+      databaseSync
+    );
+    names.push('post_shadow');
+
+    await expect(runtime.gateRawWrite('DROP TABLE post_shadow', () => 'executed')).rejects.toMatchObject({
+      code: 'commit_capability_mismatch'
+    });
+    expect(runtime.domain.versionedTables.has('post_shadow')).toBe(true);
+  });
+
   it('实体自身的 sync 优先于库级：QueryCache 实体被判成 untracked，其余继承库级', () => {
     const runtime = createWorkingTreeCaptureRuntime(
       logicalOnlyAdapter,

@@ -117,6 +117,7 @@ import { assertSqliteHostVersion } from './system/sqlite-version.js';
 import {
   get_table_name_by_entity_type,
   get_table_name_by_metadata,
+  get_worktree_table_names,
   getTableColumnIndexName
 } from './table-name-resolver.js';
 import { check_entity_constraints_sqlite } from './table/check-entity-constraints.js';
@@ -526,6 +527,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   /** 持久化存储的共享锁：挡住连接期间的恢复与清理。 */
   #storage_lock?: RxDBBackupHeldLock;
   #row_id_map = new Map<EntityType, Map<RowId, InstanceType<EntityType>>>();
+  readonly #knownTableNames = new Set<string>();
   #entity_row_id_map = new WeakMap<InstanceType<EntityType>, RowId>();
   #queue = new AsyncQueueExecutor(1);
   #client_promise?: Promise<SqliteClientLike>;
@@ -1008,6 +1010,10 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     tableSet: WorktreeTableSet,
     seed: WorktreeTableSetSeed
   ): Promise<void> {
+    for (const EntityType of this.rxdb.config.entities) {
+      const metadata = getEntityMetadata(EntityType);
+      if (tableSet.has(metadata)) this.#knownTableNames.add(get_table_name_by_metadata(metadata, tableSet));
+    }
     await createSeededTableSet(this, executor as SqliteTransactionExecutor, tableSet, seed);
   }
 
@@ -1122,6 +1128,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           }
         }
 
+        await this.#discoverTableNames(client);
         await client.execute('COMMIT;');
         committed = true;
       } catch (error) {
@@ -1156,7 +1163,14 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 一条在本后端本来也跑不通的语句；少认的那一个恰好是绕过捕获的写会用的名字。
    */
   override physicalTableNames(metadata: EntityMetadata): readonly string[] {
-    return [...super.physicalTableNames(metadata), get_table_name_by_metadata(metadata, this.tableSet)];
+    return [
+      ...new Set([
+        ...super.physicalTableNames(metadata),
+        get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN),
+        get_table_name_by_metadata(metadata, this.tableSet),
+        ...get_worktree_table_names(metadata, this.#knownTableNames)
+      ])
+    ];
   }
 
   async switchBranch(options: SwitchBranchOptions): Promise<void> {
@@ -1244,18 +1258,19 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 它们都继承本类且都不覆写 `rawQuery`。在五个子类里各写一遍是 T064「不各写一份」明确排除的
    * 形态；哪天某个子类真的覆写了 `rawQuery`，它就得自己接上，这一点由 T068 的 6 个一致性调用点兜住。
    *
-   * 门禁包在**整个方法体**外面，两条生命周期分支都在里面：拒绝发生在语句下发之前，连事务都不会开，
-   * 业务表零变化——不是写完再回滚。引导窗内捕获运行时还没装上，判定第 1 步放行，行为与接入前逐字一致。
+   * 已登记的业务表在开事务前拒绝；原本会放行的调用在执行事务内重读物理目录，再过同一道门禁，
+   * 防止漏掉别的实例新建的影子表。两次判定都在业务语句下发之前。引导窗内未装捕获时保持原行为。
    */
   public async rawQuery(sql: string, params?: unknown[]) {
     return gateRawWrite(sql, this.workingTreeRawWriteContext, () => {
       // 引导窗内的探测/DDL 不得再等 RxDB.connect()：
       // adapter.connect() 刚返回、建表尚未完成时，等就绪门就是等自己。
       // 引导完成后仍走 transaction，保证正式写入等表就绪。
+      const query = (executor: TransactionExecutor) => this.#queryWithCurrentTableNames(executor, sql, params);
       if (this.#lifecycle_state === 'bootstrap') {
-        return this.bootstrapTransaction(executor => executor.query(sql, params), false);
+        return this.bootstrapTransaction(query, false);
       }
-      return this.transaction(executor => executor.query(sql, params), false);
+      return this.transaction(query, false);
     });
   }
 
@@ -2030,6 +2045,19 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     while (this.#change_tasks.size > 0) {
       await Promise.allSettled([...this.#change_tasks]);
     }
+  }
+
+  async #discoverTableNames(client: Pick<SqliteClientLike, 'execute'>): Promise<void> {
+    const tables = await client.execute("SELECT name FROM sqlite_master WHERE type = 'table'");
+    const names = tables.results.flatMap(result => result.rows).map(row => String(row[0]));
+    for (const name of names) this.#knownTableNames.add(name);
+  }
+
+  async #queryWithCurrentTableNames(executor: TransactionExecutor, sql: string, params?: unknown[]) {
+    if (this.workingTreeCaptureHook && !this.#read_only_sealed) {
+      await this.#discoverTableNames(executor as SqliteTransactionExecutor);
+    }
+    return gateRawWrite(sql, this.workingTreeRawWriteContext, () => executor.query(sql, params));
   }
 
   #get_row_id_cache_map<T extends EntityType>(EntityType: T) {

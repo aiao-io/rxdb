@@ -20,7 +20,7 @@ import {
   type EntityType,
   getEntityMetadata,
   hashConstraintDefinition,
-  type WorktreeTableSet
+  WorktreeTableSet
 } from '@aiao/rxdb';
 
 /** 约束名末尾的定义哈希：`_` 加 8 位小写十六进制（`storageConstraintName` 的格式） */
@@ -75,6 +75,21 @@ const physical_name = (metadata: EntityMetadata, logicalName: string, tableSet: 
  */
 export const get_table_name_by_metadata = (metadata: EntityMetadata, tableSet: WorktreeTableSet): string =>
   physical_name(metadata, metadata.tableName, tableSet);
+
+/**
+ * 从物理目录里找出该实体的影子表，供原始 SQL 门禁登记。
+ *
+ * @param metadata - 实体元数据
+ * @param names - 已发现或正在建立的物理表名
+ * @returns 后缀符合表集规则的影子表名
+ */
+export const get_worktree_table_names = (metadata: EntityMetadata, names: Iterable<string>): string[] => {
+  const prefix = `${get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN)}$`;
+  return [...names].filter(
+    name =>
+      name.startsWith(prefix) && WorktreeTableSet.suffixOfHolderKey(`*worktree:${name.slice(prefix.length)}*`) !== null
+  );
+};
 
 /**
  * 实体在给定表集里的物理表名。

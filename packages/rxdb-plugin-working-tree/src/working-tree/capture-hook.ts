@@ -84,7 +84,7 @@ export interface WorkingTreeCaptureRuntimeOptions {
   /** 造工作树单元实例用 */
   readonly entityManager: EntityManager;
 
-  /** 版本化域：谁是 query cache、哪些字段不算净变化 */
+  /** 版本化域：实体分类固定；可用 getter 返回包含新建影子表的原始 SQL 判定域 */
   readonly domain: VersionedDomain;
 
   /**
@@ -305,6 +305,7 @@ const splitQualifiedEntityName = (entityName: string): { readonly name: string; 
 export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
   readonly #host: WorkingTreeCaptureHost;
   readonly #domain: VersionedDomain;
+  readonly #rawWriteDomain: () => VersionedDomain;
   readonly #systemEntityNames: ReadonlySet<string>;
   readonly #systemEntityIdentities: ReadonlySet<string>;
   readonly #newUnitId: () => string;
@@ -317,12 +318,11 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    * **不在核心的 {@link WorkingTreeCaptureHook} 契约上**：核心一次都不读它。摆上去等于让核心
    * 替「判定认什么」的形状背书，而那正是随捕获规则变、必须留在本包的东西。
    *
-   * 暴露在类上是给本包自己与一致性套件用的：套件要在**表 / 列平面**核对「哪些表受保护」，
-   * 而那份清单只有运行时手上有。交出的是清单本身不是拷贝——拷一份出来之后，插件后续登记的
-   * 派生索引列只会落进其中一份，raw 通道与捕获会对同一张表给出不同结论。
+   * 暴露在类上是给本包自己与一致性套件核对「哪些表受保护」。物理表名每次向适配器现取：
+   * 建立检出位和重新连接都可能增加影子表，不能沿用安装时的物理目录。
    */
   get domain(): VersionedDomain {
-    return this.#domain;
+    return this.#rawWriteDomain();
   }
 
   /**
@@ -331,14 +331,15 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    * @param options - 全部依赖，见 {@link WorkingTreeCaptureRuntimeOptions}
    *
    * @remarks
-   * 全部注入且构造后不可换：版本化域与系统表清单在这里定格，于是「这张表受不受保护」
-   * 在本运行时的整个生命周期里只有一个答案。构造器**不**碰挂载目标——`#target` 由
+   * 实体分类与系统表清单在这里定格，原始 SQL 门禁通过选项的 getter 跟随物理表目录。
+   * 构造器**不**碰挂载目标——`#target` 由
    * {@link bindMountTarget} 在装到适配器上的那一刻才写入，因此同一个运行时可以先造出来、
    * 再决定装到哪个适配器上。
    */
   constructor(options: WorkingTreeCaptureRuntimeOptions) {
     this.#host = { entityManager: options.entityManager };
     this.#domain = options.domain;
+    this.#rawWriteDomain = () => options.domain;
     this.#systemEntityNames = options.systemEntityNames;
     this.#systemEntityIdentities = options.systemEntityIdentities;
     this.#newUnitId = options.newUnitId ?? uuid;
@@ -511,7 +512,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    * 在能力位为假时压根不会转交到这里。再判一次就是第二份真相。
    */
   gateRawWrite<T>(sql: string, execute: () => Promise<T> | T): Promise<T> {
-    return applyRawWriteJudgment(sql, { capabilityEnabled: true, domain: this.#domain }, execute);
+    return applyRawWriteJudgment(sql, { capabilityEnabled: true, domain: this.domain }, execute);
   }
 
   /**
@@ -670,11 +671,13 @@ export const createWorkingTreeCaptureRuntime = (
 ): WorkingTreeCaptureRuntime =>
   new WorkingTreeCaptureRuntime({
     entityManager,
-    domain: buildVersionedDomain(
-      entities
-        .filter(EntityType => !isSystemEntity(EntityType))
-        .map(toVersionedDomainEntityInput(adapter, databaseSync))
-    ),
+    get domain() {
+      return buildVersionedDomain(
+        entities
+          .filter(EntityType => !isSystemEntity(EntityType))
+          .map(toVersionedDomainEntityInput(adapter, databaseSync))
+      );
+    },
     systemEntityNames: getSystemEntityNames(),
     systemEntityIdentities: getSystemEntityIdentities()
   });

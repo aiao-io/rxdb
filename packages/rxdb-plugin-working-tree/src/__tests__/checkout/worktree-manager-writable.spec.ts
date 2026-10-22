@@ -237,6 +237,22 @@ describe('WorktreeManager.add', () => {
 });
 
 describe('WorktreeManager.mount / release / remove', () => {
+  it('remove() 挂回主表集失败时保留当前认领，随后仍可 release()', async () => {
+    const manager = managerOf();
+    const worktree = await manager.add('feature');
+    await manager.mount(worktree.id);
+    vi.mocked(main.mountWorktreeTableSet).mockRejectedValueOnce(new Error('换挂失败'));
+
+    await expect(manager.remove(worktree.id)).rejects.toThrow('换挂失败');
+    expect(mounted.suffix).toBe(worktree.tableSetSuffix);
+    expect(await isLocked(worktree.id)).toBe(true);
+    expect(dropWorktreeTableSet).not.toHaveBeenCalled();
+
+    await manager.release(worktree.id);
+    expect(mounted.isMain).toBe(true);
+    expect(await isLocked(worktree.id)).toBe(false);
+  });
+
   it('mount() 挂上登记行那套表；已经挂在它上面时不再换挂', async () => {
     const manager = managerOf();
     const worktree = await manager.add('feature');

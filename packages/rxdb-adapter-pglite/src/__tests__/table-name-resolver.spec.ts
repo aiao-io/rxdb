@@ -26,6 +26,15 @@ class Todo extends EntityBase {
   title!: string;
 }
 
+@Entity({
+  name: 'PgResolverBoundary',
+  namespace: 'resolver_namespace_abcdefghijklmnopqrstuvwxyzab',
+  properties: [{ name: 'title', type: PropertyType.string }]
+})
+class Boundary extends EntityBase {
+  declare title: string;
+}
+
 const todo = getEntityMetadata(Todo);
 const branch = getEntityMetadata(RxDBBranch);
 const shadow = WorktreeTableSet.of('wt_a1', [Todo]);
@@ -49,6 +58,14 @@ describe('PGlite 表名解析器：主表集与引入检出位之前逐字相同
 });
 
 describe('PGlite 表名解析器：影子表集', () => {
+  it('完整名字恰好 63 字节时保持原名，不压缩 namespace', () => {
+    const metadata = getEntityMetadata(Boundary);
+    const set = WorktreeTableSet.of('wt_abcdefghijk1', [Boundary]);
+    const expected = `${metadata.namespace}$${set.suffix}`;
+    expect(new TextEncoder().encode(expected).length).toBe(63);
+    expect(getSchemaName(metadata, set)).toBe(expected);
+  });
+
   it('有副本的实体换到自己那套 schema，表名不变', () => {
     expect(getSchemaName(todo, shadow)).toBe('public$wt_a1');
     expect(getTableNameByMetadata(todo, shadow)).toBe('"public$wt_a1"."pg_resolver_todo"');

@@ -18,9 +18,9 @@ afterEach(async () => {
   for (const database of opened.splice(0)) await database.disconnectAll();
 });
 
-const createDatabase = async (vfs: 'idb' | 'memory') => {
+const createDatabase = async (vfs: 'idb' | 'memory', name?: string) => {
   const database = new RxDB({
-    dbName: `drop-storage-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    dbName: name ?? `drop-storage-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     entities: [],
     sync: { local: { adapter: 'sqlite-wasm' }, type: SyncType.None }
   });
@@ -42,6 +42,35 @@ const createDatabase = async (vfs: 'idb' | 'memory') => {
 const idbNames = async (): Promise<string[]> => (await indexedDB.databases()).map(info => info.name ?? '');
 
 describe('RxDBAdapterSqlite.dropStorage（sqlite-wasm）', () => {
+  it('OPFS：中文和空格库名按 VFS 的 URL 路径删除真实文件', async () => {
+    const database = new RxDB({
+      dbName: `中文 opfs-${crypto.randomUUID().slice(0, 8)}`,
+      entities: [],
+      sync: { local: { adapter: 'sqlite-wasm' }, type: SyncType.None }
+    });
+    const adapter = new RxDBAdapterSqlite(database, { vfs: 'opfs' });
+    const file = new URL(`${database.config.dbName}.sqlite`, 'file://').pathname.slice(1);
+    const root = await navigator.storage.getDirectory();
+    await root.getFileHandle(file, { create: true });
+    await root.getFileHandle(`${file}-journal`, { create: true });
+
+    await adapter.dropStorage();
+
+    await expect(root.getFileHandle(file)).rejects.toMatchObject({ name: 'NotFoundError' });
+    await expect(root.getFileHandle(`${file}-journal`)).rejects.toMatchObject({ name: 'NotFoundError' });
+  });
+
+  it('IDB：中文和空格仍使用原库名，不做 OPFS 的 URL 转义', async () => {
+    const { database, adapter } = await createDatabase('idb', `中文 idb-${crypto.randomUUID().slice(0, 8)}`);
+    const name = `${database.config.dbName}.sqlite.db`;
+    expect(await idbNames()).toContain(name);
+
+    await database.disconnectAll();
+    await adapter.dropStorage();
+
+    expect(await idbNames()).not.toContain(name);
+  });
+
   it('idb：断开之后删掉 IndexedDB 库', async () => {
     const { database, adapter } = await createDatabase('idb');
     const name = `${database.config.dbName}.sqlite.db`;

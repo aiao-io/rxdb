@@ -17,9 +17,11 @@ afterEach(async () => {
   for (const database of opened.splice(0)) await database.disconnectAll();
 });
 
-const createDatabase = async (vfs: 'IDBBatchAtomicVFS' | 'MemoryAsyncVFS') => {
+type PersistentIdbVfs = 'IDBBatchAtomicVFS' | 'IDBMirrorVFS';
+
+const createDatabase = async (vfs: PersistentIdbVfs | 'MemoryAsyncVFS', name?: string) => {
   const database = new RxDB({
-    dbName: `drop-${Math.random().toString(36).slice(2, 10)}`,
+    dbName: name ?? `drop-${Math.random().toString(36).slice(2, 10)}`,
     entities: [],
     sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
   });
@@ -41,22 +43,58 @@ const createDatabase = async (vfs: 'IDBBatchAtomicVFS' | 'MemoryAsyncVFS') => {
 };
 
 /** VFS 共用库里 metadata 的全部路径。 */
-const storedPaths = (): Promise<string[]> =>
+const storedPaths = (vfs: PersistentIdbVfs = 'IDBBatchAtomicVFS'): Promise<string[]> =>
   new Promise((resolve, reject) => {
-    const request = indexedDB.open('IDBBatchAtomicVFS');
+    const request = indexedDB.open(vfs);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const db = request.result;
-      const keys = db.transaction('metadata').objectStore('metadata').getAllKeys();
+      const store = vfs === 'IDBBatchAtomicVFS' ? 'metadata' : 'blocks';
+      const keys = db.transaction(store).objectStore(store).getAllKeys();
       keys.onsuccess = () => {
         db.close();
-        resolve(keys.result.map(String));
+        resolve(keys.result.map(key => String(Array.isArray(key) ? key[0] : key)));
       };
       keys.onerror = () => reject(keys.error);
     };
   });
 
 describe('RxDBAdapterWaSqlite.dropStorage', () => {
+  it.each(['IDBBatchAtomicVFS', 'IDBMirrorVFS'] as const)(
+    '%s 中文和空格库名：按 URL 路径删除，旁边的库不受影响',
+    async vfs => {
+      const victim = await createDatabase(vfs, `中文 review-${crypto.randomUUID().slice(0, 8)}`);
+      const bystander = await createDatabase(vfs);
+      const victimPath = new URL(`${victim.database.config.dbName}.sqlite`, 'file://').pathname;
+      const bystanderPath = `/${bystander.database.config.dbName}.sqlite`;
+      expect(await storedPaths(vfs)).toEqual(expect.arrayContaining([victimPath, bystanderPath]));
+
+      await victim.database.disconnectAll();
+      await victim.adapter.dropStorage();
+
+      expect(await storedPaths(vfs)).not.toContain(victimPath);
+      expect(await storedPaths(vfs)).toContain(bystanderPath);
+    }
+  );
+
+  it('OPFS 删除使用相同的 URL 路径，中文与空格按百分号编码', async () => {
+    const database = new RxDB({
+      dbName: `中文 opfs-${crypto.randomUUID().slice(0, 8)}`,
+      entities: [],
+      sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
+    });
+    const adapter = new RxDBAdapterWaSqlite(database, { vfs: 'OPFSCoopSyncVFS' });
+    const file = new URL(`${database.config.dbName}.sqlite`, 'file://').pathname.slice(1);
+    const root = await navigator.storage.getDirectory();
+    await root.getFileHandle(file, { create: true });
+    await root.getFileHandle(`${file}-journal`, { create: true });
+
+    await adapter.dropStorage();
+
+    await expect(root.getFileHandle(file)).rejects.toMatchObject({ name: 'NotFoundError' });
+    await expect(root.getFileHandle(`${file}-journal`)).rejects.toMatchObject({ name: 'NotFoundError' });
+  });
+
   it('IDBBatchAtomicVFS：只删这个库的记录，同一个 VFS 里别的库不受影响', async () => {
     const victim = await createDatabase('IDBBatchAtomicVFS');
     const bystander = await createDatabase('IDBBatchAtomicVFS');

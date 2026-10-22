@@ -85,21 +85,23 @@ export class RxDBAdapterWaSqlite extends RxDBAdapterSqliteBase {
   /** 本库存储的删法；`canDropStorage()` 与 `dropStorage()` 共用这一份，删不掉的 VFS 交回 `undefined`。 */
   #storageDrop(): (() => Promise<void>) | undefined {
     const vfs = this.options.vfs ?? DEFAULT_VFS;
-    const file = `${this.#dbName}.sqlite`;
+    const path = new URL(`${this.#dbName}.sqlite`, 'file://').pathname;
     switch (vfs) {
       case 'MemoryVFS':
       case 'MemoryAsyncVFS':
         return async () => undefined;
       case 'IDBBatchAtomicVFS':
       case 'IDBMirrorVFS':
-        return () => deleteIdbVfsFiles(vfs, [`/${file}`, `/${file}-journal`]);
+        return () => deleteIdbVfsFiles(vfs, [path, `${path}-journal`]);
       case 'AccessHandlePoolVFS':
         return undefined;
       case 'OPFSAdaptiveVFS':
       case 'OPFSAnyContextVFS':
       case 'OPFSCoopSyncVFS':
-      case 'OPFSWriteAheadVFS':
+      case 'OPFSWriteAheadVFS': {
+        const file = path.slice(1);
         return () => removeOpfsFiles([file, `${file}-journal`, `${file}-wal`, `${file}-wa0`, `${file}-wa1`]);
+      }
     }
   }
 }

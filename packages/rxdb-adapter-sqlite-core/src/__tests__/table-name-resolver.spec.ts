@@ -25,6 +25,7 @@ import {
   get_table_name_by_entity_type,
   get_table_name_by_metadata,
   get_table_name_info,
+  get_worktree_table_names,
   getTableColumnIndexName
 } from '../table-name-resolver.js';
 
@@ -73,6 +74,17 @@ describe('表名解析器：主表集与引入检出位之前逐字相同', () =
 });
 
 describe('表名解析器：影子表集', () => {
+  it('物理目录只登记完整匹配实体与合法后缀的影子表', () => {
+    const names = [
+      'public$resolver_todo$wt_a1',
+      'public$resolver_todo$wt_b2',
+      'public$resolver_todo_archive$wt_a1',
+      'public$resolver_todo$wt_',
+      'public$resolver_todo$wt_A1',
+      'public$resolver_todo$wt_1234567890123'
+    ];
+    expect(get_worktree_table_names(todo, names)).toEqual(['public$resolver_todo$wt_a1', 'public$resolver_todo$wt_b2']);
+  });
   it('有副本的实体落自己那一套：物理名加后缀，两套之间、与主表集都不撞', () => {
     expect(get_table_name_by_metadata(todo, shadow)).toBe('public$resolver_todo$wt_a1');
     expect(get_table_name_by_metadata(todo, otherShadow)).toBe('public$resolver_todo$wt_b2');

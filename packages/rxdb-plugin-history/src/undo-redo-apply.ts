@@ -148,6 +148,7 @@ export async function applyUndoRedoHistories(
   host.isUndoRedoInProgress = true;
 
   try {
+    const tableSet = host.rxdb.worktreeTableSet;
     const changes = histories
       .flatMap(h => h.changes)
       .sort((a, b) => (operation === 'undo' ? b.id - a.id : a.id - b.id));
@@ -193,9 +194,8 @@ export async function applyUndoRedoHistories(
     }
 
     const { adapter } = await host.rxdb.versionManager.getLocalRepositories();
-    if (operation === 'undo') {
-      if (undoSession === undefined || !host.isUndoSessionCurrent(undoSession)) return;
-    }
+    if (undoSession !== undefined && !host.isUndoSessionCurrent(undoSession)) return;
+    if (operation === 'undo' && undoSession === undefined) return;
     // undo/redo 是用户可感知的编辑，矩阵行 6 要求它**产生**单元（origin='undo_redo'）。
     declareTrustedWrite(adapter, {
       file: 'undo-redo-apply.ts',
@@ -204,17 +204,25 @@ export async function applyUndoRedoHistories(
     });
     // 不传 branchId：回放只作用于当前分支。在事务外采样分支 id 会让这次写入在并发切换时
     // 把 activated 与全部触发器倒回旧分支（见 SwitchBranchOptions.branchId）。
-    // 分支一动不动，前置条件只有一条：这批变更此刻还没被子分支继承。`targetBranchId` 就是当前分支。
+    // 分支一动不动，前置条件：这批变更仍属于当前分支，而且此刻还没被子分支继承。`targetBranchId` 就是当前分支。
     // 回滚靠抛错，判没判中靠标志：适配器的事务包装层可能改写异常身份，不拿错误对象做比较。
-    let inherited = false;
+    let stale = false;
     try {
       await adapter.switchBranch({
         actions,
         prepare: async ({ executor, targetBranchId }) => {
+          if (changes.some(change => change.branchId !== targetBranchId)) {
+            stale = true;
+            throw new RxDBError(`${operation} aborted: the current branch changed since the histories were selected`);
+          }
           const branchRepository = executor.getRepository(RxDBBranch) as unknown as LocalRxDBBranchRepository;
           const floor = inheritedFloorOf(await fetchChildForks(branchRepository, targetBranchId));
+          if (undoSession !== undefined && !host.isUndoSessionCurrent(undoSession)) {
+            stale = true;
+            throw new RxDBError(`${operation} aborted: the undo session changed since the histories were selected`);
+          }
           if (changes.some(change => change.id <= floor)) {
-            inherited = true;
+            stale = true;
             throw new RxDBError(
               `${operation} aborted: the changes were inherited by a child branch since they were selected`
             );
@@ -222,7 +230,7 @@ export async function applyUndoRedoHistories(
         }
       });
     } catch (error) {
-      if (inherited) return;
+      if (stale) return;
       throw error;
     }
 
@@ -230,10 +238,16 @@ export async function applyUndoRedoHistories(
     host.pushableCountTrigger$.next(Date.now());
     host.setRevertStateWatermarks(changes, operation === 'undo', stateUpdatedAt);
 
-    if (operation === 'undo') {
-      host.pushToRedoStack(histories);
-    } else {
+    if (operation === 'redo') {
       host.removeFromRedoStack(histories);
+      return;
+    }
+    if (
+      tableSet === host.rxdb.worktreeTableSet &&
+      undoSession !== undefined &&
+      host.isUndoSessionCurrent(undoSession)
+    ) {
+      host.pushToRedoStack(histories);
     }
   } finally {
     host.isUndoRedoInProgress = false;

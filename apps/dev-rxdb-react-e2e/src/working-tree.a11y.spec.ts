@@ -79,15 +79,15 @@ const SETTLED = /^(success|empty|error)$/;
 /**
  * 连按 Tab，收集**落在面板内**、带 `data-testid` 的控件及其聚焦样式。
  *
- * @param wanted - 期望收集到的控件数；收齐就停，不必把整页 Tab 完
+ * @param wanted - 必须实际走到的目标 testid；收齐就停，不必把整页 Tab 完
  *
  * @remarks
  * 步数上限只是防跑飞：导航壳里的链接数量三端不同，写死步数会让这条用例
  * 一改导航就红，而那与工作树面板无关。
  */
-const walkPanelWithTab = async (page: Page, wanted: number): Promise<Map<string, FocusIndicator>> => {
+const walkPanelWithTab = async (page: Page, wanted: readonly string[]): Promise<Map<string, FocusIndicator>> => {
   const reached = new Map<string, FocusIndicator>();
-  for (let step = 0; step < 80 && reached.size < wanted; step += 1) {
+  for (let step = 0; step < 80 && wanted.some(testId => !reached.has(testId)); step += 1) {
     await page.keyboard.press('Tab');
     const focused = await page.evaluate(() => {
       const element = document.activeElement;
@@ -268,7 +268,7 @@ test.describe('Working Tree Page A11y', () => {
     await openPanel(page);
 
     // 初始化态只有「初始化仓库」与「刷新状态」两个控件。
-    const initReached = await walkPanelWithTab(page, 2);
+    const initReached = await walkPanelWithTab(page, ['wt-enable', 'wt-refresh-status']);
     expect(initReached.has('wt-enable'), '初始化态应该能走到 wt-enable').toBe(true);
     const initWithoutIndicator = [...initReached.values()]
       .filter(one => !hasVisibleFocusIndicator(one))
@@ -283,14 +283,14 @@ test.describe('Working Tree Page A11y', () => {
 
     // 超集断言（见 KEYBOARD_REACHABLE 的注释）：所有静态控件都必须走到，
     // 每一个被走到的控件（含动态出现的）都必须有可见焦点指示。
-    const reached = await walkPanelWithTab(page, KEYBOARD_REACHABLE.length + 2);
+    const reached = await walkPanelWithTab(page, KEYBOARD_REACHABLE);
     expectReachedWithIndicator(reached, KEYBOARD_REACHABLE);
 
     // 分支下拉是内联渲染的：打开后，新建按钮、分支行与底部的合并入口也在 Tab 序列里。
     await page.getByTestId('wt-branch-menu').click();
     await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
-    // 触屏布局下行尾还有一个 ⋯（`wt-branch-more`），走查多收一个才走得到底部
-    const menuReached = await walkPanelWithTab(page, 4);
+    // 触屏行尾的 ⋯ 也会被走查收集，但必须走到指定的底部合并入口才结束。
+    const menuReached = await walkPanelWithTab(page, ['wt-branch-create', 'wt-branch-item', 'wt-branch-merge-into']);
     expectReachedWithIndicator(menuReached, ['wt-branch-create', 'wt-branch-item', 'wt-branch-merge-into']);
     await page.keyboard.press('Escape');
 
@@ -309,20 +309,20 @@ test.describe('Working Tree Page A11y', () => {
     await expect(page.getByTestId('wt-branch-menu-copy')).toBeVisible({ timeout: 10000 });
     // 右键不聚焦行：把焦点锚在菜单背板上（菜单项的前一个 Tab 停靠点），走查才收得到菜单项。
     await page.locator('[aria-label="Close context menu"]').focus();
-    const actionsReached = await walkPanelWithTab(page, 2);
+    const actionsReached = await walkPanelWithTab(page, ['wt-branch-menu-copy', 'wt-branch-menu-delete']);
     expectReachedWithIndicator(actionsReached, ['wt-branch-menu-copy', 'wt-branch-menu-delete']);
     await page.keyboard.press('Escape');
 
     // 变更列表的行（数据来自 /todo 页的一条 Todo）要能被走到。
     // 先点筛选框把焦点锚在列表区：导航回来时焦点在 body，Tab 会先停在分支栏上，
-    // 走查在收齐 wanted 个控件时就停，够不到列表行。点完要等列表渲染出来再走查——
+    // 先锚定列表前面的控件，再等列表渲染出来后走查——
     // diff 是异步读，立刻 Tab 会打在空列表上。
     await writeTodo(page, 'a11y todo');
     await page.getByTestId('wt-refresh-status').click();
     await expect(page.getByTestId('wt-diff-phase')).toHaveText('success', { timeout: 30000 });
     await expect(page.getByTestId('wt-diff-item').first()).toBeVisible({ timeout: 10000 });
     await page.getByTestId('wt-change-filter').click();
-    const diffReached = await walkPanelWithTab(page, 2);
+    const diffReached = await walkPanelWithTab(page, ['wt-diff-item']);
     expectReachedWithIndicator(diffReached, ['wt-diff-item']);
 
     // 提交后，历史列表的行要能被走到。行上没有恢复按钮（GitHub Desktop 同款），
@@ -334,7 +334,9 @@ test.describe('Working Tree Page A11y', () => {
       .toContain('Committed');
     await page.getByTestId('wt-tab-history').click();
     await expect(page.getByTestId('wt-commits-phase')).toHaveText('success', { timeout: 30000 });
-    const historyReached = await walkPanelWithTab(page, 2);
+    await expect(page.getByTestId('wt-commit-item').first()).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('wt-compare-select').click();
+    const historyReached = await walkPanelWithTab(page, ['wt-commit-item']);
     expectReachedWithIndicator(historyReached, ['wt-commit-item']);
   });
 

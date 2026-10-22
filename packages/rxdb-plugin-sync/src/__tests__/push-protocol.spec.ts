@@ -151,7 +151,8 @@ function createSyncManager(localChanges: RxDBChange[], remoteAdapter: RemoteAdap
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
+    history: { captureUndoHistory: () => () => undefined },
+    getCurrentBranch: vi.fn(async () => ({ id: 'main', activated: true })),
     pushInFlight: emptyPushInFlight()
   } as unknown as SyncManager;
 
