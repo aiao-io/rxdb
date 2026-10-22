@@ -139,7 +139,7 @@ Board / Column / 跨列移动产品，看板需要自己的三个实体；同一
 
 ## 实现文件
 
-- `packages/rxdb-plugin-board/` — 待建；`board` / `column` / `task` 实体、装饰器与仓储
+- `packages/rxdb-plugin-board/` — 已建；`board` / `column` / `task` 实体、装饰器与仓储
 
 ## References
 

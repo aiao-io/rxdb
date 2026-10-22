@@ -136,9 +136,9 @@ React / Vue 虽能换实例，三端数据 hooks 在库关闭后都不重新订�
 
 ## 实现文件
 
-- `packages/rxdb-plugin-board/` — 待建；备份 / 恢复编排状态机、活动位置与待切换记录、「恢复中」跨页标记（三端共用）
-- `packages/rxdb-plugin-board-{angular,react,vue}/` — 待建；三端入口与状态接线，随 [US-539](US-539-board-tri-framework-ui.md)
-- `apps/dev-rxdb-board/` — 待建；sqlite-wasm 主线程 `vfs: 'idb'` 配置与启动页接线，贯穿闭环随 [US-540](US-540-board-end-to-end-demo.md)
+- `packages/rxdb-plugin-board/` — 已建；备份 / 恢复编排状态机、活动位置与待切换记录、「恢复中」跨页标记（三端共用）
+- `packages/rxdb-plugin-board-{angular,react,vue}/` — 已建；三端入口与状态接线，随 [US-539](US-539-board-tri-framework-ui.md)
+- `apps/dev-rxdb-board/` — 已建；sqlite-wasm 主线程 `vfs: 'idb'` 配置与启动页接线，贯穿闭环随 [US-540](US-540-board-end-to-end-demo.md)
 
 ## References
 

@@ -95,8 +95,8 @@ tags: [domain, board, angular, react, vue, ui]
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> **验收注记（2026-10-21）**：阶段 A 的 e2e 半边三端全绿（board.spec 8 条 + board-parity
-> 对拍 golden 一致）。保留项：AC#4/#5（三端宿主无恢复入口，恢复中门禁仅服务层与独立 demo 验收）、
+> **验收注记（2026-10-21）**：阶段 A 的 e2e 半边三端全绿（board.spec 11 条 + board-parity
+> 对拍 golden 一致）；阶段 B 两条（AC#15 / #16）随 US-538 三端全绿。保留项：AC#4/#5（三端宿主无恢复入口，恢复中门禁仅服务层与独立 demo 验收）、
 > AC#9（拖列改序的鼠标半边未做，键盘前移 / 后移已验）、AC#10（标签创建 / 改名 / 改色 / 删除的
 > e2e 未做，服务层已验）、AC#12/#13（截止日展示与错误状态的分支 e2e 未做）。
 
@@ -170,10 +170,10 @@ sqlite-wasm 主线程 `vfs: 'idb'`、独立库名、看板实体在 `board` 命�
 
 | 路径                                                              | 阶段 | 职责                                                                                      |
 | ----------------------------------------------------------------- | ---- | ----------------------------------------------------------------------------------------- |
-| `packages/rxdb-plugin-board-{angular,react,vue}/`                 | A    | 待建；三端看板视图、指针事件采集、本列排序、详情面板 / 标签 / 历史 / 备份接线与恢复中门禁 |
+| `packages/rxdb-plugin-board-{angular,react,vue}/`                 | A    | 已建；三端看板视图、指针事件采集、本列排序、详情面板 / 标签 / 历史 / 备份接线与恢复中门禁 |
 | `apps/dev-rxdb-{angular,react,vue}/` 及对应 `-e2e`                | A    | 看板页与独立 RxDB 实例；三端 Playwright（真实拖拽、axe、恢复）                            |
 | `modules/e2e-parity/`                                             | A    | 看板专用归一化与 golden，与 entity-model 对拍同目录、各自一份                             |
-| `packages/rxdb-plugin-board/src/testing/release-board-dataset.ts` | A    | 待建；三端与 US-540 共用确定性种子                                                        |
+| `packages/rxdb-plugin-board/src/testing/release-board-dataset.ts` | A    | 已建；三端与 US-540 共用确定性种子                                                        |
 | `packages/rxdb-plugin-board-{angular,react,vue}/`                 | B    | 板内搜索领域源的三端接线、分页、切板失效与结果定位                                        |
 
 ## References

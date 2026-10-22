@@ -129,13 +129,13 @@ export class App implements OnInit {
 
   // ---------- 启动选择 ----------
 
-  protected startEmpty(): void {
-    const dbName = nextBoardDbName(null);
+  protected async startEmpty(): Promise<void> {
+    const dbName = await nextBoardDbName(null);
     void this.openAndWriteActive(dbName);
   }
 
-  protected startSeed(): void {
-    const dbName = nextBoardDbName(null);
+  protected async startSeed(): Promise<void> {
+    const dbName = await nextBoardDbName(null);
     void this.openAndWriteActive(dbName, true);
   }
 
@@ -169,10 +169,10 @@ export class App implements OnInit {
     URL.revokeObjectURL(url);
   };
 
-  protected onResetDemo(): void {
+  protected async onResetDemo(): Promise<void> {
     // 两阶段切换：先确认，再在新库名上建库并装载种子，读回成功后整页重载切换
     if (!window.confirm('重置为演示数据：将在新库上装载演示数据，成功后打开演示看板。继续？')) return;
-    const dbName = nextBoardDbName(this.activeDbName);
+    const dbName = await nextBoardDbName(this.activeDbName);
     void this.openAndWriteActive(dbName, true);
   }
 
@@ -182,7 +182,7 @@ export class App implements OnInit {
     // 已有看板先确认（恢复成功后将打开备份中的看板）
     if (this.activeDbName !== null && !window.confirm('恢复成功后将打开备份中的看板，当前看板原样保留。继续？')) return;
 
-    const target = nextBoardDbName(this.activeDbName);
+    const target = await nextBoardDbName(this.activeDbName);
     this.phase.set('restoring');
     try {
       this.writeStorage(RESTORING_MARKER_KEY, '1');
@@ -201,6 +201,8 @@ export class App implements OnInit {
 
   /** 重载后：连接新库并读回，成功才写成活动位置；失败清理并回到旧库。 */
   private async completePendingSwitch(target: string): Promise<void> {
+    // 读回窗口内不允许再走启动入口（否则两流程并发写活动位置、另一库成孤儿）
+    this.phase.set('restoring');
     const db = createBoardRxdb(target);
     try {
       await connectBoardRxdb(db);
@@ -230,6 +232,8 @@ export class App implements OnInit {
       await connectBoardRxdb(db);
       if (seed) await seedBoardDemo(db);
       this.writeStorage(ACTIVE_DB_KEY, dbName);
+      // 恢复中断电 / 崩溃留下的残留标记：任何成功的打开都视为恢复流程已终结
+      this.clearStorage(RESTORING_MARKER_KEY);
       this.activeDbName = dbName;
       this.rxdb.set(db);
       this.phase.set('board');
@@ -243,6 +247,7 @@ export class App implements OnInit {
     const db = createBoardRxdb(dbName);
     void connectBoardRxdb(db)
       .then(() => {
+        this.clearStorage(RESTORING_MARKER_KEY);
         this.activeDbName = dbName;
         this.rxdb.set(db);
         this.phase.set('board');

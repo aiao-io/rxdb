@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, toRaw } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, toRaw } from 'vue';
 import type { UUID } from '@aiao/rxdb';
 import {
   labelTextColor,
+  RESTORING_MARKER_KEY,
   resolveCardDrop,
   resolveColumnDrop,
   type BoardLabel,
@@ -486,6 +487,16 @@ type ConfirmState =
       readonly count: number;
       readonly columns: number;
     };
+
+// 跨页恢复门禁（US-539 AC#5）：另一页开始恢复时经 storage 事件同步「恢复中」
+const applyRestoringFromStorage = (): void => {
+  board.setRestoring(localStorage.getItem(RESTORING_MARKER_KEY) !== null);
+};
+onMounted(() => {
+  window.addEventListener('storage', applyRestoringFromStorage);
+  applyRestoringFromStorage();
+});
+onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromStorage));
 </script>
 
 <template>

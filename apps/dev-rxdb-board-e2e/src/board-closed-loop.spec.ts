@@ -90,6 +90,23 @@ test('AC#2：启动页新建空看板 → 建板/列/任务 → 第二板切换 
   await expect(page.getByTestId('task-card')).toHaveCount(12);
 });
 
+test('AC#2 附：连续两次重置为演示数据都成功（库名回绕防回归）', async ({ boardPage: page }) => {
+  await startWithSeed(page);
+
+  // 第一次重置：restore-0 已被种子占用，新库避让到下一个空位
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByTestId('reset-demo').click();
+  await expect(page.getByTestId('column')).toHaveCount(4, { timeout: 30000 });
+  await expect(page.getByTestId('task-card')).toHaveCount(12);
+
+  // 第二次重置：此前只避让活动库名会回绕到 restore-0 撞已有库、被踢回启动页；
+  // 避让现存 IndexedDB 库后应再次成功
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByTestId('reset-demo').click();
+  await expect(page.getByTestId('column')).toHaveCount(4, { timeout: 30000 });
+  await expect(page.getByTestId('task-card')).toHaveCount(12);
+});
+
 test('AC#3：真实拖拽——跨列两邻之间、空列、同列改序，每次拖后刷新读回', async ({ boardPage: page }) => {
   await startWithSeed(page);
 

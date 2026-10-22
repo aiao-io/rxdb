@@ -117,7 +117,7 @@ US-538 依赖 US-534 / US-536 的实体与字段，搜索 UI 由 US-539 阶段 B
 
 ## 实现文件
 
-- `packages/rxdb-plugin-board/` — 待建；板级搜索源、归属过滤、本地分页与请求失效
+- `packages/rxdb-plugin-board/` — 已建；板级搜索源、归属过滤、本地分页与请求失效
 
 ## References
 

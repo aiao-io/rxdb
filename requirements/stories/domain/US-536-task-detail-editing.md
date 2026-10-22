@@ -135,7 +135,7 @@ tags: [domain, board, detail, label]
 
 ## 实现文件
 
-- `packages/rxdb-plugin-board/` — 待建；`board_label` / `task_label` 实体与标签仓储、详情编辑服务（草稿差集与一次保存）、task 可搜索字段声明
+- `packages/rxdb-plugin-board/` — 已建；`board_label` / `task_label` 实体与标签仓储、详情编辑服务（草稿差集与一次保存）、task 可搜索字段声明
 
 ## References
 

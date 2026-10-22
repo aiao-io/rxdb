@@ -4,6 +4,7 @@ import {
   labelTextColor as pickLabelTextColor,
   resolveCardDrop,
   resolveColumnDrop,
+  RESTORING_MARKER_KEY,
   Task,
   type BoardSearchUpstream,
   type CardDropColumnView,
@@ -431,13 +432,22 @@ export class BoardViewComponent implements OnInit, OnDestroy {
       );
     });
     this.board.set(installed);
+    // 跨页恢复门禁（US-539 AC#5）：另一页开始恢复时经 storage 事件同步「恢复中」
+    window.addEventListener('storage', this.onBoardStorage);
+    this.onBoardStorage();
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener('storage', this.onBoardStorage);
     if (this.noticeTimer !== null) window.clearTimeout(this.noticeTimer);
     this.searchSubs.unsubscribe();
     this.destroySearch();
   }
+
+  /** 恢复标记跨页同步：读 localStorage 标记并把门禁下发到领域桥。 */
+  private readonly onBoardStorage = (): void => {
+    this.board()?.setRestoring(localStorage.getItem(RESTORING_MARKER_KEY) !== null);
+  };
 
   /** 标签文字色（对比度，US-539 AC#6）：模板无法直接调模块级函数，包一层成员。 */
   protected labelTextColor(color: string): string {

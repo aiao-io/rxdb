@@ -53,5 +53,28 @@ export const restoreBoardArchive = async (db: RxDB, file: File): Promise<void> =
   await adapter.restore(file.stream());
 };
 
-/** 生成不与活动位置冲突的新库名。 */
-export const nextBoardDbName = (activeDbName: string | null): string => nextRestoreDbName(activeDbName);
+/** 现有 IndexedDB 库名（sqlite-wasm idb vfs 以库名落盘），供新库名避让。 */
+const listExistingDbNames = async (): Promise<string[]> => {
+  if (typeof indexedDB === 'undefined' || typeof indexedDB.databases !== 'function') return [];
+  try {
+    return (
+      (await indexedDB.databases())
+        .map(info => info.name ?? '')
+        .filter(name => name !== '')
+        // idb vfs 的落盘名带连接号与扩展名（`rxdb-board-0@0_1.sqlite.db`），
+        // 归一成库名前缀才能与候选名比较
+        .map(name => name.split('@')[0])
+    );
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * 生成不与活动位置冲突、也不与现存 IndexedDB 库冲突的新库名。
+ *
+ * 只避开活动名会回绕：`restore-0` → 重置建 `restore-1` → 再重置回算 `restore-0`
+ * 撞上已存在的用户旧库，种子装载报「演示数据只能装进新库」永久失败。
+ */
+export const nextBoardDbName = async (activeDbName: string | null): Promise<string> =>
+  nextRestoreDbName(activeDbName, await listExistingDbNames());

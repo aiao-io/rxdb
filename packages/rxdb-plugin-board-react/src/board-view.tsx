@@ -6,6 +6,7 @@ import {
   labelTextColor,
   resolveCardDrop,
   resolveColumnDrop,
+  RESTORING_MARKER_KEY,
   Task,
   type BoardLabel,
   type BoardSearchUpstream,
@@ -123,6 +124,16 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     },
     []
   );
+
+  // 跨页恢复门禁（US-539 AC#5）：另一页开始恢复时经 storage 事件同步「恢复中」
+  useEffect(() => {
+    const apply = (): void => {
+      board.setRestoring(typeof localStorage !== 'undefined' && localStorage.getItem(RESTORING_MARKER_KEY) !== null);
+    };
+    apply();
+    window.addEventListener('storage', apply);
+    return () => window.removeEventListener('storage', apply);
+  }, [board]);
   const [notice, setNotice] = useState<string | null>(null);
 
   const taskMap = useMemo(() => {

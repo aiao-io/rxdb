@@ -120,7 +120,7 @@ API。几十条卡片的整列读写可直接验收，不引入后台重试或�
 
 ## 实现文件
 
-- `packages/rxdb-plugin-board/` — 待建；跨列移动与本列排序服务、落点换算表、失败恢复状态机
+- `packages/rxdb-plugin-board/` — 已建；跨列移动与本列排序服务、落点换算表、失败恢复状态机
 
 ## References
 
