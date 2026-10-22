@@ -642,8 +642,21 @@ const onCreateFormSubmitted = (result: EntityFormData): void => {
   createDialogData.value = null;
 };
 
+const saveToast = ref(false);
+let saveToastTimer: ReturnType<typeof setTimeout> | null = null;
+const showSaveToast = (): void => {
+  if (saveToastTimer !== null) clearTimeout(saveToastTimer);
+  saveToast.value = true;
+  saveToastTimer = setTimeout(() => {
+    saveToast.value = false;
+  }, 2000);
+};
+
 const onCreateDialogClosed = (result?: unknown): void => {
-  if (result === 'saved') currentList.value?.refresh();
+  if (result === 'saved') {
+    currentList.value?.refresh();
+    showSaveToast();
+  }
   createDialogData.value = null;
 };
 
@@ -749,7 +762,10 @@ const openViewDialog = (record: EntityTableRecord): void => {
 };
 
 const onViewDialogClosed = (result?: unknown): void => {
-  if (result === 'saved') currentList.value?.refresh();
+  if (result === 'saved') {
+    currentList.value?.refresh();
+    showSaveToast();
+  }
   viewDialogData.value = null;
 };
 
@@ -990,6 +1006,15 @@ defineExpose({
     style="display: flex; flex-direction: column; height: 100%; overflow: hidden"
     @keydown="onKeydown"
   >
+    <div
+      v-if="saveToast"
+      class="toast toast-end z-[1100]"
+      data-testid="save-toast"
+      role="status"
+    >
+      <div class="alert alert-success py-2 text-sm">已保存</div>
+    </div>
+
     <!-- 顶栏：实体名称 + 计数 + 筛选按钮 + 新增按钮 -->
     <div class="border-base-300 flex h-10 min-h-10 shrink-0 items-center justify-between border-b px-4">
       <div class="flex items-center gap-2 text-sm">

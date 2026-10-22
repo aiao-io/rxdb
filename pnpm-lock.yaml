@@ -600,9 +600,9 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../../packages/rxdb
-      '@aiao/rxdb-adapter-wa-sqlite':
+      '@aiao/rxdb-adapter-sqlite-wasm':
         specifier: workspace:*
-        version: link:../../packages/rxdb-adapter-wa-sqlite
+        version: link:../../packages/rxdb-adapter-sqlite-wasm
       '@aiao/rxdb-devtools':
         specifier: workspace:*
         version: link:../../packages/rxdb-devtools
@@ -612,6 +612,12 @@ importers:
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-history
+      '@aiao/rxdb-plugin-search':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-search
+      '@aiao/rxdb-plugin-search-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-search-react
       '@aiao/rxdb-react':
         specifier: workspace:*
         version: link:../../packages/rxdb-react

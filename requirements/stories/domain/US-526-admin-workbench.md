@@ -77,9 +77,11 @@ tags: [domain, admin-framework, workbench, rxdb-model, e2e]
 [Angular 实体页](../../../apps/dev-rxdb-angular/src/app/pages/entity/entity.page.ts)、
 [Vue GeneratorPage](../../../apps/dev-rxdb-vue/src/pages/GeneratorPage.vue)。
 
-**框架与适配器选取（已定案）**：React + wa-sqlite 主线程 `IDBBatchAtomicVFS`（IndexedDB 持久化，满足 AC#7）。
+**框架与适配器选取（已定案）**：React + sqlite-wasm 主线程 `idb`（IndexedDB 持久化，满足 AC#7）。
 选主线程 IndexedDB 而不是 OPFS 是硬约束：US-217 的备份 / 恢复矩阵里浏览器可备份的组合只有主线程 memory/idb，
 OPFS 系 VFS 与 worker/sharedWorker transport 都报 `unsupported_combination`（US-527 依赖备份能力）。
+sqlite-wasm 而非 wa-sqlite 是第二个硬约束：全文搜索需要 FTS5，而 wa-sqlite 的固定 wasm 构建未开
+`SQLITE_ENABLE_FTS5`（search 插件会拒绝该 adapter）。
 本故事不新增公共框架 API，不触发三端对称义务；组装中发现的两处组件缺口（校验反馈展示）已另立
 [US-104](../framework/US-104-validation-feedback.md) 三端同改。
 

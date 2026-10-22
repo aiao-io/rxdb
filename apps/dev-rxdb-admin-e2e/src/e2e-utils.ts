@@ -115,7 +115,7 @@ export async function createCategory(page: Page, name: string): Promise<void> {
 export async function createAsset(page: Page, name: string, category: string): Promise<void> {
   await openCreateDialog(page);
   await fillField(page, '名称', name);
-  await page.getByRole('group', { name: '分类' }).getByRole('combobox').selectOption({ label: category });
+  await selectRelationOption(page, '分类', category);
   await page.getByRole('button', { name: '保存', exact: true }).click();
   await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
 }
@@ -128,6 +128,18 @@ export async function expectListEmpty(page: Page): Promise<void> {
 /** 列表有数据：空态容器消失（计数徽标只在有筛选时渲染，行本身在 canvas 上不可 DOM 定位）。 */
 export async function expectListHasRows(page: Page): Promise<void> {
   await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
+}
+
+/**
+ * 在关联下拉里选择一条记录：选项由活查询异步填充，且每次资源发射会重建选项列表，
+ * selectOption 的重试可能一直撞在重建上——先等选项出现再选择。
+ */
+export async function selectRelationOption(page: Page, groupName: string, label: string): Promise<void> {
+  const select = page.getByRole('group', { name: groupName }).getByRole('combobox');
+  await expect
+    .poll(async () => select.evaluate(el => (el as HTMLSelectElement).options.length), { timeout: 10000 })
+    .toBeGreaterThan(1);
+  await select.selectOption({ label });
 }
 
 /** 应用筛选后的计数徽标文案（如「1 条记录」）。 */

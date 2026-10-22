@@ -60,3 +60,32 @@ body,
 #layout-main.left-menu-pinned .app-sidebar .sidebar-label {
   opacity: 1;
 }
+
+/* ── 移动端：侧边栏抽屉（对齐 dev-rxdb-angular 的交互）── */
+#layout-main {
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  #layout-main .app-sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 0;
+    z-index: 100;
+    background: var(--color-base-100);
+    box-shadow: none;
+  }
+
+  #layout-main.left-menu-pinned .app-sidebar {
+    width: 80vw;
+    max-width: 280px;
+    border-right: 1px solid color-mix(in oklch, var(--color-base-content), transparent 90%);
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  }
+}
+
+#layout-main .app-sidebar .menu-title .sidebar-label {
+  color: color-mix(in oklch, var(--color-base-content) 70%, transparent);
+}

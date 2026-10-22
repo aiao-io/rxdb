@@ -1,6 +1,6 @@
 import type { EntityType } from '@aiao/rxdb';
 import { RxDBProvider, useCount, useRxDB } from '@aiao/rxdb-react';
-import { ArchiveRestore, Boxes, Database, PanelLeftClose, PanelLeftDashed, Tags, Wrench } from 'lucide-react';
+import { ArchiveRestore, Boxes, Database, PanelLeftClose, PanelLeftDashed, Search, Tags, Wrench } from 'lucide-react';
 import { Suspense, useEffect, useState, type JSX } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { findWorkbenchEntity, visibleEntityEntries, type WorkbenchEntityEntry } from './entities/entity-registry';
@@ -23,7 +23,7 @@ function EntityCountBadge({ entry }: { entry: WorkbenchEntityEntry }) {
   const rxdb = useRxDB();
   const [connected, setConnected] = useState(false);
   useEffect(() => {
-    const subscription = rxdb.adapterConnected$('wa-sqlite').subscribe(setConnected);
+    const subscription = rxdb.adapterConnected$('sqlite-wasm').subscribe(setConnected);
     return () => subscription.unsubscribe();
   }, [rxdb]);
   if (!connected) return null;
@@ -80,6 +80,16 @@ function AppSidebar({ pinned, onToggle }: { pinned: boolean; onToggle: () => voi
           ))}
           <li className='menu-title'>
             <span className='sidebar-label'>数据</span>
+          </li>
+          <li>
+            <NavLink
+              to='/search'
+              className={({ isActive }) => (isActive ? 'menu-active' : '')}
+              data-testid='search-nav-link'
+            >
+              <Search size={16} />
+              <span className='sidebar-label'>搜索</span>
+            </NavLink>
           </li>
           <li>
             <NavLink

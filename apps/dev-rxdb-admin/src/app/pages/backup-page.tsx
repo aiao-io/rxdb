@@ -1,5 +1,5 @@
 import { isRxDBBackupError } from '@aiao/rxdb';
-import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { useRxDB } from '@aiao/rxdb-react';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -28,8 +28,8 @@ export default function BackupPage() {
   const [restore, setRestore] = useState<RestoreStatus>({ kind: 'idle' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const adapterOf = async (): Promise<RxDBAdapterWaSqlite> =>
-    (await db.getAdapter('wa-sqlite')) as RxDBAdapterWaSqlite;
+  const adapterOf = async (): Promise<RxDBAdapterSqlite> =>
+    (await db.getAdapter('sqlite-wasm')) as RxDBAdapterSqlite;
 
   async function handleBackup(): Promise<void> {
     setBackup({ kind: 'running' });
@@ -48,7 +48,7 @@ export default function BackupPage() {
     try {
       const adapter = await adapterOf();
       const result = await adapter.restore(file.stream());
-      await db.connect('wa-sqlite');
+      await db.connect('sqlite-wasm');
       setRestore({ kind: 'success', sha256: result.sha256 });
     } catch (error) {
       setRestore({

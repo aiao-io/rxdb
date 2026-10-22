@@ -183,6 +183,7 @@ export class EntityListComponent {
   /** 待确认删除的行；非空即弹层打开。 */
   readonly #deleteConfirmRecord = signal<EntityTableRecord | null>(null);
   #deleteConfirmRef: DialogRef<unknown, void> | null = null;
+  #saveToastTimer: ReturnType<typeof setTimeout> | null = null;
   // ── Service injections ────────────────────────────────────────────────
   readonly #rxdb = inject(RxDB);
   readonly #injector = inject(Injector);
@@ -464,6 +465,8 @@ export class EntityListComponent {
   readonly m2mSelectTpl = viewChild<TemplateRef<void>>('m2mSelectTpl');
   /** 删除确认弹层模板（误删成本高，撤销入口不显眼）。 */
   readonly deleteConfirmTpl = viewChild<TemplateRef<void>>('deleteConfirmTpl');
+  /** 保存成功 toast（2 秒自动消失）。 */
+  readonly saveToast = signal(false);
 
   // ── Manual order (US-028) ─────────────────────────────────────────────
   /** 最近一次拖放排序落库失败的提示；`null` 为无错误 */
@@ -676,7 +679,10 @@ export class EntityListComponent {
     });
 
     dialogRef.closed.subscribe(result => {
-      if (result === 'saved') this.#currentList()?.refresh();
+      if (result === 'saved') {
+        this.#currentList()?.refresh();
+        this.#showSaveToast();
+      }
     });
   }
 
@@ -772,6 +778,12 @@ export class EntityListComponent {
    * 「查看」行 → 打开详情对话框：可写行走 edit 模式（内置弹窗修改），`_readonly` 行走 view 模式（无保存入口）。
    * 关系 Tab 内嵌的列表同样走这里，套娃下钻；`editChain` 命中或未落库草稿时只 emit 不打开。
    */
+  #showSaveToast(): void {
+    if (this.#saveToastTimer !== null) clearTimeout(this.#saveToastTimer);
+    this.saveToast.set(true);
+    this.#saveToastTimer = setTimeout(() => this.saveToast.set(false), 2000);
+  }
+
   /** 打开删除确认弹层。 */
   #openDeleteConfirm(record: EntityTableRecord): void {
     if (this.#deleteConfirmRef) return;
@@ -823,7 +835,10 @@ export class EntityListComponent {
     });
 
     dialogRef.closed.subscribe(result => {
-      if (result === 'saved') this.#currentList()?.refresh();
+      if (result === 'saved') {
+        this.#currentList()?.refresh();
+        this.#showSaveToast();
+      }
     });
   }
 

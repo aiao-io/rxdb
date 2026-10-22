@@ -1,0 +1,266 @@
+{
+  "version": "6.0",
+  "nxVersion": "23.3.0",
+  "pathMappings": {},
+  "nxJsonPlugins": [],
+  "fileMap": {
+    "projectFileMap": {
+      "rxdb-model-react": [
+        {
+          "file": "LICENSE",
+          "hash": "12372577659897382251"
+        },
+        {
+          "file": "README.md",
+          "hash": "16497467693720738952"
+        },
+        {
+          "file": "eslint.config.mjs",
+          "hash": "11058419412133803976"
+        },
+        {
+          "file": "package.json",
+          "hash": "16601821961867933679"
+        },
+        {
+          "file": "project.json",
+          "hash": "6197285983421244079"
+        },
+        {
+          "file": "src/__tests__/entity-detail/entity-detail.real.spec.tsx",
+          "hash": "12714674430311910375"
+        },
+        {
+          "file": "src/__tests__/entity-dialog/entity-dialog.real.spec.tsx",
+          "hash": "8895048754817252364"
+        },
+        {
+          "file": "src/__tests__/entity-form/entity-form.real.spec.tsx",
+          "hash": "2149479808674101661"
+        },
+        {
+          "file": "src/__tests__/entity-list/entity-list.real.spec.tsx",
+          "hash": "11015889048963945809"
+        },
+        {
+          "file": "src/__tests__/entity-table/entity-table.real.spec.tsx",
+          "hash": "8744001388664668540"
+        },
+        {
+          "file": "src/__tests__/entity-table/query-table.real.spec.tsx",
+          "hash": "9283932087270658081"
+        },
+        {
+          "file": "src/__tests__/public-api/public-api.spec.tsx",
+          "hash": "5226564786554495614"
+        },
+        {
+          "file": "src/__tests__/query-builder/operator-selector/operator-selector.real.spec.tsx",
+          "hash": "4278977434764712350"
+        },
+        {
+          "file": "src/__tests__/query-builder/popover-select/popover-select.real.spec.tsx",
+          "hash": "13420913765165926757"
+        },
+        {
+          "file": "src/__tests__/query-builder/query-builder/query-builder.real.spec.tsx",
+          "hash": "474743982683231022"
+        },
+        {
+          "file": "src/__tests__/query-builder/query-group/query-group.real.spec.tsx",
+          "hash": "10754569771165652814"
+        },
+        {
+          "file": "src/__tests__/query-builder/query-rule/query-rule.real.spec.tsx",
+          "hash": "13449922002289868570"
+        },
+        {
+          "file": "src/__tests__/query-builder/subquery-builder/subquery-builder.real.spec.tsx",
+          "hash": "16391172049504503415"
+        },
+        {
+          "file": "src/__tests__/query-builder/tree-select/tree-select.real.spec.tsx",
+          "hash": "7990796898547226812"
+        },
+        {
+          "file": "src/__tests__/query-builder/value-input/value-input.real.spec.tsx",
+          "hash": "15281653832787716918"
+        },
+        {
+          "file": "src/__tests__/testing/fake-vtable-editors.ts",
+          "hash": "15562307912997977806"
+        },
+        {
+          "file": "src/__tests__/testing/fake-vtable.ts",
+          "hash": "15776089328517902321"
+        },
+        {
+          "file": "src/__tests__/testing/in-memory-rxdb.ts",
+          "hash": "9307836329290958445"
+        },
+        {
+          "file": "src/__tests__/testing/setup.ts",
+          "hash": "10652610600570169120"
+        },
+        {
+          "file": "src/dialog/dialog.css",
+          "hash": "4631848854005284465"
+        },
+        {
+          "file": "src/dialog/dialog.tsx",
+          "hash": "1657357313905457545"
+        },
+        {
+          "file": "src/entity-detail/entity-detail.css",
+          "hash": "2301146233335491330"
+        },
+        {
+          "file": "src/entity-detail/entity-detail.tsx",
+          "hash": "9206941152903494259"
+        },
+        {
+          "file": "src/entity-detail/index.ts",
+          "hash": "16137873623150411253"
+        },
+        {
+          "file": "src/entity-dialog/entity-dialog.css",
+          "hash": "16137928185626801655"
+        },
+        {
+          "file": "src/entity-dialog/entity-dialog.tsx",
+          "hash": "17080789396738451419"
+        },
+        {
+          "file": "src/entity-dialog/index.ts",
+          "hash": "4512359101974515721"
+        },
+        {
+          "file": "src/entity-form/entity-form.tsx",
+          "hash": "16584949767657622283"
+        },
+        {
+          "file": "src/entity-form/index.ts",
+          "hash": "10306577633405360081"
+        },
+        {
+          "file": "src/entity-list/entity-list.css",
+          "hash": "3222774768566485359"
+        },
+        {
+          "file": "src/entity-list/entity-list.tsx",
+          "hash": "9208071175841226164"
+        },
+        {
+          "file": "src/entity-table/config.tsx",
+          "hash": "15548755569971519164"
+        },
+        {
+          "file": "src/entity-table/entity-table.css",
+          "hash": "3666041165688109291"
+        },
+        {
+          "file": "src/entity-table/entity-table.tsx",
+          "hash": "15124537455114160014"
+        },
+        {
+          "file": "src/entity-table/index.ts",
+          "hash": "6882248412258081952"
+        },
+        {
+          "file": "src/entity-table/query-table.css",
+          "hash": "10032746059094637336"
+        },
+        {
+          "file": "src/entity-table/query-table.tsx",
+          "hash": "4297021894450489763"
+        },
+        {
+          "file": "src/index.ts",
+          "hash": "10218328532702078567"
+        },
+        {
+          "file": "src/query-builder/field-selector/field-selector.tsx",
+          "hash": "121003821660341490"
+        },
+        {
+          "file": "src/query-builder/index.ts",
+          "hash": "2293360674255622475"
+        },
+        {
+          "file": "src/query-builder/operator-selector/operator-selector.tsx",
+          "hash": "7011193596097629986"
+        },
+        {
+          "file": "src/query-builder/popover-select/popover-select.tsx",
+          "hash": "15277738894078637234"
+        },
+        {
+          "file": "src/query-builder/query-builder/query-builder.tsx",
+          "hash": "9614743128041484065"
+        },
+        {
+          "file": "src/query-builder/query-group/query-group.css",
+          "hash": "9857638114555405969"
+        },
+        {
+          "file": "src/query-builder/query-group/query-group.tsx",
+          "hash": "12530691517266973091"
+        },
+        {
+          "file": "src/query-builder/query-rule/query-rule.tsx",
+          "hash": "14897437661417431065"
+        },
+        {
+          "file": "src/query-builder/subquery-builder/subquery-builder.css",
+          "hash": "13298045126745467197"
+        },
+        {
+          "file": "src/query-builder/subquery-builder/subquery-builder.tsx",
+          "hash": "9443808467366669736"
+        },
+        {
+          "file": "src/query-builder/theme/default-query-builder-theme.ts",
+          "hash": "2050711008137969023"
+        },
+        {
+          "file": "src/query-builder/theme/index.ts",
+          "hash": "15479089741742075124"
+        },
+        {
+          "file": "src/query-builder/theme/query-builder-theme.tsx",
+          "hash": "5345936467920688740"
+        },
+        {
+          "file": "src/query-builder/tree-select/tree-select.tsx",
+          "hash": "15071982180846256395"
+        },
+        {
+          "file": "src/query-builder/value-input/value-input.tsx",
+          "hash": "10244917013151785576"
+        },
+        {
+          "file": "tailwind.css",
+          "hash": "5754734758757707884"
+        },
+        {
+          "file": "tsconfig.json",
+          "hash": "3087883041215701543"
+        },
+        {
+          "file": "tsconfig.lib.json",
+          "hash": "7747263646754541254"
+        },
+        {
+          "file": "tsconfig.spec.json",
+          "hash": "4468626051420270617"
+        },
+        {
+          "file": "vite.config.mts",
+          "hash": "17480276850462581828"
+        }
+      ]
+    },
+    "nonProjectFiles": []
+  },
+  "externalNodesHash": "3244421341483603138"
+}

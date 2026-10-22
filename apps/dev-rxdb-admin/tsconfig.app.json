@@ -38,6 +38,12 @@
       "path": "../../packages/rxdb-react/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-plugin-search-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-search/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-history/tsconfig.lib.json"
     },
     {
@@ -47,7 +53,7 @@
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+      "path": "../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb/tsconfig.lib.json"

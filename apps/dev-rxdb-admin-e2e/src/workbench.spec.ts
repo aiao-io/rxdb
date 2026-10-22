@@ -8,7 +8,8 @@ import {
   expectListHasRows,
   fillField,
   openCreateDialog,
-  resetE2eState
+  resetE2eState,
+  selectRelationOption
 } from './e2e-utils.js';
 
 /**
@@ -49,6 +50,8 @@ test.describe('模型驱动数据工作台', () => {
   test('AC#2/#5 录入关联实体、详情显示关联字段、编辑与删除', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');
+    // 保存成功 toast 短暂出现
+    await expect(page.getByTestId('save-toast')).toBeVisible();
     await page.goto('/entities/assets/Asset');
     await createAsset(page, '笔记本', '办公设备');
 
@@ -100,7 +103,7 @@ test.describe('模型驱动数据工作台', () => {
     await openCreateDialog(page);
     await fillField(page, '事项', '更换电池');
     await page.getByRole('group', { name: '日期' }).locator('input[type="date"]').fill('2026-10-21');
-    await page.getByRole('group', { name: '所属资产' }).getByRole('combobox').selectOption({ label: '笔记本' });
+    await selectRelationOption(page, '所属资产', '笔记本');
     await page.getByRole('button', { name: '保存', exact: true }).click();
     await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
     await expectListHasRows(page);
@@ -113,28 +116,6 @@ test.describe('模型驱动数据工作台', () => {
     await expect(page.getByTestId('relation-empty-hint')).toContainText('暂无「所属资产」可选');
     await page.getByRole('button', { name: '关闭' }).click();
     await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
-  });
-
-  test('probe：资产列表表头与行数据', async ({ page }) => {
-    await page.goto('/entities/assets/AssetCategory');
-    await createCategory(page, '办公设备');
-    await page.goto('/entities/assets/Asset');
-    await createAsset(page, '笔记本', '办公设备');
-    await expectListHasRows(page);
-    const dump = await page
-      .getByTestId('entity-shell')
-      .locator('canvas')
-      .first()
-      .evaluate(el => {
-        const t = (
-          el as unknown as {
-            __vtable__: { colCount: number; records: unknown[]; getHeaderField(c: number, r: number): unknown };
-          }
-        ).__vtable__;
-        const headers = Array.from({ length: t.colCount }, (_, c) => t.getHeaderField(c, 0));
-        return { headers, firstRow: t.records[0] };
-      });
-    console.log('[probe-headers]', JSON.stringify(dump));
   });
 
   test('AC#6 查询筛选：按关联字段与标量字段过滤', async ({ page }) => {

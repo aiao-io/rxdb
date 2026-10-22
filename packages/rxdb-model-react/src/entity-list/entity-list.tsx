@@ -266,6 +266,14 @@ export function EntityList({
   const [openDialog, setOpenDialog] = useState<OpenDialog | null>(null);
   /** 删除确认目标行：删除前经确认弹层（误删成本高，撤销入口不显眼）。 */
   const [deleteConfirm, setDeleteConfirm] = useState<EntityTableRecord | null>(null);
+  /** 保存成功 toast（2 秒自动消失）。 */
+  const [saveToastVisible, setSaveToastVisible] = useState(false);
+  const saveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showSaveToast = useCallback((): void => {
+    if (saveToastTimerRef.current !== null) clearTimeout(saveToastTimerRef.current);
+    setSaveToastVisible(true);
+    saveToastTimerRef.current = setTimeout(() => setSaveToastVisible(false), 2000);
+  }, []);
   /** 已入队但还没落定的行内编辑批次数（排队中或写入中都不许拖拽排序） */
   const [pendingEditBatches, setPendingEditBatches] = useState(0);
   const [reorderPending, setReorderPending] = useState(false);
@@ -1078,7 +1086,10 @@ export function EntityList({
           open
           onClose={result => {
             setOpenDialog(null);
-            if (result === 'saved') refreshCurrentList();
+            if (result === 'saved') {
+              refreshCurrentList();
+              showSaveToast();
+            }
           }}
           width='min(720px, calc(100vw - 1rem))'
           minWidth='min(400px, calc(100vw - 1rem))'
@@ -1102,7 +1113,10 @@ export function EntityList({
           open
           onClose={result => {
             setOpenDialog(null);
-            if (result === 'saved') refreshCurrentList();
+            if (result === 'saved') {
+              refreshCurrentList();
+              showSaveToast();
+            }
           }}
           width='min(720px, calc(100vw - 1rem))'
           minWidth='min(400px, calc(100vw - 1rem))'
@@ -1139,6 +1153,15 @@ export function EntityList({
             </div>
           </EntityDialog>
         </Dialog>
+      )}
+
+      {/* 保存成功 toast */}
+      {saveToastVisible && (
+        <div className='toast toast-end z-[1100]' data-testid='save-toast'>
+          <div className='alert alert-success py-2 text-sm' role='status'>
+            已保存
+          </div>
+        </div>
       )}
 
       {/* M2M 选择对话框 */}
