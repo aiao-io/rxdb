@@ -83,6 +83,7 @@ AI 构建器和小游戏适合继续做有边界的技术 / 玩法验证，当�
 | 外勤 / 现场作业采集          | [field-data-collection.md](field-data-collection.md) | 研究中 | 客户触发           | 能力使用面最广；硬缺口恰在现场刚需（照片）                                        |
 | 零售 POS / 进销存            | [retail-pos.md](retail-pos.md)                       | 研究中 | 客户触发且后置     | 引擎内全绿；离线支付授权与硬件在引擎外                                            |
 | 任务看板 / 项目管理          | [task-board.md](task-board.md)（已冻结，指针见下）   | 已孵化 | 已孵化，单独处理   | 单人看板已解锁，[epic-011](../epics/epic-011-task-board-domain-model.md) 演示驱动 |
+| 任务看板 v2 增强（GitHub Projects 风格） | [board-v2-github-projects-style.md](board-v2-github-projects-style.md) | 研究中 | 看板 MVP 落地后评估 | 结构化筛选 / 分组泳道 / 可选字段与保存视图；与 epic-011 决策 5 冲突，需重新解锁 |
 | 微信客户端部分功能           | [wechat-client.md](wechat-client.md)                 | 研究中 | 暂缓               | 契合度并列第一，缺口仅发送队列；六成体验在引擎外                                  |
 | 间隔重复学习                 | [anki-srs.md](anki-srs.md)                           | 研究中 | 第一梯队替代项     | 本地优先鼻祖（Anki 重构）；引擎使用面最广，外部成本低                             |
 | 密码管理器                   | [password-manager.md](password-manager.md)           | 研究中 | 暂缓               | 加密是品类生死线，keyring 内建；零知识协议在引擎外                                |
