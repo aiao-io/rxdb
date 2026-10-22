@@ -303,6 +303,28 @@ describe('extractEntityFields', () => {
     expect(fields[0]).toMatchObject({ field: 'assetId', required: true, nullable: false });
   });
 
+  it('should not mark SET NULL relation as required (与 DDL 豁免同口径)', () => {
+    const meta = makeMeta({
+      foreignKeyRelationMap: new Map([
+        [
+          'assetId',
+          {
+            name: 'asset',
+            columnName: 'asset_id',
+            kind: RelationKind.MANY_TO_ONE,
+            displayName: '所属资产',
+            mappedEntity: 'Asset',
+            mappedNamespace: 'assets',
+            mappedProperty: 'events',
+            onDelete: 'SET NULL'
+          } as EntityRelationMetadata
+        ]
+      ])
+    });
+    const fields = extractEntityFields(meta);
+    expect(fields[0]).toMatchObject({ field: 'assetId', required: false, nullable: false });
+  });
+
   it('should combine properties, computed, and relations', () => {
     const meta = makeMeta({
       propertyMap: new Map([

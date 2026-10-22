@@ -58,7 +58,13 @@ import {
   type WritableSignal
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { LucideFunnel as Funnel, LucideDynamicIcon, LucideRedo2 as Redo2, LucideUndo2 as Undo2 } from '@lucide/angular';
+import {
+  LucideFunnel as Funnel,
+  LucideDynamicIcon,
+  LucideRedo2 as Redo2,
+  LucideUndo2 as Undo2,
+  LucideX as X
+} from '@lucide/angular';
 import type { ColumnsDefine, ListTableConstructorOptions } from '@visactor/vtable';
 import { of } from 'rxjs';
 import type { EntityDetailDialogData } from '../entity-detail/entity-detail';
@@ -293,6 +299,7 @@ export class EntityListComponent {
   protected readonly Undo2 = Undo2;
   protected readonly Redo2 = Redo2;
   protected readonly Funnel = Funnel;
+  protected readonly X = X;
   protected readonly listTableOptions = LIST_TABLE_OPTIONS;
 
   /** CDK Overlay 定位策略：优先下方右对齐，其次上方右对齐 */
@@ -608,6 +615,9 @@ export class EntityListComponent {
   async confirmDelete(): Promise<void> {
     const record = this.#deleteConfirmRecord();
     if (!record) return;
+    // 弹层与确认状态在 await 前清空：二次点击被早退挡掉，恢复后也不会误关之后打开的新弹层
+    this.#deleteConfirmRef?.close();
+    this.#deleteConfirmRecord.set(null);
     const id = record['id'] as string;
 
     const draftInst = this.#localDraftItems().find(i => i.id === id);
@@ -623,7 +633,6 @@ export class EntityListComponent {
         }
       }
     }
-    this.#deleteConfirmRef?.close();
   }
 
   cancelDelete(): void {

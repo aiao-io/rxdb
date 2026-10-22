@@ -79,21 +79,23 @@ describe('EntityFormComponent（真实组件）', () => {
     return { fixture, component, fieldChanged, formSubmitted, formCancelled, validationErrors };
   }
 
-  /** 按显示名定位字段的 fieldset。 */
+  /** 按显示名定位字段的 fieldset（legend 可能带必填星号与模板空白，归一化后匹配）。 */
   function fieldset(fixture: { nativeElement: HTMLElement }, displayName: string): HTMLElement {
     const legends = [...fixture.nativeElement.querySelectorAll('legend')] as HTMLElement[];
-    const legend = legends.find(l => l.textContent?.trim() === displayName);
+    const legend = legends.find(l => l.textContent?.replace(/\s+/g, ' ').trim().replace(/ \*$/, '') === displayName);
     if (!legend) throw new Error(`legend not found: ${displayName}`);
     return legend.parentElement as HTMLElement;
   }
 
   it('隐藏字段不渲染，其余字段按序渲染', () => {
     const { fixture } = render();
-    const legends = [...fixture.nativeElement.querySelectorAll('legend')].map(l => l.textContent?.trim());
+    const legends = [...fixture.nativeElement.querySelectorAll('legend')].map(l =>
+      l.textContent?.replace(/\s+/g, ' ').trim()
+    );
 
     expect(legends).toHaveLength(FIELDS.length - 1);
     expect(legends).not.toContain('隐藏字段');
-    expect(legends[0]).toBe('名称');
+    expect(legends[0]).toBe('名称 *');
   });
 
   it('12 类字段渲染对应控件', () => {
@@ -138,6 +140,25 @@ describe('EntityFormComponent（真实组件）', () => {
 
     const avatarOptions = [...fieldset(fixture, '头像').querySelectorAll('option')].map(o => o.textContent?.trim());
     expect(avatarOptions).toEqual(['(空)', 'logo.png']);
+  });
+
+  it('必填字段 legend 带星号，非必填不带', () => {
+    const { fixture } = render();
+
+    expect(fieldset(fixture, '名称').querySelector('legend')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('名称 *');
+    expect(fieldset(fixture, '备注').querySelector('legend')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('备注');
+  });
+
+  it('关联无选项时渲染创建提示（relation-empty-hint）', () => {
+    const { fixture } = render();
+    fixture.componentRef.setInput('relatedEntityProvider', () => []);
+    fixture.detectChanges();
+
+    const hints = [...fixture.nativeElement.querySelectorAll<HTMLElement>('[data-testid="relation-empty-hint"]')].map(
+      h => h.textContent?.trim()
+    );
+    expect(hints).toContain('暂无「负责人」可选，请先创建对应记录');
+    expect(hints).toContain('暂无「头像」可选，请先创建对应记录');
   });
 
   it('view 模式全部只读：渲染展示值而非输入控件', () => {
@@ -353,7 +374,7 @@ describe('EntityFormComponent format 语义控件（真实组件）', () => {
 
   function fieldset(fixture: { nativeElement: HTMLElement }, displayName: string): HTMLElement {
     const legends = [...fixture.nativeElement.querySelectorAll('legend')] as HTMLElement[];
-    const legend = legends.find(l => l.textContent?.trim() === displayName);
+    const legend = legends.find(l => l.textContent?.replace(/\s+/g, ' ').trim().replace(/ \*$/, '') === displayName);
     if (!legend) throw new Error(`legend not found: ${displayName}`);
     return legend.parentElement as HTMLElement;
   }
