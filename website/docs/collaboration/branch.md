@@ -70,16 +70,21 @@ await rxdb.versionManager.removeBranch('feature-1');
 
 ### 获取当前分支
 
-```typescript
-import { RxDBBranch } from '@aiao/rxdb';
+当前分支是本实例挂着的那套表持有的分支。别按 `activated = true` 查：它只说主检出位停在哪条分支上，挂在[可写检出位](../plugins/rxdb-plugin-working-tree/README.md#可写检出位)上时，那套表持有的分支 `activated` 是假。
 
-const currentBranch = await RxDBBranch.findOne({
-  where: {
-    combinator: 'and',
-    rules: [{ field: 'activated', operator: '=', value: true }]
-  }
+```typescript
+import { getCurrentBranch, RxDBBranch } from '@aiao/rxdb';
+
+// 读一次（`rxdb.versionManager.getCurrentBranch()` 同一份）
+const currentBranch = await getCurrentBranch(rxdb);
+
+// 要跟着变：按挂着那套表的 `heldBranchWhere` 查
+RxDBBranch.findOne({ where: rxdb.worktreeTableSet.heldBranchWhere }).subscribe(branch => {
+  console.log(branch?.id);
 });
 ```
+
+`heldBranchWhere` 取的是查询那一刻挂着的那套表，换挂之后要重新查；手头已经有分支行时，`branch.activeKey === rxdb.worktreeTableSet.holderKey` 的那一条就是当前分支（三端 `useWorktrees().mounted` 就是挂着的那套表）。
 
 ## 使用场景
 

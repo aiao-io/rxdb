@@ -345,6 +345,13 @@ INVEST 检查清单:
   - 一致性：核心单测（十格键集与初值、各命令的相位与是否重读、失败落格、同格后发胜出、`readMountedWorktreeTableSet`）；三端
     `use-worktrees.spec` 同标题（十格 idle、`mounted` 跟流走含重建同后缀的新实例、退订、流不给当前值即抛、React 换库与 StrictMode、
     清单守卫加 `mounted`）。三端共用 `./testing` 的 `createWorktreeHookStubs()`，桩的形状只放一处。三个绑定包覆盖率 100%。
+- **三端 demo**（阶段 C2）：
+  - 当前分支（C2.1）：工作树页、分支下拉的 ✓ 与 `aria-current`、侧栏分支选择器都按 `activeKey === mounted.holderKey` 认当前分支，
+    三端各一份纯函数 `currentBranchOf`；「被别处持有」用核心的 `WorktreeBranchHeldError.heldBy` 判（`heldElsewhere`），demo 不另写规则。
+    被别的检出位持有的分支照样是合并来源与 History 的对比对象；分支右键的 `Delete…` 只给没人持有的分支（`activeKey` 为空）。
+    侧栏选择器补上 `aria-label="当前分支"` 与 `app-branch-select`。React 端单测的模块解析对齐构建（`tsconfigPaths` 与 `@aiao/source` 条件，
+    Vue 端本来如此），否则解析不到 package.json 里没声明的绑定包。
+  - 一致性：三端同标题的纯函数、分支下拉与侧栏选择器单测（挂在检出位上认那套表持有的分支，挂回主检出位认主检出位停着的那条）。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -359,6 +366,9 @@ INVEST 检查清单:
 - `packages/rxdb-plugin-working-tree/src/working-tree/testing/worktree.suite.ts` — 六个后端的从提交建分支用例
 - `packages/rxdb-plugin-working-tree-{angular,react,vue}/` — 三端绑定（`checkBranchFromCommit` / `createBranchFromCommit`）
 - `apps/dev-rxdb-{angular,react,vue}` 与对应 `-e2e` — 「Create a branch」对话框、History 右键；可写检出位的 Worktree 下拉随阶段 C
+- `apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.worktrees.ts`、`apps/dev-rxdb-react/src/app/pages/working-tree/utils/worktrees.ts`、
+  `apps/dev-rxdb-vue/src/pages/working-tree/utils/worktrees.ts`（`currentBranchOf` / `heldElsewhere`），三端工作树页、分支下拉与侧栏分支选择器
+  — demo 认当前分支（C2.1）
 - `packages/rxdb/src/system/worktree-table-set.ts`、`packages/rxdb-adapter-sqlite-core/src/table-name-resolver.ts`、
   `packages/rxdb-adapter-pglite/src/table-name-resolver.ts` — 表集与两个适配器的表名解析器；`scripts/audit/table-name-resolver.mjs` — 门禁
 - `packages/rxdb-adapter-sqlite-core/src/table/trigger_sql.ts`（`generate_table_set_trigger_sql`）、两个适配器的

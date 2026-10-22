@@ -129,7 +129,7 @@ export function WorkingTreeBranchMenu({
 
   /** 点行：非当前分支立即切换（GitHub Desktop 同款），当前分支只收起菜单。 */
   const onRowClick = (branch: RxDBBranch) => {
-    if (branch.activated) {
+    if (branch.id === activeBranch) {
       closeAll();
       return;
     }
@@ -226,7 +226,7 @@ export function WorkingTreeBranchMenu({
                   <div className='flex items-stretch'>
                     <button
                       className='gd-menu-row min-w-0 flex-1'
-                      aria-current={branch.activated || undefined}
+                      aria-current={branch.id === activeBranch || undefined}
                       data-branch-id={branch.id}
                       onClick={() => onRowClick(branch)}
                       onContextMenu={event => onMenuRequest({ target: branch, event })}
@@ -234,12 +234,12 @@ export function WorkingTreeBranchMenu({
                       type='button'
                     >
                       {/* 当前分支：前导图标换成勾（GitHub Desktop 同款） */}
-                      {branch.activated ?
+                      {branch.id === activeBranch ?
                         <Check className='shrink-0' size={12} style={{ color: 'var(--gd-accent)' }} />
                       : <GitBranch className='shrink-0' size={12} />}
                       <span
                         className={clsx('min-w-0 flex-1 truncate text-sm font-medium', {
-                          'text-green-700': branch.activated
+                          'text-green-700': branch.id === activeBranch
                         })}
                       >
                         {branch.id}

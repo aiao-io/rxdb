@@ -145,7 +145,7 @@ import { isImeComposing } from '../working-tree.ime';
                   <div class="flex items-stretch">
                     <button
                       class="gd-menu-row min-w-0 flex-1"
-                      [attr.aria-current]="branch.activated ? 'true' : null"
+                      [attr.aria-current]="branch.id === activeBranch() ? 'true' : null"
                       [attr.data-branch-id]="branch.id"
                       (click)="onRowClick(branch)"
                       (contextmenu)="menuRequest.emit({ target: branch, event: $event })"
@@ -155,13 +155,13 @@ import { isImeComposing } from '../working-tree.ime';
                       <!-- 当前分支：前导图标换成勾（GitHub Desktop 同款） -->
                       <svg
                         class="shrink-0"
-                        [lucideIcon]="branch.activated ? Check : GitBranch"
-                        [style.color]="branch.activated ? 'var(--gd-accent)' : null"
+                        [lucideIcon]="branch.id === activeBranch() ? Check : GitBranch"
+                        [style.color]="branch.id === activeBranch() ? 'var(--gd-accent)' : null"
                         size="12"
                       ></svg>
                       <span
                         class="min-w-0 flex-1 truncate text-sm font-medium"
-                        [class.text-green-700]="branch.activated"
+                        [class.text-green-700]="branch.id === activeBranch()"
                       >
                         {{ branch.id }}
                       </span>
@@ -307,7 +307,7 @@ export class WorkingTreeBranchMenuComponent {
 
   /** 点行：非当前分支立即切换（GitHub Desktop 同款），当前分支只收起菜单。 */
   onRowClick(branch: RxDBBranch) {
-    if (branch.activated) {
+    if (branch.id === this.activeBranch()) {
       this.closeAll();
       return;
     }
