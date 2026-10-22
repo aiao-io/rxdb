@@ -7,6 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { computeRxDBSchemaFingerprint } from '../../backup/schema-fingerprint.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
@@ -70,6 +71,16 @@ describe('WorktreeTableSet', () => {
 
   // 持有键（US-314 B1.3）：检出位持有分支时写进 `rxdb_branch.activeKey` 的值。由表集推出，分支表这一行
   // 就同时说清「谁持有」与「是哪一套表」：系统迁移跑在插件装好之前，不靠插件的登记表也能找回每一套表该挂哪条分支。
+  it('后缀的形状：wt_ 加 1～12 位小写字母或数字（适配器从目录里认表集用它）', () => {
+    expect(WorktreeTableSet.isSuffix('wt_a1')).toBe(true);
+    expect(WorktreeTableSet.isSuffix('wt_abcdefghijkl')).toBe(true);
+    expect(WorktreeTableSet.isSuffix('wt_abcdefghijklm')).toBe(false);
+    expect(WorktreeTableSet.isSuffix('wt_')).toBe(false);
+    expect(WorktreeTableSet.isSuffix('wt_A1')).toBe(false);
+    expect(WorktreeTableSet.isSuffix('wt_a_1')).toBe(false);
+    expect(WorktreeTableSet.isSuffix('todos')).toBe(false);
+  });
+
   it('持有键由表集推出：主表集是主检出位的哨兵，影子表集是 *worktree:<后缀>*', () => {
     expect(WorktreeTableSet.MAIN.holderKey).toBe(ACTIVE_BRANCH_KEY);
     expect(WorktreeTableSet.of('wt_a1', [Todo]).holderKey).toBe('*worktree:wt_a1*');
@@ -141,6 +152,86 @@ describe('WorktreeTableSet', () => {
 });
 
 // 一套可写检出位的表刚建好（US-314 B2.5）：插件在业务表上建的附属对象（全文索引）要在影子表上也建一份
+/** 只在 `log` / `checks` 上有差别的同一个实体（US-314 B2.6 的指纹用例） */
+const defineFingerprintTodo = (options: { log?: false; checked?: true }) => {
+  @Entity({
+    name: 'WorktreeFingerprintTodo',
+    tableName: 'worktree_fingerprint_todo',
+    properties: [{ name: 'title', type: PropertyType.string }],
+    ...(options.log === false ? { log: false } : {}),
+    ...(options.checked ?
+      {
+        checks: [
+          { name: 'title_present', rule: { combinator: 'and', rules: [{ field: 'title', operator: 'notNull' }] } }
+        ]
+      }
+    : {})
+  })
+  class FingerprintTodo extends EntityBase {
+    title!: string;
+  }
+  return FingerprintTodo;
+};
+
+describe('WorktreeTableSet.schemaFingerprintOf（US-314 B2.6）', () => {
+  it('与声明顺序无关', () => {
+    expect(WorktreeTableSet.schemaFingerprintOf([Todo, Note])).toBe(WorktreeTableSet.schemaFingerprintOf([Note, Todo]));
+  });
+
+  it('关掉变更日志、加 CHECK 约束都会改变它；备份清单用的结构指纹不看这两样、照旧不变', () => {
+    const plain = defineFingerprintTodo({});
+    const unlogged = defineFingerprintTodo({ log: false });
+    const checked = defineFingerprintTodo({ checked: true });
+
+    expect(computeRxDBSchemaFingerprint([unlogged])).toBe(computeRxDBSchemaFingerprint([plain]));
+    expect(computeRxDBSchemaFingerprint([checked])).toBe(computeRxDBSchemaFingerprint([plain]));
+    expect(WorktreeTableSet.schemaFingerprintOf([unlogged])).not.toBe(WorktreeTableSet.schemaFingerprintOf([plain]));
+    expect(WorktreeTableSet.schemaFingerprintOf([checked])).not.toBe(WorktreeTableSet.schemaFingerprintOf([plain]));
+  });
+});
+
+describe('RxDB.worktreeTableSetFingerprint（US-314 B2.6）', () => {
+  const tableSet = WorktreeTableSet.of('wt_print', [Todo]);
+  const createRxdb = () =>
+    new RxDB({
+      dbName: `worktree-fingerprint-${Math.random().toString(36).slice(2)}`,
+      entities: [Todo, Note],
+      sync: { local: { adapter: 'noop' }, type: SyncType.None }
+    });
+  const withFingerprint =
+    (name: Uncapitalize<string>, fingerprint: (set: WorktreeTableSet) => string) => (): IRxDBPlugin => ({
+      name,
+      install: () => undefined,
+      worktreeTableSet: { created: async () => undefined, fingerprint }
+    });
+
+  it('没有插件声明钩子时只看成员实体的结构：非成员改了不算', () => {
+    expect(createRxdb().worktreeTableSetFingerprint(tableSet)).toBe(createRxdb().worktreeTableSetFingerprint(tableSet));
+    const withOtherMembers = createRxdb().worktreeTableSetFingerprint(WorktreeTableSet.of('wt_print', [Todo, Note]));
+    expect(withOtherMembers).not.toBe(createRxdb().worktreeTableSetFingerprint(tableSet));
+  });
+
+  it('并上各插件钩子的指纹：钩子交出的是同一个表集，插件的指纹变了它就变，与 use() 的顺序无关', () => {
+    const seen: WorktreeTableSet[] = [];
+    const first = createRxdb();
+    first.use(withFingerprint('alpha', set => (seen.push(set), 'a1')));
+    first.use(withFingerprint('beta', () => 'b1'));
+    const reordered = createRxdb();
+    reordered.use(withFingerprint('beta', () => 'b1'));
+    reordered.use(withFingerprint('alpha', () => 'a1'));
+    const changed = createRxdb();
+    changed.use(withFingerprint('alpha', () => 'a2'));
+    changed.use(withFingerprint('beta', () => 'b1'));
+
+    const fingerprint = first.worktreeTableSetFingerprint(tableSet);
+
+    expect(seen).toEqual([tableSet]);
+    expect(reordered.worktreeTableSetFingerprint(tableSet)).toBe(fingerprint);
+    expect(changed.worktreeTableSetFingerprint(tableSet)).not.toBe(fingerprint);
+    expect(createRxdb().worktreeTableSetFingerprint(tableSet)).not.toBe(fingerprint);
+  });
+});
+
 describe('RxDB.notifyWorktreeTableSetCreated', () => {
   const createRxdb = () =>
     new RxDB({
@@ -160,7 +251,8 @@ describe('RxDB.notifyWorktreeTableSetCreated', () => {
       worktreeTableSet: {
         created: async (...args) => {
           calls.push([name, ...args]);
-        }
+        },
+        fingerprint: () => name
       }
     });
     rxdb.use(withHook('first'));
@@ -182,7 +274,7 @@ describe('RxDB.notifyWorktreeTableSetCreated', () => {
     rxdb.use((): IRxDBPlugin => ({
       name: 'failing',
       install: () => undefined,
-      worktreeTableSet: { created: () => Promise.reject(boom) }
+      worktreeTableSet: { created: () => Promise.reject(boom), fingerprint: () => 'failing' }
     }));
     rxdb.use((): IRxDBPlugin => ({
       name: 'later',
@@ -190,7 +282,8 @@ describe('RxDB.notifyWorktreeTableSetCreated', () => {
       worktreeTableSet: {
         created: async () => {
           later.push('called');
-        }
+        },
+        fingerprint: () => 'later'
       }
     }));
 

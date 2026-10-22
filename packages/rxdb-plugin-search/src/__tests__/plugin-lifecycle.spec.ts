@@ -671,4 +671,30 @@ describe('search plugin lifecycle', () => {
     await expect(plugin.ready).rejects.toThrow(SearchError);
     await expect(plugin.ready).rejects.toThrow(/destroyed/);
   });
+
+  // 检出位的指纹并上它（US-314 B2.6）：建了索引的成员与它们的计划签名变了，检出位挂上时整套重建
+  it('建表集钩子的指纹只看这套表的成员上要建的全文索引：成员、可搜索字段或排除名单变了它就变', async () => {
+    const fingerprintOf = async (
+      entities: unknown[],
+      tableSet: WorktreeTableSet,
+      options: { excludedCollections?: string[] } = {}
+    ): Promise<string> => {
+      const plugin = rxDBPluginSearch(buildFakeRxdb(entities).rxdb, { debounce: 0, ...options }) as RxDBPluginSearch;
+      installScoped(plugin);
+      await plugin.ready;
+      return plugin.worktreeTableSet.fingerprint(tableSet);
+    };
+    const articleOnly = WorktreeTableSet.of('wt_print', [FakeArticle]);
+    const both = WorktreeTableSet.of('wt_print', [FakeArticle, FakeNote]);
+    const reference = await fingerprintOf([FakeArticle, FakeNote], articleOnly);
+
+    expect(await fingerprintOf([FakeNote, FakeArticle], articleOnly)).toBe(reference);
+    expect(await fingerprintOf([FakeArticle, FakeNote], WorktreeTableSet.of('wt_other', [FakeArticle]))).toBe(
+      reference
+    );
+    expect(await fingerprintOf([FakeArticle, FakeNote], both)).not.toBe(reference);
+    expect(await fingerprintOf([FakeArticle, FakeNote], articleOnly, { excludedCollections: ['article'] })).not.toBe(
+      reference
+    );
+  });
 });

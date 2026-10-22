@@ -20,7 +20,7 @@ import {
   type EntityType,
   getEntityMetadata,
   hashConstraintDefinition,
-  type WorktreeTableSet
+  WorktreeTableSet
 } from '@aiao/rxdb';
 
 /** 约束名末尾的定义哈希：`_` 加 8 位小写十六进制（`storageConstraintName` 的格式） */
@@ -97,6 +97,20 @@ export const get_table_name_by_entity_type = (EntityType: EntityType, tableSet: 
  * 在 GLOB 里没有要转义的字符；前面紧跟的 `$` 让一个后缀不会匹配到另一个以它结尾的后缀。
  */
 export const get_table_set_table_glob = (tableSet: WorktreeTableSet): string => `*$${tableSet.suffix}`;
+
+/**
+ * 从目录里的表名认出它属于哪一套影子表集：最后一个 `$` 之后那段是表集后缀的形状就是（US-314 B2.6）。
+ *
+ * @param tableName - `sqlite_master` 里的表名
+ * @returns 表集后缀；不是影子表集的表（主表集、FTS5 虚拟表的内部表这类）返回 `undefined`
+ *
+ * @remarks
+ * 只看形状：配置里实体的主表名恰好以 `$wt_…` 结尾时也会认出一个后缀，调用方要拿主表名把它排除掉。
+ */
+export const get_table_set_suffix_by_table_name = (tableName: string): string | undefined => {
+  const suffix = tableName.slice(tableName.lastIndexOf('$') + 1);
+  return tableName.includes('$') && WorktreeTableSet.isSuffix(suffix) ? suffix : undefined;
+};
 
 /**
  * 列（或关系列）索引名：`idx_<物理表名>_<属性名>`，跟着物理表名走，所以各套天然不撞。

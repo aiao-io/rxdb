@@ -23,7 +23,22 @@ import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import { execute_switch_actions } from '../version/execute_switch_actions.js';
 import type { AdapterFactory } from './adapter-factory.js';
 import { Todo } from './fixtures/Todo.js';
-import { cleanup_db, create_worktree_table_set, drop_worktree_table_set } from './test-utils.js';
+import {
+  cleanup_db,
+  create_worktree_table_set,
+  drop_worktree_table_set,
+  list_worktree_table_set_suffixes
+} from './test-utils.js';
+
+/** 主表的物理名恰好以表集后缀的形状结尾（`public$wt_lookalike`）：按目录认表集时不能把它当成一套影子表（US-314 B2.6） */
+@Entity({
+  name: 'WorktreeLookalike',
+  tableName: 'wt_lookalike',
+  properties: [{ name: 'title', type: PropertyType.string }]
+})
+class WorktreeLookalike extends EntityBase {
+  declare title: string;
+}
 
 /** 整数主键（SQLite 上是 `AUTOINCREMENT`）：播种要把主表的序列对齐过去（US-314 B1.5） */
 @Entity({
@@ -229,6 +244,27 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
       expect(await objectsOf('table', '%$wt\\_probe')).toEqual([]);
 
       await drop_worktree_table_set(adapter, WorktreeTableSet.of('wt_probe', []));
+    });
+
+    // 孤儿回收按目录找还在的表集（US-314 B2.6），包括登记行已经没了的
+    it('列举表集：认出每一套影子表的后缀，主表集不算；删掉之后不再列出', async () => {
+      const other = WorktreeTableSet.of('wt_other', [Todo]);
+      await holdBranchFor(other, 'other-held');
+      await create_worktree_table_set(adapter, other, 'other-held');
+      expect(await list_worktree_table_set_suffixes(adapter)).toEqual(['wt_other', 'wt_probe']);
+
+      await drop_worktree_table_set(adapter, tableSet);
+      await drop_worktree_table_set(adapter, other);
+      expect(await list_worktree_table_set_suffixes(adapter)).toEqual([]);
+    });
+
+    it('列举表集：配置里实体的主表名恰好以表集后缀的形状结尾，不算一套影子表', async () => {
+      const lookalike = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [WorktreeLookalike] });
+      try {
+        expect(await list_worktree_table_set_suffixes(lookalike)).toEqual([]);
+      } finally {
+        await lookalike.rxdb.disconnectAll();
+      }
     });
 
     it('主表集不经这里建，成员也必须记变更日志', async () => {

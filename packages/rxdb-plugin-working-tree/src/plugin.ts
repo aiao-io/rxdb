@@ -135,7 +135,7 @@ const createSystemContribution = (rxdb: RxDB, startup: StartupReclaimHooks): RxD
     // 走 bootstrapTransaction 而不是 transaction：整条引导链路都用前者，换成后者就得依赖
     // 「completeBootstrap() 确实已经把就绪门打开了」这个跨行推理。transactionLog 传 false ——
     // 这里一行都不写。
-    const { enabled, reclaimCandidates } = await adapter.bootstrapTransaction(async executor => {
+    const { enabled, reclaim } = await adapter.bootstrapTransaction(async executor => {
       // 基数校验**以能力已启用为前提**：未启用的库整套提交/工作树语义都是短路的（FR-037），
       // 拿一个它还没进入的不变量把它挡在连接之外，等于让升级本身变成一次破坏性变更。
       const capabilityEnabled = await isCommitCapabilityEnabled(executor);
@@ -145,13 +145,17 @@ const createSystemContribution = (rxdb: RxDB, startup: StartupReclaimHooks): RxD
       // 启动清理的判定也在这一笔里读：连上之后再开一笔事务去看，正赶上别的连接拿系统迁移锁时它就连不上，
       // 见 `worktree-startup-reclaim.ts`。未启用的库上 checkouts 整体不可用，不读。没配快照库也要读：
       // 可写检出位（US-314）的表在主库里，不靠快照库就收得了，只读检出位那时不算
-      const candidates = capabilityEnabled ? await findReclaimCandidates(executor, startup.configured()) : [];
-      return { enabled: capabilityEnabled, reclaimCandidates: candidates };
+      // 没有登记行的孤儿表集（US-314 B2.6）也在这一笔里找：它们没有锁，有就回收
+      const findings = capabilityEnabled ? await findReclaimCandidates(executor, adapter, startup.configured()) : null;
+      return { enabled: capabilityEnabled, reclaim: findings };
     }, false);
     // 未启用的库上一次都不装，于是四个写原语连一层转发都没有——FR-046 要求的「零行为差异」
     // 在这种形状下是结构性的，不依赖运行时每次写都去问一句能力位。
     if (enabled) installWorkingTreeCapture(rxdb, adapter);
-    startup.decide(await hasOrphanedWorktree(rxdb.config.dbName, reclaimCandidates));
+    startup.decide(
+      reclaim !== null &&
+        (reclaim.orphanTableSets.length > 0 || (await hasOrphanedWorktree(rxdb.config.dbName, reclaim.candidates)))
+    );
   },
   prepareBranchSwitch: async ({ executor, targetBranchId, preconditions }) => {
     // 未启用的库整套语义都是短路的（FR-037/046）：它没有 ref 行、没有工作树状态行，

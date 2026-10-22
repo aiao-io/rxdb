@@ -76,6 +76,7 @@ import { declaresStorageConstraints } from './system/constraint-drift.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
 import { RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
+import { sha256Hex } from './system/sha256.js';
 import { CORE_SYSTEM_ENTITIES, isSystemEntity, registerSystemEntities } from './system/system-entities.js';
 import { WorktreeTableSet } from './system/worktree-table-set.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
@@ -1340,6 +1341,29 @@ export class RxDB {
     for (const plugin of this.#plugin_map.values()) {
       await plugin.worktreeTableSet?.created(executor, tableSet);
     }
+  }
+
+  /**
+   * 一套可写检出位的表的指纹（US-314 B2.6）：成员实体的结构指纹（{@link WorktreeTableSet.schemaFingerprintOf}），
+   * 并上各插件建表集钩子的指纹（`WorktreeTableSetHooks.fingerprint`）。
+   *
+   * @param tableSet - 那套表；只看它的成员，不看后缀
+   * @returns 64 位十六进制 SHA-256
+   *
+   * @remarks
+   * 开检出位时记在登记行上，挂上时不符就整套重建：实体结构变了，或插件建在表上的附属对象变了（全文索引的分词版本这类），
+   * 旧的那套表都对不上了。插件按名字排序，`use()` 的顺序不影响它。
+   */
+  worktreeTableSetFingerprint(tableSet: WorktreeTableSet): string {
+    const members = this.config.entities.filter(EntityType => tableSet.has(getEntityMetadata(EntityType)));
+    const plugins = [...this.#plugin_map.values()]
+      .flatMap(plugin =>
+        plugin.worktreeTableSet ? [[plugin.name, plugin.worktreeTableSet.fingerprint(tableSet)] as const] : []
+      )
+      .sort(([left], [right]) => (left < right ? -1 : Number(left > right)));
+    return sha256Hex(
+      new TextEncoder().encode(JSON.stringify([WorktreeTableSet.schemaFingerprintOf(members), plugins]))
+    );
   }
 
   /**

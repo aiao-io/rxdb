@@ -226,6 +226,20 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
     await dropTableSet(WorktreeTableSet.of('wt_probe', []));
   });
 
+  // 孤儿回收按目录找还在的表集（US-314 B2.6），包括登记行已经没了的
+  it('列举表集：认出每一套影子 schema 的后缀，主表集的 schema 不算；删掉之后不再列出', async () => {
+    const listSuffixes = (): Promise<readonly string[]> =>
+      adapter.transaction(executor => adapter.listWorktreeTableSetSuffixes(executor), false);
+    const other = WorktreeTableSet.of('wt_other', [Todo]);
+    await holdBranchFor(other, 'other-held');
+    await createTableSet(other, 'other-held');
+    expect(await listSuffixes()).toEqual(['wt_other', 'wt_probe']);
+
+    await dropTableSet(tableSet);
+    await dropTableSet(other);
+    expect(await listSuffixes()).toEqual([]);
+  });
+
   it('主表集不经这里建，成员也必须记变更日志', async () => {
     await expect(createTableSet(WorktreeTableSet.MAIN, 'main')).rejects.toThrow(/主表集/);
     await expect(dropTableSet(WorktreeTableSet.MAIN)).rejects.toThrow(/主表集/);

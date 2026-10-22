@@ -32,6 +32,18 @@ export type WorktreeTableSetHost = LocalRxDBAdapter &
 export const tableSetSuffixOf = (id: string): string => `wt_${sha256Hex(new TextEncoder().encode(id)).slice(0, 12)}`;
 
 /**
+ * 是不是可写检出位开出来的那种后缀（{@link tableSetSuffixOf} 的形状：`wt_` 加 12 位十六进制）。
+ *
+ * @param suffix - 表集后缀
+ * @returns 是
+ *
+ * @remarks
+ * 孤儿回收只收这种（US-314 B2.6）。适配器认的后缀形状更宽（`wt_` 加 1～12 位小写字母或数字），手工、测试建的表集，
+ * 与名字恰好长成那样的别的表都落在里面；回收删的是整套表，宁可漏收，不可错删。
+ */
+export const isCheckoutTableSetSuffix = (suffix: string): boolean => /^wt_[0-9a-f]{12}$/.test(suffix);
+
+/**
  * 主库适配器建得了可写检出位的表集吗。
  *
  * @param adapter - 主库适配器

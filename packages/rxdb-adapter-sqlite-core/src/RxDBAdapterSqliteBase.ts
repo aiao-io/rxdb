@@ -131,7 +131,7 @@ import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { switch_branch } from './version/switch_branch.js';
 import { type SqlExecutor, withTriggersDisabled } from './version/with_triggers_disabled.js';
 import { importSnapshotTable, readSnapshotPage } from './worktree/worktree-snapshot.js';
-import { createSeededTableSet, dropTableSet } from './worktree/worktree-table-set.js';
+import { createSeededTableSet, dropTableSet, listTableSetSuffixes } from './worktree/worktree-table-set.js';
 export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } from './sqlite-core.types.js';
 
 /**
@@ -1032,6 +1032,16 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    */
   override async dropWorktreeTableSet(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void> {
     await dropTableSet(executor as SqliteTransactionExecutor, tableSet);
+  }
+
+  /**
+   * 按目录列出现存的可写检出位表集（US-314 B2.6）：表名末尾是 `$<后缀>` 的表各属于哪一套。
+   *
+   * @param executor - 本适配器上一个事务的执行器
+   * @returns 表集后缀，排好序、不重复；配置里实体的主表恰好长成这个形状时不算
+   */
+  override listWorktreeTableSetSuffixes(executor: TransactionExecutor): Promise<readonly string[]> {
+    return listTableSetSuffixes(this, executor as SqliteTransactionExecutor);
   }
 
   override async migrateSystemSchema(): Promise<void> {

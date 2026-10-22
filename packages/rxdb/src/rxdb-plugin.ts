@@ -19,6 +19,17 @@ export interface WorktreeTableSetHooks {
    * @param tableSet - 刚建好的那套表。执行器的 `tableSet` 是发起事务的实例挂的那套（通常是主表集），不是它
    */
   created(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void>;
+
+  /**
+   * 本插件在这套表上建的附属对象长什么样（US-314 B2.6），并进检出位的指纹。
+   *
+   * @param tableSet - 那套表；只看它的成员，不看后缀
+   * @returns 任意字符串：附属对象的形状变了它就得变（全文索引的分词版本、建了索引的实体与字段这类）
+   *
+   * @remarks
+   * 检出位挂上时指纹不符就整套重建，{@link WorktreeTableSetHooks.created} 随之重跑。只依赖配置，不依赖库里的状态。
+   */
+  fingerprint(tableSet: WorktreeTableSet): string;
 }
 
 /**

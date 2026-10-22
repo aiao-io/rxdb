@@ -5,7 +5,7 @@ status: In Progress
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-10-17
-updated: 2026-10-21
+updated: 2026-10-22
 tags: [collaboration, branch, worktree, history, tri-framework]
 ---
 
@@ -63,22 +63,23 @@ INVEST 检查清单:
 | 阶段 | 交付                                                                                 | 状态 |
 | ---- | ------------------------------------------------------------------------------------ | ---- |
 | A    | 从提交建分支：库 API、六个后端一致性、三端 demo 的提交右键与建分支对话框             | ✅   |
-| B    | 可写检出位：库内影子表的底座（B1）与完整语义（B2）、读写与提交、分支独占、关闭与回收 | ⚠️   |
+| B    | 可写检出位：库内影子表的底座（B1）与完整语义（B2）、读写与提交、分支独占、关闭与回收 | ✅   |
 | C    | 三端绑定与三端 demo 的 Worktree 下拉、New Worktree…、Rename… / Delete…               | ⬜   |
 
 ## 验收标准
 
-| #   | 阶段 | 前置条件                                               | 操作                                               | 预期结果                                                                                         | 状态 |
-| --- | ---- | ------------------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
-| 1   | A    | 当前分支上一个可达提交，工作树有未提交改动             | 从它建分支并切过去                                 | 业务表与「那次 `commit()` 刚完成时读到的数据」逐行一致；新分支的 HEAD 是该提交；原分支的改动还在 | ✅   |
-| 2   | A    | 三端 demo                                              | 历史行右键「Create branch from commit」            | 弹「Create a branch」对话框，写明基于哪个提交；建完切到新分支                                    | ✅   |
-| 3   | B    | 主检出位有未提交改动                                   | 新建可写检出位，在上面写并提交                     | 主检出位的业务表、工作树与 active 分支都不变；提交进那条分支的历史                               | ✅   |
-| 4   | B    | 一条分支已被一个可写检出位检出                         | 在别处再检出它                                     | 拒绝（git：`already used by worktree`）                                                          | ✅   |
-| 5   | C    | 三端 demo，有一个链接检出位                            | 工具栏 Worktree 下拉选中它                         | 分两组列出；切过去之后 Changes、History、Current Branch 都换到它上                               | ⬜   |
-| 6   | C    | 三端 demo                                              | New Worktree… / Rename… / Delete…                  | 与 GitHub Desktop 3.6 同流程；主检出位不能改名或删除；有未提交改动时删除先确认                   | ⬜   |
-| 7   | C    | 三端 demo                                              | a11y 走查                                          | Worktree 下拉与三个对话框 axe 零违规、键盘可达                                                   | ⬜   |
-| 8   | B    | 挂在可写检出位上，持有的分支有未提交改动               | 在检出位里切到另一条分支，或合并别的分支           | 切分支：改动留在原分支，读到的与主检出位切过去逐行一致；合并落在这套表里；主检出位一处不动       | ✅   |
-| 9   | B    | 两个标签页共用一个库，一个挂主检出位、一个挂可写检出位 | 各自写入；改两套表里都有的同一行；在检出位里切分支 | 两边的活查询只收到自己那套表上的变更，同 id 的行不被另一边的值改掉                               | ✅   |
+| #   | 阶段 | 前置条件                                               | 操作                                               | 预期结果                                                                                                             | 状态 |
+| --- | ---- | ------------------------------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | A    | 当前分支上一个可达提交，工作树有未提交改动             | 从它建分支并切过去                                 | 业务表与「那次 `commit()` 刚完成时读到的数据」逐行一致；新分支的 HEAD 是该提交；原分支的改动还在                     | ✅   |
+| 2   | A    | 三端 demo                                              | 历史行右键「Create branch from commit」            | 弹「Create a branch」对话框，写明基于哪个提交；建完切到新分支                                                        | ✅   |
+| 3   | B    | 主检出位有未提交改动                                   | 新建可写检出位，在上面写并提交                     | 主检出位的业务表、工作树与 active 分支都不变；提交进那条分支的历史                                                   | ✅   |
+| 4   | B    | 一条分支已被一个可写检出位检出                         | 在别处再检出它                                     | 拒绝（git：`already used by worktree`）                                                                              | ✅   |
+| 5   | C    | 三端 demo，有一个链接检出位                            | 工具栏 Worktree 下拉选中它                         | 分两组列出；切过去之后 Changes、History、Current Branch 都换到它上                                                   | ⬜   |
+| 6   | C    | 三端 demo                                              | New Worktree… / Rename… / Delete…                  | 与 GitHub Desktop 3.6 同流程；主检出位不能改名或删除；有未提交改动时删除先确认                                       | ⬜   |
+| 7   | C    | 三端 demo                                              | a11y 走查                                          | Worktree 下拉与三个对话框 axe 零违规、键盘可达                                                                       | ⬜   |
+| 8   | B    | 挂在可写检出位上，持有的分支有未提交改动               | 在检出位里切到另一条分支，或合并别的分支           | 切分支：改动留在原分支，读到的与主检出位切过去逐行一致；合并落在这套表里；主检出位一处不动                           | ✅   |
+| 9   | B    | 两个标签页共用一个库，一个挂主检出位、一个挂可写检出位 | 各自写入；改两套表里都有的同一行；在检出位里切分支 | 两边的活查询只收到自己那套表上的变更，同 id 的行不被另一边的值改掉                                                   | ✅   |
+| 10  | B    | 应用升级改了实体结构，或插件建在表上的附属对象变了     | 挂上升级之前开的可写检出位                         | 一笔事务里按新结构整套重建：未提交改动还在、与切过去逐行一致；重建失败整笔回滚报 `schema_rebuild_failed`，检出位原样 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -309,6 +310,28 @@ INVEST 检查清单:
     抛错中断）；工作树插件单测（`add()` 建完表集之后在同一笔事务里调钩子）。搜索插件与工作树插件互不依赖，真实的 `checkouts.add()`
     流程在本地一次性核对过（PGlite，未入库）：`add()` 前后变更日志行数与主检出位的 `status()` 不变，装不装搜索插件挂上检出位的工作树状态一样
     （回填不记成改动；建索引走事务执行器的 `query`，不经原始写门禁）。
+- **按指纹重建与孤儿回收**（阶段 B2.6，验收 10）：
+  - 检出位的指纹自成一份：`RxDB.worktreeTableSetFingerprint(tableSet)` = 成员实体的结构指纹（`WorktreeTableSet.schemaFingerprintOf`，
+    在备份清单的键上加 `checks` / `exclusions` / `log`）并上各插件建表集钩子的指纹（`WorktreeTableSetHooks.fingerprint`，按插件名排序）。
+    备份清单的指纹键不动，否则已有备份全恢复不了；两者共用的规范化编码拆到 `backup/schema-fingerprint-encoding.ts`，不引系统实体，
+    表集模块引它不会在模块初始化顺序里撞上还没定义好的系统实体类。搜索插件的指纹是后端与成员上每个安装计划的签名（字段与分词版本）。
+  - `add()` 记下这份指纹，`mount()` 不符就在挂载的那笔事务里重建：删表集 → 按「主检出位所在分支 → 持有分支」的增量重新播种 →
+    重跑插件的建表集钩子 → 更新登记行（指纹、来源分支与变更号、`lastAccessedAt`）。持有键与激活态行不动，不重新持有分支；
+    检出位里的写都记在持有分支的变更日志上，未提交的改动随播种回来。任何一步失败整笔回滚，抛 `WorktreeUnavailableError('schema_rebuild_failed')`、
+    `cause` 是原始错误，检出位原样；挂着它时重建了也重挂一次（实体缓存与活查询是旧那套表的）。只读检出位的 `attach()` 照旧 `schema_mismatch`。
+  - 重建会失败或失真的情形（写进文档）：列改了名、新加了没默认值的必填列（增量叠不上新结构，整笔回滚）；新加密的列（旧变更行里是明文，
+    播种照搬）；主检出位上不记日志的写（关触发器的拉取回填这类）会混进副本——播种从主表的当前内容出发。
+  - 孤儿：两个适配器新增可选槽位 `listWorktreeTableSetSuffixes(executor)`，按目录列出现存的表集（SQLite 系认表名末尾的 `$<后缀>`，
+    PGlite 认 schema 名末尾），后缀形状由核心的 `WorktreeTableSet.isSuffix` 判，配置里实体的主表名 / 命名空间恰好长成这样时排除；
+    解析写在各自的表名解析器里。工作树插件把「持有键、激活态行、目录里的表集三处任一处还在、登记表里却没有」的认作孤儿，
+    只认检出位开出来的那种后缀（`wt_` 加 12 位十六进制）。`prune()` 每套一笔事务删表集、放持有键、删激活态行，交回它的后缀；
+    连接期的启动判定在同一笔引导事务里一并找孤儿（登记表与持有键各读一次），有就在连上之后回收。
+  - 一致性：检出位套件（六个后端）三条——探针插件改了指纹，`mount()` 重建、重跑钩子，未提交改动还在、与切过去逐行一致，登记行记下新指纹；
+    钩子在重建时抛错，`schema_rebuild_failed`、`cause` 原样、登记行指纹不动，指纹改回原样再挂读到的与失败之前一致；删掉登记行造出孤儿，
+    分支删不掉，`prune()` 清掉表集、持有键与激活态行之后删得掉。适配器级（sqlite-core 共享套件与 PGlite 同名用例）：列出每一套表集的后缀、
+    删掉之后不再列出；主表名恰好长成后缀形状的实体不被认成表集（去掉排除即红）。核心单测（`isSuffix`、`schemaFingerprintOf` 比备份指纹多看
+    `log` / `checks`、`worktreeTableSetFingerprint` 合并钩子指纹且与 `use()` 顺序无关）；工作树插件单测（重建先删后建、失败带 `cause` 且还锁、
+    启动判定认孤儿持有键而不认手工后缀）；搜索插件单测（指纹只看成员、随可搜索字段与排除名单变）。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -368,6 +391,12 @@ INVEST 检查清单:
   （`installFtsForTableSet`）、`core/fts5-installer.ts`、`backend/pg/pg-backend.ts`、`pg-runtime.ts`（`installPgFtsForTableSet`）、
   `pg-fts-contract.ts`；`packages/rxdb-adapter-pglite/src/fts/index.ts`（`getSchemaName`）；`scripts/audit/table-name-resolver.mjs`（R4）；
   `packages/rxdb-plugin-search/src/__tests__/worktree-search.suite.ts` — 全文检索按表集（B2.5）
+- `packages/rxdb/src/backup/schema-fingerprint-encoding.ts`、`backup/schema-fingerprint.ts`、`system/worktree-table-set.ts`
+  （`isSuffix` / `schemaFingerprintOf`）、`rxdb-plugin.ts`（`WorktreeTableSetHooks.fingerprint`）、`RxDB.ts`（`worktreeTableSetFingerprint`）、
+  `rxdb-adapter.ts`（`listWorktreeTableSetSuffixes`）；两个适配器的 `table-name-resolver.ts` 与 `worktree/worktree-table-set.ts`（`listTableSetSuffixes`）；
+  `packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts`（`mount` 重建、`prune` 收孤儿）、`worktree-startup-reclaim.ts`
+  （`findOrphanTableSets`）、`worktree-writable.ts`（`isCheckoutTableSetSuffix`）、`worktree-errors.ts`（`schema_rebuild_failed`）、`plugin.ts`；
+  `packages/rxdb-plugin-search/src/plugin.ts`（`fingerprint`） — 按指纹重建与孤儿回收（B2.6）
 - `packages/rxdb/src/system/active-branch-guard.ts`（`WorktreeBranchHeldError`）、`system/system-repositories.ts`、
   两个适配器的 `version/switch_branch.ts` 与系统迁移（sqlite-core `RxDBAdapterSqliteBase.ts`、PGlite `system/migrate_system_schema.ts`）
   — 分支持有模型

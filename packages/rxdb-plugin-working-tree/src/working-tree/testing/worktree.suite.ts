@@ -30,6 +30,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   EntityRelationManyToManyMetadata,
   EntityType,
+  IRxDBPlugin,
   LocalRxDBAdapter,
   RxDB,
   SwitchVersionActions
@@ -51,6 +52,7 @@ import { holdWorktreeLock, worktreeLockName } from '../../checkout/worktree-lock
 import type { WorktreeView } from '../../checkout/worktree-manager.js';
 import type { WorktreeTarget } from '../../checkout/worktree-target.js';
 import { openActivationRow } from '../../checkout/worktree-writable.js';
+import { Worktree } from '../../checkout/worktree.entity.js';
 import { CommitForkPoint } from '../../commit/commit-fork-point.entity.js';
 import { WorkingTreeActivationState } from '../working-tree-activation-state.entity.js';
 import type { WorktreeConformanceSuiteContext } from './suite-context.js';
@@ -293,6 +295,47 @@ const activationRowIdsOf = async (rxdb: RxDB): Promise<unknown[]> => {
     );
     return rows.map(row => row[0]);
   }, false);
+};
+
+/** 按目录列出现存的可写检出位表集（US-314 B2.6）。 */
+const tableSetSuffixesOf = async (rxdb: RxDB): Promise<readonly string[]> => {
+  const adapter = await localAdapterOf(rxdb);
+  return adapter.transaction(executor => adapter.listWorktreeTableSetSuffixes!(executor), false);
+};
+
+/** 只删一个检出位的登记行：表集、持有键与激活态行都还在，成了孤儿（外部干预、旧版本留下的这类）。 */
+const dropRegistryRow = async (rxdb: RxDB, id: string): Promise<void> => {
+  const adapter = await localAdapterOf(rxdb);
+  await adapter.transaction(async executor => {
+    const worktrees = executor.getRepository(Worktree);
+    const records = await worktrees.find({
+      where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: id }] }
+    });
+    for (const record of records) await worktrees.remove(record);
+  }, false);
+};
+
+/** 带建表集钩子的探针插件（US-314 B2.6）：记下每次建表集；指纹与抛不抛错由用例改 */
+interface TableSetProbe {
+  readonly created: string[];
+  fingerprint: string;
+  failure: Error | undefined;
+}
+
+const useTableSetProbe = (rxdb: RxDB): TableSetProbe => {
+  const probe: TableSetProbe = { created: [], fingerprint: 'v1', failure: undefined };
+  rxdb.use((): IRxDBPlugin => ({
+    name: 'worktreeTableSetProbe',
+    install: () => undefined,
+    worktreeTableSet: {
+      created: async (_executor, tableSet) => {
+        probe.created.push(String(tableSet.suffix));
+        if (probe.failure) throw probe.failure;
+      },
+      fingerprint: () => probe.fingerprint
+    }
+  }));
+  return probe;
 };
 
 /** 变更日志的行数：开、删检出位都不该多出一行。 */
@@ -1096,6 +1139,82 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
         await checkoutsOf().remove(writtenCheckout.id);
         await database.versionManager.switchBranch(FEATURE);
         expect(await tablesOf(database)).toEqual(written);
+      });
+
+      // 检出位的指纹（US-314 B2.6）：成员实体的结构，并上插件建表集钩子的指纹。挂上时不符，就在一笔事务里整套重建
+      it('指纹变了：mount() 一笔事务里重建、重跑插件的建表集钩子；未提交改动还在、与切过去逐行一致，登记行记下新指纹', async () => {
+        const probe = useTableSetProbe(database);
+        await seedTwoBranches(database);
+        const worktree = await checkoutsOf().add(FEATURE);
+        await checkoutsOf().mount(worktree.id);
+        await save(database, WorktreeConformanceLabel, { name: '重建之前写的' });
+        const written = await tablesOf(database);
+        await checkoutsOf().release(worktree.id);
+        probe.fingerprint = 'v2';
+
+        await checkoutsOf().mount(worktree.id);
+
+        expect(probe.created).toEqual([worktree.tableSetSuffix, worktree.tableSetSuffix]);
+        expect(await tablesOf(database)).toEqual(written);
+        const [record] = (await checkoutsOf().list()).filter(row => row.id === worktree.id);
+        expect(record.schemaFingerprint).toBe(database.worktreeTableSetFingerprint(database.worktreeTableSet));
+        expect(record.schemaFingerprint).not.toBe(worktree.schemaFingerprint);
+        await checkoutsOf().remove(worktree.id);
+        await database.versionManager.switchBranch(FEATURE);
+        expect(await tablesOf(database)).toEqual(written);
+      });
+
+      it('重建失败（插件的建表集钩子抛错）：整笔回滚报 schema_rebuild_failed，检出位与登记行原样；钩子好了再挂就重建', async () => {
+        const probe = useTableSetProbe(database);
+        await seedTwoBranches(database);
+        const worktree = await checkoutsOf().add(FEATURE);
+        await checkoutsOf().mount(worktree.id);
+        await save(database, WorktreeConformanceLabel, { name: '重建之前写的' });
+        const written = await tablesOf(database);
+        await checkoutsOf().release(worktree.id);
+        probe.fingerprint = 'v2';
+        probe.failure = new Error('探针的附属对象建不出来');
+
+        const failed = await checkoutsOf()
+          .mount(worktree.id)
+          .catch((error: unknown) => error);
+
+        expect(failed).toBeInstanceOf(WorktreeUnavailableError);
+        expect((failed as WorktreeUnavailableError).reason).toBe('schema_rebuild_failed');
+        expect((failed as WorktreeUnavailableError).cause).toBe(probe.failure);
+        expect(database.worktreeTableSet.isMain).toBe(true);
+        const [record] = (await checkoutsOf().list()).filter(row => row.id === worktree.id);
+        expect(record.schemaFingerprint).toBe(worktree.schemaFingerprint);
+        // 指纹改回原样再挂：不重建，读到的就是失败那一次留下的表，与失败之前一致
+        probe.fingerprint = 'v1';
+        probe.failure = undefined;
+        await checkoutsOf().mount(worktree.id);
+        expect(await tablesOf(database)).toEqual(written);
+
+        await checkoutsOf().release(worktree.id);
+        probe.fingerprint = 'v2';
+        await checkoutsOf().mount(worktree.id);
+        expect(await tablesOf(database)).toEqual(written);
+      });
+
+      // 孤儿（US-314 B2.6）：登记行没了，这套表、分支上的持有键与激活态行还在，分支因此一直删不掉
+      it('没有登记行的孤儿：prune() 一笔事务删表集、放持有键、删激活态行，交回它的后缀；分支随后删得掉', async () => {
+        await database.versionManager.createBranch(FEATURE);
+        const worktree = await checkoutsOf().add(FEATURE);
+        await checkoutsOf().release(worktree.id);
+        const tableSet = WorktreeTableSet.of(String(worktree.tableSetSuffix), []);
+        await dropRegistryRow(database, worktree.id);
+        expect(await checkoutsOf().list()).toEqual([]);
+        expect(await tableSetSuffixesOf(database)).toEqual([worktree.tableSetSuffix]);
+        await expect(database.versionManager.removeBranch(FEATURE)).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+        expect(await checkoutsOf().prune()).toEqual([worktree.tableSetSuffix]);
+
+        expect(await tableSetSuffixesOf(database)).toEqual([]);
+        expect(await activationRowIdsOf(database)).not.toContain(tableSet.holderKey);
+        await database.versionManager.removeBranch(FEATURE);
+        expect(await branchIdsOf(database)).not.toContain(FEATURE);
+        expect(await checkoutsOf().prune()).toEqual([]);
       });
 
       // 隔离探针：开、删都只动这套影子表、分支表上的持有键与登记行。SQLite 删表时先隐式删行再删表，

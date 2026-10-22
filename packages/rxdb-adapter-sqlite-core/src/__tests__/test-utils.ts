@@ -71,6 +71,15 @@ export const drop_worktree_table_set = (adapter: RxDBAdapterSqliteBase, tableSet
   adapter.transaction(executor => adapter.dropWorktreeTableSet(executor, tableSet), false);
 
 /**
+ * 在一笔不记日志的事务里按目录列出现存的可写检出位表集（US-314 B2.6）。
+ *
+ * @param adapter - 适配器
+ * @returns 表集后缀，排好序
+ */
+export const list_worktree_table_set_suffixes = (adapter: RxDBAdapterSqliteBase): Promise<readonly string[]> =>
+  adapter.transaction(executor => adapter.listWorktreeTableSetSuffixes(executor), false);
+
+/**
  * 删掉库里全部可写检出位的表集（US-314 B1.3）。
  *
  * @remarks

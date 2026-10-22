@@ -99,7 +99,7 @@ import { generateBranchTriggerSqlFor, switch_branch } from './version/switch_bra
 import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.js';
 import { withTriggersDisabled } from './version/with_triggers_disabled.js';
 import { importSnapshotTable, readSnapshotPage } from './worktree/worktree-snapshot.js';
-import { createSeededTableSet, dropTableSet } from './worktree/worktree-table-set.js';
+import { createSeededTableSet, dropTableSet, listTableSetSuffixes } from './worktree/worktree-table-set.js';
 
 /**
  * 适配器生命周期状态。
@@ -765,6 +765,16 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   override async dropWorktreeTableSet(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void> {
     await dropTableSet(executor as PGliteTransactionExecutor, tableSet);
+  }
+
+  /**
+   * 按目录列出现存的可写检出位表集（US-314 B2.6）：名字末尾是 `$<后缀>` 的 schema 各属于哪一套。
+   *
+   * @param executor - 本适配器上一个事务的执行器
+   * @returns 表集后缀，排好序、不重复；配置里实体的命名空间恰好长成这个形状时不算
+   */
+  override listWorktreeTableSetSuffixes(executor: TransactionExecutor): Promise<readonly string[]> {
+    return listTableSetSuffixes(this, executor as PGliteTransactionExecutor);
   }
 
   override async reconcileEntityIndexes(EntityTypes: EntityType[]): Promise<void> {

@@ -16,7 +16,12 @@ import type { EntityMetadata, EntityType, WorktreeTableSetSeed } from '@aiao/rxd
 import { getEntityMetadata, parseRxDBChangeKey, WorktreeTableSet } from '@aiao/rxdb';
 import { quoteIdentifier, RxdbAdapterPGliteError } from '../pglite.utils.js';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
-import { getSchemaName, getTableNameByMetadata, getTableSetSchemaSuffix } from '../table-name-resolver.js';
+import {
+  getSchemaName,
+  getTableNameByMetadata,
+  getTableSetSchemaSuffix,
+  getTableSetSuffixOfSchemaName
+} from '../table-name-resolver.js';
 import { create_tables_statements } from '../table/create_tables_sql.js';
 import remove_all_triggers_sql from '../table/remove_trigger_sql.js';
 import type { PGliteTransactionExecutor } from '../transaction/PGliteTransactionExecutor.js';
@@ -263,4 +268,33 @@ export const dropTableSet = async (executor: PGliteTransactionExecutor, tableSet
   for (const schema of schemas) {
     await executor.queryRaw(`DROP SCHEMA IF EXISTS ${quoteIdentifier(schema)} CASCADE`);
   }
+};
+
+/**
+ * 按目录列出现存的可写检出位表集（US-314 B2.6）：名字末尾是 `$<后缀>` 的 schema 各属于哪一套。
+ *
+ * @param adapter - 适配器（取配置里的实体，排除它们的命名空间）
+ * @param executor - 调用方的事务
+ * @returns 表集后缀，排好序、不重复
+ *
+ * @remarks
+ * 孤儿回收要知道哪些表集还在，包括登记行已经没了的。配置里实体的命名空间恰好以 `$wt_…` 结尾时排除：
+ * 照它删表集，删的就是主表集的 schema。
+ */
+export const listTableSetSuffixes = async (
+  adapter: RxDBAdapterPGlite,
+  executor: PGliteTransactionExecutor
+): Promise<string[]> => {
+  const namespaces = new Set<string>(
+    adapter.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType).namespace)
+  );
+  const schemas = (await executor.queryRaw<{ nspname: string }>(`SELECT nspname FROM pg_namespace`)).rows.map(
+    row => row.nspname
+  );
+  const suffixes = new Set<string>();
+  for (const schema of schemas) {
+    const suffix = namespaces.has(schema) ? undefined : getTableSetSuffixOfSchemaName(schema);
+    if (suffix !== undefined) suffixes.add(suffix);
+  }
+  return [...suffixes].sort();
 };

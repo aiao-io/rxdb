@@ -237,17 +237,28 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
   /** 插件级默认项（页大小、防抖、snippet、排除 collection） */
   readonly options: SearchPluginOptions;
   /**
-   * 可写检出位的表刚建好（US-314 B2.5）：在建它的那笔事务里给成员表建全文索引并回填。
+   * 对可写检出位那套表的贡献（US-314 B2.5 / B2.6）。
    *
    * @remarks
-   * 抛错整笔回滚，检出位连同索引要么都建好、要么一处不留。没装上（作用域不在、或安装失败）时不建：那时本来就搜不了，
-   * 之后挂上这套表、头一次搜的时候补建。
+   * `created`：表刚建好，在建它的那笔事务里给成员表建全文索引并回填。抛错整笔回滚，检出位连同索引要么都建好、要么一处不留。
+   * 没装上（作用域不在、或安装失败）时不建：那时本来就搜不了，之后挂上这套表、头一次搜的时候补建。
+   *
+   * `fingerprint`：后端与成员上每个安装计划的签名（字段与分词版本），并进检出位的指纹——变了，检出位挂上时整套重建、
+   * 索引跟着重建。按 `install()` 时读出的计划算，与安装成没成无关：装失败时缺的索引由头一次搜补建。
    */
   readonly worktreeTableSet: WorktreeTableSetHooks = {
     created: async (executor, tableSet) => {
       if (this.#scope?.state !== 'active' || this.#installFailure) return;
       await this.#installMembers(executor, tableSet, await this.#bindPlans(tableSet));
-    }
+    },
+    fingerprint: tableSet =>
+      JSON.stringify([
+        this.#backend.id,
+        [...this.#searchPlans.values()]
+          .filter(({ metadata }) => tableSet.has(metadata))
+          .map(({ metadata, plan }) => `${metadata.namespace}.${metadata.name}:${plan.signature}`)
+          .sort()
+      ])
   };
 
   /**

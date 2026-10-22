@@ -289,13 +289,52 @@ describe('WorktreeManager.mount / release / remove', () => {
     expect(await isLocked(worktree.id)).toBe(false);
   });
 
-  it('mount()：实体结构变了报 schema_mismatch；持有的分支不在了报 not_found', async () => {
+  it('mount()：指纹不符就在挂载那笔事务里删表、重建、记下新指纹（US-314 B2.6）；持有的分支不在了报 not_found', async () => {
     const manager = managerOf();
     const worktree = await manager.add('feature');
     const { schemaFingerprint } = worktree;
+    await manager.release(worktree.id);
+    createWorktreeTableSet.mockClear();
 
     Object.assign(rows[0], { schemaFingerprint: 'stale' });
-    expect(await reasonOf(manager.mount(worktree.id))).toBe('schema_mismatch');
+    await manager.mount(worktree.id);
+
+    expect((dropWorktreeTableSet.mock.calls[0][1] as WorktreeTableSet).suffix).toBe(worktree.tableSetSuffix);
+    expect(createWorktreeTableSet).toHaveBeenCalledTimes(1);
+    expect(dropWorktreeTableSet.mock.invocationCallOrder[0]).toBeLessThan(
+      createWorktreeTableSet.mock.invocationCallOrder[0]
+    );
+    expect(rows[0].schemaFingerprint).toBe(schemaFingerprint);
+    await manager.release(worktree.id);
+
+    Object.assign(
+      branches.find(row => row.id === 'feature')!,
+      { activeKey: null }
+    );
+    expect(await reasonOf(manager.mount(worktree.id))).toBe('not_found');
+  });
+
+  it('mount()：重建失败报 schema_rebuild_failed、带着原始错误，登记行的指纹不动、锁还掉', async () => {
+    const manager = managerOf();
+    const worktree = await manager.add('feature');
+    await manager.release(worktree.id);
+    const boom = new Error('新结构上的表建不出来');
+    createWorktreeTableSet.mockRejectedValueOnce(boom);
+
+    Object.assign(rows[0], { schemaFingerprint: 'stale' });
+    const failed = await manager.mount(worktree.id).catch((error: unknown) => error);
+
+    expect(failed).toBeInstanceOf(WorktreeUnavailableError);
+    expect((failed as WorktreeUnavailableError).reason).toBe('schema_rebuild_failed');
+    expect((failed as WorktreeUnavailableError).cause).toBe(boom);
+    expect(rows[0].schemaFingerprint).toBe('stale');
+    expect(await isLocked(worktree.id)).toBe(false);
+  });
+
+  it('mount()：持有的分支不在了报 not_found', async () => {
+    const manager = managerOf();
+    const worktree = await manager.add('feature');
+    const { schemaFingerprint } = worktree;
 
     Object.assign(rows[0], { schemaFingerprint });
     Object.assign(

@@ -5,6 +5,11 @@
  * 不分套。物理名怎么拼归各适配器的表名解析器（SQLite 系给表名加后缀，PGlite 换 schema），这里只给后缀与成员。
  */
 
+import {
+  FINGERPRINT_KEYS,
+  fingerprintSchemaInput,
+  pickSchemaFingerprintInput
+} from '../backup/schema-fingerprint-encoding.js';
 import type { EntityType } from '../entity/entity.interface.js';
 import type { EntityMetadata } from '../entity/metadata.interface.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
@@ -43,6 +48,14 @@ const SUFFIX_PATTERN = new RegExp(`^${SUFFIX_BODY}$`);
 
 /** 影子表集的持有键：`*worktree:<后缀>*`，见 {@link WorktreeTableSet.holderKey} */
 const HOLDER_KEY_PATTERN = new RegExp(`^\\*worktree:(${SUFFIX_BODY})\\*$`);
+
+/**
+ * 表集指纹在备份清单的键之外还看的实体级字段（US-314 B2.6）：约束决定影子表怎么建，`log` 决定实体进不进这套表。
+ *
+ * @remarks
+ * 备份清单那份键不动：往里加键，已有备份的指纹就全对不上、恢复不了。
+ */
+const TABLE_SET_FINGERPRINT_KEYS = [...FINGERPRINT_KEYS, 'checks', 'exclusions', 'log'];
 
 /**
  * {@link WorktreeTableSet.heldBranchWhere} 的形状：只有一条规则的条件组
@@ -141,6 +154,32 @@ export class WorktreeTableSet {
    */
   static suffixOfHolderKey(activeKey: string): string | null {
     return HOLDER_KEY_PATTERN.exec(activeKey)?.[1] ?? null;
+  }
+
+  /**
+   * 是不是表集后缀的形状（`wt_` 加 1～12 位小写字母或数字）。
+   *
+   * @param value - 从目录里的物理名、schema 名上截下来的那一段
+   * @returns 合形状为 `true`
+   *
+   * @remarks
+   * 适配器按目录列举现存的表集时用它认后缀（US-314 B2.6 的孤儿回收），与 {@link WorktreeTableSet.of} 同一条规则。
+   */
+  static isSuffix(value: string): boolean {
+    return SUFFIX_PATTERN.test(value);
+  }
+
+  /**
+   * 一套表的结构指纹（US-314 B2.6）：成员实体的结构，在备份清单的结构指纹之外还看约束（`checks` / `exclusions`）与 `log`。
+   *
+   * @param entities - 这套表的成员
+   * @returns 64 位十六进制 SHA-256；与声明顺序无关
+   *
+   * @remarks
+   * 可写检出位开的时候记下它（并上插件钩子的指纹，见 `RxDB.worktreeTableSetFingerprint`），挂上时不符就整套重建。
+   */
+  static schemaFingerprintOf(entities: readonly EntityType[]): string {
+    return fingerprintSchemaInput(pickSchemaFingerprintInput(entities, TABLE_SET_FINGERPRINT_KEYS));
   }
 
   /**

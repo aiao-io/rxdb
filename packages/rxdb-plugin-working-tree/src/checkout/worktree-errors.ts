@@ -22,7 +22,9 @@ import { RxDBError } from '@aiao/rxdb';
  * - `in_use`：`attach()` / `mount()` / `remove()` 的检出位正在别处打开着
  * - `not_found`：`attach()` 的检出位不存在、不是持久归属的只读检出位，或还没建完；`mount()` / `remove()` 的检出位不是可写检出位，
  *   或它持有的分支已经不在了
- * - `schema_mismatch`：`attach()` / `mount()` 的检出位建好之后，应用的实体结构变了
+ * - `schema_mismatch`：`attach()` 的只读检出位建好之后，应用的实体结构变了
+ * - `schema_rebuild_failed`：`mount()` 的可写检出位指纹不符（实体结构或插件建在表上的附属对象变了），按新结构重建失败、
+ *   整笔回滚，检出位原样；`cause` 是重建时的原始错误（US-314 B2.6）
  * - `invalid_name`：`add()` / `rename()` 给的名字去掉首尾空白后是空的
  * - `name_taken`：`add()` / `rename()` 给的名字已经被另一个可写检出位用了
  */
@@ -40,6 +42,7 @@ export type WorktreeUnavailableReason =
   | 'in_use'
   | 'not_found'
   | 'schema_mismatch'
+  | 'schema_rebuild_failed'
   | 'invalid_name'
   | 'name_taken';
 
@@ -48,12 +51,14 @@ export class WorktreeUnavailableError extends RxDBError {
   /**
    * @param reason - 原因
    * @param detail - 人读的补充说明
+   * @param options - `cause`：引起它的原始错误（`schema_rebuild_failed` 带重建时的错误）
    */
   constructor(
     readonly reason: WorktreeUnavailableReason,
-    readonly detail: string
+    readonly detail: string,
+    options?: ErrorOptions
   ) {
-    super(`检出位操作被拒（${reason}）：${detail}`);
+    super(`检出位操作被拒（${reason}）：${detail}`, options);
     this.name = 'WorktreeUnavailableError';
     Object.setPrototypeOf(this, WorktreeUnavailableError.prototype);
   }
