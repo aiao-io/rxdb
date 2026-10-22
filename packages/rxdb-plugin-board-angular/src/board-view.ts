@@ -4,6 +4,7 @@ import {
   labelTextColor as pickLabelTextColor,
   resolveCardDrop,
   resolveColumnDrop,
+  resolveMenuMove,
   RESTORING_MARKER_KEY,
   Task,
   type BoardSearchUpstream,
@@ -338,6 +339,20 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
         min-width: 0;
         padding: 0.25rem 0.5rem;
       }
+      /* 详情面板菜单式移动（AC#6） */
+      .detail-move {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: flex-end;
+        margin-top: 0.5rem;
+      }
+      .detail-move label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+        font-size: 0.75rem;
+      }
     `
   ]
 })
@@ -408,6 +423,9 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   /** 写入口 busy 状态（US-539 交互约定「写入」行：执行中阻止重复提交）。 */
   protected readonly savingDetail = signal(false);
   protected readonly sortingColumnId = signal<UUID | null>(null);
+  /** 菜单式移动（US-539 AC#6 键盘等价路径）：目标列与插入下标。 */
+  protected readonly moveColumnId = signal<UUID | null>(null);
+  protected readonly movePosition = signal(0);
   protected readonly draftDueDate = signal<string>('');
   protected readonly draftLabelIds = signal<readonly UUID[]>([]);
   protected readonly searchQuery = signal('');
@@ -452,7 +470,9 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   /** 恢复标记跨页同步：读 localStorage 标记并把门禁下发到领域桥。 */
   private readonly onBoardStorage = (): void => {
-    this.board()?.setRestoring(localStorage.getItem(RESTORING_MARKER_KEY) !== null);
+    this.board()?.setRestoring(
+      typeof localStorage !== 'undefined' && localStorage.getItem(RESTORING_MARKER_KEY) !== null
+    );
   };
 
   /** 标签文字色（对比度，US-539 AC#6）：模板无法直接调模块级函数，包一层成员。 */
@@ -652,11 +672,62 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     this.draftDescription.set(snap.description ?? '');
     this.draftDueDate.set(snap.dueDate ?? '');
     this.draftLabelIds.set([...snap.labelIds]);
+    this.moveColumnId.set(snap.columnId);
+    this.movePosition.set(0);
+  }
+
+  /** 详情草稿相对快照是否有未保存修改（US-539「详情」行：关闭 / 切板先确认放弃）。 */
+  protected isDetailDirty(): boolean {
+    return (
+      this.snapshot !== null &&
+      (this.detailDraftTitle() !== this.snapshot.title ||
+        this.draftDescription() !== (this.snapshot.description ?? '') ||
+        this.draftDueDate() !== (this.snapshot.dueDate ?? '') ||
+        [...this.draftLabelIds()].sort().join(',') !== [...this.snapshot.labelIds].sort().join(','))
+    );
   }
 
   protected closeDetail(): void {
+    if (this.isDetailDirty() && !window.confirm('有未保存的修改，关闭将放弃。继续？')) return;
     this.detailTaskId.set(null);
     this.snapshot = null;
+  }
+
+  /** 菜单式移动（AC#6）：目标列 + 插入下标 → 核心换算表 → 移动；原位零写提示。 */
+  protected async moveTaskByMenu(): Promise<void> {
+    const taskId = this.detailTaskId();
+    const columnId = this.moveColumnId();
+    if (taskId === null || columnId === null) return;
+    const target = resolveMenuMove(
+      this.boardRef.columns().map(column => ({
+        columnId: column.id,
+        taskIds: (this.taskMap().get(column.id) ?? []).map(task => task.id)
+      })),
+      taskId,
+      columnId,
+      this.movePosition()
+    );
+    if (target === null) {
+      this.notice.set('任务已在该位置');
+      return;
+    }
+    // moveTask 返回 void：guard 的成功与失败都表现为 undefined，直接调用以区分成败
+    try {
+      await this.boardRef.actions.moveTask(taskId, target);
+    } catch (error) {
+      this.notice.set(error instanceof Error ? error.message : String(error));
+      this.scheduleNoticeClear();
+      return;
+    }
+    // 成功后焦点落在被移动对象（AC#6）：跨列 DOM 移动会丢焦点，固定时长内每帧重试
+    this.focusMovedCard(taskId);
+  }
+
+  /** 帧循环内持续聚焦被移动卡片（提交与重渲染是异步的，固定时长内每帧重试）。 */
+  private focusMovedCard(taskId: UUID, attempts = 60): void {
+    const card = document.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
+    if (card !== null && card.isConnected) card.focus();
+    if (attempts > 0) requestAnimationFrame(() => this.focusMovedCard(taskId, attempts - 1));
   }
 
   protected async saveDetail(): Promise<void> {
@@ -674,7 +745,9 @@ export class BoardViewComponent implements OnInit, OnDestroy {
       );
       // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
       if (result === undefined) return;
-      this.closeDetail();
+      // 保存成功直接关（不走 closeDetail 的未保存确认：草稿与旧快照的差异已被本次保存清掉）
+      this.detailTaskId.set(null);
+      this.snapshot = null;
     } finally {
       this.savingDetail.set(false);
     }
@@ -812,6 +885,12 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   /** 输入变化：空查询销毁句柄退出搜索态；否则按防抖复用同一句柄。 */
   /** 切板：先切换，再销毁重建句柄重发当前查询（setQuery 同词会被 distinctUntilChanged 吞掉）。 */
   protected onSelectBoard(boardId: UUID): void {
+    // 切板前关详情：有未保存修改先确认放弃（取消则留在原板，单向绑定自动回弹选择器）
+    if (this.detailTaskId() !== null) {
+      if (this.isDetailDirty() && !window.confirm('切板将放弃未保存的修改。继续？')) return;
+      this.detailTaskId.set(null);
+      this.snapshot = null;
+    }
     this.boardRef.selectBoard(boardId);
     const query = this.searchQuery().trim();
     if (query !== '') {

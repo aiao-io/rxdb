@@ -76,6 +76,8 @@ test.describe('看板对拍（US-539 AC#1～3）', () => {
     await page.reload();
     await expect(page.getByTestId('board-view')).toBeVisible();
     await expect(page.getByTestId('task-card')).toHaveCount(12);
+    // taskLabels 活查询可能晚于任务卡片渲染：等标签 chip 出现再采集，避免空标签假绿
+    await expect(page.getByTestId('card-label').first()).toBeVisible();
     const afterDragSnapshot = await collectBoardSnapshot(page);
 
     // 同一组详情编辑：标题 / 描述 / 截止日 / 加「文档」标签，保存后重开读回

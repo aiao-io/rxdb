@@ -204,6 +204,19 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     // 键盘移动与拖动走同一领域路径：undo 一次还原
     await page.getByTestId('undo').click();
     await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Doing', 'Done', 'Ideas']);
+
+    // 键盘：任务经详情面板「移动到列 + 位置」完成等价移动，成功后焦点落在被移动卡片
+    await page.getByTestId('task-card').filter({ hasText: '修复登录 bug' }).getByTestId('task-title').click();
+    await expect(page.getByTestId('detail-panel')).toBeVisible();
+    await page.getByTestId('move-column').selectOption({ label: 'Doing' });
+    await page.getByTestId('move-position').selectOption({ label: '列尾' });
+    await page.getByTestId('move-task').click();
+    await expect.poll(async () => (await titlesOfColumn(page, 'Doing')).at(-1)).toBe('修复登录 bug');
+    await expect(page.getByTestId('task-card').filter({ hasText: '修复登录 bug' })).toBeFocused();
+    await page.reload();
+    await expect(page.getByTestId('board-view')).toBeVisible();
+    expect((await titlesOfColumn(page, 'Doing')).at(-1)).toBe('修复登录 bug');
+    expect(await titlesOfColumn(page, 'To do')).not.toContain('修复登录 bug');
   });
 
   test('AC#7：空库闭环——建板 / 建列 / 建任务、第二块板切换、重开原样', async ({ boardPage: page }) => {

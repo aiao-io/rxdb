@@ -27,9 +27,42 @@ loadMore 守卫）、P2-6（卡片标题两行截断）；demo P1-10（工具菜
 P2-1（拖后先断言落点再 reload）、P2-2（AC#4 undo 前 reload）、P2-5（首装 loading 相位）、
 P2-8（e2e 复用端口健康服务）。验证：核心包 72/72、构建与门禁绿，四套 e2e 复跑中。
 
-未解决（保留在本报告与 RV-083）：绑定 P1-6 视图半边、P1-7（AC#6 任务键盘移动）；绑定
-P2-2/3/5/7/8/10；demo P2-6/7；适配器关闭路径缺陷（TODO SQLC-待开）；待人工确认
-第 1～10 条按原样保留。
+第三批（提交中）：绑定 P1-6 视图半边（三端详情未保存修改关闭 / 切板先确认放弃；切板关
+详情消除旧板任务残留，配合服务层归属校验三端删除行为一致）、P1-7（核心 `resolveMenuMove`
+换算表 + 三端详情面板「移动到列 + 位置」控件与 AC#6 e2e：移动后焦点落在被移动卡片）。
+验证：核心包 73/73、构建与门禁绿，四套 e2e 复跑中。
+
+未解决（保留在本报告与 RV-083）：绑定 P2-2/3/5/7/8/10；demo P2-6/7；适配器关闭路径
+缺陷（TODO SQLC-待开）；待人工确认第 1～10 条按原样保留。
+
+## 全分支 vs main 差异覆盖（2026-10-22 补充）
+
+`git diff main...HEAD` 共 157 个文件、+17982/-229。看板范围（board 四包、demo、三端宿主页、
+对拍与需求工件）由本报告四个切片与修复进展覆盖；看板之外的 14 个文件逐一核对如下，
+全部合规：
+
+- `README.md`：交付状态 75/100 → 78/108，与 status-overview 修复后的口径一致。
+- `eslint.config.mjs`：允许三端对拍 spec 相对加载 `board-parity.mjs`（entity-model 同款白名单）。
+- `scripts/audit/api-surface.mjs`：资产入口登记 `rxdb-plugin-board-react/board-view.css`。
+- `tsconfig.base.json`：5 个 board 包路径别名 + `board-view.css` 子路径。
+- `tsconfig.json`：4 个 board 包 + `apps/dev-rxdb-board` 的 project references。
+- `requirements/README.md`：大故事清单 30 → 32（US-539 / US-540 有阶段表）+ epic-011 登记。
+- `requirements/package-graph.json` + `generated/package-knowledge.{json,md}`：三份生成物一起
+  更新（board 包注册，符合「package-graph 三件套随提交」约定）；`rxdb/skills/aiao-rxdb/SKILL.md`
+  事实摘要哈希同步刷新。
+- `pnpm-lock.yaml`：新增 board 包依赖图；同时修剪了 main 锁文件里的 @jimp 陈旧条目——
+  核对全仓无任何 `package.json` 依赖 jimp，属无害归一化。
+- `packages/rxdb-adapter-sqlite-wasm/src/__tests__/sqlite-wasm-factory.ts`：测试工厂加可选
+  `dbName`（跨断开重开验收需要同名重连），默认随机名，既有调用方零变化。
+- `requirements/stories/collaboration/US-302-undo-redo.md`：**对 Done 故事的范围改写**——
+  undo 从「durable，刷新后仍可撤销」改为「范围是本次会话（firstConnectedAt 起点）」。
+  核对结论：main 上的 `rxdb-plugin-history`（`HistoryManager` 的 `#firstConnectedAt`）本就
+  实现会话级 undo，本分支对 history 包零改动——这是把故事校正到引擎既有行为，不是
+  借故事改产品语义；看板 US-536 的「刷新后不可撤销」正是按该行为验收的。
+- `requirements/stories/domain/US-541-board-team-sync.md`：新故事（Backlog、价值待证、
+  Low），与 epic-011 解锁记录一致。
+- board 四包 `package.json` / `ng-package.json`：版本随桥接线 0.0.26、exports 与 api 基线
+  一致（`audit:api-surface` 全绿）。
 
 ## CI 证据
 

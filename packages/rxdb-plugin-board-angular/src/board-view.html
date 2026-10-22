@@ -194,6 +194,7 @@
                   (dragstart)="onTaskDragStart($event, task)"
                   data-testid="task-card"
                   draggable="true"
+                  tabindex="-1"
                 >
                   @if (editTitle() === task.id) {
                     <input
@@ -323,6 +324,39 @@
             </label>
           }
         </fieldset>
+        <div class="detail-move" data-testid="detail-move">
+          <label>
+            移动到
+            <select
+              [ngModel]="moveColumnId() ?? ''"
+              (ngModelChange)="moveColumnId.set($event); movePosition.set(0)"
+              aria-label="移动到列"
+              data-testid="move-column"
+            >
+              @for (column of boardRef.columns(); track column.id) {
+                <option [value]="column.id">{{ column.title }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            位置
+            <select
+              [ngModel]="movePosition()"
+              (ngModelChange)="movePosition.set($event)"
+              aria-label="位置"
+              data-testid="move-position"
+            >
+              <option [value]="0">列首</option>
+              @if (moveColumnId(); as columnId) {
+                @for (task of taskMap().get(columnId) ?? []; track task.id; let index = $index) {
+                  <option [value]="index + 1">在「{{ task.title }}」之后</option>
+                }
+                <option [value]="(taskMap().get(columnId) ?? []).length">列尾</option>
+              }
+            </select>
+          </label>
+          <button (click)="moveTaskByMenu()" data-testid="move-task">移动</button>
+        </div>
         <div class="detail-actions">
           <button [disabled]="savingDetail()" (click)="saveDetail()" data-testid="detail-save">保存</button>
           <button (click)="deleteDetailTask()" data-testid="detail-delete">删除任务</button>

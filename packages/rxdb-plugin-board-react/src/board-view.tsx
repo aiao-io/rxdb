@@ -6,6 +6,7 @@ import {
   labelTextColor,
   resolveCardDrop,
   resolveColumnDrop,
+  resolveMenuMove,
   RESTORING_MARKER_KEY,
   Task,
   type BoardLabel,
@@ -370,6 +371,8 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       labelIds: [...snap.labelIds]
     });
     setDetailTaskId(taskId);
+    setMoveColumnId(snap.columnId);
+    setMovePosition(0);
   };
   const saveDetail = async (): Promise<void> => {
     if (!detailTaskId || !snapshot || savingDetail) return;
@@ -390,6 +393,58 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     } finally {
       setSavingDetail(false);
     }
+  };
+
+  /** 详情草稿相对快照是否有未保存修改（US-539「详情」行：关闭 / 切板先确认放弃）。 */
+  const isDetailDirty = (): boolean =>
+    snapshot !== null &&
+    (draft.title !== snapshot.title ||
+      draft.description !== (snapshot.description ?? '') ||
+      draft.dueDate !== (snapshot.dueDate ?? '') ||
+      [...draft.labelIds].sort().join(',') !== [...snapshot.labelIds].sort().join(','));
+
+  /** 关闭详情：有未保存修改先确认放弃（取消零写）。 */
+  const closeDetail = (): void => {
+    if (isDetailDirty() && !window.confirm('有未保存的修改，关闭将放弃。继续？')) return;
+    setDetailTaskId(null);
+    setSnapshot(null);
+  };
+
+  // ---------- 菜单式移动（US-539 AC#6 键盘等价路径：移动到列 + 位置） ----------
+
+  const [moveColumnId, setMoveColumnId] = useState<UUID | null>(null);
+  const [movePosition, setMovePosition] = useState(0);
+
+  const moveTaskByMenu = async (): Promise<void> => {
+    if (detailTaskId === null || moveColumnId === null) return;
+    const target = resolveMenuMove(
+      board.columns.map(column => ({
+        columnId: column.id,
+        taskIds: (taskMap.get(column.id) ?? []).map(task => task.id)
+      })),
+      detailTaskId,
+      moveColumnId,
+      movePosition
+    );
+    if (target === null) {
+      setNotice('任务已在该位置');
+      return;
+    }
+    // moveTask 返回 void：guard 的成功与失败都表现为 undefined，直接调用以区分成败
+    try {
+      await board.actions.moveTask(detailTaskId, target);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error));
+      scheduleNoticeClear();
+      return;
+    }
+    // 成功后焦点落在被移动对象（AC#6）：跨列 DOM 移动会丢焦点，固定时长内每帧重试
+    const focusMovedCard = (taskId: UUID, attempts = 60): void => {
+      const card = document.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
+      if (card !== null && card.isConnected) card.focus();
+      if (attempts > 0) requestAnimationFrame(() => focusMovedCard(taskId, attempts - 1));
+    };
+    focusMovedCard(detailTaskId);
   };
 
   const moveColumnBy = async (columnId: UUID, direction: -1 | 1): Promise<void> => {
@@ -456,6 +511,12 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const labelsOf = (taskId: UUID): readonly BoardLabel[] => board.taskLabels.get(taskId) ?? [];
 
   const onSelectBoard = (boardId: UUID): void => {
+    // 切板前关详情：有未保存修改先确认放弃（取消则留在原板，受控选择器自动回弹）
+    if (detailTaskId !== null) {
+      if (isDetailDirty() && !window.confirm('切板将放弃未保存的修改。继续？')) return;
+      setDetailTaskId(null);
+      setSnapshot(null);
+    }
     board.selectBoard(boardId);
     // 切板丢弃旧板结果：销毁重建句柄重发（setQuery 同词会被 distinctUntilChanged 吞掉）
     const query = searchQuery.trim();
@@ -789,6 +850,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                     .filter(Boolean)
                     .join(' ')}
                   data-task-id={task.id}
+                  tabIndex={-1}
                   draggable
                   onDragStart={event => onTaskDragStart(event, task)}
                   data-testid='task-card'
@@ -958,6 +1020,46 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               </label>
             ))}
           </fieldset>
+          <div className='detail-move' data-testid='detail-move'>
+            <label>
+              移动到
+              <select
+                value={moveColumnId ?? ''}
+                onChange={event => {
+                  setMoveColumnId(event.target.value as UUID);
+                  setMovePosition(0);
+                }}
+                data-testid='move-column'
+                aria-label='移动到列'
+              >
+                {board.columns.map(column => (
+                  <option key={column.id} value={column.id}>
+                    {column.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              位置
+              <select
+                value={movePosition}
+                onChange={event => setMovePosition(Number(event.target.value))}
+                data-testid='move-position'
+                aria-label='位置'
+              >
+                <option value={0}>列首</option>
+                {(taskMap.get(moveColumnId ?? '') ?? []).map((task, index) => (
+                  <option key={task.id} value={index + 1}>
+                    在「{task.title}」之后
+                  </option>
+                ))}
+                <option value={(taskMap.get(moveColumnId ?? '') ?? []).length}>列尾</option>
+              </select>
+            </label>
+            <button onClick={() => void moveTaskByMenu()} data-testid='move-task'>
+              移动
+            </button>
+          </div>
           <div className='detail-actions'>
             <button onClick={() => void saveDetail()} data-testid='detail-save' disabled={savingDetail}>
               保存
@@ -970,7 +1072,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             >
               删除任务
             </button>
-            <button onClick={() => setDetailTaskId(null)} data-testid='detail-cancel'>
+            <button onClick={closeDetail} data-testid='detail-cancel'>
               取消
             </button>
           </div>

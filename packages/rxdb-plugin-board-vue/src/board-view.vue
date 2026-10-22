@@ -6,6 +6,7 @@ import {
   RESTORING_MARKER_KEY,
   resolveCardDrop,
   resolveColumnDrop,
+  resolveMenuMove,
   type BoardLabel,
   type BoardSearchUpstream,
   type CardDropColumnView,
@@ -47,6 +48,21 @@ const editTitleValue = ref('');
 /** 写入口 busy 状态（US-539 交互约定「写入」行：执行中阻止重复提交）。 */
 const savingDetail = ref(false);
 const sortingColumnId = ref<UUID | null>(null);
+
+/** 菜单式移动（US-539 AC#6 键盘等价路径）：目标列与插入下标。 */
+const moveColumnId = ref<UUID | null>(null);
+const movePosition = ref(0);
+
+/** 目标列变更：位置重置到列首（模板事件用方法，不带 TS 强转与多语句表达式）。 */
+const onMoveColumnChange = (event: Event): void => {
+  moveColumnId.value = (event.target as HTMLSelectElement).value as UUID;
+  movePosition.value = 0;
+};
+
+/** 位置变更。 */
+const onMovePositionChange = (event: Event): void => {
+  movePosition.value = Number((event.target as HTMLSelectElement).value);
+};
 const detailTaskId = ref<UUID | null>(null);
 const draft = ref({ title: '', description: '', dueDate: '', labelIds: [] as readonly UUID[] });
 const snapshot = ref<TaskDraftSnapshot | null>(null);
@@ -366,6 +382,8 @@ const openDetail = async (taskId: UUID): Promise<void> => {
     labelIds: [...snap.labelIds]
   };
   detailTaskId.value = taskId;
+  moveColumnId.value = snap.columnId;
+  movePosition.value = 0;
 };
 const saveDetail = async (): Promise<void> => {
   if (!detailTaskId.value || !snapshot.value || savingDetail.value) return;
@@ -387,6 +405,55 @@ const saveDetail = async (): Promise<void> => {
     savingDetail.value = false;
   }
 };
+
+/** 详情草稿相对快照是否有未保存修改（US-539「详情」行：关闭 / 切板先确认放弃）。 */
+const isDetailDirty = (): boolean =>
+  snapshot.value !== null &&
+  (draft.value.title !== snapshot.value.title ||
+    draft.value.description !== (snapshot.value.description ?? '') ||
+    draft.value.dueDate !== (snapshot.value.dueDate ?? '') ||
+    [...draft.value.labelIds].sort().join(',') !== [...snapshot.value.labelIds].sort().join(','));
+
+/** 关闭详情：有未保存修改先确认放弃（取消零写）。 */
+const closeDetail = (): void => {
+  if (isDetailDirty() && !window.confirm('有未保存的修改，关闭将放弃。继续？')) return;
+  detailTaskId.value = null;
+  snapshot.value = null;
+};
+
+/** 菜单式移动（AC#6）：目标列 + 插入下标 → 核心换算表 → 移动；原位零写提示。 */
+const moveTaskByMenu = async (): Promise<void> => {
+  if (detailTaskId.value === null || moveColumnId.value === null) return;
+  const target = resolveMenuMove(
+    board.columns.value.map(column => ({
+      columnId: column.id,
+      taskIds: (taskMap.value.get(column.id) ?? []).map(task => task.id)
+    })),
+    detailTaskId.value,
+    moveColumnId.value,
+    movePosition.value
+  );
+  if (target === null) {
+    notice.value = '任务已在该位置';
+    return;
+  }
+  // moveTask 返回 void：guard 的成功与失败都表现为 undefined，直接调用以区分成败
+  try {
+    await board.actions.moveTask(detailTaskId.value!, target);
+  } catch (error) {
+    notice.value = error instanceof Error ? error.message : String(error);
+    scheduleNoticeClear();
+    return;
+  }
+  // 成功后焦点落在被移动对象（AC#6）：跨列 DOM 移动会丢焦点，固定时长内每帧重试
+  const focusMovedCard = (taskId: UUID, attempts = 60): void => {
+    const card = document.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
+    if (card !== null && card.isConnected) card.focus();
+    if (attempts > 0) requestAnimationFrame(() => focusMovedCard(taskId, attempts - 1));
+  };
+  focusMovedCard(detailTaskId.value);
+};
+
 const toggleDraftLabel = (labelId: UUID): void => {
   draft.value.labelIds =
     draft.value.labelIds.includes(labelId) ?
@@ -464,7 +531,14 @@ const dueDateText = (due: string | null): string => {
 const labelsOf = (taskId: UUID): readonly BoardLabel[] => board.taskLabels.value.get(taskId) ?? [];
 
 const onSelectBoard = (event: Event): void => {
-  board.selectBoard((event.target as HTMLSelectElement).value as UUID);
+  const boardId = (event.target as HTMLSelectElement).value as UUID;
+  // 切板前关详情：有未保存修改先确认放弃（取消则留在原板，受控选择器自动回弹）
+  if (detailTaskId.value !== null) {
+    if (isDetailDirty() && !window.confirm('切板将放弃未保存的修改。继续？')) return;
+    detailTaskId.value = null;
+    snapshot.value = null;
+  }
+  board.selectBoard(boardId);
   // 切板丢弃旧板结果：销毁重建句柄重发（setQuery 同词会被 distinctUntilChanged 吞掉）
   const query = searchQuery.value.trim();
   if (query !== '') {
@@ -505,7 +579,7 @@ type ConfirmState =
 
 // 跨页恢复门禁（US-539 AC#5）：另一页开始恢复时经 storage 事件同步「恢复中」
 const applyRestoringFromStorage = (): void => {
-  board.setRestoring(localStorage.getItem(RESTORING_MARKER_KEY) !== null);
+  board.setRestoring(typeof localStorage !== 'undefined' && localStorage.getItem(RESTORING_MARKER_KEY) !== null);
 };
 onMounted(() => {
   window.addEventListener('storage', applyRestoringFromStorage);
@@ -807,6 +881,7 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
                 dragging: dragging?.kind === 'task' && dragging.id === task.id
               }"
               :data-task-id="task.id"
+              tabindex="-1"
               draggable="true"
               @dragstart="event => onTaskDragStart(event, task.id)"
               data-testid="task-card"
@@ -959,6 +1034,51 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
             <span :style="{ background: label.color, color: labelTextColor(label.color) }">{{ label.name }}</span>
           </label>
         </fieldset>
+        <div
+          class="detail-move"
+          data-testid="detail-move"
+        >
+          <label>
+            移动到
+            <select
+              :value="moveColumnId ?? ''"
+              @change="onMoveColumnChange"
+              aria-label="移动到列"
+              data-testid="move-column"
+            >
+              <option
+                v-for="column in board.columns.value"
+                :key="column.id"
+                :value="column.id"
+              >
+                {{ column.title }}
+              </option>
+            </select>
+          </label>
+          <label>
+            位置
+            <select
+              :value="movePosition"
+              @change="onMovePositionChange"
+              aria-label="位置"
+              data-testid="move-position"
+            >
+              <option :value="0">列首</option>
+              <option
+                v-for="(task, index) in taskMap.get(moveColumnId ?? '') ?? []"
+                :key="task.id"
+                :value="index + 1"
+                >在「{{ task.title }}」之后</option
+              >
+              <option :value="(taskMap.get(moveColumnId ?? '') ?? []).length">列尾</option>
+            </select>
+          </label>
+          <button
+            @click="moveTaskByMenu"
+            data-testid="move-task"
+            >移动</button
+          >
+        </div>
         <div class="detail-actions">
           <button
             @click="saveDetail"
@@ -972,7 +1092,7 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
             >删除任务</button
           >
           <button
-            @click="detailTaskId = null"
+            @click="closeDetail"
             data-testid="detail-cancel"
             >取消</button
           >
@@ -1213,6 +1333,19 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
   border: none;
   cursor: pointer;
   font-size: 1rem;
+}
+.detail-move {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+  margin-top: 0.5rem;
+}
+.detail-move label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.75rem;
 }
 .add-task {
   width: 100%;

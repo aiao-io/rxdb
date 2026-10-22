@@ -114,6 +114,36 @@ export interface ColumnDropView {
   readonly rect: { readonly left: number; readonly right: number };
 }
 
+/** 菜单式移动的列视图：完整任务序列，不需要几何。 */
+export interface MenuMoveColumnView {
+  readonly columnId: UUID;
+  readonly taskIds: readonly UUID[];
+}
+
+/**
+ * 菜单式移动目标（US-539 AC#6 键盘等价路径）：目标列内插入下标 → between 目标。
+ *
+ * @remarks
+ * `position` 是「去掉被拖行后的目标列序列」里的插入下标（0 = 列首，长度 = 列尾）；
+ * 与原位一致时返回 `null`（调用方零写），目标列不存在时返回 `null`。
+ * 与 {@link resolveCardDrop} 共用同一份邻居语义：完整序列取邻居，不把可见行当全部。
+ */
+export const resolveMenuMove = (
+  columns: readonly MenuMoveColumnView[],
+  movedId: UUID,
+  targetColumnId: UUID,
+  position: number
+): CardDropTarget | null => {
+  const column = columns.find(view => view.columnId === targetColumnId);
+  if (!column) return null;
+  const rest = column.taskIds.filter(id => id !== movedId);
+  const index = Math.max(0, Math.min(position, rest.length));
+  const prevId = rest[index - 1] ?? null;
+  const nextId = rest[index] ?? null;
+  if (isCurrentPlacement(column.taskIds, movedId, prevId, nextId)) return null;
+  return { kind: 'between', columnId: targetColumnId, prevId, nextId };
+};
+
 /**
  * 列头横向拖动 → 前后两邻；原位返回 `null`。列序以板内完整序列换算。
  */

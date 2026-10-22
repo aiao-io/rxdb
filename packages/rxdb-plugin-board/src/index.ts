@@ -32,9 +32,11 @@ export {
 export {
   resolveCardDrop,
   resolveColumnDrop,
+  resolveMenuMove,
   type CardDropColumnView,
   type CardDropTarget,
-  type ColumnDropView
+  type ColumnDropView,
+  type MenuMoveColumnView
 } from './drop-resolution.js';
 export { Board, BoardLabel, Column, Task, TaskLabel } from './entities/index.js';
 export { BoardDomainError, type BoardErrorCode } from './errors.js';

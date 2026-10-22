@@ -162,6 +162,10 @@
         "kind": "value"
       },
       {
+        "name": "MenuMoveColumnView",
+        "kind": "type"
+      },
+      {
         "name": "nextRestoreDbName",
         "kind": "value"
       },
@@ -199,6 +203,10 @@
       },
       {
         "name": "resolveColumnDrop",
+        "kind": "value"
+      },
+      {
+        "name": "resolveMenuMove",
         "kind": "value"
       },
       {

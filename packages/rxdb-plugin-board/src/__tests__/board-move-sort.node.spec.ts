@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BoardDomain } from '../board-domain.js';
 import { BoardColumnSortService } from '../column-sort-service.js';
 import { BoardDeleteService } from '../delete-service.js';
-import { resolveCardDrop, type CardDropColumnView } from '../drop-resolution.js';
+import { resolveCardDrop, resolveMenuMove, type CardDropColumnView } from '../drop-resolution.js';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '../entities/index.js';
 import { BoardMoveService } from '../move-service.js';
 import { matchAll, readFirst, whereEq } from '../query.js';
@@ -192,6 +192,35 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
     await expect(moves.moveTask(otherTasks[0].id, target)).rejects.toMatchObject({ code: 'cross_board' });
     expect((await tasksOf(c1.id)).map(t => t.id)).toEqual(t1);
     ctx.boardId = board.id;
+  });
+
+  it('菜单式移动（AC#6 键盘等价路径）：插入下标 → between 目标；原位 / 未知列返回 null', () => {
+    const ids: UUID[] = [
+      '00000000-0000-4000-8000-0000000000a1',
+      '00000000-0000-4000-8000-0000000000a2',
+      '00000000-0000-4000-8000-0000000000a3'
+    ];
+    const views = [
+      { columnId: '00000000-0000-4000-8000-0000000000c1', taskIds: ids },
+      { columnId: '00000000-0000-4000-8000-0000000000c2', taskIds: [] }
+    ];
+    const c1 = views[0].columnId;
+    const c2 = views[1].columnId;
+    // 列首 / 中间（拖 a3）；列尾与越界（拖 a1，避免原位）
+    expect(resolveMenuMove(views, ids[2], c1, 0)).toMatchObject({ kind: 'between', prevId: null, nextId: ids[0] });
+    expect(resolveMenuMove(views, ids[2], c1, 1)).toMatchObject({ kind: 'between', prevId: ids[0], nextId: ids[1] });
+    expect(resolveMenuMove(views, ids[0], c1, 2)).toMatchObject({ kind: 'between', prevId: ids[2], nextId: null });
+    expect(resolveMenuMove(views, ids[0], c1, 99)).toMatchObject({ prevId: ids[2], nextId: null });
+    // 原位（a2 移到下标 1 = 在 a1 之后）→ null 零写
+    expect(resolveMenuMove(views, ids[1], c1, 1)).toBeNull();
+    // 空列列尾与未知列
+    expect(resolveMenuMove(views, ids[0], c2, 0)).toEqual({
+      kind: 'between',
+      columnId: c2,
+      prevId: null,
+      nextId: null
+    });
+    expect(resolveMenuMove(views, ids[0], '00000000-0000-4000-8000-0000000000ff', 0)).toBeNull();
   });
 
   it('AC#6：目标邻居被另一入口删除 → 拒绝（staleTarget），零写，状态机发布失败', async () => {
