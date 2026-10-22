@@ -26,7 +26,8 @@ test.describe('模型驱动数据工作台', () => {
     await page.goto('/entities');
     await page.waitForURL('**/entities/assets/Asset');
     const catalog = page.getByTestId('entity-catalog');
-    await expect(catalog.getByTestId('entity-nav-link')).toHaveText(['资产', '资产分类', '维护记录']);
+    // 计数徽标会在适配器连接后并入链接文本（如「资产0」），用子串匹配而非全文精确匹配
+    await expect(catalog.getByTestId('entity-nav-link')).toContainText(['资产', '资产分类', '维护记录']);
     await catalog.getByRole('link', { name: '资产分类' }).click();
     await page.waitForURL('**/entities/assets/AssetCategory');
   });

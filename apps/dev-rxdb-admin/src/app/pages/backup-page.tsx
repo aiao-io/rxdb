@@ -3,6 +3,7 @@ import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { useRxDB } from '@aiao/rxdb-react';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { firstValueFrom } from 'rxjs';
 import { backupDownloadName, backupErrorMessage, collectBackup, downloadBlob } from '../backup/backup-ops';
 
 type BackupStatus =
@@ -28,8 +29,7 @@ export default function BackupPage() {
   const [restore, setRestore] = useState<RestoreStatus>({ kind: 'idle' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const adapterOf = async (): Promise<RxDBAdapterSqlite> =>
-    (await db.getAdapter('sqlite-wasm')) as RxDBAdapterSqlite;
+  const adapterOf = async (): Promise<RxDBAdapterSqlite> => (await db.getAdapter('sqlite-wasm')) as RxDBAdapterSqlite;
 
   async function handleBackup(): Promise<void> {
     setBackup({ kind: 'running' });
@@ -47,14 +47,34 @@ export default function BackupPage() {
     setRestore({ kind: 'running' });
     try {
       const adapter = await adapterOf();
+      // 引擎契约：恢复必须发生在连接之前。本会话任何查询或备份都会连接适配器且连接不会释放，
+      // 先自检并给出可执行指引，避免 target_busy 被误读成「已有数据」
+      const connected = await firstValueFrom(db.adapterConnected$('sqlite-wasm'));
+      if (connected) {
+        setRestore({
+          kind: 'failed',
+          message: '工作台已在当前会话连接使用，恢复只支持空工作台且需全新会话——请刷新页面后直接在本页选择归档恢复',
+          needsCleanup: false
+        });
+        return;
+      }
       const result = await adapter.restore(file.stream());
-      await db.connect('sqlite-wasm');
+      try {
+        await db.connect('sqlite-wasm');
+      } catch (connectError) {
+        setRestore({
+          kind: 'failed',
+          message: `恢复已完成，但工作台重新连接失败：${backupErrorMessage(connectError)}。请刷新页面后继续`,
+          needsCleanup: false
+        });
+        return;
+      }
       setRestore({ kind: 'success', sha256: result.sha256 });
     } catch (error) {
       setRestore({
         kind: 'failed',
         message: backupErrorMessage(error),
-        needsCleanup: isRxDBBackupError(error, 'restore_incomplete')
+        needsCleanup: isRxDBBackupError(error, 'restore_incomplete') || isRxDBBackupError(error, 'cleanup_pending')
       });
     }
   }
@@ -65,7 +85,8 @@ export default function BackupPage() {
       await (await adapterOf()).cleanupIncompleteRestore();
       setRestore({ kind: 'idle' });
     } catch (error) {
-      setRestore({ kind: 'failed', message: backupErrorMessage(error), needsCleanup: false });
+      // 清理失败也保留清理入口：按钮是页面唯一的清理途径，消失会让恢复流程死锁
+      setRestore({ kind: 'failed', message: backupErrorMessage(error), needsCleanup: true });
     }
   }
 
@@ -82,13 +103,11 @@ export default function BackupPage() {
           onClick={() => void handleBackup()}
           data-testid='backup-start'
         >
-          {backup.kind === 'running' ? (
+          {backup.kind === 'running' ?
             <>
               <span className='loading loading-spinner loading-sm'></span>备份中…
             </>
-          ) : (
-            '备份并下载'
-          )}
+          : '备份并下载'}
         </button>
         <div data-testid='backup-result'>
           {backup.kind === 'success' && (
@@ -116,7 +135,12 @@ export default function BackupPage() {
           className='file-input file-input-bordered w-full max-w-sm'
           data-testid='restore-input'
           aria-label='选择备份归档'
-          onChange={event => void handleRestoreFile(event.target.files?.[0])}
+          onChange={event => {
+            const file = event.target.files?.[0];
+            // 清空 value：同一归档再次选择才会再次触发 change
+            event.target.value = '';
+            void handleRestoreFile(file);
+          }}
         />
         <div data-testid='restore-result'>
           {restore.kind === 'running' && (
@@ -139,7 +163,11 @@ export default function BackupPage() {
           )}
         </div>
         {restore.kind === 'failed' && restore.needsCleanup && (
-          <button className='btn btn-outline btn-warning w-fit' onClick={() => void handleCleanup()} data-testid='restore-cleanup'>
+          <button
+            className='btn btn-outline btn-warning w-fit'
+            onClick={() => void handleCleanup()}
+            data-testid='restore-cleanup'
+          >
             清理恢复残留
           </button>
         )}

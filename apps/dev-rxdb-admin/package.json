@@ -11,7 +11,8 @@
     "@aiao/rxdb-plugin-search-react": "workspace:*",
     "@aiao/rxdb-react": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
-    "lucide-react": "^1.57.0"
+    "lucide-react": "^1.57.0",
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

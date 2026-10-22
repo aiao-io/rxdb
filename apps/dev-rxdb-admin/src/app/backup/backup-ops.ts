@@ -49,7 +49,8 @@ export function downloadBlob(blob: Blob, name: string): void {
   anchor.href = url;
   anchor.download = name;
   anchor.click();
-  URL.revokeObjectURL(url);
+  // 点击触发的下载对 blob URL 的读取是异步的，立即回收会让部分浏览器中断下载
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 const CODE_MESSAGES: Record<RxDBBackupErrorCode, string> = {
