@@ -20,7 +20,8 @@ export type BoardErrorCode =
   | 'duplicate_label'
   | 'confirm_stale'
   | 'task_stale'
-  | 'labels_changed';
+  | 'labels_changed'
+  | 'unsupported_primary';
 
 /** 看板领域错误：稳定错误码 + 可读消息。 */
 export class BoardDomainError extends Error {

@@ -26,11 +26,13 @@ export default defineConfig({
   },
   webServer: [
     {
-      // 与 dev-rxdb-angular-e2e 同款静态服务器：工作区根起服，产物路径不受 e2e 项目 cwd 影响
+      // 与 dev-rxdb-angular-e2e 同款静态服务器：工作区根起服，产物路径不受 e2e 项目 cwd 影响。
+      // 端口上有健康服务（如用户开着 `nx serve dev-rxdb-board`）就复用，否则自起——
+      // 避免 dev server 与静态服务器抢 4312 端口互斥（BOM 4311 先例）
       command: `node scripts/e2e-static-server.mjs --root dist/apps/dev-rxdb-board/browser --port ${APP_PORT}`,
       cwd: workspaceRoot,
       url: APP_BASE_URL,
-      reuseExistingServer: false,
+      reuseExistingServer: true,
       timeout: 180000
     }
   ]

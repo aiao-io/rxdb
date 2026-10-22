@@ -302,6 +302,9 @@ export class BoardDeleteService {
   }
 }
 
+/** 看板实体实例类型。 */
 export type BoardEntity = InstanceType<typeof Board>;
+/** 列实体实例类型。 */
 export type ColumnEntity = InstanceType<typeof Column>;
+/** 任务实体实例类型。 */
 export type TaskEntity = InstanceType<typeof Task>;

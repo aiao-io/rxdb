@@ -167,7 +167,10 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
         box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
       }
       .card-title {
-        display: block;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
         background: none;
         border: none;
         cursor: pointer;
@@ -402,6 +405,9 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected readonly detailDraftTitle = signal('');
   protected readonly draftDescription = signal<string>('');
+  /** 写入口 busy 状态（US-539 交互约定「写入」行：执行中阻止重复提交）。 */
+  protected readonly savingDetail = signal(false);
+  protected readonly sortingColumnId = signal<UUID | null>(null);
   protected readonly draftDueDate = signal<string>('');
   protected readonly draftLabelIds = signal<readonly UUID[]>([]);
   protected readonly searchQuery = signal('');
@@ -613,8 +619,14 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   protected async sortColumnBy(columnId: UUID, mode: 'dueDate' | 'title'): Promise<void> {
-    const result = await this.guard(() => this.boardRef.actions.sortColumn(columnId, mode));
-    if (result && !result.written) this.notice.set('已按目标顺序排列，无变化');
+    if (this.sortingColumnId() !== null) return;
+    this.sortingColumnId.set(columnId);
+    try {
+      const result = await this.guard(() => this.boardRef.actions.sortColumn(columnId, mode));
+      if (result && !result.written) this.notice.set('已按目标顺序排列，无变化');
+    } finally {
+      this.sortingColumnId.set(null);
+    }
   }
 
   protected async moveColumnBy(columnId: UUID, direction: -1 | 1): Promise<void> {
@@ -649,18 +661,23 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected async saveDetail(): Promise<void> {
     const taskId = this.detailTaskId();
-    if (!taskId || !this.snapshot) return;
-    const result = await this.guard(() =>
-      this.boardRef.actions.saveTaskDraft(taskId, this.snapshot!, {
-        title: this.detailDraftTitle(),
-        description: this.draftDescription(),
-        dueDate: this.draftDueDate() === '' ? null : this.draftDueDate(),
-        labelIds: this.draftLabelIds()
-      })
-    );
-    // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
-    if (result === undefined) return;
-    this.closeDetail();
+    if (!taskId || !this.snapshot || this.savingDetail()) return;
+    this.savingDetail.set(true);
+    try {
+      const result = await this.guard(() =>
+        this.boardRef.actions.saveTaskDraft(taskId, this.snapshot!, {
+          title: this.detailDraftTitle(),
+          description: this.draftDescription(),
+          dueDate: this.draftDueDate() === '' ? null : this.draftDueDate(),
+          labelIds: this.draftLabelIds()
+        })
+      );
+      // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
+      if (result === undefined) return;
+      this.closeDetail();
+    } finally {
+      this.savingDetail.set(false);
+    }
   }
 
   protected toggleDraftLabel(labelId: UUID): void {

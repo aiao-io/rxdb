@@ -191,6 +191,10 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const [addTaskColumnId, setAddTaskColumnId] = useState<UUID | null>(null);
   const [addTaskTitle, setAddTaskTitle] = useState('');
 
+  /** 写入口 busy 状态（US-539 交互约定「写入」行：执行中阻止重复提交）。 */
+  const [savingDetail, setSavingDetail] = useState(false);
+  const [sortingColumnId, setSortingColumnId] = useState<UUID | null>(null);
+
   const cancelAddTask = (): void => {
     setAddTaskColumnId(null);
     setAddTaskTitle('');
@@ -346,8 +350,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   };
 
   const sortColumnBy = async (columnId: UUID, mode: 'dueDate' | 'title'): Promise<void> => {
-    const result = await guard(() => board.actions.sortColumn(columnId, mode));
-    if (result && !result.written) setNotice('已按目标顺序排列，无变化');
+    if (sortingColumnId !== null) return;
+    setSortingColumnId(columnId);
+    try {
+      const result = await guard(() => board.actions.sortColumn(columnId, mode));
+      if (result && !result.written) setNotice('已按目标顺序排列，无变化');
+    } finally {
+      setSortingColumnId(null);
+    }
   };
 
   const openDetail = async (taskId: UUID): Promise<void> => {
@@ -362,19 +372,24 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     setDetailTaskId(taskId);
   };
   const saveDetail = async (): Promise<void> => {
-    if (!detailTaskId || !snapshot) return;
-    const result = await guard(() =>
-      board.actions.saveTaskDraft(detailTaskId, snapshot, {
-        title: draft.title,
-        description: draft.description,
-        dueDate: draft.dueDate === '' ? null : draft.dueDate,
-        labelIds: draft.labelIds
-      })
-    );
-    // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
-    if (result === undefined) return;
-    setDetailTaskId(null);
-    setSnapshot(null);
+    if (!detailTaskId || !snapshot || savingDetail) return;
+    setSavingDetail(true);
+    try {
+      const result = await guard(() =>
+        board.actions.saveTaskDraft(detailTaskId, snapshot, {
+          title: draft.title,
+          description: draft.description,
+          dueDate: draft.dueDate === '' ? null : draft.dueDate,
+          labelIds: draft.labelIds
+        })
+      );
+      // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
+      if (result === undefined) return;
+      setDetailTaskId(null);
+      setSnapshot(null);
+    } finally {
+      setSavingDetail(false);
+    }
   };
 
   const moveColumnBy = async (columnId: UUID, direction: -1 | 1): Promise<void> => {
@@ -657,6 +672,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                       className='search-more'
                       onClick={() => void searchHandleRef.current?.loadMore()}
                       data-testid='board-search-more'
+                      disabled={searchState === 'loading'}
                     >
                       加载更多
                     </button>
@@ -734,6 +750,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                   onClick={() => void sortColumnBy(column.id, 'dueDate')}
                   data-testid='column-sort-due'
                   aria-label='按截止日排序'
+                  disabled={sortingColumnId === column.id}
                 >
                   按截止日
                 </button>
@@ -741,6 +758,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                   onClick={() => void sortColumnBy(column.id, 'title')}
                   data-testid='column-sort-title'
                   aria-label='按标题排序'
+                  disabled={sortingColumnId === column.id}
                 >
                   按标题
                 </button>
@@ -941,7 +959,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             ))}
           </fieldset>
           <div className='detail-actions'>
-            <button onClick={() => void saveDetail()} data-testid='detail-save'>
+            <button onClick={() => void saveDetail()} data-testid='detail-save' disabled={savingDetail}>
               保存
             </button>
             <button

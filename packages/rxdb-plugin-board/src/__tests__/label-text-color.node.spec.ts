@@ -20,8 +20,20 @@ describe('labelTextColor（标签文字对比度）', () => {
   });
 
   it('非法颜色格式拒绝（不静默兜底）', () => {
-    expect(() => labelTextColor('red')).toThrow(/invalid_color/);
-    expect(() => labelTextColor('#12345')).toThrow(/invalid_color/);
-    expect(() => labelTextColor('')).toThrow(/invalid_color/);
+    const captured: unknown[] = [];
+    for (const color of ['red', '#12345', '']) {
+      try {
+        labelTextColor(color);
+        captured.push(null);
+      } catch (error) {
+        captured.push(error);
+      }
+    }
+    // errors.ts 契约：断言稳定错误码，不解析 message 文本
+    expect(captured).toEqual([
+      expect.objectContaining({ code: 'invalid_color' }),
+      expect.objectContaining({ code: 'invalid_color' }),
+      expect.objectContaining({ code: 'invalid_color' })
+    ]);
   });
 });

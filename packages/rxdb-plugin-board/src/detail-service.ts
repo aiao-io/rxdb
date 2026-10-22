@@ -164,6 +164,9 @@ export class BoardDetailService {
     const refreshed = await readFirst(
       this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('id', taskId) })
     );
-    return { kind: 'saved', task: refreshed[0] };
+    const task = refreshed[0];
+    // 提交后、重查前被另一入口删除的窄窗口：不给调用方 `task: undefined` 的假保存
+    if (task === undefined) throw new BoardDomainError('task_stale', '任务在保存后已被删除');
+    return { kind: 'saved', task };
   }
 }

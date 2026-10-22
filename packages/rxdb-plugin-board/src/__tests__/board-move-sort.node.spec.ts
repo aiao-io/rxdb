@@ -173,6 +173,27 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
     expect(resolveCardDrop(view, ids[1], 50, 185)).toBeNull();
   });
 
+  it('between 目标邻居来自异板列 → 拒绝（cross_board），零写', async () => {
+    const { board, c1, t1 } = await seedColumns();
+    const otherBoard = await domain.createBoard({ title: '异板' });
+    ctx.boardId = otherBoard.id;
+    const otherColumn = await domain.createColumn({ title: '异板列' });
+    const otherTasks = [
+      await domain.createTask({ columnId: otherColumn.id, title: 'x1' }),
+      await domain.createTask({ columnId: otherColumn.id, title: 'x2' })
+    ];
+    // 目标列属于当前板，但邻居是异板任务——引擎会按邻居组改写归属，领域入口必须拒绝
+    const target = {
+      kind: 'between' as const,
+      columnId: otherColumn.id,
+      prevId: t1[0],
+      nextId: t1[1]
+    };
+    await expect(moves.moveTask(otherTasks[0].id, target)).rejects.toMatchObject({ code: 'cross_board' });
+    expect((await tasksOf(c1.id)).map(t => t.id)).toEqual(t1);
+    ctx.boardId = board.id;
+  });
+
   it('AC#6：目标邻居被另一入口删除 → 拒绝（staleTarget），零写，状态机发布失败', async () => {
     const { c2, t1, t2 } = await seedColumns();
     const target = resolveCardDrop(geometry(NO_COLUMN, c2.id, NO_COLUMN, [], t2), t1[0], 150, 115);
@@ -367,7 +388,7 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
     ctx.boardId = null;
     const remoteSorts = new BoardColumnSortService(remoteRxdb, () => ctx, notifier);
     await expect(remoteSorts.sortColumn('00000000-0000-4000-8000-0000000000aa', 'title')).rejects.toMatchObject({
-      code: 'cross_board'
+      code: 'unsupported_primary'
     });
     await remoteRxdb.disconnectAll();
   });

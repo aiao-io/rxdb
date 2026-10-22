@@ -7,6 +7,7 @@ import { Observable, Subject } from 'rxjs';
  * 调用方重查已提交数据（UI 据此恢复显示，不复活已删除邻居、不静默重试）。
  */
 
+/** 写入状态机事件：移动与本列排序的落库结果（成功已提交 / 失败带原因）。 */
 export type BoardWriteEvent =
   | { readonly kind: 'move-committed'; readonly taskId: string }
   | { readonly kind: 'move-failed'; readonly taskId: string; readonly reason: string }
@@ -30,9 +31,12 @@ export class BoardWriteNotifier {
   }
 }
 
-/** 把任意错误归纳成可展示的原因（不解析 message 文本的调用方也拿得到稳定语义）。 */
+/** 把任意错误归纳成可展示的原因：稳定错误码优先（`reason` / `code`），不解析 message 文本。 */
 export const describeBoardFailure = (error: unknown): string => {
-  if (error instanceof Error)
-    return error.name === 'SortOrderError' || error.name === 'RxDBError' ? error.name : error.message;
+  if (error instanceof Error) {
+    const code = (error as { readonly reason?: unknown }).reason ?? (error as { readonly code?: unknown }).code;
+    if (typeof code === 'string' && code !== '') return code;
+    return error.message;
+  }
   return String(error);
 };

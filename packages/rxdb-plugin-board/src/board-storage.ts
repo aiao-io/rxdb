@@ -12,8 +12,11 @@ export interface BoardStorage {
   remove(key: string): void;
 }
 
+/** 活动库名记录键（localStorage）：当前打开的看板库；无记录 = 首次启动（显示启动选择页）。 */
 export const ACTIVE_DB_KEY = 'rxdb-board-active-db';
+/** 待切换库名记录键（localStorage）：恢复完成后整页重载、读回成功才转成活动位置。 */
 export const PENDING_SWITCH_KEY = 'rxdb-board-pending-switch';
+/** 恢复中标记键（localStorage）：跨页写门禁的信号源（US-539 AC#5）。 */
 export const RESTORING_MARKER_KEY = 'rxdb-board-restoring';
 
 /** 当前活动库名；无记录 = 首次启动（显示启动选择页）。 */

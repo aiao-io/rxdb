@@ -114,7 +114,8 @@ test('AC#3：真实拖拽——跨列两邻之间、空列、同列改序，每�
   const source = page.getByTestId('task-card').filter({ hasText: '修复登录 bug' });
   const target = page.getByTestId('task-card').filter({ hasText: '树拖拽落点修复' });
   await source.dragTo(target, { targetPosition: { x: 10, y: 5 } });
-  await page.waitForTimeout(500);
+  // 先断言落点再 reload：固定 sleep 在慢盘下可能读到未提交的旧序（假红）
+  await expect.poll(async () => (await titlesOfColumn(page, 'Doing'))[0]).toBe('修复登录 bug');
   await page.reload();
   await expect(page.getByTestId('board-view')).toBeVisible();
   await expect(page.getByTestId('task-card')).toHaveCount(12);
@@ -128,7 +129,7 @@ test('AC#3：真实拖拽——跨列两邻之间、空列、同列改序，每�
     .getByTestId('column')
     .filter({ has: page.getByTestId('column-title').getByText('Ideas', { exact: true }) });
   await toIdeas.dragTo(ideasColumn.getByTestId('add-task'));
-  await page.waitForTimeout(500);
+  await expect.poll(async () => titlesOfColumn(page, 'Ideas')).toEqual(['写发布说明']);
   await page.reload();
   await expect(page.getByTestId('board-view')).toBeVisible();
   await expect(page.getByTestId('task-card')).toHaveCount(12);
@@ -138,7 +139,7 @@ test('AC#3：真实拖拽——跨列两邻之间、空列、同列改序，每�
   const moved = page.getByTestId('task-card').filter({ hasText: '整理同步迁移指南' });
   const over = page.getByTestId('task-card').filter({ hasText: '同步插件适配 Supabase' });
   await moved.dragTo(over, { targetPosition: { x: 10, y: 5 } });
-  await page.waitForTimeout(500);
+  await expect.poll(async () => (await titlesOfColumn(page, 'To do'))[0]).toBe('整理同步迁移指南');
   await page.reload();
   await expect(page.getByTestId('board-view')).toBeVisible();
   await expect(page.getByTestId('task-card')).toHaveCount(12);
@@ -148,6 +149,9 @@ test('AC#3：真实拖拽——跨列两邻之间、空列、同列改序，每�
 
 test('AC#4：详情一次保存整体撤销 / 重放；独立保存各自 undo；刷新后不可撤销', async ({ boardPage: page }) => {
   await startWithSeed(page);
+  // 种子的写入也异步进撤销栈：先 reload 清空会话历史，避免 undo 弹到种子条目
+  await page.reload();
+  await expect(page.getByTestId('board-view')).toBeVisible();
   const card = page.getByTestId('task-card').filter({ hasText: '修复登录 bug' });
   await card.getByTestId('task-title').click();
   await expect(page.getByTestId('detail-panel')).toBeVisible();
@@ -224,6 +228,33 @@ test('AC#6：导出 → 清站点数据 → 启动页从备份恢复 → 重开�
   // 重开保留
   await page.reload();
   await expect(page.getByTestId('task-card').filter({ hasText: '修复登录 bug（备份版）' })).toBeVisible();
+});
+
+test('AC#6 附：工具菜单恢复成功路径——已连接库恢复、重载读回、原库保留', async ({ boardPage: page }) => {
+  await startWithSeed(page);
+
+  // 编辑一条任务，让归档包含用户改动
+  await page.getByTestId('task-card').filter({ hasText: '修复登录 bug' }).getByTestId('task-edit-title').click();
+  await page.getByTestId('task-title-editor').fill('修复登录 bug（菜单恢复版）');
+  await page.getByTestId('task-title-save').click();
+  await expect(page.getByTestId('task-card').filter({ hasText: '修复登录 bug（菜单恢复版）' })).toBeVisible();
+
+  // 导出备份（触发下载）
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByTestId('export-backup').click();
+  const archivePath = await (await downloadPromise).path();
+  expect(archivePath).toBeTruthy();
+
+  // 已连接状态下经工具菜单恢复：确认 → 恢复到新库名 → 整页重载 → 读回成功才切换
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByTestId('restore-file-menu').setInputFiles(archivePath!);
+  await expect(page.getByTestId('board-view')).toBeVisible({ timeout: 30000 });
+  await expect(page.getByTestId('task-card')).toHaveCount(12);
+  await expect(page.getByTestId('task-card').filter({ hasText: '修复登录 bug（菜单恢复版）' })).toBeVisible();
+
+  // 重开保留
+  await page.reload();
+  await expect(page.getByTestId('task-card').filter({ hasText: '修复登录 bug（菜单恢复版）' })).toBeVisible();
 });
 
 test('AC#8：恢复损坏归档拒绝且原库可继续使用', async ({ boardPage: page }) => {

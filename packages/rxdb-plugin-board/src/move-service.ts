@@ -5,7 +5,7 @@ import { Column } from './entities/column.entity.js';
 import { Task } from './entities/task.entity.js';
 import { BoardDomainError } from './errors.js';
 import { assertBoardWritable, type BoardHostContext, requireBoardId } from './host-context.js';
-import { readFirst, whereEq } from './query.js';
+import { inRule, readFirst, whereEq } from './query.js';
 import { BoardWriteNotifier, describeBoardFailure } from './write-notifier.js';
 
 /**
@@ -36,6 +36,7 @@ export class BoardMoveService {
       if (tasks.length === 0) throw new BoardDomainError('task_not_found', `任务不存在：${taskId}`);
       await this.requireColumnInBoard(tasks[0].columnId, boardId);
       await this.requireColumnInBoard(target.columnId, boardId);
+      if (target.kind === 'between') await this.requireNeighborsInColumn(target);
 
       const engineTarget =
         target.kind === 'end' ?
@@ -59,11 +60,57 @@ export class BoardMoveService {
     const repository = this.rxdb.entityManager.getRepository(Column);
     try {
       await this.requireColumnInBoard(columnId, boardId);
+      await this.requireNeighborColumnsInBoard(target);
       await repository.reorder(columnId, target);
       this.notifier.next({ kind: 'column-move-committed', columnId });
     } catch (error) {
       this.notifier.next({ kind: 'column-move-failed', columnId, reason: describeBoardFailure(error) });
       throw error;
+    }
+  }
+
+  /**
+   * between 目标的邻居必须属于目标列：引擎的目标组由邻居决定，邻居来自异板列时
+   * 会改写归属（跨板移动）。入口防线不承诺直连 SQL 也不可改，但领域服务要守住。
+   */
+  private async requireNeighborsInColumn(target: Extract<CardDropTarget, { readonly kind: 'between' }>): Promise<void> {
+    const neighborIds = [target.prevId, target.nextId].filter((id): id is UUID => id !== null);
+    if (neighborIds.length === 0) return;
+    const neighbors = await readFirst(
+      this.rxdb.entityManager.getRepository(Task).find({
+        where: { combinator: 'and', rules: [inRule('id', neighborIds)] }
+      })
+    );
+    const byId = new Map(neighbors.map(task => [task.id, task]));
+    for (const id of neighborIds) {
+      const task = byId.get(id);
+      if (task === undefined) throw new BoardDomainError('task_not_found', `任务不存在：${id}`);
+      if (task.columnId !== target.columnId) {
+        throw new BoardDomainError('cross_board', '目标邻居不属于目标列');
+      }
+    }
+  }
+
+  /** 拖列目标的邻居列必须属于当前板（同 requireNeighborsInColumn 的归属防线）。 */
+  private async requireNeighborColumnsInBoard(target: {
+    readonly prevId: UUID | null;
+    readonly nextId: UUID | null;
+  }): Promise<void> {
+    const neighborIds = [target.prevId, target.nextId].filter((id): id is UUID => id !== null);
+    if (neighborIds.length === 0) return;
+    const neighbors = await readFirst(
+      this.rxdb.entityManager.getRepository(Column).find({
+        where: { combinator: 'and', rules: [inRule('id', neighborIds)] }
+      })
+    );
+    const byId = new Map(neighbors.map(column => [column.id, column]));
+    const boardId = requireBoardId(this.ctx());
+    for (const id of neighborIds) {
+      const column = byId.get(id);
+      if (column === undefined) throw new BoardDomainError('column_not_found', `列不存在：${id}`);
+      if (column.boardId !== boardId) {
+        throw new BoardDomainError('cross_board', '目标邻居列不属于当前看板');
+      }
     }
   }
 

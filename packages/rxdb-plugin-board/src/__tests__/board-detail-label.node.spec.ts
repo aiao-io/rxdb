@@ -101,6 +101,14 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
     expect(fresh.description?.endsWith('换行保留')).toBe(true);
   });
 
+  it('标签颜色按 trim 归一落库：校验值与入库值一致', async () => {
+    await seedTask();
+    const label = await labels.createLabel({ name: '带空格颜色', color: ' #16a34a ' });
+    expect(label.color).toBe('#16a34a');
+    const recolored = await labels.recolorLabel(label.id, ' #e11d48 ');
+    expect(recolored.color).toBe('#e11d48');
+  });
+
   it('AC#2 / #14：标签板级定义 + 多对多引用；改名改色立即反映到引用卡片', async () => {
     const { task } = await seedTask();
     const l1 = await labels.createLabel({ name: '核心', color: '#e11d48' });

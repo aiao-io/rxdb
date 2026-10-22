@@ -38,6 +38,11 @@ import { connectBoardRxdb, createBoardRxdb, nextBoardDbName, restoreBoardArchive
           }
         </div>
       }
+      @case ('loading') {
+        <div class="startup" data-testid="loading-page">
+          <p>正在准备看板数据…</p>
+        </div>
+      }
       @case ('restoring') {
         <div class="startup" data-testid="restoring-page">
           <p>恢复中：全部写入口已暂停。</p>
@@ -105,7 +110,7 @@ import { connectBoardRxdb, createBoardRxdb, nextBoardDbName, restoreBoardArchive
   ]
 })
 export class App implements OnInit {
-  protected readonly phase = signal<'startup' | 'restoring' | 'board'>('startup');
+  protected readonly phase = signal<'startup' | 'loading' | 'restoring' | 'board'>('startup');
   protected readonly rxdb = signal<RxDB | null>(null);
   protected readonly error = signal<string | null>(null);
 
@@ -226,7 +231,8 @@ export class App implements OnInit {
   }
 
   private async openAndWriteActive(dbName: string, seed = false): Promise<void> {
-    this.phase.set('restoring');
+    // 首装 / 重置是「准备数据」不是「恢复」，别复用恢复中的写暂停文案
+    this.phase.set('loading');
     const db = createBoardRxdb(dbName);
     try {
       await connectBoardRxdb(db);

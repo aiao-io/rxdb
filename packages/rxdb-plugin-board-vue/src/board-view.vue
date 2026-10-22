@@ -43,6 +43,10 @@ const board = useBoard(
 
 const editTitleTaskId = ref<UUID | null>(null);
 const editTitleValue = ref('');
+
+/** 写入口 busy 状态（US-539 交互约定「写入」行：执行中阻止重复提交）。 */
+const savingDetail = ref(false);
+const sortingColumnId = ref<UUID | null>(null);
 const detailTaskId = ref<UUID | null>(null);
 const draft = ref({ title: '', description: '', dueDate: '', labelIds: [] as readonly UUID[] });
 const snapshot = ref<TaskDraftSnapshot | null>(null);
@@ -329,8 +333,14 @@ const onColumnDrop = async (event: DragEvent): Promise<void> => {
 };
 
 const sortColumnBy = async (columnId: UUID, mode: 'dueDate' | 'title'): Promise<void> => {
-  const result = await guard(() => board.actions.sortColumn(columnId, mode));
-  if (result && !result.written) notice.value = '已按目标顺序排列，无变化';
+  if (sortingColumnId.value !== null) return;
+  sortingColumnId.value = columnId;
+  try {
+    const result = await guard(() => board.actions.sortColumn(columnId, mode));
+    if (result && !result.written) notice.value = '已按目标顺序排列，无变化';
+  } finally {
+    sortingColumnId.value = null;
+  }
 };
 
 const moveColumnBy = async (columnId: UUID, direction: -1 | 1): Promise<void> => {
@@ -358,19 +368,24 @@ const openDetail = async (taskId: UUID): Promise<void> => {
   detailTaskId.value = taskId;
 };
 const saveDetail = async (): Promise<void> => {
-  if (!detailTaskId.value || !snapshot.value) return;
-  const result = await guard(() =>
-    board.actions.saveTaskDraft(detailTaskId.value!, snapshot.value!, {
-      title: draft.value.title,
-      description: draft.value.description,
-      dueDate: draft.value.dueDate === '' ? null : draft.value.dueDate,
-      labelIds: draft.value.labelIds
-    })
-  );
-  // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
-  if (result === undefined) return;
-  detailTaskId.value = null;
-  snapshot.value = null;
+  if (!detailTaskId.value || !snapshot.value || savingDetail.value) return;
+  savingDetail.value = true;
+  try {
+    const result = await guard(() =>
+      board.actions.saveTaskDraft(detailTaskId.value!, snapshot.value!, {
+        title: draft.value.title,
+        description: draft.value.description,
+        dueDate: draft.value.dueDate === '' ? null : draft.value.dueDate,
+        labelIds: draft.value.labelIds
+      })
+    );
+    // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
+    if (result === undefined) return;
+    detailTaskId.value = null;
+    snapshot.value = null;
+  } finally {
+    savingDetail.value = false;
+  }
 };
 const toggleDraftLabel = (labelId: UUID): void => {
   draft.value.labelIds =
@@ -691,6 +706,7 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
               class="search-more"
               @click="searchHandle?.loadMore()"
               data-testid="board-search-more"
+              :disabled="searchState === 'loading'"
               >加载更多</button
             >
           </template>
@@ -759,12 +775,14 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
                 @click="sortColumnBy(column.id, 'dueDate')"
                 data-testid="column-sort-due"
                 aria-label="按截止日排序"
+                :disabled="sortingColumnId === column.id"
                 >按截止日</button
               >
               <button
                 @click="sortColumnBy(column.id, 'title')"
                 data-testid="column-sort-title"
                 aria-label="按标题排序"
+                :disabled="sortingColumnId === column.id"
                 >按标题</button
               >
               <button
@@ -945,6 +963,7 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
           <button
             @click="saveDetail"
             data-testid="detail-save"
+            :disabled="savingDetail"
             >保存</button
           >
           <button
@@ -1143,7 +1162,10 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
 }
 .card-title {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   background: none;
   border: none;
   cursor: pointer;

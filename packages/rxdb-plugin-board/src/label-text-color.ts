@@ -1,3 +1,5 @@
+import { BoardDomainError } from './errors.js';
+
 /**
  * 标签文字色（US-539 AC#6 的对比度半边）：按 WCAG 相对亮度在黑白之间选择，
  * 保证任一侧对比度 ≥ 4.5:1。
@@ -32,7 +34,7 @@ const linear = (channel: number): number => {
 export const labelTextColor = (color: string): '#000000' | '#ffffff' => {
   const matched = HEX_PATTERN.exec(color.trim());
   if (matched === null) {
-    throw new Error(`invalid_color: 标签颜色必须是 #rgb 或 #rrggbb，收到 ${JSON.stringify(color)}`);
+    throw new BoardDomainError('invalid_color', `标签颜色必须是 #rgb 或 #rrggbb，收到 ${JSON.stringify(color)}`);
   }
   const hex = matched[1];
   const expanded = hex.length === 3 ? [...hex].map(digit => digit + digit).join('') : hex;

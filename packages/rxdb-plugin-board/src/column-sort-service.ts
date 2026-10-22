@@ -75,7 +75,7 @@ export class BoardColumnSortService {
     const sync = getEntitySync(Task, this.rxdb.entitySync);
     if (sync?.type === SyncType.QueryCache || (!sync?.local && sync?.remote)) {
       throw new BoardDomainError(
-        'cross_board',
+        'unsupported_primary',
         '本列排序只支持本地完整版本化主端；remote-only / QueryCache 读不到完整序列'
       );
     }

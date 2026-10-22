@@ -13,14 +13,22 @@
 （单卡列原位、间隙归最近卡，`c88e2801`）；绑定 P1-3（拖拽 handler 按 kind 分流，`c88e2801`）、
 P1-4（Angular/Vue 补样式 + computed-style 断言，`923752a4`）、P1-5（Angular 标题草稿拆分，
 `c88e2801`）、P1-6 服务层半边（delete-service 归属校验，`c88e2801`）、P1-12（三端 setRestoring
-跨页接线）；绑定 P2-1/P2-9；demo P1-9（库名避让现存 IDB 库 + 连续两次重置 e2e）、P2-3/P2-4；
+跨页接线，`edbf87d3`）；绑定 P2-1/P2-9（`c88e2801`）；demo P1-9（库名避让现存 IDB 库 +
+连续两次重置 e2e，`edbf87d3`）、P2-3/P2-4（`edbf87d3`）；
 工件 P1-13/P1-14/P1-15/P1-11（roadmap 计数与批次号、status-overview 补行与注记、US-540
-阶段 B 与 AC#13 状态、验收注记）与工件 P2-27～32。验证：核心包 70/70、Angular 看板
-e2e+对拍 12/12、demo e2e 7/7、四包 + demo 构建绿、check-format / audit:api-surface 绿。
+阶段 B 与 AC#13 状态、验收注记）与工件 P2-27～32（`edbf87d3`）。验证：核心包 70/70、
+Angular 看板 e2e+对拍 12/12、demo e2e 7/7、四包 + demo 构建绿、check-format / audit:api-surface 绿。
 
-未解决（保留在本报告与 RV-083）：绑定 P1-6 视图半边、P1-7（AC#6 任务键盘移动）、P1-8
-（busy 状态）；demo P1-10（工具菜单恢复成功路径 e2e）；核心 P2-1/3/4/5/6/7/8；绑定
-P2-2/3/4/5/6/7/8/10；demo P2-1/2/5/6/7/8；适配器关闭路径缺陷（TODO SQLC-待开）；待人工确认
+第二批（提交中）：核心 P2-1（move-service 邻居归属校验 + 用例）、P2-3（describeBoardFailure
+稳定错误码）、P2-4（本列排序改 `unsupported_primary`）、P2-5（标签颜色 trim 归一落库 + 用例）、
+P2-6（labelTextColor 抛 BoardDomainError）、P2-7（TSDoc 补齐）、P2-8（保存后重查空结果
+抛 task_stale）；绑定 P1-8（三端 busy 状态：保存 / 排序 in-flight 禁用）与 P2-4（React/Vue
+loadMore 守卫）、P2-6（卡片标题两行截断）；demo P1-10（工具菜单恢复成功路径 e2e）、
+P2-1（拖后先断言落点再 reload）、P2-2（AC#4 undo 前 reload）、P2-5（首装 loading 相位）、
+P2-8（e2e 复用端口健康服务）。验证：核心包 72/72、构建与门禁绿，四套 e2e 复跑中。
+
+未解决（保留在本报告与 RV-083）：绑定 P1-6 视图半边、P1-7（AC#6 任务键盘移动）；绑定
+P2-2/3/5/7/8/10；demo P2-6/7；适配器关闭路径缺陷（TODO SQLC-待开）；待人工确认
 第 1～10 条按原样保留。
 
 ## CI 证据

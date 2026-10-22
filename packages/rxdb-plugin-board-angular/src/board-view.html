@@ -162,6 +162,7 @@
                   后移
                 </button>
                 <button
+                  [disabled]="sortingColumnId() === column.id"
                   (click)="sortColumnBy(column.id, 'dueDate')"
                   aria-label="按截止日排序"
                   data-testid="column-sort-due"
@@ -169,6 +170,7 @@
                   按截止日
                 </button>
                 <button
+                  [disabled]="sortingColumnId() === column.id"
                   (click)="sortColumnBy(column.id, 'title')"
                   aria-label="按标题排序"
                   data-testid="column-sort-title"
@@ -322,7 +324,7 @@
           }
         </fieldset>
         <div class="detail-actions">
-          <button (click)="saveDetail()" data-testid="detail-save">保存</button>
+          <button [disabled]="savingDetail()" (click)="saveDetail()" data-testid="detail-save">保存</button>
           <button (click)="deleteDetailTask()" data-testid="detail-delete">删除任务</button>
           <button (click)="closeDetail()" data-testid="detail-cancel">取消</button>
         </div>

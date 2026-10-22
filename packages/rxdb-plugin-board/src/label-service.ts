@@ -37,13 +37,11 @@ export class BoardLabelService {
     assertBoardWritable(this.ctx());
     const boardId = requireBoardId(this.ctx());
     const name = this.requireLabelName(input.name);
-    this.requireLabelColor(input.color);
+    const color = this.requireLabelColor(input.color);
     await this.assertNameFree(boardId, name);
     const repository = this.rxdb.entityManager.getRepository(BoardLabel);
     try {
-      return await repository.create(
-        this.rxdb.entityManager.instantiate(BoardLabel, { boardId, name, color: input.color })
-      );
+      return await repository.create(this.rxdb.entityManager.instantiate(BoardLabel, { boardId, name, color }));
     } catch (error) {
       // 并发竞态兜底：唯一约束已拒绝，翻查确认后给可判别错误码
       await this.assertNameFree(boardId, name);
@@ -62,8 +60,8 @@ export class BoardLabelService {
   async recolorLabel(labelId: UUID, color: string): Promise<InstanceType<typeof BoardLabel>> {
     assertBoardWritable(this.ctx());
     const label = await this.requireLabelInBoard(labelId);
-    this.requireLabelColor(color);
-    return this.rxdb.entityManager.getRepository(BoardLabel).update(label, { color });
+    const normalized = this.requireLabelColor(color);
+    return this.rxdb.entityManager.getRepository(BoardLabel).update(label, { color: normalized });
   }
 
   /** 删除清单：标签与全部关联行（事务外读取）。 */
@@ -134,9 +132,11 @@ export class BoardLabelService {
   }
 
   /** 标签颜色必须是 #rgb / #rrggbb（US-539 AC#6 的对比度半边，非法格式显式拒绝）。 */
-  private requireLabelColor(color: string): void {
+  /** 校验颜色格式并返回 trim 后的归一值：校验值与入库值必须一致（名称同款归一）。 */
+  private requireLabelColor(color: string): string {
     if (!isHexColor(color)) {
       throw new BoardDomainError('invalid_color', `标签颜色必须是 #rgb 或 #rrggbb，收到 ${JSON.stringify(color)}`);
     }
+    return color.trim();
   }
 }
