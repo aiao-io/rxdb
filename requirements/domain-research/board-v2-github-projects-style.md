@@ -25,7 +25,7 @@ slice by 切片、语法化筛选、保存视图、字段求和与列上限、�
 | 搜索结果就地呈现（未命中淡化、命中高亮）    | US-538 命中集合现成，仅改视图呈现               | [US-539](../stories/domain/US-539-board-tri-framework-ui.md) 阶段 B            |
 | 可选字段（优先级单选项、规模数字）          | 实体字段声明与索引；schema 版本迁移已有先例     | [US-030](../stories/core/US-030-declarative-storage-constraints.md) · epic-011 |
 | 列头统计（字段求和 + WIP 上限）             | 列内聚合的 executor 读写（US-535 本列排序同款） | [US-535](../stories/domain/US-535-cross-column-move-ordering.md)               |
-| 保存视图                                    | 新 `BoardView` 实体，与板同仓储、同撤销域       | epic-011 实体族 · [US-302](../stories/core/US-302-transactional-undo.md)       |
+| 保存视图                                    | 新 `BoardView` 实体，与板同仓储、同撤销域       | epic-011 实体族 · [US-302](../stories/collaboration/US-302-undo-redo.md)       |
 
 ## 引擎缺口
 

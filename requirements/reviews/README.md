@@ -12,6 +12,7 @@
 | `review.template.md`                    | 新建 review 记录的模板                                 | —               |
 | `packages/`                             | 从 main 基线开始的 51 个包评审计划、逐包报告和汇总     | 见子目录 README |
 | `RV-083-board-v1-closeout-checklist.md` | 看板 v1 收尾清单：US-539 阶段 A 缺口与交互约定未落码项 | 见文件          |
+| `xenodochial-board-branch-review.md`    | 看板分支深度评审（一次性结论，不占 RV 编号）           | 见文件          |
 
 ## 状态约定
 
