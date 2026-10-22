@@ -191,8 +191,10 @@ const startEditTitle = (taskId: UUID, title: string): void => {
   editTitleTaskId.value = taskId;
 };
 const commitEditTitle = async (taskId: UUID): Promise<void> => {
+  const result = await guard(() => board.actions.updateTaskTitle(taskId, editTitleValue.value));
+  // 失败（空标题等）保留编辑器与草稿（US-539 交互约定「失败保留草稿」）
+  if (result === undefined) return;
   editTitleTaskId.value = null;
-  await guard(() => board.actions.updateTaskTitle(taskId, editTitleValue.value));
 };
 
 /** 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 源卡片半透明）。 */
@@ -232,9 +234,10 @@ const columnViews = (): CardDropColumnView[] =>
 
 /** 卡片落点反馈：dragover 时预计算落点并标在目标卡片 / 空列上。 */
 const onTaskDragOver = (event: DragEvent): void => {
+  // 列头 handler 冒泡到这里，按拖拽类型分流，否则列拖拽的落点会被任务换算覆盖
   event.preventDefault();
-  const movedId = dragging.value?.id;
-  if (!movedId) return;
+  if (dragging.value?.kind !== 'task') return;
+  const movedId = dragging.value.id;
   const target = resolveCardDrop(columnViews(), movedId, event.clientX, event.clientY);
   if (!target) {
     dropTarget.value = null;
@@ -254,8 +257,8 @@ const onTaskDragOver = (event: DragEvent): void => {
 /** 列头落点反馈：列间插入线。 */
 const onColumnDragOver = (event: DragEvent): void => {
   event.preventDefault();
-  const movedId = dragging.value?.id;
-  if (!movedId) return;
+  if (dragging.value?.kind !== 'column') return;
+  const movedId = dragging.value.id;
   const target = resolveColumnDrop(
     board.columns.value.map(column => {
       const headerEl = document.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`);
@@ -437,7 +440,7 @@ const dueDateText = (due: string | null): string => {
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   return (
     due < today ? `已逾期 ${due}`
-    : due === today ? '今天到期'
+    : due === today ? `今天到期 ${due}`
     : due
   );
 };

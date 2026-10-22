@@ -7,7 +7,7 @@ import { Column } from './entities/column.entity.js';
 import { TaskLabel } from './entities/task-label.entity.js';
 import { Task } from './entities/task.entity.js';
 import { BoardDomainError } from './errors.js';
-import { assertBoardWritable, type BoardHostContext } from './host-context.js';
+import { assertBoardWritable, requireBoardId, type BoardHostContext } from './host-context.js';
 import { inRule, readFirst, whereEq } from './query.js';
 
 /**
@@ -67,13 +67,20 @@ export class BoardDeleteService {
     assertBoardWritable(this.ctx());
     const tasks = await readFirst(this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('id', taskId) }));
     if (tasks.length === 0) throw new BoardDomainError('task_not_found', `任务不存在：${taskId}`);
+    const task = tasks[0];
+    const columns = await readFirst(
+      this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', task.columnId) })
+    );
+    if (columns.length === 0 || columns[0].boardId !== requireBoardId(this.ctx())) {
+      throw new BoardDomainError('cross_board', '任务不属于当前看板');
+    }
     const labels = await readFirst(
       this.rxdb.entityManager.getRepository(TaskLabel).find({ where: whereEq('taskId', taskId) })
     );
     return {
       kind: 'task',
       taskId,
-      taskTitle: tasks[0].title,
+      taskTitle: task.title,
       taskLabelIds: labels.map(row => row.id)
     };
   }
@@ -85,6 +92,9 @@ export class BoardDeleteService {
       this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', columnId) })
     );
     if (columns.length === 0) throw new BoardDomainError('column_not_found', `列不存在：${columnId}`);
+    if (columns[0].boardId !== requireBoardId(this.ctx())) {
+      throw new BoardDomainError('cross_board', '列不属于当前看板');
+    }
     const tasks = await readFirst(
       this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('columnId', columnId) })
     );
@@ -109,6 +119,9 @@ export class BoardDeleteService {
   /** 板删除清单（事务外读取）。 */
   async planBoardDelete(boardId: UUID): Promise<BoardDeletePlan> {
     assertBoardWritable(this.ctx());
+    if (boardId !== requireBoardId(this.ctx())) {
+      throw new BoardDomainError('cross_board', '看板不是当前看板');
+    }
     const boards = await readFirst(
       this.rxdb.entityManager.getRepository(Board).find({ where: whereEq('id', boardId) })
     );
@@ -167,6 +180,11 @@ export class BoardDeleteService {
     await adapter.transaction(async executor => {
       const tasks = await executor.getRepository(Task).find({ where: whereEq('id', plan.taskId) });
       if (tasks.length === 0) throw new BoardDomainError('confirm_stale', '任务已被删除，清单已过期');
+      const task = tasks[0];
+      const columns = await executor.getRepository(Column).find({ where: whereEq('id', task.columnId) });
+      if (columns.length === 0 || columns[0].boardId !== requireBoardId(this.ctx())) {
+        throw new BoardDomainError('cross_board', '任务不属于当前看板');
+      }
       const labels = await executor.getRepository(TaskLabel).find({ where: whereEq('taskId', plan.taskId) });
       if (
         !sameSet(
@@ -186,6 +204,9 @@ export class BoardDeleteService {
     await adapter.transaction(async executor => {
       const columns = await executor.getRepository(Column).find({ where: whereEq('id', plan.columnId) });
       if (columns.length === 0) throw new BoardDomainError('confirm_stale', '列已被删除，清单已过期');
+      if (columns[0].boardId !== requireBoardId(this.ctx())) {
+        throw new BoardDomainError('cross_board', '列不属于当前看板');
+      }
       const tasks = await executor.getRepository(Task).find({ where: whereEq('columnId', plan.columnId) });
       if (
         !sameSet(
@@ -219,6 +240,9 @@ export class BoardDeleteService {
   private async executeBoardDelete(plan: BoardDeletePlan): Promise<void> {
     const adapter = await firstValueFrom(this.rxdb.localAdapter$);
     await adapter.transaction(async executor => {
+      if (plan.boardId !== requireBoardId(this.ctx())) {
+        throw new BoardDomainError('cross_board', '看板不是当前看板');
+      }
       const boards = await executor.getRepository(Board).find({ where: whereEq('id', plan.boardId) });
       if (boards.length === 0) throw new BoardDomainError('confirm_stale', '看板已被删除，清单已过期');
       const columns = await executor.getRepository(Column).find({ where: whereEq('boardId', plan.boardId) });

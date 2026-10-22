@@ -196,10 +196,10 @@
                   @if (editTitle() === task.id) {
                     <input
                       class="title-editor"
-                      [ngModel]="draftTitle()"
+                      [ngModel]="editTitleValue()"
                       (keydown.enter)="commitEditTitle(task)"
                       (keydown.escape)="cancelEditTitle()"
-                      (ngModelChange)="draftTitle.set($event)"
+                      (ngModelChange)="editTitleValue.set($event)"
                       aria-label="任务标题"
                       data-testid="task-title-editor"
                     />
@@ -297,7 +297,7 @@
         <h3>任务详情</h3>
         <label>
           标题
-          <input [(ngModel)]="draftTitle" data-testid="detail-title" />
+          <input [(ngModel)]="detailDraftTitle" data-testid="detail-title" />
         </label>
         <label>
           描述

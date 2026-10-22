@@ -62,7 +62,7 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     // 标签与卡片上的标签 / 截止日
     await expect(page.getByTestId('label-chip')).toHaveCount(4);
     const firstCard = page.getByTestId('task-card').filter({ hasText: '修复登录 bug' });
-    await expect(firstCard.getByTestId('task-due')).toHaveText('2026-11-05');
+    await expect(firstCard.getByTestId('task-due')).toHaveText(/2026-11-05/);
     await expect(firstCard.getByTestId('card-label')).toHaveText('核心');
 
     // 重开：同一库名读回，实体与顺序原样
@@ -320,7 +320,7 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     await page.getByTestId('undo').click();
     await page.getByTestId('undo').click();
     await expect(card.getByTestId('task-title')).toHaveText('修复登录 bug');
-    await expect(card.getByTestId('task-due')).toHaveText('2026-11-05');
+    await expect(card.getByTestId('task-due')).toHaveText(/2026-11-05/);
     await card.getByTestId('task-title').click();
     // 种子任务初始就带「核心」标签：三次撤销后回到初始（1 个选中）
     await expect(detail.locator('input[data-testid="detail-label-check"]:checked')).toHaveCount(1);

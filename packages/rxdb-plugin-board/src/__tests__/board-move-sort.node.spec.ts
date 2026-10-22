@@ -132,6 +132,47 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
     expect(before.map(t => t.id)).toEqual([t1[2], t1[0], t1[1]]);
   });
 
+  it('单卡列：列首 / 列尾空区都是原位（null），不产出 undefined 邻居', () => {
+    const task: UUID = '00000000-0000-4000-8000-0000000000a1';
+    const view: CardDropColumnView[] = [
+      {
+        columnId: '00000000-0000-4000-8000-0000000000c1',
+        rect: { left: 0, right: 100, top: 0, bottom: 400 },
+        cards: [{ id: task, top: 100, bottom: 130 }],
+        taskIds: [task]
+      }
+    ];
+    // 去掉被拖行后没有邻居，任何空区落点都是原位，不能生成 undefined 邻居
+    expect(resolveCardDrop(view, task, 50, 50)).toBeNull();
+    expect(resolveCardDrop(view, task, 50, 200)).toBeNull();
+  });
+
+  it('卡片间隙按最近卡归 before/after，不一律落列尾', () => {
+    const ids: UUID[] = [
+      '00000000-0000-4000-8000-0000000000a1',
+      '00000000-0000-4000-8000-0000000000a2',
+      '00000000-0000-4000-8000-0000000000a3'
+    ];
+    const view: CardDropColumnView[] = [
+      {
+        columnId: '00000000-0000-4000-8000-0000000000c1',
+        rect: { left: 0, right: 100, top: 0, bottom: 400 },
+        cards: ids.map((id, index) => ({ id, top: 100 + index * 50, bottom: 130 + index * 50 })),
+        taskIds: ids
+      }
+    ];
+    // a2 与 a3 之间的间隙（180..200）：近 a2 → after a2；近 a3 → before a3，同为 (a2, a3)
+    expect(resolveCardDrop(view, ids[0], 50, 185)).toMatchObject({ kind: 'between', prevId: ids[1], nextId: ids[2] });
+    expect(resolveCardDrop(view, ids[0], 50, 195)).toMatchObject({ kind: 'between', prevId: ids[1], nextId: ids[2] });
+    // 列尾空区（末卡下沿以下）仍落列尾
+    expect(resolveCardDrop(view, ids[0], 50, 350)).toMatchObject({ prevId: ids[2], nextId: null });
+    // 异列任务落入间隙
+    const other: UUID = '00000000-0000-4000-8000-0000000000b1';
+    expect(resolveCardDrop(view, other, 50, 195)).toMatchObject({ prevId: ids[1], nextId: ids[2] });
+    // 间隙贴着自己的卡（锚点即被拖行）= 原位零写
+    expect(resolveCardDrop(view, ids[1], 50, 185)).toBeNull();
+  });
+
   it('AC#6：目标邻居被另一入口删除 → 拒绝（staleTarget），零写，状态机发布失败', async () => {
     const { c2, t1, t2 } = await seedColumns();
     const target = resolveCardDrop(geometry(NO_COLUMN, c2.id, NO_COLUMN, [], t2), t1[0], 150, 115);

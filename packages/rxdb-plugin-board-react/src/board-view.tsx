@@ -201,8 +201,10 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     setEditTitleTaskId(task.id);
   };
   const commitEditTitle = async (task: Task): Promise<void> => {
+    const result = await guard(() => board.actions.updateTaskTitle(task.id, editTitleValue));
+    // 失败（空标题等）保留编辑器与草稿（US-539 交互约定「失败保留草稿」）
+    if (result === undefined) return;
     setEditTitleTaskId(null);
-    await guard(() => board.actions.updateTaskTitle(task.id, editTitleValue));
   };
 
   const onTaskDragStart = (event: DragEvent, task: Task): void => {
@@ -217,9 +219,11 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   /** 卡片落点反馈：dragover 时预计算落点并标在目标卡片 / 空列上。 */
   const onTaskDragOver = (event: DragEvent): void => {
+    // 列头 handler 在任务 handler 的祖先链外层会冒泡到这里，按拖拽类型分流，
+    // 否则列拖拽的落点会被任务换算覆盖（列插入线永远不可见）
     event.preventDefault();
-    const movedId = dragging?.id;
-    if (!movedId) return;
+    if (dragging?.kind !== 'task') return;
+    const movedId = dragging.id;
     const target = resolveCardDrop(columnViews(), movedId, event.clientX, event.clientY);
     if (!target) {
       setDropTarget(null);
@@ -240,8 +244,8 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   /** 列头落点反馈：列间插入线。 */
   const onColumnDragOver = (event: DragEvent): void => {
     event.preventDefault();
-    const movedId = dragging?.id;
-    if (!movedId) return;
+    if (dragging?.kind !== 'column') return;
+    const movedId = dragging.id;
     const target = resolveColumnDrop(
       board.columns.map(column => ({
         columnId: column.id,
@@ -312,7 +316,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const onTaskDrop = async (event: DragEvent, column: Column): Promise<void> => {
     event.preventDefault();
-    const movedId = event.dataTransfer.getData('application/x-board-task') as UUID;
+    const movedId = event.dataTransfer?.getData('application/x-board-task') as UUID | undefined;
     if (!movedId) return;
     clearDragFeedback();
     const target = resolveTaskTarget(movedId, event.clientX, event.clientY);
@@ -322,7 +326,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const onColumnDrop = async (event: DragEvent): Promise<void> => {
     event.preventDefault();
-    const movedId = event.dataTransfer.getData('application/x-board-column') as UUID;
+    const movedId = event.dataTransfer?.getData('application/x-board-column') as UUID | undefined;
     if (!movedId) return;
     clearDragFeedback();
     const target = resolveColumnTarget(movedId, event.clientX);
@@ -418,7 +422,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     return (
       due < today ? `已逾期 ${due}`
-      : due === today ? '今天到期'
+      : due === today ? `今天到期 ${due}`
       : due
     );
   };

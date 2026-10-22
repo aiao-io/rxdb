@@ -303,11 +303,13 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   });
 
   protected editTitle = signal<UUID | null>(null);
+  /** 内联编辑标题草稿（与详情面板的标题草稿分离，避免互相污染）。 */
+  protected readonly editTitleValue = signal('');
   /** 内联建任务（GitHub Projects 同款：列底输入框，Enter 提交 / Esc 取消）。 */
   protected readonly addTaskColumnId = signal<UUID | null>(null);
   protected readonly addTaskTitle = signal('');
 
-  protected readonly draftTitle = signal<string>('');
+  protected readonly detailDraftTitle = signal('');
   protected readonly draftDescription = signal<string>('');
   protected readonly draftDueDate = signal<string>('');
   protected readonly draftLabelIds = signal<readonly UUID[]>([]);
@@ -407,14 +409,16 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   protected async startEditTitle(task: Task): Promise<void> {
-    this.draftTitle.set(task.title);
+    this.editTitleValue.set(task.title);
     this.editTitle.set(task.id);
   }
 
   protected async commitEditTitle(task: Task): Promise<void> {
-    const value = this.draftTitle();
+    const value = this.editTitleValue();
+    const result = await this.guard(() => this.boardRef.actions.updateTaskTitle(task.id, value));
+    // 失败保留编辑器与草稿（US-539 交互约定「失败保留草稿」）
+    if (result === undefined) return;
     this.editTitle.set(null);
-    await this.guard(() => this.boardRef.actions.updateTaskTitle(task.id, value));
   }
 
   protected cancelEditTitle(): void {
@@ -429,8 +433,10 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   protected onTaskDragOver(event: DragEvent): void {
+    // 列头 handler 冒泡到这里，按拖拽类型分流，否则列拖拽的落点会被任务换算覆盖
     event.preventDefault();
     this.dragPointer.set({ x: event.clientX, y: event.clientY });
+    if (this.dragging()?.kind !== 'task') return;
     const movedId = this.dragging()?.id as UUID | undefined;
     const area = this.boardArea()?.nativeElement;
     if (!movedId || !area) return;
@@ -459,6 +465,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   protected onColumnDragOver(event: DragEvent): void {
     event.preventDefault();
     this.dragPointer.set({ x: event.clientX, y: event.clientY });
+    if (this.dragging()?.kind !== 'column') return;
     const movedId = this.dragging()?.id as UUID | undefined;
     if (!movedId) return;
     const target = resolveColumnDrop(
@@ -481,8 +488,8 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected async onTaskDrop(event: DragEvent, column: Column): Promise<void> {
     event.preventDefault();
-    const movedId = (event.dataTransfer?.getData('application/x-board-task') ?? this.dragging()?.id) as
-      UUID | undefined;
+    const movedId = (event.dataTransfer?.getData('application/x-board-task') ??
+      (this.dragging()?.kind === 'task' ? this.dragging()?.id : undefined)) as UUID | undefined;
     if (!movedId) return;
     this.clearDragFeedback();
     const area = this.boardArea()?.nativeElement;
@@ -494,8 +501,8 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected async onColumnDrop(event: DragEvent): Promise<void> {
     event.preventDefault();
-    const movedId = (event.dataTransfer?.getData('application/x-board-column') ?? this.dragging()?.id) as
-      UUID | undefined;
+    const movedId = (event.dataTransfer?.getData('application/x-board-column') ??
+      (this.dragging()?.kind === 'column' ? this.dragging()?.id : undefined)) as UUID | undefined;
     if (!movedId) return;
     this.clearDragFeedback();
     const area = this.boardArea()?.nativeElement;
@@ -529,7 +536,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const snap = await this.boardRef.actions.openSnapshot(taskId);
     this.snapshot = snap;
     this.detailTaskId.set(taskId);
-    this.draftTitle.set(snap.title);
+    this.detailDraftTitle.set(snap.title);
     this.draftDescription.set(snap.description ?? '');
     this.draftDueDate.set(snap.dueDate ?? '');
     this.draftLabelIds.set([...snap.labelIds]);
@@ -545,7 +552,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     if (!taskId || !this.snapshot) return;
     const result = await this.guard(() =>
       this.boardRef.actions.saveTaskDraft(taskId, this.snapshot!, {
-        title: this.draftTitle(),
+        title: this.detailDraftTitle(),
         description: this.draftDescription(),
         dueDate: this.draftDueDate() === '' ? null : this.draftDueDate(),
         labelIds: this.draftLabelIds()
@@ -674,7 +681,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const today = this.localToday();
     return (
       due < today ? `已逾期 ${due}`
-      : due === today ? `今天到期`
+      : due === today ? `今天到期 ${due}`
       : due
     );
   }

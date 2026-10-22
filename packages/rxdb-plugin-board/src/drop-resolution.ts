@@ -38,7 +38,8 @@ const isCurrentPlacement = (
  * 指针坐标 → 列首 / 两邻之间 / 列尾 / 空列；原位落点返回 `null`（调用方不发起重排）。
  *
  * @remarks
- * 卡片按上下两半判定 before / after；列首空区落在首卡之前，列尾空区落在末卡之后；
+ * 卡片按上下两半判定 before / after；列首空区落在首卡之前，列尾空区（末卡下沿到列体下沿）
+ * 落在末卡之后，卡片之间的间隙按 y 距上下两张卡边沿的远近归到 before/after；
  * 空列整区都是「列尾」，落到 `{ kind: 'end' }`。指针不在任何列容器内返回 `null`。
  * 邻居一律取自**完整**任务序列——只拿可见行会把被隐藏的兄弟夹在两个邻居之间，
  * `reorder()` 复核相邻时以 `staleTarget` 拒绝（US-027 同款边界）。
@@ -76,11 +77,32 @@ export const resolveCardDrop = (
   // 与引擎 `reorderTargetForDrop` 的 rest 语义一致
   const rest = column.taskIds.filter(id => id !== movedId);
 
+  // 单卡列：去掉被拖行后没有邻居，任何空区落点都是原位（零写）；
+  // 不能生成 prev/next 为 undefined 的目标（引擎 readNeighbor 只认 null）
+  if (rest.length === 0) return null;
+
   // 列首空区（列头上沿到首卡上沿；无可见卡时落在列首）
   if (firstCardTop === undefined || y < firstCardTop) {
     if (isCurrentPlacement(column.taskIds, movedId, null, rest[0])) return null;
     return { kind: 'between', columnId: column.columnId, prevId: null, nextId: rest[0] };
   }
+
+  // 卡片之间的间隙：按 y 距上下两张卡边沿的远近归到 before/after，不能一律判「列尾」
+  // （列尾空区的契约是末卡下沿到列体下沿）；锚点即被拖行时是原位
+  for (let i = 0; i < column.cards.length - 1; i++) {
+    const upper = column.cards[i];
+    const lower = column.cards[i + 1];
+    if (y >= upper.bottom && y < lower.top) {
+      const anchor = y - upper.bottom <= lower.top - y ? upper : lower;
+      if (anchor.id === movedId) return null;
+      const position = anchor === upper ? 'after' : 'before';
+      const target = reorderTargetForDrop(column.taskIds, movedId, anchor.id, position);
+      return target ?
+          { kind: 'between', columnId: column.columnId, prevId: target.prevId, nextId: target.nextId }
+        : null;
+    }
+  }
+
   // 列尾空区（末卡下沿到列体下沿）
   if (isCurrentPlacement(column.taskIds, movedId, rest[rest.length - 1], null)) return null;
   return { kind: 'between', columnId: column.columnId, prevId: rest[rest.length - 1], nextId: null };

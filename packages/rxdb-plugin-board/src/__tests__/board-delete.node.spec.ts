@@ -62,6 +62,24 @@ describe('BoardDeleteService 删除级联与撤销（US-534）', () => {
     return { board, c1, c2, t1, t2, t3, t4, label, link };
   };
 
+  it('跨板删除被拒绝：plan 与 execute 都复核板归属，零写', async () => {
+    const { board, c1, t1 } = await seedBoard();
+    const other = await domain.createBoard({ title: '另一块板' });
+    ctx.boardId = other.id;
+
+    // plan 阶段：任务 / 列 / 板归属与当前板不符时拒绝
+    await expect(deletes.planTaskDelete(t1.id)).rejects.toMatchObject({ code: 'cross_board' });
+    await expect(deletes.planColumnDelete(c1.id)).rejects.toMatchObject({ code: 'cross_board' });
+    await expect(deletes.planBoardDelete(board.id)).rejects.toMatchObject({ code: 'cross_board' });
+
+    // execute 阶段：清单生成后切走当前板，事务内复核同样拒绝
+    ctx.boardId = board.id;
+    const plan = await deletes.planTaskDelete(t1.id);
+    ctx.boardId = other.id;
+    await expect(deletes.executeDelete(plan)).rejects.toMatchObject({ code: 'cross_board' });
+    expect(await readFirst(taskRepo().find({ where: whereEq('id', t1.id) }))).toHaveLength(1);
+  });
+
   it('AC#6：删列只删该列与其任务（含关联），他列不动；删板全清不留孤儿', async () => {
     const { board, c1, c2, t3, t4, label } = await seedBoard();
 
