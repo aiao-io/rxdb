@@ -244,6 +244,96 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
         padding: 2rem;
         color: #666;
       }
+      /* 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 源卡片半透明） */
+      .card.dragging,
+      .column-header.dragging {
+        opacity: 0.5;
+      }
+      .card.drop-before {
+        box-shadow: 0 -3px 0 0 #0969da;
+      }
+      .card.drop-after {
+        box-shadow: 0 3px 0 0 #0969da;
+      }
+      .column.drop-end {
+        outline: 3px dashed #0969da;
+        outline-offset: -3px;
+        border-radius: 0.5rem;
+      }
+      .column-header.drop-before {
+        box-shadow: -3px 0 0 0 #0969da;
+      }
+      .column-header.drop-after {
+        box-shadow: 3px 0 0 0 #0969da;
+      }
+      /* 板内搜索（US-539 阶段 B） */
+      .search-hit {
+        outline: 3px solid #f59e0b;
+        outline-offset: 2px;
+      }
+      .board-search {
+        padding: 0.25rem 1rem;
+      }
+      .board-search .search-input {
+        width: 100%;
+        max-width: 24rem;
+        padding: 0.25rem 0.5rem;
+      }
+      .search-results {
+        margin-top: 0.25rem;
+        max-height: 14rem;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        background: #fff;
+      }
+      .search-result {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.125rem;
+        width: 100%;
+        padding: 0.375rem 0.5rem;
+        border: none;
+        border-bottom: 1px solid #f1f5f9;
+        background: none;
+        cursor: pointer;
+        text-align: left;
+      }
+      .search-result:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      .search-result-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+      }
+      .search-result-column {
+        font-size: 0.75rem;
+        color: #64748b;
+      }
+      .search-result-snippet {
+        font-size: 0.75rem;
+        color: #334155;
+      }
+      .search-state {
+        padding: 0.5rem;
+        color: #64748b;
+      }
+      .search-more {
+        margin: 0.25rem;
+      }
+      /* 列底内联建任务 */
+      .add-task-form {
+        display: flex;
+        gap: 0.25rem;
+        margin-top: 0.25rem;
+      }
+      .add-task-input {
+        flex: 1;
+        min-width: 0;
+        padding: 0.25rem 0.5rem;
+      }
     `
   ]
 })

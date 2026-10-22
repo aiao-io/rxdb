@@ -466,6 +466,9 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     // 目标卡片上半 → before 插入线
     await target.dispatchEvent('dragover', { clientX: targetBox.x + 10, clientY: targetBox.y + 5 });
     await expect(target).toHaveClass(/drop-before/);
+    // 样式必须真实生效：class 绑了但样式规则缺失时（曾有 Angular/Vue 整套规则缺失）
+    // 类断言仍全绿，用 computed style 兜底
+    expect(await target.evaluate(el => getComputedStyle(el).boxShadow)).not.toBe('none');
 
     // 下半 → after 插入线
     await target.dispatchEvent('dragover', {
@@ -485,6 +488,7 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
       clientY: ideasBox.y + ideasBox.height / 2
     });
     await expect(ideas).toHaveClass(/drop-end/);
+    expect(await ideas.evaluate(el => getComputedStyle(el).outlineStyle)).toBe('dashed');
 
     // 拖拽结束（dragend）清除全部反馈
     await source.dispatchEvent('dragend');
