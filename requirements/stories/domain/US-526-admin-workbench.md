@@ -23,8 +23,8 @@ tags: [domain, admin-framework, workbench, rxdb-model, e2e]
 | 阶段 | 内容                                                                                                                                 | 状态 |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------ | ---- |
 | A    | 应用壳 `apps/dev-rxdb-admin`：预置有关联的实体 schema + 会持续维护的轻量数据场景（非演示种子）、实体可见性声明、列表与详情构成的导航 | ✅   |
-| B    | CRUD 接线：创建 / 编辑 / 删除、校验反馈、查询筛选；加载 / 失败 / 空态                                                                | ⬜   |
-| C    | 本地持久化（刷新 / 重开继续编辑）+ `apps/dev-rxdb-admin-e2e` 端到端组合验收                                                          | ⬜   |
+| B    | CRUD 接线：创建 / 编辑 / 删除、校验反馈、查询筛选；加载 / 失败 / 空态                                                                | ✅   |
+| C    | 本地持久化（刷新 / 重开继续编辑）+ `apps/dev-rxdb-admin-e2e` 端到端组合验收                                                          | ✅   |
 
 阶段归属：A 关闭 AC#1 / #2；B 关闭 AC#3～#6；C 关闭 AC#7 / #8。
 
@@ -97,7 +97,7 @@ sqlite-wasm 而非 wa-sqlite 是第二个硬约束：全文搜索需要 FTS5，�
 ## 实现文件
 
 - `apps/dev-rxdb-admin/` — 工作台应用（壳、预置 schema、导航、CRUD 接线、持久化；`@aiao/rxdb-devtools` 经 `getDevToolsConnector` 接线）
-- `apps/dev-rxdb-admin-e2e/` — 待建；端到端组合验收（domain/ 目录硬约束的领域测试应用）
+- `apps/dev-rxdb-admin-e2e/` — 已交付；端到端组合验收（domain/ 目录硬约束的领域测试应用）
 
 ## References
 

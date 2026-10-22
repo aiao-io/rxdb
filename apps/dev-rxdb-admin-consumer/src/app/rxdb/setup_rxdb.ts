@@ -22,15 +22,13 @@ export default (): RxDB => {
       type: SyncType.None
     }
   });
-  rxdb
-    .use(rxDBPluginHistory)
-    .adapter('wa-sqlite', db => {
-      const options: WaSqliteOptions = {
-        vfs: 'IDBBatchAtomicVFS',
-        wasmPath: waSqliteAsync
-      };
-      return new RxDBAdapterWaSqlite(db, options);
-    });
+  rxdb.use(rxDBPluginHistory).adapter('wa-sqlite', db => {
+    const options: WaSqliteOptions = {
+      vfs: 'IDBBatchAtomicVFS',
+      wasmPath: waSqliteAsync
+    };
+    return new RxDBAdapterWaSqlite(db, options);
+  });
   rxdb.init();
   return rxdb;
 };

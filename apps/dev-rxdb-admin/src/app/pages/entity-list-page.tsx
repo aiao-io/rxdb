@@ -1,5 +1,5 @@
-import { useRxDB } from '@aiao/rxdb-react';
 import { EntityList } from '@aiao/rxdb-model-react';
+import { useRxDB } from '@aiao/rxdb-react';
 import { useParams } from 'react-router-dom';
 import { findWorkbenchEntity } from '../entities/entity-registry';
 

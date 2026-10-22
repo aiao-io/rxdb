@@ -68,7 +68,7 @@ tags: [domain, admin-framework, docs, consumer-example]
 
 ## 实现文件
 
-- `apps/dev-rxdb-admin-consumer/` — 待建；只用发布包的最小独立消费应用
+- `apps/dev-rxdb-admin-consumer/` — 已交付；只用发布包的最小独立消费应用
 - `website/docs/` — 接入成本记录与接入文档
 
 ## References
