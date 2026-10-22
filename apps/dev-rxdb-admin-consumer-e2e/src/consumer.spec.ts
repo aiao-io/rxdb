@@ -19,7 +19,7 @@ async function createBookmark(page: Page, title: string): Promise<void> {
 }
 
 async function expectListHasRows(page: Page): Promise<void> {
-  await expect(page.getByText('暂无数据')).toHaveCount(0);
+  await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
 }
 
 test.describe('独立消费示例（US-528）', () => {
@@ -28,14 +28,14 @@ test.describe('独立消费示例（US-528）', () => {
     await page.setViewportSize({ width: 1280, height: 960 });
     await page.goto('/');
     await page.waitForURL('**/bookmarks');
-    await expect(page.getByText('暂无数据')).toBeVisible();
+    await expect(page.getByTestId('entity-empty-state')).toBeVisible();
 
     await createBookmark(page, 'RxDB 官网');
     await createBookmark(page, 'SQLite 文档');
     await expectListHasRows(page);
 
     // 筛选：标题包含 RxDB
-    await page.getByRole('button', { name: '筛选' }).click();
+    await page.getByRole('button', { name: /^筛选/ }).click();
     await page.getByRole('button', { name: '添加第一个条件' }).click();
     const rule = page.locator('.rxdb-query-rule').first();
     // 筛选弹层是 fixed inset:0 的透明遮罩，Playwright 的视口滚动判定对弹层内控件
@@ -62,7 +62,7 @@ test.describe('独立消费示例（US-528）', () => {
     await expect(page.getByText('1 条记录')).toBeVisible();
 
     // 清筛选 → 编辑第一条 → 刷新重开数据仍在
-    await page.getByRole('button', { name: '筛选' }).click();
+    await page.getByRole('button', { name: /^筛选/ }).click();
     await page.getByRole('button', { name: '重置' }).evaluate(el => (el as HTMLElement).click());
     await page.getByRole('button', { name: '确定' }).evaluate(el => (el as HTMLElement).click());
     await expectListHasRows(page);
@@ -91,7 +91,7 @@ interface ActionIconHit {
 async function findActionIcon(page: Page, iconName: string, row = 1): Promise<ActionIconHit | null> {
   const canvas = page.getByTestId('entity-shell').locator('canvas').first();
   return canvas.evaluate(
-    (el, [name, targetRow]) => {
+    async (el, [name, targetRow]) => {
       interface SceneNode {
         name?: string;
         globalAABBBounds: { x1: number; x2: number; y1: number; y2: number };
@@ -109,6 +109,8 @@ async function findActionIcon(page: Page, iconName: string, row = 1): Promise<Ac
       );
       if (col === undefined) throw new Error('表格没有操作列');
       table.scrollToCell({ col, row: targetRow });
+      // 横向滚动触发异步重渲染：滚动后的下一帧场景树才带上图标，立即读会拿到空单元格
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       let icon: SceneNode | undefined;
       const visit = (node: SceneNode): void => {
         if (!icon && node.name === name) icon = node;
