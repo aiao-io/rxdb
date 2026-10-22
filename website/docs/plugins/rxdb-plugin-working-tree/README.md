@@ -813,17 +813,35 @@ const save = async (): Promise<void> => {
 - `switchBranch()` 挂在历史插件（`@aiao/rxdb-plugin-history`）的 `versionManager` 上而不是 `workingTree` 上，因此三端入口取的是整个 `RxDB`，不是只取 `db.workingTree`。
 - 类型与错误类一律从 `@aiao/rxdb-plugin-working-tree` 直接 import，绑定包**不重定义、也不再导出**。
 
-### 只读检出位：`useWorktrees()`
+### 检出位：`useWorktrees()`
 
-三端 `useWorktrees()` 同名同 API：四格状态 `listState` / `openState` / `attachState` / `pruneState`，命令 `list()` / `open()` / `attach()` / `prune()` 与 `db.workingTree.checkouts` 上的同名方法签名一致。打开、再打开、回收之后，以及视图的 `close()` / `release()` / `refresh()` 之后，都会顺带重读登记表；同一格后发的请求胜出。
+三端 `useWorktrees()` 同名同 API，命令与 `db.workingTree.checkouts` 上的同名方法签名一致，一个命令一格状态，同一格后发的请求胜出：
 
-打开得到的视图把 `view.rxdb` 交给各端现成的 Provider，里面的查询 hook 与 rxdb-model 的实体列表照用（只读实例上列表不出写控件）：
+| 命令                                    | 状态格                              | 落定之后重读登记表                                          |
+| --------------------------------------- | ----------------------------------- | ----------------------------------------------------------- |
+| `list()`                                | `listState`（没有登记行是 `empty`） | —                                                           |
+| `open(target, options?)` / `attach(id)` | `openState` / `attachState`         | 是；视图的 `close()` / `release()` / `refresh()` 之后也重读 |
+| `prune()`                               | `pruneState`                        | 是                                                          |
+| `add(branchId, { name?, owner? })`      | `addState`（建好的登记行）          | 是                                                          |
+| `mount(id)`                             | `mountState`                        | 是（挂载写访问时间，重建时还写指纹）                        |
+| `mountMain()` / `release(id)`           | `mountMainState` / `releaseState`   | 否（不写登记表）                                            |
+| `remove(id)`                            | `removeState`                       | 是                                                          |
+| `rename(id, name)`                      | `renameState`（改名之后的登记行）   | 是                                                          |
+
+另有 `mounted`：本实例此刻挂的那套表（`db.worktreeTableSet$`，换挂收尾、实体缓存清空之后才变；重建之后是同后缀的新实例），React 是渲染快照、Angular 是 `Signal`、Vue 是 `ComputedRef`。
+
+- `mounted.isMain` 即挂在主检出位；可写检出位的登记行里 `tableSetSuffix === mounted.suffix` 的那一行就是挂着的（登记行有只读、可写两种，按 `mode` 区分）。
+- 当前分支是 `activeKey === mounted.holderKey` 的那一条。不要再拿 `activated` 认：它只说主检出位停在哪条分支上，挂在可写检出位上时持有分支的 `activated` 是假。
+- 换挂之后 `useWorkingTree()` 的十四格**不会自己重读**（它没有变更流，见上）。要跟着换的组件订阅 `mounted` 再重读：React `useEffect(() => …, [worktrees.mounted])`、Angular `effect()` 读 `worktrees.mounted()`、Vue `watch(worktrees.mounted, …)`，跳过第一次的初值。
+- `mounted` 从流取初值，订阅时流没交出当前那一套就抛；Angular 在注入器销毁、Vue 在作用域销毁、React 在卸载时退订。Vue 的 `useWorktrees()` 要在 `setup()` 或 `effectScope` 里调。
+
+打开只读检出位得到的视图把 `view.rxdb` 交给各端现成的 Provider，里面的查询 hook 与 rxdb-model 的实体列表照用（只读实例上列表不出写控件）：
 
 - React：`<RxDBProvider db={view.rxdb}>…</RxDBProvider>`
 - Vue：在子组件里 `provideRxDB(view.rxdb)`；视图放 `shallowRef`，RxDB 实例的私有字段过不了深层响应式代理
 - Angular：子组件注入器里 `{ provide: RxDB, useValue: view.rxdb }`，比如经 `NgComponentOutlet` 的 `injector`
 
-`useWorktrees()` 本身要在嵌套的 Provider **之外**调用：快照实例没装工作树插件。
+`useWorktrees()` 本身要在嵌套的 Provider **之外**调用：快照实例没装工作树插件。可写检出位挂在主实例上，没有这层嵌套。
 
 ## 错误类型
 

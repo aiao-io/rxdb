@@ -64,7 +64,7 @@ INVEST 检查清单:
 | ---- | ------------------------------------------------------------------------------------ | ---- |
 | A    | 从提交建分支：库 API、六个后端一致性、三端 demo 的提交右键与建分支对话框             | ✅   |
 | B    | 可写检出位：库内影子表的底座（B1）与完整语义（B2）、读写与提交、分支独占、关闭与回收 | ✅   |
-| C    | 三端绑定与三端 demo 的 Worktree 下拉、New Worktree…、Rename… / Delete…               | ⬜   |
+| C    | 三端绑定与三端 demo 的 Worktree 下拉、New Worktree…、Rename… / Delete…               | ⚠️   |
 
 ## 验收标准
 
@@ -332,6 +332,19 @@ INVEST 检查清单:
     删掉之后不再列出；主表名恰好长成后缀形状的实体不被认成表集（去掉排除即红）。核心单测（`isSuffix`、`schemaFingerprintOf` 比备份指纹多看
     `log` / `checks`、`worktreeTableSetFingerprint` 合并钩子指纹且与 `use()` 顺序无关）；工作树插件单测（重建先删后建、失败带 `cause` 且还锁、
     启动判定认孤儿持有键而不认手工后缀）；搜索插件单测（指纹只看成员、随可搜索字段与排除名单变）。
+- **三端绑定**（阶段 C1）：
+  - 三端 `useWorktrees()` 接上可写检出位的六个命令（`add` / `mount` / `mountMain` / `release` / `remove` / `rename`），一个命令一格状态，
+    共用核心 `createWorktreeCommands`：改了登记表的 `add` / `mount`（写访问时间，重建时还写指纹）/ `remove` / `rename` 落定之后重读，
+    `mountMain` / `release` 不读；失败落格、原样抛出；同一格后发的请求胜出。
+  - `mounted` 是本实例此刻挂的那套表，三端都从 `worktreeTableSet$` 取（换挂收尾、清实体缓存之后才发），不读 `rxdb.worktreeTableSet`：
+    那个字段在换挂事务里先变，读字段的一端会比另外两端早一步。初值经核心的 `readMountedWorktreeTableSet()` 取，流没在订阅当下交出就抛
+    （三端同一句报错）。Angular `toSignal(…, { requireSync: true })`，React `useSyncExternalStore`（store 按库建，换库换订阅），
+    Vue `shallowRef` + `onScopeDispose`（表集有私有字段，不进深层代理）。
+  - 当前分支的口径随之写进文档：`activeKey === mounted.holderKey`，不再用 `activated`；换挂之后 `useWorkingTree()` 不会自己重读，
+    要跟着换的组件订阅 `mounted` 再重读（它没有变更流）。
+  - 一致性：核心单测（十格键集与初值、各命令的相位与是否重读、失败落格、同格后发胜出、`readMountedWorktreeTableSet`）；三端
+    `use-worktrees.spec` 同标题（十格 idle、`mounted` 跟流走含重建同后缀的新实例、退订、流不给当前值即抛、React 换库与 StrictMode、
+    清单守卫加 `mounted`）。三端共用 `./testing` 的 `createWorktreeHookStubs()`，桩的形状只放一处。三个绑定包覆盖率 100%。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -397,6 +410,9 @@ INVEST 检查清单:
   `packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts`（`mount` 重建、`prune` 收孤儿）、`worktree-startup-reclaim.ts`
   （`findOrphanTableSets`）、`worktree-writable.ts`（`isCheckoutTableSetSuffix`）、`worktree-errors.ts`（`schema_rebuild_failed`）、`plugin.ts`；
   `packages/rxdb-plugin-search/src/plugin.ts`（`fingerprint`） — 按指纹重建与孤儿回收（B2.6）
+- `packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts`（六个命令、`readMountedWorktreeTableSet`）、
+  `working-tree/testing/use-worktrees-fixtures.ts`（`createWorktreeHookStubs`）；`packages/rxdb-plugin-working-tree-{angular,react,vue}/src/use-worktrees.ts`
+  — 三端绑定（C1）
 - `packages/rxdb/src/system/active-branch-guard.ts`（`WorktreeBranchHeldError`）、`system/system-repositories.ts`、
   两个适配器的 `version/switch_branch.ts` 与系统迁移（sqlite-core `RxDBAdapterSqliteBase.ts`、PGlite `system/migrate_system_schema.ts`）
   — 分支持有模型

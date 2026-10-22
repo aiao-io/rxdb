@@ -27,6 +27,8 @@ export type {
   WorkingTreeHookStubs,
   WorkingTreeManagerStub
 } from './use-working-tree-fixtures.js';
+export { createWorktreeHookStubs } from './use-worktrees-fixtures.js';
+export type { WorktreeHookStubs, WorktreeManagerStub } from './use-worktrees-fixtures.js';
 export {
   WORKTREE_CONFORMANCE_ENTITIES,
   WORKTREE_CONFORMANCE_KEY,

@@ -53,14 +53,27 @@ export function CommitBar() {
 （`Readonly<WorkingTreeAsyncStates>`），可以直接解构；十个方法**引用稳定**，可以安全放进
 `useEffect` / `useMemo` 的依赖数组。
 
-## 只读检出位：`useWorktrees()`
+## 检出位：`useWorktrees()`
 
-`useWorktrees()` 是工作树插件 `db.workingTree.checkouts` 的入口（US-313）：四格状态 `listState` / `openState` /
-`attachState` / `pruneState`，命令 `list()` / `open()` / `attach()` / `prune()`，签名与插件上的同名方法一致。
-打开、再打开、回收之后，以及视图的 `close()` / `release()` / `refresh()` 之后，都会顺带重读登记表；同一格后发的请求胜出。
+`useWorktrees()` 是工作树插件 `db.workingTree.checkouts` 的入口：只读检出位（US-313）的 `list()` / `open()` / `attach()` / `prune()`，
+可写检出位（US-314）的 `add()` / `mount()` / `mountMain()` / `release()` / `remove()` / `rename()`，一个命令一格状态（`listState`、`addState`……共十格），
+签名与插件上的同名方法一致。改了登记表的命令（`open` / `attach` / `prune` / `add` / `mount` / `remove` / `rename`，以及只读视图的
+`close()` / `release()` / `refresh()`）落定之后顺带重读登记表；同一格后发的请求胜出。
 `useWorktrees()` 要在嵌套的 Provider **之外**调用：快照实例没装工作树插件。
 
-打开得到的视图把 `view.rxdb` 交给嵌套的 `RxDBProvider`，里面的查询 hook 与 rxdb-model 的实体列表照用：
+`mounted` 是本实例此刻挂的那套表（换挂收尾之后才变）：`mounted.isMain` 即主检出位，登记行里 `tableSetSuffix === mounted.suffix` 的那一行就是挂着的，
+当前分支是 `activeKey === mounted.holderKey` 的那一条。换挂之后 `useWorkingTree()` 不会自己重读，订阅 `mounted` 再重读：
+
+```tsx
+const worktrees = useWorktrees();
+const tree = useWorkingTree();
+useEffect(() => void tree.status(), [tree, worktrees.mounted]);
+
+const row = await worktrees.add('feature');
+await worktrees.mount(row.id);
+```
+
+打开只读检出位得到的视图把 `view.rxdb` 交给嵌套的 `RxDBProvider`，里面的查询 hook 与 rxdb-model 的实体列表照用：
 
 ```tsx
 const worktrees = useWorktrees();
