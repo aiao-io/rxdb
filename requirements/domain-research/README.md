@@ -76,24 +76,24 @@ AI 构建器和小游戏适合继续做有边界的技术 / 玩法验证，当�
 一句话结论以各文件为准，本表只留短标签；「顺位」来自 2026-10-18 优先级评审，
 判断细节见[优先级评审](#优先级评审2026-10-18)节。
 
-| 领域                         | 文件                                                 | 状态   | 顺位               | 短标签                                                                            |
-| ---------------------------- | ---------------------------------------------------- | ------ | ------------------ | --------------------------------------------------------------------------------- |
-| 制造业 BOM / MES             | —（指针见下）                                        | 已孵化 | 已孵化，单独处理   | 首个领域模型，[epic-009](../epics/epic-009-bom-domain-model.md) 已解锁            |
-| 协同知识库 / 笔记            | [knowledge-base.md](knowledge-base.md)               | 研究中 | 第二梯队           | 能力齐，缺实时协同与附件                                                          |
-| 外勤 / 现场作业采集          | [field-data-collection.md](field-data-collection.md) | 研究中 | 客户触发           | 能力使用面最广；硬缺口恰在现场刚需（照片）                                        |
-| 零售 POS / 进销存            | [retail-pos.md](retail-pos.md)                       | 研究中 | 客户触发且后置     | 引擎内全绿；离线支付授权与硬件在引擎外                                            |
-| 任务看板 / 项目管理          | [task-board.md](task-board.md)（已冻结，指针见下）   | 已孵化 | 已孵化，单独处理   | 单人看板已解锁，[epic-011](../epics/epic-011-task-board-domain-model.md) 演示驱动 |
-| 任务看板 v2 增强（GitHub Projects 风格） | [board-v2-github-projects-style.md](board-v2-github-projects-style.md) | 研究中 | 看板 MVP 落地后评估 | 结构化筛选 / 分组泳道 / 可选字段与保存视图；与 epic-011 决策 5 冲突，需重新解锁 |
-| 微信客户端部分功能           | [wechat-client.md](wechat-client.md)                 | 研究中 | 暂缓               | 契合度并列第一，缺口仅发送队列；六成体验在引擎外                                  |
-| 间隔重复学习                 | [anki-srs.md](anki-srs.md)                           | 研究中 | 第一梯队替代项     | 本地优先鼻祖（Anki 重构）；引擎使用面最广，外部成本低                             |
-| 密码管理器                   | [password-manager.md](password-manager.md)           | 研究中 | 暂缓               | 加密是品类生死线，keyring 内建；零知识协议在引擎外                                |
-| 健身训练记录                 | [fitness-log.md](fitness-log.md)                     | 研究中 | 第一梯队替代项     | 完整可交付、零缺口；健身房离线是真实痛点                                          |
-| 离线音乐库                   | [offline-music.md](offline-music.md)                 | 研究中 | 后置               | 品类核心即离线；音频文件是 vision 阶段 5 大山                                     |
-| 稍后读与批注                 | [read-later.md](read-later.md)                       | 研究中 | 第二梯队           | 全对口零缺口；抓取服务在引擎外，天花板低                                          |
-| 智能体记忆 / 本地 AI 助手    | [local-ai-agent.md](local-ai-agent.md)               | 研究中 | 技术储备           | 「数据库即前端」的旗舰应用；检索原语已交付，编排与推理在引擎外                    |
-| AI 原生本地优先开发环境      | [ai-native-builder.md](ai-native-builder.md)         | 研究中 | 技术储备，主线后置 | 开发过程即数据；Git + OPFS 与可运行导出待验证                                     |
-| 人生模拟小游戏（人生快进中） | [life-fast-forward.md](life-fast-forward.md)         | 研究中 | 独立玩法实验       | 先验一局玩法与小游戏存档；时长、广告推进和数值规则需收敛                          |
-| 模型驱动后台管理框架         | [admin-framework.md](admin-framework.md)             | 研究中 | 第一顺位           | schema 单一真相源；rxdb-model 已是半成品，立项门槛最低                            |
+| 领域                                     | 文件                                                                   | 状态   | 顺位                | 短标签                                                                            |
+| ---------------------------------------- | ---------------------------------------------------------------------- | ------ | ------------------- | --------------------------------------------------------------------------------- |
+| 制造业 BOM / MES                         | —（指针见下）                                                          | 已孵化 | 已孵化，单独处理    | 首个领域模型，[epic-009](../epics/epic-009-bom-domain-model.md) 已解锁            |
+| 协同知识库 / 笔记                        | [knowledge-base.md](knowledge-base.md)                                 | 研究中 | 第二梯队            | 能力齐，缺实时协同与附件                                                          |
+| 外勤 / 现场作业采集                      | [field-data-collection.md](field-data-collection.md)                   | 研究中 | 客户触发            | 能力使用面最广；硬缺口恰在现场刚需（照片）                                        |
+| 零售 POS / 进销存                        | [retail-pos.md](retail-pos.md)                                         | 研究中 | 客户触发且后置      | 引擎内全绿；离线支付授权与硬件在引擎外                                            |
+| 任务看板 / 项目管理                      | [task-board.md](task-board.md)（已冻结，指针见下）                     | 已孵化 | 已孵化，单独处理    | 单人看板已解锁，[epic-011](../epics/epic-011-task-board-domain-model.md) 演示驱动 |
+| 任务看板 v2 增强（GitHub Projects 风格） | [board-v2-github-projects-style.md](board-v2-github-projects-style.md) | 研究中 | 看板 MVP 落地后评估 | 结构化筛选 / 分组泳道 / 可选字段与保存视图；与 epic-011 决策 5 冲突，需重新解锁   |
+| 微信客户端部分功能                       | [wechat-client.md](wechat-client.md)                                   | 研究中 | 暂缓                | 契合度并列第一，缺口仅发送队列；六成体验在引擎外                                  |
+| 间隔重复学习                             | [anki-srs.md](anki-srs.md)                                             | 研究中 | 第一梯队替代项      | 本地优先鼻祖（Anki 重构）；引擎使用面最广，外部成本低                             |
+| 密码管理器                               | [password-manager.md](password-manager.md)                             | 研究中 | 暂缓                | 加密是品类生死线，keyring 内建；零知识协议在引擎外                                |
+| 健身训练记录                             | [fitness-log.md](fitness-log.md)                                       | 研究中 | 第一梯队替代项      | 完整可交付、零缺口；健身房离线是真实痛点                                          |
+| 离线音乐库                               | [offline-music.md](offline-music.md)                                   | 研究中 | 后置                | 品类核心即离线；音频文件是 vision 阶段 5 大山                                     |
+| 稍后读与批注                             | [read-later.md](read-later.md)                                         | 研究中 | 第二梯队            | 全对口零缺口；抓取服务在引擎外，天花板低                                          |
+| 智能体记忆 / 本地 AI 助手                | [local-ai-agent.md](local-ai-agent.md)                                 | 研究中 | 技术储备            | 「数据库即前端」的旗舰应用；检索原语已交付，编排与推理在引擎外                    |
+| AI 原生本地优先开发环境                  | [ai-native-builder.md](ai-native-builder.md)                           | 研究中 | 技术储备，主线后置  | 开发过程即数据；Git + OPFS 与可运行导出待验证                                     |
+| 人生模拟小游戏（人生快进中）             | [life-fast-forward.md](life-fast-forward.md)                           | 研究中 | 独立玩法实验        | 先验一局玩法与小游戏存档；时长、广告推进和数值规则需收敛                          |
+| 模型驱动后台管理框架                     | [admin-framework.md](admin-framework.md)                               | 研究中 | 第一顺位            | schema 单一真相源；rxdb-model 已是半成品，立项门槛最低                            |
 
 ## 横向对比
 

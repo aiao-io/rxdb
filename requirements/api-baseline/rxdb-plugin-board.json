@@ -142,12 +142,20 @@
         "kind": "value"
       },
       {
+        "name": "isHexColor",
+        "kind": "value"
+      },
+      {
         "name": "isValidDueDate",
         "kind": "value"
       },
       {
         "name": "LabelDeletePlan",
         "kind": "type"
+      },
+      {
+        "name": "labelTextColor",
+        "kind": "value"
       },
       {
         "name": "matchAll",
@@ -215,6 +223,14 @@
       },
       {
         "name": "SaveTaskDraftResult",
+        "kind": "type"
+      },
+      {
+        "name": "SearchHandle",
+        "kind": "type"
+      },
+      {
+        "name": "SearchResult",
         "kind": "type"
       },
       {
