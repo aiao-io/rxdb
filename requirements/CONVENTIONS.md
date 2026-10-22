@@ -24,7 +24,7 @@
 | `collaboration/` | 版本控制、撤销/重做、迁移协作                                 | US-301~399 |
 | `ui/`            | 代码编辑器等跨框架 UI 组件                                    | US-401~499 |
 | `plugin/`        | RxDB plugin 包（workspace / storage / graph）                 | US-501~506 |
-| `domain/`        | 领域解决方案：业务领域模型（现为 BOM）                        | US-507~599 |
+| `domain/`        | 领域解决方案：BOM 业务领域模型 / 模型驱动后台管理框架         | US-507~599 |
 | `tooling/`       | 门禁、基线与发布工具链（不是产品能力）                        | US-601~699 |
 | `future/`        | 搜索 / 加密 / DevTools 等扩展能力（按编号段分拣，不按交付期） | US-700~999 |
 
