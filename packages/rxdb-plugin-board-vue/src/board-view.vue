@@ -11,6 +11,7 @@ import {
   type BoardSearchUpstream,
   type CardDropColumnView,
   type CardDropTarget,
+  type DeletePlan,
   type SearchHandle,
   type SearchResult,
   type TaskDraftSnapshot
@@ -63,6 +64,7 @@ const onMoveColumnChange = (event: Event): void => {
 const onMovePositionChange = (event: Event): void => {
   movePosition.value = Number((event.target as HTMLSelectElement).value);
 };
+let detailRequest = 0;
 const detailTaskId = ref<UUID | null>(null);
 const draft = ref({ title: '', description: '', dueDate: '', labelIds: [] as readonly UUID[] });
 const snapshot = ref<TaskDraftSnapshot | null>(null);
@@ -80,6 +82,8 @@ let searchSubs: Subscription | null = null;
 let highlightTimer: number | null = null;
 
 const destroySearch = (): void => {
+  searchSubs?.unsubscribe();
+  searchSubs = null;
   searchHandle?.destroy();
   searchHandle = null;
   searchState.value = 'idle';
@@ -136,6 +140,7 @@ const searchResultColumn = (result: SearchResult): string => {
 };
 
 onBeforeUnmount(() => {
+  detailRequest++;
   if (highlightTimer !== null) window.clearTimeout(highlightTimer);
   if (noticeTimer !== null) window.clearTimeout(noticeTimer);
   searchSubs?.unsubscribe();
@@ -328,14 +333,21 @@ const resolveColumnTarget = (
   return target ? { prevId: target.prevId as UUID, nextId: target.nextId as UUID } : null;
 };
 
-const onTaskDrop = async (event: DragEvent, columnId: UUID): Promise<void> => {
+const moveTaskAndSyncSnapshot = async (taskId: UUID, target: CardDropTarget): Promise<void> => {
+  const previousSnapshot = snapshot.value;
+  await board.actions.moveTask(taskId, target);
+  if (detailTaskId.value !== taskId || snapshot.value !== previousSnapshot || previousSnapshot === null) return;
+  snapshot.value = { ...previousSnapshot, columnId: target.columnId };
+};
+
+const onTaskDrop = async (event: DragEvent): Promise<void> => {
   event.preventDefault();
   const movedId = event.dataTransfer?.getData('application/x-board-task') as UUID | undefined;
   if (!movedId) return;
   clearDragFeedback();
   const target = resolveTaskTarget(movedId, event.clientX, event.clientY);
   if (!target) return;
-  await guard(() => board.actions.moveTask(movedId, target));
+  await guard(() => moveTaskAndSyncSnapshot(movedId, target));
 };
 
 const onColumnDrop = async (event: DragEvent): Promise<void> => {
@@ -373,7 +385,17 @@ const moveColumnBy = async (columnId: UUID, direction: -1 | 1): Promise<void> =>
 };
 
 const openDetail = async (taskId: UUID): Promise<void> => {
-  const snap = await board.actions.openSnapshot(taskId);
+  if (detailTaskId.value === taskId) {
+    detailRequest++;
+    return;
+  }
+  if (isDetailDirty() && !window.confirm('有未保存的修改，切换任务将放弃。继续？')) return;
+  const request = ++detailRequest;
+  const boardId = board.currentBoardId.value;
+  const previousDraft = JSON.stringify(draft.value);
+  const snap = await guard(() => board.actions.openSnapshot(taskId));
+  if (!snap || request !== detailRequest || board.currentBoardId.value !== boardId) return;
+  if (JSON.stringify(draft.value) !== previousDraft) return;
   snapshot.value = snap;
   draft.value = {
     title: snap.title,
@@ -387,10 +409,13 @@ const openDetail = async (taskId: UUID): Promise<void> => {
 };
 const saveDetail = async (): Promise<void> => {
   if (!detailTaskId.value || !snapshot.value || savingDetail.value) return;
+  const taskId = detailTaskId.value;
+  const currentSnapshot = snapshot.value;
+  const request = detailRequest;
   savingDetail.value = true;
   try {
     const result = await guard(() =>
-      board.actions.saveTaskDraft(detailTaskId.value!, snapshot.value!, {
+      board.actions.saveTaskDraft(taskId, currentSnapshot, {
         title: draft.value.title,
         description: draft.value.description,
         dueDate: draft.value.dueDate === '' ? null : draft.value.dueDate,
@@ -398,7 +423,8 @@ const saveDetail = async (): Promise<void> => {
       })
     );
     // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
-    if (result === undefined) return;
+    if (result === undefined || request !== detailRequest || snapshot.value !== currentSnapshot) return;
+    detailRequest++;
     detailTaskId.value = null;
     snapshot.value = null;
   } finally {
@@ -417,13 +443,21 @@ const isDetailDirty = (): boolean =>
 /** 关闭详情：有未保存修改先确认放弃（取消零写）。 */
 const closeDetail = (): void => {
   if (isDetailDirty() && !window.confirm('有未保存的修改，关闭将放弃。继续？')) return;
+  detailRequest++;
   detailTaskId.value = null;
   snapshot.value = null;
 };
 
+const moveCandidates = computed(() =>
+  moveColumnId.value === null ?
+    []
+  : (taskMap.value.get(moveColumnId.value) ?? []).filter(task => task.id !== detailTaskId.value)
+);
+
 /** 菜单式移动（AC#6）：目标列 + 插入下标 → 核心换算表 → 移动；原位零写提示。 */
 const moveTaskByMenu = async (): Promise<void> => {
   if (detailTaskId.value === null || moveColumnId.value === null) return;
+  const taskId = detailTaskId.value;
   const target = resolveMenuMove(
     board.columns.value.map(column => ({
       columnId: column.id,
@@ -439,7 +473,7 @@ const moveTaskByMenu = async (): Promise<void> => {
   }
   // moveTask 返回 void：guard 的成功与失败都表现为 undefined，直接调用以区分成败
   try {
-    await board.actions.moveTask(detailTaskId.value!, target);
+    await moveTaskAndSyncSnapshot(taskId, target);
   } catch (error) {
     notice.value = error instanceof Error ? error.message : String(error);
     scheduleNoticeClear();
@@ -451,7 +485,7 @@ const moveTaskByMenu = async (): Promise<void> => {
     if (card !== null && card.isConnected) card.focus();
     if (attempts > 0) requestAnimationFrame(() => focusMovedCard(taskId, attempts - 1));
   };
-  focusMovedCard(detailTaskId.value);
+  focusMovedCard(taskId);
 };
 
 const toggleDraftLabel = (labelId: UUID): void => {
@@ -483,11 +517,11 @@ const deleteLabel = async (labelId: UUID): Promise<void> => {
 
 const confirmTaskDelete = async (taskId: UUID): Promise<void> => {
   const plan = await board.actions.planTaskDelete(taskId);
-  confirm.value = { kind: 'task', taskId, title: plan.taskTitle };
+  confirm.value = { kind: 'task', taskId, title: plan.taskTitle, plan };
 };
 const confirmColumnDelete = async (columnId: UUID): Promise<void> => {
   const plan = await board.actions.planColumnDelete(columnId);
-  confirm.value = { kind: 'column', columnId, title: plan.columnTitle, count: plan.taskIds.length };
+  confirm.value = { kind: 'column', columnId, title: plan.columnTitle, count: plan.taskIds.length, plan };
 };
 const confirmBoardDelete = async (): Promise<void> => {
   const current = board.currentBoard.value;
@@ -498,23 +532,15 @@ const confirmBoardDelete = async (): Promise<void> => {
     boardId: current.id,
     title: plan.boardTitle,
     count: plan.taskIds.length,
-    columns: plan.columnIds.length
+    columns: plan.columnIds.length,
+    plan
   };
 };
 const executeConfirmedDelete = async (): Promise<void> => {
   const pending = confirm.value;
   if (!pending) return;
   confirm.value = null;
-  if (pending.kind === 'task') {
-    const plan = await board.actions.planTaskDelete(pending.taskId);
-    await guard(() => board.actions.executeDelete(plan));
-  } else if (pending.kind === 'column') {
-    const plan = await board.actions.planColumnDelete(pending.columnId);
-    await guard(() => board.actions.executeDelete(plan));
-  } else {
-    const plan = await board.actions.planBoardDelete(pending.boardId);
-    await guard(() => board.actions.executeDelete(plan));
-  }
+  await guard(() => board.actions.executeDelete(pending.plan));
 };
 
 const dueDateText = (due: string | null): string => {
@@ -538,6 +564,7 @@ const onSelectBoard = (event: Event): void => {
     detailTaskId.value = null;
     snapshot.value = null;
   }
+  detailRequest++;
   board.selectBoard(boardId);
   // 切板丢弃旧板结果：销毁重建句柄重发（setQuery 同词会被 distinctUntilChanged 吞掉）
   const query = searchQuery.value.trim();
@@ -566,7 +593,7 @@ const exportBackup = (): void => {
   else notice.value = '备份导出由宿主接线（US-537）';
 };
 
-type ConfirmState =
+type ConfirmState = { readonly plan: DeletePlan } & (
   | { readonly kind: 'task'; readonly taskId: UUID; readonly title: string }
   | { readonly kind: 'column'; readonly columnId: UUID; readonly title: string; readonly count: number }
   | {
@@ -575,7 +602,8 @@ type ConfirmState =
       readonly title: string;
       readonly count: number;
       readonly columns: number;
-    };
+    }
+);
 
 // 跨页恢复门禁（US-539 AC#5）：另一页开始恢复时经 storage 事件同步「恢复中」
 const applyRestoringFromStorage = (): void => {
@@ -604,22 +632,23 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
         <select
           class="board-selector"
           :value="board.currentBoardId.value ?? ''"
-          @change="onSelectBoard"
           data-testid="board-selector"
           aria-label="选择看板"
+          @change="onSelectBoard"
         >
           <option
             v-for="item in board.boards.value"
             :key="item.id"
             :value="item.id"
-            >{{ item.title }}</option
           >
+            {{ item.title }}
+          </option>
         </select>
         <button
           class="header-button"
-          @click="onRenameBoard"
           data-testid="rename-board"
           aria-label="改板标题"
+          @click="onRenameBoard"
         >
           {{ board.currentBoard.value.title }}
         </button>
@@ -632,49 +661,56 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
         >
         <div class="header-actions">
           <button
-            @click="createBoard"
             data-testid="create-board"
             :disabled="board.restoring.value"
-            >新建板</button
+            @click="createBoard"
           >
+            新建板
+          </button>
           <button
-            @click="confirmBoardDelete"
             data-testid="delete-board"
             :disabled="board.restoring.value"
-            >删除看板</button
+            @click="confirmBoardDelete"
           >
+            删除看板
+          </button>
           <button
-            @click="createColumn"
             data-testid="create-column"
             :disabled="board.restoring.value"
-            >新建列</button
+            @click="createColumn"
           >
+            新建列
+          </button>
           <button
-            @click="createLabel"
             data-testid="create-label"
             :disabled="board.restoring.value"
-            >新建标签</button
+            @click="createLabel"
           >
+            新建标签
+          </button>
           <button
-            @click="() => void guard(() => board.actions.undo())"
             data-testid="undo"
             :disabled="board.restoring.value || board.undoCount.value === 0"
             aria-label="撤销"
-            >撤销</button
+            @click="() => void guard(() => board.actions.undo())"
           >
+            撤销
+          </button>
           <button
-            @click="() => void guard(() => board.actions.redo())"
             data-testid="redo"
             :disabled="board.restoring.value || board.redoCount.value === 0"
             aria-label="重做"
-            >重做</button
+            @click="() => void guard(() => board.actions.redo())"
           >
+            重做
+          </button>
           <button
-            @click="exportBackup"
             data-testid="export-backup"
             :disabled="board.restoring.value"
-            >导出备份</button
+            @click="exportBackup"
           >
+            导出备份
+          </button>
         </div>
       </header>
 
@@ -682,8 +718,9 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
         v-if="board.restoring.value"
         class="restoring-note"
         data-testid="restoring-note"
-        >恢复进行中：浏览可用，写入口已暂停。</p
       >
+        恢复进行中：浏览可用，写入口已暂停。
+      </p>
 
       <div
         v-if="board.labels.value.length > 0"
@@ -699,14 +736,14 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
         >
           <button
             class="label-name"
-            @click="renameLabel(label.id)"
             aria-label="改名"
+            @click="renameLabel(label.id)"
             >{{ label.name }}</button
           >
           <button
             class="label-delete"
-            @click="deleteLabel(label.id)"
             :aria-label="`删除标签 ${label.name}`"
+            @click="deleteLabel(label.id)"
             >×</button
           >
         </span>
@@ -717,14 +754,16 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
         class="board-notice"
         role="alert"
         data-testid="board-notice"
-        >{{ notice }}
+      >
+        {{ notice }}
         <button
-          @click="notice = null"
           data-testid="board-notice-close"
           aria-label="关闭提示"
-          >×</button
-        ></p
-      >
+          @click="notice = null"
+        >
+          ×
+        </button>
+      </p>
 
       <!-- 板内搜索（US-539 阶段 B） -->
       <div
@@ -735,10 +774,10 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
         <input
           class="search-input"
           :value="searchQuery"
-          @input="onSearchInput"
           placeholder="搜索当前板任务"
           aria-label="搜索当前板任务"
           data-testid="board-search-input"
+          @input="onSearchInput"
         />
         <div
           v-if="searchQuery.trim() !== ''"
@@ -749,27 +788,30 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
             v-if="searchState === 'loading'"
             class="search-state"
             data-testid="board-search-loading"
-            >搜索中…</p
           >
+            搜索中…
+          </p>
           <p
             v-else-if="searchState === 'error'"
             class="search-state"
             data-testid="board-search-error"
-            >{{ searchErrorText }}</p
           >
+            {{ searchErrorText }}
+          </p>
           <p
             v-else-if="searchState === 'empty'"
             class="search-state"
             data-testid="board-search-empty"
-            >无匹配</p
           >
+            无匹配
+          </p>
           <template v-else>
             <button
               v-for="result in searchResults"
               :key="result.id"
               class="search-result"
-              @click="onSearchResultClick(result)"
               data-testid="board-search-result"
+              @click="onSearchResultClick(result)"
             >
               <span class="search-result-title">{{ searchResultTitle(result) }}</span>
               <span class="search-result-column">{{ searchResultColumn(result) }}</span>
@@ -778,11 +820,11 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
             <button
               v-if="searchHasMore"
               class="search-more"
-              @click="searchHandle?.loadMore()"
               data-testid="board-search-more"
-              :disabled="searchState === 'loading'"
-              >加载更多</button
+              @click="searchHandle?.loadMore()"
             >
+              加载更多
+            </button>
           </template>
         </div>
       </div>
@@ -796,9 +838,9 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
           :key="column.id"
           :class="{ column: true, 'drop-end': dropTarget?.kind === 'task-end' && dropTarget.columnId === column.id }"
           :data-column-id="column.id"
-          @dragover="onTaskDragOver"
-          @drop="event => void onTaskDrop(event, column.id)"
           data-testid="column"
+          @dragover="onTaskDragOver"
+          @drop="event => void onTaskDrop(event)"
         >
           <header
             :class="{
@@ -811,15 +853,16 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
             }"
             :data-column-header-id="column.id"
             draggable="true"
+            data-testid="column-header"
             @dragover="onColumnDragOver"
             @dragstart="event => onColumnDragStart(event, column.id)"
-            data-testid="column-header"
           >
             <h2
               class="column-title"
               data-testid="column-title"
-              >{{ column.title }}</h2
             >
+              {{ column.title }}
+            </h2>
             <span
               class="column-count"
               data-testid="column-count"
@@ -827,44 +870,49 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
             >
             <div class="column-menu">
               <button
-                @click="onRenameColumn(column.id)"
                 data-testid="column-rename"
                 aria-label="改列名"
+                @click="onRenameColumn(column.id)"
               >
                 改名
               </button>
               <button
-                @click="moveColumnBy(column.id, -1)"
                 data-testid="column-move-back"
                 aria-label="前移"
-                >前移</button
+                @click="moveColumnBy(column.id, -1)"
               >
+                前移
+              </button>
               <button
-                @click="moveColumnBy(column.id, 1)"
                 data-testid="column-move-forward"
                 aria-label="后移"
-                >后移</button
+                @click="moveColumnBy(column.id, 1)"
               >
+                后移
+              </button>
               <button
-                @click="sortColumnBy(column.id, 'dueDate')"
                 data-testid="column-sort-due"
                 aria-label="按截止日排序"
                 :disabled="sortingColumnId === column.id"
-                >按截止日</button
+                @click="sortColumnBy(column.id, 'dueDate')"
               >
+                按截止日
+              </button>
               <button
-                @click="sortColumnBy(column.id, 'title')"
                 data-testid="column-sort-title"
                 aria-label="按标题排序"
                 :disabled="sortingColumnId === column.id"
-                >按标题</button
+                @click="sortColumnBy(column.id, 'title')"
               >
+                按标题
+              </button>
               <button
-                @click="confirmColumnDelete(column.id)"
                 data-testid="column-delete"
                 aria-label="删除列"
-                >删除</button
+                @click="confirmColumnDelete(column.id)"
               >
+                删除
+              </button>
             </div>
           </header>
           <div class="cards">
@@ -883,46 +931,50 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
               :data-task-id="task.id"
               tabindex="-1"
               draggable="true"
-              @dragstart="event => onTaskDragStart(event, task.id)"
               data-testid="task-card"
+              @dragstart="event => onTaskDragStart(event, task.id)"
             >
               <template v-if="editTitleTaskId === task.id">
                 <input
                   v-model="editTitleValue"
                   class="title-editor"
-                  @keydown.enter="commitEditTitle(task.id)"
-                  @keydown.escape="editTitleTaskId = null"
                   data-testid="task-title-editor"
                   aria-label="任务标题"
+                  @keydown.enter="commitEditTitle(task.id)"
+                  @keydown.escape="editTitleTaskId = null"
                 />
                 <button
-                  @click="commitEditTitle(task.id)"
                   data-testid="task-title-save"
                   aria-label="保存标题"
-                  >保存</button
+                  @click="commitEditTitle(task.id)"
                 >
+                  保存
+                </button>
                 <button
-                  @click="editTitleTaskId = null"
                   data-testid="task-title-cancel"
                   aria-label="取消"
-                  >取消</button
+                  @click="editTitleTaskId = null"
                 >
+                  取消
+                </button>
               </template>
 
               <template v-else>
                 <button
                   class="card-title"
-                  @click="openDetail(task.id)"
                   data-testid="task-title"
-                  >{{ task.title }}</button
+                  @click="openDetail(task.id)"
                 >
+                  {{ task.title }}
+                </button>
                 <button
                   class="card-edit"
-                  @click="startEditTitle(task.id, task.title)"
                   data-testid="task-edit-title"
                   aria-label="编辑标题"
-                  >编辑</button
+                  @click="startEditTitle(task.id, task.title)"
                 >
+                  编辑
+                </button>
               </template>
 
               <div
@@ -949,42 +1001,45 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
             </article>
             <button
               class="add-task"
+              :disabled="board.restoring.value"
+              data-testid="add-task"
               @click="
                 addTaskColumnId = column.id;
                 addTaskTitle = '';
               "
-              :disabled="board.restoring.value"
-              data-testid="add-task"
-              >+ 添加任务</button
             >
+              + 添加任务
+            </button>
             <div
               v-if="addTaskColumnId === column.id"
               class="add-task-form"
               data-testid="add-task-form"
             >
               <input
-                class="add-task-input"
                 v-model="addTaskTitle"
-                @keydown.enter="commitAddTask"
-                @keydown.esc="cancelAddTask"
+                class="add-task-input"
                 placeholder="输入任务标题"
                 aria-label="新任务标题"
                 data-testid="add-task-input"
+                @keydown.enter="commitAddTask"
+                @keydown.esc="cancelAddTask"
               />
               <button
                 class="add-task-submit"
-                @click="commitAddTask"
                 :disabled="addTaskTitle.trim() === ''"
                 data-testid="add-task-submit"
-                >添加</button
+                @click="commitAddTask"
               >
+                添加
+              </button>
               <button
                 class="add-task-cancel"
-                @click="cancelAddTask"
                 aria-label="取消"
                 data-testid="add-task-cancel"
-                >×</button
+                @click="cancelAddTask"
               >
+                ×
+              </button>
             </div>
           </div>
         </section>
@@ -1001,6 +1056,7 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
           <input
             v-model="draft.title"
             data-testid="detail-title"
+            :disabled="savingDetail"
           />
         </label>
         <label>
@@ -1008,7 +1064,8 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
           <textarea
             v-model="draft.description"
             data-testid="detail-description"
-          ></textarea>
+            :disabled="savingDetail"
+          />
         </label>
         <label>
           截止日（YYYY-MM-DD）
@@ -1016,6 +1073,7 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
             v-model="draft.dueDate"
             placeholder="YYYY-MM-DD"
             data-testid="detail-due"
+            :disabled="savingDetail"
           />
         </label>
         <fieldset>
@@ -1028,8 +1086,9 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
             <input
               type="checkbox"
               :checked="draft.labelIds.includes(label.id)"
-              @change="toggleDraftLabel(label.id)"
               data-testid="detail-label-check"
+              :disabled="savingDetail"
+              @change="toggleDraftLabel(label.id)"
             />
             <span :style="{ background: label.color, color: labelTextColor(label.color) }">{{ label.name }}</span>
           </label>
@@ -1042,9 +1101,10 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
             移动到
             <select
               :value="moveColumnId ?? ''"
-              @change="onMoveColumnChange"
               aria-label="移动到列"
               data-testid="move-column"
+              :disabled="savingDetail"
+              @change="onMoveColumnChange"
             >
               <option
                 v-for="column in board.columns.value"
@@ -1059,43 +1119,49 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
             位置
             <select
               :value="movePosition"
-              @change="onMovePositionChange"
               aria-label="位置"
               data-testid="move-position"
+              :disabled="savingDetail"
+              @change="onMovePositionChange"
             >
               <option :value="0">列首</option>
               <option
-                v-for="(task, index) in taskMap.get(moveColumnId ?? '') ?? []"
+                v-for="(task, index) in moveCandidates"
                 :key="task.id"
                 :value="index + 1"
                 >在「{{ task.title }}」之后</option
               >
-              <option :value="(taskMap.get(moveColumnId ?? '') ?? []).length">列尾</option>
+              <option :value="moveCandidates.length">列尾</option>
             </select>
           </label>
           <button
-            @click="moveTaskByMenu"
             data-testid="move-task"
-            >移动</button
+            :disabled="savingDetail"
+            @click="moveTaskByMenu"
           >
+            移动
+          </button>
         </div>
         <div class="detail-actions">
           <button
-            @click="saveDetail"
             data-testid="detail-save"
             :disabled="savingDetail"
-            >保存</button
+            @click="saveDetail"
           >
+            保存
+          </button>
           <button
-            @click="confirmTaskDelete(detailTaskId!)"
             data-testid="detail-delete"
-            >删除任务</button
+            @click="confirmTaskDelete(detailTaskId!)"
           >
+            删除任务
+          </button>
           <button
-            @click="closeDetail"
             data-testid="detail-cancel"
-            >取消</button
+            @click="closeDetail"
           >
+            取消
+          </button>
         </div>
       </aside>
 
@@ -1104,25 +1170,25 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
         class="confirm-panel"
         data-testid="confirm-delete"
       >
-        <p v-if="confirm.kind === 'task'">删除任务「{{ confirm.title }}」？</p>
-        <p v-else-if="confirm.kind === 'column'">删除列「{{ confirm.title }}」及其 {{ confirm.count }} 个任务？</p>
-        <p v-else
-          >删除看板「{{ confirm.title }}」（{{ confirm.columns }} 列、{{
-            confirm.count
-          }}
-          任务、含全部标签定义与关联）？</p
-        >
+        <p v-if="confirm.kind === 'task'"> 删除任务「{{ confirm.title }}」？ </p>
+        <p v-else-if="confirm.kind === 'column'"> 删除列「{{ confirm.title }}」及其 {{ confirm.count }} 个任务？ </p>
+        <p v-else>
+          删除看板「{{ confirm.title }}」（{{ confirm.columns }} 列、{{ confirm.count }}
+          任务、含全部标签定义与关联）？
+        </p>
         <div class="confirm-actions">
           <button
-            @click="executeConfirmedDelete"
             data-testid="confirm-delete-yes"
-            >确认删除</button
+            @click="executeConfirmedDelete"
           >
+            确认删除
+          </button>
           <button
-            @click="confirm = null"
             data-testid="confirm-delete-no"
-            >取消</button
+            @click="confirm = null"
           >
+            取消
+          </button>
         </div>
       </aside>
     </template>
@@ -1136,16 +1202,17 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
         <select
           class="board-selector"
           :value="board.currentBoardId.value ?? ''"
-          @change="onSelectBoard"
           data-testid="board-selector"
           aria-label="选择看板"
+          @change="onSelectBoard"
         >
           <option
             v-for="item in board.boards.value"
             :key="item.id"
             :value="item.id"
-            >{{ item.title }}</option
           >
+            {{ item.title }}
+          </option>
         </select>
       </header>
       <div
@@ -1154,11 +1221,12 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
       >
         <p>没有看板</p>
         <button
-          @click="createBoard"
           data-testid="create-board-empty"
           :disabled="board.restoring.value"
-          >新建板</button
+          @click="createBoard"
         >
+          新建板
+        </button>
       </div>
     </template>
   </section>

@@ -4,7 +4,19 @@ import { BoardViewComponent } from '@aiao/rxdb-plugin-board-angular';
 import { Component, OnInit, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { connectBoardRxdb, createBoardRxdb, nextBoardDbName, restoreBoardArchive, seedBoardDemo } from './board-rxdb';
+import {
+  assertBoardRestoreTargetExists,
+  cleanupBoardRestoreTarget,
+  connectBoardRxdb,
+  createBoardRxdb,
+  nextBoardDbName,
+  RESTORE_TARGET_KEY,
+  restoreBoardArchive,
+  seedBoardDemo,
+  withBoardRestoreLock
+} from './board-rxdb';
+
+const failureMessage = (cause: unknown): string => (cause instanceof Error ? cause.message : String(cause));
 
 /**
  * 看板 demo 壳（US-540 / US-537）：
@@ -110,44 +122,33 @@ import { connectBoardRxdb, createBoardRxdb, nextBoardDbName, restoreBoardArchive
   ]
 })
 export class App implements OnInit {
+  private readonly storage = typeof localStorage !== 'undefined' ? localStorage : null;
+  private activeDbName: string | null = null;
+
   protected readonly phase = signal<'startup' | 'loading' | 'restoring' | 'board'>('startup');
   protected readonly rxdb = signal<RxDB | null>(null);
   protected readonly error = signal<string | null>(null);
 
-  private readonly storage = typeof localStorage !== 'undefined' ? localStorage : null;
-  private activeDbName: string | null = null;
-
   ngOnInit(): void {
-    // 启动：读回 pending switch / 活动位置（读回成功才写活动位置）
-    const pending = this.readStorage(PENDING_SWITCH_KEY);
-    if (pending !== null) {
-      this.completePendingSwitch(pending);
-      return;
-    }
-    const active = this.readStorage(ACTIVE_DB_KEY);
-    if (active !== null && this.readStorage(RESTORING_MARKER_KEY) === null) {
-      this.openBoard(active);
-      return;
-    }
-    this.phase.set('startup');
+    this.phase.set(this.readStorage(RESTORING_MARKER_KEY) === null ? 'loading' : 'restoring');
+    void withBoardRestoreLock(() => this.initializeBoard()).catch((cause: unknown) => this.showFailure(cause));
   }
 
   // ---------- 启动选择 ----------
 
   protected async startEmpty(): Promise<void> {
-    const dbName = await nextBoardDbName(null);
-    void this.openAndWriteActive(dbName);
+    await this.prepareBoard(false);
   }
 
   protected async startSeed(): Promise<void> {
-    const dbName = await nextBoardDbName(null);
-    void this.openAndWriteActive(dbName, true);
+    await this.prepareBoard(true);
   }
 
   protected onRestoreFile(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
+    input.value = '';
     void this.restoreFromFile(file);
   }
 
@@ -177,8 +178,7 @@ export class App implements OnInit {
   protected async onResetDemo(): Promise<void> {
     // 两阶段切换：先确认，再在新库名上建库并装载种子，读回成功后整页重载切换
     if (!window.confirm('重置为演示数据：将在新库上装载演示数据，成功后打开演示看板。继续？')) return;
-    const dbName = await nextBoardDbName(this.activeDbName);
-    void this.openAndWriteActive(dbName, true);
+    await this.prepareBoard(true);
   }
 
   // ---------- 恢复编排 ----------
@@ -187,20 +187,63 @@ export class App implements OnInit {
     // 已有看板先确认（恢复成功后将打开备份中的看板）
     if (this.activeDbName !== null && !window.confirm('恢复成功后将打开备份中的看板，当前看板原样保留。继续？')) return;
 
+    try {
+      await withBoardRestoreLock(() => this.restoreAndSwitch(file), false);
+    } catch (cause) {
+      this.showFailure(cause);
+    }
+  }
+
+  private async initializeBoard(): Promise<void> {
+    const pending = this.readStorage(PENDING_SWITCH_KEY);
+    if (pending !== null) return this.completePendingSwitch(pending);
+    const cleanupFailure = await this.cleanupInterruptedRestore();
+    if (cleanupFailure !== null) this.error.set(cleanupFailure);
+    const active = this.readStorage(ACTIVE_DB_KEY);
+    if (active !== null) return this.openBoard(active);
+    this.phase.set('startup');
+  }
+
+  private async cleanupInterruptedRestore(): Promise<string | null> {
+    const target = this.readStorage(RESTORE_TARGET_KEY);
+    try {
+      if (target !== null && target !== this.readStorage(ACTIVE_DB_KEY)) await cleanupBoardRestoreTarget(target);
+      this.clearStorage(RESTORE_TARGET_KEY);
+      return null;
+    } catch (cause) {
+      return `恢复目标清理失败：${failureMessage(cause)}，可重新打开页面重试清理`;
+    } finally {
+      this.clearStorage(RESTORING_MARKER_KEY);
+    }
+  }
+
+  private async restoreAndSwitch(file: File): Promise<void> {
+    const cleanupFailure = await this.cleanupInterruptedRestore();
+    if (cleanupFailure !== null) throw new Error(cleanupFailure);
     const target = await nextBoardDbName(this.activeDbName);
     this.phase.set('restoring');
+    this.writeStorage(RESTORE_TARGET_KEY, target);
+    this.writeStorage(RESTORING_MARKER_KEY, '1');
     try {
-      this.writeStorage(RESTORING_MARKER_KEY, '1');
-      const db = createBoardRxdb(target);
-      await restoreBoardArchive(db, file);
-      // 恢复完成 → 写待切换记录并整页重载
+      await restoreBoardArchive(createBoardRxdb(target), file);
       this.writeStorage(PENDING_SWITCH_KEY, target);
-      this.clearStorage(RESTORING_MARKER_KEY);
       window.location.reload();
     } catch (cause) {
-      this.clearStorage(RESTORING_MARKER_KEY);
-      this.phase.set(this.activeDbName !== null ? 'board' : 'startup');
-      this.error.set(cause instanceof Error ? cause.message : String(cause));
+      const cleanupFailure = await this.cleanupInterruptedRestore();
+      if (cleanupFailure !== null) throw new Error(`${failureMessage(cause)}；${cleanupFailure}`, { cause });
+      throw cause;
+    }
+  }
+
+  private async prepareBoard(seed: boolean): Promise<void> {
+    this.phase.set('loading');
+    try {
+      await withBoardRestoreLock(async () => {
+        const dbName = await nextBoardDbName(this.activeDbName);
+        await this.openAndWriteActive(dbName, seed);
+      }, false);
+    } catch (cause) {
+      this.showFailure(cause);
     }
   }
 
@@ -210,22 +253,30 @@ export class App implements OnInit {
     this.phase.set('restoring');
     const db = createBoardRxdb(target);
     try {
+      await assertBoardRestoreTargetExists(target);
       await connectBoardRxdb(db);
-      const boards = await firstValueFrom(
-        db.entityManager.getRepository(Board).find({ where: { combinator: 'and', rules: [] } })
-      );
-      if (boards.length === 0) throw new Error('读回失败：恢复库中没有看板数据');
+      await firstValueFrom(db.entityManager.getRepository(Board).find({ where: { combinator: 'and', rules: [] } }));
       this.writeStorage(ACTIVE_DB_KEY, target);
       this.clearStorage(PENDING_SWITCH_KEY);
+      this.clearStorage(RESTORE_TARGET_KEY);
+      this.clearStorage(RESTORING_MARKER_KEY);
       this.activeDbName = target;
       this.rxdb.set(db);
       this.phase.set('board');
     } catch (cause) {
-      // 读回失败：不把半恢复库当活动位置，回旧库或启动选择
+      let disconnectFailure: string | null = null;
+      try {
+        await db.disconnectAll();
+      } catch (disconnectCause) {
+        disconnectFailure = `恢复目标断开失败：${failureMessage(disconnectCause)}`;
+      }
+      const cleanupFailure = await this.cleanupInterruptedRestore();
       this.clearStorage(PENDING_SWITCH_KEY);
-      this.error.set(`恢复读回失败：${cause instanceof Error ? cause.message : String(cause)}`);
+      this.error.set(
+        [`恢复读回失败：${failureMessage(cause)}`, disconnectFailure, cleanupFailure].filter(Boolean).join('；')
+      );
       const active = this.readStorage(ACTIVE_DB_KEY);
-      if (active !== null) this.openBoard(active);
+      if (active !== null) await this.openBoard(active);
       else this.phase.set('startup');
     }
   }
@@ -238,30 +289,30 @@ export class App implements OnInit {
       await connectBoardRxdb(db);
       if (seed) await seedBoardDemo(db);
       this.writeStorage(ACTIVE_DB_KEY, dbName);
-      // 恢复中断电 / 崩溃留下的残留标记：任何成功的打开都视为恢复流程已终结
-      this.clearStorage(RESTORING_MARKER_KEY);
       this.activeDbName = dbName;
       this.rxdb.set(db);
       this.phase.set('board');
     } catch (cause) {
-      this.error.set(cause instanceof Error ? cause.message : String(cause));
-      this.phase.set('startup');
+      this.showFailure(cause);
     }
   }
 
-  private openBoard(dbName: string): void {
+  private async openBoard(dbName: string): Promise<void> {
+    this.phase.set('loading');
     const db = createBoardRxdb(dbName);
-    void connectBoardRxdb(db)
-      .then(() => {
-        this.clearStorage(RESTORING_MARKER_KEY);
-        this.activeDbName = dbName;
-        this.rxdb.set(db);
-        this.phase.set('board');
-      })
-      .catch((cause: unknown) => {
-        this.error.set(cause instanceof Error ? cause.message : String(cause));
-        this.phase.set('startup');
-      });
+    try {
+      await connectBoardRxdb(db);
+      this.activeDbName = dbName;
+      this.rxdb.set(db);
+      this.phase.set('board');
+    } catch (cause) {
+      this.showFailure(cause);
+    }
+  }
+
+  private showFailure(cause: unknown): void {
+    this.error.set(failureMessage(cause));
+    this.phase.set(this.rxdb() !== null ? 'board' : 'startup');
   }
 
   private readStorage(key: string): string | null {

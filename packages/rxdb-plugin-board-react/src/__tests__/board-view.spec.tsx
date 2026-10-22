@@ -3,7 +3,7 @@ import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { BoardView } from '../board-view.js';
@@ -57,11 +57,13 @@ describe('BoardView（React 视图）', () => {
     const originalPrompt = window.prompt;
     window.prompt = () => prompts.shift() ?? null;
     try {
-      screen.getByTestId('create-board-empty').click();
-      await new Promise(resolve => setTimeout(resolve, 500));
-      screen.getByTestId('create-column').click();
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('create-board-empty'));
+        await new Promise(resolve => setTimeout(resolve, 500));
+      });
+      fireEvent.click(screen.getByTestId('create-column'));
       await waitFor(() => expect(screen.getAllByTestId('column')).toHaveLength(1));
-      screen.getByTestId('add-task').click();
+      fireEvent.click(screen.getByTestId('add-task'));
       // 点击后表单渲染有异步竞态（React 并发渲染 + 建列写入链），等表单出现再填
       await waitFor(() => expect(screen.getByTestId('add-task-input')).toBeTruthy());
       fireEvent.change(screen.getByTestId('add-task-input'), { target: { value: '任务 1' } });
@@ -79,14 +81,14 @@ describe('BoardView（React 视图）', () => {
     const fixture = render(<BoardView rxdb={rxdb} />);
     await waitFor(() => expect(screen.getAllByTestId('column')).toHaveLength(4));
 
-    screen.getAllByTestId('column-delete')[0].click();
+    fireEvent.click(screen.getAllByTestId('column-delete')[0]);
     await screen.findByTestId('confirm-delete');
-    screen.getByTestId('confirm-delete-no').click();
+    fireEvent.click(screen.getByTestId('confirm-delete-no'));
     await waitFor(() => expect(screen.getAllByTestId('column')).toHaveLength(4));
 
-    screen.getAllByTestId('column-delete')[0].click();
+    fireEvent.click(screen.getAllByTestId('column-delete')[0]);
     await screen.findByTestId('confirm-delete');
-    screen.getByTestId('confirm-delete-yes').click();
+    fireEvent.click(screen.getByTestId('confirm-delete-yes'));
     await waitFor(() => expect(screen.getAllByTestId('column')).toHaveLength(3));
     await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(7));
     fixture.unmount();
@@ -97,10 +99,10 @@ describe('BoardView（React 视图）', () => {
     const fixture = render(<BoardView rxdb={rxdb} />);
     await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(12));
 
-    screen.getAllByTestId('task-edit-title')[0].click();
+    fireEvent.click(screen.getAllByTestId('task-edit-title')[0]);
     const editor = await screen.findByTestId('task-title-editor');
     fireEvent.change(editor, { target: { value: '   ' } });
-    screen.getByTestId('task-title-save').click();
+    fireEvent.click(screen.getByTestId('task-title-save'));
     await screen.findByTestId('board-notice');
     fixture.unmount();
   });

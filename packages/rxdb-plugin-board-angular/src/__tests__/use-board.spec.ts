@@ -3,9 +3,9 @@ import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { TestBed } from '@angular/core/testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useBoard, type UseBoardReturn } from '../use-board.js';
+import { LAST_BOARD_KEY, useBoard, type UseBoardReturn } from '../use-board.js';
 
 /**
  * useBoard 桥接（US-539 阶段 A 的领域数据半边）：真实 PGlite + 历史插件。
@@ -43,6 +43,7 @@ describe('useBoard（Angular 桥接）', () => {
   });
 
   afterEach(async () => {
+    vi.unstubAllGlobals();
     await rxdb.disconnectAll();
   });
 
@@ -135,6 +136,36 @@ describe('useBoard（Angular 桥接）', () => {
 
     await board.actions.undo();
     await waitFor(() => board.tasks().find(t => t.id === task.id)?.title === '任务', 'undo 回退');
+  });
+
+  it('默认存储使用浏览器 Storage 方法，重建绑定保留选板', async () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => void values.set(key, value)
+    });
+    const first = await board.actions.createBoard({ title: '第一块' });
+    const second = await board.actions.createBoard({ title: '第二块' });
+    const mounted = TestBed.runInInjectionContext(() => useBoard(rxdb));
+    await waitFor(() => mounted.currentBoardId() === first.id, '首次选板');
+    mounted.selectBoard(second.id);
+    expect(values.get(LAST_BOARD_KEY)).toBe(second.id);
+    const reopened = TestBed.runInInjectionContext(() => useBoard(rxdb));
+    await waitFor(() => reopened.currentBoardId() !== null, '重建绑定');
+    expect(reopened.currentBoardId()).toBe(second.id);
+  });
+
+  it('恢复中撤销重做均拒绝，退出恢复后历史仍完整', async () => {
+    const created = await board.actions.createBoard({ title: '板' });
+    await waitFor(() => board.currentBoardId() === created.id, '选板');
+    board.setRestoring(true);
+    await expect(board.actions.undo()).rejects.toMatchObject({ code: 'restore_in_progress' });
+    await expect(board.actions.redo()).rejects.toMatchObject({ code: 'restore_in_progress' });
+    board.setRestoring(false);
+    expect(board.boards().map(item => item.id)).toContain(created.id);
+    await board.actions.undo();
+    await board.actions.redo();
+    await waitFor(() => board.boards().some(item => item.id === created.id), '历史恢复');
   });
 
   it('本列排序经绑定动作执行并发布写入事件', async () => {

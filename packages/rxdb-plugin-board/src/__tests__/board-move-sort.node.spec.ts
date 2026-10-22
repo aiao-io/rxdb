@@ -6,7 +6,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BoardDomain } from '../board-domain.js';
 import { BoardColumnSortService } from '../column-sort-service.js';
 import { BoardDeleteService } from '../delete-service.js';
-import { resolveCardDrop, resolveMenuMove, type CardDropColumnView } from '../drop-resolution.js';
+import {
+  resolveCardDrop,
+  resolveMenuMove,
+  type CardDropColumnView,
+  type MenuMoveColumnView
+} from '../drop-resolution.js';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '../entities/index.js';
 import { BoardMoveService } from '../move-service.js';
 import { matchAll, readFirst, whereEq } from '../query.js';
@@ -200,7 +205,7 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
       '00000000-0000-4000-8000-0000000000a2',
       '00000000-0000-4000-8000-0000000000a3'
     ];
-    const views = [
+    const views: MenuMoveColumnView[] = [
       { columnId: '00000000-0000-4000-8000-0000000000c1', taskIds: ids },
       { columnId: '00000000-0000-4000-8000-0000000000c2', taskIds: [] }
     ];
@@ -215,12 +220,21 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
     expect(resolveMenuMove(views, ids[1], c1, 1)).toBeNull();
     // 空列列尾与未知列
     expect(resolveMenuMove(views, ids[0], c2, 0)).toEqual({
-      kind: 'between',
-      columnId: c2,
-      prevId: null,
-      nextId: null
+      kind: 'end',
+      columnId: c2
     });
     expect(resolveMenuMove(views, ids[0], '00000000-0000-4000-8000-0000000000ff', 0)).toBeNull();
+  });
+
+  it('菜单移入空列可落库、撤销后原样，单卡列原位不写入', async () => {
+    const { c1, c3, t1 } = await seedColumns();
+    const target = resolveMenuMove([{ columnId: c3.id, taskIds: [] }], t1[0], c3.id, 0);
+    await moves.moveTask(t1[0], target!);
+    expect((await tasksOf(c3.id)).map(task => task.id)).toEqual([t1[0]]);
+    expect(resolveMenuMove([{ columnId: c3.id, taskIds: [t1[0]] }], t1[0], c3.id, 0)).toBeNull();
+    await rxdb.versionManager.history().undo();
+    expect((await tasksOf(c1.id)).map(task => task.id)).toEqual(t1);
+    expect(await tasksOf(c3.id)).toHaveLength(0);
   });
 
   it('AC#6：目标邻居被另一入口删除 → 拒绝（staleTarget），零写，状态机发布失败', async () => {

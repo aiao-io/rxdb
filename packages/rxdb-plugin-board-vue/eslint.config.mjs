@@ -1,9 +1,11 @@
+import skipFormatting from '@vue/eslint-config-prettier/skip-formatting';
 import vue from 'eslint-plugin-vue';
 import baseConfig from '../../eslint.config.mjs';
 
 export default [
   ...baseConfig,
   ...vue.configs['flat/recommended'],
+  skipFormatting,
   {
     files: ['**/*.vue'],
     languageOptions: {

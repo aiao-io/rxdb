@@ -1,9 +1,0 @@
-{
-  "compilerOptions": {
-    "outDir": "../../dist/out-tsc/apps/dev-rxdb-board/spec",
-    "types": ["vitest/globals", "node"]
-  },
-  "extends": "./tsconfig.json",
-  "files": ["src/test-setup.ts", "project.json"],
-  "include": ["src/**/*.ts"]
-}

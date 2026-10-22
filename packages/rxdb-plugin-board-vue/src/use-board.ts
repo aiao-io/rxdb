@@ -1,5 +1,6 @@
 import { type RxDB, type UUID } from '@aiao/rxdb';
 import {
+  assertBoardWritable,
   Board,
   BoardColumnSortService,
   BoardDeleteService,
@@ -95,9 +96,10 @@ export interface UseBoardActions {
 }
 
 const defaultStorage = (): UseBoardStorage => {
-  const candidate = typeof localStorage !== 'undefined' ? (localStorage as unknown as UseBoardStorage | null) : null;
-  // happy-dom 等环境的 localStorage 可能是没有方法的占位对象，逐方法探测
-  if (candidate && typeof candidate.get === 'function' && typeof candidate.set === 'function') return candidate;
+  const candidate = typeof localStorage !== 'undefined' ? localStorage : null;
+  if (candidate && typeof candidate.getItem === 'function' && typeof candidate.setItem === 'function') {
+    return { get: key => candidate.getItem(key), set: (key, value) => candidate.setItem(key, value) };
+  }
   const memory = new Map<string, string>();
   return { get: key => memory.get(key) ?? null, set: (key, value) => void memory.set(key, value) };
 };
@@ -277,8 +279,14 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
       recolorLabel: (labelId, color) => labelService.recolorLabel(labelId, color),
       planLabelDelete: labelId => labelService.planLabelDelete(labelId),
       executeLabelDelete: plan => labelService.executeLabelDelete(plan),
-      undo: () => history.undo(),
-      redo: () => history.redo()
+      undo: async () => {
+        assertBoardWritable(ctx());
+        await history.undo();
+      },
+      redo: async () => {
+        assertBoardWritable(ctx());
+        await history.redo();
+      }
     };
   });
 

@@ -13,6 +13,7 @@ import {
   type BoardSearchUpstream,
   type CardDropColumnView,
   type CardDropTarget,
+  type DeletePlan,
   type SearchHandle,
   type SearchResult,
   type TaskDraftSnapshot
@@ -49,7 +50,10 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const [detailTaskId, setDetailTaskId] = useState<UUID | null>(null);
   const [draft, setDraft] = useState({ title: '', description: '', dueDate: '', labelIds: [] as readonly UUID[] });
   const [snapshot, setSnapshot] = useState<TaskDraftSnapshot | null>(null);
-  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const [confirm, setConfirm] = useState<DeletePlan | null>(null);
+  const detailRequestRef = useRef(0);
+  const detailStateRef = useRef({ draft, snapshot, boardId: board.currentBoardId, taskId: detailTaskId });
+  detailStateRef.current = { draft, snapshot, boardId: board.currentBoardId, taskId: detailTaskId };
 
   // ---------- 板内搜索（US-539 阶段 B） ----------
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,6 +75,8 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const highlightTimerRef = useRef<number | null>(null);
 
   const destroySearch = (): void => {
+    searchSubsRef.current?.unsubscribe();
+    searchSubsRef.current = null;
     searchHandleRef.current?.destroy();
     searchHandleRef.current = null;
     setSearchState('idle');
@@ -118,6 +124,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   useEffect(
     () => () => {
+      detailRequestRef.current += 1;
       if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
       if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
       searchSubsRef.current?.unsubscribe();
@@ -330,14 +337,24 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     return target ? { prevId: target.prevId as UUID, nextId: target.nextId as UUID } : null;
   };
 
-  const onTaskDrop = async (event: DragEvent, column: Column): Promise<void> => {
+  const moveTaskAndSyncDetail = async (taskId: UUID, target: CardDropTarget): Promise<void> => {
+    const before = detailStateRef.current;
+    const request = detailRequestRef.current;
+    await board.actions.moveTask(taskId, target);
+    if (request !== detailRequestRef.current || before.taskId !== taskId) return;
+    setSnapshot(current =>
+      current !== null && current === before.snapshot ? { ...current, columnId: target.columnId } : current
+    );
+  };
+
+  const onTaskDrop = async (event: DragEvent): Promise<void> => {
     event.preventDefault();
     const movedId = event.dataTransfer?.getData('application/x-board-task') as UUID | undefined;
     if (!movedId) return;
     clearDragFeedback();
     const target = resolveTaskTarget(movedId, event.clientX, event.clientY);
     if (!target) return;
-    await guard(() => board.actions.moveTask(movedId, target));
+    await guard(() => moveTaskAndSyncDetail(movedId, target));
   };
 
   const onColumnDrop = async (event: DragEvent): Promise<void> => {
@@ -362,7 +379,18 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   };
 
   const openDetail = async (taskId: UUID): Promise<void> => {
-    const snap = await board.actions.openSnapshot(taskId);
+    if (detailTaskId === taskId) {
+      detailRequestRef.current += 1;
+      return;
+    }
+    if (isDetailDirty() && !window.confirm('有未保存的修改，打开其它任务将放弃。继续？')) return;
+    const request = ++detailRequestRef.current;
+    const boardId = board.currentBoardId;
+    const previousDraft = JSON.stringify(draft);
+    const snap = await guard(() => board.actions.openSnapshot(taskId));
+    if (snap === undefined || request !== detailRequestRef.current || boardId !== detailStateRef.current.boardId)
+      return;
+    if (previousDraft !== JSON.stringify(detailStateRef.current.draft)) return;
     setSnapshot(snap);
     setDraft({
       title: snap.title,
@@ -377,6 +405,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const saveDetail = async (): Promise<void> => {
     if (!detailTaskId || !snapshot || savingDetail) return;
     setSavingDetail(true);
+    const request = detailRequestRef.current;
     try {
       const result = await guard(() =>
         board.actions.saveTaskDraft(detailTaskId, snapshot, {
@@ -387,7 +416,9 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         })
       );
       // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
-      if (result === undefined) return;
+      if (result === undefined || request !== detailRequestRef.current || snapshot !== detailStateRef.current.snapshot)
+        return;
+      detailRequestRef.current += 1;
       setDetailTaskId(null);
       setSnapshot(null);
     } finally {
@@ -406,6 +437,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   /** 关闭详情：有未保存修改先确认放弃（取消零写）。 */
   const closeDetail = (): void => {
     if (isDetailDirty() && !window.confirm('有未保存的修改，关闭将放弃。继续？')) return;
+    detailRequestRef.current += 1;
     setDetailTaskId(null);
     setSnapshot(null);
   };
@@ -414,6 +446,8 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const [moveColumnId, setMoveColumnId] = useState<UUID | null>(null);
   const [movePosition, setMovePosition] = useState(0);
+  const movePositionTasks =
+    moveColumnId === null ? [] : (taskMap.get(moveColumnId) ?? []).filter(task => task.id !== detailTaskId);
 
   const moveTaskByMenu = async (): Promise<void> => {
     if (detailTaskId === null || moveColumnId === null) return;
@@ -431,8 +465,9 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       return;
     }
     // moveTask 返回 void：guard 的成功与失败都表现为 undefined，直接调用以区分成败
+    const movedId = detailTaskId;
     try {
-      await board.actions.moveTask(detailTaskId, target);
+      await moveTaskAndSyncDetail(movedId, target);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : String(error));
       scheduleNoticeClear();
@@ -444,7 +479,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       if (card !== null && card.isConnected) card.focus();
       if (attempts > 0) requestAnimationFrame(() => focusMovedCard(taskId, attempts - 1));
     };
-    focusMovedCard(detailTaskId);
+    focusMovedCard(movedId);
   };
 
   const moveColumnBy = async (columnId: UUID, direction: -1 | 1): Promise<void> => {
@@ -464,36 +499,21 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const confirmTaskDelete = async (task: Task): Promise<void> => {
     const plan = await board.actions.planTaskDelete(task.id);
-    setConfirm({ kind: 'task', taskId: task.id, title: plan.taskTitle });
+    setConfirm(plan);
   };
   const confirmColumnDelete = async (column: Column): Promise<void> => {
     const plan = await board.actions.planColumnDelete(column.id);
-    setConfirm({ kind: 'column', columnId: column.id, title: plan.columnTitle, count: plan.taskIds.length });
+    setConfirm(plan);
   };
   const confirmBoardDelete = async (): Promise<void> => {
     if (!current) return;
     const plan = await board.actions.planBoardDelete(current.id);
-    setConfirm({
-      kind: 'board',
-      boardId: current.id,
-      title: plan.boardTitle,
-      count: plan.taskIds.length,
-      columns: plan.columnIds.length
-    });
+    setConfirm(plan);
   };
   const executeConfirmedDelete = async (): Promise<void> => {
     if (!confirm) return;
     setConfirm(null);
-    if (confirm.kind === 'task') {
-      const plan = await board.actions.planTaskDelete(confirm.taskId);
-      await guard(() => board.actions.executeDelete(plan));
-    } else if (confirm.kind === 'column') {
-      const plan = await board.actions.planColumnDelete(confirm.columnId);
-      await guard(() => board.actions.executeDelete(plan));
-    } else {
-      const plan = await board.actions.planBoardDelete(confirm.boardId);
-      await guard(() => board.actions.executeDelete(plan));
-    }
+    await guard(() => board.actions.executeDelete(confirm));
   };
 
   const dueDateText = (task: Task): string => {
@@ -517,6 +537,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       setDetailTaskId(null);
       setSnapshot(null);
     }
+    detailRequestRef.current += 1;
     board.selectBoard(boardId);
     // 切板丢弃旧板结果：销毁重建句柄重发（setQuery 同词会被 distinctUntilChanged 吞掉）
     const query = searchQuery.trim();
@@ -733,7 +754,6 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                       className='search-more'
                       onClick={() => void searchHandleRef.current?.loadMore()}
                       data-testid='board-search-more'
-                      disabled={searchState === 'loading'}
                     >
                       加载更多
                     </button>
@@ -754,7 +774,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             }
             data-column-id={column.id}
             onDragOver={event => onTaskDragOver(event)}
-            onDrop={event => void onTaskDrop(event, column)}
+            onDrop={event => void onTaskDrop(event)}
             data-testid='column'
           >
             <header
@@ -979,6 +999,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               value={draft.title}
               onChange={event => setDraft({ ...draft, title: event.target.value })}
               data-testid='detail-title'
+              disabled={savingDetail}
             />
           </label>
           <label>
@@ -987,6 +1008,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               value={draft.description}
               onChange={event => setDraft({ ...draft, description: event.target.value })}
               data-testid='detail-description'
+              disabled={savingDetail}
             />
           </label>
           <label>
@@ -996,6 +1018,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               onChange={event => setDraft({ ...draft, dueDate: event.target.value })}
               placeholder='YYYY-MM-DD'
               data-testid='detail-due'
+              disabled={savingDetail}
             />
           </label>
           <fieldset>
@@ -1015,6 +1038,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                     })
                   }
                   data-testid='detail-label-check'
+                  disabled={savingDetail}
                 />
                 <span style={{ background: label.color, color: labelTextColor(label.color) }}>{label.name}</span>
               </label>
@@ -1030,6 +1054,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                   setMovePosition(0);
                 }}
                 data-testid='move-column'
+                disabled={savingDetail}
                 aria-label='移动到列'
               >
                 {board.columns.map(column => (
@@ -1045,18 +1070,19 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                 value={movePosition}
                 onChange={event => setMovePosition(Number(event.target.value))}
                 data-testid='move-position'
+                disabled={savingDetail}
                 aria-label='位置'
               >
                 <option value={0}>列首</option>
-                {(taskMap.get(moveColumnId ?? '') ?? []).map((task, index) => (
+                {movePositionTasks.map((task, index) => (
                   <option key={task.id} value={index + 1}>
                     在「{task.title}」之后
                   </option>
                 ))}
-                <option value={(taskMap.get(moveColumnId ?? '') ?? []).length}>列尾</option>
+                <option value={movePositionTasks.length}>列尾</option>
               </select>
             </label>
-            <button onClick={() => void moveTaskByMenu()} data-testid='move-task'>
+            <button onClick={() => void moveTaskByMenu()} data-testid='move-task' disabled={savingDetail}>
               移动
             </button>
           </div>
@@ -1082,13 +1108,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       {confirm ?
         <aside className='confirm-panel' data-testid='confirm-delete'>
           {confirm.kind === 'task' ?
-            <p>删除任务「{confirm.title}」？</p>
+            <p>删除任务「{confirm.taskTitle}」？</p>
           : confirm.kind === 'column' ?
             <p>
-              删除列「{confirm.title}」及其 {confirm.count} 个任务？
+              删除列「{confirm.columnTitle}」及其 {confirm.taskIds.length} 个任务？
             </p>
           : <p>
-              删除看板「{confirm.title}」（{confirm.columns} 列、{confirm.count} 任务、含全部标签定义与关联）？
+              删除看板「{confirm.boardTitle}」（{confirm.columnIds.length} 列、{confirm.taskIds.length}{' '}
+              任务、含全部标签定义与关联）？
             </p>
           }
           <div className='confirm-actions'>
@@ -1104,14 +1131,3 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     </section>
   );
 }
-
-type ConfirmState =
-  | { readonly kind: 'task'; readonly taskId: UUID; readonly title: string }
-  | { readonly kind: 'column'; readonly columnId: UUID; readonly title: string; readonly count: number }
-  | {
-      readonly kind: 'board';
-      readonly boardId: UUID;
-      readonly title: string;
-      readonly count: number;
-      readonly columns: number;
-    };

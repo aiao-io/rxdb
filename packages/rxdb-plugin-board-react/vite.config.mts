@@ -5,9 +5,10 @@ import * as path from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
-export default defineConfig(() => ({
+export default defineConfig(({ command }) => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/packages/rxdb-plugin-board-react',
+  oxc: command === 'build' ? { jsx: { development: false } } : {},
   plugins: [
     react(),
     dts({
@@ -43,7 +44,7 @@ export default defineConfig(() => ({
     },
     rolldownOptions: {
       checks: { pluginTimings: false },
-      external: [/^@aiao\//, 'react', 'react-dom', 'react/jsx-runtime', 'rxjs']
+      external: [/^@aiao\//, /^react(?:-dom)?(?:\/|$)/, 'rxjs']
     }
   },
   test: {

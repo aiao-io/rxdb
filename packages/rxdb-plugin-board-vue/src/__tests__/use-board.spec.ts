@@ -3,10 +3,10 @@ import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { mount } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
-import { useBoard, type UseBoardReturn } from '../use-board.js';
+import { LAST_BOARD_KEY, useBoard, type UseBoardOptions, type UseBoardReturn } from '../use-board.js';
 
 /**
  * useBoard 桥接（Vue）：真实 PGlite + 历史插件，与 Angular / React 同组验收语义。
@@ -14,6 +14,18 @@ import { useBoard, type UseBoardReturn } from '../use-board.js';
 describe('useBoard（Vue 桥接）', () => {
   let rxdb: RxDB;
   let holder: { current: UseBoardReturn | null };
+  const cleanups: (() => void)[] = [];
+  const mountBoard = (options: UseBoardOptions | undefined, receive: (value: UseBoardReturn) => void) => {
+    const Probe = defineComponent({
+      setup() {
+        receive(useBoard(rxdb, options));
+        return () => h('div');
+      }
+    });
+    const fixture = mount(Probe);
+    cleanups.push(() => fixture.unmount());
+    return fixture;
+  };
 
   const waitFor = async (probe: () => boolean, label: string, timeoutMs = 5000): Promise<void> => {
     const start = Date.now();
@@ -35,21 +47,54 @@ describe('useBoard（Vue 桥接）', () => {
     await rxdb.connect('pglite');
 
     holder = { current: null };
-    const Probe = defineComponent({
-      setup() {
-        holder.current = useBoard(rxdb, { storage: { get: () => null, set: () => undefined } });
-        return () => h('div');
-      }
+    mountBoard({ storage: { get: () => null, set: () => undefined } }, value => {
+      holder.current = value;
     });
-    mount(Probe);
     if (!holder.current) throw new Error('useBoard 未返回');
   });
 
   afterEach(async () => {
+    cleanups.splice(0).forEach(cleanup => cleanup());
+    vi.unstubAllGlobals();
     await rxdb.disconnectAll();
   });
 
   const board = (): UseBoardReturn => holder.current!;
+
+  it('恢复中直接调用撤销重做也拒绝，历史计数保持不变', async () => {
+    const created = await board().actions.createBoard({ title: '板' });
+    await waitFor(() => board().currentBoard.value?.id === created.id, '进入板');
+    const count = board().undoCount.value;
+    board().setRestoring(true);
+    await expect(board().actions.undo()).rejects.toMatchObject({ code: 'restore_in_progress' });
+    await expect(board().actions.redo()).rejects.toMatchObject({ code: 'restore_in_progress' });
+    expect(board().undoCount.value).toBe(count);
+    expect(board().boards.value).toHaveLength(1);
+  });
+
+  it('默认存储使用浏览器 Storage，并在重新挂载时恢复上次选择', async () => {
+    const first = await board().actions.createBoard({ title: '板 1' });
+    await waitFor(() => board().currentBoard.value?.id === first.id, '进入第一块板');
+    const second = await board().actions.createBoard({ title: '板 2' });
+    const values = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value)
+    });
+    let result: UseBoardReturn | undefined;
+    const initial = mountBoard(undefined, value => {
+      result = value;
+    });
+    await waitFor(() => result?.boards.value.length === 2, '加载看板');
+    result!.selectBoard(second.id);
+    expect(values.get(LAST_BOARD_KEY)).toBe(second.id);
+    initial.unmount();
+    const reopened = mountBoard(undefined, value => {
+      result = value;
+    });
+    await waitFor(() => result?.currentBoard.value?.id === second.id, '恢复上次看板');
+    reopened.unmount();
+  });
 
   it('空库建板进入第一块；建列建任务后数据就位', async () => {
     const created = await board().actions.createBoard({ title: '发布计划' });
@@ -103,5 +148,32 @@ describe('useBoard（Vue 桥接）', () => {
     await waitFor(() => board().undoCount.value >= 1, 'undo 计数');
     await board().actions.undo();
     await waitFor(() => board().tasks.value.find(t => t.id === task.id)?.title === '任务', 'undo 回退');
+  });
+
+  it('公开动作贯通领域服务：重命名、移动、排序、标签与级联删除', async () => {
+    const created = await board().actions.createBoard({ title: '板' });
+    await waitFor(() => board().currentBoard.value?.id === created.id, '进入板');
+    const first = await board().actions.createColumn({ title: '列一' });
+    const second = await board().actions.createColumn({ title: '列二' });
+    const task = await board().actions.createTask({ columnId: first.id, title: '任务' });
+    const another = await board().actions.createTask({ columnId: first.id, title: '另一个任务' });
+    await board().actions.updateBoard(created.id, { title: '新看板' });
+    await board().actions.updateColumn(first.id, { title: '新列名' });
+    await board().actions.updateTaskTitle(task.id, '新任务名');
+    await board().actions.moveTask(task.id, { kind: 'end', columnId: second.id });
+    await board().actions.moveColumn(second.id, { prevId: null, nextId: first.id });
+    await board().actions.sortColumn(first.id, 'title');
+    const label = await board().actions.createLabel({ name: '标签', color: '#123456' });
+    await board().actions.renameLabel(label.id, '新标签');
+    await board().actions.recolorLabel(label.id, '#abcdef');
+    await board().actions.executeLabelDelete(await board().actions.planLabelDelete(label.id));
+    await board().actions.executeDelete(await board().actions.planTaskDelete(another.id));
+    await board().actions.executeDelete(await board().actions.planColumnDelete(second.id));
+    await waitFor(() => board().columns.value.length === 1, '列删除完成');
+    await board().actions.executeDelete(await board().actions.planBoardDelete(created.id));
+    await waitFor(() => board().boards.value.length === 0, '删除看板');
+    await board().actions.undo();
+    await board().actions.redo();
+    await waitFor(() => board().boards.value.length === 0, '重做删除');
   });
 });

@@ -32,7 +32,7 @@ export default defineConfig(() => ({
       reportsDirectory: '../../coverage/packages/rxdb-plugin-board-angular',
       provider: 'v8' as const,
       reporter: ['text', 'json', 'json-summary', 'clover', 'lcovonly', 'html'],
-      include: ['src/**/*']
+      include: ['src/**/*.ts']
     }
   }
 }));

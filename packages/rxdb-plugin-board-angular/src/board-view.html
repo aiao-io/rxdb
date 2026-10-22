@@ -300,15 +300,24 @@
         <h3>任务详情</h3>
         <label>
           标题
-          <input [(ngModel)]="detailDraftTitle" data-testid="detail-title" />
+          <input [(ngModel)]="detailDraftTitle" [disabled]="savingDetail()" data-testid="detail-title" />
         </label>
         <label>
           描述
-          <textarea [(ngModel)]="draftDescription" data-testid="detail-description"></textarea>
+          <textarea
+            [(ngModel)]="draftDescription"
+            [disabled]="savingDetail()"
+            data-testid="detail-description"
+          ></textarea>
         </label>
         <label>
           截止日（YYYY-MM-DD）
-          <input [(ngModel)]="draftDueDate" data-testid="detail-due" placeholder="YYYY-MM-DD" />
+          <input
+            [(ngModel)]="draftDueDate"
+            [disabled]="savingDetail()"
+            data-testid="detail-due"
+            placeholder="YYYY-MM-DD"
+          />
         </label>
         <fieldset>
           <legend>标签</legend>
@@ -316,6 +325,7 @@
             <label class="detail-label">
               <input
                 [checked]="draftLabelIds().includes(label.id)"
+                [disabled]="savingDetail()"
                 (change)="toggleDraftLabel(label.id)"
                 data-testid="detail-label-check"
                 type="checkbox"
@@ -328,6 +338,7 @@
           <label>
             移动到
             <select
+              [disabled]="savingDetail()"
               [ngModel]="moveColumnId() ?? ''"
               (ngModelChange)="moveColumnId.set($event); movePosition.set(0)"
               aria-label="移动到列"
@@ -341,6 +352,7 @@
           <label>
             位置
             <select
+              [disabled]="savingDetail()"
               [ngModel]="movePosition()"
               (ngModelChange)="movePosition.set($event)"
               aria-label="位置"
@@ -348,18 +360,18 @@
             >
               <option [value]="0">列首</option>
               @if (moveColumnId(); as columnId) {
-                @for (task of taskMap().get(columnId) ?? []; track task.id; let index = $index) {
+                @for (task of moveTasks(); track task.id; let index = $index) {
                   <option [value]="index + 1">在「{{ task.title }}」之后</option>
                 }
-                <option [value]="(taskMap().get(columnId) ?? []).length">列尾</option>
+                <option [value]="moveTasks().length">列尾</option>
               }
             </select>
           </label>
-          <button (click)="moveTaskByMenu()" data-testid="move-task">移动</button>
+          <button [disabled]="savingDetail()" (click)="moveTaskByMenu()" data-testid="move-task">移动</button>
         </div>
         <div class="detail-actions">
           <button [disabled]="savingDetail()" (click)="saveDetail()" data-testid="detail-save">保存</button>
-          <button (click)="deleteDetailTask()" data-testid="detail-delete">删除任务</button>
+          <button [disabled]="savingDetail()" (click)="deleteDetailTask()" data-testid="detail-delete">删除任务</button>
           <button (click)="closeDetail()" data-testid="detail-cancel">取消</button>
         </div>
       </aside>
@@ -369,12 +381,12 @@
     @if (confirmDelete(); as pending) {
       <aside class="confirm-panel" data-testid="confirm-delete">
         @if (pending.kind === 'task') {
-          <p>删除任务「{{ pending.title }}」？</p>
+          <p>删除任务「{{ pending.taskTitle }}」？</p>
         } @else if (pending.kind === 'column') {
-          <p>删除列「{{ pending.title }}」及其 {{ pending.taskCount }} 个任务？</p>
+          <p>删除列「{{ pending.columnTitle }}」及其 {{ pending.taskIds.length }} 个任务？</p>
         } @else {
           <p>
-            删除看板「{{ pending.title }}」（{{ pending.columnCount }} 列、{{ pending.taskCount }}
+            删除看板「{{ pending.boardTitle }}」（{{ pending.columnIds.length }} 列、{{ pending.taskIds.length }}
             任务、含全部标签定义与关联）？
           </p>
         }

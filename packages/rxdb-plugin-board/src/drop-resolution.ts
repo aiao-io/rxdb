@@ -141,6 +141,7 @@ export const resolveMenuMove = (
   const prevId = rest[index - 1] ?? null;
   const nextId = rest[index] ?? null;
   if (isCurrentPlacement(column.taskIds, movedId, prevId, nextId)) return null;
+  if (rest.length === 0) return { kind: 'end', columnId: targetColumnId };
   return { kind: 'between', columnId: targetColumnId, prevId, nextId };
 };
 

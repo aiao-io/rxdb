@@ -10,6 +10,7 @@ import {
   type BoardSearchUpstream,
   type CardDropColumnView,
   type CardDropTarget,
+  type DeletePlan,
   type SearchHandle,
   type SearchResult,
   type TaskDraftSnapshot
@@ -366,6 +367,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   /** 输入绑定完成后（ngOnInit）安装的领域桥；首帧为 null。 */
   private snapshot: TaskDraftSnapshot | null = null;
+  private detailRequest = 0;
 
   protected readonly board = signal<UseBoardReturn | null>(null);
 
@@ -383,18 +385,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     | null
   >(null);
   protected readonly detailTaskId = signal<UUID | null>(null);
-  protected readonly confirmDelete = signal<
-    | { readonly kind: 'task'; readonly taskId: UUID; readonly title: string }
-    | { readonly kind: 'column'; readonly columnId: UUID; readonly title: string; readonly taskCount: number }
-    | {
-        readonly kind: 'board';
-        readonly boardId: UUID;
-        readonly title: string;
-        readonly columnCount: number;
-        readonly taskCount: number;
-      }
-    | null
-  >(null);
+  protected readonly confirmDelete = signal<DeletePlan | null>(null);
   protected readonly notice = signal<string | null>(null);
   protected readonly boardArea = viewChild<ElementRef<HTMLElement>>('boardArea');
 
@@ -426,6 +417,9 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   /** 菜单式移动（US-539 AC#6 键盘等价路径）：目标列与插入下标。 */
   protected readonly moveColumnId = signal<UUID | null>(null);
   protected readonly movePosition = signal(0);
+  protected readonly moveTasks = computed(() =>
+    (this.taskMap().get(this.moveColumnId()!) ?? []).filter(task => task.id !== this.detailTaskId())
+  );
   protected readonly draftDueDate = signal<string>('');
   protected readonly draftLabelIds = signal<readonly UUID[]>([]);
   protected readonly searchQuery = signal('');
@@ -462,18 +456,12 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.detailRequest++;
     window.removeEventListener('storage', this.onBoardStorage);
     if (this.noticeTimer !== null) window.clearTimeout(this.noticeTimer);
     this.searchSubs.unsubscribe();
     this.destroySearch();
   }
-
-  /** 恢复标记跨页同步：读 localStorage 标记并把门禁下发到领域桥。 */
-  private readonly onBoardStorage = (): void => {
-    this.board()?.setRestoring(
-      typeof localStorage !== 'undefined' && localStorage.getItem(RESTORING_MARKER_KEY) !== null
-    );
-  };
 
   /** 标签文字色（对比度，US-539 AC#6）：模板无法直接调模块级函数，包一层成员。 */
   protected labelTextColor(color: string): string {
@@ -622,7 +610,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     if (!area) return;
     const target = this.resolveTaskTarget(column, movedId, event.clientX, event.clientY, area);
     if (!target) return;
-    await this.guard(() => this.boardRef.actions.moveTask(movedId, target));
+    await this.executeTaskMove(movedId, target);
   }
 
   protected async onColumnDrop(event: DragEvent): Promise<void> {
@@ -665,7 +653,14 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   // ---------- 详情面板 ----------
 
   protected async openDetail(taskId: UUID): Promise<void> {
-    const snap = await this.boardRef.actions.openSnapshot(taskId);
+    const request = ++this.detailRequest;
+    if (this.detailTaskId() === taskId) return;
+    if (this.isDetailDirty() && !window.confirm('有未保存的修改，切换任务将放弃。继续？')) return;
+    const boardId = this.boardRef.currentBoardId();
+    const draftState = this.detailDraftState();
+    const snap = await this.guard(() => this.boardRef.actions.openSnapshot(taskId));
+    if (!snap || request !== this.detailRequest || boardId !== this.boardRef.currentBoardId()) return;
+    if (draftState !== this.detailDraftState()) return;
     this.snapshot = snap;
     this.detailTaskId.set(taskId);
     this.detailDraftTitle.set(snap.title);
@@ -689,6 +684,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected closeDetail(): void {
     if (this.isDetailDirty() && !window.confirm('有未保存的修改，关闭将放弃。继续？')) return;
+    this.detailRequest++;
     this.detailTaskId.set(null);
     this.snapshot = null;
   }
@@ -711,32 +707,17 @@ export class BoardViewComponent implements OnInit, OnDestroy {
       this.notice.set('任务已在该位置');
       return;
     }
-    // moveTask 返回 void：guard 的成功与失败都表现为 undefined，直接调用以区分成败
-    try {
-      await this.boardRef.actions.moveTask(taskId, target);
-    } catch (error) {
-      this.notice.set(error instanceof Error ? error.message : String(error));
-      this.scheduleNoticeClear();
-      return;
-    }
-    // 成功后焦点落在被移动对象（AC#6）：跨列 DOM 移动会丢焦点，固定时长内每帧重试
-    this.focusMovedCard(taskId);
-  }
-
-  /** 帧循环内持续聚焦被移动卡片（提交与重渲染是异步的，固定时长内每帧重试）。 */
-  private focusMovedCard(taskId: UUID, attempts = 60): void {
-    const card = document.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
-    if (card !== null && card.isConnected) card.focus();
-    if (attempts > 0) requestAnimationFrame(() => this.focusMovedCard(taskId, attempts - 1));
+    if (await this.executeTaskMove(taskId, target)) this.focusMovedCard(taskId);
   }
 
   protected async saveDetail(): Promise<void> {
     const taskId = this.detailTaskId();
     if (!taskId || !this.snapshot || this.savingDetail()) return;
+    const snapshot = this.snapshot;
     this.savingDetail.set(true);
     try {
       const result = await this.guard(() =>
-        this.boardRef.actions.saveTaskDraft(taskId, this.snapshot!, {
+        this.boardRef.actions.saveTaskDraft(taskId, snapshot, {
           title: this.detailDraftTitle(),
           description: this.draftDescription(),
           dueDate: this.draftDueDate() === '' ? null : this.draftDueDate(),
@@ -745,6 +726,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
       );
       // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
       if (result === undefined) return;
+      if (taskId !== this.detailTaskId() || snapshot !== this.snapshot) return;
       // 保存成功直接关（不走 closeDetail 的未保存确认：草稿与旧快照的差异已被本次保存清掉）
       this.detailTaskId.set(null);
       this.snapshot = null;
@@ -797,46 +779,26 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected async confirmTaskDelete(task: Task): Promise<void> {
     const plan = await this.boardRef.actions.planTaskDelete(task.id);
-    this.confirmDelete.set({ kind: 'task', taskId: task.id, title: plan.taskTitle });
+    this.confirmDelete.set(plan);
   }
 
   protected async confirmColumnDelete(column: Column): Promise<void> {
     const plan = await this.boardRef.actions.planColumnDelete(column.id);
-    this.confirmDelete.set({
-      kind: 'column',
-      columnId: column.id,
-      title: plan.columnTitle,
-      taskCount: plan.taskIds.length
-    });
+    this.confirmDelete.set(plan);
   }
 
   protected async confirmBoardDelete(): Promise<void> {
     const current = this.boardRef.currentBoard();
     if (!current) return;
     const plan = await this.boardRef.actions.planBoardDelete(current.id);
-    this.confirmDelete.set({
-      kind: 'board',
-      boardId: current.id,
-      title: plan.boardTitle,
-      columnCount: plan.columnIds.length,
-      taskCount: plan.taskIds.length
-    });
+    this.confirmDelete.set(plan);
   }
 
   protected async executeConfirmedDelete(): Promise<void> {
     const pending = this.confirmDelete();
     if (!pending) return;
     this.confirmDelete.set(null);
-    if (pending.kind === 'task') {
-      const plan = await this.boardRef.actions.planTaskDelete(pending.taskId);
-      await this.guard(() => this.boardRef.actions.executeDelete(plan));
-    } else if (pending.kind === 'column') {
-      const plan = await this.boardRef.actions.planColumnDelete(pending.columnId);
-      await this.guard(() => this.boardRef.actions.executeDelete(plan));
-    } else {
-      const plan = await this.boardRef.actions.planBoardDelete(pending.boardId);
-      await this.guard(() => this.boardRef.actions.executeDelete(plan));
-    }
+    await this.guard(() => this.boardRef.actions.executeDelete(pending));
   }
 
   protected cancelDelete(): void {
@@ -891,6 +853,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
       this.detailTaskId.set(null);
       this.snapshot = null;
     }
+    this.detailRequest++;
     this.boardRef.selectBoard(boardId);
     const query = this.searchQuery().trim();
     if (query !== '') {
@@ -995,7 +958,48 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     return this.dragging()?.kind === 'column' && this.dragging()?.id === column.id;
   }
 
+  /** 恢复标记跨页同步：读 localStorage 标记并把门禁下发到领域桥。 */
+  private readonly onBoardStorage = (): void => {
+    this.board()?.setRestoring(
+      typeof localStorage !== 'undefined' && localStorage.getItem(RESTORING_MARKER_KEY) !== null
+    );
+  };
+
+  /** 帧循环内持续聚焦被移动卡片（提交与重渲染是异步的，固定时长内每帧重试）。 */
+  private focusMovedCard(taskId: UUID, attempts = 60): void {
+    const card = document.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
+    if (card !== null && card.isConnected) card.focus();
+    if (attempts > 0) requestAnimationFrame(() => this.focusMovedCard(taskId, attempts - 1));
+  }
+
+  private async executeTaskMove(taskId: UUID, target: CardDropTarget): Promise<boolean> {
+    const snapshot = this.detailTaskId() === taskId ? this.snapshot : null;
+    this.notice.set(null);
+    try {
+      await this.boardRef.actions.moveTask(taskId, target);
+    } catch (error) {
+      this.notice.set(error instanceof Error ? error.message : String(error));
+      this.scheduleNoticeClear();
+      return false;
+    }
+    if (snapshot !== null && this.detailTaskId() === taskId && this.snapshot === snapshot) {
+      this.snapshot = { ...snapshot, columnId: target.columnId };
+    }
+    return true;
+  }
+
+  private detailDraftState(): string {
+    return JSON.stringify([
+      this.detailDraftTitle(),
+      this.draftDescription(),
+      this.draftDueDate(),
+      this.draftLabelIds()
+    ]);
+  }
+
   private destroySearch(): void {
+    this.searchSubs.unsubscribe();
+    this.searchSubs = new Subscription();
     this.searchHandle?.destroy();
     this.searchHandle = null;
     this.searchState.set('idle');

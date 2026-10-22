@@ -15,6 +15,15 @@ import { firstValueFrom } from 'rxjs';
 
 /** 演示数据的初始库名（新建空看板与装载演示数据共用命名空间，取下一个空位）。 */
 export const BOARD_DB_PREFIX = 'rxdb-board';
+/** 本次恢复目标：启动清理只处理这一份存储。 */
+export const RESTORE_TARGET_KEY = 'rxdb-board-restore-target';
+
+/** 恢复、启动读回与残留清理共用跨页面互斥锁。 */
+export const withBoardRestoreLock = <T>(operation: () => Promise<T>, wait = true): Promise<T> =>
+  navigator.locks.request('rxdb-board:restore', { ifAvailable: !wait }, lock => {
+    if (lock === null) throw new Error('另一页面正在准备或恢复看板，请稍后重试');
+    return operation();
+  });
 
 export const createBoardRxdb = (dbName: string): RxDB => {
   const db = new RxDB({
@@ -47,27 +56,29 @@ export const seedBoardDemo = async (db: RxDB): Promise<void> => {
 
 /** 在未连接的实例上把归档恢复到新库名（US-217：必须在 rxdb.connect() 之前调用）。 */
 export const restoreBoardArchive = async (db: RxDB, file: File): Promise<void> => {
-  const adapter = (await db.getAdapter('sqlite-wasm')) as unknown as {
-    restore(source: ReadableStream<Uint8Array>): Promise<unknown>;
-  };
+  const adapter = await db.getAdapter('sqlite-wasm');
   await adapter.restore(file.stream());
+};
+
+/** 清理有记录且实际存在的未完成恢复。 */
+export const cleanupBoardRestoreTarget = async (dbName: string): Promise<void> => {
+  if (!(await listExistingDbNames()).includes(dbName)) return;
+  const db = createBoardRxdb(dbName);
+  const adapter = await db.getAdapter('sqlite-wasm');
+  await adapter.cleanupIncompleteRestore();
+};
+
+/** 读回前验证目标存储存在，避免连接时把丢失的恢复库初始化成空库。 */
+export const assertBoardRestoreTargetExists = async (dbName: string): Promise<void> => {
+  if (!(await listExistingDbNames()).includes(dbName)) throw new Error('恢复目标存储已不存在');
 };
 
 /** 现有 IndexedDB 库名（sqlite-wasm idb vfs 以库名落盘），供新库名避让。 */
 const listExistingDbNames = async (): Promise<string[]> => {
-  if (typeof indexedDB === 'undefined' || typeof indexedDB.databases !== 'function') return [];
-  try {
-    return (
-      (await indexedDB.databases())
-        .map(info => info.name ?? '')
-        .filter(name => name !== '')
-        // idb vfs 的落盘名带连接号与扩展名（`rxdb-board-0@0_1.sqlite.db`），
-        // 归一成库名前缀才能与候选名比较
-        .map(name => name.split('@')[0])
-    );
-  } catch {
-    return [];
-  }
+  return (await indexedDB.databases())
+    .map(info => info.name ?? '')
+    .filter(name => name !== '')
+    .map(name => name.split('@')[0]);
 };
 
 /**

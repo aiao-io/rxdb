@@ -89,7 +89,11 @@
             "rxdb-adapter-pglite",
             "rxdb-adapter-sqlite-wasm",
             "rxdb-plugin-replay",
-            "rxdb-plugin-search"
+            "rxdb-plugin-search",
+            "rxdb-plugin-board",
+            "rxdb-plugin-board-angular",
+            "rxdb-plugin-board-react",
+            "rxdb-plugin-board-vue"
           ]
         }
       ],

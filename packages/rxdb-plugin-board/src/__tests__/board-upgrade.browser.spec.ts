@@ -64,8 +64,6 @@ describe('既有库升级重开（US-534 AC#8 / US-540 AC#7）', () => {
     const notes = await firstValueFrom(
       second.rxdb.entityManager.getRepository(Note).find({ where: { combinator: 'and', rules: [] } })
     );
-    // eslint-disable-next-line no-console
-    console.log('[upgrade-debug] phase2 read:', JSON.stringify(notes.map(note => note.title)));
 
     // 阶段 2 再写一条，断开后阶段 3 读——定位「只有首段写入丢失」还是「跨断开一律丢失」
     await second.rxdb.entityManager.getRepository(Note).create(
@@ -87,9 +85,8 @@ describe('既有库升级重开（US-534 AC#8 / US-540 AC#7）', () => {
     const notes3 = await firstValueFrom(
       third.rxdb.entityManager.getRepository(Note).find({ where: { combinator: 'and', rules: [] } })
     );
-    // eslint-disable-next-line no-console
-    console.log('[upgrade-debug] phase3 read:', JSON.stringify(notes3.map(note => note.title)));
     expect(notes.map(note => note.title)).toEqual(['对照组笔记']);
+    expect(notes3.map(note => note.title)).toEqual(['对照组笔记', '第二阶段笔记']);
   });
 
   const DB_NAME = `board-upgrade-${Math.random().toString(36).slice(2)}`;
@@ -134,12 +131,6 @@ describe('既有库升级重开（US-534 AC#8 / US-540 AC#7）', () => {
     const rxdb = upgraded.rxdb;
 
     // 旧数据不受影响
-    const adapterRaw = await firstValueFrom(rxdb.localAdapter$);
-    // eslint-disable-next-line no-console
-    console.log(
-      '[upgrade-debug] legacy rows:',
-      JSON.stringify((await adapterRaw.rawQuery('SELECT id, title FROM "legacy$note" ORDER BY id')).rows)
-    );
     const notes = await firstValueFrom(
       rxdb.entityManager.getRepository(Note).find({ where: { combinator: 'and', rules: [] } })
     );
