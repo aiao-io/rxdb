@@ -402,6 +402,10 @@
       {
         "name": "FtsOptions",
         "kind": "type"
+      },
+      {
+        "name": "getSchemaName",
+        "kind": "value"
       }
     ],
     "./testing": [

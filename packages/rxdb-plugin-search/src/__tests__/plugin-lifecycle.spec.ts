@@ -14,6 +14,7 @@ import {
   ENTITY_LOCAL_UPDATE_EVENT,
   EntityBase,
   PropertyType,
+  WorktreeTableSet,
   type EntityLocalCreatedEvent,
   type EntityLocalRemovedEvent,
   type EntityLocalUpdatedEvent,
@@ -21,7 +22,7 @@ import {
   type RxDB
 } from '@aiao/rxdb';
 import { LifecycleScope } from '@aiao/utils';
-import { firstValueFrom, Subject, throwError } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, Subject, throwError } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const { installFtsForEntity, createSearchEngine } = vi.hoisted(() => ({
@@ -134,6 +135,9 @@ const buildFakeRxdb = (entities: unknown[] = [FakeArticle], exposesRawQuery = tr
     // 连接信号（`connect` / `adapterConnected$` / `localAdapter$`）插件已经不再读，
     // 假宿主也就不提供——真读了会立刻 TypeError，而不是静默走回老路。
     localAdapterSync: activeAdapter,
+    // 挂着主表集：查询按它解析表名，换挂的流驱动 handle 重查（US-314 B2.5）
+    worktreeTableSet: WorktreeTableSet.MAIN,
+    worktreeTableSet$: new BehaviorSubject(WorktreeTableSet.MAIN),
     // 工厂的「已装过没有」自检走宿主索引（US-015 AC#17）。真宿主由 `use()` 在工厂返回
     // **之后**把实例推进索引，所以这里也由用例显式 push，时序与真实一致。
     getPlugins: vi.fn((name: string) => installedPlugins.filter(entry => entry.name === name)),

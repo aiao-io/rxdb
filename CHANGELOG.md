@@ -6,6 +6,7 @@
 - **rxdb-adapter-sqlite-core:** 去掉 `switch_transaction_id`，改用 `generate_table_set_trigger_sql(adapter, tableSet, branchId, transactionId?)`：按表集重建变更触发器的唯一入口，表集与分支都显式给（US-314）
 - **rxdb-adapter-sqlite-core:** `readCurrentBranchId(tx)` 改为 `readCurrentBranchId(tx, tableSet)`：挂在可写检出位上时读那套表持有的分支（US-314）
 - **rxdb:** `TransactionExecutor` 多了必填的只读成员 `tableSet`：本事务落在哪一套业务表上（发起它的实例挂的那一套）。自己实现事务执行器的适配器要补上，取适配器的 `tableSet` 即可；两个内置适配器已带（US-314）
+- **rxdb-plugin-search:** `FtsInstallPlan` 的 `namespace` 换成 `schema`（PostgreSQL 里表所在的 schema），由新的 `SearchBackend.bindPlan(plan, metadata, tableSet)` 经适配器的表名解析器填；`SearchBackend` 还多了 `installForTableSet()`。自己构造计划、直接调 `createPgTsvectorBackend().install()` 的，先 `bindPlan(plan, metadata, WorktreeTableSet.MAIN)`，否则表不按 schema 限定（US-314）
 
 ### 🚀 Features
 
@@ -20,6 +21,8 @@
 - **rxdb / rxdb-adapter-sqlite-core / -pglite / rxdb-plugin-search:** 实体事件按表集路由：本地实体事件多了可选的 `tableSetSuffix`（写在可写检出位影子表上的带那套表的后缀，主表集上的不带、形状不变），`WorktreeTableSet#accepts()` / `ownerSuffixOf()` / `eventTagOf()`；查询管理器的增量合并与搜索插件只收本实例挂着那套表读得到的事件，多个标签页可以一个挂主检出位、一个挂可写检出位。`worktreeTableSet$` 改在清空实体缓存之后才发（US-314）
 - **rxdb-plugin-workspace:** 草稿缓存按检出位分区：挂在可写检出位上新建的草稿只在这个检出位上看得到（IndexedDB 键前面加表集后缀，主检出位的键不变、不用迁移），`list()` / `discard()` / 跨标签页同步只看本实例此刻挂的那一套；换挂时先把排队的写落盘、再换成新挂那一套的草稿（US-314）
 - **rxdb:** 换挂之后旧的实体对象写不进另一套表：`EntityStatus.tableSet` 记下建出、读出实体时挂的那套表，公开写入口发出写之前核对，不符抛 `WorktreeTableSetMismatchError`（US-314）
+- **rxdb / rxdb-plugin-working-tree:** 插件的建表集钩子 `IRxDBPlugin.worktreeTableSet?.created(executor, tableSet)`（`WorktreeTableSetHooks`）与 `rxdb.notifyWorktreeTableSetCreated()`：`checkouts.add()` 建完表、播完种之后在同一笔事务里按 `use()` 的顺序调，抛错整笔回滚，插件借它给每套影子表建自己的附属对象（US-314）
+- **rxdb-plugin-search / rxdb-adapter-pglite:** 全文检索按表集：可写检出位的影子表各有一份全文索引，开检出位时在同一笔事务里建好并回填，删检出位时一起删；查询按实例此刻挂着的那套表走，换挂之后已有的 `SearchHandle` 自动重查，挂上一套还没有索引的表时头一次搜先补建。PGlite 的 `./fts` 子路径新增 `getSchemaName`（US-314）
 - **rxdb-plugin-working-tree:** `checkouts.rename(id, name)` 给可写检出位改名（`invalid_name` / `name_taken` / `not_found`）；`add()` 同样校验名字，没给名字时取分支 id、被占了加 `-2`、`-3`；登记表 `name` 加唯一索引。`WorktreeUnavailableError` 的文案改为「检出位操作被拒（reason）」（US-314）
 - **rxdb-plugin-history:** 挂在可写检出位上合并：合进它持有的分支、落在那套影子表里，只合进得了这套表的实体（QueryCache 同步的这类只在主检出位那套表里的实体不合），`previewMerge()` 同一口径；挂在可写检出位上可推送计数为 0（US-314）
 - **rxdb:** `getCurrentBranch(rxdb, tableSet?)` 与 `findCurrentSyncRecord(…, tableSet?)` 多了可选的表集参数：读哪一套表持有的分支，缺省是本实例挂的那套（US-314）

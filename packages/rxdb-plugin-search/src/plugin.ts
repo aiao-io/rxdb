@@ -6,15 +6,19 @@ import {
   RxDB,
   RxDBMigration,
   RxDBPluginBase,
+  WorktreeTableSet,
   type EntityLocalCreatedEvent,
   type EntityLocalRemovedEvent,
   type EntityLocalUpdatedEvent,
+  type EntityMetadata,
   type IRepository,
   type IRxDBPlugin,
-  type Plugin
+  type Plugin,
+  type TransactionExecutor,
+  type WorktreeTableSetHooks
 } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
-import { isObservable, type Observable } from 'rxjs';
+import { isObservable, skip, type Observable } from 'rxjs';
 
 import type { FtsField } from '@aiao/rxdb-adapter-sqlite-core';
 import { resolveSearchBackend } from './backend/backend-registry.js';
@@ -68,19 +72,36 @@ const mapRowsToFtsRows = (raw: { columns: readonly string[]; rows: readonly unkn
   return out;
 };
 
-/** 单个 searchable entity 的运行时索引项。 */
+/** 单个 searchable entity 绑到一套表上之后的运行时索引项。 */
 interface SearchableEntry {
   readonly entity: string;
   readonly table: string;
-  /** SQLite 物理表名（`<namespace>$<table>`） */
+  /** SQLite 物理表名（`<namespace>$<table>`，可写检出位的影子表再带 `$<后缀>`） */
   readonly sqlTable: string;
-  /** PostgreSQL schema 名（= `namespace`）；两套后端各取所需，见 `PgTableRef` */
+  /** PostgreSQL schema 名（主表集 = `namespace`，影子表 `<namespace>$<后缀>`）；两套后端各取所需，见 `PgTableRef` */
   readonly schema: string | undefined;
   readonly primaryKey: string;
   /** FTS 列名，按 entity metadata 顺序 */
   readonly fields: readonly string[];
   readonly fieldSpecs: readonly FtsField[];
 }
+
+/** 单个 searchable entity 的安装计划，连同它的元数据（改绑到别的表集要用）。 */
+interface SearchablePlan {
+  readonly metadata: EntityMetadata;
+  readonly plan: FtsInstallPlan;
+}
+
+/** 绑好的计划 → 查询用的索引项 */
+const searchableEntryOf = ({ metadata, plan }: SearchablePlan): SearchableEntry => ({
+  entity: metadata.name,
+  table: plan.tableName,
+  sqlTable: plan.sqlTableName ?? plan.tableName,
+  schema: plan.schema,
+  primaryKey: plan.primaryKey,
+  fields: plan.fields.map(f => f.name),
+  fieldSpecs: plan.fields
+});
 
 /** 注册到插件的活动 handle，使 entity 事件可精确派发。 */
 interface HandleRegistration {
@@ -152,6 +173,8 @@ const destroyedError = (): SearchError =>
  *    {@link RxDBPluginSearch.inject} 决定，插件自己不等依赖）
  *  - 在 {@link RxDB} 上挂载 `search` / `searchCollection` 入口
  *  - 订阅 `ENTITY_LOCAL_CREATE/UPDATE/REMOVE_EVENT` 向注册的 handle 派发静默重查
+ *  - 可写检出位的影子表各有一份全文索引（US-314 B2.5）：建表集时在同一笔事务里建，挂上一套还没有的表时补建；
+ *    查询按本实例挂着的那套表解析表名，换挂之后已注册的 handle 重查
  *
  * @public
  */
@@ -166,9 +189,15 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
    * 单调递增的号。迟到的旧纪元靠 `this.#scope !== scope` 认出自己已经过期。
    */
   #scope?: LifecycleScope;
-  readonly #searchPlans: FtsInstallPlan[] = [];
-  /** 表名 → 运行时可搜索条目。 `install()` 填充，`search()` 使用。 */
-  readonly #searchEntries = new Map<string, SearchableEntry>();
+  /** 表名 → 安装计划（主表集的物理名，绑到别的表集见 `#bindPlans`）。`install()` 填充。 */
+  readonly #searchPlans = new Map<string, SearchablePlan>();
+  /**
+   * 表集后缀（主表集 `null`）→ 那套表上的可搜索条目。
+   *
+   * @remarks
+   * 主表集那份由 `#runInstall` 放进来；可写检出位的那份在头一次查询时绑定，缺全文索引先补建（见 `#entriesOf`）。
+   */
+  readonly #tableSetEntries = new Map<string | null, Promise<ReadonlyMap<string, SearchableEntry>>>();
   /** 实体名 → 表名，用于 entity 事件 → scope 过滤 */
   readonly #entityNameToTable = new Map<string, string>();
   /** 活动 handle 列表，entity 事件派发时遍历。 */
@@ -207,6 +236,19 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
   readonly name: Uncapitalize<string> = 'search';
   /** 插件级默认项（页大小、防抖、snippet、排除 collection） */
   readonly options: SearchPluginOptions;
+  /**
+   * 可写检出位的表刚建好（US-314 B2.5）：在建它的那笔事务里给成员表建全文索引并回填。
+   *
+   * @remarks
+   * 抛错整笔回滚，检出位连同索引要么都建好、要么一处不留。没装上（作用域不在、或安装失败）时不建：那时本来就搜不了，
+   * 之后挂上这套表、头一次搜的时候补建。
+   */
+  readonly worktreeTableSet: WorktreeTableSetHooks = {
+    created: async (executor, tableSet) => {
+      if (this.#scope?.state !== 'active' || this.#installFailure) return;
+      await this.#installMembers(executor, tableSet, await this.#bindPlans(tableSet));
+    }
+  };
 
   /**
    * 当 FTS5 安装完成时 resolve；若失败则 reject，便于宿主应用在关键路径等待并处理
@@ -275,6 +317,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     // 也能立即接到数据变更（避免 install 失败 / 慢 install 期间 silent miss）。
     // 解绑不再由本插件记账——安装失败时宿主会释放 scope，正常拆卸时同样如此。
     this.#bindEntityEvents(scope);
+    this.#bindWorktreeTableSetMounts(scope);
     return this.#runInstall(scope).then(
       () => deferred.resolve(),
       (error: unknown) => {
@@ -299,7 +342,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
   search(query: string | Observable<string>, options?: SearchOptions): SearchHandle {
     this.#throwInstallFailure();
     this.#assertInstalled();
-    const candidates = [...this.#searchEntries.keys()];
+    const candidates = [...this.#searchPlans.keys()];
     // 与 searchCollection 对称：实体名先归一化为表名，再参与 scope 解析
     const requested = options?.collections?.map(c => this.#entityNameToTable.get(c) ?? c);
     const scope = resolveSearchScope({
@@ -329,7 +372,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     if (excl?.length && (excl.includes(table) || excl.includes(collection))) {
       throw new Error(`[rxdb-plugin-search] collection "${collection}" is excluded via excludedCollections option`);
     }
-    if (!this.#searchEntries.has(table)) {
+    if (!this.#searchPlans.has(table)) {
       throw new Error(
         `[rxdb-plugin-search] collection "${collection}" is not searchable — no entity registered with this name, or none of its properties declare \`searchable: true\``
       );
@@ -387,16 +430,20 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     return inner;
   }
 
-  /** 组装 {@link PerformSearch}：query → compile → per-collection engine → aggregate → slice */
+  /** 组装 {@link PerformSearch}：query → compile → 挂着那套表上的 entries → per-collection engine → aggregate → slice */
   #buildPerformSearch(scope: readonly string[], pageSize: number, snippetLength: number): PerformSearch {
-    // 在闭包外缓存有效 entries 列表：scope 不变，每次查询无需再用 table 查 Map
-    const scopedEntries = scope.map(table => this.#searchEntries.get(table)).filter((e): e is SearchableEntry => !!e);
-    // 惰性结果池：首次 loadMore 抓满一次后缓存，后续页切片，不再每页重取全量
-    let pool: { match: string; results: readonly SearchResult[]; hasMore: boolean } | null = null;
+    // 惰性结果池：首次 loadMore 抓满一次后缓存，后续页切片，不再每页重取全量。
+    // 池按表集记：换挂之后同一个查询词查的是另一套表，旧池里的行一行都不能用
+    let pool: {
+      tableSet: string | null;
+      match: string;
+      results: readonly SearchResult[];
+      hasMore: boolean;
+    } | null = null;
     return async (query: string, page: number, signal?: AbortSignal): Promise<SearchPage> => {
       signal?.throwIfAborted();
       const compiled = this.#backend.compile(query);
-      if (!compiled || scopedEntries.length === 0) {
+      if (!compiled || scope.length === 0) {
         return { results: [], hasMore: false };
       }
       const engine = this.#engine;
@@ -405,9 +452,14 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
           '[rxdb-plugin-search] search engine is not ready. await `(db.plugins.get("search") as RxDBPluginSearch).ready` before issuing queries.'
         );
       }
+      // 每次查询都按本实例此刻挂着的那套表解析表名（US-314 B2.5）：换挂之后，同一个 handle 查的就是新那套表
+      const tableSet = this.rxdb.worktreeTableSet;
+      const entries = await this.#entriesOf(tableSet);
+      signal?.throwIfAborted();
+      const scopedEntries = scope.map(table => entries.get(table)).filter((e): e is SearchableEntry => !!e);
       const offset = page * pageSize;
       // page 0 永远重取：数据变更走的正是 page 0 重查这条路，缓存必须让位于新鲜度
-      const cached = page > 0 && pool?.match === compiled.match ? pool : null;
+      const cached = page > 0 && pool?.match === compiled.match && pool.tableSet === tableSet.suffix ? pool : null;
       if (cached) {
         if (!cached.hasMore || offset + pageSize < cached.results.length) {
           return {
@@ -447,7 +499,10 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
       const fetched = aggregateResults(parts, { pageSize: poolCap + 1 });
       const poolHasMore = page > 0 && fetched.length === poolCap + 1;
       // page 0 的池只有一页，缓存它没有意义；只有翻页抓来的整池才值得留
-      pool = page === 0 ? null : { match: compiled.match, results: fetched, hasMore: poolHasMore };
+      pool =
+        page === 0 ? null : (
+          { tableSet: tableSet.suffix, match: compiled.match, results: fetched, hasMore: poolHasMore }
+        );
       return {
         results: fetched.slice(offset, offset + pageSize),
         hasMore: poolHasMore || fetched.length > offset + pageSize
@@ -495,7 +550,9 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     // FTS5」「这个 PGlite 构建裁没裁掉文本搜索配置」。探测必须早于第一条 DDL——否则缺能力
     // 时报出来的是一句无从追溯的 SQL 错，而不是带原因的 SearchBackendCapabilityError。
     let capabilitiesAsserted = false;
-    for (const plan of this.#searchPlans) {
+    // 主表集的计划也经后端绑一次：物理位置只从适配器的表名解析器出（pg-tsvector 的 schema 尤其如此，US-314 B2.5）
+    const mainPlans = await this.#bindPlans(WorktreeTableSet.MAIN);
+    for (const { plan } of mainPlans) {
       // 每一轮之前都验纪元。**不能**只在循环之后验一次：那种写法的理由是「DDL 全打在捕获的
       // 那个适配器上，纪元换了它自己会失败」，而这个理由只在旧纪元握着的是一条**死**连接时
       // 才成立。宿主的重连是「先释放旧作用域、再以新实例重装」，两轮之间连接一直活着，
@@ -519,6 +576,10 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     // 而 `#refreshRegisteredHandles()` 唤醒的却是新纪元的 handle。
     if (scope.state !== 'active') return;
 
+    this.#tableSetEntries.set(
+      WorktreeTableSet.MAIN.suffix,
+      Promise.resolve(new Map(mainPlans.map(bound => [bound.plan.tableName, searchableEntryOf(bound)])))
+    );
     this.#engine = this.#backend.createEngine(async (sql, params) => mapRowsToFtsRows(await callRaw(sql, params)));
 
     // entity 事件通道已在 install() 同步阶段绑定；FTS 落库后唤醒已注册 handle 重新查询
@@ -536,8 +597,8 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
    * 扫描是纯内存的元数据遍历，一个纪元一次，代价可忽略。
    */
   #primeSearchEntries(): void {
-    this.#searchPlans.length = 0;
-    this.#searchEntries.clear();
+    this.#searchPlans.clear();
+    this.#tableSetEntries.clear();
     this.#entityNameToTable.clear();
 
     const excludedSrc = this.options.excludedCollections;
@@ -553,18 +614,78 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
       const plan = extractFtsPlanFromMetadata(metadata);
       if (!plan) continue;
 
-      this.#searchPlans.push(plan);
-      this.#searchEntries.set(plan.tableName, {
-        entity: metadata.name,
-        table: plan.tableName,
-        sqlTable: plan.sqlTableName ?? plan.tableName,
-        schema: plan.namespace,
-        primaryKey: plan.primaryKey,
-        fields: plan.fields.map(f => f.name),
-        fieldSpecs: plan.fields
-      });
+      this.#searchPlans.set(plan.tableName, { metadata, plan });
       this.#entityNameToTable.set(metadata.name, plan.tableName);
     }
+  }
+
+  /**
+   * 全部计划绑到一套表上（{@link SearchBackend.bindPlan}），顺序与 `config.entities` 相同。
+   *
+   * @param tableSet - 要绑的那套表；不是它成员的实体照旧落在主表集
+   */
+  async #bindPlans(tableSet: WorktreeTableSet): Promise<readonly SearchablePlan[]> {
+    const bound: SearchablePlan[] = [];
+    for (const { metadata, plan } of this.#searchPlans.values()) {
+      bound.push({ metadata, plan: await this.#backend.bindPlan(plan, metadata, tableSet) });
+    }
+    return bound;
+  }
+
+  /**
+   * 在调用方的事务里给一套影子表上的成员装全文索引；已经齐全的跳过（US-314 B2.5）。
+   *
+   * @param executor - 建表集或补建那笔事务的执行器
+   * @param tableSet - 那套表
+   * @param bound - 已经绑到这套表上的计划
+   */
+  async #installMembers(
+    executor: TransactionExecutor,
+    tableSet: WorktreeTableSet,
+    bound: readonly SearchablePlan[]
+  ): Promise<void> {
+    const runtime: RuntimeSqlExecutor = {
+      rawQuery: (sql, params?) => executor.query(sql, params ? [...params] : undefined)
+    };
+    for (const { metadata, plan } of bound) {
+      if (tableSet.has(metadata)) await this.#backend.installForTableSet(plan, runtime);
+    }
+  }
+
+  /**
+   * 一套表上的可搜索条目（US-314 B2.5）。
+   *
+   * @param tableSet - 本实例挂着的那套表
+   * @returns 表名 → 绑到这套表上的条目
+   *
+   * @remarks
+   * 按表集缓存，一个纪元里每套表只绑一次、只查一次目录；主表集那份由 `#runInstall` 放进来。
+   * 补建失败不留缓存：错误交给发起的那次查询，下一次查询再试。
+   */
+  #entriesOf(tableSet: WorktreeTableSet): Promise<ReadonlyMap<string, SearchableEntry>> {
+    const cached = this.#tableSetEntries.get(tableSet.suffix);
+    if (cached) return cached;
+    const located = this.#locate(tableSet);
+    this.#tableSetEntries.set(tableSet.suffix, located);
+    void located.catch(() => {
+      if (this.#tableSetEntries.get(tableSet.suffix) === located) this.#tableSetEntries.delete(tableSet.suffix);
+    });
+    return located;
+  }
+
+  /**
+   * 把计划绑到一套表上；是可写检出位的影子表时，先在一笔事务里补齐成员表的全文索引。
+   *
+   * @remarks
+   * 建表集钩子已经建过的这里只查一次目录就跳过。要补的是插件后装、或建这套表的一方没调钩子的情形：
+   * 补建按当下的表内容回填，之后的写入走触发器，索引与表一致。
+   */
+  async #locate(tableSet: WorktreeTableSet): Promise<ReadonlyMap<string, SearchableEntry>> {
+    const bound = await this.#bindPlans(tableSet);
+    if (!tableSet.isMain) {
+      await this.rxdb.localAdapterSync.transaction(executor => this.#installMembers(executor, tableSet, bound), false);
+    }
+    return new Map(bound.map(entry => [entry.plan.tableName, searchableEntryOf(entry)]));
   }
 
   #refreshRegisteredHandles(): void {
@@ -618,9 +739,9 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
     this.#readyDeferred.reject(destroyedError());
     this.#scope = undefined;
     this.#handleRegistrations.clear();
-    this.#searchEntries.clear();
+    this.#searchPlans.clear();
+    this.#tableSetEntries.clear();
     this.#entityNameToTable.clear();
-    this.#searchPlans.length = 0;
     this.#engine = undefined;
   }
 
@@ -633,7 +754,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
    * 未安装（含 `install()` 之前与作用域释放之后）时硬失败。
    *
    * 必须在 {@link search} / {@link searchCollection} **两个**入口上对称调用：
-   * 未安装时 `#searchEntries` 为空，`search()` 会解析出空 scope 并让
+   * 未安装时 `#searchPlans` 为空，`search()` 会解析出空 scope 并让
    * `#buildPerformSearch` 直接返回 `{ results: [], hasMore: false }` —— 而 scope 在创建
    * handle 时就被闭包冻结，后续 `install()` 完成也**不会自愈**。即「搜不到」与「插件没装」
    * 无法区分，且永久静默。这违反「无 fallback 兜底」，故在入口处硬失败。
@@ -642,7 +763,7 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
    * 要等到本地适配器就绪才跑。
    *
    * 判据是作用域的 `active` 而不是「安装完了没有」：安装中允许 `search()`（entity 事件
-   * 与 `#searchEntries` 在同步阶段就位，`#buildPerformSearch` 会因 `#engine` 未就绪
+   * 与 `#searchPlans` 在同步阶段就位，`#buildPerformSearch` 会因 `#engine` 未就绪
    * 明确抛错），而作用域一旦释放就必须硬失败。
    */
   #assertInstalled(): void {
@@ -694,6 +815,21 @@ export class RxDBPluginSearch extends RxDBPluginBase implements IRxDBPlugin {
         return () => this.rxdb.removeEventListener(type as never, dispatch as never);
       }, `search:entityEvents:${type}`);
     }
+  }
+
+  /**
+   * 换挂之后让已注册的 handle 重查（US-314 B2.5）：它们查的是挂着的那套表，换挂之前的结果属于旧那一套。
+   *
+   * @param scope - 本次安装的作用域
+   *
+   * @remarks
+   * 跳过订阅时交出的当前那一套。重查头一次碰到一套还没有全文索引的影子表，会先补建（见 `#entriesOf`）。
+   */
+  #bindWorktreeTableSetMounts(scope: LifecycleScope): void {
+    scope.acquire(() => {
+      const subscription = this.rxdb.worktreeTableSet$.pipe(skip(1)).subscribe(() => this.#refreshRegisteredHandles());
+      return () => subscription.unsubscribe();
+    }, 'search:worktreeTableSet');
   }
 
   #createMigrationStore(repo: Pick<IRepository<typeof RxDBMigration>, 'find' | 'create'>): MigrationRecordStore {

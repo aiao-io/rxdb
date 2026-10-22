@@ -258,6 +258,15 @@ DELETE FROM rxdb_migration WHERE name IN (
 
 清理后下次连接数据库会按当前 schema 重新走 install + backfill。
 
+## 可写检出位
+
+[`@aiao/rxdb-plugin-working-tree`](../rxdb-plugin-working-tree/README.md) 的可写检出位在同一个库里各有一套业务表（影子表），每套表各有一份全文索引：
+
+- `checkouts.add()` 在建表的同一笔事务里给检出位的表建索引并回填（本插件声明的 `worktreeTableSet.created` 钩子）。SQLite 是影子表自己的 `_fts_<物理表名>` 虚拟表与触发器，PostgreSQL 是影子 schema 里那张表上的 `_fts` 列、GIN 索引与触发器。
+- 查询按实例此刻挂着的那套表走：挂上检出位只搜得到它的表，挂回主检出位只搜得到主表；换挂之后已有的 `SearchHandle` 自动重查。
+- 检出位开的时候还没装本插件的，挂上之后头一次搜时在一笔事务里补建。
+- 迁移记录（上一节）只记主表集。检出位的索引按目录判断齐不齐，字段变了就整套重建；删检出位时跟着表一起删。
+
 ## 字段级排除
 
 只有同时满足以下条件的字段才会进入 FTS5 索引：

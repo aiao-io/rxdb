@@ -191,7 +191,7 @@ INVEST 检查清单:
     删掉检出位再切过去历史里有这个提交）、验收 4（再开被占的分支、开主检出位的当前分支、主检出位切过去都被拒，删掉之后放行）、
     播种 / 写过之后与「删掉检出位再切过去」逐行一致、开删不改主表原值也不写变更日志、密钥环上锁照样开得了、会话与持久归属的回收、
     `in_use`。适配器级（sqlite-core 共享套件与 PGlite 同名用例）：播种不记日志、增量越界整笔拒绝、按目录删、自增序列对齐。
-  - **已知限制**（B2 之前；B2.1 起去掉了已解决的项）：全文检索只在主表集；整数自增主键跨套可能撞 id
+  - **已知限制**（B2 之前；B2.1 起去掉了已解决的项）：整数自增主键跨套可能撞 id
     （owner 定：播种时对齐序列，记限制）；远端分支要先在主检出位上物化才能开、才能在检出位里切过去。
 - **守卫与修复**（阶段 B2.1，2026-10-21 调研查出 B1 交付里的缺陷，先修再做 B2 的新能力）：
   - 被可写检出位持有的分支删不掉：`remove_branch` 在 `activated` 之外再看 `activeKey`（核心的 `WorktreeBranchHeldError.heldBy`，
@@ -285,6 +285,30 @@ INVEST 检查清单:
     广播带分区且收方按视图收、discard 删带后缀的键）与浏览器集成用例（真实 `mountWorktreeTableSet` + 真 IndexedDB：
     分区往返、换挂前的实体存被拒、挂回之后恢复出来的草稿照常存）；核心守卫单测（各写入口、批量整批拒、挂回放行、
     同后缀重挂放行、不进影子表的实体放行）；检出位套件（六个后端）加「主检出位上新建还没存的实体，挂到检出位之后存被拒、一行不落，挂回照常存」。
+- **全文检索按表集**（阶段 B2.5）：
+  - 核心给插件一个建表集钩子：`IRxDBPlugin.worktreeTableSet?.created(executor, tableSet)`（`WorktreeTableSetHooks`），
+    `RxDB.notifyWorktreeTableSetCreated` 按 `use()` 的顺序调。工作树插件的 `checkouts.add()` 在 `createWorktreeTableSet` 之后、
+    同一笔事务里调它，任一插件抛错整笔回滚：检出位连同插件建在表上的附属对象要么都建好，要么一处不留。
+  - 搜索插件的钩子给成员表各建一份全文索引并回填：SQLite 是影子表自己的 FTS5 外部内容虚拟表 `_fts_<物理表名>`（物理表名带 `$<后缀>`）
+    与三个触发器；PGlite 是影子 schema 里那张表上的 `_fts` 列、GIN 索引、触发器，以及同一个 schema 里的触发器函数。复用主表集安装的
+    建表、回填、触发器三段，不写迁移记录（那是主表集的账本，签名漂移在主表集那次安装就报了）：目录里齐全且与计划一致就跳过，
+    缺了、建到一半、或与计划不一致就整套重建。
+  - 物理位置只从适配器的表名解析器出：搜索后端多了 `bindPlan(plan, metadata, tableSet)`，FTS5 换 `sqlTableName`、pg-tsvector 换 `schema`
+    （PGlite 的 `./fts` 子路径导出 `getSchemaName`，照旧惰性加载）。安装计划的 `namespace` 字段换成 `schema`，主表集的计划也经
+    `bindPlan` 绑：从前 pg 后端拿命名空间直接当 schema，影子表上的索引会建到、查到主表集的 schema 里。门禁加 R4，
+    抓 `schema: x.namespace` / `schema = x.namespace` 这类写法。
+  - 查询按本实例此刻挂着的那套表解析表名（按表集缓存），翻页的结果池也按表集记；换挂之后（`worktreeTableSet$`）已注册的句柄重查。
+    挂上一套还没有全文索引的影子表（插件后装、建表集的一方没调钩子）时，头一次查询先在一笔事务里补建、按当下的表内容回填。
+  - 删检出位不用另做。SQLite 删表集按目录找到的也有这套表的 FTS5 虚拟表（名字同样以 `$<后缀>` 结尾）：触发器先摘，内容表排在它前面删空，
+    虚拟表的 `DELETE FROM` 扫的是空内容表，`DROP TABLE` 连同它的内部表一起删。PGlite 的 `DROP SCHEMA … CASCADE` 连触发器函数一起带走。
+    计划里「删表集先 DROP 虚拟表」那一步因此没做，由下面「删表集之后不留」那条用例在三个 FTS5 后端上守着。
+  - 一致性：搜索插件的共享套件 `worktree-search.suite.ts`（sqlite-wasm / sqlite / sqliteai 经浏览器 spec，PGlite 经 node spec）——
+    建表集的同一笔事务里建出索引、播种过来的行搜得到；挂上检出位只搜到这套表上的、写入即进索引，挂回只搜到主表上的；
+    换挂之后已有的句柄自动重查、查的是新挂上的那套表；删表集之后目录里这套表的对象一个不剩、主表的索引照常；
+    没调钩子的表集挂上之后头一次搜时补建，搜不到开检出位之后才写进主表的行。核心单测（钩子按 `use()` 的顺序调、没声明钩子的插件跳过、
+    抛错中断）；工作树插件单测（`add()` 建完表集之后在同一笔事务里调钩子）。搜索插件与工作树插件互不依赖，真实的 `checkouts.add()`
+    流程在本地一次性核对过（PGlite，未入库）：`add()` 前后变更日志行数与主检出位的 `status()` 不变，装不装搜索插件挂上检出位的工作树状态一样
+    （回填不记成改动；建索引走事务执行器的 `query`，不经原始写门禁）。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 
@@ -338,6 +362,12 @@ INVEST 检查清单:
 - `packages/rxdb-plugin-workspace/src/workspace-entry.ts`（`workspaceStorageKeyOf` / `splitWorkspaceStorageKey`）、`RxDBPluginWorkspace.ts`；
   `packages/rxdb/src/system/worktree-table-set.ts`（`WorktreeTableSetMismatchError`）、`entity/entity-status.ts`（`tableSet`）、
   `entity/worktree-table-set-guard.ts`、`repository/Repository.ts`、`entity/entity-manager.ts` — 草稿缓存按检出位与保存守卫（B2.4）
+- `packages/rxdb/src/rxdb-plugin.ts`（`WorktreeTableSetHooks`）、`RxDB.ts`（`notifyWorktreeTableSetCreated`）；
+  `packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts`；`packages/rxdb-plugin-search/src/plugin.ts`、
+  `backend/search-backend.ts`（`bindPlan` / `installForTableSet`）、`backend/fts5-backend.ts`、`core/fts5-runtime.ts`
+  （`installFtsForTableSet`）、`core/fts5-installer.ts`、`backend/pg/pg-backend.ts`、`pg-runtime.ts`（`installPgFtsForTableSet`）、
+  `pg-fts-contract.ts`；`packages/rxdb-adapter-pglite/src/fts/index.ts`（`getSchemaName`）；`scripts/audit/table-name-resolver.mjs`（R4）；
+  `packages/rxdb-plugin-search/src/__tests__/worktree-search.suite.ts` — 全文检索按表集（B2.5）
 - `packages/rxdb/src/system/active-branch-guard.ts`（`WorktreeBranchHeldError`）、`system/system-repositories.ts`、
   两个适配器的 `version/switch_branch.ts` 与系统迁移（sqlite-core `RxDBAdapterSqliteBase.ts`、PGlite `system/migrate_system_schema.ts`）
   — 分支持有模型

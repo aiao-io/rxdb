@@ -78,6 +78,7 @@ import { RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
 import { CORE_SYSTEM_ENTITIES, isSystemEntity, registerSystemEntities } from './system/system-entities.js';
 import { WorktreeTableSet } from './system/worktree-table-set.js';
+import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
@@ -1323,6 +1324,22 @@ export class RxDB {
     this.entityManager.resetForWorktreeTableSet();
     // 流在清空实体缓存之后才发：订阅方按新那套重填的缓存不会被清空抹掉（US-314 B2.3）
     this.#worktree_table_set$.next(tableSet);
+  }
+
+  /**
+   * 一套可写检出位的表刚建好：在建它的那笔事务里，按 `use()` 的顺序调各插件的 `worktreeTableSet.created`（US-314 B2.5，见 `WorktreeTableSetHooks`）。
+   *
+   * @param executor - 建表的那笔事务
+   * @param tableSet - 刚建好、播完种的那套表
+   *
+   * @remarks
+   * 插件在业务表上建的附属对象（全文索引这类）要在每套影子表上各有一份。任一插件抛错整笔回滚：检出位要么连同这些
+   * 附属对象一起建好，要么一处不留。由建表集的一方（工作树插件的 `checkouts.add()`）在 `createWorktreeTableSet` 之后调。
+   */
+  async notifyWorktreeTableSetCreated(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void> {
+    for (const plugin of this.#plugin_map.values()) {
+      await plugin.worktreeTableSet?.created(executor, tableSet);
+    }
   }
 
   /**

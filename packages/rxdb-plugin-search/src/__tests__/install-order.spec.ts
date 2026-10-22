@@ -14,7 +14,8 @@
  *  1. 插件不再触碰 `connect()` / `adapterConnected$`——死锁的两条边少了一条；
  *  2. FTS DDL 只走 `bootstrapTransaction`，不碰会自等 `connect()` 的 `adapter.rawQuery` / repo。
  */
-import { Entity, EntityBase, PropertyType, type RxDB } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, type RxDB, WorktreeTableSet } from '@aiao/rxdb';
+import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { FtsInstallPlan } from '../core/fts5-installer.js';
@@ -117,6 +118,8 @@ describe('search plugin install ordering', () => {
         entities: [FakeArticle]
       },
       localAdapterSync: adapter,
+      worktreeTableSet: WorktreeTableSet.MAIN,
+      worktreeTableSet$: new BehaviorSubject(WorktreeTableSet.MAIN),
       getPlugins: vi.fn(() => []),
       connect,
       adapterConnected$,
@@ -190,6 +193,8 @@ describe('search plugin install ordering', () => {
     const fakeRxdb = {
       config: { sync: { local: { adapter: 'sqlite-wasm' } }, entities: [FakeArticle] },
       localAdapterSync: adapter,
+      worktreeTableSet: WorktreeTableSet.MAIN,
+      worktreeTableSet$: new BehaviorSubject(WorktreeTableSet.MAIN),
       getPlugins: vi.fn(() => []),
       addEventListener: vi.fn(),
       removeEventListener: vi.fn()

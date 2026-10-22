@@ -9,12 +9,15 @@
 import { describe, expect, it } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
-import { PropertyType } from '../../entity/metadata-options.interface.js';
+import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
+import type { IRxDBPlugin } from '../../rxdb-plugin.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
+import { RxDB } from '../../RxDB.js';
 import { RxDBError } from '../../RxDBError.js';
 import { ACTIVE_BRANCH_KEY } from '../../system/active-branch-guard.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { WorktreeTableSet } from '../../system/worktree-table-set.js';
+import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
 
 @Entity({
   name: 'WorktreeTableSetTodo',
@@ -134,5 +137,64 @@ describe('WorktreeTableSet', () => {
     expect(set.eventTagOf(getEntityMetadata(Todo))).toEqual({ tableSetSuffix: 'wt_a1' });
     expect('tableSetSuffix' in set.eventTagOf(getEntityMetadata(Note))).toBe(false);
     expect('tableSetSuffix' in WorktreeTableSet.MAIN.eventTagOf(getEntityMetadata(Todo))).toBe(false);
+  });
+});
+
+// 一套可写检出位的表刚建好（US-314 B2.5）：插件在业务表上建的附属对象（全文索引）要在影子表上也建一份
+describe('RxDB.notifyWorktreeTableSetCreated', () => {
+  const createRxdb = () =>
+    new RxDB({
+      dbName: `worktree-hooks-${Math.random().toString(36).slice(2)}`,
+      entities: [Todo],
+      sync: { local: { adapter: 'noop' }, type: SyncType.None }
+    });
+  const executor = {} as TransactionExecutor;
+  const tableSet = WorktreeTableSet.of('wt_hooks', [Todo]);
+
+  it('按 use() 的顺序调各插件的钩子，交出同一个执行器与表集；没声明钩子的插件跳过', async () => {
+    const rxdb = createRxdb();
+    const calls: unknown[][] = [];
+    const withHook = (name: Uncapitalize<string>) => (): IRxDBPlugin => ({
+      name,
+      install: () => undefined,
+      worktreeTableSet: {
+        created: async (...args) => {
+          calls.push([name, ...args]);
+        }
+      }
+    });
+    rxdb.use(withHook('first'));
+    rxdb.use((): IRxDBPlugin => ({ name: 'plain', install: () => undefined }));
+    rxdb.use(withHook('second'));
+
+    await rxdb.notifyWorktreeTableSetCreated(executor, tableSet);
+
+    expect(calls).toEqual([
+      ['first', executor, tableSet],
+      ['second', executor, tableSet]
+    ]);
+  });
+
+  it('钩子抛错原样冒出，后面的插件不再调：建表集的那笔事务随之回滚', async () => {
+    const rxdb = createRxdb();
+    const boom = new Error('附属对象建不出来');
+    const later: string[] = [];
+    rxdb.use((): IRxDBPlugin => ({
+      name: 'failing',
+      install: () => undefined,
+      worktreeTableSet: { created: () => Promise.reject(boom) }
+    }));
+    rxdb.use((): IRxDBPlugin => ({
+      name: 'later',
+      install: () => undefined,
+      worktreeTableSet: {
+        created: async () => {
+          later.push('called');
+        }
+      }
+    }));
+
+    await expect(rxdb.notifyWorktreeTableSetCreated(executor, tableSet)).rejects.toBe(boom);
+    expect(later).toEqual([]);
   });
 });

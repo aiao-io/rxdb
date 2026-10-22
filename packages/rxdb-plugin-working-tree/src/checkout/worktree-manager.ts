@@ -349,6 +349,8 @@ export class WorktreeManager {
           branchId,
           actions: keep_table_set_actions(this.#rxdb, actions, tableSet)
         });
+        // 插件在业务表上的附属对象（全文索引）也在这笔事务里给影子表建一份（US-314 B2.5）
+        await this.#rxdb.notifyWorktreeTableSetCreated(executor, tableSet);
         const row = this.#writableRecord({
           id,
           branchId,

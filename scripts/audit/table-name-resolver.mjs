@@ -18,6 +18,8 @@
  * - **R2 手拼物理名**：模板里 `${x.namespace}$` 这种「命名空间 + `$`」的拼法。
  * - **R3 把命名空间当 schema 用**（PGlite）：目录查询的参数对 `[x.namespace, x.tableName]`
  *   与目录键 `${x.namespace}\u0000`——影子表集的 schema 不是命名空间。
+ * - **R4 把命名空间直接给 schema**（US-314 B2.5）：`schema: x.namespace` 与 `schema = x.namespace`。
+ *   搜索插件的 pg 后端照这样给全文索引定位，影子表上的索引就会建到、查到主表集的 schema 里。
  *
  * 只在**涂掉注释**的源码上匹配，字符串保留：SQL 就拼在模板字面量里，涂掉字符串等于什么都看不见。
  * 注释里指路性质的旧写法（「名字由 `get_table_name()` 给出」）不算数。
@@ -93,6 +95,10 @@ export const RULES = Object.freeze({
     pattern:
       /\[\s*[A-Za-z_$][\w$]*(?:\??\.[A-Za-z_$][\w$]*)*\??\.namespace\s*,\s*[A-Za-z_$][\w$]*(?:\??\.[A-Za-z_$][\w$]*)*\??\.tableName|\$\{\s*[A-Za-z_$][\w$]*(?:\??\.[A-Za-z_$][\w$]*)*\??\.namespace\s*\}\\u0000/g,
     summary: '把命名空间当 schema 用（目录查询参数对 / 目录键）'
+  },
+  R4: {
+    pattern: /(?<![\w$.])schema\s*(?::|=(?!=))\s*[A-Za-z_$][\w$]*(?:\??\.[A-Za-z_$][\w$]*)*\??\.namespace(?![\w$])/g,
+    summary: '把命名空间直接给 schema（字段或变量）'
   }
 });
 

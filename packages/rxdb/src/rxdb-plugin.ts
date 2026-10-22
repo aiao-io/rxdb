@@ -1,6 +1,25 @@
 import type { LifecycleScope } from '@aiao/utils';
 import type { RxDBSystemContribution } from './rxdb-plugin-system.js';
 import { RxDB } from './RxDB.js';
+import type { WorktreeTableSet } from './system/worktree-table-set.js';
+import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
+
+/**
+ * 插件对可写检出位那套表的贡献（US-314 B2.5）。
+ *
+ * @remarks
+ * 插件在业务表上建了附属对象（全文索引这类）时，每套可写检出位的影子表也要有一份，否则挂上检出位就查不到。
+ * 由建表集的一方经 {@link RxDB.notifyWorktreeTableSetCreated} 在同一笔事务里调。
+ */
+export interface WorktreeTableSetHooks {
+  /**
+   * 一套可写检出位的表刚建好、播完种，还在建它的那笔事务里。
+   *
+   * @param executor - 建表的那笔事务；在它上面建附属对象，抛错整笔回滚
+   * @param tableSet - 刚建好的那套表。执行器的 `tableSet` 是发起事务的实例挂的那套（通常是主表集），不是它
+   */
+  created(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void>;
+}
 
 /**
  * 插件可声明的依赖，**封闭取值**。
@@ -76,6 +95,14 @@ export interface IRxDBPlugin {
    * 静默跳过的后果是一个「装了插件、表却没建」的库，而那不产生任何编译错误。
    */
   readonly system?: RxDBSystemContribution;
+
+  /**
+   * 本插件对可写检出位那套表的贡献（US-314 B2.5），见 {@link WorktreeTableSetHooks}。
+   *
+   * @remarks
+   * 只在业务表上建了附属对象（全文索引这类）的插件才需要声明。
+   */
+  readonly worktreeTableSet?: WorktreeTableSetHooks;
 
   /**
    * 声明本插件需要哪些依赖就绪之后才能安装。

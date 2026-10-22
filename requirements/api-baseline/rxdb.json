@@ -2734,6 +2734,10 @@
         "kind": "both"
       },
       {
+        "name": "WorktreeTableSetHooks",
+        "kind": "type"
+      },
+      {
         "name": "WorktreeTableSetMismatchError",
         "kind": "both"
       },

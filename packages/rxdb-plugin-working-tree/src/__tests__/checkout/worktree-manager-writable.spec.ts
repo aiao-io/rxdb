@@ -229,6 +229,17 @@ describe('WorktreeManager.add', () => {
     expect(await isLocked(worktree.id)).toBe(true);
   });
 
+  // 插件在业务表上的附属对象（全文索引）也要给影子表建一份（US-314 B2.5）
+  it('建完表集之后、在同一笔事务里调插件的建表集钩子', async () => {
+    const notify = vi.spyOn(main, 'notifyWorktreeTableSetCreated');
+
+    await managerOf().add('feature');
+
+    const [executorUsed, tableSet] = createWorktreeTableSet.mock.calls[0];
+    expect(notify).toHaveBeenCalledWith(executorUsed, tableSet);
+    expect(notify.mock.invocationCallOrder[0]).toBeGreaterThan(createWorktreeTableSet.mock.invocationCallOrder[0]);
+  });
+
   it('分支已被持有（主检出位正停在它上面）：拒绝，不建表、不写登记行，锁还掉', async () => {
     const manager = managerOf();
 
