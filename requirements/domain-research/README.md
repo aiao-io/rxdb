@@ -93,7 +93,7 @@ AI 构建器和小游戏适合继续做有边界的技术 / 玩法验证，当�
 | 智能体记忆 / 本地 AI 助手                | [local-ai-agent.md](local-ai-agent.md)                                 | 研究中 | 技术储备            | 「数据库即前端」的旗舰应用；检索原语已交付，编排与推理在引擎外                    |
 | AI 原生本地优先开发环境                  | [ai-native-builder.md](ai-native-builder.md)                           | 研究中 | 技术储备，主线后置  | 开发过程即数据；Git + OPFS 与可运行导出待验证                                     |
 | 人生模拟小游戏（人生快进中）             | [life-fast-forward.md](life-fast-forward.md)                           | 研究中 | 独立玩法实验        | 先验一局玩法与小游戏存档；时长、广告推进和数值规则需收敛                          |
-| 模型驱动后台管理框架                     | [admin-framework.md](admin-framework.md)                               | 研究中 | 第一顺位            | schema 单一真相源；rxdb-model 已是半成品，立项门槛最低                            |
+| 模型驱动后台管理框架         | —（指针见下）                                        | 已孵化 | 已孵化，单独处理   | 首版切片 3 条 story 已建（US-526~528，价值待证）；epic-010 未解锁      |
 
 ## 横向对比
 
@@ -193,6 +193,19 @@ PTC Windchill / Teamcenter（PLM）、西门子 Opcenter（MES）。
 也不适合证明「最快交付」这一目标；已开展的 BOM 工作应按现有切片收敛到可演示、可验收状态，
 其领域抽象、ERP 集成与全域功能不进工作台首版。
 
+## 已孵化：模型驱动后台管理框架
+
+候选分析的结论与决策过程留在 [admin-framework.md](admin-framework.md)（冻结为设计依据，只留指针），
+首版切片已建成 [epic-010](../epics/epic-010-model-driven-admin-framework.md) 下的三条故事：
+[US-526 工作台](../stories/domain/US-526-admin-workbench.md)（预置 schema 的录入 / 编辑 / 筛选闭环）、
+[US-527 备份恢复](../stories/domain/US-527-admin-backup-restore.md)、
+[US-528 独立消费示例](../stories/domain/US-528-admin-consumer-example.md)。三条均 `Backlog` 且
+**价值待证**——入场条件（具名团队 CRUD 重复劳动或自举）尚未出现，epic **未解锁**、不进排期批次，
+登记在 [roadmap 立项池](../roadmap.md#立项池待-owner-决策未进任何批次)。
+
+契合点一句话：后台管理是「看数据 + 提交数据」的重复劳动，`rxdb-model` 四包与 demo 实体页面
+已是半成品，首版只做产品化组装。对标：react-admin / refine / AdminJS。
+
 ## 未深入候选（排队，非否决）
 
 一句话记录 + 深入触发信号，需要时再单独立文件：
@@ -258,6 +271,9 @@ PTC Windchill / Teamcenter（PLM）、西门子 Opcenter（MES）。
 | 2026-10-18 | 按「尽快交付并验证 RxDB」复核候选；首选模型驱动后台的单人本地数据工作台，任务看板第二顺位                | 用户确认评估目标，评审记录见本 README「优先级结论 / 优先级评审 / 复核纠偏」节                                                             |
 | 2026-10-19 | 优先级评审文档并入本 README，纠偏结论同步落回候选文件                                                    | owner 指示文档整理                                                                                                                        |
 | 2026-10-19 | 任务看板解锁为 epic-011                                                                                  | owner 决定（演示价值入场，先例 epic-009 BOM），记录见 [epic-011 解锁记录](../epics/epic-011-task-board-domain-model.md#价值待证整个-epic) |
+| 2026-10-19 | 模型驱动后台管理框架孵化：首版切片建成 epic-010（未解锁）与 US-526~528 三条 story（均 Backlog、价值待证），登记 roadmap 立项池；epic 解锁仍待 owner 决策与入场条件   | owner 指示孵化，见本 README「已孵化：模型驱动后台管理框架」节                      |
+| 2026-10-19 | 孵化立项 / 范围评审：结论回写三条 story（US-526 首版须带会持续维护的真实数据、US-527 AC#2 改故障注入可测、US-528 对 US-526 为对照基线非硬前置）；epic 仍锁定、未解锁 | 用户指示评审，结论见各 story                                                       |
+
 
 ## 维护规则
 

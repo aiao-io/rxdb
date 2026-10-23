@@ -11,15 +11,16 @@
 | ✅ Done        | 78   |
 | 🚧 In Progress | 5    |
 | 👀 In Review   | 2    |
-| 📝 Backlog     | 23   |
+| 📝 Backlog     | 26   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 108  |
+| **合计**       | 111  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **23 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
+> **26 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
 > 任务看板领域模型共 8 条，其中 US-534～US-540 共 7 条于 2026-10-19 由 owner 解锁进批次 6（驱动者 = 下一个完整演示应用，见 [epic-011 解锁记录](epics/epic-011-task-board-domain-model.md#价值待证整个-epic)），US-535 / US-536 / US-538 Done；US-534 / 537 / 539 / 540 阶段 A 各有保留项（收尾清单见 [RV-083](reviews/RV-083-board-v1-closeout-checklist.md)），US-541 团队版仍价值待证；
+> [模型驱动后台](epics/epic-010-model-driven-admin-framework.md) 首版切片 3 条（US-526~528）已孵化但 epic **未解锁、价值待证**；
 > [US-911](stories/future/US-911-client-i18n.md) 阶段 A～C 无硬前置、可开工，在立项池待 owner 定批次；[US-029](stories/core/US-029-rbac-owner-role-permission.md)
 > 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
 > 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
@@ -226,6 +227,16 @@ US-541 团队版仍价值待证（入场条件 = 具名团队「离线拖拽任�
 - 🚧 [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md) — 两阶段：A 创建 / 编辑 / 删除 / 拖拽 / 本列排序 / 备份，B 搜索；三个绑定包，宿主为现有三端 demo 的看板页；同后端三端对拍与键盘等价路径
 - 🚧 [US-540 看板端到端 demo：一份数据集走完全域](stories/domain/US-540-board-end-to-end-demo.md) — 两阶段；A 依赖 US-539 A，B 依赖 US-538 与 US-539 B；确定性种子贯穿单人闭环与多板搜索隔离
 - ⬜ [US-541 团队版看板：Supabase 同步与身份](stories/domain/US-541-board-team-sync.md) — **价值待证**：身份 / 成员写权限 / RLS / 冲突规则均由本故事定义与验收；US-027 仅约束公开 / 系统入口
+
+### [模型驱动后台管理框架](epics/epic-010-model-driven-admin-framework.md)
+
+**未解锁（价值待证）**：三条故事写不出「今天用户踩得到的具体症状」——无具名试用者、仓库未自举；
+解锁条件与不随首版立项的范围见 [epic-010](epics/epic-010-model-driven-admin-framework.md#价值待证整个-epic)，
+候选分析见 [domain-research](domain-research/admin-framework.md)。
+
+- ⬜ [US-526 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环](stories/domain/US-526-admin-workbench.md) — 三阶段；应用壳与预置 schema + 导航（A）、CRUD 接线与加载 / 失败 / 空态（B）、持久化重开 + e2e 组合验收（C）；复用 rxdb-model 组件与三端 demo 实体页，不新增公共框架 API
+- ⬜ [US-527 工作台备份恢复闭环：失败语义与数据保留](stories/domain/US-527-admin-backup-restore.md) — 两阶段；复用 US-217 的备份 / 恢复契约与错误分类，只做入口与失败语义接线；恢复失败不得破坏当前库
+- ⬜ [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md) — 两阶段；只用发布包从零接线的最小应用 + 代码行数 / 依赖 / 样式成本记录
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
