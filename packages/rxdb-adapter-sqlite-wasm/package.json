@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-adapter-sqlite-wasm",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "SQLite WASM adapter with browser persistence for Aiao RxDB.",
   "homepage": "https://rxdb.aiao.io/docs/adapters/sqlite-wasm",
   "bugs": {

@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-plugin-replay-vue",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "Vue replayer component for the Aiao RxDB session replay plugin.",
   "homepage": "https://rxdb.aiao.io/docs/plugins",
   "bugs": {

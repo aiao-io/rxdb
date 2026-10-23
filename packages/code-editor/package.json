@@ -1,6 +1,6 @@
 {
   "name": "@aiao/code-editor",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "CodeMirror 6 editor core for Aiao applications.",
   "homepage": "https://rxdb.aiao.io/docs/code-editor",
   "bugs": {

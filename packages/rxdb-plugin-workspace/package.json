@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-plugin-workspace",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "Staging, commit, and restore workflows for Aiao RxDB.",
   "homepage": "https://rxdb.aiao.io/docs/collaboration",
   "bugs": {
