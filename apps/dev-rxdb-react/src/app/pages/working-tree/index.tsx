@@ -10,7 +10,7 @@ import type {
   WorkingTreeRestoreSessionInfo
 } from '@aiao/rxdb-plugin-working-tree';
 import { CommitValidationError, WorkingTreeDirtyError } from '@aiao/rxdb-plugin-working-tree';
-import { useWorkingTree } from '@aiao/rxdb-plugin-working-tree-react';
+import { useWorkingTree, useWorktrees } from '@aiao/rxdb-plugin-working-tree-react';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
 import clsx from 'clsx';
 import { Check, ChevronDown, FolderGit2, GitBranch, RefreshCw } from 'lucide-react';
@@ -37,6 +37,7 @@ import { diffEntryKey } from './utils/diff-format';
 import { startDragResize } from './utils/drag';
 import { gdEntryPath } from './utils/gd';
 import { useKeepLastGood } from './utils/keep-last-good';
+import { currentBranchOf } from './utils/worktrees';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -92,6 +93,8 @@ type WorkingTreeContextMenuTarget =
  */
 export default function WorkingTreePage(): React.JSX.Element {
   const tree = useWorkingTree();
+  /** 检出位：挂着哪一套（`mounted`）决定当前分支，下拉与对话框经它开、挂、删（US-314 C2） */
+  const worktrees = useWorktrees();
   const rxdb = useRxDB();
   const branchesResource = useFindAll(RxDBBranch, {
     where: { combinator: 'and', rules: [] },
@@ -174,9 +177,10 @@ export default function WorkingTreePage(): React.JSX.Element {
   const displayDiffState = useKeepLastGood(diffState);
 
   // ── 派生状态 ──────────────────────────────────────────────
-  const activeBranch = branches.find(branch => branch.activated)?.id ?? '';
-  /** 当前分支以外的分支：合并对话框的来源列表与 History 的对比下拉共用 */
-  const otherBranchIds = branches.filter(branch => !branch.activated).map(branch => branch.id);
+  /** 当前分支：挂着那套表持有的那一条（挂在可写检出位上时它的 `activated` 是假，见 `utils/worktrees.ts`） */
+  const activeBranch = currentBranchOf(branches, worktrees.mounted);
+  /** 当前分支以外的分支：合并对话框的来源列表与 History 的对比下拉共用；被别的检出位持有的照样能合进来、拿来对比 */
+  const otherBranchIds = branches.filter(branch => branch.id !== activeBranch).map(branch => branch.id);
 
   /** 「更改」标签上的条数徽章；status 里那份 entryCount 与 diff 条目数同源。 */
   const changesCount =
@@ -345,7 +349,8 @@ export default function WorkingTreePage(): React.JSX.Element {
 
   /**
    * 分支行上的右键（GitHub Desktop 的分支右键菜单，`branch-list-item-context-menu.tsx`）：复制分支名，分隔线后是删除。
-   * 点行本身就是切换；合并在分支下拉底部，对比在 History 顶部。当前分支不能删，没有删除项。
+   * 点行本身就是切换；合并在分支下拉底部，对比在 History 顶部。被持有的分支（当前分支、主检出位或别的检出位检出着的）删不掉，
+   * 没有删除项。
    */
   const openBranchContextMenu = (request: { target: RxDBBranch; event: React.MouseEvent }) => {
     request.event.preventDefault();
@@ -353,7 +358,7 @@ export default function WorkingTreePage(): React.JSX.Element {
     const items: WorkingTreeContextMenuItem[] = [
       { id: 'branch-copy', label: 'Copy branch name', testId: 'wt-branch-menu-copy' }
     ];
-    if (!branch.activated) {
+    if (branch.activeKey === null || branch.activeKey === undefined) {
       items.push(
         { id: 'sep-1', label: '', separator: true },
         { id: 'branch-delete', label: 'Delete…', danger: true, testId: 'wt-branch-menu-delete' }

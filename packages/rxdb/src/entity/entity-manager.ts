@@ -40,6 +40,7 @@ import { formatMetadataViolations, validateEntityMetadataSet } from './metadata-
 import { collectMutationEntityTypes, isQueryCacheBatch, resolveBatchPrimaryAdapter } from './primary-adapter.js';
 import { createEntityProxy } from './proxy.js';
 import entity_relation_helper from './relation-helper.js';
+import { assertMountedTableSet } from './worktree-table-set-guard.js';
 
 /**
  * @fileoverview 实体管理器
@@ -212,7 +213,9 @@ export class EntityManager {
             id: entity.id,
             patch: entity,
             inversePatch: null,
-            recordAt: new Date()
+            recordAt: new Date(),
+            // 新建的实体存下去会落在本实例挂的那套表上（US-314 B2.3）
+            ...this.rxdb.worktreeTableSet.eventTagOf(meta)
           }
         ]);
         this.rxdb.dispatchEvent(entity_new_event);
@@ -486,10 +489,17 @@ export class EntityManager {
    * @throws {@link RxDBReadOnlyError} 只读实例；一条都不写
    * @throws {@link PermissionDeniedError} 批内有只许系统写的操作；清单列出全部违规，一条都不写
    * @throws {@link SortOrderError} 手动排序键不合法，或缺键创建 / 改分组字段落在 remote-only / QueryCache 主端；一条都不写
+   * @throws {@link WorktreeTableSetMismatchError} 批内有实体不是在本实例此刻挂的那套表上建出、读出的；一条都不写
    */
   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>) {
     // 只读实例在一切判定之前拒绝（US-313）：只读检出位的快照库是另一条线建立时刻的数据，写进去对不上那条线
     if (this.rxdb.readOnly) throw new RxDBReadOnlyError('mutations');
+    // 换挂之后旧的实体对象写不进另一套表（US-314 B2.4），与只读同一层、在一切写之前
+    assertMountedTableSet(this.rxdb, [
+      ...flattenMutationEntities(options.create),
+      ...flattenMutationEntities(options.update),
+      ...flattenMutationEntities(options.remove)
+    ]);
     // 批量与单条共用同一个主适配器选择器：`Repository.primary$` 也走
     // `selectPrimaryAdapterKind`。此前批量硬等 `localAdapter$`，remote-only 配置下那条流
     // 永不发射，`firstValueFrom` 静默挂起——调用方拿到一个不会 settle 的 Promise。
@@ -624,7 +634,9 @@ export class EntityManager {
         id,
         patch,
         inversePatch: {} as Readonly<Partial<InstanceType<T>>>,
-        recordAt: new Date()
+        recordAt: new Date(),
+        // 外部改的是本实例挂的那套表上的这一行（US-314 B2.3）
+        ...this.rxdb.worktreeTableSet.eventTagOf(metadata)
       }
     ]);
     const hook = this.rxdb.workingTreeCaptureHook;

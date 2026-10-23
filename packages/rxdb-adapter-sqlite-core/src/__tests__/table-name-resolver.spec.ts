@@ -19,7 +19,6 @@ import {
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import {
-  get_companion_table_name,
   get_storage_object_name,
   get_table_name,
   get_table_name_by_entity_type,
@@ -65,12 +64,6 @@ describe('表名解析器：主表集与引入检出位之前逐字相同', () =
   it('库级约束对象名原样', () => {
     expect(get_storage_object_name(constraintName, todo, WorktreeTableSet.MAIN)).toBe(constraintName);
   });
-
-  it('附属表名：<命名空间>$<附属名>', () => {
-    expect(get_companion_table_name(todo, 'ResolverTodo_edges', WorktreeTableSet.MAIN)).toBe(
-      'public$ResolverTodo_edges'
-    );
-  });
 });
 
 describe('表名解析器：影子表集', () => {
@@ -113,9 +106,5 @@ describe('表名解析器：影子表集', () => {
   it('没有副本的实体，约束对象名原样', () => {
     const unlisted = WorktreeTableSet.of('wt_a1', []);
     expect(get_storage_object_name(constraintName, todo, unlisted)).toBe(constraintName);
-  });
-
-  it('附属表跟着所属实体：所属实体有副本，附属表也加后缀', () => {
-    expect(get_companion_table_name(todo, 'ResolverTodo_edges', shadow)).toBe('public$ResolverTodo_edges$wt_a1');
   });
 });

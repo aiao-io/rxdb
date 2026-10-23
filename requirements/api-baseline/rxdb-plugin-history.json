@@ -46,6 +46,10 @@
         "kind": "value"
       },
       {
+        "name": "keep_table_set_actions",
+        "kind": "value"
+      },
+      {
         "name": "MergePreview",
         "kind": "type"
       },

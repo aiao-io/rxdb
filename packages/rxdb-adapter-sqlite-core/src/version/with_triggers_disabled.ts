@@ -49,6 +49,7 @@ export function readCurrentBranchId(tx: SqlExecutor, tableSet: WorktreeTableSet)
  * @param adapter - SQLite 适配器
  * @param tx - **当前**事务的执行器；三明治的三步必须落在同一事务里
  * @param body - 窗口内要执行的写入，返回值原样透传
+ * @param tableSet - 摘、挂哪一套表的触发器，缺省是本实例挂的那套；QueryCache 写入传主表集（见下）
  * @returns `body` 的返回值
  * @throws 原样重抛 `body` 的错误——`body` 抛错但触发器重建成功时
  * @throws {@link RxDBAdapterSqliteError} 触发器重建阶段读不到当前分支时抛出（不论 `body` 是否成功，见下）
@@ -64,9 +65,10 @@ export function readCurrentBranchId(tx: SqlExecutor, tableSet: WorktreeTableSet)
  * （见 {@link readCurrentBranchId} 的说明），而且中间那个没有触发器的已提交窗口会对并发写敞开 ——
  * 那些写入的历史将永久丢失。
  *
- * 删与重建都只动本实例挂的那一套表（`adapter.tableSet`），重建按当前分支烙，**不碰分支表**（US-314 B1.3）。
+ * 删与重建都只动一套表（缺省是本实例挂的 `adapter.tableSet`），重建按那套表持有的分支烙，**不碰分支表**（US-314 B1.3）。
  * 从前重建复用切分支的整段 SQL，每次拉取都捎带一条分支表的恒等 UPDATE；挂在可写检出位上时，那条 UPDATE
- * 会把检出位持有的分支点亮。
+ * 会把检出位持有的分支点亮。QueryCache 同步的实体只在主表集（不进影子表集）：挂在可写检出位上回填缓存时，
+ * 要摘的是主表集的触发器，摘本实例那套等于没摘，回填照样记进主分支的日志（US-314 B2.1）。
  *
  * **重建触发器是「不论成功失败都必须跑」的收尾，且不用 `try/finally` 实现**：本函数的生产
  * 调用点都在 `this.transaction()` 里，`body` 抛错时整个事务连带回滚，中间那个「触发器已删、
@@ -91,9 +93,9 @@ export function readCurrentBranchId(tx: SqlExecutor, tableSet: WorktreeTableSet)
 export async function withTriggersDisabled<T>(
   adapter: RxDBAdapterSqliteBase,
   tx: SqlExecutor,
-  body: () => Promise<T>
+  body: () => Promise<T>,
+  tableSet: WorktreeTableSet = adapter.tableSet
 ): Promise<T> {
-  const tableSet = adapter.tableSet;
   const removeTriggers = remove_all_triggers_sql(adapter, tableSet);
   if (removeTriggers) {
     await tx.execute(removeTriggers);

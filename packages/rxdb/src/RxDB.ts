@@ -76,8 +76,10 @@ import { declaresStorageConstraints } from './system/constraint-drift.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
 import { RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
+import { sha256Hex } from './system/sha256.js';
 import { CORE_SYSTEM_ENTITIES, isSystemEntity, registerSystemEntities } from './system/system-entities.js';
 import { WorktreeTableSet } from './system/worktree-table-set.js';
+import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
@@ -89,6 +91,8 @@ export type { IRepositoryConfig } from './rxdb.types.js';
 export class RxDB {
   #local_adapter_sub = new BehaviorSubject<string>('');
   /** 本实例挂的那一套业务表（US-314），见 {@link RxDB.mountWorktreeTableSet} */
+  #worktree_table_set: WorktreeTableSet = WorktreeTableSet.MAIN;
+  /** {@link RxDB.worktreeTableSet$} 的源：换挂收尾、实体缓存清空之后才发（US-314 B2.3） */
   readonly #worktree_table_set$ = new BehaviorSubject<WorktreeTableSet>(WorktreeTableSet.MAIN);
   #remote_adapter_sub = new BehaviorSubject<string>('');
   #config!: RxDBConfig;
@@ -362,6 +366,10 @@ export class RxDB {
    */
   /**
    * {@link RxDB.worktreeTableSet} 的流：订阅时先交出当前那一套，换挂时发出新的一套（US-314 B1.4）
+   *
+   * @remarks
+   * 换挂收尾之后才发：实体缓存已经清空、活查询已经开始按新那套重跑（US-314 B2.3）。订阅方拿到信号按新那套重填自己的缓存
+   * （草稿、全文检索的句柄），不会被随后的清空抹掉。
    */
   public readonly worktreeTableSet$: Observable<WorktreeTableSet> = this.#worktree_table_set$.asObservable();
 
@@ -514,7 +522,7 @@ export class RxDB {
    * 一个实例同一时刻只挂一套表，状态只存在这里；适配器的 `tableSet` 转读它。
    */
   get worktreeTableSet(): WorktreeTableSet {
-    return this.#worktree_table_set$.value;
+    return this.#worktree_table_set;
   }
 
   /**
@@ -1310,10 +1318,52 @@ export class RxDB {
         const held = await executor.getRepository(RxDBBranch).find({ where: tableSet.heldBranchWhere });
         if (held.length === 0) throw new RxDBError(`表集 ${tableSet.suffix} 没有持有任何分支，挂不上`);
       }
-      this.#worktree_table_set$.next(tableSet);
+      // 在适配器的事务队列里换：排在后面的读写一律按新的一套（适配器的 tableSet 读的就是这个字段）
+      this.#worktree_table_set = tableSet;
       adapter.worktreeTableSetMounted();
     }, false);
     this.entityManager.resetForWorktreeTableSet();
+    // 流在清空实体缓存之后才发：订阅方按新那套重填的缓存不会被清空抹掉（US-314 B2.3）
+    this.#worktree_table_set$.next(tableSet);
+  }
+
+  /**
+   * 一套可写检出位的表刚建好：在建它的那笔事务里，按 `use()` 的顺序调各插件的 `worktreeTableSet.created`（US-314 B2.5，见 `WorktreeTableSetHooks`）。
+   *
+   * @param executor - 建表的那笔事务
+   * @param tableSet - 刚建好、播完种的那套表
+   *
+   * @remarks
+   * 插件在业务表上建的附属对象（全文索引这类）要在每套影子表上各有一份。任一插件抛错整笔回滚：检出位要么连同这些
+   * 附属对象一起建好，要么一处不留。由建表集的一方（工作树插件的 `checkouts.add()`）在 `createWorktreeTableSet` 之后调。
+   */
+  async notifyWorktreeTableSetCreated(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void> {
+    for (const plugin of this.#plugin_map.values()) {
+      await plugin.worktreeTableSet?.created(executor, tableSet);
+    }
+  }
+
+  /**
+   * 一套可写检出位的表的指纹（US-314 B2.6）：成员实体的结构指纹（{@link WorktreeTableSet.schemaFingerprintOf}），
+   * 并上各插件建表集钩子的指纹（`WorktreeTableSetHooks.fingerprint`）。
+   *
+   * @param tableSet - 那套表；只看它的成员，不看后缀
+   * @returns 64 位十六进制 SHA-256
+   *
+   * @remarks
+   * 开检出位时记在登记行上，挂上时不符就整套重建：实体结构变了，或插件建在表上的附属对象变了（全文索引的分词版本这类），
+   * 旧的那套表都对不上了。插件按名字排序，`use()` 的顺序不影响它。
+   */
+  worktreeTableSetFingerprint(tableSet: WorktreeTableSet): string {
+    const members = this.config.entities.filter(EntityType => tableSet.has(getEntityMetadata(EntityType)));
+    const plugins = [...this.#plugin_map.values()]
+      .flatMap(plugin =>
+        plugin.worktreeTableSet ? [[plugin.name, plugin.worktreeTableSet.fingerprint(tableSet)] as const] : []
+      )
+      .sort(([left], [right]) => (left < right ? -1 : Number(left > right)));
+    return sha256Hex(
+      new TextEncoder().encode(JSON.stringify([WorktreeTableSet.schemaFingerprintOf(members), plugins]))
+    );
   }
 
   /**

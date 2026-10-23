@@ -16,7 +16,7 @@ import {
   SQLiteChangeType,
   WATCH_TABLES
 } from '@aiao/rxdb-adapter-sqlite-core';
-import { AsyncQueueExecutor, EventDispatcher, get } from '@aiao/utils';
+import { AsyncQueueExecutor, EventDispatcher, type EventListener, get } from '@aiao/utils';
 import { SQLITE_DETERMINISTIC, SQLITE_UTF8 } from 'wa-sqlite';
 import { executeHelper } from './execute_helper.js';
 import type { SQLiteAPI, SQLiteVFS } from './wa-sqlite.interface.js';
@@ -48,6 +48,8 @@ export interface WaSqliteClientRuntime<TOptions extends object> {
   readonly clientName: string;
   load(dbName: string, options: TOptions): Promise<LoadedWaSqliteClientRuntime>;
   resolve(dbName: string, options: TOptions): ResolvedWaSqliteClientOptions;
+  /** 释放运行时的远端监听代理；使用本地回调的平台无需提供。 */
+  releaseListener?(listener: EventListener<SqliteChangeEvent>): void;
   initializationSql?(cacheSizeKb: number): string;
   /**
    * 执行打开，并决定打开失败后要不要整个重来。
@@ -78,10 +80,15 @@ interface SQLiteConnection {
 
 type ClientIdentity = Readonly<Record<string, unknown>>;
 
+/** 持有者带键登记的监听；三类变更的事件数据同形 */
+type OwnedListener = EventListener<SqliteChangeEvent>;
+
 type ClientState =
   | { status: 'idle' }
   | { status: 'initializing'; identity: ClientIdentity; promise: Promise<void> }
   | { status: 'ready'; connection: SQLiteConnection; identity: ClientIdentity }
+  /** 最后一个持有者交还了，正在关库；关完回到 `idle`，还能再 `init`（{@link WaSqliteClientBase.release}） */
+  | { status: 'releasing'; promise: Promise<void> }
   | { status: 'disconnecting'; promise: Promise<void> }
   | { status: 'disconnected' };
 
@@ -94,26 +101,42 @@ export class WaSqliteClientBase<TOptions extends object> extends EventDispatcher
   #maxWaitTimer?: ReturnType<typeof setTimeout>;
   #batchTimeout: number = DEFAULT_BATCH_TIMEOUT;
   #changeEventsMuted = false;
+  /** 带持有者键 `init` 过、还没交还的持有者 */
+  readonly #owners = new Set<string>();
+  /** 每个持有者带键登记的监听，交还时按它摘 */
+  readonly #ownerListeners = new Map<string, Array<readonly [keyof WaSqliteClientEvents, OwnedListener]>>();
 
   constructor(private readonly runtime: WaSqliteClientRuntime<TOptions>) {
     super();
   }
 
-  /** 初始化数据库。相同 identity 可重复调用，冲突配置会明确拒绝。 */
-  async init(dbName: string, options: TOptions): Promise<void> {
+  /**
+   * 初始化数据库。相同 identity 可重复调用，冲突配置会明确拒绝。
+   *
+   * @param dbName - 库名
+   * @param options - 平台加载配置
+   * @param owner - 持有者键：SharedWorker 上每个标签页的适配器各给一个，交还时凭它（{@link WaSqliteClientBase.release}）
+   */
+  async init(dbName: string, options: TOptions, owner?: string): Promise<void> {
     const state = this.#state;
     if (state.status === 'disconnected' || state.status === 'disconnecting') {
       throw new Error(`${this.runtime.clientName} client has been disconnected`);
+    }
+    if (state.status === 'releasing') {
+      await state.promise;
+      return this.init(dbName, options, owner);
     }
 
     const resolved = this.runtime.resolve(dbName, options);
     if (state.status === 'ready') {
       assertSameIdentity(state.identity, resolved.identity, this.runtime.clientName);
+      this.#hold(owner);
       return;
     }
     if (state.status === 'initializing') {
       assertSameIdentity(state.identity, resolved.identity, this.runtime.clientName);
       await state.promise;
+      this.#hold(owner);
       return;
     }
 
@@ -121,6 +144,65 @@ export class WaSqliteClientBase<TOptions extends object> extends EventDispatcher
     const promise = this.#initialize(dbName, options, resolved.cacheSizeKb, resolved.identity);
     this.#state = { status: 'initializing', identity: resolved.identity, promise };
     await promise;
+    this.#hold(owner);
+  }
+
+  /**
+   * 登记变更监听。
+   *
+   * @param type - 变更类型
+   * @param listener - 监听器
+   * @param owner - 登记它的持有者；给了的话交还时一并摘掉（{@link WaSqliteClientBase.release}）
+   */
+  override addEventListener<T extends keyof WaSqliteClientEvents>(
+    type: T,
+    listener: EventListener<WaSqliteClientEvents[T]>,
+    owner?: string
+  ): void {
+    super.addEventListener(type, listener);
+    if (owner === undefined) return;
+    const listeners = this.#ownerListeners.get(owner) ?? [];
+    listeners.push([type, listener as OwnedListener]);
+    this.#ownerListeners.set(owner, listeners);
+  }
+
+  /**
+   * 一个持有者退出：摘掉它带键登记的监听，交还它那一份持有；最后一份交还时关库，关完还能再 `init`（US-314 B2.3b）。
+   *
+   * @param owner - `init` 时给的持有者键；没持有过的、已经交还过的只摘监听
+   *
+   * @remarks
+   * SharedWorker 里只有这一个客户端，每个标签页都连着它：一个标签页断开只交还自己那一份，不关别人还在用的连接。
+   * 监听经 Comlink 传进来时是 worker 里新造的代理，摘下之后一并释放，标签页那头暴露监听的端口随之关掉。
+   * {@link WaSqliteClientBase.disconnect} 照旧是不论持有者、整个关掉且不能再用。
+   */
+  async release(owner: string): Promise<void> {
+    for (const [type, listener] of this.#ownerListeners.get(owner) ?? []) {
+      this.removeEventListener(type, listener);
+      this.runtime.releaseListener?.(listener);
+    }
+    this.#ownerListeners.delete(owner);
+    if (!this.#owners.delete(owner) || this.#owners.size > 0) return;
+    await this.#closeToIdle();
+  }
+
+  /**
+   * 连接上有没结束的事务就回滚它（US-314 B2.3b）。
+   *
+   * @returns 回滚了为 `true`；连接本来就在自动提交状态为 `false`
+   * @throws Error 客户端未就绪
+   *
+   * @remarks
+   * 排在已经送到这个客户端的语句后面判：死掉的标签页送来的语句先跑完，再看它留下的事务还开着没有。
+   * 调用方要拿着跨标签页的锁，否则回滚的可能是别的标签页正在跑的事务。
+   */
+  async rollbackOrphanTransaction(): Promise<boolean> {
+    const { sqlite, db } = this.#readyConnection();
+    return this.#queue.addTask(async () => {
+      if (sqlite.get_autocommit(db) !== 0) return false;
+      await executeHelper(sqlite, db, 'ROLLBACK');
+      return true;
+    });
   }
 
   /** 获取 SQLite 版本号。 */
@@ -133,6 +215,9 @@ export class WaSqliteClientBase<TOptions extends object> extends EventDispatcher
    * 暂停 / 恢复变更事件采集。
    *
    * @param muted - `true` 时 update hook 直接忽略写入，不入批也不派发
+   *
+   * @remarks
+   * 静音是整个客户端的，不分持有者；SharedWorker 传输不支持恢复，共用的客户端不会被静音。
    */
   setChangeEventsMuted(muted: boolean): void {
     this.#changeEventsMuted = muted;
@@ -174,13 +259,17 @@ export class WaSqliteClientBase<TOptions extends object> extends EventDispatcher
     }
   }
 
-  /** 等待现有任务结束并关闭数据库与 VFS。 */
+  /** 等待现有任务结束并关闭数据库与 VFS；不论持有者，关了就不能再用。 */
   async disconnect(): Promise<void> {
     const state = this.#state;
     if (state.status === 'disconnected') return;
     if (state.status === 'disconnecting') {
       await state.promise;
       return;
+    }
+    if (state.status === 'releasing') {
+      await state.promise;
+      return this.disconnect();
     }
 
     const promise = Promise.resolve().then(() => this.#performDisconnect(state));
@@ -190,14 +279,39 @@ export class WaSqliteClientBase<TOptions extends object> extends EventDispatcher
 
   /** 串行执行 SQL。 */
   async execute(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> {
+    const { sqlite, db } = this.#readyConnection();
+    return this.#queue.addTask(() => executeHelper(sqlite, db, sql, bindings));
+  }
+
+  /** 就绪的连接；断开了、还没就绪都抛 */
+  #readyConnection(): SQLiteConnection {
     const state = this.#state;
     if (state.status === 'disconnected' || state.status === 'disconnecting') {
       throw new Error(`${this.runtime.clientName} client has been disconnected`);
     }
     if (state.status !== 'ready') throw new Error(`${this.runtime.clientName} client is not initialized`);
+    return state.connection;
+  }
 
-    const { sqlite, db } = state.connection;
-    return this.#queue.addTask(() => executeHelper(sqlite, db, sql, bindings));
+  #hold(owner: string | undefined): void {
+    if (owner !== undefined) this.#owners.add(owner);
+  }
+
+  /** 最后一个持有者交还：等现有任务跑完、关库，回到 `idle`，之后还能再 `init` */
+  async #closeToIdle(): Promise<void> {
+    const state = this.#state;
+    if (state.status !== 'ready') return;
+    const promise = (async () => {
+      try {
+        await this.#closeReadyConnection(state.connection);
+      } finally {
+        this.removeAllEventListeners();
+        this.#ownerListeners.clear();
+        this.#state = { status: 'idle' };
+      }
+    })();
+    this.#state = { status: 'releasing', promise };
+    await promise;
   }
 
   async #initialize(dbName: string, options: TOptions, cacheSize: number, identity: ClientIdentity): Promise<void> {
@@ -263,7 +377,9 @@ export class WaSqliteClientBase<TOptions extends object> extends EventDispatcher
     }
   }
 
-  async #performDisconnect(state: Exclude<ClientState, { status: 'disconnecting' | 'disconnected' }>): Promise<void> {
+  async #performDisconnect(
+    state: Exclude<ClientState, { status: 'disconnecting' | 'disconnected' | 'releasing' }>
+  ): Promise<void> {
     try {
       this.#clearTimers();
       if (state.status === 'initializing') {
@@ -271,21 +387,27 @@ export class WaSqliteClientBase<TOptions extends object> extends EventDispatcher
         return;
       }
       if (state.status === 'idle') return;
-
-      const { sqlite, db, vfs, finalizeOpenStatements } = state.connection;
-      await this.#queue.waitForAll();
-      sqlite.update_hook(db, () => undefined);
-      this.#clearTimers();
-      this.#flushPendingEvents();
-      await closeConnection({ sqlite, db, vfs, finalizeOpenStatements });
+      await this.#closeReadyConnection(state.connection);
     } finally {
       this.removeAllEventListeners();
+      this.#owners.clear();
+      this.#ownerListeners.clear();
       this.#state = { status: 'disconnected' };
     }
   }
 
+  /** 等现有任务跑完，摘掉 update hook、同步派掉攒着的变更，再关库与 VFS */
+  async #closeReadyConnection(connection: SQLiteConnection): Promise<void> {
+    const { sqlite, db, vfs, finalizeOpenStatements } = connection;
+    await this.#queue.waitForAll();
+    sqlite.update_hook(db, () => undefined);
+    this.#clearTimers();
+    this.#flushPendingEvents();
+    await closeConnection({ sqlite, db, vfs, finalizeOpenStatements });
+  }
+
   #scheduleBatch(): void {
-    if (this.#state.status === 'disconnecting') return;
+    if (this.#state.status === 'disconnecting' || this.#state.status === 'releasing') return;
     if (this.#batchTimer) clearTimeout(this.#batchTimer);
     this.#batchTimer = setTimeout(() => this.#flushNow(), this.#batchTimeout);
     if (!this.#maxWaitTimer) this.#maxWaitTimer = setTimeout(() => this.#flushNow(), MAX_BATCH_WAIT_MS);

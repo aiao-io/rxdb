@@ -57,7 +57,10 @@ export type WorktreeState = 'building' | 'ready';
     { name: 'schemaFingerprint', type: PropertyType.string },
     { name: 'createdAt', type: PropertyType.date },
     { name: 'lastAccessedAt', type: PropertyType.date }
-  ]
+  ],
+  // 可写检出位的名字不重名（US-314 B2.2）：只读检出位那一格是空的，空值互不相撞。
+  // 打开、改名时先在事务里判、给出带原因的错误，索引兜底
+  indexes: [{ name: 'name', unique: true, properties: ['name'] }]
 })
 export class Worktree {
   /** 检出位 id */

@@ -66,6 +66,49 @@ export const parseWorkspaceCacheId = (
   return { ok: true, namespace, entity, id: id as UUID };
 };
 
+/** 可写检出位影子表集的后缀，与核心的 `WorktreeTableSet` 同一个形状：`wt_` 加 1～12 位小写字母或数字 */
+const PARTITION_PATTERN = /^wt_[a-z0-9]{1,12}$/;
+
+/**
+ * 是不是合法的草稿分区（US-314 B2.4）。
+ *
+ * @param value - 跨 tab 消息里的 `partition`，或存储键的首段
+ * @returns 是可写检出位影子表集的后缀时为 `true`
+ *
+ * @remarks
+ * 分区就是草稿存下去会写进哪套表：写在主表集上的草稿没有分区（`undefined`），写在可写检出位影子表上的取那套表的后缀。
+ */
+export const isWorkspacePartition = (value: unknown): value is string =>
+  typeof value === 'string' && PARTITION_PATTERN.test(value);
+
+/**
+ * 一条草稿在 IndexedDB 里的键（US-314 B2.4）。
+ *
+ * @param cacheId - 草稿主键
+ * @param partition - 草稿的分区；写在主表集上的草稿为 `undefined`
+ * @returns 主表集上的草稿沿用 `namespace:entity:id`；写在影子表上的前面加那套表的后缀（`wt_x:namespace:entity:id`）
+ *
+ * @remarks
+ * 主表集那一份不改键：从前存下的草稿原样认得，不用迁移。
+ */
+export const workspaceStorageKeyOf = (cacheId: WorkspaceCacheId, partition: string | undefined): string =>
+  partition === undefined ? cacheId : `${partition}:${cacheId}`;
+
+/**
+ * 把 IndexedDB 里的键拆成分区与草稿主键（{@link workspaceStorageKeyOf} 的反方向）。
+ *
+ * @param key - IndexedDB 里的键，不可信
+ * @returns 首段是表集后缀、后面恰是三段时拆出分区；否则整个键当作草稿主键，交给 {@link decodeWorkspaceEntry} 校验
+ */
+export const splitWorkspaceStorageKey = (key: unknown): { readonly partition?: string; readonly cacheKey: unknown } => {
+  if (typeof key !== 'string') return { cacheKey: key };
+  const separator = key.indexOf(':');
+  if (separator < 0 || !isWorkspacePartition(key.slice(0, separator))) return { cacheKey: key };
+  const cacheKey = key.slice(separator + 1);
+  // 命名空间恰好长得像后缀的主表集键（`wt_app:Todo:<id>`）拆完只剩两段，仍按主表集的键认
+  return cacheKey.split(':').length === 3 ? { partition: key.slice(0, separator), cacheKey } : { cacheKey: key };
+};
+
 /**
  * 解码一条持久化 / 跨 tab 草稿记录。
  *

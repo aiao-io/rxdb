@@ -20,7 +20,11 @@ import type { EntityMetadata, WorktreeTableSetSeed } from '@aiao/rxdb';
 import { getEntityMetadata, parseRxDBChangeKey, WorktreeTableSet } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { build_set_sequence_statements, quote_sql_identifier, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
-import { get_table_name_by_metadata, get_table_set_table_glob } from '../table-name-resolver.js';
+import {
+  get_table_name_by_metadata,
+  get_table_set_suffix_by_table_name,
+  get_table_set_table_glob
+} from '../table-name-resolver.js';
 import { create_table_sql } from '../table/create_table_sql.js';
 import { generate_table_set_trigger_sql } from '../table/trigger_sql.js';
 import type { SqliteTransactionExecutor } from '../transaction/SqliteTransactionExecutor.js';
@@ -205,4 +209,34 @@ export const dropTableSet = async (executor: SqliteTransactionExecutor, tableSet
   const order = await deleteOrderOf(executor, tables);
   for (const table of order) await executor.execute(`DELETE FROM ${quote_sql_identifier(table)}`);
   for (const table of order) await executor.execute(`DROP TABLE IF EXISTS ${quote_sql_identifier(table)}`);
+};
+
+/**
+ * 按目录列出现存的可写检出位表集（US-314 B2.6）：表名末尾是 `$<后缀>` 的表各属于哪一套。
+ *
+ * @param adapter - 适配器（取配置里的实体，排除它们的主表）
+ * @param executor - 调用方的事务
+ * @returns 表集后缀，排好序、不重复
+ *
+ * @remarks
+ * 孤儿回收要知道哪些表集还在，包括登记行已经没了的。插件建在影子表上的对象（FTS5 虚拟表 `_fts_<物理表名>`）名字同样
+ * 以后缀结尾，认成同一套；虚拟表的内部表（`…_data` 这类）不以后缀结尾，不算。配置里实体的主表名恰好以 `$wt_…`
+ * 结尾时排除：照它删表集，删的就是主表。
+ */
+export const listTableSetSuffixes = async (
+  adapter: RxDBAdapterSqliteBase,
+  executor: SqliteTransactionExecutor
+): Promise<string[]> => {
+  const mainTables = new Set(
+    adapter.rxdb.config.entities.map(EntityType =>
+      get_table_name_by_metadata(getEntityMetadata(EntityType), WorktreeTableSet.MAIN)
+    )
+  );
+  const { rows } = await executor.query(`SELECT "name" FROM sqlite_master WHERE "type" = 'table'`);
+  const suffixes = new Set<string>();
+  for (const name of rows.map(row => String(row[0]))) {
+    const suffix = mainTables.has(name) ? undefined : get_table_set_suffix_by_table_name(name);
+    if (suffix !== undefined) suffixes.add(suffix);
+  }
+  return [...suffixes].sort();
 };

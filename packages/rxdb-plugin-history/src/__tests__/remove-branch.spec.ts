@@ -144,6 +144,21 @@ describe('remove_branch', () => {
     );
   });
 
+  // git：`Cannot delete branch 'x' checked out at '…'`。被可写检出位持有的分支 `activated` 为假，
+  // 只看 `activated` 会把它连同检出位里没提交的改动（都是这条分支的变更行）一起删掉（US-314 B2.1）
+  it('被可写检出位持有的分支：抛 WorktreeBranchHeldError，一行不删、贡献方不动', async () => {
+    mockBranchRepository.find.mockResolvedValue([{ id: 'feature', activated: false, activeKey: '*worktree:wt_a1*' }]);
+    systemContributions.push(createRecordingContribution(branchRowsCalls, () => 0));
+
+    await expect(remove_branch(mockVersion, 'feature')).rejects.toMatchObject({
+      name: 'WorktreeBranchHeldError',
+      branchId: 'feature',
+      holderKey: '*worktree:wt_a1*'
+    });
+    expect(mockAdapter.removeMany).not.toHaveBeenCalled();
+    expect(branchRowsCalls).toEqual([]);
+  });
+
   it('should throw error if branch has child branches', async () => {
     const branch = {
       id: 'parent',

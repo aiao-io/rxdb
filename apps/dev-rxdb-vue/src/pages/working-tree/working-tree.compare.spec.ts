@@ -1,3 +1,4 @@
+import { WorktreeTableSet } from '@aiao/rxdb';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WorkingTreePage from '../WorkingTreePage.vue';
@@ -53,18 +54,20 @@ const harness = vi.hoisted(() => {
   return { tree, comparison, compareBranches, database: { versionManager: { compareBranches } } };
 });
 
-vi.mock('@aiao/rxdb', () => ({ RxDBBranch: class {}, MAIN_BRANCH_ID: 'main' }));
 vi.mock('@aiao/rxdb-plugin-working-tree', () => ({
   CommitValidationError: class extends Error {},
   WorkingTreeDirtyError: class extends Error {}
 }));
-vi.mock('@aiao/rxdb-plugin-working-tree-vue', () => ({ useWorkingTree: () => harness.tree }));
+vi.mock('@aiao/rxdb-plugin-working-tree-vue', () => ({
+  useWorkingTree: () => harness.tree,
+  useWorktrees: () => ({ mounted: { value: WorktreeTableSet.MAIN } })
+}));
 vi.mock('@aiao/rxdb-vue', () => ({
   useRxDB: () => harness.database,
   useFindAll: () => ({
     value: [
-      { id: 'main', activated: true },
-      { id: 'feature', activated: false }
+      { id: 'main', activated: true, activeKey: '*active*' },
+      { id: 'feature', activated: false, activeKey: null }
     ]
   })
 }));

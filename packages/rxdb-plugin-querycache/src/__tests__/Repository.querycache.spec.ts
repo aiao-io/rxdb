@@ -11,7 +11,8 @@ import {
   ENTITY_STATIC_TYPES,
   Repository,
   RxDBQueryCacheCapabilityError,
-  SyncType
+  SyncType,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { BehaviorSubject, delay, firstValueFrom, Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -116,7 +117,7 @@ const row = (id: string, updatedAt: string, value = 0): CachedEntity => {
   entity.value = value;
   // 这份替身要覆盖 Repository 实际读到的槽位：_setLocal 除了写 local 还会看 patch
   // （只有「无未保存改动」才把 modified 归零），缺 patch 就是替身比真实 EntityStatus 少一块。
-  Object.assign(entity, { [STATUS]: { local: false, modified: false, patch: {} } });
+  Object.assign(entity, { [STATUS]: { local: false, modified: false, patch: {}, tableSet: WorktreeTableSet.MAIN } });
   return entity;
 };
 
@@ -184,6 +185,7 @@ const setup = (
   const rxdb = {
     localAdapter$,
     remoteAdapter$,
+    worktreeTableSet: WorktreeTableSet.MAIN,
     entitySync: createEntitySyncResolver(undefined),
     config: { sync: undefined },
     addEventListener: vi.fn(),

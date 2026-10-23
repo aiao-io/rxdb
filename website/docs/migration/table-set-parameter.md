@@ -76,7 +76,7 @@ const table = get_table_name_by_metadata(metadata, adapter.tableSet);
 
 - `@aiao/rxdb` 的 `WorktreeTableSet`：`WorktreeTableSet.MAIN` 是主检出位那一套；`WorktreeTableSet.of(suffix, entities)` 造可写检出位的一套。
 - 两个适配器的 `adapter.tableSet`：本实例挂的表集。
-- sqlite-core 的 `get_companion_table_name`（附属表，如图插件的边表）与 `get_storage_object_name`（条件唯一索引、区间排他触发器这类库级对象的名字）。
+- sqlite-core 的 `get_storage_object_name`（条件唯一索引、区间排他触发器这类库级对象的名字）。图插件的边表是单独登记的实体，按它自己的元数据经 `get_table_name_by_metadata` 解析。
 - PGlite 的 `getSchemaName` 与 `getChangeTriggerFunctionName`。
 - `WorktreeTableSet.holderKey` 与 `WorktreeTableSet.suffixOfHolderKey`：检出位持有分支时写进 `rxdb_branch.activeKey` 的键由表集推出。
 - 两个适配器的 `createWorktreeTableSet(executor, tableSet, seed)` / `dropWorktreeTableSet(executor, tableSet)`：在调用方的事务里建一套可写检出位的表并播种、按目录删；平常经 `db.workingTree.checkouts` 用，不必直接调。

@@ -15,7 +15,9 @@ import { SqliteClient } from './SqliteClient.js';
  * 避免静默回退主线程造成线程隔离 / OPFS 运行环境的假象。
  */
 interface SqliteWasmClientLike extends SqliteClientLike {
-  init(dbName: string, options: LoadModuleOptions): Promise<void>;
+  init(dbName: string, options: LoadModuleOptions, owner?: string): Promise<void>;
+  release(owner: string): Promise<void>;
+  rollbackOrphanTransaction(): Promise<boolean>;
   /**
    * 本包的 {@link SqliteClient} 必然实现下面这几个方法，因此在这里收窄成必选。
    *
@@ -32,7 +34,15 @@ interface SqliteWasmClientLike extends SqliteClientLike {
   describeBlankDatabase(): Promise<SqliteBlankDatabase>;
 }
 
-async function createSqliteClient(dbName: string, options: SqliteOptions): Promise<SqliteClientLike> {
+/**
+ * 创建并初始化 sqlite-wasm 客户端。
+ *
+ * @param dbName - 库名
+ * @param options - 适配器配置
+ * @param owner - 持有者键：SharedWorker 上共用一个客户端时，断开凭它只交还自己那一份（`release`）
+ * @returns 主线程客户端或 Worker / SharedWorker 上那个客户端的远端代理
+ */
+async function createSqliteClient(dbName: string, options: SqliteOptions, owner?: string): Promise<SqliteClientLike> {
   const {
     vfs,
     wasmUrl,
@@ -70,7 +80,7 @@ async function createSqliteClient(dbName: string, options: SqliteOptions): Promi
     workerOwnership
   });
   try {
-    await sqliteClient.init(dbName, loadModuleOptions);
+    await sqliteClient.init(dbName, loadModuleOptions, owner);
     return sqliteClient;
   } catch (error) {
     releaseComlinkProxy(sqliteClient);

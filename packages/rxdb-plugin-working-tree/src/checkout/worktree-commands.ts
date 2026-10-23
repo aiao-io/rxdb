@@ -1,5 +1,5 @@
 /**
- * @fileoverview 三端 `useWorktrees()` 共用的检出位命令实现（US-313 阶段 D）。
+ * @fileoverview 三端 `useWorktrees()` 共用的检出位命令实现（只读检出位 US-313 阶段 D、可写检出位 US-314 C1）。
  *
  * @remarks
  * 与 `working-tree-commands.ts` 同形：本文件不持有状态，每一次相位变化交给调用方给的
@@ -8,9 +8,11 @@
  * 那一端的列表就少一行，而另外两端是对的。
  *
  * 视图的 `close()` / `release()` / `refresh()` 也经这里包一层：它们同样改登记表，之后要重读。
+ * 可写检出位的 `add()` / `mount()`（写访问时间，重建时还写指纹）/ `remove()` / `rename()` 落定之后重读；
+ * `mountMain()` / `release()` 不写登记表，不重读。
  */
 
-import { RxDBError, type RxDB } from '@aiao/rxdb';
+import { RxDBError, type RxDB, type WorktreeTableSet } from '@aiao/rxdb';
 import {
   trackWorkingTreeCommand,
   trackWorkingTreeQuery,
@@ -18,7 +20,7 @@ import {
   type WorkingTreeQueryState,
   type WorkingTreeStateSink
 } from '../working-tree/async-state.js';
-import type { WorktreeManager, WorktreeOpenOptions, WorktreeView } from './worktree-manager.js';
+import type { WorktreeAddOptions, WorktreeManager, WorktreeOpenOptions, WorktreeView } from './worktree-manager.js';
 import type { WorktreeTarget } from './worktree-target.js';
 import type { Worktree } from './worktree.entity.js';
 
@@ -32,6 +34,18 @@ export interface WorktreeAsyncStates {
   readonly attachState: WorkingTreeCommandState<WorktreeView>;
   /** `prune()` 的状态；回收零个也是结果，不是 empty */
   readonly pruneState: WorkingTreeCommandState<readonly string[]>;
+  /** `add()` 的状态：建好的可写检出位的登记行 */
+  readonly addState: WorkingTreeCommandState<Worktree>;
+  /** `mount()` 的状态 */
+  readonly mountState: WorkingTreeCommandState<void>;
+  /** `mountMain()` 的状态 */
+  readonly mountMainState: WorkingTreeCommandState<void>;
+  /** `release()` 的状态 */
+  readonly releaseState: WorkingTreeCommandState<void>;
+  /** `remove()` 的状态 */
+  readonly removeState: WorkingTreeCommandState<void>;
+  /** `rename()` 的状态：改名之后的登记行 */
+  readonly renameState: WorkingTreeCommandState<Worktree>;
 }
 
 /** 各格的初始相位：全是 `idle`。 */
@@ -39,7 +53,13 @@ export const WORKTREE_INITIAL_ASYNC_STATES: WorktreeAsyncStates = Object.freeze(
   listState: { phase: 'idle' },
   openState: { phase: 'idle' },
   attachState: { phase: 'idle' },
-  pruneState: { phase: 'idle' }
+  pruneState: { phase: 'idle' },
+  addState: { phase: 'idle' },
+  mountState: { phase: 'idle' },
+  mountMainState: { phase: 'idle' },
+  releaseState: { phase: 'idle' },
+  removeState: { phase: 'idle' },
+  renameState: { phase: 'idle' }
 } satisfies WorktreeAsyncStates);
 
 /**
@@ -58,8 +78,20 @@ export interface WorktreeCommands {
   readonly open: (target: WorktreeTarget, options?: WorktreeOpenOptions) => Promise<WorktreeView>;
   /** 再打开一个持久归属的检出位 */
   readonly attach: (id: string) => Promise<WorktreeView>;
-  /** 回收没人在用的检出位 */
+  /** 回收没人在用的检出位（含没有登记行的孤儿表集） */
   readonly prune: () => Promise<readonly string[]>;
+  /** 开一个可写检出位：登记、持有分支、建表、播种；建好不挂，本上下文认领它 */
+  readonly add: (branchId: string, options?: WorktreeAddOptions) => Promise<Worktree>;
+  /** 让主实例挂上一个可写检出位；指纹不符时在挂载的那笔事务里重建 */
+  readonly mount: (id: string) => Promise<void>;
+  /** 让主实例挂回主检出位 */
+  readonly mountMain: () => Promise<void>;
+  /** 交出对一个可写检出位的认领 */
+  readonly release: (id: string) => Promise<void>;
+  /** 删掉一个可写检出位；未提交的改动留在它持有的分支上 */
+  readonly remove: (id: string) => Promise<void>;
+  /** 给一个可写检出位改名 */
+  readonly rename: (id: string, name: string) => Promise<Worktree>;
 }
 
 /** 一格一个的请求代次；只有最新那一次请求能往自己那一格写终态。 */
@@ -75,6 +107,26 @@ const createLatestOnlyPatch = (
       patch(key, state);
     };
   };
+};
+
+/**
+ * 本实例此刻挂的那套表：`worktreeTableSet$` 在订阅当下交出的那一套（US-314 C1）。
+ *
+ * @param database - 主实例
+ * @returns 挂着的表集
+ * @throws {@link RxDBError} 流没在订阅当下交出当前那一套
+ *
+ * @remarks
+ * 三端 `useWorktrees()` 的 `mounted` 都从流取初值、不读 `rxdb.worktreeTableSet`：换挂事务里那个字段先变，
+ * 流要等实体缓存清空之后才发，读字段的一端会比另外两端早一步看到新的一套。只读内存里的流，不发 IO。
+ */
+export const readMountedWorktreeTableSet = (database: RxDB): WorktreeTableSet => {
+  const seen: { current?: WorktreeTableSet } = {};
+  database.worktreeTableSet$.subscribe(tableSet => (seen.current = tableSet)).unsubscribe();
+  if (seen.current === undefined) {
+    throw new RxDBError('worktreeTableSet$ 没有在订阅当下交出本实例挂着的那套表，读不出 mounted。');
+  }
+  return seen.current;
 };
 
 const assertWorktreeEntry = (database: RxDB): WorktreeManager => {
@@ -139,6 +191,26 @@ export const createWorktreeCommands = (database: RxDB, patch: WorktreeStatePatch
       const pruned = await trackWorkingTreeCommand(sinkFor('pruneState'), () => checkouts.prune());
       relist();
       return pruned;
+    },
+    add: async (branchId, options) => {
+      const record = await trackWorkingTreeCommand(sinkFor('addState'), () => checkouts.add(branchId, options));
+      relist();
+      return record;
+    },
+    mount: async id => {
+      await trackWorkingTreeCommand(sinkFor('mountState'), () => checkouts.mount(id));
+      relist();
+    },
+    mountMain: () => trackWorkingTreeCommand(sinkFor('mountMainState'), () => checkouts.mountMain()),
+    release: id => trackWorkingTreeCommand(sinkFor('releaseState'), () => checkouts.release(id)),
+    remove: async id => {
+      await trackWorkingTreeCommand(sinkFor('removeState'), () => checkouts.remove(id));
+      relist();
+    },
+    rename: async (id, name) => {
+      const record = await trackWorkingTreeCommand(sinkFor('renameState'), () => checkouts.rename(id, name));
+      relist();
+      return record;
     }
   };
 };

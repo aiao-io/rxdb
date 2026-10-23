@@ -1,4 +1,4 @@
-import { RxDB } from '@aiao/rxdb';
+import { RxDB, WorktreeTableSet } from '@aiao/rxdb';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WorkingTreePage from './working-tree.page';
@@ -47,12 +47,15 @@ const harness = vi.hoisted(() => {
 vi.mock('@aiao/rxdb-angular', () => ({
   useFindAll: () => ({
     value: () => [
-      { id: 'main', activated: true },
-      { id: 'feature', activated: false }
+      { id: 'main', activated: true, activeKey: '*active*' },
+      { id: 'feature', activated: false, activeKey: null }
     ]
   })
 }));
-vi.mock('@aiao/rxdb-plugin-working-tree-angular', () => ({ useWorkingTree: () => harness.tree }));
+vi.mock('@aiao/rxdb-plugin-working-tree-angular', () => ({
+  useWorkingTree: () => harness.tree,
+  useWorktrees: () => ({ mounted: () => WorktreeTableSet.MAIN })
+}));
 
 beforeEach(async () => {
   vi.clearAllMocks();

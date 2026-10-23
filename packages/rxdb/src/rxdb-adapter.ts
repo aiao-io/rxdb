@@ -838,6 +838,19 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    */
   dropWorktreeTableSet?(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void>;
 
+  /**
+   * 按库里的目录列出现存的可写检出位表集（US-314 B2.6）。
+   *
+   * @param executor - 调用方的事务
+   * @returns 表集后缀（{@link WorktreeTableSet.isSuffix} 的形状），排好序、不重复
+   *
+   * @remarks
+   * 孤儿回收要知道哪些表集还在，包括登记行已经没了的，所以按目录找、不按登记表。物理名的形状归适配器（SQLite 系认表名末尾、
+   * PGlite 认 schema 名末尾）；配置里实体的主表恰好长成后缀的形状时不算，删它就是删主表。
+   * 与 {@link RxDBAdapterLocalBase.createWorktreeTableSet} 同属可写检出位的可选能力槽位。
+   */
+  listWorktreeTableSetSuffixes?(executor: TransactionExecutor): Promise<readonly string[]>;
+
   abstract switchBranch(options: SwitchBranchOptions): Promise<void>;
 
   abstract getRxDBChangeSequence(): Promise<number>;

@@ -250,6 +250,35 @@ describe('启动清理：连接期判定有没有孤儿，有才在连上之后�
     expect(prune).not.toHaveBeenCalled();
   });
 
+  // 孤儿表集（US-314 B2.6）：登记行没了，分支上还留着可写检出位开出来的那种持有键；它没有锁，有就回收
+  it('没有登记行、分支上还留着检出位的持有键：回收；手工建的那种后缀不算', async () => {
+    const prune = vi.spyOn(WorktreeManager.prototype, 'prune').mockResolvedValue([]);
+
+    await connectScene({
+      worktrees: false,
+      enabled: true,
+      registry: [],
+      branches: [
+        { id: 'main', activated: true, activeKey: '*active*' },
+        { id: 'manual', activated: false, activeKey: '*worktree:wt_probe*' }
+      ]
+    });
+    await settle();
+    expect(prune).not.toHaveBeenCalled();
+
+    await connectScene({
+      worktrees: false,
+      enabled: true,
+      registry: [],
+      branches: [
+        { id: 'main', activated: true, activeKey: '*active*' },
+        { id: 'feature', activated: false, activeKey: '*worktree:wt_0123456789ab*' }
+      ]
+    });
+
+    await vi.waitFor(() => expect(prune).toHaveBeenCalledTimes(1));
+  });
+
   // 新库的登记表是这次建表刚建的，必然是空的
   it('新库：不回收', async () => {
     const prune = vi.spyOn(WorktreeManager.prototype, 'prune').mockResolvedValue([]);

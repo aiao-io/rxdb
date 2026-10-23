@@ -57,7 +57,7 @@ export type { PushInFlightSession } from './push-inflight.js';
 export type { SyncHistoryBridge } from './sync-history-bridge.js';
 
 // ---------------------------------------------------------------------------
-// 以下十一项只为 `@aiao/rxdb-plugin-working-tree` 而导出，全部标了 `@internal`：
+// 以下十二项只为 `@aiao/rxdb-plugin-working-tree` 而导出，全部标了 `@internal`：
 // 工作树插件的 commit 迁移（`commit/enable-migration.ts`）要在放行一条分支之前，
 // 先按 `switchBranch` 的同一口径问两件事——「父链自不自洽」与「这条分支现在停在哪」；
 // 它的物化屏障（`working-tree/materialize-branch.ts`）要在切换事务里按同一口径撤掉
@@ -66,7 +66,8 @@ export type { SyncHistoryBridge } from './sync-history-bridge.js';
 // 或「排序列是哪一个」上与切换路径分叉，表现为迁移放行了一条 `switchBranch` 走不通的分支
 // （research.md R11），或物化后留下一截来源分支的数据。从提交建分支（US-314）要在自己的受管事务里
 // 写分支行、按那个提交记下的分叉点写，于是建分支的事务体与远端查重也从这里出；核对分叉点之前那段谱系
-// 没被撤销改过时，「分叉于根记 0」的约定也得是同一个函数。
+// 没被撤销改过时，「分叉于根记 0」的约定也得是同一个函数。可写检出位播种时只留那套表的成员，
+// 与本包里检出位上的切分支、合并用同一份判定（`keep_table_set_actions`）。
 // 两包之间只有 `dist` 一条路，没有深路径可走，所以从桶里出。应用代码不该引用它们。
 // ---------------------------------------------------------------------------
 export { assert_branch_id_free_on_remote, write_new_branch } from './create-branch.js';
@@ -79,3 +80,4 @@ export {
   get_switch_version_actions
 } from './switch-branch-actions.js';
 export type { SwitchBranchActionReaders } from './switch-branch-actions.js';
+export { keep_table_set_actions } from './table-set-scope.js';

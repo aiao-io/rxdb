@@ -150,6 +150,8 @@ export interface WorkingTreeSceneOptions {
    * 多发一次号时照常绿，而「这条路上一次都没发号」正是其中几条用例要钉的性质。
    */
   readonly onQuery?: CommitGraphProbeOptions['onQuery'];
+  /** 原样透传给探针：本事务落在哪一套业务表上，默认主表集（US-314） */
+  readonly tableSet?: CommitGraphProbeOptions['tableSet'];
 }
 
 /** 一条工作树条目的可拨字段，其余字段由 {@link seedWorkingTreeEntry} 给默认值。 */
@@ -233,7 +235,11 @@ export function createWorkingTreeScene(options: WorkingTreeSceneOptions = {}): W
   database.use(rxDBPluginWorkingTree);
   database.init();
 
-  const probe = createCommitGraphProbe({ onQuery: options.onQuery, rowsAffected: options.rowsAffected ?? 1 });
+  const probe = createCommitGraphProbe({
+    onQuery: options.onQuery,
+    rowsAffected: options.rowsAffected ?? 1,
+    tableSet: options.tableSet
+  });
   const { entityManager } = database;
 
   const capability = entityManager.instantiate(CommitCapabilityState);

@@ -102,3 +102,34 @@ it('normal 预览保留源分支删后重建再删除的终态，压缩策略照
   ]);
   expect((await preview_merge(history.readers(), 'feature', 'main')).entries).toEqual([]);
 });
+
+it('检出位内的 normal 预览保留成员幽灵删除，同时排除非成员变更', async () => {
+  const history = new MemoryBranchHistory();
+  history.branch('feature', 'main');
+  history.insert('feature', 'same-id', { title: 'temporary' });
+  history.delete('feature', 'same-id');
+  history.insert('feature', 'shared', { title: 'shared row' });
+  history.insert('main', 'same-id', { title: 'keep me' });
+  const readers = history.readers();
+  const find = readers.changeRepository.find;
+  readers.changeRepository.find = async options =>
+    (await find(options)).map(change =>
+      change.entityId === 'shared' ? Object.assign(change, { entity: 'Shared' }) : change
+    );
+  const inTableSet = (_namespace: string, entity: string) => entity === 'Todo';
+
+  const normal = await preview_merge(readers, 'feature', 'main', { strategy: 'normal' }, inTableSet);
+
+  expect(normal.merged).toBe(2);
+  expect(normal.entries).toEqual([
+    expect.objectContaining({
+      entityId: 'same-id',
+      operation: 'DELETE',
+      inversePatch: { title: 'keep me' },
+      conflict: { kind: 'delete_edited', fields: ['title'] }
+    })
+  ]);
+  const squash = await preview_merge(readers, 'feature', 'main', { strategy: 'squash' }, inTableSet);
+  expect(squash.merged).toBe(0);
+  expect(squash.entries).toEqual([]);
+});

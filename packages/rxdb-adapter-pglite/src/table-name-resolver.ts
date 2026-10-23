@@ -14,7 +14,7 @@
  * 唯一要跟着换 schema 的是变更触发器函数（{@link getChangeTriggerFunctionName}）。
  */
 
-import { hashConstraintDefinition, type EntityMetadata, type WorktreeTableSet } from '@aiao/rxdb';
+import { hashConstraintDefinition, WorktreeTableSet, type EntityMetadata } from '@aiao/rxdb';
 import { quoteIdentifier } from './pglite.utils.js';
 
 const MAX_IDENTIFIER_BYTES = 63;
@@ -78,6 +78,20 @@ export const getSchemaName = (metadata: EntityMetadata, tableSet: WorktreeTableS
  * 另一个以它结尾的后缀。按后缀比对而不是 `LIKE`：`wt_` 里的下划线在 `LIKE` 里是通配符。
  */
 export const getTableSetSchemaSuffix = (tableSet: WorktreeTableSet): string => `$${tableSet.suffix}`;
+
+/**
+ * 从目录里的 schema 名认出它属于哪一套影子表集：最后一个 `$` 之后那段是表集后缀的形状就是（US-314 B2.6）。
+ *
+ * @param schemaName - `pg_namespace` 里的 schema 名
+ * @returns 表集后缀；不是影子表集的 schema 返回 `undefined`
+ *
+ * @remarks
+ * 只看形状：配置里实体的命名空间恰好以 `$wt_…` 结尾时也会认出一个后缀，调用方要拿命名空间把它排除掉。
+ */
+export const getTableSetSuffixOfSchemaName = (schemaName: string): string | undefined => {
+  const suffix = schemaName.slice(schemaName.lastIndexOf('$') + 1);
+  return schemaName.includes('$') && WorktreeTableSet.isSuffix(suffix) ? suffix : undefined;
+};
 
 /**
  * 实体在给定表集里的完全限定表名。

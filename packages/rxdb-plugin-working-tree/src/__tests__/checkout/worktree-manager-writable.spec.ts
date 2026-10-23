@@ -30,6 +30,7 @@ import { Worktree } from '../../checkout/worktree.entity.js';
 import { rxDBPluginWorkingTree } from '../../plugin.js';
 import { classifyBranchMaterialization } from '../../working-tree/branch-materialization.js';
 import { assertSwitchTargetIntact } from '../../working-tree/switch-branch-options.js';
+import { WorkingTreeActivationState } from '../../working-tree/working-tree-activation-state.entity.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 
 vi.mock('@aiao/rxdb-plugin-history', async importOriginal => ({
@@ -58,6 +59,8 @@ const matches = (row: Row, where: { rules: { field: string; value: unknown }[] }
 
 const databases: RxDBInstance[] = [];
 let rows: Worktree[];
+/** 每套表的激活态行（US-314 B2.2）：与登记行分开收 */
+let activations: WorkingTreeActivationState[];
 let branches: Row[];
 let createWorktreeTableSet: ReturnType<typeof vi.fn>;
 let dropWorktreeTableSet: ReturnType<typeof vi.fn>;
@@ -90,14 +93,18 @@ const noteKey = (id: string): string => {
 
 beforeEach(() => {
   rows = [];
+  activations = [];
   mounted = WorktreeTableSet.MAIN;
   branches = [
     { id: 'main', activated: true, activeKey: '*active*' },
     { id: 'feature', activated: false, activeKey: null }
   ];
   const executor = {
-    saveMany: vi.fn(async (entities: Worktree[]) => {
-      rows.push(...entities);
+    saveMany: vi.fn(async (entities: (Worktree | WorkingTreeActivationState)[]) => {
+      for (const entity of entities) {
+        if (entity instanceof WorkingTreeActivationState) activations.push(entity);
+        else rows.push(entity);
+      }
       return entities;
     }),
     getRepository: (EntityClass: EntityType) => {
@@ -108,6 +115,15 @@ beforeEach(() => {
         };
       }
       if (EntityClass === RxDBChange) return { find: async () => [] };
+      if (EntityClass === WorkingTreeActivationState) {
+        return {
+          find: async ({ where }: { where: never }) => activations.filter(row => matches(row as unknown as Row, where)),
+          remove: async (row: WorkingTreeActivationState) => {
+            activations.splice(activations.indexOf(row), 1);
+            return row;
+          }
+        };
+      }
       return {
         find: async ({ where }: { where: never }) => rows.filter(row => matches(row as unknown as Row, where)),
         update: async (row: Worktree, patch: Partial<Worktree>) => Object.assign(row, patch),
@@ -213,6 +229,17 @@ describe('WorktreeManager.add', () => {
     expect(await isLocked(worktree.id)).toBe(true);
   });
 
+  // 插件在业务表上的附属对象（全文索引）也要给影子表建一份（US-314 B2.5）
+  it('建完表集之后、在同一笔事务里调插件的建表集钩子', async () => {
+    const notify = vi.spyOn(main, 'notifyWorktreeTableSetCreated');
+
+    await managerOf().add('feature');
+
+    const [executorUsed, tableSet] = createWorktreeTableSet.mock.calls[0];
+    expect(notify).toHaveBeenCalledWith(executorUsed, tableSet);
+    expect(notify.mock.invocationCallOrder[0]).toBeGreaterThan(createWorktreeTableSet.mock.invocationCallOrder[0]);
+  });
+
   it('分支已被持有（主检出位正停在它上面）：拒绝，不建表、不写登记行，锁还掉', async () => {
     const manager = managerOf();
 
@@ -278,13 +305,52 @@ describe('WorktreeManager.mount / release / remove', () => {
     expect(await isLocked(worktree.id)).toBe(false);
   });
 
-  it('mount()：实体结构变了报 schema_mismatch；持有的分支不在了报 not_found', async () => {
+  it('mount()：指纹不符就在挂载那笔事务里删表、重建、记下新指纹（US-314 B2.6）；持有的分支不在了报 not_found', async () => {
     const manager = managerOf();
     const worktree = await manager.add('feature');
     const { schemaFingerprint } = worktree;
+    await manager.release(worktree.id);
+    createWorktreeTableSet.mockClear();
 
     Object.assign(rows[0], { schemaFingerprint: 'stale' });
-    expect(await reasonOf(manager.mount(worktree.id))).toBe('schema_mismatch');
+    await manager.mount(worktree.id);
+
+    expect((dropWorktreeTableSet.mock.calls[0][1] as WorktreeTableSet).suffix).toBe(worktree.tableSetSuffix);
+    expect(createWorktreeTableSet).toHaveBeenCalledTimes(1);
+    expect(dropWorktreeTableSet.mock.invocationCallOrder[0]).toBeLessThan(
+      createWorktreeTableSet.mock.invocationCallOrder[0]
+    );
+    expect(rows[0].schemaFingerprint).toBe(schemaFingerprint);
+    await manager.release(worktree.id);
+
+    Object.assign(
+      branches.find(row => row.id === 'feature')!,
+      { activeKey: null }
+    );
+    expect(await reasonOf(manager.mount(worktree.id))).toBe('not_found');
+  });
+
+  it('mount()：重建失败报 schema_rebuild_failed、带着原始错误，登记行的指纹不动、锁还掉', async () => {
+    const manager = managerOf();
+    const worktree = await manager.add('feature');
+    await manager.release(worktree.id);
+    const boom = new Error('新结构上的表建不出来');
+    createWorktreeTableSet.mockRejectedValueOnce(boom);
+
+    Object.assign(rows[0], { schemaFingerprint: 'stale' });
+    const failed = await manager.mount(worktree.id).catch((error: unknown) => error);
+
+    expect(failed).toBeInstanceOf(WorktreeUnavailableError);
+    expect((failed as WorktreeUnavailableError).reason).toBe('schema_rebuild_failed');
+    expect((failed as WorktreeUnavailableError).cause).toBe(boom);
+    expect(rows[0].schemaFingerprint).toBe('stale');
+    expect(await isLocked(worktree.id)).toBe(false);
+  });
+
+  it('mount()：持有的分支不在了报 not_found', async () => {
+    const manager = managerOf();
+    const worktree = await manager.add('feature');
+    const { schemaFingerprint } = worktree;
 
     Object.assign(rows[0], { schemaFingerprint });
     Object.assign(
@@ -358,6 +424,8 @@ describe('WorktreeManager.prune：可写检出位', () => {
 
     expect([...pruned].sort()).toEqual([session.id, lost.id].sort());
     expect(rows.map(row => row.id).sort()).toEqual([kept.id, 'ro-1'].sort());
+    // 被回收的连这套表的激活态行一起删（US-314 B2.2）
+    expect(activations.map(row => row.id)).toEqual([WorktreeTableSet.of(kept.tableSetSuffix!, []).holderKey]);
     expect(branches.find(row => row.id === 'feature')).toMatchObject({ activeKey: null });
   });
 

@@ -125,7 +125,7 @@ function branchTime(branch: RxDBBranch): Date {
 
 /** 点行：非当前分支立即切换（GitHub Desktop 同款），当前分支只收起菜单。 */
 function onRowClick(branch: RxDBBranch): void {
-  if (branch.activated) {
+  if (branch.id === props.activeBranch) {
     closeAll();
     return;
   }
@@ -218,7 +218,7 @@ function onRowClick(branch: RxDBBranch): void {
             <div class="flex items-stretch">
               <button
                 class="gd-menu-row min-w-0 flex-1"
-                :aria-current="branch.activated ? 'true' : undefined"
+                :aria-current="branch.id === activeBranch ? 'true' : undefined"
                 :data-branch-id="branch.id"
                 @click="onRowClick(branch)"
                 @contextmenu="emit('menuRequest', { target: branch, event: $event })"
@@ -228,7 +228,7 @@ function onRowClick(branch: RxDBBranch): void {
                 <!-- 当前分支：前导图标换成勾（GitHub Desktop 同款） -->
                 <Check
                   class="shrink-0"
-                  v-if="branch.activated"
+                  v-if="branch.id === activeBranch"
                   :size="12"
                   :style="{ color: 'var(--gd-accent)' }"
                 />
@@ -239,7 +239,7 @@ function onRowClick(branch: RxDBBranch): void {
                 />
                 <span
                   class="min-w-0 flex-1 truncate text-sm font-medium"
-                  :class="{ 'text-green-700': branch.activated }"
+                  :class="{ 'text-green-700': branch.id === activeBranch }"
                 >
                   {{ branch.id }}
                 </span>

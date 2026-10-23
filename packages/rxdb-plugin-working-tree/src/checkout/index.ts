@@ -5,7 +5,11 @@
  * 运行时导出用 `Worktree*` 前缀：包入口的运行时导出不许匹配 `/checkout|detach/i`（commit 套件的守卫），
  * 目录名不受它限制。
  */
-export { WORKTREE_INITIAL_ASYNC_STATES, createWorktreeCommands } from './worktree-commands.js';
+export {
+  WORKTREE_INITIAL_ASYNC_STATES,
+  createWorktreeCommands,
+  readMountedWorktreeTableSet
+} from './worktree-commands.js';
 export type { WorktreeAsyncStates, WorktreeCommands, WorktreeStatePatch } from './worktree-commands.js';
 export type { WorktreeCommitViewPlan } from './worktree-commit-view.js';
 export { WorktreeUnavailableError } from './worktree-errors.js';

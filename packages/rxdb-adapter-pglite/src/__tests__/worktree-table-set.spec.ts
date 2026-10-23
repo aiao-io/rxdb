@@ -9,8 +9,11 @@
  */
 
 import {
+  ACTIVE_BRANCH_KEY,
   encodeRxDBChangeEntityId,
   Entity,
+  ENTITY_LOCAL_CREATE_EVENT,
+  ENTITY_LOCAL_REMOVE_EVENT,
   EntityBase,
   getEntityMetadata,
   getRxDBChangeKey,
@@ -21,11 +24,12 @@ import {
   type SwitchVersionActions,
   SyncType,
   uuid,
+  WorktreeBranchHeldError,
   WorktreeTableSet
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { Todo } from '@aiao/rxdb-test/entities';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, skip } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { execute_switch_actions } from '../version/execute_switch_actions.js';
@@ -127,6 +131,9 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
       )
     ).rows.map(row => row.nspname);
 
+  // 每条用例一个新库，自己开一套：持有分支、持有键、表集。不共用实例再清库：撤销会话的边界存在实例内存里，
+  // 清库（TRUNCATE … RESTART IDENTITY）让变更 id 从 1 重新编号，上一条用例恢复会话时留下的边界会把这一条的写
+  // 当成边界之前的旧变更，撤销数一直是 0（US-314 B2.3 时变更事件的时序一变就常挂）
   beforeEach(async () => {
     rxdb = new RxDB({
       dbName: generateDbName(),
@@ -220,6 +227,20 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
     await dropTableSet(WorktreeTableSet.of('wt_probe', []));
   });
 
+  // 孤儿回收按目录找还在的表集（US-314 B2.6），包括登记行已经没了的
+  it('列举表集：认出每一套影子 schema 的后缀，主表集的 schema 不算；删掉之后不再列出', async () => {
+    const listSuffixes = (): Promise<readonly string[]> =>
+      adapter.transaction(executor => adapter.listWorktreeTableSetSuffixes(executor), false);
+    const other = WorktreeTableSet.of('wt_other', [Todo]);
+    await holdBranchFor(other, 'other-held');
+    await createTableSet(other, 'other-held');
+    expect(await listSuffixes()).toEqual(['wt_other', 'wt_probe']);
+
+    await dropTableSet(tableSet);
+    await dropTableSet(other);
+    expect(await listSuffixes()).toEqual([]);
+  });
+
   it('主表集不经这里建，成员也必须记变更日志', async () => {
     await expect(createTableSet(WorktreeTableSet.MAIN, 'main')).rejects.toThrow(/主表集/);
     await expect(dropTableSet(WorktreeTableSet.MAIN)).rejects.toThrow(/主表集/);
@@ -302,6 +323,35 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
       );
       expect(nextId).toBe(lastId + 1);
     });
+
+    // 增量带来的行可能用了比主表序列大的 id（别的检出位在自己的序列上发的号，随那条分支的变更进了增量）。
+    // 序列只对齐到主表的话，停在这些行下面，检出位里插到那个号就撞主键（US-314 B2.1）
+    it('增量带来比主表序列大的 id：影子表的序列推到它们之上，下一次插入不撞号', async () => {
+      const seqSet = WorktreeTableSet.of('wt_seq', [WorktreeSeqNote]);
+      const { namespace, name } = getEntityMetadata(WorktreeSeqNote);
+      const farId = 500;
+      const key = getRxDBChangeKey({ namespace, entity: name, entityId: farId } as IRxDBChange);
+      const now = new Date();
+      await holdBranchFor(seqSet, 'seq-held');
+
+      await createTableSet(seqSet, 'seq-held', {
+        ...emptyActions(),
+        inserts: new Map([
+          [key, { patch: { id: farId, title: 'far', createdAt: now, updatedAt: now }, inversePatch: null }]
+        ])
+      });
+      await adapter.internalQuery(
+        `INSERT INTO "wtseq$wt_seq"."wtseq_note" ("title", "createdAt", "updatedAt") VALUES ('next', now(), now())`
+      );
+
+      // 主表上别的用例留下的行也会复制进来（清库不清 wtseq 这个 schema），只看这一次插入拿到的号
+      const [inserted] = (
+        await adapter.internalQuery<{ id: number }>(
+          `SELECT "id" FROM "wtseq$wt_seq"."wtseq_note" WHERE "title" = 'next'`
+        )
+      ).rows;
+      expect(Number(inserted.id)).toBe(farId + 1);
+    });
   });
 
   // 实例挂在可写检出位上（US-314 B1.4）：与 sqlite-core 共享套件的同名一组逐条对应
@@ -314,6 +364,120 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
       )
         .map(todo => String(todo.title))
         .sort();
+
+    // 先挂回主表集再断开：用例中途失败也不把实例留在影子表集上
+    afterEach(async () => {
+      await rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+    });
+
+    /** 开始收某类事件里 Todo 的那几条（id 与写在哪套表上），`stop()` 摘掉监听 */
+    const listenTodoEvents = (type: typeof ENTITY_LOCAL_CREATE_EVENT | typeof ENTITY_LOCAL_REMOVE_EVENT) => {
+      const seen: { id: unknown; tableSetSuffix?: string }[] = [];
+      const { name } = getEntityMetadata(Todo);
+      const listener = (event: { entities: { entity: string; id: unknown; tableSetSuffix?: string }[] }) =>
+        seen.push(
+          ...event.entities
+            .filter(entity => entity.entity === name)
+            .map(({ id, tableSetSuffix }) => ({ id, tableSetSuffix }))
+        );
+      rxdb.addEventListener(type, listener as never);
+      return { seen, stop: () => rxdb.removeEventListener(type, listener as never) };
+    };
+
+    // 本地实体事件按表集打标（US-314 B2.3）：与 sqlite-core 共享套件的同名用例逐条对应
+    it('事件带上写在哪套表上：影子表的写带后缀，主表的写不带', async () => {
+      const created = listenTodoEvents(ENTITY_LOCAL_CREATE_EVENT);
+      try {
+        const mainId = await rawInsert(WorktreeTableSet.MAIN, 'main-row');
+        const shadowId = await rawInsert(tableSet, 'shadow-row');
+        // 变更行的事件经 NOTIFY 异步派出
+        await expect.poll(() => created.seen.length).toBe(2);
+
+        expect(created.seen.find(event => event.id === mainId)).toEqual({ id: mainId, tableSetSuffix: undefined });
+        expect(created.seen.find(event => event.id === shadowId)).toEqual({
+          id: shadowId,
+          tableSetSuffix: tableSet.suffix
+        });
+      } finally {
+        created.stop();
+      }
+    });
+
+    it('检出位里切分支派出的事件带后缀', async () => {
+      await rxdb.mountWorktreeTableSet(tableSet);
+      await rxdb.versionManager.createBranch('feature');
+      await rxdb.versionManager.switchBranch('feature');
+      const featureOnly = await rawInsert(tableSet, 'on-feature');
+      const removed = listenTodoEvents(ENTITY_LOCAL_REMOVE_EVENT);
+
+      try {
+        await rxdb.versionManager.switchBranch(heldBranch);
+        expect(removed.seen).toEqual([{ id: featureOnly, tableSetSuffix: tableSet.suffix }]);
+      } finally {
+        removed.stop();
+      }
+    });
+
+    // 挂载信号在清实体缓存之后才发（US-314 B2.3）：订阅方拿到信号按新那套重填的缓存，不会被随后的清空抹掉
+    it('worktreeTableSet$ 在实体缓存清空之后才发出新的一套', async () => {
+      const todo = new Todo({ title: 'cached' });
+      await todo.save();
+      const cachedAtSignal: boolean[] = [];
+      const subscription = rxdb.worktreeTableSet$
+        .pipe(skip(1))
+        .subscribe(() => cachedAtSignal.push(rxdb.entityManager.hasEntityRef(Todo, todo.id)));
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      subscription.unsubscribe();
+
+      expect(cachedAtSignal).toEqual([false]);
+    });
+
+    // 检出位里合并只合这套表的成员（US-314 B2.1）：`WorktreeSeqNote` 记日志、不是这套影子表的成员，照合会落回主表、
+    // 记在主检出位的分支名下（与 QueryCache 同步的实体同一种处境）
+    it('挂在检出位上合并：只合这套表的成员，非成员的变更不落主表、不进日志', async () => {
+      await rxdb.versionManager.createBranch('merge-src');
+      await rxdb.versionManager.switchBranch('merge-src');
+      // 裸写：主表集的触发器此刻挂在 merge-src 上，两行都记在它名下
+      await rawInsert(WorktreeTableSet.MAIN, 'from-src');
+      await adapter.internalQuery(
+        `INSERT INTO "wtseq"."wtseq_note" ("title", "createdAt", "updatedAt") VALUES ('not-a-member', now(), now())`
+      );
+      await rxdb.versionManager.switchBranch('main');
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      const before = await countChanges();
+      const result = await rxdb.versionManager.mergeBranch('merge-src');
+
+      expect(result.merged).toBe(1);
+      expect(await titlesOf(tableSet)).toEqual(['from-src']);
+      // 清库不清 wtseq 这个 schema：别的用例留下的行还在，只看非成员那一行有没有落进主表
+      const titles = (await adapter.internalQuery<{ title: string }>(`SELECT "title" FROM "wtseq"."wtseq_note"`)).rows;
+      expect(titles.map(row => row.title)).not.toContain('not-a-member');
+      expect(await countChanges()).toBe(before + 1);
+    });
+
+    // QueryCache 抄的是远端副本，不是本地变更：回填不进变更日志，否则出站队列把它当离线写推回远端。
+    // 从前 PGlite 的 QueryCache 写根本不摘触发器（主检出位上也记日志）；同步的实体只在主表集，挂在检出位上
+    // 摘的也必须是主表集的触发器（US-314 B2.1）。`WorktreeSeqNote` 记日志、不是这套影子表的成员，处境相同。
+    it.each([
+      ['主检出位', () => WorktreeTableSet.MAIN],
+      ['挂在检出位上', () => tableSet]
+    ])('%s写 QueryCache：行不进变更日志，主表与影子表的触发器都照旧挂在各自的分支', async (_label, mountedSet) => {
+      await rxdb.mountWorktreeTableSet(mountedSet());
+      const before = await countChanges();
+
+      await firstValueFrom(
+        adapter.upsertMany('wtseq:WorktreeSeqNote', [
+          { id: 7, title: 'cached', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        ])
+      );
+      await firstValueFrom(adapter.deleteByIds('wtseq:WorktreeSeqNote', ['7']));
+
+      expect(await countChanges()).toBe(before);
+      expect(await branchesOfChanges(await rawInsert(WorktreeTableSet.MAIN, 'main'))).toEqual(['main']);
+      expect(await branchesOfChanges(await rawInsert(tableSet, 'shadow'))).toEqual([heldBranch]);
+    });
 
     it('挂上之后读写落在影子表、记在持有分支，当前分支是持有分支；挂回主表集一切照旧', async () => {
       await rawInsert(WorktreeTableSet.MAIN, 'main-row');
@@ -371,11 +535,54 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
       expect(await titlesOf(WorktreeTableSet.MAIN)).toEqual(['main-row']);
     });
 
-    it('挂在可写检出位上不能真切分支', async () => {
+    /** 两次快照之间被重写过的分支行 */
+    const rewrittenBranches = async (body: () => Promise<unknown>): Promise<string[]> => {
+      const before = new Map((await branchRowVersions()).map(row => [row.id, row.xmin]));
+      await body();
+      return (await branchRowVersions())
+        .filter(row => before.get(row.id) !== row.xmin)
+        .map(row => row.id)
+        .sort();
+    };
+
+    // 检出位里切分支（US-314 B2.2）：与 sqlite-core 共享套件的同名用例逐条对应
+    it('挂在检出位上切分支：只动这套表与持有键，主检出位的行不动；之后的写记在新分支，切回来改动还在', async () => {
+      await rxdb.mountWorktreeTableSet(tableSet);
+      const heldOnly = await rawInsert(tableSet, 'on-held');
       await rxdb.versionManager.createBranch('feature');
+
+      const written = await rewrittenBranches(() => rxdb.versionManager.switchBranch('feature'));
+
+      expect(written).toEqual(['feature', heldBranch]);
+      expect((await rxdb.versionManager.getCurrentBranch()).id).toBe('feature');
+      const rows = await adapter.internalQuery<{ id: string; activated: boolean; activeKey: string | null }>(
+        `SELECT "id", "activated", "activeKey" FROM "rxdb"."rxdb_branch" WHERE "id" IN ('feature', $1::text, 'main') ORDER BY "id"`,
+        [heldBranch]
+      );
+      expect(rows.rows).toEqual([
+        { id: 'feature', activated: false, activeKey: tableSet.holderKey },
+        { id: heldBranch, activated: false, activeKey: null },
+        { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY }
+      ]);
+      const featureId = await rawInsert(tableSet, 'on-feature');
+      expect(await branchesOfChanges(featureId)).toEqual(['feature']);
+      expect(await branchesOfChanges(await rawInsert(WorktreeTableSet.MAIN, 'main-row'))).toEqual(['main']);
+
+      await rxdb.versionManager.switchBranch(heldBranch);
+      expect(await titlesOf(tableSet)).toEqual(['on-held']);
+      expect(await branchesOfChanges(heldOnly)).toEqual([heldBranch]);
+    });
+
+    it('挂在检出位上切到被占的分支：主检出位的当前分支、别的检出位持有的，都一行不动地拒绝', async () => {
+      await holdBranchFor(WorktreeTableSet.of('wt_other', [Todo]), 'other-held');
       await rxdb.mountWorktreeTableSet(tableSet);
 
-      await expect(rxdb.versionManager.switchBranch('feature')).rejects.toThrow(/可写检出位/);
+      const written = await rewrittenBranches(async () => {
+        await expect(rxdb.versionManager.switchBranch('main')).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+        await expect(rxdb.versionManager.switchBranch('other-held')).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+      });
+
+      expect(written).toEqual([]);
       expect((await rxdb.versionManager.getCurrentBranch()).id).toBe(heldBranch);
     });
 

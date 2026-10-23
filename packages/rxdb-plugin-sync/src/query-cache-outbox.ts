@@ -23,6 +23,10 @@
  * 原语」，`rxdb_change` / `RxDBSync` 两张表与它们的解析函数留在核心，读它们的这三个
  * 入口随本包走。核心侧只剩 `QueryCacheOutboxProvider` 那一个接口 —— `Repository` 建
  * QueryCache 会话时要问一次「谁还占着 id」，由 {@link pendingQueryCacheWriteIds} 应答。
+ *
+ * **分支一律按主表集读**（US-314 B2.1）：QueryCache 同步的实体只在主表集、不进可写检出位的影子表集，
+ * 它的出站行记在主检出位持有的分支名下。实例挂在可写检出位上时「当前分支」是检出位的分支，照它读出的待推集合
+ * 是空的，QueryCache 的对账就会把离线新建的行当孤儿删掉。
  */
 
 import {
@@ -50,7 +54,8 @@ import {
   RxDBSync,
   type SwitchVersionActions,
   type SwitchVersionChange,
-  SYNC_DISABLED_REASON
+  SYNC_DISABLED_REASON,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { firstValueFrom, type Observable } from 'rxjs';
 
@@ -278,7 +283,7 @@ async function runOutboxFlush(
 ): Promise<QueryCacheOutboxResult> {
   const syncType = resolveQueryCacheSyncType(rxdb, namespace, entity);
 
-  const branch = await getCurrentBranch(rxdb);
+  const branch = await getCurrentBranch(rxdb, WorktreeTableSet.MAIN);
   const { adapter } = await getLocalSystemRepositories(rxdb);
   const localAdapter = adapter as unknown as OutboxLocalAdapter;
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
@@ -405,7 +410,7 @@ const toResult = (run: RunState): QueryCacheOutboxResult => ({
  * 这一侧取它的补集，因此 {@link SyncStateHub} 把两个数直接相加是安全的。
  */
 export async function countQueryCacheOutbox(rxdb: RxDB): Promise<number> {
-  const branch = await getCurrentBranch(rxdb);
+  const branch = await getCurrentBranch(rxdb, WorktreeTableSet.MAIN);
   const { adapter } = await getLocalSystemRepositories(rxdb);
   const localAdapter = adapter as unknown as OutboxLocalAdapter;
 
@@ -463,11 +468,11 @@ export async function pendingQueryCacheWriteIds(
   namespace: string,
   entity: string
 ): Promise<ReadonlySet<string>> {
-  const branch = await getCurrentBranch(rxdb);
+  const branch = await getCurrentBranch(rxdb, WorktreeTableSet.MAIN);
   const { adapter } = await getLocalSystemRepositories(rxdb);
   const localAdapter = adapter as unknown as OutboxLocalAdapter;
 
-  const repoSync = await findCurrentSyncRecord(rxdb, namespace, entity);
+  const repoSync = await findCurrentSyncRecord(rxdb, namespace, entity, WorktreeTableSet.MAIN);
   const pending = await queryOutboxChanges(
     localAdapter.getRepository(RxDBChange),
     namespace,

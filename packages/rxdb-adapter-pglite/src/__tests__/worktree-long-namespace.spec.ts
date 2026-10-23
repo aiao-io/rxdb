@@ -69,10 +69,13 @@ it('63 字节命名空间：不同表集和相同长前缀的命名空间仍隔�
         expect((await adapter.internalQuery(`SELECT title FROM ${table}`)).rows).toEqual([{ title: 'main' }]);
       }
     }
+    const listSuffixes = () => adapter.transaction(executor => adapter.listWorktreeTableSetSuffixes(executor), false);
+    expect(await listSuffixes()).toEqual(sets.map(set => set.suffix));
 
     const orphanedSet = WorktreeTableSet.of(sets[0].suffix!, []);
     await adapter.transaction(executor => adapter.dropWorktreeTableSet(executor, orphanedSet), false);
     await adapter.transaction(executor => adapter.dropWorktreeTableSet(executor, orphanedSet), false);
+    expect(await listSuffixes()).toEqual([sets[1].suffix]);
 
     const remaining = new Set(
       (await adapter.internalQuery<{ nspname: string }>('SELECT nspname FROM pg_namespace')).rows.map(

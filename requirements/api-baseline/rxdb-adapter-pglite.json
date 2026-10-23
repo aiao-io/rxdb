@@ -150,6 +150,10 @@
         "kind": "value"
       },
       {
+        "name": "getTableSetSuffixOfSchemaName",
+        "kind": "value"
+      },
+      {
         "name": "INVALID_QUERY_ERROR_CODE",
         "kind": "value"
       },
@@ -402,6 +406,10 @@
       {
         "name": "FtsOptions",
         "kind": "type"
+      },
+      {
+        "name": "getSchemaName",
+        "kind": "value"
       }
     ],
     "./testing": [

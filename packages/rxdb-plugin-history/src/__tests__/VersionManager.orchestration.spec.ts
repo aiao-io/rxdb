@@ -443,7 +443,8 @@ describe('VersionManager 对协作模块的编排契约', () => {
 
     await harness.manager.switchBranch('feature');
 
-    expect(doubles.delegates.switchBranchActions).toHaveBeenCalledWith(harness.manager, 'feature');
+    // 主检出位上不传起点（缺省就是激活的那一条，US-314 B2.2）；主表集上只留成员是原样返回，`actions` 还是同一个对象
+    expect(doubles.delegates.switchBranchActions).toHaveBeenCalledWith(harness.manager, 'feature', undefined);
     expect(harness.localAdapter.switchBranch).toHaveBeenCalledWith({
       branchId: 'feature',
       actions,
@@ -507,9 +508,17 @@ describe('VersionManager 对协作模块的编排契约', () => {
     await expect(harness.manager.mergeBranch('feature', { strategy: 'squash' })).resolves.toBe(merged);
     await harness.manager.mergeBranch('empty');
 
-    expect(doubles.delegates.mergeBranch).toHaveBeenNthCalledWith(1, harness.manager, 'feature', 'main', {
-      strategy: 'squash'
-    });
+    // 第五个参数是挂着那套表的成员判定（US-314 B2.1）：主表集什么都管
+    expect(doubles.delegates.mergeBranch).toHaveBeenNthCalledWith(
+      1,
+      harness.manager,
+      'feature',
+      'main',
+      { strategy: 'squash' },
+      expect.any(Function)
+    );
+    const inTableSet = doubles.delegates.mergeBranch.mock.calls[0][4] as (namespace: string, entity: string) => boolean;
+    expect(inTableSet('public', 'AnyEntity')).toBe(true);
     expect(doubles.history.clearUndoHistory).toHaveBeenCalledOnce();
     // 合并可能删了源分支：两次合并各补一次分叉点重查
     expect(doubles.history.refreshChildForks).toHaveBeenCalledTimes(2);
@@ -560,7 +569,13 @@ describe('VersionManager 对协作模块的编排契约', () => {
       changeRepository: harness.localChangeRepository
     });
     expect(doubles.delegates.compareBranches).toHaveBeenCalledWith(readers, 'main', 'feature');
-    expect(doubles.delegates.previewMerge).toHaveBeenCalledWith(readers, 'feature', 'main', { strategy: 'normal' });
+    expect(doubles.delegates.previewMerge).toHaveBeenCalledWith(
+      readers,
+      'feature',
+      'main',
+      { strategy: 'normal' },
+      expect.any(Function)
+    );
     expect(harness.dispatchEvent).not.toHaveBeenCalled();
     expect(doubles.history.clearUndoHistory).not.toHaveBeenCalled();
   });

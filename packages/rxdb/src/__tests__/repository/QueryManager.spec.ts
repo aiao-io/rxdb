@@ -6,6 +6,7 @@ import { ENTITY_LOCAL_CREATE_EVENT, ENTITY_LOCAL_REMOVE_EVENT, ENTITY_LOCAL_UPDA
 import { getEntityMetadata } from '../../rxdb-utils.js';
 import type { RxDB } from '../../RxDB.js';
 import { METADATA } from '../../rxdb.private.js';
+import { WorktreeTableSet } from '../../system/worktree-table-set.js';
 
 class TestEntity {
   static entityName = 'TestEntity';
@@ -67,6 +68,8 @@ const createMockRxDB = (eventListeners: Map<string, CapturedEventListener>) => (
       return undefined;
     })
   },
+  // 没换挂过的实例挂的是主表集（US-314）
+  worktreeTableSet: WorktreeTableSet.MAIN as WorktreeTableSet,
   options: {}
 });
 
@@ -319,6 +322,49 @@ describe('QueryManager', () => {
 
       // 处理事件时不应抛错。
       expect(() => createHandler!(event)).not.toThrow();
+    });
+
+    // 本地实体事件按表集路由（US-314 B2.3）：别的可写检出位写的行不在本实例挂着的那套表里
+    it('只把本实例挂着那套表读得到的事件合进查询缓存', async () => {
+      const createHandler = eventListeners.get(ENTITY_LOCAL_CREATE_EVENT);
+      const task = queryManager.createTask({
+        options: createFindOptions(),
+        runner: vi.fn(() => of([])),
+        getFingerprint: vi.fn(result => [result.length])
+      });
+      const mergeCreate = vi.fn<MergeQueryTaskCreateFn<typeof TestEntity>>();
+      queryManager.registerMergeCreateFn('find', mergeCreate);
+      const subscription = task.result$.subscribe();
+      vi.stubGlobal('requestIdleCallback', (callback: IdleRequestCallback) => {
+        callback({ didTimeout: false, timeRemaining: () => 50 } as IdleDeadline);
+        return 1;
+      });
+      const insertOn = (id: string, tableSetSuffix?: string) => ({
+        type: ENTITY_LOCAL_CREATE_EVENT,
+        entities: [
+          {
+            type: 'INSERT',
+            namespace: 'public',
+            entity: 'TestEntity',
+            id,
+            patch: { id, name: id },
+            inversePatch: null,
+            recordAt: new Date(),
+            ...(tableSetSuffix === undefined ? {} : { tableSetSuffix })
+          }
+        ]
+      });
+
+      createHandler!(insertOn('in-checkout', 'wt_x'));
+      mockRxDB.worktreeTableSet = WorktreeTableSet.of('wt_x', [TestEntity]);
+      createHandler!(insertOn('on-main'));
+      createHandler!(insertOn('in-mounted-checkout', 'wt_x'));
+
+      await vi.waitFor(() => expect(mergeCreate).toHaveBeenCalledTimes(1));
+      expect(mergeCreate.mock.calls[0][1].map(entity => entity.id)).toEqual(['in-mounted-checkout']);
+
+      subscription.unsubscribe();
+      vi.unstubAllGlobals();
     });
 
     it('跨 tab typed CREATE 只刷新一次查询缓存', async () => {

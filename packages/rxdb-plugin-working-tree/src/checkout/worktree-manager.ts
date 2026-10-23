@@ -30,7 +30,11 @@ import {
   uuid,
   WorktreeTableSet
 } from '@aiao/rxdb';
-import { compute_switch_branch_actions, get_branch_max_change } from '@aiao/rxdb-plugin-history';
+import {
+  compute_switch_branch_actions,
+  get_branch_max_change,
+  keep_table_set_actions
+} from '@aiao/rxdb-plugin-history';
 import { AsyncQueueExecutor } from '@aiao/utils';
 import { createCommitWriteContext } from '../commit/commit-context.js';
 import { classifyBranchMaterialization } from '../working-tree/branch-materialization.js';
@@ -54,9 +58,19 @@ import {
   markSnapshotComplete,
   sealSnapshot
 } from './worktree-snapshot.js';
-import { isPrunable, readHeldKeys } from './worktree-startup-reclaim.js';
+import { findOrphanTableSets, isPrunable, readHeldKeys } from './worktree-startup-reclaim.js';
 import { isWorktreeCommitTarget, type WorktreeTarget } from './worktree-target.js';
-import { holdBranch, onlyMembers, releaseBranch, tableSetHostOf, tableSetSuffixOf } from './worktree-writable.js';
+import {
+  assertCheckoutName,
+  defaultCheckoutName,
+  dropActivationRow,
+  holdBranch,
+  openActivationRow,
+  releaseBranch,
+  tableSetHostOf,
+  tableSetSuffixOf,
+  type WorktreeTableSetHost
+} from './worktree-writable.js';
 import { Worktree, type WorktreeOwner } from './worktree.entity.js';
 
 /** {@link WorktreeManager.open} 的选项。 */
@@ -260,8 +274,9 @@ export class WorktreeManager {
 
   /**
    * 回收没人在用的检出位：会话归属的，没建完的（`building`），以及持有的分支已经不在了的可写检出位。持久归属且已建完的留着。
+   * 还回收没有登记行的孤儿表集（US-314 B2.6）：影子表、分支上的持有键或激活态行还在，登记行却没了。
    *
-   * @returns 回收掉的检出位 id
+   * @returns 回收掉的检出位 id；孤儿表集没有 id，交回它的表集后缀（`wt_…`）
    * @throws AggregateError 有检出位没回收掉；其余的照常回收
    *
    * @remarks
@@ -281,12 +296,15 @@ export class WorktreeManager {
    * @param options - 见 {@link WorktreeAddOptions}
    * @returns 登记行
    * @throws {@link WorktreeUnavailableError} `unsupported_adapter`：主库适配器建不了表集；`branch_not_found` /
-   * `branch_not_materialized`；运行时没有 Web Locks（`locks_unavailable`）
+   * `branch_not_materialized`；`invalid_name` / `name_taken`：给的名字是空的或已被另一个可写检出位用了；
+   * 运行时没有 Web Locks（`locks_unavailable`）
    * @throws {@link WorktreeBranchHeldError} 分支已被持有：主检出位正停在它上面，或另一个可写检出位持有它（git：`already used by worktree`）
    *
    * @remarks
    * 播种 = 主表集的行原样复制，再叠上「主检出位所在分支 → 这条分支」的增量，与切过去读到的逐行一致；都不记进变更日志。
-   * 不推进激活态：主检出位的工作树、当前分支与 `activationRevision` 一处不动。GitHub Desktop 建完会切过去，对应 {@link WorktreeManager.mount}。
+   * 不推进激活态：主检出位的工作树、当前分支与 `activationRevision` 一处不动；这套表自己的激活态行在同一笔事务里建
+   * （检出位里切分支只推进它，B2.2）。没给名字时取分支 id，被占了就加 `-2`、`-3`。
+   * GitHub Desktop 建完会切过去，对应 {@link WorktreeManager.mount}。
    */
   add(branchId: string, options: WorktreeAddOptions = {}): Promise<Worktree> {
     return this.#lifecycle.addTask(() => this.#add(branchId, options));
@@ -297,11 +315,15 @@ export class WorktreeManager {
    *
    * @param id - 检出位 id（{@link WorktreeManager.list} 里那一行）
    * @throws {@link WorktreeUnavailableError} `in_use`：它被别处认领着；`not_found`：不是已建好的可写检出位，或它持有的分支已经不在了；
-   * `schema_mismatch`：建它之后应用的实体结构变了
+   * `schema_rebuild_failed`：指纹不符、按新结构重建失败（整笔回滚，检出位原样；`cause` 是原始错误）
    *
    * @remarks
    * 没认领的先认领（拿下它的锁），挂不上就还掉。换挂换的是整个实例：实体缓存清空、活查询全部重跑、撤销栈跟着换到那条分支。
-   * 已经挂在它上面时什么也不做。
+   * 已经挂在它上面、又不用重建时什么也不做。
+   *
+   * 登记行记着开它时这套表的指纹（成员实体的结构并上插件建表集钩子的指纹，`RxDB.worktreeTableSetFingerprint`）。
+   * 应用升级改了实体、或插件建在表上的附属对象变了，指纹就不符：在挂载的这笔事务里按新结构整套重建（US-314 B2.6），
+   * 见 `#rebuild`。
    */
   mount(id: string): Promise<void> {
     return this.#lifecycle.addTask(() => this.#mount(id));
@@ -337,12 +359,37 @@ export class WorktreeManager {
     return this.#lifecycle.addTask(() => this.#remove(id));
   }
 
+  /**
+   * 给一个可写检出位改名（GitHub Desktop 的 Rename…）。
+   *
+   * @param id - 检出位 id
+   * @param name - 新名字：去掉首尾空白后不能为空，不能与另一个可写检出位重名
+   * @returns 改名之后的登记行
+   * @throws {@link WorktreeUnavailableError} `invalid_name` / `name_taken`；`not_found`：没有这个检出位，或它是只读检出位
+   *
+   * @remarks
+   * 主检出位没有登记行，改不了名。名字只是给人看的标签：表集、持有键与锁都按 id 走，改名不碰它们，也不用认领。
+   */
+  async rename(id: string, name: string): Promise<Worktree> {
+    return this.#runEnabled(async executor => {
+      const [record] = await findRecords(executor, id);
+      if (record?.mode !== 'writable') throw new WorktreeUnavailableError('not_found', `没有可写检出位 ${id}`);
+      const trimmed = await assertCheckoutName(executor, name, id);
+      return executor.getRepository(Worktree).update(record, { name: trimmed });
+    });
+  }
+
   async #prune(): Promise<readonly string[]> {
-    const { records, heldKeys, mainAdapter } = await this.#runEnabled(async (executor, adapter) => ({
-      records: await executor.getRepository(Worktree).find({ where: { combinator: 'and', rules: [] } }),
-      heldKeys: await readHeldKeys(executor),
-      mainAdapter: adapter
-    }));
+    const { records, heldKeys, orphans, mainAdapter } = await this.#runEnabled(async (executor, adapter) => {
+      const all = await executor.getRepository(Worktree).find({ where: { combinator: 'and', rules: [] } });
+      const held = await readHeldKeys(executor);
+      return {
+        records: all,
+        heldKeys: held,
+        orphans: await findOrphanTableSets(executor, adapter, all, held),
+        mainAdapter: adapter
+      };
+    });
     const pruned: string[] = [];
     const failures: unknown[] = [];
     for (const record of records) {
@@ -359,6 +406,14 @@ export class WorktreeManager {
         await release();
       }
     }
+    for (const suffix of orphans) {
+      try {
+        await this.#dropOrphan(suffix);
+        pruned.push(suffix);
+      } catch (error) {
+        failures.push(error);
+      }
+    }
     if (failures.length > 0) throw new AggregateError(failures, `${failures.length} 个检出位没回收掉`);
     return pruned;
   }
@@ -372,30 +427,25 @@ export class WorktreeManager {
     try {
       const record = await this.#runEnabled(async (executor, adapter) => {
         const host = tableSetHostOf(adapter);
+        const name =
+          options.name === undefined ?
+            await defaultCheckoutName(executor, branchId)
+          : await assertCheckoutName(executor, options.name);
         await assertBranchReadable(executor, branchId);
         await holdBranch(executor, branchId, tableSet);
         await assertSwitchTargetIntact(executor, branchId);
-        const branchRepository = executor.getRepository(RxDBBranch);
-        const changeRepository = executor.getRepository(RxDBChange);
-        const [main] = await branchRepository.find({ where: WorktreeTableSet.MAIN.heldBranchWhere, limit: 1 });
-        if (!main) throw new RxDBError('主检出位没有 active 分支：开不了可写检出位');
-        const actions = await compute_switch_branch_actions({ branchRepository, changeRepository }, branchId, main.id);
-        await host.createWorktreeTableSet(executor, tableSet, {
-          branchId,
-          actions: onlyMembers(this.#rxdb, actions, tableSet)
-        });
+        const source = await this.#seedTableSet(executor, host, tableSet, branchId);
         const row = this.#writableRecord({
           id,
           branchId,
-          name: options.name ?? branchId,
+          name,
           owner: options.owner ?? 'persistent',
           tableSet,
-          schemaFingerprint: computeRxDBSchemaFingerprint(members),
-          sourceBranchId: main.id,
-          sourceChangeId: (await get_branch_max_change(changeRepository, main.id))?.id ?? null,
-          targetChangeId: (await get_branch_max_change(changeRepository, branchId))?.id ?? null
+          schemaFingerprint: this.#rxdb.worktreeTableSetFingerprint(tableSet),
+          ...source
         });
         await executor.saveMany([row]);
+        await openActivationRow(executor, this.#rxdb.entityManager, tableSet);
         return row;
       });
       this.#claims.set(id, { release, suffix: tableSet.suffix });
@@ -409,23 +459,28 @@ export class WorktreeManager {
   async #mount(id: string): Promise<void> {
     const release = this.#claims.has(id) ? undefined : await this.#acquire(id);
     try {
-      const tableSet = await this.#runEnabled(async executor => {
+      const { tableSet, rebuilt } = await this.#runEnabled(async (executor, adapter) => {
         const [record] = await findRecords(executor, id);
         if (!record || record.mode !== 'writable' || record.state !== 'ready' || record.tableSetSuffix === null) {
           throw new WorktreeUnavailableError('not_found', `没有已建好的可写检出位 ${id}`);
         }
-        const members = worktreeTableSetMembers(this.#rxdb);
-        if (record.schemaFingerprint !== computeRxDBSchemaFingerprint(members)) {
-          throw new WorktreeUnavailableError('schema_mismatch', `可写检出位 ${id} 建好之后应用的实体结构变了`);
-        }
-        const set = WorktreeTableSet.of(record.tableSetSuffix, members);
+        const set = WorktreeTableSet.of(record.tableSetSuffix, worktreeTableSetMembers(this.#rxdb));
         const [held] = await executor.getRepository(RxDBBranch).find({ where: set.heldBranchWhere, limit: 1 });
         if (!held) throw new WorktreeUnavailableError('not_found', `可写检出位 ${id} 持有的分支已经不在了`);
-        await executor.getRepository(Worktree).update(record, { lastAccessedAt: new Date() });
-        return set;
+        const fingerprint = this.#rxdb.worktreeTableSetFingerprint(set);
+        const stale = record.schemaFingerprint !== fingerprint;
+        const changes =
+          stale ?
+            { ...(await this.#rebuild(executor, adapter, id, set, held.id)), schemaFingerprint: fingerprint }
+          : {};
+        await executor.getRepository(Worktree).update(record, { ...changes, lastAccessedAt: new Date() });
+        return { tableSet: set, rebuilt: stale };
       });
       if (release) this.#claims.set(id, { release, suffix: tableSet.suffix });
-      if (this.#rxdb.worktreeTableSet.suffix !== tableSet.suffix) await this.#rxdb.mountWorktreeTableSet(tableSet);
+      // 挂着它时重建了，也要重挂一次：实体缓存与活查询里是重建之前那套表的
+      if (rebuilt || this.#rxdb.worktreeTableSet.suffix !== tableSet.suffix) {
+        await this.#rxdb.mountWorktreeTableSet(tableSet);
+      }
     } catch (error) {
       if (release) {
         this.#claims.delete(id);
@@ -474,7 +529,7 @@ export class WorktreeManager {
     return release;
   }
 
-  /** 一笔事务删掉一个可写检出位：表集、持有键、登记行；登记行已经不在就什么都不做。 */
+  /** 一笔事务删掉一个可写检出位：表集、持有键、这套表的激活态行、登记行；登记行已经不在就什么都不做。 */
   async #dropWritable(id: string): Promise<void> {
     await this.#runEnabled(async (executor, adapter) => {
       const [record] = await findRecords(executor, id);
@@ -483,7 +538,103 @@ export class WorktreeManager {
       const tableSet = WorktreeTableSet.of(record.tableSetSuffix, []);
       await tableSetHostOf(adapter).dropWorktreeTableSet(executor, tableSet);
       await releaseBranch(executor, tableSet);
+      await dropActivationRow(executor, tableSet);
       await executor.getRepository(Worktree).remove(record);
+    });
+  }
+
+  /**
+   * 在调用方的事务里建一套表并播种，再跑插件的建表集钩子。
+   *
+   * @param executor - 打开或重建检出位的那笔事务
+   * @param host - 建得了表集的主库适配器
+   * @param tableSet - 那套表
+   * @param branchId - 这套表持有的分支
+   * @returns 登记行要记的来源：主检出位所在的分支与两边各自最新的变更
+   *
+   * @remarks
+   * 播种 = 主表集的行原样复制，再叠上「主检出位所在分支 → 持有分支」的增量，与切过去读到的逐行一致；都不记进变更日志。
+   * 插件在业务表上的附属对象（全文索引）也在这笔事务里给这套表建一份（US-314 B2.5）。
+   */
+  async #seedTableSet(
+    executor: TransactionExecutor,
+    host: WorktreeTableSetHost,
+    tableSet: WorktreeTableSet,
+    branchId: string
+  ): Promise<SeededSource> {
+    const branchRepository = executor.getRepository(RxDBBranch);
+    const changeRepository = executor.getRepository(RxDBChange);
+    const [main] = await branchRepository.find({ where: WorktreeTableSet.MAIN.heldBranchWhere, limit: 1 });
+    if (!main) throw new RxDBError('主检出位没有 active 分支：建不了可写检出位的表');
+    const actions = await compute_switch_branch_actions({ branchRepository, changeRepository }, branchId, main.id);
+    await host.createWorktreeTableSet(executor, tableSet, {
+      branchId,
+      actions: keep_table_set_actions(this.#rxdb, actions, tableSet)
+    });
+    await this.#rxdb.notifyWorktreeTableSetCreated(executor, tableSet);
+    return {
+      sourceBranchId: main.id,
+      sourceChangeId: (await get_branch_max_change(changeRepository, main.id))?.id ?? null,
+      targetChangeId: (await get_branch_max_change(changeRepository, branchId))?.id ?? null
+    };
+  }
+
+  /**
+   * 指纹不符时按新结构整套重建（US-314 B2.6）：在挂载的那笔事务里删掉这套表，按当前的实体结构重新建表、播种，
+   * 重跑插件的建表集钩子。
+   *
+   * @param executor - 挂载的那笔事务
+   * @param adapter - 主库适配器
+   * @param id - 检出位 id（报错用）
+   * @param tableSet - 那套表，成员按当前配置
+   * @param branchId - 它持有的分支
+   * @returns 登记行要更新的来源
+   * @throws {@link WorktreeUnavailableError} `schema_rebuild_failed`：任何一步失败，`cause` 是原始错误；抛出即整笔回滚、检出位原样
+   *
+   * @remarks
+   * 检出位里的写都记在持有分支的变更日志上，重新播种就把未提交的改动带回来，与主检出位切过去读到的逐行一致；
+   * 持有键、激活态行不动，不重新持有分支。叠不上新结构的增量（列改了名、新加了没默认值的必填列）让整笔失败。
+   */
+  async #rebuild(
+    executor: TransactionExecutor,
+    adapter: LocalRxDBAdapter,
+    id: string,
+    tableSet: WorktreeTableSet,
+    branchId: string
+  ): Promise<SeededSource> {
+    try {
+      const host = tableSetHostOf(adapter);
+      await assertSwitchTargetIntact(executor, branchId);
+      await host.dropWorktreeTableSet(executor, tableSet);
+      return await this.#seedTableSet(executor, host, tableSet, branchId);
+    } catch (cause) {
+      throw new WorktreeUnavailableError(
+        'schema_rebuild_failed',
+        `可写检出位 ${id} 的结构变了，按新结构重建失败，检出位原样`,
+        { cause }
+      );
+    }
+  }
+
+  /**
+   * 一笔事务回收一套没有登记行的孤儿表集（US-314 B2.6）：删表集、放开它持有的分支、删它的激活态行。
+   *
+   * @param suffix - 孤儿的表集后缀
+   *
+   * @remarks
+   * 事务里再核对一次没有登记行：后缀由新检出位的 id 哈希而来，不会被别处重新登记，核对只是不碰任何有主的东西。
+   */
+  async #dropOrphan(suffix: string): Promise<void> {
+    await this.#runEnabled(async (executor, adapter) => {
+      const [record] = await executor.getRepository(Worktree).find({
+        where: { combinator: 'and', rules: [{ field: 'tableSetSuffix', operator: '=', value: suffix }] },
+        limit: 1
+      });
+      if (record) return;
+      const tableSet = WorktreeTableSet.of(suffix, []);
+      await tableSetHostOf(adapter).dropWorktreeTableSet(executor, tableSet);
+      await releaseBranch(executor, tableSet);
+      await dropActivationRow(executor, tableSet);
     });
   }
 
@@ -682,17 +833,21 @@ interface WritableClaim {
   readonly suffix: string | null;
 }
 
+/** 播种一套表时记下的来源：主检出位所在的分支，与两边各自最新的变更。 */
+interface SeededSource {
+  readonly sourceBranchId: string;
+  readonly sourceChangeId: number | null;
+  readonly targetChangeId: number | null;
+}
+
 /** 可写检出位登记行里由打开流程决定的那几列。 */
-interface WritableRecordIdentity {
+interface WritableRecordIdentity extends SeededSource {
   readonly id: string;
   readonly branchId: string;
   readonly name: string;
   readonly owner: WorktreeOwner;
   readonly tableSet: WorktreeTableSet;
   readonly schemaFingerprint: string;
-  readonly sourceBranchId: string;
-  readonly sourceChangeId: number | null;
-  readonly targetChangeId: number | null;
 }
 
 /** 登记行里由打开参数决定的那几列。 */

@@ -7,6 +7,7 @@ import type { IRepository } from '../repository/repository.interface.js';
 import type { RxDB } from '../RxDB.js';
 import { RxDBSync } from '../system/sync.js';
 import { getCurrentBranch, getLocalSystemRepositories } from '../system/system-repositories.js';
+import type { WorktreeTableSet } from '../system/worktree-table-set.js';
 import { pullIneligibility, pushIneligibility } from './cascade-contract.js';
 import type { RepositorySyncType } from './sync-type-utils.js';
 
@@ -35,6 +36,7 @@ const findSyncRecord = async (
  * @param rxdb - RxDB 实例
  * @param namespace - 命名空间
  * @param entity - 实体名
+ * @param tableSet - 按哪一套表持有的分支找记录，缺省是本实例挂的那套；QueryCache 出站队列传主表集
  * @returns 同步记录；从未同步过（记录尚未懒创建）时返回 `undefined`
  *
  * @remarks
@@ -48,10 +50,11 @@ const findSyncRecord = async (
 export async function findCurrentSyncRecord(
   rxdb: RxDB,
   namespace: string,
-  entity: string
+  entity: string,
+  tableSet: WorktreeTableSet = rxdb.worktreeTableSet
 ): Promise<RxDBSync | undefined> {
   const { adapter } = await getLocalSystemRepositories(rxdb);
-  const branch = await getCurrentBranch(rxdb);
+  const branch = await getCurrentBranch(rxdb, tableSet);
   return findSyncRecord(adapter.getRepository(RxDBSync), `${namespace}:${entity}:${branch.id}`);
 }
 

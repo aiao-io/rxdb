@@ -2,6 +2,10 @@
   "entries": {
     ".": [
       {
+        "name": "activationStateIdOf",
+        "kind": "value"
+      },
+      {
         "name": "ActiveBranchToken",
         "kind": "type"
       },
@@ -371,6 +375,10 @@
       },
       {
         "name": "readCommitLogPage",
+        "kind": "value"
+      },
+      {
+        "name": "readMountedWorktreeTableSet",
         "kind": "value"
       },
       {
@@ -844,6 +852,10 @@
         "kind": "value"
       },
       {
+        "name": "createWorktreeHookStubs",
+        "kind": "value"
+      },
+      {
         "name": "CREDENTIALS",
         "kind": "value"
       },
@@ -950,6 +962,14 @@
       {
         "name": "WorktreeConformanceTask",
         "kind": "both"
+      },
+      {
+        "name": "WorktreeHookStubs",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeManagerStub",
+        "kind": "type"
       }
     ]
   }

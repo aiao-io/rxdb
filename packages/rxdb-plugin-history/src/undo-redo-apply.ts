@@ -273,6 +273,12 @@ export async function updatePushableCount(host: UndoRedoApplyHost): Promise<void
       publish(0);
       return;
     }
+    // 挂在可写检出位上不同步（只有主检出位同步，US-314 B1.4b），推送一进门就抛：照分支累计只会显示一个推不出去的数（B2.1）。
+    // 挂载一换，当前分支流跟着换、计数跟着重算，挂回主检出位就是主检出位的数
+    if (!host.rxdb.worktreeTableSet.isMain) {
+      publish(0);
+      return;
+    }
 
     const localAdapter = await firstValueFrom(host.rxdb.localAdapter$);
     const RxDBSyncRepo = getLocalRxDBSyncRepository(localAdapter);

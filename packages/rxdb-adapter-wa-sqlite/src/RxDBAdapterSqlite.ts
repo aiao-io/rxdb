@@ -79,7 +79,16 @@ export class RxDBAdapterWaSqlite extends RxDBAdapterSqliteBase {
   }
 
   protected override async createClient(): Promise<SqliteClientLike> {
-    return createSqliteClient(this.#dbName, this.options);
+    return createSqliteClient(this.#dbName, this.options, this.clientOwner);
+  }
+
+  /**
+   * SharedWorker 传输下多个标签页共用 worker 里那一个客户端：给出跨标签页串行事务的锁名（US-314 B2.3b）。
+   *
+   * @returns 按库名区分的锁名；不走 SharedWorker 时为 `undefined`
+   */
+  protected override sharedClientLockName(): string | undefined {
+    return this.options.sharedWorker === true ? `rxdb-sqlite-shared-client:${ADAPTER_NAME}:${this.#dbName}` : undefined;
   }
 
   /** 本库存储的删法；`canDropStorage()` 与 `dropStorage()` 共用这一份，删不掉的 VFS 交回 `undefined`。 */

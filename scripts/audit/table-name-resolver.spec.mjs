@@ -68,6 +68,29 @@ test('R3 不误报走了解析器的写法', () => {
 });
 
 // ---------------------------------------------------------------------------
+// R4 把命名空间直接给 schema（US-314 B2.5）
+// ---------------------------------------------------------------------------
+
+test('R4 认得把命名空间直接给 schema 的字段与变量', () => {
+  assert.deepEqual(rulesOf(auditSource(FILE, 'const ref = { schema: plan.namespace, table: plan.tableName };')), [
+    'R4'
+  ]);
+  assert.deepEqual(rulesOf(auditSource(FILE, 'const ddl = { schema: metadata?.namespace };')), ['R4']);
+  assert.deepEqual(rulesOf(auditSource(FILE, 'const schema = metadata.namespace;')), ['R4']);
+});
+
+test('R4 不误报走了解析器的写法、比较与类型标注', () => {
+  const source = [
+    'const ref = { schema: getSchemaName(metadata, tableSet), table: metadata.tableName };',
+    'const ddl = { schema: plan.schema };',
+    'if (schema === metadata.namespace) return;',
+    'interface Ref { readonly schema: string; readonly namespace: string }',
+    'const other = { schema: metadata.namespaceAlias };'
+  ].join('\n');
+  assert.deepEqual(auditSource(FILE, source), []);
+});
+
+// ---------------------------------------------------------------------------
 // 扫描口径
 // ---------------------------------------------------------------------------
 

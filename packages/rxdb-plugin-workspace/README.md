@@ -14,6 +14,7 @@ RxDB Workspace 插件为**尚未入库的 NEW 实体草稿**提供本地恢复�
 - `list()` 返回基于 `structuredClone()` 的深快照，不与内部缓存共享嵌套引用；草稿含不可克隆值时同步抛 `DataCloneError`。
 - `flush()` 是 IndexedDB 写入屏障。底层写入失败时会 reject 并恢复待写/待删集合，不会在后台无限重试；修复环境后再次显式调用即可重试。不可克隆草稿会以 `WorkspaceFlushError.cacheIds` 点名，其他可克隆草稿照常落盘。
 - `changes$` 在草稿、暂存状态或可观测错误变化时发出通知。`corruptedEntries` 同时包含无法解码的 IndexedDB 记录和当前跨标签页同步错误；后者在同步恢复后自动清除。
+- 草稿按可写检出位分区（`@aiao/rxdb-plugin-working-tree` 的 `checkouts`）：每条草稿属于它存下去会写进的那套表，内存、`list()`、`discard()` 与跨标签页同步只看本实例此刻挂的那一套。主检出位的草稿键照旧是 `namespace:entity:id`，可写检出位的草稿键前面加表集后缀（`wt_xxx:namespace:entity:id`）。换挂时先把排队的写落盘，再换成新挂那一套的草稿，`ready` 等它换完。
 
 ## 安装
 

@@ -2,6 +2,7 @@ import {
   BATCH_TIMEOUT,
   DEFAULT_BATCH_TIMEOUT,
   DEFAULT_CACHE_SIZE_KB,
+  releaseComlinkProxy,
   RxDBAdapterSqliteError,
   validateSqliteNumericOption
 } from '@aiao/rxdb-adapter-sqlite-core';
@@ -63,6 +64,7 @@ const BROWSER_RUNTIME: WaSqliteClientRuntime<LoadModuleOptions> = {
   clientName: 'rxdb-adapter-wa-sqlite',
   load: (_dbName, options) => waSqliteLoad(options),
   resolve: resolveBrowserOptions,
+  releaseListener: releaseComlinkProxy,
   open: openWaSqliteDatabase
 };
 

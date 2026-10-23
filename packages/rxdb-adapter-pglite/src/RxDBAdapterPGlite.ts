@@ -74,6 +74,12 @@ import {
   RxdbAdapterPGliteError
 } from './pglite.utils.js';
 import { asPGliteChangeEventSource, IPGliteClient, PGliteClient, resolvePGliteInitOptions } from './PGliteClient.js';
+import {
+  queryCacheRowId,
+  readQueryCacheRows,
+  settleQueryCacheRemove,
+  settleQueryCacheUpsert
+} from './query-cache/query_cache_events.js';
 import { resolveQueryCacheTarget, resolveUpdatedAtColumn } from './query-cache/query_cache_target.js';
 import { buildQueryCacheUpsertStatements } from './query-cache/upsert_many_sql.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
@@ -91,8 +97,9 @@ import { readBranchIdForNewTables } from './version/read_current_branch_id.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { generateBranchTriggerSqlFor, switch_branch } from './version/switch_branch.js';
 import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.js';
+import { withTriggersDisabled } from './version/with_triggers_disabled.js';
 import { importSnapshotTable, readSnapshotPage } from './worktree/worktree-snapshot.js';
-import { createSeededTableSet, dropTableSet } from './worktree/worktree-table-set.js';
+import { createSeededTableSet, dropTableSet, listTableSetSuffixes } from './worktree/worktree-table-set.js';
 
 /**
  * 适配器生命周期状态。
@@ -392,6 +399,10 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * 放进事务里只会为一个注定要回滚的批次开一次事务，而列契约的诊断本就该在
    * 「有没有开始写」之前给出 —— 读者看到错误时数据库连 `BEGIN` 都没发过，
    * 「一行都没有落地」这句话才是能自证的。
+   *
+   * 写的时候摘掉主表集的触发器：抄的是远端副本，不是本地变更，记进 `rxdb_change` 就会被出站队列当离线写推回远端。
+   * QueryCache 同步的实体只在主表集，挂在可写检出位上摘的也是主表集（US-314 B2.1）。摘掉触发器之后活查询收不到
+   * 变更行的通知，同事务里读回写入前后的行，提交之后补刷缓存、补发事件（`query_cache_events.ts`）。
    */
   upsertMany<T>(entityName: string, data: T[]): Observable<void> {
     return defer(() => {
@@ -400,18 +411,28 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       }
       const target = resolveQueryCacheTarget(this.rxdb, entityName);
       return from(
-        buildQueryCacheUpsertStatements(target, data as readonly object[], this.encryptionContext).then(statements =>
-          this.transaction(async executor => {
-            for (const statement of statements) {
-              await executor.query(statement.sql, statement.params);
-            }
-          }, false).then(() => undefined)
+        buildQueryCacheUpsertStatements(target, data as readonly object[], this.encryptionContext).then(
+          async statements => {
+            // 列契约在建语句时已经整批判过，缺 id 的行到不了这里
+            const ids = (data as readonly object[]).map(row => queryCacheRowId(row, target));
+            const { before, after } = await this.transaction(async executor => {
+              const tx = executor as PGliteTransactionExecutor;
+              const before = await readQueryCacheRows(tx, target, ids);
+              await withTriggersDisabled(tx.adapter, WorktreeTableSet.MAIN, async () => {
+                for (const statement of statements) {
+                  await tx.query(statement.sql, statement.params);
+                }
+              });
+              return { before, after: await readQueryCacheRows(tx, target, ids) };
+            }, false);
+            await settleQueryCacheUpsert(this, target, before, after);
+          }
         )
       );
     });
   }
 
-  /** QueryCache 按 id 批量删除。 */
+  /** QueryCache 按 id 批量删除；摘触发器、补事件的理由同 {@link upsertMany}。 */
   deleteByIds(entityName: string, ids: string[]): Observable<void> {
     return defer(() => {
       if (ids.length === 0) {
@@ -420,7 +441,14 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       const target = resolveQueryCacheTarget(this.rxdb, entityName);
       // PostgreSQL 使用 = ANY($1) 语法，支持参数化数组
       const sql = `DELETE FROM ${target.tableName} WHERE ${quoteIdentifier(target.idColumn)} = ANY($1)`;
-      return from(this.transaction(executor => executor.query(sql, [ids]), false).then(() => undefined));
+      return from(
+        this.transaction(async executor => {
+          const tx = executor as PGliteTransactionExecutor;
+          const before = await readQueryCacheRows(tx, target, ids);
+          await withTriggersDisabled(tx.adapter, WorktreeTableSet.MAIN, () => tx.query(sql, [ids]));
+          return before;
+        }, false).then(before => settleQueryCacheRemove(this, target, before))
+      );
     });
   }
 
@@ -737,6 +765,16 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   override async dropWorktreeTableSet(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void> {
     await dropTableSet(executor as PGliteTransactionExecutor, tableSet);
+  }
+
+  /**
+   * 按目录列出现存的可写检出位表集（US-314 B2.6）：名字末尾是 `$<后缀>` 的 schema 各属于哪一套。
+   *
+   * @param executor - 本适配器上一个事务的执行器
+   * @returns 表集后缀，排好序、不重复；配置里实体的命名空间恰好长成这个形状时不算
+   */
+  override listWorktreeTableSetSuffixes(executor: TransactionExecutor): Promise<readonly string[]> {
+    return listTableSetSuffixes(this, executor as PGliteTransactionExecutor);
   }
 
   override async reconcileEntityIndexes(EntityTypes: EntityType[]): Promise<void> {

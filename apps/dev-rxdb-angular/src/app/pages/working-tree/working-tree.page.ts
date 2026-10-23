@@ -11,7 +11,12 @@ import type {
   WorkingTreeRestoreSessionInfo
 } from '@aiao/rxdb-plugin-working-tree';
 import { CommitValidationError, WorkingTreeDirtyError } from '@aiao/rxdb-plugin-working-tree';
-import { useWorkingTree, type WorkingTreeResource } from '@aiao/rxdb-plugin-working-tree-angular';
+import {
+  useWorkingTree,
+  useWorktrees,
+  type WorkingTreeResource,
+  type WorktreesResource
+} from '@aiao/rxdb-plugin-working-tree-angular';
 import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -62,6 +67,7 @@ import { diffEntryKey } from './working-tree.diff-format';
 import { startDragResize } from './working-tree.drag';
 import { gdEntryPath } from './working-tree.gd';
 import { keepLastGood } from './working-tree.keep-last-good';
+import { currentBranchOf } from './working-tree.worktrees';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -142,6 +148,8 @@ export default class WorkingTreePage implements OnInit {
   private readonly fetchedTicker: ReturnType<typeof setInterval>;
 
   readonly tree: WorkingTreeResource = useWorkingTree();
+  /** 检出位：挂着哪一套（`mounted`）决定当前分支，下拉与对话框经它开、挂、删（US-314 C2） */
+  readonly worktrees: WorktreesResource = useWorktrees();
 
   readonly branches = useFindAll(RxDBBranch, {
     where: { combinator: 'and', rules: [] },
@@ -211,14 +219,16 @@ export default class WorkingTreePage implements OnInit {
   >(null);
 
   // ── 派生状态 ──────────────────────────────────────────────
-  readonly $activeBranch = computed(() => this.branches.value().find(b => b.activated)?.id ?? '');
-  /** 当前分支以外的分支：合并对话框的来源列表与 History 的对比下拉共用 */
-  readonly $otherBranchIds = computed(() =>
-    this.branches
+  /** 当前分支：挂着那套表持有的那一条（挂在可写检出位上时它的 `activated` 是假，见 `working-tree.worktrees.ts`） */
+  readonly $activeBranch = computed(() => currentBranchOf(this.branches.value(), this.worktrees.mounted()));
+  /** 当前分支以外的分支：合并对话框的来源列表与 History 的对比下拉共用；被别的检出位持有的照样能合进来、拿来对比 */
+  readonly $otherBranchIds = computed(() => {
+    const active = this.$activeBranch();
+    return this.branches
       .value()
-      .filter(branch => !branch.activated)
-      .map(branch => branch.id)
-  );
+      .filter(branch => branch.id !== active)
+      .map(branch => branch.id);
+  });
 
   /**
    * 渲染用 diff / status：`loading` 相位不携带旧值，直接绑 `diffState` / `statusState`
@@ -380,7 +390,8 @@ export default class WorkingTreePage implements OnInit {
 
   /**
    * 分支行上的右键（GitHub Desktop 的分支右键菜单，`branch-list-item-context-menu.tsx`）：复制分支名，分隔线后是删除。
-   * 点行本身就是切换；合并在分支下拉底部，对比在 History 顶部。当前分支不能删，没有删除项。
+   * 点行本身就是切换；合并在分支下拉底部，对比在 History 顶部。被持有的分支（当前分支、主检出位或别的检出位检出着的）删不掉，
+   * 没有删除项。
    */
   openBranchContextMenu(request: { target: RxDBBranch; event: MouseEvent }) {
     request.event.preventDefault();
@@ -388,7 +399,7 @@ export default class WorkingTreePage implements OnInit {
     const items: WorkingTreeContextMenuItem[] = [
       { id: 'branch-copy', label: 'Copy branch name', testId: 'wt-branch-menu-copy' }
     ];
-    if (!branch.activated) {
+    if (branch.activeKey === null || branch.activeKey === undefined) {
       items.push(
         { id: 'sep-1', label: '', separator: true },
         { id: 'branch-delete', label: 'Delete…', danger: true, testId: 'wt-branch-menu-delete' }

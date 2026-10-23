@@ -442,6 +442,10 @@ describe('挂载点 1：挂在可写检出位上', () => {
     stage.probe.seed(WorkingTreeState, [
       { id: HELD, branchId: HELD, baseHeadCommitId: null, workingTreeRevision: 0, entryCount: 0, updatedAt: new Date() }
     ]);
+    // 每套表各有一行激活态（US-314 B2.2）：令牌的 activationRevision 读这套表自己的那一行
+    stage.probe.seed(WorkingTreeActivationState, [
+      { id: TABLE_SET.holderKey, activationRevision: 0, branchGenerationSeq: 0 }
+    ]);
     return stage;
   };
 

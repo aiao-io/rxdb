@@ -33,6 +33,7 @@ describe('RxDBAdapterSqlite', () => {
     expect(adapter.name).toBe('sqlite-wasm');
     expect(adapter.options).toBe(options);
     await expect(adapter.exposeCreateClient()).resolves.toBe(client);
-    expect(createSqliteClientMock).toHaveBeenCalledWith('adapter-db', options);
+    // 第三个参数是本适配器的持有者键：SharedWorker 上共用一个客户端时断开凭它只交还自己那一份（US-314 B2.3b）
+    expect(createSqliteClientMock).toHaveBeenCalledWith('adapter-db', options, expect.any(String));
   });
 });

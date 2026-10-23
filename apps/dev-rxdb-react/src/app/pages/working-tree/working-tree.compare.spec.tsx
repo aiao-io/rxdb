@@ -1,3 +1,4 @@
+import { WorktreeTableSet } from '@aiao/rxdb';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -56,18 +57,20 @@ const harness = vi.hoisted(() => {
   return { tree, database, comparison, compareBranches };
 });
 
-vi.mock('@aiao/rxdb', () => ({ RxDBBranch: class {}, MAIN_BRANCH_ID: 'main' }));
 vi.mock('@aiao/rxdb-plugin-working-tree', () => ({
   CommitValidationError: class extends Error {},
   WorkingTreeDirtyError: class extends Error {}
 }));
-vi.mock('@aiao/rxdb-plugin-working-tree-react', () => ({ useWorkingTree: () => harness.tree }));
+vi.mock('@aiao/rxdb-plugin-working-tree-react', () => ({
+  useWorkingTree: () => harness.tree,
+  useWorktrees: () => ({ mounted: WorktreeTableSet.MAIN })
+}));
 vi.mock('@aiao/rxdb-react', () => ({
   useRxDB: () => harness.database,
   useFindAll: () => ({
     value: [
-      { id: 'main', activated: true },
-      { id: 'feature', activated: false }
+      { id: 'main', activated: true, activeKey: '*active*' },
+      { id: 'feature', activated: false, activeKey: null }
     ]
   })
 }));

@@ -44,6 +44,7 @@ import { remove_branch } from './remove-branch.js';
 import { restore_entity } from './restore-entity.js';
 import { switch_branch_actions } from './switch-branch-actions.js';
 import { createSyncHistoryBridge, type SyncHistoryBridge } from './sync-history-bridge.js';
+import { keep_table_set_actions, table_set_scope } from './table-set-scope.js';
 import { getEarliestRecordAt, getRxDBChangeEventBranchId, getRxDBChangeEventId } from './version-manager.utils.js';
 /**
  * 版本管理器
@@ -334,7 +335,14 @@ export class VersionManager {
         return;
       }
       const { adapter } = await this.getLocalRepositories();
-      const actions = await switch_branch_actions(this, branchId);
+      // 挂在可写检出位上时，增量从那套表持有的分支算起（主检出位上缺省就是激活的那一条，照旧不传），
+      // 并只留这套表的成员：记日志却不进影子表的实体落回主表，照套会改主检出位的表（US-314 B2.2）
+      const tableSet = this.rxdb.worktreeTableSet;
+      const actions = keep_table_set_actions(
+        this.rxdb,
+        await switch_branch_actions(this, branchId, tableSet.isMain ? undefined : currentBranch?.id),
+        tableSet
+      );
       // 切分支重写的是实体表的**投影**，不是用户的编辑：矩阵行 4 要求它不产生工作树单元。
       // 不声明的话挂载点只看见「有人在调 switchBranch」，与 undo/redo（行 6，必须产生单元）
       // 完全同形，切一次分支就会把整批物化写记成一批未提交变更。
@@ -431,7 +439,14 @@ export class VersionManager {
     try {
       this.rxdb.dispatchEvent(new MergeBranchBeginEvent(sourceBranchId, targetBranchId));
 
-      const result = await merge_branch(this, sourceBranchId, targetBranchId, options);
+      // 挂在可写检出位上只合这套表的成员（US-314 B2.1），预览传同一份判定
+      const result = await merge_branch(
+        this,
+        sourceBranchId,
+        targetBranchId,
+        options,
+        table_set_scope(this.rxdb, this.rxdb.worktreeTableSet)
+      );
 
       // 合并有变更时清空 undo/redo 历史
       if (result.merged > 0) {
@@ -495,7 +510,13 @@ export class VersionManager {
     if (!currentBranch) {
       throw new RxDBError('No active branch found');
     }
-    return preview_merge(await this.getLocalRepositories(), sourceBranchId, currentBranch.id, options);
+    return preview_merge(
+      await this.getLocalRepositories(),
+      sourceBranchId,
+      currentBranch.id,
+      options,
+      table_set_scope(this.rxdb, this.rxdb.worktreeTableSet)
+    );
   }
 
   /**

@@ -28,18 +28,25 @@ import {
 } from '@aiao/rxdb';
 import type { LifecycleScope, ScopeDisposer } from '@aiao/utils';
 import { delMany, entries, setMany } from 'idb-keyval';
-import { debounceTime, Subject, Subscription } from 'rxjs';
+import { debounceTime, skip, Subject, Subscription } from 'rxjs';
 import {
   decodeWorkspaceEntry,
+  isWorkspacePartition,
   parseWorkspaceCacheId,
+  splitWorkspaceStorageKey,
+  workspaceStorageKeyOf,
   type WorkspaceCacheId,
   type WorkspaceCorruptedEntry
 } from './workspace-entry.js';
 import { createWorkspaceStore, type WorkspaceStore } from './workspace-store.js';
 
+/**
+ * 跨 tab 草稿消息；`partition` 是草稿的分区（写在哪套可写检出位的影子表上，US-314 B2.4），主表集上的草稿不带。
+ * 旧版本的标签页发来的消息都不带，按主表集认。
+ */
 type WorkspaceSyncMessage =
-  | { type: 'add'; clientId: string; cacheId: WorkspaceCacheId; data: Record<string, unknown> }
-  | { type: 'remove'; clientId: string; cacheId: WorkspaceCacheId };
+  | { type: 'add'; clientId: string; cacheId: WorkspaceCacheId; partition?: string; data: Record<string, unknown> }
+  | { type: 'remove'; clientId: string; cacheId: WorkspaceCacheId; partition?: string };
 
 /** 插件监听的三类实体本地事件；登记与摘除必须走同一份清单，少一条就是泄漏。 */
 const ENTITY_EVENT_TYPES = [ENTITY_LOCAL_NEW_EVENT, ENTITY_LOCAL_REMOVE_EVENT, ENTITY_LOCAL_CREATE_EVENT] as const;
@@ -47,7 +54,7 @@ const ENTITY_EVENT_TYPES = [ENTITY_LOCAL_NEW_EVENT, ENTITY_LOCAL_REMOVE_EVENT, E
 /**
  * 一条存量记录的实体身份；只认身份自洽的记录
  *
- * @param key - IndexedDB 里的键
+ * @param key - IndexedDB 里的键去掉分区之后的草稿主键（见 `splitWorkspaceStorageKey`），不可信
  * @param data - 键下的值
  * @returns 键恰为 `${namespace}:${entity}:${data.id}` 时交出 `namespace` / `entity`，否则 `undefined`
  *
@@ -55,7 +62,7 @@ const ENTITY_EVENT_TYPES = [ENTITY_LOCAL_NEW_EVENT, ENTITY_LOCAL_REMOVE_EVENT, E
  * 键尾按记录里的 `id` 整段比对，不按 `:` 切：系统表的主键可以带冒号（`rxdb:RxDBSync:public:Todo:main`）。
  * 对不上的记录可能只是撞了形，留给解码登记成坏记录，不当作可删的存量。
  */
-const selfConsistentIdentity = (key: IDBValidKey, data: unknown): { namespace: string; entity: string } | undefined => {
+const selfConsistentIdentity = (key: unknown, data: unknown): { namespace: string; entity: string } | undefined => {
   if (typeof key !== 'string' || typeof data !== 'object' || data === null || Array.isArray(data)) return undefined;
   const [namespace, entity] = key.split(':', 2);
   if (!namespace || !entity) return undefined;
@@ -88,6 +95,8 @@ const isWorkspaceSyncMessage = (value: unknown): value is WorkspaceSyncMessage =
   // RWS-005：与 IndexedDB 恢复走同一个 cacheId 校验。早先这里只数冒号是否三段，
   // 空 namespace / entity、伪 UUID 都能过关并被持久化。
   if (!parseWorkspaceCacheId(msg['cacheId']).ok) return false;
+  // 分区会拼进 IndexedDB 的键（US-314 B2.4），只认表集后缀的形状
+  if (msg['partition'] !== undefined && !isWorkspacePartition(msg['partition'])) return false;
   if (msg['type'] === 'remove') return true;
   if (msg['type'] !== 'add') return false;
   // add 还要求 data 自身身份与 cacheId 一致，否则会按 data.id 建实体缓存、
@@ -207,6 +216,23 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
   readonly #sync_errors = new Map<CacheId, WorkspaceCorruptedEntry>();
   readonly #restore_delete_intents = new Set<CacheId>();
 
+  /**
+   * 内存里每条草稿的分区（US-314 B2.4）：写在哪套可写检出位的影子表上，主表集为 `undefined`。
+   *
+   * @remarks
+   * 内存里只有本实例此刻挂的那套表读得到的草稿（「视图」），换挂时整个换掉；别的分区的草稿原样留在 IndexedDB 里。
+   */
+  readonly #partitions = new Map<CacheId, string | undefined>();
+  /**
+   * 排着队的写（`#need_save_entities` / `#need_delete_ids`）各自落到 IndexedDB 的哪个键。
+   *
+   * @remarks
+   * 入队那一刻按草稿的分区算定：换挂清掉视图之后，旧视图排着的写照样落到旧分区的键上，不跟着新视图走。
+   */
+  readonly #queued_keys = new Map<CacheId, IDBValidKey>();
+  /** 视图的代：每次（重新）装载视图加一，装载途中换了挂、断了连，旧的那一轮据此作废 */
+  #view_generation = 0;
+
   #pending = false;
   #restoring = true;
 
@@ -295,13 +321,7 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
     if (this.#indexedDBStore === undefined) {
       throw new Error('workspace plugin is not installed in the current connection epoch');
     }
-    if (!this.#pending && !this.#hasQueuedChanges()) return;
-
-    const flushed = new Promise<void>((resolve, reject) => {
-      this.#flushWaiters.add({ resolve, reject });
-    });
-    this.#task.next();
-    await flushed;
+    await this.#settleQueue();
   }
 
   /**
@@ -319,30 +339,7 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
   install(scope: LifecycleScope) {
     this.#acquireEpoch(scope);
     if (this.#installPromise && !this.#installFailed) return this.#installPromise;
-    this.#installFailed = false;
-    this.#restoring = true;
-    // RV-042：按 store 身份认领本次结算，与 `#restoreEntries()` 内部的身份判据
-    // （第 537/542 行）同一份依据。读取横跨一次纪元释放 + 重新 install 时，
-    // 这个旧 Promise 迟早会结算——可能在新纪元的恢复还没做完、甚至已经做完之后。
-    // 不认领的话，它的 catch/finally 会直接写 `#installFailed` / `#restoring` /
-    // `#restore_delete_intents` 这三个纪元级字段，而当时它们早已属于新纪元：
-    // 旧读取成功结算，会把新恢复窗口里刚收到的删除意图清空，新快照中已被用户删除的
-    // 草稿因此在旧快照里重新找到自己、被当作合法草稿恢复；旧读取失败结算，
-    // 又会把一次已经成功的新安装误标成失败，下一次 `install()` 因此多发一轮读取。
-    const store = this.#indexedDBStore;
-    const ownsCurrentEpoch = () => this.#indexedDBStore === store;
-    const installPromise = this.#restoreEntries()
-      .catch(reason => {
-        if (ownsCurrentEpoch()) this.#installFailed = true;
-        throw reason;
-      })
-      .finally(() => {
-        if (!ownsCurrentEpoch()) return;
-        this.#restoring = this.#installFailed;
-        if (!this.#installFailed) this.#restore_delete_intents.clear();
-      });
-    this.#installPromise = installPromise;
-    return this.#installPromise;
+    return this.#loadView(false);
   }
 
   /**
@@ -375,6 +372,7 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
    */
   discard(cacheId: WorkspaceCacheId) {
     if (!this.#cache_entities.has(cacheId)) return false;
+    const partition = this.#partitions.get(cacheId);
 
     const [namespace, entity, id] = cacheId.split(':');
     const EntityType = this.rxdb.schemaManager.getEntityType(entity, namespace);
@@ -388,7 +386,7 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
     this.#delete(cacheId);
     this.#emitChange();
     this.#scheduleAutoSave();
-    this.#broadcastRemove(cacheId);
+    this.#broadcastRemove(cacheId, partition);
     return true;
   }
 
@@ -408,6 +406,90 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
    */
   destroy(): Promise<void> {
     return this.#scope?.dispose() ?? Promise.resolve();
+  }
+
+  /**
+   * 装载视图：从 IndexedDB 恢复本实例此刻挂的那套表读得到的草稿。首次安装、失败重试与换挂都走这里。
+   *
+   * @param settleQueueFirst - 先把排着队的写落盘再读：换挂时旧视图的写要先进库，两个视图都读得到的草稿才不会读到旧值
+   * @returns 装载完成后 resolve 的 Promise；它同时成为 {@link ready}
+   */
+  #loadView(settleQueueFirst: boolean): Promise<void> {
+    this.#installFailed = false;
+    this.#restoring = true;
+    // RV-042：按 store 身份认领本次结算，与 `#restoreEntries()` 内部的身份判据
+    // （第 537/542 行）同一份依据。读取横跨一次纪元释放 + 重新 install 时，
+    // 这个旧 Promise 迟早会结算——可能在新纪元的恢复还没做完、甚至已经做完之后。
+    // 不认领的话，它的 catch/finally 会直接写 `#installFailed` / `#restoring` /
+    // `#restore_delete_intents` 这三个纪元级字段，而当时它们早已属于新纪元：
+    // 旧读取成功结算，会把新恢复窗口里刚收到的删除意图清空，新快照中已被用户删除的
+    // 草稿因此在旧快照里重新找到自己、被当作合法草稿恢复；旧读取失败结算，
+    // 又会把一次已经成功的新安装误标成失败，下一次 `install()` 因此多发一轮读取。
+    // 换挂同理（US-314 B2.4）：装载途中又换了一次挂，旧的那一轮按视图的代让位，不往新视图里填旧视图的草稿。
+    const store = this.#indexedDBStore;
+    const generation = ++this.#view_generation;
+    const ownsCurrentView = () => this.#indexedDBStore === store && this.#view_generation === generation;
+    // 首次安装同步发起读取：恢复窗口从这一刻算起，之后到达的事件才会被当作窗口内的删除与新建。
+    // 换挂先等排着队的写落盘；落盘失败的写回到队列里等下一轮，不挡装载
+    const restored =
+      settleQueueFirst ?
+        this.#settleQueue()
+          .catch(() => undefined)
+          .then(() => this.#restoreEntries(ownsCurrentView))
+      : this.#restoreEntries(ownsCurrentView);
+    const installPromise = restored
+      .catch(reason => {
+        if (ownsCurrentView()) this.#installFailed = true;
+        throw reason;
+      })
+      .finally(() => {
+        if (!ownsCurrentView()) return;
+        this.#restoring = this.#installFailed;
+        if (!this.#installFailed) this.#restore_delete_intents.clear();
+      });
+    this.#installPromise = installPromise;
+    return this.#installPromise;
+  }
+
+  /**
+   * 本实例换挂了一套表（US-314 B2.4）：换掉内存里的视图，再按新挂的那套表装载。
+   *
+   * @remarks
+   * 排着队的写不丢：它们入队时已经按各自的分区算定了键，照常落到旧分区上；装载等它们先落盘。
+   * 实体身份缓存已由核心在发信号之前清空，装载出来的草稿是按新挂的那套表新建的实体引用。
+   */
+  #remount(): void {
+    if (this.#indexedDBStore === undefined) return;
+    this.#clearView();
+    // 失败记在 `#installFailed` 上、由 `ready` 交出，与安装失败同口径；这里只防未处理的拒绝
+    void this.#loadView(true).catch(() => undefined);
+  }
+
+  /** 丢掉内存里的视图：草稿、订阅、版本与可观测错误；排着队的写与挂起的 `flush()` 留着 */
+  #clearView(): void {
+    this.#draft_subscriptions.forEach(subscription => subscription.unsubscribe());
+    this.#draft_subscriptions.clear();
+    this.#cache_ids.clear();
+    this.#cache_entities.clear();
+    this.#partitions.clear();
+    this.#draft_versions.clear();
+    this.#draft_snapshots.clear();
+    this.#active_commit_versions.clear();
+    this.#pending_commit_versions.clear();
+    this.#sync_errors.clear();
+    this.#restore_delete_intents.clear();
+    this.#corrupted_entries.length = 0;
+    this.#emitChange();
+  }
+
+  /** 把排着队的写落盘：resolve 时它们已经进了 IndexedDB；没有可写的直接返回 */
+  async #settleQueue(): Promise<void> {
+    if (!this.#pending && !this.#hasQueuedChanges()) return;
+    const settled = new Promise<void>((resolve, reject) => {
+      this.#flushWaiters.add({ resolve, reject });
+    });
+    this.#task.next();
+    await settled;
   }
 
   /**
@@ -475,6 +557,12 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
       return () => subscription.unsubscribe();
     }, 'workspace:taskPump');
 
+    // 换挂（US-314 B2.4）：订阅时先交出的是此刻挂的那一套，安装就按它装载，跳过
+    scope.acquire(() => {
+      const subscription = this.rxdb.worktreeTableSet$.pipe(skip(1)).subscribe(() => this.#remount());
+      return () => subscription.unsubscribe();
+    }, 'workspace:worktreeTableSet');
+
     // 同理一条监听一条登记：三条合成一条时，第二条注册失败会让第一条永久留在宿主上。
     for (const type of ENTITY_EVENT_TYPES) {
       scope.acquire(() => {
@@ -516,6 +604,8 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
     this.#pending_commit_versions.clear();
     this.#sync_errors.clear();
     this.#corrupted_entries.length = 0;
+    this.#partitions.clear();
+    this.#queued_keys.clear();
 
     // 安装记账也是纪元级的：不清，重连后 `ready` 交出的是上一个纪元那条早已 settle 的
     // Promise，调用方 await 它会立刻通过，而草稿其实一条都还没恢复。
@@ -531,51 +621,59 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
     }
   }
 
-  async #restoreEntries() {
+  /**
+   * 从 IndexedDB 恢复本实例此刻挂的那套表读得到的草稿。
+   *
+   * @param ownsCurrentView - 这一轮还是不是当前纪元的当前视图；每次 `await` 之后复核
+   */
+  async #restoreEntries(ownsCurrentView: () => boolean) {
     const store = this.#indexedDBStore;
     if (store === undefined) return;
 
-    const stored = await entries(store);
+    const stored = (await entries(store)).map(([key, data]) => ({ key, data, ...splitWorkspaceStorageKey(key) }));
     // RWS-003：`await` 之后必须复核纪元。数据库若在读取期间断开，纪元释放已清空缓存
     // 并关掉 store，这里再往下走就会把草稿填进一个已经拆掉的纪元
     // （而 `rxdb.workspace` 不可配置，该实例仍可达，后续 discard() 还会向已关闭 channel 发消息）。
     // 比对**身份**而不是 `undefined`：读取期间释放后又重连的情况同样要退出，
-    // 那时的草稿归新纪元的 `install()` 恢复，不该由这一轮补写。
-    if (this.#indexedDBStore !== store) return;
+    // 那时的草稿归新纪元的 `install()` 恢复，不该由这一轮补写。读取期间换了挂同理（US-314 B2.4）。
+    if (!ownsCurrentView()) return;
 
-    // 不收的实体（见 #accepts）留下的存量：旧版本漏判时写进来的，读到就删。
+    // 不收的实体（见 #accepts）留下的存量：旧版本漏判时写进来的，读到就删，不分分区。
     const excludedKeys = stored
-      .filter(([key, data]) => {
-        const identity = selfConsistentIdentity(key, data);
+      .filter(({ cacheKey, data }) => {
+        const identity = selfConsistentIdentity(cacheKey, data);
         return identity !== undefined && !this.#accepts(identity.namespace, identity.entity);
       })
-      .map(([key]) => key);
+      .map(({ key }) => key);
     if (excludedKeys.length > 0) {
       await delMany(excludedKeys, store);
-      if (this.#indexedDBStore !== store) return;
+      if (!ownsCurrentView()) return;
     }
 
     const corruptedEntries: WorkspaceCorruptedEntry[] = [];
-    const restoredDeletionIds: CacheId[] = [];
-    const restoredDrafts: Array<{ cacheId: CacheId; draft: Record<string, unknown> }> = [];
+    const restoredDeletions: Array<{ cacheId: CacheId; key: IDBValidKey }> = [];
+    const restoredDrafts: Array<{ cacheId: CacheId; partition: string | undefined; draft: Record<string, unknown> }> =
+      [];
     const rollbackEntityRefs: Array<() => void> = [];
     const publishedIds: CacheId[] = [];
     const addedDeletionIds: CacheId[] = [];
     const corruptedStart = this.#corrupted_entries.length;
 
     try {
-      for (const [key, data] of stored) {
+      for (const { key, data, partition, cacheKey } of stored) {
         if (excludedKeys.includes(key)) continue;
-        const decoded = decodeWorkspaceEntry(key, data);
+        const decoded = decodeWorkspaceEntry(cacheKey, data);
         if (!decoded.ok) {
           corruptedEntries.push({ key, reason: decoded.reason });
           continue;
         }
 
         const { cacheId, namespace, entity, id, data: entryData } = decoded.entry;
+        // 别的分区上的草稿不属于这个视图，原样留在库里，挂到那套表上时再恢复
+        if (!this.#visible(namespace, entity, partition)) continue;
         if (this.#cache_entities.has(cacheId)) continue;
         if (this.#restore_delete_intents.has(cacheId)) {
-          restoredDeletionIds.push(cacheId);
+          restoredDeletions.push({ cacheId, key });
           continue;
         }
         if (this.#need_delete_ids.has(cacheId)) continue;
@@ -596,31 +694,38 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
           if (!existing) rollbackEntityRefs.push(() => this.rxdb.entityManager.removeEntityCache(entityRef));
           draft = entityRef as unknown as Record<string, unknown>;
         }
-        restoredDrafts.push({ cacheId, draft });
+        restoredDrafts.push({ cacheId, partition, draft });
       }
 
-      for (const { cacheId, draft } of restoredDrafts) {
+      for (const { cacheId, partition, draft } of restoredDrafts) {
         publishedIds.push(cacheId);
         this.#cache_ids.add(cacheId);
+        this.#partitions.set(cacheId, partition);
         this.#bindDraft(cacheId, draft);
       }
-      for (const cacheId of restoredDeletionIds) {
+      for (const { cacheId, key } of restoredDeletions) {
         if (this.#need_delete_ids.has(cacheId)) continue;
         this.#need_delete_ids.add(cacheId);
+        // 恢复窗口里收到的删除：删的就是读到的那个键
+        this.#queued_keys.set(cacheId, key);
         addedDeletionIds.push(cacheId);
       }
       this.#corrupted_entries.push(...corruptedEntries);
       this.#emitChange();
-      if (restoredDeletionIds.length > 0) this.#scheduleAutoSave();
+      if (restoredDeletions.length > 0) this.#scheduleAutoSave();
     } catch (reason) {
       publishedIds.reverse().forEach(cacheId => {
         this.#unbindDraft(cacheId);
         this.#cache_ids.delete(cacheId);
         this.#cache_entities.delete(cacheId);
+        this.#partitions.delete(cacheId);
         this.#draft_versions.delete(cacheId);
         this.#draft_snapshots.delete(cacheId);
       });
-      addedDeletionIds.forEach(cacheId => this.#need_delete_ids.delete(cacheId));
+      addedDeletionIds.forEach(cacheId => {
+        this.#need_delete_ids.delete(cacheId);
+        this.#queued_keys.delete(cacheId);
+      });
       this.#corrupted_entries.length = corruptedStart;
       rollbackEntityRefs.reverse().forEach(rollback => {
         try {
@@ -655,6 +760,22 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
     return this.rxdb.schemaManager.getEntityMetadata(entity, namespace)?.log !== false;
   }
 
+  /**
+   * 本实例此刻挂的那套表读得到这个分区上的这条草稿吗（US-314 B2.4）
+   *
+   * @param namespace - 实体命名空间
+   * @param entity - 实体名
+   * @param partition - 草稿的分区（写在哪套可写检出位的影子表上），主表集为 `undefined`
+   * @returns 读得到则为 `true`
+   *
+   * @remarks
+   * 与活查询的事件路由同一个判定（核心的 `WorktreeTableSet.accepts`）：进影子表集的实体只认挂着那套表的分区；
+   * 不进影子表集的实体无论挂哪套都写主表集，只认主表集的草稿；schema 里查不到的实体照收。
+   */
+  #visible(namespace: string, entity: string, partition: string | undefined): boolean {
+    return this.rxdb.worktreeTableSet.accepts(this.rxdb.schemaManager.getEntityMetadata(entity, namespace), partition);
+  }
+
   #entityEventHandler = (event: EntityLocalCreatedEvent | EntityLocalRemovedEvent | EntityLocalNewEvent) => {
     const { entities } = event;
     entities.forEach(data => {
@@ -663,6 +784,8 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
       }
 
       if (!this.#accepts(data.namespace, data.entity)) return;
+      // 只认挂着那套表读得到的（US-314 B2.4）：别的表集上的新建与收尾都与这个视图无关
+      if (!this.#visible(data.namespace, data.entity, data.tableSetSuffix)) return;
 
       const cacheId = get_cache_id(data);
       if (!parseWorkspaceCacheId(cacheId).ok) return;
@@ -672,8 +795,10 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
           this.#need_delete_ids.delete(cacheId);
           this.#restore_delete_intents.delete(cacheId);
           this.#cache_ids.add(cacheId);
+          // 草稿存下去写进哪套表就归哪个分区
+          this.#partitions.set(cacheId, data.tableSetSuffix);
           const draft = this.#bindDraft(cacheId, patch);
-          this.#need_save_entities.set(cacheId, draft);
+          this.#queueSave(cacheId, draft);
           this.#emitChange();
           this.#scheduleAutoSave();
           if (data.origin !== 'cross-tab') {
@@ -717,6 +842,8 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
     if (msg.clientId === this.#syncClientId) return;
 
     const [namespace, entity, id] = msg.cacheId.split(':');
+    // 别的分区上的草稿与这个视图无关（US-314 B2.4）；旧版本的标签页不带分区，按主表集认
+    if (!this.#visible(namespace, entity, msg.partition)) return;
     const EntityType = this.rxdb.schemaManager.getEntityType(entity, namespace);
 
     if (msg.type === 'add') {
@@ -739,8 +866,9 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
       this.#need_delete_ids.delete(msg.cacheId);
       this.#restore_delete_intents.delete(msg.cacheId);
       this.#cache_ids.add(msg.cacheId);
+      this.#partitions.set(msg.cacheId, msg.partition);
       draft = this.#bindDraft(msg.cacheId, draft);
-      this.#need_save_entities.set(msg.cacheId, draft);
+      this.#queueSave(msg.cacheId, draft);
       this.#emitChange();
       this.#scheduleAutoSave();
     } else if (msg.type === 'remove') {
@@ -767,6 +895,8 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
     this.#cache_entities.delete(cacheId);
     this.#need_save_entities.delete(cacheId);
     this.#need_delete_ids.add(cacheId);
+    this.#queued_keys.set(cacheId, workspaceStorageKeyOf(cacheId, this.#partitions.get(cacheId)));
+    this.#partitions.delete(cacheId);
     this.#draft_versions.delete(cacheId);
     this.#draft_snapshots.delete(cacheId);
     this.#active_commit_versions.delete(cacheId);
@@ -793,7 +923,7 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
       this.#advanceDraftVersion(cacheId, draft);
       this.#restore_delete_intents.delete(cacheId);
       this.#need_delete_ids.delete(cacheId);
-      this.#need_save_entities.set(cacheId, draft);
+      this.#queueSave(cacheId, draft);
       this.#emitChange();
       this.#scheduleAutoSave();
       this.#broadcastDraft(cacheId, draft);
@@ -816,13 +946,46 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
   #broadcastDraft(cacheId: CacheId, data: Record<string, unknown>) {
     const clientId = this.#syncClientId;
     if (!clientId) return;
-    this.#postSyncMessage(cacheId, { type: 'add', clientId, cacheId, data });
+    const partition = this.#partitions.get(cacheId);
+    this.#postSyncMessage(cacheId, {
+      type: 'add',
+      clientId,
+      cacheId,
+      ...(partition === undefined ? {} : { partition }),
+      data
+    });
   }
 
-  #broadcastRemove(cacheId: CacheId) {
+  /**
+   * @param cacheId - 删掉的草稿
+   * @param partition - 它的分区：删之前取，删掉之后视图里已经没有它了
+   */
+  #broadcastRemove(cacheId: CacheId, partition: string | undefined) {
     const clientId = this.#syncClientId;
     if (!clientId) return;
-    this.#postSyncMessage(cacheId, { type: 'remove', clientId, cacheId });
+    this.#postSyncMessage(cacheId, {
+      type: 'remove',
+      clientId,
+      cacheId,
+      ...(partition === undefined ? {} : { partition })
+    });
+  }
+
+  /** 排一次写：落到哪个键按这条草稿此刻的分区算定（见 `#queued_keys`） */
+  #queueSave(cacheId: CacheId, draft: Record<string, unknown>) {
+    this.#need_save_entities.set(cacheId, draft);
+    this.#queued_keys.set(cacheId, workspaceStorageKeyOf(cacheId, this.#partitions.get(cacheId)));
+  }
+
+  /**
+   * 排着队的一次写落到哪个键。
+   *
+   * @throws Error 入队时没算定键：每个入队点都经 `#queueSave` / `#delete` / 恢复登记，走到这里是插件自身的缺陷
+   */
+  #queuedKeyOf(cacheId: CacheId): IDBValidKey {
+    const key = this.#queued_keys.get(cacheId);
+    if (key === undefined) throw new Error(`workspace draft ${cacheId} was queued without a storage key`);
+    return key;
   }
 
   #postSyncMessage(cacheId: CacheId, message: WorkspaceSyncMessage) {
@@ -877,7 +1040,7 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
         unclonable.push([cacheId, value]);
         continue;
       }
-      writable.push([cacheId, snapshot]);
+      writable.push([this.#queuedKeyOf(cacheId), snapshot]);
       clonable.push([cacheId, value]);
     }
 
@@ -886,7 +1049,10 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
         await setMany(writable, store);
       }
       if (needDeleteIds.length) {
-        await delMany(needDeleteIds, store);
+        await delMany(
+          needDeleteIds.map(cacheId => this.#queuedKeyOf(cacheId)),
+          store
+        );
       }
     } catch (reason) {
       // RWS-003：写盘期间断连的话，队列、`#pending`、flush waiter 全都换了主人。
@@ -904,6 +1070,13 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
     // 空闲，`#resolveFlushWaiters()` 更直接——新纪元的数据一个字节都还没落盘，
     // 而 `flush()` 的契约是「resolve 时已经进了 IndexedDB」。
     if (this.#indexedDBStore !== store) return;
+
+    // 落了盘的那些不再需要键；写盘期间又排上队的（同一个键）留着
+    for (const cacheId of [...clonable.map(([id]) => id), ...needDeleteIds]) {
+      if (!this.#need_save_entities.has(cacheId) && !this.#need_delete_ids.has(cacheId)) {
+        this.#queued_keys.delete(cacheId);
+      }
+    }
 
     if (unclonable.length) {
       // 只回填克隆失败的那些，且回填的是**活引用**而不是快照。

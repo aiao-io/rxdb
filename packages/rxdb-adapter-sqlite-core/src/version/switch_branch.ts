@@ -108,11 +108,13 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterSqliteBase, branchId
   generateSwitchBranchStatements(adapter, branchId).join('');
 
 /**
- * 主检出位要切到 `branchId` 之前的检查：它在可写检出位手里就抛（US-314 B1.2）。
+ * 切到 `branchId` 之前的检查：它在别人手里就抛（主检出位 US-314 B1.2，可写检出位 B2.2）。
  *
  * @param executor - 切换事务的执行器
  * @param branchId - 目标分支
- * @throws {@link WorktreeBranchHeldError} 目标分支的 `activeKey` 是可写检出位的持有键时
+ * @param tableSet - 本实例挂的那套表：主检出位的哨兵对可写检出位来说也是「别人」
+ * @throws {@link WorktreeBranchHeldError} 目标分支被别的检出位持有时（主检出位切过去时是可写检出位的持有键，
+ *   可写检出位切过去时还包括主检出位的哨兵）
  *
  * @remarks
  * 唯一索引兜不住这一条：点亮那条 UPDATE 写的是哨兵，正好把持有键覆盖掉，索引里始终只有一个哨兵。
@@ -123,24 +125,99 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterSqliteBase, branchId
  * **另一个后端有一份同样的检查**（`packages/rxdb-adapter-pglite/src/version/switch_branch.ts`），
  * 判定本身在核心（`WorktreeBranchHeldError.throwIfHeld`），两端各自只剩读那一格的 SQL。
  */
-const assertBranchNotHeld = async (executor: SqliteTransactionExecutor, branchId: string): Promise<void> => {
+const assertBranchNotHeld = async (
+  executor: SqliteTransactionExecutor,
+  branchId: string,
+  tableSet: WorktreeTableSet
+): Promise<void> => {
   const tableName = get_table_name_by_metadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN);
   const result = await executor.execute(`SELECT activeKey FROM ${quote_sql_identifier(tableName)} WHERE id = ?`, [
     branchId
   ]);
   const activeKey = result.results.flatMap(item => item.rows)[0]?.[0];
-  WorktreeBranchHeldError.throwIfHeld(branchId, typeof activeKey === 'string' ? activeKey : null);
+  WorktreeBranchHeldError.throwIfHeld(branchId, typeof activeKey === 'string' ? activeKey : null, tableSet.holderKey);
+};
+
+/**
+ * 可写检出位里切分支的三段 SQL（US-314 B2.2）：按目标分支重挂这套表的触发器、放开原来持有的分支、持有目标分支。
+ *
+ * @param adapter - SQLite 适配器
+ * @param tableSet - 本实例挂的那套影子表
+ * @param branchId - 目标分支
+ * @returns 三段语句；这套表没有成员时没有触发器那一段
+ *
+ * @remarks
+ * 主检出位那一行（`activated` 与哨兵）一格不动：可写检出位持有分支只写 `activeKey`，`activated` 恒为假。
+ * 先放后拿：`activeKey` 的唯一索引逐行立即检查，同一个持有键在两行上同时出现一瞬就撞。
+ * 拿的那条只认 `activated = 0` 且没人持有（或已是自己）的行：切换事务前面已经按持有键拒过被占的分支，
+ * 这里再钉一次，索引之外多一道「不覆盖别人的键」。`updatedAt` 只在真正翻转的行上推进，与主检出位那两条同口径。
+ * 两条都带 `RETURNING`，行要用来刷缓存、派事件；分开执行的理由见 {@link generateSwitchBranchStatements}。
+ */
+const generateCheckoutSwitchStatements = (
+  adapter: RxDBAdapterSqliteBase,
+  tableSet: WorktreeTableSet,
+  branchId: string
+): { triggers: string; release: string; hold: string } => {
+  const tableName = quote_sql_identifier(
+    get_table_name_by_metadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN)
+  );
+  const branchIdSql = get_sql_value(branchId);
+  const holderSql = get_sql_value(tableSet.holderKey);
+  return {
+    triggers: generate_table_set_trigger_sql(adapter, tableSet, branchId),
+    release: `
+    UPDATE ${tableName}
+    SET activeKey = NULL, updatedAt = ${SQLITE_NOW_ISO_SQL}
+    WHERE activeKey = ${holderSql} AND id != ${branchIdSql}
+    RETURNING rowid as ${ROWID},*;
+    `,
+    hold: `
+    UPDATE ${tableName}
+    SET
+      activeKey = ${holderSql},
+      updatedAt = CASE WHEN activeKey IS NULL THEN ${SQLITE_NOW_ISO_SQL} ELSE updatedAt END
+    WHERE id = ${branchIdSql} AND activated = 0 AND (activeKey IS NULL OR activeKey = ${holderSql})
+    RETURNING rowid as ${ROWID},*;
+    `
+  };
+};
+
+/**
+ * 在切换事务里让可写检出位持有目标分支（US-314 B2.2），见 {@link generateCheckoutSwitchStatements}。
+ *
+ * @param tx - 切换事务的执行器
+ * @param adapter - SQLite 适配器
+ * @param tableSet - 本实例挂的那套影子表
+ * @param branchId - 目标分支
+ * @returns 放开与持有两条语句交回的结果，用来刷缓存、派事件
+ * @throws {@link RxDBAdapterSqliteError} 目标分支没持有到（分支不在）时，整笔回滚
+ */
+const switchCheckoutBranch = async (
+  tx: SqliteTransactionExecutor,
+  adapter: RxDBAdapterSqliteBase,
+  tableSet: WorktreeTableSet,
+  branchId: string
+): Promise<SqliteSuccessResult[]> => {
+  const { triggers, release, hold } = generateCheckoutSwitchStatements(adapter, tableSet, branchId);
+  if (triggers) await tx.execute(triggers);
+  const released = await tx.execute(release);
+  const held = await tx.execute(hold);
+  if (held.results.flatMap(result => result.rows).length !== 1) {
+    throw new RxDBAdapterSqliteError(`表集 ${tableSet.suffix} 持有不了分支 ${branchId}：分支不在`);
+  }
+  return [released, held];
 };
 
 /**
  * 派发 RxDBBranch 表的 UPDATE 事件。
- * inversePatch 记录 activated 字段的逆向值（分支切换仅改变 activated），
- * 供撤销/回滚消费者还原前一状态。
+ * inversePatch 记录切换翻转的那一格的逆向值，供撤销/回滚消费者还原前一状态：
+ * 主检出位翻的是 `activated`，可写检出位翻的是自己的持有键（US-314 B2.2）。
  */
 const _dispatch_branch_update_event = (
   adapter: RxDBAdapterSqliteBase,
   metadata: EntityMetadata,
-  result: InstanceType<typeof RxDBBranch>[]
+  result: InstanceType<typeof RxDBBranch>[],
+  tableSet: WorktreeTableSet
 ): void => {
   if (result.length === 0) return;
   const events: RxDBEntityLocalUpdatedEventData[] = result.map(entity => ({
@@ -149,8 +226,11 @@ const _dispatch_branch_update_event = (
     type: 'UPDATE',
     id: entity.id,
     patch: { ...entity },
-    // inversePatch 反映切换前的 activated 状态（0↔1 互换），使 undo/redo 消费者可正确还原
-    inversePatch: { ...entity, activated: entity.activated ? 0 : 1 },
+    // inversePatch 反映切换前那一格（activated 0↔1，或持有键 ↔ NULL），使 undo/redo 消费者可正确还原
+    inversePatch:
+      tableSet.isMain ?
+        { ...entity, activated: entity.activated ? 0 : 1 }
+      : { ...entity, activeKey: entity.activeKey ? null : tableSet.holderKey },
     recordAt: entity.updatedAt || entity.createdAt || new Date()
   }));
   adapter.rxdb.dispatchEvent(new EntityLocalUpdatedEvent(events));
@@ -172,11 +252,8 @@ const _dispatch_branch_update_event = (
  */
 export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: SwitchBranchOptions) => {
   const { branchId, actions, prepare } = options;
-  // 挂在可写检出位上的实例不能真切分支（US-314 B1.4）：熄灭、点亮写的是主检出位那一行。
-  // 留在当前分支（撤销 / 重做）不受影响，那一支只重挂本实例这套表的触发器。
-  if (branchId !== undefined && !adapter.tableSet.isMain) {
-    throw new RxDBAdapterSqliteError(`挂在可写检出位上的实例不能切分支（表集 ${adapter.tableSet.suffix}）`);
-  }
+  // 本实例挂的那套表：增量落在它里面，切分支时主检出位熄灭、点亮那一行，可写检出位放开、持有自己的键（US-314 B2.2）
+  const tableSet = adapter.tableSet;
 
   const switchAction = actions && (await convertSwitchResultToSql(adapter, actions));
   const branchSwitchResults: SqliteSuccessResult[] = [];
@@ -188,10 +265,10 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
     await adapter.transaction(async tx => {
       // 省略 branchId = 「作用于当前激活分支」，必须在本事务内解析：在事务外采样再传进来，
       // 采样与提交之间的一次真实切换会让这条调用把 activated 与全部触发器倒回旧分支。
-      targetBranchId ??= await read_current_branch_id(tx, adapter.tableSet);
+      targetBranchId ??= await read_current_branch_id(tx, tableSet);
       // 目标分支在可写检出位手里就拒。排在前置校验之前，与 git 同序：先答「这条分支能不能检出」，
       // 再问「工作树干不干净」；也排在动第一行之前，被拒时连触发器都还在。留在当前分支时没有要拿下的分支，不查。
-      if (branchId !== undefined) await assertBranchNotHeld(tx, targetBranchId);
+      if (branchId !== undefined) await assertBranchNotHeld(tx, targetBranchId, tableSet);
       // 前置校验排在这里而不是本事务之外：外面那一版留下一个「校验通过到真正切换」的窗口，
       // 窗口里的一次写能让刚判过的「工作树干净」变成假的，而切换照样完成。
       // 抛出即整次回滚——此刻一行都还没动，连触发器都还在。
@@ -200,7 +277,7 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
         throw error;
       });
       // 移除所有表触发器，避免触发器在批量操作时干扰数据
-      const remove_all_triggers = remove_all_triggers_sql(adapter, adapter.tableSet);
+      const remove_all_triggers = remove_all_triggers_sql(adapter, tableSet);
       if (remove_all_triggers) {
         await tx.execute(remove_all_triggers);
       }
@@ -220,7 +297,7 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
       // 留在当前分支（撤销 / 重做、重做栈失效）只重挂本实例这套表的触发器，不写分支表：从前也照跑熄灭 + 点亮，
       // 点亮那条的 RETURNING 行还派出一条「activated 翻转了」的假事件（US-314 B1.3）。
       if (branchId === undefined) {
-        const rebuildTriggers = generate_table_set_trigger_sql(adapter, adapter.tableSet, targetBranchId);
+        const rebuildTriggers = generate_table_set_trigger_sql(adapter, tableSet, targetBranchId);
         if (rebuildTriggers) await tx.execute(rebuildTriggers);
         return;
       }
@@ -231,6 +308,11 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
       // 逐条执行而不是拼成一段：熄灭与点亮两条 `RETURNING` 拼在一起时，oo1 的 `db.exec()`
       // 只收第一条有结果列的语句的行，点亮那条的行会被静默丢掉（详见
       // {@link generateSwitchBranchStatements}）。这里两侧的行都要用来派发事件。
+      // 可写检出位那一支只动自己的持有键（US-314 B2.2）。
+      if (!tableSet.isMain) {
+        branchSwitchResults.push(...(await switchCheckoutBranch(tx, adapter, tableSet, targetBranchId)));
+        return;
+      }
       for (const statement of generateSwitchBranchStatements(adapter, targetBranchId)) {
         const executed = await tx.execute(statement);
         if (executed) branchSwitchResults.push(executed);
@@ -242,10 +324,10 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
     for (const executed of branchSwitchResults) {
       branchRows.push(...(await transaction_sqlite_result(adapter, RxDBBranch, executed, true)));
     }
-    _dispatch_branch_update_event(adapter, getEntityMetadata(RxDBBranch), branchRows);
+    _dispatch_branch_update_event(adapter, getEntityMetadata(RxDBBranch), branchRows, tableSet);
 
     if (switchAction) {
-      await dispatch_switch_events(adapter, switchAction);
+      await dispatch_switch_events(adapter, switchAction, tableSet);
     }
   } catch (error) {
     // `prepare` 的拒绝是**调用方的领域错误**（工作树不干净、凭据过期……），调用方按类型接住它。
