@@ -22,9 +22,9 @@
  */
 
 import { execFile, spawnSync } from 'node:child_process';
-import { resolve, relative, join } from 'node:path';
-import { promisify } from 'node:util';
+import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
 import { dependencyEdges, scanPackages } from './audit/lib/package-discovery.mjs';
 import { linkReleasePeers, resolvePackageRoot } from './audit/link-release-peers.mjs';
 
