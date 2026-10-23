@@ -39,11 +39,16 @@ async function createSqliteWasmAdapter(options?: Record<string, unknown>) {
     persistent?: boolean;
     plugins?: readonly Plugin[];
     remoteAdapter?: string;
+    dbName?: string;
   };
   const entities = (rawOptions.entities ?? []).slice();
   const persistent = rawOptions.persistent === true;
   const plugins = rawOptions.plugins ?? [];
-  const dbName = `sw-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  // 跨断开重开的验收（既有库升级）需要同一库名重连；默认仍是随机名，既有调用方零变化
+  const dbName =
+    typeof rawOptions.dbName === 'string' ?
+      rawOptions.dbName
+    : `sw-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const rxdb = new RxDB({
     dbName,

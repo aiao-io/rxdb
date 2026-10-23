@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc/apps/dev-rxdb-board/app",
+    "types": ["node"]
+  },
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "vite.config.ts",
+    "vite.config.mts",
+    "vitest.config.ts",
+    "vitest.config.mts",
+    "src/test-setup.ts"
+  ],
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../packages/rxdb-plugin-search/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-history/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-board-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-board/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    }
+  ]
+}

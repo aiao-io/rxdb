@@ -1,0 +1,309 @@
+/* 看板布局（US-539 交互约定：列横向排列、任务卡片纵向堆叠、列横向滚动；详情/确认面板固定右侧） */
+.board-view {
+  display: block;
+  padding-bottom: 4rem;
+}
+.board-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  flex-wrap: wrap;
+}
+.board-selector {
+  padding: 0.25rem;
+}
+.header-button {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.header-actions {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+.restoring-badge {
+  background: #f59e0b;
+  color: #fff;
+  padding: 0 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+}
+.restoring-note {
+  padding: 0.25rem 1rem;
+  color: #92400e;
+}
+.label-strip {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0.25rem 1rem;
+  flex-wrap: wrap;
+}
+.label-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.25rem;
+  padding: 0 0.375rem;
+  color: #fff;
+  font-size: 0.75rem;
+}
+.label-name,
+.label-delete {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+}
+.board-notice {
+  padding: 0.25rem 1rem;
+  color: #b91c1c;
+}
+.columns {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding: 0.5rem 1rem;
+  align-items: flex-start;
+}
+.column {
+  flex: 0 0 17rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+}
+.column-header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+}
+.column-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  flex: 1;
+}
+.column-count {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+.column-menu {
+  display: flex;
+  gap: 0.125rem;
+  flex-wrap: wrap;
+}
+.column-menu button {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.25rem;
+}
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.375rem;
+}
+.card {
+  background: #fff;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+.card-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-align: left;
+  padding: 0;
+  width: 100%;
+}
+.card-edit {
+  font-size: 0.75rem;
+}
+.card-labels {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  flex-wrap: wrap;
+}
+.card-label {
+  padding: 0 0.375rem;
+  border-radius: 0.25rem;
+  color: #fff;
+  font-size: 0.75rem;
+}
+.card-due {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+.card-due.overdue {
+  color: #dc2626;
+}
+.add-task {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+.title-editor {
+  width: 100%;
+  box-sizing: border-box;
+}
+.empty-board {
+  padding: 2rem;
+}
+.detail-panel,
+.confirm-panel {
+  position: fixed;
+  right: 1rem;
+  top: 4rem;
+  width: 20rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  z-index: 10;
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+}
+.detail-panel label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+.detail-panel input,
+.detail-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.detail-actions,
+.confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.board-connecting {
+  padding: 2rem;
+  color: #666;
+}
+
+.search-hit {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
+.board-search {
+  padding: 0.25rem 1rem;
+}
+.board-search .search-input {
+  width: 100%;
+  max-width: 24rem;
+  padding: 0.25rem 0.5rem;
+}
+.search-results {
+  margin-top: 0.25rem;
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  background: #fff;
+}
+.search-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+.search-result:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.search-result-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.search-result-column {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+.search-result-snippet {
+  font-size: 0.75rem;
+  color: #334155;
+}
+.search-state {
+  padding: 0.5rem;
+  color: #64748b;
+}
+.search-more {
+  margin: 0.25rem;
+}
+
+/* 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 源卡片半透明） */
+.card.dragging,
+.column-header.dragging {
+  opacity: 0.5;
+}
+.card.drop-before {
+  box-shadow: 0 -3px 0 0 #0969da;
+}
+.card.drop-after {
+  box-shadow: 0 3px 0 0 #0969da;
+}
+.column.drop-end {
+  outline: 3px dashed #0969da;
+  outline-offset: -3px;
+  border-radius: 0.5rem;
+}
+.column-header.drop-before {
+  box-shadow: -3px 0 0 0 #0969da;
+}
+.column-header.drop-after {
+  box-shadow: 3px 0 0 0 #0969da;
+}
+
+.add-task-form {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+.add-task-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+}
+.add-task-cancel {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.detail-move {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+  margin-top: 0.5rem;
+}
+.detail-move label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.75rem;
+}

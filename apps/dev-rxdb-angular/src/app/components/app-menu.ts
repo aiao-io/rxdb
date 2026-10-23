@@ -194,6 +194,12 @@ export class AppMenu {
       icon: Search
     },
     {
+      type: 'link',
+      title: 'Board',
+      path: '/board',
+      icon: Search
+    },
+    {
       type: 'divider',
       title: 'Storage'
     },

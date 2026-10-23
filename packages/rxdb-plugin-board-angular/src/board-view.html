@@ -1,0 +1,400 @@
+<section
+  class="board-view"
+  #boardArea
+  (dragend)="clearDragFeedback()"
+  (dragover)="onTaskDragOver($event)"
+  (drop)="onColumnDrop($event)"
+  data-testid="board-view"
+>
+  @if (board(); as b) {
+    <!-- 页头：板选择器、板标题、新建列、标签管理、撤销/重做、备份入口 -->
+    <header class="board-header" data-testid="board-header">
+      <select
+        class="board-selector"
+        [ngModel]="b.currentBoardId()"
+        (ngModelChange)="onSelectBoard($event)"
+        aria-label="选择看板"
+        data-testid="board-selector"
+      >
+        @for (item of b.boards(); track item.id) {
+          <option [value]="item.id">{{ item.title }}</option>
+        }
+      </select>
+      @if (b.currentBoard(); as current) {
+        <button class="header-button" (click)="renameBoard()" aria-label="改板标题" data-testid="rename-board">
+          {{ current.title }}
+        </button>
+      }
+      @if (b.restoring()) {
+        <span class="restoring-badge" aria-live="polite" data-testid="restoring-badge">恢复中</span>
+      }
+      <div class="header-actions">
+        <button [disabled]="b.restoring()" (click)="createBoard()" data-testid="create-board">新建板</button>
+        <button
+          [disabled]="b.restoring() || !b.currentBoard()"
+          (click)="confirmBoardDelete()"
+          data-testid="delete-board"
+        >
+          删除看板
+        </button>
+        <button [disabled]="b.restoring() || !b.currentBoard()" (click)="createColumn()" data-testid="create-column">
+          新建列
+        </button>
+        <button [disabled]="b.restoring() || !b.currentBoard()" (click)="createLabel()" data-testid="create-label">
+          新建标签
+        </button>
+        <button [disabled]="b.restoring() || b.undoCount() === 0" (click)="undo()" aria-label="撤销" data-testid="undo">
+          撤销
+        </button>
+        <button [disabled]="b.restoring() || b.redoCount() === 0" (click)="redo()" aria-label="重做" data-testid="redo">
+          重做
+        </button>
+        <button [disabled]="b.restoring()" (click)="onExportBackup()" data-testid="export-backup">导出备份</button>
+      </div>
+    </header>
+
+    @if (b.restoring()) {
+      <p class="restoring-note" data-testid="restoring-note">恢复进行中：浏览可用，写入口已暂停。</p>
+    }
+
+    <!-- 标签管理条 -->
+    @if (b.labels().length > 0) {
+      <div class="label-strip" data-testid="label-strip">
+        @for (label of b.labels(); track label.id) {
+          <span
+            class="label-chip"
+            [style.background]="label.color"
+            [style.color]="labelTextColor(label.color)"
+            data-testid="label-chip"
+          >
+            <button class="label-name" (click)="renameLabel(label.id)" aria-label="改名">{{ label.name }}</button>
+            <button class="label-delete" [attr.aria-label]="'删除标签 ' + label.name" (click)="deleteLabel(label.id)">
+              ×
+            </button>
+          </span>
+        }
+      </div>
+    }
+
+    @if (notice(); as message) {
+      <p class="board-notice" data-testid="board-notice" role="alert">
+        {{ message }}
+        <button (click)="notice.set(null)" aria-label="关闭提示" data-testid="board-notice-close">×</button>
+      </p>
+    }
+
+    <!-- 板内搜索（US-539 阶段 B） -->
+    @if (b.searchSource) {
+      <div class="board-search" data-testid="board-search">
+        <input
+          class="search-input"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchInput($event)"
+          aria-label="搜索当前板任务"
+          data-testid="board-search-input"
+          placeholder="搜索当前板任务"
+        />
+        @if (searchQuery().trim() !== '') {
+          <div class="search-results" data-testid="board-search-results">
+            @switch (searchState()) {
+              @case ('loading') {
+                <p class="search-state" data-testid="board-search-loading">搜索中…</p>
+              }
+              @case ('error') {
+                <p class="search-state" data-testid="board-search-error">{{ searchErrorText() }}</p>
+              }
+              @case ('empty') {
+                <p class="search-state" data-testid="board-search-empty">无匹配</p>
+              }
+              @default {
+                @for (result of searchResults(); track result.id) {
+                  <button
+                    class="search-result"
+                    [disabled]="searchState() === 'loading'"
+                    (click)="onSearchResultClick(result)"
+                    data-testid="board-search-result"
+                  >
+                    <span class="search-result-title">{{ searchResultTitle(result) }}</span>
+                    <span class="search-result-column">{{ searchColumnTitle(result) }}</span>
+                    <span class="search-result-snippet">{{ result.snippet }}</span>
+                  </button>
+                }
+                @if (searchHasMore()) {
+                  <button class="search-more" (click)="onSearchMore()" data-testid="board-search-more">加载更多</button>
+                }
+              }
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- 列区 -->
+    @if (b.currentBoard(); as current) {
+      <div class="columns" data-testid="columns">
+        @for (column of b.columns(); track column.id) {
+          <section
+            class="column"
+            [attr.data-column-id]="column.id"
+            [class.drop-end]="isDropEnd(column)"
+            (dragover)="onColumnDragOver($event)"
+            (drop)="onTaskDrop($event, column)"
+            data-testid="column"
+          >
+            <header
+              class="column-header"
+              [attr.data-column-header-id]="column.id"
+              [class.dragging]="isDraggingColumn(column)"
+              [class.drop-after]="isColumnDropAfter(column)"
+              [class.drop-before]="isColumnDropBefore(column)"
+              (dragstart)="onColumnDragStart($event, column)"
+              data-testid="column-header"
+              draggable="true"
+            >
+              <h2 class="column-title" data-testid="column-title">{{ column.title }}</h2>
+              <span class="column-count" data-testid="column-count">{{ (taskMap().get(column.id) ?? []).length }}</span>
+              <div class="column-menu">
+                <button (click)="renameColumn(column.id)" aria-label="改列名" data-testid="column-rename">改名</button>
+                <button (click)="moveColumnBy(column.id, -1)" aria-label="前移" data-testid="column-move-back">
+                  前移
+                </button>
+                <button (click)="moveColumnBy(column.id, 1)" aria-label="后移" data-testid="column-move-forward">
+                  后移
+                </button>
+                <button
+                  [disabled]="sortingColumnId() === column.id"
+                  (click)="sortColumnBy(column.id, 'dueDate')"
+                  aria-label="按截止日排序"
+                  data-testid="column-sort-due"
+                >
+                  按截止日
+                </button>
+                <button
+                  [disabled]="sortingColumnId() === column.id"
+                  (click)="sortColumnBy(column.id, 'title')"
+                  aria-label="按标题排序"
+                  data-testid="column-sort-title"
+                >
+                  按标题
+                </button>
+                <button (click)="confirmColumnDelete(column)" aria-label="删除列" data-testid="column-delete">
+                  删除
+                </button>
+              </div>
+            </header>
+            <div class="cards">
+              @for (task of taskMap().get(column.id) ?? []; track task.id) {
+                <article
+                  class="card"
+                  [attr.data-task-id]="task.id"
+                  [class.dragging]="isDraggingTask(task)"
+                  [class.drop-after]="isDropAfter(task)"
+                  [class.drop-before]="isDropBefore(task)"
+                  [class.search-hit]="searchHighlightId() === task.id"
+                  (dragstart)="onTaskDragStart($event, task)"
+                  data-testid="task-card"
+                  draggable="true"
+                  tabindex="-1"
+                >
+                  @if (editTitle() === task.id) {
+                    <input
+                      class="title-editor"
+                      [ngModel]="editTitleValue()"
+                      (keydown.enter)="commitEditTitle(task)"
+                      (keydown.escape)="cancelEditTitle()"
+                      (ngModelChange)="editTitleValue.set($event)"
+                      aria-label="任务标题"
+                      data-testid="task-title-editor"
+                    />
+                    <button (click)="commitEditTitle(task)" aria-label="保存标题" data-testid="task-title-save">
+                      保存
+                    </button>
+                    <button (click)="cancelEditTitle()" aria-label="取消" data-testid="task-title-cancel">取消</button>
+                  } @else {
+                    <button class="card-title" (click)="openDetail(task.id)" data-testid="task-title">
+                      {{ task.title }}
+                    </button>
+                    <button
+                      class="card-edit"
+                      (click)="startEditTitle(task)"
+                      aria-label="编辑标题"
+                      data-testid="task-edit-title"
+                    >
+                      编辑
+                    </button>
+                  }
+                  @if (labelsOf(task.id).length > 0) {
+                    <div class="card-labels">
+                      @for (label of labelsOf(task.id); track label.id) {
+                        <span
+                          class="card-label"
+                          [attr.aria-label]="label.name"
+                          [style.background]="label.color"
+                          [style.color]="labelTextColor(label.color)"
+                          data-testid="card-label"
+                        >
+                          {{ label.name }}
+                        </span>
+                      }
+                    </div>
+                  }
+                  @if (dueDateText(task); as dueText) {
+                    <span class="card-due" [class.overdue]="dueText.startsWith('已逾期')" data-testid="task-due">
+                      {{ dueText }}
+                    </span>
+                  }
+                </article>
+              }
+              <button
+                class="add-task"
+                [disabled]="b.restoring()"
+                (click)="openAddTask(column.id)"
+                data-testid="add-task"
+              >
+                + 添加任务
+              </button>
+              @if (addTaskColumnId() === column.id) {
+                <div class="add-task-form" data-testid="add-task-form">
+                  <input
+                    class="add-task-input"
+                    [ngModel]="addTaskTitle()"
+                    (keydown.enter)="commitAddTask()"
+                    (keydown.escape)="cancelAddTask()"
+                    (ngModelChange)="addTaskTitle.set($event)"
+                    aria-label="新任务标题"
+                    data-testid="add-task-input"
+                    placeholder="输入任务标题"
+                  />
+                  <button
+                    class="add-task-submit"
+                    [disabled]="addTaskTitle().trim() === ''"
+                    (click)="commitAddTask()"
+                    data-testid="add-task-submit"
+                  >
+                    添加
+                  </button>
+                  <button
+                    class="add-task-cancel"
+                    (click)="cancelAddTask()"
+                    aria-label="取消"
+                    data-testid="add-task-cancel"
+                  >
+                    ×
+                  </button>
+                </div>
+              }
+            </div>
+          </section>
+        }
+      </div>
+    } @else {
+      <div class="empty-board" data-testid="empty-board">
+        <p>没有看板</p>
+        <button [disabled]="b.restoring()" (click)="createBoard()" data-testid="create-board-empty">新建板</button>
+      </div>
+    }
+
+    <!-- 详情面板 -->
+    @if (detailTaskId(); as taskId) {
+      <aside class="detail-panel" data-testid="detail-panel">
+        <h3>任务详情</h3>
+        <label>
+          标题
+          <input [(ngModel)]="detailDraftTitle" [disabled]="savingDetail()" data-testid="detail-title" />
+        </label>
+        <label>
+          描述
+          <textarea
+            [(ngModel)]="draftDescription"
+            [disabled]="savingDetail()"
+            data-testid="detail-description"
+          ></textarea>
+        </label>
+        <label>
+          截止日（YYYY-MM-DD）
+          <input
+            [(ngModel)]="draftDueDate"
+            [disabled]="savingDetail()"
+            data-testid="detail-due"
+            placeholder="YYYY-MM-DD"
+          />
+        </label>
+        <fieldset>
+          <legend>标签</legend>
+          @for (label of b.labels(); track label.id) {
+            <label class="detail-label">
+              <input
+                [checked]="draftLabelIds().includes(label.id)"
+                [disabled]="savingDetail()"
+                (change)="toggleDraftLabel(label.id)"
+                data-testid="detail-label-check"
+                type="checkbox"
+              />
+              <span [style.background]="label.color" [style.color]="labelTextColor(label.color)">{{ label.name }}</span>
+            </label>
+          }
+        </fieldset>
+        <div class="detail-move" data-testid="detail-move">
+          <label>
+            移动到
+            <select
+              [disabled]="savingDetail()"
+              [ngModel]="moveColumnId() ?? ''"
+              (ngModelChange)="moveColumnId.set($event); movePosition.set(0)"
+              aria-label="移动到列"
+              data-testid="move-column"
+            >
+              @for (column of boardRef.columns(); track column.id) {
+                <option [value]="column.id">{{ column.title }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            位置
+            <select
+              [disabled]="savingDetail()"
+              [ngModel]="movePosition()"
+              (ngModelChange)="movePosition.set($event)"
+              aria-label="位置"
+              data-testid="move-position"
+            >
+              <option [value]="0">列首</option>
+              @if (moveColumnId(); as columnId) {
+                @for (task of moveTasks(); track task.id; let index = $index) {
+                  <option [value]="index + 1">在「{{ task.title }}」之后</option>
+                }
+                <option [value]="moveTasks().length">列尾</option>
+              }
+            </select>
+          </label>
+          <button [disabled]="savingDetail()" (click)="moveTaskByMenu()" data-testid="move-task">移动</button>
+        </div>
+        <div class="detail-actions">
+          <button [disabled]="savingDetail()" (click)="saveDetail()" data-testid="detail-save">保存</button>
+          <button [disabled]="savingDetail()" (click)="deleteDetailTask()" data-testid="detail-delete">删除任务</button>
+          <button (click)="closeDetail()" data-testid="detail-cancel">取消</button>
+        </div>
+      </aside>
+    }
+
+    <!-- 删除确认 -->
+    @if (confirmDelete(); as pending) {
+      <aside class="confirm-panel" data-testid="confirm-delete">
+        @if (pending.kind === 'task') {
+          <p>删除任务「{{ pending.taskTitle }}」？</p>
+        } @else if (pending.kind === 'column') {
+          <p>删除列「{{ pending.columnTitle }}」及其 {{ pending.taskIds.length }} 个任务？</p>
+        } @else {
+          <p>
+            删除看板「{{ pending.boardTitle }}」（{{ pending.columnIds.length }} 列、{{ pending.taskIds.length }}
+            任务、含全部标签定义与关联）？
+          </p>
+        }
+        <div class="confirm-actions">
+          <button (click)="executeConfirmedDelete()" data-testid="confirm-delete-yes">确认删除</button>
+          <button (click)="cancelDelete()" data-testid="confirm-delete-no">取消</button>
+        </div>
+      </aside>
+    }
+  }
+</section>

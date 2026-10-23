@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "emitDeclarationOnly": false,
+    "outDir": "../../dist/out-tsc/rxdb-plugin-board-angular/lib",
+    "declaration": true,
+    "declarationMap": true,
+    "types": [],
+    "rootDir": "."
+  },
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../rxdb-plugin-history/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-adapter-pglite/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-plugin-board/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb/tsconfig.lib.json"
+    }
+  ]
+}

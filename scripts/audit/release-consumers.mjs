@@ -140,6 +140,32 @@ const COMBOS = [
     }
   },
   {
+    id: 'board-bindings',
+    directories: [
+      'utils',
+      'rxdb',
+      'rxdb-adapter-encrypted',
+      'rxdb-adapter-sqlite-core',
+      'rxdb-plugin-history',
+      'rxdb-plugin-search',
+      'rxdb-plugin-board',
+      'rxdb-plugin-board-angular',
+      'rxdb-plugin-board-react',
+      'rxdb-plugin-board-vue'
+    ],
+    registryDependencies: {
+      rxjs: '^7.8.2',
+      react: '^19.3.0',
+      'react-dom': '^19.3.0',
+      vue: '^3.5.43',
+      '@angular/core': '22.2.3',
+      '@angular/common': '22.2.3',
+      '@angular/forms': '22.2.3',
+      '@angular/platform-browser': '22.2.3',
+      '@angular/compiler': '22.2.3'
+    }
+  },
+  {
     id: 'optional-peers',
     directories: [
       'utils',
@@ -317,7 +343,7 @@ const require = createRequire(import.meta.url);
 const packages = ${JSON.stringify(packageNames)};
 
 // Angular 绑定是部分编译库：无 AOT 的裸 Node 导入需要 JIT 编译器兜底（Angular 官方提示的注册方式）。
-if (packages.includes('@aiao/rxdb-angular')) await import('@angular/compiler');
+if (packages.includes('@aiao/rxdb-angular') || packages.includes('@aiao/rxdb-plugin-board-angular')) await import('@angular/compiler');
 
 for (const pkg of packages) {
   const namespace = await import(pkg);
@@ -400,13 +426,30 @@ const writeTsconfig = async (root, files, resolution = 'NodeNext') => {
 };
 
 /** 三框架绑定：各自一个入口，能导入、能过 tsc、能被 esbuild 最小构建。 */
-const writeBindingEntries = async root => {
-  const entries = [
-    ['angular', "import { provideRxDB, useRxDB } from '@aiao/rxdb-angular';\nvoid provideRxDB;\nvoid useRxDB;\n"],
-    ['react', "import { useRxDB } from '@aiao/rxdb-react';\nvoid useRxDB;\n"],
-    ['vue', "import { provideRxDB, useRxDB } from '@aiao/rxdb-vue';\nvoid provideRxDB;\nvoid useRxDB;\n"]
-  ];
+const writeBindingEntries = async (root, board) => {
+  const entries =
+    board ?
+      [
+        [
+          'angular',
+          "import '@angular/compiler';\nexport { BoardViewComponent } from '@aiao/rxdb-plugin-board-angular';\n"
+        ],
+        [
+          'react',
+          "export { BoardView } from '@aiao/rxdb-plugin-board-react';\nimport '@aiao/rxdb-plugin-board-react/board-view.css';\n"
+        ],
+        [
+          'vue',
+          "export { BoardView } from '@aiao/rxdb-plugin-board-vue';\nimport '@aiao/rxdb-plugin-board-vue/index.css';\n"
+        ]
+      ]
+    : [
+        ['angular', "import { provideRxDB, useRxDB } from '@aiao/rxdb-angular';\nvoid provideRxDB;\nvoid useRxDB;\n"],
+        ['react', "import { useRxDB } from '@aiao/rxdb-react';\nvoid useRxDB;\n"],
+        ['vue', "import { provideRxDB, useRxDB } from '@aiao/rxdb-vue';\nvoid provideRxDB;\nvoid useRxDB;\n"]
+      ];
   for (const [name, content] of entries) await writeFile(path.join(root, `binding-${name}.ts`), content);
+  if (board) await writeFile(path.join(root, 'binding-assets.d.ts'), "declare module '*.css' {}\n");
   return entries.map(([name]) => `binding-${name}.ts`);
 };
 
@@ -483,11 +526,12 @@ const auditConsumer = async (combo, manager, packed, bumped) => {
     await writeProbe(root, packageNames);
 
     const tscPath = path.join(workspaceRoot, 'node_modules/typescript/bin/tsc');
-    if (combo.id === 'bindings') {
-      const files = await writeBindingEntries(root);
+    if (combo.id === 'bindings' || combo.id === 'board-bindings') {
+      const board = combo.id === 'board-bindings';
+      const files = await writeBindingEntries(root, board);
       // UI 绑定走 Bundler 解析（应用消费者标准姿势）；NodeNext 下 rxdb-vue 的
       // 无扩展名 `export *` d.ts 链不可见（已发布 0.0.26 同样如此，预存在缺陷，见 PR 遗留）。
-      await writeTsconfig(root, files, 'Bundler');
+      await writeTsconfig(root, board ? [...files, 'binding-assets.d.ts'] : files, 'Bundler');
       await run(process.execPath, [tscPath, '--project', 'tsconfig.json', '--pretty', 'false'], root);
       await run(process.execPath, ['probe.mjs'], root);
       const esbuildPath = path.join(workspaceRoot, 'node_modules/esbuild/bin/esbuild');
@@ -498,6 +542,11 @@ const auditConsumer = async (combo, manager, packed, bumped) => {
           [file, '--bundle', '--platform=node', '--format=esm', `--outfile=dist/${file}.mjs`, '--log-level=warning'],
           root
         );
+      }
+      for (const framework of board ? ['react', 'vue'] : []) {
+        const css = await readFile(path.join(root, `dist/binding-${framework}.ts.css`), 'utf8');
+        assert.ok(css.includes('.columns'), `${framework}: 发布产物缺少看板列布局`);
+        assert.ok(css.includes('.drop-before'), `${framework}: 发布产物缺少拖拽落点反馈`);
       }
       process.stdout.write(`Published consumer passed: ${combo.id}/${manager} 三框架绑定导入、tsc 与最小构建通过\n`);
       return;
@@ -519,9 +568,12 @@ const auditConsumer = async (combo, manager, packed, bumped) => {
   }
 };
 
+const selectedCombo = process.argv.find(argument => argument.startsWith('--combo='))?.slice('--combo='.length);
+const combos = selectedCombo ? COMBOS.filter(combo => combo.id === selectedCombo) : COMBOS;
+assert.ok(combos.length > 0, `没有名为 ${selectedCombo} 的消费组合`);
 const projects = resolveReleaseProjects();
 const byDirectory = new Map(projects.map(project => [path.basename(project.directory), project]));
-const unionDirectories = [...new Set(COMBOS.flatMap(combo => [...combo.directories, ...(combo.bumped ?? [])]))];
+const unionDirectories = [...new Set(combos.flatMap(combo => [...combo.directories, ...(combo.bumped ?? [])]))];
 for (const directory of unionDirectories) {
   assert.ok(byDirectory.has(directory), `${directory} 不在 nx.json release.projects 里`);
 }
@@ -542,7 +594,7 @@ try {
 
   // 冲突副本：核心与 utils 抬一个 patch，其余不动。
   const bumpedVersions = new Map();
-  for (const combo of COMBOS) {
+  for (const combo of combos) {
     for (const directory of combo.bumped ?? []) {
       const [major, minor, patch] = versions.get(`@aiao/${directory}`).split('.').map(Number);
       bumpedVersions.set(`@aiao/${directory}`, `${major}.${minor}.${patch + 1}`);
@@ -558,12 +610,12 @@ try {
   }
   process.stdout.write(`Published consumer passed: ${packed.size} 个 tgz 的依赖写法与入口 / .d.ts 齐全\n`);
 
-  for (const combo of COMBOS) {
+  for (const combo of combos) {
     for (const manager of ['npm', 'pnpm']) {
       await auditConsumer(combo, manager, packed, bumped);
     }
   }
-  console.log(`✅ 发布消费门禁：${packed.size} 个真实 tgz、${COMBOS.length} 组代表组合 × npm/pnpm 全部通过`);
+  console.log(`✅ 发布消费门禁：${packed.size} 个真实 tgz、${combos.length} 组代表组合 × npm/pnpm 全部通过`);
 } finally {
   await rm(tarballs, { force: true, recursive: true });
 }

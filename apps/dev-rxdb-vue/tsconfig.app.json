@@ -35,6 +35,12 @@
       "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-plugin-board-vue/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-board/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
     },
     {
