@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { SCOOTER_SEED_ROWS, acceptDialog, dismissDialog } from './support';
+import { SCOOTER_SEED_ROWS, acceptDialog, dismissDialog, revealDetails } from './support';
 
 const loadedItems = `已有 ${SCOOTER_SEED_ROWS.item} 项物料`;
 
@@ -15,17 +15,20 @@ test('已有数据重开后直接可用，取消重置不丢失数据，场景�
   await page.reload();
   await expect(page.getByTestId('overview-data-status')).toContainText(loadedItems, { timeout: 30000 });
   await expect(page.getByTestId('workflow-card')).toHaveCount(6);
+  await revealDetails(page.getByTestId('item-filter'));
   await page.getByTestId('item-filter').fill(' pcba ');
   await expect(page.getByTestId('item-inventory-row')).toHaveCount(1);
+  await revealDetails(page.getByTestId('overview-item-count'));
   await expect(page.getByTestId('overview-item-count')).toHaveText(String(SCOOTER_SEED_ROWS.item));
   await expect(page.getByTestId('item-inventory-row')).toContainText('控制板');
   await page.getByTestId('item-filter').fill('电池');
   await expect(page.getByTestId('item-inventory-row')).toHaveCount(4);
   await expect(page.getByTestId('item-inventory-row').filter({ hasText: 'BATT' })).toContainText('电池组');
   await page.getByTestId('item-filter').fill('');
-  await dismissDialog(page, () => page.getByRole('button', { name: '重置演示数据', exact: true }).click());
+  await dismissDialog(page, () => page.getByTestId('prepare-data').click());
   await expect(page.getByTestId('overview-item-count')).toHaveText(String(SCOOTER_SEED_ROWS.item));
-  await expect(page.getByTestId('overview-data-status')).toContainText('数据可用');
+  await expect(page.getByTestId('overview-data-status')).toContainText(loadedItems);
+  await expect(page.getByTestId('start-change-review')).toBeEnabled();
   await page.reload();
   await expect(page.getByTestId('overview-data-status')).toContainText(loadedItems, { timeout: 30000 });
   await page.screenshot({ path: 'test-output/bom-redesign-overview-desktop.png', animations: 'disabled' });

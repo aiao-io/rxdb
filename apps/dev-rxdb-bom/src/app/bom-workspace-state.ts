@@ -58,6 +58,7 @@ export class BomWorkspaceState {
   readonly substituteSelections = signal<NonNullable<ResolutionContext['substituteSelections']>>({});
   readonly selectedItem = signal('M3');
   readonly jointSourceKey = signal('');
+  readonly reviewEcnId = signal('');
   readonly guideStep = signal(0);
   readonly resumePath = signal('/explosion');
   readonly explosion = signal<BomExplosionView | null>(null);
@@ -94,6 +95,7 @@ export class BomWorkspaceState {
     substitutes: JSON.stringify(this.substituteSelections()),
     item: this.selectedItem(),
     costSource: this.jointSourceKey(),
+    ...(this.reviewEcnId() ? { ecn: this.reviewEcnId() } : {}),
     guide: String(this.guideStep())
   }));
   readonly validationError = computed(() => {
@@ -154,7 +156,8 @@ export class BomWorkspaceState {
       uom: this.plannedUom,
       lot: this.lot,
       item: this.selectedItem,
-      costSource: this.jointSourceKey
+      costSource: this.jointSourceKey,
+      ecn: this.reviewEcnId
     };
     Object.entries(strings).forEach(([key, target]) => {
       if (typeof params[key] === 'string') target.set(params[key]);

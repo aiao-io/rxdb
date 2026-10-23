@@ -13,12 +13,19 @@ import {
   deterministicId
 } from '@aiao/rxdb-plugin-bom/testing';
 import { Page, expect, test } from '@playwright/test';
-import { SCOOTER_REQUIREMENT_ROWS, SCOOTER_SEED_ROWS, acceptDialog, instanceRootId, openDetails } from './support';
+import {
+  SCOOTER_REQUIREMENT_ROWS,
+  SCOOTER_SEED_ROWS,
+  acceptDialog,
+  instanceRootId,
+  openDetails,
+  revealDetails
+} from './support';
 
 const BASE = '/';
 
 const PAGE_HEADINGS = {
-  概览: '物料概览',
+  概览: '生产前，先核对这次改版',
   展开: '整机展开',
   时间轴: 'ECN 时间轴',
   双图映射: '双图映射',
@@ -41,7 +48,10 @@ const resetAndSeed = async (page: Page): Promise<void> => {
   await openPage(page, '概览');
   await acceptDialog(page, () => page.getByRole('button', { name: /^(重新)?准备演示数据$/ }).click());
   // 种子装载（wa-sqlite 启动 + 装载）需要数秒；A/B 层、C 层、D 层与 E 层各一个历史批次
-  await expect(page.getByTestId('overview-data-status')).toContainText('数据可用', { timeout: 30000 });
+  await expect(page.getByTestId('overview-data-status')).toContainText(`已有 ${SCOOTER_SEED_ROWS.item} 项物料`, {
+    timeout: 30000
+  });
+  await expect(page.getByTestId('start-change-review')).toBeEnabled();
   await openDetails(page, '数据版本与记录统计');
   await expect(page.getByTestId('row-counts')).toBeVisible();
   await expect(page.getByTestId('row-counts')).toContainText(`bom_history_batch=${SCOOTER_SEED_ROWS.historyBatch}`, {
@@ -73,6 +83,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     await test.info().attach('first-paint.json', { body: JSON.stringify(paint), contentType: 'application/json' });
     console.info(`BOM 首屏测量：${JSON.stringify(paint)}`);
     const first = await page.getByTestId('row-counts').textContent();
+    await revealDetails(page.getByTestId('item-inventory-row').first());
     await expect(page.getByTestId('item-inventory-toggle')).toContainText(String(SCOOTER_SEED_ROWS.item));
     await expect(page.getByTestId('item-inventory-row')).toHaveCount(SCOOTER_SEED_ROWS.item);
     await expect(page.getByTestId('item-inventory-row').first()).toBeVisible();

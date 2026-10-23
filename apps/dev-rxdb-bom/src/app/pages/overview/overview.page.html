@@ -1,42 +1,160 @@
 <div class="page">
-  <section class="page-hero">
-    <div>
-      <p class="page-eyebrow">BOM 演示中心 · 电动滑板车（SC-100）</p>
-      <h1>物料概览</h1>
-      <p class="panel-desc">从一份整机数据出发，查看物料需求、工程变更、成本和实际安装结构。</p>
-      @if (ready()) {
-        <div class="toolbar result-title" aria-label="选择业务任务">
-          <button class="btn btn-primary" (click)="startWorkflow('plan')" data-testid="start-planning">
-            生产 10 台，需要哪些物料？
-          </button>
-          <button class="btn" (click)="startWorkflow('change')">评估一次工程变更</button>
-          <button class="btn" (click)="startWorkflow('trace')">追溯实物与批次</button>
-        </div>
-        <p class="hint result-title">
-          生产体验使用 2026-09-22、10 台、序列 137；变更体验切换到 2026-10-15。也可从左侧自由探索。
-        </p>
-        <a class="btn btn-quiet" [queryParams]="workspace.queryParams()" [routerLink]="workspace.resumePath()">
-          继续上次工作
-        </a>
-      }
+  <section class="task-hero" aria-labelledby="review-task-title">
+    <div class="task-copy">
+      <p class="page-eyebrow">生产准备 · SC-100 电动滑板车</p>
+      <h1 id="review-task-title">生产前，先核对这次改版</h1>
+      <p class="task-description">
+        准备生产
+        <strong>10 台 SC-100</strong>
+        ，整机、控制板与电池组收到改版通知。 比较 ECN-2026-014 生效前后的用料与成本，确认这批生产要调整什么。
+      </p>
+      <ul class="task-conditions" aria-label="演示任务条件">
+        <li>计划 10 台</li>
+        <li>红色配置</li>
+        <li>序列 137</li>
+        <li>2026-10-01 生效</li>
+      </ul>
+      <div class="task-actions">
+        <button
+          class="btn btn-primary"
+          [disabled]="!canStart()"
+          (click)="startChangeReview()"
+          data-testid="start-change-review"
+        >
+          开始改版核对
+          <span aria-hidden="true">→</span>
+        </button>
+        @if (ready() && itemCount() > 0) {
+          <a
+            class="btn btn-quiet"
+            [queryParams]="workspace.queryParams()"
+            [routerLink]="workspace.resumePath()"
+            data-testid="resume-work"
+          >
+            继续上次工作
+          </a>
+        }
+      </div>
+      <p class="task-footnote">从生产条件出发，带走一份有计算依据的核对摘要。</p>
     </div>
+    <figure class="product-preview">
+      <div class="product-label">
+        <strong>SC-100</strong>
+        <span>电动滑板车 · 改版案例</span>
+      </div>
+      <svg class="scooter-illustration" aria-hidden="true" focusable="false" viewBox="0 0 420 230">
+        <ellipse cx="215" cy="198" fill="#dcebe5" rx="155" ry="11" />
+        <circle cx="218" cy="112" fill="#e4f1ec" r="86" />
+        <circle cx="93" cy="178" fill="#294951" r="27" />
+        <circle cx="93" cy="178" fill="#f0f7f5" r="14" />
+        <circle cx="325" cy="178" fill="#294951" r="27" />
+        <circle cx="325" cy="178" fill="#f0f7f5" r="14" />
+        <path
+          d="M91 177 L120 159 H267 L291 145 L325 178"
+          fill="none"
+          stroke="#087f78"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="12"
+        />
+        <path
+          d="M287 146 L263 53 L243 53"
+          fill="none"
+          stroke="#17333e"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="8"
+        />
+        <path d="M248 52 H281" fill="none" stroke="#526973" stroke-linecap="round" stroke-width="8" />
+        <rect fill="#526973" height="15" rx="6" width="117" x="124" y="146" />
+        <rect fill="#65ba9e" height="8" rx="3" width="48" x="163" y="149" />
+        <path d="M277 94 C310 93 319 115 319 142" fill="none" stroke="#a7c4bc" stroke-width="2" />
+        <path d="M186 149 V113 H113" fill="none" stroke="#78ac9d" stroke-dasharray="4 4" stroke-width="1.5" />
+        <circle cx="187" cy="153" fill="#087f78" r="4" />
+        <rect fill="#fff" height="32" rx="7" stroke="#d8e8e3" width="99" x="45" y="95" />
+        <text fill="#087f78" font-family="sans-serif" font-size="12" text-anchor="middle" x="94" y="115">
+          电池组改版
+        </text>
+        <path d="M275 71 H333 V49" fill="none" stroke="#78ac9d" stroke-dasharray="4 4" stroke-width="1.5" />
+        <circle cx="274" cy="71" fill="#087f78" r="4" />
+        <rect fill="#fff" height="31" rx="7" stroke="#d8e8e3" width="96" x="287" y="20" />
+        <text fill="#087f78" font-family="sans-serif" font-size="12" text-anchor="middle" x="335" y="40">
+          控制板改版
+        </text>
+      </svg>
+      <div class="change-preview" aria-label="比较生效前后的生产方案">
+        <div>
+          <span>生效前</span>
+          <strong>2026-09-30</strong>
+        </div>
+        <span class="change-arrow" aria-hidden="true">→</span>
+        <div>
+          <span>生效后</span>
+          <strong>2026-10-01</strong>
+        </div>
+      </div>
+      <figcaption>同一生产计划，核对两版真实计算结果</figcaption>
+    </figure>
   </section>
 
-  <section class="panel" [attr.aria-busy]="busy()">
-    <div class="panel-head">
-      <h2>当前数据</h2>
-      <p class="panel-desc" data-testid="overview-data-status" role="status">
-        @if (busy()) {
-          正在准备演示数据，请稍候…
-        } @else if (ready() && itemCount() > 0) {
-          已有 {{ itemCount() }} 项物料，数据可用。选择一个场景即可开始。
-        } @else if (itemCount() > 0) {
-          已发现 {{ itemCount() }} 项物料，正在等待数据就绪。
-        } @else {
-          等待准备演示数据。准备完成后，即可体验下方六个业务场景。
-        }
-      </p>
+  <ol class="task-steps" aria-label="改版核对过程">
+    <li>
+      <span class="step-number" aria-hidden="true">01</span>
+      <div>
+        <h2>确认生产条件</h2>
+        <p>确定产品、批量与适用条件，统一核对口径。</p>
+      </div>
+    </li>
+    <li>
+      <span class="step-number" aria-hidden="true">02</span>
+      <div>
+        <h2>比较改前改后</h2>
+        <p>看清物料变化、需求差额和成本影响。</p>
+      </div>
+    </li>
+    <li>
+      <span class="step-number" aria-hidden="true">03</span>
+      <div>
+        <h2>生成核对摘要</h2>
+        <p>保留适用条件、结论与仍待处理的事项。</p>
+      </div>
+    </li>
+  </ol>
+
+  <section class="panel data-status" [attr.aria-busy]="busy()">
+    <div class="data-status-head">
+      <div>
+        <span class="availability" [class.is-ready]="ready() && itemCount() > 0">
+          {{ ready() && itemCount() > 0 ? '本地数据可用' : '等待数据就绪' }}
+        </span>
+        <h2>案例数据</h2>
+        <p class="panel-desc" data-testid="overview-data-status" role="status">
+          @if (busy()) {
+            正在准备演示数据，请稍候…
+          } @else if (ready() && itemCount() > 0) {
+            已有 {{ itemCount() }} 项物料。可直接开始核对，当前修改会保留。
+          } @else if (itemCount() > 0) {
+            已发现 {{ itemCount() }} 项物料，正在等待数据就绪。
+          } @else {
+            先准备演示数据，再开始这次生产改版核对。
+          }
+        </p>
+      </div>
+      <button
+        class="btn"
+        [class.btn-danger]="itemCount() > 0"
+        [disabled]="busy() || resetting()"
+        (click)="resetAndSeed()"
+        data-testid="prepare-data"
+      >
+        {{
+          busy() ? '正在准备…'
+          : itemCount() > 0 ? '重新准备演示数据'
+          : '准备演示数据'
+        }}
+      </button>
     </div>
+    <p class="hint result-title">重新准备会清空当前演示数据，执行前需要确认。</p>
     <details class="details-panel">
       <summary>查看当前数据统计</summary>
       <div class="summary-grid">
@@ -57,26 +175,6 @@
         </div>
       </div>
     </details>
-    <div class="toolbar result-title">
-      @if (ready() && itemCount() > 0) {
-        <a class="btn btn-primary" data-testid="overview-start" routerLink="/explosion">查看整机展开</a>
-      }
-      <button
-        class="btn"
-        [class.btn-danger]="itemCount() > 0"
-        [class.btn-primary]="itemCount() === 0"
-        [disabled]="busy() || resetting()"
-        (click)="resetAndSeed()"
-        data-testid="prepare-data"
-      >
-        {{
-          busy() ? '正在准备…'
-          : itemCount() > 0 ? '重新准备演示数据'
-          : '准备演示数据'
-        }}
-      </button>
-      <p class="hint">重新准备会清空当前演示数据，执行前需要确认。</p>
-    </div>
     @if (notice()) {
       <p class="status-success" role="status">{{ notice() }}</p>
     }
@@ -101,74 +199,91 @@
     }
   </section>
 
-  <section aria-labelledby="scenario-title">
-    <div class="panel-head">
-      <h2 id="scenario-title">选择业务场景</h2>
-      <p class="panel-desc">每个场景只完成一件事，可以独立查看，也可以沿着整机数据继续探索。</p>
-    </div>
-    <div class="scenario-grid">
-      @for (scenario of scenarios; track scenario.path) {
-        <a class="scenario-card" [routerLink]="scenario.path" data-testid="workflow-card">
-          <span class="scenario-number">0{{ $index + 1 }}</span>
-          <h3>{{ scenario.title }}</h3>
-          <p>{{ scenario.description }}</p>
-        </a>
+  <details class="details-panel" data-testid="free-exploration">
+    <summary>自由探索 · 查看全部业务能力</summary>
+    <section aria-labelledby="scenario-title">
+      <div class="panel-head">
+        <h2 id="scenario-title">按业务能力探索</h2>
+        <p class="panel-desc">需要查看具体依据时，可直接进入以下六个业务页面。</p>
+      </div>
+      @if (ready()) {
+        <div class="explore-actions explore-intro" aria-label="其他业务任务">
+          <button class="btn" (click)="startWorkflow('plan')" data-testid="start-planning">
+            生产 10 台，需要哪些物料？
+          </button>
+          <button class="btn" (click)="startWorkflow('change')">评估一次工程变更</button>
+          <button class="btn" (click)="startWorkflow('trace')">追溯实物与批次</button>
+          <a class="btn btn-quiet" data-testid="overview-start" routerLink="/explosion">查看整机展开</a>
+        </div>
+        <p class="hint explore-intro">生产体验使用 2026-09-22、10 台、序列 137；变更体验切换到 2026-10-15。</p>
       }
-    </div>
-  </section>
+      <div class="scenario-grid">
+        @for (scenario of scenarios; track scenario.path) {
+          <a class="scenario-card" [routerLink]="scenario.path" data-testid="workflow-card">
+            <span class="scenario-number">0{{ $index + 1 }}</span>
+            <h3>{{ scenario.title }}</h3>
+            <p>{{ scenario.description }}</p>
+          </a>
+        }
+      </div>
+    </section>
+  </details>
 
-  <section class="panel" data-testid="item-inventory">
-    <div class="panel-head">
-      <h2 data-testid="item-inventory-toggle">物料清单（{{ inventory().length }} 项）</h2>
-      <p class="panel-desc">按中文名称或编码查找物料。名称帮助识别，编码用于准确核对。</p>
-    </div>
-    @if (inventory().length > 0) {
-      <div class="toolbar inventory-toolbar">
-        <label>
-          筛选物料
-          <input
-            [(ngModel)]="filter"
-            data-testid="item-filter"
-            placeholder="输入名称或编码，例如 电池、BATT"
-            type="search"
-          />
-        </label>
-        <span class="hint" role="status">显示 {{ filteredInventory().length }} / {{ inventory().length }} 项</span>
+  <details class="details-panel">
+    <summary>查询物料清单</summary>
+    <section class="panel" data-testid="item-inventory">
+      <div class="panel-head">
+        <h2 data-testid="item-inventory-toggle">物料清单（{{ inventory().length }} 项）</h2>
+        <p class="panel-desc">按中文名称或编码查找物料。名称帮助识别，编码用于准确核对。</p>
       </div>
-      <div class="table-scroll inventory-scroll">
-        <table class="data-table" aria-label="已装载物料清单">
-          <thead>
-            <tr>
-              <th class="item-index" scope="col">序号</th>
-              <th scope="col">物料名称</th>
-              <th scope="col">物料编码</th>
-              <th scope="col">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (itemNo of filteredInventory(); track itemNo) {
-              <tr data-testid="item-inventory-row">
-                <td class="item-index">{{ $index + 1 }}</td>
-                <td class="material-name">{{ materialName(itemNo) }}</td>
-                <td class="material-code">{{ itemNo }}</td>
-                <td class="inventory-actions">
-                  <a [queryParams]="materialParams(itemNo, 'root')" [routerLink]="'/explosion'">展开</a>
-                  ·
-                  <a [queryParams]="materialParams(itemNo, 'item')" [routerLink]="'/where-used'">反查</a>
-                </td>
-              </tr>
-            } @empty {
+      @if (inventory().length > 0) {
+        <div class="toolbar inventory-toolbar">
+          <label>
+            筛选物料
+            <input
+              [(ngModel)]="filter"
+              data-testid="item-filter"
+              placeholder="输入名称或编码，例如 电池、BATT"
+              type="search"
+            />
+          </label>
+          <span class="hint" role="status">显示 {{ filteredInventory().length }} / {{ inventory().length }} 项</span>
+        </div>
+        <div class="table-scroll inventory-scroll">
+          <table class="data-table" aria-label="已装载物料清单">
+            <thead>
               <tr>
-                <td colspan="4"><div class="empty-state">没有匹配的物料，请换一个名称或编码查找。</div></td>
+                <th class="item-index" scope="col">序号</th>
+                <th scope="col">物料名称</th>
+                <th scope="col">物料编码</th>
+                <th scope="col">操作</th>
               </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    } @else {
-      <div class="empty-state">准备演示数据后，这里会显示物料清单。</div>
-    }
-  </section>
+            </thead>
+            <tbody>
+              @for (itemNo of filteredInventory(); track itemNo) {
+                <tr data-testid="item-inventory-row">
+                  <td class="item-index">{{ $index + 1 }}</td>
+                  <td class="material-name">{{ materialName(itemNo) }}</td>
+                  <td class="material-code">{{ itemNo }}</td>
+                  <td class="inventory-actions">
+                    <a [queryParams]="materialParams(itemNo, 'root')" [routerLink]="'/explosion'">展开</a>
+                    ·
+                    <a [queryParams]="materialParams(itemNo, 'item')" [routerLink]="'/where-used'">反查</a>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4"><div class="empty-state">没有匹配的物料，请换一个名称或编码查找。</div></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="empty-state">准备演示数据后，这里会显示物料清单。</div>
+      }
+    </section>
+  </details>
 
   <details class="details-panel">
     <summary>维护物料扩展属性</summary>

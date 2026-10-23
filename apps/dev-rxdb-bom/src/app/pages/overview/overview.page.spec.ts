@@ -1,6 +1,6 @@
 import { computed, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BomDemoService } from '../../bom-demo.service';
 import { OverviewPage } from './overview.page';
@@ -35,8 +35,10 @@ const mount = async (service: ReturnType<typeof makeService>) => {
 };
 
 const element = (fixture: ComponentFixture<OverviewPage>): HTMLElement => fixture.nativeElement as HTMLElement;
+const primaryEntries = (root: HTMLElement) =>
+  Array.from(root.querySelectorAll('.btn-primary')).filter(entry => entry.closest('details') === null);
 
-describe('物料概览的真实状态与操作', () => {
+describe('生产改版核对首页的真实状态与操作', () => {
   const confirm = vi.fn<(message?: string) => boolean>();
   let originalConfirm: PropertyDescriptor | undefined;
 
@@ -59,7 +61,7 @@ describe('物料概览的真实状态与操作', () => {
     const root = element(fixture);
 
     expect(root.querySelectorAll('h1')).toHaveLength(1);
-    expect(root.querySelector('h1')?.textContent).toBe('物料概览');
+    expect(root.querySelector('h1')?.textContent).toBe('生产前，先核对这次改版');
     expect(root.querySelector('[data-testid=overview-item-count]')?.textContent).toContain(String(count));
     expect(root.textContent).not.toContain('尚未装载');
     expect(service.dumpRowCounts).toHaveBeenCalledOnce();
@@ -77,6 +79,102 @@ describe('物料概览的真实状态与操作', () => {
     expect(root.querySelector('[data-testid=overview-data-status]')?.textContent).toMatch(/准备|等待/);
     expect(service.dumpRowCounts).not.toHaveBeenCalled();
     expect(service.resetAndSeed).not.toHaveBeenCalled();
+  });
+
+  it('首页只突出一个主入口，并说明案例、生产任务和核对过程', async () => {
+    const fixture = await mount(makeService());
+    const root = element(fixture);
+    const entry = root.querySelector<HTMLButtonElement>('[data-testid=start-change-review]');
+
+    expect(primaryEntries(root)).toEqual([entry]);
+    expect(entry?.textContent).toContain('开始改版核对');
+    expect(entry?.disabled).toBe(false);
+    expect(root.textContent).toContain('SC-100');
+    expect(root.textContent).toContain('10 台');
+    expect(root.textContent).toContain('ECN-2026-014');
+    expect(root.textContent).toContain('确认生产条件');
+    expect(root.textContent).toContain('比较改前改后');
+    expect(root.textContent).toContain('生成核对摘要');
+    expect(root.querySelector('[data-testid=start-planning]')?.closest('details')).not.toBeNull();
+    expect(root.querySelector('[data-testid=item-inventory]')?.closest('details')).not.toBeNull();
+  });
+
+  it.each([false, true])('空库在就绪状态为 %s 时仍不能开始核对，准备入口保持可见', async ready => {
+    const fixture = await mount(makeService([], ready));
+    const root = element(fixture);
+    const entry = root.querySelector<HTMLButtonElement>('[data-testid=start-change-review]');
+    const prepare = root.querySelector<HTMLButtonElement>('[data-testid=prepare-data]');
+
+    expect(entry?.disabled).toBe(true);
+    expect(prepare).not.toBeNull();
+    expect(prepare?.closest('details')).toBeNull();
+    expect(primaryEntries(root)).toEqual([entry]);
+  });
+
+  it('开始核对显式初始化本次任务条件，不改动已有业务数据', async () => {
+    const service = makeService();
+    const fixture = await mount(service);
+    const workspace = fixture.componentInstance.workspace;
+    workspace.update({
+      rootKey: 'OTHER',
+      asOfDate: '2027-01-01',
+      plannedQty: '20',
+      plannedUom: 'kg',
+      unit: 10,
+      lot: 'OLD',
+      alternativeNo: 2,
+      configSelection: { 颜色: ['蓝'] },
+      substituteSelections: { BAT: { memberKey: 'x' } }
+    });
+    workspace.guideStep.set(3);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+    element(fixture).querySelector<HTMLButtonElement>('[data-testid=start-change-review]')!.click();
+    await fixture.whenStable();
+
+    expect(workspace.context()).toEqual({
+      rootKey: 'SC-100',
+      asOfDate: '2026-10-01',
+      plannedQty: '10',
+      plannedUom: 'pcs',
+      unit: 137,
+      lot: '',
+      alternativeNo: null,
+      configSelection: { 颜色: ['红'] },
+      substituteSelections: {}
+    });
+    expect(workspace.guideStep()).toBe(0);
+    expect(navigate).toHaveBeenCalledWith(['/review'], { queryParams: workspace.queryParams() });
+    expect(service.resetAndSeed).not.toHaveBeenCalled();
+    expect(service.itemCount()).toBe(3);
+  });
+
+  it('数据未就绪时主入口不能开始或修改上次工作', async () => {
+    const fixture = await mount(makeService(['SC-100'], false));
+    const workspace = fixture.componentInstance.workspace;
+    workspace.plannedQty.set('23');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+    element(fixture).querySelector<HTMLButtonElement>('[data-testid=start-change-review]')!.click();
+    await fixture.whenStable();
+
+    expect(workspace.plannedQty()).toBe('23');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('继续上次工作保留已有路径与条件，重新进入首页不会覆盖工作状态', async () => {
+    const fixture = await mount(makeService());
+    const workspace = fixture.componentInstance.workspace;
+    workspace.update({ rootKey: 'B-01', plannedQty: '23', asOfDate: '2026-09-22' });
+    workspace.resumePath.set('/cost');
+    await fixture.whenStable();
+    const resume = element(fixture).querySelector<HTMLAnchorElement>('[data-testid=resume-work]');
+
+    expect(resume?.textContent).toContain('继续上次工作');
+    expect(resume?.getAttribute('href')).toContain('/cost?');
+    expect(resume?.getAttribute('href')).toContain('root=B-01');
+    expect(resume?.getAttribute('href')).toContain('qty=23');
+    expect(workspace.rootKey()).toBe('B-01');
   });
 
   it('取消清空确认后不调用重置服务', async () => {

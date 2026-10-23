@@ -1,4 +1,10 @@
-import { getEntityMetadata, type EntityType, type RxDB } from '@aiao/rxdb';
+import {
+  getEntityMetadata,
+  type EntityType,
+  type RxDB,
+  type TransactionExecutor,
+  type TransactionFun
+} from '@aiao/rxdb';
 import {
   BomEcn,
   BomError,
@@ -11,7 +17,13 @@ import {
   BomLineDesignator,
   BomLineOccurrence,
   BomSubstituteGroup,
-  rollupCost
+  ecnDiff,
+  ecnImpact,
+  explodeBom,
+  rollupCost,
+  type CostRollupResult,
+  type ExplosionResult,
+  type RequirementLine
 } from '@aiao/rxdb-plugin-bom';
 import { deterministicId, goldenItemId } from '@aiao/rxdb-plugin-bom/testing';
 import { TestBed } from '@angular/core/testing';
@@ -19,10 +31,14 @@ import { DatabaseSync } from 'node:sqlite';
 import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BomDemoService, connectDevTools } from './bom-demo.service';
+import type { BomWorkspaceContext } from './bom-workspace-state';
 
 vi.mock('@aiao/rxdb-plugin-bom', async importOriginal => ({
   ...(await importOriginal<typeof import('@aiao/rxdb-plugin-bom')>()),
-  rollupCost: vi.fn()
+  rollupCost: vi.fn(),
+  explodeBom: vi.fn(),
+  ecnDiff: vi.fn(),
+  ecnImpact: vi.fn()
 }));
 
 const { initDevTools } = vi.hoisted(() => ({ initDevTools: vi.fn() }));
@@ -31,7 +47,7 @@ vi.mock('@aiao/rxdb-devtools', () => ({
 }));
 
 type Stored = Record<string, unknown> & { id: string };
-type FindOptions = { where: { rules: { field: string; value: unknown }[] } };
+type FindOptions = { where: { combinator?: 'and' | 'or'; rules: { field: string; value: unknown }[] } };
 
 const restoreStatics: (() => void)[] = [];
 
@@ -76,7 +92,11 @@ const transactionHarness = (
   };
   const matching = (entity: EntityType, options: FindOptions): Stored[] =>
     [...rows(entity).values()]
-      .filter(row => options.where.rules.every(rule => row[rule.field] === rule.value))
+      .filter(row =>
+        options.where.combinator === 'or' ?
+          options.where.rules.some(rule => row[rule.field] === rule.value)
+        : options.where.rules.every(rule => row[rule.field] === rule.value)
+      )
       .map(row => materialize(entity, row));
   const repository = (entity: EntityType) => ({
     find: vi.fn(async (options: FindOptions) => matching(entity, options)),
@@ -96,10 +116,18 @@ const transactionHarness = (
       params?: readonly unknown[]
     ) => Promise<{ rows: unknown[][]; columns: string[]; rowsAffected: number }>
   >(async () => ({ rows: [[20]], columns: [], rowsAffected: 1 }));
-  const executor = { getRepository: vi.fn(repository), query, tableRef: () => '"bom$table"' };
+  const executor = {
+    getRepository: vi.fn(repository),
+    query,
+    tableRef: () => '"bom$table"',
+    run: vi.fn(async (work: TransactionFun): Promise<unknown> => work(executor as unknown as TransactionExecutor))
+  };
   const adapter = {
+    name: 'wa-sqlite',
     rawQuery: vi.fn().mockResolvedValue({ rows: [] }),
-    transaction: vi.fn(async (work: (value: typeof executor) => Promise<unknown>) => {
+    transaction: vi.fn<
+      (work: (value: typeof executor) => Promise<unknown>, transactionLog?: boolean) => Promise<unknown>
+    >(async work => {
       const before = new Map([...tables].map(([entity, values]) => [entity, structuredClone(values)]));
       try {
         return await work(executor);
@@ -121,7 +149,123 @@ const transactionHarness = (
   const service = TestBed.inject(BomDemoService);
   Object.assign(service, { adapter, rxdb });
   service.ready.set(true);
-  return { service, adapter, rxdb, rows, legacySave, query };
+  return { service, adapter, rxdb, rows, legacySave, query, executor };
+};
+
+const reviewContext: BomWorkspaceContext = {
+  rootKey: 'SC-100',
+  asOfDate: '2030-01-01',
+  plannedQty: '10',
+  plannedUom: 'box',
+  unit: 137,
+  lot: 'LOT-A',
+  alternativeNo: 2,
+  configSelection: { 颜色: ['红'] },
+  substituteSelections: { battery: { memberKey: 'B' } }
+};
+const reviewExplosion = (): ExplosionResult => ({
+  manifest: {
+    context: { bomType: 'ebom', orgId: 'org-x', asOfDate: new Date('2026-01-01T00:00:00.000Z') },
+    parentItemId: 'root-id',
+    parentRevisionId: 'root-A',
+    headerIds: [],
+    occurrenceIds: [],
+    conversions: [],
+    formulaGrammarVersion: 'test',
+    algorithmVersion: 'test',
+    unresolved: []
+  },
+  requirementLines: [],
+  outputs: [],
+  penetrations: [],
+  unresolved: [],
+  truncated: null
+});
+const reviewCost = (batchCost: string): CostRollupResult => ({
+  context: {
+    bomType: 'ebom',
+    orgId: 'org-x',
+    asOfDate: new Date('2026-01-01T00:00:00.000Z'),
+    currency: 'CNY',
+    rateDate: new Date('2026-01-01T00:00:00.000Z')
+  },
+  root: {
+    headerId: 'h',
+    itemId: 'root-id',
+    batchQty: '10',
+    baseUom: 'box',
+    costLotQty: '1',
+    batchCost,
+    unitCost: batchCost,
+    material: [],
+    processing: [],
+    overhead: '0',
+    overheadReason: '无路线',
+    credits: [],
+    children: []
+  }
+});
+const reviewRequirement = (revisionId: string | null, itemId = 'leaf-id'): RequirementLine => ({
+  itemId,
+  revisionId,
+  path: [`${itemId}-occurrence`],
+  qty: '10',
+  uom: 'pcs',
+  steps: {
+    planned: { value: '10', uom: 'pcs' },
+    assemblyScrapped: { value: '10', uom: 'pcs' },
+    gross: { value: '10', uom: 'pcs' },
+    componentScrapped: { value: '10', uom: 'pcs' },
+    operationScrapped: null,
+    converted: { value: '10', uom: 'pcs' },
+    phantom: { value: false, source: 'revision', revisionId }
+  }
+});
+const changeReviewHarness = (state = 'released') => {
+  const fixture = transactionHarness(
+    [
+      [BomEcn, [{ id: 'ecn-id', ecnNo: 'ECN-REAL', state, effectiveDate: new Date('2026-03-01T00:00:00.000Z') }]],
+      [
+        BomItemRevision,
+        [
+          {
+            id: 'root-A',
+            itemId: 'root-id',
+            revisionNo: 'Z.12',
+            state: 'released',
+            effectiveFrom: new Date('2026-01-01T00:00:00.000Z')
+          }
+        ]
+      ]
+    ],
+    () => false
+  );
+  fixture.service.itemNos.set(new Map([['root-id', 'SC-100']]));
+  fixture.service.ecns.set(new Map([['ecn-id', { ecnNo: 'STALE', state: 'draft', effectiveDate: '2027-01-01' }]]));
+  vi.mocked(explodeBom).mockReset().mockResolvedValue(reviewExplosion());
+  vi.mocked(rollupCost)
+    .mockReset()
+    .mockResolvedValueOnce(reviewCost('9007199254740993.1'))
+    .mockResolvedValueOnce(reviewCost('9007199254740993.3'));
+  vi.mocked(ecnImpact)
+    .mockReset()
+    .mockResolvedValue({
+      ecnId: 'ecn-id',
+      ecnNo: 'ECN-REAL',
+      state,
+      effectiveDate: new Date('2026-03-01T00:00:00.000Z'),
+      affectedItemIds: [],
+      topItems: []
+    });
+  vi.mocked(ecnDiff)
+    .mockReset()
+    .mockResolvedValue({
+      ecnId: 'ecn-id',
+      ecnNo: 'ECN-REAL',
+      effectiveDate: new Date('2026-03-01T00:00:00.000Z'),
+      headers: []
+    });
+  return fixture;
 };
 
 describe('BomDemoService', () => {
@@ -129,6 +273,10 @@ describe('BomDemoService', () => {
     for (const restore of restoreStatics.splice(0)) restore();
     vi.restoreAllMocks();
     vi.clearAllMocks();
+    vi.mocked(rollupCost).mockReset();
+    vi.mocked(explodeBom).mockReset();
+    vi.mocked(ecnImpact).mockReset();
+    vi.mocked(ecnDiff).mockReset();
     vi.unstubAllGlobals();
     TestBed.resetTestingModule();
   });
@@ -139,6 +287,142 @@ describe('BomDemoService', () => {
     expect(service.seedBatchNo).toBe('scooter-seed-a');
     expect(service.seedTimestamp).toBe('2026-01-01T00:00:00.000Z');
     expect(service.itemCount()).toBe(0);
+  });
+
+  it('改版核对从真实 ECN 日期建立同一只读快照，沿用计划单位与所有筛选条件', async () => {
+    const { service, adapter, executor, rxdb } = changeReviewHarness();
+    vi.mocked(explodeBom).mockImplementation(async scoped =>
+      scoped.transaction(async active => {
+        expect(active).toBe(executor);
+        await scoped.rawQuery?.('SELECT snapshot');
+        return reviewExplosion();
+      })
+    );
+
+    const result = await service.reviewChange('ecn-id', reviewContext);
+
+    expect(adapter.transaction).toHaveBeenCalledOnce();
+    expect(adapter.transaction.mock.calls[0][1]).toBe(false);
+    expect(adapter.rawQuery).not.toHaveBeenCalled();
+    expect(executor.query).toHaveBeenCalledTimes(2);
+    expect(rxdb.bom.explodeBom).not.toHaveBeenCalled();
+    expect(explodeBom).toHaveBeenCalledTimes(2);
+    expect(explodeBom).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ name: 'wa-sqlite' }),
+      expect.objectContaining({
+        asOfDate: new Date('2026-02-28T00:00:00.000Z'),
+        unit: 137,
+        lot: 'LOT-A',
+        alternativeNo: 2,
+        configSelection: reviewContext.configSelection,
+        substituteSelections: reviewContext.substituteSelections
+      }),
+      { parentItemId: 'root-id' },
+      { plannedQty: { value: '10', uom: 'box' } }
+    );
+    expect(rollupCost).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Object),
+      expect.objectContaining({
+        asOfDate: new Date('2026-03-01T00:00:00.000Z'),
+        rateDate: new Date('2026-03-01T00:00:00.000Z'),
+        currency: 'CNY'
+      }),
+      { parentItemId: 'root-id' },
+      { value: '10', uom: 'box' }
+    );
+    const snapshot = vi.mocked(explodeBom).mock.calls[0][0];
+    expect(vi.mocked(rollupCost).mock.calls[0][0]).toBe(snapshot);
+    expect(ecnImpact).toHaveBeenCalledWith(snapshot, 'ecn-id');
+    expect(ecnDiff).toHaveBeenCalledWith(snapshot, 'ecn-id');
+    expect(result).toMatchObject({
+      ecnNo: 'ECN-REAL',
+      beforeDate: '2026-02-28',
+      afterDate: '2026-03-01',
+      costDelta: '0.2',
+      context: { ...reviewContext, asOfDate: '2026-03-01' }
+    });
+    expect(service.dataRevision()).toBe(0);
+  });
+
+  it.each(['draft', 'cancelled'])('未生效的 %s ECN 不能给出改版结论', async state => {
+    const { service } = changeReviewHarness(state);
+    await expect(service.reviewChange('ecn-id', reviewContext)).rejects.toThrow('已发布');
+    expect(explodeBom).not.toHaveBeenCalled();
+  });
+
+  it('不存在的 ECN 不能回退到页面缓存', async () => {
+    const { service, rows } = changeReviewHarness();
+    rows(BomEcn).clear();
+    await expect(service.reviewChange('ecn-id', reviewContext)).rejects.toThrow('不存在');
+    expect(explodeBom).not.toHaveBeenCalled();
+  });
+
+  it.each(['truncated', 'substitute', 'alternative'])('不完整的 %s 展开拒绝生成结论', async reason => {
+    const { service } = changeReviewHarness();
+    const partial = reviewExplosion();
+    if (reason === 'truncated') partial.truncated = { reason: 'depth' };
+    if (reason === 'substitute') partial.unresolved = [{ groupCode: 'battery', candidates: [] }];
+    if (reason === 'alternative')
+      partial.manifest.unresolved = [{ parentItemId: 'x', parentRevisionId: 'r', candidates: [] }];
+    vi.mocked(explodeBom).mockResolvedValue(partial);
+    await expect(service.reviewChange('ecn-id', reviewContext)).rejects.toThrow('不完整');
+  });
+
+  it('成本缺价直接保留失败，不用零成本补齐', async () => {
+    const { service } = changeReviewHarness();
+    vi.mocked(rollupCost).mockReset().mockRejectedValue(new Error('缺少采购价格'));
+    await expect(service.reviewChange('ecn-id', reviewContext)).rejects.toThrow('缺少采购价格');
+  });
+
+  it('同量换修订保留前后根与需求的真实修订号和日期，未限定修订不伪造版本', async () => {
+    const { service, adapter, rows, executor } = changeReviewHarness();
+    rows(BomItemRevision).set('root-B', {
+      id: 'root-B',
+      itemId: 'root-id',
+      revisionNo: 'Z.13',
+      effectiveFrom: new Date('2026-03-01T00:00:00.000Z')
+    });
+    rows(BomItemRevision).set('leaf-A', {
+      id: 'leaf-A',
+      itemId: 'leaf-id',
+      revisionNo: 'BAT-01',
+      effectiveFrom: new Date('2026-01-01T00:00:00.000Z')
+    });
+    rows(BomItemRevision).set('leaf-B', {
+      id: 'leaf-B',
+      itemId: 'leaf-id',
+      revisionNo: 'BAT-02',
+      effectiveFrom: new Date('2026-03-01T00:00:00.000Z')
+    });
+    const before = reviewExplosion();
+    before.requirementLines = [reviewRequirement('leaf-A'), reviewRequirement(null, 'unversioned')];
+    const after = reviewExplosion();
+    after.manifest.parentRevisionId = 'root-B';
+    after.requirementLines = [reviewRequirement('leaf-B'), reviewRequirement(null, 'unversioned')];
+    vi.mocked(explodeBom).mockResolvedValueOnce(before).mockResolvedValueOnce(after);
+
+    const result = await service.reviewChange('ecn-id', reviewContext);
+
+    expect(result.revisions).toEqual({
+      'root-A': { revisionNo: 'Z.12', effectiveFrom: '2026-01-01T00:00:00.000Z' },
+      'root-B': { revisionNo: 'Z.13', effectiveFrom: '2026-03-01T00:00:00.000Z' },
+      'leaf-A': { revisionNo: 'BAT-01', effectiveFrom: '2026-01-01T00:00:00.000Z' },
+      'leaf-B': { revisionNo: 'BAT-02', effectiveFrom: '2026-03-01T00:00:00.000Z' }
+    });
+    expect(result.changes).toEqual([
+      expect.objectContaining({ itemId: 'leaf-id', beforeQty: '10', afterQty: '10', delta: '0', kind: 'changed' })
+    ]);
+    expect(executor.getRepository).toHaveBeenCalledWith(BomItemRevision);
+    expect(adapter.transaction).toHaveBeenCalledOnce();
+    expect(adapter.rawQuery).not.toHaveBeenCalled();
+  });
+
+  it('解析修订元数据消失时核对失败，不从ID或种子推测修订号', async () => {
+    const { service, rows } = changeReviewHarness();
+    rows(BomItemRevision).delete('root-A');
+    await expect(service.reviewChange('ecn-id', reviewContext)).rejects.toThrow('修订元数据');
   });
 
   it('导入发布后续头失败时，前面的修订与头全部保持草稿', async () => {

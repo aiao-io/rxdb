@@ -8,6 +8,11 @@ export const appRoutes: Routes = [
     loadComponent: () => import('./pages/overview/overview.page').then(m => m.OverviewPage)
   },
   {
+    path: 'review',
+    title: '生产改版核对 · BOM 演示',
+    loadComponent: () => import('./pages/review/review.page').then(m => m.ReviewPage)
+  },
+  {
     path: 'explosion',
     title: '展开 · BOM 演示',
     loadComponent: () => import('./pages/explosion/explosion.page').then(m => m.ExplosionPage)

@@ -6,91 +6,13 @@ import { BomWorkspaceState } from '../../bom-workspace-state';
 import { ExtPanel } from '../../components/ext-panel';
 import { materialName } from '../../presentation/material-label';
 
-/** 从真实已有数据进入物料和六个业务场景。 */
+/** 以一次生产改版核对为主线，保留独立业务探索。 */
 @Component({
   selector: 'bom-overview-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ExtPanel, FormsModule, RouterLink],
   templateUrl: './overview.page.html',
-  styles: [
-    `
-      :host {
-        display: block;
-        min-width: 0;
-      }
-
-      .inventory-scroll {
-        max-height: 420px;
-      }
-
-      .inventory-toolbar {
-        margin-bottom: 18px;
-      }
-
-      .inventory-toolbar label {
-        flex: 1 1 240px;
-      }
-
-      .item-index {
-        width: 64px;
-        color: var(--color-text-muted);
-        font-variant-numeric: tabular-nums;
-      }
-
-      .material-name {
-        min-width: 160px;
-        font-weight: 600;
-      }
-
-      .material-code {
-        color: var(--color-text-secondary);
-      }
-
-      .data-table th {
-        position: sticky;
-        top: 0;
-      }
-
-      .scenario-number {
-        color: var(--color-primary);
-        font-size: 12px;
-        font-weight: 700;
-      }
-
-      .scenario-card h3 {
-        margin-top: 8px;
-      }
-
-      pre {
-        margin: 0;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-      }
-
-      @media (max-width: 640px) {
-        .summary-grid {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 8px;
-        }
-
-        .metric-card {
-          padding: 12px 10px;
-        }
-
-        .metric-label {
-          font-size: 11px;
-        }
-
-        .metric-value {
-          font-size: 24px;
-        }
-
-        .metric-note {
-          display: none;
-        }
-      }
-    `
-  ]
+  styleUrl: './overview.page.scss'
 })
 export class OverviewPage {
   private readonly service = inject(BomDemoService);
@@ -119,6 +41,7 @@ export class OverviewPage {
   readonly resetError = signal('');
   readonly notice = signal('');
   readonly busy = signal(false);
+  readonly canStart = computed(() => this.ready() && this.itemCount() > 0 && !this.busy() && !this.resetting());
   readonly scenarios = [
     { path: '/explosion', title: '整机展开', description: '按计划量查看所需物料，逐行了解用量的计算过程。' },
     { path: '/timeline', title: '变更时间轴', description: '选择生效日期，比较工程变更前后的结构。' },
@@ -164,7 +87,7 @@ export class OverviewPage {
     this.notice.set('');
     try {
       await this.service.resetAndSeed();
-      this.notice.set('演示数据已准备完成，可以选择下方业务场景。');
+      this.notice.set('演示数据已准备完成，可以开始改版核对。');
     } catch (error) {
       this.resetError.set(String(error));
     } finally {
@@ -175,6 +98,25 @@ export class OverviewPage {
   /** 重新读取数据统计，不清空或修改业务数据。 */
   refreshStatistics(): void {
     this.statisticsRevision.update(value => value + 1);
+  }
+
+  /** 从固定案例开始一轮核对，保留当前数据库中的全部业务记录。 */
+  async startChangeReview(): Promise<void> {
+    if (!this.canStart()) return;
+    this.workspace.reviewEcnId.set('');
+    this.workspace.update({
+      rootKey: 'SC-100',
+      asOfDate: '2026-10-01',
+      plannedQty: '10',
+      plannedUom: 'pcs',
+      unit: 137,
+      lot: '',
+      alternativeNo: null,
+      configSelection: { 颜色: ['红'] },
+      substituteSelections: {}
+    });
+    this.workspace.guideStep.set(0);
+    await this.router.navigate(['/review'], { queryParams: this.workspace.queryParams() });
   }
 
   /** 体验场景显式设置条件，避免跨页偷偷改动评估日期。 */

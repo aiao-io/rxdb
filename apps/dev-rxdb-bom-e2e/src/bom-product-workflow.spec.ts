@@ -1,5 +1,5 @@
 import { expect, test, type Download, type Page } from '@playwright/test';
-import { SCOOTER_SEED_ROWS, acceptDialog, openDetails } from './support';
+import { SCOOTER_SEED_ROWS, acceptDialog, openDetails, revealDetails } from './support';
 
 const prepare = async (page: Page): Promise<void> => {
   await page.goto('/');
@@ -87,6 +87,7 @@ test.describe('BOM 连续业务工作流', () => {
     await page.getByTestId('planned-qty').fill('12');
     await expectUrlConditions(page, '12', '2026-10-15');
     await openPage(page, '概览');
+    await revealDetails(page.getByTestId('item-filter'));
     await page.getByTestId('item-filter').fill('BATT');
     const battery = page.getByTestId('item-inventory-row').filter({ has: page.getByText('BATT', { exact: true }) });
     await expect(battery).toHaveCount(1);
@@ -115,6 +116,7 @@ test.describe('BOM 连续业务工作流', () => {
   });
 
   test('10 台生产引导贯穿结构、成本与反查，退出后保留工作条件', async ({ page }) => {
+    await revealDetails(page.getByTestId('start-planning'));
     await page.getByTestId('start-planning').click();
     await expect(page.getByRole('heading', { name: '整机展开', exact: true })).toBeVisible();
     await expect(page.getByTestId('planned-qty')).toHaveValue('10');
@@ -206,7 +208,10 @@ test.describe('BOM 连续业务工作流', () => {
     await expect(draft).toContainText(/1\s*行/);
     await openPage(page, '概览');
     await page.reload();
-    await expect(page.getByTestId('overview-data-status')).toContainText('数据可用', { timeout: 30000 });
+    await expect(page.getByTestId('overview-data-status')).toContainText(`已有 ${SCOOTER_SEED_ROWS.item + 2} 项物料`, {
+      timeout: 30000
+    });
+    await expect(page.getByTestId('start-change-review')).toBeEnabled();
     await openPage(page, '展开');
     await openIntegration(page);
     await expect(draft).toHaveCount(1, { timeout: 30000 });

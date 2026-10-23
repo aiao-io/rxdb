@@ -11,7 +11,7 @@ import {
   SCOOTER_SEED_ROW_COUNTS,
   deterministicId
 } from '@aiao/rxdb-plugin-bom/testing';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /** SC-100 全量种子（A～F 层）装载后的行数，与概览「数据版本与记录统计」逐项对应。 */
 export const SCOOTER_SEED_ROWS = SCOOTER_SEED_ROW_COUNTS;
@@ -46,6 +46,16 @@ export const dismissDialog = async (page: Page, trigger: () => Promise<void>): P
   await dismissed;
 };
 
+/** 先展开控件的外层折叠区，再按正常交互操作控件。 */
+export const revealDetails = async (target: Locator): Promise<void> => {
+  await target.waitFor({ state: 'attached' });
+  const ancestors = target.locator('xpath=ancestor::details');
+  for (let index = 0; index < (await ancestors.count()); index++) {
+    const details = ancestors.nth(index);
+    if ((await details.getAttribute('open')) === null) await details.locator(':scope > summary').click();
+  }
+};
+
 /**
  * 展开 summary 文案匹配的 `<details>`。
  *
@@ -53,6 +63,7 @@ export const dismissDialog = async (page: Page, trigger: () => Promise<void>): P
  */
 export const openDetails = async (page: Page, label: string | RegExp): Promise<void> => {
   const summary = page.locator('summary').filter({ hasText: label });
+  await revealDetails(summary);
   const details = summary.locator('..');
   await expect(async () => {
     if ((await details.getAttribute('open')) === null) await summary.click();

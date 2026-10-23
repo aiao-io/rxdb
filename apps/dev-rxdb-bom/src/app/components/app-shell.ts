@@ -134,7 +134,7 @@ interface NavItem {
             </button>
           </div>
         </header>
-        @if (ready()) {
+        @if (ready() && !reviewRoute()) {
           <div class="workspace-context" aria-label="当前分析条件">
             <div>
               <strong>{{ materialLabel(workspaceState.rootKey()) }}</strong
@@ -151,7 +151,9 @@ interface NavItem {
           </div>
         }
         <main class="content" id="main-content" tabindex="-1">
-          <bom-workflow-journey />
+          @if (!reviewRoute()) {
+            <bom-workflow-journey />
+          }
           @if (serviceResetting()) {
             <p class="workspace-notice hint" role="status">{{ resetStatus() }}</p>
           }
@@ -198,6 +200,7 @@ export class AppShell implements OnInit {
   );
 
   readonly workspaceState = inject(BomWorkspaceState);
+  readonly reviewRoute = computed(() => this.currentUrl().split(/[?#]/)[0] === '/review');
   readonly navigationMatch = {
     paths: 'exact',
     queryParams: 'ignored',
@@ -225,6 +228,13 @@ export class AppShell implements OnInit {
           description: '数据准备与场景入口',
           icon: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
           exact: true
+        },
+        {
+          path: '/review',
+          label: '生产改版核对',
+          description: '核对本批用料与成本变化',
+          icon: 'M8 3h8v4H8z M6 5H4v16h16V5h-2 M8 12l2 2 5-5 M8 18h8',
+          exact: false
         }
       ]
     },

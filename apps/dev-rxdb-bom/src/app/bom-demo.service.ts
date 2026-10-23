@@ -1,4 +1,12 @@
-import { getEntityMetadata, RxDB, SyncType, type EntityType, type TransactionExecutor, type UUID } from '@aiao/rxdb';
+import {
+  getEntityMetadata,
+  RxDB,
+  SyncType,
+  type EntityType,
+  type TransactionExecutor,
+  type TransactionFun,
+  type UUID
+} from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite, SqliteRepository, type WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqlite';
 import {
   BOM_ENTITIES,
@@ -13,6 +21,12 @@ import {
   BomLineOccurrence,
   BomSubstituteGroup,
   confirmMapping,
+  decimalFromCanonical,
+  decimalSub,
+  decimalToCanonical,
+  ecnDiff,
+  ecnImpact,
+  explodeBom,
   mappingCoverage,
   mappingGaps,
   normalizeBomError,
@@ -45,7 +59,9 @@ import {
 } from '@aiao/rxdb-plugin-bom/testing';
 import { computed, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import type { BomWorkspaceContext } from './bom-workspace-state';
 import type { RequirementCalculationBasis } from './components/step-panel';
+import { materialChanges, type BomChangeReview } from './presentation/change-review';
 import { loadRequirementBasis } from './presentation/requirement-basis';
 
 /** demo 库名（reset 删除的 IndexedDB 库）。 */
@@ -99,6 +115,45 @@ const executorCreate =
   (executor: TransactionExecutor, rxdb: RxDB) =>
   <T extends EntityType>(Entity: T, fields: Partial<InstanceType<T>>): Promise<InstanceType<T>> =>
     executor.getRepository(Entity).create(Object.assign(rxdb.entityManager.instantiate(Entity), fields));
+
+/** 在原快照内读取结果实际引用的修订，不从物料编码或种子推测版本。 */
+const loadReviewRevisions = async (
+  executor: TransactionExecutor,
+  explosions: ExplosionResult[]
+): Promise<BomChangeReview['revisions']> => {
+  const ids = [
+    ...new Set(
+      explosions.flatMap(result => [
+        result.manifest.parentRevisionId,
+        ...result.requirementLines.map(line => line.revisionId).filter((id): id is string => id !== null)
+      ])
+    )
+  ];
+  const found = new Map<string, BomItemRevision>();
+  const repository = executor.getRepository(BomItemRevision);
+  for (let offset = 0; offset < ids.length; offset += 200) {
+    const revisions = await repository.find({
+      where: {
+        combinator: 'or',
+        rules: ids.slice(offset, offset + 200).map(value => ({ field: 'id' as const, operator: '=' as const, value }))
+      }
+    });
+    for (const revision of revisions) found.set(revision.id, revision);
+  }
+  return Object.fromEntries(
+    ids.map(id => {
+      const revision = found.get(id);
+      if (!revision) throw new Error(`改版核对缺少修订元数据：${id}，请重新核对`);
+      return [
+        id,
+        {
+          revisionNo: revision.revisionNo,
+          effectiveFrom: revision.effectiveFrom === null ? null : revision.effectiveFrom.toISOString()
+        }
+      ];
+    })
+  );
+};
 
 /** 位号演示行的行号（演示头下唯一）。 */
 const DESIGNATOR_DEMO_LINE_NO = 77;
@@ -713,6 +768,80 @@ export class BomDemoService {
     return this.#run(async () => {
       if (!this.rxdb) throw new Error('demo 未就绪');
       return this.rxdb.bom.ecnDiff(ecnId);
+    });
+  }
+
+  /** 在同一只读快照中核对改版前后的备料与标准耗用成本。 */
+  async reviewChange(ecnId: string, context: BomWorkspaceContext): Promise<BomChangeReview> {
+    const snapshotContext = structuredClone(context);
+    return this.#run(async () => {
+      if (!this.adapter || !this.rxdb) throw new Error('demo 未就绪');
+      const adapter = this.adapter;
+      return adapter.transaction(async executor => {
+        const ecns = await executor.getRepository(BomEcn).find({
+          where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: ecnId }] }
+        });
+        const ecn = ecns[0];
+        if (!ecn) throw new Error(`变更单不存在：${ecnId}`);
+        if (ecn.state !== 'released') throw new Error('仅能核对已发布的变更单');
+        const afterDay = this.#date(ecn.effectiveDate.toISOString().slice(0, 10));
+        const beforeDay = new Date(afterDay);
+        beforeDay.setUTCDate(beforeDay.getUTCDate() - 1);
+        const beforeDate = beforeDay.toISOString().slice(0, 10);
+        const afterDate = afterDay.toISOString().slice(0, 10);
+        const scoped: Parameters<typeof explodeBom>[0] = {
+          name: adapter.name,
+          rxdb: adapter.rxdb,
+          rawQuery: (sql, params) => executor.query(sql, params),
+          transaction: <T extends TransactionFun>(work: T) => executor.run(work) as Promise<Awaited<ReturnType<T>>>
+        };
+        const target = { parentItemId: this.#itemId(snapshotContext.rootKey) };
+        const plannedQty = { value: snapshotContext.plannedQty, uom: snapshotContext.plannedUom };
+        const options = {
+          ...(snapshotContext.unit === null ? {} : { unit: snapshotContext.unit }),
+          ...(snapshotContext.lot.trim() ? { lot: snapshotContext.lot.trim() } : {}),
+          ...(snapshotContext.alternativeNo === null ? {} : { alternativeNo: snapshotContext.alternativeNo }),
+          configSelection: snapshotContext.configSelection,
+          substituteSelections: snapshotContext.substituteSelections
+        };
+        const read = async (day: string) => {
+          const resolution = this.#resolution(day, options);
+          const explosion = await explodeBom(scoped, resolution, target, { plannedQty });
+          if (explosion.truncated || explosion.unresolved.length > 0 || explosion.manifest.unresolved.length > 0)
+            throw new Error('改版核对不完整：请先补全适用条件与替代选择，再重新核对');
+          const cost = await rollupCost(
+            scoped,
+            { ...resolution, currency: 'CNY', rateDate: resolution.asOfDate },
+            target,
+            plannedQty
+          );
+          return { explosion, cost };
+        };
+        const before = await read(beforeDate);
+        const after = await read(afterDate);
+        const revisions = await loadReviewRevisions(executor, [before.explosion, after.explosion]);
+        const impact = await ecnImpact(scoped, ecnId);
+        const diff = await ecnDiff(scoped, ecnId);
+        return {
+          ecnId,
+          ecnNo: ecn.ecnNo,
+          beforeDate,
+          afterDate,
+          context: { ...snapshotContext, asOfDate: afterDate },
+          revisions,
+          before,
+          after,
+          changes: materialChanges(before.explosion.requirementLines, after.explosion.requirementLines),
+          costDelta: decimalToCanonical(
+            decimalSub(
+              decimalFromCanonical(after.cost.root.batchCost),
+              decimalFromCanonical(before.cost.root.batchCost)
+            )
+          ),
+          impact,
+          diff
+        };
+      }, false);
     });
   }
 
