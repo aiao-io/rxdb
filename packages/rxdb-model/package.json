@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-model",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "Framework-agnostic entity model core for Aiao RxDB: metadata-driven forms, details, editable tables and query builder.",
   "homepage": "https://rxdb.aiao.io/docs",
   "bugs": {

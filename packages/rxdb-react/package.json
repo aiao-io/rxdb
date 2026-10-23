@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-react",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "React integration for Aiao RxDB reactive data.",
   "homepage": "https://rxdb.aiao.io/docs/frameworks/react",
   "bugs": {
