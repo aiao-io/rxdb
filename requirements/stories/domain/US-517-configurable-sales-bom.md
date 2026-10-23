@@ -1,11 +1,11 @@
 ---
 id: US-517
 title: 可配置销售 BOM：特征、选项与选择条件
-status: Backlog
+status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-10-16
 tags: [domain, bom, configuration]
 ---
 
@@ -48,13 +48,13 @@ tags: [domain, bom, configuration]
 
 | #   | 前置条件                                      | 操作                            | 预期结果                                             | 状态 |
 | --- | --------------------------------------------- | ------------------------------- | ---------------------------------------------------- | ---- |
-| 1   | 行挂选择条件「颜色=红」                       | 选红 / 选蓝                     | 该行分别入选 / 落选                                  | ⬜   |
-| 2   | 约束「A 与 B 互斥」                           | 同时选 A 与 B                   | 配置被拒，错误里给出冲突项                           | ⬜   |
-| 3   | `required = true` 的特征未赋值                | 展开                            | 明确报「配置不完整」，**不静默产出部分结构**         | ⬜   |
-| 4   | 同一 BOM 两组配置输入                         | 分别展开                        | 得到两份不同的有效行集，共享同一份 `bom_line`        | ⬜   |
-| 5   | 选择条件不合最小语法，或引用不存在的特征 / 值 | 保存                            | 保存期拒绝，错误点名位置与未知标识；不留到展开期才炸 | ⬜   |
-| 6   | 配置「红」下 A→B、配置「蓝」下 B→A            | 保存第二条                      | 按 US-509 拒绝：两种配置互斥也不放行                 | ⬜   |
-| 7   | 同一配置输入                                  | 经 `ResolutionContext` 两次解析 | 结果与 manifest 相同；manifest 含配置输入            | ⬜   |
+| 1   | 行挂选择条件「颜色=红」                       | 选红 / 选蓝                     | 该行分别入选 / 落选                                  | ✅   |
+| 2   | 约束「A 与 B 互斥」                           | 同时选 A 与 B                   | 配置被拒，错误里给出冲突项                           | ✅   |
+| 3   | `required = true` 的特征未赋值                | 展开                            | 明确报「配置不完整」，**不静默产出部分结构**         | ✅   |
+| 4   | 同一 BOM 两组配置输入                         | 分别展开                        | 得到两份不同的有效行集，共享同一份 `bom_line`        | ✅   |
+| 5   | 选择条件不合最小语法，或引用不存在的特征 / 值 | 保存                            | 保存期拒绝，错误点名位置与未知标识；不留到展开期才炸 | ✅   |
+| 6   | 配置「红」下 A→B、配置「蓝」下 B→A            | 保存第二条                      | 按 US-509 拒绝：两种配置互斥也不放行                 | ✅   |
+| 7   | 同一配置输入                                  | 经 `ResolutionContext` 两次解析 | 结果与 manifest 相同；manifest 含配置输入            | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -82,7 +82,14 @@ AC#3 遵守「无 fallback 兜底」：配置不完整时返回部分结构，�
 
 ## 实现文件
 
-- `packages/rxdb-plugin-bom/` — 待建；配置模型实体与选择条件解析
+- `packages/rxdb-plugin-bom/src/entities.ts` — 配置四实体与引用约束
+- `packages/rxdb-plugin-bom/src/resolve/config-condition.ts` / `config-validate.ts` — 语法、引用、完整性、冲突与共享解析过滤
+- `packages/rxdb-plugin-bom/src/repository.ts` — 保存期校验
+- `packages/rxdb-plugin-bom/src/__tests__/bom-config.spec.ts` — 双后端解析、保存与保守并集环回归
+
+## 第 8 步关闭记录
+
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-517)。
 
 ## References
 

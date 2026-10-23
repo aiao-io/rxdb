@@ -65,6 +65,27 @@
       "name": "dev-rxdb-angular-attach",
       "url": "http://localhost:4200",
       "port": 4200
+    },
+    {
+      "name": "dev-rxdb-bom",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "pnpm nx serve dev-rxdb-bom --port=${PORT:-4311}"
+      ],
+      "autoPort": true
+    },
+    {
+      "name": "dev-rxdb-bom-static",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/e2e-static-server.mjs",
+        "--root",
+        "dist/apps/dev-rxdb-bom/browser",
+        "--port",
+        "4322"
+      ],
+      "port": 4322
     }
   ],
   "version": "0.0.1"

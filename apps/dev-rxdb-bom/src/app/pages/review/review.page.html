@@ -1,0 +1,457 @@
+<div class="page review-page">
+  <section class="review-heading">
+    <div>
+      <p class="page-eyebrow">制造工程师的生产前核对 · SC-100</p>
+      <h1>生产改版核对</h1>
+      <p class="panel-desc">
+        接到整机、电控与电池组件改版通知，先确认这批要备什么料、核算成本变化多少，再交接核对结论。
+      </p>
+    </div>
+    <span class="local-badge" role="status">
+      {{ online() ? '本地数据 · 保存在当前浏览器' : '当前离线 · 可继续已加载的核对' }}
+    </span>
+  </section>
+
+  <nav class="review-steps" aria-label="改版核对步骤">
+    <button [attr.aria-current]="phase() === 'conditions' ? 'step' : null" (click)="phase.set('conditions')">
+      <span>01</span>
+      <strong>确认生产条件</strong>
+      <small>同一份计划，两个生效时点</small>
+    </button>
+    <button
+      [attr.aria-current]="phase() === 'compare' ? 'step' : null"
+      [disabled]="!result()"
+      (click)="phase.set('compare')"
+    >
+      <span>02</span>
+      <strong>比较改前改后</strong>
+      <small>逐项核对用料与成本差额</small>
+    </button>
+    <button
+      [attr.aria-current]="phase() === 'conclusion' ? 'step' : null"
+      [disabled]="!view()?.confirmedAt"
+      (click)="phase.set('conclusion')"
+    >
+      <span>03</span>
+      <strong>形成核对结论</strong>
+      <small>留存依据，继续查实物记录</small>
+    </button>
+  </nav>
+
+  <section class="panel review-conditions" aria-labelledby="review-conditions-title">
+    <div class="panel-head">
+      <h2 id="review-conditions-title">这次要核对的生产计划</h2>
+      <p class="panel-desc">SC-100 电动滑板车 · 设计物料清单 · 组织 org-x</p>
+    </div>
+    @if (caseMismatch()) {
+      <div class="workspace-stale">
+        当前工作条件属于其他物料或计量单位。
+        <button class="btn" (click)="loadCase()">载入 10 台 SC-100 案例</button>
+      </div>
+    }
+    <div class="review-form">
+      <label>
+        生产数量（台）
+        <input
+          [(ngModel)]="workspace.plannedQty"
+          [disabled]="!ready() || service.resetting()"
+          data-testid="review-qty"
+          inputmode="decimal"
+        />
+      </label>
+      <label>
+        变更单
+        <select [(ngModel)]="selectedEcnId" [disabled]="!ready() || service.resetting()" data-testid="review-ecn">
+          <option value="">请选择已发布变更单</option>
+          @for (ecn of ecns(); track ecn.id) {
+            <option [disabled]="ecn.state !== 'released'" [value]="ecn.id">
+              {{ ecn.ecnNo }} · {{ ecn.effectiveDate }}
+            </option>
+          }
+        </select>
+      </label>
+      <button
+        class="btn btn-primary"
+        [disabled]="busy() || !ready() || service.resetting() || caseMismatch()"
+        (click)="runReview()"
+        data-testid="review-run"
+      >
+        {{
+          busy() ? '正在核对本批用料与成本…'
+          : result() ? '重新核对这次改版'
+          : '核对这次改版'
+        }}
+      </button>
+    </div>
+    <div class="condition-strip">
+      <span>
+        序列条件
+        <strong>{{ workspace.unit() === null ? '未指定' : workspace.unit() }}</strong>
+      </span>
+      <span>{{ configLabel() || '无额外配置条件' }}</span>
+      <span>
+        批次
+        <strong>{{ workspace.lot() || '未限定' }}</strong>
+      </span>
+    </div>
+    <details class="review-more-conditions">
+      <summary>调整适用条件</summary>
+      <div class="review-form">
+        <label>
+          序列号
+          <input [(ngModel)]="workspace.unit" min="1" type="number" />
+        </label>
+        <label>
+          批次编码
+          <input [(ngModel)]="workspace.lot" />
+        </label>
+        <label>
+          根备选方案
+          <input [(ngModel)]="workspace.alternativeNo" min="1" type="number" />
+        </label>
+      </div>
+    </details>
+    @if (selectedEcn(); as ecn) {
+      <p class="hint">
+        以 {{ ecn.effectiveDate }} 的已发布结构与生效日前一天比较，两个时点使用相同的生产数量和适用条件。
+      </p>
+    }
+    @if (workspace.validationError()) {
+      <p class="error-box" role="alert">{{ workspace.validationError() }}</p>
+    }
+    @if (!ready()) {
+      <div class="empty-state">
+        请先准备或连接案例数据。
+        <a class="btn" routerLink="/">返回任务首页</a>
+      </div>
+    }
+  </section>
+
+  @if (error()) {
+    <section class="error-box" data-testid="review-error" role="alert">
+      <strong>核对尚未完成</strong>
+      <p>{{ error() }}</p>
+      <p>输入已保留。请修正条件或补齐成本后重新核对。</p>
+      <a [queryParams]="workspace.queryParams()" routerLink="/cost">查看完整成本与缺失项</a>
+    </section>
+  }
+  @if (stale()) {
+    <div class="workspace-stale" data-testid="review-stale" role="status">
+      条件或数据已变化，下方是上次核对的结果。请重新核对并确认，才能生成或下载新的结论。
+    </div>
+  }
+
+  @if (result(); as result) {
+    <section class="review-result-heading">
+      <div>
+        <p class="page-eyebrow">同一批 {{ result.context.plannedQty }} 台 · {{ result.ecnNo }}</p>
+        <h2 id="review-result-title" tabindex="-1">
+          {{ phase() === 'conclusion' ? '这次核对，交接什么结论？' : '这次改版，对本批有什么影响？' }}
+        </h2>
+        <p class="hint">
+          比较日期 {{ result.beforeDate }} → {{ result.afterDate }} · 币种 {{ result.after.cost.context.currency }}
+        </p>
+      </div>
+      <span class="badge" [class.badge-neutral]="!canDownload()" [class.badge-success]="canDownload()">
+        {{
+          stale() ? '结果待更新'
+          : canDownload() ? '人工核对已完成'
+          : '等待逐项核对'
+        }}
+      </span>
+    </section>
+    <div class="review-metrics">
+      <article class="review-metric">
+        <span>改版前 · 本批成本</span>
+        <strong [attr.data-amount]="result.before.cost.root.batchCost" data-testid="review-before-cost">
+          CNY {{ amount(result.before.cost.root.batchCost) }}
+        </strong>
+        <small>{{ result.beforeDate }} 的标准耗用</small>
+      </article>
+      <article class="review-metric">
+        <span>改版后 · 本批成本</span>
+        <strong [attr.data-amount]="result.after.cost.root.batchCost" data-testid="review-after-cost">
+          CNY {{ amount(result.after.cost.root.batchCost) }}
+        </strong>
+        <small>{{ result.afterDate }} 的标准耗用</small>
+      </article>
+      <article class="review-metric review-metric-delta">
+        <span>本批核算差额</span>
+        <strong [attr.data-amount]="result.costDelta" data-testid="review-cost-delta">
+          CNY {{ difference(result.costDelta, true) }}
+        </strong>
+        <small>{{ result.changes.length }} 项本批变化 · 变更单直接调整 {{ ecnLines().length }} 行</small>
+      </article>
+    </div>
+    <p class="hint">本次比较两个时点各自的有效结构与费率，同日生效的其他变化也会计入。核对范围与生效条件随摘要保存。</p>
+
+    @if (phase() === 'conclusion') {
+      <section
+        class="review-conclusion panel"
+        aria-labelledby="review-conclusion-title"
+        data-testid="review-conclusion"
+      >
+        <div class="conclusion-mark" aria-hidden="true">✓</div>
+        <div>
+          <p class="page-eyebrow">可交接的核对摘要</p>
+          <h2 id="review-conclusion-title" tabindex="-1">
+            {{ stale() ? '原结论已过期，请重新核对' : '已完成用料与成本核对' }}
+          </h2>
+          <p>{{ materialLabel(result.context.rootKey) }} · {{ result.context.plannedQty }} 台 · {{ result.ecnNo }}</p>
+          <p>采用 {{ result.afterDate }} 已发布的结构作为本次核对依据，前后备料与成本结果均已读取完成。</p>
+          <p class="hint">
+            此结论记录本次人工核对，变更的发布与批准仍按工程变更流程执行。核对生产计划不会修改已装机产品的安装历史。
+          </p>
+          <div class="toolbar">
+            <button
+              class="btn btn-primary"
+              [disabled]="!canDownload()"
+              (click)="download()"
+              data-testid="review-download"
+            >
+              下载核对摘要
+            </button>
+            <a class="btn" [queryParams]="workspace.queryParams()" routerLink="/instances">查看已装机实例</a>
+            <button class="btn btn-quiet" (click)="phase.set('compare')">返回比较明细</button>
+          </div>
+        </div>
+      </section>
+    }
+
+    <section class="panel review-evidence" aria-labelledby="review-evidence-title">
+      <div class="panel-head">
+        <h2 id="review-evidence-title">每一个变化，都有核对依据</h2>
+        <p class="panel-desc">
+          备料按库存单位归集，重复使用路径仍逐条保留；核算成本使用标准耗用，不直接用取整后的备料量乘单价。
+        </p>
+      </div>
+      <nav class="review-tabs" aria-label="核对依据">
+        <button [attr.aria-pressed]="detailTab() === 'materials'" (click)="detailTab.set('materials')">
+          用料变化
+          <span>{{ result.changes.length }}</span>
+        </button>
+        <button [attr.aria-pressed]="detailTab() === 'cost'" (click)="detailTab.set('cost')">成本来源</button>
+        <button [attr.aria-pressed]="detailTab() === 'conditions'" (click)="detailTab.set('conditions')">
+          生效与影响范围
+        </button>
+      </nav>
+      @if (detailTab() === 'materials') {
+        <div class="review-material-layout">
+          <div class="review-changes">
+            <div class="change-table-head">
+              <span>物料与变化</span>
+              <span>改前 → 改后</span>
+              <span>本批增减</span>
+            </div>
+            @for (row of result.changes; track row.key) {
+              <button
+                class="review-change-row"
+                [attr.aria-pressed]="selectedKey() === row.key"
+                [class.selected]="selectedKey() === row.key"
+                (click)="selectedKey.set(row.key)"
+                data-testid="review-change-row"
+              >
+                <span>
+                  <strong>{{ itemLabel(row.itemId) }}</strong>
+                  <small>{{ changeLabel(row) }}</small>
+                </span>
+                <span>
+                  {{ quantity(row.beforeQty) }} → {{ quantity(row.afterQty) }}
+                  <small>{{ row.uom }}</small>
+                </span>
+                <span class="change-delta">
+                  {{ difference(row.delta) }}
+                  <small>{{ row.uom }}</small>
+                </span>
+              </button>
+            } @empty {
+              <div class="empty-state">相同适用条件下，两时点的备料数量和修订没有变化。</div>
+            }
+          </div>
+          @if (selectedChange(); as selected) {
+            <aside class="review-paths" aria-label="所选物料的用量依据">
+              <p class="page-eyebrow">所选物料的全部使用路径</p>
+              <h3>{{ itemLabel(selected.itemId) }}</h3>
+              <p class="hint">归集前的每条需求保留自己的路径与计算过程。</p>
+              <h4>改版前 · {{ result.beforeDate }}</h4>
+              @for (line of selected.beforeLines; track $index) {
+                <details class="path-evidence" (toggle)="loadBasis(line, $event)">
+                  <summary>
+                    <span>{{ paths(line, result.before.explosion) }}</span>
+                    <strong>{{ quantity(line.qty) }} {{ line.uom }}</strong>
+                  </summary>
+                  <p class="hint path-revision">解析修订：{{ revisionLabel(line) }}</p>
+                  @if (basisErrors()[basisKey(line)]) {
+                    <p class="error-box" role="alert">系数读取未完成：{{ basisErrors()[basisKey(line)] }}</p>
+                  }
+                  <bom-step-panel
+                    [basis]="basis()[basisKey(line)] ?? null"
+                    [itemNos]="service.itemNos()"
+                    [line]="line"
+                  />
+                </details>
+              } @empty {
+                <p class="hint">此时点没有该物料的投入需求。</p>
+              }
+              <h4>改版后 · {{ result.afterDate }}</h4>
+              @for (line of selected.afterLines; track $index) {
+                <details class="path-evidence" (toggle)="loadBasis(line, $event)">
+                  <summary>
+                    <span>{{ paths(line, result.after.explosion) }}</span>
+                    <strong>{{ quantity(line.qty) }} {{ line.uom }}</strong>
+                  </summary>
+                  <p class="hint path-revision">解析修订：{{ revisionLabel(line) }}</p>
+                  @if (basisErrors()[basisKey(line)]) {
+                    <p class="error-box" role="alert">系数读取未完成：{{ basisErrors()[basisKey(line)] }}</p>
+                  }
+                  <bom-step-panel
+                    [basis]="basis()[basisKey(line)] ?? null"
+                    [itemNos]="service.itemNos()"
+                    [line]="line"
+                  />
+                </details>
+              } @empty {
+                <p class="hint">此时点没有该物料的投入需求。</p>
+              }
+            </aside>
+          }
+        </div>
+      }
+      @if (detailTab() === 'cost') {
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">成本构成</th>
+                <th class="numeric" scope="col">改版前</th>
+                <th class="numeric" scope="col">改版后</th>
+                <th class="numeric" scope="col">差额</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of costSources(); track row.key) {
+                <tr>
+                  <td>{{ row.label }}</td>
+                  <td class="numeric" [attr.data-amount]="row.before">{{ amount(row.before) }}</td>
+                  <td class="numeric" [attr.data-amount]="row.after">{{ amount(row.after) }}</td>
+                  <td class="numeric" [attr.data-amount]="row.delta">{{ difference(row.delta, true) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="hint evidence-note">
+          金额按两个时点各自适用的结构与费率核算。差额表示两份快照的变化，不能据此认定所有费用差异只由这一张变更单造成。
+        </p>
+        <div class="toolbar">
+          <a class="btn" [queryParams]="detailParams(result.beforeDate)" routerLink="/cost">查看改版前完整成本</a>
+          <a class="btn" [queryParams]="detailParams(result.afterDate)" routerLink="/cost">查看改版后完整成本</a>
+        </div>
+      }
+      @if (detailTab() === 'conditions') {
+        <dl class="review-facts">
+          <div>
+            <dt>变更单</dt>
+            <dd>{{ result.ecnNo }} · 已发布</dd>
+          </div>
+          <div>
+            <dt>比较日期</dt>
+            <dd>{{ result.beforeDate }} → {{ result.afterDate }}</dd>
+          </div>
+          <div>
+            <dt>本批计划</dt>
+            <dd>{{ result.context.plannedQty }} {{ result.context.plannedUom }}</dd>
+          </div>
+          <div>
+            <dt>序列条件</dt>
+            <dd>{{ result.context.unit === null ? '未指定' : result.context.unit }}</dd>
+          </div>
+          <div>
+            <dt>批次</dt>
+            <dd>{{ result.context.lot || '未限定' }}</dd>
+          </div>
+          <div>
+            <dt>涉及的装配</dt>
+            <dd>
+              @for (id of result.impact.affectedItemIds; track id) {
+                <span class="fact-item">{{ itemLabel(id) }}</span>
+              }
+            </dd>
+          </div>
+        </dl>
+        <h3>变更单直接记录的调整</h3>
+        <ul class="note-list">
+          @for (entry of ecnLines(); track entry.lineId) {
+            <li>
+              <strong>{{ ecnKindLabels[entry.kind] }}</strong>
+              · 行 {{ entry.lineNo }} ·
+              @if (entry.before) {
+                {{ itemLabel(entry.before.childItemId) }}
+              } @else {
+                无此行
+              }
+              →
+              @if (entry.after) {
+                {{ itemLabel(entry.after.childItemId) }}
+              } @else {
+                已截止
+              }
+            </li>
+          } @empty {
+            <li>该变更单没有可展示的直接行调整。</li>
+          }
+        </ul>
+        <p class="hint">这里的影响范围来自物料清单；实际安装记录需要按具体整机、序列号和安装日期另行查看。</p>
+        <div class="toolbar">
+          <a class="btn" [queryParams]="detailParams(result.afterDate)" routerLink="/timeline">查看工程变更明细</a>
+          <a class="btn" [queryParams]="workspace.queryParams()" routerLink="/instances">查看已装机实例</a>
+        </div>
+      }
+    </section>
+
+    <section class="review-confirmation panel">
+      <div>
+        <p class="page-eyebrow">完成之前，再确认一次</p>
+        <h2>把这份结果变成可交接的结论</h2>
+        <p class="hint">确认仅记录你已核对本页结果，不执行发布或修改生产、安装数据。</p>
+      </div>
+      <label class="review-ack">
+        <input
+          [disabled]="stale() || busy()"
+          [ngModel]="acknowledged()"
+          (ngModelChange)="updateAcknowledgement($event)"
+          data-testid="review-ack"
+          type="checkbox"
+        />
+        我已核对用料变化与成本差额
+      </label>
+      <button class="btn btn-primary" [disabled]="!canConfirm()" (click)="complete()" data-testid="review-complete">
+        完成核对，生成摘要
+      </button>
+    </section>
+  } @else if (!busy() && !error()) {
+    <section class="review-intro panel">
+      <div>
+        <p class="page-eyebrow">你要带走的三个答案</p>
+        <h2>先确认这批的变化，再决定下一步</h2>
+        <p>
+          同一个生产计划在改版前后各核算一次。先看变化，再下钻到路径和算式，最后保留本次核对依据。首次核对需联网载入计算能力，成功后可在本页离线调整数量并重新核对。
+        </p>
+      </div>
+      <ol>
+        <li>
+          <strong>要备什么料？</strong>
+          <span>新增、停用和用量变化逐项列出。</span>
+        </li>
+        <li>
+          <strong>核算成本差多少？</strong>
+          <span>本批总额与费用来源可以相互核对。</span>
+        </li>
+        <li>
+          <strong>结论适用于什么条件？</strong>
+          <span>日期、数量、序列和配置随摘要保存。</span>
+        </li>
+      </ol>
+    </section>
+  }
+</div>

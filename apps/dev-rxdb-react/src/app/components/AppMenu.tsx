@@ -106,6 +106,12 @@ const menus: MenuItem[] = [
   },
   {
     type: 'link',
+    title: 'BOM 编辑与展开',
+    path: '/bom-view',
+    icon: ListTree
+  },
+  {
+    type: 'link',
     title: 'Code Editor',
     path: '/code-editor',
     icon: Code

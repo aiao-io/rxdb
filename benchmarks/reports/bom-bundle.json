@@ -1,0 +1,131 @@
+{
+  "budgetBytes": 50000,
+  "entries": {
+    "core": {
+      "path": "packages/rxdb-plugin-bom/dist/index.js",
+      "entryGzipBytes": 13095,
+      "static": {
+        "gzipBytes": 49185,
+        "rawBytes": 162786,
+        "files": [
+          "packages/rxdb-plugin-bom/dist/index.js",
+          "packages/rxdb-plugin-bom/dist/history-api-Dql_8Z28.js",
+          "packages/rxdb-plugin-bom/dist/constants-C6Vf_-UM.js",
+          "packages/rxdb-plugin-bom/dist/unit-lot-trigger-ddl-DMU8x1vC.js",
+          "packages/rxdb-plugin-bom/dist/export-contract-DmCtTtL1.js",
+          "packages/rxdb-plugin-bom/dist/resolver-DjYfxPzo.js",
+          "packages/rxdb-plugin-bom/dist/expansion-xCx54lZj.js",
+          "packages/rxdb-plugin-bom/dist/reach-ddl-C1V8phkF.js",
+          "packages/rxdb-plugin-bom/dist/joint-cost-error-COPSFAf7.js",
+          "packages/rxdb-plugin-bom/dist/versions-D4MnVelU.js"
+        ],
+        "external": ["@aiao/rxdb", "rxjs"]
+      },
+      "reachable": {
+        "gzipBytes": 94194,
+        "rawBytes": 339613,
+        "files": [
+          "packages/rxdb-plugin-bom/dist/index.js",
+          "packages/rxdb-plugin-bom/dist/history-api-Dql_8Z28.js",
+          "packages/rxdb-plugin-bom/dist/history-loader-Cqm-zrQj.js",
+          "packages/rxdb-plugin-bom/dist/constants-C6Vf_-UM.js",
+          "packages/rxdb-plugin-bom/dist/unit-lot-trigger-ddl-DMU8x1vC.js",
+          "packages/rxdb-plugin-bom/dist/export-contract-DmCtTtL1.js",
+          "packages/rxdb-plugin-bom/dist/resolver-DjYfxPzo.js",
+          "packages/rxdb-plugin-bom/dist/expansion-xCx54lZj.js",
+          "packages/rxdb-plugin-bom/dist/explosion-1ICnfBxl.js",
+          "packages/rxdb-plugin-bom/dist/versions-D4MnVelU.js",
+          "packages/rxdb-plugin-bom/dist/reach-ddl-C1V8phkF.js",
+          "packages/rxdb-plugin-bom/dist/joint-cost-error-COPSFAf7.js",
+          "packages/rxdb-plugin-bom/dist/cost-DaHdSsPN.js",
+          "packages/rxdb-plugin-bom/dist/ecn-CnuEaRAv.js",
+          "packages/rxdb-plugin-bom/dist/integration-qXZvf7yz.js",
+          "packages/rxdb-plugin-bom/dist/bom-trigger-ddl-FFrn4MlU.js",
+          "packages/rxdb-plugin-bom/dist/instance-B_V57eQi.js",
+          "packages/rxdb-plugin-bom/dist/install-BwoaSnCG.js"
+        ],
+        "external": ["@aiao/rxdb", "rxjs"]
+      },
+      "withinBudget": true
+    },
+    "testing": {
+      "path": "packages/rxdb-plugin-bom/dist/testing/index.js",
+      "entryGzipBytes": 10921,
+      "static": {
+        "gzipBytes": 25053,
+        "rawBytes": 105954,
+        "files": [
+          "packages/rxdb-plugin-bom/dist/testing/index.js",
+          "packages/rxdb-plugin-bom/dist/history-api-Dql_8Z28.js",
+          "packages/rxdb-plugin-bom/dist/history-loader-Cqm-zrQj.js"
+        ],
+        "external": ["@aiao/rxdb", "rxjs"]
+      },
+      "reachable": {
+        "gzipBytes": 25053,
+        "rawBytes": 105954,
+        "files": [
+          "packages/rxdb-plugin-bom/dist/testing/index.js",
+          "packages/rxdb-plugin-bom/dist/history-api-Dql_8Z28.js",
+          "packages/rxdb-plugin-bom/dist/history-loader-Cqm-zrQj.js"
+        ],
+        "external": ["@aiao/rxdb", "rxjs"]
+      },
+      "withinBudget": true
+    },
+    "angular": {
+      "path": "dist/packages/rxdb-plugin-bom-angular/fesm2022/aiao-rxdb-plugin-bom-angular.mjs",
+      "entryGzipBytes": 4069,
+      "static": {
+        "gzipBytes": 4069,
+        "rawBytes": 22162,
+        "files": ["dist/packages/rxdb-plugin-bom-angular/fesm2022/aiao-rxdb-plugin-bom-angular.mjs"],
+        "external": ["@aiao/rxdb-plugin-bom", "@angular/core"]
+      },
+      "reachable": {
+        "gzipBytes": 4069,
+        "rawBytes": 22162,
+        "files": ["dist/packages/rxdb-plugin-bom-angular/fesm2022/aiao-rxdb-plugin-bom-angular.mjs"],
+        "external": ["@aiao/rxdb-plugin-bom", "@angular/core"]
+      },
+      "withinBudget": true
+    },
+    "react": {
+      "path": "packages/rxdb-plugin-bom-react/dist/index.js",
+      "entryGzipBytes": 2769,
+      "static": {
+        "gzipBytes": 2769,
+        "rawBytes": 8204,
+        "files": ["packages/rxdb-plugin-bom-react/dist/index.js"],
+        "external": ["@aiao/rxdb", "@aiao/rxdb-plugin-bom", "react", "react/jsx-runtime"]
+      },
+      "reachable": {
+        "gzipBytes": 2769,
+        "rawBytes": 8204,
+        "files": ["packages/rxdb-plugin-bom-react/dist/index.js"],
+        "external": ["@aiao/rxdb", "@aiao/rxdb-plugin-bom", "react", "react/jsx-runtime"]
+      },
+      "withinBudget": true
+    },
+    "vue": {
+      "path": "packages/rxdb-plugin-bom-vue/dist/index.js",
+      "entryGzipBytes": 3715,
+      "static": {
+        "gzipBytes": 3715,
+        "rawBytes": 10409,
+        "files": ["packages/rxdb-plugin-bom-vue/dist/index.js"],
+        "external": ["@aiao/rxdb-plugin-bom", "vue"]
+      },
+      "reachable": {
+        "gzipBytes": 3715,
+        "rawBytes": 10409,
+        "files": ["packages/rxdb-plugin-bom-vue/dist/index.js"],
+        "external": ["@aiao/rxdb-plugin-bom", "vue"]
+      },
+      "withinBudget": true
+    }
+  },
+  "generatedAt": "2026-10-18T02:28:10.603Z",
+  "method": "TypeScript AST遍历包内相对静态import/export及字面动态import；每文件gzip(level=6)求和，外部peer依赖另列",
+  "node": "v26.12.0"
+}

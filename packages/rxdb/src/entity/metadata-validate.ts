@@ -8,6 +8,7 @@
  */
 
 import { toEntitySyncResolver, type EntitySyncResolver } from '../sync-contract/entity-sync-resolver.js';
+import { advancedIndexesOf, compileAdvancedIndex, isAdvancedIndex } from './advanced-index.js';
 import { compileCheckConstraint } from './check-constraint.js';
 import { compileConditionalUniqueIndex, conditionalUniqueIndexesOf } from './conditional-unique-index.js';
 import { ENTITY_OPERATIONS } from './entity-permissions.js';
@@ -19,6 +20,7 @@ import {
   missingFormatConfigKeys,
   percentageDomainOf
 } from './format-rules.js';
+import { compileGeneratedColumn } from './generated-column.js';
 import { isPlainRecord } from './json-safe.js';
 import {
   EntityPropertyMetadata,
@@ -34,7 +36,7 @@ import { EntityMetadata } from './metadata.interface.js';
  * 注册期元数据校验规则。
  *
  * @remarks
- * 全集 17 项，由 {@link validateEntityMetadata} 产出。
+ * 由 {@link validateEntityMetadata} 产出。
  * `missingRelationPrimary` / `unsupportedRelationValueType` 属于 {@link RelationResolutionRule}，
  * 由字段描述 DTO 的生成阶段产出，不在本联合内。
  */
@@ -58,7 +60,9 @@ export type MetadataValidationRule =
   | 'invalidManualOrder'
   | 'invalidCheck'
   | 'invalidIndexWhere'
-  | 'invalidExclusion';
+  | 'invalidExclusion'
+  | 'invalidGeneratedColumn'
+  | 'invalidAdvancedIndex';
 
 /**
  * 关系目标解析规则。
@@ -697,13 +701,15 @@ const validateChecks = (collector: ViolationCollector, metadata: EntityMetadata)
  * 编译抛出的原因原样进违规消息（没有 `unique`、列不存在、where 不在单行白名单内、名字非法）。
  */
 const validateIndexWheres = (collector: ViolationCollector, metadata: EntityMetadata): void => {
-  conditionalUniqueIndexesOf(metadata).forEach(index => {
-    try {
-      compileConditionalUniqueIndex(metadata, index);
-    } catch (error) {
-      collector.add(index.name, 'invalidIndexWhere', error instanceof Error ? error.message : String(error));
-    }
-  });
+  conditionalUniqueIndexesOf(metadata)
+    .filter(index => !isAdvancedIndex(metadata, index))
+    .forEach(index => {
+      try {
+        compileConditionalUniqueIndex(metadata, index);
+      } catch (error) {
+        collector.add(index.name, 'invalidIndexWhere', error instanceof Error ? error.message : String(error));
+      }
+    });
 };
 
 /**
@@ -718,6 +724,36 @@ const validateExclusions = (collector: ViolationCollector, metadata: EntityMetad
       compileExclusionConstraint(metadata, exclusion);
     } catch (error) {
       collector.add(exclusion.name, 'invalidExclusion', error instanceof Error ? error.message : String(error));
+    }
+  });
+};
+
+const validateGeneratedColumns = (collector: ViolationCollector, metadata: EntityMetadata): void => {
+  if (!(metadata.generatedColumnMap instanceof Map)) {
+    collector.add('generatedColumnMap', 'invalidGeneratedColumn', '生成列元数据尚未规范化：缺少必备 Map');
+    return;
+  }
+  metadata.generatedColumnMap.forEach((column, field) => {
+    try {
+      if (field.startsWith('$generatedColumns:')) throw new Error('generatedColumns 必须是生成列声明数组');
+      if (field.startsWith('generatedColumns[') && isPlainRecord(column) && typeof column['name'] === 'string') {
+        throw new Error(`同一层生成列名称重复：${column['name']}`);
+      }
+      compileGeneratedColumn(metadata, column, 'postgres');
+    } catch (error) {
+      const name = field.startsWith('$generatedColumns:') ? 'generatedColumns' : field;
+      collector.add(name, 'invalidGeneratedColumn', error instanceof Error ? error.message : String(error));
+    }
+  });
+};
+
+const validateAdvancedIndexes = (collector: ViolationCollector, metadata: EntityMetadata): void => {
+  advancedIndexesOf(metadata).forEach(index => {
+    try {
+      const dialect = index.dialects?.length === 1 && index.dialects[0] === 'sqlite' ? 'sqlite' : 'postgres';
+      compileAdvancedIndex(metadata, index, dialect);
+    } catch (error) {
+      collector.add(index.name, 'invalidAdvancedIndex', error instanceof Error ? error.message : String(error));
     }
   });
 };
@@ -756,7 +792,11 @@ export function validateEntityMetadata(
   validatePermissions(collector, metadata.permissions);
   validateManualOrder(collector, metadata);
   validateChecks(collector, metadata);
-  validateIndexWheres(collector, metadata);
+  validateGeneratedColumns(collector, metadata);
+  if (metadata.generatedColumnMap instanceof Map) {
+    validateIndexWheres(collector, metadata);
+    validateAdvancedIndexes(collector, metadata);
+  }
   validateExclusions(collector, metadata);
   return collector.drain().sort(compareViolations);
 }

@@ -1,0 +1,124 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "cli": {
+    "cache": {
+      "enabled": false
+    }
+  },
+  "name": "dev-rxdb-bom",
+  "prefix": "bom",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-bom/src",
+  "tags": ["angular-app", "demo"],
+  "targets": {
+    "spec-typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build", "^typecheck"],
+      "inputs": ["default", "^production"],
+      "options": {
+        "cwd": "apps/dev-rxdb-bom",
+        "command": "tsc --build tsconfig.spec.json --pretty false"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-bom",
+        "command": "eslint . --max-warnings=0"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build", "spec-typecheck"],
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/coverage/apps/dev-rxdb-bom"],
+      "options": {
+        "cwd": "apps/dev-rxdb-bom",
+        "command": "vitest"
+      }
+    },
+    "build": {
+      "defaultConfiguration": "production",
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "allowedCommonJsDependencies": [],
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/dev-rxdb-bom/public"
+          },
+          {
+            "glob": "**/*.wasm",
+            "input": "./node_modules/wa-sqlite/dist",
+            "output": "./wa-sqlite/"
+          }
+        ],
+        "browser": "apps/dev-rxdb-bom/src/main.ts",
+        "inlineStyleLanguage": "scss",
+        "outputPath": "dist/apps/dev-rxdb-bom",
+        "polyfills": [],
+        "styles": ["apps/dev-rxdb-bom/src/styles.scss"],
+        "tsConfig": "apps/dev-rxdb-bom/tsconfig.app.json",
+        "externalDependencies": []
+      },
+      "configurations": {
+        "development": {
+          "extractLicenses": false,
+          "optimization": false,
+          "sourceMap": true
+        },
+        "production": {
+          "budgets": [
+            {
+              "maximumError": "3mb",
+              "maximumWarning": "2.4mb",
+              "type": "initial"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "defaultConfiguration": "development",
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4311
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "dev-rxdb-bom:build:development",
+          "host": "0.0.0.0",
+          "headers": {
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp"
+          }
+        },
+        "production": {
+          "buildTarget": "dev-rxdb-bom:build:production"
+        }
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "dev-rxdb-bom:build",
+        "port": 4311,
+        "spa": true,
+        "staticFilePath": "dist/apps/dev-rxdb-bom/browser"
+      }
+    },
+    "serve-e2e": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "port": 4311,
+        "spa": true,
+        "staticFilePath": "dist/apps/dev-rxdb-bom/browser",
+        "watch": false
+      }
+    }
+  }
+}

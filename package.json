@@ -120,6 +120,9 @@
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
+    "@aiao/rxdb-plugin-bom": "workspace:*",
+    "@aiao/rxdb-plugin-bom-angular": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@analogjs/vite-plugin-angular": "^2.8.1",
     "@analogjs/vitest-angular": "^2.8.1",

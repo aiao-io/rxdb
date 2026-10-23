@@ -1,0 +1,144 @@
+<section class="panel" [attr.aria-busy]="busy()">
+  <div class="panel-head">
+    <h2>查找使用这个物料的父件</h2>
+    <p class="panel-desc">选择一个子件，沿树形分支查看使用它的组件和整机。</p>
+  </div>
+  <div class="toolbar">
+    <label>
+      反查物料
+      <select [(ngModel)]="selectedItem" [disabled]="busy() || !ready()" data-testid="where-used-select">
+        @for (no of itemNos().values(); track no) {
+          <option [value]="no">{{ materialLabel(no) }}</option>
+        }
+      </select>
+    </label>
+    <button class="btn btn-primary" [disabled]="busy() || !ready()" (click)="runWhereUsed()">
+      {{ busy() ? '处理中…' : '反查 ' + materialLabel(selectedItem()) }}
+    </button>
+  </div>
+  @if (!ready()) {
+    <p class="hint">请先到概览装载示例数据，再选择要反查的物料。</p>
+  }
+  @if (busy()) {
+    <p role="status">正在查找使用 {{ materialLabel(selectedItem()) }} 的父件…</p>
+  }
+  @if (stale()) {
+    <p class="error-box" role="status">条件已修改，请重新反查。下方仍是此前物料与评估日的查询结果。</p>
+  }
+  @if (error()) {
+    <div class="error-box" role="alert">反查未完成。请检查查询条件和数据，再重试。</div>
+    <details class="details-panel">
+      <summary>查看错误详情</summary>
+      <pre>{{ error() }}</pre>
+    </details>
+  } @else if (result(); as result) {
+    @if (result.truncated) {
+      <p class="error-box" role="status">当前仅展示部分路径，请缩小查询范围后重试。</p>
+    }
+    @if (result.nodes.length > 0) {
+      <p class="query-summary hint" role="status">
+        {{ materialLabel(queried()!.item) }} · {{ queried()?.date }}：找到 {{ result.nodes.length }} 条使用路径，涉及
+        {{ parentCount() }} 个父件。
+      </p>
+      <section class="usage-section" aria-label="物料使用关系树">
+        <div class="usage-heading">
+          <div>
+            <h3>使用关系树</h3>
+            <p class="hint">从查询物料出发，每往下一层，就是使用它的父组件或整机。</p>
+          </div>
+          <div class="usage-actions">
+            <button class="btn btn-sm" [disabled]="collapsed().size === 0" (click)="expandAll()">全部展开</button>
+            <button
+              class="btn btn-sm"
+              [disabled]="collapsed().size === expandableKeys().length"
+              (click)="collapseAll()"
+            >
+              全部收起
+            </button>
+          </div>
+        </div>
+        <div class="usage-tree">
+          <div class="usage-root usage-card">
+            <span class="root-symbol" aria-hidden="true">◎</span>
+            <div class="usage-label">
+              <span class="root-caption">当前查询物料</span>
+              <strong>{{ materialLabel(queried()!.item) }}</strong>
+            </div>
+          </div>
+          <ng-container
+            [ngTemplateOutlet]="branches"
+            [ngTemplateOutletContext]="{ nodes: tree(), parentLabel: materialLabel(queried()!.item) }"
+          />
+        </div>
+        <p class="tree-note hint">同一物料出现在不同分支，代表不同使用路径；点击箭头可收起或展开。</p>
+      </section>
+      <details class="details-panel path-records">
+        <summary>查看路径记录</summary>
+        <p class="hint">发生项标识用于逐条核对原始记录，物料之间的使用关系见上方树。</p>
+        <ul>
+          @for (node of result.nodes; track node.path.join('>')) {
+            <li>
+              <strong>{{ itemLabel(node.itemId) }} · {{ node.depth }} 跳</strong>
+              <code>{{ node.path.join(' → ') }}</code>
+            </li>
+          }
+        </ul>
+      </details>
+    } @else {
+      <div class="empty-state" role="status">
+        未找到使用 {{ materialLabel(queried()!.item) }} 的父件。请更换物料或评估日后重试。
+      </div>
+    }
+  } @else if (!busy()) {
+    <div class="empty-state">选择物料和评估日，再点击「反查」查看使用它的父件。</div>
+  }
+</section>
+
+<ng-template #branches let-nodes="nodes" let-parentLabel="parentLabel">
+  <ul class="usage-children">
+    @for (branch of nodes; track branch.key) {
+      <li
+        [attr.data-depth]="branch.node.depth"
+        [attr.data-item]="itemNo(branch.node.itemId)"
+        [attr.data-path]="branch.key"
+        data-testid="where-used-line"
+      >
+        <div class="usage-card">
+          @if (branch.children.length > 0) {
+            <button
+              class="branch-toggle"
+              [attr.aria-controls]="branchId(branch.node.path)"
+              [attr.aria-expanded]="!collapsed().has(branch.key)"
+              [attr.aria-label]="(collapsed().has(branch.key) ? '展开 ' : '收起 ') + itemLabel(branch.node.itemId)"
+              (click)="toggleBranch(branch.key)"
+              type="button"
+            >
+              <svg [class.expanded]="!collapsed().has(branch.key)" aria-hidden="true" viewBox="0 0 20 20">
+                <path d="m7 4 6 6-6 6" />
+              </svg>
+            </button>
+          } @else {
+            <span class="branch-leaf" aria-hidden="true">•</span>
+          }
+          <div class="usage-label">
+            <strong>{{ itemLabel(branch.node.itemId) }}</strong>
+            <span class="usage-relation">使用 {{ parentLabel }}</span>
+          </div>
+          <span class="usage-depth">
+            {{ branch.node.depth }} 跳 · {{ branch.node.depth === 1 ? '直接使用' : '间接使用' }}
+          </span>
+        </div>
+        @if (branch.children.length > 0) {
+          <div [id]="branchId(branch.node.path)">
+            @if (!collapsed().has(branch.key)) {
+              <ng-container
+                [ngTemplateOutlet]="branches"
+                [ngTemplateOutletContext]="{ nodes: branch.children, parentLabel: itemLabel(branch.node.itemId) }"
+              />
+            }
+          </div>
+        }
+      </li>
+    }
+  </ul>
+</ng-template>

@@ -1,4 +1,5 @@
 import type {
+  AdapterRepositoryConstructor,
   EntityMetadata,
   EntityType,
   IRepository,
@@ -15,6 +16,7 @@ import {
   gateRawWrite,
   getEntityMetadata,
   getEntityStatus,
+  getEntityStorageMetadata,
   MAIN_BRANCH_ID,
   orderExclusionUpdates,
   ordersWritesForExclusion,
@@ -141,6 +143,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   /** 仓库实例缓存，避免重复创建 */
   #repository_cache = new Map<EntityType, IRepository<EntityType>>();
 
+  /** 适配器轴仓储注册表（构造时经 options.repositories 追加，插件扩展槽）。 */
+  #repository_map = new Map<string, AdapterRepositoryConstructor<RxDBAdapterPGlite>>();
+
   /** PGlite 客户端缓存 */
   #cached_client?: IPGliteClient;
 
@@ -213,6 +218,13 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     private readonly options: PGliteClientOptions
   ) {
     super(rxdb);
+    if (options.repositories) {
+      Object.keys(options.repositories).forEach(name => {
+        this.#repository_map.set(name, options.repositories![name]);
+      });
+    }
+    this.#repository_map.set('Repository', PGliteRepository);
+    this.#repository_map.set('TreeRepository', PGliteTreeRepository);
     this.#pipelineHost = this.#createPipelineHost();
   }
 
@@ -501,31 +513,21 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   public createUncachedRepository<T extends EntityType>(entity: T, host: RxDBAdapterPGlite): IRepository<T> {
     const meta = getEntityMetadata(entity);
-    switch (meta.repository) {
-      case 'Repository':
-        return new PGliteRepository<T>(host, entity);
-      case 'TreeRepository':
-        return new PGliteTreeRepository<T>(host, entity);
-      default:
-        throw new RxdbAdapterPGliteError('Unsupported repository type: ' + meta.repository);
+    const RepositoryClass = this.#repository_map.get(meta.repository);
+    if (!RepositoryClass) {
+      throw new RxdbAdapterPGliteError('Unsupported repository type: ' + meta.repository);
     }
+    return new RepositoryClass(host, entity) as unknown as IRepository<T>;
   }
 
   public getRepository<T extends EntityType, RT = IRepository<T>>(entity: T): RT {
     if (!this.#repository_cache.has(entity)) {
       const meta = getEntityMetadata(entity);
-      let repository: IRepository<T>;
-      // 根据元数据中的仓库类型创建相应的仓库实例
-      switch (meta.repository) {
-        case 'Repository':
-          repository = new PGliteRepository<T>(this, entity);
-          break;
-        case 'TreeRepository':
-          repository = new PGliteTreeRepository<T>(this, entity);
-          break;
-        default:
-          throw new RxdbAdapterPGliteError('Unsupported repository type: ' + meta.repository);
+      const RepositoryClass = this.#repository_map.get(meta.repository);
+      if (!RepositoryClass) {
+        throw new RxdbAdapterPGliteError('Unsupported repository type: ' + meta.repository);
       }
+      const repository: IRepository<T> = new RepositoryClass(this, entity) as unknown as IRepository<T>;
       this.#repository_cache.set(entity, repository);
       return repository as unknown as RT;
     }
@@ -592,7 +594,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     await this.bootstrapTransaction(async executor => {
       // 传门面（executor）而非真实适配器：门面的 queryRaw 落在当前事务里；
       // 真实适配器的 query 会重新入队排在自己身后，永久挂起。
-      await check_entity_constraints_pglite(executor as PGliteTransactionExecutor, EntityTypes);
+      await check_entity_constraints_pglite(executor as PGliteTransactionExecutor, EntityTypes, entity =>
+        getEntityStorageMetadata(this.rxdb, entity)
+      );
     }, false);
   }
 
@@ -788,7 +792,11 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   protected createClient(): IPGliteClient {
     // 有实体声明区间排他即装载 btree_gist（见 pglite-server-extensions.ts）
-    return new PGliteClient(pgliteServerExtensionRequirementsOf(this.rxdb.config.entities));
+    return new PGliteClient(
+      pgliteServerExtensionRequirementsOf(this.rxdb.config.entities, entity =>
+        getEntityStorageMetadata(this.rxdb, entity)
+      )
+    );
   }
 
   /**
@@ -958,7 +966,12 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * 在这里显式失败、点名缺什么，不留到第一次建表才报一条读不出原因的 SQL 错误（AC#6）。
    */
   async #ensureServerExtensions(client: IPGliteClient): Promise<void> {
-    if (!pgliteServerExtensionRequirementsOf(this.rxdb.config.entities).btreeGist) return;
+    if (
+      !pgliteServerExtensionRequirementsOf(this.rxdb.config.entities, entity =>
+        getEntityStorageMetadata(this.rxdb, entity)
+      ).btreeGist
+    )
+      return;
     try {
       await client.exec('CREATE EXTENSION IF NOT EXISTS btree_gist');
     } catch (error) {

@@ -92,10 +92,16 @@ export type { EntityMetadata, EntityMetadataType } from './entity/metadata.inter
 // 声明式存储约束的元数据层（US-030）：CHECK（阶段 A）、条件唯一索引（阶段 B）、区间排他（阶段 C）
 // 的类型、白名单编译与确定性约束名。编译产物两后端（SQLite family / PGlite）共用，
 // 见各文件 @fileoverview。
+export * from './entity/advanced-index.js';
 export * from './entity/check-constraint.js';
 export * from './entity/conditional-unique-index.js';
 export * from './entity/constraint-name.js';
 export * from './entity/exclusion-constraint.js';
+export * from './entity/generated-column.js';
+export * from './entity/storage-catalog.js';
+export * from './entity/storage-ddl.js';
+export * from './entity/storage-expression.js';
+export * from './entity/storage-override.js';
 // CHECK 违约原始错误的识别与归一化：适配器写入路径把 PG 23514 / SQLite
 // 'CHECK constraint failed' 归一成 RxDBCheckViolationError（按类名主判别）。
 export * from './system/check-violation.js';

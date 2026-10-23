@@ -12,6 +12,7 @@
  * 都不在范围（AC#16）。
  */
 
+import { advancedIndexesOf } from '../entity/advanced-index.js';
 import { CHECK_NAME_PREFIX, compileCheckConstraint } from '../entity/check-constraint.js';
 import {
   compileConditionalUniqueIndex,
@@ -36,6 +37,8 @@ export interface EntityConstraintDriftReport {
   expected: readonly string[];
   /** 库里实际的约束名（适配器已过滤到比对范围内） */
   actual: readonly string[];
+  /** 同名对象的实际定义与声明不符；目录读取方按白名单结构比对 */
+  changed?: readonly string[];
 }
 
 /** 元数据确定性生成的全部 CHECK 约束名。 */
@@ -60,7 +63,9 @@ export const expectedExclusionConstraintNames = (metadata: EntityMetadata): stri
 export const STORAGE_CONSTRAINT_NAME_PREFIXES = [
   CHECK_NAME_PREFIX,
   UNIQUE_INDEX_NAME_PREFIX,
-  EXCLUSION_NAME_PREFIX
+  EXCLUSION_NAME_PREFIX,
+  'gc_',
+  'sx_'
 ] as const;
 
 /**
@@ -74,14 +79,18 @@ export const inDriftScope = (name: string): boolean =>
   STORAGE_CONSTRAINT_NAME_PREFIXES.some(prefix => name.startsWith(prefix));
 
 /**
- * 实体是否声明了任何声明式存储约束（CHECK / 条件唯一索引 / 区间排他，含继承来的）。
+ * 实体是否声明了任何声明式存储约束（CHECK / 条件唯一索引 / 区间排他 / 生成列 / 高级索引，含继承与存储覆盖来的）。
  *
  * @remarks
  * 能力判定（AC#6：适配器没有漂移检查即报不支持）与 SQLite 宿主版本门槛（AC#7）都以它为准：
  * 一项都没声明的应用不受这两道门影响。
  */
 export const declaresStorageConstraints = (metadata: EntityMetadata): boolean =>
-  metadata.checkMap.size > 0 || metadata.exclusionMap.size > 0 || conditionalUniqueIndexesOf(metadata).length > 0;
+  metadata.checkMap.size > 0 ||
+  metadata.exclusionMap.size > 0 ||
+  conditionalUniqueIndexesOf(metadata).length > 0 ||
+  metadata.generatedColumnMap.size > 0 ||
+  advancedIndexesOf(metadata).length > 0;
 
 /**
  * 断言一张实体表没有约束漂移。
@@ -106,7 +115,8 @@ export const assertNoEntityConstraintDrift = (report: EntityConstraintDriftRepor
   const extra = Array.from(actual)
     .filter(name => !expected.has(name))
     .sort();
-  if (missing.length > 0 || extra.length > 0) {
-    throw new RxDBConstraintDriftError(report.entity, report.tableName, missing, extra);
+  const changed = [...new Set(report.changed)].sort();
+  if (missing.length > 0 || extra.length > 0 || changed.length > 0) {
+    throw new RxDBConstraintDriftError(report.entity, report.tableName, missing, extra, false, changed);
   }
 };

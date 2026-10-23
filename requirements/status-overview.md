@@ -8,17 +8,17 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 75   |
+| ✅ Done        | 95   |
 | 🚧 In Progress | 1    |
-| 👀 In Review   | 2    |
-| 📝 Backlog     | 25   |
+| 👀 In Review   | 1    |
+| 📝 Backlog     | 6    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 103  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **25 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
+> BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；BOM19条及跨域US-030均已Done，当前3条Backlog均不属于BOM；
 > [模型驱动后台](epics/epic-010-model-driven-admin-framework.md) 首版切片 3 条（US-526~528）已孵化但 epic **未解锁、价值待证**；
 > [US-911](stories/future/US-911-client-i18n.md) 阶段 A～C 无硬前置、可开工，在立项池待 owner 定批次；[US-029](stories/core/US-029-rbac-owner-role-permission.md)
 > 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
@@ -32,12 +32,11 @@
 | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
 
-## 待评审（2 条）
+## 待评审（1 条）
 
-| Story                                                                                         | 进展                                                                                                                                                                                                                                                                                                                                                         |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
+| Story                                                                                      | 进展                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md) | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
 
 ## 阻塞（0 条）
 
@@ -113,7 +112,7 @@
 - ✅ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete 逐操作声明 `'both' | 'system'`，执行者按层区分（公开写入口判定，适配器 / 执行器层不判定），定位是快速失败而非防御边界。四阶段全部落地：0 只读行「查看」走 view 模式；A 声明、按操作就近继承、校验与 14 张系统表显式声明；B 门面 3 个写方法与 `mutations()` 整批预检，越权抛 `PermissionDeniedError`；C 三框架 `EntityList` 按 `deriveEntityCapabilities()` 派生新增 / 编辑 / 删除入口。AC#1～16 全 ✅；是 US-029 阶段 A / B / D 的上游
 - ✅ [US-028 可排序实体](stories/core/US-028-sortable-entity.md) — sortOrder 从树形实体解耦到普通实体：排序域 = 分组字段组合（整表即分组字段为空，NULL 值算一组），core 排序语义（字段强制非空）+ rxdb-model 拖放持久化。A～E 五阶段全部落地：A 整表排序域（声明与校验、默认排序、创建追加、`reorder()`、事务写边界、SQLite / PGlite 码点同序）；B 三框架 `EntityList` 拖放持久化（钉住单条排序域才开手柄，按列排序 / 筛选 / 只读 / 落库中收起，失败恢复原顺序）；C 树类型兼容；D 分组排序域与跨组移动；E 三端 Todo 按 `completed` 分组手动排序（独立 `Task` 实体，不改共享 `Todo`）。AC#1～19 全 ✅；树兄弟域迁移另立 US-031
 - ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md) — 实体显式声明 `access.owner`（指向自有属性，不加 `EntityBase` 字段、引擎不补列）+ US-027 操作权限扩展为角色 / 所有权谓词 + `RxDBContext.roles` 与一实例一身份（换用户 = 新实例）；只做写授权，同步实体不限读，多租户已移出；A～D 四阶段交付；前置 US-027 与 US-218 均已 Done；**价值待证**，评审见 `git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`
-- 👀 [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — 阶段 A～C 代码完成：`checks`（属性级语法糖 + 实体级）、索引 `where`（条件唯一）、`exclusions`（相等列 + 区间维，PG `EXCLUDE USING gist` / SQLite 两个触发器），CHECK 与 `where` 共用收窄后的 `RuleGroup` 并补字段对字段比较；违约归一为 `RxDBCheckViolationError` / `RxDBExclusionViolationError`，已有表的约束漂移在 `init()` fail-fast、不自动补建；**阶段 D 仍价值待证**；当前消费方全在 epic-009，但解锁条件不限 BOM
+- ✅ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — 阶段 A～C 代码完成：`checks`（属性级语法糖 + 实体级）、索引 `where`（条件唯一）、`exclusions`（相等列 + 区间维，PG `EXCLUDE USING gist` / SQLite 两个触发器），CHECK 与 `where` 共用收窄后的 `RuleGroup` 并补字段对字段比较；违约归一为 `RxDBCheckViolationError` / `RxDBExclusionViolationError`，已有表的约束漂移在 `init()` fail-fast、不自动补建；**阶段D与A～C全部交付，最终完整351任务及8包覆盖率验收通过，US-030已Done**；当前消费方全在 epic-009，但解锁条件不限 BOM
 - ✅ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md) — 三端 demo 的树改用新建的可排序树实体（`parentId` 分组；旧四个树实体不改）。阶段 A、B 均已完成（#101 合入）。A：四个可排序树实体；三端六页的新建、批量添加、删除并提升子节点不再自己算键，删除提升一次提交、从库里取子节点；core 批内追加优化（demo 随机树 10,000 行由 3.6 倍降到 0.95 倍）。B：三端拖放改走 `reorder()`（拖进节点不读子节点，缺陷三关闭；前后放置由 core `reorderTargetForDrop` 换算），三端同一张落点判定表与三等分落点区间，显示顺序取自查询默认排序，demo 内的算键、比较器与重编号全部删除，写入失败（含拖放）统一为页内提示。AC#1～9 ✅
 - ✅ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — PGlite、SQLite 共享层与桌面 host（Electron SQLite / PGlite、Tauri SQLite）三阶段交付；只承诺同 adapter 恢复，外置文件不在归档内
 - 👀 [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md) — 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；剩抖音、支付宝开发者工具手工走查；webpack5 不支持
@@ -177,34 +176,27 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 
 ### [BOM 领域模型](epics/epic-009-bom-domain-model.md)
 
-**已解锁（2026-10-12，owner 决定）**：驱动者 = 需要一个完整功能的 BOM 演示应用（`apps/dev-rxdb-bom` 独立 app 展示全域能力，US-525 阶段 A～F）。
-豁免依据见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)，排期见 [roadmap 批次 4](roadmap.md#批次-4bom-首轮切片epic-009-已解锁)。
-「病灶数 ≥ 抽象数」（19 条故事约 15 项新增抽象对应零个已知病灶，US-525 不引入抽象）按 owner 决定豁免，写进解锁记录。
-没有一条带脱离 BOM 场景的独立病灶：graph 插件允许成环是既定语义，「写入期拒绝成环」（US-509）是 BOM 的领域约束。
-开工前先拿真实样本复核默认决策，见 [epic-009 解锁前须先处理](epics/epic-009-bom-domain-model.md#解锁前须先处理)。
-四类引擎声明能力缺口已拆出为 [US-030](stories/core/US-030-declarative-storage-constraints.md)（归 epic-004），阶段 A～C 代码完成、待评审（首轮切片第 1 步的前置）；
-epic-009 默认决策 1～8 由 owner 确认；第 0 步的形态样本（AdventureWorks）与手算 golden 已就位、未与决策冲突，见 [epic-009 第 0 步样本](epics/epic-009-bom-domain-model.md#第-0-步样本)。
-US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值待证。
+19条故事全部Done，跨域前置US-030也已Done。最终86项目351任务通过、三端共享51/51、demo 34/34（CI run 39218306973，见[验收留档](../specs/021-bom-closure/story-validation-history.md#us-525)）、Tauri及8包严格覆盖率均通过；失败/控制历史和最终性能原始样本见[最终验收](../specs/021-bom-closure/closure-map.md)。
 
-- ⬜ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md) — 三阶段；`bom_header` 挂修订、带 `draft` / `released`；逻辑行 `bom_line` 与行发生项 `bom_line_occurrence` 分层，跨行聚合在发布转移上校验
-- ⬜ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md) — `ResolutionContext` 的 `as_of_date` 必填、禁止追溯生效；同一逻辑行的发生项区间排他落 US-030；结果附 manifest
-- ⬜ [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md) — 写入期拒绝成环是 BOM 的领域约束（graph 插件允许成环是既定语义）；「存储层」按适配器分档，`http` / `supabase` 显式声明能力缺席；按 `(bom_type, org_id)` 并集无环，自反边由同一触发器拒绝；AC#4 依赖 US-513、AC#8 依赖 US-510 阶段 B
-- ⬜ [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md) — 两阶段；展开预算与 `truncated`；可达性表 `bom_reach` 不存路径、用量与生效期
-- ⬜ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md) — 四阶段（B 拆 B1 / B2）；七步有序公式，损耗制式必须记录
-- ⬜ [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md) — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化
-- ⬜ [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md) — 仅 `consume` 边进可达性与环检测；阶段 A 三个 `flow_direction`（consume / by_product / scrap_out）各自有下游消费方，主产物即头父件；联产品属阶段 B（价值待证）
-- ⬜ [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md) — 拓扑逆序单遍；`unit_cost` = `batch_cost` / `cost_lot_qty`，节点是已解析的头；前置 US-511 / US-512 / US-513 / US-520 / US-524
-- ⬜ [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md) — 生效日由 ECN 派生、不手填、不追溯；已生效 ECN 不可取消
-- ⬜ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md) — 关闭条件是**明确不用视图实现**
-- ⬜ [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md) — 只定模型与求解契约，求解器可外挂
-- ⬜ [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md) — 有效性从一维扩到日期 × 序列 × 批次
-- ⬜ [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/domain/US-519-bom-extension-attributes.md) — 关闭条件是**没有 EAV 表**
-- ⬜ [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md) — 只做挂接点，路线本体归 US-524
-- ⬜ [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md) — 导出进 api-baseline、要求完整结构并附 manifest；导入整批原子进草稿、全量诊断
-- ⬜ [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md) — 单端缺失 = 未完成，故不按端拆故事
-- ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 实例结构（`parent_instance_id`）与主数据可达性分离；源发生项删除受限
-- ⬜ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — 四阶段；路线一律落在本仓；US-520 与 US-514 加工费的那一端，是二者的硬前置
-- ⬜ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
+- ✅ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md) — 阶段 A/B/C 全部交付（第 4 步：`bom_line_designator` 位号子表 + 发布转移位号计数校验，AC#4/#5/#12 与 AC#13 位号部分，2026-10-14；AC#10 随第 6 步关闭：已发布头的写入协议矩阵放行挂 draft ECN 的新对象）；`bom_header` 挂修订、带 `draft` / `released`；逻辑行与行发生项分层，跨行聚合在发布转移上校验
+- ✅ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md) — 全部18项解析AC已通过，含US-515的ECN状态/日期可见性和同事务快照；最终分支门禁已通过，故事已Done。
+- ✅ [US-509 DAG约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md) — 原并集判环及真实PostgreSQL AC#13已验证；远端最终12项事务/锁/回滚回归通过。Reach维护与判环追加段按spec024收口，最终完整门禁已通过。
+- ✅ [US-510 多级展开与where-used反查](stories/domain/US-510-bom-multilevel-explosion.md) — 阶段A已交付，阶段B由真实主数据反查热路径触发；最小childItemId索引将10k场景p95由236.24降至7.60ms，闭包维护/判环与52条兼容回归已通过。隔离原型及维护成本已验收，默认不启用读取剪枝，不把索引收益算作闭包收益；最终统一门禁通过，见spec024。
+- ✅ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md) — 阶段 A/C/B1/B2 全部交付（第 3、5 步，2026-10-14）：十进制 kernel（34 位 half-even）、公式求值器、单位换算、`explodeBom` 七步展开、阶梯/损耗/虚拟件穿透、阶梯切片发布校验、第 5 步工序损耗（AC#1/#13 golden）；全部 AC 关闭
+- ✅ [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md) — 非 ECN 场景已交付（第 5 步，2026-10-14）：组实体、发布切片聚合校验（定点整数合计）、展开分流（proportional/priority/manual）；ECN 场景随第 6 步交付（2026-10-15）：AC#6/#9/#14 在转换后运行投影上按检查点切片校验（空切片不校验） — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化
+- ✅ [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md) — 阶段A与固定份额联产已实现，四值物料流、L比例产出、显式修订来源、联合成本和v2依赖合同已有真实双后端证据；完整demo24/24（2026-10-18时点）含新联产与原23条全部通过，阶段B/C14功能验收已关闭，最终统一门禁已通过，故事已Done。
+- ✅ [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md) — 全部 19 个 AC 交付（第 7 步，2026-10-16）：拓扑逆序单遍、`unit_cost` = `batch_cost` / `cost_lot_qty`（节点是已解析的头）、34 位有效数字（half-even）纯 BigInt 定点内核；材料/加工/制费/副产抵减四项构成与逐层明细树；替代组加权、副产抵减、工时三量与 W_op 加工量、precise/imprecise 缓存不串、unresolved/truncated 拒绝、缺成本/缺费率/币种不符报缺失不以 0 兜底；demo 卷算面板与 e2e AC#14/#15 同断言
+- ✅ [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md) — 全部 26 个 AC 交付（第 6 步，2026-10-15）：`ecn` 实体（draft/released/cancelled，`effective` 派生态不存）、发生项区间由 ECN 派生（真相源唯一）、写入协议矩阵、发布/改期/取消状态机与转换后运行投影切片校验、影响面与差异查询；已生效 ECN 不可取消、改走更正 ECN
+- ✅ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md) — 全部 22 个 AC 交付（第 7 步，2026-10-16）：六态 `relation` + NULL 规则下沉存储层触发器、保存校验（两侧类型/组织/范围成员资格/路径相邻与末元素/修订边界）、路径级覆盖率优先行级兜底、跟进基线与缺口按解析步骤集合比对（祖先变/解析修订变/unresolved/truncated 都点名）、确认跟进整体推进；demo 双图并排 + 覆盖率/缺口面板 + e2e AC#13
+- ✅ [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md) — 第 8 步全部 AC 已交付（2026-10-16），插件双后端回归与阶段 E 演示联合验收通过
+- ✅ [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md) — 第 8 步全部 AC 已交付（2026-10-16），插件双后端回归与阶段 E 演示联合验收通过
+- ✅ [US-519 扩展属性：jsonb值+attr_def元数据+热字段提升](stories/domain/US-519-bom-extension-attributes.md) — 原查询/写入合同已交付；#3/#7已在spec023实现，双端真实计划与25项查询/迁移/重放通过。BOM/core/SQLite共同层四项覆盖率已达标，全部相关覆盖率、审计及最终完整门禁已通过。
+- ✅ [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md) — 路线停用AC#11已随US-524 #7由54项双后端数量/成本/导出消费回归补齐，其余AC原已交付，最终统一门禁已通过，故事已Done。
+- ✅ [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md) — 第 8 步全部 AC 已交付（2026-10-16），插件双后端回归与阶段 E 演示联合验收通过
+- ✅ [US-522 三框架BOM编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md) — 三端API与行为对称、共享51/51、组件15/17/18及四项、100节点性能/布局均通过；最终Angular203、React199、Vue182完整通过，AC#1与故事已Done，见[020](../specs/020-bom-slice-10/quickstart.md)。
+- ✅ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 第 9 步：实际安装事实、换件历史、序列/批次反查与来源保护；双后端各 10 万实例节点验证主数据隔离。
+- ✅ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — A/B/C/D功能均已交付，原剩AC#7路线停用消费与US-520 #11共用54项双后端通过证据，最终统一门禁已通过，故事已Done。
+- ✅ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 阶段 A～F 已交付：SC-100 一份数据集覆盖数量、ECN、双图、成本、配置、属性、集成与实例追溯；七页应用、34 条 e2e（AC 回归 23、联产 1、产品体验 10）。US-522可复用三框架绑定另由spec020实施验收，原23条演示基线保持。
 
 ### [模型驱动后台管理框架](epics/epic-010-model-driven-admin-framework.md)
 

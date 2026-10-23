@@ -1,11 +1,11 @@
 ---
 id: US-518
 title: 序列与批次有效性
-status: Backlog
+status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-10-16
 tags: [domain, bom, effectivity, aerospace]
 ---
 
@@ -43,16 +43,16 @@ tags: [domain, bom, effectivity, aerospace]
 
 | #   | 前置条件                                                                       | 操作                   | 预期结果                                                       | 状态 |
 | --- | ------------------------------------------------------------------------------ | ---------------------- | -------------------------------------------------------------- | ---- |
-| 1   | 同一逻辑行：旧件发生项 `unit_to = 136`、新件发生项 `unit_from = 137`，日期相同 | 查 #136 与 #137        | 分别只返回旧件 / 新件；两个发生项保存时不被判重叠              | ⬜   |
-| 2   | 日期有效 + 序列有效同时存在                                                    | 解析                   | 两个维度**同时**满足才入选                                     | ⬜   |
-| 3   | 发生项甲 `lot_codes = {B1}`、乙 `lot_codes = NULL`                             | 按批次 B1、B2 分别解析 | B1 两条都入选；B2 只有乙（批次精确匹配，NULL = 全部批次）      | ⬜   |
-| 4   | `unit_from > unit_to`                                                          | 保存                   | CHECK 拒绝                                                     | ⬜   |
-| 5   | 同一逻辑行两个发生项：日期相交、序列相交（批次均 NULL）                        | 保存                   | 拒绝，错误给出相交的日期段与序列段                             | ⬜   |
-| 6   | 同 #1 的两个发生项                                                             | 不带 `unit` 解析       | 该逻辑行标 `unresolved` 并列出两个候选；交给 US-521 导出即拒绝 | ⬜   |
-| 7   | 日期相交、序列不相交                                                           | 保存                   | 接受                                                           | ⬜   |
-| 8   | 日期不相交、序列相交                                                           | 保存                   | 接受                                                           | ⬜   |
-| 9   | 日期、序列都不相交                                                             | 保存                   | 接受                                                           | ⬜   |
-| 10  | 序列相交、日期相交、批次集合不相交                                             | 保存                   | 接受：三维要同时相交才算重叠                                   | ⬜   |
+| 1   | 同一逻辑行：旧件发生项 `unit_to = 136`、新件发生项 `unit_from = 137`，日期相同 | 查 #136 与 #137        | 分别只返回旧件 / 新件；两个发生项保存时不被判重叠              | ✅   |
+| 2   | 日期有效 + 序列有效同时存在                                                    | 解析                   | 两个维度**同时**满足才入选                                     | ✅   |
+| 3   | 发生项甲 `lot_codes = {B1}`、乙 `lot_codes = NULL`                             | 按批次 B1、B2 分别解析 | B1 两条都入选；B2 只有乙（批次精确匹配，NULL = 全部批次）      | ✅   |
+| 4   | `unit_from > unit_to`                                                          | 保存                   | CHECK 拒绝                                                     | ✅   |
+| 5   | 同一逻辑行两个发生项：日期相交、序列相交（批次均 NULL）                        | 保存                   | 拒绝，错误给出相交的日期段与序列段                             | ✅   |
+| 6   | 同 #1 的两个发生项                                                             | 不带 `unit` 解析       | 该逻辑行标 `unresolved` 并列出两个候选；交给 US-521 导出即拒绝 | ✅   |
+| 7   | 日期相交、序列不相交                                                           | 保存                   | 接受                                                           | ✅   |
+| 8   | 日期不相交、序列相交                                                           | 保存                   | 接受                                                           | ✅   |
+| 9   | 日期、序列都不相交                                                             | 保存                   | 接受                                                           | ✅   |
+| 10  | 序列相交、日期相交、批次集合不相交                                             | 保存                   | 接受：三维要同时相交才算重叠                                   | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -86,7 +86,13 @@ PG GiST 对数组没有默认运算符类，NULL 在 `EXCLUDE` 里又永不冲�
 
 ## 实现文件
 
-- `packages/rxdb-plugin-bom/` — 待建；多维有效性解析
+- `packages/rxdb-plugin-bom/src/resolve/unit-lot.ts` / `config-validate.ts` — 多维有效性与候选解析
+- `packages/rxdb-plugin-bom/src/backend/unit-lot-trigger-ddl.ts` / `entities.ts` — 双后端三维排他与区间 CHECK
+- `packages/rxdb-plugin-bom/src/__tests__/bom-unit-lot.spec.ts` — 真实存储矩阵、解析与更新守卫
+
+## 第 8 步关闭记录
+
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-518)。
 
 ## References
 

@@ -1,11 +1,11 @@
 ---
 id: US-519
 title: 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升
-status: Backlog
+status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-10-20
 tags: [domain, bom, extensibility, schema]
 ---
 
@@ -21,7 +21,7 @@ tags: [domain, bom, extensibility, schema]
 
 ### In Scope
 
-- `item` / `bom_header` / 行发生项（`bom_line_occurrence`）各带 `ext`（PGlite 为 `jsonb`，SQLite 为 JSON 文本）；
+- `item` / `bom_header` / 行发生项（`bom_line_occurrence`）各带 `ext`（两端物理列均为 JSON 文本，PGlite 查询转换为 `jsonb`）；
   逻辑行 `bom_line` 只承载身份、不带 `ext`——行级的值随时间变化，落在发生项层（[US-507](US-507-bom-graph-skeleton.md) 两层行身份）；
   ECN 改行只经「截止旧发生项 + 引入新发生项」，`bom_line` 在已发布头下一律不可改（[US-515](US-515-bom-change-management.md) 表 × 操作矩阵），所以行级扩展属性只能挂发生项
 - `attr_def` 元数据表：`code` / `data_type` / `required` / `enum_values` / `applies_to` / `unit`；
@@ -34,7 +34,7 @@ tags: [domain, bom, extensibility, schema]
 - **索引是能力化优化**：PGlite 的 GIN、两端的表达式索引与 generated column 都是可选加速，按后端能力启用；
   没有某项索引能力不等于不支持扩展属性，只是没有加速
 - 热字段提升为 generated column + 索引：消费方的读写方式与查询写法不变、不需要手工回填；DDL 与建索引成本照常存在。
-  生成列、表达式索引与索引方法的声明面是 [US-030](../core/US-030-declarative-storage-constraints.md) 阶段 D（AC#3 / #7 的前置，D 同样价值待证），
+  生成列、表达式索引与索引方法的声明面由 [US-030](../core/US-030-declarative-storage-constraints.md) 阶段 D 提供（AC#3 / #7 的前置，已随本轮 spec023 完成功能验收），
   本故事验收的是提升后的读写与查询计划
 - `required` 的语义：**新写入与完整更新**必须有；既有行读取允许缺失；局部更新只要没触碰扩展属性就不强制补齐
 
@@ -49,13 +49,13 @@ tags: [domain, bom, extensibility, schema]
 
 | #   | 前置条件                               | 操作                                                             | 预期结果                                                                                                                 | 状态 |
 | --- | -------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | `attr_def` 定义必填枚举字段            | 写入非法值                                                       | 拒绝，错误指明字段与合法取值                                                                                             | ⬜   |
-| 2   | `applies_to = 'item'` 的属性           | 写到 `bom_line_occurrence.ext`                                   | 拒绝                                                                                                                     | ⬜   |
-| 3   | 某扩展字段变热                         | 提升为 generated column + 索引                                   | 消费方读写与查询写法不变、无需手工回填；该热字段的等值查询计划在两端都命中新索引（以查询计划断言，不假定自动改走生成列） | ⬜   |
-| 4   | 任意已声明的 key，同一数据集           | 在 SQLite 与 PGlite 上执行同一组过滤（含缺字段、null、类型不符） | 两端结果逐行一致；类型不符的过滤两端都拒绝                                                                               | ⬜   |
-| 5   | `attr_def` 声明必填、既有行缺该字段    | ① 读取 ② 局部更新其他列 ③ 完整更新 / 新写入不带该字段            | ① 不报错 ② 允许 ③ 拒绝，错误点名缺失字段                                                                                 | ⬜   |
-| 6   | 同一 `code` 在两个 `applies_to` 上定义 | 保存                                                             | 允许，二者独立（唯一键含作用域）                                                                                         | ⬜   |
-| 7   | PGlite 启用 GIN                        | 对 `ext` 做 `eq` 过滤                                            | 查询计划命中 GIN；关掉 GIN 后结果不变                                                                                    | ⬜   |
+| 1   | `attr_def` 定义必填枚举字段            | 写入非法值                                                       | 拒绝，错误指明字段与合法取值                                                                                             | ✅   |
+| 2   | `applies_to = 'item'` 的属性           | 写到 `bom_line_occurrence.ext`                                   | 拒绝                                                                                                                     | ✅   |
+| 3   | 某扩展字段变热                         | 提升为 generated column + 索引                                   | 消费方读写与查询写法不变、无需手工回填；该热字段的等值查询计划在两端都命中新索引（以查询计划断言，不假定自动改走生成列） | ✅   |
+| 4   | 任意已声明的 key，同一数据集           | 在 SQLite 与 PGlite 上执行同一组过滤（含缺字段、null、类型不符） | 两端结果逐行一致；类型不符的过滤两端都拒绝                                                                               | ✅   |
+| 5   | `attr_def` 声明必填、既有行缺该字段    | ① 读取 ② 局部更新其他列 ③ 完整更新 / 新写入不带该字段            | ① 不报错 ② 允许 ③ 拒绝，错误点名缺失字段                                                                                 | ✅   |
+| 6   | 同一 `code` 在两个 `applies_to` 上定义 | 保存                                                             | 允许，二者独立（唯一键含作用域）                                                                                         | ✅   |
+| 7   | PGlite 启用 GIN                        | 对 `ext` 做 `eq` 过滤                                            | 查询计划命中 GIN；关掉 GIN 后结果不变                                                                                    | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -86,11 +86,19 @@ SQLite 侧的 `json_extract` 表达式索引与 generated column 索引同样在
 ## 价值待证
 
 已随 [epic-009 解锁记录](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 解锁（2026-10-12，owner 决定）。
-AC#3 / #7 仍等 [US-030](../core/US-030-declarative-storage-constraints.md) 阶段 D（价值待证）。
+AC#3/#7与[US-030阶段D](../core/US-030-declarative-storage-constraints.md)已在本轮spec023完成功能验收，最终门禁已通过，故事已Done。
 
 ## 实现文件
 
-- `packages/rxdb-plugin-bom/` — 待建；`attr_def` 与 `ext` 校验
+- `packages/rxdb-plugin-bom/src/resolve/ext-attr.ts` — 元数据写入校验与类型化过滤，`filterByAttr` 同快照消费
+- `packages/rxdb-plugin-bom/src/ext-storage.ts` — 热字段声明、透明查询计划与显式存量迁移
+- `packages/rxdb-plugin-bom/src/repository.ts` / `entities.ts` — 三层扩展属性与强制保存入口
+- `packages/rxdb-plugin-bom/src/__tests__/bom-ext-attr.spec.ts` — 双后端缺字段/null/类型/日期一致性
+- `packages/rxdb-plugin-bom/src/__tests__/bom-hot-fields.spec.ts`、`bom-generated-storage.spec.ts` — 双后端计划命中、持久迁移与写入重放
+
+## 第 8 步关闭记录
+
+当前结果见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，本切片的阶段证据见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-519)。
 
 ## References
 
@@ -99,3 +107,11 @@ AC#3 / #7 仍等 [US-030](../core/US-030-declarative-storage-constraints.md) 阶
 - [US-515 变更管理](US-515-bom-change-management.md) — 表 × 操作矩阵：行级变更只经新发生项、`bom_line` 不可改，所以行级 `ext` 在发生项层
 - [US-030 实体元数据层的声明式存储约束](../core/US-030-declarative-storage-constraints.md) — 能力 fail-fast 规则；阶段 D（生成列、表达式索引与索引方法声明）是 AC#3 / #7 的前置，
   US-030 的消费方清单已把这两条记为 D 的消费方；AC#1 / #2 / #4～#6 不依赖 D
+
+## 最终验收
+
+最终完整affected351任务EXIT0、三端共享51/51、demo24/24（2026-10-18时点）、Tauri额外门禁及8包严格覆盖率全部通过，本故事全部功能AC与最终门禁已关闭，status为Done。证据及失败/修复历史见[最终验收](../../../specs/021-bom-closure/closure-map.md)。
+
+## 验收依据
+
+当前验收结论见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，阶段记录见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-519)。

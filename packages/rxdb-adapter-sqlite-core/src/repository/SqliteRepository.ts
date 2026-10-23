@@ -83,19 +83,24 @@ export class SqliteRepository<T extends EntityType> extends SqliteRepositoryBase
   }
 
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
-    const { sql, params } = await generate_entity_update_sql(this.metadata, entity, patch, {
-      ...this.rxdb.context,
-      encryption: this.adapter.encryptionContext,
-      updatedAt: getMonotonicUpdatedAt(entity)
-    });
-    let result;
+    const pending = getEntityStatus(entity).prepareUpdate(patch);
     try {
-      result = await this.adapter.writeQuery(sql, params);
-    } catch (error) {
-      throw toStorageConstraintViolationError(error, this.metadata, [entity as unknown as Record<string, unknown>]);
+      const { sql, params } = await generate_entity_update_sql(this.metadata, entity, patch, {
+        ...this.rxdb.context,
+        encryption: this.adapter.encryptionContext,
+        updatedAt: getMonotonicUpdatedAt(entity)
+      });
+      let result;
+      try {
+        result = await this.adapter.writeQuery(sql, params);
+      } catch (error) {
+        throw toStorageConstraintViolationError(error, this.metadata, [entity as unknown as Record<string, unknown>]);
+      }
+      await this.mergeQueryCache(result, pending.apply);
+      return entity;
+    } finally {
+      pending.release();
     }
-    await this.addQueryCache(result, true);
-    return entity;
   }
 
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {

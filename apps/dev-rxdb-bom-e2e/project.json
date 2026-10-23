@@ -1,0 +1,21 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["dev-rxdb-bom"],
+  "name": "dev-rxdb-bom-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-bom-e2e/src",
+  "tags": ["e2e", "demo"],
+  "targets": {
+    "e2e": {
+      "dependsOn": ["dev-rxdb-bom:build"],
+      "inputs": ["default", "^production", "{projectRoot}/src/**/*.spec.ts", "{projectRoot}/playwright.config.ts"]
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-bom-e2e",
+        "command": "eslint . --max-warnings=0"
+      }
+    }
+  }
+}

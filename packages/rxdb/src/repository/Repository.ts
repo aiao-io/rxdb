@@ -3,7 +3,7 @@ import { assertEntityOperationAllowed } from '../entity/entity-permissions.js';
 import { EntityStaticType, EntityType } from '../entity/entity.interface.js';
 import { SyncOptions, SyncType } from '../entity/metadata-options.interface.js';
 import { selectPrimaryAdapterKind } from '../entity/primary-adapter.js';
-import type { RawQueryResult } from '../rxdb-adapter.js';
+import type { RawQueryResult, RxDBMutationsMap } from '../rxdb-adapter.js';
 import { REMOTE_ENTITY_INVALIDATED_EVENT, RemoteEntityInvalidatedEvent } from '../rxdb-events.js';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
@@ -24,6 +24,7 @@ import {
   snapshotSortOrders,
   updateKeepingEdits
 } from '../sortable/sortable.utils.js';
+import type { TransactionExecutor } from '../transaction/transaction-executor.interface.js';
 import { getFingerprintByEntities, getFingerprintByEntity, getFingerprintPrimitive } from './fingerprint.utils.js';
 import { assertOptionalNonNegativeSafeInteger } from './number-validation.utils.js';
 import {
@@ -453,6 +454,9 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    *
    * @remarks
    * 分组手动排序实体改了分组字段而没给 `sortOrder` 时，在主适配器事务内追加到新组末尾（US-028 AC#16）。
+   *
+   * 门面在进主端之前先 `prepareUpdate(patch)` 占住编辑起点、结束时释放，自己不回填：回填由主端决定，
+   * `patch` 引用与回填语义的契约见 {@link IRepository.update}。
    */
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     assertEntityOperationAllowed(this.EntityType, 'update');
@@ -461,11 +465,12 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
       assertSortOrderKey(metadata.name, (patch as Record<string, unknown>)[SORT_ORDER_FIELD]);
     }
     if (isRegroupWithoutKey(metadata, entity, patch)) return this.#updateRegrouped(entity, patch);
+    const pending = getEntityStatus(entity).prepareUpdate(patch);
     const observer = this.primary$.pipe(
       switchMap(repo => repo.update(entity, patch)),
       tap(this._setLocal)
     );
-    return firstValueFrom(observer);
+    return firstValueFrom(observer).finally(pending.release);
   }
 
   /**
@@ -478,6 +483,28 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     const observer = this.primary$.pipe(switchMap(repo => repo.remove(entity)));
     return firstValueFrom(observer);
   }
+
+  /**
+   * 批量写入钩子（可选）：本地主适配器执行批量写入（`saveMany` / `mutations` / 多实体 `save()`）时，
+   * 在批次所在的同一个写事务里包住 `executor.mutations`。
+   *
+   * @param executor - 本批写事务的执行器
+   * @param mutations - 整批的创建 / 更新 / 删除（含其他实体类型）
+   * @param next - 执行本批写入及其余门面的钩子；实现必须调用且只调用一次，并返回它的结果
+   * @returns 本批写入的实体
+   *
+   * @remarks
+   * 门面仓储覆写单条 `create` / `update` 做保存期校验时，批量写入不经过它们——实现本钩子才能让批量写入
+   * 同口径。`next` 之前可原地规范化本批实体；`next` 之后读到的是本批写入后的库状态（同批内互相依赖的行
+   * 可见），抛错即整批回滚。内存里已由 `next` 推进的实体状态不随回滚恢复，与批内存储层约束拒绝同一语义。
+   * remote-only 与 QueryCache 主端的批次不调用本钩子（后者逐条经门面，已走单条路径）；持有 executor 的
+   * 事务内写入属适配器轴，同样不经过门面。
+   */
+  writeMutations?<M extends EntityType>(
+    executor: TransactionExecutor,
+    mutations: RxDBMutationsMap<M>,
+    next: () => Promise<InstanceType<M>[]>
+  ): Promise<InstanceType<M>[]>;
 
   /**
    * 把一行移到目标位置（仅限启用了 `manualOrder` 的实体）

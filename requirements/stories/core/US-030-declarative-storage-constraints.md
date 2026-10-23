@@ -1,11 +1,11 @@
 ---
 id: US-030
 title: 实体元数据层的声明式存储约束
-status: In Review
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-22
-updated: 2026-10-13
+updated: 2026-10-20
 tags: [core, schema, integrity]
 ---
 
@@ -24,11 +24,11 @@ tags: [core, schema, integrity]
 | A    | 属性级与实体级 CHECK 约束；SQLite 宿主版本门槛（AC#7），同 PR 把 Tauri 升到 rusqlite ≥ 0.33，门槛不打掉仓内任何宿主 | ✅   |
 | B    | 条件唯一索引（`where`）                                                                                             | ✅   |
 | C    | 区间排他约束：PG `EXCLUDE` + SQLite 触发器等价物，错误语义统一                                                      | ✅   |
-| D    | 生成列（generated column）、表达式索引（`expression`）与索引方法（`method`：GIN / GiST）声明                        | ⬜   |
+| D    | 生成列（generated column）、表达式索引（`expression`）与索引方法（`method`：GIN / GiST）声明                        | ✅   |
 
 阶段归属：A 关闭 AC#1 / #2 / #7～#9 / #11 / #15～#17，以及 AC#6 / #10 的 CHECK 部分；B 关闭 AC#3 与 AC#6 / #10 的条件唯一部分；
 C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分；D 关闭 AC#5。AC#11 / #15 的命名规则与 AC#16 的漂移扫描范围在 A 定下，B / C 沿用。
-表达式索引唯一的消费方是 US-519 的可选加速（阶段 D），所以随 D 价值待证，不进 B。
+表达式索引归阶段D，不进B。阶段D及其US-519热字段提升消费均已实现，功能与门禁证据见[spec023验收](../../../specs/023-bom-hot-fields/validation.md)。
 
 ## 范围边界
 
@@ -62,7 +62,7 @@ C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分；D 关闭 AC#5�
 | 2   | 实体级 CHECK「两字段二选一」                                                                                      | 两字段同时给值                                            | 拒绝                                                                                              | ✅   |
 | 3   | 索引声明 `where`                                                                                                  | 写入不满足条件的重复行                                    | 不被唯一约束误拒                                                                                  | ✅   |
 | 4   | 区间排他约束                                                                                                      | 插入重叠区间                                              | 两个后端均拒绝，错误指出冲突区间                                                                  | ✅   |
-| 5   | 声明生成列 + GIN                                                                                                  | 按该列过滤                                                | 走索引；原字段的读写方式不变                                                                      | ⬜   |
+| 5   | 声明生成列 + GIN                                                                                                  | 按该列过滤                                                | 走索引；原字段的读写方式不变                                                                      | ✅   |
 | 6   | 后端不支持某项声明                                                                                                | `init()`                                                  | 建元数据期抛错，不静默降级为应用层校验                                                            | ✅   |
 | 7   | SQLite 宿主版本 < 3.47.0                                                                                          | `init()`                                                  | 抛错并点名实际版本与门槛，不退化为常量错误消息                                                    | ✅   |
 | 8   | 实体级 CHECK `unit_from <= unit_to`（字段对字段）                                                                 | 写入 `unit_from > unit_to`；另写一行 `unit_from` 为 NULL  | 前者两后端均拒绝；后者两后端均放行（SQL 三值逻辑，要拒 NULL 须另加 `notNull`）                    | ✅   |
@@ -293,14 +293,14 @@ PG 虽能 `ADD CONSTRAINT`，但老数据违约时，启动就成了一次无界
 
 ## 价值待证
 
-本故事**价值待证**：今天没有任何已交付故事因缺这四项能力而出缺陷——
+本故事立项时标为**价值待证**：当时没有已交付故事因缺这四项能力而出缺陷——
 `normalized` 已经单点解决了实际踩到的那一个。
 
-**解锁记录（2026-10-02，owner 决定）**：阶段 A～C 提前解锁、进批次 3，`priority` 由 Low 升为 Medium；阶段 D 仍价值待证。
+**解锁记录（2026-10-02，owner 决定）**：阶段 A～C 提前解锁、进批次 3，`priority` 由 Low 升为 Medium；该记录当时保留阶段D；2026-10-18用户要求完整BOM剩余任务后，阶段D已纳入spec023，最终完整验收通过，故事已Done。
 依据是 owner 已确认 [epic-009 默认决策](../../epics/epic-009-bom-domain-model.md#解锁前须先处理) 1～8 条，A～C 正是那份模型在存储层的落点（epic-009 第 1 步前置）。这**不是**发现了独立病灶——「病灶数 ≥ 抽象数」此处由 owner 决定豁免，写在这里，免得后来者把它读成已有缺陷驱动。
 **设计取舍确认（2026-10-02，owner）**：同步拉取遇本地约束拒绝记为已知限制、不做隔离；区间排他保留 AC#14，改执行顺序支持「截旧 + 新开」的重放，区间互换不支持；
 继承同名约束子覆盖父；约束 `name` 只允许 `[a-z0-9_]`；表达式索引归阶段 D。
-epic-009 其余故事仍等第 0 步的真实样本；若最终没有样本出现，A～C 交付的能力要另找消费方，或就此停在已交付阶段。
+该历史记录当时以epic-009第0步真实样本为前置；样本与手工golden已在后续首轮就位，本轮完整BOM授权及消费方验收见最新记录。
 
 消费方目前全部集中在 [epic-009](../../epics/epic-009-bom-domain-model.md)：
 阶段 A 被 US-511 AC#7 / #21、US-512 AC#10、US-518 AC#4 消费（US-511 AC#12 与 US-513 AC#5 判的是十进制文本，改由 BOM 插件的格式触发器承担，见 US-511「十进制值合同」）（AC#7 的版本门槛被 US-507 AC#5 与 US-509 AC#1 消费）；
@@ -320,9 +320,11 @@ epic-009 其余故事仍等第 0 步的真实样本；若最终没有样本出�
 - `packages/rxdb/src/system/` — `check-violation.ts` / `exclusion-violation.ts`（违约归一化）、`constraint-drift.ts`（漂移比对共享核心）、
   `exclusion-write-order.ts`（AC#14 的执行顺序）
 - `packages/rxdb/src/RxDB.ts` — AC#6 的能力判定与 `init()` 漂移检查的调用点（与 `reconcileEntityIndexes` 同一时机）
+- `packages/rxdb/src/entity/` — 阶段D的`generated-column.ts`、`storage-expression.ts`、`advanced-index.ts`、`storage-override.ts`、`storage-catalog.ts`与`storage-ddl.ts`；生成列/索引声明、实例冻结计划、目录定义与双端DDL编译
 - `packages/rxdb-adapter-sqlite-core/` — SQLite family 的 DDL（`table/create_table_sql.ts`、`table/exclusion_trigger_sql.ts`）、漂移检查、
   写入路径归一化；`version/execute_switch_actions.ts` 与 `rxdb_adapter_mutations.ts` 的执行顺序（AC#14）
 - `packages/rxdb-adapter-pglite/` — PG 侧 DDL、`btree_gist` 装载（`pglite-server-extensions.ts`）、漂移检查、写入路径归一化；执行顺序同上
+- 两端`table/check-storage-declarations.ts` — 阶段D存储声明目录核对及能力判定；生成列和高级索引接入现有建表/恢复/重放路径
 - `packages/rxdb-test/src/check-constraint/` — 两后端共用的契约套件（CHECK / 条件唯一 / 区间排他）
 - `requirements/api-baseline/rxdb.json` — 三个新错误类是 `packages/rxdb` 的新导出，跑 `pnpm audit:api-surface:update` 同步基线并补 TSDoc
 
@@ -331,3 +333,11 @@ epic-009 其余故事仍等第 0 步的真实样本；若最终没有样本出�
 - [epic-004 未来功能](../../epics/epic-004-future-features.md)
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md) — 当前全部消费方
 - [`EntityIndexMetadataOptions`](../../../packages/rxdb/src/entity/property-types.interface.ts) — 现有索引声明面
+
+## 最终验收
+
+最终完整affected351任务EXIT0、三端共享51/51、demo24/24（2026-10-18时点）、Tauri额外门禁及8包严格覆盖率全部通过，本故事全部功能AC与最终门禁已关闭，status为Done。证据及失败/修复历史见[最终验收](../../../specs/021-bom-closure/closure-map.md)。
+
+## 验收依据
+
+当前验收结论见[BOM最终验收](../../../specs/021-bom-closure/closure-map.md)，阶段记录见[验收留档](../../../specs/021-bom-closure/story-validation-history.md#us-030)。

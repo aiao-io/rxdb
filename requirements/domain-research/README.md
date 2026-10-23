@@ -127,8 +127,8 @@ AI 构建器和小游戏适合继续做有边界的技术 / 玩法验证，当�
 - 当前实体写权限为 `both / system`，不是角色、owner、租户与行级读隔离；US-029 仍为 Backlog。
 - GeneratorPage 导出实体 JS / 类型声明，完整应用壳、路由、依赖与发布模板还需要另做。
 - Git 基准完成了特定浏览器和 fixture 的实验，代码编辑、编译、依赖与隔离预览尚未组成应用构建器。
-- 本分支的 BOM 19 条故事 YAML 都为 Backlog，未发现 `apps/dev-rxdb-bom`；已解锁代表已有授权与范围，
-  不能直接读成已经完成。其他分支的进度以对应验收记录为准。
+- BOM 的 19 条故事 YAML 均为 Done，演示应用是 `apps/dev-rxdb-bom`，验收证据见
+  [最终验收](../../specs/021-bom-closure/closure-map.md)；全域 BOM 仍不进工作台首版（见下文「已孵化：制造业 BOM」）。
 
 ### 为什么工作台比看板更值得先做
 

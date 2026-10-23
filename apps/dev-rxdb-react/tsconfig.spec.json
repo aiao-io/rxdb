@@ -26,6 +26,12 @@
   ],
   "references": [
     {
+      "path": "../../packages/rxdb-plugin-bom-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
     },
     {

@@ -5,6 +5,7 @@ import {
   EntityType,
   getEntityMetadata,
   getEntityStatus,
+  getEntityStorageMetadata,
   RxDBChange
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from './RxDBAdapterSqliteBase.js';
@@ -78,6 +79,7 @@ const decodeForeignKeyValues = <T extends object>(
  * @param forcedUpdate
  * @param skipCreate 跳过创建新实体（仅更新已有缓存）
  * @param mergeExternalChanges 合并数据库数据，同时保留未保存字段
+ * @param applySaved 仅更新写回提供的合并句柄，查询不使用
  * @returns
  */
 export const transaction_sqlite_result = async <T extends EntityType>(
@@ -86,10 +88,11 @@ export const transaction_sqlite_result = async <T extends EntityType>(
   sqliteSuccessResult: SqliteSuccessResult,
   forcedUpdate = false,
   skipCreate = false,
-  mergeExternalChanges = false
+  mergeExternalChanges = false,
+  applySaved?: (data: Partial<InstanceType<T>>) => void
 ): Promise<InstanceType<T>[]> => {
   const result: InstanceType<T>[] = [];
-  const metadata = getEntityMetadata(EntityType);
+  const metadata = getEntityStorageMetadata(adapter.rxdb, EntityType);
   const isRxDBChange = metadata === getEntityMetadata(RxDBChange);
   const em = adapter.rxdb.entityManager;
   // 结果集里的列名是物理列名，主键列可被 columnName 改写（SQLC-014）
@@ -121,7 +124,9 @@ export const transaction_sqlite_result = async <T extends EntityType>(
             entity[propName as keyof InstanceType<T>] = entityObjectData[propName];
           }
         });
-        if (mergeExternalChanges) {
+        if (applySaved !== undefined) {
+          applySaved(entityObjectData);
+        } else if (mergeExternalChanges) {
           const state = getEntityStatus(entity);
           if (state.modified) {
             state.mergeExternal(entityObjectData);
@@ -151,7 +156,7 @@ export const transaction_sqlite_result = async <T extends EntityType>(
       result.push(entity);
       const state = getEntityStatus(entity);
       state.local = true;
-      if (!mergeExternalChanges) state.modified = false;
+      if (!mergeExternalChanges && applySaved === undefined) state.modified = false;
       // 能在结果集里查到这一行，说明该 id 此刻在数据库中确实存在（未被删除）——
       // 无论是否 forcedUpdate 都要清除 removed，否则撤销删除 / 分支切换复活的行会因为
       // 命中缓存里那个仍标着 removed=true 的旧引用，永远显示"已删除"（RXD-011）

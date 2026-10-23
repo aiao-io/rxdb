@@ -239,6 +239,24 @@
     },
     {
       "path": "./packages/rxdb-plugin-tree-vue"
+    },
+    {
+      "path": "./packages/rxdb-plugin-bom"
+    },
+    {
+      "path": "./apps/dev-rxdb-bom-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-bom"
+    },
+    {
+      "path": "./packages/rxdb-plugin-bom-angular"
+    },
+    {
+      "path": "./packages/rxdb-plugin-bom-react"
+    },
+    {
+      "path": "./packages/rxdb-plugin-bom-vue"
     }
   ]
 }

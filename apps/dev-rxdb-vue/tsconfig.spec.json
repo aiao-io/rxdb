@@ -11,6 +11,12 @@
   "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.d.ts", "src/**/*.ts", "src/**/*.vue"],
   "references": [
     {
+      "path": "../../packages/rxdb-plugin-bom-vue/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
     },
     {

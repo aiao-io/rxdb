@@ -109,6 +109,7 @@ export function QueryBuilder<T extends object = Record<string, unknown>>({
       validationSubscription.unsubscribe();
       service.destroy();
       serviceRef.current = null;
+      lastAppliedInitialQueryRef.current = undefined;
     };
     // 初始 maxDepth 只在服务创建时读取（Angular 侧 constructor 同语义）
     // eslint-disable-next-line react-hooks/exhaustive-deps

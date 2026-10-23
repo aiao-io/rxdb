@@ -1,6 +1,6 @@
 ---
 id: epic-009-bom-domain-model
-status: Backlog
+status: Done
 startDate: 2026-10-12
 targetDate: TBD
 owner: jimmy
@@ -29,7 +29,7 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 - 它不是引擎能力——`@aiao/rxdb` 不会因为它多出一个查询原语，挂进 epic-001 会让「核心 MVP」的愿景失真；
 - 它是**应用领域模型**：一层建立在现有实体/仓储/活查询之上的行业语义。
 
-**但分界线不落在「只差多重边」这一句上。** 本 Epic 的 AC 有四类要求落在引擎声明面之外：
+**但分界线不落在「只差多重边」这一句上。** 本Epic立项时的AC有四类要求落在当时的引擎声明面之外：
 属性级与实体级 CHECK、条件唯一与区间排他索引、生成列与索引方法、以及写入期的跨行判定。
 [`EntityMetadataOptions`](../../packages/rxdb/src/entity/entity-options.interface.ts) 里没有 CHECK 的落点，
 [`EntityIndexMetadataOptions`](../../packages/rxdb/src/entity/property-types.interface.ts) 的自有字段只有
@@ -43,14 +43,14 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 
 ## 目标
 
-三条都是可核对的状态：
+三条都是可核对的功能状态；勾选不替代19条故事及最终分支门禁：
 
-- [ ] 一套表结构承载 EBOM / MBOM / 销售 BOM，三者共享同一份物料主数据——同一类型内的组织、修订与
+- [x] 一套表结构承载 EBOM / MBOM / 销售 BOM，三者共享同一份物料主数据——同一类型内的组织、修订与
       生效期差异走视图过滤（[US-508](../stories/domain/US-508-bom-view-resolution.md)），
       EBOM↔MBOM 走 `bom_map` 重构关联（[US-516](../stories/domain/US-516-ebom-mbom-mapping.md)
       的关闭条件正是「明确不用视图实现」）；
-- [ ] 多级展开的**数量**与手算一致——三类损耗（装配 / 组件 / 工序）位置正确、虚拟件穿透、定量与公式用量；
-- [ ] 成环在存储层被拒——按 `(bom_type, org_id)` 对全部已存 `consume` 边的**并集**判环，不随生效期或修订变化，
+- [x] 多级展开的**数量**与手算一致——三类损耗（装配 / 组件 / 工序）位置正确、虚拟件穿透、定量与公式用量；
+- [x] 成环在存储层被拒——按 `(bom_type, org_id)` 对全部已存 `consume` 边的**并集**判环，不随生效期或修订变化，
       卷算的拓扑排序永不死锁，且副产品与废料的反向物料流（非 `consume` 边）**不被误判成环**
       （[US-509](../stories/domain/US-509-bom-dag-cycle-detection.md)）。
 
@@ -96,10 +96,14 @@ owner 于 2026-10-12 决定解锁，**驱动者 = 需要一个完整功能的 BO
 `priority` 保持 `Low`，排期以 roadmap 批次与[首轮可开工切片](#首轮可开工切片)为准；`startDate` 定为本记录日期，
 `targetDate` 仍 `TBD`（不估完整 19 条故事的交期，见第 0 步「明确不承诺」）。
 
-**不随本记录解锁的部分**：[US-513](../stories/domain/US-513-bom-coproduct-byproduct.md) 阶段 B（联产品与联合成本分配）、
+**2026-10-12记录当时保留的部分**：[US-513](../stories/domain/US-513-bom-coproduct-byproduct.md) 阶段 B（联产品与联合成本分配）、
 [US-519](../stories/domain/US-519-bom-extension-attributes.md) AC#3 / #7（等 US-030 阶段 D）、
 [US-510](../stories/domain/US-510-bom-multilevel-explosion.md) 阶段 B（只由实测热路径触发）。
 开工顺序见[首轮可开工切片](#首轮可开工切片)：第 0 步（决策复核 + 演示范围确认）先行，第 0 步不成立后面都不开工。
+
+**完整BOM最终交付**：US-513 B、US-030 D/US-519热字段、US-510 B及US-522三端全部完成。最终86项目351任务EXIT0、共享51/51、demo24/24（2026-10-18时点；现demo共34条，见US-525）、Tauri与8包严格coverage通过，spec011～024共256任务全部勾选；19条BOM故事和跨域US-030均Done。
+
+最终三端首屏/输入p95为1206/15.6、1105.2/42.2、796.3/9.5ms，均满足原预算，面板均468px。350任务Angular1622.6ms失败、1340ms控制及全部红绿/中断历史见spec020；最终证据及报告边界见[验收结果](../../specs/021-bom-closure/closure-map.md)。原解锁和下表首轮不承诺范围保留为历史，不表示当前未实现。
 
 本 Epic 没有一条带脱离 BOM 场景的独立病灶。[US-509](../stories/domain/US-509-bom-dag-cycle-detection.md)
 的「写入期拒绝成环」不是在补 `@aiao/rxdb-plugin-graph` 的缺口：图插件允许成环与自环是**既定语义**，
@@ -107,11 +111,11 @@ owner 于 2026-10-12 决定解锁，**驱动者 = 需要一个完整功能的 BO
 读侧由路径查询的 `cycle` 判定与 `GRAPH_MAX_PATH_EXPANSIONS` 保证终止。无环是 BOM 的领域约束。
 
 从本 Epic 拆出去的 [US-030](../stories/core/US-030-declarative-storage-constraints.md) 阶段 A～C 已由 owner 于 2026-10-02
-提前解锁（阶段 D 仍待证，见该故事「解锁记录」），排在 roadmap 批次 3，是首轮切片第 1 步的前置。
+提前解锁，排在roadmap批次3，是首轮切片第1步的前置；阶段D当前随2026-10-18完整BOM范围进入spec023收口，见该故事最新记录。
 
 ## 首轮可开工切片
 
-驱动场景一旦出现，按下表顺序推进。每一步只关闭表中列出的 AC 子集，**不因部分阶段验收而把整条故事置 Done**；
+下表保留2026-10-12首轮起点的范围与顺序，历史不承诺项的当前实施状态以本轮授权和各故事最新记录为准。驱动场景一旦出现，按下表顺序推进。每一步只关闭表中列出的 AC 子集，**不因部分阶段验收而把整条故事置 Done**；
 顺序本身也不是解锁授权——第 0 步不成立，后面都不开工。
 
 | 顺序 | 交付                                                                                                                                                                                   | 可以验收 / 关闭什么                                                                                                                                                                                                                                                                                                | 明确不承诺                                                                                                                |
@@ -123,10 +127,48 @@ owner 于 2026-10-12 决定解锁，**驱动者 = 需要一个完整功能的 BO
 | 4    | US-507 阶段 C + US-525 阶段 A                                                                                                                                                          | 位号计数的编辑 / 发布协议；分层种子的 A 层与分阶段 golden；无路线版算式面板                                                                                                                                                                                                                                        | 不演示第 5 步工序损耗，面板标「未交付」而非按 0 计                                                                        |
 | 5    | 演示与真实需求驱动的后续阶段                                                                                                                                                           | 替代、副产与废料、路线、成本、ECN、映射（US-516）、序列 / 批次（US-518）、扩展属性（US-519 不依赖 US-030 阶段 D 的 AC）、集成与导出（US-521）、实例（US-523）各按自身 References 的前置接入，交付顺序由 [US-525](../stories/domain/US-525-bom-end-to-end-demo.md) 阶段 B～F 引导；联产品属 US-513 阶段 B，另需驱动 | US-510 阶段 B 只由实测热路径触发；三框架绑定（US-522）与演示独立排期；US-519 的 AC#3 / #7 仍等 US-030 阶段 D（价值待证）  |
 
-第 1～4 步合起来就是最小可演示闭环：建 BOM → 按视图解析 → 多级展开 → where-used 反查 → 拒绝成环 → 数量与手算一致。
-这个闭环的**验收手段**是 [US-525](../stories/domain/US-525-bom-end-to-end-demo.md) 阶段 A：
-各故事的 AC 都是单点断言，而组合错误（乘序、二次过滤、穿透后继承）只在一份贯穿的数据集上显形。
-它不是解锁依据——demo 需要插件存在，拿它当启动理由是循环论证，见该故事的「价值待证」。
+> **截至 2026-10-13：第 1 步已交付**（US-030 阶段 A/B/C + US-507 阶段 A/B + Tauri 升 rusqlite 0.33 + `qty` 十进制存储段），
+> 各故事不提前置 Done；AC 勾选与关闭记录见 [US-030](../stories/core/US-030-declarative-storage-constraints.md)、
+> [US-507](../stories/domain/US-507-bom-graph-skeleton.md)、[US-511](../stories/domain/US-511-bom-quantity-semantics.md)。第 2 步起可从 US-508 / US-509 开工。
+>
+> **截至 2026-10-14：第 2 步已交付**（US-508 首轮 AC + US-509 首轮 AC + US-510 阶段 A + `rxdb.bom` 插件收尾：
+> `resolveBom` / `loadHistory` / `expandBom` / `whereUsed` / `assertCompleteResolution` / `cycleConstraintDdlForRemotePg`），
+> 三条故事不提前置 Done；AC 勾选与关闭记录见 [US-508](../stories/domain/US-508-bom-view-resolution.md)、
+> [US-509](../stories/domain/US-509-bom-dag-cycle-detection.md)、[US-510](../stories/domain/US-510-bom-multilevel-explosion.md)。
+>
+> **截至 2026-10-14：第 3 步已交付**（US-511 阶段 A / C / B1：十进制 kernel 与公式求值器、单位换算、
+> `explodeBom` 七步展开、阶梯与损耗、虚拟件穿透、阶梯切片发布校验），AC 勾选与关闭记录见
+> [US-511](../stories/domain/US-511-bom-quantity-semantics.md)。
+>
+> **截至 2026-10-14：第 4 步已交付**（US-507 阶段 C 位号子表 + US-525 阶段 A：SC-100 确定性种子与手写 golden、
+> `apps/dev-rxdb-bom` 演示应用与 `apps/dev-rxdb-bom-e2e` 六条验收用例）——**首轮切片 1~4 步闭环完成**，
+> AC 勾选与关闭记录见 [US-507](../stories/domain/US-507-bom-graph-skeleton.md)、
+> [US-525](../stories/domain/US-525-bom-end-to-end-demo.md)。
+>
+> **截至 2026-10-14：第 5 步已交付**（US-513 阶段 A + US-512 非 ECN + US-524 A/D + US-520 非 ECN +
+> US-511 B2 + US-525 阶段 B：多输出物料流、替代组、工艺路线与工序损耗、投料分摊），
+> AC 勾选与关闭记录见各故事；US-509 AC#4 同批关闭。
+>
+> **截至 2026-10-15：第 6 步已交付**（US-515 全部 26 个 AC + US-525 阶段 C：`ecn` 实体与写入协议矩阵、
+> ECN 发布 / 改期 / 取消状态机与转换后运行投影切片校验、影响面与差异查询、ECN 时间轴种子与面板），
+> AC 勾选与关闭记录见 [US-515](../stories/domain/US-515-bom-change-management.md)、
+> [US-525](../stories/domain/US-525-bom-end-to-end-demo.md)；US-508 AC#12/#16、US-512 AC#6/#9/#14、
+> US-507 AC#10 同批关闭。
+>
+> **截至 2026-10-16：第 7 步已交付**（US-524 阶段 B/C 费率与工时 + US-514 全部 19 个 AC + US-516 全部 22 个 AC +
+> US-525 阶段 D：activity_type/rate 生效区间与按日取值、成本属性与 34 位定点卷算引擎、EBOM↔MBOM 六态映射与
+> 覆盖率/跟进缺口、种子 D 层双图与卷算输入、demo 双图并排 + 覆盖率缺口 + 卷算面板、e2e 第 14~17 条），
+> AC 勾选与关闭记录见 [US-514](../stories/domain/US-514-bom-cost-rollup.md)、
+> [US-516](../stories/domain/US-516-ebom-mbom-mapping.md)、
+> [US-524](../stories/domain/US-524-routing-master-model.md)、
+> [US-525](../stories/domain/US-525-bom-end-to-end-demo.md)。
+> **截至 2026-10-16：第 8 步已交付**（US-517 / US-518 / US-521 全部 AC、US-519 AC#1/#2/#4/#5/#6、US-525 阶段 E）：配置与三维有效性统一解析、元数据属性校验、同快照导出及整批原子草稿导入、六页演示应用与 21 条 e2e；插件 554 条双后端回归通过。阶段 F / US-523 与 US-522 三框架绑定留在后续，US-519 AC#3/#7 仍等 US-030 阶段 D。
+> **第 9 步领域与演示验收（2026-10-16）**：US-523 全部 13 条 AC 与 US-525 阶段 F 通过；实例安装事实、换件历史、序列/批次追溯与来源删除保护接回 SC-100，七页应用保留 23 条 e2e。两端各 10 万实例节点的主数据摘要、结果与查询计划不变，领域用例共 599 条分段通过；验证见 [第 9 步 quickstart](../../specs/019-bom-slice-9/quickstart.md)。US-522 可复用三框架绑定独立排期，US-519 AC#3/#7 与 US-513 阶段 B 仍按既定驱动条件推进。
+>
+> 第 1～4 步合起来就是最小可演示闭环：建 BOM → 按视图解析 → 多级展开 → where-used 反查 → 拒绝成环 → 数量与手算一致。
+> 这个闭环的**验收手段**是 [US-525](../stories/domain/US-525-bom-end-to-end-demo.md) 阶段 A：
+> 各故事的 AC 都是单点断言，而组合错误（乘序、二次过滤、穿透后继承）只在一份贯穿的数据集上显形。
+> 它不是解锁依据——demo 需要插件存在，拿它当启动理由是循环论证，见该故事的「价值待证」。
 
 ## 第 0 步样本
 
@@ -188,7 +230,7 @@ Stem           ×1 EA   [2021-08-08, ∞)            → Metal Bar 1 ×1
 | 未声明的前置                                            | 各故事 References 已逐条标「前置」，并按阶段 / AC 写明依赖                                                                                                                                                                                                                                                                                                       |
 | US-525 的评估日 AC 没有归属                             | 已成为 [US-508](../stories/domain/US-508-bom-view-resolution.md) AC#7 / #8（`as_of_date` 必填、不读系统时钟）                                                                                                                                                                                                                                                    |
 | ECN 要写已发布头，US-507 AC#10 又禁写                   | [US-515 已发布头的写入协议](../stories/domain/US-515-bom-change-management.md#已发布头的写入协议)：只放行挂在 `draft` ECN 上的写入与状态转移级联；US-508 按 ECN 状态定可见性；首轮无 ECN，全部拒绝                                                                                                                                                               |
-| 动态错误消息要 SQLite ≥ 3.47，Tauri 是 3.46.0           | [US-030](../stories/core/US-030-declarative-storage-constraints.md) AC#7 宿主版本门槛；Tauri 升 rusqlite 是第 1 步前置                                                                                                                                                                                                                                           |
+| 动态错误消息要 SQLite ≥ 3.47，Tauri 是 3.46.0           | [US-030](../stories/core/US-030-declarative-storage-constraints.md) AC#7 宿主版本门槛；Tauri 已随第 1 步升 rusqlite 0.33（3.48.0）                                                                                                                                                                                                                               |
 | US-509 自反边依赖 US-030 的 CHECK                       | 自反边改由同一可达性触发器拒绝（US-509 AC#2，路径长度 0），不再依赖 US-030，进首轮验收                                                                                                                                                                                                                                                                           |
 | US-511 阶梯行按「同头同子件」成组，与 US-507 多重图冲突 | 阶梯以 `(bom_header_id, tier_group_no)` 成组（[US-511](../stories/domain/US-511-bom-quantity-semantics.md) AC#6 / #19）                                                                                                                                                                                                                                          |
 | US-525 固定日期种子撞禁止追溯生效                       | [US-508](../stories/domain/US-508-bom-view-resolution.md) 历史装载通道（AC#13 / #14，可审计而非不可绕过）；种子按阶段分层追加                                                                                                                                                                                                                                    |
@@ -202,7 +244,7 @@ Stem           ×1 EA   [2021-08-08, ∞)            → Metal Bar 1 ×1
 | 子对象可挂在另一张草稿 ECN 新建的逻辑行 / 组下          | 父逻辑行 / 组须来自已发布数据或同一张 ECN；被引用的 ECN 不可取消（US-515 AC#26）                                                                                                                                                                                                                                                                                 |
 | 映射要求即时父件相同，禁止重新分层                      | 变换范围由根级头配对定义，成员资格由从根头出发的头链证明、物料级并集只剪枝；共享子装配可带路径；换头不继承（[US-516](../stories/domain/US-516-ebom-mbom-mapping.md) AC#11～#15）                                                                                                                                                                                 |
 | 成本子件单价与需求不同单位；加工费乘无损耗的 L          | 相乘前按数量同一换算转到子头 `base_uom`；每件工时乘工序加工量 `W_op`（[US-514](../stories/domain/US-514-bom-cost-rollup.md) AC#12～#16、US-511「装配损耗级联到工序」）                                                                                                                                                                                           |
-| 多输出没有产出基准与成本归属                            | 主产物 = 头父件，副产量按 `P'` 缩放；联产品转 [US-513](../stories/domain/US-513-bom-coproduct-byproduct.md) 阶段 B（价值待证）；US-513 AC#10 / #11、US-514 AC#17                                                                                                                                                                                                 |
+| 多输出没有产出基准与成本归属                            | 主产物 = 头父件，副产量按 `P'` 缩放；联产品转 [US-513](../stories/domain/US-513-bom-coproduct-byproduct.md) 阶段B（本轮spec022已实现固定份额合同，最终门禁待收口）；US-513 AC#10/#11、US-514 AC#17                                                                                                                                                               |
 | 导入同键平局、快照确定性、PG 隔离级别、配置 UI 无归属   | US-521 同键全员失败 + 完整排序键；US-508「同一份已提交数据」与一致快照；US-509 导出 DDL 只支持 Read Committed 并在触发器内检查；配置 UI 明确不做（US-517）                                                                                                                                                                                                       |
 | 映射跟进基线只比末端行的发生项                          | 基线 = 源侧解析步骤集合（行发生项 + 解析所得子件修订，取自 manifest）：祖先用量变、imprecise 修订变都进缺口，precise 锁版与评估日变化不产生假缺口，确认整体推进基线（[US-516](../stories/domain/US-516-ebom-mbom-mapping.md) AC#16～#22、[US-508](../stories/domain/US-508-bom-view-resolution.md) AC#17）                                                       |
 | 路线唯一键缺 `bom_type`，与 BOM 头不同构                | `routing` 键为 `(parent_revision_id, bom_type, org_id, alternative_no)`，与 `bom_header` 逐列相同（[US-524](../stories/domain/US-524-routing-master-model.md) AC#11）                                                                                                                                                                                            |
@@ -210,8 +252,7 @@ Stem           ×1 EA   [2021-08-08, ∞)            → Metal Bar 1 ×1
 | 被实例引用的来源发生项会被 ECN 撤回 / 取消级联删除      | 来源被实例引用时所属 ECN 不可撤回、不可取消，草稿头下也不可直接删除（[US-523](../stories/domain/US-523-bom-as-built-instance.md) AC#7，追加在 US-515 的取消校验上）                                                                                                                                                                                              |
 | 扩展属性的拒绝用例写在不带 `ext` 的逻辑行上             | `ext` 只在 `item` / `bom_header` / 行发生项三层，`bom_line` 只承载身份（[US-519](../stories/domain/US-519-bom-extension-attributes.md) AC#2）                                                                                                                                                                                                                    |
 
-以下产品决策已按**最小方案**写进各故事。**1～8 条由 owner 确认**，作为开工基线；它们仍不是驱动样本验证过的结论——
-第 0 步的真实样本若与其中任一条冲突，推翻它要先改对应故事再开工：
+以下产品决策已按**最小方案**写进各故事。**1～8条由owner确认**，作为开工基线；第0步形态样本与手算golden已复核就位，但不充当具名客户需求证据。后续真实场景若与其中任一条冲突，需先修改对应故事及验收合同：
 
 1. **逻辑行历史留在同一张头内**：`bom_line`（稳定业务身份）与 `bom_line_occurrence`（按生效期的时间记录）分层，
    改一行不强制新父修订（[US-507](../stories/domain/US-507-bom-graph-skeleton.md)）。
@@ -232,7 +273,7 @@ Stem           ×1 EA   [2021-08-08, ∞)            → Metal Bar 1 ×1
 7. **`unresolved` / `truncated` 只给浏览**：UI 可展示候选集与截断结果，数量、成本与 MRP 导出遇到即拒绝。
 8. **数量精度是约定而非精确**：34 位有效数字十进制、中间量 half-even、需求行一次向上取整；非虚拟子装配取整后的值作为其子 BOM 的 P
    （[US-511](../stories/domain/US-511-bom-quantity-semantics.md) AC#17）。约定的前提是输入无损：十进制值从输入到导出全程以规范串承载（US-511 AC#22）。
-9. **驱动者已定，第 0 步问题不变**：[形态样本与手算 golden](#第-0-步样本) 已就位，驱动者已由 owner 定案（完整功能的演示应用，见[解锁记录](#价值待证整个-epic)）；但验收场景是什么、本期支持哪些行业语义，仍是第 0 步要回答的问题。
+9. **驱动者与首轮场景已定**：[形态样本与手算golden](#第-0-步样本)已就位，驱动者已由owner定案（完整功能的演示应用，见[解锁记录](#价值待证整个-epic)）。本期支持的行业语义以各故事及切片合同为边界，新增场景不因演示存在而自动进入承诺范围。
 
 ### 数据结构与不变量
 
