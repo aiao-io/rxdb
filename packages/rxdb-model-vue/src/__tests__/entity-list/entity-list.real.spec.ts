@@ -32,6 +32,7 @@ class LockedTask extends EntityBase {
 
 type ListVM = InstanceType<typeof EntityList> & {
   rxdb: RxDB;
+  confirmDelete: () => Promise<void>;
   displayName: string;
   isCreateBlocked: boolean;
   isQueryActive: boolean;
@@ -393,6 +394,9 @@ describe('EntityList（真实组件）', () => {
     expect(component.tableRecords).toHaveLength(2);
 
     await component.onRowDeleted({ id: victim.id });
+    await FLUSH();
+    // 删除需经确认弹层
+    await component.confirmDelete();
     await FLUSH();
 
     await vi.waitFor(() => {
@@ -806,6 +810,9 @@ describe('EntityList（真实组件）', () => {
 
       tableOf(child).emit('icon_click', { name: 'delete-action', col: colOf(component, 'actions'), row });
       await FLUSH();
+      await FLUSH();
+      // 删除需经确认弹层
+      await component.confirmDelete();
       await FLUSH();
 
       expect(await titlesOf(Invoice as unknown as EntityType)).toEqual(['keep']);

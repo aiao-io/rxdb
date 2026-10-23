@@ -320,6 +320,8 @@ onMounted(() => {
     initTable(el);
     prevColumns = props.columns;
     tableReady.value = true;
+    // 无障碍：VTable 焦点控制输入没有语义标签（axe label 违规）
+    el.querySelector<HTMLInputElement>('.table-focus-control')?.setAttribute('aria-label', '数据表格焦点控制');
   }
 });
 
@@ -333,6 +335,8 @@ watch(
           initTable(el);
           prevColumns = columns;
           tableReady.value = true;
+          // 无障碍：VTable 焦点控制输入没有语义标签（axe label 违规）
+          el.querySelector<HTMLInputElement>('.table-focus-control')?.setAttribute('aria-label', '数据表格焦点控制');
         }
       }
       return;

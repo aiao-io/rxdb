@@ -357,6 +357,9 @@ describe('EntityListComponent（真实组件）', () => {
 
     await component.onRowDeleted({ id: victim.id });
     await FLUSH();
+    // 删除需经确认弹层
+    await component.confirmDelete();
+    await FLUSH();
 
     expect(component.tableRecords()).toHaveLength(1);
     expect(await findTitles()).toEqual(['keep-me']);
@@ -776,6 +779,9 @@ describe('EntityListComponent（真实组件）', () => {
       const col = (component.tableColumns() as Array<{ field?: string }>).findIndex(c => c.field === 'actions') + 1;
       tableOf(fixture).emit('icon_click', { name: 'delete-action', col, row });
       await FLUSH();
+      await FLUSH();
+      // 删除需经确认弹层
+      await component.confirmDelete();
       await FLUSH();
 
       expect(await titlesOf(Invoice as unknown as EntityType)).toEqual(['keep']);

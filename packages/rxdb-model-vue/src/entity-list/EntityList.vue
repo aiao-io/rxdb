@@ -44,7 +44,7 @@ import {
 } from '@aiao/rxdb-model';
 import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import { useInfiniteScroll, useRxDB, type InfiniteScrollResource } from '@aiao/rxdb-vue';
-import { Funnel as FunnelIcon, Redo2 as Redo2Icon, Undo2 as Undo2Icon } from '@lucide/vue';
+import { Funnel as FunnelIcon, Redo2 as Redo2Icon, Undo2 as Undo2Icon, X as XIcon } from '@lucide/vue';
 import type { ColumnsDefine, ListTableConstructorOptions } from '@visactor/vtable';
 import { of, type Observable } from 'rxjs';
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch, watchEffect } from 'vue';
@@ -572,7 +572,18 @@ const onIconClicked = async (event: { name: string; record: EntityTableRecord })
     return;
   }
   if (event.name !== 'delete-action') return;
-  const id = event.record['id'] as string;
+  deleteConfirmRecord.value = event.record;
+};
+
+/** 待确认删除的行；非空即弹层打开。 */
+const deleteConfirmRecord = ref<EntityTableRecord | null>(null);
+
+/** 确认弹层里的删除执行（与删除图标同一条路径）。 */
+const confirmDelete = async (): Promise<void> => {
+  const record = deleteConfirmRecord.value;
+  deleteConfirmRecord.value = null;
+  if (!record) return;
+  const id = record['id'] as string;
 
   const draftInst = localDraftItems.value.find(i => i.id === id);
   if (draftInst) {
@@ -587,6 +598,10 @@ const onIconClicked = async (event: { name: string; record: EntityTableRecord })
   } catch (e) {
     handleError(e);
   }
+};
+
+const cancelDelete = (): void => {
+  deleteConfirmRecord.value = null;
 };
 
 const onRowDeleted = async (event: EntityTableRecord): Promise<void> => {
@@ -627,8 +642,21 @@ const onCreateFormSubmitted = (result: EntityFormData): void => {
   createDialogData.value = null;
 };
 
+const saveToast = ref(false);
+let saveToastTimer: ReturnType<typeof setTimeout> | null = null;
+const showSaveToast = (): void => {
+  if (saveToastTimer !== null) clearTimeout(saveToastTimer);
+  saveToast.value = true;
+  saveToastTimer = setTimeout(() => {
+    saveToast.value = false;
+  }, 2000);
+};
+
 const onCreateDialogClosed = (result?: unknown): void => {
-  if (result === 'saved') currentList.value?.refresh();
+  if (result === 'saved') {
+    currentList.value?.refresh();
+    showSaveToast();
+  }
   createDialogData.value = null;
 };
 
@@ -734,7 +762,10 @@ const openViewDialog = (record: EntityTableRecord): void => {
 };
 
 const onViewDialogClosed = (result?: unknown): void => {
-  if (result === 'saved') currentList.value?.refresh();
+  if (result === 'saved') {
+    currentList.value?.refresh();
+    showSaveToast();
+  }
   viewDialogData.value = null;
 };
 
@@ -975,6 +1006,15 @@ defineExpose({
     style="display: flex; flex-direction: column; height: 100%; overflow: hidden"
     @keydown="onKeydown"
   >
+    <div
+      v-if="saveToast"
+      class="toast toast-end z-[1100]"
+      data-testid="save-toast"
+      role="status"
+    >
+      <div class="alert alert-success py-2 text-sm">已保存</div>
+    </div>
+
     <!-- 顶栏：实体名称 + 计数 + 筛选按钮 + 新增按钮 -->
     <div class="border-base-300 flex h-10 min-h-10 shrink-0 items-center justify-between border-b px-4">
       <div class="flex items-center gap-2 text-sm">
@@ -1042,6 +1082,20 @@ defineExpose({
             class="badge badge-primary badge-xs"
             >{{ filterQuery.rules.length }}</span
           >
+        </button>
+        <!-- 快捷清除筛选：有筛选时工具栏一键还原 -->
+        <button
+          v-if="isQueryActive && !isSelectMode"
+          class="btn btn-ghost btn-sm gap-1"
+          data-testid="clear-filter"
+          type="button"
+          @click="resetFilter"
+        >
+          <XIcon
+            class="h-3.5 w-3.5"
+            :size="14"
+          />
+          清除筛选
         </button>
         <button
           v-if="!isCreateBlocked && isSelectMode"
@@ -1144,7 +1198,22 @@ defineExpose({
         @row-deleted="onRowDeleted"
         @row-moved="onRowMoved"
         @sort-clicked="onSortClicked"
-      />
+      >
+        <template #emptyState>
+          <div
+            class="flex flex-col items-center gap-1 py-10"
+            data-testid="entity-empty-state"
+          >
+            <span class="text-base-content/40 text-sm">暂无数据</span>
+            <span
+              v-if="!isSelectMode && !isCreateBlocked"
+              class="text-base-content/40 text-sm"
+            >
+              点击「+ 新增」开始录入第一条{{ displayName }}
+            </span>
+          </div>
+        </template>
+      </QueryTable>
     </div>
 
     <!-- Select mode footer -->
@@ -1208,6 +1277,37 @@ defineExpose({
       @closed="onViewDialogClosed"
     >
       <EntityDetail v-bind="viewDialogData" />
+    </DialogPortal>
+
+    <!-- 删除确认弹层 -->
+    <DialogPortal
+      v-if="deleteConfirmRecord"
+      panel-class="entity-delete-confirm-dialog"
+      width="min(420px, calc(100vw - 1rem))"
+      @closed="cancelDelete"
+    >
+      <EntityDialog
+        title="删除确认"
+        @close-requested="cancelDelete"
+      >
+        <p class="text-sm">确定删除这条{{ displayName }}记录？删除后可用「撤销」恢复。</p>
+        <div class="flex justify-end gap-2 pt-3">
+          <button
+            class="btn btn-sm"
+            type="button"
+            @click="cancelDelete"
+            >取消</button
+          >
+          <button
+            class="btn btn-error btn-sm"
+            data-testid="delete-confirm-submit"
+            type="button"
+            @click="confirmDelete"
+          >
+            删除
+          </button>
+        </div>
+      </EntityDialog>
     </DialogPortal>
 
     <!-- M2M Selection Dialog -->

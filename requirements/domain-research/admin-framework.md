@@ -4,7 +4,7 @@
 > [本目录 README](README.md)。
 >
 > **已孵化冻结**：首版切片已建为 [epic-010](../epics/epic-010-model-driven-admin-framework.md) 下
-> US-526~528 三条 story（Backlog、价值待证），本文是其 References 设计依据，不再独立演进。
+> US-526~528 三条 story（2026-10-21 已解锁），本文是其 References 设计依据，不再独立演进。
 
 2026-10-18 优先级复核确定本候选为**第一顺位**：首版做给定实体 schema 的单人 Web 本地数据工作台。
 下文是早期能力映射：现有权限是实体操作约束，生成器输出实体代码；多用户后台、完整应用生成和跨宿主 UI

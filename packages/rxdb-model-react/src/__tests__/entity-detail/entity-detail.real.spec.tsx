@@ -162,6 +162,39 @@ describe('EntityDetail（真实组件）', () => {
     expect(container.querySelector('[data-detail-save="true"]')).toBeTruthy();
   });
 
+  it('校验失败在对话框内给出可读反馈，修改字段后消失（US-104）', () => {
+    const { container } = renderWithDialog(dialogData());
+
+    fireEvent.click(container.querySelector('[data-detail-save="true"]') as HTMLElement);
+
+    const panel = container.querySelector('[data-testid="entity-detail-errors"]');
+    expect(panel).toBeTruthy();
+    expect(panel!.getAttribute('role')).toBe('alert');
+    expect(panel!.textContent).toContain('是必填项');
+
+    fireEvent.change(container.querySelector('[data-field="title"] input') as HTMLInputElement, {
+      target: { value: '第一组' }
+    });
+    expect(container.querySelector('[data-testid="entity-detail-errors"]')).toBeNull();
+  });
+
+  it('保存失败在对话框内给出可读反馈（US-104）', async () => {
+    const { container } = renderWithDialog(dialogData());
+
+    fireEvent.change(container.querySelector('[data-field="title"] input') as HTMLInputElement, {
+      target: { value: '落不进去' }
+    });
+    vi.spyOn(repoOf(), 'create').mockRejectedValueOnce(new Error('写入被拒'));
+    fireEvent.click(container.querySelector('[data-detail-save="true"]') as HTMLElement);
+
+    await waitFor(() => {
+      const panel = container.querySelector('[data-testid="entity-detail-errors"]');
+      expect(panel?.textContent).toContain('保存失败：写入被拒');
+    });
+    // 对话框未关闭
+    expect(container.querySelector('[data-detail-save="true"]')).toBeTruthy();
+  });
+
   it('补齐必填后保存才落库：草稿清空', async () => {
     const { container } = renderWithDialog(dialogData());
 
@@ -226,6 +259,13 @@ describe('EntityDetail（真实组件）', () => {
     expect((container.querySelectorAll('[role="tab"]')[1] as HTMLInputElement).checked).toBe(true);
   });
 
+  it('tab 可见文字随 radio 渲染（input 伪元素不渲染文字回归）', () => {
+    const { container } = renderWithDialog(dialogData());
+
+    const tabs = [...container.querySelectorAll('[role="tab"]')];
+    expect(tabs.map(t => t.closest('label')?.textContent?.trim())).toEqual(['基本信息', '子项']);
+  });
+
   it('creationChain 阻断循环创建：链上实体不再出表 tab', () => {
     const { container } = renderWithDialog(dialogData({ creationChain: ['test:DetailGroup', 'test:DetailChild'] }));
 
@@ -244,6 +284,31 @@ describe('EntityDetail（真实组件）', () => {
     });
     // 路由输入模式同样渲染编辑表单（基本信息 tab）
     expect(container.querySelector('[role="tab"]')).toBeTruthy();
+  });
+
+  it('edit 模式校验失败在对话框内给出可读反馈（US-104 AC#2）', async () => {
+    const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '旧标题' });
+    await inst.save();
+
+    const utils = render(
+      <RxDBProvider db={rxdb}>
+        <EntityDetail namespace='test' name='DetailGroup' entityId={inst.id} />
+      </RxDBProvider>
+    );
+    await waitFor(() => {
+      expect((utils.container.querySelector('[data-field="title"] input') as HTMLInputElement).value).toBe('旧标题');
+    });
+
+    // 清空必填标题后保存：edit 模式同样走校验面板，不落库、对话框保持打开
+    fireEvent.change(utils.container.querySelector('[data-field="title"] input') as HTMLInputElement, {
+      target: { value: '' }
+    });
+    fireEvent.click([...utils.container.querySelectorAll('button')].find(b => b.textContent?.trim() === '保存')!);
+
+    await waitFor(() => {
+      const panel = utils.container.querySelector('[data-testid="entity-detail-errors"]');
+      expect(panel?.textContent).toContain('是必填项');
+    });
   });
 
   it('edit 模式内部保存：formSubmitted 变更落库并 emit（保存成功后）', async () => {
@@ -324,8 +389,8 @@ describe('EntityDetail（真实组件）', () => {
     const { container } = renderWithRouteInputs('public', 'Account', account.id);
     const panelOf = (label: string): Element => {
       const tab = [...container.querySelectorAll('[role="tab"]')].find(t => t.getAttribute('aria-label') === label);
-      // tab 输入框紧跟着它的内容面板（daisyUI tabs 结构）
-      const panel = tab?.nextElementSibling;
+      // tab 所在 label 紧跟着它的内容面板（daisyUI tabs 结构）
+      const panel = tab?.closest('label')?.nextElementSibling;
       if (!panel) throw new Error(`没有「${label}」关系 tab`);
       return panel;
     };

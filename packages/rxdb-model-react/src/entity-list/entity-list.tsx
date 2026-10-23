@@ -50,7 +50,7 @@ import {
 import { useInfiniteScroll, useRxDB, type InfiniteScrollResource } from '@aiao/rxdb-react';
 import type { ListTableConstructorOptions } from '@visactor/vtable';
 import type { ColumnDefine } from '@visactor/vtable/es/ts-types/index.js';
-import { Funnel, Redo2, Undo2 } from 'lucide-react';
+import { Funnel, Redo2, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { of } from 'rxjs';
 import { Dialog } from '../dialog/dialog';
@@ -264,6 +264,16 @@ export function EntityList({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [localDraftItems, setLocalDraftItems] = useState<EntityInstance[]>([]);
   const [openDialog, setOpenDialog] = useState<OpenDialog | null>(null);
+  /** 删除确认目标行：删除前经确认弹层（误删成本高，撤销入口不显眼）。 */
+  const [deleteConfirm, setDeleteConfirm] = useState<EntityTableRecord | null>(null);
+  /** 保存成功 toast（2 秒自动消失）。 */
+  const [saveToastVisible, setSaveToastVisible] = useState(false);
+  const saveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showSaveToast = useCallback((): void => {
+    if (saveToastTimerRef.current !== null) clearTimeout(saveToastTimerRef.current);
+    setSaveToastVisible(true);
+    saveToastTimerRef.current = setTimeout(() => setSaveToastVisible(false), 2000);
+  }, []);
   /** 已入队但还没落定的行内编辑批次数（排队中或写入中都不许拖拽排序） */
   const [pendingEditBatches, setPendingEditBatches] = useState(0);
   const [reorderPending, setReorderPending] = useState(false);
@@ -680,24 +690,32 @@ export function EntityList({
         return;
       }
       if (event.name !== 'delete-action') return;
-      const id = event.record['id'] as string;
-
-      const draftInst = localDraftItemsRef.current.find(i => i.id === id);
-      if (draftInst) {
-        setLocalDraftItems(items => items.filter(i => i.id !== id));
-        return;
-      }
-
-      const inst = instancesRef.current.find(i => i.id === id);
-      if (!inst) return;
-      try {
-        await inst.remove();
-      } catch (error) {
-        console.error(error);
-      }
+      setDeleteConfirm(event.record);
     },
     [onViewEntity, openViewDialog]
   );
+
+  /** 确认弹层里的删除执行（与删除图标同一条路径）。 */
+  const confirmDelete = useCallback(async (): Promise<void> => {
+    const record = deleteConfirm;
+    setDeleteConfirm(null);
+    if (!record) return;
+    const id = record['id'] as string;
+
+    const draftInst = localDraftItemsRef.current.find(i => i.id === id);
+    if (draftInst) {
+      setLocalDraftItems(items => items.filter(i => i.id !== id));
+      return;
+    }
+
+    const inst = instancesRef.current.find(i => i.id === id);
+    if (!inst) return;
+    try {
+      await inst.remove();
+    } catch (error) {
+      console.error(error);
+    }
+  }, [deleteConfirm]);
 
   const onRowDeleted = useCallback(
     async (record: EntityTableRecord): Promise<void> => {
@@ -974,6 +992,18 @@ export function EntityList({
             onReset={resetFilter}
             onApply={applyFilter}
           />
+          {/* 快捷清除筛选：有筛选时工具栏一键还原 */}
+          {isQueryActive && !isSelectMode && (
+            <button
+              className='btn btn-ghost btn-sm gap-1'
+              onClick={resetFilter}
+              data-testid='clear-filter'
+              type='button'
+            >
+              <X className='h-3.5 w-3.5' size={14} />
+              清除筛选
+            </button>
+          )}
           {!isCreateBlocked &&
             (isSelectMode ?
               <button className='btn btn-sm btn-outline' onClick={openCreateDialog} type='button'>
@@ -1016,6 +1046,14 @@ export function EntityList({
             rowDragEnabled={rowDragEnabled}
             onRowMoved={onRowMoved}
             onSortClicked={onSortClicked}
+            emptyState={
+              <div className='flex flex-col items-center gap-1 py-10' data-testid='entity-empty-state'>
+                <span className='text-base-content/40 text-sm'>暂无数据</span>
+                {!isSelectMode && !isCreateBlocked && (
+                  <span className='text-base-content/40 text-sm'>点击「+ 新增」开始录入第一条{displayName}</span>
+                )}
+              </div>
+            }
           />
         )}
       </div>
@@ -1048,7 +1086,10 @@ export function EntityList({
           open
           onClose={result => {
             setOpenDialog(null);
-            if (result === 'saved') refreshCurrentList();
+            if (result === 'saved') {
+              refreshCurrentList();
+              showSaveToast();
+            }
           }}
           width='min(720px, calc(100vw - 1rem))'
           minWidth='min(400px, calc(100vw - 1rem))'
@@ -1072,7 +1113,10 @@ export function EntityList({
           open
           onClose={result => {
             setOpenDialog(null);
-            if (result === 'saved') refreshCurrentList();
+            if (result === 'saved') {
+              refreshCurrentList();
+              showSaveToast();
+            }
           }}
           width='min(720px, calc(100vw - 1rem))'
           minWidth='min(400px, calc(100vw - 1rem))'
@@ -1082,6 +1126,42 @@ export function EntityList({
         >
           <EntityDetail {...openDialog.data} />
         </Dialog>
+      )}
+
+      {/* 删除确认弹层 */}
+      {deleteConfirm !== null && (
+        <Dialog
+          open
+          onClose={() => setDeleteConfirm(null)}
+          width='min(420px, calc(100vw - 1rem))'
+          className='entity-delete-confirm-dialog'
+        >
+          <EntityDialog title='删除确认' onCloseRequested={() => setDeleteConfirm(null)}>
+            <p className='text-sm'>确定删除这条{displayName}记录？删除后可用「撤销」恢复。</p>
+            <div className='flex justify-end gap-2 pt-3'>
+              <button className='btn btn-sm' onClick={() => setDeleteConfirm(null)} type='button'>
+                取消
+              </button>
+              <button
+                className='btn btn-error btn-sm'
+                data-testid='delete-confirm-submit'
+                onClick={() => void confirmDelete()}
+                type='button'
+              >
+                删除
+              </button>
+            </div>
+          </EntityDialog>
+        </Dialog>
+      )}
+
+      {/* 保存成功 toast */}
+      {saveToastVisible && (
+        <div className='toast toast-end z-[1100]' data-testid='save-toast'>
+          <div className='alert alert-success py-2 text-sm' role='status'>
+            已保存
+          </div>
+        </div>
       )}
 
       {/* M2M 选择对话框 */}

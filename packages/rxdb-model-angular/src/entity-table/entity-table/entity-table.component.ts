@@ -147,6 +147,8 @@ export class EntityTableComponent implements OnDestroy, EntityTableHandle {
           this.#initTable(el);
           this.#prevColumns = this.columns();
           this.#tableReady.set(true);
+          // 无障碍：VTable 焦点控制输入没有语义标签（axe label 违规）
+          el.querySelector<HTMLInputElement>('.table-focus-control')?.setAttribute('aria-label', '数据表格焦点控制');
         }
       });
 

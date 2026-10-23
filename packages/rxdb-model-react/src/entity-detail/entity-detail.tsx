@@ -31,7 +31,7 @@ import {
   validateForm
 } from '@aiao/rxdb-model';
 import { useRxDBOptional } from '@aiao/rxdb-react';
-import { useCallback, useContext, useEffect, useMemo, useRef, useState, type JSX } from 'react';
+import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { DialogContext } from '../dialog/dialog';
 import { EntityDialog } from '../entity-dialog/entity-dialog';
 import { EntityForm } from '../entity-form/entity-form';
@@ -182,6 +182,11 @@ export function EntityDetail({
 
   const [activeTabKey, setActiveTabKey] = useState('basic');
 
+  /** 校验错误面板：最近一次提交的校验结果（Angular/Vue 同语义）。 */
+  const [formErrors, setFormErrors] = useState<FormValidationResult | null>(null);
+  /** 保存失败原因（校验错误以外的落库错误）。 */
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const formModeValue: FormMode = formMode ?? 'edit';
   const isCreateMode = formModeValue === 'create';
 
@@ -263,6 +268,20 @@ export function EntityDetail({
     syncDraftEntityRef.current = syncDraftEntity;
   }, [syncDraftEntity]);
 
+  /** 校验失败：错误面板展示 + 转发宿主（Angular/Vue 同语义，US-104）。 */
+  const handleValidationErrors = useCallback(
+    (result: FormValidationResult): void => {
+      setFormErrors(result);
+      setSaveError(null);
+      onValidationErrors?.(result);
+    },
+    [onValidationErrors]
+  );
+
+  /** 落库失败：可读原因进错误面板（不再只进 console，US-104）。 */
+  const saveErrorMessage = (error: unknown): string =>
+    `保存失败：${error instanceof Error ? error.message : String(error)}`;
+
   /** 切 tab：create 模式切到关系 tab 前先校验草稿并同步（Angular 侧同语义）。 */
   const selectTab = useCallback(
     (key: string): void => {
@@ -274,14 +293,14 @@ export function EntityDetail({
         const merged = fixed ? { ...data, ...fixed } : data;
         const result = validateForm(fields, merged);
         if (!result.valid) {
-          onValidationErrors?.(result);
+          handleValidationErrors(result);
           return;
         }
         syncDraftEntityRef.current();
       }
       setActiveTabKey(key);
     },
-    [tabs, isCreateMode, formFieldsValue, draftFormData, fixedFormData, onValidationErrors]
+    [tabs, isCreateMode, formFieldsValue, draftFormData, fixedFormData, handleValidationErrors]
   );
 
   /** 清理草稿实体缓存（Angular 侧 #cleanupDraftEntity 同语义：无 rxdb 时保留草稿）。 */
@@ -311,7 +330,7 @@ export function EntityDetail({
           dialog?.close('saved');
           onFormSubmitted?.(data);
         })
-        .catch(error => console.error(error));
+        .catch(error => setSaveError(saveErrorMessage(error)));
     },
     [isCreateMode, entityInstance, formFieldsValue, dialog, onFormSubmitted]
   );
@@ -328,6 +347,8 @@ export function EntityDetail({
       if (isCreateMode) {
         setDraftFormData(d => ({ ...d, [event.field]: event.value }));
       }
+      setFormErrors(null);
+      setSaveError(null);
       onFieldChanged?.(event);
     },
     [isCreateMode, onFieldChanged]
@@ -341,7 +362,7 @@ export function EntityDetail({
     const merged = fixed ? { ...data, ...fixed } : data;
     const result = validateForm(fields, merged);
     if (!result.valid) {
-      onValidationErrors?.(result);
+      handleValidationErrors(result);
       return;
     }
     if (draftEntity) {
@@ -352,12 +373,12 @@ export function EntityDetail({
           setDraftEntity(null);
           dialog?.close('saved');
         })
-        .catch(error => console.error(error));
+        .catch(error => setSaveError(saveErrorMessage(error)));
     } else {
       onFormSubmitted?.(merged);
       dialog?.close();
     }
-  }, [formFieldsValue, draftFormData, fixedFormData, draftEntity, dialog, onFormSubmitted, onValidationErrors]);
+  }, [formFieldsValue, draftFormData, fixedFormData, draftEntity, dialog, onFormSubmitted, handleValidationErrors]);
 
   /** 取消按钮（create 模式页脚）。 */
   const handleCancel = useCallback((): void => {
@@ -404,16 +425,18 @@ export function EntityDetail({
         {/* Tab Bar */}
         <div className='tabs tabs-border min-h-0 flex-1 overflow-x-auto' role='tablist'>
           {tabs.map(tab => (
-            <div className='contents' key={tab.key}>
-              <input
-                className='tab'
-                aria-label={tab.label}
-                checked={tab.key === activeTabKey}
-                name={tabGroupName}
-                role='tab'
-                type='radio'
-                onChange={() => selectTab(tab.key)}
-              />
+            <Fragment key={tab.key}>
+              <label className='tab'>
+                <input
+                  aria-label={tab.label}
+                  checked={tab.key === activeTabKey}
+                  name={tabGroupName}
+                  role='tab'
+                  type='radio'
+                  onChange={() => selectTab(tab.key)}
+                />
+                {tab.label}
+              </label>
               <div
                 className={cn(
                   'tab-content border-base-300 bg-base-100 order-1 flex w-full flex-col',
@@ -431,7 +454,7 @@ export function EntityDetail({
                     onFieldChanged={handleFieldChanged}
                     onFormCancelled={handleFormCancelled}
                     onFormSubmitted={handleFormSubmitted}
-                    onValidationErrors={onValidationErrors}
+                    onValidationErrors={handleValidationErrors}
                   />
                 : <EntityList
                     creationChain={creationChainValue}
@@ -447,9 +470,25 @@ export function EntityDetail({
                   />
                 }
               </div>
-            </div>
+            </Fragment>
           ))}
         </div>
+
+        {/* 校验 / 保存错误面板（US-104）：只转发不渲染时用户看不到任何反馈 */}
+        {(formErrors !== null || saveError !== null) && (
+          <div
+            className='border-base-300 flex shrink-0 flex-col gap-1 border-t px-4 py-3 text-sm'
+            data-testid='entity-detail-errors'
+            role='alert'
+          >
+            {formErrors?.errors.map(error => (
+              <span className='text-error' key={`${error.field}:${error.message}`}>
+                {error.message}
+              </span>
+            ))}
+            {saveError !== null && <span className='text-error'>{saveError}</span>}
+          </div>
+        )}
 
         {/* Save/Cancel buttons for create mode (below tabs) */}
         {isCreateMode && (

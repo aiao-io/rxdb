@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project dev-rxdb-admin-consumer-e2e --web",
+  "implicitDependencies": ["dev-rxdb-admin-consumer"],
+  "name": "dev-rxdb-admin-consumer-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-admin-consumer-e2e/src",
+  "tags": [],
+  "targets": {
+    "e2e": {
+      "dependsOn": ["dev-rxdb-admin-consumer:build"]
+    }
+  }
+}

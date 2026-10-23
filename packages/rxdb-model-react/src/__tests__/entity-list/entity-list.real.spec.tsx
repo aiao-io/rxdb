@@ -353,6 +353,14 @@ describe('EntityList（真实组件）', () => {
       table.emit('icon_click', { name: 'delete-action', col: 2, row });
     });
 
+    // 删除需经确认弹层（US-104 之后的三端交互约束）
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="delete-confirm-submit"]')).toBeTruthy();
+    });
+    act(() => {
+      (document.querySelector('[data-testid="delete-confirm-submit"]') as HTMLElement).click();
+    });
+
     await waitFor(() => {
       expect(tableOf().records).toHaveLength(1);
     });
@@ -593,6 +601,12 @@ describe('EntityList（真实组件）', () => {
 
       act(() => {
         tableOf().emit('icon_click', { name: 'delete-action', col: colOf('actions'), row });
+      });
+      await waitFor(() => {
+        expect(document.querySelector('[data-testid="delete-confirm-submit"]')).toBeTruthy();
+      });
+      act(() => {
+        (document.querySelector('[data-testid="delete-confirm-submit"]') as HTMLElement).click();
       });
       await waitFor(async () => {
         expect(await titlesOf(Invoice as unknown as EntityType)).toEqual(['keep']);

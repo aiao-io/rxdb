@@ -24,7 +24,12 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
   template: `<form class="grid grid-cols-1 gap-4 md:grid-cols-2" (submit)="$event.preventDefault(); onSubmit()">
     @for (field of editableFields(); track field.field) {
       <fieldset class="fieldset" [class.md:col-span-2]="isWideField(field)">
-        <legend class="fieldset-legend">{{ field.displayName }}</legend>
+        <legend class="fieldset-legend">
+          {{ field.displayName }}
+          @if (field.required) {
+            <span class="text-error"> *</span>
+          }
+        </legend>
         @if (isFieldReadonly(field)) {
           <div class="input input-ghost flex min-h-10 items-center">{{ displayValueMap().get(field.field) ?? '' }}</div>
         } @else {
@@ -178,6 +183,11 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
                   <option [value]="item.id">{{ item.displayName }}</option>
                 }
               </select>
+              @if ((relatedItemsMap().get(field.field) ?? []).length === 0) {
+                <span class="text-warning text-xs" data-testid="relation-empty-hint">
+                  暂无「{{ field.displayName }}」可选，请先创建对应记录
+                </span>
+              }
             }
             @case ('manyToOne') {
               <select
@@ -190,6 +200,11 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
                   <option [value]="item.id">{{ item.displayName }}</option>
                 }
               </select>
+              @if ((relatedItemsMap().get(field.field) ?? []).length === 0) {
+                <span class="text-warning text-xs" data-testid="relation-empty-hint">
+                  暂无「{{ field.displayName }}」可选，请先创建对应记录
+                </span>
+              }
             }
             @default {
               @if (field.format?.kind === 'color') {

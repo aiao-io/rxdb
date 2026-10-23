@@ -344,7 +344,13 @@ defineExpose({
       :class="{ 'md:col-span-2': isWideField(field) }"
     >
       <legend class="fieldset-legend">
-        {{ field.displayName }}
+        {{ field.displayName
+        }}<span
+          v-if="field.required"
+          class="text-error"
+        >
+          *</span
+        >
       </legend>
       <div
         v-if="isFieldReadonly(field)"
@@ -514,21 +520,29 @@ defineExpose({
             {{ item.displayName }}
           </option>
         </select>
-        <select
-          v-else-if="field.type === 'manyToOne'"
-          class="select"
-          :value="displayInputValue(field)"
-          @change="onFieldChange(field, ($event.target as HTMLSelectElement).value)"
-        >
-          <option value=""> (空) </option>
-          <option
-            v-for="item in relatedItemsMap.get(field.field) ?? []"
-            :key="item.id"
-            :value="item.id"
+        <template v-else-if="field.type === 'manyToOne'">
+          <select
+            class="select"
+            :value="displayInputValue(field)"
+            @change="onFieldChange(field, ($event.target as HTMLSelectElement).value)"
           >
-            {{ item.displayName }}
-          </option>
-        </select>
+            <option value=""> (空) </option>
+            <option
+              v-for="item in relatedItemsMap.get(field.field) ?? []"
+              :key="item.id"
+              :value="item.id"
+            >
+              {{ item.displayName }}
+            </option>
+          </select>
+          <span
+            v-if="(relatedItemsMap.get(field.field) ?? []).length === 0"
+            class="text-warning text-xs"
+            data-testid="relation-empty-hint"
+          >
+            暂无「{{ field.displayName }}」可选，请先创建对应记录
+          </span>
+        </template>
         <div
           v-else-if="field.format?.kind === 'color'"
           class="flex items-center gap-2"

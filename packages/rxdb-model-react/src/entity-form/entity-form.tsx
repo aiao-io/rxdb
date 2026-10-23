@@ -22,7 +22,7 @@ import {
   type RelatedEntityItem,
   type RelatedEntityProvider
 } from '@aiao/rxdb-model';
-import { useMemo, useState, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 
 /** {@link EntityForm} 的 props。 */
 export interface EntityFormProps {
@@ -179,7 +179,12 @@ export function EntityForm({
   const editableFields = useMemo(() => fields.filter(field => !field.hidden), [fields]);
   const isReadonly = mode === 'view';
 
-  const relatedItemsMap = useMemo(() => {
+  /**
+   * 关联实体候选：provider 是同步快照，而关联实体的活查询异步到达。
+   * memo 负责 provider 变化时的同步重算；有界轮询（5 秒、100ms）负责
+   * 数据异步到达后的刷新，保证下拉不会停留在 (空)。
+   */
+  const computeRelatedItemsMap = useCallback((): Map<string, RelatedEntityItem[]> => {
     const map = new Map<string, RelatedEntityItem[]>();
     if (!relatedEntityProvider) return map;
     for (const field of editableFields) {
@@ -189,6 +194,37 @@ export function EntityForm({
     }
     return map;
   }, [relatedEntityProvider, editableFields]);
+  const memoRelatedItemsMap = useMemo(() => computeRelatedItemsMap(), [computeRelatedItemsMap]);
+  /** 轮询快照：source 绑定计算它的 memo，memo 变化（provider / 字段集变化）时快照自动失效。 */
+  const [polledMap, setPolledMap] = useState<{
+    source: ReadonlyMap<string, RelatedEntityItem[]>;
+    value: ReadonlyMap<string, RelatedEntityItem[]>;
+  } | null>(null);
+  useEffect(() => {
+    const deadline = Date.now() + 5000;
+    const timer = setInterval(() => {
+      const next = computeRelatedItemsMap();
+      setPolledMap(previous => {
+        if (previous && previous.value.size === next.size) {
+          let same = true;
+          for (const [field, items] of next) {
+            const prevItems = previous.value.get(field) ?? [];
+            if (prevItems.length !== items.length || prevItems.some((item, i) => item.id !== items[i].id)) {
+              same = false;
+              break;
+            }
+          }
+          if (same) return previous;
+        }
+        return { source: memoRelatedItemsMap, value: next };
+      });
+      if (Date.now() > deadline) clearInterval(timer);
+    }, 100);
+    return () => clearInterval(timer);
+  }, [memoRelatedItemsMap, computeRelatedItemsMap]);
+
+  const relatedItemsMap =
+    polledMap !== null && polledMap.source === memoRelatedItemsMap ? polledMap.value : memoRelatedItemsMap;
 
   const displayValueMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -409,21 +445,30 @@ export function EntityForm({
         );
       }
       case 'oneToOne':
-      case 'manyToOne':
+      case 'manyToOne': {
+        const relatedItems = relatedItemsMap.get(field.field) ?? [];
         return (
-          <select
-            className='select'
-            value={(formData[field.field] as string) ?? ''}
-            onChange={event => onFieldChange(field, event.target.value)}
-          >
-            <option value=''>(空)</option>
-            {(relatedItemsMap.get(field.field) ?? []).map(item => (
-              <option key={item.id} value={item.id}>
-                {item.displayName}
-              </option>
-            ))}
-          </select>
+          <>
+            <select
+              className='select'
+              value={(formData[field.field] as string) ?? ''}
+              onChange={event => onFieldChange(field, event.target.value)}
+            >
+              <option value=''>(空)</option>
+              {relatedItems.map(item => (
+                <option key={item.id} value={item.id}>
+                  {item.displayName}
+                </option>
+              ))}
+            </select>
+            {relatedItems.length === 0 && (
+              <span className='text-warning text-xs' data-testid='relation-empty-hint'>
+                暂无「{field.displayName}」可选，请先创建对应记录
+              </span>
+            )}
+          </>
         );
+      }
       default:
         if (field.format?.kind === 'color') {
           return (
@@ -488,7 +533,10 @@ export function EntityForm({
           data-field={field.field}
           key={field.field}
         >
-          <legend className='fieldset-legend'>{field.displayName}</legend>
+          <legend className='fieldset-legend'>
+            {field.displayName}
+            {field.required && <span className='text-error'> *</span>}
+          </legend>
           {renderFieldInput(field)}
           {field.helpText && <p className='label'>{field.helpText}</p>}
         </fieldset>

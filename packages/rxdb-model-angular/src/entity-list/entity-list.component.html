@@ -1,3 +1,9 @@
+@if (saveToast()) {
+  <div class="toast toast-end z-[1100]" data-testid="save-toast" role="status">
+    <div class="alert alert-success py-2 text-sm">已保存</div>
+  </div>
+}
+
 <!-- 顶栏：实体名称 + 计数 + 筛选按钮 + 新增按钮 -->
 <div class="border-base-300 flex h-10 min-h-10 shrink-0 items-center justify-between border-b px-4">
   <div class="flex items-center gap-2 text-sm">
@@ -93,6 +99,13 @@
         }
       </ng-template>
     </div>
+    <!-- 快捷清除筛选：有筛选时工具栏一键还原 -->
+    @if (isQueryActive() && !isSelectMode()) {
+      <button class="btn btn-ghost btn-sm gap-1" (click)="resetFilter()" data-testid="clear-filter" type="button">
+        <svg class="h-3.5 w-3.5" [lucideIcon]="X"></svg>
+        清除筛选
+      </button>
+    }
     @if (!isCreateBlocked()) {
       @if (isSelectMode()) {
         <button class="btn btn-sm btn-outline" (click)="openCreateDialog()" type="button">+ 新建</button>
@@ -129,7 +142,14 @@
         (rowDeleted)="onRowDeleted($event)"
         (rowMoved)="onRowMoved($event)"
         (sortClicked)="onSortClicked($event)"
-      />
+      >
+        <div class="flex flex-col items-center gap-1 py-10" data-testid="entity-empty-state" emptyState>
+          <span class="text-base-content/40 text-sm">暂无数据</span>
+          @if (!isSelectMode() && !isCreateBlocked()) {
+            <span class="text-base-content/40 text-sm">点击「+ 新增」开始录入第一条{{ displayName() }}</span>
+          }
+        </div>
+      </rxdb-query-table>
     }
   }
 </div>
@@ -157,6 +177,18 @@
 }
 
 <!-- M2M Selection Dialog Template -->
+<ng-template #deleteConfirmTpl>
+  <rxdb-entity-dialog (closeRequested)="cancelDelete()" title="删除确认">
+    <p class="text-sm">确定删除这条{{ displayName() }}记录？删除后可用「撤销」恢复。</p>
+    <div class="flex justify-end gap-2 pt-3">
+      <button class="btn btn-sm" (click)="cancelDelete()" type="button">取消</button>
+      <button class="btn btn-error btn-sm" (click)="confirmDelete()" data-testid="delete-confirm-submit" type="button">
+        删除
+      </button>
+    </div>
+  </rxdb-entity-dialog>
+</ng-template>
+
 <ng-template #m2mSelectTpl>
   <rxdb-entity-dialog [title]="'添加' + displayName()" (closeRequested)="m2mCancelSelection()">
     <rxdb-entity-list
