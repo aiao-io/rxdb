@@ -1,3 +1,9 @@
+## Unreleased
+
+### 🩹 Fixes
+
+- **rxdb-adapter-miniprogram:** 往库里写大量数据（大 BLOB、批量导入）时，库文件缓冲每追加一页就整块重新分配、把整库拷一遍，耗时随库大小平方增长。改为换缓冲时多留余量（至少 1 MiB、至多当前大小的 1/8），追加写的拷贝量随库大小线性增长；支付宝探针的 dist 冒烟写满 50 MiB 从约一分钟降到约两秒（US-209）
+
 ## 0.0.26 (2026-10-01)
 
 桥接版本（bridge）：发布点为 `de70a1a9`（US-025 核心插件外移完成）。`RXDB_SYSTEM_SCHEMA_VERSION` 与 `RXDB_CHANGE_CODEC_VERSION` 均未提升，已有本地数据库无需迁移即可打开。

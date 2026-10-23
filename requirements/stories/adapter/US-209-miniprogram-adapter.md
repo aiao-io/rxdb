@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-10-06
+updated: 2026-10-20
 tags: [adapter, miniprogram, wechat, wa-sqlite, experimental]
 ---
 
@@ -82,6 +82,8 @@ INVEST 检查清单:
   已发出的字节立即擦除。这条「宁可抛错也不降级」的设计是本适配器与普通 polyfill 的核心差异，
   改动前需重新评审。
 - **文件 VFS**：`wechat-file-vfs.ts` 把整库缓冲在内存，经 `writeFileSync` 落盘。
+  追加写时缓冲按余量扩容（`extendFileData`：换缓冲时多留 `max(1 MiB, size / 8)`）——SQLite 逐页往库尾追加，
+  按精确大小扩容会每页整库重拷一遍，拷贝量随库大小平方增长。落盘拷的是逻辑长度的视图，余量不进宿主文件。
   `xLock` / `xUnlock` 是 no-op，`xShmMap` / `xShmLock` 返回 `SQLITE_IOERR`——
   并发安全**由模块级 `ACTIVE_DATABASES` 集合在 JS 层强制单连接**来保证，不是由 SQLite 锁保证。
 - **PRAGMA**：`journal_mode = DELETE`（不是 WAL）、`temp_store = memory`、`foreign_keys = ON`、
