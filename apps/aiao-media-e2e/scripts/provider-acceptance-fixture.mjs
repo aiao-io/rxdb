@@ -161,6 +161,10 @@ try {
   incorrectSize = true;
   const failedDirectory = await mkdtemp(resolve(import.meta.dirname, '../tmp/provider-acceptance-invalid-size-'));
   await assert.rejects(runProviderAcceptance(settings, failedDirectory, setupContext), /ACCEPTANCE_STOPPED_REVIEW/);
+  const failed = JSON.parse(await readFile(attemptPath(failedDirectory, settings, 'direct', 'square'), 'utf8'));
+  assert.equal(failed.stage, 'result-size');
+  assert.equal(failed.failureCode, 'RESULT_SIZE_MISMATCH');
+  assert.equal(failed.assertionCode, 'NONE');
   assert.deepEqual(calls, { direct: 4, proxy: 3, result: 7 });
   await assert.rejects(
     runProviderAcceptance(settings, failedDirectory, setupContext),

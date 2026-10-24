@@ -17,9 +17,9 @@
 
 ## 单测与真实浏览器数据层
 
-已记录的 `aiao-media:coverage` 基线将 240 项单测与 15 项真实 Chromium 数据层测试一起执行；本轮新增恢复与账号/项目不匹配用例后，应用单测为 244 项。浏览器测试使用实际 RxDB、SQLite WASM、IndexedDB 和 OPFS，覆盖旧集合的事务迁移、CAS 回滚、全局注册表别名、提交日志/冲突重开、参考图在途保留、原图/WAV 幂等保存与精确回读、写入失败恢复、锁定撤销预览和 DTO 私有投影。
+`aiao-media:coverage` 将 244 项单测与 15 项真实 Chromium 数据层测试一起执行；[GitHub 应用专项](https://github.com/aiao-io/rxdb/actions/runs/40071897399)已复验通过。浏览器测试使用实际 RxDB、SQLite WASM、IndexedDB 和 OPFS，覆盖旧集合的事务迁移、CAS 回滚、全局注册表别名、提交日志/冲突重开、参考图在途保留、原图/WAV 幂等保存与精确回读、写入失败恢复、锁定撤销预览和 DTO 私有投影。
 
-上述 240+15 基线的四项合并数据：statements 74.82%、branches 67.59%、functions 79.57%、lines 84.67%。不把单一行指标称为四项覆盖率通过；应用不属于可发布包覆盖率门禁范围。界面与原生 Supabase 复制仍由独立的真实产品 e2e 验证，不把它们折算进这份 Vitest 数字。
+当前 244+15 的四项合并数据：statements 75.26%、branches 68.06%、functions 79.82%、lines 85.25%。不把单一行指标称为四项覆盖率通过；应用不属于可发布包覆盖率门禁范围。界面与原生 Supabase 复制仍由独立的真实产品 e2e 验证，不把它们折算进这份 Vitest 数字。
 
 ## 已通过的产品场景
 
@@ -63,7 +63,7 @@ Supabase SDK 在锁文件去重到 2.117.3，无全局版本 override。同步�
 
 此前基线的首次并发执行遇到 `rxdb-model-react:typecheck` 的 TS6305 测试夹具声明产物缺失。通过该 target 的 `--force` 串行重建、清理其本地增量记录后，全量串行通过；本轮无该失败，Nx 仍保留其历史 flaky 提示。未修改包源码或放宽检查。e2e 生成的三个性能报告保存在忽略的应用 tmp 目录，未混入产品提交。
 
-此前提交 `a5abd39b` 的 GitHub CI 全通过、CodeQL 未修复告警 0、10 个评审线程全部解决。本轮恢复入口的 244 单测、应用/e2e lint 与类型检查、7 个真实产品场景通过；新增正式验收 runner 的 3 个 guard、6 个通道/画幅组合和错误尺寸/产物变化/失败不重发负例已通过。`provider-acceptance-fixture` 纳入默认 e2e；正式 live 入口只在明确 opt-in、正式 origin、发布 version UUID 与审核 manifest 摘要都有效时运行。正式发布等待[执行条件](release-completion-tasks.md)，不把未执行项目写成完成。
+此前提交 `a5abd39b` 的 GitHub CI 全通过、CodeQL 未修复告警 0、10 个评审线程全部解决。本轮恢复入口的 244 单测、应用/e2e lint 与类型检查、7 个真实产品场景通过；新增正式验收 runner 的 4 个 guard、6 个通道/画幅组合和错误尺寸/产物变化/失败不重发负例已通过。`provider-acceptance-fixture` 纳入默认 e2e；正式 live 入口只在明确 opt-in、正式 origin、发布 version UUID 与审核 manifest 摘要都有效时运行。正式发布等待[执行条件](release-completion-tasks.md)，不把未执行项目写成完成。
 
 ## 正式验收自动化准备
 

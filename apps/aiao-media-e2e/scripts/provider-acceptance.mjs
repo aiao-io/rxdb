@@ -16,6 +16,34 @@ const requireCheck = (condition, code) => {
   if (!condition) throw new Error(code);
 };
 
+export function failureCode(error) {
+  const codes = new Map([
+    ['BUILD_MANIFEST_UNAVAILABLE', 'BUILD_MANIFEST_UNAVAILABLE'],
+    ['DEPLOYED_MANIFEST_MISMATCH', 'DEPLOYED_MANIFEST_MISMATCH'],
+    ['GENERATION_REJECTED_OR_UNCERTAIN', 'GENERATION_REJECTED_OR_UNCERTAIN'],
+    ['ORIGINAL_RESULT_UNAVAILABLE', 'ORIGINAL_RESULT_UNAVAILABLE'],
+    ['INVALID_RESULT_ORIGIN', 'INVALID_RESULT_ORIGIN'],
+    ['RESULT_CREDENTIAL_LEAK', 'RESULT_CREDENTIAL_LEAK'],
+    ['RESULT_READ_FAILED', 'RESULT_READ_FAILED'],
+    ['GENERATION_REQUEST_BOUNDARY', 'GENERATION_REQUEST_BOUNDARY'],
+    ['RESULT_SIZE_MISMATCH', 'RESULT_SIZE_MISMATCH']
+  ]);
+  if (codes.has(error?.message)) return codes.get(error.message);
+  if (error?.name === 'TimeoutError') return 'BROWSER_TIMEOUT';
+  if (typeof error?.message === 'string' && error.message.includes('expect(')) return 'BROWSER_ASSERTION';
+  return 'BROWSER_OPERATION_FAILED';
+}
+
+export function assertionCode(error) {
+  const matchers = new Map([
+    ['toBeVisible', 'ELEMENT_VISIBLE'],
+    ['toContainText', 'TEXT_CONTENT'],
+    ['toEqual', 'EXACT_BYTES'],
+    ['toBe', 'EXPECTED_VALUE']
+  ]);
+  return matchers.get(error?.matcherResult?.name) ?? 'NONE';
+}
+
 export function liveSettings(env) {
   requireCheck(env.AIAO_MEDIA_ACCEPTANCE_GENERATE === '1', 'LIVE_OPT_IN_REQUIRED');
   requireCheck(!env.DEBUG && !env.PWDEBUG, 'BROWSER_DEBUG_LOGGING_MUST_BE_DISABLED');
@@ -124,6 +152,7 @@ async function runAttempt(browser, settings, directory, mode, ratio) {
     aspect: ratio.aspect,
     request: { size: ratio.size, n: 1, quality: 'low', outputFormat: 'png' },
     phase: 'prepared',
+    stage: 'prepared',
     generationRequests: 0,
     automaticRetry: false
   };
@@ -131,12 +160,17 @@ async function runAttempt(browser, settings, directory, mode, ratio) {
   if (previous) return previous;
   try {
     return await verifyCase(browser, settings, mode, ratio, file, record);
-  } catch {
+  } catch (error) {
     record.phase = 'requires-review';
+    record.failureCode = failureCode(error);
+    record.assertionCode = assertionCode(error);
     record.finishedAt = new Date().toISOString();
     await persist(file, record);
-    throw new Error('ACCEPTANCE_STOPPED_REVIEW_ATTEMPT_BEFORE_ANOTHER_REQUEST');
   }
+  throw new Error(
+    `ACCEPTANCE_STOPPED_REVIEW_ATTEMPT_BEFORE_ANOTHER_REQUEST stage=${record.stage} code=${record.failureCode} assertion=${record.assertionCode} mode=${mode} aspect=${ratio.aspect} requests=${record.generationRequests} status=${record.generationStatus ?? 0}`,
+    { cause: { code: record.failureCode, assertion: record.assertionCode } }
+  );
 }
 
 async function originalBytes(response, responses, origin) {
@@ -164,6 +198,7 @@ async function originalBytes(response, responses, origin) {
 }
 
 async function verifyCase(browser, settings, mode, ratio, file, record) {
+  record.stage = 'browser-context';
   const context = await browser.newContext({
     baseURL: settings.origin,
     acceptDownloads: true,
@@ -200,7 +235,9 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
       }
       return route.fallback();
     });
+    record.stage = 'provider-setup';
     await provider(page, false, mode, settings);
+    record.stage = 'build-manifest';
     const manifest = await page.request.get('/offline-manifest.json');
     requireCheck(manifest.ok(), 'BUILD_MANIFEST_UNAVAILABLE');
     const observedManifestSha256 = createHash('sha256')
@@ -208,7 +245,9 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
       .digest('hex');
     requireCheck(observedManifestSha256 === settings.manifestSha256, 'DEPLOYED_MANIFEST_MISMATCH');
     const text = `桌面正式验收：${mode} ${ratio.aspect} 蓝色森林`;
+    record.stage = 'draft-setup';
     await prompt(page, text);
+    record.stage = 'aspect-selection';
     await page.getByRole('button', { name: ratio.label, exact: true }).click();
     const generated = page.waitForResponse(
       response => response.url() === endpoint && response.request().method() === 'POST',
@@ -216,17 +255,27 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     );
     generated.catch(() => undefined);
     record.phase = 'dispatching';
+    record.stage = 'generation-dispatch';
     await persist(file, record);
     await page.getByRole('button', { name: '✧ 生成图片' }).click();
+    record.stage = 'generation-response';
     const response = await generated;
     record.generationStatus = response.status();
+    record.stage = 'original-result';
     const original = await originalBytes(response, responses, settings.origin);
+    record.stage = 'local-save';
     await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible({ timeout: 210000 });
     requireCheck(!record.requestBoundaryFailed && record.generationRequests === 1, 'GENERATION_REQUEST_BOUNDARY');
+    record.stage = 'library-open';
     await page.goto('/images');
-    await page.reload();
     const card = page.locator('.library-card').filter({ hasText: text });
+    record.stage = 'library-initial-image';
     await expect(card.getByAltText('本机生成作品')).toBeVisible();
+    record.stage = 'library-reload';
+    await page.reload();
+    record.stage = 'library-reloaded-image';
+    await expect(card.getByAltText('本机生成作品')).toBeVisible();
+    record.stage = 'exact-download';
     const sha256 = await verifyImageDownload(page, card, original.bytes);
     record.image = {
       sha256,
@@ -238,8 +287,10 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
       exactDownloadAfterReload: true
     };
     const [width, height] = ratio.size.split('x').map(Number);
+    record.stage = 'result-size';
     requireCheck(record.image.width === width && record.image.height === height, 'RESULT_SIZE_MISMATCH');
     record.phase = 'verified';
+    record.stage = 'verified';
     record.finishedAt = new Date().toISOString();
     await persist(file, record);
     return record;

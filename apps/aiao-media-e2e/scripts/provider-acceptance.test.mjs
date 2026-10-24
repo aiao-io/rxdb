@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { attemptPath, liveSettings } from './provider-acceptance.mjs';
+import { assertionCode, attemptPath, failureCode, liveSettings } from './provider-acceptance.mjs';
 
 const config = {
   AIAO_MEDIA_ACCEPTANCE_GENERATE: '1',
@@ -11,6 +11,17 @@ const config = {
   AIAO_IMAGE_MODEL: 'image-test',
   AIAO_IMAGE_API_KEY: 'private-test-key'
 };
+
+test('诊断仅返回固定错误码，供应商 URL、Key 与原始异常不进入输出', () => {
+  assert.equal(failureCode(new Error('RESULT_SIZE_MISMATCH')), 'RESULT_SIZE_MISMATCH');
+  const timeout = new Error('private-test-key https://private.example.test?token=secret');
+  timeout.name = 'TimeoutError';
+  assert.equal(failureCode(timeout), 'BROWSER_TIMEOUT');
+  assert.equal(failureCode(new Error('expect(locator).toBeVisible private-test-key')), 'BROWSER_ASSERTION');
+  assert.equal(failureCode(new Error('private-test-key https://private.example.test')), 'BROWSER_OPERATION_FAILED');
+  assert.equal(assertionCode({ matcherResult: { name: 'toBeVisible' } }), 'ELEMENT_VISIBLE');
+  assert.equal(assertionCode({ matcherResult: { name: 'private-test-key' } }), 'NONE');
+});
 
 test('真实供应商验收必须显式启用且只接受已决定的正式 origin', () => {
   assert.throws(() => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_GENERATE: undefined }));
