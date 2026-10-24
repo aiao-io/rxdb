@@ -63,10 +63,12 @@ Supabase SDK 在锁文件去重到 2.117.3，无全局版本 override。同步�
 
 此前基线的首次并发执行遇到 `rxdb-model-react:typecheck` 的 TS6305 测试夹具声明产物缺失。通过该 target 的 `--force` 串行重建、清理其本地增量记录后，全量串行通过；本轮无该失败，Nx 仍保留其历史 flaky 提示。未修改包源码或放宽检查。e2e 生成的三个性能报告保存在忽略的应用 tmp 目录，未混入产品提交。
 
-此前提交 `a5abd39b` 的 GitHub CI 全通过、CodeQL 未修复告警 0、10 个评审线程全部解决。本轮恢复入口的 244 单测、应用/e2e lint 与类型检查、7 个真实产品场景通过；新增正式验收 runner 的 5 个 guard、6 个通道/画幅组合和错误尺寸/产物变化/失败不重发负例已通过。`provider-acceptance-fixture` 纳入默认 e2e；正式 live 入口只在明确 opt-in、正式 origin、发布 version UUID 与审核 manifest 摘要都有效时运行。正式发布等待[执行条件](release-completion-tasks.md)，不把未执行项目写成完成。
+此前提交 `a5abd39b` 的 GitHub CI 全通过、CodeQL 未修复告警 0、10 个评审线程全部解决。本轮恢复入口的 244 单测、应用/e2e lint 与类型检查、7 个真实产品场景通过；新增正式验收 runner 的 10 个 guard、6 个通道/画幅组合和错误尺寸/产物变化/失败不重发负例已通过。`provider-acceptance-fixture` 纳入默认 e2e；正式 live 入口只在明确 opt-in、正式 origin、发布 version UUID 与审核 manifest 摘要都有效时运行。正式发布等待[执行条件](release-completion-tasks.md)，不把未执行项目写成完成。
 
 ## 正式验收自动化准备
 
-[正式 runner](../../../aiao-media-e2e/scripts/provider-acceptance.mjs)通过产品页面逐项验证直连/代理与三画幅，返回尺寸精确匹配请求；保存后刷新并比较回读摘要/下载字节。发送前持久化独占尝试并 fsync，失败或不确定后停止；Key 轮换不能绕过同一尝试，报告无 Key 或完整响应。复用证据前使用独立无凭据 context 校验线上 manifest 与审核摘要；身份包括发布版本与产物摘要，避免旧证据被新发布误用。
+[正式 runner](../../../aiao-media-e2e/scripts/provider-acceptance.mjs)通过产品页面逐项验证直连/代理与三画幅，返回尺寸精确匹配请求；保存后刷新并比较回读摘要/下载字节。[页面响应捕获](../../../aiao-media-e2e/scripts/provider-fetch-capture.mjs)在内存中读取本次原生 fetch 的 Response 副本，原 Response 立即交给应用；生成 JSON 限 24 MiB、图片限 16 MiB，并限制捕获份数和截止时间。发送前持久化独占尝试并 fsync，失败或不确定后停止；Key 轮换不能绕过同一尝试，报告无 Key 或完整响应。复用证据前使用独立无凭据 context 校验线上 manifest 与审核摘要；身份包括发布版本与产物摘要，避免旧证据被新发布误用。
 
 [fixture](../../../aiao-media-e2e/scripts/provider-acceptance-fixture.mjs)调用真实 production Worker handler 与模拟供应商；预置私有 Cookie 仍不随结果图片请求发送。产物变化时零新尝试/零生成请求；错误尺寸拒绝，成功复用和中断/失败重跑均零重发。正式环境尚未执行；Base64 结果不替代跨 origin URL 结果证据。
+
+fixture 另将页面的 Playwright `Response.body()` 设为必抛，断言调用数为 0；六个组合仍完成精确下载，防止回到已证实会丢失响应体的 CDP 读取方式。原生 fetch 单次调用、原 Response/参数不变、提前到达的结果 GET、超限/截止/clone 失败、重复 URL 与跨分块 base64 均有保护测试；只取消副本，失败不重读或重发。

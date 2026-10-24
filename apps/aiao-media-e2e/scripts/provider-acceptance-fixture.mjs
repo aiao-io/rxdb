@@ -32,6 +32,7 @@ for (const size of ['1024x1024', '1536x1024', '1024x1536']) {
   );
 }
 const calls = { direct: 0, proxy: 0, result: 0 };
+let forbiddenBodyReads = 0;
 let incorrectSize = false;
 let changedManifest = false;
 const wrongSize = await sharp({ create: { width: 512, height: 512, channels: 3, background: '#8a9c62' } })
@@ -108,6 +109,14 @@ const server = createServer(async (request, response) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 settings.origin = `http://127.0.0.1:${server.address().port}`;
 async function setupContext(context) {
+  context.on('page', page =>
+    page.on('response', response => {
+      response.body = async () => {
+        forbiddenBodyReads++;
+        throw new Error('PLAYWRIGHT_RESPONSE_BODY_FORBIDDEN');
+      };
+    })
+  );
   await context.addCookies([
     {
       name: 'private-result-session',
@@ -166,6 +175,7 @@ try {
   assert.equal(failed.failureCode, 'RESULT_SIZE_MISMATCH');
   assert.equal(failed.assertionCode, 'NONE');
   assert.deepEqual(calls, { direct: 4, proxy: 3, result: 7 });
+  assert.equal(forbiddenBodyReads, 0);
   await assert.rejects(
     runProviderAcceptance(settings, failedDirectory, setupContext),
     /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/

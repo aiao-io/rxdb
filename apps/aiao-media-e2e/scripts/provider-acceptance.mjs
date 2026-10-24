@@ -5,6 +5,7 @@ import { chmod, mkdir, open, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { prompt, provider, verifyImageDownload } from '../src/local-first.helpers.ts';
+import { installFetchCapture } from './provider-fetch-capture.mjs';
 
 const ratios = [
   { aspect: 'square', label: '正方形', size: '1024x1024' },
@@ -25,15 +26,17 @@ export function failureCode(error) {
     ['INVALID_RESULT_ORIGIN', 'INVALID_RESULT_ORIGIN'],
     ['RESULT_CREDENTIAL_LEAK', 'RESULT_CREDENTIAL_LEAK'],
     ['RESULT_READ_FAILED', 'RESULT_READ_FAILED'],
-    ['GENERATION_BODY_READ_FAILED', 'GENERATION_BODY_READ_FAILED'],
-    ['GENERATION_BODY_CDP_UNAVAILABLE', 'GENERATION_BODY_CDP_UNAVAILABLE'],
-    ['GENERATION_BODY_EMPTY', 'GENERATION_BODY_EMPTY'],
+    ['CAPTURE_NOT_INSTALLED', 'CAPTURE_NOT_INSTALLED'],
+    ['GENERATION_CAPTURE_FAILED', 'GENERATION_CAPTURE_FAILED'],
+    ['GENERATION_CAPTURE_TOO_LARGE', 'GENERATION_CAPTURE_TOO_LARGE'],
+    ['GENERATION_CAPTURE_TIMEOUT', 'GENERATION_CAPTURE_TIMEOUT'],
     ['GENERATION_JSON_INVALID', 'GENERATION_JSON_INVALID'],
     ['RESULT_HEADERS_READ_FAILED', 'RESULT_HEADERS_READ_FAILED'],
-    ['RESULT_HEADERS_CDP_UNAVAILABLE', 'RESULT_HEADERS_CDP_UNAVAILABLE'],
-    ['RESULT_BODY_READ_FAILED', 'RESULT_BODY_READ_FAILED'],
-    ['RESULT_BODY_CDP_UNAVAILABLE', 'RESULT_BODY_CDP_UNAVAILABLE'],
-    ['RESULT_BODY_EMPTY', 'RESULT_BODY_EMPTY'],
+    ['RESULT_CAPTURE_FAILED', 'RESULT_CAPTURE_FAILED'],
+    ['RESULT_CAPTURE_TOO_LARGE', 'RESULT_CAPTURE_TOO_LARGE'],
+    ['RESULT_CAPTURE_TIMEOUT', 'RESULT_CAPTURE_TIMEOUT'],
+    ['RESULT_CAPTURE_LIMIT', 'RESULT_CAPTURE_LIMIT'],
+    ['RESULT_CAPTURE_DUPLICATE', 'RESULT_CAPTURE_DUPLICATE'],
     ['GENERATION_REQUEST_BOUNDARY', 'GENERATION_REQUEST_BOUNDARY'],
     ['RESULT_SIZE_MISMATCH', 'RESULT_SIZE_MISMATCH']
   ]);
@@ -43,25 +46,41 @@ export function failureCode(error) {
   return 'BROWSER_OPERATION_FAILED';
 }
 
-export async function readOriginal(kind, read) {
-  let code;
+export async function readResultHeaders(request) {
   try {
-    return await read();
-  } catch (error) {
-    const unavailable =
-      typeof error?.message === 'string' &&
-      /Network\.getResponseBody|No resource with given identifier|Response body is unavailable/.test(error.message);
-    code =
-      kind === 'generation-body' ?
-        unavailable ? 'GENERATION_BODY_CDP_UNAVAILABLE'
-        : 'GENERATION_BODY_READ_FAILED'
-      : kind === 'result-headers' ?
-        unavailable ? 'RESULT_HEADERS_CDP_UNAVAILABLE'
-        : 'RESULT_HEADERS_READ_FAILED'
-      : unavailable ? 'RESULT_BODY_CDP_UNAVAILABLE'
-      : 'RESULT_BODY_READ_FAILED';
+    return await request.allHeaders();
+  } catch {
+    throw new Error('RESULT_HEADERS_READ_FAILED');
   }
-  throw new Error(code);
+}
+
+async function receivedBytes(page, kind, url = '') {
+  requireCheck(await page.evaluate(() => Boolean(globalThis.__AIAO_ACCEPTANCE_CAPTURE__)), 'CAPTURE_NOT_INSTALLED');
+  await page.waitForFunction(
+    ({ kind, url }) => {
+      const state = globalThis.__AIAO_ACCEPTANCE_CAPTURE__;
+      const record = kind === 'generation' ? state.generation : state.results.get(url);
+      return (
+        record?.phase === 'settled' ||
+        (kind === 'result' && (state.duplicateResults.has(url) || (!record && state.resultLimitReached)))
+      );
+    },
+    { kind, url },
+    { timeout: 210000 }
+  );
+  const result = await page.evaluate(
+    ({ kind, url }) => {
+      const state = globalThis.__AIAO_ACCEPTANCE_CAPTURE__;
+      const record = kind === 'generation' ? state.generation : state.results.get(url);
+      if (kind === 'result' && state.duplicateResults.has(url)) return { ok: false, code: 'RESULT_CAPTURE_DUPLICATE' };
+      if (!record) return { ok: false, code: 'RESULT_CAPTURE_LIMIT' };
+      return { ok: record.ok, base64: record.base64, code: record.code };
+    },
+    { kind, url }
+  );
+  const code = failureCode(new Error(result.code));
+  requireCheck(result.ok, code);
+  return Buffer.from(result.base64, 'base64');
 }
 
 export function assertionCode(error) {
@@ -203,11 +222,10 @@ async function runAttempt(browser, settings, directory, mode, ratio) {
   );
 }
 
-async function originalBytes(response, responses, origin, record) {
+async function originalBytes(page, response, responses, origin, record) {
   requireCheck(response.ok(), 'GENERATION_REJECTED_OR_UNCERTAIN');
-  record.stage = 'generation-body';
-  const body = await readOriginal('generation-body', () => response.body());
-  requireCheck(body.length > 0, 'GENERATION_BODY_EMPTY');
+  record.stage = 'generation-capture';
+  const body = await receivedBytes(page, 'generation');
   record.stage = 'generation-json';
   let result;
   try {
@@ -224,15 +242,14 @@ async function originalBytes(response, responses, origin, record) {
   await expect.poll(() => responses.has(url.href), { timeout: 30000 }).toBe(true);
   const image = responses.get(url.href);
   record.stage = 'result-headers';
-  const headers = await readOriginal('result-headers', () => image.request().allHeaders());
+  const headers = await readResultHeaders(image.request());
   requireCheck(
     ['authorization', 'cookie', 'referer'].every(name => !headers[name]),
     'RESULT_CREDENTIAL_LEAK'
   );
   requireCheck(!image.request().redirectedFrom() && image.ok(), 'RESULT_READ_FAILED');
-  record.stage = 'result-body';
-  const bytes = await readOriginal('result-body', () => image.body());
-  requireCheck(bytes.length > 0, 'RESULT_BODY_EMPTY');
+  record.stage = 'result-capture';
+  const bytes = await receivedBytes(page, 'result', url.href);
   return {
     bytes,
     delivery: url.origin === origin ? 'same-origin-url' : 'cross-origin-url',
@@ -250,9 +267,16 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
   });
   try {
     await settings.setupContext?.(context);
+    const endpoint = mode === 'proxy' ? `${settings.origin}/api/relay` : `${settings.baseUrl}/images/generations`;
+    await context.addInitScript(installFetchCapture, {
+      generationUrl: endpoint,
+      pageOrigin: settings.origin,
+      generationLimit: 24 * 1024 * 1024,
+      resultLimit: 16 * 1024 * 1024,
+      timeoutMs: 190000
+    });
     const page = await context.newPage();
     page.setDefaultTimeout(30000);
-    const endpoint = mode === 'proxy' ? `${settings.origin}/api/relay` : `${settings.baseUrl}/images/generations`;
     const generationEndpoints = [`${settings.origin}/api/relay`, `${settings.baseUrl}/images/generations`];
     const responses = new Map();
     page.on('response', response => responses.set(response.url(), response));
@@ -305,7 +329,7 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     const response = await generated;
     record.generationStatus = response.status();
     record.stage = 'original-result';
-    const original = await originalBytes(response, responses, settings.origin, record);
+    const original = await originalBytes(page, response, responses, settings.origin, record);
     record.stage = 'local-save';
     await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible({ timeout: 210000 });
     requireCheck(!record.requestBoundaryFailed && record.generationRequests === 1, 'GENERATION_REQUEST_BOUNDARY');
