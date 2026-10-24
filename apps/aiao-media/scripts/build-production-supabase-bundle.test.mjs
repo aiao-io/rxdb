@@ -12,10 +12,18 @@ test('production bundle is deterministic, excludes development probe, and keeps 
     const second = await buildProductionBundle(join(directory, 'second.sql'));
     assert.equal(first.sql, second.sql);
     assert.equal(first.sources.length, 9);
-    assert.deepEqual(first.sources.map(source => source.relativePath), productionSources);
-    assert.ok(!first.sql.includes('-- BEGIN SOURCE apps/aiao-media/infra/supabase/migrations/001-local-account-checks.sql'));
+    assert.deepEqual(
+      first.sources.map(source => source.relativePath),
+      productionSources
+    );
+    assert.ok(
+      !first.sql.includes('-- BEGIN SOURCE apps/aiao-media/infra/supabase/migrations/001-local-account-checks.sql')
+    );
     for (const source of first.sources) {
-      assert.match(first.sql, new RegExp(`SOURCE ${source.relativePath.replaceAll('/', '\\/')} sha256=${source.digest}`));
+      assert.match(
+        first.sql,
+        new RegExp(`SOURCE ${source.relativePath.replaceAll('/', '\\/')} sha256=${source.digest}`)
+      );
     }
     assert.equal(first.sql.indexOf('aiao_media_empty_project_guard') < first.sql.indexOf('CREATE TABLE'), true);
     assert.equal(first.sql.startsWith('-- Aiao Media production Supabase bootstrap bundle.\n'), true);

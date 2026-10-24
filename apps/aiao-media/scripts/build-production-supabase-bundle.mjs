@@ -25,7 +25,13 @@ export const productionSources = [
 const transactionBoundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;
 
 /** 允许全新 Supabase 项目中由 PostGIS 等扩展预先创建的只读 public 关系。 */
-const publicExtensionRelations = ['geography_columns', 'geometry_columns', 'raster_columns', 'raster_overviews', 'spatial_ref_sys'];
+const publicExtensionRelations = [
+  'geography_columns',
+  'geometry_columns',
+  'raster_columns',
+  'raster_overviews',
+  'spatial_ref_sys'
+];
 
 export const emptyPublicGuard = `
 -- Aiao Media production bootstrap guard: this bundle is for a new, dedicated product project only.
@@ -119,9 +125,11 @@ export async function buildProductionBundle(output = outputDefault) {
   ].join('\n');
   const sql = [
     'BEGIN;',
-    'SET LOCAL lock_timeout = \'5s\';',
+    "SET LOCAL lock_timeout = '5s';",
     emptyPublicGuard.trim(),
-    ...sources.map(source => `\n-- BEGIN SOURCE ${source.relativePath}\n${source.sql}\n-- END SOURCE ${source.relativePath}`),
+    ...sources.map(
+      source => `\n-- BEGIN SOURCE ${source.relativePath}\n${source.sql}\n-- END SOURCE ${source.relativePath}`
+    ),
     'COMMIT;',
     ''
   ].join('\n');
