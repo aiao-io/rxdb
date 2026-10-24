@@ -53,10 +53,8 @@ function anchors(text) {
   const counts = new Map();
   const body = withoutFences(text.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ''));
   for (const match of body.matchAll(/^\s{0,3}#{1,6}\s+(.+?)(?:\s+#+)?\s*$/gm)) {
-    const base = match[1]
-      .replace(/<[^>]*>/g, '')
-      .replaceAll('<', '')
-      .replaceAll('>', '')
+    const label = match[1].split(/<[^>]*>|[<>]/g).join('');
+    const base = label
       .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
       .toLowerCase()
       .replace(/[^\p{L}\p{N}\p{M}_\-\s]/gu, '')

@@ -345,3 +345,16 @@ test('rejects legacy story identifiers in a namespaced application', async t => 
   const report = await auditRequirements(f.root, { namespace: 'MEDIA' });
   has(report, 'Invalid story/epic id');
 });
+
+test('标题锚点只保留文本片段，嵌套标签和残留尖括号不会重新组成标签', async t => {
+  const f = await fixture(t);
+  await f.put(
+    'requirements/CONVENTIONS.md',
+    '# 写作约定\n## <b>有效标题</b>\n## <scr<script>ipt>标题\n## left<right\n'
+  );
+  await f.put(
+    'README.md',
+    '[正常标签](requirements/CONVENTIONS.md#有效标题)\n[嵌套标签](requirements/CONVENTIONS.md#ipt标题)\n[残留符号](requirements/CONVENTIONS.md#leftright)\n'
+  );
+  assert.deepEqual((await f.run()).errors, []);
+});

@@ -55,3 +55,11 @@ Supabase SDK 在锁文件去重到 2.117.3，无全局版本 override。同步�
 - [私有投影](../../src/local-data/product-projection.ts)、[集合迁移](../../src/local-data/local-collections.ts)、[产品 DTO](../../src/contracts/product-data.mjs)
 - [后台界面](../../src/app/admin-console.ts)、[后台 API](../../deploy/admin-api.mjs)、[运行策略](../../deploy/product-content.mjs)
 - [真实服务测试](../../scripts/test-product-local.mjs)、[真实产品浏览器测试](../../../aiao-media-e2e/src/product-local.spec.mts)
+
+## 最终本地门禁
+
+`pnpm nx affected -t lint typecheck test test-memory test-browser build audit-lazy-backend e2e --base=main --exclude=website,benchmarks --output-style=static --skipRemoteCache --parallel=1 --nxBail` 通过：82 个项目、341 个任务，耗时 35 分 32 秒。范围按分支与锁文件由 Nx 计算；没有修改 packages 源码。
+
+首次并发执行遇到 `rxdb-model-react:typecheck` 的 TS6305 测试夹具声明产物缺失。通过该 target 的 `--force` 串行重建、清理其本地增量记录后，全量串行通过；未修改包源码或放宽检查。e2e 生成的三个性能报告保存在忽略的应用 tmp 目录，未混入产品提交。
+
+应用 lint/typecheck、240 项单测 + 15 项真实浏览器数据层测试与覆盖率、28 项本机回归、3 项真实 Auth、6 项真实产品、旧构建升级/受阻回退恢复、离线 Worker 更新/回退、真实产品服务、产物审查和 Wrangler dry-run 均通过。PR #154 已推送供 CodeQL 与 GitHub CI 复验，正式发布仍不在本次范围。
