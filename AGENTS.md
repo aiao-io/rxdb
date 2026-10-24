@@ -39,6 +39,10 @@
 | 代码     | <3层缩进，单一职责                                                                      | 嵌套>3层，加fallback                                         |
 | 合并治理 | 候选领域功能不经评审不进 main；packages 改动先提取、评审、单独合入 main，再从 main 合回 | 领域功能与引擎改动混一个 PR 进 main；绕过提取评审改 packages |
 
+## 实际应用
+
+`apps/aiao-media` 是独立 Angular 产品，应用私有代码不要求 React/Vue 对称实现。可复用包与领域 UI 的公共能力继续遵循三框架规则；其余产品约束见应用目录的 AGENTS.md。
+
 ## 候选领域合并治理
 
 候选领域（`requirements/domain-research`）衍生的功能分支受额外约束：
