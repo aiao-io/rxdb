@@ -32,9 +32,7 @@ test('guard rejects non-empty public relations and pre-existing product/RxDB fun
   assert.match(emptyPublicGuard, /public schema is not empty/);
   assert.match(emptyPublicGuard, /c\.relkind IN \('r', 'p', 'v', 'm', 'f', 'S'\)/);
   assert.match(emptyPublicGuard, /t\.typtype IN \('c', 'e', 'd'\)/);
-  assert.match(emptyPublicGuard, /media\\_%/);
-  assert.match(emptyPublicGuard, /rxdb\\_%/);
-  assert.match(emptyPublicGuard, /get_ancestors/);
+  assert.match(emptyPublicGuard, /p\.prokind IN \('f', 'p', 'a'\)/);
   assert.match(emptyPublicGuard, /pg_advisory_xact_lock/);
   assert.match(emptyPublicGuard, /ERRCODE = '55006'/);
   assert.match(emptyPublicGuard, /geography_columns/);

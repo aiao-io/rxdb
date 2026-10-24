@@ -79,16 +79,12 @@ BEGIN
   FROM pg_catalog.pg_proc p
   JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
   WHERE n.nspname = 'public'
-    AND (
-      p.proname LIKE 'media\\_%' ESCAPE '\\'
-      OR p.proname LIKE 'rxdb\\_%' ESCAPE '\\'
-      OR p.proname IN ('get_ancestors', 'get_descendants', 'get_root_descendants', 'update_updated_at_column')
-    );
+    AND p.prokind IN ('f', 'p', 'a');
 
   IF existing_functions IS NOT NULL THEN
     RAISE EXCEPTION USING
       ERRCODE = '55006',
-      MESSAGE = 'Refusing production bootstrap: Aiao Media or RxDB objects already exist',
+      MESSAGE = 'Refusing production bootstrap: public schema has user-defined functions',
       DETAIL = existing_functions;
   END IF;
 END
