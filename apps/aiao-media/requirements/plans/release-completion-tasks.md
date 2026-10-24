@@ -16,7 +16,7 @@
 
 2026-10-24 的复核确认：
 
-- [x] Cloudflare 官方登录已恢复；Wrangler 可读当前账号与 `aiao-media` 版本/部署。仍缺 `media.aiao.io` DNS、当前构建发布、Worker secrets 和 Free 计划账单核验。
+- [x] Cloudflare 官方登录已恢复；当前构建已发布，version `deaaa727-7f52-4da2-9da5-fe33088cd244`，返回 `media.aiao.io (custom domain)`。仍缺 DNS 传播、四路由/WASM/CSP/离线清单公网 smoke、Worker secrets 和 Free 计划账单核验。
 - [ ] 正式域名与证书；`media.aiao.io` 的 A/AAAA 当前 ENOTFOUND。旧 workers.dev DNS 存在，但本机 HTTP 超时，不能据此判断线上停机。
 - [ ] 私有供应商配置：`AIAO_IMAGE_BASE_URL`、`AIAO_IMAGE_API_KEY`、`AIAO_IMAGE_MODEL`。进程、当前应用和源仓 `.env` 均未配置约定字段；不要在聊天、报告、截图或 shell 参数粘贴 Key。
 - [ ] 正式 Supabase 项目、公开 URL/anon key、Worker 服务端配置与首管理员 Auth UUID；当前仅有本机服务配置，生产迁移包已准备但未执行，不能将回环 URL 发布为正式服务。
@@ -27,7 +27,7 @@
 | 工作                  | 对应 AC                              | 关闭条件                                                                                                                                         |
 | --------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | ✅ 已验：显式重新扫描 | MEDIA-US-302 AC5                     | 真实本地服务重放旧日志，保留未确认修改和删除冲突；重复扫描不复活、不增业务 revision                                                              |
-| 正式部署              | MEDIA-US-004 AC1/2                   | 核验既有 Worker/zone/DNS，完成当前构建发布；保存 URL、version/deployment ID、静态产物摘要与 Free 计划证据；代理目标为精确允许列表                |
+| 正式部署              | MEDIA-US-004 AC1/2                   | 已保存 version/deployment 回执；待 DNS 传播后完成四路由/WASM/CSP、免费计划、精确代理策略与公网 smoke，当前不把 1010/未解析当通过                 |
 | 正式图片交付          | MEDIA-US-102 AC7、105 AC6/7、202 AC7 | 正式 origin 直连/主动代理、三画幅逐项出图；PNG 尺寸/字节摘要、刷新回读和下载一致，跨 origin 原图请求不携带供应商 Key；不确定请求停止且不自动重发 |
 | 正式离线更新/回退     | MEDIA-US-004 AC3/4                   | 当前 origin 完成离线安装；真实更新等待旧页面关闭，兼容版本回退后草稿/配置/原图仍在，未知/更高 schema marker 阻止访问且不清库                     |
 | 桌面输入法            | MEDIA-US-106 AC7                     | 真实系统中文 IME 在正文和字段输入、粘贴、撤销重做，不丢字、不抢焦点、无溢出                                                                      |

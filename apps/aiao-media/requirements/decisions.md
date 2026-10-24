@@ -17,7 +17,7 @@
 
 - 2026-10-24 核对：进程环境、当前应用和源仓 `.env` 均未配置约定的供应商 URL、Key、模型三字段，真实图片验收等待本地配置；这属于输入条件，不再等待额度决策。字段见 [`.env.example`](../.env.example)，只提供私有文件位置，不在聊天或报告粘贴 Key。
 - 正式域名路由纳入 [Wrangler 配置](../deploy/wrangler.json)。域名绑定、证书与正式发布须以部署回执和公网检查为准。
-- 2026-10-24 复核：Wrangler OAuth 设备授权已完成，账号可读写 Workers/Routes/Zone。`aiao-media` 已存在 12 个版本，当前线上部署仍是旧回执，不能当作当前分支构建；`media.aiao.io` 的 A/AAAA 查询仍为 ENOTFOUND。旧 workers.dev 的 DNS 存在，但本机 HTTP 连接超时，不能据此判断线上停机。尚未修改 Worker、DNS、secrets 或计划账单；正式域名和当前构建仍待单独发布验收。`aiao-media:deploy-check` 的本地产物审查/dry-run 已通过。
+- 2026-10-24 复核：Wrangler OAuth 设备授权已完成，账号可读写 Workers/Routes/Zone。当前分支已发布到 `aiao-media.aiao.workers.dev`，版本 `deaaa727-7f52-4da2-9da5-fe33088cd244`，并返回 `media.aiao.io (custom domain)`。本机 DNS 尚未解析，公网请求受 Cloudflare 1010 拦截，因此四路由/WASM/CSP/离线清单 smoke 尚未完成；不把发布回执当作公网验收。未配置供应商白名单、Supabase secrets 或业务 Key。
 - 进程和应用 `.env` 没有正式供应商三字段或 Supabase 公开配置；`deploy/.dev.vars` 仅为本机回环服务配置，不能发布为正式服务。产品复制、用户/模板/供应商策略后台与显式上报均已通过真实本地验收，正式项目及服务端凭据仍需提供。生产迁移包已生成并通过 guard 测试，但只允许审查后的空独立产品项目执行。
 - 真实 OS 中文 IME 必须使用系统输入法验证；2026-10-24 原生自动化报告 Mac 锁屏，无法操作。解锁后继续，不以粘贴中文或合成 composition 事件关闭 AC。
 - 移动端不作为桌面能力、同步或后台工作的前置条件；现有响应式布局测试保留，不增加真机验收任务。
