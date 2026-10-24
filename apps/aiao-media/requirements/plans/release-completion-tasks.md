@@ -14,12 +14,12 @@
 
 ## 当前输入条件
 
-2026-10-24 的只读检查确认：
+2026-10-24 的复核确认：
 
-- [ ] Cloudflare 官方登录可用；Wrangler 当前报告未登录，不能核验 Worker、zone、secrets 和账单。
+- [x] Cloudflare 官方登录已恢复；Wrangler 可读当前账号与 `aiao-media` 版本/部署。仍缺 `media.aiao.io` DNS、当前构建发布、Worker secrets 和 Free 计划账单核验。
 - [ ] 正式域名与证书；`media.aiao.io` 的 A/AAAA 当前 ENOTFOUND。旧 workers.dev DNS 存在，但本机 HTTP 超时，不能据此判断线上停机。
 - [ ] 私有供应商配置：`AIAO_IMAGE_BASE_URL`、`AIAO_IMAGE_API_KEY`、`AIAO_IMAGE_MODEL`。进程、当前应用和源仓 `.env` 均未配置约定字段；不要在聊天、报告、截图或 shell 参数粘贴 Key。
-- [ ] 正式 Supabase 项目、公开 URL/anon key、Worker 服务端配置与首管理员 Auth UUID；当前仅有本机服务配置，不能将回环 URL 发布为正式服务。
+- [ ] 正式 Supabase 项目、公开 URL/anon key、Worker 服务端配置与首管理员 Auth UUID；当前仅有本机服务配置，生产迁移包已准备但未执行，不能将回环 URL 发布为正式服务。
 - [ ] 解锁 Mac，使用真实 OS 中文输入法；原生自动化当前报告锁屏，不能以粘贴中文或合成 composition 事件代替。
 
 ## 验收顺序
@@ -59,7 +59,7 @@ NX_NO_CLOUD=true pnpm nx run aiao-media-e2e:provider-acceptance-fixture --skipRe
 ## 正式账号服务的运维边界
 
 1. 核验已有 Cloudflare 账户、`aiao-media` Worker、`aiao.io` active zone、正式域名现存记录与选定的独立 Supabase 项目。保留当前 Worker version/deployment、静态摘要、Auth 配置与数据库备份，不覆盖未知 CNAME。
-2. 仅对经核验的独立空产品项目审查初始化事务。参考本地初始化的 core SQL、production change grants 与应用 migrations 002–006；`001-local-account-checks.sql` 是开发探针，正式不部署。本地 `supabase-migrate` 不能换 URL 后用于生产。
+2. 使用 `aiao-media:production-bundle` 生成的 9 源 SQL 包，仅对经核验的独立空产品项目审查初始化事务。包内保留每个源文件 SHA-256，排除 `001-local-account-checks.sql`；首个事务 guard 会拒绝 public 非扩展关系、既有 `media_`/`rxdb_` 对象和相关函数。本地 `supabase-migrate` 不能换 URL 后用于生产。
 3. core `01-rxdb-system-tables.sql` 含全 public 授权、关闭 RLS、历史日志改写/去重；应用 003 改变全局 RxDB 分支函数与权限。这些操作不能直接投向已有数据或共享项目；必须先提取按对象收口的 SQL 并评审。不同文件自带事务边界，不能不经整理直接拼接成所谓单事务。
 4. 复验所有产品表 RLS、匿名/A/B 的私有数据隔离、变更日志隔离、普通用户管理 RPC 拒绝，以及 `rxdb_change` 的 Realtime publication。SQL 执行成功不代表权限矩阵通过。
 5. Auth Site URL 设为 `https://media.aiao.io`，仅允许精确正式返回地址。当前是邮箱密码流程，邮箱确认后回站点再登录；没有 `/auth/callback`，不声明 OAuth/PKCE 已实现。真实邮件投递必须验收。
@@ -68,4 +68,4 @@ NX_NO_CLOUD=true pnpm nx run aiao-media-e2e:provider-acceptance-fixture --skipRe
 8. 服务端配置以 0600、Git 忽略的私密 JSON 经 Wrangler `secret bulk` 接入，不把值写入 shell 参数或日志。然后执行 `aiao-media:deploy-check`，核对公开配置与 Supabase 精确 CSP、无服务端 Key，最后 `aiao-media:deploy` 并保存真实回执。
 9. 正式服务按本页验收表收口。服务端 schema 采用前向修复，前端回退不自动删除表、冲突、tombstone、SQLite 或 OPFS；数据库恢复单独作为灾备操作处理。
 
-源码依据：[本地迁移入口](../../scripts/supabase-local.mjs)、[可信管理员入口](../../scripts/admin-membership.mjs)、[Worker 后端请求](../../deploy/product-http.mjs)、[公开配置/CSP 构建](../../scripts/build-supabase-config.mjs)、[发布脚本](../../scripts/deploy-local-first.mjs)。
+源码依据：[生产迁移包脚本](../../scripts/build-production-supabase-bundle.mjs)、[本地迁移入口](../../scripts/supabase-local.mjs)、[可信管理员入口](../../scripts/admin-membership.mjs)、[Worker 后端请求](../../deploy/product-http.mjs)、[公开配置/CSP 构建](../../scripts/build-supabase-config.mjs)、[发布脚本](../../scripts/deploy-local-first.mjs)。

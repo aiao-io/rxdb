@@ -308,7 +308,24 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/aiao-media",
-        "command": "node --test scripts/build-supabase-config.test.mjs scripts/local-first-worker.test.mjs scripts/product-api.test.mjs scripts/migration.test.mjs"
+        "command": "node --test scripts/build-supabase-config.test.mjs scripts/build-production-supabase-bundle.test.mjs scripts/local-first-worker.test.mjs scripts/product-api.test.mjs scripts/migration.test.mjs"
+      }
+    },
+    "production-bundle": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "outputs": ["{projectRoot}/tmp/production-supabase-bundle.sql"],
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "node scripts/build-production-supabase-bundle.mjs"
+      }
+    },
+    "production-bundle-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "node --test scripts/build-production-supabase-bundle.test.mjs"
       }
     },
     "supabase-init": {
