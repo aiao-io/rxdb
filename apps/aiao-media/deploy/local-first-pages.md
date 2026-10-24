@@ -4,7 +4,7 @@
 
 ## 部署结构
 
-本次使用 **Workers Static Assets + 一个可选的无状态代理入口**，通过同一域名部署：
+本次使用 **Workers Static Assets + 无状态代理及可选产品 API**，通过同一域名部署：
 
 ```text
 浏览器 ── GET 页面/JS/WASM ── Cloudflare Static Assets
@@ -16,13 +16,13 @@
   └── 主动选择直连 ── 支持浏览器 CORS 的供应商
 ```
 
-静态应用本身没有 SSR 或业务后端依赖。选择 Static Assets 是为了让静态资源与可选代理一次发布、保持同源，不需要额外域名或容器。默认免费供应商（`https://api.pengdevs.com`）对本站的 OPTIONS 预检返回 403，浏览器无法直连，因此默认走同源代理；用户只选择直连供应商时才绕过 Worker。未来 Supabase 同步不在本次部署中。
+本机模式没有 SSR 或业务后端前置。可选账号、DTO 复制和业务后台依赖 Supabase；同源 Worker 的 `/api/admin/*`、`/api/templates` 与 `/api/provider-policies` 已接线并通过真实本地服务验收，生产项目另行配置。选择 Static Assets 是为了让静态资源与可选代理一次发布、保持同源，不需要额外域名或容器。默认免费供应商（`https://api.pengdevs.com`）对本站的 OPTIONS 预检返回 403，浏览器无法直连，因此默认走同源代理；用户只选择直连供应商时才绕过 Worker。账号/同步服务未配置时保持本机功能可用，不连接 Supabase。
 
 ## 免费资源约束
 
 按 2026-10-23 官方文档，Workers Free 动态请求限 100,000 次/日，每次 10 ms CPU；静态资源请求不计入动态 Worker 请求费用。配置仅让 `/api/*` 先进入 Worker，普通静态请求走资产服务。Worker 不设置付费专属的 CPU 配置；代理代码自身限制请求体、响应体、固定上游路径和 180 秒超时。代理等待上游不等于 CPU 计算，但较大响应和平台限制仍可能导致请求失败，失败不自动重试。
 
-不申请 Containers、D1、R2、KV、Durable Objects、PostgreSQL、Supabase 或付费计划。脚本不会升级订阅；部署账号应使用 Workers Free，实际账号计划和账单仍须在账号内核对。免费静态托管不包含第三方模型费用。
+静态/代理发布不申请 Containers、D1、R2、KV、Durable Objects、自建 PostgreSQL 或付费计划；启用可选产品服务时只接已明确授权的 Supabase 项目，不自动创建或升级计划。脚本不会升级订阅；部署账号应使用 Workers Free，实际账号计划和账单仍须在账号内核对。免费静态托管不包含第三方模型费用。
 
 产物检查限制静态文件不超过 20,000 个、单文件不超过 25 MiB。离线资源单文件另有限制 16 MiB，模型结果 PNG 限 16 MiB，代理 JSON 流限 24 MiB。
 
@@ -42,7 +42,7 @@ pnpm nx run aiao-media:offline-assets
 - `aiao-media:deploy-check`：以上检查完成后执行 Wrangler dry-run，不发布。
 - `aiao-media:deploy`：以上检查完成后执行真实发布。
 
-构建不读取业务 Key。部署脚本只从进程环境或本机 `.env` 读取允许代理的 API 前缀，不向 Worker 上传旧服务端 Key。Wrangler 已固定为开发依赖，运行统一经 Nx 封装。
+构建只读取公开账号配置，不读取服务端管理 Key 或供应商 Key。部署脚本只从进程环境或本机 `.env` 读取允许代理的 API 前缀，不向 Worker 上传旧服务端 Key。Wrangler 已固定为开发依赖，运行统一经 Nx 封装。
 
 ## 代理允许列表与凭据
 
@@ -93,8 +93,9 @@ pnpm nx run aiao-media:deploy
 ## 验证
 
 ```sh
-pnpm nx run-many -t lint typecheck -p aiao-media local-data web-e2e
-pnpm nx run-many -t test -p local-data web
+pnpm nx run-many -t lint typecheck -p aiao-media aiao-media-e2e
+pnpm nx run aiao-media:test
+pnpm nx run aiao-media:test-browser
 pnpm nx run aiao-media:relay-test
 pnpm nx run aiao-media-e2e:local-first-e2e
 pnpm nx run aiao-media:requirements-check
@@ -103,7 +104,7 @@ pnpm nx run aiao-media:deploy-check
 
 浏览器测试使用实际生产静态包、Chrome、RxDB、WASM、IndexedDB、OPFS 和 Service Worker；网络供应商使用 fixture。覆盖配置与草稿恢复、图片下载/回读、三种画幅、不确定请求、内存 Key、主动代理、四路由离线、备份恢复、移动布局、多标签页及本机写入失败。
 
-正式发布后仍需记录：公网四路由和 WASM/CSP、正式 origin 的供应商 CORS、免费计划状态，以及真实供应商的生成/保存结果。已经记录的本机 CORS 403 不能推导正式 origin 的结果。不会为部署检查自动调用真实模型或反复尝试收费请求。
+正式发布后仍需记录：公网四路由和 WASM/CSP、正式 origin 的供应商 CORS、免费计划状态，以及真实供应商的生成/保存结果。已经记录的本机 CORS 403 不能推导正式 origin 的结果。普通部署检查不调用真实模型；真实供应商验收走独立显式入口，持久记录每次尝试，遇到不确定结果停止，不自动重发。
 
 ## Pages 纯静态替代方案
 
@@ -126,4 +127,4 @@ pnpm nx run aiao-media:deploy-check
 - [Wrangler 配置](https://developers.cloudflare.com/workers/wrangler/configuration/)
 - [Pages SPA](https://developers.cloudflare.com/pages/configuration/serving-pages/)
 
-当前移动真机验收暂缓；业务后台将以独立服务端权限接入同源 Worker，尚未实现，见[后台计划](../requirements/plans/business-admin.md)。当前静态/代理能力不代表后台已接通。
+当前移动真机验收暂缓；业务后台已通过真实本地服务与浏览器验收，见[后台计划](../requirements/plans/business-admin.md)。正式项目迁移、Worker secrets、首管理员、域名和发布验收按[收尾清单](../requirements/plans/release-completion-tasks.md)执行。服务端配置必须作为 Worker secrets 提供：`MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY`、`MEDIA_SUPABASE_SERVICE_ROLE_KEY`；普通 dashboard vars 不在版本配置中，后续 deploy 可能删除它们。公开构建使用同一项目的 `AIAO_SUPABASE_URL` 与 `AIAO_SUPABASE_ANON_KEY`，不能把本机回环地址发布为正式配置。

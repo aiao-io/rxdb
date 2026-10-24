@@ -319,6 +319,73 @@ test('供应商和作品信息跨副本同步但凭据原图留在本机，任�
   }
 });
 
+test('明确重新扫描重放旧日志，保留未上传修订和删除冲突，重复扫描不复活或重复推送', async ({
+  page,
+  browser,
+  baseURL
+}) => {
+  const user = await account();
+  const context = await browser.newContext({ baseURL });
+  try {
+    await page.goto('/create');
+    await editDraft(page, '重新扫描前的共同草稿');
+    await enableReplica(page, user);
+    const second = await context.newPage();
+    await second.goto('/create');
+    await enableReplica(second, user);
+    await second.getByRole('button', { name: '关闭账号窗口' }).click();
+    await context.setOffline(true);
+    await editDraft(second, '检查点恢复仍须保留的本机修改');
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: '删除同步端草稿', exact: true }).click();
+    await expect(page.getByRole('button', { name: '删除同步端草稿', exact: true })).toBeDisabled({ timeout: 25000 });
+    await context.setOffline(false);
+    await second.getByRole('button', { name: '我的账号', exact: true }).click();
+    const scans: string[] = [];
+    second.on('request', request => {
+      const url = new URL(request.url());
+      if (url.pathname === '/rest/v1/rxdb_change' && url.searchParams.get('id') === 'gt.0') scans.push(url.pathname);
+    });
+    second.once('dialog', dialog => dialog.dismiss());
+    await second.getByRole('button', { name: '重新扫描远程记录', exact: true }).click();
+    expect(scans).toEqual([]);
+    second.once('dialog', dialog => dialog.accept());
+    await second.getByRole('button', { name: '重新扫描远程记录', exact: true }).click();
+    await expect(second.getByText('同步端：已删除', { exact: false })).toBeVisible({ timeout: 25000 });
+    expect(scans.length).toBeGreaterThan(0);
+    await second.getByText('查看两个版本', { exact: true }).click();
+    await expect(second.locator('article pre').first()).toContainText('检查点恢复仍须保留的本机修改');
+    await second.reload();
+    await expect(second.locator('[contenteditable=true]')).toContainText('检查点恢复仍须保留的本机修改');
+    await second.getByRole('button', { name: '我的账号', exact: true }).click();
+    await expect(second.getByText('同步端：已删除', { exact: false })).toBeVisible({ timeout: 25000 });
+    second.once('dialog', dialog => dialog.accept());
+    await second.getByRole('button', { name: '重新扫描远程记录', exact: true }).click();
+    await expect(second.getByRole('button', { name: '采用同步端版本', exact: true })).toBeEnabled({ timeout: 25000 });
+    await second.getByRole('button', { name: '采用同步端版本', exact: true }).click();
+    await expect(second.getByText('同步已确认', { exact: true })).toBeVisible({ timeout: 25000 });
+    const workspace = (await admin.from('media_workspaces').select('id').eq('owner_id', user.id).single()).data!;
+    const record = () =>
+      admin
+        .from('media_sync_records')
+        .select('id,revision,deleted')
+        .eq('workspaceId', workspace.id)
+        .eq('kind', 'draft')
+        .single();
+    const before = (await record()).data!;
+    expect(before.deleted).toBe(true);
+    second.once('dialog', dialog => dialog.accept());
+    await second.getByRole('button', { name: '重新扫描远程记录', exact: true }).click();
+    await expect(second.getByRole('button', { name: '重新扫描远程记录', exact: true })).toBeEnabled({ timeout: 25000 });
+    await expect(second.getByText('同步已确认', { exact: true })).toBeVisible();
+    expect((await record()).data).toEqual(before);
+    await second.getByRole('button', { name: '关闭账号窗口' }).click();
+    await expect(second.locator('[contenteditable=true]')).toBeEmpty();
+  } finally {
+    await context.close();
+  }
+});
+
 test('A 的生成响应迟到时不进入 B 的工作区，回到 A 仍能读取原图', async ({ page }) => {
   const a = await account(),
     b = await account(),

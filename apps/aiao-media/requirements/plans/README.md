@@ -21,3 +21,6 @@ MVP 首发收口与同步扩展的需求入口、真实环境验收记录和历�
 | [rxdb-product-incubation.md](rxdb-product-incubation.md)     | 迁入 RxDB 的目录、应用需求隔离、MVP 保全与发布交接方案 |
 
 - [RxDB 同仓迁入验收](rxdb-import-verification.md)：来源、目录映射、兼容性和本次复验结果。
+
+- [本地产品交付验收](local-delivery-verification.md)：原生复制、账号隔离、后台、实体化、344 个 affected 任务及当前覆盖率。
+- [正式验收收尾清单](release-completion-tasks.md)：剩余 AC、关键决策、外部输入与发布顺序。

@@ -1,5 +1,7 @@
 # 本地可靠性验收
 
+本记录保留该阶段实际执行的基线与证据；最新实现、测试数量和收尾边界见[本地产品交付验收](local-delivery-verification.md)与[收尾清单](release-completion-tasks.md)。
+
 本记录覆盖生产静态应用在桌面 Chrome 中的本机恢复和故障边界。使用真实 RxDB `0.0.26`、wa-sqlite/IndexedDB、OPFS 与 Service Worker；图片供应商为 fixture。正式 origin、真实模型和桌面系统 IME 仍须另验；移动真机暂缓，当前范围见[决策清单](../decisions.md)。
 
 ## 实现

@@ -1,5 +1,7 @@
 # RxDB 同仓迁入验收
 
+本记录保留该阶段实际执行的基线与证据；最新实现、测试数量和收尾边界见[本地产品交付验收](local-delivery-verification.md)与[收尾清单](release-completion-tasks.md)。
+
 Aiao Media 已导入 RxDB 的 `codex/aiao-media-incubation` 分支。应用专属文件位于 `apps/aiao-media`，e2e 位于 `apps/aiao-media-e2e`。生产发布入口尚未切换。
 
 ## 来源与结构

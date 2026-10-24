@@ -689,6 +689,7 @@
             <button class="primary" [disabled]="settingsBusy()" (click)="synchronize()">
               {{ sync().busy ? '正在同步…' : '立即同步' }}
             </button>
+            <button class="secondary" [disabled]="settingsBusy()" (click)="rescanSync()">重新扫描远程记录</button>
             <button class="secondary" [disabled]="settingsBusy()" (click)="reportTasks()">上报本机任务</button>
             <button class="secondary" [disabled]="settingsBusy() || sync().draftDeleted" (click)="deleteSyncedDraft()">
               删除同步端草稿

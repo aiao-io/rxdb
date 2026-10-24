@@ -24,7 +24,7 @@ tags: [cloudflare, deployment, static, relay]
 
 ### In Scope
 
-- Cloudflare Workers Static Assets 发布纯静态 CSR 应用（无 SSR、无业务 API、无数据库）。
+- Cloudflare Workers Static Assets 发布 CSR 应用；本机模式无业务后端前置。可选账号/复制依赖 Supabase，同 Worker 提供受保护的管理 API 与公开模板/策略读取。
 - 同源 `/api/relay` 无状态代理：精确允许列表、固定上游路径、按请求 Key、无缓存/日志、超时/流式限制。
 - 四路由 SPA fallback、指纹静态资源、CSP/离线壳与版本化 Service Worker；发布回退不删除本地数据。
 - 正式域名 `media.aiao.io` 验证、免费计划账单与实际发布地址记录。

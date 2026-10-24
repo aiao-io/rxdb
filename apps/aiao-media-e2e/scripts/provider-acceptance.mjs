@@ -1,0 +1,284 @@
+import { chromium, expect, request as playwrightRequest } from '@playwright/test';
+import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { chmod, mkdir, open, readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { prompt, provider, verifyImageDownload } from '../src/local-first.helpers.ts';
+
+const ratios = [
+  { aspect: 'square', label: '正方形', size: '1024x1024' },
+  { aspect: 'landscape', label: '横向', size: '1536x1024' },
+  { aspect: 'portrait', label: '纵向', size: '1024x1536' }
+];
+const fingerprint = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const requireCheck = (condition, code) => {
+  if (!condition) throw new Error(code);
+};
+
+export function liveSettings(env) {
+  requireCheck(env.AIAO_MEDIA_ACCEPTANCE_GENERATE === '1', 'LIVE_OPT_IN_REQUIRED');
+  requireCheck(!env.DEBUG && !env.PWDEBUG, 'BROWSER_DEBUG_LOGGING_MUST_BE_DISABLED');
+  requireCheck(env.AIAO_MEDIA_ACCEPTANCE_ORIGIN === 'https://media.aiao.io', 'FORMAL_ORIGIN_REQUIRED');
+  requireCheck(
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(env.AIAO_MEDIA_ACCEPTANCE_RELEASE ?? ''),
+    'DEPLOYED_VERSION_ID_REQUIRED'
+  );
+  requireCheck(
+    /^[a-f0-9]{64}$/.test(env.AIAO_MEDIA_ACCEPTANCE_MANIFEST_SHA256 ?? ''),
+    'REVIEWED_MANIFEST_DIGEST_REQUIRED'
+  );
+  const base = new URL(env.AIAO_IMAGE_BASE_URL);
+  requireCheck(
+    base.protocol === 'https:' && !base.username && !base.password && !base.search && !base.hash,
+    'INVALID_PROVIDER'
+  );
+  requireCheck(/^[a-zA-Z0-9._:-]{1,128}$/.test(env.AIAO_IMAGE_MODEL ?? ''), 'INVALID_MODEL');
+  requireCheck(/^[\x21-\x7e]{1,4096}$/.test(env.AIAO_IMAGE_API_KEY ?? ''), 'INVALID_KEY');
+  return {
+    origin: env.AIAO_MEDIA_ACCEPTANCE_ORIGIN,
+    release: env.AIAO_MEDIA_ACCEPTANCE_RELEASE,
+    manifestSha256: env.AIAO_MEDIA_ACCEPTANCE_MANIFEST_SHA256,
+    baseUrl: base.href.replace(/\/+$/, ''),
+    model: env.AIAO_IMAGE_MODEL,
+    key: env.AIAO_IMAGE_API_KEY,
+    fixture: false
+  };
+}
+
+export function attemptPath(directory, settings, mode, aspect) {
+  return resolve(
+    directory,
+    fingerprint([
+      settings.origin,
+      settings.release,
+      settings.manifestSha256,
+      settings.baseUrl,
+      settings.model,
+      mode,
+      aspect
+    ]) + '.json'
+  );
+}
+
+async function verifyManifest(settings) {
+  const client = await playwrightRequest.newContext({ baseURL: settings.origin });
+  try {
+    const response = await client.get('/offline-manifest.json', { maxRedirects: 0, timeout: 30000 });
+    requireCheck(response.ok(), 'BUILD_MANIFEST_UNAVAILABLE');
+    const bytes = await response.body();
+    requireCheck(bytes.length < 1024 * 1024, 'INVALID_BUILD_MANIFEST');
+    requireCheck(
+      createHash('sha256').update(bytes).digest('hex') === settings.manifestSha256,
+      'DEPLOYED_MANIFEST_MISMATCH'
+    );
+  } finally {
+    await client.dispose();
+  }
+}
+
+async function persist(file, record, exclusive = false) {
+  const handle = await open(file, exclusive ? 'wx' : 'r+', 0o600);
+  try {
+    const data = JSON.stringify(record, null, 2) + '\n';
+    await handle.writeFile(data);
+    await handle.truncate(Buffer.byteLength(data));
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
+async function claim(file, record) {
+  try {
+    await persist(file, record, true);
+    return null;
+  } catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+    const previous = JSON.parse(await readFile(file, 'utf8'));
+    requireCheck(previous.phase === 'verified', 'PREVIOUS_ATTEMPT_REQUIRES_REVIEW');
+    requireCheck(previous.identity === record.identity, 'PREVIOUS_ATTEMPT_REQUIRES_REVIEW');
+    return previous;
+  }
+}
+
+async function runAttempt(browser, settings, directory, mode, ratio) {
+  const file = attemptPath(directory, settings, mode, ratio.aspect);
+  const record = {
+    identity: fingerprint([
+      settings.origin,
+      settings.release,
+      settings.manifestSha256,
+      settings.baseUrl,
+      settings.model,
+      mode,
+      ratio.aspect
+    ]),
+    checkedAt: new Date().toISOString(),
+    origin: settings.origin,
+    release: settings.release,
+    buildManifestSha256: settings.manifestSha256,
+    providerFingerprint: fingerprint([settings.baseUrl, settings.model]),
+    fixture: settings.fixture,
+    mode,
+    aspect: ratio.aspect,
+    request: { size: ratio.size, n: 1, quality: 'low', outputFormat: 'png' },
+    phase: 'prepared',
+    generationRequests: 0,
+    automaticRetry: false
+  };
+  const previous = await claim(file, record);
+  if (previous) return previous;
+  try {
+    return await verifyCase(browser, settings, mode, ratio, file, record);
+  } catch {
+    record.phase = 'requires-review';
+    record.finishedAt = new Date().toISOString();
+    await persist(file, record);
+    throw new Error('ACCEPTANCE_STOPPED_REVIEW_ATTEMPT_BEFORE_ANOTHER_REQUEST');
+  }
+}
+
+async function originalBytes(response, responses, origin) {
+  requireCheck(response.ok(), 'GENERATION_REJECTED_OR_UNCERTAIN');
+  const result = await response.json();
+  const item = result?.data?.length === 1 ? result.data[0] : null;
+  if (typeof item?.b64_json === 'string')
+    return { bytes: Buffer.from(item.b64_json, 'base64'), delivery: 'base64', credentialFree: null };
+  requireCheck(typeof item?.url === 'string', 'ORIGINAL_RESULT_UNAVAILABLE');
+  const url = new URL(item.url);
+  requireCheck(url.protocol === 'https:' && !url.username && !url.password, 'INVALID_RESULT_ORIGIN');
+  await expect.poll(() => responses.has(url.href), { timeout: 30000 }).toBe(true);
+  const image = responses.get(url.href);
+  const headers = await image.request().allHeaders();
+  requireCheck(
+    ['authorization', 'cookie', 'referer'].every(name => !headers[name]),
+    'RESULT_CREDENTIAL_LEAK'
+  );
+  requireCheck(!image.request().redirectedFrom() && image.ok(), 'RESULT_READ_FAILED');
+  return {
+    bytes: await image.body(),
+    delivery: url.origin === origin ? 'same-origin-url' : 'cross-origin-url',
+    credentialFree: true
+  };
+}
+
+async function verifyCase(browser, settings, mode, ratio, file, record) {
+  const context = await browser.newContext({
+    baseURL: settings.origin,
+    acceptDownloads: true,
+    serviceWorkers: 'block',
+    viewport: { width: 1440, height: 1100 }
+  });
+  try {
+    await settings.setupContext?.(context);
+    const page = await context.newPage();
+    page.setDefaultTimeout(30000);
+    const endpoint = mode === 'proxy' ? `${settings.origin}/api/relay` : `${settings.baseUrl}/images/generations`;
+    const generationEndpoints = [`${settings.origin}/api/relay`, `${settings.baseUrl}/images/generations`];
+    const responses = new Map();
+    page.on('response', response => responses.set(response.url(), response));
+    await context.route('**/*', async route => {
+      const request = route.request();
+      if (request.method() !== 'POST' || !generationEndpoints.includes(request.url())) return route.fallback();
+      record.generationRequests++;
+      const headers = await request.allHeaders();
+      const body = request.postDataJSON();
+      const valid =
+        record.generationRequests === 1 &&
+        request.url() === endpoint &&
+        headers.authorization === `Bearer ${settings.key}` &&
+        !headers.cookie &&
+        body.model === settings.model &&
+        body.size === ratio.size &&
+        body.n === 1 &&
+        body.quality === 'low' &&
+        body.output_format === 'png';
+      if (!valid) {
+        record.requestBoundaryFailed = true;
+        return route.abort('blockedbyclient');
+      }
+      return route.fallback();
+    });
+    await provider(page, false, mode, settings);
+    const manifest = await page.request.get('/offline-manifest.json');
+    requireCheck(manifest.ok(), 'BUILD_MANIFEST_UNAVAILABLE');
+    const observedManifestSha256 = createHash('sha256')
+      .update(await manifest.body())
+      .digest('hex');
+    requireCheck(observedManifestSha256 === settings.manifestSha256, 'DEPLOYED_MANIFEST_MISMATCH');
+    const text = `桌面正式验收：${mode} ${ratio.aspect} 蓝色森林`;
+    await prompt(page, text);
+    await page.getByRole('button', { name: ratio.label, exact: true }).click();
+    const generated = page.waitForResponse(
+      response => response.url() === endpoint && response.request().method() === 'POST',
+      { timeout: 210000 }
+    );
+    generated.catch(() => undefined);
+    record.phase = 'dispatching';
+    await persist(file, record);
+    await page.getByRole('button', { name: '✧ 生成图片' }).click();
+    const response = await generated;
+    record.generationStatus = response.status();
+    const original = await originalBytes(response, responses, settings.origin);
+    await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible({ timeout: 210000 });
+    requireCheck(!record.requestBoundaryFailed && record.generationRequests === 1, 'GENERATION_REQUEST_BOUNDARY');
+    await page.goto('/images');
+    await page.reload();
+    const card = page.locator('.library-card').filter({ hasText: text });
+    await expect(card.getByAltText('本机生成作品')).toBeVisible();
+    const sha256 = await verifyImageDownload(page, card, original.bytes);
+    record.image = {
+      sha256,
+      bytes: original.bytes.length,
+      width: original.bytes.readUInt32BE(16),
+      height: original.bytes.readUInt32BE(20),
+      delivery: original.delivery,
+      credentialFreeResultRequest: original.credentialFree,
+      exactDownloadAfterReload: true
+    };
+    const [width, height] = ratio.size.split('x').map(Number);
+    requireCheck(record.image.width === width && record.image.height === height, 'RESULT_SIZE_MISMATCH');
+    record.phase = 'verified';
+    record.finishedAt = new Date().toISOString();
+    await persist(file, record);
+    return record;
+  } finally {
+    await context.close();
+  }
+}
+
+export async function runProviderAcceptance(settings, directory, setupContext) {
+  await verifyManifest(settings);
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  await chmod(directory, 0o700);
+  const browser = await chromium.launch({ channel: process.env.AIAO_PLAYWRIGHT_CHANNEL || 'chrome', headless: true });
+  const records = [];
+  try {
+    const cases = ['direct', 'proxy'].flatMap(mode => ratios.map(ratio => ({ mode, ratio })));
+    for (const { mode, ratio } of cases)
+      records.push(await runAttempt(browser, { ...settings, setupContext }, directory, mode, ratio));
+    return records;
+  } finally {
+    await browser.close();
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  try {
+    requireCheck(process.env.AIAO_MEDIA_ACCEPTANCE_GENERATE === '1', 'LIVE_OPT_IN_REQUIRED');
+    const envFile = resolve(import.meta.dirname, '../../aiao-media/.env');
+    if (existsSync(envFile)) process.loadEnvFile(envFile);
+    const settings = liveSettings(process.env);
+    const records = await runProviderAcceptance(
+      settings,
+      resolve(import.meta.dirname, '../tmp/provider-acceptance/live')
+    );
+    console.log(JSON.stringify({ verified: records.length, realProvider: true, automaticRetry: false }));
+  } catch {
+    console.error(
+      '正式供应商验收未完成。检查私有配置与 apps/aiao-media-e2e/tmp/provider-acceptance/live 记录；不会自动重发。'
+    );
+    process.exitCode = 1;
+  }
+}

@@ -8,7 +8,7 @@
   "targets": {
     "e2e": {
       "executor": "nx:noop",
-      "dependsOn": ["local-first-e2e"]
+      "dependsOn": ["local-first-e2e", "provider-acceptance-fixture"]
     },
     "typecheck": {
       "executor": "nx:run-commands",
@@ -62,6 +62,30 @@
       },
       "dependsOn": ["aiao-media:supabase-migrate"],
       "cache": false
+    },
+    "provider-acceptance": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/provider-acceptance.mjs",
+        "cwd": "apps/aiao-media-e2e"
+      }
+    },
+    "provider-acceptance-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test scripts/provider-acceptance.test.mjs",
+        "cwd": "apps/aiao-media-e2e"
+      }
+    },
+    "provider-acceptance-fixture": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets", "provider-acceptance-check"],
+      "options": {
+        "command": "node scripts/provider-acceptance-fixture.mjs",
+        "cwd": "apps/aiao-media-e2e"
+      }
     },
     "offline-update-e2e": {
       "executor": "nx:run-commands",

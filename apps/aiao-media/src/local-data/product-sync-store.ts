@@ -1,5 +1,5 @@
 import type { TransactionExecutor } from '@aiao/rxdb';
-import { Entity, EntityBase, PropertyType, RxDB, SyncType, type Conflict, type UUID } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RxDB, RxDBSync, SyncType, type Conflict, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterSupabase } from '@aiao/rxdb-adapter-supabase';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
@@ -37,6 +37,9 @@ export interface ProductSyncResult {
   records: ProductRecord[];
   conflicts: ProductConflict[];
   pending: number;
+}
+export interface ProductSyncOptions {
+  rescan?: boolean;
 }
 export type ApplyProductSync = (result: ProductSyncResult) => Promise<ProductEntry[]>;
 export interface ProductConflict {
@@ -351,8 +354,8 @@ export class ProductSyncStore {
     });
   }
 
-  synchronize(apply?: ApplyProductSync): Promise<ProductSyncResult> {
-    return this.exclusive(() => this.syncRound(apply));
+  synchronize(apply?: ApplyProductSync, options: ProductSyncOptions = {}): Promise<ProductSyncResult> {
+    return this.exclusive(() => this.syncRound(apply, options));
   }
 
   enqueueReports(reports: TaskReport[]): Promise<void> {
@@ -454,9 +457,10 @@ export class ProductSyncStore {
     });
   }
 
-  private async syncRound(apply?: ApplyProductSync): Promise<ProductSyncResult> {
+  private async syncRound(apply?: ApplyProductSync, options: ProductSyncOptions = {}): Promise<ProductSyncResult> {
     const allowed = await this.client.from('media_workspaces').select('id').eq('id', this.workspaceId).single();
     if (allowed.error || allowed.data?.id !== this.workspaceId) throw new Error('同步工作区授权已失效，本机数据保留。');
+    if (options.rescan) await this.resetPullCheckpoint();
     await this.pull();
     for (const conflict of await this.conflicts()) {
       const latest = await this.remote(conflict.recordId);
@@ -500,6 +504,18 @@ export class ProductSyncStore {
         new Set(result.conflicts.map(conflict => conflict.recordId))
       );
     return result;
+  }
+
+  private async resetPullCheckpoint(): Promise<void> {
+    this.assertActive();
+    const adapter = await firstValueFrom(this.db.localAdapter$);
+    await adapter.transaction(async executor => {
+      const repository = executor.getRepository(RxDBSync);
+      const [row] = await repository.find({
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: 'public:MediaSyncRecord:main' }] }
+      });
+      if (row) await repository.update(row, { lastPullRemoteChangeId: null, lastPulledAt: null });
+    });
   }
 
   private snapshot(row: {

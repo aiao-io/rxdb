@@ -151,4 +151,37 @@ describe('explicit workspace sync activation', () => {
     expect(r.api.ensureWorkspace).not.toHaveBeenCalled();
     expect(r.controller.state.confirmation?.counts.drafts).toBe(2);
   });
+  it('重新扫描先确认本机输入和账号，再将恢复选项交给原生副本', async () => {
+    const r = await rig();
+    await r.controller.resume();
+    r.replica.synchronize.mockClear();
+    r.port.checkpoint.mockClear();
+    await r.controller.synchronize({ rescan: true });
+    expect(r.port.checkpoint).toHaveBeenCalledOnce();
+    expect(r.replica.synchronize).toHaveBeenCalledWith(expect.any(Function), { rescan: true });
+    expect(r.controller.state.status).toBe('synced');
+  });
+  it('重新扫描在授权失败时暂停，保留副本且不进入恢复同步', async () => {
+    const r = await rig();
+    await r.controller.resume();
+    r.replica.synchronize.mockClear();
+    r.api.authorization.mockRejectedValueOnce(new Error('revoked'));
+    await r.controller.synchronize({ rescan: true });
+    expect(r.replica.synchronize).not.toHaveBeenCalled();
+    expect(r.replica.close).not.toHaveBeenCalled();
+    expect(r.controller.state.status).toBe('failed');
+  });
+  it.each([
+    { ...access, userId: id(2) },
+    { ...access, config: { ...access.config, url: 'https://other-project.example.test' } }
+  ])('重新扫描拒绝与当前副本不匹配的账号或项目', async authorization => {
+    const r = await rig();
+    await r.controller.resume();
+    r.replica.synchronize.mockClear();
+    r.api.authorization.mockResolvedValueOnce(authorization);
+    await r.controller.synchronize({ rescan: true });
+    expect(r.replica.synchronize).not.toHaveBeenCalled();
+    expect(r.port.checkpoint).toHaveBeenCalledOnce();
+    expect(r.controller.state.status).toBe('failed');
+  });
 });

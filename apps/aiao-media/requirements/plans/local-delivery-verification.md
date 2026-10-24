@@ -17,13 +17,13 @@
 
 ## 单测与真实浏览器数据层
 
-`aiao-media:coverage` 将 240 项单测与 15 项真实 Chromium 数据层测试一起执行。浏览器测试使用实际 RxDB、SQLite WASM、IndexedDB 和 OPFS，覆盖旧集合的事务迁移、CAS 回滚、全局注册表别名、提交日志/冲突重开、参考图在途保留、原图/WAV 幂等保存与精确回读、写入失败恢复、锁定撤销预览和 DTO 私有投影。
+已记录的 `aiao-media:coverage` 基线将 240 项单测与 15 项真实 Chromium 数据层测试一起执行；本轮新增恢复与账号/项目不匹配用例后，应用单测为 244 项。浏览器测试使用实际 RxDB、SQLite WASM、IndexedDB 和 OPFS，覆盖旧集合的事务迁移、CAS 回滚、全局注册表别名、提交日志/冲突重开、参考图在途保留、原图/WAV 幂等保存与精确回读、写入失败恢复、锁定撤销预览和 DTO 私有投影。
 
-当前四项合并数据：statements 74.82%、branches 67.59%、functions 79.57%、lines 84.67%。不把单一行指标称为四项覆盖率通过；应用不属于可发布包覆盖率门禁范围。界面与原生 Supabase 复制仍由独立的真实产品 e2e 验证，不把它们折算进这份 Vitest 数字。
+上述 240+15 基线的四项合并数据：statements 74.82%、branches 67.59%、functions 79.57%、lines 84.67%。不把单一行指标称为四项覆盖率通过；应用不属于可发布包覆盖率门禁范围。界面与原生 Supabase 复制仍由独立的真实产品 e2e 验证，不把它们折算进这份 Vitest 数字。
 
 ## 已通过的产品场景
 
-`pnpm nx run aiao-media-e2e:product-e2e` 使用生产静态包、Chrome、两套独立浏览器存储和真实本地 Supabase，6 项通过：
+`pnpm nx run aiao-media-e2e:product-e2e` 使用生产静态包、Chrome、两套独立浏览器存储和真实本地 Supabase，7 项通过：
 
 1. 登录不绑定；取消首次确认不创建工作区、不上传、不改变本机副本。
 2. 两独立副本草稿往返同步；退出保留副本；A→B→A 恢复各自内容。
@@ -31,6 +31,7 @@
 4. 离线多次编辑、重开和推送；修改/修改、删除/修改保留双方；明确接受删除后重开不复活。
 5. 供应商/作品信息跨副本可见，Key 和原图留在本机；未确认不上报任务，确认后上报不包含提示词/图片/凭据，未知用量保持未知。
 6. A 的生成响应迟到时仅写入 A，B 看不到 A 的内容；回到 A 可读取原图。
+7. 明确重新扫描前取消不发请求；确认后从零重放远程日志，本机未确认修改遇到 tombstone 时保留双方。重开与重复扫描保留冲突，采用删除后再次扫描不复活且不增加服务端 revision。
 
 `pnpm nx run aiao-media:product-test` 验证真实本地服务的匿名/A/B/管理员边界、所有权不可改、DTO 白名单、离线压缩 revision CAS、tombstone、幂等绑定、模板 CAS/发布/撤回、显式任务上报/来源限制、用户封禁/解禁、最后管理员保护与审计。
 
@@ -42,11 +43,11 @@
 
 本地管理员授权通过 `pnpm nx run aiao-media:admin-membership --user-id=<Auth UUID> --state=enabled` 执行。仅服务端可信运维凭据可调用对应 RPC；同样遵守 revision 和最后管理员保护。审计的全零操作者标识可信运维入口。命令只连接应用独立本地服务。
 
-本地 Worker 私有配置自动写入忽略的 `deploy/.dev.vars`（0600），服务端 Key 不进入公开配置或浏览器构建。正式环境需由部署方设置 `MEDIA_SUPABASE_URL`、公开 `MEDIA_SUPABASE_ANON_KEY` 与服务端 secret `MEDIA_SUPABASE_SERVICE_ROLE_KEY`，本次不发布生产。
+本地 Worker 私有配置自动写入忽略的 `deploy/.dev.vars`（0600），服务端 Key 不进入公开配置或浏览器构建。正式环境需把 `MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY` 与 `MEDIA_SUPABASE_SERVICE_ROLE_KEY` 全部设置为 Worker secrets，公开构建另外使用同项目 URL/anon key。当前正式条件未就绪，执行顺序与未验项见[收尾清单](release-completion-tasks.md)。
 
 Supabase SDK 在锁文件去重到 2.117.3，无全局版本 override。同步副本使用 SDK 公共 CommonJS 构造入口，以匹配 adapter 声明的条件导出类型；Angular 仅为此依赖显式声明 CommonJS 支持。复制客户端独立于主 Auth SDK，凭据仅保存在其内存会话，不共享可变账号 client。
 
-旧构建升级只验证 `upgrade-e2e` 指定的 0.0.26 基线。该旧引擎不能打开新版库；回退时拒绝打开、不改 profile，恢复当前构建后新版草稿与原图仍可读取。离线更新/回退专项使用真实生产 Worker、两套有独立完整性清单的静态壳，验证等待旧页面关闭、激活、离线读取与回退，期间本机草稿和原图保留。不承诺任意历史引擎降级。正式 Service Worker 更新/回退、正式域名、真实供应商、移动真机和真实系统中文 IME 保留各 story AC。D-06 的自动清理、保留天数和检查点过期仍未启用。
+旧构建升级只验证 `upgrade-e2e` 指定的 0.0.26 基线。该旧引擎不能打开新版库；回退时拒绝打开、不改 profile，恢复当前构建后新版草稿与原图仍可读取。离线更新/回退专项使用真实生产 Worker、两套有独立完整性清单的静态壳，验证等待旧页面关闭、激活、离线读取与回退，期间本机草稿和原图保留。不承诺任意历史引擎降级。D-07 的受支持迁移/守卫范围覆盖 MEDIA-US-301 AC8；正式 origin Service Worker 更新/回退仍归 MEDIA-US-004 AC3/4，真实供应商、移动真机和真实系统中文 IME 保留各 story AC。D-06 已确定无限期保留冲突原始双方、tombstone 和同步日志，不设时间 TTL 或自动 GC。显式重新扫描只在账号与工作区授权成功后、跨标签页锁内事务重置本机 pull 水位；保留 outbox、push 水位、业务 revision 和确认记录。恢复前提是完整远程日志，不承诺远程截断/重建后的恢复。
 
 ## 实现与测试
 
@@ -58,8 +59,14 @@ Supabase SDK 在锁文件去重到 2.117.3，无全局版本 override。同步�
 
 ## 最终本地门禁
 
-`pnpm nx affected -t lint typecheck test test-memory test-browser build audit-lazy-backend e2e --base=main --exclude=website,benchmarks --output-style=static --skipRemoteCache --parallel=1 --nxBail` 通过：82 个项目、341 个任务，耗时 35 分 32 秒。范围按分支与锁文件由 Nx 计算；没有修改 packages 源码。
+`pnpm nx affected -t lint typecheck test test-memory test-browser build audit-lazy-backend e2e --base=main --exclude=website,benchmarks --output-style=static --skipRemoteCache --parallel=1 --nxBail` 通过：82 个项目、344 个任务，耗时 2 分 17 秒，310/344 命中本地缓存（90%）。本轮显式设置 `NX_NO_CLOUD=true`，禁用远程缓存，包含新增的正式验收 fixture 和配置 guard。范围按分支与锁文件由 Nx 计算；没有修改 packages 源码。
 
-首次并发执行遇到 `rxdb-model-react:typecheck` 的 TS6305 测试夹具声明产物缺失。通过该 target 的 `--force` 串行重建、清理其本地增量记录后，全量串行通过；未修改包源码或放宽检查。e2e 生成的三个性能报告保存在忽略的应用 tmp 目录，未混入产品提交。
+此前基线的首次并发执行遇到 `rxdb-model-react:typecheck` 的 TS6305 测试夹具声明产物缺失。通过该 target 的 `--force` 串行重建、清理其本地增量记录后，全量串行通过；本轮无该失败，Nx 仍保留其历史 flaky 提示。未修改包源码或放宽检查。e2e 生成的三个性能报告保存在忽略的应用 tmp 目录，未混入产品提交。
 
-应用 lint/typecheck、240 项单测 + 15 项真实浏览器数据层测试与覆盖率、28 项本机回归、3 项真实 Auth、6 项真实产品、旧构建升级/受阻回退恢复、离线 Worker 更新/回退、真实产品服务、产物审查和 Wrangler dry-run 均通过。PR #154 已推送供 CodeQL 与 GitHub CI 复验，正式发布仍不在本次范围。
+此前提交 `a5abd39b` 的 GitHub CI 全通过、CodeQL 未修复告警 0、10 个评审线程全部解决。本轮恢复入口的 244 单测、应用/e2e lint 与类型检查、7 个真实产品场景通过；新增正式验收 runner 的 3 个 guard、6 个通道/画幅组合和错误尺寸/产物变化/失败不重发负例已通过。`provider-acceptance-fixture` 纳入默认 e2e；正式 live 入口只在明确 opt-in、正式 origin、发布 version UUID 与审核 manifest 摘要都有效时运行。正式发布等待[执行条件](release-completion-tasks.md)，不把未执行项目写成完成。
+
+## 正式验收自动化准备
+
+[正式 runner](../../../aiao-media-e2e/scripts/provider-acceptance.mjs)通过产品页面逐项验证直连/代理与三画幅，返回尺寸精确匹配请求；保存后刷新并比较回读摘要/下载字节。发送前持久化独占尝试并 fsync，失败或不确定后停止；Key 轮换不能绕过同一尝试，报告无 Key 或完整响应。复用证据前使用独立无凭据 context 校验线上 manifest 与审核摘要；身份包括发布版本与产物摘要，避免旧证据被新发布误用。
+
+[fixture](../../../aiao-media-e2e/scripts/provider-acceptance-fixture.mjs)调用真实 production Worker handler 与模拟供应商；预置私有 Cookie 仍不随结果图片请求发送。产物变化时零新尝试/零生成请求；错误尺寸拒绝，成功复用和中断/失败重跑均零重发。正式环境尚未执行；Base64 结果不替代跨 origin URL 结果证据。

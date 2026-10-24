@@ -5,6 +5,7 @@ import type {
   ApplyProductSync,
   ProductConflict,
   ProductRecord,
+  ProductSyncOptions,
   ProductSyncResult,
   ProductSyncStore
 } from '../local-data/product-sync-store';
@@ -196,7 +197,7 @@ export class ProductWorkspaceController {
     }
   }
 
-  async resume(): Promise<void> {
+  async resume(options: ProductSyncOptions = {}): Promise<void> {
     const profile = this.port.profile(),
       generation = this.generation;
     if (!profile?.account || !profile.binding?.initialized || !profile.binding.remoteWorkspaceId || this.port.busy())
@@ -207,7 +208,7 @@ export class ProductWorkspaceController {
       const access = await this.api.authorization();
       this.accountMatches(access, profile.account);
       const replica = await this.open(access, profile.binding.remoteWorkspaceId, generation);
-      if (replica) await this.round(replica, generation, false);
+      if (replica) await this.round(replica, generation, false, options);
     } catch {
       if (this.current(generation)) this.fail();
     } finally {
@@ -215,15 +216,18 @@ export class ProductWorkspaceController {
     }
   }
 
-  async synchronize(): Promise<void> {
-    if (!this.replica) return this.resume();
+  async synchronize(options: ProductSyncOptions = {}): Promise<void> {
+    if (!this.replica) return this.resume(options);
     if (this.frame.value.busy || this.port.busy()) return;
     const generation = this.generation,
-      replica = this.replica;
+      replica = this.replica,
+      account = this.port.profile()?.account;
     this.publish({ busy: true, status: 'syncing', message: '' });
     try {
-      await this.api.authorization();
-      if (this.current(generation)) await this.round(replica, generation, false);
+      const access = await this.api.authorization();
+      if (!account) throw new Error('当前副本没有绑定账号。');
+      this.accountMatches(access, account);
+      if (this.current(generation)) await this.round(replica, generation, false, options);
     } catch {
       if (this.current(generation)) this.fail();
     } finally {
@@ -312,14 +316,19 @@ export class ProductWorkspaceController {
     this.frame.complete();
   }
 
-  private async round(replica: ProductReplica, generation: number, initialJoin: boolean): Promise<void> {
+  private async round(
+    replica: ProductReplica,
+    generation: number,
+    initialJoin: boolean,
+    options: ProductSyncOptions = {}
+  ): Promise<void> {
     ++this.captureVersion;
     await this.port.checkpoint();
     if (!this.current(generation)) return;
     const snapshot = await this.port.snapshot(await replica.records());
     if (!this.current(generation)) return;
     if (!initialJoin) await replica.capture(snapshot.entries, snapshot.localWorkIds);
-    const result = await replica.synchronize(this.apply(snapshot, generation));
+    const result = await replica.synchronize(this.apply(snapshot, generation), options);
     if (this.current(generation)) this.accept(result);
   }
 

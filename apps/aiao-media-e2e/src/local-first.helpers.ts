@@ -1,15 +1,21 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 
 export const key = 'fixture-key-only';
 export const endpoint = 'https://images.example.test/v1/images/generations';
-export async function provider(page: Page, remember = true, mode = 'direct') {
+export async function provider(
+  page: Page,
+  remember = true,
+  mode = 'direct',
+  settings = { baseUrl: 'https://images.example.test/v1', model: 'test-image', key }
+) {
   await page.goto('/providers');
   await page.getByLabel('名称', { exact: true }).fill('本机供应商');
-  await page.getByLabel('HTTPS Base URL').fill('https://images.example.test/v1');
-  await page.getByLabel('图片模型 ID').fill('test-image');
-  await page.getByLabel('API Key', { exact: true }).fill(key);
+  await page.getByLabel('HTTPS Base URL').fill(settings.baseUrl);
+  await page.getByLabel('图片模型 ID').fill(settings.model);
+  await page.getByLabel('API Key', { exact: true }).fill(settings.key);
   await page.getByLabel('在此设备记住 Key').setChecked(remember);
   await page.getByLabel('请求通道').selectOption(mode);
   await page.getByRole('button', { name: '保存到本机', exact: true }).click();
@@ -45,4 +51,14 @@ export async function importBackup(page: Page, buffer: Buffer) {
 }
 export async function profile(page: Page) {
   return page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'));
+}
+
+export async function verifyImageDownload(page: Page, card: Locator, bytes: Buffer) {
+  await card.getByText('生成信息', { exact: true }).click();
+  const sha256 = createHash('sha256').update(bytes).digest('hex');
+  await expect(card).toContainText(sha256);
+  const download = page.waitForEvent('download');
+  await card.getByRole('link', { name: '下载图片' }).click();
+  expect(await readFile((await (await download).path()) as string)).toEqual(bytes);
+  return sha256;
 }

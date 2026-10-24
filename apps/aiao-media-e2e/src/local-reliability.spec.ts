@@ -1,5 +1,4 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import {
   downloadBackup,
@@ -9,7 +8,8 @@ import {
   pngFixture,
   profile,
   prompt,
-  provider
+  provider,
+  verifyImageDownload
 } from './local-first.helpers';
 
 const generate = async (page: Page) => {
@@ -112,13 +112,9 @@ test('跨 origin 图片读取不带凭据，原图信息、下载、复用和删
   const cards = page.locator('.library-card');
   await expect(cards).toHaveCount(2);
   const original = cards.filter({ hasText: '可复用的原始提示词' });
-  await original.getByText('生成信息', { exact: true }).click();
+  await verifyImageDownload(page, original, png);
   await expect(original).toContainText('test-image');
   await expect(original).toContainText(`image/png · 64 × 64 · ${png.length} bytes`);
-  await expect(original).toContainText(createHash('sha256').update(png).digest('hex'));
-  const download = page.waitForEvent('download');
-  await original.getByRole('link', { name: '下载图片' }).click();
-  expect(await readFile((await (await download).path()) as string)).toEqual(png);
   page.once('dialog', dialog => dialog.accept());
   await original.getByRole('button', { name: '复用提示词' }).click();
   await expect(page.locator('[contenteditable=true]')).toContainText('可复用的原始提示词');

@@ -1,5 +1,7 @@
 # Local-first 真实应用集成验证
 
+本记录保留该阶段实际执行的基线与证据；最新实现、测试数量和收尾边界见[本地产品交付验收](local-delivery-verification.md)与[收尾清单](release-completion-tasks.md)。
+
 当前本地基线：2026-10-24，Asia/Shanghai。本记录对应工作区里的默认 Angular 应用，不是独立直连探针。
 
 ## 已实现

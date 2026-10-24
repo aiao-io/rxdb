@@ -16,7 +16,7 @@
 | `aiao-media:relay-test`                                   | 4 项代理边界测试通过                                                                          | 同源/允许列表/参数限制、按请求凭据、无缓存、敏感错误清理与无自动重试                  |
 | `aiao-media:auth-config-test`                             | 公开配置与精确回环 CSP 校验通过                                                               | 禁止服务端 Key、非回环 HTTP 和任意 HTTP 放行                                          |
 | `aiao-media:release-check` / `aiao-media:deploy-check`    | 产物审查与 Wrangler dry-run                                                                   | 产物无凭据/SSR/source map/旧 API；不代表当前产物已发布                                |
-| `aiao-media:requirements-check`                           | 13 项检查器及需求结构/链接门禁通过                                                            | 不验证需求描述与源码的语义一致性，也不替代产品验收                                    |
+| `aiao-media:requirements-check`                           | 17 项检查器及需求结构/链接门禁通过                                                            | 不验证需求描述与源码的语义一致性，也不替代产品验收                                    |
 
 本机图片套件覆盖默认供应商、配置/草稿恢复、三画幅生成/保存/下载、不确定结果不重发、Key 生命周期、主动代理及结果 URL 无凭据读取、四路由离线、移动视口、多标签生成互斥和草稿冲突选择、OPFS 写失败重试、保存/删除 journal 重开恢复、超限/损坏/中断备份、schema 兼容守卫、模板撤销边界及资源失败重试。逐场景边界见[本地可靠性验收](plans/local-reliability-verification.md)。账号逐条 AC 证据见[真实账号验收说明](plans/supabase-account-verification.md)。
 
@@ -29,7 +29,7 @@
 | 待验项目               | 对应故事 / AC                                             | 必需证据                                                                                   |
 | ---------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | 正式 origin 真实供应商 | MEDIA-US-102 AC 7、MEDIA-US-105 AC 6/7、MEDIA-US-202 AC 7 | 直连和主动代理分别记录 origin、模型/参数、三画幅生成、刷新回读与精确下载                   |
-| 历史迁移与正式回退     | MEDIA-US-301 AC 8、MEDIA-US-004 AC 4                      | 当前 schema 守卫、原工作区保留已验；任意历史账号库迁移及正式产物/Service Worker 回退仍待验 |
+| 正式版本回退           | MEDIA-US-004 AC 4                                         | 0.0.26 升级、旧引擎拒绝降级后恢复新版、schema 守卫已验；正式产物/Service Worker 回退仍待验 |
 | 桌面真实中文输入法     | MEDIA-US-106 AC 7                                         | 正文/字段、粘贴、撤销重做不丢字不抢焦点；合成 composition 和视口测试不能代替系统 IME       |
 | 正式域名与部署更新     | MEDIA-US-004 AC 1–4                                       | 自定义域名、CSP/离线安装/更新、代理允许列表、版本回退和免费计划账单                        |
 
@@ -37,6 +37,6 @@
 
 ## 产品绑定、同步与后台
 
-真实本地产品表、原生复制、双独立副本、账号隔离、首次确认、冲突/删除、作品信息、后台与显式任务上报已接线。详细实现、命令、6 个浏览器场景及边界见[本地产品交付验收](plans/local-delivery-verification.md)。
+真实本地产品表、原生复制、双独立副本、账号隔离、首次确认、冲突/删除、作品信息、后台与显式任务上报已接线。详细实现、命令、7 个浏览器场景及边界见[本地产品交付验收](plans/local-delivery-verification.md)。
 
-`aiao-media:product-test` 与 `aiao-media-e2e:product-e2e` 分别验证真实服务边界和生产静态应用。`aiao-media:script-test` 覆盖代理运行策略的实际处理函数，供应商响应使用 fixture。D-06 的 TTL、自动清理、检查点过期和正式环境保持待验，不把本地通过视为已经上线。
+`aiao-media:product-test` 与 `aiao-media-e2e:product-e2e` 分别验证真实服务边界和生产静态应用。`aiao-media:script-test` 覆盖代理运行策略的实际处理函数，供应商响应使用 fixture。D-06 已确定首发不设 TTL、不自动清理，完整保留 tombstone、冲突与日志；检查点恢复已由 7 项真实产品套件单独留证，不把本地通过视为已经上线。正式执行顺序与条件见[收尾清单](plans/release-completion-tasks.md)。

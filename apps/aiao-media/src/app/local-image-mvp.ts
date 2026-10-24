@@ -882,6 +882,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   async synchronize() {
     await this.product?.synchronize();
   }
+  async rescanSync() {
+    if (
+      window.confirm('重新扫描此账号的远程记录？本机未上传改动和冲突副本会保留，遇到冲突仍需你选择；不会重新生成图片。')
+    )
+      await this.product?.synchronize({ rescan: true });
+  }
   async reportTasks() {
     if (window.confirm('上报本机任务的状态、模型、供应商标识和用量来源？不包含提示词、图片或 API Key。'))
       await this.product?.reportTasks();
