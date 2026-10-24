@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { connectLocalAdapter } from '../app/rxdb/db-connection';
 import setup_rxdb from '../app/rxdb/setup_rxdb_sqlite-wasm';
 
 /**
@@ -10,12 +11,10 @@ import setup_rxdb from '../app/rxdb/setup_rxdb_sqlite-wasm';
  *
  * 别的页面不需要这道门：它们的首次查询会经适配器 `ready()` 回到 `connect()`，自然把连接带起来。
  * `setup_rxdb()` 是模块级单例，`connect()` 自带去重，重复进入本路由不会重复连接。
+ * 连不上时导航被拒，失败由 {@link connectLocalAdapter} 登记、应用壳显示。
  */
-const connectLocalAdapter = async (): Promise<true> => {
-  const db = setup_rxdb();
-  const adapterName = db.config.sync.local?.adapter;
-  if (adapterName === undefined) throw new Error('[demo] sync.local.adapter is not configured');
-  await db.connect(adapterName);
+const connectBeforeEnter = async (): Promise<true> => {
+  await connectLocalAdapter(setup_rxdb());
   return true;
 };
 
@@ -80,7 +79,7 @@ const router = createRouter({
       // 与 /search 同一道门：面板挂载就调 `workingTree.status()`，深链进来时连接还没建立。
       path: '/working-tree',
       name: 'working-tree',
-      beforeEnter: connectLocalAdapter,
+      beforeEnter: connectBeforeEnter,
       component: () => import('../pages/WorkingTreePage.vue')
     },
     {
@@ -126,7 +125,7 @@ const router = createRouter({
     {
       path: '/search',
       name: 'search',
-      beforeEnter: connectLocalAdapter,
+      beforeEnter: connectBeforeEnter,
       component: () => import('../pages/SearchPage.vue')
     },
     {

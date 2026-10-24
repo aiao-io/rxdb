@@ -19,7 +19,9 @@ export { computeRxDBSchemaFingerprint } from './backup/schema-fingerprint.js';
 // 判定实现随 `@aiao/rxdb-plugin-working-tree` 走。`gateRawWrite` 必须出现在公开面上：
 // 适配器包在**包外**，它们的 `rawQuery?()` 是可选方法，核心拦不住，只能由各自实现调这一句。
 export * from './capture/index.js';
+export { cloneEntityClasses, type CloneEntityClassesOptions } from './entity/clone-entity-classes.js';
 export * from './entity/entity-base.js';
+export * from './entity/entity-bookkeeping.js';
 export * from './entity/entity-field.utils.js';
 export {
   ENTITY_OPERATIONS,
@@ -202,6 +204,7 @@ export * from './rxdb-events.js';
 export * from './rxdb-plugin-system.js';
 export * from './rxdb-plugin.js';
 export * from './rxdb-utils.js';
+export * from './worktree-snapshot.interface.js';
 // `addEventListener` 的形参与 `RxDBOptions` 的公开别名 —— 两者都出现在用户拿得到的
 // 签名上。整文件不转桶，其余成员仍是内部约定。
 export * from './rxdb.interface.js';
@@ -255,6 +258,7 @@ export * from './system/system.interface.js';
 export * from './system/types.js';
 export * from './system/types.local.js';
 export * from './system/types.remote.js';
+export * from './system/worktree-table-set.js';
 export * from './transaction/transaction-executor.interface.js';
 // 受信写声明通道（epic-006「受信调用点登记表」）。**整条留在核心**：`declareTrustedWrite` 对未登记的
 // 三段身份当场抛错，这道 fail-closed 门必须对所有用户无条件生效，不能变成「装了插件才有」。

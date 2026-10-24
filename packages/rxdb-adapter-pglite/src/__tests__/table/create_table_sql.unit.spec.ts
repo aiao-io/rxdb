@@ -6,7 +6,8 @@ import {
   RelationKind,
   RxDB,
   SyncType,
-  transitionMetadata
+  transitionMetadata,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
@@ -98,12 +99,12 @@ describe('create_table_sql pure unit edges', () => {
 
   it('throws when columns empty', () => {
     const metadata = transitionMetadata({ name: 'EmptyCols', namespace: 'test' });
-    expect(() => create_table_sql(adapter, metadata)).toThrow(/columns is empty/);
+    expect(() => create_table_sql(adapter, metadata, WorktreeTableSet.MAIN)).toThrow(/columns is empty/);
   });
 
   it('covers defaults, enums, unique indexes, and relation FK branches', () => {
     const metadata = getEntityMetadata(CtsChild);
-    const sql = create_table_sql(adapter, metadata);
+    const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
 
     expect(sql).toContain('PRIMARY KEY');
     expect(sql).not.toContain("DEFAULT '2020-01-01T00:00:00.000Z'");
@@ -122,6 +123,21 @@ describe('create_table_sql pure unit edges', () => {
     expect(sql).toContain(
       'CONSTRAINT "CtsChild_parent_title_consistency_fk" FOREIGN KEY ("parentReqId", "title") REFERENCES "public"."CtsParent"("id", "title")'
     );
+  });
+
+  // 外键约束名只在同一张表内唯一：影子表集原样沿用主表集那一份（US-314）。拿影子 schema 拼的话名字更长，
+  // 63 字节截断提前落到表名中间，同一张表的几条外键（多对多中间表正是）会截成同一个名字
+  it('影子表集的外键约束名与主表集逐字相同', () => {
+    const metadata = getEntityMetadata(CtsChild);
+    const foreignKeyNamesOf = (sql: string): string[] =>
+      [...sql.matchAll(/ADD CONSTRAINT "([^"]+)" FOREIGN KEY/g)].map(match => match[1]);
+    const main = foreignKeyNamesOf(create_table_sql(adapter, metadata, WorktreeTableSet.MAIN));
+    const shadow = foreignKeyNamesOf(
+      create_table_sql(adapter, metadata, WorktreeTableSet.of('wt_a1', [CtsParent, CtsChild]))
+    );
+
+    expect(main.length).toBeGreaterThan(1);
+    expect(shadow).toEqual(main);
   });
 
   it('fails when mapped metadata throws or is missing', () => {
@@ -152,7 +168,7 @@ describe('create_table_sql pure unit edges', () => {
     }) as typeof original;
 
     try {
-      expect(() => create_table_sql(adapter, metadata)).toThrow('missing');
+      expect(() => create_table_sql(adapter, metadata, WorktreeTableSet.MAIN)).toThrow('missing');
     } finally {
       adapter.rxdb.schemaManager.getEntityMetadata = original;
     }
@@ -181,7 +197,7 @@ describe('create_table_sql pure unit edges', () => {
     const metadata = Object.create(base) as typeof base;
     Object.defineProperty(metadata, 'relationMap', { value: relationMap, enumerable: true });
 
-    const sql = create_table_sql(adapter, metadata);
+    const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
     expect(sql).toContain('"requiredNoDeleteId"');
     expect(sql).toContain('"o2oNoDeleteId"');
     expect(sql).toContain('ON DELETE CASCADE');
@@ -199,7 +215,7 @@ describe('create_table_sql pure unit edges', () => {
         { name: 'c', type: PropertyType.string, default: 'hello' }
       ]
     });
-    const sql = create_table_sql(adapter, metadata);
+    const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
     expect(sql).toContain('PRIMARY KEY');
     expect(sql).toContain('DEFAULT now()');
     expect(sql).toContain("DEFAULT 'hello'");

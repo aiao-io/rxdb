@@ -15,15 +15,20 @@ import {
   RxDBMigration,
   RxDBSystemMigrationLockError,
   SyncType,
-  UnsupportedRxDBSystemVersionError
+  UnsupportedRxDBSystemVersionError,
+  uuid,
+  WorktreeBranchHeldError,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { PGliteRepository } from '../repository/PGliteRepository.js';
+import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
 
 const adapters = new Set<RxDBAdapterPGlite>();
 const databases = new Set<RxDB>();
@@ -237,6 +242,26 @@ const createDiskLegacyAdapter = async (dataDir: string, dbName: string): Promise
   return adapter;
 };
 
+/** 工作树插件后加的两张系统表：只读检出位的登记表（US-313）与提交的分叉点（US-314） */
+const laterWorkingTreeTables = (rxdb: RxDB) =>
+  rxdb.systemEntities.filter(EntityClass =>
+    ['Worktree', 'CommitForkPoint'].includes(getEntityMetadata(EntityClass).name)
+  );
+
+/** 提交工作树里的全部改动，交回提交 id。 */
+const commitAll = async (rxdb: RxDB, message: string): Promise<string> => {
+  const status = await rxdb.workingTree.status();
+  const result = await rxdb.workingTree.commit(message, {
+    expectedBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
+    expectedHeadRevision: status.headRevision,
+    expectedWorkingTreeRevision: status.workingTreeRevision,
+    authorId: 'working-tree-reopen',
+    operationId: uuid()
+  });
+  if (!result.ok) throw new Error(`提交「${message}」没落库：${JSON.stringify(result.conflict)}`);
+  return result.commitId;
+};
+
 afterEach(async () => {
   const pendingDatabases = Array.from(databases);
   databases.clear();
@@ -306,10 +331,14 @@ describe('PGlite system schema migration', () => {
     ).toHaveLength(1);
     await reopened.rxdb.versionManager.switchBranch('main');
 
+    // legacy-history 继承了这条旧 change：它在的时候撤销不了（US-315），删掉之后照常撤销
+    const legacyTodos = () =>
+      reopened.adapter.getRepository(PGliteLegacyTodo).find({ where: { combinator: 'and', rules: [] } });
     await reopened.rxdb.versionManager.history(PGliteLegacyTodo).undo();
-    expect(
-      await reopened.adapter.getRepository(PGliteLegacyTodo).find({ where: { combinator: 'and', rules: [] } })
-    ).toHaveLength(0);
+    expect(await legacyTodos()).toHaveLength(1);
+    await reopened.rxdb.versionManager.removeBranch('legacy-history');
+    await reopened.rxdb.versionManager.history(PGliteLegacyTodo).undo();
+    expect(await legacyTodos()).toHaveLength(0);
   });
 
   it('把旧 UUID entityId 升级为 text，保留旧 change，并且重复执行不改写水位', async () => {
@@ -573,6 +602,165 @@ describe('PGlite system schema migration', () => {
     ]);
   });
 
+  // 可写检出位在 `activeKey` 上写自己的持有键（US-314 B1.2）。这一步从前把「不是 active 行的非空键」
+  // 一律清掉——那时这一列只有哨兵一种非空值。持有键不是哨兵：清掉它等于把检出位手里的分支悄悄放掉，
+  // 唯一索引从此拦不住别的检出位再拿它，也没有任何东西会报错。
+  describe('可写检出位的持有键（US-314 B1.2）', () => {
+    const holderKey = WorktreeTableSet.of('wt_held', []).holderKey;
+
+    /**
+     * 造一张「当前形态、只差水位线」的分支表，再按给定的键回填。
+     *
+     * @param branches - 分支行与各自的 `activeKey`
+     */
+    const createCurrentBranchTable = async (
+      adapter: RxDBAdapterPGlite,
+      branches: ReadonlyArray<{ id: string; activated: boolean; activeKey: string | null }>
+    ): Promise<void> => {
+      await createLegacyBranchTable(adapter, branches);
+      await adapter.internalQuery(`ALTER TABLE "rxdb"."rxdb_branch" ADD COLUMN "activeKey" varchar`);
+      await adapter.internalQuery(
+        `CREATE UNIQUE INDEX "idx_rxdb_rxdb_branch_activeKey" ON "rxdb"."rxdb_branch" ("activeKey" bpchar_ops)`
+      );
+      for (const branch of branches) {
+        await adapter.internalQuery(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = $1::text WHERE "id" = $2::text`, [
+          branch.activeKey,
+          branch.id
+        ]);
+      }
+    };
+
+    it('重跑迁移不抹持有键，也不重写任何一行', async () => {
+      const adapter = await createLegacyDatabase();
+      await createCurrentBranchTable(adapter, [
+        { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY },
+        { id: 'feature-x', activated: false, activeKey: holderKey }
+      ]);
+      const versionsBefore = await getBranchRowVersions(adapter);
+
+      await adapter.migrateSystemSchema();
+
+      expect(await getBranchRowVersions(adapter)).toEqual(versionsBefore);
+      expect(await getBranchRows(adapter)).toEqual([
+        { id: 'feature-x', activated: false, activeKey: holderKey },
+        { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY }
+      ]);
+    });
+
+    // 主检出位停在一条分支上（`activated`），这条分支的 `activeKey` 却是别人的持有键：两边都认为分支是自己的。
+    // 回填哨兵等于替主检出位把它抢过来，只能整条迁移回滚，留给人去看。
+    it('主检出位停着的分支上是持有键时整体回滚', async () => {
+      const adapter = await createLegacyDatabase();
+      await createCurrentBranchTable(adapter, [
+        { id: 'main', activated: true, activeKey: holderKey },
+        { id: 'feature-x', activated: false, activeKey: null }
+      ]);
+
+      await expect(adapter.migrateSystemSchema()).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+      expect(await getBranchRows(adapter)).toEqual([
+        { id: 'feature-x', activated: false, activeKey: null },
+        { id: 'main', activated: true, activeKey: holderKey }
+      ]);
+      expect(await getWatermarks(adapter)).toEqual([]);
+      expect(await getEntityIdColumnType(adapter)).toBe('uuid');
+    });
+
+    // 零 active 的恢复目标是确定的 main，而 main 在可写检出位手里。点亮它就是抢，换一条点亮是替用户切分支。
+    it('零 active 而 main 被持有时整体回滚，不抢持有键', async () => {
+      const adapter = await createLegacyDatabase();
+      await createCurrentBranchTable(adapter, [
+        { id: 'main', activated: false, activeKey: holderKey },
+        { id: 'feature-x', activated: false, activeKey: null }
+      ]);
+
+      await expect(adapter.migrateSystemSchema()).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+      expect(await getBranchRows(adapter)).toEqual([
+        { id: 'feature-x', activated: false, activeKey: null },
+        { id: 'main', activated: false, activeKey: holderKey }
+      ]);
+      expect(await getWatermarks(adapter)).toEqual([]);
+    });
+  });
+
+  // 系统模式升级会改触发器的形状：影子表集的触发器同样是旧的，要按各自持有分支重建（US-314 B1.3）。
+  // 迁移跑在插件装好之前，读不到检出位登记表，靠的是持有键本身就是表集后缀。
+  describe('可写检出位的表集（US-314 B1.3）', () => {
+    /** 真库：带业务实体与历史插件，系统迁移能整条跑完 */
+    const createMemoryDatabase = async (): Promise<{ rxdb: RxDB; adapter: RxDBAdapterPGlite }> => {
+      const rxdb = new RxDB({
+        dbName: `pglite-worktree-table-set-${++databaseIndex}`,
+        entities: [PGliteLegacyTodo],
+        sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+      });
+      rxdb.adapter('pglite', database => new RxDBAdapterPGlite(database, { store: 'memory' }));
+      rxdb.use(rxDBPluginHistory);
+      const adapter = await rxdb.connect('pglite');
+      databases.add(rxdb);
+      return { rxdb, adapter };
+    };
+
+    /** 把系统模式水位退回上一版，让 migrateSystemSchema 整条重跑 */
+    const rewindSystemSchema = async (adapter: RxDBAdapterPGlite): Promise<void> => {
+      await adapter.internalQuery(`DELETE FROM "rxdb"."rxdb_migration" WHERE "name" = $1::text`, [
+        RXDB_SYSTEM_SCHEMA_WATERMARK
+      ]);
+      await adapter.internalQuery(
+        `INSERT INTO "rxdb"."rxdb_migration" ("name", "executedAt") VALUES ($1::text, now())`,
+        [`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}${RXDB_SYSTEM_SCHEMA_VERSION - 1}`]
+      );
+    };
+
+    it('给每一套现存的影子表集按持有分支重建触发器', async () => {
+      const { rxdb, adapter } = await createMemoryDatabase();
+      const tableSet = WorktreeTableSet.of('wt_mig', [PGliteLegacyTodo]);
+      await rxdb.versionManager.createBranch('held');
+      await adapter.internalQuery(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = $1::text WHERE "id" = 'held'`, [
+        tableSet.holderKey
+      ]);
+      await adapter.transaction(
+        executor =>
+          adapter.createWorktreeTableSet(executor, tableSet, {
+            branchId: 'held',
+            actions: { inserts: new Map(), updates: new Map(), deletes: new Map() }
+          }),
+        false
+      );
+      // 模拟升级前的旧触发器：先把影子表的触发器删光，迁移要把它们按持有分支建回来
+      for (const statement of remove_all_triggers_sql(adapter, tableSet).split('---STATEMENT_SEPARATOR---')) {
+        if (statement.trim()) await adapter.internalQuery(statement.trim());
+      }
+      await rewindSystemSchema(adapter);
+
+      await adapter.migrateSystemSchema();
+
+      const metadata = getEntityMetadata(PGliteLegacyTodo);
+      const id = uuid();
+      await adapter.internalQuery(
+        `INSERT INTO "public$wt_mig"."${metadata.tableName}" ("id", "title", "createdAt", "updatedAt")
+         VALUES ($1::uuid, $2::text, now(), now())`,
+        [id, 'in worktree']
+      );
+      const change = await adapter.internalQuery<{ branchId: string }>(
+        `SELECT "branchId" FROM "rxdb"."rxdb_change" WHERE "entityId" = $1::text`,
+        [encodeRxDBChangeEntityId(id)]
+      );
+      expect(change.rows).toEqual([{ branchId: 'held' }]);
+    });
+
+    it('认不出的持有键整体回滚：不知道该重建哪一套表', async () => {
+      const { rxdb, adapter } = await createMemoryDatabase();
+      await rxdb.versionManager.createBranch('held');
+      await adapter.internalQuery(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = '*worktree:wt1*' WHERE "id" = 'held'`);
+      await rewindSystemSchema(adapter);
+
+      await expect(adapter.migrateSystemSchema()).rejects.toThrow(/持有键/);
+
+      expect((await getWatermarks(adapter)).map(row => row.name)).not.toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
+    });
+  });
+
   // US-218 FR-021：模式 7 给 RxDBChange 加 rejectedAt / rejection 两列。既有库按表粒度补建、从不看列，
   // 不在迁移里补，那批库第一次收到拒绝回执时写本地就会因列不存在而失败。
   it('模式 6 的库升级后 RxDBChange 多出可空的 rejectedAt、rejection，旧行两列为空', async () => {
@@ -604,6 +792,61 @@ describe('PGlite system schema migration', () => {
     await expect(adapter.migrateSystemSchema()).resolves.toBeUndefined();
 
     expect(await getChangeRejectionColumns(adapter)).toHaveLength(2);
+  });
+
+  // 工作树插件后加的两张系统表：只读检出位的登记表（US-313）与提交的分叉点（US-314）。在它们出现之前建的库上重开，
+  // 连接期要把它们补建出来、旧数据与旧提交都还在；旧提交没有分叉点，从它建分支报 fork_point_unknown（RV-083 P2-3）
+  it('工作树插件后加的系统表：既有库重开时补建，旧提交照常可读，旧提交建不了分支、新提交建得了', async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), 'aiao-pglite-working-tree-reopen-'));
+    temporaryDirectories.add(dataDir);
+    const dbName = `pglite-working-tree-reopen-${++databaseIndex}`;
+    const open = async (): Promise<{ rxdb: RxDB; adapter: RxDBAdapterPGlite }> => {
+      const rxdb = new RxDB({
+        dbName,
+        entities: [PGliteLegacyTodo],
+        sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+      });
+      rxdb.adapter('pglite', database => new RxDBAdapterPGlite(database, { dataDir }));
+      rxdb.use(rxDBPluginHistory);
+      rxdb.use(rxDBPluginWorkingTree);
+      const adapter = await rxdb.connect('pglite');
+      databases.add(rxdb);
+      return { rxdb, adapter };
+    };
+    const saveTodo = async (rxdb: RxDB, title: string) => {
+      const todo = rxdb.entityManager.instantiate(PGliteLegacyTodo);
+      todo.title = title;
+      await todo.save();
+    };
+
+    const initial = await open();
+    await initial.rxdb.workingTree.enable();
+    await saveTodo(initial.rxdb, 'old');
+    const oldCommit = await commitAll(initial.rxdb, 'old');
+    // 退回两张表出现之前的形状
+    await initial.adapter.internalQuery(`DROP TABLE "rxdb"."rxdb_worktree"`);
+    await initial.adapter.internalQuery(`DROP TABLE "rxdb"."rxdb_commit_fork_point"`);
+    await initial.rxdb.disconnectAll();
+    databases.delete(initial.rxdb);
+
+    const reopened = await open();
+    for (const EntityClass of laterWorkingTreeTables(reopened.rxdb)) {
+      expect(await reopened.adapter.isTableExisted(EntityClass)).toBe(true);
+    }
+    expect(
+      await reopened.adapter.getRepository(PGliteLegacyTodo).find({ where: { combinator: 'and', rules: [] } })
+    ).toHaveLength(1);
+    expect((await reopened.rxdb.workingTree.listCommits()).entries.map(entry => entry.commitId)).toContain(oldCommit);
+    await expect(reopened.rxdb.workingTree.checkBranchFromCommit(oldCommit)).resolves.toEqual({
+      ok: false,
+      reason: 'fork_point_unknown'
+    });
+
+    await saveTodo(reopened.rxdb, 'new');
+    const newCommit = await commitAll(reopened.rxdb, 'new');
+    await expect(reopened.rxdb.workingTree.createBranchFromCommit('from-new', newCommit)).resolves.toMatchObject({
+      ok: true
+    });
   });
 
   it('高版本水位在 ALTER 或业务写入前 fail-fast', async () => {

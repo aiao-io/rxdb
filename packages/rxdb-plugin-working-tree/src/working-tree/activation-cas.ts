@@ -28,12 +28,10 @@
 import type { TransactionExecutor } from '@aiao/rxdb';
 import { getEntityMetadata, RxDBError, sqlIntegerLiteral, sqlStringLiteral } from '@aiao/rxdb';
 import { createColumnOf } from '../entity-column.js';
+import { activationStateIdOf } from './activation-state.js';
 import { readActiveBranchToken } from './capture-runtime.js';
 import type { CommitConflict } from './commit-conflict.js';
-import {
-  WORKING_TREE_ACTIVATION_STATE_ID,
-  WorkingTreeActivationState
-} from './working-tree-activation-state.entity.js';
+import { WorkingTreeActivationState } from './working-tree-activation-state.entity.js';
 
 /** `WorkingTreeActivationState` 里参与启用 CAS 的那两列。 */
 type WorkingTreeActivationStateColumn = 'id' | 'activationRevision';
@@ -43,18 +41,22 @@ const columnOf = createColumnOf<WorkingTreeActivationStateColumn>('WorkingTreeAc
 /**
  * 拼这条 CAS：把 revision 从捕获值推到捕获值 +1。
  *
+ * @param tableRef - 由 executor 解析出来的物理表引用
+ * @param expectedActivationRevision - 调用方捕获的号
+ * @param id - 本实例挂的那套表的激活态行（{@link activationStateIdOf}，US-314 B2.2）
+ *
  * @remarks
  * WHERE 里两条谓词都不能少。少了 revision 那一条，这就是一条无条件覆盖：两个标签页各自 +1，
  * 后到的那个把先到的那次切换抹掉，而两边都读到 `rowsAffected = 1`。少了主键那一条，
  * 它会在某天这张表长出第二行时把两行一起改。
  */
-const buildActivationBumpCas = (tableRef: string, expectedActivationRevision: number): string => {
+const buildActivationBumpCas = (tableRef: string, expectedActivationRevision: number, id: string): string => {
   const metadata = getEntityMetadata(WorkingTreeActivationState);
   const revision = columnOf(metadata, 'activationRevision');
   return [
     `UPDATE ${tableRef}`,
     `SET ${revision} = ${sqlIntegerLiteral(expectedActivationRevision + 1)}`,
-    `WHERE ${columnOf(metadata, 'id')} = ${sqlStringLiteral(WORKING_TREE_ACTIVATION_STATE_ID)}`,
+    `WHERE ${columnOf(metadata, 'id')} = ${sqlStringLiteral(id)}`,
     `AND ${revision} = ${sqlIntegerLiteral(expectedActivationRevision)}`
   ].join(' ');
 };
@@ -90,7 +92,11 @@ export const bumpActivationRevision = async (
   expectedActivationRevision: number
 ): Promise<ActivationBumpOutcome> => {
   const { rowsAffected } = await executor.query(
-    buildActivationBumpCas(executor.tableRef(WorkingTreeActivationState), expectedActivationRevision)
+    buildActivationBumpCas(
+      executor.tableRef(WorkingTreeActivationState),
+      expectedActivationRevision,
+      activationStateIdOf(executor.tableSet)
+    )
   );
   if (rowsAffected > 0) return { ok: true, activationRevision: expectedActivationRevision + 1 };
 
@@ -117,13 +123,13 @@ export const bumpActivationRevision = async (
  * WHERE 里只有主键那一条。多钉一条 `revision = ?` 就退回成 CAS，而这里没有调用方给的期望值可用
  * （见 {@link advanceActivationRevision}）。
  */
-const buildActivationAdvance = (tableRef: string): string => {
+const buildActivationAdvance = (tableRef: string, id: string): string => {
   const metadata = getEntityMetadata(WorkingTreeActivationState);
   const revision = columnOf(metadata, 'activationRevision');
   return [
     `UPDATE ${tableRef}`,
     `SET ${revision} = ${revision} + 1`,
-    `WHERE ${columnOf(metadata, 'id')} = ${sqlStringLiteral(WORKING_TREE_ACTIVATION_STATE_ID)}`
+    `WHERE ${columnOf(metadata, 'id')} = ${sqlStringLiteral(id)}`
   ].join(' ');
 };
 
@@ -145,15 +151,21 @@ const buildActivationAdvance = (tableRef: string): string => {
  * `main → feature → main` 走一个来回之后 revision 原地不动，于是走之前捕获的 token
  * 在走回来之后仍然校验通过——`findCommitConflict()` 的第一位仲裁位就此变成常数。
  *
- * `rowsAffected !== 1` 当场抛，不静默走过去：激活态是单例行，它不在意味着装载期迁移没跑完，
- * 而放行等于让接下来整条切换在一个没有仲裁位的库上完成，事后无从分辨。
+ * 推进的是本实例挂的那套表的那一行（{@link activationStateIdOf}，US-314 B2.2）：可写检出位里切分支，
+ * 主检出位与别的检出位手上的凭据不受影响。
+ *
+ * `rowsAffected !== 1` 当场抛，不静默走过去：主检出位那一行不在意味着装载期迁移没跑完，可写检出位那一行不在
+ * 意味着检出位是 B2.2 之前的开发构建开的；放行等于让接下来整条切换在一个没有仲裁位的库上完成，事后无从分辨。
  */
 export const advanceActivationRevision = async (executor: TransactionExecutor): Promise<void> => {
-  const { rowsAffected } = await executor.query(buildActivationAdvance(executor.tableRef(WorkingTreeActivationState)));
+  const id = activationStateIdOf(executor.tableSet);
+  const { rowsAffected } = await executor.query(
+    buildActivationAdvance(executor.tableRef(WorkingTreeActivationState), id)
+  );
   if (rowsAffected === 1) return;
   throw new RxDBError(
-    `推进 activation revision 时命中 ${rowsAffected} 行，期望恰好 1 行：` +
-      '激活态是单例行，它不在意味着迁移 0004-working-tree-commits 没跑完。' +
+    `推进 activation revision 时命中 ${rowsAffected} 行，期望恰好 1 行（激活态行 ${id}）：` +
+      '主检出位那一行不在意味着迁移 0004-working-tree-commits 没跑完，可写检出位那一行不在意味着它是 B2.2 之前开的。' +
       '这不是「没什么要推进的」，不能按成功继续——那会让这条分支切换在一个没有代际仲裁位的库上完成。'
   );
 };

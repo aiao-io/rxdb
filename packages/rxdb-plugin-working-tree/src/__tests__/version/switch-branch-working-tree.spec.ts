@@ -92,7 +92,7 @@ const EXPECTED_GENERATION = BRANCH_GENERATION_SEQ + 1;
 
 const REF_TABLE = getEntityMetadata(CommitBranchRef).tableName;
 
-/** 一个挂了 mock 适配器、已 `init()` 的宿主；十张系统表由插件贡献，必须早于 `init()` 进 `use()`。 */
+/** 一个挂了 mock 适配器、已 `init()` 的宿主；本插件的系统表由它贡献，必须早于 `init()` 进 `use()`。 */
 function createDatabase(): { database: RxDB; plugin: RxDBPluginWorkingTree } {
   const database = new RxDB({
     dbName: `rxdb-switch-branch-working-tree-${Math.random().toString(36).slice(2)}`,

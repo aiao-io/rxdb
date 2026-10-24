@@ -26,9 +26,11 @@ import {
   sqlStringLiteral,
   type CompiledExclusionConstraint,
   type CompiledExclusionRange,
-  type EntityMetadata
+  type EntityMetadata,
+  type WorktreeTableSet
 } from '@aiao/rxdb';
-import { get_primary_key_column, get_table_name_by_metadata, quote_sql_identifier } from '../sqlite-core.utils.js';
+import { get_primary_key_column, quote_sql_identifier } from '../sqlite-core.utils.js';
+import { get_storage_object_name, get_table_name_by_metadata } from '../table-name-resolver.js';
 
 /** 已有行的表别名（与 `NEW` 并列出现在判定条件里）。 */
 const EXISTING = quote_sql_identifier('rxdb_existing');
@@ -72,10 +74,17 @@ const payload = (exclusion: CompiledExclusionConstraint): string => {
  * @param exclusion - 核心编译后的区间排他（`compileExclusionConstraint`）
  * @returns 两条 `CREATE TRIGGER` 语句
  */
-export const exclusion_trigger_sql = (metadata: EntityMetadata, exclusion: CompiledExclusionConstraint): string => {
-  const tableName = quote_sql_identifier(get_table_name_by_metadata(metadata));
+export const exclusion_trigger_sql = (
+  metadata: EntityMetadata,
+  exclusion: CompiledExclusionConstraint,
+  tableSet: WorktreeTableSet
+): string => {
+  const tableName = quote_sql_identifier(get_table_name_by_metadata(metadata, tableSet));
   const primaryKey = get_primary_key_column(metadata);
-  const [insertTrigger, updateTrigger] = exclusionTriggerNames(exclusion.name);
+  // 触发器是库级对象，名字按表集错开；违约消息里嵌的仍是约束的逻辑名，违约归一按它认约束
+  const [insertTrigger, updateTrigger] = exclusionTriggerNames(
+    get_storage_object_name(exclusion.name, metadata, tableSet)
+  );
   const conditions = [
     `${column(EXISTING, primaryKey)} != ${column('NEW', primaryKey)}`,
     ...exclusion.equal.map(({ column: name }) => `${column(EXISTING, name)} = ${column('NEW', name)}`),

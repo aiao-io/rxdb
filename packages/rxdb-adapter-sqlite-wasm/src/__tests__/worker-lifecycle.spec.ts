@@ -35,6 +35,8 @@ interface RemoteSqliteClient extends SqliteClientLike {
   beginSystemMigrationTransactionSql(): string | Promise<string>;
   setChangeEventsMuted(muted: boolean): void | Promise<void>;
   describeBlankDatabase(): Promise<SqliteBlankDatabase>;
+  release(owner: string): Promise<void>;
+  rollbackOrphanTransaction(): Promise<boolean>;
 }
 
 /** WATCH_TABLES 里的表名之一——只有这三张表的写入才会触发 update_hook 派发。 */

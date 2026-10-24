@@ -20,6 +20,13 @@ export * from './working-tree-patch-codec.js';
 // 而不是落在「大家都 import 同一个模块」上。判定本身仍要导出：一致性套件与后续插件侧的
 // 调用点都要叫得出 `judgeRawWrite` 的名字，而只能靠结论形状反推的判定等于没有契约。
 export * from './bulk-write-gate.js';
+// 从提交建分支（US-314 阶段 A）：只出结果类型。判定与查重是门面里那两笔受管事务的接缝，
+// 调用方拿到手也没有能安全使用它们的事务。
+export type {
+  WorkingTreeBranchFromCommitCheck,
+  WorkingTreeBranchFromCommitRejection,
+  WorkingTreeCreateBranchFromCommitResult
+} from './branch-from-commit.js';
 export * from './capture-hook.js';
 export * from './capture-mount-points.js';
 export * from './capture-runtime.js';

@@ -2,6 +2,22 @@
   "entries": {
     ".": [
       {
+        "name": "assert_branch_id_free_on_remote",
+        "kind": "value"
+      },
+      {
+        "name": "BranchComparison",
+        "kind": "type"
+      },
+      {
+        "name": "BranchDiffEntry",
+        "kind": "type"
+      },
+      {
+        "name": "BranchDiffOperation",
+        "kind": "type"
+      },
+      {
         "name": "compute_switch_branch_actions",
         "kind": "value"
       },
@@ -14,12 +30,44 @@
         "kind": "value"
       },
       {
+        "name": "forkPointOf",
+        "kind": "value"
+      },
+      {
         "name": "get_branch_max_change",
+        "kind": "value"
+      },
+      {
+        "name": "get_switch_version_actions",
         "kind": "value"
       },
       {
         "name": "isIgnorableDetachedVersionEventError",
         "kind": "value"
+      },
+      {
+        "name": "keep_table_set_actions",
+        "kind": "value"
+      },
+      {
+        "name": "MergePreview",
+        "kind": "type"
+      },
+      {
+        "name": "MergePreviewConflict",
+        "kind": "type"
+      },
+      {
+        "name": "MergePreviewEntry",
+        "kind": "type"
+      },
+      {
+        "name": "MergePreviewOptions",
+        "kind": "type"
+      },
+      {
+        "name": "NewBranchRowInput",
+        "kind": "type"
       },
       {
         "name": "PushInFlightRegistry",
@@ -60,6 +108,10 @@
       {
         "name": "VersionManager",
         "kind": "type"
+      },
+      {
+        "name": "write_new_branch",
+        "kind": "value"
       }
     ]
   }

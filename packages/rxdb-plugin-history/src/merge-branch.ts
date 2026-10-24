@@ -3,13 +3,95 @@ import {
   getRxDBChangeKey,
   MergeBranchOptions,
   MergeBranchResult,
+  RxDBBranch,
+  RxDBChange,
   RxDBError,
   SwitchVersionActions,
   TrustedWriteIntent
 } from '@aiao/rxdb';
 import { VersionManager } from './VersionManager.js';
 import { remove_branch } from './remove-branch.js';
-import { get_switch_version_actions } from './switch-branch-actions.js';
+import { get_switch_version_actions, type BranchChangeReader } from './switch-branch-actions.js';
+import type { ChangeInTableSet } from './table-set-scope.js';
+
+/**
+ * 「合并进自己」的报错；合并与合并预览说同一句。
+ *
+ * @param branchId - 源分支
+ * @returns 要抛的错误
+ *
+ * @internal
+ */
+export const merge_into_itself_error = (branchId: string): RxDBError =>
+  new RxDBError(`Cannot merge branch '${branchId}' into itself`);
+
+/**
+ * 「分支不存在」的报错；合并、合并预览与分支对比说同一句。
+ *
+ * @param branchId - 分支
+ * @returns 要抛的错误
+ *
+ * @internal
+ */
+export const branch_not_found_error = (branchId: string): RxDBError => new RxDBError(`Branch '${branchId}' not found`);
+
+/**
+ * 读源分支分叉以来的有效变更：自有、未回滚、`id > fromChangeId`，按 id 升序。
+ *
+ * @param changeRepository - 见 {@link BranchChangeReader}
+ * @param sourceBranch - 源分支行
+ * @param inTableSet - 只留落在目标那套表里的变更，缺省全留；见 `table_set_scope`
+ * @returns 合并要搬的那一批变更
+ *
+ * @remarks
+ * 合并与合并预览取的必须是同一批：预览多算或少算一条，`merged` 就对不上真实合并。
+ *
+ * 挂在可写检出位上合并时，源分支里不进影子表集的实体（QueryCache 同步的实体）落不进这套表：照写会改主检出位的表、
+ * 记在主检出位的分支名下（US-314 B2.1），所以在这里一并滤掉，`merged` 也只数真正落下的。
+ *
+ * @internal
+ */
+export const find_source_changes = async (
+  changeRepository: BranchChangeReader,
+  sourceBranch: RxDBBranch,
+  inTableSet: ChangeInTableSet = () => true
+): Promise<RxDBChange[]> => {
+  const changes = await changeRepository.find({
+    where: {
+      combinator: 'and',
+      rules: [
+        { field: 'branchId', operator: '=', value: sourceBranch.id },
+        { field: 'revertChangeId', operator: '=', value: null },
+        ...(sourceBranch.fromChangeId != null ?
+          [{ field: 'id' as const, operator: '>' as const, value: sourceBranch.fromChangeId }]
+        : [])
+      ]
+    },
+    orderBy: [{ field: 'id', sort: 'asc' }]
+  });
+  return changes.filter(change => inTableSet(change.namespace, change.entity));
+};
+
+/**
+ * 把源分支的变更压缩成合并要落的最小操作集：折叠后滤掉源分支里先建后删的实体。
+ *
+ * @param sourceChanges - {@link find_source_changes} 的结果
+ * @returns 压缩合并写进目标分支的操作
+ *
+ * @remarks
+ * 幽灵删除（在源分支内创建后又删除的实体）对目标分支无净贡献：留着它会在目标分支上删一行本不存在的数据。
+ * 合并与合并预览共用这一份，预览的条目因此就是压缩合并真正落的那些。
+ *
+ * @internal
+ */
+export const squash_source_changes = (sourceChanges: RxDBChange[]): SwitchVersionActions => {
+  const actions = get_switch_version_actions(sourceChanges, true);
+  const createdInSource = new Set(sourceChanges.filter(c => c.type === 'INSERT').map(c => getRxDBChangeKey(c)));
+  for (const key of createdInSource) {
+    actions.deletes.delete(key);
+  }
+  return actions;
+};
 
 /**
  * 合并分支
@@ -27,13 +109,15 @@ import { get_switch_version_actions } from './switch-branch-actions.js';
  * @param sourceBranchId - 源分支 ID
  * @param currentBranchId - 当前激活分支 ID（由调用方提供，避免重复查询）
  * @param options - 合并选项
+ * @param inTableSet - 只合落在目标那套表里的变更，缺省全合；见 {@link find_source_changes}
  * @returns 合并结果
  */
 export const merge_branch = async (
   version: VersionManager,
   sourceBranchId: string,
   currentBranchId: string,
-  options?: MergeBranchOptions
+  options?: MergeBranchOptions,
+  inTableSet?: ChangeInTableSet
 ): Promise<MergeBranchResult> => {
   const strategy = options?.strategy ?? 'squash';
   const deleteSource = options?.deleteSource ?? false;
@@ -42,7 +126,7 @@ export const merge_branch = async (
 
   // 验证：源分支不能是目标分支
   if (sourceBranchId === currentBranchId) {
-    throw new RxDBError(`Cannot merge branch '${sourceBranchId}' into itself`);
+    throw merge_into_itself_error(sourceBranchId);
   }
 
   // 验证：源分支必须存在
@@ -57,23 +141,11 @@ export const merge_branch = async (
   )[0];
 
   if (!sourceBranch) {
-    throw new RxDBError(`Branch '${sourceBranchId}' not found`);
+    throw branch_not_found_error(sourceBranchId);
   }
 
   // 查询源分支从 fromChangeId 之后的所有有效变更
-  const sourceChanges = await changeRepository.find({
-    where: {
-      combinator: 'and',
-      rules: [
-        { field: 'branchId', operator: '=', value: sourceBranchId },
-        { field: 'revertChangeId', operator: '=', value: null },
-        ...(sourceBranch.fromChangeId != null ?
-          [{ field: 'id' as const, operator: '>' as const, value: sourceBranch.fromChangeId }]
-        : [])
-      ]
-    },
-    orderBy: [{ field: 'id', sort: 'asc' }]
-  });
+  const sourceChanges = await find_source_changes(changeRepository, sourceBranch, inTableSet);
 
   /**
    * 删源分支：合并落库之后的收尾动作。
@@ -141,16 +213,8 @@ export const merge_branch = async (
     });
     merged = sourceChanges.length;
   } else {
-    // squash 策略：压缩为目标分支最终状态的最小操作集
-    const actions = get_switch_version_actions(sourceChanges, true);
-
-    // 过滤幽灵删除：在源分支内创建后又删除的实体，对目标分支无净贡献
-    const createdInSource = new Set(sourceChanges.filter(c => c.type === 'INSERT').map(c => getRxDBChangeKey(c)));
-    for (const key of createdInSource) {
-      if (actions.deletes.has(key)) {
-        actions.deletes.delete(key);
-      }
-    }
+    // squash 策略：压缩为目标分支最终状态的最小操作集（已滤掉幽灵删除）
+    const actions = squash_source_changes(sourceChanges);
 
     merged = actions.inserts.size + actions.updates.size + actions.deletes.size;
 

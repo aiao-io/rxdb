@@ -45,4 +45,17 @@ describe('deriveEntityCapabilities', () => {
       { canCreate: false, canEdit: false, canDelete: false }
     );
   });
+
+  it('只读实例（只读检出位，US-313）：不论权限声明，三个能力全关', () => {
+    expect(deriveEntityCapabilities(withPermissions(undefined), { readOnly: true })).toEqual({
+      canCreate: false,
+      canEdit: false,
+      canDelete: false
+    });
+    expect(deriveEntityCapabilities(withPermissions(undefined), { readOnly: false })).toEqual({
+      canCreate: true,
+      canEdit: true,
+      canDelete: true
+    });
+  });
 });

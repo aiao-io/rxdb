@@ -6,7 +6,8 @@ import {
   RxDB,
   RxDBBranch,
   RxDBEntityLocalUpdatedEventData,
-  SyncType
+  SyncType,
+  WorktreeBranchHeldError
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { Todo } from '@aiao/rxdb-test/entities';
@@ -164,6 +165,33 @@ describe('switch_branch 单元测试', () => {
       );
       expect(changes.rows).toHaveLength(1);
       expect(changes.rows[0].branchId).toBe('feature-branch');
+    });
+
+    // 一条分支至多被一个检出位持有（US-314 B1.2）。点亮目标分支时写的是哨兵，正好把持有键覆盖掉，
+    // 唯一索引里始终只有一个哨兵、撞不上——只能在点亮之前问一句「它在不在别人手里」。
+    it('切到被可写检出位持有的分支被拒：分支表一行不动，之后的写入仍记在原分支', async () => {
+      const holderKey = '*worktree:wt1*';
+      await rxdb.versionManager.createBranch('feature-branch');
+      await adapter.query(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = $1::text WHERE "id" = 'feature-branch'`, [
+        holderKey
+      ]);
+
+      await expect(rxdb.versionManager.switchBranch('feature-branch')).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+      const branches = await adapter.query<{ id: string; activated: boolean; activeKey: string | null }>(
+        `SELECT "id", "activated", "activeKey" FROM "rxdb"."rxdb_branch" ORDER BY "id"`
+      );
+      expect(branches.rows).toEqual([
+        { id: 'feature-branch', activated: false, activeKey: holderKey },
+        { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY }
+      ]);
+      const todo = new Todo({ title: 'after-rejected-switch' });
+      await todo.save();
+      const changes = await adapter.query<{ branchId: string }>(
+        `SELECT "branchId" FROM "rxdb"."rxdb_change" WHERE "entity" = 'Todo' AND "entityId" = $1`,
+        [encodeRxDBChangeEntityId(todo.id)]
+      );
+      expect(changes.rows).toEqual([{ branchId: 'main' }]);
     });
 
     it('分支状态更新失败时回滚数据与 trigger', async () => {

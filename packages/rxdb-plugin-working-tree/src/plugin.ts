@@ -5,7 +5,7 @@
  * 插件本身只做三件事，其余全部语义在 `working-tree/` 与 `commit/` 两个目录里：
  *
  * 1. **挂入口**：`use()` 的那一刻把 {@link WorkingTreeManager} 定义成 `rxdb.workingTree`。
- * 2. **声明系统贡献**：10 张系统表、新库的初始行、既有库的引导迁移、既有库连接时的接通，
+ * 2. **声明系统贡献**：12 张系统表、新库的初始行、既有库的引导迁移、既有库连接时的接通，
  *    以及每条新分支的贡献行，一次性交给宿主按 {@link RxDBSystemContribution} 编排。
  *
  * 3. **接住别人的启用**：`install()` 里登记一个 `CAPABILITY_ENABLED` 监听器（FR-037），
@@ -24,12 +24,18 @@ import {
   type RxDBSystemContribution
 } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
+import { filter } from 'rxjs';
 import { PACKAGE_SPECIFIER, WORKING_TREE_CAPABILITY } from './capability-identity.js';
+import type { RxDBPluginWorkingTreeOptions } from './checkout/worktree-options.js';
+import { findReclaimCandidates, hasOrphanedWorktree } from './checkout/worktree-startup-reclaim.js';
+import { recordCheckoutBranch } from './checkout/worktree-writable.js';
+import { Worktree } from './checkout/worktree.entity.js';
 import { removeBranchCommitRows, writeNewBranchCommitRows } from './commit/branch-commit-rows.js';
 import { CommitBranchRef } from './commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from './commit/commit-capability-state.entity.js';
 import { isCommitCapabilityEnabled } from './commit/commit-capability.js';
 import { CommitChangeSet } from './commit/commit-change-set.entity.js';
+import { CommitForkPoint } from './commit/commit-fork-point.entity.js';
 import { latchBranchCorruption } from './commit/commit-graph-guard.js';
 import { Commit } from './commit/commit.entity.js';
 import {
@@ -63,12 +69,15 @@ import { WorkingTreeState } from './working-tree/working-tree-state.entity.js';
 export const WORKING_TREE_CAPABILITY_VERSION = 1;
 
 /**
- * 本插件贡献的 10 张系统表，顺序即建表顺序。
+ * 本插件贡献的 12 张系统表，顺序即建表顺序。
  *
  * @remarks
- * 顺序照 `data-model.md` §1 的 1→10 抄，与一致性套件里那份手写清单
+ * 前 10 张照 `data-model.md` §1 的 1→10 抄，第 11 张是只读检出位的登记表（US-313），第 12 张是提交的分叉点（US-314）。
+ * 与一致性套件里那份手写清单
  * （`working-tree/testing/capture.suite.ts` 的 `EPIC_006_SYSTEM_ENTITIES`）逐项一致。
  * 那份清单故意**不**从这里算差集：新增一张表必须先让它编译失败，逐条过一遍 §1.5 的三条断言。
+ *
+ * 既有库上不需要迁移：连接时核心补建缺的贡献表。
  */
 const WORKING_TREE_SYSTEM_ENTITIES: readonly EntityType[] = [
   CommitCapabilityState,
@@ -80,13 +89,24 @@ const WORKING_TREE_SYSTEM_ENTITIES: readonly EntityType[] = [
   WorkingTreeEntry,
   WorkingTreeRestoreSession,
   WorkingTreeMaterializationStage,
-  WorkingTreeMaterializationPage
+  WorkingTreeMaterializationPage,
+  Worktree,
+  CommitForkPoint
 ];
+
+/** 连接期的启动清理判定要回给插件实例的两件事（只读检出位，US-313）。 */
+interface StartupReclaimHooks {
+  /** 装插件时给了 `worktrees`；没给就连登记表都不读 */
+  readonly configured: () => boolean;
+  /** 这次连接之后要不要在后台回收一次；每次既有库的连接都覆盖上一次的结论 */
+  readonly decide: (reclaim: boolean) => void;
+}
 
 /**
  * 造出本插件的系统层贡献。
  *
  * @param rxdb - 宿主实例；只有 `bootstrapExisting()` 用得到（装捕获要读它的实体登记）
+ * @param startup - 启动清理判定的回写口
  * @returns 交给宿主在建表那一刻编排的声明
  *
  * @remarks
@@ -100,7 +120,7 @@ const WORKING_TREE_SYSTEM_ENTITIES: readonly EntityType[] = [
  * 两处都写成**调用时**才去取——取一次存下来的话，前者永远是 `undefined`（重连后更是旧纪元的
  * 那一个），后者当场 `undefined`。
  */
-const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
+const createSystemContribution = (rxdb: RxDB, startup: StartupReclaimHooks): RxDBSystemContribution => ({
   capability: WORKING_TREE_CAPABILITY,
   version: WORKING_TREE_CAPABILITY_VERSION,
   packageSpecifier: PACKAGE_SPECIFIER,
@@ -108,26 +128,34 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
   createInitialRows: (entityManager, context) => createWorkingTreeCommitsInitialRows(entityManager, context.branchIds),
   createMigrations: entityManager => [createWorkingTreeCommitsMigration(entityManager)],
   bootstrapExisting: async ({ adapter }) => {
-    // 一次读、两个用途：能力位与 active 分支基数校验（FR-048）合进同一个引导事务。
-    // 分成两次读的话，两次之间隔着一个别的进程可以把能力位翻掉的窗口，于是可能
+    // 一次读、三个用途：能力位、active 分支基数校验（FR-048）与启动清理的判定合进同一个引导事务。
+    // 前两者分成两次读的话，两次之间隔着一个别的进程可以把能力位翻掉的窗口，于是可能
     // 「按未启用跳过校验、却按已启用装上捕获」。
     //
     // 走 bootstrapTransaction 而不是 transaction：整条引导链路都用前者，换成后者就得依赖
     // 「completeBootstrap() 确实已经把就绪门打开了」这个跨行推理。transactionLog 传 false ——
     // 这里一行都不写。
-    const enabled = await adapter.bootstrapTransaction(async executor => {
+    const { enabled, reclaim } = await adapter.bootstrapTransaction(async executor => {
       // 基数校验**以能力已启用为前提**：未启用的库整套提交/工作树语义都是短路的（FR-037），
       // 拿一个它还没进入的不变量把它挡在连接之外，等于让升级本身变成一次破坏性变更。
       const capabilityEnabled = await isCommitCapabilityEnabled(executor);
       // 校验排在装捕获**之前**：捕获一旦装上，这次事务就多绕一层转发——它一行都不写，
       // 绕一层只是白费，出错时还多一层要排除的嫌疑。
       if (capabilityEnabled) await assertSingleActiveBranch(executor);
-      return capabilityEnabled;
+      // 启动清理的判定也在这一笔里读：连上之后再开一笔事务去看，正赶上别的连接拿系统迁移锁时它就连不上，
+      // 见 `worktree-startup-reclaim.ts`。未启用的库上 checkouts 整体不可用，不读。没配快照库也要读：
+      // 可写检出位（US-314）的表在主库里，不靠快照库就收得了，只读检出位那时不算
+      // 没有登记行的孤儿表集（US-314 B2.6）也在这一笔里找：它们没有锁，有就回收
+      const findings = capabilityEnabled ? await findReclaimCandidates(executor, adapter, startup.configured()) : null;
+      return { enabled: capabilityEnabled, reclaim: findings };
     }, false);
     // 未启用的库上一次都不装，于是四个写原语连一层转发都没有——FR-046 要求的「零行为差异」
     // 在这种形状下是结构性的，不依赖运行时每次写都去问一句能力位。
-    if (!enabled) return;
-    installWorkingTreeCapture(rxdb, adapter);
+    if (enabled) installWorkingTreeCapture(rxdb, adapter);
+    startup.decide(
+      reclaim !== null &&
+        (reclaim.orphanTableSets.length > 0 || (await hasOrphanedWorktree(rxdb.config.dbName, reclaim.candidates)))
+    );
   },
   prepareBranchSwitch: async ({ executor, targetBranchId, preconditions }) => {
     // 未启用的库整套语义都是短路的（FR-037/046）：它没有 ref 行、没有工作树状态行，
@@ -143,7 +171,10 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
     // （见 `activation-cas.ts` › advanceActivationRevision）。
     // 漏掉这一步的代价是 `main → feature → main` 走完之后代际原地不动，
     // 于是走之前捕获的 token 在走回来之后仍然验得过——三位并发仲裁里的第一位变成常数。
+    // 推进的是本实例挂的那套表的那一行：可写检出位里切分支不动主检出位的凭据（US-314 B2.2）。
     await advanceActivationRevision(executor);
+    // 可写检出位里切分支：登记行的分支跟着走，与切换一起提交、一起回滚
+    if (!executor.tableSet.isMain) await recordCheckoutBranch(executor, executor.tableSet, targetBranchId);
   },
   takeOverBranchSwitch: context =>
     // 接管判据整个在 `materialize-branch.ts`：它要连着开五六笔事务、中间夹着网络 I/O，
@@ -163,10 +194,11 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
     if (!adapter) return;
     await latchBranchCorruption(adapter, error);
   },
-  writeBranchRows: (entityManager, { executor, branchId }) =>
+  writeBranchRows: (entityManager, { executor, branchId, fromCommitId }) =>
     // 「这两行里装的是什么」全在 `branch-commit-rows.ts`：共享源分支 HEAD、复制一份独立工作树，
-    // 还是给历史分叉点写一个 `branch_baseline` 锚点，判据是库里那两个值（FR-017）。
-    writeNewBranchCommitRows(executor, entityManager, branchId),
+    // 还是给历史分叉点写一个 `branch_baseline` 锚点，判据是库里那两个值（FR-017）；
+    // 点名了源提交（从提交建分支，US-314）就让 HEAD 指向它，仍以库里的分叉点核对。
+    writeNewBranchCommitRows(executor, entityManager, branchId, fromCommitId),
   removeBranchRows: ({ executor, branchId }) =>
     // 建行与删行同住一个模块：「一条分支在本能力里占了哪几张表」只有那里知道，
     // 而两半分家的那一天，新加的表会只在其中一半里被记得（FR-044）。
@@ -187,6 +219,12 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
  * 对称的拆卸义务。真正落在作用域里的只有那个跨连接的能力启用监听器（见 {@link RxDBPluginWorkingTree.install}）。
  */
 export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin {
+  /** 装插件时给了 `worktrees`：连接期要判定有没有只读检出位的孤儿。 */
+  readonly #worktreesConfigured: boolean;
+
+  /** 本连接纪元的引导判定有孤儿：连上之后在后台回收一次；回收前就地清掉，一次判定只回收一次。 */
+  #reclaimPending = false;
+
   /** 已迁移到作用域拆卸，宿主不再调用 `destroy()`。 */
   readonly lifecycle = 'scoped' as const;
 
@@ -194,12 +232,18 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
   readonly name = WORKING_TREE_CAPABILITY;
 
   /** 系统层贡献；宿主在 `use()` 里**同步读**这个字段，见 {@link RxDBSystemContribution}。 */
-  readonly system: RxDBSystemContribution = createSystemContribution(this.rxdb);
+  readonly system: RxDBSystemContribution = createSystemContribution(this.rxdb, {
+    configured: () => this.#worktreesConfigured,
+    decide: reclaim => {
+      this.#reclaimPending = reclaim;
+    }
+  });
 
   /**
    * 建插件对象，并把 `rxdb.workingTree` 挂上去。
    *
    * @param rxdb - 宿主实例
+   * @param options - 插件选项；`worktrees` 给只读检出位用
    *
    * @remarks
    * 挂载放在**构造器**而不是 `install()`：`use()` 里插件工厂是同步求值的，于是入口从 `use()`
@@ -212,11 +256,12 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
    * 可重定义的属性允许第二个插件实例在订阅者背后把它换掉。同一实例上已经挂过就直接返回，
    * 谁装的就是谁的——与 storage 插件的 `hasOwnProperty` 守卫同一条理由。
    */
-  constructor(rxdb: RxDB) {
+  constructor(rxdb: RxDB, options?: RxDBPluginWorkingTreeOptions) {
     super(rxdb);
+    this.#worktreesConfigured = options?.worktrees !== undefined;
     if (Object.prototype.hasOwnProperty.call(rxdb, 'workingTree')) return;
     Object.defineProperty(rxdb, 'workingTree', {
-      value: new WorkingTreeManager(rxdb),
+      value: new WorkingTreeManager(rxdb, options?.worktrees),
       enumerable: false,
       configurable: false,
       writable: false
@@ -232,7 +277,7 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
    * 另外三件事都**不**在这里，各有自己的时点：
    *
    * - `rxdb.workingTree` 在**构造时**挂上（见构造器），必须早于 `init()`；
-   * - 10 张表、初始行与引导迁移经 {@link RxDBPluginWorkingTree.system} 声明，由宿主在建表
+   * - 12 张表、初始行与引导迁移经 {@link RxDBPluginWorkingTree.system} 声明，由宿主在建表
    *   那一刻编排——走 `install()` 的贡献永远赶不上自己的表（见 {@link RxDBSystemContribution}）；
    * - 本连接自己的接通由 `bootstrapExisting()`（既有库读能力位）与
    *   {@link WorkingTreeManager.enable}（本连接刚启用）完成。
@@ -264,11 +309,58 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
       this.rxdb.addEventListener(CAPABILITY_ENABLED_EVENT, onCapabilityEnabled);
       return () => this.rxdb.removeEventListener(CAPABILITY_ENABLED_EVENT, onCapabilityEnabled);
     }, 'workingTree:capability-enabled');
+
+    // 检出位（US-313 / US-314）：连接期的引导事务判定有孤儿时，连上之后在后台回收一次。
+    // 关掉或崩掉的标签页留下的会话归属检出位，丢了持有分支的可写检出位，就靠这一次被收走。
+    // 没配快照库也装：可写检出位不需要快照库。
+    //
+    // 等的是 `adapterConnected$` 而不是 `localAdapter$`：后者在 `init()` 时就发出适配器，那时这条连接的引导判定
+    // 还没做；前者在 `bootstrapExisting()` 之后才置位，而且只是通知，不会替应用发起连接。
+    //
+    // 每次连上都接，不只接第一次：还有别的适配器连着时只断本地再连回来，插件不重装、订阅还是这一个，
+    // 引导事务却会重新判定。一次判定只回收一次由 `#reclaimPending` 管，不靠订阅的次数
+    const localAdapterName = this.rxdb.config.sync.local?.adapter;
+    if (localAdapterName === undefined) return;
+    scope.acquire(() => {
+      const subscription = this.rxdb
+        .adapterConnected$(localAdapterName)
+        .pipe(filter(Boolean))
+        .subscribe(() => void this.#pruneWorktrees());
+      return () => subscription.unsubscribe();
+    }, 'workingTree:worktree-prune');
+  }
+
+  /**
+   * 后台回收一次检出位；引导期没判定出孤儿就什么都不做。
+   *
+   * @remarks
+   * 判定只在既有库的连接期做（`bootstrapExisting()`），新库的登记表是这次建表刚建的，必然没有孤儿。
+   * 没有调用方可以把错误交回去，打到控制台：回收失败只是留下几个没删的快照库或影子表，下一个连接纪元会再试。
+   */
+  async #pruneWorktrees(): Promise<void> {
+    if (!this.#reclaimPending) return;
+    this.#reclaimPending = false;
+    try {
+      await this.rxdb.workingTree.checkouts.prune();
+    } catch (error) {
+      console.error('[rxdb-plugin-working-tree] 回收检出位失败', error);
+    }
   }
 }
 
-/** RxDB 工作树插件工厂。 */
-export const rxDBPluginWorkingTree: Plugin = (db: RxDB) => new RxDBPluginWorkingTree(db);
+/**
+ * RxDB 工作树插件工厂。
+ *
+ * @example
+ * ```ts
+ * rxdb.use(rxDBPluginWorkingTree, {
+ *   // 只读检出位的快照库：与主库同一种后端，按 db.config.dbName 给每个检出位单独的存储
+ *   worktrees: { adapter: db => new RxDBAdapterPGlite(db, { store: 'memory' }) }
+ * });
+ * ```
+ */
+export const rxDBPluginWorkingTree: Plugin<RxDBPluginWorkingTreeOptions> = (db, options) =>
+  new RxDBPluginWorkingTree(db, options);
 
 declare module '@aiao/rxdb' {
   interface RxDB {

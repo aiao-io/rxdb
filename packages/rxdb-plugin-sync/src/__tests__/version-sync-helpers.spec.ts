@@ -1,4 +1,4 @@
-import { getOrCreateSyncRecord, type IRepository, type RxDBBranch, RxDBSync } from '@aiao/rxdb';
+import { getOrCreateSyncRecord, type IRepository, type RxDBBranch, RxDBSync, WorktreeTableSet } from '@aiao/rxdb';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getAncestorBranchIds } from '../branch-utils.js';
 import { pushBranch } from '../push-branch.js';
@@ -60,6 +60,7 @@ const createPushManager = (
   remoteAdapter: object = {},
   localChanges: Array<{ id: number; remoteId: number | null }> = []
 ) => {
+  if (branch !== undefined) branch.activated ??= true;
   const branchRepository = { update: vi.fn(async () => undefined) };
   const changeRepository = {
     find: vi.fn(async (query: { where: { rules: Array<{ value: number }> } }) =>
@@ -70,6 +71,7 @@ const createPushManager = (
   const getRemoteRepositories = vi.fn(async () => ({ adapter: remoteAdapter }));
   const vm = {
     getCurrentBranch: vi.fn(async () => branch),
+    rxdb: { worktreeTableSet: WorktreeTableSet.MAIN },
     getLocalRepositories,
     getRemoteRepositories
   } as unknown as SyncManager;

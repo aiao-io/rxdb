@@ -31,6 +31,7 @@ interface ClientHarness {
 function createSqliteHarness() {
   const updateHookCallbacks: UpdateHookCallback[] = [];
   const close = vi.fn().mockResolvedValue(undefined);
+  const vfs = { close: vi.fn().mockResolvedValue(undefined) };
   const updateHook = vi.fn((_db: number, callback: UpdateHookCallback) => {
     updateHookCallbacks.push(callback);
   });
@@ -40,12 +41,12 @@ function createSqliteHarness() {
     update_hook: updateHook
   } as unknown as SQLiteAPI;
 
-  return { close, sqlite, updateHook, updateHookCallbacks };
+  return { close, sqlite, updateHook, updateHookCallbacks, vfs };
 }
 
 async function createClient(options: LoadModuleOptions = { vfs: 'memory', batchTimeout: 10 }): Promise<ClientHarness> {
   const harness = createSqliteHarness();
-  mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 17, sqlite: harness.sqlite });
+  mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 17, sqlite: harness.sqlite, vfs: harness.vfs });
 
   const client = new SqliteClient();
   await client.init('events-db', options);
@@ -80,7 +81,7 @@ describe('SqliteClient 初始化与变更事件', () => {
 
   it('并发 init 复用同一次打开过程', async () => {
     const harness = createSqliteHarness();
-    let resolveLoad!: (core: { pointer: number; sqlite: SQLiteAPI }) => void;
+    let resolveLoad!: (core: { pointer: number; sqlite: SQLiteAPI; vfs: { close(): Promise<void> } }) => void;
     mocks.sqliteLoad.mockReturnValueOnce(
       new Promise(resolve => {
         resolveLoad = resolve;
@@ -90,7 +91,7 @@ describe('SqliteClient 初始化与变更事件', () => {
 
     const first = client.init('concurrent-db', { vfs: 'memory' });
     const second = client.init('concurrent-db', { vfs: 'memory' });
-    resolveLoad({ pointer: 18, sqlite: harness.sqlite });
+    resolveLoad({ pointer: 18, sqlite: harness.sqlite, vfs: harness.vfs });
 
     await Promise.all([first, second]);
     expect(mocks.sqliteLoad).toHaveBeenCalledTimes(1);

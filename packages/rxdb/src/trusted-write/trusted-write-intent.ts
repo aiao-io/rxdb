@@ -161,7 +161,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.switchBranch',
     intent: TrustedWriteIntent.branch_materialization,
     entrance: 'projection_rewrite',
-    verifiedAtLine: 280
+    verifiedAtLine: 331
   },
   {
     file: 'restore-entity.ts',
@@ -177,7 +177,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.switchBranch',
     intent: TrustedWriteIntent.redo_invalidation,
     entrance: 'projection_rewrite',
-    verifiedAtLine: 537
+    verifiedAtLine: 661
   },
   {
     file: 'undo-redo-apply.ts',
@@ -185,7 +185,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.switchBranch',
     intent: TrustedWriteIntent.undo_redo,
     entrance: 'domain_recompute',
-    verifiedAtLine: 171
+    verifiedAtLine: 204
   },
   {
     file: 'merge-branch.ts',
@@ -193,7 +193,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.merge_per_change,
     entrance: 'domain_recompute',
-    verifiedAtLine: 134
+    verifiedAtLine: 196
   },
   {
     file: 'merge-branch.ts',
@@ -201,7 +201,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.merge_squash,
     entrance: 'domain_recompute',
-    verifiedAtLine: 174
+    verifiedAtLine: 236
   },
   {
     file: 'pull-batch.ts',

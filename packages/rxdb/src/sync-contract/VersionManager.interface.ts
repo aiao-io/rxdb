@@ -242,10 +242,26 @@ export interface HistoryScopeAPI {
   undoCount$: Observable<number>;
   /** 可重做数量 */
   redoCount$: Observable<number>;
+  /**
+   * 撤销栈停在哪儿的原因：再往前一步是已被子分支继承的变更时给出，否则 `null`。
+   *
+   * @remarks
+   * 当前分支上不晚于某条子分支分叉点的变更已被那条子分支继承。撤销或重做它们会让子分支记下的反向补丁过期，
+   * 切回当前分支时读到错值，所以它们不进 {@link HistoryScopeAPI.undoHistories$}，`undo()` 也撤不到；
+   * 撤销栈停在分叉点，这里说明为什么。删掉继承它们的子分支之后限制随之解除。
+   */
+  undoBarrier$: Observable<{
+    /** 下一步已被子分支继承 */
+    readonly reason: 'inherited_by_branch';
+    /** 继承了下一步的子分支 id，按 id 升序 */
+    readonly branchIds: readonly string[];
+  } | null>;
+  /** 重做栈停在哪儿的原因，口径同 {@link HistoryScopeAPI.undoBarrier$} */
+  redoBarrier$: HistoryScopeAPI['undoBarrier$'];
 
-  /** 撤销操作 */
+  /** 撤销操作；撤到 {@link HistoryScopeAPI.undoBarrier$} 拦住的那一步时什么也不做 */
   undo(step?: number): Promise<void>;
-  /** 重做操作 */
+  /** 重做操作；重做到 {@link HistoryScopeAPI.redoBarrier$} 拦住的那一步时什么也不做 */
   redo(step?: number): Promise<void>;
 }
 

@@ -46,9 +46,9 @@ describe('行 11 门禁 —— gateExternalNotify', () => {
     expect(() => gateExternalNotify(request('versioned'), () => undefined)).toThrow(/NotifyGateNote/);
   });
 
-  it('QueryCache 实体放行', () => {
+  it('未版本化实体放行：QueryCache 与关闭变更日志的实体同属这一类', () => {
     let ran = 0;
-    gateExternalNotify(request('query_cache'), () => void (ran += 1));
+    gateExternalNotify(request('untracked'), () => void (ran += 1));
     expect(ran).toBe(1);
   });
 

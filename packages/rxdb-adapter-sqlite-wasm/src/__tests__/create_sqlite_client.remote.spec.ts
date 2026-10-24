@@ -46,7 +46,11 @@ describe('createSqliteClient 远端契约', () => {
     });
 
     await vi.waitFor(() => {
-      expect(remoteClient.init).toHaveBeenCalledWith('remote-db', expect.objectContaining({ vfs: 'memory' }));
+      expect(remoteClient.init).toHaveBeenCalledWith(
+        'remote-db',
+        expect.objectContaining({ vfs: 'memory' }),
+        undefined
+      );
     });
     expect(settled).toBe(false);
 

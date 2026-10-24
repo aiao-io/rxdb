@@ -39,7 +39,11 @@ import { BranchManager } from './branch-manager';
     </div>
     <div class="bg-base-300 flex flex-col p-1">
       <div class="flex flex-row justify-between">
-        <app-branch-manager></app-branch-manager>
+        @defer (on immediate) {
+          <app-branch-manager></app-branch-manager>
+        } @placeholder {
+          <div class="branch-manager-placeholder h-8 w-40" aria-hidden="true"></div>
+        }
         <div class="flex gap-1">
           <ao-theme-btn></ao-theme-btn>
         </div>
@@ -61,7 +65,8 @@ import { BranchManager } from './branch-manager';
           opacity: 0;
         }
         #logo-name,
-        app-branch-manager {
+        app-branch-manager,
+        .branch-manager-placeholder {
           display: none;
         }
       }
@@ -75,7 +80,8 @@ import { BranchManager } from './branch-manager';
           opacity: 1;
         }
         #logo-name,
-        app-branch-manager {
+        app-branch-manager,
+        .branch-manager-placeholder {
           display: block;
         }
       }

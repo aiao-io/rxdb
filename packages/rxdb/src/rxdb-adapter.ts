@@ -12,7 +12,13 @@ import { RxDB } from './RxDB.js';
 import { SwitchVersionActions } from './sync-contract/VersionManager.interface.js';
 import { RxDBChange } from './system/change.js';
 import { IRxDBChange, RemoteChange } from './system/system.interface.js';
+import type { WorktreeTableSet, WorktreeTableSetSeed } from './system/worktree-table-set.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
+import type {
+  WorktreeSnapshotCursor,
+  WorktreeSnapshotImport,
+  WorktreeSnapshotPage
+} from './worktree-snapshot.interface.js';
 
 /**
  * 一次批量拉取里针对**单个实体**的水位线请求
@@ -463,6 +469,18 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
   }
 
   /**
+   * 本实例挂的那一套业务表（US-314 库内影子表）
+   *
+   * @remarks
+   * 存在 RxDB 实例上（{@link RxDB.worktreeTableSet}），这里只是转读：一个实例同一时刻只挂一套表，
+   * 适配器再存一份就是第二份真相。读写业务表的 SQL 都按它解析物理名；系统表、QueryCache 这类没有副本的实体
+   * 无论挂哪一套都落主表集。
+   */
+  get tableSet(): WorktreeTableSet {
+    return this.rxdb.worktreeTableSet;
+  }
+
+  /**
    * 装上或卸下捕获运行时（adapter-contract.md §1 的四个挂载点）。
    *
    * @param hook - 接管四个挂载点的运行时；`undefined` 卸载
@@ -514,6 +532,19 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    * 只声明位置与语义，不替六个后端决定有没有。
    */
   isEncryptedAtRest?(value: unknown): boolean;
+
+  /**
+   * 本实例换挂表集之后调用（US-314 B1.4）：清掉本适配器按物理表记的缓存。默认无事可做。
+   *
+   * @remarks
+   * 由 {@link RxDB.mountWorktreeTableSet} 在换挂的那个事务里调。SQLite 系的行号缓存按物理表记，换了一套表，
+   * 同一个行号指的就是另一行。
+   *
+   * @internal
+   */
+  worktreeTableSetMounted(): void {
+    // 基类没有按物理表记的缓存；SQLite 系覆写它清行号缓存
+  }
 
   /**
    * 一张实体表在本适配器发出的 SQL 里可能被写成的全部名字。
@@ -700,6 +731,125 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    * US-030 AC#6 报不支持，不做静默降级。
    */
   checkEntityConstraints?(EntityTypes: EntityType[]): Promise<void>;
+
+  /**
+   * 读一页实体表的存储形态（只读检出位建快照，US-313）。
+   *
+   * @param executor - 主库上一个事务的执行器；一份快照的全部页从同一个事务读出，彼此一致
+   * @param EntityType - 主实例上的实体类
+   * @param after - 上一页的 {@link WorktreeSnapshotPage.next}；`null` 从头读
+   * @param limit - 本页最多几行
+   * @returns 一页存储形态的行，加密列保持信封、不解密
+   *
+   * @remarks
+   * 与 {@link RxDBAdapterLocalBase.importWorktreeSnapshot} 成对：页里的行只有同一种适配器认得。
+   * 与 {@link RxDBAdapterLocalBase.isEncryptedAtRest} 同属可选能力槽位：缺席是契约允许的形态，
+   * 工作树插件在这样的后端上打开检出位时报不支持。
+   */
+  readWorktreeSnapshotPage?(
+    executor: TransactionExecutor,
+    EntityType: EntityType,
+    after: WorktreeSnapshotCursor | null,
+    limit: number
+  ): Promise<WorktreeSnapshotPage>;
+
+  /**
+   * 把主库读出的行与增量写进本适配器的库（只读检出位建快照，US-313）。
+   *
+   * @param snapshot - 要复制的表与叠在上面的增量
+   *
+   * @remarks
+   * 一个事务：先原样插入每张表的行，再应用增量。不解密也不加密，加密列的值必须已是信封，
+   * 遇到明文直接抛；不派发事件、不进实体缓存。装着捕获运行时的库上拒绝：快照写不进受信写矩阵。
+   */
+  importWorktreeSnapshot?(snapshot: WorktreeSnapshotImport): Promise<void>;
+
+  /**
+   * 沿用主库适配器的密钥环（只读检出位，US-313）。
+   *
+   * @param source - 主库的适配器，与本适配器同一种后端
+   *
+   * @remarks
+   * 信封的 AAD 绑定库名，快照库的密文是主库信封的逐字节拷贝，只有主库的密钥环解得开。
+   * 在本适配器第一次连接之前调用。共用的是同一个对象：在快照实例上 `lock()` 也会锁住主库。
+   */
+  adoptWorktreeEncryption?(source: LocalRxDBAdapter): void;
+
+  /**
+   * 把本适配器的库封成只读（只读检出位，US-313）：此后的写语句在引擎层被拒。
+   *
+   * @remarks
+   * 兜住绕过核心写入口、直接打到适配器的写。SQLite 系是 `PRAGMA query_only`，PGlite 是只读事务。
+   *
+   * 封印是连接（PGlite 是每个事务）上的状态，raw 入口上能改它的会话设置由只读钩子拒掉；
+   * 经执行器下发的语句（`adapter.transaction(executor => executor.query(…))`）是适配器自己的通道，
+   * 封印本身就是从这里落下的，也就拦不住从这里解开——只读检出位防的是误写，不是蓄意改连接配置的代码。
+   */
+  sealWorktreeReadOnly?(): Promise<void>;
+
+  /**
+   * 永久删除本适配器这个库的持久存储（只读检出位回收快照库，US-313）。
+   *
+   * @throws 本适配器还连着时抛错：先断开，再删
+   *
+   * @remarks
+   * 存储位置与连接时同一套推导（`rxdb.config.dbName` 加适配器选项），库不存在时什么都不做。
+   * 内存库断开即无，这里也是空操作。删掉的东西找不回来：调用方要先确认没有别的上下文还在用这个库。
+   */
+  dropStorage?(): Promise<void>;
+
+  /**
+   * 按当前配置，{@link dropStorage} 删不删得掉这个库（只读检出位建快照库之前问一次，US-313）。
+   *
+   * @returns `false` 时 `dropStorage()` 必然拒绝
+   *
+   * @remarks
+   * 只看配置、不碰存储。建快照之前没有别的办法知道：先删一次来试，删的是还没验明身份的库，
+   * 快照工厂配错、指到主库存储时那就是主库。而建得出却删不掉的快照库，关闭时抛错，之后每次回收都报错。
+   */
+  canDropStorage?(): boolean;
+
+  /**
+   * 在调用方的事务里建一套可写检出位的表并播种（US-314 B1.5）。
+   *
+   * @param executor - 主库上一个事务的执行器；建表、复制、增量、挂触发器都在这一笔里，打开流程在同一笔里写持有键
+   * @param tableSet - 要建的表集，不能是主表集；成员必须记变更日志
+   * @param seed - 持有分支与要叠上的增量
+   *
+   * @remarks
+   * 主表集的行原样复制（存储形态，不解密）、自增序列对齐、叠上增量，都不记变更日志、不派发事件；
+   * 最后把成员表的变更触发器挂到持有分支。与 {@link RxDBAdapterLocalBase.readWorktreeSnapshotPage} 同属可选能力槽位：
+   * 缺席时工作树插件打开可写检出位报不支持。
+   */
+  createWorktreeTableSet?(
+    executor: TransactionExecutor,
+    tableSet: WorktreeTableSet,
+    seed: WorktreeTableSetSeed
+  ): Promise<void>;
+
+  /**
+   * 在调用方的事务里删掉一套可写检出位的表（US-314 B1.5）。
+   *
+   * @param executor - 主库上一个事务的执行器；关闭流程在同一笔里放持有键、删登记行
+   * @param tableSet - 要删的表集，不能是主表集
+   *
+   * @remarks
+   * 按库里的目录找这套表，建到一半的、成员已从配置里移除的也一并删掉，可重入；删表引起的级联删除不记进变更日志。
+   */
+  dropWorktreeTableSet?(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void>;
+
+  /**
+   * 按库里的目录列出现存的可写检出位表集（US-314 B2.6）。
+   *
+   * @param executor - 调用方的事务
+   * @returns 表集后缀（{@link WorktreeTableSet.isSuffix} 的形状），排好序、不重复
+   *
+   * @remarks
+   * 孤儿回收要知道哪些表集还在，包括登记行已经没了的，所以按目录找、不按登记表。物理名的形状归适配器（SQLite 系认表名末尾、
+   * PGlite 认 schema 名末尾）；配置里实体的主表恰好长成后缀的形状时不算，删它就是删主表。
+   * 与 {@link RxDBAdapterLocalBase.createWorktreeTableSet} 同属可写检出位的可选能力槽位。
+   */
+  listWorktreeTableSetSuffixes?(executor: TransactionExecutor): Promise<readonly string[]>;
 
   abstract switchBranch(options: SwitchBranchOptions): Promise<void>;
 

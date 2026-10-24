@@ -1,4 +1,10 @@
-import { PropertyType, transitionMetadata, type EntityMetadata, type EntityPropertyMetadataOptions } from '@aiao/rxdb';
+import {
+  PropertyType,
+  transitionMetadata,
+  WorktreeTableSet,
+  type EntityMetadata,
+  type EntityPropertyMetadataOptions
+} from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { generate_entity_inserts_sql } from '../../entity/inserts_sql.js';
 
@@ -25,7 +31,10 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
   it('空实体列表应返回空语句和参数', async () => {
     const metadata = createMetadata([{ name: 'id', type: PropertyType.uuid }]);
 
-    await expect(generate_entity_inserts_sql(metadata, [])).resolves.toEqual({ sql: '', params: [] });
+    await expect(generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [])).resolves.toEqual({
+      sql: '',
+      params: []
+    });
   });
 
   it('缺省字段应使用 metadata default，而不是显式写 NULL', async () => {
@@ -34,7 +43,7 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
       { name: 'status', type: PropertyType.string, default: 'active' }
     ]);
 
-    const { params } = await generate_entity_inserts_sql(metadata, [new TestEntity('e-1')]);
+    const { params } = await generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [new TestEntity('e-1')]);
 
     expect(params).toEqual(['e-1', 'active']);
   });
@@ -46,7 +55,10 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
       { name: 'seq', type: PropertyType.integer, default: () => ++counter }
     ]);
 
-    const { params } = await generate_entity_inserts_sql(metadata, [new TestEntity('e-1'), new TestEntity('e-2')]);
+    const { params } = await generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [
+      new TestEntity('e-1'),
+      new TestEntity('e-2')
+    ]);
 
     expect(params).toEqual(['e-1', 1, 'e-2', 2]);
   });
@@ -58,7 +70,7 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
     ]);
     const entity = Object.assign(new TestEntity('e-1'), { status: 'archived' });
 
-    const { params } = await generate_entity_inserts_sql(metadata, [entity]);
+    const { params } = await generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [entity]);
 
     expect(params).toEqual(['e-1', 'archived']);
   });
@@ -70,7 +82,7 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
     ]);
     const entity = Object.assign(new TestEntity('e-1'), { status: null });
 
-    const { params } = await generate_entity_inserts_sql(metadata, [entity]);
+    const { params } = await generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [entity]);
 
     expect(params).toEqual(['e-1', null]);
   });
@@ -81,7 +93,7 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
       { name: 'note', type: PropertyType.string }
     ]);
 
-    const { params } = await generate_entity_inserts_sql(metadata, [new TestEntity('e-1')]);
+    const { params } = await generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [new TestEntity('e-1')]);
 
     expect(params).toEqual(['e-1', null]);
   });
@@ -95,7 +107,9 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
       { name: 'updatedAt', type: PropertyType.date }
     ]);
 
-    const { params } = await generate_entity_inserts_sql(metadata, [new TestEntity('e-1')], { userId: 'user-1' });
+    const { params } = await generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [new TestEntity('e-1')], {
+      userId: 'user-1'
+    });
 
     expect(params.slice(0, 3)).toEqual(['e-1', 'user-1', 'user-1']);
     expect(params[3]).toEqual(params[4]);
@@ -108,7 +122,7 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
       { name: 'createdAt', type: PropertyType.date, default: 'CURRENT_TIMESTAMP' }
     ]);
 
-    const { params } = await generate_entity_inserts_sql(metadata, [new TestEntity('e-1')]);
+    const { params } = await generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [new TestEntity('e-1')]);
 
     expect(params[1]).not.toBe('CURRENT_TIMESTAMP');
     expect(new Date(params[1] as string).toString()).not.toBe('Invalid Date');
@@ -125,7 +139,7 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
       updatedAt: new Date('2026-02-01T00:00:00.000Z')
     });
 
-    const { params } = await generate_entity_inserts_sql(metadata, [entity]);
+    const { params } = await generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [entity]);
 
     expect(params).toEqual(['e-1', '2026-01-01T00:00:00.000Z', '2026-02-01T00:00:00.000Z']);
   });
@@ -143,7 +157,7 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
       updatedAt: new Date('2026-02-01T00:00:00.000Z')
     });
 
-    const { sql, params } = await generate_entity_inserts_sql(metadata, [entity]);
+    const { sql, params } = await generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [entity]);
 
     expect(sql).toContain('"created_at"');
     expect(params).toEqual(['e-1', '2026-01-01T00:00:00.000Z', '2026-02-01T00:00:00.000Z']);
@@ -157,7 +171,7 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
       { name: 'createdAt', columnName: 'created_at', type: PropertyType.date, default: 'CURRENT_TIMESTAMP' }
     ]);
 
-    const { sql, params } = await generate_entity_inserts_sql(metadata, [new TestEntity('e-1')]);
+    const { sql, params } = await generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [new TestEntity('e-1')]);
 
     expect(sql).toContain('"created_at"');
     expect(params).toHaveLength(2);
@@ -172,7 +186,12 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
       { name: 'updatedBy', columnName: 'updated_by', type: PropertyType.uuid }
     ]);
 
-    const { sql, params } = await generate_entity_inserts_sql(metadata, [new TestEntity('e-1')], { userId: 'user-1' });
+    const { sql, params } = await generate_entity_inserts_sql(
+      metadata,
+      WorktreeTableSet.MAIN,
+      [new TestEntity('e-1')],
+      { userId: 'user-1' }
+    );
 
     expect(sql).toContain('"created_by"');
     expect(params).toEqual(['e-1', 'user-1', 'user-1']);

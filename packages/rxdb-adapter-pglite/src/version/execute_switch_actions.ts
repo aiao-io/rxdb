@@ -10,19 +10,18 @@ import {
   type RxDBEntityId,
   type RxDBEntityLocalCreatedEventData,
   type RxDBEntityLocalRemovedEventData,
-  type RxDBEntityLocalUpdatedEventData
+  type RxDBEntityLocalUpdatedEventData,
+  type WorktreeTableSet
 } from '@aiao/rxdb';
 import type { Results } from '@electric-sql/pglite';
 import type { PGliteTransactionExecutor } from '../transaction/PGliteTransactionExecutor.js';
 
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { getEntityObjectFromResult } from '../pglite.utils.js';
-import remove_all_triggers_sql from '../table/remove_trigger_sql.js';
 import { remove_entity_ids_from_cache, transaction_pglite_result } from '../transaction_pglite_result.js';
 import { executeSwitchStatements } from './execute_switch_statements.js';
-import { readCurrentBranchId } from './read_current_branch_id.js';
 import { SwitchVersionSqlItem, SwitchVersionSqlResult } from './switch-result.interface.js';
-import { generateSwitchBranchSql } from './switch_branch.js';
+import { withTriggersDisabled } from './with_triggers_disabled.js';
 
 type EntityId = RxDBEntityId;
 type SwitchEntity = EntityData & { id: EntityId; createdAt?: Date; updatedAt?: Date };
@@ -101,27 +100,26 @@ export async function execute_switch_actions(
     // 占住队列唯一槽位；此时闭包里的 `adapter.query()` 是外部调用，会重新入队排在自己身后 ——
     // 永久挂起。sqlite 侧的同名函数一直用的是回调参数 `tx`，所以没这个问题。
     const sink = (executor as PGliteTransactionExecutor).adapter;
+    const apply = () => applySwitchActions(sink, switchAction);
 
-    if (disableTriggers) {
-      const removeTriggers = remove_all_triggers_sql(sink);
-      if (removeTriggers) await executeSwitchStatements(sink, removeTriggers);
-    }
-
-    await applySwitchActions(sink, switchAction);
-
-    if (disableTriggers) {
-      // 分支 id 必须经**本事务**读（见 readCurrentBranchId）：走 versionManager.getCurrentBranch()
-      // 的话，外层已开着事务时那次读会重新入队，排在自己身后永久挂起。
-      await executeSwitchStatements(sink, generateSwitchBranchSql(adapter, await readCurrentBranchId(sink)));
-    }
+    // 拉取回填摘、挂的是本实例这套表的触发器，只重挂、不碰分支表（US-314 B1.3，见 withTriggersDisabled）
+    await (disableTriggers ? withTriggersDisabled(sink, sink.tableSet, apply) : apply());
   }, false);
 
   await dispatch_switch_events(adapter, switchAction);
 }
 
+/**
+ * 发送 switch 操作对应的本地事件
+ *
+ * @param adapter - PGlite 适配器
+ * @param switchAction - 已执行的切换 SQL
+ * @param tableSet - 这批写落在哪套表上，缺省是派发时本实例挂的那套；事件按它打上表集标记（US-314 B2.3）
+ */
 export async function dispatch_switch_events(
   adapter: RxDBAdapterPGlite,
-  switchAction: SwitchVersionSqlResult
+  switchAction: SwitchVersionSqlResult,
+  tableSet: WorktreeTableSet = adapter.tableSet
 ): Promise<void> {
   for (const deleteAction of switchAction.deletes) {
     const entityType = getEntityType(deleteAction.metadata) as SwitchEntityType;
@@ -150,7 +148,8 @@ export async function dispatch_switch_events(
         id,
         patch: null,
         inversePatch: requirePatch(inversePatch ?? null, 'DELETE inverse'),
-        recordAt: new Date()
+        recordAt: new Date(),
+        ...tableSet.eventTagOf(metadata)
       };
     });
     adapter.rxdb.dispatchEvent(new EntityLocalRemovedEvent(events));
@@ -171,7 +170,8 @@ export async function dispatch_switch_events(
         id: entity.id,
         patch: requirePatch(change.patch, 'INSERT') as SwitchEntity,
         inversePatch: null,
-        recordAt: entity.createdAt ?? new Date()
+        recordAt: entity.createdAt ?? new Date(),
+        ...tableSet.eventTagOf(metadata)
       };
     });
     adapter.rxdb.dispatchEvent(new EntityLocalCreatedEvent(events));
@@ -192,7 +192,8 @@ export async function dispatch_switch_events(
         id: entity.id,
         patch: requirePatch(change.patch, 'UPDATE'),
         inversePatch: requirePatch(change.inversePatch, 'UPDATE inverse'),
-        recordAt: entity.updatedAt ?? entity.createdAt ?? new Date()
+        recordAt: entity.updatedAt ?? entity.createdAt ?? new Date(),
+        ...tableSet.eventTagOf(metadata)
       };
     });
     adapter.rxdb.dispatchEvent(new EntityLocalUpdatedEvent(events));

@@ -71,7 +71,7 @@ import type { WriteCommitInput } from '../../commit/write-commit.js';
 import { writeCommit } from '../../commit/write-commit.js';
 import { rxDBPluginWorkingTree } from '../../plugin.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
-import { createCommitGraphProbe, normalizeSql } from './fixtures/commit-graph-probe.js';
+import { createCommitGraphProbe, normalizeSql, seedRootBranch } from './fixtures/commit-graph-probe.js';
 import { plainCommitWriteContext } from './fixtures/commit-write-context.js';
 
 const CALLER_OPERATION_ID = '00000000-0000-4000-8000-0000000000d0';
@@ -130,7 +130,7 @@ function createEntityManager(): EntityManager {
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
   database.adapter('local', db => createMockAdapter(db));
-  // 十张系统表由插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
+  // 本插件的系统表由它贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
   // 而这些实体进不了 `config.entities` 时 `instantiate()` 抛的是「need init rxdb」。
   database.use(rxDBPluginWorkingTree);
   database.init();
@@ -189,6 +189,7 @@ function createScene(): Scene {
   ref.status = 'ok';
   ref.corruptedAt = null;
   probe.seed(CommitBranchRef, [ref]);
+  seedRootBranch(probe, entityManager, ref.branchId);
 
   // 能力行也得在：`enableCommitCapability()` 读不到它就 fail-closed 抛错，
   // 这一行是 `0004` 迁移建表时一并写下的（表已建、版本已填、尚未启用），

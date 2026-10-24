@@ -24,7 +24,8 @@ import {
   transactionSqliteResultSuite,
   treeIntegrationSuite,
   undoRedoSuite,
-  versionBranchSuite
+  versionBranchSuite,
+  worktreeTableSetSuite
 } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { waSqliteFactory } from './wa-sqlite-factory.js';
 
@@ -55,3 +56,4 @@ treeIntegrationSuite(waSqliteFactory);
 // 版本管理套件。
 versionBranchSuite(waSqliteFactory);
 undoRedoSuite(waSqliteFactory);
+worktreeTableSetSuite(waSqliteFactory);

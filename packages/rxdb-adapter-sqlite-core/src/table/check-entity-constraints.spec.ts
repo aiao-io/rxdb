@@ -18,6 +18,7 @@ import {
   getEntityMetadata,
   PropertyType,
   RxDBConstraintDriftError,
+  WorktreeTableSet,
   type EntityType
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
@@ -97,14 +98,16 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
         `CONSTRAINT "${noteName}" CHECK ("note" <= 10)`
       ])
     });
-    await expect(check_entity_constraints_sqlite(q as never, [Checked])).resolves.toBeUndefined();
+    await expect(
+      check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked])
+    ).resolves.toBeUndefined();
   });
 
   it('AC#10：库里缺一条 CHECK → 抛 RxDBConstraintDriftError 列出缺失，不自动补建', async () => {
     const [qtyName, noteName] = expectedNames();
     const q = querier({ public$Checked: createSqlWith([`CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`]) });
     try {
-      await check_entity_constraints_sqlite(q as never, [Checked]);
+      await check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked]);
       expect.unreachable('漂移应当抛错');
     } catch (error) {
       expect(error).toBeInstanceOf(RxDBConstraintDriftError);
@@ -131,7 +134,7 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
       ])
     });
     try {
-      await check_entity_constraints_sqlite(q as never, [Checked]);
+      await check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked]);
       expect.unreachable('漂移应当抛错');
     } catch (error) {
       const drift = error as RxDBConstraintDriftError;
@@ -150,7 +153,7 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
       ])
     });
     try {
-      await check_entity_constraints_sqlite(q as never, [Checked]);
+      await check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked]);
       expect.unreachable('漂移应当抛错');
     } catch (error) {
       const drift = error as RxDBConstraintDriftError;
@@ -171,7 +174,9 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
         `CHECK (JSON_VALID("note"))`
       ])
     });
-    await expect(check_entity_constraints_sqlite(q as never, [Checked])).resolves.toBeUndefined();
+    await expect(
+      check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked])
+    ).resolves.toBeUndefined();
   });
 
   it('评审反例：ck_ 起头的外键 / 唯一约束名不算 CHECK（只认名字后紧跟 CHECK 的命名约束）', async () => {
@@ -185,7 +190,9 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
         `constraint ck_note_unique UNIQUE ("note")`
       ])
     });
-    await expect(check_entity_constraints_sqlite(q as never, [Checked])).resolves.toBeUndefined();
+    await expect(
+      check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked])
+    ).resolves.toBeUndefined();
   });
 
   it('评审反例：字符串字面量里伪造的 CONSTRAINT "ck_..." 片段不算约束名', async () => {
@@ -198,7 +205,9 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
         `"note" TEXT DEFAULT 'CONSTRAINT "ck_Checked_fake_0badc0de" CHECK (1)'`
       ])
     });
-    await expect(check_entity_constraints_sqlite(q as never, [Checked])).resolves.toBeUndefined();
+    await expect(
+      check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked])
+    ).resolves.toBeUndefined();
   });
 
   it('评审反例：小写 constraint 关键字与无引号 / 反引号标识符同样被识别', async () => {
@@ -209,14 +218,16 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
         `CONSTRAINT \`${noteName}\` CHECK ("note" <= 10)`
       ])
     });
-    await expect(check_entity_constraints_sqlite(q as never, [Checked])).resolves.toBeUndefined();
+    await expect(
+      check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked])
+    ).resolves.toBeUndefined();
   });
 
   it('评审反例：表缺失 fail-fast 报漂移并点名表缺失（两后端同口径，不静默跳过）', async () => {
     const [qtyName, noteName] = expectedNames();
     const q = querier({}); // 任何表名都没有行
     try {
-      await check_entity_constraints_sqlite(q as never, [Checked]);
+      await check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked]);
       expect.unreachable('表缺失应当报漂移');
     } catch (error) {
       expect(error).toBeInstanceOf(RxDBConstraintDriftError);
@@ -234,6 +245,7 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
     await expect(
       check_entity_constraints_sqlite(
         querier({ public$Plain: 'CREATE TABLE "public$Plain" ("id" TEXT PRIMARY KEY, "x" TEXT)' }) as never,
+        WorktreeTableSet.MAIN,
         [Plain]
       )
     ).resolves.toBeUndefined();
@@ -244,6 +256,7 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
           public$Plain:
             'CREATE TABLE "public$Plain" ("id" TEXT PRIMARY KEY, "x" TEXT, CONSTRAINT "ck_Plain_stale_0badc0de" CHECK ("x" != \'bad\'))'
         }) as never,
+        WorktreeTableSet.MAIN,
         [Plain]
       );
       expect.unreachable('残留 ck_ 约束应当判多余');
@@ -295,7 +308,7 @@ describe('条件唯一索引与区间排他的漂移（阶段 B / C）', () => {
       index: { public$Ranged: ['idx_public$Ranged_line_idx', unique, 'sqlite_autoindex_public$Ranged_1'] },
       trigger: { public$Ranged: ['public$Ranged_insert', 'public$Ranged_update', insertTrigger, updateTrigger] }
     });
-    await expect(check_entity_constraints_sqlite(q as never, [Ranged])).resolves.toBeUndefined();
+    await expect(check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Ranged])).resolves.toBeUndefined();
   });
 
   it('AC#10：缺 uq_ 索引 → 判缺失；残留别的 uq_ 索引 → 判多余', async () => {
@@ -305,7 +318,7 @@ describe('条件唯一索引与区间排他的漂移（阶段 B / C）', () => {
       trigger: { public$Ranged: [insertTrigger, updateTrigger] }
     });
     try {
-      await check_entity_constraints_sqlite(q as never, [Ranged]);
+      await check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Ranged]);
       expect.unreachable('漂移应当抛错');
     } catch (error) {
       const drift = error as RxDBConstraintDriftError;
@@ -321,7 +334,7 @@ describe('条件唯一索引与区间排他的漂移（阶段 B / C）', () => {
       trigger: { public$Ranged: [insertTrigger] }
     });
     try {
-      await check_entity_constraints_sqlite(q as never, [Ranged]);
+      await check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Ranged]);
       expect.unreachable('漂移应当抛错');
     } catch (error) {
       const drift = error as RxDBConstraintDriftError;

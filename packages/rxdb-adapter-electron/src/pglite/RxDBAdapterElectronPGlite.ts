@@ -11,6 +11,7 @@ import {
   assertValidDesktopDatabaseName,
   parseDesktopPgliteEngineResult,
   resolveDesktopHostTransport,
+  RxDBAdapterDesktopError,
   type DesktopHostTransport
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { DesktopPGliteClient } from './desktop-pglite-client.js';
@@ -99,6 +100,27 @@ export class RxDBAdapterElectronPGlite extends RxDBAdapterPGlite {
     } catch (error) {
       throw toElectronPGliteBackupError(error, this.#dataDirectoryName, 'backup');
     }
+  }
+
+  /**
+   * `dropStorage()` 删不删得掉本库（只读检出位建快照库之前问一次，US-313）。
+   *
+   * @returns 恒为 `false`：数据目录在宿主上，宿主还没有删数据目录的请求
+   */
+  override canDropStorage(): boolean {
+    return false;
+  }
+
+  /**
+   * 不支持删除存储：数据目录在宿主上，基类那份会去删渲染进程里根本不存在的 IndexedDB 库。
+   *
+   * @throws {@link RxDBAdapterDesktopError} 恒抛 `unsupported_operation`
+   */
+  override async dropStorage(): Promise<void> {
+    throw new RxDBAdapterDesktopError(
+      'unsupported_operation',
+      'Electron PGlite 的数据目录在宿主上，宿主还没有删数据目录的请求'
+    );
   }
 
   /**

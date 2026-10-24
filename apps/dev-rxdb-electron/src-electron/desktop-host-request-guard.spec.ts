@@ -26,7 +26,7 @@ import { createDatabasePathResolver } from './desktop-sqlite-bridge';
 /** 文件族与 PGlite 族的 kind 数量；SQLite 族逐个列出。三者之和钉住闭集大小。 */
 const FILE_KIND_COUNT = 15;
 const PGLITE_KIND_COUNT = 22;
-const SQLITE_KINDS = ['handshake', 'open', 'execute', 'version', 'close', 'mute'] as const;
+const SQLITE_KINDS = ['handshake', 'open', 'execute', 'version', 'close', 'mute', 'drop'] as const;
 
 /**
  * 备份与恢复用到的请求 kind（US-217，两族线协议 v2）。闸漏掉任何一个，对应操作都会在写入目标之前失败，

@@ -7,23 +7,29 @@ import {
   RxDBChange,
   RxDBMigration,
   UnsupportedRxDBSystemVersionError,
+  WorktreeBranchHeldError,
+  WorktreeTableSet,
   encodeRxDBChangeEntityId,
   getEntityMetadata
 } from '@aiao/rxdb';
 import { filter, firstValueFrom } from 'rxjs';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
-import { getTableColumnIndexName, get_table_name_by_metadata, quote_sql_identifier } from '../sqlite-core.utils.js';
+import { quote_sql_identifier } from '../sqlite-core.utils.js';
+import { getTableColumnIndexName, get_table_name_by_metadata } from '../table-name-resolver.js';
+import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
 import type { AdapterFactory } from './adapter-factory.js';
 import { Todo } from './fixtures/Todo.js';
-import { SUITE_DEADLINE_MS } from './test-utils.js';
+import { SUITE_DEADLINE_MS, create_worktree_table_set, drop_worktree_table_set } from './test-utils.js';
 
 const currentWatermarks = [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK] as const;
 
 const placeholders = currentWatermarks.map(() => '?').join(', ');
 
 const readWatermarks = async (adapter: RxDBAdapterSqliteBase): Promise<Array<[number, string]>> => {
-  const table = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
+  const table = quote_sql_identifier(
+    get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+  );
   const result = await adapter.internalQuery(
     `SELECT "id", "name" FROM ${table} WHERE "name" IN (${placeholders}) ORDER BY "id"`,
     [...currentWatermarks]
@@ -68,9 +74,15 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
     it(
       '升级旧 UUID/plain JSON change，重复执行不改写历史',
       async () => {
-        const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
-        const changeTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBChange)));
-        const todoTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(Todo)));
+        const migrationTable = quote_sql_identifier(
+          get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+        );
+        const changeTable = quote_sql_identifier(
+          get_table_name_by_metadata(getEntityMetadata(RxDBChange), WorktreeTableSet.MAIN)
+        );
+        const todoTable = quote_sql_identifier(
+          get_table_name_by_metadata(getEntityMetadata(Todo), WorktreeTableSet.MAIN)
+        );
         const legacyId = '550e8400-e29b-41d4-a716-446655440000';
         const now = new Date().toISOString();
         const legacyCreatedAt = new Date(Date.now() + 60_000).toISOString();
@@ -120,12 +132,16 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
         ).toHaveLength(1);
         await adapter.rxdb.versionManager.switchBranch('main');
 
-        await history.undo();
-        expect(
-          await adapter.getRepository(Todo).find({
+        // legacy-history 继承了这条旧 change：它在的时候撤销不了（US-315），删掉之后照常撤销
+        const legacyTodos = () =>
+          adapter.getRepository(Todo).find({
             where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: legacyId }] }
-          })
-        ).toHaveLength(0);
+          });
+        await history.undo();
+        expect(await legacyTodos()).toHaveLength(1);
+        await adapter.rxdb.versionManager.removeBranch('legacy-history');
+        await history.undo();
+        expect(await legacyTodos()).toHaveLength(0);
         const firstWatermarks = await readWatermarks(adapter);
         expect(firstWatermarks.map(row => row[1])).toEqual(currentWatermarks);
         // 水位的 executedAt 与建表默认值同为 ISO-8601 UTC；裸 CURRENT_TIMESTAMP 的空格格式在 iOS 上解析失败
@@ -151,8 +167,12 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
     );
 
     it('迁移失败完整回滚，重新打开后自动重试且不改写 change', async () => {
-      const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
-      const changeTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBChange)));
+      const migrationTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+      );
+      const changeTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBChange), WorktreeTableSet.MAIN)
+      );
       const failureTrigger = quote_sql_identifier('reject_codec_watermark');
       const changesBefore = await readRows(
         adapter,
@@ -198,13 +218,15 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
     // v4 水位线**之后**才进 schema 的，而既有库的升级路径只按表粒度补建、从不看列——不在这里补，
     // 那批库的约束就永远缺席，且不报任何错。
     it('给既有库补 activeKey 列与唯一索引；多 active 时整体回滚', async () => {
-      const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
+      const migrationTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+      );
       const branchMetadata = getEntityMetadata(RxDBBranch);
-      const branchTableName = get_table_name_by_metadata(branchMetadata);
+      const branchTableName = get_table_name_by_metadata(branchMetadata, WorktreeTableSet.MAIN);
       const branchTable = quote_sql_identifier(branchTableName);
       const activeKeyProperty = branchMetadata.properties.find(property => property.name === 'activeKey');
       if (!activeKeyProperty) throw new Error('RxDBBranch metadata is missing the "activeKey" property.');
-      const indexName = getTableColumnIndexName(branchMetadata, activeKeyProperty);
+      const indexName = getTableColumnIndexName(branchMetadata, activeKeyProperty, WorktreeTableSet.MAIN);
       const readBranchRows = async (): Promise<unknown[][]> =>
         readRows(adapter, `SELECT "id", "activated", "activeKey" FROM ${branchTable} ORDER BY "id"`);
       const readBranchColumns = async (): Promise<unknown[]> =>
@@ -216,6 +238,10 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
             `SELECT "name" FROM sqlite_master WHERE "type" = 'index' AND "tbl_name" = '${branchTableName}' ORDER BY "name"`
           )
         ).map(row => row[0]);
+
+      // 「多 active」要两行：自带第二条分支，不靠前面的用例留下分支（单跑这一条时前面那条根本没跑）
+      const otherBranch = 'second-branch';
+      await adapter.rxdb.versionManager.createBranch(otherBranch);
 
       // 退回 v4 形态。索引得先掉，否则 SQLite 不让 DROP COLUMN。
       await adapter.internalQuery(`DROP INDEX ${quote_sql_identifier(indexName)}`);
@@ -239,15 +265,16 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
       expect(await readBranchColumns()).toContain('activeKey');
       expect(await readBranchIndexes()).toContain(indexName);
       expect(await readBranchRows()).toEqual([
-        ['legacy-history', 0, null],
-        ['main', 1, ACTIVE_BRANCH_KEY]
+        ['main', 1, ACTIVE_BRANCH_KEY],
+        [otherBranch, 0, null]
       ]);
 
       // 索引得真的在管事。只断言它存在的话，建到别的列上（比如 `activated`）照样能过，
       // 而那样的索引对「两行 active」毫无阻挡。
       await expect(
-        adapter.internalQuery(`UPDATE ${branchTable} SET "activeKey" = ? WHERE "id" = 'legacy-history'`, [
-          ACTIVE_BRANCH_KEY
+        adapter.internalQuery(`UPDATE ${branchTable} SET "activeKey" = ? WHERE "id" = ?`, [
+          ACTIVE_BRANCH_KEY,
+          otherBranch
         ])
       ).rejects.toThrow();
     });
@@ -257,9 +284,11 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
     // 而不只是「写回同一个值」——`rxdb_branch` 上挂着变更派发，白写一遍就会多出一条谁都没做过的
     // UPDATE，落进调用方的事件流，且没有任何东西会报错。
     it('库已是目标形态时一行都不写', async () => {
-      const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
+      const migrationTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+      );
       const branchMetadata = getEntityMetadata(RxDBBranch);
-      const branchTable = quote_sql_identifier(get_table_name_by_metadata(branchMetadata));
+      const branchTable = quote_sql_identifier(get_table_name_by_metadata(branchMetadata, WorktreeTableSet.MAIN));
       // 不依赖上一个用例留下的库态：先把「恰好一个 active 且哨兵值已就位」这个前提写死。
       await adapter.internalQuery(`UPDATE ${branchTable} SET "activated" = 0, "activeKey" = NULL WHERE "id" != 'main'`);
       await adapter.internalQuery(`UPDATE ${branchTable} SET "activated" = 1, "activeKey" = ? WHERE "id" = 'main'`, [
@@ -292,16 +321,151 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
       }
     });
 
+    // 可写检出位在 `activeKey` 上写自己的持有键（US-314 B1.2）。这一步从前把「不是 active 行的非空键」
+    // 一律清掉——那时这一列只有哨兵一种非空值。持有键不是哨兵：清掉它等于把检出位手里的分支悄悄放掉，
+    // 唯一索引从此拦不住别的检出位再拿它，也没有任何东西会报错。
+    describe('可写检出位的持有键（US-314 B1.2）', () => {
+      const holderKey = WorktreeTableSet.of('wt_held', []).holderKey;
+      const heldBranch = 'held-branch';
+      const branchTableOf = (): string =>
+        quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN));
+      const migrationTableOf = (): string =>
+        quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN));
+      const readBranchRows = async (): Promise<unknown[][]> =>
+        readRows(adapter, `SELECT "id", "activated", "activeKey" FROM ${branchTableOf()} ORDER BY "id"`);
+      const dropWatermarks = async (): Promise<void> => {
+        await adapter.internalQuery(`DELETE FROM ${migrationTableOf()} WHERE "name" IN (${placeholders})`, [
+          ...currentWatermarks
+        ]);
+      };
+
+      // 不依赖前面用例留下的库态：只留 main 与一条待持有的分支，main 是主检出位停着的那条。
+      beforeAll(async () => {
+        await adapter.rxdb.versionManager.createBranch(heldBranch);
+      });
+
+      // 还原成「main 被主检出位持有、别的分支没人持有」，再把水位线补回来：后面的用例要一个已是当前版本的库。
+      afterEach(async () => {
+        await adapter.internalQuery(
+          `UPDATE ${branchTableOf()} SET "activated" = 0, "activeKey" = NULL WHERE "id" != 'main'`
+        );
+        await adapter.internalQuery(
+          `UPDATE ${branchTableOf()} SET "activated" = 1, "activeKey" = ? WHERE "id" = 'main'`,
+          [ACTIVE_BRANCH_KEY]
+        );
+        await adapter.migrateSystemSchema();
+      });
+
+      it('重跑迁移不抹持有键', async () => {
+        await adapter.internalQuery(`UPDATE ${branchTableOf()} SET "activeKey" = ? WHERE "id" = ?`, [
+          holderKey,
+          heldBranch
+        ]);
+        await dropWatermarks();
+
+        await adapter.migrateSystemSchema();
+
+        expect(await readBranchRows()).toEqual(
+          expect.arrayContaining([
+            [heldBranch, 0, holderKey],
+            ['main', 1, ACTIVE_BRANCH_KEY]
+          ])
+        );
+        expect((await readWatermarks(adapter)).map(row => row[1])).toEqual(currentWatermarks);
+      });
+
+      // 主检出位停在一条分支上（`activated`），这条分支的 `activeKey` 却是别人的持有键：两边都认为分支是自己的。
+      // 回填哨兵等于替主检出位把它抢过来，只能整条迁移回滚，留给人去看。
+      it('主检出位停着的分支上是持有键时整体回滚', async () => {
+        await adapter.internalQuery(`UPDATE ${branchTableOf()} SET "activeKey" = ? WHERE "id" = 'main'`, [holderKey]);
+        await dropWatermarks();
+        const rowsBefore = await readBranchRows();
+
+        await expect(adapter.migrateSystemSchema()).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+        expect(await readBranchRows()).toEqual(rowsBefore);
+        expect(await readWatermarks(adapter)).toEqual([]);
+      });
+
+      // 零 active 的恢复目标是确定的 main，而 main 在可写检出位手里。点亮它就是抢，换一条点亮是替用户切分支。
+      it('零 active 而 main 被持有时整体回滚，不抢持有键', async () => {
+        await adapter.internalQuery(`UPDATE ${branchTableOf()} SET "activated" = 0, "activeKey" = NULL`);
+        await adapter.internalQuery(`UPDATE ${branchTableOf()} SET "activeKey" = ? WHERE "id" = 'main'`, [holderKey]);
+        await dropWatermarks();
+        const rowsBefore = await readBranchRows();
+
+        await expect(adapter.migrateSystemSchema()).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+        expect(await readBranchRows()).toEqual(rowsBefore);
+        expect(await readWatermarks(adapter)).toEqual([]);
+      });
+
+      // 系统模式升级会改触发器的形状：影子表集的触发器同样是旧的，要按各自持有分支重建（US-314 B1.3）。
+      // 迁移跑在插件装好之前，读不到检出位登记表，靠的是持有键本身就是表集后缀。
+      it('给每一套现存的影子表集按持有分支重建触发器', async () => {
+        const tableSet = WorktreeTableSet.of('wt_mig', [Todo]);
+        await adapter.internalQuery(`UPDATE ${branchTableOf()} SET "activeKey" = ? WHERE "id" = ?`, [
+          tableSet.holderKey,
+          heldBranch
+        ]);
+        await create_worktree_table_set(adapter, tableSet, heldBranch);
+        try {
+          // 模拟升级前的旧触发器：先把影子表的触发器删光，迁移要把它们按持有分支建回来
+          await adapter.internalQuery(remove_all_triggers_sql(adapter, tableSet));
+          await dropWatermarks();
+
+          await adapter.migrateSystemSchema();
+
+          const changeTable = quote_sql_identifier(
+            get_table_name_by_metadata(getEntityMetadata(RxDBChange), WorktreeTableSet.MAIN)
+          );
+          const shadowTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(Todo), tableSet));
+          const todoId = crypto.randomUUID();
+          const now = new Date().toISOString();
+          await adapter.internalQuery(
+            `INSERT INTO ${shadowTable} ("id", "title", "completed", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?)`,
+            [todoId, 'in worktree', 0, now, now]
+          );
+          const changeRows = await adapter.internalQuery(`SELECT "branchId" FROM ${changeTable} WHERE "entityId" = ?`, [
+            encodeRxDBChangeEntityId(todoId)
+          ]);
+          expect(changeRows.results.flatMap(item => item.rows)).toEqual([[heldBranch]]);
+        } finally {
+          await drop_worktree_table_set(adapter, tableSet);
+        }
+      });
+
+      it('认不出的持有键整体回滚：不知道该重建哪一套表', async () => {
+        await adapter.internalQuery(`UPDATE ${branchTableOf()} SET "activeKey" = ? WHERE "id" = ?`, [
+          '*worktree:wt1*',
+          heldBranch
+        ]);
+        await dropWatermarks();
+
+        await expect(adapter.migrateSystemSchema()).rejects.toThrow(/持有键/);
+
+        expect(await readWatermarks(adapter)).toEqual([]);
+      });
+    });
+
     // 迁移重建变更触发器时必须按库此刻停在的分支写。sqlite 侧确实有自愈——每个默认事务
-    // COMMIT 时 `#run_transaction` → `switch_transaction_id` 会按真实分支重建全部触发器——
+    // COMMIT 时 `#run_transaction` → `generate_table_set_trigger_sql` 会按真实分支重建全部触发器——
     // 但自愈要等到**下一个**默认事务，迁移结束到那一刻之间的裸写会被永久记到错误的分支名下，
     // 且不报任何错。pglite 侧（`system/migrate_system_schema.ts`）一直是读活动分支再传：
     // 两端形状必须一致，否则同一个库换个后端打开就是另一套行为。
     it('迁移重建的变更触发器按活动分支写，而不是固定 main', async () => {
-      const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
-      const changeTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBChange)));
-      const todoTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(Todo)));
-      const branchTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBBranch)));
+      const migrationTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+      );
+      const changeTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBChange), WorktreeTableSet.MAIN)
+      );
+      const todoTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(Todo), WorktreeTableSet.MAIN)
+      );
+      const branchTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN)
+      );
       const branchId = 'migration-trigger-branch';
 
       await adapter.rxdb.versionManager.createBranch(branchId);
@@ -344,7 +508,9 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
     });
 
     it('高版本水位 fail-fast', async () => {
-      const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
+      const migrationTable = quote_sql_identifier(
+        get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+      );
       await adapter.internalQuery(
         `INSERT INTO ${migrationTable} ("name", "executedAt") VALUES (?, CURRENT_TIMESTAMP)`,
         ['__rxdb_change_codec__:2']

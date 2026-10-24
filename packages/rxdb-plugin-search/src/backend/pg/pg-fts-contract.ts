@@ -13,13 +13,15 @@
  *    是三个字面量，抄过来不会带任何模块进图。抄写必然有漂移风险，因此
  *    `pg-fts-contract.spec.ts` 把它们与适配器里的真值逐个对等断言——本包把适配器列为
  *    devDependency，那条 spec 一定跑得到，改名当场变红。
- * 2. **DDL 构造器惰性加载**。`buildCreateFtsTableSql` / `buildFtsTriggersSql` 是真正的
- *    SQL 生成逻辑，抄一份必然与适配器漂移（这正是整套设计要消灭的东西），所以照旧复用，
- *    只是改成安装期 `import()`。安装期只有 adapter 确实是 pglite 时才会走到，
+ * 2. **DDL 构造器与 schema 解析惰性加载**。`buildCreateFtsTableSql` / `buildFtsTriggersSql` 是真正的
+ *    SQL 生成逻辑、`getSchemaName` 是适配器的命名规则，抄一份必然与适配器漂移（这正是整套设计要消灭的东西），
+ *    所以照旧复用，只是改成安装期 `import()`。安装期只有 adapter 确实是 pglite 时才会走到，
  *    sqlite-only 的下游永远不会解析这个说明符。
  *
  * @packageDocumentation
  */
+
+import type { EntityMetadata, WorktreeTableSet } from '@aiao/rxdb';
 
 import type { FtsInstallPlan } from '../../core/fts5-installer.js';
 
@@ -57,12 +59,13 @@ export const FTS_COLUMN = '_fts';
 export const DEFAULT_FTS_REGCONFIG = 'simple';
 
 /**
- * 适配器 `fts` 子路径里本后端真正复用的两个 DDL 构造器。
+ * 适配器 `fts` 子路径里本后端真正复用的东西：两个 DDL 构造器与 schema 解析。
  *
  * `table` 是**裸表名**，schema 走 `options.schema`——适配器据此拼出
  * `"<schema>"."<table>"`，并把跨 schema 会撞名的对象（trigger 函数）一并限定。
+ * schema 本身由适配器的表名解析器回答（US-314 B2.5）：可写检出位的影子表在 `<namespace>$<后缀>` 里。
  */
-interface PgFtsDdlBuilders {
+interface PgFtsAdapterModule {
   readonly buildCreateFtsTableSql: (
     table: string,
     fields: readonly FtsField[],
@@ -73,20 +76,25 @@ interface PgFtsDdlBuilders {
     fields: readonly FtsField[],
     options?: { readonly schema?: string }
   ) => string;
+  readonly getSchemaName: (metadata: EntityMetadata, tableSet: WorktreeTableSet) => string;
 }
 
 /**
- * 惰性取出适配器的 DDL 构造器。
+ * 惰性取出适配器的 DDL 构造器与 schema 解析。
  *
  * @remarks
  * 缺包时不做任何降级：没有 `@aiao/rxdb-adapter-pglite` 就意味着当前根本不可能是
  * pglite 连接，此处继续往下走只会用错误的 DDL 污染一个真实数据库。让 `import()`
  * 的原始错误直接抛出去，它比任何自造消息都更能指明缺的是哪个包。
  *
- * @returns 建表与建 trigger 的两个 SQL 构造器
+ * @returns 建表与建 trigger 的两个 SQL 构造器、表所在 schema 的解析
  * @internal
  */
-export const loadPgFtsDdl = async (): Promise<PgFtsDdlBuilders> => {
+export const loadPgFtsAdapter = async (): Promise<PgFtsAdapterModule> => {
   const mod = await import('@aiao/rxdb-adapter-pglite/fts');
-  return { buildCreateFtsTableSql: mod.buildCreateFtsTableSql, buildFtsTriggersSql: mod.buildFtsTriggersSql };
+  return {
+    buildCreateFtsTableSql: mod.buildCreateFtsTableSql,
+    buildFtsTriggersSql: mod.buildFtsTriggersSql,
+    getSchemaName: mod.getSchemaName
+  };
 };

@@ -102,6 +102,10 @@
         "kind": "value"
       },
       {
+        "name": "deleteIndexedDatabase",
+        "kind": "value"
+      },
+      {
         "name": "describeSqliteDatabase",
         "kind": "value"
       },
@@ -194,6 +198,10 @@
         "kind": "value"
       },
       {
+        "name": "generate_table_set_trigger_sql",
+        "kind": "value"
+      },
+      {
         "name": "generate_table_trigger_sql",
         "kind": "value"
       },
@@ -251,6 +259,10 @@
       },
       {
         "name": "get_sql_with_params",
+        "kind": "value"
+      },
+      {
+        "name": "get_storage_object_name",
         "kind": "value"
       },
       {
@@ -312,6 +324,10 @@
       {
         "name": "IRxDBAdapterDataChange",
         "kind": "type"
+      },
+      {
+        "name": "isOpfsAccessHandleBusy",
+        "kind": "value"
       },
       {
         "name": "isReadOnlyStatement",
@@ -390,7 +406,15 @@
         "kind": "type"
       },
       {
+        "name": "openOpfsWithRetry",
+        "kind": "value"
+      },
+      {
         "name": "OpfsFallback",
+        "kind": "type"
+      },
+      {
+        "name": "OpfsOpenRetryOptions",
         "kind": "type"
       },
       {
@@ -414,11 +438,19 @@
         "kind": "value"
       },
       {
+        "name": "releaseOpfsCoopSyncHandles",
+        "kind": "value"
+      },
+      {
         "name": "remove_all_triggers_sql",
         "kind": "value"
       },
       {
         "name": "remove_entity_ids_from_cache",
+        "kind": "value"
+      },
+      {
+        "name": "removeOpfsFiles",
         "kind": "value"
       },
       {
@@ -630,10 +662,6 @@
         "kind": "value"
       },
       {
-        "name": "switch_transaction_id",
-        "kind": "value"
-      },
-      {
         "name": "SwitchVersionSqlItem",
         "kind": "type"
       },
@@ -841,6 +869,14 @@
       },
       {
         "name": "DesktopHostCloseRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostDropRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostDropResult",
         "kind": "type"
       },
       {
@@ -1112,6 +1148,10 @@
         "kind": "value"
       },
       {
+        "name": "parseDesktopHostDropResult",
+        "kind": "value"
+      },
+      {
         "name": "parseDesktopHostFileRequest",
         "kind": "value"
       },
@@ -1367,6 +1407,10 @@
       },
       {
         "name": "versionBranchSuite",
+        "kind": "value"
+      },
+      {
+        "name": "worktreeTableSetSuite",
         "kind": "value"
       }
     ]

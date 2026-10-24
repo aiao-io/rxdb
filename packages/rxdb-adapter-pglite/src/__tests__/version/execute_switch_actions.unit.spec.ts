@@ -2,13 +2,13 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 const {
   removeAllTriggersSqlMock,
-  generateSwitchBranchSqlMock,
+  generateBranchTriggerSqlMock,
   getEntityObjectFromResultMock,
   removeEntityIdsFromCacheMock,
   transactionPgliteResultMock
 } = vi.hoisted(() => ({
   removeAllTriggersSqlMock: vi.fn(),
-  generateSwitchBranchSqlMock: vi.fn(),
+  generateBranchTriggerSqlMock: vi.fn(),
   getEntityObjectFromResultMock: vi.fn(),
   removeEntityIdsFromCacheMock: vi.fn(),
   transactionPgliteResultMock: vi.fn()
@@ -17,8 +17,9 @@ const {
 vi.mock('../../table/remove_trigger_sql.js', () => ({
   default: (...args: unknown[]) => removeAllTriggersSqlMock(...args)
 }));
+// 只给重挂触发器那一个：关触发器的路径若又回去调整段切分支（会顺手写分支表），这里就是 not a function
 vi.mock('../../version/switch_branch.js', () => ({
-  generateSwitchBranchSql: (...args: unknown[]) => generateSwitchBranchSqlMock(...args)
+  generateBranchTriggerSql: (...args: unknown[]) => generateBranchTriggerSqlMock(...args)
 }));
 vi.mock('../../pglite.utils.js', async importOriginal => {
   const actual = await importOriginal<typeof import('../../pglite.utils.js')>();
@@ -40,11 +41,12 @@ import {
   RxDB,
   RxDBBranch,
   SyncType,
+  WorktreeTableSet,
   type IRxDBAdapter,
   type RxDBEntityId
 } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
-import { getTableNameByMetadata } from '../../pglite.utils.js';
+import { getTableNameByMetadata } from '../../table-name-resolver.js';
 import { dispatch_switch_events, execute_switch_actions } from '../../version/execute_switch_actions.js';
 import type { SwitchVersionSqlResult } from '../../version/switch-result.interface.js';
 
@@ -57,7 +59,7 @@ const metadata = getEntityMetadata(Todo);
  * `tableName` 之后替身会安静地退回 `rows: []`，而 `readCurrentBranchId` 的 fail-fast 抛出来
  * 的是「currentBranch is undefined」——读起来像生产缺陷，其实是替身过期了。
  */
-const BRANCH_TABLE = getTableNameByMetadata(getEntityMetadata(RxDBBranch));
+const BRANCH_TABLE = getTableNameByMetadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN);
 
 const baseAction = (overrides: Record<string, unknown> = {}) => ({
   metadata,
@@ -112,6 +114,7 @@ describe('execute_switch_actions unit edges', () => {
   const makeAdapter = () => {
     const dispatchEvent = vi.fn();
     const adapter = {
+      tableSet: WorktreeTableSet.MAIN,
       transaction: vi.fn(async (fn: () => Promise<void>) => {
         await fn();
       }),
@@ -146,7 +149,7 @@ describe('execute_switch_actions unit edges', () => {
 
   it('disableTriggers removes then reinstalls branch triggers', async () => {
     removeAllTriggersSqlMock.mockReturnValue('DROP TRIGGER...');
-    generateSwitchBranchSqlMock.mockReturnValue('CREATE TRIGGER...');
+    generateBranchTriggerSqlMock.mockReturnValue('CREATE TRIGGER...');
 
     const adapter = makeAdapter();
     const switchAction: SwitchVersionSqlResult = { deletes: [], inserts: [], updates: [] };
@@ -154,20 +157,21 @@ describe('execute_switch_actions unit edges', () => {
     await execute_switch_actions(adapter as never, switchAction, undefined, true);
 
     expect(adapter.runInTransaction).toHaveBeenCalledTimes(1);
-    expect(removeAllTriggersSqlMock).toHaveBeenCalledWith(adapter);
+    expect(removeAllTriggersSqlMock).toHaveBeenCalledWith(adapter, WorktreeTableSet.MAIN);
     expect(adapter.query).toHaveBeenCalledWith('DROP TRIGGER...');
     expect(
       adapter.rxdb.versionManager.getCurrentBranch,
       '分支 id 又走回了 versionManager：外层已开事务时这一读会排在自己身后永久挂起'
     ).not.toHaveBeenCalled();
     expect(adapter.query).toHaveBeenCalledWith(expect.stringContaining(BRANCH_TABLE), undefined);
-    expect(generateSwitchBranchSqlMock).toHaveBeenCalledWith(adapter, 'main');
+    // 按本实例这套表、当前分支只重挂触发器，分支表不写（US-314 B1.3）
+    expect(generateBranchTriggerSqlMock).toHaveBeenCalledWith(adapter, WorktreeTableSet.MAIN, 'main');
     expect(adapter.query).toHaveBeenCalledWith('CREATE TRIGGER...');
   });
 
   it('disableTriggers skips remove when SQL is empty', async () => {
     removeAllTriggersSqlMock.mockReturnValue('');
-    generateSwitchBranchSqlMock.mockReturnValue('CREATE TRIGGER...');
+    generateBranchTriggerSqlMock.mockReturnValue('CREATE TRIGGER...');
 
     const adapter = makeAdapter();
     await execute_switch_actions(adapter as never, { deletes: [], inserts: [], updates: [] }, undefined, true);

@@ -1,3 +1,70 @@
+## Unreleased
+
+### ⚠️ Breaking Changes
+
+- **rxdb-adapter-sqlite-core / -pglite / -sqlite / -sqlite-wasm / -sqliteai / -wa-sqlite:** 推导物理表名、生成建表 / 读写 / 触发器 SQL 的公开函数多了必填的表集参数（`WorktreeTableSet`），如 `get_table_name_by_metadata(metadata, tableSet)`、`getTableNameByMetadata(metadata, tableSet)`、`create_tables_sql(adapter, tableSet, …)`，触发器生成选项的 `tableSet` 必填。可写检出位在同一个库里各有一套业务表，不说哪一套推出来的永远是主检出位那一套，挂在别的检出位上会静默读写错表。只有主检出位的代码补 `WorktreeTableSet.MAIN` 即可，物理名与之前逐字相同，库文件无需迁移。→ [table-set-parameter](https://rxdb.aiao.io/docs/migration/table-set-parameter)（US-314）
+- **rxdb-adapter-sqlite-core:** 去掉 `switch_transaction_id`，改用 `generate_table_set_trigger_sql(adapter, tableSet, branchId, transactionId?)`：按表集重建变更触发器的唯一入口，表集与分支都显式给（US-314）
+- **rxdb-adapter-sqlite-core:** `readCurrentBranchId(tx)` 改为 `readCurrentBranchId(tx, tableSet)`：挂在可写检出位上时读那套表持有的分支（US-314）
+- **rxdb:** `TransactionExecutor` 多了必填的只读成员 `tableSet`：本事务落在哪一套业务表上（发起它的实例挂的那一套）。自己实现事务执行器的适配器要补上，取适配器的 `tableSet` 即可；两个内置适配器已带（US-314）
+- **rxdb-plugin-search:** `FtsInstallPlan` 的 `namespace` 换成 `schema`（PostgreSQL 里表所在的 schema），由新的 `SearchBackend.bindPlan(plan, metadata, tableSet)` 经适配器的表名解析器填；`SearchBackend` 还多了 `installForTableSet()`。自己构造计划、直接调 `createPgTsvectorBackend().install()` 的，先 `bindPlan(plan, metadata, WorktreeTableSet.MAIN)`，否则表不按 schema 限定（US-314）
+
+### 🚀 Features
+
+- **三端 demo:** Worktree 下拉、新建、改名、删除确认与分支右键检出；分支可选，失败可重试，换挂重读 Changes / History，写入期间禁止换挂，支持键盘与明暗主题（US-314 C2.2）
+
+- **rxdb:** 新增 `WorktreeTableSet`：一套业务表，`WorktreeTableSet.MAIN` 是主检出位那一套；两个适配器新增 `adapter.tableSet`（本实例挂的表集），sqlite-core 新增 `get_storage_object_name`，PGlite 新增 `getSchemaName` / `getChangeTriggerFunctionName`。业务实体的物理名只从两个适配器的表名解析器出，`pnpm audit:table-name-resolver` 守着解析器之外不推物理名（US-314）
+- **rxdb / rxdb-adapter-sqlite-core / -pglite:** 分支持有模型：`rxdb_branch.activeKey` 除了主检出位的哨兵，还可以是可写检出位的持有键。新增 `WorktreeBranchHeldError`（码 `worktree_branch_held`）：`switchBranch()` 切到被可写检出位持有的分支时，两个适配器在切换事务里、动第一行之前拒绝；零 active 时点亮 `main` 与系统迁移回填哨兵同样先查，被占就拒。系统迁移只清旧哨兵，不再抹掉持有键（US-314）
+- **rxdb / rxdb-adapter-sqlite-core / -pglite:** 按表集建表与重建触发器：`WorktreeTableSet.holderKey` / `suffixOfHolderKey`（持有键由表集推出），两个适配器新增 `createWorktreeTableSet()` / `dropWorktreeTableSet()`；`remove_all_triggers_sql` 对影子表集只删成员的触发器；系统迁移给每一套现存的影子表集按持有分支重建触发器，认不出的持有键整条回滚（US-314）
+- **rxdb-plugin-working-tree:** 可写检出位：`checkouts.add(branchId, { name?, owner? })` 一笔事务里登记、持有分支、建一套影子表并播种，`mount(id)` / `mountMain()` 让主实例挂上 / 挂回，`release(id)` 交出认领，`remove(id)` 删表、放开分支、删登记（未提交的改动留在分支上）。一条分支只能被一个检出位持有，被占时抛 `WorktreeBranchHeldError`。登记表 `Worktree` 加 `mode` / `tableSetSuffix` / `name` 三列、`dbName` 可空；`prune()` 与启动清理也回收会话归属的、持有的分支已不在的可写检出位，不需要配快照库（US-314）
+- **rxdb / rxdb-adapter-sqlite-core / -pglite:** 适配器可选槽位 `createWorktreeTableSet(executor, tableSet, seed)` / `dropWorktreeTableSet(executor, tableSet)`：在调用方的事务里建表并播种（主表集的行原样复制、自增序列对齐、叠上增量，都不记变更日志）、按目录删；新增 `WorktreeTableSetSeed`；`convertSwitchResultToSql` 的选项多了 `tableSet`；PGlite 新增 `getTableSetSchemaSuffix`（US-314）
+- **rxdb / rxdb-plugin-working-tree / -history / -sync:** 当前分支贯穿捕获、历史与同步：工作树捕获、状态、提交按本实例挂的那套表持有的分支走，变更记在别的分支名下时整笔拒绝；挂在可写检出位上建分支，父分支是持有分支；重做栈失效只认记在本实例当前分支上的变更；挂在可写检出位上的实例不同步，九个同步入口一进门就抛，写业务表的同步事务里再核对一次，QueryCache 自动回推等挂回主检出位再跑（US-314）
+- **rxdb / rxdb-adapter-sqlite-core / -pglite / rxdb-plugin-history:** 实例挂可写检出位：`rxdb.mountWorktreeTableSet()` 换挂一套表（核对持有、清实体缓存、重跑活查询），`rxdb.worktreeTableSet` / `worktreeTableSet$`；当前分支统一成挂的那套表持有的分支（`WorktreeTableSet.heldBranchWhere`），历史插件的撤销 / 重做跟着走；挂在可写检出位上不能真切分支（US-314）
+- **rxdb-adapter-sqlite-core / -pglite / rxdb-plugin-history / -working-tree:** 可写检出位里切分支：`switchBranch()` 放开原来持有的分支、持有目标分支，这套表按增量改过去，改动留在原分支，登记行的分支跟着走；目标被主检出位或别的检出位持有时抛 `WorktreeBranchHeldError`，本地只有元数据的远端分支报 `branch_not_materialized`。激活版本号按表集：每个可写检出位一行，检出位里切分支不再让主检出位手上的提交凭据失效（US-314）
+- **rxdb / rxdb-adapter-sqlite-core / -pglite / rxdb-plugin-search:** 实体事件按表集路由：本地实体事件多了可选的 `tableSetSuffix`（写在可写检出位影子表上的带那套表的后缀，主表集上的不带、形状不变），`WorktreeTableSet#accepts()` / `ownerSuffixOf()` / `eventTagOf()`；查询管理器的增量合并与搜索插件只收本实例挂着那套表读得到的事件，多个标签页可以一个挂主检出位、一个挂可写检出位。`worktreeTableSet$` 改在清空实体缓存之后才发（US-314）
+- **rxdb-plugin-workspace:** 草稿缓存按检出位分区：挂在可写检出位上新建的草稿只在这个检出位上看得到（IndexedDB 键前面加表集后缀，主检出位的键不变、不用迁移），`list()` / `discard()` / 跨标签页同步只看本实例此刻挂的那一套；换挂时先把排队的写落盘、再换成新挂那一套的草稿（US-314）
+- **rxdb:** 换挂之后旧的实体对象写不进另一套表：`EntityStatus.tableSet` 记下建出、读出实体时挂的那套表，公开写入口发出写之前核对，不符抛 `WorktreeTableSetMismatchError`（US-314）
+- **rxdb / rxdb-plugin-working-tree:** 插件的建表集钩子 `IRxDBPlugin.worktreeTableSet?.created(executor, tableSet)`（`WorktreeTableSetHooks`）与 `rxdb.notifyWorktreeTableSetCreated()`：`checkouts.add()` 建完表、播完种之后在同一笔事务里按 `use()` 的顺序调，抛错整笔回滚，插件借它给每套影子表建自己的附属对象（US-314）
+- **rxdb-plugin-working-tree-angular / -react / -vue:** `useWorktrees()` 接上可写检出位：`add()` / `mount()` / `mountMain()` / `release()` / `remove()` / `rename()` 与各自一格状态（共十格），以及 `mounted`（本实例此刻挂的那套表，取自 `worktreeTableSet$`）；三端同名同 API。工作树插件新增 `readMountedWorktreeTableSet()`，`./testing` 新增 `createWorktreeHookStubs()`（US-314）
+- **rxdb / rxdb-plugin-working-tree / rxdb-plugin-search:** 可写检出位按指纹自动重建：开检出位时记下这套表的指纹（`rxdb.worktreeTableSetFingerprint(tableSet)`：成员实体的结构指纹 `WorktreeTableSet.schemaFingerprintOf()`，在备份清单的键之外还看 `checks` / `exclusions` / `log`，并上插件钩子的 `WorktreeTableSetHooks.fingerprint(tableSet)`）。`checkouts.mount()` 发现不符就在挂载的那笔事务里整套重建、重跑插件的建表集钩子，未提交的改动随播种回来；失败整笔回滚，抛 `WorktreeUnavailableError`（`schema_rebuild_failed`，带 `cause`），检出位原样。可写检出位挂载不再报 `schema_mismatch`（US-314）
+- **rxdb / rxdb-adapter-sqlite-core / -pglite / rxdb-plugin-working-tree:** 孤儿表集回收：适配器可选槽位 `listWorktreeTableSetSuffixes(executor)` 按目录列出现存的表集（配置里实体的主表恰好长成后缀形状时不算），`WorktreeTableSet.isSuffix()`；`checkouts.prune()` 与启动清理回收没有登记行的表集、持有键与激活态行，`prune()` 交回它们的表集后缀（US-314）
+- **rxdb-plugin-search / rxdb-adapter-pglite:** 全文检索按表集：可写检出位的影子表各有一份全文索引，开检出位时在同一笔事务里建好并回填，删检出位时一起删；查询按实例此刻挂着的那套表走，换挂之后已有的 `SearchHandle` 自动重查，挂上一套还没有索引的表时头一次搜先补建。PGlite 的 `./fts` 子路径新增 `getSchemaName`（US-314）
+- **rxdb-plugin-working-tree:** `checkouts.rename(id, name)` 给可写检出位改名（`invalid_name` / `name_taken` / `not_found`）；`add()` 同样校验名字，没给名字时取分支 id、被占了加 `-2`、`-3`；登记表 `name` 加唯一索引。`WorktreeUnavailableError` 的文案改为「检出位操作被拒（reason）」（US-314）
+- **rxdb-plugin-history:** 挂在可写检出位上合并：合进它持有的分支、落在那套影子表里，只合进得了这套表的实体（QueryCache 同步的这类只在主检出位那套表里的实体不合），`previewMerge()` 同一口径；挂在可写检出位上可推送计数为 0（US-314）
+- **rxdb:** `getCurrentBranch(rxdb, tableSet?)` 与 `findCurrentSyncRecord(…, tableSet?)` 多了可选的表集参数：读哪一套表持有的分支，缺省是本实例挂的那套（US-314）
+- **rxdb-plugin-history:** `VersionManager.compareBranches()` 与 `previewMerge()`：不切换分支就对比两条分支、预览一次合并会落什么，`merged` 与随后 `mergeBranch()` 返回的一致，并标出四类覆盖（`overwrite` / `delete_edited` / `update_deleted` / `revive_deleted`）。只读，不写任何表（US-312）
+- **rxdb:** 新增 `ENTITY_BOOKKEEPING_FIELDS`（`remoteId` / `createdAt` / `updatedAt`）；工作树插件的 `UNTRACKED_BOOKKEEPING_FIELDS` 改为引用它，对比与覆盖判定同样不把这些字段算作差异（US-312）
+- **rxdb-plugin-working-tree:** 只读检出位 `rxdb.workingTree.checkouts`：不切换分支、不动工作树，以只读方式打开另一条分支或当前分支上一个可达提交的完整数据。快照库与主库同一种后端、独立库名，用第二个只读实例浏览；`open()` / `attach()` / `list()` / `prune()`，会话归属与持久归属，排他 Web Lock；既有库连接期判定出孤儿时在连上之后回收；插件选项 `worktrees: { adapter, plugins? }`（US-313）
+- **rxdb-plugin-working-tree-angular / -react / -vue:** `useWorktrees()`，三端同名同 API；打开的视图把 `view.rxdb` 交给各端现成的 Provider（US-313）
+- **rxdb:** `cloneEntityClasses()` 从 `@aiao/rxdb/testing` 提为主入口公开 API；新增 `RxDBOptions.readOnly` 与 `RxDBReadOnlyError`；适配器新增可选的快照原语（`readWorktreeSnapshotPage` / `importWorktreeSnapshot` / `adoptWorktreeEncryption` / `sealWorktreeReadOnly`）与删库能力（`dropStorage()` / `canDropStorage()`）（US-313）
+- **rxdb-adapter-pglite / -sqlite / -sqlite-wasm / -sqliteai / -wa-sqlite / -electron:** 实现快照原语与 `dropStorage()`；Electron 桌面线协议新增 `drop` 请求，老宿主在任何副作用之前就拒绝不认识的请求，协议版本不变（US-313）
+- **rxdb-model / -angular / -react / -vue:** `deriveEntityCapabilities` 认实例侧的 `readOnly`：只读实例上实体列表不出新建、编辑与删除（US-313）
+- **rxdb-plugin-working-tree:** 从提交建分支 `rxdb.workingTree.createBranchFromCommit(branchId, commitId)`：新分支的 HEAD 就是当前分支历史里的那个提交（与源分支共享之前的历史），工作树为空，切过去读到那次 `commit()` 刚完成时的数据；只建不切。`checkBranchFromCommit(commitId)` 先判建不建得了，被拒三种走返回值（`unreachable_target` / `fork_point_unknown` / `history_rewritten`）。分叉点在提交时同一事务记进新的系统表 `rxdb_commit_fork_point`，既有库连接时补建，补建之前的提交不能拿来建分支（US-314）
+- **rxdb-plugin-working-tree-angular / -react / -vue:** `useWorkingTree()` 新增 `checkBranchFromCommit()` / `createBranchFromCommit()` 与两格命令状态（US-314）
+- **rxdb:** 建分支上下文 `RxDBBranchCreationContext` 新增可选的 `fromCommitId`，原样转交给系统贡献方（US-314）
+- **rxdb:** `HistoryScopeAPI` 新增 `undoBarrier$` / `redoBarrier$`：撤销 / 重做栈停在子分支分叉点时给出原因（`{ reason: 'inherited_by_branch', branchIds }`），否则 `null`。自己实现 `HistoryScopeAPI` 的（如测试替身、没装历史插件时的兜底对象）要补上这两个成员（US-315）
+- **rxdb-model / -angular / -react / -vue:** 实体列表的撤销 / 重做按钮因子分支分叉点停用时，`title` 说明是哪条分支继承了下一步；文案在 `describeHistoryBarrier()`（US-315）
+
+### 🩹 Fixes
+
+- **Angular demo:** 文件管理页销毁时取消全部延时滚动任务，并拒收销毁后到达的请求，避免回调在页面卸载后访问 document。
+
+- **rxdb-adapter-sqlite-core / -wa-sqlite / -sqlite-wasm:** SharedWorker 传输下多个标签页共用 worker 里那一个客户端：事务按库名在一把跨标签页的 Web Lock 里排队，不再落进别的标签页开着的事务（此前另一个标签页的 `BEGIN` 当场报「事务里不能再开事务」，普通语句随别人的事务一起提交或回滚）；拿到锁先回滚死在事务中间的标签页留下的事务；一个标签页断开只交还自己那一份、只摘自己的监听，不再把别的标签页还在用的连接关掉，最后一个断开时才关库、之后还能再连。客户端新增 `release(owner)` / `rollbackOrphanTransaction()`，`init()` 与 `addEventListener()` 多了可选的持有者键；SharedWorker 传输需要 Web Locks（US-314）
+- **rxdb-plugin-history:** 被可写检出位持有的分支删不掉：`removeBranch()` 抛 `WorktreeBranchHeldError`，合并带 `deleteSource` 遇到被持有的源分支时合并照常、源分支留着。此前持有分支的 `activated` 为假、照删不误，检出位里没提交的改动跟着一起没了（US-314）
+- **rxdb-adapter-sqlite-core / rxdb-plugin-sync:** 挂在可写检出位上时，QueryCache 的回填不再记进变更日志，出站队列也按主检出位的分支取待推行。此前回填摘的是检出位那套表的触发器、照样记进主分支的日志，挂回主检出位后被当成离线写推回远端；待推集合读成检出位的分支、是空的，对账会删掉离线新建的行（US-314）
+- **rxdb-adapter-pglite:** QueryCache 的回填与删除不再记进变更日志（主检出位上同样如此），写入期间摘掉触发器，提交之后补刷实体缓存、补发实体事件，与 sqlite-core 同口径；此前每次回填都会被出站队列当成离线写推回远端（US-314）
+- **rxdb-adapter-pglite:** 开可写检出位时增量带来比主表序列大的整数 id，影子表的序列推到它们之上，检出位里之后的插入不再撞主键（US-314）
+- **rxdb-plugin-graph:** 边表按边实体自己的元数据解析，节点与边只有一个进可写检出位的影子表时图查询直接拒绝；边实体随节点继承 `log: false`，与多对多中间表同一条规则（US-314）
+- **rxdb-adapter-sqlite-core / -pglite:** 撤销 / 重做、重做栈失效与拉取回填不再写分支表。此前它们每次都对当前分支跑一遍「熄灭 + 点亮」：撤销 / 重做派出一条「activated 翻转了」的 RxDBBranch 更新事件，PGlite 上每批拉取再经 NOTIFY 派一条谁都没做过的更新。现在只重挂触发器（US-314）
+- **rxdb-adapter-sqlite-core / -pglite:** 关掉变更日志的实体（`log: false`：分支表、迁移与同步水位、插件系统表、`StorageFileMeta` 等）删行之后，活查询立刻不再有它。此前这些表的删除派不出事件：分支表与迁移表只有行号通知，删除时按行号回查不到行，其余的表连通知都没有。三端 demo 删掉一条分支，分支列表照旧列着它。现在批量写入与单删两条删行路径删完就直接派删除事件；行号回查不再处理这些表的删除，它只会撞上缓存里的旧实体或复用行号的新行，派出过期的删除。变更日志表本身不在其列（US-222）
+- **rxdb-plugin-history:** 父分支上已被子分支继承的变更（不晚于子分支分叉点的）不能再撤销 / 重做。此前父分支撤销了子分支分叉时继承、子分支随后又改过的变更，切到子分支再切回来，父分支读到撤销之前的值且不报错，对比与合并预览跟着失真。撤销栈现在停在分叉点，`undo()` / `redo()` 撤到那一步什么也不做；写事务里再按事务内读到的子分支复核一次。删掉继承它们的子分支之后限制解除（US-315）
+- **rxdb:** 多对多解绑后保存，中间行留在根实体的待删集合里；切走再切回来那一行被切换插回，下一次哪怕只改一个标量的 `save()` 都会把它再删一遍。两端都不记日志（`log: false`）时，生成的中间表也不再记日志（US-313）
+- **rxdb:** 只读实例与可写实例共用一个实体类时（核心系统实体每个实例都登记），`RxDBBranch.find()` 这类静态调用落到可写的那个，不再报多实例；两个可写实例共用一个类照旧报错（US-313）
+- **rxdb-adapter-pglite:** 断开时关掉 IdbFs 留着的 IndexedDB 连接，此前之后的 `deleteDatabase` 会一直卡在 `blocked`（US-313）
+- **rxdb-adapter-sqlite-wasm:** 断开与初始化失败时关掉打开库的 VFS，IndexedDB 系 VFS 的连接此前一直留着（US-313）
+- **rxdb-adapter-sqlite-wasm / -wa-sqlite:** OPFS 库整页刷新后偶发打不开（上一个页面的 Worker 还占着库文件的同步访问句柄，应用起不来也不报错）：打开失败为 `SQLITE_CANTOPEN`、或新建 VFS 时删旧临时目录撞上没关的句柄（`NoModificationAllowedError`）时有界退避重试（合计约 3 秒），每次重试前交出失败那次留下的句柄与临时目录，用尽后仍被占用就报占用。sqlite-wasm 的 `opfs` 档与 wa-sqlite 的 `OPFSCoopSyncVFS` 是同一个 VFS，一并覆盖；wa-sqlite 的其余 VFS 不重试。自己实现 `WaSqliteClientRuntime` 的要补上必选的 `open()`（US-221）
+- **rxdb-model:** 实体表格接键盘焦点的隐藏输入框补上可读名，此前 axe 判 `label`（critical），读屏只念「编辑框，只读」（US-313）
+- **rxdb-plugin-workspace:** 草稿缓存不再收系统表与关闭变更日志（`log: false`）实体的草稿。此前系统表名单只认核心四张表，插件登记的系统表（如工作树插件的提交表）与 storage 插件的 `StorageFileMeta` 每次构造都留下一条永远清不掉的草稿：它们出现在 `list()` / `cacheCount` 里、广播给其他标签页、每次启动被恢复。`install()` 会删掉 IndexedDB 里已有的这类草稿（US-311）
+
 ## 0.0.28 (2026-10-24)
 
 ### ⚠️ Breaking Changes

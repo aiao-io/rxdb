@@ -2,10 +2,11 @@ import {
   BATCH_TIMEOUT,
   DEFAULT_BATCH_TIMEOUT,
   DEFAULT_CACHE_SIZE_KB,
+  releaseComlinkProxy,
   RxDBAdapterSqliteError,
   validateSqliteNumericOption
 } from '@aiao/rxdb-adapter-sqlite-core';
-import { checkVFSConfig, waSqliteLoad } from './sqlite-load.utils.js';
+import { checkVFSConfig, openWaSqliteDatabase, waSqliteLoad } from './sqlite-load.utils.js';
 import type { LoadModuleOptions } from './sqlite.interface.js';
 import {
   WaSqliteClientBase,
@@ -62,7 +63,9 @@ function resolveBrowserOptions(dbName: string, options: LoadModuleOptions): Reso
 const BROWSER_RUNTIME: WaSqliteClientRuntime<LoadModuleOptions> = {
   clientName: 'rxdb-adapter-wa-sqlite',
   load: (_dbName, options) => waSqliteLoad(options),
-  resolve: resolveBrowserOptions
+  resolve: resolveBrowserOptions,
+  releaseListener: releaseComlinkProxy,
+  open: openWaSqliteDatabase
 };
 
 /** 浏览器 wa-sqlite 客户端。 */

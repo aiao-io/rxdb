@@ -1,6 +1,7 @@
-import { EntityMetadata, EntityType, getEntityMetadata, MAIN_BRANCH_ID } from '@aiao/rxdb';
+import { EntityMetadata, EntityType, getEntityMetadata, MAIN_BRANCH_ID, type WorktreeTableSet } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import inserts_sql from '../entity/inserts_sql.js';
+import { getSchemaName } from '../table-name-resolver.js';
 import create_table_sql from './create_table_sql.js';
 import { generate_trigger_sql } from './trigger_sql.js';
 
@@ -74,6 +75,7 @@ const splitStatements = (blob: string): string[] =>
  */
 export async function create_tables_statements<T extends EntityType>(
   adapter: RxDBAdapterPGlite,
+  tableSet: WorktreeTableSet,
   EntityTypes: T[],
   entities?: InstanceType<T>[]
 ): Promise<string[]> {
@@ -90,12 +92,13 @@ export async function create_tables_statements<T extends EntityType>(
 
     // 0. CREATE SCHEMA。适配器自己的建库路径（RxDBAdapterPGlite `CREATE SCHEMA IF NOT EXISTS`）
     // 有这一步，公开 helper 没有 —— 于是它的输出在干净库上必然报 `schema "shop" does not exist`。
-    if (metadata.namespace && metadata.namespace !== 'public') {
-      namespaces.add(metadata.namespace);
+    const schema = getSchemaName(metadata, tableSet);
+    if (schema && schema !== 'public') {
+      namespaces.add(schema);
     }
 
     // 1./2. CREATE TABLE 与外键/索引分开：后者必须等所有表建完
-    for (const statement of splitStatements(create_table_sql(adapter, metadata))) {
+    for (const statement of splitStatements(create_table_sql(adapter, metadata, tableSet))) {
       const body = sqlBody(statement);
       if (!body) continue;
       if (/^CREATE\s+(UNIQUE\s+)?INDEX\b/i.test(body)) {
@@ -116,6 +119,7 @@ export async function create_tables_statements<T extends EntityType>(
       // 这一步漏掉就会让新实体的变更一直记在 `main` 名下，直到下次切分支。
       const triggerSQL = generate_trigger_sql(metadata, {
         branchId: MAIN_BRANCH_ID,
+        tableSet,
         resolveEntityMetadata: adapter.encryptionContext.resolveEntityMetadata
       });
       // 哨兵是给拆分用的，绝不能原样留在返回值里 —— 送进 PG 就是 42601
@@ -140,6 +144,7 @@ export async function create_tables_statements<T extends EntityType>(
     for (const [metadata, entitySet] of entityMap.entries()) {
       const insertSQL = await inserts_sql(
         metadata,
+        tableSet,
         Array.from(entitySet),
         adapter.rxdb.context,
         adapter.encryptionContext
@@ -187,10 +192,11 @@ export async function create_tables_statements<T extends EntityType>(
  */
 export async function create_tables_sql<T extends EntityType>(
   adapter: RxDBAdapterPGlite,
+  tableSet: WorktreeTableSet,
   EntityTypes: T[],
   entities?: InstanceType<T>[]
 ): Promise<string> {
-  return (await create_tables_statements(adapter, EntityTypes, entities)).join('\n');
+  return (await create_tables_statements(adapter, tableSet, EntityTypes, entities)).join('\n');
 }
 
 export default create_tables_sql;

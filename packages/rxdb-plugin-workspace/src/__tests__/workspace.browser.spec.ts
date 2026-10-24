@@ -14,7 +14,19 @@
  * 只排除 `*.spec.*`，独立的夹具文件会被打进发布产物。
  */
 
-import { Entity, EntityBase, PropertyType, RxDB, SyncType, type EntityType, type UUID } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  PropertyType,
+  RxDB,
+  RxDBBranch,
+  SyncType,
+  WorktreeTableSet,
+  WorktreeTableSetMismatchError,
+  type EntityType,
+  type TransactionExecutor,
+  type UUID
+} from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -46,11 +58,11 @@ interface DraftLike {
  * 元数据里的 `namespace:name` 保持一致，恢复路径的 `getEntityType()` 才认得出来。
  */
 const defineDraft = () => {
+  // 写变更日志（缺省 `log: true`）：草稿缓存只收这类实体，它们的保存与删除才派发 CREATE / REMOVE 收尾。
   @Entity({
     namespace: 'ws_it',
     name: 'Draft',
     tableName: 'ws_it_draft',
-    log: false,
     properties: [
       { name: 'title', type: PropertyType.string, required: true },
       { name: 'meta', type: PropertyType.json, nullable: true },
@@ -65,6 +77,21 @@ const defineDraft = () => {
   return Draft as unknown as (new (init?: Partial<DraftLike>) => DraftLike) & EntityType;
 };
 
+/** 关闭变更日志的实体，形同 storage 插件的 `StorageFileMeta`；类按夹具现造，理由同 {@link defineDraft}。 */
+const defineNote = () => {
+  @Entity({
+    namespace: 'ws_it',
+    name: 'Note',
+    tableName: 'ws_it_note',
+    log: false,
+    properties: [{ name: 'title', type: PropertyType.string, required: true }]
+  })
+  class Note extends EntityBase {
+    title!: string;
+  }
+  return Note as unknown as (new (init?: { title: string }) => { id: UUID; title: string }) & EntityType;
+};
+
 /**
  * 每个用例一套全新的 dbName。
  *
@@ -77,6 +104,7 @@ const nextDbName = (): string => `ws_it_${crypto.randomUUID().slice(0, 8)}`;
 
 interface Harness {
   Draft: ReturnType<typeof defineDraft>;
+  Note: ReturnType<typeof defineNote>;
   adapter: RxDBAdapterWaSqlite;
   /** 真正的 IndexedDB 库名 —— 带核心追加的版本后缀，不等于传进去的 dbName。 */
   idbName: string;
@@ -87,9 +115,10 @@ interface Harness {
 /** 建一套真实 RxDB：wa-sqlite 走纯内存 VFS，workspace 走真实 IndexedDB。 */
 const createHarness = async (dbName: string, options?: { autoSave?: boolean }): Promise<Harness> => {
   const Draft = defineDraft();
+  const Note = defineNote();
   const rxdb = new RxDB({
     dbName,
-    entities: [Draft],
+    entities: [Draft, Note],
     sync: { type: SyncType.None, local: { adapter: 'wa-sqlite' } }
   });
 
@@ -99,7 +128,7 @@ const createHarness = async (dbName: string, options?: { autoSave?: boolean }): 
   const adapter = (await rxdb.connect('wa-sqlite')) as RxDBAdapterWaSqlite;
   rxdb.init();
 
-  return { Draft, adapter, idbName: rxdb.config.dbName, rxdb, workspace: rxdb.workspace };
+  return { Draft, Note, adapter, idbName: rxdb.config.dbName, rxdb, workspace: rxdb.workspace };
 };
 
 /** 直接读真实 IndexedDB，绕开插件自身的内存缓存 —— 断言「到底落盘了什么」。 */
@@ -228,6 +257,19 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       expect(value?.['dueAt']).toBeInstanceOf(Date);
       expect((value?.['dueAt'] as Date).toISOString()).toBe(dueAt.toISOString());
       expect(value?.['meta']).toEqual({ labels: ['a'], nested: { value: 'v1' } });
+    });
+
+    it('关闭变更日志的实体不进草稿缓存：它保存与删除都不发事件，草稿等不到收尾', async () => {
+      const { Note, idbName, workspace } = await open(nextDbName());
+      await workspace.ready;
+
+      // 真实构造器经 EntityManager 代理派发 NEW；它是 storage 的 `StorageFileMeta` 每上传一次都会走的那条路。
+      const note = new Note({ title: '不写变更日志' });
+      await settle();
+      await workspace.flush();
+
+      expect(workspace.list().filter(entry => entry.entity === 'Note')).toEqual([]);
+      expect((await readStore(idbName)).has(`ws_it:Note:${note.id}`)).toBe(false);
     });
 
     it('discard 会把草稿从内存与真实 IndexedDB 一起删掉', async () => {
@@ -707,6 +749,91 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       await closeHarness(harness);
 
       await expect(pending).rejects.toThrow(/released with unflushed changes/);
+    });
+  });
+  // ------------------------------------------------- 检出位分区（US-314 B2.4）
+
+  describe('换挂之后草稿按检出位分区（真实 mountWorktreeTableSet）', () => {
+    /**
+     * 开一套可写检出位的表：插一条分支、写上这套表的持有键，建表并播种；与工作树插件 `checkouts.add()` 落库的形状相同。
+     * 不经工作树插件：本包不依赖它，换挂只需要核心与适配器。
+     */
+    const openCheckout = async (harness: Harness, tableSet: WorktreeTableSet): Promise<void> => {
+      await harness.adapter.transaction(async (executor: TransactionExecutor) => {
+        const branch = harness.rxdb.entityManager.createEntityRef(RxDBBranch, {
+          id: 'ws-feature',
+          activated: false,
+          activeKey: tableSet.holderKey,
+          fromChangeId: null,
+          local: true,
+          remote: false
+        } as never);
+        await executor.getRepository(RxDBBranch).create(branch);
+        await harness.adapter.createWorktreeTableSet(executor, tableSet, {
+          branchId: 'ws-feature',
+          actions: { inserts: new Map(), updates: new Map(), deletes: new Map() }
+        });
+      }, false);
+    };
+
+    const titles = (workspace: RxDBPluginWorkspace) => drafts(workspace).map(entry => entry.data['title']);
+
+    it('检出位上的草稿存在带后缀的键下；挂回主检出位看不到它，再挂上原样恢复', async () => {
+      const harness = await open(nextDbName());
+      const { Draft, idbName, rxdb, workspace } = harness;
+      await workspace.ready;
+      const tableSet = WorktreeTableSet.of('wt_ws', [Draft]);
+      await openCheckout(harness, tableSet);
+
+      const mainDraft = new Draft({ title: '主检出位上的' });
+      await settle();
+      await workspace.flush();
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      await workspace.ready;
+      expect(titles(workspace)).toEqual([]);
+
+      const checkoutDraft = new Draft({ title: '检出位里的' });
+      await settle();
+      await workspace.flush();
+      expect(titles(workspace)).toEqual(['检出位里的']);
+      const stored = await readStore(idbName);
+      expect(stored.has(cacheIdOf(mainDraft))).toBe(true);
+      expect(stored.has(`wt_ws:${cacheIdOf(checkoutDraft)}`)).toBe(true);
+      expect(stored.has(cacheIdOf(checkoutDraft))).toBe(false);
+
+      await rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+      await workspace.ready;
+      expect(titles(workspace)).toEqual(['主检出位上的']);
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      await workspace.ready;
+      expect(titles(workspace)).toEqual(['检出位里的']);
+    });
+
+    it('换挂之前的实体对象存不进另一套表；在挂着的那套表上恢复出来的草稿照常存', async () => {
+      const harness = await open(nextDbName());
+      const { Draft, rxdb, workspace } = harness;
+      await workspace.ready;
+      const tableSet = WorktreeTableSet.of('wt_ws', [Draft]);
+      await openCheckout(harness, tableSet);
+      const stale = new Draft({ title: '主检出位上新建的' });
+      await settle();
+      await workspace.flush();
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      await workspace.ready;
+      await expect((stale as unknown as { save(): Promise<unknown> }).save()).rejects.toBeInstanceOf(
+        WorktreeTableSetMismatchError
+      );
+
+      await rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+      await workspace.ready;
+      const [restored] = drafts(workspace);
+      const draft = rxdb.entityManager.getEntityRef(Draft, restored.id) as unknown as { save(): Promise<unknown> };
+      await draft.save();
+      // 草稿由适配器按变更行异步派出的 CREATE 收尾
+      await expect.poll(() => titles(workspace)).toEqual([]);
     });
   });
 });

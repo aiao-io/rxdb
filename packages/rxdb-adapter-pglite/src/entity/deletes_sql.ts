@@ -1,5 +1,6 @@
-import type { EntityMetadata, RxDBEntityId } from '@aiao/rxdb';
-import { chunkByPgParamLimit, getTableNameByMetadata, quoteIdentifier } from '../pglite.utils.js';
+import type { EntityMetadata, RxDBEntityId, WorktreeTableSet } from '@aiao/rxdb';
+import { chunkByPgParamLimit, quoteIdentifier } from '../pglite.utils.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 interface DeleteStatement {
   sql: string;
@@ -13,8 +14,12 @@ interface DeleteStatement {
  * @param entities - 要删除的实体实例数组
  * @returns 可依次执行的 SQL 语句
  */
-export default (metadata: EntityMetadata, entities: Array<{ id: RxDBEntityId }>): DeleteStatement[] => {
-  const tableName = getTableNameByMetadata(metadata);
+export default (
+  metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
+  entities: Array<{ id: RxDBEntityId }>
+): DeleteStatement[] => {
+  const tableName = getTableNameByMetadata(metadata, tableSet);
   const idColumn = quoteIdentifier(metadata.propertyMap.get('id')?.columnName ?? 'id');
   return chunkByPgParamLimit(entities, 1).map(chunk => {
     const params = chunk.map(entity => entity.id);

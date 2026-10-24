@@ -21,6 +21,7 @@ function createManagerDouble() {
   return {
     syncing: vi.fn(<T>(fn: () => Promise<T>) => fn()),
     clearUndoHistory: vi.fn<() => void>(),
+    captureUndoHistory: vi.fn<(branchId: string) => () => void>(() => vi.fn<() => void>()),
     beginPullableSettlement: vi.fn<() => number>(() => 11),
     settlePullableCount: vi.fn<(token: number, settlement: Settlement) => void>(),
     reconcilePullableCount: vi.fn<(token: number, count: number) => void>(),
@@ -90,6 +91,21 @@ describe('createSyncHistoryBridge', () => {
 
     expect(first.clearUndoHistory).toHaveBeenCalledOnce();
     expect(second.clearUndoHistory).toHaveBeenCalledOnce();
+  });
+
+  it('来源会话回调在捕获时绑定管理器，重连后不转给新管理器', () => {
+    const first = createManagerDouble();
+    const second = createManagerDouble();
+    const invalidate = vi.fn();
+    first.captureUndoHistory.mockReturnValue(invalidate);
+    let current = first;
+    const bridge = createSyncHistoryBridge(() => current as unknown as HistoryManager, new PushInFlightRegistry());
+    const callback = bridge.captureUndoHistory('main');
+    current = second;
+    callback();
+    expect(first.captureUndoHistory).toHaveBeenCalledWith('main');
+    expect(invalidate).toHaveBeenCalledOnce();
+    expect(second.captureUndoHistory).not.toHaveBeenCalled();
   });
 
   // RXD-034：分页 / 逐仓 / 有失败的 pull 只处理了一部分，判成完整会让全局计数归零，

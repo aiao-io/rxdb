@@ -25,6 +25,51 @@ const terminateWorker = (rxdb: RxDB): void => {
   worker.terminate();
 };
 
+/** 非持久档的连法：主线程内存库，引擎的 stderr 静音。 */
+const memoryAdapterOptions = (): SqliteaiOptions => ({ printErr: silentPrintErr });
+
+/** 快照库用的 Worker：断开不会替调用方终止它们，测试文件在用例之间统一收掉。 */
+const worktreeWorkers = new Set<Worker>();
+
+/**
+ * 给只读检出位的快照实例造适配器（US-313）：与本工厂非持久档同一份连法，每个实例一个独立的内存库。
+ *
+ * @param db - 快照实例
+ * @returns 快照库的适配器
+ *
+ * @remarks
+ * 内存档：快照的读写与封印跟存储档位无关。持久档要一个快照库一个专用 Worker（OPFS 只在 Worker 里开），
+ * 整套检出位用例都那么建的话，浏览器内存涨到约四倍，见 {@link createSqliteaiPersistentWorktreeAdapter}。
+ */
+export const createSqliteaiWorktreeAdapter = (db: RxDB): RxDBAdapterSqliteai =>
+  new RxDBAdapterSqliteai(db, memoryAdapterOptions());
+
+/**
+ * 给只读检出位的快照实例造持久档适配器（US-313）：与本工厂持久档同一份连法（专用 Worker 里的 OPFS），
+ * 每个快照实例一个 Worker、一个库文件。
+ *
+ * @param db - 快照实例
+ * @returns 快照库的适配器
+ *
+ * @remarks
+ * 只给「持久归属的检出位放开之后原样再打开」那条用例用（`createDatabaseWithPersistentSnapshots`）。
+ * Worker 由 {@link terminateSqliteaiWorktreeWorkers} 收掉。
+ */
+export const createSqliteaiPersistentWorktreeAdapter = (db: RxDB): RxDBAdapterSqliteai => {
+  const worker = new Worker(new URL('./sqliteai-test.worker', import.meta.url), {
+    type: 'module',
+    name: `${db.config.dbName}-worktree-worker`
+  });
+  worktreeWorkers.add(worker);
+  return new RxDBAdapterSqliteai(db, { opfs: true, opfsFallback: 'throw', worker: true, workerInstance: worker });
+};
+
+/** 终止 {@link createSqliteaiPersistentWorktreeAdapter} 建过的全部 Worker；在快照实例都断开之后调用。 */
+export const terminateSqliteaiWorktreeWorkers = (): void => {
+  for (const worker of worktreeWorkers) worker.terminate();
+  worktreeWorkers.clear();
+};
+
 export const sqliteaiFactory: AdapterFactory = {
   name: 'sqliteai',
 
@@ -83,7 +128,7 @@ async function createSqliteaiAdapter(options?: Record<string, unknown>): Promise
       countingAdapter = new QueryCountingSqliteaiAdapter(db, {
         ...(worker ?
           { opfs: true, opfsFallback: 'throw' as const, worker: true, workerInstance: worker }
-        : { printErr: silentPrintErr }),
+        : memoryAdapterOptions()),
         ...adapterOptions
       });
       return countingAdapter;

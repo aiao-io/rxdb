@@ -19,7 +19,8 @@
  *    若经 `localAdapterSync` 去拿域，就会给这些调用方凭空加一个「未连接」异常。
  *
  * 用 stub 而不是真 `RxDB`：`EntityManager` 的构造函数只调 `rxdb.repository()`，
- * `notifyExternalUpdate()` 只用 `rxdb.dispatchEvent()` 与 `rxdb.workingTreeCaptureHook`。
+ * `notifyExternalUpdate()` 只用 `rxdb.dispatchEvent()`、`rxdb.workingTreeCaptureHook` 与给事件打表集标记的
+ * `rxdb.worktreeTableSet`（US-314 B2.3）。
  * 真库要先备适配器、建表、连接，那一串与本文件要钉的行为无关，还会把第 3 条里
  * 「未连接时不该抛」变成不可能构造的场景。
  */
@@ -32,6 +33,7 @@ import { Entity } from '../../entity/entity.decorator.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
 import type { RxDBEvent } from '../../rxdb-events.js';
 import type { RxDB } from '../../RxDB.js';
+import { WorktreeTableSet } from '../../system/worktree-table-set.js';
 
 /** 业务实体：钩子在场时，它的身份必须被原样交到转交门上。 */
 @Entity({
@@ -104,6 +106,7 @@ const managerWith = (
   const stub = {
     repository: () => stub,
     workingTreeCaptureHook: hook,
+    worktreeTableSet: WorktreeTableSet.MAIN,
     dispatchEvent: (event: RxDBEvent) => void events.push(event)
   };
   return { manager: new EntityManager(stub as unknown as RxDB), events, handoffs };
@@ -155,6 +158,7 @@ describe('notifyExternalUpdate() 经转交门 2 出去（写入口语义矩阵�
       get workingTreeCaptureHook(): WorkingTreeCaptureHook | undefined {
         return undefined;
       },
+      worktreeTableSet: WorktreeTableSet.MAIN,
       dispatchEvent: (event: RxDBEvent) => void events.push(event)
     };
     const manager = new EntityManager(stub as unknown as RxDB);

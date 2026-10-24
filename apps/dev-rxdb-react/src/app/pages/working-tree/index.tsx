@@ -1,4 +1,5 @@
-import { RxDBBranch } from '@aiao/rxdb';
+import { RxDBBranch, WorktreeTableSet, type MergeStrategy } from '@aiao/rxdb';
+import type { MergePreview } from '@aiao/rxdb-plugin-history';
 import type {
   CommitLogEntry,
   CommitResult,
@@ -6,11 +7,13 @@ import type {
   WorkingTreeCredentials,
   WorkingTreeDiffEntry,
   WorkingTreeRestoreFailureReason,
-  WorkingTreeRestoreSessionInfo
+  WorkingTreeRestoreSessionInfo,
+  Worktree
 } from '@aiao/rxdb-plugin-working-tree';
 import { CommitValidationError, WorkingTreeDirtyError } from '@aiao/rxdb-plugin-working-tree';
-import { useWorkingTree } from '@aiao/rxdb-plugin-working-tree-react';
+import { useWorkingTree, useWorktrees } from '@aiao/rxdb-plugin-working-tree-react';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
+import clsx from 'clsx';
 import { Check, ChevronDown, FolderGit2, GitBranch, RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -24,13 +27,20 @@ import {
   type WorkingTreeContextMenuItem,
   type WorkingTreeContextMenuState
 } from './components/ContextMenu';
+import { WorkingTreeCreateBranchDialog, type CreateBranchDialogState } from './components/CreateBranchDialog';
 import { WorkingTreeDiffViewer } from './components/DiffViewer';
+import { WorkingTreeHistoryCompare, type HistoryCompareState } from './components/HistoryCompare';
 import { WorkingTreeHistoryList } from './components/HistoryList';
 import { WorkingTreeMergeDialog, type MergeDialogState } from './components/MergeDialog';
+import { WorkingTreeSwitchBranchDialog, type SwitchBranchDialogState } from './components/SwitchBranchDialog';
+import { WorkingTreeDeleteDialog, WorkingTreeNewDialog, WorkingTreeRenameDialog } from './components/WorktreeDialogs';
+import { WorkingTreeWorktreeMenu } from './components/WorktreeMenu';
+import type { BranchDiffLoad } from './utils/branch-diff';
 import { diffEntryKey } from './utils/diff-format';
 import { startDragResize } from './utils/drag';
 import { gdEntryPath } from './utils/gd';
 import { useKeepLastGood } from './utils/keep-last-good';
+import { currentBranchOf, WorktreeCreation } from './utils/worktrees';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -57,9 +67,6 @@ const COMMIT_REJECTION_TEXT: Record<CommitValidationReason, string> = {
   empty_commit: 'The working tree has no changes to commit.',
   user_authored_system_commit: 'System baseline commits cannot carry user information.'
 };
-
-/** `requireClean` 切换被拒的提示；GitHub Desktop 会在切换时拒绝脏工作树，同款语义。 */
-const DIRTY_SWITCH_TEXT = 'The working tree has uncommitted changes. Commit or discard them before switching branches.';
 
 /** 右键菜单目标：分发动作时不再靠菜单文案反查（与 Angular 参考实现同一判别位）。 */
 type WorkingTreeContextMenuTarget =
@@ -89,6 +96,8 @@ type WorkingTreeContextMenuTarget =
  */
 export default function WorkingTreePage(): React.JSX.Element {
   const tree = useWorkingTree();
+  /** 检出位：挂着哪一套（`mounted`）决定当前分支，下拉与对话框经它开、挂、删（US-314 C2） */
+  const worktrees = useWorktrees();
   const rxdb = useRxDB();
   const branchesResource = useFindAll(RxDBBranch, {
     where: { combinator: 'and', rules: [] },
@@ -103,12 +112,44 @@ export default function WorkingTreePage(): React.JSX.Element {
   /** 提交草稿拆成摘要与描述两个框（GitHub Desktop 的 Summary / Description）。 */
   const [commitSummary, setCommitSummary] = useState('');
   const [commitDescription, setCommitDescription] = useState('');
-  // 分支菜单：开合、创建弹层、名字与错误都由页面持有，组件只做展示与转发
+  /** 分支下拉的开合；由页面持有，组件只做展示与转发 */
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
-  const [createPopoverOpen, setCreatePopoverOpen] = useState(false);
-  const [newBranchName, setNewBranchName] = useState('');
-  const [branchError, setBranchError] = useState<string | null>(null);
+  /** Worktree 下拉与三个可写检出位对话框（US-314 C2.2）。 */
+  const [worktreeMenuOpen, setWorktreeMenuOpen] = useState(false);
+  const [newWorktreeOpen, setNewWorktreeOpen] = useState(false);
+  const [newWorktreeName, setNewWorktreeName] = useState('');
+  const [newWorktreeBranch, setNewWorktreeBranch] = useState('');
+  const [newWorktreeError, setNewWorktreeError] = useState<string | null>(null);
+  const [creatingWorktree, setCreatingWorktree] = useState(false);
+  const worktreeCreation = useRef(new WorktreeCreation());
+  const worktreeOperationBusy = useRef(false);
+  const pendingWrites = useRef(0);
+  const [pendingWriteCount, setPendingWriteCount] = useState(0);
+  const [mountingWorktree, setMountingWorktree] = useState(false);
+  const [renameWorktree, setRenameWorktree] = useState<Worktree | null>(null);
+  const [renameWorktreeName, setRenameWorktreeName] = useState('');
+  const [renameWorktreeError, setRenameWorktreeError] = useState<string | null>(null);
+  const [renamingWorktree, setRenamingWorktree] = useState(false);
+  const [deleteWorktree, setDeleteWorktree] = useState<Worktree | null>(null);
+  const [deleteWorktreeError, setDeleteWorktreeError] = useState<string | null>(null);
+  const [deletingWorktree, setDeletingWorktree] = useState(false);
+  /** 「Create a branch」对话框（History 右键与分支下拉的 New branch 共用）：状态、名字、报错与进行中 */
+  const [createBranchDialog, setCreateBranchDialog] = useState<CreateBranchDialogState | null>(null);
+  const [createBranchName, setCreateBranchName] = useState('');
+  const [createBranchError, setCreateBranchError] = useState<string | null>(null);
+  const [creatingBranch, setCreatingBranch] = useState(false);
   const [mergeDialog, setMergeDialog] = useState<MergeDialogState | null>(null);
+  const [mergePreview, setMergePreview] = useState<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
+  /** History 顶部的分支对比（GitHub Desktop 的「Select branch to compare…」）；没在对比时是 `null` */
+  const [historyCompare, setHistoryCompare] = useState<HistoryCompareState | null>(null);
+  /** 带着未提交改动切分支时的「Switch branch」对话框与它的切换进行中 */
+  const [switchDialog, setSwitchDialog] = useState<SwitchBranchDialogState | null>(null);
+  const [switching, setSwitching] = useState(false);
+  /** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
+  const mergePreviewRequest = useRef(0);
+  const compareRequest = useRef(0);
+  const comparedBranchId = useRef<string | null>(null);
+  const createBranchCheckRequest = useRef(0);
   /** 应用内确认框请求（替代原生 confirm）。 */
   const [confirm, setConfirm] = useState<
     { kind: 'discard'; message: string } | { kind: 'delete-branch'; branchId: string } | null
@@ -141,6 +182,12 @@ export default function WorkingTreePage(): React.JSX.Element {
   const mountedAt = useRef(0);
   const toastTimer = useResettableTimeout();
 
+  /** 单条 toast，3s 自动消失；新 toast 顶掉上一条。 */
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message });
+    toastTimer.schedule(() => setToast(null), 3000);
+  };
+
   const status = tree.statusState;
   const enabledState = tree.isEnabledState;
   const diffState = tree.diffState;
@@ -152,7 +199,17 @@ export default function WorkingTreePage(): React.JSX.Element {
   const displayDiffState = useKeepLastGood(diffState);
 
   // ── 派生状态 ──────────────────────────────────────────────
-  const activeBranch = branches.find(branch => branch.activated)?.id ?? '';
+  /** 当前分支：挂着那套表持有的那一条（挂在可写检出位上时它的 `activated` 是假，见 `utils/worktrees.ts`） */
+  const activeBranch = currentBranchOf(branches, worktrees.mounted);
+  const worktreeList =
+    worktrees.listState.phase === 'success' || worktrees.listState.phase === 'empty' ? worktrees.listState.value : [];
+  const linkedWorktrees = worktreeList.filter(worktree => worktree.mode === 'writable' && worktree.state === 'ready');
+  const currentLinkedWorktree =
+    linkedWorktrees.find(worktree => worktree.tableSetSuffix === worktrees.mounted.suffix) ?? null;
+  const workingTreeDirty =
+    (displayStatusState.phase === 'success' || displayStatusState.phase === 'empty') && !displayStatusState.value.clean;
+  /** 当前分支以外的分支：合并对话框的来源列表与 History 的对比下拉共用；被别的检出位持有的照样能合进来、拿来对比 */
+  const otherBranchIds = branches.filter(branch => branch.id !== activeBranch).map(branch => branch.id);
 
   /** 「更改」标签上的条数徽章；status 里那份 entryCount 与 diff 条目数同源。 */
   const changesCount =
@@ -205,6 +262,7 @@ export default function WorkingTreePage(): React.JSX.Element {
       })
       .catch(() => undefined);
     void tree.status().catch(() => undefined);
+    void worktrees.list().catch(() => undefined);
     // 入口对象每次 render 都是新的；这一轮只想在挂载时跑一次。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -285,6 +343,145 @@ export default function WorkingTreePage(): React.JSX.Element {
     }
   };
 
+  // ── 可写检出位（US-314 C2.2）──────────────────────────────
+
+  const worktreeErrorMessage = (error: unknown, fallback: string): string =>
+    error instanceof Error ? error.message : fallback;
+
+  const openNewWorktree = (branchId = ''): void => {
+    setWorktreeMenuOpen(false);
+    setNewWorktreeName('');
+    setNewWorktreeError(null);
+    setNewWorktreeBranch(branchId);
+    setNewWorktreeOpen(true);
+  };
+
+  const closeNewWorktree = (): void => {
+    if (creatingWorktree) return;
+    setNewWorktreeOpen(false);
+    setNewWorktreeError(null);
+  };
+
+  const createWorktree = async (): Promise<void> => {
+    const name = newWorktreeName.trim();
+    if (pendingWrites.current > 0 || worktreeOperationBusy.current || name === '') return;
+    worktreeOperationBusy.current = true;
+    setCreatingWorktree(true);
+    setNewWorktreeError(null);
+    try {
+      await worktreeCreation.current.run(
+        { name, branchId: newWorktreeBranch },
+        {
+          createBranch: branchId => rxdb.versionManager.createBranch(branchId),
+          add: (branchId, options) => worktrees.add(branchId, options),
+          mount: id => worktrees.mount(id)
+        }
+      );
+      clearWorktreeSelection();
+      showToast('success', `Opened worktree "${name}".`);
+      await refreshStatus();
+      await readCommits();
+      setNewWorktreeOpen(false);
+    } catch (error: unknown) {
+      setNewWorktreeError(worktreeErrorMessage(error, 'Could not create the worktree.'));
+    } finally {
+      setCreatingWorktree(false);
+      worktreeOperationBusy.current = false;
+    }
+  };
+
+  const openRenameWorktree = (worktree: Worktree): void => {
+    setWorktreeMenuOpen(false);
+    setRenameWorktree(worktree);
+    setRenameWorktreeName(worktree.name ?? worktree.branchId);
+    setRenameWorktreeError(null);
+  };
+
+  const closeRenameWorktree = (): void => {
+    if (renamingWorktree) return;
+    setRenameWorktree(null);
+    setRenameWorktreeError(null);
+  };
+
+  const renameLinkedWorktree = async (): Promise<void> => {
+    const target = renameWorktree;
+    const name = renameWorktreeName.trim();
+    if (target === null || pendingWrites.current > 0 || worktreeOperationBusy.current || name === '') return;
+    worktreeOperationBusy.current = true;
+    setRenamingWorktree(true);
+    setRenameWorktreeError(null);
+    try {
+      await worktrees.rename(target.id, name);
+      setRenameWorktree(null);
+      showToast('success', `Renamed worktree to "${name}".`);
+    } catch (error: unknown) {
+      setRenameWorktreeError(worktreeErrorMessage(error, 'Could not rename the worktree.'));
+    } finally {
+      setRenamingWorktree(false);
+      worktreeOperationBusy.current = false;
+    }
+  };
+
+  const openDeleteWorktree = (worktree: Worktree): void => {
+    setWorktreeMenuOpen(false);
+    setDeleteWorktree(worktree);
+    setDeleteWorktreeError(null);
+  };
+
+  const closeDeleteWorktree = (): void => {
+    if (deletingWorktree) return;
+    setDeleteWorktree(null);
+    setDeleteWorktreeError(null);
+  };
+
+  const deleteLinkedWorktree = async (): Promise<void> => {
+    const target = deleteWorktree;
+    if (target === null || pendingWrites.current > 0 || worktreeOperationBusy.current) return;
+    worktreeOperationBusy.current = true;
+    setDeletingWorktree(true);
+    setDeleteWorktreeError(null);
+    try {
+      await worktrees.remove(target.id);
+      clearWorktreeSelection();
+      showToast('success', `Deleted worktree "${target.name ?? target.branchId}".`);
+      await refreshStatus();
+      await readCommits();
+      setDeleteWorktree(null);
+    } catch (error: unknown) {
+      setDeleteWorktreeError(worktreeErrorMessage(error, 'Could not delete the worktree.'));
+    } finally {
+      setDeletingWorktree(false);
+      worktreeOperationBusy.current = false;
+    }
+  };
+
+  const mountWorktree = async (id: string | null): Promise<void> => {
+    if (pendingWrites.current > 0 || worktreeOperationBusy.current) return;
+    worktreeOperationBusy.current = true;
+    setMountingWorktree(true);
+    setWorktreeMenuOpen(false);
+    try {
+      if (id === null) await worktrees.mountMain();
+      else await worktrees.mount(id);
+      clearWorktreeSelection();
+      await refreshStatus();
+      await readCommits();
+      showToast('success', id === null ? 'Switched to the main worktree.' : 'Switched worktree.');
+    } catch (error: unknown) {
+      showToast('error', worktreeErrorMessage(error, 'Could not switch worktree.'));
+    } finally {
+      worktreeOperationBusy.current = false;
+      setMountingWorktree(false);
+    }
+  };
+
+  const clearWorktreeSelection = (): void => {
+    clearCompare();
+    setSelectedCommitId(null);
+    setSelectedDiffKey(null);
+    setRestoreSession(null);
+  };
+
   // ── 右键菜单 ──────────────────────────────────────────────
 
   /**
@@ -319,25 +516,32 @@ export default function WorkingTreePage(): React.JSX.Element {
     });
   };
 
-  /** 分支行上的右键：切换 / 合并 / 删除在前，分隔线后是复制分支名（GitHub Desktop 的分支右键菜单）。 */
+  /**
+   * 分支行上的右键（GitHub Desktop 的分支右键菜单，`branch-list-item-context-menu.tsx`）：复制分支名，分隔线后是删除。
+   * 点行本身就是切换；合并在分支下拉底部，对比在 History 顶部。被持有的分支（当前分支、主检出位或别的检出位检出着的）删不掉，
+   * 没有删除项。
+   */
   const openBranchContextMenu = (request: { target: RxDBBranch; event: React.MouseEvent }) => {
     request.event.preventDefault();
     const branch = request.target;
-    const items: WorkingTreeContextMenuItem[] = [];
-    if (!branch.activated) {
+    const items: WorkingTreeContextMenuItem[] = [
+      { id: 'branch-copy', label: 'Copy branch name', testId: 'wt-branch-menu-copy' }
+    ];
+    if (branch.activeKey === null || branch.activeKey === undefined) {
       items.push(
-        { id: 'branch-switch', label: 'Switch', testId: 'wt-branch-menu-switch' },
-        { id: 'branch-merge', label: `Merge into ${activeBranch}`, testId: 'wt-branch-menu-merge' },
-        { id: 'branch-delete', label: 'Delete', danger: true, testId: 'wt-branch-menu-delete' },
-        { id: 'sep-1', label: '', separator: true }
+        { id: 'branch-worktree', label: 'Checkout in new worktree…', testId: 'wt-branch-menu-worktree' },
+        { id: 'sep-1', label: '', separator: true },
+        { id: 'branch-delete', label: 'Delete…', danger: true, testId: 'wt-branch-menu-delete' }
       );
     }
-    items.push({ id: 'branch-copy', label: 'Copy branch name', testId: 'wt-branch-menu-copy' });
     setContextMenuTarget({ kind: 'branch', branchId: branch.id });
     setContextMenu({ x: request.event.clientX, y: request.event.clientY, items });
   };
 
-  /** 历史行上的右键：动作（恢复）在前，分隔线后是复制提交 id（GitHub Desktop 的菜单顺序）。 */
+  /**
+   * 历史行上的右键，照 GitHub Desktop 的分组：恢复在前，分隔线后是从这个提交建分支，再一条分隔线后是复制提交 id。
+   * 基线节点没有可恢复的内容，没有第一组；从它建分支照样可以（GitHub Desktop 这一项始终可点）。
+   */
   const openCommitContextMenu = (request: WorkingTreeContextMenuRequest<CommitLogEntry>) => {
     request.event.preventDefault();
     const items: WorkingTreeContextMenuItem[] = [];
@@ -347,7 +551,11 @@ export default function WorkingTreePage(): React.JSX.Element {
         { id: 'sep-1', label: '', separator: true }
       );
     }
-    items.push({ id: 'copy-commit', label: 'Copy Commit ID' });
+    items.push(
+      { id: 'create-branch', label: 'Create branch from commit', testId: 'wt-commit-create-branch' },
+      { id: 'sep-2', label: '', separator: true },
+      { id: 'copy-commit', label: 'Copy Commit ID' }
+    );
     setContextMenuTarget({ kind: 'commit', commitId: request.target.commitId });
     setContextMenu({ x: request.event.clientX, y: request.event.clientY, items });
   };
@@ -375,10 +583,9 @@ export default function WorkingTreePage(): React.JSX.Element {
       return;
     }
     if (target.kind === 'branch') {
-      if (item.id === 'branch-switch') {
-        void switchBranch(target.branchId);
-      } else if (item.id === 'branch-merge') {
-        openMergeDialog(target.branchId);
+      if (item.id === 'branch-worktree') {
+        setBranchMenuOpen(false);
+        openNewWorktree(target.branchId);
       } else if (item.id === 'branch-delete') {
         requestRemoveBranch(target.branchId);
       } else if (item.id === 'branch-copy') {
@@ -386,13 +593,16 @@ export default function WorkingTreePage(): React.JSX.Element {
       }
       return;
     }
+    if (target.kind !== 'commit') return;
+    // 右键不选中行（GitHub Desktop 同款），按右键目标 id 从已读历史里找回条目。
+    const commits = tree.listCommitsState;
+    if (commits.phase !== 'success' && commits.phase !== 'empty') return;
+    const entry = commits.value.entries.find(candidate => candidate.commitId === target.commitId) ?? null;
+    if (entry === null) return;
     if (item.id === 'restore') {
-      // 右键不选中行（GitHub Desktop 同款），按右键目标 id 从已读历史里找回条目。
-      if (target.kind !== 'commit') return;
-      const commits = tree.listCommitsState;
-      if (commits.phase !== 'success' && commits.phase !== 'empty') return;
-      const entry = commits.value.entries.find(candidate => candidate.commitId === target.commitId) ?? null;
-      if (entry !== null) void restoreEntry(entry);
+      void restoreEntry(entry);
+    } else if (item.id === 'create-branch') {
+      void openCreateBranch(entry, 'commit');
     }
   };
 
@@ -458,14 +668,22 @@ export default function WorkingTreePage(): React.JSX.Element {
   // `enable()` 自己会重读一次 status，但**不会**重读 isEnabled ——
   // 不补这一句，成功启用之后「提交能力」那行仍然写着「未启用」。
   const runEnable = async (): Promise<void> => {
-    await tree.enable().catch(() => undefined);
-    await tree.isEnabled().catch(() => undefined);
-    await refreshStatus();
-    await readCommits();
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
+    try {
+      await tree.enable().catch(() => undefined);
+      await tree.isEnabled().catch(() => undefined);
+      await refreshStatus();
+      await readCommits();
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
+    }
   };
 
   /**
-   * 重读 status，并顺带刷新紧随其后的两个读数。
+   * 重读工作树状态、差异、恢复会话与当前分支对比。
    *
    * diff 跟着重读：面板没有变更流（见 `useWorkingTree` 的 TSDoc），本页发起的写
    * （写 Todo、提交、丢弃、合并、恢复）之后不补这一句，「未提交改动」区就会停在旧内容。
@@ -480,6 +698,8 @@ export default function WorkingTreePage(): React.JSX.Element {
     } else {
       setRestoreSession(null);
     }
+    const branchId = comparedBranchId.current;
+    if (branchId !== null) compareWith(branchId);
   };
 
   const readCommits = async (): Promise<void> => {
@@ -508,41 +728,49 @@ export default function WorkingTreePage(): React.JSX.Element {
   };
 
   const runCommit = async (): Promise<void> => {
-    const credentials = await freshCredentials();
-    if (credentials === null) {
-      setNotice('Cannot read the working tree — refresh status before committing.');
-      return;
-    }
-    setNotice(null);
-    const summary = commitSummary.trim();
-    const description = commitDescription.trim();
-    const message = description ? `${summary}\n\n${description}` : summary;
-    // GitHub Desktop 的提交失败是对话框，demo 的对应物是 toast：校验类拒绝
-    // （空提交 / 空消息）与后端 IO 失败都走这一条，不再有可见的内联错误行。
-    let result: CommitResult | null;
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
     try {
-      result = await tree.commit(message, {
-        ...credentials,
-        authorId: AUTHOR_ID,
-        operationId: crypto.randomUUID()
-      });
-    } catch (cause: unknown) {
-      if (cause instanceof CommitValidationError) {
-        showToast('error', COMMIT_REJECTION_TEXT[cause.reason]);
-      } else {
-        showToast('error', cause instanceof Error ? cause.message : 'Commit failed.');
+      const credentials = await freshCredentials();
+      if (credentials === null) {
+        setNotice('Cannot read the working tree — refresh status before committing.');
+        return;
       }
-      result = null;
+      setNotice(null);
+      const summary = commitSummary.trim();
+      const description = commitDescription.trim();
+      const message = description ? `${summary}\n\n${description}` : summary;
+      // GitHub Desktop 的提交失败是对话框，demo 的对应物是 toast：校验类拒绝
+      // （空提交 / 空消息）与后端 IO 失败都走这一条，不再有可见的内联错误行。
+      let result: CommitResult | null;
+      try {
+        result = await tree.commit(message, {
+          ...credentials,
+          authorId: AUTHOR_ID,
+          operationId: crypto.randomUUID()
+        });
+      } catch (cause: unknown) {
+        if (cause instanceof CommitValidationError) {
+          showToast('error', COMMIT_REJECTION_TEXT[cause.reason]);
+        } else {
+          showToast('error', cause instanceof Error ? cause.message : 'Commit failed.');
+        }
+        result = null;
+      }
+      if (result !== null && !result.ok) {
+        showToast('error', 'Concurrent conflict: the working tree changed. Retry.');
+      }
+      if (result?.ok) {
+        setCommitSummary('');
+        setCommitDescription('');
+      }
+      await refreshStatus();
+      await readCommits();
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
-    if (result !== null && !result.ok) {
-      showToast('error', 'Concurrent conflict: the working tree changed. Retry.');
-    }
-    if (result?.ok) {
-      setCommitSummary('');
-      setCommitDescription('');
-    }
-    await refreshStatus();
-    await readCommits();
   };
 
   /**
@@ -563,14 +791,22 @@ export default function WorkingTreePage(): React.JSX.Element {
   };
 
   const runDiscard = async (): Promise<void> => {
-    const credentials = await freshCredentials();
-    if (credentials === null) {
-      setNotice('Cannot read the working tree — refresh status before discarding.');
-      return;
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
+    try {
+      const credentials = await freshCredentials();
+      if (credentials === null) {
+        setNotice('Cannot read the working tree — refresh status before discarding.');
+        return;
+      }
+      setNotice(null);
+      await tree.discard(credentials).catch(() => undefined);
+      await refreshStatus();
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
-    setNotice(null);
-    await tree.discard(credentials).catch(() => undefined);
-    await refreshStatus();
   };
 
   /**
@@ -580,19 +816,27 @@ export default function WorkingTreePage(): React.JSX.Element {
    * 因此这里刷新 status 与 diff、不刷历史：历史在 commit 之后才会多一行。
    */
   const restoreEntry = async (entry: CommitLogEntry): Promise<void> => {
-    const credentials = await freshCredentials();
-    if (credentials === null) {
-      setNotice('Cannot read the working tree — refresh status before restoring.');
-      return;
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
+    try {
+      const credentials = await freshCredentials();
+      if (credentials === null) {
+        setNotice('Cannot read the working tree — refresh status before restoring.');
+        return;
+      }
+      setNotice(null);
+      // restore 的入参只有三个捕获位，没有第四个（FR-014 / FR-034：脏与冲突的答案分别是
+      // 「拒绝」与「两份都留着」，没有入参可承载）——不带 authorId / operationId。
+      const result = await tree.restore({ commitId: entry.commitId }, credentials).catch(() => null);
+      if (result !== null && !result.ok) {
+        showToast('error', RESTORE_REJECTION_TEXT[result.reason] ?? `Restore rejected: ${result.reason}`);
+      }
+      await refreshStatus();
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
-    setNotice(null);
-    // restore 的入参只有三个捕获位，没有第四个（FR-014 / FR-034：脏与冲突的答案分别是
-    // 「拒绝」与「两份都留着」，没有入参可承载）——不带 authorId / operationId。
-    const result = await tree.restore({ commitId: entry.commitId }, credentials).catch(() => null);
-    if (result !== null && !result.ok) {
-      showToast('error', RESTORE_REJECTION_TEXT[result.reason] ?? `Restore rejected: ${result.reason}`);
-    }
-    await refreshStatus();
   };
 
   // ── 标签页与选中 ──────────────────────────────────────────
@@ -617,39 +861,157 @@ export default function WorkingTreePage(): React.JSX.Element {
 
   // ── 分支操作 ──────────────────────────────────────────────
 
-  const createBranch = async (name: string) => {
+  /**
+   * 分支下拉的「New branch」：从当前分支的 HEAD 建（GitHub Desktop 的新分支同样从当前提交出发）。
+   *
+   * 不用 `createBranch(name)`：它把当前分支的未提交改动复制一份给新分支，两边都留着——GitHub Desktop 的两个去处
+   * （留在原分支 / 带去新分支）都不是这样。从 HEAD 建出来的分支是干净的，改动留在原分支上，切过去时
+   * 「Switch branch」问的正是「Leave my changes」。HEAD 直接问门面取：经工作树入口取会把 History 的那一格换成一条。
+   */
+  const openNewBranch = async (): Promise<void> => {
     try {
-      await rxdb.versionManager.createBranch(name);
-      setCreatePopoverOpen(false);
-      setNewBranchName('');
-      showToast('success', `Branch "${name}" created.`);
+      const { entries } = await rxdb.workingTree.listCommits({ limit: 1 });
+      const head = entries[0];
+      if (head === undefined) {
+        showToast('error', `${activeBranch} has no commits to base a branch on yet.`);
+        return;
+      }
+      await openCreateBranch(head, 'branch');
     } catch (e: unknown) {
-      setBranchError(e instanceof Error ? e.message : '创建失败');
+      showToast('error', e instanceof Error ? e.message : 'Could not read the current commit.');
     }
   };
 
   /**
-   * 切换分支，带 `requireClean`：工作树非空时被 `WorkingTreeDirtyError` 拒掉。
+   * 打开「Create a branch」：先摆出对话框，再问这个提交建不建得了分支。
+   * 预检带请求代号：对话框关掉或重开之后，迟到的结果——无论成败——都不落进新状态。
+   */
+  const openCreateBranch = async (entry: CommitLogEntry, from: CreateBranchDialogState['from']): Promise<void> => {
+    const request = ++createBranchCheckRequest.current;
+    const base = { commitId: entry.commitId, summary: entry.message.split('\n')[0] ?? '' };
+    setCreateBranchName('');
+    setCreateBranchError(null);
+    setCreateBranchDialog({ base, from, availability: 'checking' });
+    try {
+      const check = await tree.checkBranchFromCommit(base.commitId);
+      if (request !== createBranchCheckRequest.current) return;
+      setCreateBranchDialog({ base, from, availability: check.ok ? 'ok' : check.reason });
+    } catch (e: unknown) {
+      if (request !== createBranchCheckRequest.current) return;
+      closeCreateBranchDialog();
+      showToast('error', e instanceof Error ? e.message : 'Could not check this commit.');
+    }
+  };
+
+  const closeCreateBranchDialog = (): void => {
+    createBranchCheckRequest.current++;
+    setCreateBranchDialog(null);
+    setCreateBranchName('');
+    setCreateBranchError(null);
+  };
+
+  /**
+   * 「Create branch」：建好之后切过去（GitHub Desktop 建完总会检出新分支）。工作树有改动时切换被拒，
+   * 照常弹「Switch branch」；在那里取消的话分支已经建好、留在原分支上，与 GitHub Desktop 一致。
    *
-   * 不传 `requireClean` 的话切换照样发生（脏工作树按分支隔离保留，切走再切回原样还在），
-   * 但那把「先处理未提交改动」这个 git 流程里最关键的一步藏起来了——demo 要演的就是这一步。
-   * 无论成败都收起菜单：点行即切换（GitHub Desktop 同款），收起来让 toast 成为唯一的反馈。
+   * 建分支进行中对话框关不掉（见对话框组件的 `requestClose`），被拒与报错因此总是落回这一个对话框。
+   */
+  const confirmCreateBranch = async (name: string): Promise<void> => {
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
+    try {
+      const dialog = createBranchDialog;
+      if (dialog === null || creatingBranch) return;
+      setCreatingBranch(true);
+      setCreateBranchError(null);
+      try {
+        const result = await tree.createBranchFromCommit(name, dialog.base.commitId);
+        if (!result.ok) {
+          setCreateBranchDialog({ ...dialog, availability: result.reason });
+          return;
+        }
+        closeCreateBranchDialog();
+        await switchBranch(name);
+      } catch (e: unknown) {
+        setCreateBranchError(e instanceof Error ? e.message : 'Could not create the branch.');
+      } finally {
+        setCreatingBranch(false);
+      }
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
+    }
+  };
+
+  /** 切换落定之后：报一声，重读状态与历史。 */
+  const afterSwitch = async (branchId: string): Promise<void> => {
+    // 对比是拿「当前分支」比的，换了当前分支，旧结果就不对了
+    clearCompare();
+    showToast('success', `Switched to branch "${branchId}".`);
+    await refreshStatus();
+    await readCommits();
+  };
+
+  /**
+   * 切换分支（GitHub Desktop 的点行即切）：先带 `requireClean` 切；工作树有未提交改动时被 `WorkingTreeDirtyError`
+   * 拒掉，这时弹「Switch branch」对话框问改动怎么办，确认见 `confirmSwitchLeavingChanges`。
+   *
+   * 不先单独查一次工作树：查完到切之间又有了改动，那次切换照样会被拒，对话框照样弹出来。
+   * 无论成败都收起菜单，结果由 toast 或对话框给出。
    */
   const switchBranch = async (branchId: string) => {
-    setBranchMenuOpen(false);
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
     try {
-      await tree.switchBranch(branchId, { requireClean: true });
-      showToast('success', `Switched to branch "${branchId}".`);
-      await refreshStatus();
-      await readCommits();
-    } catch (e: unknown) {
-      showToast(
-        'error',
-        e instanceof WorkingTreeDirtyError ? DIRTY_SWITCH_TEXT
-        : e instanceof Error ? e.message
-        : 'Switch failed.'
-      );
+      setBranchMenuOpen(false);
+      try {
+        await tree.switchBranch(branchId, { requireClean: true });
+        await afterSwitch(branchId);
+      } catch (e: unknown) {
+        if (e instanceof WorkingTreeDirtyError) {
+          setSwitchDialog({ targetBranchId: branchId });
+          return;
+        }
+        showToast('error', e instanceof Error ? e.message : 'Switch failed.');
+      }
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
+  };
+
+  /**
+   * 「Switch branch」对话框确认「Leave my changes on 当前分支」：不带 `requireClean` 再切一次。
+   * 未提交改动按分支保存，留在原分支上，切回来原样还在。
+   */
+  const confirmSwitchLeavingChanges = async (): Promise<void> => {
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
+    try {
+      const dialog = switchDialog;
+      if (dialog === null || switching) return;
+      setSwitching(true);
+      try {
+        await tree.switchBranch(dialog.targetBranchId);
+        setSwitchDialog(null);
+        await afterSwitch(dialog.targetBranchId);
+      } catch (e: unknown) {
+        setSwitchDialog(null);
+        showToast('error', e instanceof Error ? e.message : 'Switch failed.');
+      } finally {
+        setSwitching(false);
+      }
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
+    }
+  };
+
+  const closeSwitchDialog = (): void => {
+    setSwitchDialog(null);
   };
 
   const requestRemoveBranch = (branchId: string): void => {
@@ -657,12 +1019,22 @@ export default function WorkingTreePage(): React.JSX.Element {
   };
 
   const removeBranch = async (branchId: string) => {
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
     try {
-      await rxdb.versionManager.removeBranch(branchId);
-      setBranchMenuOpen(false);
-      showToast('success', `Branch "${branchId}" deleted.`);
-    } catch (e: unknown) {
-      showToast('error', e instanceof Error ? e.message : 'Delete failed.');
+      try {
+        await rxdb.versionManager.removeBranch(branchId);
+        setBranchMenuOpen(false);
+        // 删的正是 History 里在对比的那条：对比没有对象了，回到历史
+        if (historyCompare?.branchId === branchId) clearCompare();
+        showToast('success', `Branch "${branchId}" deleted.`);
+      } catch (e: unknown) {
+        showToast('error', e instanceof Error ? e.message : 'Delete failed.');
+      }
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
   };
 
@@ -679,19 +1051,51 @@ export default function WorkingTreePage(): React.JSX.Element {
 
   // ── 合并对话框 ────────────────────────────────────────────
 
-  const openMergeDialog = (sourceBranchId: string) => {
+  /** 按给定策略读一次合并预览（只读，不切换）；`merged` 跟着策略变，所以换策略要重读。 */
+  const loadMergePreview = (sourceBranchId: string, strategy: MergeStrategy) => {
+    const request = ++mergePreviewRequest.current;
+    setMergePreview({ phase: 'loading' });
+    void rxdb.versionManager.previewMerge(sourceBranchId, { strategy }).then(
+      value => {
+        if (request === mergePreviewRequest.current) setMergePreview({ phase: 'success', value });
+      },
+      (e: unknown) => {
+        if (request !== mergePreviewRequest.current) return;
+        setMergePreview({ phase: 'error', message: e instanceof Error ? e.message : 'Preview failed.' });
+      }
+    );
+  };
+
+  /**
+   * 打开合并对话框（GitHub Desktop 的「Merge into 当前分支」）。从分支下拉底部进来时还没选来源（`null`），
+   * 在对话框里挑；从 History 的对比进来时带着那条分支。
+   */
+  const openMergeDialog = (sourceBranchId: string | null) => {
     setBranchMenuOpen(false);
     setMergeError(null);
+    mergePreviewRequest.current++;
+    setMergePreview({ phase: 'loading' });
     setMergeDialog({ sourceBranchId, strategy: 'squash', deleteSource: false });
+    if (sourceBranchId !== null) loadMergePreview(sourceBranchId, 'squash');
+  };
+
+  /** 在合并对话框里换了来源：按当前策略重读预览。 */
+  const setMergeSource = (sourceBranchId: string) => {
+    if (mergeDialog === null || mergeDialog.sourceBranchId === sourceBranchId) return;
+    setMergeDialog({ ...mergeDialog, sourceBranchId });
+    loadMergePreview(sourceBranchId, mergeDialog.strategy);
   };
 
   const closeMergeDialog = () => {
+    mergePreviewRequest.current++;
     setMergeDialog(null);
     setMergeError(null);
   };
 
   const setMergeStrategy = (strategy: MergeDialogState['strategy']) => {
-    setMergeDialog(current => (current === null ? null : { ...current, strategy }));
+    if (mergeDialog === null || mergeDialog.strategy === strategy) return;
+    setMergeDialog({ ...mergeDialog, strategy });
+    if (mergeDialog.sourceBranchId !== null) loadMergePreview(mergeDialog.sourceBranchId, strategy);
   };
 
   const setDeleteSource = (value: boolean) => {
@@ -706,30 +1110,60 @@ export default function WorkingTreePage(): React.JSX.Element {
    * toast 里点破这一点，否则「合并了怎么历史没变」会像 bug。
    */
   const executeMerge = async () => {
-    if (mergeDialog === null) return;
-    setMergeError(null);
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
     try {
-      const result = await rxdb.versionManager.mergeBranch(mergeDialog.sourceBranchId, {
-        strategy: mergeDialog.strategy,
-        deleteSource: mergeDialog.deleteSource
-      });
-      closeMergeDialog();
-      showToast(
-        'success',
-        `Merged ${result.merged} change(s) into the working tree of ${activeBranch}` +
-          ` — commit to record them${result.sourceDeleted ? '; source branch deleted' : ''}.`
-      );
-      await refreshStatus();
-    } catch (e: unknown) {
-      setMergeError(e instanceof Error ? e.message : 'Merge failed.');
+      if (mergeDialog === null || mergeDialog.sourceBranchId === null) return;
+      setMergeError(null);
+      try {
+        const result = await rxdb.versionManager.mergeBranch(mergeDialog.sourceBranchId, {
+          strategy: mergeDialog.strategy,
+          deleteSource: mergeDialog.deleteSource
+        });
+        closeMergeDialog();
+        // 合并之后对比结果已经过时（来源还可能被一并删掉了）：回到历史
+        clearCompare();
+        showToast(
+          'success',
+          `Merged ${result.merged} change(s) into the working tree of ${activeBranch}` +
+            ` — commit to record them${result.sourceDeleted ? '; source branch deleted' : ''}.`
+        );
+        await refreshStatus();
+      } catch (e: unknown) {
+        setMergeError(e instanceof Error ? e.message : 'Merge failed.');
+      }
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
   };
 
-  // ── Toast ─────────────────────────────────────────────────
+  // ── History 顶部的分支对比 ──────────────────────────────────
 
-  const showToast = (type: 'success' | 'error', message: string) => {
-    setToast({ type, message });
-    toastTimer.schedule(() => setToast(null), 3000);
+  /** 拿一条分支和当前分支对比（只读，不切换）：字段读作「当前分支的值 → 那条分支的值」。 */
+  const compareWith = (branchId: string) => {
+    const request = ++compareRequest.current;
+    comparedBranchId.current = branchId;
+    setHistoryCompare({ branchId, comparison: { phase: 'loading' } });
+    void rxdb.versionManager.compareBranches(activeBranch, branchId).then(
+      value => {
+        if (request === compareRequest.current)
+          setHistoryCompare({ branchId, comparison: { phase: 'success', value } });
+      },
+      (e: unknown) => {
+        if (request !== compareRequest.current) return;
+        const message = e instanceof Error ? e.message : 'Compare failed.';
+        setHistoryCompare({ branchId, comparison: { phase: 'error', message } });
+      }
+    );
+  };
+
+  /** 清除对比，回到历史。 */
+  const clearCompare = () => {
+    compareRequest.current++;
+    comparedBranchId.current = null;
+    setHistoryCompare(null);
   };
 
   return (
@@ -802,21 +1236,34 @@ export default function WorkingTreePage(): React.JSX.Element {
               )}
             </div>
 
+            <div className='gd-toolbar-section gd-worktree-section'>
+              <WorkingTreeWorktreeMenu
+                activeBranch={currentBranchOf(branches, WorktreeTableSet.MAIN)}
+                busy={
+                  pendingWriteCount > 0 || mountingWorktree || creatingWorktree || renamingWorktree || deletingWorktree
+                }
+                menuOpen={worktreeMenuOpen}
+                mounted={worktrees.mounted}
+                onCreateRequest={() => openNewWorktree()}
+                onDeleteRequest={openDeleteWorktree}
+                onMenuOpenChange={setWorktreeMenuOpen}
+                onMountRequest={id => void mountWorktree(id)}
+                onRenameRequest={openRenameWorktree}
+                popupWidth={branchSectionWidth < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : branchSectionWidth}
+                worktrees={linkedWorktrees}
+              />
+            </div>
+
             <div className='gd-toolbar-section gd-branch-section' style={{ width: branchSectionWidth }}>
               <WorkingTreeBranchMenu
                 activeBranch={activeBranch}
-                branchError={branchError}
-                branchName={newBranchName}
                 branches={branches}
-                createOpen={createPopoverOpen}
                 menuOpen={branchMenuOpen}
                 popupWidth={branchSectionWidth < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : branchSectionWidth}
-                onBranchErrorChange={setBranchError}
-                onBranchNameChange={setNewBranchName}
-                onCreateBranch={name => void createBranch(name)}
-                onCreateOpenChange={setCreatePopoverOpen}
+                onCreateRequest={() => void openNewBranch()}
                 onMenuOpenChange={setBranchMenuOpen}
                 onMenuRequest={openBranchContextMenu}
+                onMergeRequest={() => openMergeDialog(null)}
                 onSwitchBranch={branchId => void switchBranch(branchId)}
               />
             </div>
@@ -921,12 +1368,25 @@ export default function WorkingTreePage(): React.JSX.Element {
                     onSummaryChange={setCommitSummary}
                   />
                 </>
-              : <WorkingTreeHistoryList
-                  commitsState={listCommitsState}
-                  selectedCommitId={selectedCommitId}
-                  onMenuRequest={openCommitContextMenu}
-                  onSelectEntry={selectCommit}
-                />
+              : <>
+                  {/* GitHub Desktop 的 History 顶部：选一条分支对比；对比时收起提交列表，清除即回到历史 */}
+                  <WorkingTreeHistoryCompare
+                    activeBranch={activeBranch}
+                    branches={otherBranchIds}
+                    compare={historyCompare}
+                    onClearRequested={clearCompare}
+                    onMergeRequest={openMergeDialog}
+                    onSelectBranch={compareWith}
+                  />
+                  {historyCompare === null && (
+                    <WorkingTreeHistoryList
+                      commitsState={listCommitsState}
+                      selectedCommitId={selectedCommitId}
+                      onMenuRequest={openCommitContextMenu}
+                      onSelectEntry={selectCommit}
+                    />
+                  )}
+                </>
               }
             </aside>
 
@@ -1024,7 +1484,7 @@ export default function WorkingTreePage(): React.JSX.Element {
         </div>
         <div className='flex shrink-0 items-center gap-3'>
           <span
-            className={`rounded-full border px-1.5${enabled ? 'border-green-500 text-green-700' : ''}`}
+            className={clsx('rounded-full border px-1.5', { 'border-green-500 text-green-700': enabled })}
             data-testid='wt-enabled'
             role='status'
           >
@@ -1062,12 +1522,69 @@ export default function WorkingTreePage(): React.JSX.Element {
       {/* ═══════════════════ 合并对话框 ═══════════════════ */}
       <WorkingTreeMergeDialog
         activeBranch={activeBranch}
+        branches={otherBranchIds}
         dialog={mergeDialog}
         error={mergeError}
         onCloseRequested={closeMergeDialog}
         onConfirm={() => void executeMerge()}
         onDeleteSourceChange={setDeleteSource}
+        onSourceChange={setMergeSource}
         onStrategyChange={setMergeStrategy}
+        preview={mergePreview}
+      />
+
+      {/* ═══════════════════ 新建分支（GitHub Desktop 的 Create a branch） ═══════════════════ */}
+      <WorkingTreeCreateBranchDialog
+        activeBranch={activeBranch}
+        creating={creatingBranch}
+        dialog={createBranchDialog}
+        error={createBranchError}
+        name={createBranchName}
+        onCloseRequested={closeCreateBranchDialog}
+        onConfirmRequested={name => void confirmCreateBranch(name)}
+        onNameChange={setCreateBranchName}
+      />
+
+      {/* ═══════════════════ 带着未提交改动切分支（GitHub Desktop 的 Switch branch） ═══════════════════ */}
+      <WorkingTreeSwitchBranchDialog
+        activeBranch={activeBranch}
+        dialog={switchDialog}
+        onCloseRequested={closeSwitchDialog}
+        onConfirmRequested={() => void confirmSwitchLeavingChanges()}
+        switching={switching}
+      />
+
+      <WorkingTreeNewDialog
+        activeBranch={activeBranch}
+        branches={branches}
+        branchId={newWorktreeBranch}
+        creating={creatingWorktree}
+        error={newWorktreeError}
+        name={newWorktreeName}
+        onBranchChange={setNewWorktreeBranch}
+        onClose={closeNewWorktree}
+        onConfirm={() => void createWorktree()}
+        onNameChange={setNewWorktreeName}
+        open={newWorktreeOpen}
+      />
+
+      <WorkingTreeRenameDialog
+        error={renameWorktreeError}
+        name={renameWorktreeName}
+        onClose={closeRenameWorktree}
+        onConfirm={() => void renameLinkedWorktree()}
+        onNameChange={setRenameWorktreeName}
+        saving={renamingWorktree}
+        worktree={renameWorktree}
+      />
+
+      <WorkingTreeDeleteDialog
+        deleting={deletingWorktree}
+        dirty={deleteWorktree !== null && currentLinkedWorktree?.id === deleteWorktree.id && workingTreeDirty}
+        error={deleteWorktreeError}
+        onClose={closeDeleteWorktree}
+        onConfirm={() => void deleteLinkedWorktree()}
+        worktree={deleteWorktree}
       />
 
       {/* ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ */}

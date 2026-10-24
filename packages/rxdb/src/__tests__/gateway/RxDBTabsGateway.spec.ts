@@ -250,6 +250,40 @@ describe('RxDBTabsGateway', () => {
     gatewayB.destroy();
   });
 
+  // 事件按表集路由（US-314 B2.3）：收方按 tableSetSuffix 判自己挂着的那套表读不读得到这一行，网关原样转发
+  it('跨 tab 事件原样带着写在哪套表上（tableSetSuffix）', async () => {
+    const dispatchEventB = vi.fn();
+    const addEventListenerA = vi.fn();
+    const gatewayA = new RxDBTabsGateway({ dbName: 'test-db-table-set-tag', clientId: 'client-a' });
+    const gatewayB = new RxDBTabsGateway({ dbName: 'test-db-table-set-tag', clientId: 'client-b' });
+    gatewayA.init(vi.fn(), addEventListenerA, vi.fn());
+    gatewayB.init(dispatchEventB, vi.fn(), vi.fn());
+    const createHandler = addEventListenerA.mock.calls.find(call => call[0] === ENTITY_LOCAL_CREATE_EVENT)?.[1];
+
+    createHandler!(
+      new EntityLocalCreatedEvent([
+        {
+          type: 'INSERT',
+          namespace: 'default',
+          entity: 'User',
+          id: '1',
+          patch: { id: '1', name: 'Alice' },
+          inversePatch: null,
+          recordAt: new Date(),
+          tableSetSuffix: 'wt_a1'
+        }
+      ])
+    );
+    vi.runAllTimers();
+    await Promise.resolve();
+
+    const dispatchedEvent = dispatchEventB.mock.calls[0][0] as EntityLocalCreatedEvent;
+    expect(dispatchedEvent.entities[0]).toMatchObject({ origin: 'cross-tab', tableSetSuffix: 'wt_a1' });
+
+    gatewayA.destroy();
+    gatewayB.destroy();
+  });
+
   it('跨 tab 事件应无损保留异构 ID、bigint 和 binary 快照', async () => {
     const dispatchEventA = vi.fn();
     const dispatchEventB = vi.fn();

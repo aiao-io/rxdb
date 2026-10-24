@@ -16,7 +16,7 @@ import { DesktopSqliteClient, type DesktopHostTransport } from '@aiao/rxdb-adapt
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { queryCountOf, registerQueryCount, type EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ADAPTER_NAME } from '../electron-adapter.interface.js';
@@ -150,6 +150,15 @@ async function createDesktopAdapter(options?: Record<string, unknown>): Promise<
 }
 
 /** 驱动 `@aiao/rxdb-adapter-sqlite-core/testing` 共享套件的桌面适配器工厂。 */
+/**
+ * 给只读检出位的快照实例造适配器（US-313）：与本工厂同一个测试宿主，宿主按库名各开一个文件。
+ *
+ * @param db - 快照实例
+ * @returns 快照库的适配器
+ */
+export const createElectronWorktreeAdapter = (db: RxDB): RxDBAdapterElectron =>
+  new RxDBAdapterElectron(db, { transport: ensureHost().transport });
+
 export const electronAdapterFactory: AdapterFactory = {
   name: ADAPTER_NAME,
 
@@ -197,4 +206,17 @@ export async function readElectronDatabaseFile(adapter: unknown): Promise<Uint8A
   const filePath = join(ensureHost().workspace, databaseName);
   const chunks = [filePath, `${filePath}-wal`].filter(existsSync).map(path => readFileSync(path));
   return new Uint8Array(Buffer.concat(chunks));
+}
+
+/**
+ * 测试宿主工作区里属于这个适配器的库文件：主库与它的日志旁文件。
+ *
+ * @param adapter - 被测适配器，取其 `databaseName` 定位文件
+ * @returns 文件名，按字典序
+ */
+export function electronDatabaseFilesOf(adapter: RxDBAdapterElectron): string[] {
+  const { databaseName } = adapter;
+  return readdirSync(ensureHost().workspace)
+    .filter(name => name.startsWith(databaseName))
+    .sort();
 }

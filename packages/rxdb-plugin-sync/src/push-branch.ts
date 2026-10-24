@@ -1,5 +1,6 @@
 import { MAIN_BRANCH_ID } from '@aiao/rxdb';
 import { toRemoteFromChangeId } from './branch-change-id.js';
+import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
 
 export interface PushBranchResult {
@@ -23,7 +24,9 @@ export interface PushBranchResult {
  * 3. `fromChangeId` 翻译成远端 id 后再上行（见 {@link toRemoteFromChangeId}）
  */
 export async function pushBranch(sm: SyncManager): Promise<PushBranchResult> {
+  assertSyncOnMainCheckout(sm.rxdb.worktreeTableSet, 'push');
   const branch = await sm.getCurrentBranch();
+  assertSyncOnMainCheckout(sm.rxdb.worktreeTableSet, 'push', branch);
   if (!branch || branch.id === MAIN_BRANCH_ID) {
     return { synced: 0, skipped: branch ? [MAIN_BRANCH_ID] : [], forkPointPending: false };
   }
@@ -51,6 +54,7 @@ export async function pushBranch(sm: SyncManager): Promise<PushBranchResult> {
     parentId: branch.parentId
   };
 
+  assertSyncOnMainCheckout(sm.rxdb.worktreeTableSet, 'push');
   const result = await remoteAdapter.pushBranches([branchData]);
 
   // 推送成功后更新本地分支的 remote 标记

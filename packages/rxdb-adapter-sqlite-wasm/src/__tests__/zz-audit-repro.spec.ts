@@ -24,6 +24,7 @@ function harness() {
     rejectClose = reject;
   });
   const close = vi.fn(() => closeGate);
+  const vfs = { close: vi.fn().mockResolvedValue(undefined) };
   const sqlite = {
     close,
     create_function: vi.fn(),
@@ -31,7 +32,7 @@ function harness() {
       updateHookCallbacks.push(cb);
     })
   } as unknown as SQLiteAPI;
-  return { close, sqlite, updateHookCallbacks, resolveClose, rejectClose };
+  return { close, sqlite, updateHookCallbacks, resolveClose, rejectClose, vfs };
 }
 
 describe('AUDIT repro', () => {
@@ -51,7 +52,7 @@ describe('AUDIT repro', () => {
   // 并发调用必须共享同一个完成/失败结果，不能抢先成功。
   it('R1: 并发 disconnect 共享同一完成结果，不得在连接关闭前抢先 resolve', async () => {
     const h = harness();
-    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 99, sqlite: h.sqlite });
+    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 99, sqlite: h.sqlite, vfs: h.vfs });
     const client = new SqliteClient();
     await client.init('db', { vfs: 'memory' });
 
@@ -80,7 +81,7 @@ describe('AUDIT repro', () => {
 
   it('R1: close 失败时并发 disconnect 一起拿到同一个错误', async () => {
     const h = harness();
-    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 99, sqlite: h.sqlite });
+    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 99, sqlite: h.sqlite, vfs: h.vfs });
     const client = new SqliteClient();
     await client.init('db', { vfs: 'memory' });
 
@@ -97,7 +98,7 @@ describe('AUDIT repro', () => {
     vi.useFakeTimers();
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const h = harness();
-    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 1, sqlite: h.sqlite });
+    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 1, sqlite: h.sqlite, vfs: h.vfs });
     const client = new SqliteClient();
     await client.init('db', { vfs: 'memory', batchTimeout: 1 });
 

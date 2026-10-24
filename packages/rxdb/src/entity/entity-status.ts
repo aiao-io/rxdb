@@ -3,6 +3,7 @@ import { shareReplay, Subject } from 'rxjs';
 import { RxDB } from '../RxDB.js';
 import { getEntityStatus } from '../rxdb-utils.js';
 import { getRxDBEntityIdentityKey } from '../system/change-codec.js';
+import type { WorktreeTableSet } from '../system/worktree-table-set.js';
 import { EntityPatch, IEntityStatus } from './entity-status.interface.js';
 import { EntityInstanceType, EntityType } from './entity.interface.js';
 import { setSafeObjectKey } from './entity.utils.js';
@@ -127,6 +128,14 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    * 实体原始对象
    */
   readonly target!: InstanceType<T>;
+
+  /**
+   * 建出或读出这个实体时本实例挂的那套表（US-314 B2.4）。
+   *
+   * @remarks
+   * 写之前与实例此刻挂的那套表核对：换挂之后旧的实体对象写不进另一套表（见 `WorktreeTableSetMismatchError`）。
+   */
+  readonly tableSet: WorktreeTableSet;
 
   /**
    * 实体代理对象
@@ -306,6 +315,7 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
     data: IEntityStatus<T>
   ) {
     setSafeObjectKey(this, 'target', data.target);
+    this.tableSet = rxdb.worktreeTableSet;
     // 配置默认值
     this._local = data.local || false;
     this._remote = data.remote || false;
@@ -313,12 +323,22 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
     this._origin = structuredClone({ ...data.target });
     this._patches = data.patches || [];
     // 让一些数据不可迭代
-    ['_local', '_modified', '_origin', '_patch_cache', '_patches', '_remote', '_removed', 'patches$', 'rxdb'].forEach(
-      key =>
-        Object.defineProperty(this, key, {
-          enumerable: false,
-          configurable: false
-        })
+    [
+      '_local',
+      '_modified',
+      '_origin',
+      '_patch_cache',
+      '_patches',
+      '_remote',
+      '_removed',
+      'patches$',
+      'rxdb',
+      'tableSet'
+    ].forEach(key =>
+      Object.defineProperty(this, key, {
+        enumerable: false,
+        configurable: false
+      })
     );
   }
 
@@ -538,6 +558,15 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
       }
     }
     return entities;
+  }
+
+  /**
+   * 保存删掉的 Junction 不再待删；委托给 EntityRelationCache.forgetRemovedJunctions。
+   *
+   * @param junctions - 这次保存删掉的 Junction
+   */
+  forgetRemovedJunctions(junctions: Iterable<EntityInstanceType<EntityType>>): void {
+    this.#relations.forgetRemovedJunctions(junctions);
   } /**
    * 添加关系实体
    *

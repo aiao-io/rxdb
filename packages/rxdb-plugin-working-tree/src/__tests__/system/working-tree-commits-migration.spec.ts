@@ -33,7 +33,7 @@
  */
 
 import type { EntityManager, EntityType, IRepository, TransactionExecutor } from '@aiao/rxdb';
-import { RxDB, RxDBBranch, SyncType } from '@aiao/rxdb';
+import { RxDB, RxDBBranch, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
@@ -61,7 +61,7 @@ function createDatabase(): RxDB {
 /** 只为拿一个真的 {@link EntityManager}——迁移要靠它 `instantiate()` 出初始行。 */
 function createEntityManager(): EntityManager {
   const database = createDatabase();
-  // 十张系统表由本插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
+  // 本插件的系统表由它贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
   // 而这些实体进不了 `config.entities` 时 `instantiate()` 抛的是「need init rxdb」。
   database.use(rxDBPluginWorkingTree);
   database.init();
@@ -100,6 +100,7 @@ function createExecutorProbe(
   const executor: TransactionExecutor = {
     id: 'probe-executor',
     state: 'active',
+    tableSet: WorktreeTableSet.MAIN,
     query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
     tableRef: fakeTableRef,
     mutations: vi.fn(async () => []),

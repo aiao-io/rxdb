@@ -84,6 +84,10 @@ await rxdb.connect('wa-sqlite');
 `worker` 必须与 `workerInstance` 成对提供，`sharedWorker` 必须与 `sharedWorkerInstance` 成对提供，
 两种 transport 互斥。Worker/SharedWorker 由调用方创建并持有；适配器不会替调用方 `terminate()`。
 
+SharedWorker 里放一个 `WaSqliteClient`、每个连上来的端口都 `expose` 它，多个标签页就共用这一条连接：事务按库名在一把跨标签页的
+Web Lock（`navigator.locks`）里排队，死在事务中间的标签页留下的事务由下一个拿到锁的标签页回滚；一个标签页断开只交还自己那一份，
+最后一个断开时才关库，之后还能再连（`WaSqliteClient.release(owner)`）。
+
 ```typescript
 const worker = new Worker(new URL('./wa-sqlite.worker.js', import.meta.url), { type: 'module' });
 

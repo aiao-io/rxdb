@@ -9,6 +9,7 @@ import {
   getEntityStatus,
   PropertyType,
   RxDB,
+  RxDBBranch,
   RxDBChange,
   SyncType
 } from '@aiao/rxdb';
@@ -89,6 +90,8 @@ interface RxDBChangeSeed {
   entity?: string;
   patch?: Record<string, unknown> | null;
   inversePatch?: Record<string, unknown> | null;
+  /** 记在哪条分支名下；给了的话派事件前要回查这条分支的持有者（US-314 B2.3） */
+  branchId?: string;
 }
 
 const createChangeRef = (rxdb: RxDB, seed: RxDBChangeSeed) =>
@@ -102,6 +105,7 @@ const createChangeRef = (rxdb: RxDB, seed: RxDBChangeSeed) =>
       entityId: `todo-${seed.id}`,
       patch: seed.patch ?? null,
       inversePatch: seed.inversePatch ?? null,
+      ...(seed.branchId === undefined ? {} : { branchId: seed.branchId }),
       createdAt: new Date(ISO),
       updatedAt: new Date(ISO)
     } as unknown as EntityUpdateData<typeof RxDBChange>,
@@ -225,6 +229,28 @@ describe('handle_rxdb_change', () => {
     expect(event.entities[0]).toMatchObject({ type: 'DELETE', id: 'todo-3', patch: null });
     expect((event.entities[0].inversePatch as { title?: string }).title).toBe('removed');
     expect(event.entities[0].recordAt).toBeInstanceOf(Date);
+  });
+
+  it('关掉变更日志的表 DELETE 事件不回查、不派发：删除由删行路径直接派（US-222）', async () => {
+    const rxdb = createRxdb('sqlite-core-change-unlogged-delete');
+    const adapter = new ChangeTestAdapter(rxdb);
+    // 裸 SQL 清库删掉的行不标 removed：回查会命中这个旧实体，按它的 id 派出一条过期的删除
+    const branch = rxdb.entityManager.createEntityRef(
+      RxDBBranch,
+      { id: 'main', activated: true, createdAt: new Date(ISO), updatedAt: new Date(ISO) } as EntityUpdateData<
+        typeof RxDBBranch
+      >,
+      { local: true, modified: false }
+    );
+    adapter.cacheRowIdEntity(7n, branch);
+    const dispatchSpy = vi.spyOn(rxdb, 'dispatchEvent');
+    const repositorySpy = vi.spyOn(adapter, 'getRepository');
+
+    handle_rxdb_change(adapter, changeEvent('rxdb$rxdb_branch', SQLiteChangeType.SQLITE_DELETE, [7n]));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(repositorySpy).not.toHaveBeenCalled();
+    expect(dispatchSpy).not.toHaveBeenCalled();
   });
 
   it('rxdb_change 表 INSERT 按变更类型分组派发事件并追加元事件', async () => {
@@ -607,6 +633,26 @@ describe('SQLC-012 变更处理失败必须有公开错误通道', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
 
     expect(events).toHaveLength(0);
+  });
+
+  // 变更行读出来之后、派事件之前还要回查分支的持有者（US-314 B2.3），这一次查询同样可能撞上断开
+  it('派事件前回查持有者时撞上断开：与查变更行同口径，不派发 change-error', async () => {
+    const rxdb = createRxdb('sqlite-core-change-holder-disconnect');
+    const adapter = new ChangeTestAdapter(rxdb, async () => {
+      throw new RxDBAdapterSqliteError('Adapter is disconnected', { code: 'adapter_disconnected' });
+    });
+    adapter.cacheRowIdEntity(
+      11n,
+      createChangeRef(rxdb, { id: 11, type: 'INSERT', patch: { title: 'x' }, inversePatch: null, branchId: 'feature' })
+    );
+    const events: SqliteChangeErrorEvent[] = [];
+    adapter.addChangeErrorListener(event => events.push(event));
+    const dispatchSpy = vi.spyOn(rxdb, 'dispatchEvent');
+
+    await handle_rxdb_change(adapter, changeEvent('rxdb$rxdb_change', SQLiteChangeType.SQLITE_INSERT, [11n]));
+
+    expect(events).toHaveLength(0);
+    expect(dispatchSpy).not.toHaveBeenCalled();
   });
 
   it('监听器抛出不影响其余监听器，且被单独报告', async () => {

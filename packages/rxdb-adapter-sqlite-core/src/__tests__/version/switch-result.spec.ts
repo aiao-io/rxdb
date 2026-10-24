@@ -3,7 +3,8 @@ import {
   getRxDBChangeKey,
   PropertyType,
   type SwitchVersionActions,
-  transitionMetadata
+  transitionMetadata,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../../RxDBAdapterSqliteBase.js';
@@ -25,6 +26,7 @@ const change = (patch: Record<string, unknown> | null) => ({ patch, inversePatch
 
 const createAdapter = (metadata = getEntityMetadata(Todo)): RxDBAdapterSqliteBase => {
   return {
+    tableSet: WorktreeTableSet.MAIN,
     rxdb: {
       context: { userId: 'review-user' },
       schemaManager: {

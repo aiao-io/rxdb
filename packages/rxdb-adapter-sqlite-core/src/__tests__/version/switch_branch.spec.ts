@@ -4,6 +4,8 @@ import {
   EntityLocalUpdatedEvent,
   RxDB,
   SyncType,
+  WorktreeBranchHeldError,
+  WorktreeTableSet,
   type EntityType,
   type RxDBEntityLocalUpdatedEventData,
   type SwitchBranchOptions,
@@ -44,6 +46,10 @@ interface SwitchAdapterOptions {
   branchResultUndefined?: boolean;
   /** SQL 包含该片段时抛错 */
   failOn?: string;
+  /** 目标分支此刻的 `activeKey`；不给就是没人持有 */
+  targetActiveKey?: string | null;
+  /** 「当前分支」那次读的答案（省略 branchId 时用）；不给就是 main */
+  currentBranchId?: string;
   /** 覆盖 config.entities */
   entities?: EntityType[];
 }
@@ -66,16 +72,29 @@ const createSwitchAdapter = (options: SwitchAdapterOptions = {}) => {
         const rows = (sql.includes('activeKey = NULL') ? options.deactivateRows : options.branchRows) ?? [];
         return successResult(sql, rows.length, [{ columns: branchColumns, rows }]);
       }
+      // 切换之前查目标分支有没有被可写检出位持有（US-314 B1.2）
+      if (sql.startsWith('SELECT activeKey FROM "rxdb$rxdb_branch"')) {
+        return successResult(sql, 0, [{ columns: ['activeKey'], rows: [[options.targetActiveKey ?? null]] }]);
+      }
       if (sql.trimStart().startsWith('SELECT')) {
         return successResult(sql, 1, [
           { columns: ['__rowid', 'id', 'title', 'completed'], rows: [[1, 'todo-1', 'T1', 0]] }
         ]);
       }
       return successResult(sql, 1);
+    },
+    // 省略 branchId 时适配器经 `query` 读当前分支（`read_current_branch_id`）
+    query: async (sql: string, params?: SQLiteCompatibleType[]) => {
+      calls.push({ sql, params });
+      if (sql.includes('"activated" = ?')) {
+        return { rowsAffected: 0, columns: ['id'], rows: [[options.currentBranchId ?? 'main']] };
+      }
+      return { rowsAffected: 0, columns: [], rows: [] };
     }
   } as unknown as SqliteClientLike;
 
   const adapter = {
+    tableSet: WorktreeTableSet.MAIN,
     transaction: async (run: (tx: SqliteClientLike) => Promise<unknown>) => run(client),
     encryptionContext: { keyring: null, namespace: 'switch-branch-test' },
     cacheRowIdEntity: () => undefined,
@@ -288,7 +307,7 @@ describe('switch_branch', () => {
     await expect(switch_branch(adapter, switchOptions('main'))).rejects.toThrow(/switch branch main failed/);
   });
 
-  it('prepare 被拒时原样抛出，且一条语句都没执行过', async () => {
+  it('prepare 被拒时原样抛出，且一条写都没发过', async () => {
     const { adapter, calls, dispatched } = createSwitchAdapter();
     const options = switchOptions('feature');
     const rejection = new Error('工作树不干净');
@@ -297,10 +316,53 @@ describe('switch_branch', () => {
     // 两条断言各管一件事：
     // 1. **原样抛出**——前置校验的拒绝是调用方的领域错误（`WorkingTreeDirtyError` 之类），
     //    包成 RxDBAdapterSqliteError 会让调用方的 `instanceof` 全部落空。
-    // 2. **一条 SQL 都没发**——只断错误类型的话，一个「先删触发器再校验」的实现照样能过，
-    //    而那正是两事务版本留下的那个窗口。
+    // 2. **一条写都没发**——只断错误类型的话，一个「先删触发器再校验」的实现照样能过，
+    //    而那正是两事务版本留下的那个窗口。排在它前面的只有一次只读：目标分支有没有被持有。
     await expect(switch_branch(adapter, options)).rejects.toBe(rejection);
-    expect(calls).toEqual([]);
+    expect(calls).toEqual([{ sql: 'SELECT activeKey FROM "rxdb$rxdb_branch" WHERE id = ?', params: ['feature'] }]);
     expect(dispatched).toEqual([]);
+  });
+
+  // 目标分支在可写检出位手里（US-314 B1.2）：点亮写的是哨兵，会把持有键覆盖掉，唯一索引撞不上，
+  // 只能在点亮之前读一次。排在前置校验之前（与 git 同序：先答能不能检出，再问工作树干不干净）。
+  it('目标分支被可写检出位持有时原样抛出 WorktreeBranchHeldError，prepare 没调、一条写都没发', async () => {
+    const { adapter, calls, dispatched } = createSwitchAdapter({ targetActiveKey: '*worktree:wt1*' });
+    const options = switchOptions('feature');
+
+    const error = await switch_branch(adapter, options).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(WorktreeBranchHeldError);
+    expect(error).toMatchObject({ branchId: 'feature', holderKey: '*worktree:wt1*' });
+    expect(options.prepare).not.toHaveBeenCalled();
+    expect(calls).toEqual([{ sql: 'SELECT activeKey FROM "rxdb$rxdb_branch" WHERE id = ?', params: ['feature'] }]);
+    expect(dispatched).toEqual([]);
+  });
+
+  // 省略 branchId（撤销 / 重做、重做栈失效）= 留在当前分支、只套用 actions。从前这里也照跑熄灭 + 点亮两条 UPDATE，
+  // 点亮那条的 RETURNING 行还派出一条「activated 翻转了」的假事件（US-314 B1.3）。没有要拿下的分支，也就不查持有。
+  it('省略 branchId 时只按当前分支重挂触发器：分支表一行不写，也不派分支事件', async () => {
+    const { adapter, calls, dispatched } = createSwitchAdapter({
+      currentBranchId: 'feature',
+      branchRows: [[1, 'feature', 1, 1, 0, '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z']]
+    });
+    const prepare = vi.fn<SwitchBranchOptions['prepare']>(async () => undefined);
+
+    await switch_branch(adapter, { prepare, actions: { deletes: new Map(), inserts: new Map(), updates: new Map() } });
+
+    expect(prepare).toHaveBeenCalledWith({ executor: expect.anything(), targetBranchId: 'feature' });
+    expect(calls.some(call => call.sql.includes('"rxdb$rxdb_branch"') && !call.sql.includes('"activated" = ?'))).toBe(
+      false
+    );
+    expect(calls.some(call => call.sql.includes('CREATE TRIGGER') && call.sql.includes(`'feature'`))).toBe(true);
+    expect(dispatched).toEqual([]);
+  });
+
+  it('目标分支已由主检出位持有（留在当前分支）时照常切换', async () => {
+    const { adapter, calls } = createSwitchAdapter({ targetActiveKey: '*active*' });
+
+    await switch_branch(adapter, switchOptions('main'));
+
+    expect(calls.some(call => call.sql.includes('DROP TRIGGER'))).toBe(true);
+    expect(calls.filter(call => call.sql.includes('UPDATE "rxdb$rxdb_branch"'))).toHaveLength(2);
   });
 });

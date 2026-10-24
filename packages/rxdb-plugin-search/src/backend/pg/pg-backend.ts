@@ -4,7 +4,9 @@
  * @packageDocumentation
  */
 
-import { DEFAULT_FTS_REGCONFIG } from './pg-fts-contract.js';
+import type { EntityMetadata, WorktreeTableSet } from '@aiao/rxdb';
+
+import { DEFAULT_FTS_REGCONFIG, loadPgFtsAdapter } from './pg-fts-contract.js';
 
 import type { FtsInstallPlan } from '../../core/fts5-installer.js';
 import type { InstallFtsResult, MigrationRecordStore, RuntimeSqlExecutor } from '../../core/fts5-runtime.js';
@@ -13,7 +15,22 @@ import { SearchBackendCapabilityError } from '../../types.js';
 import { FULL_SEARCH_CAPABILITIES, type SearchBackend } from '../search-backend.js';
 import { createPgSearchEngine } from './pg-engine.js';
 import { compilePgQuery } from './pg-query-compiler.js';
-import { installPgFtsForEntity, pgFtsMigrationName } from './pg-runtime.js';
+import { installPgFtsForEntity, installPgFtsForTableSet, pgFtsMigrationName } from './pg-runtime.js';
+
+/**
+ * 计划绑到一套表上：schema 由适配器的表名解析器回答（主表集是 namespace，影子表是 `<namespace>$<后缀>`）。
+ *
+ * @remarks
+ * 只换 `schema`。`sqlTableName` 在本后端只当迁移记录的锚，影子表不写迁移记录，留着主表集那个即可。
+ */
+const bindPgPlan = async (
+  plan: FtsInstallPlan,
+  metadata: EntityMetadata,
+  tableSet: WorktreeTableSet
+): Promise<FtsInstallPlan> => {
+  const { getSchemaName } = await loadPgFtsAdapter();
+  return { ...plan, schema: getSchemaName(metadata, tableSet) };
+};
 
 /**
  * 实测这条连接真的能跑全文检索的三个组成部分：`to_tsvector`（索引）、
@@ -61,5 +78,8 @@ export const createPgTsvectorBackend = (): SearchBackend => ({
     executor: RuntimeSqlExecutor,
     migrationStore: MigrationRecordStore
   ): Promise<InstallFtsResult> => installPgFtsForEntity(plan, executor, migrationStore),
+  bindPlan: bindPgPlan,
+  installForTableSet: (plan: FtsInstallPlan, executor: RuntimeSqlExecutor): Promise<InstallFtsResult> =>
+    installPgFtsForTableSet(plan, executor),
   createEngine: (executor: FtsExecutor): SearchEngine => createPgSearchEngine(executor)
 });

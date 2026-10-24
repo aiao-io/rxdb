@@ -53,7 +53,18 @@ const overview = (done, wip, review, backlog, total, emojis) => `# 状态概览
 ${emojis.map(([e, id]) => `- ${e} [${id} 标题](stories/core/${id}-x.md)`).join('\n')}
 `;
 
-const roadmap = (open, wip, review, backlog, ids = ['US-003']) => `# 排期与约束
+const roadmap = (open, wip, review, backlog, ids = ['US-003'], done = 2, blocked = 0) => `# 排期与约束
+
+## 现状快照
+
+| 状态           | 数量   |
+| :------------- | :----- |
+| ✅ Done        | ${String(done).padEnd(6)} |
+| 🚧 In Progress | ${String(wip).padEnd(6)} |
+| 👀 In Review   | ${String(review).padEnd(6)} |
+| 📝 Backlog     | ${String(backlog).padEnd(6)} |
+| 🚫 Blocked     | ${String(blocked).padEnd(6)} |
+| **未完成合计** | ${`**${open}**`.padEnd(6)} |
 
 ## 完成计划
 
@@ -179,6 +190,23 @@ test('roadmap 的未关闭分项、以及「每条未关闭故事都排过期」
   assert.match(offenders.join('\n'), /US-003（Backlog）未关闭，却没有排进任何批次/);
   // Done 的故事不必出现在排期里
   assert.equal(offenders.filter(o => o.includes('US-002')).length, 0, JSON.stringify(offenders));
+});
+
+test('roadmap 现状快照表的五态与未完成合计也按 YAML 校验，--update 一并回写且不动列宽', async () => {
+  await scaffold(dir);
+  const stories = await collectStories(dir);
+  const stale = roadmap(1, 0, 0, 1)
+    .replace('| 🚧 In Progress | 0      |', '| 🚧 In Progress | 1      |')
+    .replace('| **未完成合计** | **1**  |', '| **未完成合计** | **9**  |');
+
+  const offenders = checkRoadmap(stale, stories).join('\n');
+  assert.match(offenders, /现状快照「🚧 In Progress」写 1，YAML 推导为 0/);
+  assert.match(offenders, /现状快照「未完成合计」写 9，YAML 推导为 1/);
+  assert.equal(updateRoadmap(stale, countStatuses(stories)), roadmap(1, 0, 0, 1));
+  assert.match(
+    checkRoadmap(roadmap(1, 0, 0, 1).replace(/^\| 🚫 Blocked .*\n/m, ''), stories).join('\n'),
+    /现状快照缺「🚫 Blocked」行/
+  );
 });
 
 test('索引里状态符号与 YAML 不一致、或漏了故事，都被抓出', async () => {

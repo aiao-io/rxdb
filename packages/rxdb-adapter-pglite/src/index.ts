@@ -52,6 +52,7 @@ export {
 } from './query-cache/query_cache_row_contract.js';
 export * from './RxDBAdapterPGlite.js';
 export * from './sql_dialect.js';
+export * from './table-name-resolver.js';
 export { create_tables_sql, create_tables_statements } from './table/create_tables_sql.js';
 export * from './table/notify_function_sql.js';
 export { remove_all_triggers_sql, remove_trigger_sql } from './table/remove_trigger_sql.js';

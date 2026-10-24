@@ -6,7 +6,7 @@
  * 的三件事：生命周期、本地事件过滤、分支编排。
  */
 
-import { ENTITY_LOCAL_CREATE_EVENT, RxDB, RxDBBranch, RxDBChange, type EntityType } from '@aiao/rxdb';
+import { ENTITY_LOCAL_CREATE_EVENT, RxDB, RxDBBranch, RxDBChange, WorktreeTableSet, type EntityType } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { VersionManager } from '../VersionManager.js';
@@ -27,18 +27,23 @@ const doubles = vi.hoisted(() => ({
     clearAllUndoHistory: vi.fn<() => void>(),
     resetPullableCount: vi.fn<() => void>(),
     clearRedoStack: vi.fn<() => void>(),
+    refreshChildForks: vi.fn<() => void>(),
     setUndoBranch: vi.fn<(branchId: string) => void>(),
     syncing: vi.fn<(operation: DetachedOperation) => void>(),
     history: vi.fn<(options?: unknown) => unknown>(),
     pushableCount$: { kind: 'pushable' },
-    pullableCount$: { kind: 'pullable' }
+    pullableCount$: { kind: 'pullable' },
+    /** 本实例的当前分支；`null` 表示还没解析出来 */
+    currentUndoBranchId: null as string | null
   },
   detachedError: {
     isIgnorable: vi.fn<(error: unknown) => boolean>()
   },
   delegates: {
+    compareBranches: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     createBranch: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     mergeBranch: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+    previewMerge: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     removeBranch: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     getSwitchVersionActions: vi.fn<(...args: unknown[]) => unknown>(),
     switchBranchActions: vi.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -49,6 +54,10 @@ vi.mock('../HistoryManager.js', () => ({
   HistoryManager: class HistoryManagerMock {
     readonly pushableCount$ = doubles.history.pushableCount$;
     readonly pullableCount$ = doubles.history.pullableCount$;
+
+    get currentUndoBranchId(): string | null {
+      return doubles.history.currentUndoBranchId;
+    }
 
     constructor(rxdb: unknown) {
       doubles.history.instances.push(this);
@@ -87,6 +96,10 @@ vi.mock('../HistoryManager.js', () => ({
       doubles.history.clearRedoStack();
     }
 
+    refreshChildForks(): void {
+      doubles.history.refreshChildForks();
+    }
+
     setUndoBranch(branchId: string): void {
       doubles.history.setUndoBranch(branchId);
     }
@@ -106,6 +119,10 @@ vi.mock('../detached-event-error.js', () => ({
   isIgnorableDetachedVersionEventError: doubles.detachedError.isIgnorable
 }));
 
+vi.mock('../branch-compare.js', () => ({
+  compare_branches: doubles.delegates.compareBranches,
+  preview_merge: doubles.delegates.previewMerge
+}));
 vi.mock('../create-branch.js', () => ({ create_branch: doubles.delegates.createBranch }));
 vi.mock('../merge-branch.js', () => ({ merge_branch: doubles.delegates.mergeBranch }));
 vi.mock('../remove-branch.js', () => ({ remove_branch: doubles.delegates.removeBranch }));
@@ -183,6 +200,9 @@ function createHarness(): Harness {
     localAdapter$: of(localAdapter),
     remoteAdapter$: of(remoteAdapter),
     connected$: of(false),
+    // 没换挂过的实例挂的是主表集（US-314 B1.4）
+    worktreeTableSet: WorktreeTableSet.MAIN,
+    worktreeTableSet$: of(WorktreeTableSet.MAIN),
     // 没有能力插件贡献：切换前的前置判定短路，编排顺序与今天一致。
     systemContributions: [],
     addEventListener,
@@ -222,6 +242,7 @@ async function flushDetachedTask(): Promise<void> {
 beforeEach(() => {
   vi.resetAllMocks();
   doubles.history.instances.length = 0;
+  doubles.history.currentUndoBranchId = null;
   doubles.history.invalidateRedoStack.mockResolvedValue(undefined);
   doubles.history.isExecutingUndoRedo.mockReturnValue(false);
   doubles.history.history.mockReturnValue({ type: 'database' });
@@ -303,6 +324,49 @@ describe('VersionManager 对协作模块的编排契约', () => {
     expect(doubles.history.resetSyncCleared).toHaveBeenCalledOnce();
   });
 
+  // 变更元事件的 patch 是整行变更（两个后端都这么派），`branchId` 就在里面。一笔写只作废它所在分支的 redo 栈、
+  // 只恢复那条分支的 undo 会话（US-314 B1.4）：实例刚从可写检出位挂回主检出位时，检出位上那几笔写的通知可能迟到。
+  it('只认记在本实例当前分支上的变更', async () => {
+    const { manager, addEventListener } = createHarness();
+    doubles.history.currentUndoBranchId = 'main';
+    manager.init();
+    const listener = getLocalCreateListener(addEventListener);
+
+    listener({
+      entities: [{ namespace: 'rxdb', entity: 'RxDBChange', id: 51, patch: { id: 51, branchId: 'feature' } }]
+    });
+    await flushDetachedTask();
+
+    expect(doubles.history.invalidateRedoStack).not.toHaveBeenCalled();
+    expect(doubles.history.resetSyncCleared).not.toHaveBeenCalled();
+
+    listener({
+      entities: [
+        { namespace: 'rxdb', entity: 'RxDBChange', id: 52, patch: { id: 52, branchId: 'feature' } },
+        { namespace: 'rxdb', entity: 'RxDBChange', id: 53, patch: { id: 53, branchId: 'main' } }
+      ]
+    });
+    await flushDetachedTask();
+
+    expect(doubles.history.invalidateRedoStack).toHaveBeenCalledOnce();
+    expect(doubles.history.resetSyncCleared).toHaveBeenCalledWith([53]);
+  });
+
+  // 当前分支还没解析出来时无从比对，照旧按本分支的写处理 —— 与按分支过滤之前逐字相同
+  it('当前分支还没解析出来时照旧处理', async () => {
+    const { manager, addEventListener } = createHarness();
+    manager.init();
+    const listener = getLocalCreateListener(addEventListener);
+
+    listener({
+      entities: [{ namespace: 'rxdb', entity: 'RxDBChange', id: 61, patch: { id: 61, branchId: 'feature' } }]
+    });
+    await flushDetachedTask();
+
+    expect(doubles.history.invalidateRedoStack).toHaveBeenCalledOnce();
+    expect(doubles.history.resetSyncCleared).toHaveBeenCalledWith([61]);
+  });
+
   it('logs detached failures but ignores shutdown failures', async () => {
     const { manager, addEventListener } = createHarness();
     const shutdownError = new Error('adapter closed');
@@ -334,6 +398,17 @@ describe('VersionManager 对协作模块的编排契约', () => {
 
     expect(doubles.delegates.createBranch).toHaveBeenCalledWith(harness.manager, 'feature', 17);
     expect(doubles.delegates.removeBranch).toHaveBeenCalledWith(harness.manager, 'obsolete');
+    // 建、删分支之后各补一次分叉点重查：删分支派不出删除事件，撤销 / 重做的视图靠它跟上（US-315）
+    expect(doubles.history.refreshChildForks).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not refresh child forks when the branch operation fails', async () => {
+    const harness = createHarness();
+    doubles.delegates.removeBranch.mockRejectedValueOnce(new Error('has child branches'));
+
+    await expect(harness.manager.removeBranch('parent')).rejects.toThrow('has child branches');
+
+    expect(doubles.history.refreshChildForks).not.toHaveBeenCalled();
   });
 
   it('returns local and remote system repositories from their adapter streams', async () => {
@@ -368,7 +443,8 @@ describe('VersionManager 对协作模块的编排契约', () => {
 
     await harness.manager.switchBranch('feature');
 
-    expect(doubles.delegates.switchBranchActions).toHaveBeenCalledWith(harness.manager, 'feature');
+    // 主检出位上不传起点（缺省就是激活的那一条，US-314 B2.2）；主表集上只留成员是原样返回，`actions` 还是同一个对象
+    expect(doubles.delegates.switchBranchActions).toHaveBeenCalledWith(harness.manager, 'feature', undefined);
     expect(harness.localAdapter.switchBranch).toHaveBeenCalledWith({
       branchId: 'feature',
       actions,
@@ -432,10 +508,20 @@ describe('VersionManager 对协作模块的编排契约', () => {
     await expect(harness.manager.mergeBranch('feature', { strategy: 'squash' })).resolves.toBe(merged);
     await harness.manager.mergeBranch('empty');
 
-    expect(doubles.delegates.mergeBranch).toHaveBeenNthCalledWith(1, harness.manager, 'feature', 'main', {
-      strategy: 'squash'
-    });
+    // 第五个参数是挂着那套表的成员判定（US-314 B2.1）：主表集什么都管
+    expect(doubles.delegates.mergeBranch).toHaveBeenNthCalledWith(
+      1,
+      harness.manager,
+      'feature',
+      'main',
+      { strategy: 'squash' },
+      expect.any(Function)
+    );
+    const inTableSet = doubles.delegates.mergeBranch.mock.calls[0][4] as (namespace: string, entity: string) => boolean;
+    expect(inTableSet('public', 'AnyEntity')).toBe(true);
     expect(doubles.history.clearUndoHistory).toHaveBeenCalledOnce();
+    // 合并可能删了源分支：两次合并各补一次分叉点重查
+    expect(doubles.history.refreshChildForks).toHaveBeenCalledTimes(2);
     expect(harness.dispatchEvent.mock.calls.map(([event]) => event.type)).toEqual([
       'MERGE_BRANCH_BEGIN',
       'MERGE_BRANCH_COMMIT',
@@ -460,5 +546,47 @@ describe('VersionManager 对协作模块的编排契约', () => {
 
     await expect(manager.mergeBranch('feature')).rejects.toThrow('No active branch found');
     expect(doubles.delegates.mergeBranch).not.toHaveBeenCalled();
+  });
+
+  it('compares and previews over the local repositories, with no events and no history reset', async () => {
+    const harness = createHarness();
+    const currentBranch = Object.assign(Object.create(RxDBBranch.prototype) as InstanceType<typeof RxDBBranch>, {
+      id: 'main',
+      activated: true
+    });
+    vi.spyOn(harness.manager, 'getCurrentBranch').mockResolvedValue(currentBranch);
+    const comparison = { fromBranchId: 'main', toBranchId: 'feature', entries: [] };
+    const preview = { sourceBranchId: 'feature', targetBranchId: 'main', strategy: 'normal', merged: 0, entries: [] };
+    doubles.delegates.compareBranches.mockResolvedValueOnce(comparison);
+    doubles.delegates.previewMerge.mockResolvedValueOnce(preview);
+
+    await expect(harness.manager.compareBranches('main', 'feature')).resolves.toBe(comparison);
+    await expect(harness.manager.previewMerge('feature', { strategy: 'normal' })).resolves.toBe(preview);
+
+    // 预览的目标取当前 active 分支，与 mergeBranch 同一个口径。
+    const readers = expect.objectContaining({
+      branchRepository: harness.localBranchRepository,
+      changeRepository: harness.localChangeRepository
+    });
+    expect(doubles.delegates.compareBranches).toHaveBeenCalledWith(readers, 'main', 'feature');
+    expect(doubles.delegates.previewMerge).toHaveBeenCalledWith(
+      readers,
+      'feature',
+      'main',
+      { strategy: 'normal' },
+      expect.any(Function)
+    );
+    expect(harness.dispatchEvent).not.toHaveBeenCalled();
+    expect(doubles.history.clearUndoHistory).not.toHaveBeenCalled();
+  });
+
+  it('rejects preview when the active branch lookup yields no branch', async () => {
+    const { manager } = createHarness();
+    vi.spyOn(manager, 'getCurrentBranch').mockImplementation(
+      async () => undefined as unknown as InstanceType<typeof RxDBBranch>
+    );
+
+    await expect(manager.previewMerge('feature')).rejects.toThrow('No active branch found');
+    expect(doubles.delegates.previewMerge).not.toHaveBeenCalled();
   });
 });

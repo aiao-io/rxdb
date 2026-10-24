@@ -1,18 +1,19 @@
-import type { EntityMetadata, EntityType, IEntity, IMutationContext } from '@aiao/rxdb';
+import type { EntityMetadata, EntityType, IEntity, IMutationContext, WorktreeTableSet } from '@aiao/rxdb';
 import { GenerateSqlResult } from '../query/query_sql.js';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
 import {
   EncryptionContext,
   get_primary_key_column,
-  get_table_name_by_metadata,
   normalizeUpdateEntity,
   quote_sql_identifier,
   ROWID,
   transformEntityValueToSql
 } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 
 export const update_sql = async <T extends EntityType>(
   metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
   entityOrEntities: InstanceType<T> | InstanceType<T>[],
   patch: Partial<InstanceType<T>>,
   context?: IMutationContext & { encryption?: EncryptionContext }
@@ -54,7 +55,7 @@ export const update_sql = async <T extends EntityType>(
     .map(column => `${quote_sql_identifier(column)} = ?`)
     .join(',');
   const params = [...Object.values(needSaveData)] as SQLiteCompatibleType[];
-  const tableName = get_table_name_by_metadata(metadata);
+  const tableName = get_table_name_by_metadata(metadata, tableSet);
 
   // 主键物理列名可被 columnName 改写（SQLC-014）
   const primaryKeyColumn = quote_sql_identifier(get_primary_key_column(metadata));

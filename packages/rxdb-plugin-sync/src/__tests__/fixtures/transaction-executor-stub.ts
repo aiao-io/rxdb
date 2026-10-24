@@ -1,5 +1,5 @@
 import type { EntityType, TransactionExecutor } from '@aiao/rxdb';
-import { getEntityMetadata, quoteSqlIdentifier } from '@aiao/rxdb';
+import { getEntityMetadata, quoteSqlIdentifier, WorktreeTableSet } from '@aiao/rxdb';
 import { vi } from 'vitest';
 
 /**
@@ -17,6 +17,12 @@ interface RepositoryHost {
   removeMany?: (entities: never[]) => unknown;
   /** 同 {@link RepositoryHost.removeMany}。 */
   saveMany?: (entities: never[]) => unknown;
+  /**
+   * 本事务落在哪一套业务表上，不给就是主表集。
+   *
+   * 给影子表集的用例模拟「同步跑到一半时实例换挂到了可写检出位」（US-314 B1.4）。
+   */
+  tableSet?: WorktreeTableSet;
 }
 
 /**
@@ -45,6 +51,7 @@ export const createTransactionExecutorStub = (host: RepositoryHost): Transaction
   const executor = {
     id: 'test-executor',
     state: 'active',
+    tableSet: host.tableSet ?? WorktreeTableSet.MAIN,
     query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
     // 只把逻辑表名加引号，不冒充任何后端的物理命名——挑一种模仿会让单测看起来在验物理
     // 命名，实则只在验这份替身自己。物理命名由各适配器的共享契约套件在真库上验。

@@ -17,7 +17,15 @@
  */
 
 import type { TransactionExecutor } from '@aiao/rxdb';
-import { type EntityType, type IRepository, type RxDB, RxDBBranch, RxDBChange, RxDBError } from '@aiao/rxdb';
+import {
+  type EntityType,
+  type IRepository,
+  type RxDB,
+  RxDBBranch,
+  RxDBChange,
+  RxDBError,
+  WorktreeTableSet
+} from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 import { syncBranches } from '../sync-branches.js';
@@ -173,7 +181,11 @@ class FakeLocalDatabase {
  *   顺序是这套用例的被测面之一，所以这里绝不排序。
  */
 const createSyncManager = (db: FakeLocalDatabase, remoteBranches: BranchRow[]): SyncManager => {
-  const rxdb = { config: { sync: {} }, localAdapter$: of(db.adapter) } as unknown as RxDB;
+  const rxdb = {
+    config: { sync: {} },
+    localAdapter$: of(db.adapter),
+    worktreeTableSet: WorktreeTableSet.MAIN
+  } as unknown as RxDB;
   // 历史桥在这条路径上一次都不会被碰：`syncBranches` 不结算计数、不动 undo 栈。
   // 给一张空桌子比给一组假成员诚实 —— 真有谁碰了它，`undefined is not a function` 就是答案。
   const sm = new SyncManager(rxdb, {} as unknown as SyncManager['history']);

@@ -64,6 +64,17 @@ export interface RxDBBranchCreationContext {
 
   /** 刚写进去的分支 id */
   readonly branchId: string;
+
+  /**
+   * 调用方点名的源提交；只有「从提交建分支」那条路径给（US-314）。不点名时连这个键都没有
+   *
+   * @remarks
+   * 与 {@link RxDBBranchSwitchPreconditions} 同一个分工：字段的形状在核心，含义在能力插件。核心不读它，
+   * 原样交给每个贡献方——`@aiao/rxdb-plugin-working-tree` 据此让新分支的 HEAD 就是这个提交、工作树为空，
+   * 而不是按分叉点复制工作树或另写一个分支基线。分支行上的 `parentId` / `fromChangeId` 仍由调用方写，
+   * 必须正是这个提交记下的分叉点，贡献方会核对。
+   */
+  readonly fromCommitId?: string;
 }
 
 /**

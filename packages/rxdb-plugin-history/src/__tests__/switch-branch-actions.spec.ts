@@ -1,6 +1,10 @@
 import { getRxDBEntityIdentityKey, RxDBChange, RxDBError } from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { get_switch_version_actions, switch_branch_actions } from '../switch-branch-actions.js';
+import {
+  compute_switch_branch_actions,
+  get_switch_version_actions,
+  switch_branch_actions
+} from '../switch-branch-actions.js';
 import { VersionManager } from '../VersionManager.js';
 
 type FindRepositoryMock = { find: ReturnType<typeof vi.fn> };
@@ -439,6 +443,36 @@ describe('switch_branch_actions', () => {
  * changes 里的 patch / inversePatch 可能是 EntityManager 的缓存实例，
  * actions 一旦持有引用，后续 Object.assign 合并就会原地改写源数据。
  */
+// 挂在可写检出位上的调用方（只读检出位的分支视图，US-314 B1.4）起点是那套表持有的分支，不是主检出位激活的那一条
+describe('compute_switch_branch_actions 指定起点', () => {
+  const main = { id: 'main', activated: true, fromChangeId: null, parentId: null };
+  const held = { id: 'held', activated: false, fromChangeId: null, parentId: 'main' };
+  const readersOf = (branches: object[]) => ({
+    branchRepository: { find: vi.fn().mockResolvedValue(branches) },
+    changeRepository: { find: vi.fn().mockResolvedValue([]) }
+  });
+
+  it('给了起点就从它出发，不按 activated 查', async () => {
+    const readers = readersOf([main, held]);
+
+    await expect(compute_switch_branch_actions(readers as never, 'main', 'held')).resolves.toEqual(emptyActions());
+    expect(readers.branchRepository.find).toHaveBeenCalledTimes(1);
+    expect(readers.branchRepository.find).toHaveBeenCalledWith({ where: { combinator: 'and', rules: [] } });
+  });
+
+  it('起点与终点相同照样拒绝', async () => {
+    await expect(compute_switch_branch_actions(readersOf([main, held]) as never, 'held', 'held')).rejects.toThrow(
+      'Cannot switch to the same branch'
+    );
+  });
+
+  it('起点不存在：抛错', async () => {
+    await expect(compute_switch_branch_actions(readersOf([main]) as never, 'main', 'held')).rejects.toThrow(
+      'Branch (held) not found'
+    );
+  });
+});
+
 describe('get_switch_version_actions（逆向分支）', () => {
   const change = (input: Partial<RxDBChange> & Pick<RxDBChange, 'id' | 'type'>): RxDBChange =>
     ({
