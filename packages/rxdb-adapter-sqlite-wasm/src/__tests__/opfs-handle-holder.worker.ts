@@ -13,6 +13,7 @@ type HolderCommand = { readonly type: 'hold'; readonly fileName: string } | { re
 let held: FileSystemSyncAccessHandle | undefined;
 
 self.onmessage = async (event: MessageEvent<HolderCommand>) => {
+  if (event.origin !== self.location.origin) return;
   if (event.data.type === 'hold') {
     const root = await navigator.storage.getDirectory();
     const file = await root.getFileHandle(event.data.fileName, { create: true });

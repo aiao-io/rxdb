@@ -5,6 +5,7 @@ import type {
   CommitLogEntry,
   CommitResult,
   CommitValidationReason,
+  Worktree,
   WorkingTreeCredentials,
   WorkingTreeDiffEntry,
   WorkingTreeRestoreFailureReason,
@@ -27,6 +28,7 @@ import HistoryCompare, { type HistoryCompareState } from './working-tree/compone
 import HistoryList from './working-tree/components/HistoryList.vue';
 import MergeDialog, { type MergeDialogState } from './working-tree/components/MergeDialog.vue';
 import SwitchBranchDialog, { type SwitchBranchDialogState } from './working-tree/components/SwitchBranchDialog.vue';
+import WorktreeMenu from './working-tree/components/WorktreeMenu.vue';
 import type {
   WorkingTreeContextMenuItem,
   WorkingTreeContextMenuRequest,
@@ -135,6 +137,8 @@ const asideWidth = ref(320);
 const branchSectionWidth = ref(230);
 /** 工具栏获取段的宽度。 */
 const fetchSectionWidth = ref(200);
+/** 检出位列表与操作期间的按钮禁用态。 */
+const worktreeBusy = ref(false);
 /** 右键菜单的开合状态；null = 关着。 */
 const contextMenu = ref<WorkingTreeContextMenuState | null>(null);
 /** 右键菜单对应的目标：分发动作时不再靠菜单文案反查。 */
@@ -172,6 +176,12 @@ const enabledState = computed(() => tree.isEnabledState.value);
 
 /** 当前分支：挂着那套表持有的那一条（挂在可写检出位上时它的 `activated` 是假，见 `working-tree/utils/worktrees.ts`） */
 const activeBranch = computed(() => currentBranchOf(branches.value, worktrees.mounted.value));
+/** 下拉只展示已经建好的可写检出位；只读快照仍由 History 的入口管理。 */
+const worktreeRows = computed<readonly Worktree[]>(() => {
+  const state = worktrees.listState?.value;
+  if (state === undefined) return [];
+  return state.phase === 'success' || state.phase === 'empty' ? state.value : [];
+});
 /** 当前分支以外的分支：合并对话框的来源列表与 History 的对比下拉共用；被别的检出位持有的照样能合进来、拿来对比 */
 const otherBranchIds = computed(() =>
   branches.value.filter(branch => branch.id !== activeBranch.value).map(branch => branch.id)
@@ -258,6 +268,8 @@ onMounted(() => {
     })
     .catch(() => undefined);
   void tree.status().catch(() => undefined);
+  const listedWorktrees = worktrees.list?.();
+  if (listedWorktrees !== undefined) void listedWorktrees.catch(() => undefined);
 });
 
 // ── 工具栏 ────────────────────────────────────────────────
@@ -280,6 +292,88 @@ async function runFetch(): Promise<void> {
     lastFetchedAt.value = Date.now();
   } finally {
     fetching.value = false;
+  }
+}
+
+/** 切换工作树后重读工作树面板；换挂只更新 RxDB 实例，查询入口不会自行重读。 */
+async function mountWorktree(id: string): Promise<void> {
+  if (worktreeBusy.value) return;
+  worktreeBusy.value = true;
+  try {
+    await worktrees.mount(id);
+    await refreshStatus();
+    await readCommits();
+    showToast('success', 'Worktree mounted.');
+  } catch (cause: unknown) {
+    showToast('error', cause instanceof Error ? cause.message : 'Could not mount worktree.');
+  } finally {
+    worktreeBusy.value = false;
+  }
+}
+
+async function mountMainWorktree(): Promise<void> {
+  if (worktreeBusy.value || worktrees.mounted.value.isMain) return;
+  worktreeBusy.value = true;
+  try {
+    await worktrees.mountMain();
+    await refreshStatus();
+    await readCommits();
+    showToast('success', 'Main worktree mounted.');
+  } catch (cause: unknown) {
+    showToast('error', cause instanceof Error ? cause.message : 'Could not mount main worktree.');
+  } finally {
+    worktreeBusy.value = false;
+  }
+}
+
+/** 新检出位必须落在一条未被持有的分支上；空分支选择代表使用第一条可用分支。 */
+async function addWorktree(request: { name: string; branchId: string | null }): Promise<void> {
+  if (worktreeBusy.value) return;
+  const target = request.branchId ?? branches.value.find(branch => branch.activeKey == null)?.id;
+  if (target === undefined) {
+    showToast('error', 'No available branch for a new worktree.');
+    return;
+  }
+  worktreeBusy.value = true;
+  try {
+    const record = await worktrees.add(target, { name: request.name });
+    await worktrees.mount(record.id);
+    await refreshStatus();
+    await readCommits();
+    showToast('success', `Created worktree “${request.name}”.`);
+  } catch (cause: unknown) {
+    showToast('error', cause instanceof Error ? cause.message : 'Could not create worktree.');
+  } finally {
+    worktreeBusy.value = false;
+  }
+}
+
+async function renameWorktree(request: { id: string; name: string }): Promise<void> {
+  if (worktreeBusy.value) return;
+  worktreeBusy.value = true;
+  try {
+    await worktrees.rename(request.id, request.name);
+    showToast('success', 'Worktree renamed.');
+  } catch (cause: unknown) {
+    showToast('error', cause instanceof Error ? cause.message : 'Could not rename worktree.');
+  } finally {
+    worktreeBusy.value = false;
+  }
+}
+
+/** 删除对话框总会先确认，未提交改动仍留在被检出的分支上。 */
+async function removeWorktree(id: string): Promise<void> {
+  if (worktreeBusy.value) return;
+  worktreeBusy.value = true;
+  try {
+    await worktrees.remove(id);
+    await refreshStatus();
+    await readCommits();
+    showToast('success', 'Worktree deleted.');
+  } catch (cause: unknown) {
+    showToast('error', cause instanceof Error ? cause.message : 'Could not delete worktree.');
+  } finally {
+    worktreeBusy.value = false;
   }
 }
 
@@ -1004,6 +1098,20 @@ function clampAsideWidth(width: number): number {
             </div>
           </template>
         </div>
+
+        <WorktreeMenu
+          :active-branch="activeBranch"
+          :branches="branches.value"
+          :busy="worktreeBusy"
+          :mounted="worktrees.mounted.value"
+          :rows="worktreeRows"
+          :style="{ width: '220px' }"
+          @add="addWorktree"
+          @mount="mountWorktree"
+          @mount-main="mountMainWorktree"
+          @remove="removeWorktree"
+          @rename="renameWorktree"
+        />
 
         <BranchMenu
           class="gd-toolbar-section gd-branch-section"

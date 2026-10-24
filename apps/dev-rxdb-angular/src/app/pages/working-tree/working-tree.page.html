@@ -62,6 +62,22 @@
         }
       </div>
 
+      <app-working-tree-worktree-menu
+        class="gd-toolbar-section gd-worktree-section"
+        [(menuOpen)]="$worktreeMenuOpen"
+        [mainBranch]="$mainBranch()"
+        [mounted]="worktrees.mounted()"
+        [popupWidth]="$branchSectionWidth() < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : $branchSectionWidth()"
+        [records]="$worktreeRecords()"
+        [style.width.px]="$branchSectionWidth()"
+        (createRequest)="openNewWorktree()"
+        (deleteRequest)="requestDeleteWorktree($event)"
+        (menuRequest)="openWorktreeContextMenu($event)"
+        (renameRequest)="requestRenameWorktree($event)"
+        (selectMainWorktree)="selectMainWorktree()"
+        (selectWorktree)="selectWorktree($event)"
+      />
+
       <app-working-tree-branch-menu
         class="gd-toolbar-section gd-branch-section"
         [(menuOpen)]="$branchMenuOpen"
@@ -331,6 +347,23 @@
     [switching]="$switching()"
     (closeRequested)="closeSwitchDialog()"
     (confirmRequested)="confirmSwitchLeavingChanges()"
+  />
+
+  <app-working-tree-worktree-dialogs
+    [(createBranch)]="$worktreeCreateBranch"
+    [(createName)]="$worktreeCreateName"
+    [(renameName)]="$worktreeRenameName"
+    [branches]="branches.value()"
+    [busy]="$worktreeCommandBusy()"
+    [createOpen]="$worktreeCreateOpen()"
+    [deleteDirty]="$worktreeDeleteDirty()"
+    [deleteTarget]="$worktreeDeleteTarget()"
+    [error]="$worktreeCommandError()"
+    [renameTarget]="$worktreeRenameTarget()"
+    (closeRequested)="closeWorktreeDialogs()"
+    (confirmDelete)="confirmDeleteWorktree()"
+    (createConfirmed)="createWorktree($event)"
+    (renameConfirmed)="renameWorktree($event)"
   />
 
   <!-- ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ -->

@@ -7,7 +7,8 @@ import type {
   WorkingTreeCredentials,
   WorkingTreeDiffEntry,
   WorkingTreeRestoreFailureReason,
-  WorkingTreeRestoreSessionInfo
+  WorkingTreeRestoreSessionInfo,
+  Worktree
 } from '@aiao/rxdb-plugin-working-tree';
 import { CommitValidationError, WorkingTreeDirtyError } from '@aiao/rxdb-plugin-working-tree';
 import { useWorkingTree, useWorktrees } from '@aiao/rxdb-plugin-working-tree-react';
@@ -32,6 +33,8 @@ import { WorkingTreeHistoryCompare, type HistoryCompareState } from './component
 import { WorkingTreeHistoryList } from './components/HistoryList';
 import { WorkingTreeMergeDialog, type MergeDialogState } from './components/MergeDialog';
 import { WorkingTreeSwitchBranchDialog, type SwitchBranchDialogState } from './components/SwitchBranchDialog';
+import { WorkingTreeDeleteDialog, WorkingTreeNewDialog, WorkingTreeRenameDialog } from './components/WorktreeDialogs';
+import { WorkingTreeWorktreeMenu } from './components/WorktreeMenu';
 import type { BranchDiffLoad } from './utils/branch-diff';
 import { diffEntryKey } from './utils/diff-format';
 import { startDragResize } from './utils/drag';
@@ -111,6 +114,20 @@ export default function WorkingTreePage(): React.JSX.Element {
   const [commitDescription, setCommitDescription] = useState('');
   /** 分支下拉的开合；由页面持有，组件只做展示与转发 */
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
+  /** Worktree 下拉与三个可写检出位对话框（US-314 C2.2）。 */
+  const [worktreeMenuOpen, setWorktreeMenuOpen] = useState(false);
+  const [newWorktreeOpen, setNewWorktreeOpen] = useState(false);
+  const [newWorktreeName, setNewWorktreeName] = useState('');
+  const [newWorktreeBranch, setNewWorktreeBranch] = useState('');
+  const [newWorktreeError, setNewWorktreeError] = useState<string | null>(null);
+  const [creatingWorktree, setCreatingWorktree] = useState(false);
+  const [renameWorktree, setRenameWorktree] = useState<Worktree | null>(null);
+  const [renameWorktreeName, setRenameWorktreeName] = useState('');
+  const [renameWorktreeError, setRenameWorktreeError] = useState<string | null>(null);
+  const [renamingWorktree, setRenamingWorktree] = useState(false);
+  const [deleteWorktree, setDeleteWorktree] = useState<Worktree | null>(null);
+  const [deleteWorktreeError, setDeleteWorktreeError] = useState<string | null>(null);
+  const [deletingWorktree, setDeletingWorktree] = useState(false);
   /** 「Create a branch」对话框（History 右键与分支下拉的 New branch 共用）：状态、名字、报错与进行中 */
   const [createBranchDialog, setCreateBranchDialog] = useState<CreateBranchDialogState | null>(null);
   const [createBranchName, setCreateBranchName] = useState('');
@@ -179,6 +196,13 @@ export default function WorkingTreePage(): React.JSX.Element {
   // ── 派生状态 ──────────────────────────────────────────────
   /** 当前分支：挂着那套表持有的那一条（挂在可写检出位上时它的 `activated` 是假，见 `utils/worktrees.ts`） */
   const activeBranch = currentBranchOf(branches, worktrees.mounted);
+  const worktreeList =
+    worktrees.listState.phase === 'success' || worktrees.listState.phase === 'empty' ? worktrees.listState.value : [];
+  const linkedWorktrees = worktreeList.filter(worktree => worktree.mode === 'writable' && worktree.state === 'ready');
+  const currentLinkedWorktree =
+    linkedWorktrees.find(worktree => worktree.tableSetSuffix === worktrees.mounted.suffix) ?? null;
+  const workingTreeDirty =
+    (displayStatusState.phase === 'success' || displayStatusState.phase === 'empty') && !displayStatusState.value.clean;
   /** 当前分支以外的分支：合并对话框的来源列表与 History 的对比下拉共用；被别的检出位持有的照样能合进来、拿来对比 */
   const otherBranchIds = branches.filter(branch => branch.id !== activeBranch).map(branch => branch.id);
 
@@ -233,6 +257,7 @@ export default function WorkingTreePage(): React.JSX.Element {
       })
       .catch(() => undefined);
     void tree.status().catch(() => undefined);
+    void worktrees.list().catch(() => undefined);
     // 入口对象每次 render 都是新的；这一轮只想在挂载时跑一次。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -310,6 +335,127 @@ export default function WorkingTreePage(): React.JSX.Element {
       setLastFetchedAt(Date.now());
     } finally {
       setFetching(false);
+    }
+  };
+
+  // ── 可写检出位（US-314 C2.2）──────────────────────────────
+
+  const worktreeErrorMessage = (error: unknown, fallback: string): string =>
+    error instanceof Error ? error.message : fallback;
+
+  const openNewWorktree = (): void => {
+    setWorktreeMenuOpen(false);
+    setNewWorktreeName('');
+    setNewWorktreeError(null);
+    // 只能把未被主检出位或另一个链接检出位占用的分支交给 add()。
+    setNewWorktreeBranch(
+      branches.find(branch => branch.activeKey === null || branch.activeKey === undefined)?.id ?? ''
+    );
+    setNewWorktreeOpen(true);
+  };
+
+  const closeNewWorktree = (): void => {
+    if (creatingWorktree) return;
+    setNewWorktreeOpen(false);
+    setNewWorktreeError(null);
+  };
+
+  const createWorktree = async (): Promise<void> => {
+    const branchId =
+      newWorktreeBranch.trim() ||
+      branches.find(branch => branch.activeKey === null || branch.activeKey === undefined)?.id;
+    const name = newWorktreeName.trim();
+    if (creatingWorktree || name === '') return;
+    if (branchId === undefined) {
+      setNewWorktreeError('Create or free a branch before adding a worktree.');
+      return;
+    }
+    setCreatingWorktree(true);
+    setNewWorktreeError(null);
+    try {
+      const record = await worktrees.add(branchId, { name });
+      await worktrees.mount(record.id);
+      setNewWorktreeOpen(false);
+      showToast('success', `Opened worktree "${name}".`);
+      await refreshStatus();
+      await readCommits();
+    } catch (error: unknown) {
+      setNewWorktreeError(worktreeErrorMessage(error, 'Could not create the worktree.'));
+    } finally {
+      setCreatingWorktree(false);
+    }
+  };
+
+  const openRenameWorktree = (worktree: Worktree): void => {
+    setWorktreeMenuOpen(false);
+    setRenameWorktree(worktree);
+    setRenameWorktreeName(worktree.name ?? worktree.branchId);
+    setRenameWorktreeError(null);
+  };
+
+  const closeRenameWorktree = (): void => {
+    if (renamingWorktree) return;
+    setRenameWorktree(null);
+    setRenameWorktreeError(null);
+  };
+
+  const renameLinkedWorktree = async (): Promise<void> => {
+    const target = renameWorktree;
+    const name = renameWorktreeName.trim();
+    if (target === null || renamingWorktree || name === '') return;
+    setRenamingWorktree(true);
+    setRenameWorktreeError(null);
+    try {
+      await worktrees.rename(target.id, name);
+      closeRenameWorktree();
+      showToast('success', `Renamed worktree to "${name}".`);
+    } catch (error: unknown) {
+      setRenameWorktreeError(worktreeErrorMessage(error, 'Could not rename the worktree.'));
+    } finally {
+      setRenamingWorktree(false);
+    }
+  };
+
+  const openDeleteWorktree = (worktree: Worktree): void => {
+    setWorktreeMenuOpen(false);
+    setDeleteWorktree(worktree);
+    setDeleteWorktreeError(null);
+  };
+
+  const closeDeleteWorktree = (): void => {
+    if (deletingWorktree) return;
+    setDeleteWorktree(null);
+    setDeleteWorktreeError(null);
+  };
+
+  const deleteLinkedWorktree = async (): Promise<void> => {
+    const target = deleteWorktree;
+    if (target === null || deletingWorktree) return;
+    setDeletingWorktree(true);
+    setDeleteWorktreeError(null);
+    try {
+      await worktrees.remove(target.id);
+      setDeleteWorktree(null);
+      showToast('success', `Deleted worktree "${target.name ?? target.branchId}".`);
+      await refreshStatus();
+      await readCommits();
+    } catch (error: unknown) {
+      setDeleteWorktreeError(worktreeErrorMessage(error, 'Could not delete the worktree.'));
+    } finally {
+      setDeletingWorktree(false);
+    }
+  };
+
+  const mountWorktree = async (id: string | null): Promise<void> => {
+    setWorktreeMenuOpen(false);
+    try {
+      if (id === null) await worktrees.mountMain();
+      else await worktrees.mount(id);
+      await refreshStatus();
+      await readCommits();
+      showToast('success', id === null ? 'Switched to the main worktree.' : 'Switched worktree.');
+    } catch (error: unknown) {
+      showToast('error', worktreeErrorMessage(error, 'Could not switch worktree.'));
     }
   };
 
@@ -992,6 +1138,21 @@ export default function WorkingTreePage(): React.JSX.Element {
             </div>
 
             <div className='gd-toolbar-section gd-branch-section' style={{ width: branchSectionWidth }}>
+              <WorkingTreeWorktreeMenu
+                activeBranch={activeBranch}
+                menuOpen={worktreeMenuOpen}
+                mounted={worktrees.mounted}
+                onCreateRequest={openNewWorktree}
+                onDeleteRequest={openDeleteWorktree}
+                onMenuOpenChange={setWorktreeMenuOpen}
+                onMountRequest={id => void mountWorktree(id)}
+                onRenameRequest={openRenameWorktree}
+                popupWidth={branchSectionWidth < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : branchSectionWidth}
+                worktrees={linkedWorktrees}
+              />
+            </div>
+
+            <div className='gd-toolbar-section gd-branch-section' style={{ width: branchSectionWidth }}>
               <WorkingTreeBranchMenu
                 activeBranch={activeBranch}
                 branches={branches}
@@ -1289,6 +1450,39 @@ export default function WorkingTreePage(): React.JSX.Element {
         onCloseRequested={closeSwitchDialog}
         onConfirmRequested={() => void confirmSwitchLeavingChanges()}
         switching={switching}
+      />
+
+      <WorkingTreeNewDialog
+        activeBranch={activeBranch}
+        branches={branches}
+        branchId={newWorktreeBranch}
+        creating={creatingWorktree}
+        error={newWorktreeError}
+        name={newWorktreeName}
+        onBranchChange={setNewWorktreeBranch}
+        onClose={closeNewWorktree}
+        onConfirm={() => void createWorktree()}
+        onNameChange={setNewWorktreeName}
+        open={newWorktreeOpen}
+      />
+
+      <WorkingTreeRenameDialog
+        error={renameWorktreeError}
+        name={renameWorktreeName}
+        onClose={closeRenameWorktree}
+        onConfirm={() => void renameLinkedWorktree()}
+        onNameChange={setRenameWorktreeName}
+        saving={renamingWorktree}
+        worktree={renameWorktree}
+      />
+
+      <WorkingTreeDeleteDialog
+        deleting={deletingWorktree}
+        dirty={deleteWorktree !== null && currentLinkedWorktree?.id === deleteWorktree.id && workingTreeDirty}
+        error={deleteWorktreeError}
+        onClose={closeDeleteWorktree}
+        onConfirm={() => void deleteLinkedWorktree()}
+        worktree={deleteWorktree}
       />
 
       {/* ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ */}

@@ -8,7 +8,8 @@ import type {
   WorkingTreeCredentials,
   WorkingTreeDiffEntry,
   WorkingTreeRestoreFailureReason,
-  WorkingTreeRestoreSessionInfo
+  WorkingTreeRestoreSessionInfo,
+  Worktree
 } from '@aiao/rxdb-plugin-working-tree';
 import { CommitValidationError, WorkingTreeDirtyError } from '@aiao/rxdb-plugin-working-tree';
 import {
@@ -62,6 +63,8 @@ import {
   WorkingTreeSwitchBranchDialogComponent,
   type SwitchBranchDialogState
 } from './components/switch-branch-dialog.component';
+import { WorkingTreeWorktreeDialogsComponent } from './components/worktree-dialogs.component';
+import { WorkingTreeWorktreeMenuComponent } from './components/worktree-menu.component';
 import type { BranchDiffLoad } from './working-tree.branch-diff';
 import { diffEntryKey } from './working-tree.diff-format';
 import { startDragResize } from './working-tree.drag';
@@ -132,7 +135,9 @@ const COMMIT_REJECTION_TEXT: Record<CommitValidationReason, string> = {
     WorkingTreeHistoryCompareComponent,
     WorkingTreeHistoryListComponent,
     WorkingTreeMergeDialogComponent,
-    WorkingTreeSwitchBranchDialogComponent
+    WorkingTreeSwitchBranchDialogComponent,
+    WorkingTreeWorktreeDialogsComponent,
+    WorkingTreeWorktreeMenuComponent
   ]
 })
 export default class WorkingTreePage implements OnInit {
@@ -165,6 +170,17 @@ export default class WorkingTreePage implements OnInit {
   readonly $commitDescription = signal('');
   /** 分支下拉的开合，交给 branch-menu 组件用 model() 双向持有 */
   readonly $branchMenuOpen = signal(false);
+  /** 工作树下拉及三个检出位对话框（US-314 C2.2）。 */
+  readonly $worktreeMenuOpen = signal(false);
+  readonly $worktreeCreateOpen = signal(false);
+  readonly $worktreeCreateName = signal('');
+  readonly $worktreeCreateBranch = signal('');
+  readonly $worktreeRenameTarget = signal<Worktree | null>(null);
+  readonly $worktreeRenameName = signal('');
+  readonly $worktreeDeleteTarget = signal<Worktree | null>(null);
+  readonly $worktreeDeleteDirty = signal(false);
+  readonly $worktreeCommandBusy = signal(false);
+  readonly $worktreeCommandError = signal<string | null>(null);
   /** 「Create a branch」对话框（History 右键与分支下拉的 New branch 共用）：状态、名字、报错与进行中 */
   readonly $createBranchDialog = signal<CreateBranchDialogState | null>(null);
   readonly $createBranchName = signal('');
@@ -215,12 +231,18 @@ export default class WorkingTreePage implements OnInit {
       }
     | { readonly kind: 'commit'; readonly commitId: string }
     | { readonly kind: 'branch'; readonly branchId: string }
+    | { readonly kind: 'worktree'; readonly worktreeId: string }
     | null
   >(null);
 
   // ── 派生状态 ──────────────────────────────────────────────
   /** 当前分支：挂着那套表持有的那一条（挂在可写检出位上时它的 `activated` 是假，见 `working-tree.worktrees.ts`） */
   readonly $activeBranch = computed(() => currentBranchOf(this.branches.value(), this.worktrees.mounted()));
+  readonly $mainBranch = computed(() => this.branches.value().find(branch => branch.activated)?.id ?? 'main');
+  readonly $worktreeRecords = computed(() => {
+    const state = this.worktrees.listState();
+    return state.phase === 'success' || state.phase === 'empty' ? state.value : [];
+  });
   /** 当前分支以外的分支：合并对话框的来源列表与 History 的对比下拉共用；被别的检出位持有的照样能合进来、拿来对比 */
   readonly $otherBranchIds = computed(() => {
     const active = this.$activeBranch();
@@ -329,6 +351,7 @@ export default class WorkingTreePage implements OnInit {
       })
       .catch(() => undefined);
     void this.tree.status().catch(() => undefined);
+    void this.worktrees.list().catch(() => undefined);
   }
 
   // ── 工具栏 ────────────────────────────────────────────────
@@ -339,6 +362,146 @@ export default class WorkingTreePage implements OnInit {
 
   closeRepoMenu() {
     this.$repoMenuOpen.set(false);
+  }
+
+  /** 打开新检出位对话框；默认选择当前分支，用户也可以改选其它未被占用的分支。 */
+  openNewWorktree(): void {
+    this.$worktreeMenuOpen.set(false);
+    this.$worktreeCommandError.set(null);
+    this.$worktreeCreateName.set('');
+    this.$worktreeCreateBranch.set('');
+    this.$worktreeCreateOpen.set(true);
+  }
+
+  closeWorktreeDialogs(force = false): void {
+    if (this.$worktreeCommandBusy() && !force) return;
+    this.$worktreeCreateOpen.set(false);
+    this.$worktreeRenameTarget.set(null);
+    this.$worktreeDeleteTarget.set(null);
+    this.$worktreeCommandError.set(null);
+  }
+
+  async selectWorktree(worktree: Worktree): Promise<void> {
+    this.$worktreeMenuOpen.set(false);
+    this.$worktreeCommandError.set(null);
+    this.$worktreeCommandBusy.set(true);
+    try {
+      await this.worktrees.mount(worktree.id);
+      await this.refreshStatus();
+      await this.readCommits();
+    } catch (error) {
+      this.showToast('error', error instanceof Error ? error.message : 'Unable to switch worktree.');
+    } finally {
+      this.$worktreeCommandBusy.set(false);
+    }
+  }
+
+  async selectMainWorktree(): Promise<void> {
+    this.$worktreeMenuOpen.set(false);
+    this.$worktreeCommandBusy.set(true);
+    try {
+      await this.worktrees.mountMain();
+      await this.refreshStatus();
+      await this.readCommits();
+    } catch (error) {
+      this.showToast('error', error instanceof Error ? error.message : 'Unable to switch worktree.');
+    } finally {
+      this.$worktreeCommandBusy.set(false);
+    }
+  }
+
+  async createWorktree(request: { name: string; branchId: string }): Promise<void> {
+    if (this.$worktreeCommandBusy()) return;
+    this.$worktreeCommandBusy.set(true);
+    this.$worktreeCommandError.set(null);
+    try {
+      const branchId = request.branchId || this.branches.value().find(branch => branch.activeKey == null)?.id;
+      if (branchId === undefined) {
+        this.$worktreeCommandError.set('Create or free a branch before adding a worktree.');
+        return;
+      }
+      const record = await this.worktrees.add(branchId, { name: request.name });
+      await this.worktrees.mount(record.id);
+      this.closeWorktreeDialogs(true);
+      await this.refreshStatus();
+      await this.readCommits();
+      this.showToast('success', `Created worktree “${request.name}”.`);
+    } catch (error) {
+      this.$worktreeCommandError.set(error instanceof Error ? error.message : 'Unable to create worktree.');
+    } finally {
+      this.$worktreeCommandBusy.set(false);
+    }
+  }
+
+  requestRenameWorktree(worktree: Worktree): void {
+    this.$worktreeMenuOpen.set(false);
+    this.$worktreeCommandError.set(null);
+    this.$worktreeRenameTarget.set(worktree);
+    this.$worktreeRenameName.set(worktree.name?.trim() || worktree.branchId);
+  }
+
+  async renameWorktree(name: string): Promise<void> {
+    const target = this.$worktreeRenameTarget();
+    if (target === null || this.$worktreeCommandBusy()) return;
+    this.$worktreeCommandBusy.set(true);
+    this.$worktreeCommandError.set(null);
+    try {
+      await this.worktrees.rename(target.id, name);
+      this.closeWorktreeDialogs(true);
+      this.showToast('success', `Renamed worktree to “${name}”.`);
+    } catch (error) {
+      this.$worktreeCommandError.set(error instanceof Error ? error.message : 'Unable to rename worktree.');
+    } finally {
+      this.$worktreeCommandBusy.set(false);
+    }
+  }
+
+  requestDeleteWorktree(worktree: Worktree): void {
+    this.$worktreeMenuOpen.set(false);
+    const mounted = this.worktrees.mounted();
+    const current = !mounted.isMain && mounted.suffix === worktree.tableSetSuffix;
+    const status = this.$displayStatusState();
+    const dirty = current && (status.phase === 'success' || status.phase === 'empty') && !status.value.clean;
+    this.$worktreeDeleteDirty.set(dirty);
+    this.$worktreeDeleteTarget.set(worktree);
+  }
+
+  async confirmDeleteWorktree(): Promise<void> {
+    const target = this.$worktreeDeleteTarget();
+    if (target !== null) await this.deleteWorktree(target);
+  }
+
+  async deleteWorktree(worktree: Worktree): Promise<void> {
+    if (this.$worktreeCommandBusy()) return;
+    this.$worktreeCommandBusy.set(true);
+    this.$worktreeCommandError.set(null);
+    try {
+      await this.worktrees.remove(worktree.id);
+      this.closeWorktreeDialogs(true);
+      await this.refreshStatus();
+      await this.readCommits();
+      this.showToast('success', `Deleted worktree “${worktree.name?.trim() || worktree.branchId}”.`);
+    } catch (error) {
+      this.$worktreeCommandError.set(error instanceof Error ? error.message : 'Unable to delete worktree.');
+    } finally {
+      this.$worktreeCommandBusy.set(false);
+    }
+  }
+
+  openWorktreeContextMenu(request: { target: Worktree; event: MouseEvent }): void {
+    request.event.preventDefault();
+    const target = request.target;
+    this.$contextMenuTarget.set({ kind: 'worktree', worktreeId: target.id });
+    this.$contextMenu.set({
+      x: request.event.clientX,
+      y: request.event.clientY,
+      items: [
+        { id: 'worktree-rename', label: 'Rename…', testId: 'wt-worktree-rename' },
+        { id: 'worktree-copy-name', label: 'Copy Name', testId: 'wt-worktree-copy-name' },
+        { id: 'sep-worktree', label: '', separator: true },
+        { id: 'worktree-delete', label: 'Delete…', danger: true, testId: 'wt-worktree-delete' }
+      ]
+    });
   }
 
   /** 重读本地状态与历史，并更新刷新时间；进行中忽略重复点击（GitHub Desktop 的 Fetching 态）。 */
@@ -451,6 +614,14 @@ export default class WorkingTreePage implements OnInit {
     }
     if (item.id === 'copy-commit') {
       void this.copyText(target.kind === 'commit' ? target.commitId : '');
+      return;
+    }
+    if (target.kind === 'worktree') {
+      const worktree = this.$worktreeRecords().find(record => record.id === target.worktreeId);
+      if (worktree === undefined) return;
+      if (item.id === 'worktree-rename') this.requestRenameWorktree(worktree);
+      else if (item.id === 'worktree-delete') this.requestDeleteWorktree(worktree);
+      else if (item.id === 'worktree-copy-name') void this.copyText(worktree.name?.trim() || worktree.branchId);
       return;
     }
     if (target.kind === 'branch') {

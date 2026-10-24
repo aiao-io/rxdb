@@ -63,7 +63,11 @@ vi.mock('@aiao/rxdb-plugin-working-tree', () => ({
 }));
 vi.mock('@aiao/rxdb-plugin-working-tree-react', () => ({
   useWorkingTree: () => harness.tree,
-  useWorktrees: () => ({ mounted: WorktreeTableSet.MAIN })
+  useWorktrees: () => ({
+    list: vi.fn().mockResolvedValue([]),
+    listState: { phase: 'empty', value: [] },
+    mounted: WorktreeTableSet.MAIN
+  })
 }));
 vi.mock('@aiao/rxdb-react', () => ({
   useRxDB: () => harness.database,

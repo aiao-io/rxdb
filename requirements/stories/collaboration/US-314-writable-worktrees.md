@@ -1,7 +1,7 @@
 ---
 id: US-314
 title: 可写检出位与从提交建分支：对齐 GitHub Desktop 3.6 的 worktree
-status: In Progress
+status: Done
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-10-17
@@ -64,7 +64,7 @@ INVEST 检查清单:
 | ---- | ------------------------------------------------------------------------------------ | ---- |
 | A    | 从提交建分支：库 API、六个后端一致性、三端 demo 的提交右键与建分支对话框             | ✅   |
 | B    | 可写检出位：库内影子表的底座（B1）与完整语义（B2）、读写与提交、分支独占、关闭与回收 | ✅   |
-| C    | 三端绑定与三端 demo 的 Worktree 下拉、New Worktree…、Rename… / Delete…               | ⚠️   |
+| C    | 三端绑定与三端 demo 的 Worktree 下拉、New Worktree…、Rename… / Delete…               | ✅   |
 
 ## 验收标准
 
@@ -74,9 +74,9 @@ INVEST 检查清单:
 | 2   | A    | 三端 demo                                              | 历史行右键「Create branch from commit」            | 弹「Create a branch」对话框，写明基于哪个提交；建完切到新分支                                                        | ✅   |
 | 3   | B    | 主检出位有未提交改动                                   | 新建可写检出位，在上面写并提交                     | 主检出位的业务表、工作树与 active 分支都不变；提交进那条分支的历史                                                   | ✅   |
 | 4   | B    | 一条分支已被一个可写检出位检出                         | 在别处再检出它                                     | 拒绝（git：`already used by worktree`）                                                                              | ✅   |
-| 5   | C    | 三端 demo，有一个链接检出位                            | 工具栏 Worktree 下拉选中它                         | 分两组列出；切过去之后 Changes、History、Current Branch 都换到它上                                                   | ⬜   |
-| 6   | C    | 三端 demo                                              | New Worktree… / Rename… / Delete…                  | 与 GitHub Desktop 3.6 同流程；主检出位不能改名或删除；有未提交改动时删除先确认                                       | ⬜   |
-| 7   | C    | 三端 demo                                              | a11y 走查                                          | Worktree 下拉与三个对话框 axe 零违规、键盘可达                                                                       | ⬜   |
+| 5   | C    | 三端 demo，有一个链接检出位                            | 工具栏 Worktree 下拉选中它                         | 分两组列出；切过去之后 Changes、History、Current Branch 都换到它上                                                   | ✅   |
+| 6   | C    | 三端 demo                                              | New Worktree… / Rename… / Delete…                  | 与 GitHub Desktop 3.6 同流程；主检出位不能改名或删除；有未提交改动时删除先确认                                       | ✅   |
+| 7   | C    | 三端 demo                                              | a11y 走查                                          | Worktree 下拉与三个对话框 axe 零违规、键盘可达                                                                       | ✅   |
 | 8   | B    | 挂在可写检出位上，持有的分支有未提交改动               | 在检出位里切到另一条分支，或合并别的分支           | 切分支：改动留在原分支，读到的与主检出位切过去逐行一致；合并落在这套表里；主检出位一处不动                           | ✅   |
 | 9   | B    | 两个标签页共用一个库，一个挂主检出位、一个挂可写检出位 | 各自写入；改两套表里都有的同一行；在检出位里切分支 | 两边的活查询只收到自己那套表上的变更，同 id 的行不被另一边的值改掉                                                   | ✅   |
 | 10  | B    | 应用升级改了实体结构，或插件建在表上的附属对象变了     | 挂上升级之前开的可写检出位                         | 一笔事务里按新结构整套重建：未提交改动还在、与切过去逐行一致；重建失败整笔回滚报 `schema_rebuild_failed`，检出位原样 | ✅   |
@@ -365,10 +365,10 @@ INVEST 检查清单:
   — 建分支上下文的 `fromCommitId`
 - `packages/rxdb-plugin-working-tree/src/working-tree/testing/worktree.suite.ts` — 六个后端的从提交建分支用例
 - `packages/rxdb-plugin-working-tree-{angular,react,vue}/` — 三端绑定（`checkBranchFromCommit` / `createBranchFromCommit`）
-- `apps/dev-rxdb-{angular,react,vue}` 与对应 `-e2e` — 「Create a branch」对话框、History 右键；可写检出位的 Worktree 下拉随阶段 C
+- `apps/dev-rxdb-{angular,react,vue}` 与对应 `-e2e` — 「Create a branch」对话框、History 右键；三端 Worktree 下拉、New/Rename/Delete 对话框、键盘与 a11y 交互（C2.2）
 - `apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.worktrees.ts`、`apps/dev-rxdb-react/src/app/pages/working-tree/utils/worktrees.ts`、
   `apps/dev-rxdb-vue/src/pages/working-tree/utils/worktrees.ts`（`currentBranchOf` / `heldElsewhere`），三端工作树页、分支下拉与侧栏分支选择器
-  — demo 认当前分支（C2.1）
+  — demo 认当前分支（C2.1），并把可写检出位绑定到三端工作树页（C2.2）
 - `packages/rxdb/src/system/worktree-table-set.ts`、`packages/rxdb-adapter-sqlite-core/src/table-name-resolver.ts`、
   `packages/rxdb-adapter-pglite/src/table-name-resolver.ts` — 表集与两个适配器的表名解析器；`scripts/audit/table-name-resolver.mjs` — 门禁
 - `packages/rxdb-adapter-sqlite-core/src/table/trigger_sql.ts`（`generate_table_set_trigger_sql`）、两个适配器的
