@@ -1,4 +1,4 @@
-import { RxDBBranch, type MergeStrategy } from '@aiao/rxdb';
+import { RxDBBranch, WorktreeTableSet, type MergeStrategy } from '@aiao/rxdb';
 import type { MergePreview } from '@aiao/rxdb-plugin-history';
 import type {
   CommitLogEntry,
@@ -40,7 +40,7 @@ import { diffEntryKey } from './utils/diff-format';
 import { startDragResize } from './utils/drag';
 import { gdEntryPath } from './utils/gd';
 import { useKeepLastGood } from './utils/keep-last-good';
-import { currentBranchOf } from './utils/worktrees';
+import { currentBranchOf, WorktreeCreation } from './utils/worktrees';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -121,6 +121,11 @@ export default function WorkingTreePage(): React.JSX.Element {
   const [newWorktreeBranch, setNewWorktreeBranch] = useState('');
   const [newWorktreeError, setNewWorktreeError] = useState<string | null>(null);
   const [creatingWorktree, setCreatingWorktree] = useState(false);
+  const worktreeCreation = useRef(new WorktreeCreation());
+  const worktreeOperationBusy = useRef(false);
+  const pendingWrites = useRef(0);
+  const [pendingWriteCount, setPendingWriteCount] = useState(0);
+  const [mountingWorktree, setMountingWorktree] = useState(false);
   const [renameWorktree, setRenameWorktree] = useState<Worktree | null>(null);
   const [renameWorktreeName, setRenameWorktreeName] = useState('');
   const [renameWorktreeError, setRenameWorktreeError] = useState<string | null>(null);
@@ -343,14 +348,11 @@ export default function WorkingTreePage(): React.JSX.Element {
   const worktreeErrorMessage = (error: unknown, fallback: string): string =>
     error instanceof Error ? error.message : fallback;
 
-  const openNewWorktree = (): void => {
+  const openNewWorktree = (branchId = ''): void => {
     setWorktreeMenuOpen(false);
     setNewWorktreeName('');
     setNewWorktreeError(null);
-    // 只能把未被主检出位或另一个链接检出位占用的分支交给 add()。
-    setNewWorktreeBranch(
-      branches.find(branch => branch.activeKey === null || branch.activeKey === undefined)?.id ?? ''
-    );
+    setNewWorktreeBranch(branchId);
     setNewWorktreeOpen(true);
   };
 
@@ -361,28 +363,30 @@ export default function WorkingTreePage(): React.JSX.Element {
   };
 
   const createWorktree = async (): Promise<void> => {
-    const branchId =
-      newWorktreeBranch.trim() ||
-      branches.find(branch => branch.activeKey === null || branch.activeKey === undefined)?.id;
     const name = newWorktreeName.trim();
-    if (creatingWorktree || name === '') return;
-    if (branchId === undefined) {
-      setNewWorktreeError('Create or free a branch before adding a worktree.');
-      return;
-    }
+    if (pendingWrites.current > 0 || worktreeOperationBusy.current || name === '') return;
+    worktreeOperationBusy.current = true;
     setCreatingWorktree(true);
     setNewWorktreeError(null);
     try {
-      const record = await worktrees.add(branchId, { name });
-      await worktrees.mount(record.id);
-      setNewWorktreeOpen(false);
+      await worktreeCreation.current.run(
+        { name, branchId: newWorktreeBranch },
+        {
+          createBranch: branchId => rxdb.versionManager.createBranch(branchId),
+          add: (branchId, options) => worktrees.add(branchId, options),
+          mount: id => worktrees.mount(id)
+        }
+      );
+      clearWorktreeSelection();
       showToast('success', `Opened worktree "${name}".`);
       await refreshStatus();
       await readCommits();
+      setNewWorktreeOpen(false);
     } catch (error: unknown) {
       setNewWorktreeError(worktreeErrorMessage(error, 'Could not create the worktree.'));
     } finally {
       setCreatingWorktree(false);
+      worktreeOperationBusy.current = false;
     }
   };
 
@@ -402,17 +406,19 @@ export default function WorkingTreePage(): React.JSX.Element {
   const renameLinkedWorktree = async (): Promise<void> => {
     const target = renameWorktree;
     const name = renameWorktreeName.trim();
-    if (target === null || renamingWorktree || name === '') return;
+    if (target === null || pendingWrites.current > 0 || worktreeOperationBusy.current || name === '') return;
+    worktreeOperationBusy.current = true;
     setRenamingWorktree(true);
     setRenameWorktreeError(null);
     try {
       await worktrees.rename(target.id, name);
-      closeRenameWorktree();
+      setRenameWorktree(null);
       showToast('success', `Renamed worktree to "${name}".`);
     } catch (error: unknown) {
       setRenameWorktreeError(worktreeErrorMessage(error, 'Could not rename the worktree.'));
     } finally {
       setRenamingWorktree(false);
+      worktreeOperationBusy.current = false;
     }
   };
 
@@ -430,33 +436,50 @@ export default function WorkingTreePage(): React.JSX.Element {
 
   const deleteLinkedWorktree = async (): Promise<void> => {
     const target = deleteWorktree;
-    if (target === null || deletingWorktree) return;
+    if (target === null || pendingWrites.current > 0 || worktreeOperationBusy.current) return;
+    worktreeOperationBusy.current = true;
     setDeletingWorktree(true);
     setDeleteWorktreeError(null);
     try {
       await worktrees.remove(target.id);
-      setDeleteWorktree(null);
+      clearWorktreeSelection();
       showToast('success', `Deleted worktree "${target.name ?? target.branchId}".`);
       await refreshStatus();
       await readCommits();
+      setDeleteWorktree(null);
     } catch (error: unknown) {
       setDeleteWorktreeError(worktreeErrorMessage(error, 'Could not delete the worktree.'));
     } finally {
       setDeletingWorktree(false);
+      worktreeOperationBusy.current = false;
     }
   };
 
   const mountWorktree = async (id: string | null): Promise<void> => {
+    if (pendingWrites.current > 0 || worktreeOperationBusy.current) return;
+    worktreeOperationBusy.current = true;
+    setMountingWorktree(true);
     setWorktreeMenuOpen(false);
     try {
       if (id === null) await worktrees.mountMain();
       else await worktrees.mount(id);
+      clearWorktreeSelection();
       await refreshStatus();
       await readCommits();
       showToast('success', id === null ? 'Switched to the main worktree.' : 'Switched worktree.');
     } catch (error: unknown) {
       showToast('error', worktreeErrorMessage(error, 'Could not switch worktree.'));
+    } finally {
+      worktreeOperationBusy.current = false;
+      setMountingWorktree(false);
     }
+  };
+
+  const clearWorktreeSelection = (): void => {
+    clearCompare();
+    setSelectedCommitId(null);
+    setSelectedDiffKey(null);
+    setRestoreSession(null);
   };
 
   // ── 右键菜单 ──────────────────────────────────────────────
@@ -506,6 +529,7 @@ export default function WorkingTreePage(): React.JSX.Element {
     ];
     if (branch.activeKey === null || branch.activeKey === undefined) {
       items.push(
+        { id: 'branch-worktree', label: 'Checkout in new worktree…', testId: 'wt-branch-menu-worktree' },
         { id: 'sep-1', label: '', separator: true },
         { id: 'branch-delete', label: 'Delete…', danger: true, testId: 'wt-branch-menu-delete' }
       );
@@ -559,7 +583,10 @@ export default function WorkingTreePage(): React.JSX.Element {
       return;
     }
     if (target.kind === 'branch') {
-      if (item.id === 'branch-delete') {
+      if (item.id === 'branch-worktree') {
+        setBranchMenuOpen(false);
+        openNewWorktree(target.branchId);
+      } else if (item.id === 'branch-delete') {
         requestRemoveBranch(target.branchId);
       } else if (item.id === 'branch-copy') {
         void copyText(target.branchId);
@@ -641,10 +668,18 @@ export default function WorkingTreePage(): React.JSX.Element {
   // `enable()` 自己会重读一次 status，但**不会**重读 isEnabled ——
   // 不补这一句，成功启用之后「提交能力」那行仍然写着「未启用」。
   const runEnable = async (): Promise<void> => {
-    await tree.enable().catch(() => undefined);
-    await tree.isEnabled().catch(() => undefined);
-    await refreshStatus();
-    await readCommits();
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
+    try {
+      await tree.enable().catch(() => undefined);
+      await tree.isEnabled().catch(() => undefined);
+      await refreshStatus();
+      await readCommits();
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
+    }
   };
 
   /**
@@ -693,41 +728,49 @@ export default function WorkingTreePage(): React.JSX.Element {
   };
 
   const runCommit = async (): Promise<void> => {
-    const credentials = await freshCredentials();
-    if (credentials === null) {
-      setNotice('Cannot read the working tree — refresh status before committing.');
-      return;
-    }
-    setNotice(null);
-    const summary = commitSummary.trim();
-    const description = commitDescription.trim();
-    const message = description ? `${summary}\n\n${description}` : summary;
-    // GitHub Desktop 的提交失败是对话框，demo 的对应物是 toast：校验类拒绝
-    // （空提交 / 空消息）与后端 IO 失败都走这一条，不再有可见的内联错误行。
-    let result: CommitResult | null;
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
     try {
-      result = await tree.commit(message, {
-        ...credentials,
-        authorId: AUTHOR_ID,
-        operationId: crypto.randomUUID()
-      });
-    } catch (cause: unknown) {
-      if (cause instanceof CommitValidationError) {
-        showToast('error', COMMIT_REJECTION_TEXT[cause.reason]);
-      } else {
-        showToast('error', cause instanceof Error ? cause.message : 'Commit failed.');
+      const credentials = await freshCredentials();
+      if (credentials === null) {
+        setNotice('Cannot read the working tree — refresh status before committing.');
+        return;
       }
-      result = null;
+      setNotice(null);
+      const summary = commitSummary.trim();
+      const description = commitDescription.trim();
+      const message = description ? `${summary}\n\n${description}` : summary;
+      // GitHub Desktop 的提交失败是对话框，demo 的对应物是 toast：校验类拒绝
+      // （空提交 / 空消息）与后端 IO 失败都走这一条，不再有可见的内联错误行。
+      let result: CommitResult | null;
+      try {
+        result = await tree.commit(message, {
+          ...credentials,
+          authorId: AUTHOR_ID,
+          operationId: crypto.randomUUID()
+        });
+      } catch (cause: unknown) {
+        if (cause instanceof CommitValidationError) {
+          showToast('error', COMMIT_REJECTION_TEXT[cause.reason]);
+        } else {
+          showToast('error', cause instanceof Error ? cause.message : 'Commit failed.');
+        }
+        result = null;
+      }
+      if (result !== null && !result.ok) {
+        showToast('error', 'Concurrent conflict: the working tree changed. Retry.');
+      }
+      if (result?.ok) {
+        setCommitSummary('');
+        setCommitDescription('');
+      }
+      await refreshStatus();
+      await readCommits();
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
-    if (result !== null && !result.ok) {
-      showToast('error', 'Concurrent conflict: the working tree changed. Retry.');
-    }
-    if (result?.ok) {
-      setCommitSummary('');
-      setCommitDescription('');
-    }
-    await refreshStatus();
-    await readCommits();
   };
 
   /**
@@ -748,14 +791,22 @@ export default function WorkingTreePage(): React.JSX.Element {
   };
 
   const runDiscard = async (): Promise<void> => {
-    const credentials = await freshCredentials();
-    if (credentials === null) {
-      setNotice('Cannot read the working tree — refresh status before discarding.');
-      return;
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
+    try {
+      const credentials = await freshCredentials();
+      if (credentials === null) {
+        setNotice('Cannot read the working tree — refresh status before discarding.');
+        return;
+      }
+      setNotice(null);
+      await tree.discard(credentials).catch(() => undefined);
+      await refreshStatus();
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
-    setNotice(null);
-    await tree.discard(credentials).catch(() => undefined);
-    await refreshStatus();
   };
 
   /**
@@ -765,19 +816,27 @@ export default function WorkingTreePage(): React.JSX.Element {
    * 因此这里刷新 status 与 diff、不刷历史：历史在 commit 之后才会多一行。
    */
   const restoreEntry = async (entry: CommitLogEntry): Promise<void> => {
-    const credentials = await freshCredentials();
-    if (credentials === null) {
-      setNotice('Cannot read the working tree — refresh status before restoring.');
-      return;
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
+    try {
+      const credentials = await freshCredentials();
+      if (credentials === null) {
+        setNotice('Cannot read the working tree — refresh status before restoring.');
+        return;
+      }
+      setNotice(null);
+      // restore 的入参只有三个捕获位，没有第四个（FR-014 / FR-034：脏与冲突的答案分别是
+      // 「拒绝」与「两份都留着」，没有入参可承载）——不带 authorId / operationId。
+      const result = await tree.restore({ commitId: entry.commitId }, credentials).catch(() => null);
+      if (result !== null && !result.ok) {
+        showToast('error', RESTORE_REJECTION_TEXT[result.reason] ?? `Restore rejected: ${result.reason}`);
+      }
+      await refreshStatus();
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
-    setNotice(null);
-    // restore 的入参只有三个捕获位，没有第四个（FR-014 / FR-034：脏与冲突的答案分别是
-    // 「拒绝」与「两份都留着」，没有入参可承载）——不带 authorId / operationId。
-    const result = await tree.restore({ commitId: entry.commitId }, credentials).catch(() => null);
-    if (result !== null && !result.ok) {
-      showToast('error', RESTORE_REJECTION_TEXT[result.reason] ?? `Restore rejected: ${result.reason}`);
-    }
-    await refreshStatus();
   };
 
   // ── 标签页与选中 ──────────────────────────────────────────
@@ -858,22 +917,30 @@ export default function WorkingTreePage(): React.JSX.Element {
    * 建分支进行中对话框关不掉（见对话框组件的 `requestClose`），被拒与报错因此总是落回这一个对话框。
    */
   const confirmCreateBranch = async (name: string): Promise<void> => {
-    const dialog = createBranchDialog;
-    if (dialog === null || creatingBranch) return;
-    setCreatingBranch(true);
-    setCreateBranchError(null);
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
     try {
-      const result = await tree.createBranchFromCommit(name, dialog.base.commitId);
-      if (!result.ok) {
-        setCreateBranchDialog({ ...dialog, availability: result.reason });
-        return;
+      const dialog = createBranchDialog;
+      if (dialog === null || creatingBranch) return;
+      setCreatingBranch(true);
+      setCreateBranchError(null);
+      try {
+        const result = await tree.createBranchFromCommit(name, dialog.base.commitId);
+        if (!result.ok) {
+          setCreateBranchDialog({ ...dialog, availability: result.reason });
+          return;
+        }
+        closeCreateBranchDialog();
+        await switchBranch(name);
+      } catch (e: unknown) {
+        setCreateBranchError(e instanceof Error ? e.message : 'Could not create the branch.');
+      } finally {
+        setCreatingBranch(false);
       }
-      closeCreateBranchDialog();
-      await switchBranch(name);
-    } catch (e: unknown) {
-      setCreateBranchError(e instanceof Error ? e.message : 'Could not create the branch.');
     } finally {
-      setCreatingBranch(false);
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
   };
 
@@ -894,16 +961,24 @@ export default function WorkingTreePage(): React.JSX.Element {
    * 无论成败都收起菜单，结果由 toast 或对话框给出。
    */
   const switchBranch = async (branchId: string) => {
-    setBranchMenuOpen(false);
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
     try {
-      await tree.switchBranch(branchId, { requireClean: true });
-      await afterSwitch(branchId);
-    } catch (e: unknown) {
-      if (e instanceof WorkingTreeDirtyError) {
-        setSwitchDialog({ targetBranchId: branchId });
-        return;
+      setBranchMenuOpen(false);
+      try {
+        await tree.switchBranch(branchId, { requireClean: true });
+        await afterSwitch(branchId);
+      } catch (e: unknown) {
+        if (e instanceof WorkingTreeDirtyError) {
+          setSwitchDialog({ targetBranchId: branchId });
+          return;
+        }
+        showToast('error', e instanceof Error ? e.message : 'Switch failed.');
       }
-      showToast('error', e instanceof Error ? e.message : 'Switch failed.');
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
   };
 
@@ -912,18 +987,26 @@ export default function WorkingTreePage(): React.JSX.Element {
    * 未提交改动按分支保存，留在原分支上，切回来原样还在。
    */
   const confirmSwitchLeavingChanges = async (): Promise<void> => {
-    const dialog = switchDialog;
-    if (dialog === null || switching) return;
-    setSwitching(true);
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
     try {
-      await tree.switchBranch(dialog.targetBranchId);
-      setSwitchDialog(null);
-      await afterSwitch(dialog.targetBranchId);
-    } catch (e: unknown) {
-      setSwitchDialog(null);
-      showToast('error', e instanceof Error ? e.message : 'Switch failed.');
+      const dialog = switchDialog;
+      if (dialog === null || switching) return;
+      setSwitching(true);
+      try {
+        await tree.switchBranch(dialog.targetBranchId);
+        setSwitchDialog(null);
+        await afterSwitch(dialog.targetBranchId);
+      } catch (e: unknown) {
+        setSwitchDialog(null);
+        showToast('error', e instanceof Error ? e.message : 'Switch failed.');
+      } finally {
+        setSwitching(false);
+      }
     } finally {
-      setSwitching(false);
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
   };
 
@@ -936,14 +1019,22 @@ export default function WorkingTreePage(): React.JSX.Element {
   };
 
   const removeBranch = async (branchId: string) => {
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
     try {
-      await rxdb.versionManager.removeBranch(branchId);
-      setBranchMenuOpen(false);
-      // 删的正是 History 里在对比的那条：对比没有对象了，回到历史
-      if (historyCompare?.branchId === branchId) clearCompare();
-      showToast('success', `Branch "${branchId}" deleted.`);
-    } catch (e: unknown) {
-      showToast('error', e instanceof Error ? e.message : 'Delete failed.');
+      try {
+        await rxdb.versionManager.removeBranch(branchId);
+        setBranchMenuOpen(false);
+        // 删的正是 History 里在对比的那条：对比没有对象了，回到历史
+        if (historyCompare?.branchId === branchId) clearCompare();
+        showToast('success', `Branch "${branchId}" deleted.`);
+      } catch (e: unknown) {
+        showToast('error', e instanceof Error ? e.message : 'Delete failed.');
+      }
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
   };
 
@@ -1019,24 +1110,32 @@ export default function WorkingTreePage(): React.JSX.Element {
    * toast 里点破这一点，否则「合并了怎么历史没变」会像 bug。
    */
   const executeMerge = async () => {
-    if (mergeDialog === null || mergeDialog.sourceBranchId === null) return;
-    setMergeError(null);
+    if (worktreeOperationBusy.current) return;
+    pendingWrites.current++;
+    setPendingWriteCount(pendingWrites.current);
     try {
-      const result = await rxdb.versionManager.mergeBranch(mergeDialog.sourceBranchId, {
-        strategy: mergeDialog.strategy,
-        deleteSource: mergeDialog.deleteSource
-      });
-      closeMergeDialog();
-      // 合并之后对比结果已经过时（来源还可能被一并删掉了）：回到历史
-      clearCompare();
-      showToast(
-        'success',
-        `Merged ${result.merged} change(s) into the working tree of ${activeBranch}` +
-          ` — commit to record them${result.sourceDeleted ? '; source branch deleted' : ''}.`
-      );
-      await refreshStatus();
-    } catch (e: unknown) {
-      setMergeError(e instanceof Error ? e.message : 'Merge failed.');
+      if (mergeDialog === null || mergeDialog.sourceBranchId === null) return;
+      setMergeError(null);
+      try {
+        const result = await rxdb.versionManager.mergeBranch(mergeDialog.sourceBranchId, {
+          strategy: mergeDialog.strategy,
+          deleteSource: mergeDialog.deleteSource
+        });
+        closeMergeDialog();
+        // 合并之后对比结果已经过时（来源还可能被一并删掉了）：回到历史
+        clearCompare();
+        showToast(
+          'success',
+          `Merged ${result.merged} change(s) into the working tree of ${activeBranch}` +
+            ` — commit to record them${result.sourceDeleted ? '; source branch deleted' : ''}.`
+        );
+        await refreshStatus();
+      } catch (e: unknown) {
+        setMergeError(e instanceof Error ? e.message : 'Merge failed.');
+      }
+    } finally {
+      pendingWrites.current--;
+      setPendingWriteCount(pendingWrites.current);
     }
   };
 
@@ -1139,10 +1238,13 @@ export default function WorkingTreePage(): React.JSX.Element {
 
             <div className='gd-toolbar-section gd-branch-section' style={{ width: branchSectionWidth }}>
               <WorkingTreeWorktreeMenu
-                activeBranch={activeBranch}
+                activeBranch={currentBranchOf(branches, WorktreeTableSet.MAIN)}
+                busy={
+                  pendingWriteCount > 0 || mountingWorktree || creatingWorktree || renamingWorktree || deletingWorktree
+                }
                 menuOpen={worktreeMenuOpen}
                 mounted={worktrees.mounted}
-                onCreateRequest={openNewWorktree}
+                onCreateRequest={() => openNewWorktree()}
                 onDeleteRequest={openDeleteWorktree}
                 onMenuOpenChange={setWorktreeMenuOpen}
                 onMountRequest={id => void mountWorktree(id)}

@@ -39,8 +39,13 @@ export function WorkingTreeDialogShell({
   useEffect(() => {
     const opener = document.activeElement;
     panel.current?.focus();
-    return () => restoreFocus(opener);
-  }, []);
+    return () => {
+      restoreFocus(opener);
+      if ((!opener?.isConnected || opener === document.body) && testId.startsWith('wt-worktree-')) {
+        document.querySelector<HTMLElement>('[data-testid="wt-worktree-menu"]')?.focus();
+      }
+    };
+  }, [testId]);
 
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center p-3'>

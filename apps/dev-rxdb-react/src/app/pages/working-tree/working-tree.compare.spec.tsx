@@ -54,7 +54,7 @@ const harness = vi.hoisted(() => {
     discard: vi.fn(async () => undefined)
   };
   const database = { versionManager: { compareBranches } };
-  return { tree, database, comparison, compareBranches };
+  return { tree, database, comparison, compareBranches, mountWorktree: vi.fn(async () => undefined) };
 });
 
 vi.mock('@aiao/rxdb-plugin-working-tree', () => ({
@@ -65,7 +65,20 @@ vi.mock('@aiao/rxdb-plugin-working-tree-react', () => ({
   useWorkingTree: () => harness.tree,
   useWorktrees: () => ({
     list: vi.fn().mockResolvedValue([]),
-    listState: { phase: 'empty', value: [] },
+    mount: harness.mountWorktree,
+    listState: {
+      phase: 'success',
+      value: [
+        {
+          id: 'linked',
+          name: 'Linked',
+          branchId: 'feature',
+          mode: 'writable',
+          state: 'ready',
+          tableSetSuffix: 'wt_linked'
+        }
+      ]
+    },
     mounted: WorktreeTableSet.MAIN
   })
 }));
@@ -105,6 +118,18 @@ const expectRefreshedComparison = async (): Promise<void> => {
 };
 
 describe('WorkingTreePage 的分支对比刷新', () => {
+  it('换挂检出位清除旧分支对比并重读 Changes 和 History', async () => {
+    await openComparison();
+    fireEvent.click(screen.getByTestId('wt-worktree-menu'));
+    const linked = screen.getAllByTestId('wt-worktree-item').find(row => row.dataset.worktreeId === 'linked');
+    if (linked === undefined) throw new Error('missing worktree');
+    await act(async () => fireEvent.click(linked));
+    expect(harness.mountWorktree).toHaveBeenCalledWith('linked');
+    expect(screen.queryByTestId('wt-compare-view')).toBeNull();
+    expect(harness.tree.diff).toHaveBeenCalled();
+    expect(harness.tree.listCommits).toHaveBeenCalled();
+  });
+
   it('丢弃当前工作树后，History 保留对比分支并显示丢弃后的字段值', async () => {
     await openComparison();
     harness.compareBranches.mockResolvedValue(harness.comparison('base'));

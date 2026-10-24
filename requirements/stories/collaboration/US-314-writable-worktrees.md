@@ -1,11 +1,11 @@
 ---
 id: US-314
 title: 可写检出位与从提交建分支：对齐 GitHub Desktop 3.6 的 worktree
-status: Done
+status: In Review
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-10-17
-updated: 2026-10-22
+updated: 2026-10-24
 tags: [collaboration, branch, worktree, history, tri-framework]
 ---
 
@@ -352,6 +352,12 @@ INVEST 检查清单:
     侧栏选择器补上 `aria-label="当前分支"` 与 `app-branch-select`。React 端单测的模块解析对齐构建（`tsconfigPaths` 与 `@aiao/source` 条件，
     Vue 端本来如此），否则解析不到 package.json 里没声明的绑定包。
   - 一致性：三端同标题的纯函数、分支下拉与侧栏选择器单测（挂在检出位上认那套表持有的分支，挂回主检出位认主检出位停着的那条）。
+  - 检出位管理（C2.2）：三端工具栏都分 Main / Linked 两组，当前项用 `aria-current`；主检出位显示它自己持有的分支。
+    New Worktree 的分支留空时，以检出位名从当前分支新建分支；显式选择时使用未被持有的现有分支，分支右键可直接进入该流程。
+    新建或挂载失败保留对话框，重试复用已建好的分支与检出位；Rename / Delete 失败同样保留输入和错误。
+    删除前确认并说明未提交改动仍保留在分支；主检出位不提供改名、删除入口。
+  - 换挂时清除旧对比、选中变更与提交详情，重新读取状态与历史；页面写命令与换挂互斥，避免异步凭据读取期间切走表集。
+    对话框共用焦点陷阱、恢复焦点与输入法守卫。浏览器验收位于三端 `worktree-management.spec.ts`，覆盖完整流程及明暗主题 axe、Tab / Escape / IME。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 

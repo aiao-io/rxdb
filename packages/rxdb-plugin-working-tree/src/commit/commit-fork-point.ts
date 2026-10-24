@@ -68,7 +68,7 @@ const lineageSegmentsOf = async (
  *
  * @remarks
  * 走事务内的仓库，不发原始语句：提交路径上不许有指名变更日志的原始 SQL（FR-018 的守卫就是按语句文本查的），
- * 这里只读。一次计数加一次「按回滚号倒序取一条」，不把那几段的回滚行整批读回来。
+ * 这里只读。先计数，有回滚时才「按回滚号倒序取一条」，不把那几段的回滚行整批读回来。
  */
 const readLineageRevertState = async (
   executor: TransactionExecutor,
@@ -96,6 +96,7 @@ const readLineageRevertState = async (
   };
   const changes = executor.getRepository(RxDBChange);
   const revertedCount = await changes.count({ where });
+  if (revertedCount === 0) return { revertedCount, maxRevertChangeId: null };
   const [latest] = await changes.find({ where, orderBy: [{ field: 'revertChangeId', sort: 'desc' }], limit: 1 });
   return { revertedCount, maxRevertChangeId: latest?.revertChangeId ?? null };
 };

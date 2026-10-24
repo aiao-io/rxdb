@@ -33,7 +33,7 @@ let opener: Element | null = null;
 
 onMounted(() => {
   opener = document.activeElement;
-  panel.value?.focus();
+  (panel.value?.querySelector<HTMLElement>('[autofocus]') ?? panel.value)?.focus();
 });
 onUnmounted(() => restoreFocus(opener));
 

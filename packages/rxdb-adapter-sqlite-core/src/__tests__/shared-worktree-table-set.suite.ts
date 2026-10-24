@@ -398,6 +398,7 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
 
       it('检出位里切分支派出的事件带后缀', async () => {
         const versionManager = adapter.rxdb.versionManager;
+        await rawInsert(WorktreeTableSet.MAIN, 'main-stays');
         await adapter.rxdb.mountWorktreeTableSet(tableSet);
         await versionManager.createBranch('feature');
         await versionManager.switchBranch('feature');
@@ -406,6 +407,10 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
 
         try {
           await versionManager.switchBranch(heldBranch);
+          // 读经过适配器串行队列：等后台事务提交并排空事件，再核对完整事件集与两套表。
+          await adapter.query('SELECT 1;');
+          expect(await titlesOf(WorktreeTableSet.MAIN)).toEqual(['main-stays']);
+          expect(await titlesOf(tableSet)).toEqual([]);
           expect(removed.seen).toEqual([{ id: featureOnly, tableSetSuffix: tableSet.suffix }]);
         } finally {
           removed.stop();

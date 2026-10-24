@@ -129,6 +129,18 @@ describe('recordCommitForkPoint', () => {
     expect(probe.trace).not.toContain('count:RxDBChange');
   });
 
+  it('谱系有变更但没有回滚：记下零状态，不再查询最大回滚号', async () => {
+    probe.seed(RxDBBranch, [branchRow('main', null, null)]);
+    probe.seed(RxDBChange, [changeRow(1, 'main'), changeRow(2, 'main')]);
+
+    await recordCommitForkPoint(probe.executor, entityManager, 'commit-1', 'main');
+
+    const recorded = recordedOf('commit-1');
+    expect([recorded.changeId, recorded.revertedCount, recorded.maxRevertChangeId]).toEqual([2, 0, null]);
+    expect(probe.trace.filter(call => call === 'find:RxDBChange')).toHaveLength(1);
+    expect(probe.trace.filter(call => call === 'count:RxDBChange')).toHaveLength(1);
+  });
+
   it('分叉点所在的分支不在库里：抛错，不记', async () => {
     probe.seed(RxDBBranch, [branchRow('main', null, null)]);
 
@@ -158,6 +170,22 @@ describe('isForkPointLineageRewritten', () => {
     const forkPoint = await recordFeature();
 
     await expect(isForkPointLineageRewritten(probe.executor, forkPoint)).resolves.toBe(false);
+  });
+
+  it('零回滚的谱系核对时只计数；之后发生回滚仍能识别改写', async () => {
+    probe.seed(RxDBBranch, [branchRow('main', null, null)]);
+    probe.seed(RxDBChange, [changeRow(1, 'main'), changeRow(2, 'main')]);
+    await recordCommitForkPoint(probe.executor, entityManager, 'commit-1', 'main');
+    const forkPoint = recordedOf('commit-1');
+    probe.trace.length = 0;
+
+    await expect(isForkPointLineageRewritten(probe.executor, forkPoint)).resolves.toBe(false);
+    expect(probe.trace).toContain('count:RxDBChange');
+    expect(probe.trace).not.toContain('find:RxDBChange');
+
+    changeOf(1).revertChangeId = 25;
+    await expect(isForkPointLineageRewritten(probe.executor, forkPoint)).resolves.toBe(true);
+    expect(probe.trace).toContain('find:RxDBChange');
   });
 
   it('之后的撤销把那段谱系里的一条变更标成回滚：改过（最大回滚号变大）', async () => {

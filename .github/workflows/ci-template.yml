@@ -1151,7 +1151,7 @@ jobs:
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
-      - run: pnpm exec nx run-many -t search-ci bench-working-tree bench-sortable-batch -p benchmarks --output-style=stream
+      - run: pnpm exec nx run-many -t search-ci bench-working-tree bench-sortable-batch -p benchmarks --output-style=stream --parallel=1
 
   # ---------------------------------------------------------------------------
   # 覆盖率汇总：把各 lane 的 artifact 合回一个 coverage/ 目录，跑阈值门禁 + 上报 Codecov。

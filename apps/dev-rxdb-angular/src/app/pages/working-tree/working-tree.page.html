@@ -65,6 +65,7 @@
       <app-working-tree-worktree-menu
         class="gd-toolbar-section gd-worktree-section"
         [(menuOpen)]="$worktreeMenuOpen"
+        [busy]="$worktreeBusy()"
         [mainBranch]="$mainBranch()"
         [mounted]="worktrees.mounted()"
         [popupWidth]="$branchSectionWidth() < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : $branchSectionWidth()"
@@ -353,8 +354,9 @@
     [(createBranch)]="$worktreeCreateBranch"
     [(createName)]="$worktreeCreateName"
     [(renameName)]="$worktreeRenameName"
+    [activeBranch]="$activeBranch()"
     [branches]="branches.value()"
-    [busy]="$worktreeCommandBusy()"
+    [busy]="$worktreeBusy()"
     [createOpen]="$worktreeCreateOpen()"
     [deleteDirty]="$worktreeDeleteDirty()"
     [deleteTarget]="$worktreeDeleteTarget()"

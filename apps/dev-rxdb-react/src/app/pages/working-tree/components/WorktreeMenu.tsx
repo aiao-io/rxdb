@@ -2,8 +2,10 @@ import type { WorktreeTableSet } from '@aiao/rxdb';
 import type { Worktree } from '@aiao/rxdb-plugin-working-tree';
 import { Check, ChevronDown, GitBranch, MoreVertical, Plus, SquareStack } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { isImeComposing } from '../utils/ime';
 
 export interface WorkingTreeWorktreeMenuProps {
+  readonly busy?: boolean;
   readonly worktrees: readonly Worktree[];
   readonly mounted: WorktreeTableSet;
   readonly activeBranch: string;
@@ -24,6 +26,7 @@ export interface WorkingTreeWorktreeMenuProps {
  */
 export function WorkingTreeWorktreeMenu({
   activeBranch,
+  busy,
   menuOpen,
   mounted,
   onCreateRequest,
@@ -48,7 +51,7 @@ export function WorkingTreeWorktreeMenu({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onMenuOpenChange(false);
+      if (event.key === 'Escape' && !isImeComposing(event)) onMenuOpenChange(false);
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
@@ -67,6 +70,7 @@ export function WorkingTreeWorktreeMenu({
           aria-expanded={menuOpen}
           aria-haspopup='dialog'
           aria-label={`Worktree: ${mounted.isMain ? 'Main worktree' : (linked.find(isCurrent)?.name ?? 'Linked worktree')}`}
+          disabled={busy}
           data-testid='wt-worktree-menu'
           onClick={() => onMenuOpenChange(!menuOpen)}
           type='button'

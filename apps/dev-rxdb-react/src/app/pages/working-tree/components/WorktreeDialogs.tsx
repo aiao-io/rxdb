@@ -85,7 +85,7 @@ export function WorkingTreeNewDialog({
         onChange={event => onBranchChange(event.target.value)}
         value={branchId}
       >
-        <option value=''>Use the first available branch</option>
+        <option value=''>Create a branch with the worktree name</option>
         {branches.map(branch => (
           <option
             disabled={branch.activeKey !== null && branch.activeKey !== undefined}
@@ -102,7 +102,8 @@ export function WorkingTreeNewDialog({
         ))}
       </select>
       <p className='mb-3 text-xs' style={{ color: 'var(--gd-muted)' }}>
-        The new worktree is created from the selected branch and opened immediately.
+        The new worktree is opened immediately. Without a branch selection, a new branch with this name is created from{' '}
+        {activeBranch} including its uncommitted changes.
       </p>
       {error !== null && (
         <p className='mb-3 text-sm' data-testid='wt-worktree-error' role='alert' style={{ color: 'var(--gd-del-fg)' }}>

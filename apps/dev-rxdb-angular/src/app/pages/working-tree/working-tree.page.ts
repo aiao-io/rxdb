@@ -70,7 +70,7 @@ import { diffEntryKey } from './working-tree.diff-format';
 import { startDragResize } from './working-tree.drag';
 import { gdEntryPath } from './working-tree.gd';
 import { keepLastGood } from './working-tree.keep-last-good';
-import { currentBranchOf } from './working-tree.worktrees';
+import { currentBranchOf, WorktreeCreation } from './working-tree.worktrees';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -146,6 +146,8 @@ export default class WorkingTreePage implements OnInit {
   #mergePreviewRequest = 0;
   #compareRequest = 0;
   #createBranchCheckRequest = 0;
+  private readonly pendingWrites = signal(0);
+  private readonly worktreeCreation = new WorktreeCreation();
   private readonly createdAt = performance.now();
   private readonly destroyRef = inject(DestroyRef);
   private readonly toastTimer = new ResettableTimer();
@@ -180,6 +182,7 @@ export default class WorkingTreePage implements OnInit {
   readonly $worktreeDeleteTarget = signal<Worktree | null>(null);
   readonly $worktreeDeleteDirty = signal(false);
   readonly $worktreeCommandBusy = signal(false);
+  readonly $worktreeBusy = computed(() => this.$worktreeCommandBusy() || this.pendingWrites() > 0);
   readonly $worktreeCommandError = signal<string | null>(null);
   /** 「Create a branch」对话框（History 右键与分支下拉的 New branch 共用）：状态、名字、报错与进行中 */
   readonly $createBranchDialog = signal<CreateBranchDialogState | null>(null);
@@ -364,12 +367,12 @@ export default class WorkingTreePage implements OnInit {
     this.$repoMenuOpen.set(false);
   }
 
-  /** 打开新检出位对话框；默认选择当前分支，用户也可以改选其它未被占用的分支。 */
-  openNewWorktree(): void {
+  /** 打开新检出位对话框；不指定现有分支时，以工作树名从当前分支创建新分支。 */
+  openNewWorktree(branchId = ''): void {
     this.$worktreeMenuOpen.set(false);
     this.$worktreeCommandError.set(null);
     this.$worktreeCreateName.set('');
-    this.$worktreeCreateBranch.set('');
+    this.$worktreeCreateBranch.set(branchId);
     this.$worktreeCreateOpen.set(true);
   }
 
@@ -382,11 +385,13 @@ export default class WorkingTreePage implements OnInit {
   }
 
   async selectWorktree(worktree: Worktree): Promise<void> {
+    if (this.pendingWrites() > 0 || this.$worktreeCommandBusy()) return;
     this.$worktreeMenuOpen.set(false);
     this.$worktreeCommandError.set(null);
     this.$worktreeCommandBusy.set(true);
     try {
       await this.worktrees.mount(worktree.id);
+      this.clearWorktreeSelection();
       await this.refreshStatus();
       await this.readCommits();
     } catch (error) {
@@ -397,10 +402,12 @@ export default class WorkingTreePage implements OnInit {
   }
 
   async selectMainWorktree(): Promise<void> {
+    if (this.pendingWrites() > 0 || this.$worktreeCommandBusy()) return;
     this.$worktreeMenuOpen.set(false);
     this.$worktreeCommandBusy.set(true);
     try {
       await this.worktrees.mountMain();
+      this.clearWorktreeSelection();
       await this.refreshStatus();
       await this.readCommits();
     } catch (error) {
@@ -411,20 +418,19 @@ export default class WorkingTreePage implements OnInit {
   }
 
   async createWorktree(request: { name: string; branchId: string }): Promise<void> {
-    if (this.$worktreeCommandBusy()) return;
+    if (this.pendingWrites() > 0 || this.$worktreeCommandBusy()) return;
     this.$worktreeCommandBusy.set(true);
     this.$worktreeCommandError.set(null);
     try {
-      const branchId = request.branchId || this.branches.value().find(branch => branch.activeKey == null)?.id;
-      if (branchId === undefined) {
-        this.$worktreeCommandError.set('Create or free a branch before adding a worktree.');
-        return;
-      }
-      const record = await this.worktrees.add(branchId, { name: request.name });
-      await this.worktrees.mount(record.id);
-      this.closeWorktreeDialogs(true);
+      await this.worktreeCreation.run(request, {
+        createBranch: branchId => this.#rxdb.versionManager.createBranch(branchId),
+        add: (branchId, options) => this.worktrees.add(branchId, options),
+        mount: id => this.worktrees.mount(id)
+      });
+      this.clearWorktreeSelection();
       await this.refreshStatus();
       await this.readCommits();
+      this.closeWorktreeDialogs(true);
       this.showToast('success', `Created worktree “${request.name}”.`);
     } catch (error) {
       this.$worktreeCommandError.set(error instanceof Error ? error.message : 'Unable to create worktree.');
@@ -472,14 +478,15 @@ export default class WorkingTreePage implements OnInit {
   }
 
   async deleteWorktree(worktree: Worktree): Promise<void> {
-    if (this.$worktreeCommandBusy()) return;
+    if (this.pendingWrites() > 0 || this.$worktreeCommandBusy()) return;
     this.$worktreeCommandBusy.set(true);
     this.$worktreeCommandError.set(null);
     try {
       await this.worktrees.remove(worktree.id);
-      this.closeWorktreeDialogs(true);
+      this.clearWorktreeSelection();
       await this.refreshStatus();
       await this.readCommits();
+      this.closeWorktreeDialogs(true);
       this.showToast('success', `Deleted worktree “${worktree.name?.trim() || worktree.branchId}”.`);
     } catch (error) {
       this.$worktreeCommandError.set(error instanceof Error ? error.message : 'Unable to delete worktree.');
@@ -564,6 +571,7 @@ export default class WorkingTreePage implements OnInit {
     ];
     if (branch.activeKey === null || branch.activeKey === undefined) {
       items.push(
+        { id: 'branch-worktree', label: 'Checkout in new worktree…', testId: 'wt-branch-menu-worktree' },
         { id: 'sep-1', label: '', separator: true },
         { id: 'branch-delete', label: 'Delete…', danger: true, testId: 'wt-branch-menu-delete' }
       );
@@ -625,7 +633,10 @@ export default class WorkingTreePage implements OnInit {
       return;
     }
     if (target.kind === 'branch') {
-      if (item.id === 'branch-delete') {
+      if (item.id === 'branch-worktree') {
+        this.$branchMenuOpen.set(false);
+        this.openNewWorktree(target.branchId);
+      } else if (item.id === 'branch-delete') {
         this.requestRemoveBranch(target.branchId);
       } else if (item.id === 'branch-copy') {
         void this.copyText(target.branchId);
@@ -701,10 +712,16 @@ export default class WorkingTreePage implements OnInit {
   // `enable()` 自己会重读一次 status，但**不会**重读 isEnabled ——
   // 不补这一句，成功启用之后「提交能力」那行仍然写着「未启用」。
   async runEnable(): Promise<void> {
-    await this.tree.enable().catch(() => undefined);
-    await this.tree.isEnabled().catch(() => undefined);
-    await this.refreshStatus();
-    await this.readCommits();
+    if (this.$worktreeCommandBusy()) return;
+    this.pendingWrites.update(count => count + 1);
+    try {
+      await this.tree.enable().catch(() => undefined);
+      await this.tree.isEnabled().catch(() => undefined);
+      await this.refreshStatus();
+      await this.readCommits();
+    } finally {
+      this.pendingWrites.update(count => count - 1);
+    }
   }
 
   /**
@@ -753,41 +770,47 @@ export default class WorkingTreePage implements OnInit {
   }
 
   async runCommit(): Promise<void> {
-    const credentials = await this.freshCredentials();
-    if (credentials === null) {
-      this.$notice.set('Cannot read the working tree — refresh status before committing.');
-      return;
-    }
-    this.$notice.set(null);
-    const summary = this.$commitSummary().trim();
-    const description = this.$commitDescription().trim();
-    const message = description ? `${summary}\n\n${description}` : summary;
-    // GitHub Desktop 的提交失败是对话框，demo 的对应物是 toast：校验类拒绝
-    // （空提交 / 空消息）与后端 IO 失败都走这一条，不再有可见的内联错误行。
-    let result: CommitResult | null;
+    if (this.$worktreeCommandBusy()) return;
+    this.pendingWrites.update(count => count + 1);
     try {
-      result = await this.tree.commit(message, {
-        ...credentials,
-        authorId: AUTHOR_ID,
-        operationId: crypto.randomUUID()
-      });
-    } catch (cause: unknown) {
-      if (cause instanceof CommitValidationError) {
-        this.showToast('error', COMMIT_REJECTION_TEXT[cause.reason]);
-      } else {
-        this.showToast('error', cause instanceof Error ? cause.message : 'Commit failed.');
+      const credentials = await this.freshCredentials();
+      if (credentials === null) {
+        this.$notice.set('Cannot read the working tree — refresh status before committing.');
+        return;
       }
-      result = null;
+      this.$notice.set(null);
+      const summary = this.$commitSummary().trim();
+      const description = this.$commitDescription().trim();
+      const message = description ? `${summary}\n\n${description}` : summary;
+      // GitHub Desktop 的提交失败是对话框，demo 的对应物是 toast：校验类拒绝
+      // （空提交 / 空消息）与后端 IO 失败都走这一条，不再有可见的内联错误行。
+      let result: CommitResult | null;
+      try {
+        result = await this.tree.commit(message, {
+          ...credentials,
+          authorId: AUTHOR_ID,
+          operationId: crypto.randomUUID()
+        });
+      } catch (cause: unknown) {
+        if (cause instanceof CommitValidationError) {
+          this.showToast('error', COMMIT_REJECTION_TEXT[cause.reason]);
+        } else {
+          this.showToast('error', cause instanceof Error ? cause.message : 'Commit failed.');
+        }
+        result = null;
+      }
+      if (result !== null && !result.ok) {
+        this.showToast('error', 'Concurrent conflict: the working tree changed. Retry.');
+      }
+      if (result?.ok) {
+        this.$commitSummary.set('');
+        this.$commitDescription.set('');
+      }
+      await this.refreshStatus();
+      await this.readCommits();
+    } finally {
+      this.pendingWrites.update(count => count - 1);
     }
-    if (result !== null && !result.ok) {
-      this.showToast('error', 'Concurrent conflict: the working tree changed. Retry.');
-    }
-    if (result?.ok) {
-      this.$commitSummary.set('');
-      this.$commitDescription.set('');
-    }
-    await this.refreshStatus();
-    await this.readCommits();
   }
 
   /**
@@ -815,19 +838,25 @@ export default class WorkingTreePage implements OnInit {
    * 因此这里刷新 status 与 diff、不刷历史：历史在 commit 之后才会多一行。
    */
   async restoreEntry(entry: CommitLogEntry): Promise<void> {
-    const credentials = await this.freshCredentials();
-    if (credentials === null) {
-      this.$notice.set('Cannot read the working tree — refresh status before restoring.');
-      return;
+    if (this.$worktreeCommandBusy()) return;
+    this.pendingWrites.update(count => count + 1);
+    try {
+      const credentials = await this.freshCredentials();
+      if (credentials === null) {
+        this.$notice.set('Cannot read the working tree — refresh status before restoring.');
+        return;
+      }
+      this.$notice.set(null);
+      // restore 的入参只有三个捕获位，没有第四个（FR-014 / FR-034：脏与冲突的答案分别是
+      // 「拒绝」与「两份都留着」，没有入参可承载）——不带 authorId / operationId。
+      const result = await this.tree.restore({ commitId: entry.commitId }, credentials).catch(() => null);
+      if (result !== null && !result.ok) {
+        this.showToast('error', RESTORE_REJECTION_TEXT[result.reason] ?? `Restore rejected: ${result.reason}`);
+      }
+      await this.refreshStatus();
+    } finally {
+      this.pendingWrites.update(count => count - 1);
     }
-    this.$notice.set(null);
-    // restore 的入参只有三个捕获位，没有第四个（FR-014 / FR-034：脏与冲突的答案分别是
-    // 「拒绝」与「两份都留着」，没有入参可承载）——不带 authorId / operationId。
-    const result = await this.tree.restore({ commitId: entry.commitId }, credentials).catch(() => null);
-    if (result !== null && !result.ok) {
-      this.showToast('error', RESTORE_REJECTION_TEXT[result.reason] ?? `Restore rejected: ${result.reason}`);
-    }
-    await this.refreshStatus();
   }
 
   // ── 标签页与选中 ──────────────────────────────────────────
@@ -902,22 +931,28 @@ export default class WorkingTreePage implements OnInit {
    * 建分支进行中对话框关不掉（见对话框组件的 `requestClose`），被拒与报错因此总是落回这一个对话框。
    */
   async confirmCreateBranch(name: string): Promise<void> {
-    const dialog = this.$createBranchDialog();
-    if (dialog === null || this.$creatingBranch()) return;
-    this.$creatingBranch.set(true);
-    this.$createBranchError.set(null);
+    if (this.$worktreeCommandBusy()) return;
+    this.pendingWrites.update(count => count + 1);
     try {
-      const result = await this.tree.createBranchFromCommit(name, dialog.base.commitId);
-      if (!result.ok) {
-        this.$createBranchDialog.set({ ...dialog, availability: result.reason });
-        return;
+      const dialog = this.$createBranchDialog();
+      if (dialog === null || this.$creatingBranch()) return;
+      this.$creatingBranch.set(true);
+      this.$createBranchError.set(null);
+      try {
+        const result = await this.tree.createBranchFromCommit(name, dialog.base.commitId);
+        if (!result.ok) {
+          this.$createBranchDialog.set({ ...dialog, availability: result.reason });
+          return;
+        }
+        this.closeCreateBranchDialog();
+        await this.switchBranch(name);
+      } catch (e: unknown) {
+        this.$createBranchError.set(e instanceof Error ? e.message : 'Could not create the branch.');
+      } finally {
+        this.$creatingBranch.set(false);
       }
-      this.closeCreateBranchDialog();
-      await this.switchBranch(name);
-    } catch (e: unknown) {
-      this.$createBranchError.set(e instanceof Error ? e.message : 'Could not create the branch.');
     } finally {
-      this.$creatingBranch.set(false);
+      this.pendingWrites.update(count => count - 1);
     }
   }
 
@@ -936,16 +971,22 @@ export default class WorkingTreePage implements OnInit {
    * 无论成败都收起菜单，结果由 toast 或对话框给出。
    */
   async switchBranch(branchId: string) {
-    this.$branchMenuOpen.set(false);
+    if (this.$worktreeCommandBusy()) return;
+    this.pendingWrites.update(count => count + 1);
     try {
-      await this.tree.switchBranch(branchId, { requireClean: true });
-      await this.#afterSwitch(branchId);
-    } catch (e: unknown) {
-      if (e instanceof WorkingTreeDirtyError) {
-        this.$switchDialog.set({ targetBranchId: branchId });
-        return;
+      this.$branchMenuOpen.set(false);
+      try {
+        await this.tree.switchBranch(branchId, { requireClean: true });
+        await this.#afterSwitch(branchId);
+      } catch (e: unknown) {
+        if (e instanceof WorkingTreeDirtyError) {
+          this.$switchDialog.set({ targetBranchId: branchId });
+          return;
+        }
+        this.showToast('error', e instanceof Error ? e.message : 'Switch failed.');
       }
-      this.showToast('error', e instanceof Error ? e.message : 'Switch failed.');
+    } finally {
+      this.pendingWrites.update(count => count - 1);
     }
   }
 
@@ -954,18 +995,24 @@ export default class WorkingTreePage implements OnInit {
    * 未提交改动按分支保存，留在原分支上，切回来原样还在。
    */
   async confirmSwitchLeavingChanges(): Promise<void> {
-    const dialog = this.$switchDialog();
-    if (dialog === null || this.$switching()) return;
-    this.$switching.set(true);
+    if (this.$worktreeCommandBusy()) return;
+    this.pendingWrites.update(count => count + 1);
     try {
-      await this.tree.switchBranch(dialog.targetBranchId);
-      this.$switchDialog.set(null);
-      await this.#afterSwitch(dialog.targetBranchId);
-    } catch (e: unknown) {
-      this.$switchDialog.set(null);
-      this.showToast('error', e instanceof Error ? e.message : 'Switch failed.');
+      const dialog = this.$switchDialog();
+      if (dialog === null || this.$switching()) return;
+      this.$switching.set(true);
+      try {
+        await this.tree.switchBranch(dialog.targetBranchId);
+        this.$switchDialog.set(null);
+        await this.#afterSwitch(dialog.targetBranchId);
+      } catch (e: unknown) {
+        this.$switchDialog.set(null);
+        this.showToast('error', e instanceof Error ? e.message : 'Switch failed.');
+      } finally {
+        this.$switching.set(false);
+      }
     } finally {
-      this.$switching.set(false);
+      this.pendingWrites.update(count => count - 1);
     }
   }
 
@@ -982,13 +1029,19 @@ export default class WorkingTreePage implements OnInit {
   }
 
   async confirmRequest(): Promise<void> {
-    const request = this.$confirm();
-    this.$confirm.set(null);
-    if (!request) return;
-    if (request.kind === 'discard') {
-      await this.#performDiscard();
-    } else {
-      await this.#performRemoveBranch(request.branchId);
+    if (this.$worktreeCommandBusy()) return;
+    this.pendingWrites.update(count => count + 1);
+    try {
+      const request = this.$confirm();
+      this.$confirm.set(null);
+      if (!request) return;
+      if (request.kind === 'discard') {
+        await this.#performDiscard();
+      } else {
+        await this.#performRemoveBranch(request.branchId);
+      }
+    } finally {
+      this.pendingWrites.update(count => count - 1);
     }
   }
 
@@ -1041,25 +1094,31 @@ export default class WorkingTreePage implements OnInit {
    * toast 里点破这一点，否则「合并了怎么历史没变」会像 bug。
    */
   async executeMerge() {
-    const dialog = this.$mergeDialog();
-    if (!dialog || dialog.sourceBranchId === null) return;
-    this.$mergeError.set(null);
+    if (this.$worktreeCommandBusy()) return;
+    this.pendingWrites.update(count => count + 1);
     try {
-      const result = await this.#rxdb.versionManager.mergeBranch(dialog.sourceBranchId, {
-        strategy: dialog.strategy,
-        deleteSource: dialog.deleteSource
-      });
-      this.closeMergeDialog();
-      // 合并之后对比结果已经过时（来源还可能被一并删掉了）：回到历史
-      this.clearCompare();
-      this.showToast(
-        'success',
-        `Merged ${result.merged} change(s) into the working tree of ${this.$activeBranch()}` +
-          ` — commit to record them${result.sourceDeleted ? '; source branch deleted' : ''}.`
-      );
-      await this.refreshStatus();
-    } catch (e: unknown) {
-      this.$mergeError.set(e instanceof Error ? e.message : 'Merge failed.');
+      const dialog = this.$mergeDialog();
+      if (!dialog || dialog.sourceBranchId === null) return;
+      this.$mergeError.set(null);
+      try {
+        const result = await this.#rxdb.versionManager.mergeBranch(dialog.sourceBranchId, {
+          strategy: dialog.strategy,
+          deleteSource: dialog.deleteSource
+        });
+        this.closeMergeDialog();
+        // 合并之后对比结果已经过时（来源还可能被一并删掉了）：回到历史
+        this.clearCompare();
+        this.showToast(
+          'success',
+          `Merged ${result.merged} change(s) into the working tree of ${this.$activeBranch()}` +
+            ` — commit to record them${result.sourceDeleted ? '; source branch deleted' : ''}.`
+        );
+        await this.refreshStatus();
+      } catch (e: unknown) {
+        this.$mergeError.set(e instanceof Error ? e.message : 'Merge failed.');
+      }
+    } finally {
+      this.pendingWrites.update(count => count - 1);
     }
   }
 
@@ -1089,6 +1148,13 @@ export default class WorkingTreePage implements OnInit {
   }
 
   // ── 私有辅助（成员排序规则：私有方法放最后） ──────────────
+
+  private clearWorktreeSelection(): void {
+    this.clearCompare();
+    this.$selectedCommitId.set(null);
+    this.$selectedDiffKey.set(null);
+    this.$restoreSession.set(null);
+  }
 
   private selectHeadCommitIfNone(): void {
     if (this.$selectedCommitId() !== null) return;

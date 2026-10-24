@@ -71,9 +71,15 @@ export class WorkingTreeDialogShellComponent {
   constructor() {
     afterNextRender(() => {
       this.#opener = document.activeElement;
-      this.panel().nativeElement.focus();
+      const panel = this.panel().nativeElement;
+      (panel.querySelector<HTMLElement>('[data-initial-focus]') ?? panel).focus();
     });
-    inject(DestroyRef).onDestroy(() => restoreFocus(this.#opener));
+    inject(DestroyRef).onDestroy(() => {
+      restoreFocus(this.#opener);
+      if ((!this.#opener?.isConnected || this.#opener === document.body) && this.testId().startsWith('wt-worktree-')) {
+        document.querySelector<HTMLElement>('[data-testid="wt-worktree-menu"]')?.focus();
+      }
+    });
   }
 
   /**

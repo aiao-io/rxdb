@@ -51,7 +51,13 @@ const harness = vi.hoisted(() => {
     listCommits: vi.fn(async () => ({ entries: [] })),
     discard: vi.fn(async () => undefined)
   };
-  return { tree, comparison, compareBranches, database: { versionManager: { compareBranches } } };
+  return {
+    tree,
+    comparison,
+    compareBranches,
+    mountWorktree: vi.fn(async () => undefined),
+    database: { versionManager: { compareBranches } }
+  };
 });
 
 vi.mock('@aiao/rxdb-plugin-working-tree', () => ({
@@ -60,7 +66,25 @@ vi.mock('@aiao/rxdb-plugin-working-tree', () => ({
 }));
 vi.mock('@aiao/rxdb-plugin-working-tree-vue', () => ({
   useWorkingTree: () => harness.tree,
-  useWorktrees: () => ({ mounted: { value: WorktreeTableSet.MAIN } })
+  useWorktrees: () => ({
+    mounted: { value: WorktreeTableSet.MAIN },
+    mount: harness.mountWorktree,
+    listState: {
+      value: {
+        phase: 'success',
+        value: [
+          {
+            id: 'linked',
+            name: 'Linked',
+            branchId: 'feature',
+            mode: 'writable',
+            state: 'ready',
+            tableSetSuffix: 'wt_linked'
+          }
+        ]
+      }
+    }
+  })
 }));
 vi.mock('@aiao/rxdb-vue', () => ({
   useRxDB: () => harness.database,
@@ -102,6 +126,17 @@ const expectRefreshedComparison = (): void => {
 };
 
 describe('WorkingTreePage 的分支对比刷新', () => {
+  it('换挂检出位清除旧分支对比并重读 Changes 和 History', async () => {
+    await openComparison();
+    await page().get('[data-testid="wt-worktree-menu"]').trigger('click');
+    await page().get('[data-testid="wt-worktree-item"][data-worktree-id="linked"]').trigger('click');
+    await flushPromises();
+    expect(harness.mountWorktree).toHaveBeenCalledWith('linked');
+    expect(page().find('[data-testid="wt-compare-view"]').exists()).toBe(false);
+    expect(harness.tree.diff).toHaveBeenCalled();
+    expect(harness.tree.listCommits).toHaveBeenCalled();
+  });
+
   it('丢弃当前工作树后，History 保留对比分支并显示丢弃后的字段值', async () => {
     await openComparison();
     harness.compareBranches.mockResolvedValue(harness.comparison('base'));

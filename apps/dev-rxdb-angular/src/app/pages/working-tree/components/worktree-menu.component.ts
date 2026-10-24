@@ -20,6 +20,7 @@ import {
   LucideMoreVertical as MoreVertical,
   LucidePlus as Plus
 } from '@lucide/angular';
+import { isImeComposing } from '../working-tree.ime';
 
 /** 工作树工具栏里的检出位选择器。只显示可写检出位；主检出位是固定的第一行。 */
 @Component({
@@ -33,6 +34,7 @@ import {
         <button
           class="gd-toolbar-select"
           [attr.aria-expanded]="menuOpen()"
+          [disabled]="busy()"
           (click)="toggleMenu()"
           aria-controls="wt-worktree-menu-popup"
           aria-haspopup="dialog"
@@ -132,9 +134,9 @@ import {
                       <button
                         class="gd-icon-btn"
                         [attr.aria-label]="'Rename ' + label(worktree)"
+                        [attr.data-testid]="'wt-worktree-rename-' + worktree.id"
                         [attr.data-worktree-id]="worktree.id"
                         (click)="requestRename(worktree, $event)"
-                        data-testid="wt-worktree-rename-button"
                         type="button"
                       >
                         <span aria-hidden="true">✎</span>
@@ -142,9 +144,9 @@ import {
                       <button
                         class="gd-icon-btn"
                         [attr.aria-label]="'Delete ' + label(worktree)"
+                        [attr.data-testid]="'wt-worktree-delete-' + worktree.id"
                         [attr.data-worktree-id]="worktree.id"
                         (click)="requestDelete(worktree, $event)"
-                        data-testid="wt-worktree-delete-button"
                         type="button"
                       >
                         <span aria-hidden="true">×</span>
@@ -171,6 +173,7 @@ import {
   `
 })
 export class WorkingTreeWorktreeMenuComponent {
+  readonly busy = input(false);
   readonly records = input<readonly Worktree[]>([]);
   readonly mounted = input.required<WorktreeTableSet>();
   readonly mainBranch = input('main');
@@ -268,7 +271,7 @@ export class WorkingTreeWorktreeMenuComponent {
 
   @HostListener('document:keydown', ['$event'])
   onDocumentKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') this.closeAll();
+    if (event.key === 'Escape' && !isImeComposing(event)) this.closeAll();
   }
 
   @HostListener('contextmenu', ['$event'])

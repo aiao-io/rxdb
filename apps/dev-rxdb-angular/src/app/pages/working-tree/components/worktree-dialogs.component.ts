@@ -32,10 +32,11 @@ import { WorkingTreeDialogShellComponent } from './dialog-shell.component';
           (keydown)="onCreateKeydown($event)"
           (ngModelChange)="createName.set($event)"
           autocomplete="off"
+          data-initial-focus
           data-testid="wt-worktree-create-name"
           type="text"
         />
-        <label class="mb-1 block text-sm font-medium" for="wt-worktree-create-branch">Branch</label>
+        <label class="mb-1 block text-sm font-medium" for="wt-worktree-create-branch">Branch (optional)</label>
         <select
           class="gd-input mb-3 w-full"
           id="wt-worktree-create-branch"
@@ -43,13 +44,17 @@ import { WorkingTreeDialogShellComponent } from './dialog-shell.component';
           (ngModelChange)="createBranch.set($event)"
           data-testid="wt-worktree-create-branch"
         >
-          <option value="">Use the first available branch</option>
+          <option value="">Create a branch with the worktree name</option>
           @for (branch of branches(); track branch.id) {
             <option [disabled]="branch.activeKey !== null && branch.activeKey !== undefined" [value]="branch.id">
               {{ branch.id }}{{ branch.activeKey ? ' (in use)' : '' }}
             </option>
           }
         </select>
+        <p class="mb-3 text-xs" [style.color]="'var(--gd-muted)'">
+          Opened immediately. Without a branch selection, a new branch with this name is created from
+          {{ activeBranch() }} including its uncommitted changes.
+        </p>
         @if (error(); as message) {
           <p class="mb-3 text-sm" [style.color]="'var(--gd-del-fg)'" data-testid="wt-worktree-error" role="alert">
             {{ message }}
@@ -98,6 +103,7 @@ import { WorkingTreeDialogShellComponent } from './dialog-shell.component';
           (keydown)="onRenameKeydown($event)"
           (ngModelChange)="renameName.set($event)"
           autocomplete="off"
+          data-initial-focus
           data-testid="wt-worktree-rename-name"
           type="text"
         />
@@ -152,9 +158,15 @@ import { WorkingTreeDialogShellComponent } from './dialog-shell.component';
         } @else {
           <p class="mb-4 text-sm" [style.color]="'var(--gd-muted)'">The linked worktree will be removed.</p>
         }
+        @if (error(); as message) {
+          <p class="mb-3 text-sm" [style.color]="'var(--gd-del-fg)'" data-testid="wt-worktree-error" role="alert">
+            {{ message }}
+          </p>
+        }
         <div class="flex justify-end gap-2">
           <button
             class="gd-btn-secondary"
+            [disabled]="busy()"
             (click)="closeRequested.emit()"
             data-testid="wt-worktree-delete-cancel"
             type="button"
@@ -162,9 +174,8 @@ import { WorkingTreeDialogShellComponent } from './dialog-shell.component';
             Cancel
           </button>
           <button
-            class="gd-btn-primary"
-            [style.background]="'var(--gd-del-fg)'"
-            [style.border-color]="'var(--gd-del-fg)'"
+            class="gd-btn-secondary gd-btn-danger"
+            [disabled]="busy()"
             (click)="confirmDelete.emit()"
             data-testid="wt-worktree-delete-confirm"
             type="button"
@@ -178,6 +189,7 @@ import { WorkingTreeDialogShellComponent } from './dialog-shell.component';
 })
 export class WorkingTreeWorktreeDialogsComponent {
   readonly createOpen = input(false);
+  readonly activeBranch = input('');
   readonly branches = input<readonly RxDBBranch[]>([]);
   readonly createName = model('');
   readonly createBranch = model('');
@@ -199,8 +211,11 @@ export class WorkingTreeWorktreeDialogsComponent {
   readonly canCreate = computed(() => {
     const branchId = this.createBranch().trim();
     const branch = this.branches().find(candidate => candidate.id === branchId);
-    const available = this.branches().some(candidate => candidate.activeKey == null);
-    return this.createName().trim() !== '' && (branchId === '' ? available : branch?.activeKey == null) && !this.busy();
+    return (
+      this.createName().trim() !== '' &&
+      (branchId === '' || (branch !== undefined && branch.activeKey == null)) &&
+      !this.busy()
+    );
   });
   readonly canRename = computed(() => this.renameName().trim() !== '' && !this.busy());
 

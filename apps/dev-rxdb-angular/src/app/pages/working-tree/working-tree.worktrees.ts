@@ -27,3 +27,37 @@ export const currentBranchOf = (branches: readonly RxDBBranch[], mounted: Worktr
  */
 export const heldElsewhere = (branch: RxDBBranch, mounted: WorktreeTableSet): WorktreeBranchHeldError | null =>
   WorktreeBranchHeldError.heldBy(branch.id, branch.activeKey, mounted.holderKey);
+
+interface WorktreeCreationCommands {
+  readonly createBranch: (branchId: string) => Promise<unknown>;
+  readonly add: (branchId: string, options: { name: string }) => Promise<{ id: string }>;
+  readonly mount: (id: string) => Promise<unknown>;
+}
+
+/** 保存新建进度；失败重试从尚未完成的创建或换挂步骤继续。 */
+export class WorktreeCreation {
+  private requestKey = '';
+  private branchCreated = false;
+  private worktreeId: string | null = null;
+
+  /** 未指定分支时按工作树名创建分支，成功后立即挂载。 */
+  async run(request: { name: string; branchId: string | null }, commands: WorktreeCreationCommands): Promise<void> {
+    const key = JSON.stringify(request);
+    if (key !== this.requestKey) {
+      this.requestKey = key;
+      this.branchCreated = false;
+      this.worktreeId = null;
+    }
+    const branchId = request.branchId || request.name;
+    if (!request.branchId && !this.branchCreated) {
+      await commands.createBranch(branchId);
+      this.branchCreated = true;
+    }
+    if (this.worktreeId === null) {
+      const record = await commands.add(branchId, { name: request.name });
+      this.worktreeId = record.id;
+    }
+    await commands.mount(this.worktreeId);
+    this.requestKey = '';
+  }
+}

@@ -1,8 +1,4 @@
-## 0.0.28 (2026-10-24)
-
-### ⚠️ Breaking Changes
-
-- **aiao:** `@aiao/*` 包间 peer 依赖统一为 `workspace:^`（发布时改写为 `^0.0.28`），替换此前混用的 `*` / `workspace:*` / `^0.0.26` 写法（US-602 A2）
+## Unreleased
 
 ### ⚠️ Breaking Changes
 
@@ -13,6 +9,8 @@
 - **rxdb-plugin-search:** `FtsInstallPlan` 的 `namespace` 换成 `schema`（PostgreSQL 里表所在的 schema），由新的 `SearchBackend.bindPlan(plan, metadata, tableSet)` 经适配器的表名解析器填；`SearchBackend` 还多了 `installForTableSet()`。自己构造计划、直接调 `createPgTsvectorBackend().install()` 的，先 `bindPlan(plan, metadata, WorktreeTableSet.MAIN)`，否则表不按 schema 限定（US-314）
 
 ### 🚀 Features
+
+- **三端 demo:** Worktree 下拉、新建、改名、删除确认与分支右键检出；分支可选，失败可重试，换挂重读 Changes / History，写入期间禁止换挂，支持键盘与明暗主题（US-314 C2.2）
 
 - **rxdb:** 新增 `WorktreeTableSet`：一套业务表，`WorktreeTableSet.MAIN` 是主检出位那一套；两个适配器新增 `adapter.tableSet`（本实例挂的表集），sqlite-core 新增 `get_storage_object_name`，PGlite 新增 `getSchemaName` / `getChangeTriggerFunctionName`。业务实体的物理名只从两个适配器的表名解析器出，`pnpm audit:table-name-resolver` 守着解析器之外不推物理名（US-314）
 - **rxdb / rxdb-adapter-sqlite-core / -pglite:** 分支持有模型：`rxdb_branch.activeKey` 除了主检出位的哨兵，还可以是可写检出位的持有键。新增 `WorktreeBranchHeldError`（码 `worktree_branch_held`）：`switchBranch()` 切到被可写检出位持有的分支时，两个适配器在切换事务里、动第一行之前拒绝；零 active 时点亮 `main` 与系统迁移回填哨兵同样先查，被占就拒。系统迁移只清旧哨兵，不再抹掉持有键（US-314）
@@ -62,9 +60,18 @@
 - **rxdb-adapter-pglite:** 断开时关掉 IdbFs 留着的 IndexedDB 连接，此前之后的 `deleteDatabase` 会一直卡在 `blocked`（US-313）
 - **rxdb-adapter-sqlite-wasm:** 断开与初始化失败时关掉打开库的 VFS，IndexedDB 系 VFS 的连接此前一直留着（US-313）
 - **rxdb-adapter-sqlite-wasm / -wa-sqlite:** OPFS 库整页刷新后偶发打不开（上一个页面的 Worker 还占着库文件的同步访问句柄，应用起不来也不报错）：打开失败为 `SQLITE_CANTOPEN`、或新建 VFS 时删旧临时目录撞上没关的句柄（`NoModificationAllowedError`）时有界退避重试（合计约 3 秒），每次重试前交出失败那次留下的句柄与临时目录，用尽后仍被占用就报占用。sqlite-wasm 的 `opfs` 档与 wa-sqlite 的 `OPFSCoopSyncVFS` 是同一个 VFS，一并覆盖；wa-sqlite 的其余 VFS 不重试。自己实现 `WaSqliteClientRuntime` 的要补上必选的 `open()`（US-221）
-- **rxdb-adapter-miniprogram:** 往库里写大量数据（大 BLOB、批量导入）时，库文件缓冲每追加一页就整块重新分配、把整库拷一遍，耗时随库大小平方增长。改为换缓冲时多留余量（至少 1 MiB、至多当前大小的 1/8），追加写的拷贝量随库大小线性增长；支付宝探针的 dist 冒烟写满 50 MiB 从约一分钟降到约两秒（US-209）
 - **rxdb-model:** 实体表格接键盘焦点的隐藏输入框补上可读名，此前 axe 判 `label`（critical），读屏只念「编辑框，只读」（US-313）
 - **rxdb-plugin-workspace:** 草稿缓存不再收系统表与关闭变更日志（`log: false`）实体的草稿。此前系统表名单只认核心四张表，插件登记的系统表（如工作树插件的提交表）与 storage 插件的 `StorageFileMeta` 每次构造都留下一条永远清不掉的草稿：它们出现在 `list()` / `cacheCount` 里、广播给其他标签页、每次启动被恢复。`install()` 会删掉 IndexedDB 里已有的这类草稿（US-311）
+
+## 0.0.28 (2026-10-24)
+
+### ⚠️ Breaking Changes
+
+- **aiao:** `@aiao/*` 包间 peer 依赖统一为 `workspace:^`（发布时改写为 `^0.0.28`），替换此前混用的 `*` / `workspace:*` / `^0.0.26` 写法（US-602 A2）
+
+### 🩹 Fixes
+
+- **rxdb-adapter-miniprogram:** 往库里写大量数据（大 BLOB、批量导入）时，库文件缓冲每追加一页就整块重新分配、把整库拷一遍，耗时随库大小平方增长。改为换缓冲时多留余量（至少 1 MiB、至多当前大小的 1/8），追加写的拷贝量随库大小线性增长；支付宝探针的 dist 冒烟写满 50 MiB 从约一分钟降到约两秒（US-209）
 
 ## 0.0.26 (2026-10-01)
 

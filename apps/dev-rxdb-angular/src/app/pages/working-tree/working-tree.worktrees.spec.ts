@@ -1,6 +1,6 @@
 import { WorktreeBranchHeldError, WorktreeTableSet, type RxDBBranch } from '@aiao/rxdb';
-import { describe, expect, it } from 'vitest';
-import { currentBranchOf, heldElsewhere } from './working-tree.worktrees';
+import { describe, expect, it, vi } from 'vitest';
+import { currentBranchOf, heldElsewhere, WorktreeCreation } from './working-tree.worktrees';
 
 /**
  * @fileoverview 工作树页的检出位口径（US-314 C2，React / Vue 端同名 spec 的移植）。
@@ -34,5 +34,35 @@ describe('工作树页的检出位口径（US-314 C2）', () => {
     expect(heldElsewhere(branch('feature', shadow.holderKey), shadow)).toBeNull();
     expect(heldElsewhere(branch('idle', null), shadow)).toBeNull();
     expect(heldElsewhere(branch('main', WorktreeTableSet.MAIN.holderKey), WorktreeTableSet.MAIN)).toBeNull();
+  });
+});
+
+describe('新检出位的可重试创建', () => {
+  it('未指定分支时按名称创建分支，换挂失败后重试沿用已创建检出位', async () => {
+    const attempt = new WorktreeCreation();
+    const commands = {
+      createBranch: vi.fn(async () => undefined),
+      add: vi.fn(async () => ({ id: 'new-tree' })),
+      mount: vi.fn(async () => undefined)
+    };
+    commands.mount.mockRejectedValueOnce(new Error('mount failed'));
+    const request = { name: 'new-topic', branchId: '' };
+    await expect(attempt.run(request, commands)).rejects.toThrow('mount failed');
+    await attempt.run(request, commands);
+    expect(commands.createBranch).toHaveBeenCalledExactlyOnceWith('new-topic');
+    expect(commands.add).toHaveBeenCalledExactlyOnceWith('new-topic', { name: 'new-topic' });
+    expect(commands.mount).toHaveBeenCalledTimes(2);
+  });
+
+  it('显式分支不创建分支，创建检出位失败后重试不重复创建新分支', async () => {
+    const commands = {
+      createBranch: vi.fn(async () => undefined),
+      add: vi.fn(async () => ({ id: 'new-tree' })),
+      mount: vi.fn(async () => undefined)
+    };
+    const attempt = new WorktreeCreation();
+    await attempt.run({ name: 'Work', branchId: 'feature' }, commands);
+    expect(commands.createBranch).not.toHaveBeenCalled();
+    expect(commands.add).toHaveBeenCalledExactlyOnceWith('feature', { name: 'Work' });
   });
 });

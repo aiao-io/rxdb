@@ -3,7 +3,9 @@ import { WorktreeTableSet } from '@aiao/rxdb';
 import type { RxDBBranch } from '@aiao/rxdb';
 import type { Worktree } from '@aiao/rxdb-plugin-working-tree';
 import { ChevronDown, GitBranch, Pencil, Plus, Trash2 } from '@lucide/vue';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import DialogShell from './DialogShell.vue';
+import { isImeComposing } from '../utils/ime';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
 /** 工作树下拉的展示与三个操作对话框。页面负责真正调用 `useWorktrees()` 命令。 */
 const props = defineProps<{
@@ -12,17 +14,19 @@ const props = defineProps<{
   activeBranch: string;
   branches: readonly RxDBBranch[];
   busy?: boolean;
+  createWorktree: (request: { name: string; branchId: string | null }) => Promise<void>;
+  renameWorktree: (request: { id: string; name: string }) => Promise<void>;
+  deleteWorktree: (id: string) => Promise<void>;
 }>();
 
 const emit = defineEmits<{
   (event: 'mount-main'): void;
   (event: 'mount', id: string): void;
-  (event: 'add', request: { name: string; branchId: string | null }): void;
-  (event: 'rename', request: { id: string; name: string }): void;
-  (event: 'remove', id: string): void;
 }>();
 
 const menuOpen = ref(false);
+const submitting = ref(false);
+const trigger = ref<HTMLButtonElement | null>(null);
 const dialog = ref<'new' | 'rename' | 'delete' | null>(null);
 const selectedRow = ref<Worktree | null>(null);
 const name = ref('');
@@ -38,14 +42,12 @@ const currentLabel = computed(() =>
     'Main worktree'
   : (currentLinked.value?.name ?? currentLinked.value?.branchId ?? 'Linked worktree')
 );
-const availableBranches = computed(() => props.branches.filter(branch => branch.activeKey == null));
+const mainBranch = computed(
+  () => props.branches.find(branch => branch.activeKey === WorktreeTableSet.MAIN.holderKey)?.id ?? ''
+);
 
 const onDocumentKeydown = (event: KeyboardEvent): void => {
-  if (event.key !== 'Escape') return;
-  if (dialog.value !== null) {
-    closeDialog();
-    return;
-  }
+  if (event.key !== 'Escape' || isImeComposing(event) || dialog.value !== null) return;
   menuOpen.value = false;
 };
 
@@ -70,9 +72,9 @@ function mountRow(row: Worktree): void {
   if (row.id !== currentLinked.value?.id) emit('mount', row.id);
 }
 
-function openNewDialog(): void {
+function openNewDialog(selectedBranch = ''): void {
   name.value = '';
-  branchId.value = availableBranches.value[0]?.id ?? '';
+  branchId.value = selectedBranch;
   error.value = null;
   dialog.value = 'new';
   closeMenu();
@@ -94,48 +96,61 @@ function openDeleteDialog(row: Worktree): void {
 }
 
 function closeDialog(): void {
+  if (submitting.value || props.busy) return;
   dialog.value = null;
   selectedRow.value = null;
   error.value = null;
+  void nextTick(() => trigger.value?.focus());
 }
 
-function submitNew(): void {
+async function submit(action: () => Promise<void>): Promise<void> {
+  if (submitting.value || props.busy) return;
+  submitting.value = true;
+  error.value = null;
+  try {
+    await action();
+    submitting.value = false;
+    closeDialog();
+  } catch (cause: unknown) {
+    error.value = cause instanceof Error ? cause.message : 'Worktree operation failed.';
+  } finally {
+    submitting.value = false;
+  }
+}
+
+async function submitNew(): Promise<void> {
   const trimmed = name.value.trim();
-  if (trimmed === '') {
-    error.value = 'Enter a worktree name.';
-    return;
-  }
-  if (branchId.value === '' && availableBranches.value.length === 0) {
-    error.value = 'Create or free a branch before adding a worktree.';
-    return;
-  }
-  emit('add', { name: trimmed, branchId: branchId.value === '' ? null : branchId.value });
-  closeDialog();
+  if (trimmed === '') return;
+  await submit(() => props.createWorktree({ name: trimmed, branchId: branchId.value || null }));
 }
 
-function submitRename(): void {
+async function submitRename(): Promise<void> {
   const row = selectedRow.value;
   const trimmed = name.value.trim();
-  if (row === null) return;
-  if (trimmed === '') {
-    error.value = 'Enter a worktree name.';
-    return;
-  }
-  emit('rename', { id: row.id, name: trimmed });
-  closeDialog();
+  if (row === null || trimmed === '') return;
+  await submit(() => props.renameWorktree({ id: row.id, name: trimmed }));
 }
 
-function submitDelete(): void {
+async function submitDelete(): Promise<void> {
   const row = selectedRow.value;
   if (row === null) return;
-  emit('remove', row.id);
-  closeDialog();
+  await submit(() => props.deleteWorktree(row.id));
 }
+
+function onNameKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Enter' || isImeComposing(event)) return;
+  event.preventDefault();
+  if (dialog.value === 'new') void submitNew();
+  else void submitRename();
+}
+
+defineExpose({ openNewDialog });
 </script>
 
 <template>
   <div class="gd-toolbar-section relative flex h-full items-stretch">
     <button
+      ref="trigger"
       class="gd-toolbar-select"
       :aria-expanded="menuOpen"
       aria-controls="wt-worktree-menu-popup"
@@ -178,7 +193,7 @@ function submitDelete(): void {
           class="gd-btn-ghost shrink-0"
           data-testid="wt-worktree-create"
           type="button"
-          @click="openNewDialog"
+          @click="openNewDialog()"
         >
           <Plus :size="12" />
           New Worktree…
@@ -195,7 +210,7 @@ function submitDelete(): void {
       >
         <GitBranch :size="14" />
         <span class="min-w-0 flex-1 truncate text-left">Main worktree</span>
-        <span class="ml-2 truncate text-xs opacity-70">{{ activeBranch }}</span>
+        <span class="ml-2 truncate text-xs opacity-70">{{ mainBranch }}</span>
       </button>
 
       <div class="gd-menu-divider"></div>
@@ -246,145 +261,146 @@ function submitDelete(): void {
       </div>
     </div>
 
-    <div
+    <DialogShell
       v-if="dialog !== null"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3"
-      data-testid="wt-worktree-dialog-backdrop"
-      @click.self="closeDialog"
+      :labelled-by="`wt-worktree-${dialog === 'new' ? 'create' : dialog}-title`"
+      :test-id="`wt-worktree-${dialog === 'new' ? 'create' : dialog}-dialog`"
+      @close-requested="closeDialog"
     >
-      <div
-        class="w-full max-w-md rounded-md border border-[var(--gd-border)] p-5 shadow-2xl"
-        :style="{ background: 'var(--gd-panel)' }"
-        aria-modal="true"
-        :aria-labelledby="`wt-worktree-${dialog === 'new' ? 'create' : dialog}-title`"
-        :data-testid="`wt-worktree-${dialog === 'new' ? 'create' : dialog}-dialog`"
-        role="dialog"
-      >
-        <template v-if="dialog === 'new'">
-          <h2
-            id="wt-worktree-create-title"
-            class="mb-4 text-base font-semibold"
-            >New Worktree</h2
+      <template v-if="dialog === 'new'">
+        <h2
+          id="wt-worktree-create-title"
+          class="mb-4 text-base font-semibold"
+          >New Worktree</h2
+        >
+        <label
+          class="mb-3 block text-sm"
+          for="wt-worktree-create-name"
+          >Name</label
+        >
+        <input
+          id="wt-worktree-create-name"
+          v-model="name"
+          class="input input-bordered mb-3 w-full"
+          data-testid="wt-worktree-create-name"
+          :disabled="submitting || busy"
+          autocomplete="off"
+          autofocus
+          @keydown="onNameKeydown"
+        />
+        <label
+          class="mb-2 block text-sm"
+          for="wt-worktree-create-branch"
+          >Branch (optional)</label
+        >
+        <select
+          id="wt-worktree-create-branch"
+          v-model="branchId"
+          :disabled="submitting || busy"
+          class="select select-bordered mb-2 w-full"
+          data-testid="wt-worktree-create-branch"
+        >
+          <option value="">Create a branch with the worktree name</option>
+          <option
+            v-for="branch in branches"
+            :key="branch.id"
+            :disabled="branch.activeKey !== null && branch.activeKey !== undefined"
+            :value="branch.id"
           >
-          <label
-            class="mb-3 block text-sm"
-            for="wt-worktree-create-name"
-            >Name</label
-          >
-          <input
-            id="wt-worktree-create-name"
-            v-model="name"
-            class="input input-bordered mb-3 w-full"
-            data-testid="wt-worktree-create-name"
-            autocomplete="off"
-            autofocus
-            @keydown.enter="submitNew"
-          />
-          <label
-            class="mb-2 block text-sm"
-            for="wt-worktree-create-branch"
-            >Branch (optional)</label
-          >
-          <select
-            id="wt-worktree-create-branch"
-            v-model="branchId"
-            class="select select-bordered mb-2 w-full"
-            data-testid="wt-worktree-create-branch"
-          >
-            <option value="">Choose an available branch</option>
-            <option
-              v-for="branch in branches"
-              :key="branch.id"
-              :disabled="branch.activeKey !== null && branch.activeKey !== undefined"
-              :value="branch.id"
-            >
-              {{ branch.id }}{{ branch.activeKey ? ' (in use)' : '' }}
-            </option>
-          </select>
-          <p class="mb-3 text-xs opacity-70">The selected branch will be checked out in this worktree.</p>
-        </template>
-        <template v-else-if="dialog === 'rename'">
-          <h2
-            id="wt-worktree-rename-title"
-            class="mb-4 text-base font-semibold"
-            >Rename Worktree</h2
-          >
-          <label
-            class="mb-3 block text-sm"
-            for="wt-worktree-rename-name"
-            >Name</label
-          >
-          <input
-            id="wt-worktree-rename-name"
-            v-model="name"
-            class="input input-bordered mb-2 w-full"
-            data-testid="wt-worktree-rename-name"
-            autocomplete="off"
-            autofocus
-            @keydown.enter="submitRename"
-          />
-        </template>
-        <template v-else>
-          <h2
-            id="wt-worktree-delete-title"
-            class="mb-4 text-base font-semibold"
-            >Delete Worktree</h2
-          >
-          <p
-            class="mb-4 text-sm"
-            data-testid="wt-worktree-delete-warning"
-            role="alert"
-          >
-            Delete <strong>{{ selectedRow?.name ?? selectedRow?.branchId }}</strong
-            >? Any uncommitted changes stay on its branch.
-          </p>
-        </template>
+            {{ branch.id }}{{ branch.activeKey ? ' (in use)' : '' }}
+          </option>
+        </select>
+        <p class="mb-3 text-xs opacity-70"
+          >Opened immediately. Without a branch selection, a new branch with this name is created from
+          {{ activeBranch }} including its uncommitted changes.</p
+        >
+      </template>
+      <template v-else-if="dialog === 'rename'">
+        <h2
+          id="wt-worktree-rename-title"
+          class="mb-4 text-base font-semibold"
+          >Rename Worktree</h2
+        >
+        <label
+          class="mb-3 block text-sm"
+          for="wt-worktree-rename-name"
+          >Name</label
+        >
+        <input
+          id="wt-worktree-rename-name"
+          v-model="name"
+          class="input input-bordered mb-2 w-full"
+          data-testid="wt-worktree-rename-name"
+          :disabled="submitting || busy"
+          autocomplete="off"
+          autofocus
+          @keydown="onNameKeydown"
+        />
+      </template>
+      <template v-else>
+        <h2
+          id="wt-worktree-delete-title"
+          class="mb-4 text-base font-semibold"
+          >Delete Worktree</h2
+        >
         <p
-          v-if="error !== null"
-          class="mb-3 text-sm text-red-600"
-          data-testid="wt-worktree-error"
+          class="mb-4 text-sm"
+          data-testid="wt-worktree-delete-warning"
           role="alert"
         >
-          {{ error }}
+          Delete <strong>{{ selectedRow?.name ?? selectedRow?.branchId }}</strong
+          >? Any uncommitted changes stay on its branch.
         </p>
-        <div class="flex justify-end gap-2">
-          <button
-            class="gd-btn-secondary"
-            :data-testid="`wt-worktree-${dialog === 'new' ? 'create' : dialog}-cancel`"
-            type="button"
-            @click="closeDialog"
-          >
-            Cancel
-          </button>
-          <button
-            v-if="dialog === 'new'"
-            class="gd-btn-primary"
-            data-testid="wt-worktree-create-confirm"
-            type="button"
-            @click="submitNew"
-          >
-            Create
-          </button>
-          <button
-            v-else-if="dialog === 'rename'"
-            class="gd-btn-primary"
-            data-testid="wt-worktree-rename-confirm"
-            type="button"
-            @click="submitRename"
-          >
-            Rename
-          </button>
-          <button
-            v-else
-            class="gd-btn-primary"
-            data-testid="wt-worktree-delete-confirm"
-            type="button"
-            @click="submitDelete"
-          >
-            Delete
-          </button>
-        </div>
+      </template>
+      <p
+        v-if="error !== null"
+        class="mb-3 text-sm text-red-600"
+        data-testid="wt-worktree-error"
+        role="alert"
+      >
+        {{ error }}
+      </p>
+      <div class="flex justify-end gap-2">
+        <button
+          class="gd-btn-secondary"
+          :data-testid="`wt-worktree-${dialog === 'new' ? 'create' : dialog}-cancel`"
+          type="button"
+          :disabled="submitting || busy"
+          @click="closeDialog"
+        >
+          Cancel
+        </button>
+        <button
+          v-if="dialog === 'new'"
+          class="gd-btn-primary"
+          data-testid="wt-worktree-create-confirm"
+          type="button"
+          :disabled="submitting || busy || !name.trim()"
+          @click="submitNew"
+        >
+          Create
+        </button>
+        <button
+          v-else-if="dialog === 'rename'"
+          class="gd-btn-primary"
+          data-testid="wt-worktree-rename-confirm"
+          type="button"
+          :disabled="submitting || busy || !name.trim()"
+          @click="submitRename"
+        >
+          Rename
+        </button>
+        <button
+          v-else
+          class="gd-btn-primary"
+          data-testid="wt-worktree-delete-confirm"
+          type="button"
+          :disabled="submitting || busy"
+          @click="submitDelete"
+        >
+          Delete
+        </button>
       </div>
-    </div>
+    </DialogShell>
   </div>
 </template>

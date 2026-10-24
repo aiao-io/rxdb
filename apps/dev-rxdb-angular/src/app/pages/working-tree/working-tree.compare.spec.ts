@@ -1,4 +1,5 @@
 import { RxDB, WorktreeTableSet } from '@aiao/rxdb';
+import type { Worktree } from '@aiao/rxdb-plugin-working-tree';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WorkingTreePage from './working-tree.page';
@@ -39,9 +40,16 @@ const harness = vi.hoisted(() => {
     status: vi.fn(async () => status),
     diff: vi.fn(async () => ({ entries: [] })),
     listCommits: vi.fn(async () => ({ entries: [] })),
-    discard: vi.fn(async () => undefined)
+    discard: vi.fn(async () => undefined),
+    commit: vi.fn(async () => ({ ok: true }))
   };
-  return { tree, comparison, compareBranches, database: { versionManager: { compareBranches } } };
+  return {
+    tree,
+    comparison,
+    compareBranches,
+    mountWorktree: vi.fn(async () => undefined),
+    database: { versionManager: { compareBranches } }
+  };
 });
 
 vi.mock('@aiao/rxdb-angular', () => ({
@@ -54,7 +62,11 @@ vi.mock('@aiao/rxdb-angular', () => ({
 }));
 vi.mock('@aiao/rxdb-plugin-working-tree-angular', () => ({
   useWorkingTree: () => harness.tree,
-  useWorktrees: () => ({ mounted: () => WorktreeTableSet.MAIN })
+  useWorktrees: () => ({
+    mounted: () => WorktreeTableSet.MAIN,
+    mount: harness.mountWorktree,
+    list: vi.fn().mockResolvedValue([])
+  })
 }));
 
 beforeEach(async () => {
@@ -83,6 +95,36 @@ const openComparison = async (): Promise<WorkingTreePage> => {
 };
 
 describe('WorkingTreePage 的分支对比刷新', () => {
+  it('commit 等待读凭证时禁止换挂，换挂在途时禁止 commit', async () => {
+    const page = await openComparison();
+    let finishCredentials: (status: ReturnType<typeof harness.tree.statusState>['value']) => void = () => undefined;
+    harness.tree.status.mockReturnValueOnce(new Promise(resolve => (finishCredentials = resolve)));
+    const committing = page.runCommit();
+    await page.selectWorktree({ id: 'linked' } as Worktree);
+    expect(harness.mountWorktree).not.toHaveBeenCalled();
+    finishCredentials(harness.tree.statusState().value);
+    await committing;
+    expect(harness.tree.commit).toHaveBeenCalledTimes(1);
+
+    let finishMount: () => void = () => undefined;
+    harness.mountWorktree.mockReturnValueOnce(new Promise(resolve => (finishMount = () => resolve(undefined))));
+    const mounting = page.selectWorktree({ id: 'linked' } as Worktree);
+    await page.runCommit();
+    expect(harness.tree.commit).toHaveBeenCalledTimes(1);
+    finishMount();
+    await mounting;
+  });
+
+  it('换挂检出位清除旧分支对比并重读 Changes 和 History', async () => {
+    const page = await openComparison();
+    await page.selectWorktree({ id: 'linked' } as Worktree);
+    expect(harness.mountWorktree).toHaveBeenCalledWith('linked');
+    expect(page.$historyCompare()).toBeNull();
+    expect(page.$selectedCommitId()).toBeNull();
+    expect(harness.tree.diff).toHaveBeenCalled();
+    expect(harness.tree.listCommits).toHaveBeenCalled();
+  });
+
   it('丢弃当前工作树后，保留对比分支并重读字段值', async () => {
     const page = await openComparison();
     harness.compareBranches.mockResolvedValue(harness.comparison('base'));
