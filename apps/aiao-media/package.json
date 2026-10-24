@@ -1,0 +1,36 @@
+{
+  "name": "@aiao/aiao-media",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-supabase": "workspace:*",
+    "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-plugin-storage": "workspace:*",
+    "@aiao/rxdb-plugin-sync": "workspace:*",
+    "@angular/common": "22.2.3",
+    "@angular/compiler": "22.2.3",
+    "@angular/core": "22.2.3",
+    "@angular/forms": "22.2.3",
+    "@angular/platform-browser": "22.2.3",
+    "@angular/router": "22.2.3",
+    "@supabase/supabase-js": "^2.117.3",
+    "@tiptap/core": "3.31.3",
+    "@tiptap/extension-document": "3.31.3",
+    "@tiptap/extension-hard-break": "3.31.3",
+    "@tiptap/extension-paragraph": "3.31.3",
+    "@tiptap/extension-text": "3.31.3",
+    "@tiptap/extensions": "3.31.3",
+    "@tiptap/pm": "3.31.3",
+    "rxjs": "^7.8.2",
+    "zone.js": "0.16.2"
+  },
+  "devDependencies": {
+    "jsdom": "~22.1.0",
+    "sharp": "0.35.5",
+    "wrangler": "4.152.0",
+    "yaml": "2.9.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "paths": {},
+    "allowJs": false
+  },
+  "extends": "../../tsconfig.base.json",
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.mts",
+    "local-first.config.ts",
+    "supabase-local.config.ts",
+    "local-product.config.ts",
+    "upgrade.config.ts",
+    "offline-update.config.ts"
+  ]
+}

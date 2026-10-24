@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta content="no-referrer" name="referrer" />
+    <title>Aiao · 浏览器直连实验</title>
+    <link href="./styles.css" rel="stylesheet" />
+    <script src="./main.js" type="module"></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="./">
+        aiao
+        <span>images</span>
+      </a>
+      <span class="badge">浏览器直连实验</span>
+    </header>
+    <main>
+      <section class="intro">
+        <span class="eyebrow">LOCAL FIRST / DIRECT API</span>
+        <h1>
+          用你自己的 API，
+          <br />
+          生成第一张图片。
+        </h1>
+        <p>这是一个纯静态验证页。请求由浏览器直接发给供应商，无需登录或本站后端。API Key 只留在当前页面内存中。</p>
+      </section>
+      <div class="workspace">
+        <form class="panel" id="generate-form" autocomplete="off">
+          <div class="panel-title">
+            <span class="step">01</span>
+            <h2>连接供应商</h2>
+          </div>
+          <label for="base-url">API Base URL</label>
+          <input id="base-url" placeholder="https://your-provider.example/v1" required spellcheck="false" type="url" />
+          <small>填写 HTTPS 基础地址，包含服务商要求的版本路径；页面会追加 /images/generations。</small>
+          <div class="pair">
+            <div>
+              <label for="model">模型</label>
+              <input id="model" maxlength="128" placeholder="供应商提供的模型名称" required spellcheck="false" />
+            </div>
+            <div>
+              <label for="size">画幅</label>
+              <select id="size">
+                <option value="1024x1024">正方形 · 1024 × 1024</option>
+                <option value="1536x1024">横向 · 1536 × 1024</option>
+                <option value="1024x1536">纵向 · 1024 × 1536</option>
+              </select>
+            </div>
+          </div>
+          <label for="api-key">API Key</label>
+          <div class="key-field">
+            <input
+              id="api-key"
+              autocomplete="off"
+              placeholder="仅用于这次浏览器直连"
+              required
+              spellcheck="false"
+              type="password"
+            />
+            <button class="text-button" id="clear-key" type="button">清除</button>
+          </div>
+          <small>不写入本地存储、URL 或日志。关闭/刷新页面后需要重新填写。</small>
+          <div class="panel-title second">
+            <span class="step">02</span>
+            <h2>描述你的图片</h2>
+          </div>
+          <label for="prompt">提示词</label>
+          <textarea id="prompt" maxlength="2000" required rows="4">
+一只坐在窗边的橘猫，简洁插画，柔和自然光，干净背景。</textarea>
+          <details>
+            <summary>本次请求参数</summary>
+            <p>
+              兼容 images/generations 的 JSON
+              请求：n=1、quality=low、output_format=png。只验证支持这些参数的供应商/模型。
+            </p>
+          </details>
+          <p class="cost-note">每次点击最多请求一张图片，使用你自己的供应商额度。失败或中断后不会自动重试。</p>
+          <div class="actions">
+            <button class="primary" id="generate" type="submit">
+              生成一张图片
+              <span aria-hidden="true">↗</span>
+            </button>
+            <button class="secondary" id="cancel" disabled type="button">停止等待</button>
+          </div>
+        </form>
+        <section class="panel result-panel" aria-label="生成结果">
+          <div class="panel-title">
+            <span class="step">03</span>
+            <h2>查看与下载</h2>
+          </div>
+          <div class="preview" id="preview">
+            <div id="empty-result">
+              <span class="preview-mark" aria-hidden="true">✳</span>
+              <h3>你的第一张图片</h3>
+              <p>连接供应商后，在左侧发起生成。</p>
+            </div>
+            <img id="result-image" alt="供应商返回的图片" hidden />
+          </div>
+          <p id="status" aria-live="polite" data-phase="ready" role="status">等待开始</p>
+          <p class="result-info" id="result-info"></p>
+          <a class="primary download" id="download" hidden>下载原始 PNG</a>
+          <div class="boundary">
+            <h3>这次验证什么？</h3>
+            <p>验证静态页面 → 供应商 API → 浏览器读取真实图片。供应商 API 和图片地址需要支持跨域读取。</p>
+            <p>
+              本页尚未接入
+              RxDB，结果仅在页面内存中，请及时下载。刷新或关闭页面后不会继续执行任务；停止等待不代表供应商取消或退款。
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
+    <footer>静态应用 · 用户自带 Key · 无自动重试</footer>
+  </body>
+</html>
