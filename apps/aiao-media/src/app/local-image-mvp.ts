@@ -10,8 +10,9 @@ import {
   ViewEncapsulation
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { concatMap, EMPTY, merge, Subscription } from 'rxjs';
 import type { GenerationJobSummary, ImageAspectRatio } from '../contracts/index';
-import type { LocalImageInfo, LocalMediaStore, LocalWorkSummary, StudioPromptState } from '../local-data/index';
+import type { LocalMediaStore, StudioPromptState } from '../local-data/index';
 import { DEFAULT_FREE_PROVIDER, DEFAULT_FREE_PROVIDER_ID, defaultFreeProvider } from './default-provider';
 import { imageMvpCatalog } from './image-mvp-catalog';
 import {
@@ -32,8 +33,9 @@ import {
   type SupabaseAuthState,
   type SupabaseAuthUser
 } from './supabase-auth';
+import { WorkLibrarySession, type LibraryWork } from './work-library-session';
 type View = 'discover' | 'studio' | 'library' | 'providers';
-type Work = LocalWorkSummary & { url: string | null; info?: LocalImageInfo };
+type Work = LibraryWork;
 type LocalTask = GenerationJobSummary & {
   saved?: boolean;
   acknowledged?: boolean;
@@ -70,12 +72,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private epoch = 0;
   private disposed = false;
   private dirtyInput = false;
-  private unsubscribe?: () => void;
+  private readonly subscriptions = new Subscription();
+  private library?: WorkLibrarySession;
   private toastTimer?: ReturnType<typeof setTimeout>;
   private dialogTrigger: HTMLElement | null = null;
   private resultBlob: Blob | null = null;
-  private refreshWorksVersion = 0;
-  private loadingWorksEpoch: number | null = null;
   readonly view = signal<View>('discover');
   readonly templates = imageMvpCatalog;
   readonly categories = ['全部灵感', '产品海报', '人像头像', '插画绘本', '创意设计'];
@@ -227,7 +228,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.auth?.dispose();
     if (this.toastTimer) clearTimeout(this.toastTimer);
     this.studio?.close();
-    this.unsubscribe?.();
+    this.subscriptions.unsubscribe();
+    this.library?.close();
     this.revokeResult();
     void this.store?.close();
     this.keys.clear();
@@ -351,7 +353,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         mode: this.mode(),
         rememberKey: this.rememberKey() && Boolean(key)
       };
-      await this.saveCredential(p.id, p.rememberKey ? key : null);
       const seededDefaultOnly =
         !this.editingId() && this.providers().length === 1 && this.providers()[0].id === DEFAULT_FREE_PROVIDER_ID;
       const providers = [
@@ -359,7 +360,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         p
       ];
       const defaultId = !this.providerId() || seededDefaultOnly ? p.id : this.providerId();
-      await this.persistProviders(providers, defaultId);
+      await this.persistProviders(providers, defaultId, { id: p.id, key: p.rememberKey ? key : null });
       if (key && !p.rememberKey) this.keys.set(p.id, key);
       else this.keys.delete(p.id);
       this.apiKey.set('');
@@ -383,9 +384,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   async removeProvider(p: LocalProvider) {
     if (this.settingsBusy() || !window.confirm('删除此供应商和本机保存的 Key？已有作品会保留。')) return;
     try {
-      await this.saveCredential(p.id, null);
       const next = this.providers().filter(x => x.id !== p.id);
-      await this.persistProviders(next, this.providerId() === p.id ? (next[0]?.id ?? '') : this.providerId());
+      await this.persistProviders(next, this.providerId() === p.id ? (next[0]?.id ?? '') : this.providerId(), {
+        id: p.id,
+        key: null
+      });
       this.keys.delete(p.id);
       if (this.editingId() === p.id) this.editProvider();
     } catch (e) {
@@ -396,16 +399,16 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (this.settingsBusy() || this.providerBusy()) return;
     this.providerBusy.set(true);
     try {
-      await this.saveCredential(p.id, null);
+      await this.persistProviders(
+        this.providers().map(item => (item.id === p.id ? { ...item, rememberKey: false } : item)),
+        this.providerId(),
+        { id: p.id, key: null }
+      );
       this.keys.delete(p.id);
       if (this.editingId() === p.id) {
         this.apiKey.set('');
         this.rememberKey.set(false);
       }
-      await this.persistProviders(
-        this.providers().map(item => (item.id === p.id ? { ...item, rememberKey: false } : item)),
-        this.providerId()
-      );
       this.notify('已移除 Key，供应商配置已保留。');
     } catch {
       this.providerMessage.set('移除 Key 未完成，请刷新后重试。');
@@ -549,7 +552,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.job.set(task);
       this.saved.set(true);
       this.storageMessage.set('');
-      await this.refreshWorks();
     } catch {
       this.storageMessage.set('图片已生成，本机保存失败。请先下载，再释放空间并重试保存。');
     }
@@ -603,42 +605,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.onPromptChanged(plainPrompt(''));
     this.navigate('studio');
   }
-  async refreshWorks() {
-    const store = this.store,
-      epoch = this.epoch;
-    if (!store || this.loadingWorksEpoch === epoch) return;
-    this.loadingWorksEpoch = epoch;
-    const version = ++this.refreshWorksVersion;
-    try {
-      const entries = await store.list();
-      const next: Work[] = [];
-      for (const item of entries.slice().reverse()) {
-        const previous = this.works().find(w => w.jobId === item.jobId);
-        let url = item.status === 'saved' ? (previous?.url ?? null) : null;
-        if (!url && item.status === 'saved')
-          try {
-            url = await store.preview(item.jobId);
-          } catch {
-            /* A broken file remains visible for explicit deletion. */
-          }
-        next.push({
-          ...item,
-          url,
-          ...(item.status === 'saved' && previous?.info ? { info: previous.info } : {})
-        });
-      }
-      if (epoch !== this.epoch || version !== this.refreshWorksVersion) {
-        for (const w of next) if (w.url && !this.works().some(p => p.url === w.url)) store.release(w.url);
-        return;
-      }
-      for (const old of this.works()) if (old.url && !next.some(w => w.url === old.url)) store.release(old.url);
-      this.works.set(next);
-    } catch {
-      if (epoch === this.epoch) this.storageMessage.set('本机作品暂时无法读取，原文件未删除。');
-    } finally {
-      if (this.loadingWorksEpoch === epoch) this.loadingWorksEpoch = null;
-    }
-  }
   async deleteWork(work: Work) {
     if (!this.store || !window.confirm('删除这张本机图片及其记录？下载过的文件不受影响。')) return;
     const epoch = this.epoch,
@@ -646,14 +612,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     try {
       await store.delete(work.jobId);
       if (epoch !== this.epoch) return;
-      this.works.update(works => works.map(w => ({ ...w, url: null })));
       if (this.resultUrl() && !this.resultBlob) this.revokeResult();
       if (this.job()?.id === work.jobId) {
         this.revokeResult();
         this.job.set(null);
         this.saved.set(false);
       }
-      await this.refreshWorks();
       this.notify('已删除本机图片。');
     } catch {
       if (epoch === this.epoch) this.storageMessage.set('删除未完成，请刷新后重试。');
@@ -847,13 +811,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       );
       if (this.dirtyInput) this.studio.edit(this.draftState());
       await this.studio.start();
-      this.unsubscribe = store.subscribe(() => {
-        void this.refreshWorks();
-        void this.readSettings().catch(() => this.storageMessage.set('供应商设置读取失败，请刷新后重试。'));
-        if (!this.sending())
-          void this.readTasks().catch(() => this.storageMessage.set('任务记录读取失败，请刷新后重试。'));
-      });
-      await this.refreshWorks();
+      this.library = new WorkLibrarySession(
+        store,
+        works => this.acceptWorks(works),
+        () => this.storageMessage.set('本机作品暂时无法读取，原文件未删除。')
+      );
+      this.library.start();
+      this.watchPreferences(store);
       this.localStatus.set('ready');
     } catch (error) {
       this.localStatus.set('unavailable');
@@ -921,17 +885,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     for (const p of this.providers())
       if (p.rememberKey && typeof remembered[p.id] === 'string') this.rememberedKeys.set(p.id, remembered[p.id]);
   }
-  private async saveCredential(id: string, key: string | null) {
-    const store = this.store;
-    if (!store) throw new Error('本机凭据存储不可用。');
-    const row = await store.preference('provider-keys-v1');
-    const data: Record<string, string> = row ? JSON.parse(row.payload) : {};
-    if (key === null) delete data[id];
-    else data[id] = key;
-    await store.savePreference('provider-keys-v1', JSON.stringify(data), row?.revision ?? null);
-    if (key === null) this.rememberedKeys.delete(id);
-    else this.rememberedKeys.set(id, key);
-  }
   private async readTasks() {
     const row = await this.store?.preference('tasks-v1');
     const tasks = row ? (JSON.parse(row.payload) as LocalTask[]) : [];
@@ -958,17 +911,64 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     await store.savePreference('tasks-v1', JSON.stringify(next), row?.revision ?? null);
     this.history.set(next);
   }
-  private async persistProviders(providers: LocalProvider[], defaultId: string) {
+  private async persistProviders(
+    providers: LocalProvider[],
+    defaultId: string,
+    credential?: { id: string; key: string | null }
+  ) {
     if (!this.store) throw new Error('请先等待本机存储就绪。');
     const nextProviders = providers.length ? providers : [defaultFreeProvider()];
     const nextDefaultId = nextProviders.some(p => p.id === defaultId) ? defaultId : nextProviders[0].id;
-    this.settingsRevision = await this.store.savePreference(
-      'providers-v1',
-      JSON.stringify({ providers: nextProviders, defaultId: nextDefaultId }),
-      this.settingsRevision
-    );
+    const changes = [
+      {
+        key: 'providers-v1',
+        payload: JSON.stringify({ providers: nextProviders, defaultId: nextDefaultId }),
+        revision: this.settingsRevision
+      }
+    ];
+    if (credential) {
+      const row = await this.store.preference('provider-keys-v1');
+      const data: Record<string, string> = row ? JSON.parse(row.payload) : {};
+      if (credential.key === null) delete data[credential.id];
+      else data[credential.id] = credential.key;
+      changes.push({ key: 'provider-keys-v1', payload: JSON.stringify(data), revision: row?.revision ?? null });
+    }
+    [this.settingsRevision] = await this.store.savePreferences(changes);
+    if (credential?.key === null) this.rememberedKeys.delete(credential.id);
+    else if (credential) this.rememberedKeys.set(credential.id, credential.key);
     this.providers.set(nextProviders);
     this.providerId.set(nextDefaultId);
+  }
+  private acceptWorks(works: Work[]): void {
+    const info = new Map(this.works().map(work => [work.jobId, work.info]));
+    this.works.set(
+      works.map(work =>
+        work.status === 'saved' && info.get(work.jobId) ? { ...work, info: info.get(work.jobId) } : work
+      )
+    );
+  }
+  private watchPreferences(store: LocalMediaStore): void {
+    this.subscriptions.add(
+      merge(store.preference$('providers-v1'), store.preference$('provider-keys-v1'))
+        .pipe(
+          concatMap(() =>
+            this.readSettings().catch(() => this.storageMessage.set('供应商设置读取失败，请刷新后重试。'))
+          )
+        )
+        .subscribe({ error: () => this.storageMessage.set('供应商设置读取失败，请刷新后重试。') })
+    );
+    this.subscriptions.add(
+      store
+        .preference$('tasks-v1')
+        .pipe(
+          concatMap(() =>
+            this.sending() ? EMPTY : (
+              this.readTasks().catch(() => this.storageMessage.set('任务记录读取失败，请刷新后重试。'))
+            )
+          )
+        )
+        .subscribe({ error: () => this.storageMessage.set('任务记录读取失败，请刷新后重试。') })
+    );
   }
   private revokeResult() {
     const url = this.resultUrl();

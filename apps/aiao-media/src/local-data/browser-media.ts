@@ -1,19 +1,9 @@
-import type { EntityStaticType, EntityType } from '@aiao/rxdb';
+import type { EntityStaticType, EntityType, FindAllOptions, IRepository, RxDBEvent } from '@aiao/rxdb';
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import type { StorageFilesystem } from '@aiao/rxdb-plugin-storage';
 import { OpfsStorageFilesystem, rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
-import {
-  concatMap,
-  distinctUntilChanged,
-  firstValueFrom,
-  from,
-  map,
-  merge,
-  Observable,
-  Subject,
-  takeUntil
-} from 'rxjs';
+import { defer, distinctUntilChanged, firstValueFrom, map, Observable, Subject, takeUntil } from 'rxjs';
 import type {
   DraftSyncConflictView,
   DraftSyncMutation,
@@ -60,6 +50,7 @@ import {
   rejectImageSubmission,
   validateImageSubmissionBook
 } from './image-submissions';
+import { localRepository } from './local-repository';
 import {
   MediaResultError,
   mediaResultMetadata,
@@ -396,6 +387,11 @@ export interface LocalDraftSummary {
   prompt: string;
   revision: number;
 }
+export interface LocalPreferenceChange {
+  key: string;
+  payload: string;
+  revision: number | null;
+}
 export class LocalMediaError extends Error {
   constructor(
     readonly code: 'unavailable' | 'locked' | 'conflict' | 'corrupt' | 'write_failed' | 'incompatible',
@@ -527,13 +523,10 @@ async function validateReferenceImage(blob: Blob): Promise<{
 export class LocalMediaStore {
   private locked = false;
   private closing: Promise<void> | null = null;
-  private readonly urls = new Set<string>();
+  private readonly urls = new Map<string, string>();
   private readonly channel: BroadcastChannel;
-  private readonly assetRefresh = new Subject<void>();
   private readonly lifetime = new AbortController();
-  private readonly studioRefresh = new Subject<void>();
   private readonly studioClosed = new Subject<void>();
-  private readonly listeners = new Set<() => void>();
   get isLocked(): boolean {
     return this.locked;
   }
@@ -547,13 +540,7 @@ export class LocalMediaStore {
     this.channel = new BroadcastChannel(`aiao-media-${userId}`);
     this.channel.onmessage = event => {
       if (event.data?.locked === true) {
-        const closing = this.close();
-        for (const listener of this.listeners) listener();
-        void closing.catch(() => undefined);
-      } else {
-        if (event.data?.studio === true) this.studioRefresh.next();
-        if (event.data?.media === true) this.assetRefresh.next();
-        for (const listener of this.listeners) listener();
+        void this.close().catch(() => undefined);
       }
     };
   }
@@ -814,7 +801,6 @@ export class LocalMediaStore {
       } catch {
         cleanupPending = true;
       }
-      this.changed();
       return { ...(await this.referenceStateUnlocked()), cleanupPending };
     });
   }
@@ -822,6 +808,7 @@ export class LocalMediaStore {
     return this.exclusive(async () => {
       const slots = await this.referenceSlots();
       const [slot] = await slots.find({ where: emptyWhere });
+      const referenceId = slot?.referenceId;
       if ((slot?.revision ?? 0) !== expectedRevision)
         throw new LocalMediaError('conflict', '另一标签页已修改参考图；未删除，请重新载入。');
       if (slot?.referenceId)
@@ -829,9 +816,7 @@ export class LocalMediaStore {
           referenceId: '',
           revision: expectedRevision + 1
         });
-      for (const url of this.urls) URL.revokeObjectURL(url);
-      this.urls.clear();
-      this.changed();
+      if (referenceId) this.releasePreviews(`reference:${referenceId}`);
       let cleanupPending = false;
       try {
         await this.recoverReferencesUnlocked();
@@ -854,7 +839,7 @@ export class LocalMediaStore {
       const blob = await this.referenceBlobForSubmissionUnlocked(submissionId);
       if (this.locked) throw new LocalMediaError('locked', '本地数据已锁定。');
       const url = URL.createObjectURL(blob);
-      this.urls.add(url);
+      this.urls.set(url, `submission:${submissionId}`);
       return url;
     });
   }
@@ -863,14 +848,14 @@ export class LocalMediaStore {
       const blob = await this.referenceBlobUnlocked(referenceId);
       if (this.locked) throw new LocalMediaError('locked', '本地数据已锁定。');
       const url = URL.createObjectURL(blob);
-      this.urls.add(url);
+      this.urls.set(url, `reference:${referenceId}`);
       return url;
     });
   }
 
   async studioDraft(): Promise<StudioDraftSnapshot | null> {
     return this.exclusive(async () => {
-      const rows = await this.freshRows(LocalStudioDraft, {
+      const rows = await this.readRows(LocalStudioDraft, {
         where: {
           combinator: 'and',
           rules: [{ field: 'key', operator: '=', value: 'image-studio' }]
@@ -883,7 +868,7 @@ export class LocalMediaStore {
   async saveStudioDraft(state: StudioPromptState, expectedRevision: number | null): Promise<StudioDraftSnapshot> {
     const payload = studioPayload(state);
     return this.exclusive(async () => {
-      const rows = await this.freshRows(LocalStudioDraft, {
+      const rows = await this.readRows(LocalStudioDraft, {
         where: {
           combinator: 'and',
           rules: [{ field: 'key', operator: '=', value: 'image-studio' }]
@@ -898,7 +883,7 @@ export class LocalMediaStore {
       const revision = (old?.revision ?? 0) + 1;
       if (!Number.isSafeInteger(revision))
         throw new LocalMediaError('write_failed', '本机草稿版本已超出范围，未覆盖原数据。');
-      const repo = this.db.entityManager.getRepository(LocalStudioDraft);
+      const repo = await this.repository(LocalStudioDraft);
       if (old) await repo.update(old, { payload, revision });
       else
         await repo.create(
@@ -908,44 +893,32 @@ export class LocalMediaStore {
             revision
           })
         );
-      this.studioRefresh.next();
-      this.channel.postMessage({ changed: true, studio: true });
       return readStudioPayload(payload, revision);
     });
   }
   studioDraft$(): Observable<StudioDraftSnapshot | null> {
-    if (this.locked)
-      return new Observable(observer => observer.error(new LocalMediaError('locked', '本机访问已锁定。')));
-    const repo = this.db.entityManager.getRepository(LocalStudioDraft);
-    const native = repo
-      .find({
-        where: {
-          combinator: 'and',
-          rules: [{ field: 'key', operator: '=', value: 'image-studio' }]
-        },
-        limit: 2
-      })
-      .pipe(
-        map(rows => {
-          if (this.locked) throw new LocalMediaError('locked', '本机访问已锁定。');
-          if (rows.length > 1) throw new LocalMediaError('corrupt', '本机编辑草稿重复。');
-          return rows[0] ? readStudioPayload(rows[0].payload, rows[0].revision) : null;
+    return this.live(() =>
+      this.db.entityManager
+        .getRepository(LocalStudioDraft)
+        .find({
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'key', operator: '=', value: 'image-studio' }]
+          },
+          limit: 2
         })
-      );
-    // RxDB drives same-instance changes; this explicit bridge brings other
-    // windows' commits into this account's stream without refreshing whole UI.
-    return merge(native, this.studioRefresh.pipe(concatMap(() => from(this.studioDraft())))).pipe(
-      distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
-      takeUntil(this.studioClosed)
+        .pipe(
+          map(rows => {
+            if (this.locked) throw new LocalMediaError('locked', '本机访问已锁定。');
+            if (rows.length > 1) throw new LocalMediaError('corrupt', '本机编辑草稿重复。');
+            return rows[0] ? readStudioPayload(rows[0].payload, rows[0].revision) : null;
+          })
+        )
     );
   }
   async lockAccount(): Promise<void> {
     if (!this.locked) this.channel.postMessage({ locked: true });
     await this.close();
-  }
-  subscribe(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
   }
   async draft(): Promise<LocalDraftSummary | null> {
     return this.exclusive(async () => {
@@ -971,14 +944,13 @@ export class LocalMediaStore {
             revision
           })
         );
-      this.changed();
       return { prompt, revision };
     });
   }
   /** Device-only settings and task journal; never part of draft synchronization. */
   async preference(key: string): Promise<{ payload: string; revision: number } | null> {
     return this.exclusive(async () => {
-      const [row] = await this.freshRows(LocalPreference, {
+      const [row] = await this.readRows(LocalPreference, {
         where: {
           combinator: 'and',
           rules: [{ field: 'key', operator: '=', value: key }]
@@ -988,31 +960,40 @@ export class LocalMediaStore {
     });
   }
   async savePreference(key: string, payload: string, revision: number | null): Promise<number> {
-    if (!/^[a-z0-9-]{1,80}$/.test(key) || payload.length > 512 * 1024)
-      throw new LocalMediaError('write_failed', '本机设置格式无效或过大。');
+    const [next] = await this.savePreferences([{ key, payload, revision }]);
+    return next;
+  }
+  async savePreferences(changes: readonly LocalPreferenceChange[]): Promise<number[]> {
+    const keys = new Set(changes.map(change => change.key));
+    if (
+      keys.size !== changes.length ||
+      changes.some(change => !/^[a-z0-9-]{1,80}$/.test(change.key) || change.payload.length > 512 * 1024)
+    )
+      throw new LocalMediaError('write_failed', '本机设置格式无效、重复或过大。');
     return this.exclusive(async () => {
-      const repo = (await firstValueFrom(this.db.localAdapter$)).getRepository(LocalPreference);
-      const [row] = await this.freshRows(LocalPreference, {
-        where: {
-          combinator: 'and',
-          rules: [{ field: 'key', operator: '=', value: key }]
-        }
-      });
-      if ((row?.revision ?? null) !== revision)
-        throw new LocalMediaError('conflict', '另一标签页已修改设置，请刷新后重试。');
-      const next = (revision ?? 0) + 1;
-      if (row) await repo.update(row, { payload, revision: next });
-      else
-        await repo.create(
-          this.db.entityManager.instantiate(LocalPreference, {
-            key,
-            payload,
-            revision: next
-          })
+      const adapter = await firstValueFrom(this.db.localAdapter$);
+      const events: RxDBEvent[] = [];
+      const revisions = await adapter.transaction(async executor => {
+        const repo = localRepository(LocalPreference, executor.getRepository(LocalPreference), event =>
+          events.push(event)
         );
-      this.changed();
-      return next;
+        const revisions: number[] = [];
+        for (const change of changes) revisions.push(await this.writePreference(repo, change));
+        return revisions;
+      });
+      for (const event of events) this.db.dispatchEvent(event);
+      return revisions;
     });
+  }
+  preference$(key: string): Observable<{ payload: string; revision: number } | null> {
+    return this.live(() =>
+      this.db.entityManager
+        .getRepository(LocalPreference)
+        .findOne({
+          where: { combinator: 'and', rules: [{ field: 'key', operator: '=', value: key }] }
+        })
+        .pipe(map(row => (row ? { payload: row.payload, revision: row.revision } : null)))
+    );
   }
   async backupImage(jobId: string): Promise<{
     blob: Blob;
@@ -1093,22 +1074,41 @@ export class LocalMediaStore {
         const linked = await repo.update(work, { fileId: meta.id });
         await this.readVerified(linked);
         const ready = await repo.update(linked, { stage: 'ready' });
-        this.changed();
         return this.summary(ready);
       } catch {
         // Keep the journal. The next locked recovery verifies or removes the partial artifact.
-        this.changed();
         throw new LocalMediaError('write_failed', '本地图片写入或关联失败，未确认保存；可在交付期限内重试。');
       }
     });
   }
   async list(): Promise<LocalWorkSummary[]> {
     return this.exclusive(async () => {
-      await this.recoverUnlocked();
-      return (await (await this.works()).find({ where: emptyWhere }))
-        .filter(work => work.stage === 'ready' || work.stage === 'broken')
-        .map(work => this.summary(work));
+      return (
+        await (
+          await this.works()
+        ).find({
+          where: { combinator: 'and', rules: [{ field: 'stage', operator: 'in', value: ['ready', 'broken'] }] },
+          orderBy: [
+            { field: 'createdAt', sort: 'asc' },
+            { field: 'id', sort: 'asc' }
+          ]
+        })
+      ).map(work => this.summary(work));
     });
+  }
+  works$(): Observable<LocalWorkSummary[]> {
+    return this.live(() =>
+      this.db.entityManager
+        .getRepository(LocalImageWork)
+        .findAll({
+          where: { combinator: 'and', rules: [{ field: 'stage', operator: 'in', value: ['ready', 'broken'] }] },
+          orderBy: [
+            { field: 'createdAt', sort: 'desc' },
+            { field: 'id', sort: 'desc' }
+          ]
+        })
+        .pipe(map(works => works.map(work => this.summary(work))))
+    );
   }
   async preview(jobId: string): Promise<string> {
     return this.exclusive(async () => {
@@ -1124,7 +1124,7 @@ export class LocalMediaStore {
       const blob = await this.readVerified(work);
       if (this.locked) throw new LocalMediaError('locked', '本地数据已锁定。');
       const url = URL.createObjectURL(blob);
-      this.urls.add(url);
+      this.urls.set(url, `image:${jobId}`);
       return url;
     });
   }
@@ -1142,10 +1142,6 @@ export class LocalMediaStore {
         }
       });
       if (work) await this.deleteUnlocked(work);
-      // Simpler and safer than retaining previews whose underlying work was removed.
-      for (const url of this.urls) URL.revokeObjectURL(url);
-      this.urls.clear();
-      this.changed();
     });
   }
   async recover(): Promise<void> {
@@ -1224,21 +1220,15 @@ export class LocalMediaStore {
         const linked = await repo.update(asset, { fileId: meta.id });
         await this.readAssetVerified(linked);
         const ready = await repo.update(linked, { stage: 'ready' });
-        this.mediaChanged();
         return this.assetSummary(ready);
       } catch {
-        this.mediaChanged();
         throw new LocalMediaError('write_failed', '本地媒体写入或回读失败，未确认保存；可核对并重试原任务。');
       }
     });
   }
   async listAssets(kind?: LocalAssetKind): Promise<LocalAssetSummary[]> {
     return this.exclusive(async () => {
-      await this.recoverAssetsUnlocked();
-      return (await (await this.assets()).find({ where: emptyWhere }))
-        .filter(asset => (!kind || asset.kind === kind) && ['ready', 'broken'].includes(asset.stage))
-        .map(asset => this.assetSummary(asset))
-        .sort((a, b) => a.jobId.localeCompare(b.jobId));
+      return (await (await this.assets()).find(this.assetQuery(kind))).map(asset => this.assetSummary(asset));
     });
   }
   async listMedia(): Promise<LocalMediaWorkSummary[]> {
@@ -1253,29 +1243,12 @@ export class LocalMediaStore {
       ...assets
     ];
   }
-  /** Native same-instance live query plus a narrow cross-window fresh-read bridge. */
   assets$(kind: LocalAssetKind): Observable<LocalAssetSummary[]> {
-    if (this.locked)
-      return new Observable(observer => observer.error(new LocalMediaError('locked', '本地媒体访问已锁定。')));
-    const native = this.db.entityManager
-      .getRepository(LocalMediaAsset)
-      .find({
-        where: {
-          combinator: 'and',
-          rules: [{ field: 'kind', operator: '=', value: kind }]
-        }
-      })
-      .pipe(
-        map(assets =>
-          assets
-            .filter(asset => ['ready', 'broken'].includes(asset.stage))
-            .map(asset => this.assetSummary(asset))
-            .sort((a, b) => a.jobId.localeCompare(b.jobId))
-        )
-      );
-    return merge(native, this.assetRefresh.pipe(concatMap(() => from(this.listAssets(kind))))).pipe(
-      distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
-      takeUntil(this.studioClosed)
+    return this.live(() =>
+      this.db.entityManager
+        .getRepository(LocalMediaAsset)
+        .findAll(this.assetQuery(kind))
+        .pipe(map(assets => assets.map(asset => this.assetSummary(asset))))
     );
   }
   async verifyAsset(kind: LocalAssetKind, jobId: string): Promise<void> {
@@ -1296,8 +1269,9 @@ export class LocalMediaStore {
   async previewAsset(kind: LocalAssetKind, jobId: string): Promise<string> {
     return this.exclusive(async () => {
       const blob = await this.readReadyAsset(kind, jobId);
+      if (this.locked) throw new LocalMediaError('locked', '本地媒体访问已锁定。');
       const url = URL.createObjectURL(blob);
-      this.urls.add(url);
+      this.urls.set(url, `${kind}:${jobId}`);
       return url;
     });
   }
@@ -1305,9 +1279,6 @@ export class LocalMediaStore {
     await this.exclusive(async () => {
       const asset = await this.findAsset(kind, jobId);
       if (asset) await this.deleteAssetUnlocked(asset);
-      for (const url of this.urls) URL.revokeObjectURL(url);
-      this.urls.clear();
-      this.mediaChanged();
     });
   }
   /** Lock synchronously and revoke previews, then wait for in-flight writes to leave the user lock. */
@@ -1315,22 +1286,17 @@ export class LocalMediaStore {
     if (this.closing) return this.closing;
     this.locked = true;
     this.lifetime.abort();
-    this.assetRefresh.complete();
     this.studioClosed.next();
     this.studioClosed.complete();
-    this.studioRefresh.complete();
-    for (const url of this.urls) URL.revokeObjectURL(url);
-    this.urls.clear();
+    this.releasePreviews();
     this.channel.close();
-    this.closing = navigator.locks
-      .request(`aiao-media-account-${this.userId}`, async () => {
-        try {
-          await this.db.disconnectAll();
-        } finally {
-          await this.closeBackend();
-        }
-      })
-      .finally(() => this.listeners.clear());
+    this.closing = navigator.locks.request(`aiao-media-account-${this.userId}`, async () => {
+      try {
+        await this.db.disconnectAll();
+      } finally {
+        await this.closeBackend();
+      }
+    });
     return this.closing;
   }
   private async exclusive<T>(operation: () => Promise<T>): Promise<T> {
@@ -1341,21 +1307,57 @@ export class LocalMediaStore {
       return operation();
     });
   }
-  /** Adapter find() selects current rows but may return old identity-cache
-   * instances. Refresh those selected row IDs before reading revisions or payloads.
-   * All callers hold the workspace lock; UI editing uses detached snapshots.
-   */
-  private async freshRows<T extends EntityType>(
+  private async readRows<T extends EntityType>(
     entity: T,
     options: EntityStaticType<T, 'findOptions'>
   ): Promise<InstanceType<T>[]> {
-    const adapter = await this.db.getAdapter('wa-sqlite');
-    const repo = adapter.getRepository(entity);
-    const rows = await repo.find(options);
-    const rowIds = rows.map(row => adapter.getRowIdByEntity(row));
-    if (rowIds.some(id => id === undefined))
-      throw new LocalMediaError('corrupt', '本机记录缺少持久化标识，未覆盖数据。');
-    return repo.findByRowIds(rowIds as bigint[], true);
+    const adapter = await firstValueFrom(this.db.localAdapter$);
+    return adapter.getRepository(entity).find(options);
+  }
+  private live<T>(query: () => Observable<T>): Observable<T> {
+    return defer(() => {
+      if (this.locked) throw new LocalMediaError('locked', '本机访问已锁定。');
+      return query().pipe(
+        distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
+        takeUntil(this.studioClosed)
+      );
+    });
+  }
+  private assetQuery(kind?: LocalAssetKind): FindAllOptions<typeof LocalMediaAsset> {
+    return {
+      where: {
+        combinator: 'and',
+        rules: [
+          { field: 'stage', operator: 'in', value: ['ready', 'broken'] },
+          ...(kind ? [{ field: 'kind' as const, operator: '=' as const, value: kind }] : [])
+        ]
+      },
+      orderBy: [
+        { field: 'jobId', sort: 'asc' },
+        { field: 'id', sort: 'asc' }
+      ]
+    };
+  }
+  private async writePreference(
+    repo: IRepository<typeof LocalPreference>,
+    { key, payload, revision }: LocalPreferenceChange
+  ): Promise<number> {
+    const [row] = await repo.find({
+      where: { combinator: 'and', rules: [{ field: 'key', operator: '=', value: key }] }
+    });
+    if ((row?.revision ?? null) !== revision)
+      throw new LocalMediaError('conflict', '另一标签页已修改设置，请刷新后重试。');
+    const next = (revision ?? 0) + 1;
+    if (row) await repo.update(row, { payload, revision: next });
+    else await repo.create(this.db.entityManager.instantiate(LocalPreference, { key, payload, revision: next }));
+    return next;
+  }
+  private releasePreviews(owner?: string): void {
+    for (const [url, identity] of this.urls) if (owner === undefined || identity === owner) this.release(url);
+  }
+  private async repository<T extends EntityType>(entity: T): Promise<IRepository<T>> {
+    const adapter = await firstValueFrom(this.db.localAdapter$);
+    return localRepository(entity, adapter.getRepository(entity), event => this.db.dispatchEvent(event));
   }
   private async notebookOperation<T>(operation: (book: DraftNotebook) => T, write = true): Promise<T> {
     return this.exclusive(async () => {
@@ -1382,7 +1384,6 @@ export class LocalMediaStore {
                 revision: 1
               })
             );
-          this.changed();
         }
       }
       return structuredClone(result);
@@ -1416,7 +1417,6 @@ export class LocalMediaStore {
                 revision: 1
               })
             );
-          this.changed();
         }
         // Re-read the durable receipt before any network call. An ambiguous local
         // commit stops here; callers reload instead of issuing an unjournaled task.
@@ -1455,7 +1455,6 @@ export class LocalMediaStore {
                 revision: 1
               })
             );
-          this.changed();
         }
         // Re-read the durable receipt before any network call. An ambiguous local
         // commit stops here; callers reload instead of issuing an unjournaled task.
@@ -1494,7 +1493,6 @@ export class LocalMediaStore {
                 revision: 1
               })
             );
-          this.changed();
         }
         // Re-read the durable receipt before any network call. An ambiguous local
         // commit stops here; callers reload instead of issuing an unjournaled task.
@@ -1506,19 +1504,19 @@ export class LocalMediaStore {
     });
   }
   private async assets() {
-    return (await firstValueFrom(this.db.localAdapter$)).getRepository(LocalMediaAsset);
+    return this.repository(LocalMediaAsset);
   }
   private async works() {
-    return (await firstValueFrom(this.db.localAdapter$)).getRepository(LocalImageWork);
+    return this.repository(LocalImageWork);
   }
   private async drafts() {
-    return (await firstValueFrom(this.db.localAdapter$)).getRepository(MediaDraft);
+    return this.repository(MediaDraft);
   }
   private async references() {
-    return (await firstValueFrom(this.db.localAdapter$)).getRepository(LocalReferenceImage);
+    return this.repository(LocalReferenceImage);
   }
   private async referenceSlots() {
-    return (await firstValueFrom(this.db.localAdapter$)).getRepository(LocalReferenceSlot);
+    return this.repository(LocalReferenceSlot);
   }
   private referencePath(reference: LocalReferenceImage): string {
     if (!uuid.test(reference.referenceId) || !['image/png', 'image/jpeg'].includes(reference.mimeType))
@@ -1633,6 +1631,7 @@ export class LocalMediaStore {
     for (const meta of await this.db.storage.list()) if (meta.opfsPath === path) await this.db.storage.delete(meta.id);
     await this.filesystem.removeFile(path);
     await repo.remove(deleting);
+    this.releasePreviews(`reference:${reference.referenceId}`);
   }
   private async recoverReferencesUnlocked() {
     const repo = await this.references(),
@@ -1674,9 +1673,6 @@ export class LocalMediaStore {
     for await (const entry of this.filesystem.list('/'))
       if (entry.kind === 'file' && owned(entry.name) && !retained.has(entry.name)) orphans.push(entry.name);
     for (const path of orphans) await this.filesystem.removeFile(path);
-  }
-  private changed() {
-    if (!this.locked) this.channel.postMessage({ changed: true });
   }
   private async readVerified(work: LocalImageWork): Promise<Blob> {
     if (
@@ -1722,6 +1718,7 @@ export class LocalMediaStore {
     // Crash before plugin metadata insertion may leave a predictable unreferenced file.
     await this.filesystem.removeFile(`${work.jobId}.png`);
     await repo.remove(deleting);
+    this.releasePreviews(`image:${work.jobId}`);
   }
   private async recoverUnlocked(): Promise<void> {
     await this.recoverReferencesUnlocked();
@@ -1858,9 +1855,6 @@ export class LocalMediaStore {
     if (this.locked) throw new LocalMediaError('locked', '本地媒体访问已锁定。');
     return blob;
   }
-  private mediaChanged() {
-    if (!this.locked) this.channel.postMessage({ changed: true, media: true });
-  }
   private async findAsset(kind: LocalAssetKind, jobId: string) {
     this.assetName({ kind, jobId });
     const [asset] = await (
@@ -1884,7 +1878,6 @@ export class LocalMediaStore {
     } catch (error) {
       if (error instanceof LocalMediaError && error.code === 'corrupt') {
         await (await this.assets()).update(asset, { stage: 'broken' });
-        this.mediaChanged();
       }
       throw error;
     }
@@ -1897,26 +1890,24 @@ export class LocalMediaStore {
       if (meta.opfsPath === name && meta.name === name) await this.db.storage.delete(meta.id);
     await this.filesystem.removeFile(name);
     await repo.remove(deleting);
+    this.releasePreviews(`${asset.kind}:${asset.jobId}`);
   }
   private async recoverAssetsUnlocked(): Promise<void> {
     const repo = await this.assets(),
       assets = await repo.find({ where: emptyWhere }),
       metas = await this.db.storage.list();
-    let changed = false;
     for (const asset of assets) {
       const name = this.assetName(asset);
       if (!['saving', 'ready', 'broken', 'deleting'].includes(asset.stage))
         throw new LocalMediaError('corrupt', '本地媒体恢复状态无效，不覆盖记录。');
       if (asset.stage === 'deleting') {
         await this.deleteAssetUnlocked(asset);
-        changed = true;
         continue;
       }
       if (asset.stage === 'saving') {
         const meta = metas.find(item => item.opfsPath === name && item.name === name);
         if (!meta) {
           await this.deleteAssetUnlocked(asset);
-          changed = true;
           continue;
         }
         const linked = await repo.update(asset, { fileId: meta.id });
@@ -1925,20 +1916,17 @@ export class LocalMediaStore {
         } catch (error) {
           if (error instanceof LocalMediaError && error.code === 'corrupt') {
             await this.deleteAssetUnlocked(linked);
-            changed = true;
             continue;
           }
           throw error;
         }
         await repo.update(linked, { stage: 'ready' });
-        changed = true;
       } else if (asset.stage === 'ready') {
         try {
           await this.readAssetVerified(asset, false);
         } catch (error) {
           if (error instanceof LocalMediaError && error.code === 'corrupt') {
             await repo.update(asset, { stage: 'broken' });
-            changed = true;
           } else throw error;
         }
       }
@@ -1955,7 +1943,6 @@ export class LocalMediaStore {
     for await (const entry of this.filesystem.list('/'))
       if (entry.kind === 'file' && owned(entry.name) && !retained.has(entry.name)) orphans.push(entry.name);
     for (const name of orphans) await this.filesystem.removeFile(name);
-    if (changed) this.mediaChanged();
   }
 }
 

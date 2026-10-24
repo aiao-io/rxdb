@@ -126,6 +126,12 @@ test('跨 origin 图片读取不带凭据，原图信息、下载、复用和删
   page.once('dialog', dialog => dialog.accept());
   await original.getByRole('button', { name: '删除本机图片' }).click();
   await expect(cards).toHaveCount(1);
+  await expect
+    .poll(() => page.getByAltText('本机生成作品').evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBe(64);
+  const remainingDownload = page.waitForEvent('download');
+  await page.getByRole('link', { name: '下载图片' }).click();
+  expect(await readFile((await (await remainingDownload).path()) as string)).toEqual(png);
   await page.reload();
   await expect(cards).toHaveCount(1);
   await expect(cards).toContainText('另一张图片');
@@ -135,6 +141,39 @@ test('跨 origin 图片读取不带凭据，原图信息、下载、复用和删
   expect(backup.images).toHaveLength(1);
   expect(backup.images[0].job.request.prompt).toBe('另一张图片');
   expect(calls).toBe(2);
+});
+
+test('另一标签页保存草稿不重新读取作品，新增作品通过原生活查询出现', async ({ page, context }) => {
+  const png = await pngFixture();
+  await context.route(endpoint, route => route.fulfill({ json: { data: [{ b64_json: png.toString('base64') }] } }));
+  await provider(page);
+  await prompt(page, '第一张图片');
+  await generate(page);
+  await page.goto('/images');
+  await expect(page.locator('.library-card')).toHaveCount(1);
+  const other = await context.newPage();
+  await other.goto('/create');
+  await expect(other.locator('[contenteditable=true]')).toContainText('第一张图片');
+  await page.evaluate(() => {
+    const read = FileSystemFileHandle.prototype.getFile;
+    document.documentElement.dataset['imageReads'] = '0';
+    FileSystemFileHandle.prototype.getFile = async function () {
+      if (this.name.endsWith('.png'))
+        document.documentElement.dataset['imageReads'] = String(
+          Number(document.documentElement.dataset['imageReads']) + 1
+        );
+      return read.call(this);
+    };
+  });
+  await other.locator('[contenteditable=true]').fill('第二个窗口的新草稿');
+  await expect(other.getByText('输入已保存到本机', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: '生成图片', exact: true }).click();
+  await expect(page.locator('[contenteditable=true]')).toContainText('第二个窗口的新草稿');
+  await expect(page.locator('html')).toHaveAttribute('data-image-reads', '0');
+  await page.goto('/images');
+  await expect(page.locator('.library-card')).toHaveCount(1);
+  await generate(other);
+  await expect(page.locator('.library-card')).toHaveCount(2);
 });
 
 test('保存完成文件但关联确认前关闭页面，重开从 journal 恢复而不重新生成', async ({ page, context }) => {
