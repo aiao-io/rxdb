@@ -53,6 +53,24 @@
         "cwd": ".",
         "command": "pnpm exec playwright test -c apps/aiao-media-e2e/upgrade.config.ts"
       }
+    },
+    "product-e2e": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec playwright test -c apps/aiao-media-e2e/local-product.config.ts",
+        "cwd": "."
+      },
+      "dependsOn": ["aiao-media:supabase-migrate"],
+      "cache": false
+    },
+    "offline-update-e2e": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets"],
+      "options": {
+        "command": "pnpm exec playwright test -c apps/aiao-media-e2e/offline-update.config.ts",
+        "cwd": "."
+      }
     }
   }
 }

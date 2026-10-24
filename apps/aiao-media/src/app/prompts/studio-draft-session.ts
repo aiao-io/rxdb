@@ -15,6 +15,7 @@ export class StudioDraftSession {
   private dirty = false;
   private closed = false;
   private saving = false;
+  private pending?: Promise<void>;
   private conflict = false;
   private timer?: ReturnType<typeof setTimeout>;
   private subscription?: Subscription;
@@ -60,34 +61,19 @@ export class StudioDraftSession {
     this.report(this.conflict ? 'conflict' : 'dirty');
     if (this.ready && !this.conflict) this.schedule();
   }
-  async flush() {
-    if (this.closed || !this.ready || this.saving || !this.dirty || this.conflict || !this.desired) return;
-    if (this.timer) clearTimeout(this.timer);
-    const version = this.editVersion,
-      state = structuredClone(this.desired);
-    this.saving = true;
-    this.report('saving');
+  async checkpoint(): Promise<void> {
+    await this.flush();
+    if (!this.ready || this.closed || this.dirty || this.conflict)
+      throw new Error('当前输入尚未保存，请先处理草稿冲突或重试保存。');
+  }
+  async flush(): Promise<void> {
+    if (this.pending) await this.pending;
+    const writing = this.save();
+    this.pending = writing;
     try {
-      const saved = await this.port.saveStudioDraft(state, this.revision);
-      if (this.closed) return;
-      this.revision = saved.revision;
-      if (version === this.editVersion) {
-        this.dirty = false;
-        this.report('saved');
-      } else {
-        this.report('dirty');
-        this.schedule();
-      }
-    } catch (error) {
-      if (!this.closed) {
-        this.conflict = (error as { code?: string })?.code === 'conflict';
-        this.report(this.conflict ? 'conflict' : 'failed');
-      }
+      await writing;
     } finally {
-      this.saving = false;
-      const observed = this.observed;
-      this.observed = undefined;
-      if (observed !== undefined) this.receive(observed);
+      if (this.pending === writing) this.pending = undefined;
     }
   }
   /** Explicit replace/reload only; never silently drops this tab's dirty input. */
@@ -135,6 +121,36 @@ export class StudioDraftSession {
     this.subscription?.unsubscribe();
     this.desired = null;
     this.report('closed');
+  }
+  private async save() {
+    if (this.closed || !this.ready || this.saving || !this.dirty || this.conflict || !this.desired) return;
+    if (this.timer) clearTimeout(this.timer);
+    const version = this.editVersion,
+      state = structuredClone(this.desired);
+    this.saving = true;
+    this.report('saving');
+    try {
+      const saved = await this.port.saveStudioDraft(state, this.revision);
+      if (this.closed) return;
+      this.revision = saved.revision;
+      if (version === this.editVersion) {
+        this.dirty = false;
+        this.report('saved');
+      } else {
+        this.report('dirty');
+        this.schedule();
+      }
+    } catch (error) {
+      if (!this.closed) {
+        this.conflict = (error as { code?: string })?.code === 'conflict';
+        this.report(this.conflict ? 'conflict' : 'failed');
+      }
+    } finally {
+      this.saving = false;
+      const observed = this.observed;
+      this.observed = undefined;
+      if (observed !== undefined) this.receive(observed);
+    }
   }
   private receive(row: StudioDraftSnapshot | null) {
     if (this.closed) return;

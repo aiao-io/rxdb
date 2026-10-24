@@ -1615,3 +1615,10 @@ button:disabled {
   display: block;
   margin: 12px auto 0;
 }
+
+.auth-panel details pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 240px;
+  overflow: auto;
+}

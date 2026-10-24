@@ -50,8 +50,18 @@
     }
   </div>
 </header>
-<main id="main">
+@if (workspaceSwitching()) {
+  <p class="notice" role="status">正在切换本机工作区…</p>
+}
+<main
+  id="main"
+  [hidden]="workspaceSwitching() || identityBlocked()"
+  [inert]="workspaceSwitching() || sync().busy || identityBlocked()"
+>
   @if (view() === 'discover') {
+    @if (catalogMessage()) {
+      <p class="notice" role="status">{{ catalogMessage() }}</p>
+    }
     <section class="hero">
       <div>
         <span class="eyebrow">A LITTLE INSPIRATION. A NEW CREATION.</span>
@@ -166,7 +176,7 @@
         }
         <div class="field-label">描述你想要的图片</div>
         <app-prompt-input
-          [disabled]="sending()"
+          [disabled]="sending() || sync().busy || workspaceSwitching()"
           [state]="promptState()"
           (changed)="onPromptChanged($event)"
           (readiness)="editorReady.set($event)"
@@ -323,7 +333,7 @@
           <b class="count-badge">{{ works().length }}</b>
         </span>
       </div>
-      <span class="library-notice">◈ 本机保存 · 不跨设备同步</span>
+      <span class="library-notice">◈ 原图保存在本机 · 同步仅传作品信息</span>
     </div>
     @if (works().length) {
       <div class="cards">
@@ -360,7 +370,7 @@
           </article>
         }
       </div>
-    } @else {
+    } @else if (!remoteOnlyWorks().length) {
       <div class="empty-state">
         <div class="empty-icon">▧</div>
         <h2>
@@ -374,6 +384,20 @@
           }}
         </p>
         <button class="primary" (click)="navigate('studio')">开始第一张创作 ↗</button>
+      </div>
+    }
+    @if (remoteOnlyWorks().length) {
+      <div class="cards" aria-label="同步作品信息">
+        @for (work of remoteOnlyWorks(); track work.jobId) {
+          <article class="card library-card">
+            <div class="empty-state"><p>本机无原图</p></div>
+            <div class="card-caption">
+              <h3>{{ work.prompt }}</h3>
+              <p>{{ work.modelId }} · {{ work.width }} × {{ work.height }}</p>
+              <small>仅同步作品信息，原图仍在生成设备。</small>
+            </div>
+          </article>
+        }
       </div>
     }
     @if (history().length) {
@@ -403,6 +427,9 @@
     }
   }
   @if (view() === 'providers') {
+    @if (providerPolicyVersion()) {
+      <p class="notice">已核对供应商运行策略 v{{ providerPolicyVersion() }}</p>
+    }
     <section class="studio-heading">
       <div>
         <span class="eyebrow">YOUR PROVIDER. YOUR CHOICE.</span>
@@ -566,6 +593,11 @@
       </section>
     </div>
   }
+  @defer (when view() === 'admin') {
+    @if (view() === 'admin') {
+      <app-admin-console [client]="adminApi" [identity]="authUser()?.id ?? ''" [status]="authStatus()" />
+    }
+  }
 </main>
 <footer>
   <span>© 2026 Aiao Images</span>
@@ -626,11 +658,93 @@
         <h2>已登录</h2>
         <p>{{ user.email || user.id }}</p>
         <p class="notice">
-          当前账号只建立 Supabase 会话，本机草稿、供应商配置和图片仍留在此浏览器；跨设备同步尚未开放。
+          登录不会上传本机内容。启用同步后，仅同步草稿、供应商公开配置和作品信息；API Key 和原图留在本机。
         </p>
+        <section aria-label="工作区同步">
+          <p role="status">{{ syncLabel() }}</p>
+          @if (sync().message) {
+            <p class="notice" role="status">{{ sync().message }}</p>
+          }
+          @if (sync().confirmation; as confirmation) {
+            <p>
+              {{
+                confirmation.existing ? '此账号已有同步工作区，将打开独立本机副本；当前内容保留。' : (
+                  '将此本机副本绑定到当前账号，并同步以下内容：'
+                )
+              }}
+            </p>
+            <p>
+              草稿 {{ confirmation.counts.drafts }} 份 · 供应商 {{ confirmation.counts.providers }} 项 · 作品信息
+              {{ confirmation.counts.works }} 项
+            </p>
+            <button class="primary" [disabled]="sync().busy || settingsBusy()" (click)="confirmSync()">
+              确认并启用同步
+            </button>
+            <button class="secondary" (click)="cancelSync()">取消同步确认</button>
+          } @else if (!syncInitialized()) {
+            <button class="primary" [disabled]="settingsBusy() || localStatus() !== 'ready'" (click)="enableSync()">
+              启用同步
+            </button>
+          } @else {
+            <button class="primary" [disabled]="settingsBusy()" (click)="synchronize()">
+              {{ sync().busy ? '正在同步…' : '立即同步' }}
+            </button>
+            <button class="secondary" [disabled]="settingsBusy()" (click)="reportTasks()">上报本机任务</button>
+            <button class="secondary" [disabled]="settingsBusy() || sync().draftDeleted" (click)="deleteSyncedDraft()">
+              删除同步端草稿
+            </button>
+          }
+          @for (conflict of sync().conflicts; track conflict.id) {
+            <article class="notice">
+              <h3>
+                {{
+                  conflict.local.kind === 'draft' ? '草稿'
+                  : conflict.local.kind === 'provider' ? '供应商配置'
+                  : '作品信息'
+                }}存在冲突
+              </h3>
+              <p>{{ conflict.reason }}。双方版本已保留，不会自动覆盖。</p>
+              <p>
+                本机：{{ conflict.local.deleted ? '已删除' : '保留内容' }} · 同步端：{{
+                  conflict.latestRemote?.deleted ? '已删除' : '保留内容'
+                }}
+              </p>
+              <details>
+                <summary>查看两个版本</summary>
+                <h4>本机版本</h4>
+                <pre>{{ conflictPreview(conflict.local) }}</pre>
+                <h4>同步端版本</h4>
+                <pre>{{ conflictPreview(conflict.latestRemote) }}</pre>
+              </details>
+              <button [disabled]="settingsBusy()" (click)="resolveSyncConflict(conflict.id, 'local')">
+                保留本机版本
+              </button>
+              <button [disabled]="settingsBusy()" (click)="resolveSyncConflict(conflict.id, 'remote')">
+                采用同步端版本
+              </button>
+            </article>
+          }
+          @if (availableProfiles().length > 1) {
+            <label for="workspace-profile">本机副本</label>
+            <select
+              id="workspace-profile"
+              [disabled]="settingsBusy()"
+              [ngModel]="currentProfileId()"
+              (ngModelChange)="selectWorkspace($event)"
+            >
+              @for (profile of availableProfiles(); track profile.id; let index = $index) {
+                <option [value]="profile.id">
+                  {{ profile.account ? '账号副本' : '未绑定副本' }} {{ index + 1
+                  }}{{ profile.id === currentProfileId() ? '（当前）' : '' }}
+                </option>
+              }
+            </select>
+          }
+        </section>
         @if (authMessage()) {
           <p class="notice" role="status">{{ authMessage() }}</p>
         }
+        <a (click)="navigate('admin', $event); closeAuth()" href="/admin">业务管理后台</a>
         <button class="secondary" [disabled]="authBusy()" (click)="signOut()">
           {{ authBusy() ? '正在退出…' : '退出账号' }}
         </button>

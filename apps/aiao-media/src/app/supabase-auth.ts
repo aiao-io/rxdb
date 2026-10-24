@@ -12,6 +12,11 @@ export interface SupabaseAuthState {
   user: SupabaseAuthUser | null;
   message: string;
 }
+export interface ProductAuthorization {
+  config: SupabaseAuthConfig;
+  session: Session;
+  userId: string;
+}
 export type SupabaseAuthPort = Pick<
   SupabaseClient['auth'],
   'getSession' | 'getUser' | 'signInWithPassword' | 'signUp' | 'signOut' | 'onAuthStateChange' | 'stopAutoRefresh'
@@ -110,6 +115,25 @@ export class SupabaseAuthClient {
   }
   async signUp(email: string, password: string): Promise<void> {
     await this.authenticate('sign-up', email, password);
+  }
+  async authorizeProduct(): Promise<ProductAuthorization> {
+    const generation = this.generation;
+    const userId = this.current.status === 'signed-in' ? this.current.user?.id : null;
+    if (!userId) throw new Error('请先验证当前账号。');
+    const port = await this.port();
+    const { data, error } = await port.getSession();
+    if (
+      error ||
+      !data.session ||
+      !this.validSession(data.session) ||
+      data.session.user.id !== userId ||
+      this.stale(generation)
+    )
+      throw new Error('账号会话已变化，远程操作未执行。');
+    const verified = await port.getUser(data.session.access_token);
+    if (verified.error || verified.data.user?.id !== userId || this.stale(generation))
+      throw new Error('当前账号尚未通过服务端验证。');
+    return { config: this.config, session: data.session, userId };
   }
   async signOut(): Promise<void> {
     ++this.generation;

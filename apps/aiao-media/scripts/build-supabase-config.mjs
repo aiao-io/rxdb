@@ -6,12 +6,12 @@ import { validateSupabaseAuthConfig } from '../src/app/supabase-auth-config.ts';
 export function supabaseHeaders(template, config) {
   if (config == null) return template;
   const { url } = validateSupabaseAuthConfig(config);
-  if (new URL(url).protocol !== 'http:') return template;
-  // Local Auth is explicitly allowed by config validation. Permit that exact
-  // loopback origin without opening production CSP to arbitrary HTTP hosts.
+  const origin = new URL(url);
+  const realtime = `${origin.protocol === 'https:' ? 'wss:' : 'ws:'}//${origin.host}`;
+  const extra = origin.protocol === 'http:' ? `${url} ${realtime}` : realtime;
   const directive = "connect-src 'self' https:;";
   if (!template.includes(directive)) throw new Error('Missing static connection policy.');
-  return template.replace(directive, `connect-src 'self' https: ${url};`);
+  return template.replace(directive, `connect-src 'self' https: ${extra};`);
 }
 
 export async function buildSupabaseConfig(env, output) {

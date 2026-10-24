@@ -13,12 +13,13 @@ test('0.0.26 旧构建写入的工作区、原图与备份可由迁入后的工�
   });
   const png = await pngFixture();
   const origin = 'http://127.0.0.1:4398/**';
-  await page.route(origin, async route => {
+  const serveBaseline: Parameters<typeof page.route>[1] = async route => {
     const pathname = decodeURIComponent(new URL(route.request().url()).pathname);
     const file = resolve(baseline, `.${extname(pathname) ? pathname : '/index.html'}`);
     if (relative(baseline, file).startsWith('..')) throw new Error('Invalid fixture path.');
     await route.fulfill({ path: file });
-  });
+  };
+  await page.route(origin, serveBaseline);
   await page.route(endpoint, route =>
     route.fulfill({
       json: { data: [{ b64_json: png.toString('base64') }] }
@@ -43,6 +44,21 @@ test('0.0.26 旧构建写入的工作区、原图与备份可由迁入后的工�
   await page.getByRole('link', { name: '下载图片' }).click();
   expect(await readFile((await (await download).path()) as string)).toEqual(png);
 
+  await page.goto('/create');
+  await prompt(page, '新版集合迁移后保存的草稿');
+  await page.route(origin, serveBaseline);
+  await page.reload();
+  await expect(
+    page.getByText('无法打开本机数据。请使用支持持久存储的现代浏览器，允许站点存储后刷新；原数据未清除。', {
+      exact: true
+    })
+  ).toBeVisible();
+  expect(await profile(page)).toBe(previousProfile);
+  await page.unroute(origin, serveBaseline);
+  await page.reload();
+  await expect(page.locator('[contenteditable=true]')).toContainText('新版集合迁移后保存的草稿');
+  await page.goto('/images');
+  await expect(page.getByAltText('本机生成作品')).toHaveCount(1);
   await page.goto('/providers');
   const restored = page.waitForEvent('load');
   await importBackup(page, backup);

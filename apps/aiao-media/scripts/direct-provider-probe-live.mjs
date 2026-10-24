@@ -39,10 +39,14 @@ try {
       }
     });
     report.preflight = {
-      status: response.status,
-      allowOrigin: response.headers.get('access-control-allow-origin'),
-      allowMethods: response.headers.get('access-control-allow-methods'),
-      allowHeaders: response.headers.get('access-control-allow-headers')
+      status: Number.parseInt(String(response.status), 10),
+      allowsPageOrigin: [app.origin, '*'].includes(response.headers.get('access-control-allow-origin')),
+      allowsPost: (response.headers.get('access-control-allow-methods') ?? '')
+        .split(',')
+        .some(value => value.trim().toUpperCase() === 'POST'),
+      allowsAuthorization: (response.headers.get('access-control-allow-headers') ?? '')
+        .split(',')
+        .some(value => value.trim().toLowerCase() === 'authorization')
     };
     await response.body?.cancel();
   } catch {
@@ -81,17 +85,18 @@ try {
     };
     session.on('Network.responseReceived', event => {
       if (event.response.url !== endpoint.href) return;
-      if (event.type === 'Preflight')
+      if (event.type === 'Preflight' && report.browser.preflightResponses.length < 20)
         report.browser.preflightResponses.push({
-          status: event.response.status
+          status: Number.parseInt(String(event.response.status), 10)
         });
-      else
+      else if (report.browser.providerResponses.length < 20)
         report.browser.providerResponses.push({
-          status: event.response.status
+          status: Number.parseInt(String(event.response.status), 10)
         });
     });
     session.on('Network.loadingFailed', event => {
-      if (event.corsErrorStatus) report.browser.corsErrors.push(event.corsErrorStatus.corsError);
+      if (event.corsErrorStatus && report.browser.corsErrors.length < 20)
+        report.browser.corsErrors.push('CORS_REJECTED');
     });
     await page.goto(app.origin);
     await page.locator('#base-url').fill(base.href);
@@ -108,8 +113,8 @@ try {
       null,
       { timeout: 160000 }
     );
-    report.phase = await page.locator('#status').getAttribute('data-phase');
-    report.message = await page.locator('#status').textContent();
+    const phase = await page.locator('#status').getAttribute('data-phase');
+    report.phase = ['completed', 'rejected', 'unknown', 'failed'].find(value => value === phase) ?? 'unknown';
     report.requestCount = Number(await page.locator('#status').getAttribute('data-requests'));
     if (report.phase === 'completed') {
       report.generated = true;

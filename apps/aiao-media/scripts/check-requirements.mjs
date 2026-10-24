@@ -1,4 +1,4 @@
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { open, readFile, readdir, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseDocument } from 'yaml';
@@ -55,6 +55,8 @@ function anchors(text) {
   for (const match of body.matchAll(/^\s{0,3}#{1,6}\s+(.+?)(?:\s+#+)?\s*$/gm)) {
     const base = match[1]
       .replace(/<[^>]*>/g, '')
+      .replaceAll('<', '')
+      .replaceAll('>', '')
       .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
       .toLowerCase()
       .replace(/[^\p{L}\p{N}\p{M}_\-\s]/gu, '')
@@ -103,7 +105,11 @@ export async function auditRequirements(root, { namespace = '', repositoryRoot =
   const error = (path, message) => report.errors.push(`${relative(root, path)}: ${message}`);
   for (const path of await markdownFiles(join(root, 'requirements'))) documents.set(path, await readFile(path, 'utf8'));
   const readme = join(root, 'README.md');
-  if (await stat(readme).catch(() => null)) documents.set(readme, await readFile(readme, 'utf8'));
+  try {
+    documents.set(readme, await readFile(readme, 'utf8'));
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
   for (const [path, text] of documents) {
     const local = relative(root, path).replaceAll('\\', '/');
     const story = /^requirements\/stories\/[^/]+\/(?:[A-Z]+-)?US-\d+[^/]*\.md$/.test(local);
@@ -290,14 +296,19 @@ export async function auditRequirements(root, { namespace = '', repositoryRoot =
         continue;
       }
       report.linksChecked++;
-      if (!(await stat(destination).catch(() => null))) {
+      let handle;
+      try {
+        handle = await open(destination, 'r');
+        if (fragment && destination.endsWith('.md')) {
+          report.anchorsChecked++;
+          const target = documents.get(destination) ?? (await handle.readFile('utf8'));
+          if (!anchors(target).has(fragment)) error(path, `Missing Markdown anchor ${link}.`);
+        }
+      } catch (failure) {
+        if (failure.code !== 'ENOENT' && failure.code !== 'ENOTDIR') throw failure;
         error(path, `Broken local link ${link}.`);
-        continue;
-      }
-      if (fragment && destination.endsWith('.md')) {
-        report.anchorsChecked++;
-        const target = documents.get(destination) ?? (await readFile(destination, 'utf8'));
-        if (!anchors(target).has(fragment)) error(path, `Missing Markdown anchor ${link}.`);
+      } finally {
+        await handle?.close();
       }
     }
   }

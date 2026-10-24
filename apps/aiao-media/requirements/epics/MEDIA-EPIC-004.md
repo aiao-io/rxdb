@@ -31,4 +31,4 @@ owner: TBD
 
 ## 同步实施进展
 
-本地工作区使用固定 UUID、RxDB + wa-sqlite/IndexedDB 与 OPFS，实体为 `SyncType.None`。可选账号会话已经验证，产品复制尚未接线。同级 `aiao-rxdb` 已有 Supabase adapter、同步插件和集成测试；接线前先验证发布版本兼容性，采用[绑定计划](../plans/account-workspace-binding.md)的账号隔离和确认流程，验证产品 RLS；冲突先保留版本，删除保留期限/检查点过期在实际场景再决策。首阶段固定排除供应商 Key 和图片文件本体。首发图片与本地可靠性验收先于复制扩展，见[路线图](../roadmap.md)。
+本地工作区使用固定 UUID、RxDB + wa-sqlite/IndexedDB 与 OPFS，实体为 `SyncType.None`。可选账号会话已经验证，产品 DTO 复制已接线并通过双独立副本本地验证。同级 `aiao-rxdb` 已有 Supabase adapter、同步插件和集成测试；接线前先验证发布版本兼容性，采用[绑定计划](../plans/account-workspace-binding.md)的账号隔离和确认流程，验证产品 RLS；冲突先保留版本，删除保留期限/检查点过期在实际场景再决策。首阶段固定排除供应商 Key 和图片文件本体。首发图片与本地可靠性验收先于复制扩展，见[路线图](../roadmap.md)。

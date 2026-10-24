@@ -47,7 +47,7 @@ test('builds only the explicitly configured public project values; default disab
   }
 });
 
-test('static Auth CSP permits only an explicitly configured loopback HTTP origin', () => {
+test('static Auth CSP permits only the configured HTTP and Realtime origins', () => {
   const template = "Content-Security-Policy: connect-src 'self' https:; object-src 'none'";
   assert.equal(supabaseHeaders(template, null), template);
   assert.equal(
@@ -55,11 +55,11 @@ test('static Auth CSP permits only an explicitly configured loopback HTTP origin
       url: 'https://project.supabase.co',
       anonKey: anon
     }),
-    template
+    template.replace('https:;', 'https: wss://project.supabase.co;')
   );
   for (const url of ['http://127.0.0.1:54321', 'http://localhost:54321', 'http://[::1]:54321']) {
     const headers = supabaseHeaders(template, { url, anonKey: anon });
-    assert.ok(headers.includes(`connect-src 'self' https: ${url};`));
+    assert.ok(headers.includes(`connect-src 'self' https: ${url} ${url.replace('http:', 'ws:')};`));
     assert.ok(!headers.includes(' http:;'));
     assert.ok(headers.endsWith("object-src 'none'"));
   }

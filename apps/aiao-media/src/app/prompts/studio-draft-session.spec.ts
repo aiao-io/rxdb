@@ -158,3 +158,36 @@ describe('account-scoped local-first studio autosave controller', () => {
     r.session.close();
   });
 });
+
+describe('工作区切换前的输入检查点', () => {
+  it('等待正在写入的输入，再保存等待期间的新输入', async () => {
+    const r = rig();
+    await r.session.start();
+    let finish!: (row: StudioDraftSnapshot) => void;
+    r.save.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    r.session.edit(plainPrompt('第一版'));
+    const writing = r.session.flush();
+    r.session.edit(plainPrompt('必须保留的第二版'));
+    const checkpoint = r.session.checkpoint();
+    finish({ state: plainPrompt('第一版'), revision: 1 });
+    await writing;
+    await checkpoint;
+    expect(r.save).toHaveBeenCalledTimes(2);
+    expect(r.save.mock.calls[1][0]).toEqual(plainPrompt('必须保留的第二版'));
+    r.session.close();
+  });
+  it('保存失败或存在冲突时阻止切换，保留当前输入', async () => {
+    const r = rig();
+    await r.session.start();
+    r.session.edit(plainPrompt('尚未持久化'));
+    r.save.mockRejectedValue(new Error('磁盘已满'));
+    await expect(r.session.checkpoint()).rejects.toThrow();
+    expect(r.accept).not.toHaveBeenCalled();
+    r.session.close();
+  });
+});

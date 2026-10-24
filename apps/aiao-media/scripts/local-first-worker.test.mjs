@@ -147,7 +147,7 @@ test('provider probe checks server-to-server reachability without a Key', async 
     assert.equal(result.providers[0].browserDirect, false);
     assert.equal(result.controls.length, 3);
     assert.equal(calls.length, 6);
-    const providerCalls = calls.filter(({ url }) => url.startsWith('https://provider.example.test'));
+    const providerCalls = calls.filter(({ url }) => new URL(url).origin === 'https://provider.example.test');
     assert.deepEqual(providerCalls.map(({ method }) => method).sort(), ['GET', 'OPTIONS', 'POST']);
     const keylessPost = providerCalls.find(({ method }) => method === 'POST');
     assert.deepEqual(JSON.parse(keylessPost.body), {

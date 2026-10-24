@@ -12,7 +12,24 @@ import {
 import { FormsModule } from '@angular/forms';
 import { concatMap, EMPTY, merge, Subscription } from 'rxjs';
 import type { GenerationJobSummary, ImageAspectRatio } from '../contracts/index';
+import {
+  productRecordId,
+  validateProviderPolicy,
+  validatePublishedTemplate,
+  validateSyncPayload,
+  type ProviderPolicy,
+  type PublicWorkPayload
+} from '../contracts/product-data.mjs';
 import type { LocalMediaStore, StudioPromptState } from '../local-data/index';
+import { applyProductProjection, collectProductSnapshot } from '../local-data/product-projection';
+import type { ProductRecord } from '../local-data/product-sync-store';
+import {
+  WorkspaceRegistry,
+  type WorkspaceProfile,
+  type WorkspaceRegistryState
+} from '../local-data/workspace-registry';
+import type { WorkspaceRegistryStore } from '../local-data/workspace-registry-store';
+import { AdminConsole } from './admin-console';
 import { DEFAULT_FREE_PROVIDER, DEFAULT_FREE_PROVIDER_ID, defaultFreeProvider } from './default-provider';
 import { imageMvpCatalog } from './image-mvp-catalog';
 import {
@@ -22,6 +39,8 @@ import {
   publicProvider,
   type LocalProvider
 } from './local-provider';
+import { ProductClient } from './product-client';
+import { ProductWorkspaceController, type ProductWorkspaceState } from './product-workspace';
 import { templateState, type PromptTemplate } from './prompts/prompt-catalog';
 import { PromptInput } from './prompts/prompt-input';
 import { plainPrompt, serializePrompt, type PromptState } from './prompts/prompt-state';
@@ -34,7 +53,9 @@ import {
   type SupabaseAuthUser
 } from './supabase-auth';
 import { WorkLibrarySession, type LibraryWork } from './work-library-session';
-type View = 'discover' | 'studio' | 'library' | 'providers';
+import { WorkspaceSession } from './workspace-session';
+
+type View = 'discover' | 'studio' | 'library' | 'providers' | 'admin';
 type Work = LibraryWork;
 type LocalTask = GenerationJobSummary & {
   saved?: boolean;
@@ -44,16 +65,18 @@ const paths: Record<View, string> = {
   discover: '/',
   studio: '/create',
   library: '/images',
-  providers: '/providers'
+  providers: '/providers',
+  admin: '/admin'
 };
 const routeView = (path: string): View =>
   path === '/create' ? 'studio'
   : path === '/images' ? 'library'
   : path === '/providers' ? 'providers'
+  : path === '/admin' ? 'admin'
   : 'discover';
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, PromptInput],
+  imports: [FormsModule, PromptInput, AdminConsole],
   templateUrl: './local-image-mvp.html',
   host: { class: 'image-mvp' },
   encapsulation: ViewEncapsulation.None,
@@ -61,6 +84,19 @@ const routeView = (path: string): View =>
 })
 export class LocalImageMvp implements OnInit, OnDestroy {
   private store: LocalMediaStore | null = null;
+  private registryStore?: WorkspaceRegistryStore;
+  private registry?: WorkspaceRegistry;
+  private workspaceSession?: WorkspaceSession<LocalMediaStore>;
+  private product?: ProductWorkspaceController;
+  private registryState?: WorkspaceRegistryState;
+  private rootId = '';
+  private transitionCount = 0;
+  private attachment = Promise.resolve();
+  private workspaceSubscriptions = new Subscription();
+  private templateVersions = new Map<string, number>();
+  private identityVersion = 0;
+  private identitySelection: string | null = null;
+
   private studio: StudioDraftSession | null = null;
   private readonly lifetime = new AbortController();
   private auth: SupabaseAuthClient | null = null;
@@ -77,14 +113,52 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private toastTimer?: ReturnType<typeof setTimeout>;
   private dialogTrigger: HTMLElement | null = null;
   private resultBlob: Blob | null = null;
+  readonly workspaceSwitching = signal(false);
+  readonly identityBlocked = signal(false);
+  readonly sync = signal<ProductWorkspaceState>({
+    status: 'local',
+    busy: false,
+    message: '',
+    confirmation: null,
+    conflicts: [],
+    draftDeleted: false,
+    pending: 0
+  });
+  readonly syncedWorks = signal<PublicWorkPayload[]>([]);
+  readonly remoteOnlyWorks = computed(() =>
+    this.syncedWorks().filter(work => !this.works().some(local => local.jobId === work.jobId))
+  );
+  readonly availableProfiles = signal<WorkspaceProfile[]>([]);
+  readonly currentProfileId = signal('');
+  readonly syncInitialized = signal(false);
+  readonly syncLabel = computed(
+    () =>
+      ({
+        local: '仅在本机',
+        pending: '有待同步改动',
+        syncing: '正在同步…',
+        synced: '同步已确认',
+        paused: '同步已暂停',
+        conflict: '存在待处理冲突',
+        failed: '同步未完成'
+      })[this.sync().status]
+  );
+  readonly adminApi = new ProductClient(() => {
+    if (!this.auth) throw new Error('账号服务不可用。');
+    return this.auth.authorizeProduct();
+  });
   readonly view = signal<View>('discover');
-  readonly templates = imageMvpCatalog;
+  readonly templates = signal(imageMvpCatalog);
+  readonly selectedVersion = signal(1);
+  readonly catalogMessage = signal('');
+  readonly providerPolicyVersion = signal<number | null>(null);
+  readonly providerPolicy = signal<ProviderPolicy | null>(null);
   readonly categories = ['全部灵感', '产品海报', '人像头像', '插画绘本', '创意设计'];
   readonly category = signal('全部灵感');
   readonly search = signal('');
   readonly filtered = computed(() => {
     const words = this.search().trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-    return this.templates.filter(
+    return this.templates().filter(
       t =>
         (this.category() === '全部灵感' || t.purpose === this.category()) &&
         words.every(w => `${t.title} ${t.prompt} ${t.tags.join(' ')}`.toLocaleLowerCase().includes(w))
@@ -142,8 +216,18 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly authPassword = signal('');
   readonly authMode = signal<SupabaseAuthMode>('sign-in');
   readonly authUser = signal<SupabaseAuthUser | null>(null);
-  readonly inFlight = computed(() => this.sending() || this.uncertain() || this.dataBusy());
-  readonly settingsBusy = computed(() => this.sending() || this.dataBusy());
+  readonly inFlight = computed(
+    () =>
+      this.sending() ||
+      this.uncertain() ||
+      this.dataBusy() ||
+      this.sync().busy ||
+      this.workspaceSwitching() ||
+      this.identityBlocked()
+  );
+  readonly settingsBusy = computed(
+    () => this.sending() || this.dataBusy() || this.sync().busy || this.workspaceSwitching() || this.identityBlocked()
+  );
   readonly canGenerate = computed(
     () =>
       this.localStatus() === 'ready' &&
@@ -190,10 +274,15 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       if (config) {
         this.auth = new SupabaseAuthClient(config);
         this.authConfigured.set(true);
+        void this.loadCatalog();
         this.unsubscribeAuth = this.auth.subscribe(state => {
           this.authUser.set(state.user);
           this.authStatus.set(state.status);
           this.authMessage.set(state.message);
+          this.product?.pause();
+          this.identitySelection = null;
+          this.refreshProfiles();
+          void this.reconcileIdentity();
         });
         void this.restoreAuth();
       }
@@ -227,8 +316,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.unsubscribeAuth?.();
     this.auth?.dispose();
     if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.workspaceSession?.close();
+    this.product?.close();
     this.studio?.close();
+    this.workspaceSubscriptions.unsubscribe();
     this.subscriptions.unsubscribe();
+    void this.registryStore?.close();
     this.library?.close();
     this.revokeResult();
     void this.store?.close();
@@ -371,18 +464,25 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.providerMessage.set(e instanceof Error ? e.message : '保存失败。');
     } finally {
       this.providerBusy.set(false);
+      void this.reconcileIdentity();
     }
   }
   async chooseProvider(id: string) {
     if (this.settingsBusy() || this.providerBusy()) return;
+    this.providerBusy.set(true);
     try {
       await this.persistProviders(this.providers(), id);
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : '设置失败。');
+    } finally {
+      this.providerBusy.set(false);
+      void this.reconcileIdentity();
     }
   }
   async removeProvider(p: LocalProvider) {
-    if (this.settingsBusy() || !window.confirm('删除此供应商和本机保存的 Key？已有作品会保留。')) return;
+    if (this.settingsBusy() || this.providerBusy() || !window.confirm('删除此供应商和本机保存的 Key？已有作品会保留。'))
+      return;
+    this.providerBusy.set(true);
     try {
       const next = this.providers().filter(x => x.id !== p.id);
       await this.persistProviders(next, this.providerId() === p.id ? (next[0]?.id ?? '') : this.providerId(), {
@@ -393,6 +493,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       if (this.editingId() === p.id) this.editProvider();
     } catch (e) {
       this.providerMessage.set(e instanceof Error ? e.message : '删除失败。');
+    } finally {
+      this.providerBusy.set(false);
+      void this.reconcileIdentity();
     }
   }
   async removeKey(p: LocalProvider) {
@@ -414,6 +517,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.providerMessage.set('移除 Key 未完成，请刷新后重试。');
     } finally {
       this.providerBusy.set(false);
+      void this.reconcileIdentity();
     }
   }
   async generate() {
@@ -430,6 +534,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.sending.set(true);
     this.error.set('');
     try {
+      await this.checkProviderPolicy(provider);
       await navigator.locks.request(`aiao-local-generation-${this.profileId}`, { ifAvailable: true }, async lock => {
         if (!lock) {
           this.error.set('另一标签页正在生成，请等待并核对结果。');
@@ -520,6 +625,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.error.set(e instanceof Error ? e.message : '本机提交记录写入失败，没有重复发送。');
     } finally {
       this.sending.set(false);
+      void this.reconcileIdentity();
     }
   }
   async acknowledgeUnknown() {
@@ -560,12 +666,14 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.dirtyInput = true;
     this.promptState.set(state);
     this.studio?.edit(this.draftState());
+    this.product?.captureSoon();
   }
   setRatio(ratio: ImageAspectRatio) {
     if (this.inFlight()) return;
     this.ratio.set(ratio);
     this.dirtyInput = true;
     this.studio?.edit(this.draftState());
+    this.product?.captureSoon();
   }
   async reloadDraft() {
     await this.studio?.reload();
@@ -585,6 +693,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     )
       return;
     this.selected.set(template);
+    this.selectedVersion.set(this.templateVersions.get(template.id) ?? 1);
     this.onPromptChanged(templateState(template));
     this.navigate('studio');
   }
@@ -671,6 +780,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.dataMessage.set(e instanceof Error ? e.message : '导出失败，原数据未更改。');
     } finally {
       this.dataBusy.set(false);
+      void this.reconcileIdentity();
     }
   }
   async importBackup(event: Event) {
@@ -740,6 +850,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       );
     } finally {
       this.dataBusy.set(false);
+      void this.reconcileIdentity();
     }
   }
   async requestPersistence() {
@@ -754,11 +865,52 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     }
   }
   @HostListener('window:storage', ['$event']) onWorkspaceChanged(event: StorageEvent) {
-    if (event.key === 'aiao-local-profile-v1' && event.newValue !== this.profileId) {
-      void (async () => {
-        await this.studio?.flush();
-        location.reload();
-      })();
+    if (event.key !== 'aiao-local-profile-v1' || event.newValue === this.profileId) return;
+    void this.followWorkspace(event.newValue).catch(() =>
+      this.storageMessage.set('工作区已变化；当前输入尚未保存，请处理后刷新。')
+    );
+  }
+  async enableSync() {
+    await this.product?.requestEnable();
+  }
+  async confirmSync() {
+    await this.product?.confirmEnable();
+  }
+  cancelSync() {
+    this.product?.cancelEnable();
+  }
+  async synchronize() {
+    await this.product?.synchronize();
+  }
+  async reportTasks() {
+    if (window.confirm('上报本机任务的状态、模型、供应商标识和用量来源？不包含提示词、图片或 API Key。'))
+      await this.product?.reportTasks();
+  }
+  async deleteSyncedDraft() {
+    if (window.confirm('删除同步端草稿？当前本机输入和原图保留，其他设备会收到删除标记。'))
+      await this.product?.deleteDraft();
+  }
+  conflictPreview(record: ProductRecord | null): string {
+    if (!record) return '同步端记录暂不可读';
+    if (record.deleted) return '已删除';
+    if (record.kind === 'draft')
+      return serializePrompt(validateSyncPayload('draft', record.payload).state).text || '空草稿';
+    if (record.kind === 'provider') {
+      const provider = validateSyncPayload('provider', record.payload);
+      return `${provider.name} · ${provider.baseUrl} · ${provider.model} · ${provider.mode === 'direct' ? '直连' : '代理'}`;
+    }
+    return validateSyncPayload('work', record.payload).prompt;
+  }
+  async resolveSyncConflict(id: string, choice: 'local' | 'remote') {
+    await this.product?.resolveConflict(id, choice);
+  }
+  async selectWorkspace(id: string) {
+    if (this.settingsBusy()) return;
+    try {
+      await this.workspaceSession?.selectLocal(id);
+      await this.attachment;
+    } catch (error) {
+      this.storageMessage.set(error instanceof Error ? error.message : '工作区切换未完成。');
     }
   }
   openFeedback() {
@@ -772,6 +924,69 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.notify('反馈已复制');
     } catch {
       this.notify('复制失败，请手动复制反馈内容。');
+    }
+  }
+  private async checkProviderPolicy(provider: LocalProvider): Promise<void> {
+    if (!this.authConfigured()) return;
+    const response = await fetch('/api/provider-policies', {
+      cache: 'no-store',
+      credentials: 'omit',
+      redirect: 'error',
+      signal: this.lifetime.signal
+    });
+    if (!response.ok) throw new Error('供应商运行策略暂不可确认，未发送生成请求。');
+    const result = (await response.json()) as { policy: unknown };
+    if (result.policy === null) {
+      this.providerPolicy.set(null);
+      this.providerPolicyVersion.set(null);
+      return;
+    }
+    const policy = validateProviderPolicy(
+      result.policy && typeof result.policy === 'object' ?
+        { version: Reflect.get(result.policy, 'version'), providers: Reflect.get(result.policy, 'providers') }
+      : result.policy
+    );
+    const revision = Reflect.get(result.policy as object, 'revision');
+    if (!Number.isSafeInteger(revision) || revision < 1) throw new Error('运行策略版本无效，未发送生成请求。');
+    this.providerPolicy.set(policy);
+    this.providerPolicyVersion.set(revision);
+    const entry = policy.providers.find(entry => entry.baseUrl === provider.baseUrl);
+    const size =
+      this.ratio() === 'square' ? '1024x1024'
+      : this.ratio() === 'landscape' ? '1536x1024'
+      : '1024x1536';
+    if (
+      !entry?.enabled ||
+      !entry[provider.mode] ||
+      !entry.models.includes(provider.model) ||
+      !entry.sizes.includes(size)
+    )
+      throw new Error('此供应商、模型、通道或画幅未在当前运行策略中启用，未发送生成请求。');
+  }
+  private async loadCatalog(): Promise<void> {
+    try {
+      const response = await fetch('/api/templates', {
+        cache: 'no-store',
+        credentials: 'omit',
+        redirect: 'error',
+        signal: this.lifetime.signal
+      });
+      if (!response.ok) throw new Error('目录不可用');
+      const result = (await response.json()) as { templates: { template: unknown; revision: number }[] };
+      if (!Array.isArray(result.templates) || result.templates.length > 200) throw new Error('目录无效');
+      const templates = result.templates.map(row => ({
+        template: validatePublishedTemplate(row.template),
+        revision: row.revision
+      }));
+      if (templates.some(row => !Number.isSafeInteger(row.revision) || row.revision < 1))
+        throw new Error('目录版本无效');
+      if (this.disposed) return;
+      this.templateVersions = new Map(templates.map(row => [row.template.id, row.revision]));
+      const published = new Map(templates.map(row => [row.template.id, row.template]));
+      for (const template of imageMvpCatalog) if (!published.has(template.id)) published.set(template.id, template);
+      this.templates.set([...published.values()].slice(0, 200));
+    } catch {
+      if (!this.disposed) this.catalogMessage.set('在线模板暂不可用，显示内置灵感。');
     }
   }
   private notify(text: string) {
@@ -791,34 +1006,111 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         localStorage.setItem(key, id);
         return id;
       });
-      const { LocalMediaStore } = await import('../local-data/index');
-      const store = await LocalMediaStore.open(this.profileId);
+      const [{ LocalMediaStore }, { WorkspaceRegistryStore }] = await Promise.all([
+        import('../local-data/index'),
+        import('../local-data/workspace-registry-store')
+      ]);
+      this.registryStore = await WorkspaceRegistryStore.open();
+      const metadata = this.registryStore;
+      this.rootId = await metadata.rootOf(this.profileId);
+      const rootId = this.rootId;
+      this.registry = new WorkspaceRegistry(rootId, {
+        read: () => metadata.read(rootId),
+        write: (payload, revision) => metadata.write(rootId, payload, revision),
+        exclusive: operation =>
+          navigator.locks.request('aiao-local-profile-v1', async () => {
+            await this.assertRoot();
+            return operation();
+          })
+      });
+      this.registryState = await this.registry.read();
+      const selected = this.registryState.profiles.find(profile => profile.id === this.registryState?.selectedId);
+      if (!selected) throw new Error('当前工作区未注册。');
+      const store = await LocalMediaStore.open(selected.id);
       if (this.disposed) {
         await store.close();
         return;
       }
-      this.store = store;
-      await this.readSettings();
-      await this.readTasks();
-      this.studio = new StudioDraftSession(
-        store,
-        state => {
-          this.promptState.set(state);
-          this.ratio.set(state.aspectRatio ?? 'square');
-          this.selected.set(this.templates.find(t => t.id === state.templateId) ?? null);
+      this.attachWorkspace(store, selected, true);
+      await this.attachment;
+      this.workspaceSession = new WorkspaceSession(selected.id, this.registry, {
+        checkpoint: () => this.checkpoint(),
+        pause: () => this.product?.pause(),
+        open: id => LocalMediaStore.open(id),
+        discard: store => store.close(),
+        activate: (store, profile) => this.attachWorkspace(store, profile),
+        selected: state => this.acceptRegistry(state),
+        transition: active => {
+          this.transitionCount += active ? 1 : -1;
+          this.workspaceSwitching.set(this.transitionCount > 0);
         },
-        status => this.draftStatus.set(status)
+        canActivate: profile => this.canActivate(profile)
+      });
+      if (this.auth) {
+        const api = this.adminApi;
+        this.product = new ProductWorkspaceController(this.registry, this.workspaceSession, api, {
+          profile: () => this.currentProfile(),
+          registry: state => {
+            this.registryState = state;
+            this.refreshProfiles();
+          },
+          ready: () => this.attachment,
+          checkpoint: () => this.checkpoint(),
+          busy: () => this.sending() || this.dataBusy() || this.providerBusy() || this.workspaceSwitching(),
+          counts: async () => {
+            await this.checkpoint();
+            const snapshot = await collectProductSnapshot(this.requireStore(), []);
+            return {
+              drafts: snapshot.entries.filter(entry => entry.kind === 'draft').length,
+              providers: snapshot.entries.filter(entry => entry.kind === 'provider').length,
+              works: snapshot.entries.filter(entry => entry.kind === 'work').length
+            };
+          },
+          snapshot: records => collectProductSnapshot(this.requireStore(), records),
+          project: async (records, blocked, versions, force) => {
+            const store = this.requireStore();
+            await applyProductProjection(store, records, blocked, versions, force);
+            if (store === this.store) await this.readSettings();
+          },
+          reports: async workspaceId => {
+            const tasks = this.history();
+            return Promise.all(
+              tasks
+                .filter(task => ['processing', 'completed', 'failed', 'needs_review'].includes(task.status))
+                .map(async task => ({
+                  id: await productRecordId(workspaceId, 'work', task.id),
+                  taskId: task.id,
+                  workspaceId,
+                  model: task.request.modelId,
+                  providerId: task.request.providerInstanceId,
+                  channel:
+                    this.providers().find(provider => provider.id === task.request.providerInstanceId)?.mode ??
+                    'direct',
+                  status: task.status as 'processing' | 'completed' | 'failed' | 'needs_review',
+                  startedAt: task.createdAt,
+                  source: 'application' as const,
+                  requestCount: task.status === 'completed' ? 1 : null,
+                  providerUnits: null,
+                  verifiedCost: null,
+                  currency: null
+                }))
+            );
+          }
+        });
+        this.subscriptions.add(this.product.state$.subscribe(state => this.sync.set(state)));
+        this.product.selection();
+      }
+      await this.acceptRegistry(this.registryState);
+      this.subscriptions.add(
+        metadata.watch(rootId).subscribe({
+          next: payload => {
+            if (!payload || this.disposed) return;
+            void this.refreshRegistry().catch(() => this.storageMessage.set('本机工作区目录读取失败，当前副本保留。'));
+          },
+          error: () => this.storageMessage.set('本机工作区目录读取失败，当前副本保留。')
+        })
       );
-      if (this.dirtyInput) this.studio.edit(this.draftState());
-      await this.studio.start();
-      this.library = new WorkLibrarySession(
-        store,
-        works => this.acceptWorks(works),
-        () => this.storageMessage.set('本机作品暂时无法读取，原文件未删除。')
-      );
-      this.library.start();
-      this.watchPreferences(store);
-      this.localStatus.set('ready');
+      await this.reconcileIdentity();
     } catch (error) {
       this.localStatus.set('unavailable');
       this.storageMessage.set(
@@ -828,13 +1120,206 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       );
     }
   }
+  private attachWorkspace(store: LocalMediaStore, profile: WorkspaceProfile, initial = false): void {
+    const old = this.store;
+    ++this.epoch;
+    this.workspaceSubscriptions.unsubscribe();
+    this.workspaceSubscriptions = new Subscription();
+    this.studio?.close();
+    this.library?.close();
+    this.revokeResult();
+    if (this.registryState)
+      this.registryState = {
+        ...this.registryState,
+        selectedId: profile.id,
+        profiles: [...this.registryState.profiles.filter(item => item.id !== profile.id), profile]
+      };
+    this.store = store;
+    this.profileId = profile.id;
+    this.currentProfileId.set(profile.id);
+    this.refreshProfiles();
+    this.settingsRevision = null;
+    this.keys.clear();
+    this.rememberedKeys.clear();
+    this.providers.set([]);
+    this.providerId.set('');
+    this.history.set([]);
+    this.works.set([]);
+    this.syncedWorks.set([]);
+    this.job.set(null);
+    this.saved.set(false);
+    this.uncertain.set(false);
+    this.error.set('');
+    if (!initial) this.editProvider();
+    if (!initial) {
+      this.dirtyInput = false;
+      this.promptState.set(plainPrompt(''));
+      this.ratio.set('square');
+      this.selected.set(null);
+    }
+    this.localStatus.set('opening');
+    const epoch = this.epoch;
+    this.attachment = (async () => {
+      await this.readSettings();
+      await this.readTasks();
+      if (epoch !== this.epoch) return;
+      this.studio = new StudioDraftSession(
+        store,
+        state => {
+          if (epoch !== this.epoch) return;
+          this.promptState.set(state);
+          this.ratio.set(state.aspectRatio ?? 'square');
+          this.selected.set(this.templates().find(template => template.id === state.templateId) ?? null);
+          this.selectedVersion.set(state.templateVersion ?? 1);
+        },
+        status => {
+          if (epoch === this.epoch) {
+            this.draftStatus.set(status);
+            if (status === 'saved') this.product?.captureSoon();
+          }
+        }
+      );
+      if (this.dirtyInput) this.studio.edit(this.draftState());
+      await this.studio.start();
+      if (epoch !== this.epoch) return;
+      this.library = new WorkLibrarySession(
+        store,
+        works => {
+          if (epoch === this.epoch) {
+            this.acceptWorks(works);
+            this.product?.captureSoon();
+          }
+        },
+        () => {
+          if (epoch === this.epoch) this.storageMessage.set('本机作品暂时无法读取，原文件未删除。');
+        }
+      );
+      this.library.start();
+      this.watchPreferences(store);
+      this.workspaceSubscriptions.add(
+        store.syncedWorks$().subscribe({
+          next: works => {
+            if (epoch === this.epoch) this.syncedWorks.set(works);
+          },
+          error: () => {
+            if (epoch === this.epoch) this.storageMessage.set('同步作品信息暂不可读。');
+          }
+        })
+      );
+      this.localStatus.set('ready');
+      this.product?.selection();
+    })();
+    if (old && old !== store) void old.close();
+  }
+  private requireStore(): LocalMediaStore {
+    if (!this.store) throw new Error('本机工作区尚未就绪。');
+    return this.store;
+  }
+  private currentProfile(): WorkspaceProfile | null {
+    return this.registryState?.profiles.find(profile => profile.id === this.profileId) ?? null;
+  }
+  private canActivate(profile: WorkspaceProfile): boolean {
+    if (!profile.account || profile.id === this.profileId || this.authStatus() === 'signed-out') return true;
+    return (
+      this.authStatus() === 'signed-in' &&
+      profile.account.userId === this.authUser()?.id &&
+      profile.account.projectOrigin === readSupabaseAuthConfig()?.url
+    );
+  }
+  private async checkpoint(): Promise<void> {
+    await this.attachment;
+    if (this.sending() || this.dataBusy() || this.providerBusy()) throw new Error('当前操作尚未完成，请稍后切换。');
+    await this.studio?.checkpoint();
+  }
+  private async assertRoot(): Promise<void> {
+    const selected = localStorage.getItem('aiao-local-profile-v1');
+    if (!selected || (await this.registryStore?.rootOf(selected)) !== this.rootId)
+      throw new Error('另一窗口已切换工作区组，请保存输入后刷新。');
+  }
+  private async acceptRegistry(state: WorkspaceRegistryState): Promise<void> {
+    this.registryState = state;
+    await navigator.locks.request('aiao-local-profile-v1', async () => {
+      await this.assertRoot();
+      if (state.selectedId === this.profileId) localStorage.setItem('aiao-local-profile-v1', this.profileId);
+    });
+    this.refreshProfiles();
+    this.product?.selection();
+  }
+  private refreshProfiles(): void {
+    const account = this.currentProfile()?.account;
+    this.identityBlocked.set(
+      this.authStatus() === 'signed-in' &&
+        !!account &&
+        (account.userId !== this.authUser()?.id || account.projectOrigin !== readSupabaseAuthConfig()?.url)
+    );
+    this.syncInitialized.set(!!this.currentProfile()?.binding?.initialized);
+    this.availableProfiles.set(this.registryState?.profiles.filter(profile => this.canActivate(profile)) ?? []);
+  }
+  private async refreshRegistry(): Promise<void> {
+    if (!this.registry) return;
+    const state = await this.registry.read();
+    this.registryState = state;
+    this.refreshProfiles();
+    if (state.selectedId !== this.profileId && !this.transitionCount && !this.sending() && !this.dataBusy()) {
+      await this.workspaceSession?.follow();
+      await this.attachment;
+    }
+  }
+  private async followWorkspace(id: string | null): Promise<void> {
+    if (!id || this.disposed) return;
+    this.product?.pause();
+    if ((await this.registryStore?.rootOf(id)) === this.rootId) {
+      await this.refreshRegistry();
+      return;
+    }
+    await this.checkpoint();
+    location.reload();
+  }
+  private async reconcileIdentity(): Promise<void> {
+    if (
+      !this.workspaceSession ||
+      this.sending() ||
+      this.dataBusy() ||
+      this.providerBusy() ||
+      !['signed-in', 'signed-out'].includes(this.authStatus())
+    )
+      return;
+    const config = readSupabaseAuthConfig(),
+      user = this.authUser();
+    const identityKey = `${this.authStatus()}:${config?.url ?? ''}:${user?.id ?? ''}`;
+    if (identityKey === this.identitySelection) return;
+    const version = ++this.identityVersion;
+    try {
+      await this.workspaceSession.select(
+        this.authStatus() === 'signed-in' && user && config ? { userId: user.id, projectOrigin: config.url } : null
+      );
+      await this.attachment;
+      if (version !== this.identityVersion || this.disposed) return;
+      this.identitySelection = identityKey;
+      this.refreshProfiles();
+      if (this.authStatus() === 'signed-in' && this.currentProfile()?.binding?.initialized)
+        await this.product?.resume();
+    } catch (error) {
+      if (version === this.identityVersion)
+        this.storageMessage.set(error instanceof Error ? error.message : '账号工作区切换未完成，本机输入保留。');
+    }
+  }
   private async readSettings() {
     const store = this.store;
     if (!store) return;
+    const epoch = this.epoch;
+    const bound = !!this.currentProfile()?.binding;
     const [row, credentials] = await Promise.all([
-      store.preference('providers-v1'),
+      store.ensurePreference(
+        'providers-v1',
+        JSON.stringify({
+          providers: bound ? [] : [defaultFreeProvider()],
+          defaultId: bound ? '' : DEFAULT_FREE_PROVIDER_ID
+        })
+      ),
       store.preference('provider-keys-v1')
     ]);
+    if (epoch !== this.epoch || store !== this.store) return;
     if (!row || row.revision !== this.settingsRevision) {
       const data =
         row ?
@@ -844,7 +1329,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           })
         : { providers: [], defaultId: '' };
       if (!Array.isArray(data.providers) || data.providers.length > 30) throw new Error('Invalid providers');
-      const providers = data.providers.map(publicProvider);
+      const providers = (await store.collection('providers')).map(row => publicProvider(JSON.parse(row.payload)));
+      if (epoch !== this.epoch || store !== this.store) return;
       const migratedProviders = providers.map(p =>
         (
           p.id === DEFAULT_FREE_PROVIDER_ID &&
@@ -860,15 +1346,17 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       );
       const defaultId =
         migratedProviders.some(p => p.id === data.defaultId) ? data.defaultId : (migratedProviders[0]?.id ?? '');
-      const nextProviders = migratedProviders.length ? migratedProviders : [defaultFreeProvider()];
+      const nextProviders = migratedProviders;
       const providersMigrated = migratedProviders.some(
         (p, index) => p.baseUrl !== providers[index]?.baseUrl || p.mode !== providers[index]?.mode
       );
-      const nextDefaultId = defaultId || nextProviders[0].id;
+      const nextDefaultId = defaultId || nextProviders[0]?.id || '';
+      for (const old of this.providers())
+        if (nextProviders.find(provider => provider.id === old.id)?.baseUrl !== old.baseUrl) this.keys.delete(old.id);
       this.providers.set(nextProviders);
       this.providerId.set(nextDefaultId);
       this.settingsRevision = row?.revision ?? null;
-      if (!providers.length || providersMigrated || nextDefaultId !== data.defaultId) {
+      if (providersMigrated || nextDefaultId !== data.defaultId) {
         this.settingsRevision = await store.savePreference(
           'providers-v1',
           JSON.stringify({
@@ -886,8 +1374,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       if (p.rememberKey && typeof remembered[p.id] === 'string') this.rememberedKeys.set(p.id, remembered[p.id]);
   }
   private async readTasks() {
-    const row = await this.store?.preference('tasks-v1');
-    const tasks = row ? (JSON.parse(row.payload) as LocalTask[]) : [];
+    const store = this.store,
+      epoch = this.epoch;
+    const row = await store?.preference('tasks-v1');
+    if (epoch !== this.epoch || store !== this.store) return;
+    const tasks =
+      store && row ? (await store.collection('tasks')).map(row => JSON.parse(row.payload) as LocalTask) : [];
+    if (epoch !== this.epoch || store !== this.store) return;
     if (!Array.isArray(tasks)) throw new Error('Invalid task journal');
     this.history.set(tasks);
     const unresolved = tasks.find(t => !t.acknowledged && ['processing', 'needs_review'].includes(t.status));
@@ -908,7 +1401,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     const row = await store.preference('tasks-v1');
     const tasks: LocalTask[] = row ? JSON.parse(row.payload) : [];
     const next = [task, ...tasks.filter(t => t.id !== task.id)].slice(0, 100);
-    await store.savePreference('tasks-v1', JSON.stringify(next), row?.revision ?? null);
+    await store.savePreferences(
+      [{ key: 'tasks-v1', payload: JSON.stringify(next), revision: row?.revision ?? null }],
+      true
+    );
     this.history.set(next);
   }
   private async persistProviders(
@@ -917,8 +1413,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     credential?: { id: string; key: string | null }
   ) {
     if (!this.store) throw new Error('请先等待本机存储就绪。');
-    const nextProviders = providers.length ? providers : [defaultFreeProvider()];
-    const nextDefaultId = nextProviders.some(p => p.id === defaultId) ? defaultId : nextProviders[0].id;
+    const store = this.store,
+      epoch = this.epoch;
+    const nextProviders = providers.length || this.currentProfile()?.binding ? providers : [defaultFreeProvider()];
+    const nextDefaultId = nextProviders.some(p => p.id === defaultId) ? defaultId : (nextProviders[0]?.id ?? '');
     const changes = [
       {
         key: 'providers-v1',
@@ -927,13 +1425,16 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       }
     ];
     if (credential) {
-      const row = await this.store.preference('provider-keys-v1');
+      const row = await store.preference('provider-keys-v1');
       const data: Record<string, string> = row ? JSON.parse(row.payload) : {};
       if (credential.key === null) delete data[credential.id];
       else data[credential.id] = credential.key;
       changes.push({ key: 'provider-keys-v1', payload: JSON.stringify(data), revision: row?.revision ?? null });
     }
-    [this.settingsRevision] = await this.store.savePreferences(changes);
+    const [revision] = await store.savePreferences(changes, true);
+    if (epoch !== this.epoch || store !== this.store) return;
+    this.settingsRevision = revision;
+    this.product?.captureSoon();
     if (credential?.key === null) this.rememberedKeys.delete(credential.id);
     else if (credential) this.rememberedKeys.set(credential.id, credential.key);
     this.providers.set(nextProviders);
@@ -948,7 +1449,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     );
   }
   private watchPreferences(store: LocalMediaStore): void {
-    this.subscriptions.add(
+    this.workspaceSubscriptions.add(
       merge(store.preference$('providers-v1'), store.preference$('provider-keys-v1'))
         .pipe(
           concatMap(() =>
@@ -957,7 +1458,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         )
         .subscribe({ error: () => this.storageMessage.set('供应商设置读取失败，请刷新后重试。') })
     );
-    this.subscriptions.add(
+    this.workspaceSubscriptions.add(
       store
         .preference$('tasks-v1')
         .pipe(
@@ -981,7 +1482,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     return {
       ...this.promptState(),
       aspectRatio: this.ratio(),
-      ...(selected ? { templateId: selected.id, templateVersion: 1 } : {})
+      ...(selected ? { templateId: selected.id, templateVersion: this.selectedVersion() } : {})
     };
   }
 }

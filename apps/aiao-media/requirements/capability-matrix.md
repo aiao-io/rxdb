@@ -13,13 +13,13 @@
 | 本机图片作品           | ✅ 原图信息/精确下载、复用、删除/无副本提示、保存与删除 journal 中断恢复已验；供应商为 fixture                         | [MEDIA-US-202](stories/account/MEDIA-US-202-library.md)                     |
 | schema 兼容守卫        | ⚠️ 本版本在打开/操作前拒绝不兼容数据；历史库迁移与正式回退仍待验                                                       | [MEDIA-US-301](stories/local-first/MEDIA-US-301-browser-persistence.md)     |
 | 静态发布               | ⚠️ 已发布 `aiao-media.aiao.workers.dev`，四路由/WASM/旧 API 404 已验；正式域名 media.aiao.io 路由已配置，绑定/发布待验 | [MEDIA-US-004](stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md) |
-| 可选 Supabase 账号会话 | ⚠️ 注册/确认/登录/恢复/退出已实现并经真实本地 Auth 验证；工作区绑定与产品 RLS 待实施                                   | [MEDIA-US-201](stories/account/MEDIA-US-201-sessions.md)                    |
-| Supabase 跨设备复制    | ⬜ 本仓未接线；本仓已有 adapter/plugin，按 0.0.28 工作区版本接线，产品数据契约与双设备集成待验                         | [MEDIA-US-302](stories/local-first/MEDIA-US-302-draft-sync.md)              |
-| 供应商配置同步         | ⬜ 尚未实施；首阶段固定排除 Key                                                                                        | [MEDIA-US-105](stories/generation/MEDIA-US-105-provider-management.md)      |
+| 可选 Supabase 账号会话 | ⚠️ 注册/确认/登录/恢复/退出、工作区绑定与产品 RLS 已通过真实本地验证                                                   | [MEDIA-US-201](stories/account/MEDIA-US-201-sessions.md)                    |
+| Supabase 跨设备复制    | ⚠️ 原生 adapter/plugin 已接线；真实本地双独立副本、离线/重开、冲突与删除传播通过，TTL/正式环境保留                     | [MEDIA-US-302](stories/local-first/MEDIA-US-302-draft-sync.md)              |
+| 供应商配置同步         | ✅ 两独立副本公开配置同步已验；固定排除 Key                                                                            | [MEDIA-US-105](stories/generation/MEDIA-US-105-provider-management.md)      |
 
 当前范围不包含 SSR/BFF、Bun API、PostgreSQL、服务端任务队列/证据机、音视频和 Electron 桌面。
 
-| 计划中能力     | 当前状态                                                        | 对应故事                                                               |
-| -------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| 跨用户业务后台 | ⬜ 用户、模板、供应商策略、任务和用量已定范围；没有产品后台实现 | [MEDIA-US-203](stories/account/MEDIA-US-203-business-admin.md)         |
-| 移动设备验收   | ⬜ 暂缓，不阻断桌面、同步和后台工作                             | [MEDIA-US-107](stories/generation/MEDIA-US-107-mobile-verification.md) |
+| 计划中能力     | 当前状态                                                                                              | 对应故事                                                               |
+| -------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 跨用户业务后台 | ⚠️ 用户、模板、运行策略、显式任务上报和来源明确的用量已通过本地服务与浏览器/Worker 验证；正式环境待验 | [MEDIA-US-203](stories/account/MEDIA-US-203-business-admin.md)         |
+| 移动设备验收   | ⬜ 暂缓，不阻断桌面、同步和后台工作                                                                   | [MEDIA-US-107](stories/generation/MEDIA-US-107-mobile-verification.md) |

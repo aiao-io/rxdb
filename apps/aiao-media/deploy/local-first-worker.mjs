@@ -1,3 +1,6 @@
+import { handleAdmin } from './admin-api.mjs';
+import { publishedTemplates, runtimePolicy } from './product-content.mjs';
+import { endpoint } from './product-http.mjs';
 // Optional, stateless relay. Static assets are served by the ASSETS binding.
 const json = (status, error) =>
   Response.json(
@@ -134,7 +137,7 @@ function base(value) {
 }
 
 const encoder = new TextEncoder();
-const navigationPaths = new Set(['/', '/create', '/images', '/providers']);
+const navigationPaths = new Set(['/', '/create', '/images', '/providers', '/admin']);
 async function fetchAsset(request, env) {
   const response = await env.ASSETS.fetch(request);
   const pathname = new URL(request.url).pathname;
@@ -251,6 +254,10 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return fetchAsset(request, env);
+    if (url.pathname.startsWith('/api/admin/')) return handleAdmin(request, env);
+    if (url.pathname === '/api/templates' && request.method === 'GET') return endpoint(() => publishedTemplates(env));
+    if (url.pathname === '/api/provider-policies' && request.method === 'GET')
+      return endpoint(async () => ({ policy: await runtimePolicy(env) }));
     if (url.pathname === '/api/provider-probe') {
       if (request.method !== 'GET') return json(405, 'GET required');
       return jsonPayload(await providerProbe(env, url.origin));
@@ -258,10 +265,14 @@ export default {
     if (url.pathname !== '/api/relay') return json(404, 'Unknown API');
     if (request.method !== 'POST') return json(405, 'POST required');
     if (request.headers.get('origin') !== url.origin) return json(403, 'Same-origin browser request required');
-    let upstream;
+    let upstream, policy;
     try {
       upstream = base(request.headers.get('x-provider-base') ?? '');
-      const allowed = JSON.parse(env.ALLOWED_PROVIDER_BASE_URLS || '[]').map(base);
+      policy = await runtimePolicy(env);
+      const allowed =
+        policy ?
+          policy.providers.filter(provider => provider.enabled && provider.proxy).map(provider => provider.baseUrl)
+        : JSON.parse(env.ALLOWED_PROVIDER_BASE_URLS || '[]').map(base);
       if (!allowed.includes(upstream)) return json(403, 'Provider is not enabled for this relay');
     } catch {
       return json(400, 'Invalid provider configuration');
@@ -324,6 +335,14 @@ export default {
         cleanup();
         return json(400, 'Invalid image request');
       }
+      const activeProvider = policy?.providers.find(provider => provider.baseUrl === upstream);
+      if (
+        activeProvider &&
+        (!activeProvider.models.includes(data.model) || !activeProvider.sizes.includes(data.size))
+      ) {
+        cleanup();
+        return json(403, 'Model or size is disabled by the active provider policy');
+      }
       if (controller.signal.aborted) throw new Error('Aborted');
       const responsePromise = fetch(`${upstream}/images/generations`, {
         method: 'POST',
@@ -345,7 +364,11 @@ export default {
         responsePromise.then(response => ({ kind: 'response', response })).catch(error => ({ kind: 'error', error })),
         new Promise(resolve => setTimeout(() => resolve({ kind: 'pending' }), 250))
       ]);
-      if (early.kind === 'pending') return lateRelayResponse(responsePromise, controller, cleanup);
+      if (early.kind === 'pending') {
+        const response = lateRelayResponse(responsePromise, controller, cleanup);
+        response.headers.set('x-aiao-policy-version', String(policy?.revision ?? 'deployment'));
+        return response;
+      }
       if (early.kind === 'error') throw early.error;
       const response = early.response;
       if (!response.ok) {
@@ -394,7 +417,8 @@ export default {
           'content-type': 'application/json',
           'cache-control': 'no-store',
           'referrer-policy': 'no-referrer',
-          'x-content-type-options': 'nosniff'
+          'x-content-type-options': 'nosniff',
+          'x-aiao-policy-version': String(policy?.revision ?? 'deployment')
         }
       });
     } catch {

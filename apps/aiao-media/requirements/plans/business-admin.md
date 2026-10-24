@@ -2,7 +2,7 @@
 
 ## 当前范围与架构
 
-负责人确认后台覆盖用户、模板、供应商策略、任务和用量。[MEDIA-US-203](../stories/account/MEDIA-US-203-business-admin.md) 维护可验收范围，本计划确定技术切片；后台当前尚未实现。
+负责人确认后台覆盖用户、模板、供应商策略、任务和用量。[MEDIA-US-203](../stories/account/MEDIA-US-203-business-admin.md) 维护可验收范围，本计划确定技术切片；后台已完成本地实现与验证，正式部署仍待验收。
 
 采用现有 Cloudflare Worker 增加受保护的 `/api/admin/*`，静态 Web 增加 `/admin`。业务数据与管理员授权放在 Supabase；本机图片创作继续不依赖后台。管理用户所需 `auth.admin` 只在 Worker 服务端执行，服务端 Key 通过 Worker secret 提供；前端和构建配置固定只接受公开 Key。
 
@@ -56,4 +56,6 @@ A1–B2 不依赖供应商真实额度、移动真机或 D-06 保留天数，可
 - [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security)：`user_metadata` 可由用户修改；JWT 中的管理员声明可能过时，因此实时权限使用服务端表。
 - [API Keys 与 RLS](https://supabase.com/docs/guides/api/api-keys)：service role 绕过 RLS，使用该客户端前必须完成请求授权和端点范围校验。
 
-官方依据通过 Context7 查询。这里的 schema、端点和页面均为确定的实施计划，尚无产品代码/测试通过证据。
+官方依据通过 Context7 查询。这里的 schema、端点和页面均为确定的实施计划，本地实现和分层测试证据见[本地产品交付验收](local-delivery-verification.md)，正式环境未发布。
+
+当前本地交付证据见[本地产品交付验收](local-delivery-verification.md)。本计划描述的生产环境验收和 D-06 未定策略继续保留。

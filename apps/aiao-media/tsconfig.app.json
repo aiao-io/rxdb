@@ -24,10 +24,19 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
+      "path": "../../packages/rxdb-plugin-sync/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-plugin-history/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-supabase/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb/tsconfig.lib.json"

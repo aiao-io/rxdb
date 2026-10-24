@@ -15,5 +15,13 @@
     "allowJs": false
   },
   "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*.ts", "src/**/*.mts", "local-first.config.ts", "supabase-local.config.ts", "upgrade.config.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.mts",
+    "local-first.config.ts",
+    "supabase-local.config.ts",
+    "local-product.config.ts",
+    "upgrade.config.ts",
+    "offline-update.config.ts"
+  ]
 }

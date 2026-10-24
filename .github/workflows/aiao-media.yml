@@ -13,6 +13,9 @@ on:
       - 'apps/aiao-media-e2e/**'
       - 'packages/rxdb/**'
       - 'packages/rxdb-adapter-wa-sqlite/**'
+      - 'packages/rxdb-adapter-supabase/**'
+      - 'packages/rxdb-plugin-history/**'
+      - 'packages/rxdb-plugin-sync/**'
       - 'packages/rxdb-adapter-sqlite-core/**'
       - 'packages/rxdb-plugin-storage/**'
       - 'packages/utils/**'
@@ -44,11 +47,23 @@ jobs:
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/playwright-chromium
       - name: Check application and e2e
-        run: pnpm nx run-many -t lint typecheck test -p aiao-media aiao-media-e2e --parallel=2 --output-style=static
+        run: pnpm nx run-many -t lint typecheck -p aiao-media aiao-media-e2e --parallel=2 --output-style=static
+      - name: Verify unit and real browser data coverage
+        run: pnpm nx run aiao-media:coverage --output-style=static
       - name: Verify browser behavior
         run: pnpm nx run aiao-media-e2e:local-first-e2e --output-style=static
+      - name: Verify offline updates and rollback
+        run: pnpm nx run aiao-media-e2e:offline-update-e2e --output-style=static
+      - name: Verify real local product services and browser behavior
+        run: pnpm nx run-many -t product-test product-e2e supabase-e2e -p aiao-media aiao-media-e2e --parallel=1 --output-style=static
       - name: Verify production artifacts
         run: pnpm nx run aiao-media:deploy-check --output-style=static
+      - name: Stop application test services
+        if: ${{ always() }}
+        run: |
+          if [ -f apps/aiao-media/infra/supabase/.env ]; then
+            pnpm nx run aiao-media:supabase-down --output-style=static
+          fi
 
   deploy:
     if: github.event_name == 'workflow_dispatch' && inputs.deploy

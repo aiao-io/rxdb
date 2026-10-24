@@ -2,7 +2,7 @@
 
 Local-first 图片创作应用：发现灵感 → Tiptap 编辑提示词 → 使用自己的供应商生成 → 本机保存、下载和备份。
 
-默认 Angular 入口已切换到本地版本，无需登录、业务 API、PostgreSQL 或 Supabase。应用数据使用 RxDB / SQLite / IndexedDB，原图使用 storage plugin / OPFS；可选 Supabase 注册/登录和会话恢复已实现；账号与本机工作区绑定、跨设备数据同步仍待接线。旧账号命名空间保留，不会自动删除或合并。当前优先桌面能力与跨用户业务后台，移动端验收暂缓；绑定和后台方案见[实施计划](requirements/plans/README.md)。
+默认 Angular 入口已切换到本地版本，无需登录、业务 API、PostgreSQL 或 Supabase。应用数据使用 RxDB / SQLite / IndexedDB，原图使用 storage plugin / OPFS；可选 Supabase 注册/登录和会话恢复已实现；账号绑定、原生 RxDB 多副本同步和业务后台已在真实本地服务接线验证。旧账号命名空间保留，不会自动删除或合并。当前优先桌面能力与跨用户业务后台，移动端验收暂缓；绑定和后台方案见[实施计划](requirements/plans/README.md)。
 
 迁入来源与兼容验证见[迁移验收](requirements/plans/rxdb-import-verification.md)。应用需求在本目录内独立维护，平台需求仍位于仓库根。
 
@@ -36,7 +36,7 @@ pnpm nx run aiao-media:serve
 
 ## 可选账号与本地 Supabase
 
-本机创作无需账号配置。部署方同时设置 `AIAO_SUPABASE_URL` 和公开 `AIAO_SUPABASE_ANON_KEY` 后重新构建，才显示注册/登录入口；禁止使用 service role 或 secret Key。账号当前只建立会话，草稿、供应商和图片仍留在本机，跨设备同步尚未开放。
+本机创作无需账号配置。部署方同时设置 `AIAO_SUPABASE_URL` 和公开 `AIAO_SUPABASE_ANON_KEY` 后重新构建，才显示注册/登录入口；禁止使用 service role 或 secret Key。登录本身不绑定、不上传。显式启用后仅同步草稿、供应商公开配置和作品信息，Key 和原图留在本机。后台私有配置、可信管理员初始化和验收边界见[本地产品交付验收](requirements/plans/local-delivery-verification.md)。
 
 本机调试和真实服务验收使用 Docker Compose，开发凭据自动保存在忽略的 `infra/supabase/.env`：
 

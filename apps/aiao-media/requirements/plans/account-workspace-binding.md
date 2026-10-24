@@ -10,7 +10,7 @@ D-05 采用**本机独立工作区 + 用户主动启用同步 + 远程工作区�
 | 登录即自动合并全部本机与远程记录   | 无法先确认范围，重复 ID、旧账号与文件关联难以恢复        | 不采用 |
 | 显式绑定，每个账号维护独立本机副本 | 保留无需登录的本机路径，账号切换和第二设备都有可追踪边界 | 采用   |
 
-这是基于现有源码和官方 Auth/RLS 文档的设计选择，不是对未实现代码的验收结论。登录只建立会话，不上传或改变本机数据归属。一个本机工作区只绑定一个项目、用户和远程工作区；第二台设备加入时建立独立本机副本，保留原未绑定工作区。
+这是基于源码和官方 Auth/RLS 文档的设计选择；当前本地实现与验收另见交付证据。登录只建立会话，不上传或改变本机数据归属。一个本机工作区只绑定一个项目、用户和远程工作区；第二台设备加入时建立独立本机副本，保留原未绑定工作区。
 
 ## 身份与数据契约
 
@@ -74,11 +74,13 @@ B1–B3 与后台权限/模板/供应商策略可独立开展，B4–B5 逐步�
 
 ## 研究依据与源码
 
-- [LocalMediaStore](../../src/local-data/browser-media.ts) 使用本机 UUID、`SyncType.None`；`close()`/`lockAccount()` 可关闭存储和预览，没有产品绑定或复制控制器。
+- [LocalMediaStore](../../src/local-data/browser-media.ts) 使用本机 UUID、`SyncType.None`；`close()`/`lockAccount()` 可关闭存储和预览，私有文件仍留在本机，产品绑定和 DTO 复制由独立控制器接入。
 - [Auth 客户端](../../src/app/supabase-auth.ts) 按项目隔离会话，调用 `getUser()` 验证，使用 generation 丢弃迟到认证结果和 `signOut({scope: 'local'})`；这些不能代替复制回调的 workspace/epoch 校验。
-- [当前界面](../../src/app/local-image-mvp.ts) 的 Auth 订阅只更新会话 UI，本机 bootstrap 未绑定账号；现有 `epoch` 主要隔离本机读取结果。
+- [当前界面](../../src/app/local-image-mvp.ts) 的 Auth 订阅会暂停旧复制并切换匹配副本；`epoch`、绑定 generation 和检查点共同隔离在途结果。
 - [Supabase 退出 scope](https://supabase.com/docs/guides/auth/signout)：退出撤销刷新凭据，已发 access token 可能有效到期；不能承诺 RLS 仅凭未过期 JWT 就能即时识别所有退出。
 - [服务端会话验证](https://supabase.com/docs/guides/auth/server-side/advanced-guide)：缓存中的 `getSession()` 用户不能代替身份验证；需要最新用户/会话信息时向 Auth 验证。
 - [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security)：可信 owner、读写双向策略，不用用户可改的 `user_metadata` 决定权限。
 
-官方资料通过 Context7 查询；包 API 仍以锁定版本与本地集成为准。B1–B6 尚未实现，不能沿用开发探针结果关闭产品 AC。
+官方资料通过 Context7 查询；包 API 仍以锁定版本与本地集成为准。B1–B5 和 B6 的冲突保留已通过本地产品验证；未定 TTL/清理保持保留，不能沿用开发探针结果关闭产品 AC。
+
+当前本地交付证据见[本地产品交付验收](local-delivery-verification.md)。本计划描述的生产环境验收和 D-06 未定策略继续保留。

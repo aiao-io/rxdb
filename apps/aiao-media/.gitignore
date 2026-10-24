@@ -11,3 +11,4 @@ public/wa-sqlite/
 public/app-config.js
 infra/supabase/.env
 infra/supabase/kong.yml
+deploy/.dev.vars

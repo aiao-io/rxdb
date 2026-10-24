@@ -24,6 +24,7 @@ import {
   type AudioResultMetadata,
   type VideoResultMetadata
 } from '../contracts/index';
+import { productPayloadText, validateSyncPayload, type PublicWorkPayload } from '../contracts/product-data.mjs';
 import type { DraftNotebook } from './draft-notebook';
 import {
   acceptNotebookConflicts,
@@ -50,6 +51,12 @@ import {
   rejectImageSubmission,
   validateImageSubmissionBook
 } from './image-submissions';
+import {
+  LocalCollectionCheckpoint,
+  LocalCollectionRecord,
+  projectCollection,
+  type LocalCollection
+} from './local-collections';
 import { localRepository } from './local-repository';
 import {
   MediaResultError,
@@ -392,6 +399,28 @@ export interface LocalPreferenceChange {
   payload: string;
   revision: number | null;
 }
+export interface LocalWorkspaceProjection {
+  preferences: readonly LocalPreferenceChange[];
+  draft?: { state: StudioPromptState; revision: number | null };
+  works?: PublicWorkPayload[];
+  collections?: boolean;
+}
+@Entity({
+  name: 'SyncedWorkMetadata',
+  tableName: 'synced_work_metadata',
+  namespace: 'media',
+  log: false,
+  sync: { type: SyncType.None },
+  properties: [
+    { name: 'workId', type: PropertyType.uuid, required: true },
+    { name: 'payload', type: PropertyType.string, required: true }
+  ],
+  indexes: [{ name: 'synced_work_id', properties: ['workId'], unique: true }]
+})
+class SyncedWorkMetadata extends EntityBase {
+  workId!: string;
+  payload!: string;
+}
 export class LocalMediaError extends Error {
   constructor(
     readonly code: 'unavailable' | 'locked' | 'conflict' | 'corrupt' | 'write_failed' | 'incompatible',
@@ -565,6 +594,8 @@ export class LocalMediaStore {
       context: { userId },
       entities: [
         LocalPreference,
+        LocalCollectionRecord,
+        LocalCollectionCheckpoint,
         MediaDraft,
         LocalStudioDraft,
         LocalImageWork,
@@ -574,7 +605,8 @@ export class LocalMediaStore {
         LocalDraftNotebook,
         LocalImageSubmissionJournal,
         LocalAudioSubmissionJournal,
-        LocalVideoSubmissionJournal
+        LocalVideoSubmissionJournal,
+        SyncedWorkMetadata
       ],
       sync: { local: { adapter: adapterName }, type: SyncType.None }
     });
@@ -603,6 +635,7 @@ export class LocalMediaStore {
         await db.storage.init();
       });
       await store.recover();
+      await store.refreshCollections();
       return store;
     } catch (error) {
       await store.close().catch(() => undefined);
@@ -613,8 +646,9 @@ export class LocalMediaStore {
       );
     }
   }
-  audioSubmission() {
-    return this.audioSubmissionOperation(book => book.pending, false);
+  async audioSubmission() {
+    const [row] = await this.collection('audio-submissions');
+    return row ? (JSON.parse(row.payload) as NonNullable<AudioSubmissionBook['pending']>) : null;
   }
   createAudioSubmission(request: AudioJobRequest) {
     return this.audioSubmissionOperation(book => createAudioSubmission(book, request));
@@ -625,8 +659,9 @@ export class LocalMediaStore {
   confirmAudioSubmission(key: string, job: AudioGenerationJobSummary) {
     return this.audioSubmissionOperation(book => confirmAudioSubmission(book, key, job));
   }
-  videoSubmission() {
-    return this.videoSubmissionOperation(book => book.pending, false);
+  async videoSubmission() {
+    const [row] = await this.collection('video-submissions');
+    return row ? (JSON.parse(row.payload) as NonNullable<VideoSubmissionBook['pending']>) : null;
   }
   createVideoSubmission(request: VideoJobRequest) {
     return this.videoSubmissionOperation(book => createVideoSubmission(book, request));
@@ -637,8 +672,10 @@ export class LocalMediaStore {
   confirmVideoSubmission(key: string, job: VideoGenerationJobSummary) {
     return this.videoSubmissionOperation(book => confirmVideoSubmission(book, key, job));
   }
-  imageSubmissions() {
-    return this.imageSubmissionOperation(book => book.submissions, false);
+  async imageSubmissions() {
+    return (await this.collection('image-submissions')).map(
+      row => JSON.parse(row.payload) as ImageSubmissionBook['submissions'][number]
+    );
   }
   createImageSubmission(
     selection: ImageSubmissionSelection,
@@ -963,7 +1000,7 @@ export class LocalMediaStore {
     const [next] = await this.savePreferences([{ key, payload, revision }]);
     return next;
   }
-  async savePreferences(changes: readonly LocalPreferenceChange[]): Promise<number[]> {
+  async savePreferences(changes: readonly LocalPreferenceChange[], collections = false): Promise<number[]> {
     const keys = new Set(changes.map(change => change.key));
     if (
       keys.size !== changes.length ||
@@ -978,11 +1015,86 @@ export class LocalMediaStore {
           events.push(event)
         );
         const revisions: number[] = [];
-        for (const change of changes) revisions.push(await this.writePreference(repo, change));
+        for (const change of changes) {
+          const revision = await this.writePreference(repo, change);
+          revisions.push(revision);
+          if (collections) await this.projectPreference(executor, events, change.key, change.payload, revision);
+        }
         return revisions;
       });
       for (const event of events) this.db.dispatchEvent(event);
       return revisions;
+    });
+  }
+  async ensurePreference(key: string, payload: string): Promise<{ payload: string; revision: number }> {
+    if (!/^[a-z0-9-]{1,80}$/.test(key) || payload.length > 512 * 1024)
+      throw new LocalMediaError('write_failed', '设置格式无效。');
+    return this.exclusive(async () => {
+      const repo = await this.repository(LocalPreference);
+      const [row] = await repo.find({
+        where: { combinator: 'and', rules: [{ field: 'key', operator: '=', value: key }] }
+      });
+      if (row) return { payload: row.payload, revision: row.revision };
+      const created = await repo.create(
+        this.db.entityManager.instantiate(LocalPreference, { key, payload, revision: 1 })
+      );
+      return { payload: created.payload, revision: created.revision };
+    });
+  }
+  async applyProjection(projection: LocalWorkspaceProjection): Promise<void> {
+    const draftPayload = projection.draft ? studioPayload(projection.draft.state) : null;
+    return this.exclusive(async () => {
+      const adapter = await firstValueFrom(this.db.localAdapter$),
+        events: RxDBEvent[] = [];
+      await adapter.transaction(async executor => {
+        const preferences = localRepository(LocalPreference, executor.getRepository(LocalPreference), event =>
+          events.push(event)
+        );
+        for (const change of projection.preferences) {
+          const revision = await this.writePreference(preferences, change);
+          if (projection.collections)
+            await this.projectPreference(executor, events, change.key, change.payload, revision);
+        }
+        if (projection.works) {
+          const works = localRepository(SyncedWorkMetadata, executor.getRepository(SyncedWorkMetadata), event =>
+            events.push(event)
+          );
+          const existing = await works.find({ where: emptyWhere });
+          for (const input of projection.works) {
+            const value = validateSyncPayload('work', input),
+              payload = productPayloadText('work', value);
+            const old = existing.find(row => row.workId === value.jobId);
+            if (old && old.payload !== payload) await works.update(old, { payload });
+            if (!old)
+              await works.create(
+                this.db.entityManager.instantiate(SyncedWorkMetadata, { workId: value.jobId, payload })
+              );
+          }
+          for (const old of existing)
+            if (!projection.works.some(work => work.jobId === old.workId)) await works.remove(old);
+        }
+        if (!projection.draft) return;
+        const drafts = localRepository(LocalStudioDraft, executor.getRepository(LocalStudioDraft), event =>
+          events.push(event)
+        );
+        const [old] = await drafts.find({
+          where: { combinator: 'and', rules: [{ field: 'key', operator: '=', value: 'image-studio' }] }
+        });
+        if ((old?.revision ?? null) !== projection.draft.revision)
+          throw new LocalMediaError('conflict', '同步期间本机草稿已变化；未覆盖本机内容。');
+        if (old) readStudioPayload(old.payload, old.revision);
+        if (old?.payload === draftPayload) return;
+        if (old) await drafts.update(old, { payload: draftPayload!, revision: old.revision + 1 });
+        else
+          await drafts.create(
+            this.db.entityManager.instantiate(LocalStudioDraft, {
+              key: 'image-studio',
+              payload: draftPayload!,
+              revision: 1
+            })
+          );
+      });
+      for (const event of events) this.db.dispatchEvent(event);
     });
   }
   preference$(key: string): Observable<{ payload: string; revision: number } | null> {
@@ -993,6 +1105,64 @@ export class LocalMediaStore {
           where: { combinator: 'and', rules: [{ field: 'key', operator: '=', value: key }] }
         })
         .pipe(map(row => (row ? { payload: row.payload, revision: row.revision } : null)))
+    );
+  }
+  async refreshCollections(): Promise<void> {
+    return this.exclusive(async () => {
+      const adapter = await firstValueFrom(this.db.localAdapter$),
+        events: RxDBEvent[] = [];
+      await adapter.transaction(async executor => {
+        const preferences = executor.getRepository(LocalPreference);
+        for (const key of ['providers-v1', 'tasks-v1']) {
+          const [row] = await preferences.find({
+            where: { combinator: 'and', rules: [{ field: 'key', operator: '=', value: key }] }
+          });
+          if (row) await this.projectPreference(executor, events, key, row.payload, row.revision);
+        }
+        for (const [entity, collection] of [
+          [LocalDraftNotebook, 'drafts'],
+          [LocalImageSubmissionJournal, 'image-submissions'],
+          [LocalAudioSubmissionJournal, 'audio-submissions'],
+          [LocalVideoSubmissionJournal, 'video-submissions']
+        ] as const) {
+          const [row] = await executor.getRepository(entity).find({ where: emptyWhere });
+          if (row) await projectCollection(this.db, executor, events, collection, row.payload, row.revision);
+        }
+      });
+      for (const event of events) this.db.dispatchEvent(event);
+    });
+  }
+  async collection(collection: LocalCollection): Promise<{ sourceId: string; payload: string; status: string }[]> {
+    await this.refreshCollections();
+    return this.exclusive(() =>
+      this.readRows(LocalCollectionRecord, {
+        where: { combinator: 'and', rules: [{ field: 'collection', operator: '=', value: collection }] },
+        orderBy: [{ field: 'position', sort: 'asc' }],
+        limit: 1000
+      })
+    );
+  }
+  collection$(collection: LocalCollection): Observable<{ sourceId: string; payload: string; status: string }[]> {
+    return this.live(() =>
+      this.db.entityManager.getRepository(LocalCollectionRecord).findAll({
+        where: { combinator: 'and', rules: [{ field: 'collection', operator: '=', value: collection }] },
+        orderBy: [{ field: 'position', sort: 'asc' }]
+      })
+    );
+  }
+  async syncedWorks(): Promise<PublicWorkPayload[]> {
+    return this.exclusive(async () =>
+      (await this.readRows(SyncedWorkMetadata, { where: emptyWhere })).map(row =>
+        validateSyncPayload('work', JSON.parse(row.payload))
+      )
+    );
+  }
+  syncedWorks$(): Observable<PublicWorkPayload[]> {
+    return this.live(() =>
+      this.db.entityManager
+        .getRepository(SyncedWorkMetadata)
+        .findAll({ where: emptyWhere })
+        .pipe(map(rows => rows.map(row => validateSyncPayload('work', JSON.parse(row.payload)))))
     );
   }
   async backupImage(jobId: string): Promise<{
@@ -1338,6 +1508,50 @@ export class LocalMediaStore {
       ]
     };
   }
+  private projectPreference(
+    executor: import('@aiao/rxdb').TransactionExecutor,
+    events: RxDBEvent[],
+    key: string,
+    payload: string,
+    revision: number
+  ): Promise<void> {
+    if (key === 'providers-v1' || key === 'tasks-v1')
+      return projectCollection(
+        this.db,
+        executor,
+        events,
+        key === 'providers-v1' ? 'providers' : 'tasks',
+        payload,
+        revision
+      );
+    return Promise.resolve();
+  }
+  private async commitBook(
+    entity: typeof LocalDraftNotebook,
+    collection: LocalCollection,
+    key: string,
+    payload: string,
+    previous: { payload: string; revision: number } | null
+  ): Promise<void> {
+    const adapter = await firstValueFrom(this.db.localAdapter$),
+      events: RxDBEvent[] = [];
+    await adapter.transaction(async executor => {
+      const repo = localRepository(entity, executor.getRepository(entity), event => events.push(event));
+      const [row] = await repo.find({ where: emptyWhere });
+      if (
+        (row?.revision ?? null) !== (previous?.revision ?? null) ||
+        (row?.payload ?? null) !== (previous?.payload ?? null)
+      )
+        throw new LocalMediaError('conflict', '本机提交集合已变化，未覆盖或发送。');
+      const revision = payload === previous?.payload ? previous.revision : (previous?.revision ?? 0) + 1;
+      if (payload !== row?.payload) {
+        if (row) await repo.update(row, { payload, revision });
+        else await repo.create(this.db.entityManager.instantiate(entity, { key, payload, revision }));
+      }
+      await projectCollection(this.db, executor, events, collection, payload, revision);
+    });
+    for (const event of events) this.db.dispatchEvent(event);
+  }
   private async writePreference(
     repo: IRepository<typeof LocalPreference>,
     { key, payload, revision }: LocalPreferenceChange
@@ -1371,20 +1585,14 @@ export class LocalMediaStore {
           throw new LocalMediaError('corrupt', '同步草稿日志不可读；不会创建空日志覆盖原数据。');
         }
       }
+      const previous = row ? { payload: row.payload, revision: row.revision } : null;
       const result = operation(book);
       if (write) {
-        const payload = JSON.stringify(book);
-        if (payload !== row?.payload) {
-          if (row) await repo.update(row, { payload, revision: row.revision + 1 });
-          else
-            await repo.create(
-              this.db.entityManager.instantiate(LocalDraftNotebook, {
-                key: 'notebook',
-                payload,
-                revision: 1
-              })
-            );
-        }
+        const payload = JSON.stringify(validateNotebook(book));
+        await this.commitBook(LocalDraftNotebook, 'drafts', 'notebook', payload, previous);
+        const [saved] = await repo.find({ where: emptyWhere });
+        if (saved?.payload !== payload || this.locked)
+          throw new LocalMediaError('write_failed', '提交意图持久化未确认；没有发送任务。');
       }
       return structuredClone(result);
     });
@@ -1404,22 +1612,11 @@ export class LocalMediaStore {
           throw new LocalMediaError('corrupt', '图片提交日志不可读；停止提交，不用空日志覆盖或重复生成。');
         }
       }
+      const previous = row ? { payload: row.payload, revision: row.revision } : null;
       const result = await operation(book);
       if (write) {
         const payload = JSON.stringify(validateImageSubmissionBook(book));
-        if (payload !== row?.payload) {
-          if (row) await repo.update(row, { payload, revision: row.revision + 1 });
-          else
-            await repo.create(
-              this.db.entityManager.instantiate(LocalImageSubmissionJournal, {
-                key: 'submissions',
-                payload,
-                revision: 1
-              })
-            );
-        }
-        // Re-read the durable receipt before any network call. An ambiguous local
-        // commit stops here; callers reload instead of issuing an unjournaled task.
+        await this.commitBook(LocalImageSubmissionJournal, 'image-submissions', 'submissions', payload, previous);
         const [saved] = await repo.find({ where: emptyWhere });
         if (saved?.payload !== payload || this.locked)
           throw new LocalMediaError('write_failed', '提交意图持久化未确认；没有发送任务。');
@@ -1442,22 +1639,11 @@ export class LocalMediaStore {
           throw new LocalMediaError('corrupt', '配音提交日志不可读；停止提交，不用空日志覆盖或重复生成。');
         }
       }
+      const previous = row ? { payload: row.payload, revision: row.revision } : null;
       const result = await operation(book);
       if (write) {
         const payload = JSON.stringify(validateAudioSubmissionBook(book));
-        if (payload !== row?.payload) {
-          if (row) await repo.update(row, { payload, revision: row.revision + 1 });
-          else
-            await repo.create(
-              this.db.entityManager.instantiate(LocalAudioSubmissionJournal, {
-                key: 'submissions',
-                payload,
-                revision: 1
-              })
-            );
-        }
-        // Re-read the durable receipt before any network call. An ambiguous local
-        // commit stops here; callers reload instead of issuing an unjournaled task.
+        await this.commitBook(LocalAudioSubmissionJournal, 'audio-submissions', 'submissions', payload, previous);
         const [saved] = await repo.find({ where: emptyWhere });
         if (saved?.payload !== payload || this.locked)
           throw new LocalMediaError('write_failed', '提交意图持久化未确认；没有发送任务。');
@@ -1480,22 +1666,11 @@ export class LocalMediaStore {
           throw new LocalMediaError('corrupt', '视频提交日志不可读；停止提交，不用空日志覆盖或重复生成。');
         }
       }
+      const previous = row ? { payload: row.payload, revision: row.revision } : null;
       const result = await operation(book);
       if (write) {
         const payload = JSON.stringify(validateVideoSubmissionBook(book));
-        if (payload !== row?.payload) {
-          if (row) await repo.update(row, { payload, revision: row.revision + 1 });
-          else
-            await repo.create(
-              this.db.entityManager.instantiate(LocalVideoSubmissionJournal, {
-                key: 'submissions',
-                payload,
-                revision: 1
-              })
-            );
-        }
-        // Re-read the durable receipt before any network call. An ambiguous local
-        // commit stops here; callers reload instead of issuing an unjournaled task.
+        await this.commitBook(LocalVideoSubmissionJournal, 'video-submissions', 'submissions', payload, previous);
         const [saved] = await repo.find({ where: emptyWhere });
         if (saved?.payload !== payload || this.locked)
           throw new LocalMediaError('write_failed', '提交意图持久化未确认；没有发送任务。');

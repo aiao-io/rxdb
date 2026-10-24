@@ -22,7 +22,7 @@
           }
         ],
         "styles": ["apps/aiao-media/src/styles.css", "apps/aiao-media/src/image-mvp.css"],
-        "allowedCommonJsDependencies": ["ms"]
+        "allowedCommonJsDependencies": ["@supabase/supabase-js"]
       },
       "configurations": {
         "production": {
@@ -286,7 +286,7 @@
       "outputs": ["{projectRoot}/coverage"],
       "options": {
         "cwd": "apps/aiao-media",
-        "command": "vitest run --config vite.config.mts"
+        "command": "vitest run --config vite.config.mts --project=aiao-media-ui --project=aiao-media-data"
       }
     },
     "lint": {
@@ -308,7 +308,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/aiao-media",
-        "command": "node --test scripts/build-supabase-config.test.mjs scripts/local-first-worker.test.mjs scripts/migration.test.mjs"
+        "command": "node --test scripts/build-supabase-config.test.mjs scripts/local-first-worker.test.mjs scripts/product-api.test.mjs scripts/migration.test.mjs"
       }
     },
     "supabase-init": {
@@ -397,6 +397,40 @@
       "options": {
         "command": "node scripts/test-supabase-local.mjs",
         "cwd": "apps/aiao-media"
+      }
+    },
+    "product-test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/test-product-local.mjs",
+        "cwd": "apps/aiao-media"
+      },
+      "dependsOn": ["supabase-migrate"],
+      "cache": false
+    },
+    "admin-membership": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["supabase-migrate"],
+      "options": {
+        "command": "node scripts/admin-membership.mjs --local",
+        "cwd": "apps/aiao-media"
+      }
+    },
+    "test-browser": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build", "prepare-assets"],
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "vitest run --config vite.config.mts --project=aiao-media-browser"
+      }
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build", "prepare-assets", "script-test", "requirements-check"],
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "vitest run --config vite.config.mts --coverage"
       }
     }
   }

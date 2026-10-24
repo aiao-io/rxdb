@@ -127,6 +127,7 @@ async function main(action) {
       '--wait-timeout',
       '180'
     ]);
+    await compose(['up', '-d', '--no-deps', '--force-recreate', '--wait', '--wait-timeout', '60', 'kong']);
     const { env, url, mailUrl } = await localEnvironment();
     console.log(
       `Supabase API: ${url}\nMailbox: ${mailUrl}${action === 'studio' ? `\nStudio: http://127.0.0.1:${env.STUDIO_PORT}` : ''}`
@@ -141,13 +142,38 @@ async function main(action) {
   } else if (action === 'logs') {
     await compose(['--profile', 'studio', 'logs', '--tail', '60']);
   } else if (action === 'migrate') {
-    for (const name of (await readdir(resolve(directory, 'migrations'))).filter(name => name.endsWith('.sql')).sort()) {
-      await compose(['exec', '-T', 'db', 'psql', '-U', 'supabase_admin', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], {
-        input: await readFile(resolve(directory, 'migrations', name), 'utf8')
-      });
-    }
+    const core = [
+      '01-rxdb-system-tables.sql',
+      '02-rxdb-sync-functions.sql',
+      '04-rxdb-utils-functions.sql',
+      'production/rxdb-change-grants.sql'
+    ];
+    const files = [
+      ...core.map(name => resolve(workspaceRoot, '../../docker/sql', name)),
+      ...(await readdir(resolve(directory, 'migrations')))
+        .filter(name => name.endsWith('.sql'))
+        .sort()
+        .map(name => resolve(directory, 'migrations', name))
+    ];
+    const scripts = await Promise.all(files.map(file => readFile(file, 'utf8')));
+    await compose(['exec', '-T', 'db', 'psql', '-U', 'supabase_admin', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], {
+      input: `BEGIN;\n${scripts.map(sql => sql.replace(/^\s*(?:BEGIN|COMMIT);\s*$/gm, '')).join('\n')}\nCOMMIT;`
+    });
   } else if (action === 'preview') {
-    const { publicEnv } = await localEnvironment();
+    const { publicEnv, env: local, url } = await localEnvironment();
+    const privateConfig = {
+      MEDIA_SUPABASE_URL: url,
+      MEDIA_SUPABASE_ANON_KEY: local.ANON_KEY,
+      MEDIA_SUPABASE_SERVICE_ROLE_KEY: local.SERVICE_ROLE_KEY
+    };
+    await writeFile(
+      resolve(workspaceRoot, 'deploy/.dev.vars'),
+      Object.entries(privateConfig)
+        .map(([name, value]) => `${name}=${JSON.stringify(value)}`)
+        .join('\n') + '\n',
+      { mode: 0o600 }
+    );
+    await chmod(resolve(workspaceRoot, 'deploy/.dev.vars'), 0o600);
     const env = { ...process.env, ...publicEnv };
     // Build with the local public Auth settings before starting the production worker.
     // Keep service-role credentials in this Node process and out of the client build.

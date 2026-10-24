@@ -26,11 +26,13 @@
 
 ## 当前范围边界
 
-- 可选 Auth 会话已实现，产品绑定/复制未接线；采用本机独立工作区、显式绑定和账号隔离的[确定方案](plans/account-workspace-binding.md)。
+- 可选 Auth 会话已实现，产品绑定/复制已通过真实本地验证；采用本机独立工作区、显式绑定和账号隔离的[确定方案](plans/account-workspace-binding.md)。
 - 首阶段同步草稿、供应商公开配置和作品元数据；Key、原图、句柄和本地文件标识固定排除。退出仍可本机编辑，切账号不转属副本。
-- 后台覆盖用户、模板、供应商策略、任务与用量，[MEDIA-US-203](stories/account/MEDIA-US-203-business-admin.md) 尚未实施。本机未上报任务不能作为后台可见数据，后台不自动收集凭据或原图。
+- 后台覆盖用户、模板、供应商策略、任务与用量，[MEDIA-US-203](stories/account/MEDIA-US-203-business-admin.md) 已通过本地验收。本机未上报任务不能作为后台可见数据，后台不自动收集凭据或原图。
 - [MEDIA-US-107](stories/generation/MEDIA-US-107-mobile-verification.md) 暂缓，不安排移动真机，也不阻断桌面首发、同步或后台；现有响应式检查保留。
 
 ## 历史归档
 
 旧全媒体路线图见[历史归档](plans/roadmap-before-image-mvp.md)，不作为当前范围或验收证据。
+
+本轮本地交付结果与验收命令见[本地产品交付验收](plans/local-delivery-verification.md)。表中的正式域名、真实供应商、OS IME、TTL 与发布回退边界继续保留。

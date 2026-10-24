@@ -2,6 +2,7 @@ import { type EntityType, type RxDB } from '@aiao/rxdb';
 import { BehaviorSubject, firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocalMediaStore, LocalPreference } from './browser-media';
+import { studioPayload } from './studio-draft';
 
 function rig() {
   vi.stubGlobal(
@@ -64,6 +65,32 @@ function rig() {
 }
 afterEach(() => vi.unstubAllGlobals());
 describe('local media queries and preference transactions', () => {
+  it('initializes a setting once without replacing another window’s value', async () => {
+    vi.stubGlobal('navigator', {
+      locks: { request: async (_name: string, operation: () => Promise<unknown>) => operation() }
+    });
+    const r = rig();
+    expect(await r.store.ensurePreference('providers-v1', 'first')).toEqual({ payload: 'first', revision: 1 });
+    expect(await r.store.ensurePreference('providers-v1', 'second')).toEqual({ payload: 'first', revision: 1 });
+    expect(r.create).toHaveBeenCalledOnce();
+  });
+  it('rolls back a remote projection when the local draft changed during synchronization', async () => {
+    vi.stubGlobal('navigator', {
+      locks: { request: async (_name: string, operation: () => Promise<unknown>) => operation() }
+    });
+    const r = rig();
+    const state = { document: { type: 'doc' as const, content: [] }, fields: [], values: {} };
+    r.rows.set('image-studio', { key: 'image-studio', payload: studioPayload(state), revision: 2 } as LocalPreference);
+    await expect(
+      r.store.applyProjection({
+        preferences: [{ key: 'providers-v1', payload: '[]', revision: null }],
+        draft: { state, revision: 1 }
+      })
+    ).rejects.toMatchObject({ code: 'conflict' });
+    expect(r.rows.has('providers-v1')).toBe(false);
+    expect(r.rows.get('image-studio')?.revision).toBe(2);
+    expect(r.publish).not.toHaveBeenCalled();
+  });
   it('rolls back the entire preference batch when its second write fails', async () => {
     vi.stubGlobal('navigator', {
       locks: { request: async (_name: string, operation: () => Promise<unknown>) => operation() }
