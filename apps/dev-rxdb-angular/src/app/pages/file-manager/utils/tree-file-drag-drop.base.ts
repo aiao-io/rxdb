@@ -1,12 +1,15 @@
 /* eslint-disable @angular-eslint/prefer-inject */
 import type { HistoryScopeAPI } from '@aiao/rxdb';
-import { Directive, Signal } from '@angular/core';
+import { DestroyRef, Directive, inject, Signal } from '@angular/core';
 import { FileTreeEntityConstructor, FileTreeInstance } from '../models/file-node.interface';
 import { TreeFileBase } from './tree-file.base';
 import { TreeFileDragDropStore } from './tree-file.store';
 
 @Directive()
 export abstract class TreeFileDragDropBase<C extends FileTreeEntityConstructor> extends TreeFileBase<C> {
+  readonly #scrollDestroyRef = inject(DestroyRef);
+  readonly #scrollTimers = new Set<ReturnType<typeof setTimeout>>();
+
   // 重写 store 类型为 TreeFileDragDropStore
   declare readonly store: TreeFileDragDropStore<C>;
 
@@ -28,6 +31,10 @@ export abstract class TreeFileDragDropBase<C extends FileTreeEntityConstructor> 
     history: HistoryScopeAPI
   ) {
     super(store, fileResource, entityClass, history);
+    this.#scrollDestroyRef.onDestroy(() => {
+      for (const timer of this.#scrollTimers) clearTimeout(timer);
+      this.#scrollTimers.clear();
+    });
   }
 
   // Drag Event Handlers
@@ -127,12 +134,15 @@ export abstract class TreeFileDragDropBase<C extends FileTreeEntityConstructor> 
   // Helper Methods
 
   scrollToFile(fileId: string): void {
-    setTimeout(() => {
+    if (this.#scrollDestroyRef.destroyed) return;
+    const timer = setTimeout(() => {
+      this.#scrollTimers.delete(timer);
       const element = document.querySelector(`[data-file-id="${fileId}"]`);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     }, 100);
+    this.#scrollTimers.add(timer);
   }
 
   getDragState(fileId: string): string | null {

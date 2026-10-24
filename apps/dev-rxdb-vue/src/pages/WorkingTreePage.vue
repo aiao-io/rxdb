@@ -1172,7 +1172,6 @@ function clampAsideWidth(width: number): number {
           :busy="worktreeBusy || pendingWrites > 0"
           :mounted="worktrees.mounted.value"
           :rows="worktreeRows"
-          :style="{ width: '220px' }"
           @mount="mountWorktree"
           @mount-main="mountMainWorktree"
         />

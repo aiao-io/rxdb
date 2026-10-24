@@ -1,8 +1,9 @@
 import type { WorktreeTableSet } from '@aiao/rxdb';
 import type { Worktree } from '@aiao/rxdb-plugin-working-tree';
 import { Check, ChevronDown, GitBranch, MoreVertical, Plus, SquareStack } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { isImeComposing } from '../utils/ime';
+import { fitToolbarPopup } from '../utils/toolbar-popup';
 
 export interface WorkingTreeWorktreeMenuProps {
   readonly busy?: boolean;
@@ -38,15 +39,15 @@ export function WorkingTreeWorktreeMenu({
   worktrees
 }: WorkingTreeWorktreeMenuProps): React.JSX.Element {
   const popupRef = useRef<HTMLDivElement>(null);
-  const [popupLeft, setPopupLeft] = useState(0);
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen) return undefined;
     const popup = popupRef.current;
-    const section = popup?.offsetParent as HTMLElement | null;
-    if (!popup || !section) return;
-    const sectionLeft = section.getBoundingClientRect().left;
-    setPopupLeft(Math.max(8 - sectionLeft, Math.min(0, window.innerWidth - sectionLeft - popupWidth - 8)));
+    if (!popup) return undefined;
+    const fit = (): void => fitToolbarPopup(popup);
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
   }, [menuOpen, popupWidth]);
 
   useEffect(() => {
@@ -103,7 +104,7 @@ export function WorkingTreeWorktreeMenu({
             <div
               ref={popupRef}
               className='gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto'
-              style={{ height: 'calc(100vh - 50px)', width: popupWidth, left: popupLeft }}
+              style={{ height: 'calc(100vh - 50px)', width: popupWidth }}
               aria-label='Worktree list'
               data-testid='wt-worktree-menu-popup'
               id='wt-worktree-menu-popup'

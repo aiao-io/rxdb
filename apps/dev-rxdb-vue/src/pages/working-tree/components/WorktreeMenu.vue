@@ -5,7 +5,8 @@ import type { Worktree } from '@aiao/rxdb-plugin-working-tree';
 import { ChevronDown, GitBranch, Pencil, Plus, Trash2 } from '@lucide/vue';
 import DialogShell from './DialogShell.vue';
 import { isImeComposing } from '../utils/ime';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { fitToolbarPopup } from '../utils/toolbar-popup';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 /** 工作树下拉的展示与三个操作对话框。页面负责真正调用 `useWorktrees()` 命令。 */
 const props = defineProps<{
@@ -25,6 +26,12 @@ const emit = defineEmits<{
 }>();
 
 const menuOpen = ref(false);
+const popupEl = ref<HTMLElement | null>(null);
+watch(menuOpen, async open => {
+  if (!open) return;
+  await nextTick();
+  if (popupEl.value) fitToolbarPopup(popupEl.value);
+});
 const submitting = ref(false);
 const trigger = ref<HTMLButtonElement | null>(null);
 const dialog = ref<'new' | 'rename' | 'delete' | null>(null);
@@ -51,8 +58,17 @@ const onDocumentKeydown = (event: KeyboardEvent): void => {
   menuOpen.value = false;
 };
 
-onMounted(() => document.addEventListener('keydown', onDocumentKeydown));
-onBeforeUnmount(() => document.removeEventListener('keydown', onDocumentKeydown));
+const fitPopup = (): void => {
+  if (popupEl.value) fitToolbarPopup(popupEl.value);
+};
+onMounted(() => {
+  document.addEventListener('keydown', onDocumentKeydown);
+  window.addEventListener('resize', fitPopup);
+});
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onDocumentKeydown);
+  window.removeEventListener('resize', fitPopup);
+});
 
 function toggleMenu(): void {
   menuOpen.value = !menuOpen.value;
@@ -148,7 +164,7 @@ defineExpose({ openNewDialog });
 </script>
 
 <template>
-  <div class="gd-toolbar-section relative flex h-full items-stretch">
+  <div class="gd-toolbar-section gd-worktree-section relative flex h-full items-stretch">
     <button
       ref="trigger"
       class="gd-toolbar-select"
@@ -182,6 +198,7 @@ defineExpose({ openNewDialog });
     <div
       v-if="menuOpen"
       class="gd-menu absolute top-full left-0 z-40 w-80 overflow-y-auto p-1"
+      ref="popupEl"
       id="wt-worktree-menu-popup"
       aria-label="Worktree list"
       data-testid="wt-worktree-menu-popup"

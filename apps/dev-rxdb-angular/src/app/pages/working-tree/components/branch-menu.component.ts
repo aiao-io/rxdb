@@ -1,16 +1,17 @@
 import { RxDBBranch } from '@aiao/rxdb';
 import { CommonModule } from '@angular/common';
 import {
+  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
   ElementRef,
   HostListener,
-  inject,
   input,
   model,
   output,
-  signal
+  signal,
+  viewChild
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -26,6 +27,7 @@ import {
 } from '@lucide/angular';
 import { gdRelativeTime } from '../working-tree.gd';
 import { isImeComposing } from '../working-tree.ime';
+import { fitToolbarPopup } from '../working-tree.popup';
 
 /**
  * 顶部分支栏里的分支选择器，模仿 GitHub Desktop 的分支下拉。
@@ -101,8 +103,8 @@ import { isImeComposing } from '../working-tree.ime';
           <div
             class="gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto"
             id="wt-branch-menu-popup"
+            #popup
             [style.height]="'calc(100vh - 50px)'"
-            [style.left.px]="popupLeft()"
             [style.width.px]="popupWidth()"
             aria-label="Branch list"
             data-testid="wt-branch-menu-popup"
@@ -221,15 +223,7 @@ import { isImeComposing } from '../working-tree.ime';
   `
 })
 export class WorkingTreeBranchMenuComponent {
-  readonly #el = inject(ElementRef) as ElementRef<HTMLElement>;
-
-  /** 窄屏夹回：面板右缘不超出视口（右缘留 8px），左缘最多贴到视口左 8px。 */
-  readonly popupLeft = computed(() => {
-    const width = this.popupWidth();
-    const sectionLeft = this.#el.nativeElement.getBoundingClientRect().left;
-    // 面板相对段落 left:0 锚定：放得下为 0；放不下向左移，下界保证面板左缘 ≥ 视口左 8px
-    return Math.max(8 - sectionLeft, Math.min(0, window.innerWidth - sectionLeft - width - 8));
-  });
+  private readonly popup = viewChild<ElementRef<HTMLElement>>('popup');
 
   readonly branches = input.required<readonly RxDBBranch[]>();
   readonly activeBranch = input('');
@@ -266,6 +260,19 @@ export class WorkingTreeBranchMenuComponent {
   readonly ChevronDown = ChevronDown;
   readonly ChevronRight = ChevronRight;
   readonly Search = Search;
+
+  constructor() {
+    afterRenderEffect(() => {
+      const popup = this.popup()?.nativeElement;
+      if (popup) fitToolbarPopup(popup);
+    });
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    const popup = this.popup()?.nativeElement;
+    if (popup) fitToolbarPopup(popup);
+  }
 
   toggleMenu() {
     if (this.menuOpen()) {

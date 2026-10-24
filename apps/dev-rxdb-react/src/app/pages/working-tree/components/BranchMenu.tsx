@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronRight, GitBranch, GitMerge, MoreVertical, Pl
 import { useEffect, useRef, useState } from 'react';
 import { gdRelativeTime } from '../utils/gd';
 import { isImeComposing } from '../utils/ime';
+import { fitToolbarPopup } from '../utils/toolbar-popup';
 
 interface WorkingTreeBranchMenuProps {
   readonly branches: readonly RxDBBranch[];
@@ -80,16 +81,16 @@ export function WorkingTreeBranchMenu({
   /** 分支名筛选（大小写不敏感的子串匹配）。 */
   const [filter, setFilter] = useState('');
   const popupRef = useRef<HTMLDivElement>(null);
-  const [popupLeft, setPopupLeft] = useState(0);
 
   // 窄屏夹回：面板右缘不超出视口（右缘留 8px），左缘最多贴到视口左 8px
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen) return undefined;
     const popup = popupRef.current;
-    const section = popup?.offsetParent as HTMLElement | null;
-    if (!popup || !section) return;
-    const sectionLeft = section.getBoundingClientRect().left;
-    setPopupLeft(Math.max(8 - sectionLeft, Math.min(0, window.innerWidth - sectionLeft - popupWidth - 8)));
+    if (!popup) return undefined;
+    const fit = (): void => fitToolbarPopup(popup);
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
   }, [menuOpen, popupWidth]);
 
   const closeAll = () => {
@@ -184,7 +185,7 @@ export function WorkingTreeBranchMenu({
           <div
             ref={popupRef}
             className='gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto'
-            style={{ height: 'calc(100vh - 50px)', width: popupWidth, left: popupLeft }}
+            style={{ height: 'calc(100vh - 50px)', width: popupWidth }}
             aria-label='Branch list'
             data-testid='wt-branch-menu-popup'
             id='wt-branch-menu-popup'

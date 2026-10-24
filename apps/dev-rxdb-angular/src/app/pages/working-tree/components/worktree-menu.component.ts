@@ -2,14 +2,17 @@ import { WorktreeTableSet } from '@aiao/rxdb';
 import type { Worktree } from '@aiao/rxdb-plugin-working-tree';
 import { CommonModule } from '@angular/common';
 import {
+  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   HostListener,
   input,
   model,
   output,
-  signal
+  signal,
+  viewChild
 } from '@angular/core';
 import {
   LucideCheck as Check,
@@ -21,6 +24,7 @@ import {
   LucidePlus as Plus
 } from '@lucide/angular';
 import { isImeComposing } from '../working-tree.ime';
+import { fitToolbarPopup } from '../working-tree.popup';
 
 /** 工作树工具栏里的检出位选择器。只显示可写检出位；主检出位是固定的第一行。 */
 @Component({
@@ -67,6 +71,7 @@ import { isImeComposing } from '../working-tree.ime';
           <div
             class="gd-menu gd-menu-flush absolute top-full left-0 z-40 flex min-w-[320px] flex-col overflow-y-auto"
             id="wt-worktree-menu-popup"
+            #popup
             [style.width.px]="popupWidth()"
             aria-label="Worktree list"
             data-testid="wt-worktree-menu-popup"
@@ -173,6 +178,7 @@ import { isImeComposing } from '../working-tree.ime';
   `
 })
 export class WorkingTreeWorktreeMenuComponent {
+  private readonly popup = viewChild<ElementRef<HTMLElement>>('popup');
   readonly busy = input(false);
   readonly records = input<readonly Worktree[]>([]);
   readonly mounted = input.required<WorktreeTableSet>();
@@ -203,6 +209,19 @@ export class WorkingTreeWorktreeMenuComponent {
     const current = this.linkedWorktrees().find(record => record.tableSetSuffix === this.mounted().suffix);
     return current === undefined ? '…' : this.label(current);
   });
+
+  constructor() {
+    afterRenderEffect(() => {
+      const popup = this.popup()?.nativeElement;
+      if (popup) fitToolbarPopup(popup);
+    });
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    const popup = this.popup()?.nativeElement;
+    if (popup) fitToolbarPopup(popup);
+  }
 
   toggleMenu(): void {
     if (this.menuOpen()) this.closeAll();

@@ -70,7 +70,6 @@
         [mounted]="worktrees.mounted()"
         [popupWidth]="$branchSectionWidth() < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : $branchSectionWidth()"
         [records]="$worktreeRecords()"
-        [style.width.px]="$branchSectionWidth()"
         (createRequest)="openNewWorktree()"
         (deleteRequest)="requestDeleteWorktree($event)"
         (menuRequest)="openWorktreeContextMenu($event)"

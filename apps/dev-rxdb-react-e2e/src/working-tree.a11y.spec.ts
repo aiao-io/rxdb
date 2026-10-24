@@ -56,6 +56,7 @@ const PANEL = '[data-testid="working-tree-page"]';
 const KEYBOARD_REACHABLE = [
   'wt-repo-menu',
   'wt-branch-menu',
+  'wt-worktree-menu',
   'wt-refresh-status',
   'wt-tab-changes',
   'wt-tab-history',
@@ -270,6 +271,7 @@ test.describe('Working Tree Page A11y', () => {
     // 初始化态只有「初始化仓库」与「刷新状态」两个控件。
     const initReached = await walkPanelWithTab(page, ['wt-enable', 'wt-refresh-status']);
     expect(initReached.has('wt-enable'), '初始化态应该能走到 wt-enable').toBe(true);
+    expectReachedWithIndicator(initReached, ['wt-enable', 'wt-refresh-status']);
     const initWithoutIndicator = [...initReached.values()]
       .filter(one => !hasVisibleFocusIndicator(one))
       .map(one => one.testId);
@@ -294,8 +296,8 @@ test.describe('Working Tree Page A11y', () => {
     expectReachedWithIndicator(menuReached, ['wt-branch-create', 'wt-branch-item', 'wt-branch-merge-into']);
     await page.keyboard.press('Escape');
 
-    // 建一条分支：「Create a branch」对话框，建完切过去（GitHub Desktop 同款）。点行是立即切换，复制分支名与删除收在
-    // 行的右键菜单里——菜单项是真按钮，也要能键盘走到。删除只给不是当前分支的行，所以右键 main。
+    // 建一条分支：「Create a branch」对话框，建完切过去（GitHub Desktop 同款）。点行是立即切换，右键菜单提供
+    // 复制分支名、新检出位检出与删除。后两项只给未被检出的分支，所以右键 main；三项都要能键盘走到且焦点可见。
     await page.getByTestId('wt-branch-menu').click();
     await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
     await page.getByTestId('wt-branch-create').click();
@@ -309,8 +311,9 @@ test.describe('Working Tree Page A11y', () => {
     await expect(page.getByTestId('wt-branch-menu-copy')).toBeVisible({ timeout: 10000 });
     // 右键不聚焦行：把焦点锚在菜单背板上（菜单项的前一个 Tab 停靠点），走查才收得到菜单项。
     await page.locator('[aria-label="Close context menu"]').focus();
-    const actionsReached = await walkPanelWithTab(page, ['wt-branch-menu-copy', 'wt-branch-menu-delete']);
-    expectReachedWithIndicator(actionsReached, ['wt-branch-menu-copy', 'wt-branch-menu-delete']);
+    const branchActions = ['wt-branch-menu-copy', 'wt-branch-menu-worktree', 'wt-branch-menu-delete'] as const;
+    const actionsReached = await walkPanelWithTab(page, branchActions);
+    expectReachedWithIndicator(actionsReached, branchActions);
     await page.keyboard.press('Escape');
 
     // 变更列表的行（数据来自 /todo 页的一条 Todo）要能被走到。
@@ -335,7 +338,8 @@ test.describe('Working Tree Page A11y', () => {
     await page.getByTestId('wt-tab-history').click();
     await expect(page.getByTestId('wt-commits-phase')).toHaveText('success', { timeout: 30000 });
     await expect(page.getByTestId('wt-commit-item').first()).toBeVisible({ timeout: 10000 });
-    await page.getByTestId('wt-compare-select').click();
+    await page.getByTestId('wt-compare-select').focus();
+    await expect(page.getByTestId('wt-compare-select')).toBeFocused();
     const historyReached = await walkPanelWithTab(page, ['wt-commit-item']);
     expectReachedWithIndicator(historyReached, ['wt-commit-item']);
   });

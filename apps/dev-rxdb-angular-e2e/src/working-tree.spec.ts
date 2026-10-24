@@ -234,10 +234,10 @@ test.describe('Working Tree 页面功能', () => {
     // ── 2. 建分支：「Create a branch」对话框，建完切过去（GitHub Desktop 同款） ──
     await createBranchFromDropdown(page, 'feature/x');
 
-    // 分支行右键有菜单（GitHub Desktop 的分支右键菜单）：复制分支名，不是当前分支的再加删除；切换是点行，合并在下拉底部。
+    // 未被检出的分支右键提供复制分支名、新检出位检出与删除；切换是点行，合并在下拉底部。
     await openBranchMenu(page);
     await branchRow(page, 'main').click({ button: 'right' });
-    await expect(page.getByRole('menuitem')).toHaveText(['Copy branch name', 'Delete…']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Copy branch name', 'Checkout in new worktree…', 'Delete…']);
     await page.locator('[aria-label="Close context menu"]').click({ position: { x: 4, y: 4 } });
     await expect(page.getByTestId('wt-branch-merge-into')).toHaveText('Choose a branch to merge into feature/x');
     await branchRow(page, 'feature/x').click();

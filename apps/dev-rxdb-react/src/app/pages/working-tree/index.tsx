@@ -1236,7 +1236,7 @@ export default function WorkingTreePage(): React.JSX.Element {
               )}
             </div>
 
-            <div className='gd-toolbar-section gd-branch-section' style={{ width: branchSectionWidth }}>
+            <div className='gd-toolbar-section gd-worktree-section'>
               <WorkingTreeWorktreeMenu
                 activeBranch={currentBranchOf(branches, WorktreeTableSet.MAIN)}
                 busy={

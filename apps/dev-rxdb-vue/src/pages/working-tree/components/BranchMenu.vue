@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronRight, GitBranch, GitMerge, MoreVertical, Pl
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { gdRelativeTime } from '../utils/gd';
 import { isImeComposing } from '../utils/ime';
+import { fitToolbarPopup } from '../utils/toolbar-popup';
 
 /**
  * 顶部分支栏里的分支选择器，模仿 GitHub Desktop 的分支下拉。
@@ -66,17 +67,13 @@ const emit = defineEmits<{
 /** 分支名筛选（大小写不敏感的子串匹配）。 */
 const filter = ref('');
 const popupEl = ref<HTMLElement | null>(null);
-const popupLeft = ref(0);
 
 // 窄屏夹回：面板右缘不超出视口（右缘留 8px），左缘最多贴到视口左 8px
 watch(menuOpen, async open => {
   if (!open) return;
   await nextTick();
   const popup = popupEl.value;
-  const section = popup?.offsetParent as HTMLElement | null;
-  if (!popup || !section) return;
-  const sectionLeft = section.getBoundingClientRect().left;
-  popupLeft.value = Math.max(8 - sectionLeft, Math.min(0, window.innerWidth - sectionLeft - props.popupWidth - 8));
+  if (popup) fitToolbarPopup(popup);
 });
 
 /** 筛出来的分支；空筛选 = 全量。 */
@@ -104,8 +101,17 @@ const onDocumentKeydown = (event: KeyboardEvent): void => {
   if (event.key === 'Escape' && !isImeComposing(event)) closeAll();
 };
 
-onMounted(() => document.addEventListener('keydown', onDocumentKeydown));
-onBeforeUnmount(() => document.removeEventListener('keydown', onDocumentKeydown));
+const fitPopup = (): void => {
+  if (popupEl.value) fitToolbarPopup(popupEl.value);
+};
+onMounted(() => {
+  document.addEventListener('keydown', onDocumentKeydown);
+  window.addEventListener('resize', fitPopup);
+});
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onDocumentKeydown);
+  window.removeEventListener('resize', fitPopup);
+});
 
 /** 「New branch」：先收起下拉，对话框由页面开 */
 function requestCreate(): void {
@@ -172,7 +178,7 @@ function onRowClick(branch: RxDBBranch): void {
         ref="popupEl"
         class="gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto"
         v-if="menuOpen"
-        :style="{ height: 'calc(100vh - 50px)', width: popupWidth + 'px', left: popupLeft + 'px' }"
+        :style="{ height: 'calc(100vh - 50px)', width: popupWidth + 'px' }"
         aria-label="Branch list"
         data-testid="wt-branch-menu-popup"
         id="wt-branch-menu-popup"

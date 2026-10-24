@@ -357,7 +357,7 @@ INVEST 检查清单:
     新建或挂载失败保留对话框，重试复用已建好的分支与检出位；Rename / Delete 失败同样保留输入和错误。
     删除前确认并说明未提交改动仍保留在分支；主检出位不提供改名、删除入口。
   - 换挂时清除旧对比、选中变更与提交详情，重新读取状态与历史；页面写命令与换挂互斥，避免异步凭据读取期间切走表集。
-    对话框共用焦点陷阱、恢复焦点与输入法守卫。浏览器验收位于三端 `worktree-management.spec.ts`，覆盖完整流程及明暗主题 axe、Tab / Escape / IME。
+    对话框共用焦点陷阱、恢复焦点与输入法守卫。浏览器验收位于三端 `worktree-management.spec.ts`，覆盖完整流程及明暗主题 axe、Tab / Escape / IME；三端工具栏保留原列宽，窄屏自动换行，菜单打开时缩窗仍保持在视口内。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 

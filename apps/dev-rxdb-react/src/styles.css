@@ -691,10 +691,18 @@ textarea.gd-input {
    白系而不是吃 var——亮色主题下 var(--gd-fg) 是深灰，压蓝底会塌对比度。 */
 .gd-workspace .gd-toolbar {
   background: #24292e;
-  height: 50px;
+  flex-wrap: wrap;
+  min-height: 50px;
 }
 .gd-workspace .gd-toolbar-section {
+  flex-shrink: 0;
+  height: 50px;
   min-width: 0;
+}
+.gd-workspace .gd-worktree-section {
+  flex: 1 1 120px;
+  max-width: 220px;
+  min-width: 120px;
 }
 .gd-workspace .gd-toolbar-select,
 .gd-workspace .gd-toolbar-refresh {
@@ -739,6 +747,7 @@ textarea.gd-input {
 }
 /* 工具栏分段之间的可拖分隔条：常驻 1px 深线，悬停 / 按住亮起。 */
 .gd-workspace .gd-toolbar-handle {
+  height: 50px;
   background: transparent;
   cursor: col-resize;
   flex-shrink: 0;

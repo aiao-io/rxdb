@@ -186,6 +186,64 @@ test.describe('US-314 Worktree 浏览器验收', () => {
     await expect(page.getByTestId('wt-branch-menu-worktree')).toHaveCount(0);
   });
 
+  test('工具栏空间不足时保留段宽、换行后的菜单和键盘焦点都在视口内', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 600 });
+    await openPanel(page);
+    const controls = ['wt-repo-menu', 'wt-worktree-menu', 'wt-branch-menu', 'wt-refresh-status'];
+    for (const width of [900, 390]) {
+      await page.setViewportSize({ width, height: 600 });
+      await expect
+        .poll(() =>
+          page.getByTestId('working-tree-page').evaluate((workspace, ids) => {
+            const bounds = workspace.getBoundingClientRect();
+            return ids.every(id => {
+              const control = workspace.querySelector(`[data-testid="${id}"]`);
+              if (!(control instanceof HTMLElement)) return false;
+              const box = control.getBoundingClientRect();
+              return box.width >= 44 && box.height >= 44 && box.left >= bounds.left && box.right <= bounds.right;
+            });
+          }, controls)
+        )
+        .toBe(true);
+      await page.getByTestId(controls[0]).focus();
+      for (const id of controls.slice(1)) await tabTo(page, page.getByTestId(id));
+      await page.getByTestId('wt-branch-menu').click();
+      await tabTo(page, page.getByTestId('wt-branch-merge-into'));
+      await expect
+        .poll(() =>
+          page.getByTestId('wt-branch-menu-popup').evaluate(popup => {
+            const box = popup.getBoundingClientRect();
+            return box.left >= 0 && box.right <= window.innerWidth && box.bottom <= window.innerHeight;
+          })
+        )
+        .toBe(true);
+      await expect(page.getByTestId('wt-branch-merge-into')).toBeInViewport({ ratio: 1 });
+      await page.setViewportSize({ width: width === 900 ? 820 : 350, height: 480 });
+      await expect
+        .poll(() =>
+          page.getByTestId('wt-branch-menu-popup').evaluate(popup => {
+            const box = popup.getBoundingClientRect();
+            return box.left >= 0 && box.right <= window.innerWidth && box.bottom <= window.innerHeight;
+          })
+        )
+        .toBe(true);
+      await expect(page.getByTestId('wt-branch-merge-into')).toBeInViewport({ ratio: 1 });
+      await page.keyboard.press('Escape');
+      await openWorktrees(page);
+      await tabTo(page, page.getByTestId('wt-worktree-create'));
+      await page.setViewportSize({ width, height: 400 });
+      await expect
+        .poll(() =>
+          page.getByTestId('wt-worktree-menu-popup').evaluate(popup => {
+            const box = popup.getBoundingClientRect();
+            return box.left >= 0 && box.right <= window.innerWidth && box.bottom <= window.innerHeight;
+          })
+        )
+        .toBe(true);
+      await page.keyboard.press('Escape');
+    }
+  });
+
   for (const theme of ['light', 'dark']) {
     test(`${theme}：菜单和三个对话框 axe 零违规、键盘焦点圈定、IME 不误提交或关闭`, async ({ page }) => {
       await page.addInitScript(value => window.localStorage.setItem('theme', value), theme);
