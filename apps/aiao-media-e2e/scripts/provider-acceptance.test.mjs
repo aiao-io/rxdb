@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { assertionCode, attemptPath, failureCode, liveSettings } from './provider-acceptance.mjs';
+import { assertionCode, attemptPath, failureCode, liveSettings, readOriginal } from './provider-acceptance.mjs';
 
 const config = {
   AIAO_MEDIA_ACCEPTANCE_GENERATE: '1',
@@ -21,6 +21,32 @@ test('诊断仅返回固定错误码，供应商 URL、Key 与原始异常不进
   assert.equal(failureCode(new Error('private-test-key https://private.example.test')), 'BROWSER_OPERATION_FAILED');
   assert.equal(assertionCode({ matcherResult: { name: 'toBeVisible' } }), 'ELEMENT_VISIBLE');
   assert.equal(assertionCode({ matcherResult: { name: 'private-test-key' } }), 'NONE');
+});
+
+test('生成JSON、原图headers和原图body读取各自保留固定错误码，CDP失败不重读', async () => {
+  for (const [kind, code] of [
+    ['generation-body', 'GENERATION_BODY_READ_FAILED'],
+    ['result-headers', 'RESULT_HEADERS_READ_FAILED'],
+    ['result-body', 'RESULT_BODY_READ_FAILED']
+  ]) {
+    let reads = 0;
+    await assert.rejects(
+      readOriginal(kind, () => {
+        reads++;
+        throw new Error('private-test-key https://private.example.test?token=secret');
+      }),
+      error => error.message === code
+    );
+    assert.equal(reads, 1);
+  }
+  await assert.rejects(
+    readOriginal('generation-body', () => {
+      throw new Error(
+        'Protocol error (Network.getResponseBody): No resource with given identifier found private-test-key'
+      );
+    }),
+    error => error.message === 'GENERATION_BODY_CDP_UNAVAILABLE'
+  );
 });
 
 test('真实供应商验收必须显式启用且只接受已决定的正式 origin', () => {

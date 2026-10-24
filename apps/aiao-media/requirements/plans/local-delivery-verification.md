@@ -63,7 +63,7 @@ Supabase SDK 在锁文件去重到 2.117.3，无全局版本 override。同步�
 
 此前基线的首次并发执行遇到 `rxdb-model-react:typecheck` 的 TS6305 测试夹具声明产物缺失。通过该 target 的 `--force` 串行重建、清理其本地增量记录后，全量串行通过；本轮无该失败，Nx 仍保留其历史 flaky 提示。未修改包源码或放宽检查。e2e 生成的三个性能报告保存在忽略的应用 tmp 目录，未混入产品提交。
 
-此前提交 `a5abd39b` 的 GitHub CI 全通过、CodeQL 未修复告警 0、10 个评审线程全部解决。本轮恢复入口的 244 单测、应用/e2e lint 与类型检查、7 个真实产品场景通过；新增正式验收 runner 的 4 个 guard、6 个通道/画幅组合和错误尺寸/产物变化/失败不重发负例已通过。`provider-acceptance-fixture` 纳入默认 e2e；正式 live 入口只在明确 opt-in、正式 origin、发布 version UUID 与审核 manifest 摘要都有效时运行。正式发布等待[执行条件](release-completion-tasks.md)，不把未执行项目写成完成。
+此前提交 `a5abd39b` 的 GitHub CI 全通过、CodeQL 未修复告警 0、10 个评审线程全部解决。本轮恢复入口的 244 单测、应用/e2e lint 与类型检查、7 个真实产品场景通过；新增正式验收 runner 的 5 个 guard、6 个通道/画幅组合和错误尺寸/产物变化/失败不重发负例已通过。`provider-acceptance-fixture` 纳入默认 e2e；正式 live 入口只在明确 opt-in、正式 origin、发布 version UUID 与审核 manifest 摘要都有效时运行。正式发布等待[执行条件](release-completion-tasks.md)，不把未执行项目写成完成。
 
 ## 正式验收自动化准备
 

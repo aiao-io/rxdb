@@ -25,6 +25,15 @@ export function failureCode(error) {
     ['INVALID_RESULT_ORIGIN', 'INVALID_RESULT_ORIGIN'],
     ['RESULT_CREDENTIAL_LEAK', 'RESULT_CREDENTIAL_LEAK'],
     ['RESULT_READ_FAILED', 'RESULT_READ_FAILED'],
+    ['GENERATION_BODY_READ_FAILED', 'GENERATION_BODY_READ_FAILED'],
+    ['GENERATION_BODY_CDP_UNAVAILABLE', 'GENERATION_BODY_CDP_UNAVAILABLE'],
+    ['GENERATION_BODY_EMPTY', 'GENERATION_BODY_EMPTY'],
+    ['GENERATION_JSON_INVALID', 'GENERATION_JSON_INVALID'],
+    ['RESULT_HEADERS_READ_FAILED', 'RESULT_HEADERS_READ_FAILED'],
+    ['RESULT_HEADERS_CDP_UNAVAILABLE', 'RESULT_HEADERS_CDP_UNAVAILABLE'],
+    ['RESULT_BODY_READ_FAILED', 'RESULT_BODY_READ_FAILED'],
+    ['RESULT_BODY_CDP_UNAVAILABLE', 'RESULT_BODY_CDP_UNAVAILABLE'],
+    ['RESULT_BODY_EMPTY', 'RESULT_BODY_EMPTY'],
     ['GENERATION_REQUEST_BOUNDARY', 'GENERATION_REQUEST_BOUNDARY'],
     ['RESULT_SIZE_MISMATCH', 'RESULT_SIZE_MISMATCH']
   ]);
@@ -32,6 +41,27 @@ export function failureCode(error) {
   if (error?.name === 'TimeoutError') return 'BROWSER_TIMEOUT';
   if (typeof error?.message === 'string' && error.message.includes('expect(')) return 'BROWSER_ASSERTION';
   return 'BROWSER_OPERATION_FAILED';
+}
+
+export async function readOriginal(kind, read) {
+  let code;
+  try {
+    return await read();
+  } catch (error) {
+    const unavailable =
+      typeof error?.message === 'string' &&
+      /Network\.getResponseBody|No resource with given identifier|Response body is unavailable/.test(error.message);
+    code =
+      kind === 'generation-body' ?
+        unavailable ? 'GENERATION_BODY_CDP_UNAVAILABLE'
+        : 'GENERATION_BODY_READ_FAILED'
+      : kind === 'result-headers' ?
+        unavailable ? 'RESULT_HEADERS_CDP_UNAVAILABLE'
+        : 'RESULT_HEADERS_READ_FAILED'
+      : unavailable ? 'RESULT_BODY_CDP_UNAVAILABLE'
+      : 'RESULT_BODY_READ_FAILED';
+  }
+  throw new Error(code);
 }
 
 export function assertionCode(error) {
@@ -173,9 +203,18 @@ async function runAttempt(browser, settings, directory, mode, ratio) {
   );
 }
 
-async function originalBytes(response, responses, origin) {
+async function originalBytes(response, responses, origin, record) {
   requireCheck(response.ok(), 'GENERATION_REJECTED_OR_UNCERTAIN');
-  const result = await response.json();
+  record.stage = 'generation-body';
+  const body = await readOriginal('generation-body', () => response.body());
+  requireCheck(body.length > 0, 'GENERATION_BODY_EMPTY');
+  record.stage = 'generation-json';
+  let result;
+  try {
+    result = JSON.parse(body.toString('utf8'));
+  } catch {
+    throw new Error('GENERATION_JSON_INVALID');
+  }
   const item = result?.data?.length === 1 ? result.data[0] : null;
   if (typeof item?.b64_json === 'string')
     return { bytes: Buffer.from(item.b64_json, 'base64'), delivery: 'base64', credentialFree: null };
@@ -184,14 +223,18 @@ async function originalBytes(response, responses, origin) {
   requireCheck(url.protocol === 'https:' && !url.username && !url.password, 'INVALID_RESULT_ORIGIN');
   await expect.poll(() => responses.has(url.href), { timeout: 30000 }).toBe(true);
   const image = responses.get(url.href);
-  const headers = await image.request().allHeaders();
+  record.stage = 'result-headers';
+  const headers = await readOriginal('result-headers', () => image.request().allHeaders());
   requireCheck(
     ['authorization', 'cookie', 'referer'].every(name => !headers[name]),
     'RESULT_CREDENTIAL_LEAK'
   );
   requireCheck(!image.request().redirectedFrom() && image.ok(), 'RESULT_READ_FAILED');
+  record.stage = 'result-body';
+  const bytes = await readOriginal('result-body', () => image.body());
+  requireCheck(bytes.length > 0, 'RESULT_BODY_EMPTY');
   return {
-    bytes: await image.body(),
+    bytes,
     delivery: url.origin === origin ? 'same-origin-url' : 'cross-origin-url',
     credentialFree: true
   };
@@ -262,7 +305,7 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     const response = await generated;
     record.generationStatus = response.status();
     record.stage = 'original-result';
-    const original = await originalBytes(response, responses, settings.origin);
+    const original = await originalBytes(response, responses, settings.origin, record);
     record.stage = 'local-save';
     await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible({ timeout: 210000 });
     requireCheck(!record.requestBoundaryFailed && record.generationRequests === 1, 'GENERATION_REQUEST_BOUNDARY');
