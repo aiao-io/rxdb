@@ -7,8 +7,9 @@
  * 实体就是在这笔事务里读出、建出的。
  */
 
-import type { RxDB } from '../RxDB.js';
+import type { RxDBMutationsMap } from '../rxdb-adapter.js';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
+import type { RxDB } from '../RxDB.js';
 import { WorktreeTableSetMismatchError } from '../system/worktree-table-set.js';
 import type { EntityType } from './entity.interface.js';
 
@@ -34,6 +35,22 @@ export const assertMountedTableSet = (rxdb: RxDB, entities: Iterable<object>): v
       `${metadata.namespace}.${metadata.name}`,
       recorded ?? null,
       current ?? null
+    );
+  }
+};
+
+/**
+ * 在批量写实际执行时核对实体所属表集；必须与写入共用事务边界。
+ *
+ * @param rxdb - 发起写入的实例
+ * @param options - 整批实体变更
+ * @throws {@link WorktreeTableSetMismatchError} 实体来自另一套表时，整批拒绝
+ */
+export const assertMutationsTableSet = <T extends EntityType>(rxdb: RxDB, options: RxDBMutationsMap<T>): void => {
+  for (const bucket of [options.create, options.update, options.remove]) {
+    assertMountedTableSet(
+      rxdb,
+      [...bucket.values()].flatMap(entities => [...entities])
     );
   }
 };

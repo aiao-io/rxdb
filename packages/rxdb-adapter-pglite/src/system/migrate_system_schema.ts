@@ -43,20 +43,11 @@ export interface SystemSchemaMigrationHost {
   getClient(): Promise<IPGliteClient>;
 }
 
-/**
- * 系统模式 7 给 `RxDBChange` 补的两列，见 {@link ensureChangeRejectionColumns}
- */
-const CHANGE_REJECTION_PROPERTY_NAMES = ['rejectedAt', 'rejection'] as const;
+/** 系统模式 7、8 新增的可空日志列；旧行保持为空。 */
+const CHANGE_ADDITIONAL_PROPERTY_NAMES = ['rejectedAt', 'rejection', 'tableSetSuffix'] as const;
 
-/**
- * 系统模式 7：给 `RxDBChange` 补可空列 `rejectedAt`、`rejection`（US-218 阶段 B 的推送回执）
- *
- * @remarks
- * 与 sqlite 侧 `RxDBAdapterSqliteBase.ts` 的 `ensureChangeRejectionColumns` 逐语义对齐，改动
- * 必须两端同改（不合一的理由同 {@link ensureBranchActiveKey}）。先探列再补，「列已在、水位线
- * 仍停在 6」的库重跑一趟不报错。列类型走建表同一个 helper；两列都可空，旧行为 `null`，不回填。
- */
-const ensureChangeRejectionColumns = async (
+/** 给既有日志表幂等补列，必须先于变更触发器重建。 */
+const ensureChangeColumns = async (
   tx: Pick<IPGliteClient, 'query'>,
   changeMetadata: EntityMetadata,
   existingTables: ReadonlySet<string>
@@ -65,7 +56,7 @@ const ensureChangeRejectionColumns = async (
     return;
 
   const changeTable = getTableNameByMetadata(changeMetadata, WorktreeTableSet.MAIN);
-  for (const propertyName of CHANGE_REJECTION_PROPERTY_NAMES) {
+  for (const propertyName of CHANGE_ADDITIONAL_PROPERTY_NAMES) {
     const property = changeMetadata.properties.find(candidate => candidate.name === propertyName);
     if (!property) {
       throw new RxdbAdapterPGliteError(`RxDBChange metadata is missing the "${propertyName}" property.`);
@@ -337,6 +328,8 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
           throw new RxDBSystemMigrationLockError(cause);
         }
 
+        const changeMetadata = getEntityMetadata(RxDBChange);
+        await ensureChangeColumns(tx, changeMetadata, existingTables);
         const branchMetadata = getEntityMetadata(RxDBBranch);
         let activeBranchId: string = MAIN_BRANCH_ID;
         if (
@@ -358,7 +351,6 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
           }
         }
 
-        const changeMetadata = getEntityMetadata(RxDBChange);
         const columnResult = await tx.query<{ data_type: string }>(
           `SELECT data_type FROM information_schema.columns
            WHERE table_schema = $1::text AND table_name = $2::text AND column_name = 'entityId'`,
@@ -406,7 +398,6 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
 
         await ensureBranchActiveKey(tx, branchMetadata, existingTables);
         await rebuildWorktreeTableSetTriggers(tx, host, branchMetadata, existingTables);
-        await ensureChangeRejectionColumns(tx, changeMetadata, existingTables);
 
         for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {
           await tx.query(

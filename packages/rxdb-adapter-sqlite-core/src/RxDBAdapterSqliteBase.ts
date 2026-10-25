@@ -17,6 +17,7 @@ import type {
 import {
   ACTIVE_BRANCH_KEY,
   AmbiguousActiveBranchError,
+  assertMutationsTableSet,
   assertSupportedRxDBSystemVersions,
   declaresStorageConstraints,
   gateRawWrite,
@@ -186,21 +187,11 @@ const readActiveBranchIdOrMain = async (tx: SqlExecutor): Promise<string> => {
   return typeof activeBranchId === 'string' ? activeBranchId : MAIN_BRANCH_ID;
 };
 
-/**
- * 系统模式 7 给 `RxDBChange` 补的两列，见 {@link ensureChangeRejectionColumns}
- */
-const CHANGE_REJECTION_PROPERTY_NAMES = ['rejectedAt', 'rejection'] as const;
+/** 系统模式 7、8 新增的可空日志列；旧行保持为空。 */
+const CHANGE_ADDITIONAL_PROPERTY_NAMES = ['rejectedAt', 'rejection', 'tableSetSuffix'] as const;
 
-/**
- * 系统模式 7：给 `RxDBChange` 补可空列 `rejectedAt`、`rejection`（US-218 阶段 B 的推送回执）
- *
- * @remarks
- * 与 PGlite 侧 `system/migrate_system_schema.ts` 的 `ensureChangeRejectionColumns` 逐语义对齐，
- * 改动必须两端同改。与 {@link ensureBranchActiveKey} 一样先探列再补：SQLite 的
- * `ADD COLUMN` 没有 `IF NOT EXISTS`，「列已在、水位线仍停在 6」的库重跑一趟必须不报错。
- * 列类型走建表同一个 helper；两列都可空，旧行为 `null`，不回填。
- */
-const ensureChangeRejectionColumns = async (client: SqliteClientLike): Promise<void> => {
+/** 给既有日志表幂等补列，必须先于变更触发器重建。 */
+const ensureChangeColumns = async (client: SqliteClientLike): Promise<void> => {
   const changeMetadata = getEntityMetadata(RxDBChange);
   const changeTableName = get_table_name_by_metadata(changeMetadata, WorktreeTableSet.MAIN);
   const tableResult = await client.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
@@ -209,7 +200,7 @@ const ensureChangeRejectionColumns = async (client: SqliteClientLike): Promise<v
   if (!tableResult.results.some(result => result.rows.length > 0)) return;
 
   const changeTable = quote_sql_identifier(changeTableName);
-  for (const propertyName of CHANGE_REJECTION_PROPERTY_NAMES) {
+  for (const propertyName of CHANGE_ADDITIONAL_PROPERTY_NAMES) {
     const property = changeMetadata.properties.find(candidate => candidate.name === propertyName);
     if (!property) {
       throw new RxDBAdapterSqliteError(`RxDBChange metadata is missing the "${propertyName}" property.`);
@@ -973,7 +964,10 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     // C2：不再按环境态分流。外部调用一律开自己的事务并重新排队 —— 事务窗口内的外部写
     // 被卷进他人事务、跟着 ROLLBACK 一起消失，正是 `SQLC-001`。
     // 事务体内的嵌套写要走 `executor.mutations()`（持有 executor 才算在本事务内）。
-    return this.transaction(executor => executor.mutations(options)) as Promise<InstanceType<T>[]>;
+    return this.transaction(executor => {
+      assertMutationsTableSet(this.rxdb, options);
+      return executor.mutations(options);
+    }) as Promise<InstanceType<T>[]>;
   }
 
   public async isTableExisted<T extends EntityType>(EntityType: T): Promise<boolean> {
@@ -1086,6 +1080,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         assertSupportedRxDBSystemVersions(state);
 
         if (!isCurrentRxDBSystemVersion(state)) {
+          await ensureChangeColumns(client);
           const existingLoggedMetadata: EntityMetadata[] = [];
           for (const EntityType of this.rxdb.config.entities) {
             const metadata = getEntityMetadata(EntityType);
@@ -1135,7 +1130,6 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
 
           await ensureBranchActiveKey(client);
           await rebuildWorktreeTableSetTriggers(client, this);
-          await ensureChangeRejectionColumns(client);
 
           for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {
             await client.execute(

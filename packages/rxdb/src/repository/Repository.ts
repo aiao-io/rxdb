@@ -725,6 +725,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     const restore = snapshotSortOrders([entity]);
     try {
       const created = await adapter.transaction(async executor => {
+        assertMountedTableSet(this.rxdb, [entity]);
         const repository = executor.getRepository(this.EntityType);
         await appendToGroupTails(repository, metadata, [{ row: entity, persisted: false }], []);
         return repository.create(entity);
@@ -748,6 +749,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     const adapter = await this.#manualOrderAdapter('改分组字段');
     const metadata = getEntityMetadata(this.EntityType);
     const updated = await adapter.transaction(async executor => {
+      assertMountedTableSet(this.rxdb, [entity]);
       const repository = executor.getRepository(this.EntityType);
       const moving = regroupRow(metadata, entity, patch);
       await appendToGroupTails(repository, metadata, [moving], []);

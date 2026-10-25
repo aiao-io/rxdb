@@ -412,13 +412,14 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
         try {
           // 模拟升级前的旧触发器：先把影子表的触发器删光，迁移要把它们按持有分支建回来
           await adapter.internalQuery(remove_all_triggers_sql(adapter, tableSet));
-          await dropWatermarks();
-
-          await adapter.migrateSystemSchema();
-
+          await adapter.internalQuery(remove_all_triggers_sql(adapter, WorktreeTableSet.MAIN));
           const changeTable = quote_sql_identifier(
             get_table_name_by_metadata(getEntityMetadata(RxDBChange), WorktreeTableSet.MAIN)
           );
+          await adapter.internalQuery(`ALTER TABLE ${changeTable} DROP COLUMN "tableSetSuffix"`);
+          await dropWatermarks();
+
+          await adapter.migrateSystemSchema();
           const shadowTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(Todo), tableSet));
           const todoId = crypto.randomUUID();
           const now = new Date().toISOString();
@@ -426,10 +427,18 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
             `INSERT INTO ${shadowTable} ("id", "title", "completed", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?)`,
             [todoId, 'in worktree', 0, now, now]
           );
-          const changeRows = await adapter.internalQuery(`SELECT "branchId" FROM ${changeTable} WHERE "entityId" = ?`, [
-            encodeRxDBChangeEntityId(todoId)
-          ]);
-          expect(changeRows.results.flatMap(item => item.rows)).toEqual([[heldBranch]]);
+          const changeRows = await adapter.internalQuery(
+            `SELECT "branchId", "tableSetSuffix" FROM ${changeTable} WHERE "entityId" = ?`,
+            [encodeRxDBChangeEntityId(todoId)]
+          );
+          expect(changeRows.results.flatMap(item => item.rows)).toEqual([[heldBranch, tableSet.suffix]]);
+          const main = new Todo({ title: 'main after migration' });
+          await main.save();
+          const mainChanges = await adapter.internalQuery(
+            `SELECT "tableSetSuffix" FROM ${changeTable} WHERE "entityId" = ?`,
+            [encodeRxDBChangeEntityId(main.id)]
+          );
+          expect(mainChanges.results.flatMap(item => item.rows)).toEqual([[null]]);
         } finally {
           await drop_worktree_table_set(adapter, tableSet);
         }

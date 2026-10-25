@@ -18,6 +18,7 @@ import type {
   WorktreeTableSetSeed
 } from '@aiao/rxdb';
 import {
+  assertMutationsTableSet,
   gateRawWrite,
   getEntityMetadata,
   getEntityStatus,
@@ -453,7 +454,10 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   }
 
   async mutations<T extends EntityType>(mutations: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {
-    return this.transaction(executor => executor.mutations(mutations));
+    return this.transaction(executor => {
+      assertMutationsTableSet(this.rxdb, mutations);
+      return executor.mutations(mutations);
+    });
   }
 
   /** 合并远程变更。`disableTriggers` 用于 pull，避免再写 RxDBChange。 */

@@ -2,6 +2,7 @@ import {
   ACTIVE_BRANCH_KEY,
   ENTITY_LOCAL_CREATE_EVENT,
   ENTITY_LOCAL_REMOVE_EVENT,
+  ENTITY_LOCAL_UPDATE_EVENT,
   Entity,
   EntityBase,
   type IRxDBChange,
@@ -10,13 +11,16 @@ import {
   RxDBChange,
   WorktreeBranchHeldError,
   WorktreeTableSet,
+  WorktreeTableSetMismatchError,
   encodeRxDBChangeEntityId,
   getEntityMetadata,
   getRxDBChangeKey
 } from '@aiao/rxdb';
 import { firstValueFrom, skip } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { handle_rxdb_change } from '../handle_rxdb_change.js';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
+import { SQLiteChangeType } from '../sqlite-backend.interface.js';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
 import { quote_sql_identifier } from '../sqlite-core.utils.js';
 import { get_table_name_by_metadata } from '../table-name-resolver.js';
@@ -174,6 +178,16 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
 
       expect(await branchesOfChanges(shadowId)).toEqual([heldBranch]);
       expect(await branchesOfChanges(mainId)).toEqual(['main']);
+      expect(
+        await readRows(`SELECT "tableSetSuffix" FROM ${changeTable} WHERE "entityId" = ?`, [
+          encodeRxDBChangeEntityId(shadowId)
+        ])
+      ).toEqual([[tableSet.suffix]]);
+      expect(
+        await readRows(`SELECT "tableSetSuffix" FROM ${changeTable} WHERE "entityId" = ?`, [
+          encodeRxDBChangeEntityId(mainId)
+        ])
+      ).toEqual([[null]]);
       expect(await titlesOf(tableSet)).toEqual(['shadow']);
       expect(await titlesOf(WorktreeTableSet.MAIN)).toEqual(['main']);
     });
@@ -345,6 +359,59 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
         const [[nextId]] = await readRows(`SELECT max("id") FROM ${shadowTable}`);
         expect(Number(nextId)).toBe(Number(lastId) + 1);
       });
+    });
+
+    it.each(['saveMany', 'removeMany'] as const)('换挂排队期间的 %s 不得写进另一套表', async operation => {
+      const todo = new Todo({ title: 'original' });
+      await todo.save();
+      await adapter.internalQuery(`INSERT INTO ${tableOf(tableSet)} SELECT * FROM ${tableOf(WorktreeTableSet.MAIN)}`);
+      const entered = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+      const blocking = adapter.transaction(async () => {
+        entered.resolve();
+        await release.promise;
+      }, false);
+      await entered.promise;
+      const mounting = adapter.rxdb.mountWorktreeTableSet(tableSet);
+      todo.title = 'main-edit';
+      const saving = adapter.rxdb.entityManager[operation]([todo]);
+      release.resolve();
+      try {
+        const [blocked, mounted, saved] = await Promise.allSettled([blocking, mounting, saving]);
+        expect(blocked.status).toBe('fulfilled');
+        expect(mounted.status).toBe('fulfilled');
+        expect(saved).toMatchObject({ status: 'rejected', reason: expect.any(WorktreeTableSetMismatchError) });
+        expect(await titlesOf(tableSet)).toEqual(['original']);
+      } finally {
+        await adapter.rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+      }
+    });
+
+    it('分支持有键释放后，迟到事件仍标记原影子表', async () => {
+      const id = await rawInsert(tableSet, 'shadow');
+      await adapter.internalQuery(`UPDATE ${tableOf(tableSet)} SET "title" = ? WHERE "id" = ?`, ['shadow-edit', id]);
+      const [[changeId]] = await readRows(`SELECT max("id") FROM ${changeTable} WHERE "branchId" = ? AND "type" = ?`, [
+        heldBranch,
+        'UPDATE'
+      ]);
+      await adapter.internalQuery(`UPDATE ${branchTable} SET "activeKey" = NULL WHERE "id" = ?`, [heldBranch]);
+      const seen: { entity: string; id: unknown; tableSetSuffix?: string }[] = [];
+      const listener = (event: { entities: { entity: string; id: unknown; tableSetSuffix?: string }[] }) => {
+        seen.push(...event.entities.filter(entity => entity.entity === 'Todo'));
+      };
+      adapter.rxdb.addEventListener(ENTITY_LOCAL_UPDATE_EVENT, listener);
+      try {
+        await handle_rxdb_change(adapter, {
+          type: SQLiteChangeType.SQLITE_INSERT,
+          dbName: adapter.rxdb.config.dbName,
+          tableName: 'rxdb$rxdb_change',
+          rowIds: [BigInt(String(changeId))],
+          recordAt: new Date()
+        });
+        expect(seen).toContainEqual(expect.objectContaining({ id, tableSetSuffix: tableSet.suffix }));
+      } finally {
+        adapter.rxdb.removeEventListener(ENTITY_LOCAL_UPDATE_EVENT, listener);
+      }
     });
 
     // 实例挂在可写检出位上（US-314 B1.4）：读写落在影子表、记在持有分支，当前分支是持有分支；挂回主表集一切照旧。

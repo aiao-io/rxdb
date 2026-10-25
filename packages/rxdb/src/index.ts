@@ -44,6 +44,7 @@ export type { EntityStatus } from './entity/entity-status.js';
 export * from './entity/entity-value.utils.js';
 export * from './entity/entity.decorator.js';
 export * from './entity/entity.interface.js';
+export { assertMutationsTableSet } from './entity/worktree-table-set-guard.js';
 // 具名收口（原为 `export *`，连带把九个内部装配手法一起放在了公开面上）。
 // 留在面上的五个各有理由：`normalizeCreateEntity` / `normalizeUpdateEntity` 是适配器写
 // INSERT / UPDATE 前的字段规范化（两个适配器各 import 一次，共 11 个文件）；

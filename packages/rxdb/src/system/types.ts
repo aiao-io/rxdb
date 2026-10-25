@@ -196,6 +196,7 @@ declare type RxDBChangeRule =
   | NumberRules<RxDBChange, 'remoteId'>
   | NumberRules<RxDBChange, 'localId'>
   | StringRules<RxDBChange, 'type'>
+  | StringRules<RxDBChange, 'tableSetSuffix'>
   | UUIDRules<RxDBChange, 'transactionId'>
   | StringRules<RxDBChange, 'namespace'>
   | StringRules<RxDBChange, 'entity'>
@@ -317,6 +318,7 @@ export declare type RxDBChangeOrderByField =
   | 'namespace'
   | 'entity'
   | 'entityId'
+  | 'tableSetSuffix'
   | 'inversePatch'
   | 'patch'
   | 'createdAt'

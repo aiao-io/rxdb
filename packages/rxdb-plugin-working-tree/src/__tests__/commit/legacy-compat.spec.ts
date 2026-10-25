@@ -98,6 +98,7 @@ const LEGACY_CHANGE_COLUMNS: [string, ColumnType][] = [
   ['rejectedAt', PropertyType.date],
   ['rejection', PropertyType.json],
   ['type', PropertyType.string],
+  ['tableSetSuffix', PropertyType.string],
   ['transactionId', PropertyType.uuid],
   ['namespace', PropertyType.string],
   ['entity', PropertyType.string],

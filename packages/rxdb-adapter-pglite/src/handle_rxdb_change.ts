@@ -26,7 +26,6 @@ import { chunk, unionBy } from '@aiao/utils';
 import { PGliteChangeEvent, PGliteChangeType } from './pglite.interface.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
 import { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
-import { readBranchHolderSuffixes } from './version/read_branch_holders.js';
 
 const MAX_ROW_IDS_PER_QUERY = 200;
 const RXDB_SYSTEM_TABLES = new Set(['rxdb_change', 'rxdb_branch', 'rxdb_migration']);
@@ -80,14 +79,8 @@ const isRxDBChangeEntity = (entity: object): entity is RxDBChange => {
  *
  * @param adapter - 适配器
  * @param changes - 变更行
- * @param holders - 这批变更的分支此刻被哪套影子表持有（`readBranchHolderSuffixes`）：事件据此打上 `tableSetSuffix`
- *   （US-314 B2.3）；主检出位持有的分支不打，主表集上的事件形状不变
  */
-const emitChangeEvent = (
-  adapter: RxDBAdapterPGlite,
-  changes: RxDBChange[],
-  holders: ReadonlyMap<string, string>
-): void => {
+const emitChangeEvent = (adapter: RxDBAdapterPGlite, changes: RxDBChange[]): void => {
   const created: RxDBEntityLocalCreatedEventData<EventEntityType>[] = [];
   const updated: RxDBEntityLocalUpdatedEventData<EventEntityType>[] = [];
   const removed: RxDBEntityLocalRemovedEventData<EventEntityType>[] = [];
@@ -102,7 +95,7 @@ const emitChangeEvent = (
       console.warn(`Entity metadata not found for ${change.namespace}.${change.entity}`);
     }
 
-    const suffix = change.branchId === undefined ? undefined : holders.get(change.branchId);
+    const suffix = change.tableSetSuffix ?? undefined;
     const base = {
       namespace: change.namespace,
       entity: change.entity,
@@ -280,15 +273,7 @@ export const handle_rxdb_change = <T extends EntityType = EntityType>(
         console.warn(`Invalid RxDBChange rows received: expected=${entities.length}, valid=${changes.length}`);
       }
       if (changes.length === 0) return;
-      // 实体事件仍排在元事件之前：先读完持有者再一起派
-      emitChangeEvent(
-        adapter,
-        changes,
-        await readBranchHolderSuffixes(
-          adapter,
-          changes.map(change => change.branchId)
-        )
-      );
+      emitChangeEvent(adapter, changes);
       dispatchRxDBChangeTableEvent(adapter, event.type, changes, event.recordAt);
       return;
     }

@@ -2,6 +2,8 @@
 
 ### ⚠️ Breaking Changes
 
+- **rxdb / rxdb-adapter-sqlite-core / -pglite:** 系统表结构升至 8，`RxDBChange` 新增可空的 `tableSetSuffix`，固定变更写入时的表集来源，避免迟到事件污染其他检出位。旧库自动补列并重建触发器；升级后旧客户端会拒绝打开该库，需一起升级。
+
 - **rxdb-adapter-sqlite-core / -pglite / -sqlite / -sqlite-wasm / -sqliteai / -wa-sqlite:** 推导物理表名、生成建表 / 读写 / 触发器 SQL 的公开函数多了必填的表集参数（`WorktreeTableSet`），如 `get_table_name_by_metadata(metadata, tableSet)`、`getTableNameByMetadata(metadata, tableSet)`、`create_tables_sql(adapter, tableSet, …)`，触发器生成选项的 `tableSet` 必填。可写检出位在同一个库里各有一套业务表，不说哪一套推出来的永远是主检出位那一套，挂在别的检出位上会静默读写错表。只有主检出位的代码补 `WorktreeTableSet.MAIN` 即可，物理名与之前逐字相同，库文件无需迁移。→ [table-set-parameter](https://rxdb.aiao.io/docs/migration/table-set-parameter)（US-314）
 - **rxdb-adapter-sqlite-core:** 去掉 `switch_transaction_id`，改用 `generate_table_set_trigger_sql(adapter, tableSet, branchId, transactionId?)`：按表集重建变更触发器的唯一入口，表集与分支都显式给（US-314）
 - **rxdb-adapter-sqlite-core:** `readCurrentBranchId(tx)` 改为 `readCurrentBranchId(tx, tableSet)`：挂在可写检出位上时读那套表持有的分支（US-314）

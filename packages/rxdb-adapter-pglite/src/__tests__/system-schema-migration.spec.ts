@@ -731,6 +731,12 @@ describe('PGlite system schema migration', () => {
       for (const statement of remove_all_triggers_sql(adapter, tableSet).split('---STATEMENT_SEPARATOR---')) {
         if (statement.trim()) await adapter.internalQuery(statement.trim());
       }
+      for (const statement of remove_all_triggers_sql(adapter, WorktreeTableSet.MAIN).split(
+        '---STATEMENT_SEPARATOR---'
+      )) {
+        if (statement.trim()) await adapter.internalQuery(statement.trim());
+      }
+      await adapter.internalQuery('ALTER TABLE "rxdb"."rxdb_change" DROP COLUMN "tableSetSuffix"');
       await rewindSystemSchema(adapter);
 
       await adapter.migrateSystemSchema();
@@ -742,11 +748,18 @@ describe('PGlite system schema migration', () => {
          VALUES ($1::uuid, $2::text, now(), now())`,
         [id, 'in worktree']
       );
-      const change = await adapter.internalQuery<{ branchId: string }>(
-        `SELECT "branchId" FROM "rxdb"."rxdb_change" WHERE "entityId" = $1::text`,
+      const change = await adapter.internalQuery<{ branchId: string; tableSetSuffix: string | null }>(
+        `SELECT "branchId", "tableSetSuffix" FROM "rxdb"."rxdb_change" WHERE "entityId" = $1::text`,
         [encodeRxDBChangeEntityId(id)]
       );
-      expect(change.rows).toEqual([{ branchId: 'held' }]);
+      expect(change.rows).toEqual([{ branchId: 'held', tableSetSuffix: tableSet.suffix }]);
+      const main = new PGliteLegacyTodo({ title: 'main after migration' });
+      await main.save();
+      const mainChange = await adapter.internalQuery<{ tableSetSuffix: string | null }>(
+        `SELECT "tableSetSuffix" FROM "rxdb"."rxdb_change" WHERE "entityId" = $1::text`,
+        [encodeRxDBChangeEntityId(main.id)]
+      );
+      expect(mainChange.rows).toEqual([{ tableSetSuffix: null }]);
     });
 
     it('认不出的持有键整体回滚：不知道该重建哪一套表', async () => {
@@ -763,6 +776,31 @@ describe('PGlite system schema migration', () => {
 
   // US-218 FR-021：模式 7 给 RxDBChange 加 rejectedAt / rejection 两列。既有库按表粒度补建、从不看列，
   // 不在迁移里补，那批库第一次收到拒绝回执时写本地就会因列不存在而失败。
+  it('模式 7 升级后记录物理表集来源，旧日志为空，重复迁移保持不变', async () => {
+    const adapter = await createLegacyDatabase();
+    await adapter.internalQuery(
+      `INSERT INTO "rxdb"."rxdb_migration" ("name", "executedAt") VALUES ($1, now()), ($2, now())`,
+      ['__rxdb_system_schema__:7', RXDB_CHANGE_CODEC_WATERMARK]
+    );
+
+    await adapter.migrateSystemSchema();
+
+    const columns = await adapter.internalQuery<{ is_nullable: string; column_default: string | null }>(
+      `SELECT is_nullable, column_default FROM information_schema.columns
+       WHERE table_schema = 'rxdb' AND table_name = 'rxdb_change' AND column_name = 'tableSetSuffix'`
+    );
+    expect(columns.rows).toEqual([{ is_nullable: 'YES', column_default: null }]);
+    const changes = await adapter.internalQuery<{ tableSetSuffix: string | null }>(
+      `SELECT "tableSetSuffix" FROM "rxdb"."rxdb_change"`
+    );
+    expect(changes.rows).toEqual([{ tableSetSuffix: null }]);
+    const watermarks = await getWatermarks(adapter);
+    expect(watermarks.map(row => row.name)).toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
+
+    await adapter.migrateSystemSchema();
+    expect(await getWatermarks(adapter)).toEqual(watermarks);
+  });
+
   it('模式 6 的库升级后 RxDBChange 多出可空的 rejectedAt、rejection，旧行两列为空', async () => {
     const adapter = await createLegacyDatabase();
     await markSystemSchemaVersion6(adapter);

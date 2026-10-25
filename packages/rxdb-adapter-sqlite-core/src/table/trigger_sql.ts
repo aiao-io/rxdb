@@ -113,7 +113,7 @@ export const generate_table_trigger_sql = (entityMetadata: EntityMetadata, optio
       type: type as PropertyType | undefined
     });
   }
-  const columns = ` type, namespace, entity, branchId, transactionId, entityId, inversePatch, patch`;
+  const columns = ` type, namespace, entity, branchId, tableSetSuffix, transactionId, entityId, inversePatch, patch`;
   const { transactionId, branchId } = options;
   // 类型上已经必填，这里挡的是绕过类型的 JS 调用方：本函数是包的公开导出。
   if (!branchId) {
@@ -125,7 +125,8 @@ export const generate_table_trigger_sql = (entityMetadata: EntityMetadata, optio
   const namespace_sql = get_sql_value(namespace);
   const name_sql = get_sql_value(name);
 
-  const ids = `${namespace_sql},${name_sql},${branch_id},${transaction_id}`;
+  const suffix = get_sql_value(options.tableSet.ownerSuffixOf(entityMetadata));
+  const ids = `${namespace_sql},${name_sql},${branch_id},${suffix},${transaction_id}`;
 
   const idType =
     propertyMap.get('id')?.type === PropertyType.bigint ? 'bigint'

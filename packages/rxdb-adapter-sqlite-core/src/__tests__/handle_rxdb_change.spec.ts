@@ -90,8 +90,8 @@ interface RxDBChangeSeed {
   entity?: string;
   patch?: Record<string, unknown> | null;
   inversePatch?: Record<string, unknown> | null;
-  /** 记在哪条分支名下；给了的话派事件前要回查这条分支的持有者（US-314 B2.3） */
   branchId?: string;
+  tableSetSuffix?: string | null;
 }
 
 const createChangeRef = (rxdb: RxDB, seed: RxDBChangeSeed) =>
@@ -106,6 +106,7 @@ const createChangeRef = (rxdb: RxDB, seed: RxDBChangeSeed) =>
       patch: seed.patch ?? null,
       inversePatch: seed.inversePatch ?? null,
       ...(seed.branchId === undefined ? {} : { branchId: seed.branchId }),
+      tableSetSuffix: seed.tableSetSuffix ?? null,
       createdAt: new Date(ISO),
       updatedAt: new Date(ISO)
     } as unknown as EntityUpdateData<typeof RxDBChange>,
@@ -635,24 +636,33 @@ describe('SQLC-012 变更处理失败必须有公开错误通道', () => {
     expect(events).toHaveLength(0);
   });
 
-  // 变更行读出来之后、派事件之前还要回查分支的持有者（US-314 B2.3），这一次查询同样可能撞上断开
-  it('派事件前回查持有者时撞上断开：与查变更行同口径，不派发 change-error', async () => {
-    const rxdb = createRxdb('sqlite-core-change-holder-disconnect');
-    const adapter = new ChangeTestAdapter(rxdb, async () => {
-      throw new RxDBAdapterSqliteError('Adapter is disconnected', { code: 'adapter_disconnected' });
+  it('迟到的影子表变更沿用持久化来源，不回查已释放的分支持有者', async () => {
+    const rxdb = createRxdb('sqlite-core-change-source');
+    const query = vi.fn(async (): Promise<SqliteSuccessResult> => {
+      throw new Error('事件来源不应依赖分支查询');
     });
+    const adapter = new ChangeTestAdapter(rxdb, query);
     adapter.cacheRowIdEntity(
       11n,
-      createChangeRef(rxdb, { id: 11, type: 'INSERT', patch: { title: 'x' }, inversePatch: null, branchId: 'feature' })
+      createChangeRef(rxdb, {
+        id: 11,
+        type: 'INSERT',
+        patch: { title: 'shadow' },
+        inversePatch: null,
+        branchId: 'feature',
+        tableSetSuffix: 'wt_source'
+      })
     );
-    const events: SqliteChangeErrorEvent[] = [];
-    adapter.addChangeErrorListener(event => events.push(event));
     const dispatchSpy = vi.spyOn(rxdb, 'dispatchEvent');
 
     await handle_rxdb_change(adapter, changeEvent('rxdb$rxdb_change', SQLiteChangeType.SQLITE_INSERT, [11n]));
 
-    expect(events).toHaveLength(0);
-    expect(dispatchSpy).not.toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalled();
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entities: [expect.objectContaining({ entity: 'Todo', tableSetSuffix: 'wt_source' })]
+      })
+    );
   });
 
   it('监听器抛出不影响其余监听器，且被单独报告', async () => {

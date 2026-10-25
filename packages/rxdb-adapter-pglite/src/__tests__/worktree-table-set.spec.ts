@@ -163,6 +163,15 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
 
     expect(await branchesOfChanges(shadowId)).toEqual([heldBranch]);
     expect(await branchesOfChanges(mainId)).toEqual(['main']);
+    const sourceOf = async (id: string) =>
+      (
+        await adapter.internalQuery<{ tableSetSuffix: string | null }>(
+          'SELECT "tableSetSuffix" FROM "rxdb"."rxdb_change" WHERE "entityId" = $1',
+          [encodeRxDBChangeEntityId(id)]
+        )
+      ).rows.map(row => row.tableSetSuffix);
+    expect(await sourceOf(shadowId)).toEqual([tableSet.suffix]);
+    expect(await sourceOf(mainId)).toEqual([null]);
     expect(await titlesOf(tableSet)).toEqual(['shadow']);
     expect(await titlesOf(WorktreeTableSet.MAIN)).toEqual(['main']);
   });

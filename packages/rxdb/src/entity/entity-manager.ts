@@ -40,7 +40,7 @@ import { formatMetadataViolations, validateEntityMetadataSet } from './metadata-
 import { collectMutationEntityTypes, isQueryCacheBatch, resolveBatchPrimaryAdapter } from './primary-adapter.js';
 import { createEntityProxy } from './proxy.js';
 import entity_relation_helper from './relation-helper.js';
-import { assertMountedTableSet } from './worktree-table-set-guard.js';
+import { assertMutationsTableSet } from './worktree-table-set-guard.js';
 
 /**
  * @fileoverview 实体管理器
@@ -495,11 +495,7 @@ export class EntityManager {
     // 只读实例在一切判定之前拒绝（US-313）：只读检出位的快照库是另一条线建立时刻的数据，写进去对不上那条线
     if (this.rxdb.readOnly) throw new RxDBReadOnlyError('mutations');
     // 换挂之后旧的实体对象写不进另一套表（US-314 B2.4），与只读同一层、在一切写之前
-    assertMountedTableSet(this.rxdb, [
-      ...flattenMutationEntities(options.create),
-      ...flattenMutationEntities(options.update),
-      ...flattenMutationEntities(options.remove)
-    ]);
+    assertMutationsTableSet(this.rxdb, options);
     // 批量与单条共用同一个主适配器选择器：`Repository.primary$` 也走
     // `selectPrimaryAdapterKind`。此前批量硬等 `localAdapter$`，remote-only 配置下那条流
     // 永不发射，`firstValueFrom` 静默挂起——调用方拿到一个不会 settle 的 Promise。
@@ -683,6 +679,7 @@ export class EntityManager {
     const restore = snapshotSortOrders(sortOrderAppendEntities(options as RxDBMutationsMap));
     try {
       return await adapter.transaction(async executor => {
+        assertMutationsTableSet(this.rxdb, options);
         await appendBatchSortOrders(executor, options as RxDBMutationsMap);
         return executor.mutations(options);
       });

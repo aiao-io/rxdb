@@ -179,7 +179,7 @@ export function generate_trigger_sql(entityMetadata: EntityMetadata, options: Tr
   // RxDBChange 表的列名
   // 顺序设计：固定值(type, namespace, entity) -> 配置项(branchId, transactionId) -> 变化数据(entityId, inversePatch, patch)
   // 这样的顺序便于压缩 VALUES 里的值
-  const columns = `type, namespace, entity, "branchId", "transactionId", "entityId", "inversePatch", patch`;
+  const columns = `type, namespace, entity, "branchId", "tableSetSuffix", "transactionId", "entityId", "inversePatch", patch`;
 
   // 事务 setting 优先；显式生成期值仅用于兼容旧调用方。
   const rawTransactionId = transactionId ?? null;
@@ -189,6 +189,8 @@ export function generate_trigger_sql(entityMetadata: EntityMetadata, options: Tr
   // 分支 ID
   // 转义在构造 VALUES 列表时进行。
   const rawBranchId = branchId;
+  const suffix = options.tableSet.ownerSuffixOf(entityMetadata);
+  const tableSetSuffix = suffix === undefined ? 'NULL' : `'${escapeSqlString(suffix)}'`;
 
   // 触发器函数名 - PostgreSQL 标准格式: schema.function_name
   // 使用 tableName 来命名函数
@@ -199,6 +201,7 @@ export function generate_trigger_sql(entityMetadata: EntityMetadata, options: Tr
     `'${escapeSqlString(namespace)}',` +
     `'${escapeSqlString(name)}',` +
     `'${escapeSqlString(rawBranchId)}',` +
+    `${tableSetSuffix},` +
     transactionIdExpression;
   /**
    * 触发器函数

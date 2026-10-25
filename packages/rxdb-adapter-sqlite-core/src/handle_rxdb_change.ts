@@ -18,7 +18,6 @@ import { getRxDBChangeEventType, SqliteChangeEvent } from './sqlite-core.interfa
 import { RxDBAdapterSqliteError } from './sqlite-core.utils.js';
 import { unenvelopePlaintextPatches } from './system/encrypt-patch.js';
 import { get_table_name_info } from './table-name-resolver.js';
-import { read_branch_holder_suffixes } from './version/read_branch_holders.js';
 
 type EntityMetadata = ReturnType<typeof getEntityMetadata>;
 type EntityPatch<T extends EntityType> = Readonly<Partial<InstanceType<T>>>;
@@ -65,17 +64,12 @@ const decrypt_change_patches = async (adapter: RxDBAdapterSqliteBase, change: Rx
  * 由变更行派实体事件。
  *
  * @remarks
- * 事件打上写在哪套表上（`tableSetSuffix`，US-314 B2.3）：变更行记在哪条分支名下，那条分支此刻被哪套影子表持有，
- * 这行就写在那套表上（见 `read_branch_holders.ts`）。主检出位持有的分支不打，主表集上的事件形状不变。
+ * 事件沿用变更行写入时记录的 `tableSetSuffix`，不依赖分支持有关系；主表集上的事件形状不变。
  */
 const emit_change_event = async (adapter: RxDBAdapterSqliteBase, eventData: RxDBChange[]): Promise<void> => {
   const decrypted = await Promise.all(eventData.map(change => decrypt_change_patches(adapter, change)));
-  const holders = await read_branch_holder_suffixes(
-    adapter,
-    eventData.map(change => change.branchId)
-  );
   const tableSetTagOf = (change: RxDBChange): { tableSetSuffix?: string } => {
-    const suffix = change.branchId === undefined ? undefined : holders.get(change.branchId);
+    const suffix = change.tableSetSuffix ?? undefined;
     return suffix === undefined ? {} : { tableSetSuffix: suffix };
   };
   const group = new Map<RxDBChange['type'], DecryptedChange[]>();

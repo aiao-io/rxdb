@@ -1741,6 +1741,8 @@ export class RxDB {
     this.#local_adapter_sub.next('');
     this.#remote_adapter_sub.next('');
     this.#transaction_stack = [];
+    this.#worktree_table_set = WorktreeTableSet.MAIN;
+    this.#worktree_table_set$.next(WorktreeTableSet.MAIN);
     // 复位放在同步收尾段的最后，而不是随 #release_connection_scope() 一起：上面每个 await
     // 都是一次让路，此刻仍有别的 connect() 卡在自己的引导链里、还没走到 #await_plugin_installs()。
     // 提前抹掉安装记录，那个 connect() 醒来时会发现无事可等——一次本该带着安装错误失败的
