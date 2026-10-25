@@ -41,7 +41,7 @@ export class BoardMoveService {
       const engineTarget =
         target.kind === 'end' ?
           { group: { columnId: target.columnId } }
-        : { prevId: target.prevId, nextId: target.nextId };
+        : { prevId: target.prevId, nextId: target.nextId, expectedGroup: { columnId: target.columnId } };
       await repository.reorder(taskId, engineTarget);
       this.notifier.next({ kind: 'move-committed', taskId });
     } catch (error) {
@@ -61,7 +61,7 @@ export class BoardMoveService {
     try {
       await this.requireColumnInBoard(columnId, boardId);
       await this.requireNeighborColumnsInBoard(target);
-      await repository.reorder(columnId, target);
+      await repository.reorder(columnId, { ...target, expectedGroup: { boardId } });
       this.notifier.next({ kind: 'column-move-committed', columnId });
     } catch (error) {
       this.notifier.next({ kind: 'column-move-failed', columnId, reason: describeBoardFailure(error) });

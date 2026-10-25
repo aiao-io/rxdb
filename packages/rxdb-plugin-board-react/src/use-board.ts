@@ -249,14 +249,15 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     );
     subs.add(restoring$.subscribe(setRestoringState));
 
-    let picked = false;
     subs.add(
       boards$.subscribe(list => {
-        if (picked || list.length === 0) return;
+        const selected = boardId$.value;
+        if (list.some(board => board.id === selected)) return;
         const target = list.find(board => board.id === storageRef.current.get(LAST_BOARD_KEY)) ?? list[0];
-        picked = true;
-        boardId$.next(target.id);
-        setCurrentBoardId(target.id);
+        const next = target?.id ?? null;
+        if (next === selected) return;
+        boardId$.next(next);
+        setCurrentBoardId(next);
       })
     );
 

@@ -58,6 +58,30 @@ describe('BoardViewComponent（Angular 视图）', () => {
     return fixture;
   };
 
+  it('取消切板后选择器应显示实际当前板', async () => {
+    await seedReleaseBoardDataset(rxdb);
+    const fixture = await mount();
+    try {
+      const b = fixture.componentInstance['boardRef'];
+      await waitFor(fixture, () => b.boards().length === 2 && b.currentBoard() !== null, '两块板');
+      const original = b.currentBoardId();
+      const target = b.boards().find(item => item.id !== original)!;
+      await fixture.componentInstance['openDetail'](b.tasks()[0].id);
+      fixture.componentInstance['draftDescription'].set('未保存内容');
+      fixture.detectChanges();
+      vi.mocked(window.confirm).mockReturnValue(false);
+      const select = fixture.nativeElement.querySelector('[data-testid="board-selector"]') as HTMLSelectElement;
+      select.value = target.id;
+      select.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      fixture.detectChanges();
+      expect(b.currentBoardId()).toBe(original);
+      expect(select.value).toBe(original);
+    } finally {
+      fixture.destroy();
+    }
+  });
   it('空库渲染空态；种子渲染板/列/任务/标签', async () => {
     const empty = await mount();
     await waitFor(empty, () => empty.nativeElement.querySelector('[data-testid="empty-board"]') !== null, '空态');

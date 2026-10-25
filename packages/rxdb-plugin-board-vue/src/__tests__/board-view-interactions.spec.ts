@@ -149,6 +149,69 @@ describe('BoardView 交互边界', () => {
     vi.useRealTimers();
   });
 
+  it('删除其他列不打断正在加载的详情', async () => {
+    const pending = deferred<TaskDraftSnapshot>();
+    vi.mocked(board.actions.openSnapshot).mockReturnValueOnce(pending.promise);
+    vi.mocked(board.actions.planColumnDelete).mockResolvedValueOnce({
+      kind: 'column',
+      columnId: otherColumn.id,
+      columnTitle: otherColumn.title,
+      taskIds: [],
+      taskLabelIds: []
+    });
+    await open();
+    await wrapper.findAll('[data-testid="column-delete"]')[1].trigger('click');
+    await flushPromises();
+    await click('confirm-delete-yes');
+    pending.resolve(snapshotOf(first));
+    await flushPromises();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+  });
+
+  it('删除所属列后不得接受迟到的详情快照', async () => {
+    const pending = deferred<TaskDraftSnapshot>();
+    vi.mocked(board.actions.openSnapshot).mockReturnValueOnce(pending.promise);
+    await open();
+    await wrapper.findAll('[data-testid="column-delete"]')[0].trigger('click');
+    await flushPromises();
+    await click('confirm-delete-yes');
+    board.tasks.value = [];
+    board.columns.value = [otherColumn];
+    pending.resolve(snapshotOf(first));
+    await flushPromises();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+  });
+
+  it('确认删除包含当前任务的板后关闭已失效的详情', async () => {
+    await open();
+    await get('detail-description').setValue('待删除草稿');
+    await click('delete-board');
+    await click('confirm-delete-yes');
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+  });
+
+  it('取消切板后选择器应显示实际当前板', async () => {
+    await open();
+    await get('detail-description').setValue('未保存内容');
+    vi.mocked(window.confirm).mockReturnValueOnce(false);
+    await get('board-selector').setValue(id(2));
+    expect(board.currentBoardId.value).toBe(id(1));
+    expect((get('board-selector').element as HTMLSelectElement).value).toBe(id(1));
+  });
+
+  it('创建任务进行中应阻止重复提交', async () => {
+    const pending = deferred<Task>();
+    vi.mocked(board.actions.createTask).mockReturnValue(pending.promise);
+    await wrapper.findAll('[data-testid="add-task"]')[0].trigger('click');
+    await get('add-task-input').setValue('只应创建一次');
+    await get('add-task-input').trigger('keydown', { key: 'Enter' });
+    await get('add-task-input').trigger('keydown', { key: 'Enter' });
+    expect(board.actions.createTask).toHaveBeenCalledTimes(1);
+    expect((get('add-task-input').element as HTMLInputElement).disabled).toBe(true);
+    pending.resolve(first);
+    await flushPromises();
+    expect(wrapper.find('[data-testid="add-task-form"]').exists()).toBe(false);
+  });
   it('取消提示零写，建板建列与重命名只转发确认值', async () => {
     await click('create-board');
     await click('create-column');

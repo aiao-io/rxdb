@@ -1,6 +1,6 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
-import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
+import { Board, BoardDomain, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -29,6 +29,23 @@ describe('BoardView（React 视图）', () => {
 
   afterEach(async () => {
     await rxdb.disconnectAll();
+  });
+
+  it('删除最后一块板后仍能在空态撤销并恢复板', async () => {
+    const domain = new BoardDomain(rxdb, () => ({ boardId: null, restoring: false }));
+    await domain.createBoard({ title: '唯一板' });
+    const fixture = render(<BoardView rxdb={rxdb} />);
+    try {
+      await waitFor(() => expect(screen.getByTestId('rename-board').textContent).toBe('唯一板'));
+      fireEvent.click(screen.getByTestId('delete-board'));
+      fireEvent.click(await screen.findByTestId('confirm-delete-yes'));
+      await screen.findByTestId('empty-board');
+      expect(screen.getByTestId('undo').hasAttribute('disabled')).toBe(false);
+      fireEvent.click(screen.getByTestId('undo'));
+      await waitFor(() => expect(screen.getByTestId('rename-board').textContent).toBe('唯一板'));
+    } finally {
+      fixture.unmount();
+    }
   });
 
   it('空库渲染空态；种子渲染板/列/任务/标签', async () => {

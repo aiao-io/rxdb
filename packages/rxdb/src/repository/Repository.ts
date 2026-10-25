@@ -484,7 +484,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    *
    * @param id - 被移动行的 id
    * @param target - 目标位置：前后邻居 `{ prevId, nextId }`，或追加到某组末尾 `{ group }`
-   *   （键恰好是分组字段，整表排序为 `{}`）
+   *   （键恰好是分组字段，整表排序为 `{}`）；邻居目标可带 `expectedGroup`，在事务内拒绝已换组的邻居
    * @returns 移动后的实体；已在目标位置时原样返回、零写
    * @throws {@link PermissionDeniedError} 实体声明 `update: 'system'`，在开事务前抛出
    * @throws {@link SortOrderError} 见 {@link SortOrderErrorReason}；抛出时一条写都没有提交

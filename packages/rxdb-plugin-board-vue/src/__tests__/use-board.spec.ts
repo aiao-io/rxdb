@@ -61,6 +61,23 @@ describe('useBoard（Vue 桥接）', () => {
 
   const board = (): UseBoardReturn => holder.current!;
 
+  it('删除当前板重新选中有效板，清空后重建仍自动打开', async () => {
+    const first = await board().actions.createBoard({ title: '旧板' });
+    await waitFor(() => board().currentBoardId.value === first.id, '选中旧板');
+    const second = await board().actions.createBoard({ title: '保留板' });
+    await waitFor(() => board().boards.value.length === 2, '两块板');
+    expect(board().currentBoardId.value).toBe(first.id);
+    const firstPlan = await board().actions.planBoardDelete(first.id);
+    await board().actions.executeDelete(firstPlan);
+    await waitFor(() => board().currentBoardId.value === second.id, '选中剩余板');
+    const secondPlan = await board().actions.planBoardDelete(second.id);
+    await board().actions.executeDelete(secondPlan);
+    await waitFor(() => board().boards.value.length === 0, '清空看板');
+    expect(board().currentBoardId.value).toBeNull();
+    const next = await board().actions.createBoard({ title: '新板' });
+    await waitFor(() => board().currentBoardId.value === next.id, '选中新板');
+  });
+
   it('恢复中直接调用撤销重做也拒绝，历史计数保持不变', async () => {
     const created = await board().actions.createBoard({ title: '板' });
     await waitFor(() => board().currentBoard.value?.id === created.id, '进入板');

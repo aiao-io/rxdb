@@ -1195,7 +1195,7 @@
         "name": "@aiao/code-editor",
         "role": "standalone",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "基于 CodeMirror 6 的 standalone Angular 代码编辑器，支持 Angular Forms、动态语言、主题与编辑状态配置。",
@@ -1215,7 +1215,7 @@
         "name": "@aiao/code-editor-angular",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "基于 CodeMirror 6 的 React 代码编辑器组件。",
@@ -1235,7 +1235,7 @@
         "name": "@aiao/code-editor-react",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "基于 CodeMirror 6 的 Vue 3 代码编辑器组件。",
@@ -1255,7 +1255,7 @@
         "name": "@aiao/code-editor-vue",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "面向 Local-first 应用的 TypeScript 数据库核心。通过装饰器驱动的实体定义，自动生成类型安全的 Repository 与响应式查询 API，让你在浏览器中直接运行 SQLite，以接近原生 App 的方式构建离线优先、数据驱动的 Web 应用。",
@@ -1279,7 +1279,7 @@
         "name": "@aiao/rxdb",
         "role": "core",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 适配器，把数据落到 **Electron 应用私有目录里的真实文件**。本包提供两个并列的适配器，可同时注册：",
@@ -1319,7 +1319,7 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "Local field-level **AES-GCM-256** envelope encryption for [`@aiao/rxdb`](../rxdb).",
@@ -1343,7 +1343,7 @@
         "notes": "依赖 WebCrypto（crypto.subtle）。小程序宿主会随 sqlite-core 加载本包，但没有 crypto.subtle，加密能力不可用。",
         "role": "capability",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB HTTP 适配器 — 让**你自己的 REST API** 充当 QueryCache 的远端事实源。",
@@ -1366,7 +1366,7 @@
         "slots": [
           "remote"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "实验性的微信 / 抖音 / 支付宝小程序单连接 RxDB adapter。它复用 `rxdb-adapter-sqlite-core` 的仓库、事务、迁移和变更事件，",
@@ -1401,7 +1401,7 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 适配器，使用 PGlite 在浏览器中运行 PostgreSQL。",
@@ -1442,7 +1442,7 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "`@aiao/rxdb` 的官方 SQLite 适配器，基于 SQLite 官方 WASM 构建，为核心引擎提供 SQLite 存储后端。",
@@ -1470,7 +1470,7 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "`@aiao/rxdb` 的 SQLite 适配器共享内核。它把「实体 → SQL」的映射、表名解析、规则组构建、基础 Repository 与变更事件等能力抽象为后端无关的基类，供各具体 SQLite 适配器复用。",
@@ -1524,7 +1524,7 @@
         "name": "@aiao/rxdb-adapter-sqlite-core",
         "role": "shared-impl",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB SQLite 适配器，基于 [@subframe7536/sqlite-wasm](https://github.com/subframe7536/sqlite-wasm)。",
@@ -1558,7 +1558,7 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "`@aiao/rxdb` 的 [sqliteai](https://github.com/sqliteai) 存储适配器，为核心引擎提供基于 sqliteai 运行时的 SQLite 后端。",
@@ -1586,7 +1586,7 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB Supabase 适配器 — 基于 PostgreSQL 的远程同步实现。",
@@ -1615,7 +1615,7 @@
         "slots": [
           "remote"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 适配器，把数据落到 **Tauri 应用私有目录里的真实 SQLite 文件**。",
@@ -1643,7 +1643,7 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 适配器，使用 wa-sqlite 在浏览器中运行 SQLite。",
@@ -1677,7 +1677,7 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "Angular 框架集成库，为 Angular 应用提供 RxDB 支持。基于 Angular Signals 实现响应式数据流。",
@@ -1709,7 +1709,7 @@
         "name": "@aiao/rxdb-angular",
         "role": "binding",
         "slots": [],
-        "version": "0.0.27"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 客户端代码生成器，从实体定义生成 JavaScript 实体入口和 TypeScript 声明。",
@@ -1735,7 +1735,7 @@
         "name": "@aiao/rxdb-client-generator",
         "role": "tool",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 与浏览器 DevTools Extension 之间的开发期连接器。它通过当前页面的 `window.postMessage` 发送事件、数据库摘要、实体查询结果和分支操作结果。",
@@ -1755,7 +1755,7 @@
         "name": "@aiao/rxdb-devtools",
         "role": "tool",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "框架无关的 RxDB 实体模型核心库：从实体元数据（`EntityMetadata`）派生表单、详情页、可编辑表格与可视化查询构建器所需的全部纯逻辑，并配套 VTable 表格运行时基础设施。",
@@ -1776,7 +1776,7 @@
         "name": "@aiao/rxdb-model",
         "role": "model",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-model-angular",
@@ -1814,7 +1814,7 @@
         "name": "@aiao/rxdb-model-angular",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-model-react",
@@ -1852,7 +1852,7 @@
         "name": "@aiao/rxdb-model-react",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-model-vue",
@@ -1890,7 +1890,7 @@
         "name": "@aiao/rxdb-model-vue",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "看板领域模型：Board / Column / Task 实体、排序域与跨列移动、删除级联、详情草稿、恢复编排等单人看板领域服务，附确定性种子（epic-011）。",
@@ -1923,7 +1923,7 @@
         "name": "@aiao/rxdb-plugin-board",
         "role": "model",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "看板插件（rxdb-plugin-board）的 Angular 绑定：useBoard() 领域数据 signal 桥接与领域动作集合（epic-011 / US-539）。",
@@ -1950,7 +1950,7 @@
         "name": "@aiao/rxdb-plugin-board-angular",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "看板插件（rxdb-plugin-board）的 React 绑定：useBoard() 领域数据 state 桥接与领域动作集合（epic-011 / US-539）。",
@@ -1977,7 +1977,7 @@
         "name": "@aiao/rxdb-plugin-board-react",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "看板插件（rxdb-plugin-board）的 Vue 绑定：useBoard() 领域数据 ref 桥接与领域动作集合（epic-011 / US-539）。",
@@ -2004,7 +2004,7 @@
         "name": "@aiao/rxdb-plugin-board-vue",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "> Implements: [US-503 图数据插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-503-graph-data.md)",
@@ -2048,7 +2048,7 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "> Implements: [US-025 核心插件化外移](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-025-core-plugin-extraction.md)",
@@ -2080,7 +2080,7 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "> Implements: [US-025 核心插件化外移](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-025-core-plugin-extraction.md)",
@@ -2124,7 +2124,7 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "`@aiao/rxdb` 的会话录制回放插件，**默认不录**，由应用显式开始。它用 rrweb 录下页面 DOM，事件写进一个**独立的录制库**，被录的应用库里不多一行数据。回放时间轴上会标出工作树的 commit，点一下标记，就能把工作树恢复到那次提交。",
@@ -2162,7 +2162,7 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-replay-angular",
@@ -2182,7 +2182,7 @@
         "name": "@aiao/rxdb-plugin-replay-angular",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-replay-react",
@@ -2202,7 +2202,7 @@
         "name": "@aiao/rxdb-plugin-replay-react",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-replay-vue",
@@ -2222,7 +2222,7 @@
         "name": "@aiao/rxdb-plugin-replay-vue",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "`@aiao/rxdb` 的全局搜索插件。为标注 `searchable: true` 字段的 collection 提供响应式全文检索，SQLite 走 FTS5，PGlite 走 `tsvector` / GIN。",
@@ -2272,7 +2272,7 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-search-angular",
@@ -2298,7 +2298,7 @@
         "name": "@aiao/rxdb-plugin-search-angular",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-search-react",
@@ -2324,7 +2324,7 @@
         "name": "@aiao/rxdb-plugin-search-react",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-search-vue",
@@ -2350,7 +2350,7 @@
         "name": "@aiao/rxdb-plugin-search-vue",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-storage",
@@ -2394,7 +2394,7 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "> Implements: [US-025 核心插件化外移](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-025-core-plugin-extraction.md)",
@@ -2432,7 +2432,7 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "> Implements: [US-025 核心插件化拆分](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-025-core-plugin-extraction.md)",
@@ -2470,7 +2470,7 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-tree-angular",
@@ -2502,7 +2502,7 @@
         "name": "@aiao/rxdb-plugin-tree-angular",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-tree-react",
@@ -2534,7 +2534,7 @@
         "name": "@aiao/rxdb-plugin-tree-react",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-tree-vue",
@@ -2566,7 +2566,7 @@
         "name": "@aiao/rxdb-plugin-tree-vue",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提交历史」作为一等概念加进 `@aiao/rxdb`。",
@@ -2604,7 +2604,7 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-working-tree-angular",
@@ -2636,7 +2636,7 @@
         "name": "@aiao/rxdb-plugin-working-tree-angular",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-working-tree-react",
@@ -2668,7 +2668,7 @@
         "name": "@aiao/rxdb-plugin-working-tree-react",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-working-tree-vue",
@@ -2700,7 +2700,7 @@
         "name": "@aiao/rxdb-plugin-working-tree-vue",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB Workspace 插件为**尚未入库的 NEW 实体草稿**提供本地恢复能力：草稿保存在内存和 IndexedDB 中，并通过 BroadcastChannel 同步同源标签页。刷新或重开页面后，草稿会自动恢复，可继续编辑、保存或丢弃。",
@@ -2731,7 +2731,7 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "`@aiao/rxdb-react` 把 `@aiao/rxdb` 的响应式仓库查询接入 React 19。",
@@ -2763,7 +2763,7 @@
         "name": "@aiao/rxdb-react",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "**实验性。** 给 Taro 4.3（vite 编译器）项目一行接入",
@@ -2784,7 +2784,7 @@
         "name": "@aiao/rxdb-taro",
         "role": "tool",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 测试资源包，集中放测试实体、跨 adapter 契约套件、跨框架行为夹具和可复用的测试辅助函数。",
@@ -2811,7 +2811,7 @@
         "name": "@aiao/rxdb-test",
         "role": "tool",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "`@aiao/rxdb-vue` 把 `@aiao/rxdb` 的实时查询接入 Vue 3 Composition API。该包提供依赖注入、响应式查询 hooks 和游标无限滚动，不包含 UI 组件。",
@@ -2843,7 +2843,7 @@
         "name": "@aiao/rxdb-vue",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "Aiao 项目通用工具库，提供常用的工具函数。",
@@ -2860,7 +2860,7 @@
         "name": "@aiao/utils",
         "role": "standalone",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       }
     ],
     "scenarios": [
@@ -3060,7 +3060,7 @@
       }
     ]
   },
-  "digest": "585ba5346171cd365fc1ecf20faa281843404ceb4366a0ad9bcde948868f0a82",
+  "digest": "9178b362ebd857d9cfff7168146e64656be55464d2aead8d18072d9893d432ff",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

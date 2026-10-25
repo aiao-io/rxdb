@@ -11,8 +11,8 @@
     <header class="board-header" data-testid="board-header">
       <select
         class="board-selector"
-        [ngModel]="b.currentBoardId()"
-        (ngModelChange)="onSelectBoard($event)"
+        [value]="b.currentBoardId() ?? ''"
+        (change)="onBoardSelectionChange($event)"
         aria-label="选择看板"
         data-testid="board-selector"
       >
@@ -247,7 +247,7 @@
               }
               <button
                 class="add-task"
-                [disabled]="b.restoring()"
+                [disabled]="b.restoring() || creatingTask()"
                 (click)="openAddTask(column.id)"
                 data-testid="add-task"
               >
@@ -257,6 +257,7 @@
                 <div class="add-task-form" data-testid="add-task-form">
                   <input
                     class="add-task-input"
+                    [disabled]="creatingTask()"
                     [ngModel]="addTaskTitle()"
                     (keydown.enter)="commitAddTask()"
                     (keydown.escape)="cancelAddTask()"
@@ -267,7 +268,7 @@
                   />
                   <button
                     class="add-task-submit"
-                    [disabled]="addTaskTitle().trim() === ''"
+                    [disabled]="creatingTask() || addTaskTitle().trim() === ''"
                     (click)="commitAddTask()"
                     data-testid="add-task-submit"
                   >
@@ -275,6 +276,7 @@
                   </button>
                   <button
                     class="add-task-cancel"
+                    [disabled]="creatingTask()"
                     (click)="cancelAddTask()"
                     aria-label="取消"
                     data-testid="add-task-cancel"

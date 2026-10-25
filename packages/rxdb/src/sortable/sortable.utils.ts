@@ -540,6 +540,9 @@ export const assertReorderTarget = (
     assertGroupTarget(entity, manualOrderGroupFields(metadata), target.group);
     return;
   }
+  if (target.expectedGroup !== undefined) {
+    assertGroupTarget(entity, manualOrderGroupFields(metadata), target.expectedGroup);
+  }
   const { prevId, nextId } = target;
   if (prevId === null && nextId === null) {
     throw new SortOrderError(entity, 'invalidTarget', '前后邻居不能都为空；移到末尾请用 { group }');
@@ -616,7 +619,7 @@ const placeBetweenNeighbors = async (
   entity: string,
   fields: readonly string[],
   row: SortableRow,
-  { prevId, nextId }: ReorderBetween<unknown>
+  { prevId, nextId, expectedGroup }: ReorderBetween<unknown>
 ): Promise<Placement> => {
   const lower = await readNeighbor(repository, entity, prevId, '前邻居');
   const upper = await readNeighbor(repository, entity, nextId, '后邻居');
@@ -625,6 +628,9 @@ const placeBetweenNeighbors = async (
     fields,
     [lower, upper].filter(neighbor => neighbor !== null)
   );
+  if (expectedGroup !== undefined && !isSameGroup(fields, values, groupValuesOf(fields, expectedGroup))) {
+    throw new SortOrderError(entity, 'staleTarget', '目标邻居已不属于期望分组');
+  }
   if (lower && upper && !(lower.sortOrder < upper.sortOrder)) {
     throw new SortOrderError(
       entity,

@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-angular",
-  "version": "0.0.27",
+  "version": "0.0.28",
   "description": "Angular integration for Aiao RxDB reactive data.",
   "homepage": "https://rxdb.aiao.io/docs/frameworks/angular",
   "bugs": {

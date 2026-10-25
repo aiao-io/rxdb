@@ -33,6 +33,24 @@ describe('BoardView（Vue 视图）', () => {
     await rxdb.disconnectAll();
   });
 
+  it('删除最后一块板后仍能在空态撤销并恢复板', async () => {
+    const domain = new BoardDomain(rxdb, () => ({ boardId: null, restoring: false }));
+    await domain.createBoard({ title: '唯一板' });
+    const fixture = mount(BoardView, { props: { rxdb } });
+    try {
+      await vi.waitFor(() => expect(fixture.get('[data-testid="rename-board"]').text()).toBe('唯一板'));
+      await fixture.get('[data-testid="delete-board"]').trigger('click');
+      await vi.waitFor(() => expect(fixture.find('[data-testid="confirm-delete-yes"]').exists()).toBe(true));
+      await fixture.get('[data-testid="confirm-delete-yes"]').trigger('click');
+      await vi.waitFor(() => expect(fixture.find('[data-testid="empty-board"]').exists()).toBe(true));
+      expect(fixture.get('[data-testid="undo"]').attributes('disabled')).toBeUndefined();
+      await fixture.get('[data-testid="undo"]').trigger('click');
+      await vi.waitFor(() => expect(fixture.get('[data-testid="rename-board"]').text()).toBe('唯一板'));
+    } finally {
+      fixture.unmount();
+    }
+  });
+
   it('空库渲染空态；种子渲染板/列/任务/标签', async () => {
     const empty = mount(BoardView, { props: { rxdb } });
     await new Promise(resolve => setTimeout(resolve, 200));

@@ -47,6 +47,23 @@ describe('useBoard（Angular 桥接）', () => {
     await rxdb.disconnectAll();
   });
 
+  it('删除当前板重新选中有效板，清空后重建仍自动打开', async () => {
+    const first = await board.actions.createBoard({ title: '旧板' });
+    await waitFor(() => board.currentBoardId() === first.id, '选中旧板');
+    const second = await board.actions.createBoard({ title: '保留板' });
+    await waitFor(() => board.boards().length === 2, '两块板');
+    expect(board.currentBoardId()).toBe(first.id);
+    const firstPlan = await board.actions.planBoardDelete(first.id);
+    await board.actions.executeDelete(firstPlan);
+    await waitFor(() => board.currentBoardId() === second.id, '选中剩余板');
+    const secondPlan = await board.actions.planBoardDelete(second.id);
+    await board.actions.executeDelete(secondPlan);
+    await waitFor(() => board.boards().length === 0, '清空看板');
+    expect(board.currentBoardId()).toBeNull();
+    const next = await board.actions.createBoard({ title: '新板' });
+    await waitFor(() => board.currentBoardId() === next.id, '选中新板');
+  });
+
   it('空库建板 → 进入第一块板；建列建任务后数据 signal 就位', async () => {
     const created = await board.actions.createBoard({ title: '发布计划' });
     await waitFor(() => board.currentBoard()?.id === created.id, '进入第一块板');

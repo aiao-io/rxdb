@@ -260,16 +260,16 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   );
   subs.add(restoring$.subscribe(value => restoring.set(value)));
 
-  // 当前板初始选择：本地记录 → 第一块板（板列表首个快照到达时确定）
-  const stored = storage.get(LAST_BOARD_KEY);
-  let picked = false;
+  // 当前选择失效时，恢复本地记录或选中第一块板。
   subs.add(
     boards$.subscribe(list => {
-      if (picked || list.length === 0) return;
-      const target = list.find(board => board.id === stored) ?? list[0];
-      picked = true;
-      boardId$.next(target.id);
-      currentBoardId.set(target.id);
+      const selected = boardId$.value;
+      if (list.some(board => board.id === selected)) return;
+      const target = list.find(board => board.id === storage.get(LAST_BOARD_KEY)) ?? list[0];
+      const next = target?.id ?? null;
+      if (next === selected) return;
+      boardId$.next(next);
+      currentBoardId.set(next);
     })
   );
 

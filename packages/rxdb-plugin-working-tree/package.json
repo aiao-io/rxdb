@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-plugin-working-tree",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "Local working tree and commit history for RxDB: capture uncommitted edits, review diffs, and commit them onto a branch.",
   "homepage": "https://rxdb.aiao.io/docs/getting-started",
   "bugs": {

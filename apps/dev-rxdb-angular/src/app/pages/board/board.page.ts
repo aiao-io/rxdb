@@ -6,7 +6,7 @@ import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { APP_BASE_HREF } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { getSqliteWasmUrl } from '../../rxdb/demo-rxdb-config';
@@ -27,11 +27,11 @@ import { getSqliteWasmUrl } from '../../rxdb/demo-rxdb-config';
       <footer class="board-tools" data-testid="board-tools">
         <button (click)="onSeedDemo()" data-testid="seed-demo">装载演示数据</button>
       </footer>
-      @if (pageError(); as message) {
-        <p class="board-notice" data-testid="board-notice-host" role="alert">{{ message }}</p>
-      }
-    } @else {
+    } @else if (!pageError()) {
       <p class="board-connecting" data-testid="board-connecting">正在连接看板数据库…</p>
+    }
+    @if (pageError(); as message) {
+      <p class="board-notice" data-testid="board-notice-host" role="alert">{{ message }}</p>
     }
   `,
   styles: [
@@ -58,6 +58,7 @@ import { getSqliteWasmUrl } from '../../rxdb/demo-rxdb-config';
 })
 export default class BoardPage implements OnInit {
   private readonly baseHref = inject(APP_BASE_HREF);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly rxdb = signal<RxDB | null>(null);
   protected readonly pageError = signal<string | null>(null);
@@ -76,10 +77,26 @@ export default class BoardPage implements OnInit {
       'sqlite-wasm',
       () => new RxDBAdapterSqlite(db, { vfs: 'idb', wasmUrl: getSqliteWasmUrl(this.baseHref, 'idb') })
     );
+    let disconnecting: Promise<void> | null = null;
+    const disconnect = () => (disconnecting ??= db.disconnectAll());
+    this.destroyRef.onDestroy(() => {
+      void disconnect().catch(error => console.error('[board] 断开失败', error));
+    });
     void db
       .connect('sqlite-wasm')
-      .then(() => this.rxdb.set(db))
-      .catch(error => console.error('[board] 连接失败', error));
+      .then(() => {
+        if (!this.destroyRef.destroyed) this.rxdb.set(db);
+      })
+      .catch(async (cause: unknown) => {
+        if (this.destroyRef.destroyed) return;
+        this.pageError.set(cause instanceof Error ? cause.message : String(cause));
+        try {
+          await disconnect();
+        } catch (disconnectCause) {
+          const message = disconnectCause instanceof Error ? disconnectCause.message : String(disconnectCause);
+          this.pageError.update(error => `${error}；连接释放失败：${message}`);
+        }
+      });
   }
 
   /** 备份导出（US-537）：首轮输出端是内存 Blob，完整归档生成后才触发下载。 */

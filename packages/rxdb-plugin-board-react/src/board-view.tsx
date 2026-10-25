@@ -52,6 +52,11 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const [snapshot, setSnapshot] = useState<TaskDraftSnapshot | null>(null);
   const [confirm, setConfirm] = useState<DeletePlan | null>(null);
   const detailRequestRef = useRef(0);
+  const pendingDetailRef = useRef<UUID | null>(null);
+  const invalidateDetailRequest = (): void => {
+    detailRequestRef.current += 1;
+    pendingDetailRef.current = null;
+  };
   const detailStateRef = useRef({ draft, snapshot, boardId: board.currentBoardId, taskId: detailTaskId });
   detailStateRef.current = { draft, snapshot, boardId: board.currentBoardId, taskId: detailTaskId };
 
@@ -125,6 +130,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   useEffect(
     () => () => {
       detailRequestRef.current += 1;
+      pendingDetailRef.current = null;
       if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
       if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
       searchSubsRef.current?.unsubscribe();
@@ -198,25 +204,38 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   /** 内联建任务（GitHub Projects 同款：列底输入框，Enter 提交 / Esc 取消）。 */
   const [addTaskColumnId, setAddTaskColumnId] = useState<UUID | null>(null);
   const [addTaskTitle, setAddTaskTitle] = useState('');
+  const [creatingTask, setCreatingTask] = useState(false);
+  const creatingTaskRef = useRef(false);
 
   /** 写入口 busy 状态（US-539 交互约定「写入」行：执行中阻止重复提交）。 */
   const [savingDetail, setSavingDetail] = useState(false);
   const [sortingColumnId, setSortingColumnId] = useState<UUID | null>(null);
 
   const cancelAddTask = (): void => {
+    if (creatingTaskRef.current) return;
     setAddTaskColumnId(null);
     setAddTaskTitle('');
   };
 
   const commitAddTask = async (): Promise<void> => {
+    if (creatingTaskRef.current) return;
     const title = addTaskTitle.trim();
     if (addTaskColumnId === null || title === '') {
       cancelAddTask();
       return;
     }
-    const created = await guard(() => board.actions.createTask({ columnId: addTaskColumnId, title }));
-    // 失败（空标题等）保留输入，成功收起清空
-    if (created !== undefined) cancelAddTask();
+    creatingTaskRef.current = true;
+    setCreatingTask(true);
+    try {
+      const created = await guard(() => board.actions.createTask({ columnId: addTaskColumnId, title }));
+      if (created !== undefined) {
+        setAddTaskColumnId(null);
+        setAddTaskTitle('');
+      }
+    } finally {
+      creatingTaskRef.current = false;
+      setCreatingTask(false);
+    }
   };
 
   const startEditTitle = (task: Task): void => {
@@ -380,16 +399,18 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const openDetail = async (taskId: UUID): Promise<void> => {
     if (detailTaskId === taskId) {
-      detailRequestRef.current += 1;
+      invalidateDetailRequest();
       return;
     }
     if (isDetailDirty() && !window.confirm('有未保存的修改，打开其它任务将放弃。继续？')) return;
     const request = ++detailRequestRef.current;
+    pendingDetailRef.current = taskId;
     const boardId = board.currentBoardId;
     const previousDraft = JSON.stringify(draft);
     const snap = await guard(() => board.actions.openSnapshot(taskId));
-    if (snap === undefined || request !== detailRequestRef.current || boardId !== detailStateRef.current.boardId)
-      return;
+    if (request !== detailRequestRef.current) return;
+    pendingDetailRef.current = null;
+    if (snap === undefined || boardId !== detailStateRef.current.boardId) return;
     if (previousDraft !== JSON.stringify(detailStateRef.current.draft)) return;
     setSnapshot(snap);
     setDraft({
@@ -418,7 +439,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
       if (result === undefined || request !== detailRequestRef.current || snapshot !== detailStateRef.current.snapshot)
         return;
-      detailRequestRef.current += 1;
+      invalidateDetailRequest();
       setDetailTaskId(null);
       setSnapshot(null);
     } finally {
@@ -437,7 +458,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   /** 关闭详情：有未保存修改先确认放弃（取消零写）。 */
   const closeDetail = (): void => {
     if (isDetailDirty() && !window.confirm('有未保存的修改，关闭将放弃。继续？')) return;
-    detailRequestRef.current += 1;
+    invalidateDetailRequest();
     setDetailTaskId(null);
     setSnapshot(null);
   };
@@ -513,7 +534,20 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const executeConfirmedDelete = async (): Promise<void> => {
     if (!confirm) return;
     setConfirm(null);
-    await guard(() => board.actions.executeDelete(confirm));
+    const deleted = await guard(async () => {
+      await board.actions.executeDelete(confirm);
+      return true;
+    });
+    if (!deleted) return;
+    const removedIds = confirm.kind === 'task' ? [confirm.taskId] : confirm.taskIds;
+    const pendingId = pendingDetailRef.current;
+    if (pendingId !== null && removedIds.includes(pendingId)) invalidateDetailRequest();
+    const taskId = detailStateRef.current.taskId;
+    if (taskId !== null && removedIds.includes(taskId)) {
+      setDetailTaskId(null);
+      setSnapshot(null);
+    }
+    if (confirm.kind === 'board') onSearchInput('');
   };
 
   const dueDateText = (task: Task): string => {
@@ -537,7 +571,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       setDetailTaskId(null);
       setSnapshot(null);
     }
-    detailRequestRef.current += 1;
+    invalidateDetailRequest();
     board.selectBoard(boardId);
     // 切板丢弃旧板结果：销毁重建句柄重发（setQuery 同词会被 distinctUntilChanged 吞掉）
     const query = searchQuery.trim();
@@ -564,22 +598,6 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   );
 
   const current = board.currentBoard;
-  if (!current) {
-    // 空态也保留选择器：删除当前板后仍能切到其余板（与 Angular / Vue 对称）
-    return (
-      <section className='board-view' data-testid='board-view'>
-        <header className='board-header' data-testid='board-header'>
-          {boardSelector}
-        </header>
-        <div className='empty-board' data-testid='empty-board'>
-          <p>没有看板</p>
-          <button onClick={() => void createBoard()} data-testid='create-board-empty' disabled={board.restoring}>
-            新建板
-          </button>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section
@@ -591,17 +609,19 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     >
       <header className='board-header' data-testid='board-header'>
         {boardSelector}
-        <button
-          className='header-button'
-          onClick={() => {
-            const title = promptTitle('改板标题', current.title);
-            if (title !== null) void guard(() => board.actions.updateBoard(current.id, { title }));
-          }}
-          data-testid='rename-board'
-          aria-label='改板标题'
-        >
-          {current.title}
-        </button>
+        {current ?
+          <button
+            className='header-button'
+            onClick={() => {
+              const title = promptTitle('改板标题', current.title);
+              if (title !== null) void guard(() => board.actions.updateBoard(current.id, { title }));
+            }}
+            data-testid='rename-board'
+            aria-label='改板标题'
+          >
+            {current.title}
+          </button>
+        : null}
         {board.restoring ?
           <span className='restoring-badge' data-testid='restoring-badge' aria-live='polite'>
             恢复中
@@ -611,13 +631,21 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           <button onClick={() => void createBoard()} data-testid='create-board' disabled={board.restoring}>
             新建板
           </button>
-          <button onClick={() => void confirmBoardDelete()} data-testid='delete-board' disabled={board.restoring}>
+          <button
+            onClick={() => void confirmBoardDelete()}
+            data-testid='delete-board'
+            disabled={board.restoring || !current}
+          >
             删除看板
           </button>
-          <button onClick={() => void createColumn()} data-testid='create-column' disabled={board.restoring}>
+          <button
+            onClick={() => void createColumn()}
+            data-testid='create-column'
+            disabled={board.restoring || !current}
+          >
             新建列
           </button>
-          <button onClick={() => void createLabel()} data-testid='create-label' disabled={board.restoring}>
+          <button onClick={() => void createLabel()} data-testid='create-label' disabled={board.restoring || !current}>
             新建标签
           </button>
           <button
@@ -649,13 +677,22 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         </div>
       </header>
 
+      {!current ?
+        <div className='empty-board' data-testid='empty-board'>
+          <p>没有看板</p>
+          <button onClick={() => void createBoard()} data-testid='create-board-empty' disabled={board.restoring}>
+            新建板
+          </button>
+        </div>
+      : null}
+
       {board.restoring ?
         <p className='restoring-note' data-testid='restoring-note'>
           恢复进行中：浏览可用，写入口已暂停。
         </p>
       : null}
 
-      {board.labels.length > 0 ?
+      {current && board.labels.length > 0 ?
         <div className='label-strip' data-testid='label-strip'>
           {board.labels.map(label => (
             <span
@@ -705,7 +742,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       : null}
 
       {/* 板内搜索（US-539 阶段 B） */}
-      {board.searchSource ?
+      {current && board.searchSource ?
         <div className='board-search' data-testid='board-search'>
           <input
             className='search-input'
@@ -765,232 +802,241 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         </div>
       : null}
 
-      <div className='columns' data-testid='columns'>
-        {board.columns.map(column => (
-          <section
-            key={column.id}
-            className={
-              dropTarget?.kind === 'task-end' && dropTarget.columnId === column.id ? 'column drop-end' : 'column'
-            }
-            data-column-id={column.id}
-            onDragOver={event => onTaskDragOver(event)}
-            onDrop={event => void onTaskDrop(event)}
-            data-testid='column'
-          >
-            <header
-              className={[
-                'column-header',
-                dropTarget?.kind === 'column' && dropTarget.columnId === column.id && dropTarget.mode === 'before' ?
-                  'drop-before'
-                : '',
-                dropTarget?.kind === 'column' && dropTarget.columnId === column.id && dropTarget.mode === 'after' ?
-                  'drop-after'
-                : '',
-                dragging?.kind === 'column' && dragging.id === column.id ? 'dragging' : ''
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              data-column-header-id={column.id}
-              draggable
-              onDragOver={event => onColumnDragOver(event)}
-              onDragStart={event => onColumnDragStart(event, column)}
-              data-testid='column-header'
+      {current ?
+        <div className='columns' data-testid='columns'>
+          {board.columns.map(column => (
+            <section
+              key={column.id}
+              className={
+                dropTarget?.kind === 'task-end' && dropTarget.columnId === column.id ? 'column drop-end' : 'column'
+              }
+              data-column-id={column.id}
+              onDragOver={event => onTaskDragOver(event)}
+              onDrop={event => void onTaskDrop(event)}
+              data-testid='column'
             >
-              <h2 className='column-title' data-testid='column-title'>
-                {column.title}
-              </h2>
-              <span className='column-count' data-testid='column-count'>
-                {(taskMap.get(column.id) ?? []).length}
-              </span>
-              <div className='column-menu'>
-                <button
-                  onClick={() => {
-                    const title = promptTitle('改列标题', column.title);
-                    if (title !== null) void guard(() => board.actions.updateColumn(column.id, { title }));
-                  }}
-                  data-testid='column-rename'
-                  aria-label='改列名'
-                >
-                  改名
-                </button>
-                <button
-                  onClick={() => void moveColumnBy(column.id, -1)}
-                  data-testid='column-move-back'
-                  aria-label='前移'
-                >
-                  前移
-                </button>
-                <button
-                  onClick={() => void moveColumnBy(column.id, 1)}
-                  data-testid='column-move-forward'
-                  aria-label='后移'
-                >
-                  后移
-                </button>
-                <button
-                  onClick={() => void sortColumnBy(column.id, 'dueDate')}
-                  data-testid='column-sort-due'
-                  aria-label='按截止日排序'
-                  disabled={sortingColumnId === column.id}
-                >
-                  按截止日
-                </button>
-                <button
-                  onClick={() => void sortColumnBy(column.id, 'title')}
-                  data-testid='column-sort-title'
-                  aria-label='按标题排序'
-                  disabled={sortingColumnId === column.id}
-                >
-                  按标题
-                </button>
-                <button
-                  onClick={() => void confirmColumnDelete(column)}
-                  data-testid='column-delete'
-                  aria-label='删除列'
-                >
-                  删除
-                </button>
-              </div>
-            </header>
-            <div className='cards'>
-              {(taskMap.get(column.id) ?? []).map(task => (
-                <article
-                  key={task.id}
-                  className={[
-                    'card',
-                    searchHighlightId === task.id ? 'search-hit' : '',
-                    dropTarget?.kind === 'task' && dropTarget.taskId === task.id && dropTarget.mode === 'before' ?
-                      'drop-before'
-                    : '',
-                    dropTarget?.kind === 'task' && dropTarget.taskId === task.id && dropTarget.mode === 'after' ?
-                      'drop-after'
-                    : '',
-                    dragging?.kind === 'task' && dragging.id === task.id ? 'dragging' : ''
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  data-task-id={task.id}
-                  tabIndex={-1}
-                  draggable
-                  onDragStart={event => onTaskDragStart(event, task)}
-                  data-testid='task-card'
-                >
-                  {editTitleTaskId === task.id ?
-                    <>
-                      <input
-                        className='title-editor'
-                        value={editTitleValue}
-                        onChange={event => setEditTitleValue(event.target.value)}
-                        onKeyDown={event => {
-                          if (event.key === 'Enter') void commitEditTitle(task);
-                          if (event.key === 'Escape') setEditTitleTaskId(null);
-                        }}
-                        data-testid='task-title-editor'
-                        aria-label='任务标题'
-                      />
-                      <button
-                        onClick={() => void commitEditTitle(task)}
-                        data-testid='task-title-save'
-                        aria-label='保存标题'
-                      >
-                        保存
-                      </button>
-                      <button
-                        onClick={() => setEditTitleTaskId(null)}
-                        data-testid='task-title-cancel'
-                        aria-label='取消'
-                      >
-                        取消
-                      </button>
-                    </>
-                  : <>
-                      <button className='card-title' onClick={() => void openDetail(task.id)} data-testid='task-title'>
-                        {task.title}
-                      </button>
-                      <button
-                        className='card-edit'
-                        onClick={() => startEditTitle(task)}
-                        data-testid='task-edit-title'
-                        aria-label='编辑标题'
-                      >
-                        编辑
-                      </button>
-                    </>
-                  }
-                  {labelsOf(task.id).length > 0 ?
-                    <div className='card-labels'>
-                      {labelsOf(task.id).map(label => (
-                        <span
-                          key={label.id}
-                          className='card-label'
-                          style={{ background: label.color, color: labelTextColor(label.color) }}
-                          data-testid='card-label'
-                          aria-label={label.name}
-                        >
-                          {label.name}
-                        </span>
-                      ))}
-                    </div>
-                  : null}
-                  {dueDateText(task) ?
-                    <span
-                      className={`card-due${dueDateText(task).startsWith('已逾期') ? 'overdue' : ''}`}
-                      data-testid='task-due'
-                    >
-                      {dueDateText(task)}
-                    </span>
-                  : null}
-                </article>
-              ))}
-              <button
-                className='add-task'
-                onClick={() => {
-                  setAddTaskColumnId(column.id);
-                  setAddTaskTitle('');
-                }}
-                disabled={board.restoring}
-                data-testid='add-task'
+              <header
+                className={[
+                  'column-header',
+                  dropTarget?.kind === 'column' && dropTarget.columnId === column.id && dropTarget.mode === 'before' ?
+                    'drop-before'
+                  : '',
+                  dropTarget?.kind === 'column' && dropTarget.columnId === column.id && dropTarget.mode === 'after' ?
+                    'drop-after'
+                  : '',
+                  dragging?.kind === 'column' && dragging.id === column.id ? 'dragging' : ''
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                data-column-header-id={column.id}
+                draggable
+                onDragOver={event => onColumnDragOver(event)}
+                onDragStart={event => onColumnDragStart(event, column)}
+                data-testid='column-header'
               >
-                + 添加任务
-              </button>
-              {addTaskColumnId === column.id ?
-                <div className='add-task-form' data-testid='add-task-form'>
-                  <input
-                    className='add-task-input'
-                    value={addTaskTitle}
-                    onChange={event => setAddTaskTitle(event.target.value)}
-                    onKeyDown={event => {
-                      if (event.key === 'Enter') void commitAddTask();
-                      if (event.key === 'Escape') cancelAddTask();
-                    }}
-                    placeholder='输入任务标题'
-                    aria-label='新任务标题'
-                    data-testid='add-task-input'
-                  />
+                <h2 className='column-title' data-testid='column-title'>
+                  {column.title}
+                </h2>
+                <span className='column-count' data-testid='column-count'>
+                  {(taskMap.get(column.id) ?? []).length}
+                </span>
+                <div className='column-menu'>
                   <button
-                    className='add-task-submit'
-                    onClick={() => void commitAddTask()}
-                    disabled={addTaskTitle.trim() === ''}
-                    data-testid='add-task-submit'
+                    onClick={() => {
+                      const title = promptTitle('改列标题', column.title);
+                      if (title !== null) void guard(() => board.actions.updateColumn(column.id, { title }));
+                    }}
+                    data-testid='column-rename'
+                    aria-label='改列名'
                   >
-                    添加
+                    改名
                   </button>
                   <button
-                    className='add-task-cancel'
-                    onClick={cancelAddTask}
-                    aria-label='取消'
-                    data-testid='add-task-cancel'
+                    onClick={() => void moveColumnBy(column.id, -1)}
+                    data-testid='column-move-back'
+                    aria-label='前移'
                   >
-                    ×
+                    前移
+                  </button>
+                  <button
+                    onClick={() => void moveColumnBy(column.id, 1)}
+                    data-testid='column-move-forward'
+                    aria-label='后移'
+                  >
+                    后移
+                  </button>
+                  <button
+                    onClick={() => void sortColumnBy(column.id, 'dueDate')}
+                    data-testid='column-sort-due'
+                    aria-label='按截止日排序'
+                    disabled={sortingColumnId === column.id}
+                  >
+                    按截止日
+                  </button>
+                  <button
+                    onClick={() => void sortColumnBy(column.id, 'title')}
+                    data-testid='column-sort-title'
+                    aria-label='按标题排序'
+                    disabled={sortingColumnId === column.id}
+                  >
+                    按标题
+                  </button>
+                  <button
+                    onClick={() => void confirmColumnDelete(column)}
+                    data-testid='column-delete'
+                    aria-label='删除列'
+                  >
+                    删除
                   </button>
                 </div>
-              : null}
-            </div>
-          </section>
-        ))}
-      </div>
+              </header>
+              <div className='cards'>
+                {(taskMap.get(column.id) ?? []).map(task => (
+                  <article
+                    key={task.id}
+                    className={[
+                      'card',
+                      searchHighlightId === task.id ? 'search-hit' : '',
+                      dropTarget?.kind === 'task' && dropTarget.taskId === task.id && dropTarget.mode === 'before' ?
+                        'drop-before'
+                      : '',
+                      dropTarget?.kind === 'task' && dropTarget.taskId === task.id && dropTarget.mode === 'after' ?
+                        'drop-after'
+                      : '',
+                      dragging?.kind === 'task' && dragging.id === task.id ? 'dragging' : ''
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    data-task-id={task.id}
+                    tabIndex={-1}
+                    draggable
+                    onDragStart={event => onTaskDragStart(event, task)}
+                    data-testid='task-card'
+                  >
+                    {editTitleTaskId === task.id ?
+                      <>
+                        <input
+                          className='title-editor'
+                          value={editTitleValue}
+                          onChange={event => setEditTitleValue(event.target.value)}
+                          onKeyDown={event => {
+                            if (event.key === 'Enter') void commitEditTitle(task);
+                            if (event.key === 'Escape') setEditTitleTaskId(null);
+                          }}
+                          data-testid='task-title-editor'
+                          aria-label='任务标题'
+                        />
+                        <button
+                          onClick={() => void commitEditTitle(task)}
+                          data-testid='task-title-save'
+                          aria-label='保存标题'
+                        >
+                          保存
+                        </button>
+                        <button
+                          onClick={() => setEditTitleTaskId(null)}
+                          data-testid='task-title-cancel'
+                          aria-label='取消'
+                        >
+                          取消
+                        </button>
+                      </>
+                    : <>
+                        <button
+                          className='card-title'
+                          onClick={() => void openDetail(task.id)}
+                          data-testid='task-title'
+                        >
+                          {task.title}
+                        </button>
+                        <button
+                          className='card-edit'
+                          onClick={() => startEditTitle(task)}
+                          data-testid='task-edit-title'
+                          aria-label='编辑标题'
+                        >
+                          编辑
+                        </button>
+                      </>
+                    }
+                    {labelsOf(task.id).length > 0 ?
+                      <div className='card-labels'>
+                        {labelsOf(task.id).map(label => (
+                          <span
+                            key={label.id}
+                            className='card-label'
+                            style={{ background: label.color, color: labelTextColor(label.color) }}
+                            data-testid='card-label'
+                            aria-label={label.name}
+                          >
+                            {label.name}
+                          </span>
+                        ))}
+                      </div>
+                    : null}
+                    {dueDateText(task) ?
+                      <span
+                        className={`card-due${dueDateText(task).startsWith('已逾期') ? 'overdue' : ''}`}
+                        data-testid='task-due'
+                      >
+                        {dueDateText(task)}
+                      </span>
+                    : null}
+                  </article>
+                ))}
+                <button
+                  className='add-task'
+                  onClick={() => {
+                    if (creatingTaskRef.current) return;
+                    setAddTaskColumnId(column.id);
+                    setAddTaskTitle('');
+                  }}
+                  disabled={board.restoring || creatingTask}
+                  data-testid='add-task'
+                >
+                  + 添加任务
+                </button>
+                {addTaskColumnId === column.id ?
+                  <div className='add-task-form' data-testid='add-task-form'>
+                    <input
+                      className='add-task-input'
+                      value={addTaskTitle}
+                      onChange={event => setAddTaskTitle(event.target.value)}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter') void commitAddTask();
+                        if (event.key === 'Escape') cancelAddTask();
+                      }}
+                      placeholder='输入任务标题'
+                      aria-label='新任务标题'
+                      data-testid='add-task-input'
+                      disabled={creatingTask}
+                    />
+                    <button
+                      className='add-task-submit'
+                      onClick={() => void commitAddTask()}
+                      disabled={creatingTask || addTaskTitle.trim() === ''}
+                      data-testid='add-task-submit'
+                    >
+                      添加
+                    </button>
+                    <button
+                      className='add-task-cancel'
+                      onClick={cancelAddTask}
+                      aria-label='取消'
+                      data-testid='add-task-cancel'
+                      disabled={creatingTask}
+                    >
+                      ×
+                    </button>
+                  </div>
+                : null}
+              </div>
+            </section>
+          ))}
+        </div>
+      : null}
 
-      {detailTaskId ?
+      {current && detailTaskId ?
         <aside className='detail-panel' data-testid='detail-panel'>
           <h3>任务详情</h3>
           <label>

@@ -110,3 +110,103 @@ for (const pending of [false, true]) {
     await expect(page.getByTestId('task-card')).toHaveCount(13);
   });
 }
+
+test('连续重置释放旧库连接，新旧看板数据仍可读写', async ({ page }) => {
+  await page.goto(APP_BASE_URL);
+  await page.getByTestId('start-seed').click();
+  await expect(page.getByTestId('task-card')).toHaveCount(12);
+  const original = await page.evaluate(() => localStorage.getItem('rxdb-board-active-db'));
+  await page.getByTestId('add-task').first().click();
+  await page.getByTestId('add-task-input').fill('重置前保留的任务');
+  await page.getByTestId('add-task-input').press('Enter');
+  await expect(page.getByTestId('task-card')).toHaveCount(13);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const oldDb = await page.evaluate(() => localStorage.getItem('rxdb-board-active-db'));
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByTestId('reset-demo').click();
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('rxdb-board-active-db'))).not.toBe(oldDb);
+    await expect
+      .poll(() =>
+        page.evaluate(async name => {
+          const { held, pending } = await navigator.locks.query();
+          return [...held, ...pending].filter(lock => lock.name?.includes(name!)).map(lock => lock.name);
+        }, oldDb)
+      )
+      .toEqual([]);
+  }
+  await page.getByTestId('add-task').first().click();
+  await page.getByTestId('add-task-input').fill('重置后可写');
+  await page.getByTestId('add-task-input').press('Enter');
+  await expect(page.getByTestId('task-card')).toHaveCount(13);
+  await page.evaluate(name => localStorage.setItem('rxdb-board-active-db', name!), original);
+  await page.reload();
+  await expect(page.getByTestId('task-card')).toHaveCount(13);
+  await expect(page.getByTestId('task-title').filter({ hasText: '重置前保留的任务' })).toBeVisible();
+});
+
+test('重置写入活动位置失败时释放新连接，保留原板及其写能力', async ({ page }) => {
+  await page.goto(APP_BASE_URL);
+  await page.getByTestId('start-seed').click();
+  await expect(page.getByTestId('task-card')).toHaveCount(12);
+  const active = await page.evaluate(() => localStorage.getItem('rxdb-board-active-db'));
+  await page.evaluate(() => {
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'rxdb-board-active-db') throw new Error('模拟活动位置写入失败');
+      setItem.call(this, key, value);
+    };
+  });
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByTestId('reset-demo').click();
+  await expect(page.getByTestId('app-error')).toContainText('模拟活动位置写入失败');
+  expect(await page.evaluate(() => localStorage.getItem('rxdb-board-active-db'))).toBe(active);
+  await expect
+    .poll(() =>
+      page.evaluate(async name => {
+        const { held, pending } = await navigator.locks.query();
+        return [...held, ...pending]
+          .filter(lock => lock.name?.includes('rxdb-board-restore-') && !lock.name.includes(name!))
+          .map(lock => lock.name);
+      }, active)
+    )
+    .toEqual([]);
+  await page.getByTestId('add-task').first().click();
+  await page.getByTestId('add-task-input').fill('失败后仍可写');
+  await page.getByTestId('add-task-input').press('Enter');
+  await expect(page.getByTestId('task-card')).toHaveCount(13);
+});
+
+test('恢复切库成功后其他页面同步切换，后续写入刷新仍保留', async ({ page, context }) => {
+  await page.goto(APP_BASE_URL);
+  await page.getByTestId('start-seed').click();
+  await expect(page.getByTestId('task-card')).toHaveCount(12);
+  const download = page.waitForEvent('download');
+  await page.getByTestId('export-backup').click();
+  const archive = await (await download).path();
+  const oldActive = await page.evaluate(() => localStorage.getItem('rxdb-board-active-db'));
+  await page.getByTestId('add-task').first().click();
+  await page.getByTestId('add-task-input').fill('备份之后的旧库任务');
+  await page.getByTestId('add-task-input').press('Enter');
+  await expect(page.getByTestId('task-card')).toHaveCount(13);
+  const other = await context.newPage();
+  try {
+    await other.goto(APP_BASE_URL);
+    await expect(other.getByTestId('task-card')).toHaveCount(13);
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByTestId('restore-file-menu').setInputFiles(archive!);
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('rxdb-board-active-db'))).not.toBe(oldActive);
+    await expect(other.getByTestId('task-card')).toHaveCount(12);
+    await expect(other.getByTestId('restoring-badge')).toHaveCount(0);
+    await other.getByTestId('add-task').first().click();
+    await other.getByTestId('add-task-input').fill('切库后在第二页新建的任务');
+    await other.getByTestId('add-task-input').press('Enter');
+    await expect(other.getByTestId('task-title').filter({ hasText: '切库后在第二页新建的任务' })).toHaveCount(1);
+    await other.reload();
+    await expect(other.getByTestId('task-card')).toHaveCount(13);
+    await expect(other.getByTestId('task-title').filter({ hasText: '切库后在第二页新建的任务' })).toHaveCount(1);
+  } finally {
+    await other.close();
+  }
+});

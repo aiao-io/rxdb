@@ -139,6 +139,73 @@ describe('Angular 看板交互边界', () => {
     vi.useRealTimers();
   });
 
+  it('删除其他列不打断正在加载的详情', async () => {
+    let resolve!: (value: TaskDraftSnapshot) => void;
+    vi.mocked(actions.openSnapshot).mockReturnValueOnce(
+      new Promise(done => {
+        resolve = done;
+      })
+    );
+    vi.mocked(actions.planColumnDelete).mockResolvedValueOnce({
+      kind: 'column',
+      columnId: secondColumn.id,
+      columnTitle: secondColumn.title,
+      taskIds: [],
+      taskLabelIds: []
+    });
+    const opening = view['openDetail'](first.id);
+    await view['confirmColumnDelete'](secondColumn);
+    await view['executeConfirmedDelete']();
+    resolve(snapshot);
+    await opening;
+    expect(view['detailTaskId']()).toBe(first.id);
+  });
+
+  it('删除所属列后不得接受迟到的详情快照', async () => {
+    let resolve!: (value: TaskDraftSnapshot) => void;
+    vi.mocked(actions.openSnapshot).mockReturnValueOnce(
+      new Promise(done => {
+        resolve = done;
+      })
+    );
+    const opening = view['openDetail'](first.id);
+    await view['confirmColumnDelete'](firstColumn);
+    await view['executeConfirmedDelete']();
+    resolve(snapshot);
+    await opening;
+    expect(view['detailTaskId']()).toBeNull();
+  });
+
+  it('确认删除包含当前任务的板后关闭已失效的详情', async () => {
+    await view['openDetail'](first.id);
+    view['draftDescription'].set('待删除草稿');
+    await view['confirmBoardDelete']();
+    await view['executeConfirmedDelete']();
+    expect(view['detailTaskId']()).toBeNull();
+  });
+
+  it('创建任务进行中拒绝重复提交和切换输入，失败后允许重试', async () => {
+    let reject!: (reason: Error) => void;
+    vi.mocked(actions.createTask).mockReturnValueOnce(
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      })
+    );
+    view['openAddTask'](firstColumn.id);
+    view['addTaskTitle'].set('只创建一次');
+    const pending = view['commitAddTask']();
+    await view['commitAddTask']();
+    view['openAddTask'](secondColumn.id);
+    expect(actions.createTask).toHaveBeenCalledTimes(1);
+    expect(view['addTaskColumnId']()).toBe(firstColumn.id);
+    reject(new Error('创建失败'));
+    await pending;
+    expect(view['addTaskTitle']()).toBe('只创建一次');
+    await view['commitAddTask']();
+    expect(actions.createTask).toHaveBeenCalledTimes(2);
+    expect(view['addTaskColumnId']()).toBeNull();
+  });
+
   it('生命周期读取跨页恢复标记并卸载监听', () => {
     window.addEventListener('storage', view['onBoardStorage']);
     view['onBoardStorage']();

@@ -65,6 +65,11 @@ const onMovePositionChange = (event: Event): void => {
   movePosition.value = Number((event.target as HTMLSelectElement).value);
 };
 let detailRequest = 0;
+let pendingDetailTaskId: UUID | null = null;
+const invalidateDetailRequest = (): void => {
+  detailRequest++;
+  pendingDetailTaskId = null;
+};
 const detailTaskId = ref<UUID | null>(null);
 const draft = ref({ title: '', description: '', dueDate: '', labelIds: [] as readonly UUID[] });
 const snapshot = ref<TaskDraftSnapshot | null>(null);
@@ -140,7 +145,7 @@ const searchResultColumn = (result: SearchResult): string => {
 };
 
 onBeforeUnmount(() => {
-  detailRequest++;
+  invalidateDetailRequest();
   if (highlightTimer !== null) window.clearTimeout(highlightTimer);
   if (noticeTimer !== null) window.clearTimeout(noticeTimer);
   searchSubs?.unsubscribe();
@@ -194,22 +199,38 @@ const createColumn = async (): Promise<void> => {
 /** 内联建任务（GitHub Projects 同款：列底输入框，Enter 提交 / Esc 取消）。 */
 const addTaskColumnId = ref<UUID | null>(null);
 const addTaskTitle = ref('');
+const creatingTask = ref(false);
+
+const openAddTask = (columnId: UUID): void => {
+  if (creatingTask.value) return;
+  addTaskColumnId.value = columnId;
+  addTaskTitle.value = '';
+};
 
 const cancelAddTask = (): void => {
+  if (creatingTask.value) return;
   addTaskColumnId.value = null;
   addTaskTitle.value = '';
 };
 
 const commitAddTask = async (): Promise<void> => {
+  if (creatingTask.value) return;
   const columnId = addTaskColumnId.value;
   const title = addTaskTitle.value.trim();
   if (columnId === null || title === '') {
     cancelAddTask();
     return;
   }
-  const created = await guard(() => board.actions.createTask({ columnId, title }));
-  // 失败（空标题等）保留输入，成功收起清空
-  if (created !== undefined) cancelAddTask();
+  creatingTask.value = true;
+  try {
+    const created = await guard(() => board.actions.createTask({ columnId, title }));
+    if (created !== undefined) {
+      addTaskColumnId.value = null;
+      addTaskTitle.value = '';
+    }
+  } finally {
+    creatingTask.value = false;
+  }
 };
 
 const startEditTitle = (taskId: UUID, title: string): void => {
@@ -386,15 +407,18 @@ const moveColumnBy = async (columnId: UUID, direction: -1 | 1): Promise<void> =>
 
 const openDetail = async (taskId: UUID): Promise<void> => {
   if (detailTaskId.value === taskId) {
-    detailRequest++;
+    invalidateDetailRequest();
     return;
   }
   if (isDetailDirty() && !window.confirm('有未保存的修改，切换任务将放弃。继续？')) return;
   const request = ++detailRequest;
+  pendingDetailTaskId = taskId;
   const boardId = board.currentBoardId.value;
   const previousDraft = JSON.stringify(draft.value);
   const snap = await guard(() => board.actions.openSnapshot(taskId));
-  if (!snap || request !== detailRequest || board.currentBoardId.value !== boardId) return;
+  if (request !== detailRequest) return;
+  pendingDetailTaskId = null;
+  if (!snap || board.currentBoardId.value !== boardId) return;
   if (JSON.stringify(draft.value) !== previousDraft) return;
   snapshot.value = snap;
   draft.value = {
@@ -424,7 +448,7 @@ const saveDetail = async (): Promise<void> => {
     );
     // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
     if (result === undefined || request !== detailRequest || snapshot.value !== currentSnapshot) return;
-    detailRequest++;
+    invalidateDetailRequest();
     detailTaskId.value = null;
     snapshot.value = null;
   } finally {
@@ -443,7 +467,7 @@ const isDetailDirty = (): boolean =>
 /** 关闭详情：有未保存修改先确认放弃（取消零写）。 */
 const closeDetail = (): void => {
   if (isDetailDirty() && !window.confirm('有未保存的修改，关闭将放弃。继续？')) return;
-  detailRequest++;
+  invalidateDetailRequest();
   detailTaskId.value = null;
   snapshot.value = null;
 };
@@ -540,7 +564,20 @@ const executeConfirmedDelete = async (): Promise<void> => {
   const pending = confirm.value;
   if (!pending) return;
   confirm.value = null;
-  await guard(() => board.actions.executeDelete(pending.plan));
+  const deleted = await guard(async () => {
+    await board.actions.executeDelete(pending.plan);
+    return true;
+  });
+  if (!deleted) return;
+  const plan = pending.plan;
+  const removedIds = plan.kind === 'task' ? [plan.taskId] : plan.taskIds;
+  if (pendingDetailTaskId !== null && removedIds.includes(pendingDetailTaskId)) invalidateDetailRequest();
+  const taskId = detailTaskId.value;
+  if (taskId !== null && removedIds.includes(taskId)) {
+    detailTaskId.value = null;
+    snapshot.value = null;
+  }
+  if (plan.kind === 'board') onSearchInputValue('');
 };
 
 const dueDateText = (due: string | null): string => {
@@ -557,14 +594,17 @@ const dueDateText = (due: string | null): string => {
 const labelsOf = (taskId: UUID): readonly BoardLabel[] => board.taskLabels.value.get(taskId) ?? [];
 
 const onSelectBoard = (event: Event): void => {
-  const boardId = (event.target as HTMLSelectElement).value as UUID;
-  // 切板前关详情：有未保存修改先确认放弃（取消则留在原板，受控选择器自动回弹）
+  const selector = event.target as HTMLSelectElement;
+  const boardId = selector.value as UUID;
   if (detailTaskId.value !== null) {
-    if (isDetailDirty() && !window.confirm('切板将放弃未保存的修改。继续？')) return;
+    if (isDetailDirty() && !window.confirm('切板将放弃未保存的修改。继续？')) {
+      selector.value = board.currentBoardId.value ?? '';
+      return;
+    }
     detailTaskId.value = null;
     snapshot.value = null;
   }
-  detailRequest++;
+  invalidateDetailRequest();
   board.selectBoard(boardId);
   // 切板丢弃旧板结果：销毁重建句柄重发（setQuery 同词会被 distinctUntilChanged 吞掉）
   const query = searchQuery.value.trim();
@@ -624,104 +664,121 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
     @dragend="clearDragFeedback"
     @drop="onColumnDrop"
   >
-    <template v-if="board.currentBoard.value">
-      <header
-        class="board-header"
-        data-testid="board-header"
+    <header
+      class="board-header"
+      data-testid="board-header"
+    >
+      <select
+        class="board-selector"
+        :value="board.currentBoardId.value ?? ''"
+        data-testid="board-selector"
+        aria-label="选择看板"
+        @change="onSelectBoard"
       >
-        <select
-          class="board-selector"
-          :value="board.currentBoardId.value ?? ''"
-          data-testid="board-selector"
-          aria-label="选择看板"
-          @change="onSelectBoard"
+        <option
+          v-for="item in board.boards.value"
+          :key="item.id"
+          :value="item.id"
         >
-          <option
-            v-for="item in board.boards.value"
-            :key="item.id"
-            :value="item.id"
-          >
-            {{ item.title }}
-          </option>
-        </select>
-        <button
-          class="header-button"
-          data-testid="rename-board"
-          aria-label="改板标题"
-          @click="onRenameBoard"
-        >
-          {{ board.currentBoard.value.title }}
-        </button>
-        <span
-          v-if="board.restoring.value"
-          class="restoring-badge"
-          data-testid="restoring-badge"
-          aria-live="polite"
-          >恢复中</span
-        >
-        <div class="header-actions">
-          <button
-            data-testid="create-board"
-            :disabled="board.restoring.value"
-            @click="createBoard"
-          >
-            新建板
-          </button>
-          <button
-            data-testid="delete-board"
-            :disabled="board.restoring.value"
-            @click="confirmBoardDelete"
-          >
-            删除看板
-          </button>
-          <button
-            data-testid="create-column"
-            :disabled="board.restoring.value"
-            @click="createColumn"
-          >
-            新建列
-          </button>
-          <button
-            data-testid="create-label"
-            :disabled="board.restoring.value"
-            @click="createLabel"
-          >
-            新建标签
-          </button>
-          <button
-            data-testid="undo"
-            :disabled="board.restoring.value || board.undoCount.value === 0"
-            aria-label="撤销"
-            @click="() => void guard(() => board.actions.undo())"
-          >
-            撤销
-          </button>
-          <button
-            data-testid="redo"
-            :disabled="board.restoring.value || board.redoCount.value === 0"
-            aria-label="重做"
-            @click="() => void guard(() => board.actions.redo())"
-          >
-            重做
-          </button>
-          <button
-            data-testid="export-backup"
-            :disabled="board.restoring.value"
-            @click="exportBackup"
-          >
-            导出备份
-          </button>
-        </div>
-      </header>
-
-      <p
+          {{ item.title }}
+        </option>
+      </select>
+      <button
+        v-if="board.currentBoard.value"
+        class="header-button"
+        data-testid="rename-board"
+        aria-label="改板标题"
+        @click="onRenameBoard"
+      >
+        {{ board.currentBoard.value.title }}
+      </button>
+      <span
         v-if="board.restoring.value"
-        class="restoring-note"
-        data-testid="restoring-note"
+        class="restoring-badge"
+        data-testid="restoring-badge"
+        aria-live="polite"
+        >恢复中</span
       >
-        恢复进行中：浏览可用，写入口已暂停。
-      </p>
+      <div class="header-actions">
+        <button
+          data-testid="create-board"
+          :disabled="board.restoring.value"
+          @click="createBoard"
+        >
+          新建板
+        </button>
+        <button
+          data-testid="delete-board"
+          :disabled="board.restoring.value || !board.currentBoard.value"
+          @click="confirmBoardDelete"
+        >
+          删除看板
+        </button>
+        <button
+          data-testid="create-column"
+          :disabled="board.restoring.value || !board.currentBoard.value"
+          @click="createColumn"
+        >
+          新建列
+        </button>
+        <button
+          data-testid="create-label"
+          :disabled="board.restoring.value || !board.currentBoard.value"
+          @click="createLabel"
+        >
+          新建标签
+        </button>
+        <button
+          data-testid="undo"
+          :disabled="board.restoring.value || board.undoCount.value === 0"
+          aria-label="撤销"
+          @click="() => void guard(() => board.actions.undo())"
+        >
+          撤销
+        </button>
+        <button
+          data-testid="redo"
+          :disabled="board.restoring.value || board.redoCount.value === 0"
+          aria-label="重做"
+          @click="() => void guard(() => board.actions.redo())"
+        >
+          重做
+        </button>
+        <button
+          data-testid="export-backup"
+          :disabled="board.restoring.value"
+          @click="exportBackup"
+        >
+          导出备份
+        </button>
+      </div>
+    </header>
 
+    <p
+      v-if="board.restoring.value"
+      class="restoring-note"
+      data-testid="restoring-note"
+    >
+      恢复进行中：浏览可用，写入口已暂停。
+    </p>
+
+    <p
+      v-if="notice"
+      class="board-notice"
+      role="alert"
+      data-testid="board-notice"
+    >
+      {{ notice }}
+      <button
+        data-testid="board-notice-close"
+        aria-label="关闭提示"
+        @click="notice = null"
+      >
+        ×
+      </button>
+    </p>
+
+    <template v-if="board.currentBoard.value">
       <div
         v-if="board.labels.value.length > 0"
         class="label-strip"
@@ -748,22 +805,6 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
           >
         </span>
       </div>
-
-      <p
-        v-if="notice"
-        class="board-notice"
-        role="alert"
-        data-testid="board-notice"
-      >
-        {{ notice }}
-        <button
-          data-testid="board-notice-close"
-          aria-label="关闭提示"
-          @click="notice = null"
-        >
-          ×
-        </button>
-      </p>
 
       <!-- 板内搜索（US-539 阶段 B） -->
       <div
@@ -1001,12 +1042,9 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
             </article>
             <button
               class="add-task"
-              :disabled="board.restoring.value"
+              :disabled="board.restoring.value || creatingTask"
               data-testid="add-task"
-              @click="
-                addTaskColumnId = column.id;
-                addTaskTitle = '';
-              "
+              @click="openAddTask(column.id)"
             >
               + 添加任务
             </button>
@@ -1021,12 +1059,13 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
                 placeholder="输入任务标题"
                 aria-label="新任务标题"
                 data-testid="add-task-input"
+                :disabled="creatingTask"
                 @keydown.enter="commitAddTask"
                 @keydown.esc="cancelAddTask"
               />
               <button
                 class="add-task-submit"
-                :disabled="addTaskTitle.trim() === ''"
+                :disabled="creatingTask || addTaskTitle.trim() === ''"
                 data-testid="add-task-submit"
                 @click="commitAddTask"
               >
@@ -1036,6 +1075,7 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
                 class="add-task-cancel"
                 aria-label="取消"
                 data-testid="add-task-cancel"
+                :disabled="creatingTask"
                 @click="cancelAddTask"
               >
                 ×
@@ -1192,43 +1232,20 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
         </div>
       </aside>
     </template>
-
-    <template v-else>
-      <!-- 空态也保留选择器：删除当前板后仍能切到其余板（与 Angular / React 对称） -->
-      <header
-        class="board-header"
-        data-testid="board-header"
+    <div
+      v-else
+      class="empty-board"
+      data-testid="empty-board"
+    >
+      <p>没有看板</p>
+      <button
+        data-testid="create-board-empty"
+        :disabled="board.restoring.value"
+        @click="createBoard"
       >
-        <select
-          class="board-selector"
-          :value="board.currentBoardId.value ?? ''"
-          data-testid="board-selector"
-          aria-label="选择看板"
-          @change="onSelectBoard"
-        >
-          <option
-            v-for="item in board.boards.value"
-            :key="item.id"
-            :value="item.id"
-          >
-            {{ item.title }}
-          </option>
-        </select>
-      </header>
-      <div
-        class="empty-board"
-        data-testid="empty-board"
-      >
-        <p>没有看板</p>
-        <button
-          data-testid="create-board-empty"
-          :disabled="board.restoring.value"
-          @click="createBoard"
-        >
-          新建板
-        </button>
-      </div>
-    </template>
+        新建板
+      </button>
+    </div>
   </section>
 </template>
 

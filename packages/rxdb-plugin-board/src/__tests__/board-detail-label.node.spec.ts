@@ -78,6 +78,18 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
     return { board, column, task };
   };
 
+  it('切板后拒绝执行旧标签删除清单，标签与关联都保留', async () => {
+    const { task } = await seedTask();
+    const label = await labels.createLabel({ name: '归属标签', color: '#ff0000' });
+    const snapshot = await details.openSnapshot(task.id);
+    await details.saveTaskDraft(task.id, snapshot, draftFrom(snapshot, { labelIds: [label.id] }));
+    const plan = await labels.planLabelDelete(label.id);
+    ctx.boardId = (await domain.createBoard({ title: '另一块板' })).id;
+    await expect(labels.executeLabelDelete(plan)).rejects.toMatchObject({ code: 'cross_board' });
+    expect(await readFirst(labelRepo().find({ where: whereEq('id', label.id) }))).toHaveLength(1);
+    expect(await linksOf(task.id)).toHaveLength(1);
+  });
+
   it('AC#1 / #5 / #8：一次保存原子提交，重开不丢；100 KiB 描述逐字读回', async () => {
     const { task } = await seedTask();
     const snapshot = await details.openSnapshot(task.id);

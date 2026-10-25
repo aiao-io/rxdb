@@ -1,7 +1,7 @@
 import { RxDB } from '@aiao/rxdb';
 import { ACTIVE_DB_KEY, Board, PENDING_SWITCH_KEY, RESTORING_MARKER_KEY } from '@aiao/rxdb-plugin-board';
 import { BoardViewComponent } from '@aiao/rxdb-plugin-board-angular';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import {
@@ -121,7 +121,7 @@ const failureMessage = (cause: unknown): string => (cause instanceof Error ? cau
     `
   ]
 })
-export class App implements OnInit {
+export class App implements OnInit, OnDestroy {
   private readonly storage = typeof localStorage !== 'undefined' ? localStorage : null;
   private activeDbName: string | null = null;
 
@@ -130,8 +130,13 @@ export class App implements OnInit {
   protected readonly error = signal<string | null>(null);
 
   ngOnInit(): void {
+    window.addEventListener('storage', this.onActiveDbChanged);
     this.phase.set(this.readStorage(RESTORING_MARKER_KEY) === null ? 'loading' : 'restoring');
     void withBoardRestoreLock(() => this.initializeBoard()).catch((cause: unknown) => this.showFailure(cause));
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('storage', this.onActiveDbChanged);
   }
 
   // ---------- 启动选择 ----------
@@ -180,6 +185,13 @@ export class App implements OnInit {
     if (!window.confirm('重置为演示数据：将在新库上装载演示数据，成功后打开演示看板。继续？')) return;
     await this.prepareBoard(true);
   }
+
+  private readonly onActiveDbChanged = (event: StorageEvent): void => {
+    if (event.storageArea !== this.storage || event.key !== ACTIVE_DB_KEY) return;
+    if (event.newValue === null || event.newValue === this.activeDbName) return;
+    this.phase.set('loading');
+    window.location.reload();
+  };
 
   // ---------- 恢复编排 ----------
 
@@ -282,19 +294,19 @@ export class App implements OnInit {
   }
 
   private async openAndWriteActive(dbName: string, seed = false): Promise<void> {
-    // 首装 / 重置是「准备数据」不是「恢复」，别复用恢复中的写暂停文案
     this.phase.set('loading');
     const db = createBoardRxdb(dbName);
     try {
       await connectBoardRxdb(db);
       if (seed) await seedBoardDemo(db);
       this.writeStorage(ACTIVE_DB_KEY, dbName);
-      this.activeDbName = dbName;
-      this.rxdb.set(db);
-      this.phase.set('board');
     } catch (cause) {
-      this.showFailure(cause);
+      const disconnectFailure = await this.disconnectFailure(db);
+      this.showFailure([failureMessage(cause), disconnectFailure].filter(Boolean).join('；'));
+      return;
     }
+    this.error.set(null);
+    await this.activateBoard(dbName, db);
   }
 
   private async openBoard(dbName: string): Promise<void> {
@@ -302,11 +314,30 @@ export class App implements OnInit {
     const db = createBoardRxdb(dbName);
     try {
       await connectBoardRxdb(db);
-      this.activeDbName = dbName;
-      this.rxdb.set(db);
-      this.phase.set('board');
     } catch (cause) {
-      this.showFailure(cause);
+      const disconnectFailure = await this.disconnectFailure(db);
+      this.showFailure([failureMessage(cause), disconnectFailure].filter(Boolean).join('；'));
+      return;
+    }
+    await this.activateBoard(dbName, db);
+  }
+
+  private async activateBoard(dbName: string, db: RxDB): Promise<void> {
+    const previous = this.rxdb();
+    this.activeDbName = dbName;
+    this.rxdb.set(db);
+    this.phase.set('board');
+    if (previous === null) return;
+    const disconnectFailure = await this.disconnectFailure(previous);
+    if (disconnectFailure !== null) this.error.set(disconnectFailure);
+  }
+
+  private async disconnectFailure(db: RxDB): Promise<string | null> {
+    try {
+      await db.disconnectAll();
+      return null;
+    } catch (cause) {
+      return `看板连接释放失败：${failureMessage(cause)}`;
     }
   }
 

@@ -1,7 +1,7 @@
 import { RxDB, SyncType, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BoardDomain } from '../board-domain.js';
 import { BoardColumnSortService } from '../column-sort-service.js';
@@ -91,6 +91,31 @@ describe('BoardMoveService / BoardColumnSortService（US-535）', () => {
     });
     return [column(c1, 0, t1), column(c2, 100, t2), column(c3, 200, [])];
   };
+
+  it('邻居校验后被并发移走不得把当前任务带到第三列', async () => {
+    const board = await domain.createBoard({ title: '并发移动' });
+    ctx.boardId = board.id;
+    const source = await domain.createColumn({ title: '源列' });
+    const target = await domain.createColumn({ title: '目标列' });
+    const third = await domain.createColumn({ title: '第三列' });
+    const moved = await domain.createTask({ columnId: source.id, title: '被拖动任务' });
+    const neighbor = await domain.createTask({ columnId: target.id, title: '目标邻居' });
+    const repository = taskRepo();
+    const originalReorder = repository.reorder.bind(repository);
+    const spy = vi.spyOn(repository, 'reorder').mockImplementationOnce(async (id, placement) => {
+      await originalReorder(neighbor.id, { group: { columnId: third.id } });
+      return originalReorder(id, placement);
+    });
+    try {
+      await expect(
+        moves.moveTask(moved.id, { kind: 'between', columnId: target.id, prevId: null, nextId: neighbor.id })
+      ).rejects.toMatchObject({ reason: 'staleTarget' });
+      const [stored] = await readFirst(repository.find({ where: whereEq('id', moved.id) }));
+      expect(stored.columnId).toBe(source.id);
+    } finally {
+      spy.mockRestore();
+    }
+  });
 
   it('AC#1：跨列两邻之间——一个事务只写 column_id 与 sortOrder，源列其余行不改写', async () => {
     const { c1, c2, t1, t2 } = await seedColumns();

@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-plugin-board",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "Board entities, kanban domain services and deterministic seeds for Aiao RxDB.",
   "homepage": "https://rxdb.aiao.io/docs/plugins",
   "bugs": {

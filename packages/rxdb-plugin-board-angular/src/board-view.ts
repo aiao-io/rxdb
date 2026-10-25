@@ -368,6 +368,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   /** 输入绑定完成后（ngOnInit）安装的领域桥；首帧为 null。 */
   private snapshot: TaskDraftSnapshot | null = null;
   private detailRequest = 0;
+  private pendingDetailTaskId: UUID | null = null;
 
   protected readonly board = signal<UseBoardReturn | null>(null);
 
@@ -408,6 +409,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   /** 内联建任务（GitHub Projects 同款：列底输入框，Enter 提交 / Esc 取消）。 */
   protected readonly addTaskColumnId = signal<UUID | null>(null);
   protected readonly addTaskTitle = signal('');
+  protected readonly creatingTask = signal(false);
 
   protected readonly detailDraftTitle = signal('');
   protected readonly draftDescription = signal<string>('');
@@ -456,7 +458,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.detailRequest++;
+    this.invalidateDetailRequest();
     window.removeEventListener('storage', this.onBoardStorage);
     if (this.noticeTimer !== null) window.clearTimeout(this.noticeTimer);
     this.searchSubs.unsubscribe();
@@ -483,25 +485,35 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   protected openAddTask(columnId: UUID): void {
+    if (this.creatingTask()) return;
     this.addTaskColumnId.set(columnId);
     this.addTaskTitle.set('');
   }
 
   protected cancelAddTask(): void {
+    if (this.creatingTask()) return;
     this.addTaskColumnId.set(null);
     this.addTaskTitle.set('');
   }
 
   protected async commitAddTask(): Promise<void> {
+    if (this.creatingTask()) return;
     const columnId = this.addTaskColumnId();
     const title = this.addTaskTitle().trim();
     if (columnId === null || title === '') {
       this.cancelAddTask();
       return;
     }
-    const created = await this.guard(() => this.boardRef.actions.createTask({ columnId, title }));
-    // 失败（空标题等）保留输入，成功收起清空
-    if (created !== undefined) this.cancelAddTask();
+    this.creatingTask.set(true);
+    try {
+      const created = await this.guard(() => this.boardRef.actions.createTask({ columnId, title }));
+      if (created !== undefined) {
+        this.addTaskColumnId.set(null);
+        this.addTaskTitle.set('');
+      }
+    } finally {
+      this.creatingTask.set(false);
+    }
   }
 
   // ---------- 标题内联编辑 ----------
@@ -653,13 +665,17 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   // ---------- 详情面板 ----------
 
   protected async openDetail(taskId: UUID): Promise<void> {
-    const request = ++this.detailRequest;
+    this.invalidateDetailRequest();
+    const request = this.detailRequest;
     if (this.detailTaskId() === taskId) return;
     if (this.isDetailDirty() && !window.confirm('有未保存的修改，切换任务将放弃。继续？')) return;
+    this.pendingDetailTaskId = taskId;
     const boardId = this.boardRef.currentBoardId();
     const draftState = this.detailDraftState();
     const snap = await this.guard(() => this.boardRef.actions.openSnapshot(taskId));
-    if (!snap || request !== this.detailRequest || boardId !== this.boardRef.currentBoardId()) return;
+    if (request !== this.detailRequest) return;
+    this.pendingDetailTaskId = null;
+    if (!snap || boardId !== this.boardRef.currentBoardId()) return;
     if (draftState !== this.detailDraftState()) return;
     this.snapshot = snap;
     this.detailTaskId.set(taskId);
@@ -684,7 +700,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected closeDetail(): void {
     if (this.isDetailDirty() && !window.confirm('有未保存的修改，关闭将放弃。继续？')) return;
-    this.detailRequest++;
+    this.invalidateDetailRequest();
     this.detailTaskId.set(null);
     this.snapshot = null;
   }
@@ -798,7 +814,21 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const pending = this.confirmDelete();
     if (!pending) return;
     this.confirmDelete.set(null);
-    await this.guard(() => this.boardRef.actions.executeDelete(pending));
+    const deleted = await this.guard(async () => {
+      await this.boardRef.actions.executeDelete(pending);
+      return true;
+    });
+    if (!deleted) return;
+    const removedIds = pending.kind === 'task' ? [pending.taskId] : pending.taskIds;
+    if (this.pendingDetailTaskId !== null && removedIds.includes(this.pendingDetailTaskId)) {
+      this.invalidateDetailRequest();
+    }
+    const taskId = this.detailTaskId();
+    if (taskId !== null && removedIds.includes(taskId)) {
+      this.detailTaskId.set(null);
+      this.snapshot = null;
+    }
+    if (pending.kind === 'board') this.onSearchInput('');
   }
 
   protected cancelDelete(): void {
@@ -846,14 +876,20 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   /** 输入变化：空查询销毁句柄退出搜索态；否则按防抖复用同一句柄。 */
   /** 切板：先切换，再销毁重建句柄重发当前查询（setQuery 同词会被 distinctUntilChanged 吞掉）。 */
+  protected onBoardSelectionChange(event: Event): void {
+    const selector = event.target as HTMLSelectElement;
+    this.onSelectBoard(selector.value as UUID);
+    selector.value = this.boardRef.currentBoardId() ?? '';
+  }
+
   protected onSelectBoard(boardId: UUID): void {
-    // 切板前关详情：有未保存修改先确认放弃（取消则留在原板，单向绑定自动回弹选择器）
+    // 切板前确认是否放弃未保存修改。
     if (this.detailTaskId() !== null) {
       if (this.isDetailDirty() && !window.confirm('切板将放弃未保存的修改。继续？')) return;
       this.detailTaskId.set(null);
       this.snapshot = null;
     }
-    this.detailRequest++;
+    this.invalidateDetailRequest();
     this.boardRef.selectBoard(boardId);
     const query = this.searchQuery().trim();
     if (query !== '') {
@@ -986,6 +1022,11 @@ export class BoardViewComponent implements OnInit, OnDestroy {
       this.snapshot = { ...snapshot, columnId: target.columnId };
     }
     return true;
+  }
+
+  private invalidateDetailRequest(): void {
+    this.detailRequest++;
+    this.pendingDetailTaskId = null;
   }
 
   private detailDraftState(): string {

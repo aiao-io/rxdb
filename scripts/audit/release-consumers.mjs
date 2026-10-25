@@ -146,6 +146,7 @@ const COMBOS = [
       'rxdb',
       'rxdb-adapter-encrypted',
       'rxdb-adapter-sqlite-core',
+      'rxdb-adapter-pglite',
       'rxdb-plugin-history',
       'rxdb-plugin-search',
       'rxdb-plugin-board',

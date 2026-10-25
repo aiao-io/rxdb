@@ -83,6 +83,9 @@ export class BoardLabelService {
     await adapter.transaction(async executor => {
       const labels = await executor.getRepository(BoardLabel).find({ where: whereEq('id', plan.labelId) });
       if (labels.length === 0) throw new BoardDomainError('confirm_stale', '标签已被删除，清单已过期');
+      if (labels[0].boardId !== requireBoardId(this.ctx())) {
+        throw new BoardDomainError('cross_board', '标签不属于当前看板');
+      }
       const links = await executor.getRepository(TaskLabel).find({ where: whereEq('labelId', plan.labelId) });
       const sameSet =
         plan.taskLabelIds.length === links.length && plan.taskLabelIds.every(id => links.some(link => link.id === id));

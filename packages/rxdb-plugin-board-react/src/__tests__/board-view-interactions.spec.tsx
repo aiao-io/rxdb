@@ -127,6 +127,94 @@ afterEach(() => {
 });
 
 describe('看板公开交互', () => {
+  it('删除其他列不打断正在加载的详情', async () => {
+    let resolve!: (value: TaskDraftSnapshot) => void;
+    vi.mocked(state.actions.openSnapshot).mockReturnValueOnce(
+      new Promise(done => {
+        resolve = done;
+      })
+    );
+    vi.mocked(state.actions.planColumnDelete).mockResolvedValueOnce({
+      kind: 'column',
+      columnId: columns[1].id,
+      columnTitle: columns[1].title,
+      taskIds: [],
+      taskLabelIds: []
+    });
+    render(<BoardView rxdb={rxdb} />);
+    fireEvent.click(screen.getAllByTestId('task-title')[0]);
+    fireEvent.click(screen.getAllByTestId('column-delete')[1]);
+    fireEvent.click(await screen.findByTestId('confirm-delete-yes'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      resolve(snapshot(tasks[0]));
+    });
+    expect(screen.getByTestId('detail-panel')).toBeTruthy();
+  });
+
+  it('删除所属列后应丢弃此前尚未返回的详情快照', async () => {
+    let resolve!: (value: TaskDraftSnapshot) => void;
+    vi.mocked(state.actions.openSnapshot).mockReturnValueOnce(
+      new Promise(done => {
+        resolve = done;
+      })
+    );
+    const view = render(<BoardView rxdb={rxdb} />);
+    fireEvent.click(screen.getAllByTestId('task-title')[0]);
+    expect(state.actions.openSnapshot).toHaveBeenCalledWith(tasks[0].id);
+    fireEvent.click(screen.getAllByTestId('column-delete')[0]);
+    fireEvent.click(await screen.findByTestId('confirm-delete-yes'));
+    await waitFor(() => expect(state.actions.executeDelete).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    state = { ...state, tasks: [], columns: columns.slice(1) };
+    view.rerender(<BoardView rxdb={rxdb} />);
+    await act(async () => {
+      resolve(snapshot(tasks[0]));
+    });
+    expect(screen.queryByTestId('detail-panel')).toBeNull();
+  });
+
+  it('确认删除包含当前任务的板后关闭已失效的详情', async () => {
+    render(<BoardView rxdb={rxdb} />);
+    fireEvent.click(screen.getAllByTestId('task-title')[0]);
+    await screen.findByTestId('detail-panel');
+    fireEvent.change(screen.getByTestId('detail-description'), { target: { value: '待删除草稿' } });
+    click('delete-board');
+    fireEvent.click(await screen.findByTestId('confirm-delete-yes'));
+    await waitFor(() => expect(screen.queryByTestId('detail-panel')).toBeNull());
+  });
+
+  it('创建任务在同一轮重复 Enter 只提交一次，失败后允许重试', async () => {
+    let reject!: (reason: Error) => void;
+    vi.mocked(state.actions.createTask).mockReturnValueOnce(
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      })
+    );
+    render(<BoardView rxdb={rxdb} />);
+    fireEvent.click(screen.getAllByTestId('add-task')[0]);
+    const input = screen.getByTestId('add-task-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '只创建一次' } });
+    act(() => {
+      fireEvent.keyDown(input, { key: 'Enter' });
+      fireEvent.keyDown(input, { key: 'Enter' });
+    });
+    expect(state.actions.createTask).toHaveBeenCalledTimes(1);
+    expect(input.disabled).toBe(true);
+    await act(async () => {
+      reject(new Error('创建失败'));
+    });
+    expect(input.value).toBe('只创建一次');
+    expect(input.disabled).toBe(false);
+    click('add-task-submit');
+    await waitFor(() => expect(screen.queryByTestId('add-task-form')).toBeNull());
+    expect(state.actions.createTask).toHaveBeenCalledTimes(2);
+  });
+
   it('创建和改名遵守取消、提交约定，导出调用宿主', async () => {
     const onExportBackup = vi.fn();
     render(<BoardView rxdb={rxdb} onExportBackup={onExportBackup} />);

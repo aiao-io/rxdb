@@ -1,4 +1,8 @@
-## Unreleased
+## 0.0.28 (2026-10-24)
+
+### ⚠️ Breaking Changes
+
+- **aiao:** `@aiao/*` 包间 peer 依赖统一为 `workspace:^`（发布时改写为 `^0.0.28`），替换此前混用的 `*` / `workspace:*` / `^0.0.26` 写法（US-602 A2）
 
 ### 🩹 Fixes
 
