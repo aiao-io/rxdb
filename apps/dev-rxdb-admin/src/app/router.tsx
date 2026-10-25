@@ -1,4 +1,4 @@
-import { redirect, useRouteError, type LazyRouteFunction, type RouteObject } from 'react-router-dom';
+import { useRouteError, type LazyRouteFunction, type RouteObject } from 'react-router-dom';
 import AppLayout from './app';
 import setup_rxdb from './rxdb/setup_rxdb';
 
@@ -29,7 +29,7 @@ export const routes: RouteObject[] = [
     path: '/',
     element: <AppLayout />,
     children: [
-      { index: true, loader: () => redirect('/entities') },
+      { index: true, lazy: lazyRoute(() => import('./pages/start-page')) },
       {
         path: 'entities',
         lazy: lazyRoute(() => import('./pages/entity-shell')),

@@ -53,14 +53,18 @@ export function downloadBlob(blob: Blob, name: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** 已初始化的工作台需要换全新浏览器环境恢复，刷新不能清空目标存储。 */
+export const RESTORE_TARGET_INITIALIZED_MESSAGE =
+  '当前工作台已初始化或正在使用，恢复只支持空工作台。请在新浏览器配置中打开工作台首页，先选择「从备份恢复」。当前数据保持不变。';
+
 const CODE_MESSAGES: Record<RxDBBackupErrorCode, string> = {
   unsupported_combination: '当前存储组合不支持备份 / 恢复（浏览器下仅 IndexedDB 存储支持）',
   incompatible_archive: '归档与当前工作台版本不兼容',
   auth_domain_mismatch: '归档的加密认证域与当前工作台不一致',
   corrupt_archive: '归档文件损坏或不是有效的工作台备份',
   truncated_archive: '归档文件不完整（传输中断）',
-  target_not_empty: '恢复目标已有数据，请先在空工作台执行恢复',
-  target_busy: '工作台已有数据或正在使用，恢复只支持空工作台',
+  target_not_empty: RESTORE_TARGET_INITIALIZED_MESSAGE,
+  target_busy: RESTORE_TARGET_INITIALIZED_MESSAGE,
   restore_in_progress: '已有恢复在进行中，请等待完成',
   restore_incomplete: '上次恢复未完成，请先清理残留再重试',
   cleanup_pending: '存在待清理的恢复残留，请先清理',

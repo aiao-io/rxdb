@@ -11,6 +11,13 @@ test.describe('工作台 a11y 走查', () => {
     await resetE2eState(page);
   });
 
+  test('首页 axe 零违规', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('link', { name: '从备份恢复', exact: true })).toBeVisible();
+    const results = await new AxeBuilder({ page }).include('#layout-container').analyze();
+    expect(results.violations).toEqual([]);
+  });
+
   test('实体列表页 axe 零违规', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');

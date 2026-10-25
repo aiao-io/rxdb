@@ -22,6 +22,21 @@ test.describe('模型驱动数据工作台', () => {
     await resetE2eState(page);
   });
 
+  test('首页可选择打开工作台，刷新后仍可继续编辑已有数据', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: '打开工作台', exact: true }).click();
+    await page.waitForURL('**/entities/assets/Asset');
+    await page.getByTestId('entity-catalog').getByRole('link', { name: '资产分类' }).click();
+    await createCategory(page, '首页持久化分类');
+    await page.goto('/');
+    await page.reload();
+    await page.getByRole('link', { name: '打开工作台', exact: true }).click();
+    await page.getByTestId('entity-catalog').getByRole('link', { name: '资产分类' }).click();
+    const edit = await expectActionIcon(page, 'view-action');
+    await page.mouse.click(edit.x, edit.y);
+    await expect(page.getByRole('group', { name: '分类名' }).getByRole('textbox')).toHaveValue('首页持久化分类');
+  });
+
   test('AC#1 导航只显示声明可见的实体，点击切换列表', async ({ page }) => {
     await page.goto('/entities');
     await page.waitForURL('**/entities/assets/Asset');

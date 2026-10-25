@@ -101,7 +101,8 @@ test.describe('工作台备份与恢复', () => {
 
     const { context, page: fresh } = await freshContextPage(browser);
     try {
-      await fresh.goto('/backup');
+      await fresh.goto('/');
+      await fresh.getByRole('link', { name: '从备份恢复', exact: true }).click();
       await fresh.getByTestId('restore-input').setInputFiles(archive);
       await expect(fresh.getByTestId('restore-result')).toContainText('恢复成功');
       await fresh.getByRole('link', { name: /去实体列表继续编辑/ }).click();
@@ -119,6 +120,56 @@ test.describe('工作台备份与恢复', () => {
       const persisted = await expectActionIcon(fresh, 'view-action');
       await fresh.mouse.click(persisted.x, persisted.y);
       await expect(fresh.getByRole('group', { name: '名称' }).getByRole('textbox')).toHaveValue('工作站');
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('恢复处理中禁止再次选择归档或备份，完成后恢复操作入口', async ({ page, browser }) => {
+    await resetE2eState(page);
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '互斥恢复分类');
+    const archive = await backupToFile(page, dir);
+    const { context, page: fresh } = await freshContextPage(browser);
+    try {
+      await fresh.goto('/backup');
+      await fresh.evaluate(() => {
+        const stream = File.prototype.stream;
+        File.prototype.stream = function () {
+          File.prototype.stream = stream;
+          const reader = stream.call(this).getReader();
+          let first = true;
+          return new ReadableStream<Uint8Array<ArrayBuffer>>({
+            async pull(controller) {
+              if (first) {
+                first = false;
+                document.documentElement.dataset['restoreReading'] = 'true';
+                await new Promise<void>(resolve => {
+                  window.addEventListener('release-restore', () => resolve(), { once: true });
+                });
+              }
+              const item = await reader.read();
+              if (item.done) controller.close();
+              else controller.enqueue(item.value);
+            },
+            cancel: reason => reader.cancel(reason)
+          });
+        };
+      });
+      const input = fresh.getByTestId('restore-input');
+      await input.setInputFiles(archive);
+      await fresh.waitForFunction(() => document.documentElement.dataset['restoreReading'] === 'true');
+      await expect(input).toBeDisabled();
+      await expect(fresh.getByTestId('backup-start')).toBeDisabled();
+      await expect(fresh.getByTestId('restore-result')).toContainText('处理中');
+      await fresh.evaluate(() => window.dispatchEvent(new Event('release-restore')));
+      await expect(fresh.getByTestId('restore-result')).toContainText('恢复成功');
+      await expect(input).toBeEnabled();
+      await expect(fresh.getByTestId('backup-start')).toBeEnabled();
+      await fresh.getByTestId('entity-catalog').getByRole('link', { name: '资产分类' }).click();
+      const edit = await expectActionIcon(fresh, 'view-action');
+      await fresh.mouse.click(edit.x, edit.y);
+      await expect(fresh.getByRole('group', { name: '分类名' }).getByRole('textbox')).toHaveValue('互斥恢复分类');
     } finally {
       await context.close();
     }
@@ -151,6 +202,11 @@ test.describe('工作台备份与恢复', () => {
     // 同一工作台已有数据，恢复应被拒绝（target_busy），原数据不变
     await page.getByTestId('restore-input').setInputFiles(archive);
     await expect(page.getByTestId('restore-result')).toContainText('恢复只支持空工作台');
+    await expect(page.getByTestId('restore-result')).not.toContainText('刷新页面后');
+    await page.reload();
+    await page.getByTestId('restore-input').setInputFiles(archive);
+    await expect(page.getByTestId('restore-result')).toContainText('已初始化');
+    await expect(page.getByTestId('restore-result')).toContainText('新浏览器');
     await page.goto('/entities/assets/AssetCategory');
     await expectListHasRows(page);
   });

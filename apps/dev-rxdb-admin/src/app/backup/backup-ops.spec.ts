@@ -1,6 +1,11 @@
 import { RxDBBackupError } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import { backupDownloadName, backupErrorMessage, collectBackup } from './backup-ops';
+import {
+  backupDownloadName,
+  backupErrorMessage,
+  collectBackup,
+  RESTORE_TARGET_INITIALIZED_MESSAGE
+} from './backup-ops';
 
 describe('collectBackup', () => {
   it('把备份流的所有字节块拼成归档 Blob，并带回摘要', async () => {
@@ -34,8 +39,9 @@ describe('backupErrorMessage', () => {
     expect(backupErrorMessage(new RxDBBackupError('corrupt_archive', 'bad frame'))).toBe(
       '归档文件损坏或不是有效的工作台备份'
     );
-    expect(backupErrorMessage(new RxDBBackupError('target_busy', 'has data'))).toBe(
-      '工作台已有数据或正在使用，恢复只支持空工作台'
+    expect(backupErrorMessage(new RxDBBackupError('target_busy', 'has data'))).toBe(RESTORE_TARGET_INITIALIZED_MESSAGE);
+    expect(backupErrorMessage(new RxDBBackupError('target_not_empty', 'initialized'))).toBe(
+      RESTORE_TARGET_INITIALIZED_MESSAGE
     );
     expect(backupErrorMessage(new RxDBBackupError('unsupported_combination', 'opfs'))).toBe(
       '当前存储组合不支持备份 / 恢复（浏览器下仅 IndexedDB 存储支持）'

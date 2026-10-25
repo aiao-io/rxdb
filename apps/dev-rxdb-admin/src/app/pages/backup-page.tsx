@@ -4,7 +4,13 @@ import { useRxDB } from '@aiao/rxdb-react';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { firstValueFrom } from 'rxjs';
-import { backupDownloadName, backupErrorMessage, collectBackup, downloadBlob } from '../backup/backup-ops';
+import {
+  backupDownloadName,
+  backupErrorMessage,
+  collectBackup,
+  downloadBlob,
+  RESTORE_TARGET_INITIALIZED_MESSAGE
+} from '../backup/backup-ops';
 
 type BackupStatus =
   | { kind: 'idle' }
@@ -27,7 +33,18 @@ export default function BackupPage() {
   const db = useRxDB();
   const [backup, setBackup] = useState<BackupStatus>({ kind: 'idle' });
   const [restore, setRestore] = useState<RestoreStatus>({ kind: 'idle' });
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const operationPending = useRef(false);
+  const busy = backup.kind === 'running' || restore.kind === 'running';
+
+  async function runExclusive(operation: () => Promise<void>): Promise<void> {
+    if (operationPending.current) return;
+    operationPending.current = true;
+    try {
+      await operation();
+    } finally {
+      operationPending.current = false;
+    }
+  }
 
   const adapterOf = async (): Promise<RxDBAdapterSqlite> => (await db.getAdapter('sqlite-wasm')) as RxDBAdapterSqlite;
 
@@ -47,13 +64,11 @@ export default function BackupPage() {
     setRestore({ kind: 'running' });
     try {
       const adapter = await adapterOf();
-      // 引擎契约：恢复必须发生在连接之前。本会话任何查询或备份都会连接适配器且连接不会释放，
-      // 先自检并给出可执行指引，避免 target_busy 被误读成「已有数据」
       const connected = await firstValueFrom(db.adapterConnected$('sqlite-wasm'));
       if (connected) {
         setRestore({
           kind: 'failed',
-          message: '工作台已在当前会话连接使用，恢复只支持空工作台且需全新会话——请刷新页面后直接在本页选择归档恢复',
+          message: RESTORE_TARGET_INITIALIZED_MESSAGE,
           needsCleanup: false
         });
         return;
@@ -91,7 +106,7 @@ export default function BackupPage() {
   }
 
   return (
-    <div className='page-host gap-4 overflow-auto p-6'>
+    <div className='page-host gap-4 overflow-auto p-6' aria-busy={busy}>
       <h2 className='text-base font-semibold'>备份</h2>
       <section className='bg-base-200 rounded-box flex flex-col gap-2 p-4'>
         <p className='text-sm opacity-80'>
@@ -99,8 +114,8 @@ export default function BackupPage() {
         </p>
         <button
           className='btn btn-primary w-fit'
-          disabled={backup.kind === 'running'}
-          onClick={() => void handleBackup()}
+          disabled={busy}
+          onClick={() => void runExclusive(handleBackup)}
           data-testid='backup-start'
         >
           {backup.kind === 'running' ?
@@ -126,11 +141,11 @@ export default function BackupPage() {
       <h2 className='text-base font-semibold'>恢复</h2>
       <section className='bg-base-200 rounded-box flex flex-col gap-2 p-4'>
         <p className='text-sm opacity-80'>
-          从归档文件恢复整个工作台。恢复只支持空工作台（已有数据时引擎会拒绝并保持数据不变），
-          适合在换设备或新浏览器环境里接续使用。
+          从归档文件恢复整个工作台。请在新浏览器环境中打开首页，先选择「从备份恢复」，再导入归档。
+          已打开实体列表、搜索或执行过备份的工作台不能直接恢复，已有数据保持不变。
         </p>
         <input
-          ref={fileInputRef}
+          disabled={busy}
           type='file'
           className='file-input file-input-bordered w-full max-w-sm'
           data-testid='restore-input'
@@ -139,7 +154,7 @@ export default function BackupPage() {
             const file = event.target.files?.[0];
             // 清空 value：同一归档再次选择才会再次触发 change
             event.target.value = '';
-            void handleRestoreFile(file);
+            void runExclusive(() => handleRestoreFile(file));
           }}
         />
         <div data-testid='restore-result'>
@@ -165,7 +180,8 @@ export default function BackupPage() {
         {restore.kind === 'failed' && restore.needsCleanup && (
           <button
             className='btn btn-outline btn-warning w-fit'
-            onClick={() => void handleCleanup()}
+            disabled={busy}
+            onClick={() => void runExclusive(handleCleanup)}
             data-testid='restore-cleanup'
           >
             清理恢复残留

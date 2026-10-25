@@ -10,7 +10,7 @@
  * React 测试经 DOM（按钮点击 / 键盘 / FakeListTable 事件）驱动，
  * 对应 Angular 侧直接调用组件方法的覆盖点。
  */
-import { Entity, EntityBase, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RelationKind, RxDB, SyncType, type EntityType } from '@aiao/rxdb';
 import { isRowDragEnabled } from '@aiao/rxdb-model';
 import { RxDBProvider } from '@aiao/rxdb-react';
 import { Account, AuditLog, Contract, Invoice, Task, Todo } from '@aiao/rxdb-test/entities';
@@ -358,6 +358,35 @@ describe('EntityList（真实组件）', () => {
 
     fireEvent.click([...document.querySelectorAll('button')].find(b => b.textContent?.trim() === '取消')!);
     expect(cancelled).toHaveLength(1);
+  });
+
+  it('未安装历史插件时删除确认不承诺撤销恢复', async () => {
+    const plain = new RxDB({
+      dbName: 'delete-without-history',
+      entities: [...rxdb.config.entities],
+      sync: { type: SyncType.None, local: { adapter: IN_MEMORY_ADAPTER_NAME } }
+    });
+    plain.adapter(IN_MEMORY_ADAPTER_NAME, db => new InMemoryRxDBAdapter(db));
+    await plain.connect(IN_MEMORY_ADAPTER_NAME);
+    await plain.entityManager.instantiate(Todo, { title: 'without-history' }).save();
+    const view = render(
+      <RxDBProvider db={plain}>
+        <EntityList namespace='public' name='Todo' />
+      </RxDBProvider>
+    );
+    try {
+      await waitFor(() => expect(tableOf().records).toHaveLength(1));
+      act(() => tableOf().emit('icon_click', { name: 'delete-action', col: 2, row: 1 }));
+      await waitFor(() => expect(document.querySelector('[data-testid="delete-confirm-submit"]')).not.toBeNull());
+      const dialog = document.querySelector('.entity-delete-confirm-dialog');
+      expect(dialog?.textContent).not.toContain('撤销');
+      fireEvent.click(document.querySelector('[data-testid="delete-confirm-submit"]') as HTMLElement);
+      await waitFor(() => expect(tableOf().records).toHaveLength(0));
+      expect((view.getByRole('button', { name: '撤销 (Ctrl+Z)' }) as HTMLButtonElement).disabled).toBe(true);
+    } finally {
+      view.unmount();
+      await plain.destroy();
+    }
   });
 
   it('行删除走真实 remove 路径并从列表消失', async () => {

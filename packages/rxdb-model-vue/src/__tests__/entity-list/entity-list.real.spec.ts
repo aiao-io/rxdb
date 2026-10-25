@@ -1,4 +1,4 @@
-import { Entity, EntityBase, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RelationKind, RxDB, SyncType, type EntityType } from '@aiao/rxdb';
 import { isRowDragEnabled, type EntityTableRecord } from '@aiao/rxdb-model';
 import { Account, AuditLog, Contract, Invoice, Task, Todo } from '@aiao/rxdb-test/entities';
 import { mount } from '@vue/test-utils';
@@ -407,6 +407,34 @@ describe('EntityList（真实组件）', () => {
 
     component.cancelSelection();
     expect(cancelled()).toHaveLength(2);
+  });
+
+  it('未安装历史插件时删除确认不承诺撤销恢复', async () => {
+    const plain = new RxDB({
+      dbName: 'delete-without-history',
+      entities: [...rxdb.config.entities],
+      sync: { type: SyncType.None, local: { adapter: IN_MEMORY_ADAPTER_NAME } }
+    });
+    plain.adapter(IN_MEMORY_ADAPTER_NAME, db => new InMemoryRxDBAdapter(db));
+    await plain.connect(IN_MEMORY_ADAPTER_NAME);
+    await plain.entityManager.instantiate(Todo, { title: 'without-history' }).save();
+    const { wrapper, child } = mountWithRxDB(EntityList, plain, {
+      props: { namespace: 'public', name: 'Todo' }
+    });
+    const component = child.vm as unknown as ListVM;
+    try {
+      await vi.waitFor(() => expect(component.tableRecords).toHaveLength(1));
+      await component.onRowDeleted(component.tableRecords[0]);
+      await FLUSH();
+      await vi.waitFor(() => expect(document.querySelector('[data-testid="delete-confirm-submit"]')).not.toBeNull());
+      expect(document.querySelector('.entity-delete-confirm-dialog')?.textContent).not.toContain('撤销');
+      await component.confirmDelete();
+      await vi.waitFor(() => expect(component.tableRecords).toHaveLength(0));
+      expect(component.canUndo).toBe(false);
+    } finally {
+      wrapper.unmount();
+      await plain.destroy();
+    }
   });
 
   it('行删除走真实 remove 路径并从列表消失', async () => {

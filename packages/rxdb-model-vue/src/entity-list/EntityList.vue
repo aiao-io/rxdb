@@ -1291,7 +1291,7 @@ defineExpose({
         title="删除确认"
         @close-requested="cancelDelete"
       >
-        <p class="text-sm">确定删除这条{{ displayName }}记录？删除后可用「撤销」恢复。</p>
+        <p class="text-sm">确定删除这条{{ displayName }}记录？</p>
         <div class="flex justify-end gap-2 pt-3">
           <button
             class="btn btn-sm"

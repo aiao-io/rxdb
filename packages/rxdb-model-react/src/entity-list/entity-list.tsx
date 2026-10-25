@@ -1138,7 +1138,7 @@ export function EntityList({
           className='entity-delete-confirm-dialog'
         >
           <EntityDialog title='删除确认' onCloseRequested={() => setDeleteConfirm(null)}>
-            <p className='text-sm'>确定删除这条{displayName}记录？删除后可用「撤销」恢复。</p>
+            <p className='text-sm'>确定删除这条{displayName}记录？</p>
             <div className='flex justify-end gap-2 pt-3'>
               <button className='btn btn-sm' onClick={() => setDeleteConfirm(null)} type='button'>
                 取消
