@@ -1,6 +1,6 @@
 {
   "name": "@aiao/code-editor-vue",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "Vue integration for the Aiao CodeMirror 6 editor.",
   "homepage": "https://rxdb.aiao.io/docs/code-editor",
   "bugs": {

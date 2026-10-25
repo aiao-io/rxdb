@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-test",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "Cross-framework fixtures and test utilities for Aiao RxDB packages.",
   "homepage": "https://rxdb.aiao.io/docs/frameworks",
   "bugs": {

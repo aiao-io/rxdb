@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-adapter-http",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "HTTP remote adapter for RxDB QueryCache: JSON RuleGroup over your own REST API.",
   "homepage": "https://rxdb.aiao.io/docs/adapters/http",
   "bugs": {

@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-adapter-encrypted",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "Transparent AES-GCM field encryption wrapper for Aiao database adapters.",
   "homepage": "https://rxdb.aiao.io/docs/adapters/encrypted",
   "bugs": {

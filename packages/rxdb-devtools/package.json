@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-devtools",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "Runtime development tools for inspecting Aiao RxDB databases.",
   "homepage": "https://rxdb.aiao.io/docs/devtools",
   "bugs": {

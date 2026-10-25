@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-adapter-sqlite-core",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "Shared SQLite storage primitives for Aiao RxDB adapters.",
   "homepage": "https://rxdb.aiao.io/docs/adapters",
   "bugs": {
