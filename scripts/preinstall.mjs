@@ -21,7 +21,15 @@ if (process.env.CI) {
 import { execSync } from 'node:child_process';
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { lt as semverLessThan } from 'semver';
+
+const semverLessThan = (version, minimum) => {
+  const current = version.replace(/^v/, '').split('.').map(Number);
+  const required = minimum.split('.').map(Number);
+  for (let index = 0; index < required.length; index++) {
+    if (current[index] !== required[index]) return current[index] < required[index];
+  }
+  return false;
+};
 
 // 通过 npm_config_user_agent 与 npm_execpath 两个环境变量识别当前调起者；
 // 两个变量都拿不到时（理论上不应发生）跳过检查放行，避免误伤裸 npm exec。
