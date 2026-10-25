@@ -1,11 +1,12 @@
-import { type EntityType, getRxDBEntityIdentityKey, RxDBBranch, RxDBError } from '@aiao/rxdb';
+import { type EntityType, getRxDBEntityIdentityKey, RxDBBranch, RxDBError, WorktreeTableSet } from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { merge_branch } from '../merge-branch.js';
 import { VersionManager } from '../VersionManager.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
-type FindRepositoryMock = { find: ReturnType<typeof vi.fn> };
+type FindRepositoryMock = { find: ReturnType<typeof vi.fn<(options: unknown) => Promise<object[]>>> };
 type MergeAdapterMock = {
+  tableSet: WorktreeTableSet;
   mergeChanges: ReturnType<typeof vi.fn>;
   removeMany: ReturnType<typeof vi.fn>;
   transaction: ReturnType<typeof vi.fn>;
@@ -29,6 +30,7 @@ describe('merge_branch', () => {
     };
 
     mockAdapter = {
+      tableSet: WorktreeTableSet.MAIN,
       mergeChanges: vi.fn().mockResolvedValue(undefined),
       removeMany: vi.fn().mockResolvedValue(undefined),
       // 默认直通：不额外制造事务语义，只记录调用。
@@ -39,7 +41,15 @@ describe('merge_branch', () => {
             // `remove_branch`（deleteSource 走的那条）现在也在事务里读写，
             // 所以这里不能再返回 undefined —— 转发回本用例的仓库与 removeMany。
             getRepository: (EntityType: EntityType) =>
-              (EntityType as unknown) === RxDBBranch ? mockBranchRepository : mockChangeRepository,
+              (EntityType as unknown) === RxDBBranch ?
+                {
+                  ...mockBranchRepository,
+                  find: (options: { where: { rules: readonly { field: string }[] } }) =>
+                    options.where.rules.some(rule => rule.field === 'activated') ?
+                      Promise.resolve([{ id: 'main' }])
+                    : mockBranchRepository.find(options)
+                }
+              : mockChangeRepository,
             mergeChanges: mockAdapter.mergeChanges as never,
             removeMany: mockAdapter.removeMany as never
           }) as never
@@ -477,7 +487,7 @@ describe('merge_branch', () => {
       try {
         return await fun(
           createTransactionExecutorStub({
-            getRepository: () => undefined,
+            getRepository: () => ({ find: async () => [{ id: 'main' }] }),
             mergeChanges: mockAdapter.mergeChanges as never
           }) as never
         );
@@ -514,7 +524,7 @@ describe('merge_branch', () => {
     mockAdapter.transaction.mockImplementation(async (fun: (executor: never) => Promise<unknown>) =>
       fun(
         createTransactionExecutorStub({
-          getRepository: () => undefined,
+          getRepository: () => ({ find: async () => [{ id: 'main' }] }),
           mergeChanges: mockAdapter.mergeChanges as never
         }) as never
       )

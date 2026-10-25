@@ -185,19 +185,26 @@ const deleteOrderOf = async (executor: SqliteTransactionExecutor, tables: readon
  *
  * @param executor - 调用方的事务
  * @param tableSet - 要删的表集，不能是主表集
+ * @param excludedTables - 当前配置的主表集对象，删除时必须排除
  * @throws {@link RxDBAdapterSqliteError} 给的是主表集时
  *
  * @remarks
  * 按目录找而不是按配置：建到一半就中断的、成员已经从配置里移除的表也删得掉，删除因此可重入。
  * 分支表上的持有键不归这里放，关闭检出位的流程在同一笔事务里自己放。
  */
-export const dropTableSet = async (executor: SqliteTransactionExecutor, tableSet: WorktreeTableSet): Promise<void> => {
+export const dropTableSet = async (
+  executor: SqliteTransactionExecutor,
+  tableSet: WorktreeTableSet,
+  excludedTables: ReadonlySet<string>
+): Promise<void> => {
   if (tableSet.isMain) throw new RxDBAdapterSqliteError('dropWorktreeTableSet 不删主表集');
   const tables = (
     await executor.query(`SELECT "name" FROM sqlite_master WHERE "type" = 'table' AND "name" GLOB ?`, [
       get_table_set_table_glob(tableSet)
     ])
-  ).rows.map(row => String(row[0]));
+  ).rows
+    .map(row => String(row[0]))
+    .filter(name => !excludedTables.has(name));
   if (tables.length === 0) return;
   const triggers = (
     await executor.query(

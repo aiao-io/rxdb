@@ -67,6 +67,18 @@ const pressTab = async (element: Omit<DOMWrapper<Element>, 'exists'>, shiftKey =
 };
 
 describe('MergeDialog 的预览', () => {
+  it('合并进行中禁用确认按钮，结束后才允许再次提交', async () => {
+    const wrapper = mountMergeDialog({ busy: true });
+    const confirm = wrapper.get<HTMLButtonElement>('[data-testid="wt-merge-confirm"]');
+    expect(confirm.element.disabled).toBe(true);
+    await confirm.trigger('click');
+    expect(wrapper.emitted('confirm')).toBeUndefined();
+
+    await wrapper.setProps({ busy: false });
+    await confirm.trigger('click');
+    expect(wrapper.emitted('confirm')).toHaveLength(1);
+  });
+
   it('成功：摘要、条目与覆盖说明；对话框以标题命名，焦点进面板', () => {
     const wrapper = mountMergeDialog();
 

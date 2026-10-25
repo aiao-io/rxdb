@@ -199,7 +199,7 @@ const branchOf = (branches: readonly RxDBBranch[], branchId: string): RxDBBranch
 };
 
 const allBranches = (readers: SwitchBranchActionReaders): Promise<RxDBBranch[]> =>
-  readers.branchRepository.find({ where: { combinator: 'and', rules: [] } });
+  readers.branchRepository.find({ where: { combinator: 'and', rules: [] }, limit: Number.MAX_SAFE_INTEGER });
 
 /** 一个实体在起点、终点各自的值，折成一条差异；两侧一样时没有条目。 */
 const diffEntry = (key: string, before: Row | undefined, after: Row | undefined): BranchDiffEntry[] => {

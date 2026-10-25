@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { provideRxDB } from '@aiao/rxdb-vue';
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterView, useRouter } from 'vue-router';
 import AppHeader from './components/AppHeader.vue';
 import AppSidebar from './components/AppSidebar.vue';
@@ -26,16 +26,21 @@ onMounted(() => {
   document.documentElement.lang = locale;
 });
 
-router.beforeEach(() => {
+const removeBeforeEach = router.beforeEach(() => {
   loadingBarRef.value?.continuousStart();
 });
 
-router.afterEach(() => {
+const removeAfterEach = router.afterEach(() => {
   loadingBarRef.value?.complete();
 });
 
-router.onError(() => {
+const removeOnError = router.onError(() => {
   loadingBarRef.value?.complete();
+});
+onBeforeUnmount(() => {
+  removeBeforeEach();
+  removeAfterEach();
+  removeOnError();
 });
 </script>
 

@@ -23,6 +23,7 @@ interface WorkingTreeMergeDialogProps {
   /** 按当前策略读的合并预览；读失败不挡合并 */
   readonly preview: BranchDiffLoad<MergePreview>;
   readonly error: string | null;
+  readonly busy?: boolean;
   readonly onCloseRequested: () => void;
   /** 选了合并来源 */
   readonly onSourceChange: (sourceBranchId: string) => void;
@@ -57,6 +58,7 @@ function MergeDialogPanel({
   branches,
   dialog,
   error,
+  busy = false,
   onCloseRequested,
   onConfirm,
   onDeleteSourceChange,
@@ -239,7 +241,7 @@ function MergeDialogPanel({
         </button>
         <button
           className='gd-btn-primary'
-          disabled={sourceBranchId === null}
+          disabled={sourceBranchId === null || busy}
           onClick={onConfirm}
           data-testid='wt-merge-confirm'
           type='button'

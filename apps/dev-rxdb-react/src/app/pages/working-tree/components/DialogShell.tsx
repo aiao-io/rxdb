@@ -8,6 +8,7 @@ interface WorkingTreeDialogShellProps {
   /** 标题元素的 id：对话框的可读名 */
   readonly labelledBy: string;
   readonly onCloseRequested: () => void;
+  readonly role?: 'dialog' | 'alertdialog';
   readonly children: ReactNode;
 }
 
@@ -31,6 +32,7 @@ export function WorkingTreeDialogShell({
   children,
   labelledBy,
   onCloseRequested,
+  role = 'dialog',
   testId
 }: WorkingTreeDialogShellProps): React.JSX.Element {
   const panel = useRef<HTMLDivElement>(null);
@@ -75,7 +77,7 @@ export function WorkingTreeDialogShell({
         aria-labelledby={labelledBy}
         aria-modal={true}
         data-testid={testId}
-        role='dialog'
+        role={role}
         tabIndex={-1}
       >
         {children}

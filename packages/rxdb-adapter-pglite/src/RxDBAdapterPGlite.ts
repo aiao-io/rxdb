@@ -21,6 +21,7 @@ import {
   assertMutationsTableSet,
   gateRawWrite,
   getEntityMetadata,
+  getEntityMutations,
   getEntityStatus,
   MAIN_BRANCH_ID,
   orderExclusionUpdates,
@@ -92,6 +93,7 @@ import { create_table_indexes_sql } from './table/create_table_sql.js';
 import { create_tables_statements } from './table/create_tables_sql.js';
 import { generateNotifyInfrastructureSQL, generateNotifyTriggerSQL } from './table/notify_function_sql.js';
 import { PGliteTransactionExecutor } from './transaction/PGliteTransactionExecutor.js';
+import { dispatchUnloggedRemovals } from './unlogged-removal-events.js';
 import { applySwitchActions, execute_switch_actions } from './version/execute_switch_actions.js';
 import { executeSwitchStatements } from './version/execute_switch_statements.js';
 import { readBranchIdForNewTables } from './version/read_current_branch_id.js';
@@ -512,7 +514,10 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       groups.get(type)!.push(e);
     }
 
+    const mutations = getEntityMutations({ needSaveEntities: [], needRemoveEntities: entities });
+    const recordAt = new Date();
     await this.transaction(async executor => {
+      assertMutationsTableSet(this.rxdb, mutations);
       for (const [type, group] of groups) {
         const metadata = getEntityMetadata(type);
         for (const statement of generate_entity_deletes_sql(metadata, this.tableSet, group)) {
@@ -520,6 +525,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
         }
       }
     }, false);
+    dispatchUnloggedRemovals(this.rxdb, entities, recordAt);
     return entities;
   }
 
@@ -536,7 +542,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     }
 
     // 为每个实体类型依次执行批量插入；仅在尚未处于事务中时包装事务
+    const mutations = getEntityMutations({ needSaveEntities: entities, needRemoveEntities: [] });
     await this.transaction(async executor => {
+      assertMutationsTableSet(this.rxdb, mutations);
       for (const [EntityType, list] of groups.entries()) {
         const metadata = getEntityMetadata(EntityType);
         const rows = upsertRowsOf(metadata, list);
@@ -757,7 +765,8 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * 分支表上的持有键不归这里放，关闭检出位的流程在同一笔事务里自己放。
    */
   override async dropWorktreeTableSet(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void> {
-    await dropTableSet(executor as PGliteTransactionExecutor, tableSet);
+    const mainSchemas = new Set(this.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType).namespace));
+    await dropTableSet(executor as PGliteTransactionExecutor, tableSet, mainSchemas);
   }
 
   /**

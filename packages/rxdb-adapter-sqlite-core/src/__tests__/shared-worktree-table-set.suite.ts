@@ -282,6 +282,21 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
       }
     });
 
+    it('删除表集时保留同后缀的主表及其数据', async () => {
+      const lookalike = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [WorktreeLookalike] });
+      try {
+        await lookalike.internalQuery(
+          'INSERT INTO "public$wt_lookalike" ("id", "title", "createdAt", "updatedAt") VALUES (?, ?, ?, ?)',
+          [crypto.randomUUID(), 'keep', new Date().toISOString(), new Date().toISOString()]
+        );
+        await drop_worktree_table_set(lookalike, WorktreeTableSet.of('wt_lookalike', []));
+        const result = await lookalike.internalQuery('SELECT "title" FROM "public$wt_lookalike"');
+        expect(result.results.flatMap(row => row.rows)).toEqual([['keep']]);
+      } finally {
+        await lookalike.rxdb.disconnectAll();
+      }
+    });
+
     it('主表集不经这里建，成员也必须记变更日志', async () => {
       await expect(create_worktree_table_set(adapter, WorktreeTableSet.MAIN, 'main')).rejects.toThrow(/主表集/);
       await expect(drop_worktree_table_set(adapter, WorktreeTableSet.MAIN)).rejects.toThrow(/主表集/);

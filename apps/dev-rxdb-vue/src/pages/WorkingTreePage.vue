@@ -27,6 +27,7 @@ import DiffViewer from './working-tree/components/DiffViewer.vue';
 import HistoryCompare, { type HistoryCompareState } from './working-tree/components/HistoryCompare.vue';
 import HistoryList from './working-tree/components/HistoryList.vue';
 import MergeDialog, { type MergeDialogState } from './working-tree/components/MergeDialog.vue';
+import DialogShell from './working-tree/components/DialogShell.vue';
 import SwitchBranchDialog, { type SwitchBranchDialogState } from './working-tree/components/SwitchBranchDialog.vue';
 import WorktreeMenu from './working-tree/components/WorktreeMenu.vue';
 import type {
@@ -39,6 +40,7 @@ import { diffEntryKey } from './working-tree/utils/diff-format';
 import { startDragResize } from './working-tree/utils/drag';
 import { gdEntryPath } from './working-tree/utils/gd';
 import { currentBranchOf, WorktreeCreation } from './working-tree/utils/worktrees';
+import { useKeepLastGood } from './working-tree/utils/keep-last-good';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -176,6 +178,8 @@ onBeforeUnmount(() => {
 /** 模板读状态用；语义与 Angular 模板里的 `@let status = tree.statusState()` 一致。 */
 const statusState = computed(() => tree.statusState.value);
 const enabledState = computed(() => tree.isEnabledState.value);
+const displayStatusState = useKeepLastGood(tree.statusState);
+const displayDiffState = useKeepLastGood(tree.diffState);
 
 /** 当前分支：挂着那套表持有的那一条（挂在可写检出位上时它的 `activated` 是假，见 `working-tree/utils/worktrees.ts`） */
 const activeBranch = computed(() => currentBranchOf(branches.value, worktrees.mounted.value));
@@ -192,7 +196,7 @@ const otherBranchIds = computed(() =>
 
 /** 「更改」标签上的条数徽章；status 里那份 entryCount 与 diff 条目数同源。 */
 const changesCount = computed(() => {
-  const status = tree.statusState.value;
+  const status = displayStatusState.value;
   if (status.phase !== 'success' && status.phase !== 'empty') return null;
   return status.value.entryCount > 0 ? status.value.entryCount : null;
 });
@@ -212,13 +216,13 @@ const lastFetchedLabel = computed(() => {
 
 /** 恢复会话警示条的可见性：status 说 restoring / conflicted 才亮。 */
 const showRestoreBanner = computed(() => {
-  const status = tree.statusState.value;
+  const status = displayStatusState.value;
   if (status.phase !== 'success' && status.phase !== 'empty') return false;
   return status.value.restoring || status.value.conflicted;
 });
 
 const selectedDiffEntry = computed(() => {
-  const diff = tree.diffState.value;
+  const diff = displayDiffState.value;
   if (diff.phase !== 'success') return null;
   const key = selectedDiffKey.value;
   return diff.value.entries.find(entry => diffEntryKey(entry) === key) ?? null;
@@ -244,7 +248,7 @@ watch(
 // 列表一刷新就自动选中第一条，右栏不至于空着——GitHub Desktop 打开仓库时
 // 也是默认展示第一个文件的 diff。用户手动选中的键还在列表里就不动它。
 watch(
-  () => tree.diffState.value,
+  () => displayDiffState.value,
   diff => {
     const entries = diff.phase === 'success' ? diff.value.entries : [];
     const keys = entries.map(diffEntryKey);
@@ -990,7 +994,7 @@ function setDeleteSource(value: boolean): void {
  * toast 里点破这一点，否则「合并了怎么历史没变」会像 bug。
  */
 async function executeMerge(): Promise<void> {
-  if (worktreeBusy.value) return;
+  if (worktreeBusy.value || pendingWrites.value > 0) return;
   pendingWrites.value++;
   try {
     const dialog = mergeDialog.value;
@@ -1286,13 +1290,13 @@ function clampAsideWidth(width: number): number {
                 <code>{{ restoreSession.targetCommitId }}</code>
                 — commit to complete the restore, discard to cancel it.
               </template>
-              <template v-if="statusState.phase === 'success' && statusState.value.conflicted">
+              <template v-if="displayStatusState.phase === 'success' && displayStatusState.value.conflicted">
                 The restore session has diverged from the working tree (capture mismatch) — discard to cancel, then
                 restore again.
               </template>
             </div>
             <ChangesList
-              :diff-state="tree.diffState.value"
+              :diff-state="displayDiffState"
               :selected-key="selectedDiffKey"
               @menu-request="openChangesContextMenu"
               @select-entry="selectDiffEntry"
@@ -1480,6 +1484,7 @@ function clampAsideWidth(width: number): number {
       :branches="otherBranchIds"
       :dialog="mergeDialog"
       :error="mergeError"
+      :busy="pendingWrites > 0"
       :preview="mergePreview"
       @close-requested="closeMergeDialog"
       @confirm="executeMerge"
@@ -1509,58 +1514,49 @@ function clampAsideWidth(width: number): number {
     />
 
     <!-- ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ -->
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3"
+    <DialogShell
       v-if="confirmRequest !== null"
-      @click="confirmRequest = null"
-      @keydown.escape="confirmRequest = null"
-      aria-label="Close dialog"
-      role="button"
-      tabindex="0"
+      labelled-by="wt-confirm-title"
+      role="alertdialog"
+      test-id="wt-confirm-dialog"
+      @close-requested="confirmRequest = null"
     >
-      <div
-        class="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl"
-        :style="{ background: 'var(--gd-panel)' }"
-        @click.stop
-        @keydown.stop
-        aria-modal="true"
-        data-testid="wt-confirm-dialog"
-        role="alertdialog"
+      <h2
+        class="mb-3 text-sm font-semibold"
+        id="wt-confirm-title"
       >
-        <h2 class="mb-3 text-sm font-semibold">
-          {{ confirmRequest.kind === 'discard' ? 'Discard changes' : 'Delete branch' }}
-        </h2>
-        <p
-          class="mb-4 text-sm"
-          :style="{ color: 'var(--gd-muted)' }"
+        {{ confirmRequest.kind === 'discard' ? 'Discard changes' : 'Delete branch' }}
+      </h2>
+      <p
+        class="mb-4 text-sm"
+        :style="{ color: 'var(--gd-muted)' }"
+      >
+        {{
+          confirmRequest.kind === 'discard' ?
+            confirmRequest.message
+          : `确定要删除分支 "${confirmRequest.branchId}" 吗？`
+        }}
+      </p>
+      <div class="flex justify-end gap-2">
+        <button
+          class="gd-btn-secondary"
+          @click="confirmRequest = null"
+          data-testid="wt-confirm-cancel"
+          type="button"
         >
-          {{
-            confirmRequest.kind === 'discard' ?
-              confirmRequest.message
-            : `确定要删除分支 "${confirmRequest.branchId}" 吗？`
-          }}
-        </p>
-        <div class="flex justify-end gap-2">
-          <button
-            class="gd-btn-secondary"
-            @click="confirmRequest = null"
-            data-testid="wt-confirm-cancel"
-            type="button"
-          >
-            Cancel
-          </button>
-          <button
-            class="gd-btn-primary"
-            :style="{ background: 'var(--gd-del-fg)', borderColor: 'var(--gd-del-fg)' }"
-            @click="handleConfirmRequest"
-            data-testid="wt-confirm-ok"
-            type="button"
-          >
-            {{ confirmRequest.kind === 'discard' ? 'Discard' : 'Delete' }}
-          </button>
-        </div>
+          Cancel
+        </button>
+        <button
+          class="gd-btn-primary"
+          :style="{ background: 'var(--gd-del-fg)', borderColor: 'var(--gd-del-fg)' }"
+          @click="handleConfirmRequest"
+          data-testid="wt-confirm-ok"
+          type="button"
+        >
+          {{ confirmRequest.kind === 'discard' ? 'Discard' : 'Delete' }}
+        </button>
       </div>
-    </div>
+    </DialogShell>
 
     <!-- ═══════════════════ Toast ═══════════════════ -->
     <div

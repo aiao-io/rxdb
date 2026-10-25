@@ -68,7 +68,7 @@ describe('分支表的活查询跟得上建分支、删分支（US-222）', () =
     }
   });
 
-  it('其余关掉变更日志的实体同理：删行之后活查询立刻不再有它', async () => {
+  it.each(['entity', 'adapter'] as const)('%s 删除不记日志的实体后，活查询立即移除它', async mode => {
     const note = new UnloggedNote();
     note.title = 'unlogged';
     await note.save();
@@ -79,7 +79,8 @@ describe('分支表的活查询跟得上建分支、删分支（US-222）', () =
       .subscribe(rows => (latest = rows.map(row => String(row.title))));
     try {
       await expect.poll(() => latest).toEqual(['unlogged']);
-      await note.remove();
+      if (mode === 'adapter') await (await rxdb.getAdapter('pglite')).removeMany([note]);
+      else await note.remove();
       await expect.poll(() => latest).toEqual([]);
     } finally {
       subscription.unsubscribe();

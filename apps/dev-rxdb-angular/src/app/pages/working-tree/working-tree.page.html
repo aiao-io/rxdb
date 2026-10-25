@@ -65,7 +65,6 @@
       <app-working-tree-worktree-menu
         class="gd-toolbar-section gd-worktree-section"
         [(menuOpen)]="$worktreeMenuOpen"
-        [busy]="$worktreeBusy()"
         [mainBranch]="$mainBranch()"
         [mounted]="worktrees.mounted()"
         [popupWidth]="$branchSectionWidth() < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : $branchSectionWidth()"
@@ -319,6 +318,7 @@
   <app-working-tree-merge-dialog
     [activeBranch]="$activeBranch()"
     [branches]="$otherBranchIds()"
+    [busy]="$worktreeBusy()"
     [dialog]="$mergeDialog()"
     [error]="$mergeError()"
     [preview]="$mergePreview()"

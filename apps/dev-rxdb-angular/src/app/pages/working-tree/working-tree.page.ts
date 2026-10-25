@@ -405,6 +405,7 @@ export default class WorkingTreePage implements OnInit {
     if (this.pendingWrites() > 0 || this.$worktreeCommandBusy()) return;
     this.$worktreeMenuOpen.set(false);
     this.$worktreeCommandBusy.set(true);
+    this.$worktreeCommandError.set(null);
     try {
       await this.worktrees.mountMain();
       this.clearWorktreeSelection();
@@ -1094,7 +1095,7 @@ export default class WorkingTreePage implements OnInit {
    * toast 里点破这一点，否则「合并了怎么历史没变」会像 bug。
    */
   async executeMerge() {
-    if (this.$worktreeCommandBusy()) return;
+    if (this.$worktreeBusy()) return;
     this.pendingWrites.update(count => count + 1);
     try {
       const dialog = this.$mergeDialog();

@@ -18,7 +18,7 @@
  * @module rxdb-plugin-workspace/workspace-entry
  */
 
-import type { UUID } from '@aiao/rxdb';
+import { WorktreeTableSet, type UUID } from '@aiao/rxdb';
 
 /** `namespace:entity:id` 三段式草稿主键。 */
 export type WorkspaceCacheId = `${string}:${string}:${UUID}`;
@@ -66,9 +66,6 @@ export const parseWorkspaceCacheId = (
   return { ok: true, namespace, entity, id: id as UUID };
 };
 
-/** 可写检出位影子表集的后缀，与核心的 `WorktreeTableSet` 同一个形状：`wt_` 加 1～12 位小写字母或数字 */
-const PARTITION_PATTERN = /^wt_[a-z0-9]{1,12}$/;
-
 /**
  * 是不是合法的草稿分区（US-314 B2.4）。
  *
@@ -79,7 +76,7 @@ const PARTITION_PATTERN = /^wt_[a-z0-9]{1,12}$/;
  * 分区就是草稿存下去会写进哪套表：写在主表集上的草稿没有分区（`undefined`），写在可写检出位影子表上的取那套表的后缀。
  */
 export const isWorkspacePartition = (value: unknown): value is string =>
-  typeof value === 'string' && PARTITION_PATTERN.test(value);
+  typeof value === 'string' && WorktreeTableSet.isSuffix(value);
 
 /**
  * 一条草稿在 IndexedDB 里的键（US-314 B2.4）。

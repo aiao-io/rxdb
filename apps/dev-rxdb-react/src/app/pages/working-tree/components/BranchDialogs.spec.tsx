@@ -67,6 +67,17 @@ const pressTab = (element: HTMLElement, shiftKey = false): void => {
 };
 
 describe('WorkingTreeMergeDialog 的预览', () => {
+  it('合并进行中禁用确认按钮，结束后才允许再次提交', () => {
+    const { onConfirm, rerender } = renderMergeDialog({ busy: true });
+    const confirm = screen.getByTestId<HTMLButtonElement>('wt-merge-confirm');
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(confirm);
+    expect(onConfirm).not.toHaveBeenCalled();
+    rerender({ busy: false });
+    fireEvent.click(confirm);
+    expect(onConfirm).toHaveBeenCalledOnce();
+  });
+
   it('成功：摘要、条目与覆盖说明；对话框以标题命名，焦点进面板', () => {
     renderMergeDialog();
 

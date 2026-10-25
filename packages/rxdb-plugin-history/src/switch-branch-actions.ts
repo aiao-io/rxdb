@@ -71,7 +71,8 @@ export const compute_switch_branch_actions = async (
     where: {
       combinator: 'and',
       rules: []
-    }
+    },
+    limit: Number.MAX_SAFE_INTEGER
   });
   const current_branch = all_branches.find(b => b.id === sourceBranchId);
   if (!current_branch) throw new RxDBError(`Branch (${sourceBranchId}) not found`);

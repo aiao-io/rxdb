@@ -53,6 +53,14 @@ function mountMenu(mounted = shadow): VueWrapper {
 }
 
 describe('WorktreeMenu', () => {
+  it('菜单不展示还没就绪的检出位', async () => {
+    const wrapper = mountMenu();
+    await wrapper.setProps({ rows: [row(), row({ id: 'pending', state: 'building' })] });
+    await wrapper.get('[data-testid="wt-worktree-menu"]').trigger('click');
+    expect(wrapper.find('[data-testid="wt-worktree-item"][data-worktree-id="pending"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="wt-worktree-item"][data-worktree-id="w1"]').exists()).toBe(true);
+  });
+
   it('按 Main / Linked 分组，并给当前检出位 aria-current', async () => {
     const wrapper = mountMenu();
     await wrapper.get('[data-testid="wt-worktree-menu"]').trigger('click');

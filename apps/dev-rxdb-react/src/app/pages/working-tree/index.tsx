@@ -28,6 +28,7 @@ import {
   type WorkingTreeContextMenuState
 } from './components/ContextMenu';
 import { WorkingTreeCreateBranchDialog, type CreateBranchDialogState } from './components/CreateBranchDialog';
+import { WorkingTreeDialogShell } from './components/DialogShell';
 import { WorkingTreeDiffViewer } from './components/DiffViewer';
 import { WorkingTreeHistoryCompare, type HistoryCompareState } from './components/HistoryCompare';
 import { WorkingTreeHistoryList } from './components/HistoryList';
@@ -1110,7 +1111,7 @@ export default function WorkingTreePage(): React.JSX.Element {
    * toast 里点破这一点，否则「合并了怎么历史没变」会像 bug。
    */
   const executeMerge = async () => {
-    if (worktreeOperationBusy.current) return;
+    if (worktreeOperationBusy.current || pendingWrites.current > 0) return;
     pendingWrites.current++;
     setPendingWriteCount(pendingWrites.current);
     try {
@@ -1525,6 +1526,7 @@ export default function WorkingTreePage(): React.JSX.Element {
         branches={otherBranchIds}
         dialog={mergeDialog}
         error={mergeError}
+        busy={pendingWriteCount > 0}
         onCloseRequested={closeMergeDialog}
         onConfirm={() => void executeMerge()}
         onDeleteSourceChange={setDeleteSource}
@@ -1589,52 +1591,38 @@ export default function WorkingTreePage(): React.JSX.Element {
 
       {/* ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ */}
       {confirm !== null && (
-        <div
-          className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3'
-          onClick={() => setConfirm(null)}
-          onKeyDown={event => {
-            if (event.key === 'Escape') setConfirm(null);
-          }}
-          aria-label='Close dialog'
-          role='button'
-          tabIndex={0}
+        <WorkingTreeDialogShell
+          labelledBy='wt-confirm-title'
+          onCloseRequested={() => setConfirm(null)}
+          role='alertdialog'
+          testId='wt-confirm-dialog'
         >
-          <div
-            className='max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl'
-            style={{ background: 'var(--gd-panel)' }}
-            onClick={event => event.stopPropagation()}
-            onKeyDown={event => event.stopPropagation()}
-            aria-modal='true'
-            data-testid='wt-confirm-dialog'
-            role='alertdialog'
-          >
-            <h2 className='mb-3 text-sm font-semibold'>
-              {confirm.kind === 'discard' ? 'Discard changes' : 'Delete branch'}
-            </h2>
-            <p className='mb-4 text-sm' style={{ color: 'var(--gd-muted)' }}>
-              {confirm.kind === 'discard' ? confirm.message : `确定要删除分支 "${confirm.branchId}" 吗？`}
-            </p>
-            <div className='flex justify-end gap-2'>
-              <button
-                className='gd-btn-secondary'
-                onClick={() => setConfirm(null)}
-                data-testid='wt-confirm-cancel'
-                type='button'
-              >
-                Cancel
-              </button>
-              <button
-                className='gd-btn-primary'
-                style={{ background: 'var(--gd-del-fg)', borderColor: 'var(--gd-del-fg)' }}
-                onClick={() => void confirmRequest()}
-                data-testid='wt-confirm-ok'
-                type='button'
-              >
-                {confirm.kind === 'discard' ? 'Discard' : 'Delete'}
-              </button>
-            </div>
+          <h2 className='mb-3 text-sm font-semibold' id='wt-confirm-title'>
+            {confirm.kind === 'discard' ? 'Discard changes' : 'Delete branch'}
+          </h2>
+          <p className='mb-4 text-sm' style={{ color: 'var(--gd-muted)' }}>
+            {confirm.kind === 'discard' ? confirm.message : `确定要删除分支 "${confirm.branchId}" 吗？`}
+          </p>
+          <div className='flex justify-end gap-2'>
+            <button
+              className='gd-btn-secondary'
+              onClick={() => setConfirm(null)}
+              data-testid='wt-confirm-cancel'
+              type='button'
+            >
+              Cancel
+            </button>
+            <button
+              className='gd-btn-primary'
+              style={{ background: 'var(--gd-del-fg)', borderColor: 'var(--gd-del-fg)' }}
+              onClick={() => void confirmRequest()}
+              data-testid='wt-confirm-ok'
+              type='button'
+            >
+              {confirm.kind === 'discard' ? 'Discard' : 'Delete'}
+            </button>
           </div>
-        </div>
+        </WorkingTreeDialogShell>
       )}
 
       {/* ═══════════════════ Toast ═══════════════════ */}

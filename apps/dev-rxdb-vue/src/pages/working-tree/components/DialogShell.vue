@@ -21,6 +21,8 @@ defineProps<{
   testId: string;
   /** 标题元素的 id：对话框的可读名 */
   labelledBy: string;
+  /** 对话框语义；破坏性确认使用 alertdialog */
+  role?: 'dialog' | 'alertdialog';
 }>();
 
 const emit = defineEmits<{
@@ -66,7 +68,7 @@ const onPanelKeydown = (event: KeyboardEvent): void => {
       :aria-labelledby="labelledBy"
       aria-modal="true"
       :data-testid="testId"
-      role="dialog"
+      :role="role ?? 'dialog'"
       tabindex="-1"
     >
       <slot />

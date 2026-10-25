@@ -111,6 +111,13 @@ describe('检出位的并发写与连接隔离', () => {
     }
   );
 
+  it.each(['saveMany', 'removeMany'] as const)('适配器公开批量入口在换挂期间拒绝旧实体', async operation => {
+    todo.title = 'adapter-main-edit';
+    await rejectWriteAfterMount(() =>
+      operation === 'saveMany' ? adapter.saveMany([todo]) : adapter.removeMany([todo])
+    );
+  });
+
   it.each(['save', 'saveMany'] as const)('缺排序键的 %s 同样在写事务内拒绝旧表集实体', async operation => {
     const note = new SortableIsolationNote({ title: 'main draft' });
     await rejectWriteAfterMount(() => (operation === 'save' ? note.save() : rxdb.entityManager.saveMany([note])));

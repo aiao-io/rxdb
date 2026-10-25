@@ -1,10 +1,17 @@
 import { WorktreeTableSet } from '@aiao/rxdb';
+import type {
+  WorkingTreeDiff,
+  WorkingTreeDiffEntry,
+  WorkingTreeQueryState,
+  WorkingTreeStatus
+} from '@aiao/rxdb-plugin-working-tree';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { shallowRef, type ShallowRef } from 'vue';
 import WorkingTreePage from '../WorkingTreePage.vue';
 
 const harness = vi.hoisted(() => {
-  const status = {
+  const status: WorkingTreeStatus = {
     branchId: 'main',
     activationRevision: 1,
     headRevision: 1,
@@ -13,9 +20,12 @@ const harness = vi.hoisted(() => {
     entryCount: 1,
     restoring: false,
     conflicted: false,
-    byOrigin: { remote_sync: 0 }
+    byOrigin: { local: 1, remote_sync: 0 }
   };
-  const entry = {
+  const entry: WorkingTreeDiffEntry = {
+    unitId: 'unit-1',
+    transactionId: null,
+    origin: 'local',
     namespace: 'public',
     entity: 'Todo',
     entityId: 't1',
@@ -23,6 +33,15 @@ const harness = vi.hoisted(() => {
     patch: { title: 'dirty' },
     inversePatch: { title: 'base' }
   };
+  const diffWith = (entries: readonly WorkingTreeDiffEntry[]): WorkingTreeDiff => ({
+    branchId: 'main',
+    baseHeadCommitId: null,
+    workingTreeRevision: 1,
+    granularity: 'entity',
+    entries,
+    transactions: [],
+    nextCursor: null
+  });
   const comparison = (title: string) => ({
     fromBranchId: 'main',
     toBranchId: 'feature',
@@ -40,19 +59,22 @@ const harness = vi.hoisted(() => {
   const compareBranches = vi.fn<() => Promise<ReturnType<typeof comparison>>>();
   const tree = {
     isEnabledState: { value: { phase: 'success', value: true } },
-    statusState: { value: { phase: 'success', value: status } },
-    diffState: { value: { phase: 'success', value: { entries: [entry] } } },
+    statusState: undefined as unknown as ShallowRef<WorkingTreeQueryState<WorkingTreeStatus>>,
+    diffState: undefined as unknown as ShallowRef<WorkingTreeQueryState<WorkingTreeDiff>>,
     listCommitsState: { value: { phase: 'empty', value: { entries: [] } } },
     commitState: { value: { phase: 'idle' } },
     commitChangesState: { value: { phase: 'idle' } },
     isEnabled: vi.fn(async () => true),
     status: vi.fn(async () => status),
-    diff: vi.fn(async () => ({ entries: [entry] })),
+    diff: vi.fn(async () => diffWith([entry])),
     listCommits: vi.fn(async () => ({ entries: [] })),
     discard: vi.fn(async () => undefined)
   };
   return {
     tree,
+    status,
+    entry,
+    diffWith,
     comparison,
     compareBranches,
     mountWorktree: vi.fn(async () => undefined),
@@ -100,7 +122,9 @@ let wrapper: VueWrapper | undefined;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  harness.tree.status.mockResolvedValue(harness.tree.statusState.value.value);
+  harness.tree.statusState = shallowRef({ phase: 'success', value: harness.status });
+  harness.tree.diffState = shallowRef({ phase: 'success', value: harness.diffWith([harness.entry]) });
+  harness.tree.status.mockResolvedValue(harness.status);
   harness.compareBranches.mockResolvedValue(harness.comparison('dirty'));
 });
 
@@ -126,6 +150,28 @@ const expectRefreshedComparison = (): void => {
 };
 
 describe('WorkingTreePage 的分支对比刷新', () => {
+  it('重读期间保留列表和用户手动选中的 diff，空结果落地后才清空', async () => {
+    harness.tree.diffState.value = {
+      phase: 'success',
+      value: harness.diffWith([harness.entry, { ...harness.entry, unitId: 'unit-2', entityId: 't2' }])
+    };
+    wrapper = mount(WorkingTreePage, { global: { stubs: { RouterLink: true } } });
+    await flushPromises();
+    await page().findAll('[data-testid="wt-diff-item"]')[1].trigger('click');
+    expect(page().get('[data-testid="wt-diff-item"][aria-current="true"]').text()).toContain('t2');
+
+    harness.tree.statusState.value = { phase: 'loading' };
+    harness.tree.diffState.value = { phase: 'loading' };
+    await flushPromises();
+    expect(page().findAll('[data-testid="wt-diff-item"]')).toHaveLength(2);
+    expect(page().get('[data-testid="wt-diff-item"][aria-current="true"]').text()).toContain('t2');
+    expect(page().get('[data-testid="wt-diff-viewer"]').text()).toContain('dirty');
+
+    harness.tree.diffState.value = { phase: 'empty', value: harness.diffWith([]) };
+    await flushPromises();
+    expect(page().findAll('[data-testid="wt-diff-item"]')).toHaveLength(0);
+  });
+
   it('换挂检出位清除旧分支对比并重读 Changes 和 History', async () => {
     await openComparison();
     await page().get('[data-testid="wt-worktree-menu"]').trigger('click');
@@ -160,11 +206,11 @@ describe('WorkingTreePage 的分支对比刷新', () => {
 
   it('Fetch 进行中清除对比，迟到的刷新不会重新打开它', async () => {
     await openComparison();
-    let finishStatus: (status: typeof harness.tree.statusState.value.value) => void = () => undefined;
+    let finishStatus: (status: WorkingTreeStatus) => void = () => undefined;
     harness.tree.status.mockReturnValueOnce(new Promise(resolve => (finishStatus = resolve)));
     await page().get('[data-testid="wt-refresh-status"]').trigger('click');
     await page().get('[data-testid="wt-compare-clear"]').trigger('click');
-    finishStatus(harness.tree.statusState.value.value);
+    finishStatus(harness.status);
     await flushPromises();
 
     expect(page().find('[data-testid="wt-compare-view"]').exists()).toBe(false);

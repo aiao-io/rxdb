@@ -7,7 +7,8 @@ import {
   RxDBChange,
   RxDBError,
   SwitchVersionActions,
-  TrustedWriteIntent
+  TrustedWriteIntent,
+  type TransactionExecutor
 } from '@aiao/rxdb';
 import { VersionManager } from './VersionManager.js';
 import { remove_branch } from './remove-branch.js';
@@ -123,6 +124,24 @@ export const merge_branch = async (
   const deleteSource = options?.deleteSource ?? false;
 
   const { branchRepository, changeRepository, adapter } = await version.getLocalRepositories();
+  const expectedTableSetSuffix = adapter.tableSet.suffix;
+
+  /**
+   * 合并计划是在事务外读出的；真正写入前必须确认实例仍落在同一套表、同一条持有分支。
+   * 否则换挂窗口会把源分支的变更写进另一套表，并把历史记到错误分支。
+   */
+  const assertMergeTarget = async (executor: TransactionExecutor): Promise<void> => {
+    if (executor.tableSet.suffix !== expectedTableSetSuffix) {
+      throw new RxDBError('计算合并增量期间表集已改变，请重新发起合并');
+    }
+    const [heldBranch] = await executor.getRepository(RxDBBranch).find({
+      where: executor.tableSet.heldBranchWhere,
+      limit: 1
+    });
+    if ((heldBranch?.id ?? null) !== currentBranchId) {
+      throw new RxDBError('计算合并增量期间当前分支已改变，请重新发起合并');
+    }
+  };
 
   // 验证：源分支不能是目标分支
   if (sourceBranchId === currentBranchId) {
@@ -188,6 +207,7 @@ export const merge_branch = async (
     // 在本事务内。旧写法靠适配器的环境态推断「已在事务中就复用」，那正是 C2 要拆掉的东西 ——
     // 翻转后它会从「复用当前事务」变成「重新排队」，排在自己身后直接自锁。
     await adapter.transaction(async executor => {
+      await assertMergeTarget(executor);
       for (const change of sourceChanges) {
         const singleActions: SwitchVersionActions = {
           deletes: new Map(),
@@ -243,6 +263,7 @@ export const merge_branch = async (
     // 变成「整次合并一起撤销」。传 false，历史记账与不包这层事务时一致（调用契约锁在
     // `__tests__/merge-branch.spec.ts`，分组结果锁在 pglite 的 `version/merge_branch.spec.ts`）。
     await adapter.transaction(async executor => {
+      await assertMergeTarget(executor);
       declareTrustedWrite(executor, {
         file: 'merge-branch.ts',
         symbol: 'merge_branch',

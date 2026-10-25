@@ -86,6 +86,22 @@ afterEach(() => {
 });
 
 describe('WorkingTreeMergeDialogComponent 的预览', () => {
+  it('合并进行中禁用确认按钮，结束后才允许再次提交', async () => {
+    const fixture = await createMergeDialog();
+    const confirm = get(fixture, '[data-testid="wt-merge-confirm"]') as HTMLButtonElement;
+    const emitted = vi.fn();
+    fixture.componentInstance.confirm.subscribe(emitted);
+    fixture.componentRef.setInput('busy', true);
+    fixture.detectChanges();
+    expect(confirm.disabled).toBe(true);
+    confirm.click();
+    expect(emitted).not.toHaveBeenCalled();
+    fixture.componentRef.setInput('busy', false);
+    fixture.detectChanges();
+    confirm.click();
+    expect(emitted).toHaveBeenCalledOnce();
+  });
+
   it('成功：摘要、条目与覆盖说明；对话框以标题命名，焦点进面板', async () => {
     const fixture = await createMergeDialog();
 

@@ -185,7 +185,9 @@ export class MemoryBranchHistory {
     return {
       branchRepository: {
         find: async options =>
-          query(this.#branches, options as unknown as QueryOptions).map(row => ({ ...row })) as unknown as RxDBBranch[]
+          query(this.#branches, { ...options, limit: options.limit ?? 100 } as unknown as QueryOptions).map(row => ({
+            ...row
+          })) as unknown as RxDBBranch[]
       },
       changeRepository: {
         find: async options =>

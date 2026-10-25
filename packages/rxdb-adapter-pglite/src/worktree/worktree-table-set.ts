@@ -252,19 +252,24 @@ export const createSeededTableSet = async (
  *
  * @param executor - 调用方的事务
  * @param tableSet - 要删的表集，不能是主表集
+ * @param excludedSchemas - 当前配置的主表集对象，删除时必须排除
  * @throws {@link RxdbAdapterPGliteError} 给的是主表集时
  *
  * @remarks
  * 按目录找而不是按配置：建到一半就中断的、成员已经从配置里移除的也删得掉，删除因此可重入。
  * 分支表上的持有键不归这里放，关闭检出位的流程在同一笔事务里自己放。
  */
-export const dropTableSet = async (executor: PGliteTransactionExecutor, tableSet: WorktreeTableSet): Promise<void> => {
+export const dropTableSet = async (
+  executor: PGliteTransactionExecutor,
+  tableSet: WorktreeTableSet,
+  excludedSchemas: ReadonlySet<string>
+): Promise<void> => {
   if (tableSet.isMain) throw new RxdbAdapterPGliteError('dropWorktreeTableSet 不删主表集');
   // 在 JS 里按后缀筛：`LIKE` 会把 `wt_` 的下划线当通配符，`length($1)` 又推不出参数类型；pg_namespace 很小
   const suffix = getTableSetSchemaSuffix(tableSet);
   const schemas = (await executor.queryRaw<{ nspname: string }>(`SELECT nspname FROM pg_namespace`)).rows
     .map(row => row.nspname)
-    .filter(schema => schema.endsWith(suffix));
+    .filter(schema => schema.endsWith(suffix) && !excludedSchemas.has(schema));
   for (const schema of schemas) {
     await executor.queryRaw(`DROP SCHEMA IF EXISTS ${quoteIdentifier(schema)} CASCADE`);
   }

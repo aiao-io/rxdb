@@ -40,7 +40,7 @@ const name = ref('');
 const branchId = ref('');
 const error = ref<string | null>(null);
 
-const linkedRows = computed(() => props.rows.filter(row => row.mode === 'writable'));
+const linkedRows = computed(() => props.rows.filter(row => row.mode === 'writable' && row.state === 'ready'));
 const currentLinked = computed(() =>
   props.mounted.isMain ? null : (linkedRows.value.find(row => row.tableSetSuffix === props.mounted.suffix) ?? null)
 );
@@ -409,7 +409,7 @@ defineExpose({ openNewDialog });
         </button>
         <button
           v-else
-          class="gd-btn-primary"
+          class="gd-btn-danger"
           data-testid="wt-worktree-delete-confirm"
           type="button"
           :disabled="submitting || busy"

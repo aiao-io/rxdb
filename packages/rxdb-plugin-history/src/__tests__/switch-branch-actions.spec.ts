@@ -457,7 +457,10 @@ describe('compute_switch_branch_actions 指定起点', () => {
 
     await expect(compute_switch_branch_actions(readers as never, 'main', 'held')).resolves.toEqual(emptyActions());
     expect(readers.branchRepository.find).toHaveBeenCalledTimes(1);
-    expect(readers.branchRepository.find).toHaveBeenCalledWith({ where: { combinator: 'and', rules: [] } });
+    expect(readers.branchRepository.find).toHaveBeenCalledWith({
+      where: { combinator: 'and', rules: [] },
+      limit: Number.MAX_SAFE_INTEGER
+    });
   });
 
   it('起点与终点相同照样拒绝', async () => {

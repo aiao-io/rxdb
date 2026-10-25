@@ -698,28 +698,30 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       };
       globalThis.addEventListener('unhandledrejection', onUnhandled);
 
-      // workspace 的监听器先注册，探针排在它后面 —— 用来观察派发链是否被截断。
-      const probed: unknown[] = [];
-      rxdb.addEventListener('ENTITY_LOCAL_NEW', event => probed.push(event));
+      try {
+        // workspace 的监听器先注册，探针排在它后面 —— 用来观察派发链是否被截断。
+        const probed: unknown[] = [];
+        rxdb.addEventListener('ENTITY_LOCAL_NEW', event => probed.push(event));
 
-      // 时序是关键：构造函数里 `EntityStatus` 会 `structuredClone({...target})` 建基线，
-      // 所以「构造时就带函数」是同步 fail-fast，反而安全。而 proxy 的 set 拦截**不克隆**，
-      // NEW 又是 `nextMicroTask` 才派发、`patch` 就是实体本体 ——
-      // 于是「构造后、微任务前」这一同步窗口里赋的值会原样进广播。
-      const bad = new Draft({ title: '先构造' });
-      bad.meta = { boom: () => undefined } as unknown as DraftMeta;
-      await settle();
-      await nextTick();
+        // 时序是关键：构造函数里 `EntityStatus` 会 `structuredClone({...target})` 建基线，
+        // 所以「构造时就带函数」是同步 fail-fast，反而安全。而 proxy 的 set 拦截**不克隆**，
+        // NEW 又是 `nextMicroTask` 才派发、`patch` 就是实体本体 ——
+        // 于是「构造后、微任务前」这一同步窗口里赋的值会原样进广播。
+        const bad = new Draft({ title: '先构造' });
+        bad.meta = { boom: () => undefined } as unknown as DraftMeta;
+        await settle();
+        await nextTick();
 
-      expect(swallowed).toEqual([]);
-      expect(probed).toHaveLength(1);
-      expect(workspace.cacheCount).toBe(1);
-      expect(workspace.corruptedEntries).toEqual([
-        { key: cacheIdOf(bad), reason: expect.stringContaining('无法跨 tab 同步') }
-      ]);
-      await expect(workspace.flush()).rejects.toBeInstanceOf(WorkspaceFlushError);
-
-      globalThis.removeEventListener('unhandledrejection', onUnhandled);
+        expect(swallowed).toEqual([]);
+        expect(probed).toHaveLength(1);
+        expect(workspace.cacheCount).toBe(1);
+        expect(workspace.corruptedEntries).toEqual([
+          { key: cacheIdOf(bad), reason: expect.stringContaining('无法跨 tab 同步') }
+        ]);
+        await expect(workspace.flush()).rejects.toBeInstanceOf(WorkspaceFlushError);
+      } finally {
+        globalThis.removeEventListener('unhandledrejection', onUnhandled);
+      }
     });
 
     it('断连之后再调 flush() 直接拒绝，不会静默 resolve', async () => {

@@ -216,7 +216,7 @@ export interface MergeDialogState {
           </button>
           <button
             class="gd-btn-primary"
-            [disabled]="dialog.sourceBranchId === null"
+            [disabled]="dialog.sourceBranchId === null || busy()"
             (click)="confirm.emit()"
             data-testid="wt-merge-confirm"
             type="button"
@@ -243,6 +243,7 @@ export class WorkingTreeMergeDialogComponent {
   /** 按当前策略读的合并预览；读失败不挡合并 */
   readonly preview = input<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
   readonly error = input<string | null>(null);
+  readonly busy = input(false);
 
   readonly closeRequested = output<void>();
   /** 选了合并来源 */

@@ -1031,7 +1031,12 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 分支表上的持有键不归这里放，关闭检出位的流程在同一笔事务里自己放。
    */
   override async dropWorktreeTableSet(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void> {
-    await dropTableSet(executor as SqliteTransactionExecutor, tableSet);
+    const mainTables = new Set(
+      this.rxdb.config.entities.map(EntityType =>
+        get_table_name_by_metadata(getEntityMetadata(EntityType), WorktreeTableSet.MAIN)
+      )
+    );
+    await dropTableSet(executor as SqliteTransactionExecutor, tableSet, mainTables);
   }
 
   /**

@@ -32,6 +32,7 @@ const props = defineProps<{
   /** 按当前策略读的合并预览；读失败不挡合并 */
   preview: BranchDiffLoad<MergePreview>;
   error: string | null;
+  busy?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -293,7 +294,7 @@ watch(
       </button>
       <button
         class="gd-btn-primary"
-        :disabled="dialog.sourceBranchId === null"
+        :disabled="dialog.sourceBranchId === null || busy"
         @click="emit('confirm')"
         data-testid="wt-merge-confirm"
         type="button"

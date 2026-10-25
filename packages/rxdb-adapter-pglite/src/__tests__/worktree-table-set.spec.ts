@@ -49,6 +49,16 @@ class WorktreeSeqNote extends EntityBase<number> {
   declare title: string;
 }
 
+@Entity({
+  name: 'WorktreeLookalike',
+  namespace: 'main$wt_probe',
+  tableName: 'lookalike',
+  properties: [{ name: 'title', type: PropertyType.string }]
+})
+class WorktreeLookalike extends EntityBase {
+  declare title: string;
+}
+
 const emptyActions = (): SwitchVersionActions => ({ inserts: new Map(), updates: new Map(), deletes: new Map() });
 
 describe('可写检出位的表集（US-314 B1.3）', () => {
@@ -248,6 +258,31 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
     await dropTableSet(tableSet);
     await dropTableSet(other);
     expect(await listSuffixes()).toEqual([]);
+  });
+
+  it('删除表集时保留同后缀的主 schema 及其数据', async () => {
+    const protectedDb = new RxDB({
+      dbName: generateDbName(),
+      entities: [WorktreeLookalike],
+      sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+    });
+    protectedDb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' }));
+    try {
+      const protectedAdapter = await protectedDb.connect('pglite');
+      await new WorktreeLookalike({ title: 'keep' }).save();
+      await protectedAdapter.internalQuery('CREATE SCHEMA "public$wt_probe"');
+      await protectedAdapter.transaction(executor => protectedAdapter.dropWorktreeTableSet(executor, tableSet), false);
+      const main = await protectedAdapter.internalQuery<{ title: string }>(
+        'SELECT "title" FROM "main$wt_probe"."lookalike"'
+      );
+      expect(main.rows).toEqual([{ title: 'keep' }]);
+      const shadow = await protectedAdapter.internalQuery('SELECT nspname FROM pg_namespace WHERE nspname = $1', [
+        'public$wt_probe'
+      ]);
+      expect(shadow.rows).toEqual([]);
+    } finally {
+      await protectedDb.disconnectAll();
+    }
   });
 
   it('主表集不经这里建，成员也必须记变更日志', async () => {

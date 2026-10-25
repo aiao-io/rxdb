@@ -1,4 +1,4 @@
-import { parseRxDBChangeKey, type SwitchVersionActions, type TransactionExecutor } from '@aiao/rxdb';
+import { WorktreeTableSet, parseRxDBChangeKey, type SwitchVersionActions, type TransactionExecutor } from '@aiao/rxdb';
 import { expect, it } from 'vitest';
 import { preview_merge } from '../branch-compare.js';
 import { merge_branch } from '../merge-branch.js';
@@ -49,8 +49,11 @@ it('normal 预览应列出源幽灵操作实际删除的目标记录', async () 
   const readers = history.readers();
   const target = history.stateOf('main');
   const adapter = {
+    tableSet: WorktreeTableSet.MAIN,
     transaction: async (fun: (executor: TransactionExecutor) => Promise<unknown>) => {
       const executor = {
+        tableSet: WorktreeTableSet.MAIN,
+        getRepository: () => readers.branchRepository,
         mergeChanges: async (actions: SwitchVersionActions) => {
           for (const key of actions.deletes.keys()) target.delete(String(parseRxDBChangeKey(key)[2]));
           for (const [key, value] of actions.inserts)

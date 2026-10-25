@@ -10,6 +10,7 @@ import { ENTITY_BOOKKEEPING_FIELDS, RxDBError } from '@aiao/rxdb';
 import { isEqual } from '@aiao/utils';
 import { describe, expect, it } from 'vitest';
 import { compare_branches, preview_merge, type BranchDiffEntry } from '../branch-compare.js';
+import { compute_switch_branch_actions } from '../switch-branch-actions.js';
 import {
   MEMORY_ENTITY,
   MEMORY_NAMESPACE,
@@ -88,6 +89,20 @@ const orderedPairs = (ids: readonly string[]): [string, string][] =>
   ids.flatMap(from => ids.filter(to => to !== from).map((to): [string, string] => [from, to]));
 
 describe('compare_branches', () => {
+  it('超过 100 条分支时，对比、合并预览与切换仍读取末尾分支', async () => {
+    const history = seeded();
+    for (let index = 0; index < 105; index++) history.branch(`extra-${index}`, 'main');
+    history.branch('last', 'feature');
+    history.update('last', 't1', { title: 'last edit' });
+
+    const result = await compare_branches(history.readers(), 'main', 'last');
+    expect(result.entries).toEqual(expectedDiff(history.stateOf('main'), history.stateOf('last')));
+    const preview = await preview_merge(history.readers(), 'last', 'main');
+    expect(preview.entries).toEqual(result.entries.map(entry => ({ ...entry, conflict: null })));
+    const actions = await compute_switch_branch_actions(history.readers(), 'last', 'main');
+    expect(actions.updates.get(MemoryBranchHistory.keyOf('t1'))?.patch).toEqual({ title: 'last edit' });
+  });
+
   it('从同一个点分出、谁都没改：没有条目', async () => {
     const history = seeded();
     const result = await compare_branches(history.readers(), 'main', 'feature');
