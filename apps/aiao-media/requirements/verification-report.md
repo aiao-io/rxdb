@@ -10,6 +10,8 @@
 
 供应商补验已完成只读复核：正式 manifest 摘要与审核 B 一致；模型目录 GET 200、配置模型存在；正式 origin 的生成 OPTIONS 仍为 403、无 CORS 许可头；用量 GET 200 但只有按日/模型汇总、没有单次请求 ID 或结果。现有真实成功结果仍为 base64，本机原 live 尝试日志缺失。无法据此关闭 102 AC7/105 AC7，两条故事记为 Blocked，新增生成请求为 0。详见[补验记录](plans/provider-acceptance-follow-up.md)。
 
+本轮校验：需求门禁 17/17、537 个链接与 10 个锚点通过；验收脚本诊断按红绿流程补齐，guard 测试 12/12、e2e lint/typecheck 通过。真实入口的 direct/square 单项以 `PREVIOUS_ATTEMPT_REQUIRES_REVIEW` 停止，`verified=0`、新增生成 0，供应商 AC 未通过。
+
 ## 状态与剩余验收核对（2026-10-25）
 
 按[状态定义](CONVENTIONS.md#状态定义)核对全部 12 条故事、79 条 AC，73 条已有通过证据。[本地交付](plans/local-delivery-tasks.md) 17/17 与[作品检索](plans/library-search-tasks.md) 10/10 的实施任务已完成；此前将全部 AC 已验的 MEDIA-US-004/201/202/203/204/301/302 从 In Progress 转为 In Review；现按用户后续指令及 D-11 记为 Done，并同步总览、需求入口、路线图、能力矩阵、epic 与清单。上述七条按本轮限定口径结项；其他故事沿用默认 Done 定义，全部 AC 与硬依赖要求保留。

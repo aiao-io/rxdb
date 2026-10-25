@@ -43,14 +43,14 @@
 
 2026-10-25 逐项核对 12 条故事：79 条 AC 中 73 条已通过；[本地交付清单](plans/local-delivery-tasks.md) 17/17、[作品检索清单](plans/library-search-tasks.md) 10/10 已完成。以下 6 条仍缺真实验收，不计作已完成：
 
-| 故事 / AC                                                                  | 剩余工作                               | 关闭所需证据                                                                                                                   |
-| -------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| 故事 / AC                                                                  | 剩余工作                               | 关闭所需证据                                                                                                                                              |
+| -------------------------------------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [MEDIA-US-102 AC7](stories/generation/MEDIA-US-102-image-generation.md)    | 正式 origin 直连三画幅                 | 原正方形未知身份保持锁定，继续该身份前须核对结果/用量。可显式另选未尝试且支持正式 origin 的供应商组合，取得三画幅真实直连 PNG、保存/刷新回读/精确下载证据 |
-| [MEDIA-US-105 AC7](stories/generation/MEDIA-US-105-provider-management.md) | 真实供应商返回跨 origin HTTPS 图片 URL | 通过实际适配器读取、保存与精确下载，并核对原图请求没有 Authorization、Cookie 或 Referer；base64 与 fixture 不能替代            |
-| [MEDIA-US-106 AC7](stories/generation/MEDIA-US-106-prompt-gallery.md)      | 真实桌面中文输入法                     | 按 D-09 本轮跳过；后续明确恢复验收后，用真实系统 IME 验正文/字段输入、粘贴、撤销重做与焦点/布局                                |
-| [MEDIA-US-107 AC1](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机输入与生成                     | 按 D-04 暂缓；后续在选定设备与系统 IME 上验证输入、参数一致性与不重复生成                                                      |
-| [MEDIA-US-107 AC2](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机持久化与交付                   | 在支持所需存储的设备上验证保存、重开、离线预览和实际文件下载                                                                   |
-| [MEDIA-US-107 AC3](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机存储/下载失败                  | 实测系统拒绝或限制，不虚报保存/下载，重试保留已有数据和原结果                                                                  |
+| [MEDIA-US-105 AC7](stories/generation/MEDIA-US-105-provider-management.md) | 真实供应商返回跨 origin HTTPS 图片 URL | 通过实际适配器读取、保存与精确下载，并核对原图请求没有 Authorization、Cookie 或 Referer；base64 与 fixture 不能替代                                       |
+| [MEDIA-US-106 AC7](stories/generation/MEDIA-US-106-prompt-gallery.md)      | 真实桌面中文输入法                     | 按 D-09 本轮跳过；后续明确恢复验收后，用真实系统 IME 验正文/字段输入、粘贴、撤销重做与焦点/布局                                                           |
+| [MEDIA-US-107 AC1](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机输入与生成                     | 按 D-04 暂缓；后续在选定设备与系统 IME 上验证输入、参数一致性与不重复生成                                                                                 |
+| [MEDIA-US-107 AC2](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机持久化与交付                   | 在支持所需存储的设备上验证保存、重开、离线预览和实际文件下载                                                                                              |
+| [MEDIA-US-107 AC3](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机存储/下载失败                  | 实测系统拒绝或限制，不虚报保存/下载，重试保留已有数据和原结果                                                                                             |
 
 按用户本次指令，七条全部 AC 已验的故事按 D-11 在当前分支记为 Done。PR #154 已包含 `7651e58e`，实际仍为 OPEN/DRAFT、未合并；核对时该 head 的 CI 正在运行，评审/合并继续单独跟踪。供应商补验已完成只读复核，新增生成 0 次，102/105 记为 Blocked，详见[供应商补验记录](plans/provider-acceptance-follow-up.md)。生产 Supabase 仍属后续范围。
 
