@@ -834,7 +834,6 @@ export default function WorkingTreePage(): React.JSX.Element {
               className='gd-toolbar-refresh gd-toolbar-section'
               style={{ width: fetchSectionWidth }}
               onClick={() => void runFetch()}
-              aria-label='Fetch origin（重读本地状态与提交历史）'
               data-testid='wt-refresh-status'
               title='Fetch origin（重读本地状态与提交历史）'
               type='button'
