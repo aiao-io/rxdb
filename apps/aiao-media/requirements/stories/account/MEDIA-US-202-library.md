@@ -7,7 +7,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-003
 created: 2026-09-26
-updated: 2026-10-24
+updated: 2026-10-25
 dependsOn: [MEDIA-US-301]
 tags: [assets, history, rxdb, local-storage]
 ---
@@ -49,13 +49,15 @@ tags: [assets, history, rxdb, local-storage]
 | 4   | 用户删除一件作品                       | 刷新和重开作品页           | 文件、关联与预览被清理，不误删其他作品、不重新导入  | ✅   |
 | 5   | 保存或删除过程被中断                   | 重开应用                   | 可恢复或清理半成品，不产生假作品、不误删旧工作区    | ✅   |
 | 6   | 任务完成但当前设备没有文件             | 查看任务记录               | 明示本机无副本，不虚构下载或云恢复入口              | ✅   |
-| 7   | 正式 origin 的真实供应商               | 生成并保存三种画幅         | 刷新后仍可预览、回读和精确下载真实文件              | ⚠️   |
+| 7   | 正式 origin 的真实供应商               | 生成并保存三种画幅         | 刷新后仍可预览、回读和精确下载真实文件              | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。
 
 ## 技术笔记
 
-本地文件闭环使用真实 RxDB + wa-sqlite/IndexedDB 与 OPFS。`aiao-media-e2e:local-first-e2e` 验证保存、原图属性/SHA-256、精确下载、提示词复用、删除后不复活、文件写入确认前关页恢复、删除中断重开清理、无副本任务提示、离线与 OPFS 失败重试（见[可靠性验收](../../plans/local-reliability-verification.md)）；供应商为 fixture。`aiao-media:test` 覆盖文件和元数据状态机，不能据此关闭正式 origin 的真实供应商验收。
+本地文件闭环使用真实 RxDB + wa-sqlite/IndexedDB 与 OPFS。`aiao-media-e2e:local-first-e2e` 验证保存、原图属性/SHA-256、精确下载、提示词复用、删除后不复活、文件写入确认前关页恢复、删除中断重开清理、无副本任务提示、离线与 OPFS 失败重试（见[可靠性验收](../../plans/local-reliability-verification.md)）；供应商为 fixture。`aiao-media:test` 覆盖文件和元数据状态机。
+
+2026-10-25 的 AC7 另有正式 origin 真实证据：显式代理三画幅各一次生成，实际 PNG 为 1024×1024、1536×1024、1024×1536，保存到 RxDB/OPFS 后打开作品、刷新回读和下载，原响应解码字节与下载文件逐字节一致。全部结果为 base64；直连正方形无响应、保持未知，另两幅直连未尝试，不承诺直连或 URL 结果路径。各文件字节数、SHA-256 与发布身份见[正式交付验收](../../plans/public-delivery-verification.md)。故事保持 `In Progress`，PR 尚未合并。
 
 ## 实现文件
 

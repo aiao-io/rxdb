@@ -7,7 +7,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-002
 created: 2026-09-26
-updated: 2026-10-24
+updated: 2026-10-25
 dependsOn: [MEDIA-US-105, MEDIA-US-202, MEDIA-US-301]
 tags: [image, provider, text-to-image, local-first]
 ---
@@ -58,7 +58,9 @@ tags: [image, provider, text-to-image, local-first]
 
 ## 技术笔记
 
-本地闭环已交付。`aiao-media-e2e:local-first-e2e` 使用真实 Chrome、RxDB、WASM、IndexedDB 和 OPFS，供应商为 fixture；它验证状态与保存行为，不证明真实供应商在正式 origin 可用。正式供应商和桌面能力的剩余验收见[验收记录](../../verification-report.md)。
+本地闭环已交付。`aiao-media-e2e:local-first-e2e` 使用真实 Chrome、RxDB、WASM、IndexedDB 和 OPFS，供应商为 fixture；它验证状态与保存行为，不证明真实供应商在正式 origin 可用。
+
+2026-10-25 正式 `https://media.aiao.io` 的真实供应商代理三画幅均通过：每项一次请求、HTTP 200、PNG 尺寸精确匹配，保存、刷新回读与下载字节/SHA-256 一致。直连正方形一次尝试未收到响应，保持 `requires-review`，未重发；另两种直连画幅未尝试。AC7 的代理部分已验，直连部分未完成，整项保持 ⚠️；不为补验重发未知请求。三项结果均为 base64，不提供 URL 原图读取证明。发布身份、摘要和证据边界见[正式交付验收](../../plans/public-delivery-verification.md)。故事保持 `In Progress`，PR 尚未合并。
 
 当前任务沿用 `processing`、`completed`、`failed`、`needs_review` 等契约状态，保存标记与生成状态分开。页面中断后不假设请求未发送，也不假设供应商可查询或撤销原请求。
 

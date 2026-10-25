@@ -1,6 +1,6 @@
 # 正式验收收尾清单
 
-当前分支 PR：[154](https://github.com/aiao-io/rxdb/pull/154)。本地实现及 82 个项目、344 个 affected 任务的结果见[本地产品交付验收](local-delivery-verification.md)。本页只记录当前剩余工作，不把准备完成或本地模拟记为正式通过。
+当前分支 PR：[154](https://github.com/aiao-io/rxdb/pull/154)。本地实现及 82 个项目、344 个 affected 任务的结果见[本地产品交付验收](local-delivery-verification.md)。本页记录本轮进度、剩余验收和后续边界，不把准备完成或本地模拟记为正式通过。
 
 ## 已作出的关键决策
 
@@ -8,32 +8,37 @@
 - [x] D-05：独立本机副本、显式绑定、账号隔离；登录不上传，退出保留本机数据。
 - [x] D-06：无限期保留冲突原始双方、tombstone 和同步日志，不启用 TTL/自动 GC，不重置远程序列；显式重扫仅重置拉取水位，保留 outbox、业务 revision、推送确认水位和本机内容。
 - [x] D-07：只承诺已验 0.0.26 基线升级；未验证历史库不承诺自动迁移；未知/更高 schema marker 拒绝访问并保留原库。回退只选认识 schema marker 且通过同库验证的构建，客户端数据库不降级。
-- [x] D-08：本机模式独立可用，正式账号/同步/后台使用独立产品 Supabase 项目，经迁移与权限复验后启用；不自动创建项目或升级计划。现有共享项目必须先提取、评审按对象收口的 SQL，不能复用本地初始化。
+- [x] D-08：2026-10-25 用户再确认 Supabase 本轮仅本地；生产账号/同步/后台未部署，不列为本轮输入条件。正式静态产物保持关闭公开账号配置；未来生产启用仍需独立项目或先评审按对象收口的迁移，不自动创建项目或升级计划。
+- [x] D-09：真实桌面中文 IME 本轮跳过、保持未验，MEDIA-US-106 AC7 保持 ⚠️；不以自动化输入改成通过。移动真机三个 AC 继续暂缓。
 
 完整定义见[决策与执行条件](../decisions.md)。
 
 ## 当前输入条件
 
-2026-10-24 的复核确认：
+2026-10-25 的输入与公网复核：
 
-- [x] Cloudflare 官方登录已恢复；当前构建已发布，version `deaaa727-7f52-4da2-9da5-fe33088cd244`，返回 `media.aiao.io (custom domain)`。DNS 已解析；仍缺解除 Cloudflare 403/1010 后的四路由/WASM/CSP/离线清单公网 smoke、Worker secrets 和 Free 计划账单核验。
-- [ ] 正式域名与证书；`media.aiao.io` 的 A/AAAA 当前 ENOTFOUND。旧 workers.dev DNS 存在，但本机 HTTP 超时，不能据此判断线上停机。
-- [ ] 私有供应商配置：`AIAO_IMAGE_BASE_URL`、`AIAO_IMAGE_API_KEY`、`AIAO_IMAGE_MODEL`。进程、当前应用和源仓 `.env` 均未配置约定字段；不要在聊天、报告、截图或 shell 参数粘贴 Key。
-- [ ] 正式 Supabase 项目、公开 URL/anon key、Worker 服务端配置与首管理员 Auth UUID；当前仅有本机服务配置，生产迁移包已准备但未执行，不能将回环 URL 发布为正式服务。
-- [ ] 解锁 Mac，使用真实 OS 中文输入法；原生自动化当前报告锁屏，不能以粘贴中文或合成 composition 事件代替。
+- [x] 2026-10-25 发布：source `c2ab7dc0`，version `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`，deployment `12606e16-5ba7-44e5-ba8f-0c7081821544`；46 资源，账号配置 `null`，代理 allowlist 1 项。完整审核 manifest SHA 与证据见[正式交付验收](public-delivery-verification.md)。
+- [x] 正式 DNS/域名可访问，四路由/WASM HTTP 200，响应 CSP 已核对，线上离线清单资源 46/46 与审核摘要匹配。旧 ENOTFOUND、403/1010 均为历史观察，1010 归因未定，不再列为当前阻断。
+- [x] 私有供应商配置、模型目录 GET 200/配置模型存在、OPTIONS 403 已留证。显式代理三画幅各一次 HTTP 200、PNG 精确尺寸与刷新回读/下载字节一致；直连正方形无响应、保持未知，另两幅直连未尝试。
+- [x] 正式浏览器已验活跃 Service Worker、46/46 缓存摘要、实际断网后关闭旧页的新四路由由缓存响应、profile/草稿保留；0 生成/远程写请求/page error。该项不覆盖配置/原图完整离线回读或实际版本更新/回退。
+- [x] Cloudflare 控制台确认 Workers 当前免费套餐 US$0、活动 Workers Free 订阅；账户另有既有订阅，不称全账户免费或零账单。
+
+Supabase 本轮仅本地，生产项目与管理员凭据不作为当前待提供输入。真实桌面 IME 按用户决定本轮跳过、保持未验，不再安排解锁后继续；移动真机三个 AC 保留暂缓。
 
 ## 验收顺序
 
-| 工作                  | 对应 AC                              | 关闭条件                                                                                                                                         |
-| --------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| ✅ 已验：显式重新扫描 | MEDIA-US-302 AC5                     | 真实本地服务重放旧日志，保留未确认修改和删除冲突；重复扫描不复活、不增业务 revision                                                              |
-| 正式部署              | MEDIA-US-004 AC1/2                   | 已保存 version/deployment 回执；待 DNS 传播后完成四路由/WASM/CSP、免费计划、精确代理策略与公网 smoke，当前不把 1010 阻断当通过                   |
-| 正式图片交付          | MEDIA-US-102 AC7、105 AC6/7、202 AC7 | 正式 origin 直连/主动代理、三画幅逐项出图；PNG 尺寸/字节摘要、刷新回读和下载一致，跨 origin 原图请求不携带供应商 Key；不确定请求停止且不自动重发 |
-| 正式离线更新/回退     | MEDIA-US-004 AC3/4                   | 当前 origin 完成离线安装；真实更新等待旧页面关闭，兼容版本回退后草稿/配置/原图仍在，未知/更高 schema marker 阻止访问且不清库                     |
-| 桌面输入法            | MEDIA-US-106 AC7                     | 真实系统中文 IME 在正文和字段输入、粘贴、撤销重做，不丢字、不抢焦点、无溢出                                                                      |
-| 正式账号/后台         | MEDIA-US-201、203 的部署边界         | 正式 Auth 邮件与密码登录、A/B 隔离、双副本恢复；普通用户拒绝管理、管理员撤权、模板/策略版本生效与上报来源分别留证                                |
+| 工作                   | 对应 AC                      | 关闭条件                                                                                                                |
+| ---------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| ✅ 已验：显式重新扫描  | MEDIA-US-302 AC5             | 真实本地服务重放旧日志，保留未确认修改和删除冲突；重复扫描不复活、不增业务 revision                                     |
+| 正式部署已留证         | MEDIA-US-004 AC1/2           | 当前发布回执、DNS/四路由/WASM/CSP、allowlist 1 项与实际代理调用、Workers Free 当前套餐/活动订阅均已记录                 |
+| ✅ 已验：代理 PNG 交付 | MEDIA-US-105 AC6、202 AC7    | 三画幅各一次 HTTP 200，尺寸/字节/SHA、保存/刷新回读/精确下载一致；直连限制与未知独立记录                                |
+| 分通道生成仍有保留     | MEDIA-US-102 AC7             | 代理部分已验，直连正方形未知未重发，横向/纵向未尝试；整项保持原条件与 ⚠️，不重发未知请求                                |
+| 真实 URL 原图读取      | MEDIA-US-105 AC7             | 三个已成功结果均为 base64，仍需真实跨 origin URL 结果无 Authorization/Cookie/Referer 且可精确下载的证据                 |
+| 正式离线更新/回退      | MEDIA-US-004 AC3/4           | 应用壳/草稿的离线新文档已验；配置/原图完整离线回读、实际更新等待旧页关闭和兼容版本回退仍待验，不提前关闭 AC3/4          |
+| 本轮跳过：桌面输入法   | MEDIA-US-106 AC7             | 用户决定本轮不执行，保持 ⚠️、未验；不以粘贴中文、合成 composition 或视口模拟代替系统 IME                                |
+| 后续：正式账号/后台    | MEDIA-US-201、203 的部署边界 | Supabase 本轮仅本地，生产尚未部署；后续启用时另验真实 Auth、A/B 与双副本隔离、管理授权、模板/策略运行版本及任务上报来源 |
 
-移动真机不进入这次桌面发布，未验项保持原状态。全部故事合入后才按需求约定更新 Done，不通过修改状态制造完成。
+移动真机不进入这次桌面发布，MEDIA-US-107 三个 AC 保持未验。跳过、暂缓、本地通过和生产通过分别记录；故事仍按 YAML 与 AC 更新，不通过修改状态制造完成。
 
 ## 真实供应商自动验收入口
 
@@ -45,18 +50,28 @@ NX_NO_CLOUD=true pnpm nx run aiao-media-e2e:provider-acceptance-fixture --skipRe
 
 正式验收由 `aiao-media-e2e:provider-acceptance` 执行，必须显式设置以下非敏感参数，并在进程或应用私有 `.env` 提供供应商三字段：
 
-| 参数                                    | 取值                                                                                |
-| --------------------------------------- | ----------------------------------------------------------------------------------- |
-| `AIAO_MEDIA_ACCEPTANCE_GENERATE`        | `1`，允许本轮真实生成；普通 CI 不设置                                               |
-| `AIAO_MEDIA_ACCEPTANCE_ORIGIN`          | 固定 `https://media.aiao.io`                                                        |
-| `AIAO_MEDIA_ACCEPTANCE_RELEASE`         | 实际 Cloudflare 发布回执的 version UUID                                             |
-| `AIAO_MEDIA_ACCEPTANCE_MANIFEST_SHA256` | 已审核发布产物 `offline-manifest.json` 的 SHA-256；不是临时从未知线上内容接受的摘要 |
+| 参数                                    | 取值                                                                                           |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `AIAO_MEDIA_ACCEPTANCE_GENERATE`        | `1`，允许本轮真实生成；普通 CI 不设置                                                          |
+| `AIAO_MEDIA_ACCEPTANCE_ORIGIN`          | 固定 `https://media.aiao.io`                                                                   |
+| `AIAO_MEDIA_ACCEPTANCE_RELEASE`         | 实际 Cloudflare 发布回执的 version UUID                                                        |
+| `AIAO_MEDIA_ACCEPTANCE_MANIFEST_SHA256` | 已审核发布产物 `offline-manifest.json` 的 SHA-256；不是临时从未知线上内容接受的摘要            |
+| `AIAO_MEDIA_ACCEPTANCE_MODES`           | 可选：`direct`、`proxy` 的逗号子集；未设置时为 `direct,proxy`；空、非法或重复值拒绝            |
+| `AIAO_MEDIA_ACCEPTANCE_ASPECTS`         | 可选：`square`、`landscape`、`portrait` 的逗号子集；未设置时为全部三画幅；空、非法或重复值拒绝 |
 
-脚本在发请求和复用证据前核对线上 manifest 与预期摘要，不匹配即停止。直连/代理 × 正方形/横向/纵向依次执行，各项只允许一次生成请求；返回 PNG 尺寸须精确匹配请求。使用实际产品界面保存、刷新、回读与下载，比较 SHA-256 和精确文件字节；结果 URL 请求检查无 Authorization、Cookie 或 Referer。
+脚本在发请求和复用证据前核对线上 manifest 与预期摘要，不匹配即停止。默认执行直连/代理 × 正方形/横向/纵向六项；显式模式/画幅参数仅筛选计划，不改变尝试身份。输出 `planned`、`complete` 或 `stopped`、所选范围、计划数和成功数；子集通过只覆盖所选项，不能称六项全部通过。
 
-每项发送前在忽略的 `apps/aiao-media-e2e/tmp/provider-acceptance/live` 创建独占尝试文件（0600），按 origin、发布产物、供应商/模型、通道与画幅确定身份。只复用同产物已完成证据，任何未完成或不确定尝试均停止，不能通过轮换 Key 绕过。不启用截图、trace、视频或 Playwright 调试日志；报告只保留摘要、合法数值和固定枚举，不保存 Key 或完整供应商响应。Base64 结果不伪造跨 origin 原图读取证据，该边界仍须 URL 结果实证。
+各项只允许一次生成请求，返回 PNG 尺寸须精确匹配请求。使用实际产品界面保存、刷新、回读与下载，比较 SHA-256 和精确文件字节；结果 URL 请求检查无 Authorization、Cookie 或 Referer。当前正式证据已覆盖代理三画幅，direct 正方形无 HTTP 回执而保留未知，另外两幅未试；OPTIONS 403 只作为该次预检限制，不能据此断言上游未处理或零计费。
 
-## 正式账号服务的运维边界
+每项发送前在忽略的 `apps/aiao-media-e2e/tmp/provider-acceptance/live` 创建独占尝试文件（0600），按 origin、发布产物、供应商/模型、通道与画幅确定身份。只复用同产物已完成证据，选中的任何未完成或不确定尝试均停止，不自动继续或重发，不删除/覆盖未知记录，也不能通过轮换 Key 绕过。独立未尝试组合可显式另选，已完成项复用不增加生成请求。
+
+不启用截图、trace、视频或 Playwright 调试日志；报告只保留摘要、合法数值和固定枚举，不保存 Key 或完整供应商响应。Base64 结果不伪造跨 origin 原图读取证据，该边界仍须 URL 结果实证。
+
+本轮生产 Nx 构建/审查/部署必须同时使用 `NX_LOAD_DOT_ENV_FILES=false AIAO_SUPABASE_URL='' AIAO_SUPABASE_ANON_KEY=''`，并复核产物公开账号配置为 `null`；仅两个空值不足以阻止 Nx 展开私有 `.env` 的公网值。完整命令、发布身份、4 个生成 journal、正式浏览器 JSON 和本地 API 复验见[正式交付验收](public-delivery-verification.md)。
+
+## 后续正式账号服务的运维边界
+
+以下保留未来启用生产 Supabase 的条件；本轮仅本地，当前未执行这些生产步骤，也不据此要求提供生产项目或管理员凭据。
 
 1. 核验已有 Cloudflare 账户、`aiao-media` Worker、`aiao.io` active zone、正式域名现存记录与选定的独立 Supabase 项目。保留当前 Worker version/deployment、静态摘要、Auth 配置与数据库备份，不覆盖未知 CNAME。
 2. 使用 `aiao-media:production-bundle` 生成的 9 源 SQL 包，仅对经核验的独立空产品项目审查初始化事务。包内保留每个源文件 SHA-256，排除 `001-local-account-checks.sql`；首个事务 guard 会拒绝 public 非扩展关系、既有 `media_`/`rxdb_` 对象和相关函数。本地 `supabase-migrate` 不能换 URL 后用于生产。

@@ -13,6 +13,7 @@
 | `aiao-media-e2e:local-first-e2e`                          | 28/28 通过：本机图片、本地可靠性与账号 fixture                                                | 真实 Chrome/RxDB/WASM/IndexedDB/OPFS/Service Worker；供应商和该套件 Auth 使用 fixture |
 | `aiao-media:supabase-e2e` / `aiao-media-e2e:supabase-e2e` | 3 项真实本地账号浏览器场景通过                                                                | 生产静态应用、真实 Auth 和本地邮箱；断网场景只注入网络失败，不伪造成功响应            |
 | `aiao-media:supabase-test`                                | 通过：真实 Auth、RLS、Realtime、刷新/退出探针                                                 | 此入口仅覆盖开发探针；产品业务表另由 product-test/product-e2e 验证                    |
+| `aiao-media:product-test`                                 | 2026-10-25 复验：4 组真实本地 API 断言通过，28.0 秒；本应用 6 服务 healthy                    | 仅 up/migrate/API，无 browser/auth-config/build；Supabase 仍为本地                    |
 | `aiao-media:relay-test`                                   | 4 项代理边界测试通过                                                                          | 同源/允许列表/参数限制、按请求凭据、无缓存、敏感错误清理与无自动重试                  |
 | `aiao-media:auth-config-test`                             | 公开配置与精确回环 CSP 校验通过                                                               | 禁止服务端 Key、非回环 HTTP 和任意 HTTP 放行                                          |
 | `aiao-media:release-check` / `aiao-media:deploy-check`    | 产物审查与 Wrangler dry-run                                                                   | 产物无凭据/SSR/source map/旧 API；不代表当前产物已发布                                |
@@ -22,21 +23,31 @@
 
 ## 正式环境证据
 
-现有 Workers Static Assets 与 `/api/relay` 发布记录为 `aiao-media.aiao.workers.dev`，version `92883918-76ac-47de-a424-4bc5af23bee9`；已有四路由、WASM 和旧 API 404 的静态烟测证据。其证据范围与本地新构建分开，发布记录详见[应用集成验证](plans/local-first-app-verification.md)。
+2026-10-25 当前发布：source `c2ab7dc0`，version `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`，deployment `12606e16-5ba7-44e5-ba8f-0c7081821544`，审核 manifest SHA-256 `9d303528a1f123d4c4dc8932fc7321b02fa5b360883a4885c9234498ed1d01fd`，46 资源；公开账号配置为 `null`，代理 allowlist 1 项。此前发布仅为历史记录，当前可复验表格与本机原始证据位置见[正式交付验收](plans/public-delivery-verification.md)。
 
-## 首发关闭条件
+同一发布的公网浏览器验证通过四路由 HTTP 200/CSP、活跃 Service Worker 缓存 46/46 完整性；实际断网后关闭全部旧页，四路由新文档均由 Service Worker 响应，profile/草稿保留。0 生成/远程写请求/page error；范围是同一隔离 context 的新文档启动，不覆盖进程重启、配置/原图完整离线回读或真实更新/回退。此前 403/1010 为归因未定的历史观察。
 
-| 待验项目               | 对应故事 / AC                                             | 必需证据                                                                                   |
-| ---------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 正式 origin 真实供应商 | MEDIA-US-102 AC 7、MEDIA-US-105 AC 6/7、MEDIA-US-202 AC 7 | 直连和主动代理分别记录 origin、模型/参数、三画幅生成、刷新回读与精确下载                   |
-| 正式版本回退           | MEDIA-US-004 AC 4                                         | 0.0.26 升级、旧引擎拒绝降级后恢复新版、schema 守卫已验；正式产物/Service Worker 回退仍待验 |
-| 桌面真实中文输入法     | MEDIA-US-106 AC 7                                         | 正文/字段、粘贴、撤销重做不丢字不抢焦点；合成 composition 和视口测试不能代替系统 IME       |
-| 正式域名与部署更新     | MEDIA-US-004 AC 1–4                                       | 自定义域名、CSP/离线安装/更新、代理允许列表、版本回退和免费计划账单                        |
+真实供应商代理三画幅各一次 HTTP 200，PNG 精确尺寸、RxDB/OPFS 保存、刷新回读与下载逐字节/SHA-256 一致。直连正方形一次尝试无响应，保持 `requires-review`/`BROWSER_TIMEOUT`；结合 OPTIONS 403 仅记录限制与未知，未重发，另外两幅直连未尝试。该证据关闭 MEDIA-US-105 AC6、202 AC7；102 AC7 仅代理部分已验，直连部分未完成，整项保持 ⚠️；三项成功结果均为 base64，105 AC7 的真实 URL 原图无凭据读取仍未验。
 
-正式目标 origin 已选定为 `https://media.aiao.io`，尚未以该域名完成发布验收。移动真机属于暂缓的 MEDIA-US-107，不作为当前关闭条件；桌面真实输入法继续独立验收。账号/后台可在正式供应商配置暂缺时推进，顺序见[路线图](roadmap.md)，外部输入与已定范围见[决策与执行条件](decisions.md)。本地可复验 AC 已回写各 story。视口模拟、fixture、开发探针表与 dry-run 分别只覆盖其声明的验证层。
+Cloudflare 控制台已实读 Workers 当前免费套餐 US$0 和活动 Workers Free 订阅；账户另有既有订阅，不宣称全账户免费或零账单。三个 story 保持 `In Progress`，PR 尚未合并。
+
+## 本轮正式验收剩余项
+
+| 待验项目               | 对应故事 / AC      | 必需证据                                                                                          |
+| ---------------------- | ------------------ | ------------------------------------------------------------------------------------------------- |
+| 分通道三画幅的直连部分 | MEDIA-US-102 AC7   | 代理部分已验；直连正方形未知未重发，横向/纵向未尝试；保持原条件和 ⚠️，不重发未知请求              |
+| 真实跨 origin 图片 URL | MEDIA-US-105 AC7   | 当前成功结果均为 base64；仍需真实 URL 结果 GET 无 Authorization/Cookie/Referer 并可精确下载的证据 |
+| 正式版本回退           | MEDIA-US-004 AC 4  | 0.0.26 升级、旧引擎拒绝降级后恢复新版、schema 守卫已验；正式产物/Service Worker 回退仍待验        |
+| 完整离线内容与更新     | MEDIA-US-004 AC3/4 | 应用壳/草稿离线新文档已验；配置/原图完整回读、实际更新等待旧页关闭及兼容版本回退仍待验            |
+
+正式 origin 为 `https://media.aiao.io`，目前完成上述受限范围的真实交付与浏览器验证。默认直连/代理三画幅逐项执行；可显式选择模式/画幅，结果仅覆盖所选计划，未知请求不得重发。当前应复用已验证的代理三项、保留直连未知锁，不能为重复取证再生成；入口与参数见[收尾清单](plans/release-completion-tasks.md)。
+
+2026-10-25 用户决定：真实桌面中文 IME 本轮跳过，MEDIA-US-106 AC7 保持 ⚠️、尚未验；MEDIA-US-107 的三个移动真机 AC 继续暂缓、保持未验，不列为本轮关闭条件。Supabase 本轮仅本地，生产账号/同步/后台未部署、属于后续启用条件。故事状态继续按 YAML 与未完成 AC 如实记录，不能将跳过或本地通过记为生产通过。
+
+本地可复验 AC 已回写各 story；视口模拟、fixture、开发探针表与 dry-run 分别只覆盖其声明的验证层。当前范围见[路线图](roadmap.md)与[决策](decisions.md)。
 
 ## 产品绑定、同步与后台
 
-真实本地产品表、原生复制、双独立副本、账号隔离、首次确认、冲突/删除、作品信息、后台与显式任务上报已接线。详细实现、命令、7 个浏览器场景及边界见[本地产品交付验收](plans/local-delivery-verification.md)。
+真实本地产品表、原生复制、双独立副本、账号隔离、首次确认、冲突/删除、作品信息、后台与显式任务上报已接线。本轮 Supabase 范围固定为本地，生产账号/后台尚未部署；详细实现、命令、7 个浏览器场景及边界见[本地产品交付验收](plans/local-delivery-verification.md)。
 
 `aiao-media:product-test` 与 `aiao-media-e2e:product-e2e` 分别验证真实服务边界和生产静态应用。`aiao-media:script-test` 覆盖代理运行策略的实际处理函数，供应商响应使用 fixture。D-06 已确定首发不设 TTL、不自动清理，完整保留 tombstone、冲突与日志；检查点恢复已由 7 项真实产品套件单独留证，不把本地通过视为已经上线。正式执行顺序与条件见[收尾清单](plans/release-completion-tasks.md)。

@@ -1,6 +1,6 @@
 # Local-first Cloudflare 部署
 
-更新：2026-10-23。真实 Angular 应用已经迁移到 CSR，默认运行不需要登录、业务 API 或云数据库。当前公网发布需要 Cloudflare 账号授权；没有正式 deployment ID 或公网验收结果时，不把构建或 dry-run 称为已上线。
+更新：2026-10-25。真实 Angular 应用已经迁移到 CSR，默认运行不需要登录、业务 API 或云数据库。正式发布与验收身份见[公网交付记录](../requirements/plans/public-delivery-verification.md)。
 
 ## 部署结构
 
@@ -22,7 +22,7 @@
 
 按 2026-10-23 官方文档，Workers Free 动态请求限 100,000 次/日，每次 10 ms CPU；静态资源请求不计入动态 Worker 请求费用。配置仅让 `/api/*` 先进入 Worker，普通静态请求走资产服务。Worker 不设置付费专属的 CPU 配置；代理代码自身限制请求体、响应体、固定上游路径和 180 秒超时。代理等待上游不等于 CPU 计算，但较大响应和平台限制仍可能导致请求失败，失败不自动重试。
 
-静态/代理发布不申请 Containers、D1、R2、KV、Durable Objects、自建 PostgreSQL 或付费计划；启用可选产品服务时只接已明确授权的 Supabase 项目，不自动创建或升级计划。脚本不会升级订阅；部署账号应使用 Workers Free，实际账号计划和账单仍须在账号内核对。免费静态托管不包含第三方模型费用。
+静态/代理发布不申请 Containers、D1、R2、KV、Durable Objects、自建 PostgreSQL 或付费计划；启用可选产品服务时只接已明确授权的 Supabase 项目，不自动创建或升级计划。脚本不会升级订阅；当前控制台已确认 Workers Free 为活动计划，账户其它产品与第三方模型费用不属于该免费计划证明。
 
 产物检查限制静态文件不超过 20,000 个、单文件不超过 25 MiB。离线资源单文件另有限制 16 MiB，模型结果 PNG 限 16 MiB，代理 JSON 流限 24 MiB。
 
@@ -70,13 +70,17 @@ Worker 出站请求必须使用 `redirect: 'manual'` 并检查非 2xx 响应，�
 # 仅首次或凭据失效时进行 Cloudflare 官方授权
 pnpm --dir apps/aiao-media exec wrangler login
 
-# 账号已授权后，构建、审查并发布
-pnpm nx run aiao-media:deploy
+# 本轮 Supabase 仅本地，正式静态站点关闭账号配置
+NX_NO_CLOUD=true NX_LOAD_DOT_ENV_FILES=false \
+AIAO_SUPABASE_URL='' AIAO_SUPABASE_ANON_KEY='' \
+pnpm nx run aiao-media:deploy --skipRemoteCache
 ```
 
 配置源为 `deploy/wrangler.json`，名称 `aiao-media`。部署脚本在 Git 忽略的 `.wrangler/local-first` 中生成实际配置并调用固定版本 Wrangler。发布成功后，以 CLI 返回的真实 URL、version ID、deployment ID 为准，不能预先假定 workers.dev 子域名。
 
-如果已有同名 Worker，应先核对它确实属于本项目，再更新。首次账号/子域名设置由 Cloudflare 官方流程完成，不通过创建匿名临时账号代替正式上线。当前正式发布地址为 `https://aiao-media.aiao.workers.dev`，版本 `92883918-76ac-47de-a424-4bc5af23bee9`；已验证四路由、WASM、旧 API 404 和公网页面加载。正式目标域名确定为 `media.aiao.io`，`deploy/wrangler.json` 已配置 `routes: [{ pattern: "media.aiao.io", custom_domain: true }]`；真实部署才会绑定域名和证书，需在本机已登录账号拥有的 active Cloudflare zone 内操作，不能覆盖未知 CNAME。该 origin 的四路由、WASM、CSP、Service Worker 与供应商 CORS 仍需分别验收。
+如果已有同名 Worker，应先核对它确实属于本项目，再更新。首次账号/子域名设置由 Cloudflare 官方流程完成，不通过创建匿名临时账号代替正式上线。当前正式地址为 `https://media.aiao.io`，版本 `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`；域名、四路由、WASM、CSP、旧 API 404、离线新文档启动及真实供应商代理三画幅已验。直连正方形结果未知，未重发，另两幅直连与跨 origin 原图 URL 尚未完成。具体发布摘要与各项证据边界见[公网交付记录](../requirements/plans/public-delivery-verification.md)。
+
+本轮构建必须禁用 Nx 自动 dotenv 加载并显式清空两个公开账号变量，再核对 `app-config.js` 为 `null`；仅设置空值会被 dotenv 展开行为覆盖。真实本地账号开发使用 `aiao-media:supabase-serve` 的回环配置，不修改私有 `.env` 中的其它供应商设置。
 
 产物审查记录在 `tmp/local-first/release.json`，包括源码 commit、工作区是否有未提交修改、每个产物的大小和 SHA-256；该记录不等于部署成功回执。
 

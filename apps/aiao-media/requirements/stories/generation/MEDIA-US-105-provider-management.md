@@ -7,7 +7,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-002
 created: 2026-09-26
-updated: 2026-10-24
+updated: 2026-10-25
 dependsOn: [MEDIA-US-301]
 tags: [image, providers, local-first, security]
 ---
@@ -50,14 +50,16 @@ tags: [image, providers, local-first, security]
 | 3   | 用户选择记住 Key                | 保存、替换或移除凭据          | 仅独立凭据记录持有 Key，其他记录和备份不含凭据            | ✅   |
 | 4   | 用户主动选择代理                | 生成图片                      | 仅此通道向同源代理发送本次凭据；直连失败不自动切换        | ✅   |
 | 5   | 非法 URL、模型或无效响应        | 保存配置或调用适配器          | 明确拒绝且不泄露凭据；不生成假作品                        | ✅   |
-| 6   | 至少一种真实供应商与正式 origin | 验证 API 预检、图片获取和下载 | 分别记录直连/代理可用组合、参数和限制                     | ⚠️   |
+| 6   | 至少一种真实供应商与正式 origin | 验证 API 预检、图片获取和下载 | 分别记录直连/代理可用组合、参数和限制                     | ✅   |
 | 7   | 结果位于其他 HTTPS origin       | 读取并下载图片                | 图片请求不携带供应商 Key，不以 img 可显示代替可读取验证   | ⚠️   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。
 
 ## 技术笔记
 
-配置与凭据通过本机 `LocalPreference` 分开保存，凭据记录为 `provider-keys-v1`。`aiao-media-e2e:local-first-e2e` 验证本机配置恢复、内存 Key、记住/替换/单独移除、主动代理、非法 URL/模型和损坏 PNG 拒绝、无 Key 备份，以及跨 origin 图片读取不带凭据与精确下载；`aiao-media:relay-test` 验证代理边界。[本地可靠性验收](../../plans/local-reliability-verification.md)记录故障边界；真实供应商正式 origin 的 CORS 与生成仍待验，独立探针记录中的本机 origin 403 仅代表该次组合。
+配置与凭据通过本机 `LocalPreference` 分开保存，凭据记录为 `provider-keys-v1`。`aiao-media-e2e:local-first-e2e` 验证本机配置恢复、内存 Key、记住/替换/单独移除、主动代理、非法 URL/模型和损坏 PNG 拒绝、无 Key 备份，以及跨 origin 图片读取不带凭据与精确下载；`aiao-media:relay-test` 验证代理边界。[本地可靠性验收](../../plans/local-reliability-verification.md)记录故障边界。
+
+2026-10-25 的正式 origin 证据已覆盖 AC6：带 Key 模型目录 GET 200 且配置模型存在；无 Key OPTIONS 403；直连正方形一次尝试无响应、结果未知且未重发，其余直连画幅未尝试；显式另选代理后三画幅各一次 HTTP 200，保存、刷新回读与精确下载通过。可用范围限定该供应商/模型的代理参数组合。成功响应均为 base64，因此跨 origin 原图 GET 无凭据的真实供应商证据仍缺，AC7 保持 ⚠️。详见[正式交付验收](../../plans/public-delivery-verification.md)。故事保持 `In Progress`。
 
 ## 实现文件
 

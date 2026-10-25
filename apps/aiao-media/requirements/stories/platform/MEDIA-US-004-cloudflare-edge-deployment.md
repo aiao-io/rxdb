@@ -7,7 +7,7 @@ status: In Progress
 priority: Medium
 epic: MEDIA-EPIC-001
 created: 2026-09-27
-updated: 2026-10-24
+updated: 2026-10-25
 dependsOn: []
 tags: [cloudflare, deployment, static, relay]
 ---
@@ -47,7 +47,7 @@ tags: [cloudflare, deployment, static, relay]
 
 ## 技术笔记
 
-当前发布为 Workers Static Assets + 同 Worker `/api/relay`，地址 `https://aiao-media.aiao.workers.dev`（version `92883918-76ac-47de-a424-4bc5af23bee9`）。四路由、WASM、旧 API 404 与公网烟测已验；正式目标域名已确定为 `media.aiao.io` 并写入 Wrangler 自定义域名配置；域名绑定、正式 origin 的供应商 CORS 与免费计划账单仍待验。
+当前发布为 Workers Static Assets + 同 Worker `/api/relay`，正式地址 `https://media.aiao.io`，version `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`。四路由、WASM、CSP、旧 API 404 与 46 项离线资源完整性已验；真实供应商代理三画幅交付与正式 origin 的离线新文档启动已通过。控制台确认 Workers Free 为当前活动计划，不代表账户其它产品或第三方模型免费。发布身份、原图摘要及直连限制见[正式交付验收](../../plans/public-delivery-verification.md)。
 
 当前本地代码已加入按工作区 schema marker 的打开/操作守卫，真实浏览器验证不兼容版本阻止已有标签页写入并保留原数据；见[可靠性验收](../../plans/local-reliability-verification.md)。该检查不能保护不认识 marker 的旧产物，不把这些产物作为回退目标；正式更新与版本回退仍待验。
 
