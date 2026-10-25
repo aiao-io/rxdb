@@ -203,6 +203,29 @@ describe('transaction_sqlite_result', () => {
     expect((status.origin as { title?: string }).title).toBe('db-title');
   });
 
+  it.each([false, true])('回滚不保留数据库回填值，并恢复等待期间的编辑（edit=%s）', async edited => {
+    const database = createRxdb(`sqlite-core-result-rollback-${edited}`);
+    const adapter = new ResultTestAdapter(database);
+    const entity = createTodoRef(database, 'rollback', 'original');
+    const status = getEntityStatus(entity);
+    const originalUpdatedAt = entity.updatedAt;
+    const settle = status.checkpoint();
+    if (edited) entity.title = 'pending edit';
+
+    await transaction_sqlite_result(
+      adapter,
+      Todo,
+      todoResult([[8, 'rollback', 'database value', 1, ISO_CREATED, '2026-01-03T00:00:00.000Z']]),
+      true
+    );
+    settle(false);
+
+    expect(entity.title).toBe(edited ? 'pending edit' : 'original');
+    expect(entity.updatedAt).toEqual(originalUpdatedAt);
+    expect(status.local).toBe(true);
+    expect(status.modified).toBe(edited);
+  });
+
   it('forcedUpdate 时 binary origin 与实体引用隔离', async () => {
     const rxdb = createRxdb('sqlite-core-result-binary-origin');
     const adapter = new ResultTestAdapter(rxdb);

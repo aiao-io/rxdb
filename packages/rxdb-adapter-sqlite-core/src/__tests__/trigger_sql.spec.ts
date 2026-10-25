@@ -1,4 +1,4 @@
-import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind } from '@aiao/rxdb';
+import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 
 import { generate_table_trigger_sql } from '../table/trigger_sql.js';
@@ -22,7 +22,10 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       title!: string;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(QuoteEntity), { branchId: 'main' });
+    const sql = generate_table_trigger_sql(getEntityMetadata(QuoteEntity), {
+      tableSet: WorktreeTableSet.MAIN,
+      branchId: 'main'
+    });
 
     // 原始注入字符串不应原封出现
     expect(sql).not.toContain("ns'; DROP TABLE x; --'");
@@ -41,7 +44,10 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       title!: string;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(EvilName), { branchId: 'main' });
+    const sql = generate_table_trigger_sql(getEntityMetadata(EvilName), {
+      tableSet: WorktreeTableSet.MAIN,
+      branchId: 'main'
+    });
 
     expect(sql).toContain("'Evil''Name'");
     expect(sql).not.toContain(",'Evil'Name',");
@@ -60,7 +66,10 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       normal!: string;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(KeyEscape), { branchId: 'main' });
+    const sql = generate_table_trigger_sql(getEntityMetadata(KeyEscape), {
+      tableSet: WorktreeTableSet.MAIN,
+      branchId: 'main'
+    });
 
     // json_object 的 key 应为转义字面量
     expect(sql).toContain("'weird''key'");
@@ -77,7 +86,10 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       order!: number;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(ReservedCol), { branchId: 'main' });
+    const sql = generate_table_trigger_sql(getEntityMetadata(ReservedCol), {
+      tableSet: WorktreeTableSet.MAIN,
+      branchId: 'main'
+    });
 
     // 未引用的 NEW.order 是 SQLite 语法错误（order 为保留字）
     expect(sql).toContain('NEW."order"');
@@ -96,7 +108,10 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       title!: string;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(Clean), { branchId: 'main' });
+    const sql = generate_table_trigger_sql(getEntityMetadata(Clean), {
+      tableSet: WorktreeTableSet.MAIN,
+      branchId: 'main'
+    });
     expect(sql).toContain("'app'");
     expect(sql).toContain("'Clean'");
     expect(sql).toContain("'title'");
@@ -117,7 +132,10 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       payload!: Uint8Array;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(TypedChange), { branchId: 'main' });
+    const sql = generate_table_trigger_sql(getEntityMetadata(TypedChange), {
+      tableSet: WorktreeTableSet.MAIN,
+      branchId: 'main'
+    });
 
     expect(sql).toContain("'__rxdb_change_id__:' || json_object(");
     expect(sql).toContain("'type', 'bigint'");
@@ -154,6 +172,7 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
 
     const parentMetadata = getEntityMetadata(BigintTriggerParent);
     const sql = generate_table_trigger_sql(getEntityMetadata(BigintTriggerChild), {
+      tableSet: WorktreeTableSet.MAIN,
       branchId: 'main',
       resolveEntityMetadata: (entity, namespace) =>
         entity === parentMetadata.name && namespace === parentMetadata.namespace ? parentMetadata : undefined
@@ -177,7 +196,10 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       secretPayload!: Uint8Array;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(EncryptedTypedChange), { branchId: 'main' });
+    const sql = generate_table_trigger_sql(getEntityMetadata(EncryptedTypedChange), {
+      tableSet: WorktreeTableSet.MAIN,
+      branchId: 'main'
+    });
 
     expect(sql).toContain('\'secretAmount\', NEW."secretAmount"');
     expect(sql).toContain('\'secretPayload\', NEW."secretPayload"');
@@ -205,7 +227,10 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       plainFlag!: boolean;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(EncryptedBoolChange), { branchId: 'main' });
+    const sql = generate_table_trigger_sql(getEntityMetadata(EncryptedBoolChange), {
+      tableSet: WorktreeTableSet.MAIN,
+      branchId: 'main'
+    });
 
     expect(sql).toContain('\'secretFlag\', NEW."secretFlag"');
     expect(sql).toContain('\'secretNullableFlag\', NEW."secretNullableFlag"');
@@ -235,7 +260,10 @@ describe('SQLC-018 nullable boolean 的 NULL 不得在历史 patch 里退化成 
   }
 
   it('boolean 表达式必须先判 NULL', () => {
-    const sql = generate_table_trigger_sql(getEntityMetadata(TrgNullableBool), { branchId: 'main' });
+    const sql = generate_table_trigger_sql(getEntityMetadata(TrgNullableBool), {
+      tableSet: WorktreeTableSet.MAIN,
+      branchId: 'main'
+    });
 
     // 不允许出现「不判 NULL 直接比 1」的写法
     expect(sql).not.toMatch(/CASE WHEN (NEW|OLD)\."flag" = 1 THEN 1 ELSE 0 END/);
@@ -264,13 +292,17 @@ describe('generate_table_trigger_sql - branchId 必填', () => {
   it('缺 branchId 时报错，而不是静默回落 main', () => {
     expect(() =>
       generate_table_trigger_sql(getEntityMetadata(TrgBranchRequired), {
+        tableSet: WorktreeTableSet.MAIN,
         branchId: undefined as unknown as string
       })
     ).toThrow(/branchId/);
   });
 
   it('调用方给的分支原样落进 VALUES', () => {
-    const sql = generate_table_trigger_sql(getEntityMetadata(TrgBranchRequired), { branchId: 'feature' });
+    const sql = generate_table_trigger_sql(getEntityMetadata(TrgBranchRequired), {
+      tableSet: WorktreeTableSet.MAIN,
+      branchId: 'feature'
+    });
 
     expect(sql).toContain("'feature'");
     expect(sql).not.toContain("'main'");

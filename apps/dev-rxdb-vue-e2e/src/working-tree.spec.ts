@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { resetE2eState } from './e2e-utils.js';
+import { readCount, resetE2eState } from './e2e-utils.js';
+import { createBranchFromDropdown, divergeBranches } from './working-tree-branches.js';
 
 /**
  * @fileoverview `/working-tree` 面板的 git 工作流功能用例（Vue 端）。
@@ -8,9 +9,9 @@ import { resetE2eState } from './e2e-utils.js';
  * Angular 版（GitHub Desktop 形态，2026-09-18 二版重构）是参考实现，本拷贝逐条对齐：
  * 顶部分支栏（分支下拉）+ 左侧「变更 / 历史」标签页 + 右栏详情。面板本身**不造数据**——
  * 实体数据在别的页面（/todo）产生，一条实体记录就是工作树里的一个「文件」；分支行是
- * 「选中 → 操作按钮」而不是立即切换（demo 要演「脏工作树被拒」这一步）。
+ * 点行即切换（GitHub Desktop 同款），带着未提交改动时先弹「Switch branch」问改动怎么办。
  * 这份用例按同一条叙事走：
- * 自动初始化（空库在应用启动时自动启用）→ 首次提交 → 建分支 → 分支提交 → 带脏工作树被拒 → 丢弃后切换 → 合并
+ * 自动初始化（空库在应用启动时自动启用）→ 首次提交 → 建分支 → 分支提交 → 带着改动点别的分支弹 Switch branch（取消）→ 丢弃后切换 → 合并
  * （落进工作树，像 `git merge --no-commit`）→ 提交合并 → 恢复历史版本 → 提交恢复。
  *
  * 框架差异（Vue 应用壳）：`app-sidebar` / `app-header` 是 Angular 壳的选择器，Vue 壳的
@@ -111,6 +112,22 @@ const openChanges = async (page: import('@playwright/test').Page): Promise<void>
 const branchRow = (page: import('@playwright/test').Page, branchId: string) =>
   page.locator(`[data-testid="wt-branch-item"][data-branch-id="${branchId}"]`);
 
+/**
+ * 在元素上派发一次 keydown（会冒泡）。
+ *
+ * 无头浏览器里造不出真实的 IME 组字，`isComposing` 只能随事件一起造；同一个事件不带它
+ * 就是正对照——证明这条派发路径本身确实能触发提交 / 关闭。
+ */
+const dispatchKeyDown = (locator: import('@playwright/test').Locator, key: string, isComposing: boolean) =>
+  locator.evaluate(
+    (element, init) => {
+      element.dispatchEvent(
+        new KeyboardEvent('keydown', { key: init.key, isComposing: init.isComposing, bubbles: true })
+      );
+    },
+    { key, isComposing }
+  );
+
 test.describe('Working Tree 页面功能', () => {
   test('保留应用侧栏，工作树只占路由内容区', async ({ page }) => {
     await openPanel(page);
@@ -168,13 +185,23 @@ test.describe('Working Tree 页面功能', () => {
       .toBe(true);
   });
 
-  test('创建分支弹层保留内容内边距', async ({ page }) => {
+  test('New branch 打开 GitHub Desktop 的「Create a branch」对话框：写明基于当前分支，空名不能建', async ({ page }) => {
     await openPanel(page);
     await waitForAutoEnabled(page);
     await openBranchMenu(page);
     await page.getByTestId('wt-branch-create').click();
 
-    await expect(page.getByTestId('wt-branch-create-popover')).toHaveCSS('padding', '12px');
+    await expect(page.getByTestId('wt-branch-menu-popup')).toHaveCount(0);
+    const dialog = page.getByTestId('wt-create-branch-dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading')).toHaveText('Create a branch');
+    await expect(page.getByTestId('wt-create-branch-name')).toBeFocused();
+    await expect(page.getByTestId('wt-create-branch-base')).toHaveText(
+      'Your new branch will be based on your currently checked out branch (main). main is the default branch for your repository.'
+    );
+    await expect(page.getByTestId('wt-create-branch-confirm')).toBeDisabled();
+    await page.getByTestId('wt-create-branch-cancel').click();
+    await expect(dialog).toHaveCount(0);
   });
 
   test('桌面工作区：变更筛选与历史文件差异', async ({ page }) => {
@@ -282,22 +309,17 @@ test.describe('Working Tree 页面功能', () => {
     await commit(page, 'docs: 首页文档');
     await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
 
-    // ── 2. 建分支并切过去（点行即切换，GitHub Desktop 同款） ──
-    await openBranchMenu(page);
-    await page.getByTestId('wt-branch-create').click();
-    await page.getByTestId('wt-branch-name').fill('feature/x');
-    await page.getByTestId('wt-branch-create-confirm').click();
-    await openBranchMenu(page);
-    await expect(branchRow(page, 'feature/x')).toBeVisible({ timeout: 10000 });
+    // ── 2. 建分支：「Create a branch」对话框，建完切过去（GitHub Desktop 同款） ──
+    await createBranchFromDropdown(page, 'feature/x');
 
-    // 分支行右键有菜单（GitHub Desktop 同款）：切换 / 合并 / 删除 + 复制分支名。
-    await branchRow(page, 'feature/x').click({ button: 'right' });
-    await expect(page.getByRole('menuitem', { name: 'Switch' })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Merge into main' })).toBeVisible();
+    // 未被检出的分支右键提供复制分支名、新检出位检出与删除；切换是点行，合并在下拉底部。
+    await openBranchMenu(page);
+    await branchRow(page, 'main').click({ button: 'right' });
+    await expect(page.getByRole('menuitem')).toHaveText(['Copy branch name', 'Checkout in new worktree…', 'Delete…']);
     await page.locator('[aria-label="Close context menu"]').click({ position: { x: 4, y: 4 } });
-
+    await expect(page.getByTestId('wt-branch-merge-into')).toHaveText('Choose a branch to merge into feature/x');
     await branchRow(page, 'feature/x').click();
-    await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/x', { timeout: 30000 });
+    await expect(page.getByTestId('wt-branch-menu-popup')).toHaveCount(0);
 
     // ── 3. 分支上的提交（历史继承 main 的父链） ─────────────
     await writeTodo(page, 'feat: 新功能');
@@ -306,16 +328,20 @@ test.describe('Working Tree 页面功能', () => {
     await expect(page.getByTestId('wt-commits-list')).toContainText('docs: 首页文档');
     await expect(page.getByTestId('wt-commits-list')).toContainText('feat: 新功能');
 
-    // ── 4. 脏工作树 + requireClean → 切换被拒（点行即切，被拒是行点击的直接结果） ──
+    // ── 4. 带着未提交改动点别的分支：弹 GitHub Desktop 的「Switch branch」问改动怎么办；Cancel 不切 ──
     await openChanges(page);
     await writeTodo(page, '未完成的草稿');
     await openBranchMenu(page);
     await branchRow(page, 'main').click();
-    await expect(page.getByTestId('wt-toast')).toContainText('uncommitted changes', { timeout: 10000 });
-    // 拒绝不等于切换：还留在原分支上
+    const switchDialog = page.getByTestId('wt-switch-dialog');
+    await expect(switchDialog).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('wt-switch-leave-option')).toContainText('Leave my changes on feature/x');
+    await page.getByTestId('wt-switch-cancel').click();
+    await expect(switchDialog).toHaveCount(0);
+    // 取消不等于切换：还留在原分支上
     await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/x');
 
-    // 丢弃后重试成功。丢弃入口在更改列表的右键菜单里（GitHub Desktop 的 Discard
+    // 丢弃后再切就不问了（「留在原分支」那条路见下面的专门用例）。丢弃入口在更改列表的右键菜单里（GitHub Desktop 的 Discard
     // 同样在菜单里，提交框旁没有「丢弃全部」按钮）。回页时 diff 是 idle（面板不自动
     // 重读，见 useWorkingTree 的 TSDoc），先用顶部工具栏的「Fetch origin」
     // （GitHub Desktop 同位置）把列表拉出来再右键。
@@ -338,10 +364,11 @@ test.describe('Working Tree 页面功能', () => {
     await branchRow(page, 'main').click();
     await expect(page.getByTestId('wt-status-branch')).toHaveText('main', { timeout: 30000 });
 
-    // ── 5. 合并：结果进工作树（git merge --no-commit）；入口在行的右键菜单里 ──
+    // ── 5. 合并：结果进工作树（git merge --no-commit）；入口在分支下拉底部，在对话框里挑来源 ──
     await openBranchMenu(page);
-    await branchRow(page, 'feature/x').click({ button: 'right' });
-    await page.getByRole('menuitem', { name: 'Merge into main' }).click();
+    await page.getByTestId('wt-branch-merge-into').click();
+    await expect(page.getByTestId('wt-merge-confirm')).toBeDisabled();
+    await page.locator('[data-testid="wt-merge-branch-item"][data-branch-id="feature/x"]').click();
     await page.getByTestId('wt-merge-confirm').click();
     await expect(page.getByTestId('wt-toast')).toContainText('working tree', { timeout: 10000 });
     await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
@@ -461,5 +488,224 @@ test.describe('Working Tree 页面功能', () => {
     await page.getByTestId('wt-enable').click();
     await expect(page.getByTestId('wt-enabled')).toHaveText('已启用', { timeout: 30000 });
     await expect(page.getByTestId('wt-status-phase')).toHaveText(/^(success|empty)$/, { timeout: 30000 });
+  });
+});
+
+test.describe('合并预览与分支对比（US-312）', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  test('不切换就看到合并会落什么、会盖掉哪些改动，以及两条分支差在哪', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await divergeBranches(page, {
+      branch: 'feature/preview',
+      base: 'preview-base',
+      onBranch: 'preview-feature',
+      onMain: 'preview-main',
+      ghost: 'preview-ghost'
+    });
+
+    // ── 合并对话框里选了来源就是预览：幽灵操作被压缩掉，只剩改标题这一条，且会盖掉 main 的改动 ──
+    await openBranchMenu(page);
+    await page.getByTestId('wt-branch-merge-into').click();
+    await page.locator('[data-testid="wt-merge-branch-item"][data-branch-id="feature/preview"]').click();
+    const summary = page.getByTestId('wt-merge-preview-summary');
+    await expect(summary).toContainText(
+      'from feature/preview into main. 1 entity overlaps with changes made on main.',
+      {
+        timeout: 30000
+      }
+    );
+    const items = page.getByTestId('wt-branch-diff-item');
+    await expect(items).toHaveCount(1);
+    await expect(items).toContainText('"preview-feature"');
+    await expect(page.getByTestId('wt-branch-diff-conflict')).toHaveText("Overwrites main's changes to title");
+
+    // 逐条合并连幽灵操作一起记：计数变多，落的条目不变
+    const squashed = readCount(await summary.textContent(), '压缩合并的预览摘要');
+    await page.getByTestId('wt-merge-strategy-normal').click();
+    await expect(summary).toHaveText(new RegExp(`^Merges (?!${squashed} )\\d+ changes from`), { timeout: 30000 });
+    expect(readCount(await summary.textContent(), '逐条合并的预览摘要')).toBeGreaterThan(squashed);
+    await expect(items).toHaveCount(1);
+
+    // 预览不写任何东西：Escape 关掉对话框，当前分支照旧干净
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('wt-merge-dialog')).toHaveCount(0);
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('干净');
+
+    // ── 对比在 History 顶部（GitHub Desktop 的 Select branch to compare）：字段读作「main 的值 → feature 的值」；
+    //    幽灵操作两边都没有，不出条目；对比时收起提交列表 ──
+    await openHistory(page);
+    await page.getByTestId('wt-compare-select').selectOption('feature/preview');
+    await expect(page.getByTestId('wt-compare-summary')).toHaveText(
+      '1 entity differs between main and feature/preview.',
+      { timeout: 30000 }
+    );
+    await expect(items).toContainText('"preview-main"');
+    await expect(items).toContainText('"preview-feature"');
+    await expect(page.getByTestId('wt-commits-list')).toHaveCount(0);
+
+    // 对比底部的「Merge into main」带着这条分支打开合并对话框
+    await page.getByTestId('wt-compare-merge').click();
+    await expect(
+      page.locator('[data-testid="wt-merge-branch-item"][data-branch-id="feature/preview"]')
+    ).toHaveAttribute('aria-current', 'true');
+    await expect(summary).toContainText('from feature/preview into main.', { timeout: 30000 });
+    await page.getByTestId('wt-merge-cancel').click();
+
+    // 清除即回到历史
+    await page.getByTestId('wt-compare-clear').click();
+    await expect(page.getByTestId('wt-compare-view')).toHaveCount(0);
+    await expect(page.getByTestId('wt-commits-list')).toBeVisible();
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('main');
+  });
+});
+
+/**
+ * 带着未提交改动切分支（GitHub Desktop 的「Switch branch」）：未提交改动按分支保存，「Leave my changes」
+ * 就是把它们留在原分支上切过去，切回来原样还在。
+ */
+test.describe('带着未提交改动切分支', () => {
+  test('Leave my changes：切过去的分支是干净的，切回来改动原样还在', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await writeTodo(page, 'leave-base');
+    await commit(page, 'add leave-base');
+    await createBranchFromDropdown(page, 'feature/leave');
+
+    await writeTodo(page, 'leave-draft');
+    await page.getByTestId('wt-refresh-status').click();
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
+    await openBranchMenu(page);
+    await branchRow(page, 'main').click();
+    await expect(page.getByTestId('wt-switch-dialog')).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('wt-switch-confirm').click();
+    await expect(page.getByTestId('wt-switch-dialog')).toHaveCount(0, { timeout: 30000 });
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('main', { timeout: 30000 });
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
+
+    // main 是干净的，切回去不再问；草稿还在 feature/leave 上
+    await openBranchMenu(page);
+    await branchRow(page, 'feature/leave').click();
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/leave', { timeout: 30000 });
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
+    await page.getByTestId('wt-refresh-status').click();
+    await expect(page.getByTestId('wt-diff-item')).toHaveCount(1, { timeout: 30000 });
+  });
+});
+
+/**
+ * 从提交建分支（US-314 阶段 A，GitHub Desktop 的 History 右键「Create branch from commit」）：新分支的 HEAD 就是那个提交，
+ * 建完切过去；当前分支有未提交改动时照常问改动怎么办，改动留在原分支上。
+ */
+test.describe('从提交建分支', () => {
+  test('History 右键建分支并切过去：历史停在那个提交上，原分支的草稿还在原地', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await writeTodo(page, 'from-commit-base');
+    await commit(page, 'add from-commit-base');
+    await writeTodo(page, 'from-commit-later');
+    await commit(page, 'add from-commit-later');
+    await writeTodo(page, 'from-commit-draft');
+    await page.getByTestId('wt-refresh-status').click();
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
+
+    // 菜单照 GitHub Desktop 分组：恢复 / 从提交建分支 / 复制提交 id
+    await openHistory(page);
+    await page.getByTestId('wt-commit-item').filter({ hasText: 'add from-commit-base' }).click({ button: 'right' });
+    await expect(page.getByRole('menuitem')).toHaveText([
+      'Restore this version to working tree',
+      'Create branch from commit',
+      'Copy Commit ID'
+    ]);
+    await page.getByTestId('wt-commit-create-branch').click();
+    const dialog = page.getByTestId('wt-create-branch-dialog');
+    await expect(dialog).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('wt-create-branch-base')).toContainText(
+      "Your new branch will be based on the commit 'add from-commit-base'"
+    );
+    await page.getByTestId('wt-create-branch-name').fill('feature/from-commit');
+    await expect(page.getByTestId('wt-create-branch-confirm')).toBeEnabled({ timeout: 30000 });
+    await page.getByTestId('wt-create-branch-confirm').click();
+    await expect(dialog).toHaveCount(0, { timeout: 30000 });
+
+    // main 上有草稿：切过去之前问改动怎么办，留在 main 上
+    await expect(page.getByTestId('wt-switch-dialog')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('wt-switch-leave-option')).toContainText('Leave my changes on main');
+    await page.getByTestId('wt-switch-confirm').click();
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/from-commit', { timeout: 30000 });
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
+
+    // HEAD 就是那个提交：历史最上面是它，之后那一个不在
+    await openHistory(page);
+    await expect(page.getByTestId('wt-commit-item').first()).toContainText('add from-commit-base', { timeout: 30000 });
+    await expect(page.getByTestId('wt-commits-list')).not.toContainText('add from-commit-later');
+
+    await openBranchMenu(page);
+    await branchRow(page, 'main').click();
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('main', { timeout: 30000 });
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
+  });
+});
+
+/**
+ * 新建分支与分支下拉的输入法守卫：组字期间的 Enter 是「上屏」、Escape 是「取消组字」，都属于输入法，
+ * 不能被当成提交或关闭吃掉。
+ */
+test.describe('删分支（US-222）', () => {
+  test('分支下拉里删掉一条不是当前的分支，再打开下拉就没有它', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await createBranchFromDropdown(page, 'feature/to-delete');
+    // 当前分支删不了（右键菜单里没有删除项）：先切回 main
+    await openBranchMenu(page);
+    await branchRow(page, 'main').click();
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('main', { timeout: 30000 });
+
+    await openBranchMenu(page);
+    await branchRow(page, 'feature/to-delete').click({ button: 'right' });
+    await page.getByTestId('wt-branch-menu-delete').click();
+    await expect(page.getByTestId('wt-confirm-dialog')).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('wt-confirm-ok').click();
+    await expect(page.getByTestId('wt-confirm-dialog')).toHaveCount(0);
+    // 删完页面会收起分支下拉：等提示出来再打开，否则刚打开的下拉会被它收掉
+    await expect(page.getByTestId('wt-toast')).toContainText('Branch "feature/to-delete" deleted.', { timeout: 30000 });
+
+    // 分支列表是分支表的活查询：分支表不写变更日志，删行曾经派不出删除事件，列表里还留着删掉的那条。
+    // 先确认下拉里列出了 main，再断言删掉的那条不在：下拉没打开时两条都「找不到」
+    await openBranchMenu(page);
+    await expect(branchRow(page, 'main')).toHaveCount(1);
+    await expect(branchRow(page, 'feature/to-delete')).toHaveCount(0, { timeout: 10000 });
+  });
+});
+
+test.describe('新建分支与分支下拉：输入法组字', () => {
+  test('组字中的回车不提交、Escape 不关对话框与菜单；同一个事件去掉 isComposing 就照常生效', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+
+    await openBranchMenu(page);
+    await page.getByTestId('wt-branch-create').click();
+    const dialog = page.getByTestId('wt-create-branch-dialog');
+    const branchName = page.getByTestId('wt-create-branch-name');
+    await branchName.fill('feature/ime');
+    await expect(page.getByTestId('wt-create-branch-confirm')).toBeEnabled({ timeout: 30000 });
+    await dispatchKeyDown(branchName, 'Escape', true);
+    await expect(dialog).toBeVisible();
+    await dispatchKeyDown(branchName, 'Enter', true);
+    await expect(dialog).toBeVisible();
+    await expect(branchName).toHaveValue('feature/ime');
+    await dispatchKeyDown(branchName, 'Enter', false);
+    await expect(dialog).toHaveCount(0, { timeout: 30000 });
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/ime', { timeout: 30000 });
+    await openBranchMenu(page);
+    await expect(branchRow(page, 'feature/ime')).toBeVisible();
+
+    // 筛选框里组字中的 Escape 是在取消组字，菜单不收；真的 Escape 才收
+    const filter = page.getByLabel('Filter branches');
+    await dispatchKeyDown(filter, 'Escape', true);
+    await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible();
+    await dispatchKeyDown(filter, 'Escape', false);
+    await expect(page.getByTestId('wt-branch-menu-popup')).toHaveCount(0);
   });
 });

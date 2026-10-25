@@ -166,6 +166,14 @@ const adapter = new RxDBAdapterWaSqlite(rxdb, {
 - ✅ SharedWorker 让 SQLite 运行在独立线程，**不阻塞主线程**
 - ✅ 跨标签页共享同一连接，规避多标签页同时写库的锁定冲突
 
+**多个标签页共用这一条连接时：**
+
+- 事务按库名在一把跨标签页的 Web Lock 里排队：一个标签页的事务开着时，别的标签页的读写等它结束，不会落进它的事务。
+  标签页死在事务中间（关页、崩溃）时，它那笔事务留在连接上，下一个拿到锁的标签页先回滚它。
+- 一个标签页断开只交还自己那一份：别的标签页照常读写、照常收到变更事件；最后一个标签页断开时才关库，之后新开的标签页还能连上。
+- 需要 Web Locks（`navigator.locks`，HTTPS 或 localhost）；没有时 `connect()` 报错。
+- SharedWorker 里那个客户端由所有标签页共用：worker 脚本照上面 `sqlite-shared.worker.ts` 的写法，每个端口 `expose` 同一个客户端，不要每个端口各建一个。
+
 ## 构建配置
 
 ### Vite 配置

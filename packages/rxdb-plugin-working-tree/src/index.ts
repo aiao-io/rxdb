@@ -7,6 +7,7 @@
  * `RxDBSystemContribution.createMigrations()` 交给核心，与核心自带的系统迁移并进同一条链
  * （`migrations/0004-working-tree-commits.ts` 头部说明了编号的来历）。
  */
+export * from './checkout/index.js';
 export * from './commit/index.js';
 export { createWorkingTreeCommitsInitialRows } from './migrations/0004-working-tree-commits.js';
 export * from './plugin.js';

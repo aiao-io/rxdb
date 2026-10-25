@@ -59,10 +59,12 @@ import {
   type TrustedWriteDeclaration,
   type WriteEntrance
 } from '@aiao/rxdb';
+import { Worktree } from '../../checkout/worktree.entity.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
+import { CommitForkPoint } from '../../commit/commit-fork-point.entity.js';
 import { Commit } from '../../commit/commit.entity.js';
 import { WorkingTreeCaptureRuntime } from '../capture-hook.js';
 import { assertColdReplayInvariant, type ColdReplayRow, type ColdReplaySnapshot } from '../cold-replay.js';
@@ -638,10 +640,11 @@ const identityOf = (EntityClass: EntityType): string => {
 const PRE_EPIC_006_SYSTEM_ENTITIES: readonly EntityType[] = [RxDBBranch, RxDBChange, RxDBMigration, RxDBSync];
 
 /**
- * epic-006 新增的 10 张系统表
+ * epic-006 新增的 12 张系统表
  *
  * @remarks
- * 顺序照 `data-model.md` §1 的 1→10 抄，与 {@link SYSTEM_ENTITIES} 里那一段一致。
+ * 前 10 张照 `data-model.md` §1 的 1→10 抄，第 11 张是只读检出位的登记表（US-313），第 12 张是提交的分叉点（US-314），
+ * 与 {@link SYSTEM_ENTITIES} 里那一段一致。
  *
  * **这份清单是故意手写的**，不从 `SYSTEM_ENTITIES` 里算差集：算出来的话，新增一张系统表会被
  * 自动收编进来，而 §1.5 的三条断言（登记、`log === false`、不引用 `rxdb_change`）恰恰是
@@ -657,7 +660,9 @@ const EPIC_006_SYSTEM_ENTITIES: readonly EntityType[] = [
   WorkingTreeEntry,
   WorkingTreeRestoreSession,
   WorkingTreeMaterializationStage,
-  WorkingTreeMaterializationPage
+  WorkingTreeMaterializationPage,
+  Worktree,
+  CommitForkPoint
 ];
 
 /**
@@ -1369,7 +1374,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         const adapter = await localAdapterOf(database);
         const hook = hookOf(adapter);
         const domain = domainOf(adapter);
-        expect(hook.targetClassOf(getEntityMetadata(ConformanceCache).name)).toBe('query_cache');
+        expect(hook.targetClassOf(getEntityMetadata(ConformanceCache).name)).toBe('untracked');
         expect(hook.targetClassOf(getEntityMetadata(ConformanceNote).name)).toBe('versioned');
         // 表平面必须跟着实体平面走：缓存表不在 `versionedTables` 里，于是一条打在它上面的 raw 写
         // 在第 4 步就以 out_of_domain 放行，根本走不到第 3 步的列级判定。两个平面分叉的话，
@@ -1450,19 +1455,19 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database);
       });
 
-      it('清单外的实体默认 tracked —— 第四类 untracked 必须先改 epic-006', async () => {
+      it('清单外的实体默认 tracked —— 新增一类 untracked 必须先改 epic-006', async () => {
         const hook = hookOf(await localAdapterOf(database));
         // 三个名字都没在 `rxdb.config.entities` 里登记过。默认值必须是 tracked：漏登记一个实体的
         // 代价因此是「它的写被当成用户编辑」（可发现、可修），而不是「它的写悄悄不进版本控制」
         // （不可发现、数据已经丢了）。命名也不给豁免——带 Cache / Index 的名字照样 versioned，
-        // 否则第四类 untracked 就能靠改个名字混进来，而它按契约必须先改 epic-006 的「版本化域」表。
+        // 否则新的一类 untracked 就能靠改个名字混进来，而它按契约必须先改 epic-006 的「版本化域」表。
         expect(hook.targetClassOf('NeverRegisteredEntity')).toBe('versioned');
         expect(hook.targetClassOf('NeverRegisteredCache')).toBe('versioned');
         expect(hook.targetClassOf('NeverRegisteredFtsIndex')).toBe('versioned');
         await expectColdReplayIntact(database);
       });
 
-      it('tracked 与 untracked 混进同一事务：报 mixed_versioned_cache_transaction 且整事务回滚', async () => {
+      it('QueryCache 与版本化实体混进同一事务：报 mixed_versioned_cache_transaction 且整事务回滚', async () => {
         const before = await withTransaction(database, readWorkingTreeState);
         // 走 `EntityManager` 而不是直接调 `isQueryCacheBatch()`：这一条要证伪的形态是「判定函数
         // 是对的，生产入口没接上」，只测纯函数看不见。`ConformanceCache` 仍然没被 `getRepository()`
@@ -1608,7 +1613,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         expect(getEntityMetadata(WorkingTreeEntry).tableName).toBe('rxdb_working_tree_entry');
         expect(getEntityMetadata(CommitChangeSet).tableName).toBe('rxdb_commit_change_set');
 
-        // 十张一起断言而不是只断言点名的两张：另外八张现在也确实不引用它，把范围收窄到两张
+        // 十二张一起断言而不是只断言点名的两张：另外十张现在也确实不引用它，把范围收窄到两张
         // 等于给「下一张新表引用 rxdb_change」留门，而那正是这条契约要堵死的形态。
         for (const EntityClass of EPIC_006_SYSTEM_ENTITIES) {
           const mapped = getEntityMetadata(EntityClass).relations.map(relation => relation.mappedEntity);

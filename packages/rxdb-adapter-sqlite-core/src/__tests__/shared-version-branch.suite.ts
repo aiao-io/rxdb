@@ -1,4 +1,5 @@
 import {
+  ACTIVE_BRANCH_KEY,
   Entity,
   EntityBase,
   PropertyType,
@@ -7,10 +8,13 @@ import {
   RxDBChange,
   SKIP_BRANCH_SWITCH_PREPARE,
   SwitchVersionActions,
+  WorktreeBranchHeldError,
+  encodeRxDBChangeEntityId,
   getEntityMetadata,
   type SwitchVersionChange
 } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
+import { firstValueFrom } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { SQLITE_NOW_ISO_SQL } from '../sqlite-core.utils.js';
@@ -38,6 +42,20 @@ class LateBranchTodo extends EntityBase {
   title?: string | null;
 }
 
+/**
+ * 「分支表的活查询（US-222）」用例的夹具：关掉变更日志的业务实体。删行之后活查询要立刻反映，
+ * 与分支表走同一条事件路径（不写变更日志的表只有行号通知）。
+ */
+@Entity({
+  name: 'UnloggedNote',
+  tableName: 'unlogged_note',
+  log: false,
+  properties: [{ name: 'title', type: PropertyType.string, nullable: true }]
+})
+class UnloggedNote extends EntityBase {
+  title?: string | null;
+}
+
 /** Version Branch 测试：分支切换动作的生成与执行。 */
 export function versionBranchSuite(factory: AdapterFactory) {
   describe.sequential(`Version Branch [${factory.name}]`, () => {
@@ -45,7 +63,7 @@ export function versionBranchSuite(factory: AdapterFactory) {
     let rxdb: RxDB;
 
     beforeAll(async () => {
-      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [Todo] });
+      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [Todo, UnloggedNote] });
       rxdb = adapter.rxdb;
     });
 
@@ -821,6 +839,208 @@ export function versionBranchSuite(factory: AdapterFactory) {
         const changes = await find_all_changes();
         const latest = changes.filter(c => c.entityId === todo2.id);
         expect(latest.every(c => c.branchId === 'main')).toBe(true);
+      });
+
+      it('对比与合并预览（US-312）：SQLite 编码的补丁上照样算对，merged 与随后的合并一致', async () => {
+        const both = new Todo();
+        both.title = 'both';
+        await both.save();
+        const status = new Todo();
+        status.title = 'status';
+        await status.save();
+        await rxdb.versionManager.createBranch('feature');
+        await rxdb.versionManager.switchBranch('feature');
+        both.title = 'from-feature';
+        await both.save();
+        status.title = 'title-from-feature';
+        await status.save();
+        const added = new Todo();
+        added.title = 'added';
+        await added.save();
+        await rxdb.versionManager.switchBranch('main');
+        both.title = 'from-main';
+        await both.save();
+        status.completed = true;
+        await status.save();
+
+        const comparison = await rxdb.versionManager.compareBranches('main', 'feature');
+        expect(new Map(comparison.entries.map(entry => [entry.entityId, entry.operation]))).toEqual(
+          new Map([
+            [both.id, 'UPDATE'],
+            [status.id, 'UPDATE'],
+            [added.id, 'INSERT']
+          ])
+        );
+        // 布尔在 SQLite 里存成 0/1：两侧取值都来自变更日志，在同一种编码下比较
+        const statusEntry = comparison.entries.find(entry => entry.entityId === status.id);
+        expect(Object.keys(statusEntry?.patch ?? {}).sort()).toEqual(['completed', 'title']);
+
+        const preview = await rxdb.versionManager.previewMerge('feature');
+        const conflicts = new Map(preview.entries.map(entry => [entry.entityId, entry.conflict]));
+        expect(conflicts.get(both.id)).toEqual({ kind: 'overwrite', fields: ['title'] });
+        expect(conflicts.get(status.id)).toBeNull();
+        expect(conflicts.get(added.id)).toBeNull();
+
+        const result = await rxdb.versionManager.mergeBranch('feature');
+        expect(preview.merged).toBe(result.merged);
+        expect(await todo_titles()).toEqual(['added', 'from-feature', 'title-from-feature']);
+      });
+    });
+
+    // ================================================================
+    // 4b. 撤销 / 重做与子分支（US-315）
+    // ================================================================
+    describe('已被子分支继承的变更不能撤销 / 重做（US-315）', () => {
+      const titleOf = async (id: Todo['id']) =>
+        (
+          await adapter.getRepository(Todo).find({
+            where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: id }] }
+          })
+        )[0]?.title;
+
+      const inheritedBy = (...branchIds: string[]) => ({ reason: 'inherited_by_branch', branchIds });
+
+      afterEach(async () => await cleanup_db(adapter));
+
+      it('父分支撤销不了子分支已继承的变更：撤销栈停在分叉点并说明原因，切换往返之后 main 仍是撤销前的值', async () => {
+        const todo = new Todo();
+        todo.title = 'a';
+        await todo.save();
+        todo.title = 'b';
+        await todo.save();
+        const history = rxdb.versionManager.history();
+        // 撤销会话被前面的合并用例清空过的话，靠这里的本地写入异步恢复：等两步都可撤销了再往下走，
+        // 不然下面「撤销数为 0」可能只是会话还没恢复
+        await expect.poll(() => firstValueFrom(history.undoCount$)).toBe(2);
+        await rxdb.versionManager.createBranch('feature');
+        await rxdb.versionManager.switchBranch('feature');
+        todo.title = 'c';
+        await todo.save();
+        await rxdb.versionManager.switchBranch('main');
+
+        await expect.poll(() => firstValueFrom(history.undoBarrier$)).toEqual(inheritedBy('feature'));
+        expect(await firstValueFrom(history.undoCount$)).toBe(0);
+        await history.undo();
+        expect(await titleOf(todo.id)).toBe('b');
+
+        await rxdb.versionManager.switchBranch('feature');
+        expect(await titleOf(todo.id)).toBe('c');
+        await rxdb.versionManager.switchBranch('main');
+        expect(await titleOf(todo.id)).toBe('b');
+      });
+
+      it('重做同理：分叉时还撤销着、却落在继承范围里的变更不能重做', async () => {
+        const x = new Todo();
+        x.title = 'x1';
+        await x.save();
+        const y = new Todo();
+        y.title = 'y';
+        await y.save();
+        x.title = 'x2';
+        await x.save();
+        const scoped = rxdb.versionManager.history(x);
+        // 撤销会话被别的操作清空过的话，靠这里的本地写入异步恢复：等两步都可撤销了再撤
+        await expect.poll(() => firstValueFrom(scoped.undoCount$)).toBe(2);
+        await scoped.undo();
+        await scoped.undo();
+        expect(await titleOf(x.id)).toBeUndefined();
+        await rxdb.versionManager.createBranch('feature');
+
+        await expect.poll(() => firstValueFrom(scoped.redoCount$)).toBe(0);
+        expect(await firstValueFrom(scoped.redoBarrier$)).toEqual(inheritedBy('feature'));
+        await scoped.redo();
+        expect(await titleOf(x.id)).toBeUndefined();
+
+        await rxdb.versionManager.switchBranch('feature');
+        expect(await titleOf(x.id)).toBeUndefined();
+        expect(await titleOf(y.id)).toBe('y');
+        await rxdb.versionManager.switchBranch('main');
+        expect(await titleOf(x.id)).toBeUndefined();
+      });
+    });
+
+    // ================================================================
+    // 4c. 分支表的活查询（US-222）
+    // ================================================================
+    describe('分支表的活查询跟得上建分支、删分支（US-222）', () => {
+      afterEach(async () => await cleanup_db(adapter));
+
+      it('建分支、删分支、合并时删源分支之后，订阅分支表的活查询发出的行与库里一致', async () => {
+        const all = { where: { combinator: 'and' as const, rules: [] } };
+        let latest: string[] = [];
+        const subscription = rxdb.entityManager
+          .getRepository(RxDBBranch)
+          .findAll(all)
+          .subscribe(rows => (latest = rows.map(row => row.id).sort()));
+        try {
+          await expect.poll(() => latest).toEqual(['main']);
+          await rxdb.versionManager.createBranch('feature');
+          await expect.poll(() => latest).toEqual(['feature', 'main']);
+          await rxdb.versionManager.removeBranch('feature');
+          await expect.poll(() => latest).toEqual(['main']);
+
+          await rxdb.versionManager.createBranch('merged');
+          await rxdb.versionManager.switchBranch('merged');
+          const todo = new Todo();
+          todo.title = 'from-merged';
+          await todo.save();
+          await rxdb.versionManager.switchBranch('main');
+          await rxdb.versionManager.mergeBranch('merged', { deleteSource: true });
+          await expect.poll(() => latest).toEqual(['main']);
+        } finally {
+          subscription.unsubscribe();
+        }
+      });
+
+      it('其余关掉变更日志的实体同理：删行之后活查询立刻不再有它', async () => {
+        const note = new UnloggedNote();
+        note.title = 'unlogged';
+        await note.save();
+        let latest: string[] = [];
+        const subscription = rxdb.entityManager
+          .getRepository(UnloggedNote)
+          .findAll({ where: { combinator: 'and', rules: [] } })
+          .subscribe(rows => (latest = rows.map(row => String(row.title))));
+        try {
+          await expect.poll(() => latest).toEqual(['unlogged']);
+          await note.remove();
+          await expect.poll(() => latest).toEqual([]);
+        } finally {
+          subscription.unsubscribe();
+        }
+      });
+    });
+
+    // ================================================================
+    // 4d. 被可写检出位持有的分支（US-314 B1.2）
+    // ================================================================
+    // 一条分支至多被一个检出位持有。主检出位点亮目标分支时写的是哨兵，正好把持有键覆盖掉，
+    // 唯一索引里始终只有一个哨兵、撞不上——只能在点亮之前问一句「它在不在别人手里」。
+    describe('主检出位不能切到被可写检出位持有的分支（US-314 B1.2）', () => {
+      const holderKey = '*worktree:wt1*';
+
+      afterEach(async () => await cleanup_db(adapter));
+
+      it('切过去被拒：分支表一行不动，之后的写入仍记在原分支', async () => {
+        await rxdb.versionManager.createBranch('held');
+        await adapter.internalQuery(`UPDATE "rxdb$rxdb_branch" SET "activeKey" = ? WHERE "id" = 'held'`, [holderKey]);
+
+        await expect(rxdb.versionManager.switchBranch('held')).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+
+        const { rows } = await adapter.rawQuery(
+          `SELECT "id", "activated", "activeKey" FROM "rxdb$rxdb_branch" ORDER BY "id"`
+        );
+        expect(rows).toEqual([
+          ['held', 0, holderKey],
+          ['main', 1, ACTIVE_BRANCH_KEY]
+        ]);
+        const todo = new Todo();
+        todo.title = 'after-rejected-switch';
+        await todo.save();
+        const changes = await adapter.rawQuery(`SELECT "branchId" FROM "rxdb$rxdb_change" WHERE "entityId" = ?`, [
+          encodeRxDBChangeEntityId(todo.id)
+        ]);
+        expect(changes.rows).toEqual([['main']]);
       });
     });
 

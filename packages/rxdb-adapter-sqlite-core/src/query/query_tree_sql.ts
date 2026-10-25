@@ -3,12 +3,8 @@ import type { FindTreeOptions } from '@aiao/rxdb-plugin-tree';
 import { SetOptional } from 'type-fest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
-import {
-  get_primary_key_column,
-  get_table_name_by_metadata,
-  quote_sql_identifier,
-  ROWID
-} from '../sqlite-core.utils.js';
+import { get_primary_key_column, quote_sql_identifier, ROWID } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import { build_rule_group_join } from './join_sql.js';
 import { buildRuleGroup, GenerateSqlResult } from './query_sql.js';
 import { validateEncryptedQuery } from './validate-encrypted-query.js';
@@ -102,7 +98,7 @@ export const generate_tree_sql = (
     field => (field.startsWith(`${TREE_RECURSIVE_ALIAS}.`) ? field.slice(TREE_RECURSIVE_ALIAS.length + 1) : field)
   );
   const isFindRoot = entityId == null;
-  const table_name = get_table_name_by_metadata(metadata);
+  const table_name = get_table_name_by_metadata(metadata, adapter.tableSet);
 
   // 获取 parent 关系的实际数据库列名
   const parentRelation = metadata.relationMap.get('parent')! as EntityRelationManyToOneMetadata;

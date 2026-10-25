@@ -71,6 +71,9 @@ export default (options: [ManyToManyRelation, ManyToManyRelation]): EntityMetada
   const metadata: EntityMetadataOptions = {
     name: name as Capitalize<string>,
     namespace: namespace as Lowercase<string>,
+    // 两端都不写变更日志时中间表也不写：只记中间表的变更，撤销与同步都只能还原一半关系。
+    // 只读检出位的快照实例（实体全是 log: false 的克隆）靠这一条才不建变更日志触发器（US-313）
+    ...(metadataA.log === false && metadataB.log === false ? { log: false } : {}),
     relations: [
       {
         /**

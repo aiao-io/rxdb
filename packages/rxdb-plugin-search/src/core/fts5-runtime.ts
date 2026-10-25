@@ -204,6 +204,37 @@ export const buildBackfillSql = (plan: FtsInstallPlan): string => {
 };
 
 /**
+ * 建虚拟表 → 「清空残留 + 回填 + 建 trigger」一次性提交。
+ *
+ * @remarks
+ * 顺序与打包方式都不是风格问题，是正确性问题：
+ *
+ * 1. trigger 必须建在 backfill **之后**。反过来的话，trigger 已生效而索引刚被
+ *    `'delete-all'` 清空的那一瞬间，任何一条用户 DELETE 都会让 `_ad` trigger 对着
+ *    空索引发 `'delete'` 命令，FTS5 抛 SQLITE_CORRUPT_VTAB —— 用户看到的字面报错是
+ *    「database disk image is malformed」。该语句回滚，行还在，所以再点一次又好了。
+ * 2. 三条语句必须在**同一次** `rawQuery` 里下发。适配器按 rawQuery 粒度串行，
+ *    拆成三次就等于留出两个可插入用户写入的窗口，第 1 点的顺序保证随即失效。
+ *
+ * 显式 reset 仍然保留，用于应对历史残留（用户手动操作过、上次 install 中断等）：
+ * FTS5 虚拟表无 UNIQUE 约束，光靠 INSERT OR IGNORE 不去重。
+ *
+ * 残留窗口（已知且有意）：建表与本批次之间仍可能落入用户写入。此时 trigger 尚未存在，
+ * 不会产生 `'delete'` 命令，而 backfill 读的是当下的表快照，索引与表依然一致。
+ */
+const createRuntimeObjects = async (plan: FtsInstallPlan, executor: RuntimeSqlExecutor): Promise<void> => {
+  const sqlTableName = physicalTableOf(plan);
+  await executor.rawQuery(buildCreateFtsTableSql(sqlTableName, plan.fields));
+  await executor.rawQuery(
+    [
+      `${buildResetFtsSql(plan)};`,
+      `${buildBackfillSql(plan)};`,
+      buildFtsTriggersSql(sqlTableName, plan.fields, { valueWrapper: FTS_BIGRAM_SQL_FUNCTION })
+    ].join('\n\n')
+  );
+};
+
+/**
  * 执行单个 entity 的 FTS5 安装；幂等。
  *
  * 行为：
@@ -235,43 +266,13 @@ export async function installFtsForEntity(
       }
 
       await dropRuntimeObjects(plan, executor);
-      await executor.rawQuery(buildCreateFtsTableSql(sqlTableName, plan.fields));
-      await executor.rawQuery(
-        [
-          `${buildResetFtsSql(plan)};`,
-          `${buildBackfillSql(plan)};`,
-          buildFtsTriggersSql(sqlTableName, plan.fields, { valueWrapper: FTS_BIGRAM_SQL_FUNCTION })
-        ].join('\n\n')
-      );
+      await createRuntimeObjects(plan, executor);
       return { tableName: plan.tableName, status: 'repaired', fields: plan.fields };
     }
     throw new SearchSchemaMismatchError(plan.tableName, plan.signature, storedSigs.join(', '));
   }
 
-  // 建虚拟表 → 「清空残留 + 回填 + 建 trigger」一次性提交
-  //
-  // 顺序与打包方式都不是风格问题，是正确性问题：
-  //
-  // 1. trigger 必须建在 backfill **之后**。反过来的话，trigger 已生效而索引刚被
-  //    `'delete-all'` 清空的那一瞬间，任何一条用户 DELETE 都会让 `_ad` trigger 对着
-  //    空索引发 `'delete'` 命令，FTS5 抛 SQLITE_CORRUPT_VTAB —— 用户看到的字面报错是
-  //    「database disk image is malformed」。该语句回滚，行还在，所以再点一次又好了。
-  // 2. 三条语句必须在**同一次** `rawQuery` 里下发。适配器按 rawQuery 粒度串行，
-  //    拆成三次就等于留出两个可插入用户写入的窗口，第 1 点的顺序保证随即失效。
-  //
-  // 显式 reset 仍然保留，用于应对历史残留（用户手动操作过、上次 install 中断等）：
-  // FTS5 虚拟表无 UNIQUE 约束，光靠 INSERT OR IGNORE 不去重。
-  //
-  // 残留窗口（已知且有意）：建表与本批次之间仍可能落入用户写入。此时 trigger 尚未存在，
-  // 不会产生 `'delete'` 命令，而 backfill 读的是当下的表快照，索引与表依然一致。
-  await executor.rawQuery(buildCreateFtsTableSql(sqlTableName, plan.fields));
-  await executor.rawQuery(
-    [
-      `${buildResetFtsSql(plan)};`,
-      `${buildBackfillSql(plan)};`,
-      buildFtsTriggersSql(sqlTableName, plan.fields, { valueWrapper: FTS_BIGRAM_SQL_FUNCTION })
-    ].join('\n\n')
-  );
+  await createRuntimeObjects(plan, executor);
 
   await Promise.all([
     migrationStore.recordMigration(expectedName),
@@ -279,4 +280,28 @@ export async function installFtsForEntity(
   ]);
 
   return { tableName: plan.tableName, status: 'installed', fields: plan.fields };
+}
+
+/**
+ * 给一套可写检出位的影子表装 FTS5（US-314 B2.5）；幂等，不写迁移记录。
+ *
+ * @param plan - 已经绑到那套表上的计划（`SearchBackend.bindPlan`）
+ * @param executor - 建表集或补建那笔事务的执行器
+ * @returns 安装结果：目录里本来就齐全时是 `already_installed`
+ *
+ * @remarks
+ * 迁移记录是主表集的账本，签名漂移在主表集那次安装就报了。影子表随检出位建、随检出位删，结构对不对直接看目录：
+ * 齐全且与计划一致就跳过；缺了、建到一半中断、或与计划不一致（字段改过），就删掉残留整套重建。
+ */
+export async function installFtsForTableSet(
+  plan: FtsInstallPlan,
+  executor: RuntimeSqlExecutor
+): Promise<InstallFtsResult> {
+  const objects = await inspectRuntimeObjects(plan, executor);
+  if (hasHealthyRuntimeObjects(plan, objects)) {
+    return { tableName: plan.tableName, status: 'already_installed', fields: plan.fields };
+  }
+  await dropRuntimeObjects(plan, executor);
+  await createRuntimeObjects(plan, executor);
+  return { tableName: plan.tableName, status: objects.size === 0 ? 'installed' : 'repaired', fields: plan.fields };
 }

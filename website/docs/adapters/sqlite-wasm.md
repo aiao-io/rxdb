@@ -69,6 +69,41 @@ rxdb.adapter(
 );
 ```
 
+## 多个标签页共用一条连接（SharedWorker）
+
+SharedWorker 里放一个客户端，每个连上来的标签页都 `expose` 同一个：
+
+```typescript
+// sqlite-shared.worker.ts
+import { SqliteClient } from '@aiao/rxdb-adapter-sqlite-wasm';
+import { expose } from 'comlink';
+
+declare let self: SharedWorkerGlobalScope;
+
+const client = new SqliteClient();
+
+self.onconnect = (event: MessageEvent) => expose(client, event.ports[0]);
+```
+
+```typescript
+rxdb.adapter(
+  'sqlite-wasm',
+  async db =>
+    new RxDBAdapterSqlite(db, {
+      vfs: 'idb',
+      wasmUrl: new URL('@subframe7536/sqlite-wasm/wasm-async', import.meta.url).href,
+      sharedWorker: true,
+      sharedWorkerInstance: new SharedWorker(new URL('./sqlite-shared.worker', import.meta.url), { type: 'module' })
+    })
+);
+```
+
+- 事务按库名在一把跨标签页的 Web Lock 里排队：一个标签页的事务开着时，别的标签页的读写等它结束，不会落进它的事务。
+  标签页死在事务中间（关页、崩溃）时，它那笔事务留在连接上，下一个拿到锁的标签页先回滚它。
+- 一个标签页断开只交还自己那一份：别的标签页照常读写、照常收到变更事件；最后一个标签页断开时才关库，之后新开的标签页还能连上。
+- 需要 Web Locks（`navigator.locks`，HTTPS 或 localhost）；没有时 `connect()` 报错。
+- 备份与恢复不支持 SharedWorker 传输（`unsupported_combination`）。
+
 ## 与全文搜索插件配合
 
 `@aiao/rxdb-plugin-search` 支持 FTS5 与 pg-tsvector 两种后端：SQLite 家族放行 sqlite-wasm / sqlite / sqliteai，PGlite 走 pg-tsvector；wa-sqlite 与小程序适配器尚未放行。本适配器（FTS5 后端）的用法：

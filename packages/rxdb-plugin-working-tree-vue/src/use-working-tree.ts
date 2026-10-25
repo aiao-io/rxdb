@@ -8,7 +8,9 @@ import {
   type CommitOptions,
   type CommitResult,
   type WorkingTreeAsyncStates,
+  type WorkingTreeBranchFromCommitCheck,
   type WorkingTreeCommandState,
+  type WorkingTreeCreateBranchFromCommitResult,
   type WorkingTreeDiff,
   type WorkingTreeDiffOptions,
   type WorkingTreeDiscardOptions,
@@ -29,14 +31,16 @@ import { computed, shallowRef, type ComputedRef } from 'vue';
  * {@link useWorkingTree} 的返回值。
  *
  * @remarks
- * 十二个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，只是每一项各自装进
+ * 十四个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，只是每一项各自装进
  * `ComputedRef`：成员可以安全解构，模板只读了 `statusState` 时，一次 `diff()` 的相位变化
- * 不会让它重新求值。十二个方法的签名与插件包 `WorkingTreeManager`（`switchBranch` 那一个是
+ * 不会让它重新求值。十四个方法的签名与插件包 `WorkingTreeManager`（`switchBranch` 那一个是
  * `VersionManager`）上的同名方法完全一致 —— 入参与返回值用的都是
  * `@aiao/rxdb-plugin-working-tree` 那一份类型，本包**不重定义**（tri-framework-api.md §1）。
  *
  * 三端等价实现：Angular `useWorkingTree()`（`Signal`）、React `useWorkingTree()`
- * （渲染快照），字段名、方法名与语义完全一致，只是容器形态不同。
+ * （渲染快照），字段名、方法名与语义完全一致，只是容器形态不同。入口绑定 `setup()` 时注入的库：
+ * `provideRxDB()` 的源换了库，这里仍指着旧库——要跟着换，给用它的组件加 `:key` 随库重建
+ * （React 版在 Provider 换库时自己回到初态）。
  *
  * `restore()` 的四个被拒成因走**返回值**而不是异常，`restoreState` 因此也**没有 empty**：
  * 「被拒」与「一条都没恢复」都是结果，不是「没有结果」。`restoreSessionState` 的空则只有一个
@@ -74,6 +78,10 @@ export interface WorkingTreeResource {
   readonly restoreSessionState: ComputedRef<WorkingTreeQueryState<WorkingTreeRestoreSessionInfo | null>>;
   /** 上一次 `switchBranch()` 的相位；**没有 empty** —— 切到当前分支是成功的 no-op */
   readonly switchBranchState: ComputedRef<WorkingTreeCommandState<void>>;
+  /** 上一次 `checkBranchFromCommit()` 的相位；**没有 empty** —— 能建与三种被拒成因都是结果 */
+  readonly checkBranchFromCommitState: ComputedRef<WorkingTreeCommandState<WorkingTreeBranchFromCommitCheck>>;
+  /** 上一次 `createBranchFromCommit()` 的相位；**没有 empty** —— 建好了与三种被拒成因都是结果 */
+  readonly createBranchFromCommitState: ComputedRef<WorkingTreeCommandState<WorkingTreeCreateBranchFromCommitResult>>;
 
   /** 读取这个库启没启用提交能力。 */
   readonly isEnabled: () => Promise<boolean>;
@@ -102,6 +110,13 @@ export interface WorkingTreeResource {
   readonly restoreSession: () => Promise<WorkingTreeRestoreSessionInfo | null>;
   /** 切到另一条分支；被 `requireClean` 拒掉时抛 `WorkingTreeDirtyError`。成功后自动重读一次 status。 */
   readonly switchBranch: (branchId: string, options?: WorkingTreeSwitchBranchOptions) => Promise<void>;
+  /** 判一个可达提交能不能拿来建分支；三种被拒成因走返回值，不是异常。 */
+  readonly checkBranchFromCommit: (commitId: string) => Promise<WorkingTreeBranchFromCommitCheck>;
+  /** 从一个可达提交建分支，不切换、不重读 status；三种被拒成因走返回值，不是异常。 */
+  readonly createBranchFromCommit: (
+    branchId: string,
+    commitId: string
+  ) => Promise<WorkingTreeCreateBranchFromCommitResult>;
 }
 
 /**
@@ -131,7 +146,7 @@ export interface WorkingTreeResource {
  * @remarks
  * **必须在 setup 中调用** —— 它经 `useRxDB()` 取库（`inject` 只在 setup 期可用）。
  *
- * **创建入口本身一次 IO 都不发**：十二格初值全是 `idle`，只有真的调了方法才会去读库。
+ * **创建入口本身一次 IO 都不发**：十四格初值全是 `idle`，只有真的调了方法才会去读库。
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询。
  *
  * **没有变更流**：状态只在经本入口发出的命令之后更新，因此这里也没有需要退订的订阅。
@@ -139,7 +154,7 @@ export interface WorkingTreeResource {
  * —— 需要最新值就再调一次 `status()`。这是核心侧至今没有工作树变更流的如实反映，
  * 不是这里省了一步。
  *
- * 状态装在 `shallowRef` 里：整份状态每次都是新对象，深响应只会让 Vue 白白遍历十二棵
+ * 状态装在 `shallowRef` 里：整份状态每次都是新对象，深响应只会让 Vue 白白遍历十四棵
  * 结构固定的树。
  *
  * 数据库取不到时**抛错而不是**返回一份「一切干净」的默认值：那会把「入口没接上」
@@ -169,6 +184,8 @@ export const useWorkingTree = (): WorkingTreeResource => {
     restoreState: computed(() => states.value.restoreState),
     restoreSessionState: computed(() => states.value.restoreSessionState),
     switchBranchState: computed(() => states.value.switchBranchState),
+    checkBranchFromCommitState: computed(() => states.value.checkBranchFromCommitState),
+    createBranchFromCommitState: computed(() => states.value.createBranchFromCommitState),
     ...commands
   };
 };

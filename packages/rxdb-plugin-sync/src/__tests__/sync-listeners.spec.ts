@@ -18,7 +18,8 @@ import {
   RxDBSync,
   type SyncOptions,
   SyncStateHub,
-  SyncType
+  SyncType,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import type { SyncHistoryBridge } from '@aiao/rxdb-plugin-history';
 import { BehaviorSubject } from 'rxjs';
@@ -153,6 +154,8 @@ type HarnessOptions = {
   reachability?: ReachabilityMonitor;
   /** 库级 `sync`；不传时只配一个远端适配器名，实体各自带着自己的 `sync` */
   sync?: SyncOptions;
+  /** 实例一开始挂的那套表，不给就是主表集 */
+  tableSet?: WorktreeTableSet;
 };
 
 type SyncListenerHarness = {
@@ -168,6 +171,8 @@ type SyncListenerHarness = {
   result: ReturnType<typeof setupSyncListeners>;
   syncBranches: ReturnType<typeof vi.fn<SyncBranches>>;
   syncState: SyncStateHub;
+  /** 换挂：`next` 一套表等于实例挂上它（US-314 B1.4） */
+  tableSet$: BehaviorSubject<WorktreeTableSet>;
 };
 
 type RemoteEventCase = {
@@ -230,6 +235,7 @@ const liveHarnesses: SyncListenerHarness[] = [];
 
 const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
   const connected$ = new BehaviorSubject(options.connected ?? false);
+  const tableSet$ = new BehaviorSubject(options.tableSet ?? WorktreeTableSet.MAIN);
   const listeners = new Map<RemoteEventType, Set<RemoteEventHandler>>();
   const addEventListener = vi.fn<(type: RemoteEventType, handler: RemoteEventHandler) => void>((type, handler) => {
     const handlers = listeners.get(type) ?? new Set<RemoteEventHandler>();
@@ -260,6 +266,10 @@ const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
     entitySync: createEntitySyncResolver(configSync),
     config: configSync === undefined ? { entities } : { entities, sync: configSync },
     connected$: connected$.asObservable(),
+    get worktreeTableSet() {
+      return tableSet$.value;
+    },
+    worktreeTableSet$: tableSet$.asObservable(),
     reachability,
     syncState,
     addEventListener,
@@ -293,7 +303,8 @@ const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
     removeEventListener,
     result,
     syncBranches,
-    syncState
+    syncState,
+    tableSet$
   };
 
   liveHarnesses.push(harness);
@@ -606,6 +617,48 @@ describe('setupSyncListeners 联网回推', () => {
     harness.reachability.report(new TypeError('Failed to fetch'));
     harness.reachability.report(null);
     await settleDetachedTasks();
+
+    expect(flushOutbox).not.toHaveBeenCalled();
+  });
+});
+
+// owner 2026-10-21 定：多检出位下只有主检出位同步（US-314 B1.4）。QueryCache 的出站队列虽然只落在主表集上、
+// 与挂哪套表无关，挂在可写检出位上的实例照样不回推；「挂在主检出位上」并进「可以回推了」的判据，
+// 挂回主检出位那一刻判据翻真，补跑一轮 —— 否则在检出位上错过的那次恢复要等到下一次断网重连。
+describe('setupSyncListeners 挂在可写检出位上', () => {
+  const SHADOW = WorktreeTableSet.of('wt_a1', []);
+
+  it('挂在检出位上时适配器连上也不回推', async () => {
+    const harness = createHarness({ connected: false, tableSet: SHADOW });
+
+    harness.connected$.next(true);
+    await settleDetachedTasks();
+
+    expect(flushOutbox).not.toHaveBeenCalled();
+  });
+
+  it('挂回主检出位那一刻补跑一轮', async () => {
+    const harness = createHarness({ connected: true, tableSet: SHADOW });
+    await settleDetachedTasks();
+    expect(flushOutbox).not.toHaveBeenCalled();
+
+    harness.tableSet$.next(WorktreeTableSet.MAIN);
+    await settleDetachedTasks();
+
+    expect(flushedEntities()).toEqual(['CachedRecipe']);
+  });
+
+  it('换挂到检出位之后，离线退避节拍也不回推', async () => {
+    const harness = createHarness({
+      connected: true,
+      reachability: detachedReachability({ baseDelayMs: 1, maxDelayMs: 1 })
+    });
+    await settleDetachedTasks();
+    flushOutbox.mockClear();
+
+    harness.tableSet$.next(SHADOW);
+    harness.reachability.report(new TypeError('Failed to fetch'));
+    await new Promise(resolve => setTimeout(resolve, 20));
 
     expect(flushOutbox).not.toHaveBeenCalled();
   });

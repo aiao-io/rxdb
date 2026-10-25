@@ -1,8 +1,9 @@
 import { assertOptionalNonNegativeSafeInteger, EntityMetadata, EntityRelationManyToOneMetadata } from '@aiao/rxdb';
 import type { FindTreeOptions } from '@aiao/rxdb-plugin-tree';
 import type { SetOptional } from 'type-fest';
-import { getTableNameByMetadata, quoteIdentifier } from '../pglite.utils.js';
+import { quoteIdentifier } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 import type { FieldAlias } from './json_accessor.js';
 import { buildRuleGroupPG, GenerateSqlResult, metadata_resolver } from './query_sql.js';
 import { validateEncryptedQuery } from './validate-encrypted-query.js';
@@ -56,7 +57,7 @@ export const generate_tree_sql = (
   // truthy 判断会把它当成「没传 entityId」，整条查询退化成根节点查询。
   // 与 sqlite-core 的 `query_tree_sql.ts` 同口径（PGL-005）
   const isFindRoot = entityId == null;
-  const table_name = getTableNameByMetadata(metadata);
+  const table_name = getTableNameByMetadata(metadata, adapter.tableSet);
   const parentRelation = metadata.relationMap.get('parent') as EntityRelationManyToOneMetadata | undefined;
   const parentColumnName = parentRelation?.columnName ?? 'parentId';
 

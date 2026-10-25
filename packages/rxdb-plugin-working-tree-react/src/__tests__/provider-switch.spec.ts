@@ -133,7 +133,7 @@ describe('切换 provider 后工作树状态归属当前库（RV-069 回归）',
     expect(second.workingTree.status).not.toHaveBeenCalled();
   });
 
-  // 分支覆盖：一次命令都没发起过就换库，十二格仍是同一个冻结单例，`patch` 里的身份判断
+  // 分支覆盖：一次命令都没发起过就换库，十四格仍是同一个冻结单例，`patch` 里的身份判断
   // 必须跳过多余的 `setStates` 调用——而不是盲目再触发一次与现状完全相同的重渲染。
   it('一次命令都没发起过就换库，不触发多余的状态写入', () => {
     const first = createWorkingTreeHookStubs();

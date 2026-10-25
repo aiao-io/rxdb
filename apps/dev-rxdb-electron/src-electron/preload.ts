@@ -32,6 +32,7 @@ const DESKTOP_HOST_REQUEST_KINDS: ReadonlySet<string> = new Set<string>([
   'version',
   'close',
   'mute',
+  'drop',
   'file.open',
   'file.close',
   'file.stat',

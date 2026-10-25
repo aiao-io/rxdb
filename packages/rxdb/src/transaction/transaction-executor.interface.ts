@@ -3,6 +3,7 @@ import type { IRepository } from '../repository/repository.interface.js';
 import type { RawQueryResult, RxDBMutationsMap } from '../rxdb-adapter.js';
 import type { SwitchVersionActions } from '../sync-contract/VersionManager.interface.js';
 import type { RxDBChange } from '../system/change.js';
+import type { WorktreeTableSet } from '../system/worktree-table-set.js';
 
 /**
  * 事务生命周期状态。
@@ -50,6 +51,15 @@ export interface TransactionExecutor {
 
   /** 生命周期状态。 */
   readonly state: TransactionExecutorState;
+
+  /**
+   * 本事务落在哪一套业务表上：发起它的实例挂的那一套（US-314 可写检出位）
+   *
+   * @remarks
+   * 事务内要读「当前分支」的代码用它的 `heldBranchWhere`：挂在可写检出位上时，当前分支是那套表持有的分支，
+   * 不是主检出位激活的那一条。{@link tableRef} 拼物理名用的也是它。
+   */
+  readonly tableSet: WorktreeTableSet;
 
   /**
    * 在本事务内执行原始查询，不再入队。

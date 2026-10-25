@@ -1,12 +1,12 @@
-import type { EntityMetadata, EntityType, IEntity, IQueryContext, RxDBEntityId } from '@aiao/rxdb';
+import type { EntityMetadata, EntityType, IEntity, IQueryContext, RxDBEntityId, WorktreeTableSet } from '@aiao/rxdb';
 import {
   type EncryptionContext,
   getSqlValue,
-  getTableNameByMetadata,
   normalizeCreateEntity,
   quoteIdentifier,
   transformEntityValueToSql
 } from '../pglite.utils.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 import { isSequenceAssignedPrimaryColumn } from './insert_sql.js';
 
 const IMMUTABLE_ON_CONFLICT_PROPERTIES = ['id', 'createdAt', 'createdBy'] as const;
@@ -28,6 +28,7 @@ const dedupeEntitiesForUpsert = <T extends EntityType>(entities: InstanceType<T>
 
 const generateEntityInsertsSql = async <T extends EntityType>(
   metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
   entities: InstanceType<T>[],
   context?: IQueryContext,
   encryption?: EncryptionContext,
@@ -81,14 +82,16 @@ const generateEntityInsertsSql = async <T extends EntityType>(
       ` ON CONFLICT (${quoteIdentifier(primaryColumn)}) DO NOTHING`
     : ` ON CONFLICT (${quoteIdentifier(primaryColumn)}) DO UPDATE SET ${assignments}`;
 
-  return `INSERT INTO ${getTableNameByMetadata(metadata)} (${quotedColumns}) VALUES ${valueGroups.join(',')}${upsert ? conflictClause : ''};`;
+  return `INSERT INTO ${getTableNameByMetadata(metadata, tableSet)} (${quotedColumns}) VALUES ${valueGroups.join(',')}${upsert ? conflictClause : ''};`;
 };
 
 export const generate_entity_upserts_sql = <T extends EntityType>(
   metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
   entities: InstanceType<T>[],
   context?: IQueryContext,
   encryption?: EncryptionContext
-): Promise<string> => generateEntityInsertsSql(metadata, dedupeEntitiesForUpsert(entities), context, encryption, true);
+): Promise<string> =>
+  generateEntityInsertsSql(metadata, tableSet, dedupeEntitiesForUpsert(entities), context, encryption, true);
 
 export default generateEntityInsertsSql;

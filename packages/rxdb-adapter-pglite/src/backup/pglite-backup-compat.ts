@@ -10,12 +10,13 @@ import {
   RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
   RxDBBackupError,
   RxDBMigration,
+  WorktreeTableSet,
   type RxDBBackupCompatibility,
   type RxDBSystemVersionState
 } from '@aiao/rxdb';
 import { PGlite, type Results } from '@electric-sql/pglite';
 import { ADAPTER_NAME, type PGliteClientOptions } from '../pglite.interface.js';
-import { getTableNameByMetadata } from '../pglite.utils.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 /** 归档里记录的引擎名。 */
 export const PGLITE_BACKUP_ENGINE = 'postgres';
@@ -104,7 +105,7 @@ export const probePGliteEngineInfo = (): Promise<PGliteEngineInfo> => {
  * @returns 水位
  */
 export const readPGliteSystemVersionState = async (db: PGliteQueryable): Promise<RxDBSystemVersionState> => {
-  const migrationTable = getTableNameByMetadata(getEntityMetadata(RxDBMigration));
+  const migrationTable = getTableNameByMetadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN);
   const result = await db.query<{ name: string }>(
     `SELECT "name" FROM ${migrationTable}
      WHERE left("name", $1::integer) = $2::text OR left("name", $3::integer) = $4::text`,

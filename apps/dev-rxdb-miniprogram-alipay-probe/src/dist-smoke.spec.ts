@@ -257,6 +257,7 @@ describe('dist 冒烟', () => {
 
   it('模拟器形态：Object.prototype getter 找回真实全局对象，补上 BigInt 与 queueMicrotask，经分帧层跑通', async () => {
     const { report, liveWorkers } = await runDist('simulator');
+    expect(report['coreLoad'], JSON.stringify(report['coreLoad'])).toMatchObject({ ok: true });
     const missing = {
       type: 'undefined',
       isRealm: false,
@@ -305,7 +306,6 @@ describe('dist 冒烟', () => {
       sources: { 'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 'textCopy' } }
     });
     expect(report['prepare']).toMatchObject({ ok: true, value: { random: 'alipay' } });
-    expect(report['coreLoad']).toMatchObject({ ok: true });
     expect(report['findings']).toEqual([
       expect.objectContaining({ matrixRow: 'WASM', verdict: 'pass' }),
       expect.objectContaining({ matrixRow: '同步 FS', verdict: 'pass' }),

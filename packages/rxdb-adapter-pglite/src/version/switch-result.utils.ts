@@ -33,7 +33,8 @@ import {
   parseRxDBChangeKey,
   PropertyType,
   RxDBEntityId,
-  SwitchVersionActions
+  SwitchVersionActions,
+  type WorktreeTableSet
 } from '@aiao/rxdb';
 
 import insert_sql from '../entity/insert_sql.js';
@@ -41,12 +42,12 @@ import update_sql from '../entity/update_sql.js';
 import {
   getSqlWithParams,
   getSwitchUpdatedAt,
-  getTableNameByMetadata,
   normalizeUpdateEntity,
   transformValuePGliteToJs
 } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { unenvelopePlaintextPatches } from '../system/encrypt-patch.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 import { SwitchVersionSqlResult } from './switch-result.interface.js';
 
 /**
@@ -155,10 +156,35 @@ const transformPatch = (patch: object | null, metadata: EntityMetadata): EntityD
 const hasNoWritableColumn = (metadata: EntityMetadata, patch: EntityData): boolean =>
   Object.keys(normalizeUpdateEntity(metadata, patch)).length === 0;
 
+/** {@link convertSwitchResultToSql} 的选项。 */
+export interface SwitchSqlOptions {
+  /**
+   * 加密列按信封原样写：不解密也不加密，遇到明文直接抛（只读检出位建快照，US-313）。
+   *
+   * @remarks
+   * 快照库的密文必须是主库信封的逐字节拷贝；解开再加密会换掉随机数，还要求密钥环已解锁。
+   */
+  readonly envelopePassthrough?: boolean;
+  /**
+   * 写到哪一套业务表上；不给就是适配器所属实例挂着的那一套。
+   *
+   * @remarks
+   * 给可写检出位播种时（US-314 B1.5）实例还挂在主表集上，增量要落进正在建的那套影子表。
+   */
+  readonly tableSet?: WorktreeTableSet;
+}
+
 export const convertSwitchResultToSql = async (
   adapter: RxDBAdapterPGlite,
-  actions: SwitchVersionActions
+  actions: SwitchVersionActions,
+  options: SwitchSqlOptions = {}
 ): Promise<SwitchVersionSqlResult> => {
+  const passthrough = options.envelopePassthrough === true;
+  const tableSet = options.tableSet ?? adapter.tableSet;
+  const encryption =
+    passthrough ? { ...adapter.encryptionContext, envelopePassthrough: true } : adapter.encryptionContext;
+  const prepareEntityData = async (metadata: EntityMetadata, entityData: EntityData): Promise<EntityData> =>
+    passthrough ? entityData : decryptEntityDataForApply(adapter, metadata, entityData);
   const { deletes, inserts, updates } = actions;
   const result: SwitchVersionSqlResult = { deletes: [], inserts: [], updates: [] };
 
@@ -191,7 +217,7 @@ export const convertSwitchResultToSql = async (
 
   for (const [key, idSet] of needDeleteEntitiesMap) {
     const metadata = getGroupedMetadata(adapter, key);
-    const tableName = getTableNameByMetadata(metadata);
+    const tableName = getTableNameByMetadata(metadata, tableSet);
     const idType = metadata.propertyMap.get('id')?.type;
 
     // PostgreSQL 使用 = ANY($1) 语法，支持参数化数组
@@ -246,7 +272,7 @@ export const convertSwitchResultToSql = async (
     const sqlStatements: string[] = [];
     for (const entityDataRaw of entityDataArray) {
       // FR-006：写入钩子会再次加密，这里先把历史行里的信封字符串解回明文。
-      const entityData = await decryptEntityDataForApply(adapter, metadata, entityDataRaw);
+      const entityData = await prepareEntityData(metadata, entityDataRaw);
       // 为缺失的必需字段添加默认值
       for (const [propertyName, property] of metadata.propertyMap) {
         if (entityData[propertyName] === undefined && property.default !== undefined) {
@@ -261,9 +287,9 @@ export const convertSwitchResultToSql = async (
         columns: insertedColumns,
         sql: insertSql,
         params: insertParams
-      } = await insert_sql(metadata, entityData, {
+      } = await insert_sql(metadata, tableSet, entityData, {
         returning: false,
-        encryption: adapter.encryptionContext
+        encryption
       });
       const upsertSql = `${insertSql.slice(0, -1)}${generateOnConflictClause(metadata, insertedColumns)} RETURNING *;`;
       sqlStatements.push(getSqlWithParams(upsertSql, insertParams));
@@ -323,7 +349,7 @@ export const convertSwitchResultToSql = async (
 
     for (const dataRaw of orderedEntityData) {
       // FR-006：把历史行里的信封解回明文，让写入钩子只加密一次。
-      const data = await decryptEntityDataForApply(adapter, metadata, dataRaw);
+      const data = await prepareEntityData(metadata, dataRaw);
       const { id, ...updateData } = data;
       if (!isEntityId(id)) throw new TypeError('Switch update requires a string, number or bigint entity id');
       if (hasNoWritableColumn(metadata, updateData)) continue;
@@ -335,11 +361,12 @@ export const convertSwitchResultToSql = async (
         : undefined;
       const { sql: updateSql, params: updateParams } = await update_sql<VersionEntityType>(
         metadata,
+        tableSet,
         { id },
         updateData,
         {
           updatedAt,
-          encryption: adapter.encryptionContext
+          encryption
         }
       );
       sqlStatements.push(getSqlWithParams(updateSql, updateParams));

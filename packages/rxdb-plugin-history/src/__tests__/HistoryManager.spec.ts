@@ -1,4 +1,14 @@
-import { HistoryItem, HistoryScope, RxDB, RxDBBranch, RxDBChange, RxDBSync, SyncType, UUID } from '@aiao/rxdb';
+import {
+  HistoryItem,
+  HistoryScope,
+  RxDB,
+  RxDBBranch,
+  RxDBChange,
+  RxDBSync,
+  SyncType,
+  UUID,
+  WorktreeTableSet
+} from '@aiao/rxdb';
 import { BehaviorSubject, config, filter, firstValueFrom, Observable, of, skip, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -289,6 +299,7 @@ describe('HistoryManager - Class Methods', () => {
   let mockBranchRepository: {
     findOne: ReturnType<typeof vi.fn>;
     find: ReturnType<typeof vi.fn>;
+    findAll: ReturnType<typeof vi.fn>;
   };
   let mockChangeRepository: {
     count: ReturnType<typeof vi.fn>;
@@ -303,7 +314,9 @@ describe('HistoryManager - Class Methods', () => {
     const activeBranch = { id: 'main', activated: true };
     mockBranchRepository = {
       findOne: vi.fn().mockReturnValue(of(activeBranch)),
-      find: vi.fn().mockResolvedValue([activeBranch])
+      find: vi.fn().mockResolvedValue([activeBranch]),
+      // 子分支分叉点的活查询（US-315）：默认没有子分支
+      findAll: vi.fn().mockReturnValue(of([]))
     };
 
     mockChangeRepository = {
@@ -323,6 +336,9 @@ describe('HistoryManager - Class Methods', () => {
         sync: { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } }
       },
       connected$: of(true),
+      // 没换挂过的实例挂的是主表集（US-314 B1.4）
+      worktreeTableSet: WorktreeTableSet.MAIN,
+      worktreeTableSet$: of(WorktreeTableSet.MAIN),
       firstConnectedAt: new Date('2026-07-10T07:00:00.000Z'),
       localAdapter$: of({
         getRepository: vi.fn(entity => {

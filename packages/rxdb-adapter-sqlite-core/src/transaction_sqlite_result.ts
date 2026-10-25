@@ -117,7 +117,7 @@ export const transaction_sqlite_result = async <T extends EntityType>(
 
         // 始终更新计算属性（如 hasChildren），因为它们是从数据库动态计算的
         metadata.computedPropertyMap.forEach((prop, propName) => {
-          if (propName in entityObjectData) {
+          if (!forcedUpdate && propName in entityObjectData) {
             entity[propName as keyof InstanceType<T>] = entityObjectData[propName];
           }
         });
@@ -130,8 +130,7 @@ export const transaction_sqlite_result = async <T extends EntityType>(
           }
         } else if (forcedUpdate) {
           const state = getEntityStatus(entity);
-          state.origin = structuredClone(entityObjectData);
-          Object.assign(entity, entityObjectData);
+          state.replace(entityObjectData);
         }
       } else if (!skipCreate) {
         const rawData = await getEntityObjectFromResult<InstanceType<T>>(

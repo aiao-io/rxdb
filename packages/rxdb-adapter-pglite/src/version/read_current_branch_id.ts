@@ -1,7 +1,8 @@
-import { getEntityMetadata, MAIN_BRANCH_ID, RxDBBranch, type EntityMetadata } from '@aiao/rxdb';
+import { getEntityMetadata, MAIN_BRANCH_ID, RxDBBranch, WorktreeTableSet, type EntityMetadata } from '@aiao/rxdb';
 import type { Results } from '@electric-sql/pglite';
 
-import { getTableNameByMetadata, quoteIdentifier, RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { quoteIdentifier, RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 /**
  * 能在**当前**事务连接上直发 SQL 的最小门面。
@@ -80,10 +81,14 @@ export function resolveBranchColumns(metadata: EntityMetadata): BranchColumnName
  *
  * 读不到分支就无法重建触发器，此时必须抛让事务回滚，否则会提交一个永久没有触发器的库。
  */
-export async function readCurrentBranchId(tx: PGliteRowReader): Promise<string> {
-  const branchId = await readActiveBranchId(tx);
+export async function readCurrentBranchId(tx: PGliteRowReader, tableSet: WorktreeTableSet): Promise<string> {
+  const branchId = await readActiveBranchId(tx, tableSet);
   if (branchId === undefined) {
-    throw new RxdbAdapterPGliteError('currentBranch is undefined! Cannot rebuild triggers after disableTriggers.');
+    throw new RxdbAdapterPGliteError(
+      tableSet.isMain ?
+        'currentBranch is undefined! Cannot rebuild triggers after disableTriggers.'
+      : `表集 ${tableSet.suffix} 持有的分支不见了：可写检出位可能已经关掉`
+    );
   }
   return branchId;
 }
@@ -101,9 +106,9 @@ export async function readCurrentBranchId(tx: PGliteRowReader): Promise<string> 
  * {@link readBranchIdForNewTables} 站在建表路径上，读不到时触发器已经按根分支生成好了，
  * 抛只会把一条本来能跑完的建库/升级路径堵死在建表上。
  */
-async function readActiveBranchId(tx: PGliteRowReader): Promise<string | undefined> {
+async function readActiveBranchId(tx: PGliteRowReader, tableSet: WorktreeTableSet): Promise<string | undefined> {
   const metadata = getEntityMetadata(RxDBBranch);
-  const table = getTableNameByMetadata(metadata);
+  const table = getTableNameByMetadata(metadata, WorktreeTableSet.MAIN);
   const { idColumnName, activatedColumnName } = resolveBranchColumns(metadata);
   const idColumn = quoteIdentifier(idColumnName);
   const activatedColumn = quoteIdentifier(activatedColumnName);
@@ -117,6 +122,11 @@ async function readActiveBranchId(tx: PGliteRowReader): Promise<string | undefin
     return typeof value === 'string' ? value : undefined;
   };
 
+  // 挂在可写检出位上（US-314 B1.4）按持有键查那一条，没有回退：持有分支不见了就是检出位已经关掉
+  if (!tableSet.isMain) {
+    const activeKeyColumn = quoteIdentifier(branchColumnName(metadata, 'activeKey'));
+    return readId(`${activeKeyColumn} = $1::text`, [tableSet.holderKey]);
+  }
   return (await readId(`${activatedColumn} IS TRUE`)) ?? (await readId(`${idColumn} = $1::text`, [MAIN_BRANCH_ID]));
 }
 
@@ -145,8 +155,8 @@ async function readActiveBranchId(tx: PGliteRowReader): Promise<string | undefin
  * 触发器钉在根分支，它的变更会一直记在根分支名下直到下一次切分支，而那批已经记错的行不会被追回。
  */
 export async function readBranchIdForNewTables(tx: PGliteRowReader): Promise<string> {
-  const table = getTableNameByMetadata(getEntityMetadata(RxDBBranch));
+  const table = getTableNameByMetadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN);
   const probe = await tx.query<{ present: boolean }>(`SELECT to_regclass($1::text) IS NOT NULL AS present`, [table]);
   if (probe.rows[0]?.present !== true) return MAIN_BRANCH_ID;
-  return (await readActiveBranchId(tx)) ?? MAIN_BRANCH_ID;
+  return (await readActiveBranchId(tx, WorktreeTableSet.MAIN)) ?? MAIN_BRANCH_ID;
 }

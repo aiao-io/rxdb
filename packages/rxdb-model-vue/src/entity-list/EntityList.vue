@@ -16,6 +16,7 @@ import {
   type EntityMetadata,
   type EntityType,
   type FindByCursorOptions,
+  type HistoryScopeAPI,
   type OrderBy
 } from '@aiao/rxdb';
 import {
@@ -26,6 +27,7 @@ import {
   commitRowMove,
   defaultListOrderBy,
   deriveEntityCapabilities,
+  describeHistoryBarrier,
   extractFieldsFromMetadata,
   organizeFields,
   parsePropertyColumnValue,
@@ -46,7 +48,7 @@ import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import { useInfiniteScroll, useRxDB, type InfiniteScrollResource } from '@aiao/rxdb-vue';
 import { Funnel as FunnelIcon, Redo2 as Redo2Icon, Undo2 as Undo2Icon } from '@lucide/vue';
 import type { ColumnsDefine, ListTableConstructorOptions } from '@visactor/vtable';
-import { of, type Observable } from 'rxjs';
+import { of, type Observable, type ObservedValueOf } from 'rxjs';
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch, watchEffect } from 'vue';
 import DialogPortal from '../entity-dialog/DialogPortal.vue';
 import EntityDialog from '../entity-dialog/EntityDialog.vue';
@@ -92,6 +94,8 @@ function errorMessage(error: unknown): string {
 interface HistoryLike {
   undoCount$: Observable<number>;
   redoCount$: Observable<number>;
+  undoBarrier$: HistoryScopeAPI['undoBarrier$'];
+  redoBarrier$: HistoryScopeAPI['redoBarrier$'];
   undo(): Promise<unknown>;
   redo(): Promise<unknown>;
 }
@@ -306,7 +310,7 @@ const entityCls = computed(() => entityClsMap.get(entityKey.value));
 /** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined` */
 const capabilities = computed(() => {
   const cls = entityCls.value;
-  return cls ? deriveEntityCapabilities(getEntityMetadata(cls)) : undefined;
+  return cls ? deriveEntityCapabilities(getEntityMetadata(cls), { readOnly: rxdb.readOnly }) : undefined;
 });
 
 // ── History (undo/redo) ───────────────────────────────────────────────
@@ -315,23 +319,31 @@ const vHistory =
   ({
     undoCount$: of(0),
     redoCount$: of(0),
+    undoBarrier$: of(null),
+    redoBarrier$: of(null),
     undo: async () => undefined,
     redo: async () => undefined
   } satisfies HistoryLike);
 
 const undoCount = ref(0);
 const redoCount = ref(0);
+const undoBarrier = shallowRef<ObservedValueOf<HistoryScopeAPI['undoBarrier$']>>(null);
+const redoBarrier = shallowRef<ObservedValueOf<HistoryScopeAPI['redoBarrier$']>>(null);
 watchEffect(onCleanup => {
-  const sub = vHistory.undoCount$.subscribe(n => (undoCount.value = n));
-  const sub2 = vHistory.redoCount$.subscribe(n => (redoCount.value = n));
-  onCleanup(() => {
-    sub.unsubscribe();
-    sub2.unsubscribe();
-  });
+  const subscriptions = [
+    vHistory.undoCount$.subscribe(n => (undoCount.value = n)),
+    vHistory.redoCount$.subscribe(n => (redoCount.value = n)),
+    vHistory.undoBarrier$.subscribe(barrier => (undoBarrier.value = barrier)),
+    vHistory.redoBarrier$.subscribe(barrier => (redoBarrier.value = barrier))
+  ];
+  onCleanup(() => subscriptions.forEach(subscription => subscription.unsubscribe()));
 });
 
 const canUndo = computed(() => undoCount.value > 0);
 const canRedo = computed(() => redoCount.value > 0);
+// 按钮停用时的说明：栈停在子分支分叉点（US-315）；能撤销 / 重做或不是这个原因时没有
+const undoHint = computed(() => (canUndo.value ? null : describeHistoryBarrier('undo', undoBarrier.value)));
+const redoHint = computed(() => (canRedo.value ? null : describeHistoryBarrier('redo', redoBarrier.value)));
 
 // ── Columns cache（每实体一次） ───────────────────────────────────────
 const columnsCache = new Map<string, ColumnsDefine>(
@@ -340,6 +352,7 @@ const columnsCache = new Map<string, ColumnsDefine>(
     return [
       `${meta.namespace}:${meta.name}`,
       buildEditableColumns(meta, {
+        readOnly: rxdb.readOnly,
         relatedItemsProviderFactory: (_fkField, relatedEntityName) => {
           const relCls = [...entityClsMap.values()].find(c => {
             const m = getEntityMetadata(c);
@@ -991,6 +1004,7 @@ defineExpose({
           <button
             class="btn btn-xs btn-ghost"
             :disabled="!canUndo"
+            :title="undoHint ?? undefined"
             aria-label="撤销 (Ctrl+Z)"
             type="button"
             @click="undo"
@@ -1008,6 +1022,7 @@ defineExpose({
           <button
             class="btn btn-xs btn-ghost"
             :disabled="!canRedo"
+            :title="redoHint ?? undefined"
             aria-label="重做 (Ctrl+Shift+Z)"
             type="button"
             @click="redo"

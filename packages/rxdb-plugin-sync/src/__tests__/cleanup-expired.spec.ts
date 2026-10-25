@@ -9,7 +9,8 @@ import {
   type SwitchVersionActions,
   type SyncOptions,
   SyncType,
-  type TransactionExecutor
+  type TransactionExecutor,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { cleanupExpired } from '../cleanup-expired.js';
@@ -26,6 +27,8 @@ interface CleanupHarnessOptions {
   sync?: SyncOptions;
   /** 模拟仍未推送的 RxDBChange 记录（remoteId 为 null） */
   unpushedChanges?: { entityId: RxDBEntityId }[];
+  /** 删除事务落在哪一套业务表上，不给就是主表集 */
+  tableSet?: WorktreeTableSet;
 }
 
 type FindExpired = (options: { where: RuleGroup }) => Promise<CleanupRecord[]>;
@@ -70,7 +73,7 @@ const createHarness = (options: CleanupHarnessOptions = {}) => {
   const transaction = vi.fn(async (fn: (executor: TransactionExecutor) => Promise<unknown>) => {
     inTransaction = true;
     try {
-      return await fn(createTransactionExecutorStub({ getRepository, mergeChanges }));
+      return await fn(createTransactionExecutorStub({ getRepository, mergeChanges, tableSet: options.tableSet }));
     } finally {
       inTransaction = false;
     }
@@ -344,6 +347,19 @@ describe('cleanupExpired', () => {
 //     远端会永久保留幽灵记录，本地/远端永久分叉。
 describe('cleanupExpired 数据安全', () => {
   const filter = (): RuleGroup => ({ combinator: 'and', rules: [{ field: 'status', operator: '=', value: 'active' }] });
+
+  // 实例换挂到了可写检出位（US-314 B1.4）：删除事务落在检出位那套表上，清的就是检出位里的数据，
+  // 而过期清理只为主检出位那条分支的同步副本服务。事务里先核对表集，一行都不删。
+  it('删除事务落在可写检出位那套表上时一行不删', async () => {
+    const harness = createHarness({ records: [{ id: 'expired-1' }], tableSet: WorktreeTableSet.of('wt_a1', []) });
+
+    await expect(cleanupExpired(harness.vm, 'public', 'Order', { filter: createFilter('=') })).rejects.toThrow(
+      /^cleanupExpired: .*可写检出位.*wt_a1/
+    );
+
+    expect(harness.find).not.toHaveBeenCalled();
+    expect(harness.mergeChanges).not.toHaveBeenCalled();
+  });
 
   it('删除必须发生在同一本地事务内', async () => {
     const harness = createHarness({ records: [{ id: 'a' }], sync: createFilterSync(filter) });

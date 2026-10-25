@@ -1,4 +1,13 @@
-import { Entity, EntityBase, PropertyType, RxDB, SyncType, getEntityMetadata, transitionMetadata } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  getEntityMetadata,
+  PropertyType,
+  RxDB,
+  SyncType,
+  transitionMetadata,
+  WorktreeTableSet
+} from '@aiao/rxdb';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PGliteClient } from '../../PGliteClient.js';
 import { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
@@ -49,7 +58,7 @@ describe('PGL-003 字面量默认值', () => {
     });
     const client = await createClient();
 
-    await client.exec(create_table_sql(adapterStub, metadata));
+    await client.exec(create_table_sql(adapterStub, metadata, WorktreeTableSet.MAIN));
     await client.query('INSERT INTO "public"."PglLiteralDefaults" ("id") VALUES (1)');
     const result = await client.query<{
       document: Record<string, unknown>;
@@ -93,7 +102,7 @@ describe('PGL-004 索引 DDL', () => {
 
     expect(metadata.indexes).toEqual([]);
     expect(metadata.indexMap.has('by_display_name')).toBe(true);
-    await client.exec(create_table_sql(adapterStub, metadata));
+    await client.exec(create_table_sql(adapterStub, metadata, WorktreeTableSet.MAIN));
     const result = await client.query<{ indexname: string; indexdef: string }>(
       `SELECT indexname, indexdef FROM pg_indexes
        WHERE schemaname = 'public' AND tablename = 'PglInheritedIndexRecord'

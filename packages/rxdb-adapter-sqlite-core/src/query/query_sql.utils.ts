@@ -8,18 +8,19 @@ import {
   RelationKind,
   RuleGroup,
   tryGetEntityMetadata,
-  type EntityPropertyMetadata
+  type EntityPropertyMetadata,
+  type WorktreeTableSet
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
 import {
   get_primary_key_column,
   get_sql_value,
-  get_table_name,
   quote_sql_identifier,
   RxDBAdapterSqliteError,
   transformValueJsToSqlite
 } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import { build_rule_group_join } from './join_sql.js';
 import { format_qualified_identifier, format_table_alias, MAIN_TABLE_ALIAS } from './sql_alias.utils.js';
 
@@ -660,13 +661,14 @@ const _build_one_to_many_exists = (
   entityMetadata: EntityMetadata,
   relation: EntityRelationMetadata,
   relationMetadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
   subquery?: ExistsSubquery
 ): string => {
   if (relation.kind !== RelationKind.ONE_TO_MANY) {
     throw new Error('_build_one_to_many_exists requires ONE_TO_MANY relation');
   }
 
-  const childTable = get_table_name(relationMetadata.tableName, relationMetadata.namespace);
+  const childTable = get_table_name_by_metadata(relationMetadata, tableSet);
   const childAlias = EXISTS_CHILD_ALIAS;
 
   const mappedPropertyRelation = relationMetadata.relations.find(r => r.name === relation.mappedProperty) as
@@ -697,6 +699,7 @@ const _build_one_to_many_exists = (
 const _build_many_to_one_exists = (
   relation: EntityRelationManyToOneMetadata,
   relationMetadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
   subquery?: ExistsSubquery
 ): string => {
   const foreignKeyColumn = relation.columnName;
@@ -705,7 +708,7 @@ const _build_many_to_one_exists = (
     return `${format_qualified_identifier(MAIN_TABLE_ALIAS, foreignKeyColumn)} IS NOT NULL`;
   }
 
-  const parentTable = get_table_name(relationMetadata.tableName, relationMetadata.namespace);
+  const parentTable = get_table_name_by_metadata(relationMetadata, tableSet);
   const childAlias = EXISTS_CHILD_ALIAS;
 
   let sql = `EXISTS (SELECT 1 FROM ${quote_sql_identifier(parentTable)} ${format_table_alias(childAlias)}`;
@@ -729,7 +732,7 @@ const _build_one_to_one_exists = (
   const mappedRelation = adapter.rxdb.schemaManager.findMappedRelation(entityMetadata, relation);
 
   if (mappedRelation?.relation) {
-    const relatedTable = get_table_name(relationMetadata.tableName, relationMetadata.namespace);
+    const relatedTable = get_table_name_by_metadata(relationMetadata, adapter.tableSet);
     const childAlias = EXISTS_CHILD_ALIAS;
     const foreignKeyColumn = mappedRelation.relation.columnName;
     if (!foreignKeyColumn) {
@@ -753,7 +756,7 @@ const _build_one_to_one_exists = (
       return `${format_qualified_identifier(MAIN_TABLE_ALIAS, foreignKeyColumn)} IS NOT NULL`;
     }
 
-    const relatedTable = get_table_name(relationMetadata.tableName, relationMetadata.namespace);
+    const relatedTable = get_table_name_by_metadata(relationMetadata, adapter.tableSet);
     const childAlias = EXISTS_CHILD_ALIAS;
 
     let sql = `EXISTS (SELECT 1 FROM ${quote_sql_identifier(relatedTable)} ${format_table_alias(childAlias)}`;
@@ -772,9 +775,10 @@ const _build_many_to_many_exists = (
   entityMetadata: EntityMetadata,
   relation: EntityRelationMetadata,
   relationMetadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
   subquery?: ExistsSubquery
 ): string => {
-  const relatedTable = get_table_name(relationMetadata.tableName, relationMetadata.namespace);
+  const relatedTable = get_table_name_by_metadata(relationMetadata, tableSet);
   const childAlias = EXISTS_CHILD_ALIAS;
 
   const junctionEntityType = (relation as EntityRelationManyToManyMetadata).junctionEntityType;
@@ -787,7 +791,7 @@ const _build_many_to_many_exists = (
     throw new Error(`Cannot find metadata for junction entity`);
   }
 
-  const junctionTable = get_table_name(junctionMetadata.tableName, junctionMetadata.namespace);
+  const junctionTable = get_table_name_by_metadata(junctionMetadata, tableSet);
   const junctionAlias = EXISTS_JUNCTION_ALIAS;
 
   const junctionToCurrentRelation = junctionMetadata.relations.find(
@@ -866,11 +870,11 @@ export const handle_exists = (
 
   switch (relation.kind) {
     case RelationKind.ONE_TO_MANY:
-      existsSql = _build_one_to_many_exists(entityMetadata, relation, relationMetadata, subquery);
+      existsSql = _build_one_to_many_exists(entityMetadata, relation, relationMetadata, adapter.tableSet, subquery);
       break;
 
     case RelationKind.MANY_TO_ONE:
-      existsSql = _build_many_to_one_exists(relation, relationMetadata, subquery);
+      existsSql = _build_many_to_one_exists(relation, relationMetadata, adapter.tableSet, subquery);
       break;
 
     case RelationKind.ONE_TO_ONE:
@@ -878,7 +882,7 @@ export const handle_exists = (
       break;
 
     case RelationKind.MANY_TO_MANY:
-      existsSql = _build_many_to_many_exists(entityMetadata, relation, relationMetadata, subquery);
+      existsSql = _build_many_to_many_exists(entityMetadata, relation, relationMetadata, adapter.tableSet, subquery);
       break;
   }
 

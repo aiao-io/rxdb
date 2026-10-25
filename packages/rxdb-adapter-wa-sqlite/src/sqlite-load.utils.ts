@@ -1,4 +1,9 @@
-import { RxDBAdapterSqliteError } from '@aiao/rxdb-adapter-sqlite-core';
+import {
+  isOpfsAccessHandleBusy,
+  openOpfsWithRetry,
+  releaseOpfsCoopSyncHandles,
+  RxDBAdapterSqliteError
+} from '@aiao/rxdb-adapter-sqlite-core';
 import { Factory } from 'wa-sqlite';
 import { type LoadModuleOptions, type SupportVFS } from './sqlite.interface.js';
 import { VFS_MODULES } from './vfs-modules.js';
@@ -66,6 +71,21 @@ const syncWebSQLiteModuleFactory = async (): Promise<WebSQLiteModuleFactory> => 
 
 /** 未指定 VFS 时使用的持久化生产默认值。 */
 export const DEFAULT_VFS: SupportVFS = 'IDBBatchAtomicVFS';
+
+/**
+ * 给 `OPFSCoopSyncVFS` 补上 `close()`：交出它留下的同步访问句柄与临时目录。
+ *
+ * @remarks
+ * 上游没有实现 `close()`，打开失败时留下的句柄、临时目录的锁都要等垃圾回收才放开；同一个 Worker 里的退避重试（US-221）
+ * 会撞上自己留下的句柄，新建的 VFS 也删不掉上一个实例的临时目录。打开失败与断开时客户端都会关 VFS，见 `releaseOpfsCoopSyncHandles`。
+ */
+const closingAccessHandles = (factory: WaSqliteVfsFactory): WaSqliteVfsFactory => ({
+  create: async (name, module, options) => {
+    const vfs = await factory.create(name, module, options);
+    vfs.close = () => releaseOpfsCoopSyncHandles(vfs);
+    return vfs;
+  }
+});
 
 const VFS_CONFIGS = [
   {
@@ -166,7 +186,7 @@ const VFS_CONFIGS = [
     name: 'OPFSCoopSyncVFS',
     vfsModule: async () => {
       const module = await VFS_MODULES.OPFSCoopSyncVFS();
-      return module.OPFSCoopSyncVFS;
+      return closingAccessHandles(module.OPFSCoopSyncVFS);
     },
     sync: true,
     async: true,
@@ -283,6 +303,54 @@ export interface LoadedSqlite {
   /** VFS 的锁策略（如 `shared+hint`），供客户端决定是否需要在 BEGIN 前发送 `PRAGMA write_hint;`。 */
   lockPolicy?: string;
 }
+
+/**
+ * 打开撞上 `SQLITE_CANTOPEN` 时，要不要当作「库文件的同步访问句柄还被别的上下文占着」退避重试（US-221）。
+ *
+ * @remarks
+ * 整页刷新时上一个页面的 Worker 正在销毁，先放 Web Lock、后关同步访问句柄，新页面拿到锁去开句柄就撞上占用。
+ * 逐个读过上游 VFS 源码，只有 `OPFSCoopSyncVFS` 以这个形状失败、又能在同一上下文里安全重开。键是全部 VFS：新增 VFS 时这里必须表态。
+ */
+const RETRY_OPEN_ON_BUSY_ACCESS_HANDLE: Readonly<Record<SupportVFS, boolean>> = {
+  // 与 sqlite-wasm 的 opfs 档同一个 VFS：先拿锁、再开独占句柄，开不了就把错误打到控制台吞掉，open_v2 只剩 SQLITE_CANTOPEN
+  OPFSCoopSyncVFS: true,
+  // Chromium 上开的是 readwrite-unsafe 句柄，与上一个页面留下的同类句柄共存、撞不上；不支持该模式的浏览器上，
+  // jOpen 失败时不放它拿的打开锁，同一上下文里再开会一直等那把锁——重试会把报错变成挂死
+  OPFSAdaptiveVFS: false,
+  // 只用 readwrite-unsafe 句柄（上游写明只有 Chromium 支持），与上一个页面留下的句柄共存
+  OPFSWriteAheadVFS: false,
+  // 不开同步访问句柄：读走 getFile()、写走 createWritable()，打开只取文件句柄
+  OPFSAnyContextVFS: false,
+  // 建 VFS 时就整池开句柄，撞上占用抛的是 NoModificationAllowedError 而不是 SQLITE_CANTOPEN；池里是随机文件名，
+  // 没有 <库名>.sqlite 可探测；部分失败时已开的句柄不关，同一上下文里重试会撞上自己留下的句柄
+  AccessHandlePoolVFS: false,
+  // 不落 OPFS
+  MemoryVFS: false,
+  MemoryAsyncVFS: false,
+  IDBBatchAtomicVFS: false,
+  IDBMirrorVFS: false
+};
+
+/**
+ * 打开一个库：`OPFSCoopSyncVFS` 撞上「库文件的同步访问句柄还被占着」时按退避重试，其余 VFS 只打开一次。
+ *
+ * @param attempt - 一次完整的打开（新建模块与 VFS → `open_v2` → 初始化 SQL）
+ * @param dbName - 库名
+ * @param options - 加载配置
+ * @returns `attempt` 的结果
+ * @throws {@link RxDBAdapterSqliteError} 重试用尽、库文件仍被别的上下文占着时；原错误挂在 `cause` 上
+ */
+export const openWaSqliteDatabase = <T>(
+  attempt: () => Promise<T>,
+  dbName: string,
+  options: LoadModuleOptions
+): Promise<T> => {
+  if (!RETRY_OPEN_ON_BUSY_ACCESS_HANDLE[checkVFSConfig(options).name]) return attempt();
+  // 与 open_v2 打开的是同一个名字，VFS 把它当 URL 路径落在 OPFS 根目录。库名带需转义的字符时落盘名不同，
+  // 探针找不到文件就当没被占用，原样抛出最后一次的错误
+  const fileName = `${dbName}.sqlite`;
+  return openOpfsWithRetry(attempt, { fileName, isAccessHandleBusy: () => isOpfsAccessHandleBusy(fileName) });
+};
 
 /** 加载 wa-sqlite 模块并注册选定 VFS。 */
 export const waSqliteLoad = async (options: LoadModuleOptions): Promise<LoadedSqlite> => {

@@ -1,6 +1,6 @@
 # AI Review 规则与记录
 
-这个目录存放 review 记录模板与**尚未处理**的问题报告。目前没有按 RV 编号管理的待处理报告；正在进行的整包静态评审资料单独放在 [`packages/`](./packages/README.md) 子目录。
+这个目录存放 review 记录模板与**尚未处理**的问题报告。当前没有按 RV 编号管理的待处理报告。正在进行的整包静态评审资料单独放在 [`packages/`](./packages/README.md) 子目录。
 
 ## 目录结构
 
@@ -30,6 +30,8 @@
 ## 清理记录
 
 每条只记删了什么、结论是什么；修法细节在代码注释与回归测试里。删除前的完整记录（含逐条修法、执行台账、进度页与 `evidence/` 取证目录）可用 `git show aaf155a1:requirements/reviews/<路径>` 取回。
+
+- **2026-10-19（RV-083 与 PR #122 整分支评审删除）**：`RV-083-pr122-working-tree-review.md`（1 P0 + 2 P1 + 13 P2）与 `worktree-rename-contexts-branch-review.md`（含 12 项待人工确认）逐条复核，随 #122 一并处理。P0：CI `ci / setup` 红在两处——基准归档键序（三端 a11y spec 的写入序改成 sort-json 的字母序，根治）与 `requirements/generated/package-knowledge.*` 摘要漂移（重新生成）。P1：roadmap 现状快照表与正文不一致（修正，并让 `requirements-consistency` 审计连表一起校验、`--update` 一起回写）；status-overview 「阶段 4～5 无故事认领」改为阶段 5 是 US-314。P2：插件后加的两张系统表补既有库重开用例（PGlite 磁盘库、sqlite-wasm IndexedDB 库）；只读检出位启动回收不再只接第一次连上（只断本地再连回来照样回收）；OPFS 占用探针自己失败时报真正那次打开失败、探针的错写进消息；`set_config()` 归入改会话状态的语句；三端对比与合并预览加六后端真库冒烟；Angular 死样式与死导入、US-313 实现文件、README 系统表计数、CHANGELOG 的 US-314 条目、PR 描述（US-314 阶段 A 与单端覆盖说明）一并修。决策：预览不在一个事务里读，owner 确认接受（US-312）；官方 sqlite 与 sqliteai 的 OPFS 由上游代理自带取句柄重试，demo 默认 sqlite-wasm（US-221）；只读检出位里文件元数据是打开那一刻的、文件内容是读取时的当前字节，三处文档统一；`mergeBasePoint` 回滚边界补用例时查出切换增量本身在「父分支撤销子分支已继承、又被子分支改过的变更」之后写错数据（PGlite 复现），另立 [US-315](../stories/collaboration/US-315-undo-inherited-change-switch-corruption.md)。其余待人工确认项：`!= null` 翻译、PGlite 只读事务里的 `SET CONSTRAINTS`、`idb-memory` 落库名均已核实无误。
 
 - **2026-10-10（roadmap-cleanup-items 分支评审删除）**：`roadmap-cleanup-items-branch-review.md`（3 P1 + 12 P2）逐条复核属实并修复，报告未入库即删。P1：Angular `EntityDetail` 的 create 草稿改回 DIALOG_DATA 构造期同步建，独立用法由 effect 按与 Vue 端 watch 相同的触发源补建、只认 metadata，`creationChain` / `editChain` 改以同名别名 input 声明，同名类成员保持 main 的有效链路 computed（不再是破坏性变更）；coverage-acceptance 两份 run 配置删去顶层 `passWithNoTests`（runner 匹配为空必须 exit 1）；三端对拍 spec 等列表就绪、详情记录加载完再采集。P2：对拍共享目录挪到 `modules/e2e-parity` 并注册为 Nx 项目（`node --test` 单测），Nx 从三端 spec 的相对 import 建出依赖边，归一化先校验易失值形态再换占位符；Tauri expired 档的时钟推进改为主窗口回执、推进失败报 `clock_advance_*`；表格命令面 `EntityTableHandle` / `QueryTableHandle` 收敛到 `@aiao/rxdb-model` 三端共用；SQL 回归依赖同步触发器的用例自行恢复 `rxdb.sync_enabled`，runner 末尾加一轮全部用例同一事务的运行；Supabase 权限、组件样式（React / Vue 的 `index.css`，Vue 补上导出）、三端接入说明、`RxDBQueryOutput` 类型参数与 core.md 示例对齐源码；Angular / Vue subquery 的弱断言与 fake gear「不推进」用例改为能被对应变异体打红。
 

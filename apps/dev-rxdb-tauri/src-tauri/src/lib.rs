@@ -5,6 +5,8 @@
 // 也就是文档里给用户抄的那一份。
 #[cfg(dev)]
 mod devtools_config;
+#[cfg(dev)]
+mod devtools_probe_trace;
 mod selfcheck;
 
 use aiao_rxdb_tauri::commands::DesktopHost;
@@ -173,6 +175,15 @@ fn devtools_message(
     app: tauri::AppHandle,
     payload: String,
 ) -> Result<(), String> {
+    devtools_probe_trace::emit(
+        &app,
+        devtools_probe_trace::Event {
+            stage: "relay-received",
+            sender: Some(window.label()),
+            frame: Some(&payload),
+            ..Default::default()
+        },
+    );
     let target_label = match devtools_routing::target_label_of(window.label()) {
         Ok(label) => label,
         Err(error) => {
@@ -185,10 +196,32 @@ fn devtools_message(
     // 目标窗口不存在时报错而不是静默丢弃：调试窗口已经关掉、主窗口还在往它发，
     // 是一个调用方应当知道的事实。
     if app.get_webview_window(target_label).is_none() {
+        devtools_probe_trace::emit(
+            &app,
+            devtools_probe_trace::Event {
+                stage: "relay-emitted",
+                sender: Some(window.label()),
+                target: Some(target_label),
+                frame: Some(&payload),
+                emitted: Some(false),
+            },
+        );
         return Err(format!("{target_label} window not found"));
     }
-    app.emit_to(target_label, "devtools:message", &payload)
-        .map_err(|error| error.to_string())
+    let result = app
+        .emit_to(target_label, "devtools:message", &payload)
+        .map_err(|error| error.to_string());
+    devtools_probe_trace::emit(
+        &app,
+        devtools_probe_trace::Event {
+            stage: "relay-emitted",
+            sender: Some(window.label()),
+            target: Some(target_label),
+            frame: Some(&payload),
+            emitted: Some(result.is_ok()),
+        },
+    );
+    result
 }
 
 /// US-905 阶段 1 AC#4：以**同一个 label** 把调试窗口关掉再建一次。
@@ -358,7 +391,32 @@ pub fn run() {
     // 同一条理由的第二处：DevTools 授权档必须在**页面脚本之前**就位，配错了同样不能建窗。
     #[cfg(dev)]
     let devtools_config = devtools_config::plan_or_exit();
+    #[cfg(dev)]
+    let probe_clock = plan
+        .as_ref()
+        .filter(|plan| plan.devtools_probe)
+        .map(|_| std::time::Instant::now());
     let builder = tauri::Builder::default();
+    #[cfg(dev)]
+    let builder = match probe_clock {
+        Some(started) => builder
+            .manage(devtools_probe_trace::ProbeTrace(started))
+            .on_page_load(|webview, payload| {
+                let stage = match payload.event() {
+                    tauri::webview::PageLoadEvent::Started => "page-load-started",
+                    tauri::webview::PageLoadEvent::Finished => "page-load-finished",
+                };
+                devtools_probe_trace::emit(
+                    webview.app_handle(),
+                    devtools_probe_trace::Event {
+                        stage,
+                        sender: Some(webview.label()),
+                        ..Default::default()
+                    },
+                );
+            }),
+        None => builder,
+    };
     // 没开 DevTools 时插件根本不注册，页面上因此没有那个全局键——页内据此交回库默认档，
     // 而不是读到一份「看起来是配置」的默认值。release 里连这一整段都不存在。
     // 这里 clone 一份给插件：原值还要随 `setup` 闭包一起走（调试窗口的驱动档位注入）。
@@ -395,6 +453,14 @@ pub fn run() {
             rxdb_devtools_probe_impostor
         ])
         .setup(move |app| {
+            #[cfg(dev)]
+            devtools_probe_trace::emit(
+                app.handle(),
+                devtools_probe_trace::Event {
+                    stage: "setup-started",
+                    ..Default::default()
+                },
+            );
             // 全程唯一一处根目录分支，且**不是** `unwrap_or`：两边都是被显式选出来的，
             // 没有哪一个是另一个的兜底。自检模式下根目录必须来自测试，来不了就该报错退出，
             // 而不是安静地回落到真实目录——那正是这套 e2e 要抓的逃逸。

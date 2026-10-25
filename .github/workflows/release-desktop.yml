@@ -356,6 +356,14 @@ jobs:
       - name: Run Tauri devtools smoke
         if: ${{ !cancelled() }}
         run: pnpm exec nx run dev-rxdb-tauri-e2e:devtools-smoke --output-style=stream
+      - name: Upload Tauri DevTools probe diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: tauri-devtools-probe-${{ matrix.os }}
+          path: test-output/tauri-devtools/
+          retention-days: 7
+          if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
   # US-217 AC#20：支持矩阵承诺「任一平台的归档能在其余平台恢复」，每格都要有真实证据。

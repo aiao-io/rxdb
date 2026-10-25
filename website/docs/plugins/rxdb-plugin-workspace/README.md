@@ -49,12 +49,22 @@ await db.workspace.flush(); // 显式等待 IndexedDB 写入
 
 `autoSave` 默认为 `true`。设为 `false` 后事件仍更新内存队列与跨标签页状态，但不会自动写 IndexedDB，调用方必须在需要持久化时 `await db.workspace.flush()`。
 
+## 可写检出位：草稿按检出位分区
+
+挂着工作树插件的可写检出位（`db.workingTree.checkouts`）时，每条草稿属于它存下去会写进的那套表：
+
+- 挂在可写检出位上新建的草稿只在这个检出位上看得到；主检出位上的草稿只在主检出位上看得到。`list()`、`discard()`、跨标签页同步都只看本实例此刻挂的那一套。不进检出位影子表的实体（QueryCache 同步的这类）无论挂哪套都写主表，它们的草稿在每个检出位上都看得到。
+- 换挂（`checkouts.mount()` / `mountMain()`）时，排着队的写先落盘，再换成新挂那套表的草稿；`await db.workspace.ready` 等它换完。
+- IndexedDB 里主检出位的草稿键照旧是 `namespace:entity:id`，可写检出位的草稿键前面加那套表的后缀（`wt_xxx:namespace:entity:id`）；以前存下的草稿不用迁移。
+- 换挂之前拿到的实体对象（包括没存的草稿）不能在另一套表上保存：`save()` 抛 `WorktreeTableSetMismatchError`。挂回原来那套表再存，或在当前检出位上重新新建。
+
 ## 当前边界
 
 - 目标是临时工作区能力，不是通用同步方案；不负责正式数据持久化协议
 - **未保存 UPDATE 暂存：未支持。** 全局 UPDATE 事件在写库成功之后派发，不代表 Proxy 中尚未保存的编辑
 - **restore / rollback：未支持。** NEW 草稿在安装时自动恢复；现有实体回滚需要完整 base/inverse patch 模型。当前只有 `discard(cacheId)`，没有 `restore()`
 - **DELETE 撤销：未支持。** REMOVE / CREATE 事件只负责清理对应 NEW 草稿
+- **不收草稿的实体**：系统表（核心与插件登记的），以及关闭变更日志（`@Entity({ log: false })`）的实体，如 storage 插件的文件元数据。后者保存时不派发 CREATE，草稿会一直等不到清理；旧版本留在 IndexedDB 里的这两类草稿在 `install()` 时删除
 - 依赖浏览器 `crypto.randomUUID()` 与 IndexedDB，不可在 SSR 渲染阶段构造插件
 - BroadcastChannel 不是鉴权边界，草稿也不加密：不要把不应落盘或不应暴露给同源脚本的数据放进草稿
 

@@ -1,5 +1,5 @@
 import type { EntityType, SwitchBranchOptions, TransactionExecutor } from '@aiao/rxdb';
-import { getEntityMetadata, quoteSqlIdentifier } from '@aiao/rxdb';
+import { getEntityMetadata, quoteSqlIdentifier, WorktreeTableSet } from '@aiao/rxdb';
 import { vi } from 'vitest';
 
 /**
@@ -45,6 +45,7 @@ export const createTransactionExecutorStub = (host: RepositoryHost): Transaction
   const executor = {
     id: 'test-executor',
     state: 'active',
+    tableSet: WorktreeTableSet.MAIN,
     query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
     // 只把逻辑表名加引号，不冒充任何后端的物理命名——挑一种模仿会让单测看起来在验物理
     // 命名，实则只在验这份替身自己。物理命名由各适配器的共享契约套件在真库上验。

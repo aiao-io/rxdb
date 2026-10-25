@@ -98,6 +98,12 @@ rxdb.adapter(
 直接调用 `createSqliteClient` 时，先 `await client.disconnect()`，再调用包根入口导出的
 `releaseComlinkProxy(client)`；`RxDBAdapterSqlite` 已在 `disconnect()` 内自动完成代理释放。
 
+### 多个标签页共用一条连接（SharedWorker）
+
+SharedWorker 里放一个 `SqliteClient`、每个连上来的端口都 `expose` 它，多个标签页就共用这一条连接：事务按库名在一把跨标签页的
+Web Lock（`navigator.locks`）里排队，死在事务中间的标签页留下的事务由下一个拿到锁的标签页回滚；一个标签页断开只交还自己那一份，
+最后一个断开时才关库，之后还能再连（`SqliteClient.release(owner)`）。
+
 ## 备份与恢复
 
 `backup()` / `restore()` / `cleanupIncompleteRestore()` 由 [`@aiao/rxdb-adapter-sqlite-core`](../rxdb-adapter-sqlite-core#备份与恢复) 提供，语义与错误码见那里。

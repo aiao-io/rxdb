@@ -169,6 +169,7 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
     const executor: TransactionExecutor = {
       id: 'mock-executor',
       state: 'active',
+      tableSet: this.tableSet,
       query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
       tableRef: fakeTableRef,
       mutations: options => this.mutations(options as RxDBMutationsMap<EntityType>),

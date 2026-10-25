@@ -1,4 +1,9 @@
-import { ENTITY_LOCAL_CREATE_EVENT, type EntityLocalCreatedEvent } from '@aiao/rxdb';
+import {
+  ENTITY_LOCAL_CREATE_EVENT,
+  type EntityLocalCreatedEvent,
+  type SwitchVersionActions,
+  WorktreeTableSet
+} from '@aiao/rxdb';
 // 只为把 `declare module '@aiao/rxdb'` 的 `versionManager` 声明带进本编译单元：
 // 历史 / 撤销重做 / 分支自 US-025 阶段 C 起住在这个插件里，核心 `RxDB` 上没有这个成员。
 // 共享套件本身不 `use()` 它 —— 装插件是 `AdapterFactory` 的活（见 `testing.ts` 的契约）。
@@ -37,9 +42,66 @@ import { generateSwitchBranchSql } from '../version/switch_branch.js';
  * 属于上一个测试（表现为 `自定义主键列 > 事件：change 表按自定义主键列记录 entityId`
  * 这类按机器负载偶发的假红）。序列不重置后，跨测试的 id 不再重叠，陈旧缓存无从冒充新行。
  */
+/** 空增量：只复制主表集、不叠任何改动的播种 */
+const EMPTY_ACTIONS = (): SwitchVersionActions => ({ inserts: new Map(), updates: new Map(), deletes: new Map() });
+
+/**
+ * 在一笔不记日志的事务里建一套可写检出位的表并播种（US-314 B1.5）。
+ *
+ * @param adapter - 适配器
+ * @param tableSet - 影子表集
+ * @param branchId - 持有分支
+ * @param actions - 叠在复制结果上的增量；不给就只复制主表集
+ */
+export const create_worktree_table_set = (
+  adapter: RxDBAdapterSqliteBase,
+  tableSet: WorktreeTableSet,
+  branchId: string,
+  actions: SwitchVersionActions = EMPTY_ACTIONS()
+): Promise<void> =>
+  adapter.transaction(executor => adapter.createWorktreeTableSet(executor, tableSet, { branchId, actions }), false);
+
+/**
+ * 在一笔不记日志的事务里删掉一套可写检出位的表（US-314 B1.5）：按目录找，成员可以不给。
+ *
+ * @param adapter - 适配器
+ * @param tableSet - 影子表集
+ */
+export const drop_worktree_table_set = (adapter: RxDBAdapterSqliteBase, tableSet: WorktreeTableSet): Promise<void> =>
+  adapter.transaction(executor => adapter.dropWorktreeTableSet(executor, tableSet), false);
+
+/**
+ * 在一笔不记日志的事务里按目录列出现存的可写检出位表集（US-314 B2.6）。
+ *
+ * @param adapter - 适配器
+ * @returns 表集后缀，排好序
+ */
+export const list_worktree_table_set_suffixes = (adapter: RxDBAdapterSqliteBase): Promise<readonly string[]> =>
+  adapter.transaction(executor => adapter.listWorktreeTableSetSuffixes(executor), false);
+
+/**
+ * 删掉库里全部可写检出位的表集（US-314 B1.3）。
+ *
+ * @remarks
+ * 它们不在建库形态里：逐表 DELETE 只会把影子表清空、还留着表和触发器，下一条用例再建同名表集就撞「表已存在」。
+ * 后缀从物理名里认（`<命名空间>$<表名>$wt_…`）；删表集按目录找这套表，成员不用给。
+ */
+const drop_worktree_table_sets = async (adapter: RxDBAdapterSqliteBase): Promise<void> => {
+  const result = await adapter.internalQuery(
+    `SELECT "name" FROM sqlite_master WHERE "type" = 'table' AND "name" LIKE '%$wt\\_%' ESCAPE '\\'`
+  );
+  const suffixes = new Set<string>();
+  for (const [name] of result.results.flatMap(item => item.rows)) {
+    const suffix = String(name).slice(String(name).lastIndexOf('$') + 1);
+    if (/^wt_[a-z0-9]{1,12}$/.test(suffix)) suffixes.add(suffix);
+  }
+  for (const suffix of suffixes) await drop_worktree_table_set(adapter, WorktreeTableSet.of(suffix, []));
+};
+
 export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {
+  await drop_worktree_table_sets(adapter);
   await cleanupSqliteTestAdapter(adapter, {
-    removeTriggersSql: remove_all_triggers_sql(adapter),
+    removeTriggersSql: remove_all_triggers_sql(adapter, WorktreeTableSet.MAIN),
     // main 分支行本身由共享工具按默认 INSERT 补回（那条字面量与本包此前自带的逐字节相同），
     // 这段 switch SQL 负责把触发器按 main 重新装回去。
     resetToMainBranchSql: () => generateSwitchBranchSql(adapter, 'main'),
@@ -68,6 +130,13 @@ export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {
   // 会话态归 `@aiao/rxdb-plugin-history` 管。这里不做存在性判断：`AdapterFactory` 的契约
   // 要求交出的实例已装该插件，没装就该在这一行炸掉，而不是把一批脏会话态悄悄带进下一条用例。
   adapter.rxdb.versionManager.resetSessionState();
+  // 清空之后，下一条用例的第一次写入要靠变更行的记录时间（毫秒）**严格晚于**清空时刻，才能把
+  // undo 会话恢复过来：同一毫秒里的写入分不清是清空前迟到的通知还是清空后的新写入，一律不恢复
+  // （`HistoryManager.resetSyncCleared`）。不等时钟走过这一毫秒，紧接着的写入就可能撞上它，
+  // 那条用例的撤销数一直是 0。从前清库后的行号回查要排队查一趟库，碰巧拖过了这一毫秒；
+  // US-222 起关掉变更日志的表的删除不再回查，这个等待就得写明。
+  const clearedAt = Date.now();
+  while (Date.now() <= clearedAt) await new Promise(resolve => setTimeout(resolve, 1));
   await Promise.resolve();
   await adapter.query('SELECT 1;');
 };

@@ -83,21 +83,15 @@ class RowTracker {
     return Number(await badge.innerText());
   }
 
-  /** 等撤销计数稳定（历史项是异步入账的）后读出。 */
-  async settledUndoCount(): Promise<number> {
-    let previous = -1;
-    await expect
-      .poll(
-        async () => {
-          const current = await this.undoCount();
-          const stable = current === previous;
-          previous = current;
-          return stable;
-        },
-        { intervals: [200] }
-      )
-      .toBe(true);
-    return previous;
+  /**
+   * 撤销计数等于 `expected`。
+   *
+   * 历史项在写入提交后异步入账，比树的重排晚到：「刚写完」那一刻读到的可能是没跟上的旧数，
+   * 「间隔 200ms 连读两次相同」在 CI 负载下照样会把旧数当成落定。所以轮询到确切值；
+   * 每个用例的写入都数得清，基线写成绝对值（Angular / Vue 端同一做法）。
+   */
+  async expectUndoCount(expected: number): Promise<void> {
+    await expect.poll(() => this.undoCount()).toBe(expected);
   }
 }
 
@@ -255,7 +249,9 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     const child = await tree.track('甲一', await addMenuChild(page, first, '甲一'));
     await tree.track('甲一一', await addMenuChild(page, child, '甲一一'));
     const before = await tree.layout();
-    const baseCount = await tree.settledUndoCount();
+    // 准备阶段四笔写入：两个根节点、两个子节点
+    const baseCount = 4;
+    await tree.expectUndoCount(baseCount);
 
     // 父甲 拖到自己的子孙与自己身上：前、后、内三种落点都被拒（无效高亮），零写
     for (const [descendant, position] of [
@@ -274,7 +270,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     // 同步点：一次合法拖放生效时，前面被拒的拖放若写过库，撤销计数会多出来
     await dragRowTo(page, tree.row('父乙'), tree.row('父甲'), 'before');
     await expect.poll(() => tree.childrenOf('')).toEqual(['父乙', '父甲']);
-    expect(await tree.settledUndoCount()).toBe(baseCount + 1);
+    await tree.expectUndoCount(baseCount + 1);
 
     // 子树的父子关系与顺序都没变
     const after = await tree.layout();
@@ -293,7 +289,9 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     const parent = await tree.track('父丙', await addRootMenu(page, '父丙'));
     await tree.track('丙一', await addMenuChild(page, parent, '丙一'));
     await tree.track('丙二', await addMenuChild(page, parent, '丙二'));
-    const baseCount = await tree.settledUndoCount();
+    // 准备阶段六笔写入：节点A～C、父丙与它的两个子节点
+    const baseCount = 6;
+    await tree.expectUndoCount(baseCount);
 
     // 原位：B 放回 A 的下沿（本就在那里）、放回 C 的上沿
     await dragRowTo(page, tree.row('节点B'), tree.row('节点A'), 'after');
@@ -304,7 +302,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     // 同步点：一次合法拖放生效，前面三次若写过库，撤销计数会多出来
     await dragRowTo(page, tree.row('节点C'), tree.row('节点A'), 'before');
     await expect.poll(() => tree.childrenOf('')).toEqual(['节点C', '节点A', '节点B', '父丙']);
-    expect(await tree.settledUndoCount()).toBe(baseCount + 1);
+    await tree.expectUndoCount(baseCount + 1);
     expect(await tree.childrenOf('父丙')).toEqual(['丙一', '丙二']);
   });
 
@@ -318,16 +316,18 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await tree.track('乙一', await addMenuChild(page, second, '乙一'));
     await tree.track('乙二', await addMenuChild(page, second, '乙二'));
     const before = await tree.layout();
-    const baseCount = await tree.settledUndoCount();
+    // 准备阶段六笔写入：两个根节点、四个子节点
+    const baseCount = 6;
+    await tree.expectUndoCount(baseCount);
 
     await dragRowTo(page, tree.row('甲一'), tree.row('乙一'), 'after');
     await expect.poll(() => tree.childrenOf('父乙')).toEqual(['乙一', '甲一', '乙二']);
-    expect(await tree.settledUndoCount()).toBe(baseCount + 1);
+    await tree.expectUndoCount(baseCount + 1);
 
     // 撤销一次：父节点与顺序都回到拖放前
     await page.getByTestId('menu-undo').click();
     await expect.poll(() => tree.layout()).toEqual(before);
-    expect(await tree.settledUndoCount()).toBe(baseCount);
+    await tree.expectUndoCount(baseCount);
   });
 
   test('虚拟滚动页同父重排', async ({ page }) => {
@@ -356,9 +356,12 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await dragRowTo(page, files.row('夹丙'), files.row('夹乙'), 'before');
     await expect.poll(() => files.order()).toEqual(['夹甲', '夹丙', '夹乙', '文件X']);
 
-    // 拖进文件夹：文件X 成为 夹甲 的子节点
+    // 拖进文件夹：文件X 成为 夹甲 的子节点，夹甲 随之展开
     await dragRowTo(page, files.row('文件X'), files.row('夹甲'), 'into');
     await expect.poll(() => files.childrenOf('夹甲')).toEqual(['文件X']);
+    // 写入全部入账（四次新建、两次拖放）之后 夹甲 仍是展开的：同一次放下执行两遍时，第二遍会把它收起
+    await files.expectUndoCount(6);
+    expect(await files.childrenOf('夹甲')).toEqual(['文件X']);
 
     await page.reload();
     await expect.poll(() => files.childrenOf('')).toEqual(['夹甲', '夹丙', '夹乙']);
@@ -427,7 +430,9 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await files.track('夹甲', await addRootFolderInMode(page, '夹甲'));
     await files.track('夹乙', await addRootFolderInMode(page, '夹乙'));
     await files.track('夹丙', await addRootFolderInMode(page, '夹丙'));
-    const baseCount = await files.settledUndoCount();
+    // 准备阶段三笔写入：三个根文件夹
+    const baseCount = 3;
+    await files.expectUndoCount(baseCount);
 
     const sortSelect = page.getByTestId('file-sort-select');
     await sortSelect.selectOption('name-asc');
@@ -445,7 +450,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     // 同步点：一次合法拖放（拖进文件夹）生效，前面被拒的拖放若写过库，撤销计数会多出来
     await dragRowTo(page, files.row('夹丙'), files.row('夹乙'), 'into');
     await expect.poll(() => files.childrenOf('夹乙')).toEqual(['夹丙']);
-    expect(await files.settledUndoCount()).toBe(baseCount + 1);
+    await files.expectUndoCount(baseCount + 1);
 
     // 切回手动顺序：夹甲、夹乙 的相对顺序没被改动
     await sortSelect.selectOption('manual');

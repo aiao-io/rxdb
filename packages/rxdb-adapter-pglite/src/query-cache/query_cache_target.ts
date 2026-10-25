@@ -1,5 +1,12 @@
-import { getEntityMetadata, type EntityMetadata, type EntityPropertyMetadata, type RxDB } from '@aiao/rxdb';
-import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.js';
+import {
+  getEntityMetadata,
+  WorktreeTableSet,
+  type EntityMetadata,
+  type EntityPropertyMetadata,
+  type RxDB
+} from '@aiao/rxdb';
+import { RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 /**
  * `QueryCacheEngine` 传入的**逻辑实体名**解析出的物理定位信息。
@@ -71,7 +78,8 @@ export const resolveQueryCacheTarget = (rxdb: RxDB, entityName: string): QueryCa
   return {
     entityName,
     metadata,
-    tableName: getTableNameByMetadata(metadata),
+    // QueryCache 实体没有副本，恒在主表集
+    tableName: getTableNameByMetadata(metadata, WorktreeTableSet.MAIN),
     idColumn: resolvePrimaryColumn(metadata, entityName)
   };
 };
