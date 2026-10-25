@@ -85,11 +85,18 @@
           "buildTarget": "dev-rxdb-supabase:build:development",
           "host": "0.0.0.0"
         }
+      },
+      "readyWhen": {
+        "signal": true
       }
     },
     "serve-static": {
       "continuous": true,
       "executor": "@nx/web:file-server",
+      "readyWhen": {
+        "signal": true
+      },
+      "dependsOn": ["build"],
       "options": {
         "buildTarget": "dev-rxdb-supabase:build",
         "port": 4203,
@@ -101,6 +108,9 @@
     "serve-e2e": {
       "continuous": true,
       "executor": "@nx/web:file-server",
+      "readyWhen": {
+        "signal": true
+      },
       "options": {
         "port": 4203,
         "spa": true,

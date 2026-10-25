@@ -200,11 +200,18 @@
         "production": {
           "buildTarget": "dev-rxdb-electron:ng-build:production"
         }
+      },
+      "readyWhen": {
+        "signal": true
       }
     },
     "serve-static": {
       "continuous": true,
       "executor": "@nx/web:file-server",
+      "readyWhen": {
+        "signal": true
+      },
+      "dependsOn": ["build"],
       "options": {
         "buildTarget": "dev-rxdb-electron:build",
         "port": 4120,
