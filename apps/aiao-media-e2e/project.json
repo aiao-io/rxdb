@@ -8,7 +8,12 @@
   "targets": {
     "e2e": {
       "executor": "nx:noop",
-      "dependsOn": ["local-first-e2e", "provider-acceptance-fixture"]
+      "dependsOn": [
+        "local-first-e2e",
+        "provider-acceptance-fixture",
+        "public-origin-smoke-fixture",
+        "actual-release-update-check"
+      ]
     },
     "typecheck": {
       "executor": "nx:run-commands",
@@ -94,6 +99,55 @@
       "options": {
         "command": "pnpm exec playwright test -c apps/aiao-media-e2e/offline-update.config.ts",
         "cwd": "."
+      }
+    },
+    "public-origin-smoke": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/public-origin-smoke.mjs",
+        "cwd": "apps/aiao-media-e2e"
+      }
+    },
+    "public-origin-smoke-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node --test scripts/public-origin-smoke.test.mjs",
+        "cwd": "apps/aiao-media-e2e"
+      }
+    },
+    "public-origin-smoke-fixture": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets", "public-origin-smoke-check"],
+      "options": {
+        "command": "node scripts/public-origin-smoke.mjs --fixture",
+        "cwd": "apps/aiao-media-e2e"
+      }
+    },
+    "actual-release-update-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node --test scripts/actual-release-update.test.mjs scripts/actual-release-update-live.test.mjs",
+        "cwd": "apps/aiao-media-e2e"
+      }
+    },
+    "actual-release-update-fixture": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/actual-release-update-fixture.mjs",
+        "cwd": "apps/aiao-media-e2e"
+      }
+    },
+    "actual-release-update-live": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/actual-release-update-live.mjs",
+        "cwd": "apps/aiao-media-e2e"
       }
     }
   }

@@ -54,6 +54,10 @@ jobs:
         run: pnpm nx run aiao-media-e2e:local-first-e2e --output-style=static
       - name: Verify provider acceptance runner with fixtures
         run: pnpm nx run aiao-media-e2e:provider-acceptance-fixture --output-style=static
+      - name: Verify public origin smoke runner with fixtures
+        run: pnpm nx run aiao-media-e2e:public-origin-smoke-fixture --output-style=static
+      - name: Verify actual release acceptance guards
+        run: pnpm nx run aiao-media-e2e:actual-release-update-check --output-style=static
       - name: Verify offline updates and rollback
         run: pnpm nx run aiao-media-e2e:offline-update-e2e --output-style=static
       - name: Verify real local product services and browser behavior
