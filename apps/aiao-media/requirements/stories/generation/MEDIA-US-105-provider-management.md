@@ -3,7 +3,7 @@ id: MEDIA-US-105
 legacyId: aiao-media:US-105
 product: aiao-media
 title: 图片供应商配置与适配器
-status: In Progress
+status: Blocked
 priority: High
 epic: MEDIA-EPIC-002
 created: 2026-09-26
@@ -59,7 +59,9 @@ tags: [image, providers, local-first, security]
 
 配置与凭据通过本机 `LocalPreference` 分开保存，凭据记录为 `provider-keys-v1`。`aiao-media-e2e:local-first-e2e` 验证本机配置恢复、内存 Key、记住/替换/单独移除、主动代理、非法 URL/模型和损坏 PNG 拒绝、无 Key 备份，以及跨 origin 图片读取不带凭据与精确下载；`aiao-media:relay-test` 验证代理边界。[本地可靠性验收](../../plans/local-reliability-verification.md)记录故障边界。
 
-2026-10-25 的正式 origin 证据已覆盖 AC6：带 Key 模型目录 GET 200 且配置模型存在；无 Key OPTIONS 403；直连正方形一次尝试无响应、结果未知且未重发，其余直连画幅未尝试；显式另选代理后三画幅各一次 HTTP 200，保存、刷新回读与精确下载通过。可用范围限定该供应商/模型的代理参数组合。成功响应均为 base64，因此跨 origin 原图 GET 无凭据的真实供应商证据仍缺，AC7 保持 ⚠️。详见[正式交付验收](../../plans/public-delivery-verification.md)。故事保持 `In Progress`。
+2026-10-25 的正式 origin 证据已覆盖 AC6：带 Key 模型目录 GET 200 且配置模型存在；无 Key OPTIONS 403；直连正方形一次尝试无响应、结果未知且未重发，其余直连画幅未尝试；显式另选代理后三画幅各一次 HTTP 200，保存、刷新回读与精确下载通过。可用范围限定该供应商/模型的代理参数组合。成功响应均为 base64，因此跨 origin 原图 GET 无凭据的真实供应商证据仍缺，AC7 保持 ⚠️。详见[正式交付验收](../../plans/public-delivery-verification.md)。故事因当前供应商能力与缺失单次请求核对证据记为 `Blocked`。
+
+2026-10-25 补验复核：当前供应商的正式 origin 预检仍为 403，既有成功结果为 base64；用量 API 只有汇总、没有单次请求记录，原正方形请求保持未知。缺少可用直连/URL 组合，状态记为 Blocked；本轮新增生成请求为 0。具体关闭条件见[供应商补验记录](../../plans/provider-acceptance-follow-up.md)。
 
 ## 实现文件
 

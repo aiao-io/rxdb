@@ -2,7 +2,7 @@
 
 这里维护 Aiao Media 的用户故事、史诗和状态总览。这个目录不是「想法回收站」，而是当前实现范围、优先级和完成状态的业务入口。
 
-> **本地作品检索、稳定分页与真实视口按需预览已完成本地验收，待 PR 评审。** 原有图片保存/下载、可选账号、绑定、同步与后台保留各自证据；Supabase 本轮仍仅本地，移动真机暂缓、桌面 IME 跳过未验。新功能未部署，先看 [MEDIA-US-204](stories/account/MEDIA-US-204-library-search.md)、[实施清单](plans/library-search-tasks.md)与[路线图](roadmap.md)。
+> **本地作品检索、稳定分页与真实视口按需预览已完成本地验收，按 D-11 记为 Done，PR 待评审合并。** 原有图片保存/下载、可选账号、绑定、同步与后台保留各自证据；Supabase 本轮仍仅本地，移动真机暂缓、桌面 IME 跳过未验。新功能未部署，先看 [MEDIA-US-204](stories/account/MEDIA-US-204-library-search.md)、[实施清单](plans/library-search-tasks.md)与[路线图](roadmap.md)。
 
 本目录管理 Aiao Media 的独立产品需求，编号为 `MEDIA-US-XXX`。仓库根 `requirements/` 管理平台与领域能力，两者分别统计；通过带作用域的能力引用关联，底层故事 Done 不代表应用已接线或验收。
 
@@ -17,7 +17,7 @@
 
 所有 story 的 YAML `status` 字段（`stories/*/MEDIA-US-*.md`）是状态的**唯一真相源**。
 
-其他地方（`status-overview.md`、各 epic 文件）都是它的派生视图，不允许独立维护。出现冲突时以 YAML 为准，并同步修复派生视图。当前 12 条故事：1 条 Done（多项目开发工作区），3 条 In Progress（图片生成、供应商和灵感库的剩余真实验收），7 条 In Review（静态部署、会话、作品库/检索、本地、同步与业务后台，当前范围全部 AC 已验、待评审合并），1 条 Backlog（暂缓的移动设备验收）。
+其他地方（`status-overview.md`、各 epic 文件）都是它的派生视图，不允许独立维护。出现冲突时以 YAML 为准，并同步修复派生视图。当前 12 条故事：8 条 Done（工作区及七条全部 AC 已验的故事，七条按 D-11 在当前分支结项），1 条 In Progress（灵感库的真实桌面 IME 未验），0 条 In Review，1 条 Backlog（暂缓的移动设备验收），2 条 Blocked（图片生成直连与真实跨 origin URL 补验）。PR #154 尚未合并。
 
 ## 目录结构
 

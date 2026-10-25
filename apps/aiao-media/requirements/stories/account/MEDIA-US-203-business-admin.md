@@ -3,7 +3,7 @@ id: MEDIA-US-203
 legacyId: aiao-media:US-203
 product: aiao-media
 title: 跨用户业务后台管理
-status: In Review
+status: Done
 priority: High
 epic: MEDIA-EPIC-003
 created: 2026-10-24
@@ -66,6 +66,8 @@ tags: [admin, users, templates, provider-policy, tasks, usage, supabase]
 ## 技术笔记
 
 后台已接入本地产品服务：`/admin` 使用服务端 token 验证、实时管理员资格、CAS 和审计；模板与运行策略分开保存草稿/发布版，任务只经用户确认上报，按来源显示用量并保留未知。以上 AC 的 ✅ 仅表示真实本地服务与浏览器/Worker 验证通过；正式服务配置、生产发布与真实供应商兼容性仍单独验收。详见[本地产品交付验收](../../plans/local-delivery-verification.md)。
+
+2026-10-25 按用户本次结项指令，全部 AC 已验的本故事记为 Done；PR #154 仍未合并。状态口径见 [D-11](../../decisions.md)，原有验收与部署边界保留。
 
 ## 实现文件
 

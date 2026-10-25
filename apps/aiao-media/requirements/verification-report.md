@@ -1,12 +1,18 @@
 # 验收记录与剩余任务
 
-> 状态唯一真相源为 story YAML；此记录区分模拟供应商、真实本地服务和正式环境。当前 **1 Done / 3 In Progress / 7 In Review / 1 Backlog，共 12 条**。
+> 状态唯一真相源为 story YAML；此记录区分模拟供应商、真实本地服务和正式环境。当前 **8 Done / 1 In Progress / 0 In Review / 1 Backlog / 2 Blocked，共 12 条**。
 
 同仓迁入后的复验与旧构建升级证据见[RxDB 迁入验收](plans/rxdb-import-verification.md)。以下保留各产品 AC 的证据边界。
 
+## 用户结项指令与供应商补验（2026-10-25）
+
+用户确认已推送，并要求已验故事记为 Done、继续补供应商验收。PR #154 已包含 `7651e58e`，实际仍为 OPEN/DRAFT、未合并；核对时 CI 正在运行。004/201/202/203/204/301/302 的全部 AC 已验，按 [D-11](decisions.md)在当前分支记为 Done，评审/合并单独跟踪。
+
+供应商补验已完成只读复核：正式 manifest 摘要与审核 B 一致；模型目录 GET 200、配置模型存在；正式 origin 的生成 OPTIONS 仍为 403、无 CORS 许可头；用量 GET 200 但只有按日/模型汇总、没有单次请求 ID 或结果。现有真实成功结果仍为 base64，本机原 live 尝试日志缺失。无法据此关闭 102 AC7/105 AC7，两条故事记为 Blocked，新增生成请求为 0。详见[补验记录](plans/provider-acceptance-follow-up.md)。
+
 ## 状态与剩余验收核对（2026-10-25）
 
-按[状态定义](CONVENTIONS.md#状态定义)核对全部 12 条故事、79 条 AC，73 条已有通过证据。[本地交付](plans/local-delivery-tasks.md) 17/17 与[作品检索](plans/library-search-tasks.md) 10/10 的实施任务已完成；本轮将全部 AC 已验的 MEDIA-US-004/201/202/203/204/301/302 从 In Progress 转为 In Review，并同步总览、需求入口、路线图、能力矩阵、epic 与清单。Done 仍要求评审合并及硬依赖完成。
+按[状态定义](CONVENTIONS.md#状态定义)核对全部 12 条故事、79 条 AC，73 条已有通过证据。[本地交付](plans/local-delivery-tasks.md) 17/17 与[作品检索](plans/library-search-tasks.md) 10/10 的实施任务已完成；此前将全部 AC 已验的 MEDIA-US-004/201/202/203/204/301/302 从 In Progress 转为 In Review；现按用户后续指令及 D-11 记为 Done，并同步总览、需求入口、路线图、能力矩阵、epic 与清单。上述七条按本轮限定口径结项；其他故事沿用默认 Done 定义，全部 AC 与硬依赖要求保留。
 
 剩余 6 条分别为 MEDIA-US-102 AC7 直连部分、105 AC7 真实跨 origin URL、106 AC7 真实桌面 IME 和 107 的三个移动真机 AC。每条关闭条件见[状态概览](status-overview.md#未完成验收与关闭条件)，保留未知请求不重发、D-09 跳过与 D-04 暂缓。Supabase 本轮仅本地。
 
@@ -51,7 +57,7 @@ Chrome 本机 E2E 31/31 通过，耗时约 4 分钟；供应商验收的 6 组 W
 
 MEDIA-US-204 全部 AC 已通过分层本地验收：提示词/模型原生字面 AND、本地整日与 DST、createdAt/实体 id 稳定倒序、24 件原生分页、真实 IO 按需原图及全库 metadata 隔离。冷重开不遍历 ready 原图，显式预览/详情/备份继续完整验证；saving 完整回读后提交、deleting 继续恢复。全库 metadata 首次成功前不推断空库、remote-only 或无副本，后续读取失败保留已知归属，不将失败提交为空同步快照。
 
-生产 CSR/offline-assets 构建 `36099280eb40`、46 个完整性校验公开资源；最终统一 Chrome E2E 31/31（原有 28 项与新增 3 项），约 1 分 27 秒。`release-check` 审查 60 文件通过，无供应商凭据、SSR 运行时、source map 或旧 API。全部是本地构建/验收，没有部署；故事状态已按全部 AC 通过的结果收敛为 In Review，等待 PR 评审与合并。
+生产 CSR/offline-assets 构建 `36099280eb40`、46 个完整性校验公开资源；最终统一 Chrome E2E 31/31（原有 28 项与新增 3 项），约 1 分 27 秒。`release-check` 审查 60 文件通过，无供应商凭据、SSR 运行时、source map 或旧 API。全部是本地构建/验收，没有部署；故事已按用户本次指令及 D-11 记为 Done，PR 评审与合并单独跟踪。
 
 证据分层：查询契约 7 项；真实 SQLite/IndexedDB/OPFS 浏览器 22 项，含 1,005 条 metadata 页/计数压力、105 条全库归属以及 3 项冷启动/只读恢复；会话/指令/metadata/根组件呈现测试验证失效与错误边界。全应用真实 IO 样本只有 50 张图片，同文档 Alice 原库→Bob 空库→Alice 原 50 库，验证筛选/分页重置、旧 URL 释放、原 profile 归属、全部 50 条任务保存记录和不变的 `performance.timeOrigin`。这不是 1,000 张原图的 UI 性能实测，不提供未经测量的毫秒指标。
 
@@ -94,11 +100,11 @@ MEDIA-US-204 全部 AC 已通过分层本地验收：提示词/模型原生字�
 
 2026-10-25 当前 B：source `c2ab7dc0`，version `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`，manifest SHA-256 `9d303528a1f123d4c4dc8932fc7321b02fa5b360883a4885c9234498ed1d01fd`，46 资源、账号 `null`、allowlist 1 项。原始生成验收 deployment `12606e16-5ba7-44e5-ba8f-0c7081821544`；切换后官方恢复 B 的当前 deployment 为 `aac93845-7add-4fd3-b45a-d37dfc5d1319`，创建于 `2026-10-25T04:36:20.644433Z`，API 核对 100% B 流量。完整证据见[正式交付验收](plans/public-delivery-verification.md)。
 
-正式官方 A→B→A 真实产物切换及各阶段真断网四路由已通过，waiting 时旧 DOM 保持，旧页关闭后新 worker activated 并加载正确入口；profile/schema `1`、完整测试供应商配置与空 Key、草稿、通过产品备份导入的合法 fixture 原图精确字节下载保持，0 生成。没有注入构建/更高 schema marker，不将已验本地兼容守卫写成线上 schema 转换。最终官方恢复 B（`restoredB=true`）后新版 public smoke 再次通过，直接 HTTP/导航/CSP、缓存46/46、旧页关闭后的离线新文档与草稿均通过。MEDIA-US-004 AC1–4✅，故事已转为 `In Review`，等待 PR 评审与合并；保留同一隔离 context 范围，不声称浏览器进程重启。
+正式官方 A→B→A 真实产物切换及各阶段真断网四路由已通过，waiting 时旧 DOM 保持，旧页关闭后新 worker activated 并加载正确入口；profile/schema `1`、完整测试供应商配置与空 Key、草稿、通过产品备份导入的合法 fixture 原图精确字节下载保持，0 生成。没有注入构建/更高 schema marker，不将已验本地兼容守卫写成线上 schema 转换。最终官方恢复 B（`restoredB=true`）后新版 public smoke 再次通过，直接 HTTP/导航/CSP、缓存46/46、旧页关闭后的离线新文档与草稿均通过。MEDIA-US-004 AC1–4✅，故事按 D-11 记为 `Done`，PR 评审与合并单独跟踪；保留同一隔离 context 范围，不声称浏览器进程重启。
 
 真实供应商代理三画幅各一次 HTTP 200，PNG 精确尺寸、RxDB/OPFS 保存、刷新回读与下载逐字节/SHA-256 一致。直连正方形一次尝试无响应，保持 `requires-review`/`BROWSER_TIMEOUT`；结合 OPTIONS 403 仅记录限制与未知，未重发，另外两幅直连未尝试。该证据关闭 MEDIA-US-105 AC6、202 AC7；102 AC7 仅代理部分已验，直连部分未完成，整项保持 ⚠️；三项成功结果均为 base64，105 AC7 的真实 URL 原图无凭据读取仍未验。
 
-Cloudflare 控制台已实读 Workers 当前免费套餐 US$0 和活动 Workers Free 订阅；账户另有既有订阅，不宣称全账户免费或零账单。MEDIA-US-004 已转为 `In Review`，MEDIA-US-102/105 保持 `In Progress`，PR 尚未合并。
+Cloudflare 控制台已实读 Workers 当前免费套餐 US$0 和活动 Workers Free 订阅；账户另有既有订阅，不宣称全账户免费或零账单。MEDIA-US-004 按 D-11 记为 `Done`，MEDIA-US-102/105 补验受阻、记为 `Blocked`，PR 尚未合并。
 
 ## 本轮正式验收剩余项
 

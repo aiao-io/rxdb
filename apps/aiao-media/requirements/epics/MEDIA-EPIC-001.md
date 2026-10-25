@@ -1,6 +1,6 @@
 ---
 id: MEDIA-EPIC-001
-status: In Progress
+status: Done
 startDate: 2026-09-26
 targetDate: TBD
 owner: jimmy
@@ -15,7 +15,7 @@ owner: jimmy
 ## 目标
 
 - [x] Nx / Bun 多项目开发和测试入口（[MEDIA-US-001](../stories/platform/MEDIA-US-001-nx-workspace.md)）
-- [ ] Cloudflare 静态部署与可选代理、正式域名验证（[MEDIA-US-004](../stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md)）
+- [x] Cloudflare 静态部署与可选代理、正式域名验证（[MEDIA-US-004](../stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md)）
 
 ## 故事
 
@@ -31,4 +31,4 @@ owner: jimmy
 
 ## 进展
 
-MEDIA-US-004 的正式 `https://media.aiao.io`、四路由/WASM/CSP/旧 API 404、allowlist/实际代理、完整离线内容及官方真实 A→B→A 更新/回退已验，最终恢复 B；Workers Free 当前套餐与活动订阅已核对，不代表全账户零账单。全 AC 为 ✅，故事已转为 In Review，PR 未合并，目标仍不勾选；证据见[正式交付验收](../plans/public-delivery-verification.md)。
+MEDIA-US-004 的正式 `https://media.aiao.io`、四路由/WASM/CSP/旧 API 404、allowlist/实际代理、完整离线内容及官方真实 A→B→A 更新/回退已验，最终恢复 B；Workers Free 当前套餐与活动订阅已核对，不代表全账户零账单。全 AC 为 ✅，故事按 D-11 记为 Done，PR 尚未合并，目标按故事状态勾选；证据见[正式交付验收](../plans/public-delivery-verification.md)。

@@ -43,6 +43,7 @@ export function failureCode(error) {
   const codes = new Map([
     ['BUILD_MANIFEST_UNAVAILABLE', 'BUILD_MANIFEST_UNAVAILABLE'],
     ['DEPLOYED_MANIFEST_MISMATCH', 'DEPLOYED_MANIFEST_MISMATCH'],
+    ['PREVIOUS_ATTEMPT_REQUIRES_REVIEW', 'PREVIOUS_ATTEMPT_REQUIRES_REVIEW'],
     ['GENERATION_REJECTED_OR_UNCERTAIN', 'GENERATION_REJECTED_OR_UNCERTAIN'],
     ['ORIGINAL_RESULT_UNAVAILABLE', 'ORIGINAL_RESULT_UNAVAILABLE'],
     ['INVALID_RESULT_ORIGIN', 'INVALID_RESULT_ORIGIN'],
@@ -432,8 +433,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       resolve(import.meta.dirname, '../tmp/provider-acceptance/live')
     );
     console.log(JSON.stringify({ ...summary, verified: records.length, phase: 'complete' }));
-  } catch {
-    if (summary) console.error(JSON.stringify({ ...summary, phase: 'stopped' }));
+  } catch (error) {
+    if (summary) console.error(JSON.stringify({ ...summary, phase: 'stopped', failureCode: failureCode(error) }));
     console.error(
       '正式供应商验收未完成。检查私有配置与 apps/aiao-media-e2e/tmp/provider-acceptance/live 记录；不会自动重发。'
     );

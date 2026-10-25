@@ -3,7 +3,7 @@ id: MEDIA-US-302
 legacyId: aiao-media:US-302
 product: aiao-media
 title: 多端草稿同步与冲突处理
-status: In Review
+status: Done
 priority: Medium
 epic: MEDIA-EPIC-004
 created: 2026-09-26
@@ -70,6 +70,8 @@ tags: [rxdb, sync, conflict, supabase]
 私有内容保持 `SyncType.None`；独立 DTO 数据库使用本仓 0.0.28 Supabase adapter、history 和 sync 插件，原生插件维护推拉日志与检查点。产品记录另外维护已确认的业务 revision，用于远程 CAS。首次确认前不打开复制数据库或上传本机内容。
 
 真实产品套件已验证双独立存储副本、离线连续编辑和重开、双方冲突保留、明确决议、tombstone 不复活，以及作品信息设备显示“本机无原图”。供应商 Key、原图、文件路径与句柄固定排除。AC5 已通过真实本地服务的显式重扫验证：取消不扫描、从零重放旧日志、未上传修改遇远程删除保留双方、选择删除后重复扫描不复活且不增加业务 revision。扫描在账号/项目验证后、现有跨标签页锁内事务重置本机 pull 水位，保留 outbox、push 水位、业务 revision 和确认记录。D-06 不启用 TTL/清理；恢复依赖远程日志完整，不承诺日志截断或重建后的恢复。完整证据见[本地产品交付验收](../../plans/local-delivery-verification.md)。正式服务与域名仍单独验收。
+
+2026-10-25 按用户本次结项指令，全部 AC 已验的本故事记为 Done；PR #154 仍未合并。状态口径见 [D-11](../../decisions.md)，原有验收与部署边界保留。
 
 ## 实现文件
 

@@ -3,7 +3,7 @@ id: MEDIA-US-201
 legacyId: aiao-media:US-201
 product: aiao-media
 title: Supabase 账号与资源授权
-status: In Review
+status: Done
 priority: High
 epic: MEDIA-EPIC-003
 created: 2026-09-26
@@ -65,6 +65,8 @@ tags: [auth, security, supabase, local-first]
 `SupabaseAuthClient` 与账号界面已接入注册、登录、服务端会话校验、刷新恢复、退出、待验证状态与跨标签事件。`aiao-media-e2e:local-first-e2e` 验证无账号配置和 Auth fixture；`aiao-media:supabase-e2e` 使用真实本地 Auth、邮件确认、生产静态包与 Chrome，覆盖阶段 A。会话和供应商 Key 分开管理，账号凭据不进入本机备份。
 
 产品绑定与原生 RxDB 复制已接线。`aiao-media:product-test` 验证真实产品表的 RLS、所有权和 revision；`aiao-media-e2e:product-e2e` 验证确认/取消、独立副本、A/B 切换、离线恢复、冲突与在途响应隔离。登录本身不绑定、不上传，API Key 与原图不进入复制 DTO。完整证据与边界见[本地产品交付验收](../../plans/local-delivery-verification.md)。
+
+2026-10-25 按用户本次结项指令，全部 AC 已验的本故事记为 Done；PR #154 仍未合并。状态口径见 [D-11](../../decisions.md)，原有验收与部署边界保留。
 
 ## 实现文件
 

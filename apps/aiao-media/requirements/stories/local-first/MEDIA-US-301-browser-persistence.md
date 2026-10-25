@@ -3,7 +3,7 @@ id: MEDIA-US-301
 legacyId: aiao-media:US-301
 product: aiao-media
 title: 浏览器本地草稿与图片持久化
-status: In Review
+status: Done
 priority: High
 epic: MEDIA-EPIC-004
 created: 2026-09-26
@@ -67,6 +67,8 @@ tags: [rxdb, web, offline, image, opfs, backup]
 无登录工作区、本机草稿、离线壳和备份已交付。`aiao-media-e2e:local-first-e2e` 使用真实 Chrome、RxDB、WASM、IndexedDB、OPFS 与 Service Worker；`aiao-media:test` 和 `aiao-media:test-browser` 覆盖草稿 codec/CAS 与文件状态机。模拟供应商不消耗模型额度，也不证明正式 origin 的真实生成。并发 CAS、备份超限/损坏/重复 ID 与中断续导已验；当前版本的 schema marker 在打开与每次操作前阻止不兼容访问。详见[可靠性验收](../../plans/local-reliability-verification.md)。D-07 仅承诺已验的 0.0.26 基线升级、旧引擎拒绝降级后恢复新版，以及当前 schema marker 守卫；未验证历史库不承诺自动迁移，未知/更高 marker 拒绝访问并保留原数据。缺少 marker 时按当前 v1 初始化，不能据此识别所有未知旧库。正式 origin 发布回退继续由 MEDIA-US-004 AC4 验收，完整分层见[验收记录](../../verification-report.md)。
 
 草稿自动保存的状态与并发约束见[本机草稿说明](local-first-studio.md)。配额提示与持久存储申请不能保证浏览器永久保留数据；重要图片应下载并定期备份。
+
+2026-10-25 按用户本次结项指令，全部 AC 已验的本故事记为 Done；PR #154 仍未合并。状态口径见 [D-11](../../decisions.md)，原有验收与部署边界保留。
 
 ## 实现文件
 

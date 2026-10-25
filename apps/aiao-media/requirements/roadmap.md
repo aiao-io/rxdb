@@ -1,6 +1,6 @@
 # 当前路线图：桌面能力、可选同步与业务后台
 
-新增 [MEDIA-US-204](stories/account/MEDIA-US-204-library-search.md) 已完成本地验收、待 PR 评审：提示词/模型检索、本地整日、24 件稳定分页、真实视口按需预览、ready 冷启动延迟读取与全库 metadata 未知态。既有图片交付与正式未验边界保留；账号/同步/后台仍只用本地 Supabase。生产启用为后续范围，真实桌面 IME 跳过未验、移动真机暂缓；不增加云原图、新后端、TTL、音视频或部署范围。
+新增 [MEDIA-US-204](stories/account/MEDIA-US-204-library-search.md) 已完成本地验收，按 D-11 记为 Done，PR 待评审合并：提示词/模型检索、本地整日、24 件稳定分页、真实视口按需预览、ready 冷启动延迟读取与全库 metadata 未知态。既有图片交付与正式未验边界保留；账号/同步/后台仍只用本地 Supabase。生产启用为后续范围，真实桌面 IME 跳过未验、移动真机暂缓；不增加云原图、新后端、TTL、音视频或部署范围。
 
 范围与外部输入见[决策与执行条件](decisions.md)，实现证据见[验收记录](verification-report.md)。决策确定、计划完成、代码实现和真实环境验收分别记录。
 
@@ -8,7 +8,7 @@
 
 **选模板或写提示词 → 单模型生成 1 张 PNG → 预览 → RxDB 本机保存 → 下载 → 反馈。** 本机功能无需登录或业务后台；供应商按本机配置直连或主动代理。
 
-2026-10-25 正式 B `cc8cc646-560e-4d36-b0cb-2e311a2d0e25` 的真实代理三幅精确交付、完整配置/草稿/导入 fixture 原图离线回读及官方 A→B→A 更新/回退均已验，最终官方恢复 B 并确认 100% 流量；public smoke 再复验通过。004 AC1–4✅，状态为 In Review，等待 PR 评审与合并。102 AC7 仍仅代理部分已验，direct-square未知不重发、另两幅未试；105 AC7 真实 URL 读取仍待验。Workers Free 当前套餐/订阅已核对，详见[正式交付验收](plans/public-delivery-verification.md)。
+2026-10-25 正式 B `cc8cc646-560e-4d36-b0cb-2e311a2d0e25` 的真实代理三幅精确交付、完整配置/草稿/导入 fixture 原图离线回读及官方 A→B→A 更新/回退均已验，最终官方恢复 B 并确认 100% 流量；public smoke 再复验通过。004 AC1–4✅，故事按 D-11 记为 Done，PR 评审与合并单独跟踪。102 AC7 仍仅代理部分已验，direct-square未知不重发、另两幅未试；105 AC7 真实 URL 读取仍待验。Workers Free 当前套餐/订阅已核对，详见[正式交付验收](plans/public-delivery-verification.md)。
 
 ## 当前任务顺序
 
@@ -37,4 +37,4 @@
 
 旧全媒体路线图见[历史归档](plans/roadmap-before-image-mvp.md)，不作为当前范围或验收证据。
 
-新增检索的本地实现与自动化验收已按[实施清单](plans/library-search-tasks.md)完成，未调用真实供应商、未部署，状态为 In Review，等待 PR 评审与合并。既有[本地交付](plans/local-delivery-verification.md)、[正式交付](plans/public-delivery-verification.md)和[原首发未验边界](plans/release-completion-tasks.md)保留各自证据；生产禁 Auth、IME 跳过、移动暂缓与生产 Supabase 后续范围不变。
+新增检索的本地实现与自动化验收已按[实施清单](plans/library-search-tasks.md)完成，未调用真实供应商、未部署，故事按 D-11 记为 Done，PR 评审与合并单独跟踪。既有[本地交付](plans/local-delivery-verification.md)、[正式交付](plans/public-delivery-verification.md)和[原首发未验边界](plans/release-completion-tasks.md)保留各自证据；生产禁 Auth、IME 跳过、移动暂缓与生产 Supabase 后续范围不变。

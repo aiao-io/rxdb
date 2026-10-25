@@ -3,7 +3,7 @@ id: MEDIA-US-102
 legacyId: aiao-media:US-102
 product: aiao-media
 title: 图片生成与本机交付
-status: In Progress
+status: Blocked
 priority: High
 epic: MEDIA-EPIC-002
 created: 2026-09-26
@@ -60,9 +60,11 @@ tags: [image, provider, text-to-image, local-first]
 
 本地闭环已交付。`aiao-media-e2e:local-first-e2e` 使用真实 Chrome、RxDB、WASM、IndexedDB 和 OPFS，供应商为 fixture；它验证状态与保存行为，不证明真实供应商在正式 origin 可用。
 
-2026-10-25 正式 `https://media.aiao.io` 的真实供应商代理三画幅均通过：每项一次请求、HTTP 200、PNG 尺寸精确匹配，保存、刷新回读与下载字节/SHA-256 一致。直连正方形一次尝试未收到响应，保持 `requires-review`，未重发；另两种直连画幅未尝试。AC7 的代理部分已验，直连部分未完成，整项保持 ⚠️；不为补验重发未知请求。三项结果均为 base64，不提供 URL 原图读取证明。发布身份、摘要和证据边界见[正式交付验收](../../plans/public-delivery-verification.md)。故事保持 `In Progress`，PR 尚未合并。
+2026-10-25 正式 `https://media.aiao.io` 的真实供应商代理三画幅均通过：每项一次请求、HTTP 200、PNG 尺寸精确匹配，保存、刷新回读与下载字节/SHA-256 一致。直连正方形一次尝试未收到响应，保持 `requires-review`，未重发；另两种直连画幅未尝试。AC7 的代理部分已验，直连部分未完成，整项保持 ⚠️；不为补验重发未知请求。三项结果均为 base64，不提供 URL 原图读取证明。发布身份、摘要和证据边界见[正式交付验收](../../plans/public-delivery-verification.md)。故事因当前供应商能力与缺失单次请求核对证据记为 `Blocked`，PR 尚未合并。
 
 当前任务沿用 `processing`、`completed`、`failed`、`needs_review` 等契约状态，保存标记与生成状态分开。页面中断后不假设请求未发送，也不假设供应商可查询或撤销原请求。
+
+2026-10-25 补验复核：当前供应商的正式 origin 预检仍为 403，既有成功结果为 base64；用量 API 只有汇总、没有单次请求记录，原正方形请求保持未知。缺少可用直连/URL 组合，状态记为 Blocked；本轮新增生成请求为 0。具体关闭条件见[供应商补验记录](../../plans/provider-acceptance-follow-up.md)。
 
 ## 实现文件
 

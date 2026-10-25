@@ -56,6 +56,7 @@ test('非法、空或重复选择在任何请求前拒绝，选择范围不改�
 
 test('诊断仅返回固定错误码，供应商 URL、Key 与原始异常不进入输出', () => {
   assert.equal(failureCode(new Error('RESULT_SIZE_MISMATCH')), 'RESULT_SIZE_MISMATCH');
+  assert.equal(failureCode(new Error('PREVIOUS_ATTEMPT_REQUIRES_REVIEW')), 'PREVIOUS_ATTEMPT_REQUIRES_REVIEW');
   const timeout = new Error('private-test-key https://private.example.test?token=secret');
   timeout.name = 'TimeoutError';
   assert.equal(failureCode(timeout), 'BROWSER_TIMEOUT');

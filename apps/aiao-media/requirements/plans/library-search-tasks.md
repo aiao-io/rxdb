@@ -1,6 +1,6 @@
 # 本地作品检索与视口预览实施清单
 
-范围与 AC 见 [MEDIA-US-204](../stories/account/MEDIA-US-204-library-search.md)，依赖 MEDIA-US-202/301。2026-10-25 已完成本地实现与本故事的自动化验收；旧故事已通过的 AC 与正式未验边界保持原证据。当前功能未部署、PR 未合并；全部 AC 已验，故事已转为 In Review，等待 PR 评审与合并。
+范围与 AC 见 [MEDIA-US-204](../stories/account/MEDIA-US-204-library-search.md)，依赖 MEDIA-US-202/301。2026-10-25 已完成本地实现与本故事的自动化验收；旧故事已通过的 AC 与正式未验边界保持原证据。当前功能未部署、PR 未合并；全部 AC 已验，故事按用户本次指令及 D-11 记为 Done，PR 评审与合并单独跟踪。
 
 ## 约束与数据流
 
