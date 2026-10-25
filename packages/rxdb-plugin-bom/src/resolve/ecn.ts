@@ -8,6 +8,8 @@
  * 四类各就其位；涉及的逻辑行解析不出唯一发生项时差异无法判定，显式拒绝。全部 SQL 走方言占位符绑定。
  */
 
+import type { TransactionFun } from '@aiao/rxdb';
+import type { BomLineOccurrence } from '../entities.js';
 import { BomTruncationError } from '../types.js';
 import type { BomLocalAdapter } from './bom-adapter.js';
 import { bomSqlDialectFor, type BomSqlDialect } from './bom-sql.js';
@@ -54,13 +56,46 @@ export interface EcnImpactResult {
   topItems: { itemId: string; paths: string[][] }[];
 }
 
+const QUANTITY_DIFF_FIELDS = [
+  'uom',
+  'isFixedQty',
+  'tierGroupNo',
+  'lotsizeFrom',
+  'lotsizeTo',
+  'componentScrap',
+  'componentScrapConvention',
+  'componentScrapFixed',
+  'uomConversion',
+  'phantomOverride',
+  'flowDirection',
+  'jointCostShare',
+  'substituteGroupId',
+  'substituteRole',
+  'substitutePriority',
+  'usageProbability',
+  'equivQty',
+  'operationSeq',
+  'supplyToVendor',
+  'designatorManaged',
+  'unitFrom',
+  'unitTo',
+  'lotCodes',
+  'selectionConditionId'
+] as const satisfies readonly (keyof BomLineOccurrence)[];
+
+const BOOLEAN_DIFF_FIELDS = new Set<string>(['isFixedQty', 'phantomOverride', 'supplyToVendor', 'designatorManaged']);
+type QuantityDiffState = Pick<BomLineOccurrence, (typeof QUANTITY_DIFF_FIELDS)[number]>;
+type EcnDiffOccurrence = ResolvedLineOccurrence & Partial<QuantityDiffState>;
+
 /** ECN 差异的一行（AC#2）：按逻辑行对齐的生效前后对比。 */
 export interface EcnDiffEntry {
   kind: 'added' | 'removed' | 'qty_changed' | 'child_changed';
   lineId: string;
   lineNo: number;
-  before: ResolvedLineOccurrence | null;
-  after: ResolvedLineOccurrence | null;
+  /** 生效前发生项，查询结果额外携带单位、换算、损耗及投料规则。 */
+  before: EcnDiffOccurrence | null;
+  /** 生效后发生项，查询结果额外携带单位、换算、损耗及投料规则。 */
+  after: EcnDiffOccurrence | null;
 }
 
 /** ECN 差异结果（AC#2）。 */
@@ -312,33 +347,83 @@ const assertDiffable = (
 
 /**
  * ECN 差异（AC#2）：按生效前后两个评估日对涉及的已发布头各解析一次（作用域与备选号取该头自身），
- * 按逻辑行对齐。草稿头不入解析结果，没有生效前后之分，不列。
+ * 元数据、前后解析与数量语义共享一个读取快照。按逻辑行对齐，草稿头不列。
  */
-export const ecnDiff = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnDiffResult> => {
-  const ecn = await readEcnRow(adapter, ecnId);
-  const diffHeaders: EcnDiffResult['headers'] = [];
-  const released = (await affectedHeaders(adapter, ecnId)).filter(header => header.state === 'released');
-  for (const header of released) {
-    const scope = { bomType: header.bomType, orgId: header.orgId, alternativeNo: header.alternativeNo };
-    const target = { parentRevisionId: header.parentRevisionId };
-    const before = await resolveBom(adapter, { ...scope, asOfDate: dayBefore(ecn.effectiveDate) }, target);
-    const after = await resolveBom(adapter, { ...scope, asOfDate: ecn.effectiveDate }, target);
-    assertDiffable(ecn, header, before, after);
-    diffHeaders.push({ headerId: header.headerId, entries: alignByLine(before, after) });
+export const ecnDiff = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnDiffResult> =>
+  adapter.transaction(async executor => {
+    const scoped: BomLocalAdapter = {
+      name: adapter.name,
+      rawQuery: executor.query.bind(executor),
+      transaction: <T extends TransactionFun>(fun: T) => executor.run(fun) as Promise<Awaited<ReturnType<T>>>
+    };
+    const ecn = await readEcnRow(scoped, ecnId);
+    const diffHeaders: EcnDiffResult['headers'] = [];
+    const released = (await affectedHeaders(scoped, ecnId)).filter(header => header.state === 'released');
+    for (const header of released) {
+      const scope = { bomType: header.bomType, orgId: header.orgId, alternativeNo: header.alternativeNo };
+      const target = { parentRevisionId: header.parentRevisionId };
+      const before = await resolveBom(scoped, { ...scope, asOfDate: dayBefore(ecn.effectiveDate) }, target);
+      const after = await resolveBom(scoped, { ...scope, asOfDate: ecn.effectiveDate }, target);
+      assertDiffable(ecn, header, before, after);
+      const quantities = await readDiffQuantities(scoped, [...before.occurrences, ...after.occurrences]);
+      diffHeaders.push({
+        headerId: header.headerId,
+        entries: alignByLine(diffOccurrences(before, quantities), diffOccurrences(after, quantities))
+      });
+    }
+    return { ecnId: ecn.id, ecnNo: ecn.ecnNo, effectiveDate: ecn.effectiveDate, headers: diffHeaders };
+  }, false);
+
+/** 只读取前后解析实际命中的发生项，分块避免超过后端绑定上限。 */
+const readDiffQuantities = async (
+  reader: EcnReader,
+  occurrences: readonly ResolvedLineOccurrence[]
+): Promise<Map<string, QuantityDiffState>> => {
+  const dialect = bomSqlDialectFor(reader.name);
+  const ids = [...new Set(occurrences.map(occurrence => occurrence.occurrenceId))];
+  const quantities = new Map<string, QuantityDiffState>();
+  const chunkSize = 200;
+  for (let offset = 0; offset < ids.length; offset += chunkSize) {
+    const chunk = ids.slice(offset, offset + chunkSize);
+    const rows = await queryRecords(
+      reader,
+      `SELECT "id", ${QUANTITY_DIFF_FIELDS.map(field => `"${field}"`).join(', ')} FROM ${dialect.table('bom_line_occurrence')} WHERE "id" IN (${chunk.map((_, index) => dialect.placeholder(index)).join(', ')})`,
+      chunk
+    );
+    for (const row of rows)
+      quantities.set(
+        String(row['id']),
+        Object.fromEntries(
+          QUANTITY_DIFF_FIELDS.map(field => [
+            field,
+            BOOLEAN_DIFF_FIELDS.has(field) && row[field] !== null ? Boolean(row[field]) : row[field]
+          ])
+        ) as QuantityDiffState
+      );
   }
-  return { ecnId: ecn.id, ecnNo: ecn.ecnNo, effectiveDate: ecn.effectiveDate, headers: diffHeaders };
+  return quantities;
 };
 
+const diffOccurrences = (
+  result: ResolutionResult,
+  quantities: ReadonlyMap<string, QuantityDiffState>
+): EcnDiffOccurrence[] =>
+  result.occurrences.map(occurrence => {
+    const quantity = quantities.get(occurrence.occurrenceId);
+    if (quantity === undefined) throw new Error(`[rxdb-plugin-bom] 差异快照缺少发生项：${occurrence.occurrenceId}`);
+    return { ...occurrence, ...quantity };
+  });
+
 /** 按逻辑行对齐两个时点的行集：新增 / 删除 / 改量 / 改版。 */
-const alignByLine = (before: ResolutionResult, after: ResolutionResult): EcnDiffEntry[] => {
-  const beforeByLine = new Map<string, ResolvedLineOccurrence[]>();
-  const afterByLine = new Map<string, ResolvedLineOccurrence[]>();
-  for (const occurrence of before.occurrences) {
+const alignByLine = (before: readonly EcnDiffOccurrence[], after: readonly EcnDiffOccurrence[]): EcnDiffEntry[] => {
+  const beforeByLine = new Map<string, EcnDiffOccurrence[]>();
+  const afterByLine = new Map<string, EcnDiffOccurrence[]>();
+  for (const occurrence of before) {
     const list = beforeByLine.get(occurrence.lineId) ?? [];
     list.push(occurrence);
     beforeByLine.set(occurrence.lineId, list);
   }
-  for (const occurrence of after.occurrences) {
+  for (const occurrence of after) {
     const list = afterByLine.get(occurrence.lineId) ?? [];
     list.push(occurrence);
     afterByLine.set(occurrence.lineId, list);
@@ -363,7 +448,8 @@ const alignByLine = (before: ResolutionResult, after: ResolutionResult): EcnDiff
     } else if (
       beforeRow?.qty !== afterRow?.qty ||
       beforeRow?.qtyFormula !== afterRow?.qtyFormula ||
-      beforeRow?.formulaGrammarVersion !== afterRow?.formulaGrammarVersion
+      beforeRow?.formulaGrammarVersion !== afterRow?.formulaGrammarVersion ||
+      QUANTITY_DIFF_FIELDS.some(field => beforeRow?.[field] !== afterRow?.[field])
     ) {
       entries.push({ kind: 'qty_changed', lineId, lineNo, before: beforeRow, after: afterRow });
     }

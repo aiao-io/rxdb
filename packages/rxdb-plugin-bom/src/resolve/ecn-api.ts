@@ -16,7 +16,7 @@ export const ecnImpact = async (adapter: BomLocalAdapter, ecnId: string): Promis
  * 按需读取ECN生效前后的发生项差异。
  * @param adapter - 显式本地适配器
  * @param ecnId - 变更单标识
- * @returns 按逻辑行对齐的差异
+ * @returns 同一快照中按逻辑行对齐的差异；前后发生项携带单位、换算、损耗及投料规则
  */
 export const ecnDiff = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnDiffResult> =>
   (await import('./ecn.js')).ecnDiff(adapter, ecnId);

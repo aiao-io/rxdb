@@ -458,6 +458,8 @@ export const buildParentsOfItemsSql = (
     `JOIN ${header} h ON h."id" = l."headerId"`,
     `JOIN ${revision} r ON r."id" = h."parentRevisionId"`,
     `WHERE h."state" = 'released'`,
+    `  AND r."state" = 'released'`,
+    `  AND r."effectiveFrom" <= ${p(params.asOfDate)}`,
     `  AND h."bomType" = ${p(params.bomType)}`,
     `  AND h."orgId" = ${p(params.orgId)}`,
     params.includeLineCandidates ?
