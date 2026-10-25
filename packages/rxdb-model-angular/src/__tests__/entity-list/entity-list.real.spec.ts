@@ -140,6 +140,84 @@ describe('EntityListComponent（真实组件）', () => {
   }
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
+
+  it('字段配置、查询排序与分组通过工具栏生效', async () => {
+    await seedTodo('beta', false);
+    await seedTodo('alpha', true);
+    const { fixture } = await renderList();
+    const root = fixture.nativeElement as HTMLElement;
+    const originalFields = tableOf(fixture).columns.map(column => column['field']);
+    const defaultIds = tableOf(fixture).records.map(record => record['id']);
+    const title = String(tableOf(fixture).columns.find(column => column['field'] === 'title')?.['title']);
+    const control = (label: string) => root.querySelector(`[aria-label="${label}"]`) as HTMLInputElement;
+    const settle = async () => {
+      fixture.detectChanges();
+      await FLUSH();
+      fixture.detectChanges();
+    };
+    const change = async (label: string, value: string) => {
+      const select = control(label);
+      select.value = value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      await settle();
+    };
+    const queries = vi.spyOn(repoOf(), 'findByCursor');
+    control(`显示${title}`).checked = false;
+    control(`显示${title}`).dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    expect(tableOf(fixture).columns.some(column => column['field'] === 'title')).toBe(false);
+    expect(queries).not.toHaveBeenCalled();
+    queries.mockRestore();
+    control(`显示${title}`).checked = true;
+    control(`显示${title}`).dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    control(`上移${title}`).click();
+    await settle();
+    expect(tableOf(fixture).columns[0]['field']).toBe('title');
+    await change('添加排序字段', 'title');
+    expect(tableOf(fixture).records.map(record => record['title'])).toEqual(['alpha', 'beta']);
+    await change(`${title}排序方向`, 'desc');
+    expect(tableOf(fixture).records.map(record => record['title'])).toEqual(['beta', 'alpha']);
+    const completedTitle = String(tableOf(fixture).columns.find(column => column['field'] === 'completed')?.['title']);
+    await change('添加排序字段', 'completed');
+    await change(`${completedTitle}排序方向`, 'desc');
+    control(`提高${completedTitle}排序优先级`).click();
+    await settle();
+    expect(tableOf(fixture).records.map(record => record['title'])).toEqual(['alpha', 'beta']);
+    control(`移除${completedTitle}排序`).click();
+    await settle();
+    expect(tableOf(fixture).records.map(record => record['title'])).toEqual(['beta', 'alpha']);
+    await change('分组字段', 'completed');
+    expect(tableOf(fixture).options['groupBy']).toEqual(['completed']);
+    expect(tableOf(fixture).records).toHaveLength(2);
+    expect(isRowDragEnabled(tableOf(fixture) as never)).toBe(false);
+    await change('分组字段', '');
+    expect(tableOf(fixture).options['groupBy']).toEqual([]);
+    const button = (text: string) =>
+      [...root.querySelectorAll('button')].find(item => item.textContent?.trim() === text)!;
+    button('清除排序').click();
+    await settle();
+    expect(tableOf(fixture).records.map(record => record['id'])).toEqual(defaultIds);
+    const fields = [...root.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
+    for (const field of fields.slice(1)) {
+      field.checked = false;
+      field.dispatchEvent(new Event('change', { bubbles: true }));
+      await settle();
+    }
+    expect(fields[0].disabled).toBe(true);
+    expect(tableOf(fixture).columns).toHaveLength(2);
+    button('重置字段').click();
+    await settle();
+    expect(tableOf(fixture).columns.map(column => column['field'])).toEqual(originalFields);
+    await change('分组字段', 'completed');
+    fixture.componentRef.setInput('name', 'Task');
+    await settle();
+    expect(tableOf(fixture).options['groupBy']).toEqual([]);
+    fixture.componentRef.setInput('name', 'Todo');
+    await settle();
+    expect(tableOf(fixture).columns.map(column => column['field'])).toEqual(originalFields);
+  });
+
   /**
    * 查询实体当前落库的 title 列表（升序）。
    *

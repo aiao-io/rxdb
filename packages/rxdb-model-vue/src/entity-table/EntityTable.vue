@@ -25,6 +25,7 @@ import {
   createTheme,
   getCSSVariables,
   handleTableKeydown,
+  isReadonly,
   isDocumentDarkMode,
   patchDragIconForReadonlyRows,
   readRowMove,
@@ -260,7 +261,7 @@ const getColDef = (col: number): { cellType?: string; field?: string } | undefin
 const handleCellChange = (col: number, row: number, changedValue: unknown): void => {
   const record = tableInstance.value?.getRecordByCell(col, row) as EntityTableRecord | undefined;
   const fieldName = (getColDef(col) as { field?: string } | undefined)?.field;
-  if (!record || !fieldName) return;
+  if (!record || !fieldName || isReadonly(record)) return;
   emit('cellChanged', { col, row, field: fieldName, value: changedValue, record });
 };
 

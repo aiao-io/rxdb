@@ -5,14 +5,14 @@
 }
 
 <!-- 顶栏：实体名称 + 计数 + 筛选按钮 + 新增按钮 -->
-<div class="border-base-300 flex h-10 min-h-10 shrink-0 items-center justify-between border-b px-4">
+<div class="border-base-300 flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-1">
   <div class="flex items-center gap-2 text-sm">
     <span class="font-medium">{{ displayName() }}</span>
     @if ($isFilterQuery()) {
       <span class="badge badge-ghost badge-sm">{{ filteredCount() }} 条记录</span>
     }
   </div>
-  <div class="flex items-center gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     @if (!isSelectMode()) {
       <!-- Undo / Redo -->
       <button
@@ -41,6 +41,11 @@
       </button>
       <div class="divider divider-horizontal mx-0.5 h-5 self-center"></div>
     }
+    <rxdb-list-view-settings
+      [fields]="viewFields()"
+      [value]="viewState()"
+      (valueChange)="onViewSettingsChange($event)"
+    />
     <!-- 筛选 popover 触发器 -->
     <div>
       <button
@@ -125,7 +130,7 @@
 <!-- 表格主体 -->
 <div class="min-h-0 flex-1">
   @if (isBrowser) {
-    @for (key of [namespace() + ':' + name()]; track key) {
+    @for (key of [namespace() + ':' + name() + ':' + viewState().groupBy]; track key) {
       <rxdb-query-table
         [columns]="tableColumns()"
         [filteredCount]="filteredCount()"
@@ -135,7 +140,7 @@
         [queryActive]="isQueryActive()"
         [records]="tableRecords()"
         [rowDragEnabled]="rowDragEnabled()"
-        [tableOptions]="listTableOptions"
+        [tableOptions]="listTableOptions()"
         (batchUpdated)="onBatchUpdated($event)"
         (cellChanged)="onCellChanged($event)"
         (iconClicked)="onIconClicked($event)"

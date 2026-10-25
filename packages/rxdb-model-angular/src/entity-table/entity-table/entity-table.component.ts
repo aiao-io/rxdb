@@ -19,6 +19,7 @@ import {
   getCSSVariables,
   handleTableKeydown,
   isDocumentDarkMode,
+  isReadonly,
   patchDragIconForReadonlyRows,
   readRowMove,
   restoreTableRecords,
@@ -363,7 +364,7 @@ export class EntityTableComponent implements OnDestroy, EntityTableHandle {
   #handleCellChange(col: number, row: number, changedValue: unknown): void {
     const record = this.#tableInstance?.getRecordByCell(col, row) as EntityTableRecord | undefined;
     const fieldName = (this.#getColDef(col) as { field?: string })?.field;
-    if (!record || !fieldName) return;
+    if (!record || !fieldName || isReadonly(record)) return;
     this.cellChanged.emit({ col, row, field: fieldName, value: changedValue, record });
   }
 

@@ -128,6 +128,18 @@ describe('snapshotSelection', () => {
 // ── applySystemText ────────────────────────────────────────────────────────
 
 describe('applySystemText', () => {
+  it('跨分组标题粘贴时只生成业务行写入，分组节点保持不变', () => {
+    const group = { vtableMerge: true, vtableMergeName: '一组' };
+    const record = { id: '1', name: '原值' };
+    const table = makeTable(
+      [[{ col: 1, row: 1, field: 'name', cellType: 'text' }], [{ col: 1, row: 2, field: 'name', cellType: 'text' }]],
+      [group, record]
+    );
+    const writes = applySystemText(table, '标题内容\n新值');
+    expect(writes).toEqual([{ col: 1, row: 2, value: '新值', field: 'name', record }]);
+    expect(group).toEqual({ vtableMerge: true, vtableMergeName: '一组' });
+  });
+
   it('returns empty array when no cells selected', () => {
     const table = makeTable([], []);
     expect(applySystemText(table, 'foo')).toEqual([]);

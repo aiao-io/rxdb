@@ -112,6 +112,67 @@ describe('EntityList（真实组件）', () => {
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
 
+  it('字段配置、查询排序与分组通过工具栏生效', async () => {
+    await seedTodo('beta', false);
+    await seedTodo('alpha', true);
+    const ui = await renderList();
+    const originalFields = tableOf().columns.map(column => column['field']);
+    const defaultIds = tableOf().records.map(record => record['id']);
+    fireEvent.click(ui.getByText('字段配置', { exact: true }));
+    const titleColumn = tableOf().columns.find(column => column['field'] === 'title');
+    const title = String(titleColumn?.['title']);
+    const queries = vi.spyOn(repoOf(), 'findByCursor');
+    fireEvent.click(ui.getByLabelText(`显示${title}`));
+    await FLUSH();
+    expect(tableOf().columns.some(column => column['field'] === 'title')).toBe(false);
+    expect(queries).not.toHaveBeenCalled();
+    queries.mockRestore();
+    fireEvent.click(ui.getByLabelText(`显示${title}`));
+    fireEvent.click(ui.getByLabelText(`上移${title}`));
+    expect(tableOf().columns[0]['field']).toBe('title');
+    fireEvent.click(ui.getByText('排序', { exact: true }));
+    fireEvent.change(ui.getByLabelText('添加排序字段'), { target: { value: 'title' } });
+    await waitFor(() => expect(tableOf().records.map(record => record['title'])).toEqual(['alpha', 'beta']));
+    fireEvent.change(ui.getByLabelText(`${title}排序方向`), { target: { value: 'desc' } });
+    await waitFor(() => expect(tableOf().records.map(record => record['title'])).toEqual(['beta', 'alpha']));
+    const completedTitle = String(tableOf().columns.find(column => column['field'] === 'completed')?.['title']);
+    fireEvent.change(ui.getByLabelText('添加排序字段'), { target: { value: 'completed' } });
+    fireEvent.change(ui.getByLabelText(`${completedTitle}排序方向`), { target: { value: 'desc' } });
+    fireEvent.click(ui.getByLabelText(`提高${completedTitle}排序优先级`));
+    await waitFor(() => expect(tableOf().records.map(record => record['title'])).toEqual(['alpha', 'beta']));
+    fireEvent.click(ui.getByLabelText(`移除${completedTitle}排序`));
+    await waitFor(() => expect(tableOf().records.map(record => record['title'])).toEqual(['beta', 'alpha']));
+    fireEvent.click(ui.getByText('分组', { exact: true }));
+    fireEvent.change(ui.getByLabelText('分组字段', { exact: true }), { target: { value: 'completed' } });
+    await waitFor(() => expect(tableOf().options['groupBy']).toEqual(['completed']));
+    await waitFor(() => expect(tableOf().records).toHaveLength(2));
+    expect(isRowDragEnabled(tableOf() as never)).toBe(false);
+    fireEvent.change(ui.getByLabelText('分组字段', { exact: true }), { target: { value: '' } });
+    await waitFor(() => expect(tableOf().options['groupBy']).toEqual([]));
+    fireEvent.click(ui.getByText('清除排序', { exact: true }));
+    await waitFor(() => expect(tableOf().records.map(record => record['id'])).toEqual(defaultIds));
+    fireEvent.click(ui.getByText('字段配置', { exact: true }));
+    for (const field of ui.getAllByRole('checkbox').slice(1)) fireEvent.click(field);
+    const remaining = ui.getAllByRole('checkbox')[0] as HTMLInputElement;
+    expect(remaining.disabled).toBe(true);
+    expect(tableOf().columns).toHaveLength(2);
+    fireEvent.click(ui.getByText('重置字段', { exact: true }));
+    expect(tableOf().columns.map(column => column['field'])).toEqual(originalFields);
+    fireEvent.change(ui.getByLabelText('分组字段', { exact: true }), { target: { value: 'completed' } });
+    ui.rerender(
+      <RxDBProvider db={rxdb}>
+        <EntityList namespace='public' name='Task' />
+      </RxDBProvider>
+    );
+    await waitFor(() => expect(tableOf().options['groupBy']).toEqual([]));
+    ui.rerender(
+      <RxDBProvider db={rxdb}>
+        <EntityList namespace='public' name='Todo' />
+      </RxDBProvider>
+    );
+    await waitFor(() => expect(tableOf().columns.map(column => column['field'])).toEqual(originalFields));
+  });
+
   /** 查询实体当前落库的 title 列表（升序）。 */
   const titlesOf = async (entityType: EntityType): Promise<string[]> => {
     const seen: string[][] = [];

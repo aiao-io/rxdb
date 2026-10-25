@@ -1,22 +1,19 @@
-import {
-  getEntityMetadata,
-  RelationKind,
-  RxDB,
-  type EntityMetadata,
-  type EntityType,
-  type FindByCursorOptions,
-  type OrderBy
-} from '@aiao/rxdb';
+import { getEntityMetadata, RelationKind, RxDB, type EntityType, type FindByCursorOptions } from '@aiao/rxdb';
 import { InfiniteScrollingList } from '@aiao/rxdb-angular';
 import {
   actionsColumn,
+  applyListViewColumns,
   buildEditableColumns,
   buildFormFields,
+  buildListViewOrderBy,
+  buildListViewRecords,
+  buildListViewTableOptions,
   canReorderEntityList,
   commitRowMove,
-  defaultListOrderBy,
+  createListViewState,
   deriveEntityCapabilities,
   extractFieldsFromMetadata,
+  getListViewFields,
   organizeFields,
   parsePropertyColumnValue,
   type BatchChangeItem,
@@ -27,6 +24,7 @@ import {
   type FieldMetadata,
   type FilterQuery,
   type FormFieldConfig,
+  type ListViewState,
   type ModelInfo,
   type RelatedEntityProvider,
   type RowMoveEvent,
@@ -71,6 +69,7 @@ import type { EntityDetailDialogData } from '../entity-detail/entity-detail';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
 import { QueryTableComponent } from '../entity-table/query-table/query-table.component';
 import { QueryBuilderComponent } from '../query-builder/query-builder/query-builder.component';
+import { ListViewSettingsComponent } from './list-view-settings.component';
 
 // 历史 / 撤销重做子系统在开源核心中被拆为 rxdb-plugin-history 插件（US-025）：
 // 其装配期在 RxDB 实例上挂载 `versionManager` 槽位，此处声明合并恢复该类型的可见性。
@@ -115,23 +114,6 @@ function normalizeSortOrder(order: unknown): ListSortState['order'] {
   return 'normal';
 }
 
-/**
- * 构造 FindByCursor 所需 orderBy。
- * normal → 实体默认排序（手动排序实体按手动顺序）；用户字段 → [field, id] 同向（末尾唯一键满足游标定位）。
- */
-function buildCursorOrderBy(state: ListSortState, metadata: EntityMetadata | undefined): OrderBy[] {
-  if (state.order === 'normal' || !state.field) {
-    return defaultListOrderBy(metadata);
-  }
-  if (state.field === 'id') {
-    return [{ field: 'id', sort: state.order }];
-  }
-  return [
-    { field: state.field, sort: state.order },
-    { field: 'id', sort: state.order }
-  ];
-}
-
 /** 落库错误转为提示文案 */
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -171,6 +153,7 @@ function parseInitialFilter(raw: string | undefined): FilterQuery | undefined {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     QueryTableComponent,
+    ListViewSettingsComponent,
     QueryBuilderComponent,
     LucideDynamicIcon,
     CdkConnectedOverlay,
@@ -292,6 +275,9 @@ export class EntityListComponent {
     return { ...DEFAULT_SORT_STATE };
   });
 
+  readonly #querySorts = computed(() => this.viewState().sorts);
+  readonly #groupBy = computed(() => this.viewState().groupBy);
+
   /** 内部查询表格：拖放被拒或落库失败时恢复行序 */
   private readonly queryTable = viewChild(QueryTableComponent);
 
@@ -300,7 +286,42 @@ export class EntityListComponent {
   protected readonly Redo2 = Redo2;
   protected readonly Funnel = Funnel;
   protected readonly X = X;
-  protected readonly listTableOptions = LIST_TABLE_OPTIONS;
+  protected readonly viewState = linkedSignal(() => {
+    this.#entityKey();
+    return createListViewState();
+  });
+  protected readonly sourceTableRecords = computed<EntityTableRecord[]>(() => {
+    // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
+    // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
+    const isRowReadonly = this.#capabilities()?.canEdit === false;
+    const dbRecords = this.#instances().map(inst => ({
+      ...(inst as Record<string, unknown>),
+      ...(isRowReadonly ? { _readonly: true } : {})
+    }));
+    const draftRecords = this.#localDraftItems().map(inst => ({ ...(inst as Record<string, unknown>) }));
+    let records: EntityTableRecord[] = [...draftRecords, ...dbRecords];
+    if (this.isSelectMode()) {
+      const linkedIds = this.alreadyLinkedIds();
+      const selIds = this.selectedIds();
+      records = records
+        .filter(r => !linkedIds.has(r['id'] as string))
+        .map(r => ({ ...r, __selected: selIds.has(r['id'] as string) }));
+    }
+    return records;
+  });
+  protected readonly baseTableColumns = computed<ColumnsDefine>(() => {
+    // 未注册实体无元数据可派生，不给删除
+    const base = this.#columnsCache.get(this.#entityKey()) ?? [actionsColumn('操作', '删除', () => false, '查看')];
+    if (this.isSelectMode()) {
+      const withoutActions = base.filter(c => (c as Record<string, unknown>)['field'] !== 'actions');
+      return [{ field: '__selected', title: '', cellType: 'checkbox', width: 50 }, ...withoutActions];
+    }
+    return base;
+  });
+  protected readonly listTableOptions = computed<Partial<ListTableConstructorOptions>>(() => ({
+    ...LIST_TABLE_OPTIONS,
+    ...buildListViewTableOptions(this.viewState(), this.baseTableColumns())
+  }));
 
   /** CDK Overlay 定位策略：优先下方右对齐，其次上方右对齐 */
   protected readonly overlayPositions = [
@@ -428,42 +449,18 @@ export class EntityListComponent {
     return organizeFields(extractFieldsFromMetadata(getEntityMetadata(cls), this.#modelInfoMap));
   });
 
-  readonly tableRecords = computed<EntityTableRecord[]>(() => {
-    // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
-    // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
-    const isRowReadonly = this.#capabilities()?.canEdit === false;
-    const dbRecords = this.#instances().map(inst => ({
-      ...(inst as Record<string, unknown>),
-      ...(isRowReadonly ? { _readonly: true } : {})
-    }));
-    const draftRecords = this.#localDraftItems().map(inst => ({ ...(inst as Record<string, unknown>) }));
-    let records: EntityTableRecord[] = [...draftRecords, ...dbRecords];
-    if (this.isSelectMode()) {
-      const linkedIds = this.alreadyLinkedIds();
-      const selIds = this.selectedIds();
-      records = records
-        .filter(r => !linkedIds.has(r['id'] as string))
-        .map(r => ({ ...r, __selected: selIds.has(r['id'] as string) }));
-    }
-    return records;
-  });
-
-  readonly tableColumns = computed<ColumnsDefine>(() => {
-    // 未注册实体无元数据可派生，不给删除
-    const base = this.#columnsCache.get(this.#entityKey()) ?? [actionsColumn('操作', '删除', () => false, '查看')];
-    if (this.isSelectMode()) {
-      const withoutActions = base.filter(c => (c as Record<string, unknown>)['field'] !== 'actions');
-      return [{ field: '__selected', title: '', cellType: 'checkbox', width: 50 }, ...withoutActions];
-    }
-    return base;
-  });
-
   readonly createFormFieldConfigs = computed<FormFieldConfig[]>(() => {
     const cls = this.#entityCls();
     if (!cls) return [];
     const meta = getEntityMetadata(cls);
     return buildFormFields(meta, 'create');
   });
+
+  readonly tableColumns = computed(() => applyListViewColumns(this.baseTableColumns(), this.viewState()));
+  readonly viewFields = computed(() =>
+    getListViewFields(applyListViewColumns(this.baseTableColumns(), { ...this.viewState(), hiddenFields: [] }))
+  );
+  readonly tableRecords = computed(() => buildListViewRecords(this.sourceTableRecords(), this.viewState()));
 
   // ── Select mode ───────────────────────────────────────────────────────
   readonly isSelectMode = computed(() => this.mode() === 'select');
@@ -483,18 +480,21 @@ export class EntityListComponent {
   readonly rowDragEnabled = computed(() => {
     const cls = this.#entityCls();
     const list = this.#currentList();
-    return canReorderEntityList({
-      metadata: cls ? getEntityMetadata(cls) : undefined,
-      sortOrder: this.#sortState().order,
-      hasUserFilter: this.filterQuery().rules.length > 0,
-      selectMode: this.isSelectMode(),
-      fixedQuery: this.fixedQuery(),
-      fullyLoaded: !!list && !list.hasMore() && !list.isLoading(),
-      hasReadonlyRows: this.#capabilities()?.canEdit === false,
-      hasDrafts: this.#localDraftItems().length > 0,
-      hasPendingEdits: this.#pendingEditBatches() > 0,
-      reorderPending: this.#reorderPending()
-    });
+    return (
+      this.viewState().groupBy === null &&
+      canReorderEntityList({
+        metadata: cls ? getEntityMetadata(cls) : undefined,
+        sortOrder: this.#sortState().order,
+        hasUserFilter: this.filterQuery().rules.length > 0,
+        selectMode: this.isSelectMode(),
+        fixedQuery: this.fixedQuery(),
+        fullyLoaded: !!list && !list.hasMore() && !list.isLoading(),
+        hasReadonlyRows: this.#capabilities()?.canEdit === false,
+        hasDrafts: this.#localDraftItems().length > 0,
+        hasPendingEdits: this.#pendingEditBatches() > 0,
+        reorderPending: this.#reorderPending()
+      })
+    );
   });
 
   readonly selectedIds = signal<Set<string>>(new Set());
@@ -772,13 +772,20 @@ export class EntityListComponent {
     });
   }
 
-  /**
-   * 列头排序点击：驱动 cursor orderBy 重查（VTable 客户端排序已禁用）。
-   */
+  /** 应用列表视图配置并同步手动排序约束。 */
+  onViewSettingsChange(value: ListViewState): void {
+    this.viewState.set(value);
+    const first = value.sorts[0];
+    this.#sortState.set(first ? { field: first.field, order: first.sort } : { ...DEFAULT_SORT_STATE });
+  }
+
+  /** 列头排序点击：驱动 cursor orderBy 重查（VTable 客户端排序已禁用）。 */
   onSortClicked(event: { field: unknown; order: unknown }): void {
     const field = normalizeSortField(event.field);
     if (!field) return;
-    this.#sortState.set({ field, order: normalizeSortOrder(event.order) });
+    const order = normalizeSortOrder(event.order);
+    this.#sortState.set({ field, order });
+    this.viewState.update(current => ({ ...current, sorts: order === 'normal' ? [] : [{ field, sort: order }] }));
   }
 
   // ── Private helpers ───────────────────────────────────────────────────
@@ -927,10 +934,13 @@ export class EntityListComponent {
       }
       // 关联候选不使用主表的筛选与排序
       const isCurrent = key === this.#entityKey();
-      const sortState = isCurrent ? this.#sortState() : DEFAULT_SORT_STATE;
+      const view =
+        isCurrent ?
+          { ...createListViewState(), sorts: this.#querySorts(), groupBy: this.#groupBy() }
+        : createListViewState();
       return {
         where: (isCurrent ? where : EMPTY_FILTER) as never,
-        orderBy: buildCursorOrderBy(sortState, getEntityMetadata(cls)) as FindByCursorOptions<EntityType>['orderBy']
+        orderBy: buildListViewOrderBy(view, getEntityMetadata(cls)) as FindByCursorOptions<EntityType>['orderBy']
       };
     });
     const list = runInInjectionContext(this.#injector, () => new InfiniteScrollingList(this.#rxdb, cls, options));

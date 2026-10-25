@@ -42,6 +42,12 @@ epic-001~006 按产品能力分组，[epic-009](epic-009-bom-domain-model.md) �
 - [US-527 工作台备份恢复闭环：失败语义与数据保留](../stories/domain/US-527-admin-backup-restore.md) (Low)
 - [US-528 独立消费接入示例与接入成本记录](../stories/domain/US-528-admin-consumer-example.md) (Low)
 
+## 列表视图扩展
+
+2026-10-25 owner 选择字段配置、排序和分组作为后续切片，见
+[US-529 实体列表视图配置](../stories/domain/US-529-entity-list-view-settings.md)。该故事扩展通用模型 UI，
+新增公共逻辑与三端接线独立评审，首版 US-526～528 的范围保持各自 story 定义。
+
 ## 价值待证（整个 Epic）
 
 **解锁记录（2026-10-21，owner 决定）**：本 Epic 的 3 条故事原标价值待证、不进任何排期批次；

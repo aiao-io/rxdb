@@ -15,22 +15,25 @@
 import {
   RelationKind,
   getEntityMetadata,
-  type EntityMetadata,
   type EntityType,
   type FindByCursorOptions,
-  type HistoryScopeAPI,
-  type OrderBy
+  type HistoryScopeAPI
 } from '@aiao/rxdb';
 import {
   actionsColumn,
+  applyListViewColumns,
   buildEditableColumns,
   buildFormFields,
+  buildListViewOrderBy,
+  buildListViewRecords,
+  buildListViewTableOptions,
   canReorderEntityList,
   cn,
   commitRowMove,
-  defaultListOrderBy,
+  createListViewState,
   deriveEntityCapabilities,
   extractFieldsFromMetadata,
+  getListViewFields,
   organizeFields,
   parsePropertyColumnValue,
   type BatchChangeItem,
@@ -41,6 +44,7 @@ import {
   type FieldMetadata,
   type FilterQuery,
   type FormFieldConfig,
+  type ListViewState,
   type ModelInfo,
   type QueryTableHandle,
   type RelatedEntityProvider,
@@ -59,6 +63,7 @@ import { EntityDialog } from '../entity-dialog/entity-dialog';
 import { QueryTable } from '../entity-table/query-table';
 import { QueryBuilder } from '../query-builder/query-builder/query-builder';
 import './entity-list.css';
+import { ListViewSettings } from './list-view-settings';
 
 /**
  * RxDB 实体实例与筛选查询结构（共享类型，收敛到 `@aiao/rxdb-model` 统一透传）。
@@ -98,20 +103,6 @@ function normalizeSortOrder(order: unknown): ListSortState['order'] {
   const lower = order.toLowerCase();
   if (lower === 'asc' || lower === 'desc' || lower === 'normal') return lower;
   return 'normal';
-}
-
-/** 构造 FindByCursor 所需 orderBy：normal → 实体默认排序；用户字段 → [field, id] 同向。 */
-function buildCursorOrderBy(state: ListSortState, metadata: EntityMetadata | undefined): OrderBy[] {
-  if (state.order === 'normal' || !state.field) {
-    return defaultListOrderBy(metadata);
-  }
-  if (state.field === 'id') {
-    return [{ field: 'id', sort: state.order }];
-  }
-  return [
-    { field: state.field, sort: state.order },
-    { field: 'id', sort: state.order }
-  ];
 }
 
 /** 解析外部导航传入的筛选条件 JSON 字符串，格式非法时静默忽略。 */
@@ -256,6 +247,7 @@ export function EntityList({
   }, [rxdb]);
 
   // ── 用户状态 ───────────────────────────────────────────────────────────
+  const [viewState, setViewState] = useState(createListViewState);
   const [sortState, setSortState] = useState<ListSortState>({ ...DEFAULT_SORT_STATE });
   const [filterQuery, setFilterQuery] = useState<FilterQuery>({ ...EMPTY_FILTER });
   const [pendingQuery, setPendingQuery] = useState<FilterQuery>({ ...EMPTY_FILTER });
@@ -288,6 +280,7 @@ export function EntityList({
   if (prevEntityInputs.namespace !== namespace || prevEntityInputs.name !== name) {
     setPrevEntityInputs({ namespace, name });
     setSortState({ ...DEFAULT_SORT_STATE });
+    setViewState(createListViewState());
     setFilterQuery({ ...EMPTY_FILTER });
     setPendingQuery({ ...EMPTY_FILTER });
   }
@@ -377,17 +370,17 @@ export function EntityList({
     (key: string): (() => FindByCursorOptions<EntityType>) =>
       () => {
         const isCurrent = key === entityKey;
-        const listSortState = isCurrent ? sortState : DEFAULT_SORT_STATE;
+        const listView = isCurrent ? viewState : createListViewState();
         const cls = entityClsMap.get(key);
         return {
           where: (isCurrent ? computedWhere : EMPTY_FILTER) as never,
-          orderBy: buildCursorOrderBy(
-            listSortState,
+          orderBy: buildListViewOrderBy(
+            listView,
             cls ? getEntityMetadata(cls) : undefined
           ) as FindByCursorOptions<EntityType>['orderBy']
         };
       },
-    [computedWhere, entityClsMap, entityKey, sortState]
+    [computedWhere, entityClsMap, entityKey, viewState]
   );
 
   // ── 视图派生 ───────────────────────────────────────────────────────────
@@ -398,18 +391,20 @@ export function EntityList({
   const filteredCount = instances.length + localDraftItems.length;
 
   /** 当前列表是否允许拖拽排序（US-028 阶段 B）：看到的行必须恰好是一条完整排序域 */
-  const rowDragEnabled = canReorderEntityList({
-    metadata: entityCls ? getEntityMetadata(entityCls) : undefined,
-    sortOrder: sortState.order,
-    hasUserFilter: filterQuery.rules.length > 0,
-    selectMode: isSelectMode,
-    fixedQuery,
-    fullyLoaded: !!currentList && !currentList.hasMore && !currentList.isLoading,
-    hasReadonlyRows: isRowReadonly,
-    hasDrafts: localDraftItems.length > 0,
-    hasPendingEdits: pendingEditBatches > 0,
-    reorderPending
-  });
+  const rowDragEnabled =
+    viewState.groupBy === null &&
+    canReorderEntityList({
+      metadata: entityCls ? getEntityMetadata(entityCls) : undefined,
+      sortOrder: sortState.order,
+      hasUserFilter: filterQuery.rules.length > 0,
+      selectMode: isSelectMode,
+      fixedQuery,
+      fullyLoaded: !!currentList && !currentList.hasMore && !currentList.isLoading,
+      hasReadonlyRows: isRowReadonly,
+      hasDrafts: localDraftItems.length > 0,
+      hasPendingEdits: pendingEditBatches > 0,
+      reorderPending
+    });
 
   const isInitialLoading = currentList ? currentList.isLoading && currentList.value.length === 0 : false;
   const isLoadingMore = currentList ? currentList.isLoading && currentList.value.length > 0 : false;
@@ -428,7 +423,7 @@ export function EntityList({
     return organizeFields(extractFieldsFromMetadata(getEntityMetadata(entityCls), modelInfoMap));
   }, [entityCls, modelInfoMap]);
 
-  const tableRecords = useMemo<EntityTableRecord[]>(() => {
+  const sourceTableRecords = useMemo<EntityTableRecord[]>(() => {
     // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
     // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
     const dbRecords = instances.map(inst => ({
@@ -474,7 +469,7 @@ export function EntityList({
     return cache;
   }, [rxdb, entityClsMap]);
 
-  const tableColumns = useMemo<ColumnDefine[]>(() => {
+  const baseTableColumns = useMemo<ColumnDefine[]>(() => {
     // 未注册实体无元数据可派生，不给删除
     const base = columnsCache.get(entityKey) ?? [actionsColumn('操作', '删除', () => false, '查看')];
     if (isSelectMode) {
@@ -483,6 +478,25 @@ export function EntityList({
     }
     return base;
   }, [columnsCache, entityKey, isSelectMode]);
+
+  const tableColumns = useMemo(() => applyListViewColumns(baseTableColumns, viewState), [baseTableColumns, viewState]);
+  const viewFields = useMemo(
+    () => getListViewFields(applyListViewColumns(baseTableColumns, { ...viewState, hiddenFields: [] })),
+    [baseTableColumns, viewState]
+  );
+  const tableRecords = useMemo(
+    () => buildListViewRecords(sourceTableRecords, viewState),
+    [sourceTableRecords, viewState]
+  );
+  const listTableOptions = useMemo(
+    () => ({ ...LIST_TABLE_OPTIONS, ...buildListViewTableOptions(viewState, baseTableColumns) }),
+    [viewState, baseTableColumns]
+  );
+  const onViewSettingsChange = (value: ListViewState): void => {
+    setViewState(value);
+    const first = value.sorts[0];
+    setSortState(first ? { field: first.field, order: first.sort } : { ...DEFAULT_SORT_STATE });
+  };
 
   const createFormFieldConfigs = useMemo<FormFieldConfig[]>(() => {
     if (!entityCls) return [];
@@ -765,7 +779,9 @@ export function EntityList({
   const onSortClicked = useCallback((event: { field: unknown; order: unknown }): void => {
     const field = normalizeSortField(event.field);
     if (!field) return;
-    setSortState({ field, order: normalizeSortOrder(event.order) });
+    const order = normalizeSortOrder(event.order);
+    setSortState({ field, order });
+    setViewState(current => ({ ...current, sorts: order === 'normal' ? [] : [{ field, sort: order }] }));
   }, []);
 
   const onQueryChange = useCallback((query: FilterQuery | undefined): void => {
@@ -945,12 +961,12 @@ export function EntityList({
       })}
 
       {/* 顶栏：实体名称 + 计数 + 筛选按钮 + 新增按钮 */}
-      <div className='border-base-300 flex h-10 min-h-10 shrink-0 items-center justify-between border-b px-4'>
+      <div className='border-base-300 flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-1'>
         <div className='flex items-center gap-2 text-sm'>
           <span className='font-medium'>{displayName}</span>
           {isFilterQuery && <span className='badge badge-ghost badge-sm'>{filteredCount} 条记录</span>}
         </div>
-        <div className='flex items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-2'>
           {!isSelectMode && (
             <>
               {/* Undo / Redo */}
@@ -977,6 +993,7 @@ export function EntityList({
               <div className='divider divider-horizontal mx-0.5 h-5 self-center' />
             </>
           )}
+          <ListViewSettings fields={viewFields} value={viewState} onChange={onViewSettingsChange} />
           {/* 筛选 popover 触发器 */}
           <FilterPopover
             open={showFilterPopover}
@@ -1031,6 +1048,7 @@ export function EntityList({
       <div className='min-h-0 flex-1'>
         {isBrowser && (
           <QueryTable
+            key={viewState.groupBy ?? ''}
             ref={queryTableRef}
             columns={tableColumns}
             filteredCount={filteredCount}
@@ -1039,7 +1057,7 @@ export function EntityList({
             loadMore={loadMore}
             queryActive={isQueryActive}
             records={tableRecords}
-            tableOptions={LIST_TABLE_OPTIONS}
+            tableOptions={listTableOptions}
             onBatchUpdated={onBatchUpdated}
             onCellChanged={onCellChanged}
             onIconClicked={event => void onIconClicked(event)}

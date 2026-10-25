@@ -1,0 +1,134 @@
+<div class="flex shrink-0 items-center gap-1" aria-label="列表视图配置">
+  <details class="dropdown" name="rxdb-list-view-settings">
+    <summary class="btn btn-ghost btn-sm">字段配置</summary>
+    <div [class]="panel">
+      <p class="mb-2 text-xs opacity-60">调整字段显隐与顺序，至少保留一个字段</p>
+      @for (field of fields(); track field.field; let index = $index) {
+        <div class="flex items-center gap-2 py-1">
+          <label class="flex min-w-0 flex-1 items-center gap-2 text-sm">
+            <input
+              class="checkbox checkbox-xs"
+              [attr.aria-label]="`显示${field.title}`"
+              [checked]="!value().hiddenFields.includes(field.field)"
+              [disabled]="visibleCount() === 1 && !value().hiddenFields.includes(field.field)"
+              (change)="toggleField(field.field, $event)"
+              type="checkbox"
+            />
+            <span class="truncate">{{ field.title }}</span>
+          </label>
+          <button
+            class="btn btn-ghost btn-xs"
+            [attr.aria-label]="`上移${field.title}`"
+            [disabled]="index === 0"
+            (click)="moveField(index, -1)"
+            type="button"
+          >
+            ↑
+          </button>
+          <button
+            class="btn btn-ghost btn-xs"
+            [attr.aria-label]="`下移${field.title}`"
+            [disabled]="index === fields().length - 1"
+            (click)="moveField(index, 1)"
+            type="button"
+          >
+            ↓
+          </button>
+        </div>
+      }
+      <button class="btn btn-ghost btn-sm mt-2" (click)="change({ fieldOrder: [], hiddenFields: [] })" type="button">
+        重置字段
+      </button>
+    </div>
+  </details>
+  <details class="dropdown" name="rxdb-list-view-settings">
+    <summary class="btn btn-ghost btn-sm" [class.btn-active]="value().sorts.length > 0">
+      排序{{ value().sorts.length ? ` ${value().sorts.length}` : '' }}
+    </summary>
+    <div [class]="panel">
+      <p class="mb-2 text-xs opacity-60">按规则顺序排序，作用于全部查询结果</p>
+      @for (sort of value().sorts; track sort.field; let index = $index) {
+        <div class="mb-2 flex items-center gap-1">
+          <span class="min-w-0 flex-1 truncate text-sm">{{ index + 1 }}. {{ titleOf(sort.field) }}</span>
+          <select
+            class="select select-xs w-20"
+            [attr.aria-label]="`${titleOf(sort.field)}排序方向`"
+            [value]="sort.sort"
+            (change)="sortDirection(sort.field, $event)"
+          >
+            <option value="asc">升序</option>
+            <option value="desc">降序</option>
+          </select>
+          <button
+            class="btn btn-ghost btn-xs"
+            [attr.aria-label]="`提高${titleOf(sort.field)}排序优先级`"
+            [disabled]="index === 0"
+            (click)="moveSort(index, -1)"
+            type="button"
+          >
+            ↑
+          </button>
+          <button
+            class="btn btn-ghost btn-xs"
+            [attr.aria-label]="`降低${titleOf(sort.field)}排序优先级`"
+            [disabled]="index === value().sorts.length - 1"
+            (click)="moveSort(index, 1)"
+            type="button"
+          >
+            ↓
+          </button>
+          <button
+            class="btn btn-ghost btn-xs"
+            [attr.aria-label]="`移除${titleOf(sort.field)}排序`"
+            (click)="removeSort(sort.field)"
+            type="button"
+          >
+            ×
+          </button>
+        </div>
+      }
+      <select
+        class="select select-sm w-full"
+        [disabled]="!available().length"
+        (change)="addSort($event)"
+        aria-label="添加排序字段"
+        value=""
+      >
+        <option value="">添加排序字段</option>
+        @for (field of available(); track field.field) {
+          <option [value]="field.field">{{ field.title }}</option>
+        }
+      </select>
+      <button
+        class="btn btn-ghost btn-sm mt-2"
+        [disabled]="!value().sorts.length"
+        (click)="change({ sorts: [] })"
+        type="button"
+      >
+        清除排序
+      </button>
+    </div>
+  </details>
+  <details class="dropdown" name="rxdb-list-view-settings">
+    <summary class="btn btn-ghost btn-sm" [class.btn-active]="value().groupBy !== null">
+      分组{{ value().groupBy ? ' 1' : '' }}
+    </summary>
+    <div [class]="panel">
+      <label class="mb-2 block text-sm">
+        分组字段
+        <select
+          class="select select-sm mt-2 w-full"
+          [value]="value().groupBy ?? ''"
+          (change)="group($event)"
+          aria-label="分组字段"
+        >
+          <option value="">不分组</option>
+          @for (field of sortable(); track field.field) {
+            <option [value]="field.field">{{ field.title }}</option>
+          }
+        </select>
+      </label>
+      <p class="text-xs opacity-60">点击组标题可折叠。组内数量仅统计已加载记录。</p>
+    </div>
+  </details>
+</div>

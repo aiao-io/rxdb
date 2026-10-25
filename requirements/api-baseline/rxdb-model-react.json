@@ -14,6 +14,10 @@
         "kind": "value"
       },
       {
+        "name": "applyListViewColumns",
+        "kind": "value"
+      },
+      {
         "name": "applyPopoverPosition",
         "kind": "value"
       },
@@ -43,6 +47,18 @@
       },
       {
         "name": "buildFormFields",
+        "kind": "value"
+      },
+      {
+        "name": "buildListViewOrderBy",
+        "kind": "value"
+      },
+      {
+        "name": "buildListViewRecords",
+        "kind": "value"
+      },
+      {
+        "name": "buildListViewTableOptions",
         "kind": "value"
       },
       {
@@ -123,6 +139,10 @@
       },
       {
         "name": "createListTable",
+        "kind": "value"
+      },
+      {
+        "name": "createListViewState",
         "kind": "value"
       },
       {
@@ -466,6 +486,10 @@
         "kind": "value"
       },
       {
+        "name": "getListViewFields",
+        "kind": "value"
+      },
+      {
         "name": "getOperatorsForType",
         "kind": "value"
       },
@@ -566,6 +590,14 @@
         "kind": "type"
       },
       {
+        "name": "ListViewField",
+        "kind": "type"
+      },
+      {
+        "name": "ListViewState",
+        "kind": "type"
+      },
+      {
         "name": "lucideToSvgElement",
         "kind": "value"
       },
@@ -592,6 +624,10 @@
       {
         "name": "ModelInfo",
         "kind": "type"
+      },
+      {
+        "name": "moveListViewItem",
+        "kind": "value"
       },
       {
         "name": "MultiSelectEditor",

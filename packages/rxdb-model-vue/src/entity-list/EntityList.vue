@@ -15,8 +15,7 @@ import {
   RelationKind,
   type EntityMetadata,
   type EntityType,
-  type FindByCursorOptions,
-  type OrderBy
+  type FindByCursorOptions
 } from '@aiao/rxdb';
 import {
   actionsColumn,
@@ -24,7 +23,13 @@ import {
   buildFormFields,
   canReorderEntityList,
   commitRowMove,
-  defaultListOrderBy,
+  applyListViewColumns,
+  buildListViewOrderBy,
+  buildListViewRecords,
+  buildListViewTableOptions,
+  createListViewState,
+  getListViewFields,
+  type ListViewState,
   deriveEntityCapabilities,
   extractFieldsFromMetadata,
   organizeFields,
@@ -52,6 +57,7 @@ import DialogPortal from '../entity-dialog/DialogPortal.vue';
 import EntityDialog from '../entity-dialog/EntityDialog.vue';
 import EntityDetail from '../entity-detail/EntityDetail.vue';
 import type { EntityDetailDialogData } from '../entity-detail/entity-detail-types';
+import ListViewSettings from './ListViewSettings.vue';
 import QueryTable from '../entity-table/QueryTable.vue';
 import QueryBuilder from '../query-builder/query-builder/QueryBuilder.vue';
 import type { RxDBQueryOutput } from '../query-builder/query-builder/query-builder-types';
@@ -110,23 +116,6 @@ function normalizeSortOrder(order: unknown): ListSortState['order'] {
   const lower = order.toLowerCase();
   if (lower === 'asc' || lower === 'desc' || lower === 'normal') return lower;
   return 'normal';
-}
-
-/**
- * 构造 FindByCursor 所需 orderBy。
- * normal → 手动排序实体按手动顺序，其余 id desc；用户字段 → [field, id] 同向（末尾唯一键满足游标定位）。
- */
-function buildCursorOrderBy(state: ListSortState, metadata: EntityMetadata | undefined): OrderBy[] {
-  if (state.order === 'normal' || !state.field) {
-    return defaultListOrderBy(metadata);
-  }
-  if (state.field === 'id') {
-    return [{ field: 'id', sort: state.order }];
-  }
-  return [
-    { field: state.field, sort: state.order },
-    { field: 'id', sort: state.order }
-  ];
 }
 
 /** 解析外部导航传入的筛选条件 JSON 字符串，格式非法时静默忽略 */
@@ -248,12 +237,14 @@ const filterQuery = ref<FilterQuery>({ ...EMPTY_FILTER });
 const pendingQuery = ref<FilterQuery>({ ...EMPTY_FILTER });
 const pendingQueryValid = ref(true);
 const showFilterPopover = ref(false);
+const viewState = ref(createListViewState());
 
 // 切实体时重置筛选与排序为默认
 watch(entityKey, () => {
   filterQuery.value = { ...EMPTY_FILTER };
   pendingQuery.value = { ...EMPTY_FILTER };
   sortState.value = { ...DEFAULT_SORT_STATE };
+  viewState.value = createListViewState();
 });
 
 // ── 无限滚动列表资源（等价 Angular #getOrCreateList + #currentList） ──
@@ -275,10 +266,10 @@ const buildListOptions = (key: string, metadata: EntityMetadata) => {
   }
   // 关联候选不使用主表的筛选与排序
   const isCurrent = key === entityKey.value;
-  const activeSortState = isCurrent ? sortState.value : DEFAULT_SORT_STATE;
+  const view = isCurrent ? viewState.value : createListViewState();
   return {
     where: (isCurrent ? where : EMPTY_FILTER) as never,
-    orderBy: buildCursorOrderBy(activeSortState, metadata) as FindByCursorOptions<EntityType>['orderBy']
+    orderBy: buildListViewOrderBy(view, metadata) as FindByCursorOptions<EntityType>['orderBy']
   };
 };
 
@@ -419,21 +410,24 @@ const m2mAlreadyLinkedIds = computed<Set<string>>(() => {
 const rowDragEnabled = computed(() => {
   const cls = entityCls.value;
   const list = currentList.value;
-  return canReorderEntityList({
-    metadata: cls ? getEntityMetadata(cls) : undefined,
-    sortOrder: sortState.value.order,
-    hasUserFilter: filterQuery.value.rules.length > 0,
-    selectMode: isSelectMode.value,
-    fixedQuery: props.fixedQuery,
-    fullyLoaded: !!list && !list.hasMore.value && !list.isLoading.value,
-    hasReadonlyRows: capabilities.value?.canEdit === false,
-    hasDrafts: localDraftItems.value.length > 0,
-    hasPendingEdits: pendingEditBatches.value > 0,
-    reorderPending: reorderPending.value
-  });
+  return (
+    viewState.value.groupBy === null &&
+    canReorderEntityList({
+      metadata: cls ? getEntityMetadata(cls) : undefined,
+      sortOrder: sortState.value.order,
+      hasUserFilter: filterQuery.value.rules.length > 0,
+      selectMode: isSelectMode.value,
+      fixedQuery: props.fixedQuery,
+      fullyLoaded: !!list && !list.hasMore.value && !list.isLoading.value,
+      hasReadonlyRows: capabilities.value?.canEdit === false,
+      hasDrafts: localDraftItems.value.length > 0,
+      hasPendingEdits: pendingEditBatches.value > 0,
+      reorderPending: reorderPending.value
+    })
+  );
 });
 
-const tableRecords = computed<EntityTableRecord[]>(() => {
+const sourceTableRecords = computed<EntityTableRecord[]>(() => {
   // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
   // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
   const isRowReadonly = capabilities.value?.canEdit === false;
@@ -453,7 +447,7 @@ const tableRecords = computed<EntityTableRecord[]>(() => {
   return records;
 });
 
-const tableColumns = computed<ColumnsDefine>(() => {
+const baseTableColumns = computed<ColumnsDefine>(() => {
   // 未注册实体无元数据可派生，不给删除
   const base = columnsCache.get(entityKey.value) ?? [actionsColumn('操作', '删除', () => false, '查看')];
   if (isSelectMode.value) {
@@ -462,6 +456,21 @@ const tableColumns = computed<ColumnsDefine>(() => {
   }
   return base;
 });
+
+const tableColumns = computed(() => applyListViewColumns(baseTableColumns.value, viewState.value));
+const viewFields = computed(() =>
+  getListViewFields(applyListViewColumns(baseTableColumns.value, { ...viewState.value, hiddenFields: [] }))
+);
+const tableRecords = computed(() => buildListViewRecords(sourceTableRecords.value, viewState.value));
+const listTableOptions = computed(() => ({
+  ...LIST_TABLE_OPTIONS,
+  ...buildListViewTableOptions(viewState.value, baseTableColumns.value)
+}));
+const onViewSettingsChange = (value: ListViewState): void => {
+  viewState.value = value;
+  const first = value.sorts[0];
+  sortState.value = first ? { field: first.field, order: first.sort } : { ...DEFAULT_SORT_STATE };
+};
 
 const createFormFieldConfigs = computed<FormFieldConfig[]>(() => {
   const cls = entityCls.value;
@@ -730,7 +739,9 @@ const onRowMoved = (move: RowMoveEvent): void => {
 const onSortClicked = (event: { field: unknown; order: unknown }): void => {
   const field = normalizeSortField(event.field);
   if (!field) return;
-  sortState.value = { field, order: normalizeSortOrder(event.order) };
+  const order = normalizeSortOrder(event.order);
+  sortState.value = { field, order };
+  viewState.value = { ...viewState.value, sorts: order === 'normal' ? [] : [{ field, sort: order }] };
 };
 
 // ── Private helpers ───────────────────────────────────────────────────
@@ -1017,7 +1028,7 @@ defineExpose({
     </div>
 
     <!-- 顶栏：实体名称 + 计数 + 筛选按钮 + 新增按钮 -->
-    <div class="border-base-300 flex h-10 min-h-10 shrink-0 items-center justify-between border-b px-4">
+    <div class="border-base-300 flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-1">
       <div class="flex items-center gap-2 text-sm">
         <span class="font-medium">{{ displayName }}</span>
         <span
@@ -1065,6 +1076,11 @@ defineExpose({
           </button>
           <div class="divider divider-horizontal mx-0.5 h-5 self-center" />
         </template>
+        <ListViewSettings
+          :fields="viewFields"
+          :value="viewState"
+          @change="onViewSettingsChange"
+        />
         <!-- 筛选 popover 触发器 -->
         <button
           ref="filterTrigger"
@@ -1182,7 +1198,7 @@ defineExpose({
     <!-- 表格主体 -->
     <div class="min-h-0 flex-1">
       <QueryTable
-        :key="namespace + ':' + name"
+        :key="namespace + ':' + name + ':' + viewState.groupBy"
         ref="queryTableRef"
         :columns="tableColumns"
         :filtered-count="filteredCount"
@@ -1192,7 +1208,7 @@ defineExpose({
         :query-active="isQueryActive"
         :records="tableRecords"
         :row-drag-enabled="rowDragEnabled"
-        :table-options="LIST_TABLE_OPTIONS"
+        :table-options="listTableOptions"
         @batch-updated="onBatchUpdated"
         @cell-changed="onCellChanged"
         @icon-clicked="onIconClicked"

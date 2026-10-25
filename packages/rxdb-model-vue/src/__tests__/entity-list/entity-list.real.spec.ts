@@ -181,6 +181,65 @@ describe('EntityList（真实组件）', () => {
   }
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
+
+  it('字段配置、查询排序与分组通过工具栏生效', async () => {
+    await seedTodo('beta', false);
+    await seedTodo('alpha', true);
+    const { wrapper, child } = await renderList();
+    const originalFields = tableOf(child).columns.map(column => column['field']);
+    const defaultIds = tableOf(child).records.map(record => record['id']);
+    const title = String(tableOf(child).columns.find(column => column['field'] === 'title')?.['title']);
+    const queries = vi.spyOn(repoOf(), 'findByCursor');
+    await child.find(`[aria-label="显示${title}"]`).setValue(false);
+    await FLUSH();
+    expect(tableOf(child).columns.some(column => column['field'] === 'title')).toBe(false);
+    expect(queries).not.toHaveBeenCalled();
+    queries.mockRestore();
+    await child.find(`[aria-label="显示${title}"]`).setValue(true);
+    await child.find(`[aria-label="上移${title}"]`).trigger('click');
+    expect(tableOf(child).columns[0]['field']).toBe('title');
+    await child.find('[aria-label="添加排序字段"]').setValue('title');
+    await FLUSH();
+    expect(tableOf(child).records.map(record => record['title'])).toEqual(['alpha', 'beta']);
+    await child.find(`[aria-label="${title}排序方向"]`).setValue('desc');
+    await FLUSH();
+    expect(tableOf(child).records.map(record => record['title'])).toEqual(['beta', 'alpha']);
+    const completedTitle = String(tableOf(child).columns.find(column => column['field'] === 'completed')?.['title']);
+    await child.find('[aria-label="添加排序字段"]').setValue('completed');
+    await child.find(`[aria-label="${completedTitle}排序方向"]`).setValue('desc');
+    await child.find(`[aria-label="提高${completedTitle}排序优先级"]`).trigger('click');
+    await FLUSH();
+    expect(tableOf(child).records.map(record => record['title'])).toEqual(['alpha', 'beta']);
+    await child.find(`[aria-label="移除${completedTitle}排序"]`).trigger('click');
+    await FLUSH();
+    expect(tableOf(child).records.map(record => record['title'])).toEqual(['beta', 'alpha']);
+    await child.find('[aria-label="分组字段"]').setValue('completed');
+    await FLUSH();
+    expect(tableOf(child).options['groupBy']).toEqual(['completed']);
+    expect(tableOf(child).records).toHaveLength(2);
+    expect(isRowDragEnabled(tableOf(child) as never)).toBe(false);
+    await child.find('[aria-label="分组字段"]').setValue('');
+    await FLUSH();
+    expect(tableOf(child).options['groupBy']).toEqual([]);
+    const button = (text: string) => child.findAll('button').find(item => item.text() === text)!;
+    await button('清除排序').trigger('click');
+    await FLUSH();
+    expect(tableOf(child).records.map(record => record['id'])).toEqual(defaultIds);
+    const fields = child.findAll('input[type="checkbox"]');
+    for (const field of fields.slice(1)) await field.setValue(false);
+    expect((fields[0].element as HTMLInputElement).disabled).toBe(true);
+    expect(tableOf(child).columns).toHaveLength(2);
+    await button('重置字段').trigger('click');
+    expect(tableOf(child).columns.map(column => column['field'])).toEqual(originalFields);
+    await child.find('[aria-label="分组字段"]').setValue('completed');
+    await wrapper.setProps({ name: 'Task' });
+    await FLUSH();
+    expect(tableOf(child).options['groupBy']).toEqual([]);
+    await wrapper.setProps({ name: 'Todo' });
+    await FLUSH();
+    expect(tableOf(child).columns.map(column => column['field'])).toEqual(originalFields);
+  });
+
   /**
    * 查询实体当前落库的 title 列表（升序）。
    *

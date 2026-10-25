@@ -16,7 +16,7 @@
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **29** |
 
-仓库还剩 **29 条**未关闭故事（1 In Progress + 6 In Review + 22 Backlog + 0 Blocked）。
+仓库还剩 **30 条**未关闭故事（1 In Progress + 7 In Review + 22 Backlog + 0 Blocked）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > rxdb-model 实体模型库与三框架 UI 组件集没有故事文件，三框架代码已随 #62 合入；剩下的跨框架对拍、三端对称复核与文档
@@ -97,6 +97,8 @@ owner 2026-10-21 解锁 [epic-010](epics/epic-010-model-driven-admin-framework.m
 | 1    | US-526 阶段 A → B → C：`apps/dev-rxdb-admin` 工作台 + `apps/dev-rxdb-admin-e2e` | 阶段归属的 AC 全部 ✅（A 关 AC#1/#2、B 关 AC#3～6、C 关 AC#7/#8）；e2e 走 录入 → 编辑 → 筛选 → 刷新 → 重开 全流程；故事不提前置 Done |
 | 2    | US-527：备份 / 恢复入口与失败语义接线                                           | AC#1～4 全 ✅（含故障注入的失败语义与独立环境恢复）；恢复失败不破坏当前库                                                            |
 | 3    | US-528：独立消费示例与接入成本记录                                              | AC#1～3 全 ✅；示例只用发布包、成本记录逐项可复验                                                                                    |
+
+2026-10-25 owner 追加 [US-529](stories/domain/US-529-entity-list-view-settings.md)：先加入字段配置、多字段排序与单字段分组；复用首版工作台消费路径，公共包改动按提取评审流程处理。
 
 ### 线 A：桥接版本发布（owner 门控）
 
