@@ -1771,6 +1771,12 @@
             "name": "@aiao/rxdb",
             "optional": false,
             "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/utils",
+            "optional": false,
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-model",
@@ -2946,7 +2952,7 @@
       }
     ]
   },
-  "digest": "e9fb3c4c901a11b0760ef4f92eb3530d10397e86d26b0cda83df2700aa79064d",
+  "digest": "f0a45871d118f8d26968515fb9d52906aab4c7901336a4ba04d801b235669607",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,
