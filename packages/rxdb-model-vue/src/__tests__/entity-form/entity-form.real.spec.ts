@@ -162,6 +162,19 @@ describe('EntityForm（真实组件）', () => {
     expect(avatarOptions).toEqual(['(空)', 'logo.png']);
   });
 
+  it('两种单选关联在空候选时提示创建，有候选后移除提示', async () => {
+    const { wrapper } = render({ mode: 'create' });
+    await wrapper.setProps({ relatedEntityProvider: () => [] });
+
+    const hints = () => wrapper.findAll('[data-testid="relation-empty-hint"]').map(hint => hint.text());
+    expect(hints()).toEqual(['暂无「负责人」可选，请先创建对应记录', '暂无「头像」可选，请先创建对应记录']);
+
+    await wrapper.setProps({
+      relatedEntityProvider: () => [{ id: 'record-1', displayName: '可选记录' }]
+    });
+    expect(hints()).toEqual([]);
+  });
+
   it('view 模式全部只读：渲染展示值而非输入控件', () => {
     const { wrapper } = render({ mode: 'view' });
 

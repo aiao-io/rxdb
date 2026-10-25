@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -51,7 +51,44 @@ test.describe('工作台备份与恢复', () => {
     await resetE2eState(page);
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');
-    await backupToFile(page, dir);
+    const archive = await backupToFile(page, dir);
+    expect((await stat(archive)).size).toBeGreaterThan(0);
+  });
+
+  test('AC#2 备份写入失败提示空间不足，仍可重试并继续编辑原数据', async ({ page }) => {
+    await resetE2eState(page);
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '办公设备');
+    await page.goto('/backup');
+    await expect(page.getByTestId('backup-start')).toBeEnabled();
+    await page.evaluate(() => {
+      const write = WritableStreamDefaultWriter.prototype.write;
+      WritableStreamDefaultWriter.prototype.write = function () {
+        WritableStreamDefaultWriter.prototype.write = write;
+        return Promise.reject(new DOMException('Injected backup storage failure', 'QuotaExceededError'));
+      };
+    });
+    await page.getByTestId('backup-start').click();
+    await expect(page.getByTestId('backup-result').getByRole('alert')).toHaveText('存储空间不足，无法完成备份');
+    await expect(page.getByTestId('backup-start')).toBeEnabled();
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByTestId('backup-start').click();
+    const download = await downloadPromise;
+    await download.saveAs(join(dir, download.suggestedFilename()));
+    await expect(page.getByTestId('backup-result')).toContainText('备份成功');
+    await page.getByTestId('entity-catalog').getByRole('link', { name: '资产分类' }).click();
+    const edit = await expectActionIcon(page, 'view-action');
+    await page.mouse.click(edit.x, edit.y);
+    const name = page.getByRole('group', { name: '分类名' }).getByRole('textbox');
+    await expect(name).toHaveValue('办公设备');
+    await name.fill('办公设备（已核验）');
+    await page.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
+    await page.reload();
+    const persisted = await expectActionIcon(page, 'view-action');
+    await page.mouse.click(persisted.x, persisted.y);
+    await expect(name).toHaveValue('办公设备（已核验）');
   });
 
   test('AC#3 独立环境恢复归档后可继续查询、编辑，刷新重开数据仍在', async ({ page, browser }) => {
@@ -74,11 +111,14 @@ test.describe('工作台备份与恢复', () => {
       const edit = await expectActionIcon(fresh, 'view-action', 1);
       await fresh.mouse.click(edit.x, edit.y);
       await expect(fresh.getByRole('tab', { name: '基本信息' })).toBeVisible();
+      await expect(fresh.getByRole('group', { name: '分类' }).locator('option:checked')).toHaveText('办公设备');
       await fresh.getByRole('group', { name: '名称' }).getByRole('textbox').fill('工作站');
       await fresh.getByRole('button', { name: '保存', exact: true }).click();
       await expect(fresh.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
       await fresh.reload();
-      await expectListHasRows(fresh);
+      const persisted = await expectActionIcon(fresh, 'view-action');
+      await fresh.mouse.click(persisted.x, persisted.y);
+      await expect(fresh.getByRole('group', { name: '名称' }).getByRole('textbox')).toHaveValue('工作站');
     } finally {
       await context.close();
     }

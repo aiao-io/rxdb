@@ -372,14 +372,15 @@ export function EntityList({
     return { combinator: 'and', rules: [...fixed.rules, ...userFilter.rules] };
   }, [fixedQuery, filterQuery]);
 
-  // 每个列表槽位的查询选项工厂：where 共享（Angular 侧同一 computed），orderBy 主表跟列头排序
+  // 主表使用当前筛选与排序，关联候选独立查询
   const optionsFor = useCallback(
     (key: string): (() => FindByCursorOptions<EntityType>) =>
       () => {
-        const listSortState = key === entityKey ? sortState : DEFAULT_SORT_STATE;
+        const isCurrent = key === entityKey;
+        const listSortState = isCurrent ? sortState : DEFAULT_SORT_STATE;
         const cls = entityClsMap.get(key);
         return {
-          where: computedWhere as never,
+          where: (isCurrent ? computedWhere : EMPTY_FILTER) as never,
           orderBy: buildCursorOrderBy(
             listSortState,
             cls ? getEntityMetadata(cls) : undefined

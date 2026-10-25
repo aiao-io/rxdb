@@ -925,10 +925,11 @@ export class EntityListComponent {
       } else {
         where = { combinator: 'and', rules: [...fixed.rules, ...userFilter.rules] };
       }
-      // 关联实体下拉的 list 不跟主表列头排序，避免外键侧字段缺失
-      const sortState = key === this.#entityKey() ? this.#sortState() : DEFAULT_SORT_STATE;
+      // 关联候选不使用主表的筛选与排序
+      const isCurrent = key === this.#entityKey();
+      const sortState = isCurrent ? this.#sortState() : DEFAULT_SORT_STATE;
       return {
-        where: where as never,
+        where: (isCurrent ? where : EMPTY_FILTER) as never,
         orderBy: buildCursorOrderBy(sortState, getEntityMetadata(cls)) as FindByCursorOptions<EntityType>['orderBy']
       };
     });

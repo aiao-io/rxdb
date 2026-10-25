@@ -246,6 +246,27 @@ describe('EntityList（真实组件）', () => {
     );
   }
 
+  it.each(['initialFilter', 'fixedQuery'] as const)('%s 只过滤主表，关联下拉保留全部候选', async input => {
+    const account = new Account({ name: '候选账户' });
+    await account.save();
+    await new Contract({ title: '匹配合同', accountId: account.id }).save();
+    await new Contract({ title: '其他合同', accountId: account.id }).save();
+    const filter = {
+      combinator: 'and' as const,
+      rules: [{ field: 'title', operator: '=' as const, value: '匹配合同' }]
+    };
+    const filterProps = input === 'initialFilter' ? { initialFilter: JSON.stringify(filter) } : { fixedQuery: filter };
+    const { container } = await renderList({ name: 'Contract', ...filterProps });
+    await waitFor(() => {
+      expect(tableOf().records.map(record => record['title'])).toEqual(['匹配合同']);
+    });
+    fireEvent.click([...container.querySelectorAll('button')].find(button => button.textContent?.includes('+ 新增'))!);
+    await waitFor(() => {
+      const options = [...document.querySelectorAll('select option')].map(option => option.textContent);
+      expect(options).toContain('候选账户');
+    });
+  });
+
   it('筛选弹层：query-builder 条件应用后列表按 where 重查', async () => {
     await seedTodo('match-alpha');
     await seedTodo('match-beta');

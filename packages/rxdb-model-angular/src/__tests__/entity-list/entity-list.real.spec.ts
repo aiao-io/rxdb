@@ -249,6 +249,29 @@ describe('EntityListComponent（真实组件）', () => {
       .filter(el => el.closest('[aria-hidden="true"]') !== null)
       .map(el => el.outerHTML.slice(0, 80));
 
+  it.each(['initialFilter', 'fixedQuery'] as const)('%s 只过滤主表，关联下拉保留全部候选', async input => {
+    const account = new Account({ name: '候选账户' });
+    await account.save();
+    await new Contract({ title: '匹配合同', accountId: account.id }).save();
+    await new Contract({ title: '其他合同', accountId: account.id }).save();
+    const filter = {
+      combinator: 'and' as const,
+      rules: [{ field: 'title', operator: '=' as const, value: '匹配合同' }]
+    };
+    const { fixture, component } = await renderList({ name: 'Contract' });
+    fixture.componentRef.setInput(input, input === 'initialFilter' ? JSON.stringify(filter) : filter);
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      expect(component.tableRecords().map(record => record['title'])).toEqual(['匹配合同']);
+    });
+    component.openCreateDialog();
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      const options = [...document.querySelectorAll('select option')].map(option => option.textContent?.trim());
+      expect(options).toContain('候选账户');
+    });
+  });
+
   it('筛选弹层：query-builder 条件应用后列表按 where 重查', async () => {
     await seedTodo('match-alpha');
     await seedTodo('match-beta');

@@ -154,8 +154,9 @@ describe('EntityFormComponent（真实组件）', () => {
     fixture.componentRef.setInput('relatedEntityProvider', () => []);
     fixture.detectChanges();
 
-    const hints = [...fixture.nativeElement.querySelectorAll<HTMLElement>('[data-testid="relation-empty-hint"]')].map(
-      h => h.textContent?.trim()
+    const element = fixture.nativeElement as HTMLElement;
+    const hints = [...element.querySelectorAll<HTMLElement>('[data-testid="relation-empty-hint"]')].map(h =>
+      h.textContent?.trim()
     );
     expect(hints).toContain('暂无「负责人」可选，请先创建对应记录');
     expect(hints).toContain('暂无「头像」可选，请先创建对应记录');

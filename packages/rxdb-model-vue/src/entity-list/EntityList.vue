@@ -261,7 +261,7 @@ watch(entityKey, () => {
 /** 列头排序；切实体时重置为默认 id desc */
 const sortState = ref<ListSortState>({ ...DEFAULT_SORT_STATE });
 
-/** 构造某实体 key 的游标查询选项（where = 固定 + 用户筛选；主表用列头排序） */
+/** 主表使用固定与用户筛选，关联候选独立查询。 */
 const buildListOptions = (key: string, metadata: EntityMetadata) => {
   const userFilter = filterQuery.value;
   const fixed = props.fixedQuery;
@@ -273,10 +273,11 @@ const buildListOptions = (key: string, metadata: EntityMetadata) => {
   } else {
     where = { combinator: 'and', rules: [...fixed.rules, ...userFilter.rules] };
   }
-  // 关联实体下拉的 list 不跟主表列头排序，避免外键侧字段缺失
-  const activeSortState = key === entityKey.value ? sortState.value : DEFAULT_SORT_STATE;
+  // 关联候选不使用主表的筛选与排序
+  const isCurrent = key === entityKey.value;
+  const activeSortState = isCurrent ? sortState.value : DEFAULT_SORT_STATE;
   return {
-    where: where as never,
+    where: (isCurrent ? where : EMPTY_FILTER) as never,
     orderBy: buildCursorOrderBy(activeSortState, metadata) as FindByCursorOptions<EntityType>['orderBy']
   };
 };

@@ -51,6 +51,16 @@ export default function SearchPage() {
           </div>
         ))}
       </div>
+      {search.hasMore && (
+        <button
+          className='btn btn-outline w-fit'
+          type='button'
+          disabled={search.state !== 'success'}
+          onClick={() => void search.loadMore()}
+        >
+          {search.state === 'loading' ? '加载中…' : '加载更多'}
+        </button>
+      )}
     </div>
   );
 }

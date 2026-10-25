@@ -24,8 +24,6 @@ async function expectListHasRows(page: Page): Promise<void> {
 
 test.describe('独立消费示例（US-528）', () => {
   test('录入 / 编辑 / 筛选 / 刷新重开全闭环可用', async ({ page }) => {
-    // 查询构建器弹层较矮视口下规则行在视口外，scrollIntoView 够不到——加大视口
-    await page.setViewportSize({ width: 1280, height: 960 });
     await page.goto('/');
     await page.waitForURL('**/bookmarks');
     await expect(page.getByTestId('entity-empty-state')).toBeVisible();
@@ -38,47 +36,37 @@ test.describe('独立消费示例（US-528）', () => {
     await page.getByRole('button', { name: /^筛选/ }).click();
     await page.getByRole('button', { name: '添加第一个条件' }).click();
     const rule = page.locator('.rxdb-query-rule').first();
-    // 筛选弹层是 fixed inset:0 的透明遮罩，Playwright 的视口滚动判定对弹层内控件
-    // 失灵；树节点 Enter 不触发选择。统一走 el.click() 派发原生 click 事件，
-    // 不经过任何动作性检查（筛选条件树最终由「确定」后的计数徽标断言）
-    await rule
-      .locator('button[popovertarget]')
-      .first()
-      .evaluate(el => (el as HTMLElement).click());
-    await page.locator('[role="treeitem"][id$="-item-title"]').evaluate(el => (el as HTMLElement).click());
-    await rule
-      .locator('button[popovertarget]')
-      .nth(1)
-      .evaluate(el => (el as HTMLElement).click());
-    await page.locator('[role="option"][id$="-opt-contains"]').evaluate(el => (el as HTMLElement).click());
-    // React 受控输入：native setter + input 事件
-    await rule.locator('input[placeholder="输入值"]').evaluate(el => {
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
-      setter.call(el, 'RxDB');
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    await page.getByRole('button', { name: '确定' }).focus();
-    await page.keyboard.press('Enter');
+    await rule.locator('button[popovertarget]').first().click();
+    await page.locator('[role="treeitem"][id$="-item-title"]').click();
+    await rule.locator('button[popovertarget]').nth(1).click();
+    await page.locator('[role="option"][id$="-opt-contains"]').click();
+    await rule.locator('input[placeholder="输入值"]').fill('RxDB');
+    await page.getByRole('button', { name: '确定' }).click();
     await expect(page.getByText('1 条记录')).toBeVisible();
 
     // 清筛选 → 编辑第一条 → 刷新重开数据仍在
     await page.getByRole('button', { name: /^筛选/ }).click();
-    await page.getByRole('button', { name: '重置' }).evaluate(el => (el as HTMLElement).click());
-    await page.getByRole('button', { name: '确定' }).evaluate(el => (el as HTMLElement).click());
+    await page.getByRole('button', { name: '重置' }).click();
+    await page.getByRole('button', { name: '确定' }).click();
     await expectListHasRows(page);
 
-    await expect.poll(async () => findActionIcon(page, 'view-action', 1), { timeout: 15000 }).not.toBeNull();
-    const view = await findActionIcon(page, 'view-action', 1);
-    if (view === null) throw new Error('操作列没有 view-action 图标');
+    const view = await expectActionIcon(page, 'view-action', 1);
     await page.mouse.click(view.x, view.y);
     await expect(page.getByRole('tab', { name: '基本信息' })).toBeVisible();
-    // 表格默认按 id 倒序：第一行是后创建的记录
-    await expect(page.getByRole('group', { name: '标题' }).getByRole('textbox')).toHaveValue('SQLite 文档');
-    await page.getByRole('button', { name: '关闭' }).click();
+    const title = page.getByRole('group', { name: '标题' }).getByRole('textbox');
+    const url = page.getByRole('group', { name: '链接' }).getByRole('textbox');
+    await expect(title).toHaveValue('SQLite 文档');
+    await title.fill('SQLite 官方文档');
+    await url.fill('https://www.sqlite.org/docs.html');
+    await page.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
 
     await page.reload();
     await page.waitForURL('**/bookmarks');
-    await expectListHasRows(page);
+    const persisted = await expectActionIcon(page, 'view-action', 1);
+    await page.mouse.click(persisted.x, persisted.y);
+    await expect(title).toHaveValue('SQLite 官方文档');
+    await expect(url).toHaveValue('https://www.sqlite.org/docs.html');
   });
 });
 
@@ -86,6 +74,13 @@ test.describe('独立消费示例（US-528）', () => {
 interface ActionIconHit {
   x: number;
   y: number;
+}
+
+async function expectActionIcon(page: Page, iconName: string, row = 1): Promise<ActionIconHit> {
+  await expect.poll(async () => findActionIcon(page, iconName, row), { timeout: 15000 }).not.toBeNull();
+  const hit = await findActionIcon(page, iconName, row);
+  if (hit === null) throw new Error(`操作列没有 ${iconName} 图标`);
+  return hit;
 }
 
 async function findActionIcon(page: Page, iconName: string, row = 1): Promise<ActionIconHit | null> {

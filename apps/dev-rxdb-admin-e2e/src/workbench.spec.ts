@@ -32,6 +32,46 @@ test.describe('模型驱动数据工作台', () => {
     await page.waitForURL('**/entities/assets/AssetCategory');
   });
 
+  test('移动端收起导航后可重新展开，刷新后入口仍可用', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/backup');
+    const sidebarToggle = page.getByTestId('app-nav').getByRole('button', { name: 'sidebar toggle' }).last();
+    await sidebarToggle.click();
+    const openNavigation = page.getByRole('button', { name: '展开导航', exact: true });
+    await expect(openNavigation).toHaveAttribute('aria-expanded', 'false');
+    await openNavigation.click();
+    await page.getByTestId('app-nav').getByRole('link', { name: '资产分类' }).click();
+    await page.waitForURL('**/entities/assets/AssetCategory');
+    await sidebarToggle.click();
+
+    await page.reload();
+    await openNavigation.click();
+    await page.getByTestId('search-nav-link').click();
+    await expect(page.getByTestId('search-input')).toBeVisible();
+  });
+
+  test('搜索超过一页时可加载全部结果，更换查询重置分页', async ({ page }) => {
+    await page.goto('/entities/assets/AssetCategory');
+    for (let i = 1; i <= 21; i++) {
+      await createCategory(page, `分页分类 ${i}`);
+    }
+    await createCategory(page, '唯一检索样本');
+    await page.getByTestId('search-nav-link').click();
+    const input = page.getByTestId('search-input');
+    const results = page.getByTestId('search-result');
+    const loadMore = page.getByRole('button', { name: '加载更多', exact: true });
+    await input.fill('分页分类');
+    await expect(results).toHaveCount(20);
+    await loadMore.click();
+    await expect(results).toHaveCount(21);
+    await expect(loadMore).toHaveCount(0);
+
+    await input.fill('唯一检索样本');
+    await expect(results).toHaveCount(1);
+    await expect(results).toContainText('唯一检索样本');
+    await expect(loadMore).toHaveCount(0);
+  });
+
   test('AC#3 空列表显示空态与录入引导', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     await expectListEmpty(page);
@@ -119,7 +159,7 @@ test.describe('模型驱动数据工作台', () => {
     await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
   });
 
-  test('AC#6 查询筛选：按关联字段与标量字段过滤', async ({ page }) => {
+  test('AC#6 查询筛选：按标量字段过滤', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');
     await createCategory(page, '家具');
@@ -142,13 +182,52 @@ test.describe('模型驱动数据工作台', () => {
     await expect(page.getByText('2 条记录')).toHaveCount(0);
   });
 
+  test('AC#6 查询筛选：通过关联分类名定位资产', async ({ page }) => {
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '办公设备');
+    await createCategory(page, '家具');
+    await page.goto('/entities/assets/Asset');
+    await createAsset(page, '笔记本', '办公设备');
+    await createAsset(page, '办公椅', '家具');
+
+    await page.getByRole('button', { name: '筛选' }).click();
+    await page.getByRole('button', { name: '添加第一个条件' }).click();
+    const rule = page.locator('.rxdb-query-rule').first();
+    await rule.locator('button[popovertarget]').first().click();
+    await page.locator('[role="treeitem"][id$="-item-category"]').click();
+    await page.locator('[role="treeitem"][id$="-item-category.name"]').click();
+    await rule.locator('button[popovertarget]').nth(1).click();
+    await page.locator('[role="option"][id$="-opt-contains"]').click();
+    await rule.locator('input[placeholder="输入值"]').fill('办公');
+    await page.getByRole('button', { name: '确定' }).click();
+    await expectFilteredCount(page, 1);
+
+    const view = await expectActionIcon(page, 'view-action');
+    await page.mouse.click(view.x, view.y);
+    await expect(page.getByRole('group', { name: '名称' }).getByRole('textbox')).toHaveValue('笔记本');
+    await expect(page.getByRole('group', { name: '分类' }).locator('option:checked')).toHaveText('办公设备');
+  });
+
   test('AC#7 刷新与关闭重开浏览器标签后数据仍在', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');
     await expectListHasRows(page);
     await page.reload();
     await page.waitForURL('**/entities/assets/AssetCategory');
-    await expectListHasRows(page);
+    const view = await expectActionIcon(page, 'view-action');
+    await page.mouse.click(view.x, view.y);
+    await expect(page.getByRole('group', { name: '分类名' }).getByRole('textbox')).toHaveValue('办公设备');
+    await page.getByRole('button', { name: '关闭' }).click();
+
+    const dbName = await page.evaluate(() => window.sessionStorage.getItem('__aiao_e2e_db_name__'));
+    expect(dbName).toBeTruthy();
+    const reopened = await page.context().newPage();
+    await reopened.addInitScript(name => window.sessionStorage.setItem('__aiao_e2e_db_name__', name), dbName as string);
+    await page.close();
+    await reopened.goto('/entities/assets/AssetCategory');
+    const persisted = await expectActionIcon(reopened, 'view-action');
+    await reopened.mouse.click(persisted.x, persisted.y);
+    await expect(reopened.getByRole('group', { name: '分类名' }).getByRole('textbox')).toHaveValue('办公设备');
   });
 
   test('AC#8 失败态：未注册实体给出可读失败提示', async ({ page }) => {

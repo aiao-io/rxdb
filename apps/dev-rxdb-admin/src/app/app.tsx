@@ -43,7 +43,7 @@ function AppSidebar({ pinned, onToggle }: { pinned: boolean; onToggle: () => voi
   const rxdb = useRxDB();
   const entries = visibleEntityEntries(rxdb.config.entities);
   return (
-    <aside className='app-sidebar' data-testid='app-nav'>
+    <aside className='app-sidebar' id='app-navigation' data-testid='app-nav'>
       <div className='bg-base-300 flex h-10 min-h-10 items-center justify-between p-1'>
         <button
           className='btn btn-ghost btn-sm hover:border-transparent hover:bg-transparent'
@@ -107,10 +107,22 @@ function AppSidebar({ pinned, onToggle }: { pinned: boolean; onToggle: () => voi
   );
 }
 
-/** 顶栏：应用标题（h1 供 e2e 以标题定位页面）。 */
-function AppHeader() {
+/** 顶栏：导航切换与应用标题。 */
+function AppHeader({ pinned, onToggle }: { pinned: boolean; onToggle: () => void }) {
   return (
     <header className='border-base-300 bg-base-100 flex h-14 shrink-0 items-center border-b px-4'>
+      <button
+        className='btn btn-ghost btn-sm mr-2'
+        type='button'
+        onClick={onToggle}
+        aria-label={pinned ? '收起导航' : '展开导航'}
+        aria-expanded={pinned}
+        aria-controls='app-navigation'
+      >
+        {pinned ?
+          <PanelLeftClose size={16} />
+        : <PanelLeftDashed size={16} />}
+      </button>
       <h1 className='text-lg font-semibold'>模型驱动数据工作台</h1>
     </header>
   );
@@ -139,7 +151,7 @@ function AppLayout() {
     <div className={`flex size-full ${pinned ? 'left-menu-pinned' : ''}`} id='layout-main'>
       <AppSidebar pinned={pinned} onToggle={toggleSidebar} />
       <div className='flex h-full min-w-0 grow flex-col overflow-hidden' id='layout-container'>
-        <AppHeader />
+        <AppHeader pinned={pinned} onToggle={toggleSidebar} />
         <div id='layout-content' className='flex min-h-0 flex-1 flex-col overflow-auto'>
           <Suspense
             fallback={

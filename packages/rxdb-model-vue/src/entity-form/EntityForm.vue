@@ -505,22 +505,7 @@ defineExpose({
           :value="jsonOrEmpty(formData[field.field])"
           @change="onFieldChange(field, ($event.target as HTMLTextAreaElement).value)"
         />
-        <select
-          v-else-if="field.type === 'oneToOne'"
-          class="select"
-          :value="displayInputValue(field)"
-          @change="onFieldChange(field, ($event.target as HTMLSelectElement).value)"
-        >
-          <option value=""> (空) </option>
-          <option
-            v-for="item in relatedItemsMap.get(field.field) ?? []"
-            :key="item.id"
-            :value="item.id"
-          >
-            {{ item.displayName }}
-          </option>
-        </select>
-        <template v-else-if="field.type === 'manyToOne'">
+        <template v-else-if="field.type === 'oneToOne' || field.type === 'manyToOne'">
           <select
             class="select"
             :value="displayInputValue(field)"

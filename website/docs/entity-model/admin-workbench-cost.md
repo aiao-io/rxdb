@@ -1,5 +1,5 @@
 ---
-id: entity-model/admin-workbench-cost
+id: admin-workbench-cost
 title: 接入成本记录：独立消费示例
 sidebar_label: 接入成本（admin-workbench-cost）
 description: 模型驱动数据工作台独立消费示例（US-528）的接入成本：新增代码行数、依赖清单与样式要求
@@ -7,7 +7,7 @@ description: 模型驱动数据工作台独立消费示例（US-528）的接入�
 
 # 接入成本记录：独立消费示例
 
-> 本文是 [模型驱动后台管理框架](../../requirements/domain-research/admin-framework.md) 首版切片 US-528 的
+> 本文是 [模型驱动后台管理框架](https://github.com/aiao-io/rxdb/blob/main/requirements/domain-research/admin-framework.md) 首版切片 US-528 的
 > 验收产物：一份**只用发布包**从零接线的独立消费应用（`apps/dev-rxdb-admin-consumer`），
 > 记录它新增了多少代码、加了哪些依赖、样式怎么接入——回答「定义实体之后少写了多少 CRUD」。
 
@@ -69,6 +69,6 @@ description: 模型驱动数据工作台独立消费示例（US-528）的接入�
 
 ## 对照
 
-同一闭环在 [工作台应用](../../apps/dev-rxdb-admin/src/app) 里的形态见
-[模型驱动后台管理框架](../../requirements/domain-research/admin-framework.md) 首版切片
+同一闭环在 [工作台应用](https://github.com/aiao-io/rxdb/tree/main/apps/dev-rxdb-admin/src/app) 里的形态见
+[模型驱动后台管理框架](https://github.com/aiao-io/rxdb/blob/main/requirements/domain-research/admin-framework.md) 首版切片
 （US-526 ~ US-528）。
