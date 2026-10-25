@@ -16,6 +16,10 @@ MEDIA-US-204 全部 AC 已通过分层本地验收：提示词/模型原生字�
 
 本轮 `aiao-media:coverage` 为 30 文件、294/294 通过（272 项 unit/data + 22 项真实浏览器）。新模块与全应用统计如下，数字顺序固定为行/语句/函数/分支：
 
+覆盖率产物统一生成到仓库根 `coverage/apps/aiao-media/`，与 Nx outputs 和通用 CI 收集路径一致。已按 CI 参数单独复跑 272 项测试，并核对 `coverage-final.json`、`coverage-summary.json`、`lcov.info` 均存在；完整 294 项覆盖率复跑也通过。
+
+通用 CI 曾在原有中断导入重试用例等待 reload 超时；专项同例通过，旧失败未上传 trace，无法据此确定业务根因。上传 helper 现先等待文件输入框启用，Playwright 产物对齐 `apps/aiao-media-e2e/test-output/playwright/output/`，完整 31 项重新通过，后续 CI 可保留截图和 trace。
+
 | 范围                        |     行 |   语句 |   函数 |   分支 |
 | --------------------------- | -----: | -----: | -----: | -----: |
 | `library-query.ts`          |   100% |   100% |   100% |   100% |

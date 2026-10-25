@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './src',
+  outputDir: './test-output/playwright/output',
   testMatch: ['local-first.spec.ts', 'local-reliability.spec.ts', 'supabase-auth.spec.ts', 'library.spec.ts'],
   timeout: 60000,
   workers: 1,

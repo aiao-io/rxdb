@@ -283,7 +283,7 @@
     "test": {
       "executor": "nx:run-commands",
       "dependsOn": ["^build", "script-test", "requirements-check"],
-      "outputs": ["{projectRoot}/coverage"],
+      "outputs": ["{workspaceRoot}/coverage/apps/aiao-media"],
       "options": {
         "cwd": "apps/aiao-media",
         "command": "vitest run --config vite.config.mts --project=aiao-media-ui --project=aiao-media-data"
@@ -445,6 +445,7 @@
     "coverage": {
       "executor": "nx:run-commands",
       "dependsOn": ["^build", "prepare-assets", "script-test", "requirements-check"],
+      "outputs": ["{workspaceRoot}/coverage/apps/aiao-media"],
       "options": {
         "cwd": "apps/aiao-media",
         "command": "vitest run --config vite.config.mts --coverage"
