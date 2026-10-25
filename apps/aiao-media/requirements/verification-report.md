@@ -12,6 +12,12 @@
 
 本轮校验：需求门禁 17/17、537 个链接与 10 个锚点通过；验收脚本诊断按红绿流程补齐，guard 测试 12/12、e2e lint/typecheck 通过。真实入口的 direct/square 单项以 `PREVIOUS_ATTEMPT_REQUIRES_REVIEW` 停止，`verified=0`、新增生成 0，供应商 AC 未通过。
 
+## MiniMax 原生接口补验（2026-10-25）
+
+用户另选 MiniMax 后，国内区订阅用量 GET 返回 HTTP 200 / 业务码 0，国际区返回 2049；原生图片接口对正式 origin 的 OPTIONS 为 200，允许 POST、Authorization 与 Content-Type。仅向国内区发送一次 `image-01`、1024×1024、`n=1`、URL 响应的原生图片请求，时间为 19:26:41（Asia/Shanghai），返回 HTTP 200 / `1033 / system error`，无图片 URL。官方将 1033 定义为系统错误/下游服务错误，不能推断 Key 无图片权限或零计费。
+
+尝试记录保留 `requires-review`，自动重试 0 次；未取得真实图片，未验原图 GET、PNG、产品保存/刷新回读/精确下载。MiniMax 原生 `/v1/image_generation` 与产品现有 `/images/generations` 的请求及响应协议不同，本次未改适配器、未部署。102 AC7/105 AC7 继续 ⚠️，两条故事仍 Blocked。官方依据、脱敏单次记录摘要和继续执行条件见[供应商补验记录](plans/provider-acceptance-follow-up.md#minimax-单次原生接口探测2026-10-25)。
+
 ## 状态与剩余验收核对（2026-10-25）
 
 按[状态定义](CONVENTIONS.md#状态定义)核对全部 12 条故事、79 条 AC，73 条已有通过证据。[本地交付](plans/local-delivery-tasks.md) 17/17 与[作品检索](plans/library-search-tasks.md) 10/10 的实施任务已完成；此前将全部 AC 已验的 MEDIA-US-004/201/202/203/204/301/302 从 In Progress 转为 In Review；现按用户后续指令及 D-11 记为 Done，并同步总览、需求入口、路线图、能力矩阵、epic 与清单。上述七条按本轮限定口径结项；其他故事沿用默认 Done 定义，全部 AC 与硬依赖要求保留。
