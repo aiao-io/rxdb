@@ -41,6 +41,8 @@ export interface UomConversionRates {
   lineRate?: string | null;
   /** 物料级换算率（同口径）。 */
   itemRate?: string | null;
+  /** 反向使用同一单位关系时乘以换算率，缺省按声明方向相除。 */
+  direction?: 'forward' | 'reverse';
 }
 
 /**
@@ -104,7 +106,7 @@ export const appliedUomRate = (from: string, to: string, rates: UomConversionRat
  * @param value - 规范十进制串
  * @param from - 源单位
  * @param to - 目标单位
- * @param rates - 跨量纲的显式换算率（行级覆盖物料级）
+ * @param rates - 跨量纲的显式换算率（行级覆盖物料级）；direction 为 reverse 时反向使用原声明，相乘而非相除
  * @returns 换算后的规范十进制串（34 位有效数字、half-even）
  *
  * @throws {@link BomQuantityError} 跨量纲且两级都没声明换算率
@@ -150,5 +152,6 @@ export const convertUom = (value: string, from: string, to: string, rates: UomCo
     const level = rates.lineRate === null || rates.lineRate === undefined ? '物料级' : '行级';
     throw new BomQuantityError(`从 ${from} 换算到 ${to} 的${level}换算率为 0（1 ${to} 含 0 ${from} 不构成换算）`);
   }
-  return decimalToCanonical(decimalDiv(decimalFromCanonical(value), divisor));
+  const source = decimalFromCanonical(value);
+  return decimalToCanonical(rates.direction === 'reverse' ? decimalMul(source, divisor) : decimalDiv(source, divisor));
 };

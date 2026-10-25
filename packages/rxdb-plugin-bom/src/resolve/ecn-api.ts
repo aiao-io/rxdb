@@ -5,7 +5,8 @@ import type { EcnDiffResult, EcnImpactResult } from './ecn.js';
  * 按需读取ECN影响范围，沿用既有解析与错误合同。
  * @param adapter - 显式本地适配器
  * @param ecnId - 变更单标识
- * @returns 真实影响范围（同一整机经不同路径到达时，每条命中路径各列一次）
+ * @returns 同一快照中按消耗关系和修订身份匹配的影响范围；同一整机的不同路径分别列出
+ * @throws {@link import('./resolution.js').BomResolutionError} 使用方候选未裁决
  * @throws {@link import('../types.js').BomTruncationError} 命中路径超出 where-used 默认预算（深度 128 / 路径 100,000）
  */
 export const ecnImpact = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnImpactResult> =>

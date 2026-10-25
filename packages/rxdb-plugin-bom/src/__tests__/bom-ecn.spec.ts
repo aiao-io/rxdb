@@ -801,7 +801,7 @@ describe('评审 P2-7 ECN 影响面按路径去重：钻石的每条命中路径
         );
       });
 
-      it('非 consume 流向构成的反查环（T ⇄ S）按路径判环终止，不重复走环', async () => {
+      it('副产回流不构成使用关系，T仍是消耗图中的顶层整机', async () => {
         const { item: x, ecn } = await changedItem('loop');
         const t = await makeItem(adapter, 'loop-t');
         const s = await makeItem(adapter, 'loop-s');
@@ -815,8 +815,8 @@ describe('评审 P2-7 ECN 影响面按路径去重：钻石的每条命中路径
         });
         const impact = await ecnImpact(adapter, ecn.id);
         expect(impact.affectedItemIds).toEqual([x.id]);
-        // 环上的物料都有使用方，不是整机（与按物料去重时同口径）
-        expect(impact.topItems).toEqual([]);
+        expect(impact.topItems.map(top => top.itemId)).toEqual([t.id]);
+        expect(impact.topItems[0].paths).toHaveLength(1);
       });
     });
   }

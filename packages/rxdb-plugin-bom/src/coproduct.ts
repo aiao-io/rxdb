@@ -3,7 +3,7 @@ import type { CostNodeDetail, CostRollupContext, CostRollupResult } from './quan
 import { decimalFromCanonical, decimalMulDiv, decimalToCanonical } from './quantity/decimal.js';
 import type { PlannedQuantity } from './quantity/explosion.js';
 import type { JointCostOutputInput, JointCostSummary } from './quantity/joint-cost.js';
-import { convertUom } from './quantity/uom.js';
+import { convertUom, type UomConversionRates } from './quantity/uom.js';
 import type { BomSqlDialect } from './resolve/bom-sql.js';
 import type { ResolutionContext } from './resolve/resolution.js';
 import type { BomQueryExecutor } from './resolve/resolver.js';
@@ -58,6 +58,8 @@ export interface JointProducerHeader {
   assemblyScrapConvention: 'additive' | 'yield';
   costLotQty: string | null;
   routingId: string | null;
+  /** 候选产出行的单位关系，声明方向为产出单位到库存单位。 */
+  outputRates: UomConversionRates;
 }
 
 type Query = BomQueryExecutor['query'];
@@ -94,7 +96,7 @@ const visibleOutputs = async (
   if (selection.revisionId !== undefined) filters.push(`o."childRevisionId" = ${bind(selection.revisionId)}`);
   return records(
     query,
-    `SELECT h."id" AS "headerId", h."parentRevisionId", r."itemId" AS "parentItemId", h."baseUom", h."baseQty", h."assemblyScrap", h."assemblyScrapConvention", h."costLotQty", h."routingId", o."id" AS "occurrenceId", l."id" AS "lineId", l."lineNo", o."childItemId" AS "itemId", o."childRevisionId" AS "revisionId", o."qty", o."uom", o."jointCostShare" AS "share" FROM ${dialect.table('bom_line_occurrence')} o JOIN ${dialect.table('bom_line')} l ON l."id" = o."lineId" JOIN ${dialect.table('bom_header')} h ON h."id" = l."headerId" JOIN ${dialect.table('item_revision')} r ON r."id" = h."parentRevisionId" WHERE ${filters.join(' AND ')} ORDER BY h."id", l."lineNo", l."id", o."id"`,
+    `SELECT h."id" AS "headerId", h."parentRevisionId", r."itemId" AS "parentItemId", h."baseUom", h."baseQty", h."assemblyScrap", h."assemblyScrapConvention", h."costLotQty", h."routingId", o."id" AS "occurrenceId", l."id" AS "lineId", l."lineNo", o."childItemId" AS "itemId", o."childRevisionId" AS "revisionId", o."qty", o."uom", o."uomConversion", i."uomConversion" AS "itemUomConversion", o."jointCostShare" AS "share" FROM ${dialect.table('bom_line_occurrence')} o JOIN ${dialect.table('item')} i ON i."id" = o."childItemId" JOIN ${dialect.table('bom_line')} l ON l."id" = o."lineId" JOIN ${dialect.table('bom_header')} h ON h."id" = l."headerId" JOIN ${dialect.table('item_revision')} r ON r."id" = h."parentRevisionId" WHERE ${filters.join(' AND ')} ORDER BY h."id", l."lineNo", l."id", o."id"`,
     params
   );
 };
@@ -120,7 +122,11 @@ export const findJointCostSources = async (
           assemblyScrap: String(row['assemblyScrap']),
           assemblyScrapConvention: String(row['assemblyScrapConvention']) as 'additive' | 'yield',
           costLotQty: row['costLotQty'] === null ? null : String(row['costLotQty']),
-          routingId: row['routingId'] === null ? null : String(row['routingId'])
+          routingId: row['routingId'] === null ? null : String(row['routingId']),
+          outputRates: {
+            lineRate: row['uomConversion'] === null ? null : String(row['uomConversion']),
+            itemRate: row['itemUomConversion'] === null ? null : String(row['itemUomConversion'])
+          }
         }
       ])
     ).values()

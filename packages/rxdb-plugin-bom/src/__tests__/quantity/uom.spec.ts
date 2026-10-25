@@ -77,3 +77,27 @@ describe('单位换算：显式换算率（AC#5 的跨量纲段）', () => {
     }
   });
 });
+
+describe('单位换算：反向使用已声明的单位关系', () => {
+  it('1kg含7m时，10kg直接乘7得到70m，不先对换算率求倒数', () => {
+    expect(convertUom('10', 'kg', 'm', { lineRate: '7', direction: 'reverse' })).toBe('70');
+  });
+
+  it('反向关系仍按行级率覆盖物料级率', () => {
+    expect(convertUom('10', 'kg', 'm', { lineRate: '2', itemRate: '3', direction: 'reverse' })).toBe('20');
+    expect(convertUom('10', 'kg', 'm', { itemRate: '3', direction: 'reverse' })).toBe('30');
+  });
+
+  it('方向只作用于显式率，同单位与标准系数不受影响', () => {
+    expect(convertUom('10', 'kg', 'kg', { lineRate: '7', direction: 'reverse' })).toBe('10');
+    expect(convertUom('10', 'kg', 'g', { lineRate: '7', direction: 'reverse' })).toBe('10000');
+    expect(convertUom('1', 'h', 'min', { lineRate: '7', direction: 'reverse' })).toBe('60');
+  });
+
+  it('反向换算也拒绝缺率、零率与时间量纲不兼容', () => {
+    expect(() => convertUom('10', 'kg', 'm', { direction: 'reverse' })).toThrow(BomQuantityError);
+    expect(() => convertUom('10', 'kg', 'm', { lineRate: '0', direction: 'reverse' })).toThrow(BomQuantityError);
+    expect(() => convertUom('10', 'kg', 'm', { itemRate: '0', direction: 'reverse' })).toThrow(BomQuantityError);
+    expect(() => convertUom('10', 'h', 'kg', { lineRate: '7', direction: 'reverse' })).toThrow(BomQuantityError);
+  });
+});

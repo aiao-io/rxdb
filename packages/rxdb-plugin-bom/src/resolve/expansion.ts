@@ -112,11 +112,14 @@ interface ExpandLevelStep {
   truncated: { reason: TruncationReason } | null;
 }
 
-/** 反查前沿保留修订身份；仅起始物料的 null 表示接受全部子修订。 */
-interface UsageFrontier {
-  nodeIndex: number | null;
+/** 反查目标保留修订身份；null 表示接受该物料的全部子修订。 */
+export interface UsageTarget {
   itemId: string;
   revisionId: string | null;
+}
+
+interface UsageFrontier extends UsageTarget {
+  nodeIndex: number | null;
 }
 
 /** 一层反查的结果：本层新节点 + 下一层前沿 + 触顶标记。 */
@@ -147,7 +150,7 @@ interface RevisionHeader {
 }
 
 /** 反查层的一行使用方发生项。 */
-interface UsageRow {
+export interface UsageRow {
   parentItemId: string;
   parentRevisionId: string;
   lineNo: number;
@@ -333,12 +336,12 @@ const fetchChildren = async (
   return rows;
 };
 
-/** 按前沿物料集取一层使用方发生项（分块 IN）。 */
-const fetchParents = async (
+/** 按目标物料与修订取一层已解析消耗关系，供反查与 ECN 影响面共用。 */
+export const fetchUsageParents = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
   context: ResolutionContext,
-  frontier: readonly UsageFrontier[],
+  frontier: readonly UsageTarget[],
   unresolved: UnresolvedAlternative[]
 ): Promise<UsageRow[]> => {
   const revisionsByItem = new Map<string, Set<string | null>>();
@@ -494,7 +497,7 @@ const usageLevel = async (
   signal: AbortSignal | undefined,
   unresolved: UnresolvedAlternative[]
 ): Promise<UsageLevelStep> => {
-  const byChild = groupUsageByChild(await fetchParents(query, dialect, context, frontier, unresolved));
+  const byChild = groupUsageByChild(await fetchUsageParents(query, dialect, context, frontier, unresolved));
   const added: ExpansionNode[] = [];
   const next: UsageLevelStep['next'] = [];
   for (const entry of frontier) {

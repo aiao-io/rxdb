@@ -10,20 +10,23 @@
 
 import { BomTruncationError } from '../types.js';
 import type { BomLocalAdapter } from './bom-adapter.js';
-import { bomSqlDialectFor, buildParentsOfItemsSql } from './bom-sql.js';
-import { DEFAULT_EXPANSION_BUDGETS } from './expansion.js';
+import { bomSqlDialectFor, type BomSqlDialect } from './bom-sql.js';
+import { DEFAULT_EXPANSION_BUDGETS, fetchUsageParents, type UsageRow } from './expansion.js';
 import {
   BomResolutionError,
   type BomType,
   type ResolutionContext,
   type ResolutionResult,
-  type ResolvedLineOccurrence
+  type ResolvedLineOccurrence,
+  type UnresolvedAlternative
 } from './resolution.js';
-import { resolveBom } from './resolver.js';
+import { resolveBom, type BomQueryExecutor } from './resolver.js';
+
+type EcnReader = Pick<BomLocalAdapter, 'name' | 'rawQuery'>;
 
 /** rawQuery 是接口的可选成员（部分适配器不声明）：缺失即显式拒绝，不静默降级；结果按列名取值。 */
 const queryRecords = async (
-  adapter: BomLocalAdapter,
+  adapter: EcnReader,
   sql: string,
   params: unknown[] = []
 ): Promise<Record<string, unknown>[]> => {
@@ -88,7 +91,7 @@ interface AffectedHeader {
   alternativeNo: number;
 }
 
-const readEcnRow = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnRow> => {
+const readEcnRow = async (adapter: EcnReader, ecnId: string): Promise<EcnRow> => {
   const dialect = bomSqlDialectFor(adapter.name);
   const rows = await queryRecords(
     adapter,
@@ -106,7 +109,7 @@ const readEcnRow = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnR
 };
 
 /** ECN 成员（发生项引入 / 截止、新建逻辑行）归属的头，带作用域（影响面 / 差异的起点）。 */
-const affectedHeaders = async (adapter: BomLocalAdapter, ecnId: string): Promise<AffectedHeader[]> => {
+const affectedHeaders = async (adapter: EcnReader, ecnId: string): Promise<AffectedHeader[]> => {
   const dialect = bomSqlDialectFor(adapter.name);
   const line = dialect.table('bom_line');
   const sql = [
@@ -136,42 +139,49 @@ const appendTo = <V>(map: Map<string, V[]>, key: string, values: V[]): void => {
   else map.set(key, [...values]);
 };
 
-/** 按作用域 `(bom_type, org_id)` 分组被改物料（同一物料在两个作用域里各算一次）。 */
-const itemsByScope = (headers: AffectedHeader[]): { bomType: BomType; orgId: string; itemIds: string[] }[] => {
-  const groups = new Map<string, { bomType: BomType; orgId: string; itemIds: string[] }>();
+/** 影响路径从被改头的父修订出发，每一跳都保留修订身份。 */
+interface ImpactTarget {
+  itemId: string;
+  revisionId: string;
+}
+
+/** 按作用域分组被改修订，同一修订的多个备选头只作为一个起点。 */
+const targetsByScope = (headers: AffectedHeader[]) => {
+  const groups = new Map<string, { bomType: BomType; orgId: string; targets: ImpactTarget[] }>();
   for (const header of headers) {
     const key = JSON.stringify([header.bomType, header.orgId]);
-    const group = groups.get(key) ?? { bomType: header.bomType, orgId: header.orgId, itemIds: [] };
-    if (!group.itemIds.includes(header.parentItemId)) group.itemIds.push(header.parentItemId);
+    const group = groups.get(key) ?? { bomType: header.bomType, orgId: header.orgId, targets: [] };
+    if (!group.targets.some(target => target.revisionId === header.parentRevisionId)) {
+      group.targets.push({ itemId: header.parentItemId, revisionId: header.parentRevisionId });
+    }
     groups.set(key, group);
   }
   return [...groups.values()];
 };
 
-/** 一层反查：前沿物料在作用域内的使用方（父物料 + 到达它的发生项）。 */
+/** 使用与 where-used 相同的消耗关系解析，未裁决时拒绝返回部分影响面。 */
 const parentsOf = async (
-  adapter: BomLocalAdapter,
+  query: BomQueryExecutor['query'],
+  dialect: BomSqlDialect,
   context: ResolutionContext,
-  itemIds: string[]
-): Promise<Map<string, { parentItemId: string; occurrenceId: string }[]>> => {
-  const built = buildParentsOfItemsSql(bomSqlDialectFor(adapter.name), {
-    asOfDate: context.asOfDate,
-    bomType: context.bomType,
-    orgId: context.orgId,
-    itemIds
-  });
-  const parents = new Map<string, { parentItemId: string; occurrenceId: string }[]>();
-  for (const row of await queryRecords(adapter, built.sql, built.params)) {
-    appendTo(parents, String(row['childItemId']), [
-      { parentItemId: String(row['parentItemId']), occurrenceId: String(row['occurrenceId']) }
-    ]);
+  targets: readonly ImpactTarget[]
+): Promise<Map<string, UsageRow[]>> => {
+  const unresolved: UnresolvedAlternative[] = [];
+  const rows = await fetchUsageParents(query, dialect, context, targets, unresolved);
+  const ambiguous = unresolved[0];
+  if (ambiguous !== undefined) {
+    throw new BomResolutionError(
+      ambiguous.reason ?? 'alternativeNo',
+      `ECN 影响面无法判定：逻辑行 ${ambiguous.lineId ?? ambiguous.parentRevisionId} 存在未裁决的使用方候选`
+    );
   }
+  const parents = new Map<string, UsageRow[]>();
+  for (const row of rows) appendTo(parents, String(row.resolvedChildRevisionId), [row]);
   return parents;
 };
 
-/** 反查前沿的一条路径：当前物料、到达它的命中路径（发生项 id，子件 → 整机序）与路径上的物料（判环用）。 */
-interface ImpactPath {
-  itemId: string;
+/** 路径以子件到整机的顺序记录发生项，物料集合用于检出存量环。 */
+interface ImpactPath extends ImpactTarget {
   path: string[];
   items: ReadonlySet<string>;
 }
@@ -183,21 +193,16 @@ interface PathBudget {
 
 /**
  * 一条路径向上一跳（新路径追加进 `next`）：每个使用方各成一条新路径（钻石的每条路都保留）；
- * 回到本路径已有物料的边跳过——非 consume 流向不入存储层判环，反查可能成环。深度与路径数沿用
- * where-used 默认预算；影响面没有截断标记，触顶即拒绝，不把部分影响面当完整结果。
+ * 存量环的回边跳过；深度与路径数沿用 where-used 默认预算，触顶即拒绝，不返回部分影响面。
  */
-const climb = (
-  entry: ImpactPath,
-  parents: readonly { parentItemId: string; occurrenceId: string }[],
-  budget: PathBudget,
-  next: ImpactPath[]
-): void => {
+const climb = (entry: ImpactPath, parents: readonly UsageRow[], budget: PathBudget, next: ImpactPath[]): void => {
   for (const parent of parents.filter(candidate => !entry.items.has(candidate.parentItemId))) {
     if (entry.path.length + 1 > DEFAULT_EXPANSION_BUDGETS.depth) throw new BomTruncationError('depth');
     budget.generated += 1;
     if (budget.generated > DEFAULT_EXPANSION_BUDGETS.paths) throw new BomTruncationError('paths');
     next.push({
       itemId: parent.parentItemId,
+      revisionId: parent.parentRevisionId,
       path: [...entry.path, parent.occurrenceId],
       items: new Set([...entry.items, parent.parentItemId])
     });
@@ -209,18 +214,19 @@ const climb = (
  * 追加到达父物料的发生项 id。按路径而非物料去重：同一整机经不同路径到达时每条路径各记一次。
  */
 const topItemsOf = async (
-  adapter: BomLocalAdapter,
+  query: BomQueryExecutor['query'],
+  dialect: BomSqlDialect,
   context: ResolutionContext,
-  itemId: string
+  target: ImpactTarget
 ): Promise<Map<string, string[][]>> => {
   const top = new Map<string, string[][]>();
   const budget: PathBudget = { generated: 0 };
-  let frontier: ImpactPath[] = [{ itemId, path: [], items: new Set([itemId]) }];
+  let frontier: ImpactPath[] = [{ ...target, path: [], items: new Set([target.itemId]) }];
   while (frontier.length > 0) {
-    const parentsByChild = await parentsOf(adapter, context, [...new Set(frontier.map(entry => entry.itemId))]);
+    const parentsByRevision = await parentsOf(query, dialect, context, frontier);
     const next: ImpactPath[] = [];
     for (const entry of frontier) {
-      const parents = parentsByChild.get(entry.itemId) ?? [];
+      const parents = parentsByRevision.get(entry.revisionId) ?? [];
       if (parents.length === 0) appendTo(top, entry.itemId, [entry.path]);
       climb(entry, parents, budget, next);
     }
@@ -232,27 +238,34 @@ const topItemsOf = async (
 /**
  * ECN 影响面（AC#1）：成员发生项的头物料按生效日、在该头自己的作用域内 where-used 走到顶的整机与路径。
  *
+ * 起点及后续路径均按修订身份匹配，只沿已解析的 consume 关系上溯；全部读取共享一个快照。
  * @throws {@link BomTruncationError} 命中路径超出 where-used 默认预算（深度 128 / 路径 100,000）
+ * @throws {@link BomResolutionError} 使用方候选未裁决，不能返回部分影响面
  */
-export const ecnImpact = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnImpactResult> => {
-  const ecn = await readEcnRow(adapter, ecnId);
-  const headers = await affectedHeaders(adapter, ecnId);
-  const top = new Map<string, string[][]>();
-  for (const scope of itemsByScope(headers)) {
-    const context: ResolutionContext = { bomType: scope.bomType, orgId: scope.orgId, asOfDate: ecn.effectiveDate };
-    for (const itemId of scope.itemIds) {
-      for (const [topItemId, paths] of await topItemsOf(adapter, context, itemId)) appendTo(top, topItemId, paths);
+export const ecnImpact = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnImpactResult> =>
+  adapter.transaction(async executor => {
+    const query = executor.query.bind(executor);
+    const reader: EcnReader = { name: adapter.name, rawQuery: query };
+    const dialect = bomSqlDialectFor(adapter.name);
+    const ecn = await readEcnRow(reader, ecnId);
+    const headers = await affectedHeaders(reader, ecnId);
+    const top = new Map<string, string[][]>();
+    for (const scope of targetsByScope(headers)) {
+      const context: ResolutionContext = { bomType: scope.bomType, orgId: scope.orgId, asOfDate: ecn.effectiveDate };
+      for (const target of scope.targets) {
+        const roots = await topItemsOf(query, dialect, context, target);
+        for (const [topItemId, paths] of roots) appendTo(top, topItemId, paths);
+      }
     }
-  }
-  return {
-    ecnId: ecn.id,
-    ecnNo: ecn.ecnNo,
-    state: ecn.state,
-    effectiveDate: ecn.effectiveDate,
-    affectedItemIds: [...new Set(headers.map(header => header.parentItemId))],
-    topItems: [...top.entries()].map(([itemId, paths]) => ({ itemId, paths }))
-  };
-};
+    return {
+      ecnId: ecn.id,
+      ecnNo: ecn.ecnNo,
+      state: ecn.state,
+      effectiveDate: ecn.effectiveDate,
+      affectedItemIds: [...new Set(headers.map(header => header.parentItemId))],
+      topItems: [...top.entries()].map(([itemId, paths]) => ({ itemId, paths }))
+    };
+  }, false);
 
 /** 前一天（生效前评估日；不读系统时钟）。 */
 const dayBefore = (date: Date): Date => {

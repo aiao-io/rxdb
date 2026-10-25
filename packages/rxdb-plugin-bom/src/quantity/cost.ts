@@ -58,7 +58,7 @@ import {
 } from './layer.js';
 import { normalizePlannedQuantity } from './planned-quantity.js';
 import { findMissingOperation, routingUncoveredReason } from './routing-effectivity.js';
-import { convertUom } from './uom.js';
+import { convertUom, type UomConversionRates } from './uom.js';
 
 export { BomCostError } from './cost-error.js';
 
@@ -147,6 +147,12 @@ type ExplosionRowLike =
       T
     : never
   : never;
+
+interface JointUnitPrice {
+  unitCost: string;
+  uom: string;
+  rates: UomConversionRates;
+}
 
 interface HeaderMeta {
   headerId: string;
@@ -713,7 +719,7 @@ const rollupCostInSnapshot = async (
     // batch_cost 随请求批量变，本层每次现算、子件只取 unit_cost（拓扑逆序单遍的实质）
     const unitCostCache = new Map<string, string>();
     const jointCache = new Map<string, JointCostSummary>();
-    const sourceCache = new Map<string, { unitCost: string; uom: string } | null>();
+    const sourceCache = new Map<string, JointUnitPrice | null>();
     const sourceUses = new Map<string, JointCostSourceUse>();
     const selections = { ...context.jointCostSources };
     const sourceIdentity = JSON.stringify(
@@ -781,7 +787,7 @@ const rollupCostInSnapshot = async (
       return unit;
     };
 
-    const jointUnitCost = async (revisionId: string | null): Promise<{ unitCost: string; uom: string } | null> => {
+    const jointUnitCost = async (revisionId: string | null): Promise<JointUnitPrice | null> => {
       if (revisionId === null) return null;
       if (sourceCache.has(revisionId)) return sourceCache.get(revisionId)!;
       const candidates = await findJointCostSources(query, dialect, resolutionContext, revisionId);
@@ -815,7 +821,11 @@ const rollupCostInSnapshot = async (
         qty: output.qty,
         uom: output.uom
       });
-      const price = { unitCost: output.unitCost, uom: output.uom };
+      const price: JointUnitPrice = {
+        unitCost: output.unitCost,
+        uom: output.uom,
+        rates: { ...producer.outputRates, direction: 'reverse' }
+      };
       sourceCache.set(revisionId, price);
       return price;
     };
@@ -876,7 +886,7 @@ const rollupCostInSnapshot = async (
         }
         const jointPrice = await jointUnitCost(row.resolvedChildRevisionId);
         if (jointPrice !== null) {
-          const demand = convertUom(demandInStock, row.childStockUom, jointPrice.uom, hops.fromStock);
+          const demand = convertUom(demandInStock, row.childStockUom, jointPrice.uom, jointPrice.rates);
           total = decimalAdd(
             total,
             decimalMul(decimalFromCanonical(demand), decimalFromCanonical(jointPrice.unitCost))
@@ -1007,7 +1017,7 @@ const rollupCostInSnapshot = async (
         }
         const jointPrice = await jointUnitCost(row.resolvedChildRevisionId);
         if (jointPrice !== null) {
-          const demand = convertUom(demandInStock, row.childStockUom, jointPrice.uom, hops.fromStock);
+          const demand = convertUom(demandInStock, row.childStockUom, jointPrice.uom, jointPrice.rates);
           const amount = decimalMul(decimalFromCanonical(demand), decimalFromCanonical(jointPrice.unitCost));
           materialTotal = decimalAdd(materialTotal, amount);
           material.push({
