@@ -149,7 +149,7 @@ for (const backend of BACKENDS) {
       expect(steps.converted).toEqual({ value: '216.4948453608247422680412371134021', uom: 'pcs' });
       expect(steps.phantom.value).toBe(false);
       // manifest：算法版本与换算记录
-      expect(result.manifest.algorithmVersion).toBe('2');
+      expect(result.manifest.algorithmVersion).toBe('3');
       expect(result.manifest.parentItemId).toBe(finished.id);
     });
 

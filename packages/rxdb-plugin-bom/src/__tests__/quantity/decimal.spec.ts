@@ -15,6 +15,7 @@ import {
   decimalIsNegative,
   decimalIsZero,
   decimalMul,
+  decimalMulDiv,
   decimalSub,
   decimalToCanonical,
   roundToSignificant,
@@ -84,6 +85,26 @@ describe('十进制 kernel 四则（34 位 half-even golden）', () => {
     expect(s(roundToSignificant(d('2.45'), 2))).toBe('2.4');
     expect(s(roundToSignificant(d('2.35'), 2))).toBe('2.4');
     expect(s(roundToSignificant(d('2.55'), 2))).toBe('2.6');
+  });
+});
+
+describe('十进制 kernel 比例乘除一次舍入', () => {
+  it.each([
+    ['7', '9', '7', '9'],
+    ['3', '1', '3', '1'],
+    ['0.07', '0.09', '0.07', '0.09'],
+    ['-7', '9', '7', '-9'],
+    ['7', '-9', '-7', '9'],
+    ['0', '9', '7', '0'],
+    ['7', '0', '9', '0'],
+    ['1', '1', '3', '0.3333333333333333333333333333333333']
+  ])('%s × %s ÷ %s = %s', (quantity, planned, base, expected) => {
+    expect(s(decimalMulDiv(d(quantity), d(planned), d(base)))).toBe(expected);
+  });
+
+  it('基准量为零时即使分子为零也拒绝', () => {
+    expect(() => decimalMulDiv(d('7'), d('9'), d('0'))).toThrow('除数为零');
+    expect(() => decimalMulDiv(d('0'), d('9'), d('0'))).toThrow('除数为零');
   });
 });
 
@@ -261,6 +282,21 @@ describe('十进制 kernel 性质测试（对拍有理数参考实现，34 位 h
       expect(s(decimalDiv(a, b)), `div ${describeDecimal(a)} ÷ ${describeDecimal(b)}`).toBe(
         roundReference({ num, den: ra.den * absBig(rb.num) })
       );
+    }
+  });
+
+  it('比例乘除：68位乘积、不同指数与符号组合均等于精确有理数的一次舍入', () => {
+    const random = seededRandom(20261025);
+    for (let index = 0; index < CASES; index += 1) {
+      const quantity = randomDecimal(random);
+      const planned = randomDecimal(random);
+      const base = randomDecimal(random);
+      const rq = rationalOf(quantity);
+      const rp = rationalOf(planned);
+      const rb = rationalOf(base);
+      const num = rq.num * rp.num * rb.den * (rb.num < 0n ? -1n : 1n);
+      const den = rq.den * rp.den * absBig(rb.num);
+      expect(s(decimalMulDiv(quantity, planned, base)), `scale ${index}`).toBe(roundReference({ num, den }));
     }
   });
 

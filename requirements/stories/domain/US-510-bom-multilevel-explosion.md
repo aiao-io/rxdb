@@ -33,7 +33,8 @@ AC 的阶段归属：A 关闭 AC#1 / #2 / #11，以及 AC#7 / #10 中只关乎�
 
 - 下钻：给定节点与 `ResolutionContext`（[US-508](US-508-bom-view-resolution.md)），返回各级子件、层级与路径；
   路径由**行发生项 ID 序列**标识，同一子装配经两条路径出现即两个结果节点
-- 反查（where-used）：给定子件，返回所有使用它的父件与路径
+- 反查（where-used）：给定子件，返回所有使用它的父件与路径；起始物料接受全部子修订，之后每一跳必须与当前路径的修订身份一致。
+  precise 按锁定修订、imprecise 按评估日解析，不得跨修订拼接路径
 - **预算**：深度上限、展开节点数上限（同 graph 插件 `GRAPH_MAX_PATH_EXPANSIONS` 的先例）、返回路径数上限、调用方可取消；
   任一触顶即停止并标 `truncated`，附触顶的是哪一项
 - **截断结果不是完整结果**：UI 浏览可以展示 `truncated` 结果；[US-511](US-511-bom-quantity-semantics.md) 数量、

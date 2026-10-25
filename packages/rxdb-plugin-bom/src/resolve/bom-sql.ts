@@ -417,7 +417,7 @@ export interface ParentsOfItemsParams {
  * `includeLineCandidates` 为 true 时返回命中逻辑行的全部有效候选，供反查先消歧再筛选目标子件。
  *
  * @returns 行列为 `parentItemId, parentRevisionId, lineId, lineNo, occurrenceId,
- *   childItemId, qty, effectiveFrom, effectiveTo`
+ *   childItemId, resolvedChildRevisionId, qty, effectiveFrom, effectiveTo`
  */
 export const buildParentsOfItemsSql = (
   dialect: BomSqlDialect,
@@ -442,6 +442,7 @@ export const buildParentsOfItemsSql = (
     `  l."lineNo" AS "lineNo",`,
     `  occ."id" AS "occurrenceId",`,
     `  occ."childItemId" AS "childItemId",`,
+    `  ${childRevisionExpr(dialect, revision, p, params.asOfDate, 'occ')} AS "resolvedChildRevisionId",`,
     `  occ."qty" AS "qty",`,
     `  occ."flowDirection" AS "flowDirection",`,
     `  occ."effectiveFrom" AS "effectiveFrom",`,

@@ -40,49 +40,63 @@ const seedCredit = async (adapter: BomTestAdapter, options: CreditFixtureOptions
   await loadHistory(adapter, {
     batchNo: crypto.randomUUID(),
     revisions: items.map(item => ({ id: revisionIds.get(item.id), itemId: item.id, revisionNo: 'A', effectiveFrom })),
-    headers: [{
-      revisionIndex: 0,
-      bomType: context.bomType,
-      orgId: context.orgId,
-      baseUom: 'kg',
-      baseQty: '100',
-      costLotQty: '100',
-      jointCostShare: options.joint ? '0.6' : null,
-      lines: [
-        { lineNo: 10, occurrences: [{ childItemId: raw.id, qty: '110', uom: 'kg', effectiveFrom }] },
-        {
-          lineNo: 20,
-          occurrences: [{
-            childItemId: side.id,
-            qty: '10',
-            uom: 'kg',
-            flowDirection: 'by_product',
-            effectiveFrom,
-            ...options.occurrence
-          }]
-        },
-        ...(coproduct === null ? [] : [{
-          lineNo: 30,
-          occurrences: [{
-            childItemId: coproduct.id,
-            childRevisionId: revisionIds.get(coproduct.id),
-            qty: '50',
-            uom: 'kg',
-            flowDirection: 'produce' as const,
-            jointCostShare: '0.4',
-            effectiveFrom
-          }]
-        }])
-      ]
-    }]
+    headers: [
+      {
+        revisionIndex: 0,
+        bomType: context.bomType,
+        orgId: context.orgId,
+        baseUom: 'kg',
+        baseQty: '100',
+        costLotQty: '100',
+        jointCostShare: options.joint ? '0.6' : null,
+        lines: [
+          { lineNo: 10, occurrences: [{ childItemId: raw.id, qty: '110', uom: 'kg', effectiveFrom }] },
+          {
+            lineNo: 20,
+            occurrences: [
+              {
+                childItemId: side.id,
+                qty: '10',
+                uom: 'kg',
+                flowDirection: 'by_product',
+                effectiveFrom,
+                ...options.occurrence
+              }
+            ]
+          },
+          ...(coproduct === null ?
+            []
+          : [
+              {
+                lineNo: 30,
+                occurrences: [
+                  {
+                    childItemId: coproduct.id,
+                    childRevisionId: revisionIds.get(coproduct.id),
+                    qty: '50',
+                    uom: 'kg',
+                    flowDirection: 'produce' as const,
+                    jointCostShare: '0.4',
+                    effectiveFrom
+                  }
+                ]
+              }
+            ])
+        ]
+      }
+    ]
   });
   return { target: { parentItemId: root.id }, side };
 };
 
 describe.each(['wa-sqlite', 'pglite'] as const)('副产品抵减计价 [%s]', backend => {
   let adapter: BomTestAdapter;
-  beforeAll(async () => { adapter = await createBomTestAdapter(backend); });
-  afterAll(async () => { await disposeBomTestAdapter(adapter); });
+  beforeAll(async () => {
+    adapter = await createBomTestAdapter(backend);
+  });
+  afterAll(async () => {
+    await disposeBomTestAdapter(adapter);
+  });
 
   it('10kg 按 500 CNY/t 抵减 5，批成本 215，明细使用计价单位', async () => {
     const { target } = await seedCredit(adapter, { item: { creditPrice: '500', priceUom: 't' } });
@@ -153,7 +167,8 @@ describe.each(['wa-sqlite', 'pglite'] as const)('副产品抵减计价 [%s]', ba
     { label: '不参与抵减的废料', item: { creditPrice: '500' }, occurrence: { flowDirection: 'scrap_out' as const } }
   ])('$label 不受未消费的价格单位和币种影响', async ({ item, occurrence }) => {
     const { target } = await seedCredit(adapter, {
-      item: { priceCurrency: 'USD', priceUom: 'box', ...item }, occurrence
+      item: { priceCurrency: 'USD', priceUom: 'box', ...item },
+      occurrence
     });
     const result = await rollupCost(adapter, context, target);
     expect(result.root.batchCost).toBe('220');
@@ -166,7 +181,8 @@ describe.each(['wa-sqlite', 'pglite'] as const)('副产品抵减计价 [%s]', ba
     expect(result.root).toMatchObject({ batchCost: '129', unitCost: '1.29' });
     expect(result.root.jointCost?.netCost).toBe('215');
     expect(result.root.jointCost?.outputs.map(output => [output.batchCost, output.unitCost])).toEqual([
-      ['129', '1.29'], ['86', '1.72']
+      ['129', '1.29'],
+      ['86', '1.72']
     ]);
     expect(result.root.credits[0]).toMatchObject({ outQty: '0.01', outUom: 't', amount: '5' });
   });

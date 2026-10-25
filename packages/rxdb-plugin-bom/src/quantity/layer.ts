@@ -16,6 +16,7 @@ import {
   decimalFromCanonical,
   decimalIsZero,
   decimalMul,
+  decimalMulDiv,
   decimalSub,
   decimalToCanonical,
   type Decimal
@@ -89,7 +90,7 @@ const scaledQuantity = (row: QuantityRow, quantity: Decimal, planned: Decimal, h
   if (decimalIsZero(baseQty)) {
     throw new BomQuantityError(`发生项 ${row.occurrenceId} 所在头的基准量 base_qty 为 0，无法按批缩放`);
   }
-  return decimalMul(quantity, decimalDiv(planned, baseQty));
+  return decimalMulDiv(quantity, planned, baseQty);
 };
 
 /** 第 3 步：行的组件毛需求 G（定量行即 qty；否则 qty × P′ ÷ base_qty；公式行先核对语法版本再求值）。 */

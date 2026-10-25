@@ -1,6 +1,6 @@
 import { BomCostError } from './quantity/cost-error.js';
 import type { CostNodeDetail, CostRollupContext, CostRollupResult } from './quantity/cost.js';
-import { decimalDiv, decimalFromCanonical, decimalMul, decimalToCanonical } from './quantity/decimal.js';
+import { decimalFromCanonical, decimalMulDiv, decimalToCanonical } from './quantity/decimal.js';
 import type { PlannedQuantity } from './quantity/explosion.js';
 import type { JointCostOutputInput, JointCostSummary } from './quantity/joint-cost.js';
 import { convertUom } from './quantity/uom.js';
@@ -151,7 +151,8 @@ export const readJointProduction = async (
   if (rows.length === 0 && header['jointCostShare'] === null) return null;
   if (header['jointCostShare'] === null) throw new BomCostError(input.headerId, '联产头缺少jointCostShare');
   const planned = convertUom(input.plannedQty.value, input.plannedQty.uom, String(header['baseUom']));
-  const ratio = decimalDiv(decimalFromCanonical(planned), decimalFromCanonical(String(header['baseQty'])));
+  const plannedQuantity = decimalFromCanonical(planned);
+  const baseQty = decimalFromCanonical(String(header['baseQty']));
   const outputs: JointCostOutputInput[] = [
     {
       kind: 'primary',
@@ -171,7 +172,7 @@ export const readJointProduction = async (
       lineId: String(row['lineId']),
       occurrenceId: String(row['occurrenceId']),
       lineNo: Number(row['lineNo']),
-      qty: decimalToCanonical(decimalMul(decimalFromCanonical(String(row['qty'])), ratio)),
+      qty: decimalToCanonical(decimalMulDiv(decimalFromCanonical(String(row['qty'])), plannedQuantity, baseQty)),
       uom: String(row['uom']),
       share: String(row['share'])
     }))

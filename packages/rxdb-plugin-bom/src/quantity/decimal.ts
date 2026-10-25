@@ -153,6 +153,17 @@ export const decimalDiv = (a: Decimal, b: Decimal): Decimal => {
 };
 
 /**
+ * 比例缩放：保留乘积的精确系数，除法结束后一次性收敛到 34 位 half-even。
+ *
+ * @param quantity - 待缩放数量
+ * @param planned - 本次计划量
+ * @param base - 基准批量
+ * @returns 一次舍入后的 quantity × planned ÷ base
+ */
+export const decimalMulDiv = (quantity: Decimal, planned: Decimal, base: Decimal): Decimal =>
+  decimalDiv({ coeff: quantity.coeff * planned.coeff, exp: quantity.exp + planned.exp }, base);
+
+/**
  * 三态比较（−1 / 0 / 1）。
  */
 export const decimalCmp = (a: Decimal, b: Decimal): -1 | 0 | 1 => {

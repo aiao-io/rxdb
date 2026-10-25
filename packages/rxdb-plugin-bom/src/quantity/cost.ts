@@ -105,7 +105,9 @@ export interface CostProcessingLine {
 export interface CostCreditLine {
   occurrenceId: string;
   childItemId: string;
+  /** 按抵减价的计价单位折算后的副产量。 */
   outQty: string;
+  /** 抵减价的计价单位；未声明 priceUom 时为库存单位。 */
   outUom: string;
   creditPrice: string;
   amount: string;
@@ -441,27 +443,32 @@ const loadLayerRouting = async (
   };
 };
 
-/** 副产抵减（US-513 产出量 → 物料库存单位 × credit_price）；物料未声明抵减价即不抵减。 */
+/** 副产抵减：产出量先转库存单位，再按物料级率转计价单位；币种必须与卷算上下文一致。 */
 const creditOf = async (
   query: CostQuery,
   dialect: ReturnType<typeof bomSqlDialectFor>,
   row: ExplosionRowLike,
   pPrime: Decimal,
-  formulaParams: Record<string, string> | undefined
-): Promise<{ outInStock: string; creditPrice: string; amount: Decimal } | null> => {
+  context: CostRollupContext
+): Promise<{ outQty: string; outUom: string; creditPrice: string; amount: Decimal } | null> => {
   const itemRow = await fetchItemCost(query, dialect, row.childItemId);
   if (itemRow.creditPrice === null) return null;
-  const out = computeOutputQuantity(row, pPrime, row.headerBaseQty, formulaParams);
-  const outInStock = convertUom(
-    decimalToCanonical(out),
-    row.occurrenceUom,
-    row.childStockUom,
-    rowHopRates(row).toStock
-  );
+  if (itemRow.priceCurrency !== null && itemRow.priceCurrency !== context.currency) {
+    throw new BomCostError(
+      `副产品 ${row.childItemId} 的币种`,
+      `抵减价币种 ${itemRow.priceCurrency} 与上下文币种 ${context.currency} 不符`
+    );
+  }
+  const out = computeOutputQuantity(row, pPrime, row.headerBaseQty, context.formulaParams);
+  const hops = rowHopRates(row);
+  const outInStock = convertUom(decimalToCanonical(out), row.occurrenceUom, row.childStockUom, hops.toStock);
+  const outUom = itemRow.priceUom ?? row.childStockUom;
+  const outQty = convertUom(outInStock, row.childStockUom, outUom, { itemRate: hops.fromStock.itemRate });
   return {
-    outInStock,
+    outQty,
+    outUom,
     creditPrice: itemRow.creditPrice,
-    amount: decimalMul(decimalFromCanonical(outInStock), decimalFromCanonical(itemRow.creditPrice))
+    amount: decimalMul(decimalFromCanonical(outQty), decimalFromCanonical(itemRow.creditPrice))
   };
 };
 
@@ -835,8 +842,7 @@ const rollupCostInSnapshot = async (
       const groupedRows = groupSubstituteRows(effectiveRows, pPrime, context);
 
       for (const row of groupedRows) {
-        const credit =
-          row.flowDirection === 'by_product' ? await creditOf(q, dialect, row, pPrime, context.formulaParams) : null;
+        const credit = row.flowDirection === 'by_product' ? await creditOf(q, dialect, row, pPrime, context) : null;
         if (credit !== null) total = decimalSub(total, credit.amount);
         if (row.flowDirection !== 'consume') continue;
         // 本层需求（第 2~6 步共享实现，不取整）：G → G′ → G″ → 换算
@@ -949,15 +955,14 @@ const rollupCostInSnapshot = async (
       const groupedRows = groupSubstituteRows(effectiveRows, pPrime, context);
 
       for (const row of groupedRows) {
-        const credit =
-          row.flowDirection === 'by_product' ? await creditOf(q, dialect, row, pPrime, context.formulaParams) : null;
+        const credit = row.flowDirection === 'by_product' ? await creditOf(q, dialect, row, pPrime, context) : null;
         if (credit !== null) {
           creditTotal = decimalAdd(creditTotal, credit.amount);
           credits.push({
             occurrenceId: row.occurrenceId,
             childItemId: row.childItemId,
-            outQty: credit.outInStock,
-            outUom: row.childStockUom,
+            outQty: credit.outQty,
+            outUom: credit.outUom,
             creditPrice: credit.creditPrice,
             amount: decimalToCanonical(credit.amount)
           });

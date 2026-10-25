@@ -112,10 +112,17 @@ interface ExpandLevelStep {
   truncated: { reason: TruncationReason } | null;
 }
 
+/** 反查前沿保留修订身份；仅起始物料的 null 表示接受全部子修订。 */
+interface UsageFrontier {
+  nodeIndex: number | null;
+  itemId: string;
+  revisionId: string | null;
+}
+
 /** 一层反查的结果：本层新节点 + 下一层前沿 + 触顶标记。 */
 interface UsageLevelStep {
   added: ExpansionNode[];
-  next: { nodeIndex: number; itemId: string }[];
+  next: UsageFrontier[];
   truncated: { reason: TruncationReason } | null;
 }
 
@@ -146,6 +153,7 @@ interface UsageRow {
   lineNo: number;
   occurrenceId: string;
   childItemId: string;
+  resolvedChildRevisionId: string | null;
   /** 公式行为 null（与下钻同口径）。 */
   qty: string | null;
   effectiveFrom: Date;
@@ -330,9 +338,16 @@ const fetchParents = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
   context: ResolutionContext,
-  itemIds: string[],
+  frontier: readonly UsageFrontier[],
   unresolved: UnresolvedAlternative[]
 ): Promise<UsageRow[]> => {
+  const revisionsByItem = new Map<string, Set<string | null>>();
+  for (const entry of frontier) {
+    const revisions = revisionsByItem.get(entry.itemId) ?? new Set<string | null>();
+    revisions.add(entry.revisionId);
+    revisionsByItem.set(entry.itemId, revisions);
+  }
+  const itemIds = [...revisionsByItem.keys()];
   const rows: UsageRow[] = [];
   const unresolvedLines = new Set(unresolved.map(entry => entry.lineId));
   for (let offset = 0; offset < itemIds.length; offset += CHUNK_SIZE) {
@@ -347,13 +362,26 @@ const fetchParents = async (
     const result = await query(built.sql, built.params);
     const targets = new Set(chunk);
     const read = (row: unknown[], name: string): unknown => row[columnIndexOf(result.columns, name)];
+    const matchesTarget = (row: unknown[]): boolean => {
+      const itemId = String(read(row, 'childItemId'));
+      if (!targets.has(itemId)) return false;
+      const revisions = revisionsByItem.get(itemId)!;
+      const revision = read(row, 'resolvedChildRevisionId');
+      return revisions.has(null) || revisions.has(revision === null ? null : String(revision));
+    };
     const consumeTargets = new Set(
       result.rows
-        .filter(row => read(row, 'flowDirection') === 'consume' && targets.has(String(read(row, 'childItemId'))))
+        .filter(row => read(row, 'flowDirection') === 'consume' && matchesTarget(row))
         .map(row => String(read(row, 'occurrenceId')))
     );
+    const relevantLines = new Set(
+      result.rows
+        .filter(row => consumeTargets.has(String(read(row, 'occurrenceId'))))
+        .map(row => String(read(row, 'lineId')))
+    );
+    const relevant = { ...result, rows: result.rows.filter(row => relevantLines.has(String(read(row, 'lineId')))) };
     const pending: UnresolvedAlternative[] = [];
-    const selected = await filteredQueryRows(query, dialect, context, result, pending);
+    const selected = await filteredQueryRows(query, dialect, context, relevant, pending);
     for (const entry of pending) {
       if (
         unresolvedLines.has(entry.lineId) ||
@@ -365,13 +393,15 @@ const fetchParents = async (
       unresolvedLines.add(entry.lineId);
       unresolved.push(entry);
     }
-    for (const row of selected.filter(row => targets.has(String(row[columnIndexOf(result.columns, 'childItemId')])))) {
+    for (const row of selected.filter(matchesTarget)) {
       rows.push({
         parentItemId: String(row[columnIndexOf(result.columns, 'parentItemId')]),
         parentRevisionId: String(row[columnIndexOf(result.columns, 'parentRevisionId')]),
         lineNo: Number(row[columnIndexOf(result.columns, 'lineNo')]),
         occurrenceId: String(row[columnIndexOf(result.columns, 'occurrenceId')]),
         childItemId: String(row[columnIndexOf(result.columns, 'childItemId')]),
+        resolvedChildRevisionId:
+          read(row, 'resolvedChildRevisionId') === null ? null : String(read(row, 'resolvedChildRevisionId')),
         qty:
           row[columnIndexOf(result.columns, 'qty')] === null ? null : String(row[columnIndexOf(result.columns, 'qty')]),
         effectiveFrom: normalizeDate(row[columnIndexOf(result.columns, 'effectiveFrom')]) as Date,
@@ -458,18 +488,20 @@ const usageLevel = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
   context: ResolutionContext,
-  frontier: { nodeIndex: number | null; itemId: string }[],
+  frontier: readonly UsageFrontier[],
   nodes: readonly ExpansionNode[],
   budget: ResolvedBudgets,
   signal: AbortSignal | undefined,
   unresolved: UnresolvedAlternative[]
 ): Promise<UsageLevelStep> => {
-  const itemIds = [...new Set(frontier.map(entry => entry.itemId))];
-  const byChild = groupUsageByChild(await fetchParents(query, dialect, context, itemIds, unresolved));
+  const byChild = groupUsageByChild(await fetchParents(query, dialect, context, frontier, unresolved));
   const added: ExpansionNode[] = [];
   const next: UsageLevelStep['next'] = [];
   for (const entry of frontier) {
-    for (const usage of byChild.get(entry.itemId) ?? []) {
+    const usages = (byChild.get(entry.itemId) ?? []).filter(
+      usage => entry.revisionId === null || usage.resolvedChildRevisionId === entry.revisionId
+    );
+    for (const usage of usages) {
       const parentDepth = entry.nodeIndex === null ? 0 : nodes[entry.nodeIndex].depth;
       // 反查结果没有根节点：已提交与本层已生成的都是使用方节点
       const generated = nodes.length + added.length;
@@ -487,7 +519,11 @@ const usageLevel = async (
         effectiveFrom: usage.effectiveFrom,
         effectiveTo: usage.effectiveTo
       });
-      next.push({ nodeIndex: nodes.length + added.length - 1, itemId: usage.parentItemId });
+      next.push({
+        nodeIndex: nodes.length + added.length - 1,
+        itemId: usage.parentItemId,
+        revisionId: usage.parentRevisionId
+      });
     }
   }
   return { added, next, truncated: null };
@@ -577,6 +613,7 @@ export const expandBom = async (
 
 /**
  * where-used 反查：从子件物料出发，返回所有（直接与间接）使用它的父件与路径。
+ * 起始物料不限制子修订；后续上溯只连接与当前路径修订匹配的发生项，避免跨修订拼接。
  *
  * @param adapter - 本地适配器（全部读取在一个读事务里）
  * @param context - 解析上下文（与下钻同一套生效窗口与作用域规则）
@@ -599,7 +636,7 @@ export const whereUsed = async (
     const nodes: ExpansionNode[] = [];
     let truncated: ExpansionResult['truncated'] = null;
     const unresolved: UnresolvedAlternative[] = [];
-    let frontier: { nodeIndex: number | null; itemId: string }[] = [{ nodeIndex: null, itemId: target.childItemId }];
+    let frontier: UsageFrontier[] = [{ nodeIndex: null, itemId: target.childItemId, revisionId: null }];
     while (frontier.length > 0) {
       const step = await usageLevel(query, dialect, context, frontier, nodes, budget, options.signal, unresolved);
       nodes.push(...step.added);
