@@ -98,11 +98,18 @@
         "production": {
           "buildTarget": "dev-rxdb-bom:build:production"
         }
+      },
+      "readyWhen": {
+        "signal": true
       }
     },
     "serve-static": {
       "continuous": true,
       "executor": "@nx/web:file-server",
+      "readyWhen": {
+        "signal": true
+      },
+      "dependsOn": ["build"],
       "options": {
         "buildTarget": "dev-rxdb-bom:build",
         "port": 4311,
@@ -113,6 +120,9 @@
     "serve-e2e": {
       "continuous": true,
       "executor": "@nx/web:file-server",
+      "readyWhen": {
+        "signal": true
+      },
       "options": {
         "port": 4311,
         "spa": true,

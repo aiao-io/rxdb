@@ -60,14 +60,14 @@
   },
   "dependencies": {
     "@aiao/utils": "workspace:^",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@aiao/rxdb-adapter-pglite": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
     "pg": "8.23.1",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "peerDependencies": {
     "@aiao/rxdb": "workspace:^"
