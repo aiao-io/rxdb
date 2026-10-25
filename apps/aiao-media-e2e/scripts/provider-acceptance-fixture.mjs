@@ -10,6 +10,7 @@ import { acceptanceSelection, attemptPath, runProviderAcceptance } from './provi
 const root = resolve(import.meta.dirname, '../../aiao-media/dist/browser');
 await mkdir(resolve(import.meta.dirname, '../tmp'), { recursive: true, mode: 0o700 });
 const directory = await mkdtemp(resolve(import.meta.dirname, '../tmp/provider-acceptance-fixture-'));
+const nativeBase = 'https://api.minimax.cn/v1';
 const settings = {
   origin: '',
   release: 'fixture-production-worker-v1',
@@ -35,6 +36,9 @@ const calls = { direct: 0, proxy: 0, result: 0 };
 let forbiddenBodyReads = 0;
 let incorrectSize = false;
 let changedManifest = false;
+let nativeSystemError = false;
+const generationEndpoint = () =>
+  `${settings.baseUrl}/${settings.baseUrl === nativeBase ? 'image_generation' : 'images/generations'}`;
 const wrongSize = await sharp({ create: { width: 512, height: 512, channels: 3, background: '#8a9c62' } })
   .png()
   .toBuffer();
@@ -43,13 +47,20 @@ function upstream(body, headers, mode) {
   assert.equal(headers.get('cookie'), null);
   assert.equal(body.model, settings.model);
   assert.equal(body.n, 1);
-  assert.ok(images.has(body.size));
+  const native = settings.baseUrl === nativeBase;
+  const size = native ? `${body.width}x${body.height}` : body.size;
+  assert.ok(images.has(size));
   calls[mode]++;
-  return { data: [{ url: `https://results.example.test/${body.size}.png` }] };
+  if (!native) return { data: [{ url: `https://results.example.test/${size}.png` }] };
+  assert.equal(body.response_format, 'url');
+  assert.equal(body.prompt_optimizer, false);
+  for (const name of ['size', 'aspect_ratio', 'quality', 'output_format']) assert.equal(body[name], undefined);
+  if (nativeSystemError) return { base_resp: { status_code: 1033, status_msg: 'private fixture system error' } };
+  return { base_resp: { status_code: 0 }, data: { image_urls: [`https://results.example.test/${size}.png`] } };
 }
 const fetchBefore = globalThis.fetch;
 globalThis.fetch = async (url, init) => {
-  assert.equal(String(url), `${settings.baseUrl}/images/generations`);
+  assert.equal(String(url), generationEndpoint());
   assert.equal(init.redirect, 'manual');
   return Response.json(upstream(JSON.parse(init.body), new Headers(init.headers), 'proxy'));
 };
@@ -131,7 +142,7 @@ async function setupContext(context) {
     const request = route.request();
     const url = new URL(request.url());
     if (url.origin === settings.origin) return route.fallback();
-    if (request.url() === `${settings.baseUrl}/images/generations`)
+    if (request.url() === generationEndpoint())
       return route.fulfill({
         json: upstream(request.postDataJSON(), new Headers(await request.allHeaders()), 'direct')
       });
@@ -198,7 +209,49 @@ try {
     /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
   );
   assert.deepEqual(calls, { direct: 4, proxy: 3, result: 7 });
-  console.log('6 个生产 Worker/fixture 验收组合通过；产物变化和错误尺寸被拒绝，成功复用和中断/失败阻断均未重发。');
+  incorrectSize = false;
+  settings.baseUrl = nativeBase;
+  settings.model = 'image-01';
+  env.ALLOWED_PROVIDER_BASE_URLS = JSON.stringify([nativeBase]);
+  Object.assign(calls, { direct: 0, proxy: 0, result: 0 });
+  const nativeDirectory = await mkdtemp(resolve(import.meta.dirname, '../tmp/provider-acceptance-minimax-fixture-'));
+  const nativeRecords = await runProviderAcceptance(settings, nativeDirectory, setupContext);
+  assert.equal(nativeRecords.length, 6);
+  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  for (const record of nativeRecords) {
+    assert.equal(record.protocol, 'minimax-native');
+    assert.equal(record.image.delivery, 'cross-origin-url');
+    assert.equal(record.image.credentialFreeResultRequest, true);
+    assert.equal(record.image.exactDownloadAfterReload, true);
+    assert.ok(!JSON.stringify(record).includes(settings.key));
+  }
+  await runProviderAcceptance(settings, nativeDirectory, setupContext);
+  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  nativeSystemError = true;
+  const nativeFailedDirectory = await mkdtemp(
+    resolve(import.meta.dirname, '../tmp/provider-acceptance-minimax-error-')
+  );
+  await assert.rejects(
+    runProviderAcceptance(settings, nativeFailedDirectory, setupContext),
+    /ACCEPTANCE_STOPPED_REVIEW/
+  );
+  const nativeFailed = JSON.parse(
+    await readFile(attemptPath(nativeFailedDirectory, settings, 'direct', 'square'), 'utf8')
+  );
+  assert.equal(nativeFailed.phase, 'requires-review');
+  assert.equal(nativeFailed.failureCode, 'GENERATION_REJECTED_OR_UNCERTAIN');
+  assert.equal(nativeFailed.generationRequests, 1);
+  assert.ok(!JSON.stringify(nativeFailed).includes('private fixture'));
+  assert.deepEqual(calls, { direct: 4, proxy: 3, result: 6 });
+  await assert.rejects(
+    runProviderAcceptance(settings, nativeFailedDirectory, setupContext),
+    /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
+  );
+  assert.deepEqual(calls, { direct: 4, proxy: 3, result: 6 });
+  assert.equal(forbiddenBodyReads, 0);
+  console.log(
+    '12 个 Images API/MiniMax 生产 Worker/fixture 验收组合通过；产物变化、错误尺寸和 MiniMax 系统错误被拒绝，成功复用和中断/失败阻断均未重发。'
+  );
 } finally {
   globalThis.fetch = fetchBefore;
   await new Promise(resolve => server.close(resolve));

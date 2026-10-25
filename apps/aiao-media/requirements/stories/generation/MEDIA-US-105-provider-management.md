@@ -57,6 +57,8 @@ tags: [image, providers, local-first, security]
 
 ## 技术笔记
 
+2026-10-25 补齐 MiniMax 官方 `image-01` 原生适配，浏览器/Worker/正式验收共用固定请求映射，配置格式兼容。Images API 与 MiniMax 共 12 个生产形态本地 fixture 组合通过；真实 MiniMax 单次请求仍为 1033、待核对，AC7 继续 ⚠️。范围与错误分类见[供应商补验记录](../../plans/provider-acceptance-follow-up.md#minimax-原生适配与本地验证2026-10-25)。
+
 配置与凭据通过本机 `LocalPreference` 分开保存，凭据记录为 `provider-keys-v1`。`aiao-media-e2e:local-first-e2e` 验证本机配置恢复、内存 Key、记住/替换/单独移除、主动代理、非法 URL/模型和损坏 PNG 拒绝、无 Key 备份，以及跨 origin 图片读取不带凭据与精确下载；`aiao-media:relay-test` 验证代理边界。[本地可靠性验收](../../plans/local-reliability-verification.md)记录故障边界。
 
 2026-10-25 的正式 origin 证据已覆盖 AC6：带 Key 模型目录 GET 200 且配置模型存在；无 Key OPTIONS 403；直连正方形一次尝试无响应、结果未知且未重发，其余直连画幅未尝试；显式另选代理后三画幅各一次 HTTP 200，保存、刷新回读与精确下载通过。可用范围限定该供应商/模型的代理参数组合。成功响应均为 base64，因此跨 origin 原图 GET 无凭据的真实供应商证据仍缺，AC7 保持 ⚠️。详见[正式交付验收](../../plans/public-delivery-verification.md)。故事因当前供应商能力与缺失单次请求核对证据记为 `Blocked`。

@@ -54,7 +54,9 @@ AIAO_RELAY_PROVIDER_BASE_URLS=https://api.example.com/v1,https://images.example.
 
 部署脚本优先读取进程环境，然后本机 `.env` 的该变量。变量不存在时，可使用已有 `AIAO_IMAGE_BASE_URL` 作为一个前缀；显式设为空字符串则禁用全部代理目标。`AIAO_IMAGE_API_KEY`、旧数据库凭据及登录信息不进入 Worker 或静态资源。
 
-允许列表是精确的规范化 API 前缀；用户任意填写的 Base URL 不会自动获准。Worker 只允许同源浏览器 POST、固定 `/images/generations`、单张图片及受限参数，不转发 Cookie 或其他请求头，拒绝重定向，响应 no-store。Key 仅放在本次上游 Authorization，不持久化、不打印敏感正文；生产 observability 日志已关闭。
+允许列表是精确的规范化 API 前缀；用户任意填写的 Base URL 不会自动获准。Worker 只允许同源浏览器 POST、固定图片生成路径、单张图片及受限参数；Images API 使用 `/images/generations`，已适配的 MiniMax 官方前缀使用 `/image_generation`，不转发 Cookie 或其他请求头，拒绝重定向，响应 no-store。Key 仅放在本次上游 Authorization，不持久化、不打印敏感正文；生产 observability 日志已关闭。
+
+MiniMax 当前只适配 `image-01`，官方 API 前缀为 `https://api.minimax.cn/v1`、`https://api.minimax.io/v1` 或 `https://api.minimaxi.com/v1`。模型和提示词在转发前检查，最多 1500 字符；三画幅使用明确的宽高，供应商结果仍须为原始 PNG，非 PNG 拒绝保存。启用 MiniMax 代理仍须显式加入允许列表，不因应用支持适配器而自动获准。
 
 返回 base64 时浏览器可直接校验并保存。返回 HTTPS 图片 URL 时，浏览器单独下载，绝不带上供应商 Key；该图片地址仍需允许 CORS。本代理首版只转发生成 API，不是任意图片 URL 下载代理。
 

@@ -6,6 +6,8 @@ import {
   assertionCode,
   attemptPath,
   failureCode,
+  generationDispatch,
+  generationImageResult,
   liveSettings,
   readResultHeaders
 } from './provider-acceptance.mjs';
@@ -267,4 +269,62 @@ test('尝试身份包含已部署版本、origin、规范化 provider、模型�
     path,
     attemptPath('/tmp/acceptance', { ...settings, release: '92883918-76ac-47de-a424-4bc5af23bee0' }, 'direct', 'square')
   );
+});
+
+test('MiniMax 正式入口只接收已适配模型，错误发生在任何生成前', () => {
+  const native = { ...config, AIAO_IMAGE_BASE_URL: 'https://api.minimax.cn/v1', AIAO_IMAGE_MODEL: 'image-01' };
+  assert.equal(liveSettings(native).model, 'image-01');
+  assert.throws(() => liveSettings({ ...native, AIAO_IMAGE_MODEL: 'unsupported-image' }), /INVALID_MODEL/);
+});
+
+test('正式验收按通道验证 MiniMax 原生请求与既有代理入口契约', () => {
+  const settings = { ...liveSettings(config), baseUrl: 'https://api.minimax.cn/v1', model: 'image-01' };
+  const ratio = { size: '1536x1024' };
+  assert.deepEqual(generationDispatch(settings, 'direct', ratio, '测试'), {
+    url: 'https://api.minimax.cn/v1/image_generation',
+    body: {
+      model: 'image-01',
+      prompt: '测试',
+      n: 1,
+      width: 1536,
+      height: 1024,
+      response_format: 'url',
+      prompt_optimizer: false
+    }
+  });
+  assert.deepEqual(generationDispatch(settings, 'proxy', ratio, '测试'), {
+    url: `${settings.origin}/api/relay`,
+    body: { model: 'image-01', prompt: '测试', n: 1, size: '1536x1024', quality: 'low', output_format: 'png' }
+  });
+});
+
+test('MiniMax 验收只读取单一成功结果，系统错误和混合结果不能通过', () => {
+  const base = 'https://api.minimax.cn/v1';
+  assert.deepEqual(
+    generationImageResult(
+      { base_resp: { status_code: 0 }, data: { image_urls: ['https://images.example/image.png'] } },
+      base
+    ),
+    {
+      url: 'https://images.example/image.png',
+      b64_json: undefined
+    }
+  );
+  assert.deepEqual(generationImageResult({ base_resp: { status_code: 0 }, data: { image_base64: ['YQ=='] } }, base), {
+    url: undefined,
+    b64_json: 'YQ=='
+  });
+  for (const result of [
+    { base_resp: { status_code: 1033, status_msg: 'private-test-key' } },
+    { base_resp: { status_code: '0' }, data: { image_urls: ['https://images.example/image.png'] } },
+    {
+      base_resp: { status_code: 0 },
+      data: { image_urls: ['https://images.example/image.png'], image_base64: ['YQ=='] }
+    },
+    { base_resp: { status_code: 0 }, data: { image_urls: 'https://images.example/image.png' } }
+  ])
+    assert.throws(
+      () => generationImageResult(result, base),
+      error => ['GENERATION_REJECTED_OR_UNCERTAIN', 'ORIGINAL_RESULT_UNAVAILABLE'].includes(error.message)
+    );
 });

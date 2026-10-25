@@ -1,3 +1,4 @@
+import { imageGenerationRequest, isMiniMaxImageProvider } from '../src/contracts/image-provider-protocol.ts';
 import { handleAdmin } from './admin-api.mjs';
 import { publishedTemplates, runtimePolicy } from './product-content.mjs';
 import { endpoint } from './product-http.mjs';
@@ -55,7 +56,12 @@ async function providerProbe(env, origin) {
   if (!targets.length) return { error: 'No provider is enabled for this relay' };
   const checks = await Promise.all(
     targets.map(async target => {
-      const endpoint = `${target}/images/generations`;
+      const imageRequest = imageGenerationRequest(target, {
+        model: 'image-01',
+        prompt: 'reachability-probe',
+        size: '1024x1024'
+      });
+      const endpoint = imageRequest.url;
       // Server-to-server reachability is what the relay needs. A keyless POST
       // costs nothing: providers answer 401 and prove the path works. The
       // OPTIONS preflight only matters for browser-direct mode, which needs
@@ -65,12 +71,16 @@ async function providerProbe(env, origin) {
         probeProvider(endpoint, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            model: 'reachability-probe',
-            prompt: 'reachability-probe',
-            n: 1,
-            size: '1024x1024'
-          })
+          body: JSON.stringify(
+            isMiniMaxImageProvider(target) ?
+              imageRequest.body
+            : {
+                model: 'reachability-probe',
+                prompt: 'reachability-probe',
+                n: 1,
+                size: '1024x1024'
+              }
+          )
         }),
         probeProvider(endpoint, {
           method: 'OPTIONS',
@@ -343,22 +353,20 @@ export default {
         cleanup();
         return json(403, 'Model or size is disabled by the active provider policy');
       }
+      const imageRequest = imageGenerationRequest(upstream, data);
+      if (!imageRequest) {
+        cleanup();
+        return json(400, 'Unsupported image model or prompt length');
+      }
       if (controller.signal.aborted) throw new Error('Aborted');
-      const responsePromise = fetch(`${upstream}/images/generations`, {
+      const responsePromise = fetch(imageRequest.url, {
         method: 'POST',
         // Do not follow redirects with the Key. Non-2xx responses are rejected
         // below in both the immediate and delayed response paths.
         redirect: 'manual',
         signal: controller.signal,
         headers: { authorization, 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model: data.model,
-          prompt: data.prompt,
-          n: 1,
-          size: data.size,
-          quality: 'low',
-          output_format: 'png'
-        })
+        body: JSON.stringify(imageRequest.body)
       });
       const early = await Promise.race([
         responsePromise.then(response => ({ kind: 'response', response })).catch(error => ({ kind: 'error', error })),

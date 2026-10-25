@@ -52,7 +52,7 @@
 | [MEDIA-US-107 AC2](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机持久化与交付                   | 在支持所需存储的设备上验证保存、重开、离线预览和实际文件下载                                                                                              |
 | [MEDIA-US-107 AC3](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机存储/下载失败                  | 实测系统拒绝或限制，不虚报保存/下载，重试保留已有数据和原结果                                                                                             |
 
-按用户本次指令，七条全部 AC 已验的故事按 D-11 在当前分支记为 Done。PR #154 已包含 `7651e58e`，实际仍为 OPEN/DRAFT、未合并；核对时该 head 的 CI 正在运行，评审/合并继续单独跟踪。原供应商只读复核新增生成 0 次；后续用户另选 MiniMax，国内区只读鉴权与原生接口预检通过，单次原生图片请求返回 `1033 / system error`、未取得图片且未重发。MiniMax 原生协议还需产品适配，102/105 继续 Blocked，详见[供应商补验记录](plans/provider-acceptance-follow-up.md)。生产 Supabase 仍属后续范围。
+按用户本次指令，七条全部 AC 已验的故事按 D-11 在当前分支记为 Done。PR #154 已包含 `7651e58e`，实际仍为 OPEN/DRAFT、未合并；核对时该 head 的 CI 正在运行，评审/合并继续单独跟踪。原供应商只读复核新增生成 0 次；后续用户另选 MiniMax，国内区只读鉴权与原生接口预检通过，单次原生图片请求返回 `1033 / system error`、未取得图片且未重发。MiniMax 原生适配与 12 个本地 fixture 组合已通过，真实请求仍待核对，102/105 继续 Blocked，详见[供应商补验记录](plans/provider-acceptance-follow-up.md)。生产 Supabase 仍属后续范围。
 
 ## 解释
 

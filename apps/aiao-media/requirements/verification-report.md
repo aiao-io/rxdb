@@ -16,7 +16,17 @@
 
 用户另选 MiniMax 后，国内区订阅用量 GET 返回 HTTP 200 / 业务码 0，国际区返回 2049；原生图片接口对正式 origin 的 OPTIONS 为 200，允许 POST、Authorization 与 Content-Type。仅向国内区发送一次 `image-01`、1024×1024、`n=1`、URL 响应的原生图片请求，时间为 19:26:41（Asia/Shanghai），返回 HTTP 200 / `1033 / system error`，无图片 URL。官方将 1033 定义为系统错误/下游服务错误，不能推断 Key 无图片权限或零计费。
 
-尝试记录保留 `requires-review`，自动重试 0 次；未取得真实图片，未验原图 GET、PNG、产品保存/刷新回读/精确下载。MiniMax 原生 `/v1/image_generation` 与产品现有 `/images/generations` 的请求及响应协议不同，本次未改适配器、未部署。102 AC7/105 AC7 继续 ⚠️，两条故事仍 Blocked。官方依据、脱敏单次记录摘要和继续执行条件见[供应商补验记录](plans/provider-acceptance-follow-up.md#minimax-单次原生接口探测2026-10-25)。
+尝试记录保留 `requires-review`，自动重试 0 次；未取得真实图片，未验原图 GET、PNG、产品保存/刷新回读/精确下载。MiniMax 原生 `/v1/image_generation` 与产品现有 `/images/generations` 的请求及响应协议不同，该次探测未改适配器、未部署。102 AC7/105 AC7 继续 ⚠️，两条故事仍 Blocked。官方依据、脱敏单次记录摘要和继续执行条件见[供应商补验记录](plans/provider-acceptance-follow-up.md#minimax-单次原生接口探测2026-10-25)。
+
+## MiniMax 原生适配与本地回归（2026-10-25）
+
+用户要求继续后，完成 `image-01` 的固定官方前缀适配。浏览器直连、Worker 转发与正式验收共用请求映射，精确发送三画幅 `width/height`；代理入口、存储格式及已有 Images API 配置兼容。原生业务错误使用数值分类，不回显上游消息，1033 等系统错误保留待核对；原图仍须真实 PNG，不通过转码冒充供应商结果。
+
+按红绿流程补齐适配器和 Worker 测试后，应用单元测试 640/640、代理边界 12/12、验收脚本守卫 15/15、应用与 e2e 的 lint/typecheck 均通过。生产形态浏览器 fixture 扩展为 Images API/MiniMax 各 6 个、共 12 个通道/画幅组合，真实执行本地保存、刷新回读与逐字节下载，并验证成功复用和 MiniMax 系统错误后的请求阻断。
+
+完整覆盖率复验 36 文件、662/662 通过：行 94.65%、语句 86.74%、函数 84.72%、分支 80.30%，均达到 80%；新协议映射文件四项均为 100%。
+
+追加只读用量接口仅返回 `general`、`video` 汇总，不能证明图片权限或核对单次结果。本轮新增真实生成 0 次、未部署；原生 1033 与原供应商未知记录继续保留，102/105 仍 Blocked。适配范围、官方依据与证据边界见[补验记录](plans/provider-acceptance-follow-up.md#minimax-原生适配与本地验证2026-10-25)。
 
 ## 状态与剩余验收核对（2026-10-25）
 

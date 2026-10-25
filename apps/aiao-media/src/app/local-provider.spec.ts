@@ -244,3 +244,173 @@ describe('single image dispatch', () => {
     await expect(generate(provider, ratio)).rejects.toThrow('图片尺寸');
   });
 });
+
+const minimaxProvider: LocalProvider = {
+  ...provider,
+  baseUrl: 'https://api.minimax.cn/v1',
+  model: 'image-01'
+};
+
+describe('MiniMax native image dispatch', () => {
+  it.each([
+    ['square', 1024, 1024],
+    ['landscape', 1536, 1024],
+    ['portrait', 1024, 1536]
+  ] as const)('maps %s to explicit pixel dimensions without aspect_ratio', async (ratio, width, height) => {
+    vi.mocked(fetch).mockResolvedValue(
+      response({
+        base_resp: { status_code: 0 },
+        data: { image_base64: [encoded(png(width, height))] }
+      })
+    );
+    const blob = await generate(minimaxProvider, ratio);
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(png(width, height));
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(
+      'https://api.minimax.cn/v1/image_generation',
+      expect.objectContaining({
+        body: JSON.stringify({
+          model: 'image-01',
+          prompt: '测试图片',
+          n: 1,
+          width,
+          height,
+          response_format: 'url',
+          prompt_optimizer: false
+        })
+      })
+    );
+  });
+
+  it.each(['https://api.minimax.io/v1', 'https://api.minimaxi.com/v1'])(
+    'recognizes only an official native base %s',
+    async baseUrl => {
+      vi.mocked(fetch).mockResolvedValue(
+        response({
+          base_resp: { status_code: 0 },
+          data: { image_base64: [encoded(png())] }
+        })
+      );
+      await generate({ ...minimaxProvider, baseUrl });
+      expect(vi.mocked(fetch).mock.calls[0][0]).toBe(`${baseUrl}/image_generation`);
+    }
+  );
+
+  it('does not identify a lookalike host as MiniMax', async () => {
+    vi.mocked(fetch).mockResolvedValue(response({ data: [{ b64_json: encoded(png()) }] }));
+    await generate({ ...provider, baseUrl: 'https://api.minimax.cn.evil.example/v1' });
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('https://api.minimax.cn.evil.example/v1/images/generations');
+  });
+
+  it('keeps the existing relay request contract and reads its native response', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      response({
+        base_resp: { status_code: 0 },
+        data: { image_base64: [encoded(png())] }
+      })
+    );
+    await generate({ ...minimaxProvider, mode: 'proxy' });
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(
+      '/api/relay',
+      expect.objectContaining({
+        headers: {
+          'content-type': 'application/json',
+          authorization: 'Bearer fixture-key',
+          'x-provider-base': minimaxProvider.baseUrl
+        },
+        body: JSON.stringify({
+          model: 'image-01',
+          prompt: '测试图片',
+          n: 1,
+          size: '1024x1024',
+          quality: 'low',
+          output_format: 'png'
+        })
+      })
+    );
+  });
+
+  it('reads a native URL without forwarding Key, cookies or referrer', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        response({ base_resp: { status_code: 0 }, data: { image_urls: ['https://images.example/native.png'] } })
+      )
+      .mockResolvedValueOnce(new Response(png()));
+    await generate(minimaxProvider);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(String(vi.mocked(fetch).mock.calls[1][0])).toBe('https://images.example/native.png');
+    expect(vi.mocked(fetch).mock.calls[1][1]).toMatchObject({
+      mode: 'cors',
+      credentials: 'omit',
+      redirect: 'error',
+      referrerPolicy: 'no-referrer'
+    });
+    expect(vi.mocked(fetch).mock.calls[1][1]?.headers).toBeUndefined();
+  });
+
+  it.each([1002, 1004, 1008, 1026, 2013, 2049])(
+    'classifies native rejection %i and redacts its message',
+    async code => {
+      vi.mocked(fetch).mockResolvedValue(
+        response({ base_resp: { status_code: code, status_msg: 'private fixture-key upstream' } })
+      );
+      const failure = await generate(minimaxProvider).catch((error: unknown) => error);
+      expect(failure).toMatchObject({ rejected: true, message: expect.stringContaining(String(code)) });
+      expect(String(failure)).not.toMatch(/private|fixture-key|upstream/);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it.each([1001, 1024, 1033, 2066, 999999])('preserves native error %i as uncertain without retrying', async code => {
+    vi.mocked(fetch).mockResolvedValue(
+      response({ base_resp: { status_code: code, status_msg: 'private fixture-key upstream' } })
+    );
+    const failure = await generate(minimaxProvider).catch((error: unknown) => error);
+    expect(failure).toMatchObject({ rejected: false, message: expect.stringContaining(String(code)) });
+    expect(String(failure)).not.toMatch(/private|fixture-key|upstream/);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    {},
+    { base_resp: { status_code: '0' }, data: { image_urls: ['https://images.example/private.png'] } },
+    { base_resp: { status_code: 0 } },
+    { base_resp: { status_code: 0 }, data: { image_urls: [] } },
+    {
+      base_resp: { status_code: 0 },
+      data: { image_urls: ['https://images.example/a.png', 'https://images.example/b.png'] }
+    },
+    { base_resp: { status_code: 0 }, data: { image_urls: ['https://images.example/a.png'], image_base64: ['YQ=='] } },
+    { base_resp: { status_code: 0 }, data: { image_urls: 'https://images.example/a.png' } },
+    { base_resp: { status_code: 0 }, data: [{ b64_json: 'YQ==' }] }
+  ])('rejects invalid or ambiguous native envelopes before fetching an image', async data => {
+    vi.mocked(fetch).mockResolvedValue(response(data));
+    await expect(generate(minimaxProvider)).rejects.toMatchObject({ rejected: false });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects JPEG bytes instead of labeling or converting them to PNG', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        response({ base_resp: { status_code: 0 }, data: { image_urls: ['https://images.example/native.jpg'] } })
+      )
+      .mockResolvedValueOnce(new Response(new Uint8Array([255, 216, 255, ...new Uint8Array(24)])));
+    await expect(generate(minimaxProvider)).rejects.toThrow('PNG');
+    expect(createImageBitmap).not.toHaveBeenCalled();
+  });
+
+  it.each(['direct', 'proxy'] as const)('validates native model and prompt before %s dispatch', async mode => {
+    await expect(generate({ ...minimaxProvider, mode, model: 'unsupported-image' })).rejects.toMatchObject({
+      rejected: true
+    });
+    await expect(
+      generateLocalImage(
+        { ...minimaxProvider, mode },
+        'fixture-key',
+        'x'.repeat(1501),
+        'square',
+        new AbortController().signal
+      )
+    ).rejects.toMatchObject({ rejected: true });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});

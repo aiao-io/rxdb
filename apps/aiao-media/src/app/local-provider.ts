@@ -1,3 +1,4 @@
+import { imageGenerationRequest, isMiniMaxImageProvider } from '../contracts/image-provider-protocol';
 import type { ImageAspectRatio } from '../contracts/index';
 
 export interface LocalProvider {
@@ -78,6 +79,29 @@ export async function bounded(response: Response, limit: number): Promise<Uint8A
   }
   return bytes;
 }
+function object(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ?
+      (value as Record<string, unknown>)
+    : null;
+}
+function miniMaxImageResult(envelope: Record<string, unknown> | null): Record<string, unknown> | null {
+  const code = object(envelope?.['base_resp'])?.['status_code'];
+  if (typeof code !== 'number' || !Number.isSafeInteger(code) || code < 0)
+    throw new ProviderFailure('MiniMax 响应状态无效，请核对供应商记录。');
+  if (code !== 0)
+    throw new ProviderFailure(
+      `MiniMax 返回错误码 ${code}。请核对供应商记录。`,
+      [1002, 1004, 1008, 1026, 2013, 2049].includes(code)
+    );
+  const data = object(envelope?.['data']);
+  const urls = data?.['image_urls'];
+  const base64 = data?.['image_base64'];
+  if ((urls !== undefined && !Array.isArray(urls)) || (base64 !== undefined && !Array.isArray(base64))) return null;
+  const urlItems: unknown[] = Array.isArray(urls) ? urls : [];
+  const base64Items: unknown[] = Array.isArray(base64) ? base64 : [];
+  if (urlItems.length + base64Items.length !== 1) return null;
+  return { url: urlItems[0], b64_json: base64Items[0] };
+}
 export async function generateLocalImage(
   provider: LocalProvider,
   key: string,
@@ -99,7 +123,9 @@ export async function generateLocalImage(
     quality: 'low',
     output_format: 'png'
   };
-  const response = await fetch(provider.mode === 'proxy' ? '/api/relay' : `${base}/images/generations`, {
+  const request = imageGenerationRequest(base, body);
+  if (!request) throw new ProviderFailure('MiniMax 图片仅支持 image-01，提示词最多 1500 字符。', true);
+  const response = await fetch(provider.mode === 'proxy' ? '/api/relay' : request.url, {
     method: 'POST',
     mode: 'cors',
     credentials: 'omit',
@@ -112,7 +138,7 @@ export async function generateLocalImage(
       authorization: `Bearer ${key}`,
       ...(provider.mode === 'proxy' ? { 'x-provider-base': base } : {})
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(provider.mode === 'proxy' ? body : request.body)
   });
   if (!response.ok) {
     await response.body?.cancel();
@@ -122,23 +148,28 @@ export async function generateLocalImage(
       [400, 401, 403, 404, 413, 422, 429].includes(response.status)
     );
   }
-  const data = JSON.parse(new TextDecoder().decode(await bounded(response, 24 * 1024 * 1024)));
-  if (typeof data?.error === 'string') {
-    const status = Number.isInteger(data.status) && data.status >= 400 && data.status <= 599 ? data.status : 502;
+  const data = object(JSON.parse(new TextDecoder().decode(await bounded(response, 24 * 1024 * 1024))));
+  if (typeof data?.['error'] === 'string') {
+    const code = data['status'];
+    const status = typeof code === 'number' && Number.isInteger(code) && code >= 400 && code <= 599 ? code : 502;
     throw new ProviderFailure(`供应商或代理返回 HTTP ${status}。请核对配置和供应商记录。`);
   }
-  const item = Array.isArray(data?.data) && data.data.length === 1 ? data.data[0] : null;
+  const items = data?.['data'];
+  const item =
+    isMiniMaxImageProvider(base) ?
+      miniMaxImageResult(data)
+    : object(Array.isArray(items) && items.length === 1 ? items[0] : null);
   let bytes: Uint8Array<ArrayBuffer>;
-  if (typeof item?.b64_json === 'string') {
+  if (typeof item?.['b64_json'] === 'string') {
     if (
-      !item.b64_json.length ||
-      item.b64_json.length > 23 * 1024 * 1024 ||
-      !/^[A-Za-z0-9+/]*={0,2}$/.test(item.b64_json)
+      !item['b64_json'].length ||
+      item['b64_json'].length > 23 * 1024 * 1024 ||
+      !/^[A-Za-z0-9+/]*={0,2}$/.test(item['b64_json'])
     )
       throw new ProviderFailure('图片数据无效，请核对供应商结果。');
-    bytes = Uint8Array.from(atob(item.b64_json), c => c.charCodeAt(0));
-  } else if (typeof item?.url === 'string') {
-    const url = new URL(item.url);
+    bytes = Uint8Array.from(atob(item['b64_json']), c => c.charCodeAt(0));
+  } else if (typeof item?.['url'] === 'string') {
+    const url = new URL(item['url']);
     if (url.protocol !== 'https:' || url.username || url.password) throw new ProviderFailure('图片地址无效。');
     // No Authorization header is ever forwarded to an image download host.
     const image = await fetch(url, {

@@ -4,6 +4,10 @@ import { existsSync } from 'node:fs';
 import { chmod, mkdir, open, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import {
+  imageGenerationRequest,
+  isMiniMaxImageProvider
+} from '../../aiao-media/src/contracts/image-provider-protocol.ts';
 import { prompt, provider, verifyImageDownload } from '../src/local-first.helpers.ts';
 import { installFetchCapture } from './provider-fetch-capture.mjs';
 
@@ -134,6 +138,14 @@ export function liveSettings(env) {
     'INVALID_PROVIDER'
   );
   requireCheck(/^[a-zA-Z0-9._:-]{1,128}$/.test(env.AIAO_IMAGE_MODEL ?? ''), 'INVALID_MODEL');
+  requireCheck(
+    imageGenerationRequest(base.href.replace(/\/+$/, ''), {
+      model: env.AIAO_IMAGE_MODEL,
+      prompt: '',
+      size: '1024x1024'
+    }),
+    'INVALID_MODEL'
+  );
   requireCheck(/^[\x21-\x7e]{1,4096}$/.test(env.AIAO_IMAGE_API_KEY ?? ''), 'INVALID_KEY');
   return {
     selection: acceptanceSelection(env),
@@ -223,7 +235,17 @@ async function runAttempt(browser, settings, directory, mode, ratio) {
     fixture: settings.fixture,
     mode,
     aspect: ratio.aspect,
-    request: { size: ratio.size, n: 1, quality: 'low', outputFormat: 'png' },
+    protocol: isMiniMaxImageProvider(settings.baseUrl) ? 'minimax-native' : 'openai-images',
+    request:
+      mode === 'direct' && isMiniMaxImageProvider(settings.baseUrl) ?
+        {
+          width: Number(ratio.size.split('x')[0]),
+          height: Number(ratio.size.split('x')[1]),
+          n: 1,
+          responseFormat: 'url',
+          promptOptimizer: false
+        }
+      : { size: ratio.size, n: 1, quality: 'low', outputFormat: 'png' },
     phase: 'prepared',
     stage: 'prepared',
     generationRequests: 0,
@@ -246,7 +268,30 @@ async function runAttempt(browser, settings, directory, mode, ratio) {
   );
 }
 
-async function originalBytes(page, response, responses, origin, record) {
+export function generationDispatch(settings, mode, ratio, prompt) {
+  const input = { model: settings.model, prompt, size: ratio.size };
+  const request = imageGenerationRequest(settings.baseUrl, input);
+  requireCheck(request, 'INVALID_MODEL');
+  if (mode === 'direct') return request;
+  return {
+    url: `${settings.origin}/api/relay`,
+    body: { model: input.model, prompt, n: 1, size: input.size, quality: 'low', output_format: 'png' }
+  };
+}
+
+export function generationImageResult(result, baseUrl) {
+  if (!isMiniMaxImageProvider(baseUrl)) return result?.data?.length === 1 ? result.data[0] : null;
+  requireCheck(result?.base_resp?.status_code === 0, 'GENERATION_REJECTED_OR_UNCERTAIN');
+  const urls = result?.data?.image_urls ?? [];
+  const base64 = result?.data?.image_base64 ?? [];
+  requireCheck(
+    Array.isArray(urls) && Array.isArray(base64) && urls.length + base64.length === 1,
+    'ORIGINAL_RESULT_UNAVAILABLE'
+  );
+  return { url: urls[0], b64_json: base64[0] };
+}
+
+async function originalBytes(page, response, responses, origin, record, baseUrl) {
   requireCheck(response.ok(), 'GENERATION_REJECTED_OR_UNCERTAIN');
   record.stage = 'generation-capture';
   const body = await receivedBytes(page, 'generation');
@@ -257,7 +302,7 @@ async function originalBytes(page, response, responses, origin, record) {
   } catch {
     throw new Error('GENERATION_JSON_INVALID');
   }
-  const item = result?.data?.length === 1 ? result.data[0] : null;
+  const item = generationImageResult(result, baseUrl);
   if (typeof item?.b64_json === 'string')
     return { bytes: Buffer.from(item.b64_json, 'base64'), delivery: 'base64', credentialFree: null };
   requireCheck(typeof item?.url === 'string', 'ORIGINAL_RESULT_UNAVAILABLE');
@@ -291,7 +336,9 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
   });
   try {
     await settings.setupContext?.(context);
-    const endpoint = mode === 'proxy' ? `${settings.origin}/api/relay` : `${settings.baseUrl}/images/generations`;
+    const text = `桌面正式验收：${mode} ${ratio.aspect} 蓝色森林`;
+    const dispatch = generationDispatch(settings, mode, ratio, text);
+    const endpoint = dispatch.url;
     await context.addInitScript(installFetchCapture, {
       generationUrl: endpoint,
       pageOrigin: settings.origin,
@@ -301,7 +348,11 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     });
     const page = await context.newPage();
     page.setDefaultTimeout(30000);
-    const generationEndpoints = [`${settings.origin}/api/relay`, `${settings.baseUrl}/images/generations`];
+    const generationEndpoints = [
+      `${settings.origin}/api/relay`,
+      `${settings.baseUrl}/images/generations`,
+      `${settings.baseUrl}/image_generation`
+    ];
     const responses = new Map();
     page.on('response', response => responses.set(response.url(), response));
     await context.route('**/*', async route => {
@@ -315,11 +366,9 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
         request.url() === endpoint &&
         headers.authorization === `Bearer ${settings.key}` &&
         !headers.cookie &&
-        body.model === settings.model &&
-        body.size === ratio.size &&
-        body.n === 1 &&
-        body.quality === 'low' &&
-        body.output_format === 'png';
+        body &&
+        Object.keys(body).length === Object.keys(dispatch.body).length &&
+        Object.entries(dispatch.body).every(([name, value]) => body[name] === value);
       if (!valid) {
         record.requestBoundaryFailed = true;
         return route.abort('blockedbyclient');
@@ -335,7 +384,6 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
       .update(await manifest.body())
       .digest('hex');
     requireCheck(observedManifestSha256 === settings.manifestSha256, 'DEPLOYED_MANIFEST_MISMATCH');
-    const text = `桌面正式验收：${mode} ${ratio.aspect} 蓝色森林`;
     record.stage = 'draft-setup';
     await prompt(page, text);
     record.stage = 'aspect-selection';
@@ -353,7 +401,7 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     const response = await generated;
     record.generationStatus = response.status();
     record.stage = 'original-result';
-    const original = await originalBytes(page, response, responses, settings.origin, record);
+    const original = await originalBytes(page, response, responses, settings.origin, record, settings.baseUrl);
     record.stage = 'local-save';
     await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible({ timeout: 210000 });
     requireCheck(!record.requestBoundaryFailed && record.generationRequests === 1, 'GENERATION_REQUEST_BOUNDARY');

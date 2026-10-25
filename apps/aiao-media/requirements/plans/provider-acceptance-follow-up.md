@@ -31,9 +31,31 @@
 
 不能仅凭 Key 前缀认定图片权限：[当前 M Plan FAQ](https://platform.minimax.cn/docs/m-plan/faq)包含图像生成能力，[旧 Token Plan 说明](https://platform.minimax.cn/docs/m-plan/token-plan-notice)则保留原有套餐权益；本轮未确认该账号具体套餐与图片模型权限。
 
-MiniMax 原生请求路径为 `/v1/image_generation`，使用 `width/height` 或 `aspect_ratio`，结果为 `data.image_urls[]` / `data.image_base64[]`。当前产品固定请求 `/images/generations`、`size`、`output_format=png`，读取 `data[0].url` / `data[0].b64_json`，所以仅更换 Base URL 与模型不能接入；本轮没有变更产品适配器、代理 allowlist 或部署。即使原生请求将来成功，仍须完成产品协议适配，并验证真实 PNG、URL 读取与正式三画幅交付，才能关闭 102 AC7 / 105 AC7。
+MiniMax 原生请求路径为 `/v1/image_generation`，使用 `width/height` 或 `aspect_ratio`，结果为 `data.image_urls[]` / `data.image_base64[]`。当前产品固定请求 `/images/generations`、`size`、`output_format=png`，读取 `data[0].url` / `data[0].b64_json`，所以该次探测时仅更换 Base URL 与模型不能接入；该次没有变更产品适配器、代理 allowlist 或部署。即使原生请求将来成功，仍须完成产品协议适配，并验证真实 PNG、URL 读取与正式三画幅交付，才能关闭 102 AC7 / 105 AC7。
 
 下一步需按本次调用时间由供应商核对单次处理/用量并排查 `1033`，同时确认该 Key 的图片模型权限。102/105 继续保持 Blocked；原供应商的未知身份锁定记录继续保留。
+
+## MiniMax 原生适配与本地验证（2026-10-25）
+
+用户继续推进后，在工作区起点 `98d44ba9` 上补齐应用私有的原生协议适配。追加的一次国内区订阅用量 GET 仍为 HTTP 200 / 业务码 0，仅提供 `general`、`video` 两类额度窗口；没有具体图片模型权限或单次生成记录，不能用于核对 19:26:41 的 `1033` 请求。本轮新增真实生成 0 次，原生探测日志继续 `requires-review`。
+
+| 已实现项     | 行为与边界                                                                                                                                                                                                                                          |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 固定请求映射 | 浏览器、Worker 与正式验收脚本共用[请求协议映射](../../src/contracts/image-provider-protocol.ts)；只将 `https://api.minimax.cn/v1`、`https://api.minimax.io/v1`、`https://api.minimaxi.com/v1` 识别为 MiniMax 原生接口，其他 API 前缀沿用 Images API |
+| 模型和参数   | 当前适配 `image-01`，提示词最多 1500 字符；固定单张、`response_format=url`、关闭提示词优化；三画幅通过 `width/height` 精确请求 1024×1024、1536×1024、1024×1536，不使用会改变像素尺寸的 `aspect_ratio`                                               |
+| 代理契约     | 浏览器仍向 `/api/relay` 发送既有单张 Images API 参数；Worker 在允许列表和运行策略通过后映射原生路径及参数。没有自动扩展允许列表或切换通道                                                                                                           |
+| 结果与错误   | 只接受业务码 0、单一 URL 或 base64 结果；拒绝混合、多张和损坏响应。1002/1004/1008/1026/2013/2049 按明确拒绝处理，1033、超时、系统错误及未知码保持不确定，不回显上游消息                                                                             |
+| 原图交付     | HTTPS URL GET 不带 Authorization、Cookie、Referer，不跟随重定向，仍要求原始字节为可解码 PNG；JPEG 等非 PNG 结果拒绝保存，不转码代替真实 PNG 验收                                                                                                    |
+| 配置与数据   | 通过固定官方 API 前缀选择协议；本机供应商、凭据、备份和同步记录格式保持兼容，无迁移或新增 Key 字段。供应商表单说明已同步                                                                                                                            |
+| 正式验收入口 | 支持 MiniMax 原生请求和响应，按通道检查完整请求边界，记录实际参数与协议；成功身份复用，系统错误保留 `requires-review` 并拒绝重发                                                                                                                    |
+
+先补失败测试：适配器 81 项中 21 项失败，Worker 12 项中新增 4 项失败；实现后应用完整单元测试 640/640、Worker 12/12、验收脚本守卫 15/15 通过。应用与 e2e 的 lint/typecheck 通过。
+
+生产形态本地 fixture 已覆盖 Images API 与 MiniMax 各 6 个通道/画幅组合，共 12 个组合：实际 PNG 原图 GET 不带凭据，产品保存、刷新回读与下载逐字节一致；成功复用未增加请求，MiniMax 1033 写入待核对记录，第二次执行在请求前阻断。此证据使用合成供应商响应和图片，仅证明本地产品接线与保护，不计作真实 MiniMax 成功或正式 origin 验收。
+
+完整覆盖率复验 36 文件、662/662 通过：行 94.65%、语句 86.74%、函数 84.72%、分支 80.30%，四项均达到 80%。新请求映射文件四项均为 100%；`local-provider.ts` 行与分支均为 100%。
+
+未部署、未重发任何真实图片请求、未改变正式代理允许列表。102 AC7/105 AC7 继续 ⚠️，故事仍 Blocked。外部继续条件仍为核对原生请求的单次处理/计费结果、确认该 Key 的 `image-01` 权限并排查 1033；之后才能按已适配入口取得真实 PNG、URL 读取和正式三画幅交付证据。
 
 ## 未知请求保护
 

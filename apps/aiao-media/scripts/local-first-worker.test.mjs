@@ -212,3 +212,125 @@ test('长耗时上游以 JSON 空白心跳保持连接并转发结果', async ()
     globalThis.fetch = previous;
   }
 });
+
+const miniMaxBase = 'https://api.minimax.cn/v1';
+const miniMaxEnv = { ...env, ALLOWED_PROVIDER_BASE_URLS: JSON.stringify([miniMaxBase]) };
+const miniMaxHeaders = { 'x-provider-base': miniMaxBase };
+
+test('MiniMax 代理保留入口契约，固定映射三画幅原生请求，剥离多余参数和请求头', async () => {
+  const previous = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, init });
+    return Response.json({
+      base_resp: { status_code: 0 },
+      data: { image_urls: ['https://images.example/native.png'] }
+    });
+  };
+  try {
+    for (const [size, width, height] of [
+      ['1024x1024', 1024, 1024],
+      ['1536x1024', 1536, 1024],
+      ['1024x1536', 1024, 1536]
+    ]) {
+      const response = await worker.fetch(
+        request(
+          { ...miniMaxHeaders, cookie: 'private' },
+          {
+            ...body,
+            model: 'image-01',
+            size,
+            callback_url: 'https://evil.example/',
+            aspect_ratio: '1:1'
+          }
+        ),
+        miniMaxEnv
+      );
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).base_resp.status_code, 0);
+      const call = calls.at(-1);
+      assert.equal(call.url, `${miniMaxBase}/image_generation`);
+      assert.equal(call.init.redirect, 'manual');
+      assert.deepEqual(call.init.headers, { authorization: 'Bearer fixture-only', 'content-type': 'application/json' });
+      assert.deepEqual(JSON.parse(call.init.body), {
+        model: 'image-01',
+        prompt: body.prompt,
+        n: 1,
+        width,
+        height,
+        response_format: 'url',
+        prompt_optimizer: false
+      });
+    }
+    assert.equal(calls.length, 3);
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
+
+test('MiniMax 仍须逐项允许列表授权；不接受不支持的模型和过长提示词', async () => {
+  const previous = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    throw new Error('must not dispatch');
+  };
+  try {
+    const nativeBody = { ...body, model: 'image-01' };
+    assert.equal((await worker.fetch(request(miniMaxHeaders, nativeBody), env)).status, 403);
+    assert.equal(
+      (await worker.fetch(request(miniMaxHeaders, { ...nativeBody, model: 'unsupported' }), miniMaxEnv)).status,
+      400
+    );
+    assert.equal(
+      (await worker.fetch(request(miniMaxHeaders, { ...nativeBody, prompt: 'x'.repeat(1501) }), miniMaxEnv)).status,
+      400
+    );
+    assert.equal(calls, 0);
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
+
+test('MiniMax 业务错误按原样交给浏览器分类，代理不重试', async () => {
+  const previous = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async url => {
+    calls++;
+    assert.equal(url, `${miniMaxBase}/image_generation`);
+    return Response.json({ base_resp: { status_code: 1033, status_msg: 'system error' } });
+  };
+  try {
+    const response = await worker.fetch(request(miniMaxHeaders, { ...body, model: 'image-01' }), miniMaxEnv);
+    assert.equal((await response.json()).base_resp.status_code, 1033);
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
+
+test('MiniMax 无 Key 连通性探针使用原生路径和固定参数', async () => {
+  const previous = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, init });
+    return new Response(null, { status: 204 });
+  };
+  try {
+    await worker.fetch(new Request(`${origin}/api/provider-probe`), miniMaxEnv);
+    const post = calls.find(call => call.init.method === 'POST');
+    assert.equal(post.url, `${miniMaxBase}/image_generation`);
+    assert.equal(post.init.headers.authorization, undefined);
+    assert.deepEqual(JSON.parse(post.init.body), {
+      model: 'image-01',
+      prompt: 'reachability-probe',
+      n: 1,
+      width: 1024,
+      height: 1024,
+      response_format: 'url',
+      prompt_optimizer: false
+    });
+  } finally {
+    globalThis.fetch = previous;
+  }
+});

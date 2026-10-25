@@ -607,7 +607,7 @@
             </div>
           </article>
         } @empty {
-          <p class="notice">先添加兼容 Images API 的供应商，随后即可创作。</p>
+          <p class="notice">先添加兼容 Images API 的供应商，或使用 MiniMax 官方图片接口。</p>
         }
         <p class="source-note">
           直连时，Key 和提示词从浏览器发给供应商。代理模式会将本次 Key 和提示词交给本站 Worker 转发，服务端不保存
@@ -639,7 +639,7 @@
             required
             type="url"
           />
-          <small>填写 API 前缀，应用会追加 /images/generations。</small>
+          <small>填写 API 前缀。MiniMax 使用官方 /v1 地址和 image-01 模型；其他供应商须兼容 Images API。</small>
           <label for="provider-model">图片模型 ID</label>
           <input
             id="provider-model"
