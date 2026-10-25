@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { setTimeout as pause } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
 import {
   actualUpdateSettings,
   baselineDeployConfig,
@@ -15,6 +16,7 @@ import {
 
 const versionA = '11111111-1111-4111-8111-111111111111';
 const versionB = '22222222-2222-4222-8222-222222222222';
+const processFixture = fileURLToPath(new URL('./fixtures/actual-release-process.mjs', import.meta.url));
 const builds = {
   a: { root: '/reviewed/a', version: 'a'.repeat(64), manifestSha256: 'c'.repeat(64), entryScripts: ['/main-a.js'] },
   b: { root: '/reviewed/b', version: 'b'.repeat(64), manifestSha256: 'd'.repeat(64), entryScripts: ['/main-b.js'] }
@@ -160,10 +162,12 @@ test('SIGINT/SIGTERM和整体deadline只中断验收，恢复B继续执行并清
 test('命令超时等待子进程close，不能让延迟退出与恢复B竞争', { skip: process.platform === 'win32' }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'aiao-update-process-'));
   const marker = join(root, 'closed');
-  const source = `const fs=require('node:fs');process.on('SIGTERM',()=>setTimeout(()=>{fs.writeFileSync(${JSON.stringify(marker)},'closed');process.exit(0)},80));setInterval(()=>{},1000);`;
   try {
     await assert.rejects(
-      runGuardedCommand(process.execPath, ['-e', source], { timeoutMs: 1000, killGraceMs: 500 }),
+      runGuardedCommand(process.execPath, [processFixture, 'delayed-exit', marker], {
+        timeoutMs: 1000,
+        killGraceMs: 500
+      }),
       /FORMAL_UPDATE_TIMEOUT/
     );
     assert.equal(await readFile(marker, 'utf8'), 'closed');
@@ -176,9 +180,7 @@ test('中止杀掉整个派生进程组且不泄露命令输出', { skip: proces
   const root = await mkdtemp(join(tmpdir(), 'aiao-update-process-group-'));
   const marker = join(root, 'ready');
   const abort = new AbortController();
-  const nested = `process.on('SIGTERM',()=>{});require('node:fs').writeFileSync(${JSON.stringify(marker)},String(process.pid));setInterval(()=>{},1000);`;
-  const source = `require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(nested)}],{stdio:'inherit'});process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);`;
-  const pending = runGuardedCommand(process.execPath, ['-e', source], {
+  const pending = runGuardedCommand(process.execPath, [processFixture, 'parent', marker], {
     signal: abort.signal,
     timeoutMs: 5000,
     killGraceMs: 30
