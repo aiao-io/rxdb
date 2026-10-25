@@ -46,6 +46,10 @@
         "kind": "value"
       },
       {
+        "name": "assertMutationsTableSet",
+        "kind": "value"
+      },
+      {
         "name": "assertNoEntityConstraintDrift",
         "kind": "value"
       },
