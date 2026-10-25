@@ -873,7 +873,7 @@
   box-shadow: 3px 0 0 0 var(--board-accent);
 }
 
-.panel-backdrop {
+.board-view .panel-backdrop {
   position: fixed;
   z-index: 20;
   inset: 0;
