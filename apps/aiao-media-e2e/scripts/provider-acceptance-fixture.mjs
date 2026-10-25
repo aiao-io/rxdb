@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { extname, relative, resolve } from 'node:path';
 import sharp from 'sharp';
 import worker from '../../aiao-media/deploy/local-first-worker.mjs';
-import { attemptPath, runProviderAcceptance } from './provider-acceptance.mjs';
+import { acceptanceSelection, attemptPath, runProviderAcceptance } from './provider-acceptance.mjs';
 
 const root = resolve(import.meta.dirname, '../../aiao-media/dist/browser');
 await mkdir(resolve(import.meta.dirname, '../tmp'), { recursive: true, mode: 0o700 });
@@ -166,6 +166,23 @@ try {
   const file = attemptPath(directory, settings, 'direct', 'square');
   await writeFile(file, JSON.stringify({ ...records[0], phase: 'dispatching' }));
   await assert.rejects(runProviderAcceptance(settings, directory, setupContext), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
+  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  const proxy = { ...settings, selection: acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_MODES: 'proxy' }) };
+  const proxyRecords = await runProviderAcceptance(proxy, directory, setupContext);
+  assert.equal(proxyRecords.length, 3);
+  assert.ok(proxyRecords.every(record => record.mode === 'proxy' && record.phase === 'verified'));
+  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  const portrait = {
+    ...settings,
+    selection: acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_MODES: 'proxy', AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'portrait' })
+  };
+  assert.equal((await runProviderAcceptance(portrait, directory, setupContext)).length, 1);
+  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  const blocked = {
+    ...settings,
+    selection: acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_MODES: 'direct', AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'square' })
+  };
+  await assert.rejects(runProviderAcceptance(blocked, directory, setupContext), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
   assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
   incorrectSize = true;
   const failedDirectory = await mkdtemp(resolve(import.meta.dirname, '../tmp/provider-acceptance-invalid-size-'));

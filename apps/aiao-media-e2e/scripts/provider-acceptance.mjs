@@ -17,6 +17,28 @@ const requireCheck = (condition, code) => {
   if (!condition) throw new Error(code);
 };
 
+export function acceptanceSelection(env) {
+  const parse = (value, allowed) => {
+    const selected = value === undefined ? allowed : value.split(',').map(item => item.trim());
+    requireCheck(selected.length > 0 && selected.every(item => allowed.includes(item)), 'INVALID_ACCEPTANCE_SELECTION');
+    requireCheck(new Set(selected).size === selected.length, 'INVALID_ACCEPTANCE_SELECTION');
+    return selected;
+  };
+  return {
+    modes: parse(env.AIAO_MEDIA_ACCEPTANCE_MODES, ['direct', 'proxy']),
+    aspects: parse(
+      env.AIAO_MEDIA_ACCEPTANCE_ASPECTS,
+      ratios.map(ratio => ratio.aspect)
+    )
+  };
+}
+
+export function acceptancePlan(selection) {
+  return selection.modes.flatMap(mode =>
+    ratios.filter(ratio => selection.aspects.includes(ratio.aspect)).map(ratio => ({ mode, ratio }))
+  );
+}
+
 export function failureCode(error) {
   const codes = new Map([
     ['BUILD_MANIFEST_UNAVAILABLE', 'BUILD_MANIFEST_UNAVAILABLE'],
@@ -113,6 +135,7 @@ export function liveSettings(env) {
   requireCheck(/^[a-zA-Z0-9._:-]{1,128}$/.test(env.AIAO_IMAGE_MODEL ?? ''), 'INVALID_MODEL');
   requireCheck(/^[\x21-\x7e]{1,4096}$/.test(env.AIAO_IMAGE_API_KEY ?? ''), 'INVALID_KEY');
   return {
+    selection: acceptanceSelection(env),
     origin: env.AIAO_MEDIA_ACCEPTANCE_ORIGIN,
     release: env.AIAO_MEDIA_ACCEPTANCE_RELEASE,
     manifestSha256: env.AIAO_MEDIA_ACCEPTANCE_MANIFEST_SHA256,
@@ -373,9 +396,11 @@ export async function runProviderAcceptance(settings, directory, setupContext) {
   const browser = await chromium.launch({ channel: process.env.AIAO_PLAYWRIGHT_CHANNEL || 'chrome', headless: true });
   const records = [];
   try {
-    const cases = ['direct', 'proxy'].flatMap(mode => ratios.map(ratio => ({ mode, ratio })));
-    for (const { mode, ratio } of cases)
+    const cases = acceptancePlan(settings.selection ?? acceptanceSelection({}));
+    for (const { mode, ratio } of cases) {
       records.push(await runAttempt(browser, { ...settings, setupContext }, directory, mode, ratio));
+      settings.onVerified?.(records.length);
+    }
     return records;
   } finally {
     await browser.close();
@@ -383,17 +408,32 @@ export async function runProviderAcceptance(settings, directory, setupContext) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  let summary;
   try {
     requireCheck(process.env.AIAO_MEDIA_ACCEPTANCE_GENERATE === '1', 'LIVE_OPT_IN_REQUIRED');
     const envFile = resolve(import.meta.dirname, '../../aiao-media/.env');
     if (existsSync(envFile)) process.loadEnvFile(envFile);
     const settings = liveSettings(process.env);
+    summary = {
+      ...settings.selection,
+      planned: acceptancePlan(settings.selection).length,
+      verified: 0,
+      realProvider: true,
+      automaticRetry: false
+    };
+    console.log(JSON.stringify({ ...summary, phase: 'planned' }));
     const records = await runProviderAcceptance(
-      settings,
+      {
+        ...settings,
+        onVerified: count => {
+          summary.verified = count;
+        }
+      },
       resolve(import.meta.dirname, '../tmp/provider-acceptance/live')
     );
-    console.log(JSON.stringify({ verified: records.length, realProvider: true, automaticRetry: false }));
+    console.log(JSON.stringify({ ...summary, verified: records.length, phase: 'complete' }));
   } catch {
+    if (summary) console.error(JSON.stringify({ ...summary, phase: 'stopped' }));
     console.error(
       '正式供应商验收未完成。检查私有配置与 apps/aiao-media-e2e/tmp/provider-acceptance/live 记录；不会自动重发。'
     );

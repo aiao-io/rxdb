@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { assertionCode, attemptPath, failureCode, liveSettings, readResultHeaders } from './provider-acceptance.mjs';
+import {
+  acceptancePlan,
+  acceptanceSelection,
+  assertionCode,
+  attemptPath,
+  failureCode,
+  liveSettings,
+  readResultHeaders
+} from './provider-acceptance.mjs';
 import { installFetchCapture } from './provider-fetch-capture.mjs';
 
 const config = {
@@ -12,6 +20,39 @@ const config = {
   AIAO_IMAGE_MODEL: 'image-test',
   AIAO_IMAGE_API_KEY: 'private-test-key'
 };
+
+test('默认计划覆盖两通道三画幅，显式选择仅保留指定子集', () => {
+  const defaults = acceptancePlan(acceptanceSelection({}));
+  assert.equal(defaults.length, 6);
+  const selection = acceptanceSelection({
+    AIAO_MEDIA_ACCEPTANCE_MODES: 'proxy',
+    AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'landscape,portrait'
+  });
+  assert.deepEqual(selection, { modes: ['proxy'], aspects: ['landscape', 'portrait'] });
+  assert.deepEqual(
+    acceptancePlan(selection).map(({ mode, ratio }) => [mode, ratio.aspect]),
+    [
+      ['proxy', 'landscape'],
+      ['proxy', 'portrait']
+    ]
+  );
+});
+
+test('非法、空或重复选择在任何请求前拒绝，选择范围不改变尝试身份', () => {
+  for (const mode of ['', 'auto', 'DIRECT', 'direct,proxy,other', 'proxy,proxy'])
+    assert.throws(() => acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_MODES: mode }));
+  for (const aspect of ['', 'wide', 'square,square', 'portrait,other'])
+    assert.throws(() => acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_ASPECTS: aspect }));
+  const settings = liveSettings(config);
+  const selected = {
+    ...settings,
+    selection: acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_MODES: 'proxy', AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'portrait' })
+  };
+  assert.equal(
+    attemptPath('/tmp/acceptance', settings, 'proxy', 'portrait'),
+    attemptPath('/tmp/acceptance', selected, 'proxy', 'portrait')
+  );
+});
 
 test('诊断仅返回固定错误码，供应商 URL、Key 与原始异常不进入输出', () => {
   assert.equal(failureCode(new Error('RESULT_SIZE_MISMATCH')), 'RESULT_SIZE_MISMATCH');
