@@ -1,4 +1,5 @@
 /// <reference types='vitest' />
+import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
@@ -82,7 +83,8 @@ export default defineConfig(() => ({
       ]
     }),
     react({ tsDecorators: true }),
-    tailwindcss()
+    tailwindcss(),
+    nxReadySignal()
   ],
   worker: {
     format: 'es' as const,

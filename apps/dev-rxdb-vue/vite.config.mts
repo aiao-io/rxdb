@@ -1,4 +1,5 @@
 /// <reference types='vitest' />
+import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import { defineConfig } from 'vite';
@@ -52,7 +53,7 @@ export default defineConfig(() => ({
     port: 4203,
     host: 'localhost'
   },
-  plugins: [vue(), tailwindcss(), VitePWA(pwaOptions)],
+  plugins: [vue(), tailwindcss(), VitePWA(pwaOptions), nxReadySignal()],
   // Uncomment this if you are using workers.
   worker: {
     format: 'es' as const,
