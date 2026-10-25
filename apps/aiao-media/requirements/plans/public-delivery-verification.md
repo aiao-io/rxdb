@@ -8,13 +8,16 @@
 | ------------------------------- | ------------------------------------------------------------------ |
 | Source commit                   | `c2ab7dc0`                                                         |
 | Worker version                  | `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`                             |
-| Deployment                      | `12606e16-5ba7-44e5-ba8f-0c7081821544`                             |
+| 原始生成验收 Deployment          | `12606e16-5ba7-44e5-ba8f-0c7081821544`                             |
+| 恢复后的当前 Deployment          | `aac93845-7add-4fd3-b45a-d37dfc5d1319`                             |
+| 当前 Deployment 创建时间        | `2026-10-25T04:36:20.644433Z`                                      |
+| 当前官方流量                    | 100% 指向上述 Worker version B                                   |
 | `offline-manifest.json` SHA-256 | `9d303528a1f123d4c4dc8932fc7321b02fa5b360883a4885c9234498ed1d01fd` |
 | 离线资源数                      | 46                                                                 |
 | 公开账号配置                    | `null`，生产账号/同步/后台未启用                                   |
 | 代理 allowlist                  | 1 项，具体供应商值保留在本机私有配置                               |
 
-生成尝试与公网浏览器证据均绑定上述 version 和审核 manifest。更换产物后必须重新核对身份，不能将旧结果写成新发布证据。
+生成尝试对应原始 Deployment；真实更新验收结束后，官方回退恢复同一 version B，产生当前 Deployment。官方 API 已重新核对 100% 流量、manifest 和账号配置 `null`。不同 Deployment 不冒充同次操作，但上述 B 的产物身份一致。
 
 ## 真实供应商与原图交付
 
@@ -39,11 +42,11 @@ direct / square 的日志为 `requires-review`，阶段 `generation-response`，
 
 ## 正式 origin 浏览器与离线证据
 
-本机原始 JSON：`apps/aiao-media-e2e/tmp/public-origin-smoke/1792901770395-cc8cc646-560e-4d36-b0cb-2e311a2d0e25.json`。开始时间为 `2026-10-25T04:15:58.528Z`，完成于 `2026-10-25T04:16:10.394Z`，`fixture=false`、`passed=true`。
+恢复 B 后的最终本机 JSON：`apps/aiao-media-e2e/tmp/public-origin-smoke/1792903093530-cc8cc646-560e-4d36-b0cb-2e311a2d0e25.json`。开始时间为 `2026-10-25T04:37:59.598Z`，完成于 `2026-10-25T04:38:13.529Z`，`fixture=false`、`passed=true`；该次目标耗时 14.2 秒。
 
 | 检查                | 结果与边界                                                                              |
 | ------------------- | --------------------------------------------------------------------------------------- |
-| 在线四路由          | `/`、`/create`、`/images`、`/providers` 均 HTTP 200，响应包含所检查的 CSP 指令          |
+| 在线四路由          | `/`、`/create`、`/images`、`/providers` 的直接 HTTP 与浏览器导航均 200，响应包含所检查的 CSP 指令 |
 | 活跃 Service Worker | 预期 `/offline-worker.js` 已激活，无 waiting worker，仅 1 份版本缓存                    |
 | 缓存完整性          | 46/46 项大小与 SHA-256 匹配审核构建                                                     |
 | 断网证明            | 设置离线后，带随机 query、`no-store` 的资源请求失败，排除仅命中原缓存却未真正断网的情况 |
@@ -51,7 +54,29 @@ direct / square 的日志为 `requires-review`，阶段 `generation-response`，
 | 本机状态            | 四路由保持相同 profile；草稿刷新恢复，并在离线新 `/create` 页面读回                     |
 | 网络副作用          | 0 生成请求、0 远程写请求、0 不安全请求、0 page error                                    |
 
-这是同一隔离浏览器 context 内的新文档冷启动，未证明浏览器进程重启后的持久化。非创作路由验证了应用壳，未逐项验证其全部页面主体。该样本没有供应商配置或原图，尚未完成 MEDIA-US-004 AC3 所需的完整内容回读；实际发布更新/回退另待验，JSON 的 `upgradeVerified`、`rollbackVerified` 均为 `false`。
+这是同一隔离浏览器 context 内的新文档冷启动，未证明浏览器进程重启后的持久化；非创作路由在此套件只验证应用壳。此 smoke 样本没有供应商配置或原图，`upgradeVerified`、`rollbackVerified` 均为 `false`。完整配置/原图与更新/回退证据由下面独立的真实产物套件提供，不扩大这份 smoke JSON 的范围。
+
+## 真实产物更新与正式回退
+
+本机证据：`apps/aiao-media/.wrangler/local-first/actual-release-update/evidence.json`，`scope=formal-real-artifact-update`，真实 live 目标耗时 1 分 8 秒。先封存并本地预验两份完整真实静态产物，两个 manifest 摘要与入口文件均不同；没有注入构建标记或更高 schema marker。
+
+| 产物 | 官方 Worker version | 审核 manifest SHA-256 | 实际主入口 |
+| --- | --- | --- | --- |
+| A，封存基线 A5 | `8b21d041-2324-4eca-b2ef-60e75e77bac8` | `6f47e3d7346f0a3c6bf6834b92ae66156e79dd13aabb4e7de81dbb253626ab23` | `/main-MIXFN4DO.js` |
+| B，当前发布 | `cc8cc646-560e-4d36-b0cb-2e311a2d0e25` | `9d303528a1f123d4c4dc8932fc7321b02fa5b360883a4885c9234498ed1d01fd` | `/main-QJQZZHTY.js` |
+
+| 真实步骤 | 浏览器与数据证据 |
+| --- | --- |
+| 官方发布 A | 通过产品备份导入合法 fixture PNG、测试供应商配置与草稿；在同一隔离 context 中建立固定工作区 |
+| A → 官方回退 B | 新 worker 进入 waiting 时旧 DOM 保持原构建；关闭旧页面后等待新 worker activated，再开页面核对 B 的真实入口与缓存 |
+| B → 官方回退 A | 重复 waiting/旧 DOM 不变/关闭旧页/activated/新页面验证，实际重新加载 A 的入口和缓存 |
+| 每阶段真断网 | 随机 query 的无缓存请求失败；四路由导航均由 Service Worker 响应，相同 profile 与 schema marker `1` 保持 |
+| 配置/草稿/原图 | 供应商全部非敏感配置与空 Key、草稿保持；每次转换后原图均可精确下载，源字节/SHA-256 一致 |
+| 最终恢复 | 浏览器序列为 A→B→A；结束后再次官方回退 B，API 核对 100% 流量、B 的审核 manifest 与账号配置 `null`，`restoredB=true` |
+
+原图 SHA-256：`26dc5fd3704ec4326753aa45e56b301d00f4f31cb57fa0ad57c69c7341816aea`。该 PNG 是通过实际产品备份导入的合法 fixture 原图，**不是供应商生成结果**；本套件 `generationRequests=0`，未追加真实生成。
+
+MEDIA-US-004 AC1–4 因真实发布、实际 allowlist 1 项/代理三画幅、已通过的运行边界测试，以及上述完整离线内容/更新/回退证据标为 ✅；故事仍为 `In Progress`，PR 未合并。未知/更高 marker 拒写另引用已通过的本地兼容守卫范围；本次线上 A/B 同为 schema `1`，没有执行真实 schema 转换或在线注入更高 marker。
 
 ## Cloudflare 计划范围
 
@@ -69,6 +94,18 @@ direct / square 的日志为 `requires-review`，阶段 `generation-response`，
 
 正式只读浏览器检查使用 `aiao-media-e2e:public-origin-smoke`，生成检查使用 `aiao-media-e2e:provider-acceptance`；前者不生成图片，后者可能计费。执行入口与 selector 见[收尾清单](release-completion-tasks.md)。现有三个 proxy 已验证结果应复用，direct 未知项继续锁定，不能为了补证据重发。
 
+真实版本切换使用 `aiao-media-e2e:actual-release-update-live`，会调用官方发布/回退命令改变正式静态版本。使用前必须封存 `apps/aiao-media/tmp/public-release-baseline` 与 `apps/aiao-media/tmp/public-release-current` 两份真实完整产物，先通过 `actual-release-update-check` 和 `actual-release-update-fixture` 本地预验；两份产物的审核摘要、版本和入口须不同，不能用同一构建改测试标记代替。此入口不允许追加 shell 参数，非敏感环境参数如下：
+
+| 参数 | 要求 |
+| --- | --- |
+| `AIAO_MEDIA_UPDATE_LIVE` | 必须显式为 `1` |
+| `AIAO_MEDIA_UPDATE_ORIGIN` | 固定 `https://media.aiao.io` |
+| `AIAO_MEDIA_UPDATE_VERSION_B` | 预先核验的正式 B version UUID |
+| `AIAO_MEDIA_UPDATE_MANIFEST_A_SHA256` | 封存并审核的 A manifest SHA-256 |
+| `AIAO_MEDIA_UPDATE_MANIFEST_B_SHA256` | 封存并审核的 B manifest SHA-256，必须与 A 不同 |
+
+默认 CI 仅挂接真实更新的 guard 与本地 public smoke fixture，并保留既有本地离线回归；不设置 live opt-in，不官方部署或调用真实供应商。最终本机 lint/typecheck、12 provider guards/6 组合 fixture、3 public guards/public fixture、12 actual-update guards 共 7 个 target，27.2 秒通过，没有 root build 或额外真实生成。
+
 本轮生产构建、产物审查和部署必须同时设置 `NX_LOAD_DOT_ENV_FILES=false` 与两个公开账号空值，例如：
 
 ```sh
@@ -79,4 +116,4 @@ pnpm nx run aiao-media:deploy --skipRemoteCache
 
 相同环境前缀也适用于 `offline-assets`、`release-check` 和 `deploy-check`。仅设置两个空值不足以约束 Nx 加载私有 `.env` 的行为；产物必须再次核对 `app-config.js` 为 `null`。此命令记录部署边界，不代表应在只读复验时再次部署。
 
-剩余项为 MEDIA-US-102 AC7 的直连部分、真实 URL 结果的无凭据读取、正式离线配置/原图回读以及实际发布更新/回退。直连未知请求不重发。桌面 IME 按用户决定跳过未验，移动三个 AC 暂缓；这些状态与生产 Supabase 后续范围分别保留。
+剩余项为 MEDIA-US-102 AC7 的直连部分与 MEDIA-US-105 AC7 的真实 URL 结果无凭据读取。直连未知请求不重发。桌面 IME 按用户决定跳过未验，移动三个 AC 暂缓；这些状态与生产 Supabase 后续范围分别保留。
