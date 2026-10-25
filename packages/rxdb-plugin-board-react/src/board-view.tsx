@@ -39,6 +39,18 @@ export interface BoardViewProps {
   readonly onExportBackup?: () => void | Promise<void>;
 }
 
+type DueFilter = 'all' | 'overdue' | 'today' | 'upcoming';
+
+const dateKey = (date: Date): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const dueState = (task: Task, today: string): Exclude<DueFilter, 'all'> | 'none' => {
+  if (!task.dueDate) return 'none';
+  if (task.dueDate < today) return 'overdue';
+  if (task.dueDate === today) return 'today';
+  return 'upcoming';
+};
+
 export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const searchUpstream = rxdb.getPlugins('search')[0];
   const board = useBoard(
@@ -67,6 +79,10 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const [searchHasMore, setSearchHasMore] = useState(false);
   const [searchErrorText, setSearchErrorText] = useState<string | null>(null);
   const [searchHighlightId, setSearchHighlightId] = useState<UUID | null>(null);
+  const [filterLabelId, setFilterLabelId] = useState<UUID | ''>('');
+  const [dueFilter, setDueFilter] = useState<DueFilter>('all');
+  const [showEmptyColumns, setShowEmptyColumns] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   /** 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 源卡片半透明）。 */
   const [dragging, setDragging] = useState<{ readonly kind: 'task' | 'column'; readonly id: UUID } | null>(null);
   const [dropTarget, setDropTarget] = useState<
@@ -78,6 +94,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const searchHandleRef = useRef<SearchHandle | null>(null);
   const searchSubsRef = useRef<Subscription | null>(null);
   const highlightTimerRef = useRef<number | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const destroySearch = (): void => {
     searchSubsRef.current?.unsubscribe();
@@ -160,6 +177,37 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     }
     return grouped;
   }, [board.columns, board.tasks]);
+
+  const today = dateKey(new Date());
+  const visibleTasks = useMemo(
+    () =>
+      board.tasks.filter(task => {
+        const matchesLabel =
+          filterLabelId === '' || (board.taskLabels.get(task.id) ?? []).some(label => label.id === filterLabelId);
+        const state = dueState(task, today);
+        return matchesLabel && (dueFilter === 'all' || state === dueFilter);
+      }),
+    [board.taskLabels, board.tasks, dueFilter, filterLabelId, today]
+  );
+  const visibleTaskMap = useMemo(() => {
+    const grouped = new Map<UUID, Task[]>();
+    for (const column of board.columns) grouped.set(column.id, []);
+    for (const task of visibleTasks) {
+      const list = grouped.get(task.columnId) ?? [];
+      list.push(task);
+      grouped.set(task.columnId, list);
+    }
+    return grouped;
+  }, [board.columns, visibleTasks]);
+  const visibleColumns = useMemo(
+    () =>
+      showEmptyColumns ?
+        board.columns
+      : board.columns.filter(column => (visibleTaskMap.get(column.id) ?? []).length > 0),
+    [board.columns, showEmptyColumns, visibleTaskMap]
+  );
+  const activeFilterCount = (filterLabelId === '' ? 0 : 1) + (dueFilter === 'all' ? 0 : 1);
+  const overdueTaskCount = board.tasks.filter(task => dueState(task, today) === 'overdue').length;
 
   const noticeTimerRef = useRef<number | null>(null);
   const scheduleNoticeClear = (): void => {
@@ -463,6 +511,30 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     setSnapshot(null);
   };
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      const isEditing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+      if (event.key === '/' && !isEditing) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+      if (event.key !== 'Escape') return;
+      if (showFilters) {
+        setShowFilters(false);
+        return;
+      }
+      if (searchQuery.trim() !== '') {
+        setSearchQuery('');
+        destroySearch();
+        return;
+      }
+      if (detailTaskId !== null) closeDetail();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [detailTaskId, searchQuery, showFilters]);
+
   // ---------- 菜单式移动（US-539 AC#6 键盘等价路径：移动到列 + 位置） ----------
 
   const [moveColumnId, setMoveColumnId] = useState<UUID | null>(null);
@@ -553,8 +625,6 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const dueDateText = (task: Task): string => {
     const due = task.dueDate;
     if (!due) return '';
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     return (
       due < today ? `已逾期 ${due}`
       : due === today ? `今天到期 ${due}`
@@ -573,12 +643,20 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     }
     invalidateDetailRequest();
     board.selectBoard(boardId);
+    setFilterLabelId('');
+    setDueFilter('all');
+    setShowEmptyColumns(true);
     // 切板丢弃旧板结果：销毁重建句柄重发（setQuery 同词会被 distinctUntilChanged 吞掉）
     const query = searchQuery.trim();
     if (query !== '') {
       destroySearch();
       onSearchInput(query);
     }
+  };
+
+  const clearFilters = (): void => {
+    setFilterLabelId('');
+    setDueFilter('all');
   };
 
   const boardSelector = (
@@ -608,63 +686,60 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       onDrop={event => void onColumnDrop(event)}
     >
       <header className='board-header' data-testid='board-header'>
-        {boardSelector}
-        {current ?
-          <button
-            className='header-button'
-            onClick={() => {
-              const title = promptTitle('改板标题', current.title);
-              if (title !== null) void guard(() => board.actions.updateBoard(current.id, { title }));
-            }}
-            data-testid='rename-board'
-            aria-label='改板标题'
-          >
-            {current.title}
-          </button>
-        : null}
-        {board.restoring ?
-          <span className='restoring-badge' data-testid='restoring-badge' aria-live='polite'>
-            恢复中
-          </span>
-        : null}
+        <div className='board-heading'>
+          <div className='board-eyebrow'>LOCAL PROJECT / 看板</div>
+          <div className='board-title-row'>
+            {boardSelector}
+            {current ?
+              <button
+                className='header-button'
+                onClick={() => {
+                  const title = promptTitle('改板标题', current.title);
+                  if (title !== null) void guard(() => board.actions.updateBoard(current.id, { title }));
+                }}
+                data-testid='rename-board'
+                aria-label='改板标题'
+              >
+                {current.title}
+              </button>
+            : null}
+            {board.restoring ?
+              <span className='restoring-badge' data-testid='restoring-badge' aria-live='polite'>
+                恢复中
+              </span>
+            : null}
+          </div>
+          {current ?
+            <p className='board-description'>
+              任务按状态推进，拖动卡片即可重新排序或切换列。数据保存在本地，可随时导出备份。
+            </p>
+          : null}
+        </div>
         <div className='header-actions'>
-          <button onClick={() => void createBoard()} data-testid='create-board' disabled={board.restoring}>
-            新建板
-          </button>
+          <div className='header-action-group' aria-label='历史操作'>
+            <button
+              className='icon-button'
+              onClick={() => void guard(() => board.actions.undo())}
+              data-testid='undo'
+              disabled={board.restoring || board.undoCount === 0}
+              aria-label='撤销'
+              title='撤销'
+            >
+              ↶
+            </button>
+            <button
+              className='icon-button'
+              onClick={() => void guard(() => board.actions.redo())}
+              data-testid='redo'
+              disabled={board.restoring || board.redoCount === 0}
+              aria-label='重做'
+              title='重做'
+            >
+              ↷
+            </button>
+          </div>
           <button
-            onClick={() => void confirmBoardDelete()}
-            data-testid='delete-board'
-            disabled={board.restoring || !current}
-          >
-            删除看板
-          </button>
-          <button
-            onClick={() => void createColumn()}
-            data-testid='create-column'
-            disabled={board.restoring || !current}
-          >
-            新建列
-          </button>
-          <button onClick={() => void createLabel()} data-testid='create-label' disabled={board.restoring || !current}>
-            新建标签
-          </button>
-          <button
-            onClick={() => void guard(() => board.actions.undo())}
-            data-testid='undo'
-            disabled={board.restoring || board.undoCount === 0}
-            aria-label='撤销'
-          >
-            撤销
-          </button>
-          <button
-            onClick={() => void guard(() => board.actions.redo())}
-            data-testid='redo'
-            disabled={board.restoring || board.redoCount === 0}
-            aria-label='重做'
-          >
-            重做
-          </button>
-          <button
+            className='header-secondary-action'
             onClick={() => {
               if (onExportBackup) void onExportBackup();
               else setNotice('备份导出由宿主接线（US-537）');
@@ -674,8 +749,49 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           >
             导出备份
           </button>
+          <button
+            className='header-primary-action'
+            onClick={() => void createColumn()}
+            data-testid='create-column'
+            disabled={board.restoring || !current}
+          >
+            <span aria-hidden='true'>＋</span> 新建列
+          </button>
+          <button className='header-create-board' onClick={() => void createBoard()} data-testid='create-board' disabled={board.restoring}>
+            新建板
+          </button>
+          <button
+            className='header-danger-action'
+            onClick={() => void confirmBoardDelete()}
+            data-testid='delete-board'
+            disabled={board.restoring || !current}
+          >
+            删除看板
+          </button>
+          <button className='header-utility-action' onClick={() => void createLabel()} data-testid='create-label' disabled={board.restoring || !current}>
+            标签
+          </button>
         </div>
       </header>
+
+      {current ?
+        <div className='board-summary' data-testid='board-summary'>
+          <span className='summary-item'>
+            <strong>{board.tasks.length}</strong> 个任务
+          </span>
+          <span className='summary-divider' aria-hidden='true' />
+          <span className='summary-item'>
+            <strong>{board.columns.length}</strong> 个状态
+          </span>
+          <span className='summary-divider' aria-hidden='true' />
+          <span className={`summary-item${overdueTaskCount > 0 ? ' summary-warning' : ''}`}>
+            <strong>{overdueTaskCount}</strong> 个逾期
+          </span>
+          {activeFilterCount > 0 ?
+            <span className='summary-filter-state'>已筛选 {visibleTasks.length} / {board.tasks.length}</span>
+          : null}
+        </div>
+      : null}
 
       {!current ?
         <div className='empty-board' data-testid='empty-board'>
@@ -741,70 +857,156 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         </p>
       : null}
 
-      {/* 板内搜索（US-539 阶段 B） */}
-      {current && board.searchSource ?
-        <div className='board-search' data-testid='board-search'>
-          <input
-            className='search-input'
-            value={searchQuery}
-            onChange={event => onSearchInput(event.target.value)}
-            placeholder='搜索当前板任务'
-            aria-label='搜索当前板任务'
-            data-testid='board-search-input'
-          />
-          {searchQuery.trim() !== '' ?
-            <div className='search-results' data-testid='board-search-results'>
-              {searchState === 'loading' ?
-                <p className='search-state' data-testid='board-search-loading'>
-                  搜索中…
-                </p>
-              : searchState === 'error' ?
-                <p className='search-state' data-testid='board-search-error'>
-                  {searchErrorText}
-                </p>
-              : searchState === 'empty' ?
-                <p className='search-state' data-testid='board-search-empty'>
-                  无匹配
-                </p>
-              : <>
-                  {searchResults.map(result => (
-                    <button
-                      key={result.id}
-                      className='search-result'
-                      onClick={() => onSearchResultClick(result)}
-                      data-testid='board-search-result'
-                    >
-                      <span className='search-result-title'>
-                        {board.tasks.find(task => task.id === (result.id as UUID))?.title ?? ''}
-                      </span>
-                      <span className='search-result-column'>
-                        {board.columns.find(column => {
-                          const task = board.tasks.find(candidate => candidate.id === (result.id as UUID));
-                          return task ? column.id === task.columnId : false;
-                        })?.title ?? ''}
-                      </span>
-                      <span className='search-result-snippet'>{result.snippet}</span>
-                    </button>
-                  ))}
-                  {searchHasMore ?
-                    <button
-                      className='search-more'
-                      onClick={() => void searchHandleRef.current?.loadMore()}
-                      data-testid='board-search-more'
-                    >
-                      加载更多
-                    </button>
-                  : null}
-                </>
-              }
+      {current ?
+        <div className='board-toolbar' data-testid='board-toolbar'>
+          <div className='view-switcher' role='tablist' aria-label='看板视图'>
+            <button className='view-tab view-tab-active' role='tab' aria-selected='true' data-testid='board-view-tab'>
+              <span aria-hidden='true'>▦</span> 看板
+            </button>
+            <span className='view-tab-note'>本地视图</span>
+          </div>
+          <div className='toolbar-actions'>
+            {board.searchSource ?
+              <div className='board-search' data-testid='board-search'>
+                <span className='search-icon' aria-hidden='true'>⌕</span>
+                <input
+                  ref={searchInputRef}
+                  className='search-input'
+                  value={searchQuery}
+                  onChange={event => onSearchInput(event.target.value)}
+                  placeholder='搜索任务…'
+                  aria-label='搜索当前板任务'
+                  data-testid='board-search-input'
+                />
+                <kbd>/</kbd>
+                {searchQuery !== '' ?
+                  <button
+                    className='search-clear'
+                    onClick={() => onSearchInput('')}
+                    aria-label='清除搜索'
+                    data-testid='board-search-clear'
+                  >
+                    ×
+                  </button>
+                : null}
+                {searchQuery.trim() !== '' ?
+                  <div className='search-results' data-testid='board-search-results'>
+                    {searchState === 'loading' ?
+                      <p className='search-state' data-testid='board-search-loading'>
+                        搜索中…
+                      </p>
+                    : searchState === 'error' ?
+                      <p className='search-state' data-testid='board-search-error'>
+                        {searchErrorText}
+                      </p>
+                    : searchState === 'empty' ?
+                      <p className='search-state' data-testid='board-search-empty'>
+                        无匹配
+                      </p>
+                    : <>
+                        {searchResults.map(result => (
+                          <button
+                            key={result.id}
+                            className='search-result'
+                            onClick={() => onSearchResultClick(result)}
+                            data-testid='board-search-result'
+                          >
+                            <span className='search-result-title'>
+                              {board.tasks.find(task => task.id === (result.id as UUID))?.title ?? ''}
+                            </span>
+                            <span className='search-result-column'>
+                              {board.columns.find(column => {
+                                const task = board.tasks.find(candidate => candidate.id === (result.id as UUID));
+                                return task ? column.id === task.columnId : false;
+                              })?.title ?? ''}
+                            </span>
+                            <span className='search-result-snippet'>{result.snippet}</span>
+                          </button>
+                        ))}
+                        {searchHasMore ?
+                          <button
+                            className='search-more'
+                            onClick={() => void searchHandleRef.current?.loadMore()}
+                            data-testid='board-search-more'
+                          >
+                            加载更多
+                          </button>
+                        : null}
+                      </>
+                    }
+                  </div>
+                : null}
+              </div>
+            : null}
+            <button
+              className={`filter-toggle${showFilters || activeFilterCount > 0 ? ' filter-toggle-active' : ''}`}
+              onClick={() => setShowFilters(value => !value)}
+              aria-expanded={showFilters}
+              aria-controls='board-filter-panel'
+              data-testid='board-filter-toggle'
+            >
+              <span aria-hidden='true'>☷</span> 筛选{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
+            </button>
+            <button
+              className={`empty-columns-toggle${showEmptyColumns ? '' : ' empty-columns-toggle-active'}`}
+              onClick={() => setShowEmptyColumns(value => !value)}
+              aria-pressed={!showEmptyColumns}
+              data-testid='toggle-empty-columns'
+            >
+              {showEmptyColumns ? '隐藏空列' : '显示空列'}
+            </button>
+          </div>
+        </div>
+      : null}
+
+      {current && showFilters ?
+        <div className='filter-panel' id='board-filter-panel' data-testid='board-filter-panel'>
+          <div className='filter-panel-heading'>
+            <div>
+              <strong>筛选任务</strong>
+              <span> 只影响当前视图，不会修改数据</span>
             </div>
-          : null}
+            <button className='filter-clear' onClick={clearFilters} disabled={activeFilterCount === 0} data-testid='clear-board-filters'>
+              清除筛选
+            </button>
+          </div>
+          <label className='filter-control'>
+            <span>标签</span>
+            <select
+              value={filterLabelId}
+              onChange={event => setFilterLabelId(event.target.value as UUID | '')}
+              aria-label='按标签筛选'
+              data-testid='board-filter-label'
+            >
+              <option value=''>全部标签</option>
+              {board.labels.map(label => (
+                <option key={label.id} value={label.id}>
+                  {label.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className='filter-control'>
+            <span>截止日期</span>
+            <select
+              value={dueFilter}
+              onChange={event => setDueFilter(event.target.value as DueFilter)}
+              aria-label='按截止日期筛选'
+              data-testid='board-filter-due'
+            >
+              <option value='all'>全部任务</option>
+              <option value='overdue'>已逾期</option>
+              <option value='today'>今天到期</option>
+              <option value='upcoming'>即将到期</option>
+            </select>
+          </label>
+          <span className='filter-result-count'>当前显示 {visibleTasks.length} 个任务</span>
         </div>
       : null}
 
       {current ?
         <div className='columns' data-testid='columns'>
-          {board.columns.map(column => (
+          {visibleColumns.map(column => (
             <section
               key={column.id}
               className={
@@ -838,7 +1040,10 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                   {column.title}
                 </h2>
                 <span className='column-count' data-testid='column-count'>
-                  {(taskMap.get(column.id) ?? []).length}
+                  {(visibleTaskMap.get(column.id) ?? []).length}
+                  {activeFilterCount > 0 && (taskMap.get(column.id) ?? []).length !== (visibleTaskMap.get(column.id) ?? []).length ?
+                    <span className='column-total-count'> / {(taskMap.get(column.id) ?? []).length}</span>
+                  : null}
                 </span>
                 <div className='column-menu'>
                   <button
@@ -891,7 +1096,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                 </div>
               </header>
               <div className='cards'>
-                {(taskMap.get(column.id) ?? []).map(task => (
+                {(visibleTaskMap.get(column.id) ?? []).map(task => (
                   <article
                     key={task.id}
                     className={[
@@ -942,45 +1147,58 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                         </button>
                       </>
                     : <>
-                        <button
-                          className='card-title'
-                          onClick={() => void openDetail(task.id)}
-                          data-testid='task-title'
-                        >
-                          {task.title}
-                        </button>
-                        <button
-                          className='card-edit'
-                          onClick={() => startEditTitle(task)}
-                          data-testid='task-edit-title'
-                          aria-label='编辑标题'
-                        >
-                          编辑
-                        </button>
+                        <div className='card-topline'>
+                          <button
+                            className='card-title'
+                            onClick={() => void openDetail(task.id)}
+                            data-testid='task-title'
+                          >
+                            {task.title}
+                          </button>
+                          <button
+                            className='card-edit'
+                            onClick={() => startEditTitle(task)}
+                            data-testid='task-edit-title'
+                            aria-label='编辑标题'
+                            title='快速编辑标题'
+                          >
+                            <span aria-hidden='true'>✎</span>
+                            <span className='sr-only'>编辑</span>
+                          </button>
+                        </div>
+                        {task.description ?
+                          <p className='card-description' data-testid='task-description-preview'>
+                            {task.description}
+                          </p>
+                        : null}
                       </>
                     }
-                    {labelsOf(task.id).length > 0 ?
-                      <div className='card-labels'>
-                        {labelsOf(task.id).map(label => (
+                    {labelsOf(task.id).length > 0 || dueDateText(task) ?
+                      <div className='card-meta'>
+                        {labelsOf(task.id).length > 0 ?
+                          <div className='card-labels'>
+                            {labelsOf(task.id).map(label => (
+                              <span
+                                key={label.id}
+                                className='card-label'
+                                style={{ background: label.color, color: labelTextColor(label.color) }}
+                                data-testid='card-label'
+                                aria-label={label.name}
+                              >
+                                {label.name}
+                              </span>
+                            ))}
+                          </div>
+                        : null}
+                        {dueDateText(task) ?
                           <span
-                            key={label.id}
-                            className='card-label'
-                            style={{ background: label.color, color: labelTextColor(label.color) }}
-                            data-testid='card-label'
-                            aria-label={label.name}
+                            className={`card-due${dueState(task, today) === 'overdue' ? ' overdue' : ''}`}
+                            data-testid='task-due'
                           >
-                            {label.name}
+                            {dueDateText(task)}
                           </span>
-                        ))}
+                        : null}
                       </div>
-                    : null}
-                    {dueDateText(task) ?
-                      <span
-                        className={`card-due${dueDateText(task).startsWith('已逾期') ? 'overdue' : ''}`}
-                        data-testid='task-due'
-                      >
-                        {dueDateText(task)}
-                      </span>
                     : null}
                   </article>
                 ))}
@@ -1037,8 +1255,18 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       : null}
 
       {current && detailTaskId ?
-        <aside className='detail-panel' data-testid='detail-panel'>
-          <h3>任务详情</h3>
+        <>
+          <button className='panel-backdrop' onClick={closeDetail} aria-label='关闭任务详情' data-testid='detail-backdrop' />
+          <aside className='detail-panel' role='dialog' aria-modal='true' aria-labelledby='detail-panel-title' data-testid='detail-panel'>
+            <div className='detail-header'>
+              <div>
+                <span className='panel-kicker'>TASK DETAILS</span>
+                <h3 id='detail-panel-title'>任务详情</h3>
+              </div>
+              <button className='panel-close' onClick={closeDetail} aria-label='关闭任务详情' data-testid='detail-close'>
+                ×
+              </button>
+            </div>
           <label>
             标题
             <input
@@ -1133,8 +1361,8 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             </button>
           </div>
           <div className='detail-actions'>
-            <button onClick={() => void saveDetail()} data-testid='detail-save' disabled={savingDetail}>
-              保存
+            <button className='detail-save' onClick={() => void saveDetail()} data-testid='detail-save' disabled={savingDetail}>
+              {savingDetail ? '保存中…' : '保存修改'}
             </button>
             <button
               onClick={() => {
@@ -1144,15 +1372,18 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             >
               删除任务
             </button>
-            <button onClick={closeDetail} data-testid='detail-cancel'>
-              取消
+            <button className='detail-cancel' onClick={closeDetail} data-testid='detail-cancel'>
+              关闭
             </button>
           </div>
-        </aside>
+          </aside>
+        </>
       : null}
 
       {confirm ?
-        <aside className='confirm-panel' data-testid='confirm-delete'>
+        <>
+          <div className='panel-backdrop' aria-hidden='true' />
+          <aside className='confirm-panel' role='alertdialog' aria-modal='true' data-testid='confirm-delete'>
           {confirm.kind === 'task' ?
             <p>删除任务「{confirm.taskTitle}」？</p>
           : confirm.kind === 'column' ?
@@ -1172,7 +1403,8 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               取消
             </button>
           </div>
-        </aside>
+          </aside>
+        </>
       : null}
     </section>
   );

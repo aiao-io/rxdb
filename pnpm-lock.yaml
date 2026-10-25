@@ -1901,6 +1901,9 @@ importers:
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../rxdb-plugin-history
+      '@aiao/rxdb-plugin-search':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-search
       '@types/react':
         specifier: ^19.0.0
         version: 19.3.0

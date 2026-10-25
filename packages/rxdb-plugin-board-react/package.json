@@ -65,6 +65,7 @@
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-pglite": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-plugin-search": "workspace:*",
     "@types/react": "^19.0.0",
     "react": "^19.3.1",
     "vitest": "4.1.11"

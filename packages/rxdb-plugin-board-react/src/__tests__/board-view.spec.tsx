@@ -3,6 +3,7 @@ import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { Board, BoardDomain, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -23,6 +24,7 @@ describe('BoardView（React 视图）', () => {
       multiInstance: false
     });
     rxdb.use(rxDBPluginHistory);
+    rxdb.use(rxDBPluginSearch);
     rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' }));
     await rxdb.connect('pglite');
   });
@@ -64,6 +66,44 @@ describe('BoardView（React 视图）', () => {
       'Done',
       'Ideas'
     ]);
+    fixture.unmount();
+  });
+
+  it('筛选栏按标签和截止日缩小视图，并支持隐藏空列', async () => {
+    await seedReleaseBoardDataset(rxdb);
+    const fixture = render(<BoardView rxdb={rxdb} />);
+    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(12));
+
+    fireEvent.click(screen.getByTestId('board-filter-toggle'));
+    const labelFilter = screen.getByTestId('board-filter-label') as HTMLSelectElement;
+    const coreOption = [...labelFilter.options].find(option => option.textContent === '核心');
+    expect(coreOption).toBeTruthy();
+    fireEvent.change(labelFilter, { target: { value: coreOption?.value } });
+    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(4));
+
+    fireEvent.change(screen.getByTestId('board-filter-due'), { target: { value: 'overdue' } });
+    await waitFor(() => expect(screen.queryAllByTestId('task-card')).toHaveLength(0));
+    fireEvent.click(screen.getByTestId('toggle-empty-columns'));
+    await waitFor(() => expect(screen.queryAllByTestId('column')).toHaveLength(0));
+
+    fireEvent.click(screen.getByTestId('clear-board-filters'));
+    fireEvent.click(screen.getByTestId('toggle-empty-columns'));
+    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(12));
+    fixture.unmount();
+  });
+
+  it('按 / 聚焦搜索，按 Escape 清除搜索', async () => {
+    await seedReleaseBoardDataset(rxdb);
+    const fixture = render(<BoardView rxdb={rxdb} />);
+    await waitFor(() => expect(screen.getByTestId('board-search-input')).toBeTruthy());
+    const search = screen.getByTestId('board-search-input');
+
+    fireEvent.keyDown(window, { key: '/' });
+    expect(document.activeElement).toBe(search);
+    fireEvent.change(search, { target: { value: '同步' } });
+    expect((search as HTMLInputElement).value).toBe('同步');
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect((search as HTMLInputElement).value).toBe(''));
     fixture.unmount();
   });
 
