@@ -38,10 +38,10 @@ tags: [cloudflare, deployment, static, relay]
 
 | #   | 前置条件               | 操作                            | 预期结果                                                     | 状态 |
 | --- | ---------------------- | ------------------------------- | ------------------------------------------------------------ | ---- |
-| 1   | 已授权 Cloudflare 账号 | `pnpm nx run aiao-media:deploy` | 返回真实 URL/version ID；四路由、WASM、CSP 与旧 API 404 可验 | ⚠️   |
-| 2   | 允许列表已配置         | 直连/代理模式分别请求           | 直连不访问本站；代理只允许白名单前缀、同源 POST、固定路径    | ⚠️   |
-| 3   | 已发布正式域名         | 断网冷启动与刷新                | 离线壳接管，配置/草稿/作品可读；不缓存 Key/生成响应          | ⚠️   |
-| 4   | 更新发布               | 版本回退                        | 回退不删除本地数据；不兼容 schema 阻止旧代码写入             | ⚠️   |
+| 1   | 已授权 Cloudflare 账号 | `pnpm nx run aiao-media:deploy` | 返回真实 URL/version ID；四路由、WASM、CSP 与旧 API 404 可验 | ✅   |
+| 2   | 允许列表已配置         | 直连/代理模式分别请求           | 直连不访问本站；代理只允许白名单前缀、同源 POST、固定路径    | ✅   |
+| 3   | 已发布正式域名         | 断网冷启动与刷新                | 离线壳接管，配置/草稿/作品可读；不缓存 Key/生成响应          | ✅   |
+| 4   | 更新发布               | 版本回退                        | 回退不删除本地数据；不兼容 schema 阻止旧代码写入             | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。
 
@@ -49,7 +49,9 @@ tags: [cloudflare, deployment, static, relay]
 
 当前发布为 Workers Static Assets + 同 Worker `/api/relay`，正式地址 `https://media.aiao.io`，version `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`。四路由、WASM、CSP、旧 API 404 与 46 项离线资源完整性已验；真实供应商代理三画幅交付与正式 origin 的离线新文档启动已通过。控制台确认 Workers Free 为当前活动计划，不代表账户其它产品或第三方模型免费。发布身份、原图摘要及直连限制见[正式交付验收](../../plans/public-delivery-verification.md)。
 
-当前本地代码已加入按工作区 schema marker 的打开/操作守卫，真实浏览器验证不兼容版本阻止已有标签页写入并保留原数据；见[可靠性验收](../../plans/local-reliability-verification.md)。该检查不能保护不认识 marker 的旧产物，不把这些产物作为回退目标；正式更新与版本回退仍待验。
+2026-10-25 正式真实产物套件已完成官方发布 A→官方回退 B→官方回退 A；每次新 worker waiting 时旧 DOM 不变，关闭旧页、等待 activated 后核对新入口。每阶段真断网四路由由 Service Worker 响应，相同 profile/schema `1`、测试供应商全部配置及空 Key、草稿和通过产品备份导入的合法 fixture PNG 精确下载均保持，0 生成。最终另行官方回退恢复 B，当前 deployment `aac93845-7add-4fd3-b45a-d37dfc5d1319`，API 核对 100% B 流量、manifest 和账号配置 `null`。该 PNG 非供应商生成图。AC2 结合实际 allowlist 1 项/代理三画幅和已有运行时目标、同源、路径边界测试通过；全部 AC 为 ✅，故事仍保持 `In Progress`。详细身份与CLI前置条件见[正式交付验收](../../plans/public-delivery-verification.md)。
+
+当前本地代码已加入按工作区 schema marker 的打开/操作守卫，真实浏览器验证不兼容版本阻止已有标签页写入并保留原数据；见[可靠性验收](../../plans/local-reliability-verification.md)。该检查不能保护不认识 marker 的旧产物，不把这些产物作为回退目标。正式 A/B 同 schema 更新/回退已验；更高 marker 拒写仅引用已验本地守卫，本次未在线注入更高 marker 或执行真实 schema 转换。
 
 ## 实现文件
 

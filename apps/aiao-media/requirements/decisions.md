@@ -18,8 +18,8 @@
 
 - 2026-10-25：私有供应商配置已就绪，带 Key 模型目录 GET 200、配置模型存在，无 Key OPTIONS 403。正式 origin 的显式代理三画幅均各一次 HTTP 200，PNG 精确尺寸、保存/刷新回读/下载字节与 SHA-256 一致；均为 base64，真实 URL 原图读取仍未验。直连正方形一次尝试无响应、保持未知且未重发，另两幅直连未尝试；MEDIA-US-102 AC7 仅代理部分已验，直连部分未完成，整项保持 ⚠️。原始值不进入文档，摘要见[正式交付验收](plans/public-delivery-verification.md)。
 - 正式域名路由纳入 [Wrangler 配置](../deploy/wrangler.json)。域名绑定、证书与正式发布须以部署回执和公网检查为准。
-- 2026-10-25 已发布：source `c2ab7dc0`，version `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`，deployment `12606e16-5ba7-44e5-ba8f-0c7081821544`，46 资源的审核 manifest SHA-256 为 `9d303528a1f123d4c4dc8932fc7321b02fa5b360883a4885c9234498ed1d01fd`。公开账号配置为 `null`，代理 allowlist 为 1 项；旧回执仅保留为历史记录。
-- 同一发布的公网浏览器证据已覆盖四路由 HTTP 200/CSP、活跃 Service Worker 缓存 46/46 摘要、实际断网后关闭旧页再新开四路由且均由 Service Worker 响应，profile/草稿保留，0 生成/远程写请求/page error。范围是同一隔离 context 的新文档启动，配置/原图完整离线回读与实际发布更新/回退仍待验。此前 403/1010 属于归因未定的历史现象。
+- 2026-10-25 发布 B：source `c2ab7dc0`，version `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`，审核 manifest SHA-256 `9d303528a1f123d4c4dc8932fc7321b02fa5b360883a4885c9234498ed1d01fd`，46 资源、账号 `null`、allowlist 1 项。原始生成验收 deployment 为 `12606e16-5ba7-44e5-ba8f-0c7081821544`；真实版本切换结束后恢复 B，当前 deployment `aac93845-7add-4fd3-b45a-d37dfc5d1319`（`2026-10-25T04:36:20.644433Z`），官方 API 确认 100% B 流量。
+- 正式实际 A/B 两份完整真实产物已先本地预验，再官方发布 A→回退 B→回退 A；waiting/旧 DOM 不变/关闭旧页/activated/新入口及各阶段真实断网四路由均通过。相同 profile/schema `1`、完整测试供应商配置与空 Key、草稿、产品备份导入的 fixture PNG 精确下载保持，0 生成；没有注入构建或更高 schema 标记。最终恢复 B 后再次 public smoke 通过，四路由直接 HTTP/导航 200、CSP/46项缓存和离线新文档通过。MEDIA-US-004 AC1–4✅，高 marker 拒写另保留已验本地守卫范围；此前 403/1010 是归因未定的历史观察。
 - Cloudflare 控制台已核对 Workers 当前免费套餐 US$0、Workers Free 活动订阅；账户另有既有订阅，不据此宣称全账户免费、零账单或模型费用为零。
 - Supabase 本轮保持本地。产品复制、用户/模板/供应商策略后台与显式上报已有真实本地证据；生产迁移包仅已准备，未执行生产部署。远程服务的后续条件见[收尾清单](plans/release-completion-tasks.md)，不把 `.env` 字段存在当作生产启用或权限验收。
 - 生产构建/审查/部署必须同时设置 `NX_LOAD_DOT_ENV_FILES=false` 与 `AIAO_SUPABASE_URL='' AIAO_SUPABASE_ANON_KEY=''`；仅两个空值不足以阻止 Nx 展开 `.env` 的公网配置。产物需复核公开账号配置为 `null`，具体命令见[正式交付验收](plans/public-delivery-verification.md)。

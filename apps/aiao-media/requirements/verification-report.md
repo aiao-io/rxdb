@@ -23,9 +23,9 @@
 
 ## 正式环境证据
 
-2026-10-25 当前发布：source `c2ab7dc0`，version `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`，deployment `12606e16-5ba7-44e5-ba8f-0c7081821544`，审核 manifest SHA-256 `9d303528a1f123d4c4dc8932fc7321b02fa5b360883a4885c9234498ed1d01fd`，46 资源；公开账号配置为 `null`，代理 allowlist 1 项。此前发布仅为历史记录，当前可复验表格与本机原始证据位置见[正式交付验收](plans/public-delivery-verification.md)。
+2026-10-25 当前 B：source `c2ab7dc0`，version `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`，manifest SHA-256 `9d303528a1f123d4c4dc8932fc7321b02fa5b360883a4885c9234498ed1d01fd`，46 资源、账号 `null`、allowlist 1 项。原始生成验收 deployment `12606e16-5ba7-44e5-ba8f-0c7081821544`；切换后官方恢复 B 的当前 deployment 为 `aac93845-7add-4fd3-b45a-d37dfc5d1319`，创建于 `2026-10-25T04:36:20.644433Z`，API 核对 100% B 流量。完整证据见[正式交付验收](plans/public-delivery-verification.md)。
 
-同一发布的公网浏览器验证通过四路由 HTTP 200/CSP、活跃 Service Worker 缓存 46/46 完整性；实际断网后关闭全部旧页，四路由新文档均由 Service Worker 响应，profile/草稿保留。0 生成/远程写请求/page error；范围是同一隔离 context 的新文档启动，不覆盖进程重启、配置/原图完整离线回读或真实更新/回退。此前 403/1010 为归因未定的历史观察。
+正式官方 A→B→A 真实产物切换及各阶段真断网四路由已通过，waiting 时旧 DOM 保持，旧页关闭后新 worker activated 并加载正确入口；profile/schema `1`、完整测试供应商配置与空 Key、草稿、通过产品备份导入的合法 fixture 原图精确字节下载保持，0 生成。没有注入构建/更高 schema marker，不将已验本地兼容守卫写成线上 schema 转换。最终官方恢复 B（`restoredB=true`）后新版 public smoke 再次通过，直接 HTTP/导航/CSP、缓存46/46、旧页关闭后的离线新文档与草稿均通过。MEDIA-US-004 AC1–4✅，故事仍 `In Progress`；保留同一隔离 context 范围，不声称浏览器进程重启。
 
 真实供应商代理三画幅各一次 HTTP 200，PNG 精确尺寸、RxDB/OPFS 保存、刷新回读与下载逐字节/SHA-256 一致。直连正方形一次尝试无响应，保持 `requires-review`/`BROWSER_TIMEOUT`；结合 OPTIONS 403 仅记录限制与未知，未重发，另外两幅直连未尝试。该证据关闭 MEDIA-US-105 AC6、202 AC7；102 AC7 仅代理部分已验，直连部分未完成，整项保持 ⚠️；三项成功结果均为 base64，105 AC7 的真实 URL 原图无凭据读取仍未验。
 
@@ -33,12 +33,10 @@ Cloudflare 控制台已实读 Workers 当前免费套餐 US$0 和活动 Workers 
 
 ## 本轮正式验收剩余项
 
-| 待验项目               | 对应故事 / AC      | 必需证据                                                                                          |
-| ---------------------- | ------------------ | ------------------------------------------------------------------------------------------------- |
-| 分通道三画幅的直连部分 | MEDIA-US-102 AC7   | 代理部分已验；直连正方形未知未重发，横向/纵向未尝试；保持原条件和 ⚠️，不重发未知请求              |
-| 真实跨 origin 图片 URL | MEDIA-US-105 AC7   | 当前成功结果均为 base64；仍需真实 URL 结果 GET 无 Authorization/Cookie/Referer 并可精确下载的证据 |
-| 正式版本回退           | MEDIA-US-004 AC 4  | 0.0.26 升级、旧引擎拒绝降级后恢复新版、schema 守卫已验；正式产物/Service Worker 回退仍待验        |
-| 完整离线内容与更新     | MEDIA-US-004 AC3/4 | 应用壳/草稿离线新文档已验；配置/原图完整回读、实际更新等待旧页关闭及兼容版本回退仍待验            |
+| 待验项目               | 对应故事 / AC    | 必需证据                                                                                          |
+| ---------------------- | ---------------- | ------------------------------------------------------------------------------------------------- |
+| 分通道三画幅的直连部分 | MEDIA-US-102 AC7 | 代理部分已验；直连正方形未知未重发，横向/纵向未尝试；保持原条件和 ⚠️，不重发未知请求              |
+| 真实跨 origin 图片 URL | MEDIA-US-105 AC7 | 当前成功结果均为 base64；仍需真实 URL 结果 GET 无 Authorization/Cookie/Referer 并可精确下载的证据 |
 
 正式 origin 为 `https://media.aiao.io`，目前完成上述受限范围的真实交付与浏览器验证。默认直连/代理三画幅逐项执行；可显式选择模式/画幅，结果仅覆盖所选计划，未知请求不得重发。当前应复用已验证的代理三项、保留直连未知锁，不能为重复取证再生成；入口与参数见[收尾清单](plans/release-completion-tasks.md)。
 
