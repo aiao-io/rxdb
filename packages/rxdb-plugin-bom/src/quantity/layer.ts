@@ -184,6 +184,7 @@ export interface SubstituteMember {
   substitutePriority: number | null;
   usageProbability: string | null;
   equivQty: string | null;
+  substituteGroupId: string;
   substituteGroupCode: string;
   substituteStrategy: 'priority' | 'proportional' | 'manual';
   substituteAllowMix: boolean;
@@ -192,6 +193,7 @@ export interface SubstituteMember {
 
 /** manual 组未给出选择的候选（调用方裁决，与爆炸引擎同口径）。 */
 export interface UnresolvedGroup {
+  groupId: string;
   groupCode: string;
   candidates: { itemId: string; role: 'primary' | 'substitute'; occurrenceId: string }[];
 }
@@ -369,11 +371,12 @@ export const allocateSubstituteShares = (
     }
     return { shares: ratioShares(members, primaryGross, member => member.usageProbability) };
   }
-  const selection = selections?.[code];
+  const selection = selections?.[primary.substituteGroupId] ?? selections?.[code];
   if (selection === undefined) {
     return {
       shares: [],
       unresolved: {
+        groupId: primary.substituteGroupId,
         groupCode: code,
         candidates: members.map(member => ({
           itemId: member.childItemId,

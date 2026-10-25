@@ -157,6 +157,8 @@ export interface ExplosionManifest {
 
 /** 未裁决的替代组（US-512 AC#8：manual 组未给选择）。 */
 export interface UnresolvedSubstituteGroup {
+  /** 组的全局身份；同名组通过此 ID 独立裁决。 */
+  groupId: string;
   groupCode: string;
   candidates: { itemId: string; role: 'primary' | 'substitute'; occurrenceId: string }[];
 }
@@ -361,7 +363,12 @@ export const rowHopRates = (row: ExplosionRow): HopConversionRates =>
  * 成员外键保证组存在、组的 code / strategy / allow_mix 非空，缺失即数据损坏，直接拒绝不猜默认值。
  */
 export const substituteMemberOf = (row: ExplosionRow): SubstituteMember => {
-  if (row.substituteGroupCode === null || row.substituteStrategy === null || row.substituteAllowMix === null) {
+  if (
+    row.substituteGroupId === null ||
+    row.substituteGroupCode === null ||
+    row.substituteStrategy === null ||
+    row.substituteAllowMix === null
+  ) {
     throw new Error(`发生项 ${row.occurrenceId} 引用的替代组 ${row.substituteGroupId} 不存在或字段缺失`);
   }
   return {
@@ -371,6 +378,7 @@ export const substituteMemberOf = (row: ExplosionRow): SubstituteMember => {
     substitutePriority: row.substitutePriority,
     usageProbability: row.usageProbability,
     equivQty: row.equivQty,
+    substituteGroupId: row.substituteGroupId,
     substituteGroupCode: row.substituteGroupCode,
     substituteStrategy: row.substituteStrategy,
     substituteAllowMix: row.substituteAllowMix,
@@ -877,6 +885,7 @@ const emitSubstituteGroup = async (
   const allocated = allocateGroupShares(run, layer, members, primary);
   if (allocated.unresolved) {
     run.unresolvedGroups.push({
+      groupId: allocated.unresolved.groupId,
       groupCode: allocated.unresolved.groupCode,
       candidates: allocated.unresolved.candidates
     });

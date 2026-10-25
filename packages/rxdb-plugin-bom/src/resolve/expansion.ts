@@ -190,6 +190,10 @@ const filteredQueryRows = async (
     read(row, name) === null ? null : Number(read(row, name));
   const nullableString = (row: unknown[], name: string): string | null =>
     read(row, name) === null ? null : String(read(row, name));
+  const consumeIds = new Set(
+    result.rows.filter(row => read(row, 'flowDirection') === 'consume').map(row => String(read(row, 'occurrenceId')))
+  );
+  const pending: UnresolvedAlternative[] = [];
   const filtered = await filterResolutionRows(
     query,
     dialect,
@@ -208,9 +212,14 @@ const filteredQueryRows = async (
       lotCodes: nullableString(row, 'lotCodes'),
       selectionConditionId: nullableString(row, 'selectionConditionId')
     })),
-    unresolved
+    pending
   );
-  return filtered.map(row => row.row);
+  unresolved.push(
+    ...pending.filter(group =>
+      group.candidates.some(candidate => candidate.occurrenceId !== undefined && consumeIds.has(candidate.occurrenceId))
+    )
+  );
+  return filtered.filter(row => consumeIds.has(row.occurrenceId)).map(row => row.row);
 };
 
 /** 按前沿修订集取已发布头（分块 IN），按修订分组。 */
@@ -337,12 +346,20 @@ const fetchParents = async (
     });
     const result = await query(built.sql, built.params);
     const targets = new Set(chunk);
+    const read = (row: unknown[], name: string): unknown => row[columnIndexOf(result.columns, name)];
+    const consumeTargets = new Set(
+      result.rows
+        .filter(row => read(row, 'flowDirection') === 'consume' && targets.has(String(read(row, 'childItemId'))))
+        .map(row => String(read(row, 'occurrenceId')))
+    );
     const pending: UnresolvedAlternative[] = [];
     const selected = await filteredQueryRows(query, dialect, context, result, pending);
     for (const entry of pending) {
       if (
         unresolvedLines.has(entry.lineId) ||
-        !entry.candidates.some(candidate => candidate.childItemId !== undefined && targets.has(candidate.childItemId))
+        !entry.candidates.some(
+          candidate => candidate.occurrenceId !== undefined && consumeTargets.has(candidate.occurrenceId)
+        )
       )
         continue;
       unresolvedLines.add(entry.lineId);

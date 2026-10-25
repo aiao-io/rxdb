@@ -185,7 +185,11 @@ describe('需求树的层级、焦点与裁决', () => {
       }
     ];
     result.unresolved = [
-      { groupCode: 'BATTERY', candidates: [{ itemId: 'board', role: 'substitute', occurrenceId: 'choice-board' }] }
+      {
+        groupId: 'battery-group',
+        groupCode: 'BATTERY',
+        candidates: [{ itemId: 'board', role: 'substitute', occurrenceId: 'choice-board' }]
+      }
     ];
     const fixture = await mountTree(result);
     const emitted: unknown[] = [];
@@ -198,8 +202,32 @@ describe('需求树的层级、焦点与裁决', () => {
     expect(emitted).toEqual([
       { kind: 'alternative', alternativeNo: 2 },
       { kind: 'unit', lineId: 'line-unit' },
-      { kind: 'substitute', groupCode: 'BATTERY', memberKey: 'board' }
+      { kind: 'substitute', groupId: 'battery-group', groupCode: 'BATTERY', memberKey: 'board' }
     ]);
+  });
+
+  it('同名替代组分别显示并按组 ID 发出选择请求', async () => {
+    const result = treeResult([]);
+    result.unresolved = ['group-a', 'group-b'].map((groupId, index) => ({
+      groupId,
+      groupCode: 'G1',
+      candidates: [{ itemId: 'board', role: 'primary', occurrenceId: `candidate-${index}` }]
+    }));
+    const fixture = await mountTree(result);
+    const emitted: unknown[] = [];
+    fixture.componentInstance.conditionRequest.subscribe(value => emitted.push(value));
+    const root = fixture.nativeElement as HTMLElement;
+    const choices = [...root.querySelectorAll('button')].filter(button => button.textContent?.includes('选择控制板'));
+    expect(choices).toHaveLength(2);
+    choices.forEach(button => button.click());
+    expect(emitted).toEqual(
+      ['group-a', 'group-b'].map(groupId => ({
+        kind: 'substitute',
+        groupId,
+        groupCode: 'G1',
+        memberKey: 'board'
+      }))
+    );
   });
 
   it.each([1000, 10000])('定位%s条路径的末项仍保持有界DOM和唯一键盘入口', async count => {

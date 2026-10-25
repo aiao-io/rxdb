@@ -55,6 +55,41 @@ describe('Vue 响应式输入进入真实共享控制器', () => {
     }
   });
 
+  it('reactive 中的嵌套 ref 自动解包，更新后旧快照保持独立', async () => {
+    const { db, watchView } = database();
+    const context = ref(structuredClone(input.context));
+    const nested: BomViewInput = reactive({ ...input, context });
+    const scope = effectScope();
+    try {
+      expect(() => scope.run(() => useBomView(db, nested))).not.toThrow();
+      expect(watchView).toHaveBeenCalledWith(input);
+      context.value.orgId = 'Y';
+      await nextTick();
+      expect(watchView).toHaveBeenCalledTimes(2);
+      expect(watchView.mock.calls[1]?.[0]).toEqual({ ...input, context: { ...input.context, orgId: 'Y' } });
+      expect(watchView.mock.calls[0]?.[0]).toEqual(input);
+    } finally {
+      scope.stop();
+    }
+  });
+
+  it('setInput 命令也自动解包嵌套 ref 并保留日期', () => {
+    const { db, watchView } = database();
+    const scope = effectScope();
+    try {
+      const binding = scope.run(() => useBomView(db, input));
+      const context = ref({ ...structuredClone(input.context), orgId: 'Y' });
+      const next: BomViewInput = reactive({ ...input, context });
+      binding?.commands.setInput(next);
+      expect(watchView).toHaveBeenCalledTimes(2);
+      expect(watchView.mock.calls[1]?.[0]).toEqual({ ...input, context: { ...input.context, orgId: 'Y' } });
+      context.value.orgId = 'Z';
+      expect(watchView.mock.calls[1]?.[0]).toEqual({ ...input, context: { ...input.context, orgId: 'Y' } });
+    } finally {
+      scope.stop();
+    }
+  });
+
   it('setInput 命令也接收嵌套响应式输入并保留快照', () => {
     const { db, watchView } = database();
     const scope = effectScope();

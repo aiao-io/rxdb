@@ -183,7 +183,7 @@ export class ExplosionPage {
     if (request.kind === 'substitute')
       this.workspace.substituteSelections.update(values => ({
         ...values,
-        [request.groupCode]: { memberKey: request.memberKey }
+        [request.groupId]: { memberKey: request.memberKey }
       }));
     if (request.kind === 'unit' || request.kind === 'lot') {
       document.querySelector<HTMLInputElement>(`[data-testid="${request.kind}-input"]`)?.focus();

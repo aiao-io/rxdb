@@ -9,6 +9,7 @@ import {
   shallowRef,
   toRaw,
   toValue,
+  unref,
   watch,
   type MaybeRefOrGetter,
   type ShallowRef
@@ -20,7 +21,7 @@ const inputIdentity = (input: BomViewInput): string =>
 
 /** 递归解除嵌套代理，保留日期供共享控制器创建独立快照。 */
 const inputSnapshot = <T>(value: T): T => {
-  const raw = toRaw(value);
+  const raw = toRaw(unref(value));
   if (raw === null || typeof raw !== 'object' || raw instanceof Date) return raw;
   if (Array.isArray(raw)) return raw.map(inputSnapshot) as T;
   return Object.fromEntries(Object.entries(raw).map(([key, nested]) => [key, inputSnapshot(nested)])) as T;

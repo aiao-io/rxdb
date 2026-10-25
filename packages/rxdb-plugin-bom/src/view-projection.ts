@@ -44,8 +44,8 @@ export const viewCandidates = (snapshot: BomViewSnapshot): BomViewCandidate[] =>
     });
   }
   for (const group of manual) {
-    groups.set(`manual:${group.groupCode}`, {
-      key: `manual:${group.groupCode}`,
+    groups.set(`manual:${group.groupId}`, {
+      key: `manual:${group.groupId}`,
       kind: 'manual',
       candidates: group.candidates.map(candidate => ({
         key: candidate.occurrenceId,

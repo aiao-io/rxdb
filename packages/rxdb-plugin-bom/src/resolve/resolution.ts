@@ -41,7 +41,7 @@ export interface ResolutionContext {
    */
   alternativeNo?: number;
   /**
-   * 替代组的手动选择 / 分配（US-512，键 = 组 code）：
+   * 替代组的手动选择 / 分配（US-512，键 = 组 ID；兼容按组 code 选择，ID 优先）：
    * `memberKey` = 唯一选择（manual × allow_mix=false）；`allocation` = 按成员物料 id 的
    * primary 需求分配（manual × allow_mix=true）。未给且组 strategy=manual → unresolved。
    */

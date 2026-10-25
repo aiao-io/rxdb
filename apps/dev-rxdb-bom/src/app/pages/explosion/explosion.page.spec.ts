@@ -167,6 +167,26 @@ describe('整机展开的主任务流程', () => {
     expect(root.querySelector('[data-testid=selected-material]')?.textContent).toContain('合规演示件（B-01）');
   });
 
+  it('同名替代组的选择按组 ID 分别传给数量引擎', async () => {
+    const service = makeService();
+    const fixture = await mount(service);
+    for (const groupId of ['group-a', 'group-b']) {
+      const request = {
+        kind: 'substitute' as const,
+        groupId,
+        groupCode: 'G1',
+        memberKey: groupId === 'group-a' ? 'part-a' : 'part-b'
+      };
+      await fixture.componentInstance.applyCondition(request);
+    }
+    expect(service.explode).toHaveBeenLastCalledWith('2026-09-22', '1', 'SC-100', {
+      unit: 137,
+      plannedUom: 'pcs',
+      configSelection: { 颜色: ['红'] },
+      substituteSelections: { 'group-a': { memberKey: 'part-a' }, 'group-b': { memberKey: 'part-b' } }
+    });
+  });
+
   it('查询失败清除旧结构并显示有精确原因的错误反馈', async () => {
     const service = makeService();
     const fixture = await mount(service);

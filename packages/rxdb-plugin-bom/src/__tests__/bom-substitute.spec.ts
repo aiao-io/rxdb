@@ -402,6 +402,7 @@ for (const backend of BACKENDS) {
         { plannedQty: { value: '100', uom: 'pcs' } }
       );
       expect(result.unresolved.length).toBe(1);
+      expect(result.unresolved[0].groupId).toBe(group.id);
       expect(result.unresolved[0].groupCode).toBe(group.code);
       expect(result.unresolved[0].candidates.map(candidate => candidate.itemId).sort()).toEqual([a.id, b.id].sort());
       // 给了唯一选择后放行

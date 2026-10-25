@@ -363,7 +363,8 @@ describe('BomDemoService', () => {
     const { service } = changeReviewHarness();
     const partial = reviewExplosion();
     if (reason === 'truncated') partial.truncated = { reason: 'depth' };
-    if (reason === 'substitute') partial.unresolved = [{ groupCode: 'battery', candidates: [] }];
+    if (reason === 'substitute')
+      partial.unresolved = [{ groupId: 'battery-group', groupCode: 'battery', candidates: [] }];
     if (reason === 'alternative')
       partial.manifest.unresolved = [{ parentItemId: 'x', parentRevisionId: 'r', candidates: [] }];
     vi.mocked(explodeBom).mockResolvedValue(partial);

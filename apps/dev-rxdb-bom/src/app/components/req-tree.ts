@@ -24,7 +24,7 @@ import {
 /** 把选择与补条件交给当前任务，不在树内修改领域数据。 */
 export type RequirementConditionRequest =
   | { kind: 'alternative'; alternativeNo: number }
-  | { kind: 'substitute'; groupCode: string; memberKey: string }
+  | { kind: 'substitute'; groupId: string; groupCode: string; memberKey: string }
   | { kind: 'unit' | 'lot'; lineId?: string };
 
 /** 发生项路径树：受控展开、单一键盘焦点与可追踪的虚拟件穿透。 */
@@ -75,7 +75,7 @@ export type RequirementConditionRequest =
         }
       </div>
     }
-    @for (group of result().unresolved; track group.groupCode) {
+    @for (group of result().unresolved; track group.groupId) {
       <div class="panel-inset">
         <h3>请选择替代物料 · {{ group.groupCode }}</h3>
         <p class="hint">当前组需要明确选择，数量尚不能作为完整需求。</p>
@@ -83,7 +83,12 @@ export type RequirementConditionRequest =
           <button
             class="btn btn-sm"
             (click)="
-              conditionRequest.emit({ kind: 'substitute', groupCode: group.groupCode, memberKey: candidate.itemId })
+              conditionRequest.emit({
+                kind: 'substitute',
+                groupId: group.groupId,
+                groupCode: group.groupCode,
+                memberKey: candidate.itemId
+              })
             "
           >
             选择{{ itemLabel(candidate.itemId) }}

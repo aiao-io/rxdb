@@ -8,6 +8,7 @@ import { loadHistory } from '../resolve/history-loader.js';
 import { BOM_VIEW_FIXTURE_DATES, loadBomViewFixture } from '../testing/bom-view-fixture.js';
 import { deterministicId } from '../testing/scooter-dataset.js';
 import type { BomViewInput, BomViewSnapshot, BomViewState } from '../view-types.js';
+import { readBomViewSnapshot } from '../view.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter } from './test-utils.js';
 
 /** 视图物料显示信息查询的固定前缀；每次快照读取恰好执行一轮。 */
@@ -134,23 +135,20 @@ const loadWideBom = async (adapter: BomTestAdapter): Promise<{ input: BomViewInp
 };
 
 /**
- * 两遍遍历发散的最小结构：根下叶子、副产行在前，子装配在后，子装配的一条逻辑行按序列号分给 red / blue。
- * 两遍预算同一结算，发散来自节点集：副产行是展开节点、不是数量遍历的路径节点。paths=3 时展开连根收三个节点就截断、
- * 不进子装配；爆炸不为副产计预算，继续下钻并报告序列候选。
+ * 两遍遍历发散的最小结构：根下有概率 1 / 0 的替代成员，再挂带 red / blue 序列候选的子装配。
+ * paths=3 时结构遍历收满两个替代成员就截断；数量遍历不为零份额成员计预算，能进入子装配并报告候选。
+ * 两遍均为 BFS，差异来自零份额成员是否生成节点，保证只有数量侧报告的候选也会预取物料标签。
  */
 const loadDivergentBom = async (db: RxDB): Promise<BomViewInput> => {
   const id = (key: string) => deterministicId(`bom-view-divergent:${key}`);
   const stamp = new Date(BOM_VIEW_FIXTURE_DATES.baseline);
-  const keys = ['root', 'sub', 'leaf', 'byp', 'red', 'blue'] as const;
+  const keys = ['root', 'sub', 'leaf', 'idle', 'red', 'blue'] as const;
   for (const key of keys) {
     await db.entityManager
       .instantiate(BomItem, { id: id(`item:${key}`), itemNo: `BOM-VIEW-DIV-${key.toUpperCase()}` } as Partial<BomItem>)
       .save();
   }
-  const occurrence = (
-    child: (typeof keys)[number],
-    extra: { unitFrom?: number; unitTo?: number; flowDirection?: 'by_product' } = {}
-  ) => ({
+  const occurrence = (child: (typeof keys)[number], extra: { unitFrom?: number; unitTo?: number } = {}) => ({
     childItemId: id(`item:${child}`),
     qty: '1',
     effectiveFrom: stamp,
@@ -170,8 +168,19 @@ const loadDivergentBom = async (db: RxDB): Promise<BomViewInput> => {
         orgId: 'bom-view-divergent',
         lines: [
           { lineNo: 10, occurrences: [occurrence('leaf')] },
-          { lineNo: 15, occurrences: [occurrence('byp', { flowDirection: 'by_product' })] },
+          { lineNo: 15, occurrences: [occurrence('idle')] },
           { lineNo: 20, occurrences: [occurrence('sub')] }
+        ],
+        substituteGroups: [
+          {
+            code: 'budget-shares',
+            strategy: 'proportional',
+            allowMix: true,
+            members: [
+              { occurrenceIndex: 0, role: 'primary', probability: '1' },
+              { occurrenceIndex: 1, role: 'substitute', probability: '0' }
+            ]
+          }
         ]
       },
       {
@@ -317,7 +326,11 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
     it('爆炸越过展开截断报告的序列候选也有物料标签', async () => {
       const adapter = await createBomTestAdapter(backend);
       try {
-        const view = createBomView(adapter.rxdb, await loadDivergentBom(adapter.rxdb));
+        const input = await loadDivergentBom(adapter.rxdb);
+        const snapshot = await readBomViewSnapshot(adapter.rxdb, input);
+        expect(snapshot.expansion.unresolved).toBeUndefined();
+        expect(snapshot.explosion?.manifest.unresolved).toHaveLength(1);
+        const view = createBomView(adapter.rxdb, input);
         const states = new ReplaySubject<BomViewState>(1);
         const subscription = view.state$.subscribe(states);
         try {
@@ -331,7 +344,7 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
           expect(state.nodes.map(node => node.itemNo)).toEqual([
             'BOM-VIEW-DIV-ROOT',
             'BOM-VIEW-DIV-LEAF',
-            'BOM-VIEW-DIV-BYP'
+            'BOM-VIEW-DIV-IDLE'
           ]);
           expect(state.unresolved.map(group => group.kind)).toEqual(['unit']);
           expect(state.unresolved[0].candidates.map(candidate => candidate.label).sort()).toEqual([
