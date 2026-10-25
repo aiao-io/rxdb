@@ -51,6 +51,7 @@ import {
   rejectImageSubmission,
   validateImageSubmissionBook
 } from './image-submissions';
+import { libraryQuery, libraryWhere, type LocalWorkFilters, type LocalWorkQuery } from './library-query';
 import {
   LocalCollectionCheckpoint,
   LocalCollectionRecord,
@@ -1266,19 +1267,21 @@ export class LocalMediaStore {
       ).map(work => this.summary(work));
     });
   }
-  works$(): Observable<LocalWorkSummary[]> {
-    return this.live(() =>
-      this.db.entityManager
-        .getRepository(LocalImageWork)
-        .findAll({
-          where: { combinator: 'and', rules: [{ field: 'stage', operator: 'in', value: ['ready', 'broken'] }] },
-          orderBy: [
-            { field: 'createdAt', sort: 'desc' },
-            { field: 'id', sort: 'desc' }
-          ]
-        })
-        .pipe(map(works => works.map(work => this.summary(work))))
-    );
+  /** 不传参数时保留全量元数据；显式查询由原生仓库筛选和分页。 */
+  works$(query?: LocalWorkQuery): Observable<LocalWorkSummary[]> {
+    return this.live(() => {
+      const repository = this.db.entityManager.getRepository(LocalImageWork),
+        options = libraryQuery(query ?? {});
+      const rows =
+        query === undefined ?
+          repository.findAll({ where: options.where, orderBy: options.orderBy })
+        : repository.find(options);
+      return rows.pipe(map(works => works.map(work => this.summary(work))));
+    });
+  }
+  /** 观察同一筛选条件的作品总数，不应用分页边界。 */
+  workCount$(filters: LocalWorkFilters = {}): Observable<number> {
+    return this.live(() => this.db.entityManager.getRepository(LocalImageWork).count({ where: libraryWhere(filters) }));
   }
   async preview(jobId: string): Promise<string> {
     return this.exclusive(async () => {
@@ -1922,14 +1925,6 @@ export class LocalMediaStore {
           throw error;
         }
         await repo.update(linked, { stage: 'ready' });
-      } else if (work.stage === 'ready') {
-        try {
-          await this.readVerified(work);
-        } catch (error) {
-          if (error instanceof LocalMediaError && error.code === 'corrupt')
-            await repo.update(work, { stage: 'broken' });
-          else throw error;
-        }
       }
     }
     const retained = new Set((await repo.find({ where: emptyWhere })).map(work => `${work.jobId}.png`));

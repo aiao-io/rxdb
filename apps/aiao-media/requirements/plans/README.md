@@ -14,11 +14,12 @@ MVP 首发收口与同步扩展的需求入口、真实环境验收记录和历�
 
 产品规则整理在对应 story；计划记录研究结论、依赖与实施切片，不能替代实现证据。
 
-| 实施计划                                                     | 回答的问题                                             |
-| ------------------------------------------------------------ | ------------------------------------------------------ |
-| [account-workspace-binding.md](account-workspace-binding.md) | 已确定的账号绑定、退出/切账号、本机副本和同步接线方案  |
-| [business-admin.md](business-admin.md)                       | 跨用户后台的权限、对象、数据来源与 A/B/C 交付切片      |
-| [rxdb-product-incubation.md](rxdb-product-incubation.md)     | 迁入 RxDB 的目录、应用需求隔离、MVP 保全与发布交接方案 |
+| 实施计划                                                     | 回答的问题                                                      |
+| ------------------------------------------------------------ | --------------------------------------------------------------- |
+| [account-workspace-binding.md](account-workspace-binding.md) | 已确定的账号绑定、退出/切账号、本机副本和同步接线方案           |
+| [business-admin.md](business-admin.md)                       | 跨用户后台的权限、对象、数据来源与 A/B/C 交付切片               |
+| [library-search-tasks.md](library-search-tasks.md)           | MEDIA-US-204 检索/稳定分页/视口预览的完成记录、样本与覆盖率边界 |
+| [rxdb-product-incubation.md](rxdb-product-incubation.md)     | 迁入 RxDB 的目录、应用需求隔离、MVP 保全与发布交接方案          |
 
 - [RxDB 同仓迁入验收](rxdb-import-verification.md)：来源、目录映射、兼容性和本次复验结果。
 

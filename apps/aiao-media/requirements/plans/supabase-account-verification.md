@@ -1,17 +1,19 @@
 # Supabase 账号与真实本地服务验收
 
+当前账号/工作区绑定、产品 RLS、原生 DTO 复制与后台已完成真实本地验收；本记录区分 Auth/开发探针与产品证据。本轮 Supabase 仅本地，生产账号/后台未部署；当前逐层结果见[本地产品交付验收](local-delivery-verification.md)与[正式交付记录的本地复验](public-delivery-verification.md)。
+
 ## 运行入口
 
-需要 Docker、Bun、Node.js 和 Chrome；所有服务仅监听本机回环地址。端口和随机开发凭据保存在忽略的 `infra/supabase/.env`，初始化保留既有配置。
+需要 Docker、pnpm、Node.js 26+ 和 Chrome/Chromium；所有服务仅监听本机回环地址。端口与开发凭据保存在忽略的 `infra/supabase/.env`，初始化保留既有配置；命令使用 `NX_NO_CLOUD=true NX_LOAD_DOT_ENV_FILES=false`，防止应用私有 `.env` 的公网配置影响本地复验。
 
 ```sh
 # 真实 Auth / 邮件确认、开发探针表 RLS、Realtime 和刷新凭据撤销
-pnpm nx run aiao-media:supabase-test
+NX_NO_CLOUD=true NX_LOAD_DOT_ENV_FILES=false pnpm nx run aiao-media:supabase-test --skipRemoteCache
 
 # 自动启动、迁移、构建，再用 Chrome 验证真实账号界面
-pnpm nx run aiao-media:supabase-e2e
+NX_NO_CLOUD=true NX_LOAD_DOT_ENV_FILES=false pnpm nx run aiao-media:supabase-e2e --skipRemoteCache
 # 等价的浏览器入口
-pnpm nx run aiao-media-e2e:supabase-e2e
+NX_NO_CLOUD=true NX_LOAD_DOT_ENV_FILES=false pnpm nx run aiao-media-e2e:supabase-e2e --skipRemoteCache
 
 # 开发调试
 pnpm nx run aiao-media:supabase-serve
@@ -37,22 +39,22 @@ pnpm nx run aiao-media:supabase-down
 
 ## 逐条 AC 证据
 
-| 故事 / AC             | 证据                                          | 可关闭的范围                                        |
-| --------------------- | --------------------------------------------- | --------------------------------------------------- |
-| MEDIA-US-201 AC 1     | `supabase-auth.spec.ts` 的未配置场景          | 未配置账号时四页不建立远程连接                      |
-| MEDIA-US-201 AC 2     | 真实浏览器场景 1、3；真实服务探针刷新与退出段 | 会话注册/恢复/退出、刷新凭据撤销及本机数据保留      |
-| MEDIA-US-201 AC 6     | 真实浏览器场景 2；fixture 与会话单测          | 鉴权错误/断网可见、本机创作继续、恢复前不显示已登录 |
-| MEDIA-US-201 AC 3/4/5 | 尚无产品范围证据                              | 产品 RLS、工作区绑定、在途复制与切账号隔离待实现    |
-| MEDIA-US-302 AC 1–6   | 尚无产品复制证据                              | adapter/plugin 接线、双设备冲突/删除/检查点等待实现 |
+| 故事 / AC             | 证据                                              | 可关闭的范围                                               |
+| --------------------- | ------------------------------------------------- | ---------------------------------------------------------- |
+| MEDIA-US-201 AC 1     | `supabase-auth.spec.ts` 的未配置场景              | 未配置账号时四页不建立远程连接                             |
+| MEDIA-US-201 AC 2     | 真实浏览器场景 1、3；真实服务探针刷新与退出段     | 会话注册/恢复/退出、刷新凭据撤销及本机数据保留             |
+| MEDIA-US-201 AC 6     | 真实浏览器场景 2；fixture 与会话单测              | 鉴权错误/断网可见、本机创作继续、恢复前不显示已登录        |
+| MEDIA-US-201 AC 3/4/5 | `product-test` / `product-e2e` 的真实本地产品证据 | 产品 RLS、首次确认、独立副本、切账号与迟到结果隔离         |
+| MEDIA-US-302 AC 1–7   | 原生复制接线、7 项真实产品浏览器场景与 API 套件   | 双副本/离线/冲突/删除/无原图提示、显式重扫与未启用时不上传 |
 
-## 上游依赖核对
+## 当前产品接线
 
-同级 `aiao-rxdb` 的 `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts` 已包含 `pullChanges()` 与 `mergeChanges()`；`repository-sync.spec.ts` 包含真实 wa-sqlite/Supabase 集成场景。上游工作区版本为 `0.0.28`，本仓锁定的本机包为 `0.0.26`，尚未消费 Supabase adapter 或 sync plugin。
+产品使用本仓 `0.0.28` 的 Supabase adapter、history 与 sync 插件，独立 DTO 库接线见[product-sync-store](../../src/local-data/product-sync-store.ts)。私有图片/凭据仍留在原本机库，只有草稿、公开供应商配置和作品元数据进入确认后的复制范围。
 
-本记录只确认上游源码与测试存在。接线前仍需确认可用发布版本、配套插件、会话传递、产品 RLS、冲突双方内容保留、tombstone 与检查点恢复语义；不能把上游故事 Done 或开发探针授权换算成产品同步已交付。
+真实本地产品证据已覆盖会话传递、产品 RLS、双方冲突保留、tombstone 与检查点重扫，见[交付记录](local-delivery-verification.md)。开发探针和依赖库测试仍只代表各自层，不替代产品场景；本次新增作品检索的 AC 也不复用这些通过标记。
 
 ## 部署与产品边界
 
-本地 Auth 测试通过不关闭正式部署项目的 URL/CORS、邮箱投递和会话验收。登录只建立账号会话，界面明确提示跨设备同步尚未开放；工作区未自动绑定账号，草稿/供应商/作品不自动上传。首阶段复制固定排除供应商 Key、原图和本地文件标识。
+登录只建立会话，不自动绑定或上传；用户明确确认后才启用独立副本复制。Key、原图与本地文件标识固定排除。生产项目 URL/CORS、邮件、管理员和部署属于后续启用条件，本轮仅本地，不要求生产配置。
 
-桌面图片正式 origin、账号绑定与后台/同步扩展顺序见[路线图](../roadmap.md)；当前已验证基线见[验收记录](../verification-report.md)。
+当前基线与新增 [MEDIA-US-204 检索/预览任务](library-search-tasks.md)的边界见[验收记录](../verification-report.md)及[路线图](../roadmap.md)；既有已实现但未合并的故事保留 YAML 状态，204 的新 AC 另行验收。

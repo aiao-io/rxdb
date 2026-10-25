@@ -20,7 +20,8 @@ import {
   type ProviderPolicy,
   type PublicWorkPayload
 } from '../contracts/product-data.mjs';
-import type { LocalMediaStore, StudioPromptState } from '../local-data/index';
+import type { LocalMediaStore, LocalWorkSummary, StudioPromptState } from '../local-data/index';
+import { libraryWhere, type LocalWorkFilters } from '../local-data/library-query';
 import { applyProductProjection, collectProductSnapshot } from '../local-data/product-projection';
 import type { ProductRecord } from '../local-data/product-sync-store';
 import {
@@ -52,7 +53,9 @@ import {
   type SupabaseAuthState,
   type SupabaseAuthUser
 } from './supabase-auth';
-import { WorkLibrarySession, type LibraryWork } from './work-library-session';
+import { WorkLibrarySession, type LibraryState, type LibraryWork } from './work-library-session';
+import { WorkMetadataSession } from './work-metadata-session';
+import { WorkVisibleDirective } from './work-visible.directive';
 import { WorkspaceSession } from './workspace-session';
 
 type View = 'discover' | 'studio' | 'library' | 'providers' | 'admin';
@@ -74,9 +77,17 @@ const routeView = (path: string): View =>
   : path === '/providers' ? 'providers'
   : path === '/admin' ? 'admin'
   : 'discover';
+const emptyLibrary = (): LibraryState => ({
+  works: [],
+  total: null,
+  page: 1,
+  pageSize: 24,
+  loading: false,
+  error: null
+});
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, PromptInput, AdminConsole],
+  imports: [FormsModule, PromptInput, AdminConsole, WorkVisibleDirective],
   templateUrl: './local-image-mvp.html',
   host: { class: 'image-mvp' },
   encapsulation: ViewEncapsulation.None,
@@ -110,6 +121,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private dirtyInput = false;
   private readonly subscriptions = new Subscription();
   private library?: WorkLibrarySession;
+  private workMetadata?: WorkMetadataSession;
+  private libraryFilters: LocalWorkFilters = {};
+  private readonly localWorkIds = computed(() => new Set(this.works().map(work => work.jobId)));
   private toastTimer?: ReturnType<typeof setTimeout>;
   private dialogTrigger: HTMLElement | null = null;
   private resultBlob: Blob | null = null;
@@ -126,7 +140,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   });
   readonly syncedWorks = signal<PublicWorkPayload[]>([]);
   readonly remoteOnlyWorks = computed(() =>
-    this.syncedWorks().filter(work => !this.works().some(local => local.jobId === work.jobId))
+    this.localWorksKnown() ? this.syncedWorks().filter(work => !this.localWorkIds().has(work.jobId)) : []
   );
   readonly availableProfiles = signal<WorkspaceProfile[]>([]);
   readonly currentProfileId = signal('');
@@ -196,7 +210,16 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly localStatus = signal<'opening' | 'ready' | 'unavailable'>('opening');
   readonly draftStatus = signal<StudioDraftStatus | 'inactive'>('inactive');
   readonly storageMessage = signal('');
-  readonly works = signal<Work[]>([]);
+  readonly works = signal<LocalWorkSummary[]>([]);
+  readonly localWorksKnown = signal(false);
+  readonly localWorksError = signal('');
+  readonly libraryPage = signal<LibraryState>(emptyLibrary());
+  readonly librarySearch = signal('');
+  readonly libraryModel = signal('');
+  readonly libraryFrom = signal('');
+  readonly libraryTo = signal('');
+  readonly libraryFilterError = signal('');
+  readonly libraryPages = computed(() => Math.max(1, Math.ceil((this.libraryPage().total ?? 0) / 24)));
   readonly history = signal<LocalTask[]>([]);
   readonly job = signal<LocalTask | null>(null);
   readonly resultUrl = signal<string | null>(null);
@@ -329,7 +352,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.rememberedKeys.clear();
   }
   @HostListener('window:popstate') onPopState() {
-    this.view.set(routeView(location.pathname));
+    const next = routeView(location.pathname);
+    if (next !== this.view()) this.releaseLibraryPreviews();
+    this.view.set(next);
   }
   @HostListener('document:keydown.escape') onEscape() {
     this.detail.set(null);
@@ -341,6 +366,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   navigate(view: View, event?: Event) {
     event?.preventDefault();
+    if (view !== this.view()) this.releaseLibraryPreviews();
     if (this.view() !== view) history.pushState(null, '', paths[view]);
     this.view.set(view);
     this.detail.set(null);
@@ -733,7 +759,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     }
   }
   hasLocalCopy(task: LocalTask) {
-    return this.works().some(w => w.jobId === task.id && w.status === 'saved' && w.url);
+    return this.works().some(work => work.jobId === task.id && work.status === 'saved');
   }
   async loadWorkInfo(work: Work, event: Event) {
     if (!(event.target as HTMLDetailsElement).open || work.info || !this.store) return;
@@ -741,9 +767,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     try {
       const info = await this.store.imageInfo(work.jobId);
       if (epoch === this.epoch)
-        this.works.update(works => works.map(w => (w.jobId === work.jobId ? { ...w, info } : w)));
+        this.libraryPage.update(page => ({
+          ...page,
+          works: page.works.map(current => (this.sameWorkFile(current, work) ? { ...current, info } : current))
+        }));
     } catch {
-      if (epoch === this.epoch) this.storageMessage.set('本机无可读取的原图，无法核验文件信息。');
+      if (epoch === this.epoch && this.libraryPage().works.some(current => this.sameWorkFile(current, work)))
+        this.notify('本机无可读取的原图，无法核验文件信息。');
     }
   }
   reuseWork(work: Work) {
@@ -755,6 +785,47 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.selected.set(null);
     this.onPromptChanged(plainPrompt(work.prompt));
     this.navigate('studio');
+  }
+  filterLibrary(event: Event) {
+    event.preventDefault();
+    const filters = {
+      search: this.librarySearch(),
+      model: this.libraryModel(),
+      from: this.libraryFrom(),
+      to: this.libraryTo()
+    };
+    try {
+      libraryWhere(filters);
+      this.libraryFilterError.set('');
+      this.libraryFilters = filters;
+      this.library?.query(filters);
+    } catch (error) {
+      this.libraryFilterError.set(error instanceof Error ? error.message : '作品筛选条件无效。');
+    }
+  }
+  clearLibraryFilters() {
+    this.librarySearch.set('');
+    this.libraryModel.set('');
+    this.libraryFrom.set('');
+    this.libraryTo.set('');
+    this.libraryFilterError.set('');
+    this.libraryFilters = {};
+    this.library?.query({});
+  }
+  libraryGo(page: number) {
+    if (this.libraryPage().loading || page < 1 || page > this.libraryPages()) return;
+    this.library?.query({ ...this.libraryFilters, offset: (page - 1) * 24 });
+  }
+  retryLibrary() {
+    this.library?.query({ ...this.libraryFilters, offset: (this.libraryPage().page - 1) * 24 });
+    this.workMetadata?.start();
+  }
+  libraryVisibility(work: Work, visible: boolean) {
+    if (this.view() !== 'library' || !this.libraryPage().works.some(item => item.viewKey === work.viewKey)) return;
+    this.library?.setVisible(work.jobId, visible);
+  }
+  retryWork(work: Work) {
+    this.library?.retry(work.jobId);
   }
   async exportBackup() {
     if (!this.store || this.inFlight() || this.dataBusy()) return;
@@ -931,6 +1002,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     } catch {
       this.notify('复制失败，请手动复制反馈内容。');
     }
+  }
+  private releaseLibraryPreviews() {
+    for (const work of this.libraryPage().works) this.library?.setVisible(work.jobId, false);
   }
   private async checkProviderPolicy(provider: LocalProvider): Promise<void> {
     if (!this.authConfigured()) return;
@@ -1131,6 +1205,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     ++this.epoch;
     this.workspaceSubscriptions.unsubscribe();
     this.workspaceSubscriptions = new Subscription();
+    this.workMetadata = undefined;
     this.studio?.close();
     this.library?.close();
     this.revokeResult();
@@ -1151,6 +1226,15 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.providerId.set('');
     this.history.set([]);
     this.works.set([]);
+    this.localWorksKnown.set(false);
+    this.localWorksError.set('');
+    this.libraryPage.set(emptyLibrary());
+    this.libraryFilters = {};
+    this.librarySearch.set('');
+    this.libraryModel.set('');
+    this.libraryFrom.set('');
+    this.libraryTo.set('');
+    this.libraryFilterError.set('');
     this.syncedWorks.set([]);
     this.job.set(null);
     this.saved.set(false);
@@ -1190,17 +1274,17 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       if (epoch !== this.epoch) return;
       this.library = new WorkLibrarySession(
         store,
-        works => {
+        page => {
           if (epoch === this.epoch) {
-            this.acceptWorks(works);
-            this.product?.captureSoon();
+            this.acceptLibraryPage(page);
           }
         },
         () => {
-          if (epoch === this.epoch) this.storageMessage.set('本机作品暂时无法读取，原文件未删除。');
+          if (epoch === this.epoch) this.notify('本机作品暂时无法读取，请重试查询。');
         }
       );
       this.library.start();
+      this.watchWorks(store);
       this.watchPreferences(store);
       this.workspaceSubscriptions.add(
         store.syncedWorks$().subscribe({
@@ -1446,12 +1530,36 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.providers.set(nextProviders);
     this.providerId.set(nextDefaultId);
   }
-  private acceptWorks(works: Work[]): void {
-    const info = new Map(this.works().map(work => [work.jobId, work.info]));
-    this.works.set(
-      works.map(work =>
-        work.status === 'saved' && info.get(work.jobId) ? { ...work, info: info.get(work.jobId) } : work
-      )
+  private acceptLibraryPage(page: LibraryState): void {
+    const previous = new Map(this.libraryPage().works.map(work => [work.jobId, work]));
+    this.libraryPage.set({
+      ...page,
+      works: page.works.map(work => {
+        const before = previous.get(work.jobId);
+        return before?.info && this.sameWorkFile(before, work) ? { ...work, info: before.info } : work;
+      })
+    });
+  }
+  private watchWorks(store: LocalMediaStore): void {
+    const epoch = this.epoch;
+    const metadata = new WorkMetadataSession(store, state => {
+      if (epoch !== this.epoch) return;
+      const changed = this.works() !== state.works;
+      this.works.set(state.works);
+      this.localWorksKnown.set(state.known);
+      this.localWorksError.set(state.error ?? '');
+      if (changed && state.known) this.product?.captureSoon();
+    });
+    this.workMetadata = metadata;
+    this.workspaceSubscriptions.add(() => metadata.close());
+    metadata.start();
+  }
+  private sameWorkFile(left: Work, right: Work): boolean {
+    return (
+      left.viewKey === right.viewKey &&
+      left.bytes === right.bytes &&
+      left.createdAt === right.createdAt &&
+      left.status === right.status
     );
   }
   private watchPreferences(store: LocalMediaStore): void {

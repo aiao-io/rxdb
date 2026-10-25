@@ -37,6 +37,7 @@ export type {
   LocalReferenceSummary,
   LocalWorkSummary
 } from './browser-media';
+export type { LocalWorkFilters, LocalWorkQuery } from './library-query';
 
 export { NotebookError } from './draft-notebook';
 export type { DraftNotebook, NotebookDraft } from './draft-notebook';

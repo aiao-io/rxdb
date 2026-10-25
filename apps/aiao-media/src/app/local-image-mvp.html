@@ -330,20 +330,90 @@
       <div class="library-tabs">
         <span>
           全部图片
-          <b class="count-badge">{{ works().length }}</b>
+          <b class="count-badge">{{ localWorksKnown() ? works().length : '…' }}</b>
         </span>
       </div>
       <span class="library-notice">◈ 原图保存在本机 · 同步仅传作品信息</span>
     </div>
-    @if (works().length) {
-      <div class="cards">
-        @for (w of works(); track w.jobId) {
-          <article class="card library-card">
+    <form class="library-filters" (submit)="filterLibrary($event)" aria-label="筛选本机作品" novalidate>
+      <label>
+        搜索提示词
+        <input
+          [ngModel]="librarySearch()"
+          (ngModelChange)="librarySearch.set($event)"
+          maxlength="2000"
+          name="library-search"
+          placeholder="提示词关键字"
+          type="search"
+        />
+      </label>
+      <label>
+        筛选模型
+        <input
+          [ngModel]="libraryModel()"
+          (ngModelChange)="libraryModel.set($event)"
+          maxlength="128"
+          name="library-model"
+          placeholder="模型 ID"
+          type="search"
+        />
+      </label>
+      <label>
+        起始日期
+        <input [ngModel]="libraryFrom()" (ngModelChange)="libraryFrom.set($event)" name="library-from" type="date" />
+      </label>
+      <label>
+        结束日期
+        <input [ngModel]="libraryTo()" (ngModelChange)="libraryTo.set($event)" name="library-to" type="date" />
+      </label>
+      <button class="primary" [disabled]="localStatus() !== 'ready' || workspaceSwitching()" type="submit">
+        筛选作品
+      </button>
+      <button
+        class="secondary"
+        [disabled]="localStatus() !== 'ready' || workspaceSwitching()"
+        (click)="clearLibraryFilters()"
+        type="button"
+      >
+        清空筛选
+      </button>
+      <p class="library-filter-help">提示词和模型同时匹配，英文区分大小写；日期按此设备的本机保存时间筛选。</p>
+    </form>
+    @if (libraryFilterError()) {
+      <p class="notice" role="alert">{{ libraryFilterError() }}</p>
+    }
+    @if (localWorksError()) {
+      <div class="notice" role="alert">
+        {{ localWorksError() }}
+        {{ localWorksKnown() ? '当前保留上次确认的记录。' : '本机保存记录尚未确认。' }}
+        <button class="secondary" (click)="retryLibrary()">重试作品记录</button>
+      </div>
+    }
+    @if (localStatus() === 'opening' || libraryPage().loading) {
+      <p class="notice" role="status">正在读取作品…</p>
+    } @else if (libraryPage().error) {
+      <div class="notice" role="alert">
+        作品暂时无法查询，原文件未删除。
+        <button class="secondary" (click)="retryLibrary()">重试查询</button>
+      </div>
+    } @else if (libraryPage().works.length) {
+      <div class="cards" aria-label="本机作品">
+        @for (w of libraryPage().works; track w.viewKey) {
+          <article class="card library-card" (visibleChange)="libraryVisibility(w, $event)" appWorkVisible>
             <div class="card-photo">
               @if (w.url) {
                 <img class="card-image" [src]="w.url" alt="本机生成作品" loading="lazy" />
+              } @else if (w.previewStatus === 'error') {
+                <div class="empty-state">
+                  <p>图片文件暂时无法读取</p>
+                  <button class="secondary" (click)="retryWork(w)">重试预览</button>
+                </div>
+              } @else if (w.status === 'broken') {
+                <div class="empty-state"><p>图片文件待恢复</p></div>
               } @else {
-                <div class="empty-state"><p>图片文件暂时无法读取</p></div>
+                <div class="empty-state library-placeholder" [attr.aria-busy]="w.previewStatus === 'loading'">
+                  <p>{{ w.previewStatus === 'loading' ? '正在读取原图…' : '原图按需加载' }}</p>
+                </div>
               }
               <span class="tag">{{ w.status === 'saved' ? '本机作品' : '文件待恢复' }}</span>
             </div>
@@ -370,7 +440,15 @@
           </article>
         }
       </div>
-    } @else if (!remoteOnlyWorks().length) {
+    } @else if (!localWorksKnown() && localStatus() !== 'unavailable') {
+      <p class="notice" role="status">本机保存记录尚未确认。</p>
+    } @else if (works().length) {
+      <div class="empty-state">
+        <div class="empty-icon">⌕</div>
+        <h2>没有匹配的作品</h2>
+        <p>调整提示词、模型或保存日期后再试。</p>
+      </div>
+    } @else if (localStatus() === 'unavailable' || (localWorksKnown() && !remoteOnlyWorks().length)) {
       <div class="empty-state">
         <div class="empty-icon">▧</div>
         <h2>
@@ -386,6 +464,27 @@
         <button class="primary" (click)="navigate('studio')">开始第一张创作 ↗</button>
       </div>
     }
+    <nav class="library-pagination" aria-label="作品分页">
+      <span aria-live="polite">
+        第 {{ libraryPage().page }} / {{ libraryPages() }} 页 · 共 {{ libraryPage().total ?? '…' }} 张
+      </span>
+      <div>
+        <button
+          class="secondary"
+          [disabled]="libraryPage().loading || libraryPage().page <= 1"
+          (click)="libraryGo(libraryPage().page - 1)"
+        >
+          上一页
+        </button>
+        <button
+          class="secondary"
+          [disabled]="libraryPage().loading || libraryPage().page >= libraryPages()"
+          (click)="libraryGo(libraryPage().page + 1)"
+        >
+          下一页
+        </button>
+      </div>
+    </nav>
     @if (remoteOnlyWorks().length) {
       <div class="cards" aria-label="同步作品信息">
         @for (work of remoteOnlyWorks(); track work.jobId) {
@@ -407,9 +506,10 @@
           <p>
             {{ task.createdAt }} · {{ task.request.modelId }} ·
             {{
-              hasLocalCopy(task) ? '已保存到本机'
+              hasLocalCopy(task) ? '有本机保存记录'
               : task.status === 'failed' ? '请求被拒绝'
               : task.acknowledged ? '已手动核对'
+              : !localWorksKnown() ? '本机保存记录尚未确认'
               : task.status === 'completed' ? '本机无副本，请检查已有下载或核对供应商记录'
               : '结果未确认，请核对供应商'
             }}
