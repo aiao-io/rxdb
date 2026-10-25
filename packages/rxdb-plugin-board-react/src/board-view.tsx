@@ -279,6 +279,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   };
 
   const startComposer = (kind: ComposerKind): void => {
+    if (composerSaving) return;
     setComposer(current => (current === kind ? null : kind));
     setComposerValue('');
     setComposerColor('#e11d48');
@@ -882,11 +883,11 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             className='header-primary-action'
             onClick={() => startComposer('column')}
             data-testid='create-column'
-            disabled={board.restoring || !current}
+            disabled={board.restoring || !current || composerSaving}
           >
             <span aria-hidden='true'>＋</span> 新建列
           </button>
-          <button className='header-create-board' onClick={() => startComposer('board')} data-testid='create-board' disabled={board.restoring}>
+          <button className='header-create-board' onClick={() => startComposer('board')} data-testid='create-board' disabled={board.restoring || composerSaving}>
             新建板
           </button>
           <button
@@ -897,7 +898,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           >
             删除看板
           </button>
-          <button className='header-utility-action' onClick={() => startComposer('label')} data-testid='create-label' disabled={board.restoring || !current}>
+          <button className='header-utility-action' onClick={() => startComposer('label')} data-testid='create-label' disabled={board.restoring || !current || composerSaving}>
             标签
           </button>
         </div>

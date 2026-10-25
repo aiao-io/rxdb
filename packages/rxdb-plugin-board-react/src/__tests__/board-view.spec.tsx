@@ -107,11 +107,31 @@ describe('BoardView（React 视图）', () => {
     fixture.unmount();
   });
 
+  it('统一 Filter 支持字段语法，视图菜单能切换字段', async () => {
+    await seedReleaseBoardDataset(rxdb);
+    const fixture = render(<BoardView rxdb={rxdb} />);
+    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(12));
+    const filter = screen.getByTestId('board-search-input');
+
+    fireEvent.change(filter, { target: { value: 'label:核心' } });
+    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(4));
+    fireEvent.change(filter, { target: { value: 'due:overdue' } });
+    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(3));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(12));
+
+    fireEvent.click(screen.getByTestId('view-options'));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /描述/ }));
+    expect(screen.queryAllByTestId('task-description-preview')).toHaveLength(0);
+    fixture.unmount();
+  });
+
   it('创建板/列/任务后渲染更新', async () => {
     const fixture = render(<BoardView rxdb={rxdb} />);
     await screen.findByTestId('empty-board');
     await act(async () => {
       fireEvent.click(screen.getByTestId('create-board-empty'));
+      await waitFor(() => expect(screen.getByTestId('board-composer-input')).toBeTruthy());
       fireEvent.change(screen.getByTestId('board-composer-input'), { target: { value: '看板 A' } });
       fireEvent.click(screen.getByTestId('board-composer-submit'));
       await new Promise(resolve => setTimeout(resolve, 500));

@@ -123,6 +123,21 @@ afterEach(() => {
 });
 
 describe('看板公开交互', () => {
+  it('卡片空白区域可展开字段，详情侧栏支持固定和操作菜单', async () => {
+    render(<BoardView rxdb={rxdb} />);
+    fireEvent.click(screen.getAllByTestId('task-card')[0]);
+    expect(screen.getAllByTestId('task-expanded-fields')).toHaveLength(1);
+    fireEvent.click(screen.getAllByTestId('task-title')[0]);
+    await screen.findByTestId('detail-panel');
+    fireEvent.click(screen.getByTestId('detail-pin'));
+    expect(screen.getByTestId('detail-pin').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByTestId('detail-backdrop')).toBeNull();
+    fireEvent.click(screen.getByTestId('detail-actions-toggle'));
+    expect(screen.getByTestId('detail-delete')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('detail-close'));
+    expect(screen.queryByTestId('detail-panel')).toBeNull();
+  });
+
   it('删除其他列不打断正在加载的详情', async () => {
     let resolve!: (value: TaskDraftSnapshot) => void;
     vi.mocked(state.actions.openSnapshot).mockReturnValueOnce(
@@ -217,10 +232,14 @@ describe('看板公开交互', () => {
     click('create-board');
     fireEvent.change(screen.getByTestId('board-composer-input'), { target: { value: '新板' } });
     click('board-composer-submit');
+    await waitFor(() => expect(screen.queryByTestId('board-composer-input')).toBeNull());
     click('create-column');
+    await waitFor(() => expect(screen.getByTestId('column-composer-input')).toBeTruthy());
     fireEvent.change(screen.getByTestId('column-composer-input'), { target: { value: '新列' } });
     click('column-composer-submit');
+    await waitFor(() => expect(screen.queryByTestId('column-composer-input')).toBeNull());
     click('create-column');
+    await waitFor(() => expect(screen.getByTestId('column-composer-cancel')).toBeTruthy());
     click('column-composer-cancel');
     fireEvent.click(screen.getByTestId('rename-board'));
     fireEvent.change(screen.getByTestId('board-title-editor'), { target: { value: '改板' } });

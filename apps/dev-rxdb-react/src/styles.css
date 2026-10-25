@@ -131,6 +131,12 @@ app-header,
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
   }
 
+  /* 小屏顶栏必须参与文档流，避免覆盖页面内容。桌面端缩放到移动端时仍可能保留 header-floating。 */
+  .header-floating #layout-topbar {
+    position: sticky !important;
+    top: 0;
+  }
+
   #layout-container {
     width: 100%;
   }
