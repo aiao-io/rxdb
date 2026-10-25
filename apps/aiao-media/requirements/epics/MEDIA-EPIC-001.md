@@ -31,4 +31,4 @@ owner: jimmy
 
 ## 进展
 
-MEDIA-US-004 已发布到 `https://aiao-media.aiao.workers.dev`（Workers Static Assets + 可选 `/api/relay`），四路由、WASM、旧 API 404 与公网烟测已验；正式自定义域名、正式 origin 的真实供应商 CORS 与免费计划账单仍待验，目标不勾选。
+MEDIA-US-004 的正式 `https://media.aiao.io`、四路由/WASM/CSP/旧 API 404、allowlist/实际代理、完整离线内容及官方真实 A→B→A 更新/回退已验，最终恢复 B；Workers Free 当前套餐与活动订阅已核对，不代表全账户零账单。全 AC 为 ✅，PR 未合并，故事/YAML 与目标勾选保持原状态；证据见[正式交付验收](../plans/public-delivery-verification.md)。

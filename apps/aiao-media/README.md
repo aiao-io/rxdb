@@ -73,12 +73,16 @@ pnpm nx run aiao-media:preview
 
 # Cloudflare 账号授权完成后发布真实应用
 pnpm --dir apps/aiao-media exec wrangler login
-pnpm nx run aiao-media:deploy
-# 已有部署： https://aiao-media.aiao.workers.dev
-# 正式目标： https://media.aiao.io（自定义域名配置已准备，绑定/发布待验）
+# 本轮 Supabase 仅本地，正式产物关闭账号配置
+NX_NO_CLOUD=true NX_LOAD_DOT_ENV_FILES=false \
+AIAO_SUPABASE_URL='' AIAO_SUPABASE_ANON_KEY='' \
+pnpm nx run aiao-media:deploy --skipRemoteCache
+# 正式站点： https://media.aiao.io
 ```
 
 部署使用 Cloudflare Workers Static Assets 和同一个 Worker 的 `/api/relay`，不需要容器或云数据库；静态目录也可独立发布到 Pages。方案、免费额度边界、代理允许列表和回退见 [部署说明](deploy/local-first-pages.md)。发布前会检查产物中的凭据、旧 API 调用、文件大小和 SSR 运行时。
+
+正式域名的代理三画幅、离线内容回读及真实静态构建更新/回退已验，当前版本已恢复并核对 100% 流量。本轮账号、同步与后台仅使用本地 Supabase；直连和跨 origin 原图 URL 仍有未验项，详见[正式交付记录](requirements/plans/public-delivery-verification.md)。
 
 ## 设计与历史资料
 

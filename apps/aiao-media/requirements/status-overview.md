@@ -40,10 +40,10 @@
 
 ## 解释
 
-MEDIA-US-001 的 ✅ 只覆盖 Nx 工作区骨架。MEDIA-US-004 有 Workers 静态产物与公网烟测记录；正式自定义域名、供应商正式 origin 与部署回退仍待验。
+MEDIA-US-001 的 ✅ 只覆盖 Nx 工作区骨架。MEDIA-US-004 的正式域名、四路由/WASM/CSP/旧 API 404、完整离线内容和官方真实 A→B→A 更新/回退已验，最终恢复 B；全 AC 为 ✅，PR 未合并，故事仍为 In Progress。发布身份与证据见[正式交付验收](plans/public-delivery-verification.md)。
 
-MEDIA-US-105/102/106 已实现本机供应商管理、直连/代理、任务日志、Tiptap 灵感库及 PNG 保存/回读。MEDIA-US-301/202 使用真实 RxDB + wa-sqlite/IndexedDB 与 OPFS；本机刷新、离线、备份中断续导、草稿冲突选择、保存/删除中断恢复、凭据生命周期与模板撤销边界已验。0.0.26 升级、兼容守卫及本地回退边界已验；正式供应商、正式 origin 回退与桌面真实 IME AC 仍有保留；移动真机已暂缓，不阻断当前工作。
+MEDIA-US-105/102/106 已实现供应商管理、任务日志、Tiptap 灵感库和 PNG 交付；正式 origin 真实代理三画幅各一次成功，保存/刷新回读/精确下载已验，105 AC6、202 AC7 为 ✅。102 AC7 直连部分仍 ⚠，正方形未知不重发、另两幅未试；105 AC7 真实 URL 无凭据读取仍 ⚠。本机备份/冲突/中断恢复、0.0.26 升级与本地兼容守卫已验；真实桌面 IME 本轮跳过未验，移动三个 AC 暂缓。
 
-MEDIA-US-201 的账号会话已有实现与真实本地 Auth 验证，工作区绑定、产品 RLS 和首次确认已通过真实本地验证。MEDIA-US-302 的原生复制、双独立副本、冲突与删除传播已完成本地验收；D-06 已确定不设 TTL、不自动清理；显式重新扫描的恢复证据单独记录。当前测试数量与逐层边界统一见[验收记录](verification-report.md)。
+MEDIA-US-201 的账号会话、工作区绑定、产品 RLS 和首次确认已通过真实本地验证；MEDIA-US-302 的原生复制、双副本、冲突/删除与显式重新扫描已验，D-06 不设 TTL/自动清理。本轮 Supabase 仅本地，生产服务启用属后续范围。当前测试数量与逐层边界见[验收记录](verification-report.md)。
 
-MEDIA-US-203 的用户、模板、供应商策略、任务和用量已通过本地服务与浏览器验收，正式部署待验。账号绑定方案见[计划](plans/account-workspace-binding.md)，后台阶段见[后台计划](plans/business-admin.md)。D-06 首发无限期保留冲突双方、tombstone 和日志；正式执行条件见[收尾清单](plans/release-completion-tasks.md)。
+MEDIA-US-203 的用户、模板、策略、任务和用量已通过真实本地 API/浏览器验收，生产账号/后台保持未部署。账号绑定方案见[计划](plans/account-workspace-binding.md)，后台阶段见[后台计划](plans/business-admin.md)；本轮只剩 102 AC7 直连部分与 105 AC7 真实 URL 证据，范围和未验项见[收尾清单](plans/release-completion-tasks.md)。

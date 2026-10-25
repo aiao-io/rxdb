@@ -36,4 +36,4 @@ owner: TBD
 
 ## 图片设施进展
 
-MEDIA-US-105/MEDIA-US-102 已交付本机供应商 CRUD、Key 生命周期、浏览器直连与主动代理、本地任务日志和真实 PNG 保存/回读；本机主流程的浏览器验证使用 fixture，准确数量见[验收记录](../verification-report.md)。真实供应商在正式 origin 的 CORS 与生成/保存仍待验，目标不勾选。
+正式 origin 的真实供应商代理三画幅各一次 HTTP 200，PNG 尺寸、保存/刷新回读/精确下载已验，105 AC6 为 ✅。102 AC7 代理部分已验、直连部分仍 ⚠：正方形未知不重发，另两幅未试；成功结果均为 base64，105 AC7 真实 URL 无凭据读取仍 ⚠。106 的桌面真实 IME 本轮跳过未验，107 的移动三 AC 暂缓；故事/YAML 与目标勾选保持原状态。证据见[正式交付验收](../plans/public-delivery-verification.md)。

@@ -33,4 +33,4 @@ owner: jimmy
 
 ## 进展
 
-MEDIA-US-201 阶段 A 的注册、确认、登录、恢复、退出及错误恢复已用真实本地 Auth 与浏览器验证；阶段 B 的绑定、确认、产品 RLS 和在途隔离已完成真实本地验收。MEDIA-US-202 的本机保存/回读与删除恢复已验，正式供应商仍待验。MEDIA-US-203 已明确后台对象与实施阶段，已有本地后台、管理 API 与任务上报实现；见[后台计划](../plans/business-admin.md)。
+MEDIA-US-201 的真实本地 Auth、绑定/确认、产品 RLS 与在途隔离已验；202 的正式 origin 真实代理三画幅保存/刷新回读/精确下载已验，AC7 为 ✅，本机删除/中断恢复保留各自证据。203 的用户、模板、策略、任务和用量已通过真实本地 API/浏览器验收；本轮 Supabase 仅本地，生产账号/后台保持未部署、属于后续范围。故事/YAML 与目标勾选保持原状态；证据见[正式交付验收](../plans/public-delivery-verification.md)，实施见[后台计划](../plans/business-admin.md)。
