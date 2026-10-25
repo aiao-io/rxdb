@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-taro",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "Experimental Taro plugin and runtime entry that wire @aiao/rxdb-adapter-miniprogram into WeChat and Douyin mini program builds.",
   "homepage": "https://rxdb.aiao.io/docs/adapters",
   "bugs": {

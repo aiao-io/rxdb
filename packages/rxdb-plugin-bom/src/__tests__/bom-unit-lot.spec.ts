@@ -18,7 +18,7 @@ import {
 import { BomHeader, BomItem, BomItemRevision, BomLine, BomLineOccurrence } from '../entities.js';
 import { rollupCost } from '../quantity/cost.js';
 import { explodeBom } from '../quantity/explosion.js';
-import { assertCompleteResolution, expandBom } from '../resolve/expansion.js';
+import { assertCompleteResolution, expandBom, whereUsed } from '../resolve/expansion.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { BomResolutionError } from '../resolve/resolution.js';
 import { resolveBom } from '../resolve/resolver.js';
@@ -304,6 +304,23 @@ for (const backend of ['wa-sqlite', 'pglite'] as const satisfies readonly BomTes
             item.id
           ]);
         }
+        const usageTarget = { childItemId: items[1].id };
+        const usage = await whereUsed(adapter, context, usageTarget);
+        expect(usage.nodes).toEqual([]);
+        expect(usage.unresolved).toEqual([
+          expect.objectContaining({
+            reason: 'unit',
+            candidates: expect.arrayContaining([
+              expect.objectContaining({ childItemId: items[1].id, unitTo: 136 }),
+              expect.objectContaining({ childItemId: items[2].id, unitFrom: 137 })
+            ])
+          })
+        ]);
+        expect(() => assertCompleteResolution(usage)).toThrow(/unit|序列/);
+        expect((await whereUsed(adapter, { ...context, unit: 136 }, usageTarget)).nodes.map(row => row.itemId)).toEqual(
+          [items[0].id]
+        );
+        expect((await whereUsed(adapter, { ...context, unit: 137 }, usageTarget)).nodes).toEqual([]);
         const unresolved = await resolveBom(adapter, context, target);
         expect(unresolved.occurrences).toEqual([]);
         expect(unresolved.manifest.unresolved).toHaveLength(1);
@@ -320,6 +337,62 @@ for (const backend of ['wa-sqlite', 'pglite'] as const satisfies readonly BomTes
         await expect(
           rollupCost(adapter, { ...context, currency: 'CNY', rateDate: context.asOfDate }, target)
         ).rejects.toThrow(/unit|序列/);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('反查按同行完整批次候选消歧，指定其他批次不会返回目标子件', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const items: BomItem[] = [];
+        for (const itemNo of ['usage-parent', 'usage-lot-b1', 'usage-lot-b2']) {
+          const item = new BomItem();
+          item.itemNo = itemNo;
+          await item.save();
+          items.push(item);
+        }
+        const context = { bomType: 'ebom' as const, orgId: 'usage-lot', asOfDate: day('2026-06-01') };
+        await loadHistory(adapter, {
+          batchNo: 'usage-lot-fixture',
+          revisions: [{ itemId: items[0].id, revisionNo: 'A', effectiveFrom: day('2026-01-01') }],
+          headers: [
+            {
+              revisionIndex: 0,
+              bomType: 'ebom',
+              orgId: context.orgId,
+              lines: [
+                {
+                  lineNo: 10,
+                  occurrences: [1, 2].map(index => ({
+                    childItemId: items[index].id,
+                    qty: '1',
+                    effectiveFrom: day('2026-01-01'),
+                    lotCodes: JSON.stringify([`B${index}`])
+                  }))
+                }
+              ]
+            }
+          ]
+        });
+        const target = { childItemId: items[1].id };
+        const unresolved = await whereUsed(adapter, context, target);
+        expect(unresolved.nodes).toEqual([]);
+        expect(unresolved.unresolved).toEqual([
+          expect.objectContaining({
+            reason: 'lot',
+            candidates: expect.arrayContaining([
+              expect.objectContaining({ childItemId: items[1].id, lotCodes: ['B1'] }),
+              expect.objectContaining({ childItemId: items[2].id, lotCodes: ['B2'] })
+            ])
+          })
+        ]);
+        const selected = await whereUsed(adapter, { ...context, lot: 'B1' }, target);
+        expect(selected.nodes.map(row => row.itemId)).toEqual([items[0].id]);
+        expect(selected.unresolved).toBeUndefined();
+        const excluded = await whereUsed(adapter, { ...context, lot: 'B2' }, target);
+        expect(excluded.nodes).toEqual([]);
+        expect(excluded.unresolved).toBeUndefined();
       } finally {
         await disposeBomTestAdapter(adapter);
       }

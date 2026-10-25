@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BomDemoService } from '../../bom-demo.service';
 import { BomWorkspaceState, type BomWorkspaceContext } from '../../bom-workspace-state';
 import type { RequirementCalculationBasis } from '../../components/step-panel';
-import type { BomChangeReview } from '../../presentation/change-review';
+import { materialChanges, type BomChangeReview } from '../../presentation/change-review';
 import { ReviewPage } from './review.page';
 
 const context: BomWorkspaceContext = {
@@ -325,16 +325,23 @@ describe('生产改版核对的决策流程', () => {
     expect(find<HTMLSelectElement>(fixture, 'review-ecn').value).toBe('ecn-next');
   });
 
-  it('同量换修订的页面与下载保留前后真实版本和需求路径', async () => {
+  it.each([
+    {
+      name: '同量换修订',
+      before: [line('20')],
+      after: [{ ...line('20'), revisionId: 'resistor-b' }]
+    },
+    {
+      name: '同量调整各修订用量',
+      before: [line('2'), { ...line('8'), revisionId: 'resistor-b', path: ['second-occurrence'] }],
+      after: [line('8'), { ...line('2'), revisionId: 'resistor-b', path: ['second-occurrence'] }]
+    }
+  ])('$name的页面与下载保留前后真实版本和需求路径', async ({ before, after }) => {
     const service = makeService();
     const value = review();
-    value.after.explosion.requirementLines = [{ ...line('20'), revisionId: 'resistor-b' }];
-    value.changes[0] = {
-      ...value.changes[0],
-      afterQty: '20',
-      delta: '0',
-      afterLines: value.after.explosion.requirementLines
-    };
+    value.before.explosion.requirementLines = before;
+    value.after.explosion.requirementLines = after;
+    value.changes = materialChanges(before, after);
     value.revisions['resistor-b'] = { revisionNo: 'B', effectiveFrom: '2026-10-01' };
     service.reviewChange.mockResolvedValue(value);
     let exported: Blob | undefined;
@@ -359,7 +366,11 @@ describe('生产改版核对的决策流程', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('修订变化');
     const labels = (fixture.nativeElement as HTMLElement).querySelectorAll('.path-revision');
     expect(labels[0].textContent).toContain('A · 生效 2026-01-01');
-    expect(labels[1].textContent).toContain('B · 生效 2026-10-01');
+    expect(labels[labels.length - 1].textContent).toContain('B · 生效 2026-10-01');
+    const quantities = (fixture.nativeElement as HTMLElement).querySelectorAll('.path-evidence summary strong');
+    expect([...quantities].map(element => element.textContent?.trim())).toEqual(
+      [...before, ...after].map(value => `${value.qty} ${value.uom}`)
+    );
     await confirm(fixture);
     find<HTMLButtonElement>(fixture, 'review-download').click();
     expect(exported).toBeDefined();
@@ -368,8 +379,8 @@ describe('生产改版核对的决策流程', () => {
       revisions: Record<string, { revisionNo: string }>;
       changeRows: {
         itemId: string;
-        beforeLines: { revisionId: string; path: string[] }[];
-        afterLines: { revisionId: string; path: string[] }[];
+        beforeLines: { revisionId: string; qty: string; path: string[] }[];
+        afterLines: { revisionId: string; qty: string; path: string[] }[];
       }[];
     };
     expect(report.context.plannedQty).toBe('10');
@@ -377,8 +388,8 @@ describe('生产改版核对的决策流程', () => {
     expect(report.revisions['resistor-b'].revisionNo).toBe('B');
     expect(report.changeRows[0]).toMatchObject({
       itemId: 'resistor',
-      beforeLines: [{ revisionId: 'resistor-a', path: ['resistor-occurrence'] }],
-      afterLines: [{ revisionId: 'resistor-b', path: ['resistor-occurrence'] }]
+      beforeLines: before.map(({ revisionId, qty, path }) => expect.objectContaining({ revisionId, qty, path })),
+      afterLines: after.map(({ revisionId, qty, path }) => expect.objectContaining({ revisionId, qty, path }))
     });
   });
 

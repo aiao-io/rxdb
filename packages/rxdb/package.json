@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "TypeScript local-first data layer with reactive queries and SQLite adapters.",
   "homepage": "https://rxdb.aiao.io/docs/getting-started",
   "bugs": {

@@ -2,7 +2,13 @@ import type { RequirementLine } from '@aiao/rxdb-plugin-bom';
 import { describe, expect, it } from 'vitest';
 import { materialChanges } from './change-review';
 
-const line = (itemId: string, qty: string, revisionId = 'A', uom = 'pcs', path = [itemId]): RequirementLine => ({
+const line = (
+  itemId: string,
+  qty: string,
+  revisionId: RequirementLine['revisionId'] = 'A',
+  uom = 'pcs',
+  path = [itemId]
+): RequirementLine => ({
   itemId,
   qty,
   revisionId,
@@ -46,6 +52,45 @@ describe('改版备料对比', () => {
     expect(
       materialChanges([line('battery', '5', 'A'), line('battery', '5', 'B')], [line('battery', '10', 'B')])
     ).toHaveLength(1);
+  });
+
+  it.each([
+    {
+      name: '两个修订的分配量互换',
+      before: [line('battery', '2', 'A'), line('battery', '8', 'B')],
+      after: [line('battery', '8', 'A'), line('battery', '2', 'B')]
+    },
+    {
+      name: '指定与未指定修订的分配量互换',
+      before: [line('battery', '2', 'A'), line('battery', '8', null)],
+      after: [line('battery', '8', 'A'), line('battery', '2', null)]
+    },
+    {
+      name: '大数修订用量只有小数差异',
+      before: [line('battery', '9007199254740993.1', 'A'), line('battery', '0.2', 'B')],
+      after: [line('battery', '9007199254740993.2', 'A'), line('battery', '0.1', 'B')]
+    }
+  ])('总量与修订集合相同，$name仍须报告变化', ({ before, after }) => {
+    expect(materialChanges(before, after)).toEqual([
+      expect.objectContaining({
+        itemId: 'battery',
+        kind: 'changed',
+        delta: '0',
+        beforeLines: before,
+        afterLines: after
+      })
+    ]);
+  });
+
+  it('各修订用量不变，只拆分重排路径时不制造备料差异', () => {
+    const before = [line('battery', '1.0', 'A'), line('battery', '9', 'B')];
+    const after = [
+      line('battery', '3', 'B', 'pcs', ['one']),
+      line('battery', '0.4', 'A', 'pcs', ['two']),
+      line('battery', '6', 'B', 'pcs', ['three']),
+      line('battery', '0.6', 'A', 'pcs', ['four'])
+    ];
+    expect(materialChanges(before, after)).toEqual([]);
   });
 
   it('库存单位不同不能混加，新增和移除分别给出正负差额', () => {

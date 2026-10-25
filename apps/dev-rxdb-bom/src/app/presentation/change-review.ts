@@ -40,10 +40,10 @@ export interface BomChangeReview {
   diff: EcnDiffResult;
 }
 
-const groupLines = (lines: RequirementLine[]): Map<string, RequirementLine[]> => {
-  const grouped = new Map<string, RequirementLine[]>();
+const groupLines = <K>(lines: RequirementLine[], keyFor: (line: RequirementLine) => K): Map<K, RequirementLine[]> => {
+  const grouped = new Map<K, RequirementLine[]>();
   for (const line of lines) {
-    const key = JSON.stringify([line.itemId, line.uom]);
+    const key = keyFor(line);
     const entries = grouped.get(key) ?? [];
     entries.push(line);
     grouped.set(key, entries);
@@ -56,23 +56,31 @@ const totalQuantity = (lines: RequirementLine[]): string =>
     lines.reduce((sum, line) => decimalAdd(sum, decimalFromCanonical(line.qty)), decimalFromCanonical('0'))
   );
 
-const sameRevisions = (before: RequirementLine[], after: RequirementLine[]): boolean => {
-  const beforeIds = new Set(before.map(line => line.revisionId));
-  const afterIds = new Set(after.map(line => line.revisionId));
-  return beforeIds.size === afterIds.size && [...beforeIds].every(id => afterIds.has(id));
+const revisionQuantities = (lines: RequirementLine[]): Map<RequirementLine['revisionId'], string> =>
+  new Map(
+    [...groupLines(lines, line => line.revisionId)].map(([revisionId, entries]) => [revisionId, totalQuantity(entries)])
+  );
+
+const sameRevisionQuantities = (before: RequirementLine[], after: RequirementLine[]): boolean => {
+  const beforeQuantities = revisionQuantities(before);
+  const afterQuantities = revisionQuantities(after);
+  return (
+    beforeQuantities.size === afterQuantities.size &&
+    [...beforeQuantities].every(([id, qty]) => afterQuantities.get(id) === qty)
+  );
 };
 
 /** 按物料和库存单位比对两份备料需求，十进制量只通过公开计算内核归集。 */
 export const materialChanges = (before: RequirementLine[], after: RequirementLine[]): BomMaterialChange[] => {
-  const beforeGroups = groupLines(before);
-  const afterGroups = groupLines(after);
+  const beforeGroups = groupLines(before, line => JSON.stringify([line.itemId, line.uom]));
+  const afterGroups = groupLines(after, line => JSON.stringify([line.itemId, line.uom]));
   const keys = [...new Set([...beforeGroups.keys(), ...afterGroups.keys()])].sort();
   return keys.flatMap((key): BomMaterialChange[] => {
     const beforeLines = beforeGroups.get(key) ?? [];
     const afterLines = afterGroups.get(key) ?? [];
     const beforeQty = totalQuantity(beforeLines);
     const afterQty = totalQuantity(afterLines);
-    if (beforeQty === afterQty && sameRevisions(beforeLines, afterLines)) return [];
+    if (beforeQty === afterQty && sameRevisionQuantities(beforeLines, afterLines)) return [];
     const line = afterLines[0] ?? beforeLines[0];
     return [
       {

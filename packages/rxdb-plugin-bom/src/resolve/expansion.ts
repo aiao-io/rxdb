@@ -325,16 +325,30 @@ const fetchParents = async (
   unresolved: UnresolvedAlternative[]
 ): Promise<UsageRow[]> => {
   const rows: UsageRow[] = [];
+  const unresolvedLines = new Set(unresolved.map(entry => entry.lineId));
   for (let offset = 0; offset < itemIds.length; offset += CHUNK_SIZE) {
     const chunk = itemIds.slice(offset, offset + CHUNK_SIZE);
     const built = buildParentsOfItemsSql(dialect, {
       asOfDate: context.asOfDate,
       bomType: context.bomType,
       orgId: context.orgId,
-      itemIds: chunk
+      itemIds: chunk,
+      includeLineCandidates: true
     });
     const result = await query(built.sql, built.params);
-    for (const row of await filteredQueryRows(query, dialect, context, result, unresolved)) {
+    const targets = new Set(chunk);
+    const pending: UnresolvedAlternative[] = [];
+    const selected = await filteredQueryRows(query, dialect, context, result, pending);
+    for (const entry of pending) {
+      if (
+        unresolvedLines.has(entry.lineId) ||
+        !entry.candidates.some(candidate => candidate.childItemId !== undefined && targets.has(candidate.childItemId))
+      )
+        continue;
+      unresolvedLines.add(entry.lineId);
+      unresolved.push(entry);
+    }
+    for (const row of selected.filter(row => targets.has(String(row[columnIndexOf(result.columns, 'childItemId')])))) {
       rows.push({
         parentItemId: String(row[columnIndexOf(result.columns, 'parentItemId')]),
         parentRevisionId: String(row[columnIndexOf(result.columns, 'parentRevisionId')]),
