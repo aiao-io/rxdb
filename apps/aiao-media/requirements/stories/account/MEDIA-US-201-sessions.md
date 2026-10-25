@@ -3,7 +3,7 @@ id: MEDIA-US-201
 legacyId: aiao-media:US-201
 product: aiao-media
 title: Supabase 账号与资源授权
-status: In Progress
+status: In Review
 priority: High
 epic: MEDIA-EPIC-003
 created: 2026-09-26

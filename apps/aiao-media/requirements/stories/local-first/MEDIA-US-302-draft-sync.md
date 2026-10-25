@@ -3,7 +3,7 @@ id: MEDIA-US-302
 legacyId: aiao-media:US-302
 product: aiao-media
 title: 多端草稿同步与冲突处理
-status: In Progress
+status: In Review
 priority: Medium
 epic: MEDIA-EPIC-004
 created: 2026-09-26

@@ -35,4 +35,4 @@ owner: jimmy
 
 ## 进展
 
-MEDIA-US-201/203 的账号、绑定、授权与后台已通过真实本地验收；202 的正式代理三画幅与本机恢复保留原证据。204 的检索、24 件稳定分页、真实 IO 生命周期、ready 冷启动与全库 metadata 未知态已完成分层本地验收：原生压力为 1,005 条 metadata，全应用为 50 张图片，统一本机 E2E 31/31；全部 AC✅，待 PR 评审，未部署/未合并仍 In Progress。具体边界见[实施清单](../plans/library-search-tasks.md)。Supabase 仍仅本地，既有正式证据见[正式交付验收](../plans/public-delivery-verification.md)。
+MEDIA-US-201/203 的账号、绑定、授权与后台已通过真实本地验收；202 的正式代理三画幅与本机恢复保留原证据。204 的检索、24 件稳定分页、真实 IO 生命周期、ready 冷启动与全库 metadata 未知态已完成分层本地验收：原生压力为 1,005 条 metadata，全应用为 50 张图片，统一本机 E2E 31/31；全部 AC✅，待 PR 评审，未部署/未合并，已转为 In Review。具体边界见[实施清单](../plans/library-search-tasks.md)。201/202/203/204 均已完成当前范围验收，状态为 In Review，等待 PR 评审与合并。Supabase 仍仅本地，既有正式证据见[正式交付验收](../plans/public-delivery-verification.md)。

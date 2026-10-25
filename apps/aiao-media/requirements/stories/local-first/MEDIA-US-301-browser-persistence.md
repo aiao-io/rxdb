@@ -3,7 +3,7 @@ id: MEDIA-US-301
 legacyId: aiao-media:US-301
 product: aiao-media
 title: 浏览器本地草稿与图片持久化
-status: In Progress
+status: In Review
 priority: High
 epic: MEDIA-EPIC-004
 created: 2026-09-26

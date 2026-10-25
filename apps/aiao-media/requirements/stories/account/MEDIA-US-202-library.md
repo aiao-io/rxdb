@@ -3,7 +3,7 @@ id: MEDIA-US-202
 legacyId: aiao-media:US-202
 product: aiao-media
 title: 本地图片作品与任务历史
-status: In Progress
+status: In Review
 priority: High
 epic: MEDIA-EPIC-003
 created: 2026-09-26

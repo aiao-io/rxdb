@@ -2,6 +2,12 @@
 
 图片首发交付关联 PR：[154](https://github.com/aiao-io/rxdb/pull/154)。本地实现及 82 个项目、344 个 affected 任务的结果见[本地产品交付验收](local-delivery-verification.md)。本页记录该交付范围的进度、剩余真实验收和后续边界；新增 [MEDIA-US-204 本地检索/视口预览](library-search-tasks.md)已独立完成分层本地验收，待 PR 评审、未部署，不以旧数字替代新证据。
 
+## 本轮任务核对（2026-10-25）
+
+[本地交付清单](local-delivery-tasks.md) 17/17、[作品检索清单](library-search-tasks.md) 10/10 均已完成。12 条故事共 79 条 AC，73 条已通过；004、201、202、203、204、301、302 的全部 AC 已验，按状态定义转为 In Review，等待 PR 评审与合并。102、105、106 各保留一条真实验收，107 保留三个暂缓 AC，逐项关闭条件见[状态概览](../status-overview.md#未完成验收与关闭条件)。
+
+本轮核对 PR #154 仍为草稿，远程 head 为 `fdd9b469`；该 head 的 CI 门禁已通过，不能覆盖本地 `ce016021` 的新增测试与本次文档状态变更。本地当前源码的复验结果单独记录于[验收记录](../verification-report.md)。
+
 ## 已作出的关键决策
 
 - [x] D-04：桌面首发，移动真机继续暂缓，保留 MEDIA-US-107 的三个 AC。
