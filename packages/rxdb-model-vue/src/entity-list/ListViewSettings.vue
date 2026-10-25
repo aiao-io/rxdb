@@ -1,11 +1,21 @@
 <script setup lang="ts">
-import { moveListViewItem, type ListViewField, type ListViewState } from '@aiao/rxdb-model';
-import { computed } from 'vue';
+import { ListViewSettingsController, moveListViewItem, type ListViewField, type ListViewState } from '@aiao/rxdb-model';
+import { computed, onBeforeUnmount, onMounted, useId, useTemplateRef } from 'vue';
 
 const props = defineProps<{ fields: ListViewField[]; value: ListViewState }>();
 const emit = defineEmits<{ change: [value: ListViewState] }>();
 const panel =
-  'dropdown-content border-base-300 bg-base-100 fixed inset-x-2 top-28 z-[1000] mt-2 max-h-[60dvh] w-auto sm:absolute sm:inset-x-auto sm:left-0 sm:top-auto sm:w-80 max-w-[calc(100vw-1rem)] overflow-auto rounded-lg border p-3 shadow-xl';
+  'border-base-300 bg-base-100 m-0 w-80 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-lg border p-3 shadow-xl';
+const uid = `rxdb-list-settings-${useId()}`;
+const settings = useTemplateRef<HTMLElement>('settings');
+let controller: ListViewSettingsController | undefined;
+onMounted(() => {
+  controller = new ListViewSettingsController(settings.value!, {
+    fields: () => props.fields.map(field => field.field),
+    onReorder: fieldOrder => change({ fieldOrder })
+  });
+});
+onBeforeUnmount(() => controller?.dispose());
 const visibleCount = computed(
   () => props.fields.filter(field => !props.value.hiddenFields.includes(field.field)).length
 );
@@ -21,14 +31,6 @@ const toggleField = (field: string, event: Event) =>
       (event.target as HTMLInputElement).checked ?
         props.value.hiddenFields.filter(name => name !== field)
       : [...props.value.hiddenFields, field]
-  });
-const moveField = (index: number, direction: -1 | 1) =>
-  change({
-    fieldOrder: moveListViewItem(
-      props.fields.map(field => field.field),
-      index,
-      direction
-    )
   });
 const sortDirection = (field: string, event: Event) =>
   change({
@@ -49,48 +51,54 @@ const group = (event: Event) => change({ groupBy: (event.target as HTMLSelectEle
 
 <template>
   <div
+    ref="settings"
     class="flex shrink-0 items-center gap-1"
     aria-label="列表视图配置"
   >
-    <details
-      class="dropdown"
-      name="rxdb-list-view-settings"
-    >
-      <summary class="btn btn-ghost btn-sm">字段配置</summary>
-      <div :class="panel">
-        <p class="mb-2 text-xs opacity-60">调整字段显隐与顺序，至少保留一个字段</p>
-        <div
-          v-for="(field, index) in fields"
-          :key="field.field"
-          class="flex items-center gap-2 py-1"
-        >
-          <label class="flex min-w-0 flex-1 items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              class="checkbox checkbox-xs"
-              :aria-label="`显示${field.title}`"
-              :checked="!value.hiddenFields.includes(field.field)"
-              :disabled="visibleCount === 1 && !value.hiddenFields.includes(field.field)"
-              @change="toggleField(field.field, $event)"
-            />
-            <span class="truncate">{{ field.title }}</span>
-          </label>
-          <button
-            type="button"
-            class="btn btn-ghost btn-xs"
-            :aria-label="`上移${field.title}`"
-            :disabled="index === 0"
-            @click="moveField(index, -1)"
-            >↑</button
+    <div>
+      <button
+        type="button"
+        :popovertarget="`${uid}-fields`"
+        class="btn btn-ghost btn-sm"
+        >字段配置</button
+      >
+      <div
+        :id="`${uid}-fields`"
+        :class="panel"
+        popover="auto"
+        data-list-view-popover
+        role="group"
+        aria-label="字段配置选项"
+      >
+        <p class="mb-2 text-xs opacity-60">拖动调整顺序，使用开关控制显隐；至少保留一个字段</p>
+        <div data-list-view-fields>
+          <div
+            v-for="field in fields"
+            :key="field.field"
+            class="border-base-300 data-[drop-target=true]:border-primary flex h-10 items-center gap-2 border-b-2 border-transparent data-[dragging]:opacity-40"
+            data-list-view-field
           >
-          <button
-            type="button"
-            class="btn btn-ghost btn-xs"
-            :aria-label="`下移${field.title}`"
-            :disabled="index === fields.length - 1"
-            @click="moveField(index, 1)"
-            >↓</button
-          >
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs cursor-grab touch-none active:cursor-grabbing"
+              :data-list-view-drag="field.field"
+              :aria-label="`拖动${field.title}排序`"
+              title="拖动排序，也可使用上下方向键"
+              ><span aria-hidden="true">⠿</span></button
+            >
+            <label class="flex min-w-0 flex-1 items-center justify-between gap-3 text-sm">
+              <span class="truncate">{{ field.title }}</span>
+              <input
+                type="checkbox"
+                role="switch"
+                class="toggle toggle-xs shrink-0"
+                :aria-label="`显示${field.title}`"
+                :checked="!value.hiddenFields.includes(field.field)"
+                :disabled="visibleCount === 1 && !value.hiddenFields.includes(field.field)"
+                @change="toggleField(field.field, $event)"
+              />
+            </label>
+          </div>
         </div>
         <button
           type="button"
@@ -99,17 +107,23 @@ const group = (event: Event) => change({ groupBy: (event.target as HTMLSelectEle
           >重置字段</button
         >
       </div>
-    </details>
-    <details
-      class="dropdown"
-      name="rxdb-list-view-settings"
-    >
-      <summary
+    </div>
+    <div>
+      <button
+        type="button"
+        :popovertarget="`${uid}-sorts`"
         class="btn btn-ghost btn-sm"
         :class="{ 'btn-active': value.sorts.length }"
-        >排序{{ value.sorts.length ? ` ${value.sorts.length}` : '' }}</summary
+        >排序{{ value.sorts.length ? ` ${value.sorts.length}` : '' }}</button
       >
-      <div :class="panel">
+      <div
+        :id="`${uid}-sorts`"
+        :class="panel"
+        popover="auto"
+        data-list-view-popover
+        role="group"
+        aria-label="排序选项"
+      >
         <p class="mb-2 text-xs opacity-60">按规则顺序排序，作用于全部查询结果</p>
         <div
           v-for="(sort, index) in value.sorts"
@@ -173,17 +187,23 @@ const group = (event: Event) => change({ groupBy: (event.target as HTMLSelectEle
           >清除排序</button
         >
       </div>
-    </details>
-    <details
-      class="dropdown"
-      name="rxdb-list-view-settings"
-    >
-      <summary
+    </div>
+    <div>
+      <button
+        type="button"
+        :popovertarget="`${uid}-group`"
         class="btn btn-ghost btn-sm"
         :class="{ 'btn-active': value.groupBy }"
-        >分组{{ value.groupBy ? ' 1' : '' }}</summary
+        >分组{{ value.groupBy ? ' 1' : '' }}</button
       >
-      <div :class="panel">
+      <div
+        :id="`${uid}-group`"
+        :class="panel"
+        popover="auto"
+        data-list-view-popover
+        role="group"
+        aria-label="分组选项"
+      >
         <label class="mb-2 block text-sm"
           >分组字段
           <select
@@ -203,6 +223,6 @@ const group = (event: Event) => change({ groupBy: (event.target as HTMLSelectEle
         </label>
         <p class="text-xs opacity-60">点击组标题可折叠。组内数量仅统计已加载记录。</p>
       </div>
-    </details>
+    </div>
   </div>
 </template>

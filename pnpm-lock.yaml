@@ -1769,6 +1769,9 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:^
         version: link:../rxdb
+      '@aiao/utils':
+        specifier: workspace:^
+        version: link:../utils
       '@visactor/vtable':
         specifier: ~1.26.5
         version: 1.26.6

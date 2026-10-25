@@ -526,6 +526,14 @@
         "kind": "type"
       },
       {
+        "name": "ListViewSettingsController",
+        "kind": "both"
+      },
+      {
+        "name": "ListViewSettingsControllerOptions",
+        "kind": "type"
+      },
+      {
         "name": "ListViewState",
         "kind": "type"
       },

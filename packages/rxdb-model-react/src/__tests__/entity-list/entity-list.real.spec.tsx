@@ -128,7 +128,7 @@ describe('EntityList（真实组件）', () => {
     expect(queries).not.toHaveBeenCalled();
     queries.mockRestore();
     fireEvent.click(ui.getByLabelText(`显示${title}`));
-    fireEvent.click(ui.getByLabelText(`上移${title}`));
+    fireEvent.keyDown(ui.getByLabelText(`拖动${title}排序`), { key: 'ArrowUp' });
     expect(tableOf().columns[0]['field']).toBe('title');
     fireEvent.click(ui.getByText('排序', { exact: true }));
     fireEvent.change(ui.getByLabelText('添加排序字段'), { target: { value: 'title' } });
@@ -152,8 +152,8 @@ describe('EntityList（真实组件）', () => {
     fireEvent.click(ui.getByText('清除排序', { exact: true }));
     await waitFor(() => expect(tableOf().records.map(record => record['id'])).toEqual(defaultIds));
     fireEvent.click(ui.getByText('字段配置', { exact: true }));
-    for (const field of ui.getAllByRole('checkbox').slice(1)) fireEvent.click(field);
-    const remaining = ui.getAllByRole('checkbox')[0] as HTMLInputElement;
+    for (const field of ui.getAllByRole('switch', { hidden: true }).slice(1)) fireEvent.click(field);
+    const remaining = ui.getAllByRole('switch', { hidden: true })[0] as HTMLInputElement;
     expect(remaining.disabled).toBe(true);
     expect(tableOf().columns).toHaveLength(2);
     fireEvent.click(ui.getByText('重置字段', { exact: true }));
@@ -292,14 +292,14 @@ describe('EntityList（真实组件）', () => {
     // 字段选择器树：选 title 叶子（触发按钮带 popovertarget）
     const rule = container.querySelector('.rxdb-query-rule') as HTMLElement;
     fireEvent.click(rule.querySelector('button[popovertarget]') as HTMLElement);
-    const treePopover = container.querySelectorAll('[popover]')[0] as HTMLElement;
+    const treePopover = rule.querySelectorAll('[popover]')[0] as HTMLElement;
     fireEvent.click(
       [...treePopover.querySelectorAll('[role="treeitem"]')].find(i =>
         i.textContent?.trim().startsWith('title')
       ) as HTMLElement
     );
     // 操作符选择器：选「包含」
-    const opPopover = container.querySelectorAll('[popover]')[1] as HTMLElement;
+    const opPopover = rule.querySelectorAll('[popover]')[1] as HTMLElement;
     fireEvent.click(
       [...opPopover.querySelectorAll('li[role="none"] button[role="option"]')].find(
         b => b.textContent?.trim() === '包含'

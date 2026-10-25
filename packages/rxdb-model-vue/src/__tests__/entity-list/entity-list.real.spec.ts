@@ -196,7 +196,7 @@ describe('EntityList（真实组件）', () => {
     expect(queries).not.toHaveBeenCalled();
     queries.mockRestore();
     await child.find(`[aria-label="显示${title}"]`).setValue(true);
-    await child.find(`[aria-label="上移${title}"]`).trigger('click');
+    await child.find(`[aria-label="拖动${title}排序"]`).trigger('keydown', { key: 'ArrowUp' });
     expect(tableOf(child).columns[0]['field']).toBe('title');
     await child.find('[aria-label="添加排序字段"]').setValue('title');
     await FLUSH();

@@ -1,51 +1,60 @@
-<div class="flex shrink-0 items-center gap-1" aria-label="列表视图配置">
-  <details class="dropdown" name="rxdb-list-view-settings">
-    <summary class="btn btn-ghost btn-sm">字段配置</summary>
-    <div [class]="panel">
-      <p class="mb-2 text-xs opacity-60">调整字段显隐与顺序，至少保留一个字段</p>
-      @for (field of fields(); track field.field; let index = $index) {
-        <div class="flex items-center gap-2 py-1">
-          <label class="flex min-w-0 flex-1 items-center gap-2 text-sm">
-            <input
-              class="checkbox checkbox-xs"
-              [attr.aria-label]="`显示${field.title}`"
-              [checked]="!value().hiddenFields.includes(field.field)"
-              [disabled]="visibleCount() === 1 && !value().hiddenFields.includes(field.field)"
-              (change)="toggleField(field.field, $event)"
-              type="checkbox"
-            />
-            <span class="truncate">{{ field.title }}</span>
-          </label>
-          <button
-            class="btn btn-ghost btn-xs"
-            [attr.aria-label]="`上移${field.title}`"
-            [disabled]="index === 0"
-            (click)="moveField(index, -1)"
-            type="button"
+<div class="flex shrink-0 items-center gap-1" #settings aria-label="列表视图配置">
+  <div>
+    <button class="btn btn-ghost btn-sm" [attr.popovertarget]="uid + '-fields'" type="button">字段配置</button>
+    <div
+      [class]="panel"
+      [id]="uid + '-fields'"
+      aria-label="字段配置选项"
+      data-list-view-popover
+      popover="auto"
+      role="group"
+    >
+      <p class="mb-2 text-xs opacity-60">拖动调整顺序，使用开关控制显隐；至少保留一个字段</p>
+      <div data-list-view-fields>
+        @for (field of fields(); track field.field) {
+          <div
+            class="border-base-300 data-[drop-target=true]:border-primary flex h-10 items-center gap-2 border-b-2 border-transparent data-[dragging]:opacity-40"
+            data-list-view-field
           >
-            ↑
-          </button>
-          <button
-            class="btn btn-ghost btn-xs"
-            [attr.aria-label]="`下移${field.title}`"
-            [disabled]="index === fields().length - 1"
-            (click)="moveField(index, 1)"
-            type="button"
-          >
-            ↓
-          </button>
-        </div>
-      }
+            <button
+              class="btn btn-ghost btn-xs cursor-grab touch-none active:cursor-grabbing"
+              [attr.aria-label]="'拖动' + field.title + '排序'"
+              [attr.data-list-view-drag]="field.field"
+              title="拖动排序，也可使用上下方向键"
+              type="button"
+            >
+              <span aria-hidden="true">⠿</span>
+            </button>
+            <label class="flex min-w-0 flex-1 items-center justify-between gap-3 text-sm">
+              <span class="truncate">{{ field.title }}</span>
+              <input
+                class="toggle toggle-xs shrink-0"
+                [attr.aria-label]="'显示' + field.title"
+                [checked]="!value().hiddenFields.includes(field.field)"
+                [disabled]="visibleCount() === 1 && !value().hiddenFields.includes(field.field)"
+                (change)="toggleField(field.field, $event)"
+                role="switch"
+                type="checkbox"
+              />
+            </label>
+          </div>
+        }
+      </div>
       <button class="btn btn-ghost btn-sm mt-2" (click)="change({ fieldOrder: [], hiddenFields: [] })" type="button">
         重置字段
       </button>
     </div>
-  </details>
-  <details class="dropdown" name="rxdb-list-view-settings">
-    <summary class="btn btn-ghost btn-sm" [class.btn-active]="value().sorts.length > 0">
+  </div>
+  <div>
+    <button
+      class="btn btn-ghost btn-sm"
+      [attr.popovertarget]="uid + '-sorts'"
+      [class.btn-active]="value().sorts.length > 0"
+      type="button"
+    >
       排序{{ value().sorts.length ? ` ${value().sorts.length}` : '' }}
-    </summary>
-    <div [class]="panel">
+    </button>
+    <div [class]="panel" [id]="uid + '-sorts'" aria-label="排序选项" data-list-view-popover popover="auto" role="group">
       <p class="mb-2 text-xs opacity-60">按规则顺序排序，作用于全部查询结果</p>
       @for (sort of value().sorts; track sort.field; let index = $index) {
         <div class="mb-2 flex items-center gap-1">
@@ -108,12 +117,17 @@
         清除排序
       </button>
     </div>
-  </details>
-  <details class="dropdown" name="rxdb-list-view-settings">
-    <summary class="btn btn-ghost btn-sm" [class.btn-active]="value().groupBy !== null">
+  </div>
+  <div>
+    <button
+      class="btn btn-ghost btn-sm"
+      [attr.popovertarget]="uid + '-group'"
+      [class.btn-active]="value().groupBy !== null"
+      type="button"
+    >
       分组{{ value().groupBy ? ' 1' : '' }}
-    </summary>
-    <div [class]="panel">
+    </button>
+    <div [class]="panel" [id]="uid + '-group'" aria-label="分组选项" data-list-view-popover popover="auto" role="group">
       <label class="mb-2 block text-sm">
         分组字段
         <select
@@ -130,5 +144,5 @@
       </label>
       <p class="text-xs opacity-60">点击组标题可折叠。组内数量仅统计已加载记录。</p>
     </div>
-  </details>
+  </div>
 </div>

@@ -1,4 +1,6 @@
-import { moveListViewItem, type ListViewField, type ListViewState } from '@aiao/rxdb-model';
+import { ListViewSettingsController, moveListViewItem, type ListViewField, type ListViewState } from '@aiao/rxdb-model';
+
+import { useEffect, useEffectEvent, useId, useRef } from 'react';
 
 interface Props {
   fields: ListViewField[];
@@ -7,74 +9,73 @@ interface Props {
 }
 
 const PANEL =
-  'dropdown-content border-base-300 bg-base-100 fixed inset-x-2 top-28 z-[1000] mt-2 max-h-[60dvh] w-auto sm:absolute sm:inset-x-auto sm:left-0 sm:top-auto sm:w-80 max-w-[calc(100vw-1rem)] overflow-auto rounded-lg border p-3 shadow-xl';
+  'border-base-300 bg-base-100 m-0 w-80 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-lg border p-3 shadow-xl';
 
 export function ListViewSettings({ fields, value, onChange }: Props) {
+  const uid = useId();
+  const root = useRef<HTMLDivElement>(null);
+  const fieldsForDrag = useEffectEvent(() => fields.map(field => field.field));
+  const reorder = useEffectEvent((order: string[]) => onChange({ ...value, fieldOrder: order }));
+  useEffect(() => {
+    const controller = new ListViewSettingsController(root.current!, { fields: fieldsForDrag, onReorder: reorder });
+    return () => controller.dispose();
+  }, []);
   const change = (patch: Partial<ListViewState>) => onChange({ ...value, ...patch });
   const visibleCount = fields.filter(field => !value.hiddenFields.includes(field.field)).length;
   const available = fields.filter(field => field.sortable && !value.sorts.some(sort => sort.field === field.field));
   return (
-    <div className='flex shrink-0 items-center gap-1' aria-label='列表视图配置'>
-      <details className='dropdown' name='rxdb-list-view-settings'>
-        <summary className='btn btn-ghost btn-sm'>字段配置</summary>
-        <div className={PANEL}>
-          <p className='mb-2 text-xs opacity-60'>调整字段显隐与顺序，至少保留一个字段</p>
-          {fields.map((field, index) => (
-            <div className='flex items-center gap-2 py-1' key={field.field}>
-              <label className='flex min-w-0 flex-1 items-center gap-2 text-sm'>
-                <input
-                  type='checkbox'
-                  className='checkbox checkbox-xs'
-                  aria-label={`显示${field.title}`}
-                  checked={!value.hiddenFields.includes(field.field)}
-                  disabled={visibleCount === 1 && !value.hiddenFields.includes(field.field)}
-                  onChange={event =>
-                    change({
-                      hiddenFields:
-                        event.target.checked ?
-                          value.hiddenFields.filter(name => name !== field.field)
-                        : [...value.hiddenFields, field.field]
-                    })
-                  }
-                />
-                <span className='truncate'>{field.title}</span>
-              </label>
-              <button
-                type='button'
-                className='btn btn-ghost btn-xs'
-                aria-label={`上移${field.title}`}
-                disabled={index === 0}
-                onClick={() =>
-                  change({
-                    fieldOrder: moveListViewItem(
-                      fields.map(item => item.field),
-                      index,
-                      -1
-                    )
-                  })
-                }
+    <div ref={root} className='flex shrink-0 items-center gap-1' aria-label='列表视图配置'>
+      <div>
+        <button type='button' popoverTarget={`${uid}-fields`} className='btn btn-ghost btn-sm'>
+          字段配置
+        </button>
+        <div
+          className={PANEL}
+          id={`${uid}-fields`}
+          popover='auto'
+          data-list-view-popover
+          role='group'
+          aria-label='字段配置选项'
+        >
+          <p className='mb-2 text-xs opacity-60'>拖动调整顺序，使用开关控制显隐；至少保留一个字段</p>
+          <div data-list-view-fields>
+            {fields.map(field => (
+              <div
+                className='border-base-300 data-[drop-target=true]:border-primary flex h-10 items-center gap-2 border-b-2 border-transparent data-[dragging]:opacity-40'
+                data-list-view-field
+                key={field.field}
               >
-                ↑
-              </button>
-              <button
-                type='button'
-                className='btn btn-ghost btn-xs'
-                aria-label={`下移${field.title}`}
-                disabled={index === fields.length - 1}
-                onClick={() =>
-                  change({
-                    fieldOrder: moveListViewItem(
-                      fields.map(item => item.field),
-                      index,
-                      1
-                    )
-                  })
-                }
-              >
-                ↓
-              </button>
-            </div>
-          ))}
+                <button
+                  type='button'
+                  className='btn btn-ghost btn-xs cursor-grab touch-none active:cursor-grabbing'
+                  data-list-view-drag={field.field}
+                  aria-label={`拖动${field.title}排序`}
+                  title='拖动排序，也可使用上下方向键'
+                >
+                  <span aria-hidden='true'>⠿</span>
+                </button>
+                <label className='flex min-w-0 flex-1 items-center justify-between gap-3 text-sm'>
+                  <span className='truncate'>{field.title}</span>
+                  <input
+                    type='checkbox'
+                    role='switch'
+                    className='toggle toggle-xs shrink-0'
+                    aria-label={`显示${field.title}`}
+                    checked={!value.hiddenFields.includes(field.field)}
+                    disabled={visibleCount === 1 && !value.hiddenFields.includes(field.field)}
+                    onChange={event =>
+                      change({
+                        hiddenFields:
+                          event.target.checked ?
+                            value.hiddenFields.filter(name => name !== field.field)
+                          : [...value.hiddenFields, field.field]
+                      })
+                    }
+                  />
+                </label>
+              </div>
+            ))}
+          </div>
           <button
             type='button'
             className='btn btn-ghost btn-sm mt-2'
@@ -83,12 +84,23 @@ export function ListViewSettings({ fields, value, onChange }: Props) {
             重置字段
           </button>
         </div>
-      </details>
-      <details className='dropdown' name='rxdb-list-view-settings'>
-        <summary className={`btn btn-ghost btn-sm ${value.sorts.length ? 'btn-active' : ''}`}>
+      </div>
+      <div>
+        <button
+          type='button'
+          popoverTarget={`${uid}-sorts`}
+          className={`btn btn-ghost btn-sm ${value.sorts.length ? 'btn-active' : ''}`}
+        >
           排序{value.sorts.length ? ` ${value.sorts.length}` : ''}
-        </summary>
-        <div className={PANEL}>
+        </button>
+        <div
+          className={PANEL}
+          id={`${uid}-sorts`}
+          popover='auto'
+          data-list-view-popover
+          role='group'
+          aria-label='排序选项'
+        >
           <p className='mb-2 text-xs opacity-60'>按规则顺序排序，作用于全部查询结果</p>
           {value.sorts.map((sort, index) => {
             const title = fields.find(field => field.field === sort.field)?.title ?? sort.field;
@@ -166,12 +178,23 @@ export function ListViewSettings({ fields, value, onChange }: Props) {
             清除排序
           </button>
         </div>
-      </details>
-      <details className='dropdown' name='rxdb-list-view-settings'>
-        <summary className={`btn btn-ghost btn-sm ${value.groupBy ? 'btn-active' : ''}`}>
+      </div>
+      <div>
+        <button
+          type='button'
+          popoverTarget={`${uid}-group`}
+          className={`btn btn-ghost btn-sm ${value.groupBy ? 'btn-active' : ''}`}
+        >
           分组{value.groupBy ? ' 1' : ''}
-        </summary>
-        <div className={PANEL}>
+        </button>
+        <div
+          className={PANEL}
+          id={`${uid}-group`}
+          popover='auto'
+          data-list-view-popover
+          role='group'
+          aria-label='分组选项'
+        >
           <label className='mb-2 block text-sm'>
             分组字段
             <select
@@ -192,7 +215,7 @@ export function ListViewSettings({ fields, value, onChange }: Props) {
           </label>
           <p className='text-xs opacity-60'>点击组标题可折叠。组内数量仅统计已加载记录。</p>
         </div>
-      </details>
+      </div>
     </div>
   );
 }

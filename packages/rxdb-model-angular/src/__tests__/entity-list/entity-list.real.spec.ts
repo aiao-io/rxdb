@@ -171,7 +171,7 @@ describe('EntityListComponent（真实组件）', () => {
     control(`显示${title}`).checked = true;
     control(`显示${title}`).dispatchEvent(new Event('change', { bubbles: true }));
     await settle();
-    control(`上移${title}`).click();
+    control(`拖动${title}排序`).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
     await settle();
     expect(tableOf(fixture).columns[0]['field']).toBe('title');
     await change('添加排序字段', 'title');

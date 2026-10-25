@@ -44,7 +44,14 @@ test('字段配置、排序和空值分组在真实表格中可操作，分组�
   await page.getByLabel('显示说明', { exact: true }).uncheck();
   await expect.poll(async () => (await snapshot(page)).fields.includes('description')).toBe(false);
   await page.getByLabel('显示说明', { exact: true }).check();
-  await page.getByLabel('上移分类名', { exact: true }).click();
+  const source = await page.getByRole('button', { name: '拖动分类名排序', exact: true }).boundingBox();
+  const target = await page.getByRole('button', { name: '拖动ID排序', exact: true }).boundingBox();
+  expect(source).not.toBeNull();
+  expect(target).not.toBeNull();
+  await page.mouse.move(source!.x + source!.width / 2, source!.y + source!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, { steps: 8 });
+  await page.mouse.up();
   await expect.poll(async () => (await snapshot(page)).fields[1]).toBe('name');
 
   await page.getByText('排序', { exact: true }).click();
@@ -90,4 +97,32 @@ test('字段配置、排序和空值分组在真实表格中可操作，分组�
   await expect(checkbox).toBeInViewport();
   await checkbox.uncheck();
   await expect.poll(async () => (await snapshot(page)).fields.includes('description')).toBe(false);
+});
+
+test('字段开关和排序分组弹层在桌面及窄屏完整可见，支持 Escape 关闭', async ({ page }) => {
+  await resetE2eState(page);
+  await page.goto('/entities/assets/AssetCategory');
+  await createCategory(page, '弹层定位');
+  await page.getByRole('button', { name: '收起导航', exact: true }).click();
+  await page.getByRole('button', { name: '字段配置', exact: true }).click();
+  await expect(page.getByRole('switch', { name: '显示分类名', exact: true })).toBeChecked();
+  await page.keyboard.press('Escape');
+  for (const width of [1280, 768, 375]) {
+    await page.setViewportSize({ width, height: 812 });
+    for (const name of ['字段配置', '排序', '分组']) {
+      await page.getByRole('button', { name, exact: true }).click();
+      const panel = page.getByRole('group', { name: `${name}选项`, exact: true });
+      await expect(panel).toBeVisible();
+      await expect
+        .poll(async () => {
+          const box = await panel.boundingBox();
+          return (
+            box !== null && box.x >= 8 && box.x + box.width <= width - 8 && box.y >= 8 && box.y + box.height <= 804
+          );
+        })
+        .toBe(true);
+      await page.keyboard.press('Escape');
+      await expect(panel).toBeHidden();
+    }
+  }
 });

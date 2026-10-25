@@ -18,6 +18,7 @@ export * from './entity-detail/detail-tabs.js';
 export * from './entity-detail/interfaces.js';
 
 // Entity List（US-028 手动排序）
+export * from './entity-list/list-view-settings.js';
 export * from './entity-list/list-view.js';
 export * from './entity-list/manual-order-list.js';
 export * from './entity-list/types.js';
