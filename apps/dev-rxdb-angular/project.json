@@ -163,11 +163,18 @@
         "production": {
           "buildTarget": "dev-rxdb-angular:build:production"
         }
+      },
+      "readyWhen": {
+        "signal": true
       }
     },
     "serve-static": {
       "continuous": true,
       "executor": "@nx/web:file-server",
+      "readyWhen": {
+        "signal": true
+      },
+      "dependsOn": ["build"],
       "options": {
         "buildTarget": "dev-rxdb-angular:build",
         "port": 4200,
@@ -178,6 +185,9 @@
     "serve-e2e": {
       "continuous": true,
       "executor": "@nx/web:file-server",
+      "readyWhen": {
+        "signal": true
+      },
       "options": {
         "port": 4200,
         "spa": true,
