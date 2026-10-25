@@ -262,14 +262,7 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     );
 
     actionsRef.current = {
-      createBoard: async input => {
-        const board = await domain.createBoard(input);
-        boardId$.next(board.id);
-        setCurrentBoardId(board.id);
-        setCurrentBoard(board);
-        storageRef.current.set(LAST_BOARD_KEY, board.id);
-        return board;
-      },
+      createBoard: input => domain.createBoard(input),
       createColumn: input => domain.createColumn(input),
       createTask: input => domain.createTask(input),
       updateBoard: (boardId, patch) => domain.updateBoard(boardId, patch),
@@ -312,7 +305,6 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     storageRef.current.set(LAST_BOARD_KEY, boardId);
     boardId$.next(boardId);
     setCurrentBoardId(boardId);
-    setCurrentBoard(boards.find(board => board.id === boardId) ?? null);
   };
   const setRestoring = (value: boolean): void => {
     restoring$.next(value);
