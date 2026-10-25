@@ -13,7 +13,7 @@
  * （位号计数等）随 US-507 阶段 C 接进发布转移。
  */
 
-import { EntityMetadata, getEntityColumnName, quoteSqlIdentifier, type EntityType } from '@aiao/rxdb';
+import { EntityMetadata, quoteSqlIdentifier, type EntityType } from '@aiao/rxdb';
 import { DECIMAL_COLUMNS } from '../decimal-columns.js';
 import { DECIMAL_CANONICAL_PATTERN } from '../decimal.utils.js';
 import {
@@ -48,6 +48,7 @@ import {
 } from './ddl-kit.js';
 import { buildPgInstanceNodeDdl, buildSqliteInstanceNodeDdl } from './instance-node-ddl.js';
 import { buildPgInstanceSourceDdl, buildSqliteInstanceSourceDdl } from './instance-source-ddl.js';
+import { buildPgStructuralDdl, buildSqliteStructuralDdl } from './structural-trigger-ddl.js';
 import { buildUnitLotOverlapGuardPg, buildUnitLotOverlapGuardSqlite } from './unit-lot-trigger-ddl.js';
 
 // -----------------------------------------------------[ 消息文本 ]
@@ -174,19 +175,6 @@ const releasedOperationReferenced = (table: TableOf): string => {
   );
 };
 
-/** 结构归属列的不可改判据（SQLite：`IS NOT`，PG：`IS DISTINCT FROM` 的反）。 */
-const STRUCTURAL_COLUMNS: readonly (readonly [EntityType, readonly string[]])[] = [
-  [BomItemRevision, ['itemId']],
-  [BomHeader, ['parentRevisionId', 'bomType', 'orgId']],
-  [BomLineDesignator, ['occurrenceId']],
-  [BomLineOperationSplit, ['occurrenceId']],
-  [BomLine, ['headerId']],
-  [BomLineOccurrence, ['lineId']]
-];
-
-const structuralColumnsOf = (metadata: EntityMetadata): readonly string[] =>
-  STRUCTURAL_COLUMNS.find(([Entity]) => isEntity(metadata, Entity))?.[1] ?? [];
-
 /**
  * 已发布头发生项的协议外列（打标记 / 清标记 / 区间级联之外的一切改动都拒绝）：两后端同一清单，
  * 只有「列值改动」谓词按方言生成（SQLite `IS NOT`，PG `IS DISTINCT FROM`）。
@@ -257,21 +245,6 @@ const occurrenceColumnsChanged = (
 /** 一条 `SELECT RAISE(ABORT, …) WHERE …` 触发体（多个条件逐个点名）。 */
 const raiseWhen = (message: string, condition: string): string =>
   `  SELECT RAISE(ABORT, '${message}') WHERE ${condition};`;
-
-const sqliteStructuralTrigger = (metadata: EntityMetadata): string[] => {
-  const columns = structuralColumnsOf(metadata);
-  if (columns.length === 0) return [];
-  const tableRef = sqliteTableRef(metadata);
-  const body = columns
-    .map(field =>
-      raiseWhen(
-        WRITE_PROTOCOL(getEntityColumnName(metadata, field) as string, '结构归属列创建后不可改（草稿里也不可改）'),
-        `NEW.${column(metadata, field)} IS NOT OLD.${column(metadata, field)}`
-      )
-    )
-    .join('\n');
-  return sqliteTrigger(tableRef, `${metadata.tableName}_structural`, 'BEFORE UPDATE', body);
-};
 
 const sqlitePublishedRevisionTrigger = (metadata: EntityMetadata): string[] => {
   if (!isEntity(metadata, BomItemRevision)) return [];
@@ -1618,7 +1591,7 @@ export const buildSqliteBomTriggerDdl = (
   // 有效域三维重叠守卫创建最早 = 执行最晚（SQLite 同事件触发器逆创建序）：
   // 让 ECN 派生 / 行归属等更具体的违约先报，三维重叠作兜底
   ...buildUnitLotOverlapGuardSqlite(metadata),
-  ...sqliteStructuralTrigger(metadata),
+  ...buildSqliteStructuralDdl(metadata),
   ...sqlitePublishedRevisionTrigger(metadata),
   ...sqlitePublishTransitionTrigger(metadata),
   ...sqliteHistoryBatchTriggers(metadata, options.historyProjection),
@@ -1638,30 +1611,6 @@ export const buildSqliteBomTriggerDdl = (
 ];
 
 // -----------------------------------------------------[ PGlite ]
-
-const pgStructuralFunction = (metadata: EntityMetadata): string[] => {
-  const columns = structuralColumnsOf(metadata);
-  if (columns.length === 0) return [];
-  const checks = columns
-    .map(
-      field =>
-        `  IF OLD.${column(metadata, field)} IS DISTINCT FROM NEW.${column(metadata, field)} THEN\n` +
-        `    RAISE EXCEPTION '${WRITE_PROTOCOL(getEntityColumnName(metadata, field) as string, '结构归属列创建后不可改（草稿里也不可改）')}';\n  END IF;`
-    )
-    .join('\n');
-  const functionName = `${metadata.tableName}__structural_guard`;
-  const tableRef = pgTableRef(metadata);
-  return [
-    pgTriggerFunction(metadata, functionName, checks),
-    pgCreateTrigger(
-      metadata,
-      tableRef,
-      `${metadata.tableName}__structural_trg`,
-      'BEFORE UPDATE',
-      `${metadata.tableName}__structural_guard`
-    )
-  ];
-};
 
 const pgPublishedRevisionFunction = (metadata: EntityMetadata): string[] => {
   if (!isEntity(metadata, BomItemRevision)) return [];
@@ -2688,7 +2637,7 @@ export const buildPgBomTriggerDdl = (
   ...buildPgInstanceNodeDdl(metadata),
   ...buildPgInstanceSourceDdl(metadata),
   ...buildUnitLotOverlapGuardPg(metadata),
-  ...pgStructuralFunction(metadata),
+  ...buildPgStructuralDdl(metadata),
   ...pgPublishedRevisionFunction(metadata),
   ...pgPublishTransitionFunction(metadata),
   ...pgHistoryBatchFunction(metadata, options.historyProjection),

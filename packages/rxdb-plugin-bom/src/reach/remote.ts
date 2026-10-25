@@ -1,3 +1,6 @@
+import { getEntityMetadata } from '@aiao/rxdb';
+import { buildPgStructuralDdl } from '../backend/structural-trigger-ddl.js';
+import { BomHeader, BomItemRevision, BomLine, BomLineOccurrence } from '../entities.js';
 import { buildReachCycleDdl } from './cycle-ddl.js';
 import { backfillReachSql, closureCteSql } from './migration.js';
 import { buildReachMaintenanceDdl } from './reach-ddl.js';
@@ -8,7 +11,7 @@ export const remoteReachDdl = (): string => {
   const sql = reachSqlFor('postgres');
   return [
     '-- rxdb-plugin-bom：远端BOM并集可达性、写入期判环与增量维护',
-    'LOCK TABLE "bom"."bom_line_occurrence" IN SHARE ROW EXCLUSIVE MODE;',
+    'LOCK TABLE "bom"."item_revision", "bom"."bom_header", "bom"."bom_line", "bom"."bom_line_occurrence" IN SHARE ROW EXCLUSIVE MODE;',
     `CREATE TABLE IF NOT EXISTS "bom"."bom_reach" (
       "id" uuid PRIMARY KEY, "bomType" text NOT NULL CHECK ("bomType" IN ('ebom', 'mbom', 'sales')),
       "orgId" text NOT NULL, "ancestorItemId" uuid NOT NULL, "descendantItemId" uuid NOT NULL,
@@ -21,6 +24,9 @@ export const remoteReachDdl = (): string => {
       THEN RAISE EXCEPTION 'rxdb:bom_cycle:existing_graph'; END IF; END; $$;`,
     'DELETE FROM "bom"."bom_reach";',
     backfillReachSql(sql),
+    ...[BomItemRevision, BomHeader, BomLine, BomLineOccurrence].flatMap(Entity =>
+      buildPgStructuralDdl(getEntityMetadata(Entity))
+    ),
     ...buildReachCycleDdl('postgres', true),
     ...buildReachMaintenanceDdl('postgres')
   ].join('\n');

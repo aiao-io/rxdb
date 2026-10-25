@@ -21,7 +21,12 @@ const insertEdge = (client: Client, edge: Edge, direction = 'consume') =>
     [randomUUID(), edge.lineId, edge.childItemId, direction]
   );
 
-const makePair = async (client: Client, bomType = 'ebom', orgId = 'X'): Promise<Pair> => {
+const makePair = async (
+  client: Client,
+  bomType = 'ebom',
+  orgId = 'X',
+  reverseScope = { bomType, orgId }
+): Promise<Pair> => {
   const items = [randomUUID(), randomUUID()];
   const revisions = [randomUUID(), randomUUID()];
   const headers = [randomUUID(), randomUUID()];
@@ -32,8 +37,8 @@ const makePair = async (client: Client, bomType = 'ebom', orgId = 'X'): Promise<
     await client.query('INSERT INTO bom.bom_header VALUES ($1, $2, $3, $4)', [
       headers[index],
       revisions[index],
-      bomType,
-      orgId
+      index === 0 ? bomType : reverseScope.bomType,
+      index === 0 ? orgId : reverseScope.orgId
     ]);
     await client.query('INSERT INTO bom.bom_line VALUES ($1, $2)', [lines[index], headers[index]]);
   }
@@ -238,11 +243,7 @@ describe('US-509 AC#13：真实 PostgreSQL 多连接环约束', () => {
     ['ebom', 'Y']
   ])('作用域 %s/%s 的反向边与 ebom/X 相互独立', async (bomType, orgId) => {
     await admin.query(cycleConstraintDdlForRemotePg());
-    const pair = await makePair(admin);
-    await admin.query(
-      'UPDATE bom.bom_header SET "bomType" = $1, "orgId" = $2 WHERE id = (SELECT "headerId" FROM bom.bom_line WHERE id = $3)',
-      [bomType, orgId, pair.reverse.lineId]
-    );
+    const pair = await makePair(admin, 'ebom', 'X', { bomType, orgId });
     await expect(insertEdge(admin, pair.forward)).resolves.toBeDefined();
     await expect(insertEdge(admin, pair.reverse)).resolves.toBeDefined();
     await assertAcyclic(admin);

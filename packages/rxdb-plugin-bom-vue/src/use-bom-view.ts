@@ -18,6 +18,14 @@ import {
 const inputIdentity = (input: BomViewInput): string =>
   deterministicStringify(JSON.parse(JSON.stringify(input)) as unknown);
 
+/** 递归解除嵌套代理，保留日期供共享控制器创建独立快照。 */
+const inputSnapshot = <T>(value: T): T => {
+  const raw = toRaw(value);
+  if (raw === null || typeof raw !== 'object' || raw instanceof Date) return raw;
+  if (Array.isArray(raw)) return raw.map(inputSnapshot) as T;
+  return Object.fromEntries(Object.entries(raw).map(([key, nested]) => [key, inputSnapshot(nested)])) as T;
+};
+
 /** Vue的只读shallowRef容器与共享命令。 */
 export interface BomViewBinding {
   state: Readonly<ShallowRef<BomViewState>>;
@@ -87,13 +95,13 @@ export const useBomView = (db: MaybeRefOrGetter<RxDB>, input: MaybeRefOrGetter<B
   // 第二个来源在 getter 里序列化整份输入：Vue 据此深度跟踪原地修改，字符串比较又让同内容新对象不触发
   watch(
     [() => toRaw(toValue(db)), () => inputIdentity(toValue(input))],
-    ([nextDb]) => sync(nextDb, toRaw(toValue(input))),
+    ([nextDb]) => sync(nextDb, inputSnapshot(toValue(input))),
     { immediate: true }
   );
   onScopeDispose(release);
 
   const commands: BomViewCommands = {
-    setInput: value => current().setInput(value),
+    setInput: value => current().setInput(inputSnapshot(value)),
     refresh: () => current().refresh(),
     toggle: path => current().toggle(path),
     loadOccurrence: id => current().loadOccurrence(id),

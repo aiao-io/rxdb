@@ -406,11 +406,14 @@ export interface ParentsOfItemsParams {
   orgId: string;
   /** 被反查的物料 id 集（非空；调用方分块）。 */
   itemIds: string[];
+  /** 同时读取命中逻辑行的全部有效候选，交给序列、批次与配置裁决。 */
+  includeLineCandidates?: boolean;
 }
 
 /**
  * 生成「一层反查」查询（US-510 阶段 A）：给定前沿物料集，返回以这些物料为子件的已解析
  * 发生项（released 头 + 生效窗口含评估日），行按 `(lineNo, effectiveFrom, id)` 排序。
+ * `includeLineCandidates` 为 true 时返回命中逻辑行的全部有效候选，供反查先消歧再筛选目标子件。
  *
  * @returns 行列为 `parentItemId, parentRevisionId, lineId, lineNo, occurrenceId,
  *   childItemId, qty, effectiveFrom, effectiveTo`
@@ -454,7 +457,13 @@ export const buildParentsOfItemsSql = (
     `WHERE h."state" = 'released'`,
     `  AND h."bomType" = ${p(params.bomType)}`,
     `  AND h."orgId" = ${p(params.orgId)}`,
-    `  AND occ."childItemId" IN (${params.itemIds.map(id => p(id)).join(', ')})`,
+    params.includeLineCandidates ?
+      `  AND occ."lineId" IN (SELECT candidate."lineId" FROM ${occurrence} candidate
+        WHERE candidate."childItemId" IN (${params.itemIds.map(id => p(id)).join(', ')})
+          AND candidate."effectiveFrom" <= ${p(params.asOfDate)}
+          AND ${ecnEffectiveToExpr(dialect, 'candidate', p, params.asOfDate)}
+          AND ${ecnVisibleExpr(dialect, 'candidate')})`
+    : `  AND occ."childItemId" IN (${params.itemIds.map(id => p(id)).join(', ')})`,
     `  AND occ."effectiveFrom" <= ${p(params.asOfDate)}`,
     `  AND ${ecnEffectiveToExpr(dialect, 'occ', p, params.asOfDate)}`,
     `  AND ${ecnVisibleExpr(dialect, 'occ')}`,
