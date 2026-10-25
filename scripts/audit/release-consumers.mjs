@@ -40,6 +40,9 @@ const execFileAsync = promisify(execFile);
 const workspaceRoot = process.cwd();
 const workspacePackageJson = JSON.parse(await readFile(path.join(workspaceRoot, 'package.json'), 'utf8'));
 
+const writePnpmWorkspace = (root, overrides) =>
+  writeFile(path.join(root, 'pnpm-workspace.yaml'), `${JSON.stringify({ packages: [], overrides }, null, 2)}\n`);
+
 /**
  * 跑一条子命令；失败时一定把两个流都转出去（`tsc` 把诊断写在 stdout，
  * `npm` / `pnpm` 把 ERESOLVE / peer 冲突写在 stderr，丢了就只剩一行「命令失败了」）。
@@ -443,14 +446,11 @@ const auditConsumer = async (combo, manager, packed, bumped) => {
       // 冲突组合：npm 不写 overrides（npm 的 overrides 会把 peer 边改写成被覆盖版本且不再校验，
       // 安装会静默成功；不覆盖时以 ERESOLVE 明确失败）；pnpm 保留 overrides 钉住本地 tgz，
       // 严格 peer 校验仍会以 peer 冲突明确失败（无 overrides 时反而先报 registry 404，不够明确）。
-      ...(!(combo.expectInstallFailure && manager === 'npm') ?
-        manager === 'pnpm' ?
-          { pnpm: { overrides } }
-        : { overrides }
-      : {})
+      ...(!(combo.expectInstallFailure && manager === 'npm') && manager === 'npm' ? { overrides } : {})
     };
     await writeFile(path.join(root, 'package.json'), JSON.stringify(manifest, null, 2));
     if (manager === 'pnpm') {
+      await writePnpmWorkspace(root, overrides);
       await writeFile(
         path.join(root, '.npmrc'),
         'node-linker=hoisted\nauto-install-peers=false\nstrict-peer-dependencies=true\n'
