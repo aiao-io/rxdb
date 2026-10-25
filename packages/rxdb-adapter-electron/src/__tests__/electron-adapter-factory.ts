@@ -12,6 +12,7 @@
  */
 
 import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
+import type { TransactionFun } from '@aiao/rxdb-adapter-sqlite-core';
 import { DesktopSqliteClient, type DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
@@ -97,9 +98,15 @@ const uniqueDbName = (): string => `desktop-test-${Date.now()}-${Math.random().t
 class QueryCountingElectronAdapter extends RxDBAdapterElectron {
   queryCount = 0;
 
-  override query(...args: Parameters<RxDBAdapterElectron['query']>): ReturnType<RxDBAdapterElectron['query']> {
-    this.queryCount++;
-    return super.query(...args);
+  override transaction<T extends TransactionFun>(fun: T, transactionLog = true): Promise<Awaited<ReturnType<T>>> {
+    return super.transaction<TransactionFun>(async executor => {
+      const execute = executor.execute.bind(executor);
+      executor.execute = (...args) => {
+        this.queryCount++;
+        return execute(...args);
+      };
+      return fun(executor);
+    }, transactionLog) as Promise<Awaited<ReturnType<T>>>;
   }
 }
 

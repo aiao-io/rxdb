@@ -1,4 +1,5 @@
 import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
+import type { TransactionFun } from '@aiao/rxdb-adapter-sqlite-core';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { queryCountOf, registerQueryCount, type EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
@@ -9,9 +10,15 @@ import type { SqliteaiOptions } from '../sqliteai.interface.js';
 class QueryCountingSqliteaiAdapter extends RxDBAdapterSqliteai {
   queryCount = 0;
 
-  override query(...args: Parameters<RxDBAdapterSqliteai['query']>): ReturnType<RxDBAdapterSqliteai['query']> {
-    this.queryCount++;
-    return super.query(...args);
+  override transaction<T extends TransactionFun>(fun: T, transactionLog = true): Promise<Awaited<ReturnType<T>>> {
+    return super.transaction<TransactionFun>(async executor => {
+      const execute = executor.execute.bind(executor);
+      executor.execute = (...args) => {
+        this.queryCount++;
+        return execute(...args);
+      };
+      return fun(executor);
+    }, transactionLog) as Promise<Awaited<ReturnType<T>>>;
   }
 }
 
