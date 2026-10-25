@@ -554,7 +554,6 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     if (isDetailDirty() && !window.confirm('有未保存的修改，打开其它任务将放弃。继续？')) return;
     const request = ++detailRequestRef.current;
     pendingDetailRef.current = taskId;
-    const boardId = board.currentBoardId;
     const previousDraft = JSON.stringify(draft);
     const snap = await guard(() => board.actions.openSnapshot(taskId));
     if (request !== detailRequestRef.current) return;

@@ -670,7 +670,6 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     if (this.detailTaskId() === taskId) return;
     if (this.isDetailDirty() && !window.confirm('有未保存的修改，切换任务将放弃。继续？')) return;
     this.pendingDetailTaskId = taskId;
-    const boardId = this.boardRef.currentBoardId();
     const draftState = this.detailDraftState();
     const snap = await this.guard(() => this.boardRef.actions.openSnapshot(taskId));
     if (request !== this.detailRequest) return;

@@ -413,7 +413,6 @@ const openDetail = async (taskId: UUID): Promise<void> => {
   if (isDetailDirty() && !window.confirm('有未保存的修改，切换任务将放弃。继续？')) return;
   const request = ++detailRequest;
   pendingDetailTaskId = taskId;
-  const boardId = board.currentBoardId.value;
   const previousDraft = JSON.stringify(draft.value);
   const snap = await guard(() => board.actions.openSnapshot(taskId));
   if (request !== detailRequest) return;
