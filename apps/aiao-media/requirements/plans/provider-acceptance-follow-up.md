@@ -55,7 +55,31 @@ MiniMax 原生请求路径为 `/v1/image_generation`，使用 `width/height` 或
 
 完整覆盖率复验 36 文件、662/662 通过：行 94.65%、语句 86.74%、函数 84.72%、分支 80.30%，四项均达到 80%。新请求映射文件四项均为 100%；`local-provider.ts` 行与分支均为 100%。
 
-未部署、未重发任何真实图片请求、未改变正式代理允许列表。102 AC7/105 AC7 继续 ⚠️，故事仍 Blocked。外部继续条件仍为核对原生请求的单次处理/计费结果、确认该 Key 的 `image-01` 权限并排查 1033；之后才能按已适配入口取得真实 PNG、URL 读取和正式三画幅交付证据。
+适配实施阶段未部署、未重发任何真实图片请求、未改变正式代理允许列表。102 AC7/105 AC7 继续 ⚠️，故事仍 Blocked。外部继续条件仍为核对原生请求的单次处理/计费结果、确认该 Key 的 `image-01` 权限并排查 1033；之后才能按已适配入口取得真实 PNG、URL 读取和正式三画幅交付证据。
+
+## 正式发布 C 与公网烟测
+
+2026-10-25 20:25:47（Asia/Shanghai），将包含 MiniMax 原生适配与本地作品检索的提交 `2ef6f2c5ed1d4c24084453dff85fb9e5cd08088e` 发布到既有正式 Worker。发布审查时工作树干净；公开账号配置仍为 `null`，代理允许列表仍为原有 1 项，MiniMax 未加入生产代理允许列表。
+
+| 项目                            | 核对结果                                                                   |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| 正式 origin                     | `https://media.aiao.io`                                                    |
+| Worker version C                | `caaf54dd-054b-4be8-a523-518c3875c7a9`                                     |
+| Deployment                      | `3b4aed97-17e0-45b7-a446-68d7b7701e3f`                                     |
+| Deployment 创建时间             | `2026-10-25T12:25:47.899953Z`                                              |
+| 官方流量                        | 100% 指向 C，已通过官方 deployments API 复核                               |
+| `offline-manifest.json` SHA-256 | `baefea694936345bd05eeb54a69f3b1a0fe76ddef45b8a5828fe35d4af843a33`         |
+| 离线构建版本                    | `9fddbe6d2edbf56fec6d23ef009e2c63b448a26c5bfaa45d4fad53971346a69f`         |
+| 发布审查                        | 60 文件，最大 1,263,008 bytes；无供应商凭据、SSR、source map 或旧 API 依赖 |
+| 公网烟测                        | `fixture=false`、`passed=true`，2026-10-25T12:26:58.666Z 至 12:27:14.013Z  |
+
+首个静态资源上传会话返回 401，未改变线上部署；官方记录及 manifest 均确认 B 保持在线后，以新官方上传会话完成发布。原 B 的 46 个公开资源已逐一核对大小/SHA-256 并在忽略目录封存，原 Worker version 回执保留。未调整生产权限或套餐，未以供应商生成探测排查发布故障。
+
+通过 `aiao-media-e2e:public-origin-smoke` 实测正式 C：四条路由的直接 HTTP 与浏览器导航均为 200，CSP 正确，草稿刷新保留；Service Worker 缓存 46/46 资源摘要匹配、唯一 active 缓存且无 waiting。随后真断网，关闭全部旧页，再以新文档打开四条路由，均由 Service Worker 返回，工作区与草稿保持。网络统计为页面异常 0、越界请求 0、生成请求 0、远程写入 0。
+
+烟测最初因继承的 DEBUG 被前置守卫拒绝；显式清空 DEBUG/PWDEBUG 后完成上述正式验收。最终证据为忽略目录 `apps/aiao-media-e2e/tmp/public-origin-smoke/1792931234014-caaf54dd-054b-4be8-a523-518c3875c7a9.json`；发布产物与旧 B 资源封存在 `apps/aiao-media/tmp/minimax-release-20261025`。本次冷启动限定同一隔离浏览器上下文的新文档，`upgradeVerified=false`、`rollbackVerified=false`；历史 A→B→A 的真实更新/回退证据仍归属原 B，本次未重跑 B/C 切换。
+
+本次发布新增真实生成 0 次，两份 `requires-review` 记录内容与 0600 权限保持。发布不会解除未知请求的锁定，不能换发布身份、通道或 Key 重发同一未知请求。MiniMax `image-01` 的真实图片格式、URL 原图读取及正式三画幅交付仍未验证，102/105 继续 Blocked。
 
 ## 未知请求保护
 

@@ -6,7 +6,7 @@
 
 ## 用户结项指令与供应商补验（2026-10-25）
 
-用户确认已推送，并要求已验故事记为 Done、继续补供应商验收。PR #154 已包含 `7651e58e`，实际仍为 OPEN/DRAFT、未合并；核对时 CI 正在运行。004/201/202/203/204/301/302 的全部 AC 已验，按 [D-11](decisions.md)在当前分支记为 Done，评审/合并单独跟踪。
+用户确认已推送，并要求已验故事记为 Done、继续补供应商验收。PR #154 的远程 head `2ef6f2c5` 仍为 OPEN/DRAFT、未合并；该轮 CI 的图库 E2E 失败，PGlite 任务被 runner 关机信号中断。本地 E2E 修复及复验见下文，远程仍待后续提交重验。004/201/202/203/204/301/302 的全部 AC 已验，按 [D-11](decisions.md)在当前分支记为 Done，评审/合并单独跟踪。
 
 供应商补验已完成只读复核：正式 manifest 摘要与审核 B 一致；模型目录 GET 200、配置模型存在；正式 origin 的生成 OPTIONS 仍为 403、无 CORS 许可头；用量 GET 200 但只有按日/模型汇总、没有单次请求 ID 或结果。现有真实成功结果仍为 base64，本机原 live 尝试日志缺失。无法据此关闭 102 AC7/105 AC7，两条故事记为 Blocked，新增生成请求为 0。详见[补验记录](plans/provider-acceptance-follow-up.md)。
 
@@ -26,7 +26,23 @@
 
 完整覆盖率复验 36 文件、662/662 通过：行 94.65%、语句 86.74%、函数 84.72%、分支 80.30%，均达到 80%；新协议映射文件四项均为 100%。
 
-追加只读用量接口仅返回 `general`、`video` 汇总，不能证明图片权限或核对单次结果。本轮新增真实生成 0 次、未部署；原生 1033 与原供应商未知记录继续保留，102/105 仍 Blocked。适配范围、官方依据与证据边界见[补验记录](plans/provider-acceptance-follow-up.md#minimax-原生适配与本地验证2026-10-25)。
+追加只读用量接口仅返回 `general`、`video` 汇总，不能证明图片权限或核对单次结果。适配实施阶段新增真实生成 0 次、未部署；后续正式 C 发布见下节。原生 1033 与原供应商未知记录继续保留，102/105 仍 Blocked。适配范围、官方依据与证据边界见[补验记录](plans/provider-acceptance-follow-up.md#minimax-原生适配与本地验证2026-10-25)。
+
+## 正式 C 发布与公网烟测（2026-10-25）
+
+提交 `2ef6f2c5` 已发布：Worker version `caaf54dd-054b-4be8-a523-518c3875c7a9`，deployment `3b4aed97-17e0-45b7-a446-68d7b7701e3f`，官方 API 确认 100% C 流量。manifest SHA-256 为 `baefea694936345bd05eeb54a69f3b1a0fe76ddef45b8a5828fe35d4af843a33`。发布审查 60 文件通过，账号配置 `null`、代理允许列表 1 项。
+
+真实公网烟测通过：四路由 HTTP/浏览器 200 与 CSP、草稿刷新、46/46 离线缓存摘要、真断网后关闭旧页再以四条新文档启动。生成请求、远程写入、页面异常和越界请求均为 0；本次未验证 B/C 更新或回退。初次静态上传 401 经新官方上传会话完成，原 B 产物与回执已保留。详细身份、证据路径及范围见[供应商补验记录](plans/provider-acceptance-follow-up.md#正式发布-c-与公网烟测)。
+
+MiniMax 原生适配和作品检索实现已上线；102/105 仍缺真实供应商验收，两份未知请求继续锁定。作品检索功能 AC 沿用既有本地分层证据，Supabase 仍仅本地。
+
+## CI 备份导入回归（2026-10-25）
+
+远程提交 `2ef6f2c5` 的[图库 E2E job](https://github.com/aiao-io/rxdb/actions/runs/40192486445/job/121166984466)为 30/31，通过备份播种的第一个图库用例等待 reload/load 90 秒超时。失败 trace 显示文件输入框刚通过 enabled 断言，在实际 `setInputFiles` 时已因工作区初始化重新禁用，最终没有导入提示或新页面。Playwright 的 `setInputFiles` 不检查控件是否 enabled，独立的 enabled 断言无法保证随后上传时仍可操作。
+
+将[备份导入辅助函数](../../aiao-media-e2e/src/local-first.helpers.ts)改为点击原生文件输入框并等待 filechooser，再选择备份文件；点击会执行 enabled 等 actionability 检查。未增加导入重试。本地使用 Chromium、独立端口 4407 与原 `local-first` 套件：失败用例连续 3/3 通过，完整 E2E 31/31 通过（约 2 分 5 秒），e2e lint/typecheck 均通过。生产应用源码和正式 C 资源未因该测试修复改变。
+
+同轮的 [PGlite test lane](https://github.com/aiao-io/rxdb/actions/runs/40192486445/job/121166984450)在运行时收到 runner shutdown signal，Test step 为 cancelled；日志未出现断言失败，也没有完整测试结束结果，保留远程重验事项。未修改 `packages/*`。上述本地修复尚未进入该远程 head，PR CI 不计作全绿；评审与合并继续单独跟踪。
 
 ## 状态与剩余验收核对（2026-10-25）
 
@@ -116,7 +132,7 @@ MEDIA-US-204 全部 AC 已通过分层本地验收：提示词/模型原生字�
 
 ## 正式环境证据
 
-2026-10-25 当前 B：source `c2ab7dc0`，version `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`，manifest SHA-256 `9d303528a1f123d4c4dc8932fc7321b02fa5b360883a4885c9234498ed1d01fd`，46 资源、账号 `null`、allowlist 1 项。原始生成验收 deployment `12606e16-5ba7-44e5-ba8f-0c7081821544`；切换后官方恢复 B 的当前 deployment 为 `aac93845-7add-4fd3-b45a-d37dfc5d1319`，创建于 `2026-10-25T04:36:20.644433Z`，API 核对 100% B 流量。完整证据见[正式交付验收](plans/public-delivery-verification.md)。
+2026-10-25 原 B 验收时：source `c2ab7dc0`，version `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`，manifest SHA-256 `9d303528a1f123d4c4dc8932fc7321b02fa5b360883a4885c9234498ed1d01fd`，46 资源、账号 `null`、allowlist 1 项。原始生成验收 deployment `12606e16-5ba7-44e5-ba8f-0c7081821544`；切换后官方恢复 B 的 deployment 为 `aac93845-7add-4fd3-b45a-d37dfc5d1319`，创建于 `2026-10-25T04:36:20.644433Z`，API 核对 100% B 流量。完整证据见[正式交付验收](plans/public-delivery-verification.md)。
 
 正式官方 A→B→A 真实产物切换及各阶段真断网四路由已通过，waiting 时旧 DOM 保持，旧页关闭后新 worker activated 并加载正确入口；profile/schema `1`、完整测试供应商配置与空 Key、草稿、通过产品备份导入的合法 fixture 原图精确字节下载保持，0 生成。没有注入构建/更高 schema marker，不将已验本地兼容守卫写成线上 schema 转换。最终官方恢复 B（`restoredB=true`）后新版 public smoke 再次通过，直接 HTTP/导航/CSP、缓存46/46、旧页关闭后的离线新文档与草稿均通过。MEDIA-US-004 AC1–4✅，故事按 D-11 记为 `Done`，PR 评审与合并单独跟踪；保留同一隔离 context 范围，不声称浏览器进程重启。
 

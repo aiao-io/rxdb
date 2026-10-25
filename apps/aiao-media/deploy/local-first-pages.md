@@ -80,7 +80,7 @@ pnpm nx run aiao-media:deploy --skipRemoteCache
 
 配置源为 `deploy/wrangler.json`，名称 `aiao-media`。部署脚本在 Git 忽略的 `.wrangler/local-first` 中生成实际配置并调用固定版本 Wrangler。发布成功后，以 CLI 返回的真实 URL、version ID、deployment ID 为准，不能预先假定 workers.dev 子域名。
 
-如果已有同名 Worker，应先核对它确实属于本项目，再更新。首次账号/子域名设置由 Cloudflare 官方流程完成，不通过创建匿名临时账号代替正式上线。当前正式地址为 `https://media.aiao.io`，版本 `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`；域名、四路由、WASM、CSP、旧 API 404、离线新文档启动及真实供应商代理三画幅已验。直连正方形结果未知，未重发，另两幅直连与跨 origin 原图 URL 尚未完成。具体发布摘要与各项证据边界见[公网交付记录](../requirements/plans/public-delivery-verification.md)。
+如果已有同名 Worker，应先核对它确实属于本项目，再更新。首次账号/子域名设置由 Cloudflare 官方流程完成，不通过创建匿名临时账号代替正式上线。2026-10-25 20:25 正式发布 C，地址 `https://media.aiao.io`，版本 `caaf54dd-054b-4be8-a523-518c3875c7a9`；官方 100% 流量、四路由/CSP、46/46 离线资源和断网新文档启动已复核，生成 0 次。具体身份与烟测边界见[补验记录](../requirements/plans/provider-acceptance-follow-up.md#正式发布-c-与公网烟测)。历史 B 的旧 API 404、真实供应商代理三画幅与官方更新/回退保留原证据。直连正方形结果未知，未重发，另两幅直连与跨 origin 原图 URL 尚未完成。具体发布摘要与各项证据边界见[公网交付记录](../requirements/plans/public-delivery-verification.md)。
 
 本轮构建必须禁用 Nx 自动 dotenv 加载并显式清空两个公开账号变量，再核对 `app-config.js` 为 `null`；仅设置空值会被 dotenv 展开行为覆盖。真实本地账号开发使用 `aiao-media:supabase-serve` 的回环配置，不修改私有 `.env` 中的其它供应商设置。
 

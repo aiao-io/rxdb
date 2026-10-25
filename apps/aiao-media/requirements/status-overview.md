@@ -52,7 +52,7 @@
 | [MEDIA-US-107 AC2](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机持久化与交付                   | 在支持所需存储的设备上验证保存、重开、离线预览和实际文件下载                                                                                              |
 | [MEDIA-US-107 AC3](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机存储/下载失败                  | 实测系统拒绝或限制，不虚报保存/下载，重试保留已有数据和原结果                                                                                             |
 
-按用户本次指令，七条全部 AC 已验的故事按 D-11 在当前分支记为 Done。PR #154 已包含 `7651e58e`，实际仍为 OPEN/DRAFT、未合并；核对时该 head 的 CI 正在运行，评审/合并继续单独跟踪。原供应商只读复核新增生成 0 次；后续用户另选 MiniMax，国内区只读鉴权与原生接口预检通过，单次原生图片请求返回 `1033 / system error`、未取得图片且未重发。MiniMax 原生适配与 12 个本地 fixture 组合已通过，真实请求仍待核对，102/105 继续 Blocked，详见[供应商补验记录](plans/provider-acceptance-follow-up.md)。生产 Supabase 仍属后续范围。
+按用户本次指令，七条全部 AC 已验的故事按 D-11 在当前分支记为 Done。PR #154 的远程 head `2ef6f2c5` 仍为 OPEN/DRAFT、未合并；该轮 CI 的图库 E2E 失败，PGlite 任务被 runner 关机信号中断。本地已修复备份导入的测试竞态，Chromium 全套 31/31 通过，待后续提交触发远程复验；评审/合并继续单独跟踪。原供应商只读复核新增生成 0 次；后续用户另选 MiniMax，国内区只读鉴权与原生接口预检通过，单次原生图片请求返回 `1033 / system error`、未取得图片且未重发。MiniMax 原生适配与 12 个本地 fixture 组合已通过，正式 C 已发布且公网烟测通过；真实请求仍待核对，102/105 继续 Blocked，详见[供应商补验记录](plans/provider-acceptance-follow-up.md)。生产 Supabase 仍属后续范围。
 
 ## 解释
 
@@ -62,4 +62,4 @@ MEDIA-US-105/102/106 已实现供应商管理、任务日志、Tiptap 灵感库�
 
 MEDIA-US-201 的账号会话、工作区绑定、产品 RLS 和首次确认已通过真实本地验证；MEDIA-US-302 的原生复制、双副本、冲突/删除与显式重新扫描已验，D-06 不设 TTL/自动清理。本轮 Supabase 仅本地，生产服务启用属后续范围。当前测试数量与逐层边界见[验收记录](verification-report.md)。
 
-MEDIA-US-203 的用户、模板、策略、任务和用量已通过真实本地 API/浏览器验收，生产账号/后台未部署。204 全部 AC 已通过分层本地验收：字面检索/本地整日、24 件稳定分页、真实 IO、冷启动 ready 延迟读取、全库未知态与跨工作区资源释放。原生压力为 1,005 条 metadata，全应用 IO 为 50 张图片；统一本机 E2E 31/31，未部署、未合并，故事按 D-11 记为 Done，PR 待评审合并。证据与覆盖率限制见[实施清单](plans/library-search-tasks.md)，原首发未验项见[收尾清单](plans/release-completion-tasks.md)。
+MEDIA-US-203 的用户、模板、策略、任务和用量已通过真实本地 API/浏览器验收，生产账号/后台未部署。204 全部 AC 已通过分层本地验收：字面检索/本地整日、24 件稳定分页、真实 IO、冷启动 ready 延迟读取、全库未知态与跨工作区资源释放。原生压力为 1,005 条 metadata，全应用 IO 为 50 张图片；统一本机 E2E 31/31；实现已随正式 C 发布，四路由与离线烟测通过，功能 AC 沿用本地分层证据，PR 未合并，故事按 D-11 记为 Done，PR 待评审合并。证据与覆盖率限制见[实施清单](plans/library-search-tasks.md)，原首发未验项见[收尾清单](plans/release-completion-tasks.md)。

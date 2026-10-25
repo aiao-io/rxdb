@@ -2,6 +2,8 @@
 
 日期：2026-10-25，正式 origin：`https://media.aiao.io`。本记录仅包含已取得的真实证据；MEDIA-US-004/202 按 D-11 记为 `Done`，102/105 补验受阻、记为 `Blocked`，PR #154 尚未合并。供应商 URL、模型值、Key、原始响应和图片内容不进入本文件。
 
+本页记录原 B 的真实图片交付及 A/B 更新回退证据。2026-10-25 20:25 后正式站点为 C；C 的回执、manifest 与无生成公网烟测见[供应商补验记录](provider-acceptance-follow-up.md#正式发布-c-与公网烟测)。本页 B 身份不替换成 C，图片与更新证据仍归属原发布。
+
 ## 发布身份
 
 | 项目                            | 已核对值                                                           |
@@ -9,15 +11,15 @@
 | Source commit                   | `c2ab7dc0`                                                         |
 | Worker version                  | `cc8cc646-560e-4d36-b0cb-2e311a2d0e25`                             |
 | 原始生成验收 Deployment         | `12606e16-5ba7-44e5-ba8f-0c7081821544`                             |
-| 恢复后的当前 Deployment         | `aac93845-7add-4fd3-b45a-d37dfc5d1319`                             |
-| 当前 Deployment 创建时间        | `2026-10-25T04:36:20.644433Z`                                      |
-| 当前官方流量                    | 100% 指向上述 Worker version B                                     |
+| B 验收恢复 Deployment           | `aac93845-7add-4fd3-b45a-d37dfc5d1319`                             |
+| B 恢复 Deployment 创建时间      | `2026-10-25T04:36:20.644433Z`                                      |
+| B 验收结束时官方流量            | 100% 指向上述 Worker version B                                     |
 | `offline-manifest.json` SHA-256 | `9d303528a1f123d4c4dc8932fc7321b02fa5b360883a4885c9234498ed1d01fd` |
 | 离线资源数                      | 46                                                                 |
 | 公开账号配置                    | `null`，生产账号/同步/后台未启用                                   |
 | 代理 allowlist                  | 1 项，具体供应商值保留在本机私有配置                               |
 
-生成尝试对应原始 Deployment；真实更新验收结束后，官方回退恢复同一 version B，产生当前 Deployment。官方 API 已重新核对 100% 流量、manifest 和账号配置 `null`。不同 Deployment 不冒充同次操作，但上述 B 的产物身份一致。
+生成尝试对应原始 Deployment；真实更新验收结束后，官方回退恢复同一 version B，产生表内的恢复 Deployment。官方 API 已重新核对 100% 流量、manifest 和账号配置 `null`。不同 Deployment 不冒充同次操作，但上述 B 的产物身份一致。
 
 ## 真实供应商与原图交付
 
