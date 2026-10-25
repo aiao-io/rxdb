@@ -81,11 +81,11 @@ async function login(page: Page) {
 // The local-first suite separately verifies Service Worker installation and offline cold starts.
 test.use({ serviceWorkers: 'block' });
 
-test('未配置账号时四页面不连接 Supabase 或创建会话', async ({ page }) => {
+test('未配置账号时四页面不连接 Supabase 或创建会话', async ({ page, baseURL }) => {
   const foreign: string[] = [];
+  const origin = new URL(baseURL!).origin;
   page.on('request', request => {
-    if (/^https?:/.test(request.url()) && !request.url().startsWith('http://127.0.0.1:4398/'))
-      foreign.push(request.url());
+    if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== origin) foreign.push(request.url());
   });
   page.on('websocket', socket => foreign.push(socket.url()));
   for (const path of ['/', '/create', '/images', '/providers']) {

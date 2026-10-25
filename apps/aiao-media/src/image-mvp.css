@@ -681,6 +681,57 @@ label.field-label span {
   align-items: center;
   gap: 6px;
 }
+.library-filters {
+  display: grid;
+  grid-template-columns: minmax(160px, 2fr) minmax(130px, 1fr) repeat(2, minmax(135px, 1fr)) auto auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 24px;
+}
+.library-filters label {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.library-filters input {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+.library-filter-help {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.library-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 26px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.library-pagination > div {
+  display: flex;
+  gap: 10px;
+}
+.library-placeholder {
+  min-height: 100%;
+}
+@media (max-width: 1100px) {
+  .library-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .library-card .card-caption {
   padding: 14px 16px;
 }

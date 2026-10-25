@@ -2,7 +2,7 @@
 
 ## 结论与选择
 
-D-05 采用**本机独立工作区 + 用户主动启用同步 + 远程工作区按账号隔离**。本计划描述已实施并通过真实本地验收的绑定、产品 RLS 与原生复制方案，正式项目另验。关联 [MEDIA-US-201](../stories/account/MEDIA-US-201-sessions.md)、[MEDIA-US-302](../stories/local-first/MEDIA-US-302-draft-sync.md)；D-06 首发无限期保留冲突、tombstone 和日志，不启用 TTL 或自动 GC。
+D-05 采用**本机独立工作区 + 用户主动启用同步 + 远程工作区按账号隔离**。绑定、产品 RLS 与原生复制已通过真实本地验收，本轮 Supabase 仅本地，生产启用属于后续范围。关联 [MEDIA-US-201](../stories/account/MEDIA-US-201-sessions.md)、[MEDIA-US-302](../stories/local-first/MEDIA-US-302-draft-sync.md)；D-06 无限期保留冲突、tombstone 和日志，不启用 TTL 或自动 GC。
 
 | 方案                               | 对现有用户数据的影响                                     | 结论   |
 | ---------------------------------- | -------------------------------------------------------- | ------ |
@@ -70,7 +70,7 @@ D-05 采用**本机独立工作区 + 用户主动启用同步 + 远程工作区�
 | B5   | 作品元数据、权限失效与迟到响应            | B 显示本机无原图；A 响应不能写 B；生成不因登录/同步重发                           |
 | B6   | 冲突与清理边界                            | 注入碰撞并保留版本；按 D-06 验证显式重扫、未确认改动和 tombstone 重放，首发不清理 |
 
-B1–B3 与后台权限/模板/供应商策略可独立开展，B4–B5 逐步集成；正式供应商配置暂缺不阻断这些本地验证。
+B1–B6 均已有真实本地产品证据，切片表描述已交付范围。新增 [MEDIA-US-204](library-search-tasks.md) 必须保留全库本机 metadata 与归属事实，不能让筛选/分页结果制造 remote-only 或同步删除。
 
 ## 研究依据与源码
 
@@ -81,6 +81,6 @@ B1–B3 与后台权限/模板/供应商策略可独立开展，B4–B5 逐步�
 - [服务端会话验证](https://supabase.com/docs/guides/auth/server-side/advanced-guide)：缓存中的 `getSession()` 用户不能代替身份验证；需要最新用户/会话信息时向 Auth 验证。
 - [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security)：可信 owner、读写双向策略，不用用户可改的 `user_metadata` 决定权限。
 
-官方资料通过 Context7 查询；包 API 仍以锁定版本与本地集成为准。B1–B5 和 B6 的冲突保留已通过本地产品验证；首发 TTL/清理策略已确定，不能沿用开发探针结果关闭产品恢复 AC。
+官方资料通过 Context7 查询；包 API 以锁定版本与本地集成为准。B1–B5、B6 的冲突保留与显式重扫均已有真实本地产品验证，不能沿用开发探针结果替代产品恢复证据。
 
-当前本地交付证据见[本地产品交付验收](local-delivery-verification.md)。本计划描述的生产环境验收仍保留；检查点恢复结果见最新交付证据。
+当前证据见[本地产品交付验收](local-delivery-verification.md)和[本地 Auth/产品复验](public-delivery-verification.md)。生产服务未启用，也不把既有本地通过结果算作新检索/视口故事已验。

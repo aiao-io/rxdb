@@ -1,6 +1,6 @@
 # 正式验收收尾清单
 
-当前分支 PR：[154](https://github.com/aiao-io/rxdb/pull/154)。本地实现及 82 个项目、344 个 affected 任务的结果见[本地产品交付验收](local-delivery-verification.md)。本页记录本轮进度、剩余验收和后续边界，不把准备完成或本地模拟记为正式通过。
+图片首发交付关联 PR：[154](https://github.com/aiao-io/rxdb/pull/154)。本地实现及 82 个项目、344 个 affected 任务的结果见[本地产品交付验收](local-delivery-verification.md)。本页记录该交付范围的进度、剩余真实验收和后续边界；新增 [MEDIA-US-204 本地检索/视口预览](library-search-tasks.md)已独立完成分层本地验收，待 PR 评审、未部署，不以旧数字替代新证据。
 
 ## 已作出的关键决策
 

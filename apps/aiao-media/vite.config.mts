@@ -8,7 +8,11 @@ export default defineConfig({
   plugins: [angular({ tsconfig: `${import.meta.dirname}/tsconfig.spec.json` })],
   test: {
     watch: false,
-    coverage: { provider: 'v8', reportsDirectory: './coverage', reporter: ['text', 'json', 'json-summary', 'lcov'] },
+    coverage: {
+      provider: 'v8',
+      reportsDirectory: '../../coverage/apps/aiao-media',
+      reporter: ['text', 'json', 'json-summary', 'lcov']
+    },
     projects: [
       {
         extends: true,

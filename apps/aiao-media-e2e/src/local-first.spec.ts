@@ -48,7 +48,7 @@ test('实际静态应用无需登录，RxDB 设置、草稿和图片经刷新仍
   await page.reload();
   await expect(page.getByAltText('本机生成作品')).toBeVisible();
   await page.getByText('本机任务记录', { exact: false }).click();
-  await expect(page.locator('.task-history')).toContainText('已保存到本机');
+  await expect(page.locator('.task-history')).toContainText('有本机保存记录');
   expect(calls).toBe(1);
   expect(oldApi).toEqual([]);
 });

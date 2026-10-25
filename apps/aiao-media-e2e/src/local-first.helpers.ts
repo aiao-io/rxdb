@@ -43,7 +43,9 @@ export async function downloadBackup(page: Page) {
   return readFile((await (await event).path()) as string);
 }
 export async function importBackup(page: Page, buffer: Buffer) {
-  await page.locator('input[type=file]').setInputFiles({
+  const input = page.locator('input[type=file]');
+  await expect(input).toBeEnabled();
+  await input.setInputFiles({
     name: 'backup.json',
     mimeType: 'application/json',
     buffer

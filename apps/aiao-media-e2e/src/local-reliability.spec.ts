@@ -202,7 +202,7 @@ test('保存完成文件但关联确认前关闭页面，重开从 journal 恢�
   await reopened.goto('/images');
   await expect(reopened.getByAltText('本机生成作品')).toHaveCount(1);
   await reopened.getByText('本机任务记录', { exact: false }).click();
-  await expect(reopened.locator('.task-history')).toContainText('已保存到本机');
+  await expect(reopened.locator('.task-history')).toContainText('有本机保存记录');
   await expect(reopened.locator('body')).not.toContainText('本机无副本');
   const download = reopened.waitForEvent('download');
   await reopened.getByRole('link', { name: '下载图片' }).click();

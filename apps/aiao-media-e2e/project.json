@@ -34,6 +34,15 @@
         "cwd": "."
       }
     },
+    "library-e2e": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets"],
+      "options": {
+        "command": "pnpm exec playwright test -c apps/aiao-media-e2e/library.config.ts",
+        "cwd": "."
+      }
+    },
     "supabase-e2e": {
       "executor": "nx:run-commands",
       "cache": false,
