@@ -232,3 +232,21 @@
 - 新增 5 条真实浏览器业务验收：完整核对与下载并逐字对照独立成本页、修改条件重算重确认与刷新恢复、375px 完成结论可见、首次核对成功后的离线重算、既有数据重开与记录数量不变。
 - 桌面首页、比较、结论及手机结论已做截图复核，未发现横向溢出或结论不可见。截图为 `apps/dev-rxdb-bom-e2e/test-results/bom-product-{task-home,change-comparison,review-conclusion}.png` 与 `bom-change-review-mobile.png`。
 - 最终门禁日志：`/tmp/bom-product-delivery-gate.log`；首次文案适配导致的旧初始化超时和被中断的运行不计为通过证据。
+
+## 9. 多修订备料核对（2026-10-25）
+
+合入 main 后复核生产改版主线，发现同一物料的总需求和修订集合都未变化时，各修订用量重新分配会漏报。例如 A 版 2 件、B 版 8 件变成 A 版 8 件、B 版 2 件，旧实现会显示没有备料或修订变化。
+
+比较逻辑现按物料与库存单位分组，再逐修订精确汇总数量。总量相同而修订用量变化时仍展示“修订变化”，保留前后各路径、版本与数量，并带入下载摘要。未指定修订单独归集；大数和小数继续使用公开十进制计算能力。各修订用量不变、仅路径拆分或排序变化时不产生误报。
+
+新增 6 项回归检查，覆盖多修订分配、未指定修订、大数小数、路径重排、服务结果和页面下载。先取得 5 失败、209 通过，再修复至 25 文件、214/214 通过。页面测试同时核对展示的逐路径数量和实际 Blob 下载内容。
+
+最终验证：两个 demo 项目及依赖共 39 个 Nx 任务通过，30 项本地缓存命中，耗时 2 分 24 秒。lint 零警告，typecheck、spec-typecheck、生产构建通过；单测 214/214，浏览器 E2E 39/39，单 worker、零重试。单独采集的 `change-review.ts` 语句、分支、函数、行覆盖率均为 100%。
+
+可复现入口：
+
+```bash
+pnpm nx run dev-rxdb-bom:test
+pnpm nx run dev-rxdb-bom:test --coverage --coverage.include=src/app/presentation/change-review.ts --coverage.reporter=json-summary --coverage.reportsDirectory=/tmp/aiao-bom-review-coverage
+pnpm nx run-many --projects=dev-rxdb-bom,dev-rxdb-bom-e2e --targets=lint,typecheck,spec-typecheck,test,build,e2e --parallel=1 --skipRemoteCache --output-style=static
+```

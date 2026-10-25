@@ -205,19 +205,19 @@ const reviewCost = (batchCost: string): CostRollupResult => ({
     children: []
   }
 });
-const reviewRequirement = (revisionId: string | null, itemId = 'leaf-id'): RequirementLine => ({
+const reviewRequirement = (revisionId: string | null, itemId = 'leaf-id', qty = '10'): RequirementLine => ({
   itemId,
   revisionId,
   path: [`${itemId}-occurrence`],
-  qty: '10',
+  qty,
   uom: 'pcs',
   steps: {
-    planned: { value: '10', uom: 'pcs' },
-    assemblyScrapped: { value: '10', uom: 'pcs' },
-    gross: { value: '10', uom: 'pcs' },
-    componentScrapped: { value: '10', uom: 'pcs' },
+    planned: { value: qty, uom: 'pcs' },
+    assemblyScrapped: { value: qty, uom: 'pcs' },
+    gross: { value: qty, uom: 'pcs' },
+    componentScrapped: { value: qty, uom: 'pcs' },
     operationScrapped: null,
-    converted: { value: '10', uom: 'pcs' },
+    converted: { value: qty, uom: 'pcs' },
     phantom: { value: false, source: 'revision', revisionId }
   }
 });
@@ -417,6 +417,45 @@ describe('BomDemoService', () => {
     expect(executor.getRepository).toHaveBeenCalledWith(BomItemRevision);
     expect(adapter.transaction).toHaveBeenCalledOnce();
     expect(adapter.rawQuery).not.toHaveBeenCalled();
+  });
+
+  it('同量多修订的用量分配变化进入真实核对结果，保留完整前后依据', async () => {
+    const { service, rows } = changeReviewHarness();
+    for (const revisionId of ['leaf-A', 'leaf-B']) {
+      rows(BomItemRevision).set(revisionId, {
+        id: revisionId,
+        itemId: 'leaf-id',
+        revisionNo: revisionId,
+        effectiveFrom: new Date('2026-01-01T00:00:00.000Z')
+      });
+    }
+    const before = reviewExplosion();
+    before.requirementLines = [
+      { ...reviewRequirement('leaf-A', 'leaf-id', '2'), path: ['branch-a'] },
+      { ...reviewRequirement('leaf-B', 'leaf-id', '8'), path: ['branch-b'] }
+    ];
+    const after = reviewExplosion();
+    after.requirementLines = [
+      { ...reviewRequirement('leaf-A', 'leaf-id', '8'), path: ['branch-a'] },
+      { ...reviewRequirement('leaf-B', 'leaf-id', '2'), path: ['branch-b'] }
+    ];
+    vi.mocked(explodeBom).mockResolvedValueOnce(before).mockResolvedValueOnce(after);
+
+    const result = await service.reviewChange('ecn-id', reviewContext);
+
+    expect(result.changes).toEqual([
+      expect.objectContaining({
+        itemId: 'leaf-id',
+        beforeQty: '10',
+        afterQty: '10',
+        delta: '0',
+        kind: 'changed',
+        beforeLines: before.requirementLines,
+        afterLines: after.requirementLines
+      })
+    ]);
+    expect(result.revisions).toHaveProperty('leaf-A.revisionNo', 'leaf-A');
+    expect(result.revisions).toHaveProperty('leaf-B.revisionNo', 'leaf-B');
   });
 
   it('解析修订元数据消失时核对失败，不从ID或种子推测修订号', async () => {
