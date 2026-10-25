@@ -17,6 +17,7 @@ gitShallowHosts:
   - gitlab.com
   - bitbucket.org
 allowBuilds:
+  pnpm: true
   nx: true
   electron: true
   sharp: true
