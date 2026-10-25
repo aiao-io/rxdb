@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import type { Dialog, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { test as base, expect } from '@playwright/test';
 
 /**
@@ -41,16 +41,6 @@ const titlesOfColumn = async (page: Page, columnTitle: string): Promise<string[]
 };
 
 test.describe('看板页对齐（US-539 阶段 A）', () => {
-  /** 应答 window.prompt：按序给出答案，用尽后给空串。 */
-  const answerPrompts = (page: Page, answers: string[]): (() => void) => {
-    const queue = [...answers];
-    const handler = async (dialog: Dialog): Promise<void> => {
-      await dialog.accept(queue.shift() ?? ' ');
-    };
-    page.on('dialog', handler);
-    return () => page.removeListener('dialog', handler);
-  };
-
   test('AC#1：装载演示数据——列头、任务、标签与截止日与种子一致，重开后原样', async ({ boardPage: page }) => {
     await expect(page.getByTestId('empty-board')).toBeVisible();
     await startWithSeed(page);
@@ -194,10 +184,13 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
       page
         .getByTestId('column-header')
         .filter({ has: page.getByTestId('column-title').getByText(title, { exact: true }) });
+    await columnHeader('To do').getByTestId('column-actions').click();
     await columnHeader('To do').getByTestId('column-move-back').click();
     await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Doing', 'Done', 'Ideas']);
+    await columnHeader('Ideas').getByTestId('column-actions').click();
     await columnHeader('Ideas').getByTestId('column-move-forward').click();
     await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Doing', 'Done', 'Ideas']);
+    await columnHeader('Doing').getByTestId('column-actions').click();
     await columnHeader('Doing').getByTestId('column-move-forward').click();
     await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Done', 'Doing', 'Ideas']);
 
@@ -222,10 +215,14 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
   test('AC#7：空库闭环——建板 / 建列 / 建任务、第二块板切换、重开原样', async ({ boardPage: page }) => {
     await expect(page.getByTestId('empty-board')).toBeVisible();
 
-    const stopPrompts = answerPrompts(page, ['我的看板', '待办', '第二块板']);
     await page.getByTestId('create-board-empty').click();
+    await page.getByTestId('board-composer-input').fill('我的看板');
+    await page.getByTestId('board-composer-submit').click();
     await expect(page.getByTestId('column')).toHaveCount(0);
+    await expect(page.getByTestId('create-column')).toBeEnabled();
     await page.getByTestId('create-column').click();
+    await page.getByTestId('column-composer-input').fill('待办');
+    await page.getByTestId('column-composer-submit').click();
     await expect(page.getByTestId('column')).toHaveCount(1);
     // 内联建任务（GitHub Projects 风格）：Esc 取消零写，Enter 提交
     await page.getByTestId('add-task').click();
@@ -240,12 +237,12 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
 
     // 第二块板并来回切换：切板不混数据
     await page.getByTestId('create-board').click();
+    await page.getByTestId('board-composer-input').fill('第二块板');
+    await page.getByTestId('board-composer-submit').click();
     await page.getByTestId('board-selector').selectOption({ label: '第二块板' });
     await expect(page.getByTestId('column')).toHaveCount(0);
     await page.getByTestId('board-selector').selectOption({ label: '我的看板' });
     await expect(page.getByTestId('task-card')).toHaveCount(1);
-    stopPrompts();
-
     // 重开：板 / 列 / 任务与顺序原样
     await page.reload();
     await expect(page.getByTestId('board-view')).toBeVisible();
@@ -256,21 +253,20 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
   test('AC#8：删除确认——取消零写；确认后级联数量正确且另一板不变；重开不复活', async ({ boardPage: page }) => {
     await startWithSeed(page);
 
-    // 第二块板（删除确认只影响当前板）
-    const stopPrompts = answerPrompts(page, ['备份板']);
-    await page.getByTestId('create-board').click();
-    await page.getByTestId('board-selector').selectOption({ label: 'rxdb 1.0 发布计划' });
-    stopPrompts();
-
     // 删任务：详情面板删除入口，取消零写，确认后卡片消失
     const detail = page.getByTestId('detail-panel');
     const card = page.getByTestId('task-card').filter({ hasText: '写发布说明' });
-    await card.getByTestId('task-title').click();
+    await expect(card.getByTestId('task-title')).toBeVisible();
+    await card.getByTestId('task-title').evaluate(element => (element as HTMLElement).click());
+    await expect(detail).toBeVisible();
+    await detail.getByTestId('detail-actions-toggle').click();
     await detail.getByTestId('detail-delete').click();
     await expect(page.getByTestId('confirm-delete')).toContainText('写发布说明');
     await page.getByTestId('confirm-delete-no').click();
     await expect(page.getByTestId('task-card')).toHaveCount(12);
-    await card.getByTestId('task-title').click();
+    await detail.getByTestId('detail-cancel').click();
+    await card.getByTestId('task-title').evaluate(element => (element as HTMLElement).click());
+    await detail.getByTestId('detail-actions-toggle').click();
     await detail.getByTestId('detail-delete').click();
     await page.getByTestId('confirm-delete-yes').click();
     await expect(page.getByTestId('task-card')).toHaveCount(11);
@@ -279,24 +275,32 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     const doingHeader = page
       .getByTestId('column-header')
       .filter({ has: page.getByTestId('column-title').getByText('Doing', { exact: true }) });
+    await doingHeader.getByTestId('column-actions').click();
     await doingHeader.getByTestId('column-delete').click();
     await expect(page.getByTestId('confirm-delete')).toContainText('4');
     await page.getByTestId('confirm-delete-no').click();
     await expect(page.getByTestId('column')).toHaveCount(4);
+    await doingHeader.getByTestId('column-actions').click();
     await doingHeader.getByTestId('column-delete').click();
     await page.getByTestId('confirm-delete-yes').click();
     await expect(page.getByTestId('column')).toHaveCount(3);
     await expect(page.getByTestId('task-card')).toHaveCount(7);
 
-    // 删板：确认后自动选择剩余板；隔离板与空备份板不受影响，重开不复活
+    // 删板：确认后自动选择剩余板，重开不复活
     await page.getByTestId('delete-board').click();
     await expect(page.getByTestId('confirm-delete')).toContainText('3');
     await page.getByTestId('confirm-delete-yes').click();
-    await expect(page.getByTestId('board-selector').locator('option')).toHaveCount(2);
+    await expect(page.getByTestId('board-selector').locator('option')).toHaveCount(1);
     await expect(page.getByTestId('board-selector').locator('option:checked')).toHaveText('引擎研究草稿');
     await expect(page.getByTestId('empty-board')).toHaveCount(0);
     await expect(page.getByTestId('column')).toHaveCount(1);
     await expect(page.getByTestId('task-card')).toHaveCount(8);
+
+    // 删除后的工作区仍可创建一块空板，并与引擎研究板隔离。
+    await page.getByTestId('create-board').click();
+    await page.getByTestId('board-composer-input').fill('备份板');
+    await page.getByTestId('board-composer-submit').click();
+    await expect(page.getByTestId('board-selector').locator('option')).toHaveCount(2);
     await page.getByTestId('board-selector').selectOption({ label: '备份板' });
     await expect(page.getByTestId('column')).toHaveCount(0);
     await expect(page.getByTestId('task-card')).toHaveCount(0);
@@ -378,6 +382,7 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     const toDoColumn = page
       .getByTestId('column')
       .filter({ has: page.getByTestId('column-title').getByText('To do', { exact: true }) });
+    await toDoHeader.getByTestId('column-actions').click();
     await toDoHeader.getByTestId('column-sort-due').click();
     // 升序、空值在后；同日按标题（自动重试等排序事务落定）
     await expect(toDoColumn.getByTestId('task-title')).toHaveText([

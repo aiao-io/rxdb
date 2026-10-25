@@ -675,7 +675,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const snap = await this.guard(() => this.boardRef.actions.openSnapshot(taskId));
     if (request !== this.detailRequest) return;
     this.pendingDetailTaskId = null;
-    if (!snap || boardId !== this.boardRef.currentBoardId()) return;
+    if (!snap) return;
     if (draftState !== this.detailDraftState()) return;
     this.snapshot = snap;
     this.detailTaskId.set(taskId);

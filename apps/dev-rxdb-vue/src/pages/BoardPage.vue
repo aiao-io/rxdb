@@ -7,6 +7,7 @@ import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { BoardView } from '@aiao/rxdb-plugin-board-vue';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
+import { getE2eDbName } from '@aiao/rxdb-test';
 import { firstValueFrom } from 'rxjs';
 
 /**
@@ -21,7 +22,7 @@ const error = ref<string | null>(null);
 const seedError = ref<string | null>(null);
 
 const db = new RxDB({
-  dbName: 'aiao-board',
+  dbName: getE2eDbName('aiao-board'),
   entities: [Board, Column, Task, BoardLabel, TaskLabel],
   sync: { local: { adapter: 'sqlite-wasm' }, type: SyncType.None }
 });

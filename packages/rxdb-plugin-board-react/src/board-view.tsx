@@ -559,7 +559,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     const snap = await guard(() => board.actions.openSnapshot(taskId));
     if (request !== detailRequestRef.current) return;
     pendingDetailRef.current = null;
-    if (snap === undefined || boardId !== detailStateRef.current.boardId) return;
+    if (snap === undefined) return;
     if (previousDraft !== JSON.stringify(detailStateRef.current.draft)) return;
     setSnapshot(snap);
     setDraft({

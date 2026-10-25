@@ -194,10 +194,13 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
       page
         .getByTestId('column-header')
         .filter({ has: page.getByTestId('column-title').getByText(title, { exact: true }) });
+    await columnHeader('To do').getByTestId('column-actions').click();
     await columnHeader('To do').getByTestId('column-move-back').click();
     await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Doing', 'Done', 'Ideas']);
+    await columnHeader('Ideas').getByTestId('column-actions').click();
     await columnHeader('Ideas').getByTestId('column-move-forward').click();
     await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Doing', 'Done', 'Ideas']);
+    await columnHeader('Doing').getByTestId('column-actions').click();
     await columnHeader('Doing').getByTestId('column-move-forward').click();
     await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Done', 'Doing', 'Ideas']);
 
@@ -225,6 +228,7 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     const stopPrompts = answerPrompts(page, ['我的看板', '待办', '第二块板']);
     await page.getByTestId('create-board-empty').click();
     await expect(page.getByTestId('column')).toHaveCount(0);
+    await expect(page.getByTestId('create-column')).toBeEnabled();
     await page.getByTestId('create-column').click();
     await expect(page.getByTestId('column')).toHaveCount(1);
     // 内联建任务（GitHub Projects 风格）：Esc 取消零写，Enter 提交
@@ -266,11 +270,14 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     const detail = page.getByTestId('detail-panel');
     const card = page.getByTestId('task-card').filter({ hasText: '写发布说明' });
     await card.getByTestId('task-title').click();
+    await detail.getByTestId('detail-actions-toggle').click();
     await detail.getByTestId('detail-delete').click();
     await expect(page.getByTestId('confirm-delete')).toContainText('写发布说明');
     await page.getByTestId('confirm-delete-no').click();
     await expect(page.getByTestId('task-card')).toHaveCount(12);
+    await detail.getByTestId('detail-cancel').click();
     await card.getByTestId('task-title').click();
+    await detail.getByTestId('detail-actions-toggle').click();
     await detail.getByTestId('detail-delete').click();
     await page.getByTestId('confirm-delete-yes').click();
     await expect(page.getByTestId('task-card')).toHaveCount(11);
@@ -279,10 +286,12 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     const doingHeader = page
       .getByTestId('column-header')
       .filter({ has: page.getByTestId('column-title').getByText('Doing', { exact: true }) });
+    await doingHeader.getByTestId('column-actions').click();
     await doingHeader.getByTestId('column-delete').click();
     await expect(page.getByTestId('confirm-delete')).toContainText('4');
     await page.getByTestId('confirm-delete-no').click();
     await expect(page.getByTestId('column')).toHaveCount(4);
+    await doingHeader.getByTestId('column-actions').click();
     await doingHeader.getByTestId('column-delete').click();
     await page.getByTestId('confirm-delete-yes').click();
     await expect(page.getByTestId('column')).toHaveCount(3);
@@ -378,6 +387,7 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     const toDoColumn = page
       .getByTestId('column')
       .filter({ has: page.getByTestId('column-title').getByText('To do', { exact: true }) });
+    await toDoHeader.getByTestId('column-actions').click();
     await toDoHeader.getByTestId('column-sort-due').click();
     // 升序、空值在后；同日按标题（自动重试等排序事务落定）
     await expect(toDoColumn.getByTestId('task-title')).toHaveText([

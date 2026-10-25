@@ -277,6 +277,7 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     storage.set(LAST_BOARD_KEY, boardId);
     boardId$.next(boardId);
     currentBoardId.set(boardId);
+    currentBoard.set(boards().find(board => board.id === boardId) ?? null);
   };
 
   const setRestoring = (value: boolean): void => {
@@ -289,7 +290,14 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   });
 
   const actions: UseBoardActions = {
-    createBoard: input => domain.createBoard(input),
+    createBoard: async input => {
+      const board = await domain.createBoard(input);
+      boardId$.next(board.id);
+      currentBoardId.set(board.id);
+      currentBoard.set(board);
+      storage.set(LAST_BOARD_KEY, board.id);
+      return board;
+    },
     createColumn: input => domain.createColumn(input),
     createTask: input => domain.createTask(input),
     updateBoard: (boardId, patch) => domain.updateBoard(boardId, patch),

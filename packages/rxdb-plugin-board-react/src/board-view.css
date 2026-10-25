@@ -519,6 +519,11 @@
   font-size: inherit;
 }
 
+.board-view .label-name,
+.board-view .label-delete {
+  color: inherit;
+}
+
 .label-delete {
   width: 0.85rem;
   height: 0.85rem;
@@ -567,7 +572,7 @@
 }
 
 .column {
-  flex: 0 0 min(20rem, calc(100vw - 3rem));
+  flex: 0 0 min(17rem, calc(100vw - 3rem));
   min-height: 8rem;
   overflow: hidden;
   border: 1px solid var(--board-border);

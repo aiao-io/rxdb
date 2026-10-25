@@ -5,6 +5,7 @@ import { BoardViewComponent } from '@aiao/rxdb-plugin-board-angular';
 import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
+import { getE2eDbName } from '@aiao/rxdb-test';
 import { APP_BASE_HREF } from '@angular/common';
 import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
@@ -64,7 +65,7 @@ export default class BoardPage implements OnInit {
   protected readonly pageError = signal<string | null>(null);
 
   ngOnInit(): void {
-    const dbName = 'aiao-board';
+    const dbName = getE2eDbName('aiao-board');
     const db = new RxDB({
       dbName,
       entities: [Board, Column, Task, BoardLabel, TaskLabel],

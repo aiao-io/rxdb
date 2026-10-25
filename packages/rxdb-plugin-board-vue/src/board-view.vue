@@ -418,7 +418,7 @@ const openDetail = async (taskId: UUID): Promise<void> => {
   const snap = await guard(() => board.actions.openSnapshot(taskId));
   if (request !== detailRequest) return;
   pendingDetailTaskId = null;
-  if (!snap || board.currentBoardId.value !== boardId) return;
+  if (!snap) return;
   if (JSON.stringify(draft.value) !== previousDraft) return;
   snapshot.value = snap;
   draft.value = {

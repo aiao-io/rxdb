@@ -6,6 +6,7 @@ import '@aiao/rxdb-plugin-board-react/board-view.css';
 import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
+import { getE2eDbName } from '@aiao/rxdb-test';
 import { useEffect, useState } from 'react';
 import { firstValueFrom } from 'rxjs';
 import './board-page.css';
@@ -23,7 +24,7 @@ export default function BoardPage() {
   useEffect(() => {
     let disposed = false;
     const db = new RxDB({
-      dbName: 'aiao-board',
+      dbName: getE2eDbName('aiao-board'),
       entities: [Board, Column, Task, BoardLabel, TaskLabel],
       sync: { local: { adapter: 'sqlite-wasm' }, type: SyncType.None }
     });

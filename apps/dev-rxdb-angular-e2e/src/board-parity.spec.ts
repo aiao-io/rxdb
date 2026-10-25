@@ -63,6 +63,7 @@ test.describe('看板对拍（US-539 AC#1～3）', () => {
     await page.getByTestId('seed-demo').click();
     await expect(page.getByTestId('column')).toHaveCount(4);
     await expect(page.getByTestId('task-card')).toHaveCount(12);
+    await expect(page.getByTestId('card-label').first()).toBeVisible();
     const seedSnapshot = await collectBoardSnapshot(page);
 
     // 同一组真实拖拽：把「修复登录 bug」拖到 Doing 的「树拖拽落点修复」之上，刷新读回
