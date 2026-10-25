@@ -6,6 +6,7 @@ import {
   RxDBBranch,
   RxDBChange,
   RxDBEntityLocalUpdatedEventData,
+  RxDBError,
   SwitchBranchOptions,
   WorktreeBranchHeldError,
   WorktreeTableSet
@@ -255,14 +256,19 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
   // 本实例挂的那套表：增量落在它里面，切分支时主检出位熄灭、点亮那一行，可写检出位放开、持有自己的键（US-314 B2.2）
   const tableSet = adapter.tableSet;
 
-  const switchAction = actions && (await convertSwitchResultToSql(adapter, actions));
+  let switchAction: Awaited<ReturnType<typeof convertSwitchResultToSql>> | undefined;
   const branchSwitchResults: SqliteSuccessResult[] = [];
   let targetBranchId = branchId;
   // 前置校验被拒是一条日常路径，不是适配器故障；下面的 catch 靠它决定包不包。
-  let prepareRejected = false;
+  let preflightRejected = false;
   try {
     // switch_branch 自己管理触发器和变更日志，因此跳过事务日志记录。
     await adapter.transaction(async tx => {
+      if (tx.tableSet.suffix !== tableSet.suffix) {
+        preflightRejected = true;
+        throw new RxDBError('切分支排队期间表集已改变，请重新发起切换');
+      }
+      const sink = (tx as SqliteTransactionExecutor).adapter;
       // 省略 branchId = 「作用于当前激活分支」，必须在本事务内解析：在事务外采样再传进来，
       // 采样与提交之间的一次真实切换会让这条调用把 activated 与全部触发器倒回旧分支。
       targetBranchId ??= await read_current_branch_id(tx, tableSet);
@@ -273,11 +279,17 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
       // 窗口里的一次写能让刚判过的「工作树干净」变成假的，而切换照样完成。
       // 抛出即整次回滚——此刻一行都还没动，连触发器都还在。
       await prepare({ executor: tx, targetBranchId }).catch((error: unknown) => {
-        prepareRejected = true;
+        preflightRejected = true;
         throw error;
       });
+      switchAction =
+        actions &&
+        (await convertSwitchResultToSql(sink, actions).catch((error: unknown) => {
+          preflightRejected = true;
+          throw error;
+        }));
       // 移除所有表触发器，避免触发器在批量操作时干扰数据
-      const remove_all_triggers = remove_all_triggers_sql(adapter, tableSet);
+      const remove_all_triggers = remove_all_triggers_sql(sink, tx.tableSet);
       if (remove_all_triggers) {
         await tx.execute(remove_all_triggers);
       }
@@ -297,7 +309,7 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
       // 留在当前分支（撤销 / 重做、重做栈失效）只重挂本实例这套表的触发器，不写分支表：从前也照跑熄灭 + 点亮，
       // 点亮那条的 RETURNING 行还派出一条「activated 翻转了」的假事件（US-314 B1.3）。
       if (branchId === undefined) {
-        const rebuildTriggers = generate_table_set_trigger_sql(adapter, tableSet, targetBranchId);
+        const rebuildTriggers = generate_table_set_trigger_sql(sink, tx.tableSet, targetBranchId);
         if (rebuildTriggers) await tx.execute(rebuildTriggers);
         return;
       }
@@ -310,10 +322,10 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
       // {@link generateSwitchBranchStatements}）。这里两侧的行都要用来派发事件。
       // 可写检出位那一支只动自己的持有键（US-314 B2.2）。
       if (!tableSet.isMain) {
-        branchSwitchResults.push(...(await switchCheckoutBranch(tx, adapter, tableSet, targetBranchId)));
+        branchSwitchResults.push(...(await switchCheckoutBranch(tx, sink, tx.tableSet, targetBranchId)));
         return;
       }
-      for (const statement of generateSwitchBranchStatements(adapter, targetBranchId)) {
+      for (const statement of generateSwitchBranchStatements(sink, targetBranchId)) {
         const executed = await tx.execute(statement);
         if (executed) branchSwitchResults.push(executed);
       }
@@ -334,7 +346,7 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
     // 包进 RxDBAdapterSqliteError 会把类型抹平成「适配器出错」，`instanceof WorkingTreeDirtyError`
     // 这类判断随之全部失效——而这条路径上一行都没动过，本来就不是适配器的故障。
     // 目标分支被可写检出位持有同理。
-    if (prepareRejected || error instanceof WorktreeBranchHeldError) throw error;
+    if (preflightRejected || error instanceof WorktreeBranchHeldError) throw error;
     throw new RxDBAdapterSqliteError(`switch branch ${targetBranchId ?? '<current>'} failed`, { cause: error });
   }
 };

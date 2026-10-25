@@ -436,3 +436,82 @@ describe('WorktreeManager.prune：可写检出位', () => {
     expect(await manager.prune()).toEqual([]);
   });
 });
+
+describe('销毁时收尾可写检出位', () => {
+  it('停止时也中止仍在等待本地适配器的命令', async () => {
+    const database = new RxDB({
+      dbName: `pending-checkout-${uuid()}`,
+      entities: [WritableNote],
+      multiInstance: false,
+      sync: { local: { adapter: 'mock' }, type: SyncType.None }
+    });
+    database.adapter('mock', db => createMockAdapter(db));
+    database.use(rxDBPluginWorkingTree);
+    databases.push(database);
+    let settled = false;
+    const adding = database.workingTree.checkouts.add('feature').catch(() => {
+      settled = true;
+    });
+    await vi.waitFor(async () => {
+      const locks = await navigator.locks.query();
+      expect(locks.held?.some(lock => lock.name?.startsWith(`rxdb-worktree:${database.config.dbName}:`))).toBe(true);
+    });
+    database.workingTree.checkouts.stop();
+    try {
+      await vi.waitFor(() => expect(settled).toBe(true));
+    } finally {
+      if (!settled) database.init();
+      await adding;
+      await database.destroy();
+    }
+    const locks = await navigator.locks.query();
+    expect(locks.held?.some(lock => lock.name?.startsWith(`rxdb-worktree:${database.config.dbName}:`))).toBe(false);
+  });
+
+  it('停止新命令后归还全部认领锁，不删除持久检出位', async () => {
+    branches.push({ id: 'second', activated: false, activeKey: null });
+    const manager = managerOf();
+    const first = await manager.add('feature');
+    const second = await manager.add('second');
+    expect(await isLocked(first.id)).toBe(true);
+    expect(await isLocked(second.id)).toBe(true);
+
+    manager.stop();
+    await expect(manager.add('feature')).rejects.toThrow('已销毁');
+    await expect(manager.mountMain()).rejects.toThrow('已销毁');
+    await expect(manager.list()).rejects.toThrow('已销毁');
+    await manager.dispose();
+    await manager.dispose();
+
+    expect(await isLocked(first.id)).toBe(false);
+    expect(await isLocked(second.id)).toBe(false);
+    expect(rows.map(row => row.id)).toEqual([first.id, second.id]);
+    expect(dropWorktreeTableSet).not.toHaveBeenCalled();
+  });
+
+  it('取消排队命令，等已执行的新增完成后再归还其认领锁', async () => {
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    createWorktreeTableSet.mockImplementationOnce(async () => {
+      entered.resolve();
+      await release.promise;
+    });
+    const manager = managerOf();
+    const adding = manager.add('feature');
+    await entered.promise;
+    const queued = expect(manager.add('second')).rejects.toThrow('Task cancelled');
+    manager.stop();
+    let disposed = false;
+    const disposing = manager.dispose().then(() => {
+      disposed = true;
+    });
+    await queued;
+    expect(disposed).toBe(false);
+
+    release.resolve();
+    const record = await adding;
+    await disposing;
+    expect(await isLocked(record.id)).toBe(false);
+    expect(rows).toHaveLength(1);
+  });
+});

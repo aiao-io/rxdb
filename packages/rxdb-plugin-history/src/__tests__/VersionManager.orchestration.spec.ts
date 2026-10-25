@@ -10,7 +10,7 @@ import { ENTITY_LOCAL_CREATE_EVENT, RxDB, RxDBBranch, RxDBChange, WorktreeTableS
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { VersionManager } from '../VersionManager.js';
-import { createSwitchBranchStub } from './fixtures/transaction-executor-stub.js';
+import { createSwitchBranchStub, createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
 type DetachedOperation = () => Promise<unknown>;
 type EventListener = (event: unknown) => void;
@@ -439,6 +439,7 @@ describe('VersionManager 对协作模块的编排契约', () => {
     });
     const actions = { inserts: new Map(), updates: new Map(), deletes: new Map() };
     vi.spyOn(harness.manager, 'getCurrentBranch').mockResolvedValue(currentBranch);
+    harness.localBranchRepository.find.mockResolvedValue([currentBranch]);
     doubles.delegates.switchBranchActions.mockResolvedValue(actions);
 
     await harness.manager.switchBranch('feature');
@@ -478,6 +479,38 @@ describe('VersionManager 对协作模块的编排契约', () => {
 
     await expect(harness.manager.switchBranch('committed-then-boom')).rejects.toThrow('clearRedoStack failed');
     expect(harness.dispatchEvent.mock.calls.map(([event]) => event.type)).not.toContain('SWITCH_BRANCH_ROLLBACK');
+  });
+
+  it.each(['tableSet', 'branch'] as const)('计算增量期间 %s 改变时，拒绝旧计划', async changed => {
+    const harness = createHarness();
+    const currentBranch = { id: 'main' } as RxDBBranch;
+    vi.spyOn(harness.manager, 'getCurrentBranch').mockResolvedValue(currentBranch);
+    harness.localBranchRepository.find.mockResolvedValue([currentBranch]);
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    doubles.delegates.switchBranchActions.mockImplementationOnce(async () => {
+      entered.resolve();
+      await release.promise;
+      return { inserts: new Map(), updates: new Map(), deletes: new Map() };
+    });
+    const switching = harness.manager.switchBranch('target');
+    await entered.promise;
+    const tableSet = changed === 'tableSet' ? WorktreeTableSet.of('wt_planned', []) : WorktreeTableSet.MAIN;
+    Object.assign(harness.rxdb, { worktreeTableSet: tableSet });
+    if (changed === 'branch') harness.localBranchRepository.find.mockResolvedValue([{ id: 'other' }]);
+    let applied = false;
+    harness.localAdapter.switchBranch.mockImplementationOnce(async ({ prepare }) => {
+      const executor = createTransactionExecutorStub({ getRepository: harness.localAdapter.getRepository });
+      Object.assign(executor, { tableSet });
+      await prepare({ executor, targetBranchId: 'target' });
+      applied = true;
+    });
+    release.resolve();
+
+    await expect(switching).rejects.toThrow(changed === 'tableSet' ? '表集已改变' : '当前分支已改变');
+    expect(applied).toBe(false);
+    expect(doubles.history.setUndoBranch).not.toHaveBeenCalled();
+    expect(harness.dispatchEvent.mock.calls.at(-1)?.[0].type).toBe('SWITCH_BRANCH_ROLLBACK');
   });
 
   it('skips switching when the requested branch is already active', async () => {

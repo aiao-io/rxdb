@@ -512,7 +512,7 @@ describe('VersionManager', () => {
           { id: 'main', activated: true },
           { id: 'feature', activated: false }
         ])
-        .mockResolvedValue([]);
+        .mockResolvedValue([{ id: 'main', activated: true }]);
       mockChangeRepository.find.mockResolvedValue([]);
     };
 
@@ -526,16 +526,7 @@ describe('VersionManager', () => {
     });
 
     it('should dispatch events during branch switch', async () => {
-      mockBranchRepository.find
-        .mockResolvedValueOnce([{ id: 'main', activated: true }])
-        .mockResolvedValueOnce([{ id: 'main', activated: true }])
-        .mockResolvedValueOnce([
-          { id: 'main', activated: true },
-          { id: 'feature', activated: false }
-        ])
-        .mockResolvedValue([]);
-
-      mockChangeRepository.find.mockResolvedValue([]);
+      stubMainToFeature();
 
       await versionManager.switchBranch('feature');
 
@@ -551,16 +542,7 @@ describe('VersionManager', () => {
     });
 
     it('should clear redo stack after switching', async () => {
-      mockBranchRepository.find
-        .mockResolvedValueOnce([{ id: 'main', activated: true }])
-        .mockResolvedValueOnce([{ id: 'main', activated: true }])
-        .mockResolvedValueOnce([
-          { id: 'main', activated: true },
-          { id: 'feature', activated: false }
-        ])
-        .mockResolvedValue([]);
-
-      mockChangeRepository.find.mockResolvedValue([]);
+      stubMainToFeature();
 
       const clearSpy = vi.spyOn(historyManagerForTest, 'clearRedoStack');
 

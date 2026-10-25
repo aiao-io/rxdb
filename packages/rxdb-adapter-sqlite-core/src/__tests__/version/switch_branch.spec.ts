@@ -95,7 +95,8 @@ const createSwitchAdapter = (options: SwitchAdapterOptions = {}) => {
 
   const adapter = {
     tableSet: WorktreeTableSet.MAIN,
-    transaction: async (run: (tx: SqliteClientLike) => Promise<unknown>) => run(client),
+    transaction: async (run: (tx: SqliteClientLike) => Promise<unknown>) =>
+      run(Object.assign(client, { tableSet: adapter.tableSet, adapter })),
     encryptionContext: { keyring: null, namespace: 'switch-branch-test' },
     cacheRowIdEntity: () => undefined,
     rxdb: {
@@ -207,11 +208,12 @@ describe('generateSwitchBranchSql', () => {
  */
 const switchOptions = (branchId: string): SwitchBranchOptions & { prepare: Mock<SwitchBranchOptions['prepare']> } => ({
   branchId,
+  actions: { inserts: new Map(), updates: new Map(), deletes: new Map() },
   prepare: vi.fn(async () => undefined)
 });
 
 describe('switch_branch', () => {
-  it('无 actions 时应移除触发器并执行分支切换', async () => {
+  it('空 actions 时应移除触发器并执行分支切换', async () => {
     const { adapter, calls, dispatched } = createSwitchAdapter();
 
     const options = switchOptions('main');

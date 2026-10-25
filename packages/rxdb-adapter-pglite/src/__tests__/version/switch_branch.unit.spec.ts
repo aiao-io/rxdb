@@ -63,7 +63,9 @@ const makeAdapter = (overrides: Record<string, unknown> = {}): MockAdapter => {
   const adapter: MockAdapter = {
     query,
     tableSet: WorktreeTableSet.MAIN,
-    transaction: vi.fn((fn: (executor: { adapter: unknown }) => Promise<unknown>) => fn({ adapter })),
+    transaction: vi.fn((fn: (executor: { adapter: unknown; tableSet: unknown }) => Promise<unknown>) =>
+      fn({ adapter, tableSet: adapter.tableSet })
+    ),
     setRxDBChangeSequence: vi.fn(),
     encryptionContext: { resolveEntityMetadata: vi.fn() },
     rxdb: {

@@ -17,7 +17,7 @@
 import type { LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { assertUsableBranchId, RxDBChange, RxDBError } from '@aiao/rxdb';
 import { assert_branch_id_free_on_remote, write_new_branch } from '@aiao/rxdb-plugin-history';
-import { firstValueFrom, Subject, type Observable } from 'rxjs';
+import { firstValueFrom, fromEvent, Subject, takeUntil, type Observable } from 'rxjs';
 import { WORKING_TREE_CAPABILITY } from '../capability-identity.js';
 import { WorktreeManager } from '../checkout/worktree-manager.js';
 import type { WorktreeOptions } from '../checkout/worktree-options.js';
@@ -178,7 +178,7 @@ export class WorkingTreeManager {
    */
   constructor(rxdb: RxDB, worktrees?: WorktreeOptions) {
     this.#rxdb = rxdb;
-    this.checkouts = new WorktreeManager(rxdb, run => this.runEnabled(run), worktrees);
+    this.checkouts = new WorktreeManager(rxdb, (run, signal) => this.runEnabled(run, signal), worktrees);
   }
 
   /**
@@ -567,9 +567,17 @@ export class WorkingTreeManager {
    * 少写形参的回调在 TS 里仍然可赋值，不需要它的成员一个字都不用改。
    */
   protected async runEnabled<T>(
-    run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
+    run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>,
+    signal?: AbortSignal
   ): Promise<T> {
-    const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
+    signal?.throwIfAborted();
+    const adapters =
+      signal ? this.#rxdb.localAdapter$.pipe(takeUntil(fromEvent(signal, 'abort'))) : this.#rxdb.localAdapter$;
+    const adapter = await firstValueFrom(adapters).catch((error: unknown) => {
+      signal?.throwIfAborted();
+      throw error;
+    });
+    signal?.throwIfAborted();
     const result = await this.#runEnabledOnce(adapter, run);
     // 事务已提交，这里才自愈——理由与 `enable()` 那一句完全相同：装在事务里的话，
     // 捕获会立刻开始拦截这同一个事务余下的写。

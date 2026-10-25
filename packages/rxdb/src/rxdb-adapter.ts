@@ -8,6 +8,7 @@ import type { EntityMetadata } from './entity/metadata.interface.js';
 import type { RuleGroup } from './repository/query.interface.js';
 import { IRepository } from './repository/repository.interface.js';
 import type { Repository } from './repository/Repository.js';
+import { settleRepositoryTransaction, transactionalRepository } from './repository/transactional-repository.js';
 import { RxDB } from './RxDB.js';
 import { SwitchVersionActions } from './sync-contract/VersionManager.interface.js';
 import { RxDBChange } from './system/change.js';
@@ -925,6 +926,16 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    * ```
    */
   abstract deleteByIds(entityName: string, ids: string[]): Observable<void>;
+
+  /** 提交或回滚公开仓库的实体状态，必须在交还事务队列之前调用。 */
+  protected settleRepositoryTransaction(executor: TransactionExecutor, committed: boolean): void {
+    settleRepositoryTransaction(executor, committed);
+  }
+
+  /** 将公开仓库的整次操作放进事务，执行器创建仓库时不调用本方法。 */
+  protected transactionalRepository<T extends EntityType, R extends object>(EntityType: T, repository: R): R {
+    return transactionalRepository(this, EntityType, repository);
+  }
 }
 
 /**

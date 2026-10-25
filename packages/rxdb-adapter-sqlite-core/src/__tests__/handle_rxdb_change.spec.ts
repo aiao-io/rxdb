@@ -7,6 +7,7 @@ import {
   type EntityType,
   type EntityUpdateData,
   getEntityStatus,
+  type IRepository,
   PropertyType,
   RxDB,
   RxDBBranch,
@@ -39,6 +40,11 @@ class ChangeTestAdapter extends RxDBAdapterSqliteBase {
     }
   ) {
     super(rxdb);
+  }
+
+  /** 事件映射单测不创建连接，仓库直接绑定查询桩；事务边界由真实适配器套件验证。 */
+  override getRepository<T extends EntityType, RT = IRepository<T>>(EntityType: T): RT {
+    return this.createUncachedRepository(EntityType, this) as RT;
   }
 
   override query(sql: string, params?: SQLiteCompatibleType[]): Promise<SqliteSuccessResult> {

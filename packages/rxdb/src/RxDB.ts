@@ -1293,6 +1293,7 @@ export class RxDB {
       // 适配器连着时它根本不跑，名字原样留在 subject 里，去重环节于是看不到任何变化——
       // 重连建出的新实例永远推不到仍在订阅的调用方手上（它们还指着已断开的旧实例）。
       this.#retract_adapter_name(adapterName);
+      if (isLocalAdapter(adapterName, this.#config)) this.#reset_worktree_table_set();
     }
   }
 
@@ -1384,7 +1385,10 @@ export class RxDB {
       firstError = error;
     }
     try {
-      await Promise.all(adapters.map(adapter => adapter.disconnect()));
+      const results = await Promise.allSettled(adapters.map(adapter => adapter.disconnect()));
+      for (const result of results) {
+        if (result.status === 'rejected') firstError ??= result.reason;
+      }
     } catch (error) {
       firstError ??= error;
     } finally {
@@ -1392,6 +1396,7 @@ export class RxDB {
       this.#adapter_map.clear();
       this.#connect_promise_map.clear();
       this.#clear_adapter_connected();
+      this.#reset_worktree_table_set();
     }
     if (firstError !== undefined) throw firstError;
   }
@@ -1423,19 +1428,29 @@ export class RxDB {
     // 先于 await 置位：拆卸期间进来的 connect() 直接被 init() 的终态判据挡掉，
     // 否则它会在 disconnectAll() 之后醒来，把刚清空的已连接集合重新填上。
     this.#destroyed = true;
+    const lifecycles = [...this.#plugin_map.values()].flatMap(plugin =>
+      plugin.instanceLifecycle ? [plugin.instanceLifecycle] : []
+    );
+    let firstError: unknown;
+    for (const lifecycle of lifecycles) {
+      try {
+        lifecycle.stop();
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
     try {
       await this.disconnectAll();
-    } finally {
-      // 适配器关不干净也要释放实例级资源：`#destroyed` 已经置位，本方法幂等早退，
-      // 这个实例不会有第二次 destroy() 来补救。漏掉就等于让 reachability 的退避定时器
-      // 和两条长活 subject 永远吊着——偏偏「关闭失败」正是最该把它们放掉的那条路径。
-      // 错误照常向上抛，调用方仍然知道适配器没关干净。
-      //
-      // 顺序：syncState 订阅着 reachability.online$，先断下游再销毁上游，
-      // 中间那一下 complete 才不会被当成一帧状态推给面板。
-      this.syncState.destroy();
-      this.reachability.destroy();
+    } catch (error) {
+      firstError ??= error;
     }
+    const results = await Promise.allSettled(lifecycles.map(async lifecycle => lifecycle.dispose()));
+    for (const result of results) {
+      if (result.status === 'rejected') firstError ??= result.reason;
+    }
+    this.syncState.destroy();
+    this.reachability.destroy();
+    if (firstError !== undefined) throw firstError;
   }
 
   /**
@@ -1699,6 +1714,12 @@ export class RxDB {
     return this.#connected_adapter_instances.get(adapterName);
   }
 
+  #reset_worktree_table_set(): void {
+    this.#worktree_table_set = WorktreeTableSet.MAIN;
+    this.entityManager.resetForWorktreeTableSet();
+    this.#worktree_table_set$.next(WorktreeTableSet.MAIN);
+  }
+
   /**
    * 全局拆卸：销毁插件与网关，并把实例复位到「可重新 init」的状态。
    * 仅在所有适配器都已断开时调用。
@@ -1741,8 +1762,6 @@ export class RxDB {
     this.#local_adapter_sub.next('');
     this.#remote_adapter_sub.next('');
     this.#transaction_stack = [];
-    this.#worktree_table_set = WorktreeTableSet.MAIN;
-    this.#worktree_table_set$.next(WorktreeTableSet.MAIN);
     // 复位放在同步收尾段的最后，而不是随 #release_connection_scope() 一起：上面每个 await
     // 都是一次让路，此刻仍有别的 connect() 卡在自己的引导链里、还没走到 #await_plugin_installs()。
     // 提前抹掉安装记录，那个 connect() 醒来时会发现无事可等——一次本该带着安装错误失败的

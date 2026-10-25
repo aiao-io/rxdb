@@ -228,6 +228,12 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
   /** 已迁移到作用域拆卸，宿主不再调用 `destroy()`。 */
   readonly lifecycle = 'scoped' as const;
 
+  /** 认领锁跨连接保留，实例销毁时等本地事务退出后归还。 */
+  readonly instanceLifecycle = {
+    stop: (): void => this.rxdb.workingTree.checkouts.stop(),
+    dispose: (): Promise<void> => this.rxdb.workingTree.checkouts.dispose()
+  };
+
   /** RxDB 插件唯一名称。 */
   readonly name = WORKING_TREE_CAPABILITY;
 
@@ -250,7 +256,7 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
    * 那一刻起就在，早于 `init()` / `connect()`。`install()` 跑在 `init()` 内部，用它挂就会让
    * 「入口存不存在」变成连接纪元的函数——而 contracts/core-api.md §1 要它是**进程内库版本**
    * 的属性。{@link WorkingTreeManager} 自己不持有任何纪元资源（适配器每次调用现取），
-   * 所以也没有对称的拆卸义务。
+   * 连接期不拆卸入口；检出位认领锁由 `instanceLifecycle` 在实例销毁时统一归还。
    *
    * `configurable: false` / `writable: false`：`status$()` 一类订阅依赖入口的**稳定身份**，
    * 可重定义的属性允许第二个插件实例在订阅者背后把它换掉。同一实例上已经挂过就直接返回，

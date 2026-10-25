@@ -735,7 +735,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       if (!RepositoryClass) {
         throw new RxDBAdapterSqliteError(`Repository '${meta.repository}' not found`);
       }
-      const repository = new RepositoryClass(this, EntityType);
+      const repository = this.transactionalRepository(EntityType, new RepositoryClass(this, EntityType));
       this.repository_cache.set(EntityType, repository);
       return repository as RT;
     }
@@ -2117,6 +2117,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       // executor 必须自持状态并在这里翻成终态：逃逸出事务体后再使用它要能立刻抛错，
       // 而不是静默落到一个已提交/已回滚的连接上继续写。
       executor?.settle(committed ? 'committed' : 'rolled-back');
+      if (executor) this.settleRepositoryTransaction(executor, committed);
     }
   }
 

@@ -60,6 +60,7 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    * @private
    */
   #changed_keys = new Set<keyof InstanceType<T>>();
+  readonly #checkpoints = new Set<Map<keyof InstanceType<T>, unknown>>();
 
   /**
    * reset/replace 各自递增的代数
@@ -346,9 +347,48 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    * 记录属性变更
    * 在 Proxy set 拦截时调用，同步记录哪些属性被修改
    * @param key - 被修改的属性键
+   * @param value - 本次编辑值；在数据库回填覆盖字段前保留
    */
-  markChanged(key: keyof InstanceType<T>) {
+  markChanged(key: keyof InstanceType<T>, value: unknown = this.target[key]) {
     this.#changed_keys.add(key);
+    for (const edits of this.#checkpoints) edits.set(key, value);
+  }
+
+  /**
+   * 保存事务写入前的状态，回滚时恢复基线并保留等待期间的本地编辑。
+   *
+   * @returns 接收提交结果的收尾函数；重复调用无副作用
+   * @internal
+   */
+  checkpoint(): (committed: boolean) => void {
+    const target = structuredClone({ ...this.target });
+    const origin = structuredClone(this._origin);
+    const changedKeys = new Set(this.#changed_keys);
+    const patches = [...this._patches];
+    const flags = { local: this._local, remote: this._remote, modified: this._modified, removed: this._removed };
+    const edits = new Map<keyof InstanceType<T>, unknown>();
+    this.#checkpoints.add(edits);
+    return committed => {
+      if (!this.#checkpoints.delete(edits) || committed) return;
+      const pending = Object.fromEntries(edits);
+      const previousId = this.target.id;
+      for (const key of Object.keys(this.target)) {
+        if (!(key in target)) Reflect.deleteProperty(this.target, key);
+      }
+      Object.assign(this.target, target, pending);
+      this._origin = origin;
+      this._local = flags.local;
+      this._remote = flags.remote;
+      this._removed = flags.removed;
+      this.#changed_keys = new Set([...changedKeys, ...edits.keys()]);
+      this.#clear_cache(true);
+      this._modified = flags.modified || Object.keys(this.patch).length > 0;
+      this._patches = patches;
+      this.#generation++;
+      this.rxdb.entityManager.reindexEntityCache(this.proxyTarget, previousId);
+      this.#relations.syncObservableForeignKeys();
+      this.#patches.next(this._patches);
+    };
   }
 
   /**

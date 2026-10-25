@@ -616,6 +616,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
         try {
           await this.#drainPendingChangeHandlers();
         } finally {
+          await this.#queue.waitForAll();
           await client.disconnect();
         }
       }
@@ -680,19 +681,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
 
   public getRepository<T extends EntityType, RT = IRepository<T>>(entity: T): RT {
     if (!this.#repository_cache.has(entity)) {
-      const meta = getEntityMetadata(entity);
-      let repository: IRepository<T>;
-      // 根据元数据中的仓库类型创建相应的仓库实例
-      switch (meta.repository) {
-        case 'Repository':
-          repository = new PGliteRepository<T>(this, entity);
-          break;
-        case 'TreeRepository':
-          repository = new PGliteTreeRepository<T>(this, entity);
-          break;
-        default:
-          throw new RxdbAdapterPGliteError('Unsupported repository type: ' + meta.repository);
-      }
+      const repository = this.transactionalRepository(entity, this.createUncachedRepository(entity, this));
       this.#repository_cache.set(entity, repository);
       return repository as unknown as RT;
     }
@@ -1081,9 +1070,11 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       // executor 自持状态：**绝不**从驱动的 tx.closed 派生 —— 该标志在失败路径上不翻转，
       // 逃逸出去的 tx 仍会以 autocommit 执行写入。
       executor?.settle('committed');
+      if (executor) this.settleRepositoryTransaction(executor, true);
       return result;
     } catch (error) {
       executor?.settle('rolled-back');
+      if (executor) this.settleRepositoryTransaction(executor, false);
       throw error;
     }
   }

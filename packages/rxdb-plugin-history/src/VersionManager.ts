@@ -313,6 +313,7 @@ export class VersionManager {
    * 反方向（本包 import 那个插件）是条依赖环，nx 的图插件会把 `run-many` 当场拒掉。
    */
   async switchBranch(branchId: string, preconditions?: RxDBBranchSwitchPreconditions): Promise<void> {
+    const tableSet = this.rxdb.worktreeTableSet;
     const currentBranch = await this.getCurrentBranch();
     // 若切换到相同分支则直接返回，避免不必要操作
     if (currentBranch?.id === branchId) {
@@ -337,7 +338,6 @@ export class VersionManager {
       const { adapter } = await this.getLocalRepositories();
       // 挂在可写检出位上时，增量从那套表持有的分支算起（主检出位上缺省就是激活的那一条，照旧不传），
       // 并只留这套表的成员：记日志却不进影子表的实体落回主表，照套会改主检出位的表（US-314 B2.2）
-      const tableSet = this.rxdb.worktreeTableSet;
       const actions = keep_table_set_actions(
         this.rxdb,
         await switch_branch_actions(this, branchId, tableSet.isMain ? undefined : currentBranch?.id),
@@ -359,6 +359,13 @@ export class VersionManager {
         // 适配器解析出来的那一个而不是这里的 `branchId`：省略分支的调用点上只有它是对的。
         prepare: async ({ executor, targetBranchId }) => {
           prepared = true;
+          if (executor.tableSet.suffix !== tableSet.suffix) {
+            throw new RxDBError('计算切分支增量期间表集已改变，请重新发起切换');
+          }
+          const [held] = await executor.getRepository(RxDBBranch).find({ where: tableSet.heldBranchWhere, limit: 1 });
+          if ((held?.id ?? null) !== (currentBranch?.id ?? null)) {
+            throw new RxDBError('计算切分支增量期间当前分支已改变，请重新发起切换');
+          }
           await this.#prepare_branch_switch(executor, currentBranch?.id ?? null, targetBranchId, preconditions);
         }
       });

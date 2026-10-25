@@ -91,6 +91,19 @@ export interface IRxDBPlugin {
    */
   readonly lifecycle?: 'scoped';
 
+  /**
+   * 跟随实例的资源，只在 `RxDB.destroy()` 时收尾，普通断连不调用。
+   *
+   * `stop` 同步拒绝新任务；`dispose` 在全部适配器断连、在飞事务退出之后释放资源。
+   * 两步均需幂等；一处失败不阻止其余插件收尾。
+   */
+  readonly instanceLifecycle?: {
+    /** 停止接收任务，不等待在飞事务。 */
+    stop(): void;
+    /** 适配器停止后释放实例资源。 */
+    dispose(): void | Promise<void>;
+  };
+
   /** 插件名，用于日志与宿主侧的错误归因 */
   name: Uncapitalize<string>;
 

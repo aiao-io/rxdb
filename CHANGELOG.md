@@ -48,6 +48,12 @@
 
 ### 🩹 Fixes
 
+- **rxdb / rxdb-adapter-pglite / -sqlite-core:** 公开仓库写入在 COMMIT 失败时恢复实体状态、变更基线与身份缓存，并保留等待期间的本地编辑，修复延迟外键失败后重试漏写。
+- **rxdb-plugin-history / rxdb-adapter-pglite / -sqlite-core:** 切分支在事务内生成 SQL，并拒绝计算增量或排队期间已改变表集、当前分支的旧计划，防止切换可写检出位时误改主检出位。
+- **rxdb / rxdb-plugin-working-tree:** `destroy()` 先停止检出位命令，等适配器退出在飞事务后释放全部可写检出位认领锁；普通断连继续保留认领。
+
+- **rxdb / rxdb-adapter-pglite / rxdb-adapter-sqlite-core:** 公开仓库的 SQL 生成、表集校验和实体回填共用事务，换挂排队期间的单条写入拒绝旧实体，查询只读取并回填当前表集。断连等待连接关闭后再复位挂载，并清掉事务收尾期间回填的实体，避免影子事务改写主表。
+
 - **Angular demo:** 文件管理页销毁时取消全部延时滚动任务，并拒收销毁后到达的请求，避免回调在页面卸载后访问 document。
 
 - **rxdb-adapter-sqlite-core / -wa-sqlite / -sqlite-wasm:** SharedWorker 传输下多个标签页共用 worker 里那一个客户端：事务按库名在一把跨标签页的 Web Lock 里排队，不再落进别的标签页开着的事务（此前另一个标签页的 `BEGIN` 当场报「事务里不能再开事务」，普通语句随别人的事务一起提交或回滚）；拿到锁先回滚死在事务中间的标签页留下的事务；一个标签页断开只交还自己那一份、只摘自己的监听，不再把别的标签页还在用的连接关掉，最后一个断开时才关库、之后还能再连。客户端新增 `release(owner)` / `rollbackOrphanTransaction()`，`init()` 与 `addEventListener()` 多了可选的持有者键；SharedWorker 传输需要 Web Locks（US-314）

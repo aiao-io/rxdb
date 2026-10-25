@@ -1,7 +1,8 @@
 import {
-  ENTITY_LOCAL_UPDATE_EVENT,
   Entity,
+  ENTITY_LOCAL_UPDATE_EVENT,
   EntityBase,
+  getEntityStatus,
   PropertyType,
   RxDB,
   RxDBBranch,
@@ -11,7 +12,7 @@ import {
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { Todo } from '@aiao/rxdb-test/entities';
-import { firstValueFrom } from 'rxjs';
+import { filter, firstValueFrom } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { handle_rxdb_change } from '../handle_rxdb_change.js';
 import { PGliteChangeType } from '../pglite.interface.js';
@@ -88,12 +89,27 @@ describe('检出位的并发写与连接隔离', () => {
     expect(saved).toMatchObject({ status: 'rejected', reason: expect.any(WorktreeTableSetMismatchError) });
   };
 
-  it.each(['saveMany', 'removeMany'] as const)('换挂排队期间的 %s 拒绝旧实体，影子表原样', async operation => {
-    todo.title = 'main-edit';
-    await rejectWriteAfterMount(() => rxdb.entityManager[operation]([todo]));
-    const result = await adapter.internalQuery<{ title: string }>('SELECT "title" FROM "public$wt_isolation"."todos"');
-    expect(result.rows.map(row => row.title)).toEqual(['original']);
-  });
+  it.each(['save', 'remove', 'create', 'saveMany', 'removeMany'] as const)(
+    '换挂排队期间的 %s 拒绝旧实体，影子表原样',
+    async operation => {
+      todo.title = 'main-edit';
+      const draft = new Todo({ title: 'draft' });
+      const writes = {
+        save: () => todo.save(),
+        remove: () => todo.remove(),
+        create: () => draft.save(),
+        saveMany: () => rxdb.entityManager.saveMany([todo]),
+        removeMany: () => rxdb.entityManager.removeMany([todo])
+      };
+      await rejectWriteAfterMount(writes[operation]);
+      const main = await adapter.internalQuery<{ title: string }>('SELECT "title" FROM "public"."todos"');
+      expect(main.rows).toEqual([{ title: 'original' }]);
+      const result = await adapter.internalQuery<{ title: string }>(
+        'SELECT "title" FROM "public$wt_isolation"."todos"'
+      );
+      expect(result.rows.map(row => row.title)).toEqual(['original']);
+    }
+  );
 
   it.each(['save', 'saveMany'] as const)('缺排序键的 %s 同样在写事务内拒绝旧表集实体', async operation => {
     const note = new SortableIsolationNote({ title: 'main draft' });
@@ -117,6 +133,59 @@ describe('检出位的并发写与连接隔离', () => {
       'SELECT "group" FROM "public$wt_isolation"."sortable_isolation_note"'
     );
     expect(rows.rows).toEqual([{ group: 'inbox' }]);
+  });
+
+  it.each(['adapter', 'facade'] as const)('换挂排队期间的 %s 查询只回填当前表集', async mode => {
+    todo.title = 'main-only';
+    await todo.save();
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const blocking = adapter.transaction(async () => {
+      entered.resolve();
+      await release.promise;
+    }, false);
+    await entered.promise;
+    const mounting = rxdb.mountWorktreeTableSet(tableSet);
+    const options = { where: { combinator: 'and' as const, rules: [] } };
+    const reading =
+      mode === 'adapter' ?
+        adapter.getRepository(Todo).find(options)
+      : firstValueFrom(rxdb.entityManager.getRepository(Todo).findAll(options));
+    release.resolve();
+    const [, , rows] = await Promise.all([blocking, mounting, reading]);
+    expect(rows.map(row => ({ title: row.title, suffix: getEntityStatus(row).tableSet.suffix }))).toEqual([
+      { title: 'original', suffix: tableSet.suffix }
+    ]);
+    rows[0].title = `${rows[0].title}-edited`;
+    await rxdb.entityManager.saveMany(rows);
+    const shadow = await adapter.internalQuery('SELECT "title" FROM "public$wt_isolation"."todos"');
+    expect(shadow.rows).toEqual([{ title: 'original-edited' }]);
+  });
+
+  it.each(['disconnect', 'disconnectAll'] as const)('%s 等待影子事务结束后才复位挂载', async operation => {
+    await rxdb.mountWorktreeTableSet(tableSet);
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const writing = adapter.transaction(async executor => {
+      const repository = executor.getRepository(Todo);
+      const [shadowTodo] = await repository.find({ where: { combinator: 'and', rules: [] } });
+      entered.resolve();
+      await release.promise;
+      await repository.update(shadowTodo, { title: 'shadow-edit' });
+      const main = await executor.query('SELECT "title" FROM "public"."todos"');
+      const shadow = await executor.query('SELECT "title" FROM "public$wt_isolation"."todos"');
+      return { main: main.rows, shadow: shadow.rows, tableSet: executor.tableSet };
+    }, false);
+    await entered.promise;
+    const stopped = firstValueFrom(rxdb.connected$.pipe(filter(connected => !connected)));
+    const closing = operation === 'disconnect' ? rxdb.disconnect('pglite') : rxdb.disconnectAll();
+    await stopped;
+    release.resolve();
+    const [result] = await Promise.all([writing, closing]);
+    expect(result).toEqual({ main: [['original']], shadow: [['shadow-edit']], tableSet });
+    expect(rxdb.entityManager.hasEntityRef(Todo, todo.id)).toBe(false);
+    expect(rxdb.worktreeTableSet).toBe(WorktreeTableSet.MAIN);
+    expect(await firstValueFrom(rxdb.worktreeTableSet$)).toBe(WorktreeTableSet.MAIN);
   });
 
   it('持有键释放后，迟到事件仍保留写入时的影子表来源', async () => {

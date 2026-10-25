@@ -14,9 +14,10 @@ import {
   WorktreeTableSetMismatchError,
   encodeRxDBChangeEntityId,
   getEntityMetadata,
+  getEntityStatus,
   getRxDBChangeKey
 } from '@aiao/rxdb';
-import { firstValueFrom, skip } from 'rxjs';
+import { filter, firstValueFrom, skip } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { handle_rxdb_change } from '../handle_rxdb_change.js';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
@@ -361,10 +362,7 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
       });
     });
 
-    it.each(['saveMany', 'removeMany'] as const)('换挂排队期间的 %s 不得写进另一套表', async operation => {
-      const todo = new Todo({ title: 'original' });
-      await todo.save();
-      await adapter.internalQuery(`INSERT INTO ${tableOf(tableSet)} SELECT * FROM ${tableOf(WorktreeTableSet.MAIN)}`);
+    it('切分支排队期间发生换挂时，拒绝旧计划且不修改主检出位', async () => {
       const entered = Promise.withResolvers<void>();
       const release = Promise.withResolvers<void>();
       const blocking = adapter.transaction(async () => {
@@ -373,17 +371,143 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
       }, false);
       await entered.promise;
       const mounting = adapter.rxdb.mountWorktreeTableSet(tableSet);
-      todo.title = 'main-edit';
-      const saving = adapter.rxdb.entityManager[operation]([todo]);
+      let prepared = false;
+      const switching = adapter.switchBranch({
+        branchId: 'target',
+        actions: { inserts: new Map(), updates: new Map(), deletes: new Map() },
+        prepare: async () => {
+          prepared = true;
+        }
+      });
       release.resolve();
       try {
-        const [blocked, mounted, saved] = await Promise.allSettled([blocking, mounting, saving]);
-        expect(blocked.status).toBe('fulfilled');
-        expect(mounted.status).toBe('fulfilled');
-        expect(saved).toMatchObject({ status: 'rejected', reason: expect.any(WorktreeTableSetMismatchError) });
-        expect(await titlesOf(tableSet)).toEqual(['original']);
+        const results = await Promise.allSettled([blocking, mounting, switching]);
+        expect(results.map(result => result.status)).toEqual(['fulfilled', 'fulfilled', 'rejected']);
+        expect(results[2]).toMatchObject({
+          reason: expect.objectContaining({ message: expect.stringContaining('表集已改变') })
+        });
+        expect(prepared).toBe(false);
+        expect(await readRows(`SELECT id FROM ${branchTable} WHERE activated = 1`)).toEqual([['main']]);
+        expect(await readRows(`SELECT id FROM ${branchTable} WHERE "activeKey" = ?`, [tableSet.holderKey])).toEqual([
+          [heldBranch]
+        ]);
       } finally {
         await adapter.rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+      }
+    });
+
+    it.each(['save', 'remove', 'create', 'saveMany', 'removeMany'] as const)(
+      '换挂排队期间的 %s 不得写进另一套表',
+      async operation => {
+        const todo = new Todo({ title: 'original' });
+        await todo.save();
+        await adapter.internalQuery(`INSERT INTO ${tableOf(tableSet)} SELECT * FROM ${tableOf(WorktreeTableSet.MAIN)}`);
+        const entered = Promise.withResolvers<void>();
+        const release = Promise.withResolvers<void>();
+        const blocking = adapter.transaction(async () => {
+          entered.resolve();
+          await release.promise;
+        }, false);
+        await entered.promise;
+        const mounting = adapter.rxdb.mountWorktreeTableSet(tableSet);
+        todo.title = 'main-edit';
+        const draft = new Todo({ title: 'draft' });
+        const writes = {
+          save: () => todo.save(),
+          remove: () => todo.remove(),
+          create: () => draft.save(),
+          saveMany: () => adapter.rxdb.entityManager.saveMany([todo]),
+          removeMany: () => adapter.rxdb.entityManager.removeMany([todo])
+        };
+        const saving = writes[operation]();
+        release.resolve();
+        try {
+          const [blocked, mounted, saved] = await Promise.allSettled([blocking, mounting, saving]);
+          expect(blocked.status).toBe('fulfilled');
+          expect(mounted.status).toBe('fulfilled');
+          expect(saved).toMatchObject({ status: 'rejected', reason: expect.any(WorktreeTableSetMismatchError) });
+          expect(await titlesOf(tableSet)).toEqual(['original']);
+          expect(await titlesOf(WorktreeTableSet.MAIN)).toEqual(['original']);
+        } finally {
+          await adapter.rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+        }
+      }
+    );
+
+    it.each(['adapter', 'facade'] as const)('换挂排队期间的 %s 查询只回填当前表集', async mode => {
+      const id = await rawInsert(WorktreeTableSet.MAIN, 'main-only');
+      const now = new Date().toISOString();
+      await adapter.internalQuery(
+        `INSERT INTO ${tableOf(tableSet)} ("id", "title", "completed", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?)`,
+        [id, 'original', 0, now, now]
+      );
+      const entered = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+      const blocking = adapter.transaction(async () => {
+        entered.resolve();
+        await release.promise;
+      }, false);
+      await entered.promise;
+      const mounting = adapter.rxdb.mountWorktreeTableSet(tableSet);
+      const options = { where: { combinator: 'and' as const, rules: [] } };
+      const reading =
+        mode === 'adapter' ?
+          adapter.getRepository(Todo).find(options)
+        : firstValueFrom(adapter.rxdb.entityManager.getRepository(Todo).findAll(options));
+      release.resolve();
+      try {
+        const [, , rows] = await Promise.all([blocking, mounting, reading]);
+        expect(rows.map(row => ({ title: row.title, suffix: getEntityStatus(row).tableSet.suffix }))).toEqual([
+          { title: 'original', suffix: tableSet.suffix }
+        ]);
+        rows[0].title = `${rows[0].title}-edited`;
+        await adapter.rxdb.entityManager.saveMany(rows);
+        expect(await titlesOf(tableSet)).toEqual(['original-edited']);
+        expect(await titlesOf(WorktreeTableSet.MAIN)).toEqual(['main-only']);
+      } finally {
+        await adapter.rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+      }
+    });
+
+    it.each(['disconnect', 'disconnectAll'] as const)('%s 等待影子事务结束后才复位挂载', async operation => {
+      const isolated = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [Todo] });
+      const database = isolated.rxdb;
+      try {
+        const saved = await isolated
+          .getRepository(Todo)
+          .create(database.entityManager.instantiate(Todo, { title: 'original' }));
+        await database.versionManager.createBranch(heldBranch);
+        await isolated.internalQuery(`UPDATE ${branchTable} SET "activeKey" = ? WHERE "id" = ?`, [
+          tableSet.holderKey,
+          heldBranch
+        ]);
+        await create_worktree_table_set(isolated, tableSet, heldBranch);
+        await database.mountWorktreeTableSet(tableSet);
+        const entered = Promise.withResolvers<void>();
+        const release = Promise.withResolvers<void>();
+        const writing = isolated.transaction(async executor => {
+          const repository = executor.getRepository(Todo);
+          const [todo] = await repository.find({ where: { combinator: 'and', rules: [] } });
+          entered.resolve();
+          await release.promise;
+          await repository.update(todo, { title: 'shadow-edit' });
+          const main = await executor.query(`SELECT "title" FROM ${tableOf(WorktreeTableSet.MAIN)}`);
+          const shadow = await executor.query(`SELECT "title" FROM ${tableOf(tableSet)}`);
+          return { main: main.rows, shadow: shadow.rows, tableSet: executor.tableSet };
+        }, false);
+        await entered.promise;
+        const stopped = firstValueFrom(database.connected$.pipe(filter(connected => !connected)));
+        const closing = operation === 'disconnect' ? database.disconnect(isolated.name) : database.disconnectAll();
+        await stopped;
+        release.resolve();
+        const [result] = await Promise.all([writing, closing]);
+        expect(result).toEqual({ main: [['original']], shadow: [['shadow-edit']], tableSet });
+        expect(database.entityManager.hasEntityRef(Todo, saved.id)).toBe(false);
+        expect(database.worktreeTableSet).toBe(WorktreeTableSet.MAIN);
+        expect(await firstValueFrom(database.worktreeTableSet$)).toBe(WorktreeTableSet.MAIN);
+      } finally {
+        await database.disconnectAll();
+        await factory.cleanupAdapter?.(isolated);
       }
     });
 

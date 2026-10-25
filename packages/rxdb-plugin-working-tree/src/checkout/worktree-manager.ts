@@ -143,10 +143,12 @@ export interface WorktreeView {
  * 工作树门面的受管事务：读能力位、过门禁，再把执行器与本纪元的适配器交给命令体。
  *
  * @param run - 命令体
+ * @param signal - 取消等待适配器；已进入事务的命令仍需执行完
  * @returns 命令体的返回值
  */
 export type WorktreeTransactionRunner = <T>(
-  run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
+  run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>,
+  signal?: AbortSignal
 ) => Promise<T>;
 
 /** 检出位的入口：`rxdb.workingTree.checkouts`。 */
@@ -157,6 +159,7 @@ export class WorktreeManager {
   /** 本上下文认领着的可写检出位：id → 它的锁与表集后缀 */
   readonly #claims = new Map<string, WritableClaim>();
   readonly #lifecycle = new AsyncQueueExecutor(1);
+  readonly #stopping = new AbortController();
 
   /**
    * 由工作树门面构造，一个 RxDB 实例一个。
@@ -167,8 +170,27 @@ export class WorktreeManager {
    */
   constructor(rxdb: RxDB, runEnabled: WorktreeTransactionRunner, options: WorktreeOptions | undefined) {
     this.#rxdb = rxdb;
-    this.#runEnabled = runEnabled;
+    this.#runEnabled = async run => {
+      this.#assertActive();
+      return runEnabled(run, this.#stopping.signal);
+    };
     this.#options = options;
+  }
+
+  /** 停止检出位命令并取消尚未执行的任务；由实例销毁入口调用。 @internal */
+  stop(): void {
+    this.#stopping.abort(new RxDBError('数据库已销毁，不能执行检出位命令'));
+    this.#lifecycle.clearQueue();
+  }
+
+  /** 等待在飞命令完成并归还全部可写检出位认领锁；适配器断连后调用。 @internal */
+  async dispose(): Promise<void> {
+    await this.#lifecycle.waitForAll();
+    const claims = [...this.#claims.values()];
+    this.#claims.clear();
+    const results = await Promise.allSettled(claims.map(async claim => claim.release()));
+    const failed = results.find(result => result.status === 'rejected');
+    if (failed?.status === 'rejected') throw failed.reason;
   }
 
   /**
@@ -286,7 +308,7 @@ export class WorktreeManager {
    * 连接期判定有孤儿（判据同上、且锁没人持有）时，插件在连上之后跑一次，见 `worktree-startup-reclaim.ts`。
    */
   prune(): Promise<readonly string[]> {
-    return this.#lifecycle.addTask(() => this.#prune());
+    return this.#schedule(() => this.#prune());
   }
 
   /**
@@ -307,7 +329,7 @@ export class WorktreeManager {
    * GitHub Desktop 建完会切过去，对应 {@link WorktreeManager.mount}。
    */
   add(branchId: string, options: WorktreeAddOptions = {}): Promise<Worktree> {
-    return this.#lifecycle.addTask(() => this.#add(branchId, options));
+    return this.#schedule(() => this.#add(branchId, options));
   }
 
   /**
@@ -326,12 +348,12 @@ export class WorktreeManager {
    * 见 `#rebuild`。
    */
   mount(id: string): Promise<void> {
-    return this.#lifecycle.addTask(() => this.#mount(id));
+    return this.#schedule(() => this.#mount(id));
   }
 
   /** 让主实例挂回主检出位；认领着的可写检出位照旧认领着。 */
   mountMain(): Promise<void> {
-    return this.#lifecycle.addTask(() => this.#mountMain());
+    return this.#schedule(() => this.#mountMain());
   }
 
   /**
@@ -343,7 +365,7 @@ export class WorktreeManager {
    * 持久归属的之后任何一处都能再 {@link WorktreeManager.mount}；会话归属的留给 `prune()` 回收。
    */
   release(id: string): Promise<void> {
-    return this.#lifecycle.addTask(() => this.#release(id));
+    return this.#schedule(() => this.#release(id));
   }
 
   /**
@@ -356,7 +378,7 @@ export class WorktreeManager {
    * 未提交的改动留在分支上：检出位里的写都记进了那条分支的变更日志，之后切过去照样读得到（git 删 worktree 时它们会丢，这里不会）。
    */
   remove(id: string): Promise<void> {
-    return this.#lifecycle.addTask(() => this.#remove(id));
+    return this.#schedule(() => this.#remove(id));
   }
 
   /**
@@ -416,6 +438,15 @@ export class WorktreeManager {
     }
     if (failures.length > 0) throw new AggregateError(failures, `${failures.length} 个检出位没回收掉`);
     return pruned;
+  }
+
+  #assertActive(): void {
+    this.#stopping.signal.throwIfAborted();
+  }
+
+  async #schedule<T>(run: () => Promise<T>): Promise<T> {
+    this.#assertActive();
+    return this.#lifecycle.addTask(run);
   }
 
   async #add(branchId: string, options: WorktreeAddOptions): Promise<Worktree> {
@@ -639,6 +670,7 @@ export class WorktreeManager {
   }
 
   #requireOptions(): WorktreeOptions {
+    this.#assertActive();
     if (this.#options) return this.#options;
     throw new WorktreeUnavailableError('not_configured', '装工作树插件时没给 worktrees.adapter');
   }
