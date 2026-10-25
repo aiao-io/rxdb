@@ -37,10 +37,10 @@
     "@aiao/utils": "workspace:^"
   },
   "peerDependencies": {
+    "@aiao/rxdb": "workspace:^",
     "@aiao/rxdb-plugin-graph": "workspace:^",
     "rxjs": "^7.8.0",
-    "vue": "^3.5.43",
-    "@aiao/rxdb": "workspace:^"
+    "vue": "^3.5.43"
   },
   "files": [
     "dist",
@@ -62,6 +62,6 @@
   "devDependencies": {
     "@aiao/rxdb-plugin-graph": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
-    "vue": "^3.5.44"
+    "vue": "^3.5.43"
   }
 }

@@ -31,7 +31,7 @@
     "@aiao/rxdb-angular": "workspace:^",
     "@aiao/rxdb-model": "workspace:^",
     "@aiao/rxdb-plugin-history": "workspace:^",
-    "@angular/cdk": "^22.1.6",
+    "@angular/cdk": "22.2.3",
     "@angular/common": "22.2.3",
     "@angular/core": "22.2.3",
     "@angular/forms": "22.2.3",

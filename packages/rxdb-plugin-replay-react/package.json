@@ -47,7 +47,7 @@
   },
   "devDependencies": {
     "@aiao/rxdb-plugin-replay": "workspace:*",
-    "react": "^19.3.1"
+    "react": "^19.3.0"
   },
   "publishConfig": {
     "access": "public"
