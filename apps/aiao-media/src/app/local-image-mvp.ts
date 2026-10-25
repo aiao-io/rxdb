@@ -677,15 +677,24 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       blob = this.resultBlob,
       store = this.store;
     if (!job || !blob || !store) return;
+    const epoch = this.epoch;
+    const current = () =>
+      !this.disposed &&
+      epoch === this.epoch &&
+      store === this.store &&
+      blob === this.resultBlob &&
+      job.id === this.job()?.id;
     try {
       await store.saveResult(job, blob);
+      if (!current()) return;
       const task = { ...job, saved: true };
       await this.writeTask(task);
+      if (!current()) return;
       this.job.set(task);
       this.saved.set(true);
       this.storageMessage.set('');
     } catch {
-      this.storageMessage.set('图片已生成，本机保存失败。请先下载，再释放空间并重试保存。');
+      if (current()) this.storageMessage.set('图片已生成，本机保存失败。请先下载，再释放空间并重试保存。');
     }
   }
   onPromptChanged(state: PromptState) {
@@ -1374,7 +1383,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       !['signed-in', 'signed-out'].includes(this.authStatus())
     )
       return;
-    const config = readSupabaseAuthConfig(),
+    const config = this.auth?.config ?? null,
       user = this.authUser();
     const identityKey = `${this.authStatus()}:${config?.url ?? ''}:${user?.id ?? ''}`;
     if (identityKey === this.identitySelection) return;
@@ -1486,7 +1495,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     // The library compares tasks with readable works instead of trusting it.
   }
   private async writeTask(task: LocalTask) {
-    const store = this.store;
+    const store = this.store,
+      epoch = this.epoch;
     if (!store) throw new Error('本机记录不可用，未发送请求。');
     const row = await store.preference('tasks-v1');
     const tasks: LocalTask[] = row ? JSON.parse(row.payload) : [];
@@ -1495,7 +1505,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       [{ key: 'tasks-v1', payload: JSON.stringify(next), revision: row?.revision ?? null }],
       true
     );
-    this.history.set(next);
+    if (!this.disposed && epoch === this.epoch && store === this.store) this.history.set(next);
   }
   private async persistProviders(
     providers: LocalProvider[],

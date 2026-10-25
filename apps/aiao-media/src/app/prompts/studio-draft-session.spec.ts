@@ -191,3 +191,90 @@ describe('工作区切换前的输入检查点', () => {
     r.session.close();
   });
 });
+
+describe('explicit draft recovery and subscription failures', () => {
+  it('reloads an explicitly empty draft and clears a previously edited value', async () => {
+    const r = rig({ state: plainPrompt('旧草稿'), revision: 2 });
+    await r.session.start();
+    r.session.edit(plainPrompt('当前输入'));
+    r.read.mockResolvedValueOnce(null);
+    await r.session.reload();
+    expect(r.accept).toHaveBeenLastCalledWith(plainPrompt(''));
+    await r.session.checkpoint();
+    expect(r.save).not.toHaveBeenCalled();
+    r.session.close();
+  });
+
+  it('preserves current edits if an explicit reload cannot read the saved draft', async () => {
+    const r = rig();
+    await r.session.start();
+    r.session.edit(plainPrompt('保留当前输入'));
+    r.read.mockRejectedValueOnce(new Error('unavailable'));
+    await r.session.reload();
+    expect(r.accept).not.toHaveBeenCalled();
+    expect(r.report).toHaveBeenLastCalledWith('failed');
+    r.session.close();
+  });
+
+  it('blocks automatic writes after a subscription failure and resumes only after explicit recovery', async () => {
+    const r = rig();
+    await r.session.start();
+    r.events.error(new Error('metadata failed'));
+    expect(r.report).toHaveBeenLastCalledWith('failed');
+    r.session.edit(plainPrompt('仍在本页的输入'));
+    await r.session.flush();
+    expect(r.save).not.toHaveBeenCalled();
+    await expect(r.session.checkpoint()).rejects.toThrow('尚未保存');
+    await r.session.keepCurrent();
+    expect(r.save).toHaveBeenCalledWith(plainPrompt('仍在本页的输入'), null);
+    r.session.close();
+  });
+
+  it('keeps a conflicting local draft when rereading the revision fails', async () => {
+    const r = rig();
+    await r.session.start();
+    r.session.edit(plainPrompt('保留我'));
+    r.events.next({ state: plainPrompt('另一端'), revision: 2 });
+    r.read.mockRejectedValueOnce(new Error('unavailable'));
+    await r.session.keepCurrent();
+    expect(r.save).not.toHaveBeenCalled();
+    expect(r.accept).not.toHaveBeenCalled();
+    expect(r.report).toHaveBeenLastCalledWith('failed');
+    r.session.close();
+  });
+
+  it('discards late explicit reloads and stops edits after closing a workspace', async () => {
+    const r = rig();
+    await r.session.start();
+    const gate = latch();
+    r.read.mockReturnValueOnce(gate.promise);
+    const reloading = r.session.reload();
+    r.session.close();
+    gate.resolve({ state: plainPrompt('已关闭的旧草稿'), revision: 3 });
+    await reloading;
+    r.session.edit(plainPrompt('不应保存'));
+    await r.session.reload();
+    await r.session.keepCurrent();
+    expect(r.accept).not.toHaveBeenCalled();
+    expect(r.save).not.toHaveBeenCalled();
+  });
+
+  it('does not publish a completed save after its workspace has closed', async () => {
+    const r = rig();
+    await r.session.start();
+    let release!: (snapshot: StudioDraftSnapshot) => void;
+    r.save.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          release = resolve;
+        })
+    );
+    r.session.edit(plainPrompt('旧工作区'));
+    const saving = r.session.flush();
+    r.session.close();
+    release({ state: plainPrompt('旧工作区'), revision: 1 });
+    await saving;
+    expect(r.report).toHaveBeenLastCalledWith('closed');
+    expect(r.accept).not.toHaveBeenCalled();
+  });
+});

@@ -4,6 +4,29 @@
 
 同仓迁入后的复验与旧构建升级证据见[RxDB 迁入验收](plans/rxdb-import-verification.md)。以下保留各产品 AC 的证据边界。
 
+## 应用质量收尾（2026-10-25）
+
+沿用现有 Vitest 配置和统计范围，没有新增覆盖率排除项。`aiao-media:coverage --args='--maxWorkers=1'` 已通过 36 个文件、632/632 项测试（610 项 unit/data + 22 项真实 SQLite/IndexedDB/OPFS 浏览器测试）。E2E 不折算 Vitest 覆盖率。
+
+| 指标 | 检索首次验收基线 | 当前质量收尾 |
+| ---- | ---------------: | -----------: |
+| 行   |           63.32% |       94.62% |
+| 语句 |           60.99% |       86.64% |
+| 函数 |           60.73% |       84.62% |
+| 分支 |           56.65% |       80.06% |
+
+四项均达到 80%。报告仍输出到仓库根 `coverage/apps/aiao-media/`，以 `coverage-summary.json`、`coverage-final.json` 和 `lcov.info` 为依据；不将此统计扩展成未被该配置统计的代码或端到端覆盖率承诺。
+
+新增测试覆盖供应商公开字段与 Key 分离、单次生成前持久记账、未知请求禁止重发、运行策略、账号重新验证、后台权限撤销、真实编辑器参数/撤销历史、备份 staging 恢复、工作区切换、原图错误分类和损坏同步日志拒绝访问。
+
+红测复现并修复两处产品问题：重试保存期间切换工作区或开始新创作时，旧文件/任务日志的迟到成功或失败不能再改写当前任务、历史或提示；公开账号配置无效时，工作区使用已验证账号客户端的配置，本机创作继续可用。页面关闭同样丢弃旧保存回调，不删除已持久化的原文件。
+
+最终 affected 以 `HEAD` 为基线，仅影响 `aiao-media`、`aiao-media-e2e`。`lint/typecheck/test/test-browser/build/e2e` 与依赖共 38 项任务全部通过，串行耗时 7 分 13 秒，本地缓存命中 18/38；远程缓存禁用、账号配置为空。两项目 ESLint 均使用 `--max-warnings=0`，应用与测试类型检查通过，610 项 unit/data 和 22 项真实浏览器测试再次通过。
+
+Chrome 本机 E2E 31/31 通过，耗时约 4 分钟；供应商验收的 6 组 Worker/fixture 组合、公开入口 fixture 烟测和更新验收控制器脚本检查通过。当前生产 CSR/offline-assets 构建为 `9b55b9d6cb7e`，包含 46 个完整性校验公开资源；`release-check` 审查 60 个文件通过，最大文件 1,263,008 bytes，无供应商凭据、SSR 运行时、source map 或旧 API。此处的“生产构建”仅表示 production 配置产物，未部署。
+
+供应商响应、后台与账号端点均使用本地 fixture；URL 结果测试只验证无 Authorization/Cookie/Referrer 的请求约束，不替代真实跨 origin URL 验收。合成 composition 事件只验证编辑器状态机，不替代真实系统 IME。Supabase 仍仅本地，本轮没有新增真实供应商生成请求、生产服务或部署。
+
 ## 本地作品检索验收（2026-10-25）
 
 MEDIA-US-204 全部 AC 已通过分层本地验收：提示词/模型原生字面 AND、本地整日与 DST、createdAt/实体 id 稳定倒序、24 件原生分页、真实 IO 按需原图及全库 metadata 隔离。冷重开不遍历 ready 原图，显式预览/详情/备份继续完整验证；saving 完整回读后提交、deleting 继续恢复。全库 metadata 首次成功前不推断空库、remote-only 或无副本，后续读取失败保留已知归属，不将失败提交为空同步快照。
@@ -14,7 +37,7 @@ MEDIA-US-204 全部 AC 已通过分层本地验收：提示词/模型原生字�
 
 工作区切换先由真实 UI 显式准备 Alice 绑定，fixture 工作区目录返回空、ensure 返回 503，留下合法且未初始化的待完成绑定。准备仅 1 次目录读取和 1 次失败 ensure；随后筛选/切换零业务请求，生成、复制、上报、上传为零。Auth/供应商/绑定端点是 fixture，不替代真实 Supabase 产品服务验收。具体 AC 对照与命令见[实施清单](plans/library-search-tasks.md)。
 
-本轮 `aiao-media:coverage` 为 30 文件、294/294 通过（272 项 unit/data + 22 项真实浏览器）。新模块与全应用统计如下，数字顺序固定为行/语句/函数/分支：
+检索首次验收的 `aiao-media:coverage` 为 30 文件、294/294 通过（272 项 unit/data + 22 项真实浏览器）。新模块与全应用统计如下，数字顺序固定为行/语句/函数/分支：
 
 覆盖率产物统一生成到仓库根 `coverage/apps/aiao-media/`，与 Nx outputs 和通用 CI 收集路径一致。已按 CI 参数单独复跑 272 项测试，并核对 `coverage-final.json`、`coverage-summary.json`、`lcov.info` 均存在；完整 294 项覆盖率复跑也通过。
 
@@ -26,9 +49,9 @@ MEDIA-US-204 全部 AC 已通过分层本地验收：提示词/模型原生字�
 | `work-library-session.ts`   |  99.2% |  95.2% |   100% | 88.63% |
 | `work-visible.directive.ts` |   100% |   100% |   100% |   100% |
 | `work-metadata-session.ts`  |   100% |   100% |   100% |   100% |
-| 全应用                      | 63.32% | 60.99% | 60.73% | 56.65% |
+| 检索首次验收全应用基线      | 63.32% | 60.99% | 60.73% | 56.65% |
 
-全应用 coverage 仍低于 80%。新增根组件呈现测试首次将大型 `LocalImageMvp` 纳入统计，仅覆盖本轮归属呈现路径；不能把 E2E 折算为 Vitest 覆盖率，也不能宣称全应用覆盖率门槛已通过。旧应用其它交互的覆盖不足保持可见，不因本故事通过而抹去。
+检索首次验收时，全应用 coverage 低于 80%；当时的根组件呈现测试首次将大型 `LocalImageMvp` 纳入统计，只覆盖归属呈现路径。该表保留历史基线，当前质量收尾的四项指标见上方；两次统计均未将 E2E 折算为 Vitest 覆盖率。
 
 ## 当前本地基线
 

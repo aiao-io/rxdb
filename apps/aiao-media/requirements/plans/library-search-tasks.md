@@ -46,6 +46,6 @@
 
 冷启动不再扫描 ready 原图，不表示跳过完整性验证。显式 preview/imageInfo/backupImage 继续拒绝坏图；暂时不可读与确定 corrupt 都不改写历史保存 metadata 或删除原文件。显式备份失败不生成缺图备份，snapshot 读取失败不能被替换为空集。
 
-Vitest 全应用 coverage 当前为行 63.32% / 语句 60.99% / 函数 60.73% / 分支 56.65%，低于 80%；新增根组件呈现测试首次将大型 `LocalImageMvp` 纳入统计，只覆盖本轮归属/未知态路径。E2E 不折算 Vitest 覆盖率，本清单不宣称全应用覆盖率门槛已通过；新模块的专项覆盖率与最终报告见[验收记录](../verification-report.md)。
+检索首次验收的 Vitest 全应用基线为行 63.32% / 语句 60.99% / 函数 60.73% / 分支 56.65%，当时低于 80%。后续质量收尾沿用相同配置和排除范围，36 文件、632/632 通过（610 项 unit/data + 22 项真实浏览器），当前行 94.62% / 语句 86.64% / 函数 84.62% / 分支 80.06%，四项均达到 80%。E2E 不折算 Vitest 覆盖率；历史新模块专项结果与当前报告分别见[验收记录](../verification-report.md)。
 
 旧[本地交付](local-delivery-verification.md)与[正式图片交付](public-delivery-verification.md)只保留各自基线；本故事没有生产部署、真实跨 origin URL、真实系统 IME、移动真机、云原图或 TTL 的新增证据。

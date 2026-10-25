@@ -65,7 +65,7 @@ tags: [library, local-first, search, pagination, preview, performance]
 
 查询契约 7 项、真实 SQLite/OPFS 浏览器 22 项（含 1,005 条 metadata 压力与 3 项冷启动/只读恢复用例）、会话/指令/metadata/实际根组件呈现测试，以及应用/e2e lint、typecheck 和生产构建均通过。最终生产构建的统一本机 Chrome E2E 为 31/31：原 28 项加新增 3 项，覆盖 50 张真实图片的 IO、末页删除/离线精确下载，以及同文档 50 张 Alice 库→Bob 空库→Alice 原库的切换。不是 1,000 张原图 UI 实测，不承诺毫秒指标。
 
-全部 AC 的分层证据、覆盖率限制与复验入口见[实施清单](../../plans/library-search-tasks.md)及[验收记录](../../verification-report.md)。整个应用的 Vitest 覆盖率仍低于 80%，不能用 E2E 结果折算或称为全应用覆盖率达标。Supabase 仍仅本地，本功能未部署、PR 未合并，故事保持 In Progress。
+全部 AC 的分层证据、覆盖率限制与复验入口见[实施清单](../../plans/library-search-tasks.md)及[验收记录](../../verification-report.md)。后续质量收尾在原 Vitest 配置下以 632/632 项测试将行/语句/函数/分支提升到 94.62%/86.64%/84.62%/80.06%，四项均达到 80%；E2E 未折算为 Vitest 覆盖率。Supabase 仍仅本地，本功能未部署、PR 未合并，故事保持 In Progress。
 
 ## 实现文件
 

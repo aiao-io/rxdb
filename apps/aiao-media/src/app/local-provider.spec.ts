@@ -1,0 +1,246 @@
+import { Blob as NodeBlob } from 'node:buffer';
+import { ReadableStream as NodeReadableStream } from 'node:stream/web';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  bounded,
+  generateLocalImage,
+  providerBase,
+  ProviderFailure,
+  publicProvider,
+  type LocalProvider
+} from './local-provider';
+
+const provider: LocalProvider = {
+  id: '10000000-0000-4000-8000-000000000001',
+  name: '测试供应商',
+  baseUrl: 'https://provider.example/v1',
+  model: 'fixture-model',
+  mode: 'direct',
+  rememberKey: false
+};
+function png(width = 1024, height = 1024) {
+  const bytes = new Uint8Array(24);
+  bytes.set([137, 80, 78, 71, 13, 10, 26, 10]);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(16, width);
+  view.setUint32(20, height);
+  return bytes;
+}
+const encoded = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
+const response = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
+const generate = (
+  configuration = provider,
+  ratio: 'square' | 'landscape' | 'portrait' = 'square',
+  key = 'fixture-key'
+) => generateLocalImage(configuration, key, '测试图片', ratio, new AbortController().signal);
+
+beforeEach(() => {
+  vi.stubGlobal('Blob', NodeBlob);
+  vi.stubGlobal('fetch', vi.fn());
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async () => ({ close: vi.fn() }))
+  );
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+describe('public provider configuration', () => {
+  it('normalizes a base URL and selects only public fields', () => {
+    expect(providerBase(' https://provider.example/v1/// ')).toBe(provider.baseUrl);
+    expect(publicProvider({ ...provider, name: ' 测试供应商 ', apiKey: 'private', extra: true })).toEqual(provider);
+  });
+  it.each([
+    'invalid',
+    'http://provider.example',
+    'https://user:secret@provider.example',
+    'https://provider.example/?key=secret',
+    'https://provider.example/#secret'
+  ])('rejects unsafe base URL %s', value => {
+    expect(() => providerBase(value)).toThrow('Base URL');
+  });
+  it.each([
+    null,
+    {},
+    { ...provider, id: 'invalid' },
+    { ...provider, name: '' },
+    { ...provider, name: 'a'.repeat(81) },
+    { ...provider, model: 'invalid model' },
+    { ...provider, mode: 'unknown' },
+    { ...provider, rememberKey: 'yes' }
+  ])('rejects invalid saved provider fields', value => {
+    expect(() => publicProvider(value)).toThrow('供应商配置无效');
+  });
+});
+
+describe('bounded provider responses', () => {
+  it('combines streamed bytes in order', async () => {
+    const stream = new NodeReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2]));
+        controller.enqueue(new Uint8Array([3]));
+        controller.close();
+      }
+    });
+    expect(await bounded(new Response(stream as unknown as ReadableStream), 3)).toEqual(new Uint8Array([1, 2, 3]));
+  });
+  it('rejects a missing body and cancels streams exceeding the byte limit', async () => {
+    await expect(bounded(new Response(null), 1)).rejects.toThrow('响应为空');
+    const cancel = vi.fn();
+    const stream = new NodeReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(4));
+      },
+      cancel
+    });
+    await expect(bounded(new Response(stream as unknown as ReadableStream), 3)).rejects.toThrow('响应过大');
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(stream.locked).toBe(false);
+  });
+});
+
+describe('single image dispatch', () => {
+  it.each([
+    ['square', 1024, 1024, '1024x1024'],
+    ['landscape', 1536, 1024, '1536x1024'],
+    ['portrait', 1024, 1536, '1024x1536']
+  ] as const)('dispatches exactly one %s image and closes the decoded bitmap', async (ratio, width, height, size) => {
+    vi.mocked(fetch).mockResolvedValue(response({ data: [{ b64_json: encoded(png(width, height)) }] }));
+    const close = vi.fn();
+    vi.mocked(createImageBitmap).mockResolvedValue({ close } as unknown as ImageBitmap);
+    const blob = await generate(provider, ratio);
+    expect(blob.type).toBe('image/png');
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(png(width, height));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(
+      'https://provider.example/v1/images/generations',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'omit',
+        redirect: 'error',
+        referrerPolicy: 'no-referrer',
+        cache: 'no-store',
+        body: JSON.stringify({
+          model: provider.model,
+          prompt: '测试图片',
+          n: 1,
+          size,
+          quality: 'low',
+          output_format: 'png'
+        })
+      })
+    );
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the relay only when proxy mode is selected explicitly', async () => {
+    vi.mocked(fetch).mockResolvedValue(response({ data: [{ b64_json: encoded(png()) }] }));
+    await generate({ ...provider, mode: 'proxy' });
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/relay',
+      expect.objectContaining({
+        headers: {
+          'content-type': 'application/json',
+          authorization: 'Bearer fixture-key',
+          'x-provider-base': provider.baseUrl
+        }
+      })
+    );
+  });
+
+  it('downloads a cross-origin URL with no authorization, cookies or referrer', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response({ data: [{ url: 'https://images.example/result.png' }] }))
+      .mockResolvedValueOnce(new Response(png()));
+    await generate();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const [url, options] = vi.mocked(fetch).mock.calls[1];
+    expect(String(url)).toBe('https://images.example/result.png');
+    expect(options).toMatchObject({
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      redirect: 'error',
+      cache: 'no-store'
+    });
+    expect(options?.headers).toBeUndefined();
+    expect(options?.body).toBeUndefined();
+  });
+
+  it.each(['http://images.example/result.png', 'https://user:secret@images.example/result.png'])(
+    'rejects an unsafe image URL without downloading it',
+    async url => {
+      vi.mocked(fetch).mockResolvedValue(response({ data: [{ url }] }));
+      await expect(generate()).rejects.toThrow('图片地址无效');
+      expect(fetch).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('preserves an uncertain outcome if a returned URL cannot be read', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response({ data: [{ url: 'https://images.example/result.png' }] }))
+      .mockResolvedValueOnce(new Response(null, { status: 403 }));
+    await expect(generate()).rejects.toMatchObject({
+      rejected: false,
+      message: expect.stringContaining('图片读取失败')
+    });
+  });
+
+  it.each([400, 401, 403, 404, 413, 422, 429])(
+    'classifies HTTP %i as a definite rejection without exposing response content',
+    async status => {
+      vi.mocked(fetch).mockResolvedValue(response({ secret: 'private upstream response' }, status));
+      await expect(generate()).rejects.toMatchObject({
+        rejected: true,
+        message: `供应商或代理返回 HTTP ${status}。请核对配置和供应商记录。`
+      });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    }
+  );
+  it.each([500, 502, 503])('keeps HTTP %i uncertain and never retries', async status => {
+    vi.mocked(fetch).mockResolvedValue(response({}, status));
+    await expect(generate()).rejects.toMatchObject({ rejected: false });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    { error: 'private', status: 429 },
+    { error: 'private', status: 200 }
+  ])('keeps error envelopes uncertain and redacts upstream messages', async value => {
+    vi.mocked(fetch).mockResolvedValue(response(value));
+    await expect(generate()).rejects.toMatchObject({
+      rejected: false,
+      message: expect.not.stringContaining('private')
+    });
+  });
+  it.each(['', 'with space', '中文'])('rejects invalid keys before dispatch', async key => {
+    await expect(generate(provider, 'square', key)).rejects.toBeInstanceOf(ProviderFailure);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each([
+    {},
+    { data: [] },
+    { data: [{}, {}] },
+    { data: [{}] },
+    { data: [{ b64_json: '' }] },
+    { data: [{ b64_json: '!!!' }] },
+    { data: [{ b64_json: encoded(new Uint8Array(24)) }] }
+  ])('rejects malformed or ambiguous generation results without retrying', async value => {
+    vi.mocked(fetch).mockResolvedValue(response(value));
+    await expect(generate()).rejects.toBeInstanceOf(ProviderFailure);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    [0, 1024],
+    [5000, 5000],
+    [1024, 512]
+  ])('rejects invalid square dimensions %i x %i', async (width, height) => {
+    vi.mocked(fetch).mockResolvedValue(response({ data: [{ b64_json: encoded(png(width, height)) }] }));
+    await expect(generate()).rejects.toThrow('图片尺寸');
+    expect(createImageBitmap).not.toHaveBeenCalled();
+  });
+  it.each(['landscape', 'portrait'] as const)('rejects square bytes for a %s request', async ratio => {
+    vi.mocked(fetch).mockResolvedValue(response({ data: [{ b64_json: encoded(png()) }] }));
+    await expect(generate(provider, ratio)).rejects.toThrow('图片尺寸');
+  });
+});

@@ -241,3 +241,95 @@ describe('atomic persistent draft notebook', () => {
     expect(validateNotebook(reopened).drafts).toHaveLength(2);
   });
 });
+
+describe('persistent notebook corruption guards', () => {
+  it.each([
+    null,
+    1,
+    { ...emptyNotebook(), version: 2 },
+    { ...emptyNotebook(), drafts: null },
+    { ...emptyNotebook(), checkpoint: 42 },
+    { ...emptyNotebook(), checkpoint: 'a'.repeat(1025) }
+  ])('rejects incompatible notebook envelopes without replacing them with an empty log', value => {
+    expect(() => validateNotebook(value)).toThrow();
+  });
+
+  it.each([
+    { localRevision: 0 },
+    { localRevision: 1.5 },
+    { dirty: 'yes' },
+    { remote: { ...remote(fixture().mutation), id: randomUUID() } }
+  ])('rejects corrupted draft metadata and cross-draft remote state', patch => {
+    const { book } = fixture();
+    Object.assign(book.drafts[0], patch);
+    expect(() => validateNotebook(book)).toThrow();
+  });
+
+  it('rejects duplicate IDs and a notebook exceeding the retained ID limit', () => {
+    const { book } = fixture();
+    book.drafts.push(structuredClone(book.drafts[0]));
+    expect(() => validateNotebook(book)).toThrow();
+    book.drafts = Array(1001).fill(book.drafts[0]);
+    expect(() => validateNotebook(book)).toThrow();
+  });
+
+  it.each([
+    { localRevision: 0 },
+    { localRevision: 2 },
+    { localRevision: 1.5 },
+    { mutation: { ...fixture().mutation, draftId: randomUUID() } }
+  ])('rejects pending requests whose revision or identity cannot belong to their local draft', patch => {
+    const { book } = fixture();
+    Object.assign(book.drafts[0].pending!, patch);
+    expect(() => validateNotebook(book)).toThrow();
+  });
+
+  it('does not allow a clean draft to retain a pending request', () => {
+    const { book } = fixture();
+    book.drafts[0].dirty = false;
+    expect(() => validateNotebook(book)).toThrow();
+  });
+
+  it.each([{ version: 2 }, { choice: 'merge' }, { expectedRemoteRevision: 1.5 }, { expectedRemoteRevision: -1 }])(
+    'rejects corrupted persisted conflict choices',
+    patch => {
+      const { book, id, mutation } = fixture();
+      const row = book.drafts[0];
+      row.conflict = {
+        id,
+        draftId: id,
+        local: mutation,
+        remote: remote(mutation),
+        currentRemote: remote(mutation),
+        createdAt: '2026-10-25T00:00:00Z'
+      };
+      row.resolution = { version: 1, choice: 'local', expectedRemoteRevision: 1 };
+      Object.assign(row.resolution, patch);
+      expect(() => validateNotebook(book)).toThrow();
+    }
+  );
+
+  it('rejects an orphaned recovery ID and blocked decisions that have no original resolution', () => {
+    const { book, id } = fixture();
+    book.drafts[0].recoveryDraftId = id;
+    expect(() => validateNotebook(book)).toThrow();
+    delete book.drafts[0].recoveryDraftId;
+    book.drafts[0].resolutionBlocked = true;
+    expect(() => validateNotebook(book)).toThrow();
+  });
+
+  it('keeps all retained tombstones at capacity and refuses to manufacture space for a new draft', () => {
+    const { book } = fixture();
+    book.drafts = Array.from({ length: 1000 }, (_, index) => ({
+      ...book.drafts[0],
+      id: `10000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+      pending: null,
+      dirty: false,
+      deleted: true,
+      content: null
+    }));
+    expect(() => createNotebookDraft(book, content(), randomUUID())).toThrow('不会清理删除标记');
+    expect(book.drafts).toHaveLength(1000);
+    expect(book.drafts.every(draft => draft.deleted)).toBe(true);
+  });
+});
