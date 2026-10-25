@@ -8,9 +8,9 @@ import { test as base, expect } from '@playwright/test';
  * 拖拽用真实拖拽且拖后刷新读回（US-028 AC#18 先例），种子来自「装载演示数据」入口
  * （US-540 同一份确定性种子）。
  *
- * 本文件与 dev-rxdb-react-e2e / dev-rxdb-vue-e2e 的副本内容一致，
- * 只允许一处差异：Angular 端从 `./fixtures.js` 取 test / expect（US-909 失败归档守卫），
- * React / Vue 从 `@playwright/test` 取。改一处改三处。
+ * 三端复用相同验收场景，定位和菜单展开按各端组件呈现适配。
+ * Angular 端从 `./fixtures.js` 取 test / expect（US-909 失败归档守卫），
+ * React / Vue 从 `@playwright/test` 取。
  */
 
 /** 每个用例一个全新浏览器上下文（干净 IndexedDB / localStorage 初态）。 */
