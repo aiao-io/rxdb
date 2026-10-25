@@ -74,6 +74,7 @@ export {
   decimalMul,
   decimalSub,
   decimalToCanonical,
+  roundToDecimalPlaces,
   roundToSignificant,
   type Decimal
 } from './quantity/decimal.js';
@@ -213,6 +214,7 @@ export {
   BOM_PUBLISH_VALIDATION_PREFIX,
   BOM_WRITE_PROTOCOL_PREFIX,
   BomBackendCapabilityError,
+  BomBackendConfigurationError,
   BomCycleError,
   BomDecimalFormatError,
   BomError,
@@ -225,7 +227,13 @@ export {
   normalizeBomError,
   type TruncationReason
 } from './types.js';
-export { BOM_VIEW_STYLES, bomEditorFields, bomErrorText, parseBomEditorFields } from './view-fields.js';
+export {
+  BOM_EDITOR_INPUTS,
+  BOM_VIEW_STYLES,
+  bomEditorFields,
+  bomErrorText,
+  parseBomEditorFields
+} from './view-fields.js';
 export { createBomView, initialBomViewState } from './view-state.js';
 export type {
   BomEditorFields,
@@ -240,3 +248,6 @@ export type {
   BomViewSnapshot,
   BomViewState
 } from './view-types.js';
+
+export { handleBomTreeKey } from './view-navigation.js';
+export { createBomViewSession } from './view-session.js';

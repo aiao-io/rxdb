@@ -1,3 +1,4 @@
+import { bomQueryRecords } from './bom-adapter.js';
 /**
  * @fileoverview US-519 扩展属性的纯函数面：写入校验与过滤查询 SQL 生成。
  *
@@ -24,7 +25,7 @@ import {
 import { BomHeader, BomItem, BomLineOccurrence } from '../entities.js';
 import { BomError } from '../types.js';
 import type { BomLocalAdapter } from './bom-adapter.js';
-import { bomSqlDialectFor } from './bom-sql.js';
+import { bomSqlDialectFor, isBomPostgres } from './bom-sql.js';
 
 /**
  * 扩展属性违约（US-519）：非法 JSON、越界 / 枚举 / 必填 / 类型违约、非法过滤值。
@@ -443,7 +444,7 @@ export const filterByAttr = async (
     const entity = EXT_SCOPE_ENTITIES[appliesTo];
     const metadata =
       adapter.rxdb === undefined ? getEntityMetadata(entity) : getEntityStorageMetadata(adapter.rxdb, entity);
-    const { sql } = buildExtFilterSql(adapter.name === 'pglite' ? 'pglite' : 'sqlite', '', typed, metadata);
+    const { sql } = buildExtFilterSql(isBomPostgres(adapter.name) ? 'pglite' : 'sqlite', '', typed, metadata);
     const columns = [
       ...new Set([
         ...[...metadata.propertyMap.values()].map(property => property.columnName),
@@ -455,5 +456,5 @@ export const filterByAttr = async (
     const result = await executor.query(
       `SELECT ${columns} FROM ${dialect.table(appliesTo)}${sql.length > 0 ? ` WHERE ${sql}` : ''} ORDER BY "id"`
     );
-    return result.rows.map(row => Object.fromEntries(result.columns.map((column, index) => [column, row[index]])));
+    return bomQueryRecords(result);
   }, false);

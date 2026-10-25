@@ -18,6 +18,7 @@ import {
   decimalMulDiv,
   decimalSub,
   decimalToCanonical,
+  roundToDecimalPlaces,
   roundToSignificant,
   type Decimal
 } from '../../quantity/decimal.js';
@@ -331,5 +332,23 @@ describe('十进制 kernel 性质测试（对拍有理数参考实现，34 位 h
       const canonical = formatReference(a.coeff, a.exp);
       expect(s(d(canonical))).toBe(canonical);
     }
+  });
+});
+
+describe('展示小数位数复用偶数舍入', () => {
+  it.each([
+    ['1.225', 2, '1.22'],
+    ['1.235', 2, '1.24'],
+    ['-1.225', 2, '-1.22'],
+    ['0.005', 2, '0'],
+    ['0.006', 2, '0.01'],
+    ['999.995', 2, '1000'],
+    ['2500', 0, '2500'],
+    ['-0.004', 2, '0']
+  ])('%s 保留 %s 位 = %s', (value, places, expected) => {
+    expect(s(roundToDecimalPlaces(d(value), places))).toBe(expected);
+  });
+  it.each([NaN, Infinity, -1, 0.5, Number.MAX_SAFE_INTEGER + 1])('拒绝非法小数位数：%s', places => {
+    expect(() => roundToDecimalPlaces(d('1'), places)).toThrow(RangeError);
   });
 });

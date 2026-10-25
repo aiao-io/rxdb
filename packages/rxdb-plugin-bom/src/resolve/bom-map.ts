@@ -14,9 +14,8 @@
  * 确认跟进拒绝。全部 SQL 走方言占位符绑定。
  */
 
-import type { TransactionExecutor, TransactionFun } from '@aiao/rxdb';
 import { BomMap } from '../entities.js';
-import type { BomLocalAdapter } from './bom-adapter.js';
+import { scopedBomAdapter, type BomLocalAdapter } from './bom-adapter.js';
 import { bomSqlDialectFor, type BomSqlDialect } from './bom-sql.js';
 import { BomConfigError } from './config-condition.js';
 import { expandBom, type ExpansionResult } from './expansion.js';
@@ -54,13 +53,6 @@ export class BomMapError extends Error {
 
 /** IN 列表分块大小（避开两后端的绑定变量上限，与展开同口径）。 */
 const CHUNK_SIZE = 200;
-
-const scopedAdapter = (adapter: BomLocalAdapter, executor: TransactionExecutor): BomLocalAdapter => ({
-  name: adapter.name,
-  rxdb: adapter.rxdb,
-  rawQuery: (sql, params) => executor.query(sql, params),
-  transaction: <T extends TransactionFun>(fun: T) => executor.run(fun) as Promise<Awaited<ReturnType<T>>>
-});
 
 /** 绑定参数查询：rawQuery 缺席即显式拒绝（本地适配器必有），绑定值按方言编码，结果双形状归一。 */
 const queryRows = async (adapter: BomLocalAdapter, sql: string, params: unknown[] = []): Promise<unknown[][]> => {
@@ -829,7 +821,7 @@ export const confirmMapping = async (
   context: ResolutionContext
 ): Promise<void> =>
   adapter.transaction(async executor => {
-    await confirmMappingSnapshot(scopedAdapter(adapter, executor), mappingId, targetOccurrenceId, context);
+    await confirmMappingSnapshot(scopedBomAdapter(adapter, executor), mappingId, targetOccurrenceId, context);
   }, false);
 
 const assertTargetOccurrence = async (

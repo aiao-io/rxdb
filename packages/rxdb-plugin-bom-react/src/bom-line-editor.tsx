@@ -1,21 +1,15 @@
 import {
+  BOM_EDITOR_INPUTS,
   BOM_VIEW_STYLES,
   bomEditorFields,
   bomErrorText,
   parseBomEditorFields,
-  type BomEditorFields,
   type BomViewCommands,
   type BomViewState
 } from '@aiao/rxdb-plugin-bom';
 import { useEffect, useId, useState, type ReactElement } from 'react';
 
-const inputs: readonly { field: keyof BomEditorFields; label: string; type: string }[] = [
-  { field: 'qty', label: '用量', type: 'text' },
-  { field: 'componentScrap', label: '组件损耗', type: 'text' },
-  { field: 'operationSeq', label: '投料工序', type: 'number' },
-  { field: 'effectiveFrom', label: '生效起点', type: 'datetime-local' },
-  { field: 'effectiveTo', label: '生效终点', type: 'datetime-local' }
-];
+const inputs = BOM_EDITOR_INPUTS;
 
 /**
  * 编辑共享状态中当前发生项的已交付字段，保存沿用领域仓储（对齐 Angular `ao-bom-line-editor`、Vue `BomLineEditor`）。

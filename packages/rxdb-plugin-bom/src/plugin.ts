@@ -39,6 +39,7 @@ import type { ExplosionOptions, ExplosionResult } from './quantity/explosion.js'
 import { buildReachInstallDdl } from './reach/install.js';
 import { createBomReachSystem } from './reach/system.js';
 import { BomRepository } from './repository.js';
+import { isBomPostgres } from './resolve/bom-sql.js';
 import { cycleConstraintDdlForRemotePg } from './resolve/cycle-constraint-ddl.js';
 import { ecnDiff as runEcnDiff, ecnImpact as runEcnImpact } from './resolve/ecn-api.js';
 import type { EcnDiffResult, EcnImpactResult } from './resolve/ecn.js';
@@ -93,7 +94,8 @@ export const assertBomSyncNotDeclared = (
 
 /** 按适配器名解析后端 DDL 构造器；不认识的后端显式拒绝，不静默降级（导出供 AC#6 单测）。 */
 export const resolveBomBackend = async (adapterName: string | undefined): Promise<BomTriggerDdlBuilder> => {
-  if (adapterName === 'pglite') return (await import('./backend/bom-trigger-ddl.js')).buildPgBomTriggerDdl;
+  if (adapterName !== 'postgres' && isBomPostgres(adapterName))
+    return (await import('./backend/bom-trigger-ddl.js')).buildPgBomTriggerDdl;
   if (adapterName && SQLITE_ADAPTER_NAMES.has(adapterName)) {
     return (await import('./backend/bom-trigger-ddl.js')).buildSqliteBomTriggerDdl;
   }
@@ -124,7 +126,7 @@ const assertBomRepositoriesRegistered = (adapter: BomInstallAdapter, entities: r
       adapter.getRepository(EntityType);
     } catch (cause) {
       const { repository } = getEntityMetadata(EntityType);
-      const implementation = adapter.name === 'pglite' ? 'PGliteRepository' : 'SqliteRepository';
+      const implementation = isBomPostgres(adapter.name) ? 'PGliteRepository' : 'SqliteRepository';
       throw new BomBackendCapabilityError(
         adapter.name,
         `适配器仓储轴未注册 ${repository}（${cause instanceof Error ? cause.message : String(cause)}）；` +
@@ -306,7 +308,7 @@ export interface InstalledBomDdl {
 /**
  * 按后端构造已装定义的比对器（导出供单测）。
  *
- * @param adapterName - 本地适配器名，`pglite` 之外按 SQLite 家族处理（不支持的后端在此之前已拒绝）
+ * @param adapterName - 本地适配器名；PGlite 及其 Electron 宿主使用 PG 方言，其余已支持后端使用 SQLite 方言
  * @param statements - 与安装同序的全部 DDL
  * @returns 判定与记录两个动作，都在调用方的同一个安装事务里执行
  *
@@ -316,7 +318,7 @@ export interface InstalledBomDdl {
  * 没有可比对的目录对象，整批永远判为未装。
  */
 export const installedBomDdl = (adapterName: string, statements: readonly string[]): InstalledBomDdl => {
-  if (adapterName !== 'pglite') {
+  if (!isBomPostgres(adapterName)) {
     return { isCurrent: executor => sqliteDdlIsCurrent(executor, statements), record: () => Promise.resolve() };
   }
   return {
@@ -339,6 +341,7 @@ export interface LiveSnapshot {
   quantityError: unknown | null;
 }
 
+/** BOM 插件门面，提供领域查询并安装存储层约束。 */
 export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
   readonly lifecycle = 'scoped' as const;
   readonly inject = ['adapter:local'] as const;
@@ -489,6 +492,8 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
     if (!adapter) {
       throw new BomBackendCapabilityError(adapterName ?? '(no local adapter)');
     }
+    if (adapter.name !== adapterName)
+      throw new BomBackendCapabilityError(adapter.name, `配置适配器 ${adapterName} 与实例不一致`);
     const presentEntities = BOM_ENTITIES.filter(EntityType =>
       (this.rxdb.config.entities as readonly EntityType[]).includes(EntityType)
     );
@@ -525,6 +530,7 @@ declare module '@aiao/rxdb' {
   }
 }
 
+/** 为数据库注册 BOM 仓储、领域门面和可达维护系统。 */
 export const rxDBPluginBom: Plugin = (db: RxDB) => {
   const plugin = new RxDBPluginBom(db);
   // 门面属性在工厂里挂（search 插件的先例）：`declare module` 只解决类型，运行时靠这里

@@ -90,6 +90,15 @@ export class BomBackendCapabilityError extends BomError {
   }
 }
 
+/** 远程后端的隔离配置或存量图不满足安装前提。 */
+export class BomBackendConfigurationError extends BomError {
+  readonly code = 'BOM_BACKEND_CONFIGURATION';
+
+  constructor(readonly detail: string) {
+    super(`后端配置违约：${detail}`, 'BomBackendConfigurationError');
+  }
+}
+
 /**
  * 环违约（US-509）：写入期被存储层判环拒绝。
  *
@@ -184,10 +193,10 @@ export const BOM_INSTANCE_PREFIX = 'rxdb:bom_instance:';
 export const BOM_PUBLISH_VALIDATION_PREFIX = 'rxdb:bom_publish_validation:';
 /** SQLite 触发器消息前缀：十进制格式。 */
 export const BOM_DECIMAL_FORMAT_PREFIX = 'rxdb:bom_decimal_format:';
-/** SQLite 触发器消息前缀：判环（路径以 `>` 串起物料 id；深度上限消息无路径段）。 */
 /** 序列 / 批次有效域三维重叠的存储层消息前缀（US-518，触发器 RAISE 归一入口）。 */
 export const BOM_EFFECTIVITY_OVERLAP_PREFIX = 'rxdb:bom_effectivity_overlap:';
 
+/** 触发器判环前缀；路径以 `>` 连接，深度与远程配置守卫有独立载荷。 */
 export const BOM_CYCLE_PREFIX = 'rxdb:bom_cycle:';
 
 /**
@@ -217,6 +226,8 @@ export const normalizeBomError = (cause: unknown): BomError | undefined => {
   }
   if (message.includes(BOM_CYCLE_PREFIX)) {
     const payload = message.split(BOM_CYCLE_PREFIX)[1]?.split(/[\n']/)[0]?.trim() ?? '';
+    if (payload.startsWith('isolation:') || payload === 'existing_graph')
+      return new BomBackendConfigurationError(payload);
     // 深度上限消息不带路径段；真环路径以 `>` 分隔
     const path = payload.length > 0 && payload !== 'depth_limit' ? payload.split('>') : [];
     return new BomCycleError(path);

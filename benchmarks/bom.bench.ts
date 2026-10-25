@@ -1,3 +1,4 @@
+import { createBomBenchmarkDatabase } from './bom-database.ts';
 /**
  * @fileoverview 已连接、预热后的 BOM API 耗时测量；活视图执行查询 16ms、保存与快照更新 100ms 预算门禁。
  */
@@ -6,16 +7,13 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { cpus } from 'node:os';
 import { dirname, resolve } from 'node:path';
 
-import { RxDB, SyncType, type AdapterRepositoryConstructor } from '@aiao/rxdb';
-import { PGliteRepository, RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
+import type { RxDB } from '@aiao/rxdb';
 import {
-  BOM_ENTITIES,
   BomHeader,
   BomInstanceNode,
   BomItem,
   BomLine,
   BomLineOccurrence,
-  rxDBPluginBom,
   type BomViewSnapshot
 } from '@aiao/rxdb-plugin-bom';
 import { loadBomViewFixture } from '@aiao/rxdb-plugin-bom/testing';
@@ -78,27 +76,13 @@ const measure = async <T>(
   return measurement(name, budgetMs, samples);
 };
 
-const createDatabase = async (): Promise<RxDB> => {
-  const rxdb = new RxDB({
-    dbName: `bom-benchmark-${crypto.randomUUID()}`,
-    context: { userId: '00000000-0000-7000-8000-000000000001' },
-    entities: [...BOM_ENTITIES],
-    sync: { local: { adapter: 'pglite' }, type: SyncType.None }
-  });
-  rxdb.use(rxDBPluginBom);
-  rxdb.adapter(
-    'pglite',
-    db =>
-      new RxDBAdapterPGlite(db, {
-        store: 'memory',
-        repositories: {
-          BomRepository: PGliteRepository as unknown as AdapterRepositoryConstructor<RxDBAdapterPGlite>
-        }
-      })
-  );
-  await rxdb.connect('pglite');
-  return rxdb;
-};
+const createDatabase = async (): Promise<RxDB> =>
+  (
+    await createBomBenchmarkDatabase({
+      prefix: 'bom-benchmark',
+      userId: '00000000-0000-7000-8000-000000000001'
+    })
+  ).db;
 
 const seedReadFixture = async (rxdb: RxDB) => {
   const parent = new BomItem();

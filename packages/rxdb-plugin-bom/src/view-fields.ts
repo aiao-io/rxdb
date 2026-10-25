@@ -1,6 +1,15 @@
 import { BomResolutionError } from './resolve/resolution.js';
 import type { BomEditorFields, BomLineEditorValue, BomOccurrencePatch } from './view-types.js';
 
+/** 三框架原生编辑表单的字段、标签和输入类型。 */
+export const BOM_EDITOR_INPUTS: readonly { field: keyof BomEditorFields; label: string; type: string }[] = [
+  { field: 'qty', label: '用量', type: 'text' },
+  { field: 'componentScrap', label: '组件损耗', type: 'text' },
+  { field: 'operationSeq', label: '投料工序', type: 'number' },
+  { field: 'effectiveFrom', label: '生效起点', type: 'datetime-local' },
+  { field: 'effectiveTo', label: '生效终点', type: 'datetime-local' }
+];
+
 /** 原样呈现领域错误消息及结构化信息，不在框架层重建业务错误。 */
 export const bomErrorText = (error: unknown): string => {
   if (!(error instanceof Error)) return String(error);

@@ -30,7 +30,7 @@ import {
   type BomSqlDialect
 } from '../resolve/bom-sql.js';
 import { filterResolutionRows } from '../resolve/config-validate.js';
-import { checkBudgets, DEFAULT_EXPANSION_BUDGETS, type ExpansionBudgets } from '../resolve/expansion.js';
+import { checkBudgets, resolveBudgets, type ExpansionBudgets } from '../resolve/expansion.js';
 import { BomResolutionError, type ResolutionContext, type UnresolvedAlternative } from '../resolve/resolution.js';
 import {
   assertContext,
@@ -501,49 +501,80 @@ interface RoutingData {
   splitsByOccurrence: Map<string, { operationSeq: number; ratio: string }[]>;
 }
 
-const loadRoutingData = async (
+const routingRows = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
-  asOfDate: Date
-): Promise<RoutingData> => {
-  const opsByRouting = new Map<string, LayerRoutingOp[]>();
-  const opsResult = await query(
-    `SELECT "routingId", "operationSeq", "operationScrap", "scrapConvention" FROM ${dialect.table('routing_operation')} ORDER BY "operationSeq"`
+  table: string,
+  columns: string,
+  field: string,
+  ids: readonly string[],
+  order = ''
+): Promise<unknown[][]> => {
+  const rows: unknown[][] = [];
+  for (let offset = 0; offset < ids.length; offset += CHUNK_SIZE) {
+    const chunk = ids.slice(offset, offset + CHUNK_SIZE);
+    const placeholders = chunk.map((_, index) => dialect.placeholder(index)).join(', ');
+    const result = await query(
+      `SELECT ${columns} FROM ${dialect.table(table)} WHERE "${field}" IN (${placeholders})${order}`,
+      chunk
+    );
+    rows.push(...result.rows);
+  }
+  return rows;
+};
+
+const loadRoutingData = async (run: ExplosionRun, rows: readonly ExplosionRow[]): Promise<void> => {
+  const routingIds = [
+    ...new Set(rows.flatMap(row => (row.headerRoutingId === null ? [] : [row.headerRoutingId])))
+  ].filter(id => !run.loadedRoutings.has(id));
+  const occurrenceIds = [...new Set(rows.map(row => row.occurrenceId))].filter(id => !run.loadedOccurrences.has(id));
+  const operations = await routingRows(
+    run.query,
+    run.dialect,
+    'routing_operation',
+    '"routingId", "operationSeq", "operationScrap", "scrapConvention"',
+    'routingId',
+    routingIds,
+    ' ORDER BY "operationSeq"'
   );
-  for (const row of opsResult.rows) {
-    const routingId = readString(row, opsResult.columns, 'routingId');
-    const list = opsByRouting.get(routingId) ?? [];
+  for (const row of operations) {
+    const id = String(row[0]);
+    const list = run.routing.opsByRouting.get(id) ?? [];
     list.push({
-      operationSeq: Number(row[columnIndexOf(opsResult.columns, 'operationSeq')]),
-      operationScrap: readString(row, opsResult.columns, 'operationScrap'),
-      scrapConvention: readString(row, opsResult.columns, 'scrapConvention') as 'additive' | 'yield'
+      operationSeq: Number(row[1]),
+      operationScrap: String(row[2]),
+      scrapConvention: row[3] as 'additive' | 'yield'
     });
-    opsByRouting.set(routingId, list);
+    run.routing.opsByRouting.set(id, list);
   }
-  const routingValidity = (
-    await query(
-      `SELECT "id" AS "id", "validFrom" AS "validFrom", "disabledAt" AS "disabledAt" FROM ${dialect.table('routing')}`
-    )
-  ).rows;
-  const routingUncovered = new Map<string, string>();
-  for (const row of routingValidity) {
-    const reason = routingUncoveredReason({ validFrom: row[1], disabledAt: row[2] }, asOfDate);
-    if (reason !== null) routingUncovered.set(String(row[0]), reason);
-  }
-  const splitsByOccurrence = new Map<string, { operationSeq: number; ratio: string }[]>();
-  const splitsResult = await query(
-    `SELECT "occurrenceId", "operationSeq", "ratio" FROM ${dialect.table('bom_line_operation_split')}`
+  const validity = await routingRows(
+    run.query,
+    run.dialect,
+    'routing',
+    '"id", "validFrom", "disabledAt"',
+    'id',
+    routingIds
   );
-  for (const row of splitsResult.rows) {
-    const occurrenceId = readString(row, splitsResult.columns, 'occurrenceId');
-    const list = splitsByOccurrence.get(occurrenceId) ?? [];
-    list.push({
-      operationSeq: Number(row[columnIndexOf(splitsResult.columns, 'operationSeq')]),
-      ratio: readString(row, splitsResult.columns, 'ratio')
-    });
-    splitsByOccurrence.set(occurrenceId, list);
+  for (const row of validity) {
+    const reason = routingUncoveredReason({ validFrom: row[1], disabledAt: row[2] }, run.context.asOfDate);
+    if (reason !== null) run.routing.routingUncovered.set(String(row[0]), reason);
   }
-  return { opsByRouting, routingUncovered, splitsByOccurrence };
+  const splits = await routingRows(
+    run.query,
+    run.dialect,
+    'bom_line_operation_split',
+    '"occurrenceId", "operationSeq", "ratio"',
+    'occurrenceId',
+    occurrenceIds
+  );
+  for (const row of splits) {
+    const id = String(row[0]);
+    const list = run.routing.splitsByOccurrence.get(id) ?? [];
+    list.push({ operationSeq: Number(row[1]), ratio: String(row[2]) });
+    run.routing.splitsByOccurrence.set(id, list);
+  }
+  routingIds.forEach(id => run.loadedRoutings.add(id));
+  occurrenceIds.forEach(id => run.loadedOccurrences.add(id));
 };
 
 /** 一次展开的共享状态：读事务内的查询、BFS 节点表、结果集与预算计数（各层累积）。 */
@@ -554,6 +585,8 @@ interface ExplosionRun {
   options: ExplosionOptions;
   budget: Readonly<Required<ExpansionBudgets>>;
   routing: RoutingData;
+  loadedRoutings: Set<string>;
+  loadedOccurrences: Set<string>;
   /** 子头按修订缓存（同一修订在多条路径上只解析一次）。 */
   childHeaders: Map<string, ResolvedChildHeader | null>;
   /** 解析域的 unresolved（配置 / 序列 / 批次候选未定），随行查询累积。 */
@@ -938,7 +971,7 @@ const explodeNode = async (
   assertNodeRouting(run, node, effectiveRows, headerRoutingId);
   // US-513：只有 consume 行进入七步需求链路；by_product / scrap_out 是反向物料流。
   // 「无投入」的头（有行但没有 consume 行）整次拒绝，不把空结果当成功。
-  if (rows.length === 0 && byHeader.has(node.headerId)) return null;
+  if (rows.length === 0) return null;
   if (!effectiveRows.some(row => row.flowDirection === 'consume')) {
     throw new BomQuantityError('头没有 consume 行（无投入）：副产与废料行不能单独构成层级', node.path);
   }
@@ -961,6 +994,7 @@ const explodeLevels = async (run: ExplosionRun): Promise<ExplosionResult['trunca
     if (run.options.signal?.aborted) return { reason: 'cancelled' };
     const headerIds = [...new Set(frontier.map(index => run.nodes[index].headerId))];
     const byHeader = await fetchHeaderRows(run.query, run.dialect, run.context, headerIds, run.domainUnresolved);
+    await loadRoutingData(run, [...byHeader.values()].flat());
     const nextFrontier: number[] = [];
     for (const nodeIndex of frontier) {
       const reason = await explodeNode(run, run.nodes[nodeIndex], byHeader, nextFrontier);
@@ -991,7 +1025,7 @@ export const explodeBom = async (
     throw new BomResolutionError('parent', '需要 parentItemId 或 parentRevisionId 之一');
   }
   const dialect = bomSqlDialectFor(adapter.name);
-  const budget = { ...DEFAULT_EXPANSION_BUDGETS, ...options.budgets };
+  const budget = resolveBudgets(options.budgets);
   const planned = normalizePlannedQuantity(options.plannedQty);
 
   return adapter.transaction(async executor => {
@@ -1004,7 +1038,9 @@ export const explodeBom = async (
       context,
       options,
       budget,
-      routing: await loadRoutingData(query, dialect, context.asOfDate),
+      routing: { opsByRouting: new Map(), routingUncovered: new Map(), splitsByOccurrence: new Map() },
+      loadedRoutings: new Set(),
+      loadedOccurrences: new Set(),
       childHeaders: new Map(),
       domainUnresolved: [],
       nodes: [],

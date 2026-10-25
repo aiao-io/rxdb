@@ -98,6 +98,17 @@ for (const backend of BACKENDS) {
       return occurrence;
     };
 
+    it('替代件零当量在实体保存和直连 SQL 都被拒绝', async () => {
+      const occurrence = await addOccurrence(await draftHeader());
+      occurrence.equivQty = '0';
+      await expect(occurrence.save()).rejects.toThrow(/当量/);
+      await expect(
+        adapter.transaction(executor =>
+          executor.query(`UPDATE ${table('bom_line_occurrence')} SET "equivQty" = '0' WHERE "id" = '${occurrence.id}'`)
+        )
+      ).rejects.toThrow(/equivQty/);
+    });
+
     const addSplit = async (occurrence: BomLineOccurrence, operationSeq: number, ratio: string): Promise<void> => {
       const split = new BomLineOperationSplit();
       split.occurrenceId = occurrence.id;

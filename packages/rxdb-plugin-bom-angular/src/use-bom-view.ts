@@ -1,18 +1,13 @@
-import { deterministicStringify, type RxDB } from '@aiao/rxdb';
+import { type RxDB } from '@aiao/rxdb';
 import {
   createBomView,
+  createBomViewSession,
   initialBomViewState,
   type BomViewCommands,
-  type BomViewHandle,
   type BomViewInput,
   type BomViewState
 } from '@aiao/rxdb-plugin-bom';
 import { DestroyRef, effect, inject, isSignal, signal, untracked, type Signal } from '@angular/core';
-import type { Subscription } from 'rxjs';
-
-/** 输入的内容身份；与 React / Vue 绑定逐字同一判据，无效日期经 JSON 归一为 null 而不抛错。 */
-const inputIdentity = (input: BomViewInput): string =>
-  deterministicStringify(JSON.parse(JSON.stringify(input)) as unknown);
 
 /** Angular signal 与共享 BOM 命令。 */
 export interface BomViewBinding {
@@ -45,58 +40,15 @@ export interface BomViewBinding {
 export const useBomView = (db: RxDB | Signal<RxDB>, input: BomViewInput | Signal<BomViewInput>): BomViewBinding => {
   const destroyRef = inject(DestroyRef);
   const state = signal(initialBomViewState());
-  let active: BomViewHandle | null = null;
-  let activeDb: RxDB | null = null;
-  let appliedInput: string | null = null;
-  let subscription: Subscription | null = null;
-
-  const release = (): void => {
-    subscription?.unsubscribe();
-    active?.destroy();
-    subscription = null;
-    active = null;
-    activeDb = null;
-  };
-  const install = (nextDb: RxDB, nextInput: BomViewInput): void => {
-    release();
-    const handle = createBomView(nextDb, nextInput);
-    active = handle;
-    activeDb = nextDb;
-    appliedInput = inputIdentity(nextInput);
-    subscription = handle.state$.subscribe(value => state.set(value));
-  };
-  const sync = (nextDb: RxDB, nextInput: BomViewInput): void => {
-    if (active === null || nextDb !== activeDb) {
-      install(nextDb, nextInput);
-      return;
-    }
-    const key = inputIdentity(nextInput);
-    if (key === appliedInput) return;
-    appliedInput = key;
-    active.setInput(nextInput);
-  };
-  const current = (): BomViewHandle => {
-    if (active === null) throw new Error('BOM 视图尚未挂载或已经卸载');
-    return active;
-  };
-
+  const session = createBomViewSession(createBomView, value => state.set(value));
   const syncRef = effect(() => {
     const nextDb = isSignal(db) ? db() : db;
     const nextInput = isSignal(input) ? input() : input;
-    untracked(() => sync(nextDb, nextInput));
+    untracked(() => session.sync(nextDb, nextInput));
   });
   destroyRef.onDestroy(() => {
     syncRef.destroy();
-    release();
+    session.release();
   });
-
-  const commands: BomViewCommands = {
-    setInput: value => current().setInput(value),
-    refresh: () => current().refresh(),
-    toggle: path => current().toggle(path),
-    loadOccurrence: id => current().loadOccurrence(id),
-    saveOccurrence: patch => current().saveOccurrence(patch),
-    calculate: () => current().calculate()
-  };
-  return { state: state.asReadonly(), commands };
+  return { state: state.asReadonly(), commands: session.commands };
 };

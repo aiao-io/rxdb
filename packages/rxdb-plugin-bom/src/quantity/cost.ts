@@ -659,10 +659,19 @@ const rollupCostInSnapshot = async (
     substituteAvailabilities: context.substituteAvailabilities
   };
   return adapter.transaction(async executor => {
-    const query = (executor as unknown as BomQueryExecutor).query.bind(executor);
+    const reads = new Map<string, ReturnType<BomQueryExecutor['query']>>();
+    const query: BomQueryExecutor['query'] = (sql, params) => {
+      const key = JSON.stringify([sql, params ?? []]);
+      let result = reads.get(key);
+      if (result === undefined) {
+        result = executor.query(sql, params);
+        reads.set(key, result);
+      }
+      return result;
+    };
 
     // 根：父修订选择（同 explodeBom 的根解析）
-    const q: CostQuery = (executor as unknown as BomQueryExecutor).query.bind(executor) as unknown as CostQuery;
+    const q: CostQuery = query;
     const parentSql = buildParentRevisionSql(dialect, {
       itemId: target.parentItemId ?? '',
       asOfDate: context.asOfDate,
@@ -716,8 +725,11 @@ const rollupCostInSnapshot = async (
     );
 
     // unit_cost 独立 memo：键 = 头 + 上下文（节点是已解析头，AC#8 不串）；
-    // batch_cost 随请求批量变，本层每次现算、子件只取 unit_cost（拓扑逆序单遍的实质）
+    // 相同头和批量复用本次事务的计算结果，明细与标准单位成本共用批成本。
     const unitCostCache = new Map<string, string>();
+    const batchCostCache = new Map<string, Decimal>();
+    const batchKey = (header: HeaderMeta, quantity: Decimal, allocated: boolean) =>
+      JSON.stringify([header.headerId, decimalToCanonical(quantity), allocated]);
     const jointCache = new Map<string, JointCostSummary>();
     const sourceCache = new Map<string, JointUnitPrice | null>();
     const sourceUses = new Map<string, JointCostSourceUse>();
@@ -830,8 +842,21 @@ const rollupCostInSnapshot = async (
       return price;
     };
 
-    /** 本层 batch_cost（不缓存；子件单位成本经 {@link unitCostOf} 缓存）。 */
     const batchCostOf = async (headerMeta: HeaderMeta, L: Decimal, path: readonly string[] = []): Promise<Decimal> => {
+      assertAcyclic(headerMeta, path);
+      const key = batchKey(headerMeta, L, path.length === 0);
+      const cached = batchCostCache.get(key);
+      if (cached !== undefined) return cached;
+      const result = await computeBatchCostOf(headerMeta, L, path);
+      batchCostCache.set(key, result);
+      return result;
+    };
+
+    const computeBatchCostOf = async (
+      headerMeta: HeaderMeta,
+      L: Decimal,
+      path: readonly string[] = []
+    ): Promise<Decimal> => {
       assertAcyclic(headerMeta, path);
       const byHeader = await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId]);
       const rows = byHeader.get(headerMeta.headerId) ?? [];
@@ -1034,9 +1059,12 @@ const rollupCostInSnapshot = async (
         const childHeader = await resolveChildHeader(query, dialect, resolutionContext, row.resolvedChildRevisionId!);
         if (childHeader !== null) {
           const childDemand = convertUom(demandInStock, row.childStockUom, childHeader.baseUom, hops.fromStock);
-          const childUnit = await unitCostOf(
-            headerMetaOf(childHeader, row.childItemId, row.resolvedChildRevisionId as string)
+          const childDetail = await buildDetail(
+            headerMetaOf(childHeader, row.childItemId, row.resolvedChildRevisionId as string),
+            decimalFromCanonical(childDemand),
+            [...path, headerMeta.headerId]
           );
+          const childUnit = childDetail.unitCost;
           const amount = decimalMul(decimalFromCanonical(childDemand), decimalFromCanonical(childUnit));
           materialTotal = decimalAdd(materialTotal, amount);
           material.push({
@@ -1047,12 +1075,7 @@ const rollupCostInSnapshot = async (
             unitCost: childUnit,
             amount: decimalToCanonical(amount)
           });
-          children.push(
-            await buildDetail(
-              headerMetaOf(childHeader, row.childItemId, row.resolvedChildRevisionId as string),
-              decimalFromCanonical(childDemand)
-            )
-          );
+          children.push(childDetail);
         } else {
           const itemRow = await fetchItemCost(q, dialect, row.childItemId);
           if (itemRow.unitPrice === null) {
@@ -1102,7 +1125,8 @@ const rollupCostInSnapshot = async (
           operationCost.rateHours,
           context.currency
         );
-        overheadReason = overhead === null ? '工作中心未声明制费' : '按工时计';
+        if (overhead !== null) overheadReason = '按工时计';
+        else if (overheadReason === '无路线') overheadReason = '工作中心未声明制费';
         if (overhead !== null) overheadAmount = decimalAdd(overheadAmount, overhead);
       }
 
@@ -1110,10 +1134,16 @@ const rollupCostInSnapshot = async (
       return { batchCost, material, processing, credits, children, overhead: overheadAmount, overheadReason };
     };
 
-    const buildDetail = async (headerMeta: HeaderMeta, L: Decimal): Promise<CostNodeDetail> => {
+    const buildDetail = async (
+      headerMeta: HeaderMeta,
+      L: Decimal,
+      path: readonly string[] = []
+    ): Promise<CostNodeDetail> => {
       const costLotQty = requireCostLotQty(headerMeta);
-      const detail = await buildLayerDetail(headerMeta, L);
+      const detail = await buildLayerDetail(headerMeta, L, path);
       const allocated = await allocate(headerMeta, L, detail.batchCost);
+      batchCostCache.set(batchKey(headerMeta, L, false), detail.batchCost);
+      batchCostCache.set(batchKey(headerMeta, L, true), allocated.batch);
       const unitCost = await unitCostOf(headerMeta);
       return {
         headerId: headerMeta.headerId,

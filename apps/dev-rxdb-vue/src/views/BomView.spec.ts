@@ -96,12 +96,14 @@ describe('Vue BOM 页面资源边界', () => {
     await page.get('input[name="bom-planned"]').setValue('7');
     await page.get('input[name="bom-depth"]').setValue('2');
     await page.get('input[name="bom-date"]').setValue('2099-01-02T12:30');
-    expect(toValue(source)).toEqual({
-      target: { parentItemId: 'manual' },
-      context: { asOfDate: new Date('2099-01-02T12:30Z') },
-      plannedQty: { value: '7', uom: 'pcs' },
-      budgets: { depth: 2 }
-    });
+    await vi.waitFor(() =>
+      expect(toValue(source)).toEqual({
+        target: { parentItemId: 'manual' },
+        context: { asOfDate: new Date('2099-01-02T12:30Z') },
+        plannedQty: { value: '7', uom: 'pcs' },
+        budgets: { depth: 2 }
+      })
+    );
     expect(vi.mocked(useBomView).mock.results.at(-1)!.value.commands.setInput).not.toHaveBeenCalled();
   });
   it('种子失败立即释放并呈现原错误，随后卸载不重复释放', async () => {

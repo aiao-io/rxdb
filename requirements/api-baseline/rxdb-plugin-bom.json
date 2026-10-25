@@ -18,6 +18,10 @@
         "kind": "value"
       },
       {
+        "name": "BOM_EDITOR_INPUTS",
+        "kind": "value"
+      },
+      {
         "name": "BOM_EFFECTIVITY_OVERLAP_PREFIX",
         "kind": "value"
       },
@@ -55,6 +59,10 @@
       },
       {
         "name": "BomBackendCapabilityError",
+        "kind": "both"
+      },
+      {
+        "name": "BomBackendConfigurationError",
         "kind": "both"
       },
       {
@@ -398,6 +406,10 @@
         "kind": "value"
       },
       {
+        "name": "createBomViewSession",
+        "kind": "value"
+      },
+      {
         "name": "cycleConstraintDdlForRemotePg",
         "kind": "value"
       },
@@ -606,6 +618,10 @@
         "kind": "value"
       },
       {
+        "name": "handleBomTreeKey",
+        "kind": "value"
+      },
+      {
         "name": "HistoryBatchInput",
         "kind": "type"
       },
@@ -798,6 +814,10 @@
         "kind": "value"
       },
       {
+        "name": "roundToDecimalPlaces",
+        "kind": "value"
+      },
+      {
         "name": "roundToSignificant",
         "kind": "value"
       },
@@ -953,6 +973,10 @@
       },
       {
         "name": "loadScooterDatasetF",
+        "kind": "value"
+      },
+      {
+        "name": "reachDiamonds",
         "kind": "value"
       },
       {

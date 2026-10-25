@@ -1,3 +1,4 @@
+import { bomQueryRecords } from './resolve/bom-adapter.js';
 /**
  * @fileoverview BOM 仓储门面
  *
@@ -9,7 +10,6 @@
 import type { EntityType, QueryTask, RxDB, RxDBMutationsMap, TransactionExecutor } from '@aiao/rxdb';
 import {
   assertEntityOperationAllowed,
-  deterministicStringify,
   getEntityMetadata,
   getEntityStatus,
   getEntityStorageMetadata,
@@ -77,7 +77,7 @@ const readRows = async (
   params: unknown[] = []
 ): Promise<Record<string, unknown>[]> => {
   const result = await query(sql, params);
-  return result.rows.map(row => Object.fromEntries(result.columns.map((column, index) => [column, row[index]])));
+  return bomQueryRecords(result);
 };
 
 const validateConditionWrite = async (
@@ -178,9 +178,10 @@ const validateExtOf = async (
   mode: ExtWriteMode
 ): Promise<void> => {
   const defs = await attrDefsOf(context, scope);
-  const ext = data['ext'] == null ? {} : (JSON.parse(normalizeExtValue(data['ext'])) as Record<string, unknown>);
+  const normalized = data['ext'] == null ? undefined : normalizeExtValue(data['ext']);
+  const ext = normalized === undefined ? {} : (JSON.parse(normalized) as Record<string, unknown>);
   validateExtWrite(defs, scope, ext, mode);
-  if (data['ext'] != null) data['ext'] = normalizeExtValue(ext);
+  if (normalized !== undefined) data['ext'] = normalized;
 };
 
 /**
@@ -322,6 +323,7 @@ const normalizeWriteFields = (entity: Record<string, unknown>, written: Record<s
   if ('ext' in written && entity['ext'] != null) entity['ext'] = normalizeExtValue(entity['ext']);
 };
 
+/** 执行 BOM 写入校验与领域查询的共享仓储。 */
 export class BomRepository<T extends EntityType = EntityType> extends Repository<T> {
   constructor(rxdb: RxDB, EntityType: T) {
     super(rxdb, EntityType);
@@ -461,21 +463,11 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
   #viewTask(input: BomViewInput): QueryTask<T, BomViewSnapshot> {
     const captured = structuredClone(input);
     const runner = bomViewRunner(this.rxdb, captured);
+    let revision = 0;
     return this.queryManager.createTask({
       options: { type: 'bomView', options: captured },
       runner: () => runner,
-      getFingerprint: snapshot => [
-        deterministicStringify({
-          ...snapshot,
-          quantityError:
-            snapshot.quantityError instanceof Error ?
-              {
-                name: snapshot.quantityError.name,
-                message: snapshot.quantityError.message
-              }
-            : snapshot.quantityError
-        })
-      ],
+      getFingerprint: () => [++revision],
       relationEntityTypes: BOM_ENTITIES.filter(EntityType => this.rxdb.config.entities.includes(EntityType)),
       autoCache: false
     });

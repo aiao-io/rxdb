@@ -1,4 +1,5 @@
 import type { ExplosionResult, OutputLine, PenetrationRecord, RequirementLine } from '@aiao/rxdb-plugin-bom';
+import { buildPathTree } from './path-tree';
 
 /** 以完整发生项路径区分的展示节点，虚拟件与产出不伪装成投入需求。 */
 export interface RequirementTreeNode {
@@ -52,20 +53,17 @@ export const buildRequirementTree = (result: ExplosionResult): RequirementTreeNo
       output
     }))
   ].map(node => ({ ...node, key: JSON.stringify(node.path), depth: node.path.length, children: [] }));
-  const indexed = new Map<string, RequirementTreeNode>([[root.key, root]]);
   for (const node of nodes) {
     if (node.path.length === 0) throw new Error('需求发生项路径不能为空');
-    if (indexed.has(node.key)) throw new Error(`需求路径重复：${node.key}`);
-    indexed.set(node.key, node);
   }
+  buildPathTree(
+    [root, ...nodes],
+    node => (node.depth === 0 ? null : JSON.stringify(node.path.slice(0, -1))),
+    '需求路径',
+    '父节点'
+  );
   const order = new Map(result.manifest.occurrenceIds.map((id, index) => [id, index]));
-  for (const node of nodes) {
-    const parentKey = JSON.stringify(node.path.slice(0, -1));
-    const parent = indexed.get(parentKey);
-    if (!parent) throw new Error(`需求路径缺少父节点：${parentKey}`);
-    parent.children.push(node);
-  }
-  for (const parent of indexed.values()) {
+  for (const parent of [root, ...nodes]) {
     parent.children.sort(
       (first, second) =>
         (order.get(first.path[first.path.length - 1]) ?? Number.MAX_SAFE_INTEGER) -

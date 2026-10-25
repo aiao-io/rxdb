@@ -57,6 +57,12 @@ export const roundToSignificant = (decimal: Decimal, digits: number = DECIMAL_KE
   return { coeff: negative ? -quotient : quotient, exp: stripped.exp + scale };
 };
 
+/** 按指定小数位数做偶数舍入，保留有符号中间量的精确十进制语义。 */
+export const roundToDecimalPlaces = (decimal: Decimal, places: number): Decimal => {
+  if (!Number.isSafeInteger(places) || places < 0) throw new RangeError('小数位数必须是非负安全整数');
+  return roundToSignificant(decimal, digitCount(decimal.coeff) + decimal.exp + places);
+};
+
 /**
  * 解析规范十进制串（可选负号、无指数、无前导/尾随零，见 `DECIMAL_CANONICAL_RE`）。
  */

@@ -10,6 +10,17 @@ class WorkspaceTestPage {}
 describe('业务工作条件的恢复与连续使用', () => {
   afterEach(() => TestBed.resetTestingModule());
 
+  it.each([
+    ['1.5', 1],
+    ['-2', 0],
+    ['9.5', 3],
+    ['bad', 0]
+  ])('引导步骤只恢复合法整数：%s', (guide, expected) => {
+    const state = TestBed.inject(BomWorkspaceState);
+    state.restore({ guide });
+    expect(state.guideStep()).toBe(expected);
+  });
+
   it('从链接恢复日期、数量与完整适用条件，清空序列号仍能往返', () => {
     const state = TestBed.inject(BomWorkspaceState);
     state.restore({

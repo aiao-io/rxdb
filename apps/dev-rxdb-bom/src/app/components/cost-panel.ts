@@ -1,10 +1,4 @@
-import {
-  decimalAdd,
-  decimalFromCanonical,
-  decimalToCanonical,
-  type CostNodeDetail,
-  type CostRollupResult
-} from '@aiao/rxdb-plugin-bom';
+import { decimalAdd, decimalFromCanonical, decimalToCanonical, type CostNodeDetail } from '@aiao/rxdb-plugin-bom';
 import { COPRODUCT_DATASET } from '@aiao/rxdb-plugin-bom/testing';
 import {
   ChangeDetectionStrategy,
@@ -450,8 +444,8 @@ export class CostPanel {
   readonly ready = this.service.ready;
   readonly itemNos = this.service.itemNos;
   readonly costRootKey = this.workspace.rootKey;
-  readonly costResult = signal<CostRollupResult | null>(this.workspace.cost()?.result ?? null);
-  readonly resultKey = signal(this.workspace.cost()?.key ?? '');
+  readonly costResult = computed(() => this.workspace.cost()?.result ?? null);
+  readonly resultKey = computed(() => this.workspace.cost()?.key ?? '');
   readonly requestKey = computed(() =>
     JSON.stringify({ ...this.workspace.context(), asOfDate: this.asOfDate(), jointSource: this.jointSourceKey() })
   );
@@ -507,7 +501,6 @@ export class CostPanel {
   }
 
   clearResult(): void {
-    this.costResult.set(null);
     this.workspace.cost.set(null);
     this.costError.set('');
   }
@@ -537,8 +530,6 @@ export class CostPanel {
         !this.ready()
       )
         return;
-      this.costResult.set(result);
-      this.resultKey.set(key);
       this.workspace.cost.set({ result, key, epoch });
     } catch (error) {
       if (id === this.requestId && epoch === this.service.dataEpoch()) this.costError.set(String(error));

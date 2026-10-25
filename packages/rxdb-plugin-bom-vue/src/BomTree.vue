@@ -9,7 +9,7 @@
  * 节点列表显示：共享状态发布新的节点列表（换输入、换库、刷新出新结果、展开折叠）即撤下，
  * 换之前发起、之后才失败的加载也不回写。
  */
-import { BOM_VIEW_STYLES, bomErrorText } from '@aiao/rxdb-plugin-bom';
+import { BOM_VIEW_STYLES, bomErrorText, handleBomTreeKey } from '@aiao/rxdb-plugin-bom';
 import type { BomViewCommands, BomViewNode, BomViewState } from '@aiao/rxdb-plugin-bom';
 import { computed, ref, shallowRef } from 'vue';
 
@@ -63,41 +63,17 @@ const activate = (node: BomViewNode): void => {
   void select(node);
 };
 
-const moveRight = (node: BomViewNode, index: number): void => {
-  if (node.hasChildren && !node.expanded) {
-    props.commands.toggle(node.path);
-    return;
-  }
-  if ((props.state.nodes[index + 1]?.depth ?? 0) > node.depth) focus(index + 1);
-};
-
-const moveLeft = (node: BomViewNode): void => {
-  if (node.hasChildren && node.expanded) {
-    props.commands.toggle(node.path);
-    return;
-  }
-  focusKey(JSON.stringify(node.path.slice(0, -1)));
-};
-
-const keydown = (event: KeyboardEvent, node: BomViewNode, index: number): void => {
-  const actions: Record<string, () => void> = {
-    ArrowDown: () => focus(index + 1),
-    ArrowUp: () => focus(index - 1),
-    Home: () => focus(0),
-    End: () => focus(props.state.nodes.length - 1),
-    ArrowRight: () => moveRight(node, index),
-    ArrowLeft: () => moveLeft(node),
-    Enter: () => {
-      void select(node);
-    },
-    ' ': () => {
-      if (node.hasChildren) props.commands.toggle(node.path);
-    }
-  };
-  const action = actions[event.key];
-  if (!action) return;
-  event.preventDefault();
-  action();
+const keydown = (event: KeyboardEvent, _node: BomViewNode, index: number): void => {
+  if (
+    handleBomTreeKey(event.key, props.state.nodes, index, {
+      focus,
+      toggle: path => props.commands.toggle(path),
+      edit: node => {
+        void select(node);
+      }
+    })
+  )
+    event.preventDefault();
 };
 </script>
 

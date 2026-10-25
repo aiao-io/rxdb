@@ -1,4 +1,5 @@
 import {
+  BOM_EDITOR_INPUTS,
   BOM_VIEW_STYLES,
   bomEditorFields,
   bomErrorText,
@@ -9,13 +10,7 @@ import {
 } from '@aiao/rxdb-plugin-bom';
 import { ChangeDetectionStrategy, Component, computed, effect, input, signal } from '@angular/core';
 
-const inputs: readonly { field: keyof BomEditorFields; label: string; type: string }[] = [
-  { field: 'qty', label: '用量', type: 'text' },
-  { field: 'componentScrap', label: '组件损耗', type: 'text' },
-  { field: 'operationSeq', label: '投料工序', type: 'number' },
-  { field: 'effectiveFrom', label: '生效起点', type: 'datetime-local' },
-  { field: 'effectiveTo', label: '生效终点', type: 'datetime-local' }
-];
+const inputs = BOM_EDITOR_INPUTS;
 
 // 每个实例独立的说明元素 id，供 aria-describedby 关联
 let editorSequence = 0;

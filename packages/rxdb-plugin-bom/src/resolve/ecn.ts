@@ -1,3 +1,4 @@
+import { bomQueryRecords } from './bom-adapter.js';
 /**
  * @fileoverview ECN 影响面与差异查询（US-515 AC#1/#2）
  *
@@ -8,10 +9,9 @@
  * 四类各就其位；涉及的逻辑行解析不出唯一发生项时差异无法判定，显式拒绝。全部 SQL 走方言占位符绑定。
  */
 
-import type { TransactionFun } from '@aiao/rxdb';
 import type { BomLineOccurrence } from '../entities.js';
 import { BomTruncationError } from '../types.js';
-import type { BomLocalAdapter } from './bom-adapter.js';
+import { scopedBomAdapter, type BomLocalAdapter } from './bom-adapter.js';
 import { bomSqlDialectFor, type BomSqlDialect } from './bom-sql.js';
 import { DEFAULT_EXPANSION_BUDGETS, fetchUsageParents, type UsageRow } from './expansion.js';
 import {
@@ -41,7 +41,7 @@ const queryRecords = async (
     columns: string[];
     rows: unknown[][];
   };
-  return result.rows.map(row => Object.fromEntries(result.columns.map((column, index) => [column, row[index]])));
+  return bomQueryRecords(result);
 };
 
 /** ECN 影响面结果（AC#1）：被改的父物料 + 按 where-used 走到顶的整机与路径。 */
@@ -351,11 +351,7 @@ const assertDiffable = (
  */
 export const ecnDiff = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnDiffResult> =>
   adapter.transaction(async executor => {
-    const scoped: BomLocalAdapter = {
-      name: adapter.name,
-      rawQuery: executor.query.bind(executor),
-      transaction: <T extends TransactionFun>(fun: T) => executor.run(fun) as Promise<Awaited<ReturnType<T>>>
-    };
+    const scoped = scopedBomAdapter(adapter, executor);
     const ecn = await readEcnRow(scoped, ecnId);
     const diffHeaders: EcnDiffResult['headers'] = [];
     const released = (await affectedHeaders(scoped, ecnId)).filter(header => header.state === 'released');

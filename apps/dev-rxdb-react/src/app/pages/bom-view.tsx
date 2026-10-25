@@ -96,6 +96,11 @@ export default function BomViewPage(): ReactElement {
   const [date, setDate] = useState(BOM_VIEW_FIXTURE_DATES.evaluation.slice(0, 16));
   const [planned, setPlanned] = useState('1');
   const [depth, setDepth] = useState('');
+  const [parameters, setParameters] = useState({ date, planned, depth });
+  useEffect(() => {
+    const timer = setTimeout(() => setParameters({ date, planned, depth }), 40);
+    return () => clearTimeout(timer);
+  }, [date, planned, depth]);
   const [message, setMessage] = useState('正在连接 BOM 数据库');
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
@@ -108,11 +113,11 @@ export default function BomViewPage(): ReactElement {
   const input = useMemo(
     () =>
       session?.fixture.inputFor(root, {
-        context: { asOfDate: new Date(`${date}Z`) },
-        plannedQty: { value: planned, uom: 'pcs' },
-        budgets: depth === '' ? undefined : { depth: Number(depth) }
+        context: { asOfDate: new Date(`${parameters.date}Z`) },
+        plannedQty: { value: parameters.planned, uom: 'pcs' },
+        budgets: parameters.depth === '' ? undefined : { depth: Number(parameters.depth) }
       }) ?? null,
-    [session, root, date, planned, depth]
+    [session, root, parameters]
   );
   useEffect(() => {
     const db = createDatabase();

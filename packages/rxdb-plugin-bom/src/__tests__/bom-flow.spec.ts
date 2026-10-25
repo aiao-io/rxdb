@@ -148,6 +148,28 @@ for (const backend of BACKENDS) {
       ).not.toBeNull();
     });
 
+    it('发生项尚未生效或已经失效时返回空需求，不伪造数量错误', async () => {
+      const parent = await makeItem('fl-inactive-p');
+      const { header, addLine } = await setup(adapter, parent);
+      const child = await makeItem('fl-inactive');
+      await addLine('consume', child, {
+        effectiveFrom: day('2026-01-02'),
+        effectiveTo: day('2026-01-03')
+      });
+      await release(header);
+      for (const asOfDate of [day('2026-01-01'), day('2026-01-03')]) {
+        const result = await explodeBom(
+          adapter,
+          { ...CONTEXT, asOfDate },
+          { parentRevisionId: header.parentRevisionId },
+          { plannedQty: { value: '1', uom: 'pcs' } }
+        );
+        expect(result.requirementLines).toEqual([]);
+        expect(result.outputs).toEqual([]);
+        expect(result.truncated).toBeNull();
+      }
+    });
+
     it('AC#4 只有 by_product / scrap_out 行的头：展开报「无投入」', async () => {
       const parent = await makeItem('fl-s-only-p');
       const { header, addLine } = await setup(adapter, parent);

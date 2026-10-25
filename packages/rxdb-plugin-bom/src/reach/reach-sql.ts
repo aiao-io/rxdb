@@ -1,5 +1,5 @@
 import { BOM_CYCLE_DEPTH_LIMIT } from '../backend/constants.js';
-import { bomSqlDialectFor, type BomSqlDialect } from '../resolve/bom-sql.js';
+import { bomSqlDialectFor, isBomPostgres, type BomSqlDialect } from '../resolve/bom-sql.js';
 
 /** 可达维护使用的后端SQL表达式，不包含新的持久化真相源。 */
 export interface ReachSql {
@@ -12,15 +12,12 @@ export interface ReachSql {
 /** 为当前本地后端构造表引用和原生标识符表达式。 */
 export const reachSqlFor = (adapterName: string): ReachSql => ({
   dialect: bomSqlDialectFor(adapterName === 'postgres' ? 'pglite' : adapterName),
-  postgres: adapterName === 'pglite' || adapterName === 'postgres',
+  postgres: isBomPostgres(adapterName),
   uuid:
-    adapterName === 'pglite' || adapterName === 'postgres' ?
-      'gen_random_uuid()'
-    : `lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-8' || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))`,
-  timestamp:
-    adapterName === 'pglite' || adapterName === 'postgres' ?
-      'CURRENT_TIMESTAMP'
-    : `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`
+    isBomPostgres(adapterName) ? 'gen_random_uuid()' : (
+      `lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-8' || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))`
+    ),
+  timestamp: isBomPostgres(adapterName) ? 'CURRENT_TIMESTAMP' : `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`
 });
 
 /** 从不可变的行归属解析作用域和父端点。 */

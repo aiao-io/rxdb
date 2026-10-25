@@ -41,3 +41,5 @@ export {
   type GoldenRequirement,
   type GoldenStepValue
 } from './scooter-golden.js';
+
+export { reachDiamonds } from './reach-graph.js';

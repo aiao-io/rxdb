@@ -1,17 +1,13 @@
-import { deterministicStringify, type RxDB } from '@aiao/rxdb';
+import { type RxDB } from '@aiao/rxdb';
 import {
   createBomView,
+  createBomViewSession,
   initialBomViewState,
   type BomViewCommands,
-  type BomViewHandle,
   type BomViewInput,
   type BomViewState
 } from '@aiao/rxdb-plugin-bom';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-
-/** 输入的内容身份；与 Angular / Vue 绑定逐字同一判据，无效日期经 JSON 归一为 null 而不抛错。 */
-const inputIdentity = (input: BomViewInput): string =>
-  deterministicStringify(JSON.parse(JSON.stringify(input)) as unknown);
+import { useLayoutEffect, useMemo, useState } from 'react';
 
 /** React 的普通快照与共享命令。 */
 export interface BomViewBinding {
@@ -34,40 +30,11 @@ export interface BomViewBinding {
  */
 export const useBomView = (db: RxDB, input: BomViewInput): BomViewBinding => {
   const [state, setState] = useState(initialBomViewState);
-  const current = useRef<BomViewHandle | null>(null);
-  const latestInput = useRef(input);
-  const appliedInput = useRef<string | null>(null);
-  const inputKey = inputIdentity(input);
-  latestInput.current = input;
-  const commands = useMemo<BomViewCommands>(() => {
-    const handle = (): BomViewHandle => {
-      if (current.current === null) throw new Error('BOM 视图尚未挂载或已经卸载');
-      return current.current;
-    };
-    return {
-      setInput: value => handle().setInput(value),
-      refresh: () => handle().refresh(),
-      toggle: path => handle().toggle(path),
-      loadOccurrence: id => handle().loadOccurrence(id),
-      saveOccurrence: patch => handle().saveOccurrence(patch),
-      calculate: () => handle().calculate()
-    };
-  }, []);
+  const session = useMemo(() => createBomViewSession(createBomView, setState), []);
+  const inputKey = session.inputIdentity(input);
+  useLayoutEffect(() => () => session.release(), [db, session]);
   useLayoutEffect(() => {
-    const handle = createBomView(db, latestInput.current);
-    appliedInput.current = inputIdentity(latestInput.current);
-    current.current = handle;
-    const subscription = handle.state$.subscribe(setState);
-    return () => {
-      current.current = null;
-      subscription.unsubscribe();
-      handle.destroy();
-    };
-  }, [db]);
-  useLayoutEffect(() => {
-    if (appliedInput.current === inputKey) return;
-    appliedInput.current = inputKey;
-    current.current?.setInput(input);
-  }, [db, input, inputKey]);
-  return { state, commands };
+    session.sync(db, input);
+  }, [db, input, inputKey, session]);
+  return { state, commands: session.commands };
 };

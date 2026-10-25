@@ -30,6 +30,13 @@ import { bomSqlDialectFor } from './bom-sql.js';
 import { BomType } from './resolution.js';
 import { normalizeDecimalColumns } from './write-rules.js';
 
+const applyHistoryIdentity = (entity: object, input: { id?: string; createdAt?: Date; updatedAt?: Date }): void => {
+  const target = entity as { id: string; createdAt: Date; updatedAt: Date };
+  if (input.id !== undefined) target.id = input.id;
+  if (input.createdAt !== undefined) target.createdAt = input.createdAt;
+  if (input.updatedAt !== undefined) target.updatedAt = input.updatedAt;
+};
+
 /** 一条历史修订输入。 */
 export interface HistoryRevisionInput {
   itemId: string;
@@ -221,10 +228,7 @@ const normalizeDecimals = <T extends object>(entity: T): T => {
  */
 const occurrenceEntity = (construct: Construct, lineId: string, input: HistoryOccurrenceInput): BomLineOccurrence => {
   const occurrence = construct(BomLineOccurrence);
-  const writable = occurrence as unknown as { id: string; createdAt: Date; updatedAt: Date };
-  if (input.id) writable.id = input.id;
-  if (input.createdAt) writable.createdAt = input.createdAt;
-  if (input.updatedAt) writable.updatedAt = input.updatedAt;
+  applyHistoryIdentity(occurrence, input);
   Object.assign(occurrence, {
     lineId,
     childItemId: input.childItemId,
@@ -290,14 +294,25 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       await validateBomWrite(validation, getEntityMetadata(EntityType).name, record, 'create');
       await executor.getRepository(EntityType).create(entity);
     };
+    const createSplits = async (
+      occurrenceId: string,
+      splits: { id?: string; operationSeq: number; ratio: string }[]
+    ): Promise<void> => {
+      for (const input of splits) {
+        const split = construct(BomLineOperationSplit);
+        applyHistoryIdentity(split, input);
+        split.occurrenceId = occurrenceId;
+        split.operationSeq = input.operationSeq;
+        split.ratio = input.ratio;
+        await executor.getRepository(BomLineOperationSplit).create(normalizeDecimals(split));
+      }
+    };
     const createOccurrence = async (lineId: string, input: HistoryOccurrenceInput): Promise<BomLineOccurrence> => {
       const occurrence = occurrenceEntity(construct, lineId, input);
       await createValidated(BomLineOccurrence, occurrence);
       for (const designator of input.designators ?? []) {
         const entity = construct(BomLineDesignator);
-        if (designator.id) (entity as unknown as { id: string }).id = designator.id;
-        if (input.createdAt) (entity as unknown as { createdAt: Date }).createdAt = input.createdAt;
-        if (input.updatedAt) (entity as unknown as { updatedAt: Date }).updatedAt = input.updatedAt;
+        applyHistoryIdentity(entity, { id: designator.id, createdAt: input.createdAt, updatedAt: input.updatedAt });
         entity.occurrenceId = occurrence.id;
         entity.designator = designator.designator;
         await executor.getRepository(BomLineDesignator).create(entity);
@@ -306,9 +321,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
     };
     // 1. 开启态批次行（发布触发器据此跳过追溯检查）
     const batchEntity = construct(BomHistoryBatch);
-    if (batch.id) (batchEntity as unknown as { id: string }).id = batch.id;
-    if (batch.createdAt) (batchEntity as unknown as { createdAt: Date }).createdAt = batch.createdAt;
-    if (batch.updatedAt) (batchEntity as unknown as { updatedAt: Date }).updatedAt = batch.updatedAt;
+    applyHistoryIdentity(batchEntity, batch);
     batchEntity.batchNo = batch.batchNo;
     await executor.getRepository(BomHistoryBatch).create(batchEntity);
 
@@ -316,9 +329,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
     const revisionIds: string[] = [];
     for (const input of batch.revisions) {
       const revision = construct(BomItemRevision);
-      if (input.id) (revision as unknown as { id: string }).id = input.id;
-      if (input.createdAt) (revision as unknown as { createdAt: Date }).createdAt = input.createdAt;
-      if (input.updatedAt) (revision as unknown as { updatedAt: Date }).updatedAt = input.updatedAt;
+      applyHistoryIdentity(revision, input);
       revision.itemId = input.itemId;
       revision.revisionNo = input.revisionNo;
       revision.effectiveFrom = input.effectiveFrom;
@@ -335,9 +346,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
     // 2.5 ECN：draft 装载（盖批次号）→ 发布转移（发布触发器看到开启态批次跳过追溯检查与投影校验）
     for (const input of batch.ecns ?? []) {
       const ecn = construct(BomEcn);
-      if (input.id) (ecn as unknown as { id: string }).id = input.id;
-      if (input.createdAt) (ecn as unknown as { createdAt: Date }).createdAt = input.createdAt;
-      if (input.updatedAt) (ecn as unknown as { updatedAt: Date }).updatedAt = input.updatedAt;
+      applyHistoryIdentity(ecn, input);
       ecn.ecnNo = input.ecnNo;
       ecn.effectiveDate = input.effectiveDate;
       ecn.reason = input.reason ?? null;
@@ -351,9 +360,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
     // 3. 头与行：draft 写入（成员写入协议只约束已发布头）→ 发布头
     for (const headerInput of batch.headers) {
       const header = construct(BomHeader);
-      if (headerInput.id) (header as unknown as { id: string }).id = headerInput.id;
-      if (headerInput.createdAt) (header as unknown as { createdAt: Date }).createdAt = headerInput.createdAt;
-      if (headerInput.updatedAt) (header as unknown as { updatedAt: Date }).updatedAt = headerInput.updatedAt;
+      applyHistoryIdentity(header, headerInput);
       header.parentRevisionId = revisionIds[headerInput.revisionIndex];
       header.bomType = headerInput.bomType;
       header.orgId = headerInput.orgId;
@@ -370,9 +377,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       const lines: { line: BomLine; occurrence: BomLineOccurrence }[] = [];
       for (const lineInput of headerInput.lines) {
         const line = construct(BomLine);
-        if (lineInput.id) (line as unknown as { id: string }).id = lineInput.id;
-        if (lineInput.createdAt) (line as unknown as { createdAt: Date }).createdAt = lineInput.createdAt;
-        if (lineInput.updatedAt) (line as unknown as { updatedAt: Date }).updatedAt = lineInput.updatedAt;
+        applyHistoryIdentity(line, lineInput);
         line.headerId = header.id;
         line.lineNo = lineInput.lineNo;
         line.ecnInId = lineInput.ecnInId ?? null;
@@ -440,14 +445,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
               operationSeq: allocation.operationSeq
             } as Partial<BomLineOccurrence>);
           }
-          for (const splitInput of allocation.splits) {
-            const splitEntity = construct(BomLineOperationSplit);
-            if (splitInput.id) (splitEntity as unknown as { id: string }).id = splitInput.id;
-            splitEntity.occurrenceId = target.occurrence.id;
-            splitEntity.operationSeq = splitInput.operationSeq;
-            splitEntity.ratio = splitInput.ratio;
-            await executor.getRepository(BomLineOperationSplit).create(normalizeDecimals(splitEntity));
-          }
+          await createSplits(target.occurrence.id, allocation.splits);
         }
         await executor.getRepository(BomHeader).update(header, { routingId: routing.id } as Partial<BomHeader>);
       }
@@ -497,9 +495,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       for (const lineInput of overlay.lines ?? []) {
         assertOverlayEcn(lineInput.ecnInId);
         const line = construct(BomLine);
-        if (lineInput.id) (line as unknown as { id: string }).id = lineInput.id;
-        if (lineInput.createdAt) (line as unknown as { createdAt: Date }).createdAt = lineInput.createdAt;
-        if (lineInput.updatedAt) (line as unknown as { updatedAt: Date }).updatedAt = lineInput.updatedAt;
+        applyHistoryIdentity(line, lineInput);
         line.headerId = overlay.headerId;
         line.lineNo = lineInput.lineNo;
         line.ecnInId = lineInput.ecnInId ?? null;

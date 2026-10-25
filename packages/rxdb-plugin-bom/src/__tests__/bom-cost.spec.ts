@@ -216,6 +216,32 @@ for (const backend of BACKENDS) {
       await header.save();
     };
 
+    it.each([false, true])('混合工作中心的制费理由不随工序顺序改变：%s', reverse => runMixedCenters(reverse));
+
+    const runMixedCenters = async (reverse: boolean): Promise<void> => {
+      const raw = await makeItem('mixed-overhead-raw', { unitPrice: '1' });
+      const root = await makeItem('mixed-overhead-root');
+      const { header } = await makeHeader(root, [{ child: raw, qty: '1' }], {}, false);
+      const withOverhead = await makeCenter({ overheadRate: '2.5' });
+      const withoutOverhead = await makeCenter();
+      await attachRouting(header, withOverhead, [
+        { seq: 10, run: '1' },
+        { seq: 20, run: '1' }
+      ]);
+      const operations = await firstValueFrom(
+        adapter.rxdb.entityManager.getRepository(BomRoutingOperation).find({
+          where: { combinator: 'and', rules: [{ field: 'routingId', operator: '=', value: header.routingId! }] }
+        })
+      );
+      const changed = operations.find(op => op.operationSeq === (reverse ? 10 : 20))!;
+      changed.workCenterId = withoutOverhead.id;
+      await changed.save();
+      await releaseHeader(header);
+      const result = await rollupCost(adapter, COST_CTX, { parentItemId: root.id });
+      expect(result.root.overhead).toBe('2.5');
+      expect(result.root.overheadReason).toBe('按工时计');
+    };
+
     it('AC#7 A 用 2B、B 用 3C、C 单价 1：A 材料恰为 6（不是双计数 12）', async () => {
       const c = await makeItem('c7', { unitPrice: '1' });
       const b = await makeItem('b7');

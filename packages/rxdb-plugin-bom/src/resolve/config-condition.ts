@@ -71,6 +71,7 @@ export const extractCharCodes = (ast: ConditionAst): string[] => {
   return [...codes];
 };
 
+/** 将条件解析位置转为面向用户的行列文本。 */
 export const positionText = (source: string, offset: number | undefined): string => {
   if (offset === undefined) return '';
   let line = 1;

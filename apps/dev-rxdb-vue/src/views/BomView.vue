@@ -9,12 +9,19 @@ import {
   type BomViewFixture,
   type BomViewFixtureRoot
 } from '@aiao/rxdb-plugin-bom/testing';
-import { computed, effectScope, onMounted, onUnmounted, ref, shallowRef, type EffectScope } from 'vue';
+import { computed, effectScope, onMounted, onUnmounted, ref, shallowRef, watch, type EffectScope } from 'vue';
 import wasmUrl from 'wa-sqlite/dist/wa-sqlite-async.wasm?url';
 
 const evaluation = ref(BOM_VIEW_FIXTURE_DATES.evaluation.slice(0, 16));
 const planned = ref('1');
 const depth = ref('');
+const parameters = ref({ evaluation: evaluation.value, planned: planned.value, depth: depth.value });
+watch([evaluation, planned, depth], ([nextEvaluation, nextPlanned, nextDepth], _previous, onCleanup) => {
+  const timer = setTimeout(() => {
+    parameters.value = { evaluation: nextEvaluation, planned: nextPlanned, depth: nextDepth };
+  }, 40);
+  onCleanup(() => clearTimeout(timer));
+});
 const binding = shallowRef<BomViewBinding | null>(null);
 const busy = ref(false);
 const message = ref('正在连接 BOM 数据库');
@@ -73,9 +80,9 @@ const requireDatabase = (): RxDB => {
 
 const input = (): BomViewInput => {
   return requireFixture().inputFor(target.value, {
-    context: { asOfDate: new Date(`${evaluation.value}Z`) },
-    plannedQty: { value: planned.value, uom: 'pcs' },
-    budgets: depth.value === '' ? undefined : { depth: Number(depth.value) }
+    context: { asOfDate: new Date(`${parameters.value.evaluation}Z`) },
+    plannedQty: { value: parameters.value.planned, uom: 'pcs' },
+    budgets: parameters.value.depth === '' ? undefined : { depth: Number(parameters.value.depth) }
   });
 };
 

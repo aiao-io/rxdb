@@ -1,7 +1,6 @@
-import { deterministicStringify, type RxDB } from '@aiao/rxdb';
-import type { BomViewCommands, BomViewHandle, BomViewInput, BomViewState } from '@aiao/rxdb-plugin-bom';
-import { createBomView, initialBomViewState } from '@aiao/rxdb-plugin-bom';
-import type { Subscription } from 'rxjs';
+import { type RxDB } from '@aiao/rxdb';
+import type { BomViewCommands, BomViewInput, BomViewState } from '@aiao/rxdb-plugin-bom';
+import { createBomView, createBomViewSession, initialBomViewState } from '@aiao/rxdb-plugin-bom';
 import {
   getCurrentScope,
   onScopeDispose,
@@ -14,10 +13,6 @@ import {
   type MaybeRefOrGetter,
   type ShallowRef
 } from 'vue';
-
-/** 输入的内容身份；与 Angular / React 绑定逐字同一判据，无效日期经 JSON 归一为 null 而不抛错。 */
-const inputIdentity = (input: BomViewInput): string =>
-  deterministicStringify(JSON.parse(JSON.stringify(input)) as unknown);
 
 /** 递归解除嵌套代理，保留日期供共享控制器创建独立快照。 */
 const inputSnapshot = <T>(value: T): T => {
@@ -56,58 +51,18 @@ export interface BomViewBinding {
 export const useBomView = (db: MaybeRefOrGetter<RxDB>, input: MaybeRefOrGetter<BomViewInput>): BomViewBinding => {
   if (!getCurrentScope()) throw new Error('useBomView 必须在 setup 或活动 effectScope 作用域中调用');
   const state = shallowRef(initialBomViewState());
-  let active: BomViewHandle | null = null;
-  let activeDb: RxDB | null = null;
-  let appliedInput: string | null = null;
-  let subscription: Subscription | null = null;
-
-  const release = (): void => {
-    subscription?.unsubscribe();
-    active?.destroy();
-    subscription = null;
-    active = null;
-    activeDb = null;
-  };
-  const install = (nextDb: RxDB, nextInput: BomViewInput): void => {
-    release();
-    const handle = createBomView(nextDb, nextInput);
-    active = handle;
-    activeDb = nextDb;
-    appliedInput = inputIdentity(nextInput);
-    subscription = handle.state$.subscribe(value => {
-      state.value = value;
-    });
-  };
-  const sync = (nextDb: RxDB, nextInput: BomViewInput): void => {
-    if (active === null || nextDb !== activeDb) {
-      install(nextDb, nextInput);
-      return;
-    }
-    const key = inputIdentity(nextInput);
-    if (key === appliedInput) return;
-    appliedInput = key;
-    active.setInput(nextInput);
-  };
-  const current = (): BomViewHandle => {
-    if (active === null) throw new Error('BOM 视图尚未挂载或已经卸载');
-    return active;
-  };
-
-  // 第二个来源在 getter 里序列化整份输入：Vue 据此深度跟踪原地修改，字符串比较又让同内容新对象不触发
+  const session = createBomViewSession(createBomView, value => {
+    state.value = value;
+  });
   watch(
-    [() => toRaw(toValue(db)), () => inputIdentity(toValue(input))],
-    ([nextDb]) => sync(nextDb, inputSnapshot(toValue(input))),
+    [() => toRaw(toValue(db)), () => toValue(input), () => session.inputIdentity(toValue(input))],
+    ([nextDb]) => session.sync(nextDb, inputSnapshot(toValue(input))),
     { immediate: true }
   );
-  onScopeDispose(release);
-
+  onScopeDispose(session.release);
   const commands: BomViewCommands = {
-    setInput: value => current().setInput(inputSnapshot(value)),
-    refresh: () => current().refresh(),
-    toggle: path => current().toggle(path),
-    loadOccurrence: id => current().loadOccurrence(id),
-    saveOccurrence: patch => current().saveOccurrence(patch),
-    calculate: () => current().calculate()
+    ...session.commands,
+    setInput: value => session.commands.setInput(inputSnapshot(value))
   };
   return { state: shallowReadonly(state), commands };
 };

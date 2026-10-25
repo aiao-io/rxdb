@@ -1,3 +1,7 @@
+import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
+import { LifecycleScope } from '@aiao/utils';
+import { reachSqlFor } from '../reach/reach-sql.js';
+import { bomSqlDialectFor } from '../resolve/bom-sql.js';
 /**
  * @fileoverview 适配器矩阵能力声明测试（US-509 首轮 AC#6 / AC#7 / AC#12）
  *
@@ -6,11 +10,11 @@
  * AC#12：BOM 实体声明同步配置即拒绝（`BomSyncUnsupportedError`，点名实体）。
  */
 
-import { SyncType, getEntityMetadata } from '@aiao/rxdb';
-import { describe, expect, it } from 'vitest';
+import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
+import { describe, expect, it, vi } from 'vitest';
 import { buildPgBomTriggerDdl, buildSqliteBomTriggerDdl } from '../backend/bom-trigger-ddl.js';
 import { BomItem, BomLineOccurrence } from '../entities.js';
-import { assertBomSyncNotDeclared, resolveBomBackend } from '../plugin.js';
+import { assertBomSyncNotDeclared, resolveBomBackend, RxDBPluginBom } from '../plugin.js';
 import { buildReachCycleDdl } from '../reach/cycle-ddl.js';
 import { cycleConstraintDdlForRemotePg } from '../resolve/cycle-constraint-ddl.js';
 import { BomResolutionError } from '../resolve/resolution.js';
@@ -47,6 +51,35 @@ describe('resolveBomBackend（AC#6）', () => {
       expect(await resolveBomBackend(name)).toBe(buildSqliteBomTriggerDdl);
     }
     expect(await resolveBomBackend('pglite')).toBe(buildPgBomTriggerDdl);
+    expect(await resolveBomBackend('pglite-electron')).toBe(buildPgBomTriggerDdl);
+  });
+
+  it('Electron PGlite 的解析、可达维护和约束使用同一 PG 方言', () => {
+    expect(bomSqlDialectFor('pglite-electron')).toBe(bomSqlDialectFor('pglite'));
+    expect(reachSqlFor('pglite-electron')).toEqual(reachSqlFor('pglite'));
+    expect(buildReachCycleDdl('pglite-electron')).toEqual(buildReachCycleDdl('pglite'));
+  });
+
+  it('适配器配置与活体实例不一致时在执行 DDL 前拒绝', async () => {
+    const db = new RxDB({
+      dbName: 'bom-mismatch',
+      entities: [],
+      sync: { type: SyncType.None, local: { adapter: 'wa-sqlite' } }
+    });
+    const adapter = new RxDBAdapterPGlite(db, { store: 'memory' });
+    const bootstrap = vi.spyOn(adapter, 'bootstrapTransaction');
+    const local = vi
+      .spyOn(db, 'localAdapterSync', 'get')
+      .mockReturnValue(adapter as unknown as RxDB['localAdapterSync']);
+    const scope = new LifecycleScope('bom-mismatch');
+    try {
+      await expect(new RxDBPluginBom(db).install(scope)).rejects.toThrow(/配置适配器.*与实例不一致/);
+      expect(bootstrap).not.toHaveBeenCalled();
+    } finally {
+      local.mockRestore();
+      bootstrap.mockRestore();
+      await scope.dispose();
+    }
   });
 
   it('构造器对发生项元数据产出非空 DDL；判环只由可达闭包版 DDL 提供', () => {
@@ -114,6 +147,12 @@ describe('normalizeBomError（触发器消息归一）', () => {
     expect(cycle).toBeInstanceOf(BomCycleError);
     expect((cycle as BomCycleError).path).toEqual(['a', 'b']);
     expect(normalizeBomError(new Error('普通 SQL 错误'))).toBeUndefined();
+  });
+
+  it.each(['isolation:repeatable read', 'existing_graph'])('远程守卫配置失败不伪造物料环路径：%s', payload => {
+    const error = normalizeBomError(new Error('外层', { cause: new Error(`${BOM_CYCLE_PREFIX}${payload}`) }));
+    expect(error).toMatchObject({ code: 'BOM_BACKEND_CONFIGURATION', detail: payload });
+    expect(error).not.toBeInstanceOf(BomCycleError);
   });
 
   it('BomResolutionError 的 field 可缺省（消息不含字段段）', () => {

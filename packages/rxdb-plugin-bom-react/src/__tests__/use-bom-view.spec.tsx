@@ -114,6 +114,16 @@ describe('React BOM 显式绑定与生命周期', () => {
     expect(handles[0].handle.calculate).toHaveBeenCalledOnce();
   });
 
+  it('命令切到 B 后，声明输入重新发出 A 会恢复 A', () => {
+    const hook = renderHook(({ value }: { value: BomViewInput }) => useBomView(db, value), {
+      initialProps: { value: input }
+    });
+    act(() => hook.result.current.commands.setInput({ ...input, plannedQty: { value: '3', uom: 'pcs' } }));
+    hook.rerender({ value: structuredClone(input) });
+    expect(handles[0].handle.setInput).toHaveBeenCalledTimes(2);
+    expect(handles[0].handle.setInput).toHaveBeenLastCalledWith(input);
+  });
+
   it('输入切换调用当前 handle，普通重渲染不销毁它', () => {
     const hook = renderHook(({ value }: { value: BomViewInput }) => useBomView(db, value), {
       initialProps: { value: input }

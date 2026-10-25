@@ -1,6 +1,7 @@
 import {
   BOM_VIEW_STYLES,
   bomErrorText,
+  handleBomTreeKey,
   type BomViewCommands,
   type BomViewNode,
   type BomViewState
@@ -161,27 +162,17 @@ export class BomTree {
     }
   }
 
-  keyDown(event: KeyboardEvent, node: BomViewNode, index: number): void {
-    if (!['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Home', 'End', 'Enter', ' '].includes(event.key)) return;
-    event.preventDefault();
-    if (event.key === 'ArrowDown') this.focus(index + 1);
-    if (event.key === 'ArrowUp') this.focus(index - 1);
-    if (event.key === 'Home') this.focus(0);
-    if (event.key === 'End') this.focus(this.state().nodes.length - 1);
-    if (event.key === 'Enter') void this.edit(node);
-    if (event.key === ' ' && node.hasChildren) this.commands().toggle(node.path);
-    if (event.key === 'ArrowRight' && node.hasChildren && !node.expanded) this.commands().toggle(node.path);
-    const next = this.state().nodes[index + 1];
-    if (event.key === 'ArrowRight' && node.expanded && next && next.depth > node.depth) this.focus(index + 1);
-    if (event.key !== 'ArrowLeft') return;
-    if (node.hasChildren && node.expanded) this.commands().toggle(node.path);
-    else this.focusParent(node);
-  }
-
-  /** WAI-ARIA tree：有父节点才移动焦点，没有父节点时保持不动。 */
-  private focusParent(node: BomViewNode): void {
-    const parent = this.state().nodes.findIndex(candidate => candidate.key === JSON.stringify(node.path.slice(0, -1)));
-    if (parent >= 0) this.focus(parent);
+  keyDown(event: KeyboardEvent, _node: BomViewNode, index: number): void {
+    if (
+      handleBomTreeKey(event.key, this.state().nodes, index, {
+        focus: target => this.focus(target),
+        toggle: path => this.commands().toggle(path),
+        edit: node => {
+          void this.edit(node);
+        }
+      })
+    )
+      event.preventDefault();
   }
 
   private focus(index: number): void {

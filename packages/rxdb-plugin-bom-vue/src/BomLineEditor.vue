@@ -6,7 +6,13 @@
  * 沿用领域仓储，组件不发出事件。生效期按 UTC 填写与显示（`datetime-local` 不带时区），说明经
  * `aria-describedby` 关联到日期字段；保存失败与共享字段校验失败原样展示，切换发生项时重置表单。
  */
-import { BOM_VIEW_STYLES, bomEditorFields, bomErrorText, parseBomEditorFields } from '@aiao/rxdb-plugin-bom';
+import {
+  BOM_VIEW_STYLES,
+  BOM_EDITOR_INPUTS,
+  bomEditorFields,
+  bomErrorText,
+  parseBomEditorFields
+} from '@aiao/rxdb-plugin-bom';
 import type { BomEditorFields, BomViewCommands, BomViewState } from '@aiao/rxdb-plugin-bom';
 import { computed, reactive, shallowRef, useId, watch } from 'vue';
 
@@ -20,13 +26,7 @@ const utcHintId = useId();
 const fields = reactive(bomEditorFields(null));
 const localError = shallowRef<unknown>(null);
 const disabled = computed(() => !props.state.editor.value?.editable || props.state.editor.saving);
-const inputs: readonly { field: keyof BomEditorFields; label: string; type: string }[] = [
-  { field: 'qty', label: '用量', type: 'text' },
-  { field: 'componentScrap', label: '组件损耗', type: 'text' },
-  { field: 'operationSeq', label: '投料工序', type: 'number' },
-  { field: 'effectiveFrom', label: '生效起点', type: 'datetime-local' },
-  { field: 'effectiveTo', label: '生效终点', type: 'datetime-local' }
-];
+const inputs = BOM_EDITOR_INPUTS;
 
 const setField = (field: keyof BomEditorFields, event: Event): void => {
   fields[field] = (event.target as HTMLInputElement).value;

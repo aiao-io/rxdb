@@ -1,31 +1,23 @@
+import { RxDB, type TransactionFun } from '@aiao/rxdb';
+import type { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import {
-  RxDB,
-  SyncType,
-  type AdapterRepositoryConstructor,
-  type RxDBSystemContribution,
-  type TransactionFun
-} from '@aiao/rxdb';
-import { PGliteRepository, RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
-import {
-  BOM_ENTITIES,
   BomHeader,
   BomItem,
   BomLine,
   BomLineOccurrence,
-  RxDBPluginBom,
   loadHistory,
-  rxDBPluginBom,
   whereUsed,
   type BomType,
   type ExpansionResult,
   type HistoryHeaderInput,
   type ResolutionContext
 } from '@aiao/rxdb-plugin-bom';
-import { deterministicId } from '@aiao/rxdb-plugin-bom/testing';
+import { deterministicId, reachDiamonds } from '@aiao/rxdb-plugin-bom/testing';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { cpus, totalmem } from 'node:os';
 import { resolve } from 'node:path';
 import { summarise } from './bench-stats.ts';
+import { createBomBenchmarkDatabase } from './bom-database.ts';
 
 const WARMUP = 5;
 const SAMPLES = 20;
@@ -145,49 +137,20 @@ const components = (size: number): GraphInput => {
 };
 
 const diamonds = (): GraphInput => {
-  const items = ['diamond-root'];
-  const edges: EdgeInput[] = [];
-  let parent = items[0];
-  for (let index = 0; index < 20; index += 1) {
-    const left = `diamond-${index}-left`;
-    const right = `diamond-${index}-right`;
-    const bottom = `diamond-${index}-bottom`;
-    items.push(left, right, bottom);
-    for (const [from, to] of [
-      [parent, left],
-      [parent, right],
-      [left, bottom],
-      [right, bottom]
-    ]) {
-      edges.push({ parent: from, child: to, bomType: 'ebom', orgId: 'reach-org-0' });
-    }
-    parent = bottom;
-  }
-  return { name: 'diamonds-20', items, edges, target: parent, diamond: true };
+  const graph = reachDiamonds(20);
+  const name = (key: string) =>
+    key === 'root' ? 'diamond-root' : key.replace(/^(left|right|bottom)-(\d+)$/, 'diamond-$2-$1');
+  const items = graph.items.map(name);
+  const edges = graph.edges.map(([parent, child]) => ({
+    parent: name(parent),
+    child: name(child),
+    bomType: 'ebom' as const,
+    orgId: 'reach-org-0'
+  }));
+  return { name: 'diamonds-20', items, edges, target: items[items.length - 1], diamond: true };
 };
 
-const createDatabase = async (
-  legacy = false
-): Promise<{ db: RxDB; adapter: RxDBAdapterPGlite; legacySystem?: RxDBSystemContribution }> => {
-  const db = new RxDB({
-    dbName: `bom-reach-benchmark-${crypto.randomUUID()}`,
-    entities: [...BOM_ENTITIES],
-    sync: { local: { adapter: 'pglite' }, type: SyncType.None }
-  });
-  const legacySystem = legacy ? new RxDBPluginBom(db).system : undefined;
-  if (!legacy) db.use(rxDBPluginBom);
-  let local: RxDBAdapterPGlite | undefined;
-  db.adapter('pglite', owner => {
-    local = new RxDBAdapterPGlite(owner, {
-      store: 'memory',
-      repositories: { BomRepository: PGliteRepository as unknown as AdapterRepositoryConstructor<RxDBAdapterPGlite> }
-    });
-    return local;
-  });
-  await db.connect('pglite');
-  if (local === undefined) throw new Error('PGlite benchmark适配器没有建立');
-  return { db, adapter: local, legacySystem };
-};
+const createDatabase = (legacy = false) => createBomBenchmarkDatabase({ prefix: 'bom-reach-benchmark', legacy });
 
 const seed = async (db: RxDB, adapter: RxDBAdapterPGlite, input: GraphInput): Promise<Fixture> => {
   const itemIds = new Map(input.items.map(key => [key, id(`${input.name}:item:${key}`)]));

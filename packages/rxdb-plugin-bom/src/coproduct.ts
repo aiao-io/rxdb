@@ -4,6 +4,7 @@ import { decimalFromCanonical, decimalMulDiv, decimalToCanonical } from './quant
 import type { PlannedQuantity } from './quantity/explosion.js';
 import type { JointCostOutputInput, JointCostSummary } from './quantity/joint-cost.js';
 import { convertUom, type UomConversionRates } from './quantity/uom.js';
+import { bomQueryRecords } from './resolve/bom-adapter.js';
 import type { BomSqlDialect } from './resolve/bom-sql.js';
 import type { ResolutionContext } from './resolve/resolution.js';
 import type { BomQueryExecutor } from './resolve/resolver.js';
@@ -66,7 +67,7 @@ type Query = BomQueryExecutor['query'];
 type Row = Record<string, unknown>;
 const records = async (query: Query, sql: string, params: unknown[] = []): Promise<Row[]> => {
   const result = await query(sql, params);
-  return result.rows.map(row => Object.fromEntries(result.columns.map((column, index) => [column, row[index]])));
+  return bomQueryRecords(result);
 };
 
 const visibleOutputs = async (

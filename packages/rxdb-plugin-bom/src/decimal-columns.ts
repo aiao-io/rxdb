@@ -103,7 +103,12 @@ export const DECIMAL_COLUMNS: readonly DecimalColumn[] = [
     entities: [BomLineOccurrence],
     storage: 'canonical'
   },
-  { field: 'equivQty', domain: CANONICAL, entities: [BomLineOccurrence], storage: 'canonical' },
+  {
+    field: 'equivQty',
+    domain: { kind: 'positive', label: '替代当量' },
+    entities: [BomLineOccurrence],
+    storage: 'canonical'
+  },
   { field: 'setupTime', domain: CANONICAL, entities: [BomRoutingOperation], storage: 'canonical' },
   { field: 'runTime', domain: CANONICAL, entities: [BomRoutingOperation], storage: 'canonical' },
   { field: 'fixedTime', domain: CANONICAL, entities: [BomRoutingOperation], storage: 'canonical' },

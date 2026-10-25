@@ -119,6 +119,16 @@ describe('Angular BOM 注入上下文绑定', () => {
     expect(createBomView).toHaveBeenCalledTimes(1);
   });
 
+  it('命令切到 B 后，声明输入重新发出 A 会恢复 A', async () => {
+    const mounted = TestBed.createComponent(SignalConsumer);
+    await mounted.whenStable();
+    mounted.componentInstance.view.commands.setInput({ ...input, plannedQty: { value: '3', uom: 'pcs' } });
+    mounted.componentInstance.query.set(structuredClone(input));
+    await mounted.whenStable();
+    expect(handles[0].handle.setInput).toHaveBeenCalledTimes(2);
+    expect(handles[0].handle.setInput).toHaveBeenLastCalledWith(input);
+  });
+
   it('共享命令原样代理完整输入、刷新、路径选择和保存', async () => {
     const mounted = TestBed.createComponent(Consumer);
     await mounted.whenStable();

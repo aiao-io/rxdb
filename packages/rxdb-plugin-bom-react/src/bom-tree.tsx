@@ -1,6 +1,7 @@
 import {
   BOM_VIEW_STYLES,
   bomErrorText,
+  handleBomTreeKey,
   type BomViewCommands,
   type BomViewNode,
   type BomViewState
@@ -46,21 +47,17 @@ export const BomTree = ({ state, commands }: { state: BomViewState; commands: Bo
       setInteraction({ nodes, error });
     }
   };
-  const keyDown = (event: KeyboardEvent<HTMLLIElement>, node: BomViewNode, index: number): void => {
-    if (!['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Home', 'End', 'Enter', ' '].includes(event.key)) return;
-    event.preventDefault();
-    if (event.key === 'ArrowDown') focus(index + 1);
-    if (event.key === 'ArrowUp') focus(index - 1);
-    if (event.key === 'Home') focus(0);
-    if (event.key === 'End') focus(state.nodes.length - 1);
-    if (event.key === 'Enter') void edit(node);
-    if (event.key === ' ' && node.hasChildren) commands.toggle(node.path);
-    if (event.key === 'ArrowRight' && node.hasChildren && !node.expanded) commands.toggle(node.path);
-    const next = state.nodes[index + 1];
-    if (event.key === 'ArrowRight' && node.expanded && next && next.depth > node.depth) focus(index + 1);
-    if (event.key !== 'ArrowLeft') return;
-    if (node.hasChildren && node.expanded) commands.toggle(node.path);
-    else rows.current.get(JSON.stringify(node.path.slice(0, -1)))?.focus();
+  const keyDown = (event: KeyboardEvent<HTMLLIElement>, index: number): void => {
+    if (
+      handleBomTreeKey(event.key, state.nodes, index, {
+        focus,
+        toggle: path => commands.toggle(path),
+        edit: node => {
+          void edit(node);
+        }
+      })
+    )
+      event.preventDefault();
   };
   const hasFocused = state.nodes.some(node => node.key === focused);
   return (
@@ -96,7 +93,7 @@ export const BomTree = ({ state, commands }: { state: BomViewState; commands: Bo
               else rows.current.delete(node.key);
             }}
             onFocus={() => setFocused(node.key)}
-            onKeyDown={event => keyDown(event, node, index)}
+            onKeyDown={event => keyDown(event, index)}
             onClick={() => {
               rows.current.get(node.key)?.focus();
               void edit(node);

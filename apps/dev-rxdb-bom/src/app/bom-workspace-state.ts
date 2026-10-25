@@ -165,7 +165,8 @@ export class BomWorkspaceState {
     if (typeof params['unit'] === 'string') this.unit.set(params['unit'] === 'none' ? null : Number(params['unit']));
     if (typeof params['alternative'] === 'string')
       this.alternativeNo.set(params['alternative'] === '' ? null : Number(params['alternative']));
-    if (typeof params['guide'] === 'string') this.guideStep.set(Math.max(0, Math.min(3, Number(params['guide']) || 0)));
+    if (typeof params['guide'] === 'string')
+      this.guideStep.set(Math.max(0, Math.min(3, Math.trunc(Number(params['guide'])) || 0)));
     try {
       if (typeof params['config'] === 'string') {
         const value: unknown = JSON.parse(params['config']);

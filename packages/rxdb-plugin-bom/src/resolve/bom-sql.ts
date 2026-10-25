@@ -30,11 +30,24 @@ export const pgliteBomDialect: BomSqlDialect = {
   encode: value => value
 };
 
+/** 本地 PostgreSQL 引擎及远程迁移使用同一方言判据。 */
+export const isBomPostgres = (adapterName: string | undefined): boolean =>
+  adapterName === 'pglite' || adapterName === 'pglite-electron' || adapterName === 'postgres';
+
 /** 按适配器名选方言；未知后端抛错（与触发器后端的口径一致）。 */
 export const bomSqlDialectFor = (adapterName: string | undefined): BomSqlDialect => {
-  if (adapterName === 'pglite') return pgliteBomDialect;
+  if (isBomPostgres(adapterName)) return pgliteBomDialect;
   if (adapterName && adapterName !== 'http' && adapterName !== 'supabase') return sqliteBomDialect;
   throw new Error(`[rxdb-plugin-bom] 适配器 ${adapterName ?? '(无本地适配器)'} 没有可用的 BOM 解析后端`);
+};
+
+const sqlBindings = (dialect: BomSqlDialect) => {
+  const bind: unknown[] = [];
+  const p = (value: unknown): string => {
+    bind.push(dialect.encode(value));
+    return dialect.placeholder(bind.length - 1);
+  };
+  return { bind, p };
 };
 
 /** 已解析发生项查询的参数集合（按顺序绑定）。 */
@@ -99,11 +112,7 @@ export const buildResolvedOccurrencesSql = (
   dialect: BomSqlDialect,
   params: ResolvedOccurrenceParams
 ): { sql: string; params: unknown[] } => {
-  const bind: unknown[] = [];
-  const p = (value: unknown): string => {
-    bind.push(dialect.encode(value));
-    return dialect.placeholder(bind.length - 1);
-  };
+  const { bind, p } = sqlBindings(dialect);
 
   const occurrence = dialect.table('bom_line_occurrence');
   const line = dialect.table('bom_line');
@@ -152,11 +161,7 @@ export const buildAlternativeHeadersSql = (
   dialect: BomSqlDialect,
   params: { parentRevisionId: string; bomType: string; orgId: string }
 ): { sql: string; params: unknown[] } => {
-  const bind: unknown[] = [];
-  const p = (value: unknown): string => {
-    bind.push(dialect.encode(value));
-    return dialect.placeholder(bind.length - 1);
-  };
+  const { bind, p } = sqlBindings(dialect);
   const header = dialect.table('bom_header');
   const sql = [
     `SELECT h."id" AS "headerId", h."alternativeNo" AS "alternativeNo", h."baseUom" AS "baseUom",`,
@@ -180,11 +185,7 @@ export const buildRevisionHeadersSql = (
   dialect: BomSqlDialect,
   params: { bomType: string; orgId: string; revisionIds: string[] }
 ): { sql: string; params: unknown[] } => {
-  const bind: unknown[] = [];
-  const p = (value: unknown): string => {
-    bind.push(dialect.encode(value));
-    return dialect.placeholder(bind.length - 1);
-  };
+  const { bind, p } = sqlBindings(dialect);
   const sql = [
     `SELECT h."id" AS "headerId", h."parentRevisionId" AS "parentRevisionId", r."itemId" AS "parentItemId",`,
     `  h."alternativeNo" AS "alternativeNo"`,
@@ -206,11 +207,7 @@ export const buildParentRevisionSql = (
   dialect: BomSqlDialect,
   params: { itemId: string; asOfDate: Date; explicitRevisionId?: string }
 ): { sql: string; params: unknown[] } => {
-  const bind: unknown[] = [];
-  const p = (value: unknown): string => {
-    bind.push(dialect.encode(value));
-    return dialect.placeholder(bind.length - 1);
-  };
+  const { bind, p } = sqlBindings(dialect);
   const revision = dialect.table('item_revision');
   const sql =
     params.explicitRevisionId !== undefined ?
@@ -246,11 +243,7 @@ export const buildHeaderOccurrencesSql = (
   dialect: BomSqlDialect,
   params: HeaderOccurrencesParams
 ): { sql: string; params: unknown[] } => {
-  const bind: unknown[] = [];
-  const p = (value: unknown): string => {
-    bind.push(dialect.encode(value));
-    return dialect.placeholder(bind.length - 1);
-  };
+  const { bind, p } = sqlBindings(dialect);
 
   const occurrence = dialect.table('bom_line_occurrence');
   const line = dialect.table('bom_line');
@@ -352,11 +345,7 @@ export const buildChildrenOfRevisionsSql = (
   dialect: BomSqlDialect,
   params: ChildrenOfRevisionsParams
 ): { sql: string; params: unknown[] } => {
-  const bind: unknown[] = [];
-  const p = (value: unknown): string => {
-    bind.push(dialect.encode(value));
-    return dialect.placeholder(bind.length - 1);
-  };
+  const { bind, p } = sqlBindings(dialect);
 
   const occurrence = dialect.table('bom_line_occurrence');
   const line = dialect.table('bom_line');
@@ -423,11 +412,7 @@ export const buildParentsOfItemsSql = (
   dialect: BomSqlDialect,
   params: ParentsOfItemsParams
 ): { sql: string; params: unknown[] } => {
-  const bind: unknown[] = [];
-  const p = (value: unknown): string => {
-    bind.push(dialect.encode(value));
-    return dialect.placeholder(bind.length - 1);
-  };
+  const { bind, p } = sqlBindings(dialect);
 
   const occurrence = dialect.table('bom_line_occurrence');
   const line = dialect.table('bom_line');

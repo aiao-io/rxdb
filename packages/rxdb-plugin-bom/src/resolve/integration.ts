@@ -1,3 +1,4 @@
+import { bomQueryRecords } from './bom-adapter.js';
 /**
  * @fileoverview ERP/MRP 同快照导出与整批草稿导入。
  */
@@ -16,8 +17,8 @@ import {
 import { explodeBom, type ExplosionOptions } from '../quantity/explosion.js';
 import { validateBomWrite, type BomWriteValidationContext } from '../repository.js';
 import { BomCycleError, normalizeBomError } from '../types.js';
-import type { BomLocalAdapter } from './bom-adapter.js';
-import { bomSqlDialectFor } from './bom-sql.js';
+import { scopedBomAdapter, type BomLocalAdapter } from './bom-adapter.js';
+import { bomSqlDialectFor, isBomPostgres } from './bom-sql.js';
 import {
   BomExportRejectedError,
   COPRODUCT_EXPORT_CONTRACT_VERSION,
@@ -92,7 +93,7 @@ const requiredRow = (rows: Map<string, Row>, id: unknown, subject: string): Row 
 
 const readTable = async (executor: TransactionExecutor, kind: ImportKind): Promise<Row[]> => {
   const result = await executor.query(`SELECT * FROM ${executor.tableRef(ENTITY_OF[kind])}`);
-  return result.rows.map(row => Object.fromEntries(result.columns.map((column, index) => [column, row[index]])));
+  return bomQueryRecords(result);
 };
 
 const flattenSnapshot = (stored: Snapshot): Snapshot => {
@@ -171,13 +172,6 @@ const readSnapshot = async (executor: TransactionExecutor): Promise<Snapshot> =>
   return flattenSnapshot(snapshot);
 };
 
-const scopedAdapter = (adapter: BomLocalAdapter, executor: TransactionExecutor): BomLocalAdapter => ({
-  name: adapter.name,
-  rxdb: adapter.rxdb,
-  transaction: <T extends import('@aiao/rxdb').TransactionFun>(fun: T) =>
-    executor.run(fun) as Promise<Awaited<ReturnType<T>>>
-});
-
 const canonicalCell = (column: string, value: unknown): unknown => {
   if (value == null) return null;
   if (BOOLEAN_FIELDS.has(column)) return Boolean(value);
@@ -229,7 +223,7 @@ export const exportBom = async (
   options?: ExplosionOptions
 ): Promise<BomExportPayload> =>
   adapter.transaction(async executor => {
-    const scoped = scopedAdapter(adapter, executor);
+    const scoped = scopedBomAdapter(adapter, executor);
     const resolved = await resolveBom(scoped, context, target);
     validateExportReady(
       { truncated: null },
@@ -657,7 +651,7 @@ const importDraftInTransaction = async (
   parsed: ReturnType<typeof parseBatch>,
   dependencies?: ReturnType<typeof parseBatch>
 ): Promise<BomImportResult> => {
-  if (adapter.name === 'pglite') await executor.query('SET CONSTRAINTS ALL IMMEDIATE');
+  if (isBomPostgres(adapter.name)) await executor.query('SET CONSTRAINTS ALL IMMEDIATE');
   else await executor.query('PRAGMA defer_foreign_keys = OFF');
   const state = createImportExecutionState(await readSnapshot(executor), parsed);
   if (dependencies !== undefined) {

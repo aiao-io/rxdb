@@ -22,6 +22,8 @@ import {
   type OnDestroy,
   type OnInit
 } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { debounceTime } from 'rxjs';
 
 interface BomDemoSession {
   db: RxDB;
@@ -204,6 +206,16 @@ export default class BomViewPage {
   readonly date = signal(BOM_VIEW_FIXTURE_DATES.evaluation.slice(0, 16));
   readonly planned = signal('1');
   readonly depth = signal('');
+  readonly parameters = toSignal(
+    toObservable(
+      computed(() => ({
+        date: this.date(),
+        planned: this.planned(),
+        depth: this.depth()
+      }))
+    ).pipe(debounceTime(40)),
+    { initialValue: { date: this.date(), planned: this.planned(), depth: this.depth() } }
+  );
   readonly message = signal('正在连接 BOM 数据库');
   readonly error = signal<unknown>(null);
   readonly busy = signal(false);
@@ -215,9 +227,9 @@ export default class BomViewPage {
   readonly input = computed(
     () =>
       this.session()?.fixture.inputFor(this.root(), {
-        context: { asOfDate: new Date(`${this.date()}Z`) },
-        plannedQty: { value: this.planned(), uom: 'pcs' },
-        budgets: this.depth() === '' ? undefined : { depth: Number(this.depth()) }
+        context: { asOfDate: new Date(`${this.parameters().date}Z`) },
+        plannedQty: { value: this.parameters().planned, uom: 'pcs' },
+        budgets: this.parameters().depth === '' ? undefined : { depth: Number(this.parameters().depth) }
       }) ?? null
   );
 

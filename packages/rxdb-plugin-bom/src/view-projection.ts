@@ -56,11 +56,9 @@ export const viewCandidates = (snapshot: BomViewSnapshot): BomViewCandidate[] =>
   return [...groups.values()];
 };
 
-export const projectViewNodes = (
-  snapshot: BomViewSnapshot,
-  input: BomViewInput,
-  expanded: ReadonlySet<string>
-): BomViewNode[] => {
+const projectionCache = new WeakMap<BomViewSnapshot, ReturnType<typeof indexSnapshot>>();
+
+const indexSnapshot = (snapshot: BomViewSnapshot) => {
   const items = new Map(snapshot.items.map(item => [item.id, item]));
   const quantities = new Map(
     snapshot.explosion?.requirementLines.map(line => [
@@ -72,28 +70,53 @@ export const projectViewNodes = (
     ])
   );
   for (const line of snapshot.explosion?.penetrations ?? []) quantities.set(viewPathKey(line.path), line.converted);
-  quantities.set(viewPathKey([]), input.plannedQty);
   const complete = viewCandidates(snapshot).length === 0;
+  const paths = snapshot.expansion.nodes.map(node => ({
+    node,
+    key: viewPathKey(node.path),
+    parent: node.depth === 0 ? null : viewPathKey(node.path.slice(0, -1))
+  }));
+  return { items, quantities, complete, paths };
+};
+
+const projectionOf = (snapshot: BomViewSnapshot) => {
+  let projection = projectionCache.get(snapshot);
+  if (projection === undefined) {
+    projection = indexSnapshot(snapshot);
+    projectionCache.set(snapshot, projection);
+  }
+  return projection;
+};
+
+export const projectViewNodes = (
+  snapshot: BomViewSnapshot,
+  input: BomViewInput,
+  expanded: ReadonlySet<string>
+): BomViewNode[] => {
+  const { items, quantities, complete, paths } = projectionOf(snapshot);
   const children = new Map<string, BomViewNode[]>();
   const roots: BomViewNode[] = [];
-  for (const node of snapshot.expansion.nodes) {
-    const key = viewPathKey(node.path);
+  for (const { node, key, parent } of paths) {
     const item = items.get(node.itemId)!;
     const projected: BomViewNode = {
       ...node,
       key,
       itemNo: item.itemNo,
       description: item.description,
-      quantity: complete ? (quantities.get(key) ?? null) : null,
+      quantity:
+        complete ?
+          node.depth === 0 ?
+            input.plannedQty
+          : (quantities.get(key) ?? null)
+        : null,
       hasChildren: false,
       expanded: expanded.has(key)
     };
     if (node.depth === 0) roots.push(projected);
     else {
-      const parent = viewPathKey(node.path.slice(0, -1));
-      const siblings = children.get(parent) ?? [];
+      const siblings = children.get(parent!) ?? [];
       siblings.push(projected);
-      children.set(parent, siblings);
+      children.set(parent!, siblings);
     }
   }
   const result: BomViewNode[] = [];

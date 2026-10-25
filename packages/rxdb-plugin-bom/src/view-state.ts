@@ -159,6 +159,9 @@ class BomViewController implements BomViewHandle {
   calculate = async () => {
     this.#assertAlive();
     const input = this.#input;
+    await this.#saves;
+    this.#assertAlive();
+    if (input !== this.#input) throw new BomResolutionError('input', '计算期间输入已替换，旧输入的结果作废');
     const snapshot = await readBomViewSnapshot(this.db, structuredClone(input));
     this.#assertAlive();
     if (input !== this.#input) throw new BomResolutionError('input', '计算期间输入已替换，旧输入的结果作废');
@@ -228,11 +231,12 @@ class BomViewController implements BomViewHandle {
     this.#snapshot = snapshot;
     const unresolved = viewCandidates(snapshot);
     const empty =
-      snapshot.expansion.nodes.length === 0 ||
-      (snapshot.expansion.nodes.length === 1 &&
-        unresolved.length === 0 &&
-        snapshot.expansion.truncated === null &&
-        snapshot.explosion?.truncated == null);
+      snapshot.quantityError === null &&
+      (snapshot.expansion.nodes.length === 0 ||
+        (snapshot.expansion.nodes.length === 1 &&
+          unresolved.length === 0 &&
+          snapshot.expansion.truncated === null &&
+          snapshot.explosion?.truncated == null));
     const data: BomViewData = {
       phase: empty ? 'empty' : 'success',
       nodes: empty ? [] : projectViewNodes(snapshot, this.#input, this.#expanded),

@@ -270,10 +270,9 @@ export class BomDemoService {
   async extRead(itemKey: string): Promise<string> {
     return this.#run(async () => {
       if (!this.adapter) throw new Error('demo 未就绪');
-      const result = (await this.adapter.rawQuery(
-        `SELECT "ext" FROM "bom$item" WHERE "id" = '${goldenItemId(itemKey)}'`
-      )) as unknown as { results?: { rows: unknown[][] }[]; rows?: unknown[][] };
-      const rows = Array.isArray(result.results) ? result.results[0].rows : (result.rows ?? []);
+      const rows = this.#rows(
+        await this.adapter.rawQuery(`SELECT "ext" FROM "bom$item" WHERE "id" = '${goldenItemId(itemKey)}'`)
+      );
       return rows.length > 0 && rows[0][0] !== null ? String(rows[0][0]) : '{}';
     });
   }
@@ -693,9 +692,7 @@ export class BomDemoService {
       ];
       const lines: string[] = [];
       for (const name of tables) {
-        const result = (await this.adapter.rawQuery(`SELECT COUNT(*) AS c FROM "bom$${name}"`)) as unknown as
-          { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
-        const rows = 'results' in result ? result.results[0].rows : result.rows;
+        const rows = this.#rows(await this.adapter.rawQuery(`SELECT COUNT(*) AS c FROM "bom$${name}"`));
         lines.push(`${name}=${String(rows[0][0])}`);
       }
       return lines.join('\n');
@@ -1140,10 +1137,11 @@ export class BomDemoService {
 
   async #loadEcns(): Promise<void> {
     if (!this.adapter) return;
-    const result = (await this.adapter.rawQuery(
-      `SELECT "id", "ecnNo", "state", "effectiveDate" FROM "bom$ecn" ORDER BY "effectiveDate"`
-    )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
-    const rows = 'results' in result ? result.results[0].rows : result.rows;
+    const rows = this.#rows(
+      await this.adapter.rawQuery(
+        `SELECT "id", "ecnNo", "state", "effectiveDate" FROM "bom$ecn" ORDER BY "effectiveDate"`
+      )
+    );
     this.ecns.set(
       new Map(
         rows.map(row => [
@@ -1222,19 +1220,18 @@ export class BomDemoService {
 
   async #loadItemNos(): Promise<void> {
     if (!this.adapter) return;
-    const result = (await this.adapter.rawQuery(`SELECT "id", "itemNo", "stockUom" FROM "bom$item"`)) as unknown as
-      { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
-    const rows = 'results' in result ? result.results[0].rows : result.rows;
+    const rows = this.#rows(await this.adapter.rawQuery(`SELECT "id", "itemNo", "stockUom" FROM "bom$item"`));
     this.itemNos.set(new Map(rows.map(row => [String(row[0]), String(row[1])])));
     this.itemUoms.set(new Map(rows.map(row => [String(row[1]), String(row[2])])));
   }
 
   async #loadDesignators(): Promise<void> {
     if (!this.adapter) return;
-    const result = (await this.adapter.rawQuery(
-      `SELECT "occurrenceId", "designator" FROM "bom$bom_line_designator" ORDER BY "designator"`
-    )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
-    const rows = 'results' in result ? result.results[0].rows : result.rows;
+    const rows = this.#rows(
+      await this.adapter.rawQuery(
+        `SELECT "occurrenceId", "designator" FROM "bom$bom_line_designator" ORDER BY "designator"`
+      )
+    );
     const map = new Map<string, string[]>();
     for (const row of rows) {
       const key = String(row[0]);

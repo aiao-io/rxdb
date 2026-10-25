@@ -3,7 +3,7 @@
  *
  * 下钻：从父修订出发逐层取解析后的发生项（released 头 + 生效窗口 + 子件修订解析，
  * 与 US-508 的解析同口径）；反查：从子件物料出发逐层取使用方发生项。路径是**行发生项
- * id 序列**（根→本节点），同一子装配经两条路径出现即两个结果节点。
+ * id 序列**（下钻为根→本节点，反查为使用方→被查子件），同一子装配经两条路径出现即两个结果节点。
  *
  * 预算结算在 TS 侧按 BFS 层推进：递归 CTE 在 PG 的递归项里不能带 LIMIT（SQLite 的
  * LIMIT 也只限每迭代层宽，限不住总行数），AC#10 的百万路径结构必须能提前停。每层一条
@@ -59,7 +59,7 @@ export interface ExpansionOptions {
 
 /** 展开 / 反查的一个结果节点（BFS 序）。 */
 export interface ExpansionNode {
-  /** 行发生项 id 序列（根→本节点；根节点与反查前导为空数组）。 */
+  /** 行发生项 id 序列；下钻为根→本节点，反查为当前使用方→被查子件，根节点为空数组。 */
   path: string[];
   /** 距根的发生项边数（根 = 0；反查时距被查子件的边数，一级使用方 = 1）。 */
   depth: number;
@@ -163,7 +163,14 @@ export interface UsageRow {
   effectiveTo: Date | null;
 }
 
-const resolveBudgets = (budgets?: ExpansionBudgets): ResolvedBudgets => ({ ...DEFAULT_EXPANSION_BUDGETS, ...budgets });
+/** 预算必须是非负安全整数，避免非有限值绕过遍历上限。 */
+export const resolveBudgets = (budgets?: ExpansionBudgets): ResolvedBudgets => {
+  const resolved = { ...DEFAULT_EXPANSION_BUDGETS, ...budgets };
+  for (const [key, value] of Object.entries(resolved)) {
+    if (!Number.isSafeInteger(value) || value < 0) throw new BomResolutionError(key, '预算必须是非负安全整数');
+  }
+  return resolved;
+};
 
 /**
  * 生成新节点前的预算结算（顺序：取消 → 深度 → 返回路径数 → 展开数），下钻、反查与数量展开（US-511）共用：
@@ -486,7 +493,7 @@ const expandLevel = async (
   return { added, next, truncated: null };
 };
 
-/** 反查一层：把前沿里每个物料的使用方发生项生成新节点（路径前插，保持根→节点序）。 */
+/** 反查一层：把前沿里每个物料的使用方发生项生成新节点（路径前插，保持当前使用方→被查子件序）。 */
 const usageLevel = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,

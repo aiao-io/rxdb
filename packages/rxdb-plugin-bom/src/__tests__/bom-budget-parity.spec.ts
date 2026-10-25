@@ -107,6 +107,28 @@ for (const backend of BACKENDS) {
       await disposeBomTestAdapter(adapter).catch(() => undefined);
     });
 
+    it.each([NaN, Infinity, -1, 0.5, Number.MAX_SAFE_INTEGER + 1])(
+      '非法预算在下钻、反查和数量展开入口一致拒绝：%s',
+      async value => {
+        for (const key of ['depth', 'paths', 'expansions'] as const) {
+          const budgets = { [key]: value };
+          await expect(expandBom(adapter, CONTEXT, { parentItemId: root.id }, { budgets })).rejects.toThrow(/预算/);
+          await expect(
+            explodeBom(
+              adapter,
+              CONTEXT,
+              { parentItemId: root.id },
+              {
+                plannedQty: { value: '1', uom: 'pcs' },
+                budgets
+              }
+            )
+          ).rejects.toThrow(/预算/);
+          await expect(whereUsed(adapter, CONTEXT, { childItemId: usedChild.id }, { budgets })).rejects.toThrow(/预算/);
+        }
+      }
+    );
+
     it('构造前提：默认预算下两边都完整，路径集合相同（7 个非根节点：6 条需求行含子装配 + 1 次穿透）', async () => {
       const [expansion, explosion] = await both({});
       expect(expansion.truncated).toBeNull();

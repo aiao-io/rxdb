@@ -98,6 +98,20 @@ describe('Vue BOM 作用域绑定', () => {
     }
   });
 
+  it('命令切到 B 后，声明输入重新发出 A 会恢复 A', async () => {
+    const query = ref(input);
+    const { binding, stop } = scoped(() => useBomView(db, query));
+    try {
+      binding.commands.setInput({ ...input, plannedQty: { value: '3', uom: 'pcs' } });
+      query.value = structuredClone(input);
+      await nextTick();
+      expect(handles[0].handle.setInput).toHaveBeenCalledTimes(2);
+      expect(handles[0].handle.setInput).toHaveBeenLastCalledWith(input);
+    } finally {
+      stop();
+    }
+  });
+
   it('内联重建等值完整输入时，不会再次 setInput 或重置共享视图', async () => {
     const query = ref(input);
     const { binding, stop } = scoped(() => useBomView(db, query));

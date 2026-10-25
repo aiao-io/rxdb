@@ -1,5 +1,5 @@
 import type { BomViewInput, BomViewState } from '@aiao/rxdb-plugin-bom';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import BomViewPage from './bom-view';
@@ -116,14 +116,16 @@ describe('React BOM 页面装配边界', () => {
     fireEvent.change(screen.getByLabelText('评估日'), { target: { value: '2099-01-02T12:30' } });
     fireEvent.change(screen.getByLabelText('计划量'), { target: { value: '7' } });
     fireEvent.change(screen.getByLabelText('深度预算'), { target: { value: '2' } });
-    expect(probes.useView).toHaveBeenLastCalledWith(
-      probes.databases[0],
-      expect.objectContaining({
-        target: { parentItemId: 'manual' },
-        plannedQty: { value: '7', uom: 'pcs' },
-        budgets: { depth: 2 },
-        context: { asOfDate: new Date('2099-01-02T12:30Z') }
-      })
+    await waitFor(() =>
+      expect(probes.useView).toHaveBeenLastCalledWith(
+        probes.databases[0],
+        expect.objectContaining({
+          target: { parentItemId: 'manual' },
+          plannedQty: { value: '7', uom: 'pcs' },
+          budgets: { depth: 2 },
+          context: { asOfDate: new Date('2099-01-02T12:30Z') }
+        })
+      )
     );
     const bridge = window as Window & { __bomViewDemo?: { ids: unknown; state: BomViewState } };
     expect(bridge.__bomViewDemo?.ids).toBe(fixture.ids);

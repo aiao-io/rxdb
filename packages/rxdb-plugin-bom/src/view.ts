@@ -1,7 +1,7 @@
-import type { RxDB, TransactionExecutor, TransactionFun } from '@aiao/rxdb';
+import type { RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { concat, defer, firstValueFrom, from, of, type Observable } from 'rxjs';
 import { explodeBom } from './quantity/explosion-api.js';
-import type { BomLocalAdapter } from './resolve/bom-adapter.js';
+import { scopedBomAdapter } from './resolve/bom-adapter.js';
 import { bomSqlDialectFor, type BomSqlDialect } from './resolve/bom-sql.js';
 import { expandBom } from './resolve/expansion.js';
 import { viewItemIds } from './view-projection.js';
@@ -11,12 +11,6 @@ import type { BomViewInput, BomViewSnapshot } from './view-types.js';
 const CHUNK_SIZE = 200;
 
 type ViewItem = BomViewSnapshot['items'][number];
-
-const scopedAdapter = (adapter: BomLocalAdapter, executor: TransactionExecutor): BomLocalAdapter => ({
-  name: adapter.name,
-  rxdb: adapter.rxdb,
-  transaction: <T extends TransactionFun>(fun: T) => executor.run(fun) as Promise<Awaited<ReturnType<T>>>
-});
 
 const byId = (left: ViewItem, right: ViewItem): number => (left.id < right.id ? -1 : Number(left.id > right.id));
 
@@ -49,7 +43,7 @@ const readViewItems = async (
 export const readBomViewSnapshot = async (db: RxDB, input: BomViewInput): Promise<BomViewSnapshot> => {
   const adapter = await firstValueFrom(db.localAdapter$);
   return adapter.transaction(async executor => {
-    const scoped = scopedAdapter(adapter, executor);
+    const scoped = scopedBomAdapter(adapter, executor);
     const expansion = await expandBom(scoped, input.context, input.target, { budgets: input.budgets });
     let explosion: BomViewSnapshot['explosion'] = null;
     let quantityError: unknown = null;
