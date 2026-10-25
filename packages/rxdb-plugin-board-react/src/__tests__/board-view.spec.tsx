@@ -110,26 +110,23 @@ describe('BoardView（React 视图）', () => {
   it('创建板/列/任务后渲染更新', async () => {
     const fixture = render(<BoardView rxdb={rxdb} />);
     await screen.findByTestId('empty-board');
-    const prompts = ['看板 A', 'C1'];
-    const originalPrompt = window.prompt;
-    window.prompt = () => prompts.shift() ?? null;
-    try {
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('create-board-empty'));
-        await new Promise(resolve => setTimeout(resolve, 500));
-      });
-      fireEvent.click(screen.getByTestId('create-column'));
-      await waitFor(() => expect(screen.getAllByTestId('column')).toHaveLength(1));
-      fireEvent.click(screen.getByTestId('add-task'));
-      // 点击后表单渲染有异步竞态（React 并发渲染 + 建列写入链），等表单出现再填
-      await waitFor(() => expect(screen.getByTestId('add-task-input')).toBeTruthy());
-      fireEvent.change(screen.getByTestId('add-task-input'), { target: { value: '任务 1' } });
-      fireEvent.keyDown(screen.getByTestId('add-task-input'), { key: 'Enter' });
-      await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(1));
-      expect(screen.getByTestId('task-title').textContent).toBe('任务 1');
-    } finally {
-      window.prompt = originalPrompt;
-    }
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('create-board-empty'));
+      fireEvent.change(screen.getByTestId('board-composer-input'), { target: { value: '看板 A' } });
+      fireEvent.click(screen.getByTestId('board-composer-submit'));
+      await new Promise(resolve => setTimeout(resolve, 500));
+    });
+    fireEvent.click(screen.getByTestId('create-column'));
+    fireEvent.change(screen.getByTestId('column-composer-input'), { target: { value: 'C1' } });
+    fireEvent.click(screen.getByTestId('column-composer-submit'));
+    await waitFor(() => expect(screen.getAllByTestId('column')).toHaveLength(1));
+    fireEvent.click(screen.getByTestId('add-task'));
+    // 点击后表单渲染有异步竞态（React 并发渲染 + 建列写入链），等表单出现再填
+    await waitFor(() => expect(screen.getByTestId('add-task-input')).toBeTruthy());
+    fireEvent.change(screen.getByTestId('add-task-input'), { target: { value: '任务 1' } });
+    fireEvent.keyDown(screen.getByTestId('add-task-input'), { key: 'Enter' });
+    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(1));
+    expect(screen.getByTestId('task-title').textContent).toBe('任务 1');
     fixture.unmount();
   });
 

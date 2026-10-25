@@ -49,10 +49,6 @@ const rxdb = { getPlugins: () => [] } as unknown as RxDB;
 const click = (testId: string): void => {
   fireEvent.click(screen.getByTestId(testId));
 };
-const prompt = (value: string | null): void => {
-  vi.mocked(window.prompt).mockReturnValueOnce(value);
-};
-
 beforeEach(() => {
   vi.stubGlobal('localStorage', { getItem: () => null });
   vi.stubGlobal(
@@ -219,28 +215,30 @@ describe('看板公开交互', () => {
     const onExportBackup = vi.fn();
     render(<BoardView rxdb={rxdb} onExportBackup={onExportBackup} />);
     click('create-board');
-    expect(state.actions.createBoard).not.toHaveBeenCalled();
-    prompt('新板');
-    click('create-board');
-    prompt('新列');
+    fireEvent.change(screen.getByTestId('board-composer-input'), { target: { value: '新板' } });
+    click('board-composer-submit');
     click('create-column');
+    fireEvent.change(screen.getByTestId('column-composer-input'), { target: { value: '新列' } });
+    click('column-composer-submit');
     click('create-column');
-    prompt('改板');
-    click('rename-board');
-    click('rename-board');
-    prompt('改列');
+    click('column-composer-cancel');
+    fireEvent.click(screen.getByTestId('rename-board'));
+    fireEvent.change(screen.getByTestId('board-title-editor'), { target: { value: '改板' } });
+    click('board-title-save');
+    fireEvent.click(screen.getAllByTestId('column-actions')[0]);
     fireEvent.click(screen.getAllByTestId('column-rename')[0]);
-    fireEvent.click(screen.getAllByTestId('column-rename')[0]);
+    fireEvent.change(screen.getByTestId('column-title-editor'), { target: { value: '改列' } });
+    click('column-title-save');
     click('create-label');
-    prompt('取消颜色');
-    prompt(null);
+    click('label-composer-cancel');
     click('create-label');
-    prompt('新标签');
-    prompt('#123456');
-    click('create-label');
-    prompt('改标签');
+    fireEvent.change(screen.getByTestId('label-composer-input'), { target: { value: '新标签' } });
+    fireEvent.change(screen.getByTestId('label-composer-color'), { target: { value: '#123456' } });
+    click('label-composer-submit');
     fireEvent.click(screen.getByRole('button', { name: '改名' }));
-    fireEvent.click(screen.getByRole('button', { name: '改名' }));
+    const labelEditor = screen.getByRole('textbox', { name: `标签名称 ${label.name}` });
+    fireEvent.change(labelEditor, { target: { value: '改标签' } });
+    fireEvent.keyDown(labelEditor, { key: 'Enter' });
     click('export-backup');
     click('undo');
     click('redo');
@@ -407,8 +405,9 @@ describe('看板公开交互', () => {
   it('空态仍可建板和选择其他板，恢复中禁写', () => {
     state = { ...state, currentBoard: null, currentBoardId: null };
     const fixture = render(<BoardView rxdb={rxdb} />);
-    prompt('空态建板');
     click('create-board-empty');
+    fireEvent.change(screen.getByTestId('board-composer-input'), { target: { value: '空态建板' } });
+    click('board-composer-submit');
     expect(state.actions.createBoard).toHaveBeenCalledWith({ title: '空态建板' });
     state = {
       ...state,

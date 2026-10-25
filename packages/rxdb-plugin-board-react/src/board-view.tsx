@@ -40,6 +40,13 @@ export interface BoardViewProps {
 }
 
 type DueFilter = 'all' | 'overdue' | 'today' | 'upcoming';
+type ComposerKind = 'board' | 'column' | 'label';
+
+interface ParsedFilter {
+  readonly text: string;
+  readonly label: string;
+  readonly due: DueFilter;
+}
 
 const dateKey = (date: Date): string =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -51,6 +58,23 @@ const dueState = (task: Task, today: string): Exclude<DueFilter, 'all'> | 'none'
   return 'upcoming';
 };
 
+const parseFilter = (value: string): ParsedFilter => {
+  let text = value;
+  let label = '';
+  let due: DueFilter = 'all';
+  const labelMatch = text.match(/(?:^|\s)label:(?:"([^"]+)"|(\S+))/i);
+  if (labelMatch) {
+    label = labelMatch[1] ?? labelMatch[2] ?? '';
+    text = text.replace(labelMatch[0], ' ');
+  }
+  const dueMatch = text.match(/(?:^|\s)due:(overdue|today|upcoming|all)(?=\s|$)/i);
+  if (dueMatch) {
+    due = dueMatch[1].toLowerCase() as DueFilter;
+    text = text.replace(dueMatch[0], ' ');
+  }
+  return { text: text.trim().replace(/\s+/g, ' '), label: label.trim(), due };
+};
+
 export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const searchUpstream = rxdb.getPlugins('search')[0];
   const board = useBoard(
@@ -60,6 +84,9 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const [editTitleTaskId, setEditTitleTaskId] = useState<UUID | null>(null);
   const [editTitleValue, setEditTitleValue] = useState<string>('');
   const [detailTaskId, setDetailTaskId] = useState<UUID | null>(null);
+  const [detailPinned, setDetailPinned] = useState(false);
+  const [detailActionsOpen, setDetailActionsOpen] = useState(false);
+  const [expandedTaskId, setExpandedTaskId] = useState<UUID | null>(null);
   const [draft, setDraft] = useState({ title: '', description: '', dueDate: '', labelIds: [] as readonly UUID[] });
   const [snapshot, setSnapshot] = useState<TaskDraftSnapshot | null>(null);
   const [confirm, setConfirm] = useState<DeletePlan | null>(null);
@@ -80,9 +107,25 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const [searchErrorText, setSearchErrorText] = useState<string | null>(null);
   const [searchHighlightId, setSearchHighlightId] = useState<UUID | null>(null);
   const [filterLabelId, setFilterLabelId] = useState<UUID | ''>('');
+  const [filterLabelText, setFilterLabelText] = useState('');
   const [dueFilter, setDueFilter] = useState<DueFilter>('all');
   const [showEmptyColumns, setShowEmptyColumns] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [filterSuggestionsOpen, setFilterSuggestionsOpen] = useState(false);
+  const [viewOptionsOpen, setViewOptionsOpen] = useState(false);
+  const [openColumnMenuId, setOpenColumnMenuId] = useState<UUID | null>(null);
+  const [showDescriptions, setShowDescriptions] = useState(true);
+  const [showLabels, setShowLabels] = useState(true);
+  const [composer, setComposer] = useState<ComposerKind | null>(null);
+  const [composerValue, setComposerValue] = useState('');
+  const [composerColor, setComposerColor] = useState('#e11d48');
+  const [composerSaving, setComposerSaving] = useState(false);
+  const [editingBoard, setEditingBoard] = useState(false);
+  const [editingBoardValue, setEditingBoardValue] = useState('');
+  const [editingColumnId, setEditingColumnId] = useState<UUID | null>(null);
+  const [editingColumnValue, setEditingColumnValue] = useState('');
+  const [editingLabelId, setEditingLabelId] = useState<UUID | null>(null);
+  const [editingLabelValue, setEditingLabelValue] = useState('');
   /** 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 源卡片半透明）。 */
   const [dragging, setDragging] = useState<{ readonly kind: 'task' | 'column'; readonly id: UUID } | null>(null);
   const [dropTarget, setDropTarget] = useState<
@@ -109,7 +152,13 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const onSearchInput = (value: string): void => {
     setSearchQuery(value);
-    const query = value.trim();
+    const parsed = parseFilter(value);
+    setFilterLabelText(parsed.label);
+    setFilterLabelId(
+      parsed.label === '' ? '' : (board.labels.find(label => label.name.toLowerCase() === parsed.label.toLowerCase())?.id ?? '')
+    );
+    setDueFilter(parsed.due);
+    const query = parsed.text;
     if (query === '') {
       destroySearch();
       return;
@@ -183,11 +232,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     () =>
       board.tasks.filter(task => {
         const matchesLabel =
-          filterLabelId === '' || (board.taskLabels.get(task.id) ?? []).some(label => label.id === filterLabelId);
+          filterLabelText === '' && filterLabelId === '' ? true :
+          (board.taskLabels.get(task.id) ?? []).some(label =>
+            filterLabelId !== '' ? label.id === filterLabelId : label.name.toLowerCase() === filterLabelText.toLowerCase()
+          );
         const state = dueState(task, today);
         return matchesLabel && (dueFilter === 'all' || state === dueFilter);
       }),
-    [board.taskLabels, board.tasks, dueFilter, filterLabelId, today]
+    [board.taskLabels, board.tasks, dueFilter, filterLabelId, filterLabelText, today]
   );
   const visibleTaskMap = useMemo(() => {
     const grouped = new Map<UUID, Task[]>();
@@ -206,7 +258,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       : board.columns.filter(column => (visibleTaskMap.get(column.id) ?? []).length > 0),
     [board.columns, showEmptyColumns, visibleTaskMap]
   );
-  const activeFilterCount = (filterLabelId === '' ? 0 : 1) + (dueFilter === 'all' ? 0 : 1);
+  const activeFilterCount = (filterLabelText === '' ? 0 : 1) + (dueFilter === 'all' ? 0 : 1);
   const overdueTaskCount = board.tasks.filter(task => dueState(task, today) === 'overdue').length;
 
   const noticeTimerRef = useRef<number | null>(null);
@@ -226,27 +278,69 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     }
   };
 
-  const promptTitle = (message: string, initial?: string): string | null => {
-    const value = typeof window !== 'undefined' ? window.prompt(message, initial) : null;
-    return value === null ? null : value;
+  const startComposer = (kind: ComposerKind): void => {
+    setComposer(current => (current === kind ? null : kind));
+    setComposerValue('');
+    setComposerColor('#e11d48');
   };
 
-  const createBoard = async (): Promise<void> => {
-    const title = promptTitle('新建看板：标题');
-    if (title === null) return;
-    await guard(() => board.actions.createBoard({ title }));
+  const cancelComposer = (): void => {
+    if (composerSaving) return;
+    setComposer(null);
+    setComposerValue('');
+    setComposerColor('#e11d48');
   };
-  const createColumn = async (): Promise<void> => {
-    const title = promptTitle('新建列：标题');
-    if (title === null) return;
-    await guard(() => board.actions.createColumn({ title }));
+
+  const submitComposer = async (): Promise<void> => {
+    const value = composerValue.trim();
+    if (composer === null || value === '' || composerSaving) return;
+    setComposerSaving(true);
+    try {
+      let created = false;
+      if (composer === 'board') {
+        created = (await guard(() => board.actions.createBoard({ title: value }))) !== undefined;
+      } else if (composer === 'column') {
+        created = (await guard(() => board.actions.createColumn({ title: value }))) !== undefined;
+      } else {
+        created = (await guard(() => board.actions.createLabel({ name: value, color: composerColor.trim() }))) !== undefined;
+      }
+      if (created) cancelComposer();
+    } finally {
+      setComposerSaving(false);
+    }
   };
-  const createLabel = async (): Promise<void> => {
-    const name = promptTitle('新建标签：名称');
-    if (name === null) return;
-    const color = promptTitle('标签颜色（#rrggbb）', '#e11d48');
-    if (color === null) return;
-    await guard(() => board.actions.createLabel({ name, color }));
+
+  const startBoardEdit = (): void => {
+    if (!current) return;
+    setEditingBoardValue(current.title);
+    setEditingBoard(true);
+  };
+
+  const commitBoardEdit = async (): Promise<void> => {
+    if (!current) return;
+    const result = await guard(() => board.actions.updateBoard(current.id, { title: editingBoardValue }));
+    if (result !== undefined) setEditingBoard(false);
+  };
+
+  const startColumnEdit = (column: Column): void => {
+    setEditingColumnId(column.id);
+    setEditingColumnValue(column.title);
+    setOpenColumnMenuId(null);
+  };
+
+  const commitColumnEdit = async (column: Column): Promise<void> => {
+    const result = await guard(() => board.actions.updateColumn(column.id, { title: editingColumnValue }));
+    if (result !== undefined) setEditingColumnId(null);
+  };
+
+  const startLabelEdit = (label: BoardLabel): void => {
+    setEditingLabelId(label.id);
+    setEditingLabelValue(label.name);
+  };
+
+  const commitLabelEdit = async (label: BoardLabel): Promise<void> => {
+    const result = await guard(() => board.actions.renameLabel(label.id, editingLabelValue));
+    if (result !== undefined) setEditingLabelId(null);
   };
 
   /** 内联建任务（GitHub Projects 同款：列底输入框，Enter 提交 / Esc 取消）。 */
@@ -509,6 +603,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     invalidateDetailRequest();
     setDetailTaskId(null);
     setSnapshot(null);
+    setDetailActionsOpen(false);
   };
 
   useEffect(() => {
@@ -520,20 +615,46 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         return;
       }
       if (event.key !== 'Escape') return;
-      if (showFilters) {
-        setShowFilters(false);
+      if (detailActionsOpen) {
+        setDetailActionsOpen(false);
         return;
       }
       if (searchQuery.trim() !== '') {
         setSearchQuery('');
+        setFilterLabelText('');
+        setFilterLabelId('');
+        setDueFilter('all');
         destroySearch();
+        setFilterSuggestionsOpen(false);
+        return;
+      }
+      if (openColumnMenuId !== null || viewOptionsOpen || filterSuggestionsOpen) {
+        setOpenColumnMenuId(null);
+        setViewOptionsOpen(false);
+        setFilterSuggestionsOpen(false);
+        return;
+      }
+      if (showFilters) {
+        setShowFilters(false);
         return;
       }
       if (detailTaskId !== null) closeDetail();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [detailTaskId, searchQuery, showFilters]);
+  }, [detailActionsOpen, detailTaskId, filterSuggestionsOpen, openColumnMenuId, searchQuery, showFilters, viewOptionsOpen]);
+
+  useEffect(() => {
+    const closeMenus = (event: MouseEvent): void => {
+      if (event.target instanceof Element && event.target.closest('[data-board-menu]')) return;
+      setOpenColumnMenuId(null);
+      setViewOptionsOpen(false);
+      setFilterSuggestionsOpen(false);
+      setDetailActionsOpen(false);
+    };
+    document.addEventListener('mousedown', closeMenus);
+    return () => document.removeEventListener('mousedown', closeMenus);
+  }, []);
 
   // ---------- 菜单式移动（US-539 AC#6 键盘等价路径：移动到列 + 位置） ----------
 
@@ -644,6 +765,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     invalidateDetailRequest();
     board.selectBoard(boardId);
     setFilterLabelId('');
+    setFilterLabelText('');
     setDueFilter('all');
     setShowEmptyColumns(true);
     // 切板丢弃旧板结果：销毁重建句柄重发（setQuery 同词会被 distinctUntilChanged 吞掉）
@@ -656,7 +778,10 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const clearFilters = (): void => {
     setFilterLabelId('');
+    setFilterLabelText('');
     setDueFilter('all');
+    setSearchQuery('');
+    destroySearch();
   };
 
   const boardSelector = (
@@ -690,16 +815,20 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           <div className='board-eyebrow'>LOCAL PROJECT / 看板</div>
           <div className='board-title-row'>
             {boardSelector}
-            {current ?
-              <button
-                className='header-button'
-                onClick={() => {
-                  const title = promptTitle('改板标题', current.title);
-                  if (title !== null) void guard(() => board.actions.updateBoard(current.id, { title }));
-                }}
-                data-testid='rename-board'
-                aria-label='改板标题'
-              >
+            {current && editingBoard ?
+              <form className='inline-editor board-title-editor' onSubmit={event => { event.preventDefault(); void commitBoardEdit(); }}>
+                <input
+                  value={editingBoardValue}
+                  onChange={event => setEditingBoardValue(event.target.value)}
+                  autoFocus
+                  aria-label='看板标题'
+                  data-testid='board-title-editor'
+                />
+                <button type='submit' data-testid='board-title-save'>保存</button>
+                <button type='button' onClick={() => setEditingBoard(false)} data-testid='board-title-cancel'>取消</button>
+              </form>
+            : current ?
+              <button className='header-button' onClick={startBoardEdit} data-testid='rename-board' aria-label='改板标题'>
                 {current.title}
               </button>
             : null}
@@ -751,13 +880,13 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           </button>
           <button
             className='header-primary-action'
-            onClick={() => void createColumn()}
+            onClick={() => startComposer('column')}
             data-testid='create-column'
             disabled={board.restoring || !current}
           >
             <span aria-hidden='true'>＋</span> 新建列
           </button>
-          <button className='header-create-board' onClick={() => void createBoard()} data-testid='create-board' disabled={board.restoring}>
+          <button className='header-create-board' onClick={() => startComposer('board')} data-testid='create-board' disabled={board.restoring}>
             新建板
           </button>
           <button
@@ -768,10 +897,45 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           >
             删除看板
           </button>
-          <button className='header-utility-action' onClick={() => void createLabel()} data-testid='create-label' disabled={board.restoring || !current}>
+          <button className='header-utility-action' onClick={() => startComposer('label')} data-testid='create-label' disabled={board.restoring || !current}>
             标签
           </button>
         </div>
+        {composer !== null && current ?
+          <form
+            className='composer-popover'
+            data-board-menu='composer'
+            data-testid={`${composer}-composer`}
+            onSubmit={event => { event.preventDefault(); void submitComposer(); }}
+          >
+            <strong>{composer === 'board' ? '新建看板' : composer === 'column' ? '新建列' : '新建标签'}</strong>
+            <input
+              value={composerValue}
+              onChange={event => setComposerValue(event.target.value)}
+              autoFocus
+              placeholder={composer === 'label' ? '标签名称' : '输入名称'}
+              aria-label={composer === 'board' ? '新看板名称' : composer === 'column' ? '新列名称' : '新标签名称'}
+              data-testid={`${composer}-composer-input`}
+              disabled={composerSaving}
+            />
+            {composer === 'label' ?
+              <input
+                type='text'
+                value={composerColor}
+                onChange={event => setComposerColor(event.target.value)}
+                aria-label='标签颜色'
+                data-testid='label-composer-color'
+                disabled={composerSaving}
+              />
+            : null}
+            <div className='composer-actions'>
+              <button type='submit' className='composer-submit' data-testid={`${composer}-composer-submit`} disabled={composerSaving || composerValue.trim() === ''}>
+                {composerSaving ? '保存中…' : '创建'}
+              </button>
+              <button type='button' onClick={cancelComposer} data-testid={`${composer}-composer-cancel`} disabled={composerSaving}>取消</button>
+            </div>
+          </form>
+        : null}
       </header>
 
       {current ?
@@ -796,9 +960,22 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       {!current ?
         <div className='empty-board' data-testid='empty-board'>
           <p>没有看板</p>
-          <button onClick={() => void createBoard()} data-testid='create-board-empty' disabled={board.restoring}>
+          <button onClick={() => startComposer('board')} data-testid='create-board-empty' disabled={board.restoring}>
             新建板
           </button>
+          {composer === 'board' ?
+            <form className='empty-composer' onSubmit={event => { event.preventDefault(); void submitComposer(); }}>
+              <input
+                value={composerValue}
+                onChange={event => setComposerValue(event.target.value)}
+                autoFocus
+                aria-label='新看板名称'
+                data-testid='board-composer-input'
+              />
+              <button type='submit' data-testid='board-composer-submit' disabled={composerValue.trim() === ''}>创建</button>
+              <button type='button' onClick={cancelComposer}>取消</button>
+            </form>
+          : null}
         </div>
       : null}
 
@@ -819,13 +996,22 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             >
               <button
                 className='label-name'
-                onClick={() => {
-                  const name = promptTitle('改标签名', label.name);
-                  if (name !== null) void guard(() => board.actions.renameLabel(label.id, name));
-                }}
+                  onClick={() => startLabelEdit(label)}
                 aria-label='改名'
               >
-                {label.name}
+                {editingLabelId === label.id ?
+                  <input
+                    value={editingLabelValue}
+                    onChange={event => setEditingLabelValue(event.target.value)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') void commitLabelEdit(label);
+                      if (event.key === 'Escape') setEditingLabelId(null);
+                    }}
+                    onClick={event => event.stopPropagation()}
+                    autoFocus
+                    aria-label={`标签名称 ${label.name}`}
+                  />
+                : label.name}
               </button>
               <button
                 className='label-delete'
@@ -866,16 +1052,16 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             <span className='view-tab-note'>本地视图</span>
           </div>
           <div className='toolbar-actions'>
-            {board.searchSource ?
-              <div className='board-search' data-testid='board-search'>
+            <div className='board-search filter-combobox' data-testid='board-search' data-board-menu='filter'>
                 <span className='search-icon' aria-hidden='true'>⌕</span>
                 <input
                   ref={searchInputRef}
                   className='search-input'
                   value={searchQuery}
                   onChange={event => onSearchInput(event.target.value)}
-                  placeholder='搜索任务…'
-                  aria-label='搜索当前板任务'
+                  onFocus={() => setFilterSuggestionsOpen(true)}
+                  placeholder='按关键词或字段筛选'
+                  aria-label='Filter'
                   data-testid='board-search-input'
                 />
                 <kbd>/</kbd>
@@ -889,7 +1075,21 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                     ×
                   </button>
                 : null}
-                {searchQuery.trim() !== '' ?
+                {filterSuggestionsOpen && searchQuery.trim() === '' ?
+                  <div className='filter-suggestions' role='listbox' aria-label='筛选建议'>
+                    <span className='filter-suggestions-heading'>支持的筛选</span>
+                    <button type='button' onClick={() => { onSearchInput('label:'); searchInputRef.current?.focus(); }}>
+                      <strong>label:</strong><span>按标签筛选</span>
+                    </button>
+                    <button type='button' onClick={() => { onSearchInput('due:overdue'); setFilterSuggestionsOpen(false); }}>
+                      <strong>due:overdue</strong><span>只显示逾期任务</span>
+                    </button>
+                    <button type='button' onClick={() => { onSearchInput('due:today'); setFilterSuggestionsOpen(false); }}>
+                      <strong>due:today</strong><span>只显示今天到期</span>
+                    </button>
+                  </div>
+                : null}
+                {board.searchSource && parseFilter(searchQuery).text !== '' ?
                   <div className='search-results' data-testid='board-search-results'>
                     {searchState === 'loading' ?
                       <p className='search-state' data-testid='board-search-loading'>
@@ -937,7 +1137,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                   </div>
                 : null}
               </div>
-            : null}
+            
             <button
               className={`filter-toggle${showFilters || activeFilterCount > 0 ? ' filter-toggle-active' : ''}`}
               onClick={() => setShowFilters(value => !value)}
@@ -955,6 +1155,30 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             >
               {showEmptyColumns ? '隐藏空列' : '显示空列'}
             </button>
+            <div className='view-options' data-board-menu='view'>
+              <button
+                className={viewOptionsOpen ? 'view-options-toggle view-options-toggle-active' : 'view-options-toggle'}
+                onClick={() => setViewOptionsOpen(value => !value)}
+                aria-expanded={viewOptionsOpen}
+                data-testid='view-options'
+              >
+                视图 <span aria-hidden='true'>⌄</span>
+              </button>
+              <div className='view-options-menu' role='menu' hidden={!viewOptionsOpen}>
+                <span className='menu-heading'>布局</span>
+                <button role='menuitemradio' aria-checked='true' className='menu-check'>看板</button>
+                <span className='menu-heading'>字段</span>
+                <button role='menuitemcheckbox' aria-checked={showDescriptions} onClick={() => setShowDescriptions(value => !value)}>
+                  <span>{showDescriptions ? '✓' : ''}</span> 描述
+                </button>
+                <button role='menuitemcheckbox' aria-checked={showLabels} onClick={() => setShowLabels(value => !value)}>
+                  <span>{showLabels ? '✓' : ''}</span> 标签
+                </button>
+                <button role='menuitemcheckbox' aria-checked={!showEmptyColumns} onClick={() => setShowEmptyColumns(value => !value)}>
+                  <span>{showEmptyColumns ? '' : '✓'}</span> 隐藏空列
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       : null}
@@ -974,7 +1198,11 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             <span>标签</span>
             <select
               value={filterLabelId}
-              onChange={event => setFilterLabelId(event.target.value as UUID | '')}
+              onChange={event => {
+                const id = event.target.value as UUID | '';
+                setFilterLabelId(id);
+                setFilterLabelText(board.labels.find(label => label.id === id)?.name ?? '');
+              }}
               aria-label='按标签筛选'
               data-testid='board-filter-label'
             >
@@ -1036,27 +1264,52 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                 onDragStart={event => onColumnDragStart(event, column)}
                 data-testid='column-header'
               >
-                <h2 className='column-title' data-testid='column-title'>
-                  {column.title}
-                </h2>
-                <span className='column-count' data-testid='column-count'>
-                  {(visibleTaskMap.get(column.id) ?? []).length}
-                  {activeFilterCount > 0 && (taskMap.get(column.id) ?? []).length !== (visibleTaskMap.get(column.id) ?? []).length ?
-                    <span className='column-total-count'> / {(taskMap.get(column.id) ?? []).length}</span>
-                  : null}
-                </span>
-                <div className='column-menu'>
+                <div className='column-heading'>
+                  {editingColumnId === column.id ?
+                    <form className='inline-editor column-title-editor' onSubmit={event => { event.preventDefault(); void commitColumnEdit(column); }}>
+                      <input
+                        value={editingColumnValue}
+                        onChange={event => setEditingColumnValue(event.target.value)}
+                        autoFocus
+                        aria-label={`列标题 ${column.title}`}
+                        data-testid='column-title-editor'
+                      />
+                      <button type='submit' data-testid='column-title-save'>保存</button>
+                      <button type='button' onClick={() => setEditingColumnId(null)} data-testid='column-title-cancel'>取消</button>
+                    </form>
+                  : <h2 className='column-title' data-testid='column-title'>{column.title}</h2>}
+                  <span className='column-count' data-testid='column-count'>
+                    {(visibleTaskMap.get(column.id) ?? []).length}
+                    {activeFilterCount > 0 && (taskMap.get(column.id) ?? []).length !== (visibleTaskMap.get(column.id) ?? []).length ?
+                      <span className='column-total-count'> / {(taskMap.get(column.id) ?? []).length}</span>
+                    : null}
+                  </span>
+                </div>
+                <div className='column-menu' data-board-menu='column'>
                   <button
-                    onClick={() => {
-                      const title = promptTitle('改列标题', column.title);
-                      if (title !== null) void guard(() => board.actions.updateColumn(column.id, { title }));
+                    className='column-menu-trigger'
+                    onClick={event => {
+                      event.stopPropagation();
+                      setOpenColumnMenuId(value => value === column.id ? null : column.id);
                     }}
+                    aria-label={`列操作：${column.title}`}
+                    aria-expanded={openColumnMenuId === column.id}
+                    data-testid='column-actions'
+                  >
+                    <span aria-hidden='true'>•••</span>
+                  </button>
+                  <div className='column-menu-panel' role='menu' hidden={openColumnMenuId !== column.id}>
+                    <span className='menu-heading'>列</span>
+                  <button
+                    role='menuitem'
+                    onClick={() => startColumnEdit(column)}
                     data-testid='column-rename'
                     aria-label='改列名'
                   >
-                    改名
+                    编辑列名
                   </button>
                   <button
+                    role='menuitem'
                     onClick={() => void moveColumnBy(column.id, -1)}
                     data-testid='column-move-back'
                     aria-label='前移'
@@ -1064,6 +1317,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                     前移
                   </button>
                   <button
+                    role='menuitem'
                     onClick={() => void moveColumnBy(column.id, 1)}
                     data-testid='column-move-forward'
                     aria-label='后移'
@@ -1071,6 +1325,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                     后移
                   </button>
                   <button
+                    role='menuitem'
                     onClick={() => void sortColumnBy(column.id, 'dueDate')}
                     data-testid='column-sort-due'
                     aria-label='按截止日排序'
@@ -1079,6 +1334,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                     按截止日
                   </button>
                   <button
+                    role='menuitem'
                     onClick={() => void sortColumnBy(column.id, 'title')}
                     data-testid='column-sort-title'
                     aria-label='按标题排序'
@@ -1087,12 +1343,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                     按标题
                   </button>
                   <button
+                    role='menuitem'
                     onClick={() => void confirmColumnDelete(column)}
                     data-testid='column-delete'
                     aria-label='删除列'
                   >
                     删除
                   </button>
+                  </div>
                 </div>
               </header>
               <div className='cards'>
@@ -1113,9 +1371,21 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                       .filter(Boolean)
                       .join(' ')}
                     data-task-id={task.id}
-                    tabIndex={-1}
+                    tabIndex={0}
                     draggable
                     onDragStart={event => onTaskDragStart(event, task)}
+                    onClick={event => {
+                      if (event.target instanceof HTMLElement && event.target.closest('button,input,textarea,select')) return;
+                      setExpandedTaskId(value => value === task.id ? null : task.id);
+                    }}
+                    onKeyDown={event => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setExpandedTaskId(value => value === task.id ? null : task.id);
+                      }
+                    }}
+                    aria-expanded={expandedTaskId === task.id}
                     data-testid='task-card'
                   >
                     {editTitleTaskId === task.id ?
@@ -1166,14 +1436,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                             <span className='sr-only'>编辑</span>
                           </button>
                         </div>
-                        {task.description ?
+                        {showDescriptions && task.description ?
                           <p className='card-description' data-testid='task-description-preview'>
                             {task.description}
                           </p>
                         : null}
                       </>
                     }
-                    {labelsOf(task.id).length > 0 || dueDateText(task) ?
+                    {showLabels && (labelsOf(task.id).length > 0 || dueDateText(task)) ?
                       <div className='card-meta'>
                         {labelsOf(task.id).length > 0 ?
                           <div className='card-labels'>
@@ -1198,6 +1468,21 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                             {dueDateText(task)}
                           </span>
                         : null}
+                      </div>
+                    : null}
+                    {expandedTaskId === task.id ?
+                      <div className='card-expanded-fields' data-testid='task-expanded-fields'>
+                        <div className='card-field'>
+                          <span>状态</span>
+                          <strong>{column.title}</strong>
+                        </div>
+                        <div className='card-field'>
+                          <span>截止日期</span>
+                          <strong>{task.dueDate ?? '未设置'}</strong>
+                        </div>
+                        <button className='card-open-detail' onClick={() => void openDetail(task.id)} data-testid='task-open-detail'>
+                          打开详情
+                        </button>
                       </div>
                     : null}
                   </article>
@@ -1251,21 +1536,63 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               </div>
             </section>
           ))}
+          <button
+            className='add-column'
+            onClick={() => startComposer('column')}
+            disabled={board.restoring}
+            data-testid='add-column'
+          >
+            <span aria-hidden='true'>＋</span> 添加列
+          </button>
         </div>
       : null}
 
       {current && detailTaskId ?
         <>
-          <button className='panel-backdrop' onClick={closeDetail} aria-label='关闭任务详情' data-testid='detail-backdrop' />
-          <aside className='detail-panel' role='dialog' aria-modal='true' aria-labelledby='detail-panel-title' data-testid='detail-panel'>
+          {!detailPinned ?
+            <button className='panel-backdrop' onClick={closeDetail} aria-label='关闭任务详情' data-testid='detail-backdrop' />
+          : null}
+          <aside
+            className={`detail-panel${detailPinned ? ' detail-panel-pinned' : ''}`}
+            role='dialog'
+            aria-modal={detailPinned ? undefined : 'true'}
+            aria-label={`任务详情：${draft.title}`}
+            aria-labelledby='detail-panel-title'
+            data-testid='detail-panel'
+          >
             <div className='detail-header'>
-              <div>
+              <div className='detail-heading'>
                 <span className='panel-kicker'>TASK DETAILS</span>
-                <h3 id='detail-panel-title'>任务详情</h3>
+                <h3 id='detail-panel-title'>{draft.title || '任务详情'}</h3>
               </div>
-              <button className='panel-close' onClick={closeDetail} aria-label='关闭任务详情' data-testid='detail-close'>
-                ×
-              </button>
+              <div className='detail-header-actions' data-board-menu='detail'>
+                <button
+                  className='detail-icon-button'
+                  onClick={() => setDetailPinned(value => !value)}
+                  aria-label={detailPinned ? '取消固定侧栏' : '固定侧栏'}
+                  aria-pressed={detailPinned}
+                  data-testid='detail-pin'
+                >
+                  {detailPinned ? '▣' : '□'}
+                </button>
+                <button
+                  className='detail-icon-button'
+                  onClick={() => setDetailActionsOpen(value => !value)}
+                  aria-label='任务操作'
+                  aria-expanded={detailActionsOpen}
+                  data-testid='detail-actions-toggle'
+                >
+                  •••
+                </button>
+                <button className='panel-close' onClick={closeDetail} aria-label='关闭任务详情' data-testid='detail-close'>
+                  ×
+                </button>
+                <div className='detail-actions-menu' role='menu' hidden={!detailActionsOpen}>
+                  <button role='menuitem' onClick={() => { if (detailTask) void confirmTaskDelete(detailTask); setDetailActionsOpen(false); }} data-testid='detail-delete'>
+                    删除任务
+                  </button>
+                </div>
+              </div>
             </div>
           <label>
             标题
@@ -1363,14 +1690,6 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           <div className='detail-actions'>
             <button className='detail-save' onClick={() => void saveDetail()} data-testid='detail-save' disabled={savingDetail}>
               {savingDetail ? '保存中…' : '保存修改'}
-            </button>
-            <button
-              onClick={() => {
-                if (detailTask) void confirmTaskDelete(detailTask);
-              }}
-              data-testid='detail-delete'
-            >
-              删除任务
             </button>
             <button className='detail-cancel' onClick={closeDetail} data-testid='detail-cancel'>
               关闭
