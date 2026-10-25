@@ -10,7 +10,7 @@
 
 剩余 6 条分别为 MEDIA-US-102 AC7 直连部分、105 AC7 真实跨 origin URL、106 AC7 真实桌面 IME 和 107 的三个移动真机 AC。每条关闭条件见[状态概览](status-overview.md#未完成验收与关闭条件)，保留未知请求不重发、D-09 跳过与 D-04 暂缓。Supabase 本轮仅本地。
 
-通过 GitHub 只读核对 PR #154：仍为 OPEN/DRAFT，远程 head 为 `fdd9b469`、已有 CI 门禁通过、没有批准评审；本地 HEAD 为 `ce016021`，其测试证据见下方实施规划复核，远程 CI 结果不覆盖本地新增提交。本轮只变更需求文档，`aiao-media:requirements-check` 与变更文档格式检查通过；未新增真实供应商、系统 IME、移动真机或生产部署证据。
+通过 GitHub 只读核对 PR #154：仍为 OPEN/DRAFT，远程 head 为 `fdd9b469`、已有 CI 门禁通过、没有批准评审；本地测试源码基线为 `ce016021`，其测试证据见下方实施规划复核，远程 CI 结果不覆盖本地新增提交。本轮只变更需求文档，`aiao-media:requirements-check` 与变更文档格式检查通过；未新增真实供应商、系统 IME、移动真机或生产部署证据。
 
 ## 本地实施规划复核（2026-10-25）
 

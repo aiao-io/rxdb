@@ -1,6 +1,6 @@
 # 正式图片交付与公网验收
 
-日期：2026-10-25，正式 origin：`https://media.aiao.io`。本记录仅包含已取得的真实证据；故事保持 `In Progress`，PR #154 尚未合并。供应商 URL、模型值、Key、原始响应和图片内容不进入本文件。
+日期：2026-10-25，正式 origin：`https://media.aiao.io`。本记录仅包含已取得的真实证据；MEDIA-US-004/202 已转为 `In Review`，102/105 仍为 `In Progress`，PR #154 尚未合并。供应商 URL、模型值、Key、原始响应和图片内容不进入本文件。
 
 ## 发布身份
 
@@ -76,7 +76,7 @@ direct / square 的日志为 `requires-review`，阶段 `generation-response`，
 
 原图 SHA-256：`26dc5fd3704ec4326753aa45e56b301d00f4f31cb57fa0ad57c69c7341816aea`。该 PNG 是通过实际产品备份导入的合法 fixture 原图，**不是供应商生成结果**；本套件 `generationRequests=0`，未追加真实生成。
 
-MEDIA-US-004 AC1–4 因真实发布、实际 allowlist 1 项/代理三画幅、已通过的运行边界测试，以及上述完整离线内容/更新/回退证据标为 ✅；故事仍为 `In Progress`，PR 未合并。未知/更高 marker 拒写另引用已通过的本地兼容守卫范围；本次线上 A/B 同为 schema `1`，没有执行真实 schema 转换或在线注入更高 marker。
+MEDIA-US-004 AC1–4 因真实发布、实际 allowlist 1 项/代理三画幅、已通过的运行边界测试，以及上述完整离线内容/更新/回退证据标为 ✅；故事已转为 `In Review`，等待 PR 评审与合并。未知/更高 marker 拒写另引用已通过的本地兼容守卫范围；本次线上 A/B 同为 schema `1`，没有执行真实 schema 转换或在线注入更高 marker。
 
 ## Cloudflare 计划范围
 
