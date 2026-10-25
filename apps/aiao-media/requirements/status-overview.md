@@ -52,7 +52,7 @@
 | [MEDIA-US-107 AC2](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机持久化与交付                   | 在支持所需存储的设备上验证保存、重开、离线预览和实际文件下载                                                                                     |
 | [MEDIA-US-107 AC3](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机存储/下载失败                  | 实测系统拒绝或限制，不虚报保存/下载，重试保留已有数据和原结果                                                                                    |
 
-按用户本次指令，七条全部 AC 已验的故事按 D-11 在当前分支记为 Done。PR #154 的远程 head `2ef6f2c5` 仍为 OPEN/DRAFT、未合并；该轮 CI 的图库 E2E 失败，PGlite 任务被 runner 关机信号中断。本地已修复备份导入的测试竞态，Chromium 全套 31/31 通过，待后续提交触发远程复验；评审/合并继续单独跟踪。原供应商只读复核新增生成 0 次；后续用户另选 MiniMax，国内区只读鉴权与原生接口预检通过，19:26:41 的原生图片请求返回 `1033 / system error`、结果待核对；用户再次明确要求独立调用后，21:08:27 新请求成功返回 JPEG 原图。MiniMax 原生适配已随正式 C 发布且公网烟测通过；本轮 PNG/JPEG 产品交付已完成并发布，700 项完整测试、32 项页面 E2E、12 个协议 fixture 与正式公网烟测通过。正式 MiniMax direct/square 生成返回业务码 0，但原图读取未取得可读响应，保持待核对；横/竖两幅未发送，102/105 继续 Blocked，详见[供应商补验记录](plans/provider-acceptance-follow-up.md)。生产 Supabase 仍属后续范围。
+按用户本次指令，七条全部 AC 已验的故事按 D-11 在当前分支记为 Done。PR #154 的远程 head `2ef6f2c5` 仍为 OPEN/DRAFT、未合并；该轮 CI 的图库 E2E 失败，PGlite 任务被 runner 关机信号中断。本地已修复备份导入的测试竞态，Chromium 全套 31/31 通过，待后续提交触发远程复验；评审/合并继续单独跟踪。原供应商只读复核新增生成 0 次；后续用户另选 MiniMax，国内区只读鉴权与原生接口预检通过，19:26:41 的原生图片请求返回 `1033 / system error`、结果待核对；用户再次明确要求独立调用后，21:08:27 新请求成功返回 JPEG 原图。MiniMax 原生适配已随正式 C 发布且公网烟测通过；本轮 PNG/JPEG 产品交付已完成并发布，700 项完整测试、32 项页面 E2E、12 个协议 fixture 与正式公网烟测通过。正式 MiniMax direct/square 生成返回业务码 0，但原图读取未取得可读响应，保持待核对；横/竖两幅未发送，102/105 继续 Blocked，详见[供应商补验记录](plans/provider-acceptance-follow-up.md)。原图网络失败诊断已补齐，20 项脚本测试与 9 个真实 Chromium 网络场景通过；此轮新增真实生成 0 次，尚需供应商按请求 ID 提供原图 URL/处理记录。生产 Supabase 仍属后续范围。
 
 ## 解释
 

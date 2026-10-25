@@ -95,7 +95,7 @@
     "provider-acceptance-fixture": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["aiao-media:offline-assets", "provider-acceptance-check"],
+      "dependsOn": ["aiao-media:offline-assets", "provider-acceptance-check", "provider-result-network-fixture"],
       "options": {
         "command": "node scripts/provider-acceptance-fixture.mjs",
         "cwd": "apps/aiao-media-e2e"
@@ -156,6 +156,14 @@
       "cache": false,
       "options": {
         "command": "node scripts/actual-release-update-live.mjs",
+        "cwd": "apps/aiao-media-e2e"
+      }
+    },
+    "provider-result-network-fixture": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/provider-result-network-fixture.mjs",
         "cwd": "apps/aiao-media-e2e"
       }
     }

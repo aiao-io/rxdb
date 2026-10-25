@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { test } from 'node:test';
 import {
   acceptancePlan,
@@ -12,6 +13,7 @@ import {
   readResultHeaders
 } from './provider-acceptance.mjs';
 import { installFetchCapture } from './provider-fetch-capture.mjs';
+import { observeResultNetwork, resultNetworkFailure } from './provider-result-network.mjs';
 
 const config = {
   AIAO_MEDIA_ACCEPTANCE_GENERATE: '1',
@@ -327,4 +329,119 @@ test('MiniMax 验收只读取单一成功结果，系统错误和混合结果不
       () => generationImageResult(result, base),
       error => ['GENERATION_REJECTED_OR_UNCERTAIN', 'ORIGINAL_RESULT_UNAVAILABLE'].includes(error.message)
     );
+});
+
+test('原图 fetch 拒绝立即落入固定失败记录，保留原异常且不重发', async () => {
+  const original = new TypeError('private-test-key https://results.example.test/image.jpg?token=secret');
+  let calls = 0;
+  await captureFixture(
+    async () => {
+      calls++;
+      if (calls === 1) return new Response('{}');
+      throw original;
+    },
+    async state => {
+      await fetch('/api/relay', { method: 'POST' });
+      await assert.rejects(fetch('https://results.example.test/image.jpg'), error => error === original);
+      assert.equal(state.results.get('https://results.example.test/image.jpg')?.phase, 'settled');
+      assert.equal(state.results.get('https://results.example.test/image.jpg')?.code, 'RESULT_FETCH_FAILED');
+      assert.equal(calls, 2);
+      assert.equal(failureCode(new Error('RESULT_FETCH_FAILED')), 'RESULT_FETCH_FAILED');
+    }
+  );
+});
+
+test('原图网络事件区分 CORS、CSP、连接和重定向，仅输出固定字段', () => {
+  const session = new EventEmitter();
+  const snapshot = observeResultNetwork(session);
+  const url = 'https://private.example.test/image.jpg?token=secret';
+  session.emit('Network.requestWillBeSent', { requestId: '1', request: { url, method: 'GET' } });
+  session.emit('Network.responseReceivedExtraInfo', {
+    requestId: '1',
+    statusCode: 200,
+    headers: { secret: 'private-test-key' }
+  });
+  session.emit('Network.loadingFailed', {
+    requestId: '1',
+    errorText: 'net::ERR_FAILED',
+    corsErrorStatus: { corsError: 'MissingAllowOriginHeader', failedParameter: 'private-test-key' }
+  });
+  assert.equal(snapshot(url).phase, 'failed');
+  assert.equal(snapshot(url).httpStatus, 200);
+  assert.equal(snapshot(url).corsError, 'MissingAllowOriginHeader');
+  assert.equal(resultNetworkFailure(snapshot(url)), 'RESULT_CORS_BLOCKED');
+  assert.ok(!JSON.stringify(snapshot(url)).includes('private'));
+  assert.ok(!JSON.stringify(snapshot(url)).includes('secret'));
+  session.emit('Network.loadingFailed', { requestId: '1', errorText: 'private-test-key', blockedReason: 'csp' });
+  assert.equal(resultNetworkFailure(snapshot(url)), 'RESULT_CSP_BLOCKED');
+  session.emit('Network.loadingFailed', { requestId: '1', errorText: 'net::ERR_CONNECTION_REFUSED' });
+  assert.equal(snapshot(url).networkError, 'CONNECTION_REFUSED');
+  assert.equal(resultNetworkFailure(snapshot(url)), 'RESULT_REQUEST_FAILED');
+  session.emit('Network.responseReceivedExtraInfo', { requestId: '1', statusCode: 302 });
+  assert.equal(resultNetworkFailure(snapshot(url)), 'RESULT_REDIRECT_BLOCKED');
+  session.emit('Network.loadingFailed', {
+    requestId: '1',
+    errorText: 'private-test-key',
+    corsErrorStatus: { corsError: 'private-test-key' },
+    blockedReason: 'private-test-key'
+  });
+  assert.ok(!JSON.stringify(snapshot(url)).includes('private'));
+  assert.equal(snapshot('https://other.example.test').phase, 'not-requested');
+  for (const code of [
+    'RESULT_CORS_BLOCKED',
+    'RESULT_CSP_BLOCKED',
+    'RESULT_REQUEST_FAILED',
+    'RESULT_REDIRECT_BLOCKED',
+    'RESULT_RESPONSE_TIMEOUT',
+    'RESULT_REQUEST_NOT_OBSERVED'
+  ])
+    assert.equal(failureCode(new Error(code)), code);
+});
+
+test('原图状态接受先到的附加响应信息，成功与 HTTP 错误不误判为网络失败', () => {
+  const session = new EventEmitter();
+  const snapshot = observeResultNetwork(session);
+  const url = 'https://results.example.test/image.jpg';
+  session.emit('Network.responseReceivedExtraInfo', { requestId: '2', statusCode: 404 });
+  session.emit('Network.requestWillBeSent', { requestId: '2', request: { url, method: 'GET' } });
+  session.emit('Network.responseReceived', { requestId: '2', response: { status: 404 } });
+  session.emit('Network.loadingFinished', { requestId: '2' });
+  assert.equal(snapshot(url).phase, 'finished');
+  assert.equal(snapshot(url).httpStatus, 404);
+  assert.equal(resultNetworkFailure(snapshot(url)), null);
+  const copy = snapshot(url);
+  copy.httpStatus = 200;
+  assert.equal(snapshot(url).httpStatus, 404);
+});
+
+test('CSP 在 HTTP 请求前阻断仍可定位，仅报告策略不被当成失败', () => {
+  const session = new EventEmitter();
+  const snapshot = observeResultNetwork(session);
+  const url = 'https://results.example.test/private.jpg?token=secret';
+  const issue = {
+    blockedURL: url,
+    isReportOnly: true,
+    contentSecurityPolicyViolationType: 'kURLViolation',
+    violatedDirective: "connect-src 'self'"
+  };
+  session.emit('Audits.issueAdded', { issue: { details: { contentSecurityPolicyIssueDetails: issue } } });
+  assert.equal(snapshot(url).phase, 'not-requested');
+  issue.isReportOnly = false;
+  session.emit('Audits.issueAdded', { issue: { details: { contentSecurityPolicyIssueDetails: issue } } });
+  assert.equal(resultNetworkFailure(snapshot(url)), 'RESULT_CSP_BLOCKED');
+  assert.ok(!JSON.stringify(snapshot(url)).includes('secret'));
+});
+
+test('带 CORS 原因的重定向响应保留 CORS 分类，不把结果缺失推断成重定向策略拒绝', () => {
+  const session = new EventEmitter();
+  const snapshot = observeResultNetwork(session);
+  const url = 'https://results.example.test/image.jpg';
+  session.emit('Network.requestWillBeSent', { requestId: '3', request: { url, method: 'GET' } });
+  session.emit('Network.responseReceivedExtraInfo', { requestId: '3', statusCode: 302 });
+  session.emit('Network.loadingFailed', {
+    requestId: '3',
+    errorText: 'net::ERR_FAILED',
+    corsErrorStatus: { corsError: 'MissingAllowOriginHeader' }
+  });
+  assert.equal(resultNetworkFailure(snapshot(url)), 'RESULT_CORS_BLOCKED');
 });

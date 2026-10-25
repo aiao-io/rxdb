@@ -11,6 +11,7 @@ import {
 } from '../../aiao-media/src/contracts/image-provider-protocol.ts';
 import { prompt, provider, verifyImageDownload } from '../src/local-first.helpers.ts';
 import { installFetchCapture } from './provider-fetch-capture.mjs';
+import { observeResultNetwork, resultNetworkFailure } from './provider-result-network.mjs';
 
 const ratios = [
   { aspect: 'square', label: '正方形', size: '1024x1024' },
@@ -54,6 +55,15 @@ export function failureCode(error) {
     ['INVALID_RESULT_ORIGIN', 'INVALID_RESULT_ORIGIN'],
     ['RESULT_CREDENTIAL_LEAK', 'RESULT_CREDENTIAL_LEAK'],
     ['RESULT_READ_FAILED', 'RESULT_READ_FAILED'],
+    ['GENERATION_FETCH_FAILED', 'GENERATION_FETCH_FAILED'],
+    ['RESULT_FETCH_FAILED', 'RESULT_FETCH_FAILED'],
+    ['RESULT_CORS_BLOCKED', 'RESULT_CORS_BLOCKED'],
+    ['RESULT_CSP_BLOCKED', 'RESULT_CSP_BLOCKED'],
+    ['RESULT_REQUEST_FAILED', 'RESULT_REQUEST_FAILED'],
+    ['RESULT_REQUEST_ABORTED', 'RESULT_REQUEST_ABORTED'],
+    ['RESULT_REDIRECT_BLOCKED', 'RESULT_REDIRECT_BLOCKED'],
+    ['RESULT_RESPONSE_TIMEOUT', 'RESULT_RESPONSE_TIMEOUT'],
+    ['RESULT_REQUEST_NOT_OBSERVED', 'RESULT_REQUEST_NOT_OBSERVED'],
     ['CAPTURE_NOT_INSTALLED', 'CAPTURE_NOT_INSTALLED'],
     ['GENERATION_CAPTURE_FAILED', 'GENERATION_CAPTURE_FAILED'],
     ['GENERATION_CAPTURE_TOO_LARGE', 'GENERATION_CAPTURE_TOO_LARGE'],
@@ -292,7 +302,22 @@ export function generationImageResult(result, baseUrl) {
   return { url: urls[0], b64_json: base64[0] };
 }
 
-async function originalBytes(page, response, responses, origin, record, baseUrl) {
+export async function resultResponse(url, responses, network, record, timeout = 30000) {
+  try {
+    await expect.poll(() => responses.has(url) || network(url).phase === 'failed', { timeout }).toBe(true);
+  } catch {
+    record.resultRequest = network(url);
+    throw new Error(
+      record.resultRequest.phase === 'not-requested' ? 'RESULT_REQUEST_NOT_OBSERVED' : 'RESULT_RESPONSE_TIMEOUT'
+    );
+  }
+  record.resultRequest = network(url);
+  const code = resultNetworkFailure(record.resultRequest);
+  requireCheck(!code, code);
+  return responses.get(url);
+}
+
+async function originalBytes(page, response, responses, network, origin, record, baseUrl) {
   requireCheck(response.ok(), 'GENERATION_REJECTED_OR_UNCERTAIN');
   record.stage = 'generation-capture';
   const body = await receivedBytes(page, 'generation');
@@ -313,8 +338,8 @@ async function originalBytes(page, response, responses, origin, record, baseUrl)
   requireCheck(typeof item?.url === 'string', 'ORIGINAL_RESULT_UNAVAILABLE');
   const url = new URL(item.url);
   requireCheck(url.protocol === 'https:' && !url.username && !url.password, 'INVALID_RESULT_ORIGIN');
-  await expect.poll(() => responses.has(url.href), { timeout: 30000 }).toBe(true);
-  const image = responses.get(url.href);
+  record.stage = 'result-response';
+  const image = await resultResponse(url.href, responses, network, record);
   record.stage = 'result-headers';
   const headers = await readResultHeaders(image.request());
   requireCheck(
@@ -324,6 +349,7 @@ async function originalBytes(page, response, responses, origin, record, baseUrl)
   requireCheck(!image.request().redirectedFrom() && image.ok(), 'RESULT_READ_FAILED');
   record.stage = 'result-capture';
   const bytes = await receivedBytes(page, 'result', url.href);
+  record.resultRequest = network(url.href);
   return {
     bytes,
     delivery: url.origin === origin ? 'same-origin-url' : 'cross-origin-url',
@@ -360,6 +386,10 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     ];
     const responses = new Map();
     page.on('response', response => responses.set(response.url(), response));
+    const session = await context.newCDPSession(page);
+    const network = observeResultNetwork(session);
+    await session.send('Network.enable');
+    await session.send('Audits.enable');
     await context.route('**/*', async route => {
       const request = route.request();
       if (request.method() !== 'POST' || !generationEndpoints.includes(request.url())) return route.fallback();
@@ -406,7 +436,7 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     const response = await generated;
     record.generationStatus = response.status();
     record.stage = 'original-result';
-    const original = await originalBytes(page, response, responses, settings.origin, record, settings.baseUrl);
+    const original = await originalBytes(page, response, responses, network, settings.origin, record, settings.baseUrl);
     record.stage = 'local-save';
     await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible({ timeout: 210000 });
     requireCheck(!record.requestBoundaryFailed && record.generationRequests === 1, 'GENERATION_REQUEST_BOUNDARY');

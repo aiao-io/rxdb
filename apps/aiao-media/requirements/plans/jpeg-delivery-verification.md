@@ -41,3 +41,15 @@
 官方文生图接口说明了 URL/base64 结果形式和任务 ID，但本次核对公开文档索引与官方调用示例未找到明确的图片结果按 ID 取回入口，尚不能仅凭任务 ID 自动恢复该 URL。每个组合只发一次生成 POST，任何未知结果保留独占 journal 并停止，不自动重发或切换代理。既有原供应商未知请求与 MiniMax 19:26:41 的 `1033` 记录均保留，其计费结果不由新成功请求替代核对。
 
 102 AC7 / 105 AC7 在取得正式产品证据前保持未完成；旧 B 的代理 PNG 三画幅、独立原生 JPEG 成功和本轮产品证据分别记录发布身份，不跨版本挪用成功 journal。历史记录见[供应商补验](provider-acceptance-follow-up.md)与[正式交付验收](public-delivery-verification.md)。
+
+## 原图网络失败诊断补齐（2026-10-25）
+
+源码基线 `54c3809c`。旧验收只等待原图的 Playwright `response` 事件；如果浏览器在 CORS、CSP、连接或重定向阶段拒绝读取，就可能只留下 `generation-json / BROWSER_ASSERTION`。该诊断缺口已通过失败测试复现，但不能据此判定 22:04:17 那次请求的具体原因。
+
+验收现在在请求前开启 Chromium 网络事件观察，记录脱敏的 HTTP 状态、固定 CORS 枚举、CSP/连接/取消和重定向信息；等待阶段明确为 `result-response`，区分网络失败、未观察到请求与响应超时。原图 `fetch` 拒绝后立即形成固定失败记录，向应用传递原异常，每次仍只调用一次原生 `fetch`。URL、查询参数、响应头、失败参数和原始异常仅在内存中处理，不进入 journal。
+
+新增脚本测试按红绿流程验证，20/20 通过；独立 `aiao-media-e2e:provider-result-network-fixture` 在真实 Chromium 中通过 9 个场景：成功读取精确 JPEG 字节、缺少 CORS 许可、拒绝重定向、HTTP 403、强制 CSP、仅报告 CSP、连接拒绝、响应超时和未发请求。真实浏览器首轮还抓出强制 CSP 在 HTTP 请求前阻断时的关联缺口，补上 Audits 事件后通过；仅报告策略不误判，重定向不被跟随，服务端可观测请求均为一次。该任务已成为既有供应商 fixture 的前置依赖，网络回归失败会直接阻止后续验收。
+
+最终完整复验：20 项脚本守卫、9 个真实 Chromium 网络场景、原有 Images API PNG/MiniMax JPEG 共 12 个生产 Worker fixture 组合全部通过；e2e lint/typecheck、需求门禁 17/17 通过。最新本地构建的 manifest SHA-256 与已发布版本一致，未新增产品包或发布。
+
+此轮只修改验收工具与测试，真实生成 POST 为 0，正式 Worker 与旧三份待核对记录不变；原图 URL 尚未取回，102/105 保持 Blocked。供应商仍须按请求 ID 提供同一结果的 URL/处理记录，新诊断不能追溯补成旧请求的成功证据。
