@@ -215,7 +215,7 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     await expect(page.getByTestId('task-card').filter({ hasText: '修复登录 bug' })).toBeFocused();
     await page.reload();
     await expect(page.getByTestId('board-view')).toBeVisible();
-    expect((await titlesOfColumn(page, 'Doing')).at(-1)).toBe('修复登录 bug');
+    await expect.poll(async () => (await titlesOfColumn(page, 'Doing')).at(-1)).toBe('修复登录 bug');
     expect(await titlesOfColumn(page, 'To do')).not.toContain('修复登录 bug');
   });
 
@@ -288,16 +288,19 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     await expect(page.getByTestId('column')).toHaveCount(3);
     await expect(page.getByTestId('task-card')).toHaveCount(7);
 
-    // 删板：确认提示含列 / 任务数；确认后切换到最近创建的备份板（零列零任务），
-    // 种子自带的隔离板「引擎研究草稿」不受影响；重开不复活
+    // 删板：确认后自动选择剩余板；隔离板与空备份板不受影响，重开不复活
     await page.getByTestId('delete-board').click();
     await expect(page.getByTestId('confirm-delete')).toContainText('3');
     await page.getByTestId('confirm-delete-yes').click();
     await expect(page.getByTestId('board-selector').locator('option')).toHaveCount(2);
-    // 删除当前板后回到未选板空态，再手动切到另一块板
-    await expect(page.getByTestId('empty-board')).toBeVisible();
-    await page.getByTestId('board-selector').selectOption({ label: '引擎研究草稿' });
+    await expect(page.getByTestId('board-selector').locator('option:checked')).toHaveText('引擎研究草稿');
+    await expect(page.getByTestId('empty-board')).toHaveCount(0);
     await expect(page.getByTestId('column')).toHaveCount(1);
+    await expect(page.getByTestId('task-card')).toHaveCount(8);
+    await page.getByTestId('board-selector').selectOption({ label: '备份板' });
+    await expect(page.getByTestId('column')).toHaveCount(0);
+    await expect(page.getByTestId('task-card')).toHaveCount(0);
+    await page.getByTestId('board-selector').selectOption({ label: '引擎研究草稿' });
     await expect(page.getByTestId('task-card')).toHaveCount(8);
     await page.reload();
     await expect(page.getByTestId('board-view')).toBeVisible();
