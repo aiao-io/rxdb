@@ -3,7 +3,7 @@
   "name": "rxdb-model",
   "release": {
     "version": {
-      "manifestRootsToUpdate": ["{projectRoot}", "dist/{projectRoot}"],
+      "manifestRootsToUpdate": ["{projectRoot}"],
       "currentVersionResolver": "git-tag",
       "fallbackCurrentVersionResolver": "disk"
     }
