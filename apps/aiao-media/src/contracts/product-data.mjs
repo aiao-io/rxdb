@@ -79,7 +79,7 @@ export function validateSyncPayload(kind, input) {
     !uuid.test(value.providerInstanceId) ||
     !text(value.prompt, 4000) ||
     !text(value.modelId, 128) ||
-    value.mimeType !== 'image/png' ||
+    !['image/png', 'image/jpeg'].includes(value.mimeType) ||
     !integer(value.width, 4096) ||
     !value.width ||
     !integer(value.height, 4096) ||

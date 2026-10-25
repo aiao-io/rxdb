@@ -1,3 +1,4 @@
+import { imageMetadata, validateImageBlob } from '../contracts/image-format';
 import type { GenerationJobSummary } from '../contracts/index';
 import { validateGenerationJobSummary } from '../contracts/index';
 import type { LocalMediaStore, StudioPromptState } from '../local-data/index';
@@ -144,33 +145,10 @@ export async function readLocalBackup(file: File): Promise<{ backup: LocalBackup
       throw new Error('备份图片格式无效或 ID 重复。');
     ids.add(image.job.id);
     const bytes = Uint8Array.from(atob(image.base64), c => c.charCodeAt(0));
-    if (
-      bytes.length < 24 ||
-      bytes.length > 16 * 1024 * 1024 ||
-      ![137, 80, 78, 71, 13, 10, 26, 10].every((v, i) => bytes[i] === v)
-    )
-      throw new Error('备份图片不是 PNG。');
-    const view = new DataView(bytes.buffer),
-      w = view.getUint32(16),
-      h = view.getUint32(20);
-    if (
-      bytes.length < 33 ||
-      view.getUint32(8) !== 13 ||
-      String.fromCharCode(...bytes.subarray(12, 16)) !== 'IHDR' ||
-      !w ||
-      !h ||
-      w > 4096 ||
-      h > 4096
-    )
-      throw new Error('备份图片尺寸无效。');
-    const blob = new Blob([bytes], { type: 'image/png' });
+    const { mimeType } = imageMetadata(bytes);
+    const blob = new Blob([bytes], { type: mimeType });
     if ((await digest(blob)) !== image.sha256) throw new Error('备份图片校验失败，原数据未更改。');
-    const decoded = await createImageBitmap(blob);
-    try {
-      if (decoded.width !== w || decoded.height !== h) throw new Error('备份图片尺寸与实际内容不符。');
-    } finally {
-      decoded.close();
-    }
+    await validateImageBlob(blob);
     files.push(blob);
   }
   return { backup: data, files, digest: await digest(file) };

@@ -10,6 +10,25 @@ import {
 
 const uuid = '00000000-0000-4000-8000-000000000001';
 describe('product transport field whitelists', () => {
+  it.each(['image/png', 'image/jpeg'])('keeps %s work metadata without binary data or credentials', mimeType => {
+    const value = {
+      version: 1,
+      jobId: uuid,
+      providerInstanceId: uuid,
+      prompt: '原图',
+      modelId: 'image-01',
+      mimeType,
+      width: 1024,
+      height: 1024,
+      bytes: 1234,
+      sha256: 'a'.repeat(64),
+      createdAt: '2026-10-25T13:00:00Z'
+    };
+    expect(validateSyncPayload('work', value)).toEqual(value);
+    expect(() => validateSyncPayload('work', { ...value, mimeType: 'image/gif' })).toThrow();
+    expect(() => validateSyncPayload('work', { ...value, opfsPath: '/private.jpg' })).toThrow();
+  });
+
   it('scopes stable record identities by workspace and record kind', async () => {
     const first = await productRecordId(uuid, 'provider', uuid);
     expect(await productRecordId(uuid, 'provider', uuid)).toBe(first);

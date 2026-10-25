@@ -1,5 +1,6 @@
 import type { PromptTemplate } from '../app/prompts/prompt-catalog';
 import type { StudioPromptState } from '../local-data/studio-draft';
+import type { ImageMimeType } from './image-format';
 export type ProductRecordKind = 'draft' | 'provider' | 'work';
 export function productRecordId(workspaceId: string, kind: ProductRecordKind, sourceId: string): Promise<string>;
 export interface PublicProviderPayload {
@@ -15,7 +16,7 @@ export interface PublicWorkPayload {
   prompt: string;
   modelId: string;
   providerInstanceId: string;
-  mimeType: 'image/png';
+  mimeType: ImageMimeType;
   width: number;
   height: number;
   bytes: number;

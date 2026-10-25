@@ -127,7 +127,7 @@ function memoryStore() {
     imageInfo: vi.fn<LocalMediaStore['imageInfo']>(),
     close: vi.fn(async () => undefined),
     release: vi.fn(),
-    preview: vi.fn(async () => 'blob:preview')
+    previewImage: vi.fn(async () => ({ url: 'blob:preview', mimeType: 'image/png' as const }))
   };
   return { store, preferences, works, count, updates, syncedWorks };
 }
@@ -276,7 +276,7 @@ describe('workspace initialization and isolation', () => {
     expect(r.component.localWorksKnown()).toBe(true);
     expect(r.component.availableProfiles()).toHaveLength(2);
     expect(r.component.storageInfo()).toContain('1 MiB');
-    expect(r.store.preview).not.toHaveBeenCalled();
+    expect(r.store.previewImage).not.toHaveBeenCalled();
     r.works.next([{ ...work }]);
     expect(r.component.works()).toHaveLength(1);
     r.updates.error(new Error('preferences unavailable'));
@@ -1139,7 +1139,7 @@ describe('settings recovery and metadata details', () => {
     r.component.libraryVisibility(work, true);
     r.component.view.set('library');
     r.component.libraryVisibility(work, true);
-    expect(r.store.preview).not.toHaveBeenCalled();
+    expect(r.store.previewImage).not.toHaveBeenCalled();
   });
 
   it('keeps a cancelled new-image action and rejects an acknowledgement that cannot be saved', async () => {

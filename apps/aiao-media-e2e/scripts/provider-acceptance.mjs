@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { chmod, mkdir, open, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { imageMetadata } from '../../aiao-media/src/contracts/image-format.ts';
 import {
   imageGenerationRequest,
   isMiniMaxImageProvider
@@ -302,6 +303,10 @@ async function originalBytes(page, response, responses, origin, record, baseUrl)
   } catch {
     throw new Error('GENERATION_JSON_INVALID');
   }
+  const requestId = result?.id;
+  if (typeof requestId === 'string' && /^[a-zA-Z0-9_.:-]{1,160}$/.test(requestId)) record.providerRequestId = requestId;
+  const businessCode = result?.base_resp?.status_code;
+  if (Number.isSafeInteger(businessCode)) record.providerBusinessCode = businessCode;
   const item = generationImageResult(result, baseUrl);
   if (typeof item?.b64_json === 'string')
     return { bytes: Buffer.from(item.b64_json, 'base64'), delivery: 'base64', credentialFree: null };
@@ -419,8 +424,7 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     record.image = {
       sha256,
       bytes: original.bytes.length,
-      width: original.bytes.readUInt32BE(16),
-      height: original.bytes.readUInt32BE(20),
+      ...imageMetadata(original.bytes),
       delivery: original.delivery,
       credentialFreeResultRequest: original.credentialFree,
       exactDownloadAfterReload: true

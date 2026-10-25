@@ -323,7 +323,7 @@ test('不兼容 schema 阻止已有标签页写入和重开，恢复兼容版本
   await provider(page);
   await prompt(page, '兼容版本的原始草稿');
   const original = await profile(page);
-  await page.evaluate(id => localStorage.setItem(`aiao-local-schema-${id}`, '2'), original);
+  await page.evaluate(id => localStorage.setItem(`aiao-local-schema-${id}`, '3'), original);
   await page.locator('[contenteditable=true]').fill('不应写入的新草稿');
   await expect(page.locator('.draft-status')).toContainText('失败');
   await page.reload();

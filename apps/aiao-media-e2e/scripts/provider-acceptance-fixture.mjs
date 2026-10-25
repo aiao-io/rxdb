@@ -23,8 +23,15 @@ const settings = {
   fixture: true
 };
 const images = new Map();
+const jpegs = new Map();
 for (const size of ['1024x1024', '1536x1024', '1024x1536']) {
   const [width, height] = size.split('x').map(Number);
+  jpegs.set(
+    size,
+    await sharp({ create: { width, height, channels: 3, background: '#b74e28' } })
+      .jpeg({ progressive: true })
+      .toBuffer()
+  );
   images.set(
     size,
     await sharp({ create: { width, height, channels: 3, background: '#8a9c62' } })
@@ -56,7 +63,7 @@ function upstream(body, headers, mode) {
   assert.equal(body.prompt_optimizer, false);
   for (const name of ['size', 'aspect_ratio', 'quality', 'output_format']) assert.equal(body[name], undefined);
   if (nativeSystemError) return { base_resp: { status_code: 1033, status_msg: 'private fixture system error' } };
-  return { base_resp: { status_code: 0 }, data: { image_urls: [`https://results.example.test/${size}.png`] } };
+  return { base_resp: { status_code: 0 }, data: { image_urls: [`https://results.example.test/${size}.jpg`] } };
 }
 const fetchBefore = globalThis.fetch;
 globalThis.fetch = async (url, init) => {
@@ -151,8 +158,9 @@ async function setupContext(context) {
     for (const name of ['authorization', 'cookie', 'referer']) assert.equal(headers[name], undefined);
     calls.result++;
     return route.fulfill({
-      contentType: 'image/png',
-      body: incorrectSize ? wrongSize : images.get(url.pathname.slice(1, -4))
+      contentType: settings.baseUrl === nativeBase ? 'image/jpeg' : 'image/png',
+      body:
+        incorrectSize ? wrongSize : (settings.baseUrl === nativeBase ? jpegs : images).get(url.pathname.slice(1, -4))
     });
   });
 }
@@ -220,6 +228,7 @@ try {
   assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
   for (const record of nativeRecords) {
     assert.equal(record.protocol, 'minimax-native');
+    assert.equal(record.image.mimeType, 'image/jpeg');
     assert.equal(record.image.delivery, 'cross-origin-url');
     assert.equal(record.image.credentialFreeResultRequest, true);
     assert.equal(record.image.exactDownloadAfterReload, true);
@@ -250,7 +259,7 @@ try {
   assert.deepEqual(calls, { direct: 4, proxy: 3, result: 6 });
   assert.equal(forbiddenBodyReads, 0);
   console.log(
-    '12 个 Images API/MiniMax 生产 Worker/fixture 验收组合通过；产物变化、错误尺寸和 MiniMax 系统错误被拒绝，成功复用和中断/失败阻断均未重发。'
+    '12 个 Images API PNG/MiniMax JPEG 生产 Worker/fixture 验收组合通过；产物变化、错误尺寸和 MiniMax 系统错误被拒绝，成功复用和中断/失败阻断均未重发。'
   );
 } finally {
   globalThis.fetch = fetchBefore;

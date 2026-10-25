@@ -4,6 +4,14 @@ import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import type { StorageFilesystem } from '@aiao/rxdb-plugin-storage';
 import { OpfsStorageFilesystem, rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { defer, distinctUntilChanged, firstValueFrom, map, Observable, Subject, takeUntil } from 'rxjs';
+import {
+  imageExtension,
+  imageMetadata,
+  isImageMimeType,
+  validateImageBlob,
+  type ImageMetadata,
+  type ImageMimeType
+} from '../contracts/image-format';
 import type {
   DraftSyncConflictView,
   DraftSyncMutation,
@@ -384,7 +392,7 @@ export interface LocalWorkSummary {
   createdAt?: string;
 }
 export interface LocalImageInfo {
-  mimeType: 'image/png';
+  mimeType: ImageMimeType;
   width: number;
   height: number;
   bytes: number;
@@ -439,110 +447,35 @@ export class LocalMediaError extends Error {
 function assertLocalSchema(userId: string) {
   const key = `aiao-local-schema-${userId}`;
   const version = localStorage.getItem(key);
-  if (version !== null && version !== '1')
+  if (version !== null && version !== '1' && version !== '2')
     throw new LocalMediaError('incompatible', '本机数据版本与此应用不兼容，请更新应用后重试；原数据未更改。');
   if (version === null) localStorage.setItem(key, '1');
+}
+function requireJpegSchema(userId: string) {
+  const key = `aiao-local-schema-${userId}`;
+  if (localStorage.getItem(key) === '2') return;
+  try {
+    localStorage.setItem(key, '2');
+  } catch {
+    throw new LocalMediaError('unavailable', '无法记录图片格式版本，原数据未更改，JPEG 未保存。');
+  }
 }
 const hex = (buffer: ArrayBuffer) => Array.from(new Uint8Array(buffer), v => v.toString(16).padStart(2, '0')).join('');
 async function digest(blob: Blob): Promise<string> {
   return hex(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()));
 }
-async function validateImage(blob: Blob): Promise<void> {
-  if (blob.type !== 'image/png' || !blob.size || blob.size > limitBytes)
-    throw new LocalMediaError('corrupt', '只可保存不超过 16 MiB 的 PNG 结果。');
-  const header = new Uint8Array(await blob.slice(0, 33).arrayBuffer());
-  const signature = header.slice(0, 8);
-  if (!signature.every((value, i) => value === [137, 80, 78, 71, 13, 10, 26, 10][i]) || signature.length !== 8)
-    throw new LocalMediaError('corrupt', '图片内容无效，未标记本地已保存。');
-  const view = new DataView(header.buffer);
-  if (
-    header.length !== 33 ||
-    view.getUint32(8) !== 13 ||
-    String.fromCharCode(...header.slice(12, 16)) !== 'IHDR' ||
-    !view.getUint32(16) ||
-    !view.getUint32(20) ||
-    view.getUint32(16) > 4096 ||
-    view.getUint32(20) > 4096 ||
-    view.getUint32(16) * view.getUint32(20) > 16_777_216
-  )
-    throw new LocalMediaError('corrupt', '图片尺寸无效或超限，未解码或保存。');
+async function validateImage(blob: Blob, limit = limitBytes): Promise<ImageMetadata> {
   try {
-    const image = await createImageBitmap(blob);
-    try {
-      if (
-        !image.width ||
-        !image.height ||
-        image.width > 4096 ||
-        image.height > 4096 ||
-        image.width * image.height > 16_777_216
-      )
-        throw new Error('Invalid dimensions');
-    } finally {
-      image.close();
-    }
-  } catch {
-    throw new LocalMediaError('corrupt', '图片无法解码，未标记本地已保存。');
+    return await validateImageBlob(blob, limit);
+  } catch (error) {
+    throw new LocalMediaError('corrupt', error instanceof Error ? error.message : '图片内容无效。');
   }
 }
-
-async function validateReferenceImage(blob: Blob): Promise<{
-  width: number;
-  height: number;
-  mimeType: 'image/png' | 'image/jpeg';
-}> {
-  if (!['image/png', 'image/jpeg'].includes(blob.type) || !blob.size || blob.size > 8 * 1024 * 1024)
-    throw new LocalMediaError('corrupt', '参考图仅支持不超过 8 MiB 的真实 PNG/JPEG。');
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let width = 0,
-    height = 0;
-  if (blob.type === 'image/png') {
-    await validateImage(blob);
-    const view = new DataView(bytes.buffer);
-    width = view.getUint32(16);
-    height = view.getUint32(20);
-  } else {
-    // Bound allocation BEFORE pixel decoding. Read JPEG segment lengths, not just magic bytes.
-    if (bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[bytes.length - 2] !== 0xff || bytes[bytes.length - 1] !== 0xd9)
-      throw new LocalMediaError('corrupt', '参考图 MIME 与真实内容不符。');
-    const view = new DataView(bytes.buffer);
-    let offset = 2;
-    const frames = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
-    while (offset + 4 <= bytes.length) {
-      if (bytes[offset++] !== 0xff) break;
-      while (bytes[offset] === 0xff) ++offset;
-      const marker = bytes[offset++];
-      if (marker === 0xda || marker === 0xd9) break;
-      if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
-      if (offset + 2 > bytes.length) break;
-      const length = view.getUint16(offset);
-      if (length < 2 || offset + length > bytes.length) break;
-      if (frames.has(marker) && length >= 8) {
-        height = view.getUint16(offset + 3);
-        width = view.getUint16(offset + 5);
-        break;
-      }
-      offset += length;
-    }
-  }
-  if (!width || !height || width > 4096 || height > 4096 || width * height > 16_777_216)
-    throw new LocalMediaError('corrupt', '参考图尺寸无效或超限；未解码或保存。');
-  if (blob.type === 'image/jpeg') {
-    try {
-      const image = await createImageBitmap(blob);
-      try {
-        if (image.width !== width || image.height !== height) throw new Error('Invalid dimensions');
-      } finally {
-        image.close();
-      }
-    } catch {
-      throw new LocalMediaError('corrupt', '参考图无法解码；未发送或保存。');
-    }
-  }
-  return {
-    width,
-    height,
-    mimeType: blob.type === 'image/png' ? 'image/png' : 'image/jpeg'
-  };
+const validateReferenceImage = (blob: Blob) => validateImage(blob, 8 * 1024 * 1024);
+const imageNames = (jobId: string) => [`${jobId}.png`, `${jobId}.jpg`];
+function imageName(jobId: string, mimeType: string): string {
+  if (!uuid.test(jobId) || !isImageMimeType(mimeType)) throw new LocalMediaError('corrupt', '本地图片身份或格式无效。');
+  return `${jobId}.${imageExtension(mimeType)}`;
 }
 
 /** Per-account persistent metadata plus storage-plugin file bodies.
@@ -1043,8 +976,10 @@ export class LocalMediaStore {
     });
   }
   async applyProjection(projection: LocalWorkspaceProjection): Promise<void> {
+    const projectedWorks = projection.works?.map(input => validateSyncPayload('work', input));
     const draftPayload = projection.draft ? studioPayload(projection.draft.state) : null;
     return this.exclusive(async () => {
+      if (projectedWorks?.some(work => work.mimeType === 'image/jpeg')) requireJpegSchema(this.userId);
       const adapter = await firstValueFrom(this.db.localAdapter$),
         events: RxDBEvent[] = [];
       await adapter.transaction(async executor => {
@@ -1056,12 +991,12 @@ export class LocalMediaStore {
           if (projection.collections)
             await this.projectPreference(executor, events, change.key, change.payload, revision);
         }
-        if (projection.works) {
+        if (projectedWorks) {
           const works = localRepository(SyncedWorkMetadata, executor.getRepository(SyncedWorkMetadata), event =>
             events.push(event)
           );
           const existing = await works.find({ where: emptyWhere });
-          for (const input of projection.works) {
+          for (const input of projectedWorks) {
             const value = validateSyncPayload('work', input),
               payload = productPayloadText('work', value);
             const old = existing.find(row => row.workId === value.jobId);
@@ -1072,7 +1007,7 @@ export class LocalMediaStore {
               );
           }
           for (const old of existing)
-            if (!projection.works.some(work => work.jobId === old.workId)) await works.remove(old);
+            if (!projectedWorks.some(work => work.jobId === old.workId)) await works.remove(old);
         }
         if (!projection.draft) return;
         const drafts = localRepository(LocalStudioDraft, executor.getRepository(LocalStudioDraft), event =>
@@ -1191,11 +1126,9 @@ export class LocalMediaStore {
   }
   async imageInfo(jobId: string): Promise<LocalImageInfo> {
     const image = await this.backupImage(jobId);
-    const header = new DataView(await image.blob.slice(0, 24).arrayBuffer());
+    const metadata = imageMetadata(new Uint8Array(await image.blob.arrayBuffer()));
     return {
-      mimeType: 'image/png',
-      width: header.getUint32(16),
-      height: header.getUint32(20),
+      ...metadata,
       bytes: image.blob.size,
       sha256: await digest(image.blob),
       providerInstanceId: image.providerInstanceId
@@ -1213,6 +1146,7 @@ export class LocalMediaStore {
     await validateImage(blob);
     const checksum = await digest(blob);
     return this.exclusive(async () => {
+      if (blob.type === 'image/jpeg') requireJpegSchema(this.userId);
       await this.recoverUnlocked();
       const repo = await this.works();
       const [previous] = await repo.find({
@@ -1241,7 +1175,7 @@ export class LocalMediaStore {
         })
       );
       try {
-        const meta = await this.db.storage.upload(new File([blob], `${job.id}.png`, { type: 'image/png' }));
+        const meta = await this.db.storage.upload(new File([blob], imageName(job.id, blob.type), { type: blob.type }));
         const linked = await repo.update(work, { fileId: meta.id });
         await this.readVerified(linked);
         const ready = await repo.update(linked, { stage: 'ready' });
@@ -1284,6 +1218,10 @@ export class LocalMediaStore {
     return this.live(() => this.db.entityManager.getRepository(LocalImageWork).count({ where: libraryWhere(filters) }));
   }
   async preview(jobId: string): Promise<string> {
+    return (await this.previewImage(jobId)).url;
+  }
+  /** 返回已验证原图的预览与媒体类型，供下载保留真实后缀。 */
+  async previewImage(jobId: string): Promise<{ url: string; mimeType: ImageMimeType }> {
     return this.exclusive(async () => {
       const [work] = await (
         await this.works()
@@ -1295,10 +1233,11 @@ export class LocalMediaStore {
       });
       if (!work || work.stage !== 'ready') throw new LocalMediaError('corrupt', '当前账号没有可读的本地作品。');
       const blob = await this.readVerified(work);
+      const { mimeType } = imageMetadata(new Uint8Array(await blob.arrayBuffer()));
       if (this.locked) throw new LocalMediaError('locked', '本地数据已锁定。');
       const url = URL.createObjectURL(blob);
       this.urls.set(url, `image:${jobId}`);
-      return url;
+      return { url, mimeType };
     });
   }
   release(url: string) {
@@ -1862,7 +1801,7 @@ export class LocalMediaStore {
     )
       throw new LocalMediaError('corrupt', '本地作品记录不完整。');
     const meta = await this.db.storage.getMeta(work.fileId);
-    if (!meta || meta.opfsPath !== `${work.jobId}.png` || meta.mimeType !== 'image/png' || meta.size !== work.bytes)
+    if (!meta || meta.opfsPath !== imageName(work.jobId, meta.mimeType) || meta.size !== work.bytes)
       throw new LocalMediaError('corrupt', '本地图片或关联记录已缺失。');
     let blob: Blob;
     try {
@@ -1872,7 +1811,7 @@ export class LocalMediaStore {
         throw new LocalMediaError('corrupt', '本地图片文件已缺失。');
       throw new LocalMediaError('unavailable', '本地图片暂不可读，未删除持久文件。');
     }
-    if (blob.size !== work.bytes || (await digest(blob)) !== work.digest)
+    if (blob.type !== meta.mimeType || blob.size !== work.bytes || (await digest(blob)) !== work.digest)
       throw new LocalMediaError('corrupt', '本地图片损坏或被修改。');
     await validateImage(blob);
     return blob;
@@ -1891,10 +1830,10 @@ export class LocalMediaStore {
     if (!uuid.test(work.jobId)) throw new LocalMediaError('corrupt', '无法安全删除无效的本地记录。');
     const repo = await this.works();
     const deleting = work.stage === 'deleting' ? work : await repo.update(work, { stage: 'deleting' });
-    const meta = (await this.db.storage.list()).find(item => item.opfsPath === `${work.jobId}.png`);
-    if (meta) await this.db.storage.delete(meta.id);
-    // Crash before plugin metadata insertion may leave a predictable unreferenced file.
-    await this.filesystem.removeFile(`${work.jobId}.png`);
+    const names = imageNames(work.jobId);
+    const metas = (await this.db.storage.list()).filter(item => names.includes(item.opfsPath));
+    for (const meta of metas) await this.db.storage.delete(meta.id);
+    for (const name of names) await this.filesystem.removeFile(name);
     await repo.remove(deleting);
     this.releasePreviews(`image:${work.jobId}`);
   }
@@ -1909,8 +1848,9 @@ export class LocalMediaStore {
         continue;
       }
       if (work.stage === 'saving') {
-        const meta = metas.find(item => item.opfsPath === `${work.jobId}.png`);
-        if (!meta) {
+        const matches = metas.filter(item => imageNames(work.jobId).includes(item.opfsPath));
+        const meta = matches[0];
+        if (matches.length !== 1) {
           await this.deleteUnlocked(work);
           continue;
         }
@@ -1927,12 +1867,12 @@ export class LocalMediaStore {
         await repo.update(linked, { stage: 'ready' });
       }
     }
-    const retained = new Set((await repo.find({ where: emptyWhere })).map(work => `${work.jobId}.png`));
+    const retained = new Set((await repo.find({ where: emptyWhere })).flatMap(work => imageNames(work.jobId)));
     // Touch only this account's media-owned deterministic filenames, never generic files.
     for (const meta of await this.db.storage.list())
       if (
         uuid.test(meta.name.slice(0, -4)) &&
-        meta.name.endsWith('.png') &&
+        /\.(png|jpg)$/.test(meta.name) &&
         meta.opfsPath === meta.name &&
         !retained.has(meta.name)
       )
@@ -1941,7 +1881,7 @@ export class LocalMediaStore {
     for await (const entry of this.filesystem.list('/'))
       if (
         entry.kind === 'file' &&
-        entry.name.endsWith('.png') &&
+        /\.(png|jpg)$/.test(entry.name) &&
         uuid.test(entry.name.slice(0, -4)) &&
         !retained.has(entry.name)
       )

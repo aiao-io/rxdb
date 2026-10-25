@@ -1,6 +1,7 @@
 import { filter, firstValueFrom, take } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { defaultFreeProvider } from '../app/default-provider';
+import { createLocalBackup, readLocalBackup } from '../app/local-backup';
 import { plainPrompt } from '../app/prompts/prompt-state';
 import type {
   AudioGenerationJobSummary,
@@ -218,6 +219,37 @@ describe('真实 RxDB、WASM、IndexedDB、OPFS 的本机数据事务', () => {
     expect(await store.list()).toEqual([]);
     await expect(store.preview(job.id)).rejects.toMatchObject({ code: 'corrupt' });
   });
+  it('JPEG 原图经保存、重开、备份恢复与删除保持格式和字节一致', async () => {
+    const job = imageJob();
+    const canvas = new OffscreenCanvas(64, 64);
+    canvas.getContext('2d')!.fillRect(0, 0, 64, 64);
+    const blob = await canvas.convertToBlob({ type: 'image/jpeg' });
+    expect(localStorage.getItem(`aiao-local-schema-${profileId}`)).toBe('1');
+    await store.saveResult(job, blob);
+    expect(localStorage.getItem(`aiao-local-schema-${profileId}`)).toBe('2');
+    expect(await store.imageInfo(job.id)).toMatchObject({ mimeType: 'image/jpeg', width: 64, height: 64 });
+    const { collectProductSnapshot } = await import('./product-projection');
+    const snapshot = await collectProductSnapshot(store, []);
+    expect(snapshot.entries.find(entry => entry.kind === 'work')?.payload).toMatchObject({
+      mimeType: 'image/jpeg',
+      width: 64,
+      height: 64
+    });
+    await store.close();
+    store = await LocalMediaStore.open(profileId);
+    expect(await (await store.backupImage(job.id)).blob.arrayBuffer()).toEqual(await blob.arrayBuffer());
+    const backup = await createLocalBackup(store, [], '', [job]);
+    const restored = await readLocalBackup(new File([backup], 'backup.json', { type: 'application/json' }));
+    expect(restored.files[0].type).toBe('image/jpeg');
+    expect(await restored.files[0].arrayBuffer()).toEqual(await blob.arrayBuffer());
+    await store.delete(job.id);
+    await store.saveResult(restored.backup.images[0].job, restored.files[0]);
+    const url = await store.preview(job.id);
+    expect((await fetch(url)).headers.get('content-type')).toBe('image/jpeg');
+    store.release(url);
+    await store.delete(job.id);
+    expect(await store.list()).toEqual([]);
+  });
   it('文件写失败不确认保存，重开清理自己的未完成记录后可保存同一任务', async () => {
     const job = imageJob(),
       blob = await png();
@@ -235,6 +267,74 @@ describe('真实 RxDB、WASM、IndexedDB、OPFS 的本机数据事务', () => {
     expect(await store.list()).toEqual([]);
     await store.saveResult(job, blob);
     expect((await store.list()).length).toBe(1);
+  });
+  it('仅同步 JPEG 元数据也先提高兼容标记，不伪造本机原图', async () => {
+    const payload = {
+      version: 1 as const,
+      jobId: crypto.randomUUID(),
+      prompt: '远程 JPEG',
+      modelId: 'image-01',
+      providerInstanceId: providerId,
+      mimeType: 'image/jpeg' as const,
+      width: 1024,
+      height: 1024,
+      bytes: 1000,
+      sha256: 'a'.repeat(64),
+      createdAt: now()
+    };
+    expect(localStorage.getItem(`aiao-local-schema-${profileId}`)).toBe('1');
+    await store.applyProjection({ preferences: [], works: [payload] });
+    expect(localStorage.getItem(`aiao-local-schema-${profileId}`)).toBe('2');
+    expect(await store.syncedWorks()).toEqual([payload]);
+    expect(await store.list()).toEqual([]);
+  });
+  it('JPEG 版本标记写入失败时保留旧 PNG 与原格式版本', async () => {
+    const previous = imageJob();
+    await store.saveResult(previous, await png());
+    const job = imageJob();
+    const canvas = new OffscreenCanvas(64, 64);
+    canvas.getContext('2d')!.fillRect(0, 0, 64, 64);
+    const blob = await canvas.convertToBlob({ type: 'image/jpeg' });
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === `aiao-local-schema-${profileId}` && value === '2')
+        throw new DOMException('fixture full', 'QuotaExceededError');
+      return original.call(this, key, value);
+    };
+    try {
+      await expect(store.saveResult(job, blob)).rejects.toMatchObject({ code: 'unavailable' });
+    } finally {
+      Storage.prototype.setItem = original;
+    }
+    expect(localStorage.getItem(`aiao-local-schema-${profileId}`)).toBe('1');
+    expect((await store.list()).map(work => work.jobId)).toEqual([previous.id]);
+    await store.close();
+    store = await LocalMediaStore.open(profileId);
+    expect((await store.list()).map(work => work.jobId)).toEqual([previous.id]);
+  });
+  it('JPEG 文件已写入但回读中断后，重开核验原图并完成保存', async () => {
+    const job = imageJob();
+    const canvas = new OffscreenCanvas(64, 64);
+    canvas.getContext('2d')!.fillRect(0, 0, 64, 64);
+    const blob = await canvas.convertToBlob({ type: 'image/jpeg' });
+    const original = FileSystemFileHandle.prototype.getFile;
+    FileSystemFileHandle.prototype.getFile = async function () {
+      if (this.name === `${job.id}.jpg`) throw new DOMException('fixture interrupted read', 'NotAllowedError');
+      return original.call(this);
+    };
+    try {
+      await expect(store.saveResult(job, blob)).rejects.toMatchObject({ code: 'write_failed' });
+    } finally {
+      FileSystemFileHandle.prototype.getFile = original;
+    }
+    await store.close();
+    store = await LocalMediaStore.open(profileId);
+    expect(await store.list()).toMatchObject([{ jobId: job.id, status: 'saved' }]);
+    expect(await (await store.backupImage(job.id)).blob.arrayBuffer()).toEqual(await blob.arrayBuffer());
+    await store.delete(job.id);
+    await store.close();
+    store = await LocalMediaStore.open(profileId);
+    expect(await store.list()).toEqual([]);
   });
   it('锁定同步撤销预览，持久数据可由同一 profile 重开', async () => {
     const job = imageJob();

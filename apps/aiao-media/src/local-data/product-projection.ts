@@ -49,7 +49,7 @@ export async function collectProductSnapshot(
           prompt: work.prompt,
           modelId: work.modelId,
           providerInstanceId: info!.providerInstanceId,
-          mimeType: 'image/png',
+          mimeType: info!.mimeType,
           width: info!.width,
           height: info!.height,
           bytes: work.bytes,

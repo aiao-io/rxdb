@@ -4,14 +4,14 @@
 
 > **真相源**：`stories/*/MEDIA-US-*.md` 的 YAML `status`。本页按该字段派生；有冲突先修正本页，不靠此页覆盖 story。范围和排期见 [路线图](roadmap.md)，能力真值见 [能力矩阵](capability-matrix.md)。
 
-| 状态           |   数量 | 说明                                                                            |
-| -------------- | -----: | ------------------------------------------------------------------------------- |
-| ✅ Done        |      8 | 工作区及七条全部 AC 已验的故事；七条按 D-11 在当前分支结项，PR 尚未合并         |
-| 🚧 In Progress |      1 | 灵感库的真实桌面 IME 未验，本轮按 D-09 跳过                                     |
-| 👀 In Review   |      0 | 无                                                                              |
-| ⬜ Backlog     |      1 | 暂缓的移动设备验收                                                              |
-| 🚫 Blocked     |      2 | 原供应商预检 403；MiniMax 单次原生生成报 1033，仍缺直连/真实 URL 与单次核对证据 |
-| **合计**       | **12** | 不含模板和上游故事                                                              |
+| 状态           |   数量 | 说明                                                                                 |
+| -------------- | -----: | ------------------------------------------------------------------------------------ |
+| ✅ Done        |      8 | 工作区及七条全部 AC 已验的故事；七条按 D-11 在当前分支结项，PR 尚未合并              |
+| 🚧 In Progress |      1 | 灵感库的真实桌面 IME 未验，本轮按 D-09 跳过                                          |
+| 👀 In Review   |      0 | 无                                                                                   |
+| ⬜ Backlog     |      1 | 暂缓的移动设备验收                                                                   |
+| 🚫 Blocked     |      2 | 原供应商预检 403；MiniMax 最新直连生成成功，浏览器原图读取未通过，仍缺三画幅交付证据 |
+| **合计**       | **12** | 不含模板和上游故事                                                                   |
 
 ## 按 Epic 索引
 
@@ -43,22 +43,22 @@
 
 2026-10-25 逐项核对 12 条故事：79 条 AC 中 73 条已通过；[本地交付清单](plans/local-delivery-tasks.md) 17/17、[作品检索清单](plans/library-search-tasks.md) 10/10 已完成。以下 6 条仍缺真实验收，不计作已完成：
 
-| 故事 / AC                                                                  | 剩余工作                               | 关闭所需证据                                                                                                                                              |
-| -------------------------------------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [MEDIA-US-102 AC7](stories/generation/MEDIA-US-102-image-generation.md)    | 正式 origin 直连三画幅                 | 原正方形未知身份保持锁定，继续该身份前须核对结果/用量。可显式另选未尝试且支持正式 origin 的供应商组合，取得三画幅真实直连 PNG、保存/刷新回读/精确下载证据 |
-| [MEDIA-US-105 AC7](stories/generation/MEDIA-US-105-provider-management.md) | 真实供应商返回跨 origin HTTPS 图片 URL | 通过实际适配器读取、保存与精确下载，并核对原图请求没有 Authorization、Cookie 或 Referer；base64 与 fixture 不能替代                                       |
-| [MEDIA-US-106 AC7](stories/generation/MEDIA-US-106-prompt-gallery.md)      | 真实桌面中文输入法                     | 按 D-09 本轮跳过；后续明确恢复验收后，用真实系统 IME 验正文/字段输入、粘贴、撤销重做与焦点/布局                                                           |
-| [MEDIA-US-107 AC1](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机输入与生成                     | 按 D-04 暂缓；后续在选定设备与系统 IME 上验证输入、参数一致性与不重复生成                                                                                 |
-| [MEDIA-US-107 AC2](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机持久化与交付                   | 在支持所需存储的设备上验证保存、重开、离线预览和实际文件下载                                                                                              |
-| [MEDIA-US-107 AC3](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机存储/下载失败                  | 实测系统拒绝或限制，不虚报保存/下载，重试保留已有数据和原结果                                                                                             |
+| 故事 / AC                                                                  | 剩余工作                               | 关闭所需证据                                                                                                                                     |
+| -------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [MEDIA-US-102 AC7](stories/generation/MEDIA-US-102-image-generation.md)    | 正式 origin 直连三画幅                 | 未知请求身份保持锁定；按最新 MiniMax 请求 ID 取回原图 URL/处理记录，先作只读核对，再取得三画幅真实直连 PNG/JPEG 原图、保存/刷新回读/精确下载证据 |
+| [MEDIA-US-105 AC7](stories/generation/MEDIA-US-105-provider-management.md) | 真实供应商返回跨 origin HTTPS 图片 URL | 通过实际适配器读取、保存与精确下载，并核对原图请求没有 Authorization、Cookie 或 Referer；base64 与 fixture 不能替代                              |
+| [MEDIA-US-106 AC7](stories/generation/MEDIA-US-106-prompt-gallery.md)      | 真实桌面中文输入法                     | 按 D-09 本轮跳过；后续明确恢复验收后，用真实系统 IME 验正文/字段输入、粘贴、撤销重做与焦点/布局                                                  |
+| [MEDIA-US-107 AC1](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机输入与生成                     | 按 D-04 暂缓；后续在选定设备与系统 IME 上验证输入、参数一致性与不重复生成                                                                        |
+| [MEDIA-US-107 AC2](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机持久化与交付                   | 在支持所需存储的设备上验证保存、重开、离线预览和实际文件下载                                                                                     |
+| [MEDIA-US-107 AC3](stories/generation/MEDIA-US-107-mobile-verification.md) | 移动真机存储/下载失败                  | 实测系统拒绝或限制，不虚报保存/下载，重试保留已有数据和原结果                                                                                    |
 
-按用户本次指令，七条全部 AC 已验的故事按 D-11 在当前分支记为 Done。PR #154 的远程 head `2ef6f2c5` 仍为 OPEN/DRAFT、未合并；该轮 CI 的图库 E2E 失败，PGlite 任务被 runner 关机信号中断。本地已修复备份导入的测试竞态，Chromium 全套 31/31 通过，待后续提交触发远程复验；评审/合并继续单独跟踪。原供应商只读复核新增生成 0 次；后续用户另选 MiniMax，国内区只读鉴权与原生接口预检通过，单次原生图片请求返回 `1033 / system error`、未取得图片且未重发。MiniMax 原生适配与 12 个本地 fixture 组合已通过，正式 C 已发布且公网烟测通过；真实请求仍待核对，102/105 继续 Blocked，详见[供应商补验记录](plans/provider-acceptance-follow-up.md)。生产 Supabase 仍属后续范围。
+按用户本次指令，七条全部 AC 已验的故事按 D-11 在当前分支记为 Done。PR #154 的远程 head `2ef6f2c5` 仍为 OPEN/DRAFT、未合并；该轮 CI 的图库 E2E 失败，PGlite 任务被 runner 关机信号中断。本地已修复备份导入的测试竞态，Chromium 全套 31/31 通过，待后续提交触发远程复验；评审/合并继续单独跟踪。原供应商只读复核新增生成 0 次；后续用户另选 MiniMax，国内区只读鉴权与原生接口预检通过，19:26:41 的原生图片请求返回 `1033 / system error`、结果待核对；用户再次明确要求独立调用后，21:08:27 新请求成功返回 JPEG 原图。MiniMax 原生适配已随正式 C 发布且公网烟测通过；本轮 PNG/JPEG 产品交付已完成并发布，700 项完整测试、32 项页面 E2E、12 个协议 fixture 与正式公网烟测通过。正式 MiniMax direct/square 生成返回业务码 0，但原图读取未取得可读响应，保持待核对；横/竖两幅未发送，102/105 继续 Blocked，详见[供应商补验记录](plans/provider-acceptance-follow-up.md)。生产 Supabase 仍属后续范围。
 
 ## 解释
 
 MEDIA-US-001 的 ✅ 只覆盖 Nx 工作区骨架。MEDIA-US-004 的正式域名、四路由/WASM/CSP/旧 API 404、完整离线内容和官方真实 A→B→A 更新/回退已验，最终恢复 B；全 AC 为 ✅，故事按 D-11 记为 Done，PR 评审与合并单独跟踪。发布身份与证据见[正式交付验收](plans/public-delivery-verification.md)。
 
-MEDIA-US-105/102/106 已实现供应商管理、任务日志、Tiptap 灵感库和 PNG 交付；正式 origin 真实代理三画幅各一次成功，保存/刷新回读/精确下载已验，105 AC6、202 AC7 为 ✅。102 AC7 直连部分仍 ⚠，正方形未知不重发、另两幅未试；105 AC7 真实 URL 无凭据读取仍 ⚠。本机备份/冲突/中断恢复、0.0.26 升级与本地兼容守卫已验；真实桌面 IME 本轮跳过未验，移动三个 AC 暂缓。
+MEDIA-US-105/102/106 已实现供应商管理、任务日志、Tiptap 灵感库和 PNG/JPEG 交付；正式 origin 真实代理三画幅各一次成功，保存/刷新回读/精确下载已验，105 AC6、202 AC7 为 ✅。102 AC7 直连部分仍 ⚠：最新 MiniMax 正方形生成业务成功，浏览器原图读取未取得可读响应，另两幅未试；105 AC7 真实 URL 无凭据读取仍 ⚠。本机备份/冲突/中断恢复、0.0.26 升级与本地兼容守卫已验；真实桌面 IME 本轮跳过未验，移动三个 AC 暂缓。
 
 MEDIA-US-201 的账号会话、工作区绑定、产品 RLS 和首次确认已通过真实本地验证；MEDIA-US-302 的原生复制、双副本、冲突/删除与显式重新扫描已验，D-06 不设 TTL/自动清理。本轮 Supabase 仅本地，生产服务启用属后续范围。当前测试数量与逐层边界见[验收记录](verification-report.md)。
 

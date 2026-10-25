@@ -60,6 +60,9 @@ export async function verifyImageDownload(page: Page, card: Locator, bytes: Buff
   await expect(card).toContainText(sha256);
   const download = page.waitForEvent('download');
   await card.getByRole('link', { name: '下载图片' }).click();
-  expect(await readFile((await (await download).path()) as string)).toEqual(bytes);
+  const result = await download;
+  const metadata = await sharp(bytes).metadata();
+  expect(result.suggestedFilename().endsWith(metadata.format === 'jpeg' ? '.jpg' : '.png')).toBe(true);
+  expect(await readFile((await result.path()) as string)).toEqual(bytes);
   return sha256;
 }

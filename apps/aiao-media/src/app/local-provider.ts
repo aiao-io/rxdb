@@ -1,3 +1,4 @@
+import { ImageFormatError, imageMetadata, validateImageBlob } from '../contracts/image-format';
 import { imageGenerationRequest, isMiniMaxImageProvider } from '../contracts/image-provider-protocol';
 import type { ImageAspectRatio } from '../contracts/index';
 
@@ -183,27 +184,19 @@ export async function generateLocalImage(
     if (!image.ok) throw new ProviderFailure('图片读取失败，请核对供应商结果。');
     bytes = await bounded(image, 16 * 1024 * 1024);
   } else throw new ProviderFailure('供应商没有返回单张图片，请核对供应商记录。');
-  if (
-    bytes.length < 24 ||
-    bytes.length > 16 * 1024 * 1024 ||
-    ![137, 80, 78, 71, 13, 10, 26, 10].every((v, i) => bytes[i] === v)
-  )
-    throw new ProviderFailure('图片不是有效的 PNG，结果未保存。');
-  const view = new DataView(bytes.buffer);
-  const width = view.getUint32(16),
-    height = view.getUint32(20);
-  if (
-    !width ||
-    !height ||
-    width > 4096 ||
-    height > 4096 ||
-    (ratio === 'square' ? width !== height
-    : ratio === 'landscape' ? width <= height
-    : width >= height)
-  )
-    throw new ProviderFailure('图片尺寸不符合选择，结果未保存。');
-  const blob = new Blob([bytes], { type: 'image/png' });
-  const decoded = await createImageBitmap(blob);
-  decoded.close();
-  return blob;
+  try {
+    const { width, height, mimeType } = imageMetadata(bytes);
+    if (
+      ratio === 'square' ? width !== height
+      : ratio === 'landscape' ? width <= height
+      : width >= height
+    )
+      throw new ProviderFailure('图片尺寸不符合选择，结果未保存。');
+    const blob = new Blob([bytes], { type: mimeType });
+    await validateImageBlob(blob);
+    return blob;
+  } catch (error) {
+    if (error instanceof ImageFormatError) throw new ProviderFailure(error.message);
+    throw error;
+  }
 }

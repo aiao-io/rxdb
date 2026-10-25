@@ -1,8 +1,10 @@
 import { type Observable, Subscription } from 'rxjs';
+import type { ImageMimeType } from '../contracts/image-format';
 import type { LocalImageInfo, LocalWorkFilters, LocalWorkQuery, LocalWorkSummary } from '../local-data/index';
 
 export type LibraryWork = LocalWorkSummary & {
   url: string | null;
+  mimeType?: ImageMimeType;
   info?: LocalImageInfo;
   viewKey: string;
   previewStatus: 'idle' | 'loading' | 'ready' | 'error';
@@ -21,7 +23,7 @@ export interface LibraryState {
 export interface WorkLibraryPort {
   works$(query?: LocalWorkQuery): Observable<LocalWorkSummary[]>;
   workCount$(filters: LocalWorkFilters): Observable<number>;
-  preview(jobId: string): Promise<string>;
+  previewImage(jobId: string): Promise<{ url: string; mimeType: ImageMimeType }>;
   release(url: string): void;
 }
 
@@ -197,17 +199,18 @@ export class WorkLibrarySession {
   }
 
   private async preview(request: PreviewRequest): Promise<void> {
-    let url: string;
+    let image: { url: string; mimeType: ImageMimeType };
     try {
-      url = await this.port.preview(request.jobId);
+      image = await this.port.previewImage(request.jobId);
     } catch {
       this.settle(request);
       return;
     }
-    this.settle(request, url);
+    this.settle(request, image);
   }
 
-  private settle(request: PreviewRequest, url?: string): void {
+  private settle(request: PreviewRequest, image?: { url: string; mimeType: ImageMimeType }): void {
+    const url = image?.url;
     this.pending.delete(request.jobId);
     const row = this.rows.get(request.jobId);
     if (!this.active(request.generation) || row?.token !== request.token) {
@@ -222,6 +225,7 @@ export class WorkLibrarySession {
     row.work = {
       ...row.work,
       url: url ?? null,
+      mimeType: image?.mimeType,
       previewStatus: url ? 'ready' : 'error',
       previewError: url ? undefined : '预览加载失败，请重试。'
     };

@@ -19,7 +19,8 @@ export const productionSources = [
   'apps/aiao-media/infra/supabase/migrations/003-rxdb-product-permissions.sql',
   'apps/aiao-media/infra/supabase/migrations/004-admin-foundation.sql',
   'apps/aiao-media/infra/supabase/migrations/005-product-content.sql',
-  'apps/aiao-media/infra/supabase/migrations/006-trusted-membership.sql'
+  'apps/aiao-media/infra/supabase/migrations/006-trusted-membership.sql',
+  'apps/aiao-media/infra/supabase/migrations/007-jpeg-work-metadata.sql'
 ];
 
 const transactionBoundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;

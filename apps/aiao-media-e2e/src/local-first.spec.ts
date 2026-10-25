@@ -1,6 +1,16 @@
 import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
-import { endpoint, key, prompt, provider } from './local-first.helpers';
+import {
+  downloadBackup,
+  endpoint,
+  importBackup,
+  key,
+  profile,
+  prompt,
+  provider,
+  verifyImageDownload
+} from './local-first.helpers';
 test('首次没有供应商时自动启用默认免费供应商', async ({ page }) => {
   await page.goto('/providers');
   await expect(page.getByRole('heading', { name: '默认免费供应商 · 默认' })).toBeVisible();
@@ -51,6 +61,58 @@ test('实际静态应用无需登录，RxDB 设置、草稿和图片经刷新仍
   await expect(page.locator('.task-history')).toContainText('有本机保存记录');
   expect(calls).toBe(1);
   expect(oldApi).toEqual([]);
+});
+test('MiniMax JPEG 原图可保存、按真实后缀下载、刷新回读和备份恢复', async ({ page }) => {
+  const jpeg = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#b74e28' } })
+    .jpeg({ progressive: true })
+    .toBuffer();
+  let calls = 0;
+  let reads = 0;
+  await page.route('https://api.minimax.cn/v1/image_generation', route => {
+    calls++;
+    expect(route.request().postDataJSON()).toMatchObject({ model: 'image-01', width: 1024, height: 1024, n: 1 });
+    return route.fulfill({
+      json: { base_resp: { status_code: 0 }, data: { image_urls: ['https://results.example.test/original.png'] } }
+    });
+  });
+  await page.route('https://results.example.test/original.png', route => {
+    reads++;
+    for (const name of ['authorization', 'cookie', 'referer']) expect(route.request().headers()[name]).toBeUndefined();
+    return route.fulfill({ contentType: 'image/jpeg', body: jpeg });
+  });
+  await provider(page, false, 'direct', { baseUrl: 'https://api.minimax.cn/v1', model: 'image-01', key });
+  await prompt(page, 'JPEG 原图完整交付');
+  await page.getByRole('button', { name: '✧ 生成图片' }).click();
+  await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
+  const resultDownload = page.waitForEvent('download');
+  await page.getByRole('link', { name: '下载图片' }).click();
+  const downloaded = await resultDownload;
+  expect(downloaded.suggestedFilename()).toMatch(/\.jpg$/);
+  expect(await readFile((await downloaded.path())!)).toEqual(jpeg);
+  await page.goto('/images');
+  await page.reload();
+  const card = page.locator('.library-card').filter({ hasText: 'JPEG 原图完整交付' });
+  await expect(card.getByAltText('本机生成作品')).toBeVisible();
+  await verifyImageDownload(page, card, jpeg);
+  await expect(card).toContainText('image/jpeg');
+  await expect(card.locator('.card-caption > p')).toContainText('JPEG');
+  expect(
+    await page.evaluate(() =>
+      localStorage.getItem(`aiao-local-schema-${localStorage.getItem('aiao-local-profile-v1')}`)
+    )
+  ).toBe('2');
+  const originalProfile = await profile(page);
+  const backup = await downloadBackup(page);
+  expect(backup.toString()).not.toContain(key);
+  const reloaded = page.waitForEvent('load');
+  await importBackup(page, backup);
+  await reloaded;
+  await expect.poll(() => profile(page)).not.toBe(originalProfile);
+  await page.goto('/images');
+  await expect(card.getByAltText('本机生成作品')).toBeVisible();
+  await verifyImageDownload(page, card, jpeg);
+  expect(calls).toBe(1);
+  expect(reads).toBe(1);
 });
 test('未知结果刷新后仍锁定，不会自动重复提交或切换代理', async ({ page }) => {
   let calls = 0,

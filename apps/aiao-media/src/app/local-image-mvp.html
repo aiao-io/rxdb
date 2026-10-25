@@ -220,7 +220,7 @@
         </select>
         <button class="feedback-link" (click)="navigate('providers')">配置供应商与 API Key →</button>
         <div class="model-note">
-          <span>单张 PNG · 最多 2000 字</span>
+          <span>单张图片 · 最多 2000 字</span>
           <span>{{ provider()?.mode === 'proxy' ? '经本站代理发送' : '浏览器直接请求供应商' }}</span>
         </div>
         <button class="primary generate-button" [disabled]="!canGenerate()" (click)="generate()">
@@ -263,7 +263,13 @@
                 </button>
               }
               <button class="secondary" (click)="openFeedback()">反馈效果</button>
-              <a class="primary" [download]="'aiao-' + (job()?.id ?? 'image') + '.png'" [href]="url">↓ 下载图片</a>
+              <a
+                class="primary"
+                [download]="'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!)"
+                [href]="url"
+              >
+                ↓ 下载图片
+              </a>
             </div>
           </div>
         } @else if (sending() || job()?.status === 'queued' || job()?.status === 'processing') {
@@ -419,7 +425,12 @@
             </div>
             <div class="card-caption">
               <div class="card-title work-prompt">{{ w.prompt }}</div>
-              <p>{{ (w.bytes / 1024).toFixed(0) }} KB · PNG</p>
+              <p>
+                {{ (w.bytes / 1024).toFixed(0) }} KB
+                @if (w.mimeType; as mimeType) {
+                  · {{ mimeType === 'image/png' ? 'PNG' : 'JPEG' }}
+                }
+              </p>
               <details class="work-info" (toggle)="loadWorkInfo(w, $event)">
                 <summary>生成信息</summary>
                 <p>模型：{{ w.modelId }}</p>
@@ -432,7 +443,7 @@
             </div>
             <div class="work-actions">
               @if (w.url) {
-                <a [download]="'aiao-' + w.jobId + '.png'" [href]="w.url">↓ 下载图片</a>
+                <a [download]="'aiao-' + w.jobId + '.' + imageExtension(w.mimeType!)" [href]="w.url">↓ 下载图片</a>
               }
               <button (click)="reuseWork(w)">复用提示词</button>
               <button (click)="deleteWork(w)" aria-label="删除本机图片">删除</button>

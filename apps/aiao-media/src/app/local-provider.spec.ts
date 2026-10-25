@@ -19,9 +19,11 @@ const provider: LocalProvider = {
   rememberKey: false
 };
 function png(width = 1024, height = 1024) {
-  const bytes = new Uint8Array(24);
+  const bytes = new Uint8Array(33);
   bytes.set([137, 80, 78, 71, 13, 10, 26, 10]);
   const view = new DataView(bytes.buffer);
+  view.setUint32(8, 13);
+  bytes.set([73, 72, 68, 82], 12);
   view.setUint32(16, width);
   view.setUint32(20, height);
   return bytes;
@@ -39,7 +41,10 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn());
   vi.stubGlobal(
     'createImageBitmap',
-    vi.fn(async () => ({ close: vi.fn() }))
+    vi.fn(async (blob: Blob) => {
+      const view = new DataView(await blob.arrayBuffer());
+      return { width: view.getUint32(16), height: view.getUint32(20), close: vi.fn() };
+    })
   );
 });
 afterEach(() => {
@@ -102,6 +107,35 @@ describe('bounded provider responses', () => {
 });
 
 describe('single image dispatch', () => {
+  it.each(['b64', 'url'] as const)(
+    'accepts native MiniMax JPEG %s results without changing original bytes',
+    async source => {
+      const bytes = new Uint8Array([
+        255, 216, 255, 194, 0, 11, 8, 4, 0, 4, 0, 1, 1, 17, 0, 255, 218, 0, 8, 1, 1, 0, 0, 63, 0, 0, 255, 217
+      ]);
+      const data =
+        source === 'b64' ? { image_base64: [encoded(bytes)] } : { image_urls: ['https://images.example/original.png'] };
+      vi.mocked(fetch).mockResolvedValueOnce(response({ base_resp: { status_code: 0 }, data }));
+      if (source === 'url')
+        vi.mocked(fetch).mockResolvedValueOnce(new Response(bytes, { headers: { 'content-type': 'image/png' } }));
+      vi.mocked(createImageBitmap).mockResolvedValue({
+        width: 1024,
+        height: 1024,
+        close: vi.fn()
+      } as unknown as ImageBitmap);
+      const blob = await generate({ ...provider, baseUrl: 'https://api.minimax.cn/v1', model: 'image-01' });
+      expect(blob.type).toBe('image/jpeg');
+      expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes);
+      expect(fetch).toHaveBeenCalledTimes(source === 'url' ? 2 : 1);
+      if (source === 'url')
+        expect(vi.mocked(fetch).mock.calls[1][1]).toMatchObject({
+          credentials: 'omit',
+          redirect: 'error',
+          referrerPolicy: 'no-referrer'
+        });
+    }
+  );
+
   it.each([
     ['square', 1024, 1024, '1024x1024'],
     ['landscape', 1536, 1024, '1536x1024'],
@@ -109,7 +143,7 @@ describe('single image dispatch', () => {
   ] as const)('dispatches exactly one %s image and closes the decoded bitmap', async (ratio, width, height, size) => {
     vi.mocked(fetch).mockResolvedValue(response({ data: [{ b64_json: encoded(png(width, height)) }] }));
     const close = vi.fn();
-    vi.mocked(createImageBitmap).mockResolvedValue({ close } as unknown as ImageBitmap);
+    vi.mocked(createImageBitmap).mockResolvedValue({ width, height, close } as unknown as ImageBitmap);
     const blob = await generate(provider, ratio);
     expect(blob.type).toBe('image/png');
     expect(new Uint8Array(await blob.arrayBuffer())).toEqual(png(width, height));
@@ -388,7 +422,7 @@ describe('MiniMax native image dispatch', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects JPEG bytes instead of labeling or converting them to PNG', async () => {
+  it('rejects truncated JPEG bytes before decoding or saving', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(
         response({ base_resp: { status_code: 0 }, data: { image_urls: ['https://images.example/native.jpg'] } })

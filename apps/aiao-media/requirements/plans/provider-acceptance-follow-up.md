@@ -103,3 +103,19 @@ MiniMax 原生请求路径为 `/v1/image_generation`，使用 `width/height` 或
 `aiao-media-e2e:lint` 与 `typecheck` 通过；`aiao-media:requirements-check` 17/17、537 个本地链接与 10 个锚点通过，状态统计为 8 Done / 1 In Progress / 0 In Review / 1 Backlog / 2 Blocked。
 
 用正式 origin、已审核 B、direct/square 单项执行真实验收入口，结果为 `planned=1`、`verified=0`、`phase=stopped`、`failureCode=PREVIOUS_ATTEMPT_REQUIRES_REVIEW`。该目标按保护逻辑以非零状态停止；这是拒绝重发的实证，供应商验收仍未通过，新增生成为 0。保守锁文件仍为 `requires-review`。
+
+## MiniMax 独立原生调用成功（2026-10-25）
+
+用户再次明确要求“minimax 单独调用试试”后，于 2026-10-25 21:08:27（Asia/Shanghai，UTC 13:08:27）向国内原生 `/v1/image_generation` 发起一次新的独立调用：`image-01`、`1024×1024`、`n=1`、`response_format=url`、`prompt_optimizer=false`，提示词为白桌上的红色陶瓷杯。此次生成 POST 共 1 次，自动重试 0 次；这次独立授权与 19:26:41 的未知尝试分开记录，旧记录内容与 `requires-review` 状态保持不变。
+
+本次 HTTP 200，`base_resp.status_code=0`、消息 `success`，约 15.06 秒返回 1 个图片 URL。供应商响应头 `trace-id` 与响应体 `id` 均为 `072d324e75e18e7f9a3fe36dcb3cd817`。随后无 Authorization、Cookie 或 Referer 的原图 GET 返回 HTTP 200，未跟随重定向；实际字节与 Content-Type 均为 JPEG，尺寸 1024×1024，大小 105,082 bytes，SHA-256 为 `25f56be8baf32e5279802a9ff72f792f18f642a7548f32fa16b5d43add6a4c7b`。已读取原图确认可解码，原样保存为 `.jpg`，未转码。
+
+本次独占脱敏记录为 `apps/aiao-media-e2e/tmp/provider-acceptance/minimax-native/b44125c006ee473fba62fe7e46a486ea.json`，原图为同目录同名 `.jpg`；两者权限 0600，父目录 0700，均位于 Git 忽略目录。记录不含 Key、图片 URL、原始响应或账户用量；Key 仅经隐藏输入送入进程内存，没有写入应用配置或仓库。单次计费未查询，旧 `1033` 的内部处理与计费结果仍未核对。
+
+当前已证明此 Key 在本次国内原生组合可成功生成并下载 JPEG，不能将旧 `1033` 解释为 Key 没有图片权限。102 AC7 / 105 AC7 继续保持未完成：产品原图契约要求 PNG，此次 JPEG 原图不满足该格式要求，且尚未完成正式 origin 产品浏览器直连、三画幅保存、刷新回读与精确下载验收。本轮仅执行独立 API 诊断，没有切换正式供应商配置或扩大生产代理允许列表。
+
+## JPEG 原图产品接入与正式补验
+
+用户在独立 MiniMax JPEG 出图成功后要求继续 PNG/JPEG 产品交付与正式验收。共享格式校验、持久文件、下载后缀、备份恢复与同步元数据一并扩展；首次写入 JPEG 前将工作区兼容标记提高为 2，旧版本拒绝访问，原 PNG 路径保留。实现边界、验证和后续正式发布证据集中在[JPEG 交付验收](jpeg-delivery-verification.md)。原两项未知请求保留，不因本轮实现而自动解除。
+
+JPEG 支持版本 `e6ece57b-cd1f-4834-99cb-f20813817eb2` 已正式发布，官方核对 100% 流量，公网烟测通过。22:04:17 的 MiniMax 正式 direct/square 生成返回 HTTP 200 / 业务码 0，请求 ID `072d3f68cb4bb6729477e6e2163d1f21`；后续浏览器原图读取未取得可读响应，本轮 0/3 验收通过，横/竖两幅未发出，square journal 保持 `requires-review`、自动重试 0。原因尚不能在 CORS、连接和重定向间进一步归因；按该 ID 取得原图 URL/处理记录后再作只读核对，102/105 保持 Blocked。完整发布身份、文件摘要、700/700 测试与 32/32 页面 E2E 见[JPEG 交付验收](jpeg-delivery-verification.md)。

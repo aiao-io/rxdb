@@ -70,7 +70,7 @@ NX_NO_CLOUD=true pnpm nx run aiao-media-e2e:provider-acceptance-fixture --skipRe
 
 脚本在发请求和复用证据前核对线上 manifest 与预期摘要，不匹配即停止。默认执行直连/代理 × 正方形/横向/纵向六项；显式模式/画幅参数仅筛选计划，不改变尝试身份。输出 `planned`、`complete` 或 `stopped`、所选范围、计划数和成功数；子集通过只覆盖所选项，不能称六项全部通过。
 
-各项只允许一次生成请求，返回 PNG 尺寸须精确匹配请求。使用实际产品界面保存、刷新、回读与下载，比较 SHA-256 和精确文件字节；结果 URL 请求检查无 Authorization、Cookie 或 Referer。当前正式证据已覆盖代理三画幅，direct 正方形无 HTTP 回执而保留未知，另外两幅未试；OPTIONS 403 只作为该次预检限制，不能据此断言上游未处理或零计费。
+各项只允许一次生成请求，返回 PNG/JPEG 原图尺寸须精确匹配请求，格式、MIME 与下载后缀须一致，原图不转码。使用实际产品界面保存、刷新、回读与下载，比较 SHA-256 和精确文件字节；结果 URL 请求检查无 Authorization、Cookie 或 Referer。当前正式证据已覆盖代理三画幅，direct 正方形无 HTTP 回执而保留未知，另外两幅未试；OPTIONS 403 只作为该次预检限制，不能据此断言上游未处理或零计费。
 
 每项发送前在忽略的 `apps/aiao-media-e2e/tmp/provider-acceptance/live` 创建独占尝试文件（0600），按 origin、发布产物、供应商/模型、通道与画幅确定身份。只复用同产物已完成证据，选中的任何未完成或不确定尝试均停止，不自动继续或重发，不删除/覆盖未知记录，也不能通过轮换 Key 绕过。独立未尝试组合可显式另选，已完成项复用不增加生成请求。
 
@@ -83,7 +83,7 @@ NX_NO_CLOUD=true pnpm nx run aiao-media-e2e:provider-acceptance-fixture --skipRe
 以下保留未来启用生产 Supabase 的条件；本轮仅本地，当前未执行这些生产步骤，也不据此要求提供生产项目或管理员凭据。
 
 1. 核验已有 Cloudflare 账户、`aiao-media` Worker、`aiao.io` active zone、正式域名现存记录与选定的独立 Supabase 项目。保留当前 Worker version/deployment、静态摘要、Auth 配置与数据库备份，不覆盖未知 CNAME。
-2. 使用 `aiao-media:production-bundle` 生成的 9 源 SQL 包，仅对经核验的独立空产品项目审查初始化事务。包内保留每个源文件 SHA-256，排除 `001-local-account-checks.sql`；首个事务 guard 会拒绝 public 非扩展关系、既有 `media_`/`rxdb_` 对象和相关函数。本地 `supabase-migrate` 不能换 URL 后用于生产。
+2. 使用 `aiao-media:production-bundle` 生成的 10 源 SQL 包，仅对经核验的独立空产品项目审查初始化事务。包内保留每个源文件 SHA-256，排除 `001-local-account-checks.sql`；首个事务 guard 会拒绝 public 非扩展关系、既有 `media_`/`rxdb_` 对象和相关函数。本地 `supabase-migrate` 不能换 URL 后用于生产。
 3. core `01-rxdb-system-tables.sql` 含全 public 授权、关闭 RLS、历史日志改写/去重；应用 003 改变全局 RxDB 分支函数与权限。这些操作不能直接投向已有数据或共享项目；必须先提取按对象收口的 SQL 并评审。不同文件自带事务边界，不能不经整理直接拼接成所谓单事务。
 4. 复验所有产品表 RLS、匿名/A/B 的私有数据隔离、变更日志隔离、普通用户管理 RPC 拒绝，以及 `rxdb_change` 的 Realtime publication。SQL 执行成功不代表权限矩阵通过。
 5. Auth Site URL 设为 `https://media.aiao.io`，仅允许精确正式返回地址。当前是邮箱密码流程，邮箱确认后回站点再登录；没有 `/auth/callback`，不声明 OAuth/PKCE 已实现。真实邮件投递必须验收。

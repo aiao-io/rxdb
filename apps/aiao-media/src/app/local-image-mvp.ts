@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { concatMap, EMPTY, merge, Subscription } from 'rxjs';
+import { imageExtension, type ImageMimeType } from '../contracts/image-format';
 import type { GenerationJobSummary, ImageAspectRatio } from '../contracts/index';
 import {
   productRecordId,
@@ -127,6 +128,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private toastTimer?: ReturnType<typeof setTimeout>;
   private dialogTrigger: HTMLElement | null = null;
   private resultBlob: Blob | null = null;
+  readonly resultMimeType = signal<ImageMimeType | null>(null);
+  readonly imageExtension = imageExtension;
   readonly workspaceSwitching = signal(false);
   readonly identityBlocked = signal(false);
   readonly sync = signal<ProductWorkspaceState>({
@@ -614,6 +617,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           };
           this.job.set(task);
           this.resultBlob = blob;
+          this.resultMimeType.set(blob.type as ImageMimeType);
           this.resultUrl.set(URL.createObjectURL(blob));
           await this.writeTask(task);
           await this.saveResult();
@@ -1600,6 +1604,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (url) URL.revokeObjectURL(url);
     this.resultUrl.set(null);
     this.resultBlob = null;
+    this.resultMimeType.set(null);
   }
   private draftState(): StudioPromptState {
     const selected = this.selected();

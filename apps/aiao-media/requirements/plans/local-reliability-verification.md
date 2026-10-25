@@ -42,3 +42,7 @@ pnpm nx run aiao-media:requirements-check
 - [备份校验](../../src/app/local-backup.ts)
 - [界面行为](../../src/app/local-image-mvp.ts)及[模板](../../src/app/local-image-mvp.html)
 - [草稿会话](../../src/app/prompts/studio-draft-session.ts)与[编辑器资源](../../src/app/prompts/prompt-assets.ts)
+
+## JPEG 格式兼容标记
+
+2026-10-25 按 D-12 扩展 PNG/JPEG 交付。现有 PNG 工作区仍保留标记 1；首次持久写入 JPEG 原图或投影 JPEG 元数据前，在原工作区锁内先提高为标记 2。新版认识 1/2，旧版遇到 2 按既有守卫拒绝操作；标记写入失败停止 JPEG 写入，不清理原 PNG，也不降低标记。未知/更高标记的回归用例改用 3。JPEG 工作区只能使用认识标记 2 且通过同库验证的构建，旧 C 不属于其回退目标。格式与最终验证结果见[JPEG 交付验收](jpeg-delivery-verification.md)。
