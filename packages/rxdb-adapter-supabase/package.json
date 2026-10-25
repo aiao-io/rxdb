@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-adapter-supabase",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "Supabase adapter for remote data access and reactive synchronization.",
   "homepage": "https://rxdb.aiao.io/docs/adapters/supabase",
   "bugs": {

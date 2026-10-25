@@ -6,6 +6,7 @@ import semver from 'semver';
 const manifestOf = name =>
   JSON.parse(readFileSync(new URL(`../../packages/${name}/package.json`, import.meta.url), 'utf8'));
 
+const rxdbManifest = manifestOf('rxdb');
 const modelManifest = manifestOf('rxdb-model');
 const angularManifest = manifestOf('rxdb-model-angular');
 
@@ -51,14 +52,14 @@ test('框架无关的 model 公开运行时入口保持为构建产物', () => {
 test('Angular model 排除旧 binding 与旧 model，明确支持本次发布组合', () => {
   assert.ok(semver.satisfies(bindingManifest.version, peerRange(angularManifest, '@aiao/rxdb-angular')));
   assert.equal(semver.satisfies('0.0.26', peerRange(angularManifest, '@aiao/rxdb-angular')), false);
-  assert.ok(semver.satisfies('0.0.26', peerRange(angularManifest, '@aiao/rxdb-model')));
+  assert.ok(semver.satisfies(modelManifest.version, peerRange(angularManifest, '@aiao/rxdb-model')));
   assert.equal(semver.satisfies('0.0.19', peerRange(angularManifest, '@aiao/rxdb-model')), false);
-  assert.ok(semver.satisfies('0.0.26', peerRange(angularManifest, '@aiao/rxdb')));
+  assert.ok(semver.satisfies(rxdbManifest.version, peerRange(angularManifest, '@aiao/rxdb')));
   assert.equal(semver.satisfies('0.0.25', peerRange(angularManifest, '@aiao/rxdb')), false);
 });
 
 test('新 binding 排除旧 RxDB，并与 Angular model 使用同一 Angular 版本', () => {
-  assert.ok(semver.satisfies('0.0.26', peerRange(bindingManifest, '@aiao/rxdb')));
+  assert.ok(semver.satisfies(rxdbManifest.version, peerRange(bindingManifest, '@aiao/rxdb')));
   assert.equal(semver.satisfies('0.0.25', peerRange(bindingManifest, '@aiao/rxdb')), false);
   assert.equal(bindingManifest.peerDependencies['@angular/core'], angularManifest.peerDependencies['@angular/core']);
   assert.equal(

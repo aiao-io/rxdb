@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-plugin-history",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "description": "History, undo/redo and branch management for Aiao RxDB.",
   "homepage": "https://rxdb.aiao.io/docs/plugins",
   "bugs": {
