@@ -624,8 +624,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/rxdb-test
       electron:
-        specifier: 44.7.2
-        version: 44.7.2
+        specifier: 44.9.3
+        version: 44.9.3
 
   apps/dev-rxdb-electron-e2e: {}
 
@@ -12239,11 +12239,6 @@ packages:
   electron-winstaller@5.4.0:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
     engines: {node: '>=8.0.0'}
-
-  electron@44.7.2:
-    resolution: {integrity: sha512-u3Pbz0Hi1sSSwBMz2v8LiagsfUG4QURPUe/qphM+g4THKP8o4BYdnuboyhlLO8HIC/KfV5rvltyacbP4jEq9yw==}
-    engines: {node: '>= 22.12.0'}
-    hasBin: true
 
   electron@44.9.3:
     resolution: {integrity: sha512-Cv9/yMnZxNWsMlIe8T4v//NKHdUvbeyoTJoXE3BIcRxus2meeFaO9h/P3zB5d4cBXum51IgAYrT2QjpIDWKpJA==}
@@ -31736,14 +31731,6 @@ snapshots:
       temp: 0.9.4
     optionalDependencies:
       '@electron/windows-sign': 1.2.2
-    transitivePeerDependencies:
-      - supports-color
-
-  electron@44.7.2:
-    dependencies:
-      '@electron-internal/extract-zip': 1.0.6
-      '@electron/get': 5.1.0
-      '@types/node': 24.19.2
     transitivePeerDependencies:
       - supports-color
 
