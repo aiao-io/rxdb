@@ -9,6 +9,7 @@ import {
 import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
 import { Component, createElement, type PropsWithChildren } from 'react';
 import { renderToString } from 'react-dom/server';
+import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -16,7 +17,9 @@ import {
   useSearch,
   type SearchHandle,
   type SearchOptions,
-  type SearchSourceLike
+  type SearchResult,
+  type SearchSourceLike,
+  type SearchState
 } from '../index.js';
 
 function deferred<T>() {
@@ -81,6 +84,27 @@ class SearchBoundary extends Component<PropsWithChildren, { error: Error | undef
 function BindingProbe({ source }: { source: SearchSourceLike }) {
   const search = useSearch(source);
   return createElement('p', null, search.state);
+}
+
+/** 四条流各自可控的句柄；与 Angular 端同名夹具同形 */
+function makeProtocol() {
+  const results = new BehaviorSubject<readonly SearchResult[]>([]);
+  const state = new BehaviorSubject<SearchState>('idle');
+  const error = new BehaviorSubject<SearchExecutionError | undefined>(undefined);
+  const hasMore = new BehaviorSubject(false);
+  const destroy = vi.fn();
+  const handle: SearchHandle = {
+    results$: results.asObservable(),
+    state$: state.asObservable(),
+    error$: error.asObservable(),
+    hasMore$: hasMore.asObservable(),
+    setQuery: vi.fn(),
+    loadMore: vi.fn(async () => undefined),
+    clear: vi.fn(),
+    retry: vi.fn(),
+    destroy
+  };
+  return { results, state, error, hasMore, destroy, handle };
 }
 
 function database(name: string): RxDB {
@@ -297,5 +321,26 @@ describe('第二轮评审：真实 SearchHandle 与 React 生命周期', () => {
       cleanup();
       await db.destroy();
     }
+  });
+
+  // SRA-004 的 React 版：四条订阅只挂 next 时，任一流 error 都走 RxJS reportUnhandledError ——
+  // 异常边界与 onCaughtError 都收不到，其余三条流继续写入。Angular 交给 ErrorHandler，这里交给异常边界。
+  it.each(['results', 'state', 'error', 'hasMore'] as const)('%s 协议流损坏交给异常边界，并解绑所有流', key => {
+    const protocol = makeProtocol();
+    const caught = vi.fn();
+    render(
+      createElement(SearchBoundary, null, createElement(BindingProbe, { source: { search: () => protocol.handle } })),
+      { onCaughtError: caught }
+    );
+    const cause = new Error(`${key} 协议失败`);
+
+    act(() => protocol[key].error(cause));
+
+    expect(screen.getByRole('alert').textContent).toBe(cause.message);
+    expect(caught).toHaveBeenCalledOnce();
+    expect(caught.mock.calls[0][0]).toBe(cause);
+    for (const subject of [protocol.results, protocol.state, protocol.error, protocol.hasMore])
+      expect(subject.observed).toBe(false);
+    expect(protocol.destroy).toHaveBeenCalledTimes(1);
   });
 });

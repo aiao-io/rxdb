@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HttpInvalidMetadataError } from '../errors.js';
-import { canonicalizeMetadata } from '../metadata.js';
+import { canonicalizeMetadata, canonicalizeRowUpdatedAt } from '../metadata.js';
 
 /**
  * US-212 AC#14：metadata 的 `updatedAt` 必须以**规范化 ISO 字符串**交给 core。
@@ -95,5 +95,35 @@ describe('canonicalizeMetadata', () => {
 
   it('空结果集返回空数组', () => {
     expect(canonicalizeMetadata('Recipe', [])).toEqual([]);
+  });
+});
+
+/**
+ * 写回执与 `findByIds` 行整行落本地缓存，`updatedAt` 是之后的新鲜度基准，与 metadata 同一道门禁。
+ */
+describe('canonicalizeRowUpdatedAt', () => {
+  it('带时区的 updatedAt 归一，其余字段原样，入参不被改写', () => {
+    const row = { id: 'a', title: 'x', updatedAt: '2026-08-23T18:00:00+08:00' };
+    expect(canonicalizeRowUpdatedAt('Recipe', 'create receipt', row)).toEqual({
+      id: 'a',
+      title: 'x',
+      updatedAt: '2026-08-23T10:00:00.000Z'
+    });
+    expect(row.updatedAt).toBe('2026-08-23T18:00:00+08:00');
+  });
+
+  it('不带 updatedAt 的行原样放行：必填与否归本地行契约判', () => {
+    const row = { id: 'a', title: 'x' };
+    expect(canonicalizeRowUpdatedAt('Recipe', 'create receipt', row)).toBe(row);
+  });
+
+  it.each([
+    ['无时区标识', '2026-08-23T10:00:00'],
+    ['null', null],
+    ['epoch 数字', 1_755_945_600_000]
+  ])('updatedAt 是 %s → 抛 HttpInvalidMetadataError 并点名来源与行', (_label, updatedAt) => {
+    const call = () => canonicalizeRowUpdatedAt('Recipe', 'update receipt', { id: 'a', updatedAt });
+    expect(call).toThrow(HttpInvalidMetadataError);
+    expect(call).toThrow(/update receipt row "a"/);
   });
 });

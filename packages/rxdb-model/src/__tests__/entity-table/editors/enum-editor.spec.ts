@@ -105,7 +105,7 @@ describe('EnumEditor', () => {
     editor.onEnd();
   });
 
-  it('auto-selects the first item when the current value is not in the list', () => {
+  it('Enter selects the pre-focused first item when the current value is not in the list', () => {
     const ctx = createEditContext({ value: 'missing' });
     const editor = new EnumEditor(PRESET);
     editor.onStart(ctx as never);
@@ -117,13 +117,49 @@ describe('EnumEditor', () => {
     editor.onEnd();
   });
 
-  it('auto-selects the first item when the current value is empty and null is not allowed', () => {
+  it('Enter selects the pre-focused first item when the current value is empty and null is not allowed', () => {
     const ctx = createEditContext({ value: '' });
     const editor = new EnumEditor(PRESET);
     editor.onStart(ctx as never);
 
     dispatchKey('Enter');
     expect(editor.getValue()).toBe('draft');
+    expect(ctx.endEdit).toHaveBeenCalledTimes(1);
+
+    editor.onEnd();
+  });
+
+  it('Escape keeps a value that is not in the list instead of writing back the first item', () => {
+    const ctx = createEditContext({ value: 'missing' });
+    const editor = new EnumEditor(PRESET);
+    editor.onStart(ctx as never);
+
+    dispatchKey('Escape');
+    expect(editor.getValue()).toBe('missing');
+    expect(ctx.endEdit).toHaveBeenCalledTimes(1);
+
+    editor.onEnd();
+  });
+
+  it('outside mousedown keeps a value that is not in the list', () => {
+    const ctx = createEditContext({ value: 'missing' });
+    const editor = new EnumEditor(PRESET);
+    editor.onStart(ctx as never);
+
+    document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    expect(editor.getValue()).toBe('missing');
+    expect(ctx.endEdit).toHaveBeenCalledTimes(1);
+
+    editor.onEnd();
+  });
+
+  it('Escape keeps an empty value when null is not allowed', () => {
+    const ctx = createEditContext({ value: '' });
+    const editor = new EnumEditor(PRESET);
+    editor.onStart(ctx as never);
+
+    dispatchKey('Escape');
+    expect(editor.getValue()).toBe('');
     expect(ctx.endEdit).toHaveBeenCalledTimes(1);
 
     editor.onEnd();

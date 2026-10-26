@@ -19,6 +19,8 @@
  * 3. **上传的目标文件在 `commit()` 之前不存在。** 先写同名临时文件、commit 时再改名，
  *    而不是直接 `createWritable()` 写目标句柄——后者会让半写文件对同源的其它读者可见，
  *    而传输的终态里「取消」「超时」「写失败」三条路都会留下这样一个文件。
+ *    目标名已被占用时**不覆盖**：登记期回 `resource_conflict`，commit 前再探一次；commit 自己
+ *    建出的目标写不进去时一并撤掉。
  *
  * @module @aiao/rxdb-devtools/browser/opfs-files-provider
  */
@@ -124,6 +126,52 @@ async function resolveDirectory(
   return current;
 }
 
+/**
+ * 同名条目（文件或目录）是否已在。
+ *
+ * @remarks
+ * 两种句柄各探一次：同名的是目录时 `getFileHandle` 抛 `TypeMismatchError`，反之亦然，只探一种
+ * 会把「被目录占住」当成空位。探测本身出错按「不在」处理，这不会把错误吞掉：同一个错误会在
+ * 随后建目标时原样抛出。
+ */
+async function hasEntry(directory: FileSystemDirectoryHandle, name: string): Promise<boolean> {
+  const found = await Promise.all([
+    directory.getFileHandle(name, { create: false }).then(
+      () => true,
+      () => false
+    ),
+    directory.getDirectoryHandle(name, { create: false }).then(
+      () => true,
+      () => false
+    )
+  ]);
+  return found.includes(true);
+}
+
+/**
+ * 把临时文件的内容整体写进一个**本次新建**的目标。
+ *
+ * @remarks
+ * OPFS 没有排他创建：`getFileHandle(name, { create: true })` 对已存在的文件照样交出句柄，
+ * 所以先探——登记之后目标名仍可能被同源写入占掉，那时照写就是覆盖。目标一旦建出来就归本次
+ * commit 所有：写入半途失败（配额等）时撤掉它，否则留下一个对同源读者可见的空文件。
+ */
+async function writeNewTarget(directory: FileSystemDirectoryHandle, name: string, content: Blob): Promise<void> {
+  if (await hasEntry(directory, name)) throw new Error(`devtools upload target "${name}" already exists`);
+  const target = await directory.getFileHandle(name, { create: true });
+  let output: FileSystemWritableFileStream | undefined;
+  try {
+    output = await target.createWritable();
+    await output.write(content);
+    await output.close();
+  } catch (error) {
+    // 先放掉写入流再删：流还开着时条目可能删不掉。两步都只是尽力，失败原因以原始错误为准。
+    await output?.abort().catch(() => undefined);
+    await directory.removeEntry(name).catch(() => undefined);
+    throw error;
+  }
+}
+
 async function readSubtree(handle: FileSystemDirectoryHandle, base: string): Promise<readonly DevToolsOpfsEntry[]> {
   const entries: DevToolsOpfsEntry[] = [];
   const iterable = handle.entries() as AsyncIterable<[string, FileSystemHandle]>;
@@ -197,11 +245,19 @@ export function createDevToolsOpfsFilesProvider(ports: DevToolsOpfsFilesProvider
     // 仍然等目录解析完再回应答：路径本身有问题（父目录建不出来等）必须以错误码回给对端，
     // 而不是拖到第一块字节落盘时才以一次传输失败的形式冒出来。抛出交给 `invoke` 的
     // catch 去映射；登记先撤掉，免得这个 ID 挂着一个永远开不了的目录。
+    let parent: FileSystemDirectoryHandle;
     try {
-      await directory;
+      parent = await directory;
     } catch (error) {
       uploads.delete(transferId);
       throw error;
+    }
+    // 先探再收，与 `create-directory` 同一条规则：不探就是静默覆盖，而 OPFS 根目录与宿主应用
+    // 共享，被覆盖的可能是应用自己的数据库文件。撤登记挡不住已被 START 取走的 sink（见上），
+    // 那一路由 commit 前的二次探测挡住。
+    if (await hasEntry(parent, name)) {
+      uploads.delete(transferId);
+      return failure('resource_conflict');
     }
     return ok({ path: joinLogicalPath([...segments, name]), transferId });
   }
@@ -306,10 +362,7 @@ function createTemporaryFileSink(pending: PendingUpload): DevToolsChunkSink {
       // OPFS 没有 rename：读回临时文件的句柄再整体写入目标，然后删掉临时文件。
       const directory = await pending.directory;
       const temporary = await directory.getFileHandle(pending.temporaryName, { create: false });
-      const target = await directory.getFileHandle(pending.name, { create: true });
-      const output = await target.createWritable();
-      await output.write(await temporary.getFile());
-      await output.close();
+      await writeNewTarget(directory, pending.name, await temporary.getFile());
       await cleanup();
     },
 

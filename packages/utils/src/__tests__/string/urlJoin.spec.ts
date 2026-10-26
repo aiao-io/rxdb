@@ -206,3 +206,23 @@ describe('urlJoin', () => {
     });
   });
 });
+
+// 原实现把全部片段按序拼好再按第一个 `?` 切分：查询串之后的路径段被并进查询值，
+// 首段只有查询串时还会被当成前缀，开头的 `?` 被滤掉。
+describe('查询串不得吞掉后续路径段', () => {
+  it('非末位片段里的查询串移到路径之后', () => {
+    expect(urlJoin('http://x.com/a?x=1', 'b')).toEqual('http://x.com/a/b?x=1');
+    expect(urlJoin('/a?x=1', 'b', 'c')).toEqual('/a/b/c?x=1');
+    expect(urlJoin('http://x.com', 'a?x=1', 'b?y=2')).toEqual('http://x.com/a/b?x=1&y=2');
+  });
+
+  it('查询串之后的 `?` / `&` / `#` 片段按原顺序跟在查询串后面', () => {
+    expect(urlJoin('http://x.com', 'a?x=1', 'b', '&y=2', '#top')).toEqual('http://x.com/a/b?x=1&y=2#top');
+  });
+
+  it('首段只有查询串时不得被当成前缀', () => {
+    expect(urlJoin('?a=1', 'b')).toEqual('b?a=1');
+    expect(urlJoin('?a=1')).toEqual('?a=1');
+    expect(urlJoin('?a=1', '?b=2')).toEqual('?a=1&b=2');
+  });
+});

@@ -10,6 +10,9 @@
  *
  * 这一层还负责让 metadata 通道**绕开实体解码**：只透出 `id` 与 `updatedAt` 两个字段，
  * 都保持 `string`。一旦 `updatedAt` 变成 `Date`，就违背了 `QueryCacheEntityMetadata` 的契约。
+ *
+ * 同一道 `updatedAt` 门禁也挡在整行进本地缓存的两个入口：`create` / `update` 回执与 `findByIds` 行
+ * （{@link canonicalizeRowUpdatedAt}）。
  */
 
 import type { QueryCacheEntityMetadata } from '@aiao/rxdb';
@@ -34,29 +37,52 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 /**
  * 把一个 `updatedAt` 归一成 `toISOString()` 同形的串。
  *
+ * @param subject - 出错时指认是哪一行，例如 `row "a"`
  * @throws HttpInvalidMetadataError 不是字符串、不是带时区的 ISO 8601、或不是真实存在的时刻
  */
-const canonicalizeUpdatedAt = (entityName: string, id: string, updatedAt: unknown): string => {
+const canonicalizeUpdatedAt = (entityName: string, subject: string, updatedAt: unknown): string => {
   if (typeof updatedAt !== 'string') {
     throw new HttpInvalidMetadataError(
       entityName,
-      `row "${id}" has updatedAt of type ${typeof updatedAt}, expected an ISO 8601 string`
+      `${subject} has updatedAt of type ${typeof updatedAt}, expected an ISO 8601 string`
     );
   }
   if (!ISO_8601_WITH_ZONE.test(updatedAt)) {
     throw new HttpInvalidMetadataError(
       entityName,
-      `row "${id}" has updatedAt "${updatedAt}", expected ISO 8601 with an explicit time zone`
+      `${subject} has updatedAt "${updatedAt}", expected ISO 8601 with an explicit time zone`
     );
   }
   const parsed = new Date(updatedAt);
   if (Number.isNaN(parsed.getTime())) {
     throw new HttpInvalidMetadataError(
       entityName,
-      `row "${id}" has updatedAt "${updatedAt}", which is not a real instant`
+      `${subject} has updatedAt "${updatedAt}", which is not a real instant`
     );
   }
   return parsed.toISOString();
+};
+
+/**
+ * 校验并规范化一整行（`create` / `update` 回执、`findByIds` 行）上的 `updatedAt`。
+ *
+ * @remarks
+ * 这些行由 core 原样写进本地缓存，`updatedAt` 随即成为本地侧的新鲜度基准，所以与 metadata 同一条契约：
+ * 带时区才收，收下就归一成 `toISOString()` 同形。放行无时区串，本地存下的就是按本机时区解析的时刻，
+ * 下一轮与远端 metadata 比较的结论随机器时区漂移，全程不报错。
+ *
+ * 不带 `updatedAt` 的行与非对象行原样返回：必填与形状各有出口契约判，这里只管越过 wire 的那个串。
+ *
+ * @param entityName - 实体名，进错误信息
+ * @param source - 行的来源（如 `create receipt`、`findByIds`），进错误信息
+ * @param row - handler `parse` 出来的行
+ * @returns `updatedAt` 已归一的新对象；无需处理时返回原值，入参不被改写
+ * @throws HttpInvalidMetadataError `updatedAt` 不是字符串、不是带时区的 ISO 8601、或不是真实存在的时刻
+ */
+export const canonicalizeRowUpdatedAt = (entityName: string, source: string, row: unknown): unknown => {
+  if (!isRecord(row) || row['updatedAt'] === undefined) return row;
+  const subject = `${source} row ${JSON.stringify(row['id'])}`;
+  return { ...row, updatedAt: canonicalizeUpdatedAt(entityName, subject, row['updatedAt']) };
 };
 
 /** 取出并校验 `id` */
@@ -89,6 +115,6 @@ export const canonicalizeMetadata = (entityName: string, rows: unknown[]): Query
       throw new HttpInvalidMetadataError(entityName, `expected a metadata object, received ${JSON.stringify(row)}`);
     }
     const id = readId(entityName, row);
-    return { id, updatedAt: canonicalizeUpdatedAt(entityName, id, row['updatedAt']) };
+    return { id, updatedAt: canonicalizeUpdatedAt(entityName, `row "${id}"`, row['updatedAt']) };
   });
 };

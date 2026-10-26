@@ -495,6 +495,50 @@ describe('connector endpoint transfers', () => {
     expect(harness.framesOf('ERROR')).toHaveLength(1);
     expect(harness.endpoint.inflightTransfers).toBe(1);
   });
+
+  /**
+   * 出站登记被拒时，不得替对端退掉一条同名的入站传输。
+   *
+   * @remarks
+   * 下载的 transferId 由本端按序铸造（`dl-1`、`dl-2`…），与对端自选的入站 ID 共用一本 session
+   * 账。对端先用 `dl-1` 开了一条上传，本端随后铸出同一个 ID 去登记下载，必然撞 `transfer_duplicate`；
+   * 被拒的登记什么都没记下，这时再 release 删掉的是对端那条仍在跑的传输：并发名额被白白让出，
+   * 它结算时也找不到账目、记不上墓碑，同一个 ID 于是又能被复用。
+   */
+  it('MUST keep a live inbound transfer registered when an outbound registration is rejected', async () => {
+    const harness = connected();
+    harness.panel('TRANSFER_START', { transferId: 'dl-1', requestId: 'r-up', totalBytes: PAYLOAD.byteLength });
+    harness.panel('REQUEST', {
+      requestId: 'r-dl',
+      domain: 'files',
+      operation: 'download',
+      params: { path: '/db.sqlite', requestId: 'r-dl' }
+    });
+    await flush();
+
+    expect(harness.framesOf('ERROR')[0]?.payload).toEqual({
+      requestId: 'r-dl',
+      error: { code: 'transfer_duplicate', retryable: false }
+    });
+    expect(harness.endpoint.inflightTransfers).toBe(1);
+
+    // 入站那条照常收尾后，它的 ID 必须进墓碑：复用同一个 ID 的 START 要被拒。
+    harness.panel('TRANSFER_CHUNK', {
+      transferId: 'dl-1',
+      chunkIndex: 0,
+      offset: 0,
+      dataBase64: encodeCanonicalBase64(PAYLOAD)
+    });
+    harness.panel('TRANSFER_COMPLETE', { transferId: 'dl-1' });
+    await flush();
+    harness.panel('TRANSFER_START', { transferId: 'dl-1', requestId: 'r-again', totalBytes: PAYLOAD.byteLength });
+
+    expect(harness.framesOf('ERROR').at(-1)?.payload).toEqual({
+      requestId: 'r-again',
+      error: { code: 'transfer_duplicate', retryable: false }
+    });
+    expect(harness.endpoint.inflightTransfers).toBe(0);
+  });
 });
 
 describe('connector endpoint session teardown (AC#51)', () => {

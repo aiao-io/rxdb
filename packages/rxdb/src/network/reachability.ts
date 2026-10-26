@@ -93,8 +93,9 @@ function resolveGlobalNavigatorOnLine(): (() => boolean) | undefined {
  * **宿主监听是按需挂的**：构造本身对宿主零副作用，要收 `online` / `offline` 事件得先
  * {@link ReachabilityMonitor.watch}。这两个事件唯一的消费者是同步链路，而同步随
  * `@aiao/rxdb-plugin-sync` 走（US-025 D2）—— 一个只配本地适配器、根本不同步的库不该因为
- * `new RxDB()` 就在 `globalThis` 上留下一对活过实例的监听器。`report()` 这条主判据与
- * 退避节拍都不依赖它，不挂监听只是少了「浏览器自己说网回来了」这一路催促。
+ * `new RxDB()` 就在 `globalThis` 上留下一对活过实例的监听器。`report()` 这条主判据不依赖它；
+ * 退避节拍只排给它的订阅方（见 {@link ReachabilityMonitor.watch}）—— 没人 watch() 时离线只是一个状态，
+ * 不会在宿主上留一个每轮自续期的定时器。
  *
  * @example
  * ```typescript
@@ -109,7 +110,7 @@ function resolveGlobalNavigatorOnLine(): (() => boolean) | undefined {
  *   throw error;
  * }
  *
- * // 同步驱动订阅节拍，成功即恢复。先 watch() 才收得到浏览器的 online / offline
+ * // 同步驱动订阅节拍，成功即恢复。先 watch() 才有退避节拍与浏览器的 online / offline
  * const unwatch = monitor.watch();
  * monitor.wakeup$.pipe(exhaustMap(() => flushPendingWrites())).subscribe();
  * ```
@@ -137,9 +138,9 @@ export class ReachabilityMonitor {
    * 「现在可以再试一次同步」的节拍
    *
    * @remarks
-   * 离线期间按 `base * 2 ** (attempt - 1)` 退避发出（封顶 `maxDelayMs`），
-   * 浏览器 `online` 事件也会催发一次。订阅方应当用 `exhaustMap` 等单飞算子消费 ——
-   * 节拍可能与其它触发源叠加。
+   * 离线且有 {@link ReachabilityMonitor.watch} 订阅方期间按 `base * 2 ** (attempt - 1)` 退避发出
+   * （封顶 `maxDelayMs`），浏览器 `online` 事件也会催发一次。订阅方应当用 `exhaustMap` 等单飞算子
+   * 消费 —— 节拍可能与其它触发源叠加。
    */
   readonly wakeup$: Observable<void> = this.#wakeup$.asObservable();
 
@@ -297,9 +298,16 @@ export class ReachabilityMonitor {
     this.#scheduleWakeup();
   }
 
-  /** 按指数退避排下一个节拍 */
+  /**
+   * 按指数退避排下一个节拍
+   *
+   * @remarks
+   * 没有 watch() 的订阅方就不排：构造期离线、零订阅方时 `report()` 判离线都会走到这里，
+   * 而回调每轮自续期，一旦排上就没人停它。第一位订阅者接上时由 `#attach_first_watcher()` 补排。
+   */
   #scheduleWakeup(): void {
     this.#clearTimer();
+    if (this.#watchers === 0) return;
     this.#attempt++;
     const delay = Math.min(this.#baseDelayMs * 2 ** (this.#attempt - 1), this.#maxDelayMs);
     this.#timer = setTimeout(() => {

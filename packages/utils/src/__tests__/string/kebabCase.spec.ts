@@ -18,4 +18,8 @@ describe('kebabCase', () => {
     expect(kebabCase('用户ID')).toEqual('用户-id');
     expect(kebabCase('héllo wörld')).toEqual('héllo-wörld');
   });
+  it('组合标记留在原字母上，emoji 单独成段', () => {
+    expect(kebabCase('ÉCOLE Café'.normalize('NFD'))).toEqual('école-café'.normalize('NFD'));
+    expect(kebabCase('hello 👋 world')).toEqual('hello-👋-world');
+  });
 });

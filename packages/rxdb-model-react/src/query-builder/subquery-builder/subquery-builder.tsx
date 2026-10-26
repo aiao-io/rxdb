@@ -79,6 +79,8 @@ export function SubqueryBuilder({
       validationSubscription.unsubscribe();
       service.destroy();
       serviceRef.current = null;
+      // 「只应用一次」针对这个服务：StrictMode 双挂载 / Activity 重显会重建服务，复位后由下方 effect 给新服务应用
+      initialQueryAppliedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

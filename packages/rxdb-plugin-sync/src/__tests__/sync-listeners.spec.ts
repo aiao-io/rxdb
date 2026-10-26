@@ -251,6 +251,9 @@ const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
   const incrementPullableCount = vi.fn<IncrementPullableCount>();
   const push = vi.fn<Push>(() => Promise.resolve({ pushed: 0 }));
   const reachability = options.reachability ?? detachedReachability();
+  // 与插件 install() 同序：先 watch() 再接监听器。监视器只在有订阅方时排退避节拍，
+  // 漏了这一步，离线节拍一拍都不会来；afterEach 的 destroy() 连同这次 watch 一起拆掉
+  reachability.watch();
   const entities = options.entities ?? [CachedRecipe, VersionedTodo, LocalDraft];
   // 用真的 hub 而不是探针：这一层的契约是「面板最终显示什么」，
   // 断言方法调用只能证明有人喊了一声，证明不了喊出来的是不是对的状态。

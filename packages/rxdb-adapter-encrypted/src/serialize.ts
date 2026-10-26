@@ -18,36 +18,79 @@ const decryptPayloadError = (type: PropertyType, cause?: unknown): EncryptedDecr
   });
 
 /**
+ * 结构化负载的形状是否与 `PropertyType` 相符；写侧与读侧共用这一个判据。
+ *
+ * @remarks
+ * RAE-004：`serializeForEnvelope()` 产生的结构化值必然是合法 JSON 且形状确定。
+ * AES-GCM 认证已经通过、却解析不出预期形状，只可能是格式版本错误、调用方误用
+ * 或数据损坏 —— 任何一种都不能被伪装成另一种业务类型交给上层。
+ */
+const hasStructuredShape = (parsed: unknown, type: PropertyType): boolean => {
+  if (type === 'stringArray' || type === 'numberArray') {
+    const elementType = type === 'stringArray' ? 'string' : 'number';
+    return Array.isArray(parsed) && parsed.every(item => typeof item === elementType);
+  }
+  if (type === 'keyValue') return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
+  return true;
+};
+
+/**
+ * 把 date 值归一成毫秒数。
+ *
+ * @remarks
+ * 读侧只认有限毫秒数（见 {@link deserializeFromEnvelope}）：解析不了的串、Invalid Date、超出 Date 范围的数
+ * 一旦落盘就再也读不回来，这里一律拒绝，不再把原串照写进去。
+ */
+const toTimestamp = (value: unknown, property: PropertyLike): number => {
+  const date =
+    value instanceof Date ? value
+    : typeof value === 'number' || typeof value === 'string' ? new Date(value)
+    : undefined;
+  const ms = date?.valueOf();
+  if (ms === undefined || !Number.isFinite(ms)) {
+    throw new TypeError(`property ${property.name} must be a valid Date, timestamp or date string`);
+  }
+  return ms;
+};
+
+/**
  * 按属性类型把单个非空业务值编码为信封明文字节。
  *
- * `null` / `undefined` 的持久化由 adapter 旁路处理，不应调用本函数。`binary` 会复制当前
- * `Uint8Array` 视图；JSON、keyValue 和数组必须可由 `JSON.stringify` 表示；bigint 限定为
- * 有符号 64 位。落盘后改变同一列的 `PropertyType` 会破坏解码契约，必须先迁移数据。
+ * `null` / `undefined` 的持久化由 adapter 旁路处理，不应调用本函数。写侧与 {@link deserializeFromEnvelope}
+ * 同样严格：读侧会拒绝的值在这里就拒绝——加密列不能进查询，读不回来的行找不到也清不掉。
+ * boolean 只收 `true` / `false` 与 SQL 形态的 `0` / `1`；number 只收有限数，integer 只收安全整数；
+ * date 只收合法 Date、有限毫秒数或可解析的日期串；`binary` 会复制当前 `Uint8Array` 视图；
+ * JSON、keyValue 和数组必须可由 `JSON.stringify` 表示，且 keyValue / 数组按 JSON 往返后的形状校验；
+ * bigint 限定为有符号 64 位。文本类型照原样编码，`Uint8Array` 视作已编好的明文直接放行。
+ * 落盘后改变同一列的 `PropertyType` 会破坏解码契约，必须先迁移数据。
  *
  * @throws TypeError 值与属性类型不匹配或无法序列化
  */
 export const serializeForEnvelope = (value: unknown, property: PropertyLike): Uint8Array => {
   const enc = new TextEncoder();
   const type = property.type as PropertyType;
-  if (type === 'binary') {
-    if (!(value instanceof Uint8Array)) {
-      throw new TypeError(`property ${property.name} must be a Uint8Array`);
-    }
-    return new Uint8Array(value);
-  }
-  if (value instanceof Uint8Array && type !== 'bigint') return value;
   switch (type) {
+    case 'binary':
+      if (!(value instanceof Uint8Array)) {
+        throw new TypeError(`property ${property.name} must be a Uint8Array`);
+      }
+      return new Uint8Array(value);
     case 'boolean':
-      return new Uint8Array([value ? 1 : 0]);
-    case 'date': {
-      if (value instanceof Date) return enc.encode(String(value.valueOf()));
-      if (typeof value === 'number') return enc.encode(String(value));
-      const parsed = new Date(value as string);
-      const ms = parsed.valueOf();
-      return enc.encode(Number.isFinite(ms) ? String(ms) : String(value));
-    }
+      // 也收 0 / 1：SQLC-011 修复前的历史行里，加密 boolean 就是这两个数字，撤销与切分支会把它原样写回
+      if (value === true || value === 1) return new Uint8Array([1]);
+      if (value === false || value === 0) return new Uint8Array([0]);
+      throw new TypeError(`property ${property.name} must be a boolean`);
+    case 'date':
+      return enc.encode(String(toTimestamp(value, property)));
     case 'number':
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new TypeError(`property ${property.name} must be a finite number`);
+      }
+      return enc.encode(String(value));
     case 'integer':
+      if (!Number.isSafeInteger(value)) {
+        throw new TypeError(`property ${property.name} must be a safe integer`);
+      }
       return enc.encode(String(value));
     case 'bigint':
       if (typeof value !== 'bigint' || !isSigned64(value)) {
@@ -62,30 +105,15 @@ export const serializeForEnvelope = (value: unknown, property: PropertyLike): Ui
       if (serialized === undefined) {
         throw new TypeError(`property ${property.name} cannot be represented as JSON`);
       }
+      // 判的是读侧会解析出来的那一份：NaN、空位这类值过一遍 JSON 才变成 null
+      if (type !== 'json' && !hasStructuredShape(JSON.parse(serialized), type)) {
+        throw new TypeError(`property ${property.name} does not match the ${type} shape`);
+      }
       return enc.encode(serialized);
     }
     default:
+      if (value instanceof Uint8Array) return value;
       return enc.encode(String(value ?? ''));
-  }
-};
-
-/**
- * 校验结构化负载的形状是否与 `PropertyType` 相符。
- *
- * @remarks
- * RAE-004：`serializeForEnvelope()` 产生的结构化值必然是合法 JSON 且形状确定。
- * AES-GCM 认证已经通过、却解析不出预期形状，只可能是格式版本错误、调用方误用
- * 或数据损坏 —— 任何一种都不能被伪装成另一种业务类型交给上层。
- */
-const assertStructuredShape = (parsed: unknown, type: PropertyType): void => {
-  if (type === 'stringArray' || type === 'numberArray') {
-    if (!Array.isArray(parsed)) throw decryptPayloadError(type);
-    const elementType = type === 'stringArray' ? 'string' : 'number';
-    if (parsed.some(item => typeof item !== elementType)) throw decryptPayloadError(type);
-    return;
-  }
-  if (type === 'keyValue') {
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw decryptPayloadError(type);
   }
 };
 
@@ -160,7 +188,7 @@ export const deserializeFromEnvelope = (bytes: Uint8Array, property: PropertyLik
         // 上层拿到的是错误类型而不是错误本身。
         throw decryptPayloadError(type, cause);
       }
-      assertStructuredShape(parsed, type);
+      if (!hasStructuredShape(parsed, type)) throw decryptPayloadError(type);
       return parsed;
     }
     default:

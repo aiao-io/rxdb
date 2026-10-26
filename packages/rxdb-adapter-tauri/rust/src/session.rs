@@ -378,6 +378,30 @@ mod tests {
         );
     }
 
+    /// 打开失败时同理：错误消息里也不得带出物理根目录，与文件宿主的
+    /// `never_leaks_the_physical_root_in_a_response` 同一条约束（AC#4）。两处都会把它拼进去：
+    /// 建 `rxdb-data/` 失败时的目录路径，以及 rusqlite 接在 `SQLITE_CANTOPEN` 消息后面的库文件路径。
+    #[test]
+    fn never_leaks_the_physical_root_when_open_fails() {
+        // `rxdb-data` 被一个普通文件占着，目录建不出来。
+        let blocked_directory = harness();
+        std::fs::write(blocked_directory.directory.join(crate::paths::DATABASE_DIRECTORY), b"file").unwrap();
+        // 库文件的位置上是一个目录，SQLite 打不开它。
+        let blocked_file = harness();
+        let database_path = blocked_file.directory.join(crate::paths::DATABASE_DIRECTORY).join("app.sqlite3");
+        std::fs::create_dir_all(database_path).unwrap();
+
+        for harness in [&blocked_directory, &blocked_file] {
+            let response = harness.host.handle(&json!({
+                "kind": "open",
+                "storage": { "engine": "sqlite", "databaseName": "app.sqlite3" }
+            }));
+            assert_eq!(response["code"], "open_failed", "{response}");
+            let root = harness.directory.to_str().unwrap();
+            assert!(!response.to_string().contains(root), "leaked the app data dir: {response}");
+        }
+    }
+
     #[test]
     fn executes_and_encodes_results_in_the_wire_shape() {
         let harness = harness();
