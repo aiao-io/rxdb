@@ -89,10 +89,7 @@ export function buildListViewOrderBy(state: ListViewState, metadata: EntityMetad
   const unique = [...new Map(candidates.map(sort => [sort.field, sort])).values()];
   const idSort = unique.find(sort => sort.field === 'id');
   const withoutId = unique.filter(sort => sort.field !== 'id');
-  return [
-    ...withoutId,
-    { field: 'id', sort: idSort?.sort ?? withoutId.at(-1)?.sort ?? 'asc' }
-  ];
+  return [...withoutId, { field: 'id', sort: idSort?.sort ?? withoutId.at(-1)?.sort ?? 'asc' }];
 }
 
 /** 将未填写的分组字段规范为 null，避免 VTable 丢弃 undefined 分组记录。 */

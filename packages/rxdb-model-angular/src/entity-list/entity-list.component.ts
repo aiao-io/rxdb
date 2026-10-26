@@ -1047,7 +1047,7 @@ export class EntityListComponent {
 
     // 草稿实体直接更新 signal 触发重渲染（不写DB）
     if (draftUpdated.size) {
-      this.#localDraftItems.update(items => items.some(item => draftUpdated.has(item)) ? [...items] : items);
+      this.#localDraftItems.update(items => (items.some(item => draftUpdated.has(item)) ? [...items] : items));
     }
 
     if (!updateGroups.size) return;
@@ -1062,5 +1062,4 @@ export class EntityListComponent {
       for (const [inst, prev] of prevMap) Object.assign(inst as Record<string, unknown>, prev);
     }
   }
-
 }

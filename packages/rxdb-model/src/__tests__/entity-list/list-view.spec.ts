@@ -75,7 +75,13 @@ describe('列表视图配置', () => {
   it('用户把 ID 放在前面时仍将 ID 放到游标排序末尾', () => {
     expect(
       buildListViewOrderBy(
-        { ...createListViewState(), sorts: [{ field: 'id', sort: 'asc' }, { field: 'title', sort: 'desc' }] },
+        {
+          ...createListViewState(),
+          sorts: [
+            { field: 'id', sort: 'asc' },
+            { field: 'title', sort: 'desc' }
+          ]
+        },
         undefined
       )
     ).toEqual([

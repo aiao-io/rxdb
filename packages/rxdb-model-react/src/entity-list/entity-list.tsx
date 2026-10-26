@@ -593,7 +593,7 @@ export function EntityList({
 
       // 草稿实体直接更新本地集合触发重渲染（不写DB）
       if (draftUpdated.size) {
-        setLocalDraftItems(items => items.some(item => draftUpdated.has(item)) ? [...items] : items);
+        setLocalDraftItems(items => (items.some(item => draftUpdated.has(item)) ? [...items] : items));
       }
 
       if (!updateGroups.size) return;

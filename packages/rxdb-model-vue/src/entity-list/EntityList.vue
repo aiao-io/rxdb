@@ -925,7 +925,8 @@ const flushPending = async (pending: [string, PendingEntityChange][]): Promise<v
 
   // 草稿实体直接更新列表触发重渲染（不写 DB）
   if (draftUpdated.size) {
-    localDraftItems.value = localDraftItems.value.some(item => draftUpdated.has(item)) ? [...localDraftItems.value] : localDraftItems.value;
+    localDraftItems.value =
+      localDraftItems.value.some(item => draftUpdated.has(item)) ? [...localDraftItems.value] : localDraftItems.value;
   }
 
   if (!updateGroups.size) return;
@@ -940,7 +941,6 @@ const flushPending = async (pending: [string, PendingEntityChange][]): Promise<v
     for (const [inst, prev] of prevMap) Object.assign(inst as Record<string, unknown>, prev);
   }
 };
-
 
 // ── 筛选弹层定位（CDK ConnectedOverlay 下方/上方右对齐的包内替代） ────
 
