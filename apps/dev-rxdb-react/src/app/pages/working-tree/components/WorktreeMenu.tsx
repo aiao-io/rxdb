@@ -70,7 +70,6 @@ export function WorkingTreeWorktreeMenu({
           aria-controls='wt-worktree-menu-popup'
           aria-expanded={menuOpen}
           aria-haspopup='dialog'
-          aria-label={`Worktree: ${mounted.isMain ? 'Main worktree' : (linked.find(isCurrent)?.name ?? 'Linked worktree')}`}
           disabled={busy}
           data-testid='wt-worktree-menu'
           onClick={() => onMenuOpenChange(!menuOpen)}

@@ -2952,7 +2952,7 @@
       }
     ]
   },
-  "digest": "243bc4be62c0c12a2d570d14063c3b4840e4ad7c85f4dc34b4c173fe073ed0fa",
+  "digest": "b0f26feba10d98925f266ed2e9c01f60b665da01d9fa3e43fba23698cb27b9a8",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

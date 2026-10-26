@@ -72,11 +72,18 @@
           "buildTarget": "dev-rxdb-http:build:development",
           "host": "0.0.0.0"
         }
+      },
+      "readyWhen": {
+        "signal": true
       }
     },
     "serve-static": {
       "continuous": true,
       "executor": "@nx/web:file-server",
+      "readyWhen": {
+        "signal": true
+      },
+      "dependsOn": ["build"],
       "options": {
         "buildTarget": "dev-rxdb-http:build",
         "port": 4300,
@@ -88,6 +95,9 @@
     "serve-e2e": {
       "continuous": true,
       "executor": "@nx/web:file-server",
+      "readyWhen": {
+        "signal": true
+      },
       "options": {
         "port": 4300,
         "spa": true,
