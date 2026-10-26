@@ -134,6 +134,12 @@ export default function WorkingTreePage(): React.JSX.Element {
   const [deleteWorktree, setDeleteWorktree] = useState<Worktree | null>(null);
   const [deleteWorktreeError, setDeleteWorktreeError] = useState<string | null>(null);
   const [deletingWorktree, setDeletingWorktree] = useState(false);
+  /**
+   * 工作树命令此刻不收新请求：有写入在途或另一条工作树命令在跑（与 Angular `$worktreeBusy`、Vue 同口径）。
+   * 菜单与三个对话框据此禁用，否则点击会被命令入口的 pendingWrites / worktreeOperationBusy 守卫静默丢掉
+   */
+  const worktreeBusy =
+    pendingWriteCount > 0 || mountingWorktree || creatingWorktree || renamingWorktree || deletingWorktree;
   /** 「Create a branch」对话框（History 右键与分支下拉的 New branch 共用）：状态、名字、报错与进行中 */
   const [createBranchDialog, setCreateBranchDialog] = useState<CreateBranchDialogState | null>(null);
   const [createBranchName, setCreateBranchName] = useState('');
@@ -1240,9 +1246,7 @@ export default function WorkingTreePage(): React.JSX.Element {
             <div className='gd-toolbar-section gd-worktree-section'>
               <WorkingTreeWorktreeMenu
                 activeBranch={currentBranchOf(branches, WorktreeTableSet.MAIN)}
-                busy={
-                  pendingWriteCount > 0 || mountingWorktree || creatingWorktree || renamingWorktree || deletingWorktree
-                }
+                busy={worktreeBusy}
                 menuOpen={worktreeMenuOpen}
                 mounted={worktrees.mounted}
                 onCreateRequest={() => openNewWorktree()}
@@ -1560,6 +1564,7 @@ export default function WorkingTreePage(): React.JSX.Element {
         activeBranch={activeBranch}
         branches={branches}
         branchId={newWorktreeBranch}
+        busy={worktreeBusy}
         creating={creatingWorktree}
         error={newWorktreeError}
         name={newWorktreeName}
@@ -1571,6 +1576,7 @@ export default function WorkingTreePage(): React.JSX.Element {
       />
 
       <WorkingTreeRenameDialog
+        busy={worktreeBusy}
         error={renameWorktreeError}
         name={renameWorktreeName}
         onClose={closeRenameWorktree}
@@ -1581,6 +1587,7 @@ export default function WorkingTreePage(): React.JSX.Element {
       />
 
       <WorkingTreeDeleteDialog
+        busy={worktreeBusy}
         deleting={deletingWorktree}
         dirty={deleteWorktree !== null && currentLinkedWorktree?.id === deleteWorktree.id && workingTreeDirty}
         error={deleteWorktreeError}
