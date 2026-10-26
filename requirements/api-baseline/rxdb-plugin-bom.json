@@ -386,7 +386,15 @@
         "kind": "type"
       },
       {
+        "name": "CostRollupBudgets",
+        "kind": "type"
+      },
+      {
         "name": "CostRollupContext",
+        "kind": "type"
+      },
+      {
+        "name": "CostRollupOptions",
         "kind": "type"
       },
       {
@@ -463,6 +471,10 @@
       },
       {
         "name": "decimalToCanonical",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_COST_ROLLUP_BUDGETS",
         "kind": "value"
       },
       {
