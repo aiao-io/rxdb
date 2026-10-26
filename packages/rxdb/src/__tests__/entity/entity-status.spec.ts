@@ -148,6 +148,104 @@ describe('EntityStatus', () => {
     rxdb.init();
   });
 
+  describe('事务状态检查点', () => {
+    it('创建回滚恢复标记、原值与变更历史，丢弃数据库回填字段', () => {
+      const entity = new TestEntity({ title: 'draft' });
+      const status = getEntityStatus(entity);
+      entity.title = 'edited';
+      status.checkChange();
+      const patches = [...status.patches];
+      const origin = structuredClone(status.origin);
+      const settle = status.checkpoint();
+      status.replace({ title: 'stored', count: 7 });
+      status.local = true;
+      status.remote = true;
+      Reflect.set(status.target, 'returnedOnly', 'generated');
+
+      settle(false);
+
+      expect(entity.title).toBe('edited');
+      expect(entity.count).toBe(0);
+      expect(Reflect.has(entity, 'returnedOnly')).toBe(false);
+      expect(status.local).toBe(false);
+      expect(status.remote).toBe(false);
+      expect(status.modified).toBe(true);
+      expect(status.origin).toEqual(origin);
+      expect(status.patches).toEqual(patches);
+      expect(status.patch).toMatchObject({ title: 'edited' });
+    });
+
+    it('更新回滚保留提交等待期间的新编辑，并恢复持久化基线', () => {
+      const entity = new TestEntity({ title: 'original', count: 0 });
+      const status = getEntityStatus(entity);
+      status.local = true;
+      status.replace({ title: 'original' });
+      entity.title = 'first edit';
+      const settle = status.checkpoint();
+      entity.title = 'later edit';
+      status.replace({ title: 'first edit', count: 3 });
+      entity.active = false;
+      const generation = status.generation;
+
+      settle(false);
+      settle(true);
+
+      expect(entity.title).toBe('later edit');
+      expect(entity.count).toBe(0);
+      expect(entity.active).toBe(false);
+      expect(status.local).toBe(true);
+      expect(status.modified).toBe(true);
+      expect(status.origin.title).toBe('original');
+      expect(status.patch).toMatchObject({ title: 'later edit', active: false });
+      expect(status.generation).toBeGreaterThan(generation);
+    });
+
+    it('删除回滚恢复删除前的状态', () => {
+      const entity = new TestEntity({ title: 'stored' });
+      const status = getEntityStatus(entity);
+      status.local = true;
+      status.replace({ title: 'stored' });
+      const settle = status.checkpoint();
+      status.removed = true;
+      status.local = false;
+      settle(false);
+      expect(status.local).toBe(true);
+      expect(status.removed).toBe(false);
+      expect(status.modified).toBe(false);
+    });
+
+    it('回滚数据库生成的主键时恢复身份缓存索引', () => {
+      const entity = new TestEntity({ title: 'draft' });
+      const status = getEntityStatus(entity);
+      const originalId = entity.id;
+      const generatedId = uuid();
+      const settle = status.checkpoint();
+      status.replace({ id: generatedId });
+      rxdb.entityManager.reindexEntityCache(entity, originalId);
+      expect(rxdb.entityManager.getEntityRef(TestEntity, generatedId)).toBe(entity);
+
+      settle(false);
+
+      expect(entity.id).toBe(originalId);
+      expect(rxdb.entityManager.getEntityRef(TestEntity, generatedId)).toBeUndefined();
+      expect(rxdb.entityManager.getEntityRef(TestEntity, originalId)).toBe(entity);
+    });
+
+    it('成功提交保留回填结果，收尾函数不能再次回滚', () => {
+      const entity = new TestEntity({ title: 'draft' });
+      const status = getEntityStatus(entity);
+      const settle = status.checkpoint();
+      status.replace({ title: 'stored', count: 9 });
+      status.local = true;
+      settle(true);
+      settle(false);
+      expect(entity.title).toBe('stored');
+      expect(entity.count).toBe(9);
+      expect(status.local).toBe(true);
+      expect(status.modified).toBe(false);
+    });
+  });
+
   describe('constructor', () => {
     it('should create entity status with required properties', () => {
       const entity = new TestEntity({ id: uuid(), title: 'Test' });

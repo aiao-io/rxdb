@@ -1,5 +1,6 @@
 /// <reference types='vitest' />
 import { codecovVitePlugin } from '@codecov/vite-plugin';
+import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 import react from '@vitejs/plugin-react';
 import { playwright } from '@vitest/browser-playwright';
 import * as path from 'path';
@@ -32,7 +33,8 @@ export default defineConfig(() => ({
           uploadToken: process.env.CODECOV_TOKEN
         })
       ]
-    : [])
+    : []),
+    nxReadySignal()
   ],
   build: {
     outDir: './dist',

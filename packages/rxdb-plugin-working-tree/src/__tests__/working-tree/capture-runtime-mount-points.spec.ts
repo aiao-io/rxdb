@@ -65,7 +65,8 @@ import {
   RxDBError,
   SKIP_BRANCH_SWITCH_PREPARE,
   SyncType,
-  TrustedWriteIntent
+  TrustedWriteIntent,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { EMPTY, type Observable } from 'rxjs';
 import { describe, expect, it } from 'vitest';
@@ -92,7 +93,7 @@ function createEntityManager(): EntityManager {
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
   database.adapter('local', db => createMockAdapter(db));
-  // 十张系统表由插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
+  // 本插件的系统表由它贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
   // 而这些实体进不了 `config.entities` 时 `instantiate()` 抛的是「need init rxdb」。
   database.use(rxDBPluginWorkingTree);
   database.init();
@@ -126,6 +127,8 @@ interface ChangeSeed {
   readonly entityId?: string;
   readonly patch?: Record<string, unknown> | null;
   readonly inversePatch?: Record<string, unknown> | null;
+  /** 变更记在哪条分支名下；不给就不带这一列 */
+  readonly branchId?: string;
 }
 
 /** 一套布景：探针、运行时、宿主，以及往变更日志里追加行的手。 */
@@ -167,9 +170,10 @@ function createMountTarget(host: WorkingTreeWriteHost): WorkingTreeCaptureMountT
  * 造一套布景
  *
  * @param newUnitId - 单元 id 生成器；默认发同一个值，便于断言「整批共享」
+ * @param tableSet - 本事务落在哪一套业务表上；默认主表集
  */
-function scene(newUnitId: () => string = () => 'unit-fixed'): CaptureScene {
-  const probe = createCommitGraphProbe();
+function scene(newUnitId: () => string = () => 'unit-fixed', tableSet?: WorktreeTableSet): CaptureScene {
+  const probe = createCommitGraphProbe({ tableSet });
   probe.seed(RxDBBranch, [
     { id: BRANCH_ID, local: true, remote: false, activated: true, activeKey: ACTIVE_BRANCH_KEY }
   ]);
@@ -418,6 +422,76 @@ describe('挂载点 1：transaction —— 事务增量即捕获源', () => {
 
     expect(stage.entries()).toHaveLength(0);
     expect(stage.workingTreeRevision()).toBe(0);
+  });
+});
+
+/**
+ * 挂在可写检出位上的实例（US-314 B1.4）：当前分支是本事务那套表持有的分支，不是主检出位激活的那一条。
+ * 变更行记在别的分支名下，说明有写落到了不属于这套表的表里——捕获进当前分支的工作树就是一笔错账。
+ */
+describe('挂载点 1：挂在可写检出位上', () => {
+  const HELD = 'branch-held';
+  const TABLE_SET = WorktreeTableSet.of('wt_cap', []);
+
+  /** 主检出位停在 {@link BRANCH_ID}；本事务落在可写检出位那套表上，它持有 {@link HELD} */
+  const heldScene = (): CaptureScene => {
+    const stage = scene(undefined, TABLE_SET);
+    stage.probe.seed(RxDBBranch, [
+      { id: HELD, local: true, remote: false, activated: false, activeKey: TABLE_SET.holderKey }
+    ]);
+    stage.probe.seed(WorkingTreeState, [
+      { id: HELD, branchId: HELD, baseHeadCommitId: null, workingTreeRevision: 0, entryCount: 0, updatedAt: new Date() }
+    ]);
+    // 每套表各有一行激活态（US-314 B2.2）：令牌的 activationRevision 读这套表自己的那一行
+    stage.probe.seed(WorkingTreeActivationState, [
+      { id: TABLE_SET.holderKey, activationRevision: 0, branchGenerationSeq: 0 }
+    ]);
+    return stage;
+  };
+
+  it('令牌是那套表持有的分支：变更捕获进它的工作树', async () => {
+    const stage = heldScene();
+
+    await stage.runtime.interceptTransaction(stage.host, transactionNext(stage.probe, {}), async () => {
+      stage.appendChange({ id: 1, entityId: 'p1', branchId: HELD });
+    });
+
+    expect(stage.entries().map(entry => [entry.branchId, entry.entityId])).toEqual([[HELD, 'p1']]);
+  });
+
+  it('变更记在别的分支名下：拒绝捕获，工作树一行不落', async () => {
+    const stage = heldScene();
+
+    await expect(
+      stage.runtime.interceptTransaction(stage.host, transactionNext(stage.probe, {}), async () => {
+        stage.appendChange({ id: 1, entityId: 'p1', branchId: BRANCH_ID });
+      })
+    ).rejects.toThrow(/不是本实例的当前分支/);
+    expect(stage.entries()).toEqual([]);
+  });
+
+  // 主检出位上同一条判据照样生效：变更记在主检出位分支之外，同样是写落错了表
+  it('主表集上变更记在别的分支名下：同样拒绝', async () => {
+    const stage = scene();
+
+    await expect(
+      stage.runtime.interceptTransaction(stage.host, transactionNext(stage.probe, {}), async () => {
+        stage.appendChange({ id: 1, entityId: 'p1', branchId: HELD });
+      })
+    ).rejects.toThrow(/不是本实例的当前分支/);
+    expect(stage.entries()).toEqual([]);
+  });
+
+  // 持有分支不见了就是检出位已经关掉：不能退回主检出位的分支，那等于把这套表上的写记进别的分支的工作树
+  it('持有分支不见了：拒绝捕获，不退回主检出位的分支', async () => {
+    const stage = scene(undefined, TABLE_SET);
+
+    await expect(
+      stage.runtime.interceptTransaction(stage.host, transactionNext(stage.probe, {}), async () => {
+        stage.appendChange({ id: 1, entityId: 'p1', branchId: HELD });
+      })
+    ).rejects.toThrow(/持有的分支不见了/);
+    expect(stage.entries()).toEqual([]);
   });
 });
 
@@ -780,6 +854,16 @@ class CaptureRuntimeCache extends EntityBase {
   payload!: string;
 }
 
+/** 关闭变更日志的业务实体，形同 storage 插件的 `StorageFileMeta`（第四类 untracked）。 */
+@Entity({
+  name: 'CaptureRuntimeUnlogged',
+  log: false,
+  properties: [{ name: 'path', type: PropertyType.string }]
+})
+class CaptureRuntimeUnlogged extends EntityBase {
+  path!: string;
+}
+
 /**
  * 建域时的物理表名出处，形状与真适配器上的那个成员逐字相同。
  *
@@ -800,6 +884,22 @@ const namespaceFoldingAdapter = {
 
 describe('createWorkingTreeCaptureRuntime —— 按实体登记造域', () => {
   const databaseSync: SyncOptions = { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } };
+
+  it('安装后新增的物理表也进入 raw 门禁，不必重装捕获钩子', async () => {
+    const names = ['post'];
+    const runtime = createWorkingTreeCaptureRuntime(
+      { physicalTableNames: () => names },
+      entityManager,
+      [CaptureRuntimePost],
+      databaseSync
+    );
+    names.push('post_shadow');
+
+    await expect(runtime.gateRawWrite('DROP TABLE post_shadow', () => 'executed')).rejects.toMatchObject({
+      code: 'commit_capability_mismatch'
+    });
+    expect(runtime.domain.versionedTables.has('post_shadow')).toBe(true);
+  });
 
   it('实体自身的 sync 优先于库级：QueryCache 实体被判成 untracked，其余继承库级', () => {
     const runtime = createWorkingTreeCaptureRuntime(
@@ -839,6 +939,30 @@ describe('createWorkingTreeCaptureRuntime —— 按实体登记造域', () => {
     expect(logical.domain.versionedTables.has(physical)).toBe(false);
 
     await expect(folded.gateRawWrite(`UPDATE "${physical}" SET title = 'x'`, () => 'executed')).rejects.toThrow();
+  });
+
+  it('关闭变更日志的业务实体判成 untracked：三条入口口径一致', async () => {
+    // 事务写入口本来就捕获不到它（挂载点 1 只读变更日志增量，它一行都不写）；判成 tracked 的话，
+    // 批量写与 raw 写却按版本化表被拦——同一个实体在一条入口上进版本控制、在另一条上不进。
+    const runtime = createWorkingTreeCaptureRuntime(
+      logicalOnlyAdapter,
+      entityManager,
+      [CaptureRuntimePost, CaptureRuntimeCache, CaptureRuntimeUnlogged],
+      databaseSync
+    );
+    const table = getEntityMetadata(CaptureRuntimeUnlogged).tableName.toLowerCase();
+    const host = {} as WorkingTreeWriteHost;
+
+    expect(runtime.targetClassOf('CaptureRuntimeUnlogged')).toBe('untracked');
+    expect(runtime.targetClassOf('CaptureRuntimeCache')).toBe('untracked');
+    expect(runtime.targetClassOf('CaptureRuntimePost')).toBe('versioned');
+    expect(runtime.domain.versionedTables.has(table)).toBe(false);
+    expect(runtime.interceptBulkWrite(host, () => EMPTY, 'CaptureRuntimeUnlogged', 'upsert_many')).toBe(EMPTY);
+    await expect(runtime.gateRawWrite(`UPDATE "${table}" SET path = 'x'`, () => 'executed')).resolves.toBe('executed');
+    // 对照组：写变更日志的业务实体照旧被批量写门禁拦下。
+    expect(() => runtime.interceptBulkWrite(host, () => EMPTY, 'CaptureRuntimePost', 'upsert_many')).toThrow(
+      WorkingTreeWriteRejectedError
+    );
   });
 
   it('解析不出生效的同步配置时抛，不按「不是 QueryCache」继续', () => {
@@ -931,7 +1055,7 @@ describe('系统实体的判定域 —— 按身份而不是裸名，且不进�
 
     expect(runtime.targetClassOf('WorkingTreeEntry')).toBe('system');
     expect(runtime.targetClassOf('WorkingTreeEntry', 'rxdb')).toBe('system');
-    // 对照组：既不在域里、也不是系统表的名字默认 versioned（「没有第四类 untracked」）。
+    // 对照组：既不在域里、也不是系统表的名字默认 versioned（「四类之外一律版本化」）。
     expect(runtime.targetClassOf('NeverRegisteredEntity')).toBe('versioned');
   });
 });

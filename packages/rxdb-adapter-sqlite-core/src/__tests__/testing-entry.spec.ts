@@ -34,7 +34,8 @@ import {
   transactionSqliteResultSuite,
   treeIntegrationSuite,
   undoRedoSuite,
-  versionBranchSuite
+  versionBranchSuite,
+  worktreeTableSetSuite
 } from '../testing.js';
 
 const suiteExports = [
@@ -58,7 +59,8 @@ const suiteExports = [
   transactionSqliteResultSuite,
   treeIntegrationSuite,
   undoRedoSuite,
-  versionBranchSuite
+  versionBranchSuite,
+  worktreeTableSetSuite
 ];
 
 const backupSuiteExports = [
@@ -103,7 +105,7 @@ describe('testing subpath', () => {
   });
 
   it('exports every shared suite as a function', () => {
-    expect(suiteExports).toHaveLength(21);
+    expect(suiteExports).toHaveLength(22);
     for (const suite of suiteExports) expect(suite).toBeTypeOf('function');
   });
 

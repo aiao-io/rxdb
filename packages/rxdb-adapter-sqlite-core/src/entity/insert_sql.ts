@@ -1,14 +1,14 @@
-import type { EntityMetadata, EntityType, IEntity, IMutationContext } from '@aiao/rxdb';
+import type { EntityMetadata, EntityType, IEntity, IMutationContext, WorktreeTableSet } from '@aiao/rxdb';
 import { GenerateSqlResult } from '../query/query_sql.js';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
 import {
   EncryptionContext,
-  get_table_name_by_metadata,
   normalizeCreateEntity,
   quote_sql_identifier,
   ROWID,
   transformEntityValueToSql
 } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 
 /**
  * 生成插入 SQL 时的选项。
@@ -33,10 +33,11 @@ export const generate_upsert_clause = (primaryKeyColumn: string, columns: readon
  */
 export const generate_entity_insert_sql = async <T extends EntityType>(
   metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
   entity: InstanceType<T>,
   context?: InsertSqlOptions
 ): Promise<GenerateSqlResult> => {
-  const tableName = get_table_name_by_metadata(metadata);
+  const tableName = get_table_name_by_metadata(metadata, tableSet);
   const entityData: Partial<IEntity> = normalizeCreateEntity(metadata, entity);
   // normalizeCreateEntity 的产物**以物理列名为键**，所以补审计字段也必须按物理列名读写。
   // 按 JS 属性名写会在 `@Property({ columnName: 'created_at' })` 下多出第二个键，

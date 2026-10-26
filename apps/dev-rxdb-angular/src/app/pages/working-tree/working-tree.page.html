@@ -62,18 +62,31 @@
         }
       </div>
 
+      <app-working-tree-worktree-menu
+        class="gd-toolbar-section gd-worktree-section"
+        [(menuOpen)]="$worktreeMenuOpen"
+        [mainBranch]="$mainBranch()"
+        [mounted]="worktrees.mounted()"
+        [popupWidth]="$branchSectionWidth() < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : $branchSectionWidth()"
+        [records]="$worktreeRecords()"
+        (createRequest)="openNewWorktree()"
+        (deleteRequest)="requestDeleteWorktree($event)"
+        (menuRequest)="openWorktreeContextMenu($event)"
+        (renameRequest)="requestRenameWorktree($event)"
+        (selectMainWorktree)="selectMainWorktree()"
+        (selectWorktree)="selectWorktree($event)"
+      />
+
       <app-working-tree-branch-menu
         class="gd-toolbar-section gd-branch-section"
-        [(branchError)]="$branchError"
-        [(branchName)]="$newBranchName"
-        [(createOpen)]="$createPopoverOpen"
         [(menuOpen)]="$branchMenuOpen"
         [activeBranch]="$activeBranch()"
         [branches]="branches.value()"
         [popupWidth]="$branchSectionWidth() < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : $branchSectionWidth()"
         [style.width.px]="$branchSectionWidth()"
-        (createBranch)="createBranch($event)"
+        (createRequest)="openNewBranch()"
         (menuRequest)="openBranchContextMenu($event)"
+        (mergeRequest)="openMergeDialog(null)"
         (switchBranch)="switchBranch($event)"
       />
 
@@ -86,7 +99,6 @@
         class="gd-toolbar-refresh gd-toolbar-section"
         [style.width.px]="$fetchSectionWidth()"
         (click)="runFetch()"
-        aria-label="Fetch origin（重读本地状态与提交历史）"
         data-testid="wt-refresh-status"
         title="Fetch origin（重读本地状态与提交历史）"
         type="button"
@@ -166,12 +178,23 @@
             (commit)="runCommit()"
           />
         } @else {
-          <app-working-tree-history-list
-            [commitsState]="tree.listCommitsState()"
-            [selectedCommitId]="$selectedCommitId()"
-            (menuRequest)="openCommitContextMenu($event)"
-            (selectEntry)="selectCommit($event)"
+          <!-- GitHub Desktop 的 History 顶部：选一条分支对比；对比时收起提交列表，清除即回到历史 -->
+          <app-working-tree-history-compare
+            [activeBranch]="$activeBranch()"
+            [branches]="$otherBranchIds()"
+            [compare]="$historyCompare()"
+            (clearRequested)="clearCompare()"
+            (mergeRequest)="openMergeDialog($event)"
+            (selectBranch)="compareWith($event)"
           />
+          @if ($historyCompare() === null) {
+            <app-working-tree-history-list
+              [commitsState]="tree.listCommitsState()"
+              [selectedCommitId]="$selectedCommitId()"
+              (menuRequest)="openCommitContextMenu($event)"
+              (selectEntry)="selectCommit($event)"
+            />
+          }
         }
       </aside>
 
@@ -293,12 +316,54 @@
   <!-- ═══════════════════ 合并对话框 ═══════════════════ -->
   <app-working-tree-merge-dialog
     [activeBranch]="$activeBranch()"
+    [branches]="$otherBranchIds()"
+    [busy]="$worktreeBusy()"
     [dialog]="$mergeDialog()"
     [error]="$mergeError()"
+    [preview]="$mergePreview()"
     (closeRequested)="closeMergeDialog()"
     (confirm)="executeMerge()"
     (deleteSourceChange)="setDeleteSource($event)"
+    (sourceChange)="setMergeSource($event)"
     (strategyChange)="setMergeStrategy($event)"
+  />
+
+  <!-- ═══════════════════ 新建分支（GitHub Desktop 的 Create a branch） ═══════════════════ -->
+  <app-working-tree-create-branch-dialog
+    [(name)]="$createBranchName"
+    [activeBranch]="$activeBranch()"
+    [creating]="$creatingBranch()"
+    [dialog]="$createBranchDialog()"
+    [error]="$createBranchError()"
+    (closeRequested)="closeCreateBranchDialog()"
+    (confirmRequested)="confirmCreateBranch($event)"
+  />
+
+  <!-- ═══════════════════ 带着未提交改动切分支（GitHub Desktop 的 Switch branch） ═══════════════════ -->
+  <app-working-tree-switch-branch-dialog
+    [activeBranch]="$activeBranch()"
+    [dialog]="$switchDialog()"
+    [switching]="$switching()"
+    (closeRequested)="closeSwitchDialog()"
+    (confirmRequested)="confirmSwitchLeavingChanges()"
+  />
+
+  <app-working-tree-worktree-dialogs
+    [(createBranch)]="$worktreeCreateBranch"
+    [(createName)]="$worktreeCreateName"
+    [(renameName)]="$worktreeRenameName"
+    [activeBranch]="$activeBranch()"
+    [branches]="branches.value()"
+    [busy]="$worktreeBusy()"
+    [createOpen]="$worktreeCreateOpen()"
+    [deleteDirty]="$worktreeDeleteDirty()"
+    [deleteTarget]="$worktreeDeleteTarget()"
+    [error]="$worktreeCommandError()"
+    [renameTarget]="$worktreeRenameTarget()"
+    (closeRequested)="closeWorktreeDialogs()"
+    (confirmDelete)="confirmDeleteWorktree()"
+    (createConfirmed)="createWorktree($event)"
+    (renameConfirmed)="renameWorktree($event)"
   />
 
   <!-- ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ -->

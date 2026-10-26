@@ -16,7 +16,8 @@ import {
   RxDBBranch,
   RxDBSync,
   type SyncOptions,
-  SyncType
+  SyncType,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -301,7 +302,9 @@ describe('getRepositoriesToSync 资格判定（RXD-029）', () => {
 
     return {
       config: { entities: [BulkSyncFull, BulkSyncLocalOnly, BulkSyncDisabled], sync: SYNCED },
-      localAdapter$: of(localAdapter)
+      localAdapter$: of(localAdapter),
+      // 没换挂过的实例挂的是主表集，当前分支按它读（US-314 B1.4）
+      worktreeTableSet: WorktreeTableSet.MAIN
     } as unknown as RxDB;
   };
 

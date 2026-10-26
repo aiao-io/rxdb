@@ -20,7 +20,8 @@ import {
   assertUsableBranchId,
   InvalidBranchIdError,
   NoActiveBranchError,
-  resolveSingleActiveBranch
+  resolveSingleActiveBranch,
+  WorktreeBranchHeldError
 } from '../../system/active-branch-guard.js';
 import { RxDBBranch } from '../../system/branch.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
@@ -52,6 +53,9 @@ const createHost = (): ActiveBranchEntityHost =>
   ({ entityManager: { instantiate: () => ({}) as RxDBBranch } }) as unknown as { entityManager: EntityManager };
 
 const activeRow = (id: string): BranchRow => ({ id, activated: true, activeKey: ACTIVE_BRANCH_KEY });
+
+/** 可写检出位的持有键。形状由打开检出位的流程定，这里只要它既不是 NULL、也不是主检出位的哨兵 */
+const HOLDER_KEY = '*worktree:wt1*';
 
 describe('assertSingleActiveBranch', () => {
   it('恰好一行 active 时原样返回那一行', async () => {
@@ -132,6 +136,18 @@ describe('resolveSingleActiveBranch', () => {
     expect(update).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
   });
+
+  // 恢复目标是确定的 `main`，而 `main` 此刻在可写检出位手里：点亮它就是把持有键覆盖成哨兵，
+  // 那个检出位还以为分支是自己的。换一条分支点亮是替用户切分支，同样不行——只能拒。
+  it('零 active 而 main 被可写检出位持有：抛 WorktreeBranchHeldError，不抢持有键、一行都不改', async () => {
+    const main: BranchRow = { id: 'main', activated: false, activeKey: HOLDER_KEY };
+    const { executor, update, create } = createExecutor([main]);
+
+    await expect(resolveSingleActiveBranch(executor, createHost())).rejects.toBeInstanceOf(WorktreeBranchHeldError);
+    expect(update).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(main).toEqual({ id: 'main', activated: false, activeKey: HOLDER_KEY });
+  });
 });
 
 describe('守卫错误', () => {
@@ -162,6 +178,60 @@ describe('守卫错误', () => {
 
   it('哨兵键不是分支 id：它含有不合法的命名字符，不可能与任何分支撞上', () => {
     expect(ACTIVE_BRANCH_KEY).toBe('*active*');
+  });
+});
+
+// 「一条分支至多被一个检出位持有」（US-314 设计指点 2）。`activeKey` 有三种值：NULL 是没人持有，
+// 哨兵是主检出位持有，其余是某个可写检出位的持有键。主检出位要持有一条分支之前都得问这一句，
+// 而问法只能有一份：各写一份「哪些值算被占」，某一端把持有键当成空闲，就会悄悄把它覆盖成哨兵。
+describe('WorktreeBranchHeldError.throwIfHeld', () => {
+  it('分支空闲或已由主检出位持有时放行', () => {
+    expect(() => WorktreeBranchHeldError.throwIfHeld('feature-x', null)).not.toThrow();
+    expect(() => WorktreeBranchHeldError.throwIfHeld('feature-x', undefined)).not.toThrow();
+    expect(() => WorktreeBranchHeldError.throwIfHeld('feature-x', ACTIVE_BRANCH_KEY)).not.toThrow();
+  });
+
+  it('被可写检出位持有时抛错，带上分支 id 与持有键', () => {
+    let error: unknown;
+    try {
+      WorktreeBranchHeldError.throwIfHeld('feature-x', HOLDER_KEY);
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(WorktreeBranchHeldError);
+    expect(error).toMatchObject({
+      branchId: 'feature-x',
+      holderKey: HOLDER_KEY,
+      code: 'worktree_branch_held',
+      name: 'WorktreeBranchHeldError'
+    });
+    expect((error as Error).message).toBe(`Branch (feature-x) is already used by a worktree (${HOLDER_KEY}).`);
+  });
+
+  // 可写检出位要持有一条分支时，自己的键是持有键：主检出位的哨兵对它来说就是「别人」（US-314 B2）
+  it('带上调用方自己的持有键：自己持有的放行，主检出位的哨兵与别的持有键都算被占', () => {
+    expect(() => WorktreeBranchHeldError.throwIfHeld('feature-x', HOLDER_KEY, HOLDER_KEY)).not.toThrow();
+    expect(() => WorktreeBranchHeldError.throwIfHeld('feature-x', null, HOLDER_KEY)).not.toThrow();
+    expect(() => WorktreeBranchHeldError.throwIfHeld('feature-x', ACTIVE_BRANCH_KEY, HOLDER_KEY)).toThrow(
+      WorktreeBranchHeldError
+    );
+    expect(() => WorktreeBranchHeldError.throwIfHeld('feature-x', '*worktree:wt_other*', HOLDER_KEY)).toThrow(
+      WorktreeBranchHeldError
+    );
+  });
+});
+
+// 删分支要在事务里**返回**拒绝、事务外再抛，所以判定还有一个不抛的出口
+describe('WorktreeBranchHeldError.heldBy', () => {
+  it('没人持有或持有的就是自己时返回 null，否则返回带持有键的错误', () => {
+    expect(WorktreeBranchHeldError.heldBy('feature-x', null)).toBeNull();
+    expect(WorktreeBranchHeldError.heldBy('feature-x', ACTIVE_BRANCH_KEY)).toBeNull();
+    expect(WorktreeBranchHeldError.heldBy('feature-x', HOLDER_KEY, HOLDER_KEY)).toBeNull();
+    expect(WorktreeBranchHeldError.heldBy('feature-x', HOLDER_KEY)).toMatchObject({
+      branchId: 'feature-x',
+      holderKey: HOLDER_KEY
+    });
   });
 });
 

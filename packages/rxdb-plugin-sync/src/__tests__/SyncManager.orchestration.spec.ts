@@ -9,7 +9,7 @@
  * 本包要守的是**传过去的是不是原件**：选项与结果原样交出，两边的口径才不会漂。
  */
 
-import { RxDB, RxDBBranch, RxDBChange, RxDBPartialSyncError } from '@aiao/rxdb';
+import { RxDB, RxDBBranch, RxDBChange, RxDBError, RxDBPartialSyncError, WorktreeTableSet } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncManager } from '../SyncManager.js';
@@ -79,16 +79,20 @@ type AdapterStub = {
  * `syncing` 透传而不是吞掉：同步 guard 的语义是「包住它跑」，替身把回调丢掉的话，
  * 下面每一条 `expect(delegates.pull).toHaveBeenCalledWith(...)` 都会变成空断言。
  */
-const createBridge = () => ({
-  pushInFlight: { kind: 'push-in-flight' },
-  syncing: vi.fn(<T>(operation: () => Promise<T>) => operation()),
-  clearUndoHistory: vi.fn<() => void>(),
-  beginPullableSettlement: vi.fn<() => number>(() => 7),
-  settlePull: vi.fn<(token: number, options: unknown, result: unknown) => void>(),
-  settleAbortedPull: vi.fn<(token: number, pulled: number) => void>(),
-  reconcilePullableCount: vi.fn<(token: number, count: number) => void>(),
-  incrementPullableCount: vi.fn<(count: number) => void>()
-});
+const createBridge = () => {
+  const clearUndoHistory = vi.fn<() => void>();
+  return {
+    pushInFlight: { kind: 'push-in-flight' },
+    syncing: vi.fn(<T>(operation: () => Promise<T>) => operation()),
+    clearUndoHistory,
+    captureUndoHistory: vi.fn<(branchId: string) => () => void>(() => clearUndoHistory),
+    beginPullableSettlement: vi.fn<() => number>(() => 7),
+    settlePull: vi.fn<(token: number, options: unknown, result: unknown) => void>(),
+    settleAbortedPull: vi.fn<(token: number, pulled: number) => void>(),
+    reconcilePullableCount: vi.fn<(token: number, count: number) => void>(),
+    incrementPullableCount: vi.fn<(count: number) => void>()
+  };
+};
 
 type Bridge = ReturnType<typeof createBridge>;
 
@@ -114,6 +118,7 @@ function createRepository(): RepositoryStub {
 
 function createHarness(entities: unknown[] = []): Harness {
   const localBranchRepository = createRepository();
+  localBranchRepository.find.mockResolvedValue([{ id: 'main', activated: true }]);
   const localChangeRepository = createRepository();
   const remoteBranchRepository = createRepository();
   const remoteChangeRepository = createRepository();
@@ -136,6 +141,8 @@ function createHarness(entities: unknown[] = []): Harness {
       }
     },
     localAdapter$: of(localAdapter),
+    // 没换挂过的实例挂的是主表集，当前分支按它读（US-314 B1.4）
+    worktreeTableSet: WorktreeTableSet.MAIN,
     remoteAdapter$: of(remoteAdapter),
     connected$: of(false),
     addEventListener: vi.fn(),
@@ -681,5 +688,94 @@ describe('SyncManager 对协作模块的编排契约', () => {
 
       expect(history.clearUndoHistory).toHaveBeenCalledTimes(expected);
     });
+  });
+});
+
+/**
+ * owner 2026-10-21 定：多检出位下只有主检出位同步（US-314 B1.4）。
+ *
+ * 会和远端交换数据、或替同步收拾本地副本的入口，在实例挂在可写检出位上时一进门就拒绝：
+ * 不进 syncing 守卫、不碰下游实现、不动 undo 边界。只读的状态查询不在此列。
+ */
+describe('挂在可写检出位上的实例不同步（US-314 B1.4）', () => {
+  const SHADOW = WorktreeTableSet.of('wt_a1', []);
+
+  const mount = (harness: Harness, tableSet: WorktreeTableSet): void => {
+    Object.assign(harness.rxdb, { worktreeTableSet: tableSet });
+  };
+
+  type Delegate = keyof typeof doubles.delegates;
+  const GATED: ReadonlyArray<{
+    operation: string;
+    delegate: Delegate;
+    call: (manager: SyncManager) => Promise<unknown>;
+  }> = [
+    { operation: 'syncBranches', delegate: 'syncBranches', call: manager => manager.syncBranches() },
+    { operation: 'pull', delegate: 'pull', call: manager => manager.pull() },
+    { operation: 'push', delegate: 'push', call: manager => manager.push() },
+    { operation: 'sync', delegate: 'pull', call: manager => manager.sync() },
+    {
+      operation: 'pullRepository',
+      delegate: 'pullRepository',
+      call: manager => manager.pullRepository('public', 'Todo')
+    },
+    {
+      operation: 'pushRepository',
+      delegate: 'pushRepository',
+      call: manager => manager.pushRepository('public', 'Todo')
+    },
+    {
+      operation: 'syncRepository',
+      delegate: 'syncRepository',
+      call: manager => manager.syncRepository('public', 'Todo')
+    },
+    {
+      operation: 'cleanupExpired',
+      delegate: 'cleanupExpired',
+      call: manager => manager.cleanupExpired('public', 'Todo')
+    },
+    { operation: 'bulkSync', delegate: 'bulkSync', call: manager => manager.bulkSync() }
+  ];
+
+  it.each(GATED)('$operation 一进门就拒绝，下游一步都不跑', async ({ operation, delegate, call }) => {
+    const harness = createHarness();
+    mount(harness, SHADOW);
+
+    const error: unknown = await call(harness.manager).catch((rejection: unknown) => rejection);
+
+    expect(error).toBeInstanceOf(RxDBError);
+    expect((error as Error).message).toMatch(new RegExp(`^${operation}: .*可写检出位.*wt_a1`));
+    expect(doubles.delegates[delegate]).not.toHaveBeenCalled();
+    expect(harness.history.syncing).not.toHaveBeenCalled();
+    expect(harness.history.beginPullableSettlement).not.toHaveBeenCalled();
+    expect(harness.history.clearUndoHistory).not.toHaveBeenCalled();
+  });
+
+  it('只读的状态查询照常', async () => {
+    const harness = createHarness();
+    mount(harness, SHADOW);
+    doubles.delegates.checkRepositoryUpdates.mockResolvedValue({ hasUpdates: false, pendingCount: 0 });
+    doubles.delegates.getRepositorySyncStatus.mockResolvedValue({ enabled: true, pullableCount: 0 });
+    doubles.delegates.getAllRepositorySyncStatus.mockResolvedValue([]);
+
+    await harness.manager.checkRepositoryUpdates('public', 'Todo');
+    await harness.manager.getRepositorySyncStatus('public', 'Todo');
+    await harness.manager.getAllRepositorySyncStatus();
+
+    expect(doubles.delegates.checkRepositoryUpdates).toHaveBeenCalledTimes(1);
+    expect(doubles.delegates.getRepositorySyncStatus).toHaveBeenCalledTimes(1);
+    expect(doubles.delegates.getAllRepositorySyncStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it('挂回主检出位之后照常同步', async () => {
+    const harness = createHarness();
+    mount(harness, SHADOW);
+    await expect(harness.manager.pull()).rejects.toThrow(/可写检出位/);
+
+    mount(harness, WorktreeTableSet.MAIN);
+    doubles.delegates.pull.mockResolvedValue(createPullResult(0));
+    await harness.manager.pull();
+
+    expect(doubles.delegates.pull).toHaveBeenCalledTimes(1);
   });
 });

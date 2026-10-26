@@ -144,6 +144,9 @@ describe('execute_switch_actions 单元测试', () => {
       expect((result.rows[0] as { title: string }).title).toBe('updated-title');
     });
 
+    // 恢复这一步只重挂触发器、不写分支表（US-314 B1.3），失败只能出在重建触发器的 DDL 上。注入点挂在切换要删的那张
+    // 业务表上：删行时（此刻原触发器函数已经随「关触发器」删掉）用同名、返回类型不同的函数占住它的名字，恢复那一步的
+    // `CREATE OR REPLACE FUNCTION … RETURNS TRIGGER` 就必然失败，只能整条回滚。
     it('恢复 trigger 失败时回滚切换 DML 并保留原 trigger', async () => {
       const todo = new Todo({ title: 'must-survive' });
       await todo.save();
@@ -151,14 +154,15 @@ describe('execute_switch_actions 单元测试', () => {
         CREATE OR REPLACE FUNCTION "rxdb"."fail_switch_actions"()
         RETURNS TRIGGER AS $$
         BEGIN
-          RAISE EXCEPTION 'injected switch action failure';
+          EXECUTE 'CREATE FUNCTION "public"."todos_change_trigger_fn"() RETURNS integer LANGUAGE sql AS $body$ SELECT 1 $body$';
+          RETURN OLD;
         END;
         $$ LANGUAGE plpgsql
       `);
       await adapter.query(`
         CREATE TRIGGER "fail_switch_actions_trigger"
-        BEFORE UPDATE ON "rxdb"."rxdb_branch"
-        FOR EACH STATEMENT EXECUTE FUNCTION "rxdb"."fail_switch_actions"()
+        BEFORE DELETE ON "public"."todos"
+        FOR EACH ROW EXECUTE FUNCTION "rxdb"."fail_switch_actions"()
       `);
 
       const actions = emptyActions();
@@ -170,15 +174,20 @@ describe('execute_switch_actions 单元测试', () => {
 
       try {
         await expect(execute_switch_actions(adapter, switchAction, undefined, true)).rejects.toThrow(
-          'injected switch action failure'
+          /cannot change return type/
         );
       } finally {
-        await adapter.query(`DROP TRIGGER IF EXISTS "fail_switch_actions_trigger" ON "rxdb"."rxdb_branch"`);
+        await adapter.query(`DROP TRIGGER IF EXISTS "fail_switch_actions_trigger" ON "public"."todos"`);
         await adapter.query(`DROP FUNCTION IF EXISTS "rxdb"."fail_switch_actions"()`);
       }
 
       const existing = await adapter.internalQuery(`SELECT id FROM "public"."todos" WHERE id = $1`, [todo.id]);
       expect(existing.rows).toHaveLength(1);
+      // 分支表也跟着回滚了：main 还在、还是激活的
+      const branches = await adapter.internalQuery<{ id: string; activated: boolean }>(
+        `SELECT "id", "activated" FROM "rxdb"."rxdb_branch" ORDER BY "id"`
+      );
+      expect(branches.rows).toEqual([{ id: 'main', activated: true }]);
 
       const after = new Todo({ title: 'trigger-still-alive' });
       await after.save();

@@ -7,6 +7,7 @@ import {
   RelationKind,
   RxDB,
   SyncType,
+  WorktreeTableSet,
   type EntityType
 } from '@aiao/rxdb';
 import {
@@ -175,7 +176,11 @@ const flattenJoins = (context: JoinContext): FlatJoin[] => {
   const joins: FlatJoin[] = [];
   for (const [metadata, options] of context.joinMap.entries()) {
     for (const option of options) {
-      joins.push({ table: get_table_name_by_metadata(metadata), alias: option.joinTableName, on: option.on });
+      joins.push({
+        table: get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN),
+        alias: option.joinTableName,
+        on: option.on
+      });
     }
   }
   return joins;
@@ -321,7 +326,10 @@ describe('join_sql', () => {
 
       const joins = flattenJoins(context);
       expect(joins).toHaveLength(2);
-      const junctionTable = get_table_name_by_metadata(getEntityMetadata(relation.junctionEntityType!));
+      const junctionTable = get_table_name_by_metadata(
+        getEntityMetadata(relation.junctionEntityType!),
+        WorktreeTableSet.MAIN
+      );
       const mappedColumnName = (mappedRelation!.relation as EntityRelationManyToManyMetadata).columnName;
       expect(joins).toContainEqual({
         table: junctionTable,

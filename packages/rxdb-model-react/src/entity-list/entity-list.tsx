@@ -30,6 +30,7 @@ import {
   commitRowMove,
   defaultListOrderBy,
   deriveEntityCapabilities,
+  describeHistoryBarrier,
   extractFieldsFromMetadata,
   organizeFields,
   parsePropertyColumnValue,
@@ -52,7 +53,7 @@ import type { ListTableConstructorOptions } from '@visactor/vtable';
 import type { ColumnDefine } from '@visactor/vtable/es/ts-types/index.js';
 import { Funnel, Redo2, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react';
-import { of } from 'rxjs';
+import { of, type ObservedValueOf } from 'rxjs';
 import { Dialog } from '../dialog/dialog';
 import { EntityDetail, type EntityDetailDialogData } from '../entity-detail/entity-detail';
 import { EntityDialog } from '../entity-dialog/entity-dialog';
@@ -142,6 +143,8 @@ const DEFAULT_HISTORY_FALLBACK: HistoryScopeAPI = {
   count$: of(0),
   undoCount$: of(0),
   redoCount$: of(0),
+  undoBarrier$: of(null),
+  redoBarrier$: of(null),
   undo: async () => undefined,
   redo: async () => undefined
 };
@@ -299,8 +302,8 @@ export function EntityList({
 
   /** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined`。 */
   const capabilities = useMemo(
-    () => (entityCls ? deriveEntityCapabilities(getEntityMetadata(entityCls)) : undefined),
-    [entityCls]
+    () => (entityCls ? deriveEntityCapabilities(getEntityMetadata(entityCls), { readOnly: rxdb.readOnly }) : undefined),
+    [entityCls, rxdb]
   );
   const isRowReadonly = capabilities?.canEdit === false;
 
@@ -312,16 +315,22 @@ export function EntityList({
 
   const [undoCount, setUndoCount] = useState(0);
   const [redoCount, setRedoCount] = useState(0);
+  const [undoBarrier, setUndoBarrier] = useState<ObservedValueOf<HistoryScopeAPI['undoBarrier$']>>(null);
+  const [redoBarrier, setRedoBarrier] = useState<ObservedValueOf<HistoryScopeAPI['redoBarrier$']>>(null);
   useEffect(() => {
-    const undoSubscription = vHistory.undoCount$.subscribe(setUndoCount);
-    const redoSubscription = vHistory.redoCount$.subscribe(setRedoCount);
-    return () => {
-      undoSubscription.unsubscribe();
-      redoSubscription.unsubscribe();
-    };
+    const subscriptions = [
+      vHistory.undoCount$.subscribe(setUndoCount),
+      vHistory.redoCount$.subscribe(setRedoCount),
+      vHistory.undoBarrier$.subscribe(setUndoBarrier),
+      vHistory.redoBarrier$.subscribe(setRedoBarrier)
+    ];
+    return () => subscriptions.forEach(subscription => subscription.unsubscribe());
   }, [vHistory]);
   const canUndo = undoCount > 0;
   const canRedo = redoCount > 0;
+  // 按钮停用时的说明：栈停在子分支分叉点（US-315）；能撤销 / 重做或不是这个原因时没有
+  const undoHint = canUndo ? null : describeHistoryBarrier('undo', undoBarrier);
+  const redoHint = canRedo ? null : describeHistoryBarrier('redo', redoBarrier);
 
   // ── 列表资源注册表（ListSlot 写入；事件/回调路径经 ref 镜像读取）───────
   const [listResources, setListResources] = useState<ReadonlyMap<string, InfiniteScrollResource<EntityType>>>(
@@ -441,6 +450,7 @@ export function EntityList({
       cache.set(
         `${meta.namespace}:${meta.name}`,
         buildEditableColumns(meta, {
+          readOnly: rxdb.readOnly,
           relatedItemsProviderFactory: (fkField, relatedEntityName) => {
             const relCls = [...entityClsMap.values()].find(c => getEntityMetadata(c).name === relatedEntityName);
             if (!relCls) return undefined;
@@ -938,6 +948,7 @@ export function EntityList({
               <button
                 className='btn btn-xs btn-ghost'
                 disabled={!canUndo}
+                title={undoHint ?? undefined}
                 onClick={undo}
                 aria-label='撤销 (Ctrl+Z)'
                 type='button'
@@ -948,6 +959,7 @@ export function EntityList({
               <button
                 className='btn btn-xs btn-ghost'
                 disabled={!canRedo}
+                title={redoHint ?? undefined}
                 onClick={redo}
                 aria-label='重做 (Ctrl+Shift+Z)'
                 type='button'

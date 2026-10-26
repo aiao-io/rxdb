@@ -268,6 +268,10 @@ export function updateReadme(text, counts) {
 
 const ROADMAP_OPEN_COUNT = /仓库还剩 \*\*(\d+) 条\*\*未关闭故事（(\d+) In Progress \+ (\d+) In Review \+ (\d+) Backlog/;
 
+/** roadmap「现状快照」表的五态行，首列原文与 status-overview 汇总表相同；末行是加粗的未完成合计，另配正则。 */
+const ROADMAP_SNAPSHOT_ROWS = SUMMARY_ROWS.filter(([, key]) => key !== 'total');
+const ROADMAP_OPEN_TOTAL_ROW = /^(\| \*\*未完成合计\*\*\s*\| )(\*\*(\d+)\*\*)(\s*\|)[ \t]*$/m;
+
 /**
  * 校验 `roadmap.md`：未关闭故事的条数与分项，以及**每条未关闭故事都在排期里露过面**。
  *
@@ -293,6 +297,17 @@ export function checkRoadmap(text, stories) {
       if (Number(m[i + 1]) !== want) offenders.push(`roadmap.md: 「${labels[i]}」写 ${m[i + 1]}，YAML 推导为 ${want}`);
     }
   }
+  // 现状快照表与上面那句是同一组数。只查那一句的话，手改时漏掉表里的格子不会报（RV-083 P1-1：表写 1 / 29，句子写 2 / 30）
+  for (const [label, key] of ROADMAP_SNAPSHOT_ROWS) {
+    const row = summaryRowRegex(label).exec(text);
+    if (!row) offenders.push(`roadmap.md: 现状快照缺「${label}」行`);
+    else if (Number(row[2]) !== counts[key])
+      offenders.push(`roadmap.md: 现状快照「${label}」写 ${row[2]}，YAML 推导为 ${counts[key]}`);
+  }
+  const total = ROADMAP_OPEN_TOTAL_ROW.exec(text);
+  if (!total) offenders.push('roadmap.md: 现状快照缺「**未完成合计**」行');
+  else if (Number(total[3]) !== open)
+    offenders.push(`roadmap.md: 现状快照「未完成合计」写 ${total[3]}，YAML 推导为 ${open}`);
   for (const { id, fm } of stories) {
     if (fm.status === 'Done') continue;
     if (!new RegExp(`\\b${escapeRegex(id)}\\b`).test(text))
@@ -301,13 +316,27 @@ export function checkRoadmap(text, stories) {
   return offenders;
 }
 
-/** @param {string} text @param {Record<string, number>} counts */
+/**
+ * 回写 roadmap 的未关闭那句与现状快照表；表格同 {@link updateStatusOverview}，只改数字、不动列宽。
+ *
+ * @param {string} text @param {Record<string, number>} counts
+ */
 export function updateRoadmap(text, counts) {
   const open = counts.total - counts.Done;
-  return text.replace(
+  let next = text.replace(
     ROADMAP_OPEN_COUNT,
     `仓库还剩 **${open} 条**未关闭故事（${counts['In Progress']} In Progress + ${counts['In Review']} In Review + ${counts.Backlog} Backlog`
   );
+  for (const [label, key] of ROADMAP_SNAPSHOT_ROWS) {
+    next = next.replace(summaryRowRegex(label), (_m, head, digits, tail) => {
+      const cell = String(counts[key]).padEnd(digits.length + tail.length - 1);
+      return `${head}${cell}|`;
+    });
+  }
+  return next.replace(ROADMAP_OPEN_TOTAL_ROW, (_m, head, bold, _digits, tail) => {
+    const cell = `**${open}**`.padEnd(bold.length + tail.length - 1);
+    return `${head}${cell}|`;
+  });
 }
 
 /**

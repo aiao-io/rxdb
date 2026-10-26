@@ -18,7 +18,7 @@ test('超过时限先 SIGTERM，并标记为超时', async () => {
 test('SIGTERM 被吞掉时，宽限期后 SIGKILL', { skip: process.platform === 'win32' }, async () => {
   const started = Date.now();
   const result = await node("process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)", {
-    deadlineMs: 100,
+    deadlineMs: 1000,
     graceMs: 200
   });
   assert.deepEqual(result, { code: null, signal: 'SIGKILL', timedOut: true });

@@ -30,6 +30,7 @@ interface RxDBChangeRepositorySource {
 }
 
 import type { SyncManager } from './SyncManager.js';
+import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 
 /**
  * 过期数据清理选项
@@ -193,6 +194,8 @@ export async function cleanupExpired(
   // 此前是「事务外查一次 → 按旧快照无条件删」：查询后若用户把记录更新回满足 filter，
   // 仍会被删掉，是稳定可复现的数据破坏。
   return localAdapter.transaction(async executor => {
+    // 实例可能已经换挂到了可写检出位：本事务落在那套表上就一行都不删（US-314 B1.4）
+    assertSyncOnMainCheckout(executor.tableSet, 'cleanupExpired');
     // 仓库必须在事务体**内**经 executor 获取：事务外取到的句柄绑定在适配器上，
     // 其读写会重新排队并排在自己这个事务后面
     const repo = executor.getRepository(EntityType);

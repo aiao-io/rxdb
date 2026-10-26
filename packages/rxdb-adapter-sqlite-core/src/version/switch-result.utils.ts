@@ -25,7 +25,7 @@
  * `unenvelopePlaintextPatches` 都指向核心 / `@aiao/rxdb-adapter-encrypted` 的同一份实现，
  * 不是各写一遍。新增逻辑先问一句「这一格与方言有关吗」——无关的往那两处放。
  */
-import type { EntityData, EntityMetadata, RxDBEntityId, SwitchVersionActions } from '@aiao/rxdb';
+import type { EntityData, EntityMetadata, RxDBEntityId, SwitchVersionActions, WorktreeTableSet } from '@aiao/rxdb';
 import { orderExclusionUpdates, ordersWritesForExclusion, parseRxDBChangeKey } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { generate_entity_insert_sql } from '../entity/insert_sql.js';
@@ -34,7 +34,6 @@ import type { SQLiteCompatibleType, SqliteSuccessResult } from '../sqlite-core.i
 import {
   chunkBySqliteBindLimit,
   get_primary_key_column,
-  get_table_name_by_metadata,
   getSwitchUpdatedAt,
   normalizeUpdateEntity,
   quote_sql_identifier,
@@ -42,6 +41,7 @@ import {
   transformValueSqliteToJs
 } from '../sqlite-core.utils.js';
 import { unenvelopePlaintextPatches } from '../system/encrypt-patch.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 
 const decryptEntityDataForApply = async (
   adapter: RxDBAdapterSqliteBase,
@@ -124,8 +124,12 @@ const toSqliteStatement = (statement: { sql: string; params?: SQLiteCompatibleTy
 
 const placeholders = (count: number): string => Array.from({ length: count }, () => '?').join(',');
 
-const buildSelectStatements = (metadata: EntityMetadata, ids: Set<RxDBEntityId>): SqliteStatement[] | undefined => {
-  const tableName = quote_sql_identifier(get_table_name_by_metadata(metadata));
+const buildSelectStatements = (
+  metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
+  ids: Set<RxDBEntityId>
+): SqliteStatement[] | undefined => {
+  const tableName = quote_sql_identifier(get_table_name_by_metadata(metadata, tableSet));
   const statements = chunkBySqliteBindLimit(Array.from(ids)).map(params => ({
     sql: `SELECT _.rowid as ${quote_sql_identifier(ROWID)}, _.* FROM ${tableName} _ WHERE _.${quote_sql_identifier(get_primary_key_column(metadata))} in (${placeholders(params.length)});`,
     params
@@ -156,10 +160,35 @@ const getMetadata = (adapter: RxDBAdapterSqliteBase, key: string): EntityMetadat
 const hasNoWritableColumn = (metadata: EntityMetadata, patch: EntityData): boolean =>
   Object.keys(normalizeUpdateEntity(metadata, patch)).length === 0;
 
+/** {@link convertSwitchResultToSql} 的选项。 */
+export interface SwitchSqlOptions {
+  /**
+   * 加密列按信封原样写：不解密也不加密，遇到明文直接抛（只读检出位建快照，US-313）。
+   *
+   * @remarks
+   * 快照库的密文必须是主库信封的逐字节拷贝；解开再加密会换掉随机数，还要求密钥环已解锁。
+   */
+  readonly envelopePassthrough?: boolean;
+  /**
+   * 写到哪一套业务表上；不给就是适配器所属实例挂着的那一套。
+   *
+   * @remarks
+   * 给可写检出位播种时（US-314 B1.5）实例还挂在主表集上，增量要落进正在建的那套影子表。
+   */
+  readonly tableSet?: WorktreeTableSet;
+}
+
 export const convertSwitchResultToSql = async (
   adapter: RxDBAdapterSqliteBase,
-  actions: SwitchVersionActions
+  actions: SwitchVersionActions,
+  options: SwitchSqlOptions = {}
 ): Promise<SwitchVersionSqlResult> => {
+  const passthrough = options.envelopePassthrough === true;
+  const tableSet = options.tableSet ?? adapter.tableSet;
+  const encryption =
+    passthrough ? { ...adapter.encryptionContext, envelopePassthrough: true } : adapter.encryptionContext;
+  const prepareEntityData = async (metadata: EntityMetadata, entityData: EntityData): Promise<EntityData> =>
+    passthrough ? entityData : decryptEntityDataForApply(adapter, metadata, entityData);
   const result: SwitchVersionSqlResult = { deletes: [], inserts: [], updates: [] };
 
   const deleteIdsByEntity = new Map<string, Set<RxDBEntityId>>();
@@ -178,7 +207,7 @@ export const convertSwitchResultToSql = async (
 
   for (const [key, ids] of deleteIdsByEntity) {
     const metadata = getMetadata(adapter, key);
-    const tableName = quote_sql_identifier(get_table_name_by_metadata(metadata));
+    const tableName = quote_sql_identifier(get_table_name_by_metadata(metadata, tableSet));
     const statements = chunkBySqliteBindLimit(Array.from(ids)).map(params => ({
       sql: `DELETE FROM ${tableName} WHERE ${quote_sql_identifier(get_primary_key_column(metadata))} in (${placeholders(params.length)});`,
       params
@@ -210,20 +239,20 @@ export const convertSwitchResultToSql = async (
     const metadata = getMetadata(adapter, key);
     const statements: SqliteStatement[] = [];
     for (const rawEntity of rawEntities) {
-      const entityData = await decryptEntityDataForApply(adapter, metadata, rawEntity);
+      const entityData = await prepareEntityData(metadata, rawEntity);
       for (const [propertyName, property] of metadata.propertyMap) {
         if (entityData[propertyName] === undefined && property.default !== undefined) {
           entityData[propertyName] = typeof property.default === 'function' ? property.default() : property.default;
         }
       }
-      const statement = await generate_entity_insert_sql(metadata, entityData, {
+      const statement = await generate_entity_insert_sql(metadata, tableSet, entityData, {
         useReplace: true,
-        encryption: adapter.encryptionContext
+        encryption
       });
       statements.push(toSqliteStatement(statement));
     }
     const ids = new Set(rawEntities.map(entity => entity['id'] as RxDBEntityId));
-    const selectStatements = buildSelectStatements(metadata, ids);
+    const selectStatements = buildSelectStatements(metadata, tableSet, ids);
     result.inserts.push({
       metadata,
       ids,
@@ -275,7 +304,7 @@ export const convertSwitchResultToSql = async (
       changes.get(entity['id'] as RxDBEntityId)
     );
     for (const rawEntity of orderedEntities) {
-      const entityData = await decryptEntityDataForApply(adapter, metadata, rawEntity);
+      const entityData = await prepareEntityData(metadata, rawEntity);
       const { id, ...patch } = entityData;
       if (hasNoWritableColumn(metadata, patch)) continue;
       // 目标状态的 updatedAt（patch）与被替换状态的 updatedAt（inversePatch）都只是水位输入，
@@ -292,8 +321,8 @@ export const convertSwitchResultToSql = async (
       // PGlite 的同名文件也不展开 —— 这里曾经是唯一的例外。
       statements.push(
         toSqliteStatement(
-          await update_sql(metadata, { id }, patch, {
-            encryption: adapter.encryptionContext,
+          await update_sql(metadata, tableSet, { id }, patch, {
+            encryption,
             updatedAt
           })
         )
@@ -305,7 +334,7 @@ export const convertSwitchResultToSql = async (
       metadata,
       ids,
       statements,
-      selectStatements: buildSelectStatements(metadata, ids),
+      selectStatements: buildSelectStatements(metadata, tableSet, ids),
       changes,
       beforeInserts: ordersWritesForExclusion(metadata)
     });

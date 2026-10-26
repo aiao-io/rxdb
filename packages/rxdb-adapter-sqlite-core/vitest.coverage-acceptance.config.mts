@@ -242,6 +242,9 @@ const createRunConfig = (suiteName: SuiteName): ViteUserConfig => {
         workspaceRoot,
         `node_modules/.vite/packages/rxdb-adapter-sqlite-core-coverage-${suiteName}-runner`
       ),
+      define: {
+        'import.meta.env.SQLITE_CORE_COVERAGE_SUITE': JSON.stringify(suiteName)
+      },
       resolve: createResolveConfig(),
       server: createServerConfig(),
       optimizeDeps: {

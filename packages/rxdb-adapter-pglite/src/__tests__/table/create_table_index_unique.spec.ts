@@ -1,4 +1,4 @@
-import { Entity, EntityBase, PropertyType, RxDB, SyncType, getEntityMetadata } from '@aiao/rxdb';
+import { Entity, EntityBase, getEntityMetadata, PropertyType, RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../../index.js';
 import generate_table_create_sql from '../../table/create_table_sql.js';
@@ -44,7 +44,7 @@ describe('create_table_sql - 唯一索引 (PGlite)', () => {
     await rxdb.connect('pglite');
 
     const metadata = getEntityMetadata(UniqueIdx);
-    const sql = generate_table_create_sql(adapter as RxDBAdapterPGlite, metadata);
+    const sql = generate_table_create_sql(adapter as RxDBAdapterPGlite, metadata, WorktreeTableSet.MAIN);
 
     expect(sql).toContain('CREATE UNIQUE INDEX "idx_UniqueIdx_parent_name"');
     expect(sql).toContain('"parentId"');
@@ -98,7 +98,11 @@ describe('create_table_sql - 唯一索引 (PGlite)', () => {
     const adapter = await rxdb.getAdapter('pglite');
     await rxdb.connect('pglite');
 
-    const sql = generate_table_create_sql(adapter as RxDBAdapterPGlite, getEntityMetadata(NormalizedIdx));
+    const sql = generate_table_create_sql(
+      adapter as RxDBAdapterPGlite,
+      getEntityMetadata(NormalizedIdx),
+      WorktreeTableSet.MAIN
+    );
 
     expect(sql).toContain('CREATE UNIQUE INDEX "idx_NormalizedIdx_parent_fullname"');
     expect(sql).toContain(

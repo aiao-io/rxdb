@@ -8,11 +8,13 @@ import {
   RxDBEntityLocalCreatedEventData,
   RxDBEntityLocalRemovedEventData,
   RxDBEntityLocalUpdatedEventData,
-  toStorageConstraintViolationError
+  toStorageConstraintViolationError,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
-import { get_sql_value, get_table_name_by_metadata, quote_sql_identifier } from '../sqlite-core.utils.js';
+import { get_sql_value, quote_sql_identifier } from '../sqlite-core.utils.js';
 import { envelopePlaintextPatches } from '../system/encrypt-patch.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import { remove_entity_ids_from_cache, transaction_sqlite_result } from '../transaction_sqlite_result.js';
 import {
   executeSqliteSelectStatements,
@@ -126,10 +128,15 @@ export async function execute_switch_actions(
 
 /**
  * 发送 switch 操作对应的本地事件
+ *
+ * @param adapter - SQLite 适配器
+ * @param switchAction - 已执行的切换 SQL
+ * @param tableSet - 这批写落在哪套表上，缺省是派发时本实例挂的那套；事件按它打上表集标记（US-314 B2.3）
  */
 export async function dispatch_switch_events(
   adapter: RxDBAdapterSqliteBase,
-  switchAction: SwitchVersionSqlResult
+  switchAction: SwitchVersionSqlResult,
+  tableSet: WorktreeTableSet = adapter.tableSet
 ): Promise<void> {
   // DELETE 事件
   for (const deleteAction of switchAction.deletes) {
@@ -146,7 +153,8 @@ export async function dispatch_switch_events(
         id,
         patch: null,
         inversePatch: change?.inversePatch ?? {},
-        recordAt: new Date()
+        recordAt: new Date(),
+        ...tableSet.eventTagOf(metadata)
       };
     });
     adapter.rxdb.dispatchEvent(new EntityLocalRemovedEvent(events));
@@ -171,7 +179,8 @@ export async function dispatch_switch_events(
         id: entity.id,
         patch: change?.patch ?? { ...entity },
         inversePatch: null,
-        recordAt: entity.createdAt
+        recordAt: entity.createdAt,
+        ...tableSet.eventTagOf(metadata)
       };
     });
     adapter.rxdb.dispatchEvent(new EntityLocalCreatedEvent(events));
@@ -193,7 +202,8 @@ export async function dispatch_switch_events(
         id: entity.id,
         patch: change?.patch ?? { ...entity },
         inversePatch: change?.inversePatch ?? {},
-        recordAt: entity.updatedAt || entity.createdAt || new Date()
+        recordAt: entity.updatedAt || entity.createdAt || new Date(),
+        ...tableSet.eventTagOf(metadata)
       };
     });
     adapter.rxdb.dispatchEvent(new EntityLocalUpdatedEvent(events));
@@ -211,7 +221,7 @@ async function buildLocalChangesSql(
   localChanges: Omit<RxDBChange, 'id'>[]
 ): Promise<string> {
   const rxDBChangeMetadata = getEntityMetadata(RxDBChange);
-  const tableName = get_table_name_by_metadata(rxDBChangeMetadata);
+  const tableName = get_table_name_by_metadata(rxDBChangeMetadata, WorktreeTableSet.MAIN);
   const columns = [
     'type',
     'namespace',

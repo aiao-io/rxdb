@@ -10,11 +10,13 @@ import {
   RXDB_SYSTEM_SCHEMA_VERSION,
   RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
   RxDBBackupError,
-  RxDBMigration
+  RxDBMigration,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import type { SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interface.js';
 import type { SqliteClientLike } from '../sqlite-core.types.js';
-import { get_table_name_by_metadata, quote_sql_identifier, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { quote_sql_identifier, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import {
   assertSqliteSchemaSql,
   SQLITE_BACKUP_SCHEMA_VERSION,
@@ -259,7 +261,9 @@ export const readSqliteSystemVersionState = async (
   executor: SqliteBackupExecutor,
   otherwise: SqliteBackupSqlFailure
 ): Promise<RxDBSystemVersionState> => {
-  const migrationTable = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(RxDBMigration)));
+  const migrationTable = quote_sql_identifier(
+    get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+  );
   const rows = await selectSqliteRows(
     executor,
     `SELECT "name" FROM ${migrationTable} WHERE substr("name", 1, ?) = ? OR substr("name", 1, ?) = ?`,

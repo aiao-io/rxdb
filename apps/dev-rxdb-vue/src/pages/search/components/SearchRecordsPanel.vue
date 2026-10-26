@@ -34,7 +34,8 @@ const emit = defineEmits<{
     >
       <span class="flex items-center gap-2 text-sm font-medium">
         <svg
-          :class="`transition-transform${!collapsed ? 'rotate-90' : ''}`"
+          class="transition-transform"
+          :class="{ 'rotate-90': !collapsed }"
           fill="none"
           height="14"
           stroke="currentColor"
@@ -64,9 +65,10 @@ const emit = defineEmits<{
           role="tablist"
         >
           <button
+            class="tab text-base-content"
             v-for="tab in ['article', 'comment'] as const"
             :aria-selected="activeTab === tab"
-            :class="`tab text-base-content${activeTab === tab ? 'tab-active' : ''}`"
+            :class="{ 'tab-active': activeTab === tab }"
             :data-testid="`search-tab-${tab}`"
             :key="tab"
             @click="emit('update:activeTab', tab)"

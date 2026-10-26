@@ -9,11 +9,13 @@
  * @packageDocumentation
  */
 
-import { FTS_BIGRAM_SQL_FUNCTION } from '@aiao/rxdb-adapter-sqlite-core';
+import type { EntityMetadata, WorktreeTableSet } from '@aiao/rxdb';
+import { FTS_BIGRAM_SQL_FUNCTION, get_table_name_by_metadata } from '@aiao/rxdb-adapter-sqlite-core';
 
 import { ftsMigrationName, type FtsInstallPlan } from '../core/fts5-installer.js';
 import {
   installFtsForEntity,
+  installFtsForTableSet,
   type InstallFtsResult,
   type MigrationRecordStore,
   type RuntimeSqlExecutor
@@ -75,5 +77,10 @@ export const createFts5Backend = (): SearchBackend => ({
     executor: RuntimeSqlExecutor,
     migrationStore: MigrationRecordStore
   ): Promise<InstallFtsResult> => installFtsForEntity(plan, executor, migrationStore),
+  // 影子表的物理名带 `$<后缀>`，虚拟表 `_fts_<物理表名>` 与三个触发器跟着它走，各套表各有一份
+  bindPlan: (plan: FtsInstallPlan, metadata: EntityMetadata, tableSet: WorktreeTableSet): Promise<FtsInstallPlan> =>
+    Promise.resolve({ ...plan, sqlTableName: get_table_name_by_metadata(metadata, tableSet) }),
+  installForTableSet: (plan: FtsInstallPlan, executor: RuntimeSqlExecutor): Promise<InstallFtsResult> =>
+    installFtsForTableSet(plan, executor),
   createEngine: (executor: FtsExecutor): SearchEngine => createSearchEngine(executor)
 });

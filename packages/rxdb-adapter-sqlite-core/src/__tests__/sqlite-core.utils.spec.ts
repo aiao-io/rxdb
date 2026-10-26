@@ -2,6 +2,7 @@ import {
   PropertyType,
   RelationKind,
   transitionMetadata,
+  WorktreeTableSet,
   type EntityMetadata,
   type EntityPropertyMetadata,
   type EntityPropertyMetadataOptions,
@@ -504,18 +505,20 @@ describe('sqlite.utils', () => {
     it('索引名应带 namespace，与表名同口径', () => {
       const metadata = { name: 'User', tableName: 'user', namespace: 'public' } as EntityMetadata;
       const property = { name: 'email' } as EntityPropertyMetadata;
-      expect(getTableColumnIndexName(metadata, property)).toBe('idx_public$user_email');
+      expect(getTableColumnIndexName(metadata, property, WorktreeTableSet.MAIN)).toBe('idx_public$user_email');
     });
 
     it('同名实体在不同 namespace 下不得撞索引名', () => {
       const property = { name: 'email' } as EntityPropertyMetadata;
       const a = getTableColumnIndexName(
         { name: 'User', tableName: 'user', namespace: 'a' } as EntityMetadata,
-        property
+        property,
+        WorktreeTableSet.MAIN
       );
       const b = getTableColumnIndexName(
         { name: 'User', tableName: 'user', namespace: 'b' } as EntityMetadata,
-        property
+        property,
+        WorktreeTableSet.MAIN
       );
       expect(a).not.toBe(b);
     });
@@ -969,7 +972,7 @@ describe('sqlite.utils', () => {
 
   describe('get_table_name_by_entity_type', () => {
     it('应该从实体类元数据生成表名', () => {
-      expect(get_table_name_by_entity_type(Todo)).toBe('public$todos');
+      expect(get_table_name_by_entity_type(Todo, WorktreeTableSet.MAIN)).toBe('public$todos');
     });
   });
 

@@ -1,12 +1,12 @@
-import type { EntityMetadata, IEntity, IMutationContext, RxDBEntityId } from '@aiao/rxdb';
+import type { EntityMetadata, IEntity, IMutationContext, RxDBEntityId, WorktreeTableSet } from '@aiao/rxdb';
 import { PropertyType } from '@aiao/rxdb';
 import {
   type EncryptionContext,
-  getTableNameByMetadata,
   normalizeCreateEntity,
   quoteIdentifier,
   transformEntityValueToSql
 } from '../pglite.utils.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 export interface InsertSqlOptions extends IMutationContext {
   encryption?: EncryptionContext;
@@ -32,6 +32,7 @@ export const isSequenceAssignedPrimaryColumn = (metadata: EntityMetadata, column
 
 export default async (
   metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
   entity: object,
   context?: InsertSqlOptions
 ): Promise<{ sql: string; params: unknown[]; columns: string[] }> => {
@@ -60,7 +61,7 @@ export default async (
   const returning = context?.returning === false ? '' : ' RETURNING *';
 
   return {
-    sql: `INSERT INTO ${getTableNameByMetadata(metadata)} (${columns}) VALUES (${placeholders})${returning};`,
+    sql: `INSERT INTO ${getTableNameByMetadata(metadata, tableSet)} (${columns}) VALUES (${placeholders})${returning};`,
     params,
     // 实际写入的物理列名（未加引号）。upsert 的 ON CONFLICT 列集合必须由它决定，
     // 而不是另行从 metadata 推算 —— 两边各算各的就会对不上（PGL-010）。

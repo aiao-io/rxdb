@@ -28,6 +28,13 @@ import {
   type RxDBBranchSwitchPreconditions,
   type TransactionExecutor
 } from '@aiao/rxdb';
+import {
+  compare_branches,
+  preview_merge,
+  type BranchComparison,
+  type MergePreview,
+  type MergePreviewOptions
+} from './branch-compare.js';
 import { create_branch } from './create-branch.js';
 import { isIgnorableDetachedVersionEventError } from './detached-event-error.js';
 import { HistoryManager } from './HistoryManager.js';
@@ -37,12 +44,13 @@ import { remove_branch } from './remove-branch.js';
 import { restore_entity } from './restore-entity.js';
 import { switch_branch_actions } from './switch-branch-actions.js';
 import { createSyncHistoryBridge, type SyncHistoryBridge } from './sync-history-bridge.js';
-import { getEarliestRecordAt, getRxDBChangeEventId } from './version-manager.utils.js';
+import { keep_table_set_actions, table_set_scope } from './table-set-scope.js';
+import { getEarliestRecordAt, getRxDBChangeEventBranchId, getRxDBChangeEventId } from './version-manager.utils.js';
 /**
  * 版本管理器
  *
  * 负责管理数据库的分支、撤销/重做与版本历史：
- * - 分支管理（创建、删除、切换、合并）
+ * - 分支管理（创建、删除、切换、合并），以及不切换就对比两条分支、预览一次合并
  * - 撤销/重做操作（数据库级别）
  * - Redo 栈的自动失效（当有新操作时）
  *
@@ -181,8 +189,18 @@ export class VersionManager {
     // `rxdb-plugin-workspace` 在 NEW 事件上读它来防广播成环；但 version 子系统**不读**。
     // 理由：多 tab 共享同一份本地存储（同 dbName / OPFS），他 tab 的新写入对本 tab 而言
     // 同样让 redo 栈失效、同样可能恢复 undo 边界——按本地写入处理才是正确语义。
+    //
+    // 只认记在本实例当前分支上的变更（US-314 B1.4）：一笔写只作废它所在分支的 redo 栈、只恢复那条分支的
+    // undo 会话。实例刚从可写检出位挂回主检出位时，检出位上那几笔写的通知可能迟到。当前分支还没解析出来、
+    // 或元事件不带分支时无从比对，照旧处理。
     const onLocalCreate = (event: EntityLocalCreatedEvent) => {
-      const rxdbChanges = event.entities?.filter(e => e.namespace === 'rxdb' && e.entity === 'RxDBChange') ?? [];
+      const currentBranchId = this.historyManager.currentUndoBranchId;
+      const rxdbChanges =
+        event.entities?.filter(e => {
+          if (e.namespace !== 'rxdb' || e.entity !== 'RxDBChange') return false;
+          const branchId = getRxDBChangeEventBranchId(e);
+          return currentBranchId === null || branchId === null || branchId === currentBranchId;
+        }) ?? [];
       if (rxdbChanges.length > 0) {
         // 只有在非 undo/redo 操作时才失效 redo 栈
         if (!this.historyManager.isExecutingUndoRedo()) {
@@ -248,7 +266,22 @@ export class VersionManager {
    * @param fromChangeId 从哪个 changeId 创建新分支
    */
   async createBranch(branchId: string, fromChangeId?: number): Promise<InstanceType<typeof RxDBBranch>> {
-    return create_branch(this, branchId, fromChangeId);
+    const branch = await create_branch(this, branchId, fromChangeId);
+    this.refreshChildForks();
+    return branch;
+  }
+
+  /**
+   * 分支拓扑变了，重查撤销 / 重做视图用的子分支分叉点（US-315）。
+   *
+   * @remarks
+   * 本类自己的建、删、合并、切分支已经调过；给经别的路径写分支行的插件用（工作树插件的从提交建分支）。
+   * 分支表不写变更日志，活查询看不见这些写，只能显式通知。只影响视图：`undo()` / `redo()` 执行前本来就现查。
+   *
+   * @internal
+   */
+  refreshChildForks(): void {
+    this.historyManager.refreshChildForks();
   }
 
   /**
@@ -256,7 +289,9 @@ export class VersionManager {
    * @param branchId 分支 id
    */
   async removeBranch(branchId: string): Promise<void> {
-    return remove_branch(this, branchId);
+    await remove_branch(this, branchId);
+    // 被它继承的变更重新可撤销；分支表不写变更日志，活查询看不见这次删除，得显式重查
+    this.refreshChildForks();
   }
 
   /**
@@ -278,6 +313,7 @@ export class VersionManager {
    * 反方向（本包 import 那个插件）是条依赖环，nx 的图插件会把 `run-many` 当场拒掉。
    */
   async switchBranch(branchId: string, preconditions?: RxDBBranchSwitchPreconditions): Promise<void> {
+    const tableSet = this.rxdb.worktreeTableSet;
     const currentBranch = await this.getCurrentBranch();
     // 若切换到相同分支则直接返回，避免不必要操作
     if (currentBranch?.id === branchId) {
@@ -300,7 +336,13 @@ export class VersionManager {
         return;
       }
       const { adapter } = await this.getLocalRepositories();
-      const actions = await switch_branch_actions(this, branchId);
+      // 挂在可写检出位上时，增量从那套表持有的分支算起（主检出位上缺省就是激活的那一条，照旧不传），
+      // 并只留这套表的成员：记日志却不进影子表的实体落回主表，照套会改主检出位的表（US-314 B2.2）
+      const actions = keep_table_set_actions(
+        this.rxdb,
+        await switch_branch_actions(this, branchId, tableSet.isMain ? undefined : currentBranch?.id),
+        tableSet
+      );
       // 切分支重写的是实体表的**投影**，不是用户的编辑：矩阵行 4 要求它不产生工作树单元。
       // 不声明的话挂载点只看见「有人在调 switchBranch」，与 undo/redo（行 6，必须产生单元）
       // 完全同形，切一次分支就会把整批物化写记成一批未提交变更。
@@ -317,6 +359,13 @@ export class VersionManager {
         // 适配器解析出来的那一个而不是这里的 `branchId`：省略分支的调用点上只有它是对的。
         prepare: async ({ executor, targetBranchId }) => {
           prepared = true;
+          if (executor.tableSet.suffix !== tableSet.suffix) {
+            throw new RxDBError('计算切分支增量期间表集已改变，请重新发起切换');
+          }
+          const [held] = await executor.getRepository(RxDBBranch).find({ where: tableSet.heldBranchWhere, limit: 1 });
+          if ((held?.id ?? null) !== (currentBranch?.id ?? null)) {
+            throw new RxDBError('计算切分支增量期间当前分支已改变，请重新发起切换');
+          }
           await this.#prepare_branch_switch(executor, currentBranch?.id ?? null, targetBranchId, preconditions);
         }
       });
@@ -397,12 +446,21 @@ export class VersionManager {
     try {
       this.rxdb.dispatchEvent(new MergeBranchBeginEvent(sourceBranchId, targetBranchId));
 
-      const result = await merge_branch(this, sourceBranchId, targetBranchId, options);
+      // 挂在可写检出位上只合这套表的成员（US-314 B2.1），预览传同一份判定
+      const result = await merge_branch(
+        this,
+        sourceBranchId,
+        targetBranchId,
+        options,
+        table_set_scope(this.rxdb, this.rxdb.worktreeTableSet)
+      );
 
       // 合并有变更时清空 undo/redo 历史
       if (result.merged > 0) {
         this.historyManager.clearUndoHistory();
       }
+      // 合并可能顺手删了源分支（`deleteSource`），它是当前分支的子分支时分叉点跟着变
+      this.refreshChildForks();
 
       this.rxdb.dispatchEvent(new MergeBranchCommitEvent(sourceBranchId, targetBranchId));
       return result;
@@ -410,6 +468,62 @@ export class VersionManager {
       this.rxdb.dispatchEvent(new MergeBranchFailedEvent(sourceBranchId, targetBranchId));
       throw error;
     }
+  }
+
+  /**
+   * 对比两条分支当前状态的实体差异，不切换 active 分支、不写库。
+   *
+   * @param fromBranchId - 起点分支
+   * @param toBranchId - 终点分支
+   * @returns 有差异的实体；两侧一样（含同一条分支）时 `entries` 为空数组
+   * @throws {@link RxDBError} 任一分支不存在时
+   *
+   * @remarks
+   * 条目的 `patch` 是终点上的值、`inversePatch` 是起点上的值，与工作树 `diff()` 同一个语义。
+   * 取值原样来自变更日志，不解码；`remoteId` 与审计时间这类簿记字段（`ENTITY_BOOKKEEPING_FIELDS`）不算差异。
+   *
+   * @example
+   * ```ts
+   * // feature 相对当前分支 main 改了什么
+   * const { entries } = await rxdb.versionManager.compareBranches('main', 'feature');
+   * for (const entry of entries) console.log(entry.operation, entry.entity, entry.entityId, entry.patch);
+   * ```
+   */
+  async compareBranches(fromBranchId: string, toBranchId: string): Promise<BranchComparison> {
+    return compare_branches(await this.getLocalRepositories(), fromBranchId, toBranchId);
+  }
+
+  /**
+   * 预览把一条分支合并进当前 active 分支会落什么，不写库。
+   *
+   * @param sourceBranchId - 源分支
+   * @param options - 见 {@link MergePreviewOptions}；按合并策略计算条目与 `merged`
+   * @returns 合并会落的实体、与随后 {@link mergeBranch} 一致的 `merged` 计数，以及覆盖标注
+   * @throws {@link RxDBError} 没有 active 分支、合并进自己或源分支不存在时，与 {@link mergeBranch} 同一句报错
+   *
+   * @remarks
+   * 合并是单向覆盖：目标分支分叉以来改过的业务字段会被源分支的值盖掉，源删了的实体连同目标的修改一起没了，
+   * 目标删了的实体上的源分支更新会落空。每个条目的 `conflict` 标出这几种情形，见 {@link MergePreviewConflict}。
+   *
+   * @example
+   * ```ts
+   * const preview = await rxdb.versionManager.previewMerge('feature');
+   * const overwritten = preview.entries.filter(entry => entry.conflict !== null);
+   * if (overwritten.length === 0) await rxdb.versionManager.mergeBranch('feature');
+   * ```
+   */
+  async previewMerge(sourceBranchId: string, options?: MergePreviewOptions): Promise<MergePreview> {
+    const currentBranch = await this.getCurrentBranch();
+    if (!currentBranch) {
+      throw new RxDBError('No active branch found');
+    }
+    return preview_merge(
+      await this.getLocalRepositories(),
+      sourceBranchId,
+      currentBranch.id,
+      options,
+      table_set_scope(this.rxdb, this.rxdb.worktreeTableSet)
+    );
   }
 
   /**

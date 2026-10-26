@@ -1,7 +1,8 @@
 import { CountOptions, EntityMetadata, EntityType, isRuleGroup } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
-import { RxDBAdapterSqliteError, get_table_name_by_metadata, quote_sql_identifier } from '../sqlite-core.utils.js';
+import { RxDBAdapterSqliteError, quote_sql_identifier } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import { build_rule_group_join } from './join_sql.js';
 import { GenerateSqlResult, buildRuleGroup } from './query_sql.js';
 import { MAIN_TABLE_ALIAS } from './sql_alias.utils.js';
@@ -26,7 +27,7 @@ export const count_sql = (
     adapter.rxdb.schemaManager.getEntityMetadata(name, namespace ?? metadata.namespace)
   );
   const { joinSQL, fieldAliasMap } = build_rule_group_join(adapter, metadata, whereOptions);
-  const tableName = get_table_name_by_metadata(metadata);
+  const tableName = get_table_name_by_metadata(metadata, adapter.tableSet);
   const params: SQLiteCompatibleType[] = [];
   const where = buildRuleGroup(whereOptions, fieldAliasMap, metadata, adapter, params);
   // 有 JOIN 时必须 COUNT(DISTINCT ...)：一个父实体匹配 N 条关联行会被 JOIN 展开成 N 行，

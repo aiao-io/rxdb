@@ -5,7 +5,7 @@ import {
   DEFAULT_FTS_ARRAY_KIND,
   DEFAULT_FTS_REGCONFIG,
   FTS_COLUMN,
-  loadPgFtsDdl
+  loadPgFtsAdapter
 } from '../../backend/pg/pg-fts-contract.js';
 
 /**
@@ -30,10 +30,12 @@ describe('pg-fts-contract mirrors the pglite adapter (US-703 AC#1)', () => {
     expect(DEFAULT_FTS_ARRAY_KIND).toBe(adapterFts.DEFAULT_FTS_ARRAY_KIND);
   });
 
-  it('lazily resolves the two DDL builders, which stay shared rather than copied', async () => {
-    const ddl = await loadPgFtsDdl();
-    expect(ddl.buildCreateFtsTableSql).toBe(adapterFts.buildCreateFtsTableSql);
-    expect(ddl.buildFtsTriggersSql).toBe(adapterFts.buildFtsTriggersSql);
+  it('lazily resolves the two DDL builders and the schema resolver, which stay shared rather than copied', async () => {
+    const adapter = await loadPgFtsAdapter();
+    expect(adapter.buildCreateFtsTableSql).toBe(adapterFts.buildCreateFtsTableSql);
+    expect(adapter.buildFtsTriggersSql).toBe(adapterFts.buildFtsTriggersSql);
+    // 影子表的 schema 规则归适配器（US-314 B2.5），本包不抄
+    expect(adapter.getSchemaName).toBe(adapterFts.getSchemaName);
   });
 
   it('no runtime module statically imports the optional pglite peer', async () => {

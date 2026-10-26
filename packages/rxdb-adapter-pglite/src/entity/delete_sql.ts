@@ -1,5 +1,5 @@
-import type { EntityMetadata, RxDBEntityId } from '@aiao/rxdb';
-import { getTableNameByMetadata } from '../pglite.utils.js';
+import type { EntityMetadata, RxDBEntityId, WorktreeTableSet } from '@aiao/rxdb';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 /**
  * 生成删除单个实体的 SQL
@@ -7,8 +7,8 @@ import { getTableNameByMetadata } from '../pglite.utils.js';
  * @param entity - 要删除的实体实例
  * @returns PostgreSQL 的 SQL 查询和参数
  */
-export default (metadata: EntityMetadata, entity: { id: RxDBEntityId }) => {
-  const tableName = getTableNameByMetadata(metadata);
+export default (metadata: EntityMetadata, tableSet: WorktreeTableSet, entity: { id: RxDBEntityId }) => {
+  const tableName = getTableNameByMetadata(metadata, tableSet);
   const params = [entity.id];
   return {
     sql: `DELETE FROM ${tableName} WHERE id = $1;`,

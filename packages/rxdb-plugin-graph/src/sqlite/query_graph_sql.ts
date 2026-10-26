@@ -9,7 +9,6 @@ import {
   ROWID,
   type RxDBAdapterSqliteBase,
   buildRuleGroup,
-  get_table_name as sqliteGetTableName,
   get_table_name_by_metadata as sqliteGetTableNameByMetadata
 } from '@aiao/rxdb-adapter-sqlite-core';
 
@@ -20,6 +19,7 @@ import {
   FindPathsOptions,
   GraphEdgePropertyValue
 } from '../graph-repository.interface.js';
+import { graph_edge_table_name } from './graph_edge_table.js';
 
 type SQLiteParam = string | number | null;
 
@@ -270,8 +270,8 @@ export const generate_entity_find_neighbors_sql = (
   } = options;
   const effective_direction = resolve_effective_direction(metadata, direction);
   const rule_sql = build_rule_group_sql(rule_group, metadata, adapter);
-  const table_name = sqliteGetTableNameByMetadata(metadata);
-  const edge_table_name = `"${sqliteGetTableName(metadata.name + '_edges', metadata.namespace)}"`;
+  const table_name = sqliteGetTableNameByMetadata(metadata, adapter.tableSet);
+  const edge_table_name = graph_edge_table_name(adapter, metadata);
   const hasWeight = metadata.features?.graph?.weight === true;
   const hasProperties = (metadata.features?.graph?.properties?.length ?? 0) > 0;
 
@@ -351,8 +351,8 @@ export const generate_entity_count_neighbors_sql = (
 ): GenerateSqlResult => {
   const { entityId, direction = 'both', level = 1, where: rule_group, edgeWhere } = options;
   const effective_direction = resolve_effective_direction(metadata, direction);
-  const table_name = sqliteGetTableNameByMetadata(metadata);
-  const edge_table_name = `"${sqliteGetTableName(metadata.name + '_edges', metadata.namespace)}"`;
+  const table_name = sqliteGetTableNameByMetadata(metadata, adapter.tableSet);
+  const edge_table_name = graph_edge_table_name(adapter, metadata);
   const hasWeight = metadata.features?.graph?.weight === true;
   const hasProperties = (metadata.features?.graph?.properties?.length ?? 0) > 0;
 
@@ -422,8 +422,8 @@ export const generate_entity_find_paths_sql = (
   } = options;
   const effective_direction = resolve_effective_direction(metadata, direction);
   const rule_sql = build_rule_group_sql(rule_group, metadata, adapter);
-  const table_name = sqliteGetTableNameByMetadata(metadata);
-  const edge_table_name = `"${sqliteGetTableName(metadata.name + '_edges', metadata.namespace)}"`;
+  const table_name = sqliteGetTableNameByMetadata(metadata, adapter.tableSet);
+  const edge_table_name = graph_edge_table_name(adapter, metadata);
   const hasWeight = metadata.features?.graph?.weight === true;
   const hasProperties = (metadata.features?.graph?.properties?.length ?? 0) > 0;
 

@@ -1,4 +1,4 @@
-import { transitionMetadata, type EntityMetadata } from '@aiao/rxdb';
+import { transitionMetadata, WorktreeTableSet, type EntityMetadata } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { find_by_row_ids_sql } from '../../query/find_by_row_ids_sql.js';
 import { generate_sql } from '../../query/query_sql.js';
@@ -55,7 +55,7 @@ describe('find_by_row_ids_sql', () => {
   it('空 rowid 列表应该生成永不匹配的查询', () => {
     const metadata = transitionMetadata({ name: 'Item', namespace: 'test', tableName: 'Item' });
 
-    const result = find_by_row_ids_sql(metadata, []);
+    const result = find_by_row_ids_sql(metadata, WorktreeTableSet.MAIN, []);
 
     expect(result.sql).toContain('WHERE 1 = 0');
     expect(result.params).toEqual([]);
@@ -64,7 +64,7 @@ describe('find_by_row_ids_sql', () => {
   it('非空 rowid 列表应生成参数化 IN 查询', () => {
     const metadata = transitionMetadata({ name: 'Item', namespace: 'test', tableName: 'Item' });
 
-    const result = find_by_row_ids_sql(metadata, [1n, 2n, 3n]);
+    const result = find_by_row_ids_sql(metadata, WorktreeTableSet.MAIN, [1n, 2n, 3n]);
 
     expect(result.sql).toContain('WHERE __rowid IN (?,?,?)');
     expect(result.params).toEqual([1n, 2n, 3n]);

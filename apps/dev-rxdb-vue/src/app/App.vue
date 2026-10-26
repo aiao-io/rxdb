@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { provideRxDB } from '@aiao/rxdb-vue';
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterView, useRouter } from 'vue-router';
 import AppHeader from './components/AppHeader.vue';
 import AppSidebar from './components/AppSidebar.vue';
@@ -8,6 +8,7 @@ import AppToast from './components/AppToast.vue';
 import LoadingBar from './components/LoadingBar.vue';
 import { useAppService } from './composables/useAppService';
 import { useTheme } from './composables/useTheme';
+import DbConnectionAlert from './components/DbConnectionAlert.vue';
 import setup_rxdb from './rxdb/setup_rxdb_sqlite-wasm';
 
 const db = setup_rxdb();
@@ -25,16 +26,21 @@ onMounted(() => {
   document.documentElement.lang = locale;
 });
 
-router.beforeEach(() => {
+const removeBeforeEach = router.beforeEach(() => {
   loadingBarRef.value?.continuousStart();
 });
 
-router.afterEach(() => {
+const removeAfterEach = router.afterEach(() => {
   loadingBarRef.value?.complete();
 });
 
-router.onError(() => {
+const removeOnError = router.onError(() => {
   loadingBarRef.value?.complete();
+});
+onBeforeUnmount(() => {
+  removeBeforeEach();
+  removeAfterEach();
+  removeOnError();
 });
 </script>
 
@@ -65,6 +71,7 @@ router.onError(() => {
         class="flex min-h-0 flex-1 flex-col overflow-auto"
         id="layout-content"
       >
+        <DbConnectionAlert />
         <RouterView />
       </div>
     </div>

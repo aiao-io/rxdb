@@ -14,19 +14,21 @@ import {
   RxDBBranch,
   RxDBChange,
   RxDBMigration,
-  RxDBSystemMigrationLockError
+  RxDBSystemMigrationLockError,
+  WorktreeBranchHeldError,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { AsyncQueueExecutor } from '@aiao/utils';
 import {
   type EncryptionContext,
   getTableColumnIndexName,
-  getTableNameByMetadata,
   quoteIdentifier,
   RxdbAdapterPGliteError,
   rxDBColumnTypeToPGliteType,
   rxDBColumnTypeToPGliteTypeIndexName
 } from '../pglite.utils.js';
 import type { IPGliteClient } from '../PGliteClient.js';
+import { getSchemaName, getTableNameByMetadata } from '../table-name-resolver.js';
 import { remove_trigger_sql } from '../table/remove_trigger_sql.js';
 import generate_trigger_sql from '../table/trigger_sql.js';
 
@@ -41,28 +43,20 @@ export interface SystemSchemaMigrationHost {
   getClient(): Promise<IPGliteClient>;
 }
 
-/**
- * 系统模式 7 给 `RxDBChange` 补的两列，见 {@link ensureChangeRejectionColumns}
- */
-const CHANGE_REJECTION_PROPERTY_NAMES = ['rejectedAt', 'rejection'] as const;
+/** 系统模式 7、8 新增的可空日志列；旧行保持为空。 */
+const CHANGE_ADDITIONAL_PROPERTY_NAMES = ['rejectedAt', 'rejection', 'tableSetSuffix'] as const;
 
-/**
- * 系统模式 7：给 `RxDBChange` 补可空列 `rejectedAt`、`rejection`（US-218 阶段 B 的推送回执）
- *
- * @remarks
- * 与 sqlite 侧 `RxDBAdapterSqliteBase.ts` 的 `ensureChangeRejectionColumns` 逐语义对齐，改动
- * 必须两端同改（不合一的理由同 {@link ensureBranchActiveKey}）。先探列再补，「列已在、水位线
- * 仍停在 6」的库重跑一趟不报错。列类型走建表同一个 helper；两列都可空，旧行为 `null`，不回填。
- */
-const ensureChangeRejectionColumns = async (
+/** 给既有日志表幂等补列，必须先于变更触发器重建。 */
+const ensureChangeColumns = async (
   tx: Pick<IPGliteClient, 'query'>,
   changeMetadata: EntityMetadata,
   existingTables: ReadonlySet<string>
 ): Promise<void> => {
-  if (!existingTables.has(`${changeMetadata.namespace}\u0000${changeMetadata.tableName}`)) return;
+  if (!existingTables.has(`${getSchemaName(changeMetadata, WorktreeTableSet.MAIN)}\u0000${changeMetadata.tableName}`))
+    return;
 
-  const changeTable = getTableNameByMetadata(changeMetadata);
-  for (const propertyName of CHANGE_REJECTION_PROPERTY_NAMES) {
+  const changeTable = getTableNameByMetadata(changeMetadata, WorktreeTableSet.MAIN);
+  for (const propertyName of CHANGE_ADDITIONAL_PROPERTY_NAMES) {
     const property = changeMetadata.properties.find(candidate => candidate.name === propertyName);
     if (!property) {
       throw new RxdbAdapterPGliteError(`RxDBChange metadata is missing the "${propertyName}" property.`);
@@ -70,7 +64,7 @@ const ensureChangeRejectionColumns = async (
     const columnResult = await tx.query<{ column_name: string }>(
       `SELECT column_name FROM information_schema.columns
        WHERE table_schema = $1::text AND table_name = $2::text AND column_name = $3::text`,
-      [changeMetadata.namespace, changeMetadata.tableName, property.columnName]
+      [getSchemaName(changeMetadata, WorktreeTableSet.MAIN), changeMetadata.tableName, property.columnName]
     );
     if (columnResult.rows.length > 0) continue;
     await tx.query(
@@ -86,6 +80,8 @@ const ensureChangeRejectionColumns = async (
  * @param branchMetadata - `RxDBBranch` 的元数据
  * @param existingTables - 库里现有的 `namespace\0tableName` 集合
  * @throws {@link AmbiguousActiveBranchError} 库里有多行 `activated` 时；一行都不改，由调用方回滚整条迁移
+ * @throws {@link WorktreeBranchHeldError} 主检出位要持有的那一行（停着的分支，零 active 时是 `main`）
+ *   在可写检出位手里时；同样一行都不改
  *
  * @remarks
  * 顺序是被两条**相反**的约束夹出来的，不是风格：**先建索引、后回填**。
@@ -99,8 +95,13 @@ const ensureChangeRejectionColumns = async (
  * 于是「列在、索引不在且已有重复值」这个组合在正常路径上不可达。真撞上就让它原样炸，
  * 不猜也不补。
  *
- * 回填写成「先全清、再点亮」两条语句，而不是一条 `CASE`：唯一索引是**逐行立即**检查的，
+ * 回填写成「先清旧哨兵、再点亮」两条语句，而不是一条 `CASE`：唯一索引是**逐行立即**检查的，
  * 把哨兵值从一行搬到另一行会按行处理顺序瞬时自撞。
+ *
+ * 清的只是**哨兵**，不是所有非空键：这一列上别的非空值是可写检出位的持有键（US-314 B1.2，
+ * 口径见 `WorktreeBranchHeldError`），按「非空」清会把检出位手里的分支悄悄放掉。点亮之前先看
+ * 目标行在不在可写检出位手里——在的话两边都认为分支是自己的，回填就是在抢，只能整条回滚。
+ * 那次读排在建索引之前也无妨：它只读，不往触发器队列里排事件。
  *
  * 两条语句都必须在库态已经正确时**一行都不写**。本步骤不只跑在旧库上：水位线是
  * `migrateSystemSchema()` 最后才写的，所以新库第一次 connect() 同样会走完这里。
@@ -131,19 +132,20 @@ const ensureBranchActiveKey = async (
   branchMetadata: EntityMetadata,
   existingTables: ReadonlySet<string>
 ): Promise<void> => {
-  if (!existingTables.has(`${branchMetadata.namespace}\u0000${branchMetadata.tableName}`)) return;
+  if (!existingTables.has(`${getSchemaName(branchMetadata, WorktreeTableSet.MAIN)}\u0000${branchMetadata.tableName}`))
+    return;
 
   const activeKeyProperty = branchMetadata.properties.find(property => property.name === 'activeKey');
   if (!activeKeyProperty) {
     throw new RxdbAdapterPGliteError('RxDBBranch metadata is missing the "activeKey" property.');
   }
-  const branchTable = getTableNameByMetadata(branchMetadata);
+  const branchTable = getTableNameByMetadata(branchMetadata, WorktreeTableSet.MAIN);
   const activeKeyColumn = quoteIdentifier(activeKeyProperty.columnName);
 
   const columnResult = await tx.query<{ column_name: string }>(
     `SELECT column_name FROM information_schema.columns
      WHERE table_schema = $1::text AND table_name = $2::text AND column_name = $3::text`,
-    [branchMetadata.namespace, branchMetadata.tableName, activeKeyProperty.columnName]
+    [getSchemaName(branchMetadata, WorktreeTableSet.MAIN), branchMetadata.tableName, activeKeyProperty.columnName]
   );
   if (columnResult.rows.length === 0) {
     // 列类型走与建表同一个 helper：新库与升级库的形状必须逐字节一致，各写一份字面量
@@ -160,26 +162,36 @@ const ensureBranchActiveKey = async (
     throw new AmbiguousActiveBranchError(activeResult.rows.map(row => row.id));
   }
 
+  const activeBranchId = activeResult.rows[0]?.id;
+  // 主检出位要持有的那一行：停着的那条；零 active 时是恢复目标 main（行不在也照问，读出来是空）。
+  const holdingBranchId = activeBranchId ?? MAIN_BRANCH_ID;
+  const holderResult = await tx.query<{ holderKey: unknown }>(
+    `SELECT ${activeKeyColumn} AS "holderKey" FROM ${branchTable} WHERE "id" = $1::text`,
+    [holdingBranchId]
+  );
+  const holderKey = holderResult.rows[0]?.holderKey;
+  WorktreeBranchHeldError.throwIfHeld(holdingBranchId, typeof holderKey === 'string' ? holderKey : null);
+
   await tx.query(
     `CREATE UNIQUE INDEX IF NOT EXISTS ${quoteIdentifier(
       getTableColumnIndexName(branchMetadata, activeKeyProperty)
     )} ON ${branchTable}(${activeKeyColumn} ${rxDBColumnTypeToPGliteTypeIndexName(activeKeyProperty)})`
   );
 
-  const activeBranchId = activeResult.rows[0]?.id;
   // 两条 UPDATE 都带着「已经对了就别碰」的谓词。清空那条顺便把目标行排除在外——它本来就要被
   // 点亮，先清再写等于凭空重写一次。排除它不会削弱两条语句拆开的初衷：哨兵值从 A 行搬到 B 行时
   // A 仍在清空范围内，索引照样不会瞬时自撞。
   await tx.query(
     `UPDATE ${branchTable} SET ${activeKeyColumn} = NULL
-     WHERE ${activeKeyColumn} IS NOT NULL AND "id" <> $1::text`,
-    [activeBranchId ?? MAIN_BRANCH_ID]
+     WHERE ${activeKeyColumn} = $1::text AND "id" <> $2::text`,
+    [ACTIVE_BRANCH_KEY, holdingBranchId]
   );
 
   if (activeBranchId !== undefined) {
+    // 持有键在上面已经拒了，目标行的键此刻只会是 NULL 或哨兵：`IS NULL` 就是「还没回填」。
     await tx.query(
       `UPDATE ${branchTable} SET ${activeKeyColumn} = $1::text
-       WHERE "id" = $2::text AND ${activeKeyColumn} IS DISTINCT FROM $1::text`,
+       WHERE "id" = $2::text AND ${activeKeyColumn} IS NULL`,
       [ACTIVE_BRANCH_KEY, activeBranchId]
     );
     return;
@@ -190,6 +202,70 @@ const ensureBranchActiveKey = async (
     ACTIVE_BRANCH_KEY,
     MAIN_BRANCH_ID
   ]);
+};
+
+/**
+ * 系统迁移给每一套现存的影子表集按持有分支重建变更触发器（US-314 B1.3）。
+ *
+ * @param tx - 迁移那个事务
+ * @param host - 实体清单与加密上下文
+ * @param branchMetadata - `RxDBBranch` 的元数据
+ * @param existingTables - 库里现有的 `schema\0tableName` 集合
+ * @throws {@link RxdbAdapterPGliteError} 分支表上有认不出的持有键时；一行都不改，由调用方回滚整条迁移
+ *
+ * @remarks
+ * 主表集的触发器在前面按主检出位的分支重建；影子表集的触发器同样是旧形状，要按各自的持有分支重建。
+ * 迁移跑在插件装好之前，读不到检出位登记表，靠的是持有键本身就是表集后缀（`WorktreeTableSet.holderKey`）。
+ * 认不出的持有键不跳过：跳过就是让那套表带着旧触发器继续收写入，而且没有任何报错。
+ *
+ * 成员按物理表认：建出来的成员表才重建，建到一半就中断的表集不会在这里撞「表不存在」。
+ * 排在 {@link ensureBranchActiveKey} 之后：持有键所在的列是它补出来的。
+ *
+ * 与 sqlite 侧 `RxDBAdapterSqliteBase.ts` 的同名步骤逐语义对齐，改动两端同改。
+ */
+const rebuildWorktreeTableSetTriggers = async (
+  tx: Pick<IPGliteClient, 'query'>,
+  host: SystemSchemaMigrationHost,
+  branchMetadata: EntityMetadata,
+  existingTables: ReadonlySet<string>
+): Promise<void> => {
+  if (!existingTables.has(`${getSchemaName(branchMetadata, WorktreeTableSet.MAIN)}\u0000${branchMetadata.tableName}`))
+    return;
+
+  const holderResult = await tx.query<{ id: string; activeKey: string }>(
+    `SELECT "id", "activeKey" FROM ${getTableNameByMetadata(branchMetadata, WorktreeTableSet.MAIN)}
+     WHERE "activeKey" IS NOT NULL AND "activeKey" <> $1::text ORDER BY "id"`,
+    [ACTIVE_BRANCH_KEY]
+  );
+  for (const { id: branchId, activeKey } of holderResult.rows) {
+    const suffix = WorktreeTableSet.suffixOfHolderKey(activeKey);
+    if (suffix === null) {
+      throw new RxdbAdapterPGliteError(`分支 ${branchId} 上的持有键 ${activeKey} 认不出是哪一套表`);
+    }
+    const candidates = WorktreeTableSet.of(suffix, host.entities);
+    const members = host.entities.filter(EntityType => {
+      const metadata = getEntityMetadata(EntityType);
+      return (
+        metadata.log !== false &&
+        existingTables.has(`${getSchemaName(metadata, candidates)}\u0000${metadata.tableName}`)
+      );
+    });
+    const tableSet = WorktreeTableSet.of(suffix, members);
+    for (const EntityType of members) {
+      const metadata = getEntityMetadata(EntityType);
+      for (const statement of remove_trigger_sql(metadata, tableSet).split('---STATEMENT_SEPARATOR---')) {
+        await tx.query(statement.trim());
+      }
+      const triggerSql = generate_trigger_sql(metadata, {
+        branchId,
+        tableSet,
+        resolveEntityMetadata: host.encryptionContext.resolveEntityMetadata
+      });
+      for (const statement of triggerSql.split('---STATEMENT_SEPARATOR---')) {
+        await tx.query(statement.trim());
+      }
+    }
+  }
 };
 
 /**
@@ -213,17 +289,21 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
         const existingMetadata: EntityMetadata[] = [];
         for (const EntityType of host.entities) {
           const metadata = getEntityMetadata(EntityType);
-          if (existingTables.has(`${metadata.namespace}\u0000${metadata.tableName}`)) {
+          if (existingTables.has(`${getSchemaName(metadata, WorktreeTableSet.MAIN)}\u0000${metadata.tableName}`)) {
             existingMetadata.push(metadata);
           }
         }
 
         const migrationMetadata = getEntityMetadata(RxDBMigration);
-        if (!existingTables.has(`${migrationMetadata.namespace}\u0000${migrationMetadata.tableName}`)) {
+        if (
+          !existingTables.has(
+            `${getSchemaName(migrationMetadata, WorktreeTableSet.MAIN)}\u0000${migrationMetadata.tableName}`
+          )
+        ) {
           throw new RxdbAdapterPGliteError('RxDB system migration table is missing.');
         }
 
-        const migrationTable = getTableNameByMetadata(migrationMetadata);
+        const migrationTable = getTableNameByMetadata(migrationMetadata, WorktreeTableSet.MAIN);
         const watermarkResult = await tx.query<{ name: string }>(
           `SELECT "name" FROM ${migrationTable}
            WHERE left("name", $1::integer) = $2::text OR left("name", $3::integer) = $4::text`,
@@ -242,17 +322,21 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
 
         try {
           await tx.query(
-            `LOCK TABLE ${existingMetadata.map(getTableNameByMetadata).join(', ')} IN ACCESS EXCLUSIVE MODE NOWAIT`
+            `LOCK TABLE ${existingMetadata.map(metadata => getTableNameByMetadata(metadata, WorktreeTableSet.MAIN)).join(', ')} IN ACCESS EXCLUSIVE MODE NOWAIT`
           );
         } catch (cause) {
           throw new RxDBSystemMigrationLockError(cause);
         }
 
+        const changeMetadata = getEntityMetadata(RxDBChange);
+        await ensureChangeColumns(tx, changeMetadata, existingTables);
         const branchMetadata = getEntityMetadata(RxDBBranch);
         let activeBranchId: string = MAIN_BRANCH_ID;
-        if (existingTables.has(`${branchMetadata.namespace}\u0000${branchMetadata.tableName}`)) {
+        if (
+          existingTables.has(`${getSchemaName(branchMetadata, WorktreeTableSet.MAIN)}\u0000${branchMetadata.tableName}`)
+        ) {
           const branchResult = await tx.query<{ id: string }>(
-            `SELECT "id" FROM ${getTableNameByMetadata(branchMetadata)}
+            `SELECT "id" FROM ${getTableNameByMetadata(branchMetadata, WorktreeTableSet.MAIN)}
              WHERE "activated" IS TRUE LIMIT 1`
           );
           activeBranchId = branchResult.rows[0]?.id ?? activeBranchId;
@@ -260,16 +344,17 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
 
         const loggedMetadata = existingMetadata.filter(metadata => metadata.log !== false);
         for (const metadata of loggedMetadata) {
-          for (const statement of remove_trigger_sql(metadata).split('---STATEMENT_SEPARATOR---')) {
+          for (const statement of remove_trigger_sql(metadata, WorktreeTableSet.MAIN).split(
+            '---STATEMENT_SEPARATOR---'
+          )) {
             await tx.query(statement.trim());
           }
         }
 
-        const changeMetadata = getEntityMetadata(RxDBChange);
         const columnResult = await tx.query<{ data_type: string }>(
           `SELECT data_type FROM information_schema.columns
            WHERE table_schema = $1::text AND table_name = $2::text AND column_name = 'entityId'`,
-          [changeMetadata.namespace, changeMetadata.tableName]
+          [getSchemaName(changeMetadata, WorktreeTableSet.MAIN), changeMetadata.tableName]
         );
         const entityIdType = columnResult.rows[0]?.data_type;
         if (!entityIdType) {
@@ -279,13 +364,14 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
           if (entityIdType !== 'uuid' && entityIdType !== 'character varying') {
             throw new RxdbAdapterPGliteError(`Unsupported legacy RxDBChange.entityId column type: ${entityIdType}`);
           }
-          const changeTable = getTableNameByMetadata(changeMetadata);
+          const changeTable = getTableNameByMetadata(changeMetadata, WorktreeTableSet.MAIN);
           await tx.query(`ALTER TABLE ${changeTable} ALTER COLUMN "entityId" TYPE text USING "entityId"::text`);
         }
 
         for (const metadata of loggedMetadata) {
           const triggerSql = generate_trigger_sql(metadata, {
             branchId: activeBranchId,
+            tableSet: WorktreeTableSet.MAIN,
             resolveEntityMetadata: host.encryptionContext.resolveEntityMetadata
           });
           for (const statement of triggerSql.split('---STATEMENT_SEPARATOR---')) {
@@ -311,7 +397,7 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
         );
 
         await ensureBranchActiveKey(tx, branchMetadata, existingTables);
-        await ensureChangeRejectionColumns(tx, changeMetadata, existingTables);
+        await rebuildWorktreeTableSetTriggers(tx, host, branchMetadata, existingTables);
 
         for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {
           await tx.query(

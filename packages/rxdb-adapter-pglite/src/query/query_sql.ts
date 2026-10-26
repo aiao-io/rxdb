@@ -14,13 +14,13 @@ import {
   SORT_ORDER_FIELD
 } from '@aiao/rxdb';
 import {
-  getTableNameByMetadata,
   INVALID_QUERY_ERROR_CODE,
   quoteIdentifier,
   RxdbAdapterPGliteError,
   transformValueJsToPGlite
 } from '../pglite.utils.js';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 import { build_rule_group_join_pg } from './join_sql.js';
 import { type FieldAlias, jsonAccessor, type JsonAccessorKind, wantsJsonbComparison } from './json_accessor.js';
 import { validateEncryptedQuery } from './validate-encrypted-query.js';
@@ -540,7 +540,7 @@ export const generate_find_sql = (
     },
     (name, namespace) => adapter.rxdb.schemaManager.getEntityMetadata(name, namespace ?? metadata.namespace)
   );
-  const tableName = getTableNameByMetadata(metadata);
+  const tableName = getTableNameByMetadata(metadata, adapter.tableSet);
   const params: unknown[] = [];
   const { joinSQL, fieldAliasMap } =
     options.where ?
@@ -568,7 +568,7 @@ export const generate_count_sql = (
     adapter.rxdb.schemaManager.getEntityMetadata(name, namespace ?? metadata.namespace)
   );
 
-  const tableName = getTableNameByMetadata(metadata);
+  const tableName = getTableNameByMetadata(metadata, adapter.tableSet);
   const params: unknown[] = [];
   const { joinSQL, fieldAliasMap } =
     options.where ?

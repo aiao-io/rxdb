@@ -5,9 +5,12 @@ import { test } from 'node:test';
 
 import {
   assertEqual,
+  packageResolution,
   SUBFRAME_GLUE_FILE,
   SUBFRAME_GLUE_SOURCE,
   SUBFRAME_INTEGRITY,
+  SUBFRAME_PATCH_FALLBACK,
+  SUBFRAME_PATCH_FILE,
   SUBFRAME_VERSION,
   verifyLockfile,
   verifyManifestDependencies,
@@ -41,10 +44,44 @@ test('锁文件里的 integrity 与钉死值一致', () => {
   assert.ok(lockfile.includes(`integrity: ${SUBFRAME_INTEGRITY}`));
 });
 
+test('pnpm 12 的双文档锁文件：只在工作区文档的 packages 段取解析结果', () => {
+  const packageKey = `  '@subframe7536/sqlite-wasm@${SUBFRAME_VERSION}':`;
+  // 第一个文档是 packageManagerDependencies，自带 packages 段；patchedDependencies 改成了单行 `键: hash`。
+  const lockfile = [
+    '---',
+    "lockfileVersion: '9.0'",
+    '',
+    'packages:',
+    '',
+    '  pnpm@12.15.0:',
+    '    resolution: {integrity: sha512-pnpm}',
+    '',
+    '---',
+    "lockfileVersion: '9.0'",
+    '',
+    'patchedDependencies:',
+    `${packageKey} 88b43a0359a3e4ca`,
+    '',
+    'packages:',
+    '',
+    packageKey,
+    `    resolution: {integrity: ${SUBFRAME_INTEGRITY}}`,
+    ''
+  ].join('\n');
+
+  assert.ok(packageResolution(lockfile, packageKey).includes(`integrity: ${SUBFRAME_INTEGRITY}`));
+});
+
 test('源码 import 的 glue 文件名与钉死的内容哈希一致', () => {
   const source = readFileSync(path.join(ROOT, SUBFRAME_GLUE_SOURCE), 'utf8');
 
   assert.ok(source.includes(`@subframe7536/sqlite-wasm/dist/${SUBFRAME_GLUE_FILE}`));
+});
+
+test('1.4.0 patch 保留 Global 缺失时的函数回退', () => {
+  const patch = readFileSync(path.join(ROOT, SUBFRAME_PATCH_FILE), 'utf8');
+
+  assert.ok(patch.includes(SUBFRAME_PATCH_FALLBACK));
 });
 
 test('assertEqual 把实际值一起报出来，而不是只说不相等', () => {

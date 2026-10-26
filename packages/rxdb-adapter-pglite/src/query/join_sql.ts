@@ -9,12 +9,8 @@ import {
   RelationKind
 } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
-import {
-  getTableNameByMetadata,
-  INVALID_QUERY_ERROR_CODE,
-  quoteIdentifier,
-  RxdbAdapterPGliteError
-} from '../pglite.utils.js';
+import { INVALID_QUERY_ERROR_CODE, quoteIdentifier, RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 import { type FieldAlias, jsonAccessor } from './json_accessor.js';
 
 export const MAIN_TABLE_ALIAS = '_' as const;
@@ -364,7 +360,7 @@ export const build_rule_group_join_pg = (
 
   const joinParts: string[] = [];
   for (const [meta, joinOptions] of context.joinMap.entries()) {
-    const tableName = getTableNameByMetadata(meta);
+    const tableName = getTableNameByMetadata(meta, adapter.tableSet);
     for (const j of joinOptions) {
       joinParts.push(` LEFT JOIN ${tableName} ${quoteIdentifier(j.joinTableName)} ON ${j.on}`);
     }

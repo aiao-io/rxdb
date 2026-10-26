@@ -14,6 +14,7 @@ import {
   deserializeFromEnvelope,
   EncryptedDecryptError,
   EncryptedLockedError,
+  isEnvelope,
   serializeForEnvelope,
   type Keyring
 } from '@aiao/rxdb-adapter-encrypted';
@@ -49,6 +50,11 @@ export interface EncryptionContext {
   keyring: Keyring | null;
   namespace: string;
   resolveEntityMetadata?: (entity: string, namespace: string) => EntityMetadata | undefined;
+  /**
+   * 加密列的值已是信封：原样写下、不加密，遇到不是信封的值直接抛（只读检出位建快照，US-313）。
+   * 打开时不碰密钥环。
+   */
+  envelopePassthrough?: boolean;
 }
 
 /**
@@ -179,22 +185,6 @@ export const quoteIdentifier = (value: string): string => quoteSqlIdentifier(val
  * 「哪些输入不转义而是拒绝」的判据。
  */
 export const quoteLiteral = (value: string): string => sqlStringLiteral(value);
-
-/**
- * 拼出形如 `"public"."users"` 的完全限定表名（带双引号转义）。
- *
- * @param entityName - 表名
- * @param namespace - schema 名，默认 `public`
- * @returns 双引号包裹的 `"schema"."table"` 字符串，可直接插入 SQL
- */
-export const getTableName = (entityName: string, namespace: string = 'public') =>
-  `${quoteIdentifier(namespace)}.${quoteIdentifier(entityName)}`;
-
-/**
- * 根据 EntityMetadata 得到完全限定表名，等价于 `getTableName(metadata.tableName, metadata.namespace)`。
- */
-export const getTableNameByMetadata = (metadata: EntityMetadata) =>
-  getTableName(metadata.tableName, metadata.namespace);
 
 /**
  * PostgreSQL 协议单次查询最大参数数量（int16）。
@@ -402,6 +392,44 @@ export const transformValueJsToPGlite = (value: unknown, property: EntityPropert
 export { deserializeFromEnvelope, serializeForEnvelope } from '@aiao/rxdb-adapter-encrypted';
 
 /**
+ * 一个加密列落库的值。
+ *
+ * @param metadata - 实体元数据
+ * @param property - 加密列
+ * @param raw - 待写的值
+ * @param primaryKey - 行主键，进 AAD
+ * @param opts - 加密上下文
+ * @returns 信封；`null` / `undefined` 原样
+ * @throws {@link EncryptedLockedError} 要加密而密钥环未解锁时
+ * @throws TypeError 信封直通时值不是信封
+ */
+const encryptedColumnValue = async (
+  metadata: EntityMetadata,
+  property: EntityPropertyMetadata,
+  raw: unknown,
+  primaryKey: RxDBEntityId,
+  opts: EncryptionContext | undefined
+): Promise<unknown> => {
+  if (raw === null || raw === undefined) return raw;
+  if (opts?.envelopePassthrough === true) {
+    if (isEnvelope(raw)) return raw;
+    throw new TypeError(`${metadata.tableName}.${property.columnName} 要原样写下信封，拿到的却是明文`);
+  }
+  if (!opts?.keyring || opts.keyring.isLocked) {
+    throw new EncryptedLockedError({
+      message: `keyring is locked while writing encrypted column ${metadata.tableName}.${property.columnName}`
+    });
+  }
+  return opts.keyring.encrypt({
+    plaintext: serializeForEnvelope(raw, property),
+    entityNamespace: metadata.namespace,
+    tableName: metadata.tableName,
+    columnName: property.columnName,
+    primaryKey
+  });
+};
+
+/**
  * 将实体值转换为 SQL 兼容格式
  *
  * @param opts 可选加密上下文；当包含 keyring 时，会自动加密 `property.encrypted === true` 的列
@@ -452,24 +480,13 @@ export const transformEntityValueToSql = async (
     const property = metadata.propertyMap.get(key);
     if (property) {
       if (hasEncryption && property.encrypted === true) {
-        const raw = Reflect.get(entity, key);
-        if (raw === null || raw === undefined) {
-          needSave[property.columnName] = raw === null ? null : undefined;
-          continue;
-        }
-        if (!opts?.keyring || opts.keyring.isLocked) {
-          throw new EncryptedLockedError({
-            message: `keyring is locked while writing encrypted column ${metadata.tableName}.${property.columnName}`
-          });
-        }
-        const plaintext = serializeForEnvelope(raw, property);
-        needSave[property.columnName] = await opts.keyring.encrypt({
-          plaintext,
-          entityNamespace: metadata.namespace,
-          tableName: metadata.tableName,
-          columnName: property.columnName,
-          primaryKey: primaryKeyValue
-        });
+        needSave[property.columnName] = await encryptedColumnValue(
+          metadata,
+          property,
+          Reflect.get(entity, key),
+          primaryKeyValue,
+          opts
+        );
         continue;
       }
       needSave[property.columnName] = transformValueJsToPGlite(Reflect.get(entity, key), property);
@@ -482,24 +499,7 @@ export const transformEntityValueToSql = async (
       const prop = metadata.propertyMap.get(propertyName);
       if (prop) {
         if (hasEncryption && prop.encrypted === true) {
-          const raw = Reflect.get(entity, key);
-          if (raw === null || raw === undefined) {
-            needSave[key] = raw === null ? null : undefined;
-            continue;
-          }
-          if (!opts?.keyring || opts.keyring.isLocked) {
-            throw new EncryptedLockedError({
-              message: `keyring is locked while writing encrypted column ${metadata.tableName}.${prop.columnName}`
-            });
-          }
-          const plaintext = serializeForEnvelope(raw, prop);
-          needSave[key] = await opts.keyring.encrypt({
-            plaintext,
-            entityNamespace: metadata.namespace,
-            tableName: metadata.tableName,
-            columnName: prop.columnName,
-            primaryKey: primaryKeyValue
-          });
+          needSave[key] = await encryptedColumnValue(metadata, prop, Reflect.get(entity, key), primaryKeyValue, opts);
           continue;
         }
         needSave[key] = transformValueJsToPGlite(Reflect.get(entity, key), prop);

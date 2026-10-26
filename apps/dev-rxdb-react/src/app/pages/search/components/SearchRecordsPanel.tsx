@@ -1,4 +1,5 @@
 import type { Article, Comment } from '@aiao/rxdb-test/entities';
+import clsx from 'clsx';
 import type { SearchDemoCollection } from '../types';
 
 interface SearchRecordsPanelProps {
@@ -69,7 +70,7 @@ export function SearchRecordsPanel({
                   type='button'
                   role='tab'
                   aria-selected={activeTab === tab}
-                  className={`tab text-base-content${activeTab === tab ? 'tab-active' : ''}`}
+                  className={clsx('tab text-base-content', { 'tab-active': activeTab === tab })}
                   onClick={() => onActiveTabChange(tab)}
                   data-testid={`search-tab-${tab}`}
                 >

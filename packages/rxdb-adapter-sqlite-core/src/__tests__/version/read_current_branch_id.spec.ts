@@ -1,4 +1,4 @@
-import { getEntityMetadata, RxDBBranch } from '@aiao/rxdb';
+import { getEntityMetadata, RxDBBranch, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { RxDBAdapterSqliteError } from '../../sqlite-core.utils.js';
 import {
@@ -24,7 +24,7 @@ describe('readCurrentBranchId', () => {
   it('有行但结果集不含 id 列时应抛错，而不是静默退第 0 列', async () => {
     const reader = createSequencedReader({ columns: ['activated'], rows: [['SENTINEL-NOT-AN-ID']] });
 
-    await expect(readCurrentBranchId(reader)).rejects.toThrow(RxDBAdapterSqliteError);
+    await expect(readCurrentBranchId(reader, WorktreeTableSet.MAIN)).rejects.toThrow(RxDBAdapterSqliteError);
   });
 
   // 回归：部分驱动在「没有行」时连 columns 都给空数组（见 with_triggers_disabled.ts 的适配层）。
@@ -32,6 +32,28 @@ describe('readCurrentBranchId', () => {
   it('activated 查询无行（columns 也为空）时应回退查 main', async () => {
     const reader = createSequencedReader({ columns: [], rows: [] }, { columns: [idColumnName], rows: [['main']] });
 
-    await expect(readCurrentBranchId(reader)).resolves.toBe('main');
+    await expect(readCurrentBranchId(reader, WorktreeTableSet.MAIN)).resolves.toBe('main');
+  });
+
+  // 挂在可写检出位上（US-314 B1.4）：当前分支是那套表持有的分支，按持有键查。不看 `activated`（那是主检出位的），
+  // 也不回退 main：持有分支不见了就是检出位已经关掉，回退等于把写入挪到 main 名下。
+  it('挂在可写检出位上读持有的那一条，不看 activated', async () => {
+    const statements: string[] = [];
+    const reader: SqliteBranchRowReader = async (sql, params) => {
+      statements.push(sql);
+      return params.includes('*worktree:wt_a1*') ?
+          { columns: [idColumnName], rows: [['held']] }
+        : { columns: [], rows: [] };
+    };
+
+    await expect(readCurrentBranchId(reader, WorktreeTableSet.of('wt_a1', []))).resolves.toBe('held');
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).not.toContain('activated');
+  });
+
+  it('持有分支不见了时抛，不回退 main', async () => {
+    const reader = createSequencedReader({ columns: [], rows: [] }, { columns: [idColumnName], rows: [['main']] });
+
+    await expect(readCurrentBranchId(reader, WorktreeTableSet.of('wt_a1', []))).rejects.toThrow(/持有的分支不见了/);
   });
 });

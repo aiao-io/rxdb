@@ -1,35 +1,34 @@
 import { RxDBBranch } from '@aiao/rxdb';
-import { Check, ChevronDown, ChevronRight, GitBranch, MoreVertical, Plus, Search } from 'lucide-react';
+import clsx from 'clsx';
+import { Check, ChevronDown, ChevronRight, GitBranch, GitMerge, MoreVertical, Plus, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { gdRelativeTime } from '../utils/gd';
+import { isImeComposing } from '../utils/ime';
+import { fitToolbarPopup } from '../utils/toolbar-popup';
 
 interface WorkingTreeBranchMenuProps {
   readonly branches: readonly RxDBBranch[];
   readonly activeBranch: string;
   /** 下拉面板宽：与仓库 foldout 同宽（页面把工具栏分支段宽传进来）。 */
   readonly popupWidth: number;
-  /** 下拉开合；创建弹层打开时恒为 false（两态互斥，避免两个弹层叠着）。 */
+  /** 下拉开合 */
   readonly menuOpen: boolean;
-  readonly createOpen: boolean;
-  readonly branchName: string;
-  readonly branchError: string | null;
   readonly onMenuOpenChange: (open: boolean) => void;
-  readonly onCreateOpenChange: (open: boolean) => void;
-  readonly onBranchNameChange: (name: string) => void;
-  readonly onBranchErrorChange: (error: string | null) => void;
-  /** 行上右键；页面按条目拼菜单（切换 / 合并 / 删除 / 复制分支名）。 */
+  /** 行上右键；页面按条目拼菜单（复制分支名 / 删除）。 */
   readonly onMenuRequest: (request: { target: RxDBBranch; event: React.MouseEvent }) => void;
+  /** 下拉底部「Choose a branch to merge into 当前分支」：页面打开合并对话框，在里面挑来源 */
+  readonly onMergeRequest: () => void;
   /** 点行（非当前分支）立即切换。 */
   readonly onSwitchBranch: (branchId: string) => void;
-  /** 创建确认；分支名校验与建库调用由页面做，组件只负责把名字交出去。 */
-  readonly onCreateBranch: (name: string) => void;
+  /** 「New branch」：页面打开「Create a branch」对话框 */
+  readonly onCreateRequest: () => void;
 }
 
 /**
  * 顶部分支栏里的分支选择器，模仿 GitHub Desktop 的分支下拉。
  *
  * @remarks
- * 下拉与创建弹层都是**内联**渲染（absolute 定位在按钮下方）而不是 overlay：
+ * 下拉是**内联**渲染（absolute 定位在按钮下方）而不是 overlay：
  * overlay 会把节点追加到 `<body>` 末尾，Tab 顺序上排在整页面板之后——键盘用户
  * 从触发按钮按 Tab 会直接跳进侧栏，永远走不进下拉。内联渲染让「按钮 → 筛选框 →
  * 新建 → 分支行 → ⋯」落在自然 DOM 顺序里，a11y 用例的纯 Tab 走查才走得通。
@@ -37,13 +36,18 @@ interface WorkingTreeBranchMenuProps {
  * 下拉顶部带筛选框（GitHub Desktop 的分支下拉同样可以打字筛）：按名字子串过滤，
  * 大小写不敏感。当前分支行右端画 ✓（GitHub Desktop 的选中标记）。
  *
- * **点行立即切换**（GitHub Desktop 同款）：切走仍走 `requireClean` 的被拒路径——
- * demo 要演的「脏工作树被拒」这一步，被拒的 toast 就是行点击的结果。合并 / 删除
- * 收进行的右键菜单（GitHub Desktop 的分支行操作同样藏在行菜单里）。
+ * **点行立即切换**（GitHub Desktop 同款）：工作树有未提交改动时，页面弹「Switch branch」对话框问改动怎么办。
+ * 行上的右键（触屏是行尾 ⋯）只有复制分支名与删除，与 GitHub Desktop 的分支右键菜单一致；合并在下拉底部的
+ * 「Choose a branch to merge into 当前分支」（GitHub Desktop `branches-container.tsx` 的 merge-button-row）。
+ * 「New branch」收起下拉、交给页面打开「Create a branch」对话框（与 History 右键的从提交建分支共用）。
  *
  * **下拉必须左对齐（`left-0`）而不是右对齐。** 应用壳的侧栏展开后占 240px，
  * 滚动容器里的右对齐下拉会向左伸进侧栏区域被裁剪——裁掉的那块恰好是操作按钮的
  * 位置，点击会被 fixed 背板吃掉（Angular 端 2026-09-18 实测复现，见 e2e）。
+ *
+ * ARIA：列表弹层是非模态的 `role="dialog"`，行是 `<ul>/<li>` 里的普通 `<button>`——弹层里还有
+ * 筛选框与新建按钮，`role="menu"` 只许装菜单项（axe `aria-required-children`）；当前分支的行按钮
+ * 带 `aria-current="true"`。Escape 关闭在输入法组字期间让给输入法（见 `isImeComposing`）。
  */
 
 /**
@@ -65,58 +69,41 @@ function touchMenuRequest<T>(event: React.MouseEvent, target: T): { target: T; e
 
 export function WorkingTreeBranchMenu({
   activeBranch,
-  branchError,
-  branchName,
   branches,
-  createOpen,
   menuOpen,
   popupWidth,
-  onBranchErrorChange,
-  onBranchNameChange,
-  onCreateBranch,
-  onCreateOpenChange,
+  onCreateRequest,
   onMenuOpenChange,
   onMenuRequest,
+  onMergeRequest,
   onSwitchBranch
 }: WorkingTreeBranchMenuProps): React.JSX.Element {
   /** 分支名筛选（大小写不敏感的子串匹配）。 */
   const [filter, setFilter] = useState('');
-  const createInputRef = useRef<HTMLInputElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
-  const [popupLeft, setPopupLeft] = useState(0);
 
   // 窄屏夹回：面板右缘不超出视口（右缘留 8px），左缘最多贴到视口左 8px
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen) return undefined;
     const popup = popupRef.current;
-    const section = popup?.offsetParent as HTMLElement | null;
-    if (!popup || !section) return;
-    const sectionLeft = section.getBoundingClientRect().left;
-    setPopupLeft(Math.max(8 - sectionLeft, Math.min(0, window.innerWidth - sectionLeft - popupWidth - 8)));
+    if (!popup) return undefined;
+    const fit = (): void => fitToolbarPopup(popup);
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
   }, [menuOpen, popupWidth]);
 
   const closeAll = () => {
     onMenuOpenChange(false);
-    onCreateOpenChange(false);
     setFilter('');
   };
-
-  // 弹层一出现就把焦点送进名字输入框：创建分支是两步操作，第二步不能靠用户自己
-  // 再点一下输入框（与 Angular 参考实现同一个 effect 模式）。
-  useEffect(() => {
-    if (createOpen) {
-      const timer = setTimeout(() => createInputRef.current?.focus(), 0);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [createOpen]);
 
   // Escape 走 document 级监听而不是挂在容器 div 上：焦点在菜单/弹层的任意子元素上时
   // 事件都能冒泡到 document，而容器 div 挂交互 handler 会撞 jsx-a11y 的
   // interactive-supports-focus（div 不可聚焦）。
   useEffect(() => {
     const onDocumentKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') closeAll();
+      if (event.key === 'Escape' && !isImeComposing(event)) closeAll();
     };
     document.addEventListener('keydown', onDocumentKeyDown);
     return () => document.removeEventListener('keydown', onDocumentKeyDown);
@@ -128,16 +115,14 @@ export function WorkingTreeBranchMenu({
     if (menuOpen) {
       closeAll();
     } else {
-      onCreateOpenChange(false);
       onMenuOpenChange(true);
     }
   };
 
-  const openCreate = () => {
-    onMenuOpenChange(false);
-    onBranchNameChange('');
-    onBranchErrorChange(null);
-    onCreateOpenChange(true);
+  /** 「New branch」：先收起下拉，对话框由页面开 */
+  const requestCreate = () => {
+    closeAll();
+    onCreateRequest();
   };
 
   /** 分支的展示时间：优先 updatedAt，没有就 createdAt。 */
@@ -145,21 +130,11 @@ export function WorkingTreeBranchMenu({
 
   /** 点行：非当前分支立即切换（GitHub Desktop 同款），当前分支只收起菜单。 */
   const onRowClick = (branch: RxDBBranch) => {
-    if (branch.activated) {
+    if (branch.id === activeBranch) {
       closeAll();
       return;
     }
     onSwitchBranch(branch.id);
-  };
-
-  /** 空名不往页面交：那是一条必然被拒的往返，错误就地呈现。 */
-  const confirmCreate = () => {
-    const name = branchName.trim();
-    if (!name) {
-      onBranchErrorChange('Branch name is required.');
-      return;
-    }
-    onCreateBranch(name);
   };
 
   // 筛出来的分支；空筛选 = 全量。
@@ -172,8 +147,9 @@ export function WorkingTreeBranchMenu({
       <div className='relative flex-1'>
         <button
           className='gd-toolbar-select'
+          aria-controls='wt-branch-menu-popup'
           aria-expanded={menuOpen}
-          aria-haspopup={true}
+          aria-haspopup='dialog'
           onClick={toggleMenu}
           data-testid='wt-branch-menu'
           type='button'
@@ -191,7 +167,7 @@ export function WorkingTreeBranchMenu({
           />
         </button>
 
-        {menuOpen || createOpen ?
+        {menuOpen ?
           <div
             className='fixed inset-0 z-30'
             style={{ background: 'rgba(0, 0, 0, 0.35)' }}
@@ -205,66 +181,15 @@ export function WorkingTreeBranchMenu({
           ></div>
         : null}
 
-        {createOpen ?
-          <div
-            className='gd-menu gd-menu-flush gd-branch-create-popover absolute top-full left-0 z-40 mt-1'
-            style={{ width: popupWidth }}
-            aria-label='Create a branch'
-            data-testid='wt-branch-create-popover'
-            role='dialog'
-          >
-            <div className='flex flex-col gap-2'>
-              <div className='text-xs font-medium'>
-                Create a branch <span style={{ color: 'var(--gd-muted)' }}>from {activeBranch}</span>
-              </div>
-              <input
-                className='gd-input'
-                ref={createInputRef}
-                onChange={event => {
-                  onBranchNameChange(event.target.value);
-                  onBranchErrorChange(null);
-                }}
-                onKeyDown={event => {
-                  if (event.key === 'Enter') confirmCreate();
-                }}
-                data-testid='wt-branch-name'
-                placeholder='feature/my-feature'
-                type='text'
-                value={branchName}
-              />
-              {branchError !== null && (
-                <p className='text-xs text-red-600' role='alert'>
-                  {branchError}
-                </p>
-              )}
-              <div className='flex justify-end gap-2'>
-                <button
-                  className='gd-btn-secondary'
-                  onClick={closeAll}
-                  data-testid='wt-branch-create-cancel'
-                  type='button'
-                >
-                  Cancel
-                </button>
-                <button
-                  className='gd-btn-primary'
-                  onClick={confirmCreate}
-                  data-testid='wt-branch-create-confirm'
-                  type='button'
-                >
-                  Create
-                </button>
-              </div>
-            </div>
-          </div>
-        : menuOpen ?
+        {menuOpen ?
           <div
             ref={popupRef}
             className='gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto'
-            style={{ height: 'calc(100vh - 50px)', width: popupWidth, left: popupLeft }}
+            style={{ height: 'calc(100vh - 50px)', width: popupWidth }}
             aria-label='Branch list'
             data-testid='wt-branch-menu-popup'
-            role='menu'
+            id='wt-branch-menu-popup'
+            role='dialog'
           >
             <div className='flex items-center justify-between px-3 pt-1 pb-1.5'>
               <span className='text-[11px] font-semibold uppercase' style={{ color: 'var(--gd-muted)' }}>
@@ -272,7 +197,7 @@ export function WorkingTreeBranchMenu({
               </span>
               <button
                 className='gd-btn-ghost shrink-0'
-                onClick={openCreate}
+                onClick={requestCreate}
                 data-testid='wt-branch-create'
                 type='button'
               >
@@ -302,19 +227,21 @@ export function WorkingTreeBranchMenu({
                   <div className='flex items-stretch'>
                     <button
                       className='gd-menu-row min-w-0 flex-1'
+                      aria-current={branch.id === activeBranch || undefined}
                       data-branch-id={branch.id}
                       onClick={() => onRowClick(branch)}
                       onContextMenu={event => onMenuRequest({ target: branch, event })}
                       data-testid='wt-branch-item'
-                      role='menuitem'
                       type='button'
                     >
                       {/* 当前分支：前导图标换成勾（GitHub Desktop 同款） */}
-                      {branch.activated ?
+                      {branch.id === activeBranch ?
                         <Check className='shrink-0' size={12} style={{ color: 'var(--gd-accent)' }} />
                       : <GitBranch className='shrink-0' size={12} />}
                       <span
-                        className={`min-w-0 flex-1 truncate text-sm font-medium${branch.activated ? 'text-green-700' : ''}`}
+                        className={clsx('min-w-0 flex-1 truncate text-sm font-medium', {
+                          'text-green-700': branch.id === activeBranch
+                        })}
                       >
                         {branch.id}
                       </span>
@@ -360,6 +287,20 @@ export function WorkingTreeBranchMenu({
                 </li>
               : null}
             </ul>
+            {/* GitHub Desktop 的分支下拉底部：选一条分支合并进当前分支 */}
+            <div className='gd-menu-divider'></div>
+            <button
+              className='gd-menu-row w-full shrink-0'
+              onClick={onMergeRequest}
+              data-testid='wt-branch-merge-into'
+              title={`Choose a branch to merge into ${activeBranch}`}
+              type='button'
+            >
+              <GitMerge className='shrink-0' size={14} />
+              <span className='min-w-0 flex-1 truncate text-left text-sm'>
+                Choose a branch to merge into <strong>{activeBranch}</strong>
+              </span>
+            </button>
           </div>
         : null}
       </div>

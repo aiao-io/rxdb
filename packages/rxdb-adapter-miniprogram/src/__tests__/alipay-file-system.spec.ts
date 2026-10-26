@@ -191,7 +191,7 @@ describe('createAlipayCodePackageReader', () => {
     const binary = new Uint8Array(reader.readBinarySync('wa-sqlite/wa-sqlite.wasm'));
     const text = reader.readTextSync('wa-sqlite/wa-sqlite.wasm.base64.txt');
 
-    // 开发者工具实测：727646 字节读成 814795 字节，Type 段长度字节 0xd7 变成 EF BF BD
+    // 开发者工具会把 wasm 当 UTF-8 文本读，非法字节序列变成 EF BF BD
     expect([...binary.slice(8, 12)]).toEqual([0x01, 0xef, 0xbf, 0xbd]);
     expect(Buffer.from(text, 'base64').equals(Buffer.from(wasmBytes))).toBe(true);
   });

@@ -1,4 +1,5 @@
 import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
+import type { TransactionFun } from '@aiao/rxdb-adapter-sqlite-core';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { queryCountOf, registerQueryCount, type EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
@@ -9,9 +10,15 @@ import type { SqliteOptions } from '../sqlite-official.interface.js';
 class QueryCountingSqliteOfficialAdapter extends RxDBAdapterSqlite {
   queryCount = 0;
 
-  override query(...args: Parameters<RxDBAdapterSqlite['query']>): ReturnType<RxDBAdapterSqlite['query']> {
-    this.queryCount++;
-    return super.query(...args);
+  override transaction<T extends TransactionFun>(fun: T, transactionLog = true): Promise<Awaited<ReturnType<T>>> {
+    return super.transaction<TransactionFun>(async executor => {
+      const execute = executor.execute.bind(executor);
+      executor.execute = (...args) => {
+        this.queryCount++;
+        return execute(...args);
+      };
+      return fun(executor);
+    }, transactionLog) as Promise<Awaited<ReturnType<T>>>;
   }
 }
 
@@ -22,6 +29,57 @@ const terminateWorker = (rxdb: RxDB): void => {
   if (!worker) return;
   workers.delete(rxdb);
   worker.terminate();
+};
+
+/** 非持久档的连法：主线程内存库。 */
+const memoryAdapterOptions = (): SqliteOptions => ({ batchTimeout: 1 });
+
+/** 快照库用的 Worker：断开不会替调用方终止它们，测试文件在用例之间统一收掉。 */
+const worktreeWorkers = new Set<Worker>();
+
+/**
+ * 给只读检出位的快照实例造适配器（US-313）：与本工厂非持久档同一份连法，每个实例一个独立的内存库。
+ *
+ * @param db - 快照实例
+ * @returns 快照库的适配器
+ *
+ * @remarks
+ * 内存档：快照的读写与封印跟存储档位无关。持久档要一个快照库一个专用 Worker（OPFS 只在 Worker 里开），
+ * 整套检出位用例都那么建的话，浏览器内存涨到约四倍，见 {@link createSqliteOfficialPersistentWorktreeAdapter}。
+ */
+export const createSqliteOfficialWorktreeAdapter = (db: RxDB): RxDBAdapterSqlite =>
+  new RxDBAdapterSqlite(db, memoryAdapterOptions());
+
+/**
+ * 给只读检出位的快照实例造持久档适配器（US-313）：与本工厂持久档同一份连法（专用 Worker 里的 OPFS），
+ * 每个快照实例一个 Worker、一个库文件。
+ *
+ * @param db - 快照实例
+ * @returns 快照库的适配器
+ *
+ * @remarks
+ * 只给「持久归属的检出位放开之后原样再打开」那条用例用（`createDatabaseWithPersistentSnapshots`）。
+ * Worker 由 {@link terminateSqliteOfficialWorktreeWorkers} 收掉。
+ */
+export const createSqliteOfficialPersistentWorktreeAdapter = (db: RxDB): RxDBAdapterSqlite => {
+  const worker = new Worker(new URL('./sqlite-official-test.worker', import.meta.url), {
+    type: 'module',
+    name: `${db.config.dbName}-worktree-worker`
+  });
+  worktreeWorkers.add(worker);
+  return new RxDBAdapterSqlite(db, {
+    batchTimeout: 1,
+    opfs: true,
+    opfsFallback: 'throw',
+    worker: true,
+    workerInstance: worker
+  });
+};
+
+/** 终止 {@link createSqliteOfficialPersistentWorktreeAdapter} 建过的全部 Worker；在快照实例都断开之后调用。 */
+export const terminateSqliteOfficialWorktreeWorkers = (): void => {
+  for (const worker of worktreeWorkers) worker.terminate();
+  worktreeWorkers.clear();
 };
 
 export const sqliteOfficialFactory: AdapterFactory = {
@@ -78,7 +136,7 @@ async function createSqliteOfficialAdapter(
         : undefined;
       if (worker) workers.set(db, worker);
       countingAdapter = new QueryCountingSqliteOfficialAdapter(db, {
-        batchTimeout: 1,
+        ...memoryAdapterOptions(),
         ...(worker ? { opfs: true, opfsFallback: 'throw' as const, worker: true, workerInstance: worker } : {})
       });
       return countingAdapter;

@@ -1,7 +1,7 @@
 /**
  * 发布 tarball 的隔离消费验证（US-602 AC#8）。
  *
- * 工作区内 peer 写法绿（`.npmrc` 开了 auto-install-peers）不能证明外部消费者装配安全，
+ * 工作区内 peer 写法绿（pnpm-workspace.yaml 开了 autoInstallPeers）不能证明外部消费者装配安全，
  * 所以本脚本在工作区**外**的临时目录分别用 npm 与 pnpm 安装同一批真实 `pnpm pack` 出来的 tgz：
  * 不经 workspace links、不经 tsconfig paths，验证的是发布产物本身。
  *
@@ -40,8 +40,17 @@ const execFileAsync = promisify(execFile);
 const workspaceRoot = process.cwd();
 const workspacePackageJson = JSON.parse(await readFile(path.join(workspaceRoot, 'package.json'), 'utf8'));
 
+// pnpm 12 安装时不再读 .npmrc 里的 node-linker 等 pnpm 专属设置（实测按 isolated 装），
+// 所以和 overrides 一起写进 pnpm-workspace.yaml。
 const writePnpmWorkspace = (root, overrides) =>
-  writeFile(path.join(root, 'pnpm-workspace.yaml'), `${JSON.stringify({ packages: [], overrides }, null, 2)}\n`);
+  writeFile(
+    path.join(root, 'pnpm-workspace.yaml'),
+    `${JSON.stringify(
+      { packages: [], nodeLinker: 'hoisted', autoInstallPeers: false, strictPeerDependencies: true, overrides },
+      null,
+      2
+    )}\n`
+  );
 
 /**
  * 跑一条子命令；失败时一定把两个流都转出去（`tsc` 把诊断写在 stdout，
@@ -449,13 +458,7 @@ const auditConsumer = async (combo, manager, packed, bumped) => {
       ...(!(combo.expectInstallFailure && manager === 'npm') && manager === 'npm' ? { overrides } : {})
     };
     await writeFile(path.join(root, 'package.json'), JSON.stringify(manifest, null, 2));
-    if (manager === 'pnpm') {
-      await writePnpmWorkspace(root, overrides);
-      await writeFile(
-        path.join(root, '.npmrc'),
-        'node-linker=hoisted\nauto-install-peers=false\nstrict-peer-dependencies=true\n'
-      );
-    }
+    if (manager === 'pnpm') await writePnpmWorkspace(root, overrides);
     const result = await install(manager, root);
     if (combo.expectInstallFailure) {
       assert.ok(result.failed, `${combo.id}/${manager}: 核心版本不兼容必须安装失败，却成功了`);

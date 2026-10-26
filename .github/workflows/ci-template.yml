@@ -225,6 +225,11 @@ jobs:
       - name: Docs plugin surface gate
         run: pnpm audit:docs-plugins
 
+      # 可写检出位在同一个库里各有一套业务表（US-314 库内影子表）：业务实体的物理名只能从两个适配器的
+      # 表名解析器出。解析器之外自己拼一个名字不产生编译错误，只会静默读写别的检出位的表。
+      - name: Table name resolver gate
+        run: pnpm audit:table-name-resolver
+
       # requirements/ 的派生视图（status-overview 计数与索引、epic status、README 的 N/M、
       # 相对链接与 #L 行号锚点）必须等于 story YAML 推导值。此前全靠手改，README 写 50/61 时
       # YAML 已是 54/63；数字类漂移本地跑 `pnpm audit:requirements:update` 即可回写。
@@ -1147,7 +1152,7 @@ jobs:
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
-      - run: pnpm exec nx run-many -t search-ci bench-working-tree bench-sortable-batch -p benchmarks --output-style=stream
+      - run: pnpm exec nx run-many -t search-ci bench-working-tree bench-sortable-batch -p benchmarks --output-style=stream --parallel=1
 
   # ---------------------------------------------------------------------------
   # 覆盖率汇总：把各 lane 的 artifact 合回一个 coverage/ 目录，跑阈值门禁 + 上报 Codecov。

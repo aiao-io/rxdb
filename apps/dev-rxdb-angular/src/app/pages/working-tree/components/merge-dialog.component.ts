@@ -1,65 +1,112 @@
 import type { MergeStrategy } from '@aiao/rxdb';
+import type { MergePreview } from '@aiao/rxdb-plugin-history';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   LucideAlertCircle as AlertCircle,
   LucideChevronRight as ChevronRight,
+  LucideGitBranch as GitBranch,
   LucideGitMerge as GitMerge,
   LucideDynamicIcon
 } from '@lucide/angular';
+import { mergePreviewSummary, type BranchDiffLoad } from '../working-tree.branch-diff';
+import { WorkingTreeBranchDiffListComponent } from './branch-diff-list.component';
+import { WorkingTreeDialogShellComponent } from './dialog-shell.component';
 
 /** 合并对话框的草稿状态；页面持有，本组件只做展示与转发。 */
 export interface MergeDialogState {
-  sourceBranchId: string;
+  /** 要合并进当前分支的那条；从分支下拉底部打开时还没选，是 `null` */
+  sourceBranchId: string | null;
   strategy: MergeStrategy;
   deleteSource: boolean;
 }
 
 /**
- * 合并对话框（从旧页面整体搬出，行为不变，视觉改为 GitHub Desktop 对话框形态：
- * 白面板圆角描边、标题 15px 半粗、蓝底白字主按钮、白底灰边取消）。
+ * 合并对话框（GitHub Desktop 的「Merge into 当前分支」，`merge-choose-branch-dialog.tsx`；视觉为 GitHub Desktop
+ * 对话框形态：白面板圆角描边、标题 15px 半粗、蓝底白字主按钮、白底灰边取消）。
  *
  * @remarks
- * 背板是 `role="button"` + `tabindex="0"` 的 div：点背板或按 Escape 关闭。
- * 不用 `<dialog>` 元素——旧实现的焦点与扫读行为已被 a11y 用例验证过，
- * 换容器形态等于把那条用例的结论作废重验。
+ * 顶部是带筛选的分支列表，选一条作合并来源（从 History 的对比进来时已经选好）。选好之后显示预览（`previewMerge()`）：
+ * 一句摘要（落多少条，跟着策略变）+ 将落的增删改，撞上当前分支分叉以来改动的条目带覆盖说明。预览是只读的参考，
+ * 读失败只显示错误，合并照常可点；没选来源时合并置灰。外壳见 {@link WorkingTreeDialogShellComponent}。
  */
 @Component({
   selector: 'app-working-tree-merge-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, LucideDynamicIcon],
+  imports: [
+    CommonModule,
+    FormsModule,
+    LucideDynamicIcon,
+    WorkingTreeBranchDiffListComponent,
+    WorkingTreeDialogShellComponent
+  ],
   template: `
     @if (dialog(); as dialog) {
-      <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3"
-        (click)="closeRequested.emit()"
-        (keydown.escape)="closeRequested.emit()"
-        aria-label="Close dialog"
-        role="button"
-        tabindex="0"
+      <app-working-tree-dialog-shell
+        (closeRequested)="closeRequested.emit()"
+        labelledBy="wt-merge-title"
+        testId="wt-merge-dialog"
       >
-        <div
-          class="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl"
-          [style.background]="'var(--gd-panel)'"
-          (click)="$event.stopPropagation()"
-          (keydown)="$event.stopPropagation()"
-          aria-modal="true"
-          data-testid="wt-merge-dialog"
-          role="dialog"
-        >
-          <div class="mb-4 flex items-center gap-2">
-            <svg class="text-[var(--gd-accent)]" [lucideIcon]="GitMerge" size="18"></svg>
-            <h2 class="text-[15px] font-semibold">Merge branch</h2>
-          </div>
+        <div class="mb-4 flex items-center gap-2">
+          <svg class="text-[var(--gd-accent)]" [lucideIcon]="GitMerge" aria-hidden="true" size="18"></svg>
+          <h2 class="text-[15px] font-semibold" id="wt-merge-title">
+            Merge into <strong>{{ activeBranch() }}</strong>
+          </h2>
+        </div>
 
+        <div class="mb-4">
+          <input
+            class="gd-input mb-2"
+            [value]="filter()"
+            (input)="filter.set($any($event.target).value)"
+            aria-label="Filter branches"
+            data-testid="wt-merge-branch-filter"
+            placeholder="Filter"
+            type="text"
+          />
+          <ul
+            class="max-h-40 overflow-y-auto rounded border border-[var(--gd-border)]"
+            aria-label="Branches to merge"
+            data-testid="wt-merge-branch-list"
+          >
+            @for (branchId of filteredBranches(); track branchId) {
+              <li>
+                <button
+                  class="gd-row flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm"
+                  [attr.aria-current]="branchId === dialog.sourceBranchId ? 'true' : null"
+                  [attr.data-branch-id]="branchId"
+                  [class.gd-row-selected]="branchId === dialog.sourceBranchId"
+                  (click)="sourceChange.emit(branchId)"
+                  data-testid="wt-merge-branch-item"
+                  type="button"
+                >
+                  <svg class="shrink-0" [lucideIcon]="GitBranch" aria-hidden="true" size="12"></svg>
+                  <span class="min-w-0 flex-1 truncate font-mono">{{ branchId }}</span>
+                </button>
+              </li>
+            } @empty {
+              <li class="px-3 py-2 text-center text-xs" [style.color]="'var(--gd-muted)'">
+                {{ branches().length === 0 ? 'No other branches to merge' : 'No matching branches' }}
+              </li>
+            }
+          </ul>
+        </div>
+
+        @if (dialog.sourceBranchId; as sourceBranchId) {
           <div
             class="mb-4 flex items-center gap-2 rounded border border-[var(--gd-border)] px-3 py-2 text-sm"
             [style.background]="'var(--gd-bg)'"
           >
-            <span class="min-w-0 truncate font-mono font-medium text-amber-700">{{ dialog.sourceBranchId }}</span>
-            <svg class="shrink-0" [lucideIcon]="ChevronRight" [style.color]="'var(--gd-muted)'" size="14"></svg>
+            <span class="min-w-0 truncate font-mono font-medium text-amber-700">{{ sourceBranchId }}</span>
+            <svg
+              class="shrink-0"
+              [lucideIcon]="ChevronRight"
+              [style.color]="'var(--gd-muted)'"
+              aria-hidden="true"
+              size="14"
+            ></svg>
             <span class="min-w-0 truncate font-mono font-medium text-green-700">{{ activeBranch() }}</span>
           </div>
 
@@ -95,6 +142,35 @@ export interface MergeDialogState {
             </div>
           </div>
 
+          <section class="mb-4" aria-labelledby="wt-merge-preview-title" data-testid="wt-merge-preview">
+            <h3 class="mb-1.5 text-sm font-medium" id="wt-merge-preview-title">Preview</h3>
+            @let previewState = preview();
+            <div class="mb-2 text-xs" aria-live="polite">
+              @if (previewState.phase === 'loading') {
+                <p [style.color]="'var(--gd-muted)'" data-testid="wt-merge-preview-loading">Loading preview…</p>
+              } @else if (previewState.phase === 'error') {
+                <p
+                  class="flex items-center gap-2"
+                  [style.color]="'var(--gd-del-fg)'"
+                  data-testid="wt-merge-preview-error"
+                >
+                  <svg class="shrink-0" [lucideIcon]="AlertCircle" aria-hidden="true" size="13"></svg>
+                  Preview unavailable: {{ previewState.message }}
+                </p>
+              } @else {
+                <p data-testid="wt-merge-preview-summary">{{ summary(previewState.value) }}</p>
+              }
+            </div>
+            @if (previewState.phase === 'success' && previewState.value.merged > 0) {
+              <app-working-tree-branch-diff-list
+                [emptyText]="'These changes cancel out; nothing on ' + activeBranch() + ' changes.'"
+                [entries]="previewState.value.entries"
+                [target]="activeBranch()"
+                label="Merge preview"
+              />
+            }
+          </section>
+
           <label class="mb-2 flex cursor-pointer items-center gap-3">
             <input
               class="checkbox checkbox-sm"
@@ -105,7 +181,7 @@ export interface MergeDialogState {
             />
             <span class="text-sm">
               Delete source branch after merging
-              <code class="text-xs opacity-70">{{ dialog.sourceBranchId }}</code>
+              <code class="text-xs opacity-70">{{ sourceBranchId }}</code>
             </span>
           </label>
 
@@ -118,47 +194,74 @@ export interface MergeDialogState {
             <code>git merge --no-commit</code>
             ) and enters history only after a commit.
           </p>
+        } @else {
+          <p class="mb-4 text-sm" [style.color]="'var(--gd-muted)'" data-testid="wt-merge-choose-hint">
+            Choose a branch to merge into {{ activeBranch() }}.
+          </p>
+        }
 
-          @if (error()) {
-            <div
-              class="mb-4 flex items-center gap-2 rounded border border-red-300 p-2 text-sm text-red-700"
-              data-testid="wt-merge-error"
-            >
-              <svg class="shrink-0" [lucideIcon]="AlertCircle" size="15"></svg>
-              {{ error() }}
-            </div>
-          }
-
-          <div class="flex justify-end gap-2">
-            <button
-              class="gd-btn-secondary"
-              (click)="closeRequested.emit()"
-              data-testid="wt-merge-cancel"
-              type="button"
-            >
-              Cancel
-            </button>
-            <button class="gd-btn-primary" (click)="confirm.emit()" data-testid="wt-merge-confirm" type="button">
-              <svg [lucideIcon]="GitMerge" size="13"></svg>
-              Merge
-            </button>
+        @if (error()) {
+          <div
+            class="mb-4 flex items-center gap-2 rounded border border-red-300 p-2 text-sm text-red-700"
+            data-testid="wt-merge-error"
+          >
+            <svg class="shrink-0" [lucideIcon]="AlertCircle" size="15"></svg>
+            {{ error() }}
           </div>
+        }
+
+        <div class="flex justify-end gap-2">
+          <button class="gd-btn-secondary" (click)="closeRequested.emit()" data-testid="wt-merge-cancel" type="button">
+            Cancel
+          </button>
+          <button
+            class="gd-btn-primary"
+            [disabled]="dialog.sourceBranchId === null || busy()"
+            (click)="confirm.emit()"
+            data-testid="wt-merge-confirm"
+            type="button"
+          >
+            <svg [lucideIcon]="GitMerge" size="13"></svg>
+            Merge
+          </button>
         </div>
-      </div>
+      </app-working-tree-dialog-shell>
     }
   `
 })
 export class WorkingTreeMergeDialogComponent {
   readonly dialog = input<MergeDialogState | null>(null);
-  readonly activeBranch = input('');
+  readonly activeBranch = input.required<string>();
+  /** 能合并进来的分支（当前分支以外的） */
+  readonly branches = input<readonly string[]>([]);
+  /** 分支名筛选（大小写不敏感的子串匹配）；对话框关掉即清空，下次打开不留上一次的筛选词 */
+  readonly filter = signal('');
+  readonly filteredBranches = computed(() => {
+    const needle = this.filter().trim().toLowerCase();
+    return needle === '' ? this.branches() : this.branches().filter(id => id.toLowerCase().includes(needle));
+  });
+  /** 按当前策略读的合并预览；读失败不挡合并 */
+  readonly preview = input<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
   readonly error = input<string | null>(null);
+  readonly busy = input(false);
 
   readonly closeRequested = output<void>();
+  /** 选了合并来源 */
+  readonly sourceChange = output<string>();
   readonly strategyChange = output<MergeStrategy>();
   readonly deleteSourceChange = output<boolean>();
   readonly confirm = output<void>();
 
+  readonly summary = mergePreviewSummary;
+  readonly GitBranch = GitBranch;
   readonly GitMerge = GitMerge;
   readonly ChevronRight = ChevronRight;
   readonly AlertCircle = AlertCircle;
+
+  constructor() {
+    // 组件跟着页面常驻，不随开关重建：关掉时清空筛选，下次打开从完整列表起
+    effect(() => {
+      if (this.dialog() === null) this.filter.set('');
+    });
+  }
 }

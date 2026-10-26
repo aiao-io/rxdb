@@ -202,6 +202,19 @@ export interface DesktopHostMuteRequest {
   readonly muted: boolean;
 }
 
+/**
+ * 删掉一个数据库文件及其日志旁文件（只读检出位回收快照库，US-313）。
+ *
+ * @remarks
+ * 不带会话：要删的库此刻就不该有人开着。host 发现还有会话开着同名库时报 `database_busy`，一个字节都不删。
+ * 文件不存在时什么都不做，`dropped` 为 `false`。老 host 不认识本请求，在任何副作用之前就以 `protocol_violation`
+ * 拒绝，所以加入它**没有**抬高 {@link DESKTOP_HOST_PROTOCOL_VERSION}。
+ */
+export interface DesktopHostDropRequest {
+  readonly kind: 'drop';
+  readonly storage: DesktopSqliteFileStorage;
+}
+
 /** renderer 可以发给 host 的全部请求。 */
 export type DesktopHostRequest =
   | DesktopHostHandshakeRequest
@@ -209,7 +222,8 @@ export type DesktopHostRequest =
   | DesktopHostExecuteRequest
   | DesktopHostVersionRequest
   | DesktopHostCloseRequest
-  | DesktopHostMuteRequest;
+  | DesktopHostMuteRequest
+  | DesktopHostDropRequest;
 
 /** `handshake` 请求的响应。 */
 export interface DesktopHostHandshakeResult {
@@ -243,6 +257,12 @@ export interface DesktopHostOpenResult {
   readonly beginSystemMigrationTransactionSql: string;
 }
 
+/** `drop` 请求的响应。 */
+export interface DesktopHostDropResult {
+  /** 库文件此前在不在；不在时 host 什么都没删 */
+  readonly dropped: boolean;
+}
+
 /** host 主动推送给 renderer 的变更事件。 */
 export interface DesktopHostChangeEventMessage {
   readonly kind: 'change';
@@ -265,6 +285,7 @@ export type DesktopHostResponse =
   | { readonly kind: 'version'; readonly result: string }
   | { readonly kind: 'close' }
   | { readonly kind: 'mute' }
+  | { readonly kind: 'drop'; readonly result: DesktopHostDropResult }
   | { readonly kind: 'error'; readonly code: RxDBAdapterDesktopErrorCode; readonly message: string };
 
 /**
@@ -422,7 +443,8 @@ const REQUEST_KINDS: readonly DesktopHostRequest['kind'][] = [
   'execute',
   'version',
   'close',
-  'mute'
+  'mute',
+  'drop'
 ];
 
 const FILE_REQUEST_KINDS: readonly DesktopHostFileRequest['kind'][] = [
@@ -511,7 +533,7 @@ const readBatchTimeout = (record: Record<string, unknown>): number | undefined =
   return batchTimeout as number;
 };
 
-const parseOpenRequest = (record: Record<string, unknown>): DesktopHostOpenRequest => {
+const readSqliteStorage = (record: Record<string, unknown>): DesktopSqliteFileStorage => {
   const storage = record['storage'];
   if (typeof storage !== 'object' || storage === null) throw violation('storage must be an object');
   // 这条线协议只承载 SQLite 单文件：Tauri 侧走 Rust 宿主的 parse_request，同样只认这一种。
@@ -520,8 +542,14 @@ const parseOpenRequest = (record: Record<string, unknown>): DesktopHostOpenReque
   const candidate = storage as DesktopStorage;
   assertDesktopSqliteStorage(candidate);
   const { engine, databaseName } = candidate;
-  return { kind: 'open', storage: { engine, databaseName }, batchTimeout: readBatchTimeout(record) };
+  return { engine, databaseName };
 };
+
+const parseOpenRequest = (record: Record<string, unknown>): DesktopHostOpenRequest => ({
+  kind: 'open',
+  storage: readSqliteStorage(record),
+  batchTimeout: readBatchTimeout(record)
+});
 
 /** `muted` 只收布尔：一个缺席或写错类型的值不能被当成「不静音」静默放过。 */
 const readMuted = (record: Record<string, unknown>): boolean => {
@@ -560,6 +588,8 @@ export function parseDesktopHostRequest(value: unknown): DesktopHostRequest {
     };
   }
   if (kind === 'mute') return { kind, sessionId: readSessionId(record), muted: readMuted(record) };
+  // 删库与打开同一道存储校验：库名是应用作用域内的逻辑名，不是路径
+  if (kind === 'drop') return { kind, storage: readSqliteStorage(record) };
   return { kind: kind as 'version' | 'close', sessionId: readSessionId(record) };
 }
 
@@ -882,6 +912,19 @@ const assertProtocolVersion = (protocolVersion: unknown): number => {
  */
 export function parseDesktopHostHandshakeResult(value: unknown): DesktopHostHandshakeResult {
   return { protocolVersion: assertProtocolVersion(asRecord(value)['protocolVersion']) };
+}
+
+/**
+ * 校验 `drop` 响应。
+ *
+ * @param value - host 返回的未校验负载
+ * @returns 校验通过的删库结果
+ * @throws `dropped` 不是布尔时抛 `protocol_violation`：读不出来就当 `false`，等于把一次答错吞成「库本来就不在」
+ */
+export function parseDesktopHostDropResult(value: unknown): DesktopHostDropResult {
+  const dropped = asRecord(value)['dropped'];
+  if (typeof dropped !== 'boolean') throw violation('drop result must carry a boolean dropped flag');
+  return { dropped };
 }
 
 /**

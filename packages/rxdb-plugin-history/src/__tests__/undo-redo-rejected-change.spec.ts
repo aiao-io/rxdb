@@ -25,6 +25,7 @@ import {
   RxDBSync,
   SKIP_BRANCH_SWITCH_PREPARE,
   SyncType,
+  WorktreeTableSet,
   type RemoteChangeRejection,
   type RxDB,
   type UUID
@@ -124,9 +125,9 @@ describe('applyUndoRedoHistories 对被拒变更', () => {
     await applyUndoRedoHistories(host, 'undo', [history], session);
 
     const [options] = adapter.switchBranch.mock.calls[0];
-    // 回放只作用于当前分支：不传 branchId、跳过 prepare（与未被拒变更同一套入口规则）
+    // 回放只作用于当前分支：不传 branchId；前置钩子只复核这批变更没被子分支继承（US-315），与未被拒变更同一套入口规则
     expect(options).not.toHaveProperty('branchId');
-    expect(options.prepare).toBe(SKIP_BRANCH_SWITCH_PREPARE);
+    expect(options.prepare).not.toBe(SKIP_BRANCH_SWITCH_PREPARE);
 
     // INSERT 的逆操作是删实体行：被拒变更的实体状态照常被还原
     const deletes = [...options.actions.deletes.values()];
@@ -212,12 +213,17 @@ const createCountHarness = (lastPushedChangeId: number | null) => {
       remote: { adapter: 'remote' }
     }),
     connected$: of(true),
+    // 没换挂过的实例挂的是主表集（US-314 B1.4）
+    worktreeTableSet: WorktreeTableSet.MAIN,
+    worktreeTableSet$: of(WorktreeTableSet.MAIN),
     localAdapter$: of({
       getRepository: vi.fn((entity: unknown) => (entity === RxDBSync ? { find: syncFind } : null))
     }),
     entityManager: {
       getRepository: vi.fn((entity: unknown) => {
-        if (entity === RxDBBranch) return { findOne: vi.fn(() => of({ id: 'main', activated: true })) };
+        if (entity === RxDBBranch) {
+          return { findOne: vi.fn(() => of({ id: 'main', activated: true })), findAll: vi.fn(() => of([])) };
+        }
         if (entity === RxDBChange) return { count };
         return null;
       })
@@ -288,7 +294,8 @@ describe('HistoryManager.history().undo() 对被拒变更（公开入口）', ()
     const changes$ = new BehaviorSubject<RxDBChange[]>([change]);
     const branchRepository = {
       find: vi.fn().mockResolvedValue([{ id: 'main', activated: true }]),
-      findOne: vi.fn(() => of({ id: 'main', activated: true }))
+      findOne: vi.fn(() => of({ id: 'main', activated: true })),
+      findAll: vi.fn(() => of([]))
     };
     const changeRepository = {
       count: vi.fn(() => of(0)),
@@ -313,6 +320,9 @@ describe('HistoryManager.history().undo() 对被拒变更（公开入口）', ()
         remote: { adapter: 'remote' }
       }),
       connected$,
+      // 没换挂过的实例挂的是主表集（US-314 B1.4）
+      worktreeTableSet: WorktreeTableSet.MAIN,
+      worktreeTableSet$: of(WorktreeTableSet.MAIN),
       firstConnectedAt,
       localAdapter$: of({
         getRepository: vi.fn((entity: unknown) => (entity === RxDBSync ? { find: syncFind } : null))

@@ -26,7 +26,8 @@
  */
 export { METADATA } from './rxdb.private.js';
 
-export { cloneEntityClasses } from './testing/clone-entity-classes.js';
+/** 已提为主入口的公开 API（US-313）；这里保留同名导出，既有的测试夹具不必改导入。 */
+export { cloneEntityClasses } from './entity/clone-entity-classes.js';
 
 export {
   collectEmissions,

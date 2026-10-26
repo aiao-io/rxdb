@@ -4,7 +4,8 @@
  * 这里刻意**不** mock `installFtsForEntity`——它是唯一会调用
  * `listInstallMigrationsForTable` 的地方，mock 掉就等于什么都没测。
  */
-import { Entity, EntityBase, PropertyType, type RxDB } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, type RxDB, WorktreeTableSet } from '@aiao/rxdb';
+import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../core/search-engine.js', async () => {
@@ -49,6 +50,8 @@ const buildFakeRxdb = (migrationRecords: { name: string }[] = []) => {
     config: { sync: { local: { adapter: 'sqlite-wasm' } }, entities: [FakeArticle] },
     // 插件按 `inject: ['adapter:local']` 拿实例：不再自己 connect / 等 adapterConnected$
     localAdapterSync: adapter,
+    worktreeTableSet: WorktreeTableSet.MAIN,
+    worktreeTableSet$: new BehaviorSubject(WorktreeTableSet.MAIN),
     getPlugins: vi.fn(() => []),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn()
