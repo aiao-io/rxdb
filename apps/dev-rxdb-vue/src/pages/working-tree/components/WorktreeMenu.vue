@@ -171,7 +171,6 @@ defineExpose({ openNewDialog });
       :aria-expanded="menuOpen"
       aria-controls="wt-worktree-menu-popup"
       aria-haspopup="dialog"
-      aria-label="Worktree"
       data-testid="wt-worktree-menu"
       :disabled="busy"
       type="button"

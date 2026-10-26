@@ -1,11 +1,12 @@
 /// <reference types='vitest' />
 import angular from '@analogjs/vite-plugin-angular';
+import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 import { defineConfig } from 'vite';
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/apps/dev-rxdb-angular',
-  plugins: [angular({ tsconfig: `${import.meta.dirname}/tsconfig.spec.json` })],
+  plugins: [angular({ tsconfig: `${import.meta.dirname}/tsconfig.spec.json` }), nxReadySignal()],
   resolve: { tsconfigPaths: true },
   // Uncomment this if you are using workers.
   // worker: {

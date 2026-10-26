@@ -5,8 +5,9 @@
  * 两条来源各有各的钉法：
  * - `wa-sqlite`（JS API 层 `sqlite-api.js`）走不可变 tarball，钉 commit + SHA-512；
  * - `@subframe7536/sqlite-wasm`（编入 FTS5 的 glue + wasm）走 npm，钉精确版本 +
- *   锁文件 integrity。它的 glue 只在 `./dist/*` 下暴露，文件名带内容哈希，所以
- *   版本号与源码里写的 glue 文件名必须成对更新，否则运行时才会炸。
+ *   锁文件 integrity，并通过仓库内 pnpm patch 固定 iOS WXWebAssembly 的 Global 兼容回退。
+ *   它的 glue 只在 `./dist/*` 下暴露，文件名带内容哈希，所以版本号与源码里写的 glue 文件名必须成对更新，
+ *   否则运行时才会炸。
  */
 
 import { createHash } from 'node:crypto';
@@ -19,11 +20,13 @@ export const WA_SQLITE_COMMIT = '2bf1c59d89eb6497535a4217bc62fec68a0bb994';
 export const WA_SQLITE_TARBALL = `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/${WA_SQLITE_COMMIT}`;
 export const WA_SQLITE_INTEGRITY =
   'sha512-aF923cT8vn7YQ/DuEqconOCe47peo8CmG0Cp28pFqASwYznZhidx5E5w8f0UkhfNjEaM7rNxmykIDrqtL7kC4g==';
-export const SUBFRAME_VERSION = '1.3.1';
+export const SUBFRAME_VERSION = '1.4.0';
 export const SUBFRAME_INTEGRITY =
-  'sha512-0Xlapt/w6tzEjxPsjPSnIEcrgfJfDESYbkEf8gyPCU7HrM0Qcdd/ooXvkK6ZaMtx6aBdsABTBqC77fa2Sk1xsA==';
-/** `@subframe7536/sqlite-wasm@1.3.1` 里 Emscripten glue 的内容哈希文件名。 */
-export const SUBFRAME_GLUE_FILE = 'wa-sqlite-DfKPyFeY.js';
+  'sha512-Oo29xlIrUGKj7bIwwlZQaBUhoH2AISkW7q+5LdViT/lTbfWwJr9/+q51yUlQI81Xu+QJh4jX5IVnYiYfJsVXGA==';
+/** `@subframe7536/sqlite-wasm@1.4.0` 里 Emscripten glue 的内容哈希文件名。 */
+export const SUBFRAME_GLUE_FILE = 'wa-sqlite-bT14NS4h.js';
+export const SUBFRAME_PATCH_FILE = 'patches/@subframe7536__sqlite-wasm@1.4.0.patch';
+export const SUBFRAME_PATCH_FALLBACK = 'Module["_sqlite3_libversion"]()';
 export const SUBFRAME_GLUE_SOURCE = 'packages/rxdb-adapter-miniprogram/src/subframe-glue.ts';
 
 export function assertEqual(actual, expected, label) {
@@ -35,8 +38,12 @@ function readJson(path) {
   return JSON.parse(readFileSync(resolve(ROOT, path), 'utf8'));
 }
 
-function packageResolution(lockfile, packageKey) {
-  const start = lockfile.indexOf(packageKey);
+export function packageResolution(lockfile, packageKey) {
+  // patchedDependencies 也会复用包键；只在 packages 段查找，避免把 patch 元数据当成解析结果。
+  // pnpm 11+ 在锁文件开头多一个 env 文档（packageManagerDependencies），它自带 packages 段，
+  // 工作区的 packages 段是最后一个。
+  const packagesStart = lockfile.lastIndexOf('\npackages:\n');
+  const start = lockfile.indexOf(packageKey, packagesStart);
   if (start < 0) throw new Error(`pnpm-lock.yaml is missing ${packageKey.trim()}`);
   const remainder = lockfile.slice(start + packageKey.length);
   const nextPackage = /\n {2}\S[^\n]*:\n/.exec(remainder);
@@ -98,6 +105,15 @@ export function verifySubframeSqliteWasm() {
     throw new Error(
       `${SUBFRAME_GLUE_SOURCE} must import the glue pinned for ${SUBFRAME_VERSION} (dist/${SUBFRAME_GLUE_FILE})`
     );
+  }
+
+  const workspace = readFileSync(resolve(ROOT, 'pnpm-workspace.yaml'), 'utf8');
+  if (!workspace.includes(`'@subframe7536/sqlite-wasm@${SUBFRAME_VERSION}': ${SUBFRAME_PATCH_FILE}`)) {
+    throw new Error(`pnpm-workspace.yaml must apply ${SUBFRAME_PATCH_FILE} to sqlite-wasm ${SUBFRAME_VERSION}`);
+  }
+  const patch = readFileSync(resolve(ROOT, SUBFRAME_PATCH_FILE), 'utf8');
+  if (!patch.includes(SUBFRAME_PATCH_FALLBACK)) {
+    throw new Error(`${SUBFRAME_PATCH_FILE} must fall back to sqlite3_libversion when the wasm Global is absent`);
   }
 }
 

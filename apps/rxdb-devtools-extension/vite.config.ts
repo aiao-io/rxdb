@@ -1,5 +1,6 @@
 import angular from '@analogjs/vite-plugin-angular';
 import { crx } from '@crxjs/vite-plugin';
+import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 import { defineConfig, type PluginOption } from 'vite';
@@ -54,7 +55,8 @@ export default defineConfig(({ command, mode }) => ({
     // 静态权限。让它落进 `release/` 只会造出一个长得像可分发物、却不该分发的东西。
     ...(mode === DESKTOP_DEV_MODE ?
       []
-    : [zip({ outDir: 'release', outFileName: `crx-${pkg.name}-${pkg.version}.zip` }) as PluginOption])
+    : [zip({ outDir: 'release', outFileName: `crx-${pkg.name}-${pkg.version}.zip` }) as PluginOption]),
+    nxReadySignal()
   ],
   publicDir: 'public',
   server: {
