@@ -260,5 +260,5 @@
     "website",
     "benchmarks"
   ],
-  "packageManager": "pnpm@10.34.6"
+  "packageManager": "pnpm@10.34.9"
 }
