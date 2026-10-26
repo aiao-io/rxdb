@@ -117,7 +117,15 @@ const row = (id: string, updatedAt: string, value = 0): CachedEntity => {
   entity.value = value;
   // 这份替身要覆盖 Repository 实际读到的槽位：_setLocal 除了写 local 还会看 patch
   // （只有「无未保存改动」才把 modified 归零），缺 patch 就是替身比真实 EntityStatus 少一块。
-  Object.assign(entity, { [STATUS]: { local: false, modified: false, patch: {}, tableSet: WorktreeTableSet.MAIN, prepareUpdate: vi.fn(() => ({ apply: vi.fn(), release: vi.fn() })) } });
+  Object.assign(entity, {
+    [STATUS]: {
+      local: false,
+      modified: false,
+      patch: {},
+      tableSet: WorktreeTableSet.MAIN,
+      prepareUpdate: vi.fn(() => ({ apply: vi.fn(), release: vi.fn() }))
+    }
+  });
   return entity;
 };
 

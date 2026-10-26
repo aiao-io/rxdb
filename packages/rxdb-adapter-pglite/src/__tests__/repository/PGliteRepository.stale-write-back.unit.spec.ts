@@ -5,7 +5,16 @@
  * UPDATE 已提交、回填尚未合入时，另一个来源的更晚写入先合进了缓存，回填不得把它连同 updatedAt 盖回旧值。
  * 用替身适配器而不是真引擎：真引擎写入后的 NOTIFY 回刷会重读库，时序决定它是否把回退「修好」，用例就不确定了。
  */
-import { Entity, EntityBase, type EntityUpdateData, getEntityStatus, PropertyType, RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  type EntityUpdateData,
+  getEntityStatus,
+  PropertyType,
+  RxDB,
+  SyncType,
+  WorktreeTableSet
+} from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { PGliteRepository } from '../../repository/PGliteRepository.js';
 import { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
