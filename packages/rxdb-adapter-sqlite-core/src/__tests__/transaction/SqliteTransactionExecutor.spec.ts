@@ -1,4 +1,4 @@
-import type { IRepository, SwitchVersionActions } from '@aiao/rxdb';
+import { type IRepository, type SwitchVersionActions, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import type { RxDBAdapterSqliteBase, SqliteClientLike } from '../../RxDBAdapterSqliteBase.js';
 import type { SqliteResult } from '../../sqlite-core.interface.js';
@@ -17,6 +17,7 @@ import { Todo } from '../fixtures/Todo.js';
 const createAdapterFake = () => {
   const repository = { id: 'repo-1' } as unknown as IRepository<Todo>;
   const adapter = {
+    tableSet: WorktreeTableSet.MAIN,
     createUncachedRepository: vi.fn(() => repository),
     mergeChanges: vi.fn(async () => undefined),
     statusInfo: vi.fn(function (this: unknown) {

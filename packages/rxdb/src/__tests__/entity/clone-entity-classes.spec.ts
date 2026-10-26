@@ -15,8 +15,9 @@
 
 import { describe, expect, it } from 'vitest';
 import type { EntityType } from '../../entity/entity.interface.js';
+import { cloneEntityClasses } from '../../index.js';
 import { METADATA } from '../../rxdb.private.js';
-import { cloneEntityClasses } from '../../testing.js';
+import { cloneEntityClasses as cloneEntityClassesFromTesting } from '../../testing.js';
 
 /** 造一个带元数据槽位的实体类替身。 */
 function createEntityClass(metadata: object, slot: symbol = METADATA): EntityType {
@@ -35,6 +36,10 @@ function readSlot(target: EntityType, slot: symbol = METADATA): unknown {
 }
 
 describe('cloneEntityClasses', () => {
+  it('从主入口导出（US-313：只读检出位的第二个实例要用）；testing 入口仍导出同一个函数', () => {
+    expect(cloneEntityClassesFromTesting).toBe(cloneEntityClasses);
+  });
+
   it('克隆体继承原类，且元数据换成一份以原元数据为原型的新对象', () => {
     const metadata = { name: 'Foo', fields: ['id'] };
     const Source = createEntityClass(metadata);
@@ -94,8 +99,9 @@ describe('cloneEntityClasses', () => {
     expect((Clone as unknown as Record<string, unknown>)['tableName']).toBe('foo_table');
     expect(readSlot(Clone, userSymbol)).toBe('user');
     expect(readSlot(Clone, otherInternal)).toBeUndefined();
-    // `name` 不被覆盖：克隆体保留它自己的类名，否则两份类在错误消息里长得一模一样。
+    // `name` 不照抄：两份类在错误消息里长得一模一样就分不出是哪个实例的；带上源类名又看得出它从哪来。
     expect(Clone.name).not.toBe(Source.name);
+    expect(Clone.name).toBe(`${Source.name}Clone`);
   });
 
   it('按入参顺序逐个克隆，没有元数据的类也照样进结果', () => {

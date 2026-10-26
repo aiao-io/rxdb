@@ -59,11 +59,14 @@ export interface FindBranchPathOptions {
  *
  * 抽成具名函数是为了让这个约定只存在一处：从前它以 `branch.fromChangeId ?? 0` 的形式
  * 在本文件出现十余次，读的人无法判断哪一处是「表达根」、哪一处只是随手兜底。
+ * 合并预览找两条线的公共祖先点（`branch-compare.ts`）用的也是它，所以导出。
  *
  * @param branch - 分支行
  * @returns 分叉点变更 id，分叉于根时为 0
+ *
+ * @internal
  */
-const forkPointOf = (branch: RxDBBranch): number => branch.fromChangeId ?? 0;
+export const forkPointOf = (branch: RxDBBranch): number => branch.fromChangeId ?? 0;
 
 /**
  * 沿 `parentId` 从一条分支走到它所在树的根，返回途经的全部分支（含自己，根在最后）。

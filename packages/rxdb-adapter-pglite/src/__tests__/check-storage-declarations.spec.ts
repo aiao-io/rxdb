@@ -14,11 +14,12 @@ import {
   RxDB,
   RxDBConstraintDriftError,
   SyncType,
+  WorktreeTableSet,
   type EntityType
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import { getTableNameByMetadata } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 @Entity({
   name: 'DriftColumns',
@@ -62,7 +63,7 @@ class DriftColumnsGenerated extends DriftColumnsPlain {}
 })
 class DriftOwnColumns extends EntityBase {}
 
-const table = (): string => getTableNameByMetadata(getEntityMetadata(DriftColumnsPlain));
+const table = (): string => getTableNameByMetadata(getEntityMetadata(DriftColumnsPlain), WorktreeTableSet.MAIN);
 
 const declaredColumnName = (): string => {
   const metadata = getEntityMetadata(DriftColumnsGenerated);

@@ -229,6 +229,26 @@ describe('SQLite system schema migration', () => {
     expect(state.committedWatermarks).toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
   });
 
+  it('模式 7 升级时先补表集来源列，再重建触发器；重复迁移不重复加列', async () => {
+    const { client, state } = createMigrationClient(
+      [`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}7`, RXDB_CHANGE_CODEC_WATERMARK],
+      ['rxdb$rxdb_change.rejectedAt', 'rxdb$rxdb_change.rejection']
+    );
+    const adapter = trackAdapter(new MigrationTestAdapter(createRxdb(), client));
+    await adapter.connect();
+    await adapter.migrateSystemSchema();
+
+    const addition = state.sql.findIndex(sql => sql.includes('ADD COLUMN "tableSetSuffix"'));
+    const trigger = state.sql.findIndex(sql => sql.includes('CREATE TRIGGER'));
+    expect(addition).toBeGreaterThanOrEqual(0);
+    expect(state.sql[addition]).not.toMatch(/NOT NULL|DEFAULT/i);
+    expect(trigger).toBeGreaterThan(addition);
+    expect(state.committedWatermarks).toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
+
+    await adapter.migrateSystemSchema();
+    expect(state.sql.filter(sql => sql.includes('ADD COLUMN "tableSetSuffix"'))).toHaveLength(1);
+  });
+
   it('两列已在、水位线仍停在模式 6 时重复迁移不报错也不重复加列', async () => {
     const { client, state } = createMigrationClient(
       [`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}6`, RXDB_CHANGE_CODEC_WATERMARK],
@@ -239,7 +259,7 @@ describe('SQLite system schema migration', () => {
 
     await expect(adapter.migrateSystemSchema()).resolves.toBeUndefined();
 
-    expect(state.sql.some(sql => sql.startsWith('ALTER TABLE "rxdb$rxdb_change"'))).toBe(false);
+    expect(state.sql.some(sql => /ADD COLUMN "(rejectedAt|rejection)"/.test(sql))).toBe(false);
     expect(state.committedWatermarks).toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
   });
 });

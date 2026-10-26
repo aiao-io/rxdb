@@ -15,14 +15,14 @@ import {
   isConditionalUniqueIndex,
   PropertyType,
   RelationKind,
-  UUIDProperty
+  UUIDProperty,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { isFunction, isString } from '@aiao/utils';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import {
   getSqlValue,
   getTableColumnIndexName,
-  getTableNameByMetadata,
   quoteIdentifier,
   quoteLiteral,
   RxdbAdapterPGliteError,
@@ -30,6 +30,7 @@ import {
   rxDBColumnTypeToPGliteTypeIndexName,
   transformValueJsToPGlite
 } from '../pglite.utils.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 const getPropertyDefaultSql = (property: EntityPropertyMetadata): string | undefined => {
   const defaultValue = property.default;
@@ -55,8 +56,8 @@ const getPropertyDefaultSql = (property: EntityPropertyMetadata): string | undef
   throw new RxdbAdapterPGliteError(`Property "${property.name}" has an unsupported literal default value.`);
 };
 
-const _create_table_column_sql = (metadata: EntityMetadata) => {
-  const tableName = getTableNameByMetadata(metadata);
+const _create_table_column_sql = (metadata: EntityMetadata, tableSet: WorktreeTableSet) => {
+  const tableName = getTableNameByMetadata(metadata, tableSet);
   let runSQL = `CREATE TABLE ${tableName} (`;
   const column_unique_sql: string[] = [];
   const column_check_sql: string[] = [];
@@ -157,9 +158,13 @@ const getIndexColumnSql = (metadata: EntityMetadata, propertyName: string, norma
  * 带 `where` 的条件唯一索引不在这里：它是存储约束，只随建表创建（{@link create_table_conditional_unique_indexes_sql}），
  * 已有表上只走漂移检查——`reconcileEntityIndexes` 用本函数补建，补建不能替用户迁移悄悄加约束（US-030）。
  */
-export const create_table_indexes_sql = (metadata: EntityMetadata, ifNotExists = false): string => {
+export const create_table_indexes_sql = (
+  metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
+  ifNotExists = false
+): string => {
   let indexSql = '';
-  const tableName = getTableNameByMetadata(metadata);
+  const tableName = getTableNameByMetadata(metadata, tableSet);
 
   // 添加实体定义的索引（包括组合索引）
   if (metadata.indexMap && metadata.indexMap.size > 0) {
@@ -184,8 +189,11 @@ export const create_table_indexes_sql = (metadata: EntityMetadata, ifNotExists =
  * 列表达式与 `idx_` 同一口径（{@link getIndexColumnSql}：外键列、`normalized`、bigint / binary 的
  * 运算符类）；`where` 是核心编译的只拼字面量的谓词，与 SQLite 侧同一条。
  */
-export const create_table_conditional_unique_indexes_sql = (metadata: EntityMetadata): string => {
-  const tableName = getTableNameByMetadata(metadata);
+export const create_table_conditional_unique_indexes_sql = (
+  metadata: EntityMetadata,
+  tableSet: WorktreeTableSet
+): string => {
+  const tableName = getTableNameByMetadata(metadata, tableSet);
   let indexSql = '';
   for (const index of conditionalUniqueIndexesOf(metadata)) {
     const { name, where } = compileConditionalUniqueIndex(metadata, index);
@@ -197,9 +205,13 @@ export const create_table_conditional_unique_indexes_sql = (metadata: EntityMeta
   return indexSql;
 };
 
-const _create_table_relations_sql = (adapter: RxDBAdapterPGlite, metadata: EntityMetadata) => {
+const _create_table_relations_sql = (
+  adapter: RxDBAdapterPGlite,
+  metadata: EntityMetadata,
+  tableSet: WorktreeTableSet
+) => {
   let relationSql = '';
-  const tableName = getTableNameByMetadata(metadata);
+  const tableName = getTableNameByMetadata(metadata, tableSet);
 
   Array.from(metadata.relationMap.values()).forEach(relation => {
     switch (relation.kind) {
@@ -247,8 +259,11 @@ const _create_table_relations_sql = (adapter: RxDBAdapterPGlite, metadata: Entit
 
           // 延迟外键约束的添加,避免表创建顺序问题
           // 外键约束将在所有表创建完成后统一添加
-          const mappedTableName = getTableNameByMetadata(mappedMetadata);
-          const fkName = `${tableName}_${columnName}_fk`.replace(/"/g, '');
+          const mappedTableName = getTableNameByMetadata(mappedMetadata, tableSet);
+          // 约束名取主表集那一份：外键约束名只在同一张表内唯一，影子表集原样沿用不会撞（US-314）。拿影子 schema 拼的话
+          // 名字更长，63 字节截断提前落到表名中间，同一张中间表的两条外键会截成同一个名字
+          const mainTableName = getTableNameByMetadata(metadata, WorktreeTableSet.MAIN);
+          const fkName = `${mainTableName}_${columnName}_fk`.replace(/"/g, '');
 
           relationSql += `\nALTER TABLE ${tableName} ADD CONSTRAINT "${fkName}" FOREIGN KEY ("${columnName}") REFERENCES ${mappedTableName}("${primaryProperty.columnName}")`;
 
@@ -283,9 +298,13 @@ const _create_table_relations_sql = (adapter: RxDBAdapterPGlite, metadata: Entit
   return relationSql;
 };
 
-const _create_table_foreign_keys_sql = (adapter: RxDBAdapterPGlite, metadata: EntityMetadata): string => {
+const _create_table_foreign_keys_sql = (
+  adapter: RxDBAdapterPGlite,
+  metadata: EntityMetadata,
+  tableSet: WorktreeTableSet
+): string => {
   let sql = '';
-  const tableName = getTableNameByMetadata(metadata);
+  const tableName = getTableNameByMetadata(metadata, tableSet);
 
   for (const foreignKey of metadata.foreignKeys ?? []) {
     const mappedMetadata = adapter.rxdb.schemaManager.getEntityMetadata(
@@ -313,7 +332,7 @@ const _create_table_foreign_keys_sql = (adapter: RxDBAdapterPGlite, metadata: En
       return quoteIdentifier(column);
     });
     const constraintName = `${metadata.tableName}_${foreignKey.name}_fk`;
-    sql += `\nALTER TABLE ${tableName} ADD CONSTRAINT ${quoteIdentifier(constraintName)} FOREIGN KEY (${columns.join(', ')}) REFERENCES ${getTableNameByMetadata(mappedMetadata)}(${mappedColumns.join(', ')})`;
+    sql += `\nALTER TABLE ${tableName} ADD CONSTRAINT ${quoteIdentifier(constraintName)} FOREIGN KEY (${columns.join(', ')}) REFERENCES ${getTableNameByMetadata(mappedMetadata, tableSet)}(${mappedColumns.join(', ')})`;
     if (foreignKey.onDelete) sql += ` ON DELETE ${foreignKey.onDelete}`;
     if (foreignKey.onUpdate) sql += ` ON UPDATE ${foreignKey.onUpdate}`;
     sql += ' DEFERRABLE INITIALLY DEFERRED;';
@@ -330,8 +349,8 @@ const _create_table_foreign_keys_sql = (adapter: RxDBAdapterPGlite, metadata: En
  * 以 `ADD COLUMN` 加上。以 `ADD CONSTRAINT` 单列一条，`create_tables_statements` 把它与外键一起排到
  * 全部建表语句之后。区间维的表达式（含倒置区间映射成 'empty'）由核心给出，与 SQLite 触发器同一语义。
  */
-const _create_table_exclusions_sql = (metadata: EntityMetadata): string => {
-  const tableName = getTableNameByMetadata(metadata);
+const _create_table_exclusions_sql = (metadata: EntityMetadata, tableSet: WorktreeTableSet): string => {
+  const tableName = getTableNameByMetadata(metadata, tableSet);
   let sql = '';
   for (const exclusion of metadata.exclusionMap.values()) {
     const { name, equal, ranges } = compileExclusionConstraint(metadata, exclusion);
@@ -344,14 +363,15 @@ const _create_table_exclusions_sql = (metadata: EntityMetadata): string => {
   return sql;
 };
 
-export default (adapter: RxDBAdapterPGlite, metadata: EntityMetadata) => {
+export default (adapter: RxDBAdapterPGlite, metadata: EntityMetadata, tableSet: WorktreeTableSet) => {
   let create_table_sql = '';
-  create_table_sql += _create_table_column_sql(metadata);
-  create_table_sql += _create_table_relations_sql(adapter, metadata);
-  create_table_sql += _create_table_foreign_keys_sql(adapter, metadata);
-  create_table_sql += _create_table_exclusions_sql(metadata);
-  create_table_sql += create_table_indexes_sql(metadata);
-  create_table_sql += '\n' + advancedIndexStatements(metadata, 'postgres', getTableNameByMetadata(metadata)).join('\n');
-  create_table_sql += create_table_conditional_unique_indexes_sql(metadata);
+  create_table_sql += _create_table_column_sql(metadata, tableSet);
+  create_table_sql += _create_table_relations_sql(adapter, metadata, tableSet);
+  create_table_sql += _create_table_foreign_keys_sql(adapter, metadata, tableSet);
+  create_table_sql += _create_table_exclusions_sql(metadata, tableSet);
+  create_table_sql += create_table_indexes_sql(metadata, tableSet);
+  create_table_sql +=
+    '\n' + advancedIndexStatements(metadata, 'postgres', getTableNameByMetadata(metadata, tableSet)).join('\n');
+  create_table_sql += create_table_conditional_unique_indexes_sql(metadata, tableSet);
   return create_table_sql;
 };

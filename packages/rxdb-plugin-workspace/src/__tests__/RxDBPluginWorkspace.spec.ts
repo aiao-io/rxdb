@@ -1,8 +1,19 @@
-import type { EntityType, RxDB, RxDBEntityLocalEventData, UUID } from '@aiao/rxdb';
-import { ENTITY_LOCAL_CREATE_EVENT, ENTITY_LOCAL_NEW_EVENT, ENTITY_LOCAL_REMOVE_EVENT } from '@aiao/rxdb';
+import type { EntityMetadata, EntityType, RxDB, RxDBEntityLocalEventData, UUID } from '@aiao/rxdb';
+import {
+  Entity,
+  ENTITY_LOCAL_CREATE_EVENT,
+  ENTITY_LOCAL_NEW_EVENT,
+  ENTITY_LOCAL_REMOVE_EVENT,
+  EntityBase,
+  getEntityMetadata,
+  PropertyType,
+  registerSystemEntities,
+  WorktreeTableSet
+} from '@aiao/rxdb';
 import { LifecycleScope } from '@aiao/utils';
 import { delMany, entries, setMany } from 'idb-keyval';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BehaviorSubject } from 'rxjs';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { rxDBPluginWorkspace as exportedFactory } from '../index.js';
 import {
   get_cache_id,
@@ -55,6 +66,8 @@ type TestEntityEventData = {
   inversePatch: Record<string, unknown> | null;
   recordAt: Date;
   origin?: 'cross-tab';
+  /** 写在哪套可写检出位的影子表上（US-314 B2.3）；缺省是主表集 */
+  tableSetSuffix?: string;
 };
 
 type TestEntityEvent = {
@@ -68,6 +81,10 @@ type TestEntityRef = Record<string, unknown>;
 function createMockRxDB() {
   const listeners = new Map<string, Set<TestEventListener>>();
   const getEntityType = vi.fn<(entity: string, namespace?: string) => EntityType | undefined>(() => undefined);
+  // 只给草稿收录判定用：默认 schema 里查不到，按未知实体照收。
+  const getEntityMetadata = vi.fn<(entity: string, namespace: string) => Pick<EntityMetadata, 'log'> | undefined>(
+    () => undefined
+  );
   const createEntityRef = vi.fn((_EntityType: EntityType, data: Record<string, unknown>): TestEntityRef => ({
     ...data
   }));
@@ -83,10 +100,16 @@ function createMockRxDB() {
   const removeEventListener = vi.fn((type: string, listener: TestEventListener) => {
     listeners.get(type)?.delete(listener);
   });
+  // 与真实 RxDB 同序：`worktreeTableSet` 先换成新的一套，`worktreeTableSet$` 的订阅方再收到信号
+  const worktreeTableSet$ = new BehaviorSubject<WorktreeTableSet>(WorktreeTableSet.MAIN);
 
   return {
     config: { dbName: 'test-db' },
-    schemaManager: { getEntityType },
+    get worktreeTableSet() {
+      return worktreeTableSet$.value;
+    },
+    worktreeTableSet$,
+    schemaManager: { getEntityType, getEntityMetadata },
     entityManager: {
       createEntityRef,
       getEntityRef,
@@ -1486,4 +1509,341 @@ describe('评审：workspace 旧安装结果不能修改新纪元', () => {
       }
     }
   );
+});
+
+/**
+ * 插件贡献的系统表：模块加载之后才经 `registerSystemEntities()` 进登记簿（真实时机是插件 `use()`），
+ * 模块加载期算出的那份系统表快照里没有它。
+ */
+@Entity({
+  namespace: 'plugin_it',
+  name: 'PluginLedger',
+  tableName: 'plugin_it_ledger',
+  log: false,
+  properties: [{ name: 'note', type: PropertyType.string, nullable: true }]
+})
+class PluginLedger extends EntityBase {}
+
+/**
+ * 草稿缓存不收的两类实体（US-311）。
+ *
+ * - 系统表：库自己的簿记行不是用户编辑。判定读的必须是活登记——工作树插件的十一张表都是 `use()` 时才登记的。
+ * - 关闭变更日志（`log: false`）的实体：实体的 CREATE / REMOVE 事件只从变更日志派生，它们保存与删除一个事件
+ *   也不发，草稿在这里永远等不到收尾（storage 的 `StorageFileMeta` 每上传一次就留一条）。
+ */
+describe('不收的实体：插件系统表与关闭变更日志的实体', () => {
+  const PLUGIN_CACHE_ID = `plugin_it:PluginLedger:${TODO_ID_1}` as WorkspaceCacheId;
+  const UNLOGGED_CACHE_ID = `files_it:FileMeta:${TODO_ID_2}` as WorkspaceCacheId;
+
+  const markUnlogged = (rxdb: MockRxDB) =>
+    rxdb.schemaManager.getEntityMetadata.mockImplementation((entity: string, namespace: string) =>
+      namespace === 'files_it' && entity === 'FileMeta' ? { log: false } : undefined
+    );
+
+  beforeAll(() => {
+    registerSystemEntities([PluginLedger]);
+  });
+
+  beforeEach(() => {
+    vi.stubGlobal('BroadcastChannel', BroadcastChannelStub as unknown as typeof BroadcastChannel);
+  });
+
+  it('模块加载之后登记的插件系统表：NEW 不进缓存、不广播、不落盘', async () => {
+    const rxdb = createMockRxDB();
+    const { plugin, scope, ready } = installScoped(rxdb);
+
+    try {
+      await ready;
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, {
+        ...newEventData(TODO_ID_1, { note: '簿记行' }),
+        namespace: 'plugin_it',
+        entity: 'PluginLedger'
+      });
+      await plugin.flush();
+
+      expect(plugin.cacheCount).toBe(0);
+      expect(BroadcastChannelStub.instances[0]!.postMessage).not.toHaveBeenCalled();
+      expect(idbState.store.size).toBe(0);
+    } finally {
+      await scope.dispose();
+    }
+  });
+
+  it('关闭变更日志的实体：NEW 不进缓存、不广播、不落盘', async () => {
+    const rxdb = createMockRxDB();
+    markUnlogged(rxdb);
+    const { plugin, scope, ready } = installScoped(rxdb);
+
+    try {
+      await ready;
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, {
+        ...newEventData(TODO_ID_2, { opfsPath: 'a.txt' }),
+        namespace: 'files_it',
+        entity: 'FileMeta'
+      });
+      await plugin.flush();
+
+      expect(rxdb.schemaManager.getEntityMetadata).toHaveBeenCalledWith('FileMeta', 'files_it');
+      expect(plugin.cacheCount).toBe(0);
+      expect(BroadcastChannelStub.instances[0]!.postMessage).not.toHaveBeenCalled();
+      expect(idbState.store.size).toBe(0);
+    } finally {
+      await scope.dispose();
+    }
+  });
+
+  it('写变更日志的实体照收：log 显式为 true 与 schema 里查不到的实体都不受影响', async () => {
+    const rxdb = createMockRxDB();
+    rxdb.schemaManager.getEntityMetadata.mockImplementation((entity: string) =>
+      entity === 'Todo' ? { log: true } : undefined
+    );
+    const { plugin, scope, ready } = installScoped(rxdb);
+
+    try {
+      await ready;
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'logged' }));
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, { ...newEventData(UNKNOWN_ID), entity: 'LazyModuleEntity' });
+
+      expect(plugin.list().map(entry => entry.cacheId)).toEqual([
+        cacheId('Todo', TODO_ID_1),
+        cacheId('LazyModuleEntity', UNKNOWN_ID)
+      ]);
+    } finally {
+      await scope.dispose();
+    }
+  });
+
+  it('另一个标签页广播这两类实体的 add：丢弃', async () => {
+    const rxdb = createMockRxDB();
+    markUnlogged(rxdb);
+    const { plugin, scope, ready } = installScoped(rxdb);
+    const channel = BroadcastChannelStub.instances[0]!;
+
+    try {
+      await ready;
+      channel.emit({ type: 'add', clientId: 'other-tab', cacheId: PLUGIN_CACHE_ID, data: { id: TODO_ID_1 } });
+      channel.emit({ type: 'add', clientId: 'other-tab', cacheId: UNLOGGED_CACHE_ID, data: { id: TODO_ID_2 } });
+      await plugin.flush();
+
+      expect(plugin.list()).toEqual([]);
+      expect(idbState.store.size).toBe(0);
+    } finally {
+      await scope.dispose();
+    }
+  });
+
+  it('恢复时删掉身份自洽的这两类存量草稿；身份不自洽的照旧登记为坏记录', async () => {
+    idbState.store.set(PLUGIN_CACHE_ID, { id: TODO_ID_1 });
+    idbState.store.set(UNLOGGED_CACHE_ID, { id: TODO_ID_2, opfsPath: 'a.txt' });
+    idbState.store.set('plugin_it:PluginLedger:not-a-uuid', { id: 'mismatch' });
+    const rxdb = createMockRxDB();
+    markUnlogged(rxdb);
+    const { plugin, scope, ready } = installScoped(rxdb);
+
+    try {
+      await ready;
+
+      expect(idbState.store.has(PLUGIN_CACHE_ID)).toBe(false);
+      expect(idbState.store.has(UNLOGGED_CACHE_ID)).toBe(false);
+      expect(plugin.list()).toEqual([]);
+      expect(plugin.corruptedEntries).toEqual([
+        { key: 'plugin_it:PluginLedger:not-a-uuid', reason: expect.stringContaining('不是合法 UUID') }
+      ]);
+    } finally {
+      await scope.dispose();
+    }
+  });
+});
+
+describe('草稿按检出位分区（US-314 B2.4）', () => {
+  @Entity({ namespace: 'default', name: 'Todo', properties: [{ name: 'title', type: PropertyType.string }] })
+  class PartitionTodo extends EntityBase {}
+
+  /** 不进影子表集的实体（形同 QueryCache 同步的实体）：无论挂哪套都写主表集 */
+  @Entity({ namespace: 'default', name: 'Lookup', properties: [{ name: 'title', type: PropertyType.string }] })
+  class PartitionLookup extends EntityBase {}
+
+  const CHECKOUT = WorktreeTableSet.of('wt_a', [PartitionTodo]);
+  const OTHER_CHECKOUT = WorktreeTableSet.of('wt_b', [PartitionTodo]);
+  const LOOKUP_ID: UUID = '00000000-0000-0000-0000-000000000004';
+  const shadowKey = (suffix: string, id: UUID) => `${suffix}:${cacheId('Todo', id)}`;
+
+  /** 让替身认得这两个实体：草稿可见与否按实体在挂着那套表上写落在哪套表判 */
+  const createPartitionRxDB = () => {
+    const rxdb = createMockRxDB();
+    rxdb.schemaManager.getEntityMetadata.mockImplementation((entity: string, namespace: string) => {
+      if (namespace !== 'default') return undefined;
+      if (entity === 'Todo') return getEntityMetadata(PartitionTodo);
+      if (entity === 'Lookup') return getEntityMetadata(PartitionLookup);
+      return undefined;
+    });
+    return rxdb;
+  };
+
+  const lookupNewEvent = (id: UUID): TestEntityEventData => ({ ...newEventData(id), entity: 'Lookup' });
+  const sortedIds = (plugin: RxDBPluginWorkspace) =>
+    plugin
+      .list()
+      .map(entry => entry.cacheId)
+      .sort();
+
+  beforeEach(() => {
+    vi.stubGlobal('BroadcastChannel', BroadcastChannelStub as unknown as typeof BroadcastChannel);
+  });
+
+  it('挂在检出位上新建的草稿存在带后缀的键下；主表集的草稿键照旧', async () => {
+    const rxdb = createPartitionRxDB();
+    rxdb.worktreeTableSet$.next(CHECKOUT);
+    const { plugin, scope, ready } = installScoped(rxdb);
+
+    try {
+      await ready;
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, {
+        ...newEventData(TODO_ID_1, { title: '检出位里' }),
+        tableSetSuffix: 'wt_a'
+      });
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, lookupNewEvent(LOOKUP_ID));
+      await plugin.flush();
+
+      expect([...idbState.store.keys()].sort()).toEqual(
+        [shadowKey('wt_a', TODO_ID_1), cacheId('Lookup', LOOKUP_ID)].sort()
+      );
+      // 公开的草稿主键不带分区
+      expect(sortedIds(plugin)).toEqual([cacheId('Todo', TODO_ID_1), cacheId('Lookup', LOOKUP_ID)].sort());
+    } finally {
+      await scope.dispose();
+    }
+  });
+
+  it('只恢复挂着那套表读得到的草稿；别的检出位与主表集的原样留在库里', async () => {
+    idbState.store.set(cacheId('Todo', TODO_ID_1), { id: TODO_ID_1, title: '主检出位的' });
+    idbState.store.set(shadowKey('wt_a', TODO_ID_2), { id: TODO_ID_2, title: '这个检出位的' });
+    idbState.store.set(shadowKey('wt_b', UNKNOWN_ID), { id: UNKNOWN_ID, title: '别的检出位的' });
+    idbState.store.set(cacheId('Lookup', LOOKUP_ID), { id: LOOKUP_ID, title: '不进影子表的实体' });
+    const rxdb = createPartitionRxDB();
+    rxdb.worktreeTableSet$.next(CHECKOUT);
+    const { plugin, scope, ready } = installScoped(rxdb);
+
+    try {
+      await ready;
+
+      expect(sortedIds(plugin)).toEqual([cacheId('Todo', TODO_ID_2), cacheId('Lookup', LOOKUP_ID)].sort());
+      expect(idbState.store.size).toBe(4);
+    } finally {
+      await scope.dispose();
+    }
+  });
+
+  it('换挂：旧视图排队的写先落盘，再换成新视图的草稿；挂回来原样恢复', async () => {
+    idbState.store.set(shadowKey('wt_a', TODO_ID_2), { id: TODO_ID_2, title: '检出位里的' });
+    const rxdb = createPartitionRxDB();
+    const { plugin, scope, ready } = installScoped(rxdb, { autoSave: false });
+
+    try {
+      await ready;
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: '主检出位上没存的' }));
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, lookupNewEvent(LOOKUP_ID));
+      expect(idbState.store.has(cacheId('Todo', TODO_ID_1))).toBe(false);
+
+      rxdb.worktreeTableSet$.next(CHECKOUT);
+      await plugin.ready;
+
+      expect(idbState.store.get(cacheId('Todo', TODO_ID_1))).toMatchObject({ title: '主检出位上没存的' });
+      expect(sortedIds(plugin)).toEqual([cacheId('Todo', TODO_ID_2), cacheId('Lookup', LOOKUP_ID)].sort());
+
+      rxdb.worktreeTableSet$.next(WorktreeTableSet.MAIN);
+      await plugin.ready;
+
+      expect(sortedIds(plugin)).toEqual([cacheId('Todo', TODO_ID_1), cacheId('Lookup', LOOKUP_ID)].sort());
+    } finally {
+      await scope.dispose();
+    }
+  });
+
+  it('只认挂着那套表上的收尾：别的表集上同 id 的 CREATE 不清这条草稿', async () => {
+    const rxdb = createPartitionRxDB();
+    rxdb.worktreeTableSet$.next(CHECKOUT);
+    const { plugin, scope, ready } = installScoped(rxdb);
+
+    try {
+      await ready;
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, { ...newEventData(TODO_ID_1), tableSetSuffix: 'wt_a' });
+      dispatch(rxdb, ENTITY_LOCAL_CREATE_EVENT, createEventData(TODO_ID_1));
+      expect(plugin.cacheCount).toBe(1);
+
+      dispatch(rxdb, ENTITY_LOCAL_CREATE_EVENT, { ...createEventData(TODO_ID_1), tableSetSuffix: 'wt_a' });
+      expect(plugin.cacheCount).toBe(0);
+    } finally {
+      await scope.dispose();
+    }
+  });
+
+  it('跨标签页：广播带上分区，收方只收挂着同一套表读得到的', async () => {
+    const rxdb = createPartitionRxDB();
+    const { plugin, scope, ready } = installScoped(rxdb);
+    const channel = BroadcastChannelStub.instances[0]!;
+
+    try {
+      await ready;
+      channel.emit({
+        type: 'add',
+        clientId: 'other-tab',
+        cacheId: cacheId('Todo', TODO_ID_1),
+        partition: 'wt_a',
+        data: { id: TODO_ID_1 }
+      });
+      channel.emit({
+        type: 'add',
+        clientId: 'other-tab',
+        cacheId: cacheId('Todo', TODO_ID_2),
+        data: { id: TODO_ID_2 }
+      });
+      expect(plugin.list().map(entry => entry.cacheId)).toEqual([cacheId('Todo', TODO_ID_2)]);
+
+      rxdb.worktreeTableSet$.next(OTHER_CHECKOUT);
+      await plugin.ready;
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, { ...newEventData(UNKNOWN_ID), tableSetSuffix: 'wt_b' });
+
+      expect(channel.postMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ type: 'add', cacheId: cacheId('Todo', UNKNOWN_ID), partition: 'wt_b' })
+      );
+    } finally {
+      await scope.dispose();
+    }
+  });
+
+  it('discard 删的是带后缀的那个键', async () => {
+    idbState.store.set(shadowKey('wt_a', TODO_ID_1), { id: TODO_ID_1, title: '检出位里的' });
+    const rxdb = createPartitionRxDB();
+    rxdb.worktreeTableSet$.next(CHECKOUT);
+    const { plugin, scope, ready } = installScoped(rxdb);
+
+    try {
+      await ready;
+      expect(plugin.discard(cacheId('Todo', TODO_ID_1))).toBe(true);
+      await plugin.flush();
+
+      expect(idbState.store.has(shadowKey('wt_a', TODO_ID_1))).toBe(false);
+    } finally {
+      await scope.dispose();
+    }
+  });
+
+  it('四段键的首段不是表集后缀：登记成坏记录，不删', async () => {
+    idbState.store.set(`nope:${cacheId('Todo', TODO_ID_1)}`, { id: TODO_ID_1 });
+    const rxdb = createPartitionRxDB();
+    const { plugin, scope, ready } = installScoped(rxdb);
+
+    try {
+      await ready;
+
+      expect(plugin.list()).toEqual([]);
+      expect(plugin.corruptedEntries).toEqual([
+        { key: `nope:${cacheId('Todo', TODO_ID_1)}`, reason: expect.stringContaining('三段式') }
+      ]);
+      expect(idbState.store.size).toBe(1);
+    } finally {
+      await scope.dispose();
+    }
+  });
 });

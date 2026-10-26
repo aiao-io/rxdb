@@ -10,21 +10,24 @@ import {
   isAdvancedIndex,
   isConditionalUniqueIndex,
   PropertyType,
-  RelationKind
+  RelationKind,
+  type WorktreeTableSet
 } from '@aiao/rxdb';
 import { isFunction } from '@aiao/utils';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import {
   get_sql_value,
-  get_table_name,
-  get_table_name_by_metadata,
-  getTableColumnIndexName,
   quote_sql_identifier,
   RxDBAdapterSqliteError,
   rxDBColumnTypeToSqliteType,
   SQLITE_NOW_ISO_SQL,
   transformValueJsToSqlite
 } from '../sqlite-core.utils.js';
+import {
+  get_storage_object_name,
+  get_table_name_by_metadata,
+  getTableColumnIndexName
+} from '../table-name-resolver.js';
 import { exclusion_trigger_sql } from './exclusion_trigger_sql.js';
 
 /**
@@ -51,8 +54,12 @@ const normalize_index_column = (quotedColumn: string, normalized: boolean | unde
  * @param metadata
  * @returns
  */
-const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: EntityMetadata) => {
-  const tableName = get_table_name_by_metadata(metadata);
+const create_table_column_sql = (
+  adapter: RxDBAdapterSqliteBase,
+  metadata: EntityMetadata,
+  tableSet: WorktreeTableSet
+) => {
+  const tableName = get_table_name_by_metadata(metadata, tableSet);
   let runSQL = `CREATE TABLE ${quote_sql_identifier(tableName)} (`;
   const column_unique_sql: string[] = [];
   const column_check_sql: string[] = [];
@@ -143,7 +150,7 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
 
     if (property.unique)
       column_unique_sql.push(
-        `CREATE UNIQUE INDEX ${quote_sql_identifier(getTableColumnIndexName(metadata, property))} on ${quote_sql_identifier(tableName)}(${quote_sql_identifier(columnName)});`
+        `CREATE UNIQUE INDEX ${quote_sql_identifier(getTableColumnIndexName(metadata, property, tableSet))} on ${quote_sql_identifier(tableName)}(${quote_sql_identifier(columnName)});`
       );
     column_sql.push(columnSQL);
   });
@@ -158,7 +165,7 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
       );
 
       const idProperty = mappedMetadata?.propertyMap.get('id');
-      if (!idProperty) {
+      if (!mappedMetadata || !idProperty) {
         throw new RxDBAdapterSqliteError(
           `关系 ${metadata.name}.${relation.name} 的映射实体 ${relation.mappedEntity} 缺少 id 属性元数据，无法确定外键列类型`
         );
@@ -187,10 +194,7 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
 
       // 添加外键约束
       if (relation.mappedEntity) {
-        const mappedTableName = get_table_name(
-          mappedMetadata?.tableName ?? relation.mappedEntity,
-          relation.mappedNamespace
-        );
+        const mappedTableName = get_table_name_by_metadata(mappedMetadata, tableSet);
         columnSQL += ` REFERENCES ${quote_sql_identifier(mappedTableName)}(${quote_sql_identifier(idProperty.columnName)})`;
 
         // 应用级联配置
@@ -208,7 +212,7 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
       // 一对一关系需要唯一约束
       if (relation.unique || relation.kind === RelationKind.ONE_TO_ONE) {
         column_unique_sql.push(
-          `CREATE UNIQUE INDEX ${quote_sql_identifier(getTableColumnIndexName(metadata, relation))} on ${quote_sql_identifier(tableName)}(${quote_sql_identifier(columnName)});`
+          `CREATE UNIQUE INDEX ${quote_sql_identifier(getTableColumnIndexName(metadata, relation, tableSet))} on ${quote_sql_identifier(tableName)}(${quote_sql_identifier(columnName)});`
         );
       }
     }
@@ -239,7 +243,7 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
       }
       return quote_sql_identifier(column);
     });
-    let constraint = `CONSTRAINT ${quote_sql_identifier(foreignKey.name)} FOREIGN KEY (${columns.join(', ')}) REFERENCES ${quote_sql_identifier(get_table_name_by_metadata(mappedMetadata))}(${mappedColumns.join(', ')})`;
+    let constraint = `CONSTRAINT ${quote_sql_identifier(foreignKey.name)} FOREIGN KEY (${columns.join(', ')}) REFERENCES ${quote_sql_identifier(get_table_name_by_metadata(mappedMetadata, tableSet))}(${mappedColumns.join(', ')})`;
     if (foreignKey.onDelete) constraint += ` ON DELETE ${foreignKey.onDelete}`;
     if (foreignKey.onUpdate) constraint += ` ON UPDATE ${foreignKey.onUpdate}`;
     column_check_sql.push(constraint);
@@ -278,7 +282,7 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
       if (isConditionalUniqueIndex(index) || isAdvancedIndex(metadata, index)) return;
       // SQLite 的索引名是**库级全局**的，不含 namespace 时跨 namespace 的同名实体
       // 会撞在一起、第二张表直接建不出来。与表名同口径带上 `namespace$`（SQLC-021）
-      const indexName = `idx_${get_table_name_by_metadata(metadata)}_${index.name}`;
+      const indexName = `idx_${get_table_name_by_metadata(metadata, tableSet)}_${index.name}`;
       const columns =
         index.properties
           ?.map(prop => {
@@ -306,12 +310,12 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
   for (const index of conditionalUniqueIndexesOf(metadata)) {
     const { name, columns, normalized, where } = compileConditionalUniqueIndex(metadata, index);
     const columnSql = columns.map(column => normalize_index_column(quote_sql_identifier(column), normalized));
-    runSQL += `\nCREATE UNIQUE INDEX ${quote_sql_identifier(name)} ON ${quote_sql_identifier(tableName)}(${columnSql.join(', ')}) WHERE ${where};`;
+    runSQL += `\nCREATE UNIQUE INDEX ${quote_sql_identifier(get_storage_object_name(name, metadata, tableSet))} ON ${quote_sql_identifier(tableName)}(${columnSql.join(', ')}) WHERE ${where};`;
   }
 
   // 区间排他（US-030 阶段 C）：SQLite 没有 EXCLUDE，每条落成插入 / 更新两个触发器。
   for (const exclusion of metadata.exclusionMap.values()) {
-    runSQL += '\n' + exclusion_trigger_sql(metadata, compileExclusionConstraint(metadata, exclusion));
+    runSQL += '\n' + exclusion_trigger_sql(metadata, compileExclusionConstraint(metadata, exclusion), tableSet);
   }
 
   return runSQL;
@@ -319,8 +323,14 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
 
 /**
  * 计算创建表的 sql
+ * @param adapter 适配器实例
  * @param metadata 实体元数据
+ * @param tableSet 建在哪一套业务表里
  */
-export const create_table_sql = (adapter: RxDBAdapterSqliteBase, metadata: EntityMetadata) => {
-  return create_table_column_sql(adapter, metadata);
+export const create_table_sql = (
+  adapter: RxDBAdapterSqliteBase,
+  metadata: EntityMetadata,
+  tableSet: WorktreeTableSet
+) => {
+  return create_table_column_sql(adapter, metadata, tableSet);
 };

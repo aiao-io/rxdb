@@ -2,6 +2,7 @@ import {
   PropertyType,
   RelationKind,
   transitionMetadata,
+  WorktreeTableSet,
   type EntityMetadata,
   type EntityPropertyMetadataOptions
 } from '@aiao/rxdb';
@@ -53,7 +54,7 @@ describe('update_sql', () => {
       { name: 'name', type: PropertyType.string }
     ]);
 
-    const result = await update_sql(metadata, new TestEntity('e-1'), { name: 'new' });
+    const result = await update_sql(metadata, WorktreeTableSet.MAIN, new TestEntity('e-1'), { name: 'new' });
 
     expect(result.sql).toContain('UPDATE "test$TestEntity" SET "name" = ? WHERE "id" = ?');
     expect(result.params).toEqual(['new', 'e-1']);
@@ -66,7 +67,7 @@ describe('update_sql', () => {
       { name: 'updatedAt', type: PropertyType.date }
     ]);
 
-    await expect(update_sql(metadata, new TestEntity('e-1'), {})).rejects.toThrow(/Empty patch/);
+    await expect(update_sql(metadata, WorktreeTableSet.MAIN, new TestEntity('e-1'), {})).rejects.toThrow(/Empty patch/);
   });
 
   it('patch 只含 readonly 字段时同样视为空 patch', async () => {
@@ -75,7 +76,9 @@ describe('update_sql', () => {
       { name: 'code', type: PropertyType.string, readonly: true }
     ]);
 
-    await expect(update_sql(metadata, new TestEntity('e-1'), { code: 'x' })).rejects.toThrow(/Empty patch/);
+    await expect(update_sql(metadata, WorktreeTableSet.MAIN, new TestEntity('e-1'), { code: 'x' })).rejects.toThrow(
+      /Empty patch/
+    );
   });
 
   it('加密字段使用默认 columnName 时，数组更新应抛错', async () => {
@@ -85,7 +88,13 @@ describe('update_sql', () => {
     ]);
 
     await expect(
-      update_sql(metadata, entities('e-1', 'e-2'), { secret: 'x' }, { encryption: encryptionContext })
+      update_sql(
+        metadata,
+        WorktreeTableSet.MAIN,
+        entities('e-1', 'e-2'),
+        { secret: 'x' },
+        { encryption: encryptionContext }
+      )
     ).rejects.toThrow(/Batch UPDATE with encrypted columns/);
   });
 
@@ -96,7 +105,13 @@ describe('update_sql', () => {
     ]);
 
     await expect(
-      update_sql(metadata, entities('e-1', 'e-2'), { secret: 'x' }, { encryption: encryptionContext })
+      update_sql(
+        metadata,
+        WorktreeTableSet.MAIN,
+        entities('e-1', 'e-2'),
+        { secret: 'x' },
+        { encryption: encryptionContext }
+      )
     ).rejects.toThrow(/Batch UPDATE with encrypted columns/);
   });
 
@@ -106,7 +121,7 @@ describe('update_sql', () => {
       { name: 'name', type: PropertyType.string }
     ]);
 
-    const result = await update_sql(metadata, entities('e-1', 'e-2'), { name: 'new' });
+    const result = await update_sql(metadata, WorktreeTableSet.MAIN, entities('e-1', 'e-2'), { name: 'new' });
 
     expect(result.sql).toContain('WHERE "id" in (?,?)');
     expect(result.params).toEqual(['new', 'e-1', 'e-2']);
@@ -138,7 +153,13 @@ describe('update_sql', () => {
     };
 
     await expect(
-      update_sql(metadata, new TestEntity('e-1'), { parentId: 1 as unknown as bigint }, { encryption })
+      update_sql(
+        metadata,
+        WorktreeTableSet.MAIN,
+        new TestEntity('e-1'),
+        { parentId: 1 as unknown as bigint },
+        { encryption }
+      )
     ).rejects.toThrow('id must be a signed 64-bit bigint');
   });
 });

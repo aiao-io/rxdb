@@ -13,7 +13,7 @@
  * 系统 CRUD 触发器与 FTS 触发器都不在范围——否则每张既有表首次 `init()` 就被报「多余」（AC#16）。
  */
 
-import type { EntityMetadata, EntityType } from '@aiao/rxdb';
+import type { EntityMetadata, EntityType, WorktreeTableSet } from '@aiao/rxdb';
 import {
   assertNoEntityConstraintDrift,
   CHECK_NAME_PREFIX,
@@ -27,7 +27,7 @@ import {
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SqliteResult } from '../sqlite-core.interface.js';
-import { get_table_name_by_metadata } from '../sqlite-core.utils.js';
+import { get_storage_object_name, get_table_name_by_metadata } from '../table-name-resolver.js';
 import { checkStorageDeclarationsSqlite, type StorageIndexCatalogEntry } from './check-storage-declarations.js';
 
 /** 漂移检查只读查询的最小接口：引导事务执行器门面（`execute` 落在当前事务里，返回原生结果）。 */
@@ -119,12 +119,13 @@ const actualObjectNames = async (
  */
 export const check_entity_constraints_sqlite = async (
   adapter: ConstraintCatalogQuerier,
+  tableSet: WorktreeTableSet,
   EntityTypes: readonly EntityType[],
   resolveMetadata: (entity: EntityType) => EntityMetadata = getEntityMetadata
 ): Promise<void> => {
   for (const EntityType of EntityTypes) {
     const metadata = resolveMetadata(EntityType);
-    const tableName = get_table_name_by_metadata(metadata);
+    const tableName = get_table_name_by_metadata(metadata, tableSet);
     const result = await adapter.execute(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, [
       tableName
     ]);
@@ -168,8 +169,10 @@ export const check_entity_constraints_sqlite = async (
       tableMissing,
       expected: [
         ...expectedCheckConstraintNames(metadata),
-        ...expectedConditionalUniqueIndexNames(metadata),
-        ...expectedExclusionConstraintNames(metadata).flatMap(name => exclusionTriggerNames(name)),
+        ...expectedConditionalUniqueIndexNames(metadata).map(name => get_storage_object_name(name, metadata, tableSet)),
+        ...expectedExclusionConstraintNames(metadata).flatMap(name =>
+          exclusionTriggerNames(get_storage_object_name(name, metadata, tableSet))
+        ),
         ...storage.expected
       ],
       actual,

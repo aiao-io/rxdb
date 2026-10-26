@@ -1,19 +1,24 @@
 <script lang="ts" setup>
 import { RxDBBranch } from '@aiao/rxdb';
+import { useWorktrees } from '@aiao/rxdb-plugin-working-tree-vue';
 import { useFindAll, useRxDB } from '@aiao/rxdb-vue';
 import { GitBranch, Plus } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
+import { currentBranchOf } from '../../pages/working-tree/utils/worktrees';
 import { formatErrorMessage, useToast } from '../composables/useToast';
 
 const toast = useToast();
 const rxdb = useRxDB();
+/** 挂着哪一套表决定当前分支（US-314 C2.1） */
+const { mounted } = useWorktrees();
 const switching = ref(false);
 const branchName = ref('');
 const showPopover = ref(false);
 const popoverInput = ref<HTMLInputElement | null>(null);
 
 const branches = useFindAll(RxDBBranch, { where: { combinator: 'and', rules: [] } });
-const activeBranch = computed(() => branches.value?.find(b => b.activated)?.id ?? '');
+/** 当前分支：本实例挂着那套表持有的那一条（挂在可写检出位上时它的 `activated` 是假） */
+const activeBranch = computed(() => currentBranchOf(branches.value ?? [], mounted.value));
 
 const togglePopover = () => {
   showPopover.value = !showPopover.value;
@@ -62,6 +67,8 @@ const switchBranch = async (event: Event) => {
         class="select select-xs join-item"
         :disabled="switching"
         @change="switchBranch"
+        aria-label="当前分支"
+        data-testid="app-branch-select"
       >
         <option
           v-for="branch in branches.value ?? []"

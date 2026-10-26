@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../../RxDBAdapterSqliteBase.js';
 import type { SqliteResult } from '../../sqlite-core.interface.js';
@@ -15,6 +15,7 @@ rxdb.entityManager.init();
 
 // 纯 SQL 生成场景，轻量 mock 即可——同 create_tables_sql.spec.ts / switch_branch.spec.ts 的取舍。
 const adapter = {
+  tableSet: WorktreeTableSet.MAIN,
   rxdb: { config: rxdb.config },
   encryptionContext: { keyring: null, namespace: 'with-triggers-disabled-test' }
 } as unknown as RxDBAdapterSqliteBase;
@@ -53,6 +54,19 @@ describe('withTriggersDisabled', () => {
     expect(result).toBe('ok');
     expect(calls.some(sql => sql.includes('DROP TRIGGER'))).toBe(true);
     expect(calls.some(sql => sql.includes('CREATE TRIGGER'))).toBe(true);
+  });
+
+  // 拉取回填与 QueryCache 写入每次都走这里。重建只重挂本实例这套表的触发器，不碰分支表：从前复用切分支的整段 SQL，
+  // 每次都捎带一条分支表的恒等 UPDATE（US-314 B1.3）；挂在可写检出位上时，那条 UPDATE 会把检出位持有的分支点亮。
+  it('重建只重挂触发器、按当前分支烙，分支表一行不写', async () => {
+    const { tx, calls } = createRecordingExecutor();
+
+    await withTriggersDisabled(adapter, tx, async () => 'ok');
+
+    expect(calls.some(sql => sql.includes('UPDATE "rxdb$rxdb_branch"'))).toBe(false);
+    const rebuilt = calls.filter(sql => sql.includes('CREATE TRIGGER'));
+    expect(rebuilt).toHaveLength(1);
+    expect(rebuilt[0]).toContain(`'main'`);
   });
 
   // body 抛错时，重建触发器那一步（原来紧跟在 `await body()` 之后的下一行）会被

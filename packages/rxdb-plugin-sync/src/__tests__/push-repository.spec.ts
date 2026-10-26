@@ -25,7 +25,8 @@ import {
   SyncType,
   type TransactionExecutor,
   type TransactionExecutorFun,
-  type UUID
+  type UUID,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { PushInFlightRegistry } from '@aiao/rxdb-plugin-history';
 import { type Observable, of } from 'rxjs';
@@ -113,6 +114,8 @@ type HarnessOptions = {
   findByIds?: FindByIds;
   sync?: SyncOptions;
   entities?: EntityType[];
+  /** 回执事务落在哪一套业务表上，不给就是主表集 */
+  tableSet?: WorktreeTableSet;
 };
 
 const fullSync = (): SyncOptions => ({
@@ -311,7 +314,12 @@ function createHarness(options: HarnessOptions = {}) {
   // 被拒实体的本地对齐只能走事务内的 `executor.mergeChanges`（关触发器）
   const localMergeChanges = vi.fn<LocalMergeChanges>(async () => undefined);
   const transaction = vi.fn(async <T>(fun: TransactionExecutorFun<T>): Promise<T> => {
-    const executor = { getRepository, saveMany, mergeChanges: localMergeChanges } as unknown as TransactionExecutor;
+    const executor = {
+      getRepository,
+      saveMany,
+      mergeChanges: localMergeChanges,
+      tableSet: options.tableSet ?? WorktreeTableSet.MAIN
+    } as unknown as TransactionExecutor;
     return await fun(executor);
   });
   Object.assign(localAdapter, { transaction });
@@ -342,10 +350,13 @@ function createHarness(options: HarnessOptions = {}) {
       // 核心的系统表解析（`getLocalSystemRepositories` / `getCurrentBranch`）认的是这两条流，
       // 不是 `SyncManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
       localAdapter$: of(localAdapter),
+      // 没换挂过的实例挂的是主表集，当前分支按它读（US-314 B1.4）
+      worktreeTableSet: WorktreeTableSet.MAIN,
       remoteAdapter$: of(remoteAdapter)
     },
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
+    history: { captureUndoHistory: () => () => undefined },
     getCurrentBranch: vi.fn(async () => currentBranch),
     pushInFlight
   } as unknown as SyncManager;
@@ -1561,6 +1572,28 @@ describe('pushRepository 对齐被拒实体', () => {
     await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toThrow();
 
     expect(harness.transaction).not.toHaveBeenCalled();
+    expect(changes.every(change => change.remoteId === null && change.rejectedAt === null)).toBe(true);
+    expect(harness.currentSync.lastPushedChangeId).toBeNull();
+  });
+
+  // 远端往返期间实例换挂到了可写检出位（US-314 B1.4）：被拒对齐改写的是主检出位那条分支的投影，
+  // 回执事务却落在检出位那套表上——照写就把远端值写进检出位的表。整轮提交在写之前失败。
+  it('回执事务落在可写检出位那套表上时，被拒对齐与回执都不写', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const changes = [createChange({ id: 1, entityId: ENTITY_B, type: 'UPDATE', patch: { name: 'mine' } })];
+    const harness = createHarness({
+      changes,
+      mergeChanges: mergeWithRejections([1]),
+      findByIds: () => of([]),
+      tableSet: WorktreeTableSet.of('wt_a1', [])
+    });
+
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toThrow(
+      /^push: .*可写检出位.*wt_a1/
+    );
+
+    expect(harness.localMergeChanges).not.toHaveBeenCalled();
+    expect(harness.saveMany).not.toHaveBeenCalled();
     expect(changes.every(change => change.remoteId === null && change.rejectedAt === null)).toBe(true);
     expect(harness.currentSync.lastPushedChangeId).toBeNull();
   });

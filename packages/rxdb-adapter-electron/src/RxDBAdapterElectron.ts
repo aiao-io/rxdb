@@ -54,6 +54,33 @@ export class RxDBAdapterElectron extends RxDBAdapterSqliteBase {
     this.#storageKey = `${this.name}:file:${this.#databaseName}`;
   }
 
+  /**
+   * `dropStorage()` 删不删得掉本库（只读检出位建快照库之前问一次，US-313）。
+   *
+   * @returns 恒为 `true`：库文件由 host 删；还有会话开着同名库时，host 在删的那一刻拒绝
+   */
+  override canDropStorage(): boolean {
+    return true;
+  }
+
+  /**
+   * 删掉本库在 host 上的库文件及其日志旁文件（只读检出位回收快照库，US-313）。
+   *
+   * @throws {@link RxDBAdapterSqliteError} 还连着
+   * @throws {@link RxDBAdapterDesktopError} host 上还有会话开着这个库时抛 `database_busy`；没注入传输层、删除失败
+   *
+   * @remarks
+   * 删的动作在 host 上：renderer 拿不到文件系统，也不知道库文件的物理位置（AC#3）。
+   * 库文件本就不存在时什么都不做。
+   */
+  override async dropStorage(): Promise<void> {
+    this.assertDisconnectedForDrop();
+    await DesktopSqliteClient.drop(this.options.transport ?? resolveDesktopHostTransport(), {
+      engine: 'sqlite',
+      databaseName: this.#databaseName
+    });
+  }
+
   protected override async createClient(): Promise<DesktopSqliteClient> {
     return DesktopSqliteClient.connect(
       this.options.transport ?? resolveDesktopHostTransport(),

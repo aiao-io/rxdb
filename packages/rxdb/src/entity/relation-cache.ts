@@ -362,4 +362,17 @@ export class EntityRelationCache {
   getRemovableJunctions(): ReadonlySet<InstanceType<EntityType>> {
     return this.#remove_junction_set;
   }
+
+  /**
+   * 删除已经落库的 Junction 不再待删。
+   *
+   * @param junctions - 这次保存删掉的 Junction
+   *
+   * @remarks
+   * 留在集合里的话，切到另一条分支再切回来时那一行被重新插回库里、实例重新成为 `local`，
+   * 下一次哪怕只改了一个标量的保存都会把它再删一遍。
+   */
+  forgetRemovedJunctions(junctions: Iterable<InstanceType<EntityType>>): void {
+    for (const junction of junctions) this.#remove_junction_set.delete(junction);
+  }
 }

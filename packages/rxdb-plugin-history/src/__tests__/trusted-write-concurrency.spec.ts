@@ -18,8 +18,10 @@
 
 import {
   getRxDBEntityIdentityKey,
+  RxDBBranch,
   takeDeclaredWrite,
   TrustedWriteIntent,
+  WorktreeTableSet,
   type RxDBChange,
   type SwitchVersionActions,
   type TransactionExecutor
@@ -85,6 +87,7 @@ const createRacingAdapter = (parties: number) => {
   const repository = { find: vi.fn() };
 
   const adapter = {
+    tableSet: WorktreeTableSet.MAIN,
     getRepository: vi.fn(() => repository),
     // 适配器级出口：没有执行器可绑，声明只能落在适配器实例上——这正是本文件要证伪的形状。
     mergeChanges: vi.fn(async (actions: SwitchVersionActions) => {
@@ -94,7 +97,10 @@ const createRacingAdapter = (parties: number) => {
     }),
     // 事务级出口：每次事务给一个**新**的执行器对象，作用域因此天然互不相同。
     transaction: vi.fn(async (fun: (executor: TransactionExecutor) => Promise<unknown>) => {
-      const executor: { mergeChanges: (actions: SwitchVersionActions) => Promise<void> } = {
+      const executor = {
+        tableSet: WorktreeTableSet.MAIN,
+        getRepository: (EntityType: unknown) =>
+          EntityType === RxDBBranch ? { find: async () => [{ id: 'main' }] } : repository,
         mergeChanges: async (actions: SwitchVersionActions) => {
           const who = senderOf(actions);
           await barrier();

@@ -35,7 +35,8 @@ import {
   RxDB,
   RXDB_CHANGE_CODEC_VERSION,
   SyncType,
-  UnsupportedRxDBSystemVersionError
+  UnsupportedRxDBSystemVersionError,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -64,7 +65,7 @@ function createEntityManager(): EntityManager {
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
   database.adapter('local', db => createMockAdapter(db));
-  // 十张系统表由插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
+  // 本插件的系统表由它贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
   // 而这些实体进不了 `config.entities` 时 `instantiate()` 抛的是「need init rxdb」。
   database.use(rxDBPluginWorkingTree);
   database.init();
@@ -187,6 +188,7 @@ function createCapabilityProbe(row: CommitCapabilityState | null): CapabilityPro
   const executor: TransactionExecutor = {
     id: 'capability-probe-executor',
     state: 'active',
+    tableSet: WorktreeTableSet.MAIN,
     query: vi.fn(async (sql: string) => {
       statements.push(sql);
       if (!row || row.enabled) return { rowsAffected: 0, rows: [], columns: [] };

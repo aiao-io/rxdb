@@ -84,7 +84,7 @@ export interface WorkingTreeCaptureRuntimeOptions {
   /** 造工作树单元实例用 */
   readonly entityManager: EntityManager;
 
-  /** 版本化域：谁是 query cache、哪些字段不算净变化 */
+  /** 版本化域：实体分类固定；可用 getter 返回包含新建影子表的原始 SQL 判定域 */
   readonly domain: VersionedDomain;
 
   /**
@@ -107,7 +107,7 @@ export interface WorkingTreeCaptureRuntimeOptions {
 /** `rxdb_change` 的一行里捕获真正需要的那几列。 */
 type ChangeRow = Pick<
   RxDBChange,
-  'id' | 'type' | 'transactionId' | 'namespace' | 'entity' | 'entityId' | 'patch' | 'inversePatch'
+  'id' | 'type' | 'transactionId' | 'namespace' | 'entity' | 'entityId' | 'patch' | 'inversePatch' | 'branchId'
 >;
 
 /** {@link SwitchVersionActions} 的三张表各自对应的变更类型。 */
@@ -162,7 +162,8 @@ const sourceOfChangeRow = (row: ChangeRow): ChangeCaptureSource => ({
   entity: row.entity,
   entityId: String(row.entityId),
   patch: (row.patch as Record<string, unknown> | null) ?? null,
-  inversePatch: (row.inversePatch as Record<string, unknown> | null) ?? null
+  inversePatch: (row.inversePatch as Record<string, unknown> | null) ?? null,
+  branchId: row.branchId
 });
 
 /**
@@ -304,6 +305,7 @@ const splitQualifiedEntityName = (entityName: string): { readonly name: string; 
 export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
   readonly #host: WorkingTreeCaptureHost;
   readonly #domain: VersionedDomain;
+  readonly #rawWriteDomain: () => VersionedDomain;
   readonly #systemEntityNames: ReadonlySet<string>;
   readonly #systemEntityIdentities: ReadonlySet<string>;
   readonly #newUnitId: () => string;
@@ -316,12 +318,11 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    * **不在核心的 {@link WorkingTreeCaptureHook} 契约上**：核心一次都不读它。摆上去等于让核心
    * 替「判定认什么」的形状背书，而那正是随捕获规则变、必须留在本包的东西。
    *
-   * 暴露在类上是给本包自己与一致性套件用的：套件要在**表 / 列平面**核对「哪些表受保护」，
-   * 而那份清单只有运行时手上有。交出的是清单本身不是拷贝——拷一份出来之后，插件后续登记的
-   * 派生索引列只会落进其中一份，raw 通道与捕获会对同一张表给出不同结论。
+   * 暴露在类上是给本包自己与一致性套件核对「哪些表受保护」。物理表名每次向适配器现取：
+   * 建立检出位和重新连接都可能增加影子表，不能沿用安装时的物理目录。
    */
   get domain(): VersionedDomain {
-    return this.#domain;
+    return this.#rawWriteDomain();
   }
 
   /**
@@ -330,14 +331,15 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    * @param options - 全部依赖，见 {@link WorkingTreeCaptureRuntimeOptions}
    *
    * @remarks
-   * 全部注入且构造后不可换：版本化域与系统表清单在这里定格，于是「这张表受不受保护」
-   * 在本运行时的整个生命周期里只有一个答案。构造器**不**碰挂载目标——`#target` 由
+   * 实体分类与系统表清单在这里定格，原始 SQL 门禁通过选项的 getter 跟随物理表目录。
+   * 构造器**不**碰挂载目标——`#target` 由
    * {@link bindMountTarget} 在装到适配器上的那一刻才写入，因此同一个运行时可以先造出来、
    * 再决定装到哪个适配器上。
    */
   constructor(options: WorkingTreeCaptureRuntimeOptions) {
     this.#host = { entityManager: options.entityManager };
     this.#domain = options.domain;
+    this.#rawWriteDomain = () => options.domain;
     this.#systemEntityNames = options.systemEntityNames;
     this.#systemEntityIdentities = options.systemEntityIdentities;
     this.#newUnitId = options.newUnitId ?? uuid;
@@ -480,7 +482,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    *
    * @param entityName - 实体名（不含命名空间）
    * @param namespace - 已知时按身份精确判；省略时按裸名判
-   * @returns `system` / `query_cache` / `versioned` 三者之一
+   * @returns `system` / `untracked` / `versioned` 三者之一
    *
    * @remarks
    * **先问域，域不认得才问系统表清单。** 域里只有业务实体（{@link createWorkingTreeCaptureRuntime}
@@ -499,7 +501,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    */
   targetClassOf(entityName: string, namespace?: string): WriteTargetClass {
     if (this.#isSystemTarget(entityName, namespace)) return 'system';
-    return this.#domain.classifyEntity(entityName, namespace) === 'untracked' ? 'query_cache' : 'versioned';
+    return this.#domain.classifyEntity(entityName, namespace) === 'untracked' ? 'untracked' : 'versioned';
   }
 
   /**
@@ -510,7 +512,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    * 在能力位为假时压根不会转交到这里。再判一次就是第二份真相。
    */
   gateRawWrite<T>(sql: string, execute: () => Promise<T> | T): Promise<T> {
-    return applyRawWriteJudgment(sql, { capabilityEnabled: true, domain: this.#domain }, execute);
+    return applyRawWriteJudgment(sql, { capabilityEnabled: true, domain: this.domain }, execute);
   }
 
   /**
@@ -595,6 +597,17 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     const first = capturing[0];
     if (!first || first.decision.kind !== 'capture') return 0;
     const token = await readActiveBranchToken(executor);
+    // 本事务的变更都该记在本实例的当前分支上（US-314 B1.4）。记在别的分支名下，说明有写落到了不属于本实例
+    // 那套表的表里（比如可写检出位的表集漏登记了版本化实体）：捕获进本分支的工作树就是一笔错账，只能拒绝。
+    const foreign = capturing.find(
+      item => item.source.branchId !== undefined && item.source.branchId !== token.branchId
+    );
+    if (foreign) {
+      throw new RxDBError(
+        `变更 ${foreign.source.id} 记在分支 ${foreign.source.branchId} 名下，不是本实例的当前分支 ${token.branchId}：` +
+          '这次写落到了不属于本实例那套表的表里，不能捕获进当前分支的工作树。'
+      );
+    }
     return captureChanges(executor, this.#host, {
       token,
       unitId: this.#newUnitId(),
@@ -658,11 +671,13 @@ export const createWorkingTreeCaptureRuntime = (
 ): WorkingTreeCaptureRuntime =>
   new WorkingTreeCaptureRuntime({
     entityManager,
-    domain: buildVersionedDomain(
-      entities
-        .filter(EntityType => !isSystemEntity(EntityType))
-        .map(toVersionedDomainEntityInput(adapter, databaseSync))
-    ),
+    get domain() {
+      return buildVersionedDomain(
+        entities
+          .filter(EntityType => !isSystemEntity(EntityType))
+          .map(toVersionedDomainEntityInput(adapter, databaseSync))
+      );
+    },
     systemEntityNames: getSystemEntityNames(),
     systemEntityIdentities: getSystemEntityIdentities()
   });
@@ -703,6 +718,7 @@ const toVersionedDomainEntityInput =
       entityName: metadata.name,
       namespace: metadata.namespace,
       physicalTableNames: adapter.physicalTableNames(metadata),
-      syncType: sync.type
+      syncType: sync.type,
+      log: metadata.log
     };
   };

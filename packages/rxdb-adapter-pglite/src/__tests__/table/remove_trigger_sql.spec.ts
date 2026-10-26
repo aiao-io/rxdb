@@ -1,4 +1,4 @@
-import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { ENTITIES, User } from '@aiao/rxdb-test/shop';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -40,10 +40,10 @@ describe('remove_trigger_sql', () => {
     await adapter.query('DELETE FROM "public"."todos"');
   });
 
-  describe('remove_trigger_sql (单个实体)', () => {
+  describe('remove_trigger_sql (单个实体, WorktreeTableSet.MAIN)', () => {
     it('应该生成删除触发器函数的 SQL', () => {
       const metadata = getEntityMetadata(Todo);
-      const sql = remove_trigger_sql(metadata);
+      const sql = remove_trigger_sql(metadata, WorktreeTableSet.MAIN);
 
       expect(sql).toContain('DROP FUNCTION IF EXISTS');
       expect(sql).toContain('"public"."todos_change_trigger_fn"');
@@ -52,7 +52,7 @@ describe('remove_trigger_sql', () => {
 
     it('应该生成删除触发器的 SQL', () => {
       const metadata = getEntityMetadata(Todo);
-      const sql = remove_trigger_sql(metadata);
+      const sql = remove_trigger_sql(metadata, WorktreeTableSet.MAIN);
 
       expect(sql).toContain('DROP TRIGGER IF EXISTS');
       expect(sql).toContain('"todos_change_trigger"');
@@ -61,7 +61,7 @@ describe('remove_trigger_sql', () => {
 
     it('应该返回两个独立的 SQL 语句(用分隔符分隔)', () => {
       const metadata = getEntityMetadata(Todo);
-      const sql = remove_trigger_sql(metadata);
+      const sql = remove_trigger_sql(metadata, WorktreeTableSet.MAIN);
 
       const statements = sql.split('---STATEMENT_SEPARATOR---');
       expect(statements.length).toBe(2);
@@ -75,7 +75,7 @@ describe('remove_trigger_sql', () => {
 
     it('应该使用正确的命名空间和表名', () => {
       const metadata = getEntityMetadata(User);
-      const sql = remove_trigger_sql(metadata);
+      const sql = remove_trigger_sql(metadata, WorktreeTableSet.MAIN);
 
       expect(sql).toContain('"shop"."user"'); // 表名
       expect(sql).toContain('"shop"."user_change_trigger_fn"'); // 函数名
@@ -83,9 +83,9 @@ describe('remove_trigger_sql', () => {
     });
   });
 
-  describe('remove_all_triggers_sql (所有实体)', () => {
+  describe('remove_all_triggers_sql (所有实体, WorktreeTableSet.MAIN)', () => {
     it('应该为所有 log=true 的实体生成删除 SQL', () => {
-      const sql = remove_all_triggers_sql(adapter);
+      const sql = remove_all_triggers_sql(adapter, WorktreeTableSet.MAIN);
 
       // 应该包含 Todo 和 User 的触发器删除语句
       expect(sql).toContain('"todos_change_trigger"');
@@ -95,7 +95,7 @@ describe('remove_trigger_sql', () => {
     });
 
     it('应该跳过 log=false 的系统表', () => {
-      const sql = remove_all_triggers_sql(adapter);
+      const sql = remove_all_triggers_sql(adapter, WorktreeTableSet.MAIN);
 
       // 不应包含 RxDBChange 和 RxDBBranch 的触发器
       expect(sql).not.toContain('rxdb_change_change_trigger');
@@ -103,7 +103,7 @@ describe('remove_trigger_sql', () => {
     });
 
     it('应该返回可以直接执行的 SQL 字符串', () => {
-      const sql = remove_all_triggers_sql(adapter);
+      const sql = remove_all_triggers_sql(adapter, WorktreeTableSet.MAIN);
 
       expect(sql).toBeTruthy();
       expect(typeof sql).toBe('string');
@@ -115,7 +115,7 @@ describe('remove_trigger_sql', () => {
     });
 
     it('应该能够在数据库中执行(集成测试)', async () => {
-      const sql = remove_all_triggers_sql(adapter);
+      const sql = remove_all_triggers_sql(adapter, WorktreeTableSet.MAIN);
 
       // 分割并执行每个语句 - 每个语句是一条 SQL
       const statements = sql
@@ -136,10 +136,22 @@ describe('remove_trigger_sql', () => {
     });
   });
 
+  // 影子表集（US-314 B1.3）：非成员经解析器落回主表集的名字，不收窄就会把主表集的触发器一起删掉
+  describe('remove_all_triggers_sql (影子表集)', () => {
+    it('只删成员自己那张表的触发器与函数，主表集的一个都不碰', () => {
+      const sql = remove_all_triggers_sql(adapter, WorktreeTableSet.of('wt_a1', [Todo]));
+
+      expect(sql).toContain('ON "public$wt_a1"."todos"');
+      expect(sql).toContain('"public$wt_a1"."todos_change_trigger_fn"');
+      expect(sql).not.toContain('"shop"."user"');
+      expect(sql).not.toContain('"public"."todos"');
+    });
+  });
+
   describe('边界情况', () => {
     it('应该处理只有系统表的情况', () => {
       // 系统表 (log=false) 不应该生成触发器删除语句
-      const sql = remove_all_triggers_sql(adapter);
+      const sql = remove_all_triggers_sql(adapter, WorktreeTableSet.MAIN);
 
       expect(sql).not.toContain('rxdb_change');
       expect(sql).not.toContain('rxdb_branch');

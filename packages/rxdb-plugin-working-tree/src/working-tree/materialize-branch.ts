@@ -53,6 +53,7 @@ import {
 } from '@aiao/rxdb';
 import { compute_switch_branch_actions } from '@aiao/rxdb-plugin-history';
 import { firstValueFrom } from 'rxjs';
+import { WorktreeUnavailableError } from '../checkout/worktree-errors.js';
 import { isCommitCapabilityEnabled } from '../commit/commit-capability.js';
 import {
   abortMaterializationAttempt,
@@ -129,6 +130,14 @@ const readPrelude = async (
   // 反过来先判来源会让每一个没装同步层的库连普通切换都做不了。
   const state = await classifyBranchMaterialization(executor, context.targetBranchId);
   if (state.kind !== 'metadata_only') return { kind: 'skip' };
+  // 挂在可写检出位上切到只有元数据的分支：拉页、封口与屏障都按主检出位那套表写，检出位里接不住。
+  // 与打开检出位同口径，要先在主检出位上切过去一次把它物化下来（US-314 B2.2）
+  if (!executor.tableSet.isMain) {
+    throw new WorktreeUnavailableError(
+      'branch_not_materialized',
+      `分支 ${context.targetBranchId} 本地只有 metadata：先在主检出位上切过去一次，把远端快照物化下来`
+    );
+  }
   if (!source) return rejectWithoutSource(context.targetBranchId);
   // 前置条件在这里先过一遍：拉页是一趟网络，调用方提的条件不成立时不该白拉。
   // 屏障里还会再过一遍——两者之间隔着整趟拉页，这里的结论到屏障时未必还成立。

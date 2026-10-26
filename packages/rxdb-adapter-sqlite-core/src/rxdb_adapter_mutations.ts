@@ -18,12 +18,13 @@ import type { RxDBAdapterSqliteBase } from './RxDBAdapterSqliteBase.js';
 import {
   chunkBySqliteBindLimit,
   get_primary_key_column,
-  get_table_name_by_metadata,
   getEntityObjectFromResult,
   getMonotonicUpdatedAt,
   quote_sql_identifier,
   ROWID
 } from './sqlite-core.utils.js';
+import { get_table_name_by_metadata } from './table-name-resolver.js';
+import { dispatch_unlogged_removals } from './unlogged-removal-events.js';
 
 export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
   adapter: RxDBAdapterSqliteBase,
@@ -51,7 +52,7 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
     for (const idsChunk of chunkBySqliteBindLimit(ids)) {
       const params = [...idsChunk];
       const sql = generate_sql({
-        tableName: get_table_name_by_metadata(metadata),
+        tableName: get_table_name_by_metadata(metadata, adapter.tableSet),
         where: `${MAIN_TABLE_ALIAS}.${quote_sql_identifier(get_primary_key_column(metadata))} in (${params
           .map(() => '?')
           .join(',')})`,
@@ -127,6 +128,7 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
     for (const entitiesChunk of chunkBySqliteBindLimit(entities, get_insert_column_count(meta))) {
       const insert_result = await generate_entity_inserts_sql(
         meta,
+        adapter.tableSet,
         entitiesChunk,
         adapter.rxdb.context,
         adapter.encryptionContext
@@ -163,7 +165,7 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
       const patch = getEntityStatus(entity).patch;
       if (patch === null || Object.keys(patch).length === 0) continue;
 
-      const updateResult = await generate_entity_update_sql(meta, entity, patch, {
+      const updateResult = await generate_entity_update_sql(meta, adapter.tableSet, entity, patch, {
         ...adapter.rxdb.context,
         encryption: adapter.encryptionContext,
         returning: false,
@@ -188,7 +190,7 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
     for (const entity of entities) all_entities.add(entity);
     const meta = getEntityMetadata(EntityType);
     if (entities.length > 0) {
-      const delete_sql = generate_entity_deletes_sql(meta, entities);
+      const delete_sql = generate_entity_deletes_sql(meta, adapter.tableSet, entities);
       await adapter.query(delete_sql);
     }
   };
@@ -199,6 +201,12 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
   for (const step of planMutationWrites(mutations)) {
     await apply[step.kind](step.EntityType, step.entities);
   }
+  // 在下面标 removed、清缓存之前取快照：事件里的 inversePatch 要的是删之前的值
+  dispatch_unlogged_removals(
+    adapter.rxdb,
+    [...mutations.remove.values()].flatMap(entities => [...entities]),
+    now
+  );
 
   // 更新 remove 实体状态（上面已加入 all_entities，这里只需同步状态）
   mutations.remove.forEach(entities =>

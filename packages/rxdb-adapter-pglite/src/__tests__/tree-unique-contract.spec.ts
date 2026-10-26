@@ -1,8 +1,8 @@
-import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { runTreeSiblingUniqueSuite, type TreeUniqueSuiteFactory } from '@aiao/rxdb-test/tree-unique';
-import { getTableNameByMetadata } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 /**
  * 树形实体「同级唯一」契约（RXT-010 / RXT-016）的 PGlite runner。
@@ -35,7 +35,7 @@ const factory: TreeUniqueSuiteFactory = {
       rxdb,
       countRows: async entity => {
         if (!adapter) throw new Error('adapter is not created yet');
-        const table = getTableNameByMetadata(getEntityMetadata(entity));
+        const table = getTableNameByMetadata(getEntityMetadata(entity), WorktreeTableSet.MAIN);
         const result = (await adapter.query(`SELECT COUNT(*)::int AS count FROM ${table}`)) as {
           rows: ReadonlyArray<{ count: number }>;
         };

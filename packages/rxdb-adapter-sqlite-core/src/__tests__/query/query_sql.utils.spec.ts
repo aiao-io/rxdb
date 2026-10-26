@@ -6,7 +6,8 @@ import {
   EntityRelationMetadata,
   PropertyType,
   RelationKind,
-  RuleGroup
+  RuleGroup,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import {
@@ -432,6 +433,7 @@ describe('query_sql.utils', () => {
         relationMap: new Map([['children', relation]])
       } as EntityMetadata;
       const adapter = {
+        tableSet: WorktreeTableSet.MAIN,
         rxdb: {
           schemaManager: {
             getEntityMetadata: () => childMetadata
@@ -793,6 +795,7 @@ const createAdapterMock = (options: {
   mappedRelation?: { metadata: EntityMetadata; relation: EntityRelationMetadata };
 }): RxDBAdapterSqliteBase =>
   ({
+    tableSet: WorktreeTableSet.MAIN,
     rxdb: {
       schemaManager: {
         getEntityMetadata: () => options.relationMetadata,

@@ -3,7 +3,7 @@ import {
   DESKTOP_HOST_PROTOCOL_VERSION,
   type DesktopHostChangeEventMessage
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -122,7 +122,13 @@ describe('open', () => {
 describe('request validation', () => {
   // AC#4：错误码要跨 IPC 活着到达 renderer，所以失败走返回值而不是 reject
   it.each([
-    ['a malformed request', { kind: 'drop' }, 'protocol_violation'],
+    ['an unknown request kind', { kind: 'explode' }, 'protocol_violation'],
+    ['a drop without storage', { kind: 'drop' }, 'protocol_violation'],
+    [
+      'a drop escaping the app scope',
+      { kind: 'drop', storage: { engine: 'sqlite', databaseName: '../escape' } },
+      'invalid_database_name'
+    ],
     [
       'a database name escaping the app scope',
       { kind: 'open', storage: { engine: 'sqlite', databaseName: '../escape' } },
@@ -421,6 +427,17 @@ describe('close', () => {
     expect(await host.handle({ kind: 'version', sessionId: second })).toMatchObject({ code: 'session_closed' });
   });
 
+  it('关停时取消尚在等待删库的打开请求，之后仍能重新使用宿主', async () => {
+    const dropping = host.handle({ kind: 'drop', storage: sqliteStorage });
+    const opening = host.handle({ kind: 'open', storage: sqliteStorage });
+    host.closeAll();
+
+    await dropping;
+    expect(await opening).toMatchObject({ kind: 'error', code: 'host_unavailable' });
+    expect(host.openSessionCount).toBe(0);
+    expect(await openSession()).toBeTypeOf('string');
+  });
+
   // AC#6：Aiao 只动自己的系统对象，用户原有的业务表必须原样留着
   it('preserves unknown business tables that already live in the file', async () => {
     const seed = await openSession();
@@ -430,6 +447,97 @@ describe('close', () => {
 
     const reopened = await openSession();
     expect((await execute(reopened, 'SELECT total FROM legacy_invoices')).results[0]?.rows).toEqual([[12.5]]);
+  });
+});
+
+/**
+ * 删库（US-313：回收只读检出位的快照库）。
+ *
+ * @remarks
+ * 断言的重点是「还开着就一个字节都不删」：会话没关时 unlink 掉文件，POSIX 下那条连接会对着一个
+ * 已经不在目录里的 inode 继续写，写进去的东西随连接关闭凭空消失。
+ */
+describe('drop', () => {
+  const drop = (databaseName = 'app.sqlite3') =>
+    host.handle({ kind: 'drop', storage: { engine: 'sqlite', databaseName } });
+
+  it.each(['app.sqlite3', 'APP.sqlite3'])(
+    '删库期间打开 %s：等删除结束再建会话，写入可以重新读回',
+    async databaseName => {
+      host = createElectronSqliteHost({
+        resolveDatabasePath: name => join(workspace, name.toLowerCase()),
+        postChange: message => changes.push(message)
+      });
+      writeFileSync(join(workspace, 'app.sqlite3'), 'old database');
+      const dropping = drop();
+      const opening = openSession(databaseName);
+
+      expect(await dropping).toEqual({ kind: 'drop', result: { dropped: true } });
+      const sessionId = await opening;
+      expect(existsSync(join(workspace, 'app.sqlite3'))).toBe(true);
+      await execute(sessionId, 'CREATE TABLE t (value TEXT)');
+      await execute(sessionId, 'INSERT INTO t VALUES (?)', ['persisted']);
+      await host.handle({ kind: 'close', sessionId });
+
+      const reopened = await openSession();
+      expect((await execute(reopened, 'SELECT value FROM t')).results[0]?.rows).toEqual([['persisted']]);
+    }
+  );
+
+  it('并发删除同一个库串行完成，第二次返回库已不存在', async () => {
+    writeFileSync(join(workspace, 'app.sqlite3'), 'old database');
+    expect(await Promise.all([drop(), drop()])).toEqual([
+      { kind: 'drop', result: { dropped: true } },
+      { kind: 'drop', result: { dropped: false } }
+    ]);
+  });
+
+  it('removes the database file together with its journal sidecars', async () => {
+    const sessionId = await openSession();
+    await execute(sessionId, 'CREATE TABLE t (id INTEGER PRIMARY KEY)');
+    await host.handle({ kind: 'close', sessionId });
+    // 进程被杀时旁文件会留下来；删库要把它们一起带走，否则同名库下次打开会回放一份陈旧日志
+    for (const suffix of ['-wal', '-shm', '-journal']) writeFileSync(join(workspace, `app.sqlite3${suffix}`), '');
+
+    expect(await drop()).toEqual({ kind: 'drop', result: { dropped: true } });
+    expect(readdirSync(workspace)).toEqual([]);
+  });
+
+  it('answers dropped: false for a database that was never created', async () => {
+    expect(await drop('missing.sqlite3')).toEqual({ kind: 'drop', result: { dropped: false } });
+    expect(readdirSync(workspace)).toEqual([]);
+  });
+
+  it('refuses with database_busy while a session still has the file open, deleting nothing', async () => {
+    const sessionId = await openSession();
+    await execute(sessionId, 'CREATE TABLE t (id INTEGER PRIMARY KEY)');
+
+    expect(await drop()).toMatchObject({ kind: 'error', code: 'database_busy' });
+    expect(readdirSync(workspace)).toContain('app.sqlite3');
+    expect((await execute(sessionId, 'SELECT count(*) FROM t')).results[0]?.rows).toEqual([[0]]);
+  });
+
+  it('leaves the other databases in the directory alone', async () => {
+    const kept = await openSession('kept.sqlite3');
+    const gone = await openSession('gone.sqlite3');
+    await host.handle({ kind: 'close', sessionId: gone });
+
+    expect(await drop('gone.sqlite3')).toEqual({ kind: 'drop', result: { dropped: true } });
+    const remaining = readdirSync(workspace);
+    expect(remaining.filter(name => name.startsWith('gone.sqlite3'))).toEqual([]);
+    expect(remaining).toContain('kept.sqlite3');
+    expect(await host.handle({ kind: 'version', sessionId: kept })).toMatchObject({ kind: 'version' });
+  });
+
+  it('reports open_failed when the application cannot resolve a path', async () => {
+    const failing = createElectronSqliteHost({
+      resolveDatabasePath: () => {
+        throw new Error('no app data directory yet');
+      },
+      postChange: () => undefined
+    });
+    const response = await failing.handle({ kind: 'drop', storage: sqliteStorage });
+    expect(response).toMatchObject({ kind: 'error', code: 'open_failed' });
   });
 });
 

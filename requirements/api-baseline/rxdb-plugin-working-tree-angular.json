@@ -6,7 +6,15 @@
         "kind": "value"
       },
       {
+        "name": "useWorktrees",
+        "kind": "value"
+      },
+      {
         "name": "WorkingTreeResource",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreesResource",
         "kind": "type"
       }
     ]

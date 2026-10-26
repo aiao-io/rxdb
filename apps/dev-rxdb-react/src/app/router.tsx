@@ -1,7 +1,9 @@
 import { redirect, type LazyRouteFunction, type RouteObject } from 'react-router-dom';
 import AppLayout from './app';
+import { RouteLoadError } from './components/RouteLoadError';
 import HomePage from './pages/home';
 import TodoPage from './pages/todo';
+import { connectLocalAdapter } from './rxdb/db-connection';
 import setup_rxdb from './rxdb/setup_rxdb_sqlite-wasm';
 
 interface RouteModule {
@@ -24,12 +26,11 @@ const lazyRoute =
  *
  * 别的页面不需要这道门：它们的首次查询会经适配器 `ready()` 回到 `connect()`，自然把连接带起来。
  * `setup_rxdb()` 是模块级单例，`connect()` 自带去重，重复进入本路由不会重复连接。
+ * 连不上时 loader 抛错，失败由 {@link connectLocalAdapter} 登记、应用壳显示；路由配上 {@link RouteLoadError}，
+ * 错误留在布局里，不冒到根路由去换掉整个应用壳。
  */
-const connectLocalAdapter = async (): Promise<null> => {
-  const db = setup_rxdb();
-  const adapterName = db.config.sync.local?.adapter;
-  if (adapterName === undefined) throw new Error('[demo] sync.local.adapter is not configured');
-  await db.connect(adapterName);
+const connectBeforeEnter = async (): Promise<null> => {
+  await connectLocalAdapter(setup_rxdb());
   return null;
 };
 
@@ -93,7 +94,8 @@ export const routes: RouteObject[] = [
       {
         // 与 /search 同一道门：面板挂载就调 `workingTree.status()`，深链进来时连接还没建立。
         path: 'working-tree',
-        loader: connectLocalAdapter,
+        loader: connectBeforeEnter,
+        errorElement: <RouteLoadError />,
         lazy: lazyRoute(() => import('./pages/working-tree'))
       },
       {
@@ -124,7 +126,8 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'search',
-        loader: connectLocalAdapter,
+        loader: connectBeforeEnter,
+        errorElement: <RouteLoadError />,
         lazy: lazyRoute(() => import('./pages/search'))
       },
       {

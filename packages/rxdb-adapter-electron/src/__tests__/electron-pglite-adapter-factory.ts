@@ -14,7 +14,7 @@
  * @module __tests__/electron-pglite-adapter-factory
  */
 
-import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
+import { RxDB, SyncType, type EntityType, type TransactionFun } from '@aiao/rxdb';
 import { dumpPGliteUserTables, wrapEncryptedQueryShape } from '@aiao/rxdb-adapter-pglite/testing';
 import type { DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
@@ -24,7 +24,6 @@ import {
   type EncryptedAdapterFactory,
   type EncryptedTestAdapter
 } from '@aiao/rxdb-test/encrypted';
-import type { Results } from '@electric-sql/pglite';
 import { PGlite } from '@electric-sql/pglite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -118,9 +117,16 @@ const uniqueDbName = (): string => `desktop-pg-${Date.now()}-${Math.random().toS
 class QueryCountingElectronPGliteAdapter extends RxDBAdapterElectronPGlite {
   queryCount = 0;
 
-  override query<T = Record<string, unknown>>(sql: string, bindings?: unknown[]): Promise<Results<T>> {
-    this.queryCount++;
-    return super.query<T>(sql, bindings);
+  override transaction<T extends TransactionFun>(fun: T, transactionLog = true): Promise<Awaited<ReturnType<T>>> {
+    return super.transaction<TransactionFun>(async executor => {
+      const scoped = executor as typeof executor & { queryRaw: RxDBAdapterElectronPGlite['query'] };
+      const query = scoped.queryRaw.bind(scoped);
+      scoped.queryRaw = <R = Record<string, unknown>>(sql: string, bindings?: unknown[]) => {
+        this.queryCount++;
+        return query<R>(sql, bindings);
+      };
+      return fun(executor);
+    }, transactionLog) as Promise<Awaited<ReturnType<T>>>;
   }
 }
 

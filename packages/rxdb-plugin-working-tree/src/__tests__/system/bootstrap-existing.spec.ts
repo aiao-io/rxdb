@@ -102,7 +102,7 @@ const stubRepositories = (adapter: MockLocalAdapter, rows: ReadonlyMap<EntityTyp
  * @remarks
  * 两个前置都不可省：
  *
- * - `use()` 必须赶在 `init()` 之前——十张系统表是插件贡献的，晚了核心当场拒绝；
+ * - `use()` 必须赶在 `init()` 之前——系统表是插件贡献的，晚了核心当场拒绝；
  * - `isTableExisted` 必须为真——`bootstrapExisting` 只在既有库路径上被调用。
  *   这不是为了绕开什么：「零 active」「两行 active」本来就只可能是别人留下的状态，
  *   首装路径那一行 `main` 是同一次 `createTables` 刚写下的。

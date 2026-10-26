@@ -208,6 +208,14 @@ interface RxDBEntityLocalEventDataBase<T extends EntityType = EntityType> {
   recordAt: Date;
   /** 事件来源：undefined = 本地当前 tab，'cross-tab' = 其他 tab 通过 BroadcastChannel 接收 */
   origin?: EventOrigin;
+  /**
+   * 这一行写在哪套可写检出位的影子表上（US-314 B2.3）；缺省是主表集。
+   *
+   * @remarks
+   * 实例按 `WorktreeTableSet.accepts` 只收自己挂着那套表读得到的事件；跨标签页网关原样转发。
+   * 主表集上的事件不带这一项，没有检出位的库事件形状与从前逐字相同。
+   */
+  tableSetSuffix?: string;
 }
 
 /**

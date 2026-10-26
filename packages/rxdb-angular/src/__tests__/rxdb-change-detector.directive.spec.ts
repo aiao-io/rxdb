@@ -1,3 +1,4 @@
+import * as RxDBCore from '@aiao/rxdb';
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
@@ -9,16 +10,8 @@ import {
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Subject } from 'rxjs';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RxDBEntityChangeDirective } from '../rxdb-change-detector.directive';
-
-const rxdbMocks = vi.hoisted(() => ({
-  getEntityStatus: vi.fn()
-}));
-
-vi.mock('@aiao/rxdb', () => ({
-  getEntityStatus: rxdbMocks.getEntityStatus
-}));
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
+import { RxDBEntityChangeDirective } from '../index';
 
 const mockEntity = {
   id: 'test-1',
@@ -40,19 +33,23 @@ class TestHostComponent {
 describe('RxDBEntityChangeDirective', () => {
   let patches: Subject<void>;
   let errorHandler: { handleError: ReturnType<typeof vi.fn> };
+  let getEntityStatus: MockInstance<typeof RxDBCore.getEntityStatus>;
 
   beforeEach(() => {
     vi.useFakeTimers();
     patches = new Subject<void>();
     errorHandler = { handleError: vi.fn() };
-    rxdbMocks.getEntityStatus.mockReset();
-    rxdbMocks.getEntityStatus.mockReturnValue({ patches$: patches.asObservable() });
+    getEntityStatus = vi.spyOn(RxDBCore, 'getEntityStatus').mockReturnValue({
+      patches$: patches.asObservable()
+    } as unknown as ReturnType<typeof RxDBCore.getEntityStatus>);
     TestBed.configureTestingModule({
       providers: [provideZonelessChangeDetection(), { provide: ErrorHandler, useValue: errorHandler }]
     });
   });
 
   afterEach(() => {
+    TestBed.resetTestingModule();
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -76,7 +73,7 @@ describe('RxDBEntityChangeDirective', () => {
   it('subscribes to the current entity patches', () => {
     createDirective();
 
-    expect(rxdbMocks.getEntityStatus).toHaveBeenCalledWith(mockEntity);
+    expect(getEntityStatus).toHaveBeenCalledWith(mockEntity);
     expect(patches.observed).toBe(true);
   });
 

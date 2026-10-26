@@ -8,96 +8,98 @@ packages:
   - 'modules/recipes-domain'
   - 'website'
   - 'benchmarks'
+allowBuilds:
+  '@parcel/watcher': true
+  '@swc/core': true
+  '@tarojs/binding': false
+  '@tarojs/cli': false
+  core-js: false
+  electron: true
+  electron-winstaller: false
+  esbuild: true
+  lmdb: true
+  msgpackr-extract: true
+  nx: true
+  pnpm: true
+  postman-code-generators: false
+  sharp: true
+  unrs-resolver: true
 
 autoInstallPeers: true
-strictPeerDependencies: false
 enablePrePostScripts: true
 gitShallowHosts:
   - github.com
   - gitlab.com
   - bitbucket.org
-allowBuilds:
-  pnpm: true
-  nx: true
-  electron: true
-  sharp: true
-  '@swc/core': true
-  esbuild: true
-  '@parcel/watcher': true
-  lmdb: true
-  unrs-resolver: true
-  msgpackr-extract: true
-  '@tarojs/binding': false
-  '@tarojs/cli': false
-  core-js: false
-  electron-winstaller: false
-  postman-code-generators: false
 overrides:
-  '@codemirror/language': ^6.13.1
-  '@codemirror/state': ^6.7.6
-  '@codemirror/view': ^6.43.15
+  '@babel/core@7': ^7.29.7
   '@angular/cdk': 22.2.4
   '@angular/common': 22.2.3
   '@angular/core': 22.2.3
   '@angular/forms': 22.2.3
   '@angular/platform-browser': 22.2.3
-  lodash-es: ^4.18.1
-  react: ^19.3.1
-  react-dom: ^19.3.1
-  vue: ^3.5.44
-  smol-toml: ^1.9.1
-  qs: ^6.16.1
-  serialize-javascript: ^7.1.4
-  adm-zip: ^0.6.1
-  swiper: ^12.2.0
-  sharp: ^0.35.5
-  js-yaml@4: ^4.3.2
-  yaml@1: ^1.10.3
-  sockjs>uuid: ^11.1.1
-  postman-collection>uuid: ^11.1.1
-  dev-rxdb-miniprogram>react: ^18.3.1
-  dev-rxdb-miniprogram>react-dom: ^18.3.1
-  vitest: 4.1.12
-  sass-embedded: 1.106.1
-  '@tarojs/helper>esbuild': ^0.25.12
-  '@tarojs/vite-runner>vite': 6.4.5
-  '@tarojs/plugin-framework-react>vite': 6.4.5
-  '@vitejs/plugin-legacy>vite': 6.4.5
-  '@tarojs/vite-runner>vite-plugin-static-copy': ^2.3.2
-  '@tarojs/plugin-doctor>glob': ^10.5.0
+  '@codemirror/language': ^6.13.1
+  '@codemirror/state': ^6.7.6
+  '@codemirror/view': ^6.43.14
   '@jimp/core>mkdirp': ^0.5.6
   '@jimp/core>phin': ^3.7.1
   '@jimp/jpeg>jpeg-js': ^0.4.4
+  miniprogram-automator>debug: ^4.4.3
+  '@lucide/angular': 1.61.0
+  '@tarojs/helper>esbuild': ^0.25.12
+  '@tarojs/plugin-doctor>glob': ^10.5.0
+  '@tarojs/plugin-framework-react>vite': 6.4.4
+  '@tarojs/vite-runner>vite': 6.4.4
+  '@tarojs/vite-runner>vite-plugin-static-copy': ^2.3.2
   '@visactor/vtable>lodash': ^4.18.1
-  cacheable-request@2>http-cache-semantics: ^4.3.0
-  geojson-flatten>minimist: ^1.2.8
+  '@vitejs/plugin-legacy>vite': 6.4.4
+  adm-zip: ^0.6.1
   axios@1: ^1.20.0
-  image-size@2: ^2.0.4
-  fast-uri@3: ^3.1.9
-  dompurify@3: ^3.4.17
   brace-expansion@1: ^1.1.21
   brace-expansion@2: ^2.1.7
   brace-expansion@5: ^5.0.12
-  undici@7: ^7.30.1
-  proxy-addr@2: ^2.0.8
+  cacheable-request@2>http-cache-semantics: ^4.2.0
   compression@1: ^1.8.2
+  dev-rxdb-miniprogram>react: ^18.3.1
+  dev-rxdb-miniprogram>react-dom: ^18.3.1
+  dompurify@3: ^3.4.16
+  fast-uri@3: ^3.1.8
+  geojson-flatten>minimist: ^1.2.8
   handlebars@4: ^4.7.10
-  source-map-js@1: ^1.2.2
+  image-size@2: ^2.0.3
   joi@17: ^17.13.8
-  shell-quote@1: ^1.12.0
-  postcss-selector-parser@6: ^7.1.7
-  tinypool@1: 2.2.0
+  js-yaml@4: ^4.3.2
   katex@0.16: 0.18.11
-  '@lucide/angular': 1.61.0
-  '@angular/build>vite': 8.3.5
-  miniprogram-automator>debug: ^4.4.3
+  lodash-es: ^4.18.1
+  postcss-selector-parser@6: ^7.1.6
+  postman-collection>uuid: ^11.1.1
+  proxy-addr@2: ^2.0.8
+  qs: ^6.16.0
+  react: ^19.3.0
+  react-dom: ^19.3.0
+  sass-embedded: 1.104.1
+  serialize-javascript: ^7.1.2
+  sharp: ^0.35.5
+  shell-quote@1: ^1.11.0
+  smol-toml: ^1.9.0
+  sockjs>uuid: ^11.1.1
+  source-map-js@1: ^1.2.2
+  swiper: ^12.2.0
+  tinypool@1: 2.2.0
+  typescript: 6.0.3
+  undici@7: ^7.29.1
+  vitest: 4.1.11
+  vue: ^3.5.43
+  yaml@1: ^1.10.3
+patchedDependencies:
+  '@subframe7536/sqlite-wasm@1.4.0': patches/@subframe7536__sqlite-wasm@1.4.0.patch
+  '@tarojs/vite-runner@4.3.1': patches/@tarojs__vite-runner@4.3.1.patch
+  typescript@6.0.3: patches/typescript@6.0.3.patch
 peerDependencyRules:
   allowedVersions:
-    '@tarojs/react>react': '18'
-    '@tarojs/plugin-framework-react>react': '18'
     '@tarojs/components-react>react': '18'
-    react-reconciler>react: '18'
+    '@tarojs/plugin-framework-react>react': '18'
+    '@tarojs/react>react': '18'
     react-dom>react: '18'
-patchedDependencies:
-  'typescript@6.0.3': patches/typescript@6.0.3.patch
-  '@tarojs/vite-runner@4.3.1': patches/@tarojs__vite-runner@4.3.1.patch
+    react-reconciler>react: '18'
+strictPeerDependencies: false

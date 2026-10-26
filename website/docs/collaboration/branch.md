@@ -70,16 +70,21 @@ await rxdb.versionManager.removeBranch('feature-1');
 
 ### 获取当前分支
 
-```typescript
-import { RxDBBranch } from '@aiao/rxdb';
+当前分支是本实例挂着的那套表持有的分支。别按 `activated = true` 查：它只说主检出位停在哪条分支上，挂在[可写检出位](../plugins/rxdb-plugin-working-tree/README.md#可写检出位)上时，那套表持有的分支 `activated` 是假。
 
-const currentBranch = await RxDBBranch.findOne({
-  where: {
-    combinator: 'and',
-    rules: [{ field: 'activated', operator: '=', value: true }]
-  }
+```typescript
+import { getCurrentBranch, RxDBBranch } from '@aiao/rxdb';
+
+// 读一次（`rxdb.versionManager.getCurrentBranch()` 同一份）
+const currentBranch = await getCurrentBranch(rxdb);
+
+// 要跟着变：按挂着那套表的 `heldBranchWhere` 查
+RxDBBranch.findOne({ where: rxdb.worktreeTableSet.heldBranchWhere }).subscribe(branch => {
+  console.log(branch?.id);
 });
 ```
+
+`heldBranchWhere` 取的是查询那一刻挂着的那套表，换挂之后要重新查；手头已经有分支行时，`branch.activeKey === rxdb.worktreeTableSet.holderKey` 的那一条就是当前分支（三端 `useWorktrees().mounted` 就是挂着的那套表）。
 
 ## 使用场景
 
@@ -179,6 +184,54 @@ if (!merged.sourceDeleted) console.warn('合并已落库，但删源分支没做
 ```
 
 合并有变更时会**清空 undo/redo 历史**——合并本身不可逆。`deleteSource` 的删除是合并落库之后的收尾动作，失败不回滚合并、也不抛错，只在 `sourceDeleted` / `sourceDeleteError` 上如实报告。
+
+## 对比与合并预览
+
+不切换当前分支，也能看另一条分支差在哪、一次合并会落什么。两个方法都只读：不开写事务，不碰业务表，也不动当前分支。
+
+```typescript
+// 两条分支当前状态之间的实体差异：patch 是 feature-1 上的值，inversePatch 是 main 上的值
+const comparison = await rxdb.versionManager.compareBranches('main', 'feature-1');
+for (const entry of comparison.entries) {
+  console.log(entry.operation, entry.entity, entry.entityId, entry.inversePatch, '→', entry.patch);
+}
+
+// 把 feature-1 合并进当前分支会落什么
+const preview = await rxdb.versionManager.previewMerge('feature-1', { strategy: 'squash' });
+console.log(`合并会落 ${preview.merged} 条变更`); // 与随后 mergeBranch() 返回的 merged 一致
+for (const entry of preview.entries) {
+  if (entry.conflict) console.warn(entry.entityId, entry.conflict.kind);
+}
+```
+
+- `compareBranches(from, to)`：只在 `to` 上有的实体是 `INSERT`（`patch` 为整行），只在 `from` 上有的是 `DELETE`（`inversePatch` 为整行），两边都有且业务字段不同的是 `UPDATE`（两侧各取自己的值）。同一条分支返回空条目，分支不存在时与 `mergeBranch()` 报同一句错。
+- `previewMerge(source, options?)`：条目按所选策略汇总合并会落的操作；`patch` 是合并会写入的值，`inversePatch` 是当前分支现在的值。压缩策略滤掉源分支的先建后删；逐条策略在目标存在同主键记录时列出删除，两种策略的终态可能不同。目标当前也不存在的幽灵实体不出条目。`merged` 在压缩策略下是净操作数，在逐条策略下是源分支变更条数，仍包含未列成条目的幽灵操作。
+
+合并是单向覆盖。预览把撞上当前分支分叉以来改动的条目标出来（`conflict`）：
+
+| `conflict.kind`  | 情形                                                       | 合并之后                        |
+| ---------------- | ---------------------------------------------------------- | ------------------------------- |
+| `overwrite`      | 源要写的字段，当前分支分叉以来改成了别的值                 | `fields` 里的字段被源的值盖掉   |
+| `delete_edited`  | 源删了它，当前分支分叉以来改过它                           | `fields` 里的改动随实体一起删掉 |
+| `update_deleted` | 源改了它，当前分支里没有这一行（分叉以来删了，或从没有过） | 这次更新落空，源的改动不会出现  |
+| `revive_deleted` | 源删后重建了它，当前分支分叉以来删了它                     | 它被重新建出来                  |
+
+只看业务字段：`remoteId`、`createdAt`、`updatedAt` 这类簿记字段（`ENTITY_BOOKKEEPING_FIELDS`）不算差异，也不算覆盖。补丁不解码，取值原样来自变更日志，加密字段保持密文。
+
+## 只读打开另一条分支或一个提交
+
+差异只给变了的实体；排序、分页、聚合、树形展开要整张表。装了工作树插件并配上快照库时，`rxdb.workingTree.checkouts.open()` 不切换分支、不动工作树，把目标的**完整数据**建成一份只读快照，用第二个只读实例浏览：
+
+```typescript
+const view = await rxdb.workingTree.checkouts.open({ branchId: 'feature-1' }); // 或 { commitId }
+const FeatureTodo = view.entityOf(Todo);
+const todos = await firstValueFrom(
+  view.rxdb.entityManager.getRepository(FeatureTodo).findAll({ where: { combinator: 'and', rules: [] } })
+);
+await view.close();
+```
+
+分支视图与「切过去读到的数据」逐行一致；提交视图是那次 `commit()` 刚完成时的数据，提交要在当前分支 HEAD 的可达父链上。快照是建立时刻的数据，`view.refresh()` 重建。配置快照库、生命周期与支持的后端见[工作树插件的只读检出位](../plugins/rxdb-plugin-working-tree/README.md#只读检出位)。
 
 ## 相关文档
 

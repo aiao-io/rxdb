@@ -16,6 +16,8 @@ export default defineConfig({
     watch: false,
     globals: true,
     environment: 'happy-dom',
+    pool: 'forks',
+    execArgv: ['--no-experimental-webstorage'],
     include: ['src/**/*.{test,spec}.ts'],
     setupFiles: ['src/test-setup.ts'],
     reporters: ['default'],

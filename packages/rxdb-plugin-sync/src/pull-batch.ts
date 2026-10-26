@@ -42,6 +42,7 @@ import {
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
+import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import { topologicalSortForPull } from './topological-sort.js';
 
 interface RepoSyncInfo {
@@ -290,6 +291,8 @@ async function pullBatchOnce(
   // 注意：远端拉取（pullChangesBatch / pullChanges）在事务之前就已完成，
   // 事务里只有本地工作，不会把网络往返圈进事务窗口。
   await localAdapter.transaction(async executor => {
+    // 拉取期间实例可能换挂到了可写检出位：本事务落在那套表上就一行都不写，水位线也不动（US-314 B1.4）
+    assertSyncOnMainCheckout(executor.tableSet, 'pull');
     // 仓库必须在事务体**内**经 executor 获取。事务外取到的句柄绑定在适配器上，
     // 其读写会重新排队并排在自己这个事务后面（队列并发度 1）—— 翻转后即永久挂起。
     const changeRepo = executor.getRepository(RxDBChange);

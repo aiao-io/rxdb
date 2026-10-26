@@ -1,4 +1,4 @@
-import type { EntityMetadata, EntityPropertyMetadata } from '@aiao/rxdb';
+import { WorktreeTableSet, type EntityMetadata, type EntityPropertyMetadata } from '@aiao/rxdb';
 import type { Results } from '@electric-sql/pglite';
 import { describe, expect, it } from 'vitest';
 
@@ -63,15 +63,38 @@ describe('resolveBranchColumns', () => {
 
 describe('readCurrentBranchId', () => {
   it('优先返回 `activated` 为真的那一条', async () => {
-    await expect(readCurrentBranchId(reader([['IS TRUE', [{ id: 'feature' }]]]))).resolves.toBe('feature');
+    await expect(readCurrentBranchId(reader([['IS TRUE', [{ id: 'feature' }]]]), WorktreeTableSet.MAIN)).resolves.toBe(
+      'feature'
+    );
   });
 
   it('没有活跃分支时退到 `main`', async () => {
-    await expect(readCurrentBranchId(reader([['= $1::text', [{ id: 'main' }]]]))).resolves.toBe('main');
+    await expect(readCurrentBranchId(reader([['= $1::text', [{ id: 'main' }]]]), WorktreeTableSet.MAIN)).resolves.toBe(
+      'main'
+    );
   });
 
   it('两问都空时抛，让事务回滚', async () => {
     // 读不到分支就无法重建触发器；吞掉它等于提交一个永久没有触发器的库。
-    await expect(readCurrentBranchId(reader([]))).rejects.toThrow(RxdbAdapterPGliteError);
+    await expect(readCurrentBranchId(reader([]), WorktreeTableSet.MAIN)).rejects.toThrow(RxdbAdapterPGliteError);
+  });
+
+  // 挂在可写检出位上（US-314 B1.4）：当前分支是那套表持有的分支，按持有键查；不看 `activated`，也不回退 main
+  it('挂在可写检出位上读持有的那一条，不看 activated', async () => {
+    await expect(
+      readCurrentBranchId(
+        reader([
+          ['"activeKey"', [{ id: 'held' }]],
+          ['IS TRUE', [{ id: 'feature' }]]
+        ]),
+        WorktreeTableSet.of('wt_a1', [])
+      )
+    ).resolves.toBe('held');
+  });
+
+  it('持有分支不见了时抛，不回退 main', async () => {
+    await expect(
+      readCurrentBranchId(reader([['"id" = $1::text', [{ id: 'main' }]]]), WorktreeTableSet.of('wt_a1', []))
+    ).rejects.toThrow(/持有的分支不见了/);
   });
 });

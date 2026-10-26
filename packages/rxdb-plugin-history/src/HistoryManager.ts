@@ -19,19 +19,34 @@ import {
   EMPTY,
   filter,
   firstValueFrom,
+  from,
   map,
   NEVER,
   Observable,
   ReplaySubject,
   shareReplay,
+  startWith,
   Subject,
   Subscription,
   switchMap,
   takeUntil
 } from 'rxjs';
-import { buildLastPushedMap, filterUndoableHistories } from './history-filters.js';
+import {
+  buildLastPushedMap,
+  inheritedFloorOf,
+  partitionUndoableHistories,
+  sameChildForks,
+  splitRedoableHistories,
+  type ChildFork,
+  type UndoablePartition
+} from './history-filters.js';
 import { convertChangesToHistories } from './history-item-builder.js';
-import { createHistoryScopeApi, type HistoryScopeApiHost } from './history-scope-api.js';
+import {
+  createHistoryScopeApi,
+  type HistoryScopeApiHost,
+  type RedoState,
+  type UndoState
+} from './history-scope-api.js';
 import {
   INITIAL_UNDO_BOUNDARY,
   type ActiveUndoSession,
@@ -45,6 +60,7 @@ import { RxDBCrossScopeTransactionError, selectScopedHistories } from './scope-s
 import { get_switch_version_actions } from './switch-branch-actions.js';
 import {
   applyUndoRedoHistories,
+  fetchChildForks,
   fetchLatestHistories,
   getLocalRxDBSyncRepository,
   updatePushableCount,
@@ -134,6 +150,23 @@ export class HistoryManager {
     boundary: INITIAL_UNDO_BOUNDARY
   });
 
+  /**
+   * 当前分支的子分支分叉点，由活查询喂（US-315）。
+   *
+   * @remarks
+   * 第一次查回来之前、以及刚换分支时是空的；别的标签页、别的路径建出的子分支要等下一次重查或一次撤销 / 重做才看得到。
+   * 这些时候撤销 / 重做的**视图**可能把被继承的项算成可撤销的。
+   * 执行不看它——`undo()` / `redo()` 现查分叉点，写事务里再按事务内读到的复核一次。
+   */
+  readonly #childForks$ = new BehaviorSubject<ChildFork[]>([]);
+  /** 建、删、合并分支之后补的重查信号，见 {@link refreshChildForks} */
+  readonly #childForksRefresh$ = new Subject<void>();
+  #childForksQueryGeneration = 0;
+  /** 可撤销的与只因被子分支继承而撤销不了的两组历史，连同分叉点 */
+  #undoState$!: Observable<UndoState>;
+  /** 原始重做栈连同当前分支的子分支分叉点 */
+  #redoState$!: Observable<RedoState>;
+
   private isUndoRedoInProgress = false;
   private isInvalidatingRedo = false;
   /** 进行中的 pull/push 深度（可重入，避免并发同步提前清标志） */
@@ -163,6 +196,15 @@ export class HistoryManager {
     return this.#undoSession$.value.generation;
   }
 
+  /**
+   * 本实例的当前分支：跟着挂的那套表走（US-314 B1.4），换挂、切分支之后立刻跟上
+   *
+   * @returns 分支 id；活跃分支还没解析出来时为 `null`
+   */
+  get currentUndoBranchId(): string | null {
+    return this.#currentUndoBranchId;
+  }
+
   constructor(private rxdb: RxDB) {
     // Host 必须在任何订阅之前建好：pushableCount 订阅会同步触发 #updatePushableCount。
     this.#scopeHost = this.#createScopeHost();
@@ -173,15 +215,13 @@ export class HistoryManager {
     // 连上之后才查：仓库活查询会经适配器的就绪门把实例连起来，构造期直接订阅等于 `init()` 之后插件
     // 自己把库连上了，「连接前先恢复」之类必须对着未连接实例做的操作就永远拿不到空目标。
     // 断开时交 NEVER：丢掉挂在已断适配器上的查询，undo session 停在最后一个分支上，重连再查。
+    // 当前分支跟着本实例挂的那套表走（US-314 B1.4）：换挂之后是那套表持有的分支，查法随之换掉。
     const current_branch$ = this.rxdb.connected$.pipe(
       switchMap(connected =>
         connected ?
-          branchRepository.findOne({
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'activated', operator: '=', value: true }]
-            }
-          })
+          this.rxdb.worktreeTableSet$.pipe(
+            switchMap(tableSet => branchRepository.findOne({ where: tableSet.heldBranchWhere }))
+          )
         : NEVER
       )
     );
@@ -191,6 +231,31 @@ export class HistoryManager {
         next: branch => this.#switchUndoSessionBranch(branch?.id ?? null),
         error: error => this.#reportStreamError('undo session 分支跟随的活跃分支流已中断', error)
       })
+    );
+
+    // 当前分支的子分支分叉点：不晚于它的变更已被子分支继承，撤销 / 重做都停在这里（US-315）。
+    // 每次都现查「库里当前激活的分支 + 它的子分支」；连上时查一次，此后只在 {@link refreshChildForks} 时重查，
+    // `undo()` / `redo()` 执行时现查到的也写回来（见 {@link #publishChildForks}）。
+    // 不订阅分支表的活查询：它不写变更日志，适配器派不出它的事件，有的后端连建分支都看不见、删分支一律看不见；
+    // 常驻一条还会被别人同条件的查询共用，把旧缓存发给它们（工作树的一致性套件在 sqlite / sqliteai 上撞过）。
+    this.#subscriptions.push(
+      this.rxdb.connected$
+        .pipe(
+          switchMap(connected => (connected ? this.#childForksRefresh$.pipe(startWith(undefined)) : NEVER)),
+          // 一次查询失败只报出去、保留上一次的分叉点，不让整条流就此停摆
+          switchMap(() =>
+            from(this.#fetch_child_forks()).pipe(
+              catchError((error: unknown) => {
+                this.#reportStreamError('子分支分叉点的查询', error);
+                return EMPTY;
+              })
+            )
+          ),
+          takeUntil(this.#destroy$)
+        )
+        .subscribe({
+          error: error => this.#reportStreamError('子分支分叉点的查询已中断', error)
+        })
     );
 
     this.#all_changes$ = combineLatest({
@@ -236,27 +301,26 @@ export class HistoryManager {
       shareReplay({ bufferSize: 1, refCount: true })
     );
 
-    this.undoHistories$ = combineLatest({
+    const nothingUndoable = (forks: ChildFork[]): UndoState => ({ undoable: [], inherited: [], forks });
+    this.#undoState$ = combineLatest({
       histories: this.histories$,
       undoSession: this.#undoSession$,
+      forks: this.#childForks$,
       trigger: this.#pushableCountTrigger$ // 监听 push/pull 完成事件
     }).pipe(
-      switchMap(async ({ histories, undoSession }) => {
+      switchMap(async ({ histories, undoSession, forks }): Promise<UndoState> => {
         if (undoSession.state === 'cleared') {
-          return [];
+          return nothingUndoable(forks);
         }
 
         try {
           const branch = await firstValueFrom(
             this.rxdb.entityManager.getRepository(RxDBBranch).findOne({
-              where: {
-                combinator: 'and',
-                rules: [{ field: 'activated', operator: '=', value: true }]
-              }
+              where: this.rxdb.worktreeTableSet.heldBranchWhere
             })
           );
 
-          if (!branch) return [];
+          if (!branch) return nothingUndoable(forks);
 
           const localAdapter = await firstValueFrom(this.rxdb.localAdapter$);
           const RxDBSyncRepo = getLocalRxDBSyncRepository(localAdapter);
@@ -271,22 +335,34 @@ export class HistoryManager {
           // 的判定逐字一致，否则 UI 上还亮着的那一项点下去要么无效、要么撤掉一条在飞的变更
           const lastPushedMap = buildLastPushedMap(repoSyncs, this.rxdb.versionManager.pushInFlight.snapshot());
 
-          return filterUndoableHistories(
+          const partition: UndoablePartition = partitionUndoableHistories(
             histories,
             lastPushedMap,
             undoSession.boundary.changeId,
-            undoSession.boundary.createdAfter
+            undoSession.boundary.createdAfter,
+            inheritedFloorOf(forks)
           );
+          return { ...partition, forks };
         } catch (error) {
           const normalized = error instanceof Error ? error : new Error(String(error));
           this.errors$.next(normalized);
-          return [];
+          return nothingUndoable(forks);
         }
       }),
       shareReplay({ bufferSize: 1, refCount: true })
     );
+    this.undoHistories$ = this.#undoState$.pipe(
+      map(state => state.undoable),
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
 
-    this.redoHistories$ = this.redoStack.items$;
+    this.#redoState$ = combineLatest({ stack: this.redoStack.items$, forks: this.#childForks$ }).pipe(
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
+    this.redoHistories$ = this.#redoState$.pipe(
+      map(({ stack, forks }) => splitRedoableHistories(stack, { type: 'database' }, inheritedFloorOf(forks)).redoable),
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
 
     this.undoCount$ = this.undoHistories$.pipe(
       map(histories => histories.length),
@@ -392,6 +468,19 @@ export class HistoryManager {
     );
   }
 
+  /**
+   * 重查当前分支的子分支分叉点，刷新撤销 / 重做的视图（US-315）。
+   *
+   * @remarks
+   * 分支表不写变更日志，适配器派不出它的事件，靠不上活查询；建分支、删分支、合并（可能删源分支）之后由 `VersionManager`
+   * 调这里补一次，换分支时 {@link setUndoBranch} 也调。只影响视图：`undo()` / `redo()` 执行前本来就现查。
+   *
+   * @internal
+   */
+  refreshChildForks(): void {
+    this.#childForksRefresh$.next();
+  }
+
   /** 推入 redo 栈（新项在前，超容量丢尾） */
   pushToRedoStack(items: HistoryItem[]): void {
     this.redoStack.push(items);
@@ -421,6 +510,34 @@ export class HistoryManager {
       clearedAt: new Date()
     });
     this.clearRedoStack();
+  }
+
+  /**
+   * 捕获同步来源分支的撤销会话，供成功或部分成功后失效。
+   *
+   * @param branchId - 本次同步读取的来源分支
+   * @returns 只影响该分支、该代会话的失效回调；换代或销毁后失效
+   * @internal
+   */
+  captureUndoHistory(branchId: string): () => void {
+    const session =
+      this.#undoSessions.get(branchId) ??
+      (this.#currentUndoBranchId === null ? this.#undoSession$.value : this.#inheritUndoSession());
+    this.#undoSessions.set(branchId, session);
+    return () => {
+      const latest = this.#undoSessions.get(branchId);
+      if (this.#destroyed || latest?.generation !== session.generation) return;
+      const cleared: UndoSession = {
+        generation: this.#nextUndoSessionGeneration(),
+        state: 'cleared',
+        boundary: latest.boundary,
+        clearedAt: new Date()
+      };
+      this.#undoSessions.set(branchId, cleared);
+      if (branchId !== this.#currentUndoBranchId) return;
+      this.#undoSession$.next(cleared);
+      this.clearRedoStack();
+    };
   }
 
   /** 清空所有分支 undo/redo，并推进 {@link #undoSessionFloor} */
@@ -532,7 +649,8 @@ export class HistoryManager {
 
       this.isInvalidatingRedo = true;
       try {
-        const redoHistories = await firstValueFrom(this.redoHistories$);
+        // 读原始栈而不是 `redoHistories$`：后者截掉了被子分支分叉点拦住的项，可它们一样要作废
+        const redoHistories = this.redoStack.value;
         if (redoHistories.length === 0) return;
 
         const redoableChanges = redoHistories.flatMap(h => h.changes);
@@ -622,6 +740,9 @@ export class HistoryManager {
   #switchUndoSessionBranch(branchId: string | null): void {
     if (branchId === this.#currentUndoBranchId) return;
 
+    if (this.#currentUndoBranchId !== null) this.clearRedoStack();
+    this.#childForksQueryGeneration += 1;
+    if (this.#childForks$.value.length > 0) this.#childForks$.next([]);
     if (this.#currentUndoBranchId === null && branchId !== null && !this.#undoSessions.has(branchId)) {
       this.#undoSessions.set(branchId, this.#undoSession$.value);
     }
@@ -632,6 +753,7 @@ export class HistoryManager {
     const session = existing ?? this.#inheritUndoSession();
     this.#undoSessions.set(branchId, session);
     this.#undoSession$.next(session);
+    this.refreshChildForks();
   }
 
   /** 首次访问某个分支时按 {@link #undoSessionFloor} 建它自己的 session */
@@ -701,8 +823,47 @@ export class HistoryManager {
 
   async #fetch_latest_histories(
     undoBoundary: UndoBoundary
-  ): Promise<{ histories: HistoryItem[]; lastPushedMap: Map<string, number> }> {
-    return fetchLatestHistories(this.#applyHost, undoBoundary);
+  ): Promise<{ histories: HistoryItem[]; lastPushedMap: Map<string, number>; forks: ChildFork[] }> {
+    const generation = ++this.#childForksQueryGeneration;
+    const tableSet = this.rxdb.worktreeTableSet;
+    const session = this.#undoSession$.value;
+    const latest = await fetchLatestHistories(this.#applyHost, undoBoundary);
+    if (
+      generation === this.#childForksQueryGeneration &&
+      tableSet === this.rxdb.worktreeTableSet &&
+      session === this.#undoSession$.value
+    ) {
+      this.#publishChildForks(latest.forks);
+    }
+    return latest;
+  }
+
+  /** 直接查当前分支的子分支分叉点，查到的顺手写回视图 */
+  async #fetch_child_forks(): Promise<ChildFork[]> {
+    const generation = ++this.#childForksQueryGeneration;
+    const tableSet = this.rxdb.worktreeTableSet;
+    const { branchRepository } = await this.rxdb.versionManager.getLocalRepositories();
+    const [branch] = await branchRepository.find({ where: tableSet.heldBranchWhere, limit: 1 });
+    const forks = branch ? await fetchChildForks(branchRepository, branch.id) : [];
+    if (
+      generation === this.#childForksQueryGeneration &&
+      tableSet === this.rxdb.worktreeTableSet &&
+      (branch?.id ?? null) === this.#currentUndoBranchId
+    ) {
+      this.#publishChildForks(forks);
+    }
+    return forks;
+  }
+
+  /**
+   * 把现查到的分叉点写回视图；没变就不推，每推一次撤销视图都要再查一遍同步水位。
+   *
+   * @remarks
+   * `undo()` / `redo()` 执行前现查的结果也走这里：别的标签页、别的路径建出的子分支本标签页收不到信号，
+   * 用户一点撤销，视图就跟着纠正过来，而不是停在一个点了没反应的按钮上。
+   */
+  #publishChildForks(forks: ChildFork[]): void {
+    if (!sameChildForks(forks, this.#childForks$.value)) this.#childForks$.next(forks);
   }
 
   readonly #onRepositorySyncComplete = () => {
@@ -735,17 +896,19 @@ export class HistoryManager {
       get histories$() {
         return manager.histories$;
       },
-      get undoHistories$() {
-        return manager.undoHistories$;
+      get undoState$() {
+        return manager.#undoState$;
       },
-      get redoHistories$() {
-        return manager.redoHistories$;
+      get redoState$() {
+        return manager.#redoState$;
       },
       get undoSession$() {
         return manager.#undoSession$;
       },
+      redoStackSnapshot: () => manager.redoStack.value,
       runSerialized: task => manager.#runSerialized(task),
       fetchLatestHistories: boundary => manager.#fetch_latest_histories(boundary),
+      fetchChildForks: () => manager.#fetch_child_forks(),
       isUndoSessionCurrent: session => manager.#isUndoSessionCurrent(session),
       selectWholeTransactions: (h, s, n) => manager.#selectWholeTransactions(h, s, n),
       applyUndoRedoHistories: (op, h, s) => manager.#apply_undo_redo_histories(op, h, s)

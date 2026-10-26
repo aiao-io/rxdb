@@ -54,6 +54,10 @@
         "kind": "value"
       },
       {
+        "name": "assertMutationsTableSet",
+        "kind": "value"
+      },
+      {
         "name": "assertNoEntityConstraintDrift",
         "kind": "value"
       },
@@ -200,6 +204,14 @@
       {
         "name": "classifyBackupIoError",
         "kind": "value"
+      },
+      {
+        "name": "cloneEntityClasses",
+        "kind": "value"
+      },
+      {
+        "name": "CloneEntityClassesOptions",
+        "kind": "type"
       },
       {
         "name": "CodeFormat",
@@ -415,6 +427,10 @@
       },
       {
         "name": "ENTITY_BASE_METADATA_OPTIONS",
+        "kind": "value"
+      },
+      {
+        "name": "ENTITY_BOOKKEEPING_FIELDS",
         "kind": "value"
       },
       {
@@ -2242,6 +2258,10 @@
         "kind": "both"
       },
       {
+        "name": "RxDBReadOnlyError",
+        "kind": "both"
+      },
+      {
         "name": "RxDBRepositories",
         "kind": "type"
       },
@@ -2783,6 +2803,46 @@
       },
       {
         "name": "WorkingTreeWritePrimitiveSignature",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeBranchHeldError",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeHeldBranchWhere",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeSnapshotCursor",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeSnapshotImport",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeSnapshotPage",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeSnapshotTable",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeTableSet",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeTableSetHooks",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeTableSetMismatchError",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeTableSetSeed",
         "kind": "type"
       },
       {

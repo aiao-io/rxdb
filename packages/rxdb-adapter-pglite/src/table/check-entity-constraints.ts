@@ -12,7 +12,7 @@
  * `init()` 就被报「多余」（AC#16）。
  */
 
-import type { EntityMetadata, EntityType } from '@aiao/rxdb';
+import type { EntityMetadata, EntityType, WorktreeTableSet } from '@aiao/rxdb';
 import {
   assertNoEntityConstraintDrift,
   CHECK_NAME_PREFIX,
@@ -25,6 +25,7 @@ import {
 } from '@aiao/rxdb';
 import type { Results } from '@electric-sql/pglite';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { getSchemaName } from '../table-name-resolver.js';
 import { checkStorageDeclarationsPGlite } from './check-storage-declarations.js';
 
 /** 漂移检查只读查询的最小接口：事务执行器门面的 `queryRaw`（行是对象，不是数组）。 */
@@ -66,12 +67,13 @@ const INDEX_NAMES_SQL = `SELECT indexname FROM pg_indexes WHERE schemaname = $1 
  */
 export const check_entity_constraints_pglite = async (
   adapter: ConstraintCatalogQuerier,
+  tableSet: WorktreeTableSet,
   EntityTypes: readonly EntityType[],
   resolveMetadata: (entity: EntityType) => EntityMetadata = getEntityMetadata
 ): Promise<void> => {
   for (const EntityType of EntityTypes) {
     const metadata = resolveMetadata(EntityType);
-    const params = [metadata.namespace, metadata.tableName];
+    const params = [getSchemaName(metadata, tableSet), metadata.tableName];
 
     const existence = await adapter.queryRaw<{ exists: boolean; managed: boolean }>(TABLE_EXISTS_SQL, params);
     const tableMissing = existence.rows.length === 0 || existence.rows[0].exists !== true;

@@ -42,12 +42,14 @@ const MARKER_ONLY = { objects: ['table:rxdb$restore_in_progress'], marker: true 
 export const backupInterruptSuite = (harness: SqliteBackupHarness): void => {
   const { interruptWorker } = harness;
   const spawnWorker = typeof interruptWorker === 'function' ? interruptWorker : undefined;
+  // coverage acceptance 的多 project 浏览器运行器无法加载这类 module Worker；普通 browser target 仍执行完整强杀用例。
+  const coverageWorkerUnsupported = import.meta.env.SQLITE_CORE_COVERAGE_SUITE !== undefined;
   const title =
     typeof interruptWorker === 'function' ?
       `${harness.adapterName} restore survives being killed mid-way (AC#11)`
     : `${harness.adapterName} restore survives being killed mid-way (AC#11) — not applicable: ${interruptWorker.unsupported}`;
 
-  describe.skipIf(!spawnWorker)(title, () => {
+  describe.skipIf(!spawnWorker || coverageWorkerUnsupported)(title, () => {
     const opened: BackupRxDB[] = [];
     const workers: RestoreInterruptWorker[] = [];
 

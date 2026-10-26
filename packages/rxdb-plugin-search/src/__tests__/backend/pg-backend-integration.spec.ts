@@ -1,4 +1,4 @@
-import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 // 类型导入允许：`@nx/enforce-module-boundaries` 只约束运行时静态导入，
 // `import type` 会被擦除，不会把适配器拉进运行时图。
 import type { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
@@ -107,7 +107,8 @@ describe('pg-tsvector backend against a real PGlite database', () => {
     await rxdb.connect('pglite');
 
     executor = { rawQuery: (sql, params) => adapter.rawQuery(sql, params ? [...params] : undefined) };
-    plan = extractFtsPlanFromMetadata(metadata)!;
+    // 与插件同一条路：schema 只从适配器的表名解析器出（US-314 B2.5），没绑的计划不限定 schema
+    plan = await backend.bindPlan(extractFtsPlanFromMetadata(metadata)!, metadata, WorktreeTableSet.MAIN);
     migrations = [];
     store = {
       listInstallMigrationsForTable: (tableName: string) =>

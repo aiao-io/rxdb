@@ -15,3 +15,5 @@
 // 类型与错误类一律从它直接 import —— 这也正是本次搬迁前的既有写法。
 export { useWorkingTree } from './use-working-tree.js';
 export type { WorkingTreeResource } from './use-working-tree.js';
+export { useWorktrees } from './use-worktrees.js';
+export type { WorktreesResource } from './use-worktrees.js';

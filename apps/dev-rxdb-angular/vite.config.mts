@@ -17,6 +17,8 @@ export default defineConfig(() => ({
     watch: false,
     globals: true,
     environment: 'happy-dom',
+    pool: 'forks',
+    execArgv: ['--no-experimental-webstorage'],
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     setupFiles: ['src/test-setup.ts'],
     reporters: ['default'],

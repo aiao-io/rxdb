@@ -7,7 +7,8 @@ import {
   RelationKind,
   RxDB,
   SyncType,
-  transitionMetadata
+  transitionMetadata,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 
@@ -68,9 +69,17 @@ describe('SQL identifier escaping', () => {
 
   it('quotes metadata-derived table and column identifiers across CRUD', async () => {
     const entity = new IdentifierEntity();
-    const insert = await generate_entity_insert_sql(identifierMetadata, entity, { returning: false });
-    const update = await update_sql(identifierMetadata, entity, { quoted: 'next' }, { returning: false });
-    const remove = generate_entity_delete_sql(identifierMetadata, entity);
+    const insert = await generate_entity_insert_sql(identifierMetadata, WorktreeTableSet.MAIN, entity, {
+      returning: false
+    });
+    const update = await update_sql(
+      identifierMetadata,
+      WorktreeTableSet.MAIN,
+      entity,
+      { quoted: 'next' },
+      { returning: false }
+    );
+    const remove = generate_entity_delete_sql(identifierMetadata, WorktreeTableSet.MAIN, entity);
 
     expect(insert.sql).toBe(
       'INSERT INTO "public$order""line" ("id","order","order item","order""line") VALUES (?,?,?,?);'
@@ -81,8 +90,11 @@ describe('SQL identifier escaping', () => {
 
   it('quotes metadata-derived table and column identifiers in DDL and triggers', () => {
     const adapter = createAdapter([]);
-    const ddl = create_table_sql(adapter, identifierMetadata);
-    const triggers = generate_table_trigger_sql(identifierMetadata, { branchId: 'main' });
+    const ddl = create_table_sql(adapter, identifierMetadata, WorktreeTableSet.MAIN);
+    const triggers = generate_table_trigger_sql(identifierMetadata, {
+      tableSet: WorktreeTableSet.MAIN,
+      branchId: 'main'
+    });
 
     expect(ddl).toContain('CREATE TABLE "public$order""line" (');
     expect(ddl).toContain('"order" TEXT');
@@ -103,7 +115,11 @@ describe('SQL literal and schema failures', () => {
       title!: string;
     }
 
-    const sql = create_table_sql(createAdapter([DefaultEscape]), getEntityMetadata(DefaultEscape));
+    const sql = create_table_sql(
+      createAdapter([DefaultEscape]),
+      getEntityMetadata(DefaultEscape),
+      WorktreeTableSet.MAIN
+    );
 
     expect(sql).toContain("DEFAULT 'O''Brien'");
     expect(sql).not.toContain("DEFAULT 'O'Brien'");
@@ -118,7 +134,7 @@ describe('SQL literal and schema failures', () => {
       count!: number;
     }
 
-    const sql = create_table_sql(createAdapter([NumDefault]), getEntityMetadata(NumDefault));
+    const sql = create_table_sql(createAdapter([NumDefault]), getEntityMetadata(NumDefault), WorktreeTableSet.MAIN);
     expect(sql).toContain('DEFAULT 5');
     expect(sql).not.toContain("DEFAULT '5'");
   });
@@ -132,7 +148,7 @@ describe('SQL literal and schema failures', () => {
       title!: string;
     }
 
-    const sql = remove_all_triggers_sql(createAdapter([TriggerName]));
+    const sql = remove_all_triggers_sql(createAdapter([TriggerName]), WorktreeTableSet.MAIN);
     expect(sql).toContain('DROP TRIGGER IF EXISTS "public$TriggerName_insert"');
     expect(sql).toContain('DROP TRIGGER IF EXISTS "public$TriggerName_update"');
     expect(sql).toContain('DROP TRIGGER IF EXISTS "public$TriggerName_delete"');
@@ -148,8 +164,8 @@ describe('SQL literal and schema failures', () => {
       title!: string;
     }
 
-    expect(() => create_table_sql(createAdapter([MissingFkId]), getEntityMetadata(MissingFkId))).toThrow(
-      /缺少 id 属性元数据/
-    );
+    expect(() =>
+      create_table_sql(createAdapter([MissingFkId]), getEntityMetadata(MissingFkId), WorktreeTableSet.MAIN)
+    ).toThrow(/缺少 id 属性元数据/);
   });
 });

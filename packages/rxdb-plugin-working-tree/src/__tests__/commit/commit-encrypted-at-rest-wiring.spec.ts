@@ -39,7 +39,7 @@ import type { WriteCommitInput } from '../../commit/write-commit.js';
 import { buildCommitRows, writeCommit } from '../../commit/write-commit.js';
 import { rxDBPluginWorkingTree } from '../../plugin.js';
 import { createMockAdapter, MockLocalAdapter } from '../fixtures/test-db-setup.js';
-import { createCommitGraphProbe } from './fixtures/commit-graph-probe.js';
+import { createCommitGraphProbe, seedRootBranch } from './fixtures/commit-graph-probe.js';
 import { codecWith, ENVELOPE, isEnvelopeLike, SENTINEL } from './fixtures/encrypted-entities.js';
 
 const CALLER_OPERATION_ID = '00000000-0000-4000-8000-0000000000bb';
@@ -112,6 +112,7 @@ function seedRef(probe: ReturnType<typeof createCommitGraphProbe>, entityManager
   ref.status = 'ok';
   ref.corruptedAt = null;
   probe.seed(CommitBranchRef, [ref]);
+  seedRootBranch(probe, entityManager, ref.branchId);
 }
 
 describe('at-rest 断言接在写路径上（FR-038 / #6）', () => {

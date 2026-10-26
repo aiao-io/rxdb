@@ -160,7 +160,19 @@ export interface EntityMetadataOptions {
   repository?: RxDBRepositoryName;
 
   /**
-   * 是否开启日志
+   * 是否写变更日志（`rxdb_change`）
+   *
+   * @remarks
+   * 关掉之后这张表的写不产生变更日志，于是建在它上面的能力一个也看不见这个实体：
+   *
+   * - 历史与撤销 / 重做不记录它的改动；
+   * - 切换分支不投影它的行，所有分支看到同一份数据；
+   * - 同步推送不推它的本地改动；
+   * - 保存与删除不派发实体的 CREATE / UPDATE / REMOVE 事件，活查询要自己重读（构造时的 NEW 照常派发）；
+   * - 草稿缓存插件不收它的草稿；装了工作树插件时它不进版本控制（status / diff / commit / restore 都不含它）。
+   *
+   * 适合库自己维护、不需要回溯的数据（如 storage 插件的文件元数据），不是业务实体的性能开关。
+   *
    * @default true
    */
   log?: boolean;

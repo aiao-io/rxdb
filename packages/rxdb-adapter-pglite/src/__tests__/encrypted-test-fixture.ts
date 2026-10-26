@@ -7,7 +7,7 @@
  * 只能复制一份；复制出来的两份一旦漂移，「桌面与浏览器行为一致」这句话就失去机械保证。
  * 本文件因此只剩下 PGlite 浏览器档位**独有**的那部分：怎么造适配器。
  */
-import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
+import { RxDB, SyncType, type EntityType, type TransactionFun } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import {
   queryCountOf,
@@ -15,17 +15,24 @@ import {
   type EncryptedAdapterFactory,
   type EncryptedTestAdapter
 } from '@aiao/rxdb-test/encrypted';
-import type { Results } from '@electric-sql/pglite';
 
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { dumpPGliteUserTables, wrapEncryptedQueryShape } from '../testing.js';
+import type { PGliteTransactionExecutor } from '../transaction/PGliteTransactionExecutor.js';
 
 class QueryCountingPGliteAdapter extends RxDBAdapterPGlite {
   queryCount = 0;
 
-  override query<T = Record<string, unknown>>(sql: string, bindings?: unknown[]): Promise<Results<T>> {
-    this.queryCount++;
-    return super.query<T>(sql, bindings);
+  override transaction<T extends TransactionFun>(fun: T, transactionLog = true): Promise<Awaited<ReturnType<T>>> {
+    return super.transaction<TransactionFun>(async executor => {
+      const scoped = executor as PGliteTransactionExecutor;
+      const query = scoped.queryRaw.bind(scoped);
+      scoped.queryRaw = <R = Record<string, unknown>>(sql: string, bindings?: unknown[]) => {
+        this.queryCount++;
+        return query<R>(sql, bindings);
+      };
+      return fun(executor);
+    }, transactionLog) as Promise<Awaited<ReturnType<T>>>;
   }
 }
 

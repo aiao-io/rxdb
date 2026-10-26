@@ -23,6 +23,7 @@ import { getEntityObjectFromResult, RxdbAdapterPGliteError } from './pglite.util
 import { generate_find_sql } from './query/query_sql.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
+import { dispatchUnloggedRemovals } from './unlogged-removal-events.js';
 
 const updateCachedEntity = <T extends EntityType>(repo: PGliteRepository<T>, data: Record<string, unknown>): void => {
   const rawId = data['id'];
@@ -110,6 +111,7 @@ export default async <T extends EntityType = EntityType>(
     // 生成 INSERT SQL
     const insertSql = await generate_entity_inserts_sql(
       meta,
+      adapter.tableSet,
       entities,
       adapter.rxdb.context,
       adapter.encryptionContext
@@ -151,7 +153,7 @@ export default async <T extends EntityType = EntityType>(
     // 逐个实体生成 UPDATE SQL
     for (const entity of entities) {
       const status = getEntityStatus(entity);
-      const { sql, params } = await generate_entity_update_sql(meta, entity, status.patch || {}, {
+      const { sql, params } = await generate_entity_update_sql(meta, adapter.tableSet, entity, status.patch || {}, {
         ...adapter.rxdb.context,
         returning: false,
         updatedAt: now,
@@ -184,7 +186,7 @@ export default async <T extends EntityType = EntityType>(
     const meta = getEntityStorageMetadata(adapter.rxdb, EntityType);
 
     // 生成 DELETE SQL
-    for (const statement of generate_entity_deletes_sql(meta, entities)) {
+    for (const statement of generate_entity_deletes_sql(meta, adapter.tableSet, entities)) {
       await adapter.query(statement.sql, statement.params);
     }
 
@@ -205,6 +207,11 @@ export default async <T extends EntityType = EntityType>(
   for (const step of planMutationWrites(mutations)) {
     await apply[step.kind](step.EntityType, step.entities);
   }
+  dispatchUnloggedRemovals(
+    adapter.rxdb,
+    [...mutations.remove.values()].flatMap(entities => [...entities]),
+    now
+  );
 
   return Array.from(all_entities);
 };

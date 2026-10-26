@@ -44,7 +44,7 @@ export class SqliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
     const refreshedRowIds = new Set<RowId>();
 
     for (const chunk of chunkBySqliteBindLimit(queryRowIds)) {
-      const { sql, params } = find_by_row_ids_sql(this.metadata, chunk);
+      const { sql, params } = find_by_row_ids_sql(this.metadata, this.adapter.tableSet, chunk);
       const sqliteResult = await this.adapter.query(sql, params);
       if (forceRefresh) {
         get_result_row_ids(sqliteResult).forEach(rowId => refreshedRowIds.add(rowId));

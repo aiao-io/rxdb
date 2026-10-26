@@ -5,8 +5,8 @@
  * PGlite 版本使用 id IN (...) 而不是 SQLite 的 __rowid
  */
 
-import { EntityMetadata } from '@aiao/rxdb';
-import { getTableNameByMetadata } from '../pglite.utils.js';
+import { EntityMetadata, type WorktreeTableSet } from '@aiao/rxdb';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 export interface GenerateSqlResult {
   sql: string;
@@ -20,8 +20,12 @@ export interface GenerateSqlResult {
  * @param rowIds - 行 ID 数组
  * @returns SQL 查询和参数
  */
-export default (metadata: EntityMetadata, rowIds: Array<string | number>): GenerateSqlResult => {
-  const tableName = getTableNameByMetadata(metadata);
+export default (
+  metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
+  rowIds: Array<string | number>
+): GenerateSqlResult => {
+  const tableName = getTableNameByMetadata(metadata, tableSet);
 
   // PostgreSQL 使用 $1, $2, ... 参数占位符
   const placeholders = rowIds.map((_, index) => `$${index + 1}`).join(', ');

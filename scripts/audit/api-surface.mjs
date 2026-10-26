@@ -283,8 +283,12 @@ function diffEntries(previous, current) {
 const NAMING = {
   /** 适用范围「`packages/rxdb` 核心共享契约」= 这一个包 */
   corePackage: 'rxdb',
-  /** 核心新增导出允许的前缀 */
-  corePrefixes: ['Commit', 'WorkingTree'],
+  /**
+   * 核心新增导出允许的前缀
+   *
+   * `Worktree` 是 epic-006 术语表里的检出位（US-313）：快照原语的形状由核心声明、两种后端各自实现。
+   */
+  corePrefixes: ['Commit', 'WorkingTree', 'Worktree'],
   /**
    * 前缀规则的**逐名**例外，不是放宽前缀。
    *
@@ -514,7 +518,21 @@ const NAMING = {
     'RemoteChangeResult',
     'RemoteEntityRef',
     'SyncRejection',
-    'SyncRejectionReport'
+    'SyncRejectionReport',
+    // US-312 簿记字段清单。`remoteId` 与审计时间是核心定义的列（实体基类、同步回填），清单因此在核心：
+    // 工作树插件的 `UNTRACKED_BOOKKEEPING_FIELDS` 就是它，历史插件的分支对比与合并预览按同一份不把它们
+    // 算作差异或覆盖——历史插件依赖不到工作树插件，两处各存一份迟早分叉。它说的是实体行上哪些列不表达
+    // 用户意图，叫 `Commit*` / `WorkingTree*` 等于宣称分支对比是提交能力的一部分。
+    'ENTITY_BOOKKEEPING_FIELDS',
+    // US-313 从 `@aiao/rxdb/testing` 提到主入口：同一页面开第二个实例（只读检出位的快照库、失败现场的导入库）
+    // 都要它绕开「一个实体类只能注册到一个实例」。它是实体登记的通用工具，与提交能力无关。
+    // `CloneEntityClassesOptions` 是它的入参形状，理由与 `EntityMutationsOptions` 同族：包外要给这个对象起名，
+    // 不导出就只能写 `Parameters<typeof cloneEntityClasses>[1]` 或照抄一份结构。
+    'cloneEntityClasses',
+    'CloneEntityClassesOptions',
+    // US-313 的只读实例（`RxDBOptions.readOnly`）在公开写入口抛它。只读是实例层的属性，与同族的
+    // `RxDBMissingPluginError` 等实例错误并列；叫 `WorkingTree*` 等于宣称只读实例是工作树能力的一部分。
+    'RxDBReadOnlyError'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

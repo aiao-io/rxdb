@@ -106,11 +106,19 @@
         "kind": "value"
       },
       {
+        "name": "getChangeTriggerFunctionName",
+        "kind": "value"
+      },
+      {
         "name": "getEntityObjectFromResult",
         "kind": "value"
       },
       {
         "name": "getMonotonicUpdatedAt",
+        "kind": "value"
+      },
+      {
+        "name": "getSchemaName",
         "kind": "value"
       },
       {
@@ -135,6 +143,14 @@
       },
       {
         "name": "getTableNameByMetadata",
+        "kind": "value"
+      },
+      {
+        "name": "getTableSetSchemaSuffix",
+        "kind": "value"
+      },
+      {
+        "name": "getTableSetSuffixOfSchemaName",
         "kind": "value"
       },
       {
@@ -394,6 +410,10 @@
       {
         "name": "FtsOptions",
         "kind": "type"
+      },
+      {
+        "name": "getSchemaName",
+        "kind": "value"
       }
     ],
     "./testing": [

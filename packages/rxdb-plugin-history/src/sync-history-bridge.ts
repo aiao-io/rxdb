@@ -10,7 +10,7 @@
  *
  * - 方向是单向的。同步插件 `inject: ['plugin:history']`，历史插件对同步插件一无所知，
  *   `@aiao/rxdb-plugin-history` 的 `dependencies` 里也不会出现同步包 —— 否则两包互指。
- * - 面是窄的。八个成员，全部围绕「一次同步往返结束后历史该怎么变」，不透出 undo 栈、
+ * - 面是窄的。全部围绕「一次同步往返结束后历史该怎么变」，不透出 undo 栈、
  *   redo 栈、作用域 API 这些同步侧根本不该碰的东西。
  * - 结算口径留在历史侧。{@link SyncHistoryBridge.settlePull} 收 `PullOptions` /
  *   `PullResult` 原件，「这次算不算完整同步」由 `pullable-count.ts` 判定；
@@ -50,6 +50,14 @@ export interface SyncHistoryBridge {
 
   /** 与远端合并之后清空当前分支的 undo/redo —— 合并前的内容已经 undo 不回去了 */
   clearUndoHistory(): void;
+
+  /**
+   * 捕获来源分支当前撤销会话；回调在换挂后仍只使该代会话失效。
+   *
+   * @param branchId - 同步读取的来源分支
+   * @returns 来源分支的失效回调
+   */
+  captureUndoHistory(branchId: string): () => void;
 
   /**
    * pull 开始前签发结算令牌。
@@ -119,6 +127,7 @@ export const createSyncHistoryBridge = (
   pushInFlight,
   syncing: fn => historyManager().syncing(fn),
   clearUndoHistory: () => historyManager().clearUndoHistory(),
+  captureUndoHistory: branchId => historyManager().captureUndoHistory(branchId),
   beginPullableSettlement: () => historyManager().beginPullableSettlement(),
   settlePull: (token, options, result) =>
     historyManager().settlePullableCount(token, {

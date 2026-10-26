@@ -2,6 +2,10 @@
   "entries": {
     ".": [
       {
+        "name": "activationStateIdOf",
+        "kind": "value"
+      },
+      {
         "name": "ActiveBranchToken",
         "kind": "type"
       },
@@ -40,6 +44,10 @@
       {
         "name": "BranchNotMaterializedReason",
         "kind": "type"
+      },
+      {
+        "name": "breaksReadOnly",
+        "kind": "value"
       },
       {
         "name": "buildVersionedDomain",
@@ -226,6 +234,10 @@
         "kind": "value"
       },
       {
+        "name": "createWorktreeCommands",
+        "kind": "value"
+      },
+      {
         "name": "decodeCommitChangeSetUnit",
         "kind": "value"
       },
@@ -314,6 +326,10 @@
         "kind": "value"
       },
       {
+        "name": "isWorktreeCommitTarget",
+        "kind": "value"
+      },
+      {
         "name": "judgeRawWrite",
         "kind": "value"
       },
@@ -359,6 +375,10 @@
       },
       {
         "name": "readCommitLogPage",
+        "kind": "value"
+      },
+      {
+        "name": "readMountedWorktreeTableSet",
         "kind": "value"
       },
       {
@@ -408,6 +428,10 @@
       {
         "name": "RxDBPluginWorkingTree",
         "kind": "both"
+      },
+      {
+        "name": "RxDBPluginWorkingTreeOptions",
+        "kind": "type"
       },
       {
         "name": "selectRestoreReplayPath",
@@ -482,6 +506,14 @@
         "kind": "type"
       },
       {
+        "name": "WorkingTreeBranchFromCommitCheck",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeBranchFromCommitRejection",
+        "kind": "type"
+      },
+      {
         "name": "WorkingTreeCapabilityDisabledError",
         "kind": "both"
       },
@@ -523,6 +555,10 @@
       },
       {
         "name": "WorkingTreeCommitEvent",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCreateBranchFromCommitResult",
         "kind": "type"
       },
       {
@@ -682,6 +718,98 @@
         "kind": "both"
       },
       {
+        "name": "Worktree",
+        "kind": "both"
+      },
+      {
+        "name": "WORKTREE_INITIAL_ASYNC_STATES",
+        "kind": "value"
+      },
+      {
+        "name": "WorktreeAdapterFactory",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeAddOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeAsyncStates",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeBranchTarget",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeCommands",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeCommitTarget",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeCommitViewPlan",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeKind",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeLockRelease",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeManager",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeMode",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeOpenOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeOwner",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeState",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeStatePatch",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeTarget",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeTransactionRunner",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeUnavailableError",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeUnavailableReason",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeView",
+        "kind": "type"
+      },
+      {
         "name": "WRITE_TARGET_CLASSES",
         "kind": "value"
       },
@@ -721,6 +849,10 @@
       },
       {
         "name": "createWorkingTreeHookStubs",
+        "kind": "value"
+      },
+      {
+        "name": "createWorktreeHookStubs",
         "kind": "value"
       },
       {
@@ -801,6 +933,42 @@
       },
       {
         "name": "WorkingTreeManagerStub",
+        "kind": "type"
+      },
+      {
+        "name": "WORKTREE_CONFORMANCE_ENTITIES",
+        "kind": "value"
+      },
+      {
+        "name": "WORKTREE_CONFORMANCE_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "WorktreeConformanceLabel",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeConformanceSecret",
+        "kind": "both"
+      },
+      {
+        "name": "worktreeConformanceSuite",
+        "kind": "value"
+      },
+      {
+        "name": "WorktreeConformanceSuiteContext",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeConformanceTask",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeHookStubs",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeManagerStub",
         "kind": "type"
       }
     ]

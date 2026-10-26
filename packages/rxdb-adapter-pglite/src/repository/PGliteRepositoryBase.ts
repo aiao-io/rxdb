@@ -32,7 +32,7 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
    */
   async findByRowIds(rowIds: Array<string | number>): Promise<InstanceType<T>[]> {
     if (rowIds.length === 0) return [];
-    const { sql, params } = generate_query_find_by_row_ids_sql(this.metadata, rowIds);
+    const { sql, params } = generate_query_find_by_row_ids_sql(this.metadata, this.adapter.tableSet, rowIds);
     const result = await this.adapter.query(sql, params);
     return await this.addQueryCache(result);
   }

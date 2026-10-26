@@ -6,13 +6,15 @@ import type {
   RxDBMutationsMap,
   SwitchVersionActions,
   TransactionExecutor,
-  TransactionExecutorState
+  TransactionExecutorState,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { getEntityMetadata, getEntityMutations } from '@aiao/rxdb';
 import type { Results, Transaction } from '@electric-sql/pglite';
-import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { RxdbAdapterPGliteError } from '../pglite.utils.js';
 import rxdb_adapter_mutations from '../rxdb_adapter_mutations.js';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 /**
  * 把适配器包装成「所有 `query()` 都落在指定事务里」的门面。
@@ -82,6 +84,11 @@ export class PGliteTransactionExecutor implements TransactionExecutor {
     return this.#state;
   }
 
+  /** 本事务落在哪一套业务表上：适配器所属实例挂的那一套 */
+  get tableSet(): WorktreeTableSet {
+    return this.#adapter.tableSet;
+  }
+
   /**
    * 事务作用域内的适配器门面。
    *
@@ -128,7 +135,7 @@ export class PGliteTransactionExecutor implements TransactionExecutor {
    * 不另写一份拼法 —— 两份拼法一旦分叉，CAS 会打在一张不存在的表上。
    */
   tableRef(EntityType: EntityType): string {
-    return getTableNameByMetadata(getEntityMetadata(EntityType));
+    return getTableNameByMetadata(getEntityMetadata(EntityType), this.#adapter.tableSet);
   }
 
   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {

@@ -18,7 +18,8 @@ import {
   RxDBSync,
   type SwitchVersionActions,
   type SyncOptions,
-  SyncType
+  SyncType,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { pullBatch } from '../pull-batch.js';
@@ -158,6 +159,8 @@ interface HarnessOptions {
   batchChanges?: RemoteChange[];
   fallbackChanges?: (...args: Parameters<PullChanges>) => RemoteChange[];
   useBatch?: boolean;
+  /** 应用事务落在哪一套业务表上，不给就是主表集 */
+  tableSet?: WorktreeTableSet;
 }
 
 interface RemoteChangeInput {
@@ -319,7 +322,7 @@ function createHarness(options: HarnessOptions) {
   // 直通替身：只记录调用与嵌套深度，真正的回滚语义由适配器套件的集成测试覆盖
   // C2：事务回调收到 executor；替身把 getRepository / mergeChanges 转发回本 mock 适配器
   const transaction = vi.fn(async (fun: (executor: never) => Promise<unknown>) =>
-    fun(createTransactionExecutorStub({ getRepository, mergeChanges }) as never)
+    fun(createTransactionExecutorStub({ getRepository, mergeChanges, tableSet: options.tableSet }) as never)
   );
   const localAdapter = {
     getRepository,
@@ -930,6 +933,24 @@ describe('pullBatch 生产路径', () => {
 
       expect(harness.pullChangesBatch).toHaveBeenCalled();
       expect(pullDuringTransaction).toBe(false);
+    });
+
+    // 拉取跑到一半时实例换挂到了可写检出位（US-314 B1.4）：排在换挂之后的应用事务落在检出位那套表上，
+    // 接着写就是把主检出位那条分支的远端变更写进检出位的表。事务里先核对表集，一行都不写、水位线不动。
+    it('应用事务落在可写检出位那套表上时，写之前整批拒绝', async () => {
+      const harness = createHarness({
+        entities: [PullBatchParent],
+        syncRecords: [createSyncRecord('PullBatchParent', 'main', 0)],
+        branches: [createBranch('main', null)],
+        batchChanges: [createRemoteChange({ id: 1, entity: 'PullBatchParent', entityId: 'parent-1' })],
+        tableSet: WorktreeTableSet.of('wt_a1', [])
+      });
+
+      await expect(pullBatch(harness.vm, { limit: 10 })).rejects.toThrow(/^pull: .*可写检出位.*wt_a1/);
+
+      expect(harness.mergeChanges).not.toHaveBeenCalled();
+      expect(harness.syncRepository.update).not.toHaveBeenCalled();
+      expect(harness.changeRepository.update).not.toHaveBeenCalled();
     });
   });
 });

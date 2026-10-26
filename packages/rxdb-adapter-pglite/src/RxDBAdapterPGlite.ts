@@ -4,17 +4,25 @@ import type {
   EntityType,
   IRepository,
   IRxDBAdapter,
+  LocalRxDBAdapter,
   RawQueryResult,
   RestoreEntityOptions,
   RxDBBackupOptions,
   RxDBBackupResult,
   RxDBMutationsMap,
   SwitchBranchOptions,
-  SwitchVersionActions
+  SwitchVersionActions,
+  TransactionExecutor,
+  WorktreeSnapshotCursor,
+  WorktreeSnapshotImport,
+  WorktreeSnapshotPage,
+  WorktreeTableSetSeed
 } from '@aiao/rxdb';
 import {
+  assertMutationsTableSet,
   gateRawWrite,
   getEntityMetadata,
+  getEntityMutations,
   getEntityStatus,
   getEntityStorageMetadata,
   MAIN_BRANCH_ID,
@@ -25,7 +33,8 @@ import {
   RxDBBackupError,
   RxDBChange,
   toStorageConstraintViolationError,
-  TransactionFun
+  TransactionFun,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import {
   createKeyring,
@@ -40,6 +49,12 @@ import type { QueryOptions, Results } from '@electric-sql/pglite';
 import { defer, from, map, Observable, of, Subject } from 'rxjs';
 import { pgliteBackupExtensions, resolvePGliteBackupStorage } from './backup/pglite-backup-compat.js';
 import { writePGliteBackup } from './backup/pglite-backup.js';
+import { pgliteIdbDatabaseName } from './backup/pglite-restore-fs.js';
+import {
+  countPGliteStorageHolders,
+  deleteIdbDatabase,
+  deletePGliteStorageBookkeeping
+} from './backup/pglite-restore-lock.js';
 import {
   type ChangePipelineHost,
   drainPendingChangeHandlers,
@@ -63,22 +78,33 @@ import {
   RxdbAdapterPGliteError
 } from './pglite.utils.js';
 import { asPGliteChangeEventSource, IPGliteClient, PGliteClient, resolvePGliteInitOptions } from './PGliteClient.js';
+import {
+  queryCacheRowId,
+  readQueryCacheRows,
+  settleQueryCacheRemove,
+  settleQueryCacheUpsert
+} from './query-cache/query_cache_events.js';
 import { resolveQueryCacheTarget, resolveUpdatedAtColumn } from './query-cache/query_cache_target.js';
 import { buildQueryCacheUpsertStatements } from './query-cache/upsert_many_sql.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
 import { PGliteTreeRepository } from './repository/PGliteTreeRepository.js';
 import { migrateSystemSchema } from './system/migrate_system_schema.js';
+import { getSchemaName } from './table-name-resolver.js';
 import { check_entity_constraints_pglite } from './table/check-entity-constraints.js';
 import { create_table_indexes_sql } from './table/create_table_sql.js';
 import { create_tables_statements } from './table/create_tables_sql.js';
 import { generateNotifyInfrastructureSQL, generateNotifyTriggerSQL } from './table/notify_function_sql.js';
 import { PGliteTransactionExecutor } from './transaction/PGliteTransactionExecutor.js';
-import { execute_switch_actions } from './version/execute_switch_actions.js';
+import { dispatchUnloggedRemovals } from './unlogged-removal-events.js';
+import { applySwitchActions, execute_switch_actions } from './version/execute_switch_actions.js';
 import { executeSwitchStatements } from './version/execute_switch_statements.js';
 import { readBranchIdForNewTables } from './version/read_current_branch_id.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { generateBranchTriggerSqlFor, switch_branch } from './version/switch_branch.js';
 import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.js';
+import { withTriggersDisabled } from './version/with_triggers_disabled.js';
+import { importSnapshotTable, readSnapshotPage } from './worktree/worktree-snapshot.js';
+import { createSeededTableSet, dropTableSet, listTableSetSuffixes } from './worktree/worktree-table-set.js';
 
 /**
  * 适配器生命周期状态。
@@ -89,6 +115,15 @@ import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.
  * `RxDB.connect()` 建表完成后调 {@link RxDBAdapterPGlite.completeBootstrap} 翻到 `ready`。
  */
 type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
+
+/**
+ * `dropStorage()` 删得掉的数据目录：内存与 `idb://`。
+ *
+ * @remarks
+ * 位置不由库名推导的存储（`opfs-ahp://`、文件目录）不知道该删哪里。
+ */
+const isDroppableDataDir = (dataDir: string | undefined): boolean =>
+  dataDir === undefined || dataDir === 'memory://' || dataDir.startsWith('idb://');
 
 /**
  * 一组同类型实体在 {@link RxDBAdapterPGlite.saveMany} 那条多行 UPSERT 里的行序。
@@ -173,6 +208,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   #notifyInfrastructureReady = false;
   #lifecycle_state: AdapterLifecycleState = 'bootstrap';
 
+  /** 已封成只读，此后每个事务都以只读事务开头；见 {@link RxDBAdapterPGlite.sealWorktreeReadOnly}。 */
+  #read_only_sealed = false;
+
   /** 加密 keyring（仅当至少一个 entity 声明加密列时初始化） */
   #keyring: Keyring | null = null;
 
@@ -244,6 +282,107 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     return isEnvelope(value);
   }
 
+  /**
+   * 读一页存储形态的行（只读检出位建快照，US-313）。
+   *
+   * @param executor - 主库事务的执行器
+   * @param EntityType - 主实例上的实体类
+   * @param after - 上一页的游标；`null` 从头读
+   * @param limit - 本页最多几行
+   * @returns `to_jsonb` 文本的行，按主键分页
+   */
+  override readWorktreeSnapshotPage(
+    executor: TransactionExecutor,
+    EntityType: EntityType,
+    after: WorktreeSnapshotCursor | null,
+    limit: number
+  ): Promise<WorktreeSnapshotPage> {
+    return readSnapshotPage(executor, EntityType, after, limit);
+  }
+
+  /**
+   * 把主库读出的行与增量写进本库（只读检出位建快照，US-313）。
+   *
+   * @param snapshot - 要复制的表与叠在上面的增量
+   * @throws {@link RxdbAdapterPGliteError} 本库装着捕获运行时
+   *
+   * @remarks
+   * 一个事务，不派发事件：快照实例的实体都是 `log: false`，没有变更日志可推出事件。
+   * 增量与切分支同一份 SQL 生成，只是加密列走信封直通。
+   */
+  override async importWorktreeSnapshot(snapshot: WorktreeSnapshotImport): Promise<void> {
+    if (this.workingTreeCaptureHook) {
+      throw new RxdbAdapterPGliteError('importWorktreeSnapshot: 装着捕获运行时的库不能导入快照，快照写不进受信写矩阵');
+    }
+    const switchAction = await convertSwitchResultToSql(this, snapshot.actions, { envelopePassthrough: true });
+    await this.transaction(async executor => {
+      for (const table of snapshot.tables) await importSnapshotTable(executor, table);
+      await applySwitchActions((executor as PGliteTransactionExecutor).adapter, switchAction);
+    }, false);
+  }
+
+  /**
+   * 沿用主库适配器的密钥环（只读检出位，US-313）。
+   *
+   * @param source - 主库的 PGlite 适配器
+   * @throws {@link RxdbAdapterPGliteError} `source` 不是 PGlite 适配器
+   */
+  override adoptWorktreeEncryption(source: LocalRxDBAdapter): void {
+    if (!(source instanceof RxDBAdapterPGlite)) {
+      throw new RxdbAdapterPGliteError(`adoptWorktreeEncryption: 主库适配器 ${source.name} 不是 PGlite`);
+    }
+    this.#keyring = source.#keyring;
+  }
+
+  /**
+   * 按当前数据目录，`dropStorage()` 删不删得掉本库（只读检出位建快照库之前问一次，US-313）。
+   *
+   * @returns 内存与 `idb://` 为 `true`；其余数据目录为 `false`
+   */
+  override canDropStorage(): boolean {
+    return isDroppableDataDir(resolvePGliteInitOptions(this.rxdb.config.dbName, this.options).dataDir);
+  }
+
+  /**
+   * 删掉本库的持久存储（只读检出位回收快照库，US-313）。
+   *
+   * @throws {@link RxdbAdapterPGliteError} 还连着、存储正被别的上下文持有，或存储不是 `memory` / `idb://`
+   *
+   * @remarks
+   * 内存库断开即无，什么都不做。`idb://` 删 IndexedDB 库 `/pglite/<库名>`，再删标记库里这个存储的恢复标记与
+   * 世代计数——库删了、簿记留着，同名重建的库会被当成「有人恢复到一半」。断开时客户端已亲手关掉 IdbFs
+   * 那条连接（见 `idbConnectionOf`），这里的 `deleteDatabase` 才不会卡在 `blocked`。
+   * 位置不由库名推导的存储（`opfs-ahp://`、文件目录）不知道该删哪里，报不支持。
+   */
+  override async dropStorage(): Promise<void> {
+    if (this.#client_promise) throw new RxdbAdapterPGliteError('dropStorage: 适配器还连着，先断开再删库');
+    const { dataDir } = resolvePGliteInitOptions(this.rxdb.config.dbName, this.options);
+    if (!isDroppableDataDir(dataDir)) {
+      throw new RxdbAdapterPGliteError(`dropStorage: 不支持删除存储 ${dataDir}，只支持 memory 与 idb://`);
+    }
+    if (dataDir === undefined || dataDir === 'memory://') return;
+    if ((await countPGliteStorageHolders(dataDir)) > 0) {
+      throw new RxdbAdapterPGliteError(`dropStorage: 存储 ${dataDir} 正被别的上下文打开着`);
+    }
+    await deleteIdbDatabase(pgliteIdbDatabaseName(dataDir.slice('idb://'.length)));
+    await deletePGliteStorageBookkeeping(dataDir);
+  }
+
+  /**
+   * 把本库封成只读（只读检出位，US-313）：此后每个事务都是只读事务，写语句被 Postgres 拒绝。
+   *
+   * @remarks
+   * 会话默认值管不住本适配器开的事务：`SELECT set_config('default_transaction_read_only', 'off', false)`
+   * 长得像一条读语句，只读钩子的 raw 门如今认得它，但不经那道门的路径照样改得动会话默认值，改了之后新开的事务
+   * 就是可写的。所以封印之后每个事务开头都
+   * `SET TRANSACTION READ ONLY`：事务执行过查询之后就改不回可写，`set_config('transaction_read_only', …)`
+   * 写在 `SELECT` 里因此当场报错。会话默认值留着，管的是不经事务的内部查询。
+   */
+  override async sealWorktreeReadOnly(): Promise<void> {
+    await this.transaction(executor => executor.query('SET SESSION default_transaction_read_only = on'), false);
+    this.#read_only_sealed = true;
+  }
+
   /** QueryCache：id → updatedAt。物理定位经 `resolveQueryCacheTarget`（PGL-012）。 */
   getMetadataByIds(entityName: string, ids: string[]): Observable<Map<string, string>> {
     return defer(() => {
@@ -275,6 +414,10 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * 放进事务里只会为一个注定要回滚的批次开一次事务，而列契约的诊断本就该在
    * 「有没有开始写」之前给出 —— 读者看到错误时数据库连 `BEGIN` 都没发过，
    * 「一行都没有落地」这句话才是能自证的。
+   *
+   * 写的时候摘掉主表集的触发器：抄的是远端副本，不是本地变更，记进 `rxdb_change` 就会被出站队列当离线写推回远端。
+   * QueryCache 同步的实体只在主表集，挂在可写检出位上摘的也是主表集（US-314 B2.1）。摘掉触发器之后活查询收不到
+   * 变更行的通知，同事务里读回写入前后的行，提交之后补刷缓存、补发事件（`query_cache_events.ts`）。
    */
   upsertMany<T>(entityName: string, data: T[]): Observable<void> {
     return defer(() => {
@@ -283,18 +426,28 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       }
       const target = resolveQueryCacheTarget(this.rxdb, entityName);
       return from(
-        buildQueryCacheUpsertStatements(target, data as readonly object[], this.encryptionContext).then(statements =>
-          this.transaction(async executor => {
-            for (const statement of statements) {
-              await executor.query(statement.sql, statement.params);
-            }
-          }, false).then(() => undefined)
+        buildQueryCacheUpsertStatements(target, data as readonly object[], this.encryptionContext).then(
+          async statements => {
+            // 列契约在建语句时已经整批判过，缺 id 的行到不了这里
+            const ids = (data as readonly object[]).map(row => queryCacheRowId(row, target));
+            const { before, after } = await this.transaction(async executor => {
+              const tx = executor as PGliteTransactionExecutor;
+              const before = await readQueryCacheRows(tx, target, ids);
+              await withTriggersDisabled(tx.adapter, WorktreeTableSet.MAIN, async () => {
+                for (const statement of statements) {
+                  await tx.query(statement.sql, statement.params);
+                }
+              });
+              return { before, after: await readQueryCacheRows(tx, target, ids) };
+            }, false);
+            await settleQueryCacheUpsert(this, target, before, after);
+          }
         )
       );
     });
   }
 
-  /** QueryCache 按 id 批量删除。 */
+  /** QueryCache 按 id 批量删除；摘触发器、补事件的理由同 {@link upsertMany}。 */
   deleteByIds(entityName: string, ids: string[]): Observable<void> {
     return defer(() => {
       if (ids.length === 0) {
@@ -303,12 +456,22 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       const target = resolveQueryCacheTarget(this.rxdb, entityName);
       // PostgreSQL 使用 = ANY($1) 语法，支持参数化数组
       const sql = `DELETE FROM ${target.tableName} WHERE ${quoteIdentifier(target.idColumn)} = ANY($1)`;
-      return from(this.transaction(executor => executor.query(sql, [ids]), false).then(() => undefined));
+      return from(
+        this.transaction(async executor => {
+          const tx = executor as PGliteTransactionExecutor;
+          const before = await readQueryCacheRows(tx, target, ids);
+          await withTriggersDisabled(tx.adapter, WorktreeTableSet.MAIN, () => tx.query(sql, [ids]));
+          return before;
+        }, false).then(before => settleQueryCacheRemove(this, target, before))
+      );
     });
   }
 
   async mutations<T extends EntityType>(mutations: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {
-    return this.transaction(executor => executor.mutations(mutations));
+    return this.transaction(executor => {
+      assertMutationsTableSet(this.rxdb, mutations);
+      return executor.mutations(mutations);
+    });
   }
 
   /** 合并远程变更。`disableTriggers` 用于 pull，避免再写 RxDBChange。 */
@@ -363,14 +526,18 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       groups.get(type)!.push(e);
     }
 
+    const mutations = getEntityMutations({ needSaveEntities: [], needRemoveEntities: entities });
+    const recordAt = new Date();
     await this.transaction(async executor => {
+      assertMutationsTableSet(this.rxdb, mutations);
       for (const [type, group] of groups) {
         const metadata = getEntityMetadata(type);
-        for (const statement of generate_entity_deletes_sql(metadata, group)) {
+        for (const statement of generate_entity_deletes_sql(metadata, this.tableSet, group)) {
           await executor.query(statement.sql, statement.params);
         }
       }
     }, false);
+    dispatchUnloggedRemovals(this.rxdb, entities, recordAt);
     return entities;
   }
 
@@ -387,12 +554,20 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     }
 
     // 为每个实体类型依次执行批量插入；仅在尚未处于事务中时包装事务
+    const mutations = getEntityMutations({ needSaveEntities: entities, needRemoveEntities: [] });
     await this.transaction(async executor => {
+      assertMutationsTableSet(this.rxdb, mutations);
       for (const [EntityType, list] of groups.entries()) {
         const metadata = getEntityMetadata(EntityType);
         const rows = upsertRowsOf(metadata, list);
         // 生成批量插入 SQL（使用 ON CONFLICT DO UPDATE 实现 UPSERT）
-        const sql = await generate_entity_upserts_sql(metadata, rows, this.rxdb.context, this.encryptionContext);
+        const sql = await generate_entity_upserts_sql(
+          metadata,
+          this.tableSet,
+          rows,
+          this.rxdb.context,
+          this.encryptionContext
+        );
         try {
           await executor.query(sql);
         } catch (error) {
@@ -461,6 +636,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
         try {
           await this.#drainPendingChangeHandlers();
         } finally {
+          await this.#queue.waitForAll();
           await client.disconnect();
         }
       }
@@ -522,12 +698,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
 
   public getRepository<T extends EntityType, RT = IRepository<T>>(entity: T): RT {
     if (!this.#repository_cache.has(entity)) {
-      const meta = getEntityMetadata(entity);
-      const RepositoryClass = this.#repository_map.get(meta.repository);
-      if (!RepositoryClass) {
-        throw new RxdbAdapterPGliteError('Unsupported repository type: ' + meta.repository);
-      }
-      const repository: IRepository<T> = new RepositoryClass(this, entity) as unknown as IRepository<T>;
+      const repository = this.transactionalRepository(entity, this.createUncachedRepository(entity, this));
       this.#repository_cache.set(entity, repository);
       return repository as unknown as RT;
     }
@@ -551,7 +722,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   async createTables<T extends EntityType>(EntityTypes: T[], entities?: InstanceType<T>[]): Promise<boolean> {
     return this.bootstrapTransaction(async executor => {
-      const statements = await create_tables_statements(this, EntityTypes, entities);
+      const statements = await create_tables_statements(this, WorktreeTableSet.MAIN, EntityTypes, entities);
       for (const statement of statements) {
         await (executor as PGliteTransactionExecutor).queryRaw(statement);
       }
@@ -563,17 +734,65 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       const sink = (executor as PGliteTransactionExecutor).adapter;
       const branchId = await readBranchIdForNewTables(sink);
       if (branchId !== MAIN_BRANCH_ID) {
-        await executeSwitchStatements(sink, generateBranchTriggerSqlFor(this, branchId, EntityTypes));
+        await executeSwitchStatements(
+          sink,
+          generateBranchTriggerSqlFor(this, WorktreeTableSet.MAIN, branchId, EntityTypes)
+        );
       }
       return true;
     }, false);
+  }
+
+  /**
+   * 在调用方的事务里建一套可写检出位的表并播种（US-314 B1.5），做法见 `worktree/worktree-table-set.ts`。
+   *
+   * @param executor - 本适配器上一个事务的执行器
+   * @param tableSet - 要建的表集；成员由调用方定（版本化域里的实体）
+   * @param seed - 持有分支与要叠上的增量
+   * @throws {@link RxdbAdapterPGliteError} 给的是主表集、成员里有不记变更日志的实体、增量落在表集之外，或主表缺列时
+   *
+   * @remarks
+   * 与 sqlite-core 的同名方法同口径。影子表集落在 `<命名空间>$<后缀>` 这个 schema 里（见 `getSchemaName`）。
+   * 不写持有键：打开检出位的流程在同一笔事务里自己写。
+   */
+  override async createWorktreeTableSet(
+    executor: TransactionExecutor,
+    tableSet: WorktreeTableSet,
+    seed: WorktreeTableSetSeed
+  ): Promise<void> {
+    await createSeededTableSet(this, executor as PGliteTransactionExecutor, tableSet, seed);
+  }
+
+  /**
+   * 在调用方的事务里删掉一套可写检出位的表（US-314 B1.5）：按目录找这套表的 schema，整个删掉。
+   *
+   * @param executor - 本适配器上一个事务的执行器
+   * @param tableSet - 要删的表集
+   * @throws {@link RxdbAdapterPGliteError} 给的是主表集时
+   *
+   * @remarks
+   * 分支表上的持有键不归这里放，关闭检出位的流程在同一笔事务里自己放。
+   */
+  override async dropWorktreeTableSet(executor: TransactionExecutor, tableSet: WorktreeTableSet): Promise<void> {
+    const mainSchemas = new Set(this.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType).namespace));
+    await dropTableSet(executor as PGliteTransactionExecutor, tableSet, mainSchemas);
+  }
+
+  /**
+   * 按目录列出现存的可写检出位表集（US-314 B2.6）：名字末尾是 `$<后缀>` 的 schema 各属于哪一套。
+   *
+   * @param executor - 本适配器上一个事务的执行器
+   * @returns 表集后缀，排好序、不重复；配置里实体的命名空间恰好长成这个形状时不算
+   */
+  override listWorktreeTableSetSuffixes(executor: TransactionExecutor): Promise<readonly string[]> {
+    return listTableSetSuffixes(this, executor as PGliteTransactionExecutor);
   }
 
   override async reconcileEntityIndexes(EntityTypes: EntityType[]): Promise<void> {
     await this.bootstrapTransaction(async executor => {
       for (const EntityType of EntityTypes) {
         const metadata = getEntityMetadata(EntityType);
-        const statements = create_table_indexes_sql(metadata, true)
+        const statements = create_table_indexes_sql(metadata, WorktreeTableSet.MAIN, true)
           .split(/;\s*/)
           .map(statement => statement.trim())
           .filter(Boolean);
@@ -594,8 +813,11 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     await this.bootstrapTransaction(async executor => {
       // 传门面（executor）而非真实适配器：门面的 queryRaw 落在当前事务里；
       // 真实适配器的 query 会重新入队排在自己身后，永久挂起。
-      await check_entity_constraints_pglite(executor as PGliteTransactionExecutor, EntityTypes, entity =>
-        getEntityStorageMetadata(this.rxdb, entity)
+      await check_entity_constraints_pglite(
+        executor as PGliteTransactionExecutor,
+        WorktreeTableSet.MAIN,
+        EntityTypes,
+        entity => getEntityStorageMetadata(this.rxdb, entity)
       );
     }, false);
   }
@@ -624,7 +846,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       WHERE
         table_schema = $1 AND
         table_name = $2);`,
-      [metadata.namespace, metadata.tableName]
+      [getSchemaName(metadata, WorktreeTableSet.MAIN), metadata.tableName]
     );
     return result.rows[0]?.exists;
   }
@@ -642,7 +864,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     WHERE table_schema = $1
     AND table_name = $2
     ORDER BY ordinal_position;`,
-      [metadata.namespace, metadata.tableName]
+      [getSchemaName(metadata, WorktreeTableSet.MAIN), metadata.tableName]
     );
     return result.rows as PgliteTableColumn[];
   }
@@ -852,6 +1074,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       client.transaction(async tx => {
         executor = new PGliteTransactionExecutor(this, tx, transactionId ?? crypto.randomUUID());
 
+        // 只读检出位的快照库：事务级只读，事务里的语句改不掉它（见 sealWorktreeReadOnly）
+        if (this.#read_only_sealed) await tx.query('SET TRANSACTION READ ONLY');
+
         // 延迟外键约束检查到事务提交时
         await tx.query('SET CONSTRAINTS ALL DEFERRED');
 
@@ -872,9 +1097,11 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       // executor 自持状态：**绝不**从驱动的 tx.closed 派生 —— 该标志在失败路径上不翻转，
       // 逃逸出去的 tx 仍会以 autocommit 执行写入。
       executor?.settle('committed');
+      if (executor) this.settleRepositoryTransaction(executor, true);
       return result;
     } catch (error) {
       executor?.settle('rolled-back');
+      if (executor) this.settleRepositoryTransaction(executor, false);
       throw error;
     }
   }

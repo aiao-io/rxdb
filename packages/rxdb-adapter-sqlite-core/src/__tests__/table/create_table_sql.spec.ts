@@ -7,6 +7,7 @@ import {
   RxDB,
   SyncType,
   transitionMetadata,
+  WorktreeTableSet,
   type EntityType
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
@@ -143,7 +144,7 @@ describe('create_table_sql - 列类型与约束', () => {
     ]
   });
 
-  const sql = create_table_sql(adapter, typeMetadata);
+  const sql = create_table_sql(adapter, typeMetadata, WorktreeTableSet.MAIN);
 
   it('整数主键应生成 PRIMARY KEY AUTOINCREMENT', () => {
     expect(sql).toContain('"id" INTEGER PRIMARY KEY AUTOINCREMENT');
@@ -196,7 +197,7 @@ describe('create_table_sql - 列类型与约束', () => {
       namespace: 'test',
       properties: [{ name: 'id', type: PropertyType.string, primary: true }]
     });
-    const strSql = create_table_sql(adapter, metadata);
+    const strSql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
 
     expect(strSql).toContain('"id" TEXT PRIMARY KEY');
     expect(strSql).not.toContain('randomblob');
@@ -204,12 +205,12 @@ describe('create_table_sql - 列类型与约束', () => {
 
   it('没有任何列时应抛错', () => {
     const metadata = transitionMetadata({ name: 'CtEmpty', namespace: 'test' });
-    expect(() => create_table_sql(adapter, metadata)).toThrow(/columns is empty/);
+    expect(() => create_table_sql(adapter, metadata, WorktreeTableSet.MAIN)).toThrow(/columns is empty/);
   });
 });
 
 describe('create_table_sql - 外键关系', () => {
-  const sql = create_table_sql(adapter, getEntityMetadata(CtChild));
+  const sql = create_table_sql(adapter, getEntityMetadata(CtChild), WorktreeTableSet.MAIN);
 
   it('UUID 主键应生成数据库端默认值', () => {
     expect(sql).toContain('"id" TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16))))');
@@ -254,7 +255,7 @@ describe('create_table_sql - 外键关系', () => {
   });
 
   it('ONE_TO_MANY 关系不应生成外键列', () => {
-    const parentSql = create_table_sql(adapter, getEntityMetadata(CtIntParent));
+    const parentSql = create_table_sql(adapter, getEntityMetadata(CtIntParent), WorktreeTableSet.MAIN);
     expect(parentSql).not.toContain('childrenId');
   });
 
@@ -294,7 +295,7 @@ describe('create_table_sql - 实体索引', () => {
     ]
   });
 
-  const sql = create_table_sql(adapter, indexedMetadata);
+  const sql = create_table_sql(adapter, indexedMetadata, WorktreeTableSet.MAIN);
 
   it('索引属性应映射为数据库列名', () => {
     expect(sql).toContain('CREATE INDEX "idx_test$ct_indexed_byTitle" ON "test$ct_indexed"("title_col");');
@@ -333,7 +334,7 @@ describe('RXD-053 继承索引必须真的进 DDL', () => {
     // 模拟继承合并结果：父类索引只存在于 indexMap
     metadata.indexMap.set('by_name', { name: 'by_name', properties: ['name'] } as never);
 
-    const sql = create_table_sql(adapter, metadata);
+    const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
 
     expect(sql).toContain('"idx_test$IdxChild_by_name"');
   });

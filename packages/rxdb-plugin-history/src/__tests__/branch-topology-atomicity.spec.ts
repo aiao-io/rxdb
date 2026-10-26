@@ -5,7 +5,8 @@ import {
   RxDBBranch,
   RxDBChange,
   RxDBError,
-  type TransactionExecutor
+  type TransactionExecutor,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { NEVER, of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
@@ -279,6 +280,9 @@ const createVersionManager = (db: FakeLocalDatabase): VersionManager => {
   const rxdb = {
     config: { sync: {} },
     connected$: NEVER,
+    // 没换挂过的实例挂的是主表集（US-314 B1.4）
+    worktreeTableSet: WorktreeTableSet.MAIN,
+    worktreeTableSet$: of(WorktreeTableSet.MAIN),
     // `getCurrentBranch` 自 US-025 阶段 C 起是核心函数，从这条流上取本地适配器。
     // 下面那个 `getLocalRepositories` 覆写只管得到 `create_branch` / `remove_branch`，
     // 管不到它。

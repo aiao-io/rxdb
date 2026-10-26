@@ -10,16 +10,20 @@
  * 新实体当然能重放。反过来的默认值会让任何人新加一个实体时，它的改动悄悄不进提交——这种漏
  * 没有报错形态，只表现为「我明明改了，commit 说没有变更」。
  *
- * **untracked 只有三类**（spec.md 把「新增第四类必须先改 epic-006 该节」写成了硬规则）：
- * QueryCache 实体、簿记字段、插件登记的派生索引列。三类各自的粒度不同——第一类是**整实体**，
- * 第二类是**全域字段**，第三类是**按表登记的字段**——所以它们不能压成一个集合。
+ * **untracked 只有四类**（spec.md 把「新增一类必须先改 epic-006 该节」写成了硬规则）：
+ * QueryCache 实体、簿记字段、插件登记的派生索引列、关闭变更日志（`log: false`）的实体。粒度各不相同——
+ * 第一、四类是**整实体**，第二类是**全域字段**，第三类是**按表登记的字段**——所以它们不能压成一个集合。
+ *
+ * 第四类不是新开的豁免，而是把既成事实写进清单：`log: false` 的实体不写 `rxdb_change`，挂载点 1 读的
+ * 变更日志增量里本来就没有它，分支投影与历史也看不见它。清单判它 tracked 的话，批量写与 raw 写按版本化表
+ * 被拦，事务写却静默放行——正是上面那条硬规则禁止的形态。
  *
  * **判定看不见来源。** 两个判定函数都只收实体名（与字段名），收不到入口、意图或 `origin`。
  * `origin='remote_sync'` 因此**不是** untracked：它是 tracked 实体的一次净变化，只是作者不是
  * 本地用户。把它当豁免最省事，代价是一次 pull 之后 HEAD 与工作树永久对不上，且不可见、不可恢复。
  */
 
-import { RxDBError, RxDBMixedVersionedCacheTransactionError, SyncType } from '@aiao/rxdb';
+import { ENTITY_BOOKKEEPING_FIELDS, RxDBError, RxDBMixedVersionedCacheTransactionError, SyncType } from '@aiao/rxdb';
 
 /**
  * 第二类 untracked：实体行上的簿记字段，**全域**豁免
@@ -38,8 +42,11 @@ import { RxDBError, RxDBMixedVersionedCacheTransactionError, SyncType } from '@a
  * 与「写了什么」同属一次真实的净变化；把它并进来等于让「换个人改同一个值」不进提交。
  *
  * **为什么不含 `id`**：主键是行的身份不是它的簿记。豁免它意味着改主键不算变化。
+ *
+ * 清单本身是核心的 `ENTITY_BOOKKEEPING_FIELDS`（同一个引用）：历史插件的分支对比与合并预览按同一份
+ * 不把这些列算作差异，两处各写一份迟早会分叉。
  */
-export const UNTRACKED_BOOKKEEPING_FIELDS: readonly string[] = ['remoteId', 'createdAt', 'updatedAt'];
+export const UNTRACKED_BOOKKEEPING_FIELDS: readonly string[] = ENTITY_BOOKKEEPING_FIELDS;
 
 /** {@link UNTRACKED_BOOKKEEPING_FIELDS} 的查表形态，避免每次判定都线性扫一遍。 */
 const BOOKKEEPING_FIELD_SET: ReadonlySet<string> = new Set(UNTRACKED_BOOKKEEPING_FIELDS);
@@ -59,7 +66,8 @@ export type VersionedEntityClass = 'tracked' | 'untracked';
  * @remarks
  * 四个必填项分别对应判定的三个平面：`entityName` 与 `namespace` 合起来是调用方在实体层问的
  * 身份，`physicalTableNames` 是 raw 判定在 SQL 里看到的名字，`syncType` 决定第一类 untracked。
- * 少任何一个都会逼下游自己去元数据里再查一次，而那正是「第二份清单」的开始。
+ * 少任何一个都会逼下游自己去元数据里再查一次，而那正是「第二份清单」的开始。可选的 `log` 决定第四类，
+ * `derivedIndexColumns` 是第三类的登记口。
  */
 export interface VersionedDomainEntityInput {
   /** 实体名（`@Entity({ name })`），大小写敏感 */
@@ -90,6 +98,15 @@ export interface VersionedDomainEntityInput {
 
   /** 该实体的同步策略；{@link SyncType.QueryCache} 即第一类 untracked */
   readonly syncType: SyncType;
+
+  /**
+   * 该实体写不写变更日志（`@Entity({ log })`）；`false` 即第四类 untracked
+   *
+   * @remarks
+   * 缺省按 `true`，与核心实体元数据的默认值一致：判据是**显式声明**的 `log: false`，不是「没写 log」。
+   * 关掉变更日志的实体不产生 `rxdb_change`，捕获、分支投影、历史与同步推送都建在它上面，一个也看不见这张表。
+   */
+  readonly log?: boolean;
 
   /**
    * 插件在**这张业务表上**静态声明的派生索引列（第三类 untracked）
@@ -139,9 +156,13 @@ export interface VersionedDomainView {
 }
 
 /**
- * 一个事务单元内的 tracked / untracked 混用守卫
+ * 一个事务单元内的 QueryCache / 其余实体混用守卫
  *
  * @remarks
+ * 只分两边：QueryCache 实体，与其余全部实体（版本化实体与关闭变更日志的实体）。拒绝混用的理由是写路径
+ * 不可调和——QueryCache 先写远端再落可丢弃的缓存，其余实体写本地事务——而关闭变更日志的实体与版本化
+ * 实体同走本地事务、同提交同回滚，混在一起没有这个问题。核心的 `isQueryCacheBatch` 按同一条线分两边。
+ *
  * **流式的，不预知未来**：第 5 次操作才暴露混用就在第 5 次抛，前 4 次正常返回。
  * 要求守卫提前知道后面会写缓存实体，就等于要求调用方预先声明整个事务的操作集——
  * spec.md 场景 7 明确排除了这个前提。
@@ -151,7 +172,7 @@ export interface VersionedTransactionGuard {
    * 登记本事务内的一次实体操作
    *
    * @param entityName - 被操作实体的名字
-   * @throws {@link MixedVersionedCacheTransactionError} 本次登记使事务同时含 tracked 与 untracked 时
+   * @throws {@link MixedVersionedCacheTransactionError} 本次登记使事务同时含 QueryCache 与其余实体时
    */
   record(entityName: string): void;
 }
@@ -184,10 +205,10 @@ export interface VersionedDomain extends VersionedDomainView {
    *
    * @param entityName - 实体名
    * @param namespace - 已知时按身份精确匹配；省略时按裸名匹配（见 remarks）
-   * @returns 登记为 {@link SyncType.QueryCache} 时为 `'untracked'`，其余一律 `'tracked'`
+   * @returns 登记为 {@link SyncType.QueryCache} 或关闭变更日志（`log: false`）时为 `'untracked'`，其余一律 `'tracked'`
    *
    * @remarks
-   * 未登记的实体是 `'tracked'`——这是「没有第四类」的落地形态。**命名空间对不上也算未登记**，
+   * 未登记的实体是 `'tracked'`——这是「四类之外一律版本化」的落地形态。**命名空间对不上也算未登记**，
    * 不退回裸名那一条：退回去等于把 `namespace` 降格成提示，于是另一个命名空间下的同名实体
    * 会继承一份与它毫无关系的归类。
    *
@@ -203,7 +224,7 @@ export interface VersionedDomain extends VersionedDomainView {
    * @param entityName - 实体名
    * @param field - 实体属性名
    * @param namespace - 已知时按身份精确匹配；省略时按裸名匹配，口径同 {@link classifyEntity}
-   * @returns 命中三类 untracked 中任意一类时为 `true`
+   * @returns 命中四类 untracked 中任意一类时为 `true`
    */
   isUntrackedField(entityName: string, field: string, namespace?: string): boolean;
 
@@ -220,22 +241,23 @@ export interface VersionedDomain extends VersionedDomainView {
 }
 
 /**
- * tracked 与 untracked 实体混进了同一个事务单元
+ * QueryCache 实体与其余实体混进了同一个事务单元
  *
  * @remarks
  * 继承既有的 {@link RxDBMixedVersionedCacheTransactionError} 而不是另起一个类：spec.md 指定
  * 承载者就是它，既有的 `catch` 分支与 `instanceof` 判断因此继续命中，`cacheEntities` /
  * `versionedEntities` 两个数组照常可读。这里加的是**流式守卫才知道的东西**——撞上的是哪两个
  * 实体。父类的数组形态服务于「整批扫一遍再报」的批量路径，那条路径上没有「第几次操作撞的」
- * 这个概念。
+ * 这个概念。两个字段沿用父类的两边命名：「versioned」一边是 QueryCache 之外的全部实体，
+ * 与核心 `isQueryCacheBatch` 的分法一致。
  *
- * 抛出即回滚整个事务：两者写语义不可调和（版本化实体写本地并进 changelog，QueryCache 实体
- * 先写远端再落可丢弃缓存），同批只会得到「一半进了变更历史、一半没有」。回滚由适配器保证
+ * 抛出即回滚整个事务：两者写语义不可调和（其余实体写本地事务，QueryCache 实体
+ * 先写远端再落可丢弃缓存），同批只会得到「一半进了本地事务、一半先去了远端」。回滚由适配器保证
  * （throw ⇒ rollback），不由本类负责。
  */
 export class MixedVersionedCacheTransactionError extends RxDBMixedVersionedCacheTransactionError {
   /**
-   * 只由 `createTransactionGuard()` 在**第二类实体刚出现**的那一刻构造。
+   * 只由 `createTransactionGuard()` 在**另一边的实体刚出现**的那一刻构造。
    *
    * @remarks
    * 两个参数取的是各自**先撞上的那一个**，不是全集（理由见 `createTransactionGuard`）。
@@ -243,12 +265,12 @@ export class MixedVersionedCacheTransactionError extends RxDBMixedVersionedCache
    * 而流式守卫这边根本没有全集可交。
    */
   constructor(
-    /** 本事务内先后撞上的 tracked 实体名 */
-    readonly trackedEntityName: string,
-    /** 本事务内先后撞上的 untracked 实体名 */
-    readonly untrackedEntityName: string
+    /** 本事务内先撞上的非 QueryCache 实体名 */
+    readonly versionedEntityName: string,
+    /** 本事务内先撞上的 QueryCache 实体名 */
+    readonly cacheEntityName: string
   ) {
-    super([untrackedEntityName], [trackedEntityName]);
+    super([cacheEntityName], [versionedEntityName]);
     this.name = 'MixedVersionedCacheTransactionError';
     Object.setPrototypeOf(this, MixedVersionedCacheTransactionError.prototype);
   }
@@ -298,15 +320,19 @@ const identityKey = (namespace: string, entityName: string): string => `${namesp
 interface EntityRecord {
   readonly entityName: string;
   readonly entityClass: VersionedEntityClass;
+  /** 第一类：混用守卫只按它分两边，第四类与版本化实体同在本地写那一边。 */
+  readonly queryCache: boolean;
   readonly tableNames: readonly string[];
   readonly derivedIndexColumns: ReadonlySet<string>;
 }
 
 /** 把一条登记折成 {@link EntityRecord}。 */
 function toEntityRecord(input: VersionedDomainEntityInput): EntityRecord {
+  const queryCache = input.syncType === SyncType.QueryCache;
   return {
     entityName: input.entityName,
-    entityClass: input.syncType === SyncType.QueryCache ? 'untracked' : 'tracked',
+    entityClass: queryCache || input.log === false ? 'untracked' : 'tracked',
+    queryCache,
     tableNames: normalizePhysicalTableNames(input),
     derivedIndexColumns: new Set(input.derivedIndexColumns ?? [])
   };
@@ -383,11 +409,14 @@ function collectDerivedColumnsByTable(records: ReadonlyMap<string, EntityRecord>
  *   { entityName: 'Post', namespace: 'public', physicalTableNames: ['post', 'public$post'],
  *     syncType: SyncType.Full, derivedIndexColumns: ['title_norm'] },
  *   { entityName: 'ProductCache', namespace: 'public', physicalTableNames: ['productcache'],
- *     syncType: SyncType.QueryCache }
+ *     syncType: SyncType.QueryCache },
+ *   { entityName: 'FileMeta', namespace: 'storage', physicalTableNames: ['file_meta'],
+ *     syncType: SyncType.None, log: false }
  * ]);
  *
  * domain.classifyEntity('Post');                     // 'tracked'
  * domain.classifyEntity('ProductCache');             // 'untracked'
+ * domain.classifyEntity('FileMeta');                 // 'untracked' —— 关闭了变更日志
  * domain.classifyEntity('Post', 'shop');             // 'tracked' —— 没这条登记，按默认值
  * domain.hasEntity('Post', 'shop');                  // false —— 与上一行的区别就在这里
  * domain.isUntrackedField('Post', 'title_norm');     // true —— 登记过的派生列
@@ -429,38 +458,42 @@ export function buildVersionedDomain(entities: readonly VersionedDomainEntityInp
     return matches.length > 0 && matches.every(record => record.derivedIndexColumns.has(field));
   };
 
+  // 裸名口径同 classifyEntity：撞上的登记全体都是 QueryCache 才算，含糊就站在本地写那一边。
+  const isQueryCache = (entityName: string): boolean => {
+    const matches = recordsFor(entityName);
+    return matches.length > 0 && matches.every(record => record.queryCache);
+  };
+
   return {
     versionedTables,
     untrackedFieldsOf,
     hasEntity,
     classifyEntity,
     isUntrackedField,
-    createTransactionGuard: () => createTransactionGuard(classifyEntity)
+    createTransactionGuard: () => createTransactionGuard(isQueryCache)
   };
 }
 
 /**
  * 造一个流式混用守卫
  *
- * @param classifyEntity - 域的实体归类函数
- * @returns 只记住「已见的第一个 tracked」与「已见的第一个 untracked」的守卫
+ * @param isQueryCache - 按裸名判一个实体是不是 QueryCache
+ * @returns 只记住「已见的第一个非 QueryCache 实体」与「已见的第一个 QueryCache 实体」的守卫
  *
  * @remarks
  * 只记第一个而不是两份全集：错误要回答的是「哪两个实体撞上的」，而不是「这个事务碰过哪些
  * 实体」。攒全集意味着守卫的内存随事务长度增长，却不会让错误信息更有定位价值。
  */
-function createTransactionGuard(
-  classifyEntity: (entityName: string, namespace?: string) => VersionedEntityClass
-): VersionedTransactionGuard {
-  let tracked: string | undefined;
-  let untracked: string | undefined;
+function createTransactionGuard(isQueryCache: (entityName: string) => boolean): VersionedTransactionGuard {
+  let versioned: string | undefined;
+  let cache: string | undefined;
 
   return {
     record(entityName: string): void {
-      if (classifyEntity(entityName) === 'untracked') untracked ??= entityName;
-      else tracked ??= entityName;
-      if (tracked !== undefined && untracked !== undefined) {
-        throw new MixedVersionedCacheTransactionError(tracked, untracked);
+      if (isQueryCache(entityName)) cache ??= entityName;
+      else versioned ??= entityName;
+      if (versioned !== undefined && cache !== undefined) {
+        throw new MixedVersionedCacheTransactionError(versioned, cache);
       }
     }
   };

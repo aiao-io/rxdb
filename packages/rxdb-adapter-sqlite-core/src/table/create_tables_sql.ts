@@ -1,4 +1,10 @@
-import { EntityMetadata, EntityType, getEntityMetadata, getEntityStorageMetadata } from '@aiao/rxdb';
+import {
+  EntityMetadata,
+  EntityType,
+  getEntityMetadata,
+  getEntityStorageMetadata,
+  type WorktreeTableSet
+} from '@aiao/rxdb';
 import { generate_entity_inserts_sql } from '../entity/inserts_sql.js';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { get_sql_with_params } from '../sqlite-core.utils.js';
@@ -8,6 +14,7 @@ import { generate_table_trigger_sql } from './trigger_sql.js';
 /**
  * 生成多张创建表的 SQL
  * @param adapter 适配器实例
+ * @param tableSet 建在哪一套业务表里，触发器也挂在这一套上
  * @param EntityTypes 实体类型数组
  * @param branchId 新表触发器要写入变更历史的分支 id——**必填**。本函数只负责拼 SQL 字符串，
  * 没有事务执行器可用于查询，也不该在这里自己猜：新库首次建表时 `rxdb_branch` 表往往还没有
@@ -18,6 +25,7 @@ import { generate_table_trigger_sql } from './trigger_sql.js';
  */
 export const create_tables_sql = async <T extends EntityType>(
   adapter: RxDBAdapterSqliteBase,
+  tableSet: WorktreeTableSet,
   EntityTypes: T[],
   branchId: string,
   entities?: InstanceType<T>[]
@@ -26,10 +34,11 @@ export const create_tables_sql = async <T extends EntityType>(
   for (let i = 0; i < EntityTypes.length; i++) {
     const EntityType = EntityTypes[i];
     const metadata = getEntityStorageMetadata(adapter.rxdb, EntityType);
-    sql += '\n' + create_table_sql(adapter, metadata);
+    sql += '\n' + create_table_sql(adapter, metadata, tableSet);
     if (metadata.log !== false) {
       const trigger_sql = generate_table_trigger_sql(metadata, {
         branchId,
+        tableSet,
         resolveEntityMetadata: adapter.encryptionContext.resolveEntityMetadata
       });
       sql += '\n' + trigger_sql;
@@ -45,6 +54,7 @@ export const create_tables_sql = async <T extends EntityType>(
     for (const metadata of need_init_map.keys()) {
       const insert_result = await generate_entity_inserts_sql(
         metadata,
+        tableSet,
         Array.from(need_init_map.get(metadata)!),
         adapter.rxdb.context,
         adapter.encryptionContext

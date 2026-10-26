@@ -39,7 +39,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.aiao.io/docs/migration/)。当前交付状态 [95/103 已交付](requirements/status-overview.md)
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.aiao.io/docs/migration/)。当前交付状态 [95/115 已交付](requirements/status-overview.md)
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -246,8 +246,6 @@ aiao/
 - **Supabase 同步** — 本地优先远端同步，PostgREST + Realtime + RPC 推送
 - **HTTP 远程同步** — Angular 前端 + node:sqlite 参考后端，QueryCache 行缓存，双客户端 SSE 实时收敛
 
-- **声明式存储约束 A～D** — CHECK、条件唯一、区间排他、生成列/表达式索引及索引方法均已交付（[US-030](requirements/stories/core/US-030-declarative-storage-constraints.md)）；已通过[BOM最终验收](specs/021-bom-closure/closure-map.md)。
-
 ### 进行中
 
 - ⚠️ **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）— 抖音已登记为实验性支持（开发者工具 + iOS 真机验证，单连接、rollback journal、无崩溃恢复保证）；Taro tt demo 已过开发者工具与 iOS 真机，剩 Android 真机。支付宝已登记为实验性支持（依赖未文档化能力，开发者工具 + iOS 真机验证，Android 未验证），Taro 支付宝 demo 已过开发者工具；百度 / QQ 判不支持
@@ -259,6 +257,7 @@ aiao/
 下一批能力补齐，顺序与理由见 [roadmap 批次 3](requirements/roadmap.md#批次-3能力补齐可并行开-pr)：
 
 - 🚧 **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）与 👀 **Taro 插件一行接入**（[US-219](requirements/stories/adapter/US-219-taro-plugin.md)）见上方「进行中 / 待评审」
+- ⬜ **实体元数据层的声明式存储约束**（[US-030](requirements/stories/core/US-030-declarative-storage-constraints.md)）— 阶段 A～C 已解锁进批次 3，阶段 D 仍价值待证
 
 ## 路线图
 

@@ -14,6 +14,7 @@ import generate_entity_insert_sql from '../entity/insert_sql.js';
 import generate_entity_update_sql from '../entity/update_sql.js';
 import { getMonotonicUpdatedAt, RxdbAdapterPGliteError } from '../pglite.utils.js';
 import { generate_count_sql, generate_find_sql } from '../query/query_sql.js';
+import { dispatchUnloggedRemovals } from '../unlogged-removal-events.js';
 import { PGliteRepositoryBase } from './PGliteRepositoryBase.js';
 
 export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase<T> implements IRepository<T> {
@@ -54,7 +55,7 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
   }
 
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
-    const { sql, params } = await generate_entity_insert_sql(this.metadata, entity, {
+    const { sql, params } = await generate_entity_insert_sql(this.metadata, this.adapter.tableSet, entity, {
       ...this.rxdb.context,
       encryption: this.adapter.encryptionContext
     });
@@ -72,7 +73,7 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     const pending = getEntityStatus(entity).prepareUpdate(patch);
     try {
-      const { sql, params } = await generate_entity_update_sql(this.metadata, entity, patch, {
+      const { sql, params } = await generate_entity_update_sql(this.metadata, this.adapter.tableSet, entity, patch, {
         ...this.rxdb.context,
         updatedAt: getMonotonicUpdatedAt(entity),
         encryption: this.adapter.encryptionContext
@@ -97,8 +98,9 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
       throw new RxdbAdapterPGliteError(`Remove Error${meta.name}(${entity.id}) not saved local.`);
     }
 
-    const { sql, params } = generate_entity_delete_sql(this.metadata, entity);
+    const { sql, params } = generate_entity_delete_sql(this.metadata, this.adapter.tableSet, entity);
     await this.adapter.writeQuery(sql, params);
+    dispatchUnloggedRemovals(this.adapter.rxdb, [entity], new Date());
 
     status.origin = structuredClone({ ...entity });
     status.modified = false;
