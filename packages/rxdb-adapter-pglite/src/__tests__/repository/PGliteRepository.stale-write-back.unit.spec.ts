@@ -5,7 +5,7 @@
  * UPDATE 已提交、回填尚未合入时，另一个来源的更晚写入先合进了缓存，回填不得把它连同 updatedAt 盖回旧值。
  * 用替身适配器而不是真引擎：真引擎写入后的 NOTIFY 回刷会重读库，时序决定它是否把回退「修好」，用例就不确定了。
  */
-import { Entity, EntityBase, type EntityUpdateData, getEntityStatus, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import { Entity, EntityBase, type EntityUpdateData, getEntityStatus, PropertyType, RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { PGliteRepository } from '../../repository/PGliteRepository.js';
 import { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
@@ -48,6 +48,7 @@ describe('PGliteRepository.update 回填行陈旧', () => {
     );
     const adapter = {
       rxdb,
+      tableSet: WorktreeTableSet.MAIN,
       encryptionContext: undefined,
       writeQuery: async () => {
         // RETURNING 捕获的是提交那一刻的整行；回填之前，另一个来源改了 completed 并先合进缓存
