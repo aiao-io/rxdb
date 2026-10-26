@@ -13,6 +13,7 @@
     "postinstall": "pnpm check-workspace",
     "pre-commit": "pnpm check-commit",
     "pre-push": "pnpm check-commit",
+    "preinstall": "node ./scripts/audit/wa-sqlite-integrity.mjs && node ./scripts/preinstall.mjs",
     "prepare": "is-ci || husky",
     "publish-local": "nx release publish --registry=http://localhost:4873",
     "publish": "nx release publish --registry=https://registry.npmjs.org",
