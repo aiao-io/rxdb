@@ -86,7 +86,9 @@ describe('看板领域边界用例', () => {
     });
 
     ctx.boardId = null;
-    await expect(domain.updateBoard(first.id, { title: '没有当前板' })).rejects.toMatchObject({ code: 'board_not_found' });
+    await expect(domain.updateBoard(first.id, { title: '没有当前板' })).rejects.toMatchObject({
+      code: 'board_not_found'
+    });
   });
 
   it('任务与板不存在时给出可判别错误；listTasksOfBoard 汇总板内任务', async () => {

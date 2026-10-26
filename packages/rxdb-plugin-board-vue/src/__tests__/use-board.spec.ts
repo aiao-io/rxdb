@@ -155,7 +155,11 @@ describe('useBoard（Vue 桥接）', () => {
       labelIds: [secondary.id, label.id]
     });
     await waitFor(() => (board().taskLabels.value.get(task.id) ?? []).length === 2, '任务标签');
-    expect(board().taskLabels.value.get(task.id)?.map(item => item.name)).toEqual(['核心', '次要']);
+    expect(
+      board()
+        .taskLabels.value.get(task.id)
+        ?.map(item => item.name)
+    ).toEqual(['核心', '次要']);
 
     board().setRestoring(true);
     await expect(board().actions.createTask({ columnId: c1.id, title: 'x' })).rejects.toMatchObject({

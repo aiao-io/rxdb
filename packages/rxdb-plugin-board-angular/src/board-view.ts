@@ -463,17 +463,16 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     // 显式注入上下文：JIT + zoneless 下生命周期钩子不保证自带注入上下文
     const installed = runInInjectionContext(this.injectorRef, () => {
       const installedSearch = this.rxdb().getPlugins('search')[0] as
-        | { readonly searchCollection?: unknown }
-        | undefined;
+        { readonly searchCollection?: unknown } | undefined;
       const upstream =
         installedSearch && typeof installedSearch.searchCollection === 'function' ? installedSearch : undefined;
       const searchUnavailableReason: BoardSearchUnavailableReason | undefined =
-        installedSearch === undefined ? 'plugin_not_installed' : upstream === undefined ? 'adapter_unsupported' : undefined;
+        installedSearch === undefined ? 'plugin_not_installed'
+        : upstream === undefined ? 'adapter_unsupported'
+        : undefined;
       return useBoard(
         this.rxdb(),
-        upstream ?
-          { search: { upstream: upstream as BoardSearchUpstream } }
-        : { searchUnavailableReason }
+        upstream ? { search: { upstream: upstream as BoardSearchUpstream } } : { searchUnavailableReason }
       );
     });
     this.board.set(installed);
@@ -1035,10 +1034,12 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   protected searchUnavailableText(reason: BoardSearchUnavailableReason | null): string {
-    return reason === 'plugin_not_installed' ? '搜索插件未安装'
+    return (
+      reason === 'plugin_not_installed' ? '搜索插件未安装'
       : reason === 'adapter_unsupported' ? '当前适配器不支持搜索'
       : reason === 'query_failed' ? '搜索查询失败'
-      : '';
+      : ''
+    );
   }
 
   /** 恢复标记跨页同步：读 localStorage 标记并把门禁下发到领域桥。 */
@@ -1176,7 +1177,6 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     this.noticeTimer = window.setTimeout(() => this.notice.set(null), 5000);
   }
 
-
   private localToday(): string {
     const now = new Date();
     const year = now.getFullYear();
@@ -1192,5 +1192,4 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
     this.todayTimer = window.setTimeout(this.onTodayActivity, Math.max(nextMidnight - now.getTime() + 1, 1000));
   };
-
 }

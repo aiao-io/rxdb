@@ -190,13 +190,15 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
         )
       );
 
-    const boards$ = read(() => boardRepo.find({
-      where: { combinator: 'and', rules: [] },
-      orderBy: [
-        { field: 'createdAt', sort: 'asc' },
-        { field: 'id', sort: 'asc' }
-      ]
-    })).pipe(tap(() => (loading.value = false)));
+    const boards$ = read(() =>
+      boardRepo.find({
+        where: { combinator: 'and', rules: [] },
+        orderBy: [
+          { field: 'createdAt', sort: 'asc' },
+          { field: 'id', sort: 'asc' }
+        ]
+      })
+    ).pipe(tap(() => (loading.value = false)));
     subs.add(boards$.subscribe({ next: list => void (boards.value = list), error: failRead }));
     subs.add(
       combineLatest([boards$, boardId$]).subscribe({
@@ -214,17 +216,19 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     const tasks$ = combineLatest([boardId$, columns$]).pipe(
       switchMap(([boardId, cols]) => {
         if (boardId === null || cols.length === 0) return of([] as readonly Task[]);
-        return read(() => taskRepo.find({
-          where: {
-            combinator: 'and',
-            rules: [
-              inRule(
-                'columnId',
-                cols.map(column => column.id)
-              )
-            ]
-          }
-        }));
+        return read(() =>
+          taskRepo.find({
+            where: {
+              combinator: 'and',
+              rules: [
+                inRule(
+                  'columnId',
+                  cols.map(column => column.id)
+                )
+              ]
+            }
+          })
+        );
       })
     );
     subs.add(tasks$.subscribe({ next: list => void (tasks.value = list), error: failRead }));
@@ -232,13 +236,15 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
       switchMap(boardId =>
         boardId === null ?
           of([] as readonly BoardLabel[])
-        : read(() => labelRepo.find({
-            where: eq('boardId', boardId),
-            orderBy: [
-              { field: 'createdAt', sort: 'asc' },
-              { field: 'id', sort: 'asc' }
-            ]
-          }))
+        : read(() =>
+            labelRepo.find({
+              where: eq('boardId', boardId),
+              orderBy: [
+                { field: 'createdAt', sort: 'asc' },
+                { field: 'id', sort: 'asc' }
+              ]
+            })
+          )
       )
     );
     subs.add(labels$.subscribe({ next: list => void (labels.value = list), error: failRead }));
@@ -273,7 +279,8 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     subs.add(history.redoCount$.subscribe({ next: count => void (redoCount.value = count), error: failRead }));
     subs.add(
       notifier.events$.subscribe({
-        next: event => void (writeEvent.value = { kind: event.kind, reason: 'reason' in event ? event.reason : undefined }),
+        next: event =>
+          void (writeEvent.value = { kind: event.kind, reason: 'reason' in event ? event.reason : undefined }),
         error: failRead
       })
     );
@@ -282,13 +289,13 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     subs.add(
       boards$.subscribe({
         next: list => {
-        const selected = boardId$.value;
-        if (list.some(board => board.id === selected)) return;
-        const target = list.find(board => board.id === storage.get(LAST_BOARD_KEY)) ?? list[0];
-        const next = target?.id ?? null;
-        if (next === selected) return;
-        boardId$.next(next);
-        currentBoardId.value = next;
+          const selected = boardId$.value;
+          if (list.some(board => board.id === selected)) return;
+          const target = list.find(board => board.id === storage.get(LAST_BOARD_KEY)) ?? list[0];
+          const next = target?.id ?? null;
+          if (next === selected) return;
+          boardId$.next(next);
+          currentBoardId.value = next;
         },
         error: failRead
       })

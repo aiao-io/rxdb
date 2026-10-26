@@ -53,18 +53,16 @@ const dueState = (task: Task, today: string): 'overdue' | 'today' | 'upcoming' |
 };
 
 export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
-  const installedSearch = rxdb.getPlugins('search')[0] as
-    | { readonly searchCollection?: unknown }
-    | undefined;
+  const installedSearch = rxdb.getPlugins('search')[0] as { readonly searchCollection?: unknown } | undefined;
   const searchUpstream =
     installedSearch && typeof installedSearch.searchCollection === 'function' ? installedSearch : undefined;
   const searchUnavailableReason: BoardSearchUnavailableReason | undefined =
-    installedSearch === undefined ? 'plugin_not_installed' : searchUpstream === undefined ? 'adapter_unsupported' : undefined;
+    installedSearch === undefined ? 'plugin_not_installed'
+    : searchUpstream === undefined ? 'adapter_unsupported'
+    : undefined;
   const board = useBoard(
     rxdb,
-    searchUpstream ?
-      { search: { upstream: searchUpstream as BoardSearchUpstream } }
-    : { searchUnavailableReason }
+    searchUpstream ? { search: { upstream: searchUpstream as BoardSearchUpstream } } : { searchUnavailableReason }
   );
   const [editTitleTaskId, setEditTitleTaskId] = useState<UUID | null>(null);
   const [editTitleValue, setEditTitleValue] = useState<string>('');
@@ -811,10 +809,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                 <button type='submit' data-testid='board-title-save'>
                   保存
                 </button>
-                <button type='button' onClick={() => {
+                <button
+                  type='button'
+                  onClick={() => {
                     setEditingBoard(false);
                     setEditingBoardId(null);
-                  }} data-testid='board-title-cancel'>
+                  }}
+                  data-testid='board-title-cancel'
+                >
                   取消
                 </button>
               </form>
@@ -1077,11 +1079,15 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         </p>
       : null}
       {board.loading ?
-        <p className='board-notice' role='status' data-testid='board-loading'>正在读取看板数据…</p>
+        <p className='board-notice' role='status' data-testid='board-loading'>
+          正在读取看板数据…
+        </p>
       : board.readError ?
         <p className='board-notice' role='alert' data-testid='board-read-error'>
           读取看板数据失败：{board.readError}
-          <button onClick={board.retryReads} data-testid='board-read-retry'>重试</button>
+          <button onClick={board.retryReads} data-testid='board-read-retry'>
+            重试
+          </button>
         </p>
       : null}
 
@@ -1173,7 +1179,6 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                 </div>
               : null}
             </div>
-
           </div>
         </div>
       : null}
@@ -1181,7 +1186,9 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       {current ?
         <div className='columns' data-testid='columns'>
           {board.columns.length > 1 ?
-            <p className='columns-scroll-hint' aria-hidden='true'>可横向滚动查看更多列</p>
+            <p className='columns-scroll-hint' aria-hidden='true'>
+              可横向滚动查看更多列
+            </p>
           : null}
           {board.columns.map(column => (
             <section
@@ -1392,7 +1399,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                         : null}
                       </>
                     }
-                    {(labelsOf(task.id).length > 0 || dueDateText(task)) ?
+                    {labelsOf(task.id).length > 0 || dueDateText(task) ?
                       <div className='card-meta'>
                         {labelsOf(task.id).length > 0 ?
                           <div className='card-labels'>
@@ -1660,14 +1667,17 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           <div className='panel-backdrop' aria-hidden='true' />
           <aside className='confirm-panel' role='alertdialog' aria-modal='true' data-testid='confirm-delete'>
             {confirm.kind === 'task' ?
-              <p>删除任务「{confirm.taskTitle}」及其 {confirm.taskLabelIds.length} 条标签关联？</p>
+              <p>
+                删除任务「{confirm.taskTitle}」及其 {confirm.taskLabelIds.length} 条标签关联？
+              </p>
             : confirm.kind === 'column' ?
               <p>
-                删除列「{confirm.columnTitle}」及其 {confirm.taskIds.length} 个任务、{confirm.taskLabelIds.length} 条任务标签关联？
+                删除列「{confirm.columnTitle}」及其 {confirm.taskIds.length} 个任务、{confirm.taskLabelIds.length}{' '}
+                条任务标签关联？
               </p>
             : <p>
-                删除看板「{confirm.boardTitle}」（{confirm.columnIds.length} 列、{confirm.taskIds.length}{' '}
-                任务、{confirm.boardLabelIds.length} 个标签定义、{confirm.taskLabelIds.length} 条任务标签关联）？
+                删除看板「{confirm.boardTitle}」（{confirm.columnIds.length} 列、{confirm.taskIds.length} 任务、
+                {confirm.boardLabelIds.length} 个标签定义、{confirm.taskLabelIds.length} 条任务标签关联）？
               </p>
             }
             <div className='confirm-actions'>

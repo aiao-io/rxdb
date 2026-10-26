@@ -138,7 +138,11 @@ describe('useBoard（React 桥接）', () => {
       })
     );
     await waitFor(() => (board().taskLabels.get(task.id) ?? []).length === 2, '任务标签');
-    expect(board().taskLabels.get(task.id)?.map(item => item.name)).toEqual(['核心', '次要']);
+    expect(
+      board()
+        .taskLabels.get(task.id)
+        ?.map(item => item.name)
+    ).toEqual(['核心', '次要']);
 
     act(() => board().setRestoring(true));
     await waitFor(() => board().restoring, '恢复中状态');

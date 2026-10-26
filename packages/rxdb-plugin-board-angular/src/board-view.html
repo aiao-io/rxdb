@@ -29,7 +29,13 @@
         <span class="restoring-badge" aria-live="polite" data-testid="restoring-badge">恢复中</span>
       }
       <div class="header-actions">
-        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null" (click)="createBoard()" data-testid="create-board">新建板</button>
+        <button
+          [disabled]="b.restoring() || b.loading() || b.readError() !== null"
+          (click)="createBoard()"
+          data-testid="create-board"
+        >
+          新建板
+        </button>
         <button
           [disabled]="b.restoring() || b.loading() || b.readError() !== null || !b.currentBoard()"
           (click)="confirmBoardDelete()"
@@ -37,19 +43,43 @@
         >
           删除看板
         </button>
-        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null || !b.currentBoard()" (click)="createColumn()" data-testid="create-column">
+        <button
+          [disabled]="b.restoring() || b.loading() || b.readError() !== null || !b.currentBoard()"
+          (click)="createColumn()"
+          data-testid="create-column"
+        >
           新建列
         </button>
-        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null || !b.currentBoard()" (click)="createLabel()" data-testid="create-label">
+        <button
+          [disabled]="b.restoring() || b.loading() || b.readError() !== null || !b.currentBoard()"
+          (click)="createLabel()"
+          data-testid="create-label"
+        >
           新建标签
         </button>
-        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null || b.undoCount() === 0" (click)="undo()" aria-label="撤销" data-testid="undo">
+        <button
+          [disabled]="b.restoring() || b.loading() || b.readError() !== null || b.undoCount() === 0"
+          (click)="undo()"
+          aria-label="撤销"
+          data-testid="undo"
+        >
           撤销
         </button>
-        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null || b.redoCount() === 0" (click)="redo()" aria-label="重做" data-testid="redo">
+        <button
+          [disabled]="b.restoring() || b.loading() || b.readError() !== null || b.redoCount() === 0"
+          (click)="redo()"
+          aria-label="重做"
+          data-testid="redo"
+        >
           重做
         </button>
-        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null" (click)="onExportBackup()" data-testid="export-backup">导出备份</button>
+        <button
+          [disabled]="b.restoring() || b.loading() || b.readError() !== null"
+          (click)="onExportBackup()"
+          data-testid="export-backup"
+        >
+          导出备份
+        </button>
       </div>
     </header>
 
@@ -104,12 +134,12 @@
       <div class="board-search" data-testid="board-search">
         <input
           class="search-input"
+          [disabled]="!b.searchSource && b.searchUnavailableReason !== null"
           [ngModel]="searchQuery()"
+          [placeholder]="b.searchSource ? '搜索当前板任务' : searchUnavailableText(b.searchUnavailableReason)"
           (ngModelChange)="onSearchInput($event)"
           aria-label="搜索当前板任务"
           data-testid="board-search-input"
-          [disabled]="!b.searchSource && b.searchUnavailableReason !== null"
-          [placeholder]="b.searchSource ? '搜索当前板任务' : searchUnavailableText(b.searchUnavailableReason)"
         />
         @if (!b.searchSource) {
           <span class="search-unavailable" data-testid="board-search-unavailable">
@@ -168,6 +198,7 @@
           >
             <header
               class="column-header"
+              [attr.aria-label]="'列：' + column.title"
               [attr.data-column-header-id]="column.id"
               [class.dragging]="isDraggingColumn(column)"
               [class.drop-after]="isColumnDropAfter(column)"
@@ -175,7 +206,6 @@
               (dragstart)="onColumnDragStart($event, column)"
               data-testid="column-header"
               draggable="true"
-              [attr.aria-label]="'列：' + column.title"
             >
               <h2 class="column-title" data-testid="column-title">{{ column.title }}</h2>
               <span class="column-count" data-testid="column-count">{{ (taskMap().get(column.id) ?? []).length }}</span>
@@ -212,6 +242,7 @@
               @for (task of taskMap().get(column.id) ?? []; track task.id) {
                 <article
                   class="card"
+                  [attr.aria-label]="'任务：' + task.title"
                   [attr.data-task-id]="task.id"
                   [class.dragging]="isDraggingTask(task)"
                   [class.drop-after]="isDropAfter(task)"
@@ -220,7 +251,6 @@
                   (dragstart)="onTaskDragStart($event, task)"
                   data-testid="task-card"
                   draggable="true"
-                  [attr.aria-label]="'任务：' + task.title"
                   tabindex="-1"
                 >
                   @if (editTitle() === task.id) {
@@ -319,7 +349,13 @@
     } @else if (!b.loading() && b.readError() === null) {
       <div class="empty-board" data-testid="empty-board">
         <p>{{ b.boards().length === 0 ? '没有看板' : '请选择看板' }}</p>
-        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null" (click)="createBoard()" data-testid="create-board-empty">新建板</button>
+        <button
+          [disabled]="b.restoring() || b.loading() || b.readError() !== null"
+          (click)="createBoard()"
+          data-testid="create-board-empty"
+        >
+          新建板
+        </button>
       </div>
     }
 
@@ -413,12 +449,16 @@
           <p>删除任务「{{ pending.taskTitle }}」及其 {{ pending.taskLabelIds.length }} 条标签关联？</p>
         } @else if (pending.kind === 'column') {
           <p>
-            删除列「{{ pending.columnTitle }}」及其 {{ pending.taskIds.length }} 个任务、{{ pending.taskLabelIds.length }}
+            删除列「{{ pending.columnTitle }}」及其 {{ pending.taskIds.length }} 个任务、{{
+              pending.taskLabelIds.length
+            }}
             条任务标签关联？
           </p>
         } @else {
           <p>
-            删除看板「{{ pending.boardTitle }}」（{{ pending.columnIds.length }} 列、{{ pending.taskIds.length }}
+            删除看板「{{ pending.boardTitle }}」（{{ pending.columnIds.length }} 列、{{
+              pending.taskIds.length
+            }}
             任务、{{ pending.boardLabelIds.length }} 个标签定义、{{ pending.taskLabelIds.length }} 条任务标签关联）？
           </p>
         }

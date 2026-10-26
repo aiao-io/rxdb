@@ -181,18 +181,22 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
       setLoading(false);
       setReadError(error instanceof Error ? error.message : String(error));
     };
-    const read = <T,>(source: import('rxjs').Observable<T>): import('rxjs').Observable<T> =>
-      source.pipe(catchError(error => {
-        failRead(error);
-        return EMPTY;
-      }));
-    const boards$ = read(boardRepo.find({
-      where: { combinator: 'and', rules: [] },
-      orderBy: [
-        { field: 'createdAt', sort: 'asc' },
-        { field: 'id', sort: 'asc' }
-      ]
-    })).pipe(tap(() => setLoading(false)));
+    const read = <T>(source: import('rxjs').Observable<T>): import('rxjs').Observable<T> =>
+      source.pipe(
+        catchError(error => {
+          failRead(error);
+          return EMPTY;
+        })
+      );
+    const boards$ = read(
+      boardRepo.find({
+        where: { combinator: 'and', rules: [] },
+        orderBy: [
+          { field: 'createdAt', sort: 'asc' },
+          { field: 'id', sort: 'asc' }
+        ]
+      })
+    ).pipe(tap(() => setLoading(false)));
     subs.add(boards$.subscribe({ next: setBoards, error: failRead }));
     subs.add(
       combineLatest([boards$, boardId$]).subscribe(([list, id]) =>
@@ -209,17 +213,19 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     const tasks$ = combineLatest([boardId$, columns$]).pipe(
       switchMap(([boardId, cols]) => {
         if (boardId === null || cols.length === 0) return of([] as readonly Task[]);
-        return read(taskRepo.find({
-          where: {
-            combinator: 'and',
-            rules: [
-              inRule(
-                'columnId',
-                cols.map(column => column.id)
-              )
-            ]
-          }
-        }));
+        return read(
+          taskRepo.find({
+            where: {
+              combinator: 'and',
+              rules: [
+                inRule(
+                  'columnId',
+                  cols.map(column => column.id)
+                )
+              ]
+            }
+          })
+        );
       })
     );
     subs.add(tasks$.subscribe({ next: setTasks, error: failRead }));
@@ -227,13 +233,15 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
       switchMap(boardId =>
         boardId === null ?
           of([] as readonly BoardLabel[])
-        : read(labelRepo.find({
-            where: eq('boardId', boardId),
-            orderBy: [
-              { field: 'createdAt', sort: 'asc' },
-              { field: 'id', sort: 'asc' }
-            ]
-          }))
+        : read(
+            labelRepo.find({
+              where: eq('boardId', boardId),
+              orderBy: [
+                { field: 'createdAt', sort: 'asc' },
+                { field: 'id', sort: 'asc' }
+              ]
+            })
+          )
       )
     );
     subs.add(labels$.subscribe({ next: setLabels, error: failRead }));

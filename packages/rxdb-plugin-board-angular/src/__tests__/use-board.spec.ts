@@ -115,7 +115,12 @@ describe('useBoard（Angular 桥接）', () => {
     });
 
     await waitFor(() => (board.taskLabels().get(task.id) ?? []).length === 2, '任务标签');
-    expect(board.taskLabels().get(task.id)?.map(item => item.name)).toEqual(['核心', '次要']);
+    expect(
+      board
+        .taskLabels()
+        .get(task.id)
+        ?.map(item => item.name)
+    ).toEqual(['核心', '次要']);
 
     await board.actions.renameLabel(label.id, '核心功能');
     await waitFor(() => board.taskLabels().get(task.id)?.[0].name === '核心功能', '改名反映');

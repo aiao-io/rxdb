@@ -56,17 +56,16 @@ const searchUnavailableText = (reason: BoardSearchUnavailableReason | null): str
 // Vue 会把 props 包成 reactive 代理：类实例（EntityManager 等）经代理调用
 // 会丢私有成员与原型链，必须取回原始对象（Vue 官方 toRaw 语义）
 const installedSearch = toRaw(props.rxdb).getPlugins('search')[0] as
-  | { readonly searchCollection?: unknown }
-  | undefined;
+  { readonly searchCollection?: unknown } | undefined;
 const searchUpstream =
   installedSearch && typeof installedSearch.searchCollection === 'function' ? installedSearch : undefined;
 const searchUnavailableReason: BoardSearchUnavailableReason | undefined =
-  installedSearch === undefined ? 'plugin_not_installed' : searchUpstream === undefined ? 'adapter_unsupported' : undefined;
+  installedSearch === undefined ? 'plugin_not_installed'
+  : searchUpstream === undefined ? 'adapter_unsupported'
+  : undefined;
 const board = useBoard(
   toRaw(props.rxdb),
-  searchUpstream ?
-    { search: { upstream: searchUpstream as BoardSearchUpstream } }
-  : { searchUnavailableReason }
+  searchUpstream ? { search: { upstream: searchUpstream as BoardSearchUpstream } } : { searchUnavailableReason }
 );
 
 const editTitleTaskId = ref<UUID | null>(null);
@@ -299,9 +298,9 @@ const columnViews = (): CardDropColumnView[] =>
     const rect = columnEl?.getBoundingClientRect();
     const cards = (taskMap.value.get(column.id) ?? [])
       .map(task => {
-      const cardEl = document.querySelector<HTMLElement>(`[data-task-id="${task.id}"]`);
-      const cardRect = cardEl?.getBoundingClientRect();
-      return cardRect ? { id: task.id, top: cardRect.top, bottom: cardRect.bottom } : null;
+        const cardEl = document.querySelector<HTMLElement>(`[data-task-id="${task.id}"]`);
+        const cardRect = cardEl?.getBoundingClientRect();
+        return cardRect ? { id: task.id, top: cardRect.top, bottom: cardRect.bottom } : null;
       })
       .filter((card): card is { readonly id: UUID; readonly top: number; readonly bottom: number } => card !== null);
     return {
@@ -760,21 +759,27 @@ onBeforeUnmount(() => {
         </button>
         <button
           data-testid="delete-board"
-          :disabled="board.restoring.value || board.loading.value || board.readError.value !== null || !board.currentBoard.value"
+          :disabled="
+            board.restoring.value || board.loading.value || board.readError.value !== null || !board.currentBoard.value
+          "
           @click="confirmBoardDelete"
         >
           删除看板
         </button>
         <button
           data-testid="create-column"
-          :disabled="board.restoring.value || board.loading.value || board.readError.value !== null || !board.currentBoard.value"
+          :disabled="
+            board.restoring.value || board.loading.value || board.readError.value !== null || !board.currentBoard.value
+          "
           @click="createColumn"
         >
           新建列
         </button>
         <button
           data-testid="create-label"
-          :disabled="board.restoring.value || board.loading.value || board.readError.value !== null || !board.currentBoard.value"
+          :disabled="
+            board.restoring.value || board.loading.value || board.readError.value !== null || !board.currentBoard.value
+          "
           @click="createLabel"
         >
           新建标签
@@ -810,7 +815,8 @@ onBeforeUnmount(() => {
       class="board-notice"
       data-testid="board-loading"
       role="status"
-    >正在读取看板数据…</p>
+      >正在读取看板数据…</p
+    >
     <p
       v-else-if="board.readError.value"
       class="board-notice"
@@ -818,7 +824,11 @@ onBeforeUnmount(() => {
       role="alert"
     >
       读取看板数据失败：{{ board.readError.value }}
-      <button data-testid="board-read-retry" @click="board.retryReads">重试</button>
+      <button
+        data-testid="board-read-retry"
+        @click="board.retryReads"
+        >重试</button
+      >
     </p>
     <p
       v-if="board.restoring.value"
@@ -868,7 +878,8 @@ onBeforeUnmount(() => {
             :aria-label="`改标签颜色 ${label.name}`"
             data-testid="label-recolor"
             @click="recolorLabel(label.id)"
-          >◉</button>
+            >◉</button
+          >
           <button
             class="label-delete"
             :aria-label="`删除标签 ${label.name}`"
@@ -897,7 +908,8 @@ onBeforeUnmount(() => {
           v-if="!board.searchSource"
           class="search-unavailable"
           data-testid="board-search-unavailable"
-        >{{ searchUnavailableText(board.searchUnavailableReason) }}</span>
+          >{{ searchUnavailableText(board.searchUnavailableReason) }}</span
+        >
         <div
           v-if="searchQuery.trim() !== ''"
           class="search-results"
@@ -953,7 +965,12 @@ onBeforeUnmount(() => {
         class="columns"
         data-testid="columns"
       >
-        <p v-if="board.columns.value.length > 1" class="columns-scroll-hint" aria-hidden="true">可横向滚动查看更多列</p>
+        <p
+          v-if="board.columns.value.length > 1"
+          class="columns-scroll-hint"
+          aria-hidden="true"
+          >可横向滚动查看更多列</p
+        >
         <section
           v-for="column in board.columns.value"
           :key="column.id"
@@ -1292,11 +1309,20 @@ onBeforeUnmount(() => {
         class="confirm-panel"
         data-testid="confirm-delete"
       >
-        <p v-if="confirm.kind === 'task'"> 删除任务「{{ confirm.title }}」及其 {{ confirm.plan.taskLabelIds.length }} 条标签关联？ </p>
-        <p v-else-if="confirm.kind === 'column'"> 删除列「{{ confirm.title }}」及其 {{ confirm.count }} 个任务、{{ confirm.plan.taskLabelIds.length }} 条任务标签关联？ </p>
+        <p v-if="confirm.kind === 'task'">
+          删除任务「{{ confirm.title }}」及其 {{ confirm.plan.taskLabelIds.length }} 条标签关联？
+        </p>
+        <p v-else-if="confirm.kind === 'column'">
+          删除列「{{ confirm.title }}」及其 {{ confirm.count }} 个任务、{{
+            confirm.plan.taskLabelIds.length
+          }}
+          条任务标签关联？
+        </p>
         <p v-else>
-          删除看板「{{ confirm.title }}」（{{ confirm.columns }} 列、{{ confirm.count }}
-          任务、{{ confirm.plan.boardLabelIds.length }} 个标签定义、{{ confirm.plan.taskLabelIds.length }} 条任务标签关联）？
+          删除看板「{{ confirm.title }}」（{{ confirm.columns }} 列、{{ confirm.count }} 任务、{{
+            confirm.plan.boardLabelIds.length
+          }}
+          个标签定义、{{ confirm.plan.taskLabelIds.length }} 条任务标签关联）？
         </p>
         <div class="confirm-actions">
           <button
@@ -1319,7 +1345,7 @@ onBeforeUnmount(() => {
       class="empty-board"
       data-testid="empty-board"
     >
-        <p>{{ board.boards.value.length === 0 ? '没有看板' : '请选择看板' }}</p>
+      <p>{{ board.boards.value.length === 0 ? '没有看板' : '请选择看板' }}</p>
       <button
         data-testid="create-board-empty"
         :disabled="board.restoring.value || board.loading.value || board.readError.value !== null"

@@ -205,19 +205,21 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     );
 
   // 板列表：创建时间升序、同时刻按 id
-  const boards$ = read(() => boardRepo.find({
-    where: { combinator: 'and', rules: [] },
-    orderBy: [
-      { field: 'createdAt', sort: 'asc' },
-      { field: 'id', sort: 'asc' }
-    ]
-  })).pipe(tap(() => loading.set(false)));
+  const boards$ = read(() =>
+    boardRepo.find({
+      where: { combinator: 'and', rules: [] },
+      orderBy: [
+        { field: 'createdAt', sort: 'asc' },
+        { field: 'id', sort: 'asc' }
+      ]
+    })
+  ).pipe(tap(() => loading.set(false)));
   bind(boards$, boards, subs, failRead);
   // 当前板
   subs.add(
     combineLatest([boards$, boardId$]).subscribe({
       next: ([list, id]) => {
-      currentBoard.set(list.find(board => board.id === id) ?? null);
+        currentBoard.set(list.find(board => board.id === id) ?? null);
       },
       error: failRead
     })
@@ -232,17 +234,19 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   const tasks$ = combineLatest([boardId$, columns$]).pipe(
     switchMap(([boardId, cols]) => {
       if (boardId === null || cols.length === 0) return of([] as readonly Task[]);
-      return read(() => taskRepo.find({
-        where: {
-          combinator: 'and',
-          rules: [
-            inRule(
-              'columnId',
-              cols.map(column => column.id)
-            )
-          ]
-        }
-      }));
+      return read(() =>
+        taskRepo.find({
+          where: {
+            combinator: 'and',
+            rules: [
+              inRule(
+                'columnId',
+                cols.map(column => column.id)
+              )
+            ]
+          }
+        })
+      );
     })
   );
   bind(tasks$, tasks, subs, failRead);
@@ -250,13 +254,15 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     switchMap(boardId =>
       boardId === null ?
         of([] as readonly BoardLabel[])
-      : read(() => labelRepo.find({
-          where: eq('boardId', boardId),
-          orderBy: [
-            { field: 'createdAt', sort: 'asc' },
-            { field: 'id', sort: 'asc' }
-          ]
-        }))
+      : read(() =>
+          labelRepo.find({
+            where: eq('boardId', boardId),
+            orderBy: [
+              { field: 'createdAt', sort: 'asc' },
+              { field: 'id', sort: 'asc' }
+            ]
+          })
+        )
     )
   );
   bind(labels$, labels, subs, failRead);
@@ -303,13 +309,13 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   subs.add(
     boards$.subscribe({
       next: list => {
-      const selected = boardId$.value;
-      if (list.some(board => board.id === selected)) return;
-      const target = list.find(board => board.id === storage.get(LAST_BOARD_KEY)) ?? list[0];
-      const next = target?.id ?? null;
-      if (next === selected) return;
-      boardId$.next(next);
-      currentBoardId.set(next);
+        const selected = boardId$.value;
+        if (list.some(board => board.id === selected)) return;
+        const target = list.find(board => board.id === storage.get(LAST_BOARD_KEY)) ?? list[0];
+        const next = target?.id ?? null;
+        if (next === selected) return;
+        boardId$.next(next);
+        currentBoardId.set(next);
       },
       error: failRead
     })
