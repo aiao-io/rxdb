@@ -19,11 +19,11 @@ export const WA_SQLITE_COMMIT = '2bf1c59d89eb6497535a4217bc62fec68a0bb994';
 export const WA_SQLITE_TARBALL = `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/${WA_SQLITE_COMMIT}`;
 export const WA_SQLITE_INTEGRITY =
   'sha512-aF923cT8vn7YQ/DuEqconOCe47peo8CmG0Cp28pFqASwYznZhidx5E5w8f0UkhfNjEaM7rNxmykIDrqtL7kC4g==';
-export const SUBFRAME_VERSION = '1.4.0';
+export const SUBFRAME_VERSION = '1.3.1';
 export const SUBFRAME_INTEGRITY =
-  'sha512-Oo29xlIrUGKj7bIwwlZQaBUhoH2AISkW7q+5LdViT/lTbfWwJr9/+q51yUlQI81Xu+QJh4jX5IVnYiYfJsVXGA==';
-/** `@subframe7536/sqlite-wasm@1.4.0` 里 Emscripten glue 的内容哈希文件名。 */
-export const SUBFRAME_GLUE_FILE = 'wa-sqlite-bT14NS4h.js';
+  'sha512-0Xlapt/w6tzEjxPsjPSnIEcrgfJfDESYbkEf8gyPCU7HrM0Qcdd/ooXvkK6ZaMtx6aBdsABTBqC77fa2Sk1xsA==';
+/** `@subframe7536/sqlite-wasm@1.3.1` 里 Emscripten glue 的内容哈希文件名。 */
+export const SUBFRAME_GLUE_FILE = 'wa-sqlite-DfKPyFeY.js';
 export const SUBFRAME_GLUE_SOURCE = 'packages/rxdb-adapter-miniprogram/src/subframe-glue.ts';
 
 export function assertEqual(actual, expected, label) {
