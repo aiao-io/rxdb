@@ -50,7 +50,7 @@
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-plugin-search": "workspace:*",
-    "react": "^19.3.0"
+    "react": "^19.3.1"
   },
   "publishConfig": {
     "access": "public"

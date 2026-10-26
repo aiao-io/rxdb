@@ -73,10 +73,10 @@
     "rxjs": "^7.8.2"
   },
   "peerDependencies": {
+    "@aiao/rxdb": "workspace:^",
     "@aiao/rxdb-adapter-sqlite-core": "workspace:^",
     "@aiao/rxdb-devtools": "workspace:^",
-    "vitest": "4.1.11",
-    "@aiao/rxdb": "workspace:^"
+    "vitest": "4.1.11"
   },
   "peerDependenciesMeta": {
     "@aiao/rxdb-adapter-sqlite-core": {
