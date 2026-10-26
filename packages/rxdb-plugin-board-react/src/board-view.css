@@ -510,6 +510,7 @@
 }
 
 .board-view .label-name,
+.board-view .label-recolor,
 .board-view .label-delete {
   padding: 0;
   border: 0;
@@ -520,11 +521,18 @@
 }
 
 .board-view .label-name,
+.board-view .label-recolor,
 .board-view .label-delete {
   color: inherit;
 }
 
 .board-view .label-delete {
+  width: 0.85rem;
+  height: 0.85rem;
+  opacity: 0.72;
+}
+
+.board-view .label-recolor {
   width: 0.85rem;
   height: 0.85rem;
   opacity: 0.72;
@@ -569,6 +577,17 @@
   overflow-x: auto;
   padding: 1rem clamp(1rem, 3vw, 2rem) 2rem;
   scroll-behavior: smooth;
+}
+
+.board-view .columns-scroll-hint {
+  position: sticky;
+  left: 1rem;
+  flex: 0 0 auto;
+  margin: 0;
+  align-self: center;
+  color: var(--board-muted);
+  font-size: 0.72rem;
+  writing-mode: vertical-rl;
 }
 
 .board-view .column {
@@ -1207,6 +1226,7 @@
 .board-view .card-title,
 .board-view .card-edit,
 .board-view .label-name,
+.board-view .label-recolor,
 .board-view .label-delete,
 .board-view .add-task,
 .board-view .add-task-cancel,
@@ -1221,6 +1241,7 @@
 .board-view .card-title:hover:not(:disabled),
 .board-view .card-edit:hover:not(:disabled),
 .board-view .label-name:hover:not(:disabled),
+.board-view .label-recolor:hover:not(:disabled),
 .board-view .label-delete:hover:not(:disabled),
 .board-view .add-task:hover:not(:disabled),
 .board-view .add-task-cancel:hover:not(:disabled),

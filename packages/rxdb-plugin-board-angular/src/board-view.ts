@@ -107,6 +107,7 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
         font-size: 0.75rem;
       }
       .label-name,
+      .label-recolor,
       .label-delete {
         background: none;
         border: none;
@@ -125,6 +126,16 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
         overflow-x: auto;
         padding: 0.5rem 1rem;
         align-items: flex-start;
+      }
+      .columns-scroll-hint {
+        position: sticky;
+        left: 1rem;
+        flex: 0 0 auto;
+        margin: 0;
+        align-self: center;
+        color: #64748b;
+        font-size: 0.75rem;
+        writing-mode: vertical-rl;
       }
       .column {
         flex: 0 0 17rem;
@@ -247,9 +258,14 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
         gap: 0.5rem;
         margin-top: 0.75rem;
       }
-      .board-connecting {
-        padding: 2rem;
-        color: #666;
+      @media (max-width: 48rem) {
+        .detail-panel,
+        .confirm-panel {
+          right: 1rem;
+          left: 1rem;
+          width: auto;
+          box-sizing: border-box;
+        }
       }
       /* 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 源卡片半透明） */
       .card.dragging,
@@ -379,7 +395,6 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     readonly kind: 'task' | 'column';
     readonly id: string;
   } | null>(null);
-  protected readonly dragPointer = signal<{ readonly x: number; readonly y: number }>({ x: 0, y: 0 });
   /** 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 空列占位）。 */
   protected readonly dropTarget = signal<
     | { readonly kind: 'task'; readonly columnId: UUID; readonly mode: 'before' | 'after'; readonly taskId: UUID }
@@ -577,7 +592,6 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   protected onTaskDragOver(event: DragEvent): void {
     // 列头 handler 冒泡到这里，按拖拽类型分流，否则列拖拽的落点会被任务换算覆盖
     event.preventDefault();
-    this.dragPointer.set({ x: event.clientX, y: event.clientY });
     if (this.dragging()?.kind !== 'task') return;
     const movedId = this.dragging()?.id as UUID | undefined;
     const area = this.boardArea()?.nativeElement;
@@ -606,7 +620,6 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected onColumnDragOver(event: DragEvent): void {
     event.preventDefault();
-    this.dragPointer.set({ x: event.clientX, y: event.clientY });
     if (this.dragging()?.kind !== 'column') return;
     const movedId = this.dragging()?.id as UUID | undefined;
     if (!movedId) return;
@@ -789,8 +802,17 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     await this.guard(() => this.boardRef.actions.renameLabel(labelId, name));
   }
 
+  protected async recolorLabel(labelId: UUID): Promise<void> {
+    const label = this.boardRef.labels().find(item => item.id === labelId);
+    if (!label) return;
+    const color = window.prompt('改标签颜色（#rrggbb）', label.color);
+    if (color === null) return;
+    await this.guard(() => this.boardRef.actions.recolorLabel(labelId, color));
+  }
+
   protected async deleteLabel(labelId: UUID): Promise<void> {
-    const plan = await this.boardRef.actions.planLabelDelete(labelId);
+    const plan = await this.guard(() => this.boardRef.actions.planLabelDelete(labelId));
+    if (!plan) return;
     const confirmed = window.confirm(`删除标签「${plan.labelName}」？将移除 ${plan.taskLabelIds.length} 条任务关联。`);
     if (!confirmed) return;
     await this.guard(() => this.boardRef.actions.executeLabelDelete(plan));
@@ -809,19 +831,22 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   protected async confirmTaskDelete(task: Task): Promise<void> {
-    const plan = await this.boardRef.actions.planTaskDelete(task.id);
+    const plan = await this.guard(() => this.boardRef.actions.planTaskDelete(task.id));
+    if (!plan) return;
     this.confirmDelete.set(plan);
   }
 
   protected async confirmColumnDelete(column: Column): Promise<void> {
-    const plan = await this.boardRef.actions.planColumnDelete(column.id);
+    const plan = await this.guard(() => this.boardRef.actions.planColumnDelete(column.id));
+    if (!plan) return;
     this.confirmDelete.set(plan);
   }
 
   protected async confirmBoardDelete(): Promise<void> {
     const current = this.boardRef.currentBoard();
     if (!current) return;
-    const plan = await this.boardRef.actions.planBoardDelete(current.id);
+    const plan = await this.guard(() => this.boardRef.actions.planBoardDelete(current.id));
+    if (!plan) return;
     this.confirmDelete.set(plan);
   }
 
@@ -1075,11 +1100,13 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     return this.boardRef.columns().map(viewColumn => {
       const columnEl = area.querySelector<HTMLElement>(`[data-column-id="${viewColumn.id}"]`);
       const rect = columnEl?.getBoundingClientRect();
-      const cards = (this.taskMap().get(viewColumn.id) ?? []).map(task => {
-        const cardEl = area.querySelector<HTMLElement>(`[data-task-id="${task.id}"]`);
-        const cardRect = cardEl?.getBoundingClientRect();
-        return { id: task.id, top: cardRect?.top ?? 0, bottom: cardRect?.bottom ?? 0 };
-      });
+      const cards = (this.taskMap().get(viewColumn.id) ?? [])
+        .map(task => {
+          const cardEl = area.querySelector<HTMLElement>(`[data-task-id="${task.id}"]`);
+          const cardRect = cardEl?.getBoundingClientRect();
+          return cardRect ? { id: task.id, top: cardRect.top, bottom: cardRect.bottom } : null;
+        })
+        .filter((card): card is { readonly id: UUID; readonly top: number; readonly bottom: number } => card !== null);
       return {
         columnId: viewColumn.id,
         rect: { left: rect?.left ?? 0, right: rect?.right ?? 0, top: rect?.top ?? 0, bottom: rect?.bottom ?? 0 },

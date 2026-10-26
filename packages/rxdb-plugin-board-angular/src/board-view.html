@@ -76,6 +76,14 @@
             data-testid="label-chip"
           >
             <button class="label-name" (click)="renameLabel(label.id)" aria-label="改名">{{ label.name }}</button>
+            <button
+              class="label-recolor"
+              [attr.aria-label]="'改标签颜色 ' + label.name"
+              (click)="recolorLabel(label.id)"
+              data-testid="label-recolor"
+            >
+              ◉
+            </button>
             <button class="label-delete" [attr.aria-label]="'删除标签 ' + label.name" (click)="deleteLabel(label.id)">
               ×
             </button>
@@ -146,6 +154,9 @@
     <!-- 列区 -->
     @if (b.currentBoard(); as current) {
       <div class="columns" data-testid="columns">
+        @if (b.columns().length > 1) {
+          <p class="columns-scroll-hint" aria-hidden="true">可横向滚动查看更多列</p>
+        }
         @for (column of b.columns(); track column.id) {
           <section
             class="column"
@@ -164,6 +175,7 @@
               (dragstart)="onColumnDragStart($event, column)"
               data-testid="column-header"
               draggable="true"
+              [attr.aria-label]="'列：' + column.title"
             >
               <h2 class="column-title" data-testid="column-title">{{ column.title }}</h2>
               <span class="column-count" data-testid="column-count">{{ (taskMap().get(column.id) ?? []).length }}</span>
@@ -208,6 +220,7 @@
                   (dragstart)="onTaskDragStart($event, task)"
                   data-testid="task-card"
                   draggable="true"
+                  [attr.aria-label]="'任务：' + task.title"
                   tabindex="-1"
                 >
                   @if (editTitle() === task.id) {
@@ -305,7 +318,7 @@
       </div>
     } @else if (!b.loading() && b.readError() === null) {
       <div class="empty-board" data-testid="empty-board">
-        <p>没有看板</p>
+        <p>{{ b.boards().length === 0 ? '没有看板' : '请选择看板' }}</p>
         <button [disabled]="b.restoring() || b.loading() || b.readError() !== null" (click)="createBoard()" data-testid="create-board-empty">新建板</button>
       </div>
     }
@@ -397,13 +410,16 @@
     @if (confirmDelete(); as pending) {
       <aside class="confirm-panel" data-testid="confirm-delete">
         @if (pending.kind === 'task') {
-          <p>删除任务「{{ pending.taskTitle }}」？</p>
+          <p>删除任务「{{ pending.taskTitle }}」及其 {{ pending.taskLabelIds.length }} 条标签关联？</p>
         } @else if (pending.kind === 'column') {
-          <p>删除列「{{ pending.columnTitle }}」及其 {{ pending.taskIds.length }} 个任务？</p>
+          <p>
+            删除列「{{ pending.columnTitle }}」及其 {{ pending.taskIds.length }} 个任务、{{ pending.taskLabelIds.length }}
+            条任务标签关联？
+          </p>
         } @else {
           <p>
             删除看板「{{ pending.boardTitle }}」（{{ pending.columnIds.length }} 列、{{ pending.taskIds.length }}
-            任务、含全部标签定义与关联）？
+            任务、{{ pending.boardLabelIds.length }} 个标签定义、{{ pending.taskLabelIds.length }} 条任务标签关联）？
           </p>
         }
         <div class="confirm-actions">

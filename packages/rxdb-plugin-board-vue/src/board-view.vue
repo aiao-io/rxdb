@@ -152,6 +152,11 @@ const onSearchInput = (event: Event): void => {
   onSearchInputValue((event.target as HTMLInputElement).value);
 };
 
+const onSearchMore = (): void => {
+  if (searchState.value === 'loading') return;
+  void searchHandle?.loadMore();
+};
+
 /** 点结果：滚动到目标卡片并短暂高亮（更新中由「搜索中」状态接管，无结果可点）。 */
 const onSearchResultClick = (result: SearchResult): void => {
   document.querySelector<HTMLElement>(`[data-task-id="${result.id}"]`)?.scrollIntoView({ block: 'center' });
@@ -292,11 +297,13 @@ const columnViews = (): CardDropColumnView[] =>
   board.columns.value.map(column => {
     const columnEl = document.querySelector<HTMLElement>(`[data-column-id="${column.id}"]`);
     const rect = columnEl?.getBoundingClientRect();
-    const cards = (taskMap.value.get(column.id) ?? []).map(task => {
+    const cards = (taskMap.value.get(column.id) ?? [])
+      .map(task => {
       const cardEl = document.querySelector<HTMLElement>(`[data-task-id="${task.id}"]`);
       const cardRect = cardEl?.getBoundingClientRect();
-      return { id: task.id, top: cardRect?.top ?? 0, bottom: cardRect?.bottom ?? 0 };
-    });
+      return cardRect ? { id: task.id, top: cardRect.top, bottom: cardRect.bottom } : null;
+      })
+      .filter((card): card is { readonly id: UUID; readonly top: number; readonly bottom: number } => card !== null);
     return {
       columnId: column.id,
       rect: { left: rect?.left ?? 0, right: rect?.right ?? 0, top: rect?.top ?? 0, bottom: rect?.bottom ?? 0 },
@@ -377,7 +384,7 @@ const resolveColumnTarget = (
     movedId,
     clientX
   );
-  return target ? { prevId: target.prevId as UUID, nextId: target.nextId as UUID } : null;
+  return target;
 };
 
 const moveTaskAndSyncSnapshot = async (taskId: UUID, target: CardDropTarget): Promise<void> => {
@@ -389,7 +396,8 @@ const moveTaskAndSyncSnapshot = async (taskId: UUID, target: CardDropTarget): Pr
 
 const onTaskDrop = async (event: DragEvent): Promise<void> => {
   event.preventDefault();
-  const movedId = event.dataTransfer?.getData('application/x-board-task') as UUID | undefined;
+  const movedId = (event.dataTransfer?.getData('application/x-board-task') ??
+    (dragging.value?.kind === 'task' ? dragging.value.id : undefined)) as UUID | undefined;
   if (!movedId) return;
   clearDragFeedback();
   const target = resolveTaskTarget(movedId, event.clientX, event.clientY);
@@ -399,7 +407,8 @@ const onTaskDrop = async (event: DragEvent): Promise<void> => {
 
 const onColumnDrop = async (event: DragEvent): Promise<void> => {
   event.preventDefault();
-  const movedId = event.dataTransfer?.getData('application/x-board-column') as UUID | undefined;
+  const movedId = (event.dataTransfer?.getData('application/x-board-column') ??
+    (dragging.value?.kind === 'column' ? dragging.value.id : undefined)) as UUID | undefined;
   if (!movedId) return;
   clearDragFeedback();
   const target = resolveColumnTarget(movedId, event.clientX);
@@ -558,24 +567,35 @@ const renameLabel = async (labelId: UUID): Promise<void> => {
   if (name === null) return;
   await guard(() => board.actions.renameLabel(labelId, name));
 };
+const recolorLabel = async (labelId: UUID): Promise<void> => {
+  const label = board.labels.value.find(item => item.id === labelId);
+  if (!label) return;
+  const color = promptTitle('改标签颜色（#rrggbb）', label.color);
+  if (color === null) return;
+  await guard(() => board.actions.recolorLabel(labelId, color));
+};
 const deleteLabel = async (labelId: UUID): Promise<void> => {
-  const plan = await board.actions.planLabelDelete(labelId);
+  const plan = await guard(() => board.actions.planLabelDelete(labelId));
+  if (!plan) return;
   if (!window.confirm(`删除标签「${plan.labelName}」？将移除 ${plan.taskLabelIds.length} 条任务关联。`)) return;
   await guard(() => board.actions.executeLabelDelete(plan));
 };
 
 const confirmTaskDelete = async (taskId: UUID): Promise<void> => {
-  const plan = await board.actions.planTaskDelete(taskId);
+  const plan = await guard(() => board.actions.planTaskDelete(taskId));
+  if (!plan) return;
   confirm.value = { kind: 'task', taskId, title: plan.taskTitle, plan };
 };
 const confirmColumnDelete = async (columnId: UUID): Promise<void> => {
-  const plan = await board.actions.planColumnDelete(columnId);
+  const plan = await guard(() => board.actions.planColumnDelete(columnId));
+  if (!plan) return;
   confirm.value = { kind: 'column', columnId, title: plan.columnTitle, count: plan.taskIds.length, plan };
 };
 const confirmBoardDelete = async (): Promise<void> => {
   const current = board.currentBoard.value;
   if (!current) return;
-  const plan = await board.actions.planBoardDelete(current.id);
+  const plan = await guard(() => board.actions.planBoardDelete(current.id));
+  if (!plan) return;
   confirm.value = {
     kind: 'board',
     boardId: current.id,
@@ -844,6 +864,12 @@ onBeforeUnmount(() => {
             >{{ label.name }}</button
           >
           <button
+            class="label-recolor"
+            :aria-label="`改标签颜色 ${label.name}`"
+            data-testid="label-recolor"
+            @click="recolorLabel(label.id)"
+          >◉</button>
+          <button
             class="label-delete"
             :aria-label="`删除标签 ${label.name}`"
             @click="deleteLabel(label.id)"
@@ -914,7 +940,8 @@ onBeforeUnmount(() => {
               v-if="searchHasMore"
               class="search-more"
               data-testid="board-search-more"
-              @click="searchHandle?.loadMore()"
+              :disabled="searchState === 'loading'"
+              @click="onSearchMore"
             >
               加载更多
             </button>
@@ -926,6 +953,7 @@ onBeforeUnmount(() => {
         class="columns"
         data-testid="columns"
       >
+        <p v-if="board.columns.value.length > 1" class="columns-scroll-hint" aria-hidden="true">可横向滚动查看更多列</p>
         <section
           v-for="column in board.columns.value"
           :key="column.id"
@@ -945,6 +973,7 @@ onBeforeUnmount(() => {
               dragging: dragging?.kind === 'column' && dragging.id === column.id
             }"
             :data-column-header-id="column.id"
+            :aria-label="`列：${column.title}`"
             draggable="true"
             data-testid="column-header"
             @dragover="onColumnDragOver"
@@ -1022,6 +1051,7 @@ onBeforeUnmount(() => {
                 dragging: dragging?.kind === 'task' && dragging.id === task.id
               }"
               :data-task-id="task.id"
+              :aria-label="`任务：${task.title}`"
               tabindex="-1"
               draggable="true"
               data-testid="task-card"
@@ -1262,11 +1292,11 @@ onBeforeUnmount(() => {
         class="confirm-panel"
         data-testid="confirm-delete"
       >
-        <p v-if="confirm.kind === 'task'"> 删除任务「{{ confirm.title }}」？ </p>
-        <p v-else-if="confirm.kind === 'column'"> 删除列「{{ confirm.title }}」及其 {{ confirm.count }} 个任务？ </p>
+        <p v-if="confirm.kind === 'task'"> 删除任务「{{ confirm.title }}」及其 {{ confirm.plan.taskLabelIds.length }} 条标签关联？ </p>
+        <p v-else-if="confirm.kind === 'column'"> 删除列「{{ confirm.title }}」及其 {{ confirm.count }} 个任务、{{ confirm.plan.taskLabelIds.length }} 条任务标签关联？ </p>
         <p v-else>
           删除看板「{{ confirm.title }}」（{{ confirm.columns }} 列、{{ confirm.count }}
-          任务、含全部标签定义与关联）？
+          任务、{{ confirm.plan.boardLabelIds.length }} 个标签定义、{{ confirm.plan.taskLabelIds.length }} 条任务标签关联）？
         </p>
         <div class="confirm-actions">
           <button
@@ -1289,7 +1319,7 @@ onBeforeUnmount(() => {
       class="empty-board"
       data-testid="empty-board"
     >
-      <p>没有看板</p>
+        <p>{{ board.boards.value.length === 0 ? '没有看板' : '请选择看板' }}</p>
       <button
         data-testid="create-board-empty"
         :disabled="board.restoring.value || board.loading.value || board.readError.value !== null"
@@ -1356,6 +1386,7 @@ onBeforeUnmount(() => {
   font-size: 0.75rem;
 }
 .label-name,
+.label-recolor,
 .label-delete {
   background: none;
   border: none;
@@ -1374,6 +1405,16 @@ onBeforeUnmount(() => {
   overflow-x: auto;
   padding: 0.5rem 1rem;
   align-items: flex-start;
+}
+.columns-scroll-hint {
+  position: sticky;
+  left: 1rem;
+  flex: 0 0 auto;
+  margin: 0;
+  align-self: center;
+  color: #64748b;
+  font-size: 0.75rem;
+  writing-mode: vertical-rl;
 }
 .column {
   flex: 0 0 17rem;
@@ -1525,9 +1566,14 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
-.board-connecting {
-  padding: 2rem;
-  color: #666;
+@media (max-width: 48rem) {
+  .detail-panel,
+  .confirm-panel {
+    right: 1rem;
+    left: 1rem;
+    width: auto;
+    box-sizing: border-box;
+  }
 }
 /* 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 源卡片半透明） */
 .card.dragging,

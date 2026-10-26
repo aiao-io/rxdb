@@ -150,6 +150,11 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     }
   };
 
+  const onSearchMore = (): void => {
+    if (searchState === 'loading') return;
+    void searchHandleRef.current?.loadMore();
+  };
+
   /** 点结果：滚动到目标卡片并短暂高亮（更新中不可点）。 */
   const onSearchResultClick = (result: SearchResult): void => {
     if (searchState === 'loading') return;
@@ -304,6 +309,19 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const commitLabelEdit = async (label: BoardLabel): Promise<void> => {
     const result = await guard(() => board.actions.renameLabel(label.id, editingLabelValue));
     if (result !== undefined) setEditingLabelId(null);
+  };
+
+  const recolorLabel = async (label: BoardLabel): Promise<void> => {
+    const color = window.prompt('改标签颜色（#rrggbb）', label.color);
+    if (color === null) return;
+    await guard(() => board.actions.recolorLabel(label.id, color));
+  };
+
+  const deleteLabel = async (label: BoardLabel): Promise<void> => {
+    const plan = await guard(() => board.actions.planLabelDelete(label.id));
+    if (!plan) return;
+    if (!window.confirm(`删除标签「${plan.labelName}」？将移除 ${plan.taskLabelIds.length} 条任务关联。`)) return;
+    await guard(() => board.actions.executeLabelDelete(plan));
   };
 
   /** 内联建任务（GitHub Projects 同款：列底输入框，Enter 提交 / Esc 取消）。 */
@@ -475,7 +493,8 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const onTaskDrop = async (event: DragEvent): Promise<void> => {
     event.preventDefault();
-    const movedId = event.dataTransfer?.getData('application/x-board-task') as UUID | undefined;
+    const movedId = (event.dataTransfer?.getData('application/x-board-task') ??
+      (dragging?.kind === 'task' ? dragging.id : undefined)) as UUID | undefined;
     if (!movedId) return;
     clearDragFeedback();
     const target = resolveTaskTarget(movedId, event.clientX, event.clientY);
@@ -485,7 +504,8 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const onColumnDrop = async (event: DragEvent): Promise<void> => {
     event.preventDefault();
-    const movedId = event.dataTransfer?.getData('application/x-board-column') as UUID | undefined;
+    const movedId = (event.dataTransfer?.getData('application/x-board-column') ??
+      (dragging?.kind === 'column' ? dragging.id : undefined)) as UUID | undefined;
     if (!movedId) return;
     clearDragFeedback();
     const target = resolveColumnTarget(movedId, event.clientX);
@@ -670,16 +690,19 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const detailTask = detailTaskId ? board.tasks.find(task => task.id === detailTaskId) : undefined;
 
   const confirmTaskDelete = async (task: Task): Promise<void> => {
-    const plan = await board.actions.planTaskDelete(task.id);
+    const plan = await guard(() => board.actions.planTaskDelete(task.id));
+    if (!plan) return;
     setConfirm(plan);
   };
   const confirmColumnDelete = async (column: Column): Promise<void> => {
-    const plan = await board.actions.planColumnDelete(column.id);
+    const plan = await guard(() => board.actions.planColumnDelete(column.id));
+    if (!plan) return;
     setConfirm(plan);
   };
   const confirmBoardDelete = async (): Promise<void> => {
     if (!current) return;
-    const plan = await board.actions.planBoardDelete(current.id);
+    const plan = await guard(() => board.actions.planBoardDelete(current.id));
+    if (!plan) return;
     setConfirm(plan);
   };
   const executeConfirmedDelete = async (): Promise<void> => {
@@ -965,7 +988,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
       {!current && !readBlocked ?
         <div className='empty-board' data-testid='empty-board'>
-          <p>没有看板</p>
+          <p>{board.boards.length === 0 ? '没有看板' : '请选择看板'}</p>
           <button onClick={() => startComposer('board')} data-testid='create-board-empty' disabled={writesBlocked}>
             新建板
           </button>
@@ -1026,17 +1049,16 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                 : label.name}
               </button>
               <button
+                className='label-recolor'
+                onClick={() => void recolorLabel(label)}
+                aria-label={`改标签颜色 ${label.name}`}
+                data-testid='label-recolor'
+              >
+                ◉
+              </button>
+              <button
                 className='label-delete'
-                onClick={() => {
-                  void (async () => {
-                    const plan = await board.actions.planLabelDelete(label.id);
-                    if (
-                      window.confirm(`删除标签「${plan.labelName}」？将移除 ${plan.taskLabelIds.length} 条任务关联。`)
-                    ) {
-                      await guard(() => board.actions.executeLabelDelete(plan));
-                    }
-                  })();
-                }}
+                onClick={() => void deleteLabel(label)}
                 aria-label={`删除标签 ${label.name}`}
               >
                 ×
@@ -1139,7 +1161,8 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                       {searchHasMore ?
                         <button
                           className='search-more'
-                          onClick={() => void searchHandleRef.current?.loadMore()}
+                          onClick={onSearchMore}
+                          disabled={searchState === 'loading'}
                           data-testid='board-search-more'
                         >
                           加载更多
@@ -1157,6 +1180,9 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
       {current ?
         <div className='columns' data-testid='columns'>
+          {board.columns.length > 1 ?
+            <p className='columns-scroll-hint' aria-hidden='true'>可横向滚动查看更多列</p>
+          : null}
           {board.columns.map(column => (
             <section
               key={column.id}
@@ -1182,6 +1208,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                   .filter(Boolean)
                   .join(' ')}
                 data-column-header-id={column.id}
+                aria-label={`列：${column.title}`}
                 draggable
                 onDragOver={event => onColumnDragOver(event)}
                 onDragStart={event => onColumnDragStart(event, column)}
@@ -1304,6 +1331,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                       .filter(Boolean)
                       .join(' ')}
                     data-task-id={task.id}
+                    aria-label={`任务：${task.title}`}
                     tabIndex={0}
                     draggable
                     onDragStart={event => onTaskDragStart(event, task)}
@@ -1632,14 +1660,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           <div className='panel-backdrop' aria-hidden='true' />
           <aside className='confirm-panel' role='alertdialog' aria-modal='true' data-testid='confirm-delete'>
             {confirm.kind === 'task' ?
-              <p>删除任务「{confirm.taskTitle}」？</p>
+              <p>删除任务「{confirm.taskTitle}」及其 {confirm.taskLabelIds.length} 条标签关联？</p>
             : confirm.kind === 'column' ?
               <p>
-                删除列「{confirm.columnTitle}」及其 {confirm.taskIds.length} 个任务？
+                删除列「{confirm.columnTitle}」及其 {confirm.taskIds.length} 个任务、{confirm.taskLabelIds.length} 条任务标签关联？
               </p>
             : <p>
                 删除看板「{confirm.boardTitle}」（{confirm.columnIds.length} 列、{confirm.taskIds.length}{' '}
-                任务、含全部标签定义与关联）？
+                任务、{confirm.boardLabelIds.length} 个标签定义、{confirm.taskLabelIds.length} 条任务标签关联）？
               </p>
             }
             <div className='confirm-actions'>
