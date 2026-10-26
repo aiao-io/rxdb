@@ -26,6 +26,29 @@ describe('旧集合的逐条迁移', () => {
     expect(rows[0].sourceId).toBe(id);
     expect(JSON.parse(rows[0].payload).deleted).toBe(true);
   });
+  it('保留任务创建时的通道，旧任务缺失通道时只在迁移时默认为直连', () => {
+    const task = {
+      id: '00000000-0000-4000-8000-000000000001',
+      request: {
+        kind: 'image',
+        operation: 'text-to-image',
+        providerInstanceId: '10000000-0000-4000-8000-000000000001',
+        providerRevision: 1,
+        modelId: 'fixture',
+        prompt: '通道'
+      },
+      status: 'completed',
+      createdAt: '2026-10-26T00:00:00.000Z',
+      updatedAt: '2026-10-26T00:00:00.000Z',
+      delivery: { status: 'available', expiresAt: null, acknowledgedAt: null },
+      failure: null,
+      channel: 'proxy'
+    };
+    expect(JSON.parse(decodeCollection('tasks', JSON.stringify([task]))[0].payload).channel).toBe('proxy');
+    const legacy = { ...task, channel: undefined };
+    expect(JSON.parse(decodeCollection('tasks', JSON.stringify([legacy]))[0].payload).channel).toBe('direct');
+  });
+
   it('拒绝重复身份、损坏任务和不完整提交日志，避免部分导入', () => {
     const provider = defaultFreeProvider();
     expect(() =>

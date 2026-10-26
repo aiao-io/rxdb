@@ -4,26 +4,33 @@ RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
   SELECT pg_catalog.jsonb_typeof(v) = 'object' AND v ?& required
     AND NOT EXISTS (SELECT 1 FROM pg_catalog.jsonb_object_keys(v) k WHERE NOT k = ANY(required || optional));
 $$;
+CREATE OR REPLACE FUNCTION media_private.js_length(value text)
+RETURNS integer LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
+  SELECT pg_catalog.length(value) + COALESCE((
+    SELECT count(*)::integer FROM pg_catalog.regexp_split_to_table(value, '') AS character
+    WHERE pg_catalog.ascii(character) > 65535
+  ), 0);
+$$;
 CREATE OR REPLACE FUNCTION media_private.valid_studio(v jsonb)
 RETURNS boolean LANGUAGE plpgsql IMMUTABLE SET search_path = '' AS $$
-DECLARE f jsonb; p jsonb; n jsonb; a jsonb; ids text[] := '{}'; count_nodes integer := 0;
+DECLARE f jsonb; p jsonb; n jsonb; a jsonb; ids text[] := '{}'; count_nodes integer := 0; total_units integer := 0;
 BEGIN
   IF NOT media_private.json_fields(v, ARRAY['document','fields','values'], ARRAY['aspectRatio','templateId','templateVersion'])
     OR pg_catalog.jsonb_typeof(v->'fields') <> 'array' OR pg_catalog.jsonb_array_length(v->'fields') > 20
     OR pg_catalog.jsonb_typeof(v->'values') <> 'object' THEN RETURN false; END IF;
-  IF v ? 'aspectRatio' AND v->>'aspectRatio' NOT IN ('square','landscape','portrait') OR
-    v ? 'templateId' AND v->>'templateId' !~ '^[a-z][a-z0-9-]{0,59}$' OR
-    v ? 'templateVersion' AND (pg_catalog.jsonb_typeof(v->'templateVersion') <> 'number' OR (v->>'templateVersion')::numeric < 1) THEN RETURN false; END IF;
+  IF v ? 'aspectRatio' AND (pg_catalog.jsonb_typeof(v->'aspectRatio') <> 'string' OR v->>'aspectRatio' NOT IN ('square','landscape','portrait')) OR
+    v ? 'templateId' AND (pg_catalog.jsonb_typeof(v->'templateId') <> 'string' OR v->>'templateId' !~ '^[a-z][a-z0-9-]{0,59}$') OR
+    v ? 'templateVersion' AND (pg_catalog.jsonb_typeof(v->'templateVersion') <> 'number' OR (v->>'templateVersion')::numeric <> trunc((v->>'templateVersion')::numeric) OR (v->>'templateVersion')::numeric < 1 OR (v->>'templateVersion')::numeric > 9007199254740991) THEN RETURN false; END IF;
   FOR f IN SELECT * FROM pg_catalog.jsonb_array_elements(v->'fields') LOOP
     IF NOT media_private.json_fields(f, ARRAY['id','label','defaultValue','required']) OR
       COALESCE(f->>'id','') !~ '^[a-z][a-z0-9-]{0,39}$' OR f->>'id' = ANY(ids) OR
-      pg_catalog.jsonb_typeof(f->'label') <> 'string' OR length(f->>'label') NOT BETWEEN 1 AND 40 OR
-      pg_catalog.jsonb_typeof(f->'defaultValue') <> 'string' OR length(f->>'defaultValue') > 4000 OR
+      pg_catalog.jsonb_typeof(f->'label') <> 'string' OR f->>'label' ~ '^[[:space:]]*$' OR media_private.js_length(f->>'label') NOT BETWEEN 1 AND 40 OR
+      pg_catalog.jsonb_typeof(f->'defaultValue') <> 'string' OR media_private.js_length(f->>'defaultValue') > 4000 OR
       pg_catalog.jsonb_typeof(f->'required') <> 'boolean' THEN RETURN false; END IF;
     ids := ids || (f->>'id');
   END LOOP;
   IF NOT media_private.json_fields(v->'values', ids) OR EXISTS (
-    SELECT 1 FROM pg_catalog.jsonb_each(v->'values') kv WHERE pg_catalog.jsonb_typeof(kv.value) <> 'string' OR length(kv.value #>> '{}') > 4000
+    SELECT 1 FROM pg_catalog.jsonb_each(v->'values') kv WHERE pg_catalog.jsonb_typeof(kv.value) <> 'string' OR media_private.js_length(kv.value #>> '{}') > 4000
   ) OR NOT media_private.json_fields(v->'document', ARRAY['type','content']) OR v->'document'->>'type' <> 'doc' OR
     pg_catalog.jsonb_typeof(v->'document'->'content') <> 'array' OR pg_catalog.jsonb_array_length(v->'document'->'content') > 1000 THEN RETURN false; END IF;
   FOR p IN SELECT * FROM pg_catalog.jsonb_array_elements(v->'document'->'content') LOOP
@@ -31,12 +38,16 @@ BEGIN
     FOR n IN SELECT * FROM pg_catalog.jsonb_array_elements(COALESCE(p->'content','[]'::jsonb)) LOOP
       count_nodes := count_nodes + 1;
       IF count_nodes > 10000 THEN RETURN false; END IF;
-      IF n->>'type' = 'text' AND media_private.json_fields(n, ARRAY['type','text']) AND pg_catalog.jsonb_typeof(n->'text') = 'string' THEN CONTINUE; END IF;
+      IF n->>'type' = 'text' AND media_private.json_fields(n, ARRAY['type','text']) AND pg_catalog.jsonb_typeof(n->'text') = 'string' THEN
+        total_units := total_units + media_private.js_length(n->>'text');
+        IF total_units > 100000 THEN RETURN false; END IF;
+        CONTINUE;
+      END IF;
       IF n->>'type' = 'hardBreak' AND media_private.json_fields(n, ARRAY['type']) THEN CONTINUE; END IF;
       a := n->'attrs';
       IF n->>'type' <> 'templateField' OR NOT media_private.json_fields(n, ARRAY['type','attrs']) OR
         NOT media_private.json_fields(a, ARRAY['fieldId'], ARRAY['value']) OR NOT (a->>'fieldId' = ANY(ids)) OR
-        a ? 'value' AND (pg_catalog.jsonb_typeof(a->'value') <> 'string' OR length(a->>'value') > 4000) THEN RETURN false; END IF;
+        a ? 'value' AND (pg_catalog.jsonb_typeof(a->'value') <> 'string' OR media_private.js_length(a->>'value') > 4000) THEN RETURN false; END IF;
     END LOOP;
   END LOOP;
   RETURN true;

@@ -62,6 +62,7 @@ import { WorkspaceSession } from './workspace-session';
 type View = 'discover' | 'studio' | 'library' | 'providers' | 'admin';
 type Work = LibraryWork;
 type LocalTask = GenerationJobSummary & {
+  channel?: 'direct' | 'proxy';
   saved?: boolean;
   acknowledged?: boolean;
 };
@@ -575,6 +576,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         const now = new Date().toISOString();
         let task: LocalTask = {
           id: crypto.randomUUID(),
+          channel: provider.mode,
           request: {
             kind: 'image',
             operation: 'text-to-image',
@@ -1176,9 +1178,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
                   workspaceId,
                   model: task.request.modelId,
                   providerId: task.request.providerInstanceId,
-                  channel:
-                    this.providers().find(provider => provider.id === task.request.providerInstanceId)?.mode ??
-                    'direct',
+                  channel: task.channel ?? 'direct',
                   status: task.status as 'processing' | 'completed' | 'failed' | 'needs_review',
                   startedAt: task.createdAt,
                   source: 'application' as const,
@@ -1482,7 +1482,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     const row = await store?.preference('tasks-v1');
     if (epoch !== this.epoch || store !== this.store) return;
     const tasks =
-      store && row ? (await store.collection('tasks')).map(row => JSON.parse(row.payload) as LocalTask) : [];
+      store && row ?
+        (await store.collection('tasks')).map(row => {
+          const task = JSON.parse(row.payload) as Partial<LocalTask>;
+          return { ...task, channel: task.channel ?? 'direct' } as LocalTask;
+        })
+      : [];
     if (epoch !== this.epoch || store !== this.store) return;
     if (!Array.isArray(tasks)) throw new Error('Invalid task journal');
     this.history.set(tasks);

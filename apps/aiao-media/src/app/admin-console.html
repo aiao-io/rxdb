@@ -248,8 +248,8 @@
           @for (source of ['application', 'provider', 'verified']; track source) {
             @if (summary.sources[source]; as bucket) {
               <p>
-                {{ sourceLabel(source) }}：{{ bucket.records }} 条 · 请求计数 {{ bucket.requestCount ?? '未知' }} ·
-                供应商用量 {{ bucket.providerUnits ?? '未知' }} · 核验费用 {{ currencyList(bucket) }}
+                {{ sourceLabel(source) }}：{{ bucket.records }} 条 · 请求计数 {{ metric(bucket.requestCount, bucket.unknown?.requestCount) }} ·
+                供应商用量 {{ metric(bucket.providerUnits, bucket.unknown?.providerUnits) }} · 核验费用 {{ currencyList(bucket) }}{{ unknownMetric(bucket, 'verifiedCost') }}
               </p>
             }
           }

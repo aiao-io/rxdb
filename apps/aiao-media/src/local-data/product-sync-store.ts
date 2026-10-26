@@ -6,6 +6,7 @@ import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { firstValueFrom } from 'rxjs';
 import { serializePrompt } from '../app/prompts/prompt-state';
+import { splitReportBatches } from './report-batches';
 import type { ProductAuthorization } from '../app/supabase-auth';
 import {
   productPayloadText,
@@ -687,12 +688,14 @@ export class ProductSyncStore {
       where: { combinator: 'and', rules: [{ field: 'state', operator: '=', value: 'pending' }] }
     });
     if (!rows.length) return;
-    const reports = rows.map(row => validateTaskReport(JSON.parse(row.payload)));
-    const { data, error } = await this.client.rpc('media_submit_task_reports', { p_reports: reports });
-    this.assertActive();
-    if (error || !Array.isArray(data) || rows.some(row => !data.includes(row.reportId)))
-      throw new Error('任务上报未确认；本机队列保留，联网后可重试。');
-    for (const row of rows) await repo.update(row, { state: 'acknowledged' });
+    for (const batch of splitReportBatches(rows)) {
+      const reports = batch.map(row => validateTaskReport(JSON.parse(row.payload)));
+      const { data, error } = await this.client.rpc('media_submit_task_reports', { p_reports: reports });
+      this.assertActive();
+      if (error || !Array.isArray(data) || batch.some(row => !data.includes(row.reportId)))
+        throw new Error('任务上报未确认；本机队列保留，联网后可重试。');
+      for (const row of batch) await repo.update(row, { state: 'acknowledged' });
+    }
   }
 
   private assertActive(): void {

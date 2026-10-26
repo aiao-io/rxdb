@@ -93,7 +93,7 @@
     },
     "serve-static": {
       "continuous": true,
-      "executor": "@nx/aiao-media:file-server",
+      "executor": "@nx/web:file-server",
       "options": {
         "buildTarget": "aiao-media:build",
         "port": 4200,
@@ -308,7 +308,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/aiao-media",
-        "command": "node --test scripts/build-supabase-config.test.mjs scripts/build-production-supabase-bundle.test.mjs scripts/local-first-worker.test.mjs scripts/product-api.test.mjs scripts/migration.test.mjs"
+        "command": "node --test scripts/build-supabase-config.test.mjs scripts/build-production-supabase-bundle.test.mjs scripts/local-first-worker.test.mjs scripts/product-api.test.mjs scripts/product-sync-contract.test.mjs scripts/migration.test.mjs"
       }
     },
     "production-bundle": {

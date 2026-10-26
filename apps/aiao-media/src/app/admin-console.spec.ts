@@ -142,6 +142,13 @@ describe('administrative content and state changes', () => {
     expect(component.message()).toContain('登录限制待确认');
   });
 
+  it('显示用量指标的已知小计和未知条数', async () => {
+    const { component } = await rig();
+    expect(component.metric(1, 2)).toBe('1（2条未知）');
+    expect(component.metric(null, 1)).toBe('未知（1条未知）');
+    expect(component.metric(null)).toBe('未知');
+  });
+
   it('loads draft and published policy versions separately', async () => {
     const { component } = await rig();
     await component.selectTab('policies');

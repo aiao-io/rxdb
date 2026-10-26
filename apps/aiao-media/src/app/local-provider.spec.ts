@@ -247,6 +247,36 @@ describe('single image dispatch', () => {
       message: expect.not.stringContaining('private')
     });
   });
+  it.each([400, 401, 403, 404, 413, 422, 429])(
+    '保留同源慢代理 HTTP %i 的明确拒绝语义',
+    async status => {
+      vi.mocked(fetch).mockResolvedValue(
+        new Response(JSON.stringify({ error: 'private', status }), {
+          headers: { 'x-aiao-relay-stream': 'late-upstream' }
+        })
+      );
+      await expect(generate({ ...provider, mode: 'proxy' })).rejects.toMatchObject({ rejected: true });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    }
+  );
+  it.each([500, 502, 503])('慢代理 HTTP %i 仍然保留结果待核查', async status => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: 'private', status }), {
+        headers: { 'x-aiao-relay-stream': 'late-upstream' }
+      })
+    );
+    await expect(generate({ ...provider, mode: 'proxy' })).rejects.toMatchObject({ rejected: false });
+  });
+  it('不信任直连供应商伪造的代理标记或无标记的代理 envelope', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: 'private', status: 429 }), {
+        headers: { 'x-aiao-relay-stream': 'late-upstream' }
+      })
+    );
+    await expect(generate()).rejects.toMatchObject({ rejected: false });
+    vi.mocked(fetch).mockResolvedValue(response({ error: 'private', status: 429 }));
+    await expect(generate({ ...provider, mode: 'proxy' })).rejects.toMatchObject({ rejected: false });
+  });
   it.each(['', 'with space', '中文'])('rejects invalid keys before dispatch', async key => {
     await expect(generate(provider, 'square', key)).rejects.toBeInstanceOf(ProviderFailure);
     expect(fetch).not.toHaveBeenCalled();

@@ -41,7 +41,7 @@ export async function reports(client, url, usage = false) {
   const sources = Object.fromEntries(
     ['application', 'provider', 'verified'].map(source => [
       source,
-      { records: 0, requestCount: null, providerUnits: null, verifiedCost: null, currencies: {} }
+      { records: 0, requestCount: null, providerUnits: null, verifiedCost: null, currencies: {}, unknown: { requestCount: 0, providerUnits: 0, verifiedCost: 0 } }
     ])
   );
   let offset = 0;
@@ -53,10 +53,12 @@ export async function reports(client, url, usage = false) {
         bucket = sources[payload.source];
       if (!bucket) reject(502, '用量来源不可识别。');
       bucket.records++;
-      for (const key of ['requestCount', 'providerUnits'])
-        if (payload[key] !== null) bucket[key] = (bucket[key] ?? 0) + payload[key];
-      if (payload.verifiedCost !== null)
-        bucket.currencies[payload.currency] = (bucket.currencies[payload.currency] ?? 0) + payload.verifiedCost;
+      for (const key of ['requestCount', 'providerUnits']) {
+        if (payload[key] === null) bucket.unknown[key]++;
+        else bucket[key] = (bucket[key] ?? 0) + payload[key];
+      }
+      if (payload.verifiedCost === null) bucket.unknown.verifiedCost++;
+      else bucket.currencies[payload.currency] = (bucket.currencies[payload.currency] ?? 0) + payload.verifiedCost;
     }
     offset += rows.length;
     if (rows.length < 100) break;

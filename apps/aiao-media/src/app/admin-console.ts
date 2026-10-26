@@ -44,6 +44,7 @@ interface UsageBucket {
   providerUnits: number | null;
   verifiedCost: number | null;
   currencies: Record<string, number>;
+  unknown?: { requestCount: number; providerUnits: number; verifiedCost: number };
 }
 interface AdminUsage {
   sources: Record<string, UsageBucket>;
@@ -253,6 +254,14 @@ export class AdminConsole {
         .map(([currency, amount]) => `${currency} ${amount}`)
         .join(' · ') || '未知'
     );
+  }
+  metric(value: number | null, unknown = 0): string {
+    const known = value ?? '未知';
+    return unknown ? `${known}（${unknown}条未知）` : String(known);
+  }
+  unknownMetric(bucket: UsageBucket, key: 'requestCount' | 'providerUnits' | 'verifiedCost'): string {
+    const count = bucket.unknown?.[key] ?? 0;
+    return count ? `（${count}条未知）` : '';
   }
   sourceLabel(source: string): string {
     return (

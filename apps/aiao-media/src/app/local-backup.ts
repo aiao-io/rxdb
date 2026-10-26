@@ -3,7 +3,7 @@ import type { GenerationJobSummary } from '../contracts/index';
 import { validateGenerationJobSummary } from '../contracts/index';
 import type { LocalMediaStore, StudioPromptState } from '../local-data/index';
 import { publicProvider, type LocalProvider } from './local-provider';
-type Task = GenerationJobSummary & { saved?: boolean; acknowledged?: boolean };
+type Task = GenerationJobSummary & { channel?: 'direct' | 'proxy'; saved?: boolean; acknowledged?: boolean };
 interface BackupImage {
   job: GenerationJobSummary;
   base64: string;
@@ -80,6 +80,7 @@ export async function createLocalBackup(
     defaultId,
     draft: (await store.studioDraft())?.state ?? null,
     tasks: tasks.map(t => ({
+      ...(t.channel ? { channel: t.channel } : {}),
       ...validateGenerationJobSummary({
         id: t.id,
         request: t.request,
@@ -123,8 +124,10 @@ export async function readLocalBackup(file: File): Promise<{ backup: LocalBackup
   const { ownedStudioPrompt } = await import('../local-data/index');
   data.draft = data.draft ? ownedStudioPrompt(data.draft) : null;
   data.tasks = data.tasks.map(t => {
-    const { saved, acknowledged, ...summary } = t;
+    const { saved, acknowledged, channel, ...summary } = t;
+    if (channel !== undefined && !['direct', 'proxy'].includes(channel)) throw new Error('备份任务通道无效。');
     return {
+      channel: channel ?? 'direct',
       ...validateGenerationJobSummary(summary),
       ...(saved ? { saved: true } : {}),
       ...(acknowledged ? { acknowledged: true } : {})

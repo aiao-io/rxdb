@@ -162,3 +162,78 @@ test('运行策略实际限制代理启停、模型和画幅，并返回生效�
     globalThis.fetch = previous;
   }
 });
+
+
+test('用量汇总保留已知小计和每个指标的未知条数', async () => {
+  const { reports } = await import('../deploy/product-reports.mjs');
+  const rows = [
+    { payload: { source: 'application', requestCount: 1, providerUnits: null, verifiedCost: null, currency: null } },
+    { payload: { source: 'application', requestCount: null, providerUnits: null, verifiedCost: null, currency: null } }
+  ];
+  const result = await reports({ call: async () => rows }, new URL('https://app.example.test/api/admin/usage'), true);
+  assert.deepEqual(result.sources.application, {
+    records: 2, requestCount: 1, providerUnits: null, verifiedCost: null, currencies: {},
+    unknown: { requestCount: 1, providerUnits: 2, verifiedCost: 2 }
+  });
+  assert.equal(result.partial, false);
+});
+
+test('同一账号的封禁和解禁按顺序执行，不让迟到请求覆盖最终登录状态', async () => {
+  const previous = globalThis.fetch;
+  let revision = 1;
+  let releaseOld;
+  let oldPutStarted;
+  const oldPut = new Promise(resolve => {
+    oldPutStarted = resolve;
+  });
+  const release = new Promise(resolve => {
+    releaseOld = resolve;
+  });
+  let lastBanDuration = 'none';
+  globalThis.fetch = async (input, init = {}) => {
+    const url = new URL(input);
+    const path = url.pathname;
+    if (path === '/auth/v1/user') return Response.json({ id: userId });
+    if (path === '/rest/v1/rpc/media_admin_authorized') return Response.json(true);
+    if (path === '/rest/v1/rpc/media_admin_set_account') {
+      const value = JSON.parse(init.body);
+      return Response.json({ disabled: value.p_disabled, revision: ++revision, auth_state: 'pending' });
+    }
+    if (path === `/auth/v1/admin/users/${userId}`) {
+      const value = JSON.parse(init.body);
+      if (value.ban_duration === '876000h') {
+        oldPutStarted();
+        await release;
+      }
+      lastBanDuration = value.ban_duration;
+      return Response.json({});
+    }
+    if (path === '/rest/v1/rpc/media_admin_auth_applied') return Response.json(true);
+    throw new Error(`Unexpected request ${path}`);
+  };
+  try {
+    const first = handleAdmin(
+      request(`users/${userId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ disabled: true, revision: 1, requestId: crypto.randomUUID() })
+      }),
+      env
+    );
+    await oldPut;
+    const second = handleAdmin(
+      request(`users/${userId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ disabled: false, revision: 2, requestId: crypto.randomUUID() })
+      }),
+      env
+    );
+    await Promise.resolve();
+    assert.equal(lastBanDuration, 'none');
+    releaseOld();
+    assert.equal((await (await first).json()).account.auth_state, 'applied');
+    assert.equal((await (await second).json()).account.auth_state, 'applied');
+    assert.equal(lastBanDuration, 'none');
+  } finally {
+    globalThis.fetch = previous;
+  }
+});

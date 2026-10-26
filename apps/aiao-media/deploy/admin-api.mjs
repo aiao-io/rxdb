@@ -2,6 +2,16 @@ import { manageContent } from './product-content.mjs';
 import { administrator, body, endpoint, fields, reject, uuid } from './product-http.mjs';
 import { reports } from './product-reports.mjs';
 
+const accountQueues = new Map();
+function accountLock(targetId, operation) {
+  const previous = accountQueues.get(targetId) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(operation);
+  accountQueues.set(targetId, current);
+  return current.finally(() => {
+    if (accountQueues.get(targetId) === current) accountQueues.delete(targetId);
+  });
+}
+
 function pageNumber(value, fallback, max) {
   const number = value === null ? fallback : Number(value);
   if (!Number.isSafeInteger(number) || number < 1 || number > max) reject(400, '分页参数无效。');
@@ -37,40 +47,59 @@ async function users(client, url) {
   };
 }
 async function setAccount(request, client, actorId, targetId) {
-  const value = fields(await body(request, 4096), ['disabled', 'revision', 'requestId']);
-  if (
-    typeof value.disabled !== 'boolean' ||
-    !Number.isSafeInteger(value.revision) ||
-    value.revision < 0 ||
-    !uuid(value.requestId)
-  )
-    reject(400, '账号修改参数无效。');
-  const account = await client.call('/rest/v1/rpc/media_admin_set_account', {
-    method: 'POST',
-    payload: {
-      p_actor: actorId,
-      p_target: targetId,
-      p_revision: value.revision,
-      p_disabled: value.disabled,
-      p_request_id: value.requestId
+  return accountLock(targetId, async () => {
+    const value = fields(await body(request, 4096), ['disabled', 'revision', 'requestId']);
+    if (
+      typeof value.disabled !== 'boolean' ||
+      !Number.isSafeInteger(value.revision) ||
+      value.revision < 0 ||
+      !uuid(value.requestId)
+    )
+      reject(400, '账号修改参数无效。');
+    const account = await client.call('/rest/v1/rpc/media_admin_set_account', {
+      method: 'POST',
+      payload: {
+        p_actor: actorId,
+        p_target: targetId,
+        p_revision: value.revision,
+        p_disabled: value.disabled,
+        p_request_id: value.requestId
+      }
+    });
+    try {
+      await client.call(`/auth/v1/admin/users/${targetId}`, {
+        method: 'PUT',
+        payload: { ban_duration: value.disabled ? '876000h' : 'none' }
+      });
+      const applied = await client.call('/rest/v1/rpc/media_admin_auth_applied', {
+        method: 'POST',
+        payload: { p_actor: actorId, p_target: targetId, p_revision: account.revision }
+      });
+      if (applied) return { account: { ...account, auth_state: 'applied' } };
+
+      const latest = await client.call(
+        `/rest/v1/media_accounts?select=disabled,revision&user_id=eq.${targetId}&limit=1`
+      );
+      const current = Array.isArray(latest) ? latest[0] : null;
+      if (current && Number.isSafeInteger(current.revision) && current.revision > account.revision) {
+        await client.call(`/auth/v1/admin/users/${targetId}`, {
+          method: 'PUT',
+          payload: { ban_duration: current.disabled ? '876000h' : 'none' }
+        });
+        const reconciled = await client.call('/rest/v1/rpc/media_admin_auth_applied', {
+          method: 'POST',
+          payload: { p_actor: actorId, p_target: targetId, p_revision: current.revision }
+        });
+        return { account: { ...current, auth_state: reconciled ? 'applied' : 'pending' } };
+      }
+      return { account: { ...account, auth_state: 'pending' } };
+    } catch {
+      return {
+        account: { ...account, auth_state: 'pending' },
+        message: '产品访问状态已提交；账号登录限制尚待确认，可由管理员重试。'
+      };
     }
   });
-  try {
-    await client.call(`/auth/v1/admin/users/${targetId}`, {
-      method: 'PUT',
-      payload: { ban_duration: value.disabled ? '876000h' : 'none' }
-    });
-    const applied = await client.call('/rest/v1/rpc/media_admin_auth_applied', {
-      method: 'POST',
-      payload: { p_actor: actorId, p_target: targetId, p_revision: account.revision }
-    });
-    return { account: { ...account, auth_state: applied ? 'applied' : 'pending' } };
-  } catch {
-    return {
-      account: { ...account, auth_state: 'pending' },
-      message: '产品访问状态已提交；账号登录限制尚待确认，可由管理员重试。'
-    };
-  }
 }
 export function handleAdmin(request, env) {
   return endpoint(async () => {

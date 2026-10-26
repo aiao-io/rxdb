@@ -85,14 +85,15 @@ export function decodeCollection(collection: LocalCollection, payload: string): 
     if (!Array.isArray(source) || source.length > 100) throw new Error('任务目录不可读。');
     for (const value of source) {
       if (!value || typeof value !== 'object') throw new Error('本机任务无效。');
-      const { saved, acknowledged, ...input } = value;
-      if ([saved, acknowledged].some(flag => flag !== undefined && typeof flag !== 'boolean'))
+      const { saved, acknowledged, channel = 'direct', ...input } = value;
+      if ([saved, acknowledged].some(flag => flag !== undefined && typeof flag !== 'boolean') || !['direct', 'proxy'].includes(channel))
         throw new Error('任务状态无效。');
       const task = validateGenerationJobSummary(input);
       rows.push({
         id: task.id,
         value: {
           ...task,
+          channel,
           ...(saved === undefined ? {} : { saved }),
           ...(acknowledged === undefined ? {} : { acknowledged })
         },

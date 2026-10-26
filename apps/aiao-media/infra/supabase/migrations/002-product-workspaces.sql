@@ -146,7 +146,7 @@ BEGIN
       RAISE EXCEPTION 'Record revision conflict' USING ERRCODE = 'PT409';
     END IF;
     NEW."createdAt" := OLD."createdAt";
-  ELSIF NEW.revision <> 1 OR NEW."baseRevision" <> 0 THEN
+  ELSIF NEW.revision < 1 OR NEW."baseRevision" <> 0 THEN
     RAISE EXCEPTION 'Invalid initial revision' USING ERRCODE = '22023';
   ELSE
     NEW."createdAt" := pg_catalog.now();
