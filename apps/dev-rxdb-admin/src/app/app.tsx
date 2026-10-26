@@ -49,7 +49,7 @@ function AppSidebar({ pinned, onToggle }: { pinned: boolean; onToggle: () => voi
           className='btn btn-ghost btn-sm hover:border-transparent hover:bg-transparent'
           onClick={onToggle}
           type='button'
-          aria-label='sidebar toggle'
+          aria-label='工作台'
         >
           <Database size={16} />
           <span className='sidebar-label'>工作台</span>

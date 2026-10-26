@@ -1018,7 +1018,7 @@ export function EntityList({
                 type='button'
               >
                 <Undo2 className='h-3.5 w-3.5' size={14} />
-                <span className='badge badge-xs'>{undoCount}</span>
+                <span className='badge badge-xs' aria-hidden='true'>{undoCount}</span>
               </button>
               <button
                 className='btn btn-xs btn-ghost'
@@ -1029,7 +1029,7 @@ export function EntityList({
                 type='button'
               >
                 <Redo2 className='h-3.5 w-3.5' size={14} />
-                <span className='badge badge-xs'>{redoCount}</span>
+                <span className='badge badge-xs' aria-hidden='true'>{redoCount}</span>
               </button>
               <div className='divider divider-horizontal mx-0.5 h-5 self-center' />
             </>
