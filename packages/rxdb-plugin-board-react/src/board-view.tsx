@@ -825,7 +825,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                 className='header-button'
                 onClick={startBoardEdit}
                 data-testid='rename-board'
-                aria-label='改板标题'
+                aria-label={`改板标题：${current.title}`}
               >
                 {current.title}
               </button>
@@ -1035,7 +1035,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               style={{ background: label.color, color: labelTextColor(label.color) }}
               data-testid='label-chip'
             >
-              <button className='label-name' onClick={() => startLabelEdit(label)} aria-label='改名'>
+              <button className='label-name' onClick={() => startLabelEdit(label)} aria-label={`改名 ${label.name}`}>
                 {editingLabelId === label.id ?
                   <input
                     value={editingLabelValue}
@@ -1056,14 +1056,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                 aria-label={`改标签颜色 ${label.name}`}
                 data-testid='label-recolor'
               >
-                ◉
+                <span aria-hidden='true'>◉</span>
               </button>
               <button
                 className='label-delete'
                 onClick={() => void deleteLabel(label)}
                 aria-label={`删除标签 ${label.name}`}
               >
-                ×
+                <span aria-hidden='true'>×</span>
               </button>
             </span>
           ))}
@@ -1271,7 +1271,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                       role='menuitem'
                       onClick={() => startColumnEdit(column)}
                       data-testid='column-rename'
-                      aria-label='改列名'
+                      aria-label='编辑列名'
                     >
                       编辑列名
                     </button>
@@ -1313,7 +1313,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                       role='menuitem'
                       onClick={() => void confirmColumnDelete(column)}
                       data-testid='column-delete'
-                      aria-label='删除列'
+                      aria-label='删除'
                     >
                       删除
                     </button>

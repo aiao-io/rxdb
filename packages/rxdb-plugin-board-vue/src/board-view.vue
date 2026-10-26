@@ -849,10 +849,10 @@ onBeforeUnmount(() => {
       {{ notice }}
       <button
         data-testid="board-notice-close"
-        aria-label="× 关闭提示"
+        aria-label="关闭提示"
         @click="notice = null"
       >
-        ×
+        <span aria-hidden="true">×</span>
       </button>
     </p>
 
@@ -877,16 +877,16 @@ onBeforeUnmount(() => {
           >
           <button
             class="label-recolor"
-            :aria-label="`◉ 改标签颜色 ${label.name}`"
+            :aria-label="`改标签颜色 ${label.name}`"
             data-testid="label-recolor"
             @click="recolorLabel(label.id)"
-            >◉</button
+            ><span aria-hidden="true">◉</span></button
           >
           <button
             class="label-delete"
-            :aria-label="`× 删除标签 ${label.name}`"
+            :aria-label="`删除标签 ${label.name}`"
             @click="deleteLabel(label.id)"
-            >×</button
+            ><span aria-hidden="true">×</span></button
           >
         </span>
       </div>
@@ -1011,7 +1011,7 @@ onBeforeUnmount(() => {
             <div class="column-menu">
               <button
                 data-testid="column-rename"
-                aria-label="改列名"
+                aria-label="改名"
                 @click="onRenameColumn(column.id)"
               >
                 改名
