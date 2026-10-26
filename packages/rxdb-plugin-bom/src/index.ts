@@ -55,12 +55,15 @@ export type {
 export { RxDBPluginBom, rxDBPluginBom } from './plugin.js';
 export { rollupCost } from './quantity/cost-api.js';
 export { BomCostError } from './quantity/cost-error.js';
+export { DEFAULT_COST_ROLLUP_BUDGETS } from './quantity/cost.js';
 export type {
   CostCreditLine,
   CostMaterialLine,
   CostNodeDetail,
   CostProcessingLine,
+  CostRollupBudgets,
   CostRollupContext,
+  CostRollupOptions,
   CostRollupResult
 } from './quantity/cost.js';
 export {

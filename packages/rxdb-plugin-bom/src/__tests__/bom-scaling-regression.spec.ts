@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BomItem } from '../entities.js';
+import { BomCostError } from '../quantity/cost-error.js';
+import { BomTruncationError } from '../types.js';
 import { rollupCost } from '../quantity/cost.js';
 import { explodeBom } from '../quantity/explosion.js';
 import { loadHistory, type HistoryOccurrenceInput } from '../resolve/history-loader.js';
@@ -107,6 +109,54 @@ describe.each(['wa-sqlite', 'pglite'] as const)('比例缩放精度回归 [%s]',
     expect(result.requirementLines[0].steps.gross.value).toBe(options.planned);
     expect(result.requirementLines[0].qty).toBe(options.planned);
     expect(result.manifest.algorithmVersion).toBe('3');
+  });
+
+  it('共享 DAG 的成本明细受节点预算保护，不返回指数级部分树', async () => {
+    const levels = 7;
+    const items = await Promise.all(
+      Array.from({ length: levels + 1 }, (_, index) => makeItem(adapter, { itemNo: `dag-${index}-${crypto.randomUUID()}` }))
+    );
+    items[levels].unitPrice = '2';
+    items[levels].priceCurrency = 'CNY';
+    await items[levels].save();
+    await loadHistory(adapter, {
+      batchNo: crypto.randomUUID(),
+      revisions: items.map(item => ({ itemId: item.id, revisionNo: 'A', effectiveFrom })),
+      headers: items.slice(0, levels).map((_, index) => ({
+        revisionIndex: index,
+        bomType: context.bomType,
+        orgId: context.orgId,
+        baseUom: 'pcs',
+        baseQty: '1',
+        costLotQty: '1',
+        lines: [
+          { lineNo: 10, occurrences: [{ childItemId: items[index + 1].id, qty: '1', uom: 'pcs', effectiveFrom }] },
+          { lineNo: 20, occurrences: [{ childItemId: items[index + 1].id, qty: '1', uom: 'pcs', effectiveFrom }] }
+        ]
+      }))
+    });
+    const error = await rollupCost(adapter, costContext, { parentItemId: items[0].id }, undefined, {
+      budgets: { nodes: 8 }
+    }).then(
+      () => null,
+      cause => cause
+    );
+    expect(error).toBeInstanceOf(BomCostError);
+    expect(error).toMatchObject({ cause: expect.any(BomTruncationError) });
+    expect((error as BomCostError).message).toContain('路径数');
+  });
+
+  it('成本卷算在取消后拒绝继续生成明细', async () => {
+    const fixture = await seed(adapter);
+    const controller = new AbortController();
+    controller.abort();
+    const error = await rollupCost(adapter, costContext, fixture.target, undefined, { signal: controller.signal }).then(
+      () => null,
+      cause => cause
+    );
+    expect(error).toBeInstanceOf(BomCostError);
+    expect(error).toMatchObject({ cause: expect.any(BomTruncationError) });
+    expect((error as BomCostError).message).toContain('调用方取消');
   });
 
   it('公式求值后的7件也按精确比例缩放，成本需求与数量一致', async () => {

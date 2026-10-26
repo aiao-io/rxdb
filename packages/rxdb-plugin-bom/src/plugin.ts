@@ -33,7 +33,7 @@ import type {
   BomInstanceTreeResult
 } from './instance.js';
 import { rollupCost as runRollupCost } from './quantity/cost-api.js';
-import type { CostRollupContext, CostRollupResult } from './quantity/cost.js';
+import type { CostRollupBudgets, CostRollupContext, CostRollupResult } from './quantity/cost.js';
 import { explodeBom as runExplodeBom } from './quantity/explosion-api.js';
 import type { ExplosionOptions, ExplosionResult } from './quantity/explosion.js';
 import { buildReachInstallDdl } from './reach/install.js';
@@ -447,10 +447,13 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
   rollupCost(
     context: CostRollupContext,
     target: ResolveTarget,
-    options?: { batchQty?: { value: string; uom: string } }
+    options?: { batchQty?: { value: string; uom: string }; budgets?: CostRollupBudgets; signal?: AbortSignal }
   ): Promise<CostRollupResult> {
     return firstValueFrom(this.rxdb.localAdapter$).then(adapter =>
-      runRollupCost(adapter, context, target, options?.batchQty)
+      runRollupCost(adapter, context, target, options?.batchQty, {
+        budgets: options?.budgets,
+        signal: options?.signal
+      })
     );
   }
 

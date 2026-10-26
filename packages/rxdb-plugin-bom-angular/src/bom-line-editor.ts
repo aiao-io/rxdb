@@ -70,6 +70,8 @@ let editorSequence = 0;
   `
 })
 export class BomLineEditor {
+  private currentOccurrenceId: string | null = null;
+  private editorGeneration = 0;
   protected readonly utcHintId = `ao-bom-line-editor-utc-${++editorSequence}`;
   /** 共享控制器发布的视图状态（`useBomView` 的 `state()`）。 */
   readonly state = input.required<BomViewState>();
@@ -86,6 +88,7 @@ export class BomLineEditor {
 
   constructor() {
     effect(() => {
+      this.syncEditorIdentity();
       this.fields.set(bomEditorFields(this.value()));
       this.formError.set(null);
     });
@@ -99,11 +102,23 @@ export class BomLineEditor {
   async save(event: Event): Promise<void> {
     event.preventDefault();
     if (this.disabled()) return;
+    this.syncEditorIdentity();
+    const saveOccurrenceId = this.currentOccurrenceId;
+    const saveGeneration = this.editorGeneration;
     this.formError.set(null);
     try {
       await this.commands().saveOccurrence(parseBomEditorFields(this.fields()));
     } catch (error) {
-      this.formError.set(error);
+      if (this.currentOccurrenceId === saveOccurrenceId && this.editorGeneration === saveGeneration) {
+        this.formError.set(error);
+      }
     }
+  }
+
+  private syncEditorIdentity(): void {
+    const occurrenceId = this.value()?.occurrenceId ?? null;
+    if (occurrenceId === this.currentOccurrenceId) return;
+    this.currentOccurrenceId = occurrenceId;
+    this.editorGeneration += 1;
   }
 }

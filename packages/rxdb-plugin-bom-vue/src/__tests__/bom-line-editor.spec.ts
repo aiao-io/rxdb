@@ -93,6 +93,28 @@ describe('Vue BomLineEditor', () => {
     wrapper.unmount();
   });
 
+  it('切换发生项后忽略迟到的保存错误', async () => {
+    const actions = viewCommands();
+    let rejectSave!: (reason: unknown) => void;
+    actions.saveOccurrence.mockImplementationOnce(
+      () => new Promise<void>((_, reject) => {
+        rejectSave = reject;
+      })
+    );
+    const wrapper = mount(BomLineEditor, { props: { state: editorState(), commands: actions } });
+    wrapper.element.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    const next = editorState();
+    if (!next.editor.value) throw new Error('编辑 fixture 缺值');
+    next.editor.value.occurrenceId = 'another';
+    next.editor.value.qty = '7';
+    await wrapper.setProps({ state: next });
+    rejectSave(new Error('A 保存失败'));
+    await Promise.resolve();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it('没有目标、加载和原始领域错误均有可访问提示', async () => {
     const wrapper = mount(BomLineEditor, { props: { state: viewState(), commands: viewCommands() } });
     expect(wrapper.find('button[type="submit"]').exists()).toBe(false);

@@ -17,6 +17,7 @@ import {
 } from '../coproduct.js';
 import type { BomLocalAdapter } from '../resolve/bom-adapter.js';
 import { bomSqlDialectFor, buildAlternativeHeadersSql, buildParentRevisionSql } from '../resolve/bom-sql.js';
+import { DEFAULT_EXPANSION_BUDGETS } from '../resolve/expansion.js';
 import { BomResolutionError, type ResolutionContext } from '../resolve/resolution.js';
 import {
   assertContext,
@@ -25,7 +26,7 @@ import {
   type BomQueryExecutor,
   type ResolveTarget
 } from '../resolve/resolver.js';
-import { BomError } from '../types.js';
+import { BomError, BomTruncationError } from '../types.js';
 import { BomCostError } from './cost-error.js';
 import {
   decimalAdd,
@@ -75,6 +76,26 @@ export interface CostRollupContext extends ResolutionContext {
   substituteSelections?: ResolutionContext['substituteSelections'];
   substituteAvailabilities?: ResolutionContext['substituteAvailabilities'];
 }
+
+/** 成本明细树预算；每条共享 DAG 边在结果树中都算一个节点。 */
+export interface CostRollupBudgets {
+  /** 根为 0 的最大明细深度，默认复用数量展开的 128。 */
+  depth?: number;
+  /** 返回明细节点总数，默认复用数量展开的 100,000。 */
+  nodes?: number;
+}
+
+/** 成本卷算选项。 */
+export interface CostRollupOptions {
+  budgets?: CostRollupBudgets;
+  signal?: AbortSignal;
+}
+
+/** 成本明细默认预算，与数量展开保持同一安全量级。 */
+export const DEFAULT_COST_ROLLUP_BUDGETS: Readonly<Required<CostRollupBudgets>> = {
+  depth: DEFAULT_EXPANSION_BUDGETS.depth,
+  nodes: DEFAULT_EXPANSION_BUDGETS.paths
+};
 
 /** 一条材料明细（本层局部）。 */
 export interface CostMaterialLine {
@@ -605,6 +626,21 @@ const groupSubstituteRows = (
   return grouped;
 };
 
+type ResolvedCostRollupBudgets = Readonly<Required<CostRollupBudgets>>;
+
+const resolveCostRollupBudgets = (budgets?: CostRollupBudgets): ResolvedCostRollupBudgets => {
+  const resolved = { ...DEFAULT_COST_ROLLUP_BUDGETS, ...budgets };
+  for (const [key, value] of Object.entries(resolved)) {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw new BomCostError(key, '预算必须是非负安全整数');
+    }
+  }
+  return resolved;
+};
+
+const costTruncation = (subject: string, reason: 'depth' | 'paths' | 'cancelled'): BomCostError =>
+  new BomCostError(subject, new BomTruncationError(reason).message, { cause: new BomTruncationError(reason) });
+
 /**
  * 卷算拒绝统一为 {@link BomCostError}（cost-error.ts 的合同：缺成本、缺费率、币种不符、环、
  * unresolved / truncated）：数量、解析、配置等领域错误包一层并以 `cause` 保留原错误；
@@ -630,10 +666,11 @@ export const rollupCost = async (
   adapter: BomLocalAdapter,
   context: CostRollupContext,
   target: ResolveTarget,
-  batchQty?: { value: string; uom: string }
+  batchQty?: { value: string; uom: string },
+  options?: CostRollupOptions
 ): Promise<CostRollupResult> => {
   try {
-    return await rollupCostInSnapshot(adapter, context, target, batchQty);
+    return await rollupCostInSnapshot(adapter, context, target, batchQty, options);
   } catch (error) {
     throw asCostError(error);
   }
@@ -643,7 +680,8 @@ const rollupCostInSnapshot = async (
   adapter: BomLocalAdapter,
   context: CostRollupContext,
   target: ResolveTarget,
-  batchQty?: { value: string; uom: string }
+  batchQty?: { value: string; uom: string },
+  options?: CostRollupOptions
 ): Promise<CostRollupResult> => {
   assertContext(context as ResolutionContext);
   const dialect = bomSqlDialectFor(adapter.name);
@@ -723,6 +761,14 @@ const rollupCostInSnapshot = async (
     const rootL = decimalFromCanonical(
       plannedQty ? convertUom(plannedQty.value, plannedQty.uom, rootHeader.baseUom) : rootLotQty
     );
+    const costBudgets = resolveCostRollupBudgets(options?.budgets);
+    let detailNodes = 0;
+
+    const assertDetailBudget = (path: readonly string[], countsNode: boolean): void => {
+      if (options?.signal?.aborted) throw costTruncation('成本明细', 'cancelled');
+      if (path.length > costBudgets.depth) throw costTruncation('成本明细', 'depth');
+      if (countsNode && detailNodes >= costBudgets.nodes) throw costTruncation('成本明细', 'paths');
+    };
 
     // unit_cost 独立 memo：键 = 头 + 上下文（节点是已解析头，AC#8 不串）；
     // 相同头和批量复用本次事务的计算结果，明细与标准单位成本共用批成本。
@@ -779,6 +825,7 @@ const rollupCostInSnapshot = async (
     };
 
     const unitCostOf = async (headerMeta: HeaderMeta): Promise<string> => {
+      assertDetailBudget(stack, false);
       const key = `${headerMeta.headerId}|${context.asOfDate.toISOString()}|${context.currency}|${context.rateDate.toISOString()}|${sourceIdentity}`;
       const cached = unitCostCache.get(key);
       if (cached !== undefined) return cached;
@@ -843,6 +890,7 @@ const rollupCostInSnapshot = async (
     };
 
     const batchCostOf = async (headerMeta: HeaderMeta, L: Decimal, path: readonly string[] = []): Promise<Decimal> => {
+      assertDetailBudget(path, false);
       assertAcyclic(headerMeta, path);
       const key = batchKey(headerMeta, L, path.length === 0);
       const cached = batchCostCache.get(key);
@@ -877,6 +925,7 @@ const rollupCostInSnapshot = async (
       const groupedRows = groupSubstituteRows(effectiveRows, pPrime, context);
 
       for (const row of groupedRows) {
+        assertDetailBudget(path, false);
         const credit = row.flowDirection === 'by_product' ? await creditOf(q, dialect, row, pPrime, context) : null;
         if (credit !== null) total = decimalSub(total, credit.amount);
         if (row.flowDirection !== 'consume') continue;
@@ -951,6 +1000,7 @@ const rollupCostInSnapshot = async (
 
       // 加工 + 制费（头挂路由才有工序；无路线 = 加工项为空）
       for (const operation of routing.operations) {
+        assertDetailBudget(path, false);
         const operationCost = await operationCostOf(q, dialect, operation, pPrime, routing.routingOps, context);
         total = decimalAdd(total, operationCost.amount);
         const overhead = await overheadOf(
@@ -970,6 +1020,7 @@ const rollupCostInSnapshot = async (
       L: Decimal,
       path: readonly string[] = []
     ): Promise<LayerCostDetail> => {
+      assertDetailBudget(path, false);
       assertAcyclic(headerMeta, path);
       const byHeader = await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId]);
       const rows = byHeader.get(headerMeta.headerId) ?? [];
@@ -990,6 +1041,7 @@ const rollupCostInSnapshot = async (
       const groupedRows = groupSubstituteRows(effectiveRows, pPrime, context);
 
       for (const row of groupedRows) {
+        assertDetailBudget(path, false);
         const credit = row.flowDirection === 'by_product' ? await creditOf(q, dialect, row, pPrime, context) : null;
         if (credit !== null) {
           creditTotal = decimalAdd(creditTotal, credit.amount);
@@ -1104,6 +1156,7 @@ const rollupCostInSnapshot = async (
       }
 
       for (const operation of routing.operations) {
+        assertDetailBudget(path, false);
         const operationCost = await operationCostOf(q, dialect, operation, pPrime, routing.routingOps, context);
         processingTotal = decimalAdd(processingTotal, operationCost.amount);
         processing.push({
@@ -1139,6 +1192,8 @@ const rollupCostInSnapshot = async (
       L: Decimal,
       path: readonly string[] = []
     ): Promise<CostNodeDetail> => {
+      assertDetailBudget(path, true);
+      detailNodes += 1;
       const costLotQty = requireCostLotQty(headerMeta);
       const detail = await buildLayerDetail(headerMeta, L, path);
       const allocated = await allocate(headerMeta, L, detail.batchCost);

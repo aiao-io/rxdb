@@ -7,7 +7,7 @@ import {
   type BomViewCommands,
   type BomViewState
 } from '@aiao/rxdb-plugin-bom';
-import { useEffect, useId, useState, type ReactElement } from 'react';
+import { useEffect, useId, useRef, useState, type ReactElement } from 'react';
 
 const inputs = BOM_EDITOR_INPUTS;
 
@@ -32,6 +32,14 @@ export const BomLineEditor = ({
   const utcHintId = useId();
   const [fields, setFields] = useState(() => bomEditorFields(editor.value));
   const [formError, setFormError] = useState<unknown>(null);
+  const editorIdentity = useRef<{ occurrenceId: string | null; generation: number }>({ occurrenceId: null, generation: 0 });
+  const occurrenceId = editor.value?.occurrenceId ?? null;
+  if (editorIdentity.current.occurrenceId !== occurrenceId) {
+    editorIdentity.current = {
+      occurrenceId,
+      generation: editorIdentity.current.generation + 1
+    };
+  }
   useEffect(() => {
     setFields(bomEditorFields(editor.value));
     setFormError(null);
@@ -40,10 +48,16 @@ export const BomLineEditor = ({
   const save = async (): Promise<void> => {
     if (disabled) return;
     setFormError(null);
+    const saveIdentity = editorIdentity.current;
     try {
       await commands.saveOccurrence(parseBomEditorFields(fields));
     } catch (error) {
-      setFormError(error);
+      if (
+        editorIdentity.current.occurrenceId === saveIdentity.occurrenceId &&
+        editorIdentity.current.generation === saveIdentity.generation
+      ) {
+        setFormError(error);
+      }
     }
   };
   const error = formError ?? editor.error;

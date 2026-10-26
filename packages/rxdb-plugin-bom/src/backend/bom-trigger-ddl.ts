@@ -1314,6 +1314,30 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
   const batch = sqliteTableOf(BomHistoryBatch);
   const ecn = tableRef;
   const dateOf = (row: string): string => `date(${row}."effectiveDate")`;
+  const instantOf = (row: string): string => `julianday(${row}."effectiveDate")`;
+  const historical = (row: string): string =>
+    `EXISTS (SELECT 1 FROM ${batch} b WHERE b."batchNo" = ${row}."historyBatchNo" AND b."state" = 'open')`;
+
+  // 直接写入已发布 / 已取消 ECN 也必须经过同一发布合同；历史批次保留迁入通道。
+  const insert = [
+    ...sqliteTrigger(
+      tableRef,
+      'ecn_insert_trg',
+      'AFTER INSERT',
+      [
+        raiseWhen(
+          WRITE_PROTOCOL(metadata.tableName, '普通写入不可直接创建 cancelled ECN，历史事实必须挂开启态批次'),
+          `NEW."state" = 'cancelled' AND NOT ${historical('NEW')}`
+        ),
+        raiseWhen(
+          PUBLISH_VALIDATION(metadata.tableName, '追溯生效被拒绝（生效日早于发布当日，AC#8）'),
+          `NEW."state" = 'released' AND ${dateOf('NEW')} < date('now') AND NOT ${historical('NEW')}`
+        ),
+        ...sqliteEcnProjectionChecks(metadata, 'NEW."id"', 'NEW."effectiveDate"', 'NEW."historyBatchNo"')
+      ].join('\n'),
+      `NEW."state" IN ('released', 'cancelled')`
+    )
+  ];
 
   // 发布：禁止追溯生效（指向开启态历史批次的行跳过——历史装载通道）
   const publish = [
@@ -1336,7 +1360,7 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
   const successorViolation =
     `EXISTS (SELECT 1 FROM ${occurrence} o JOIN ${ecn} e ON e."id" = o."ecnOutId"` +
     ` WHERE o."ecnInId" = OLD."id" AND o."ecnOutId" IS NOT NULL AND o."ecnOutId" <> OLD."id"` +
-    ` AND ${dateOf('e')} < ${dateOf('NEW')})`;
+    ` AND ${instantOf('e')} < ${instantOf('NEW')})`;
   const reschedule = [
     ...sqliteTrigger(
       tableRef,
@@ -1348,6 +1372,10 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
           `${dateOf('OLD')} <= date('now')`
         ),
         raiseWhen(
+          WRITE_PROTOCOL(metadata.tableName, '改期生效日不得早于当前 UTC 日期'),
+          `${dateOf('NEW')} < date('now') AND NOT ${historical('OLD')}`
+        ),
+        raiseWhen(
           WRITE_PROTOCOL(metadata.tableName, '改期不得越过同一逻辑行后继 ECN 的生效日（AC#20）：后继'),
           successorViolation
         ),
@@ -1356,10 +1384,10 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
           `NEW."reason" IS NOT OLD."reason" OR NEW."historyBatchNo" IS NOT OLD."historyBatchNo"`
         ),
         // 级联：新日期更晚 → 引入行 from 先收窄（变大），截止行 to 后放宽；更早则相反
-        `UPDATE ${occurrence} SET "effectiveFrom" = NEW."effectiveDate" WHERE "ecnInId" = OLD."id" AND ${dateOf('NEW')} > ${dateOf('OLD')};`,
-        `UPDATE ${occurrence} SET "effectiveTo" = NEW."effectiveDate" WHERE "ecnOutId" = OLD."id" AND ${dateOf('NEW')} < ${dateOf('OLD')};`,
-        `UPDATE ${occurrence} SET "effectiveFrom" = NEW."effectiveDate" WHERE "ecnInId" = OLD."id" AND ${dateOf('NEW')} < ${dateOf('OLD')};`,
-        `UPDATE ${occurrence} SET "effectiveTo" = NEW."effectiveDate" WHERE "ecnOutId" = OLD."id" AND ${dateOf('NEW')} > ${dateOf('OLD')};`,
+        `UPDATE ${occurrence} SET "effectiveFrom" = NEW."effectiveDate" WHERE "ecnInId" = OLD."id" AND ${instantOf('NEW')} > ${instantOf('OLD')};`,
+        `UPDATE ${occurrence} SET "effectiveTo" = NEW."effectiveDate" WHERE "ecnOutId" = OLD."id" AND ${instantOf('NEW')} < ${instantOf('OLD')};`,
+        `UPDATE ${occurrence} SET "effectiveFrom" = NEW."effectiveDate" WHERE "ecnInId" = OLD."id" AND ${instantOf('NEW')} < ${instantOf('OLD')};`,
+        `UPDATE ${occurrence} SET "effectiveTo" = NEW."effectiveDate" WHERE "ecnOutId" = OLD."id" AND ${instantOf('NEW')} > ${instantOf('OLD')};`,
         ...sqliteEcnProjectionChecks(
           metadata,
           'OLD."id"',
@@ -1367,7 +1395,23 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
           'OLD."historyBatchNo"'
         )
       ].join('\n'),
-      `OLD."state" = 'released' AND NEW."state" = 'released' AND ${dateOf('OLD')} <> ${dateOf('NEW')}`
+      `OLD."state" = 'released' AND NEW."state" = 'released' AND ${instantOf('OLD')} <> ${instantOf('NEW')}`
+    )
+  ];
+
+  // 草稿改期也要同步修正已挂发生项的派生区间；发布日期约束只属于 released 改期。
+  const draftReschedule = [
+    ...sqliteTrigger(
+      tableRef,
+      'ecn_draft_reschedule_trg',
+      'AFTER UPDATE',
+      [
+        `UPDATE ${occurrence} SET "effectiveFrom" = NEW."effectiveDate" WHERE "ecnInId" = OLD."id" AND ${instantOf('NEW')} > ${instantOf('OLD')};`,
+        `UPDATE ${occurrence} SET "effectiveTo" = NEW."effectiveDate" WHERE "ecnOutId" = OLD."id" AND ${instantOf('NEW')} < ${instantOf('OLD')};`,
+        `UPDATE ${occurrence} SET "effectiveFrom" = NEW."effectiveDate" WHERE "ecnInId" = OLD."id" AND ${instantOf('NEW')} < ${instantOf('OLD')};`,
+        `UPDATE ${occurrence} SET "effectiveTo" = NEW."effectiveDate" WHERE "ecnOutId" = OLD."id" AND ${instantOf('NEW')} > ${instantOf('OLD')};`
+      ].join('\n'),
+      `OLD."state" = 'draft' AND NEW."state" = 'draft' AND ${instantOf('OLD')} <> ${instantOf('NEW')}`
     )
   ];
 
@@ -1441,7 +1485,7 @@ const sqliteEcnStateMachineTriggers = (metadata: EntityMetadata): string[] => {
     )
   ];
 
-  return [...publish, ...reschedule, ...cancel, ...guard];
+  return [...insert, ...publish, ...reschedule, ...draftReschedule, ...cancel, ...guard];
 };
 
 /**
@@ -1877,6 +1921,31 @@ const pgReleasedHeaderFunction = (metadata: EntityMetadata): string[] => {
   ];
 };
 
+/** 直接写入已发布 / 已取消 ECN 的发布合同（历史批次保留迁入通道）。 */
+const pgEcnInsertFunction = (metadata: EntityMetadata): string[] => {
+  if (!isEntity(metadata, BomEcn)) return [];
+  const tableRef = pgTableRef(metadata);
+  const batch = pgTableOf(BomHistoryBatch);
+  const utcDateOf = (row: string): string => `(${row}."effectiveDate" AT TIME ZONE 'UTC')::date`;
+  const historical =
+    `EXISTS (SELECT 1 FROM ${batch} b WHERE b."batchNo" = NEW."historyBatchNo" AND b."state" = 'open')`;
+  const body = [
+    `  IF NEW."state" = 'cancelled' AND NOT ${historical} THEN`,
+    `    RAISE EXCEPTION '${WRITE_PROTOCOL(metadata.tableName, '普通写入不可直接创建 cancelled ECN，历史事实必须挂开启态批次')}';`,
+    `  END IF;`,
+    `  IF NEW."state" = 'released' THEN`,
+    `    IF ${utcDateOf('NEW')} < (now() AT TIME ZONE 'UTC')::date AND NOT ${historical} THEN`,
+    `      RAISE EXCEPTION '${PUBLISH_VALIDATION(metadata.tableName, '追溯生效被拒绝（生效日早于发布当日，AC#8）')}';`,
+    `    END IF;`,
+    ...pgEcnProjectionChecks(metadata, 'NEW', 'NEW."effectiveDate"', 'NEW."historyBatchNo"'),
+    `  END IF;`
+  ].join('\n');
+  return [
+    pgTriggerFunction(metadata, 'ecn__insert_guard', body),
+    pgCreateTrigger(metadata, tableRef, 'ecn__insert_trg', 'AFTER INSERT', 'ecn__insert_guard')
+  ];
+};
+
 /**
  * ECN 状态机（US-515 存储层，PG 侧，与 SQLite 同口径）：发布 / 改期 / 取消三种转换，
  * 级联在触发器函数里执行（级联 DML 照常触发成员表守卫，PGlite 0.5.10 探针实证；
@@ -1892,12 +1961,29 @@ const pgEcnStateMachineFunction = (metadata: EntityMetadata): string[] => {
   const group = pgTableOf(BomSubstituteGroup);
   const batch = pgTableOf(BomHistoryBatch);
   const ecn = tableRef;
+  const utcDateOf = (row: string): string => `(${row}."effectiveDate" AT TIME ZONE 'UTC')::date`;
   const body = [
     `  IF NEW."ecnNo" IS DISTINCT FROM OLD."ecnNo" THEN`,
     `    RAISE EXCEPTION '${WRITE_PROTOCOL('ecn', 'ecnNo 创建后不可改（结构归属列）')}';`,
     `  END IF;`,
+    `  IF OLD."state" = 'draft' AND NEW."state" = 'draft' AND OLD."effectiveDate" <> NEW."effectiveDate" THEN`,
+    // 草稿改期也要同步修正已挂发生项的派生区间。
+    `    IF NEW."effectiveDate" > OLD."effectiveDate" THEN`,
+    `      UPDATE ${occurrence} SET "effectiveFrom" = NEW."effectiveDate" WHERE "ecnInId" = OLD."id";`,
+    `    END IF;`,
+    `    IF NEW."effectiveDate" < OLD."effectiveDate" THEN`,
+    `      UPDATE ${occurrence} SET "effectiveTo" = NEW."effectiveDate" WHERE "ecnOutId" = OLD."id";`,
+    `    END IF;`,
+    `    IF NEW."effectiveDate" < OLD."effectiveDate" THEN`,
+    `      UPDATE ${occurrence} SET "effectiveFrom" = NEW."effectiveDate" WHERE "ecnInId" = OLD."id";`,
+    `    END IF;`,
+    `    IF NEW."effectiveDate" > OLD."effectiveDate" THEN`,
+    `      UPDATE ${occurrence} SET "effectiveTo" = NEW."effectiveDate" WHERE "ecnOutId" = OLD."id";`,
+    `    END IF;`,
+    `    RETURN NEW;`,
+    `  END IF;`,
     `  IF OLD."state" = 'draft' AND NEW."state" = 'released' THEN`,
-    `    IF NEW."effectiveDate"::date < (now() AT TIME ZONE 'UTC')::date AND NOT EXISTS (` +
+    `    IF ${utcDateOf('NEW')} < (now() AT TIME ZONE 'UTC')::date AND NOT EXISTS (` +
       `SELECT 1 FROM ${batch} b WHERE b."batchNo" = NEW."historyBatchNo" AND b."state" = 'open') THEN`,
     `      RAISE EXCEPTION '${PUBLISH_VALIDATION('ecn', '追溯生效被拒绝（生效日早于发布当日，AC#8）')}';`,
     `    END IF;`,
@@ -1905,8 +1991,13 @@ const pgEcnStateMachineFunction = (metadata: EntityMetadata): string[] => {
     `    RETURN NEW;`,
     `  END IF;`,
     `  IF OLD."state" = 'released' AND NEW."state" = 'released' AND OLD."effectiveDate" <> NEW."effectiveDate" THEN`,
-    `    IF OLD."effectiveDate"::date <= (now() AT TIME ZONE 'UTC')::date THEN`,
+    `    IF ${utcDateOf('OLD')} <= (now() AT TIME ZONE 'UTC')::date THEN`,
     `      RAISE EXCEPTION '${WRITE_PROTOCOL('ecn', '已生效的 ECN 不可改期，改走更正 ECN（AC#7）')}';`,
+    `    END IF;`,
+    `    IF ${utcDateOf('NEW')} < (now() AT TIME ZONE 'UTC')::date AND NOT EXISTS (`,
+    `      SELECT 1 FROM ${batch} b WHERE b."batchNo" = OLD."historyBatchNo" AND b."state" = 'open'`,
+    `    ) THEN`,
+    `      RAISE EXCEPTION '${WRITE_PROTOCOL('ecn', '改期生效日不得早于当前 UTC 日期')}';`,
     `    END IF;`,
     `    IF NEW."reason" IS DISTINCT FROM OLD."reason" OR NEW."historyBatchNo" IS DISTINCT FROM OLD."historyBatchNo" THEN`,
     `      RAISE EXCEPTION '${WRITE_PROTOCOL('ecn', '已发布 ECN 改期不得顺带改写其他列')}';`,
@@ -1915,7 +2006,7 @@ const pgEcnStateMachineFunction = (metadata: EntityMetadata): string[] => {
     `    BEGIN`,
     `      SELECT e."ecnNo" INTO successor FROM ${occurrence} o JOIN ${ecn} e ON e."id" = o."ecnOutId"` +
       ` WHERE o."ecnInId" = OLD."id" AND o."ecnOutId" IS NOT NULL AND o."ecnOutId" <> OLD."id"` +
-      ` AND e."effectiveDate"::date < NEW."effectiveDate"::date LIMIT 1;`,
+      ` AND e."effectiveDate" < NEW."effectiveDate" LIMIT 1;`,
     `      IF successor IS NOT NULL THEN`,
     `        RAISE EXCEPTION '${WRITE_PROTOCOL('ecn', '改期不得越过同一逻辑行后继 ECN 的生效日（AC#20）：后继 %')}', successor;`,
     `      END IF;`,
@@ -1942,7 +2033,7 @@ const pgEcnStateMachineFunction = (metadata: EntityMetadata): string[] => {
     `    RETURN NEW;`,
     `  END IF;`,
     `  IF (OLD."state" = 'released' OR OLD."state" = 'draft') AND NEW."state" = 'cancelled' THEN`,
-    `    IF OLD."state" = 'released' AND OLD."effectiveDate"::date <= (now() AT TIME ZONE 'UTC')::date THEN`,
+    `    IF OLD."state" = 'released' AND ${utcDateOf('OLD')} <= (now() AT TIME ZONE 'UTC')::date THEN`,
     `      RAISE EXCEPTION '${WRITE_PROTOCOL('ecn', '已生效的 ECN 不可取消，改走更正 ECN（AC#7）')}';`,
     `    END IF;`,
     `    DECLARE blocked text;`,
@@ -2641,6 +2732,7 @@ export const buildPgBomTriggerDdl = (
   ...pgPublishedRevisionFunction(metadata),
   ...pgPublishTransitionFunction(metadata),
   ...pgHistoryBatchFunction(metadata, options.historyProjection),
+  ...pgEcnInsertFunction(metadata),
   ...pgEcnStateMachineFunction(metadata),
   ...pgEcnOccurrenceFunction(metadata),
   ...pgReleasedHeaderMembersFunction(metadata),

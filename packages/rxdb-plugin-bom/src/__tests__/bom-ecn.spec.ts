@@ -459,6 +459,27 @@ describe('US-515 ECN 变更管理', () => {
         await expect(releaseEcn(ecn)).rejects.toThrow(/追溯|生效/);
       });
 
+      it('ECN 直接 INSERT 也执行发布状态机：普通 released 追溯与 cancelled 直写均拒绝', async () => {
+        const retroactive = new BomEcn();
+        retroactive.ecnNo = `insert-retro-${Math.random().toString(36).slice(2, 8)}`;
+        retroactive.state = 'released';
+        retroactive.effectiveDate = day('2020-01-01');
+        await expect(retroactive.save()).rejects.toThrow(/追溯|生效/);
+
+        const cancelled = new BomEcn();
+        cancelled.ecnNo = `insert-cancel-${Math.random().toString(36).slice(2, 8)}`;
+        cancelled.state = 'cancelled';
+        cancelled.effectiveDate = day('2099-01-01');
+        await expect(cancelled.save()).rejects.toThrow(/cancelled|历史事实|开启态/);
+
+        const future = new BomEcn();
+        future.ecnNo = `insert-release-${Math.random().toString(36).slice(2, 8)}`;
+        future.state = 'released';
+        future.effectiveDate = day('2099-01-01');
+        await future.save();
+        expect(future.state).toBe('released');
+      });
+
       it('AC#3 released 未生效的 ECN 改期：关联发生项区间级联更新', async () => {
         const { o1, o2, ecn } = await makeReplacement('e3', '2026-11-01');
         await releaseEcn(ecn);
@@ -478,6 +499,63 @@ describe('US-515 ECN 变更管理', () => {
         };
         expect((await read(o1.id)).to).toBe('2026-11-15T00:00:00.000Z');
         expect((await read(o2.id)).from).toBe('2026-11-15T00:00:00.000Z');
+      });
+
+      it('released ECN 改期不得写入过去，失败时区间保持原值', async () => {
+        const { o1, o2, ecn } = await makeReplacement('ecn-past', '2099-01-01');
+        await releaseEcn(ecn);
+        ecn.effectiveDate = day('2020-01-01');
+        await expect(ecn.save()).rejects.toThrow(/改期生效日|当前 UTC 日期|追溯/);
+        expect(ecn.state).toBe('released');
+        const table = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
+        const rows = (await adapter.rawQuery(
+          `SELECT "effectiveFrom", "effectiveTo" FROM ${table} WHERE "id" IN ('${o1.id}', '${o2.id}') ORDER BY "id"`
+        )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
+        const shape = 'results' in rows ? rows.results[0].rows : rows.rows;
+        expect(shape.some(row => new Date(String(row[0])).toISOString().includes('2099-01-01'))).toBe(true);
+        expect(shape.some(row => new Date(String(row[1])).toISOString().includes('2099-01-01'))).toBe(true);
+      });
+
+      it('PGlite 与 SQLite 草稿改期都不允许顺带修改 ecnNo', async () => {
+        const ecn = await makeEcn('draft-ecn-no', day('2099-01-01'));
+        ecn.effectiveDate = day('2099-02-01');
+        ecn.ecnNo = 'mutated-after-create';
+        await expect(ecn.save()).rejects.toThrow(/ecnNo|结构归属列/);
+      });
+
+      it('draft ECN 改期同步级联已有发生项区间', async () => {
+        const { o1, o2, ecn } = await makeReplacement('ecn-draft-date', '2099-01-01');
+        ecn.effectiveDate = new Date('2099-02-01T00:00:00.000Z');
+        await ecn.save();
+        const table = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
+        const rows = (await adapter.rawQuery(
+          `SELECT "id", "effectiveFrom", "effectiveTo" FROM ${table} WHERE "id" IN ('${o1.id}', '${o2.id}')`
+        )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
+        const shape = 'results' in rows ? rows.results[0].rows : rows.rows;
+        const byId = new Map(shape.map(row => [String(row[0]), row]));
+        expect(new Date(String(byId.get(o1.id)?.[2])).toISOString()).toBe('2099-02-01T00:00:00.000Z');
+        expect(new Date(String(byId.get(o2.id)?.[1])).toISOString()).toBe('2099-02-01T00:00:00.000Z');
+      });
+
+      it('SQLite 与 PGlite 按完整时间戳处理同一天改期', async () => {
+        const { o1, o2, ecn } = await makeReplacement('ecn-same-day', '2099-01-01');
+        await releaseEcn(ecn);
+        ecn.effectiveDate = new Date('2099-01-01T10:00:00.000Z');
+        await ecn.save();
+        const table = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
+        const rows = (await adapter.rawQuery(
+          `SELECT "effectiveFrom", "effectiveTo" FROM ${table} WHERE "id" IN ('${o1.id}', '${o2.id}')`
+        )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
+        const shape = 'results' in rows ? rows.results[0].rows : rows.rows;
+        const timestamps = shape.map(row => [row[0], row[1]]);
+        expect(timestamps).toContainEqual([expect.anything(), expect.anything()]);
+        expect(
+          timestamps.some(
+            ([from, to]) =>
+              new Date(String(from)).toISOString().includes('T10:00:00.000Z') ||
+              new Date(String(to)).toISOString().includes('T10:00:00.000Z')
+          )
+        ).toBe(true);
       });
 
       it('AC#20 改期不得越过同一逻辑行后继 ECN：① 拒并点名 B ② 接受且先收窄后放宽', async () => {

@@ -448,6 +448,27 @@ describe('Angular BOM 行编辑器真实挂载', () => {
     expect(commands.saveOccurrence).toHaveBeenCalledTimes(1);
   });
 
+  it('切换发生项后忽略迟到的保存错误', async () => {
+    const commands = viewCommands();
+    let rejectSave!: (reason: unknown) => void;
+    commands.saveOccurrence.mockImplementationOnce(
+      () => new Promise<void>((_, reject) => {
+        rejectSave = reject;
+      })
+    );
+    const mounted = await mountEditor(editorState(), commands);
+    submit(element(mounted));
+    const next = editorState();
+    mounted.componentRef.setInput('state', {
+      ...next,
+      editor: { ...next.editor, value: { ...next.editor.value!, occurrenceId: 'another', qty: '7' } }
+    });
+    mounted.detectChanges();
+    rejectSave(new Error('A 保存失败'));
+    await mounted.whenStable();
+    expect(element(mounted).querySelector('[role=alert]')).toBeNull();
+  });
+
   it('未选择与加载状态明确，不伪造发生项或可保存表单', async () => {
     const mounted = await mountEditor(viewState(), viewCommands());
     expect(element(mounted).querySelector('button[type=submit]')).toBeNull();

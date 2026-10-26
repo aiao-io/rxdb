@@ -25,6 +25,8 @@ const props = defineProps<{
 const utcHintId = useId();
 const fields = reactive(bomEditorFields(null));
 const localError = shallowRef<unknown>(null);
+let currentOccurrenceId: string | null = null;
+let editorGeneration = 0;
 const disabled = computed(() => !props.state.editor.value?.editable || props.state.editor.saving);
 const inputs = BOM_EDITOR_INPUTS;
 
@@ -35,6 +37,11 @@ const setField = (field: keyof BomEditorFields, event: Event): void => {
 watch(
   () => props.state.editor.value,
   value => {
+    const occurrenceId = value?.occurrenceId ?? null;
+    if (occurrenceId !== currentOccurrenceId) {
+      currentOccurrenceId = occurrenceId;
+      editorGeneration += 1;
+    }
     Object.assign(fields, bomEditorFields(value));
     localError.value = null;
   },
@@ -43,11 +50,20 @@ watch(
 
 const save = async (): Promise<void> => {
   if (disabled.value) return;
+  const occurrenceId = props.state.editor.value?.occurrenceId ?? null;
+  if (occurrenceId !== currentOccurrenceId) {
+    currentOccurrenceId = occurrenceId;
+    editorGeneration += 1;
+  }
+  const saveOccurrenceId = currentOccurrenceId;
+  const saveGeneration = editorGeneration;
   localError.value = null;
   try {
     await props.commands.saveOccurrence(parseBomEditorFields(fields));
   } catch (error) {
-    localError.value = error;
+    if (currentOccurrenceId === saveOccurrenceId && editorGeneration === saveGeneration) {
+      localError.value = error;
+    }
   }
 };
 </script>

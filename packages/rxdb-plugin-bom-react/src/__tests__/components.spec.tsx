@@ -435,6 +435,35 @@ describe('React BOM 行编辑器真实挂载', () => {
     expect(commands.saveOccurrence).toHaveBeenCalledTimes(1);
   });
 
+  it('切换发生项后忽略迟到的保存错误', async () => {
+    const commands = viewCommands();
+    let rejectSave!: (reason: unknown) => void;
+    commands.saveOccurrence.mockImplementationOnce(
+      () => new Promise<void>((_, reject) => {
+        rejectSave = reject;
+      })
+    );
+    const mounted = render(<BomLineEditor state={editorState()} commands={commands} />);
+    act(() => {
+      fireEvent.submit(mounted.container.querySelector('form')!);
+    });
+    const next = editorState();
+    mounted.rerender(
+      <BomLineEditor
+        state={{
+          ...next,
+          editor: { ...next.editor, value: { ...next.editor.value!, occurrenceId: 'another', qty: '7' } }
+        }}
+        commands={commands}
+      />
+    );
+    await act(async () => {
+      rejectSave(new Error('A 保存失败'));
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('未选择和加载发生项时都有状态，不伪造可编辑值', () => {
     const commands = viewCommands();
     const mounted = render(<BomLineEditor state={viewState()} commands={commands} />);
