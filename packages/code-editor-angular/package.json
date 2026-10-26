@@ -38,7 +38,7 @@
   "devDependencies": {
     "@aiao/code-editor": "workspace:*",
     "@angular/compiler": "22.2.3",
-    "vitest": "4.1.11"
+    "vitest": "5.0.5"
   },
   "publishConfig": {
     "access": "public"
