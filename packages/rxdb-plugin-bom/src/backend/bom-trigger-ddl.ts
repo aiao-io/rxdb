@@ -1927,8 +1927,7 @@ const pgEcnInsertFunction = (metadata: EntityMetadata): string[] => {
   const tableRef = pgTableRef(metadata);
   const batch = pgTableOf(BomHistoryBatch);
   const utcDateOf = (row: string): string => `(${row}."effectiveDate" AT TIME ZONE 'UTC')::date`;
-  const historical =
-    `EXISTS (SELECT 1 FROM ${batch} b WHERE b."batchNo" = NEW."historyBatchNo" AND b."state" = 'open')`;
+  const historical = `EXISTS (SELECT 1 FROM ${batch} b WHERE b."batchNo" = NEW."historyBatchNo" AND b."state" = 'open')`;
   const body = [
     `  IF NEW."state" = 'cancelled' AND NOT ${historical} THEN`,
     `    RAISE EXCEPTION '${WRITE_PROTOCOL(metadata.tableName, '普通写入不可直接创建 cancelled ECN，历史事实必须挂开启态批次')}';`,

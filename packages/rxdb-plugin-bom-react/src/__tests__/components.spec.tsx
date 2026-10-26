@@ -439,9 +439,10 @@ describe('React BOM 行编辑器真实挂载', () => {
     const commands = viewCommands();
     let rejectSave!: (reason: unknown) => void;
     commands.saveOccurrence.mockImplementationOnce(
-      () => new Promise<void>((_, reject) => {
-        rejectSave = reject;
-      })
+      () =>
+        new Promise<void>((_, reject) => {
+          rejectSave = reject;
+        })
     );
     const mounted = render(<BomLineEditor state={editorState()} commands={commands} />);
     act(() => {

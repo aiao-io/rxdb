@@ -1,4 +1,11 @@
-import { EntityMetadata, EntityType, getEntityMetadata, getEntityStorageMetadata, MAIN_BRANCH_ID, type WorktreeTableSet } from '@aiao/rxdb';
+import {
+  EntityMetadata,
+  EntityType,
+  getEntityMetadata,
+  getEntityStorageMetadata,
+  MAIN_BRANCH_ID,
+  type WorktreeTableSet
+} from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import inserts_sql from '../entity/inserts_sql.js';
 import { getSchemaName } from '../table-name-resolver.js';

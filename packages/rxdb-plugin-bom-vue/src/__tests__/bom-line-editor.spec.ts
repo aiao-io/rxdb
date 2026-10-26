@@ -97,9 +97,10 @@ describe('Vue BomLineEditor', () => {
     const actions = viewCommands();
     let rejectSave!: (reason: unknown) => void;
     actions.saveOccurrence.mockImplementationOnce(
-      () => new Promise<void>((_, reject) => {
-        rejectSave = reject;
-      })
+      () =>
+        new Promise<void>((_, reject) => {
+          rejectSave = reject;
+        })
     );
     const wrapper = mount(BomLineEditor, { props: { state: editorState(), commands: actions } });
     wrapper.element.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));

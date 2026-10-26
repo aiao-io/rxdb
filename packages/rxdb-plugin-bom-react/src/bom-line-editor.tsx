@@ -32,7 +32,10 @@ export const BomLineEditor = ({
   const utcHintId = useId();
   const [fields, setFields] = useState(() => bomEditorFields(editor.value));
   const [formError, setFormError] = useState<unknown>(null);
-  const editorIdentity = useRef<{ occurrenceId: string | null; generation: number }>({ occurrenceId: null, generation: 0 });
+  const editorIdentity = useRef<{ occurrenceId: string | null; generation: number }>({
+    occurrenceId: null,
+    generation: 0
+  });
   const occurrenceId = editor.value?.occurrenceId ?? null;
   if (editorIdentity.current.occurrenceId !== occurrenceId) {
     editorIdentity.current = {

@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BomItem } from '../entities.js';
 import { BomCostError } from '../quantity/cost-error.js';
-import { BomTruncationError } from '../types.js';
 import { rollupCost } from '../quantity/cost.js';
 import { explodeBom } from '../quantity/explosion.js';
 import { loadHistory, type HistoryOccurrenceInput } from '../resolve/history-loader.js';
+import { BomTruncationError } from '../types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter } from './test-utils.js';
 
 const effectiveFrom = new Date('2026-01-01T00:00:00Z');
@@ -114,7 +114,9 @@ describe.each(['wa-sqlite', 'pglite'] as const)('比例缩放精度回归 [%s]',
   it('共享 DAG 的成本明细受节点预算保护，不返回指数级部分树', async () => {
     const levels = 7;
     const items = await Promise.all(
-      Array.from({ length: levels + 1 }, (_, index) => makeItem(adapter, { itemNo: `dag-${index}-${crypto.randomUUID()}` }))
+      Array.from({ length: levels + 1 }, (_, index) =>
+        makeItem(adapter, { itemNo: `dag-${index}-${crypto.randomUUID()}` })
+      )
     );
     items[levels].unitPrice = '2';
     items[levels].priceCurrency = 'CNY';
