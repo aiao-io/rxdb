@@ -21,7 +21,12 @@
         }
       </select>
       @if (b.currentBoard(); as current) {
-        <button class="header-button" (click)="renameBoard()" [attr.aria-label]="'改板标题：' + current.title" data-testid="rename-board">
+        <button
+          class="header-button"
+          [attr.aria-label]="'改板标题：' + current.title"
+          (click)="renameBoard()"
+          data-testid="rename-board"
+        >
           {{ current.title }}
         </button>
       }
@@ -105,15 +110,19 @@
             [style.color]="labelTextColor(label.color)"
             data-testid="label-chip"
           >
-            <button class="label-name" (click)="renameLabel(label.id)" [attr.aria-label]="'改名 ' + label.name">{{ label.name }}</button>
+            <button class="label-name" [attr.aria-label]="'改名 ' + label.name" (click)="renameLabel(label.id)">
+              {{ label.name }}
+            </button>
             <button
               class="label-recolor"
               [attr.aria-label]="'改标签颜色 ' + label.name"
               (click)="recolorLabel(label.id)"
               data-testid="label-recolor"
-            ><span aria-hidden="true">◉</span>
+            >
+              <span aria-hidden="true">◉</span>
             </button>
-            <button class="label-delete" [attr.aria-label]="'删除标签 ' + label.name" (click)="deleteLabel(label.id)"><span aria-hidden="true">×</span>
+            <button class="label-delete" [attr.aria-label]="'删除标签 ' + label.name" (click)="deleteLabel(label.id)">
+              <span aria-hidden="true">×</span>
             </button>
           </span>
         }
@@ -123,7 +132,9 @@
     @if (notice(); as message) {
       <p class="board-notice" data-testid="board-notice" role="alert">
         {{ message }}
-        <button (click)="notice.set(null)" aria-label="关闭提示" data-testid="board-notice-close"><span aria-hidden="true">×</span></button>
+        <button (click)="notice.set(null)" aria-label="关闭提示" data-testid="board-notice-close">
+          <span aria-hidden="true">×</span>
+        </button>
       </p>
     }
 
