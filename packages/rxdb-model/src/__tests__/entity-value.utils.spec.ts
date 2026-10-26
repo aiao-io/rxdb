@@ -208,6 +208,24 @@ describe('parseEntityFieldValueStrict', () => {
     expect(parseEntityFieldValueStrict('integer', '+42')).toEqual({ ok: true, value: 42 });
   });
 
+  it('整数拒绝超出安全范围的输入，不静默舍入', () => {
+    // 2^53 以上 parseInt 与 Number 舍入到同一个双精度值：'…993' 原样放行会存成 …992
+    expect(parseEntityFieldValueStrict('integer', '9007199254740993')).toEqual({
+      ok: false,
+      message: '超出安全整数范围'
+    });
+    expect(parseEntityFieldValueStrict('integer', '-9007199254740993').ok).toBe(false);
+    expect(parseEntityFieldValueStrict('integer', 2 ** 53).ok).toBe(false);
+    expect(parseEntityFieldValueStrict('integer', String(Number.MAX_SAFE_INTEGER))).toEqual({
+      ok: true,
+      value: Number.MAX_SAFE_INTEGER
+    });
+    expect(parseEntityFieldValueStrict('integer', Number.MIN_SAFE_INTEGER)).toEqual({
+      ok: true,
+      value: Number.MIN_SAFE_INTEGER
+    });
+  });
+
   it('拒绝非法 bigint 与 binary', () => {
     expect(parseEntityFieldValueStrict('bigint', '3.5').ok).toBe(false);
     expect(parseEntityFieldValueStrict('bigint', '42')).toEqual({ ok: true, value: 42n });
