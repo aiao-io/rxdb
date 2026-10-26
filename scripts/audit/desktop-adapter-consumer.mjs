@@ -37,8 +37,12 @@ const execFileAsync = promisify(execFile);
 const workspaceRoot = process.cwd();
 const workspacePackageJson = JSON.parse(await readFile(path.join(workspaceRoot, 'package.json'), 'utf8'));
 
+// pnpm 12 安装时不再读 .npmrc 里的 node-linker（实测按 isolated 装），所以和 overrides 一起写进 pnpm-workspace.yaml。
 const writePnpmWorkspace = (root, overrides) =>
-  writeFile(path.join(root, 'pnpm-workspace.yaml'), `${JSON.stringify({ packages: [], overrides }, null, 2)}\n`);
+  writeFile(
+    path.join(root, 'pnpm-workspace.yaml'),
+    `${JSON.stringify({ packages: [], nodeLinker: 'hoisted', overrides }, null, 2)}\n`
+  );
 
 /**
  * 两个桌面运行时包共享的依赖闭包。顺序即 `pnpm pack` 顺序，与依赖方向一致。
@@ -390,7 +394,6 @@ const auditTarget = async (target, tarballs, sharedTarballs) => {
     };
     await writeFile(path.join(root, 'package.json'), JSON.stringify(packageJson, null, 2));
     await writePnpmWorkspace(root, dependencies);
-    await writeFile(path.join(root, '.npmrc'), 'node-linker=hoisted\n');
     await run('pnpm', ['install', '--prefer-offline', '--ignore-scripts', '--no-frozen-lockfile'], root);
     const files = await writeConsumer(root, target);
     await writeTsconfig(root, files);
