@@ -215,11 +215,7 @@ demo 的变更通知开关就是留给这类实验的。
 
 前端实例是**一人一库**（每个浏览器 profile 一个实例，`context` 就是该用户）；后端实例是**全租户共享**——
 身份随请求来，不能进实例级 `context`（其契约是「`userId` 用来填 `createdBy` / `updatedBy` 审计字段，`clientId` 用来在同步时认出本端发出的变更」，
-<<<<<<< HEAD
-[`RxDBOptions.context`](../../../packages/rxdb/src/rxdb.interface.ts)）。据此画线：
-=======
 [rxdb.interface.ts:164](../../../packages/rxdb/src/rxdb.interface.ts#L164)）。据此画线：
->>>>>>> origin/main
 
 **实例级**（后端合法持有）：schema、存储、事件流、`clientId`。后端 `context` 填服务器身份（不是任何用户），
 引擎拿它盖审计字段。回声抑制用的 `x-client-id` 从**请求头**读，与实例 `clientId` 无关——这条与现行后端一致。
@@ -246,7 +242,7 @@ demo 的变更通知开关就是留给这类实验的。
 
 **浏览器专属机制一律不生效**：跨 tab 协调（`RxDBTabsGateway`，BroadcastChannel + Web Locks）用
 `multiInstance: false` 显式关闭——该开关的既有先例就是「单 realm 且没有这些 Web API」的微信小程序逻辑层
-（[`RxDBOptions.multiInstance`](../../../packages/rxdb/src/rxdb.interface.ts)），Node 后端是同一情形；
+（[rxdb.interface.ts:109](../../../packages/rxdb/src/rxdb.interface.ts#L109)），Node 后端是同一情形；
 可达性检测有 `typeof` 守卫（`resolveGlobalNavigatorOnLine` 取不到 `navigator.onLine` 就返回 `undefined`，
 [reachability.ts:72-76](../../../packages/rxdb/src/network/reachability.ts#L72-L76)），Node 下自动失效不抛错；
 离线降级、QueryCache 出站队列、SSE 通道、DevTools 连接器则因后端 `SyncType.None + local` 根本不构造。
