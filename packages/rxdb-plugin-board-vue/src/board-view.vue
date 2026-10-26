@@ -675,6 +675,8 @@ const exportBackup = (): void => {
   else notice.value = '备份导出由宿主接线（US-537）';
 };
 
+const boardLabelCount = (plan: DeletePlan): number => (plan.kind === 'board' ? plan.boardLabelIds.length : 0);
+
 type ConfirmState = { readonly plan: DeletePlan } & (
   | { readonly kind: 'task'; readonly taskId: UUID; readonly title: string }
   | { readonly kind: 'column'; readonly columnId: UUID; readonly title: string; readonly count: number }
@@ -737,7 +739,7 @@ onBeforeUnmount(() => {
         v-if="board.currentBoard.value"
         class="header-button"
         data-testid="rename-board"
-        aria-label="改板标题"
+        :aria-label="`改板标题：${board.currentBoard.value.title}`"
         @click="onRenameBoard"
       >
         {{ board.currentBoard.value.title }}
@@ -847,7 +849,7 @@ onBeforeUnmount(() => {
       {{ notice }}
       <button
         data-testid="board-notice-close"
-        aria-label="关闭提示"
+        aria-label="× 关闭提示"
         @click="notice = null"
       >
         ×
@@ -869,20 +871,20 @@ onBeforeUnmount(() => {
         >
           <button
             class="label-name"
-            aria-label="改名"
+            :aria-label="`改名 ${label.name}`"
             @click="renameLabel(label.id)"
             >{{ label.name }}</button
           >
           <button
             class="label-recolor"
-            :aria-label="`改标签颜色 ${label.name}`"
+            :aria-label="`◉ 改标签颜色 ${label.name}`"
             data-testid="label-recolor"
             @click="recolorLabel(label.id)"
             >◉</button
           >
           <button
             class="label-delete"
-            :aria-label="`删除标签 ${label.name}`"
+            :aria-label="`× 删除标签 ${label.name}`"
             @click="deleteLabel(label.id)"
             >×</button
           >
@@ -952,7 +954,6 @@ onBeforeUnmount(() => {
               v-if="searchHasMore"
               class="search-more"
               data-testid="board-search-more"
-              :disabled="searchState === 'loading'"
               @click="onSearchMore"
             >
               加载更多
@@ -1318,7 +1319,7 @@ onBeforeUnmount(() => {
         </p>
         <p v-else>
           删除看板「{{ confirm.title }}」（{{ confirm.columns }} 列、{{ confirm.count }} 任务、{{
-            confirm.plan.boardLabelIds.length
+            boardLabelCount(confirm.plan)
           }}
           个标签定义、{{ confirm.plan.taskLabelIds.length }} 条任务标签关联）？
         </p>
