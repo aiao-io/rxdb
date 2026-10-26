@@ -247,18 +247,15 @@ describe('single image dispatch', () => {
       message: expect.not.stringContaining('private')
     });
   });
-  it.each([400, 401, 403, 404, 413, 422, 429])(
-    '保留同源慢代理 HTTP %i 的明确拒绝语义',
-    async status => {
-      vi.mocked(fetch).mockResolvedValue(
-        new Response(JSON.stringify({ error: 'private', status }), {
-          headers: { 'x-aiao-relay-stream': 'late-upstream' }
-        })
-      );
-      await expect(generate({ ...provider, mode: 'proxy' })).rejects.toMatchObject({ rejected: true });
-      expect(fetch).toHaveBeenCalledTimes(1);
-    }
-  );
+  it.each([400, 401, 403, 404, 413, 422, 429])('保留同源慢代理 HTTP %i 的明确拒绝语义', async status => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: 'private', status }), {
+        headers: { 'x-aiao-relay-stream': 'late-upstream' }
+      })
+    );
+    await expect(generate({ ...provider, mode: 'proxy' })).rejects.toMatchObject({ rejected: true });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   it.each([500, 502, 503])('慢代理 HTTP %i 仍然保留结果待核查', async status => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify({ error: 'private', status }), {

@@ -163,7 +163,6 @@ test('运行策略实际限制代理启停、模型和画幅，并返回生效�
   }
 });
 
-
 test('用量汇总保留已知小计和每个指标的未知条数', async () => {
   const { reports } = await import('../deploy/product-reports.mjs');
   const rows = [
@@ -172,7 +171,11 @@ test('用量汇总保留已知小计和每个指标的未知条数', async () =>
   ];
   const result = await reports({ call: async () => rows }, new URL('https://app.example.test/api/admin/usage'), true);
   assert.deepEqual(result.sources.application, {
-    records: 2, requestCount: 1, providerUnits: null, verifiedCost: null, currencies: {},
+    records: 2,
+    requestCount: 1,
+    providerUnits: null,
+    verifiedCost: null,
+    currencies: {},
     unknown: { requestCount: 1, providerUnits: 2, verifiedCost: 2 }
   });
   assert.equal(result.partial, false);

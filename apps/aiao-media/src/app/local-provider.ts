@@ -154,7 +154,8 @@ export async function generateLocalImage(
     const code = data['status'];
     const status = typeof code === 'number' && Number.isInteger(code) && code >= 400 && code <= 599 ? code : 502;
     const definiteRelayRejection =
-      provider.mode === 'proxy' && response.headers.get('x-aiao-relay-stream') === 'late-upstream' &&
+      provider.mode === 'proxy' &&
+      response.headers.get('x-aiao-relay-stream') === 'late-upstream' &&
       [400, 401, 403, 404, 413, 422, 429].includes(status);
     throw new ProviderFailure(`供应商或代理返回 HTTP ${status}。请核对配置和供应商记录。`, definiteRelayRejection);
   }

@@ -23,20 +23,46 @@ before(async () => {
     if (/^(001|003)-/.test(name) || !name.endsWith('.sql')) continue;
     await db.exec(await readFile(new URL(name, directory), 'utf8'));
   }
-  await db.query('INSERT INTO public.media_workspaces(id,owner_id,request_id) VALUES ($1,$2,$1)', [workspaceId,userId]);
+  await db.query('INSERT INTO public.media_workspaces(id,owner_id,request_id) VALUES ($1,$2,$1)', [
+    workspaceId,
+    userId
+  ]);
 });
-after(async () => { await db?.close(); });
+after(async () => {
+  await db?.close();
+});
 
 test('首次同步接受多次离线编辑压缩后的 INSERT，后续更新仍执行 CAS', async () => {
   const id = crypto.randomUUID();
-  const payload = JSON.stringify({ version: 1, name: '最后一次保存', baseUrl: 'https://provider.example/v1', model: 'fixture', mode: 'direct' });
-  await db.query(`INSERT INTO public.media_sync_records(id,"workspaceId",kind,payload,revision,"baseRevision","createdBy","updatedBy") VALUES ($1,$2,'provider',$3,3,0,$4,$4)`, [id,workspaceId,payload,userId]);
+  const payload = JSON.stringify({
+    version: 1,
+    name: '最后一次保存',
+    baseUrl: 'https://provider.example/v1',
+    model: 'fixture',
+    mode: 'direct'
+  });
+  await db.query(
+    `INSERT INTO public.media_sync_records(id,"workspaceId",kind,payload,revision,"baseRevision","createdBy","updatedBy") VALUES ($1,$2,'provider',$3,3,0,$4,$4)`,
+    [id, workspaceId, payload, userId]
+  );
   await db.query('UPDATE public.media_sync_records SET revision=5,"baseRevision"=3 WHERE id=$1', [id]);
-  await assert.rejects(db.query('UPDATE public.media_sync_records SET revision=6,"baseRevision"=3 WHERE id=$1', [id]), { code: 'PT409' });
-  await assert.rejects(db.query(`INSERT INTO public.media_sync_records(id,"workspaceId",kind,payload,revision,"baseRevision","createdBy","updatedBy") VALUES ($1,$2,'provider',$3,3,1,$4,$4)`, [crypto.randomUUID(),workspaceId,payload,userId]), { code: '22023' });
+  await assert.rejects(db.query('UPDATE public.media_sync_records SET revision=6,"baseRevision"=3 WHERE id=$1', [id]), {
+    code: 'PT409'
+  });
+  await assert.rejects(
+    db.query(
+      `INSERT INTO public.media_sync_records(id,"workspaceId",kind,payload,revision,"baseRevision","createdBy","updatedBy") VALUES ($1,$2,'provider',$3,3,1,$4,$4)`,
+      [crypto.randomUUID(), workspaceId, payload, userId]
+    ),
+    { code: '22023' }
+  );
 });
 
-const studio = text => ({ document: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] }, fields: [], values: {} });
+const studio = text => ({
+  document: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] },
+  fields: [],
+  values: {}
+});
 test('PostgreSQL 与客户端对草稿版本、总字数和 Unicode 边界作出相同判定', async () => {
   const samples = [
     studio('有效草稿'),
@@ -49,15 +75,39 @@ test('PostgreSQL 与客户端对草稿版本、总字数和 Unicode 边界作出
     studio('a'.repeat(100001)),
     studio('😀'.repeat(50000)),
     studio('😀'.repeat(50001)),
-    { ...studio('字段'), fields: [{ id: 'name', label: '\t', defaultValue: '', required: false }], values: { name: '' } },
-    { ...studio('字段'), fields: [{ id: 'name', label: '😀'.repeat(21), defaultValue: '', required: false }], values: { name: '' } },
-    { ...studio('值'), fields: [{ id: 'name', label: 'name', defaultValue: '', required: false }], values: { name: '😀'.repeat(2000) } },
-    { ...studio('值'), fields: [{ id: 'name', label: 'name', defaultValue: '', required: false }], values: { name: '😀'.repeat(2001) } }
+    {
+      ...studio('字段'),
+      fields: [{ id: 'name', label: '\t', defaultValue: '', required: false }],
+      values: { name: '' }
+    },
+    {
+      ...studio('字段'),
+      fields: [{ id: 'name', label: '😀'.repeat(21), defaultValue: '', required: false }],
+      values: { name: '' }
+    },
+    {
+      ...studio('值'),
+      fields: [{ id: 'name', label: 'name', defaultValue: '', required: false }],
+      values: { name: '😀'.repeat(2000) }
+    },
+    {
+      ...studio('值'),
+      fields: [{ id: 'name', label: 'name', defaultValue: '', required: false }],
+      values: { name: '😀'.repeat(2001) }
+    }
   ];
   for (const sample of samples) {
     let clientValid = true;
-    try { ownedStudioPrompt(sample); } catch { clientValid = false; }
+    try {
+      ownedStudioPrompt(sample);
+    } catch {
+      clientValid = false;
+    }
     const { rows } = await db.query('SELECT media_private.valid_studio($1::jsonb) AS valid', [JSON.stringify(sample)]);
-    assert.equal(rows[0].valid, clientValid, `templateVersion=${sample.templateVersion}, textLength=${sample.document.content[0].content[0].text.length}`);
+    assert.equal(
+      rows[0].valid,
+      clientValid,
+      `templateVersion=${sample.templateVersion}, textLength=${sample.document.content[0].content[0].text.length}`
+    );
   }
 });

@@ -6,7 +6,6 @@ import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { firstValueFrom } from 'rxjs';
 import { serializePrompt } from '../app/prompts/prompt-state';
-import { splitReportBatches } from './report-batches';
 import type { ProductAuthorization } from '../app/supabase-auth';
 import {
   productPayloadText,
@@ -17,6 +16,7 @@ import {
   type ProductRecordPayload,
   type TaskReport
 } from '../contracts/product-data.mjs';
+import { splitReportBatches } from './report-batches';
 import SupabaseSDK = require('@supabase/supabase-js');
 type SupabaseClient = SupabaseSDK.SupabaseClient;
 

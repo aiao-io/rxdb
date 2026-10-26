@@ -41,7 +41,14 @@ export async function reports(client, url, usage = false) {
   const sources = Object.fromEntries(
     ['application', 'provider', 'verified'].map(source => [
       source,
-      { records: 0, requestCount: null, providerUnits: null, verifiedCost: null, currencies: {}, unknown: { requestCount: 0, providerUnits: 0, verifiedCost: 0 } }
+      {
+        records: 0,
+        requestCount: null,
+        providerUnits: null,
+        verifiedCost: null,
+        currencies: {},
+        unknown: { requestCount: 0, providerUnits: 0, verifiedCost: 0 }
+      }
     ])
   );
   let offset = 0;
