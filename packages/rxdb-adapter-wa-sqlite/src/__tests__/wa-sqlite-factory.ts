@@ -1,4 +1,5 @@
 import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
+import type { TransactionFun } from '@aiao/rxdb-adapter-sqlite-core';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { queryCountOf, registerQueryCount, type EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
@@ -10,11 +11,39 @@ import { asyncWasmPath } from './wa-sqlite-wasm.js';
 class QueryCountingWaSqliteAdapter extends RxDBAdapterWaSqlite {
   queryCount = 0;
 
-  override query(...args: Parameters<RxDBAdapterWaSqlite['query']>): ReturnType<RxDBAdapterWaSqlite['query']> {
-    this.queryCount++;
-    return super.query(...args);
+  override transaction<T extends TransactionFun>(fun: T, transactionLog = true): Promise<Awaited<ReturnType<T>>> {
+    return super.transaction<TransactionFun>(async executor => {
+      const execute = executor.execute.bind(executor);
+      executor.execute = (...args) => {
+        this.queryCount++;
+        return execute(...args);
+      };
+      return fun(executor);
+    }, transactionLog) as Promise<Awaited<ReturnType<T>>>;
   }
 }
+
+/** 非持久档的连法：内存 VFS、主线程。 */
+const memoryAdapterOptions = (): WaSqliteOptions => ({
+  vfs: 'MemoryAsyncVFS',
+  async: true,
+  worker: false,
+  wasmPath: asyncWasmPath,
+  batchTimeout: 1
+});
+
+/**
+ * 给只读检出位的快照实例造适配器（US-313）：与本工厂持久档同一份连法（`IDBBatchAtomicVFS`），
+ * 按快照实例的库名在 VFS 的共用库里各占一组记录。
+ *
+ * @param db - 快照实例
+ * @returns 快照库的适配器
+ *
+ * @remarks
+ * 持久档而不是内存：持久归属的检出位放开之后要能原样再打开，`close()` / `prune()` 删的也要是真存储。
+ */
+export const createWaSqliteWorktreeAdapter = (db: RxDB): RxDBAdapterWaSqlite =>
+  new RxDBAdapterWaSqlite(db, { ...memoryAdapterOptions(), vfs: 'IDBBatchAtomicVFS' });
 
 export const waSqliteFactory: AdapterFactory = {
   name: 'wa-sqlite',
@@ -69,11 +98,8 @@ async function createWaSqliteAdapter(options?: Record<string, unknown>) {
   let countingAdapter: QueryCountingWaSqliteAdapter | undefined;
   rxdb.adapter('wa-sqlite', async db => {
     countingAdapter = new QueryCountingWaSqliteAdapter(db, {
-      vfs: persistent ? 'IDBBatchAtomicVFS' : 'MemoryAsyncVFS',
-      async: true,
-      worker: false,
-      wasmPath: asyncWasmPath,
-      batchTimeout: 1
+      ...memoryAdapterOptions(),
+      vfs: persistent ? 'IDBBatchAtomicVFS' : 'MemoryAsyncVFS'
     });
     return countingAdapter;
   });

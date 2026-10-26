@@ -11,7 +11,7 @@
  * 三段前置责任已各有归属，这里不重复：
  *
  * - **codec 层「加密列原样穿过」**：`working-tree-patch-codec.spec.ts`（T020）。
- * - **`log: false`（条目不进变更日志）**：`__tests__/system/working-tree-system-entities.spec.ts`。
+ * - **`log: false`（条目不进变更日志）**：`__tests__/system/system-entity-registration.spec.ts`。
  * - **磁盘上真的没有明文**：`workingTreeCaptureConformanceSuite` 在六个后端上用
  *   `@aiao/rxdb-adapter-encrypted` 的 `scanForPlaintext()` 做（T067/T068）。单元测试跑不出真
  *   加密后端，本文件因此不假装能证明那一条。
@@ -140,7 +140,7 @@ function createEntityManager(): EntityManager {
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
   database.adapter('local', db => createMockAdapter(db));
-  // 十张系统表由插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
+  // 本插件的系统表由它贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
   // 而这些实体进不了 `config.entities` 时 `instantiate()` 抛的是「need init rxdb」。
   database.use(rxDBPluginWorkingTree);
   database.init();

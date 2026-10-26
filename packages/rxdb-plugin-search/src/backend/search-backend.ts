@@ -9,6 +9,8 @@
  * @packageDocumentation
  */
 
+import type { EntityMetadata, WorktreeTableSet } from '@aiao/rxdb';
+
 import type { FtsInstallPlan } from '../core/fts5-installer.js';
 import type { InstallFtsResult, MigrationRecordStore, RuntimeSqlExecutor } from '../core/fts5-runtime.js';
 import type { CompiledQuery } from '../core/query-compiler.js';
@@ -99,6 +101,31 @@ export interface SearchBackend {
     executor: RuntimeSqlExecutor,
     migrationStore: MigrationRecordStore
   ): Promise<InstallFtsResult>;
+
+  /**
+   * 把计划绑到一套业务表上（US-314 B2.5）：物理位置按适配器的表名解析器换成那套表的。
+   *
+   * @param plan - 由实体元数据推导出的安装计划
+   * @param metadata - 计划所属实体的元数据
+   * @param tableSet - 要绑的那套表；不是它成员的实体照旧落在主表集
+   * @returns 绑好的计划：FTS5 换 `sqlTableName`，pg-tsvector 换 `schema`
+   *
+   * @remarks
+   * 安装与查询都只认绑过的计划。物理命名归适配器所有，后端不自己拼：拼错一处，影子表上的全文索引就建到、查到主表上。
+   */
+  bindPlan(plan: FtsInstallPlan, metadata: EntityMetadata, tableSet: WorktreeTableSet): Promise<FtsInstallPlan>;
+
+  /**
+   * 给一套可写检出位的影子表装全文索引并回填（US-314 B2.5）；幂等，不写迁移记录。
+   *
+   * @param plan - 已经绑到那套表上的计划（{@link SearchBackend.bindPlan}）
+   * @param executor - 建表集或补建那笔事务的执行器
+   *
+   * @remarks
+   * 迁移记录只记主表集：签名漂移在主表集那次 {@link SearchBackend.install} 就报了。影子表随检出位建、随检出位删，
+   * 结构齐全就跳过，缺了就补齐。
+   */
+  installForTableSet(plan: FtsInstallPlan, executor: RuntimeSqlExecutor): Promise<InstallFtsResult>;
 
   /**
    * 绑定查询执行器，产出与后端无关的 {@link SearchEngine}。

@@ -55,6 +55,12 @@ import { RxDBChangeOrderByField, RxDBChangeRuleGroup, RxDBChangeStaticTypes } fr
       readonly: true
     },
     {
+      name: 'tableSetSuffix',
+      type: PropertyType.string,
+      readonly: true,
+      nullable: true
+    },
+    {
       name: 'transactionId',
       type: PropertyType.uuid,
       readonly: true,
@@ -181,6 +187,9 @@ export class RxDBChange implements IRxDBChange {
    * 分支 id
    */
   branchId?: string;
+
+  /** 写入时的物理表集后缀；主表集与旧日志为 `null`，不参与远端同步。 */
+  tableSetSuffix?: string | null;
 
   /**
    * 事务 ID，用于关联同一事务中的多个变更

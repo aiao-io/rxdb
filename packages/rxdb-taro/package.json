@@ -74,7 +74,8 @@
     "vite": ">=4.2.0"
   },
   "devDependencies": {
-    "@aiao/rxdb-adapter-miniprogram": "workspace:*"
+    "@aiao/rxdb-adapter-miniprogram": "workspace:*",
+    "vite": "8.3.5"
   },
   "peerDependenciesMeta": {
     "vite": {

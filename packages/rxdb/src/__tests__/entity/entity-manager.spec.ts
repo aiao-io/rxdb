@@ -6,7 +6,13 @@ import { PropertyType, SyncType } from '../../entity/metadata-options.interface.
 import { RxDBMissingPrimaryAdapterError, RxDBMixedPrimaryAdapterError } from '../../entity/primary-adapter.js';
 import { Repository } from '../../repository/Repository.js';
 import type { IRxDBAdapter, RxDBMutationsMap } from '../../rxdb-adapter.js';
-import { ENTITY_LOCAL_NEW_EVENT } from '../../rxdb-events.js';
+import {
+  ENTITY_LOCAL_NEW_EVENT,
+  type EntityLocalNewEvent,
+  TransactionBeginEvent,
+  TransactionCommitEvent,
+  TransactionRollbackEvent
+} from '../../rxdb-events.js';
 import { getEntityStatus, uuid } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBError } from '../../RxDBError.js';
@@ -216,6 +222,33 @@ describe('EntityManager', () => {
 
     rxdb.removeEventListener(ENTITY_LOCAL_NEW_EVENT, listener);
     rxdb.entityManager.removeEntityCache(rxdb.entityManager.getEntityRef(Todo, id)!);
+  });
+
+  it('NEW 的微任务执行后仍受事件事务上下文约束，COMMIT 后才交给监听器', async () => {
+    const id = uuid();
+    const transactionId = uuid();
+    const seen: string[] = [];
+    const delivered = Promise.withResolvers<void>();
+    const listener = (event: EntityLocalNewEvent) => {
+      if (!event.entities.some(entity => entity.id === id)) return;
+      seen.push(id);
+      delivered.resolve();
+    };
+    rxdb.addEventListener(ENTITY_LOCAL_NEW_EVENT, listener);
+    rxdb.dispatchEvent(new TransactionBeginEvent(transactionId));
+    try {
+      rxdb.entityManager.instantiate(Todo, { id, title: 'queued-new' });
+      await Promise.resolve();
+      expect(seen).toEqual([]);
+
+      rxdb.dispatchEvent(new TransactionCommitEvent(transactionId));
+      await delivered.promise;
+      expect(seen).toEqual([id]);
+    } finally {
+      rxdb.dispatchEvent(new TransactionRollbackEvent(transactionId));
+      rxdb.removeEventListener(ENTITY_LOCAL_NEW_EVENT, listener);
+      rxdb.entityManager.removeEntityCache(rxdb.entityManager.getEntityRef(Todo, id)!);
+    }
   });
 
   it('操作实体缓存', async () => {

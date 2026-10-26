@@ -1,7 +1,8 @@
 import { EntityMetadata, EntityType, FindOptions, isRuleGroup } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
-import { RxDBAdapterSqliteError, get_table_name_by_metadata } from '../sqlite-core.utils.js';
+import { RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import { build_rule_group_join } from './join_sql.js';
 import { GenerateSqlResult, buildRuleGroup, build_order_by, generate_sql } from './query_sql.js';
 import { validateEncryptedQuery } from './validate-encrypted-query.js';
@@ -42,7 +43,7 @@ export const find_sql = (
   const { joinSQL, fieldAliasMap, orderBy } = build_rule_group_join(adapter, metadata, whereOptions, options.orderBy);
   const params: SQLiteCompatibleType[] = [];
   const sql = generate_sql({
-    tableName: get_table_name_by_metadata(metadata),
+    tableName: get_table_name_by_metadata(metadata, adapter.tableSet),
     where: buildRuleGroup(whereOptions, fieldAliasMap, metadata, adapter, params),
     orderBy: build_order_by(orderBy, metadata, adapter, fieldAliasMap),
     join: joinSQL,

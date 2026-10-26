@@ -1,6 +1,7 @@
 import { RxDB } from '@aiao/rxdb';
 import { inject } from '@angular/core';
 import { CanActivateFn, Route, UrlMatcher, UrlSegment } from '@angular/router';
+import { connectLocalAdapter } from './rxdb/db-connection';
 
 /**
  * 进入 `/search` 之前先把本地适配器连上。
@@ -12,12 +13,10 @@ import { CanActivateFn, Route, UrlMatcher, UrlSegment } from '@angular/router';
  *
  * 别的页面不需要这道门：它们的首次查询会经适配器 `ready()` 回到 `connect()`，自然把连接带起来。
  * `connect()` 自带去重，重复进入本路由不会重复连接。
+ * 连不上时导航被拒，失败由 {@link connectLocalAdapter} 登记、应用壳显示。
  */
-const connectLocalAdapter: CanActivateFn = async () => {
-  const db = inject(RxDB);
-  const adapterName = db.config.sync.local?.adapter;
-  if (adapterName === undefined) throw new Error('[demo] sync.local.adapter is not configured');
-  await db.connect(adapterName);
+const connectBeforeEnter: CanActivateFn = async () => {
+  await connectLocalAdapter(inject(RxDB));
   return true;
 };
 
@@ -58,7 +57,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'search',
-    canActivate: [connectLocalAdapter],
+    canActivate: [connectBeforeEnter],
     loadComponent: () => import('./pages/search/search.page')
   },
   {
@@ -136,7 +135,7 @@ export const appRoutes: Route[] = [
   {
     // 与 /search 同一道门：面板初始化就调 `workingTree.status()`，深链进来时连接还没建立。
     path: 'working-tree',
-    canActivate: [connectLocalAdapter],
+    canActivate: [connectBeforeEnter],
     loadComponent: () => import('./pages/working-tree/working-tree.page')
   },
   {
@@ -163,7 +162,7 @@ export const appRoutes: Route[] = [
   {
     // 录制回放（US-909 阶段 C）：点 commit 标记要调 `workingTree.restore()`，深链进来时先把连接带起来
     path: 'replay',
-    canActivate: [connectLocalAdapter],
+    canActivate: [connectBeforeEnter],
     loadComponent: () => import('./pages/replay/replay.page')
   },
   {

@@ -1,8 +1,9 @@
+import type { WorktreeTableSet } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interface.js';
 import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
+import { generate_table_set_trigger_sql } from '../table/trigger_sql.js';
 import { readCurrentBranchId as readCurrentBranchIdWith } from './read_current_branch_id.js';
-import { generateSwitchBranchSql } from './switch_branch.js';
 
 /**
  * 能直发 SQL 的事务门面。
@@ -19,6 +20,7 @@ export type SqlExecutor = {
  * 读当前分支 id（activated 优先，否则 main），供重建触发器使用。
  *
  * @param tx - 当前事务的执行器
+ * @param tableSet - 本实例挂的表集：挂在可写检出位上时读的是那套表持有的分支（US-314 B1.4）
  * @returns 当前活跃分支 id
  * @throws {@link RxDBAdapterSqliteError} 元数据缺列或读不到任何分支时抛出，让事务回滚
  *
@@ -33,12 +35,12 @@ export type SqlExecutor = {
  * （包在 `results[0]` 里）摊成那一份要的扁平形状：两份各写一遍的时候，`?? 'id'` 兜底的
  * 那次删除只落在了其中一份上。
  */
-export function readCurrentBranchId(tx: SqlExecutor): Promise<string> {
+export function readCurrentBranchId(tx: SqlExecutor, tableSet: WorktreeTableSet): Promise<string> {
   return readCurrentBranchIdWith(async (sql, params) => {
     const result = await tx.execute(sql, params);
     const first = result.results[0];
     return { columns: first?.columns ?? [], rows: first?.rows ?? [] };
-  });
+  }, tableSet);
 }
 
 /**
@@ -47,6 +49,7 @@ export function readCurrentBranchId(tx: SqlExecutor): Promise<string> {
  * @param adapter - SQLite 适配器
  * @param tx - **当前**事务的执行器；三明治的三步必须落在同一事务里
  * @param body - 窗口内要执行的写入，返回值原样透传
+ * @param tableSet - 摘、挂哪一套表的触发器，缺省是本实例挂的那套；QueryCache 写入传主表集（见下）
  * @returns `body` 的返回值
  * @throws 原样重抛 `body` 的错误——`body` 抛错但触发器重建成功时
  * @throws {@link RxDBAdapterSqliteError} 触发器重建阶段读不到当前分支时抛出（不论 `body` 是否成功，见下）
@@ -62,8 +65,10 @@ export function readCurrentBranchId(tx: SqlExecutor): Promise<string> {
  * （见 {@link readCurrentBranchId} 的说明），而且中间那个没有触发器的已提交窗口会对并发写敞开 ——
  * 那些写入的历史将永久丢失。
  *
- * 重建复用 {@link generateSwitchBranchSql}（"切到当前分支"），因此它捎带的分支表 UPDATE 是
- * 恒等写：`RxDBBranch` 自身 `log: false`，不会因此产生变更行。
+ * 删与重建都只动一套表（缺省是本实例挂的 `adapter.tableSet`），重建按那套表持有的分支烙，**不碰分支表**（US-314 B1.3）。
+ * 从前重建复用切分支的整段 SQL，每次拉取都捎带一条分支表的恒等 UPDATE；挂在可写检出位上时，那条 UPDATE
+ * 会把检出位持有的分支点亮。QueryCache 同步的实体只在主表集（不进影子表集）：挂在可写检出位上回填缓存时，
+ * 要摘的是主表集的触发器，摘本实例那套等于没摘，回填照样记进主分支的日志（US-314 B2.1）。
  *
  * **重建触发器是「不论成功失败都必须跑」的收尾，且不用 `try/finally` 实现**：本函数的生产
  * 调用点都在 `this.transaction()` 里，`body` 抛错时整个事务连带回滚，中间那个「触发器已删、
@@ -88,9 +93,10 @@ export function readCurrentBranchId(tx: SqlExecutor): Promise<string> {
 export async function withTriggersDisabled<T>(
   adapter: RxDBAdapterSqliteBase,
   tx: SqlExecutor,
-  body: () => Promise<T>
+  body: () => Promise<T>,
+  tableSet: WorktreeTableSet = adapter.tableSet
 ): Promise<T> {
-  const removeTriggers = remove_all_triggers_sql(adapter);
+  const removeTriggers = remove_all_triggers_sql(adapter, tableSet);
   if (removeTriggers) {
     await tx.execute(removeTriggers);
   }
@@ -98,8 +104,10 @@ export async function withTriggersDisabled<T>(
   // 重建这一步无论 body 成功还是失败都要跑——收成局部函数供下面两条路径共用同一份实现，
   // 不各自抄一遍：判定逻辑分成两份时，其中一份漏改的问题在 `readCurrentBranchId` 上出现过
   // 一次（两边的列名解析各自漂移，见该函数 TSDoc），这里不重蹈。
-  const restoreTriggers = (): Promise<unknown> =>
-    readCurrentBranchId(tx).then(branchId => tx.execute(generateSwitchBranchSql(adapter, branchId)));
+  const restoreTriggers = async (): Promise<void> => {
+    const rebuildTriggers = generate_table_set_trigger_sql(adapter, tableSet, await readCurrentBranchId(tx, tableSet));
+    if (rebuildTriggers) await tx.execute(rebuildTriggers);
+  };
 
   let outcome: { ok: true; value: T } | { ok: false; error: unknown };
   try {

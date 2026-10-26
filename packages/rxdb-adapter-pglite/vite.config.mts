@@ -1,5 +1,6 @@
 /// <reference types='vitest' />
 import { codecovVitePlugin } from '@codecov/vite-plugin';
+import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 import { transform } from '@swc/core';
 import { playwright } from '@vitest/browser-playwright';
 import path from 'node:path';
@@ -129,7 +130,8 @@ export default defineConfig(() => {
             uploadToken: process.env.CODECOV_TOKEN
           })
         ]
-      : [])
+      : []),
+      nxReadySignal()
     ],
     // 如果使用 workers，请取消下面的注释。
     // worker: {

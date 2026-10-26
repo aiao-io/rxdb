@@ -48,6 +48,8 @@ function resolveClientOptions(
 const MINI_PROGRAM_RUNTIME: WaSqliteClientRuntime<WaSqliteMiniProgramAdapterOptions> = {
   clientName: 'rxdb-adapter-miniprogram',
   resolve: resolveClientOptions,
+  // 库文件在宿主文件系统里，没有浏览器 OPFS 那种刷新时句柄还被上一个页面占着的竞态：只打开一次
+  open: attempt => attempt(),
   initializationSql: cacheSizeKb => `
     PRAGMA journal_mode = DELETE;
     PRAGMA temp_store = memory;

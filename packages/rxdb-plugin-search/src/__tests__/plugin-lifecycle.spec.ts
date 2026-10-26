@@ -14,6 +14,7 @@ import {
   ENTITY_LOCAL_UPDATE_EVENT,
   EntityBase,
   PropertyType,
+  WorktreeTableSet,
   type EntityLocalCreatedEvent,
   type EntityLocalRemovedEvent,
   type EntityLocalUpdatedEvent,
@@ -21,7 +22,7 @@ import {
   type RxDB
 } from '@aiao/rxdb';
 import { LifecycleScope } from '@aiao/utils';
-import { firstValueFrom, Subject, throwError } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, Subject, throwError } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const { installFtsForEntity, createSearchEngine } = vi.hoisted(() => ({
@@ -134,6 +135,9 @@ const buildFakeRxdb = (entities: unknown[] = [FakeArticle], exposesRawQuery = tr
     // 连接信号（`connect` / `adapterConnected$` / `localAdapter$`）插件已经不再读，
     // 假宿主也就不提供——真读了会立刻 TypeError，而不是静默走回老路。
     localAdapterSync: activeAdapter,
+    // 挂着主表集：查询按它解析表名，换挂的流驱动 handle 重查（US-314 B2.5）
+    worktreeTableSet: WorktreeTableSet.MAIN,
+    worktreeTableSet$: new BehaviorSubject(WorktreeTableSet.MAIN),
     // 工厂的「已装过没有」自检走宿主索引（US-015 AC#17）。真宿主由 `use()` 在工厂返回
     // **之后**把实例推进索引，所以这里也由用例显式 push，时序与真实一致。
     getPlugins: vi.fn((name: string) => installedPlugins.filter(entry => entry.name === name)),
@@ -666,5 +670,31 @@ describe('search plugin lifecycle', () => {
     // `ready` 就不能还留着上一纪元的 resolve
     await expect(plugin.ready).rejects.toThrow(SearchError);
     await expect(plugin.ready).rejects.toThrow(/destroyed/);
+  });
+
+  // 检出位的指纹并上它（US-314 B2.6）：建了索引的成员与它们的计划签名变了，检出位挂上时整套重建
+  it('建表集钩子的指纹只看这套表的成员上要建的全文索引：成员、可搜索字段或排除名单变了它就变', async () => {
+    const fingerprintOf = async (
+      entities: unknown[],
+      tableSet: WorktreeTableSet,
+      options: { excludedCollections?: string[] } = {}
+    ): Promise<string> => {
+      const plugin = rxDBPluginSearch(buildFakeRxdb(entities).rxdb, { debounce: 0, ...options }) as RxDBPluginSearch;
+      installScoped(plugin);
+      await plugin.ready;
+      return plugin.worktreeTableSet.fingerprint(tableSet);
+    };
+    const articleOnly = WorktreeTableSet.of('wt_print', [FakeArticle]);
+    const both = WorktreeTableSet.of('wt_print', [FakeArticle, FakeNote]);
+    const reference = await fingerprintOf([FakeArticle, FakeNote], articleOnly);
+
+    expect(await fingerprintOf([FakeNote, FakeArticle], articleOnly)).toBe(reference);
+    expect(await fingerprintOf([FakeArticle, FakeNote], WorktreeTableSet.of('wt_other', [FakeArticle]))).toBe(
+      reference
+    );
+    expect(await fingerprintOf([FakeArticle, FakeNote], both)).not.toBe(reference);
+    expect(await fingerprintOf([FakeArticle, FakeNote], articleOnly, { excludedCollections: ['article'] })).not.toBe(
+      reference
+    );
   });
 });

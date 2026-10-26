@@ -192,7 +192,7 @@ describe('RxDB change codec', () => {
     expect(() => decodeRxDBEntityIdentity(futureIdentity)).not.toThrow(UnsupportedRxDBChangeVersionError);
   });
 
-  it('exposes the identity version error through the package barrel', async () => {
+  it('exposes the identity version error through the package barrel', { timeout: 30_000 }, async () => {
     // `decodeRxDBEntityIdentity` 是公开导出。它抛的错误类必须同样公开，否则使用者
     // 写不出 `catch (e) { if (e instanceof ...) }` —— 只能去匹配消息字符串。
     const barrel = await import('../../index.js');

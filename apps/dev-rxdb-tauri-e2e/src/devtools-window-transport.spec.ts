@@ -102,7 +102,8 @@ const payloadBytes = (): Buffer => {
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** 把失败报告里的原因带进断言消息。 */
-const because = (run: SelfCheckRun): string => run.report.message ?? '(报告里没有原因)';
+const because = (run: SelfCheckRun): string =>
+  [run.report.message ?? '(报告里没有原因)', `stdout:\n${run.stdout}`, `stderr:\n${run.stderr}`].join('\n');
 
 describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）', () => {
   let frontend: { close: () => Promise<void> };

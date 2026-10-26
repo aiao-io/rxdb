@@ -27,6 +27,10 @@
  * 既然 schema 兜住了至多一个，为什么还留多 active 的拒绝路径？因为约束是在**既有库**上
  * 补的：迁移跑之前那张表可能已经有两行 active。约束加不上去，得先让迁移认出来并整体
  * 回滚，而不是让建索引语句抛一个没有上下文的原生错误。
+ *
+ * `activeKey` 上还有第三种值：可写检出位的持有键（US-314 B1.2）。「active」始终只指主检出位，
+ * 持有键的那一行 `activated` 为假，不进本模块的基数；它带来的是另一条不变量——一条分支至多被
+ * 一个检出位持有，见 {@link WorktreeBranchHeldError}。
  */
 
 import type { EntityManager } from '../entity/entity-manager.js';
@@ -43,6 +47,9 @@ import { RxDBBranch } from './branch.js';
  * 一次」——两个分支同时 active 照样写得进去，约束等于没加。
  *
  * 值取一个不可能与分支 id 撞上的形状：分支 id 由用户命名，而 `*` 不是合法的命名字符。
+ *
+ * 这一列上的其它非空值是可写检出位的持有键，不是哨兵（见 {@link WorktreeBranchHeldError}）。
+ * 所以「清掉旧哨兵」只能按值清（`activeKey = 哨兵`），不能按「非空」清——后者连持有键一起抹掉。
  */
 export const ACTIVE_BRANCH_KEY = '*active*';
 
@@ -194,6 +201,76 @@ export class NoActiveBranchError extends RxDBError {
 }
 
 /**
+ * 分支已被可写检出位持有，主检出位不能再持有它。
+ *
+ * @remarks
+ * 「一条分支至多被一个检出位持有」（US-314 设计指点 2，对应 git 的 `already used by worktree`）。
+ * `RxDBBranch.activeKey` 因此有三种值：`NULL` 是没人持有，{@link ACTIVE_BRANCH_KEY} 是主检出位持有，
+ * 其余都是某个可写检出位的持有键。持有键的形状归打开检出位的那一方定，这里只认「不是前两种」。
+ *
+ * 唯一索引兜不住这一条：主检出位点亮一条分支时写的是哨兵，正好把持有键**覆盖**掉，索引里自始至终
+ * 只有一个哨兵，撞不上。所以每一处让主检出位持有某条分支的写（切分支、零 active 时点亮 `main`、
+ * 系统迁移回填哨兵）都要先过 {@link WorktreeBranchHeldError.throwIfHeld}。只重挂触发器、不碰分支表的路径
+ * （关触发器的写、省略目标分支的切换，US-314 B1.3）不拿下任何分支，不在此列。
+ *
+ * 只拒，不抢也不换：抢了，那个检出位还以为分支是自己的；换一条分支点亮，是替用户切分支。
+ */
+export class WorktreeBranchHeldError extends RxDBError {
+  /** 稳定错误码，恒为 `'worktree_branch_held'`；字面量的理由见 {@link AmbiguousActiveBranchError.code} */
+  readonly code = 'worktree_branch_held';
+
+  constructor(
+    /** 被持有的分支 id */
+    readonly branchId: string,
+    /** 持有它的那个检出位写下的持有键 */
+    readonly holderKey: string
+  ) {
+    super(`Branch (${branchId}) is already used by a worktree (${holderKey}).`);
+    this.name = 'WorktreeBranchHeldError';
+    Object.setPrototypeOf(this, WorktreeBranchHeldError.prototype);
+  }
+
+  /**
+   * 判 `branchId` 是不是在别人手里：没人持有、或持有的就是 `ownKey` 自己时返回 `null`，否则返回要抛的错。
+   *
+   * @param branchId - 要持有（或要删）的分支
+   * @param activeKey - 这条分支此刻的 `activeKey`；`null` 与 `undefined`（行不存在、或实体上没有这一列的值）都是没人持有
+   * @param ownKey - 调用方自己的持有键，缺省是主检出位的 {@link ACTIVE_BRANCH_KEY}；可写检出位传自己那套表的持有键
+   * @returns 被别人持有时的错误，否则 `null`
+   *
+   * @remarks
+   * 「哪些值算被占」只能有一份：核心的两处点亮 `main`、两个适配器的切分支与系统迁移、删分支、打开可写检出位都经它判。
+   * 各写一份比较的话，某一端把持有键当成空闲不会有任何报错，只会把它悄悄覆盖掉。
+   *
+   * 返回而不是就地抛：删分支的校验要在事务里**返回**拒绝、到事务外再抛（抛在事务里会被适配器的包装层换掉错误类型）。
+   *
+   * 挂在错误类上而不是另导出一个函数：核心新增导出要过 SC-014 的前缀门禁（`Worktree*`），
+   * 小写开头的函数名满足不了大小写敏感的前缀判定，而判定与它抛的错本来就是一回事。
+   */
+  static heldBy(
+    branchId: string,
+    activeKey: string | null | undefined,
+    ownKey: string = ACTIVE_BRANCH_KEY
+  ): WorktreeBranchHeldError | null {
+    if (activeKey === undefined || activeKey === null || activeKey === ownKey) return null;
+    return new WorktreeBranchHeldError(branchId, activeKey);
+  }
+
+  /**
+   * 持有 `branchId` 之前的检查：它在别人手里就抛，判定见 {@link WorktreeBranchHeldError.heldBy}。
+   *
+   * @param branchId - 要持有的分支
+   * @param activeKey - 这条分支此刻的 `activeKey`
+   * @param ownKey - 调用方自己的持有键，缺省是主检出位的 {@link ACTIVE_BRANCH_KEY}
+   * @throws {@link WorktreeBranchHeldError} 分支被别人持有时
+   */
+  static throwIfHeld(branchId: string, activeKey: string | null | undefined, ownKey?: string): void {
+    const held = WorktreeBranchHeldError.heldBy(branchId, activeKey, ownKey);
+    if (held) throw held;
+  }
+}
+
+/**
  * 读出全部 active 分支。
  *
  * @param executor - 调用方那个事务的执行器
@@ -231,6 +308,7 @@ const singleActiveOf = (branches: readonly RxDBBranch[]): RxDBBranch | null => {
  * @param executor - 迁移那个事务的执行器
  * @param host - 建分支时用来 `instantiate`
  * @returns 已激活的 `main`
+ * @throws {@link WorktreeBranchHeldError} `main` 在可写检出位手里时；一行都不改
  *
  * @remarks
  * 两条路径都**同时**写 `activated` 与 `activeKey`。冗余列是第二份真相的温床
@@ -243,6 +321,7 @@ const activateMainBranch = async (executor: TransactionExecutor, host: ActiveBra
     where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: MAIN_BRANCH_ID }] }
   });
   if (existing.length > 0) {
+    WorktreeBranchHeldError.throwIfHeld(MAIN_BRANCH_ID, existing[0].activeKey);
     return repository.update(existing[0], { activated: true, activeKey: ACTIVE_BRANCH_KEY });
   }
   const branch = host.entityManager.instantiate(RxDBBranch);
@@ -262,6 +341,7 @@ const activateMainBranch = async (executor: TransactionExecutor, host: ActiveBra
  * @returns 唯一的 active 分支
  * @throws {@link AmbiguousActiveBranchError} 有多行 active 时；**一行都不改**，
  *   由调用方回滚整条迁移
+ * @throws {@link WorktreeBranchHeldError} 零 active 而 `main` 在可写检出位手里时；同样一行都不改
  *
  * @remarks
  * 它比 {@link assertSingleActiveBranch} 多收一个参数，而那个参数正是「能不能修」的全部

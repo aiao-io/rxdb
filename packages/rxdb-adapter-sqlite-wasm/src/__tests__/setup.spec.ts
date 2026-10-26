@@ -24,7 +24,8 @@ import {
   transactionSqliteResultSuite,
   treeIntegrationSuite,
   undoRedoSuite,
-  versionBranchSuite
+  versionBranchSuite,
+  worktreeTableSetSuite
 } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { sqliteWasmFactory } from './sqlite-wasm-factory.js';
 
@@ -58,3 +59,4 @@ treeIntegrationSuite(sqliteWasmFactory);
 // 版本管理。
 versionBranchSuite(sqliteWasmFactory);
 undoRedoSuite(sqliteWasmFactory);
+worktreeTableSetSuite(sqliteWasmFactory);

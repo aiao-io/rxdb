@@ -8,7 +8,7 @@
  * @packageDocumentation
  */
 
-import type { EntityMetadata } from '@aiao/rxdb';
+import { WorktreeTableSet, type EntityMetadata } from '@aiao/rxdb';
 import { get_table_name_by_metadata, type FtsField } from '@aiao/rxdb-adapter-sqlite-core';
 import { SearchEncryptedFieldError } from '../types.js';
 import { SEARCHABLE_PROPERTY_TYPES } from './schema-validator.js';
@@ -19,10 +19,16 @@ import { SEARCHABLE_PROPERTY_TYPES } from './schema-validator.js';
 export interface FtsInstallPlan {
   /** 原表表名（FTS5 external-content 表 `_fts_<tableName>` 引用） */
   readonly tableName: string;
-  /** SQLite 物理表名（含 namespace 前缀，如 `public$article`） */
+  /**
+   * SQLite 物理表名（含 namespace 前缀，如 `public$article`）。
+   *
+   * @remarks
+   * {@link extractFtsPlanFromMetadata} 给的是主表集的；可写检出位的影子表由 `SearchBackend.bindPlan`
+   * 按适配器的表名解析器换成那套表的（`public$article$wt_x`，US-314 B2.5）。
+   */
   readonly sqlTableName?: string;
   /**
-   * 实体的 `namespace`。
+   * PostgreSQL 里这张表所在的 schema（未加引号）；省略时不限定，交给 `search_path`。
    *
    * @remarks
    * 两套后端把 namespace 落到了**不同的东西**上，所以这里必须与
@@ -31,8 +37,11 @@ export interface FtsInstallPlan {
    * PostgreSQL 适配器则建真正的 schema，表是 `"public"."article"`。
    * pg 后端此前照搬 `sqlTableName`，于是所有 DDL 与查询都指向一张不存在的
    * `"public$article"`，真库上一律 42P01。
+   *
+   * 只由 pg-tsvector 的 `SearchBackend.bindPlan` 经适配器的表名解析器填：主表集是 namespace 本身，
+   * 可写检出位的影子表是 `<namespace>$<后缀>`（US-314 B2.5）。拿 namespace 直接当 schema，影子表永远找不到。
    */
-  readonly namespace?: string;
+  readonly schema?: string;
   /** 原表主键列名（external-content 模式 `content_rowid`） */
   readonly primaryKey: string;
   /** 已抽取的可搜索字段列表 */
@@ -71,8 +80,8 @@ export const extractFtsPlanFromMetadata = (metadata: EntityMetadata): FtsInstall
   if (fields.length === 0) return null;
   return {
     tableName: metadata.tableName,
-    sqlTableName: get_table_name_by_metadata(metadata),
-    namespace: metadata.namespace,
+    // 主表集的物理名；可写检出位的影子表经 `SearchBackend.bindPlan` 改绑（US-314 B2.5）
+    sqlTableName: get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN),
     primaryKey: primaryKey ?? 'id',
     fields,
     signature: computeFtsSchemaSignature(fields)

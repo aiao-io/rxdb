@@ -29,7 +29,8 @@ import {
   transactionSqliteResultSuite,
   treeIntegrationSuite,
   undoRedoSuite,
-  versionBranchSuite
+  versionBranchSuite,
+  worktreeTableSetSuite
 } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { afterAll, expect } from 'vitest';
 import {
@@ -70,3 +71,4 @@ treeIntegrationSuite(electronAdapterFactory);
 
 versionBranchSuite(electronAdapterFactory);
 undoRedoSuite(electronAdapterFactory);
+worktreeTableSetSuite(electronAdapterFactory);

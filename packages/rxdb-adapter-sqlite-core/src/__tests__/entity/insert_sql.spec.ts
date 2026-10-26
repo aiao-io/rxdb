@@ -2,6 +2,7 @@ import {
   PropertyType,
   RelationKind,
   transitionMetadata,
+  WorktreeTableSet,
   type EntityMetadata,
   type EntityPropertyMetadataOptions,
   type EntityRelationMetadataOptions
@@ -42,7 +43,7 @@ describe('insert_sql', () => {
     ]);
 
     const entity = new TestEntity();
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).toContain('INSERT INTO "test$TestEntity"');
     expect(result.sql).toContain('("id","name","age")');
@@ -57,7 +58,7 @@ describe('insert_sql', () => {
       { name: 'name', type: PropertyType.string }
     ]);
 
-    const result = await insert_sql(metadata, new TestEntity(), { useReplace: true });
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, new TestEntity(), { useReplace: true });
 
     expect(result.sql).toContain('INSERT INTO "test$TestEntity"');
     expect(result.sql).toContain('ON CONFLICT ("id") DO UPDATE SET "name" = excluded."name"');
@@ -70,7 +71,7 @@ describe('insert_sql', () => {
       { name: 'name', columnName: 'display_name', type: PropertyType.string }
     ]);
 
-    const result = await insert_sql(metadata, new TestEntity(), { useReplace: true });
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, new TestEntity(), { useReplace: true });
 
     expect(result.sql).toContain('("entity_id","display_name")');
     expect(result.sql).toContain('ON CONFLICT ("entity_id") DO UPDATE SET "display_name" = excluded."display_name"');
@@ -79,7 +80,7 @@ describe('insert_sql', () => {
   it('useReplace 仅包含主键时应忽略同主键冲突', async () => {
     const metadata = createMetadata([{ name: 'id', type: PropertyType.uuid }]);
 
-    const result = await insert_sql(metadata, new TestEntity(), { useReplace: true });
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, new TestEntity(), { useReplace: true });
 
     expect(result.sql).toContain('ON CONFLICT ("id") DO NOTHING');
   });
@@ -93,7 +94,7 @@ describe('insert_sql', () => {
 
     const entity = new TestEntity();
     const beforeCreate = new Date();
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
     const afterCreate = new Date();
 
     expect(result.sql).toContain('createdAt');
@@ -113,7 +114,7 @@ describe('insert_sql', () => {
 
     const entity = new TestEntity();
     const beforeCreate = new Date();
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
     const afterCreate = new Date();
 
     expect(result.sql).toContain('updatedAt');
@@ -133,7 +134,7 @@ describe('insert_sql', () => {
 
     const entity = new TestEntity();
     const context: InsertSqlOptions = { userId: 'user-123' };
-    const result = await insert_sql(metadata, entity, context);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity, context);
 
     expect(result.sql).toContain('createdBy');
     expect(result.params).toContain('user-123');
@@ -148,7 +149,7 @@ describe('insert_sql', () => {
 
     const entity = new TestEntity();
     const context: InsertSqlOptions = { userId: 'user-456' };
-    const result = await insert_sql(metadata, entity, context);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity, context);
 
     expect(result.sql).toContain('updatedBy');
     expect(result.params).toContain('user-456');
@@ -164,7 +165,7 @@ describe('insert_sql', () => {
     const entity = new TestEntity();
     const customDate = new Date('2025-01-01T00:00:00.000Z');
     const context: InsertSqlOptions = { createdAt: customDate };
-    const result = await insert_sql(metadata, entity, context);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity, context);
 
     expect(result.params).toContain('2025-01-01T00:00:00.000Z');
   });
@@ -179,7 +180,7 @@ describe('insert_sql', () => {
     const entity = new TestEntity();
     const customDate = new Date('2025-06-15T12:30:00.000Z');
     const context: InsertSqlOptions = { updatedAt: customDate };
-    const result = await insert_sql(metadata, entity, context);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity, context);
 
     expect(result.params).toContain('2025-06-15T12:30:00.000Z');
   });
@@ -194,7 +195,7 @@ describe('insert_sql', () => {
       { name: 'updatedAt', columnName: 'updated_at', type: PropertyType.date }
     ]);
 
-    const result = await insert_sql(metadata, new TestEntity(), {
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, new TestEntity(), {
       createdAt: new Date('2025-01-01T00:00:00.000Z'),
       updatedAt: new Date('2025-06-15T12:30:00.000Z')
     });
@@ -210,7 +211,7 @@ describe('insert_sql', () => {
       { name: 'updatedBy', columnName: 'updated_by', type: PropertyType.string }
     ]);
 
-    const result = await insert_sql(metadata, new TestEntity(), { userId: 'user-123' });
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, new TestEntity(), { userId: 'user-123' });
 
     expect(result.sql).toContain('("id","created_by","updated_by")');
     expect(result.params).toEqual(['test-id', 'user-123', 'user-123']);
@@ -224,7 +225,7 @@ describe('insert_sql', () => {
 
     const entity = new TestEntity();
     const context: InsertSqlOptions = { returning: false };
-    const result = await insert_sql(metadata, entity, context);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity, context);
 
     expect(result.sql).not.toContain('RETURNING');
     expect(result.sql).toMatch(/;$/);
@@ -237,7 +238,7 @@ describe('insert_sql', () => {
     ]);
 
     const entity = new TestEntity();
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).toContain('RETURNING rowid as __rowid, *');
   });
@@ -249,7 +250,7 @@ describe('insert_sql', () => {
     ]);
 
     const entity = Object.assign(new TestEntity(), { active: true });
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.params).toContain(1); // true 转换为 1
   });
@@ -261,7 +262,7 @@ describe('insert_sql', () => {
     ]);
 
     const entity = Object.assign(new TestEntity(), { data: { key: 'value', nested: { prop: 123 } } });
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.params).toContain(JSON.stringify({ key: 'value', nested: { prop: 123 } }));
   });
@@ -273,7 +274,7 @@ describe('insert_sql', () => {
     ]);
 
     const entity = Object.assign(new TestEntity(), { tags: ['tag1', 'tag2', 'tag3'] });
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.params).toContain(JSON.stringify(['tag1', 'tag2', 'tag3']));
   });
@@ -285,7 +286,7 @@ describe('insert_sql', () => {
     ]);
 
     const entity = Object.assign(new TestEntity(), { name: 'Test', extraField: 'should be ignored' });
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).not.toContain('extraField');
     expect(result.params).toHaveLength(2);
@@ -310,7 +311,7 @@ describe('insert_sql', () => {
     );
 
     const entity = Object.assign(new TestEntity(), { id: 'post-123', title: 'My Post', authorId: 'user-456' });
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).toContain('authorId');
     expect(result.params).toContain('user-456');
@@ -347,7 +348,7 @@ describe('insert_sql', () => {
       postId: 'post-456',
       authorId: 'user-789'
     });
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).toContain('postId');
     expect(result.sql).toContain('authorId');
@@ -371,7 +372,7 @@ describe('insert_sql', () => {
       field3: true,
       field4: 10
     });
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     const placeholderCount = (result.sql.match(/\?/g) || []).length;
     expect(placeholderCount).toBe(result.params!.length);
@@ -393,7 +394,7 @@ describe('insert_sql', () => {
       createdAt: new Date('2025-01-01'),
       updatedAt: new Date('2025-01-02')
     };
-    const result = await insert_sql(metadata, entity, context);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity, context);
 
     expect(result.sql).toContain('createdAt');
     expect(result.sql).toContain('updatedAt');
@@ -417,7 +418,7 @@ describe('insert_sql', () => {
     ]);
 
     const entity = { id: 'test-id', name: 'Test Name', capturedAt: undefined };
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).not.toContain('capturedAt');
     expect(result.params).not.toContain(null);
@@ -432,7 +433,7 @@ describe('insert_sql', () => {
     ]);
 
     const entity = { id: 'test-id', name: 'Test Name', capturedAt: null };
-    const result = await insert_sql(metadata, entity);
+    const result = await insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).toContain('capturedAt');
     expect(result.params).toContain(null);

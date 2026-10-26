@@ -15,11 +15,13 @@ import { assertWaSqliteDatabaseName, WaSqliteClient } from './SqliteClient.js';
 
 /** 本包客户端必然实现的方法收窄成必选，否则 Comlink 的 `Remote<T>` 会把可选方法映射坏。 */
 interface WaSqliteClientLike extends SqliteClientLike {
-  init(dbName: string, options: LoadModuleOptions): Promise<void>;
+  init(dbName: string, options: LoadModuleOptions, owner?: string): Promise<void>;
   beginTransactionSql(): string | Promise<string>;
   beginSystemMigrationTransactionSql(): string | Promise<string>;
   setChangeEventsMuted(muted: boolean): void | Promise<void>;
   describeBlankDatabase(): Promise<SqliteBlankDatabase>;
+  release(owner: string): Promise<void>;
+  rollbackOrphanTransaction(): Promise<boolean>;
 }
 
 function validateTransport(options: WaSqliteOptions): void {
@@ -40,8 +42,15 @@ function validateTransport(options: WaSqliteOptions): void {
   }
 }
 
-/** 创建并初始化 wa-sqlite 客户端。 */
-async function createSqliteClient(dbName: string, options: WaSqliteOptions): Promise<SqliteClientLike> {
+/**
+ * 创建并初始化 wa-sqlite 客户端。
+ *
+ * @param dbName - 库名
+ * @param options - 适配器配置
+ * @param owner - 持有者键：SharedWorker 上共用一个客户端时，断开凭它只交还自己那一份（`release`）
+ * @returns 主线程客户端或 Worker / SharedWorker 上那个客户端的远端代理
+ */
+async function createSqliteClient(dbName: string, options: WaSqliteOptions, owner?: string): Promise<SqliteClientLike> {
   assertWaSqliteDatabaseName(dbName);
   validateTransport(options);
   validateSqliteNumericOption('cacheSizeKb', options.cacheSizeKb, DEFAULT_CACHE_SIZE_KB);
@@ -68,7 +77,7 @@ async function createSqliteClient(dbName: string, options: WaSqliteOptions): Pro
     workerOwnership: options.workerOwnership
   });
   try {
-    await sqliteClient.init(dbName, loadModuleOptions);
+    await sqliteClient.init(dbName, loadModuleOptions, owner);
     return sqliteClient;
   } catch (error) {
     releaseComlinkProxy(sqliteClient);

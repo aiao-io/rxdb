@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-002-data-sync
 created: 2025-12-08
-updated: 2026-10-19
+updated: 2026-10-20
 tags: [collaboration, undo]
 ---
 
@@ -22,8 +22,8 @@ tags: [collaboration, undo]
 ### In Scope
 
 - 事务级撤销/重做：按 `transactionId` 分组，同一事务内所有变更一起撤销或重做
-- 基于 `RxDBChange.inversePatch` 的 undo，范围是本次会话：只撤销会话起点（`firstConnectedAt`，取仍打开的各标签页中最早的首次连接时刻）之后提交的事务；所有标签页关闭后重开，或只有一个页面时刷新，此前的事务不再可撤销
-- 会话级内存 redo 栈（每个页面一份，刷新后清空）
+- 基于 `RxDBChange.inversePatch` 的 undo（durable，页面刷新后仍可撤销）
+- 会话级内存 redo 栈（页面刷新后清空，undo 仍可用）
 - 失效逻辑：undo 后执行新操作，清空 redo 栈
 - 与 commit 能力、`restoreEntity` 的兼容边界（undo 结果仍走普通 `RxDBChange` 路径）
 
@@ -34,18 +34,18 @@ tags: [collaboration, undo]
 - 恢复会话语义 —— 属 [US-307](./US-307-restore-session.md)
 - 分支切换与跨 realm 冲突检测 —— 属 [US-308](./US-308-branch-isolation-conflict.md)
 - change codec 的 bigint/binary 无损表示 —— 属 [US-303](./US-303-bigint-binary-change-codec.md)
-- 跨会话的 undo / redo（两者都只在本次会话内有效）
+- redo 的 durable 化（redo 恒为会话级能力）
 
 ## 验收标准
 
-| #   | 前置条件                    | 操作          | 预期结果                                                        | 状态 |
-| --- | --------------------------- | ------------- | --------------------------------------------------------------- | ---- |
-| 1   | 执行了一系列 CRUD 操作      | 调用 `undo()` | 最后一个操作被反转                                              | ✅   |
-| 2   | 执行了 undo                 | 调用 `redo()` | 之前撤销的操作被重新应用                                        | ✅   |
-| 3   | 执行 undo 后进行了新操作    | 检查 redo 栈  | redo 栈被清空（失效逻辑）                                       | ✅   |
-| 4   | 历史按 `transactionId` 分组 | undo 一个事务 | 该事务内所有变更一起撤销                                        | ✅   |
-| 5   | `inversePatch` 记录         | 执行 undo     | 通过反转补丁恢复数据                                            | ✅   |
-| 6   | redo 栈为会话级（内存）     | 页面刷新      | redo 栈清空；只有一个页面时会话随之重开，刷新前的事务不再可撤销 | ✅   |
+| #   | 前置条件                    | 操作          | 预期结果                   | 状态 |
+| --- | --------------------------- | ------------- | -------------------------- | ---- |
+| 1   | 执行了一系列 CRUD 操作      | 调用 `undo()` | 最后一个操作被反转         | ✅   |
+| 2   | 执行了 undo                 | 调用 `redo()` | 之前撤销的操作被重新应用   | ✅   |
+| 3   | 执行 undo 后进行了新操作    | 检查 redo 栈  | redo 栈被清空（失效逻辑）  | ✅   |
+| 4   | 历史按 `transactionId` 分组 | undo 一个事务 | 该事务内所有变更一起撤销   | ✅   |
+| 5   | `inversePatch` 记录         | 执行 undo     | 通过反转补丁恢复数据       | ✅   |
+| 6   | redo 栈为会话级（内存）     | 页面刷新      | redo 栈清空（undo 仍可用） | ✅   |
 
 ## 技术笔记
 
@@ -53,7 +53,9 @@ tags: [collaboration, undo]
 - Redo 栈：会话级内存存储，页面刷新后清空
 - 失效逻辑：undo 后执行新操作，清空 redo 栈
 - 事务级撤销：同一事务内所有变更一起撤销
-- 存储：undo 候选来自数据库中的 `RxDBChange` 表，只取 `createdAt` 不早于会话起点的变更（`packages/rxdb-plugin-history/src/undo-redo-apply.ts` 的 `getFirstConnectedAt()`；用例「不应撤销当前 session 连接前的历史」）；redo 栈仅存在于内存，刷新即清空
+- 存储：undo 历史来自数据库中的 `RxDBChange` 表（刷新后仍可 undo）；redo 栈仅存在于内存，刷新即清空
+- 子分支分叉点：当前分支上不晚于某条子分支分叉点的变更已被子分支继承，undo / redo 都停在那里，原因由 `undoBarrier$` / `redoBarrier$` 给出；
+  删掉继承它们的子分支之后限制解除（[US-315](US-315-undo-inherited-change-switch-corruption.md)）
 
 ## 实现文件
 

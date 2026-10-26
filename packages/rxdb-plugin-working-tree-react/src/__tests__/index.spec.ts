@@ -16,8 +16,8 @@ describe('包入口公开面', () => {
   // 与 `rxdb-plugin-search-*` 的 SRCHR-006 正相反——那边把 `SearchExecutionError`
   // 和纯类型一起 `export type`、消费者拿不到 class 是已知债；这边是**有意不转**，
   // 调用方一律从 `@aiao/rxdb-plugin-working-tree` 直接 import。
-  it('运行时导出只有 useWorkingTree 一个', () => {
-    expect(Object.keys(publicApi).sort()).toEqual(['useWorkingTree']);
+  it('运行时导出只有 useWorkingTree 与 useWorktrees 两个', () => {
+    expect(Object.keys(publicApi).sort()).toEqual(['useWorkingTree', 'useWorktrees']);
   });
 
   // `WorkingTreeResource` 是 `export type`，运行时不存在，

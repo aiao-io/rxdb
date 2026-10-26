@@ -6,19 +6,23 @@ import {
   getEntityMetadata,
   RxDBBranch,
   RxDBEntityLocalUpdatedEventData,
-  SwitchBranchOptions
+  RxDBError,
+  SwitchBranchOptions,
+  WorktreeBranchHeldError,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import type { Results } from '@electric-sql/pglite';
 
-import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { RxdbAdapterPGliteError } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 import remove_all_triggers_sql from '../table/remove_trigger_sql.js';
-import generate_trigger_sql from '../table/trigger_sql.js';
+import generate_trigger_sql, { hasChangeTriggerInTableSet } from '../table/trigger_sql.js';
 import type { PGliteTransactionExecutor } from '../transaction/PGliteTransactionExecutor.js';
 import { PGliteExecuteResult, transaction_pglite_result } from '../transaction_pglite_result.js';
 import { applySwitchActions, dispatch_switch_events } from './execute_switch_actions.js';
 import { executeSwitchStatements } from './execute_switch_statements.js';
-import { readCurrentBranchId } from './read_current_branch_id.js';
+import { readCurrentBranchId, type PGliteRowReader } from './read_current_branch_id.js';
 import { convertSwitchResultToSql } from './switch-result.utils.js';
 
 /**
@@ -48,8 +52,11 @@ function convertResultsToPGliteExecuteResult<T>(results: Results<T>): PGliteExec
  * 却仍会触发行级 NOTIFY，异步派发成一条 `inversePatch:{}` 的裸 RxDBBranch UPDATE 事件，
  * 污染下一个用例的事件监听窗口。
  */
-export const generateBranchTriggerSql = (adapter: RxDBAdapterPGlite, branchId: string): string =>
-  generateBranchTriggerSqlFor(adapter, branchId, adapter.rxdb.config.entities);
+export const generateBranchTriggerSql = (
+  adapter: RxDBAdapterPGlite,
+  tableSet: WorktreeTableSet,
+  branchId: string
+): string => generateBranchTriggerSqlFor(adapter, tableSet, branchId, adapter.rxdb.config.entities);
 
 /**
  * 同 {@link generateBranchTriggerSql}，但只重挂**指定的**那几个实体
@@ -67,19 +74,20 @@ export const generateBranchTriggerSql = (adapter: RxDBAdapterPGlite, branchId: s
  */
 export const generateBranchTriggerSqlFor = (
   adapter: RxDBAdapterPGlite,
+  tableSet: WorktreeTableSet,
   branchId: string,
   EntityTypes: readonly EntityType[]
 ): string => {
   const sqlParts: string[] = [];
 
-  // 遍历给定实体，为启用了日志功能的实体重新生成触发器
+  // 遍历给定实体，只给这套表里挂触发器的实体重挂：记日志、且影子表集只算成员（见 hasChangeTriggerInTableSet）
   EntityTypes.forEach(EntityType => {
     const metadata = getEntityMetadata(EntityType);
 
-    // 只为启用了日志功能的实体生成触发器
-    if (metadata.log !== false) {
+    if (hasChangeTriggerInTableSet(metadata, tableSet)) {
       const triggerSql = generate_trigger_sql(metadata, {
         branchId,
+        tableSet,
         resolveEntityMetadata: adapter.encryptionContext.resolveEntityMetadata
       });
       if (triggerSql.trim()) {
@@ -115,11 +123,11 @@ export const generateBranchTriggerSqlFor = (
  * 而 `RETURNING` 少一条就意味着那一侧翻转过的行不进事件派发。
  */
 export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: string): string => {
-  const triggerSql = generateBranchTriggerSql(adapter, branchId);
+  const triggerSql = generateBranchTriggerSql(adapter, adapter.tableSet, branchId);
 
   // 获取分支表的元数据和表名
   const metadata = getEntityMetadata(RxDBBranch);
-  const tableName = getTableNameByMetadata(metadata);
+  const tableName = getTableNameByMetadata(metadata, WorktreeTableSet.MAIN);
 
   // 转义分支 ID 中的单引号，防止 SQL 注入
   const escapedBranchId = branchId.replace(/'/g, "''");
@@ -159,36 +167,126 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: st
 };
 
 /**
+ * 切到 `branchId` 之前的检查：它在别人手里就抛（主检出位 US-314 B1.2，可写检出位 B2.2）。
+ *
+ * @param reader - 切换事务的直发门面
+ * @param branchId - 目标分支
+ * @param tableSet - 本实例挂的那套表：主检出位的哨兵对可写检出位来说也是「别人」
+ * @throws {@link WorktreeBranchHeldError} 目标分支被别的检出位持有时（主检出位切过去时是可写检出位的持有键，
+ *   可写检出位切过去时还包括主检出位的哨兵）
+ *
+ * @remarks
+ * 唯一索引兜不住这一条：点亮那条 UPDATE 写的是哨兵，正好把持有键覆盖掉，索引里始终只有一个哨兵。
+ * 只能在点亮之前读一次，而且必须在切换事务里读——在事务外读，读与点亮之间写下的持有键照样会被覆盖。
+ * 列名与 {@link generateSwitchBranchSql} 里熄灭、点亮两条语句同写字面量：三处指的必须是同一列。
+ *
+ * **另一个后端有一份同样的检查**（`packages/rxdb-adapter-sqlite-core/src/version/switch_branch.ts`），
+ * 判定本身在核心（`WorktreeBranchHeldError.throwIfHeld`），两端各自只剩读那一格的 SQL。
+ */
+const assertBranchNotHeld = async (
+  reader: PGliteRowReader,
+  branchId: string,
+  tableSet: WorktreeTableSet
+): Promise<void> => {
+  const tableName = getTableNameByMetadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN);
+  const result = await reader.query<{ activeKey: unknown }>(
+    `SELECT "activeKey" FROM ${tableName} WHERE id = $1::text`,
+    [branchId]
+  );
+  const activeKey = result.rows[0]?.activeKey;
+  WorktreeBranchHeldError.throwIfHeld(branchId, typeof activeKey === 'string' ? activeKey : null, tableSet.holderKey);
+};
+
+/**
+ * 可写检出位里切分支（US-314 B2.2）：按目标分支重挂这套表的触发器、放开原来持有的分支、持有目标分支。
+ *
+ * @param sink - 切换事务的直发门面
+ * @param tableSet - 本实例挂的那套影子表
+ * @param branchId - 目标分支
+ * @returns 放开与持有两条语句交回的分支行，用来刷缓存、派事件
+ * @throws {@link RxdbAdapterPGliteError} 目标分支没持有到（分支不在）时，整笔回滚
+ *
+ * @remarks
+ * 与 sqlite-core 的同名实现同口径。主检出位那一行（`activated` 与哨兵）一格不动：可写检出位持有分支只写
+ * `"activeKey"`，`activated` 恒为假。先放后拿：`"activeKey"` 的唯一索引逐行立即检查，同一个持有键在两行上
+ * 同时出现一瞬就撞。拿的那条只认 `activated = FALSE` 且没人持有（或已是自己）的行，索引之外多一道「不覆盖别人的键」。
+ * `"updatedAt"` 只在真正翻转的行上推进，与主检出位那两条同口径。
+ */
+const switchCheckoutBranch = async (
+  sink: RxDBAdapterPGlite,
+  tableSet: WorktreeTableSet,
+  branchId: string
+): Promise<Results<Record<string, unknown>>> => {
+  const tableName = getTableNameByMetadata(getEntityMetadata(RxDBBranch), WorktreeTableSet.MAIN);
+  const triggers = generateBranchTriggerSql(sink, tableSet, branchId);
+  if (triggers) await executeSwitchStatements(sink, triggers);
+  const released = await sink.query<Record<string, unknown>>(
+    `UPDATE ${tableName} SET "activeKey" = NULL, "updatedAt" = NOW()
+     WHERE "activeKey" = $1::text AND id != $2::text
+     RETURNING *`,
+    [tableSet.holderKey, branchId]
+  );
+  const held = await sink.query<Record<string, unknown>>(
+    `UPDATE ${tableName}
+     SET "activeKey" = $1::text, "updatedAt" = CASE WHEN "activeKey" IS NULL THEN NOW() ELSE "updatedAt" END
+     WHERE id = $2::text AND activated = FALSE AND ("activeKey" IS NULL OR "activeKey" = $1::text)
+     RETURNING *`,
+    [tableSet.holderKey, branchId]
+  );
+  if (held.rows.length !== 1) {
+    throw new RxdbAdapterPGliteError(`表集 ${tableSet.suffix} 持有不了分支 ${branchId}：分支不在`);
+  }
+  return { ...held, rows: [...released.rows, ...held.rows] };
+};
+
+/**
  * 切换到指定分支
  *
  * @param adapter - PGlite 适配器实例
- * @param options - 分支切换选项；省略 `branchId` 即「留在当前激活分支」，仅套用 actions
+ * @param options - 分支切换选项；省略 `branchId` 即「留在当前激活分支」，仅套用 actions：
+ *   不查持有、不写分支表，只按当前分支重挂触发器
+ * @throws {@link WorktreeBranchHeldError} 目标分支在可写检出位手里时；原样抛出，一行都没动
  */
 export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchBranchOptions) => {
   const { branchId, actions, prepare } = options;
+  // 本实例挂的那套表：增量落在它里面，切分支时主检出位熄灭、点亮那一行，可写检出位放开、持有自己的键（US-314 B2.2）
+  const tableSet = adapter.tableSet;
 
-  const switchAction = actions && (await convertSwitchResultToSql(adapter, actions));
+  let switchAction: Awaited<ReturnType<typeof convertSwitchResultToSql>> | undefined;
   let branchSwitchResult: Results<Record<string, unknown>> | undefined;
   let targetBranchId = branchId;
   // 前置校验被拒是一条日常路径，不是适配器故障；下面的 catch 靠它决定包不包。
-  let prepareRejected = false;
+  let preflightRejected = false;
 
   try {
     // switch_branch 自管触发器和变更日志，跳过事务日志以免重复
     branchSwitchResult = await adapter.transaction(async executor => {
+      if (executor.tableSet.suffix !== tableSet.suffix) {
+        preflightRejected = true;
+        throw new RxDBError('切分支排队期间表集已改变，请重新发起切换');
+      }
       const sink = (executor as PGliteTransactionExecutor).adapter;
       // 省略 branchId = 「作用于当前激活分支」，必须在本事务内解析：在事务外采样再传进来，
       // 采样与提交之间的一次真实切换会让这条调用把 activated 与全部触发器倒回旧分支。
-      targetBranchId ??= await readCurrentBranchId(sink);
+      targetBranchId ??= await readCurrentBranchId(sink, tableSet);
+      // 目标分支在可写检出位手里就拒。排在前置校验之前，与 git 同序：先答「这条分支能不能检出」，
+      // 再问「工作树干不干净」；也排在动第一行之前，被拒时连触发器都还在。留在当前分支时没有要拿下的分支，不查。
+      if (branchId !== undefined) await assertBranchNotHeld(sink, targetBranchId, tableSet);
       // 前置校验排在这里而不是本事务之外：外面那一版留下一个「校验通过到真正切换」的窗口，
       // 窗口里的一次写能让刚判过的「工作树干净」变成假的，而切换照样完成。
       // 抛出即整次回滚——此刻一行都还没动，连触发器都还在。
       await prepare({ executor, targetBranchId }).catch((error: unknown) => {
-        prepareRejected = true;
+        preflightRejected = true;
         throw error;
       });
+      switchAction =
+        actions &&
+        (await convertSwitchResultToSql(sink, actions).catch((error: unknown) => {
+          preflightRejected = true;
+          throw error;
+        }));
       // 移除所有表触发器，避免触发器在批量操作时干扰数据
-      const removeAllTriggers = remove_all_triggers_sql(sink);
+      const removeAllTriggers = remove_all_triggers_sql(sink, tableSet);
       if (removeAllTriggers) await executeSwitchStatements(sink, removeAllTriggers);
 
       // 执行切换分支的操作
@@ -208,8 +306,18 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
         ]);
       }
 
+      // 留在当前分支（撤销 / 重做、重做栈失效）只重挂本实例这套表的触发器，不写分支表：从前也照跑熄灭 + 点亮，
+      // 点亮那条的 RETURNING 行还派出一条「activated 翻转了」的假事件（US-314 B1.3）。
+      if (branchId === undefined) {
+        const rebuildTriggers = generateBranchTriggerSql(sink, executor.tableSet, targetBranchId);
+        if (rebuildTriggers) await executeSwitchStatements(sink, rebuildTriggers);
+        return undefined;
+      }
+
       // 恢复 trigger 和更新分支状态必须与数据变更共用同一事务，失败时整体回滚。
-      return executeSwitchStatements(sink, generateSwitchBranchSql(adapter, targetBranchId));
+      // 可写检出位那一支只动自己的持有键（US-314 B2.2）。
+      if (!tableSet.isMain) return switchCheckoutBranch(sink, tableSet, targetBranchId);
+      return executeSwitchStatements(sink, generateSwitchBranchSql(sink, targetBranchId));
     }, false);
 
     const _dispatch_update_event = (metadata: EntityMetadata, result: RxDBBranch[]) => {
@@ -220,9 +328,12 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
         type: 'UPDATE',
         id: entity.id,
         patch: { ...entity },
-        // inversePatch 反映切换前的 activated 状态（PostgreSQL 为布尔，true↔false 互换），
+        // inversePatch 反映切换前那一格（activated 为布尔、true↔false 互换；可写检出位翻自己的持有键 ↔ NULL），
         // 使 undo/redo 消费者可正确还原前一状态
-        inversePatch: { ...entity, activated: !entity.activated },
+        inversePatch:
+          tableSet.isMain ?
+            { ...entity, activated: !entity.activated }
+          : { ...entity, activeKey: entity.activeKey ? null : tableSet.holderKey },
         recordAt: entity.updatedAt || entity.createdAt || new Date()
       }));
       adapter.rxdb.dispatchEvent(new EntityLocalUpdatedEvent(switchBranchEvent));
@@ -237,13 +348,14 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
 
     // 发送实体变更事件（复用公共逻辑）
     if (switchAction) {
-      await dispatch_switch_events(adapter, switchAction);
+      await dispatch_switch_events(adapter, switchAction, tableSet);
     }
   } catch (cause) {
     // `prepare` 的拒绝是**调用方的领域错误**（工作树不干净、凭据过期……），调用方按类型接住它。
     // 包进 RxdbAdapterPGliteError 会把类型抹平成「适配器出错」，`instanceof WorkingTreeDirtyError`
     // 这类判断随之全部失效——而这条路径上一行都没动过，本来就不是适配器的故障。
-    if (prepareRejected) throw cause;
+    // 目标分支被可写检出位持有同理。
+    if (preflightRejected || cause instanceof WorktreeBranchHeldError) throw cause;
     const message = cause instanceof Error ? cause.message : String(cause);
     const originalError = cause instanceof Error ? cause : new Error(message, { cause });
     throw new RxdbAdapterPGliteError(

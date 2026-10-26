@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 
-import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from '@aiao/rxdb';
+import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID, WorktreeTableSet } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import remove_all_triggers_sql from './table/remove_trigger_sql.js';
 import { generateBranchTriggerSql } from './version/switch_branch.js';
@@ -138,7 +138,7 @@ export const dumpPGliteUserTables = async (adapter: unknown): Promise<Uint8Array
  * 用于测试 setup/teardown 之间快速重置数据库，避免重建 PGlite 实例的开销。
  *
  * 步骤：
- * 1. 清空 RxDB EntityManager 缓存
+ * 1. 清空 RxDB EntityManager 缓存，删掉可写检出位的表集（整个 schema）
  * 2. DROP 所有版本分支 trigger
  * 3. TRUNCATE `public` / `rxdb` schema 下的全部表（CASCADE）
  * 4. 重新插入默认 `main` 分支记录
@@ -151,7 +151,15 @@ export const dumpPGliteUserTables = async (adapter: unknown): Promise<Uint8Array
 export const cleanup_db = async (adapter: RxDBAdapterPGlite): Promise<void> => {
   adapter.rxdb.entityManager.cleanAllCache();
 
-  const remove_trigger_sql = remove_all_triggers_sql(adapter);
+  // 可写检出位的表集（US-314 B1.3）不在建库形态里，连 schema 一起删：下面的 TRUNCATE 只管 `public` / `rxdb`，
+  // 留着它们的话，下一条用例再建同名表集就撞「已存在」。
+  const shadowSchemas = await adapter.internalQuery(`SELECT nspname FROM pg_namespace WHERE nspname LIKE '%$wt\\_%'`);
+  for (const row of shadowSchemas.rows) {
+    const { nspname } = row as { nspname: string };
+    await adapter.query(`DROP SCHEMA "${nspname}" CASCADE`);
+  }
+
+  const remove_trigger_sql = remove_all_triggers_sql(adapter, WorktreeTableSet.MAIN);
   if (remove_trigger_sql) {
     const statements = remove_trigger_sql.split('---STATEMENT_SEPARATOR---').filter((s: string) => s.trim());
     for (const stmt of statements) {
@@ -205,7 +213,7 @@ export const cleanup_db = async (adapter: RxDBAdapterPGlite): Promise<void> => {
   // 只重挂触发器，不再顺带跑 switch 的那条分支激活 UPDATE：上一行的 INSERT 已经把
   // main 置为 activated=TRUE，那条 UPDATE 在取值上是空操作，却会触发行级 NOTIFY，
   // 异步派发成裸 RxDBBranch UPDATE 事件污染下一个用例的监听窗口。
-  const sql = generateBranchTriggerSql(adapter, MAIN_BRANCH_ID);
+  const sql = generateBranchTriggerSql(adapter, WorktreeTableSet.MAIN, MAIN_BRANCH_ID);
   const triggerStatements = sql.split('---STATEMENT_SEPARATOR---').filter((s: string) => s.trim());
   for (const stmt of triggerStatements) {
     await adapter.query(stmt.trim());

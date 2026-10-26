@@ -43,6 +43,7 @@ import { firstValueFrom } from 'rxjs';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { findBlockingDependency } from './cascade-blocking.js';
 import { buildDependencyGraph, type DependencyGraph, type RepositoryIdentifier } from './dependency-graph.js';
+import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
 import { dependencyEdgeForAction, type SortActionKind, topologicalSortForAction } from './topological-sort.js';
 /**
@@ -468,7 +469,7 @@ async function runCascadePhase(
     }
   }
 
-  await pushPlanEntries(node.plan, phase.kinds, options.batchSize);
+  await pushPlanEntries(sm, node.plan, phase.kinds, options.batchSize);
 
   // 本相位推失败：立刻定案，后续相位不再推，并把失败传导给依赖它的仓库
   if (node.plan.error) {
@@ -815,6 +816,7 @@ async function mergePushBatch(
  * @internal
  */
 interface RepositoryPushPlan {
+  readonly invalidateHistory: () => void;
   readonly repository: RepositoryIdentifier;
   readonly entityType: EntityType;
   readonly entries: CompactedPushEntry[];
@@ -862,10 +864,12 @@ async function planRepositoryPush(
   await sm.getRemoteRepositories(); // 确保远端已配置
   const { adapter: localAdapter } = await sm.getLocalRepositories();
 
+  assertSyncOnMainCheckout(rxdb.worktreeTableSet, 'pushRepository');
   // 代际先于分支读取：两者之间若插进一次切换，提交时代际对不上，宁可多拒一轮也不错配
   const branchGeneration = sm.branchSwitchGeneration;
   // 获取当前分支
   const branch = await sm.getCurrentBranch();
+  assertSyncOnMainCheckout(rxdb.worktreeTableSet, 'pushRepository', branch);
 
   // 获取或创建 RxDBSync 记录
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
@@ -967,6 +971,7 @@ async function planRepositoryPush(
   );
 
   return {
+    invalidateHistory: sm.history.captureUndoHistory(branch.id),
     repository: { namespace, entity },
     entityType: EntityType,
     entries,
@@ -996,6 +1001,7 @@ async function planRepositoryPush(
  * @internal
  */
 async function pushPlanEntries(
+  sm: SyncManager,
   plan: RepositoryPushPlan,
   kinds: ReadonlySet<CompactedActionKind>,
   batchSize: number
@@ -1009,12 +1015,14 @@ async function pushPlanEntries(
 
   for (const { branchId, entries: batchEntries } of splitPushBatches(entries, batchSize)) {
     try {
+      assertSyncOnMainCheckout(sm.rxdb.worktreeTableSet, 'pushRepository');
       const classified = await mergePushBatch(plan.remoteAdapter, branchId, batchEntries);
       for (const { change, remoteId } of classified.applied) {
         plan.remoteIdsByChange.set(change, remoteId);
       }
       for (const rejected of classified.rejected) plan.rejectedEntries.push(rejected);
       plan.pushed += batchEntries.length - classified.rejected.length;
+      if (classified.applied.length > 0) plan.invalidateHistory();
     } catch (error) {
       console.error(`Error pushing changes to remote for repository [${namespace}/${entity}]:`, error);
       plan.error = error instanceof Error ? error : new Error(String(error));
@@ -1260,6 +1268,9 @@ async function writePushReceipts(executor: TransactionExecutor, plan: Repository
  * active 分支经**本事务**读：走 `sm.getCurrentBranch()` 会排在已持有的事务后面。
  * 激活代际只覆盖本实例内的切换；跨标签页的切换只由持久化的 active 分支兜住，A→B→A 不可见。
  *
+ * 远端往返期间实例换挂到了可写检出位（US-314 B1.4）同样整轮失败：换挂不动 active 分支，上面两项都对得上，
+ * 但本事务落在检出位那套表上，被拒对齐会把远端值写进检出位的表。
+ *
  * 没有被拒时不校验：只写回执与水位线、不碰业务投影，不值得为一次分支切换让正常推送整轮重推。
  *
  * @internal
@@ -1271,6 +1282,7 @@ async function assertPlansOnActiveBranch(
 ): Promise<void> {
   if (!plans.some(plan => plan.rejectedEntries.length > 0)) return;
 
+  assertSyncOnMainCheckout(executor.tableSet, 'push');
   const active = await assertSingleActiveBranch(executor);
   const generation = sm.branchSwitchGeneration;
   const stale = plans.find(plan => plan.branchId !== active.id || plan.branchGeneration !== generation);
@@ -1483,7 +1495,7 @@ async function pushSingleRepository(
   const planned = await planRepositoryPush(sm, namespace, entity, inFlight);
   if ('emptyResult' in planned) return planned.emptyResult;
 
-  await pushPlanEntries(planned, ALL_ACTION_KINDS, options.batchSize);
+  await pushPlanEntries(sm, planned, ALL_ACTION_KINDS, options.batchSize);
   const result = (await commitPushPlans(sm, [planned], rejections)).get(planned);
   if (!result) throw new RxDBError(`Internal error: push result missing for ${namespace}:${entity}`);
   // 与级联路径同一个失败出口，见 throwPushFailure 的 @remarks

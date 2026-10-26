@@ -1,4 +1,5 @@
 import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
+import type { TransactionFun } from '@aiao/rxdb-adapter-sqlite-core';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { queryCountOf, registerQueryCount, type EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
@@ -11,11 +12,35 @@ import type { SqliteOptions } from '../sqlite.interface.js';
 class QueryCountingSqliteWasmAdapter extends RxDBAdapterSqlite {
   queryCount = 0;
 
-  override query(...args: Parameters<RxDBAdapterSqlite['query']>): ReturnType<RxDBAdapterSqlite['query']> {
-    this.queryCount++;
-    return super.query(...args);
+  override transaction<T extends TransactionFun>(fun: T, transactionLog = true): Promise<Awaited<ReturnType<T>>> {
+    return super.transaction<TransactionFun>(async executor => {
+      const execute = executor.execute.bind(executor);
+      executor.execute = (...args) => {
+        this.queryCount++;
+        return execute(...args);
+      };
+      return fun(executor);
+    }, transactionLog) as Promise<Awaited<ReturnType<T>>>;
   }
 }
+
+/** 非持久档的连法：内存库。 */
+const memoryAdapterOptions = (): SqliteOptions => ({ vfs: 'memory', batchTimeout: 1, wasmUrl: sqliteWasmUrl });
+
+/** 持久档的连法：主线程 IndexedDB。 */
+const persistentAdapterOptions = (): SqliteOptions => ({ vfs: 'idb', batchTimeout: 1, wasmUrl: sqliteWasmAsyncUrl });
+
+/**
+ * 给只读检出位的快照实例造适配器（US-313）：与本工厂持久档同一份连法，按快照实例的库名各占一个 IndexedDB 库。
+ *
+ * @param db - 快照实例
+ * @returns 快照库的适配器
+ *
+ * @remarks
+ * 持久档而不是内存：持久归属的检出位放开之后要能原样再打开，`close()` / `prune()` 删的也要是真存储。
+ */
+export const createSqliteWasmWorktreeAdapter = (db: RxDB): RxDBAdapterSqlite =>
+  new RxDBAdapterSqlite(db, persistentAdapterOptions());
 
 export const sqliteWasmFactory: AdapterFactory = {
   name: 'sqlite-wasm',
@@ -65,11 +90,10 @@ async function createSqliteWasmAdapter(options?: Record<string, unknown>) {
 
   let countingAdapter: QueryCountingSqliteWasmAdapter | undefined;
   rxdb.adapter('sqlite-wasm', async db => {
-    countingAdapter = new QueryCountingSqliteWasmAdapter(db, {
-      vfs: persistent ? 'idb' : 'memory',
-      batchTimeout: 1,
-      wasmUrl: persistent ? sqliteWasmAsyncUrl : sqliteWasmUrl
-    });
+    countingAdapter = new QueryCountingSqliteWasmAdapter(
+      db,
+      persistent ? persistentAdapterOptions() : memoryAdapterOptions()
+    );
     return countingAdapter;
   });
 

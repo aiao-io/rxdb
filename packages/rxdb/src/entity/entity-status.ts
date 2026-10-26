@@ -3,6 +3,7 @@ import { shareReplay, Subject } from 'rxjs';
 import { RxDB } from '../RxDB.js';
 import { getEntityStatus } from '../rxdb-utils.js';
 import { getRxDBEntityIdentityKey } from '../system/change-codec.js';
+import type { WorktreeTableSet } from '../system/worktree-table-set.js';
 import { EntityPatch, IEntityStatus } from './entity-status.interface.js';
 import { EntityInstanceType, EntityType } from './entity.interface.js';
 import { setSafeObjectKey } from './entity.utils.js';
@@ -59,6 +60,7 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    * @private
    */
   #changed_keys = new Set<keyof InstanceType<T>>();
+  readonly #checkpoints = new Set<Map<keyof InstanceType<T>, unknown>>();
 
   /**
    * reset/replace 各自递增的代数
@@ -127,6 +129,14 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    * 实体原始对象
    */
   readonly target!: InstanceType<T>;
+
+  /**
+   * 建出或读出这个实体时本实例挂的那套表（US-314 B2.4）。
+   *
+   * @remarks
+   * 写之前与实例此刻挂的那套表核对：换挂之后旧的实体对象写不进另一套表（见 `WorktreeTableSetMismatchError`）。
+   */
+  readonly tableSet: WorktreeTableSet;
 
   /**
    * 实体代理对象
@@ -306,6 +316,7 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
     data: IEntityStatus<T>
   ) {
     setSafeObjectKey(this, 'target', data.target);
+    this.tableSet = rxdb.worktreeTableSet;
     // 配置默认值
     this._local = data.local || false;
     this._remote = data.remote || false;
@@ -313,12 +324,22 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
     this._origin = structuredClone({ ...data.target });
     this._patches = data.patches || [];
     // 让一些数据不可迭代
-    ['_local', '_modified', '_origin', '_patch_cache', '_patches', '_remote', '_removed', 'patches$', 'rxdb'].forEach(
-      key =>
-        Object.defineProperty(this, key, {
-          enumerable: false,
-          configurable: false
-        })
+    [
+      '_local',
+      '_modified',
+      '_origin',
+      '_patch_cache',
+      '_patches',
+      '_remote',
+      '_removed',
+      'patches$',
+      'rxdb',
+      'tableSet'
+    ].forEach(key =>
+      Object.defineProperty(this, key, {
+        enumerable: false,
+        configurable: false
+      })
     );
   }
 
@@ -326,9 +347,48 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    * 记录属性变更
    * 在 Proxy set 拦截时调用，同步记录哪些属性被修改
    * @param key - 被修改的属性键
+   * @param value - 本次编辑值；在数据库回填覆盖字段前保留
    */
-  markChanged(key: keyof InstanceType<T>) {
+  markChanged(key: keyof InstanceType<T>, value: unknown = this.target[key]) {
     this.#changed_keys.add(key);
+    for (const edits of this.#checkpoints) edits.set(key, value);
+  }
+
+  /**
+   * 保存事务写入前的状态，回滚时恢复基线并保留等待期间的本地编辑。
+   *
+   * @returns 接收提交结果的收尾函数；重复调用无副作用
+   * @internal
+   */
+  checkpoint(): (committed: boolean) => void {
+    const target = structuredClone({ ...this.target });
+    const origin = structuredClone(this._origin);
+    const changedKeys = new Set(this.#changed_keys);
+    const patches = [...this._patches];
+    const flags = { local: this._local, remote: this._remote, modified: this._modified, removed: this._removed };
+    const edits = new Map<keyof InstanceType<T>, unknown>();
+    this.#checkpoints.add(edits);
+    return committed => {
+      if (!this.#checkpoints.delete(edits) || committed) return;
+      const pending = Object.fromEntries(edits);
+      const previousId = this.target.id;
+      for (const key of Object.keys(this.target)) {
+        if (!(key in target)) Reflect.deleteProperty(this.target, key);
+      }
+      Object.assign(this.target, target, pending);
+      this._origin = origin;
+      this._local = flags.local;
+      this._remote = flags.remote;
+      this._removed = flags.removed;
+      this.#changed_keys = new Set([...changedKeys, ...edits.keys()]);
+      this.#clear_cache(true);
+      this._modified = flags.modified || Object.keys(this.patch).length > 0;
+      this._patches = patches;
+      this.#generation++;
+      this.rxdb.entityManager.reindexEntityCache(this.proxyTarget, previousId);
+      this.#relations.syncObservableForeignKeys();
+      this.#patches.next(this._patches);
+    };
   }
 
   /**
@@ -538,6 +598,15 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
       }
     }
     return entities;
+  }
+
+  /**
+   * 保存删掉的 Junction 不再待删；委托给 EntityRelationCache.forgetRemovedJunctions。
+   *
+   * @param junctions - 这次保存删掉的 Junction
+   */
+  forgetRemovedJunctions(junctions: Iterable<EntityInstanceType<EntityType>>): void {
+    this.#relations.forgetRemovedJunctions(junctions);
   } /**
    * 添加关系实体
    *

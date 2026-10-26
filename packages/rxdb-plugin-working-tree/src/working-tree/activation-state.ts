@@ -21,7 +21,7 @@
  * 工作树表的读取，本身就是一处行为差异。需要这一行的命令各自在自己的写事务里读。
  */
 
-import type { EntityManager, TransactionExecutor } from '@aiao/rxdb';
+import type { EntityManager, TransactionExecutor, WorktreeTableSet } from '@aiao/rxdb';
 import { getEntityMetadata, RxDBError, sqlStringLiteral } from '@aiao/rxdb';
 import { createColumnOf } from '../entity-column.js';
 import {
@@ -51,6 +51,21 @@ export interface WorkingTreeActivationInfo {
 }
 
 /**
+ * 一套表的激活态行的主键：主检出位是 {@link WORKING_TREE_ACTIVATION_STATE_ID}，可写检出位是它的持有键（US-314 B2.2）。
+ *
+ * @param tableSet - 本实例挂的那套表
+ * @returns 这套表的激活态行的主键
+ *
+ * @remarks
+ * 每套表各有一份 `activationRevision`：检出位里切分支只推进自己那一行，主检出位与别的检出位手上的提交凭据不受影响。
+ * 只有一份的话，任何一处切分支都让所有人的凭据失效；不推进又放过了 `A → B → A` 之后的旧凭据。
+ * 分支代际（`branchGenerationSeq`）是全库一份的单调源，只在主检出位那一行上发放。
+ * 可写检出位的那一行随打开建、随关闭删（`checkout/worktree-manager.ts`）。
+ */
+export const activationStateIdOf = (tableSet: WorktreeTableSet): string =>
+  tableSet.isMain ? WORKING_TREE_ACTIVATION_STATE_ID : tableSet.holderKey;
+
+/**
  * 行不在时的错误文案。
  *
  * @remarks
@@ -66,7 +81,8 @@ const MISSING_ACTIVATION_ROW =
  * 造出激活态初始行（未落库）。
  *
  * @param entityManager - 用于 `instantiate()` 的实体管理器
- * @param branchGenerationSeq - 已发放到的分支代际号；新库为 0，既有库为迁移里补发的分支数
+ * @param branchGenerationSeq - 已发放到的分支代际号；新库为 0，既有库为迁移里补发的分支数；可写检出位的行不发放代际，填 0
+ * @param id - 行主键，缺省是主检出位那一行；可写检出位传 {@link activationStateIdOf} 的结果
  * @returns 未落库的实例，调用方负责在**一个**事务里写下去
  *
  * @remarks
@@ -80,10 +96,11 @@ const MISSING_ACTIVATION_ROW =
  */
 export function createWorkingTreeActivationRow(
   entityManager: EntityManager,
-  branchGenerationSeq: number
+  branchGenerationSeq: number,
+  id: string = WORKING_TREE_ACTIVATION_STATE_ID
 ): WorkingTreeActivationState {
   const row = entityManager.instantiate(WorkingTreeActivationState);
-  row.id = WORKING_TREE_ACTIVATION_STATE_ID;
+  row.id = id;
   // 0 是唯一合法初值：revision 的意义完全来自「与上一次读到的值相等」，起点是几不重要，
   // 但两条建库路径必须是同一个几。
   row.activationRevision = 0;
@@ -92,7 +109,7 @@ export function createWorkingTreeActivationRow(
 }
 
 /**
- * 读激活态单行。
+ * 读激活态：`activationRevision` 取本实例挂的那套表的那一行，`branchGenerationSeq` 取主检出位那一行。
  *
  * @param executor - 当前事务执行器
  * @returns 激活态视图
@@ -110,15 +127,24 @@ export function createWorkingTreeActivationRow(
 export const readWorkingTreeActivationState = async (
   executor: TransactionExecutor
 ): Promise<WorkingTreeActivationInfo> => {
-  const [row] = await executor.getRepository(WorkingTreeActivationState).find({
-    where: {
-      combinator: 'and',
-      rules: [{ field: 'id', operator: '=', value: WORKING_TREE_ACTIVATION_STATE_ID }]
-    },
-    limit: 1
-  });
-  if (!row) throw new RxDBError(MISSING_ACTIVATION_ROW);
-  return { activationRevision: row.activationRevision, branchGenerationSeq: row.branchGenerationSeq };
+  const rowOf = async (id: string) =>
+    (
+      await executor.getRepository(WorkingTreeActivationState).find({
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: id }] },
+        limit: 1
+      })
+    )[0];
+  const global = await rowOf(WORKING_TREE_ACTIVATION_STATE_ID);
+  if (!global) throw new RxDBError(MISSING_ACTIVATION_ROW);
+  const { tableSet } = executor;
+  if (tableSet.isMain) {
+    return { activationRevision: global.activationRevision, branchGenerationSeq: global.branchGenerationSeq };
+  }
+  const own = await rowOf(activationStateIdOf(tableSet));
+  // 这套表的行缺失只有一种来由：检出位是 B2.2 之前的开发构建开的（那时只有一行）。不补行：
+  // 补一个 0 出来，同一个检出位上先前签出的凭据就可能对上一个凭空编出来的号
+  if (!own) throw new RxDBError(`可写检出位（表集 ${tableSet.suffix}）的激活态行缺失：删掉这个检出位再开一个`);
+  return { activationRevision: own.activationRevision, branchGenerationSeq: global.branchGenerationSeq };
 };
 
 /**

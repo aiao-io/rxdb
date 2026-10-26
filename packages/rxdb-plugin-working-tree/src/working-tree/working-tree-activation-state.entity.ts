@@ -1,18 +1,19 @@
 /**
  * @fileoverview `WorkingTreeActivationState` 实体定义（data-model.md §2.2）
  *
- * 激活态 revision 与分支代际单调源。单行表，主键取常量。
+ * 激活态 revision 与分支代际单调源。主检出位一行（主键取常量）；每个可写检出位各一行，主键取它的持有键
+ * （US-314 B2.2，`activation-state.ts` 的 `activationStateIdOf`），随检出位的打开建、关闭删。
  */
 
 import { Entity, PropertyType, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
 
 /**
- * `rxdb_working_tree_activation` 的单行主键常量。
+ * `rxdb_working_tree_activation` 里主检出位那一行的主键常量。
  */
 export const WORKING_TREE_ACTIVATION_STATE_ID = 'default';
 
 /**
- * 工作树激活态与分支代际源（单行）
+ * 工作树激活态与分支代际源（主检出位一行，每个可写检出位各一行）
  *
  * @remarks
  * - **不复制第二份 active branch ID**：当前分支的唯一真相仍是 `rxdb_branch.activated`，
@@ -49,12 +50,12 @@ export const WORKING_TREE_ACTIVATION_STATE_ID = 'default';
 })
 export class WorkingTreeActivationState {
   /**
-   * 主键，恒为 {@link WORKING_TREE_ACTIVATION_STATE_ID}
+   * 主键：主检出位那一行是 {@link WORKING_TREE_ACTIVATION_STATE_ID}，可写检出位那一行是它的持有键
    */
   id!: string;
 
   /**
-   * 激活态 revision：switch branch CAS 成功后 +1
+   * 激活态 revision：这套表切一次分支 +1
    */
   activationRevision!: number;
 

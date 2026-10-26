@@ -45,14 +45,17 @@ await rxdb.versionManager.mergeBranch('feature-a');
 
 ## 主要能力
 
-| 分组 | 入口                                                                                                    |
-| ---- | ------------------------------------------------------------------------------------------------------- |
-| 历史 | `history(scope?)` → `histories$` / `undoHistories$` / `redoHistories$` / `count$` / `undo()` / `redo()` |
-| 分支 | `createBranch()` / `switchBranch()` / `mergeBranch()` / `removeBranch()`                                |
-| 计数 | `pushableCount$` / `pullableCount$`                                                                     |
-| 恢复 | `restoreEntity()`                                                                                       |
+| 分组 | 入口                                                                                                                                      |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 历史 | `history(scope?)` → `histories$` / `undoHistories$` / `redoHistories$` / `count$` / `undoBarrier$` / `redoBarrier$` / `undo()` / `redo()` |
+| 分支 | `createBranch()` / `switchBranch()` / `mergeBranch()` / `removeBranch()`                                                                  |
+| 对比 | `compareBranches()` / `previewMerge()`：不切换分支就对比两条分支、预览一次合并（含覆盖标注）                                              |
+| 计数 | `pushableCount$` / `pullableCount$`                                                                                                       |
+| 恢复 | `restoreEntity()`                                                                                                                         |
 
 `history()` 的作用域按入参解析：无参 = 整库，传实体类 = 该仓储，传实例 = 该行。撤销一个跨作用域事务时抛 `RxDBCrossScopeTransactionError`，而不是只撤一半——半个事务比失败难查得多。
+
+**撤销 / 重做停在子分支的分叉点。** 当前分支上不晚于某条子分支分叉点的变更已被那条子分支继承：撤销或重做它们会让子分支记下的反向补丁过期，切回当前分支时读到错值，对比与合并预览也跟着失真。所以它们不进 `undoHistories$`，`undo()` / `redo()` 撤到那一步时什么也不做；`undoBarrier$` / `redoBarrier$` 给出原因（`{ reason: 'inherited_by_branch', branchIds }`），UI 拿它说明按钮为什么点不了。建分支之前的改动，建完分支就撤不了——与 git 分支所基于的历史不改写同一个道理；删掉继承它们的子分支之后限制解除。要改回去，就再改一次。
 
 ## 没装插件时
 

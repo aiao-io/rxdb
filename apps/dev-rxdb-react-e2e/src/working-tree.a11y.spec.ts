@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { resetE2eState } from './e2e-utils.js';
+import { divergeBranches } from './working-tree-branches.js';
 
 /**
  * @fileoverview `/working-tree` 面板的 a11y 与 SC-005 归档用例（T128）。
@@ -15,17 +16,17 @@ import { resetE2eState } from './e2e-utils.js';
  *
  * 扫描范围锁在 `[data-testid="working-tree-page"]`：页面外的导航壳由
  * `search.a11y.spec.ts` 那一路覆盖，混进来只会让这份用例因为别处的回归而红。
- * 分支下拉与创建弹层是**内联**渲染（面板 div 内的子节点，见 BranchMenu 的 TSDoc——
+ * 分支下拉是**内联**渲染（面板 div 内的子节点，见 BranchMenu 的 TSDoc——
  * overlay 会把节点追加到 body 末尾，Tab 顺序排在面板之后，键盘走不进去），
- * 因此它们在扫描与走查范围里；合并对话框是 fixed 定位的面板子元素，同样在内。
+ * 因此它在扫描与走查范围里；合并、Switch branch 与 Create a branch 三个模态对话框是 fixed 定位的面板子元素，同样在内。
  *
- * **面板上只有一处 disabled 按钮**：提交按钮在摘要为空时禁用（GitHub Desktop 的
+ * **禁用态只用 `.gd-btn-primary:disabled` 那一套配色**：提交按钮在摘要为空时禁用（GitHub Desktop 的
  * `isSummaryBlank` 同款交互，它的 tooltip 原文 "A commit summary is required to
- * commit"）。其余地方不做禁用态——daisyUI 的禁用态文字是 `base-content/20%`，白底上
- * 合成 `#d1d1d1`，对比度 1.52，必然触发 axe 的 `color-contrast`（见
- * `search.a11y.spec.ts` 里记下的同一个坑）。提交按钮的禁用配色是专门选过的
- * （白字压 `#6b7280`，≈4.8:1，见 styles.css 的 `.gd-btn-primary:disabled`），
- * 两套主题都过 axe；键盘走查前先填摘要让按钮回到可用态（disabled 不进 Tab 序列）。
+ * commit"），合并、Switch branch 与 Create a branch 的确认按钮在还不能确认时禁用。daisyUI 的禁用态文字是
+ * `base-content/20%`，白底上合成 `#d1d1d1`，对比度 1.52，必然触发 axe 的 `color-contrast`（见
+ * `search.a11y.spec.ts` 里记下的同一个坑）；`.gd-btn-primary:disabled` 的配色是专门选过的
+ * （白字压 `#6b7280`，≈4.8:1，见 styles.css），两套主题都过 axe。Create a branch 的 Cancel 只在建分支进行中那一瞬置灰，
+ * 扫描不落在那一刻。键盘走查前先填摘要让提交按钮回到可用态（disabled 不进 Tab 序列）。
  *
  * 面板不造数据：写 Todo 走 /todo 页（`writeTodo`），和真实用户流一致。
  */
@@ -55,6 +56,7 @@ const PANEL = '[data-testid="working-tree-page"]';
 const KEYBOARD_REACHABLE = [
   'wt-repo-menu',
   'wt-branch-menu',
+  'wt-worktree-menu',
   'wt-refresh-status',
   'wt-tab-changes',
   'wt-tab-history',
@@ -78,15 +80,15 @@ const SETTLED = /^(success|empty|error)$/;
 /**
  * 连按 Tab，收集**落在面板内**、带 `data-testid` 的控件及其聚焦样式。
  *
- * @param wanted - 期望收集到的控件数；收齐就停，不必把整页 Tab 完
+ * @param wanted - 必须实际走到的目标 testid；收齐就停，不必把整页 Tab 完
  *
  * @remarks
  * 步数上限只是防跑飞：导航壳里的链接数量三端不同，写死步数会让这条用例
  * 一改导航就红，而那与工作树面板无关。
  */
-const walkPanelWithTab = async (page: Page, wanted: number): Promise<Map<string, FocusIndicator>> => {
+const walkPanelWithTab = async (page: Page, wanted: readonly string[]): Promise<Map<string, FocusIndicator>> => {
   const reached = new Map<string, FocusIndicator>();
-  for (let step = 0; step < 80 && reached.size < wanted; step += 1) {
+  for (let step = 0; step < 80 && wanted.some(testId => !reached.has(testId)); step += 1) {
     await page.keyboard.press('Tab');
     const focused = await page.evaluate(() => {
       const element = document.activeElement;
@@ -267,8 +269,9 @@ test.describe('Working Tree Page A11y', () => {
     await openPanel(page);
 
     // 初始化态只有「初始化仓库」与「刷新状态」两个控件。
-    const initReached = await walkPanelWithTab(page, 2);
+    const initReached = await walkPanelWithTab(page, ['wt-enable', 'wt-refresh-status']);
     expect(initReached.has('wt-enable'), '初始化态应该能走到 wt-enable').toBe(true);
+    expectReachedWithIndicator(initReached, ['wt-enable', 'wt-refresh-status']);
     const initWithoutIndicator = [...initReached.values()]
       .filter(one => !hasVisibleFocusIndicator(one))
       .map(one => one.testId);
@@ -282,47 +285,47 @@ test.describe('Working Tree Page A11y', () => {
 
     // 超集断言（见 KEYBOARD_REACHABLE 的注释）：所有静态控件都必须走到，
     // 每一个被走到的控件（含动态出现的）都必须有可见焦点指示。
-    const reached = await walkPanelWithTab(page, KEYBOARD_REACHABLE.length + 2);
+    const reached = await walkPanelWithTab(page, KEYBOARD_REACHABLE);
     expectReachedWithIndicator(reached, KEYBOARD_REACHABLE);
 
-    // 分支下拉是内联渲染的：打开后，新建按钮与分支行也在 Tab 序列里。
+    // 分支下拉是内联渲染的：打开后，新建按钮、分支行与底部的合并入口也在 Tab 序列里。
     await page.getByTestId('wt-branch-menu').click();
     await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
-    const menuReached = await walkPanelWithTab(page, 2);
-    expectReachedWithIndicator(menuReached, ['wt-branch-create', 'wt-branch-item']);
+    // 触屏行尾的 ⋯ 也会被走查收集，但必须走到指定的底部合并入口才结束。
+    const menuReached = await walkPanelWithTab(page, ['wt-branch-create', 'wt-branch-item', 'wt-branch-merge-into']);
+    expectReachedWithIndicator(menuReached, ['wt-branch-create', 'wt-branch-item', 'wt-branch-merge-into']);
     await page.keyboard.press('Escape');
 
-    // 建一条分支。点行是立即切换（GitHub Desktop 同款），切换 / 合并 / 删除收在
-    // 行的右键菜单里——菜单项是真按钮，也要能键盘走到。
+    // 建一条分支：「Create a branch」对话框，建完切过去（GitHub Desktop 同款）。点行是立即切换，右键菜单提供
+    // 复制分支名、新检出位检出与删除。后两项只给未被检出的分支，所以右键 main；三项都要能键盘走到且焦点可见。
     await page.getByTestId('wt-branch-menu').click();
     await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
     await page.getByTestId('wt-branch-create').click();
-    await page.getByTestId('wt-branch-name').fill('feature/a11y');
-    await page.getByTestId('wt-branch-create-confirm').click();
+    await page.getByTestId('wt-create-branch-name').fill('feature/a11y');
+    await expect(page.getByTestId('wt-create-branch-confirm')).toBeEnabled({ timeout: 30000 });
+    await page.getByTestId('wt-create-branch-confirm').click();
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/a11y', { timeout: 30000 });
     await page.getByTestId('wt-branch-menu').click();
     await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
-    await page.locator('[data-testid="wt-branch-item"][data-branch-id="feature/a11y"]').click({ button: 'right' });
-    await expect(page.getByTestId('wt-branch-menu-switch')).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="wt-branch-item"][data-branch-id="main"]').click({ button: 'right' });
+    await expect(page.getByTestId('wt-branch-menu-copy')).toBeVisible({ timeout: 10000 });
     // 右键不聚焦行：把焦点锚在菜单背板上（菜单项的前一个 Tab 停靠点），走查才收得到菜单项。
     await page.locator('[aria-label="Close context menu"]').focus();
-    const actionsReached = await walkPanelWithTab(page, 3);
-    expectReachedWithIndicator(actionsReached, [
-      'wt-branch-menu-switch',
-      'wt-branch-menu-merge',
-      'wt-branch-menu-delete'
-    ]);
+    const branchActions = ['wt-branch-menu-copy', 'wt-branch-menu-worktree', 'wt-branch-menu-delete'] as const;
+    const actionsReached = await walkPanelWithTab(page, branchActions);
+    expectReachedWithIndicator(actionsReached, branchActions);
     await page.keyboard.press('Escape');
 
     // 变更列表的行（数据来自 /todo 页的一条 Todo）要能被走到。
     // 先点筛选框把焦点锚在列表区：导航回来时焦点在 body，Tab 会先停在分支栏上，
-    // 走查在收齐 wanted 个控件时就停，够不到列表行。点完要等列表渲染出来再走查——
+    // 先锚定列表前面的控件，再等列表渲染出来后走查——
     // diff 是异步读，立刻 Tab 会打在空列表上。
     await writeTodo(page, 'a11y todo');
     await page.getByTestId('wt-refresh-status').click();
     await expect(page.getByTestId('wt-diff-phase')).toHaveText('success', { timeout: 30000 });
     await expect(page.getByTestId('wt-diff-item').first()).toBeVisible({ timeout: 10000 });
     await page.getByTestId('wt-change-filter').click();
-    const diffReached = await walkPanelWithTab(page, 2);
+    const diffReached = await walkPanelWithTab(page, ['wt-diff-item']);
     expectReachedWithIndicator(diffReached, ['wt-diff-item']);
 
     // 提交后，历史列表的行要能被走到。行上没有恢复按钮（GitHub Desktop 同款），
@@ -334,8 +337,99 @@ test.describe('Working Tree Page A11y', () => {
       .toContain('Committed');
     await page.getByTestId('wt-tab-history').click();
     await expect(page.getByTestId('wt-commits-phase')).toHaveText('success', { timeout: 30000 });
-    const historyReached = await walkPanelWithTab(page, 2);
+    await expect(page.getByTestId('wt-commit-item').first()).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('wt-compare-select').focus();
+    await expect(page.getByTestId('wt-compare-select')).toBeFocused();
+    const historyReached = await walkPanelWithTab(page, ['wt-commit-item']);
     expectReachedWithIndicator(historyReached, ['wt-commit-item']);
+  });
+
+  test('分支下拉：非模态 dialog 结构，列表与「Create a branch」对话框打开时 axe 零违规', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+
+    const trigger = page.getByTestId('wt-branch-menu');
+    await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
+    await expect(trigger).toHaveAttribute('aria-controls', 'wt-branch-menu-popup');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await trigger.click();
+    const popup = page.getByTestId('wt-branch-menu-popup');
+    await expect(popup).toBeVisible({ timeout: 10000 });
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    // 列表弹层里还有筛选框与新建按钮，`role="menu"` 只许装菜单项（axe aria-required-children）：
+    // 它是非模态 dialog，id 对上触发按钮的 aria-controls。
+    await expect(popup).toHaveAttribute('role', 'dialog');
+    await expect(popup).toHaveAttribute('id', 'wt-branch-menu-popup');
+    await expect(popup).toHaveAttribute('aria-label', 'Branch list');
+    await expect(popup).not.toHaveAttribute('aria-modal');
+    // 行是 <ul>/<li> 里的普通按钮：没有 role；当前分支那一行带 aria-current="true"。
+    const current = page.locator('[data-testid="wt-branch-item"][data-branch-id="main"]');
+    await expect(current).not.toHaveAttribute('role');
+    await expect(current).toHaveAttribute('aria-current', 'true');
+    await scanPanel(page);
+
+    // New branch 收起下拉、打开模态对话框；焦点进名字框，Escape 关闭
+    await page.getByTestId('wt-branch-create').click();
+    const dialog = page.getByTestId('wt-create-branch-dialog');
+    await expect(dialog).toHaveAttribute('role', 'dialog');
+    await expect(dialog).toHaveAttribute('aria-modal', 'true');
+    await expect(page.getByTestId('wt-create-branch-name')).toBeFocused();
+    await expect(page.getByTestId('wt-create-branch-confirm')).toBeDisabled();
+    await scanPanel(page);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+  });
+
+  test('合并对话框（选来源、预览与覆盖说明）、History 的分支对比与 Switch branch 对话框：axe 零违规，焦点进对话框，Escape 关闭', async ({
+    page
+  }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await divergeBranches(page, {
+      branch: 'feature/axe',
+      base: 'axe-base',
+      onBranch: 'axe-feature',
+      onMain: 'axe-main'
+    });
+
+    // 合并入口在分支下拉底部；预览里要有一行覆盖说明：它用的是警示色，对比度也在扫描范围里
+    await page.getByTestId('wt-branch-menu').click();
+    await page.getByTestId('wt-branch-merge-into').click();
+    const mergeDialog = page.getByTestId('wt-merge-dialog');
+    await expect(mergeDialog).toBeFocused();
+    await expect(mergeDialog).toHaveAccessibleName('Merge into main');
+    await scanPanel(page);
+    await page.locator('[data-testid="wt-merge-branch-item"][data-branch-id="feature/axe"]').click();
+    await expect(page.getByTestId('wt-branch-diff-conflict')).toBeVisible({ timeout: 30000 });
+    await scanPanel(page);
+    await page.keyboard.press('Escape');
+    await expect(mergeDialog).toHaveCount(0);
+
+    // History 顶部的对比：原生下拉有可读名；差异列表是可聚焦的滚动区，Tab 走得进去
+    await page.getByTestId('wt-tab-history').click();
+    const compareSelect = page.getByTestId('wt-compare-select');
+    await expect(compareSelect).toHaveAccessibleName('Select branch to compare');
+    await compareSelect.selectOption('feature/axe');
+    await expect(page.getByTestId('wt-compare-summary')).toBeVisible({ timeout: 30000 });
+    await scanPanel(page);
+    await compareSelect.focus();
+    await page.keyboard.press('Tab');
+    await expect(page.getByTestId('wt-compare-clear')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('region', { name: 'Differences between main and feature/axe' })).toBeFocused();
+    await page.getByTestId('wt-compare-clear').click();
+    await expect(page.getByTestId('wt-compare-view')).toHaveCount(0);
+
+    // 带着未提交改动点别的分支：Switch branch 对话框
+    await writeTodo(page, 'axe-switch-draft');
+    await page.getByTestId('wt-branch-menu').click();
+    await page.locator('[data-testid="wt-branch-item"][data-branch-id="feature/axe"]').click();
+    const switchDialog = page.getByTestId('wt-switch-dialog');
+    await expect(switchDialog).toBeFocused({ timeout: 10000 });
+    await expect(switchDialog).toHaveAccessibleName('Switch branch');
+    await scanPanel(page);
+    await page.keyboard.press('Escape');
+    await expect(switchDialog).toHaveCount(0);
   });
 
   test('记录首次可见状态耗时并归档（SC-005）', async ({ page }) => {
@@ -358,16 +452,18 @@ test.describe('Working Tree Page A11y', () => {
     await writeFile(
       join(REPORTS_DIR, `working-tree-ui-first-visible-${FRAMEWORK}.json`),
       `${JSON.stringify(
+        // 键按字母序写：仓库的 prettier 用 `prettier-plugin-sort-json` 把 JSON 排成字母序，写入序与它不同的话，
+        // 每跑一次 e2e，提交进仓库的这份归档就过不了 `nx format:check`
         {
-          metric: 'working-tree-panel-first-visible-state',
-          framework: FRAMEWORK,
-          route: '/working-tree',
           // 空库在应用启动时已被自动启用，第一个可见状态因此通常是 `success` / `empty`；
           // 一并记下来，免得后来人把这个数字读成「读一次 status 要多久」。
           firstPhase,
           firstVisibleMs,
+          framework: FRAMEWORK,
+          metric: 'working-tree-panel-first-visible-state',
+          note: 'SC-005：浏览器不承诺绝对数字，本指标不进 benchmark JSON 的 measurements，单独归档',
           recordedAt: new Date().toISOString(),
-          note: 'SC-005：浏览器不承诺绝对数字，本指标不进 benchmark JSON 的 measurements，单独归档'
+          route: '/working-tree'
         },
         null,
         2

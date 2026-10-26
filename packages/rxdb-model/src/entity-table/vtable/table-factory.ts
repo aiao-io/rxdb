@@ -14,6 +14,7 @@ import { TagsEditor } from '../editors/tags-editor.js';
 import { TextFormatEditor } from '../editors/text-format-editor.js';
 import { UuidEditor } from '../editors/uuid-editor.js';
 import type { EntityTableRecord } from '../interfaces.js';
+import { labelTableFocusControl } from './focus-control-label.js';
 import { createTheme, getCSSVariables } from './table-theme.js';
 
 /** 基础编辑器注册标记（全局仅注册一次） */
@@ -97,7 +98,7 @@ export function buildTableOptions(
  * @param columns 列定义
  * @param isDarkMode 是否暗色主题
  * @param options 额外选项（可选），覆盖默认配置
- * @returns 已注册基础编辑器的 ListTable 实例
+ * @returns 已注册基础编辑器的 ListTable 实例；接键盘焦点的隐藏输入框已补上可读名
  */
 export function createListTable(
   container: HTMLElement,
@@ -108,7 +109,9 @@ export function createListTable(
 ): VTable.ListTable {
   ensureBaseEditorRegistered();
   const option = buildTableOptions(records, columns, isDarkMode, options);
-  return new VTable.ListTable(container, option);
+  const table = new VTable.ListTable(container, option);
+  labelTableFocusControl(container);
+  return table;
 }
 
 /** 重置编辑器注册状态（仅供测试使用） */

@@ -11,6 +11,7 @@ import {
   takeDeclaredWrite,
   TRANSACTION_BEGIN,
   TRANSACTION_COMMIT,
+  WorktreeTableSet,
   type EntityType,
   type SwitchBranchOptions
 } from '@aiao/rxdb';
@@ -197,6 +198,9 @@ describe('VersionManager', () => {
       },
       localAdapter$: of(mockAdapter),
       connected$: of(true),
+      // 没换挂过的实例挂的是主表集（US-314 B1.4）
+      worktreeTableSet: WorktreeTableSet.MAIN,
+      worktreeTableSet$: of(WorktreeTableSet.MAIN),
       firstConnectedAt: new Date(),
       entityManager: {
         instantiate: vi.fn(EntityType => Object.create(EntityType.prototype)),
@@ -508,7 +512,7 @@ describe('VersionManager', () => {
           { id: 'main', activated: true },
           { id: 'feature', activated: false }
         ])
-        .mockResolvedValue([]);
+        .mockResolvedValue([{ id: 'main', activated: true }]);
       mockChangeRepository.find.mockResolvedValue([]);
     };
 
@@ -522,16 +526,7 @@ describe('VersionManager', () => {
     });
 
     it('should dispatch events during branch switch', async () => {
-      mockBranchRepository.find
-        .mockResolvedValueOnce([{ id: 'main', activated: true }])
-        .mockResolvedValueOnce([{ id: 'main', activated: true }])
-        .mockResolvedValueOnce([
-          { id: 'main', activated: true },
-          { id: 'feature', activated: false }
-        ])
-        .mockResolvedValue([]);
-
-      mockChangeRepository.find.mockResolvedValue([]);
+      stubMainToFeature();
 
       await versionManager.switchBranch('feature');
 
@@ -547,16 +542,7 @@ describe('VersionManager', () => {
     });
 
     it('should clear redo stack after switching', async () => {
-      mockBranchRepository.find
-        .mockResolvedValueOnce([{ id: 'main', activated: true }])
-        .mockResolvedValueOnce([{ id: 'main', activated: true }])
-        .mockResolvedValueOnce([
-          { id: 'main', activated: true },
-          { id: 'feature', activated: false }
-        ])
-        .mockResolvedValue([]);
-
-      mockChangeRepository.find.mockResolvedValue([]);
+      stubMainToFeature();
 
       const clearSpy = vi.spyOn(historyManagerForTest, 'clearRedoStack');
 

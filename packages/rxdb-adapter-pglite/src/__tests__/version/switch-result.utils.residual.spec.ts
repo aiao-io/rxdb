@@ -1,4 +1,4 @@
-import { getRxDBChangeKey, PropertyType, SwitchVersionActions } from '@aiao/rxdb';
+import { getRxDBChangeKey, PropertyType, SwitchVersionActions, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import type { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
 import { convertSwitchResultToSql } from '../../version/switch-result.utils.js';
@@ -36,6 +36,7 @@ describe('switch-result.utils residual id normalization', () => {
     const bigintMeta = makeMeta(PropertyType.bigint, 'BigIntEnt');
 
     const adapter = {
+      tableSet: WorktreeTableSet.MAIN,
       encryptionContext: {},
       rxdb: {
         schemaManager: {

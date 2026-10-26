@@ -17,6 +17,8 @@ import { SqliteClient } from '../SqliteClient.js';
 
 function createSqliteHarness() {
   const close = vi.fn().mockResolvedValue(undefined);
+  // 关库之后还要关打开它的 VFS（IndexedDB 系 VFS 的连接只在那里关）
+  const vfs = { close: vi.fn().mockResolvedValue(undefined) };
   const updateHook = vi.fn(() => undefined);
   const sqlite = {
     close,
@@ -24,7 +26,7 @@ function createSqliteHarness() {
     update_hook: updateHook
   } as unknown as SQLiteAPI;
 
-  return { close, sqlite, updateHook };
+  return { close, sqlite, updateHook, vfs };
 }
 
 describe('SqliteClient 生命周期守卫', () => {
@@ -53,7 +55,7 @@ describe('SqliteClient 生命周期守卫', () => {
 
   it('未初始化时 disconnect 安全，且之后仍可 init', async () => {
     const harness = createSqliteHarness();
-    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 13, sqlite: harness.sqlite });
+    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 13, sqlite: harness.sqlite, vfs: harness.vfs });
     const client = new SqliteClient();
 
     await expect(client.disconnect()).resolves.toBeUndefined();
@@ -68,8 +70,8 @@ describe('SqliteClient 生命周期守卫', () => {
     const first = createSqliteHarness();
     const second = createSqliteHarness();
     mocks.sqliteLoad
-      .mockResolvedValueOnce({ pointer: 21, sqlite: first.sqlite })
-      .mockResolvedValueOnce({ pointer: 22, sqlite: second.sqlite });
+      .mockResolvedValueOnce({ pointer: 21, sqlite: first.sqlite, vfs: first.vfs })
+      .mockResolvedValueOnce({ pointer: 22, sqlite: second.sqlite, vfs: second.vfs });
     const client = new SqliteClient();
 
     await client.init('first', { vfs: 'memory' });
@@ -83,7 +85,7 @@ describe('SqliteClient 生命周期守卫', () => {
 
   it('重复 disconnect 只关闭一次连接', async () => {
     const harness = createSqliteHarness();
-    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 21, sqlite: harness.sqlite });
+    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 21, sqlite: harness.sqlite, vfs: harness.vfs });
     const client = new SqliteClient();
     await client.init('db', { vfs: 'memory' });
 
@@ -92,6 +94,7 @@ describe('SqliteClient 生命周期守卫', () => {
 
     expect(harness.close).toHaveBeenCalledTimes(1);
     expect(harness.close).toHaveBeenCalledWith(21);
+    expect(harness.vfs.close).toHaveBeenCalledTimes(1);
   });
 
   it('init 失败时 disconnect 不被其错误污染，且无连接可关', async () => {
@@ -115,7 +118,7 @@ describe('SqliteClient 生命周期守卫', () => {
 
   it('init 进行中调用 disconnect 仍会关闭已打开的连接', async () => {
     const harness = createSqliteHarness();
-    let resolveLoad!: (core: { pointer: number; sqlite: SQLiteAPI }) => void;
+    let resolveLoad!: (core: { pointer: number; sqlite: SQLiteAPI; vfs: { close(): Promise<void> } }) => void;
     mocks.sqliteLoad.mockReturnValueOnce(
       new Promise(resolve => {
         resolveLoad = resolve;
@@ -125,7 +128,7 @@ describe('SqliteClient 生命周期守卫', () => {
 
     const initPromise = client.init('db', { vfs: 'memory' });
     const disconnectPromise = client.disconnect();
-    resolveLoad({ pointer: 33, sqlite: harness.sqlite });
+    resolveLoad({ pointer: 33, sqlite: harness.sqlite, vfs: harness.vfs });
 
     await initPromise;
     await disconnectPromise;
@@ -136,7 +139,7 @@ describe('SqliteClient 生命周期守卫', () => {
   it('关闭失败后退出 disconnecting 状态，但保持 fail-closed', async () => {
     const harness = createSqliteHarness();
     harness.close.mockRejectedValueOnce(new Error('close failed'));
-    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 44, sqlite: harness.sqlite });
+    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 44, sqlite: harness.sqlite, vfs: harness.vfs });
     const client = new SqliteClient();
     await client.init('db', { vfs: 'memory' });
 

@@ -1,12 +1,12 @@
-import type { EntityMetadata, EntityType, IEntity, IQueryContext } from '@aiao/rxdb';
+import type { EntityMetadata, EntityType, IEntity, IQueryContext, WorktreeTableSet } from '@aiao/rxdb';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
 import {
   EncryptionContext,
-  get_table_name_by_metadata,
   normalizeCreateEntity,
   quote_sql_identifier,
   transformEntityValueToSql
 } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 
 /**
  * 计算批量 INSERT SQL 每行的列数（占位符数）。
@@ -22,11 +22,12 @@ export const get_insert_column_count = (metadata: EntityMetadata): number =>
  */
 export const generate_entity_inserts_sql = async <T extends EntityType>(
   metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
   entities: InstanceType<T>[],
   context?: IQueryContext,
   encryption?: EncryptionContext
 ): Promise<{ sql: string; params: SQLiteCompatibleType[] }> => {
-  const tableName = get_table_name_by_metadata(metadata);
+  const tableName = get_table_name_by_metadata(metadata, tableSet);
   if (entities.length === 0) return { sql: '', params: [] };
   // 审计字段一律按**物理列名**读写：normalizeCreateEntity 的产物以列名为键，按 JS 属性名写
   // 会在列名被重命名时多出第二个键，二者在 transformEntityValueToSql 里落到同一物理列、后写的赢。

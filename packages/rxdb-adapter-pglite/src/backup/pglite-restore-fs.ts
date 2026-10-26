@@ -35,6 +35,22 @@ const closeIdbConnection = (pg: PGlite | undefined, dataDir: string): void => {
 };
 
 /**
+ * IdbFs 真正持有的那条 IndexedDB 连接（键是挂载点，见 {@link closeIdbConnection}）。
+ *
+ * @param pg - PGlite 实例；Worker 里跑的 PGlite 没有 `Module`，交回 `undefined`
+ * @param dataDir - `idb://` 之后的部分
+ * @returns 连接；模块还没建好或已拆掉时为 `undefined`
+ *
+ * @remarks
+ * 正常断开也要用它：`close()` 会拆掉 `Module`，之后就再也够不着这条连接，所以要在 `close()` 之前拿住、
+ * 之后亲手关。连接留着的话，`dropStorage()` 的 `deleteDatabase` 会一直卡在 `blocked`。
+ */
+export const idbConnectionOf = (pg: PGlite | undefined, dataDir: string): IDBDatabase | undefined =>
+  (pg as { Module?: { FS?: RestoreModuleFS } } | undefined)?.Module?.FS?.filesystems.IDBFS.dbs[
+    pgliteIdbDatabaseName(dataDir)
+  ];
+
+/**
  * IdbFs 数据目录对应的 IndexedDB 库名。
  *
  * @param dataDir - `idb://` 之后的部分

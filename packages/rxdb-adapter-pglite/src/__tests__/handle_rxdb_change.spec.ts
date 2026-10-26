@@ -10,6 +10,7 @@ import {
   EntityLocalRemovedEvent,
   EntityLocalUpdatedEvent,
   RxDB,
+  RxDBBranch,
   RxDBChange
 } from '@aiao/rxdb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -864,5 +865,39 @@ describe('handle residual uncovered paths', () => {
     expect(warn).toHaveBeenCalled();
     expect(dispatchEvent).toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe('handle_rxdb_change - US-222：关掉变更日志的表', () => {
+  it('DELETE 事件不回查、不派发：删除由删行路径直接派；NOTIFY 带的是 id，同 id 补回的行回查得到，派出去就是过期的删除', async () => {
+    const dispatchEvent = vi.fn();
+    const branchMeta = {
+      namespace: 'rxdb',
+      name: 'RxDBBranch',
+      tableName: 'rxdb_branch',
+      log: false,
+      propertyMap: new Map()
+    };
+    const rxdb = {
+      schemaManager: {
+        getEntityTypeByTableName: vi.fn(() => RxDBBranch),
+        getEntityMetadataByTableName: vi.fn(() => branchMeta)
+      },
+      dispatchEvent
+    } as unknown as RxDB;
+    const adapter = new RxDBAdapterPGlite(rxdb, { store: 'memory' });
+    const findByRowIds = vi.fn().mockResolvedValue([{ id: 'main', activated: true }]);
+    adapter.getRepository = vi.fn().mockReturnValue({ findByRowIds });
+
+    await handle_rxdb_change(adapter, {
+      type: PGliteChangeType.DELETE,
+      dbName: 't',
+      tableName: 'rxdb$rxdb_branch',
+      rowIds: ['main'],
+      recordAt: new Date()
+    });
+
+    expect(findByRowIds).not.toHaveBeenCalled();
+    expect(dispatchEvent).not.toHaveBeenCalled();
   });
 });

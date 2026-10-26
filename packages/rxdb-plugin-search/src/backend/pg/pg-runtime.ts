@@ -22,7 +22,7 @@
 import type { FtsInstallPlan } from '../../core/fts5-installer.js';
 import type { InstallFtsResult, MigrationRecordStore, RuntimeSqlExecutor } from '../../core/fts5-runtime.js';
 import { SearchExecutionError, SearchSchemaMismatchError } from '../../types.js';
-import { FTS_COLUMN, loadPgFtsDdl } from './pg-fts-contract.js';
+import { FTS_COLUMN, loadPgFtsAdapter } from './pg-fts-contract.js';
 import {
   buildPgBackfillSql,
   buildPgPendingBackfillProbeSql,
@@ -56,8 +56,11 @@ export const pgFtsMigrationName = (tableName: string, action: 'install' | 'backf
  * 表是 `"<namespace>"."<table>"`。两者恰好都由同一个 namespace 派生，
  * 于是「照搬 sqlTableName」看着很自然，实际让整个 pg 后端指向一张
  * 从来不存在的 `"public$article"`。
+ *
+ * schema 也不能拿 namespace 直接当：可写检出位的影子表在 `<namespace>$<后缀>` 里（US-314 B2.5）。
+ * `plan.schema` 由 `bindPlan` 经适配器的表名解析器填。
  */
-const tableRefOf = (plan: FtsInstallPlan): PgTableRef => ({ schema: plan.namespace, table: plan.tableName });
+const tableRefOf = (plan: FtsInstallPlan): PgTableRef => ({ schema: plan.schema, table: plan.tableName });
 
 /**
  * 派生对象（索引 / trigger / trigger 函数）的名字基。
@@ -196,11 +199,11 @@ const hasHealthyPgRuntimeObjects = (plan: FtsInstallPlan, objects: PgRuntimeObje
 const applyStructure = async (plan: FtsInstallPlan, executor: RuntimeSqlExecutor): Promise<void> => {
   // 传裸表名 + schema：构造器据此拼出 `"<schema>"."<table>"`，并把 trigger 函数
   // 一并限定到同一 schema（函数不依附表，不限定就会被两个 schema 的同名表抢）。
-  const ddlOptions = { schema: plan.namespace };
+  const ddlOptions = { schema: plan.schema };
   const table = objectBaseOf(plan);
   // DDL 构造器在这里才加载：静态引入会把整个 pglite 适配器拖进只用 sqlite 的下游的
   // 加载图里（见 pg-fts-contract.ts）。这一行只有 adapter 确实是 pglite 时才执行得到。
-  const { buildCreateFtsTableSql, buildFtsTriggersSql } = await loadPgFtsDdl();
+  const { buildCreateFtsTableSql, buildFtsTriggersSql } = await loadPgFtsAdapter();
   // 两条 DDL 都是 IF NOT EXISTS，重复执行无副作用
   await execEach(executor, buildCreateFtsTableSql(table, plan.fields, ddlOptions));
   // 函数是 CREATE OR REPLACE、trigger 先 DROP IF EXISTS 再建，同样幂等
@@ -273,7 +276,7 @@ export async function installPgFtsForEntity(
     if (storedSigs.length !== 1 || existing[0].name !== expectedName) {
       throw new SearchSchemaMismatchError(plan.tableName, plan.signature, storedSigs.join(', '));
     }
-    return await resumeInstall(plan, executor);
+    return await resumeInstall(plan, executor, await inspectPgRuntimeObjects(plan, executor));
   }
 
   await applyStructure(plan, executor);
@@ -290,10 +293,14 @@ export async function installPgFtsForEntity(
 /**
  * 签名命中时的续跑路径。
  *
- * 抽成独立函数纯粹是为了让 {@link installPgFtsForEntity} 的分支保持在三层以内。
+ * 抽成独立函数纯粹是为了让 {@link installPgFtsForEntity} 的分支保持在三层以内；
+ * 影子表那条路（{@link installPgFtsForTableSet}）对着已有的结构走同一段。
  */
-const resumeInstall = async (plan: FtsInstallPlan, executor: RuntimeSqlExecutor): Promise<InstallFtsResult> => {
-  const objects = await inspectPgRuntimeObjects(plan, executor);
+const resumeInstall = async (
+  plan: FtsInstallPlan,
+  executor: RuntimeSqlExecutor,
+  objects: PgRuntimeObjects
+): Promise<InstallFtsResult> => {
   if (hasHealthyPgRuntimeObjects(plan, objects)) {
     const pending = await readCount(executor, buildPgPendingBackfillProbeSql(tableRefOf(plan)));
     if (pending === 0) {
@@ -316,3 +323,26 @@ const resumeInstall = async (plan: FtsInstallPlan, executor: RuntimeSqlExecutor)
   await backfillUntilComplete(plan, executor);
   return { tableName: plan.tableName, status: 'repaired', fields: plan.fields };
 };
+
+/**
+ * 给一套可写检出位的影子表装全文索引（US-314 B2.5）；幂等，不写迁移记录。
+ *
+ * @param plan - 已经绑到那套表上的计划（`schema` 是影子 schema）
+ * @param executor - 建表集或补建那笔事务的执行器
+ * @returns 安装结果
+ *
+ * @remarks
+ * 迁移记录是主表集的账本，签名漂移在主表集那次安装就报了。影子表随检出位建，随检出位的 `DROP SCHEMA … CASCADE` 删
+ * （触发器函数在同一个 schema 里，一起带走），结构对不对直接看目录：一样都没有就全新安装，
+ * 有了就走与主表集相同的续跑判定（齐全且回填完了跳过、回填没完接着补、结构不对重建再全量重算）。
+ */
+export async function installPgFtsForTableSet(
+  plan: FtsInstallPlan,
+  executor: RuntimeSqlExecutor
+): Promise<InstallFtsResult> {
+  const objects = await inspectPgRuntimeObjects(plan, executor);
+  if (objects.hasColumn || objects.hasIndex || objects.hasTrigger) return await resumeInstall(plan, executor, objects);
+  await applyStructure(plan, executor);
+  await backfillUntilComplete(plan, executor);
+  return { tableName: plan.tableName, status: 'installed', fields: plan.fields };
+}

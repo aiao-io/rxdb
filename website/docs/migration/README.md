@@ -21,6 +21,7 @@
 - [`RxDBBranch` 去树化](./branch-detree.md)：分支系统表不再是树实体，四个树查询方法与 `RxDBBranchTreeRuleGroup` 移除，表结构不变
 - [生成器 `default` 语义迁移](./generator-default.md)：函数 `default` 从静默丢弃改为生成期报错，bigint / `Uint8Array` / `Date` 不再被改写
 - [操作列删除判定](./actions-column-can-delete.md)：`actionsColumn` 第三位新增必填 `canDelete`，查看文案顺延到第四位，删除能力不再由只读推断
+- [表名与 SQL 生成函数改为必传表集](./table-set-parameter.md)：sqlite-core 与 PGlite 推物理名、生成建表 / 读写 / 触发器 SQL 的公开函数多了必填的 `WorktreeTableSet`，只有主检出位的代码补 `WorktreeTableSet.MAIN` 即可
 - [Schema 迁移](./schema.md)：实体结构变更时的数据迁移
 
 > 版本策略与兼容承诺见[版本与 API 稳定性策略](../versioning.md)，各包版本对应关系见[兼容矩阵](../compatibility.md)。

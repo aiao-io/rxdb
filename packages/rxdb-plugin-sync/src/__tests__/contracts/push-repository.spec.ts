@@ -11,6 +11,7 @@ import {
   RxDBChange,
   RxDBSync,
   SyncType,
+  WorktreeTableSet,
   type SyncOptions
 } from '@aiao/rxdb';
 import { of } from 'rxjs';
@@ -73,9 +74,12 @@ function createValidationHarness(options: ValidationHarnessOptions = {}) {
       dispatchEvent,
       // 核心的系统表解析（`getLocalSystemRepositories` / `getCurrentBranch`）认的是这条流，
       // 不是 `SyncManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
-      localAdapter$: of(localAdapter)
+      localAdapter$: of(localAdapter),
+      // 没换挂过的实例挂的是主表集，当前分支按它读（US-314 B1.4）
+      worktreeTableSet: WorktreeTableSet.MAIN
     },
-    getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
+    history: { captureUndoHistory: () => () => undefined },
+    getCurrentBranch: vi.fn(async () => ({ id: 'main', activated: true })),
     pushInFlight: emptyPushInFlight(),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter }))
   } as unknown as SyncManager;
@@ -128,11 +132,14 @@ function createEmptyPushHarness() {
       dispatchEvent,
       // 同上：资格判定经核心解析系统表，走的是 `localAdapter$`。
       localAdapter$: of(localAdapter),
+      // 没换挂过的实例挂的是主表集，当前分支按它读（US-314 B1.4）
+      worktreeTableSet: WorktreeTableSet.MAIN,
       remoteAdapter$: of(remoteAdapter)
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
+    history: { captureUndoHistory: () => () => undefined },
+    getCurrentBranch: vi.fn(async () => ({ id: 'main', activated: true })),
     pushInFlight: emptyPushInFlight()
   } as unknown as SyncManager;
 

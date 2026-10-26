@@ -166,6 +166,24 @@ export const deleteRestoreMarker = async (storageKey: string): Promise<void> => 
 };
 
 /**
+ * 删掉一个存储在标记库里的全部簿记：恢复标记与世代计数（`dropStorage()` 删库之后调用）。
+ *
+ * @param storageKey - 规范化后的 `dataDir`
+ */
+export const deletePGliteStorageBookkeeping = async (storageKey: string): Promise<void> => {
+  const db = await openExisting(PGLITE_RESTORE_MARKER_DATABASE);
+  if (!db) return;
+  if (!db.objectStoreNames.contains(MARKER_STORE)) {
+    db.close();
+    return;
+  }
+  await inMarkerStore(db, 'readwrite', async store => {
+    await requestResult(store.delete(storageKey));
+    await requestResult(store.delete(generationKey(storageKey)));
+  });
+};
+
+/**
  * 目标上是否留有未完成的恢复。
  *
  * @remarks

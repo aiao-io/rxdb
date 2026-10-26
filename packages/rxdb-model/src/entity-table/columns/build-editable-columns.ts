@@ -37,6 +37,8 @@ export interface BuildEditableColumnsOptions {
   createdAtTitle?: string;
   /** 更新时间列标题（默认「更新时间」） */
   updatedAtTitle?: string;
+  /** 实体所在的实例是只读的（`rxdb.readOnly`）：所有列都不可编辑，操作列只剩查看 */
+  readOnly?: boolean;
 }
 
 function buildKeyValueSchema(prop: EntityPropertyMetadata): Record<string, KVSchemaEntry> {
@@ -117,10 +119,11 @@ export function buildEditableColumns(
     deleteLabel = '删除',
     viewLabel = '查看',
     createdAtTitle = '创建时间',
-    updatedAtTitle = '更新时间'
+    updatedAtTitle = '更新时间',
+    readOnly = false
   } = options;
 
-  const { canDelete } = deriveEntityCapabilities(metadata);
+  const { canDelete } = deriveEntityCapabilities(metadata, { readOnly });
   const columns: ColumnDefine[] = [{ field: 'id', title: 'ID', width: 260, sort: true }];
 
   for (const [key, prop] of metadata.propertyMap) {
@@ -131,7 +134,7 @@ export function buildEditableColumns(
         field: key,
         title: prop.displayName ?? key,
         type: prop.type,
-        readonly: raw['readonly'] === true,
+        readonly: readOnly || raw['readonly'] === true,
         enumValues: raw['enum'] as string[] | undefined,
         keyValueSchema: prop.type === PropertyType.keyValue ? buildKeyValueSchema(prop) : undefined,
         format: raw['format'] as FieldFormat | undefined,
@@ -158,6 +161,7 @@ export function buildEditableColumns(
         field: fkField,
         title: relation.displayName ?? fkField,
         type,
+        readonly: readOnly,
         nullable: (relation as Record<string, unknown>)['nullable'] === true,
         relatedItemsProvider: relatedItemsProviderFactory?.(fkField, relation.mappedEntity)
       })

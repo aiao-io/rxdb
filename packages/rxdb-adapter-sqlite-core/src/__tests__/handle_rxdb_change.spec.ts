@@ -7,8 +7,10 @@ import {
   type EntityType,
   type EntityUpdateData,
   getEntityStatus,
+  type IRepository,
   PropertyType,
   RxDB,
+  RxDBBranch,
   RxDBChange,
   SyncType
 } from '@aiao/rxdb';
@@ -38,6 +40,11 @@ class ChangeTestAdapter extends RxDBAdapterSqliteBase {
     }
   ) {
     super(rxdb);
+  }
+
+  /** 事件映射单测不创建连接，仓库直接绑定查询桩；事务边界由真实适配器套件验证。 */
+  override getRepository<T extends EntityType, RT = IRepository<T>>(EntityType: T): RT {
+    return this.createUncachedRepository(EntityType, this) as RT;
   }
 
   override query(sql: string, params?: SQLiteCompatibleType[]): Promise<SqliteSuccessResult> {
@@ -89,6 +96,8 @@ interface RxDBChangeSeed {
   entity?: string;
   patch?: Record<string, unknown> | null;
   inversePatch?: Record<string, unknown> | null;
+  branchId?: string;
+  tableSetSuffix?: string | null;
 }
 
 const createChangeRef = (rxdb: RxDB, seed: RxDBChangeSeed) =>
@@ -102,6 +111,8 @@ const createChangeRef = (rxdb: RxDB, seed: RxDBChangeSeed) =>
       entityId: `todo-${seed.id}`,
       patch: seed.patch ?? null,
       inversePatch: seed.inversePatch ?? null,
+      ...(seed.branchId === undefined ? {} : { branchId: seed.branchId }),
+      tableSetSuffix: seed.tableSetSuffix ?? null,
       createdAt: new Date(ISO),
       updatedAt: new Date(ISO)
     } as unknown as EntityUpdateData<typeof RxDBChange>,
@@ -225,6 +236,28 @@ describe('handle_rxdb_change', () => {
     expect(event.entities[0]).toMatchObject({ type: 'DELETE', id: 'todo-3', patch: null });
     expect((event.entities[0].inversePatch as { title?: string }).title).toBe('removed');
     expect(event.entities[0].recordAt).toBeInstanceOf(Date);
+  });
+
+  it('关掉变更日志的表 DELETE 事件不回查、不派发：删除由删行路径直接派（US-222）', async () => {
+    const rxdb = createRxdb('sqlite-core-change-unlogged-delete');
+    const adapter = new ChangeTestAdapter(rxdb);
+    // 裸 SQL 清库删掉的行不标 removed：回查会命中这个旧实体，按它的 id 派出一条过期的删除
+    const branch = rxdb.entityManager.createEntityRef(
+      RxDBBranch,
+      { id: 'main', activated: true, createdAt: new Date(ISO), updatedAt: new Date(ISO) } as EntityUpdateData<
+        typeof RxDBBranch
+      >,
+      { local: true, modified: false }
+    );
+    adapter.cacheRowIdEntity(7n, branch);
+    const dispatchSpy = vi.spyOn(rxdb, 'dispatchEvent');
+    const repositorySpy = vi.spyOn(adapter, 'getRepository');
+
+    handle_rxdb_change(adapter, changeEvent('rxdb$rxdb_branch', SQLiteChangeType.SQLITE_DELETE, [7n]));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(repositorySpy).not.toHaveBeenCalled();
+    expect(dispatchSpy).not.toHaveBeenCalled();
   });
 
   it('rxdb_change 表 INSERT 按变更类型分组派发事件并追加元事件', async () => {
@@ -607,6 +640,35 @@ describe('SQLC-012 变更处理失败必须有公开错误通道', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
 
     expect(events).toHaveLength(0);
+  });
+
+  it('迟到的影子表变更沿用持久化来源，不回查已释放的分支持有者', async () => {
+    const rxdb = createRxdb('sqlite-core-change-source');
+    const query = vi.fn(async (): Promise<SqliteSuccessResult> => {
+      throw new Error('事件来源不应依赖分支查询');
+    });
+    const adapter = new ChangeTestAdapter(rxdb, query);
+    adapter.cacheRowIdEntity(
+      11n,
+      createChangeRef(rxdb, {
+        id: 11,
+        type: 'INSERT',
+        patch: { title: 'shadow' },
+        inversePatch: null,
+        branchId: 'feature',
+        tableSetSuffix: 'wt_source'
+      })
+    );
+    const dispatchSpy = vi.spyOn(rxdb, 'dispatchEvent');
+
+    await handle_rxdb_change(adapter, changeEvent('rxdb$rxdb_change', SQLiteChangeType.SQLITE_INSERT, [11n]));
+
+    expect(query).not.toHaveBeenCalled();
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entities: [expect.objectContaining({ entity: 'Todo', tableSetSuffix: 'wt_source' })]
+      })
+    );
   });
 
   it('监听器抛出不影响其余监听器，且被单独报告', async () => {

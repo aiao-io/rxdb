@@ -30,6 +30,7 @@ import {
   resolve_current_branch
 } from '../../system/system-repositories.js';
 import type { LocalRxDBBranchRepository } from '../../system/types.local.js';
+import { WorktreeTableSet } from '../../system/worktree-table-set.js';
 
 type BranchRow = { id: string; activated: boolean; local?: boolean; remote?: boolean };
 
@@ -59,6 +60,8 @@ const rxdbStub = (options: {
    */
   txBranchRepository?: unknown;
   remote?: boolean;
+  /** 实例挂的表集；不给就是没换挂过的主表集 */
+  tableSet?: WorktreeTableSet;
 }) => {
   const getRepository = vi.fn((EntityType: unknown) =>
     EntityType === RxDBBranch ? options.branchRepository : (options.changeRepository ?? {})
@@ -76,6 +79,7 @@ const rxdbStub = (options: {
   const rxdb = {
     localAdapter$: options.remote ? of(undefined) : adapter$,
     remoteAdapter$: options.remote ? adapter$ : of(undefined),
+    worktreeTableSet: options.tableSet ?? WorktreeTableSet.MAIN,
     entityManager: {
       instantiate: vi.fn(() => ({ id: '', activated: false, local: false, remote: true }) as BranchRow)
     }
@@ -156,6 +160,32 @@ describe('resolve_current_branch', () => {
     expect(branch.remote).toBe(false);
     expect(branchRepository.create).toHaveBeenCalledWith(branch);
   });
+
+  // 挂在可写检出位上（US-314 B1.4）：建分支这类在事务里取「当前分支」的调用方，拿到的是那套表持有的分支
+  it('挂在可写检出位上按持有键查，不写任何东西', async () => {
+    const tableSet = WorktreeTableSet.of('wt_a1', []);
+    const branchRepository = branchRepositoryStub([[{ id: 'held', activated: false }]]);
+    const { rxdb } = rxdbStub({ branchRepository, tableSet });
+
+    const branch = await resolve_current_branch(branchRepository as unknown as LocalRxDBBranchRepository, rxdb);
+
+    expect(branch.id).toBe('held');
+    expect(branchRepository.find).toHaveBeenCalledWith({ where: tableSet.heldBranchWhere, limit: 1 });
+    expect(branchRepository.update).not.toHaveBeenCalled();
+    expect(branchRepository.create).not.toHaveBeenCalled();
+  });
+
+  // 影子表集没有「恢复」一说：持有分支不见了就是检出位已经关掉，激活 main 等于把写入挪到 main 名下
+  it('挂在可写检出位上而持有分支不见了：抛错，不激活也不新建 main', async () => {
+    const branchRepository = branchRepositoryStub([[], [{ id: 'main', activated: false }]]);
+    const { rxdb } = rxdbStub({ branchRepository, tableSet: WorktreeTableSet.of('wt_a1', []) });
+
+    await expect(
+      resolve_current_branch(branchRepository as unknown as LocalRxDBBranchRepository, rxdb)
+    ).rejects.toThrow(/持有的分支不见了/);
+    expect(branchRepository.update).not.toHaveBeenCalled();
+    expect(branchRepository.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('getCurrentBranch', () => {
@@ -203,5 +233,27 @@ describe('getCurrentBranch', () => {
     // 少了这次重查，两个并发调用会双双走到 create，第二个撞主键报错。
     expect(txBranchRepository.create).not.toHaveBeenCalled();
     expect(txBranchRepository.update).not.toHaveBeenCalled();
+  });
+
+  // 挂在可写检出位上（US-314 B1.4）：当前分支是那套表持有的分支，按持有键查
+  it('挂在可写检出位上按持有键查当前分支', async () => {
+    const tableSet = WorktreeTableSet.of('wt_a1', []);
+    const branchRepository = branchRepositoryStub([[{ id: 'held', activated: false }]]);
+    const { rxdb, adapter } = rxdbStub({ branchRepository, tableSet });
+
+    const branch = await getCurrentBranch(rxdb);
+
+    expect(branch.id).toBe('held');
+    expect(branchRepository.find).toHaveBeenCalledWith({ where: tableSet.heldBranchWhere, limit: 1 });
+    expect(adapter.transaction).not.toHaveBeenCalled();
+  });
+
+  // 影子表集没有「恢复」一说：持有分支不见了就是检出位已经关掉，激活 main 等于把写入挪到 main 名下
+  it('挂在可写检出位上而持有分支不见了：抛错，不开事务、不激活 main', async () => {
+    const branchRepository = branchRepositoryStub([[]]);
+    const { rxdb, adapter } = rxdbStub({ branchRepository, tableSet: WorktreeTableSet.of('wt_a1', []) });
+
+    await expect(getCurrentBranch(rxdb)).rejects.toThrow(/持有的分支不见了/);
+    expect(adapter.transaction).not.toHaveBeenCalled();
   });
 });

@@ -238,7 +238,7 @@ AC#1～3、AC#5 在 demo 产物上由 `dev-rxdb-miniprogram:verify-dist` 断言�
 - **不需要私有成员转换**：带着 Taro 的 babel、es2020 目标构建，产物在微信开发者工具里正常运行，插件不另做转换。
 - **产物断言**：`VERIFY_DIST_APP_ROOT` 指向两个项目跑 `verify-dist` 同一套 11 条断言，全绿。
 - **微信开发者工具**：`miniprogram-automator` 启动 → 读页面写进 storage 的检查结果 → 关闭 → 再启动。React、Vue 两个项目都是
-  建库成功、写入后读回 +1、重开后读到上次的记录数（adapter 回到 `@subframe7536/sqlite-wasm` 1.3.1 后重测，SQLite 3.53.2）。
+  建库成功、写入后读回 +1、重开后读到上次的记录数（adapter 使用带兼容补丁的 `@subframe7536/sqlite-wasm` 1.4.0，SQLite 3.53.4）。
 - **抖音开发者工具**：待手工走查（`dist-tt/`，测试 AppID）。
 - **demo 微信走查（AC#9 / AC#17 的微信半边，2026-10-07）**：`pnpm nx e2e-devtools dev-rxdb-miniprogram-e2e` 在阶段 A+B 代码上 16 条通过
   （运行时引导、CRUD、断开重连、跨启动持久化、安全随机池）；抖音、支付宝待手工走查。
@@ -248,9 +248,9 @@ AC#1～3、AC#5 在 demo 产物上由 `dev-rxdb-miniprogram:verify-dist` 断言�
 走查时 iOS 微信真机报 `WXWebAssembly 无法实例化 wa-sqlite/wa-sqlite.wasm: undefined is not an object (evaluating 'e.$e.value')`。
 根因在 #88 的依赖升级：adapter 的 `@subframe7536/sqlite-wasm` 从 1.3.1 升到 1.4.0，新 glue 把 `_sqlite3_version` 改成读 wasm
 导出的 Global（`wasmExports["$e"].value`），而 iOS 的 `WXWebAssembly` 不导出 Global；开发者工具模拟器是标准 WebAssembly，测不出来。
-`_sqlite3_version` 在仓库里无人使用。修复：小程序 adapter、demo、`wa-sqlite-integrity` 审计与支付宝 wasm 指纹回到 1.3.1
-（US-211 真机证据跑的就是这个版本），浏览器用的 `rxdb-adapter-sqlite-wasm` 不动；adapter 新增
-`subframe-glue-exported-globals.spec.ts` 门禁，glue 里出现读导出 Global 的代码就红（在 1.4.0 上实测为红）。
+`_sqlite3_version` 在仓库里无人使用。修复：小程序 adapter 与 demo 升到 1.4.0，并用 pnpm patch 让同步与异步 glue 在 Global 缺失时
+回退到 `_sqlite3_libversion()`；同时更新 `wa-sqlite-integrity` 审计、glue 文件名与支付宝 wasm 指纹。adapter 的
+`subframe-glue-exported-globals.spec.ts` 门禁检查实际加载的 glue 保留函数回退，浏览器适配器继续使用同一 patched 依赖。
 iOS 真机复验待做。
 
 ### 阶段 B 的判据为什么按标识符

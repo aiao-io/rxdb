@@ -14,8 +14,9 @@ describe('SqliteClient 初始化失败清理', () => {
     sqliteLoadMock.mockReset();
   });
 
-  it('打开连接后初始化失败必须关闭连接', async () => {
+  it('打开连接后初始化失败必须关闭连接，连同打开它的 VFS', async () => {
     const close = vi.fn().mockResolvedValue(undefined);
+    const vfs = { close: vi.fn().mockResolvedValue(undefined) };
     sqliteLoadMock.mockResolvedValue({
       pointer: 42,
       sqlite: {
@@ -23,12 +24,14 @@ describe('SqliteClient 初始化失败清理', () => {
         create_function: vi.fn(() => {
           throw new Error('create_function failed');
         })
-      }
+      },
+      vfs
     });
 
     const client = new SqliteClient();
     await expect(client.init('db', { vfs: 'memory' })).rejects.toThrow('create_function failed');
     expect(close).toHaveBeenCalledWith(42);
+    expect(vfs.close).toHaveBeenCalledTimes(1);
   });
 
   it('关闭连接失败时同时暴露初始化错误与清理错误', async () => {
@@ -40,7 +43,8 @@ describe('SqliteClient 初始化失败清理', () => {
         create_function: vi.fn(() => {
           throw new Error('init failed');
         })
-      }
+      },
+      vfs: { close: vi.fn().mockResolvedValue(undefined) }
     });
 
     const client = new SqliteClient();
@@ -59,7 +63,8 @@ describe('SqliteClient 初始化失败清理', () => {
         create_function: vi.fn(() => {
           throw new Error('boom');
         })
-      }
+      },
+      vfs: { close: vi.fn().mockResolvedValue(undefined) }
     });
 
     const client = new SqliteClient();
@@ -84,7 +89,8 @@ describe('SqliteClient 初始化失败清理', () => {
         column_names: vi.fn().mockReturnValue([]),
         changes: vi.fn().mockReturnValue(0),
         set_authorizer: vi.fn().mockReturnValue(0)
-      }
+      },
+      vfs: { close: vi.fn().mockResolvedValue(undefined) }
     });
 
     await client.init('db', { vfs: 'memory' });

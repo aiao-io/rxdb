@@ -610,8 +610,10 @@ describe('TreeFileDragDropStore 拖放交给引擎', () => {
 
   describe('拖放失败进页内提示', () => {
     afterEach(() => {
-      vi.unstubAllGlobals();
       TestBed.resetTestingModule();
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
     });
 
     const makeHost = (files: SortableFileNode[]) => {
@@ -642,6 +644,55 @@ describe('TreeFileDragDropStore 拖放交给引擎', () => {
       makeActionFile('B', null, 'B'),
       makeActionFile('X', null, 'X')
     ];
+
+    it('滚动等待渲染完成，连续请求各自在原定时刻滚动', () => {
+      vi.useFakeTimers();
+      const { host } = makeHost(makeFiles());
+      const scrollIntoView = vi.fn();
+      const element = { scrollIntoView } as unknown as Element;
+      const query = vi.spyOn(document, 'querySelector').mockReturnValue(element);
+
+      host.scrollToFile('A');
+      vi.advanceTimersByTime(50);
+      host.scrollToFile('B');
+      vi.advanceTimersByTime(49);
+      expect(query).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(query).toHaveBeenCalledExactlyOnceWith('[data-file-id="A"]');
+      expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ behavior: 'smooth', block: 'nearest' });
+
+      vi.advanceTimersByTime(50);
+      expect(query).toHaveBeenNthCalledWith(2, '[data-file-id="B"]');
+      expect(scrollIntoView).toHaveBeenCalledTimes(2);
+    });
+
+    it('销毁时取消全部待滚动计时器，之后清空队列不再访问 document', () => {
+      vi.useFakeTimers();
+      const { host } = makeHost(makeFiles());
+      host.scrollToFile('A');
+      host.scrollToFile('B');
+
+      TestBed.resetTestingModule();
+      const query = vi.spyOn(document, 'querySelector');
+      expect(vi.getTimerCount()).toBe(0);
+      vi.runAllTimers();
+
+      expect(query).not.toHaveBeenCalled();
+    });
+
+    it('销毁后到达的滚动请求不再创建计时器或访问 document', () => {
+      vi.useFakeTimers();
+      const { host } = makeHost(makeFiles());
+      TestBed.resetTestingModule();
+      const query = vi.spyOn(document, 'querySelector');
+
+      host.scrollToFile('A');
+      expect(vi.getTimerCount()).toBe(0);
+      vi.runAllTimers();
+
+      expect(query).not.toHaveBeenCalled();
+    });
 
     it('reorder 抛 SortOrderError 时页内提示「拖放失败：…」、拖拽状态复位、不弹窗', async () => {
       const alertSpy = vi.fn();

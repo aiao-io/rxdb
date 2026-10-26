@@ -1,4 +1,4 @@
-import { RxDB } from '@aiao/rxdb';
+import { RxDB, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { push } from '../push.js';
 import { SyncManager } from '../SyncManager.js';
@@ -7,6 +7,7 @@ describe('push', () => {
   it('should handle string repositoryFilter (backward compatibility)', async () => {
     const mockRxDB = {
       config: { sync: { remote: { adapter: 'mock-adapter' } } },
+      worktreeTableSet: WorktreeTableSet.MAIN,
       dispatchEvent: vi.fn()
     } as unknown as RxDB;
 
@@ -14,7 +15,7 @@ describe('push', () => {
     const mockVm = {
       rxdb: mockRxDB,
       bulkSync: mockBulkSync,
-      getCurrentBranch: vi.fn().mockResolvedValue({ id: 'main' }),
+      getCurrentBranch: vi.fn().mockResolvedValue({ id: 'main', activated: true }),
       historyManager: {
         syncing: vi.fn(fn => fn()),
         clearUndoHistory: vi.fn()
@@ -36,6 +37,7 @@ describe('push', () => {
   it('should handle RepositoryIdentifier repositoryFilter', async () => {
     const mockRxDB = {
       config: { sync: { remote: { adapter: 'mock-adapter' } } },
+      worktreeTableSet: WorktreeTableSet.MAIN,
       dispatchEvent: vi.fn()
     } as unknown as RxDB;
 
@@ -43,7 +45,7 @@ describe('push', () => {
     const mockVm = {
       rxdb: mockRxDB,
       bulkSync: mockBulkSync,
-      getCurrentBranch: vi.fn().mockResolvedValue({ id: 'main' }),
+      getCurrentBranch: vi.fn().mockResolvedValue({ id: 'main', activated: true }),
       historyManager: {
         syncing: vi.fn(fn => fn()),
         clearUndoHistory: vi.fn()
@@ -70,6 +72,7 @@ describe('push', () => {
   it('should handle mixed repositoryFilter', async () => {
     const mockRxDB = {
       config: { sync: { remote: { adapter: 'mock-adapter' } } },
+      worktreeTableSet: WorktreeTableSet.MAIN,
       dispatchEvent: vi.fn()
     } as unknown as RxDB;
 
@@ -77,7 +80,7 @@ describe('push', () => {
     const mockVm = {
       rxdb: mockRxDB,
       bulkSync: mockBulkSync,
-      getCurrentBranch: vi.fn().mockResolvedValue({ id: 'main' }),
+      getCurrentBranch: vi.fn().mockResolvedValue({ id: 'main', activated: true }),
       historyManager: {
         syncing: vi.fn(fn => fn()),
         clearUndoHistory: vi.fn()
