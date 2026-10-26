@@ -4,9 +4,11 @@ import {
   compileGeneratedColumn,
   generatedColumnsOf,
   storageExpressionIdentity,
+  WorktreeTableSet,
   type EntityMetadata
 } from '@aiao/rxdb';
 import type { Results } from '@electric-sql/pglite';
+import { getSchemaName } from '../table-name-resolver.js';
 
 interface CatalogExecutor {
   queryRaw<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<Results<T>>;
@@ -68,6 +70,7 @@ const sameExpression = (actual: string | null, expected: string | undefined): bo
 export const checkStorageDeclarationsPGlite = async (
   executor: CatalogExecutor,
   metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
   tableMissing: boolean,
   hasManagedColumns: boolean,
   hasIndexes: boolean
@@ -79,7 +82,7 @@ export const checkStorageDeclarationsPGlite = async (
   });
   const expected = [...columns.map(column => column.columnName), ...indexes.map(index => index.name)];
   if (tableMissing) return { expected, actual: [], changed: [] };
-  const params = [metadata.namespace, metadata.tableName];
+  const params = [getSchemaName(metadata, tableSet), metadata.tableName];
   const catalogColumns =
     hasManagedColumns || columns.length > 0 ? (await executor.queryRaw<ColumnEntry>(COLUMN_SQL, params)).rows : [];
   // gc_ 是托管列的保留前缀：目录里的同前缀列不论是不是生成列都计入实际集合，用户自建的普通列判多余；

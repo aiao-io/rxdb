@@ -96,6 +96,7 @@ export const check_entity_constraints_pglite = async (
     const storage = await checkStorageDeclarationsPGlite(
       adapter,
       metadata,
+      tableSet,
       tableMissing,
       existence.rows[0]?.managed === true,
       hasStorageIndexes
