@@ -38,9 +38,11 @@ function readJson(path) {
   return JSON.parse(readFileSync(resolve(ROOT, path), 'utf8'));
 }
 
-function packageResolution(lockfile, packageKey) {
+export function packageResolution(lockfile, packageKey) {
   // patchedDependencies 也会复用包键；只在 packages 段查找，避免把 patch 元数据当成解析结果。
-  const packagesStart = lockfile.indexOf('\npackages:\n');
+  // pnpm 11+ 在锁文件开头多一个 env 文档（packageManagerDependencies），它自带 packages 段，
+  // 工作区的 packages 段是最后一个。
+  const packagesStart = lockfile.lastIndexOf('\npackages:\n');
   const start = lockfile.indexOf(packageKey, packagesStart);
   if (start < 0) throw new Error(`pnpm-lock.yaml is missing ${packageKey.trim()}`);
   const remainder = lockfile.slice(start + packageKey.length);
