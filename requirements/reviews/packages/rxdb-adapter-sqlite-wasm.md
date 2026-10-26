@@ -1,21 +1,31 @@
-# Review：rxdb-adapter-sqlite-wasm
+---
+package: rxdb-adapter-sqlite-wasm
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-adapter-sqlite-wasm 增量代码评审
 
 ## 结论
 
-🟢 未发现可定位的 P0/P1/P2/P3 问题。
+🟢 本次增量未确认新的 P0–P3 问题。
 
-## 检查范围
+## 提交与检查范围
 
-检查了 `package.json` 的 sqlite-core/Comlink peer、`project.json`、README 的 VFS 与备份矩阵；走读 `RxDBAdapterSqlite.ts`、`SqliteClient.ts`、`execute_helper.ts`、`create_sqlite_client.ts`、WASM loader/worker 和公开入口，并核对 `src/__tests__/**`（statement finalize、事务、事件、生命周期、worker、加密、树唯一和 conformance）。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 4 文件、测试/测试工具 20 文件、配置/文档/版本 3 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`9361d916 q`；`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：快照存储回收、SharedWorker 持有者与监听释放、事务串行/孤儿事务回滚、VFS 关闭、OPFS 打开重试及 1.4.0 依赖联动。
+- 实现锚点：`src/RxDBAdapterSqlite.ts`、`src/SqliteClient.ts`、`src/create_sqlite_client.ts`、`src/sqlite-load.utils.ts`。
 
 ## 发现
 
-无。带绑定多语句拒绝、逐句 finalize、rowsAffected authorizer 判定、并发 disconnect 共用 promise、worker 代理释放和备份 transport/VFS 拒绝均有测试保护。
+无新增确认问题。
 
-## 风险/未覆盖
+## 验证与限制
 
-OPFS/IDB 和 worker 的浏览器真实运行仍未执行；本轮无法确认不同 sqlite-wasm 发行版本的运行时行为。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 建议验证
-
-执行 `pnpm nx run rxdb-adapter-sqlite-wasm:typecheck` 与浏览器测试套件，并用 worker/sharedWorker、IDB 与 OPFS VFS 逐项复验备份矩阵。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

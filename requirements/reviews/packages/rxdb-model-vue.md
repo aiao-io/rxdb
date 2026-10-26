@@ -1,21 +1,31 @@
-# Review：@aiao/rxdb-model-vue 评审
+---
+package: rxdb-model-vue
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-model-vue 增量代码评审
 
 ## 结论
 
-🟢 未发现 P0-P2 问题。Vue 组件公开面与 React/Angular 功能对齐，组合式状态和模板事件边界明确。
+🟢 本次增量未确认新的 P0–P3 问题。
 
-## 检查范围
+## 提交与检查范围
 
-检查 `src/entity-detail`、`entity-dialog`、`entity-form`、`entity-list`、`entity-table`、`query-builder`、Vue shim、spec 与 `index.ts`；核对 CSS/tailwind exports、Vue/VTable peer 和项目配置。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 1 文件、测试/测试工具 2 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`c425f414 chore(deps): safely upgrade workspace dependencies`；`967aa658 12313`；`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：EntityList 只读能力、可编辑列关闭与 undo/redo barrier 订阅清理；与 Angular/React 增量对照。
+- 实现锚点：`src/entity-list/EntityList.vue`。
 
 ## 发现
 
-无。组件对可选对象 props 的默认值采用 `withDefaults` 与类型注释保持一致；QueryBuilder/SubqueryBuilder 在 scope dispose 时取消 RxJS 订阅，异步事件不会落到已卸载组件；公开入口覆盖各功能组并导出 `cn`。
+无新增确认问题。
 
-## 风险/未覆盖
+## 验证与限制
 
-未覆盖 Vue SSR/Teleport、真实 VTable 编辑器和 CSS tree-shaking；建议 Node 26+ 执行 test/typecheck/build 与浏览器验证。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 验证
-
-已检查源码与测试入口；本机执行 Nx 任务时在插件加载阶段失败（Node v22.14.0 不满足仓库要求的 Node >=26，详见 core-plan.md），因此未将测试写成已通过。建议在 Node 26+ 环境按建议任务复跑。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

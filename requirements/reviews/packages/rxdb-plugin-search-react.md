@@ -1,31 +1,23 @@
 ---
 package: rxdb-plugin-search-react
-baseline: main@94df0a04
-reviewed: 2026-10-16
-status: StaticReview
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
 ---
 
-# rxdb-plugin-search-react 代码评审
+# rxdb-plugin-search-react 增量代码评审
 
-**结论：🟡 二次评审确认 1 条 P2（与 Vue 端同源）；动态门禁待真实宿主复跑。**
+## 结论
 
-React `useSearch` 适配层。 当前基线为 `main@94df0a04`（2026-10-16）。本报告只记录本次检查结果，不替代修复单。
+🟡 待处理：1 条 P2。上轮问题继续保留；本提交区间未提供关闭证据。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-- `packages/rxdb-plugin-search-react/src`：7 个受控源/测试文件，源码入口、生命周期、错误路径、公开类型和资源释放。
-- `packages/rxdb-plugin-search-react/README.md`、`package.json`、`project.json`、`tsconfig*.json`、`vite.config.mts`（Angular 包另含 `ng-package.json`）。
-- 测试入口（按当前文件名盘点，共 5 个）：
-- [`packages/rxdb-plugin-search-react/src/__tests__/index.spec.ts`]
-- [`packages/rxdb-plugin-search-react/src/__tests__/readme-consumer.spec.tsx`]
-- [`packages/rxdb-plugin-search-react/src/__tests__/review-parallel-real-handle.spec.ts`]
-- [`packages/rxdb-plugin-search-react/src/__tests__/review-round2-lifecycle.spec.ts`]
-- [`packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts`]
-
-关键源码锚点：
-
-- [`src/use-search.ts:1-190`](../../../packages/rxdb-plugin-search-react/src/use-search.ts#L1)
-- [`src/index.ts:1-17`](../../../packages/rxdb-plugin-search-react/src/index.ts#L1)
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 0 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`c425f414 chore(deps): safely upgrade workspace dependencies`；`967aa658 12313`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
 ## 发现
 
@@ -35,14 +27,8 @@ React `useSearch` 适配层。 当前基线为 `main@94df0a04`（2026-10-16）�
 - 触发：任何结构兼容的 source 其 handle 的任一流 error → React/Vue 端未捕获异步异常（window `error` / 崩溃），UI 冻结在最后状态，`error` 状态不更新；Angular 端则路由 ErrorHandler 并完成清理。
 - 建议：两端镜像 Angular 的 `reportStreamFailure`（退订全部 + 路由到框架合适的处理），至少给四个订阅挂 error 回调统一退订与上报策略。
 
-## 风险与未覆盖
+## 验证与限制
 
-- 尝试执行 Nx 任务时，当前主机 Node 为 `v22.14.0`（仓库要求 `>=26`），且 Nx 返回 `Operation not permitted (os error 1)`；因此本次不能把 lint/typecheck/test/build 的运行结果写成通过。
-- 浏览器、真实 SQLite/PGlite/桌面宿主、发布产物消费和跨标签页/跨进程场景未在本轮动态复验；源码与现有测试文件的存在不等于这些场景已覆盖。
-- 三框架适配包已按入口/类型/生命周期做静态对照；React/Angular/Vue 的真实渲染与卸载竞态仍需在 Node 26、Chromium 和对应框架测试环境补证。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 建议验证
-
-在 Node 26+、pnpm 10 环境串行执行：
-
-`pnpm nx run rxdb-plugin-search-react:lint --skipRemoteCache`（若项目提供该 target）、`pnpm nx run rxdb-plugin-search-react:typecheck --skipRemoteCache`、`pnpm nx run rxdb-plugin-search-react:test --skipRemoteCache`、`pnpm nx run rxdb-plugin-search-react:build --skipRemoteCache`；带浏览器/覆盖率的项目再执行其 `test-browser` 或 `coverage` target。优先补齐该包风险最高的真实后端/宿主场景后再把 🟡 结论升级为动态通过。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

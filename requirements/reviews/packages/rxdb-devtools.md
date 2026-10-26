@@ -1,12 +1,23 @@
-# Review：@aiao/rxdb-devtools 评审
+---
+package: rxdb-devtools
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-devtools 增量代码评审
 
 ## 结论
 
-🔴 二次评审对 57 个源文件做第二轮走读（含 v2 endpoint/session/transfer、serializer、buffer、sequence、mask、providers、native）后确认 1 条 P1 + 3 条 P2；首轮「未发现 P0-P2」结论被推翻。
+🔴 待处理：1 条 P1、3 条 P2。上轮问题继续保留；本提交区间未提供关闭证据。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-检查 connector/transport/providers/runtime、serializer、types、v2 endpoint/session/transfer、browser/native providers 和 testing suites；核对 exports、可选 vitest peer、Vite 构建入口与 README。二次评审对 serializer/buffer/sequence/mask/subscribe-once/events/entity-info/providers/testing-providers/v2/** 与 browser/native 文件上传路径逐文件走读，关键算法用构建产物执行复现。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 0 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
 ## 发现
 
@@ -32,14 +43,8 @@
 - 证据：`src/v2/panel-endpoint.ts:388、393-408`。`request.params(transferId)` 在 `400` 行求值，位于负责清理的 `try/finally`（`404-408`）**之前**；异常以 rejection 逃逸（契约声明结果联合永不 reject），`388` 行写入的 `#transfers` 条目与 `393` 行的 `cancelTotal` 计时器不再清理——2 个在飞传输槽之一被烧到会话结束。`download()` 把 `request.params` 放在 try 内（约 `438-440`），两路径不对称。
 - 建议：把 `params` 求值移进 try/finally。
 
-### 已知弱项（未定级，均有具体触发，仅记录备查）
+## 验证与限制
 
-`getErrorMessage('')` 返回空串；`subscribeOnce` 对同步源未注册即 unregister；serializer 的 Error 分支丢 `RxDBError` 自身 code/constraint/entity/conflicts 字段；native-files-provider 上传映射永不淘汰；`CLEAR_EVENT_BUFFER` 无端点处理；协商状态机 DISCONNECT 后无法重新协商 v2；fake-providers 对 upload/download 参数校验比真实 provider 松，弱化共享 conformance 套件。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 风险/未覆盖
-
-未覆盖真实 Chrome extension/Tauri IPC、OPFS 权限和大文件传输压力；需在浏览器与宿主端跑协议/安全套件。
-
-## 验证
-
-已检查源码与测试入口；本机执行 Nx 任务时在插件加载阶段失败（Node v22.14.0 不满足仓库要求的 Node >=26，详见 core-plan.md），因此未将测试写成已通过。建议在 Node 26+ 环境按建议任务复跑。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

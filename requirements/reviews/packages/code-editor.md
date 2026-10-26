@@ -1,21 +1,30 @@
-# Review：@aiao/code-editor 评审
+---
+package: code-editor
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# code-editor 增量代码评审
 
 ## 结论
 
-🟢 本轮未发现 P0-P2 行为问题。核心纯函数与语言目录实现边界清晰，三端共用的差量同步、语言解析、无障碍属性和错误载荷均有对应单测。
+🟢 本次增量未确认新的 P0–P3 问题。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-检查 `src/accessibility.ts`、`document-sync.ts`、`language-resolution.ts`、`language-error.ts`、`languages.ts`、`index.ts`，以及 `src/__tests__`；核对 `package.json` 的 exports、依赖和 `project.json` 的 typecheck 目标；阅读 README 的自定义语言和 JSON5 说明。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 0 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
 ## 发现
 
-无。`computeMinimalDocumentChange` 对相同值、前后缀差量和空串有测试；`resolveCodeEditorLanguage` 区分 none/not-found/found；`overrideLanguage` 合并上游 alias/extensions/filename，避免覆盖上游匹配元数据。
+无新增确认问题。
 
-## 风险/未覆盖
+## 验证与限制
 
-未覆盖真实 CodeMirror 浏览器 DOM、动态 chunk 网络失败和 ShadowRoot 宿主；这些由 Angular/React/Vue 绑定包的宿主测试承担。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 验证
-
-已检查源码与测试入口；本机执行 Nx 任务时在插件加载阶段失败（Node v22.14.0 不满足仓库要求的 Node >=26，详见 core-plan.md），因此未将测试写成已通过。建议在 Node 26+ 环境按建议任务复跑。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

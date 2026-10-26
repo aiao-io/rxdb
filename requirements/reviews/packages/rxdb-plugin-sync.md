@@ -1,52 +1,31 @@
 ---
 package: rxdb-plugin-sync
-baseline: main@94df0a04
-reviewed: 2026-10-16
-status: StaticReview
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
 ---
 
-# rxdb-plugin-sync 代码评审
+# rxdb-plugin-sync 增量代码评审
 
-**结论：🟡 静态检查未确认 P0/P1/P2/P3 缺陷；动态门禁待在受支持环境复跑。**
+## 结论
 
-分支/仓储推拉同步、依赖排序、冲突与 QueryCache outbox。 当前基线为 `main@94df0a04`（2026-10-16）。本报告只记录本次检查结果，不替代修复单。
+🟢 本次增量未确认新的 P0–P3 问题。
 
-## 检查范围
+## 提交与检查范围
 
-- `packages/rxdb-plugin-sync/src`：70 个受控源/测试文件，源码入口、生命周期、错误路径、公开类型和资源释放。
-- `packages/rxdb-plugin-sync/README.md`、`package.json`、`project.json`、`tsconfig*.json`、`vite.config.mts`（Angular 包另含 `ng-package.json`）。
-- 测试入口（按当前文件名盘点，共 42 个）：
-- [`packages/rxdb-plugin-sync/src/__tests__/SyncManager.orchestration.spec.ts`]
-- [`packages/rxdb-plugin-sync/src/__tests__/branch-materialization-source.spec.ts`]
-- [`packages/rxdb-plugin-sync/src/__tests__/branch-sync-atomicity.spec.ts`]
-- [`packages/rxdb-plugin-sync/src/__tests__/bulk-sync.spec.ts`]
-- [`packages/rxdb-plugin-sync/src/__tests__/check-repository-updates.spec.ts`]
-- [`packages/rxdb-plugin-sync/src/__tests__/cleanup-expired.spec.ts`]
-- [`packages/rxdb-plugin-sync/src/__tests__/contracts/entry-type-honesty.spec.ts`]
-- [`packages/rxdb-plugin-sync/src/__tests__/contracts/public-type-compatibility.spec.ts`]
-
-关键源码锚点：
-
-- [`src/plugin.ts:1-132`](../../../packages/rxdb-plugin-sync/src/plugin.ts#L1)
-- [`src/SyncManager.ts:1-690`](../../../packages/rxdb-plugin-sync/src/SyncManager.ts#L1)
-- [`src/pull.ts:1-260`](../../../packages/rxdb-plugin-sync/src/pull.ts#L1)
-- [`src/push.ts:1-260`](../../../packages/rxdb-plugin-sync/src/push.ts#L1)
-- [`src/index.ts:1-58`](../../../packages/rxdb-plugin-sync/src/index.ts#L1)
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 9 文件、测试/测试工具 20 文件、配置/文档/版本 2 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`9361d916 q`；`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：同步仅允许主检出位的入口/事务内双重检查、异步完成后按原分支失效历史、QueryCache outbox 始终归主表集。
+- 实现锚点：`src/SyncManager.ts`、`src/cleanup-expired.ts`、`src/pull-batch.ts`、`src/pull-repository.ts`、`src/push-branch.ts`、`src/push-repository.ts`、`src/query-cache-outbox.ts` 等 9 个实现文件。
 
 ## 发现
 
-### 无已确认问题
+无新增确认问题。
 
-逐项检查导出面、依赖声明、配置入口与 README 示例；未发现能够在当前源码中直接定位并复现、达到 P0–P3 登记门槛的问题。历史评审中已修复的条目未重复登记。
+## 验证与限制
 
-## 风险与未覆盖
+本轮 Chromium 全量 **35 文件 / 500 例通过**；覆盖率 statements 93.52%、branches 86.22%、functions 95.49%、lines 94.73%，现有任务门槛通过。
 
-- 尝试执行 Nx 任务时，当前主机 Node 为 `v22.14.0`（仓库要求 `>=26`），且 Nx 返回 `Operation not permitted (os error 1)`；因此本次不能把 lint/typecheck/test/build 的运行结果写成通过。
-- 浏览器、真实 SQLite/PGlite/桌面宿主、发布产物消费和跨标签页/跨进程场景未在本轮动态复验；源码与现有测试文件的存在不等于这些场景已覆盖。
-- 三框架适配包已按入口/类型/生命周期做静态对照；React/Angular/Vue 的真实渲染与卸载竞态仍需在 Node 26、Chromium 和对应框架测试环境补证。
-
-## 建议验证
-
-在 Node 26+、pnpm 10 环境串行执行：
-
-`pnpm nx run rxdb-plugin-sync:lint --skipRemoteCache`（若项目提供该 target）、`pnpm nx run rxdb-plugin-sync:typecheck --skipRemoteCache`、`pnpm nx run rxdb-plugin-sync:test --skipRemoteCache`、`pnpm nx run rxdb-plugin-sync:build --skipRemoteCache`；带浏览器/覆盖率的项目再执行其 `test-browser` 或 `coverage` target。优先补齐该包风险最高的真实后端/宿主场景后再把 🟡 结论升级为动态通过。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

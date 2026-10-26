@@ -1,21 +1,30 @@
-# Review：@aiao/code-editor-react 评审
+---
+package: code-editor-react
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# code-editor-react 增量代码评审
 
 ## 结论
 
-🟢 未发现 P0-P2 问题。React 组件正确处理 StrictMode 重挂载、受控值差量同步、回调引用和异步语言竞态。
+🟢 本次增量未确认新的 P0–P3 问题。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-检查 `src/CodeEditor.tsx`、测试套件和 README；核对 `package.json` exports、React peer 版本、`project.json` typecheck 目标；对照 Angular/Vue 的 props、错误回调和命令式 handle。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 0 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`c425f414 chore(deps): safely upgrade workspace dependencies`；`967aa658 12313`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
 ## 发现
 
-无。组件用 `useLayoutEffect` 更新回调 ref（`src/CodeEditor.tsx:323-334`），用 view 绑定的已生效语言结果避免 StrictMode 空 Compartment（`src/CodeEditor.tsx:303-311,464-515`），外部写入禁止进入 undo 历史（`src/CodeEditor.tsx:227-235`）。
+无新增确认问题。
 
-## 风险/未覆盖
+## 验证与限制
 
-未覆盖真实 React 19 concurrent rendering、ShadowRoot 和浏览器焦点/IME；建议在 Node 26+ 执行 React 包 test、typecheck、build 以及浏览器目标。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 验证
-
-已检查源码与测试入口；本机执行 Nx 任务时在插件加载阶段失败（Node v22.14.0 不满足仓库要求的 Node >=26，详见 core-plan.md），因此未将测试写成已通过。建议在 Node 26+ 环境按建议任务复跑。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

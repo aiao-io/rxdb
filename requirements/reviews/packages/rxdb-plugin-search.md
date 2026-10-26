@@ -1,35 +1,24 @@
 ---
 package: rxdb-plugin-search
-baseline: main@94df0a04
-reviewed: 2026-10-16
-status: StaticReview
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
 ---
 
-# rxdb-plugin-search 代码评审
+# rxdb-plugin-search 增量代码评审
 
-**结论：🟡 二次评审确认 1 条 P3；动态门禁待真实宿主复跑。**
+## 结论
 
-全文/模糊搜索、分页、后端接入与响应式状态机。 当前基线为 `main@94df0a04`（2026-10-16）。本报告只记录本次检查结果，不替代修复单。
+🟡 待处理：1 条 P3。上轮问题继续保留；本提交区间未提供关闭证据。
 
-## 检查范围
+## 提交与检查范围
 
-- `packages/rxdb-plugin-search/src`：74 个受控源/测试文件，源码入口、生命周期、错误路径、公开类型和资源释放。
-- `packages/rxdb-plugin-search/README.md`、`package.json`、`project.json`、`tsconfig*.json`、`vite.config.mts`（Angular 包另含 `ng-package.json`）。
-- 测试入口（按当前文件名盘点，共 46 个）：
-- [`packages/rxdb-plugin-search/src/__tests__/aggregator.spec.ts`]
-- [`packages/rxdb-plugin-search/src/__tests__/backend/backend-registry.spec.ts`]
-- [`packages/rxdb-plugin-search/src/__tests__/backend/pg-backend-integration.spec.ts`]
-- [`packages/rxdb-plugin-search/src/__tests__/backend/pg-fts-contract.spec.ts`]
-- [`packages/rxdb-plugin-search/src/__tests__/backend/pg-query-compiler.spec.ts`]
-- [`packages/rxdb-plugin-search/src/__tests__/backend/pg-search-sql.spec.ts`]
-- [`packages/rxdb-plugin-search/src/__tests__/backend/pg-statements.spec.ts`]
-- [`packages/rxdb-plugin-search/src/__tests__/core/options-equality.spec.ts`]
-
-关键源码锚点：
-
-- [`src/plugin.ts:1-776`](../../../packages/rxdb-plugin-search/src/plugin.ts#L1)
-- [`src/core/search-handle.ts:1-420`](../../../packages/rxdb-plugin-search/src/core/search-handle.ts#L1)
-- [`src/index.ts:1-70`](../../../packages/rxdb-plugin-search/src/index.ts#L1)
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 8 文件、测试/测试工具 10 文件、配置/文档/版本 2 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`9361d916 q`；`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：FTS 计划绑定到物理表/schema、表集 created/fingerprint 钩子、换挂后的句柄刷新/事件过滤与缓存、SQLite/PGlite 索引安装；旧 loadMore 重入路径未改。
+- 实现锚点：`src/backend/fts5-backend.ts`、`src/backend/pg/pg-backend.ts`、`src/backend/pg/pg-fts-contract.ts`、`src/backend/pg/pg-runtime.ts`、`src/backend/search-backend.ts`、`src/core/fts5-installer.ts`、`src/core/fts5-runtime.ts` 等 8 个实现文件。
 
 ## 发现
 
@@ -39,14 +28,8 @@ status: StaticReview
 - 触发：慢查询执行中（状态 loading）数据变更触发，其 page-0 刷新进 `pendingQuery`；随后在途查询完成、`results$` 同步发出，订阅者立刻调 `loadMore()`——此刻状态快照已是 success → 入队的 page-1 请求**替换**了待执行的 page-0 刷新（原请求的 waiter 被并入新请求，只 resolve 不执行）。泵只跑 page-1，把新一页追加到已过期的结果上；刷新被静默丢弃，陈旧结果要等下一次数据变更或 setQuery 才自愈。
 - 建议：`enqueueQuery` 收到 page>0 请求且待执行的是 page-0 刷新时，保留 page-0（如在 loadMore 结算后重入队刷新，或先跑 pending page-0）。
 
-## 风险与未覆盖
+## 验证与限制
 
-- 尝试执行 Nx 任务时，当前主机 Node 为 `v22.14.0`（仓库要求 `>=26`），且 Nx 返回 `Operation not permitted (os error 1)`；因此本次不能把 lint/typecheck/test/build 的运行结果写成通过。
-- 浏览器、真实 SQLite/PGlite/桌面宿主、发布产物消费和跨标签页/跨进程场景未在本轮动态复验；源码与现有测试文件的存在不等于这些场景已覆盖。
-- 三框架适配包已按入口/类型/生命周期做静态对照；React/Angular/Vue 的真实渲染与卸载竞态仍需在 Node 26、Chromium 和对应框架测试环境补证。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 建议验证
-
-在 Node 26+、pnpm 10 环境串行执行：
-
-`pnpm nx run rxdb-plugin-search:lint --skipRemoteCache`（若项目提供该 target）、`pnpm nx run rxdb-plugin-search:typecheck --skipRemoteCache`、`pnpm nx run rxdb-plugin-search:test --skipRemoteCache`、`pnpm nx run rxdb-plugin-search:build --skipRemoteCache`；带浏览器/覆盖率的项目再执行其 `test-browser` 或 `coverage` target。优先补齐该包风险最高的真实后端/宿主场景后再把 🟡 结论升级为动态通过。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

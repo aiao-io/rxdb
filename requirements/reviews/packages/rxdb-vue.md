@@ -1,21 +1,30 @@
-# Review：@aiao/rxdb-vue 评审
+---
+package: rxdb-vue
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-vue 增量代码评审
 
 ## 结论
 
-🟢 未发现 P0-P2 问题。Vue provider/ref、查询 hooks、持久化和同步状态与 React/Angular 的公开语义对齐。
+🟢 本次增量未确认新的 P0–P3 问题。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-检查 `rxdb-vue.ts`、`hooks.ts`、`useInfiniteScroll.ts`、useAction/usePersistedState/useEntityChange/useSyncState、测试与 README；核对 Vue peer、exports、lint/typecheck targets。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 0 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`c425f414 chore(deps): safely upgrade workspace dependencies`；`967aa658 12313`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
 ## 发现
 
-无。异步 source 只在 provider 自己创建的实例上执行 shutdown，调用方传入的 Ref/实例不接管（`src/rxdb-vue.ts:105-145`）；查询订阅在 scope dispose 时清理，错误写入资源而非逃出副作用；游标选项复用 `@aiao/utils` key 实现。
+无新增确认问题。
 
-## 风险/未覆盖
+## 验证与限制
 
-未覆盖 Vue SSR、KeepAlive/嵌套 effect scope、浏览器端异步 provider 竞态；建议在 Node 26+ 执行 test、lint、typecheck、build。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 验证
-
-已检查源码与测试入口；本机执行 Nx 任务时在插件加载阶段失败（Node v22.14.0 不满足仓库要求的 Node >=26，详见 core-plan.md），因此未将测试写成已通过。建议在 Node 26+ 环境按建议任务复跑。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

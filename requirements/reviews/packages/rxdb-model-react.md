@@ -1,12 +1,24 @@
-# Review：@aiao/rxdb-model-react 评审
+---
+package: rxdb-model-react
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-model-react 增量代码评审
 
 ## 结论
 
-🔴 二次评审发现 3 条问题（1 P1 + 2 P2），全部集中在 React StrictMode 开发模式与异步 provider 的组件状态不重建；首轮「未发现 P0-P2」结论被推翻。Angular/Vue 同功能组件均无对应缺陷。
+🔴 待处理：1 条 P1、2 条 P2。上轮问题继续保留；本提交区间未提供关闭证据。
 
-## 检查范围
+## 提交与检查范围
 
-检查 `src/entity-detail`、`entity-dialog`、`entity-form`、`entity-list`、`entity-table`、`query-builder` 及测试；核对 React/VTable/Lucide peer、CSS exports 和 `project.json`。二次评审按 StrictMode 双挂载语义逐组件对照三端。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 1 文件、测试/测试工具 3 文件、配置/文档/版本 2 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`c425f414 chore(deps): safely upgrade workspace dependencies`；`967aa658 12313`；`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：EntityList 只读能力、可编辑列关闭与 undo/redo barrier 订阅清理；旧 EntityTable/QueryBuilder/EntityDetail 的 StrictMode 和异步源路径未改。
+- 实现锚点：`src/entity-list/entity-list.tsx`。
 
 ## 发现
 
@@ -30,10 +42,8 @@
 - 对照：Angular（`entity-detail.ts:290-295` effect 补建，注释明确「独立使用语境的 inputs 要到首次变更检测才写入，由 effect 补建」）与 Vue（`EntityDetail.vue:268-281` watch immediate，rxdb/meta/cls 到达后重建）都覆盖了迟到输入，唯独 React 没有。
 - 建议：加一个 effect 在 rxdb/metadata/formMode 就绪后调用同一草稿创建逻辑（镜像 Vue watch），并在 save 路径对「草稿缺失」保持显式行为。
 
-## 风险/未覆盖
+## 验证与限制
 
-未覆盖 React concurrent rendering、真实 VTable Canvas、剪贴板权限和 Tailwind 构建；建议 Node 26+ 执行 typecheck/test/build 及浏览器验证。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 验证
-
-已检查源码与测试入口；本机执行 Nx 任务时在插件加载阶段失败（Node v22.14.0 不满足仓库要求的 Node >=26，详见 core-plan.md），因此未将测试写成已通过。建议在 Node 26+ 环境按建议任务复跑。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

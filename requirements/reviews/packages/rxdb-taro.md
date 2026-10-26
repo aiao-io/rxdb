@@ -1,12 +1,23 @@
-# Review：rxdb-taro
+---
+package: rxdb-taro
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-taro 增量代码评审
 
 ## 结论
 
-🟡 二次评审发现 1 条 P3：抖音构建的 `use strict` 检查匹配整个 app.js 文本而非顶层指令，依赖产物里的字符串字面量会误杀构建。
+🟡 待处理：1 条 P3。上轮问题继续保留；本提交区间未提供关闭证据。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-检查了 `package.json` 的 Node/Taro/Vite peer 与 `index`/`vite`/`runtime` exports、`project.json` build/typecheck/lint、README 的 weapp/tt/alipay 接入说明；走读 `assets-plugin.ts`、`build-target-plugin.ts`、`realm-plugin.ts`、`subframe-glue-plugin.ts`、`runtime.ts`、`constants.ts`、`vite.ts` 和 `src/__tests__/**`（资源发射、目标版本、真实全局对象绑定、Vite 配置及运行时入口）。二次评审额外核对了发射资产路径与运行时期望（WASM/worker/glue 文件名）、支付宝 worker 协议对称性与 realm 注入位置。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 0 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`c425f414 chore(deps): safely upgrade workspace dependencies`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
 ## 发现
 
@@ -16,10 +27,8 @@
 - 触发：任何依赖/业务代码在产物中生成 `var msg = "use strict";` 或注释/函数体内的 `'use strict'` 字面量 → 抖音构建失败并报误导性错误「入口 app.js 带了 use strict」（真实原因是字符串内容恰好命中）。
 - 建议：与 `afterDirective` 同口径，用 `/^\s*(["'])use strict\1;?/` 锚定顶层检测。
 
-## 风险/未覆盖
+## 验证与限制
 
-Taro `modifyRunnerOpts`、小程序开发工具和真机行为是外部契约；本轮未执行 Taro 4.3 在微信/抖音/支付宝工具链上的完整构建。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 建议验证
-
-执行 `pnpm nx run rxdb-taro:build`、`pnpm nx run rxdb-taro:typecheck`，并用 Taro 4.3 + Vite 在 weapp/tt/alipay 分别产出包，检查 wasm、realm 模块、目标版本和 app 配置。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

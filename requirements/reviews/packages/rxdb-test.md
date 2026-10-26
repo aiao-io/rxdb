@@ -1,21 +1,31 @@
-# Review：@aiao/rxdb-test 评审
+---
+package: rxdb-test
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-test 增量代码评审
 
 ## 结论
 
-🟢 未发现 P0-P2 问题。测试 fixtures、跨框架契约套件、公开 contract 校验和生成产物入口一致。
+🟢 本次增量未确认新的 P0–P3 问题。
 
-## 检查范围
+## 提交与检查范围
 
-检查 entities/shop fixtures、`src/testing`、encrypted/query-cache/sortable/tree-unique/check-constraint/transaction suites、`public-contract`、`scripts/verify-public-contract.mjs`、`vite.config.mts` 和 package exports。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 1 文件、测试/测试工具 0 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：跨框架同步夹具的 TransactionExecutor 补 tableSet；属于测试工具增量。
+- 实现锚点：`src/cross-framework-fixtures/sync-override.ts`。
 
 ## 发现
 
-无。Vite 多入口与 `package.json` 子路径 exports 对应，构建结束会生成并检查 entities/shop；`build` 同时运行 public contract 与 publish tsc（`packages/rxdb-test/vite.config.mts`、`project.json:build`）；共享 suite 与 spec 分离，coverage 配置排除 suite，避免把被适配器重复执行的套件计入本包。
+无新增确认问题。
 
-## 风险/未覆盖
+## 验证与限制
 
-未覆盖所有适配器矩阵、真实浏览器/移动宿主和长时并发压力；本包本身是测试资产，不应把单独 suite 运行结果等同于全适配器通过。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 验证
-
-已检查源码与测试入口；本机执行 Nx 任务时在插件加载阶段失败（Node v22.14.0 不满足仓库要求的 Node >=26，详见 core-plan.md），因此未将测试写成已通过。建议在 Node 26+ 环境按建议任务复跑。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

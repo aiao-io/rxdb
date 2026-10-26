@@ -1,25 +1,37 @@
-# Review：rxdb-adapter-pglite
+---
+package: rxdb-adapter-pglite
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-adapter-pglite 增量代码评审
 
 ## 结论
 
-🟢 首轮 P1 已修复并经二次评审复核；当前无剩余问题。
+🟡 待处理：1 条 P2。本轮新增问题见 INC 编号条目。
 
-## 检查范围
+## 提交与检查范围
 
-检查了 `package.json` 的 PGlite、encrypted 和可选 tree peer、`project.json` 的串行 test/test-node 配置、README；走读 `PGliteClient.ts`、`RxDBAdapterPGlite.ts`、`change-pipeline.ts`、query/repository/table/transaction/version、backup/restore、keyring 和 FTS 代码，并核对 `src/__tests__/**`（事务、通知背压、序列、分支、备份、加密、树/关系和 query cache）。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 40 文件、测试/测试工具 44 文件、配置/文档/版本 2 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`61e5a424 fix(rxdb-adapter-pglite): keep verified pglite release`；`967aa658 12313`；`9361d916 q`；`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：影子 schema 解析、播种/序列对齐、分支触发器与持有键、快照导入/只读封印、QueryCache 回填事件、公开仓库事务化及无日志删除通知。
+- 实现锚点：`src/PGliteClient.ts`、`src/RxDBAdapterPGlite.ts`、`src/backup/pglite-backup-compat.ts`、`src/backup/pglite-restore-fs.ts`、`src/backup/pglite-restore-lock.ts`、`src/entity/delete_sql.ts`、`src/entity/deletes_sql.ts` 等 40 个实现文件。
 
-## 已处理（二次评审复核）
+## 发现
 
-### P1：关系 JOIN SQL 将关联实体主键硬编码为 `id` — 已修复
+### P2：无日志实体的删除事件在事务提交前派发，回滚后仍通知应用删除（INC-002）
 
-- 原证据：`src/query/join_sql.ts` 的 `handle_one_to_many_join`、`handle_to_one_join`、`handle_many_to_many_join` 直接拼接 `prevAlias."id"` / `"${uniqueAlias}"."id"`，自定义主键 `columnName` 时关系 JOIN 访问不存在的列。
-- 修复：`join_sql.ts:23-24` 新增 `get_primary_key_column(metadata)`，三处 JOIN 的 `on` 两侧均按各自实体的 metadata 解析物理主键列（`join_sql.ts:249、272、296、310`）；一侧来源 `sourceMetadata` 为当前关系步的源实体、另一侧 `mappedRelation.metadata` 为目标实体，嵌套路径下 `prevAlias` 恰好对应当前步源实体，语义正确。
-- 回归：`src/__tests__/query/join_sql.spec.ts` 新增自定义主键（`parent_key` / `child_key`）+ 1:m 与 m:1 双向 JOIN 断言。二次评审在 Node 26.7 下运行该 spec（`vitest run src/__tests__/query/join_sql.spec.ts --browser.enabled=false`）：**8/8 通过**；`typecheck` 通过。
+- 引入：`b109ba33`（PR #122）。同一问题同时影响 PGlite 与 sqlite-core，汇总只计一条。
+- 证据：`packages/rxdb-adapter-pglite/src/repository/PGliteRepository.ts:97-98`、`packages/rxdb-adapter-sqlite-core/src/repository/SqliteRepository.ts:113-114`；两处均在 DELETE 语句返回后立即调用 `dispatchUnloggedRemovals` / `dispatch_unlogged_removals`。执行器的 `writeQuery` 直接复用外层事务，这时还没 COMMIT。
+- 触发：实体声明 `log: false`；在 `adapter.transaction()` 中经 `executor.getRepository(Entity).remove(row)` 删除后，后续语句或业务逻辑抛错。事务回滚、行仍存在，但 `ENTITY_LOCAL_REMOVE` 已到达应用订阅者，不能随数据库回滚。
+- 验证：本轮用真实内存 PGlite 执行临时回归；回滚后 `count() === 1`，预期零次删除通知，实际收到一次，断言失败。SQLite 侧按同源调用顺序静态确认，未把它写成真实 SQLite 已复现。
+- 建议：把通知收集到所属事务，在提交成功后统一派发；回滚丢弃。补显式事务回滚、提交失败与正常删除的共享回归。
 
-## 风险/未覆盖
+## 验证与限制
 
-PGlite WASM、OPFS AHP worker 和浏览器 IndexedDB 的真实版本组合未执行（本 worktree 的 `test` browser runner 因 @vitest/browser-playwright 环境崩溃，与首轮记录一致）；部分系统迁移/备份测试受宿主能力和测试环境影响。
+本轮 Node 模式真实 PGlite 的 worktree isolation/table-set/history-isolation/long-namespace/lifecycle-recovery **5 文件 / 53 例通过**。INC-002 临时回归按预期失败（行保留、删除事件已发）；复现后已移除临时文件。未跑本包全量测试。
 
-## 建议验证
-
-在 Chromium OPFS AHP、多 tab IndexedDB 和真实备份恢复环境复验 `pnpm nx test rxdb-adapter-pglite`。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

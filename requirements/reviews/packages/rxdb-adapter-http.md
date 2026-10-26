@@ -1,12 +1,23 @@
-# Review：rxdb-adapter-http
+---
+package: rxdb-adapter-http
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-adapter-http 增量代码评审
 
 ## 结论
 
-🟡 二次评审发现 1 条 P2：create/update 回执绕过 `updatedAt` 时区门禁，无时区串可进入本地缓存并持续污染新鲜度比较。
+🟡 待处理：1 条 P2。上轮问题继续保留；本提交区间未提供关闭证据。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-检查了 `package.json`、`project.json` 的 node Vitest/typecheck target、README/公开 API；走读 `src/transport.ts`、`config.ts`、`rest.ts`、`pagination.ts`、`chunking.ts`、`conditional-cache.ts`、`change-feed.ts`、`metadata.ts`、`handler-contract.ts`、`errors.ts` 与 `src/__tests__/**`/`tests/**`（请求序列化、URL/header 校验、超时/断开、ETag、分页分块、SSE 变更通道、REST 模板和 wire integration）。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 0 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
 ## 发现
 
@@ -16,10 +27,8 @@
 - 触发：REST 后端（如 MySQL naive DATETIME 形态）返回 `updatedAt: '2026-08-23T10:00:00'`；`QueryCacheEngine.create/update` 把回执经 `localAdapter.upsertMany` 原样落缓存（`rxdb-plugin-querycache/src/QueryCacheEngine.ts:411-415、444-449`，sqlite 行契约只要求列存在、不归一化）。下一次同步把远端值归一成 `'…T10:00:00.000Z'`，`isRemoteNewer` 用 `Date.parse` 比较本地那个无时区串——UTC+8 机器上同一时刻被持续判为远端更新，行每轮同步都重拉（永不收敛）；UTC 负偏移机器上方向相反。机器相关、静默的错误新鲜度。
 - 建议：create/update duck（或 `assertHandlerRow`）对回执 `updatedAt` 施加与 `metadata.ts` 相同的 `ISO_8601_WITH_ZONE` 校验/归一，至少拒绝无时区串，与读路径契约一致。
 
-## 风险/未覆盖
+## 验证与限制
 
-真实代理、CORS、EventSource 实现由接入方提供；本轮未连接外部生产网关或浏览器跨源环境。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 建议验证
-
-执行 `pnpm nx run rxdb-adapter-http:typecheck`、`pnpm nx run rxdb-adapter-http:test`，并在浏览器跨源部署中验证 `Access-Control-Expose-Headers: ETag`、SSE 重连和代理 4xx/5xx 响应体读取。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

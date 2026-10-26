@@ -1,21 +1,31 @@
-# Review：rxdb-adapter-wa-sqlite
+---
+package: rxdb-adapter-wa-sqlite
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-adapter-wa-sqlite 增量代码评审
 
 ## 结论
 
-🟢 未发现可定位的 P0/P1/P2/P3 问题。
+🟢 本次增量未确认新的 P0–P3 问题。
 
-## 检查范围
+## 提交与检查范围
 
-检查了 `package.json` 的 `./client`、`./testing` exports 与固定 wa-sqlite commit、`project.json`、README 的 VFS/worker/备份矩阵；走读 `WaSqliteClientBase.ts`、`SqliteClient.ts`、`execute_helper.ts`、`create_sqlite_client.ts`、VFS loader、公开入口和全部 `src/__tests__/**`（多连接、busy 重试、statement cleanup、生命周期、加密、事件和 conformance）。`vite.config.mts` 明确把 `src/WaSqliteClientBase.ts` 构建为 `dist/client.js`，因此 package.json 的 client import 目标与产物入口一致。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 6 文件、测试/测试工具 12 文件、配置/文档/版本 3 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`9361d916 q`；`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：SharedWorker 持有者、最后一次 release 后重开、Web Lock 与孤儿事务回滚、VFS/OPFS 句柄关闭、IDB 按路径删除与快照回收。
+- 实现锚点：`src/RxDBAdapterSqlite.ts`、`src/SqliteClient.ts`、`src/WaSqliteClientBase.ts`、`src/create_sqlite_client.ts`、`src/drop-storage.utils.ts`、`src/sqlite-load.utils.ts`。
 
 ## 发现
 
-无。worker 配对/互斥、数据库名长度、有限 busy 重试、逐句 finalize、初始化冲突和代理释放均有实现与回归测试。
+无新增确认问题。
 
-## 风险/未覆盖
+## 验证与限制
 
-不同浏览器 VFS（OPFS/IDB）和真实多 tab 锁竞争未在本轮启动；上游固定 commit 升级仍需重新做供应链审计。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 建议验证
-
-执行 `pnpm nx run rxdb-adapter-wa-sqlite:typecheck`、构建并检查 `dist/client.js`/声明，再在 IDBBatchAtomicVFS、OPFS 和 worker/sharedWorker 模式跑浏览器套件。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

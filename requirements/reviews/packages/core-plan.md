@@ -1,27 +1,27 @@
 ---
-title: 核心与框架包评审计划
+title: 核心与框架包增量评审计划与结果
 status: Done
-created: 2026-10-16
-updated: 2026-10-16
-base: main@94df0a04
+baseline: ffed57da
+incrementalFrom: 18ea576f
+updated: 2026-10-26
 ---
 
-# 核心与框架包评审计划
+# 核心与框架包增量评审计划与结果
 
-## 覆盖范围
+## 范围与方法
 
-本组覆盖 16 个包：`code-editor`、`code-editor-angular`、`code-editor-react`、`code-editor-vue`、`rxdb`、`rxdb-angular`、`rxdb-react`、`rxdb-vue`、`rxdb-model`、`rxdb-model-angular`、`rxdb-model-react`、`rxdb-model-vue`、`rxdb-client-generator`、`rxdb-devtools`、`rxdb-test`、`utils`。
+覆盖 16 包：code-editor、rxdb、rxdb-model 的核心及 Angular/React/Vue 包，以及 rxdb-client-generator、rxdb-devtools、rxdb-test、utils。以 `18ea576f` 的上一版报告为起点，检查到 `ffed57da`；先按提交和路径盘点，再沿高风险调用链检查与现有测试反查。
 
-## 方法
+本轮重点：WorktreeTableSet 与实体缓存/仓库事务/只读入口、模型只读与历史屏障、三端包装。既有模型、工具与 DevTools 缺陷按源码变更核对关闭证据。
 
-逐包检查 `package.json`、`project.json`、TypeScript/Vite/ng-package 配置、公开入口与 README；阅读 `src` 主路径、错误/生命周期/并发/序列化代码及对应 spec；对 Angular、React、Vue 的同名 API 做入口和参数语义对照；检查构建产物 `exports` 与生成脚本的路径安全。
-
-每条问题都记录文件、符号和行号，按 P0（数据/安全/发布阻断）、P1（常见生产错误）、P2（可感知边界/契约/测试缺口）、P3（维护与文档）分级。没有足够证据的假设不列为问题，只放到未覆盖项。
-
-## 验证记录
-
-尝试执行 `pnpm nx run-many -t test ... --parallel=1 --skipRemoteCache` 与单包 `pnpm nx run rxdb-model:typecheck --skipRemoteCache --verbose`。两次均在加载 Nx 插件阶段失败：当前执行环境 Node `v22.14.0` 不满足仓库 `>=26`，并出现 `@nx/js/typescript`、`@nx/vite/plugin`、`@nx/eslint/plugin`、`@nx/vitest`、`@nx/playwright` 插件加载错误；没有把该结果误报成包测试通过或失败。建议在 Node 26+ 的干净环境重跑受影响包的 `typecheck`、`test`、`build`，并补跑真实浏览器、Angular 编译器和 DevTools MessageChannel/OPFS 宿主测试。
+缺陷必须有当前源码位置、触发条件与用户影响；无实现增量的包只核对元数据/配置/文档和旧发现的关闭证据。测试文件存在或提交标题含 fix 均不能证明问题已关闭。完整方法、提交清单和 51 包覆盖矩阵见 [本轮记录](./incremental-2026-10-26.md)。
 
 ## 结果
 
-首轮：15 个包未发现足以定级的行为问题；`rxdb-model` 发现 1 条 P2（默认字段标题对全大写缩写的实现与文档不一致）。二次评审：该 P2 已修复并复核（模型包 996/996 通过），残留 1 条 P3 缩写分词边界（`rxdb-model.md`）；新确认 `rxdb` 核心 2 条 P2（游标分页重锚只比 id、reachability 零订阅方空转，`rxdb.md`，前者三端绑定同源）；补齐首轮未覆盖的 7 个包后，`rxdb-model-react` 确认 1 P1 + 2 P2（StrictMode 下表格不复建、initialQuery 丢弃、草稿不补建）、`rxdb-model-angular` 确认 1 P2（`#dialogData!` 空断言）；深扫 query-builder 之外的 rxdb-model 后确认 1 P1 + 1 P2 + 2 P3（枚举编辑器静默改写、日期未变更判据、数字数组空段、整数截断）；`utils`（158 文件全量走读）确认 6 条 P2（金额大写、urlJoin、稀疏数组相等、`__proto__` 原型污染、路径对象往返、分词吞字符），`rxdb-devtools` 确认 1 P1 + 3 P2（OPFS 上传覆盖、serializer 数组 undefined、v2 transfer 释放、panel-endpoint 泄漏）；其余包（code-editor 四端、rxdb-model-vue、rxdb-client-generator、rxdb-test）复验干净。各包的检查边界、发现和验证建议见同目录逐包报告。
+去重待处理 21 条：3 P1 + 15 P2 + 3 P3；本组无新增确认缺陷。 逐包问题见同名报告，跨组总数见 [汇总](./summary.md)。首批 6 条已修复记录移出当前问题清单，历史留在 Git。
+
+## 验证与限制
+
+三端 working-tree 包属于插件组；本组验证只计真实运行过的依赖构建，不声称核心、模型或编辑器全量测试已执行。
+
+当前环境 Node `26.12.0` / pnpm `10.34.9`。上轮 Node 22 / Nx 插件加载失败的说明已过时，按 [实际执行表](./incremental-2026-10-26.md#验证) 判断通过范围；未跑全工作区 lint/typecheck/build/e2e。报告只更新文档，未修生产代码。

@@ -1,12 +1,23 @@
-# Review：@aiao/utils 评审
+---
+package: utils
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# utils 增量代码评审
 
 ## 结论
 
-🔴 二次评审对全部 158 个源文件做第二轮走读后确认 6 条 P2（金额大写、urlJoin、稀疏数组相等、`__proto__` 原型污染、路径对象往返、大小写转换吞字符），均有执行复现；首轮「未发现 P0-P2」结论被推翻。
+🟡 待处理：6 条 P2。上轮问题继续保留；本提交区间未提供关闭证据。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-检查 `@browser`、array/async/crypto/cron/date/indexing/lifecycle/object/random/string/types 全部源码与 spec；核对顶层 index exports、package/project 配置和浏览器/Node 条件。二次评审对 string/object/array/binary/crypto/lifecycle/@browser/file/tools/platform/types 等分桶逐文件走读，并对可疑算法用构建产物直接执行复现。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 0 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
 ## 发现
 
@@ -46,14 +57,8 @@
 - 触发（已执行复现）：NFD 归一化的 `camelCase('café')` → `cafe`（重音被静默删除，越南文等 NFD 输入中招）；`camelCase('😀x')` → `x`；`getWords('é')` → `['e']`。
 - 建议：`\p{M}` 并入 Lo/Lm 分支、`\p{So}` 透传。
 
-### 已知弱项（未定级，均有具体触发，仅记录备查）
+## 验证与限制
 
-`numberStep` 浮点 ceil 越步（`0.1+0.2` 按 0.1 步进得 0.4）；`orderBy/sortBy` 混合类型比较器不可传递、NaN 与一切相等；`getWords` 已定义且测试但未从 `string/index.ts` 导出（`src/index.ts:168` 却声明导出）；`stringToArrayBuffer` 静默截断 >0xFF 码点；`toInt(null) === 0` 与其 JSDoc 矛盾；`isISODateString` 拒绝 0000-0099 年（Date.UTC 1900 重映射）；`canBeDate(Symbol())` 抛错而非 false；跨 realm `cloneDeep` 出空壳；`deepFreeze` 会调用 getter；`createStableKey` 对 Invalid Date 抛 RangeError。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 风险/未覆盖
-
-未覆盖 Safari/旧浏览器 Web Crypto、localStorage 配额/多标签同步、OPFS 和极大 Uint8Array 性能；需在浏览器矩阵和 Node 26+ 分别验证。
-
-## 验证
-
-已检查源码与测试入口；本机执行 Nx 任务时在插件加载阶段失败（Node v22.14.0 不满足仓库要求的 Node >=26，详见 core-plan.md），因此未将测试写成已通过。建议在 Node 26+ 环境按建议任务复跑。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

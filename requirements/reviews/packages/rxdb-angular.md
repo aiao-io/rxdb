@@ -1,21 +1,30 @@
-# Review：@aiao/rxdb-angular 评审
+---
+package: rxdb-angular
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-angular 增量代码评审
 
 ## 结论
 
-🟢 未发现 P0-P2 问题。Provider、Angular signals、查询 hooks、CVA/变更检测和同步状态面接口清晰。
+🟢 本次增量未确认新的 P0–P3 问题。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-检查 `rxdb.provider.ts`、`hooks.ts`、`use-state.ts`、`use-persisted-state.ts`、`use-sync-state.ts`、`use-infinite-scroll.ts`、directive/list 组件与测试；核对 ng-package、peerDependencies 和 `project.json` typecheck/build。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 1 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
 ## 发现
 
-无。`provideRxDB` 对 Promise/工厂吸收创建异常并在 holder 中延迟抛出（`src/rxdb.provider.ts:56-99`）；表单/输入禁用语义由核心组件统一；持久化状态使用 root registry 和转义键，避免 lazy injector 销毁 effect（`src/use-state.ts:95-157`）。
+无新增确认问题。
 
-## 风险/未覆盖
+## 验证与限制
 
-未覆盖 Angular 22 SSR、路由级 EnvironmentProviders、真实 Zone-less 变更检测；建议在 Node 26+ 执行 Angular compiler/typecheck/test/build。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 验证
-
-已检查源码与测试入口；本机执行 Nx 任务时在插件加载阶段失败（Node v22.14.0 不满足仓库要求的 Node >=26，详见 core-plan.md），因此未将测试写成已通过。建议在 Node 26+ 环境按建议任务复跑。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

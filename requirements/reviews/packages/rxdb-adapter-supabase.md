@@ -1,26 +1,25 @@
-# Review：rxdb-adapter-supabase
+---
+package: rxdb-adapter-supabase
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-adapter-supabase 增量代码评审
 
 ## 结论
 
-🟡 首轮 1 P1 + 1 P2 已修复并经二次评审复核；二次评审新确认 4 条遗留问题（3 P2 + 1 P3），集中在自定义 `columnName` 配置的批量写路径与审计字段一致性。
+🟡 待处理：3 条 P2、1 条 P3。上轮问题继续保留；本提交区间未提供关闭证据。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-检查了 `package.json` 的 Supabase/tree peer、`project.json` 的 test-env/test/sql-security target、README/RLS 接入说明；走读 `RxDBAdapterSupabase.ts`、`SupabaseRepository.ts`、`SupabaseTreeRepository.ts`、`transform.ts`、`rule_group_builder.ts`、`pagination.ts`、同步/推送/RLS/SQL 安全模块，并核对 `src/__tests__/**`（CRUD、sync、tree、分页、RLS 和回归探针）。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 2 文件、配置/文档/版本 2 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`967aa658 12313`；`9361d916 q`；`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
-## 已处理（二次评审复核）
-
-### P1：Supabase Repository 硬编码物理主键 `id` — 已修复（主键列映射）
-
-- 修复：`SupabaseRepository.ts` 的 `create/update/remove/find` 统一经 `primary_key_column()`（`propertyMap.get('id')?.columnName ?? 'id'`）映射物理主键列；`rule_group_builder.ts` 的 `resolve_column_name` 与 `RxDBAdapterSupabase.ts` 的 `fetchMetadata` / `executeDelete` / `#findByIdsInChunks` 同步跟进。
-- 契约校准：二次评审确认远端表 DDL 契约是**属性名即列名**（`docker/sql/03-business-tables.sql` 开头注释「字段名以实体属性名为准」，README:167「camelCase 列名加引号」）。首轮建议的「全字段 columnName 映射」会破坏该契约，故 `7ff0bc8c` 回退为「仅主键列映射、其余字段保持属性名」是正确方向。首轮 P1 原文把非主键字段也计入修复范围，属于过度外推。
-- 回归与验证：`applyRuleGroup.spec.ts` 新增自定义主键映射用例、`transform.spec.ts` 新增物理主键列映射回 `id` 用例；二次评审在 Node 26.7 下运行两份 spec：**67/67 通过**；`typecheck` 通过。
-
-### P2：数值/BigInt parentId 被 `hasChildren` 判定丢弃 — 已修复
-
-- 修复：`SupabaseTreeRepository.collectParents()`（`SupabaseTreeRepository.ts:368-377`）改为 `parentId == null` 判空 + `String(parentId)` 归一，与 `findDescendants`/`findAncestors` 的 `String(node[primaryKeyColumn])` 判据一致；数值/BigInt 父节点不再被误判为叶子。
-
-## 发现（二次评审新确认，尚未处理）
+## 发现
 
 ### P2：`update()` 的 `updatedBy` 审计字段仍按物理列名写入，与属性名契约不一致（`7ff0bc8c` 回退引入）
 
@@ -46,10 +45,8 @@
 - 影响：仅自定义主键列时出现：实体对象带多余枚举属性 `todo_key`；若这些对象再经 `saveMany` 下发，`{...entity}` 会把物理键一并送出。QueryCache `findByIds` 返回值的时间字段保持字符串形态（与基线一致，非回归）。
 - 建议：改为 `transform_row_to_entity`（其 `columnNameToPropertyName` 反向映射已能正确还原主键），或至少在自定义主键分支删除物理键。
 
-## 风险/未覆盖
+## 验证与限制
 
-真实 Supabase RLS/分页/多租户行为仍需 `test-env`（本机 Docker 不可用，未跑 612 例全套）；自定义主键/数值树 ID 的真实 PostgREST 用例未补。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 建议验证
-
-修复后执行 `pnpm nx run rxdb-adapter-supabase:test-env`、`pnpm nx test rxdb-adapter-supabase`、`pnpm nx run rxdb-adapter-supabase:sql-security-regressions`，并增加自定义主键 × saveMany/mutations/mergeChanges 与自定义 `updatedBy` 列名的真实 PostgREST 用例。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

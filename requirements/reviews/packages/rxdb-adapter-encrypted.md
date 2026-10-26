@@ -1,12 +1,23 @@
-# Review：rxdb-adapter-encrypted
+---
+package: rxdb-adapter-encrypted
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-adapter-encrypted 增量代码评审
 
 ## 结论
 
-🟡 二次评审发现 2 条问题（1 P2 + 1 P3）：序列化写侧宽松/读侧严格的组合会产出永久不可读的行或静默写错值；unlock 对损坏 keyring 存储泄漏错误类别。
+🟡 待处理：1 条 P2、1 条 P3。上轮问题继续保留；本提交区间未提供关闭证据。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-检查了 `package.json` 的主入口与 `/testing` 子路径、`project.json` build/typecheck/lint 推断、README 的 AES-GCM/PBKDF2、v1 迁移和零明文保证；走读 `src/crypto.ts`、`envelope.ts`、`keyring.ts`、`keyring-storage.ts`、`serialize.ts`、`encrypt-patch.ts`、`metadata-validation.ts`、`validate-encrypted-query.ts`、`errors.ts` 及 `src/__tests__/**`（KDF、信封、keyring 并发锁、篡改、类型边界和查询拒绝）。二次评审额外核对了 `serializeForEnvelope` / `deserializeFromEnvelope` 两侧类型契约与 `performUnlock` 的错误类别。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 0 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
 ## 发现
 
@@ -22,10 +33,8 @@
 - 触发：salt 含非 base64url 字符（如 `!!!`）或 verifier 段数不对/非规范 base64 → 按 `EncryptedUnlockError` 分流「错误口令」UX/重试逻辑的调用方被错误类别误导；现有篡改测试（`keyring-verifier.spec.ts:123`）只篡改结构合法的密文，此路径无覆盖。
 - 建议：`performUnlock` 内把 salt/verifier 两处解码 try/catch 后重抛为 `EncryptedUnlockError({code:'verifier_mismatch', cause})` 或 `EncryptedConfigurationError('invalid_key')`。
 
-## 风险/未覆盖
+## 验证与限制
 
-WebCrypto 可用性和密钥托管由宿主决定；未在所有小程序/旧浏览器 JavaScriptCore 上执行原生 WebCrypto 矩阵。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 建议验证
-
-执行 `pnpm nx run rxdb-adapter-encrypted:build`、`pnpm nx run rxdb-adapter-encrypted:typecheck`，并在目标宿主补跑 `crypto.subtle` 不存在、跨 realm CryptoKey 与长 idle timeout 的集成测试。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

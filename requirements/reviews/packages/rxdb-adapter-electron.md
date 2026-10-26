@@ -1,12 +1,24 @@
-# Review：rxdb-adapter-electron
+---
+package: rxdb-adapter-electron
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-adapter-electron 增量代码评审
 
 ## 结论
 
-🟡 二次评审发现 4 条问题（1 P2 + 3 P3），集中在 PGlite 恢复收尾、disconnect 窗口、文件分块写入与事务提交的传输失败路径；首轮「未发现问题」结论被推翻。
+🟡 待处理：1 条 P2、3 条 P3。上轮问题继续保留；本提交区间未提供关闭证据。
 
-## 检查范围
+## 提交与检查范围
 
-检查了 `package.json` 的四个发布入口与可选 PGlite peer、`project.json` 的 build/typecheck/lint/test-memory target、README 的 renderer/host 隔离与数据库路径约束，以及 `src/RxDBAdapterElectron.ts`、`src/host.ts`、`src/electron-file-host.ts`、`src/electron-sqlite-host.ts`、`src/node-sqlite-engine.ts`、`src/pglite/**` 和对应 `src/__tests__/**`（SQLite/PGlite host、备份恢复、协议、加密和 conformance）。renderer 入口只转出 sqlite-core 协议，PGlite 通过独立子路径隔离可选依赖；数据库名在构造期和 host 侧均校验，恢复使用独占目标连接。二次评审额外走读了 `pglite-host-restore.ts` 的 stage 状态机、`desktop-pglite-client.ts` 的 close/transaction 与 `electron-file-host.ts` 的写路径。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 3 文件、测试/测试工具 7 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`967aa658 12313`；`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：SQLite host 的 drop 请求、同库打开/删除串行与旁文件回收；Electron PGlite 显式拒绝删库；旧恢复、短写和事务错误路径无修复增量。
+- 实现锚点：`src/RxDBAdapterElectron.ts`、`src/electron-sqlite-host.ts`、`src/pglite/RxDBAdapterElectronPGlite.ts`。
 
 ## 发现
 
@@ -34,10 +46,8 @@
 - 触发：`pg.commit` 请求在传输层失败（worker/bridge 抖动）→ 无回滚尝试、宿主保留挂起事务 → 该数据目录上所有后续 `runtime.query`/`exec`/`pg.begin` 排队：自动提交查询无超时地挂起，新事务 `beginTimeout` 后报 `transaction_unavailable`，直到窗口销毁（`releaseOwner`）或客户端断开。`pg.backup.end`/`pg.rollback` 发送失败同形。
 - 建议：commit 发送失败时仍尝试 `pg.rollback`（若 commit 实际已达宿主，rollback 会得到 `transaction_not_found`，安全）；或宿主侧加挂起事务空闲租约超时回收。
 
-## 风险/未覆盖
+## 验证与限制
 
-真实 Electron 主进程/多窗口环境仍依赖宿主应用接线；仓库测试主要是 node host 与协议接缝级回归。本轮未运行真实 Electron 打包矩阵。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 建议验证
-
-在 Node 26/Electron 目标版本下执行 `pnpm nx run rxdb-adapter-electron:build`、`pnpm nx run rxdb-adapter-electron:typecheck`、`pnpm nx run rxdb-adapter-electron:test-memory`，并在真实 Electron 多窗口应用中复验 preload 传输、窗口销毁回收与备份恢复。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

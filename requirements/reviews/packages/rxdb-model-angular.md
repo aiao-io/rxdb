@@ -1,12 +1,24 @@
-# Review：@aiao/rxdb-model-angular 评审
+---
+package: rxdb-model-angular
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-model-angular 增量代码评审
 
 ## 结论
 
-🟡 二次评审发现 1 条 P2：独立使用且命名空间/名称无法解析时，`metadataValue`/`formFieldsValue` 的非空断言在变更检测期抛 TypeError；首轮「未发现 P0-P2」结论被推翻。
+🟡 待处理：1 条 P2。上轮问题继续保留；本提交区间未提供关闭证据。
 
-## 检查范围
+## 提交与检查范围
 
-检查 `src/entity-*`、`src/query-builder`、模板、测试替身及 `src/index.ts`；核对 ng-package、tailwind 导出、peerDependencies 与 `project.json` 的 Angular build/typecheck 配置。二次评审按「独立使用（无 CDK dialog data）」语境逐组件对照三端。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 2 文件、测试/测试工具 2 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`e75284f0 fix(deps): address dependency review findings`；`967aa658 12313`；`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：EntityList 只读能力、可编辑列关闭与 undo/redo barrier 提示；旧 EntityDetail 空断言路径未改。
+- 实现锚点：`src/entity-list/entity-list.component.html`、`src/entity-list/entity-list.component.ts`。
 
 ## 发现
 
@@ -16,10 +28,8 @@
 - 触发：上述配置下宿主页面在变更检测时崩溃；React（`entity-detail.tsx:188` 回退 undefined）与 Vue（`EntityDetail.vue:239-241`）在同样配置下降级为空标题/空 tabs 而非崩溃。
 - 建议：`#dialogData` 为 null 时回退 `undefined`/`[]`（或让两个 getter 声明可空），与另两端语义对齐。
 
-## 风险/未覆盖
+## 验证与限制
 
-未覆盖 Angular compiler 的真实模板诊断、CDK overlay、VTable 真实版本和移动端触摸拖放；建议 Node 26+ 执行 build/typecheck/test 与浏览器 e2e。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 验证
-
-已检查源码与测试入口；本机执行 Nx 任务时在插件加载阶段失败（Node v22.14.0 不满足仓库要求的 Node >=26，详见 core-plan.md），因此未将测试写成已通过。建议在 Node 26+ 环境按建议任务复跑。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

@@ -1,12 +1,23 @@
-# Review：rxdb-adapter-tauri
+---
+package: rxdb-adapter-tauri
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-adapter-tauri 增量代码评审
 
 ## 结论
 
-🟡 二次评审发现 3 条问题（1 P2 + 2 P3），集中在 renderer 输入边界（`batchTimeout` 溢出 panic、路径泄露、base64 先解码后限长）；首轮「未发现问题」结论被推翻。
+🟡 待处理：1 条 P2、2 条 P3。上轮问题继续保留；本提交区间未提供关闭证据。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-检查了 `package.json`、`project.json` 的 TS build/typecheck、cargo-check/clippy/test、宿主构建和 conformance target、README；走读 `src/tauri-host-transport.ts`、`desktop-json-codec.ts`、`RxDBAdapterTauri.ts`，以及 `rust/src/{commands,router,session,protocol,value,paths,engine,error,file}.rs` 和 `conformance/**`。重点核对窗口白名单、会话归属、事件定向投递、JSON 标签编码、路径隔离、锁/事务和 Rust/TS 协议版本。二次评审额外走读了 `engine.rs` 的批处理 arm/flush、`paths.rs` 的错误构造与 `file/protocol.rs` 的分块解码顺序。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 2 文件、配置/文档/版本 3 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
 ## 发现
 
@@ -28,10 +39,8 @@
 - 触发：恶意/故障 renderer 发送 1.4 GB base64 的 `file.writeChunk` 或 `$u8` 绑定 → 宿主先分配 ~1 GB 再拒绝 → 可重复的内存耗尽 DoS。两个常量本意正是防 renderer 滥用，但都拦在分配之后。
 - 建议：解码前按 4:3 比例检查编码串长度（chunk `> MAX_FILE_CHUNK_BYTES * 4 / 3`、绑定 `> MAX_BLOB_BYTES * 4 / 3` 即拒），或给 `decode_base64` 传最大输出尺寸。
 
-## 风险/未覆盖
+## 验证与限制
 
-真实 Tauri WebView capability、窗口销毁事件和各平台 Rust SQLite 行为未在本轮启动；`cargo`/真实宿主测试仍需 CI 或本机 Tauri 环境。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 建议验证
-
-执行 `pnpm nx run rxdb-adapter-tauri:cargo-check`、`cargo-clippy`、`cargo-test`、`test-conformance` 及 TS typecheck，并在 Windows/macOS/Linux 真实 Tauri 应用复验窗口权限和恢复。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

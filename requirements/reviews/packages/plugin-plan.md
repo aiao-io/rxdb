@@ -1,60 +1,27 @@
 ---
-kind: review-plan
-scope: plugins
-baseline: main@94df0a04
-created: 2026-10-16
+title: 插件包增量评审计划与结果
+status: Done
+baseline: ffed57da
+incrementalFrom: 18ea576f
+updated: 2026-10-26
 ---
 
-# packages 插件组评审计划
+# 插件包增量评审计划与结果
 
-## 覆盖范围
+## 范围与方法
 
-本组覆盖 `packages/` 下 22 个插件包及其框架适配层：
+覆盖 22 包：graph/history/querycache/replay/search/storage/sync/tree/working-tree/workspace 及其已有 Angular/React/Vue 包。以 `18ea576f` 的上一版报告为起点，检查到 `ffed57da`；先按提交和路径盘点，再沿高风险调用链检查与现有测试反查。
 
-- `rxdb-plugin-graph`、`rxdb-plugin-history`、`rxdb-plugin-querycache`、`rxdb-plugin-replay`
-- `rxdb-plugin-replay-angular`、`rxdb-plugin-replay-react`、`rxdb-plugin-replay-vue`
-- `rxdb-plugin-search`、`rxdb-plugin-search-angular`、`rxdb-plugin-search-react`、`rxdb-plugin-search-vue`
-- `rxdb-plugin-storage`、`rxdb-plugin-sync`
-- `rxdb-plugin-tree`、`rxdb-plugin-tree-angular`、`rxdb-plugin-tree-react`、`rxdb-plugin-tree-vue`
-- `rxdb-plugin-working-tree`、`rxdb-plugin-working-tree-angular`、`rxdb-plugin-working-tree-react`、`rxdb-plugin-working-tree-vue`
-- `rxdb-plugin-workspace`
+本轮重点：工作树检出位与失败清理、提交分叉点、分支对比/合并预览、undo/redo 继承屏障、FTS 表集绑定、主检出位同步/outbox、草稿分区与三端命令状态。
 
-每包报告见本目录中同名 `.md` 文件。
+缺陷必须有当前源码位置、触发条件与用户影响；无实现增量的包只核对元数据/配置/文档和旧发现的关闭证据。测试文件存在或提交标题含 fix 均不能证明问题已关闭。完整方法、提交清单和 51 包覆盖矩阵见 [本轮记录](./incremental-2026-10-26.md)。
 
-## 评审方法
+## 结果
 
-1. 固定基线为当前 `main@94df0a04`，盘点每个包的全部 `src/` 文件、测试/fixture、入口和生成入口。
-2. 逐包核对 `README.md`、`package.json`、`project.json`、`tsconfig*.json`、`vite.config.mts`；Angular 包额外核对 `ng-package.json`。
-3. 静态检查公开 exports 与实际构建入口、依赖/peerDependencies、插件安装和销毁、异步错误路径、资源清理、跨框架 API 对称性，以及文档示例与源码。
-4. 以源码行号记录证据；只有能定位且可复现的问题才登记 P0/P1/P2/P3，未发现问题也明确写出检查范围。
-5. 尝试使用 Nx 运行门禁；本轮主机 Node `v22.14.0` 不满足仓库 `>=26` 要求，Nx 同时返回 `Operation not permitted (os error 1)`，故所有包的动态结论保留为待验证，不把静态检查冒充测试通过。
+去重待处理 4 条：3 P2 + 1 P3；新增 INC-001。Search React/Vue 的同源错误处理问题只计一次。 逐包问题见同名报告，跨组总数见 [汇总](./summary.md)。首批 6 条已修复记录移出当前问题清单，历史留在 Git。
 
-## 统一结论口径
+## 验证与限制
 
-- `🟢`：源码、配置、测试和动态证据闭环，未发现问题。
-- `🟡`：静态检查未发现可确认问题，但动态门禁、真实宿主或发布消费仍缺证。
-- `🔴`：有可复现的 P0/P1/P2/P3 问题，报告必须给出行号、影响、建议和验证方式。
+working-tree 1,284 例、history 439 例、sync 500 例及 working-tree 三端 77/67/68 例通过；INC-001 的 Chromium 故障注入反例失败。
 
-本轮未修改生产代码、测试代码或依赖，也未提交 Git。后续在 Node 26+ 环境完成串行 Nx lint/typecheck/test/build（含需要的 browser/coverage target），再逐包更新结论和高风险项。
-
-## 高风险/需跟进项
-
-- `rxdb-plugin-querycache`：首轮 P2（history/sync peer 缺失）已修复并复核（205/205 通过）；二次评审新确认 1 条 P2（`QueryCacheEngine.findById` 绕过作废代次检查）；详见 `rxdb-plugin-querycache.md`。
-- `rxdb-plugin-replay-vue`：首轮 P2（挂载前 seek 丢失）已修复并复核（11/11 通过，三端语义对齐）；无剩余问题。
-- `rxdb-plugin-search`：二次评审确认 1 条 P3（重入 `loadMore` 顶掉 page-0 刷新）；React/Vue 适配层各 1 条 P2（桥接流无 error 处理器，三端不对称）；详见各报告。
-- 其余包：二次评审未再确认 P0/P1/P2/P3；不是动态测试通过结论。
-
-## 可复用的静态门禁证据
-
-本轮在仓库当前 Node 环境成功执行了不依赖 Nx daemon 的两项审计：`docs-plugin-surface.mjs --check`（扫描 169 个文件通过）和 `package-runtime-conditions.mjs`（通过）。`subpath-build-entries.mjs` 因新评审 worktree 没有构建产物而返回「一个包都没扫到」，不能据此判定构建入口通过。上述审计只证明文档扫描和运行条件元数据的一致性，不能替代各包的编译、单测、浏览器或宿主验证。
-
-## 执行顺序与重点
-
-| 阶段                   | 包                                                                            | 重点                                                                                      |
-| ---------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| A：核心状态/数据一致性 | `graph`、`history`、`querycache`、`sync`、`tree`、`working-tree`、`workspace` | 事务边界、CAS/并发、撤销/恢复、缓存回写、递归/资源上限、跨连接纪元与持久化。              |
-| B：宿主与文件能力      | `storage`、`replay`                                                           | OPFS/桌面失败清理、对象 URL、rrweb 按需加载、录制库销毁与续录。                           |
-| C：框架适配对称性      | replay/search/tree/working-tree 的 Angular、React、Vue 包                     | 输入变更、卸载与晚到异步、错误透传、公开类型和三端命令/状态同构。                         |
-| D：发布闭环            | 全部 22 包                                                                    | Nx build/typecheck、覆盖率、browser target、`pnpm pack` 独立消费者及 exports/types 入口。 |
-
-每阶段先完成源码与配置静态核对，再运行串行门禁；动态失败需先排除 Node/Nx 并发或宿主环境噪声，再决定是否登记为产品缺陷。任何确认问题必须单独给出最小复现、影响范围、修复建议和回归验证，避免以覆盖率或“有测试文件”替代行为证据。
+当前环境 Node `26.12.0` / pnpm `10.34.9`。上轮 Node 22 / Nx 插件加载失败的说明已过时，按 [实际执行表](./incremental-2026-10-26.md#验证) 判断通过范围；未跑全工作区 lint/typecheck/build/e2e。报告只更新文档，未修生产代码。

@@ -1,21 +1,30 @@
-# Review：@aiao/code-editor-vue 评审
+---
+package: code-editor-vue
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# code-editor-vue 增量代码评审
 
 ## 结论
 
-🟢 未发现 P0-P2 问题。Vue watch 的生命周期、受控值同步、语言请求号和 a11y 属性更新与另外两端对齐。
+🟢 本次增量未确认新的 P0–P3 问题。本包实现源码未变，结论限于元数据/配置/文档增量及旧发现的变更核对；不代表依赖升级已完成行为回归。
 
-## 检查范围
+## 提交与检查范围
 
-检查 `src/CodeEditor.vue`、`code-editor.types.ts`、类型 shim、测试套件和 README；核对 `package.json` exports、Vue peer 版本及 `project.json` 的 lint/typecheck 目标。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 0 文件、测试/测试工具 0 文件、配置/文档/版本 1 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`c425f414 chore(deps): safely upgrade workspace dependencies`；`967aa658 12313`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：核对版本/依赖声明、构建配置与说明文档；实现源码无增量，旧问题保留原证据。
 
 ## 发现
 
-无。`value` watch 使用核心最小差量并关闭 undo（`src/CodeEditor.vue:145-163`）；语言 watch 以 description identity 去重且在卸载时推进请求号（`src/CodeEditor.vue:198-240`、`138-143`）；`defineExpose` 的 view/host/focus/blur 面与 React/Angular 对齐。
+无新增确认问题。
 
-## 风险/未覆盖
+## 验证与限制
 
-未覆盖 Vue 3.5 SSR、Teleport/ShadowRoot 和真实浏览器焦点事件；建议在 Node 26+ 执行 test、lint、typecheck、build。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 验证
-
-已检查源码与测试入口；本机执行 Nx 任务时在插件加载阶段失败（Node v22.14.0 不满足仓库要求的 Node >=26，详见 core-plan.md），因此未将测试写成已通过。建议在 Node 26+ 环境按建议任务复跑。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。

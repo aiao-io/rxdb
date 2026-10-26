@@ -1,67 +1,37 @@
 ---
-title: packages 全量代码评审计划
+title: packages 增量代码评审计划
 status: Done
-created: 2026-10-16
-updated: 2026-10-16
-branch: claude/packages-review-second-pass-b6d52b（首轮 codex/packages-review）
-base: main@94df0a04
+baseline: ffed57da
+incrementalFrom: 18ea576f
+updated: 2026-10-26
 ---
 
-# packages 全量代码评审计划
+# packages 增量代码评审计划
 
-## 目标
+## 目标与基线
 
-在 `main@94df0a04` 基础上，对 `packages/` 下 51 个可发布或测试包做一次可追溯的代码评审。每个包产出一份独立报告，记录检查范围、证据锚点、风险等级、修复建议和验证建议；报告只记录本轮评审结论，不直接修改生产代码。
+把 51 份停在 2026-10-16 的评审更新到 2026-10-26 的 `ffed57da`。增量起点取报告落库提交 `18ea576f`（PR #128），首轮 `94df0a04` 只用于历史溯源。
 
-## 评审范围
+本轮通过 Git 提交与路径变化重新界定范围，对旧发现核对关闭证据、对新增实现检查高风险路径；仅更新报告，未修生产代码。
 
-| 分组             | 包数量 | 包名                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ---------------- | -----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 核心与框架       |     16 | `code-editor`、`code-editor-angular`、`code-editor-react`、`code-editor-vue`、`rxdb`、`rxdb-angular`、`rxdb-react`、`rxdb-vue`、`rxdb-model`、`rxdb-model-angular`、`rxdb-model-react`、`rxdb-model-vue`、`rxdb-client-generator`、`rxdb-devtools`、`rxdb-test`、`utils`                                                                                                                                                                                                                                                                                                                         |
-| 存储与宿主适配器 |     13 | `rxdb-adapter-electron`、`rxdb-adapter-encrypted`、`rxdb-adapter-http`、`rxdb-adapter-miniprogram`、`rxdb-adapter-pglite`、`rxdb-adapter-sqlite`、`rxdb-adapter-sqlite-core`、`rxdb-adapter-sqlite-wasm`、`rxdb-adapter-sqliteai`、`rxdb-adapter-supabase`、`rxdb-adapter-tauri`、`rxdb-adapter-wa-sqlite`、`rxdb-taro`                                                                                                                                                                                                                                                                          |
-| 插件             |     22 | `rxdb-plugin-graph`、`rxdb-plugin-history`、`rxdb-plugin-querycache`、`rxdb-plugin-replay`、`rxdb-plugin-replay-angular`、`rxdb-plugin-replay-react`、`rxdb-plugin-replay-vue`、`rxdb-plugin-search`、`rxdb-plugin-search-angular`、`rxdb-plugin-search-react`、`rxdb-plugin-search-vue`、`rxdb-plugin-storage`、`rxdb-plugin-sync`、`rxdb-plugin-tree`、`rxdb-plugin-tree-angular`、`rxdb-plugin-tree-react`、`rxdb-plugin-tree-vue`、`rxdb-plugin-working-tree`、`rxdb-plugin-working-tree-angular`、`rxdb-plugin-working-tree-react`、`rxdb-plugin-working-tree-vue`、`rxdb-plugin-workspace` |
+## 执行与交付
 
-## 评审维度
+1. 固定起止 SHA，盘点所有报告与 51 个包的路径变化。
+2. 区分实现/测试工具、测试/共享套件、配置/文档/版本；无实现变化的包不冒充重新全量审查。
+3. 复核旧问题：问题路径未变就沿用旧证据；辅助实现改过的重新看调用链；已修条目移出当前报告。
+4. 走查表集隔离、快照/资源回收、事务通知、历史/同步/FTS/草稿和三端生命周期；对新增疑点执行最小反例。
+5. 通过 Nx 执行定向或完整包测试，区分正常套件通过与缺陷反例失败，不把未运行场景写成通过。
+6. 更新 51 份逐包报告、三组计划、跨框架对照、README 与汇总；核对统计、链接、源码锚点和格式。
 
-1. **行为正确性**：主路径、边界条件、错误处理、并发/重入、资源生命周期和数据一致性。
-2. **API 与跨框架一致性**：公开导出、类型约束、Angular/React/Vue 三端 API 对称性，以及破坏性变更风险。
-3. **存储与安全**：事务/锁、查询参数化、加密材料、权限边界、敏感数据和宿主差异。
-4. **性能与可维护性**：复杂度、重复工作、潜在泄漏、初始化成本、异常路径和模块边界。
-5. **测试与发布契约**：测试是否覆盖关键行为，Nx target、构建入口、`exports`、运行时条件、依赖和文档是否与实现一致。
+## 当前结果
 
-## 证据和分级
+51 包共 605 个变更文件，23 包有实现/测试工具源码增量，28 包仅测试、配置、文档或版本变化。去重待处理 **45 条（4 P1 + 26 P2 + 15 P3）**：旧 43 条保留，本轮新增 2 P2，均有动态反例。
 
-- 每条发现必须包含文件路径、符号或行号，以及可复现的触发条件。
-- `P0`：数据丢失、安全边界突破、发布完全不可用或会阻断所有消费者。
-- `P1`：常见生产路径错误、跨端行为不一致、资源泄漏或高概率数据错误。
-- `P2`：可感知的边界缺陷、错误契约、测试缺口或维护风险。
-- `P3`：低风险可维护性、文档或轻微一致性问题。
-- 没有发现时，报告必须写明实际检查的目录/入口、运行的静态检查或测试，以及仍未覆盖的宿主条件。
+- [核心与框架：16 包](./core-plan.md)
+- [适配器：13 包](./adapter-plan.md)
+- [插件：22 包](./plugin-plan.md)
+- [三端 API 对照](./cross-framework.md)
+- [提交/覆盖矩阵与验证证据](./incremental-2026-10-26.md)
+- [未处理问题汇总](./summary.md)
 
-## 执行步骤
-
-1. 固定基线与分支：`codex/packages-review` 从 `main@94df0a04` 创建。
-2. 按分组检查 `package.json`、Nx 项目配置、源码、测试、构建入口和公开导出。
-3. 对每个包写 `requirements/reviews/packages/<package>.md`，统一记录结论和验证建议。
-4. 对 Angular/React/Vue 成对包做 API 对称性复核，对共享适配器做一致性复核。
-5. 汇总 P0/P1/P2/P3 数量、未覆盖项和建议执行的 Nx 任务。
-6. 在评审分支执行格式检查、文档链接检查和与本次变更相关的 Nx 校验；不把未运行的真实宿主测试写成已通过。
-
-## 交付物状态
-
-| 交付物             | 状态                                          |
-| ------------------ | --------------------------------------------- |
-| 本计划             | 已建立                                        |
-| 核心与框架分组报告 | 已完成（16/16）                               |
-| 适配器分组报告     | 已完成（13/13）                               |
-| 插件分组报告       | 已完成（22/22）                               |
-| 总结与交叉框架复核 | 已完成；见 `summary.md`、`cross-framework.md` |
-
-## 本轮结果
-
-- 51 个包均有独立报告。
-- 首轮共确认 6 条问题：2 条 P1、4 条 P2；没有 P0/P3。已在 `codex/packages-review` 分支完成修复与回归。
-- 发现集中在自定义主键列映射（PGlite/Supabase）、Supabase 数值/BigInt 树 ID、模型缩写标题、QueryCache peer 元数据和 Replay Vue 挂载前 seek。
-- **二次评审（2026-10-16，本分支）**：6 条首轮问题全部复核为已修复（修复代码逐行走查 + Node 26.7 node 模式复跑对应测试：PGlite JOIN 8/8、Supabase unit 67/67、模型 996/996、Replay Vue 11/11、QueryCache 205/205）；51 个包完成第二轮源码走查（适配器家族与 utils/devtools 全文件，core/框架/插件高风险路径 + 深扫补齐），新确认 43 条问题（4 P1 + 24 P2 + 15 P3），明细见 `summary.md`，未做修复。首轮 P1（Supabase）的「全字段 columnName 映射」建议经契约校准（属性名即列名，`docker/sql/03-business-tables.sql`）修正为「仅主键列映射」，批量写路径仍有残留。
-- `pnpm audit:docs-plugins` 与 `pnpm audit:conditions` 通过；构建入口审计因 worktree 没有构建产物无法判定。
-- Nx 动态门禁：本 worktree 为 Node 26.7（满足仓库要求），受影响包 typecheck 与 node 模式单测已通过；browser runner 与 Supabase Docker test-env 受环境限制未复跑，逐包报告均如实标注。
+本轮不是 51 包所有代码与宿主的再次全量审计；未覆盖范围和实际执行命令以增量记录为准。

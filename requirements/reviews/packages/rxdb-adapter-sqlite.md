@@ -1,21 +1,31 @@
-# Review：rxdb-adapter-sqlite
+---
+package: rxdb-adapter-sqlite
+status: IncrementalReview
+baseline: ffed57da
+incrementalFrom: 18ea576f
+reviewed: 2026-10-26
+---
+
+# rxdb-adapter-sqlite 增量代码评审
 
 ## 结论
 
-🟢 未发现可定位的 P0/P1/P2/P3 问题。
+🟢 本次增量未确认新的 P0–P3 问题。
 
-## 检查范围
+## 提交与检查范围
 
-检查了 `package.json` 的官方 sqlite-wasm 依赖、`project.json` build/typecheck/lint 推断、README 的 VFS/worker/备份说明；走读 `src/RxDBAdapterSqlite.ts`、`src/sqlite-official-factory.ts`、`src/sqlite-official-client.ts`、WASM worker/load、公开入口和测试配置，并核对 sqlite-core 共用套件与 `src/__tests__/**` 的事件、生命周期、事务和备份覆盖。
+- 上轮报告提交：`18ea576f`（2026-10-16，PR #128）；本轮检查到 `ffed57da`。逐包提交、全量增量统计与验证边界见 [本轮记录](./incremental-2026-10-26.md)。
+- 本包变化：实现 1 文件、测试/测试工具 4 文件、配置/文档/版本 2 文件；以 Git 路径变化计，不把版本发布当成功能修复。
+- 提交：`c425f414 chore(deps): safely upgrade workspace dependencies`；`9361d916 q`；`b109ba33 feat(aiao): 重构 worktree 功能 (#122)`；`23d8a098 chore(aiao): release 0.0.28 (#153)`。
+- 检查重点：canDropStorage/dropStorage 的内存与 OPFS 分支、文件名与连接配置一致性；共用 sqlite-core 的隔离与通知风险。
+- 实现锚点：`src/RxDBAdapterSqliteOfficial.ts`。
 
 ## 发现
 
-无。适配器只注入 client，查询/事务/备份复用 sqlite-core；worker/sharedWorker 与备份不支持组合被显式拒绝，VFS 与 OPFS 资源加载配置有校验。
+无新增确认问题。
 
-## 风险/未覆盖
+## 验证与限制
 
-官方 sqlite-wasm 的 OPFS、worker 和不同浏览器版本没有在本轮实际启动；真实跨标签页锁竞争仍需浏览器验证。
+本轮对本包执行静态增量检查，未单独运行其 lint/typecheck/test/build；不沿用旧报告的测试通过结论。
 
-## 建议验证
-
-执行 `pnpm nx run rxdb-adapter-sqlite:build`、`pnpm nx run rxdb-adapter-sqlite:typecheck`，并在 Chromium OPFS/worker 与 IndexedDB VFS 下跑完整浏览器套件。
+本轮环境为 Node `26.12.0`、pnpm `10.34.9`；旧报告的 Node 22 / Nx 插件加载限制已过时。未列出的任务与宿主验证不视为通过，统一边界见 [本轮记录](./incremental-2026-10-26.md#未覆盖)。
