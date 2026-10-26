@@ -527,6 +527,7 @@ export class InMemoryRxDBAdapter extends RxDBAdapterLocalBase implements IRxDBAd
     const executor: TransactionExecutor = {
       id: uuid(),
       state: 'active',
+      tableSet: this.tableSet,
       query: (sql: string, params?: readonly unknown[]): Promise<RawQueryResult> => {
         void sql;
         void params;
@@ -705,6 +706,7 @@ export const IN_MEMORY_ADAPTER_NAME = 'memory';
  *
  * @param entities - 注册的业务实体
  * @param dbName - 数据库名（默认生成唯一名）
+ * @param options - `readOnly`：只读实例（只读检出位，US-313）
  * @returns RxDB 实例；调用方必须 `await rxdb.connect(IN_MEMORY_ADAPTER_NAME)` 后使用
  *
  * @remarks 每个实例独立持表，测试之间无共享可变状态；
@@ -712,11 +714,13 @@ export const IN_MEMORY_ADAPTER_NAME = 'memory';
  */
 export function createInMemoryRxdb(
   entities: EntityType[],
-  dbName: string = generateTestDbName('rxdb-model-react')
+  dbName: string = generateTestDbName('rxdb-model-react'),
+  options: { readonly readOnly?: boolean } = {}
 ): RxDB {
   const rxdb = new RxDB({
     dbName,
     entities,
+    readOnly: options.readOnly,
     sync: { type: SyncType.None, local: { adapter: IN_MEMORY_ADAPTER_NAME } }
   });
   rxdb.adapter(IN_MEMORY_ADAPTER_NAME, db => new InMemoryRxDBAdapter(db));

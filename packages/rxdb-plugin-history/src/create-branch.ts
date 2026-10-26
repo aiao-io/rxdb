@@ -3,11 +3,97 @@ import {
   type LocalRxDBBranchRepository,
   type LocalRxDBChangeRepository,
   resolve_current_branch,
+  type RxDB,
   RxDBBranch,
   RxDBChange,
-  RxDBError
+  RxDBError,
+  type TransactionExecutor
 } from '@aiao/rxdb';
 import { VersionManager } from './VersionManager.js';
+
+/** {@link write_new_branch} 的入参：一条新分支在树上的位置，以及可选的点名提交。 */
+export interface NewBranchRowInput {
+  /** 新分支的 id；调用方已经确认它可用、本地不存在 */
+  readonly branchId: string;
+  /** 父分支 id；调用方已经确认它在本事务里存在 */
+  readonly parentId: string;
+  /** 分叉点：父分支上的一条变更 id；`null` 是停在父分支自己的分叉点上 */
+  readonly fromChangeId: number | null;
+  /** 点名的源提交，原样交给贡献方（见 `RxDBBranchCreationContext.fromCommitId`） */
+  readonly fromCommitId?: string;
+}
+
+/**
+ * 在调用方的事务里写下一条新分支：分支行，再加每个系统贡献方的那几行。
+ *
+ * @param rxdb - 宿主；取它的实体管理器与系统贡献
+ * @param executor - 调用方那个写事务的执行器
+ * @param input - 见 {@link NewBranchRowInput}
+ * @returns 刚写下的分支行
+ *
+ * @remarks
+ * 从 {@link create_branch} 的事务体里拆出来，给工作树插件的「从提交建分支」（US-314）复用：那条路径要在
+ * 自己的受管事务里过能力门禁，分叉点由那个提交记下的位置给出——`(父分支, null)` 这种「停在父分支自己的分叉点上」
+ * 的位置，`createBranch(id, fromChangeId)` 的入参表达不了。查重、解析父分支都留给调用方：两条路径各自的
+ * 校验次序不同，揉进这里就得在两边都兜着对方的次序。
+ *
+ * 分支行写在贡献行之前，贡献方串行调用、抛错即中断，理由见 {@link create_branch}。
+ *
+ * @internal
+ */
+export const write_new_branch = async (
+  rxdb: RxDB,
+  executor: TransactionExecutor,
+  input: NewBranchRowInput
+): Promise<RxDBBranch> => {
+  const branchRepository = executor.getRepository(RxDBBranch) as unknown as LocalRxDBBranchRepository;
+  // 用事务内仓库的 `create` 而非 `branch.save()`：后者经 entityManager 打到适配器上，
+  // 正是事务体内不能碰的那条队列。
+  const branch = rxdb.entityManager.instantiate(RxDBBranch);
+  branch.id = input.branchId;
+  branch.activated = false;
+  // 冗余列与 `activated` 必须同写（`system/branch.ts` 的唯一索引就架在它上面）。
+  // 漏写一处，那一行就绕过唯一约束，而 schema 那一半的保护正好在这种漏写上失效。
+  branch.activeKey = null;
+  branch.local = true;
+  branch.remote = false;
+  branch.fromChangeId = input.fromChangeId;
+  branch.parentId = input.parentId;
+  await branchRepository.create(branch);
+
+  // 不点名提交时连键都不放：贡献方按「有没有点名」分流，`fromCommitId: undefined` 与没有这个键是两种形状
+  const context =
+    input.fromCommitId === undefined ?
+      { executor, branchId: input.branchId }
+    : { executor, branchId: input.branchId, fromCommitId: input.fromCommitId };
+  for (const contribution of rxdb.systemContributions) {
+    await contribution.writeBranchRows(rxdb.entityManager, context);
+  }
+  return branch;
+};
+
+/**
+ * 远端已有同名分支就拒绝。
+ *
+ * @param version - 取远端配置与远端仓库
+ * @param branchId - 要建的分支 id
+ * @throws {@link RxDBError} 远端已有同名分支时
+ *
+ * @remarks
+ * 没配远端、或远端适配器不支持查询时不查：这是一次尽力而为的预检，真正的互斥由本地主键约束兜底。
+ * 它是网络往返，调用方必须在事务**外**调它，理由见 {@link create_branch}。
+ *
+ * @internal
+ */
+export const assert_branch_id_free_on_remote = async (version: VersionManager, branchId: string): Promise<void> => {
+  const remoteAdapterName = version.rxdb.config.sync?.remote?.adapter;
+  if (!remoteAdapterName) return;
+  const { adapter: remoteAdapter } = await version.getRemoteRepositories();
+  if (!remoteAdapter.branchExists) return;
+  if (await remoteAdapter.branchExists(branchId)) {
+    throw new RxDBError(`Branch id (${branchId}) already exists on remote`);
+  }
+};
 
 /**
  * 创建一个新分支
@@ -50,14 +136,7 @@ export const create_branch = async (version: VersionManager, branchId: string, f
   if (branchEntity.length) throw new RxDBError(`Branch id (${branchId}) already exists`);
 
   // 检查分支 ID 是否存在（远程）
-  const remoteAdapterName = version.rxdb.config.sync?.remote?.adapter;
-  if (remoteAdapterName) {
-    const { adapter: remoteAdapter } = await version.getRemoteRepositories();
-    if (remoteAdapter.branchExists) {
-      const existsOnRemote = await remoteAdapter.branchExists(branchId);
-      if (existsOnRemote) throw new RxDBError(`Branch id (${branchId}) already exists on remote`);
-    }
-  }
+  await assert_branch_id_free_on_remote(version, branchId);
 
   // 校验失败返回而不是就地抛出，理由同 `remove_branch`：不让适配器的事务包装层改写异常身份。
   const result = await adapter.transaction(async executor => {
@@ -111,32 +190,17 @@ export const create_branch = async (version: VersionManager, branchId: string, f
     }
     if (!fromBranch) return 'Source branch not found';
 
-    // 创建新分支
-    //
-    // 用事务内仓库的 `create` 而非 `branch.save()`：后者经 entityManager 打到适配器上，
-    // 正是事务体内不能碰的那条队列。
-    const branch = version.rxdb.entityManager.instantiate(RxDBBranch);
-    branch.id = branchId;
-    branch.activated = false;
-    // 冗余列与 `activated` 必须同写（`system/branch.ts` 的唯一索引就架在它上面）。
-    // 漏写一处，那一行就绕过唯一约束，而 schema 那一半的保护正好在这种漏写上失效。
-    branch.activeKey = null;
-    branch.local = true;
-    branch.remote = false;
-    branch.fromChangeId = fromChange?.id ?? null;
-    branch.parentId = fromBranch.id;
-    await branchRepository.create(branch);
-
     // 贡献方的分支级行写在**这一个**事务里，不另开一个：分支行与贡献行分处两个事务的话，
     // 中间失败留下的是一条「分支在、贡献行不在」的记录，而这种半条分支与一条正常的老分支
     // 在形状上分辨不出来。抛错就让整条 `create_branch` 回滚，这是对的。
     //
     // 串行而非 `Promise.all`：`executor` 是一条并发度为 1 的队列，并行发起只会让
     // 写入顺序取决于各贡献方内部 await 的排布，出问题时复现不出来。
-    for (const contribution of version.rxdb.systemContributions) {
-      await contribution.writeBranchRows(version.rxdb.entityManager, { executor, branchId });
-    }
-    return branch;
+    return write_new_branch(version.rxdb, executor, {
+      branchId,
+      parentId: fromBranch.id,
+      fromChangeId: fromChange?.id ?? null
+    });
   });
 
   if (typeof result === 'string') throw new RxDBError(result);

@@ -150,6 +150,8 @@ export interface WorkingTreeSceneOptions {
    * 多发一次号时照常绿，而「这条路上一次都没发号」正是其中几条用例要钉的性质。
    */
   readonly onQuery?: CommitGraphProbeOptions['onQuery'];
+  /** 原样透传给探针：本事务落在哪一套业务表上，默认主表集（US-314） */
+  readonly tableSet?: CommitGraphProbeOptions['tableSet'];
 }
 
 /** 一条工作树条目的可拨字段，其余字段由 {@link seedWorkingTreeEntry} 给默认值。 */
@@ -224,7 +226,7 @@ export function createWorkingTreeScene(options: WorkingTreeSceneOptions = {}): W
   });
   const adapter = createMockAdapter(database);
   database.adapter('local', () => adapter);
-  // 十张系统表随 `@aiao/rxdb-plugin-working-tree` 走，核心的 `SYSTEM_ENTITIES` 里没有它们；
+  // 本插件的系统表随 `@aiao/rxdb-plugin-working-tree` 走，核心的 `SYSTEM_ENTITIES` 里没有它们；
   // `use()` 时核心才读插件的系统贡献并把这批实体登记进去。这一行漏了的话，下面
   // `entityManager.instantiate(CommitCapabilityState)` 抛的是「need init rxdb」——
   // 一条读不出主语的错，而九个用例文件全都经过这里。
@@ -233,7 +235,11 @@ export function createWorkingTreeScene(options: WorkingTreeSceneOptions = {}): W
   database.use(rxDBPluginWorkingTree);
   database.init();
 
-  const probe = createCommitGraphProbe({ onQuery: options.onQuery, rowsAffected: options.rowsAffected ?? 1 });
+  const probe = createCommitGraphProbe({
+    onQuery: options.onQuery,
+    rowsAffected: options.rowsAffected ?? 1,
+    tableSet: options.tableSet
+  });
   const { entityManager } = database;
 
   const capability = entityManager.instantiate(CommitCapabilityState);

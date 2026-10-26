@@ -50,6 +50,18 @@ export class SchemaManager {
   #tableName_entity_map = new Map<string, EntityType>();
   #tableName_metadata_map = new Map<string, EntityMetadata>();
   #junction_relation_map = new Map<string, Set<EntityRelationMetadata>>();
+  #generated = new Set<EntityType>();
+
+  /**
+   * 本实例 `init()` 时生成的实体类：仓储 `entityGenerator` 的产物与多对多中间表（US-313）
+   *
+   * @remarks
+   * 它们也在 `config.entities` 里，但不是接入方声明的。另开一个实例（如只读检出位的快照库）时不能把它们
+   * 当作要克隆的实体传进去：新实例的 `SchemaManager` 会自己再生成一份，两份同名就撞命名冲突。
+   */
+  get generatedEntities(): readonly EntityType[] {
+    return [...this.#generated];
+  }
 
   constructor(protected readonly rxdb: RxDB) {}
 
@@ -105,6 +117,7 @@ export class SchemaManager {
           if (!this.#metadata_map.has(repo_key)) {
             this.#metadata_map.set(repo_key, repo_metadata);
             this.#entity_map.set(repo_key, RepositoryClass);
+            this.#generated.add(RepositoryClass);
             entities.push(RepositoryClass);
           }
         });
@@ -168,6 +181,7 @@ export class SchemaManager {
             const mappedMetadata = getEntityMetadata(MappedClass);
             this.#metadata_map.set(key, mappedMetadata);
             this.#entity_map.set(key, MappedClass);
+            this.#generated.add(MappedClass);
             entities.push(MappedClass);
           }
           const junctionEntityType = this.#entity_map.get(key);

@@ -8,7 +8,7 @@
  * **入口是贡献方的 `removeBranchRows`，与 `writeBranchRows` 对称**（T111 已按后者钉死建分支那一半）。
  * 落在这里而不是 `remove-branch.ts` 里，理由与 T120 那条注记同一条：`rxdb-plugin-history` 不认识
  * `WorkingTreeEntry`，把六张表的删除写在那边要么反向 import 成环（nx 图插件把静态 import 映射成
- * 依赖边，`run-many` 当场拒跑），要么把十张表的知识泄进核心分支逻辑。`remove_branch` 那一侧
+ * 依赖边，`run-many` 当场拒跑），要么把本插件那些表的知识泄进核心分支逻辑。`remove_branch` 那一侧
  * 只多一句「在自己那个事务里调一遍贡献」，形参与它调 `writeBranchRows` 时逐字同形。
  *
  * **不指望外键级联替它做这件事。** 六张表里 `rxdb_working_tree_materialization_stage` 上
@@ -90,7 +90,7 @@ const LEGACY_OPERATION_ID = deriveCommitOperationId({
   operationId: CALLER_OPERATION_ID
 });
 
-/** 一个挂了 mock 适配器、已 `init()` 的宿主；十张系统表由插件贡献，必须早于 `init()` 进 `use()`。 */
+/** 一个挂了 mock 适配器、已 `init()` 的宿主；本插件的系统表由它贡献，必须早于 `init()` 进 `use()`。 */
 function createDatabase(): { database: RxDB; plugin: RxDBPluginWorkingTree } {
   const database = new RxDB({
     dbName: `rxdb-remove-branch-aba-${Math.random().toString(36).slice(2)}`,

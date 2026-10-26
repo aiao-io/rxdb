@@ -1,7 +1,18 @@
-import { Entity, EntityBase, PropertyType, RelationKind, RxDB, SyncType, type EntityType } from '@aiao/rxdb';
+import {
+  cloneEntityClasses,
+  Entity,
+  EntityBase,
+  PropertyType,
+  RelationKind,
+  RxDB,
+  SyncType,
+  type EntityType,
+  type HistoryScopeAPI
+} from '@aiao/rxdb';
 import { isRowDragEnabled, type EntityTableRecord } from '@aiao/rxdb-model';
 import { Account, AuditLog, Contract, Invoice, Task, Todo } from '@aiao/rxdb-test/entities';
 import { mount } from '@vue/test-utils';
+import { of } from 'rxjs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import EntityList from '../../entity-list/EntityList.vue';
 import QueryTable from '../../entity-table/QueryTable.vue';
@@ -246,6 +257,24 @@ describe('EntityList（真实组件）', () => {
    * @remarks 活查询任务可能跨用例驻留（历史管理器/未退订订阅持有），
    * 首次发射可能是热启动的旧缓存 —— 等增量合并落地后取最后一次发射。
    */
+  it('切换实体时清理选择状态，避免旧实体的 id 带入新列表', async () => {
+    await seedTodo('selection-reset');
+    const { wrapper, child, component } = await renderList({ mode: 'select' });
+    await vi.waitFor(() => expect(component.tableRecords).toHaveLength(1));
+
+    const record = component.tableRecords[0];
+    component.onCellChanged({ col: 1, row: 1, field: '__selected', value: true, record });
+    expect(component.selectedCount).toBe(1);
+
+    await wrapper.setProps({ name: 'Task' });
+    await FLUSH();
+    await FLUSH();
+
+    expect(component.selectedCount).toBe(0);
+    expect(component.tableRecords).toEqual([]);
+    expect(child.text()).not.toContain('已选 1 项');
+  });
+
   const titlesOf = async (entityType: EntityType): Promise<string[]> => {
     const seen: string[][] = [];
     const subscription = rxdb.entityManager
@@ -335,6 +364,27 @@ describe('EntityList（真实组件）', () => {
     await vi.waitFor(() => {
       expect(component.tableRecords.map(r => r['title'])).toContain('changed');
     });
+  });
+
+  it('撤销 / 重做栈被子分支分叉点拦住：按钮停用并说明原因（US-315）', async () => {
+    const versionManager = (rxdb as unknown as { versionManager: { history(): HistoryScopeAPI } }).versionManager;
+    const inherited = { reason: 'inherited_by_branch' as const, branchIds: ['feature'] };
+    const history = vi.spyOn(versionManager, 'history').mockReturnValue({
+      ...versionManager.history(),
+      undoCount$: of(0),
+      redoCount$: of(0),
+      undoBarrier$: of(inherited),
+      redoBarrier$: of(inherited)
+    });
+    try {
+      const { wrapper } = await renderList();
+      const button = (label: string) => wrapper.find(`[aria-label="${label}"]`).element as HTMLButtonElement;
+      expect(button('撤销 (Ctrl+Z)').disabled).toBe(true);
+      expect(button('撤销 (Ctrl+Z)').title).toBe('更早的改动已被分支 feature 继承，撤销不了');
+      expect(button('重做 (Ctrl+Shift+Z)').title).toBe('要重做的改动已被分支 feature 继承，重做不了');
+    } finally {
+      history.mockRestore();
+    }
   });
 
   /**
@@ -880,6 +930,36 @@ describe('EntityList（真实组件）', () => {
     }
 
     const rowOf = (component: ListVM, id: string): number => component.tableRecords.findIndex(r => r['id'] === id) + 1;
+
+    it('只读实例（只读检出位，US-313）：不出新增，单元格无编辑器，操作列只剩查看', async () => {
+      const [ReadOnlyTodo] = cloneEntityClasses([Todo as unknown as EntityType]) as unknown as [typeof Todo];
+      const readOnly = createInMemoryRxdb([ReadOnlyTodo as unknown as EntityType], undefined, { readOnly: true });
+      await readOnly.connect(IN_MEMORY_ADAPTER_NAME);
+      const { firstValueFrom } = await import('rxjs');
+      const readOnlyAdapter = await firstValueFrom(readOnly.localAdapter$);
+      await readOnlyAdapter.mutations({
+        create: new Map<EntityType, Set<EntityBase>>([
+          [ReadOnlyTodo as unknown as EntityType, new Set([new ReadOnlyTodo({ title: 'frozen' })])]
+        ]),
+        update: new Map(),
+        remove: new Map()
+      });
+      const { wrapper, child } = mountWithRxDB(EntityList, readOnly, {
+        props: { namespace: 'public', name: 'Todo' }
+      });
+      mounted.push(wrapper);
+      const component = child.vm as unknown as ListVM;
+      await FLUSH();
+      await FLUSH();
+
+      expect(component.isCreateBlocked).toBe(true);
+      expect(wrapper.element.textContent).not.toContain('+ 新增');
+      expect(
+        (component.tableColumns[colOf(component, 'title') - 1] as Record<string, unknown>)['editor']
+      ).toBeUndefined();
+      expect(actionIconNames(child, component, 1)).toEqual(['view-action']);
+      await readOnly.disconnectAll();
+    });
 
     it('AC#10 create: system 的实体不提供新增，已有行照常可编辑可删除', async () => {
       const log = new AuditLog({ message: 'seeded-by-system' });

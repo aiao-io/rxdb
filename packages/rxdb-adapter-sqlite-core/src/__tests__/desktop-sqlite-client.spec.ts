@@ -232,6 +232,83 @@ describe('DesktopSqliteClient.connect 对坏应答的处理', () => {
   });
 });
 
+/**
+ * 删库请求（US-313：回收只读检出位的快照库）。
+ *
+ * @remarks
+ * 与 `connect()` 同一组前置：传输层、存储先在 renderer 侧校验，先握手再发有副作用的请求。
+ */
+describe('DesktopSqliteClient.drop', () => {
+  it('shakes hands first and reports whether a file was removed', async () => {
+    const host = createFakeHost({ drop: () => ({ kind: 'drop', result: { dropped: true } }) });
+
+    await expect(DesktopSqliteClient.drop(host.transport, sqliteStorage)).resolves.toBe(true);
+    expect(host.kinds).toEqual(['handshake', 'drop']);
+  });
+
+  it('reports false when the host had nothing to remove', async () => {
+    const host = createFakeHost({ drop: () => ({ kind: 'drop', result: { dropped: false } }) });
+
+    await expect(DesktopSqliteClient.drop(host.transport, sqliteStorage)).resolves.toBe(false);
+  });
+
+  it('rejects an illegal logical database name before it sends anything', async () => {
+    const host = createFakeHost();
+
+    await expectRejectedCode(
+      DesktopSqliteClient.drop(host.transport, { engine: 'sqlite', databaseName: '../escape.sqlite3' }),
+      'invalid_database_name'
+    );
+    expect(host.kinds).toEqual([]);
+  });
+
+  it('reports host_unavailable when no transport was injected', async () => {
+    await expectRejectedCode(
+      DesktopSqliteClient.drop(undefined as unknown as DesktopHostTransport, sqliteStorage),
+      'host_unavailable'
+    );
+  });
+
+  // 版本对不上的 host 未必认得删库请求；它连握手都过不了，删库就不该发出去
+  it('sends nothing destructive to a host speaking another protocol version', async () => {
+    const host = createFakeHost({
+      handshake: () => ({ kind: 'handshake', result: { protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION + 1 } })
+    });
+
+    await expectRejectedCode(DesktopSqliteClient.drop(host.transport, sqliteStorage), 'protocol_violation');
+    expect(host.kinds).toEqual(['handshake']);
+  });
+
+  it('restores the host refusal as a typed error carrying the host code', async () => {
+    const host = createFakeHost({
+      drop: () => ({ kind: 'error', code: 'database_busy', message: 'app.sqlite3 is still open on this host' })
+    });
+
+    await expectRejectedCode(DesktopSqliteClient.drop(host.transport, sqliteStorage), 'database_busy');
+  });
+
+  it('refuses an answer whose result shape is malformed', async () => {
+    const host = createFakeHost({ drop: () => ({ kind: 'drop', result: { dropped: 'yes' } }) });
+
+    await expectRejectedCode(DesktopSqliteClient.drop(host.transport, sqliteStorage), 'protocol_violation');
+  });
+
+  it('reports a drop the channel failed to deliver as host_unavailable and keeps the cause', async () => {
+    const lost = new Error('desktop host channel closed');
+    const host = createFakeHost({
+      drop: () => {
+        throw lost;
+      }
+    });
+
+    const reason = await DesktopSqliteClient.drop(host.transport, sqliteStorage).then(
+      () => undefined,
+      (error: unknown) => error
+    );
+    expect(reason).toMatchObject({ code: 'host_unavailable', cause: lost });
+  });
+});
+
 describe('DesktopSqliteClient 的会话回滚', () => {
   /**
    * 订阅建不起来时 `connect()` 必须失败，并把 host 上刚开的会话收掉。

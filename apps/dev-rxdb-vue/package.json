@@ -22,6 +22,8 @@
     "@aiao/rxdb-plugin-search-vue": "workspace:*",
     "@aiao/rxdb-plugin-storage": "workspace:*",
     "@aiao/rxdb-plugin-tree": "workspace:*",
+    "@aiao/rxdb-plugin-working-tree": "workspace:*",
+    "@aiao/rxdb-plugin-working-tree-vue": "workspace:*",
     "@aiao/rxdb-plugin-workspace": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/rxdb-vue": "workspace:*",

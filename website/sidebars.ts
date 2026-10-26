@@ -259,6 +259,7 @@ const sidebars: SidebarsConfig = {
         'migration/writer-lease-removal',
         'migration/generator-default',
         'migration/actions-column-can-delete',
+        'migration/table-set-parameter',
         'migration/schema'
       ]
     },

@@ -80,7 +80,7 @@ function toggleCellValue(ctx: KeyboardHandlerContext, e: KeyboardEvent): void {
   if (!colDef?.cellType || !TOGGLE_CELL_TYPES.has(colDef.cellType)) return;
   const table = ctx.getTable()!;
   const record = table.getRecordByCell(sel.col, sel.row) as EntityTableRecord | undefined;
-  if (isReadonly(record)) return;
+  if (isReadonly(record) && colDef.field !== '__selected') return;
   e.preventDefault();
   if (!colDef.field) return;
   const currentValue = (record as Record<string, unknown> | undefined)?.[colDef.field];

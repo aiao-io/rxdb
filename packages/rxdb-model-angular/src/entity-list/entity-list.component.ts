@@ -12,6 +12,7 @@ import {
   commitRowMove,
   createListViewState,
   deriveEntityCapabilities,
+  describeHistoryBarrier,
   extractFieldsFromMetadata,
   getListViewFields,
   organizeFields,
@@ -83,6 +84,15 @@ const EMPTY_FILTER: FilterQuery = { combinator: 'and', rules: [] };
 
 /** 列表列头排序状态（normal = 默认 id desc） */
 type ListSortState = { field: string; order: 'asc' | 'desc' | 'normal' };
+
+interface PendingEntityChange {
+  entityKey: string;
+  recordId: string;
+  entityClass: EntityType;
+  target: EntityInstance;
+  draft: boolean;
+  changes: Record<string, unknown>;
+}
 
 const DEFAULT_SORT_STATE: ListSortState = { field: 'id', order: 'normal' };
 
@@ -181,7 +191,7 @@ export class EntityListComponent {
   readonly #destroyRef = inject(DestroyRef);
 
   // ── Save coalescing ───────────────────────────────────────────────────
-  readonly #pendingChanges = new Map<string, Record<string, unknown>>();
+  readonly #pendingChanges = new Map<string, PendingEntityChange>();
   #flushHandle = false;
   /** 已排队或正在落库的行内编辑批次数；不为 0 时拒绝拖放排序 */
   readonly #pendingEditBatches = signal(0);
@@ -219,6 +229,7 @@ export class EntityListComponent {
       return [
         `${meta.namespace}:${meta.name}`,
         buildEditableColumns(meta, {
+          readOnly: this.#rxdb.readOnly,
           relatedItemsProviderFactory: (fkField, relatedEntityName) => {
             const relCls = [...this.#entityClsMap.values()].find(c => {
               const m = getEntityMetadata(c);
@@ -246,9 +257,13 @@ export class EntityListComponent {
   readonly #vHistory = (this.#rxdb as unknown as { versionManager?: VersionManager }).versionManager?.history() ?? {
     undoCount$: of(0),
     redoCount$: of(0),
+    undoBarrier$: of(null),
+    redoBarrier$: of(null),
     undo: async () => undefined,
     redo: async () => undefined
   };
+  readonly #undoBarrier = toSignal(this.#vHistory.undoBarrier$, { initialValue: null });
+  readonly #redoBarrier = toSignal(this.#vHistory.redoBarrier$, { initialValue: null });
   readonly #entityKey = computed(() => `${this.namespace()}:${this.name()}`);
   readonly #currentList = signal<InfiniteScrollingList<EntityType> | undefined>(undefined);
 
@@ -262,7 +277,7 @@ export class EntityListComponent {
   /** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined` */
   readonly #capabilities = computed(() => {
     const cls = this.#entityCls();
-    return cls ? deriveEntityCapabilities(getEntityMetadata(cls)) : undefined;
+    return cls ? deriveEntityCapabilities(getEntityMetadata(cls), { readOnly: this.#rxdb.readOnly }) : undefined;
   });
 
   /** 级联新增模式下本地草稿子实体（未保存到DB，由父实体级联保存） */
@@ -442,6 +457,10 @@ export class EntityListComponent {
   readonly redoCount = toSignal(this.#vHistory.redoCount$, { initialValue: 0 });
   readonly canUndo = computed(() => this.undoCount() > 0);
   readonly canRedo = computed(() => this.redoCount() > 0);
+  /** 撤销按钮停用时的说明：栈停在子分支分叉点（US-315）；能撤销或不是这个原因时为 `null` */
+  readonly undoHint = computed(() => (this.canUndo() ? null : describeHistoryBarrier('undo', this.#undoBarrier())));
+  /** 重做按钮停用时的说明，同 {@link undoHint} */
+  readonly redoHint = computed(() => (this.canRedo() ? null : describeHistoryBarrier('redo', this.#redoBarrier())));
 
   readonly queryBuilderFields = computed<FieldMetadata[]>(() => {
     const cls = this.#entityCls();
@@ -525,6 +544,26 @@ export class EntityListComponent {
       if (!parsed) return;
       this.pendingQuery.set(parsed);
       this.filterQuery.set(parsed);
+    });
+
+    let previousEntityKey: string | undefined;
+    effect(() => {
+      const key = this.#entityKey();
+      if (previousEntityKey === undefined) {
+        previousEntityKey = key;
+        return;
+      }
+      if (key === previousEntityKey) return;
+      previousEntityKey = key;
+      this.selectedIds.set(new Set());
+      this.#localDraftItems.set([]);
+      this.pendingQueryValid.set(true);
+      this.showFilterPopover.set(false);
+      this.reorderError.set(null);
+      this.#deleteConfirmRef?.close();
+      this.#deleteConfirmRecord.set(null);
+      this.#m2mDialogRef?.close();
+      this.#m2mDialogRef = null;
     });
   }
 
@@ -949,61 +988,73 @@ export class EntityListComponent {
   }
 
   #enqueue(recordId: string, changes: Record<string, unknown>): void {
-    const cur = this.#pendingChanges.get(recordId) ?? {};
-    this.#pendingChanges.set(recordId, { ...cur, ...changes });
+    const entityKey = this.#entityKey();
+    const entityClass = this.#entityCls();
+    if (!entityClass) return;
+    const records = this.#instances();
+    const target =
+      records.find(item => item.id === recordId) ?? this.#localDraftItems().find(item => item.id === recordId);
+    if (!target) return;
+    const key = `${entityKey}:${recordId}`;
+    const current = this.#pendingChanges.get(key);
+    this.#pendingChanges.set(key, {
+      entityKey,
+      recordId,
+      entityClass,
+      target: current?.target ?? target,
+      draft: current?.draft ?? !records.some(item => item.id === recordId),
+      changes: { ...current?.changes, ...changes }
+    });
     if (this.#flushHandle) return;
     this.#flushHandle = true;
     this.#pendingEditBatches.update(count => count + 1);
     queueMicrotask(() => {
       this.#flushHandle = false;
-      const snapshot = [...this.#pendingChanges.entries()];
+      const snapshot = [...this.#pendingChanges.values()];
       this.#pendingChanges.clear();
       void this.#flushPending(snapshot).finally(() => this.#pendingEditBatches.update(count => count - 1));
     });
   }
 
-  async #flushPending(pending: [string, Record<string, unknown>][]): Promise<void> {
+  async #flushPending(pending: PendingEntityChange[]): Promise<void> {
     if (!pending.length) return;
-    const EntityClass = this.#entityCls();
-    if (!EntityClass) return;
-    const toUpdate = new Set<EntityInstance>();
+    const updateGroups = new Map<EntityType, Set<EntityInstance>>();
     const prevMap = new Map<EntityInstance, Record<string, unknown>>();
     const draftUpdated = new Set<EntityInstance>();
-    for (const [id, changes] of pending) {
-      let inst = this.#instances().find(i => i.id === id);
-      const isDraft = !inst;
-      if (!inst) {
-        inst = this.#localDraftItems().find(i => i.id === id);
-      }
-      if (!inst) continue;
+    for (const entry of pending) {
+      const inst = entry.target;
       const prev: Record<string, unknown> = {};
       const actual: Record<string, unknown> = {};
       let hasChange = false;
-      for (const k of Object.keys(changes)) {
-        if (inst[k] !== changes[k]) {
-          prev[k] = inst[k];
-          actual[k] = changes[k];
+      for (const key of Object.keys(entry.changes)) {
+        if (inst[key] !== entry.changes[key]) {
+          prev[key] = inst[key];
+          actual[key] = entry.changes[key];
           hasChange = true;
         }
       }
       if (!hasChange) continue;
       prevMap.set(inst, prev);
       Object.assign(inst as Record<string, unknown>, actual);
-      if (isDraft) {
+      if (entry.draft) {
         draftUpdated.add(inst);
       } else {
-        toUpdate.add(inst);
+        const group = updateGroups.get(entry.entityClass) ?? new Set<EntityInstance>();
+        group.add(inst);
+        updateGroups.set(entry.entityClass, group);
       }
     }
 
     // 草稿实体直接更新 signal 触发重渲染（不写DB）
     if (draftUpdated.size) {
-      this.#localDraftItems.update(items => [...items]);
+      this.#localDraftItems.update(items => items.some(item => draftUpdated.has(item)) ? [...items] : items);
     }
 
-    if (!toUpdate.size) return;
+    if (!updateGroups.size) return;
 
-    const updateMap = new Map([[EntityClass, toUpdate as unknown as Set<unknown>]]);
+    const updateMap = new Map(
+      [...updateGroups.entries()].map(([entityClass, items]) => [entityClass, items as Set<unknown>] as const)
+    );
     try {
       await this.#rxdb.entityManager.mutations({ create: new Map(), update: updateMap, remove: new Map() });
     } catch (e) {
@@ -1011,4 +1062,5 @@ export class EntityListComponent {
       for (const [inst, prev] of prevMap) Object.assign(inst as Record<string, unknown>, prev);
     }
   }
+
 }

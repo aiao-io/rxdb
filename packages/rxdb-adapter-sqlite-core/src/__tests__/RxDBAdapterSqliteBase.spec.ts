@@ -17,6 +17,7 @@ import {
   TRANSACTION_BEGIN,
   TRANSACTION_ROLLBACK,
   transitionMetadata,
+  WorktreeTableSet,
   type EntityType,
   type EntityUpdateData,
   type RxDBMutationsMap,
@@ -24,13 +25,14 @@ import {
 } from '@aiao/rxdb';
 import { EncryptedConfigurationError } from '@aiao/rxdb-adapter-encrypted';
 import { firstValueFrom } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RxDBQueryCacheRowContractError } from '../query-cache-row-contract.js';
 import { SqliteRepository } from '../repository/SqliteRepository.js';
 import { RxDBAdapterSqliteBase, type SqliteBaseOptions, type SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
 import { SQLiteChangeType } from '../sqlite-backend.interface.js';
 import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteSuccessResult } from '../sqlite-core.interface.js';
-import { get_table_name_by_metadata, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import { Todo } from './fixtures/Todo.js';
 
 @Entity({
@@ -102,6 +104,8 @@ function createRxdbMock(entities: EntityType[] = []): RxDB {
     context: {},
     connect: vi.fn().mockResolvedValue(undefined),
     dispatchEvent: vi.fn(),
+    // 适配器的 tableSet 转读实例上挂的那一套（US-314 B1.4）；没换挂过就是主表集
+    worktreeTableSet: WorktreeTableSet.MAIN,
     // getEntityType：QueryCache 写入口在写完之后要把行同步回 identity cache，
     // 需要从 entityName 反查实体类。替身默认查不到 → 写入口只落 SQL、不做缓存维护，
     // 正是这些用例断言的范围（缓存协同由 sqlite-wasm 的 AC#21 集成用例覆盖）。
@@ -183,7 +187,7 @@ const BRANCH_TABLE_EXISTENCE_PROBE_PATTERN = /^SELECT 1 FROM sqlite_master WHERE
  * 「分支表是否存在」探针查询。
  *
  * @remarks
- * C2 起 `#run_transaction` 在 BEGIN 之前会先读一次当前分支（供 `switch_transaction_id` 用），
+ * C2 起 `#run_transaction` 在 BEGIN 之前会先读一次当前分支（供 `generate_table_set_trigger_sql` 用），
  * 于是它排在 `executedSqls()` 的最前面；`createTables` 在 BEGIN 之后、真正的建表 SQL 之前，
  * 又会先经 `readActiveBranchIdOrMain` 探一次分支表是否存在（必要时再读一次活动分支）。
  * 断言 `sqls[0]` 是 BEGIN、`sqls[1]` 是业务 SQL 的用例本意是「事务的第一条 / 第二条语句」，
@@ -241,9 +245,24 @@ describe('RxDBAdapterSqliteBase', () => {
 
     expect(adapter.createClientCalls).toBe(1);
     expect(client.addEventListener).toHaveBeenCalledTimes(3);
-    expect(client.addEventListener).toHaveBeenNthCalledWith(1, SQLiteChangeType.SQLITE_INSERT, expect.any(Function));
-    expect(client.addEventListener).toHaveBeenNthCalledWith(2, SQLiteChangeType.SQLITE_UPDATE, expect.any(Function));
-    expect(client.addEventListener).toHaveBeenNthCalledWith(3, SQLiteChangeType.SQLITE_DELETE, expect.any(Function));
+    expect(client.addEventListener).toHaveBeenNthCalledWith(
+      1,
+      SQLiteChangeType.SQLITE_INSERT,
+      expect.any(Function),
+      expect.any(String)
+    );
+    expect(client.addEventListener).toHaveBeenNthCalledWith(
+      2,
+      SQLiteChangeType.SQLITE_UPDATE,
+      expect.any(Function),
+      expect.any(String)
+    );
+    expect(client.addEventListener).toHaveBeenNthCalledWith(
+      3,
+      SQLiteChangeType.SQLITE_DELETE,
+      expect.any(Function),
+      expect.any(String)
+    );
   });
 
   it('监听器注册失败时应该抛错并清理失败 client', async () => {
@@ -2132,7 +2151,94 @@ describe('RxDBAdapterSqliteBase', () => {
 
       // 这条断言是这次改动的**全部意义**：名字由 `get_table_name_by_metadata()` 给出，
       // 而不是在别处按 `'$'` 再拼一遍。拼法一改，这里跟着变；抄来的那一份不会。
-      expect(adapter.physicalTableNames(metadata)).toContain(get_table_name_by_metadata(metadata));
+      expect(adapter.physicalTableNames(metadata)).toContain(
+        get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN)
+      );
+    });
+  });
+
+  // SharedWorker 上多个标签页共用一个客户端（US-314 B2.3b）：真实的 SharedWorker 用例在 wa-sqlite / sqlite-wasm 的
+  // shared-client.spec.ts，这里钉住基类自己的几个分支
+  describe('共用客户端', () => {
+    class SharedClientAdapter extends TestAdapter {
+      get owner(): string {
+        return this.clientOwner;
+      }
+
+      constructor(
+        rxdb: RxDB,
+        factory: () => SqliteClientLike,
+        private readonly lockName: string
+      ) {
+        super(rxdb, factory);
+      }
+
+      protected override sharedClientLockName(): string {
+        return this.lockName;
+      }
+    }
+
+    const sharedClient = (overrides: Partial<SqliteClientLike> = {}) =>
+      createClient({
+        release: vi.fn().mockResolvedValue(undefined),
+        rollbackOrphanTransaction: vi.fn().mockResolvedValue(false),
+        ...overrides
+      });
+
+    // 这组用例会盯住、甚至替换 `navigator.locks`，不还原的话会漏到后面的用例里
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('每个排队任务在跨标签页的锁里跑；拿到锁先回滚死掉的标签页留下的事务', async () => {
+      const rollbackOrphanTransaction = vi.fn().mockResolvedValueOnce(true).mockResolvedValue(false);
+      const client = sharedClient({ rollbackOrphanTransaction });
+      const lockName = `sqlite-core-shared-${Math.random().toString(36).slice(2)}`;
+      const adapter = new SharedClientAdapter(createRxdbMock(), () => client, lockName);
+      const request = vi.spyOn(navigator.locks, 'request');
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      await expect(adapter.transaction(async () => 'done', false)).resolves.toBe('done');
+
+      expect(request).toHaveBeenCalledWith(lockName, expect.any(Function));
+      expect(rollbackOrphanTransaction).toHaveBeenCalledOnce();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('rolled back a transaction left open'));
+      // 回滚发生在本任务发出第一条语句（BEGIN）之前
+      expect(rollbackOrphanTransaction.mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(client.execute).mock.invocationCallOrder[0]
+      );
+    });
+
+    it('断开只交还自己那一份：带持有者键登记监听、release 而不是 disconnect', async () => {
+      const client = sharedClient();
+      const adapter = new SharedClientAdapter(createRxdbMock(), () => client, 'sqlite-core-shared-release');
+      await adapter.connect();
+
+      await adapter.disconnect();
+
+      expect(client.addEventListener).toHaveBeenCalledWith(
+        SQLiteChangeType.SQLITE_INSERT,
+        expect.any(Function),
+        adapter.owner
+      );
+      expect(client.release).toHaveBeenCalledWith(adapter.owner);
+      expect(client.disconnect).not.toHaveBeenCalled();
+    });
+
+    it('客户端交还不了持有者时断开报错，不把别的标签页还在用的连接关掉', async () => {
+      const client = sharedClient({ release: undefined });
+      const adapter = new SharedClientAdapter(createRxdbMock(), () => client, 'sqlite-core-shared-no-release');
+      await adapter.connect();
+
+      await expect(adapter.disconnect()).rejects.toThrow('cannot release a holder');
+      expect(client.disconnect).not.toHaveBeenCalled();
+    });
+
+    it('环境里没有 Web Locks 时排队任务报错', async () => {
+      const adapter = new SharedClientAdapter(createRxdbMock(), () => sharedClient(), 'sqlite-core-shared-no-locks');
+      vi.spyOn(navigator, 'locks', 'get').mockReturnValue(undefined as unknown as LockManager);
+
+      await expect(adapter.transaction(async () => 'never', false)).rejects.toThrow('Web Locks API');
     });
   });
 });

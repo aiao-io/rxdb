@@ -392,7 +392,7 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
     const table = tableRef.current;
     const record = table?.getRecordByCell(col, row) as EntityTableRecord | undefined;
     const fieldName = getColDef(col)?.field;
-    if (!record || !fieldName || isReadonly(record)) return;
+    if (!record || !fieldName || (isReadonly(record) && fieldName !== '__selected')) return;
     propsRef.current.onCellChanged?.({ col, row, field: fieldName, value: changedValue, record });
   }
 

@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { describe, expect, it, vi } from 'vitest';
@@ -16,7 +16,12 @@ const makeRepo = () => {
   rxdb.use(rxDBPluginTree);
   rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' })).init();
   const query = vi.fn();
-  const adapter = { query, rxdb, encryptionContext: undefined } as unknown as RxDBAdapterPGlite;
+  const adapter = {
+    tableSet: WorktreeTableSet.MAIN,
+    query,
+    rxdb,
+    encryptionContext: undefined
+  } as unknown as RxDBAdapterPGlite;
   return new PGliteTreeRepository(adapter, MenuLarge);
 };
 

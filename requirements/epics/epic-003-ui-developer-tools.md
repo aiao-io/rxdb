@@ -1,6 +1,6 @@
 ---
 id: epic-003-ui-developer-tools
-status: Done
+status: In Progress
 startDate: 2025-07-01
 targetDate: 2026-12-01
 owner: jimmy
@@ -10,10 +10,11 @@ owner: jimmy
 
 ## 愿景
 
-提供代码编辑器组件和开发者工具，降低使用门槛，提升开发体验
+提供可定制的实体组件、代码编辑器组件和开发者工具，降低使用门槛，提升开发体验
 
 ## 目标
 
+- [ ] 实体组件 Headless API：三框架共享逻辑、消费方自定义展示，保留默认 UI
 - [x] 代码编辑器组件（跨 3 端）
 - [x] 浏览器 DevTools 面板（连接器 + Chrome 扩展）
 - [x] Electron 原生本地存储 DevTools 调试
@@ -24,6 +25,7 @@ owner: jimmy
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
 
 - [US-402 代码编辑器组件](../stories/ui/US-402-code-editor.md) (Medium)
+- [US-403 实体组件 Headless API 与可定制展示层](../stories/ui/US-403-entity-components-headless.md) (Medium) — A 表单与共享契约 → B 查询构建器 → C 列表/详情与可选渲染 → D 独立消费验证与文档
 - [US-902 DevTools 面板](../stories/future/US-902-devtools-panel.md) (Low)
 - [US-904 DevTools 原生本地存储调试](../stories/future/US-904-devtools-native-storage-contract.md) (Medium) — 单文件四阶段：
   - 阶段 A Electron 43 MV3 DevTools 可行性门禁

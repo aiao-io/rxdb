@@ -1,11 +1,15 @@
 import { RxDBBranch } from '@aiao/rxdb';
+import { useWorktrees } from '@aiao/rxdb-plugin-working-tree-react';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
 import { GitBranch, Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useResettableTimeout } from '../hooks/useResettableTimeout';
+import { currentBranchOf } from '../pages/working-tree/utils/worktrees';
 
 export function AppBranchManager() {
   const rxdb = useRxDB();
+  /** 挂着哪一套表决定当前分支（US-314 C2.1） */
+  const { mounted } = useWorktrees();
   const [switching, setSwitching] = useState(false);
   const [branchName, setBranchName] = useState('');
   const [showPopover, setShowPopover] = useState(false);
@@ -17,7 +21,8 @@ export function AppBranchManager() {
   // P2-4：`RxDBResource.value` 是非可选的 `T`（useFindAll 的默认值就是 `[]`），
   // `?? []` 既是死代码又谎称它可能是 nullish；去掉后这层 useMemo 也只剩恒等映射，一并删掉。
   const branches = branchesResource.value;
-  const activeBranch = useMemo(() => branches.find(b => b.activated)?.id ?? '', [branches]);
+  /** 当前分支：本实例挂着那套表持有的那一条（挂在可写检出位上时它的 `activated` 是假） */
+  const activeBranch = useMemo(() => currentBranchOf(branches, mounted), [branches, mounted]);
 
   useEffect(() => {
     if (showPopover) {
@@ -63,6 +68,7 @@ export function AppBranchManager() {
         <select
           aria-label='当前分支'
           className='select select-xs join-item'
+          data-testid='app-branch-select'
           disabled={switching}
           value={activeBranch}
           onChange={switchBranch}

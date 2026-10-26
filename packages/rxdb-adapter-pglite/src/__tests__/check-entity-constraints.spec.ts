@@ -19,12 +19,13 @@ import {
   RxDB,
   RxDBConstraintDriftError,
   SyncType,
+  WorktreeTableSet,
   type EntityType
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import { getTableNameByMetadata } from '../pglite.utils.js';
 import { PGliteClient, type IPGliteClient } from '../PGliteClient.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 /**
  * 带 CHECK + 外键关系 + 索引 + 枚举（匿名 CHECK）的实体：
@@ -102,7 +103,7 @@ describe('PGlite 漂移检查（AC#10 / #11 / #16）', () => {
     try {
       const name = qtyConstraintName();
       await adapter.query(
-        `ALTER TABLE ${getTableNameByMetadata(getEntityMetadata(DriftChecked))} DROP CONSTRAINT ${JSON.stringify(name)}`
+        `ALTER TABLE ${getTableNameByMetadata(getEntityMetadata(DriftChecked), WorktreeTableSet.MAIN)} DROP CONSTRAINT ${JSON.stringify(name)}`
       );
       try {
         await adapter.checkEntityConstraints([DriftChecked as EntityType]);
@@ -127,7 +128,7 @@ describe('PGlite 漂移检查（AC#10 / #11 / #16）', () => {
   it('AC#10：库里多条声明外的 ck_ 约束 → 列「多余」', async () => {
     const { adapter, dispose } = await openDatabase();
     try {
-      const table = getTableNameByMetadata(getEntityMetadata(DriftChecked));
+      const table = getTableNameByMetadata(getEntityMetadata(DriftChecked), WorktreeTableSet.MAIN);
       await adapter.query(`ALTER TABLE ${table} ADD CONSTRAINT "ck_DriftChecked_stale_0badc0de" CHECK (true)`);
       try {
         await adapter.checkEntityConstraints([DriftChecked as EntityType]);
@@ -146,7 +147,7 @@ describe('PGlite 漂移检查（AC#10 / #11 / #16）', () => {
     const { adapter, dispose } = await openDatabase();
     try {
       const name = qtyConstraintName();
-      const table = getTableNameByMetadata(getEntityMetadata(DriftChecked));
+      const table = getTableNameByMetadata(getEntityMetadata(DriftChecked), WorktreeTableSet.MAIN);
       await adapter.query(`ALTER TABLE ${table} DROP CONSTRAINT ${JSON.stringify(name)}`);
       await adapter.query(
         `ALTER TABLE ${table} ADD CONSTRAINT "ck_DriftChecked_qty_positive_deadbeef" CHECK (qty > 1)`
@@ -168,7 +169,7 @@ describe('PGlite 漂移检查（AC#10 / #11 / #16）', () => {
     const { adapter, dispose } = await openDatabase();
     try {
       const name = qtyConstraintName();
-      const table = getTableNameByMetadata(getEntityMetadata(DriftChecked));
+      const table = getTableNameByMetadata(getEntityMetadata(DriftChecked), WorktreeTableSet.MAIN);
       await adapter.query(`DROP TABLE ${table} CASCADE`);
       try {
         await adapter.checkEntityConstraints([DriftChecked as EntityType]);
@@ -216,7 +217,7 @@ class DriftRanged extends EntityBase {}
 const rangedNames = () => {
   const metadata = getEntityMetadata(DriftRanged);
   return {
-    table: getTableNameByMetadata(metadata),
+    table: getTableNameByMetadata(metadata, WorktreeTableSet.MAIN),
     unique: compileConditionalUniqueIndex(metadata, metadata.indexMap.get('released_line')!).name,
     exclusion: compileExclusionConstraint(metadata, metadata.exclusionMap.get('no_overlap')!).name
   };

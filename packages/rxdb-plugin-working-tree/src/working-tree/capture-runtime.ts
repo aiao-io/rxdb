@@ -16,7 +16,7 @@
  */
 
 import type { EntityManager, TransactionExecutor } from '@aiao/rxdb';
-import { assertSingleActiveBranch, RxDBError, uuid } from '@aiao/rxdb';
+import { assertSingleActiveBranch, RxDBBranch, RxDBError, uuid } from '@aiao/rxdb';
 import { readWorkingTreeActivationState } from './activation-state.js';
 import { WorkingTreeEntry } from './working-tree-entry.entity.js';
 import { WorkingTreeState } from './working-tree-state.entity.js';
@@ -56,6 +56,13 @@ export interface ChangeCaptureSource {
   readonly patch: Record<string, unknown> | null;
   /** 逆向补丁 */
   readonly inversePatch: Record<string, unknown> | null;
+  /**
+   * 变更记在哪条分支名下，来自 `rxdb_change.branchId`；从 actions 里拼出来、还没落库的变更没有
+   *
+   * @remarks
+   * 捕获拿它核对「这条变更确实记在本实例的当前分支上」（US-314 B1.4）。
+   */
+  readonly branchId?: string;
 }
 
 /** `rxdb_change.type` 到工作树单元操作的映射。 */
@@ -150,21 +157,40 @@ export const toCapturedWrite = (
 };
 
 /**
- * 读当前的 active 分支令牌
+ * 读本实例当前分支的令牌：挂的那套表持有的分支
  *
  * @param executor - 调用方那个事务的执行器
  * @returns 分支 id 与激活态 revision
- * @throws {@link NoActiveBranchError} 零 active 分支时
- * @throws {@link AmbiguousActiveBranchError} 多 active 分支时
+ * @throws {@link NoActiveBranchError} 主表集零 active 分支时
+ * @throws {@link AmbiguousActiveBranchError} 主表集多 active 分支时
+ * @throws {@link RxDBError} 挂在可写检出位上、而那套表持有的分支不见了时
  *
  * @remarks
  * 两个字段来自两张表，但必须在**同一个事务**里读：分开读的话，中间可以插进一次
  * switch branch，于是令牌里的分支 id 属于旧分支、revision 属于新分支——一个从未存在过的状态。
+ *
+ * 主表集照旧过「恰好一个 active」的守卫；挂在可写检出位上（US-314 B1.4）按持有键读那一条
+ * （`WorktreeTableSet.heldBranchWhere`）。持有分支不见了就是检出位已经关掉，不能退回主检出位的分支：
+ * 那等于把这套表上的写记进别的分支的工作树。
  */
 export const readActiveBranchToken = async (executor: TransactionExecutor): Promise<ActiveBranchToken> => {
-  const branch = await assertSingleActiveBranch(executor);
+  const branch = executor.tableSet.isMain ? await assertSingleActiveBranch(executor) : await readHeldBranch(executor);
   const activation = await readWorkingTreeActivationState(executor);
   return { branchId: branch.id, activationRevision: activation.activationRevision };
+};
+
+/**
+ * 挂在可写检出位上时，读那套表持有的分支。
+ *
+ * @param executor - 调用方那个事务的执行器
+ * @returns 持有的分支
+ * @throws {@link RxDBError} 持有的分支不见了时
+ */
+const readHeldBranch = async (executor: TransactionExecutor): Promise<RxDBBranch> => {
+  const { tableSet } = executor;
+  const [branch] = await executor.getRepository(RxDBBranch).find({ where: tableSet.heldBranchWhere, limit: 1 });
+  if (!branch) throw new RxDBError(`表集 ${tableSet.suffix} 持有的分支不见了：可写检出位可能已经关掉`);
+  return branch;
 };
 
 /** {@link createWorkingTreeCapturePort} 需要的宿主能力。 */

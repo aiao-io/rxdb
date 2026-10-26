@@ -214,6 +214,10 @@
         "kind": "value"
       },
       {
+        "name": "describeHistoryBarrier",
+        "kind": "value"
+      },
+      {
         "name": "DetailFormTab",
         "kind": "type"
       },
@@ -251,6 +255,10 @@
       },
       {
         "name": "EntityCapabilities",
+        "kind": "type"
+      },
+      {
+        "name": "EntityCapabilityContext",
         "kind": "type"
       },
       {

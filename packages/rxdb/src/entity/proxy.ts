@@ -62,7 +62,7 @@ export const createEntityProxy = <T extends EntityType>(entity: EntityInstanceTy
       if (!isBinaryReassignment && isEqual(currentValue, value)) return true;
       if (isSymbol(prop) === false) {
         // 同步记录变更属性，用于优化 patch 计算
-        state.markChanged(prop as keyof EntityInstanceType<T>);
+        state.markChanged(prop as keyof EntityInstanceType<T>, value);
         state.modified = true;
         if (pendingGeneration !== state.generation) {
           // 记下排队时的代数：reset()/replace() 若在微任务触发前同步跑过，

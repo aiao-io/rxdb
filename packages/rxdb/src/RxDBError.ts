@@ -220,6 +220,27 @@ export class RxDBMixedVersionedCacheTransactionError extends RxDBError {
 }
 
 /**
+ * 只读实例上调用了公开写入口（US-313）
+ *
+ * @remarks
+ * 在写权限判定与选主端之前抛出：只读实例上任何写都不该开始，与实体声明的写权限无关。
+ * 与 US-027 的权限一样只是快速失败——适配器与执行器层不判定，直接打到适配器的写要由适配器自己拦
+ * （工作树插件的只读检出位在快照库上另装只读钩子与引擎封印）。
+ */
+export class RxDBReadOnlyError extends RxDBError {
+  constructor(
+    /** 被拒的写入口，如 `create`、`update`、`delete`、`reorder`、`mutations`、`notifyExternalUpdate` */
+    readonly operation: string,
+    /** 被写的实体名；批量写入口不止一个实体时为 `undefined` */
+    readonly entity?: string
+  ) {
+    super(`This RxDB instance is read-only: ${operation}${entity === undefined ? '' : ` on ${entity}`} rejected`);
+    this.name = 'RxDBReadOnlyError';
+    Object.setPrototypeOf(this, RxDBReadOnlyError.prototype);
+  }
+}
+
+/**
  * 网络离线错误 —— 启用 `offlineFallback` 但无本地缓存可用时抛出
  */
 export class NetworkOfflineError extends RxDBError {

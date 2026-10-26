@@ -3,7 +3,7 @@
  *
  * @remarks
  * 三端入口（`@aiao/rxdb-angular` / `-react` / `-vue` 的 `useWorkingTree()`）把工作树的
- * 十二件事各自摊成一个可观测状态。摊的规则只有这一份：**命令是 loading / success / error，
+ * 十四件事各自摊成一个可观测状态。摊的规则只有这一份：**命令是 loading / success / error，
  * 查询在无结果时额外一个 empty**。
  *
  * 两条不可让步的性质：
@@ -31,6 +31,10 @@
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
 import type { CommitChangeSetPage } from '../commit/commit-changes.js';
 import type { CommitLogPage } from '../commit/commit-log.js';
+import type {
+  WorkingTreeBranchFromCommitCheck,
+  WorkingTreeCreateBranchFromCommitResult
+} from './branch-from-commit.js';
 import type { CommitResult } from './commit-command.js';
 import type { WorkingTreeDiff } from './diff.js';
 import type { WorkingTreeDiscardResult } from './discard-command.js';
@@ -119,15 +123,16 @@ export type WorkingTreeQueryState<T> =
  * @remarks
  * 键集是 US-306 阶段 C 收口的六项，加上 T110 补进来的 `restore()` / `restoreSession()`，
  * 再加 T123 补进来的 `switchBranch()`，加上 commit 明细侧的 `commitChanges()`，
- * 与 auto-enable 补进来的 `enableIfEmpty()`——tri-framework-api.md §3 清单十二项到齐。
+ * 与 auto-enable 补进来的 `enableIfEmpty()`——tri-framework-api.md §3 清单十二项到齐；US-314 阶段 A 又补进
+ * 从提交建分支的 `checkBranchFromCommit()` / `createBranchFromCommit()`，共十四项。
  *
  * `switchBranchState` 走**命令**状态而不是查询：切分支没有「空」这一形态，成功就是切过去了
  * （`VersionManager.switchBranch()` 返回 `void`），被 `requireClean` 拒掉则是一次
  * `WorkingTreeDirtyError`，落在 `error` 相位。切到当前分支是一次 no-op **成功**，
  * 与 `discard()` 的 `discardedCount: 0` 同形，不是「这里没有内容」。
  *
- * 做成一个记录而不是十二个独立容器：三端的响应式原语都按「一次写入触发一次通知」工作，
- * 十二个容器就是十二条通知路径，而一次 `commit()` 会同时改 `commitState` 与 `statusState`
+ * 做成一个记录而不是十四个独立容器：三端的响应式原语都按「一次写入触发一次通知」工作，
+ * 十四个容器就是十四条通知路径，而一次 `commit()` 会同时改 `commitState` 与 `statusState`
  * （命令成功后刷新摘要）——两条路径先后到达时，UI 会看到「提交成功了但摘要还是旧的」
  * 这一帧。
  */
@@ -167,9 +172,15 @@ export interface WorkingTreeAsyncStates {
 
   /** `switchBranch()` 的状态；**没有 empty** —— 切换只有「切过去了」与「被拒/出错」两种结局 */
   readonly switchBranchState: WorkingTreeCommandState<void>;
+
+  /** `checkBranchFromCommit()` 的状态；**没有 empty** —— 能建与三种被拒成因都是结果 */
+  readonly checkBranchFromCommitState: WorkingTreeCommandState<WorkingTreeBranchFromCommitCheck>;
+
+  /** `createBranchFromCommit()` 的状态；**没有 empty** —— 建好了与三种被拒成因都是结果 */
+  readonly createBranchFromCommitState: WorkingTreeCommandState<WorkingTreeCreateBranchFromCommitResult>;
 }
 
-/** 十二项全部「还没人问过」；三端入口的初值只有这一份。 */
+/** 十四项全部「还没人问过」；三端入口的初值只有这一份。 */
 export const WORKING_TREE_INITIAL_ASYNC_STATES: WorkingTreeAsyncStates = Object.freeze({
   isEnabledState: { phase: 'idle' },
   enableState: { phase: 'idle' },
@@ -182,7 +193,9 @@ export const WORKING_TREE_INITIAL_ASYNC_STATES: WorkingTreeAsyncStates = Object.
   discardState: { phase: 'idle' },
   restoreState: { phase: 'idle' },
   restoreSessionState: { phase: 'idle' },
-  switchBranchState: { phase: 'idle' }
+  switchBranchState: { phase: 'idle' },
+  checkBranchFromCommitState: { phase: 'idle' },
+  createBranchFromCommitState: { phase: 'idle' }
 } satisfies WorkingTreeAsyncStates);
 
 /** 状态的去处；三端各自把它接到本框架的响应式原语上。 */

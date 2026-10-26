@@ -17,6 +17,7 @@
       <!-- Undo / Redo -->
       <button
         class="btn btn-xs btn-ghost"
+        [attr.title]="undoHint()"
         [disabled]="!canUndo()"
         (click)="undo()"
         aria-label="撤销 (Ctrl+Z)"
@@ -29,6 +30,7 @@
       </button>
       <button
         class="btn btn-xs btn-ghost"
+        [attr.title]="redoHint()"
         [disabled]="!canRedo()"
         (click)="redo()"
         aria-label="重做 (Ctrl+Shift+Z)"

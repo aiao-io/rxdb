@@ -15,7 +15,8 @@ import {
   RelationKind,
   type EntityMetadata,
   type EntityType,
-  type FindByCursorOptions
+  type FindByCursorOptions,
+  type HistoryScopeAPI
 } from '@aiao/rxdb';
 import {
   actionsColumn,
@@ -31,6 +32,7 @@ import {
   getListViewFields,
   type ListViewState,
   deriveEntityCapabilities,
+  describeHistoryBarrier,
   extractFieldsFromMetadata,
   organizeFields,
   parsePropertyColumnValue,
@@ -51,7 +53,7 @@ import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import { useInfiniteScroll, useRxDB, type InfiniteScrollResource } from '@aiao/rxdb-vue';
 import { Funnel as FunnelIcon, Redo2 as Redo2Icon, Undo2 as Undo2Icon, X as XIcon } from '@lucide/vue';
 import type { ColumnsDefine, ListTableConstructorOptions } from '@visactor/vtable';
-import { of, type Observable } from 'rxjs';
+import { of, type Observable, type ObservedValueOf } from 'rxjs';
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch, watchEffect } from 'vue';
 import DialogPortal from '../entity-dialog/DialogPortal.vue';
 import EntityDialog from '../entity-dialog/EntityDialog.vue';
@@ -98,8 +100,17 @@ function errorMessage(error: unknown): string {
 interface HistoryLike {
   undoCount$: Observable<number>;
   redoCount$: Observable<number>;
+  undoBarrier$: HistoryScopeAPI['undoBarrier$'];
+  redoBarrier$: HistoryScopeAPI['redoBarrier$'];
   undo(): Promise<unknown>;
   redo(): Promise<unknown>;
+}
+
+interface PendingEntityChange {
+  entityClass: EntityType;
+  target: EntityInstance;
+  draft: boolean;
+  changes: Record<string, unknown>;
 }
 
 /** 规范化 VTable sort_click 的 field，拒绝 actions / 空字段 */
@@ -193,7 +204,7 @@ const handleError = (error: unknown): void => {
 };
 
 // ── Save coalescing ───────────────────────────────────────────────────
-const pendingChanges = new Map<string, Record<string, unknown>>();
+const pendingChanges = new Map<string, PendingEntityChange>();
 let flushHandle = false;
 /** 已排队或正在落库的行内编辑批次数；拖放时据此判定「有未完成的编辑」 */
 const pendingEditBatches = ref(0);
@@ -238,14 +249,6 @@ const pendingQuery = ref<FilterQuery>({ ...EMPTY_FILTER });
 const pendingQueryValid = ref(true);
 const showFilterPopover = ref(false);
 const viewState = ref(createListViewState());
-
-// 切实体时重置筛选与排序为默认
-watch(entityKey, () => {
-  filterQuery.value = { ...EMPTY_FILTER };
-  pendingQuery.value = { ...EMPTY_FILTER };
-  sortState.value = { ...DEFAULT_SORT_STATE };
-  viewState.value = createListViewState();
-});
 
 // ── 无限滚动列表资源（等价 Angular #getOrCreateList + #currentList） ──
 
@@ -298,7 +301,7 @@ const entityCls = computed(() => entityClsMap.get(entityKey.value));
 /** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined` */
 const capabilities = computed(() => {
   const cls = entityCls.value;
-  return cls ? deriveEntityCapabilities(getEntityMetadata(cls)) : undefined;
+  return cls ? deriveEntityCapabilities(getEntityMetadata(cls), { readOnly: rxdb.readOnly }) : undefined;
 });
 
 // ── History (undo/redo) ───────────────────────────────────────────────
@@ -307,23 +310,33 @@ const vHistory =
   ({
     undoCount$: of(0),
     redoCount$: of(0),
+    undoBarrier$: of(null),
+    redoBarrier$: of(null),
     undo: async () => undefined,
     redo: async () => undefined
   } satisfies HistoryLike);
 
 const undoCount = ref(0);
 const redoCount = ref(0);
+const undoBarrier = shallowRef<ObservedValueOf<HistoryScopeAPI['undoBarrier$']>>(null);
+const redoBarrier = shallowRef<ObservedValueOf<HistoryScopeAPI['redoBarrier$']>>(null);
 watchEffect(onCleanup => {
   const sub = vHistory.undoCount$.subscribe(n => (undoCount.value = n));
   const sub2 = vHistory.redoCount$.subscribe(n => (redoCount.value = n));
+  const sub3 = vHistory.undoBarrier$.subscribe(value => (undoBarrier.value = value));
+  const sub4 = vHistory.redoBarrier$.subscribe(value => (redoBarrier.value = value));
   onCleanup(() => {
     sub.unsubscribe();
     sub2.unsubscribe();
+    sub3.unsubscribe();
+    sub4.unsubscribe();
   });
 });
 
 const canUndo = computed(() => undoCount.value > 0);
 const canRedo = computed(() => redoCount.value > 0);
+const undoHint = computed(() => (canUndo.value ? null : describeHistoryBarrier('undo', undoBarrier.value)));
+const redoHint = computed(() => (canRedo.value ? null : describeHistoryBarrier('redo', redoBarrier.value)));
 
 // ── Columns cache（每实体一次） ───────────────────────────────────────
 const columnsCache = new Map<string, ColumnsDefine>(
@@ -332,6 +345,7 @@ const columnsCache = new Map<string, ColumnsDefine>(
     return [
       `${meta.namespace}:${meta.name}`,
       buildEditableColumns(meta, {
+        readOnly: rxdb.readOnly,
         relatedItemsProviderFactory: (_fkField, relatedEntityName) => {
           const relCls = [...entityClsMap.values()].find(c => {
             const m = getEntityMetadata(c);
@@ -588,6 +602,21 @@ const onIconClicked = async (event: { name: string; record: EntityTableRecord })
 /** 待确认删除的行；非空即弹层打开。 */
 const deleteConfirmRecord = ref<EntityTableRecord | null>(null);
 
+// 切实体时重置只属于旧实体的交互状态。
+watch(entityKey, () => {
+  filterQuery.value = { ...EMPTY_FILTER };
+  pendingQuery.value = { ...EMPTY_FILTER };
+  pendingQueryValid.value = true;
+  sortState.value = { ...DEFAULT_SORT_STATE };
+  viewState.value = createListViewState();
+  selectedIds.value = new Set();
+  localDraftItems.value = [];
+  showFilterPopover.value = false;
+  deleteConfirmRecord.value = null;
+  m2mDialogOpen.value = false;
+  reorderError.value = null;
+});
+
 /** 确认弹层里的删除执行（与删除图标同一条路径）。 */
 const confirmDelete = async (): Promise<void> => {
   const record = deleteConfirmRecord.value;
@@ -842,8 +871,18 @@ const handleCreateSubmit = async (data: EntityFormData): Promise<void> => {
 };
 
 const enqueue = (recordId: string, changes: Record<string, unknown>): void => {
-  const cur = pendingChanges.get(recordId) ?? {};
-  pendingChanges.set(recordId, { ...cur, ...changes });
+  const key = `${entityKey.value}:${recordId}`;
+  const current = pendingChanges.get(key);
+  const records = instances.value;
+  const target = records.find(item => item.id === recordId) ?? localDraftItems.value.find(item => item.id === recordId);
+  const entityClass = entityCls.value;
+  if (!target || !entityClass) return;
+  pendingChanges.set(key, {
+    entityClass,
+    target: current?.target ?? target,
+    draft: current?.draft ?? !records.some(item => item.id === recordId),
+    changes: { ...current?.changes, ...changes }
+  });
   if (flushHandle) return;
   flushHandle = true;
   pendingEditBatches.value += 1;
@@ -855,48 +894,45 @@ const enqueue = (recordId: string, changes: Record<string, unknown>): void => {
   });
 };
 
-const flushPending = async (pending: [string, Record<string, unknown>][]): Promise<void> => {
+const flushPending = async (pending: [string, PendingEntityChange][]): Promise<void> => {
   if (!pending.length) return;
-  const EntityClass = entityCls.value;
-  if (!EntityClass) return;
-  const toUpdate = new Set<EntityInstance>();
+  const updateGroups = new Map<EntityType, Set<EntityInstance>>();
   const prevMap = new Map<EntityInstance, Record<string, unknown>>();
   const draftUpdated = new Set<EntityInstance>();
-  for (const [id, changes] of pending) {
-    let inst = instances.value.find(i => i.id === id);
-    const isDraft = !inst;
-    if (!inst) {
-      inst = localDraftItems.value.find(i => i.id === id);
-    }
-    if (!inst) continue;
+  for (const [, entry] of pending) {
+    const inst = entry.target;
     const prev: Record<string, unknown> = {};
     const actual: Record<string, unknown> = {};
     let hasChange = false;
-    for (const k of Object.keys(changes)) {
-      if (inst[k] !== changes[k]) {
-        prev[k] = inst[k];
-        actual[k] = changes[k];
+    for (const key of Object.keys(entry.changes)) {
+      if (inst[key] !== entry.changes[key]) {
+        prev[key] = inst[key];
+        actual[key] = entry.changes[key];
         hasChange = true;
       }
     }
     if (!hasChange) continue;
     prevMap.set(inst, prev);
     Object.assign(inst as Record<string, unknown>, actual);
-    if (isDraft) {
+    if (entry.draft) {
       draftUpdated.add(inst);
     } else {
-      toUpdate.add(inst);
+      const group = updateGroups.get(entry.entityClass) ?? new Set<EntityInstance>();
+      group.add(inst);
+      updateGroups.set(entry.entityClass, group);
     }
   }
 
   // 草稿实体直接更新列表触发重渲染（不写 DB）
   if (draftUpdated.size) {
-    localDraftItems.value = [...localDraftItems.value];
+    localDraftItems.value = localDraftItems.value.some(item => draftUpdated.has(item)) ? [...localDraftItems.value] : localDraftItems.value;
   }
 
-  if (!toUpdate.size) return;
+  if (!updateGroups.size) return;
 
-  const updateMap = new Map([[EntityClass, toUpdate as unknown as Set<unknown>]]);
+  const updateMap = new Map(
+    [...updateGroups.entries()].map(([entityClass, items]) => [entityClass, items as Set<unknown>] as const)
+  );
   try {
     await rxdb.entityManager.mutations({ create: new Map(), update: updateMap, remove: new Map() });
   } catch (e) {
@@ -904,6 +940,7 @@ const flushPending = async (pending: [string, Record<string, unknown>][]): Promi
     for (const [inst, prev] of prevMap) Object.assign(inst as Record<string, unknown>, prev);
   }
 };
+
 
 // ── 筛选弹层定位（CDK ConnectedOverlay 下方/上方右对齐的包内替代） ────
 
@@ -970,6 +1007,8 @@ defineExpose({
   redoCount,
   canUndo,
   canRedo,
+  undoHint,
+  redoHint,
   queryBuilderFields,
   tableRecords,
   tableColumns,
@@ -1043,6 +1082,7 @@ defineExpose({
           <button
             class="btn btn-xs btn-ghost"
             :disabled="!canUndo"
+            :title="undoHint ?? undefined"
             aria-label="撤销 (Ctrl+Z)"
             type="button"
             @click="undo"
@@ -1060,6 +1100,7 @@ defineExpose({
           <button
             class="btn btn-xs btn-ghost"
             :disabled="!canRedo"
+            :title="redoHint ?? undefined"
             aria-label="重做 (Ctrl+Shift+Z)"
             type="button"
             @click="redo"

@@ -72,6 +72,18 @@ describe('列表视图配置', () => {
     ]);
   });
 
+  it('用户把 ID 放在前面时仍将 ID 放到游标排序末尾', () => {
+    expect(
+      buildListViewOrderBy(
+        { ...createListViewState(), sorts: [{ field: 'id', sort: 'asc' }, { field: 'title', sort: 'desc' }] },
+        undefined
+      )
+    ).toEqual([
+      { field: 'title', sort: 'desc' },
+      { field: 'id', sort: 'asc' }
+    ]);
+  });
+
   it('分组字段参与查询排序，避免只对当前页排序，显式方向保持有效', () => {
     const state: ListViewState = {
       ...createListViewState(),

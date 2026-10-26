@@ -1,9 +1,20 @@
-import { Entity, EntityBase, PropertyType, RelationKind, RxDB, SyncType, type EntityType } from '@aiao/rxdb';
+import {
+  cloneEntityClasses,
+  Entity,
+  EntityBase,
+  PropertyType,
+  RelationKind,
+  RxDB,
+  SyncType,
+  type EntityType,
+  type HistoryScopeAPI
+} from '@aiao/rxdb';
 import { isRowDragEnabled, type EntityTableRecord } from '@aiao/rxdb-model';
 import { Account, AuditLog, Contract, Invoice, Task, Todo } from '@aiao/rxdb-test/entities';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { of } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityListComponent } from '../../entity-list/entity-list.component';
 import { QueryTableComponent } from '../../entity-table/query-table/query-table.component';
@@ -218,6 +229,23 @@ describe('EntityListComponent（真实组件）', () => {
     expect(tableOf(fixture).columns.map(column => column['field'])).toEqual(originalFields);
   });
 
+  it('切换实体时清理选择状态，避免旧实体的 id 带入新列表', async () => {
+    await seedTodo('selection-reset');
+    const { fixture, component } = await renderList({ mode: 'select' });
+    const record = component.tableRecords()[0];
+    component.onCellChanged({ col: 1, row: 1, field: '__selected', value: true, record });
+    expect(component.selectedCount()).toBe(1);
+
+    fixture.componentRef.setInput('name', 'Task');
+    fixture.detectChanges();
+    await FLUSH();
+    fixture.detectChanges();
+
+    expect(component.selectedCount()).toBe(0);
+    expect(component.tableRecords()).toEqual([]);
+    fixture.destroy();
+  });
+
   /**
    * 查询实体当前落库的 title 列表（升序）。
    *
@@ -314,6 +342,29 @@ describe('EntityListComponent（真实组件）', () => {
     await vi.waitFor(() => {
       expect(component.tableRecords().map(r => r['title'])).toContain('changed');
     });
+  });
+
+  it('撤销 / 重做栈被子分支分叉点拦住：按钮停用并说明原因（US-315）', async () => {
+    const versionManager = (rxdb as unknown as { versionManager: { history(): HistoryScopeAPI } }).versionManager;
+    const inherited = { reason: 'inherited_by_branch' as const, branchIds: ['feature'] };
+    const history = vi.spyOn(versionManager, 'history').mockReturnValue({
+      ...versionManager.history(),
+      undoCount$: of(0),
+      redoCount$: of(0),
+      undoBarrier$: of(inherited),
+      redoBarrier$: of(inherited)
+    });
+    try {
+      const { fixture } = await renderList();
+      fixture.detectChanges();
+      const button = (label: string) =>
+        fixture.nativeElement.querySelector(`[aria-label="${label}"]`) as HTMLButtonElement;
+      expect(button('撤销 (Ctrl+Z)').disabled).toBe(true);
+      expect(button('撤销 (Ctrl+Z)').title).toBe('更早的改动已被分支 feature 继承，撤销不了');
+      expect(button('重做 (Ctrl+Shift+Z)').title).toBe('要重做的改动已被分支 feature 继承，重做不了');
+    } finally {
+      history.mockRestore();
+    }
   });
 
   /**
@@ -865,6 +916,35 @@ describe('EntityListComponent（真实组件）', () => {
 
     const rowOf = (component: EntityListComponent, id: string): number =>
       component.tableRecords().findIndex(r => r['id'] === id) + 1;
+
+    it('只读实例（只读检出位，US-313）：不出新增，单元格无编辑器，操作列只剩查看', async () => {
+      const [ReadOnlyTodo] = cloneEntityClasses([Todo as unknown as EntityType]) as unknown as [typeof Todo];
+      const readOnly = createInMemoryRxdb([ReadOnlyTodo as unknown as EntityType], undefined, { readOnly: true });
+      await readOnly.connect(IN_MEMORY_ADAPTER_NAME);
+      const { firstValueFrom } = await import('rxjs');
+      const readOnlyAdapter = await firstValueFrom(readOnly.localAdapter$);
+      await readOnlyAdapter.mutations({
+        create: new Map<EntityType, Set<EntityBase>>([
+          [ReadOnlyTodo as unknown as EntityType, new Set([new ReadOnlyTodo({ title: 'frozen' })])]
+        ]),
+        update: new Map(),
+        remove: new Map()
+      });
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [provideZonelessChangeDetection(), { provide: RxDB, useValue: readOnly }]
+      });
+      const { fixture, component } = await renderList();
+      await FLUSH();
+      fixture.detectChanges();
+
+      expect(component.tableRecords()).toHaveLength(1);
+      expect(fixture.nativeElement.textContent).not.toContain('+ 新增');
+      const columns = component.tableColumns() as unknown as Record<string, unknown>[];
+      expect(columns.find(column => column['field'] === 'title')?.['editor']).toBeUndefined();
+      expect(actionIconNames(fixture, 1)).toEqual(['view-action']);
+      await readOnly.disconnectAll();
+    });
 
     it('AC#10 create: system 的实体不提供新增，已有行照常可编辑可删除', async () => {
       const log = new AuditLog({ message: 'seeded-by-system' });

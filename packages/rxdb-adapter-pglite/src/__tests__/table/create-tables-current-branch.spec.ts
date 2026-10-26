@@ -105,7 +105,7 @@ describe('createTables 补建的表，变更触发器挂在哪条分支上', () 
 
   it('连 rxdb_branch 都还没有的旧库上，补建照样要能跑完', async () => {
     // `system-schema-migration.spec.ts` 里那条升级用例正是这个形态：只有 rxdb_migration 与
-    // rxdb_change 两张表，分支表要等 `migrateSystemSchema()` 才建出来。补建时去读当前分支
+    // rxdb_change 两张表；日志列按当前模式准备，只验证分支表缺失。补建时去读当前分支
     // 必须先问「读得到吗」——直接读就是在这里报 `relation "rxdb"."rxdb_branch" does not exist`，
     // 把一条本来能跑完的升级路径堵死在建表上。
     const rxdb = {
@@ -126,6 +126,7 @@ describe('createTables 补建的表，变更触发器挂在哪条分支上', () 
         "namespace" varchar NOT NULL,
         "entity" varchar NOT NULL,
         "branchId" varchar NOT NULL,
+        "tableSetSuffix" varchar,
         "transactionId" uuid,
         "entityId" text NOT NULL,
         "inversePatch" jsonb,

@@ -26,6 +26,17 @@ export const getRxDBChangeEventId = (change: { id: unknown; patch?: unknown }): 
 };
 
 /**
+ * 取变更元事件记在哪条分支上。
+ *
+ * @param change - 变更元事件；两个后端派它时 `patch` 都是整行变更
+ * @returns 分支 id，`patch` 里没有字符串 `branchId` 时返回 null
+ */
+export const getRxDBChangeEventBranchId = (change: { patch?: unknown }): string | null => {
+  if (typeof change.patch !== 'object' || change.patch === null || !('branchId' in change.patch)) return null;
+  return typeof change.patch.branchId === 'string' ? change.patch.branchId : null;
+};
+
+/**
  * 取一组变更里最早的 `recordAt` 时间。
  *
  * @param changes - 变更数组

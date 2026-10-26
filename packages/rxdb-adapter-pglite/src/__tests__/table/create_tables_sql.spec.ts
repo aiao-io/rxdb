@@ -1,4 +1,4 @@
-import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { ENTITIES, User } from '@aiao/rxdb-test/shop';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -47,7 +47,7 @@ describe('create_tables_sql', () => {
 
   describe('基本功能', () => {
     it('应该生成单个表的创建 SQL', async () => {
-      const sql = await create_tables_sql(adapter, [Todo]);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [Todo]);
 
       // 应该包含 CREATE TABLE 语句
       expect(sql).toContain('CREATE TABLE');
@@ -59,7 +59,7 @@ describe('create_tables_sql', () => {
     });
 
     it('应该生成多个表的创建 SQL', async () => {
-      const sql = await create_tables_sql(adapter, [User, Todo]);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [User, Todo]);
 
       // 应该包含两个表的 CREATE TABLE
       expect(sql).toContain('"shop"."user"');
@@ -73,7 +73,7 @@ describe('create_tables_sql', () => {
     it('应该为 log=false 的实体跳过触发器', async () => {
       // RxDBChange 和 RxDBBranch 是系统表，log=false
       const allEntities = adapter.rxdb.config.entities;
-      const sql = await create_tables_sql(adapter, allEntities);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, allEntities);
 
       // 应该包含所有表
       expect(sql).toContain('"shop"."user"');
@@ -90,7 +90,7 @@ describe('create_tables_sql', () => {
       initialUser.name = 'Test User';
       initialUser.age = 25;
 
-      const sql = await create_tables_sql(adapter, [User], [initialUser]);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [User], [initialUser]);
 
       // 应该包含表创建
       expect(sql).toContain('CREATE TABLE');
@@ -110,7 +110,7 @@ describe('create_tables_sql', () => {
       todo.title = 'Todo 1';
       todo.completed = false;
 
-      const sql = await create_tables_sql(adapter, [User, Todo], [user, todo]);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [User, Todo], [user, todo]);
 
       // 应该包含两个实体的数据
       expect(sql).toContain('User 1');
@@ -126,7 +126,7 @@ describe('create_tables_sql', () => {
       user2.name = 'User 2';
       user2.age = 30;
 
-      const sql = await create_tables_sql(adapter, [User], [user1, user2]);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [User], [user1, user2]);
 
       // 应该生成批量 INSERT (一个 INSERT 语句包含多行)
       expect(sql).toContain('INSERT INTO');
@@ -137,14 +137,14 @@ describe('create_tables_sql', () => {
 
   describe('边界情况', () => {
     it('应该处理空的 EntityTypes 数组', async () => {
-      const sql = await create_tables_sql(adapter, []);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, []);
 
       // 空数组应该返回空字符串或只有换行
       expect(sql.trim()).toBe('');
     });
 
     it('应该处理没有初始数据的情况', async () => {
-      const sql = await create_tables_sql(adapter, [Todo]);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [Todo]);
 
       // 应该包含表和触发器，但不包含用户数据的 INSERT
       expect(sql).toContain('CREATE TABLE');
@@ -154,7 +154,7 @@ describe('create_tables_sql', () => {
     });
 
     it('应该处理初始数据为空数组', async () => {
-      const sql = await create_tables_sql(adapter, [Todo], []);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [Todo], []);
 
       // 应该包含表和触发器，但不包含用户数据的 INSERT
       expect(sql).toContain('CREATE TABLE');
@@ -170,7 +170,7 @@ describe('create_tables_sql', () => {
       user.name = 'User 1';
       user.age = 25;
 
-      const sql = await create_tables_sql(adapter, [User], [user]);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [User], [user]);
 
       const createTableIndex = sql.indexOf('CREATE TABLE');
       const createTriggerIndex = sql.indexOf('CREATE OR REPLACE FUNCTION');
@@ -185,25 +185,25 @@ describe('create_tables_sql', () => {
 
   describe('enum 列 CHECK 约束', () => {
     it('应该为 enum 列生成 CHECK 约束', async () => {
-      const sql = await create_tables_sql(adapter, [EnumOnly]);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [EnumOnly]);
       expect(sql).toContain(`CHECK ("status" IN ('active', 'inactive', 'pending'))`);
       expect(sql).toContain(`CHECK ("kind" IN ('A', 'B'))`);
     });
 
     it('nullable enum 列不应该包含 NOT NULL 约束', async () => {
-      const sql = await create_tables_sql(adapter, [EnumOnly]);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [EnumOnly]);
       // status 列有 nullable: true，不得出现 NOT NULL
       expect(sql).not.toMatch(/"status" varchar NOT NULL/);
     });
 
     it('非 nullable enum 列应该包含 NOT NULL 约束', async () => {
-      const sql = await create_tables_sql(adapter, [EnumOnly]);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [EnumOnly]);
       // kind 列 nullable: false，应有 NOT NULL
       expect(sql).toMatch(/"kind" varchar NOT NULL/);
     });
 
     it('CHECK 约束应该在 CREATE TABLE 语句内', async () => {
-      const sql = await create_tables_sql(adapter, [EnumOnly]);
+      const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [EnumOnly]);
       const createTableStart = sql.indexOf('CREATE TABLE');
       const createTableEnd = sql.indexOf(');', createTableStart);
       const checkIndex = sql.indexOf(`CHECK ("status" IN`, createTableStart);

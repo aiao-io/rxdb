@@ -9,6 +9,7 @@ import {
   RxDBChange,
   SyncType,
   transitionMetadata,
+  WorktreeTableSet,
   type FindOptions
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
@@ -17,7 +18,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import {
   getEntityObjectFromResult,
-  getTableNameByMetadata,
   rxDBColumnTypeToPGliteType,
   rxDBColumnTypeToPGliteTypeIndexName,
   transformEntityValueToSql,
@@ -26,9 +26,11 @@ import {
 } from '../pglite.utils.js';
 import { buildRuleGroupPG, generate_find_sql } from '../query/query_sql.js';
 import { PGliteRepository } from '../repository/PGliteRepository.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 import create_table_sql from '../table/create_table_sql.js';
 
 const adapterStub = {
+  tableSet: WorktreeTableSet.MAIN,
   rxdb: { schemaManager: { getEntityMetadata: () => undefined } }
 } as unknown as RxDBAdapterPGlite;
 let binaryFactoryCalls = 0;
@@ -57,7 +59,7 @@ describe('PGlite bigint/binary contract', () => {
     expect(rxDBColumnTypeToPGliteTypeIndexName(bigintProperty)).toBe('int8_ops');
     expect(rxDBColumnTypeToPGliteTypeIndexName(binaryProperty)).toBe('bytea_ops');
 
-    const sql = create_table_sql(adapterStub, metadata);
+    const sql = create_table_sql(adapterStub, metadata, WorktreeTableSet.MAIN);
     expect(sql).toContain('"id" bigint PRIMARY KEY');
     expect(sql).toContain('"payload" bytea');
     expect(sql).toContain('"amount" int8_ops');
@@ -82,7 +84,7 @@ describe('PGlite bigint/binary contract', () => {
         { name: 'payload', type: PropertyType.binary, default: new Uint8Array([1, 2]) }
       ]
     });
-    const sql = create_table_sql(adapterStub, withDefaults);
+    const sql = create_table_sql(adapterStub, withDefaults, WorktreeTableSet.MAIN);
 
     expect(factory).not.toHaveBeenCalled();
     expect(sql).toContain('"fixed" bigint DEFAULT 8');
@@ -199,6 +201,7 @@ describe('PGlite bigint/binary contract', () => {
       ]
     });
     const relationAdapter = {
+      tableSet: WorktreeTableSet.MAIN,
       rxdb: {
         schemaManager: {
           getEntityMetadata: (name: string) => (name === parent.name ? parent : undefined)
@@ -206,7 +209,7 @@ describe('PGlite bigint/binary contract', () => {
       }
     } as unknown as RxDBAdapterPGlite;
 
-    expect(create_table_sql(relationAdapter, child)).toContain('"parentId" bigint NOT NULL');
+    expect(create_table_sql(relationAdapter, child, WorktreeTableSet.MAIN)).toContain('"parentId" bigint NOT NULL');
     const resolveEntityMetadata = (name: string) => (name === parent.name ? parent : undefined);
     const safe = await getEntityObjectFromResult(
       child,
@@ -464,7 +467,7 @@ describe.sequential('PGlite bigint/binary integration', () => {
     const directId = 9_007_199_254_741_001n;
     const now = new Date();
     await adapter.query(
-      `INSERT INTO ${getTableNameByMetadata(metadata)} ("id", "amount", "payload", "constantPayload", "generatedPayload", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO ${getTableNameByMetadata(metadata, WorktreeTableSet.MAIN)} ("id", "amount", "payload", "constantPayload", "generatedPayload", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [directId, directId, new Uint8Array([5]), new Uint8Array([1, 2]), new Uint8Array([3, 4]), now, now]
     );
     rxdb.entityManager.cleanAllCache();

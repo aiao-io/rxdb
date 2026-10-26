@@ -6,7 +6,8 @@ import {
   getEntityStatus,
   PropertyType,
   RelationKind,
-  uuid
+  uuid,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { Todo, TypeDemo } from '@aiao/rxdb-test/entities';
 import {
@@ -2704,7 +2705,7 @@ export function crudIntegrationSuite(factory: AdapterFactory) {
     describe('CREATE TABLE SQL 生成', () => {
       it('属性 columnName 应出现在 CREATE TABLE 中', () => {
         const metadata = getEntityMetadata(CnEmployee);
-        const sql = create_table_sql(adapter, metadata);
+        const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
 
         expect(sql).toContain('"first_name"');
         expect(sql).toContain('"last_name"');
@@ -2721,7 +2722,7 @@ export function crudIntegrationSuite(factory: AdapterFactory) {
 
       it('关系 columnName 应出现在外键列定义中', () => {
         const metadata = getEntityMetadata(CnEmployee);
-        const sql = create_table_sql(adapter, metadata);
+        const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
 
         expect(sql).toContain('"dept_id"');
         expect(sql).not.toMatch(/"departmentId"/);
@@ -2729,7 +2730,7 @@ export function crudIntegrationSuite(factory: AdapterFactory) {
 
       it('ONE_TO_ONE 关系自定义 columnName', () => {
         const metadata = getEntityMetadata(CnProfile);
-        const sql = create_table_sql(adapter, metadata);
+        const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
 
         expect(sql).toContain('"emp_id"');
         expect(sql).toContain('"biography"');
@@ -2739,7 +2740,7 @@ export function crudIntegrationSuite(factory: AdapterFactory) {
 
       it('唯一索引应使用 columnName', () => {
         const metadata = getEntityMetadata(CnDepartment);
-        const sql = create_table_sql(adapter, metadata);
+        const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
 
         expect(sql).toContain('"dept_name"');
         expect(sql).toContain('"dept_code"');

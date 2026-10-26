@@ -1,11 +1,12 @@
-import { type EntityType, getRxDBEntityIdentityKey, RxDBBranch, RxDBError } from '@aiao/rxdb';
+import { type EntityType, getRxDBEntityIdentityKey, RxDBBranch, RxDBError, WorktreeTableSet } from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { merge_branch } from '../merge-branch.js';
 import { VersionManager } from '../VersionManager.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
-type FindRepositoryMock = { find: ReturnType<typeof vi.fn> };
+type FindRepositoryMock = { find: ReturnType<typeof vi.fn<(options: unknown) => Promise<object[]>>> };
 type MergeAdapterMock = {
+  tableSet: WorktreeTableSet;
   mergeChanges: ReturnType<typeof vi.fn>;
   removeMany: ReturnType<typeof vi.fn>;
   transaction: ReturnType<typeof vi.fn>;
@@ -29,6 +30,7 @@ describe('merge_branch', () => {
     };
 
     mockAdapter = {
+      tableSet: WorktreeTableSet.MAIN,
       mergeChanges: vi.fn().mockResolvedValue(undefined),
       removeMany: vi.fn().mockResolvedValue(undefined),
       // 默认直通：不额外制造事务语义，只记录调用。
@@ -39,7 +41,15 @@ describe('merge_branch', () => {
             // `remove_branch`（deleteSource 走的那条）现在也在事务里读写，
             // 所以这里不能再返回 undefined —— 转发回本用例的仓库与 removeMany。
             getRepository: (EntityType: EntityType) =>
-              (EntityType as unknown) === RxDBBranch ? mockBranchRepository : mockChangeRepository,
+              (EntityType as unknown) === RxDBBranch ?
+                {
+                  ...mockBranchRepository,
+                  find: (options: { where: { rules: readonly { field: string }[] } }) =>
+                    options.where.rules.some(rule => rule.field === 'activated') ?
+                      Promise.resolve([{ id: 'main' }])
+                    : mockBranchRepository.find(options)
+                }
+              : mockChangeRepository,
             mergeChanges: mockAdapter.mergeChanges as never,
             removeMany: mockAdapter.removeMany as never
           }) as never
@@ -123,6 +133,24 @@ describe('merge_branch', () => {
       };
       // 不得退化成「只按 branchId 查」——那会把分叉前的历史一起重放
       expect(query.where.rules).toEqual(expect.arrayContaining([{ field: 'id', operator: '>', value: 5 }]));
+    });
+
+    // 挂在可写检出位上合并：源分支里不进那套表的实体（QueryCache 同步的实体）照写会改主检出位的表（US-314 B2.1）
+    it('只合落在目标那套表里的变更，两种策略的 merged 都只数真正落下的', async () => {
+      mockBranchRepository.find.mockResolvedValue([{ id: 'feature', fromChangeId: 5, parentId: 'main' }]);
+      mockChangeRepository.find.mockResolvedValue([
+        { id: 6, branchId: 'feature', namespace: 'public', entity: 'Item', entityId: 'a', type: 'INSERT', patch: {} },
+        { id: 7, branchId: 'feature', namespace: 'public', entity: 'Cached', entityId: 'c', type: 'INSERT', patch: {} }
+      ]);
+      const onlyItems = (_namespace: string, entity: string) => entity === 'Item';
+
+      const squash = await merge_branch(mockVersion, 'feature', 'main', undefined, onlyItems);
+      const normal = await merge_branch(mockVersion, 'feature', 'main', { strategy: 'normal' }, onlyItems);
+
+      expect(squash.merged).toBe(1);
+      expect(normal.merged).toBe(1);
+      const merged = mockAdapter.mergeChanges.mock.calls.map(([actions]) => [...actions.inserts.keys()]);
+      expect(merged).toEqual([[changeKey('Item', 'a')], [changeKey('Item', 'a')]]);
     });
 
     it('fromChangeId 为 null（根分支）时不加 id 边界', async () => {
@@ -459,7 +487,7 @@ describe('merge_branch', () => {
       try {
         return await fun(
           createTransactionExecutorStub({
-            getRepository: () => undefined,
+            getRepository: () => ({ find: async () => [{ id: 'main' }] }),
             mergeChanges: mockAdapter.mergeChanges as never
           }) as never
         );
@@ -496,7 +524,7 @@ describe('merge_branch', () => {
     mockAdapter.transaction.mockImplementation(async (fun: (executor: never) => Promise<unknown>) =>
       fun(
         createTransactionExecutorStub({
-          getRepository: () => undefined,
+          getRepository: () => ({ find: async () => [{ id: 'main' }] }),
           mergeChanges: mockAdapter.mergeChanges as never
         }) as never
       )

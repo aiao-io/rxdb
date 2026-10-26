@@ -152,11 +152,12 @@ export const CommitErrorCode = {
   branch_not_materialized: 'branch_not_materialized',
 
   /**
-   * tracked 与 untracked 实体混进了同一个事务单元。
+   * QueryCache 实体与其余实体混进了同一个事务单元。
    *
    * @remarks
-   * 抛出即**回滚整个事务**（FR-046）。两者写语义不可调和：版本化实体写本地并进 changelog，
-   * QueryCache 实体先写远端再落可丢弃缓存；同批只会得到「一半进了变更历史、一半没有」。
+   * 抛出即**回滚整个事务**（FR-046）。两者写语义不可调和：其余实体写本地事务，
+   * QueryCache 实体先写远端再落可丢弃缓存；同批只会得到「一半进了本地事务、一半先去了远端」。
+   * 关闭变更日志的实体虽然也是 untracked，但与版本化实体同走本地事务，不在被拒之列。
    *
    * 承载者是既有的 `RxDBMixedVersionedCacheTransactionError`，它先于本模块存在。
    * `origin='remote_sync'` **不是** untracked——来源不改变是否被捕获。

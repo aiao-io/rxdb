@@ -10,11 +10,22 @@
  * React 测试经 DOM（按钮点击 / 键盘 / FakeListTable 事件）驱动，
  * 对应 Angular 侧直接调用组件方法的覆盖点。
  */
-import { Entity, EntityBase, PropertyType, RelationKind, RxDB, SyncType, type EntityType } from '@aiao/rxdb';
+import {
+  cloneEntityClasses,
+  Entity,
+  EntityBase,
+  PropertyType,
+  RelationKind,
+  RxDB,
+  SyncType,
+  type EntityType,
+  type HistoryScopeAPI
+} from '@aiao/rxdb';
 import { isRowDragEnabled } from '@aiao/rxdb-model';
 import { RxDBProvider } from '@aiao/rxdb-react';
 import { Account, AuditLog, Contract, Invoice, Task, Todo } from '@aiao/rxdb-test/entities';
 import { act, fireEvent, render, waitFor } from '@testing-library/react';
+import { of } from 'rxjs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityList, type EntityListProps } from '../../entity-list/entity-list';
 import { FakeListTable, getLastListTable } from '../testing/fake-vtable';
@@ -173,6 +184,23 @@ describe('EntityList（真实组件）', () => {
     await waitFor(() => expect(tableOf().columns.map(column => column['field'])).toEqual(originalFields));
   });
 
+  it('切换实体时清理选择状态，避免旧实体的 id 带入新列表', async () => {
+    await seedTodo('selection-reset');
+    const ui = await renderList({ mode: 'select' });
+    await waitFor(() => expect(tableOf().records).toHaveLength(1));
+
+    act(() => tableOf().emit('checkbox_state_change', { col: 1, row: 1, checked: true }));
+    await waitFor(() => expect(ui.container.textContent).toContain('已选 1 项'));
+
+    ui.rerender(
+      <RxDBProvider db={rxdb}>
+        <EntityList namespace='public' name='Task' mode='select' />
+      </RxDBProvider>
+    );
+    await waitFor(() => expect(tableOf().records).toEqual([]));
+    expect(ui.container.textContent).not.toContain('已选 1 项');
+  });
+
   /** 查询实体当前落库的 title 列表（升序）。 */
   const titlesOf = async (entityType: EntityType): Promise<string[]> => {
     const seen: string[][] = [];
@@ -269,6 +297,29 @@ describe('EntityList（真实组件）', () => {
     await waitFor(() => {
       expect(tableOf().records.map(r => r['title'])).toContain('changed');
     });
+  });
+
+  it('撤销 / 重做栈被子分支分叉点拦住：按钮停用并说明原因（US-315）', async () => {
+    const versionManager = (rxdb as unknown as { versionManager: { history(): HistoryScopeAPI } }).versionManager;
+    const inherited = { reason: 'inherited_by_branch' as const, branchIds: ['feature'] };
+    const history = vi.spyOn(versionManager, 'history').mockReturnValue({
+      ...versionManager.history(),
+      undoCount$: of(0),
+      redoCount$: of(0),
+      undoBarrier$: of(inherited),
+      redoBarrier$: of(inherited)
+    });
+    try {
+      const { container } = await renderList();
+      const button = (label: string) => container.querySelector(`[aria-label="${label}"]`) as HTMLButtonElement;
+      await waitFor(() => {
+        expect(button('撤销 (Ctrl+Z)').title).toBe('更早的改动已被分支 feature 继承，撤销不了');
+      });
+      expect(button('撤销 (Ctrl+Z)').disabled).toBe(true);
+      expect(button('重做 (Ctrl+Shift+Z)').title).toBe('要重做的改动已被分支 feature 继承，重做不了');
+    } finally {
+      history.mockRestore();
+    }
   });
 
   /**
@@ -404,6 +455,17 @@ describe('EntityList（真实组件）', () => {
     fireEvent.click([...document.querySelectorAll('button')].find(b => b.textContent?.trim() === '确认添加')!);
     expect(confirmed).toHaveLength(1);
     expect(confirmed[0].map(e => e.id)).toEqual([a.id]);
+  });
+
+  it('选择模式：只读实体仍可勾选关联', async () => {
+    const invoice = new Invoice({ title: 'readonly selectable' });
+    await invoice.save();
+    const { container } = await renderList({ name: 'Invoice', mode: 'select' });
+    await waitFor(() => expect(tableOf().records).toHaveLength(1));
+
+    expect(tableOf().records[0]['_readonly']).toBe(true);
+    act(() => tableOf().emit('checkbox_state_change', { col: 1, row: 1, checked: true }));
+    await waitFor(() => expect(container.textContent).toContain('已选 1 项'));
   });
 
   it('选择模式：未选中时确认按钮禁用，取消走 onSelectionCancelled', async () => {
@@ -670,6 +732,35 @@ describe('EntityList（真实组件）', () => {
     }
 
     const rowOf = (id: string): number => tableOf().records.findIndex(r => r['id'] === id) + 1;
+
+    it('只读实例（只读检出位，US-313）：不出新增，单元格无编辑器，操作列只剩查看', async () => {
+      const [ReadOnlyTodo] = cloneEntityClasses([Todo as unknown as EntityType]) as unknown as [typeof Todo];
+      const readOnly = createInMemoryRxdb([ReadOnlyTodo as unknown as EntityType], undefined, { readOnly: true });
+      await readOnly.connect(IN_MEMORY_ADAPTER_NAME);
+      const { firstValueFrom } = await import('rxjs');
+      const readOnlyAdapter = await firstValueFrom(readOnly.localAdapter$);
+      await readOnlyAdapter.mutations({
+        create: new Map<EntityType, Set<EntityBase>>([
+          [ReadOnlyTodo as unknown as EntityType, new Set([new ReadOnlyTodo({ title: 'frozen' })])]
+        ]),
+        update: new Map(),
+        remove: new Map()
+      });
+
+      const { container } = render(
+        <RxDBProvider db={readOnly}>
+          <EntityList namespace='public' name='Todo' />
+        </RxDBProvider>
+      );
+      await waitFor(() => {
+        expect(tableOf().records).toHaveLength(1);
+      });
+
+      expect(container.textContent).not.toContain('+ 新增');
+      expect((tableOf().columns[colOf('title') - 1] as Record<string, unknown>)['editor']).toBeUndefined();
+      expect(actionIconNames(1)).toEqual(['view-action']);
+      await readOnly.disconnectAll();
+    });
 
     it('AC#10 create: system 的实体不提供新增，已有行照常可编辑可删除', async () => {
       const log = new AuditLog({ message: 'seeded-by-system' });

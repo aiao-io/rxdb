@@ -1,4 +1,10 @@
-import { EntityMetadata, EntityPropertyMetadataOptions, PropertyType, transitionMetadata } from '@aiao/rxdb';
+import {
+  EntityMetadata,
+  EntityPropertyMetadataOptions,
+  PropertyType,
+  transitionMetadata,
+  WorktreeTableSet
+} from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import generate_entity_insert_sql from '../../entity/insert_sql.js';
 import generate_entity_inserts_sql, { generate_entity_upserts_sql } from '../../entity/inserts_sql.js';
@@ -17,11 +23,11 @@ describe('insert/inserts residual primaryKey null', () => {
       ['name', PropertyType.string]
     ]);
 
-    const nullId = await generate_entity_insert_sql(metadata, { id: null, name: 'n1' } as never);
+    const nullId = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, { id: null, name: 'n1' } as never);
     expect(nullId.sql).toContain('INSERT INTO');
     expect(nullId.params).toContain('n1');
 
-    const missingId = await generate_entity_insert_sql(metadata, { name: 'n2' } as never);
+    const missingId = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, { name: 'n2' } as never);
     expect(missingId.sql).toContain('INSERT INTO');
     expect(missingId.params).toContain('n2');
   });
@@ -33,7 +39,7 @@ describe('insert/inserts residual primaryKey null', () => {
       ['age', PropertyType.integer]
     ]);
 
-    const sql = await generate_entity_upserts_sql(metadata, [
+    const sql = await generate_entity_upserts_sql(metadata, WorktreeTableSet.MAIN, [
       { id: null, name: 'a' } as never,
       { id: 'id-2', name: 'b', age: 3 } as never
     ]);
@@ -56,9 +62,14 @@ describe('insert/inserts residual primaryKey null', () => {
       ['updatedBy', PropertyType.uuid]
     ]);
 
-    const sql = await generate_entity_inserts_sql(metadata, [{ id: 'id-1', name: 'with-user' } as never], {
-      userId: 'user-residual'
-    });
+    const sql = await generate_entity_inserts_sql(
+      metadata,
+      WorktreeTableSet.MAIN,
+      [{ id: 'id-1', name: 'with-user' } as never],
+      {
+        userId: 'user-residual'
+      }
+    );
 
     expect(sql).toContain('"createdBy"');
     expect(sql).toContain('"updatedBy"');
@@ -77,6 +88,7 @@ describe('insert/inserts residual primaryKey null', () => {
 
     const sql = await generate_entity_upserts_sql(
       metadata,
+      WorktreeTableSet.MAIN,
       [
         {
           id: '00000000-0000-4000-8000-000000000015',
@@ -105,11 +117,11 @@ describe('insert/inserts residual primaryKey null', () => {
       ]
     });
 
-    const generatedOnly = await generate_entity_inserts_sql(metadata, [
+    const generatedOnly = await generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [
       { id: null, name: 'first' } as never,
       { id: undefined, name: 'second' } as never
     ]);
-    const mixed = await generate_entity_inserts_sql(metadata, [
+    const mixed = await generate_entity_inserts_sql(metadata, WorktreeTableSet.MAIN, [
       { id: null, name: 'generated' } as never,
       { id: 7, name: 'explicit' } as never
     ]);

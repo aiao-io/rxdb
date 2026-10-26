@@ -49,6 +49,7 @@ import {
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
+import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import { topologicalSortForPull } from './topological-sort.js';
 
 /**
@@ -583,6 +584,8 @@ async function pullSingleRepository(
       // 事务里只有本地写入，不会把网络往返圈进事务窗口。
       let roundApplied = 0;
       await localAdapter.transaction(async executor => {
+        // 拉取期间实例可能换挂到了可写检出位：本事务落在那套表上就一行都不写，游标也不动（US-314 B1.4）
+        assertSyncOnMainCheckout(executor.tableSet, 'pullRepository');
         // 仓库必须在事务体**内**经 executor 获取：事务外的 `changeRepo` / `repoSyncRepo`
         // 绑定在适配器上，其读写会重新排队并排在自己这个事务后面（队列并发度 1）。
         const txChangeRepo = executor.getRepository(RxDBChange);

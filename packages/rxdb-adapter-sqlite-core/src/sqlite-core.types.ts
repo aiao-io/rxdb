@@ -13,8 +13,39 @@ export interface SqliteClientLike {
   execute(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult>;
   disconnect(): Promise<void>;
   version(): Promise<string>;
-  /** Comlink 远端客户端返回 Promise，注册方必须 await，否则监听可能尚未生效就开始写库 */
-  addEventListener(type: SQLiteChangeType, handler: (event: SqliteChangeEvent) => void): void | Promise<void>;
+  /**
+   * 登记变更监听。Comlink 远端客户端返回 Promise，注册方必须 await，否则监听可能尚未生效就开始写库。
+   *
+   * @param type - 变更类型
+   * @param handler - 监听器
+   * @param owner - 登记它的持有者（见 {@link SqliteClientLike.release}）；不认识持有者的客户端忽略这一项
+   */
+  addEventListener(
+    type: SQLiteChangeType,
+    handler: (event: SqliteChangeEvent) => void,
+    owner?: string
+  ): void | Promise<void>;
+  /**
+   * 一个持有者退出共用的客户端：摘掉它带 `owner` 登记的监听，交还它在 `init` 时拿的那一份持有；
+   * 最后一份交还时才关库，关了之后还能再 `init`（US-314 B2.3b）。
+   *
+   * @param owner - `init` 与 `addEventListener` 时给的持有者键；没持有过的、已经交还过的什么都不做
+   *
+   * @remarks
+   * SharedWorker 里只有一个客户端，每个连上来的标签页拿到的都是它：一个标签页断开只能交还自己那一份，
+   * 不能像 {@link SqliteClientLike.disconnect} 那样把别的标签页还在用的连接关掉。
+   * 监听要按持有者摘：Comlink 每传一次监听都在 worker 里造一个新代理，按引用摘不掉。
+   * 不实现此方法的客户端不能经 SharedWorker 共用。
+   */
+  release?(owner: string): Promise<void>;
+  /**
+   * 连接上有没结束的事务就回滚它，答回滚了没有（US-314 B2.3b）。
+   *
+   * @remarks
+   * 共用一条连接的标签页死在事务中间，它那笔事务就一直开着：语句已经送到连接上，`COMMIT` / `ROLLBACK` 再也不会来。
+   * 跨标签页的锁随标签页一起放开，下一个拿到锁的先调它。只在拿着跨标签页的锁时调，否则会回滚别人正在跑的事务。
+   */
+  rollbackOrphanTransaction?(): Promise<boolean>;
   /**
    * 开启事务时使用的 SQL，默认 `'BEGIN;'`。
    *
@@ -35,6 +66,9 @@ export interface SqliteClientLike {
    * @remarks
    * 恢复整库时静音：恢复出来的系统表行不是新变更，不能在之后被当成事件派发给监听器。
    * 不实现此方法的客户端不支持恢复。Comlink 远端客户端返回 Promise，调用方必须 await。
+   *
+   * 静音是整个客户端的，不分持有者。SharedWorker 上共用的客户端不会被静音：SharedWorker 传输不支持备份与恢复
+   * （`unsupported_combination`，`field` 为 `transport`）。
    */
   setChangeEventsMuted?(muted: boolean): void | Promise<void>;
   /**

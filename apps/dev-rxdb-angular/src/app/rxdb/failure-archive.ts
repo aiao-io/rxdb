@@ -1,4 +1,4 @@
-import { EntityType, getEntityMetadata, isRxDBBackupError, RxDBBackupManifest } from '@aiao/rxdb';
+import { EntityType, getEntityMetadata, isRxDBBackupError, RxDBBackupManifest, WorktreeTableSet } from '@aiao/rxdb';
 import { get_table_name_by_metadata } from '@aiao/rxdb-adapter-sqlite-core';
 
 // e2e 失败现场归档（US-909 阶段 B）的纯函数部分：页内测试 API 与导入页共用，契约见
@@ -178,6 +178,6 @@ export function dbNameFromManifest(manifest: Pick<RxDBBackupManifest, 'encryptio
  * @returns 去重排序后的表名
  */
 export function businessTableNames(entities: readonly EntityType[]): string[] {
-  const names = entities.map(entity => get_table_name_by_metadata(getEntityMetadata(entity)));
+  const names = entities.map(entity => get_table_name_by_metadata(getEntityMetadata(entity), WorktreeTableSet.MAIN));
   return [...new Set(names)].sort();
 }

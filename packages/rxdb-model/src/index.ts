@@ -17,7 +17,8 @@ export * from './cn.js';
 export * from './entity-detail/detail-tabs.js';
 export * from './entity-detail/interfaces.js';
 
-// Entity List（US-028 手动排序）
+// Entity List（US-028 手动排序；US-315 撤销 / 重做停用说明）
+export * from './entity-list/history-barrier.js';
 export * from './entity-list/list-view-settings.js';
 export * from './entity-list/list-view.js';
 export * from './entity-list/manual-order-list.js';

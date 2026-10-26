@@ -225,6 +225,17 @@ export class QueryManager<T extends EntityType> {
     }
   }
 
+  /**
+   * 重跑全部查询任务（US-314 B1.4）。
+   *
+   * @remarks
+   * 本实例换挂了一套业务表，所有结果都可能换了一份，没有「只重跑相关的」可言。
+   * 内部接口：给 `Repository.refreshAllQueries` 调用，不属于公开 API。
+   */
+  refreshAllTasks(): void {
+    for (const task of Array.from(this.#query_task_map.values())) task.refresh();
+  }
+
   registerMergeCreateFn(taskType: string, fn: MergeQueryTaskCreateFn<T>) {
     this.#query_task_merge_create_map.set(taskType, fn);
   }
@@ -457,10 +468,16 @@ export class QueryManager<T extends EntityType> {
         return;
       }
 
-      // 过滤出与当前查询任务相关的实体
+      // 过滤出与当前查询任务相关的实体，且只收本实例挂着那套表读得到的（US-314 B2.3）：别的可写检出位写的行
+      // 不在这套表里，合进来会把缓存里同 id 的实体改成另一套表上的值
+      const tableSet = this.rxdb.worktreeTableSet;
       const entities = event.entities.filter(d => {
         const entityType = this.rxdb.schemaManager.getEntityType<T>(d.entity, d.namespace);
-        return entityType && this.#dep_entity_type_map.has(entityType);
+        return (
+          entityType &&
+          this.#dep_entity_type_map.has(entityType) &&
+          tableSet.accepts(this.rxdb.schemaManager.getEntityMetadata(d.entity, d.namespace), d.tableSetSuffix)
+        );
       });
 
       // 如果有相关的实体变更，执行增量缓存更新

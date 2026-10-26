@@ -11,7 +11,8 @@ import {
   RxDBBranch,
   RxDBChange,
   RxDBSync,
-  SyncType
+  SyncType,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -218,6 +219,8 @@ function createSyncManager(remoteChanges: RemoteChange[], localChanges: RxDBChan
       // 核心的系统表解析（`getLocalSystemRepositories` / `getCurrentBranch`）认的是这两条流，
       // 不是 `SyncManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
       localAdapter$: of(localAdapter),
+      // 没换挂过的实例挂的是主表集，当前分支按它读（US-314 B1.4）
+      worktreeTableSet: WorktreeTableSet.MAIN,
       remoteAdapter$: of(remoteAdapter)
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),

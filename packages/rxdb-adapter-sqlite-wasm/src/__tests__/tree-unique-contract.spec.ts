@@ -1,4 +1,4 @@
-import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
 import { get_table_name_by_metadata, quote_sql_identifier } from '@aiao/rxdb-adapter-sqlite-core';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { runTreeSiblingUniqueSuite, type TreeUniqueSuiteFactory } from '@aiao/rxdb-test/tree-unique';
@@ -37,7 +37,9 @@ const factory: TreeUniqueSuiteFactory = {
       rxdb,
       countRows: async entity => {
         if (!adapter) throw new Error('adapter is not created yet');
-        const table = quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(entity)));
+        const table = quote_sql_identifier(
+          get_table_name_by_metadata(getEntityMetadata(entity), WorktreeTableSet.MAIN)
+        );
         const result = await adapter.query(`SELECT COUNT(*) AS count FROM ${table};`);
         return Number(result.results[0].rows[0][0]);
       },

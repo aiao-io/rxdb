@@ -7,10 +7,11 @@ import { NgxLoadingBar } from '@ngx-loading-bar/core';
 import { AppService } from './app.service';
 import { AppHeader } from './components/app-header';
 import { AppSidebar } from './components/app-sidebar';
+import { DbConnectionAlert } from './components/db-connection-alert';
 import { ImportedDbBanner } from './components/imported-db-banner';
 
 @Component({
-  imports: [RouterOutlet, AppSidebar, AppHeader, ImportedDbBanner, NgxLoadingBar],
+  imports: [RouterOutlet, AppSidebar, AppHeader, DbConnectionAlert, ImportedDbBanner, NgxLoadingBar],
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -28,6 +29,7 @@ import { ImportedDbBanner } from './components/imported-db-banner';
       <div class="flex h-full min-w-0 grow flex-col overflow-auto" id="layout-container">
         <app-header></app-header>
         <app-imported-db-banner></app-imported-db-banner>
+        <app-db-connection-alert></app-db-connection-alert>
         <div id="layout-content">
           <router-outlet></router-outlet>
         </div>

@@ -1,5 +1,6 @@
 import { RxDB, RxDBBranch } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
+import { useWorktrees } from '@aiao/rxdb-plugin-working-tree-angular';
 import { OverlayModule } from '@angular/cdk/overlay';
 import {
   ChangeDetectionStrategy,
@@ -14,6 +15,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideGitBranch as GitBranch, LucideDynamicIcon, LucidePlus as Plus } from '@lucide/angular';
+import { currentBranchOf } from '../pages/working-tree/working-tree.worktrees';
 
 @Component({
   selector: 'app-branch-manager',
@@ -26,7 +28,13 @@ import { LucideGitBranch as GitBranch, LucideDynamicIcon, LucidePlus as Plus } f
             <svg [lucideIcon]="GitBranch" size="16"></svg>
           </span>
         </div>
-        <select class="select select-xs join-item" [disabled]="$switching()" (change)="switchBranch($event)">
+        <select
+          class="select select-xs join-item"
+          [disabled]="$switching()"
+          (change)="switchBranch($event)"
+          aria-label="当前分支"
+          data-testid="app-branch-select"
+        >
           @for (branch of branches.value(); track $index) {
             <option [selected]="branch.id === activeBranch()" [value]="branch.id">
               {{ branch.id }}
@@ -92,6 +100,8 @@ import { LucideGitBranch as GitBranch, LucideDynamicIcon, LucidePlus as Plus } f
 })
 export class BranchManager {
   #rxdb = inject(RxDB);
+  /** 挂着哪一套表决定当前分支（US-314 C2.1） */
+  readonly #worktrees = useWorktrees();
 
   $switching = model<boolean>(false);
   $branchName = model<string>('');
@@ -100,7 +110,8 @@ export class BranchManager {
   popoverInput = viewChild<ElementRef<HTMLInputElement>>('popoverInput');
   GitBranch = GitBranch;
   Plus = Plus;
-  activeBranch = computed(() => this.branches.value().find(b => b.activated)?.id || '');
+  /** 当前分支：本实例挂着那套表持有的那一条（挂在可写检出位上时它的 `activated` 是假） */
+  activeBranch = computed(() => currentBranchOf(this.branches.value(), this.#worktrees.mounted()));
 
   branches = useFindAll(RxDBBranch, {
     where: {

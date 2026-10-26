@@ -13,7 +13,16 @@
  * 过滤谓词（remoteId / lastPushedChangeId / reverted）由 `filterUndoableHistories`
  * 负责，已在 `HistoryManager.scopes-and-undo.spec.ts` 覆盖，这里不重复。
  */
-import { type HistoryItem, type RxDB, RxDBBranch, RxDBChange, RxDBSync, SyncType, type UUID } from '@aiao/rxdb';
+import {
+  type HistoryItem,
+  type RxDB,
+  RxDBBranch,
+  RxDBChange,
+  RxDBSync,
+  SyncType,
+  type UUID,
+  WorktreeTableSet
+} from '@aiao/rxdb';
 import { BehaviorSubject, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { convertChangesToHistories } from '../history-item-builder.js';
@@ -57,7 +66,9 @@ const createHarness = (): Harness => {
   const changes$ = new BehaviorSubject<RxDBChange[]>([]);
   const branchRepository = {
     find: vi.fn().mockResolvedValue([activeBranch]),
-    findOne: vi.fn(() => of(activeBranch))
+    findOne: vi.fn(() => of(activeBranch)),
+    // 子分支分叉点的活查询（US-315）：没有子分支
+    findAll: vi.fn(() => of([]))
   };
   const changeRepository = {
     count: vi.fn(() => of(0)),
@@ -75,6 +86,9 @@ const createHarness = (): Harness => {
       sync: { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } }
     },
     connected$,
+    // 没换挂过的实例挂的是主表集（US-314 B1.4）
+    worktreeTableSet: WorktreeTableSet.MAIN,
+    worktreeTableSet$: of(WorktreeTableSet.MAIN),
     entityManager: {
       getRepository: vi.fn((entity: unknown) => {
         if (entity === RxDBBranch) return branchRepository;

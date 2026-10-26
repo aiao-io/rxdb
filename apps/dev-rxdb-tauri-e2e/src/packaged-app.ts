@@ -10,8 +10,8 @@
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { platform, env as processEnv } from 'node:process';
 
 /**
@@ -597,6 +597,19 @@ export async function runSelfCheck(options: SelfCheckOptions): Promise<SelfCheck
       `stdout：${result.stdout || '(空)'}`,
       `stderr：${result.stderr || '(空)'}`
     ].join('\n');
+
+  if (options.devtoolsProbe === true) {
+    const artifactDir = resolve(
+      import.meta.dirname,
+      '../../../test-output/tauri-devtools',
+      basename(dirname(options.reportPath)),
+      basename(options.reportPath, '.json')
+    );
+    mkdirSync(artifactDir, { recursive: true });
+    writeFileSync(join(artifactDir, 'stdout.log'), result.stdout);
+    writeFileSync(join(artifactDir, 'stderr.log'), result.stderr);
+    if (existsSync(options.reportPath)) copyFileSync(options.reportPath, join(artifactDir, 'report.json'));
+  }
 
   return { ...result, report: readReport(options.reportPath, diagnostics) };
 }

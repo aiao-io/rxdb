@@ -446,6 +446,26 @@ describe('buildEditableColumns', () => {
     expect(names).toEqual(expected);
   });
 
+  it('只读实例（只读检出位，US-313）：属性列与外键列都不可编辑，操作列只剩查看', () => {
+    const meta = makeMeta({
+      propertyMap: new Map([['title', { name: 'title', columnName: 'title', type: PropertyType.string }]]),
+      foreignKeyRelationMap: new Map([
+        [
+          'ownerId',
+          { name: 'owner', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Owner', displayName: 'Owner' } as never
+        ]
+      ])
+    });
+    const columns = buildEditableColumns(meta, { readOnly: true }) as Record<string, unknown>[];
+    const byField = (field: string) => columns.find(column => column['field'] === field);
+
+    expect(byField('title')?.['editor']).toBeUndefined();
+    expect(byField('ownerId')?.['editor']).toBeUndefined();
+    const iconFn = byField('actions')?.['icon'] as (a: StylePropertyFunctionArg) => unknown[];
+    const names = (iconFn(makeArgs({ id: '1', _readonly: true })) as Array<{ name?: string }>).map(i => i.name);
+    expect(names).toEqual(['view-action']);
+  });
+
   it('uses a narrower actions column when the view label is disabled', () => {
     const columns = buildEditableColumns(makeMeta(), { viewLabel: '' });
     const actions = columns.at(-1) as Record<string, unknown>;

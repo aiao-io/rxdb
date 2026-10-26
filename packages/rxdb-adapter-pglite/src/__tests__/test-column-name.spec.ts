@@ -4,7 +4,16 @@
  * 验证当属性或关系使用自定义 columnName 时，
  * PGlite 适配器在建表、CRUD、查询等环节是否正确使用数据库列名
  */
-import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind, RxDB, SyncType } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  getEntityMetadata,
+  PropertyType,
+  RelationKind,
+  RxDB,
+  SyncType,
+  WorktreeTableSet
+} from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getEntityObjectFromResult, normalizeCreateEntity, transformEntityValueToSql } from '../pglite.utils.js';
@@ -107,7 +116,7 @@ describe('PGlite 适配器 - columnName 支持', () => {
   describe('CREATE TABLE SQL 生成', () => {
     it('属性 columnName 应出现在 CREATE TABLE 中', async () => {
       const metadata = getEntityMetadata(PgEmployee);
-      const sql = create_table_sql(adapter, metadata);
+      const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
 
       // 应使用 columnName（数据库列名），而非 JS 属性名
       expect(sql).toContain('"first_name"');
@@ -126,7 +135,7 @@ describe('PGlite 适配器 - columnName 支持', () => {
 
     it('关系 columnName 应出现在外键列定义中', async () => {
       const metadata = getEntityMetadata(PgEmployee);
-      const sql = create_table_sql(adapter, metadata);
+      const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
 
       // 应使用自定义的 columnName
       expect(sql).toContain('"dept_id"');
@@ -136,7 +145,7 @@ describe('PGlite 适配器 - columnName 支持', () => {
 
     it('ONE_TO_ONE 关系自定义 columnName', async () => {
       const metadata = getEntityMetadata(PgProfile);
-      const sql = create_table_sql(adapter, metadata);
+      const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
 
       expect(sql).toContain('"emp_id"');
       expect(sql).toContain('"biography"');
@@ -146,7 +155,7 @@ describe('PGlite 适配器 - columnName 支持', () => {
 
     it('唯一索引应使用 columnName', async () => {
       const metadata = getEntityMetadata(PgDepartment);
-      const sql = create_table_sql(adapter, metadata);
+      const sql = create_table_sql(adapter, metadata, WorktreeTableSet.MAIN);
 
       expect(sql).toContain('"dept_name"');
       expect(sql).toContain('"dept_code"');

@@ -35,6 +35,10 @@ import {
   type WorkingTreeCommandState,
   type WorkingTreeQueryState
 } from '../../working-tree/async-state.js';
+import type {
+  WorkingTreeBranchFromCommitCheck,
+  WorkingTreeCreateBranchFromCommitResult
+} from '../../working-tree/branch-from-commit.js';
 import type { CommitResult } from '../../working-tree/commit-command.js';
 import type { WorkingTreeDiff } from '../../working-tree/diff.js';
 import type { WorkingTreeRestoreSessionInfo } from '../../working-tree/restore-command.js';
@@ -312,6 +316,18 @@ describe('三端共用的初始状态', () => {
       | 'restoreState'
       | 'restoreSessionState'
       | 'switchBranchState'
+      | 'checkBranchFromCommitState'
+      | 'createBranchFromCommitState'
+    >();
+  });
+
+  // 能建与三种被拒成因都是**结果**：把被拒画成 empty，界面会把「这个提交建不了分支」显示成「没有内容」
+  it('从提交建分支的两项用的是命令状态：被拒是结果，不是空', () => {
+    expectTypeOf<WorkingTreeAsyncStates['checkBranchFromCommitState']>().toEqualTypeOf<
+      WorkingTreeCommandState<WorkingTreeBranchFromCommitCheck>
+    >();
+    expectTypeOf<WorkingTreeAsyncStates['createBranchFromCommitState']>().toEqualTypeOf<
+      WorkingTreeCommandState<WorkingTreeCreateBranchFromCommitResult>
     >();
   });
 

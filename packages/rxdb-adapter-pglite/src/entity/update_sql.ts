@@ -1,10 +1,6 @@
-import { EntityMetadata, EntityType, IEntity, IMutationContext } from '@aiao/rxdb';
-import {
-  EncryptionContext,
-  getTableNameByMetadata,
-  normalizeUpdateEntity,
-  transformEntityValueToSql
-} from '../pglite.utils.js';
+import { EntityMetadata, EntityType, IEntity, IMutationContext, type WorktreeTableSet } from '@aiao/rxdb';
+import { EncryptionContext, normalizeUpdateEntity, transformEntityValueToSql } from '../pglite.utils.js';
+import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 export interface UpdateSqlOptions extends IMutationContext {
   encryption?: EncryptionContext;
@@ -15,6 +11,7 @@ export interface UpdateSqlOptions extends IMutationContext {
  */
 const generate_entity_update_sql = async <T extends EntityType>(
   metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
   entityOrEntities: InstanceType<T> | InstanceType<T>[],
   patch: Partial<InstanceType<T>>,
   context?: UpdateSqlOptions
@@ -57,7 +54,7 @@ const generate_entity_update_sql = async <T extends EntityType>(
   const setPlaceholders = columns.map((column, i) => `"${column}" = $${i + 1}`).join(',');
   const params = Object.values(needSaveData);
 
-  const tableName = getTableNameByMetadata(metadata);
+  const tableName = getTableNameByMetadata(metadata, tableSet);
   const entities = Array.isArray(entityOrEntities) ? entityOrEntities : [entityOrEntities];
 
   let sql = `UPDATE ${tableName} SET ${setPlaceholders} WHERE id `;

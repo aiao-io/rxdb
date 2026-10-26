@@ -7,6 +7,7 @@ import { PGliteWorker } from '@electric-sql/pglite/worker';
 import { pgliteBackupExtensions } from './backup/pglite-backup-compat.js';
 import { walkEmscriptenDataDir, type PGliteDataDirItem } from './backup/pglite-data-dir.js';
 import { requirePGliteExclusiveInternals } from './backup/pglite-exclusive.js';
+import { idbConnectionOf } from './backup/pglite-restore-fs.js';
 import {
   countPGliteStorageHolders,
   enterPGliteStorageGeneration,
@@ -649,12 +650,19 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
       }
     }
 
+    // PGlite 的 IdbFs.closeFs 关不上它自己那条 IndexedDB 连接（键对不上，见 idbConnectionOf）：
+    // close() 会拆掉 Module，所以先拿住、关完之后亲手关，库之后才删得掉
+    const idbConnection =
+      this.#storageKey?.startsWith('idb://') ?
+        idbConnectionOf(runtime as PGlite | undefined, this.#storageKey.slice('idb://'.length))
+      : undefined;
     try {
       await runtime?.close();
     } catch (error) {
       closeFailed = true;
       closeError = error;
     } finally {
+      idbConnection?.close();
       const worker = runtime ? runtimeWorkers.get(runtime) : undefined;
       try {
         worker?.terminate();

@@ -880,6 +880,12 @@ importers:
       '@aiao/rxdb-plugin-tree':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-tree
+      '@aiao/rxdb-plugin-working-tree':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-working-tree
+      '@aiao/rxdb-plugin-working-tree-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-working-tree-react
       '@aiao/rxdb-plugin-workspace':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-workspace
@@ -962,6 +968,12 @@ importers:
       '@aiao/rxdb-plugin-tree':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-tree
+      '@aiao/rxdb-plugin-working-tree':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-working-tree
+      '@aiao/rxdb-plugin-working-tree-vue':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-working-tree-vue
       '@aiao/rxdb-plugin-workspace':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-workspace

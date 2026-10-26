@@ -1,4 +1,5 @@
 import type { WorkingTreeDiffEntry } from '@aiao/rxdb-plugin-working-tree';
+import clsx from 'clsx';
 import { ChevronDown, FileDiff, Settings } from 'lucide-react';
 import { createElement, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
@@ -304,7 +305,7 @@ export function WorkingTreeDiffViewer({ entry }: WorkingTreeDiffViewerProps): Re
             {splitRows.map(row => (
               <div className='gd-split-row' key={row.key}>
                 <div
-                  className={`gd-split-cell gd-split-old ${row.before === undefined ? 'gd-split-cell-empty' : ''}`}
+                  className={clsx('gd-split-cell gd-split-old', { 'gd-split-cell-empty': row.before === undefined })}
                   data-testid='wt-split-old'
                 >
                   {row.before !== undefined && (
@@ -318,7 +319,7 @@ export function WorkingTreeDiffViewer({ entry }: WorkingTreeDiffViewerProps): Re
                   )}
                 </div>
                 <div
-                  className={`gd-split-cell gd-split-new${row.after === undefined ? 'gd-split-cell-empty' : ''}`}
+                  className={clsx('gd-split-cell gd-split-new', { 'gd-split-cell-empty': row.after === undefined })}
                   data-testid='wt-split-new'
                 >
                   {row.after !== undefined && (

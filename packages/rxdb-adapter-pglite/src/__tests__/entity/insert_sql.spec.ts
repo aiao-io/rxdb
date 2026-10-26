@@ -3,7 +3,8 @@ import {
   EntityPropertyMetadataOptions,
   PropertyType,
   RelationKind,
-  transitionMetadata
+  transitionMetadata,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import generate_entity_insert_sql from '../../entity/insert_sql.js';
@@ -24,7 +25,7 @@ describe('insert_sql (PGlite)', () => {
     ]);
 
     const entity = { id: 'test-id', name: 'Test Name', age: 25 };
-    const result = await generate_entity_insert_sql(metadata, entity);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).toContain('INSERT INTO "test"."TestEntity"');
     expect(result.sql).toContain('RETURNING *');
@@ -38,7 +39,7 @@ describe('insert_sql (PGlite)', () => {
     ]);
 
     const entity = { id: 'test-id', name: 'Test Name' };
-    const result = await generate_entity_insert_sql(metadata, entity);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).toContain('$1');
     expect(result.sql).toContain('$2');
@@ -54,7 +55,7 @@ describe('insert_sql (PGlite)', () => {
 
     const entity = { id: 'test-id', name: 'Test Name' };
     const context = { userId: 'user-123' };
-    const result = await generate_entity_insert_sql(metadata, entity, context);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity, context);
 
     expect(result.sql).toContain('"createdBy"');
     expect(result.params).toContain('user-123');
@@ -69,7 +70,7 @@ describe('insert_sql (PGlite)', () => {
 
     const entity = { id: 'test-id', name: 'Test Name' };
     const context = { userId: 'user-456' };
-    const result = await generate_entity_insert_sql(metadata, entity, context);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity, context);
 
     expect(result.sql).toContain('"updatedBy"');
     expect(result.params).toContain('user-456');
@@ -83,7 +84,7 @@ describe('insert_sql (PGlite)', () => {
 
     const entity = { id: 'test-id', name: 'Test Name' };
     const context = { returning: false } as const;
-    const result = await generate_entity_insert_sql(metadata, entity, context);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity, context);
 
     expect(result.sql).not.toContain('RETURNING');
     expect(result.sql).toMatch(/;$/);
@@ -96,7 +97,7 @@ describe('insert_sql (PGlite)', () => {
     ]);
 
     const entity = { id: 'test-id', name: 'Test Name' };
-    const result = await generate_entity_insert_sql(metadata, entity);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).toContain('RETURNING *');
   });
@@ -108,7 +109,7 @@ describe('insert_sql (PGlite)', () => {
     ]);
 
     const entity = { id: 'test-id', data: { key: 'value', nested: { prop: 123 } } };
-    const result = await generate_entity_insert_sql(metadata, entity);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     const jsonParam = result.params.find(p => typeof p === 'string' && p.includes('key'));
     expect(jsonParam).toBeDefined();
@@ -121,7 +122,7 @@ describe('insert_sql (PGlite)', () => {
     ]);
 
     const entity = { id: 'test-id', name: 'Test', extraField: 'should be ignored' };
-    const result = await generate_entity_insert_sql(metadata, entity);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).not.toContain('extraField');
   });
@@ -145,7 +146,7 @@ describe('insert_sql (PGlite)', () => {
     });
 
     const entity = { id: 'post-123', title: 'My Post', authorId: 'user-456' };
-    const result = await generate_entity_insert_sql(metadata, entity);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).toContain('"authorId"');
     expect(result.params).toContain('user-456');
@@ -161,7 +162,7 @@ describe('insert_sql (PGlite)', () => {
     ]);
 
     const entity = { id: 'test', field1: 'a', field2: 1.5, field3: true, field4: 10 };
-    const result = await generate_entity_insert_sql(metadata, entity);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     const placeholderCount = (result.sql.match(/\$\d+/g) || []).length;
     expect(placeholderCount).toBe(result.params.length);
@@ -174,7 +175,7 @@ describe('insert_sql (PGlite)', () => {
     ]);
 
     const entity = { id: 'test-id', name: "'; DROP TABLE users; --" };
-    const result = await generate_entity_insert_sql(metadata, entity);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).not.toContain("'; DROP TABLE");
     expect(result.params).toContain("'; DROP TABLE users; --");
@@ -192,7 +193,7 @@ describe('insert_sql (PGlite)', () => {
     ]);
 
     const entity = { id: 'test-id', name: 'Test Name', updatedAt: undefined };
-    const result = await generate_entity_insert_sql(metadata, entity);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.sql).not.toContain('"updatedAt"');
     expect(result.columns).not.toContain('updatedAt');
@@ -208,7 +209,7 @@ describe('insert_sql (PGlite)', () => {
     ]);
 
     const entity = { id: 'test-id', name: 'Test Name', updatedAt: null };
-    const result = await generate_entity_insert_sql(metadata, entity);
+    const result = await generate_entity_insert_sql(metadata, WorktreeTableSet.MAIN, entity);
 
     expect(result.columns).toContain('updatedAt');
     expect(result.params).toContain(null);

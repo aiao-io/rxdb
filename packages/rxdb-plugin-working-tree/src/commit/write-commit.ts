@@ -2,7 +2,7 @@
  * @fileoverview 提交的写路径（FR-008/009/010/029，契约见 contracts/core-api.md §4）
  *
  * @remarks
- * **顺序是这条路径的全部内容**：校验 → 读 ref → 幂等查重 → CAS → 写 commit → 写 ChangeSet。
+ * **顺序是这条路径的全部内容**：校验 → 读 ref → 幂等查重 → CAS → 写 commit → 写 ChangeSet → 记分叉点。
  * 每一步排在前面都有代价换来的理由：
  *
  * - **校验排在最前**。排到 CAS 之后，一次被拒的提交照样推进了一格 `headRevision`，
@@ -31,6 +31,7 @@ import { CommitBranchRef } from './commit-branch-ref.entity.js';
 import { CommitChangeSet } from './commit-change-set.entity.js';
 import { assertCommitUnitsEncryptedAtRest } from './commit-codec.js';
 import type { CommitWriteContext } from './commit-context.js';
+import { recordCommitForkPoint } from './commit-fork-point.js';
 import {
   CommitOperationMismatchError,
   deriveCommitOperationId,
@@ -420,6 +421,8 @@ export const writeCommit = async (
   // 而 ref 已经指向本次那个从未落库的 commit id——幽灵 HEAD，见本文件 TSDoc。
   await executor.saveMany([rows.commit]);
   if (rows.changeSets.length > 0) await executor.saveMany([...rows.changeSets]);
+  // 分叉点与提交同进同出：从这个提交建分支就在这里分叉（US-314）。重放那一支不记，第一次落库时已经记过
+  await recordCommitForkPoint(executor, context.entityManager, rows.commit.id, input.branchId);
 
   return { status: 'committed', commit: rows.commit, changeSets: rows.changeSets };
 };

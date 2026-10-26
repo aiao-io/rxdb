@@ -12,7 +12,8 @@ import {
   RxDBSync,
   type SwitchVersionActions,
   SyncType,
-  type UUID
+  type UUID,
+  WorktreeTableSet
 } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -228,11 +229,14 @@ function createProtocolHarness() {
       context: { clientId },
       dispatchEvent,
       localAdapter$: of(localAdapter),
+      // 没换挂过的实例挂的是主表集，当前分支按它读（US-314 B1.4）
+      worktreeTableSet: WorktreeTableSet.MAIN,
       remoteAdapter$: of(remoteAdapter)
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
+    history: { captureUndoHistory: () => () => undefined },
+    getCurrentBranch: vi.fn(async () => ({ id: 'main', activated: true })),
     pushInFlight: emptyPushInFlight()
   } as unknown as SyncManager;
 

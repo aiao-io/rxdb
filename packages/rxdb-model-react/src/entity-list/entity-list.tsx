@@ -32,6 +32,7 @@ import {
   commitRowMove,
   createListViewState,
   deriveEntityCapabilities,
+  describeHistoryBarrier,
   extractFieldsFromMetadata,
   getListViewFields,
   organizeFields,
@@ -56,7 +57,7 @@ import type { ListTableConstructorOptions } from '@visactor/vtable';
 import type { ColumnDefine } from '@visactor/vtable/es/ts-types/index.js';
 import { Funnel, Redo2, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react';
-import { of } from 'rxjs';
+import { of, type ObservedValueOf } from 'rxjs';
 import { Dialog } from '../dialog/dialog';
 import { EntityDetail, type EntityDetailDialogData } from '../entity-detail/entity-detail';
 import { EntityDialog } from '../entity-dialog/entity-dialog';
@@ -133,6 +134,8 @@ const DEFAULT_HISTORY_FALLBACK: HistoryScopeAPI = {
   count$: of(0),
   undoCount$: of(0),
   redoCount$: of(0),
+  undoBarrier$: of(null),
+  redoBarrier$: of(null),
   undo: async () => undefined,
   redo: async () => undefined
 };
@@ -142,6 +145,13 @@ type OpenDialog =
   | { kind: 'create'; data: EntityDetailDialogData }
   | { kind: 'view'; recordId: string; data: EntityDetailDialogData }
   | { kind: 'm2m' };
+
+interface PendingEntityChange {
+  entityClass: EntityType;
+  target: EntityInstance;
+  draft: boolean;
+  changes: Record<string, unknown>;
+}
 
 /** {@link EntityList} 的 props。 */
 export interface EntityListProps {
@@ -283,7 +293,16 @@ export function EntityList({
     setViewState(createListViewState());
     setFilterQuery({ ...EMPTY_FILTER });
     setPendingQuery({ ...EMPTY_FILTER });
+    setSelectedIds(new Set());
+    setLocalDraftItems([]);
+    setPendingQueryValid(true);
+    setShowFilterPopover(false);
+    setOpenDialog(null);
+    setDeleteConfirm(null);
+    setReorderError(null);
   }
+  const activeViewState =
+    prevEntityInputs.namespace === namespace && prevEntityInputs.name === name ? viewState : createListViewState();
 
   // initialFilter 变化 → 载入初始筛选（Angular 侧 effect 同语义；渲染期调整状态；
   // 哨兵初值保证挂载时也走一次解析 —— Angular 的 effect 首跑即执行）
@@ -302,8 +321,8 @@ export function EntityList({
 
   /** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined`。 */
   const capabilities = useMemo(
-    () => (entityCls ? deriveEntityCapabilities(getEntityMetadata(entityCls)) : undefined),
-    [entityCls]
+    () => (entityCls ? deriveEntityCapabilities(getEntityMetadata(entityCls), { readOnly: rxdb.readOnly }) : undefined),
+    [entityCls, rxdb]
   );
   const isRowReadonly = capabilities?.canEdit === false;
 
@@ -315,16 +334,22 @@ export function EntityList({
 
   const [undoCount, setUndoCount] = useState(0);
   const [redoCount, setRedoCount] = useState(0);
+  const [undoBarrier, setUndoBarrier] = useState<ObservedValueOf<HistoryScopeAPI['undoBarrier$']>>(null);
+  const [redoBarrier, setRedoBarrier] = useState<ObservedValueOf<HistoryScopeAPI['redoBarrier$']>>(null);
   useEffect(() => {
-    const undoSubscription = vHistory.undoCount$.subscribe(setUndoCount);
-    const redoSubscription = vHistory.redoCount$.subscribe(setRedoCount);
-    return () => {
-      undoSubscription.unsubscribe();
-      redoSubscription.unsubscribe();
-    };
+    const subscriptions = [
+      vHistory.undoCount$.subscribe(setUndoCount),
+      vHistory.redoCount$.subscribe(setRedoCount),
+      vHistory.undoBarrier$.subscribe(setUndoBarrier),
+      vHistory.redoBarrier$.subscribe(setRedoBarrier)
+    ];
+    return () => subscriptions.forEach(subscription => subscription.unsubscribe());
   }, [vHistory]);
   const canUndo = undoCount > 0;
   const canRedo = redoCount > 0;
+  // 按钮停用时的说明：栈停在子分支分叉点（US-315）；能撤销 / 重做或不是这个原因时没有
+  const undoHint = canUndo ? null : describeHistoryBarrier('undo', undoBarrier);
+  const redoHint = canRedo ? null : describeHistoryBarrier('redo', redoBarrier);
 
   // ── 列表资源注册表（ListSlot 写入；事件/回调路径经 ref 镜像读取）───────
   const [listResources, setListResources] = useState<ReadonlyMap<string, InfiniteScrollResource<EntityType>>>(
@@ -370,7 +395,7 @@ export function EntityList({
     (key: string): (() => FindByCursorOptions<EntityType>) =>
       () => {
         const isCurrent = key === entityKey;
-        const listView = isCurrent ? viewState : createListViewState();
+        const listView = isCurrent ? activeViewState : createListViewState();
         const cls = entityClsMap.get(key);
         return {
           where: (isCurrent ? computedWhere : EMPTY_FILTER) as never,
@@ -380,7 +405,7 @@ export function EntityList({
           ) as FindByCursorOptions<EntityType>['orderBy']
         };
       },
-    [computedWhere, entityClsMap, entityKey, viewState]
+    [activeViewState, computedWhere, entityClsMap, entityKey]
   );
 
   // ── 视图派生 ───────────────────────────────────────────────────────────
@@ -392,7 +417,7 @@ export function EntityList({
 
   /** 当前列表是否允许拖拽排序（US-028 阶段 B）：看到的行必须恰好是一条完整排序域 */
   const rowDragEnabled =
-    viewState.groupBy === null &&
+    activeViewState.groupBy === null &&
     canReorderEntityList({
       metadata: entityCls ? getEntityMetadata(entityCls) : undefined,
       sortOrder: sortState.order,
@@ -447,6 +472,7 @@ export function EntityList({
       cache.set(
         `${meta.namespace}:${meta.name}`,
         buildEditableColumns(meta, {
+          readOnly: rxdb.readOnly,
           relatedItemsProviderFactory: (fkField, relatedEntityName) => {
             const relCls = [...entityClsMap.values()].find(c => getEntityMetadata(c).name === relatedEntityName);
             if (!relCls) return undefined;
@@ -479,18 +505,21 @@ export function EntityList({
     return base;
   }, [columnsCache, entityKey, isSelectMode]);
 
-  const tableColumns = useMemo(() => applyListViewColumns(baseTableColumns, viewState), [baseTableColumns, viewState]);
+  const tableColumns = useMemo(
+    () => applyListViewColumns(baseTableColumns, activeViewState),
+    [activeViewState, baseTableColumns]
+  );
   const viewFields = useMemo(
-    () => getListViewFields(applyListViewColumns(baseTableColumns, { ...viewState, hiddenFields: [] })),
-    [baseTableColumns, viewState]
+    () => getListViewFields(applyListViewColumns(baseTableColumns, { ...activeViewState, hiddenFields: [] })),
+    [activeViewState, baseTableColumns]
   );
   const tableRecords = useMemo(
-    () => buildListViewRecords(sourceTableRecords, viewState),
-    [sourceTableRecords, viewState]
+    () => buildListViewRecords(sourceTableRecords, activeViewState),
+    [activeViewState, sourceTableRecords]
   );
   const listTableOptions = useMemo(
-    () => ({ ...LIST_TABLE_OPTIONS, ...buildListViewTableOptions(viewState, baseTableColumns) }),
-    [viewState, baseTableColumns]
+    () => ({ ...LIST_TABLE_OPTIONS, ...buildListViewTableOptions(activeViewState, baseTableColumns) }),
+    [activeViewState, baseTableColumns]
   );
   const onViewSettingsChange = (value: ListViewState): void => {
     setViewState(value);
@@ -512,7 +541,7 @@ export function EntityList({
   );
 
   // ── 变更合并（Angular 侧 #enqueue / #flushPending 同语义）──────────────
-  const pendingChangesRef = useRef(new Map<string, Record<string, unknown>>());
+  const pendingChangesRef = useRef(new Map<string, PendingEntityChange>());
   const flushHandleRef = useRef(false);
   const instancesRef = useRef(instances);
   const localDraftItemsRef = useRef(localDraftItems);
@@ -533,45 +562,45 @@ export function EntityList({
   }, [filterQuery]);
 
   const flushPending = useCallback(
-    async (pending: [string, Record<string, unknown>][]): Promise<void> => {
+    async (pending: [string, PendingEntityChange][]): Promise<void> => {
       if (!pending.length) return;
-      const EntityClass = entityClsRef.current;
-      if (!EntityClass) return;
-      const toUpdate = new Set<EntityInstance>();
+      const updateGroups = new Map<EntityType, Set<EntityInstance>>();
       const prevMap = new Map<EntityInstance, Record<string, unknown>>();
       const draftUpdated = new Set<EntityInstance>();
-      for (const [id, changes] of pending) {
-        let inst = instancesRef.current.find(i => i.id === id);
-        const isDraft = !inst;
-        if (!inst) {
-          inst = localDraftItemsRef.current.find(i => i.id === id);
-        }
-        if (!inst) continue;
+      for (const [, entry] of pending) {
+        const inst = entry.target;
         const prev: Record<string, unknown> = {};
         const actual: Record<string, unknown> = {};
         let hasChange = false;
-        for (const k of Object.keys(changes)) {
-          if (inst[k] !== changes[k]) {
-            prev[k] = inst[k];
-            actual[k] = changes[k];
+        for (const key of Object.keys(entry.changes)) {
+          if (inst[key] !== entry.changes[key]) {
+            prev[key] = inst[key];
+            actual[key] = entry.changes[key];
             hasChange = true;
           }
         }
         if (!hasChange) continue;
         prevMap.set(inst, prev);
         Object.assign(inst as Record<string, unknown>, actual);
-        if (isDraft) draftUpdated.add(inst);
-        else toUpdate.add(inst);
+        if (entry.draft) {
+          draftUpdated.add(inst);
+        } else {
+          const group = updateGroups.get(entry.entityClass) ?? new Set<EntityInstance>();
+          group.add(inst);
+          updateGroups.set(entry.entityClass, group);
+        }
       }
 
       // 草稿实体直接更新本地集合触发重渲染（不写DB）
       if (draftUpdated.size) {
-        setLocalDraftItems(items => [...items]);
+        setLocalDraftItems(items => items.some(item => draftUpdated.has(item)) ? [...items] : items);
       }
 
-      if (!toUpdate.size) return;
+      if (!updateGroups.size) return;
 
-      const updateMap = new Map([[EntityClass, toUpdate as unknown as Set<unknown>]]);
+      const updateMap = new Map(
+        [...updateGroups.entries()].map(([entityClass, items]) => [entityClass, items as Set<unknown>] as const)
+      );
       try {
         await rxdb.entityManager.mutations({ create: new Map(), update: updateMap, remove: new Map() });
       } catch (error) {
@@ -585,8 +614,18 @@ export function EntityList({
   /** 入队变更，微任务合并后落库（同一行多字段合入同一 UPDATE）。 */
   const enqueue = useCallback(
     (recordId: string, changes: Record<string, unknown>): void => {
-      const current = pendingChangesRef.current.get(recordId) ?? {};
-      pendingChangesRef.current.set(recordId, { ...current, ...changes });
+      const current = pendingChangesRef.current.get(`${entityKey}:${recordId}`);
+      const records = instancesRef.current;
+      const target =
+        records.find(item => item.id === recordId) ?? localDraftItemsRef.current.find(item => item.id === recordId);
+      const entityClass = entityClsRef.current;
+      if (!target || !entityClass) return;
+      pendingChangesRef.current.set(`${entityKey}:${recordId}`, {
+        entityClass,
+        target: current?.target ?? target,
+        draft: current?.draft ?? !records.some(item => item.id === recordId),
+        changes: { ...current?.changes, ...changes }
+      });
       if (flushHandleRef.current) return;
       flushHandleRef.current = true;
       pendingEditBatchesRef.current += 1;
@@ -601,7 +640,7 @@ export function EntityList({
         });
       });
     },
-    [flushPending]
+    [entityKey, flushPending]
   );
 
   // ── 事件处理 ───────────────────────────────────────────────────────────
@@ -973,6 +1012,7 @@ export function EntityList({
               <button
                 className='btn btn-xs btn-ghost'
                 disabled={!canUndo}
+                title={undoHint ?? undefined}
                 onClick={undo}
                 aria-label='撤销 (Ctrl+Z)'
                 type='button'
@@ -983,6 +1023,7 @@ export function EntityList({
               <button
                 className='btn btn-xs btn-ghost'
                 disabled={!canRedo}
+                title={redoHint ?? undefined}
                 onClick={redo}
                 aria-label='重做 (Ctrl+Shift+Z)'
                 type='button'
@@ -993,7 +1034,7 @@ export function EntityList({
               <div className='divider divider-horizontal mx-0.5 h-5 self-center' />
             </>
           )}
-          <ListViewSettings fields={viewFields} value={viewState} onChange={onViewSettingsChange} />
+          <ListViewSettings fields={viewFields} value={activeViewState} onChange={onViewSettingsChange} />
           {/* 筛选 popover 触发器 */}
           <FilterPopover
             open={showFilterPopover}
@@ -1048,7 +1089,7 @@ export function EntityList({
       <div className='min-h-0 flex-1'>
         {isBrowser && (
           <QueryTable
-            key={viewState.groupBy ?? ''}
+            key={activeViewState.groupBy ?? ''}
             ref={queryTableRef}
             columns={tableColumns}
             filteredCount={filteredCount}

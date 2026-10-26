@@ -196,6 +196,7 @@ declare type RxDBChangeRule =
   | NumberRules<RxDBChange, 'remoteId'>
   | NumberRules<RxDBChange, 'localId'>
   | StringRules<RxDBChange, 'type'>
+  | StringRules<RxDBChange, 'tableSetSuffix'>
   | UUIDRules<RxDBChange, 'transactionId'>
   | StringRules<RxDBChange, 'namespace'>
   | StringRules<RxDBChange, 'entity'>
@@ -317,6 +318,7 @@ export declare type RxDBChangeOrderByField =
   | 'namespace'
   | 'entity'
   | 'entityId'
+  | 'tableSetSuffix'
   | 'inversePatch'
   | 'patch'
   | 'createdAt'
@@ -331,6 +333,7 @@ export declare type RxDBChangeOrderByField =
 declare type RxDBBranchRule =
   | StringRules<RxDBBranch, 'id'>
   | BooleanRules<RxDBBranch, 'activated'>
+  | StringRules<RxDBBranch, 'activeKey'>
   | NumberRules<RxDBBranch, 'fromChangeId'>
   | BooleanRules<RxDBBranch, 'local'>
   | BooleanRules<RxDBBranch, 'remote'>
@@ -391,6 +394,7 @@ export declare type RxDBBranchRuleGroup = RuleGroupBase<
   typeof RxDBBranch,
   | 'id'
   | 'activated'
+  | 'activeKey'
   | 'fromChangeId'
   | 'local'
   | 'remote'

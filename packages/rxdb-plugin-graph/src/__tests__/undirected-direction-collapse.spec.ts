@@ -1,4 +1,4 @@
-import { getEntityMetadata, type EntityMetadata } from '@aiao/rxdb';
+import { getEntityMetadata, WorktreeTableSet, type EntityMetadata } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '@aiao/rxdb-adapter-sqlite-core';
 import { describe, expect, it } from 'vitest';
 import { GraphEntity } from '../@GraphEntity.js';
@@ -31,7 +31,15 @@ class UndirectedNode extends GraphEntityBase {}
 })
 class DirectedNode extends GraphEntityBase {}
 
-const adapter = {} as RxDBAdapterSqliteBase;
+// 边表按边实体自己的元数据解析（US-314 B2.1）：替身的实体登记只需要认得 `<节点名>_edges`
+const adapter = {
+  tableSet: WorktreeTableSet.MAIN,
+  rxdb: {
+    schemaManager: {
+      getEntityMetadata: (name: string, namespace: string) => ({ name, namespace, tableName: name }) as EntityMetadata
+    }
+  }
+} as unknown as RxDBAdapterSqliteBase;
 const undirected: EntityMetadata = getEntityMetadata(UndirectedNode);
 const directed: EntityMetadata = getEntityMetadata(DirectedNode);
 

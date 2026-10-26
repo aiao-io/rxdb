@@ -32,6 +32,10 @@ import type { CommitChangeSetPage } from '../../commit/commit-changes.js';
 import type { CommitLogOptions, CommitLogPage } from '../../commit/commit-log.js';
 import { CommitValidationError } from '../../commit/write-commit.js';
 import { WORKING_TREE_INITIAL_ASYNC_STATES, type WorkingTreeAsyncStates } from '../../working-tree/async-state.js';
+import type {
+  WorkingTreeBranchFromCommitCheck,
+  WorkingTreeCreateBranchFromCommitResult
+} from '../../working-tree/branch-from-commit.js';
 import type { CommitOptions, CommitResult } from '../../working-tree/commit-command.js';
 import type { WorkingTreeCredentials } from '../../working-tree/commit-conflict.js';
 import type { WorkingTreeDiff, WorkingTreeDiffOptions } from '../../working-tree/diff.js';
@@ -200,7 +204,10 @@ const createFixture = () => {
       vi.fn<
         (target: WorkingTreeRestoreTarget, options: WorkingTreeRestoreOptions) => Promise<WorkingTreeRestoreResult>
       >(),
-    restoreSession: vi.fn<() => Promise<WorkingTreeRestoreSessionInfo | null>>()
+    restoreSession: vi.fn<() => Promise<WorkingTreeRestoreSessionInfo | null>>(),
+    checkBranchFromCommit: vi.fn<(commitId: string) => Promise<WorkingTreeBranchFromCommitCheck>>(),
+    createBranchFromCommit:
+      vi.fn<(branchId: string, commitId: string) => Promise<WorkingTreeCreateBranchFromCommitResult>>()
   };
   workingTree.status.mockResolvedValue(statusWith(0));
 
@@ -232,8 +239,8 @@ const createFixture = () => {
   };
 };
 
-describe('十二个命令各自只驱动自己那一格（§4）', () => {
-  it('isEnabled 走命令状态，其余十一格纹丝不动', async () => {
+describe('十四个命令各自只驱动自己那一格（§4）', () => {
+  it('isEnabled 走命令状态，其余十三格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     workingTree.isEnabled.mockResolvedValue(true);
 
@@ -241,6 +248,31 @@ describe('十二个命令各自只驱动自己那一格（§4）', () => {
 
     expect(states.isEnabledState).toEqual({ phase: 'success', value: true });
     expect(untouchedKeys(states, 'isEnabledState')).toEqual([]);
+  });
+
+  it('checkBranchFromCommit 走命令状态，被拒是结果不是异常，其余格子纹丝不动', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const result: WorkingTreeBranchFromCommitCheck = { ok: false, reason: 'history_rewritten' };
+    workingTree.checkBranchFromCommit.mockResolvedValue(result);
+
+    await expect(commands.checkBranchFromCommit('commit-1')).resolves.toBe(result);
+
+    expect(workingTree.checkBranchFromCommit).toHaveBeenCalledWith('commit-1');
+    expect(states.checkBranchFromCommitState).toEqual({ phase: 'success', value: result });
+    expect(untouchedKeys(states, 'checkBranchFromCommitState')).toEqual([]);
+  });
+
+  it('createBranchFromCommit 走命令状态，不重读 status——当前分支一格都没动', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const result = { ok: true, branch: { id: 'from-commit' } } as unknown as WorkingTreeCreateBranchFromCommitResult;
+    workingTree.createBranchFromCommit.mockResolvedValue(result);
+
+    await expect(commands.createBranchFromCommit('from-commit', 'commit-1')).resolves.toBe(result);
+
+    expect(workingTree.createBranchFromCommit).toHaveBeenCalledWith('from-commit', 'commit-1');
+    expect(states.createBranchFromCommitState).toEqual({ phase: 'success', value: result });
+    expect(untouchedKeys(states, 'createBranchFromCommitState')).toEqual([]);
+    expect(workingTree.status).not.toHaveBeenCalled();
   });
 
   it('enableIfEmpty 走命令状态，其余格子只有 statusState 跟着动', async () => {
@@ -1060,10 +1092,10 @@ describe('库上没装工作树插件时，建入口这一步就抛', () => {
     expect(() => createWorkingTreeCommands(database, () => undefined)).toThrow(/rxDBPluginWorkingTree/);
   });
 
-  it('装了插件时照常建出十二个命令', () => {
+  it('装了插件时照常建出十四个命令', () => {
     // 守卫写成无条件抛的话这条会红。
     const { commands } = createFixture();
 
-    expect(Object.keys(commands)).toHaveLength(12);
+    expect(Object.keys(commands)).toHaveLength(14);
   });
 });

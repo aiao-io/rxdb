@@ -1,9 +1,12 @@
-import { getEntityMetadata, RxDBChange, RxDBSync } from '@aiao/rxdb';
+import { getEntityMetadata, RxDBChange, RxDBSync, WorktreeTableSet } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite, sqliteGetTableNameByMetadata } from '@aiao/rxdb-adapter-wa-sqlite';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-export const LOCAL_RXDB_CHANGE_TABLE = sqliteGetTableNameByMetadata(getEntityMetadata(RxDBChange));
-export const LOCAL_RXDB_SYNC_TABLE = sqliteGetTableNameByMetadata(getEntityMetadata(RxDBSync));
+export const LOCAL_RXDB_CHANGE_TABLE = sqliteGetTableNameByMetadata(
+  getEntityMetadata(RxDBChange),
+  WorktreeTableSet.MAIN
+);
+export const LOCAL_RXDB_SYNC_TABLE = sqliteGetTableNameByMetadata(getEntityMetadata(RxDBSync), WorktreeTableSet.MAIN);
 
 /**
  * Supabase 测试对 `rxdb_change` 的直写与清理统一走 service_role（零散收尾项第 13 条）。

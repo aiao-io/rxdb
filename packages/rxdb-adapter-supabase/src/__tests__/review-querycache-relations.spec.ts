@@ -1,4 +1,11 @@
-import { encodeRxDBChangeEntityId, getEntityMetadata, RxDB, SyncType, type RuleGroup } from '@aiao/rxdb';
+import {
+  encodeRxDBChangeEntityId,
+  getEntityMetadata,
+  RxDB,
+  SyncType,
+  WorktreeTableSet,
+  type RuleGroup
+} from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite, sqliteGetTableNameByMetadata } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
@@ -97,7 +104,7 @@ describe('深审：QueryCache 元数据和普通仓储的关系条件对照', ()
   it('非 public 实体的 QueryCache 标量查询应写入正确的 namespace 物理表', async () => {
     const directRows = await adapter.getRepository(User).find({ where: idFilter });
     const localRows = await localAdapter.getRepository(User).find({ where: idFilter });
-    const physicalTable = sqliteGetTableNameByMetadata(getEntityMetadata(User));
+    const physicalTable = sqliteGetTableNameByMetadata(getEntityMetadata(User), WorktreeTableSet.MAIN);
     expect(directRows).toHaveLength(2);
     expect(localRows).toHaveLength(0);
     console.info(
@@ -118,7 +125,7 @@ describe('深审：QueryCache 元数据和普通仓储的关系条件对照', ()
       )
     );
     expect(remoteRows).toHaveLength(2);
-    const physicalTable = sqliteGetTableNameByMetadata(getEntityMetadata(User));
+    const physicalTable = sqliteGetTableNameByMetadata(getEntityMetadata(User), WorktreeTableSet.MAIN);
     await firstValueFrom(localAdapter.upsertMany(physicalTable, remoteRows));
     const localRows = await localAdapter.getRepository(User).find({ where: idFilter });
     expect(new Set(localRows.map(row => row.id))).toEqual(new Set(users.map(user => user.id)));

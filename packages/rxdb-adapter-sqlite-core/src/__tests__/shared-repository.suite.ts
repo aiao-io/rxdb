@@ -1,7 +1,7 @@
 import { getEntityStatus, RxDBChange } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { AdapterFactory } from './adapter-factory.js';
 import { settle_change_notifications } from './test-utils.js';
@@ -10,6 +10,8 @@ import { settle_change_notifications } from './test-utils.js';
 export function sqliteRepositorySuite(factory: AdapterFactory) {
   describe.sequential(`SqliteRepository [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;
+
+    afterEach(() => vi.restoreAllMocks());
 
     beforeAll(async () => {
       adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [Todo] });
@@ -52,7 +54,7 @@ export function sqliteRepositorySuite(factory: AdapterFactory) {
       const rowId = adapter.getRowIdByEntity(todo);
       expect(rowId).toBeDefined();
 
-      const repo = adapter.getRepository(Todo);
+      const repo = adapter.createUncachedRepository(Todo, adapter);
       const querySpy = vi.spyOn(adapter, 'query');
       const result = await repo.findByRowIds([rowId!]);
 
@@ -74,7 +76,7 @@ export function sqliteRepositorySuite(factory: AdapterFactory) {
       // 构造一个不存在于缓存的 rowId，强制走部分命中分支
       const missingRowId = cachedRowId! + 1_000_000n;
 
-      const repo = adapter.getRepository(Todo);
+      const repo = adapter.createUncachedRepository(Todo, adapter);
       const querySpy = vi.spyOn(adapter, 'query');
       const result = await repo.findByRowIds([cachedRowId!, missingRowId]);
 
@@ -103,7 +105,7 @@ export function sqliteRepositorySuite(factory: AdapterFactory) {
       expect(getEntityStatus(todo).removed).toBe(true);
       expect(adapter.getEntityByRowId(rowId!, Todo)).toBe(todo);
 
-      const repo = adapter.getRepository(Todo);
+      const repo = adapter.createUncachedRepository(Todo, adapter);
       const result = await repo.findByRowIds([rowId!]);
 
       // 回库查不到行，但必须从缓存返回该实体，供 handle_rxdb_change 构造 DELETE 事件。
@@ -122,7 +124,7 @@ export function sqliteRepositorySuite(factory: AdapterFactory) {
 
       await settle_change_notifications(adapter, () => todo.remove());
 
-      const repo = adapter.getRepository(Todo);
+      const repo = adapter.createUncachedRepository(Todo, adapter);
       const querySpy = vi.spyOn(adapter, 'query');
       await repo.findByRowIds([rowId!]);
 
