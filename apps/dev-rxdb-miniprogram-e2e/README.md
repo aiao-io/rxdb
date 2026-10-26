@@ -67,5 +67,5 @@ WECHAT_DEVTOOLS_WS_ENDPOINT=ws://localhost:9420 pnpm nx e2e-devtools dev-rxdb-mi
 ## 已知约束
 
 - **进不了 CI**。GitHub 托管的 runner 没有 macOS + 微信开发者工具的组合，自建 runner 也要挂着 GUI 会话。这是工具链的硬限制，不是本套件的设计选择。
-- `miniprogram-automator` 停在 `0.12.1`（2023-11-07），依赖树里有 `ws@6` / `jimp@0.6` 这类 2018 年前后的包。实测在 Node 24 上握手、收发、协议解析均正常，且它对 `SDKVersion` 的 `>= 2.7.3` 校验认得本项目的 `libVersion 3.17.1`。
+- 当前使用 `miniprogram-automator` `0.13.0`（2026-10-15），依赖树里仍有 `ws@6` / `jimp@0.6` 这类 2018 年前后的包。实测在 Node 24 上握手、收发、协议解析均正常，且它对 `SDKVersion` 的 `>= 2.7.3` 校验认得本项目的 `libVersion 3.17.1`。
 - `npm audit` 报的高危项全部来自 `jimp → mkdirp → minimist` 与 `jpeg-js`，其引用点只有 `MiniProgram.remote()`（真机调试扫码）。本套件走 `launch()` / `connect()`，不触及这条路径。

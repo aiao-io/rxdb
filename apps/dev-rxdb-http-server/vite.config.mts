@@ -1,7 +1,9 @@
 /// <reference types="vitest" />
+import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  plugins: [nxReadySignal()],
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/apps/dev-rxdb-http-server-test',
   // 单测必须打在**源码**上，而不是 workspace 链接指过去的 `dist/`：`@aiao/rxdb` /
