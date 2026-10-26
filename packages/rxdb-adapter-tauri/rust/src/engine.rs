@@ -194,6 +194,8 @@ impl PendingState {
             return;
         }
         let now = Instant::now();
+        // `batch_timeout` 不设上界：协议只收 u64 毫秒（约 1.8e16 秒），std 的 `Instant` 以 i64 / u64 秒计，
+        // 相加不会溢出；超过 MAX_BATCH_WAIT_MS 的值在 `due_in()` 里被 hard_deadline 压住，与 100ms 等价
         self.deadline = Some(now + batch_timeout);
         self.hard_deadline
             .get_or_insert_with(|| now + Duration::from_millis(MAX_BATCH_WAIT_MS));
