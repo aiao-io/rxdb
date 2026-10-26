@@ -64,12 +64,40 @@ const normalizeSegments = (pathStr: string, prefix: string, protectedSegments: n
   return stack.join('/');
 };
 
+/** 查询串开始之后，以这些字符开头的片段属于查询串或锚点 */
+const QUERY_CONTINUATION = /^[?&#]/;
+
+/**
+ * 把查询串挪到全部路径段之后
+ *
+ * 整串拼好再按第一个 `?` 切分时，查询串之后的路径段会被并进查询值
+ * （`'http://x.com/a?x=1', 'b'` → `http://x.com/a?x=1/b`）。改为逐片段在首个 `?` 处切开：
+ * 之前的部分留在路径里，`?` 起的部分按原顺序移到末尾；查询串开始后以 `?` / `&` / `#`
+ * 开头的片段是查询串或锚点的延续，整段跟在后面。
+ */
+const hoistQueries = (parts: readonly string[]): string[] => {
+  const pathParts: string[] = [];
+  const queryParts: string[] = [];
+  for (const part of parts) {
+    const index = queryParts.length > 0 && QUERY_CONTINUATION.test(part) ? 0 : part.indexOf('?');
+    if (index < 0) {
+      pathParts.push(part);
+      continue;
+    }
+    pathParts.push(part.slice(0, index));
+    queryParts.push(part.slice(index));
+  }
+  return [...pathParts, ...queryParts].filter(part => part !== '');
+};
+
 /**
  * 拼接 URL / 路径片段
  *
  * 首个片段决定前缀（协议、协议相对、根路径），其余片段做栈式归一化：
  * `.` 被跳过，`..` 弹出上一段；`..` 越过根（`/`、`//`、`scheme://host`）时丢弃，
  * 其余情况原样保留。
+ *
+ * 任一片段里的查询串（`?` 起）都移到全部路径段之后，多段查询串以 `&` 合并。
  *
  * @param paths - 片段，必须是 string 或 number
  * @returns 拼接后的 URL / 路径
@@ -78,6 +106,7 @@ const normalizeSegments = (pathStr: string, prefix: string, protectedSegments: n
  * @example
  * ```ts
  * urlJoin('http://x.com/', 'foo/bar', '?a=1'); // 'http://x.com/foo/bar?a=1'
+ * urlJoin('http://x.com/a?x=1', 'b', '?y=2'); // 'http://x.com/a/b?x=1&y=2'
  * urlJoin('/a/b/c/d', '..', '..', 'e'); // '/a/b/e'
  * ```
  */
@@ -91,6 +120,7 @@ export const urlJoin = (...paths: Array<string | number>) => {
   if (findIndex >= 0) {
     throw new Error('paths must be a string or number');
   }
+  paths = hoistQueries(paths.map(path => `${path}`));
 
   let prefix: string;
   const firstPath = `${paths[0]}`;
@@ -102,6 +132,9 @@ export const urlJoin = (...paths: Array<string | number>) => {
     protectedSegments = 1;
   } else if (firstPath.startsWith('/')) {
     prefix = '/';
+  } else if (firstPath.startsWith('?')) {
+    // 查询串已排到最后，首段是查询串说明没有任何路径段，也就没有前缀
+    prefix = '';
   } else {
     if (firstPath.startsWith('file:') && paths.length > 1 && (firstPath + paths[1]).match(/^file:\/\/\//)) {
       prefix = firstPath.replace(regPrefix, '$1:///');
@@ -126,11 +159,9 @@ export const urlJoin = (...paths: Array<string | number>) => {
 
   let backStr = prefix + pathStr;
   if (backStr.includes('?')) {
-    const parts = backStr.split('?').filter(d => d !== '');
-    backStr = parts.shift() + '?';
-    if (parts.length > 0) {
-      backStr += parts.join('&');
-    }
+    // `?` 前的路径部分可以为空（只有查询串），不能和查询串之间的空段一起滤掉
+    const [head, ...queries] = backStr.split('?');
+    backStr = `${head}?${queries.filter(d => d !== '').join('&')}`;
   }
 
   return backStr.replace(/\/(\?|&|#[^!])/g, '$1');

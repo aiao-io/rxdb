@@ -64,10 +64,17 @@ const MINI_PROGRAM_RUNTIME: WaSqliteClientRuntime<WaSqliteMiniProgramAdapterOpti
       root: options.databaseRoot,
       host
     });
-    const sqlite3 = attachVfsErrorCauses(hardenWaSqliteSynchronousCallbacks(Factory(module)), vfsHandle);
+    // 建 VFS 时数据库已登记为占用：之后任何一步抛错都要关掉它，否则同名库再连一律报并发连接。
+    // Factory 也在内：用户的 moduleFactory 交回的模块缺 glue 导出时，它当场读 `_getSqliteFree` 就抛
     try {
+      const sqlite3 = attachVfsErrorCauses(hardenWaSqliteSynchronousCallbacks(Factory(module)), vfsHandle);
       const result = sqlite3.vfs_register(vfsHandle.vfs, true);
       if (result !== SQLITE_OK) throw new Error(`wa-sqlite ${host.shortName} VFS 注册失败: ${result}`);
+      return {
+        sqlite3,
+        vfs: vfsHandle.vfs,
+        finalizeOpenStatements: database => finalizeWaSqliteOpenStatements(module, sqlite3, database)
+      };
     } catch (error) {
       try {
         await vfsHandle.vfs.close();
@@ -76,11 +83,6 @@ const MINI_PROGRAM_RUNTIME: WaSqliteClientRuntime<WaSqliteMiniProgramAdapterOpti
       }
       throw error;
     }
-    return {
-      sqlite3,
-      vfs: vfsHandle.vfs,
-      finalizeOpenStatements: database => finalizeWaSqliteOpenStatements(module, sqlite3, database)
-    };
   }
 };
 

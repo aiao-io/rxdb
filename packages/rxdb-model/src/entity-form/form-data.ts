@@ -24,7 +24,8 @@ export function entityToFormData(entity: Record<string, unknown>, fields: FormFi
 
 /**
  * 计算表单数据相对原实体对象的变更集
- * @remarks 只读字段跳过；值相同（引用相等或结构化相等）的字段不进入变更集
+ * @remarks 只读字段跳过；表单值与原值都按字段类型解析后比较，
+ * 值相同（引用相等或结构化相等）的字段不进入变更集
  * @param original - 原实体对象
  * @param formData - 表单数据
  * @param fields - 表单字段配置
@@ -39,7 +40,9 @@ export function formDataToEntityChanges(
   for (const field of fields) {
     if (field.readonly) continue;
     const parsed = parseEntityFieldValue(field.type, formData[field.field]);
-    const orig = original[field.field] ?? null;
+    // 原值也按字段类型归一再比：date 在实体上是 Date、解析结果是 ISO 串，不归一则永不相等，
+    // 每次保存都把没动过的日期写回（虚假 UPDATE）
+    const orig = parseEntityFieldValue(field.type, original[field.field]);
     // 快速路径：引用相等或同为原始类型时跳过深比较
     if (parsed === orig) continue;
     if (parsed === null || orig === null || (typeof parsed !== 'object' && typeof orig !== 'object')) {

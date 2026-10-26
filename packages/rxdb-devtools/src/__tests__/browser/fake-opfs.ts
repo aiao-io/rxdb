@@ -18,6 +18,12 @@ interface FakeDirectory {
 
 type FakeNode = FakeFile | FakeDirectory;
 
+/** 测试注入的故障；句柄方法被调用时才读，注入可以发生在句柄交出之后。 */
+interface FakeFaults {
+  /** 这些文件名上的 writable，`write()` 一律以 `QuotaExceededError` 拒绝。 */
+  readonly quotaExceeded: Set<string>;
+}
+
 /** 测试侧的观察与播种入口。 */
 export interface FakeOpfsRoot {
   readonly handle: FileSystemDirectoryHandle;
@@ -25,6 +31,8 @@ export interface FakeOpfsRoot {
   mkdir(path: string): void;
   exists(path: string): boolean;
   fileSize(path: string): number;
+  /** 让名为 `name` 的文件写不进去：模拟配额恰好在写这个文件时耗尽。 */
+  failWritesTo(name: string): void;
 }
 
 function directory(): FakeDirectory {
@@ -44,7 +52,7 @@ function segmentsOf(path: string): string[] {
 }
 
 /** 把一个内存目录包装成 provider 看得见的 handle。 */
-function wrapDirectory(name: string, node: FakeDirectory): FileSystemDirectoryHandle {
+function wrapDirectory(name: string, node: FakeDirectory, faults: FakeFaults): FileSystemDirectoryHandle {
   const handle = {
     kind: 'directory' as const,
     name,
@@ -55,7 +63,9 @@ function wrapDirectory(name: string, node: FakeDirectory): FileSystemDirectoryHa
         if (child === undefined) continue;
         yield [
           key,
-          (child.kind === 'directory' ? wrapDirectory(key, child) : wrapFile(key, child)) as FileSystemHandle
+          (child.kind === 'directory' ?
+            wrapDirectory(key, child, faults)
+          : wrapFile(key, child, faults)) as FileSystemHandle
         ];
       }
     },
@@ -63,23 +73,23 @@ function wrapDirectory(name: string, node: FakeDirectory): FileSystemDirectoryHa
       const existing = node.children.get(childName);
       if (existing !== undefined) {
         if (existing.kind !== 'directory') return Promise.reject(typeMismatch());
-        return Promise.resolve(wrapDirectory(childName, existing));
+        return Promise.resolve(wrapDirectory(childName, existing, faults));
       }
       if (options?.create !== true) return Promise.reject(notFound());
       const created = directory();
       node.children.set(childName, created);
-      return Promise.resolve(wrapDirectory(childName, created));
+      return Promise.resolve(wrapDirectory(childName, created, faults));
     },
     getFileHandle: (childName: string, options?: { create?: boolean }) => {
       const existing = node.children.get(childName);
       if (existing !== undefined) {
         if (existing.kind !== 'file') return Promise.reject(typeMismatch());
-        return Promise.resolve(wrapFile(childName, existing));
+        return Promise.resolve(wrapFile(childName, existing, faults));
       }
       if (options?.create !== true) return Promise.reject(notFound());
       const created: FakeFile = { kind: 'file', bytes: new Uint8Array(0), lastModified: 0 };
       node.children.set(childName, created);
-      return Promise.resolve(wrapFile(childName, created));
+      return Promise.resolve(wrapFile(childName, created, faults));
     },
     removeEntry: (childName: string) => {
       if (!node.children.delete(childName)) return Promise.reject(notFound());
@@ -89,7 +99,7 @@ function wrapDirectory(name: string, node: FakeDirectory): FileSystemDirectoryHa
   return handle as unknown as FileSystemDirectoryHandle;
 }
 
-function wrapFile(name: string, node: FakeFile): FileSystemFileHandle {
+function wrapFile(name: string, node: FakeFile, faults: FakeFaults): FileSystemFileHandle {
   const handle = {
     kind: 'file' as const,
     name,
@@ -102,10 +112,13 @@ function wrapFile(name: string, node: FakeFile): FileSystemFileHandle {
         lastModified: node.lastModified,
         bytes: node.bytes
       } as unknown as File),
+    // 与真实 writable 同为「交换区」语义：字节只攒在流里，`close()` 才替换文件内容，
+    // 所以写失败时目标保持原样——留下来的只可能是 `create: true` 建出来的那个空文件。
     createWritable: () => {
       const chunks: Uint8Array[] = [];
       return Promise.resolve({
         write: (data: Uint8Array | { bytes: Uint8Array }) => {
+          if (faults.quotaExceeded.has(name)) return Promise.reject(new DOMException('quota', 'QuotaExceededError'));
           chunks.push(data instanceof Uint8Array ? data : data.bytes);
           return Promise.resolve();
         },
@@ -134,6 +147,7 @@ function wrapFile(name: string, node: FakeFile): FileSystemFileHandle {
  */
 export function createFakeOpfsRoot(): FakeOpfsRoot {
   const root = directory();
+  const faults: FakeFaults = { quotaExceeded: new Set() };
 
   const resolve = (segments: readonly string[], create: boolean): FakeDirectory | undefined => {
     let current = root;
@@ -159,7 +173,7 @@ export function createFakeOpfsRoot(): FakeOpfsRoot {
   };
 
   return {
-    handle: wrapDirectory('', root),
+    handle: wrapDirectory('', root, faults),
     writeFile: (path, size) => {
       const segments = segmentsOf(path);
       const name = segments.pop() ?? '';
@@ -173,6 +187,9 @@ export function createFakeOpfsRoot(): FakeOpfsRoot {
     fileSize: path => {
       const node = lookup(path);
       return node?.kind === 'file' ? node.bytes.byteLength : -1;
+    },
+    failWritesTo: name => {
+      faults.quotaExceeded.add(name);
     }
   };
 }

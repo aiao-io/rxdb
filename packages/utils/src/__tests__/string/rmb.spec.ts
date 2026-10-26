@@ -148,3 +148,44 @@ describe('UTL-016 非常规数值输入', () => {
     expect(rmbUppercase(100)).toContain('壹佰元');
   });
 });
+
+// 小数部分曾以浮点参与逐位取数：`Math.round(frac * 1000) / 1000` 再乘回去重新引入误差
+// （0.59 → 伍角捌分），四舍五入到 1000 厘时的进位也在取整数部分之前被丢掉（0.9999 → 零元整）。
+describe('分 / 厘按整数运算', () => {
+  const DIGITS = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖'];
+  const FRACTION_UNITS = ['角', '分', '厘'];
+  const fractionText = (li: number): string =>
+    [Math.floor(li / 100), Math.floor(li / 10) % 10, li % 10]
+      .map((value, index) => (value === 0 ? '' : DIGITS[value] + FRACTION_UNITS[index]))
+      .join('');
+  // 整数部分取已有用例锁定的写法，小数部分由整数「厘」直接拼出，作为独立对照
+  const INTEGER_PARTS = [
+    [0, ''],
+    [20, '贰拾元'],
+    [1000001000, '壹拾亿零壹仟元']
+  ] as const;
+  const AMOUNTS = INTEGER_PARTS.flatMap(([integer, prefix]) =>
+    Array.from({ length: 999 }, (_, index) => ({
+      value: Number(`${integer}.${String(index + 1).padStart(3, '0')}`),
+      expected: prefix + fractionText(index + 1)
+    }))
+  );
+
+  it('常见金额不受浮点噪声影响', () => {
+    expect(rmbUppercase(0.59)).toBe('伍角玖分');
+    expect(rmbUppercase(0.09)).toBe('玖分');
+    expect(rmbUppercase(0.47)).toBe('肆角柒分');
+    expect(rmbUppercase(0.995)).toBe('玖角玖分伍厘');
+  });
+
+  it('四舍五入到整元时向「元」进位', () => {
+    expect(rmbUppercase(0.9999)).toBe('壹元整');
+    expect(rmbUppercase(99.9996)).toBe('壹佰元整');
+    expect(rmbUppercase(-0.9999)).toBe('欠壹元整');
+  });
+
+  it('三位小数以内的金额逐一还原', () => {
+    const mismatches = AMOUNTS.filter(({ value, expected }) => rmbUppercase(value) !== expected);
+    expect(mismatches).toEqual([]);
+  });
+});

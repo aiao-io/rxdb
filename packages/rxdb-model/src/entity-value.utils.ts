@@ -40,17 +40,12 @@ function parseStringArray(raw: unknown): string[] {
  * @remarks 非数组输入按逗号分隔解析，无法转换为数字的项会被丢弃
  */
 function parseNumberArray(raw: unknown): number[] {
-  if (Array.isArray(raw)) {
-    const out: number[] = [];
-    for (const v of raw as unknown[]) {
-      const n = Number(v);
-      if (!isNaN(n)) out.push(n);
-    }
-    return out;
-  }
+  const items = Array.isArray(raw) ? (raw as unknown[]) : String(raw).split(',');
   const out: number[] = [];
-  for (const part of String(raw).split(',')) {
-    const n = Number(part.trim());
+  for (const item of items) {
+    // 空段 / 空白项不是数字（Number('') 为 0）：先跳过，与 parseStringArray 丢弃空白项一致
+    if (typeof item === 'string' && item.trim() === '') continue;
+    const n = Number(item);
     if (!isNaN(n)) out.push(n);
   }
   return out;
@@ -198,7 +193,8 @@ export function parseEntityFieldValueStrict(
   if ((type === 'number' || type === 'integer') && (value === null || !Number.isFinite(Number(value)))) {
     return { ok: false, message: type === 'integer' ? '必须是整数' : '必须是数字' };
   }
-  if (type === 'integer' && !Number.isInteger(value)) return { ok: false, message: '必须是整数' };
+  // parseInt 会截断（12.9 → 12、1e21 → '1e+21' → 1）：解析结果须等于原始输入的数值，小数输入拒绝而非截断
+  if (type === 'integer' && value !== Number(raw)) return { ok: false, message: '必须是整数' };
   if (type === 'bigint' && typeof value !== 'bigint') return { ok: false, message: '必须是大整数' };
   if (type === 'binary' && !(value instanceof Uint8Array)) return { ok: false, message: '必须是十六进制字节序列' };
   if (type === 'date' && value === null) return { ok: false, message: '日期格式不正确' };

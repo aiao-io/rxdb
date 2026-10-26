@@ -10,13 +10,21 @@ import type {
 
 /** 每个用例通过它决定 `Factory` 返回的假 sqlite3 门面。 */
 let vfsRegister = vi.fn<(vfs: unknown, makeDefault: boolean) => number>();
+/** 非 undefined 时让 `Factory` 直接抛错：用户的 moduleFactory 交回的模块缺 glue 导出时就是这样。 */
+let factoryFailure: Error | undefined;
 /** 非 undefined 时让 VFS 的 close 在真正关闭后再抛错，用于覆盖清理失败分支。 */
 let closeFailure: Error | undefined;
 const closedVfsNames: string[] = [];
 
 vi.mock('wa-sqlite', async () => {
   const actual = await vi.importActual<typeof import('wa-sqlite')>('wa-sqlite');
-  return { ...actual, Factory: () => ({ vfs_register: (...args: [unknown, boolean]) => vfsRegister(...args) }) };
+  return {
+    ...actual,
+    Factory: () => {
+      if (factoryFailure) throw factoryFailure;
+      return { vfs_register: (...args: [unknown, boolean]) => vfsRegister(...args) };
+    }
+  };
 });
 
 vi.mock('../loader.js', async () => ({
@@ -86,6 +94,7 @@ const options: WaSqliteMiniProgramOptions = {
 
 beforeEach(() => {
   vfsRegister = vi.fn(() => 0);
+  factoryFailure = undefined;
   closeFailure = undefined;
   closedVfsNames.length = 0;
 });
@@ -133,5 +142,15 @@ describe('VFS 注册失败', () => {
 
     await expect(createWaSqliteMiniProgramClient('register-retry', options)).rejects.toThrow('VFS 注册失败');
     expect(closedVfsNames).toEqual(['wechat-file', 'wechat-file']);
+  });
+
+  it('Factory 抛错（模块缺 glue 导出）时同样关闭 VFS：同名数据库再试报的是原错，不是并发连接', async () => {
+    factoryFailure = new TypeError('Module._getSqliteFree is not a function');
+
+    await expect(createWaSqliteMiniProgramClient('factory-throw', options)).rejects.toThrow(factoryFailure);
+    expect(closedVfsNames).toEqual(['wechat-file']);
+
+    await expect(createWaSqliteMiniProgramClient('factory-throw', options)).rejects.toThrow(factoryFailure);
+    expect(vfsRegister).not.toHaveBeenCalled();
   });
 });

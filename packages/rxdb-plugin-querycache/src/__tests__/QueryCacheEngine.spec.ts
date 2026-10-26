@@ -24,7 +24,7 @@ import type {
   SyncStats
 } from '@aiao/rxdb';
 import { isEntityMatchWhere, NetworkOfflineError } from '@aiao/rxdb';
-import { delay, firstValueFrom, Observable, of, throwError } from 'rxjs';
+import { delay, firstValueFrom, Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryCacheEngine } from '../QueryCacheEngine.js';
 import { noPendingWrites } from './fixtures/pending-writes.js';
@@ -244,6 +244,25 @@ describe('QueryCacheEngine', () => {
 
       expect(remoteAdapter.findByIds).toHaveBeenCalledWith('Product', ['p1']);
       expect(result).toEqual(remoteData[0]);
+    });
+
+    // 与 #pull / #evictOrphans 同一道作废代次守卫：确认写入推进代次之后，在飞的旧响应装的是写之前的快照，
+    // 只回给发起方，不落共享缓存 —— 否则刚确认的写被静默回退（SWR 的缓存首发随即吐出旧值）
+    it('T018.4 远端请求在飞时被作废，迟到的响应照常返回但不覆写本地缓存', async () => {
+      const stale: MockProduct = { id: 'p1', name: 'Before Write', updatedAt: '2024-01-01T00:00:00Z' };
+      const response = new Subject<MockProduct[]>();
+      vi.mocked(remoteAdapter.fetchMetadata).mockReturnValue(of([{ id: 'p1', updatedAt: stale.updatedAt }]));
+      vi.mocked(remoteAdapter.findByIds).mockReturnValue(response);
+
+      const reading = firstValueFrom(repo.findById('p1'));
+      await vi.waitFor(() => expect(remoteAdapter.findByIds).toHaveBeenCalledWith('Product', ['p1']));
+      // 本地写确认（query-cache-primary 的 create / update / remove）推进作废代次
+      repo.invalidateInflight();
+      response.next([stale]);
+      response.complete();
+
+      await expect(reading).resolves.toEqual(stale);
+      expect(localAdapter.upsertMany).not.toHaveBeenCalled();
     });
   });
 

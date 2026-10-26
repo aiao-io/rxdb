@@ -7,6 +7,7 @@
  */
 import type { FieldMetadata, QueryBuilderRuleGroup } from '@aiao/rxdb-model';
 import { act, fireEvent, render } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SubqueryBuilder, type SubqueryBuilderProps } from '../../../query-builder/subquery-builder/subquery-builder';
 
@@ -145,6 +146,26 @@ describe('SubqueryBuilder（真实组件）', () => {
 
     expect(lastQuery(withInitial.onQueryChange)?.rules.length).toBe(2);
     expect(lastQuery(withInitial.onQueryChange)?.rules[0]).toMatchObject({ field: 'title' });
+  });
+
+  it('StrictMode 双挂载重建服务后仍载入 initialQuery', () => {
+    const onQueryChange = vi.fn();
+    const { container } = render(
+      <StrictMode>
+        <SubqueryBuilder
+          fields={FIELDS}
+          initialQuery={{
+            id: 'root',
+            combinator: 'and',
+            rules: [{ id: 'r1', field: 'title', operator: '=', value: 'hello' }]
+          }}
+          onQueryChange={onQueryChange}
+        />
+      </StrictMode>
+    );
+
+    expect(buttonByText(container, '清空')).toBeDefined();
+    expect(lastQuery(onQueryChange)?.rules).toEqual([expect.objectContaining({ field: 'title', value: 'hello' })]);
   });
 
   it('「+ 条件」向根组追加规则（onAddRule）', () => {

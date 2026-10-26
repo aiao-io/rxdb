@@ -1,10 +1,39 @@
+import { TextDecoder as NativeTextDecoder } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { textDecoderPolyfill, textEncoderPolyfill } from '../text-encoding-polyfills.js';
 
 const REPLACEMENT = '�';
 
+/** UTF-8 判定的边界字节：ASCII、续字节各段的上下界、各类首字节与非法首字节。 */
+const BOUNDARY_BYTES = [
+  0x00, 0x41, 0x7f, 0x80, 0x8f, 0x90, 0x9f, 0xa0, 0xbf, 0xc0, 0xc1, 0xc2, 0xdf, 0xe0, 0xe1, 0xec, 0xed, 0xee, 0xef,
+  0xf0, 0xf1, 0xf3, 0xf4, 0xf5, 0xff
+];
+
 function bytes(...values: readonly number[]): Uint8Array {
   return Uint8Array.from(values);
+}
+
+function appendBoundaryByte(sequences: readonly number[][]): number[][] {
+  return sequences.flatMap(sequence => BOUNDARY_BYTES.map(byte => [...sequence, byte]));
+}
+
+/** 边界字节组成的全部 1～3 字节序列，加上四字节首字节开头的全部 4 字节序列。 */
+function boundarySequences(): number[][] {
+  const one = BOUNDARY_BYTES.map(byte => [byte]);
+  const two = appendBoundaryByte(one);
+  const three = appendBoundaryByte(two);
+  const four = appendBoundaryByte(three.filter(([first]) => first >= 0xf0 && first <= 0xf4));
+  return [...one, ...two, ...three, ...four];
+}
+
+function throwsOn(decoder: { decode(input: Uint8Array): string }, input: Uint8Array): boolean {
+  try {
+    decoder.decode(input);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 describe('MiniProgramTextEncoder', () => {
@@ -86,26 +115,45 @@ describe('MiniProgramTextDecoder', () => {
     expect(decoder.decode(bytes(0xf0, 0x9f, 0x98, 0x80))).toBe('😀');
   });
 
-  it('拒绝过长编码、代理项与越界码点', () => {
+  it('拒绝过长编码、代理项与越界码点：第二个字节就出了首字节允许的区间，逐字节各记一个 U+FFFD', () => {
     const decoder = new textDecoderPolyfill();
 
     expect(decoder.decode(bytes(0xc0, 0x80))).toBe(`${REPLACEMENT}${REPLACEMENT}`);
     expect(decoder.decode(bytes(0xc1, 0xbf))).toBe(`${REPLACEMENT}${REPLACEMENT}`);
-    expect(decoder.decode(bytes(0xe0, 0x80, 0x80))).toBe(REPLACEMENT);
-    expect(decoder.decode(bytes(0xed, 0xa0, 0x80))).toBe(REPLACEMENT);
-    expect(decoder.decode(bytes(0xf0, 0x80, 0x80, 0x80))).toBe(REPLACEMENT);
-    expect(decoder.decode(bytes(0xf4, 0x90, 0x80, 0x80))).toBe(REPLACEMENT);
+    expect(decoder.decode(bytes(0xe0, 0x80, 0x80))).toBe(REPLACEMENT.repeat(3));
+    expect(decoder.decode(bytes(0xed, 0xa0, 0x80))).toBe(REPLACEMENT.repeat(3));
+    expect(decoder.decode(bytes(0xf0, 0x80, 0x80, 0x80))).toBe(REPLACEMENT.repeat(4));
+    expect(decoder.decode(bytes(0xf4, 0x90, 0x80, 0x80))).toBe(REPLACEMENT.repeat(4));
     expect(decoder.decode(bytes(0xf5, 0x80, 0x80, 0x80))).toBe(REPLACEMENT.repeat(4));
   });
 
-  it('按已消费的续字节数推进，不吞掉后续合法字符', () => {
+  it('合法前缀被截断时整段只记一个 U+FFFD，打断它的字节重新判断，不吞掉后续合法字符', () => {
     const decoder = new textDecoderPolyfill();
 
     expect(decoder.decode(bytes(0xe4, 0x41, 0x42))).toBe(`${REPLACEMENT}AB`);
     expect(decoder.decode(bytes(0xe4, 0xb8, 0x41))).toBe(`${REPLACEMENT}A`);
     expect(decoder.decode(bytes(0xe4, 0xb8))).toBe(REPLACEMENT);
+    expect(decoder.decode(bytes(0xe2, 0x82))).toBe(REPLACEMENT);
     expect(decoder.decode(bytes(0xf0, 0x9f, 0x98))).toBe(REPLACEMENT);
     expect(decoder.decode(bytes(0x41, 0x80, 0x42))).toBe(`A${REPLACEMENT}B`);
+    // 截在输入末尾的首字节后面跟着合法字符：那个字符不属于这段前缀
+    expect(decoder.decode(bytes(0xe4, 0x41))).toBe(`${REPLACEMENT}A`);
+    expect(decoder.decode(bytes(0xf0, 0x9f, 0x41))).toBe(`${REPLACEMENT}A`);
+    expect(decoder.decode(bytes(0xe2, 0x82, 0xe2, 0x82, 0xac))).toBe(`${REPLACEMENT}€`);
+  });
+
+  it('与原生 TextDecoder 逐例一致：边界字节组成的 1～4 字节序列，替换与 fatal 两种模式都比', () => {
+    const native = new NativeTextDecoder();
+    const nativeFatal = new NativeTextDecoder('utf-8', { fatal: true });
+    const decoder = new textDecoderPolyfill();
+    const fatal = new textDecoderPolyfill('utf-8', { fatal: true });
+
+    const mismatches = boundarySequences().filter(sequence => {
+      const input = Uint8Array.from(sequence);
+      return decoder.decode(input) !== native.decode(input) || throwsOn(fatal, input) !== throwsOn(nativeFatal, input);
+    });
+
+    expect(mismatches).toEqual([]);
   });
 
   it('fatal 模式下任何无效 UTF-8 序列都抛错', () => {

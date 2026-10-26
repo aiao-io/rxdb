@@ -8,6 +8,7 @@ import type {
   RestoreEntityOptions,
   RxDBBackupOptions,
   RxDBBackupResult,
+  RxDBEvent,
   RxDBMutationsMap,
   SwitchBranchOptions,
   SwitchVersionActions,
@@ -525,8 +526,24 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
         }
       }
     }, false);
-    dispatchUnloggedRemovals(this.rxdb, entities, recordAt);
+    dispatchUnloggedRemovals(this, entities, recordAt);
     return entities;
+  }
+
+  /**
+   * 派一条随写入提交的事件。
+   *
+   * @param event - 事件
+   *
+   * @remarks
+   * 在适配器自身上调用时，调用方的写入已经在它自己那笔事务里提交了，当场派。事务门面
+   * （{@link PGliteTransactionExecutor.adapter}）把它换成挂到所属事务上：提交之后派、回滚丢弃——
+   * PGlite 不派核心的事务事件，核心不会替它把事务里派的事件排队（INC-002）。
+   *
+   * @internal
+   */
+  dispatchAfterCommit(event: RxDBEvent): void {
+    this.rxdb.dispatchEvent(event);
   }
 
   /** 按类型分组 UPSERT，再更新实体状态。 */
@@ -1079,12 +1096,35 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       // executor 自持状态：**绝不**从驱动的 tx.closed 派生 —— 该标志在失败路径上不翻转，
       // 逃逸出去的 tx 仍会以 autocommit 执行写入。
       executor?.settle('committed');
-      if (executor) this.settleRepositoryTransaction(executor, true);
+      if (executor) {
+        this.settleRepositoryTransaction(executor, true);
+        this.#dispatchCommittedEvents(executor);
+      }
       return result;
     } catch (error) {
+      // 回滚的 executor 连同挂在它上面的事件一起丢弃（INC-002）
       executor?.settle('rolled-back');
       if (executor) this.settleRepositoryTransaction(executor, false);
       throw error;
+    }
+  }
+
+  /**
+   * 派发挂在已提交事务上的事件（INC-002）。
+   *
+   * @param executor - 刚提交的事务
+   *
+   * @remarks
+   * 提交已经落库，监听器抛错属于监听器自身的缺陷：就地记录并继续，不让它冒泡把已提交的事务报成失败——
+   * 与 sqlite-core 提交后派 `TRANSACTION_COMMIT` 同一策略。
+   */
+  #dispatchCommittedEvents(executor: PGliteTransactionExecutor): void {
+    for (const event of executor.takeCommittedEvents()) {
+      try {
+        this.rxdb.dispatchEvent(event);
+      } catch (listenerError) {
+        console.error('[rxdb-adapter-pglite] listener threw while dispatching a committed event:', listenerError);
+      }
     }
   }
 

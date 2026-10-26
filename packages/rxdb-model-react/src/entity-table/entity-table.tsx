@@ -486,6 +486,9 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
         tableRef.current.release();
       }
       tableRef.current = null;
+      // 与 Vue onBeforeUnmount / Angular ngOnDestroy 同样复位：effect 断开后重连（Activity 隐藏再显示）
+      // 时初始化 effect 读到的是最新一帧，不复位则守卫恒为 false、表格永不重建
+      setTableReady(false);
     };
   }, []);
 

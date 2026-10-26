@@ -1,6 +1,9 @@
 import { Subscription } from 'rxjs';
 import {
+  ErrorCodes,
+  getCurrentInstance,
   getCurrentScope,
+  handleError,
   onScopeDispose,
   readonly,
   ref,
@@ -125,6 +128,8 @@ export function useSearch(
   const state = ref<SearchState>('idle');
   const error = ref<SearchExecutionError | undefined>(undefined);
   const hasMore = ref<boolean>(false);
+  // 协议流损坏归属的组件，Vue 的错误链从它往上找；裸 effectScope 里为 null
+  const instance = getCurrentInstance();
 
   /**
    * 当前活动 handle；scope 销毁后置空，重建时指向最新实例。
@@ -161,10 +166,24 @@ export function useSearch(
 
     const handle = nextSource.search(query.value, nextOptions);
     const nextSubs = new Subscription();
-    nextSubs.add(handle.results$.subscribe(r => (results.value = r)));
-    nextSubs.add(handle.state$.subscribe(s => (state.value = s)));
-    nextSubs.add(handle.error$.subscribe(e => (error.value = e)));
-    nextSubs.add(handle.hasMore$.subscribe(h => (hasMore.value = h)));
+    /**
+     * 桥接流失败的唯一出口，与 Angular `reportStreamFailure`（SRA-004）同一分工。
+     *
+     * @remarks
+     * 可恢复的搜索错误由 handle 经 `error$` 送进 `error`；走到这里的是协议流本身损坏，哪条流都不能再信，
+     * 退订全部后交给 Vue 的错误链（祖先的 `onErrorCaptured` → `app.config.errorHandler`，都没接时由 Vue 记录）。
+     * 不挂 error 处理器时 RxJS 走 `reportUnhandledError`，这条链一环都收不到，其余三条流还在继续写 ref。
+     * 错误码记作 setup：订阅是 `useSearch()` 在 setup 里建立的副作用，Vue 的错误码里没有「外部流回调」这一类。
+     * `throwInDev` 关掉：开发态在这里抛出只会再落回 RxJS 的同一个全局出口。
+     */
+    const reportStreamFailure = (cause: unknown): void => {
+      nextSubs.unsubscribe();
+      handleError(cause, instance, ErrorCodes.SETUP_FUNCTION, false);
+    };
+    nextSubs.add(handle.results$.subscribe({ next: r => (results.value = r), error: reportStreamFailure }));
+    nextSubs.add(handle.state$.subscribe({ next: s => (state.value = s), error: reportStreamFailure }));
+    nextSubs.add(handle.error$.subscribe({ next: e => (error.value = e), error: reportStreamFailure }));
+    nextSubs.add(handle.hasMore$.subscribe({ next: h => (hasMore.value = h), error: reportStreamFailure }));
 
     active = handle;
     subs = nextSubs;

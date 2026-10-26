@@ -85,8 +85,22 @@ describe('ReachabilityMonitor', () => {
   });
 
   describe('wakeup$ 退避节拍', () => {
+    /**
+     * 造一台已 watch() 的监视器 —— 节拍只排给 watch() 的订阅方（见「没人 watch() 时不排节拍」）。
+     * 宿主的 navigator 与事件源钉成假的，状态只由 report() 驱动。
+     */
+    const watched = (options: ReachabilityOptions): void => {
+      monitor = new ReachabilityMonitor({
+        navigatorOnLine: () => true,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        ...options
+      });
+      monitor.watch();
+    };
+
     it('在线时不发节拍', () => {
-      monitor = new ReachabilityMonitor({ baseDelayMs: 1000, maxDelayMs: 8000 });
+      watched({ baseDelayMs: 1000, maxDelayMs: 8000 });
       const ticks: number[] = [];
       monitor.wakeup$.subscribe(() => ticks.push(1));
 
@@ -95,7 +109,7 @@ describe('ReachabilityMonitor', () => {
     });
 
     it('离线后按 base * 2^(n-1) 退避发节拍', () => {
-      monitor = new ReachabilityMonitor({ baseDelayMs: 1000, maxDelayMs: 8000 });
+      watched({ baseDelayMs: 1000, maxDelayMs: 8000 });
       const ticks: number[] = [];
       monitor.wakeup$.subscribe(() => ticks.push(1));
 
@@ -114,7 +128,7 @@ describe('ReachabilityMonitor', () => {
     });
 
     it('退避封顶在 maxDelayMs', () => {
-      monitor = new ReachabilityMonitor({ baseDelayMs: 1000, maxDelayMs: 2000 });
+      watched({ baseDelayMs: 1000, maxDelayMs: 2000 });
       const ticks: number[] = [];
       monitor.wakeup$.subscribe(() => ticks.push(1));
 
@@ -128,7 +142,7 @@ describe('ReachabilityMonitor', () => {
 
     // 节拍本身不是在线证据：驱动方拿它去试一次真实同步，成功了才 report(null)。
     it('节拍不改变 online 状态', () => {
-      monitor = new ReachabilityMonitor({ baseDelayMs: 1000, maxDelayMs: 8000 });
+      watched({ baseDelayMs: 1000, maxDelayMs: 8000 });
       monitor.wakeup$.subscribe();
 
       monitor.report(networkError());
@@ -136,8 +150,27 @@ describe('ReachabilityMonitor', () => {
       expect(monitor.online).toBe(false);
     });
 
+    // 节拍与 watch() 的引用计数同生共死。`RxDB` 对每个实例都急切构造监视器，不装同步插件的
+    // 应用永远不会 watch()：离线开局或一次网络错误就让节拍按 maxDelayMs 空转到页面关闭。
+    describe('没人 watch() 时不排节拍', () => {
+      it('构造期就离线', () => {
+        monitor = new ReachabilityMonitor({ navigatorOnLine: () => false, baseDelayMs: 1000, maxDelayMs: 8000 });
+
+        expect(monitor.online).toBe(false);
+        expect(vi.getTimerCount()).toBe(0);
+      });
+
+      it('report() 判离线', () => {
+        monitor = new ReachabilityMonitor({ navigatorOnLine: () => true, baseDelayMs: 1000, maxDelayMs: 8000 });
+        monitor.report(networkError());
+
+        expect(monitor.online).toBe(false);
+        expect(vi.getTimerCount()).toBe(0);
+      });
+    });
+
     it('恢复在线后停止发节拍，且退避重新从 base 起算', () => {
-      monitor = new ReachabilityMonitor({ baseDelayMs: 1000, maxDelayMs: 8000 });
+      watched({ baseDelayMs: 1000, maxDelayMs: 8000 });
       const ticks: number[] = [];
       monitor.wakeup$.subscribe(() => ticks.push(1));
 
@@ -299,6 +332,18 @@ describe('ReachabilityMonitor', () => {
         expect(ticks.length).toBeGreaterThan(beforeRewatch);
       });
 
+      // 构造期离线时没人听，节拍不该先空跑几轮把退避指数抬上去：第一位订阅者从 base 等起
+      it('构造期就离线，第一位订阅者从 base 起等节拍', () => {
+        withListeners({ navigatorOnLine: () => false, baseDelayMs: 1000, maxDelayMs: 8000 });
+        const ticks: number[] = [];
+        monitor.wakeup$.subscribe(() => ticks.push(1));
+
+        monitor.watch();
+        vi.advanceTimersByTime(1000);
+
+        expect(ticks).toHaveLength(1);
+      });
+
       it('destroy() 之后 watch() 是空操作', () => {
         const { listeners, add } = withListeners();
         monitor.destroy();
@@ -314,11 +359,20 @@ describe('ReachabilityMonitor', () => {
 
   describe('destroy', () => {
     it('停止发节拍', () => {
-      monitor = new ReachabilityMonitor({ baseDelayMs: 1000, maxDelayMs: 8000 });
+      // 先 watch()：没有订阅方时本来就不排节拍，不 watch 这条断言恒真
+      monitor = new ReachabilityMonitor({
+        navigatorOnLine: () => true,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        baseDelayMs: 1000,
+        maxDelayMs: 8000
+      });
+      monitor.watch();
       const ticks: number[] = [];
       monitor.wakeup$.subscribe(() => ticks.push(1));
 
       monitor.report(networkError());
+      expect(vi.getTimerCount()).toBe(1);
       monitor.destroy();
       vi.advanceTimersByTime(60_000);
       expect(ticks).toHaveLength(0);

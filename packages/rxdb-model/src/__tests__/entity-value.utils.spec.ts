@@ -53,6 +53,16 @@ describe('parseEntityFieldValue', () => {
     expect(parseEntityFieldValue('numberArray', '1, 2, 3')).toEqual([1, 2, 3]);
   });
 
+  it('should drop blank numberArray segments instead of reading them as 0', () => {
+    expect(parseEntityFieldValue('numberArray', '1,,3')).toEqual([1, 3]);
+    expect(parseEntityFieldValue('numberArray', '1,2,')).toEqual([1, 2]);
+    expect(parseEntityFieldValue('numberArray', '1, ,3')).toEqual([1, 3]);
+    expect(parseEntityFieldValue('numberArray', ['1', '', ' ', '3'])).toEqual([1, 3]);
+    // 真实的 0 不受影响
+    expect(parseEntityFieldValue('numberArray', '0, 1')).toEqual([0, 1]);
+    expect(parseEntityFieldValue('numberArray', [0, '0'])).toEqual([0, 0]);
+  });
+
   it('should parse json from string', () => {
     expect(parseEntityFieldValue('json', '{"a":1}')).toEqual({ a: 1 });
     expect(parseEntityFieldValue('json', 'invalid')).toBeNull();
@@ -185,6 +195,17 @@ describe('parseEntityFieldValueStrict', () => {
 
   it('保留合法空值语义', () => {
     expect(parseEntityFieldValueStrict('json', '')).toEqual({ ok: true, value: null });
+  });
+
+  it('整数拒绝非整数数值输入，不截断', () => {
+    expect(parseEntityFieldValueStrict('integer', 12.9)).toEqual({ ok: false, message: '必须是整数' });
+    expect(parseEntityFieldValueStrict('integer', -0.5).ok).toBe(false);
+    // parseInt 读数字的字符串形式：1e21 → '1e+21' → 1、1e-7 → '1e-7' → 1
+    expect(parseEntityFieldValueStrict('integer', 1e21).ok).toBe(false);
+    expect(parseEntityFieldValueStrict('integer', 1e-7).ok).toBe(false);
+    expect(parseEntityFieldValueStrict('integer', 12)).toEqual({ ok: true, value: 12 });
+    expect(parseEntityFieldValueStrict('integer', ' -7 ')).toEqual({ ok: true, value: -7 });
+    expect(parseEntityFieldValueStrict('integer', '+42')).toEqual({ ok: true, value: 42 });
   });
 
   it('拒绝非法 bigint 与 binary', () => {

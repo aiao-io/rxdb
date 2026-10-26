@@ -313,10 +313,13 @@ describe('panel endpoint · 上传', () => {
   it('MUST drive REQUEST / START / CHUNK* / COMPLETE and hand the transfer id to params', async () => {
     const { sent, panel } = setup();
 
-    const result = await panel.upload({
+    const pending = panel.upload({
       params: transferId => ({ path: '/a.txt', transferId }),
       source: bytesSource(3)
     });
+    // REQUEST 在 `upload()` 返回前就已同步发出；`'sent'` 要等这条请求有了结论才给。
+    panel.receive(response(requestIdOf(sent), { accepted: true }));
+    const result = await pending;
 
     expect(typesOf(sent)).toEqual(['REQUEST', 'TRANSFER_START', 'TRANSFER_CHUNK', 'TRANSFER_COMPLETE']);
     const [request, start, chunk] = v2Frames(sent);
@@ -336,7 +339,9 @@ describe('panel endpoint · 上传', () => {
   it('MUST send START then COMPLETE with no CHUNK for a zero-byte upload', async () => {
     const { sent, panel } = setup();
 
-    const result = await panel.upload({ params: () => ({ path: '/empty' }), source: bytesSource(0) });
+    const pending = panel.upload({ params: () => ({ path: '/empty' }), source: bytesSource(0) });
+    panel.receive(response(requestIdOf(sent), { accepted: true }));
+    const result = await pending;
 
     expect(typesOf(sent)).toEqual(['REQUEST', 'TRANSFER_START', 'TRANSFER_COMPLETE']);
     expect(result).toEqual({ outcome: 'sent' });
@@ -345,10 +350,12 @@ describe('panel endpoint · 上传', () => {
   it('MUST split payloads larger than one chunk', async () => {
     const { sent, panel } = setup([ROOMY_DESCRIPTOR]);
 
-    const result = await panel.upload({
+    const pending = panel.upload({
       params: () => ({}),
       source: bytesSource(DEVTOOLS_MAX_CHUNK_BYTES + 1)
     });
+    panel.receive(response(requestIdOf(sent), { accepted: true }));
+    const result = await pending;
 
     expect(typesOf(sent)).toEqual([
       'REQUEST',
@@ -435,6 +442,56 @@ describe('panel endpoint · 上传', () => {
     });
     expect(panel.inflightTransfers).toBe(0);
     expect(panel.rejectedFrames).toBe(0);
+  });
+
+  /**
+   * 字节发完不等于 provider 接受了这次上传。
+   *
+   * @remarks
+   * START 不等 RESPONSE：小文件（零字节尤甚）的字节往往在 upload 请求的应答回来之前就已发完。
+   * 那一刻就报 `'sent'`，随后到达的拒绝（同名冲突、路径非法……）就无处可落——面板再按文件名
+   * 重列确认，同名的旧文件会让这次被拒的上传显示成「上传成功」。
+   */
+  it('MUST fail an upload whose request is rejected after every byte was sent', async () => {
+    const { sent, panel } = setup();
+
+    const pending = panel.upload({ params: () => ({}), source: bytesSource(0) });
+    await Promise.resolve();
+    expect(typesOf(sent)).toEqual(['REQUEST', 'TRANSFER_START', 'TRANSFER_COMPLETE']);
+    panel.receive(errorFrame(requestIdOf(sent)));
+
+    await expect(pending).resolves.toEqual({
+      outcome: 'failed',
+      error: { code: 'resource_not_found', retryable: false }
+    });
+    expect(panel.inflightTransfers).toBe(0);
+  });
+
+  /**
+   * params 构造器抛出时，传输登记与总时长闸必须一并拆掉。
+   *
+   * @remarks
+   * 它若在负责清理的 try/finally 之外求值，异常会带着一条传输登记和一个 10 分钟计时器逃走：
+   * 两个并发传输名额之一被占到会话结束。异常本身原样交还调用方——那是调用方的接线错误，
+   * 不伪装成协议错误（与 `download()` 一致）。
+   */
+  it('MUST release the transfer slot and the total timer when params throws', async () => {
+    const { clock, sent, panel } = setup();
+    const timers = clock.pendingTimers();
+
+    await expect(
+      panel.upload({
+        params: () => {
+          throw new Error('params blew up');
+        },
+        source: bytesSource(1)
+      })
+    ).rejects.toThrow('params blew up');
+
+    expect(panel.inflightTransfers).toBe(0);
+    expect(clock.pendingTimers()).toBe(timers);
+    // 请求一帧都没发出：params 求不出来，就没有可以上线的 REQUEST。
+    expect(v2Frames(sent)).toEqual([]);
   });
 
   /**

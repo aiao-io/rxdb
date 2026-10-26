@@ -5,13 +5,14 @@
  *  - 空 keyring 的第一次解锁恰好调用一次 writeSingleton，持久化
  *    `{ id: 'singleton', kid (8-byte b64url), salt (16 bytes), kdf, verifier }`。
  *  - 使用相同口令的第二次解锁复用已持久化的行（不会再次调用 writeSingleton）。
- *  - 被篡改的持久化 verifier 会以 `EncryptedUnlockError('verifier_mismatch')` 拒绝。
+ *  - 被篡改的持久化 verifier 会以 `EncryptedUnlockError('verifier_mismatch')` 拒绝；
+ *    salt / verifier 连格式都坏了（解不出来）同样如此，不泄漏读信封用的 `EncryptedDecryptError`。
  *  - `salt` 和 `kid` 由 `crypto.getRandomValues` 生成（非零缓冲区）。
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EncryptedConfigurationError, EncryptedUnlockError } from '../errors.js';
+import { EncryptedConfigurationError, EncryptedDecryptError, EncryptedUnlockError } from '../errors.js';
 import type { KeyringRow, KeyringStorageBinding } from '../keyring-storage.js';
 import { createKeyring } from '../keyring.js';
 
@@ -135,4 +136,40 @@ describe('Keyring verifier provenance (FR-009)', () => {
     expect(ring.isLocked).toBe(true);
     expect(ring.kid).toBeNull();
   });
+
+  /** 把 verifier 的第 `index` 段换成 `value` */
+  const replaceVerifierSegment = (row: KeyringRow, index: number, value: string): KeyringRow => {
+    const parts = row.verifier.split('|');
+    parts[index] = value;
+    return { ...row, verifier: parts.join('|') };
+  };
+
+  it.each([
+    ['salt 含非 base64url 字符', (row: KeyringRow): KeyringRow => ({ ...row, salt: '!!!' })],
+    [
+      'verifier 段数不对',
+      (row: KeyringRow): KeyringRow => ({ ...row, verifier: row.verifier.split('|').slice(0, 5).join('|') })
+    ],
+    ['verifier 的 iv 段不是 base64url', (row: KeyringRow): KeyringRow => replaceVerifierSegment(row, 3, '!!!')]
+  ])(
+    '持久化行格式损坏（%s）：以 verifier_mismatch 拒绝并保持锁定，不泄漏 EncryptedDecryptError',
+    async (_name, corrupt) => {
+      const seed = createKeyring({ namespace: NS, storage });
+      await seed.unlock({ passphrase: PASSPHRASE });
+      seed.lock();
+      storage.row = corrupt(storage.row!);
+
+      const ring = createKeyring({ namespace: NS, storage });
+      const error: unknown = await ring.unlock({ passphrase: PASSPHRASE }).then(
+        () => undefined,
+        (reason: unknown) => reason
+      );
+
+      expect(error).toBeInstanceOf(EncryptedUnlockError);
+      expect(error).toMatchObject({ code: 'verifier_mismatch' });
+      expect((error as EncryptedUnlockError).cause).toBeInstanceOf(EncryptedDecryptError);
+      expect(ring.isLocked).toBe(true);
+      expect(ring.kid).toBeNull();
+    }
+  );
 });

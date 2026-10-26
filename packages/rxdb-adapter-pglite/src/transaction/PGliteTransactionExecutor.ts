@@ -3,6 +3,7 @@ import type {
   IRepository,
   RawQueryResult,
   RxDBChange,
+  RxDBEvent,
   RxDBMutationsMap,
   SwitchVersionActions,
   TransactionExecutor,
@@ -52,6 +53,10 @@ const createExecutorAdapterFacade = (
         // 已经在本事务里：复用，绝不新开也绝不入队（同 sqlite 侧）
         return (fun: (executor: TransactionExecutor) => Promise<unknown>): Promise<unknown> => executor.run(fun);
       }
+      if (property === 'dispatchAfterCommit') {
+        // 事务里派的事件挂到本事务上：提交后才派、回滚丢弃（INC-002）
+        return (event: RxDBEvent): void => executor.dispatchAfterCommit(event);
+      }
       if (property === 'mergeChanges') {
         // `this` 必须绑到门面，否则内部 helper 的 query 走队列 —— 翻转后即自锁
         const mergeChanges = Reflect.get(target, property, target) as (...args: unknown[]) => unknown;
@@ -77,6 +82,7 @@ export class PGliteTransactionExecutor implements TransactionExecutor {
   readonly #tx: Transaction;
   readonly #facade: RxDBAdapterPGlite;
   readonly #repositories = new Map<EntityType, unknown>();
+  readonly #committedEvents: RxDBEvent[] = [];
 
   readonly id: string;
 
@@ -179,6 +185,29 @@ export class PGliteTransactionExecutor implements TransactionExecutor {
   }
 
   /**
+   * 把一条事件挂到本事务上，提交之后由适配器的事务执行体派发，回滚丢弃（INC-002）。
+   *
+   * @param event - 事件
+   *
+   * @internal
+   */
+  dispatchAfterCommit(event: RxDBEvent): void {
+    this.#assertActive('dispatchAfterCommit');
+    this.#committedEvents.push(event);
+  }
+
+  /**
+   * 取走挂在本事务上的事件。只允许适配器的事务执行体在提交之后调用。
+   *
+   * @returns 按挂上的先后排列
+   *
+   * @internal
+   */
+  takeCommittedEvents(): RxDBEvent[] {
+    return this.#committedEvents.splice(0);
+  }
+
+  /**
    * 把 executor 推入终态。只允许适配器的事务执行体调用。
    *
    * @internal
@@ -186,6 +215,7 @@ export class PGliteTransactionExecutor implements TransactionExecutor {
   settle(state: Exclude<TransactionExecutorState, 'active'>): void {
     this.#state = state;
     this.#repositories.clear();
+    if (state === 'rolled-back') this.#committedEvents.length = 0;
   }
 
   #assertActive(operation: string): void {

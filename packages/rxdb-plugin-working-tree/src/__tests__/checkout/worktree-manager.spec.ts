@@ -310,6 +310,26 @@ describe('生命周期：锁、release、attach 与 prune（阶段 C）', () => 
     expect(await reasonOf(manager.attach(view.id))).toBe('not_found');
   });
 
+  it('attach() 失败后断开快照实例也失败：照样还锁，抛出的是原错', async () => {
+    const manager = managerOf();
+    const view = await manager.open({ branchId: 'feature' }, { owner: 'persistent' });
+    await view.release();
+    const failure = new Error('seal failed');
+    vi.mocked(sealSnapshot).mockRejectedValueOnce(failure);
+    vi.mocked(createSnapshotDatabase).mockImplementationOnce(() => {
+      const snapshot = fakeSnapshot();
+      snapshot.disconnectAll.mockRejectedValue(new Error('disconnect failed'));
+      return snapshot;
+    });
+
+    await expect(manager.attach(view.id)).rejects.toBe(failure);
+
+    // 失败的 attach() 交不出视图，调用方手里没有释放函数：锁这时已经还掉，再 attach 才不是 in_use
+    const attached = await manager.attach(view.id);
+    expect(attached.id).toBe(view.id);
+    await attached.close();
+  });
+
   it('prune() 里有一个回收失败：其余照常回收，最后一起报出来', async () => {
     const manager = managerOf();
     const first = await manager.open({ branchId: 'feature' });

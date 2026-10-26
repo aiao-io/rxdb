@@ -139,6 +139,30 @@ function describeProvidedKey(value: unknown): string {
   return Object.prototype.toString.call(value);
 }
 
+/**
+ * 解码持久化 keyring 行里的一个字段。
+ *
+ * @remarks
+ * 行被篡改或损坏、连格式都不对时，解码器抛的是读信封用的 {@link EncryptedDecryptError}，不在 `unlock()` 的错误契约里。
+ * 结论与 verifier 密文被篡改相同：这一行验证不了给出的密钥，按 `verifier_mismatch` 拒绝，原错误留在 `cause`。
+ *
+ * @param field - 字段名，进错误消息
+ * @param decode - 解码动作
+ * @returns 解码结果
+ * @throws {@link EncryptedUnlockError} 字段解不出来
+ */
+function decodePersistedField<T>(field: 'salt' | 'verifier', decode: () => T): T {
+  try {
+    return decode();
+  } catch (cause) {
+    throw new EncryptedUnlockError({
+      code: 'verifier_mismatch',
+      message: `persisted keyring ${field} is malformed`,
+      cause
+    });
+  }
+}
+
 function assertAesGcm256(key: CryptoKey): void {
   const alg = key.algorithm as AesKeyAlgorithm | undefined;
   if (!alg || alg.name !== 'AES-GCM' || alg.length !== 256) {
@@ -212,7 +236,7 @@ export class Keyring {
    * 串行执行解锁并校验持久化 verifier。
    *
    * @throws {@link EncryptedConfigurationError} 参数形态、密钥或持久化 KDF 不受支持
-   * @throws {@link EncryptedUnlockError} verifier 不匹配、provider 失败或在途解锁被 `lock()` 取消
+   * @throws {@link EncryptedUnlockError} verifier 不匹配（含持久化的 salt / verifier 损坏到解不出来）、provider 失败或在途解锁被 `lock()` 取消
    */
   unlock(opts: UnlockOptions): Promise<void> {
     // 同步捕获：`performUnlock` 要在之后的 microtask 才会启动，
@@ -415,7 +439,7 @@ export class Keyring {
     let candidate: CryptoKey;
     let salt: Uint8Array;
     if (existing) {
-      salt = fromBase64Url(existing.salt);
+      salt = decodePersistedField('salt', () => fromBase64Url(existing.salt));
     } else {
       salt = randomBytes(SALT_LEN);
     }
@@ -463,7 +487,7 @@ export class Keyring {
     let kid: string;
     if (existing) {
       // 与已持久化的 verifier 信封比对。
-      const env = decodeEnvelope(existing.verifier);
+      const env = decodePersistedField('verifier', () => decodeEnvelope(existing.verifier));
       const aad =
         env.v === 1 ?
           buildLegacyAAD({

@@ -39,7 +39,12 @@ import {
   type PostgrestErrorBody
 } from './postgrest-error.js';
 import { apply_rule_group } from './rule_group_builder.js';
-import { build_delete_params, build_upsert_params, group_by_type } from './RxDBAdapterSupabase.utils.js';
+import {
+  assert_batch_primary_key_column,
+  build_delete_params,
+  build_upsert_params,
+  group_by_type
+} from './RxDBAdapterSupabase.utils.js';
 import { resolve_supabase_schema } from './schema.utils.js';
 import {
   ADAPTER_NAME,
@@ -174,10 +179,15 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
   /**
    * 批量保存实体（upsert 语义，非事务）
+   *
+   * @throws {SupabaseConfigError} 批内有实体的主键 `id` 映射到了别的物理列（批量写只支持默认 `id` 列）
    */
   async saveMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
     if (entities.length === 0) return [];
-    return this.executeUpsert(group_by_type(entities));
+    const grouped = group_by_type(entities);
+    // 整批先查再写：executeUpsert 逐组落库，查到后面的组才抛会留下前面已写入的半批
+    for (const EntityType of grouped.keys()) assert_batch_primary_key_column(getEntityMetadata(EntityType), 'saveMany');
+    return this.executeUpsert(grouped);
   }
 
   /**
@@ -193,8 +203,13 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    *
    * 通过 PostgreSQL RPC 调用 `rxdb_mutations` 存储过程，
    * 在单个数据库事务中执行所有操作，确保原子性。
+   *
+   * @throws {SupabaseConfigError} 批内有实体的主键 `id` 映射到了别的物理列，RPC 不会发出
    */
   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {
+    for (const EntityType of [...options.create.keys(), ...options.update.keys(), ...options.remove.keys()]) {
+      assert_batch_primary_key_column(getEntityMetadata(EntityType), 'mutations');
+    }
     const userId = this.rxdb.context.userId;
 
     // 构建 RPC 参数。create / update 必须分别按插入、更新语义注入审计字段 ——
@@ -423,6 +438,10 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * @param actions - 压缩后的变更操作集合
    * @param branchId - 分支 ID
    * @param changes - 完整的原始变更记录（可选，用于保留完整历史）
+   *
+   * @remarks
+   * 载荷一律以 `id` 键定位行，不读实体主键的 columnName：同步协议的两端（变更日志触发器记 `NEW.id`、
+   * `rxdb_mutations` 按 `id` 判冲突）都绑定业务表的 `id` 列，只在本地改了主键列名的同步实体照常推送。
    */
   async mergeChanges(
     actions: SwitchVersionActions,
@@ -1021,10 +1040,12 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to find by ids');
 
       const batch = (data ?? []) as Record<string, unknown>[];
+      // 自定义主键列只改名回 `id`：行保持 wire 形态交给本地 upsertMany 按元数据解码，
+      // 不经 transform_row_to_entity 实例化；物理键必须删掉，它与 `id` 是同一列的两种写法，本地会拒收
       rows.push(
-        ...(metadata && primaryKeyColumn !== 'id' ?
-          batch.map(row => ({ ...row, id: row[primaryKeyColumn] }) as T)
-        : (batch as T[]))
+        ...(primaryKeyColumn === 'id' ?
+          (batch as T[])
+        : batch.map(({ [primaryKeyColumn]: id, ...rest }) => ({ ...rest, id }) as T))
       );
     }
 
