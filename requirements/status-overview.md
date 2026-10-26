@@ -11,17 +11,17 @@
 | ✅ Done        | 75   |
 | 🚧 In Progress | 1    |
 | 👀 In Review   | 9    |
-| 📝 Backlog     | 25   |
+| 📝 Backlog     | 30   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 110  |
+| **合计**       | 115  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **25 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
+> **30 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
 > [模型驱动后台](epics/epic-010-model-driven-admin-framework.md) 首版切片 3 条（US-526~528）已孵化但 epic **未解锁、价值待证**；
 > [US-911](stories/future/US-911-client-i18n.md) 阶段 A～C 无硬前置、可开工，在立项池待 owner 定批次；[US-029](stories/core/US-029-rbac-owner-role-permission.md)
-> 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
+> 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期；[epic-011 局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md) 4 条**价值待证**，在立项池待 owner 决策。
 > 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
@@ -87,6 +87,7 @@
 ### [UI 与开发者工具](epics/epic-003-ui-developer-tools.md)
 
 - ✅ [US-402 代码编辑器](stories/ui/US-402-code-editor.md)
+- ⬜ [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md) — 三框架对称，保留默认 UI；A～D 分阶段交付，尚未排期
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
 - ✅ [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) — 阶段 A～D 全部关闭；AC#19 的真实断连半边、AC#40 的 OPFS conformance 半边与 AC#34/#38/#39/#42 的人工浏览器回归已移出承诺范围（项目早期暂不做）
 - ✅ [US-905 Tauri DevTools 调试窗口、transport 与原生存储集成](stories/future/US-905-tauri-native-devtools.md) — 阶段 1 八条与阶段 2 九条共十七条 AC 全 ✅；ubuntu/macOS/Windows 三平台的 packaging 与 devtools smoke 证据齐全；idb 档走 dedicated Worker 传输；linux idb 真值为 `failed`（冻结值）
@@ -231,6 +232,15 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 - ⬜ [US-526 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环](stories/domain/US-526-admin-workbench.md) — 三阶段；应用壳与预置 schema + 导航（A）、CRUD 接线与加载 / 失败 / 空态（B）、持久化重开 + e2e 组合验收（C）；复用 rxdb-model 组件与三端 demo 实体页，不新增公共框架 API
 - ⬜ [US-527 工作台备份恢复闭环：失败语义与数据保留](stories/domain/US-527-admin-backup-restore.md) — 两阶段；复用 US-217 的备份 / 恢复契约与错误分类，只做入口与失败语义接线；恢复失败不得破坏当前库
 - ⬜ [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md) — 两阶段；只用发布包从零接线的最小应用 + 代码行数 / 依赖 / 样式成本记录
+
+### [局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md)
+
+**未解锁（价值待证）**：四条故事写不出「今天用户踩得到的具体症状」——驱动力是「公司团队共享大文件」的场景推演，无具名使用方；解锁条件见 [epic-011](epics/epic-011-p2p-file-share.md#价值待证)。
+
+- ⬜ [US-704 文件清单与 P2P 发现](stories/future/US-704-p2p-manifest-discovery.md) — 清单实体走 sync 上行、本地活查询、浏览器信令与桌面 mDNS 发现、握手清单断言
+- ⬜ [US-705 P2P 字节传输](stories/future/US-705-p2p-byte-transfer.md) — 两阶段（A 浏览器 WebRTC DataChannel / B 桌面 TCP，阶段 B 以 US-706 链路加密为前置）；分块、内容校验、断点续传、多源、落盘转正
+- ⬜ [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md) — 无 peer 回退服务器直下、认证复用 sync、坏 peer 退避、链路安全
+- ⬜ [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md) — 双 browser context 互传 + 流量隔离断言 + 回退用例 + Electron 双进程
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
