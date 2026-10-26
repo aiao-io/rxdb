@@ -52,9 +52,8 @@ async function seed(page: Page, count = 50, label = '') {
     })
   );
   await page.goto('/providers');
-  const loaded = page.waitForEvent('load');
   await importBackup(page, backup);
-  await loaded;
+  await page.waitForLoadState('load');
   await expect(page.getByRole('heading', { name: '检索验收供应商 · 默认' })).toBeVisible({ timeout: 30000 });
   return { png, jobs };
 }
