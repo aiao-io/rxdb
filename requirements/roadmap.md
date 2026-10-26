@@ -18,7 +18,6 @@
 
 仓库还剩 **45 条**未关闭故事（5 In Progress + 9 In Review + 31 Backlog + 0 Blocked）。
 
-
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > rxdb-model 实体模型库与三框架默认 UI 的初始移植没有故事文件，三框架代码已随 #62 合入；跨框架对拍、三端对称复核与文档
 > 不在故事计数内，登记在[零散收尾项](#零散收尾项不成故事随手可带)第 2～4 条，原规格见

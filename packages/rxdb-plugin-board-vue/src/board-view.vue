@@ -1313,9 +1313,7 @@ onBeforeUnmount(() => {
           删除任务「{{ confirm.title }}」及其 {{ confirm.plan.taskLabelIds.length }} 条标签关联？
         </p>
         <p v-else-if="confirm.kind === 'column'">
-          删除列「{{ confirm.title }}」及其 {{ confirm.count }} 个任务、{{
-            confirm.plan.taskLabelIds.length
-          }}
+          删除列「{{ confirm.title }}」及其 {{ confirm.count }} 个任务、{{ confirm.plan.taskLabelIds.length }}
           条任务标签关联？
         </p>
         <p v-else>
