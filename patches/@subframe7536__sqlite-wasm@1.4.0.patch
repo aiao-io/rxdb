@@ -1,0 +1,34 @@
+diff --git a/dist/wa-sqlite-async-BT-3e9EP.js b/dist/wa-sqlite-async-BT-3e9EP.js
+index 79c8257a342df03c0248a3a00fd5bfb6e0b83ce5..f1cb7ba40a51f32cedf6f48f5e83c32df5415791 100644
+--- a/dist/wa-sqlite-async-BT-3e9EP.js
++++ b/dist/wa-sqlite-async-BT-3e9EP.js
+@@ -3362,7 +3362,11 @@ async function Module(moduleArg = {}) {
+ 		_asyncify_start_rewind = wasmExports["Qf"];
+ 		_asyncify_stop_rewind = wasmExports["Rf"];
+ 		wasmMemory = wasmExports["pa"];
+-		Module["_sqlite3_version"] = wasmExports["$e"].value;
++		const versionGlobal = wasmExports["$e"];
++		Module["_sqlite3_version"] =
++			versionGlobal && typeof versionGlobal === "object" && "value" in versionGlobal
++				? versionGlobal.value
++				: Module["_sqlite3_libversion"]();
+ 		wasmTable = wasmExports["kf"];
+ 	}
+ 	var wasmImports = {
+diff --git a/dist/wa-sqlite-bT14NS4h.js b/dist/wa-sqlite-bT14NS4h.js
+index acf323081214df8a823e5d29ff49af990b1644fc..16febd8227329fcc77babfecdaaa64503edec1a3 100644
+--- a/dist/wa-sqlite-bT14NS4h.js
++++ b/dist/wa-sqlite-bT14NS4h.js
+@@ -3161,7 +3161,11 @@ async function Module(moduleArg = {}) {
+ 		wasmExports["dynCall_iiiiiij"];
+ 		wasmExports["dynCall_ji"];
+ 		wasmMemory = wasmExports["pa"];
+-		Module["_sqlite3_version"] = wasmExports["$e"].value;
++		const versionGlobal = wasmExports["$e"];
++		Module["_sqlite3_version"] =
++			versionGlobal && typeof versionGlobal === "object" && "value" in versionGlobal
++				? versionGlobal.value
++				: Module["_sqlite3_libversion"]();
+ 		wasmTable = wasmExports["kf"];
+ 	}
+ 	var wasmImports = {
