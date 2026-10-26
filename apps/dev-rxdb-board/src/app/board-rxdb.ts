@@ -60,12 +60,23 @@ export const restoreBoardArchive = async (db: RxDB, file: File): Promise<void> =
   await adapter.restore(file.stream());
 };
 
-/** 清理有记录且实际存在的未完成恢复。 */
-export const cleanupBoardRestoreTarget = async (dbName: string): Promise<void> => {
+/** 清理有记录且实际存在的恢复目标；没有残留标记时也删除完整的孤儿库。 */
+export const cleanupBoardRestoreTarget = async (dbName: string, activeDbName: string | null = null): Promise<void> => {
+  if (dbName === activeDbName) throw new Error('拒绝清理当前活动看板');
   if (!(await listExistingDbNames()).includes(dbName)) return;
   const db = createBoardRxdb(dbName);
   const adapter = await db.getAdapter('sqlite-wasm');
-  await adapter.cleanupIncompleteRestore();
+  const cleanedIncomplete = await adapter.cleanupIncompleteRestore();
+  if (!cleanedIncomplete) await deleteBoardDbStorage(dbName);
+};
+
+/** 删除明确指定的 sqlite-wasm IndexedDB 持久库。 */
+export const deleteBoardDbStorage = async (dbName: string): Promise<void> => {
+  const databaseNames = (await indexedDB.databases())
+    .map(info => info.name ?? '')
+    .filter(name => name !== '' && canonicalDbName(name) === dbName);
+  const names = databaseNames.length > 0 ? databaseNames : [`${dbName}.sqlite`];
+  for (const name of names) await deleteIndexedDb(name);
 };
 
 /** 读回前验证目标存储存在，避免连接时把丢失的恢复库初始化成空库。 */
@@ -73,13 +84,26 @@ export const assertBoardRestoreTargetExists = async (dbName: string): Promise<vo
   if (!(await listExistingDbNames()).includes(dbName)) throw new Error('恢复目标存储已不存在');
 };
 
-/** 现有 IndexedDB 库名（sqlite-wasm idb vfs 以库名落盘），供新库名避让。 */
+/** 现有 IndexedDB 库名（sqlite-wasm idb vfs 以 `<dbName>.sqlite` 落盘）。 */
 const listExistingDbNames = async (): Promise<string[]> => {
   return (await indexedDB.databases())
     .map(info => info.name ?? '')
     .filter(name => name !== '')
-    .map(name => name.split('@')[0]);
+    .map(canonicalDbName);
 };
+
+const canonicalDbName = (name: string): string => {
+  const base = name.split('@')[0];
+  return base.endsWith('.sqlite') ? base.slice(0, -'.sqlite'.length) : base;
+};
+
+const deleteIndexedDb = (name: string): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(name);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error ?? new Error(`删除 IndexedDB 库失败：${name}`));
+    request.onblocked = () => reject(new Error(`IndexedDB 库仍被占用：${name}`));
+  });
 
 /**
  * 生成不与活动位置冲突、也不与现存 IndexedDB 库冲突的新库名。

@@ -7,6 +7,7 @@ import {
   resolveMenuMove,
   RESTORING_MARKER_KEY,
   Task,
+  type BoardSearchUnavailableReason,
   type BoardSearchUpstream,
   type CardDropColumnView,
   type CardDropTarget,
@@ -361,7 +362,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   private readonly injectorRef = inject(Injector);
 
   private noticeTimer: number | null = null;
-
+  private todayTimer: number | null = null;
   private searchHandle: SearchHandle | null = null;
   private searchSubs = new Subscription();
 
@@ -370,6 +371,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   private detailRequest = 0;
   private pendingDetailTaskId: UUID | null = null;
 
+  protected readonly today = signal(this.localToday());
   protected readonly board = signal<UseBoardReturn | null>(null);
 
   /** 正在拖拽的任务 / 列与指针轨迹。 */
@@ -445,21 +447,35 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // 显式注入上下文：JIT + zoneless 下生命周期钩子不保证自带注入上下文
     const installed = runInInjectionContext(this.injectorRef, () => {
-      const upstream = this.rxdb().getPlugins('search')[0];
+      const installedSearch = this.rxdb().getPlugins('search')[0] as
+        | { readonly searchCollection?: unknown }
+        | undefined;
+      const upstream =
+        installedSearch && typeof installedSearch.searchCollection === 'function' ? installedSearch : undefined;
+      const searchUnavailableReason: BoardSearchUnavailableReason | undefined =
+        installedSearch === undefined ? 'plugin_not_installed' : upstream === undefined ? 'adapter_unsupported' : undefined;
       return useBoard(
         this.rxdb(),
-        upstream ? { search: { upstream: upstream as unknown as BoardSearchUpstream } } : undefined
+        upstream ?
+          { search: { upstream: upstream as BoardSearchUpstream } }
+        : { searchUnavailableReason }
       );
     });
     this.board.set(installed);
     // 跨页恢复门禁（US-539 AC#5）：另一页开始恢复时经 storage 事件同步「恢复中」
     window.addEventListener('storage', this.onBoardStorage);
+    window.addEventListener('focus', this.onTodayActivity);
+    document.addEventListener('visibilitychange', this.onTodayActivity);
     this.onBoardStorage();
+    this.onTodayActivity();
   }
 
   ngOnDestroy(): void {
     this.invalidateDetailRequest();
     window.removeEventListener('storage', this.onBoardStorage);
+    window.removeEventListener('focus', this.onTodayActivity);
+    document.removeEventListener('visibilitychange', this.onTodayActivity);
+    if (this.todayTimer !== null) window.clearTimeout(this.todayTimer);
     if (this.noticeTimer !== null) window.clearTimeout(this.noticeTimer);
     this.searchSubs.unsubscribe();
     this.destroySearch();
@@ -859,7 +875,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const due = task.dueDate;
     if (!due) return '';
     // 纯日期比较：早于本地今天才逾期、今天不逾期（US-539 AC#12）
-    const today = this.localToday();
+    const today = this.today();
     return (
       due < today ? `已逾期 ${due}`
       : due === today ? `今天到期 ${due}`
@@ -991,6 +1007,13 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected isDraggingColumn(column: Column): boolean {
     return this.dragging()?.kind === 'column' && this.dragging()?.id === column.id;
+  }
+
+  protected searchUnavailableText(reason: BoardSearchUnavailableReason | null): string {
+    return reason === 'plugin_not_installed' ? '搜索插件未安装'
+      : reason === 'adapter_unsupported' ? '当前适配器不支持搜索'
+      : reason === 'query_failed' ? '搜索查询失败'
+      : '';
   }
 
   /** 恢复标记跨页同步：读 localStorage 标记并把门禁下发到领域桥。 */
@@ -1126,6 +1149,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     this.noticeTimer = window.setTimeout(() => this.notice.set(null), 5000);
   }
 
+
   private localToday(): string {
     const now = new Date();
     const year = now.getFullYear();
@@ -1133,4 +1157,13 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
+
+  private readonly onTodayActivity = (): void => {
+    this.today.set(this.localToday());
+    if (this.todayTimer !== null) window.clearTimeout(this.todayTimer);
+    const now = new Date();
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+    this.todayTimer = window.setTimeout(this.onTodayActivity, Math.max(nextMidnight - now.getTime() + 1, 1000));
+  };
+
 }

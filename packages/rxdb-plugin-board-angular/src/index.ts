@@ -14,6 +14,7 @@ export type {
   BoardHostContext,
   BoardLabel,
   BoardWriteEvent,
+  BoardSearchUnavailableReason,
   CardDropTarget,
   Column,
   ColumnSortMode,

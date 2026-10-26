@@ -14,6 +14,7 @@ import {
   Column,
   Task,
   TaskLabel,
+  type BoardSearchUnavailableReason,
   type BoardSearchUpstream,
   type CardDropTarget,
   type ColumnSortMode,
@@ -25,7 +26,7 @@ import {
 } from '@aiao/rxdb-plugin-board';
 import type {} from '@aiao/rxdb-plugin-history';
 import { DestroyRef, inject, signal, type Signal } from '@angular/core';
-import { BehaviorSubject, combineLatest, map, of, Subscription, switchMap } from 'rxjs';
+import { BehaviorSubject, catchError, combineLatest, EMPTY, map, of, Subscription, switchMap, tap } from 'rxjs';
 
 import { eq, inRule } from './query-helpers.js';
 
@@ -56,11 +57,15 @@ export interface UseBoardOptions {
   readonly storage?: UseBoardStorage;
   /** 板内搜索（US-539 阶段 B）：注入上游全文源（搜索插件实例）。不传则无搜索能力。 */
   readonly search?: { readonly upstream: BoardSearchUpstream };
+  /** 搜索不可用时由宿主说明原因。 */
+  readonly searchUnavailableReason?: BoardSearchUnavailableReason;
 }
 
 export interface UseBoardReturn {
-  /** 板级搜索源（US-539 阶段 B）；宿主未注入上游时为 `null`（入口禁用）。 */
+  /** 板级搜索源（US-539 阶段 B）；宿主未注入上游时为 `null`。 */
   readonly searchSource: BoardSearchSource | null;
+  /** 搜索入口不可用时的稳定原因。 */
+  readonly searchUnavailableReason: BoardSearchUnavailableReason | null;
   /** 全部板（创建时间升序、同时刻按 id）。 */
   readonly boards: Signal<readonly Board[]>;
   /** 当前板 id（本地记录持久化）。 */
@@ -77,6 +82,9 @@ export interface UseBoardReturn {
   readonly taskLabels: Signal<ReadonlyMap<string, readonly BoardLabel[]>>;
   /** 恢复中写门禁（US-534 / US-537）。 */
   readonly restoring: Signal<boolean>;
+  readonly loading: Signal<boolean>;
+  readonly readError: Signal<string | null>;
+  readonly retryReads: () => void;
   /** 本次会话可撤销事务数（undo 入口禁用判据）。 */
   readonly undoCount: Signal<number>;
   /** redo 栈深度（redo 入口禁用判据）。 */
@@ -125,8 +133,13 @@ const defaultStorage = (): UseBoardStorage => {
   return { get: key => memory.get(key) ?? null, set: (key, value) => void memory.set(key, value) };
 };
 
-const bind = <T>(source: import('rxjs').Observable<T>, target: { set(value: T): void }, subs: Subscription): void => {
-  subs.add(source.subscribe(value => target.set(value)));
+const bind = <T>(
+  source: import('rxjs').Observable<T>,
+  target: { set(value: T): void },
+  subs: Subscription,
+  onError: (error: unknown) => void
+): void => {
+  subs.add(source.subscribe({ next: value => target.set(value), error: onError }));
 };
 
 /**
@@ -142,6 +155,7 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   // 流源是 Subject，signal 是其镜像：切板 / 恢复中经 Subject 驱动，UI 经 signal 读
   const boardId$ = new BehaviorSubject<UUID | null>(null);
   const restoring$ = new BehaviorSubject<boolean>(false);
+  const readAttempt$ = new BehaviorSubject(0);
 
   const boards = signal<readonly Board[]>([]);
   const currentBoardId = signal<UUID | null>(null);
@@ -151,6 +165,8 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   const labels = signal<readonly BoardLabel[]>([]);
   const taskLabels = signal<ReadonlyMap<string, readonly BoardLabel[]>>(new Map());
   const restoring = signal<boolean>(false);
+  const loading = signal(true);
+  const readError = signal<string | null>(null);
   const undoCount = signal<number>(0);
   const redoCount = signal<number>(0);
   const writeEvent = signal<{ readonly kind: string; readonly reason?: string } | null>(null);
@@ -172,33 +188,51 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   const linkRepo = rxdb.entityManager.getRepository(TaskLabel);
 
   const subs = new Subscription();
+  const failRead = (error: unknown): void => {
+    loading.set(false);
+    readError.set(error instanceof Error ? error.message : String(error));
+  };
+  const read = <T>(factory: () => import('rxjs').Observable<T>): import('rxjs').Observable<T> =>
+    readAttempt$.pipe(
+      switchMap(() =>
+        factory().pipe(
+          catchError(error => {
+            failRead(error);
+            return EMPTY;
+          })
+        )
+      )
+    );
 
   // 板列表：创建时间升序、同时刻按 id
-  const boards$ = boardRepo.find({
+  const boards$ = read(() => boardRepo.find({
     where: { combinator: 'and', rules: [] },
     orderBy: [
       { field: 'createdAt', sort: 'asc' },
       { field: 'id', sort: 'asc' }
     ]
-  });
-  bind(boards$, boards, subs);
+  })).pipe(tap(() => loading.set(false)));
+  bind(boards$, boards, subs, failRead);
   // 当前板
   subs.add(
-    combineLatest([boards$, boardId$]).subscribe(([list, id]) => {
+    combineLatest([boards$, boardId$]).subscribe({
+      next: ([list, id]) => {
       currentBoard.set(list.find(board => board.id === id) ?? null);
+      },
+      error: failRead
     })
   );
   // 列 / 任务 / 标签随当前板切换（活查询 switchMap；signal 只是流的镜像）
   const columns$ = boardId$.pipe(
     switchMap(boardId =>
-      boardId === null ? of([] as readonly Column[]) : columnRepo.find({ where: eq('boardId', boardId) })
+      boardId === null ? of([] as readonly Column[]) : read(() => columnRepo.find({ where: eq('boardId', boardId) }))
     )
   );
-  bind(columns$, columns, subs);
+  bind(columns$, columns, subs, failRead);
   const tasks$ = combineLatest([boardId$, columns$]).pipe(
     switchMap(([boardId, cols]) => {
       if (boardId === null || cols.length === 0) return of([] as readonly Task[]);
-      return taskRepo.find({
+      return read(() => taskRepo.find({
         where: {
           combinator: 'and',
           rules: [
@@ -208,61 +242,67 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
             )
           ]
         }
-      });
+      }));
     })
   );
-  bind(tasks$, tasks, subs);
+  bind(tasks$, tasks, subs, failRead);
   const labels$ = boardId$.pipe(
     switchMap(boardId =>
       boardId === null ?
         of([] as readonly BoardLabel[])
-      : labelRepo.find({
+      : read(() => labelRepo.find({
           where: eq('boardId', boardId),
           orderBy: [
             { field: 'createdAt', sort: 'asc' },
             { field: 'id', sort: 'asc' }
           ]
-        })
+        }))
     )
   );
-  bind(labels$, labels, subs);
+  bind(labels$, labels, subs, failRead);
   // 任务 → 标签：当前板全部关联与标签定义求交
   const taskLabels$ = combineLatest([boardId$, tasks$, labels$]).pipe(
     switchMap(([boardId, currentTasks, currentLabels]) => {
       if (boardId === null || currentTasks.length === 0) return of(new Map<UUID, readonly BoardLabel[]>());
       const ids = currentTasks.map(task => task.id);
-      return linkRepo.find({ where: { combinator: 'and', rules: [inRule('taskId', ids)] } }).pipe(
+      return read(() => linkRepo.find({ where: { combinator: 'and', rules: [inRule('taskId', ids)] } })).pipe(
         map(links => {
-          const labelById = new Map(currentLabels.map(label => [label.id, label]));
-          const grouped = new Map<UUID, BoardLabel[]>();
+          const labelIdsByTask = new Map<UUID, Set<UUID>>();
           for (const link of links) {
-            const label = labelById.get(link.labelId);
-            if (!label) continue;
-            const list = grouped.get(link.taskId) ?? [];
-            list.push(label);
-            grouped.set(link.taskId, list);
+            const labelIds = labelIdsByTask.get(link.taskId) ?? new Set<UUID>();
+            labelIds.add(link.labelId);
+            labelIdsByTask.set(link.taskId, labelIds);
           }
-          return grouped as ReadonlyMap<string, readonly BoardLabel[]>;
+          const grouped = new Map<UUID, readonly BoardLabel[]>();
+          for (const task of currentTasks) {
+            const labelIds = labelIdsByTask.get(task.id);
+            if (!labelIds) continue;
+            const taskLabels = currentLabels.filter(label => labelIds.has(label.id));
+            if (taskLabels.length > 0) grouped.set(task.id, taskLabels);
+          }
+          return grouped;
         })
       );
     })
   );
-  bind(taskLabels$, taskLabels, subs);
+  bind(taskLabels$, taskLabels, subs, failRead);
 
   // 撤销 / 重做计数（数据库级历史，跨实体一次保存一个事务）
   const history = rxdb.versionManager.history();
-  bind(history.undoCount$, undoCount, subs);
-  bind(history.redoCount$, redoCount, subs);
+  bind(history.undoCount$, undoCount, subs, failRead);
+  bind(history.redoCount$, redoCount, subs, failRead);
   subs.add(
-    notifier.events$.subscribe(event =>
-      writeEvent.set({ kind: event.kind, reason: 'reason' in event ? event.reason : undefined })
-    )
+    notifier.events$.subscribe({
+      next: event => writeEvent.set({ kind: event.kind, reason: 'reason' in event ? event.reason : undefined }),
+      error: failRead
+    })
   );
   subs.add(restoring$.subscribe(value => restoring.set(value)));
 
   // 当前选择失效时，恢复本地记录或选中第一块板。
   subs.add(
-    boards$.subscribe(list => {
+    boards$.subscribe({
+      next: list => {
       const selected = boardId$.value;
       if (list.some(board => board.id === selected)) return;
       const target = list.find(board => board.id === storage.get(LAST_BOARD_KEY)) ?? list[0];
@@ -270,6 +310,8 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
       if (next === selected) return;
       boardId$.next(next);
       currentBoardId.set(next);
+      },
+      error: failRead
     })
   );
 
@@ -281,6 +323,11 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
 
   const setRestoring = (value: boolean): void => {
     restoring$.next(value);
+  };
+  const retryReads = (): void => {
+    readError.set(null);
+    loading.set(true);
+    readAttempt$.next(readAttempt$.value + 1);
   };
 
   destroyRef.onDestroy(() => {
@@ -321,6 +368,7 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
 
   return {
     searchSource,
+    searchUnavailableReason: options?.searchUnavailableReason ?? null,
     boards: boards.asReadonly(),
     currentBoardId: currentBoardId.asReadonly(),
     currentBoard: currentBoard.asReadonly(),
@@ -329,6 +377,9 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     labels: labels.asReadonly(),
     taskLabels: taskLabels.asReadonly(),
     restoring: restoring.asReadonly(),
+    loading: loading.asReadonly(),
+    readError: readError.asReadonly(),
+    retryReads,
     undoCount: undoCount.asReadonly(),
     redoCount: redoCount.asReadonly(),
     writeEvent: writeEvent.asReadonly(),

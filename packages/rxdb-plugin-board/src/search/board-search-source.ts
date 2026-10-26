@@ -34,6 +34,9 @@ import { matchAll, readFirst, whereEq } from '../query.js';
  * 漏项。所以本源**不调用 `loadMore()`**。
  */
 
+/** 搜索入口不可用的稳定原因。 */
+export type BoardSearchUnavailableReason = 'plugin_not_installed' | 'adapter_unsupported' | 'query_failed';
+
 /** 上游全文源：取全部命中所需的单 collection 检索（插件实例或测试替身）。 */
 export interface BoardSearchUpstream {
   searchCollection(collection: string, query: string, options?: SearchOptions): SearchHandle;

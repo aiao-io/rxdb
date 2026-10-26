@@ -74,6 +74,21 @@ describe('看板领域边界用例', () => {
     });
   });
 
+  it('改板只能修改当前板', async () => {
+    const first = await domain.createBoard({ title: '第一块板' });
+    const second = await domain.createBoard({ title: '第二块板' });
+
+    ctx.boardId = first.id;
+    await expect(domain.updateBoard(second.id, { title: '不应修改' })).rejects.toMatchObject({ code: 'cross_board' });
+    await expect(domain.updateBoard(first.id, { title: '当前板已修改' })).resolves.toMatchObject({
+      id: first.id,
+      title: '当前板已修改'
+    });
+
+    ctx.boardId = null;
+    await expect(domain.updateBoard(first.id, { title: '没有当前板' })).rejects.toMatchObject({ code: 'board_not_found' });
+  });
+
   it('任务与板不存在时给出可判别错误；listTasksOfBoard 汇总板内任务', async () => {
     const board = await domain.createBoard({ title: 'B' });
     ctx.boardId = board.id;
@@ -97,6 +112,7 @@ describe('看板领域边界用例', () => {
 
   it('改板描述与标题只写给定字段', async () => {
     const board = await domain.createBoard({ title: 'B', description: 'd1' });
+    ctx.boardId = board.id;
     const updated = await domain.updateBoard(board.id, { description: 'd2' });
     expect(updated.description).toBe('d2');
     expect(updated.title).toBe('B');

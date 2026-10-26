@@ -8,6 +8,7 @@ import {
   resolveColumnDrop,
   resolveMenuMove,
   type BoardLabel,
+  type BoardSearchUnavailableReason,
   type BoardSearchUpstream,
   type CardDropColumnView,
   type CardDropTarget,
@@ -35,12 +36,37 @@ const props = defineProps<{
   onExportBackup?: () => void | Promise<void>;
 }>();
 
+const dateKey = (date: Date): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const today = ref(dateKey(new Date()));
+let todayTimer: number | null = null;
+const refreshToday = (): void => {
+  today.value = dateKey(new Date());
+  if (todayTimer !== null) window.clearTimeout(todayTimer);
+  const now = new Date();
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+  todayTimer = window.setTimeout(refreshToday, Math.max(nextMidnight - now.getTime() + 1, 1000));
+};
+const searchUnavailableText = (reason: BoardSearchUnavailableReason | null): string =>
+  reason === 'plugin_not_installed' ? '搜索插件未安装'
+  : reason === 'adapter_unsupported' ? '当前适配器不支持搜索'
+  : reason === 'query_failed' ? '搜索查询失败'
+  : '';
+
 // Vue 会把 props 包成 reactive 代理：类实例（EntityManager 等）经代理调用
 // 会丢私有成员与原型链，必须取回原始对象（Vue 官方 toRaw 语义）
-const searchUpstream = toRaw(props.rxdb).getPlugins('search')[0];
+const installedSearch = toRaw(props.rxdb).getPlugins('search')[0] as
+  | { readonly searchCollection?: unknown }
+  | undefined;
+const searchUpstream =
+  installedSearch && typeof installedSearch.searchCollection === 'function' ? installedSearch : undefined;
+const searchUnavailableReason: BoardSearchUnavailableReason | undefined =
+  installedSearch === undefined ? 'plugin_not_installed' : searchUpstream === undefined ? 'adapter_unsupported' : undefined;
 const board = useBoard(
   toRaw(props.rxdb),
-  searchUpstream ? { search: { upstream: searchUpstream as unknown as BoardSearchUpstream } } : undefined
+  searchUpstream ?
+    { search: { upstream: searchUpstream as BoardSearchUpstream } }
+  : { searchUnavailableReason }
 );
 
 const editTitleTaskId = ref<UUID | null>(null);
@@ -581,11 +607,9 @@ const executeConfirmedDelete = async (): Promise<void> => {
 
 const dueDateText = (due: string | null): string => {
   if (!due) return '';
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   return (
-    due < today ? `已逾期 ${due}`
-    : due === today ? `今天到期 ${due}`
+    due < today.value ? `已逾期 ${due}`
+    : due === today.value ? `今天到期 ${due}`
     : due
   );
 };
@@ -650,9 +674,17 @@ const applyRestoringFromStorage = (): void => {
 };
 onMounted(() => {
   window.addEventListener('storage', applyRestoringFromStorage);
+  window.addEventListener('focus', refreshToday);
+  document.addEventListener('visibilitychange', refreshToday);
   applyRestoringFromStorage();
+  refreshToday();
 });
-onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromStorage));
+onBeforeUnmount(() => {
+  window.removeEventListener('storage', applyRestoringFromStorage);
+  window.removeEventListener('focus', refreshToday);
+  document.removeEventListener('visibilitychange', refreshToday);
+  if (todayTimer !== null) window.clearTimeout(todayTimer);
+});
 </script>
 
 <template>
@@ -701,28 +733,28 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
       <div class="header-actions">
         <button
           data-testid="create-board"
-          :disabled="board.restoring.value"
+          :disabled="board.restoring.value || board.loading.value || board.readError.value !== null"
           @click="createBoard"
         >
           新建板
         </button>
         <button
           data-testid="delete-board"
-          :disabled="board.restoring.value || !board.currentBoard.value"
+          :disabled="board.restoring.value || board.loading.value || board.readError.value !== null || !board.currentBoard.value"
           @click="confirmBoardDelete"
         >
           删除看板
         </button>
         <button
           data-testid="create-column"
-          :disabled="board.restoring.value || !board.currentBoard.value"
+          :disabled="board.restoring.value || board.loading.value || board.readError.value !== null || !board.currentBoard.value"
           @click="createColumn"
         >
           新建列
         </button>
         <button
           data-testid="create-label"
-          :disabled="board.restoring.value || !board.currentBoard.value"
+          :disabled="board.restoring.value || board.loading.value || board.readError.value !== null || !board.currentBoard.value"
           @click="createLabel"
         >
           新建标签
@@ -745,7 +777,7 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
         </button>
         <button
           data-testid="export-backup"
-          :disabled="board.restoring.value"
+          :disabled="board.restoring.value || board.loading.value || board.readError.value !== null"
           @click="exportBackup"
         >
           导出备份
@@ -753,6 +785,21 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
       </div>
     </header>
 
+    <p
+      v-if="board.loading.value"
+      class="board-notice"
+      data-testid="board-loading"
+      role="status"
+    >正在读取看板数据…</p>
+    <p
+      v-else-if="board.readError.value"
+      class="board-notice"
+      data-testid="board-read-error"
+      role="alert"
+    >
+      读取看板数据失败：{{ board.readError.value }}
+      <button data-testid="board-read-retry" @click="board.retryReads">重试</button>
+    </p>
     <p
       v-if="board.restoring.value"
       class="restoring-note"
@@ -807,18 +854,24 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
 
       <!-- 板内搜索（US-539 阶段 B） -->
       <div
-        v-if="board.searchSource"
+        v-if="board.searchSource || board.searchUnavailableReason"
         class="board-search"
         data-testid="board-search"
       >
         <input
           class="search-input"
           :value="searchQuery"
-          placeholder="搜索当前板任务"
+          :disabled="!board.searchSource && board.searchUnavailableReason !== null"
+          :placeholder="board.searchSource ? '搜索当前板任务' : searchUnavailableText(board.searchUnavailableReason)"
           aria-label="搜索当前板任务"
           data-testid="board-search-input"
           @input="onSearchInput"
         />
+        <span
+          v-if="!board.searchSource"
+          class="search-unavailable"
+          data-testid="board-search-unavailable"
+        >{{ searchUnavailableText(board.searchUnavailableReason) }}</span>
         <div
           v-if="searchQuery.trim() !== ''"
           class="search-results"
@@ -1232,14 +1285,14 @@ onBeforeUnmount(() => window.removeEventListener('storage', applyRestoringFromSt
       </aside>
     </template>
     <div
-      v-else
+      v-else-if="!board.loading.value && !board.readError.value"
       class="empty-board"
       data-testid="empty-board"
     >
       <p>没有看板</p>
       <button
         data-testid="create-board-empty"
-        :disabled="board.restoring.value"
+        :disabled="board.restoring.value || board.loading.value || board.readError.value !== null"
         @click="createBoard"
       >
         新建板

@@ -18,6 +18,10 @@
         "kind": "type"
       },
       {
+        "name": "BoardSearchUnavailableReason",
+        "kind": "type"
+      },
+      {
         "name": "BoardViewComponent",
         "kind": "both"
       },

@@ -29,30 +29,38 @@
         <span class="restoring-badge" aria-live="polite" data-testid="restoring-badge">恢复中</span>
       }
       <div class="header-actions">
-        <button [disabled]="b.restoring()" (click)="createBoard()" data-testid="create-board">新建板</button>
+        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null" (click)="createBoard()" data-testid="create-board">新建板</button>
         <button
-          [disabled]="b.restoring() || !b.currentBoard()"
+          [disabled]="b.restoring() || b.loading() || b.readError() !== null || !b.currentBoard()"
           (click)="confirmBoardDelete()"
           data-testid="delete-board"
         >
           删除看板
         </button>
-        <button [disabled]="b.restoring() || !b.currentBoard()" (click)="createColumn()" data-testid="create-column">
+        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null || !b.currentBoard()" (click)="createColumn()" data-testid="create-column">
           新建列
         </button>
-        <button [disabled]="b.restoring() || !b.currentBoard()" (click)="createLabel()" data-testid="create-label">
+        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null || !b.currentBoard()" (click)="createLabel()" data-testid="create-label">
           新建标签
         </button>
-        <button [disabled]="b.restoring() || b.undoCount() === 0" (click)="undo()" aria-label="撤销" data-testid="undo">
+        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null || b.undoCount() === 0" (click)="undo()" aria-label="撤销" data-testid="undo">
           撤销
         </button>
-        <button [disabled]="b.restoring() || b.redoCount() === 0" (click)="redo()" aria-label="重做" data-testid="redo">
+        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null || b.redoCount() === 0" (click)="redo()" aria-label="重做" data-testid="redo">
           重做
         </button>
-        <button [disabled]="b.restoring()" (click)="onExportBackup()" data-testid="export-backup">导出备份</button>
+        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null" (click)="onExportBackup()" data-testid="export-backup">导出备份</button>
       </div>
     </header>
 
+    @if (b.loading()) {
+      <p class="board-notice" data-testid="board-loading" role="status">正在读取看板数据…</p>
+    } @else if (b.readError(); as message) {
+      <p class="board-notice" data-testid="board-read-error" role="alert">
+        读取看板数据失败：{{ message }}
+        <button (click)="b.retryReads()" data-testid="board-read-retry">重试</button>
+      </p>
+    }
     @if (b.restoring()) {
       <p class="restoring-note" data-testid="restoring-note">恢复进行中：浏览可用，写入口已暂停。</p>
     }
@@ -84,7 +92,7 @@
     }
 
     <!-- 板内搜索（US-539 阶段 B） -->
-    @if (b.searchSource) {
+    @if (b.searchSource || b.searchUnavailableReason) {
       <div class="board-search" data-testid="board-search">
         <input
           class="search-input"
@@ -92,8 +100,14 @@
           (ngModelChange)="onSearchInput($event)"
           aria-label="搜索当前板任务"
           data-testid="board-search-input"
-          placeholder="搜索当前板任务"
+          [disabled]="!b.searchSource && b.searchUnavailableReason !== null"
+          [placeholder]="b.searchSource ? '搜索当前板任务' : searchUnavailableText(b.searchUnavailableReason)"
         />
+        @if (!b.searchSource) {
+          <span class="search-unavailable" data-testid="board-search-unavailable">
+            {{ searchUnavailableText(b.searchUnavailableReason) }}
+          </span>
+        }
         @if (searchQuery().trim() !== '') {
           <div class="search-results" data-testid="board-search-results">
             @switch (searchState()) {
@@ -289,10 +303,10 @@
           </section>
         }
       </div>
-    } @else {
+    } @else if (!b.loading() && b.readError() === null) {
       <div class="empty-board" data-testid="empty-board">
         <p>没有看板</p>
-        <button [disabled]="b.restoring()" (click)="createBoard()" data-testid="create-board-empty">新建板</button>
+        <button [disabled]="b.restoring() || b.loading() || b.readError() !== null" (click)="createBoard()" data-testid="create-board-empty">新建板</button>
       </div>
     }
 

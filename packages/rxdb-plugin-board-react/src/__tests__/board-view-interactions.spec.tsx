@@ -61,6 +61,7 @@ beforeEach(() => {
   );
   state = {
     searchSource: null,
+    searchUnavailableReason: null,
     boards: [current, second],
     currentBoardId: current.id,
     currentBoard: current,
@@ -69,6 +70,9 @@ beforeEach(() => {
     labels: [label],
     taskLabels: new Map([[tasks[0].id, [label]]]),
     restoring: false,
+    loading: false,
+    readError: null,
+    retryReads: vi.fn(),
     undoCount: 1,
     redoCount: 1,
     writeEvent: null,
@@ -123,10 +127,8 @@ afterEach(() => {
 });
 
 describe('看板公开交互', () => {
-  it('卡片空白区域可展开字段，详情侧栏支持固定和操作菜单', async () => {
+  it('详情侧栏支持固定和操作菜单', async () => {
     render(<BoardView rxdb={rxdb} />);
-    fireEvent.click(screen.getAllByTestId('task-card')[0]);
-    expect(screen.getAllByTestId('task-expanded-fields')).toHaveLength(1);
     fireEvent.click(screen.getAllByTestId('task-title')[0]);
     await screen.findByTestId('detail-panel');
     fireEvent.click(screen.getByTestId('detail-pin'));

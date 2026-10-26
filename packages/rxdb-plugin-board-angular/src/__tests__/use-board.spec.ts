@@ -105,16 +105,17 @@ describe('useBoard（Angular 桥接）', () => {
     const c1 = await board.actions.createColumn({ title: 'C1' });
     const task = await board.actions.createTask({ columnId: c1.id, title: '任务' });
     const label = await board.actions.createLabel({ name: '核心', color: '#e11d48' });
+    const secondary = await board.actions.createLabel({ name: '次要', color: '#2563eb' });
     const snapshot = await board.actions.openSnapshot(task.id);
     await board.actions.saveTaskDraft(task.id, snapshot, {
       title: snapshot.title,
       description: snapshot.description ?? '',
       dueDate: snapshot.dueDate,
-      labelIds: [label.id]
+      labelIds: [secondary.id, label.id]
     });
 
-    await waitFor(() => (board.taskLabels().get(task.id) ?? []).length === 1, '任务标签');
-    expect(board.taskLabels().get(task.id)?.[0].name).toBe('核心');
+    await waitFor(() => (board.taskLabels().get(task.id) ?? []).length === 2, '任务标签');
+    expect(board.taskLabels().get(task.id)?.map(item => item.name)).toEqual(['核心', '次要']);
 
     await board.actions.renameLabel(label.id, '核心功能');
     await waitFor(() => board.taskLabels().get(task.id)?.[0].name === '核心功能', '改名反映');

@@ -10,6 +10,7 @@ import {
   RESTORING_MARKER_KEY,
   Task,
   type BoardLabel,
+  type BoardSearchUnavailableReason,
   type BoardSearchUpstream,
   type CardDropColumnView,
   type CardDropTarget,
@@ -39,54 +40,37 @@ export interface BoardViewProps {
   readonly onExportBackup?: () => void | Promise<void>;
 }
 
-type DueFilter = 'all' | 'overdue' | 'today' | 'upcoming';
 type ComposerKind = 'board' | 'column' | 'label';
-
-interface ParsedFilter {
-  readonly text: string;
-  readonly label: string;
-  readonly due: DueFilter;
-}
 
 const dateKey = (date: Date): string =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-const dueState = (task: Task, today: string): Exclude<DueFilter, 'all'> | 'none' => {
+const dueState = (task: Task, today: string): 'overdue' | 'today' | 'upcoming' | 'none' => {
   if (!task.dueDate) return 'none';
   if (task.dueDate < today) return 'overdue';
   if (task.dueDate === today) return 'today';
   return 'upcoming';
 };
 
-const parseFilter = (value: string): ParsedFilter => {
-  let text = value;
-  let label = '';
-  let due: DueFilter = 'all';
-  const labelMatch = text.match(/(?:^|\s)label:(?:"([^"]+)"|(\S+))/i);
-  if (labelMatch) {
-    label = labelMatch[1] ?? labelMatch[2] ?? '';
-    text = text.replace(labelMatch[0], ' ');
-  }
-  const dueMatch = text.match(/(?:^|\s)due:(overdue|today|upcoming|all)(?=\s|$)/i);
-  if (dueMatch) {
-    due = dueMatch[1].toLowerCase() as DueFilter;
-    text = text.replace(dueMatch[0], ' ');
-  }
-  return { text: text.trim().replace(/\s+/g, ' '), label: label.trim(), due };
-};
-
 export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
-  const searchUpstream = rxdb.getPlugins('search')[0];
+  const installedSearch = rxdb.getPlugins('search')[0] as
+    | { readonly searchCollection?: unknown }
+    | undefined;
+  const searchUpstream =
+    installedSearch && typeof installedSearch.searchCollection === 'function' ? installedSearch : undefined;
+  const searchUnavailableReason: BoardSearchUnavailableReason | undefined =
+    installedSearch === undefined ? 'plugin_not_installed' : searchUpstream === undefined ? 'adapter_unsupported' : undefined;
   const board = useBoard(
     rxdb,
-    searchUpstream ? { search: { upstream: searchUpstream as unknown as BoardSearchUpstream } } : undefined
+    searchUpstream ?
+      { search: { upstream: searchUpstream as BoardSearchUpstream } }
+    : { searchUnavailableReason }
   );
   const [editTitleTaskId, setEditTitleTaskId] = useState<UUID | null>(null);
   const [editTitleValue, setEditTitleValue] = useState<string>('');
   const [detailTaskId, setDetailTaskId] = useState<UUID | null>(null);
   const [detailPinned, setDetailPinned] = useState(false);
   const [detailActionsOpen, setDetailActionsOpen] = useState(false);
-  const [expandedTaskId, setExpandedTaskId] = useState<UUID | null>(null);
   const [draft, setDraft] = useState({ title: '', description: '', dueDate: '', labelIds: [] as readonly UUID[] });
   const [snapshot, setSnapshot] = useState<TaskDraftSnapshot | null>(null);
   const [confirm, setConfirm] = useState<DeletePlan | null>(null);
@@ -106,21 +90,13 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   const [searchHasMore, setSearchHasMore] = useState(false);
   const [searchErrorText, setSearchErrorText] = useState<string | null>(null);
   const [searchHighlightId, setSearchHighlightId] = useState<UUID | null>(null);
-  const [filterLabelId, setFilterLabelId] = useState<UUID | ''>('');
-  const [filterLabelText, setFilterLabelText] = useState('');
-  const [dueFilter, setDueFilter] = useState<DueFilter>('all');
-  const [showEmptyColumns, setShowEmptyColumns] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
-  const [filterSuggestionsOpen, setFilterSuggestionsOpen] = useState(false);
-  const [viewOptionsOpen, setViewOptionsOpen] = useState(false);
   const [openColumnMenuId, setOpenColumnMenuId] = useState<UUID | null>(null);
-  const [showDescriptions, setShowDescriptions] = useState(true);
-  const [showLabels, setShowLabels] = useState(true);
   const [composer, setComposer] = useState<ComposerKind | null>(null);
   const [composerValue, setComposerValue] = useState('');
   const [composerColor, setComposerColor] = useState('#e11d48');
   const [composerSaving, setComposerSaving] = useState(false);
   const [editingBoard, setEditingBoard] = useState(false);
+  const [editingBoardId, setEditingBoardId] = useState<UUID | null>(null);
   const [editingBoardValue, setEditingBoardValue] = useState('');
   const [editingColumnId, setEditingColumnId] = useState<UUID | null>(null);
   const [editingColumnValue, setEditingColumnValue] = useState('');
@@ -152,15 +128,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const onSearchInput = (value: string): void => {
     setSearchQuery(value);
-    const parsed = parseFilter(value);
-    setFilterLabelText(parsed.label);
-    setFilterLabelId(
-      parsed.label === '' ?
-        ''
-      : (board.labels.find(label => label.name.toLowerCase() === parsed.label.toLowerCase())?.id ?? '')
-    );
-    setDueFilter(parsed.due);
-    const query = parsed.text;
+    const query = value.trim();
     if (query === '') {
       destroySearch();
       return;
@@ -170,7 +138,6 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     if (searchHandleRef.current === null) {
       const handle = source.search(query);
       searchHandleRef.current = handle;
-      // 上一组句柄订阅先退订（destroy 不保证上游 observable 不再发射）
       searchSubsRef.current?.unsubscribe();
       const subs = new Subscription();
       subs.add(handle.state$.subscribe(state => setSearchState(state)));
@@ -229,41 +196,26 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     return grouped;
   }, [board.columns, board.tasks]);
 
-  const today = dateKey(new Date());
-  const visibleTasks = useMemo(
-    () =>
-      board.tasks.filter(task => {
-        const matchesLabel =
-          filterLabelText === '' && filterLabelId === '' ?
-            true
-          : (board.taskLabels.get(task.id) ?? []).some(label =>
-              filterLabelId !== '' ?
-                label.id === filterLabelId
-              : label.name.toLowerCase() === filterLabelText.toLowerCase()
-            );
-        const state = dueState(task, today);
-        return matchesLabel && (dueFilter === 'all' || state === dueFilter);
-      }),
-    [board.taskLabels, board.tasks, dueFilter, filterLabelId, filterLabelText, today]
-  );
-  const visibleTaskMap = useMemo(() => {
-    const grouped = new Map<UUID, Task[]>();
-    for (const column of board.columns) grouped.set(column.id, []);
-    for (const task of visibleTasks) {
-      const list = grouped.get(task.columnId) ?? [];
-      list.push(task);
-      grouped.set(task.columnId, list);
-    }
-    return grouped;
-  }, [board.columns, visibleTasks]);
-  const visibleColumns = useMemo(
-    () =>
-      showEmptyColumns ?
-        board.columns
-      : board.columns.filter(column => (visibleTaskMap.get(column.id) ?? []).length > 0),
-    [board.columns, showEmptyColumns, visibleTaskMap]
-  );
-  const activeFilterCount = (filterLabelText === '' ? 0 : 1) + (dueFilter === 'all' ? 0 : 1);
+  const [today, setToday] = useState(() => dateKey(new Date()));
+
+  useEffect(() => {
+    let timer: number | null = null;
+    const refresh = (): void => {
+      setToday(dateKey(new Date()));
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+      timer = window.setTimeout(refresh, Math.max(nextMidnight - now.getTime() + 1, 1000));
+    };
+    const refreshOnPageActivity = (): void => refresh();
+    refresh();
+    window.addEventListener('focus', refreshOnPageActivity);
+    document.addEventListener('visibilitychange', refreshOnPageActivity);
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      window.removeEventListener('focus', refreshOnPageActivity);
+      document.removeEventListener('visibilitychange', refreshOnPageActivity);
+    };
+  }, []);
   const overdueTaskCount = board.tasks.filter(task => dueState(task, today) === 'overdue').length;
 
   const noticeTimerRef = useRef<number | null>(null);
@@ -319,14 +271,18 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   const startBoardEdit = (): void => {
     if (!current) return;
+    setEditingBoardId(current.id);
     setEditingBoardValue(current.title);
     setEditingBoard(true);
   };
 
   const commitBoardEdit = async (): Promise<void> => {
-    if (!current) return;
-    const result = await guard(() => board.actions.updateBoard(current.id, { title: editingBoardValue }));
-    if (result !== undefined) setEditingBoard(false);
+    if (editingBoardId === null) return;
+    const result = await guard(() => board.actions.updateBoard(editingBoardId, { title: editingBoardValue }));
+    if (result !== undefined) {
+      setEditingBoard(false);
+      setEditingBoardId(null);
+    }
   };
 
   const startColumnEdit = (column: Column): void => {
@@ -471,11 +427,13 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
     board.columns.map(column => {
       const columnEl = document.querySelector<HTMLElement>(`[data-column-id="${column.id}"]`);
       const rect = columnEl?.getBoundingClientRect();
-      const cards = (taskMap.get(column.id) ?? []).map(task => {
-        const cardEl = document.querySelector<HTMLElement>(`[data-task-id="${task.id}"]`);
-        const cardRect = cardEl?.getBoundingClientRect();
-        return { id: task.id, top: cardRect?.top ?? 0, bottom: cardRect?.bottom ?? 0 };
-      });
+      const cards = (taskMap.get(column.id) ?? [])
+        .map(task => {
+          const cardEl = document.querySelector<HTMLElement>(`[data-task-id="${task.id}"]`);
+          const cardRect = cardEl?.getBoundingClientRect();
+          return cardRect ? { id: task.id, top: cardRect.top, bottom: cardRect.bottom } : null;
+        })
+        .filter((card): card is { readonly id: UUID; readonly top: number; readonly bottom: number } => card !== null);
       return {
         columnId: column.id,
         rect: { left: rect?.left ?? 0, right: rect?.right ?? 0, top: rect?.top ?? 0, bottom: rect?.bottom ?? 0 },
@@ -605,7 +563,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
 
   /** 关闭详情：有未保存修改先确认放弃（取消零写）。 */
   const closeDetail = (): void => {
-    if (isDetailDirty() && !window.confirm('有未保存的修改，关闭将放弃。继续？')) return;
+    const currentDetail = detailStateRef.current;
+    const dirty =
+      currentDetail.snapshot !== null &&
+      (currentDetail.draft.title !== currentDetail.snapshot.title ||
+        currentDetail.draft.description !== (currentDetail.snapshot.description ?? '') ||
+        currentDetail.draft.dueDate !== (currentDetail.snapshot.dueDate ?? '') ||
+        [...currentDetail.draft.labelIds].sort().join(',') !== [...currentDetail.snapshot.labelIds].sort().join(','));
+    if (dirty && !window.confirm('有未保存的修改，关闭将放弃。继续？')) return;
     invalidateDetailRequest();
     setDetailTaskId(null);
     setSnapshot(null);
@@ -626,44 +591,23 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
         return;
       }
       if (searchQuery.trim() !== '') {
-        setSearchQuery('');
-        setFilterLabelText('');
-        setFilterLabelId('');
-        setDueFilter('all');
-        destroySearch();
-        setFilterSuggestionsOpen(false);
+        onSearchInput('');
         return;
       }
-      if (openColumnMenuId !== null || viewOptionsOpen || filterSuggestionsOpen) {
+      if (openColumnMenuId !== null) {
         setOpenColumnMenuId(null);
-        setViewOptionsOpen(false);
-        setFilterSuggestionsOpen(false);
-        return;
-      }
-      if (showFilters) {
-        setShowFilters(false);
         return;
       }
       if (detailTaskId !== null) closeDetail();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [
-    detailActionsOpen,
-    detailTaskId,
-    filterSuggestionsOpen,
-    openColumnMenuId,
-    searchQuery,
-    showFilters,
-    viewOptionsOpen
-  ]);
+  }, [detailActionsOpen, detailTaskId, openColumnMenuId, searchQuery]);
 
   useEffect(() => {
     const closeMenus = (event: MouseEvent): void => {
       if (event.target instanceof Element && event.target.closest('[data-board-menu]')) return;
       setOpenColumnMenuId(null);
-      setViewOptionsOpen(false);
-      setFilterSuggestionsOpen(false);
       setDetailActionsOpen(false);
     };
     document.addEventListener('mousedown', closeMenus);
@@ -777,25 +721,15 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       setSnapshot(null);
     }
     invalidateDetailRequest();
+    setEditingBoard(false);
+    setEditingBoardId(null);
     board.selectBoard(boardId);
-    setFilterLabelId('');
-    setFilterLabelText('');
-    setDueFilter('all');
-    setShowEmptyColumns(true);
     // 切板丢弃旧板结果：销毁重建句柄重发（setQuery 同词会被 distinctUntilChanged 吞掉）
     const query = searchQuery.trim();
     if (query !== '') {
       destroySearch();
       onSearchInput(query);
     }
-  };
-
-  const clearFilters = (): void => {
-    setFilterLabelId('');
-    setFilterLabelText('');
-    setDueFilter('all');
-    setSearchQuery('');
-    destroySearch();
   };
 
   const boardSelector = (
@@ -815,6 +749,13 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
   );
 
   const current = board.currentBoard;
+  const readBlocked = board.loading || board.readError !== null;
+  const writesBlocked = board.restoring || readBlocked;
+  const searchUnavailableText =
+    board.searchUnavailableReason === 'plugin_not_installed' ? '搜索插件未安装'
+    : board.searchUnavailableReason === 'adapter_unsupported' ? '当前适配器不支持搜索'
+    : board.searchUnavailableReason === 'query_failed' ? '搜索查询失败'
+    : null;
 
   return (
     <section
@@ -829,7 +770,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           <div className='board-eyebrow'>LOCAL PROJECT / 看板</div>
           <div className='board-title-row'>
             {boardSelector}
-            {current && editingBoard ?
+            {current && editingBoard && editingBoardId === current.id ?
               <form
                 className='inline-editor board-title-editor'
                 onSubmit={event => {
@@ -847,7 +788,10 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                 <button type='submit' data-testid='board-title-save'>
                   保存
                 </button>
-                <button type='button' onClick={() => setEditingBoard(false)} data-testid='board-title-cancel'>
+                <button type='button' onClick={() => {
+                    setEditingBoard(false);
+                    setEditingBoardId(null);
+                  }} data-testid='board-title-cancel'>
                   取消
                 </button>
               </form>
@@ -879,7 +823,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               className='icon-button'
               onClick={() => void guard(() => board.actions.undo())}
               data-testid='undo'
-              disabled={board.restoring || board.undoCount === 0}
+              disabled={writesBlocked || board.undoCount === 0}
               aria-label='撤销'
               title='撤销'
             >
@@ -889,7 +833,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               className='icon-button'
               onClick={() => void guard(() => board.actions.redo())}
               data-testid='redo'
-              disabled={board.restoring || board.redoCount === 0}
+              disabled={writesBlocked || board.redoCount === 0}
               aria-label='重做'
               title='重做'
             >
@@ -903,7 +847,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               else setNotice('备份导出由宿主接线（US-537）');
             }}
             data-testid='export-backup'
-            disabled={board.restoring}
+            disabled={writesBlocked}
           >
             导出备份
           </button>
@@ -911,7 +855,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             className='header-primary-action'
             onClick={() => startComposer('column')}
             data-testid='create-column'
-            disabled={board.restoring || !current || composerSaving}
+            disabled={writesBlocked || !current || composerSaving}
           >
             <span aria-hidden='true'>＋</span> 新建列
           </button>
@@ -919,7 +863,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             className='header-create-board'
             onClick={() => startComposer('board')}
             data-testid='create-board'
-            disabled={board.restoring || composerSaving}
+            disabled={writesBlocked || composerSaving}
           >
             新建板
           </button>
@@ -927,7 +871,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             className='header-danger-action'
             onClick={() => void confirmBoardDelete()}
             data-testid='delete-board'
-            disabled={board.restoring || !current}
+            disabled={writesBlocked || !current}
           >
             删除看板
           </button>
@@ -935,7 +879,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
             className='header-utility-action'
             onClick={() => startComposer('label')}
             data-testid='create-label'
-            disabled={board.restoring || !current || composerSaving}
+            disabled={writesBlocked || !current || composerSaving}
           >
             标签
           </button>
@@ -1016,18 +960,13 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           <span className={`summary-item${overdueTaskCount > 0 ? 'summary-warning' : ''}`}>
             <strong>{overdueTaskCount}</strong> 个逾期
           </span>
-          {activeFilterCount > 0 ?
-            <span className='summary-filter-state'>
-              已筛选 {visibleTasks.length} / {board.tasks.length}
-            </span>
-          : null}
         </div>
       : null}
 
-      {!current ?
+      {!current && !readBlocked ?
         <div className='empty-board' data-testid='empty-board'>
           <p>没有看板</p>
-          <button onClick={() => startComposer('board')} data-testid='create-board-empty' disabled={board.restoring}>
+          <button onClick={() => startComposer('board')} data-testid='create-board-empty' disabled={writesBlocked}>
             新建板
           </button>
           {composer === 'board' ?
@@ -1115,6 +1054,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           </button>
         </p>
       : null}
+      {board.loading ?
+        <p className='board-notice' role='status' data-testid='board-loading'>正在读取看板数据…</p>
+      : board.readError ?
+        <p className='board-notice' role='alert' data-testid='board-read-error'>
+          读取看板数据失败：{board.readError}
+          <button onClick={board.retryReads} data-testid='board-read-retry'>重试</button>
+        </p>
+      : null}
 
       {current ?
         <div className='board-toolbar' data-testid='board-toolbar'>
@@ -1134,12 +1081,17 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                 className='search-input'
                 value={searchQuery}
                 onChange={event => onSearchInput(event.target.value)}
-                onFocus={() => setFilterSuggestionsOpen(true)}
-                placeholder='按关键词或字段筛选'
-                aria-label='Filter'
+                placeholder={searchUnavailableText ?? '搜索当前板任务'}
+                aria-label='搜索当前板任务'
+                disabled={board.searchSource === null && board.searchUnavailableReason !== null}
                 data-testid='board-search-input'
               />
               <kbd>/</kbd>
+              {searchUnavailableText ?
+                <span className='search-unavailable' data-testid='board-search-unavailable'>
+                  {searchUnavailableText}
+                </span>
+              : null}
               {searchQuery !== '' ?
                 <button
                   className='search-clear'
@@ -1150,42 +1102,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                   ×
                 </button>
               : null}
-              {filterSuggestionsOpen && searchQuery.trim() === '' ?
-                <div className='filter-suggestions' role='listbox' aria-label='筛选建议'>
-                  <span className='filter-suggestions-heading'>支持的筛选</span>
-                  <button
-                    type='button'
-                    onClick={() => {
-                      onSearchInput('label:');
-                      searchInputRef.current?.focus();
-                    }}
-                  >
-                    <strong>label:</strong>
-                    <span>按标签筛选</span>
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => {
-                      onSearchInput('due:overdue');
-                      setFilterSuggestionsOpen(false);
-                    }}
-                  >
-                    <strong>due:overdue</strong>
-                    <span>只显示逾期任务</span>
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => {
-                      onSearchInput('due:today');
-                      setFilterSuggestionsOpen(false);
-                    }}
-                  >
-                    <strong>due:today</strong>
-                    <span>只显示今天到期</span>
-                  </button>
-                </div>
-              : null}
-              {board.searchSource && parseFilter(searchQuery).text !== '' ?
+              {board.searchSource && searchQuery.trim() !== '' ?
                 <div className='search-results' data-testid='board-search-results'>
                   {searchState === 'loading' ?
                     <p className='search-state' data-testid='board-search-loading'>
@@ -1234,122 +1151,13 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
               : null}
             </div>
 
-            <button
-              className={`filter-toggle${showFilters || activeFilterCount > 0 ? 'filter-toggle-active' : ''}`}
-              onClick={() => setShowFilters(value => !value)}
-              aria-expanded={showFilters}
-              aria-controls='board-filter-panel'
-              data-testid='board-filter-toggle'
-            >
-              <span aria-hidden='true'>☷</span> 筛选{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
-            </button>
-            <button
-              className={`empty-columns-toggle${showEmptyColumns ? '' : 'empty-columns-toggle-active'}`}
-              onClick={() => setShowEmptyColumns(value => !value)}
-              aria-pressed={!showEmptyColumns}
-              data-testid='toggle-empty-columns'
-            >
-              {showEmptyColumns ? '隐藏空列' : '显示空列'}
-            </button>
-            <div className='view-options' data-board-menu='view'>
-              <button
-                className={viewOptionsOpen ? 'view-options-toggle view-options-toggle-active' : 'view-options-toggle'}
-                onClick={() => setViewOptionsOpen(value => !value)}
-                aria-expanded={viewOptionsOpen}
-                data-testid='view-options'
-              >
-                视图 <span aria-hidden='true'>⌄</span>
-              </button>
-              <div className='view-options-menu' role='menu' hidden={!viewOptionsOpen}>
-                <span className='menu-heading'>布局</span>
-                <button role='menuitemradio' aria-checked='true' className='menu-check'>
-                  看板
-                </button>
-                <span className='menu-heading'>字段</span>
-                <button
-                  role='menuitemcheckbox'
-                  aria-checked={showDescriptions}
-                  onClick={() => setShowDescriptions(value => !value)}
-                >
-                  <span>{showDescriptions ? '✓' : ''}</span> 描述
-                </button>
-                <button
-                  role='menuitemcheckbox'
-                  aria-checked={showLabels}
-                  onClick={() => setShowLabels(value => !value)}
-                >
-                  <span>{showLabels ? '✓' : ''}</span> 标签
-                </button>
-                <button
-                  role='menuitemcheckbox'
-                  aria-checked={!showEmptyColumns}
-                  onClick={() => setShowEmptyColumns(value => !value)}
-                >
-                  <span>{showEmptyColumns ? '' : '✓'}</span> 隐藏空列
-                </button>
-              </div>
-            </div>
           </div>
-        </div>
-      : null}
-
-      {current && showFilters ?
-        <div className='filter-panel' id='board-filter-panel' data-testid='board-filter-panel'>
-          <div className='filter-panel-heading'>
-            <div>
-              <strong>筛选任务</strong>
-              <span> 只影响当前视图，不会修改数据</span>
-            </div>
-            <button
-              className='filter-clear'
-              onClick={clearFilters}
-              disabled={activeFilterCount === 0}
-              data-testid='clear-board-filters'
-            >
-              清除筛选
-            </button>
-          </div>
-          <label className='filter-control'>
-            <span>标签</span>
-            <select
-              value={filterLabelId}
-              onChange={event => {
-                const id = event.target.value as UUID | '';
-                setFilterLabelId(id);
-                setFilterLabelText(board.labels.find(label => label.id === id)?.name ?? '');
-              }}
-              aria-label='按标签筛选'
-              data-testid='board-filter-label'
-            >
-              <option value=''>全部标签</option>
-              {board.labels.map(label => (
-                <option key={label.id} value={label.id}>
-                  {label.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className='filter-control'>
-            <span>截止日期</span>
-            <select
-              value={dueFilter}
-              onChange={event => setDueFilter(event.target.value as DueFilter)}
-              aria-label='按截止日期筛选'
-              data-testid='board-filter-due'
-            >
-              <option value='all'>全部任务</option>
-              <option value='overdue'>已逾期</option>
-              <option value='today'>今天到期</option>
-              <option value='upcoming'>即将到期</option>
-            </select>
-          </label>
-          <span className='filter-result-count'>当前显示 {visibleTasks.length} 个任务</span>
         </div>
       : null}
 
       {current ?
         <div className='columns' data-testid='columns'>
-          {visibleColumns.map(column => (
+          {board.columns.map(column => (
             <section
               key={column.id}
               className={
@@ -1407,13 +1215,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                     </h2>
                   }
                   <span className='column-count' data-testid='column-count'>
-                    {(visibleTaskMap.get(column.id) ?? []).length}
-                    {(
-                      activeFilterCount > 0 &&
-                      (taskMap.get(column.id) ?? []).length !== (visibleTaskMap.get(column.id) ?? []).length
-                    ) ?
-                      <span className='column-total-count'> / {(taskMap.get(column.id) ?? []).length}</span>
-                    : null}
+                    {(taskMap.get(column.id) ?? []).length}
                   </span>
                 </div>
                 <div className='column-menu' data-board-menu='column'>
@@ -1485,7 +1287,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                 </div>
               </header>
               <div className='cards'>
-                {(visibleTaskMap.get(column.id) ?? []).map(task => (
+                {(taskMap.get(column.id) ?? []).map(task => (
                   <article
                     key={task.id}
                     className={[
@@ -1505,19 +1307,6 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                     tabIndex={0}
                     draggable
                     onDragStart={event => onTaskDragStart(event, task)}
-                    onClick={event => {
-                      if (event.target instanceof HTMLElement && event.target.closest('button,input,textarea,select'))
-                        return;
-                      setExpandedTaskId(value => (value === task.id ? null : task.id));
-                    }}
-                    onKeyDown={event => {
-                      if (event.target !== event.currentTarget) return;
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        setExpandedTaskId(value => (value === task.id ? null : task.id));
-                      }
-                    }}
-                    aria-expanded={expandedTaskId === task.id}
                     data-testid='task-card'
                   >
                     {editTitleTaskId === task.id ?
@@ -1568,14 +1357,14 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                             <span className='sr-only'>编辑</span>
                           </button>
                         </div>
-                        {showDescriptions && task.description ?
+                        {task.description ?
                           <p className='card-description' data-testid='task-description-preview'>
                             {task.description}
                           </p>
                         : null}
                       </>
                     }
-                    {showLabels && (labelsOf(task.id).length > 0 || dueDateText(task)) ?
+                    {(labelsOf(task.id).length > 0 || dueDateText(task)) ?
                       <div className='card-meta'>
                         {labelsOf(task.id).length > 0 ?
                           <div className='card-labels'>
@@ -1602,25 +1391,6 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                         : null}
                       </div>
                     : null}
-                    {expandedTaskId === task.id ?
-                      <div className='card-expanded-fields' data-testid='task-expanded-fields'>
-                        <div className='card-field'>
-                          <span>状态</span>
-                          <strong>{column.title}</strong>
-                        </div>
-                        <div className='card-field'>
-                          <span>截止日期</span>
-                          <strong>{task.dueDate ?? '未设置'}</strong>
-                        </div>
-                        <button
-                          className='card-open-detail'
-                          onClick={() => void openDetail(task.id)}
-                          data-testid='task-open-detail'
-                        >
-                          打开详情
-                        </button>
-                      </div>
-                    : null}
                   </article>
                 ))}
                 <button
@@ -1630,7 +1400,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                     setAddTaskColumnId(column.id);
                     setAddTaskTitle('');
                   }}
-                  disabled={board.restoring || creatingTask}
+                  disabled={writesBlocked || creatingTask}
                   data-testid='add-task'
                 >
                   + 添加任务
@@ -1675,7 +1445,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
           <button
             className='add-column'
             onClick={() => startComposer('column')}
-            disabled={board.restoring}
+            disabled={writesBlocked}
             data-testid='add-column'
           >
             <span aria-hidden='true'>＋</span> 添加列

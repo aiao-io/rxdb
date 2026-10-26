@@ -107,6 +107,10 @@ describe('Angular 看板交互边界', () => {
       redoCount: signal(0),
       writeEvent: signal(null),
       searchSource: null,
+      searchUnavailableReason: null,
+      loading: signal(false),
+      readError: signal(null),
+      retryReads: vi.fn(),
       selectBoard: vi.fn(),
       setRestoring: vi.fn(),
       actions
@@ -446,6 +450,7 @@ describe('Angular 看板交互边界', () => {
   it('日期提示使用本地日期，标签缺省为空', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 9, 23, 12));
+    view['onTodayActivity']();
     expect(view['dueDateText'](first)).toBe('');
     expect(view['dueDateText']({ dueDate: '2026-10-22' } as Task)).toBe('已逾期 2026-10-22');
     expect(view['dueDateText']({ dueDate: '2026-10-23' } as Task)).toBe('今天到期 2026-10-23');

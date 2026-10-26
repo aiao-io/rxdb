@@ -69,29 +69,6 @@ describe('BoardView（React 视图）', () => {
     fixture.unmount();
   });
 
-  it('筛选栏按标签和截止日缩小视图，并支持隐藏空列', async () => {
-    await seedReleaseBoardDataset(rxdb);
-    const fixture = render(<BoardView rxdb={rxdb} />);
-    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(12));
-
-    fireEvent.click(screen.getByTestId('board-filter-toggle'));
-    const labelFilter = screen.getByTestId('board-filter-label') as HTMLSelectElement;
-    const coreOption = [...labelFilter.options].find(option => option.textContent === '核心');
-    expect(coreOption).toBeTruthy();
-    fireEvent.change(labelFilter, { target: { value: coreOption?.value } });
-    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(4));
-
-    fireEvent.change(screen.getByTestId('board-filter-due'), { target: { value: 'overdue' } });
-    await waitFor(() => expect(screen.queryAllByTestId('task-card')).toHaveLength(0));
-    fireEvent.click(screen.getByTestId('toggle-empty-columns'));
-    await waitFor(() => expect(screen.queryAllByTestId('column')).toHaveLength(0));
-
-    fireEvent.click(screen.getByTestId('clear-board-filters'));
-    fireEvent.click(screen.getByTestId('toggle-empty-columns'));
-    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(12));
-    fixture.unmount();
-  });
-
   it('按 / 聚焦搜索，按 Escape 清除搜索', async () => {
     await seedReleaseBoardDataset(rxdb);
     const fixture = render(<BoardView rxdb={rxdb} />);
@@ -104,25 +81,6 @@ describe('BoardView（React 视图）', () => {
     expect((search as HTMLInputElement).value).toBe('同步');
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() => expect((search as HTMLInputElement).value).toBe(''));
-    fixture.unmount();
-  });
-
-  it('统一 Filter 支持字段语法，视图菜单能切换字段', async () => {
-    await seedReleaseBoardDataset(rxdb);
-    const fixture = render(<BoardView rxdb={rxdb} />);
-    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(12));
-    const filter = screen.getByTestId('board-search-input');
-
-    fireEvent.change(filter, { target: { value: 'label:核心' } });
-    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(4));
-    fireEvent.change(filter, { target: { value: 'due:overdue' } });
-    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(3));
-    fireEvent.keyDown(window, { key: 'Escape' });
-    await waitFor(() => expect(screen.getAllByTestId('task-card')).toHaveLength(12));
-
-    fireEvent.click(screen.getByTestId('view-options'));
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /描述/ }));
-    expect(screen.queryAllByTestId('task-description-preview')).toHaveLength(0);
     fixture.unmount();
   });
 

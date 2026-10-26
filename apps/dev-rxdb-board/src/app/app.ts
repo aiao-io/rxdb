@@ -9,6 +9,7 @@ import {
   cleanupBoardRestoreTarget,
   connectBoardRxdb,
   createBoardRxdb,
+  deleteBoardDbStorage,
   nextBoardDbName,
   RESTORE_TARGET_KEY,
   restoreBoardArchive,
@@ -218,14 +219,14 @@ export class App implements OnInit, OnDestroy {
 
   private async cleanupInterruptedRestore(): Promise<string | null> {
     const target = this.readStorage(RESTORE_TARGET_KEY);
+    const active = this.readStorage(ACTIVE_DB_KEY);
     try {
-      if (target !== null && target !== this.readStorage(ACTIVE_DB_KEY)) await cleanupBoardRestoreTarget(target);
+      if (target !== null && target !== active) await cleanupBoardRestoreTarget(target, active);
       this.clearStorage(RESTORE_TARGET_KEY);
+      this.clearStorage(RESTORING_MARKER_KEY);
       return null;
     } catch (cause) {
       return `恢复目标清理失败：${failureMessage(cause)}，可重新打开页面重试清理`;
-    } finally {
-      this.clearStorage(RESTORING_MARKER_KEY);
     }
   }
 
@@ -283,7 +284,7 @@ export class App implements OnInit, OnDestroy {
         disconnectFailure = `恢复目标断开失败：${failureMessage(disconnectCause)}`;
       }
       const cleanupFailure = await this.cleanupInterruptedRestore();
-      this.clearStorage(PENDING_SWITCH_KEY);
+      if (cleanupFailure === null) this.clearStorage(PENDING_SWITCH_KEY);
       this.error.set(
         [`恢复读回失败：${failureMessage(cause)}`, disconnectFailure, cleanupFailure].filter(Boolean).join('；')
       );
@@ -302,7 +303,13 @@ export class App implements OnInit, OnDestroy {
       this.writeStorage(ACTIVE_DB_KEY, dbName);
     } catch (cause) {
       const disconnectFailure = await this.disconnectFailure(db);
-      this.showFailure([failureMessage(cause), disconnectFailure].filter(Boolean).join('；'));
+      let cleanupFailure: string | null = null;
+      try {
+        await deleteBoardDbStorage(dbName);
+      } catch (cleanupCause) {
+        cleanupFailure = `新看板清理失败：${failureMessage(cleanupCause)}`;
+      }
+      this.showFailure([failureMessage(cause), disconnectFailure, cleanupFailure].filter(Boolean).join('；'));
       return;
     }
     this.error.set(null);

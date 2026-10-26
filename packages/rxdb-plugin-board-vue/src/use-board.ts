@@ -14,6 +14,7 @@ import {
   Column,
   Task,
   TaskLabel,
+  type BoardSearchUnavailableReason,
   type BoardSearchUpstream,
   type CardDropTarget,
   type ColumnSortMode,
@@ -24,7 +25,7 @@ import {
   type TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
 import type {} from '@aiao/rxdb-plugin-history';
-import { BehaviorSubject, combineLatest, map, of, Subscription, switchMap } from 'rxjs';
+import { BehaviorSubject, catchError, combineLatest, EMPTY, map, of, Subscription, switchMap, tap } from 'rxjs';
 import { effectScope, getCurrentScope, onScopeDispose, readonly, ref, type Ref } from 'vue';
 
 /**
@@ -49,11 +50,15 @@ export interface UseBoardOptions {
   readonly storage?: UseBoardStorage;
   /** 板内搜索（US-539 阶段 B）：注入上游全文源（搜索插件实例）。不传则无搜索能力。 */
   readonly search?: { readonly upstream: BoardSearchUpstream };
+  /** 搜索不可用时由宿主说明原因。 */
+  readonly searchUnavailableReason?: BoardSearchUnavailableReason;
 }
 
 export interface UseBoardReturn {
-  /** 板级搜索源（US-539 阶段 B）；宿主未注入上游时为 `null`（入口禁用）。 */
+  /** 板级搜索源（US-539 阶段 B）；宿主未注入上游时为 `null`。 */
   readonly searchSource: BoardSearchSource | null;
+  /** 搜索入口不可用时的稳定原因。 */
+  readonly searchUnavailableReason: BoardSearchUnavailableReason | null;
   readonly boards: Ref<readonly Board[]>;
   readonly currentBoardId: Ref<UUID | null>;
   readonly currentBoard: Ref<Board | null>;
@@ -62,6 +67,9 @@ export interface UseBoardReturn {
   readonly labels: Ref<readonly BoardLabel[]>;
   readonly taskLabels: Ref<ReadonlyMap<string, readonly BoardLabel[]>>;
   readonly restoring: Ref<boolean>;
+  readonly loading: Ref<boolean>;
+  readonly readError: Ref<string | null>;
+  readonly retryReads: () => void;
   readonly undoCount: Ref<number>;
   readonly redoCount: Ref<number>;
   readonly writeEvent: Ref<{ readonly kind: string; readonly reason?: string } | null>;
@@ -130,12 +138,15 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   const labels = ref<readonly BoardLabel[]>([]);
   const taskLabels = ref<ReadonlyMap<string, readonly BoardLabel[]>>(new Map());
   const restoring = ref<boolean>(false);
+  const loading = ref(true);
+  const readError = ref<string | null>(null);
   const undoCount = ref<number>(0);
   const redoCount = ref<number>(0);
   const writeEvent = ref<{ readonly kind: string; readonly reason?: string } | null>(null);
 
   const boardId$ = new BehaviorSubject<UUID | null>(null);
   const restoring$ = new BehaviorSubject<boolean>(false);
+  const readAttempt$ = new BehaviorSubject(0);
 
   let actions!: UseBoardActions;
   let searchSource: BoardSearchSource | null = null;
@@ -163,31 +174,47 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
       subs.unsubscribe();
       notifier.complete();
     });
+    const failRead = (error: unknown): void => {
+      loading.value = false;
+      readError.value = error instanceof Error ? error.message : String(error);
+    };
+    const read = <T>(factory: () => import('rxjs').Observable<T>): import('rxjs').Observable<T> =>
+      readAttempt$.pipe(
+        switchMap(() =>
+          factory().pipe(
+            catchError(error => {
+              failRead(error);
+              return EMPTY;
+            })
+          )
+        )
+      );
 
-    const boards$ = boardRepo.find({
+    const boards$ = read(() => boardRepo.find({
       where: { combinator: 'and', rules: [] },
       orderBy: [
         { field: 'createdAt', sort: 'asc' },
         { field: 'id', sort: 'asc' }
       ]
-    });
-    subs.add(boards$.subscribe(list => void (boards.value = list)));
+    })).pipe(tap(() => (loading.value = false)));
+    subs.add(boards$.subscribe({ next: list => void (boards.value = list), error: failRead }));
     subs.add(
-      combineLatest([boards$, boardId$]).subscribe(
-        ([list, id]) => void (currentBoard.value = list.find(board => board.id === id) ?? null)
-      )
+      combineLatest([boards$, boardId$]).subscribe({
+        next: ([list, id]) => void (currentBoard.value = list.find(board => board.id === id) ?? null),
+        error: failRead
+      })
     );
 
     const columns$ = boardId$.pipe(
       switchMap(boardId =>
-        boardId === null ? of([] as readonly Column[]) : columnRepo.find({ where: eq('boardId', boardId) })
+        boardId === null ? of([] as readonly Column[]) : read(() => columnRepo.find({ where: eq('boardId', boardId) }))
       )
     );
-    subs.add(columns$.subscribe(list => void (columns.value = list)));
+    subs.add(columns$.subscribe({ next: list => void (columns.value = list), error: failRead }));
     const tasks$ = combineLatest([boardId$, columns$]).pipe(
       switchMap(([boardId, cols]) => {
         if (boardId === null || cols.length === 0) return of([] as readonly Task[]);
-        return taskRepo.find({
+        return read(() => taskRepo.find({
           where: {
             combinator: 'and',
             rules: [
@@ -197,58 +224,64 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
               )
             ]
           }
-        });
+        }));
       })
     );
-    subs.add(tasks$.subscribe(list => void (tasks.value = list)));
+    subs.add(tasks$.subscribe({ next: list => void (tasks.value = list), error: failRead }));
     const labels$ = boardId$.pipe(
       switchMap(boardId =>
         boardId === null ?
           of([] as readonly BoardLabel[])
-        : labelRepo.find({
+        : read(() => labelRepo.find({
             where: eq('boardId', boardId),
             orderBy: [
               { field: 'createdAt', sort: 'asc' },
               { field: 'id', sort: 'asc' }
             ]
-          })
+          }))
       )
     );
-    subs.add(labels$.subscribe(list => void (labels.value = list)));
+    subs.add(labels$.subscribe({ next: list => void (labels.value = list), error: failRead }));
     const taskLabels$ = combineLatest([boardId$, tasks$, labels$]).pipe(
       switchMap(([boardId, currentTasks, currentLabels]) => {
         if (boardId === null || currentTasks.length === 0) return of(new Map<UUID, readonly BoardLabel[]>());
         const ids = currentTasks.map(task => task.id);
-        return linkRepo.find({ where: { combinator: 'and', rules: [inRule('taskId', ids)] } }).pipe(
+        return read(() => linkRepo.find({ where: { combinator: 'and', rules: [inRule('taskId', ids)] } })).pipe(
           map(links => {
-            const labelById = new Map(currentLabels.map(label => [label.id, label]));
-            const grouped = new Map<UUID, BoardLabel[]>();
+            const labelIdsByTask = new Map<UUID, Set<UUID>>();
             for (const link of links) {
-              const label = labelById.get(link.labelId);
-              if (!label) continue;
-              const list = grouped.get(link.taskId) ?? [];
-              list.push(label);
-              grouped.set(link.taskId, list);
+              const labelIds = labelIdsByTask.get(link.taskId) ?? new Set<UUID>();
+              labelIds.add(link.labelId);
+              labelIdsByTask.set(link.taskId, labelIds);
             }
-            return grouped as ReadonlyMap<string, readonly BoardLabel[]>;
+            const grouped = new Map<UUID, readonly BoardLabel[]>();
+            for (const task of currentTasks) {
+              const labelIds = labelIdsByTask.get(task.id);
+              if (!labelIds) continue;
+              const taskLabels = currentLabels.filter(label => labelIds.has(label.id));
+              if (taskLabels.length > 0) grouped.set(task.id, taskLabels);
+            }
+            return grouped;
           })
         );
       })
     );
-    subs.add(taskLabels$.subscribe(mapValue => void (taskLabels.value = mapValue)));
+    subs.add(taskLabels$.subscribe({ next: mapValue => void (taskLabels.value = mapValue), error: failRead }));
 
     const history = rxdb.versionManager.history();
-    subs.add(history.undoCount$.subscribe(count => void (undoCount.value = count)));
-    subs.add(history.redoCount$.subscribe(count => void (redoCount.value = count)));
+    subs.add(history.undoCount$.subscribe({ next: count => void (undoCount.value = count), error: failRead }));
+    subs.add(history.redoCount$.subscribe({ next: count => void (redoCount.value = count), error: failRead }));
     subs.add(
-      notifier.events$.subscribe(
-        event => void (writeEvent.value = { kind: event.kind, reason: 'reason' in event ? event.reason : undefined })
-      )
+      notifier.events$.subscribe({
+        next: event => void (writeEvent.value = { kind: event.kind, reason: 'reason' in event ? event.reason : undefined }),
+        error: failRead
+      })
     );
     subs.add(restoring$.subscribe(value => void (restoring.value = value)));
 
     subs.add(
-      boards$.subscribe(list => {
+      boards$.subscribe({
+        next: list => {
         const selected = boardId$.value;
         if (list.some(board => board.id === selected)) return;
         const target = list.find(board => board.id === storage.get(LAST_BOARD_KEY)) ?? list[0];
@@ -256,6 +289,8 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
         if (next === selected) return;
         boardId$.next(next);
         currentBoardId.value = next;
+        },
+        error: failRead
       })
     );
 
@@ -304,9 +339,15 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   const setRestoring = (value: boolean): void => {
     restoring$.next(value);
   };
+  const retryReads = (): void => {
+    readError.value = null;
+    loading.value = true;
+    readAttempt$.next(readAttempt$.value + 1);
+  };
 
   return {
     searchSource,
+    searchUnavailableReason: options?.searchUnavailableReason ?? null,
     boards: readonly(boards),
     currentBoardId: readonly(currentBoardId),
     currentBoard: readonly(currentBoard),
@@ -315,6 +356,9 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     labels: readonly(labels),
     taskLabels: readonly(taskLabels),
     restoring: readonly(restoring),
+    loading: readonly(loading),
+    readError: readonly(readError),
+    retryReads,
     undoCount: readonly(undoCount),
     redoCount: readonly(redoCount),
     writeEvent: readonly(writeEvent),

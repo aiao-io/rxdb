@@ -127,17 +127,18 @@ describe('useBoard（React 桥接）', () => {
     const c1 = await run(() => board().actions.createColumn({ title: 'C1' }));
     const task = await run(() => board().actions.createTask({ columnId: c1.id, title: '任务' }));
     const label = await run(() => board().actions.createLabel({ name: '核心', color: '#e11d48' }));
+    const secondary = await run(() => board().actions.createLabel({ name: '次要', color: '#2563eb' }));
     const snapshot = await run(() => board().actions.openSnapshot(task.id));
     await run(() =>
       board().actions.saveTaskDraft(task.id, snapshot, {
         title: snapshot.title,
         description: snapshot.description ?? '',
         dueDate: snapshot.dueDate,
-        labelIds: [label.id]
+        labelIds: [secondary.id, label.id]
       })
     );
-    await waitFor(() => (board().taskLabels.get(task.id) ?? []).length === 1, '任务标签');
-    expect(board().taskLabels.get(task.id)?.[0].name).toBe('核心');
+    await waitFor(() => (board().taskLabels.get(task.id) ?? []).length === 2, '任务标签');
+    expect(board().taskLabels.get(task.id)?.map(item => item.name)).toEqual(['核心', '次要']);
 
     act(() => board().setRestoring(true));
     await waitFor(() => board().restoring, '恢复中状态');

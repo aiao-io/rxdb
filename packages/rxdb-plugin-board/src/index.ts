@@ -56,6 +56,7 @@ export {
   BoardSearchSource,
   DEFAULT_BOARD_SEARCH_PAGE_SIZE,
   type BoardSearchSourceOptions,
+  type BoardSearchUnavailableReason,
   type BoardSearchUpstream
 } from './search/board-search-source.js';
 export { isValidDueDate, normalizeBoardTitle } from './title.js';

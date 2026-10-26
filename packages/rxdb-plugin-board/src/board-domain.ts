@@ -63,6 +63,10 @@ export class BoardDomain {
     patch: { title?: string; description?: string }
   ): Promise<InstanceType<typeof Board>> {
     assertBoardWritable(this.ctx());
+    const currentBoardId = requireBoardId(this.ctx());
+    if (boardId !== currentBoardId) {
+      throw new BoardDomainError('cross_board', '只能修改当前看板');
+    }
     const board = await this.requireBoard(boardId);
     const next: Partial<InstanceType<typeof Board>> = {};
     if (patch.title !== undefined) next.title = this.requireTitle(patch.title);

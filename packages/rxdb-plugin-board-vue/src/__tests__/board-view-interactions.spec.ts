@@ -65,6 +65,10 @@ describe('BoardView 交互边界', () => {
     label = { id: id(7), boardId: current.id, name: '核心', color: '#e11d48' } as BoardLabel;
     board = {
       searchSource: null,
+      searchUnavailableReason: null,
+      loading: ref(false),
+      readError: ref(null),
+      retryReads: vi.fn(),
       boards: ref([current, another]),
       currentBoardId: ref(current.id),
       currentBoard: ref(current),
