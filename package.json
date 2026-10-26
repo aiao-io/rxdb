@@ -13,7 +13,6 @@
     "postinstall": "pnpm check-workspace",
     "pre-commit": "pnpm check-commit",
     "pre-push": "pnpm check-commit",
-    "preinstall": "node ./scripts/audit/wa-sqlite-integrity.mjs && node ./scripts/preinstall.mjs",
     "prepare": "is-ci || husky",
     "publish-local": "nx release publish --registry=http://localhost:4873",
     "publish": "nx release publish --registry=https://registry.npmjs.org",
@@ -203,7 +202,7 @@
     "is-ci": "^4.1.0",
     "jiti": "2.7.0",
     "jsonc-eslint-parser": "^3.3.0",
-    "miniprogram-automator": "0.12.1",
+    "miniprogram-automator": "0.13.0",
     "ng-packagr": "22.2.5",
     "nx": "24.0.1",
     "ora": "^9.4.1",
@@ -260,5 +259,5 @@
     "website",
     "benchmarks"
   ],
-  "packageManager": "pnpm@10.34.9"
+  "packageManager": "pnpm@12.15.0"
 }

@@ -44,6 +44,7 @@ overrides:
   '@jimp/core>mkdirp': ^0.5.6
   '@jimp/core>phin': ^3.7.1
   '@jimp/jpeg>jpeg-js': ^0.4.4
+  miniprogram-automator>debug: ^4.4.3
   '@lucide/angular': 1.61.0
   '@tarojs/helper>esbuild': ^0.25.12
   '@tarojs/plugin-doctor>glob': ^10.5.0
