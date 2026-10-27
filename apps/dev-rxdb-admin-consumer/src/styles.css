@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+@import '@aiao/rxdb-model-react/tailwind.css';
+
+@plugin 'daisyui/index.js' {
+  themes:
+    light --default,
+    dark --prefersdark;
+  root: ':is(:host, :root)';
+}
+
+@utility page-host {
+  @apply bg-base-100 flex h-full flex-col;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}

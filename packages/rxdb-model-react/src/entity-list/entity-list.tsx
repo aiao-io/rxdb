@@ -15,23 +15,26 @@
 import {
   RelationKind,
   getEntityMetadata,
-  type EntityMetadata,
   type EntityType,
   type FindByCursorOptions,
-  type HistoryScopeAPI,
-  type OrderBy
+  type HistoryScopeAPI
 } from '@aiao/rxdb';
 import {
   actionsColumn,
+  applyListViewColumns,
   buildEditableColumns,
   buildFormFields,
+  buildListViewOrderBy,
+  buildListViewRecords,
+  buildListViewTableOptions,
   canReorderEntityList,
   cn,
   commitRowMove,
-  defaultListOrderBy,
+  createListViewState,
   deriveEntityCapabilities,
   describeHistoryBarrier,
   extractFieldsFromMetadata,
+  getListViewFields,
   organizeFields,
   parsePropertyColumnValue,
   type BatchChangeItem,
@@ -42,6 +45,7 @@ import {
   type FieldMetadata,
   type FilterQuery,
   type FormFieldConfig,
+  type ListViewState,
   type ModelInfo,
   type QueryTableHandle,
   type RelatedEntityProvider,
@@ -51,7 +55,7 @@ import {
 import { useInfiniteScroll, useRxDB, type InfiniteScrollResource } from '@aiao/rxdb-react';
 import type { ListTableConstructorOptions } from '@visactor/vtable';
 import type { ColumnDefine } from '@visactor/vtable/es/ts-types/index.js';
-import { Funnel, Redo2, Undo2 } from 'lucide-react';
+import { Funnel, Redo2, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { of, type ObservedValueOf } from 'rxjs';
 import { Dialog } from '../dialog/dialog';
@@ -60,6 +64,7 @@ import { EntityDialog } from '../entity-dialog/entity-dialog';
 import { QueryTable } from '../entity-table/query-table';
 import { QueryBuilder } from '../query-builder/query-builder/query-builder';
 import './entity-list.css';
+import { ListViewSettings } from './list-view-settings';
 
 /**
  * RxDB 实体实例与筛选查询结构（共享类型，收敛到 `@aiao/rxdb-model` 统一透传）。
@@ -101,20 +106,6 @@ function normalizeSortOrder(order: unknown): ListSortState['order'] {
   return 'normal';
 }
 
-/** 构造 FindByCursor 所需 orderBy：normal → 实体默认排序；用户字段 → [field, id] 同向。 */
-function buildCursorOrderBy(state: ListSortState, metadata: EntityMetadata | undefined): OrderBy[] {
-  if (state.order === 'normal' || !state.field) {
-    return defaultListOrderBy(metadata);
-  }
-  if (state.field === 'id') {
-    return [{ field: 'id', sort: state.order }];
-  }
-  return [
-    { field: state.field, sort: state.order },
-    { field: 'id', sort: state.order }
-  ];
-}
-
 /** 解析外部导航传入的筛选条件 JSON 字符串，格式非法时静默忽略。 */
 function parseInitialFilter(raw: string | undefined): FilterQuery | undefined {
   if (!raw) return undefined;
@@ -154,6 +145,13 @@ type OpenDialog =
   | { kind: 'create'; data: EntityDetailDialogData }
   | { kind: 'view'; recordId: string; data: EntityDetailDialogData }
   | { kind: 'm2m' };
+
+interface PendingEntityChange {
+  entityClass: EntityType;
+  target: EntityInstance;
+  draft: boolean;
+  changes: Record<string, unknown>;
+}
 
 /** {@link EntityList} 的 props。 */
 export interface EntityListProps {
@@ -259,6 +257,7 @@ export function EntityList({
   }, [rxdb]);
 
   // ── 用户状态 ───────────────────────────────────────────────────────────
+  const [viewState, setViewState] = useState(createListViewState);
   const [sortState, setSortState] = useState<ListSortState>({ ...DEFAULT_SORT_STATE });
   const [filterQuery, setFilterQuery] = useState<FilterQuery>({ ...EMPTY_FILTER });
   const [pendingQuery, setPendingQuery] = useState<FilterQuery>({ ...EMPTY_FILTER });
@@ -267,6 +266,18 @@ export function EntityList({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [localDraftItems, setLocalDraftItems] = useState<EntityInstance[]>([]);
   const [openDialog, setOpenDialog] = useState<OpenDialog | null>(null);
+  /** 删除确认目标行：删除前经确认弹层（误删成本高，撤销入口不显眼）。 */
+  const [deleteConfirm, setDeleteConfirm] = useState<EntityTableRecord | null>(null);
+  /** 最近一次删除被存储层拒绝的原因（如仍被其他记录引用）；重新删除或切换实体时清除。 */
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  /** 保存成功 toast（2 秒自动消失）。 */
+  const [saveToastVisible, setSaveToastVisible] = useState(false);
+  const saveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showSaveToast = useCallback((): void => {
+    if (saveToastTimerRef.current !== null) clearTimeout(saveToastTimerRef.current);
+    setSaveToastVisible(true);
+    saveToastTimerRef.current = setTimeout(() => setSaveToastVisible(false), 2000);
+  }, []);
   /** 已入队但还没落定的行内编辑批次数（排队中或写入中都不许拖拽排序） */
   const [pendingEditBatches, setPendingEditBatches] = useState(0);
   const [reorderPending, setReorderPending] = useState(false);
@@ -281,9 +292,20 @@ export function EntityList({
   if (prevEntityInputs.namespace !== namespace || prevEntityInputs.name !== name) {
     setPrevEntityInputs({ namespace, name });
     setSortState({ ...DEFAULT_SORT_STATE });
+    setViewState(createListViewState());
     setFilterQuery({ ...EMPTY_FILTER });
     setPendingQuery({ ...EMPTY_FILTER });
+    setSelectedIds(new Set());
+    setLocalDraftItems([]);
+    setPendingQueryValid(true);
+    setShowFilterPopover(false);
+    setOpenDialog(null);
+    setDeleteConfirm(null);
+    setDeleteError(null);
+    setReorderError(null);
   }
+  const activeViewState =
+    prevEntityInputs.namespace === namespace && prevEntityInputs.name === name ? viewState : createListViewState();
 
   // initialFilter 变化 → 载入初始筛选（Angular 侧 effect 同语义；渲染期调整状态；
   // 哨兵初值保证挂载时也走一次解析 —— Angular 的 effect 首跑即执行）
@@ -371,21 +393,22 @@ export function EntityList({
     return { combinator: 'and', rules: [...fixed.rules, ...userFilter.rules] };
   }, [fixedQuery, filterQuery]);
 
-  // 每个列表槽位的查询选项工厂：where 共享（Angular 侧同一 computed），orderBy 主表跟列头排序
+  // 主表使用当前筛选与排序，关联候选独立查询
   const optionsFor = useCallback(
     (key: string): (() => FindByCursorOptions<EntityType>) =>
       () => {
-        const listSortState = key === entityKey ? sortState : DEFAULT_SORT_STATE;
+        const isCurrent = key === entityKey;
+        const listView = isCurrent ? activeViewState : createListViewState();
         const cls = entityClsMap.get(key);
         return {
-          where: computedWhere as never,
-          orderBy: buildCursorOrderBy(
-            listSortState,
+          where: (isCurrent ? computedWhere : EMPTY_FILTER) as never,
+          orderBy: buildListViewOrderBy(
+            listView,
             cls ? getEntityMetadata(cls) : undefined
           ) as FindByCursorOptions<EntityType>['orderBy']
         };
       },
-    [computedWhere, entityClsMap, entityKey, sortState]
+    [activeViewState, computedWhere, entityClsMap, entityKey]
   );
 
   // ── 视图派生 ───────────────────────────────────────────────────────────
@@ -396,18 +419,20 @@ export function EntityList({
   const filteredCount = instances.length + localDraftItems.length;
 
   /** 当前列表是否允许拖拽排序（US-028 阶段 B）：看到的行必须恰好是一条完整排序域 */
-  const rowDragEnabled = canReorderEntityList({
-    metadata: entityCls ? getEntityMetadata(entityCls) : undefined,
-    sortOrder: sortState.order,
-    hasUserFilter: filterQuery.rules.length > 0,
-    selectMode: isSelectMode,
-    fixedQuery,
-    fullyLoaded: !!currentList && !currentList.hasMore && !currentList.isLoading,
-    hasReadonlyRows: isRowReadonly,
-    hasDrafts: localDraftItems.length > 0,
-    hasPendingEdits: pendingEditBatches > 0,
-    reorderPending
-  });
+  const rowDragEnabled =
+    activeViewState.groupBy === null &&
+    canReorderEntityList({
+      metadata: entityCls ? getEntityMetadata(entityCls) : undefined,
+      sortOrder: sortState.order,
+      hasUserFilter: filterQuery.rules.length > 0,
+      selectMode: isSelectMode,
+      fixedQuery,
+      fullyLoaded: !!currentList && !currentList.hasMore && !currentList.isLoading,
+      hasReadonlyRows: isRowReadonly,
+      hasDrafts: localDraftItems.length > 0,
+      hasPendingEdits: pendingEditBatches > 0,
+      reorderPending
+    });
 
   const isInitialLoading = currentList ? currentList.isLoading && currentList.value.length === 0 : false;
   const isLoadingMore = currentList ? currentList.isLoading && currentList.value.length > 0 : false;
@@ -426,7 +451,7 @@ export function EntityList({
     return organizeFields(extractFieldsFromMetadata(getEntityMetadata(entityCls), modelInfoMap));
   }, [entityCls, modelInfoMap]);
 
-  const tableRecords = useMemo<EntityTableRecord[]>(() => {
+  const sourceTableRecords = useMemo<EntityTableRecord[]>(() => {
     // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
     // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
     const dbRecords = instances.map(inst => ({
@@ -473,7 +498,7 @@ export function EntityList({
     return cache;
   }, [rxdb, entityClsMap]);
 
-  const tableColumns = useMemo<ColumnDefine[]>(() => {
+  const baseTableColumns = useMemo<ColumnDefine[]>(() => {
     // 未注册实体无元数据可派生，不给删除
     const base = columnsCache.get(entityKey) ?? [actionsColumn('操作', '删除', () => false, '查看')];
     if (isSelectMode) {
@@ -482,6 +507,28 @@ export function EntityList({
     }
     return base;
   }, [columnsCache, entityKey, isSelectMode]);
+
+  const tableColumns = useMemo(
+    () => applyListViewColumns(baseTableColumns, activeViewState),
+    [activeViewState, baseTableColumns]
+  );
+  const viewFields = useMemo(
+    () => getListViewFields(applyListViewColumns(baseTableColumns, { ...activeViewState, hiddenFields: [] })),
+    [activeViewState, baseTableColumns]
+  );
+  const tableRecords = useMemo(
+    () => buildListViewRecords(sourceTableRecords, activeViewState),
+    [activeViewState, sourceTableRecords]
+  );
+  const listTableOptions = useMemo(
+    () => ({ ...LIST_TABLE_OPTIONS, ...buildListViewTableOptions(activeViewState, baseTableColumns) }),
+    [activeViewState, baseTableColumns]
+  );
+  const onViewSettingsChange = (value: ListViewState): void => {
+    setViewState(value);
+    const first = value.sorts[0];
+    setSortState(first ? { field: first.field, order: first.sort } : { ...DEFAULT_SORT_STATE });
+  };
 
   const createFormFieldConfigs = useMemo<FormFieldConfig[]>(() => {
     if (!entityCls) return [];
@@ -497,7 +544,7 @@ export function EntityList({
   );
 
   // ── 变更合并（Angular 侧 #enqueue / #flushPending 同语义）──────────────
-  const pendingChangesRef = useRef(new Map<string, Record<string, unknown>>());
+  const pendingChangesRef = useRef(new Map<string, PendingEntityChange>());
   const flushHandleRef = useRef(false);
   const instancesRef = useRef(instances);
   const localDraftItemsRef = useRef(localDraftItems);
@@ -518,45 +565,45 @@ export function EntityList({
   }, [filterQuery]);
 
   const flushPending = useCallback(
-    async (pending: [string, Record<string, unknown>][]): Promise<void> => {
+    async (pending: [string, PendingEntityChange][]): Promise<void> => {
       if (!pending.length) return;
-      const EntityClass = entityClsRef.current;
-      if (!EntityClass) return;
-      const toUpdate = new Set<EntityInstance>();
+      const updateGroups = new Map<EntityType, Set<EntityInstance>>();
       const prevMap = new Map<EntityInstance, Record<string, unknown>>();
       const draftUpdated = new Set<EntityInstance>();
-      for (const [id, changes] of pending) {
-        let inst = instancesRef.current.find(i => i.id === id);
-        const isDraft = !inst;
-        if (!inst) {
-          inst = localDraftItemsRef.current.find(i => i.id === id);
-        }
-        if (!inst) continue;
+      for (const [, entry] of pending) {
+        const inst = entry.target;
         const prev: Record<string, unknown> = {};
         const actual: Record<string, unknown> = {};
         let hasChange = false;
-        for (const k of Object.keys(changes)) {
-          if (inst[k] !== changes[k]) {
-            prev[k] = inst[k];
-            actual[k] = changes[k];
+        for (const key of Object.keys(entry.changes)) {
+          if (inst[key] !== entry.changes[key]) {
+            prev[key] = inst[key];
+            actual[key] = entry.changes[key];
             hasChange = true;
           }
         }
         if (!hasChange) continue;
         prevMap.set(inst, prev);
         Object.assign(inst as Record<string, unknown>, actual);
-        if (isDraft) draftUpdated.add(inst);
-        else toUpdate.add(inst);
+        if (entry.draft) {
+          draftUpdated.add(inst);
+        } else {
+          const group = updateGroups.get(entry.entityClass) ?? new Set<EntityInstance>();
+          group.add(inst);
+          updateGroups.set(entry.entityClass, group);
+        }
       }
 
       // 草稿实体直接更新本地集合触发重渲染（不写DB）
       if (draftUpdated.size) {
-        setLocalDraftItems(items => [...items]);
+        setLocalDraftItems(items => (items.some(item => draftUpdated.has(item)) ? [...items] : items));
       }
 
-      if (!toUpdate.size) return;
+      if (!updateGroups.size) return;
 
-      const updateMap = new Map([[EntityClass, toUpdate as unknown as Set<unknown>]]);
+      const updateMap = new Map(
+        [...updateGroups.entries()].map(([entityClass, items]) => [entityClass, items as Set<unknown>] as const)
+      );
       try {
         await rxdb.entityManager.mutations({ create: new Map(), update: updateMap, remove: new Map() });
       } catch (error) {
@@ -570,8 +617,18 @@ export function EntityList({
   /** 入队变更，微任务合并后落库（同一行多字段合入同一 UPDATE）。 */
   const enqueue = useCallback(
     (recordId: string, changes: Record<string, unknown>): void => {
-      const current = pendingChangesRef.current.get(recordId) ?? {};
-      pendingChangesRef.current.set(recordId, { ...current, ...changes });
+      const current = pendingChangesRef.current.get(`${entityKey}:${recordId}`);
+      const records = instancesRef.current;
+      const target =
+        records.find(item => item.id === recordId) ?? localDraftItemsRef.current.find(item => item.id === recordId);
+      const entityClass = entityClsRef.current;
+      if (!target || !entityClass) return;
+      pendingChangesRef.current.set(`${entityKey}:${recordId}`, {
+        entityClass,
+        target: current?.target ?? target,
+        draft: current?.draft ?? !records.some(item => item.id === recordId),
+        changes: { ...current?.changes, ...changes }
+      });
       if (flushHandleRef.current) return;
       flushHandleRef.current = true;
       pendingEditBatchesRef.current += 1;
@@ -586,7 +643,7 @@ export function EntityList({
         });
       });
     },
-    [flushPending]
+    [entityKey, flushPending]
   );
 
   // ── 事件处理 ───────────────────────────────────────────────────────────
@@ -623,7 +680,12 @@ export function EntityList({
     void vHistory.redo();
   }, [vHistory]);
 
-  /** 关系字段下拉的数据源（对应 Angular `#makeRelatedEntityProvider`）。 */
+  /**
+   * 关系字段下拉的数据源（对应 Angular `#makeRelatedEntityProvider`）。
+   *
+   * 读本轮渲染的列表资源而不是 ref 镜像：关联列表每次发射都换出新的 provider，打开中的表单据此重算候选。
+   * Angular / Vue 的 provider 读信号 / ref，模板天然跟随；React 只能靠 provider 换新驱动。
+   */
   const makeRelatedEntityProvider = useCallback(
     (draftParent: EntityInstance | null): RelatedEntityProvider => {
       const strVal = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined);
@@ -634,7 +696,7 @@ export function EntityList({
         });
         if (!relCls) return [];
         const relMeta = getEntityMetadata(relCls);
-        const list = listResourcesRef.current.get(`${relMeta.namespace}:${relMeta.name}`);
+        const list = listResources.get(`${relMeta.namespace}:${relMeta.name}`);
         const items = ((list?.value ?? []) as unknown as Record<string, unknown>[]).map(inst => ({
           id: String(inst['id'] ?? ''),
           displayName: strVal(inst['displayName']) ?? strVal(inst['name']) ?? String(inst['id'] ?? '')
@@ -654,8 +716,14 @@ export function EntityList({
         return items;
       };
     },
-    [entityClsMap]
+    [entityClsMap, listResources]
   );
+  /** 打开中的新建 / 查看对话框的关联候选（不进打开时的快照，随列表资源换新）。 */
+  const createDialogRelatedEntityProvider = useMemo(
+    () => makeRelatedEntityProvider(draftParentEntity ?? null),
+    [makeRelatedEntityProvider, draftParentEntity]
+  );
+  const viewDialogRelatedEntityProvider = useMemo(() => makeRelatedEntityProvider(null), [makeRelatedEntityProvider]);
 
   /** 打开详情对话框（「查看」行）：`_readonly` 行走 view 模式、其余走 edit；详情数据在打开时快照（Angular 侧 #openViewDialog 同语义）。 */
   const openViewDialog = useCallback(
@@ -674,12 +742,11 @@ export function EntityList({
         formData: {},
         formMode,
         entityId: id,
-        editChain: [...editChain, id],
-        relatedEntityProvider: makeRelatedEntityProvider(null)
+        editChain: [...editChain, id]
       };
       setOpenDialog({ kind: 'view', recordId: id, data });
     },
-    [editChain, makeRelatedEntityProvider]
+    [editChain]
   );
 
   const onIconClicked = useCallback(
@@ -690,24 +757,35 @@ export function EntityList({
         return;
       }
       if (event.name !== 'delete-action') return;
-      const id = event.record['id'] as string;
-
-      const draftInst = localDraftItemsRef.current.find(i => i.id === id);
-      if (draftInst) {
-        setLocalDraftItems(items => items.filter(i => i.id !== id));
-        return;
-      }
-
-      const inst = instancesRef.current.find(i => i.id === id);
-      if (!inst) return;
-      try {
-        await inst.remove();
-      } catch (error) {
-        console.error(error);
-      }
+      setDeleteConfirm(event.record);
     },
     [onViewEntity, openViewDialog]
   );
+
+  /** 确认弹层里的删除执行（与删除图标同一条路径）。 */
+  const confirmDelete = useCallback(async (): Promise<void> => {
+    const record = deleteConfirm;
+    setDeleteConfirm(null);
+    if (!record) return;
+    setDeleteError(null);
+    const id = record['id'] as string;
+
+    const draftInst = localDraftItemsRef.current.find(i => i.id === id);
+    if (draftInst) {
+      setLocalDraftItems(items => items.filter(i => i.id !== id));
+      return;
+    }
+
+    const inst = instancesRef.current.find(i => i.id === id);
+    if (!inst) return;
+    try {
+      await inst.remove();
+    } catch (error) {
+      // 确认弹层已关：存储层拒绝的原因（如仍被引用时外键 RESTRICT）留在列表上
+      setDeleteError(errorMessage(error));
+      console.error(error);
+    }
+  }, [deleteConfirm]);
 
   const onRowDeleted = useCallback(
     async (record: EntityTableRecord): Promise<void> => {
@@ -756,7 +834,9 @@ export function EntityList({
   const onSortClicked = useCallback((event: { field: unknown; order: unknown }): void => {
     const field = normalizeSortField(event.field);
     if (!field) return;
-    setSortState({ field, order: normalizeSortOrder(event.order) });
+    const order = normalizeSortOrder(event.order);
+    setSortState({ field, order });
+    setViewState(current => ({ ...current, sorts: order === 'normal' ? [] : [{ field, sort: order }] }));
   }, []);
 
   const onQueryChange = useCallback((query: FilterQuery | undefined): void => {
@@ -840,20 +920,12 @@ export function EntityList({
       formFields: fields,
       formData: {},
       formMode: 'create',
-      relatedEntityProvider: makeRelatedEntityProvider(draftParentEntity ?? null),
       fixedFormData,
       delegateSave: !!draftParentEntity,
       creationChain
     };
     setOpenDialog({ kind: 'create', data });
-  }, [
-    isCreateBlocked,
-    createFormFieldConfigs,
-    makeRelatedEntityProvider,
-    draftParentEntity,
-    fixedFormData,
-    creationChain
-  ]);
+  }, [isCreateBlocked, createFormFieldConfigs, draftParentEntity, fixedFormData, creationChain]);
 
   /** 打开 M2M 选择对话框（已打开时重入被挡）。 */
   const openM2mSelectDialog = useCallback((): void => {
@@ -936,12 +1008,12 @@ export function EntityList({
       })}
 
       {/* 顶栏：实体名称 + 计数 + 筛选按钮 + 新增按钮 */}
-      <div className='border-base-300 flex h-10 min-h-10 shrink-0 items-center justify-between border-b px-4'>
+      <div className='border-base-300 flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-1'>
         <div className='flex items-center gap-2 text-sm'>
           <span className='font-medium'>{displayName}</span>
           {isFilterQuery && <span className='badge badge-ghost badge-sm'>{filteredCount} 条记录</span>}
         </div>
-        <div className='flex items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-2'>
           {!isSelectMode && (
             <>
               {/* Undo / Redo */}
@@ -950,26 +1022,31 @@ export function EntityList({
                 disabled={!canUndo}
                 title={undoHint ?? undefined}
                 onClick={undo}
-                aria-label='撤销 (Ctrl+Z)'
+                aria-label={`撤销 (Ctrl+Z) ${undoCount}`}
                 type='button'
               >
                 <Undo2 className='h-3.5 w-3.5' size={14} />
-                <span className='badge badge-xs'>{undoCount}</span>
+                <span className='badge badge-xs' aria-hidden='true'>
+                  {undoCount}
+                </span>
               </button>
               <button
                 className='btn btn-xs btn-ghost'
                 disabled={!canRedo}
                 title={redoHint ?? undefined}
                 onClick={redo}
-                aria-label='重做 (Ctrl+Shift+Z)'
+                aria-label={`重做 (Ctrl+Shift+Z) ${redoCount}`}
                 type='button'
               >
                 <Redo2 className='h-3.5 w-3.5' size={14} />
-                <span className='badge badge-xs'>{redoCount}</span>
+                <span className='badge badge-xs' aria-hidden='true'>
+                  {redoCount}
+                </span>
               </button>
               <div className='divider divider-horizontal mx-0.5 h-5 self-center' />
             </>
           )}
+          <ListViewSettings fields={viewFields} value={activeViewState} onChange={onViewSettingsChange} />
           {/* 筛选 popover 触发器 */}
           <FilterPopover
             open={showFilterPopover}
@@ -986,6 +1063,18 @@ export function EntityList({
             onReset={resetFilter}
             onApply={applyFilter}
           />
+          {/* 快捷清除筛选：有筛选时工具栏一键还原 */}
+          {isQueryActive && !isSelectMode && (
+            <button
+              className='btn btn-ghost btn-sm gap-1'
+              onClick={resetFilter}
+              data-testid='clear-filter'
+              type='button'
+            >
+              <X className='h-3.5 w-3.5' size={14} />
+              清除筛选
+            </button>
+          )}
           {!isCreateBlocked &&
             (isSelectMode ?
               <button className='btn btn-sm btn-outline' onClick={openCreateDialog} type='button'>
@@ -1008,10 +1097,18 @@ export function EntityList({
         </div>
       )}
 
+      {/* 删除被存储层拒绝 */}
+      {deleteError !== null && (
+        <div role='alert' className='alert alert-error alert-soft mx-4 mt-2 py-2 text-sm' data-testid='delete-error'>
+          删除失败：{deleteError}
+        </div>
+      )}
+
       {/* 表格主体 */}
       <div className='min-h-0 flex-1'>
         {isBrowser && (
           <QueryTable
+            key={activeViewState.groupBy ?? ''}
             ref={queryTableRef}
             columns={tableColumns}
             filteredCount={filteredCount}
@@ -1020,7 +1117,7 @@ export function EntityList({
             loadMore={loadMore}
             queryActive={isQueryActive}
             records={tableRecords}
-            tableOptions={LIST_TABLE_OPTIONS}
+            tableOptions={listTableOptions}
             onBatchUpdated={onBatchUpdated}
             onCellChanged={onCellChanged}
             onIconClicked={event => void onIconClicked(event)}
@@ -1028,6 +1125,14 @@ export function EntityList({
             rowDragEnabled={rowDragEnabled}
             onRowMoved={onRowMoved}
             onSortClicked={onSortClicked}
+            emptyState={
+              <div className='flex flex-col items-center gap-1 py-10' data-testid='entity-empty-state'>
+                <span className='text-base-content/40 text-sm'>暂无数据</span>
+                {!isSelectMode && !isCreateBlocked && (
+                  <span className='text-base-content/40 text-sm'>点击「+ 新增」开始录入第一条{displayName}</span>
+                )}
+              </div>
+            }
           />
         )}
       </div>
@@ -1060,7 +1165,10 @@ export function EntityList({
           open
           onClose={result => {
             setOpenDialog(null);
-            if (result === 'saved') refreshCurrentList();
+            if (result === 'saved') {
+              refreshCurrentList();
+              showSaveToast();
+            }
           }}
           width='min(720px, calc(100vw - 1rem))'
           minWidth='min(400px, calc(100vw - 1rem))'
@@ -1070,6 +1178,7 @@ export function EntityList({
         >
           <EntityDetail
             {...openDialog.data}
+            relatedEntityProvider={createDialogRelatedEntityProvider}
             onFormSubmitted={data => {
               void handleCreateSubmit(data);
               setOpenDialog(null);
@@ -1084,7 +1193,10 @@ export function EntityList({
           open
           onClose={result => {
             setOpenDialog(null);
-            if (result === 'saved') refreshCurrentList();
+            if (result === 'saved') {
+              refreshCurrentList();
+              showSaveToast();
+            }
           }}
           width='min(720px, calc(100vw - 1rem))'
           minWidth='min(400px, calc(100vw - 1rem))'
@@ -1092,8 +1204,44 @@ export function EntityList({
           minHeight='300px'
           className='entity-detail-dialog'
         >
-          <EntityDetail {...openDialog.data} />
+          <EntityDetail {...openDialog.data} relatedEntityProvider={viewDialogRelatedEntityProvider} />
         </Dialog>
+      )}
+
+      {/* 删除确认弹层 */}
+      {deleteConfirm !== null && (
+        <Dialog
+          open
+          onClose={() => setDeleteConfirm(null)}
+          width='min(420px, calc(100vw - 1rem))'
+          className='entity-delete-confirm-dialog'
+        >
+          <EntityDialog title='删除确认' onCloseRequested={() => setDeleteConfirm(null)}>
+            <p className='text-sm'>确定删除这条{displayName}记录？</p>
+            <div className='flex justify-end gap-2 pt-3'>
+              <button className='btn btn-sm' onClick={() => setDeleteConfirm(null)} type='button'>
+                取消
+              </button>
+              <button
+                className='btn btn-error btn-sm'
+                data-testid='delete-confirm-submit'
+                onClick={() => void confirmDelete()}
+                type='button'
+              >
+                删除
+              </button>
+            </div>
+          </EntityDialog>
+        </Dialog>
+      )}
+
+      {/* 保存成功 toast */}
+      {saveToastVisible && (
+        <div className='toast toast-end z-[1100]' data-testid='save-toast'>
+          <div className='alert alert-success py-2 text-sm' role='status'>
+            已保存
+          </div>
+        </div>
       )}
 
       {/* M2M 选择对话框 */}

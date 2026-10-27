@@ -10,17 +10,17 @@
 | :------------- | :--- |
 | ✅ Done        | 85   |
 | 🚧 In Progress | 5    |
-| 👀 In Review   | 2    |
-| 📝 Backlog     | 33   |
+| 👀 In Review   | 7    |
+| 📝 Backlog     | 30   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 125  |
+| **合计**       | 127  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **33 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
+> **30 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
 > 任务看板领域模型共 8 条，其中 US-534～US-540 共 7 条于 2026-10-19 由 owner 解锁进批次 6（驱动者 = 下一个完整演示应用，见 [epic-011 解锁记录](epics/epic-011-task-board-domain-model.md#价值待证整个-epic)），US-535 / US-536 / US-538 Done；US-534 / 537 / 539 / 540 阶段 A 各有保留项（收尾清单见 [RV-083](reviews/RV-083-board-v1-closeout-checklist.md)），US-541 团队版仍价值待证；
-> [模型驱动后台](epics/epic-010-model-driven-admin-framework.md) 首版切片 3 条（US-526~528）已孵化但 epic **未解锁、价值待证**；
+> [模型驱动后台](epics/epic-010-model-driven-admin-framework.md) 首版切片 3 条（US-526~528）已孵化，并于 2026-10-21 由 owner 解锁进批次 5（驱动者 = 可用的本地数据工作台，见 [epic-010 解锁记录](epics/epic-010-model-driven-admin-framework.md#价值待证整个-epic)）；
 > [US-223](stories/adapter/US-223-supabase-mutations-update-semantics.md) / [US-224](stories/adapter/US-224-supabase-cascade-delete-change-log.md)（Supabase 直写路径改行被 RLS 误拒、推送路径级联删除不写日志）症状已复现、无前置，在立项池待 owner 定批次；
 > [US-911](stories/future/US-911-client-i18n.md) 阶段 A～C 无硬前置、可开工，在立项池待 owner 定批次；[US-403](stories/ui/US-403-entity-components-headless.md) 已登记、尚未排期；[US-029](stories/core/US-029-rbac-owner-role-permission.md)
 > 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期；[epic-011 局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md) 4 条**价值待证**，在立项池待 owner 决策。
@@ -38,12 +38,17 @@
 | [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)                                     | 阶段 A 的 e2e 半边三端全绿，保留项：AC#4 / #5（三端宿主恢复入口与跨页门禁）、AC#9（拖列鼠标半边）、AC#10（标签 CRUD e2e）、AC#12 / #13（截止日与错误态分支 e2e）；阶段 B（AC#15 / #16）三端全绿；收尾清单见 [RV-083](reviews/RV-083-board-v1-closeout-checklist.md)                                                                                                                                                                                                                                                                                                                     |
 | [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                           | 阶段 A 的 demo 闭环 e2e 全绿（AC#2～5 / #8）；阶段 B 保留：AC#6 工具菜单恢复成功路径与多板搜索隔离、升级重开（AC#13 无有效测试，适配器关闭路径缺陷待修）的 demo 侧用例未落；收尾清单见 [RV-083](reviews/RV-083-board-v1-closeout-checklist.md)                                                                                                                                                                                                                                                                                                                                          |
 
-## 待评审（2 条）
+## 待评审（7 条）
 
-| Story                                                                                         | 进展                                                                                                                                                                                                                                                                                                                                                         |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
+| Story                                                                                             | 进展                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)     | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)        | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
+| [US-104 rxdb-model 表单校验反馈与保存失败的展示](stories/framework/US-104-validation-feedback.md) | 三端 EntityDetail 错误面板已交付：校验逐条显示、保存失败可读、字段变更清空；工作台 e2e AC#4 与三端包内 spec 已覆盖，待评审                                                                                                                                                                                                                                   |
+| [US-526 模型驱动数据工作台](stories/domain/US-526-admin-workbench.md)                             | 三阶段全部交付：预置 schema + 导航、CRUD 与加载 / 失败 / 空态、持久化重开 + e2e，工作台验收通过，待评审                                                                                                                                                                                                                                                      |
+| [US-527 工作台备份恢复闭环](stories/domain/US-527-admin-backup-restore.md)                        | 备份下载、独立环境恢复后继续编辑、损坏归档与已有数据拒绝均已验收，待评审                                                                                                                                                                                                                                                                                     |
+| [US-528 独立消费接入示例](stories/domain/US-528-admin-consumer-example.md)                        | 消费应用与 e2e 已通过，接入成本记录已交付，待评审                                                                                                                                                                                                                                                                                                            |
+| [US-529 实体列表视图配置](stories/domain/US-529-entity-list-view-settings.md)                     | 字段显隐与顺序、多字段查询排序、单字段分组三端完成，待评审                                                                                                                                                                                                                                                                                                   |
 
 ## 阻塞（0 条）
 
@@ -66,6 +71,7 @@
 - ✅ [US-101 Angular 集成](stories/framework/US-101-angular-integration.md)
 - ✅ [US-102 React 集成](stories/framework/US-102-react-integration.md)
 - ✅ [US-103 Vue 集成](stories/framework/US-103-vue-integration.md)
+- 👀 [US-104 rxdb-model 表单校验反馈与保存失败的展示](stories/framework/US-104-validation-feedback.md) — 三端 EntityDetail 错误面板（US-526 AC#4 触发）
 - ✅ [US-201 SQLite 适配器](stories/adapter/US-201-sqlite-adapter.md)
 - ✅ [US-202 PGlite 适配器](stories/adapter/US-202-pglite-adapter.md)
 - ✅ [US-204 SQLite WASM 适配器](stories/adapter/US-204-sqlite-wasm-adapter.md)
@@ -247,9 +253,10 @@ US-541 团队版仍价值待证（入场条件 = 具名团队「离线拖拽任�
 解锁条件与不随首版立项的范围见 [epic-010](epics/epic-010-model-driven-admin-framework.md#价值待证整个-epic)，
 候选分析见 [domain-research](domain-research/admin-framework.md)。
 
-- ⬜ [US-526 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环](stories/domain/US-526-admin-workbench.md) — 三阶段；应用壳与预置 schema + 导航（A）、CRUD 接线与加载 / 失败 / 空态（B）、持久化重开 + e2e 组合验收（C）；复用 rxdb-model 组件与三端 demo 实体页，不新增公共框架 API
-- ⬜ [US-527 工作台备份恢复闭环：失败语义与数据保留](stories/domain/US-527-admin-backup-restore.md) — 两阶段；复用 US-217 的备份 / 恢复契约与错误分类，只做入口与失败语义接线；恢复失败不得破坏当前库
-- ⬜ [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md) — 两阶段；只用发布包从零接线的最小应用 + 代码行数 / 依赖 / 样式成本记录
+- 👀 [US-526 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环](stories/domain/US-526-admin-workbench.md) — 三阶段；应用壳与预置 schema + 导航（A）、CRUD 接线与加载 / 失败 / 空态（B）、持久化重开 + e2e 组合验收（C）；复用 rxdb-model 组件与三端 demo 实体页，不新增公共框架 API
+- 👀 [US-527 工作台备份恢复闭环：失败语义与数据保留](stories/domain/US-527-admin-backup-restore.md) — 两阶段；复用 US-217 的备份 / 恢复契约与错误分类，只做入口与失败语义接线；恢复失败不得破坏当前库
+- 👀 [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md) — 两阶段；只用发布包从零接线的最小应用 + 代码行数 / 依赖 / 样式成本记录
+- 👀 [US-529 实体列表视图配置](stories/domain/US-529-entity-list-view-settings.md) — 字段显隐与顺序、多字段查询排序、单字段分组；三端同时交付
 
 ### [局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md)
 

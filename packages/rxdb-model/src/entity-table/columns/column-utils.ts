@@ -509,6 +509,7 @@ type CellCallbackArgs = StylePropertyFunctionArg & {
 };
 
 type ColumnRecord = Record<string, unknown> & {
+  vtableMerge?: boolean;
   _readonly?: boolean;
   _isAddRow?: boolean;
 };
@@ -539,7 +540,8 @@ export type SwitchDisableCallback = (args: StylePropertyFunctionArg) => boolean;
  * @returns 是否为只读行
  */
 export const isReadonly = (record: unknown): boolean => {
-  return (record as ColumnRecord | undefined)?._readonly === true;
+  const row = record as ColumnRecord | undefined;
+  return row?._readonly === true || row?.vtableMerge === true;
 };
 
 /**
@@ -550,7 +552,7 @@ export const isReadonly = (record: unknown): boolean => {
  */
 export const isReadonlyOrAddRow = (record: unknown): boolean => {
   const r = record as ColumnRecord | undefined;
-  return r?._readonly === true || r?._isAddRow === true;
+  return isReadonly(r) || r?._isAddRow === true;
 };
 
 /**

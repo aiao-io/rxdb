@@ -112,6 +112,7 @@ const sidebars: SidebarsConfig = {
         'entity-model/react',
         'entity-model/vue',
         'entity-model/styling',
+        'entity-model/admin-workbench-cost',
         'entity-model/migration'
       ]
     },

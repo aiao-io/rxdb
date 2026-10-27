@@ -144,6 +144,19 @@ describe('EntityTable（真实组件）', () => {
     ]);
   });
 
+  it('只读行仍允许选择 checkbox 事件上抛', () => {
+    const record = { ...RECORDS[0], _readonly: true, __selected: false };
+    const { component, cellChanged } = render({
+      records: [record],
+      columns: [{ field: '__selected', title: '选择', cellType: 'checkbox' }] as never
+    });
+    const table = component.tableInstance as unknown as FakeListTable;
+
+    table.emit('checkbox_state_change', { col: 1, row: 1, checked: true });
+
+    expect(cellChanged()).toEqual([{ col: 1, row: 1, field: '__selected', value: true, record }]);
+  });
+
   it('icon_click 的 delete-action 走 rowDeleted，其余名字走 iconClicked', () => {
     const { component, rowDeleted, iconClicked } = render();
     const table = component.tableInstance as unknown as FakeListTable;

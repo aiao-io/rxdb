@@ -17,6 +17,7 @@ import {
   PropertyType,
   RelationKind,
   RxDB,
+  SyncType,
   type EntityType,
   type HistoryScopeAPI
 } from '@aiao/rxdb';
@@ -122,6 +123,84 @@ describe('EntityList（真实组件）', () => {
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
 
+  it('字段配置、查询排序与分组通过工具栏生效', async () => {
+    await seedTodo('beta', false);
+    await seedTodo('alpha', true);
+    const ui = await renderList();
+    const originalFields = tableOf().columns.map(column => column['field']);
+    const defaultIds = tableOf().records.map(record => record['id']);
+    fireEvent.click(ui.getByText('字段配置', { exact: true }));
+    const titleColumn = tableOf().columns.find(column => column['field'] === 'title');
+    const title = String(titleColumn?.['title']);
+    const queries = vi.spyOn(repoOf(), 'findByCursor');
+    fireEvent.click(ui.getByLabelText(`显示${title}`));
+    await FLUSH();
+    expect(tableOf().columns.some(column => column['field'] === 'title')).toBe(false);
+    expect(queries).not.toHaveBeenCalled();
+    queries.mockRestore();
+    fireEvent.click(ui.getByLabelText(`显示${title}`));
+    fireEvent.keyDown(ui.getByLabelText(`拖动${title}排序`), { key: 'ArrowUp' });
+    expect(tableOf().columns[0]['field']).toBe('title');
+    fireEvent.click(ui.getByText('排序', { exact: true }));
+    fireEvent.change(ui.getByLabelText('添加排序字段'), { target: { value: 'title' } });
+    await waitFor(() => expect(tableOf().records.map(record => record['title'])).toEqual(['alpha', 'beta']));
+    fireEvent.change(ui.getByLabelText(`${title}排序方向`), { target: { value: 'desc' } });
+    await waitFor(() => expect(tableOf().records.map(record => record['title'])).toEqual(['beta', 'alpha']));
+    const completedTitle = String(tableOf().columns.find(column => column['field'] === 'completed')?.['title']);
+    fireEvent.change(ui.getByLabelText('添加排序字段'), { target: { value: 'completed' } });
+    fireEvent.change(ui.getByLabelText(`${completedTitle}排序方向`), { target: { value: 'desc' } });
+    fireEvent.click(ui.getByLabelText(`提高${completedTitle}排序优先级`));
+    await waitFor(() => expect(tableOf().records.map(record => record['title'])).toEqual(['alpha', 'beta']));
+    fireEvent.click(ui.getByLabelText(`移除${completedTitle}排序`));
+    await waitFor(() => expect(tableOf().records.map(record => record['title'])).toEqual(['beta', 'alpha']));
+    fireEvent.click(ui.getByText('分组', { exact: true }));
+    fireEvent.change(ui.getByLabelText('分组字段', { exact: true }), { target: { value: 'completed' } });
+    await waitFor(() => expect(tableOf().options['groupBy']).toEqual(['completed']));
+    await waitFor(() => expect(tableOf().records).toHaveLength(2));
+    expect(isRowDragEnabled(tableOf() as never)).toBe(false);
+    fireEvent.change(ui.getByLabelText('分组字段', { exact: true }), { target: { value: '' } });
+    await waitFor(() => expect(tableOf().options['groupBy']).toEqual([]));
+    fireEvent.click(ui.getByText('清除排序', { exact: true }));
+    await waitFor(() => expect(tableOf().records.map(record => record['id'])).toEqual(defaultIds));
+    fireEvent.click(ui.getByText('字段配置', { exact: true }));
+    for (const field of ui.getAllByRole('switch', { hidden: true }).slice(1)) fireEvent.click(field);
+    const remaining = ui.getAllByRole('switch', { hidden: true })[0] as HTMLInputElement;
+    expect(remaining.disabled).toBe(true);
+    expect(tableOf().columns).toHaveLength(2);
+    fireEvent.click(ui.getByText('重置字段', { exact: true }));
+    expect(tableOf().columns.map(column => column['field'])).toEqual(originalFields);
+    fireEvent.change(ui.getByLabelText('分组字段', { exact: true }), { target: { value: 'completed' } });
+    ui.rerender(
+      <RxDBProvider db={rxdb}>
+        <EntityList namespace='public' name='Task' />
+      </RxDBProvider>
+    );
+    await waitFor(() => expect(tableOf().options['groupBy']).toEqual([]));
+    ui.rerender(
+      <RxDBProvider db={rxdb}>
+        <EntityList namespace='public' name='Todo' />
+      </RxDBProvider>
+    );
+    await waitFor(() => expect(tableOf().columns.map(column => column['field'])).toEqual(originalFields));
+  });
+
+  it('切换实体时清理选择状态，避免旧实体的 id 带入新列表', async () => {
+    await seedTodo('selection-reset');
+    const ui = await renderList({ mode: 'select' });
+    await waitFor(() => expect(tableOf().records).toHaveLength(1));
+
+    act(() => tableOf().emit('checkbox_state_change', { col: 1, row: 1, checked: true }));
+    await waitFor(() => expect(ui.container.textContent).toContain('已选 1 项'));
+
+    ui.rerender(
+      <RxDBProvider db={rxdb}>
+        <EntityList namespace='public' name='Task' mode='select' />
+      </RxDBProvider>
+    );
+    await waitFor(() => expect(tableOf().records).toEqual([]));
+    expect(ui.container.textContent).not.toContain('已选 1 项');
+  });
+
   /** 查询实体当前落库的 title 列表（升序）。 */
   const titlesOf = async (entityType: EntityType): Promise<string[]> => {
     const seen: string[][] = [];
@@ -201,7 +280,7 @@ describe('EntityList（真实组件）', () => {
       table.emit('change_cell_value', { col: 2, row: 1, changedValue: 'changed' });
     });
 
-    const undoBtn = () => container.querySelector('[aria-label="撤销 (Ctrl+Z)"]') as HTMLButtonElement;
+    const undoBtn = () => container.querySelector('[aria-label^="撤销 (Ctrl+Z)"]') as HTMLButtonElement;
     await waitFor(() => {
       expect(undoBtn().textContent?.trim()).not.toBe('');
       expect(undoBtn().disabled).toBe(false);
@@ -212,12 +291,35 @@ describe('EntityList（真实组件）', () => {
       expect(tableOf().records.map(r => r['title'])).toContain('undo-me');
     });
 
-    const redoBtn = () => container.querySelector('[aria-label="重做 (Ctrl+Shift+Z)"]') as HTMLButtonElement;
+    const redoBtn = () => container.querySelector('[aria-label^="重做 (Ctrl+Shift+Z)"]') as HTMLButtonElement;
     expect(redoBtn().disabled).toBe(false);
     fireEvent.click(redoBtn());
     await waitFor(() => {
       expect(tableOf().records.map(r => r['title'])).toContain('changed');
     });
+  });
+
+  it('撤销 / 重做栈被子分支分叉点拦住：按钮停用并说明原因（US-315）', async () => {
+    const versionManager = (rxdb as unknown as { versionManager: { history(): HistoryScopeAPI } }).versionManager;
+    const inherited = { reason: 'inherited_by_branch' as const, branchIds: ['feature'] };
+    const history = vi.spyOn(versionManager, 'history').mockReturnValue({
+      ...versionManager.history(),
+      undoCount$: of(0),
+      redoCount$: of(0),
+      undoBarrier$: of(inherited),
+      redoBarrier$: of(inherited)
+    });
+    try {
+      const { container } = await renderList();
+      const button = (label: string) => container.querySelector(`[aria-label^="${label}"]`) as HTMLButtonElement;
+      await waitFor(() => {
+        expect(button('撤销 (Ctrl+Z)').title).toBe('更早的改动已被分支 feature 继承，撤销不了');
+      });
+      expect(button('撤销 (Ctrl+Z)').disabled).toBe(true);
+      expect(button('重做 (Ctrl+Shift+Z)').title).toBe('要重做的改动已被分支 feature 继承，重做不了');
+    } finally {
+      history.mockRestore();
+    }
   });
 
   /**
@@ -241,14 +343,14 @@ describe('EntityList（真实组件）', () => {
     // 字段选择器树：选 title 叶子（触发按钮带 popovertarget）
     const rule = container.querySelector('.rxdb-query-rule') as HTMLElement;
     fireEvent.click(rule.querySelector('button[popovertarget]') as HTMLElement);
-    const treePopover = container.querySelectorAll('[popover]')[0] as HTMLElement;
+    const treePopover = rule.querySelectorAll('[popover]')[0] as HTMLElement;
     fireEvent.click(
       [...treePopover.querySelectorAll('[role="treeitem"]')].find(i =>
         i.textContent?.trim().startsWith('title')
       ) as HTMLElement
     );
     // 操作符选择器：选「包含」
-    const opPopover = container.querySelectorAll('[popover]')[1] as HTMLElement;
+    const opPopover = rule.querySelectorAll('[popover]')[1] as HTMLElement;
     fireEvent.click(
       [...opPopover.querySelectorAll('li[role="none"] button[role="option"]')].find(
         b => b.textContent?.trim() === '包含'
@@ -256,27 +358,48 @@ describe('EntityList（真实组件）', () => {
     );
   }
 
-  it('撤销 / 重做栈被子分支分叉点拦住：按钮停用并说明原因（US-315）', async () => {
-    const versionManager = (rxdb as unknown as { versionManager: { history(): HistoryScopeAPI } }).versionManager;
-    const inherited = { reason: 'inherited_by_branch' as const, branchIds: ['feature'] };
-    const history = vi.spyOn(versionManager, 'history').mockReturnValue({
-      ...versionManager.history(),
-      undoCount$: of(0),
-      redoCount$: of(0),
-      undoBarrier$: of(inherited),
-      redoBarrier$: of(inherited)
+  it.each(['initialFilter', 'fixedQuery'] as const)('%s 只过滤主表，关联下拉保留全部候选', async input => {
+    const account = new Account({ name: '候选账户' });
+    await account.save();
+    await new Contract({ title: '匹配合同', accountId: account.id }).save();
+    await new Contract({ title: '其他合同', accountId: account.id }).save();
+    const filter = {
+      combinator: 'and' as const,
+      rules: [{ field: 'title', operator: '=' as const, value: '匹配合同' }]
+    };
+    const filterProps = input === 'initialFilter' ? { initialFilter: JSON.stringify(filter) } : { fixedQuery: filter };
+    const { container } = await renderList({ name: 'Contract', ...filterProps });
+    await waitFor(() => {
+      expect(tableOf().records.map(record => record['title'])).toEqual(['匹配合同']);
     });
-    try {
-      const { container } = await renderList();
-      const button = (label: string) => container.querySelector(`[aria-label="${label}"]`) as HTMLButtonElement;
-      await waitFor(() => {
-        expect(button('撤销 (Ctrl+Z)').title).toBe('更早的改动已被分支 feature 继承，撤销不了');
-      });
-      expect(button('撤销 (Ctrl+Z)').disabled).toBe(true);
-      expect(button('重做 (Ctrl+Shift+Z)').title).toBe('要重做的改动已被分支 feature 继承，重做不了');
-    } finally {
-      history.mockRestore();
-    }
+    fireEvent.click([...container.querySelectorAll('button')].find(button => button.textContent?.includes('+ 新增'))!);
+    await waitFor(() => {
+      const options = [...document.querySelectorAll('select option')].map(option => option.textContent);
+      expect(options).toContain('候选账户');
+    });
+  });
+
+  it('对话框开着时关联候选跟随活查询：后落库的记录出现，改名同步刷新', async () => {
+    const { container } = await renderList({ name: 'Contract' });
+    fireEvent.click([...container.querySelectorAll('button')].find(button => button.textContent?.includes('+ 新增'))!);
+    await waitFor(() => {
+      expect(document.querySelector('.rxdb-dialog-pane [data-testid="relation-empty-hint"]')).not.toBeNull();
+    });
+    const optionTexts = (): Array<string | null> =>
+      [...document.querySelectorAll('.rxdb-dialog-pane select option')].map(option => option.textContent);
+
+    const account = new Account({ name: '后到账户' });
+    await account.save();
+    await waitFor(() => {
+      expect(optionTexts()).toContain('后到账户');
+    });
+
+    account.name = '改名账户';
+    await account.save();
+    await waitFor(() => {
+      expect(optionTexts()).toContain('改名账户');
+    });
+    expect(optionTexts()).not.toContain('后到账户');
   });
 
   it('筛选弹层：query-builder 条件应用后列表按 where 重查', async () => {
@@ -357,6 +480,17 @@ describe('EntityList（真实组件）', () => {
     expect(confirmed[0].map(e => e.id)).toEqual([a.id]);
   });
 
+  it('选择模式：只读实体仍可勾选关联', async () => {
+    const invoice = new Invoice({ title: 'readonly selectable' });
+    await invoice.save();
+    const { container } = await renderList({ name: 'Invoice', mode: 'select' });
+    await waitFor(() => expect(tableOf().records).toHaveLength(1));
+
+    expect(tableOf().records[0]['_readonly']).toBe(true);
+    act(() => tableOf().emit('checkbox_state_change', { col: 1, row: 1, checked: true }));
+    await waitFor(() => expect(container.textContent).toContain('已选 1 项'));
+  });
+
   it('选择模式：未选中时确认按钮禁用，取消走 onSelectionCancelled', async () => {
     await seedTodo('nothing-selected');
     const { cancelled } = await renderList({ mode: 'select' });
@@ -370,6 +504,35 @@ describe('EntityList（真实组件）', () => {
 
     fireEvent.click([...document.querySelectorAll('button')].find(b => b.textContent?.trim() === '取消')!);
     expect(cancelled).toHaveLength(1);
+  });
+
+  it('未安装历史插件时删除确认不承诺撤销恢复', async () => {
+    const plain = new RxDB({
+      dbName: 'delete-without-history',
+      entities: [...rxdb.config.entities],
+      sync: { type: SyncType.None, local: { adapter: IN_MEMORY_ADAPTER_NAME } }
+    });
+    plain.adapter(IN_MEMORY_ADAPTER_NAME, db => new InMemoryRxDBAdapter(db));
+    await plain.connect(IN_MEMORY_ADAPTER_NAME);
+    await plain.entityManager.instantiate(Todo, { title: 'without-history' }).save();
+    const view = render(
+      <RxDBProvider db={plain}>
+        <EntityList namespace='public' name='Todo' />
+      </RxDBProvider>
+    );
+    try {
+      await waitFor(() => expect(tableOf().records).toHaveLength(1));
+      act(() => tableOf().emit('icon_click', { name: 'delete-action', col: 2, row: 1 }));
+      await waitFor(() => expect(document.querySelector('[data-testid="delete-confirm-submit"]')).not.toBeNull());
+      const dialog = document.querySelector('.entity-delete-confirm-dialog');
+      expect(dialog?.textContent).not.toContain('撤销');
+      fireEvent.click(document.querySelector('[data-testid="delete-confirm-submit"]') as HTMLElement);
+      await waitFor(() => expect(tableOf().records).toHaveLength(0));
+      expect((view.getByRole('button', { name: '撤销 (Ctrl+Z) 0' }) as HTMLButtonElement).disabled).toBe(true);
+    } finally {
+      view.unmount();
+      await plain.destroy();
+    }
   });
 
   it('行删除走真实 remove 路径并从列表消失', async () => {
@@ -386,11 +549,56 @@ describe('EntityList（真实组件）', () => {
       table.emit('icon_click', { name: 'delete-action', col: 2, row });
     });
 
+    // 删除需经确认弹层（US-104 之后的三端交互约束）
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="delete-confirm-submit"]')).toBeTruthy();
+    });
+    act(() => {
+      (document.querySelector('[data-testid="delete-confirm-submit"]') as HTMLElement).click();
+    });
+
     await waitFor(() => {
       expect(tableOf().records).toHaveLength(1);
     });
     expect(await findTitles()).toEqual(['keep-me']);
     void container;
+  });
+
+  it('删除被存储层拒绝时列表给出可读原因并保留该行，再次删除成功后提示消失', async () => {
+    await seedTodo('referenced');
+    const { container } = await renderList();
+    await waitFor(() => {
+      expect(tableOf().records).toHaveLength(1);
+    });
+    const remove = vi
+      .spyOn(rxdb.entityManager, 'remove')
+      .mockRejectedValueOnce(new Error('FOREIGN KEY constraint failed'));
+    const confirmFirstRowDelete = async (): Promise<void> => {
+      act(() => tableOf().emit('icon_click', { name: 'delete-action', col: 2, row: 1 }));
+      await waitFor(() => {
+        expect(document.querySelector('[data-testid="delete-confirm-submit"]')).not.toBeNull();
+      });
+      fireEvent.click(document.querySelector('[data-testid="delete-confirm-submit"]') as HTMLElement);
+    };
+
+    try {
+      await confirmFirstRowDelete();
+      await waitFor(() => {
+        expect(container.querySelector('[data-testid="delete-error"]')?.textContent).toBe(
+          '删除失败：FOREIGN KEY constraint failed'
+        );
+      });
+      expect(await findTitles()).toEqual(['referenced']);
+
+      await confirmFirstRowDelete();
+      await waitFor(() => {
+        expect(tableOf().records).toHaveLength(0);
+      });
+      expect(container.querySelector('[data-testid="delete-error"]')).toBeNull();
+      expect(remove).toHaveBeenCalledTimes(2);
+    } finally {
+      remove.mockRestore();
+    }
   });
 
   it('view-action 图标点击输出 onViewEntity 并打开编辑对话框', async () => {
@@ -504,7 +712,7 @@ describe('EntityList（真实组件）', () => {
     act(() => {
       table.emit('change_cell_value', { col: 2, row: 1, changedValue: 'after-edit' });
     });
-    const undoBtn = () => container.querySelector('[aria-label="撤销 (Ctrl+Z)"]') as HTMLButtonElement;
+    const undoBtn = () => container.querySelector('[aria-label^="撤销 (Ctrl+Z)"]') as HTMLButtonElement;
     await waitFor(() => {
       expect(undoBtn().disabled).toBe(false);
     });
@@ -515,7 +723,7 @@ describe('EntityList（真实组件）', () => {
       expect(tableOf().records.map(r => r['title'])).toContain('shortcut-me');
     });
 
-    const redoBtn = () => container.querySelector('[aria-label="重做 (Ctrl+Shift+Z)"]') as HTMLButtonElement;
+    const redoBtn = () => container.querySelector('[aria-label^="重做 (Ctrl+Shift+Z)"]') as HTMLButtonElement;
     await waitFor(() => {
       expect(redoBtn().disabled).toBe(false);
     });
@@ -585,31 +793,12 @@ describe('EntityList（真实组件）', () => {
 
     const rowOf = (id: string): number => tableOf().records.findIndex(r => r['id'] === id) + 1;
 
-    it('AC#10 create: system 的实体不提供新增，已有行照常可编辑可删除', async () => {
-      const log = new AuditLog({ message: 'seeded-by-system' });
-      await adapter.mutations({
-        create: new Map<EntityType, Set<EntityBase>>([[AuditLog as unknown as EntityType, new Set([log])]]),
-        update: new Map(),
-        remove: new Map()
-      });
-      const { container } = await renderList({ name: 'AuditLog' });
-      await waitFor(() => {
-        expect(tableOf().records).toHaveLength(1);
-      });
-
-      expect(container.textContent).not.toContain('+ 新增');
-      expect(tableOf().records[0]['_readonly']).toBeUndefined();
-      expect(actionIconNames(1)).toEqual(['view-action', 'delete-action']);
-    });
-
     it('只读实例（只读检出位，US-313）：不出新增，单元格无编辑器，操作列只剩查看', async () => {
-      // 克隆体是 Todo 的子类：收窄成 typeof Todo 才能带着字段 new 出来
       const [ReadOnlyTodo] = cloneEntityClasses([Todo as unknown as EntityType]) as unknown as [typeof Todo];
       const readOnly = createInMemoryRxdb([ReadOnlyTodo as unknown as EntityType], undefined, { readOnly: true });
       await readOnly.connect(IN_MEMORY_ADAPTER_NAME);
       const { firstValueFrom } = await import('rxjs');
       const readOnlyAdapter = await firstValueFrom(readOnly.localAdapter$);
-      // 只读实例的公开写入口一律拒，灌数据走适配器层
       await readOnlyAdapter.mutations({
         create: new Map<EntityType, Set<EntityBase>>([
           [ReadOnlyTodo as unknown as EntityType, new Set([new ReadOnlyTodo({ title: 'frozen' })])]
@@ -628,10 +817,26 @@ describe('EntityList（真实组件）', () => {
       });
 
       expect(container.textContent).not.toContain('+ 新增');
-      // 列上压根没有编辑器，不只是这一行不可编辑
       expect((tableOf().columns[colOf('title') - 1] as Record<string, unknown>)['editor']).toBeUndefined();
       expect(actionIconNames(1)).toEqual(['view-action']);
       await readOnly.disconnectAll();
+    });
+
+    it('AC#10 create: system 的实体不提供新增，已有行照常可编辑可删除', async () => {
+      const log = new AuditLog({ message: 'seeded-by-system' });
+      await adapter.mutations({
+        create: new Map<EntityType, Set<EntityBase>>([[AuditLog as unknown as EntityType, new Set([log])]]),
+        update: new Map(),
+        remove: new Map()
+      });
+      const { container } = await renderList({ name: 'AuditLog' });
+      await waitFor(() => {
+        expect(tableOf().records).toHaveLength(1);
+      });
+
+      expect(container.textContent).not.toContain('+ 新增');
+      expect(tableOf().records[0]['_readonly']).toBeUndefined();
+      expect(actionIconNames(1)).toEqual(['view-action', 'delete-action']);
     });
 
     it('未声明 permissions 的实体照常提供新增', async () => {
@@ -658,6 +863,12 @@ describe('EntityList（真实组件）', () => {
 
       act(() => {
         tableOf().emit('icon_click', { name: 'delete-action', col: colOf('actions'), row });
+      });
+      await waitFor(() => {
+        expect(document.querySelector('[data-testid="delete-confirm-submit"]')).toBeTruthy();
+      });
+      act(() => {
+        (document.querySelector('[data-testid="delete-confirm-submit"]') as HTMLElement).click();
       });
       await waitFor(async () => {
         expect(await titlesOf(Invoice as unknown as EntityType)).toEqual(['keep']);
@@ -813,7 +1024,7 @@ describe('EntityList（真实组件）', () => {
     act(() => {
       table.emit('change_cell_value', { col: 2, row: 1, changedValue: 'after-meta' });
     });
-    const undoBtn = () => container.querySelector('[aria-label="撤销 (Ctrl+Z)"]') as HTMLButtonElement;
+    const undoBtn = () => container.querySelector('[aria-label^="撤销 (Ctrl+Z)"]') as HTMLButtonElement;
     await waitFor(() => {
       expect(undoBtn().disabled).toBe(false);
     });

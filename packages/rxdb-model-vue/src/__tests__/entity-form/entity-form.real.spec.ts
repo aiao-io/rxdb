@@ -101,7 +101,10 @@ describe('EntityForm（真实组件）', () => {
   /** 按显示名定位字段的 fieldset。 */
   function fieldset(wrapper: { element: HTMLElement }, displayName: string): HTMLElement {
     const legends = [...wrapper.element.querySelectorAll('legend')] as HTMLElement[];
-    const legend = legends.find(l => l.textContent?.trim() === displayName);
+    // 必填字段的图例带「 *」后缀（US-104 之后的三端必填标记）
+    const legend = legends.find(
+      l => l.textContent?.trim() === displayName || l.textContent?.trim() === `${displayName} *`
+    );
     if (!legend) throw new Error(`legend not found: ${displayName}`);
     return legend.parentElement as HTMLElement;
   }
@@ -112,7 +115,7 @@ describe('EntityForm（真实组件）', () => {
 
     expect(legends).toHaveLength(FIELDS.length - 1);
     expect(legends).not.toContain('隐藏字段');
-    expect(legends[0]).toBe('名称');
+    expect(legends[0]).toBe('名称 *');
   });
 
   it('12 类字段渲染对应控件', () => {
@@ -157,6 +160,19 @@ describe('EntityForm（真实组件）', () => {
 
     const avatarOptions = [...fieldset(wrapper, '头像').querySelectorAll('option')].map(o => o.textContent?.trim());
     expect(avatarOptions).toEqual(['(空)', 'logo.png']);
+  });
+
+  it('两种单选关联在空候选时提示创建，有候选后移除提示', async () => {
+    const { wrapper } = render({ mode: 'create' });
+    await wrapper.setProps({ relatedEntityProvider: () => [] });
+
+    const hints = () => wrapper.findAll('[data-testid="relation-empty-hint"]').map(hint => hint.text());
+    expect(hints()).toEqual(['暂无「负责人」可选，请先创建对应记录', '暂无「头像」可选，请先创建对应记录']);
+
+    await wrapper.setProps({
+      relatedEntityProvider: () => [{ id: 'record-1', displayName: '可选记录' }]
+    });
+    expect(hints()).toEqual([]);
   });
 
   it('view 模式全部只读：渲染展示值而非输入控件', () => {
@@ -366,7 +382,10 @@ describe('EntityForm format 语义控件（真实组件）', () => {
 
   function fieldset(wrapper: { element: HTMLElement }, displayName: string): HTMLElement {
     const legends = [...wrapper.element.querySelectorAll('legend')] as HTMLElement[];
-    const legend = legends.find(l => l.textContent?.trim() === displayName);
+    // 必填字段的图例带「 *」后缀（US-104 之后的三端必填标记）
+    const legend = legends.find(
+      l => l.textContent?.trim() === displayName || l.textContent?.trim() === `${displayName} *`
+    );
     if (!legend) throw new Error(`legend not found: ${displayName}`);
     return legend.parentElement as HTMLElement;
   }

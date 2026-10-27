@@ -5,6 +5,7 @@ import {
   PropertyType,
   RelationKind,
   RxDB,
+  SyncType,
   type EntityType,
   type HistoryScopeAPI
 } from '@aiao/rxdb';
@@ -150,6 +151,101 @@ describe('EntityListComponent（真实组件）', () => {
   }
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
+
+  it('字段配置、查询排序与分组通过工具栏生效', async () => {
+    await seedTodo('beta', false);
+    await seedTodo('alpha', true);
+    const { fixture } = await renderList();
+    const root = fixture.nativeElement as HTMLElement;
+    const originalFields = tableOf(fixture).columns.map(column => column['field']);
+    const defaultIds = tableOf(fixture).records.map(record => record['id']);
+    const title = String(tableOf(fixture).columns.find(column => column['field'] === 'title')?.['title']);
+    const control = (label: string) => root.querySelector(`[aria-label="${label}"]`) as HTMLInputElement;
+    const settle = async () => {
+      fixture.detectChanges();
+      await FLUSH();
+      fixture.detectChanges();
+    };
+    const change = async (label: string, value: string) => {
+      const select = control(label);
+      select.value = value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      await settle();
+    };
+    const queries = vi.spyOn(repoOf(), 'findByCursor');
+    control(`显示${title}`).checked = false;
+    control(`显示${title}`).dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    expect(tableOf(fixture).columns.some(column => column['field'] === 'title')).toBe(false);
+    expect(queries).not.toHaveBeenCalled();
+    queries.mockRestore();
+    control(`显示${title}`).checked = true;
+    control(`显示${title}`).dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    control(`拖动${title}排序`).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await settle();
+    expect(tableOf(fixture).columns[0]['field']).toBe('title');
+    await change('添加排序字段', 'title');
+    expect(tableOf(fixture).records.map(record => record['title'])).toEqual(['alpha', 'beta']);
+    await change(`${title}排序方向`, 'desc');
+    expect(tableOf(fixture).records.map(record => record['title'])).toEqual(['beta', 'alpha']);
+    const completedTitle = String(tableOf(fixture).columns.find(column => column['field'] === 'completed')?.['title']);
+    await change('添加排序字段', 'completed');
+    await change(`${completedTitle}排序方向`, 'desc');
+    control(`提高${completedTitle}排序优先级`).click();
+    await settle();
+    expect(tableOf(fixture).records.map(record => record['title'])).toEqual(['alpha', 'beta']);
+    control(`移除${completedTitle}排序`).click();
+    await settle();
+    expect(tableOf(fixture).records.map(record => record['title'])).toEqual(['beta', 'alpha']);
+    await change('分组字段', 'completed');
+    expect(tableOf(fixture).options['groupBy']).toEqual(['completed']);
+    expect(tableOf(fixture).records).toHaveLength(2);
+    expect(isRowDragEnabled(tableOf(fixture) as never)).toBe(false);
+    await change('分组字段', '');
+    expect(tableOf(fixture).options['groupBy']).toEqual([]);
+    const button = (text: string) =>
+      [...root.querySelectorAll('button')].find(item => item.textContent?.trim() === text)!;
+    button('清除排序').click();
+    await settle();
+    expect(tableOf(fixture).records.map(record => record['id'])).toEqual(defaultIds);
+    const fields = [...root.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
+    for (const field of fields.slice(1)) {
+      field.checked = false;
+      field.dispatchEvent(new Event('change', { bubbles: true }));
+      await settle();
+    }
+    expect(fields[0].disabled).toBe(true);
+    expect(tableOf(fixture).columns).toHaveLength(2);
+    button('重置字段').click();
+    await settle();
+    expect(tableOf(fixture).columns.map(column => column['field'])).toEqual(originalFields);
+    await change('分组字段', 'completed');
+    fixture.componentRef.setInput('name', 'Task');
+    await settle();
+    expect(tableOf(fixture).options['groupBy']).toEqual([]);
+    fixture.componentRef.setInput('name', 'Todo');
+    await settle();
+    expect(tableOf(fixture).columns.map(column => column['field'])).toEqual(originalFields);
+  });
+
+  it('切换实体时清理选择状态，避免旧实体的 id 带入新列表', async () => {
+    await seedTodo('selection-reset');
+    const { fixture, component } = await renderList({ mode: 'select' });
+    const record = component.tableRecords()[0];
+    component.onCellChanged({ col: 1, row: 1, field: '__selected', value: true, record });
+    expect(component.selectedCount()).toBe(1);
+
+    fixture.componentRef.setInput('name', 'Task');
+    fixture.detectChanges();
+    await FLUSH();
+    fixture.detectChanges();
+
+    expect(component.selectedCount()).toBe(0);
+    expect(component.tableRecords()).toEqual([]);
+    fixture.destroy();
+  });
+
   /**
    * 查询实体当前落库的 title 列表（升序）。
    *
@@ -282,6 +378,29 @@ describe('EntityListComponent（真实组件）', () => {
       .filter(el => el.closest('[aria-hidden="true"]') !== null)
       .map(el => el.outerHTML.slice(0, 80));
 
+  it.each(['initialFilter', 'fixedQuery'] as const)('%s 只过滤主表，关联下拉保留全部候选', async input => {
+    const account = new Account({ name: '候选账户' });
+    await account.save();
+    await new Contract({ title: '匹配合同', accountId: account.id }).save();
+    await new Contract({ title: '其他合同', accountId: account.id }).save();
+    const filter = {
+      combinator: 'and' as const,
+      rules: [{ field: 'title', operator: '=' as const, value: '匹配合同' }]
+    };
+    const { fixture, component } = await renderList({ name: 'Contract' });
+    fixture.componentRef.setInput(input, input === 'initialFilter' ? JSON.stringify(filter) : filter);
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      expect(component.tableRecords().map(record => record['title'])).toEqual(['匹配合同']);
+    });
+    component.openCreateDialog();
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      const options = [...document.querySelectorAll('select option')].map(option => option.textContent?.trim());
+      expect(options).toContain('候选账户');
+    });
+  });
+
   it('筛选弹层：query-builder 条件应用后列表按 where 重查', async () => {
     await seedTodo('match-alpha');
     await seedTodo('match-beta');
@@ -381,6 +500,32 @@ describe('EntityListComponent（真实组件）', () => {
     expect(cancelled).toHaveLength(2);
   });
 
+  it('未安装历史插件时删除确认不承诺撤销恢复', async () => {
+    const plain = new RxDB({
+      dbName: 'delete-without-history',
+      entities: [...rxdb.config.entities],
+      sync: { type: SyncType.None, local: { adapter: IN_MEMORY_ADAPTER_NAME } }
+    });
+    plain.adapter(IN_MEMORY_ADAPTER_NAME, db => new InMemoryRxDBAdapter(db));
+    await plain.connect(IN_MEMORY_ADAPTER_NAME);
+    await plain.entityManager.instantiate(Todo, { title: 'without-history' }).save();
+    TestBed.overrideProvider(RxDB, { useValue: plain });
+    const { fixture, component } = await renderList();
+    try {
+      await vi.waitFor(() => expect(component.tableRecords()).toHaveLength(1));
+      await component.onRowDeleted(component.tableRecords()[0]);
+      fixture.detectChanges();
+      await vi.waitFor(() => expect(document.querySelector('[data-testid="delete-confirm-submit"]')).not.toBeNull());
+      expect(document.querySelector('.entity-delete-confirm-dialog')?.textContent).not.toContain('撤销');
+      await component.confirmDelete();
+      await vi.waitFor(() => expect(component.tableRecords()).toHaveLength(0));
+      expect(component.canUndo()).toBe(false);
+    } finally {
+      fixture.destroy();
+      await plain.destroy();
+    }
+  });
+
   it('行删除走真实 remove 路径并从列表消失', async () => {
     const victim = await seedTodo('delete-me');
     await seedTodo('keep-me');
@@ -390,9 +535,46 @@ describe('EntityListComponent（真实组件）', () => {
 
     await component.onRowDeleted({ id: victim.id });
     await FLUSH();
+    // 删除需经确认弹层
+    await component.confirmDelete();
+    await FLUSH();
 
     expect(component.tableRecords()).toHaveLength(1);
     expect(await findTitles()).toEqual(['keep-me']);
+  });
+
+  it('删除被存储层拒绝时列表给出可读原因并保留该行，再次删除成功后提示消失', async () => {
+    const victim = await seedTodo('referenced');
+    const { fixture, component } = await renderList();
+    await FLUSH();
+    expect(component.tableRecords()).toHaveLength(1);
+    const remove = vi
+      .spyOn(rxdb.entityManager, 'remove')
+      .mockRejectedValueOnce(new Error('FOREIGN KEY constraint failed'));
+    const deleteErrorOf = (): HTMLElement | null => fixture.nativeElement.querySelector('[data-testid="delete-error"]');
+
+    try {
+      await component.onRowDeleted({ id: victim.id });
+      await FLUSH();
+      await component.confirmDelete();
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(deleteErrorOf()?.textContent?.trim()).toBe('删除失败：FOREIGN KEY constraint failed');
+      });
+      expect(await findTitles()).toEqual(['referenced']);
+
+      await component.onRowDeleted({ id: victim.id });
+      await FLUSH();
+      await component.confirmDelete();
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(component.tableRecords()).toHaveLength(0);
+      });
+      expect(deleteErrorOf()).toBeNull();
+      expect(remove).toHaveBeenCalledTimes(2);
+    } finally {
+      remove.mockRestore();
+    }
   });
 
   it('view-action 图标点击输出 viewEntity', async () => {
@@ -770,13 +952,11 @@ describe('EntityListComponent（真实组件）', () => {
       component.tableRecords().findIndex(r => r['id'] === id) + 1;
 
     it('只读实例（只读检出位，US-313）：不出新增，单元格无编辑器，操作列只剩查看', async () => {
-      // 克隆体是 Todo 的子类：收窄成 typeof Todo 才能带着字段 new 出来
       const [ReadOnlyTodo] = cloneEntityClasses([Todo as unknown as EntityType]) as unknown as [typeof Todo];
       const readOnly = createInMemoryRxdb([ReadOnlyTodo as unknown as EntityType], undefined, { readOnly: true });
       await readOnly.connect(IN_MEMORY_ADAPTER_NAME);
       const { firstValueFrom } = await import('rxjs');
       const readOnlyAdapter = await firstValueFrom(readOnly.localAdapter$);
-      // 只读实例的公开写入口一律拒，灌数据走适配器层
       await readOnlyAdapter.mutations({
         create: new Map<EntityType, Set<EntityBase>>([
           [ReadOnlyTodo as unknown as EntityType, new Set([new ReadOnlyTodo({ title: 'frozen' })])]
@@ -795,7 +975,6 @@ describe('EntityListComponent（真实组件）', () => {
       expect(component.tableRecords()).toHaveLength(1);
       expect(fixture.nativeElement.textContent).not.toContain('+ 新增');
       const columns = component.tableColumns() as unknown as Record<string, unknown>[];
-      // 列上压根没有编辑器，不只是这一行不可编辑
       expect(columns.find(column => column['field'] === 'title')?.['editor']).toBeUndefined();
       expect(actionIconNames(fixture, 1)).toEqual(['view-action']);
       await readOnly.disconnectAll();
@@ -841,6 +1020,9 @@ describe('EntityListComponent（真实组件）', () => {
       const col = (component.tableColumns() as Array<{ field?: string }>).findIndex(c => c.field === 'actions') + 1;
       tableOf(fixture).emit('icon_click', { name: 'delete-action', col, row });
       await FLUSH();
+      await FLUSH();
+      // 删除需经确认弹层
+      await component.confirmDelete();
       await FLUSH();
 
       expect(await titlesOf(Invoice as unknown as EntityType)).toEqual(['keep']);

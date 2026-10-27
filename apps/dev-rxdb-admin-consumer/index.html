@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>独立消费示例 · 模型驱动数据工作台</title>
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta content="light dark" name="color-scheme" />
+    <meta content="只用 @aiao/rxdb 发布包从零接线的模型驱动 CRUD 示例（US-528）" name="description" />
+    <script>
+      try {
+        let theme = localStorage.getItem('theme') || 'auto';
+        if (theme === 'auto') theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="/src/main.tsx" type="module"></script>
+  </body>
+</html>

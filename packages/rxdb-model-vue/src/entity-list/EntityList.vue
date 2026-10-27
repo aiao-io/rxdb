@@ -16,8 +16,7 @@ import {
   type EntityMetadata,
   type EntityType,
   type FindByCursorOptions,
-  type HistoryScopeAPI,
-  type OrderBy
+  type HistoryScopeAPI
 } from '@aiao/rxdb';
 import {
   actionsColumn,
@@ -25,7 +24,13 @@ import {
   buildFormFields,
   canReorderEntityList,
   commitRowMove,
-  defaultListOrderBy,
+  applyListViewColumns,
+  buildListViewOrderBy,
+  buildListViewRecords,
+  buildListViewTableOptions,
+  createListViewState,
+  getListViewFields,
+  type ListViewState,
   deriveEntityCapabilities,
   describeHistoryBarrier,
   extractFieldsFromMetadata,
@@ -46,7 +51,7 @@ import {
 } from '@aiao/rxdb-model';
 import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import { useInfiniteScroll, useRxDB, type InfiniteScrollResource } from '@aiao/rxdb-vue';
-import { Funnel as FunnelIcon, Redo2 as Redo2Icon, Undo2 as Undo2Icon } from '@lucide/vue';
+import { Funnel as FunnelIcon, Redo2 as Redo2Icon, Undo2 as Undo2Icon, X as XIcon } from '@lucide/vue';
 import type { ColumnsDefine, ListTableConstructorOptions } from '@visactor/vtable';
 import { of, type Observable, type ObservedValueOf } from 'rxjs';
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch, watchEffect } from 'vue';
@@ -54,6 +59,7 @@ import DialogPortal from '../entity-dialog/DialogPortal.vue';
 import EntityDialog from '../entity-dialog/EntityDialog.vue';
 import EntityDetail from '../entity-detail/EntityDetail.vue';
 import type { EntityDetailDialogData } from '../entity-detail/entity-detail-types';
+import ListViewSettings from './ListViewSettings.vue';
 import QueryTable from '../entity-table/QueryTable.vue';
 import QueryBuilder from '../query-builder/query-builder/QueryBuilder.vue';
 import type { RxDBQueryOutput } from '../query-builder/query-builder/query-builder-types';
@@ -100,6 +106,13 @@ interface HistoryLike {
   redo(): Promise<unknown>;
 }
 
+interface PendingEntityChange {
+  entityClass: EntityType;
+  target: EntityInstance;
+  draft: boolean;
+  changes: Record<string, unknown>;
+}
+
 /** 规范化 VTable sort_click 的 field，拒绝 actions / 空字段 */
 function normalizeSortField(field: unknown): string | undefined {
   if (typeof field !== 'string') return undefined;
@@ -114,23 +127,6 @@ function normalizeSortOrder(order: unknown): ListSortState['order'] {
   const lower = order.toLowerCase();
   if (lower === 'asc' || lower === 'desc' || lower === 'normal') return lower;
   return 'normal';
-}
-
-/**
- * 构造 FindByCursor 所需 orderBy。
- * normal → 手动排序实体按手动顺序，其余 id desc；用户字段 → [field, id] 同向（末尾唯一键满足游标定位）。
- */
-function buildCursorOrderBy(state: ListSortState, metadata: EntityMetadata | undefined): OrderBy[] {
-  if (state.order === 'normal' || !state.field) {
-    return defaultListOrderBy(metadata);
-  }
-  if (state.field === 'id') {
-    return [{ field: 'id', sort: state.order }];
-  }
-  return [
-    { field: state.field, sort: state.order },
-    { field: 'id', sort: state.order }
-  ];
 }
 
 /** 解析外部导航传入的筛选条件 JSON 字符串，格式非法时静默忽略 */
@@ -208,7 +204,7 @@ const handleError = (error: unknown): void => {
 };
 
 // ── Save coalescing ───────────────────────────────────────────────────
-const pendingChanges = new Map<string, Record<string, unknown>>();
+const pendingChanges = new Map<string, PendingEntityChange>();
 let flushHandle = false;
 /** 已排队或正在落库的行内编辑批次数；拖放时据此判定「有未完成的编辑」 */
 const pendingEditBatches = ref(0);
@@ -216,6 +212,8 @@ const pendingEditBatches = ref(0);
 const reorderPending = ref(false);
 /** 最近一次重排落库失败的提示；成功或重新拖放时清除 */
 const reorderError = ref<string | null>(null);
+/** 最近一次删除被存储层拒绝的原因（如仍被其他记录引用）；重新删除或切换实体时清除 */
+const deleteError = ref<string | null>(null);
 /** 表格链路（列表 → QueryTable → EntityTable），用于把被拒或失败的拖放恢复原顺序 */
 const queryTableRef = ref<InstanceType<typeof QueryTable> | null>(null);
 
@@ -252,20 +250,14 @@ const filterQuery = ref<FilterQuery>({ ...EMPTY_FILTER });
 const pendingQuery = ref<FilterQuery>({ ...EMPTY_FILTER });
 const pendingQueryValid = ref(true);
 const showFilterPopover = ref(false);
-
-// 切实体时重置筛选与排序为默认
-watch(entityKey, () => {
-  filterQuery.value = { ...EMPTY_FILTER };
-  pendingQuery.value = { ...EMPTY_FILTER };
-  sortState.value = { ...DEFAULT_SORT_STATE };
-});
+const viewState = ref(createListViewState());
 
 // ── 无限滚动列表资源（等价 Angular #getOrCreateList + #currentList） ──
 
 /** 列头排序；切实体时重置为默认 id desc */
 const sortState = ref<ListSortState>({ ...DEFAULT_SORT_STATE });
 
-/** 构造某实体 key 的游标查询选项（where = 固定 + 用户筛选；主表用列头排序） */
+/** 主表使用固定与用户筛选，关联候选独立查询。 */
 const buildListOptions = (key: string, metadata: EntityMetadata) => {
   const userFilter = filterQuery.value;
   const fixed = props.fixedQuery;
@@ -277,11 +269,12 @@ const buildListOptions = (key: string, metadata: EntityMetadata) => {
   } else {
     where = { combinator: 'and', rules: [...fixed.rules, ...userFilter.rules] };
   }
-  // 关联实体下拉的 list 不跟主表列头排序，避免外键侧字段缺失
-  const activeSortState = key === entityKey.value ? sortState.value : DEFAULT_SORT_STATE;
+  // 关联候选不使用主表的筛选与排序
+  const isCurrent = key === entityKey.value;
+  const view = isCurrent ? viewState.value : createListViewState();
   return {
-    where: where as never,
-    orderBy: buildCursorOrderBy(activeSortState, metadata) as FindByCursorOptions<EntityType>['orderBy']
+    where: (isCurrent ? where : EMPTY_FILTER) as never,
+    orderBy: buildListViewOrderBy(view, metadata) as FindByCursorOptions<EntityType>['orderBy']
   };
 };
 
@@ -330,18 +323,20 @@ const redoCount = ref(0);
 const undoBarrier = shallowRef<ObservedValueOf<HistoryScopeAPI['undoBarrier$']>>(null);
 const redoBarrier = shallowRef<ObservedValueOf<HistoryScopeAPI['redoBarrier$']>>(null);
 watchEffect(onCleanup => {
-  const subscriptions = [
-    vHistory.undoCount$.subscribe(n => (undoCount.value = n)),
-    vHistory.redoCount$.subscribe(n => (redoCount.value = n)),
-    vHistory.undoBarrier$.subscribe(barrier => (undoBarrier.value = barrier)),
-    vHistory.redoBarrier$.subscribe(barrier => (redoBarrier.value = barrier))
-  ];
-  onCleanup(() => subscriptions.forEach(subscription => subscription.unsubscribe()));
+  const sub = vHistory.undoCount$.subscribe(n => (undoCount.value = n));
+  const sub2 = vHistory.redoCount$.subscribe(n => (redoCount.value = n));
+  const sub3 = vHistory.undoBarrier$.subscribe(value => (undoBarrier.value = value));
+  const sub4 = vHistory.redoBarrier$.subscribe(value => (redoBarrier.value = value));
+  onCleanup(() => {
+    sub.unsubscribe();
+    sub2.unsubscribe();
+    sub3.unsubscribe();
+    sub4.unsubscribe();
+  });
 });
 
 const canUndo = computed(() => undoCount.value > 0);
 const canRedo = computed(() => redoCount.value > 0);
-// 按钮停用时的说明：栈停在子分支分叉点（US-315）；能撤销 / 重做或不是这个原因时没有
 const undoHint = computed(() => (canUndo.value ? null : describeHistoryBarrier('undo', undoBarrier.value)));
 const redoHint = computed(() => (canRedo.value ? null : describeHistoryBarrier('redo', redoBarrier.value)));
 
@@ -431,21 +426,24 @@ const m2mAlreadyLinkedIds = computed<Set<string>>(() => {
 const rowDragEnabled = computed(() => {
   const cls = entityCls.value;
   const list = currentList.value;
-  return canReorderEntityList({
-    metadata: cls ? getEntityMetadata(cls) : undefined,
-    sortOrder: sortState.value.order,
-    hasUserFilter: filterQuery.value.rules.length > 0,
-    selectMode: isSelectMode.value,
-    fixedQuery: props.fixedQuery,
-    fullyLoaded: !!list && !list.hasMore.value && !list.isLoading.value,
-    hasReadonlyRows: capabilities.value?.canEdit === false,
-    hasDrafts: localDraftItems.value.length > 0,
-    hasPendingEdits: pendingEditBatches.value > 0,
-    reorderPending: reorderPending.value
-  });
+  return (
+    viewState.value.groupBy === null &&
+    canReorderEntityList({
+      metadata: cls ? getEntityMetadata(cls) : undefined,
+      sortOrder: sortState.value.order,
+      hasUserFilter: filterQuery.value.rules.length > 0,
+      selectMode: isSelectMode.value,
+      fixedQuery: props.fixedQuery,
+      fullyLoaded: !!list && !list.hasMore.value && !list.isLoading.value,
+      hasReadonlyRows: capabilities.value?.canEdit === false,
+      hasDrafts: localDraftItems.value.length > 0,
+      hasPendingEdits: pendingEditBatches.value > 0,
+      reorderPending: reorderPending.value
+    })
+  );
 });
 
-const tableRecords = computed<EntityTableRecord[]>(() => {
+const sourceTableRecords = computed<EntityTableRecord[]>(() => {
   // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
   // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
   const isRowReadonly = capabilities.value?.canEdit === false;
@@ -465,7 +463,7 @@ const tableRecords = computed<EntityTableRecord[]>(() => {
   return records;
 });
 
-const tableColumns = computed<ColumnsDefine>(() => {
+const baseTableColumns = computed<ColumnsDefine>(() => {
   // 未注册实体无元数据可派生，不给删除
   const base = columnsCache.get(entityKey.value) ?? [actionsColumn('操作', '删除', () => false, '查看')];
   if (isSelectMode.value) {
@@ -474,6 +472,21 @@ const tableColumns = computed<ColumnsDefine>(() => {
   }
   return base;
 });
+
+const tableColumns = computed(() => applyListViewColumns(baseTableColumns.value, viewState.value));
+const viewFields = computed(() =>
+  getListViewFields(applyListViewColumns(baseTableColumns.value, { ...viewState.value, hiddenFields: [] }))
+);
+const tableRecords = computed(() => buildListViewRecords(sourceTableRecords.value, viewState.value));
+const listTableOptions = computed(() => ({
+  ...LIST_TABLE_OPTIONS,
+  ...buildListViewTableOptions(viewState.value, baseTableColumns.value)
+}));
+const onViewSettingsChange = (value: ListViewState): void => {
+  viewState.value = value;
+  const first = value.sorts[0];
+  sortState.value = first ? { field: first.field, order: first.sort } : { ...DEFAULT_SORT_STATE };
+};
 
 const createFormFieldConfigs = computed<FormFieldConfig[]>(() => {
   const cls = entityCls.value;
@@ -585,7 +598,35 @@ const onIconClicked = async (event: { name: string; record: EntityTableRecord })
     return;
   }
   if (event.name !== 'delete-action') return;
-  const id = event.record['id'] as string;
+  deleteConfirmRecord.value = event.record;
+};
+
+/** 待确认删除的行；非空即弹层打开。 */
+const deleteConfirmRecord = ref<EntityTableRecord | null>(null);
+
+// 切实体时重置只属于旧实体的交互状态。
+watch(entityKey, () => {
+  filterQuery.value = { ...EMPTY_FILTER };
+  pendingQuery.value = { ...EMPTY_FILTER };
+  pendingQueryValid.value = true;
+  sortState.value = { ...DEFAULT_SORT_STATE };
+  viewState.value = createListViewState();
+  selectedIds.value = new Set();
+  localDraftItems.value = [];
+  showFilterPopover.value = false;
+  deleteConfirmRecord.value = null;
+  m2mDialogOpen.value = false;
+  deleteError.value = null;
+  reorderError.value = null;
+});
+
+/** 确认弹层里的删除执行（与删除图标同一条路径）。 */
+const confirmDelete = async (): Promise<void> => {
+  const record = deleteConfirmRecord.value;
+  deleteConfirmRecord.value = null;
+  if (!record) return;
+  deleteError.value = null;
+  const id = record['id'] as string;
 
   const draftInst = localDraftItems.value.find(i => i.id === id);
   if (draftInst) {
@@ -598,8 +639,14 @@ const onIconClicked = async (event: { name: string; record: EntityTableRecord })
   try {
     await inst.remove();
   } catch (e) {
+    // 确认弹层已关：存储层拒绝的原因（如仍被引用时外键 RESTRICT）留在列表上
+    deleteError.value = errorMessage(e);
     handleError(e);
   }
+};
+
+const cancelDelete = (): void => {
+  deleteConfirmRecord.value = null;
 };
 
 const onRowDeleted = async (event: EntityTableRecord): Promise<void> => {
@@ -640,8 +687,21 @@ const onCreateFormSubmitted = (result: EntityFormData): void => {
   createDialogData.value = null;
 };
 
+const saveToast = ref(false);
+let saveToastTimer: ReturnType<typeof setTimeout> | null = null;
+const showSaveToast = (): void => {
+  if (saveToastTimer !== null) clearTimeout(saveToastTimer);
+  saveToast.value = true;
+  saveToastTimer = setTimeout(() => {
+    saveToast.value = false;
+  }, 2000);
+};
+
 const onCreateDialogClosed = (result?: unknown): void => {
-  if (result === 'saved') currentList.value?.refresh();
+  if (result === 'saved') {
+    currentList.value?.refresh();
+    showSaveToast();
+  }
   createDialogData.value = null;
 };
 
@@ -714,7 +774,9 @@ const onRowMoved = (move: RowMoveEvent): void => {
 const onSortClicked = (event: { field: unknown; order: unknown }): void => {
   const field = normalizeSortField(event.field);
   if (!field) return;
-  sortState.value = { field, order: normalizeSortOrder(event.order) };
+  const order = normalizeSortOrder(event.order);
+  sortState.value = { field, order };
+  viewState.value = { ...viewState.value, sorts: order === 'normal' ? [] : [{ field, sort: order }] };
 };
 
 // ── Private helpers ───────────────────────────────────────────────────
@@ -747,7 +809,10 @@ const openViewDialog = (record: EntityTableRecord): void => {
 };
 
 const onViewDialogClosed = (result?: unknown): void => {
-  if (result === 'saved') currentList.value?.refresh();
+  if (result === 'saved') {
+    currentList.value?.refresh();
+    showSaveToast();
+  }
   viewDialogData.value = null;
 };
 
@@ -812,8 +877,18 @@ const handleCreateSubmit = async (data: EntityFormData): Promise<void> => {
 };
 
 const enqueue = (recordId: string, changes: Record<string, unknown>): void => {
-  const cur = pendingChanges.get(recordId) ?? {};
-  pendingChanges.set(recordId, { ...cur, ...changes });
+  const key = `${entityKey.value}:${recordId}`;
+  const current = pendingChanges.get(key);
+  const records = instances.value;
+  const target = records.find(item => item.id === recordId) ?? localDraftItems.value.find(item => item.id === recordId);
+  const entityClass = entityCls.value;
+  if (!target || !entityClass) return;
+  pendingChanges.set(key, {
+    entityClass,
+    target: current?.target ?? target,
+    draft: current?.draft ?? !records.some(item => item.id === recordId),
+    changes: { ...current?.changes, ...changes }
+  });
   if (flushHandle) return;
   flushHandle = true;
   pendingEditBatches.value += 1;
@@ -825,48 +900,46 @@ const enqueue = (recordId: string, changes: Record<string, unknown>): void => {
   });
 };
 
-const flushPending = async (pending: [string, Record<string, unknown>][]): Promise<void> => {
+const flushPending = async (pending: [string, PendingEntityChange][]): Promise<void> => {
   if (!pending.length) return;
-  const EntityClass = entityCls.value;
-  if (!EntityClass) return;
-  const toUpdate = new Set<EntityInstance>();
+  const updateGroups = new Map<EntityType, Set<EntityInstance>>();
   const prevMap = new Map<EntityInstance, Record<string, unknown>>();
   const draftUpdated = new Set<EntityInstance>();
-  for (const [id, changes] of pending) {
-    let inst = instances.value.find(i => i.id === id);
-    const isDraft = !inst;
-    if (!inst) {
-      inst = localDraftItems.value.find(i => i.id === id);
-    }
-    if (!inst) continue;
+  for (const [, entry] of pending) {
+    const inst = entry.target;
     const prev: Record<string, unknown> = {};
     const actual: Record<string, unknown> = {};
     let hasChange = false;
-    for (const k of Object.keys(changes)) {
-      if (inst[k] !== changes[k]) {
-        prev[k] = inst[k];
-        actual[k] = changes[k];
+    for (const key of Object.keys(entry.changes)) {
+      if (inst[key] !== entry.changes[key]) {
+        prev[key] = inst[key];
+        actual[key] = entry.changes[key];
         hasChange = true;
       }
     }
     if (!hasChange) continue;
     prevMap.set(inst, prev);
     Object.assign(inst as Record<string, unknown>, actual);
-    if (isDraft) {
+    if (entry.draft) {
       draftUpdated.add(inst);
     } else {
-      toUpdate.add(inst);
+      const group = updateGroups.get(entry.entityClass) ?? new Set<EntityInstance>();
+      group.add(inst);
+      updateGroups.set(entry.entityClass, group);
     }
   }
 
   // 草稿实体直接更新列表触发重渲染（不写 DB）
   if (draftUpdated.size) {
-    localDraftItems.value = [...localDraftItems.value];
+    localDraftItems.value =
+      localDraftItems.value.some(item => draftUpdated.has(item)) ? [...localDraftItems.value] : localDraftItems.value;
   }
 
-  if (!toUpdate.size) return;
+  if (!updateGroups.size) return;
 
-  const updateMap = new Map([[EntityClass, toUpdate as unknown as Set<unknown>]]);
+  const updateMap = new Map(
+    [...updateGroups.entries()].map(([entityClass, items]) => [entityClass, items as Set<unknown>] as const)
+  );
   try {
     await rxdb.entityManager.mutations({ create: new Map(), update: updateMap, remove: new Map() });
   } catch (e) {
@@ -940,6 +1013,8 @@ defineExpose({
   redoCount,
   canUndo,
   canRedo,
+  undoHint,
+  redoHint,
   queryBuilderFields,
   tableRecords,
   tableColumns,
@@ -957,6 +1032,7 @@ defineExpose({
   sortState,
   rowDragEnabled,
   reorderError,
+  deleteError,
   toggleFilterPopover,
   closeFilterPopover,
   applyFilter,
@@ -988,8 +1064,17 @@ defineExpose({
     style="display: flex; flex-direction: column; height: 100%; overflow: hidden"
     @keydown="onKeydown"
   >
+    <div
+      v-if="saveToast"
+      class="toast toast-end z-[1100]"
+      data-testid="save-toast"
+      role="status"
+    >
+      <div class="alert alert-success py-2 text-sm">已保存</div>
+    </div>
+
     <!-- 顶栏：实体名称 + 计数 + 筛选按钮 + 新增按钮 -->
-    <div class="border-base-300 flex h-10 min-h-10 shrink-0 items-center justify-between border-b px-4">
+    <div class="border-base-300 flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-1">
       <div class="flex items-center gap-2 text-sm">
         <span class="font-medium">{{ displayName }}</span>
         <span
@@ -1039,6 +1124,11 @@ defineExpose({
           </button>
           <div class="divider divider-horizontal mx-0.5 h-5 self-center" />
         </template>
+        <ListViewSettings
+          :fields="viewFields"
+          :value="viewState"
+          @change="onViewSettingsChange"
+        />
         <!-- 筛选 popover 触发器 -->
         <button
           ref="filterTrigger"
@@ -1057,6 +1147,20 @@ defineExpose({
             class="badge badge-primary badge-xs"
             >{{ filterQuery.rules.length }}</span
           >
+        </button>
+        <!-- 快捷清除筛选：有筛选时工具栏一键还原 -->
+        <button
+          v-if="isQueryActive && !isSelectMode"
+          class="btn btn-ghost btn-sm gap-1"
+          data-testid="clear-filter"
+          type="button"
+          @click="resetFilter"
+        >
+          <XIcon
+            class="h-3.5 w-3.5"
+            :size="14"
+          />
+          清除筛选
         </button>
         <button
           v-if="!isCreateBlocked && isSelectMode"
@@ -1139,10 +1243,20 @@ defineExpose({
       排序保存失败：{{ reorderError }}
     </div>
 
+    <!-- 删除被存储层拒绝 -->
+    <div
+      v-if="deleteError"
+      class="alert alert-error alert-soft mx-4 mt-2 py-2 text-sm"
+      role="alert"
+      data-testid="delete-error"
+    >
+      删除失败：{{ deleteError }}
+    </div>
+
     <!-- 表格主体 -->
     <div class="min-h-0 flex-1">
       <QueryTable
-        :key="namespace + ':' + name"
+        :key="namespace + ':' + name + ':' + viewState.groupBy"
         ref="queryTableRef"
         :columns="tableColumns"
         :filtered-count="filteredCount"
@@ -1152,14 +1266,29 @@ defineExpose({
         :query-active="isQueryActive"
         :records="tableRecords"
         :row-drag-enabled="rowDragEnabled"
-        :table-options="LIST_TABLE_OPTIONS"
+        :table-options="listTableOptions"
         @batch-updated="onBatchUpdated"
         @cell-changed="onCellChanged"
         @icon-clicked="onIconClicked"
         @row-deleted="onRowDeleted"
         @row-moved="onRowMoved"
         @sort-clicked="onSortClicked"
-      />
+      >
+        <template #emptyState>
+          <div
+            class="flex flex-col items-center gap-1 py-10"
+            data-testid="entity-empty-state"
+          >
+            <span class="text-base-content/40 text-sm">暂无数据</span>
+            <span
+              v-if="!isSelectMode && !isCreateBlocked"
+              class="text-base-content/40 text-sm"
+            >
+              点击「+ 新增」开始录入第一条{{ displayName }}
+            </span>
+          </div>
+        </template>
+      </QueryTable>
     </div>
 
     <!-- Select mode footer -->
@@ -1223,6 +1352,37 @@ defineExpose({
       @closed="onViewDialogClosed"
     >
       <EntityDetail v-bind="viewDialogData" />
+    </DialogPortal>
+
+    <!-- 删除确认弹层 -->
+    <DialogPortal
+      v-if="deleteConfirmRecord"
+      panel-class="entity-delete-confirm-dialog"
+      width="min(420px, calc(100vw - 1rem))"
+      @closed="cancelDelete"
+    >
+      <EntityDialog
+        title="删除确认"
+        @close-requested="cancelDelete"
+      >
+        <p class="text-sm">确定删除这条{{ displayName }}记录？</p>
+        <div class="flex justify-end gap-2 pt-3">
+          <button
+            class="btn btn-sm"
+            type="button"
+            @click="cancelDelete"
+            >取消</button
+          >
+          <button
+            class="btn btn-error btn-sm"
+            data-testid="delete-confirm-submit"
+            type="button"
+            @click="confirmDelete"
+          >
+            删除
+          </button>
+        </div>
+      </EntityDialog>
     </DialogPortal>
 
     <!-- M2M Selection Dialog -->
