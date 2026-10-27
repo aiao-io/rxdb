@@ -92,7 +92,6 @@ overrides:
   vue: ^3.5.43
   yaml@1: ^1.10.3
 patchedDependencies:
-  '@subframe7536/sqlite-wasm@1.4.0': patches/@subframe7536__sqlite-wasm@1.4.0.patch
   '@tarojs/vite-runner@4.3.1': patches/@tarojs__vite-runner@4.3.1.patch
   typescript@6.0.3: patches/typescript@6.0.3.patch
 peerDependencyRules:

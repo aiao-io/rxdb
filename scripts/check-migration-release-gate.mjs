@@ -12,6 +12,7 @@
  *   - migration 必须指向已发布的 bridge tag，且协议兼容；
  *   - bridge.version 必须严格新于 `LAST_INELIGIBLE_BRIDGE_VERSION`（早于该版本的 tag 不具备桥接语义）；
  *   - bridge tag 上的系统 schema / change codec 版本常量必须与本次发布声明的升级位吻合；
+ *   - normal / bridge 的候选发布（`v<release.version>` 尚无 tag）上的版本常量必须与上一个已发布 tag 完全相等；
  *   - migration 的 oldBundlePolicy 必须启用，且 strategy 取自受支持白名单
  *     （force-update / cache-invalidation / server-version / database-namespace）。
  *
@@ -148,9 +149,64 @@ const collectVersionConstantErrors = (tag, bridgeConstants, releaseConstants, re
 };
 
 /**
+ * 在一组 tag 里找本次发布之前的最后一个发布：`v<semver>` 且严格旧于 `version` 的最高者。
+ * 调用方只传 HEAD 可达的 tag，脱离主线的 `v0.0.25` 因此天然不在候选里。
+ *
+ * @param {string[]} tags tag 名
+ * @param {string} version 本次发布的版本
+ * @returns {string | null} 找不到时为 null
+ */
+export const findPreviousReleaseTag = (tags, version) =>
+  tags
+    .filter(tag => tag.startsWith('v') && isSemver(tag.slice(1)) && compareVersions(tag.slice(1), version) < 0)
+    .sort((left, right) => compareVersions(left.slice(1), right.slice(1)))
+    .at(-1) ?? null;
+
+/**
+ * normal / bridge 候选发布与上一个已发布 tag 之间的版本常量一致性。
+ *
+ * 升级位只是声明，产物里的常量才是事实：0.0.28 声明 `normal`、升级位全 false，产物里的系统 schema 却从 3 升到了 7，
+ * 只核布尔位的门禁对它恒绿。这里拿候选发布提交上的常量和上一个已发布 tag 比，任一轴不等就要求改走 migration。
+ *
+ * @param {Record<string, unknown>} release 清单的 release 段
+ * @param {{ previousReleaseTag?: (version: string) => string | null, previousReleaseVersionConstants?: (tag: string) => ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseVersionConstants?: ({ systemSchemaVersion: number, changeCodecVersion: number } | null) }} options
+ * @returns {string[]}
+ */
+const collectPreviousReleaseErrors = (release, options) => {
+  const previousTag = options.previousReleaseTag?.(release.version) ?? null;
+  if (previousTag === null) {
+    return [
+      `${release.kind} release ${release.version} has no earlier v<semver> release tag reachable from HEAD to compare system version constants against`
+    ];
+  }
+  const before = options.previousReleaseVersionConstants?.(previousTag) ?? null;
+  if (!before) {
+    return [
+      `previous release tag ${previousTag} does not declare readable system version constants in ${SYSTEM_SCHEMA_VERSION_SOURCE} / ${CHANGE_CODEC_VERSION_SOURCE}`
+    ];
+  }
+  const after = options.releaseVersionConstants;
+  if (!after) {
+    return [
+      `release does not declare readable system version constants in ${SYSTEM_SCHEMA_VERSION_SOURCE} / ${CHANGE_CODEC_VERSION_SOURCE}`
+    ];
+  }
+  const axes = [
+    ['systemSchemaVersion', 'system schema'],
+    ['changeCodecVersion', 'change codec']
+  ];
+  return axes
+    .filter(([field]) => before[field] !== after[field])
+    .map(
+      ([field, label]) =>
+        `${release.kind} release ${release.version} changes ${label} version since previous release ${previousTag} (${before[field]} -> ${after[field]}); declare kind=migration with bridge.tag=${previousTag}`
+    );
+};
+
+/**
  * Validate the checked-in release manifest without making network calls.
  * @param {unknown} manifest
- * @param {{ bridgeTagExists?: (tag: string) => boolean, bridgeTagIsAncestor?: (tag: string) => boolean, bridgeTagSupportsProtocol?: (tag: string) => boolean, bridgeTagVersionConstants?: (tag: string) => ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseVersionConstants?: ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseTag?: string, packageVersion?: string }} [options]
+ * @param {{ bridgeTagExists?: (tag: string) => boolean, bridgeTagIsAncestor?: (tag: string) => boolean, bridgeTagSupportsProtocol?: (tag: string) => boolean, bridgeTagVersionConstants?: (tag: string) => ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseVersionConstants?: ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseTagExists?: (tag: string) => boolean, releaseTagIsAncestor?: (tag: string) => boolean, previousReleaseTag?: (version: string) => string | null, previousReleaseVersionConstants?: (tag: string) => ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseTag?: string, packageVersion?: string }} [options]
  * @returns {string[]}
  */
 export const validateManifest = (manifest, options = {}) => {
@@ -256,6 +312,18 @@ export const validateManifest = (manifest, options = {}) => {
   if (NON_MIGRATION_KINDS.has(release.kind) && (release.systemSchemaUpgrade || release.changeCodecUpgrade)) {
     errors.push(`${release.kind} releases cannot upgrade system schema or change codec`);
   }
+  // 只比对候选发布：已打 tag 的清单是历史记录，两次发布之间 HEAD 上的常量照常演进。
+  // 同名 tag 必须在 HEAD 的祖先链上才算「已发布」，打在别的线上的 tag 证明不了什么。
+  if (NON_MIGRATION_KINDS.has(release.kind) && isSemver(release.version) && options.releaseTagExists) {
+    const publishedTag = `v${release.version}`;
+    if (!options.releaseTagExists(publishedTag)) {
+      errors.push(...collectPreviousReleaseErrors(release, options));
+    } else if (options.releaseTagIsAncestor && !options.releaseTagIsAncestor(publishedTag)) {
+      errors.push(
+        `release tag ${publishedTag} exists but is not an ancestor of HEAD, so it cannot mark ${release.version} as already published`
+      );
+    }
+  }
   if (release.kind === 'migration' && !release.systemSchemaUpgrade && !release.changeCodecUpgrade) {
     errors.push('migration releases must upgrade system schema or change codec');
   }
@@ -299,6 +367,13 @@ const gitTagVersionConstants = tag =>
   parseVersionConstants(
     gitFileAtTag(tag, SYSTEM_SCHEMA_VERSION_SOURCE),
     gitFileAtTag(tag, CHANGE_CODEC_VERSION_SOURCE)
+  );
+
+// HEAD 可达的 `v*` tag；CI 的 checkout 必须带 tag（fetch-tags），否则候选发布的比对会因找不到 tag 而失败。
+const gitPreviousReleaseTag = version =>
+  findPreviousReleaseTag(
+    execFileSync('git', ['tag', '--list', 'v*', '--merged', 'HEAD'], { encoding: 'utf8' }).split('\n').filter(Boolean),
+    version
   );
 
 const gitTagSupportsProtocol = tag => {
@@ -371,6 +446,10 @@ const run = async () => {
     bridgeTagIsAncestor: gitTagIsAncestor,
     bridgeTagSupportsProtocol: gitTagSupportsProtocol,
     bridgeTagVersionConstants: gitTagVersionConstants,
+    releaseTagExists: gitTagExists,
+    releaseTagIsAncestor: gitTagIsAncestor,
+    previousReleaseTag: gitPreviousReleaseTag,
+    previousReleaseVersionConstants: gitTagVersionConstants,
     releaseVersionConstants: await loadReleaseVersionConstants(),
     releaseTag,
     packageVersion: await loadPackageVersion()

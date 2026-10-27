@@ -29,6 +29,7 @@
     "audit:coverage:update": "node scripts/audit/coverage-check.mjs --update",
     "audit:wa-sqlite": "node scripts/audit/wa-sqlite-integrity.mjs",
     "audit:action-pins": "node scripts/audit/workflow-action-pins.mjs",
+    "audit:workspace-patches": "node scripts/audit/workspace-patches.mjs",
     "audit:lazy-backend": "node scripts/audit/desktop-lazy-backend.mjs",
     "audit:suite-callsites": "node scripts/audit/working-tree-suite-callsites.mjs",
     "audit:callsite-drift": "node scripts/audit/working-tree-callsite-drift.mjs",
