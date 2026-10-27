@@ -11,6 +11,7 @@ import {
   RxDBConstraintDriftError,
   RxDBMigration,
   type EntityGeneratedColumnMetadataOptions,
+  type EntityPropertyMetadataOptions,
   type MigrationType,
   type StorageDialect,
   type TransactionExecutor,
@@ -36,7 +37,7 @@ const columns: EntityGeneratedColumnMetadataOptions[] = [
   }
 ];
 
-const storageProperties = [
+const storageProperties: EntityPropertyMetadataOptions[] = [
   { name: 'ext', columnName: 'ext_json', type: PropertyType.string, nullable: true },
   { name: 'title', type: PropertyType.string },
   { name: 'score', type: PropertyType.number }
