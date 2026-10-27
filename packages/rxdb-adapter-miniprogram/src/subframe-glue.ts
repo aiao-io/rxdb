@@ -18,9 +18,9 @@ export const SUBFRAME_WASM_SUBPATH = '@subframe7536/sqlite-wasm/wasm';
  * @throws 当 glue 未导出模块工厂时抛出，通常意味着依赖版本漂移。
  */
 export async function loadSubframeModuleFactory(): Promise<WaSqliteModuleFactory> {
-  const glue = await import('@subframe7536/sqlite-wasm/dist/wa-sqlite-bT14NS4h.js');
+  const glue = await import('@subframe7536/sqlite-wasm/dist/wa-sqlite-DfKPyFeY.js');
   if (typeof glue.t !== 'function') {
-    throw new Error('@subframe7536/sqlite-wasm 未导出 wa-sqlite 模块工厂，请确认依赖锁在 1.4.0');
+    throw new Error('@subframe7536/sqlite-wasm 未导出 wa-sqlite 模块工厂，请确认依赖锁在 1.3.1');
   }
   return glue.t as WaSqliteModuleFactory;
 }

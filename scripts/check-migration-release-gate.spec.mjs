@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import {
   CHANGE_CODEC_VERSION_SOURCE,
   SYSTEM_SCHEMA_VERSION_SOURCE,
+  findPreviousReleaseTag,
   parseVersionConstants,
   resolveReleaseTag,
   validateManifest
@@ -131,6 +132,100 @@ test('normal 发布不校验 oldBundlePolicy 内容', () => {
   manifest.oldBundlePolicy = { strategy: 'ignore', minimumVersion: null, enforced: false };
 
   assert.deepEqual(validateManifest(manifest), []);
+});
+
+// 0.0.28 事故：清单写 normal、升级位写 false，产物里的系统 schema 却从 3 升到了 7。
+// 只核布尔位的门禁对这种形态恒绿，必须拿候选发布提交上的常量和上一个已发布 tag 比。
+const PREVIOUS_RELEASE_CONSTANTS = { systemSchemaVersion: 3, changeCodecVersion: 1 };
+const candidateHooks = {
+  releaseTagExists: () => false,
+  previousReleaseTag: () => 'v0.0.24',
+  previousReleaseVersionConstants: () => PREVIOUS_RELEASE_CONSTANTS,
+  releaseVersionConstants: PREVIOUS_RELEASE_CONSTANTS
+};
+
+test('normal / bridge 候选发布的版本常量与上一个已发布 tag 相等时放行', () => {
+  assert.deepEqual(validateManifest(normalManifest(), candidateHooks), []);
+  assert.deepEqual(validateManifest(bridgeManifest(), candidateHooks), []);
+});
+
+test('normal / bridge 候选发布改了版本常量即拒绝，并指向 migration', () => {
+  const normalErrors = validateManifest(normalManifest(), {
+    ...candidateHooks,
+    releaseVersionConstants: { systemSchemaVersion: 7, changeCodecVersion: 1 }
+  });
+  const bridgeErrors = validateManifest(bridgeManifest(), {
+    ...candidateHooks,
+    releaseVersionConstants: { systemSchemaVersion: 3, changeCodecVersion: 2 }
+  });
+
+  assert.deepEqual(normalErrors, [
+    'normal release 0.0.25 changes system schema version since previous release v0.0.24 (3 -> 7); declare kind=migration with bridge.tag=v0.0.24'
+  ]);
+  assert.deepEqual(bridgeErrors, [
+    'bridge release 0.0.25 changes change codec version since previous release v0.0.24 (1 -> 2); declare kind=migration with bridge.tag=v0.0.24'
+  ]);
+});
+
+// 两次发布之间清单停在上一个版本，HEAD 上的常量照常演进；已打 tag 的清单只是历史记录，不再比对。
+test('release.version 已有 tag 时不比对上一个发布', () => {
+  const errors = validateManifest(normalManifest(), {
+    ...candidateHooks,
+    releaseTagExists: () => true,
+    releaseVersionConstants: { systemSchemaVersion: 8, changeCodecVersion: 1 }
+  });
+
+  assert.deepEqual(errors, []);
+});
+
+// 同名 tag 打在别的线上（误推、旧分支）时，不能拿它证明这一版已经发布过。
+test('release.version 的 tag 不是 HEAD 祖先时不算已发布', () => {
+  const errors = validateManifest(normalManifest(), {
+    ...candidateHooks,
+    releaseTagExists: () => true,
+    releaseTagIsAncestor: () => false
+  });
+
+  assert.deepEqual(errors, [
+    'release tag v0.0.25 exists but is not an ancestor of HEAD, so it cannot mark 0.0.25 as already published'
+  ]);
+});
+
+test('migration 候选发布不走上一个发布的相等比对', () => {
+  const errors = validateManifest(migrationManifest(), {
+    ...passingHooks,
+    ...candidateHooks,
+    releaseVersionConstants: RELEASE_CONSTANTS
+  });
+
+  assert.deepEqual(errors, []);
+});
+
+// 找不到可比的 tag 时必须红：CI 没取 tag（fetch-tags）会让这道检查静默失效。
+test('候选发布找不到上一个已发布 tag 即失败', () => {
+  const errors = validateManifest(normalManifest(), { ...candidateHooks, previousReleaseTag: () => null });
+
+  assert.deepEqual(errors, [
+    'normal release 0.0.25 has no earlier v<semver> release tag reachable from HEAD to compare system version constants against'
+  ]);
+});
+
+test('上一个已发布 tag 上读不出版本常量即失败', () => {
+  const errors = validateManifest(normalManifest(), { ...candidateHooks, previousReleaseVersionConstants: () => null });
+
+  assert.deepEqual(errors, [
+    'previous release tag v0.0.24 does not declare readable system version constants in ' +
+      'packages/rxdb/src/system/migration.ts / packages/rxdb/src/system/change-codec.ts'
+  ]);
+});
+
+test('findPreviousReleaseTag 取严格更旧的最高 semver tag', () => {
+  const tags = ['v0.0.24', 'v0.0.26', 'v0.0.28', 'v0.0.30', 'bench-freeze/2026-09-25', 'v0.0.0-stage', 'vnext'];
+
+  assert.equal(findPreviousReleaseTag(tags, '0.0.29'), 'v0.0.28');
+  assert.equal(findPreviousReleaseTag(tags, '0.0.28'), 'v0.0.26');
+  assert.equal(findPreviousReleaseTag(['v0.0.24'], '0.0.24'), null);
+  assert.equal(findPreviousReleaseTag([], '0.0.24'), null);
 });
 
 // 0.0.24 事故的同类形态：清单长期停在陈旧版本而无人察觉。清单版本必须与

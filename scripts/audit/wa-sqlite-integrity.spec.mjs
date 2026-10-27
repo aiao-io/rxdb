@@ -9,8 +9,6 @@ import {
   SUBFRAME_GLUE_FILE,
   SUBFRAME_GLUE_SOURCE,
   SUBFRAME_INTEGRITY,
-  SUBFRAME_PATCH_FALLBACK,
-  SUBFRAME_PATCH_FILE,
   SUBFRAME_VERSION,
   verifyLockfile,
   verifyManifestDependencies,
@@ -76,12 +74,6 @@ test('源码 import 的 glue 文件名与钉死的内容哈希一致', () => {
   const source = readFileSync(path.join(ROOT, SUBFRAME_GLUE_SOURCE), 'utf8');
 
   assert.ok(source.includes(`@subframe7536/sqlite-wasm/dist/${SUBFRAME_GLUE_FILE}`));
-});
-
-test('1.4.0 patch 保留 Global 缺失时的函数回退', () => {
-  const patch = readFileSync(path.join(ROOT, SUBFRAME_PATCH_FILE), 'utf8');
-
-  assert.ok(patch.includes(SUBFRAME_PATCH_FALLBACK));
 });
 
 test('assertEqual 把实际值一起报出来，而不是只说不相等', () => {

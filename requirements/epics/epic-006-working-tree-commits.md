@@ -40,14 +40,14 @@ owner: jimmy
 - [x] status / diff / commit / restore 的性能可被冻结基准复核，环境不匹配时不产出绿色发布结论
       （[US-306 阶段 C](../stories/collaboration/US-306-working-tree-commits.md) 与 [US-307](../stories/collaboration/US-307-restore-session.md)，
       对应发布门禁 7 与「性能预算的口径」）
-- [ ] 草稿缓存与版本化域都按变更日志归类实体，storage 文档写明文件不随版本（[US-311](../stories/collaboration/US-311-unlogged-entities-scope.md)）
+- [x] 草稿缓存与版本化域都按变更日志归类实体，storage 文档写明文件不随版本（[US-311](../stories/collaboration/US-311-unlogged-entities-scope.md)）
 
 多检出位（v1 之后，按[分期与解锁条件](#分期与解锁条件)逐段解锁）：
 
-- [ ] 不切换 active 分支就能对比两条分支、预览一次合并会改什么（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)，场景二）
-- [ ] 不切换 active 分支就能只读查看任一分支或可达提交的完整数据（[US-313](../stories/collaboration/US-313-read-only-checkout.md)，场景二）
+- [x] 不切换 active 分支就能对比两条分支、预览一次合并会改什么（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)，场景二）
+- [x] 不切换 active 分支就能只读查看任一分支或可达提交的完整数据（[US-313](../stories/collaboration/US-313-read-only-checkout.md)，场景二）
 - [ ] 后台写入方写进自己的线，经审阅合并回主线，覆盖可见（**尚无故事认领**，场景三，价值待证）
-- [ ] 多个标签页各自检出可写的分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md)，场景一，价值待证；owner 2026-10-21 先行解锁库层底座 B1）
+- [x] 多个标签页各自检出可写的分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md)，场景一，价值待证；owner 2026-10-21 先行解锁库层底座 B1）
 
 ## 术语（与既有 Workspace 插件的命名冲突处置）
 
@@ -609,9 +609,10 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
 下面是**发布顺序**。只有第 2 步是 US-305 的**开工**前置；第 1 步是**发布**前置，由 owner 手动控制时点，
 开工不必等它（逐条说明见各步）。
 
-1. 当前发布主线上的非迁移 bridge tag 是 `v0.0.26`（`852f3b20`，`main` 的祖先）；历史 `v0.0.25` 不在当前 ancestry，
-   只保留审计意义。[migration-release.json](../migration-release.json) 现为 `kind=bridge`、`release.version` 为 `0.0.26`，
-   `bridge.tag` / `bridge.version` 为 `null`，等发布 `kind=migration` 当下才回填 `v0.0.26`。
+1. 已发布线是 `v0.0.28`（系统 schema 7，tag 打在发布提交 `23d8a098`，`main` 的祖先）：它把 3 → 7 当 `kind=normal` 发了出去，
+   已按迁移发布追认；`v0.0.26`（`852f3b20`）是 3 → 7 那一段的桥接锚点，历史 `v0.0.25` 不在当前 ancestry、只保留审计意义。
+   [migration-release.json](../migration-release.json) 现为 `kind=normal`、`release.version` 为 `0.0.28`；源码已到 8，
+   下一次发布按 7 → 8 的 `kind=migration` 走，`bridge.tag` / `bridge.version` 回填 `v0.0.28` / `0.0.28`。
 
    **这一步是排在 US-305 的「迁移发布」之前的独立发布事项，不是 US-305 的交付物**（见
    [release-plan](../release-plan.md) 的执行顺序）。理由是发布门禁本身：bridge 版本**不得抬升系统版本常量**，
@@ -769,13 +770,14 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
      未声明升级则必须完全相等。它挡的是「悄悄抬了 schema 却把升级位写成 `false`」——那会让发布整体绕开
      `oldBundlePolicy` 分支。
      ⚠️ **它挡不住 `v0.0.24`**：实测 `v0.0.24` 与 `v0.0.25` 的常量都是 `{systemSchemaVersion: 3, changeCodecVersion: 1}`，
-     都比 HEAD 的 `RXDB_SYSTEM_SCHEMA_VERSION`（7）更旧，所以在声明 `systemSchemaUpgrade: true` 的迁移发布里「严格更旧」对空桥恒真
+     都比 HEAD 的 `RXDB_SYSTEM_SCHEMA_VERSION`（8）更旧，所以在声明 `systemSchemaUpgrade: true` 的迁移发布里「严格更旧」对空桥恒真
      两条判据（以及四条 tag 钩子）**只在 `release.kind === "migration"` 分支内执行**；桥接发布自己
-     （`kind=bridge`）走不到它们，别把它们当成桥接发布当下的防线，见 [release-plan 门禁 tag 钩子的状态](../release-plan.md#门禁-tag-钩子的状态)
+     （`kind=bridge`）走不到它们，别把它们当成桥接发布当下的防线；normal / bridge 的候选发布（`v<release.version>` 还没有 tag）另有一条：
+     版本常量必须与上一个已发布 tag 完全相等，见 [release-plan 门禁 tag 钩子的状态](../release-plan.md#门禁-tag-钩子的状态)
 
    本条的真实 tag 验收（US-305 AC US2-14 的绿半边）由
    [release-plan「迁移发布的关闭条件」](../release-plan.md#迁移发布的关闭条件)承接，US-305 按代码 AC 关闭、不再承载它。
-   `main` 自 #55 起系统 schema 已高于桥接树的 3（现值 7），`main` 上没有提交能同时满足祖先性、版本号与常量三条；
+   `main` 自 #55 起系统 schema 已高于桥接树的 3（现值 8），`main` 上没有提交能同时满足祖先性、版本号与常量三条；
    因此桥接锚点取 `de70a1a9`，`v0.0.26` 打在其发布分支上并以真 merge 并回 `main`，见
    [桥接锚点定案](../release-plan.md#桥接锚点定案)。
 
@@ -842,7 +844,8 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
   之后，这些判据真实生效」的复验与 fixture
 - **钩子接进 PR CI 归 epic-007，同样已落地**：[epic-007 的该项目标](./epic-007-public-api-gates.md)已勾选，
   未单开故事，落点是 `ci-template.yml` 的 `setup` job（不带 `--release-tag`，配 `fetch-tags: true`
-  并按 `GITHUB_REF_TYPE` 解析 tag）。它今天在 `kind=bridge` 下是绿的——**它守的是清单变成 `migration` 的那次 PR**
+  并按 `GITHUB_REF_TYPE` 解析 tag）。它今天在 `kind=normal` 下是绿的（`v0.0.28` 已有 tag）——**它守的是发版 PR**：清单写 normal / bridge 却改了版本常量会被拦下，
+  清单变成 `migration` 时 bridge 判据生效
 - **仍然成立的那条约束**：两边都不得在对方未落地的假设上开工。两边都已落地；`bridge.*` 的 manifest 回填
   发生在迁移发布当下（「依赖顺序」第 1 步）
 

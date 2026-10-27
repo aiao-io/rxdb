@@ -750,8 +750,8 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
    * - **系统表**：库自己的簿记，不是用户编辑。每次都读 `getSystemEntityIdentities()` 的活登记——插件贡献的
    *   系统表在 `use()` 时才登记，模块加载期算一份快照会把它们全部漏掉（工作树插件的系统表就是这样在每次启用、
    *   捕获、提交时都留下草稿）。
-   * - **关闭变更日志（`log: false`）的实体**：实体的 CREATE / REMOVE 事件只从变更日志派生，这类实体保存与删除
-   *   一个事件也不发，草稿在这里永远等不到收尾（storage 的 `StorageFileMeta` 每上传一次就留一条）。
+   * - **关闭变更日志（`log: false`）的实体**：实体的 CREATE 事件只从变更日志派生，这类实体保存时一个 CREATE
+   *   也不发（删行才直接派 REMOVE），草稿在这里永远等不到收尾（storage 的 `StorageFileMeta` 每上传一次就留一条）。
    *
    * schema 里查不到的实体照收：跨标签页送来、本标签页没登记的实体，一直按未知实体保留。
    */
