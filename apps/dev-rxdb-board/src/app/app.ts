@@ -35,92 +35,101 @@ const failureMessage = (cause: unknown): string => (cause instanceof Error ? cau
   template: `
     @switch (phase()) {
       @case ('startup') {
-        <div class="startup" data-testid="startup-page">
-          <h1>任务看板</h1>
-          <p class="startup-hint">选择如何开始；选择前不会连接或创建任何数据。</p>
-          <div class="startup-actions">
-            <button (click)="startEmpty()" data-testid="start-empty">新建空看板</button>
-            <button (click)="startSeed()" data-testid="start-seed">装载演示数据</button>
-            <label class="file-picker">
-              从备份恢复
-              <input (change)="onRestoreFile($event)" accept=".rxdb" data-testid="restore-file" hidden type="file" />
-            </label>
-          </div>
-          @if (error(); as message) {
-            <p class="app-error" data-testid="app-error" role="alert">{{ message }}</p>
-          }
-        </div>
-      }
-      @case ('loading') {
-        <div class="startup" data-testid="loading-page">
-          <p>正在准备看板数据…</p>
-        </div>
-      }
-      @case ('restoring') {
-        <div class="startup" data-testid="restoring-page">
-          <p>恢复中：全部写入口已暂停。</p>
-        </div>
-      }
-      @default {
-        @if (error(); as message) {
-          <p class="app-error" data-testid="app-error" role="alert">{{ message }}</p>
-        }
-        @if (rxdb(); as db) {
-          <board-view [exportBackup]="onExportBackup" [rxdb]="db" />
-          <footer class="board-tools" data-testid="board-tools">
-            <button (click)="onResetDemo()" data-testid="reset-demo">重置为演示数据</button>
-            <label class="file-picker">
-              从备份恢复…
+        <main class="shell-startup" data-testid="startup-page">
+          <div class="shell-card">
+            <p class="shell-eyebrow">RxDB 本地优先演示</p>
+            <h1>任务看板</h1>
+            <p class="shell-hint">选择如何开始；选择前不会连接或创建任何数据。</p>
+            <div class="shell-options">
+              <button class="shell-option" (click)="startEmpty()" data-testid="start-empty">
+                <strong>新建空看板</strong>
+                <span>从零开始建板、建列、建任务</span>
+              </button>
+              <button class="shell-option" (click)="startSeed()" data-testid="start-seed">
+                <strong>装载演示数据</strong>
+                <span>两块看板、20 个任务，体验拖拽、筛选、键盘与撤销</span>
+              </button>
+              <button class="shell-option" (click)="startupFile.click()" data-testid="start-restore">
+                <strong>从备份恢复</strong>
+                <span>选择 .rxdb 备份文件，恢复到新库后打开</span>
+              </button>
               <input
+                #startupFile
                 (change)="onRestoreFile($event)"
                 accept=".rxdb"
-                data-testid="restore-file-menu"
+                aria-label="选择备份文件"
+                data-testid="restore-file"
                 hidden
                 type="file"
               />
-            </label>
-          </footer>
-        } @else {
-          <p class="app-connecting" data-testid="app-connecting">正在连接看板数据库…</p>
-        }
+            </div>
+            @if (error(); as message) {
+              <p class="shell-error" data-testid="app-error" role="alert">{{ message }}</p>
+            }
+          </div>
+        </main>
+      }
+      @case ('loading') {
+        <p class="shell-status" data-testid="loading-page" role="status">正在准备看板数据…</p>
+      }
+      @case ('restoring') {
+        <p class="shell-status" data-testid="restoring-page" role="status">恢复中：全部写入口已暂停。</p>
+      }
+      @default {
+        <div class="shell">
+          <header class="shell-bar" data-testid="board-tools">
+            <span class="shell-brand">RxDB 任务看板</span>
+            <span class="shell-spacer"></span>
+            <button class="shell-btn" (click)="onResetDemo()" data-testid="reset-demo">重置为演示数据</button>
+            <button class="shell-btn" (click)="menuFile.click()" data-testid="restore-open">从备份恢复…</button>
+            <input
+              #menuFile
+              (change)="onRestoreFile($event)"
+              accept=".rxdb"
+              aria-label="选择备份文件"
+              data-testid="restore-file-menu"
+              hidden
+              type="file"
+            />
+          </header>
+          @if (error(); as message) {
+            <p class="shell-error" data-testid="app-error" role="alert">{{ message }}</p>
+          }
+          @if (rxdb(); as db) {
+            <board-view [exportBackup]="onExportBackup" [rxdb]="db" />
+          } @else {
+            <p class="shell-status" data-testid="app-connecting" role="status">正在连接看板数据库…</p>
+          }
+        </div>
       }
     }
-  `,
-  styles: [
-    `
-      .startup {
-        max-width: 32rem;
-        margin: 4rem auto;
-        padding: 2rem;
-      }
-      .startup-actions {
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-      }
-      .file-picker {
-        cursor: pointer;
-      }
-      .app-error {
-        color: #dc2626;
-      }
-      .board-tools {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        display: flex;
-        gap: 0.75rem;
-        padding: 0.5rem 1rem;
-        background: #f8fafc;
-        border-top: 1px solid #e2e8f0;
-      }
-      .app-connecting {
-        padding: 2rem;
-        color: #666;
-      }
-    `
-  ]
+    @if (pendingConfirm(); as confirm) {
+      <div class="rxb shell-overlay">
+        <div class="rxb-dialog-backdrop" (keydown.escape)="settleConfirm(false)">
+          <div
+            class="rxb-dialog"
+            aria-labelledby="shell-confirm-title"
+            aria-modal="true"
+            data-testid="host-confirm"
+            role="alertdialog"
+          >
+            <div class="rxb-dialog-header">
+              <h2 class="rxb-dialog-title" id="shell-confirm-title">{{ confirm.title }}</h2>
+            </div>
+            <div class="rxb-dialog-body">
+              <p>{{ confirm.message }}</p>
+            </div>
+            <div class="rxb-dialog-footer">
+              <button class="rxb-btn" (click)="settleConfirm(false)" data-testid="host-confirm-no">取消</button>
+              <button class="rxb-btn rxb-btn-primary" (click)="settleConfirm(true)" data-testid="host-confirm-yes">
+                {{ confirm.confirmLabel }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  `
 })
 export class App implements OnInit, OnDestroy {
   private readonly storage = typeof localStorage !== 'undefined' ? localStorage : null;
@@ -129,6 +138,27 @@ export class App implements OnInit, OnDestroy {
   protected readonly phase = signal<'startup' | 'loading' | 'restoring' | 'board'>('startup');
   protected readonly rxdb = signal<RxDB | null>(null);
   protected readonly error = signal<string | null>(null);
+  /** 应用内确认对话框（替代 window.confirm，样式复用看板的 .rxb-dialog）。 */
+  protected readonly pendingConfirm = signal<{
+    readonly title: string;
+    readonly message: string;
+    readonly confirmLabel: string;
+    readonly settle: (confirmed: boolean) => void;
+  } | null>(null);
+
+  protected settleConfirm(confirmed: boolean): void {
+    const pending = this.pendingConfirm();
+    this.pendingConfirm.set(null);
+    pending?.settle(confirmed);
+  }
+
+  private ask(title: string, message: string, confirmLabel: string): Promise<boolean> {
+    this.pendingConfirm()?.settle(false);
+    return new Promise(settle => {
+      this.pendingConfirm.set({ title, message, confirmLabel, settle });
+      requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-testid="host-confirm-no"]')?.focus());
+    });
+  }
 
   ngOnInit(): void {
     window.addEventListener('storage', this.onActiveDbChanged);
@@ -183,7 +213,12 @@ export class App implements OnInit, OnDestroy {
 
   protected async onResetDemo(): Promise<void> {
     // 两阶段切换：先确认，再在新库名上建库并装载种子，读回成功后整页重载切换
-    if (!window.confirm('重置为演示数据：将在新库上装载演示数据，成功后打开演示看板。继续？')) return;
+    const confirmed = await this.ask(
+      '重置为演示数据',
+      '将在新库上装载演示数据，成功后打开演示看板；当前看板留在原库。',
+      '重置'
+    );
+    if (!confirmed) return;
     await this.prepareBoard(true);
   }
 
@@ -198,7 +233,12 @@ export class App implements OnInit, OnDestroy {
 
   private async restoreFromFile(file: File): Promise<void> {
     // 已有看板先确认（恢复成功后将打开备份中的看板）
-    if (this.activeDbName !== null && !window.confirm('恢复成功后将打开备份中的看板，当前看板原样保留。继续？')) return;
+    if (
+      this.activeDbName !== null &&
+      !(await this.ask('从备份恢复', '恢复成功后将打开备份中的看板，当前看板原样保留。', '恢复'))
+    ) {
+      return;
+    }
 
     try {
       await withBoardRestoreLock(() => this.restoreAndSwitch(file), false);

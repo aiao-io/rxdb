@@ -42,8 +42,13 @@ export interface TaskDraft {
 export type SaveTaskDraftResult =
   { readonly kind: 'saved'; readonly task: InstanceType<typeof Task> } | { readonly kind: 'unchanged' };
 
+/** 即改即存的字段补丁（看板 v2 详情侧栏）：只列出本次改动的字段。 */
+export type TaskFieldPatch = Partial<TaskDraft>;
+
 const sameIdSet = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && new Set(a).size === b.length && a.every(id => b.includes(id));
+
+const SCALAR_FIELDS = ['title', 'description', 'dueDate'] as const;
 
 export class BoardDetailService {
   constructor(
@@ -168,5 +173,32 @@ export class BoardDetailService {
     // 提交后、重查前被另一入口删除的窄窗口：不给调用方 `task: undefined` 的假保存
     if (task === undefined) throw new BoardDomainError('task_stale', '任务在保存后已被删除');
     return { kind: 'saved', task };
+  }
+
+  /**
+   * 即改即存（看板 v2 详情侧栏）：只提交 `patch` 里的字段，一次调用一个事务（一次 undo 反转）。
+   *
+   * @remarks
+   * `base` 是该字段开始编辑时的快照。提交前重读最新状态：`patch` 涉及的字段已被其它入口
+   * 改过则拒绝零写（`task_stale` / `labels_changed`）；未涉及的字段以最新状态为准，
+   * 其它字段的外部修改不算冲突。校验、标签同板与事务内复核沿用 {@link saveTaskDraft}。
+   */
+  async saveTaskFields(taskId: UUID, base: TaskDraftSnapshot, patch: TaskFieldPatch): Promise<SaveTaskDraftResult> {
+    assertBoardWritable(this.ctx());
+    const fresh = await this.openSnapshot(taskId);
+    for (const field of SCALAR_FIELDS) {
+      if (patch[field] !== undefined && fresh[field] !== base[field]) {
+        throw new BoardDomainError('task_stale', '该字段已被其它入口修改，请刷新后重新确认');
+      }
+    }
+    if (patch.labelIds !== undefined && !sameIdSet(fresh.labelIds, base.labelIds)) {
+      throw new BoardDomainError('labels_changed', '标签引用已被其它入口修改，请刷新后重新确认');
+    }
+    return this.saveTaskDraft(taskId, fresh, {
+      title: patch.title ?? fresh.title,
+      description: patch.description ?? fresh.description ?? '',
+      dueDate: patch.dueDate === undefined ? fresh.dueDate : patch.dueDate,
+      labelIds: patch.labelIds ?? fresh.labelIds
+    });
   }
 }

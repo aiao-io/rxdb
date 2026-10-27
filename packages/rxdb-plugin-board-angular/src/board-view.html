@@ -1,5 +1,5 @@
 <section
-  class="board-view"
+  class="rxb"
   #boardArea
   (dragend)="clearDragFeedback()"
   (dragover)="onTaskDragOver($event)"
@@ -7,475 +7,1312 @@
   data-testid="board-view"
 >
   @if (board(); as b) {
-    <!-- 页头：板选择器、板标题、新建列、标签管理、撤销/重做、备份入口 -->
-    <header class="board-header" data-testid="board-header">
-      <select
-        class="board-selector"
-        [value]="b.currentBoardId() ?? ''"
-        (change)="onBoardSelectionChange($event)"
-        aria-label="选择看板"
-        data-testid="board-selector"
-      >
-        @for (item of b.boards(); track item.id) {
-          <option [value]="item.id">{{ item.title }}</option>
-        }
-      </select>
-      @if (b.currentBoard(); as current) {
-        <button
-          class="header-button"
-          [attr.aria-label]="'改板标题：' + current.title"
-          (click)="renameBoard()"
-          data-testid="rename-board"
-        >
-          {{ current.title }}
-        </button>
-      }
-      @if (b.restoring()) {
-        <span class="restoring-badge" aria-live="polite" data-testid="restoring-badge">恢复中</span>
-      }
-      <div class="header-actions">
-        <button
-          [disabled]="b.restoring() || b.loading() || b.readError() !== null"
-          (click)="createBoard()"
-          data-testid="create-board"
-        >
-          新建板
-        </button>
-        <button
-          [disabled]="b.restoring() || b.loading() || b.readError() !== null || !b.currentBoard()"
-          (click)="confirmBoardDelete()"
-          data-testid="delete-board"
-        >
-          删除看板
-        </button>
-        <button
-          [disabled]="b.restoring() || b.loading() || b.readError() !== null || !b.currentBoard()"
-          (click)="createColumn()"
-          data-testid="create-column"
-        >
-          新建列
-        </button>
-        <button
-          [disabled]="b.restoring() || b.loading() || b.readError() !== null || !b.currentBoard()"
-          (click)="createLabel()"
-          data-testid="create-label"
-        >
-          新建标签
-        </button>
-        <button
-          [disabled]="b.restoring() || b.loading() || b.readError() !== null || b.undoCount() === 0"
-          (click)="undo()"
-          aria-label="撤销"
-          data-testid="undo"
-        >
-          撤销
-        </button>
-        <button
-          [disabled]="b.restoring() || b.loading() || b.readError() !== null || b.redoCount() === 0"
-          (click)="redo()"
-          aria-label="重做"
-          data-testid="redo"
-        >
-          重做
-        </button>
-        <button
-          [disabled]="b.restoring() || b.loading() || b.readError() !== null"
-          (click)="onExportBackup()"
-          data-testid="export-backup"
-        >
-          导出备份
-        </button>
-      </div>
-    </header>
-
-    @if (b.loading()) {
-      <p class="board-notice" data-testid="board-loading" role="status">正在读取看板数据…</p>
-    } @else if (b.readError(); as message) {
-      <p class="board-notice" data-testid="board-read-error" role="alert">
-        读取看板数据失败：{{ message }}
-        <button (click)="b.retryReads()" data-testid="board-read-retry">重试</button>
-      </p>
-    }
-    @if (b.restoring()) {
-      <p class="restoring-note" data-testid="restoring-note">恢复进行中：浏览可用，写入口已暂停。</p>
-    }
-
-    <!-- 标签管理条 -->
-    @if (b.labels().length > 0) {
-      <div class="label-strip" data-testid="label-strip">
-        @for (label of b.labels(); track label.id) {
-          <span
-            class="label-chip"
-            [style.background]="label.color"
-            [style.color]="labelTextColor(label.color)"
-            data-testid="label-chip"
+    <!-- 页头：板切换 / 标题 / 描述 / 操作（GitHub Projects 项目头） -->
+    <header class="rxb-header" data-testid="board-header">
+      <div class="rxb-header-main">
+        <div class="rxb-board-switch">
+          <select
+            class="rxb-select"
+            [value]="b.currentBoardId() ?? ''"
+            (change)="onBoardSelectionChange($event)"
+            aria-label="选择看板"
+            data-testid="board-selector"
           >
-            <button class="label-name" [attr.aria-label]="'改名 ' + label.name" (click)="renameLabel(label.id)">
-              {{ label.name }}
-            </button>
-            <button
-              class="label-recolor"
-              [attr.aria-label]="'改标签颜色 ' + label.name"
-              (click)="recolorLabel(label.id)"
-              data-testid="label-recolor"
-            >
-              <span aria-hidden="true">◉</span>
-            </button>
-            <button class="label-delete" [attr.aria-label]="'删除标签 ' + label.name" (click)="deleteLabel(label.id)">
-              <span aria-hidden="true">×</span>
-            </button>
-          </span>
-        }
-      </div>
-    }
-
-    @if (notice(); as message) {
-      <p class="board-notice" data-testid="board-notice" role="alert">
-        {{ message }}
-        <button (click)="notice.set(null)" aria-label="关闭提示" data-testid="board-notice-close">
-          <span aria-hidden="true">×</span>
-        </button>
-      </p>
-    }
-
-    <!-- 板内搜索（US-539 阶段 B） -->
-    @if (b.searchSource || b.searchUnavailableReason) {
-      <div class="board-search" data-testid="board-search">
-        <input
-          class="search-input"
-          [disabled]="!b.searchSource && b.searchUnavailableReason !== null"
-          [ngModel]="searchQuery()"
-          [placeholder]="b.searchSource ? '搜索当前板任务' : searchUnavailableText(b.searchUnavailableReason)"
-          (ngModelChange)="onSearchInput($event)"
-          aria-label="搜索当前板任务"
-          data-testid="board-search-input"
-        />
-        @if (!b.searchSource) {
-          <span class="search-unavailable" data-testid="board-search-unavailable">
-            {{ searchUnavailableText(b.searchUnavailableReason) }}
-          </span>
-        }
-        @if (searchQuery().trim() !== '') {
-          <div class="search-results" data-testid="board-search-results">
-            @switch (searchState()) {
-              @case ('loading') {
-                <p class="search-state" data-testid="board-search-loading">搜索中…</p>
-              }
-              @case ('error') {
-                <p class="search-state" data-testid="board-search-error">{{ searchErrorText() }}</p>
-              }
-              @case ('empty') {
-                <p class="search-state" data-testid="board-search-empty">无匹配</p>
-              }
-              @default {
-                @for (result of searchResults(); track result.id) {
-                  <button
-                    class="search-result"
-                    [disabled]="searchState() === 'loading'"
-                    (click)="onSearchResultClick(result)"
-                    data-testid="board-search-result"
-                  >
-                    <span class="search-result-title">{{ searchResultTitle(result) }}</span>
-                    <span class="search-result-column">{{ searchColumnTitle(result) }}</span>
-                    <span class="search-result-snippet">{{ result.snippet }}</span>
-                  </button>
+            @for (item of b.boards(); track item.id) {
+              <option [value]="item.id">{{ item.title }}</option>
+            }
+          </select>
+          <button
+            class="rxb-btn rxb-btn-sm rxb-btn-invisible"
+            [disabled]="writeLocked()"
+            (click)="openBoardComposer($event)"
+            data-testid="create-board"
+          >
+            <span class="rxb-i rxb-i-plus" aria-hidden="true"></span>
+            新建看板
+          </button>
+        </div>
+        @if (b.currentBoard(); as current) {
+          <h1 class="rxb-board-title">
+            @if (editingBoardTitle()) {
+              <input
+                class="rxb-input"
+                [value]="boardTitleDraft()"
+                (blur)="commitBoardTitle()"
+                (input)="boardTitleDraft.set(inputValue($event))"
+                (keydown.enter)="commitBoardTitle()"
+                (keydown.escape)="cancelBoardTitle($event)"
+                aria-label="看板标题"
+                data-autofocus
+                data-testid="board-title-editor"
+              />
+            } @else {
+              <button
+                class="rxb-title-button"
+                [attr.aria-label]="'改板标题：' + current.title"
+                [disabled]="writeLocked()"
+                (click)="startBoardTitle()"
+                data-testid="rename-board"
+              >
+                {{ current.title }}
+              </button>
+            }
+          </h1>
+          <div class="rxb-board-desc">
+            @if (editingBoardDescription()) {
+              <textarea
+                class="rxb-textarea"
+                [value]="boardDescriptionDraft()"
+                (blur)="commitBoardDescription()"
+                (input)="boardDescriptionDraft.set(inputValue($event))"
+                (keydown)="onBoardDescriptionKeydown($event)"
+                aria-label="看板描述"
+                data-autofocus
+                data-testid="board-description-editor"
+                rows="2"
+              ></textarea>
+            } @else {
+              <button
+                class="rxb-title-button"
+                [disabled]="writeLocked()"
+                (click)="startBoardDescription()"
+                aria-label="编辑看板描述"
+                data-testid="board-description"
+              >
+                @if (current.description) {
+                  {{ current.description }}
+                } @else {
+                  <span class="rxb-placeholder">添加描述</span>
                 }
-                @if (searchHasMore()) {
-                  <button class="search-more" (click)="onSearchMore()" data-testid="board-search-more">加载更多</button>
-                }
-              }
+              </button>
             }
           </div>
         }
       </div>
+      <div class="rxb-header-actions">
+        @if (b.restoring()) {
+          <span class="rxb-badge rxb-badge-attention" aria-live="polite" data-testid="restoring-badge">恢复中</span>
+        }
+        <div class="rxb-btn-group">
+          <button
+            class="rxb-btn rxb-btn-icon"
+            [disabled]="writeLocked() || b.undoCount() === 0"
+            (click)="undo()"
+            aria-label="撤销"
+            data-testid="undo"
+            title="撤销（⌘Z）"
+          >
+            <span class="rxb-i rxb-i-undo" aria-hidden="true"></span>
+          </button>
+          <button
+            class="rxb-btn rxb-btn-icon"
+            [disabled]="writeLocked() || b.redoCount() === 0"
+            (click)="redo()"
+            aria-label="重做"
+            data-testid="redo"
+            title="重做（⇧⌘Z）"
+          >
+            <span class="rxb-i rxb-i-redo" aria-hidden="true"></span>
+          </button>
+        </div>
+        @if (b.searchSource || b.searchUnavailableReason) {
+          <button class="rxb-btn" (click)="openSearch($event)" data-testid="search-open" title="搜索任务（⌘K）">
+            <span class="rxb-i rxb-i-search" aria-hidden="true"></span>
+            搜索
+          </button>
+        }
+        <button
+          class="rxb-btn"
+          [disabled]="!b.currentBoard()"
+          (click)="openLabels($event)"
+          data-testid="labels-open"
+        >
+          <span class="rxb-i rxb-i-tag" aria-hidden="true"></span>
+          标签
+        </button>
+        <button
+          class="rxb-btn rxb-btn-icon"
+          [attr.aria-expanded]="popover()?.kind === 'board-menu'"
+          (click)="openBoardMenu($event)"
+          aria-haspopup="menu"
+          aria-label="看板操作"
+          data-testid="board-menu-trigger"
+        >
+          <span class="rxb-i rxb-i-kebab" aria-hidden="true"></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 筛选条（看板 v2 阶段 2）：关键词 + field:value 令牌，补全与命中数 -->
+    @if (b.currentBoard()) {
+      <div class="rxb-toolbar">
+        <div class="rxb-filter" data-testid="board-filter">
+          <span class="rxb-i rxb-i-search" aria-hidden="true"></span>
+          <input
+            class="rxb-filter-input"
+            #filterInput
+            [attr.aria-activedescendant]="activeSuggestionId()"
+            [attr.aria-controls]="suggestionListId"
+            [attr.aria-expanded]="suggestionsOpen()"
+            [value]="filterQuery()"
+            (blur)="filterFocused.set(false)"
+            (focus)="filterFocused.set(true)"
+            (input)="onFilterInput(inputValue($event))"
+            (keydown)="onFilterKeydown($event)"
+            aria-autocomplete="list"
+            aria-label="筛选任务"
+            autocomplete="off"
+            data-testid="board-filter-input"
+            placeholder="按关键词或字段筛选，如 label:核心 due:overdue"
+            role="combobox"
+          />
+          @if (filterActive()) {
+            <span class="rxb-filter-count" aria-live="polite" data-testid="board-filter-count">
+              {{ visibleCount() }} 项
+            </span>
+            <button
+              class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
+              (click)="clearFilter()"
+              aria-label="清除筛选"
+              data-testid="board-filter-clear"
+            >
+              <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
+            </button>
+          }
+          @if (suggestionsOpen()) {
+            <ul
+              class="rxb-popover"
+              [id]="suggestionListId"
+              [style.left.px]="0"
+              [style.position]="'absolute'"
+              [style.top]="'calc(100% + 4px)'"
+              aria-label="筛选补全"
+              data-testid="board-filter-suggestions"
+              role="listbox"
+            >
+              @for (suggestion of suggestions(); track suggestion.query; let index = $index) {
+                <li
+                  class="rxb-menu-item rxb-suggestion"
+                  [attr.aria-selected]="index === activeSuggestion()"
+                  [class.is-active]="index === activeSuggestion()"
+                  [id]="suggestionListId + '-' + index"
+                  (mousedown)="$event.preventDefault()"
+                  (click)="applySuggestion(suggestion.query)"
+                  data-testid="board-filter-suggestion"
+                  role="option"
+                >
+                  @if (suggestion.color) {
+                    <span class="rxb-swatch" [style.background-color]="suggestion.color" aria-hidden="true"></span>
+                  }
+                  <span class="rxb-suggestion-value">{{ suggestion.value }}</span>
+                  <span class="rxb-suggestion-desc">{{ suggestion.description }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+    }
+
+    @if (b.loading()) {
+      <p class="rxb-banner" data-testid="board-loading" role="status"><span>正在读取看板数据…</span></p>
+    } @else if (b.readError(); as message) {
+      <p class="rxb-banner rxb-banner-danger" data-testid="board-read-error" role="alert">
+        <span>读取看板数据失败：{{ message }}</span>
+        <button class="rxb-btn rxb-btn-sm" (click)="b.retryReads()" data-testid="board-read-retry">重试</button>
+      </p>
+    }
+    @if (b.restoring()) {
+      <p class="rxb-banner rxb-banner-attention" data-testid="restoring-note">
+        <span>恢复进行中：浏览可用，写入口已暂停。</span>
+      </p>
+    }
+    @if (notice(); as message) {
+      <p class="rxb-banner rxb-banner-danger" data-testid="board-notice" role="alert">
+        <span>{{ message }}</span>
+        <button
+          class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
+          (click)="notice.set(null)"
+          aria-label="关闭提示"
+          data-testid="board-notice-close"
+        >
+          <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
+        </button>
+      </p>
     }
 
     <!-- 列区 -->
-    @if (b.currentBoard(); as current) {
-      <div class="columns" data-testid="columns">
-        @if (b.columns().length > 1) {
-          <p class="columns-scroll-hint" aria-hidden="true">可横向滚动查看更多列</p>
-        }
-        @for (column of b.columns(); track column.id) {
+    @if (b.currentBoard()) {
+      <div class="rxb-columns" (scroll)="closePopover()" data-testid="columns">
+        @for (column of b.columns(); track column.id; let columnIndex = $index) {
           <section
-            class="column"
+            class="rxb-column"
+            [attr.aria-label]="'列：' + column.title"
             [attr.data-column-id]="column.id"
-            [class.drop-end]="isDropEnd(column)"
+            [class.is-drop-end]="isDropEnd(column)"
+            [class.is-drop-target]="isDropColumn(column)"
             (dragover)="onColumnDragOver($event)"
-            (drop)="onTaskDrop($event, column)"
+            (drop)="onTaskDrop($event)"
             data-testid="column"
           >
             <header
-              class="column-header"
-              [attr.aria-label]="'列：' + column.title"
+              class="rxb-column-header"
               [attr.data-column-header-id]="column.id"
-              [class.dragging]="isDraggingColumn(column)"
-              [class.drop-after]="isColumnDropAfter(column)"
-              [class.drop-before]="isColumnDropBefore(column)"
+              [attr.draggable]="!writeLocked() && editingColumnId() !== column.id"
+              [class.is-dragging]="isDraggingColumn(column)"
+              [class.is-drop-after]="isColumnDropAfter(column)"
+              [class.is-drop-before]="isColumnDropBefore(column)"
               (dragstart)="onColumnDragStart($event, column)"
               data-testid="column-header"
-              draggable="true"
             >
-              <h2 class="column-title" data-testid="column-title">{{ column.title }}</h2>
-              <span class="column-count" data-testid="column-count">{{ (taskMap().get(column.id) ?? []).length }}</span>
-              <div class="column-menu">
-                <button (click)="renameColumn(column.id)" aria-label="改名" data-testid="column-rename">改名</button>
-                <button (click)="moveColumnBy(column.id, -1)" aria-label="前移" data-testid="column-move-back">
-                  前移
-                </button>
-                <button (click)="moveColumnBy(column.id, 1)" aria-label="后移" data-testid="column-move-forward">
-                  后移
+              @if (editingColumnId() === column.id) {
+                <input
+                  class="rxb-input"
+                  [value]="columnTitleDraft()"
+                  (blur)="commitColumnTitle()"
+                  (input)="columnTitleDraft.set(inputValue($event))"
+                  (keydown.enter)="commitColumnTitle()"
+                  (keydown.escape)="cancelColumnTitle($event)"
+                  aria-label="列标题"
+                  data-autofocus
+                  data-testid="column-title-editor"
+                />
+              } @else {
+                <h2 class="rxb-column-title" data-testid="column-title">{{ column.title }}</h2>
+                <span class="rxb-counter" [attr.title]="countLabel(column)" data-testid="column-count"
+                  >{{ visibleTasksOf(column).length }}</span
+                >
+                @if (overdueCount(column); as overdue) {
+                  <span class="rxb-column-overdue" data-testid="column-overdue">逾期 {{ overdue }}</span>
+                }
+              }
+              <div class="rxb-column-actions">
+                <button
+                  class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
+                  [attr.aria-expanded]="isPopoverFor('column-menu', column.id)"
+                  [attr.aria-label]="'列操作：' + column.title"
+                  (click)="openColumnMenu($event, column)"
+                  aria-haspopup="menu"
+                  data-testid="column-menu-trigger"
+                >
+                  <span class="rxb-i rxb-i-kebab" aria-hidden="true"></span>
                 </button>
                 <button
-                  [disabled]="sortingColumnId() === column.id"
-                  (click)="sortColumnBy(column.id, 'dueDate')"
-                  aria-label="按截止日排序"
-                  data-testid="column-sort-due"
+                  class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
+                  [attr.aria-label]="'添加任务到 ' + column.title"
+                  [disabled]="writeLocked()"
+                  (click)="openAddTask(column.id)"
+                  data-testid="column-add-task"
                 >
-                  按截止日
-                </button>
-                <button
-                  [disabled]="sortingColumnId() === column.id"
-                  (click)="sortColumnBy(column.id, 'title')"
-                  aria-label="按标题排序"
-                  data-testid="column-sort-title"
-                >
-                  按标题
-                </button>
-                <button (click)="confirmColumnDelete(column)" aria-label="删除列" data-testid="column-delete">
-                  删除
+                  <span class="rxb-i rxb-i-plus" aria-hidden="true"></span>
                 </button>
               </div>
             </header>
-            <div class="cards">
-              @for (task of taskMap().get(column.id) ?? []; track task.id) {
+
+            <div class="rxb-cards" role="list">
+              @for (task of visibleTasksOf(column); track task.id) {
                 <article
-                  class="card"
+                  class="rxb-card"
                   [attr.aria-label]="'任务：' + task.title"
                   [attr.data-task-id]="task.id"
-                  [class.dragging]="isDraggingTask(task)"
-                  [class.drop-after]="isDropAfter(task)"
-                  [class.drop-before]="isDropBefore(task)"
-                  [class.search-hit]="searchHighlightId() === task.id"
+                  [attr.draggable]="!writeLocked() && editingTaskId() !== task.id"
+                  [attr.tabindex]="rovingTaskId() === task.id ? 0 : -1"
+                  [class.is-dragging]="isDraggingTask(task)"
+                  [class.is-drop-after]="isDropAfter(task)"
+                  [class.is-drop-before]="isDropBefore(task)"
+                  [class.is-search-hit]="searchHighlightId() === task.id"
+                  [class.is-selected]="detailTaskId() === task.id"
                   (dragstart)="onTaskDragStart($event, task)"
+                  (focus)="focusedTaskId.set(task.id)"
+                  (keydown)="onCardKeydown($event, task)"
                   data-testid="task-card"
-                  draggable="true"
-                  tabindex="-1"
+                  role="listitem"
                 >
-                  @if (editTitle() === task.id) {
-                    <input
-                      class="title-editor"
-                      [ngModel]="editTitleValue()"
-                      (keydown.enter)="commitEditTitle(task)"
-                      (keydown.escape)="cancelEditTitle()"
-                      (ngModelChange)="editTitleValue.set($event)"
-                      aria-label="任务标题"
-                      data-testid="task-title-editor"
-                    />
-                    <button (click)="commitEditTitle(task)" aria-label="保存标题" data-testid="task-title-save">
-                      保存
-                    </button>
-                    <button (click)="cancelEditTitle()" aria-label="取消" data-testid="task-title-cancel">取消</button>
-                  } @else {
-                    <button class="card-title" (click)="openDetail(task.id)" data-testid="task-title">
-                      {{ task.title }}
-                    </button>
-                    <button
-                      class="card-edit"
-                      (click)="startEditTitle(task)"
-                      aria-label="编辑标题"
-                      data-testid="task-edit-title"
-                    >
-                      编辑
-                    </button>
-                  }
-                  @if (labelsOf(task.id).length > 0) {
-                    <div class="card-labels">
-                      @for (label of labelsOf(task.id); track label.id) {
-                        <span
-                          class="card-label"
-                          [attr.aria-label]="label.name"
-                          [style.background]="label.color"
-                          [style.color]="labelTextColor(label.color)"
-                          data-testid="card-label"
+                  @if (editingTaskId() === task.id) {
+                    <div class="rxb-card-editor">
+                      <input
+                        class="rxb-input"
+                        [value]="taskTitleDraft()"
+                        (input)="taskTitleDraft.set(inputValue($event))"
+                        (keydown.enter)="commitTaskTitle(task)"
+                        (keydown.escape)="cancelTaskTitle($event)"
+                        aria-label="任务标题"
+                        data-autofocus
+                        data-testid="task-title-editor"
+                      />
+                      <div class="rxb-composer-actions">
+                        <button
+                          class="rxb-btn rxb-btn-sm"
+                          (click)="cancelTaskTitle()"
+                          aria-label="取消"
+                          data-testid="task-title-cancel"
                         >
-                          {{ label.name }}
-                        </span>
-                      }
+                          取消
+                        </button>
+                        <button
+                          class="rxb-btn rxb-btn-sm rxb-btn-primary"
+                          (click)="commitTaskTitle(task)"
+                          aria-label="保存标题"
+                          data-testid="task-title-save"
+                        >
+                          保存
+                        </button>
+                      </div>
                     </div>
-                  }
-                  @if (dueDateText(task); as dueText) {
-                    <span class="card-due" [class.overdue]="dueText.startsWith('已逾期')" data-testid="task-due">
-                      {{ dueText }}
-                    </span>
+                  } @else {
+                    <div class="rxb-card-main">
+                      <button
+                        class="rxb-card-title"
+                        (click)="openDetail(task.id)"
+                        data-testid="task-title"
+                        tabindex="-1"
+                      >
+                        {{ task.title }}
+                      </button>
+                      <button
+                        class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible rxb-card-menu"
+                        [attr.aria-expanded]="isPopoverFor('task-menu', task.id)"
+                        [attr.aria-label]="'任务操作：' + task.title"
+                        (click)="openTaskMenu($event, task)"
+                        aria-haspopup="menu"
+                        data-testid="task-menu-trigger"
+                        tabindex="-1"
+                      >
+                        <span class="rxb-i rxb-i-kebab" aria-hidden="true"></span>
+                      </button>
+                    </div>
+                    @if (labelsOf(task.id).length > 0 || task.dueDate) {
+                      <div class="rxb-card-fields">
+                        @for (label of labelsOf(task.id); track label.id) {
+                          <button
+                            class="rxb-label"
+                            [attr.aria-label]="label.name"
+                            [attr.aria-pressed]="isLabelFiltered(label.name)"
+                            [class.is-active]="isLabelFiltered(label.name)"
+                            [style.background-color]="label.color"
+                            [style.color]="labelTextColor(label.color)"
+                            (click)="toggleLabelFilter(label.name)"
+                            data-testid="card-label"
+                            tabindex="-1"
+                            title="按此标签筛选"
+                          >
+                            {{ label.name }}
+                          </button>
+                        }
+                        @if (task.dueDate; as due) {
+                          <span
+                            class="rxb-due"
+                            [class.is-overdue]="dueStatusOf(due) === 'overdue'"
+                            [class.is-today]="dueStatusOf(due) === 'today'"
+                            data-testid="task-due"
+                          >
+                            <span class="rxb-i rxb-i-calendar" aria-hidden="true"></span>
+                            {{ dueText(due) }}
+                          </span>
+                        }
+                      </div>
+                    }
                   }
                 </article>
+              } @empty {
+                <p class="rxb-column-empty" data-testid="column-empty">
+                  {{ filterActive() && tasksOf(column).length > 0 ? '没有匹配筛选的任务' : '暂无任务' }}
+                </p>
               }
-              <button
-                class="add-task"
-                [disabled]="b.restoring() || creatingTask()"
-                (click)="openAddTask(column.id)"
-                data-testid="add-task"
-              >
-                + 添加任务
-              </button>
               @if (addTaskColumnId() === column.id) {
-                <div class="add-task-form" data-testid="add-task-form">
+                <div class="rxb-composer" data-testid="add-task-form">
                   <input
-                    class="add-task-input"
+                    class="rxb-input"
                     [disabled]="creatingTask()"
-                    [ngModel]="addTaskTitle()"
+                    [value]="addTaskTitle()"
+                    (input)="addTaskTitle.set(inputValue($event))"
                     (keydown.enter)="commitAddTask()"
-                    (keydown.escape)="cancelAddTask()"
-                    (ngModelChange)="addTaskTitle.set($event)"
+                    (keydown.escape)="cancelAddTask($event)"
                     aria-label="新任务标题"
+                    data-autofocus
                     data-testid="add-task-input"
-                    placeholder="输入任务标题"
+                    placeholder="输入标题后回车创建"
                   />
-                  <button
-                    class="add-task-submit"
-                    [disabled]="creatingTask() || addTaskTitle().trim() === ''"
-                    (click)="commitAddTask()"
-                    data-testid="add-task-submit"
-                  >
-                    添加
-                  </button>
-                  <button
-                    class="add-task-cancel"
-                    [disabled]="creatingTask()"
-                    (click)="cancelAddTask()"
-                    aria-label="取消"
-                    data-testid="add-task-cancel"
-                  >
-                    ×
-                  </button>
+                  <div class="rxb-composer-actions">
+                    <button
+                      class="rxb-btn rxb-btn-sm"
+                      [disabled]="creatingTask()"
+                      (click)="cancelAddTask()"
+                      aria-label="取消"
+                      data-testid="add-task-cancel"
+                    >
+                      取消
+                    </button>
+                    <button
+                      class="rxb-btn rxb-btn-sm rxb-btn-primary"
+                      [disabled]="creatingTask() || addTaskTitle().trim() === ''"
+                      (click)="commitAddTask()"
+                      data-testid="add-task-submit"
+                    >
+                      添加
+                    </button>
+                  </div>
                 </div>
+              } @else {
+                <button
+                  class="rxb-add-item"
+                  [disabled]="writeLocked() || creatingTask()"
+                  (click)="openAddTask(column.id)"
+                  data-testid="add-task"
+                >
+                  <span class="rxb-i rxb-i-plus" aria-hidden="true"></span>
+                  添加任务
+                </button>
               }
             </div>
           </section>
         }
+        <div class="rxb-add-column">
+          @if (addingColumn()) {
+            <div class="rxb-composer">
+              <input
+                class="rxb-input"
+                [value]="addColumnTitle()"
+                (input)="addColumnTitle.set(inputValue($event))"
+                (keydown.enter)="commitAddColumn()"
+                (keydown.escape)="cancelAddColumn($event)"
+                aria-label="新列标题"
+                data-autofocus
+                data-testid="column-composer-input"
+                placeholder="列名，如 In review"
+              />
+              <div class="rxb-composer-actions">
+                <button class="rxb-btn rxb-btn-sm" (click)="cancelAddColumn()" data-testid="column-composer-cancel">
+                  取消
+                </button>
+                <button
+                  class="rxb-btn rxb-btn-sm rxb-btn-primary"
+                  [disabled]="addColumnTitle().trim() === ''"
+                  (click)="commitAddColumn()"
+                  data-testid="column-composer-submit"
+                >
+                  添加列
+                </button>
+              </div>
+            </div>
+          } @else {
+            <button class="rxb-btn" [disabled]="writeLocked()" (click)="openAddColumn()" data-testid="create-column">
+              <span class="rxb-i rxb-i-plus" aria-hidden="true"></span>
+              添加列
+            </button>
+          }
+        </div>
       </div>
     } @else if (!b.loading() && b.readError() === null) {
-      <div class="empty-board" data-testid="empty-board">
-        <p>{{ b.boards().length === 0 ? '没有看板' : '请选择看板' }}</p>
+      <div class="rxb-empty" data-testid="empty-board">
+        <p class="rxb-empty-title">{{ b.boards().length === 0 ? '还没有看板' : '请选择看板' }}</p>
+        <p>看板把任务按列组织；数据只保存在本地浏览器，可随时导出备份。</p>
         <button
-          [disabled]="b.restoring() || b.loading() || b.readError() !== null"
-          (click)="createBoard()"
+          class="rxb-btn rxb-btn-primary"
+          [disabled]="writeLocked()"
+          (click)="openBoardComposer($event)"
           data-testid="create-board-empty"
         >
-          新建板
+          新建看板
         </button>
       </div>
     }
 
-    <!-- 详情面板 -->
+    <!-- 任务详情侧栏：叠加在看板之上，字段即改即存（每次改动一个可撤销事务） -->
     @if (detailTaskId(); as taskId) {
-      <aside class="detail-panel" data-testid="detail-panel">
-        <h3>任务详情</h3>
-        <label>
-          标题
-          <input [(ngModel)]="detailDraftTitle" [disabled]="savingDetail()" data-testid="detail-title" />
-        </label>
-        <label>
-          描述
-          <textarea
-            [(ngModel)]="draftDescription"
-            [disabled]="savingDetail()"
-            data-testid="detail-description"
-          ></textarea>
-        </label>
-        <label>
-          截止日（YYYY-MM-DD）
-          <input
-            [(ngModel)]="draftDueDate"
-            [disabled]="savingDetail()"
-            data-testid="detail-due"
-            placeholder="YYYY-MM-DD"
-          />
-        </label>
-        <fieldset>
-          <legend>标签</legend>
-          @for (label of b.labels(); track label.id) {
-            <label class="detail-label">
-              <input
-                [checked]="draftLabelIds().includes(label.id)"
-                [disabled]="savingDetail()"
-                (change)="toggleDraftLabel(label.id)"
-                data-testid="detail-label-check"
-                type="checkbox"
-              />
-              <span [style.background]="label.color" [style.color]="labelTextColor(label.color)">{{ label.name }}</span>
-            </label>
-          }
-        </fieldset>
-        <div class="detail-move" data-testid="detail-move">
-          <label>
-            移动到
-            <select
-              [disabled]="savingDetail()"
-              [ngModel]="moveColumnId() ?? ''"
-              (ngModelChange)="moveColumnId.set($event); movePosition.set(0)"
-              aria-label="移动到列"
-              data-testid="move-column"
-            >
-              @for (column of boardRef.columns(); track column.id) {
-                <option [value]="column.id">{{ column.title }}</option>
+      <aside class="rxb-panel" [attr.aria-label]="'任务详情：' + detailTitle()" data-testid="detail-panel" role="dialog">
+        <div class="rxb-panel-header">
+          <span class="rxb-panel-kicker">
+            {{ columnTitleOf(detailBase()?.columnId ?? null) }}
+            @if (detailStatus(); as status) {
+              · <span class="rxb-panel-status" aria-live="polite" data-testid="detail-status">{{ status }}</span>
+              @if (status === '已保存') {
+                <button
+                  class="rxb-link-button"
+                  [disabled]="writeLocked() || b.undoCount() === 0"
+                  (click)="undo()"
+                  data-testid="detail-undo"
+                >
+                  撤销
+                </button>
               }
-            </select>
-          </label>
-          <label>
-            位置
-            <select
-              [disabled]="savingDetail()"
-              [ngModel]="movePosition()"
-              (ngModelChange)="movePosition.set($event)"
-              aria-label="位置"
-              data-testid="move-position"
-            >
-              <option [value]="0">列首</option>
-              @if (moveColumnId(); as columnId) {
-                @for (task of moveTasks(); track task.id; let index = $index) {
-                  <option [value]="index + 1">在「{{ task.title }}」之后</option>
-                }
-                <option [value]="moveTasks().length">列尾</option>
-              }
-            </select>
-          </label>
-          <button [disabled]="savingDetail()" (click)="moveTaskByMenu()" data-testid="move-task">移动</button>
+            }
+          </span>
+          <button
+            class="rxb-btn rxb-btn-icon rxb-btn-invisible"
+            (click)="closeDetail()"
+            aria-label="关闭详情"
+            data-testid="detail-close"
+          >
+            <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
+          </button>
         </div>
-        <div class="detail-actions">
-          <button [disabled]="savingDetail()" (click)="saveDetail()" data-testid="detail-save">保存</button>
-          <button [disabled]="savingDetail()" (click)="deleteDetailTask()" data-testid="detail-delete">删除任务</button>
-          <button (click)="closeDetail()" data-testid="detail-cancel">取消</button>
+        <div class="rxb-panel-title">
+          <input
+            class="rxb-input"
+            [disabled]="writeLocked()"
+            [value]="detailTitle()"
+            (blur)="commitDetailTitle()"
+            (input)="detailTitle.set(inputValue($event))"
+            (keydown.enter)="commitDetailTitle()"
+            (keydown.escape)="revertDetailTitle($event)"
+            aria-label="标题"
+            data-testid="detail-title"
+          />
+        </div>
+        <div class="rxb-panel-body">
+          <section class="rxb-panel-main">
+            <label class="rxb-panel-section-title" [for]="detailDescriptionId">描述</label>
+            <textarea
+              class="rxb-textarea"
+              [disabled]="writeLocked()"
+              [id]="detailDescriptionId"
+              [value]="detailDescription()"
+              (blur)="commitDetailDescription()"
+              (input)="detailDescription.set(inputValue($event))"
+              (keydown)="onDetailDescriptionKeydown($event)"
+              data-testid="detail-description"
+              placeholder="补充背景、验收标准或链接…"
+            ></textarea>
+            <p class="rxb-hint">失焦或 ⌘Enter 保存，Esc 还原；每次保存都可撤销。</p>
+          </section>
+          <aside class="rxb-panel-fields" aria-label="字段">
+            <div class="rxb-field">
+              <span class="rxb-field-label">所在列</span>
+              <button
+                class="rxb-field-value"
+                [attr.aria-expanded]="popover()?.kind === 'detail-column-picker'"
+                [disabled]="writeLocked()"
+                (click)="openDetailColumnPicker($event)"
+                aria-haspopup="listbox"
+                data-testid="detail-column"
+              >
+                {{ columnTitleOf(detailBase()?.columnId ?? null) }}
+                <span class="rxb-i rxb-i-chevron-down" aria-hidden="true"></span>
+              </button>
+            </div>
+            <div class="rxb-field">
+              <span class="rxb-field-label">标签</span>
+              <button
+                class="rxb-field-value"
+                [attr.aria-expanded]="popover()?.kind === 'detail-label-picker'"
+                [disabled]="writeLocked()"
+                (click)="openDetailLabelPicker($event)"
+                aria-haspopup="listbox"
+                data-testid="detail-labels"
+              >
+                @for (label of detailLabels(); track label.id) {
+                  <span
+                    class="rxb-label"
+                    [style.background-color]="label.color"
+                    [style.color]="labelTextColor(label.color)"
+                    data-testid="detail-label"
+                    >{{ label.name }}</span
+                  >
+                } @empty {
+                  <span class="rxb-placeholder">无标签</span>
+                }
+              </button>
+            </div>
+            <div class="rxb-field">
+              <label class="rxb-field-label" [for]="detailDueId">截止日</label>
+              <div class="rxb-field-row">
+                <input
+                  class="rxb-input"
+                  [disabled]="writeLocked()"
+                  [id]="detailDueId"
+                  [value]="detailBase()?.dueDate ?? ''"
+                  (change)="commitDetailDue(inputValue($event))"
+                  data-testid="detail-due"
+                  type="date"
+                />
+                @if (detailBase()?.dueDate) {
+                  <button
+                    class="rxb-btn rxb-btn-icon rxb-btn-invisible"
+                    [disabled]="writeLocked()"
+                    (click)="commitDetailDue('')"
+                    aria-label="清除截止日"
+                    data-testid="detail-due-clear"
+                  >
+                    <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
+                  </button>
+                }
+              </div>
+            </div>
+            <div class="rxb-panel-actions">
+              <button
+                class="rxb-btn rxb-btn-danger"
+                [disabled]="writeLocked()"
+                (click)="deleteDetailTask($event)"
+                data-testid="detail-delete"
+              >
+                <span class="rxb-i rxb-i-trash" aria-hidden="true"></span>
+                删除任务
+              </button>
+            </div>
+          </aside>
         </div>
       </aside>
     }
 
-    <!-- 删除确认 -->
-    @if (confirmDelete(); as pending) {
-      <aside class="confirm-panel" data-testid="confirm-delete">
-        @if (pending.kind === 'task') {
-          <p>删除任务「{{ pending.taskTitle }}」及其 {{ pending.taskLabelIds.length }} 条标签关联？</p>
-        } @else if (pending.kind === 'column') {
-          <p>
-            删除列「{{ pending.columnTitle }}」及其 {{ pending.taskIds.length }} 个任务、{{
-              pending.taskLabelIds.length
-            }}
-            条任务标签关联？
-          </p>
-        } @else {
-          <p>
-            删除看板「{{ pending.boardTitle }}」（{{ pending.columnIds.length }} 列、{{
-              pending.taskIds.length
-            }}
-            任务、{{ pending.boardLabelIds.length }} 个标签定义、{{ pending.taskLabelIds.length }} 条任务标签关联）？
-          </p>
+    <!-- 弹层：菜单与选择器（根层 fixed 定位，避免被横向滚动的列区裁切） -->
+    @if (popover(); as pop) {
+      <div
+        class="rxb-popover"
+        [attr.aria-label]="popoverLabel(pop)"
+        [attr.role]="pop.kind.endsWith('picker') ? 'dialog' : 'menu'"
+        [style.left.px]="pop.left"
+        [style.top.px]="pop.top"
+        [style.width.px]="pop.width"
+        (keydown)="onPopoverKeydown($event)"
+        data-testid="popover"
+      >
+        @switch (pop.kind) {
+          @case ('board-menu') {
+            <button
+              class="rxb-menu-item"
+              [disabled]="writeLocked()"
+              (click)="onExportBackup()"
+              data-testid="export-backup"
+              role="menuitem"
+            >
+              <span class="rxb-i rxb-i-download" aria-hidden="true"></span>
+              导出备份
+            </button>
+            <button class="rxb-menu-item" (click)="openShortcuts()" data-testid="shortcuts-open" role="menuitem">
+              <span class="rxb-i rxb-i-keyboard" aria-hidden="true"></span>
+              键盘快捷键
+              <kbd class="rxb-kbd">?</kbd>
+            </button>
+            <div class="rxb-menu-divider" role="separator"></div>
+            <button
+              class="rxb-menu-item rxb-menu-item-danger"
+              [disabled]="writeLocked() || !b.currentBoard()"
+              (click)="confirmBoardDelete()"
+              data-testid="delete-board"
+              role="menuitem"
+            >
+              <span class="rxb-i rxb-i-trash" aria-hidden="true"></span>
+              删除看板
+            </button>
+          }
+          @case ('column-menu') {
+            @if (columnById(pop.targetId); as column) {
+              <div aria-label="列" role="group">
+                <p class="rxb-menu-heading" aria-hidden="true">列</p>
+                <button
+                  class="rxb-menu-item"
+                  [disabled]="writeLocked()"
+                  (click)="startColumnTitle(column.id)"
+                  data-testid="column-rename"
+                  role="menuitem"
+                >
+                  <span class="rxb-i rxb-i-pencil" aria-hidden="true"></span>
+                  改名
+                </button>
+                <button
+                  class="rxb-menu-item rxb-menu-item-danger"
+                  [disabled]="writeLocked()"
+                  (click)="confirmColumnDelete(column)"
+                  data-testid="column-delete"
+                  role="menuitem"
+                >
+                  <span class="rxb-i rxb-i-trash" aria-hidden="true"></span>
+                  删除列
+                </button>
+              </div>
+              <div class="rxb-menu-divider" role="separator"></div>
+              <div aria-label="本列排序" role="group">
+                <p class="rxb-menu-heading" aria-hidden="true">本列排序（一次性）</p>
+                <button
+                  class="rxb-menu-item"
+                  [disabled]="writeLocked() || sortingColumnId() !== null"
+                  (click)="sortColumnBy(column.id, 'dueDate')"
+                  data-testid="column-sort-due"
+                  role="menuitem"
+                >
+                  <span class="rxb-i rxb-i-calendar" aria-hidden="true"></span>
+                  按截止日
+                </button>
+                <button
+                  class="rxb-menu-item"
+                  [disabled]="writeLocked() || sortingColumnId() !== null"
+                  (click)="sortColumnBy(column.id, 'title')"
+                  data-testid="column-sort-title"
+                  role="menuitem"
+                >
+                  <span class="rxb-i rxb-i-sort" aria-hidden="true"></span>
+                  按标题
+                </button>
+              </div>
+              <div class="rxb-menu-divider" role="separator"></div>
+              <div aria-label="位置" role="group">
+                <p class="rxb-menu-heading" aria-hidden="true">位置</p>
+                <button
+                  class="rxb-menu-item"
+                  [disabled]="writeLocked() || isFirstColumn(column)"
+                  (click)="moveColumnBy(column.id, -1)"
+                  data-testid="column-move-back"
+                  role="menuitem"
+                >
+                  <span class="rxb-i rxb-i-arrow-left" aria-hidden="true"></span>
+                  <span class="rxb-menu-item-label">
+                    左移
+                    @if (isFirstColumn(column)) {
+                      <span class="rxb-menu-item-hint">已是最左列</span>
+                    }
+                  </span>
+                </button>
+                <button
+                  class="rxb-menu-item"
+                  [disabled]="writeLocked() || isLastColumn(column)"
+                  (click)="moveColumnBy(column.id, 1)"
+                  data-testid="column-move-forward"
+                  role="menuitem"
+                >
+                  <span class="rxb-i rxb-i-arrow-right" aria-hidden="true"></span>
+                  <span class="rxb-menu-item-label">
+                    右移
+                    @if (isLastColumn(column)) {
+                      <span class="rxb-menu-item-hint">已是最右列</span>
+                    }
+                  </span>
+                </button>
+              </div>
+            }
+          }
+          @case ('task-menu') {
+            @if (taskById(pop.targetId); as task) {
+              <button class="rxb-menu-item" (click)="openDetail(task.id)" data-testid="task-menu-open" role="menuitem">
+                <span class="rxb-i rxb-i-open" aria-hidden="true"></span>
+                打开详情
+                <kbd class="rxb-kbd">↵</kbd>
+              </button>
+              <button
+                class="rxb-menu-item"
+                [disabled]="writeLocked()"
+                (click)="startTaskTitle(task)"
+                data-testid="task-edit-title"
+                role="menuitem"
+              >
+                <span class="rxb-i rxb-i-pencil" aria-hidden="true"></span>
+                编辑标题
+                <kbd class="rxb-kbd">F2</kbd>
+              </button>
+              <div class="rxb-menu-divider" role="separator"></div>
+              <button
+                class="rxb-menu-item"
+                [disabled]="writeLocked()"
+                (click)="openMovePicker(task)"
+                aria-haspopup="listbox"
+                data-testid="task-move-to-column"
+                role="menuitem"
+              >
+                <span class="rxb-i rxb-i-arrow-right" aria-hidden="true"></span>
+                移到列…
+                <span class="rxb-i rxb-i-chevron-right" aria-hidden="true"></span>
+              </button>
+              <button
+                class="rxb-menu-item"
+                [disabled]="writeLocked() || !canMoveTask(task, 'up')"
+                (click)="moveTaskBy(task, 'up')"
+                data-testid="task-move-up"
+                role="menuitem"
+              >
+                <span class="rxb-i rxb-i-arrow-up" aria-hidden="true"></span>
+                上移
+                <kbd class="rxb-kbd">⌥↑</kbd>
+              </button>
+              <button
+                class="rxb-menu-item"
+                [disabled]="writeLocked() || !canMoveTask(task, 'down')"
+                (click)="moveTaskBy(task, 'down')"
+                data-testid="task-move-down"
+                role="menuitem"
+              >
+                <span class="rxb-i rxb-i-arrow-down" aria-hidden="true"></span>
+                下移
+                <kbd class="rxb-kbd">⌥↓</kbd>
+              </button>
+              <div class="rxb-menu-divider" role="separator"></div>
+              <button
+                class="rxb-menu-item rxb-menu-item-danger"
+                [disabled]="writeLocked()"
+                (click)="confirmTaskDelete(task)"
+                data-testid="task-delete"
+                role="menuitem"
+              >
+                <span class="rxb-i rxb-i-trash" aria-hidden="true"></span>
+                删除任务
+                <kbd class="rxb-kbd">Del</kbd>
+              </button>
+            }
+          }
+          @default {
+            <p class="rxb-picker-title">{{ pop.kind === 'detail-label-picker' ? '选择标签' : '移到列' }}</p>
+            <div class="rxb-picker-filter">
+              <input
+                class="rxb-input"
+                [value]="pickerQuery()"
+                (input)="onPickerInput(inputValue($event))"
+                (keydown)="onPickerKeydown($event)"
+                aria-label="过滤选项"
+                data-autofocus
+                data-testid="picker-filter"
+                placeholder="过滤选项"
+              />
+            </div>
+            <div [attr.aria-multiselectable]="pop.kind === 'detail-label-picker'" role="listbox">
+              @for (option of pickerOptions(); track option.id; let index = $index) {
+                <button
+                  class="rxb-menu-item"
+                  [attr.aria-selected]="option.selected"
+                  [class.is-active]="index === pickerActive()"
+                  (click)="choosePickerOption(option.id)"
+                  data-testid="picker-option"
+                  role="option"
+                >
+                  <span class="rxb-picker-check">
+                    @if (option.selected) {
+                      <span class="rxb-i rxb-i-check" aria-hidden="true"></span>
+                    }
+                  </span>
+                  @if (option.color) {
+                    <span class="rxb-swatch" [style.background-color]="option.color" aria-hidden="true"></span>
+                  }
+                  {{ option.label }}
+                </button>
+              } @empty {
+                <p class="rxb-picker-empty">没有匹配的选项</p>
+              }
+            </div>
+            @if (canCreateLabelFromPicker()) {
+              <div class="rxb-menu-divider" role="separator"></div>
+              <button class="rxb-menu-item" (click)="createLabelFromPicker()" data-testid="picker-create">
+                <span class="rxb-i rxb-i-plus" aria-hidden="true"></span>
+                创建标签「{{ pickerQuery().trim() }}」
+              </button>
+            }
+          }
         }
-        <div class="confirm-actions">
-          <button (click)="executeConfirmedDelete()" data-testid="confirm-delete-yes">确认删除</button>
-          <button (click)="cancelDelete()" data-testid="confirm-delete-no">取消</button>
-        </div>
-      </aside>
+      </div>
+    }
+
+    <!-- 模态对话框 -->
+    @if (dialog(); as current) {
+      <div class="rxb-dialog-backdrop" (mousedown)="onBackdropMousedown($event)" data-testid="dialog-backdrop">
+        @switch (current.kind) {
+          @case ('confirm-delete') {
+            <div
+              class="rxb-dialog"
+              [attr.aria-labelledby]="dialogTitleId"
+              aria-modal="true"
+              data-testid="confirm-delete"
+              role="alertdialog"
+            >
+              <div class="rxb-dialog-header">
+                <h2 class="rxb-dialog-title" [id]="dialogTitleId">确认删除</h2>
+              </div>
+              <div class="rxb-dialog-body">
+                @switch (current.plan.kind) {
+                  @case ('task') {
+                    <p>删除任务「{{ current.plan.taskTitle }}」？</p>
+                    <div class="rxb-impact">
+                      <span>将同时移除 {{ current.plan.taskLabelIds.length }} 条标签关联。</span>
+                    </div>
+                  }
+                  @case ('column') {
+                    <p>删除列「{{ current.plan.columnTitle }}」？</p>
+                    <div class="rxb-impact">
+                      <span>其中 {{ current.plan.taskIds.length }} 个任务会一并删除；</span>
+                      <span>{{ current.plan.taskLabelIds.length }} 条任务标签关联随之移除，板级标签定义保留。</span>
+                    </div>
+                  }
+                  @case ('board') {
+                    <p>删除看板「{{ current.plan.boardTitle }}」？</p>
+                    <div class="rxb-impact">
+                      <span>
+                        {{ current.plan.columnIds.length }} 列、{{ current.plan.taskIds.length }} 个任务、{{
+                          current.plan.boardLabelIds.length
+                        }}
+                        个标签定义、{{ current.plan.taskLabelIds.length }} 条任务标签关联会一并删除。
+                      </span>
+                    </div>
+                  }
+                }
+                <p class="rxb-hint">删除后可用「撤销」恢复（仅限本次会话）。</p>
+              </div>
+              <div class="rxb-dialog-footer">
+                <button class="rxb-btn" (click)="closeDialog()" data-autofocus data-testid="confirm-delete-no">
+                  取消
+                </button>
+                <button
+                  class="rxb-btn rxb-btn-danger"
+                  (click)="executeConfirmedDelete()"
+                  data-testid="confirm-delete-yes"
+                >
+                  确认删除
+                </button>
+              </div>
+            </div>
+          }
+          @case ('confirm-label-delete') {
+            <div
+              class="rxb-dialog"
+              [attr.aria-labelledby]="dialogTitleId"
+              aria-modal="true"
+              data-testid="confirm-delete"
+              role="alertdialog"
+            >
+              <div class="rxb-dialog-header">
+                <h2 class="rxb-dialog-title" [id]="dialogTitleId">删除标签</h2>
+              </div>
+              <div class="rxb-dialog-body">
+                <p>删除标签「{{ current.plan.labelName }}」？</p>
+                <div class="rxb-impact">
+                  <span>将从 {{ current.plan.taskLabelIds.length }} 个任务上移除这个标签。</span>
+                </div>
+                <p class="rxb-hint">删除后可用「撤销」恢复（仅限本次会话）。</p>
+              </div>
+              <div class="rxb-dialog-footer">
+                <button class="rxb-btn" (click)="closeDialog()" data-autofocus data-testid="confirm-delete-no">
+                  取消
+                </button>
+                <button
+                  class="rxb-btn rxb-btn-danger"
+                  (click)="executeConfirmedDelete()"
+                  data-testid="confirm-delete-yes"
+                >
+                  确认删除
+                </button>
+              </div>
+            </div>
+          }
+          @case ('board-composer') {
+            <div
+              class="rxb-dialog"
+              [attr.aria-labelledby]="dialogTitleId"
+              aria-modal="true"
+              data-testid="board-composer"
+              role="dialog"
+            >
+              <div class="rxb-dialog-header">
+                <h2 class="rxb-dialog-title" [id]="dialogTitleId">新建看板</h2>
+                <button
+                  class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
+                  (click)="closeDialog()"
+                  aria-label="关闭"
+                  data-testid="dialog-close"
+                >
+                  <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="rxb-dialog-body">
+                <label class="rxb-form-field">
+                  看板名称
+                  <input
+                    class="rxb-input"
+                    [value]="boardComposerTitle()"
+                    (input)="boardComposerTitle.set(inputValue($event))"
+                    (keydown.enter)="submitBoardComposer()"
+                    data-autofocus
+                    data-testid="board-composer-input"
+                    placeholder="如：2026 Q4 发布计划"
+                  />
+                </label>
+              </div>
+              <div class="rxb-dialog-footer">
+                <button class="rxb-btn" (click)="closeDialog()">取消</button>
+                <button
+                  class="rxb-btn rxb-btn-primary"
+                  [disabled]="boardComposerTitle().trim() === ''"
+                  (click)="submitBoardComposer()"
+                  data-testid="board-composer-submit"
+                >
+                  创建
+                </button>
+              </div>
+            </div>
+          }
+          @case ('labels') {
+            <div
+              class="rxb-dialog"
+              [attr.aria-labelledby]="dialogTitleId"
+              aria-modal="true"
+              data-testid="label-manager"
+              role="dialog"
+            >
+              <div class="rxb-dialog-header">
+                <h2 class="rxb-dialog-title" [id]="dialogTitleId">
+                  {{ labelEditor() === null ? '标签' : labelEditor()?.labelId === null ? '新建标签' : '编辑标签' }}
+                </h2>
+                <button
+                  class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
+                  (click)="closeDialog()"
+                  aria-label="关闭"
+                  data-testid="dialog-close"
+                >
+                  <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
+                </button>
+              </div>
+              @if (labelEditor(); as editor) {
+                <div class="rxb-dialog-body" data-testid="label-editor">
+                  <div class="rxb-label-preview">
+                    <span
+                      class="rxb-label"
+                      [style.background-color]="previewColor(editor.color)"
+                      [style.color]="labelTextColor(previewColor(editor.color))"
+                      >{{ editor.name.trim() || '标签预览' }}</span
+                    >
+                  </div>
+                  <label class="rxb-form-field">
+                    名称
+                    <input
+                      class="rxb-input"
+                      [value]="editor.name"
+                      (input)="updateLabelEditor({ name: inputValue($event) })"
+                      (keydown.enter)="saveLabelEditor()"
+                      data-autofocus
+                      data-testid="label-name-input"
+                    />
+                  </label>
+                  <div class="rxb-form-field" role="group" aria-label="颜色">
+                    颜色
+                    <div class="rxb-swatches">
+                      @for (option of labelColors; track option.color) {
+                        <button
+                          class="rxb-swatch-button"
+                          [attr.aria-label]="option.name"
+                          [attr.aria-pressed]="sameColor(option.color, editor.color)"
+                          [style.background-color]="option.color"
+                          (click)="updateLabelEditor({ color: option.color })"
+                          data-testid="label-color-option"
+                        >
+                          @if (sameColor(option.color, editor.color)) {
+                            <span
+                              class="rxb-i rxb-i-check"
+                              [style.color]="labelTextColor(option.color)"
+                              aria-hidden="true"
+                            ></span>
+                          }
+                        </button>
+                      }
+                    </div>
+                    <div class="rxb-color-row">
+                      <span class="rxb-hint">自定义</span>
+                      <input
+                        class="rxb-input"
+                        [value]="editor.color"
+                        (input)="updateLabelEditor({ color: inputValue($event) })"
+                        aria-label="自定义颜色（#rrggbb）"
+                        data-testid="label-color-input"
+                        maxlength="7"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div class="rxb-dialog-footer">
+                  <button class="rxb-btn" (click)="cancelLabelEditor()" data-testid="label-editor-cancel">取消</button>
+                  <button
+                    class="rxb-btn rxb-btn-primary"
+                    [disabled]="editor.name.trim() === '' || !isValidColor(editor.color)"
+                    (click)="saveLabelEditor()"
+                    data-testid="label-editor-save"
+                  >
+                    保存
+                  </button>
+                </div>
+              } @else {
+                <div class="rxb-dialog-body">
+                  @if (b.labels().length === 0) {
+                    <p class="rxb-hint">当前看板还没有标签。</p>
+                  }
+                  <ul class="rxb-label-list">
+                    @for (label of b.labels(); track label.id) {
+                      <li class="rxb-label-row" data-testid="label-row">
+                        <span
+                          class="rxb-label"
+                          [style.background-color]="label.color"
+                          [style.color]="labelTextColor(label.color)"
+                          data-testid="label-chip"
+                          >{{ label.name }}</span
+                        >
+                        <button
+                          class="rxb-btn rxb-btn-sm"
+                          [attr.aria-label]="'编辑标签 ' + label.name"
+                          [disabled]="writeLocked()"
+                          (click)="startEditLabel(label)"
+                          data-testid="label-edit"
+                        >
+                          编辑
+                        </button>
+                        <button
+                          class="rxb-btn rxb-btn-sm rxb-btn-danger"
+                          [attr.aria-label]="'删除标签 ' + label.name"
+                          [disabled]="writeLocked()"
+                          (click)="deleteLabel(label)"
+                          data-testid="label-delete"
+                        >
+                          删除
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                </div>
+                <div class="rxb-dialog-footer">
+                  <button
+                    class="rxb-btn rxb-btn-primary"
+                    [disabled]="writeLocked()"
+                    (click)="startCreateLabel()"
+                    data-autofocus
+                    data-testid="create-label"
+                  >
+                    <span class="rxb-i rxb-i-plus" aria-hidden="true"></span>
+                    新建标签
+                  </button>
+                </div>
+              }
+            </div>
+          }
+          @case ('search') {
+            <div
+              class="rxb-dialog rxb-dialog-wide"
+              [attr.aria-labelledby]="dialogTitleId"
+              aria-modal="true"
+              data-testid="board-search"
+              role="dialog"
+            >
+              <div class="rxb-dialog-header">
+                <h2 class="rxb-dialog-title" [id]="dialogTitleId">搜索当前板任务</h2>
+                <button
+                  class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
+                  (click)="closeDialog()"
+                  aria-label="关闭"
+                  data-testid="dialog-close"
+                >
+                  <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="rxb-dialog-body">
+                <input
+                  class="rxb-input"
+                  [disabled]="!b.searchSource"
+                  [placeholder]="b.searchSource ? '全文搜索标题与描述' : searchUnavailableText(b.searchUnavailableReason)"
+                  [value]="searchQuery()"
+                  (input)="onSearchInput(inputValue($event))"
+                  aria-label="搜索当前板任务"
+                  data-autofocus
+                  data-testid="board-search-input"
+                />
+                @if (!b.searchSource) {
+                  <p class="rxb-hint" data-testid="board-search-unavailable">
+                    {{ searchUnavailableText(b.searchUnavailableReason) }}
+                  </p>
+                }
+                @if (searchQuery().trim() !== '') {
+                  <div class="rxb-search-results" data-testid="board-search-results">
+                    @switch (searchState()) {
+                      @case ('loading') {
+                        <p class="rxb-hint" data-testid="board-search-loading">搜索中…</p>
+                      }
+                      @case ('error') {
+                        <p class="rxb-hint" data-testid="board-search-error">{{ searchErrorText() }}</p>
+                      }
+                      @case ('empty') {
+                        <p class="rxb-hint" data-testid="board-search-empty">无匹配</p>
+                      }
+                      @default {
+                        @for (result of searchResults(); track result.id) {
+                          <button
+                            class="rxb-search-result"
+                            [disabled]="searchState() === 'loading'"
+                            (click)="onSearchResultClick(result)"
+                            data-testid="board-search-result"
+                          >
+                            <span class="rxb-search-result-title">{{ searchResultTitle(result) }}</span>
+                            <span class="rxb-search-result-column">{{ searchColumnTitle(result) }}</span>
+                            <span class="rxb-search-result-snippet">{{ result.snippet }}</span>
+                          </button>
+                        }
+                        @if (searchHasMore()) {
+                          <button class="rxb-btn rxb-btn-sm" (click)="onSearchMore()" data-testid="board-search-more">
+                            加载更多
+                          </button>
+                        }
+                      }
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          @case ('shortcuts') {
+            <div
+              class="rxb-dialog rxb-dialog-wide"
+              [attr.aria-labelledby]="dialogTitleId"
+              aria-modal="true"
+              data-testid="shortcuts-dialog"
+              role="dialog"
+            >
+              <div class="rxb-dialog-header">
+                <h2 class="rxb-dialog-title" [id]="dialogTitleId">键盘快捷键</h2>
+                <button
+                  class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
+                  (click)="closeDialog()"
+                  aria-label="关闭"
+                  data-autofocus
+                  data-testid="dialog-close"
+                >
+                  <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="rxb-dialog-body">
+                <div class="rxb-shortcuts">
+                  @for (group of shortcutGroups; track group.title) {
+                    <section class="rxb-shortcut-group">
+                      <h3 class="rxb-panel-section-title">{{ group.title }}</h3>
+                      @for (item of group.items; track item.label) {
+                        <div class="rxb-shortcut">
+                          <span>{{ item.label }}</span>
+                          <span>
+                            @for (key of item.keys; track key) {
+                              <kbd class="rxb-kbd">{{ key }}</kbd>
+                            }
+                          </span>
+                        </div>
+                      }
+                    </section>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        }
+      </div>
+    }
+
+    @if (toast(); as current) {
+      <div class="rxb-toast" aria-live="polite" data-testid="board-toast" role="status">
+        <span>{{ current.message }}</span>
+        @if (current.undoable) {
+          <button
+            class="rxb-btn rxb-btn-sm rxb-toast-undo"
+            [disabled]="writeLocked() || b.undoCount() === 0"
+            (click)="undoFromToast()"
+            data-testid="board-toast-undo"
+          >
+            撤销
+          </button>
+        }
+        <button
+          class="rxb-btn rxb-btn-sm rxb-btn-icon"
+          (click)="toast.set(null)"
+          aria-label="关闭提示"
+          data-testid="board-toast-close"
+        >
+          <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
+        </button>
+      </div>
     }
   }
 </section>

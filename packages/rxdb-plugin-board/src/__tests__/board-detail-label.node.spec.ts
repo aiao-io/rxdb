@@ -360,6 +360,85 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
     expect(await linksOf(task.id)).toHaveLength(0);
   });
 
+  describe('saveTaskFields（看板 v2 即改即存）', () => {
+    it('每次只提交补丁里的字段，各成一个事务、可逐次撤销', async () => {
+      const { task } = await seedTask();
+      const label = await labels.createLabel({ name: '核心', color: '#e11d48' });
+      const base = await details.openSnapshot(task.id);
+
+      await details.saveTaskFields(task.id, base, { title: '改标题' });
+      await details.saveTaskFields(task.id, base, { dueDate: '2026-12-01' });
+      await details.saveTaskFields(task.id, base, { labelIds: [label.id] });
+
+      const saved = await taskOf(task.id);
+      expect(saved.title).toBe('改标题');
+      expect(saved.dueDate).toBe('2026-12-01');
+      expect((await linksOf(task.id)).map(link => link.labelId)).toEqual([label.id]);
+
+      const history = rxdb.versionManager.history();
+      await history.undo();
+      expect(await linksOf(task.id)).toHaveLength(0);
+      expect((await taskOf(task.id)).dueDate).toBe('2026-12-01');
+      await history.undo();
+      expect((await taskOf(task.id)).dueDate).toBeNull();
+      expect((await taskOf(task.id)).title).toBe('改标题');
+    });
+
+    it('清空截止日与描述：null / 空串落库为 null；与最新值相同则零写', async () => {
+      const { task } = await seedTask();
+      const base = await details.openSnapshot(task.id);
+      await details.saveTaskFields(task.id, base, { dueDate: '2026-12-01', description: '描述' });
+      const filled = await details.openSnapshot(task.id);
+      await details.saveTaskFields(task.id, filled, { dueDate: null, description: '' });
+      const cleared = await taskOf(task.id);
+      expect(cleared.dueDate).toBeNull();
+      expect(cleared.description).toBeNull();
+      const undoCount = await firstUndoCount();
+      const result = await details.saveTaskFields(task.id, await details.openSnapshot(task.id), { dueDate: null });
+      expect(result.kind).toBe('unchanged');
+      expect(await firstUndoCount()).toBe(undoCount);
+    });
+
+    it('字段级冲突：补丁涉及的字段被其它入口改过则拒绝零写，其它字段的外部修改不冲突', async () => {
+      const { task } = await seedTask();
+      const base = await details.openSnapshot(task.id);
+
+      await domain.updateTaskTitle(task.id, '外部修改');
+      await expect(details.saveTaskFields(task.id, base, { title: '我的草稿' })).rejects.toMatchObject({
+        code: 'task_stale'
+      });
+      expect((await taskOf(task.id)).title).toBe('外部修改');
+
+      // 外部只改了标题：以旧基线改截止日不冲突，标题保持外部修改
+      await details.saveTaskFields(task.id, base, { dueDate: '2026-12-01' });
+      const saved = await taskOf(task.id);
+      expect(saved.title).toBe('外部修改');
+      expect(saved.dueDate).toBe('2026-12-01');
+    });
+
+    it('标签冲突与校验沿用一次保存的语义', async () => {
+      const { task } = await seedTask();
+      const label = await labels.createLabel({ name: '核心', color: '#e11d48' });
+      const base = await details.openSnapshot(task.id);
+      await details.saveTaskFields(task.id, base, { labelIds: [label.id] });
+      await expect(details.saveTaskFields(task.id, base, { labelIds: [] })).rejects.toMatchObject({
+        code: 'labels_changed'
+      });
+      await expect(
+        details.saveTaskFields(task.id, await details.openSnapshot(task.id), { title: '  ' })
+      ).rejects.toMatchObject({ code: 'empty_title' });
+    });
+
+    it('恢复中写门禁', async () => {
+      const { task } = await seedTask();
+      const base = await details.openSnapshot(task.id);
+      ctx.restoring = true;
+      await expect(details.saveTaskFields(task.id, base, { title: '改' })).rejects.toMatchObject({
+        code: 'restore_in_progress'
+      });
+    });
+  });
+
   async function firstUndoCount(): Promise<number> {
     return firstValueFrom(rxdb.versionManager.history().undoCount$);
   }

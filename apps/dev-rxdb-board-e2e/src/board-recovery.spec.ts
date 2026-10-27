@@ -28,10 +28,11 @@ test('没有看板行的合法空库归档也能恢复', async ({ page }) => {
   await expect(page.getByTestId('empty-board')).toBeVisible();
   const oldActive = await page.evaluate(() => localStorage.getItem('rxdb-board-active-db'));
   const downloading = page.waitForEvent('download');
+  await page.getByTestId('board-menu-trigger').click();
   await page.getByTestId('export-backup').click();
   const archive = await (await downloading).path();
-  page.once('dialog', dialog => dialog.accept());
   await page.getByTestId('restore-file-menu').setInputFiles(archive!);
+  await page.getByTestId('host-confirm-yes').click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('rxdb-board-active-db'))).not.toBe(oldActive);
   await expect(page.getByTestId('app-error')).toHaveCount(0);
   await expect(page.getByTestId('empty-board')).toBeVisible();
@@ -122,8 +123,8 @@ test('连续重置释放旧库连接，新旧看板数据仍可读写', async ({
   await expect(page.getByTestId('task-card')).toHaveCount(13);
   for (let attempt = 0; attempt < 2; attempt++) {
     const oldDb = await page.evaluate(() => localStorage.getItem('rxdb-board-active-db'));
-    page.once('dialog', dialog => dialog.accept());
     await page.getByTestId('reset-demo').click();
+    await page.getByTestId('host-confirm-yes').click();
     await expect(page.getByTestId('task-card')).toHaveCount(12);
     await expect.poll(() => page.evaluate(() => localStorage.getItem('rxdb-board-active-db'))).not.toBe(oldDb);
     await expect
@@ -157,8 +158,8 @@ test('重置写入活动位置失败时释放新连接，保留原板及其写�
       setItem.call(this, key, value);
     };
   });
-  page.once('dialog', dialog => dialog.accept());
   await page.getByTestId('reset-demo').click();
+  await page.getByTestId('host-confirm-yes').click();
   await expect(page.getByTestId('app-error')).toContainText('模拟活动位置写入失败');
   expect(await page.evaluate(() => localStorage.getItem('rxdb-board-active-db'))).toBe(active);
   await expect
@@ -182,6 +183,7 @@ test('恢复切库成功后其他页面同步切换，后续写入刷新仍保�
   await page.getByTestId('start-seed').click();
   await expect(page.getByTestId('task-card')).toHaveCount(12);
   const download = page.waitForEvent('download');
+  await page.getByTestId('board-menu-trigger').click();
   await page.getByTestId('export-backup').click();
   const archive = await (await download).path();
   const oldActive = await page.evaluate(() => localStorage.getItem('rxdb-board-active-db'));
@@ -193,8 +195,8 @@ test('恢复切库成功后其他页面同步切换，后续写入刷新仍保�
   try {
     await other.goto(APP_BASE_URL);
     await expect(other.getByTestId('task-card')).toHaveCount(13);
-    page.once('dialog', dialog => dialog.accept());
     await page.getByTestId('restore-file-menu').setInputFiles(archive!);
+    await page.getByTestId('host-confirm-yes').click();
     await expect(page.getByTestId('task-card')).toHaveCount(12);
     await expect.poll(() => page.evaluate(() => localStorage.getItem('rxdb-board-active-db'))).not.toBe(oldActive);
     await expect(other.getByTestId('task-card')).toHaveCount(12);

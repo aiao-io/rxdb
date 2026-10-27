@@ -22,7 +22,8 @@ import {
   type LabelDeletePlan,
   type SaveTaskDraftResult,
   type TaskDraft,
-  type TaskDraftSnapshot
+  type TaskDraftSnapshot,
+  type TaskFieldPatch
 } from '@aiao/rxdb-plugin-board';
 import type {} from '@aiao/rxdb-plugin-history';
 import { BehaviorSubject, catchError, combineLatest, EMPTY, map, of, Subscription, switchMap, tap } from 'rxjs';
@@ -87,6 +88,8 @@ export interface UseBoardActions {
   updateTaskTitle(taskId: UUID, title: string): Promise<Task>;
   openSnapshot(taskId: UUID): Promise<TaskDraftSnapshot>;
   saveTaskDraft(taskId: UUID, snapshot: TaskDraftSnapshot, draft: TaskDraft): Promise<SaveTaskDraftResult>;
+  /** 即改即存（看板 v2 详情侧栏）：只提交补丁里的字段，一次调用一个事务（一次 undo）。 */
+  saveTaskFields(taskId: UUID, base: TaskDraftSnapshot, patch: TaskFieldPatch): Promise<SaveTaskDraftResult>;
   planTaskDelete(taskId: UUID): ReturnType<BoardDeleteService['planTaskDelete']>;
   planColumnDelete(columnId: UUID): ReturnType<BoardDeleteService['planColumnDelete']>;
   planBoardDelete(boardId: UUID): ReturnType<BoardDeleteService['planBoardDelete']>;
@@ -310,6 +313,7 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
       updateTaskTitle: (taskId, title) => domain.updateTaskTitle(taskId, title),
       openSnapshot: taskId => details.openSnapshot(taskId),
       saveTaskDraft: (taskId, snapshot, draft) => details.saveTaskDraft(taskId, snapshot, draft),
+      saveTaskFields: (taskId, base, patch) => details.saveTaskFields(taskId, base, patch),
       planTaskDelete: taskId => deletes.planTaskDelete(taskId),
       planColumnDelete: columnId => deletes.planColumnDelete(columnId),
       planBoardDelete: boardId => deletes.planBoardDelete(boardId),

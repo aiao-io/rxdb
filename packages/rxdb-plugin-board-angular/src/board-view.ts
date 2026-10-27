@@ -1,22 +1,42 @@
 import type { UUID } from '@aiao/rxdb';
 import {
-  Column,
+  BOARD_LABEL_COLORS,
+  dueStatus,
+  dueStatusText,
+  isBoardFilterEmpty,
+  isHexColor,
   labelTextColor as pickLabelTextColor,
+  localDateKey,
+  matchesBoardFilter,
+  msUntilNextLocalMidnight,
+  nextGridFocus,
+  nextLabelColor,
+  parseBoardFilter,
+  placePopover,
   resolveCardDrop,
   resolveColumnDrop,
+  resolveKeyboardMove,
   resolveMenuMove,
   RESTORING_MARKER_KEY,
-  Task,
+  suggestBoardFilter,
+  toggleBoardFilterValue,
+  type BoardGridDirection,
+  type BoardLabel,
+  type BoardMoveDirection,
   type BoardSearchUnavailableReason,
   type BoardSearchUpstream,
   type CardDropColumnView,
   type CardDropTarget,
+  type Column,
   type DeletePlan,
+  type DueStatus,
+  type LabelDeletePlan,
   type SearchHandle,
   type SearchResult,
-  type TaskDraftSnapshot
+  type Task,
+  type TaskDraftSnapshot,
+  type TaskFieldPatch
 } from '@aiao/rxdb-plugin-board';
-import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -31,416 +51,223 @@ import {
   signal,
   viewChild
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-
 import { Subscription } from 'rxjs';
 
 import { useBoard, type UseBoardReturn } from './use-board.js';
 
+/** 弹层种类：菜单（板 / 列 / 卡片）与选择器（移到列 / 详情所在列 / 详情标签）。 */
+export type BoardPopoverKind =
+  | 'board-menu'
+  | 'column-menu'
+  | 'task-menu'
+  | 'move-picker'
+  | 'detail-column-picker'
+  | 'detail-label-picker';
+
+interface PopoverState {
+  readonly kind: BoardPopoverKind;
+  readonly targetId: UUID | null;
+  readonly top: number;
+  readonly left: number;
+  readonly width: number;
+}
+
+type DialogState =
+  | { readonly kind: 'confirm-delete'; readonly plan: DeletePlan }
+  | { readonly kind: 'confirm-label-delete'; readonly plan: LabelDeletePlan }
+  | { readonly kind: 'board-composer' }
+  | { readonly kind: 'labels' }
+  | { readonly kind: 'search' }
+  | { readonly kind: 'shortcuts' };
+
+interface LabelEditorState {
+  readonly labelId: UUID | null;
+  readonly name: string;
+  readonly color: string;
+}
+
+interface PickerOption {
+  readonly id: UUID;
+  readonly label: string;
+  readonly color: string | null;
+  readonly selected: boolean;
+}
+
+const POPOVER_WIDTH: Readonly<Record<BoardPopoverKind, number>> = {
+  'board-menu': 240,
+  'column-menu': 240,
+  'task-menu': 240,
+  'move-picker': 280,
+  'detail-column-picker': 280,
+  'detail-label-picker': 280
+};
+
+/** 弹层高度估算（定位用；超出视口时 CSS max-height 兜住滚动）。 */
+const POPOVER_HEIGHT: Readonly<Record<BoardPopoverKind, number>> = {
+  'board-menu': 140,
+  'column-menu': 340,
+  'task-menu': 280,
+  'move-picker': 320,
+  'detail-column-picker': 320,
+  'detail-label-picker': 360
+};
+
+const FOCUS_KEYS: Readonly<Record<string, BoardGridDirection>> = {
+  ArrowUp: 'up',
+  ArrowDown: 'down',
+  ArrowLeft: 'left',
+  ArrowRight: 'right',
+  Home: 'first',
+  End: 'last'
+};
+
+const MOVE_KEYS: Readonly<Record<string, BoardMoveDirection>> = {
+  ArrowUp: 'up',
+  ArrowDown: 'down',
+  ArrowLeft: 'left',
+  ArrowRight: 'right'
+};
+
+const SHORTCUT_GROUPS = [
+  {
+    title: '导航',
+    items: [
+      { label: '在卡片间移动', keys: ['↑', '↓', '←', '→'] },
+      { label: '本列第一张 / 最后一张', keys: ['Home', 'End'] },
+      { label: '聚焦筛选', keys: ['/'] },
+      { label: '搜索任务', keys: ['⌘/Ctrl', 'K'] },
+      { label: '显示快捷键', keys: ['?'] }
+    ]
+  },
+  {
+    title: '卡片',
+    items: [
+      { label: '打开详情', keys: ['Enter'] },
+      { label: '编辑标题', keys: ['F2'] },
+      { label: '上移 / 下移', keys: ['⌥', '↑', '↓'] },
+      { label: '移到相邻列', keys: ['⌥', '←', '→'] },
+      { label: '删除', keys: ['Del'] },
+      { label: '更多操作', keys: ['⇧', 'F10'] }
+    ]
+  },
+  {
+    title: '编辑',
+    items: [
+      { label: '撤销', keys: ['⌘/Ctrl', 'Z'] },
+      { label: '重做', keys: ['⇧', '⌘/Ctrl', 'Z'] },
+      { label: '关闭菜单 / 对话框 / 详情', keys: ['Esc'] }
+    ]
+  }
+] as const;
+
+const isEditable = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+
+const isModifier = (event: KeyboardEvent): boolean => event.metaKey || event.ctrlKey;
+
+let instanceCounter = 0;
+
 /**
- * 看板视图组件（US-539 阶段 A）：列 + 卡片 + 拖拽 + 本列排序 + 详情面板 +
- * 标签管理 + 撤销重做 + 备份入口占位 + 删除确认。
+ * 看板视图组件（看板 v2，GitHub Projects 风格）：页头 + 筛选条 + 列 / 卡片 + 叠加详情侧栏 +
+ * 根层菜单 / 选择器 + 模态对话框 + 带撤销的操作提示。
  *
- * 三端只采集指针事件，落点换算调用核心包同一份 `resolveCardDrop` /
- * `resolveColumnDrop`；全部写入口经 {@link useBoard} 的领域动作
- * （恢复中写门禁与校验在服务层复核，不靠隐藏按钮）。
+ * @remarks
+ * 动作收进上下文菜单、就地编辑即改即存（每次改动一个可撤销事务）、一个选择器与一套筛选语法走天下。
+ * 三端只采集指针 / 键盘事件，落点、键盘目标、筛选与弹层定位都调用核心包同一份纯函数；
+ * 全部写入口经 {@link useBoard} 的领域动作（恢复中写门禁与校验在服务层复核，不靠隐藏按钮）。
+ * 样式来自 `@aiao/rxdb-plugin-board/board.css`，Angular 宿主需在全局样式中引入。
  */
 @Component({
   selector: 'board-view',
   standalone: true,
-  imports: [CommonModule, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './board-view.html',
-  styles: [
-    `
-      /* 看板布局（US-539 交互约定：列横向排列、任务卡片纵向堆叠、列横向滚动；详情/确认面板固定右侧） */
-      .board-view {
-        display: block;
-        padding-bottom: 4rem;
-      }
-      .board-header {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        flex-wrap: wrap;
-      }
-      .board-selector {
-        padding: 0.25rem;
-      }
-      .header-button {
-        background: none;
-        border: none;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-      }
-      .header-actions {
-        display: flex;
-        gap: 0.375rem;
-        flex-wrap: wrap;
-      }
-      .restoring-badge {
-        background: #f59e0b;
-        color: #fff;
-        padding: 0 0.375rem;
-        border-radius: 0.25rem;
-        font-size: 0.75rem;
-      }
-      .restoring-note {
-        padding: 0.25rem 1rem;
-        color: #92400e;
-      }
-      .label-strip {
-        display: flex;
-        gap: 0.375rem;
-        padding: 0.25rem 1rem;
-        flex-wrap: wrap;
-      }
-      .label-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        border-radius: 0.25rem;
-        padding: 0 0.375rem;
-        color: #fff;
-        font-size: 0.75rem;
-      }
-      .label-name,
-      .label-recolor,
-      .label-delete {
-        background: none;
-        border: none;
-        color: inherit;
-        cursor: pointer;
-        font-size: inherit;
-        padding: 0;
-      }
-      .board-notice {
-        padding: 0.25rem 1rem;
-        color: #b91c1c;
-      }
-      .columns {
-        display: flex;
-        gap: 0.75rem;
-        overflow-x: auto;
-        padding: 0.5rem 1rem;
-        align-items: flex-start;
-      }
-      .columns-scroll-hint {
-        position: sticky;
-        left: 1rem;
-        flex: 0 0 auto;
-        margin: 0;
-        align-self: center;
-        color: #64748b;
-        font-size: 0.75rem;
-        writing-mode: vertical-rl;
-      }
-      .column {
-        flex: 0 0 17rem;
-        background: #f1f5f9;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-      }
-      .column-header {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        padding: 0.5rem;
-      }
-      .column-title {
-        margin: 0;
-        font-size: 0.875rem;
-        font-weight: 600;
-        flex: 1;
-      }
-      .column-count {
-        font-size: 0.75rem;
-        color: #64748b;
-      }
-      .column-menu {
-        display: flex;
-        gap: 0.125rem;
-        flex-wrap: wrap;
-      }
-      .column-menu button {
-        font-size: 0.75rem;
-        padding: 0.125rem 0.25rem;
-      }
-      .cards {
-        display: flex;
-        flex-direction: column;
-        gap: 0.375rem;
-        padding: 0.375rem;
-      }
-      .card {
-        background: #fff;
-        border-radius: 0.375rem;
-        padding: 0.5rem;
-        box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
-      }
-      .card-title {
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-        overflow: hidden;
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 0.875rem;
-        text-align: left;
-        padding: 0;
-        width: 100%;
-      }
-      .card-edit {
-        font-size: 0.75rem;
-      }
-      .card-labels {
-        display: flex;
-        gap: 0.25rem;
-        margin-top: 0.25rem;
-        flex-wrap: wrap;
-      }
-      .card-label {
-        padding: 0 0.375rem;
-        border-radius: 0.25rem;
-        color: #fff;
-        font-size: 0.75rem;
-      }
-      .card-due {
-        display: block;
-        margin-top: 0.25rem;
-        font-size: 0.75rem;
-        color: #64748b;
-      }
-      .card-due.overdue {
-        color: #dc2626;
-      }
-      .add-task {
-        width: 100%;
-        margin-top: 0.25rem;
-      }
-      .title-editor {
-        width: 100%;
-        box-sizing: border-box;
-      }
-      .empty-board {
-        padding: 2rem;
-      }
-      .detail-panel,
-      .confirm-panel {
-        position: fixed;
-        right: 1rem;
-        top: 4rem;
-        width: 20rem;
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-        z-index: 10;
-        max-height: calc(100vh - 6rem);
-        overflow-y: auto;
-      }
-      .detail-panel label {
-        display: block;
-        margin-bottom: 0.5rem;
-      }
-      .detail-panel input,
-      .detail-panel textarea {
-        width: 100%;
-        box-sizing: border-box;
-      }
-      .detail-actions,
-      .confirm-actions {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 0.75rem;
-      }
-      @media (max-width: 48rem) {
-        .detail-panel,
-        .confirm-panel {
-          right: 1rem;
-          left: 1rem;
-          width: auto;
-          box-sizing: border-box;
-        }
-      }
-      /* 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 源卡片半透明） */
-      .card.dragging,
-      .column-header.dragging {
-        opacity: 0.5;
-      }
-      .card.drop-before {
-        box-shadow: 0 -3px 0 0 #0969da;
-      }
-      .card.drop-after {
-        box-shadow: 0 3px 0 0 #0969da;
-      }
-      .column.drop-end {
-        outline: 3px dashed #0969da;
-        outline-offset: -3px;
-        border-radius: 0.5rem;
-      }
-      .column-header.drop-before {
-        box-shadow: -3px 0 0 0 #0969da;
-      }
-      .column-header.drop-after {
-        box-shadow: 3px 0 0 0 #0969da;
-      }
-      /* 板内搜索（US-539 阶段 B） */
-      .search-hit {
-        outline: 3px solid #f59e0b;
-        outline-offset: 2px;
-      }
-      .board-search {
-        padding: 0.25rem 1rem;
-      }
-      .board-search .search-input {
-        width: 100%;
-        max-width: 24rem;
-        padding: 0.25rem 0.5rem;
-      }
-      .search-results {
-        margin-top: 0.25rem;
-        max-height: 14rem;
-        overflow-y: auto;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.375rem;
-        background: #fff;
-      }
-      .search-result {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.125rem;
-        width: 100%;
-        padding: 0.375rem 0.5rem;
-        border: none;
-        border-bottom: 1px solid #f1f5f9;
-        background: none;
-        cursor: pointer;
-        text-align: left;
-      }
-      .search-result:disabled {
-        cursor: not-allowed;
-        opacity: 0.6;
-      }
-      .search-result-title {
-        font-size: 0.875rem;
-        font-weight: 600;
-      }
-      .search-result-column {
-        font-size: 0.75rem;
-        color: #64748b;
-      }
-      .search-result-snippet {
-        font-size: 0.75rem;
-        color: #334155;
-      }
-      .search-state {
-        padding: 0.5rem;
-        color: #64748b;
-      }
-      .search-more {
-        margin: 0.25rem;
-      }
-      /* 列底内联建任务 */
-      .add-task-form {
-        display: flex;
-        gap: 0.25rem;
-        margin-top: 0.25rem;
-      }
-      .add-task-input {
-        flex: 1;
-        min-width: 0;
-        padding: 0.25rem 0.5rem;
-      }
-      /* 详情面板菜单式移动（AC#6） */
-      .detail-move {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        align-items: flex-end;
-        margin-top: 0.5rem;
-      }
-      .detail-move label {
-        display: flex;
-        flex-direction: column;
-        gap: 0.125rem;
-        font-size: 0.75rem;
-      }
-    `
-  ]
+  templateUrl: './board-view.html'
 })
 export class BoardViewComponent implements OnInit, OnDestroy {
   private readonly injectorRef = inject(Injector);
+  private readonly uid = ++instanceCounter;
 
   private noticeTimer: number | null = null;
+  private toastTimer: number | null = null;
   private todayTimer: number | null = null;
   private searchHandle: SearchHandle | null = null;
   private searchSubs = new Subscription();
-
-  /** 输入绑定完成后（ngOnInit）安装的领域桥；首帧为 null。 */
-  private snapshot: TaskDraftSnapshot | null = null;
   private detailRequest = 0;
   private pendingDetailTaskId: UUID | null = null;
+  private detailQueue: Promise<unknown> = Promise.resolve();
+  private returnFocus: HTMLElement | null = null;
+  private pickerLabelDraft: readonly UUID[] = [];
 
-  protected readonly today = signal(this.localToday());
+  /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
+  readonly rxdb = input.required<Parameters<typeof useBoard>[0]>();
+  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。 */
+  readonly exportBackup = input<() => void | Promise<void>>();
+
   protected readonly board = signal<UseBoardReturn | null>(null);
+  protected readonly boardArea = viewChild<ElementRef<HTMLElement>>('boardArea');
+  protected readonly today = signal(localDateKey(new Date()));
+  protected readonly notice = signal<string | null>(null);
+  protected readonly toast = signal<{ readonly message: string; readonly undoable: boolean } | null>(null);
+  protected readonly popover = signal<PopoverState | null>(null);
+  protected readonly dialog = signal<DialogState | null>(null);
 
-  /** 正在拖拽的任务 / 列与指针轨迹。 */
-  protected readonly dragging = signal<{
-    readonly kind: 'task' | 'column';
-    readonly id: string;
-  } | null>(null);
-  /** 拖拽落点反馈（GitHub Projects 同款：插入线 / 列高亮 / 空列占位）。 */
+  protected readonly suggestionListId = `rxb-${this.uid}-suggestions`;
+  protected readonly dialogTitleId = `rxb-${this.uid}-dialog-title`;
+  protected readonly detailDescriptionId = `rxb-${this.uid}-description`;
+  protected readonly detailDueId = `rxb-${this.uid}-due`;
+  protected readonly labelColors = BOARD_LABEL_COLORS;
+  protected readonly shortcutGroups = SHORTCUT_GROUPS;
+
+  // ---------- 拖拽 ----------
+  protected readonly dragging = signal<{ readonly kind: 'task' | 'column'; readonly id: string } | null>(null);
   protected readonly dropTarget = signal<
     | { readonly kind: 'task'; readonly columnId: UUID; readonly mode: 'before' | 'after'; readonly taskId: UUID }
     | { readonly kind: 'task-end'; readonly columnId: UUID }
     | { readonly kind: 'column'; readonly columnId: UUID; readonly mode: 'before' | 'after' }
     | null
   >(null);
-  protected readonly detailTaskId = signal<UUID | null>(null);
-  protected readonly confirmDelete = signal<DeletePlan | null>(null);
-  protected readonly notice = signal<string | null>(null);
-  protected readonly boardArea = viewChild<ElementRef<HTMLElement>>('boardArea');
 
-  protected readonly taskMap = computed(() => {
-    const grouped = new Map<UUID, Task[]>();
-    const installed = this.board();
-    if (!installed) return grouped;
-    for (const column of installed.columns()) grouped.set(column.id, []);
-    for (const task of installed.tasks()) {
-      const list = grouped.get(task.columnId) ?? [];
-      list.push(task);
-      grouped.set(task.columnId, list);
-    }
-    return grouped;
-  });
-
-  protected editTitle = signal<UUID | null>(null);
-  /** 内联编辑标题草稿（与详情面板的标题草稿分离，避免互相污染）。 */
-  protected readonly editTitleValue = signal('');
-  /** 内联建任务（GitHub Projects 同款：列底输入框，Enter 提交 / Esc 取消）。 */
+  // ---------- 就地编辑 ----------
+  protected readonly editingBoardTitle = signal(false);
+  protected readonly boardTitleDraft = signal('');
+  protected readonly editingBoardDescription = signal(false);
+  protected readonly boardDescriptionDraft = signal('');
+  protected readonly editingColumnId = signal<UUID | null>(null);
+  protected readonly columnTitleDraft = signal('');
+  protected readonly editingTaskId = signal<UUID | null>(null);
+  protected readonly taskTitleDraft = signal('');
   protected readonly addTaskColumnId = signal<UUID | null>(null);
   protected readonly addTaskTitle = signal('');
   protected readonly creatingTask = signal(false);
-
-  protected readonly detailDraftTitle = signal('');
-  protected readonly draftDescription = signal<string>('');
-  /** 写入口 busy 状态（US-539 交互约定「写入」行：执行中阻止重复提交）。 */
-  protected readonly savingDetail = signal(false);
+  protected readonly addingColumn = signal(false);
+  protected readonly addColumnTitle = signal('');
+  protected readonly boardComposerTitle = signal('');
+  protected readonly labelEditor = signal<LabelEditorState | null>(null);
   protected readonly sortingColumnId = signal<UUID | null>(null);
-  /** 菜单式移动（US-539 AC#6 键盘等价路径）：目标列与插入下标。 */
-  protected readonly moveColumnId = signal<UUID | null>(null);
-  protected readonly movePosition = signal(0);
-  protected readonly moveTasks = computed(() =>
-    (this.taskMap().get(this.moveColumnId()!) ?? []).filter(task => task.id !== this.detailTaskId())
-  );
-  protected readonly draftDueDate = signal<string>('');
-  protected readonly draftLabelIds = signal<readonly UUID[]>([]);
+
+  // ---------- 详情侧栏（即改即存） ----------
+  protected readonly detailTaskId = signal<UUID | null>(null);
+  protected readonly detailBase = signal<TaskDraftSnapshot | null>(null);
+  protected readonly detailTitle = signal('');
+  protected readonly detailDescription = signal('');
+  protected readonly detailStatus = signal<string | null>(null);
+
+  // ---------- 选择器 ----------
+  protected readonly pickerQuery = signal('');
+  protected readonly pickerActive = signal(0);
+  private readonly pickerSelection = signal<readonly UUID[]>([]);
+
+  // ---------- 筛选 ----------
+  protected readonly filterQuery = signal('');
+  protected readonly filterFocused = signal(false);
+  protected readonly activeSuggestion = signal(-1);
+  private readonly suggestionsDismissed = signal(false);
+
+  // ---------- 键盘焦点 ----------
+  protected readonly focusedTaskId = signal<UUID | null>(null);
+
+  // ---------- 搜索（US-539 阶段 B，移入对话框） ----------
   protected readonly searchQuery = signal('');
   protected readonly searchState = signal<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
   protected readonly searchResults = signal<readonly SearchResult[]>([]);
@@ -448,16 +275,117 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   protected readonly searchErrorText = signal<string | null>(null);
   protected readonly searchHighlightId = signal<UUID | null>(null);
 
+  protected readonly writeLocked = computed(() => {
+    const installed = this.board();
+    return installed === null || installed.restoring() || installed.loading() || installed.readError() !== null;
+  });
+
+  protected readonly taskMap = computed(() => {
+    const grouped = new Map<UUID, Task[]>();
+    const installed = this.board();
+    if (!installed) return grouped;
+    for (const column of installed.columns()) grouped.set(column.id, []);
+    for (const task of installed.tasks()) grouped.get(task.columnId)?.push(task);
+    return grouped;
+  });
+
+  protected readonly filter = computed(() => parseBoardFilter(this.filterQuery()));
+  protected readonly filterActive = computed(() => !isBoardFilterEmpty(this.filter()));
+
+  protected readonly visibleTaskMap = computed(() => {
+    const visible = new Map<UUID, readonly Task[]>();
+    const installed = this.board();
+    if (!installed) return visible;
+    const filter = this.filter();
+    const active = this.filterActive();
+    const today = this.today();
+    for (const column of installed.columns()) {
+      const tasks = this.taskMap().get(column.id) ?? [];
+      const matches = (task: Task) =>
+        matchesBoardFilter(
+          {
+            title: task.title,
+            description: task.description ?? null,
+            dueDate: task.dueDate ?? null,
+            columnTitle: column.title,
+            labelNames: this.labelsOf(task.id).map(label => label.name)
+          },
+          filter,
+          today
+        );
+      visible.set(column.id, active ? tasks.filter(matches) : tasks);
+    }
+    return visible;
+  });
+
+  protected readonly visibleCount = computed(() =>
+    [...this.visibleTaskMap().values()].reduce((sum, tasks) => sum + tasks.length, 0)
+  );
+
+  protected readonly suggestions = computed(() => {
+    const installed = this.board();
+    if (!installed) return [];
+    return suggestBoardFilter(this.filterQuery(), {
+      labels: installed.labels(),
+      columns: installed.columns().map(column => column.title)
+    });
+  });
+
+  protected readonly suggestionsOpen = computed(
+    () => this.filterFocused() && !this.suggestionsDismissed() && this.suggestions().length > 0
+  );
+
+  protected readonly activeSuggestionId = computed(() =>
+    this.suggestionsOpen() && this.activeSuggestion() >= 0 ? `${this.suggestionListId}-${this.activeSuggestion()}` : null
+  );
+
+  private readonly filteredLabelNames = computed(() =>
+    this.filter()
+      .terms.filter(term => term.field === 'label' && !term.negated)
+      .flatMap(term => term.values.map(value => value.toLowerCase()))
+  );
+
+  /** 漫游 tabindex：上次聚焦的可见卡片，否则第一张可见卡片。 */
+  protected readonly rovingTaskId = computed(() => {
+    const visibleIds = [...this.visibleTaskMap().values()].flat().map(task => task.id);
+    const focused = this.focusedTaskId();
+    return focused !== null && visibleIds.includes(focused) ? focused : (visibleIds[0] ?? null);
+  });
+
+  protected readonly detailLabels = computed(() => {
+    const base = this.detailBase();
+    const installed = this.board();
+    if (!base || !installed) return [];
+    return installed.labels().filter(label => base.labelIds.includes(label.id));
+  });
+
+  protected readonly pickerOptions = computed<readonly PickerOption[]>(() => {
+    const pop = this.popover();
+    const installed = this.board();
+    if (!pop || !installed) return [];
+    const query = this.pickerQuery().trim().toLowerCase();
+    const selection = this.pickerSelection();
+    const options =
+      pop.kind === 'detail-label-picker' ?
+        installed.labels().map(label => ({ id: label.id, label: label.name, color: label.color }))
+      : installed.columns().map(column => ({ id: column.id, label: column.title, color: null }));
+    return options
+      .filter(option => option.label.toLowerCase().includes(query))
+      .map(option => ({ ...option, selected: selection.includes(option.id) }));
+  });
+
+  protected readonly canCreateLabelFromPicker = computed(() => {
+    const name = this.pickerQuery().trim();
+    const installed = this.board();
+    if (this.popover()?.kind !== 'detail-label-picker' || name === '' || !installed) return false;
+    return !installed.labels().some(label => label.name === name);
+  });
+
   protected get boardRef(): UseBoardReturn {
     const installed = this.board();
     if (!installed) throw new Error('board 尚未安装');
     return installed;
   }
-
-  /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
-  readonly rxdb = input.required<Parameters<typeof useBoard>[0]>();
-  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。 */
-  readonly exportBackup = input<() => void | Promise<void>>();
 
   ngOnInit(): void {
     // 显式注入上下文：JIT + zoneless 下生命周期钩子不保证自带注入上下文
@@ -479,130 +407,693 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     // 跨页恢复门禁（US-539 AC#5）：另一页开始恢复时经 storage 事件同步「恢复中」
     window.addEventListener('storage', this.onBoardStorage);
     window.addEventListener('focus', this.onTodayActivity);
+    window.addEventListener('resize', this.onViewportChange);
     document.addEventListener('visibilitychange', this.onTodayActivity);
+    document.addEventListener('keydown', this.onDocumentKeydown);
+    document.addEventListener('pointerdown', this.onDocumentPointerdown, true);
     this.onBoardStorage();
     this.onTodayActivity();
   }
 
   ngOnDestroy(): void {
-    this.invalidateDetailRequest();
+    this.detailRequest++;
     window.removeEventListener('storage', this.onBoardStorage);
     window.removeEventListener('focus', this.onTodayActivity);
+    window.removeEventListener('resize', this.onViewportChange);
     document.removeEventListener('visibilitychange', this.onTodayActivity);
-    if (this.todayTimer !== null) window.clearTimeout(this.todayTimer);
-    if (this.noticeTimer !== null) window.clearTimeout(this.noticeTimer);
-    this.searchSubs.unsubscribe();
+    document.removeEventListener('keydown', this.onDocumentKeydown);
+    document.removeEventListener('pointerdown', this.onDocumentPointerdown, true);
+    for (const timer of [this.todayTimer, this.noticeTimer, this.toastTimer]) {
+      if (timer !== null) window.clearTimeout(timer);
+    }
     this.destroySearch();
   }
 
-  /** 标签文字色（对比度，US-539 AC#6）：模板无法直接调模块级函数，包一层成员。 */
+  // ---------- 模板辅助 ----------
+
+  protected inputValue(event: Event): string {
+    return (event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value;
+  }
+
+  /** 标签文字色（对比度，US-539 AC#6）。 */
   protected labelTextColor(color: string): string {
     return pickLabelTextColor(color);
   }
 
-  // ---------- 创建 ----------
-
-  protected async createBoard(): Promise<void> {
-    const title = window.prompt('新建看板：标题');
-    if (title === null) return;
-    await this.guard(() => this.boardRef.actions.createBoard({ title }));
+  protected labelsOf(taskId: UUID): readonly BoardLabel[] {
+    return this.board()?.taskLabels().get(taskId) ?? [];
   }
 
-  protected async createColumn(): Promise<void> {
-    const title = window.prompt('新建列：标题');
-    if (title === null) return;
-    await this.guard(() => this.boardRef.actions.createColumn({ title }));
+  protected tasksOf(column: Column): readonly Task[] {
+    return this.taskMap().get(column.id) ?? [];
+  }
+
+  protected visibleTasksOf(column: Column): readonly Task[] {
+    return this.visibleTaskMap().get(column.id) ?? [];
+  }
+
+  protected countLabel(column: Column): string {
+    const visible = this.visibleTasksOf(column).length;
+    return this.filterActive() ? `筛选后 ${visible} / 共 ${this.tasksOf(column).length} 个任务` : `${visible} 个任务`;
+  }
+
+  protected overdueCount(column: Column): number {
+    return this.visibleTasksOf(column).filter(task => this.dueStatusOf(task.dueDate ?? null) === 'overdue').length;
+  }
+
+  protected dueStatusOf(dueDate: string | null): DueStatus | null {
+    return dueStatus(dueDate, this.today());
+  }
+
+  protected dueText(dueDate: string): string {
+    return dueStatusText(dueDate, this.today());
+  }
+
+  protected columnById(columnId: UUID | null): Column | undefined {
+    return this.board()
+      ?.columns()
+      .find(column => column.id === columnId);
+  }
+
+  protected taskById(taskId: UUID | null): Task | undefined {
+    return this.board()
+      ?.tasks()
+      .find(task => task.id === taskId);
+  }
+
+  protected columnTitleOf(columnId: UUID | null): string {
+    return this.columnById(columnId)?.title ?? '';
+  }
+
+  protected isFirstColumn(column: Column): boolean {
+    return this.board()?.columns()[0]?.id === column.id;
+  }
+
+  protected isLastColumn(column: Column): boolean {
+    return this.board()?.columns().at(-1)?.id === column.id;
+  }
+
+  protected isPopoverFor(kind: BoardPopoverKind, targetId: UUID): boolean {
+    const pop = this.popover();
+    return pop?.kind === kind && pop.targetId === targetId;
+  }
+
+  protected isLabelFiltered(name: string): boolean {
+    return this.filteredLabelNames().includes(name.toLowerCase());
+  }
+
+  protected popoverLabel(pop: PopoverState): string {
+    if (pop.kind === 'board-menu') return '看板操作';
+    if (pop.kind === 'column-menu') return `列操作：${this.columnTitleOf(pop.targetId)}`;
+    if (pop.kind === 'task-menu') return `任务操作：${this.taskById(pop.targetId)?.title ?? ''}`;
+    return pop.kind === 'detail-label-picker' ? '选择标签' : '移到列';
+  }
+
+  protected sameColor(a: string, b: string): boolean {
+    return a.toLowerCase() === b.trim().toLowerCase();
+  }
+
+  protected isValidColor(color: string): boolean {
+    return isHexColor(color);
+  }
+
+  /** 预览色：输入未完成时沿用灰色，不把非法色交给对比度计算。 */
+  protected previewColor(color: string): string {
+    return isHexColor(color) ? color.trim() : BOARD_LABEL_COLORS[0].color;
+  }
+
+  protected canMoveTask(task: Task, direction: BoardMoveDirection): boolean {
+    return resolveKeyboardMove(this.keyboardColumns(), task.id, direction) !== null;
+  }
+
+  // ---------- 页头：板 ----------
+
+  protected onBoardSelectionChange(event: Event): void {
+    const selector = event.target as HTMLSelectElement;
+    this.selectBoard(selector.value as UUID);
+    selector.value = this.boardRef.currentBoardId() ?? '';
+  }
+
+  protected openBoardComposer(event?: Event): void {
+    this.boardComposerTitle.set('');
+    this.openDialog({ kind: 'board-composer' }, event);
+  }
+
+  protected async submitBoardComposer(): Promise<void> {
+    const title = this.boardComposerTitle().trim();
+    if (title === '') return;
+    const created = await this.guard(() => this.boardRef.actions.createBoard({ title }));
+    if (!created) return;
+    this.closeDialog(false);
+    this.selectBoard(created.id);
+  }
+
+  protected startBoardTitle(): void {
+    this.boardTitleDraft.set(this.boardRef.currentBoard()?.title ?? '');
+    this.editingBoardTitle.set(true);
+    this.focusSoon('[data-testid="board-title-editor"]');
+  }
+
+  protected async commitBoardTitle(): Promise<void> {
+    const current = this.boardRef.currentBoard();
+    if (!this.editingBoardTitle() || !current) return;
+    this.editingBoardTitle.set(false);
+    const title = this.boardTitleDraft();
+    if (title.trim() === current.title) return;
+    const saved = await this.guard(() => this.boardRef.actions.updateBoard(current.id, { title }));
+    if (saved === undefined) this.editingBoardTitle.set(true);
+  }
+
+  protected cancelBoardTitle(event: Event): void {
+    event.stopPropagation();
+    this.editingBoardTitle.set(false);
+  }
+
+  protected startBoardDescription(): void {
+    this.boardDescriptionDraft.set(this.boardRef.currentBoard()?.description ?? '');
+    this.editingBoardDescription.set(true);
+    this.focusSoon('[data-testid="board-description-editor"]');
+  }
+
+  protected async commitBoardDescription(): Promise<void> {
+    const current = this.boardRef.currentBoard();
+    if (!this.editingBoardDescription() || !current) return;
+    this.editingBoardDescription.set(false);
+    const description = this.boardDescriptionDraft().trim();
+    if (description === (current.description ?? '')) return;
+    await this.guard(() => this.boardRef.actions.updateBoard(current.id, { description }));
+  }
+
+  protected onBoardDescriptionKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      this.editingBoardDescription.set(false);
+    }
+    if (event.key === 'Enter' && isModifier(event)) void this.commitBoardDescription();
+  }
+
+  protected openBoardMenu(event: Event): void {
+    this.togglePopover('board-menu', null, event);
+  }
+
+  protected openShortcuts(): void {
+    this.closePopover(false);
+    this.openDialog({ kind: 'shortcuts' });
+  }
+
+  protected async onExportBackup(): Promise<void> {
+    this.closePopover();
+    const callback = this.exportBackup();
+    if (!callback) {
+      this.showNotice('备份导出由宿主接线（US-537）');
+      return;
+    }
+    await this.guard(async () => {
+      await callback();
+      this.showToast('备份已生成', false);
+    });
+  }
+
+  protected async confirmBoardDelete(): Promise<void> {
+    const current = this.boardRef.currentBoard();
+    this.closePopover(false);
+    if (!current) return;
+    const plan = await this.guard(() => this.boardRef.actions.planBoardDelete(current.id));
+    if (plan) this.openDialog({ kind: 'confirm-delete', plan });
+  }
+
+  protected async undo(): Promise<void> {
+    await this.runHistory(() => this.boardRef.actions.undo());
+  }
+
+  protected async redo(): Promise<void> {
+    await this.runHistory(() => this.boardRef.actions.redo());
+  }
+
+  private async runHistory(operation: () => Promise<void>): Promise<void> {
+    const done = await this.guard(async () => {
+      await operation();
+      return true;
+    });
+    if (done) await this.refreshDetail();
+  }
+
+  protected async undoFromToast(): Promise<void> {
+    this.toast.set(null);
+    await this.undo();
+  }
+
+  // ---------- 筛选 ----------
+
+  protected onFilterInput(value: string): void {
+    this.filterQuery.set(value);
+    this.suggestionsDismissed.set(false);
+    this.activeSuggestion.set(-1);
+  }
+
+  protected onFilterKeydown(event: KeyboardEvent): void {
+    const count = this.suggestionsOpen() ? this.suggestions().length : 0;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (count === 0) return;
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      const current = this.activeSuggestion();
+      // 尚未选中时：↓ 到第一项、↑ 到最后一项
+      const start = step > 0 ? -1 : count;
+      this.activeSuggestion.set(((current < 0 ? start : current) + step + count) % count);
+      return;
+    }
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      const suggestion = this.suggestions()[this.activeSuggestion()];
+      if (count === 0 || suggestion === undefined) return;
+      event.preventDefault();
+      this.applySuggestion(suggestion.query);
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      if (this.suggestionsOpen()) this.suggestionsDismissed.set(true);
+      else (event.target as HTMLInputElement).blur();
+    }
+  }
+
+  protected applySuggestion(query: string): void {
+    this.onFilterInput(query);
+    this.focusSoon('[data-testid="board-filter-input"]');
+  }
+
+  protected clearFilter(): void {
+    this.onFilterInput('');
+  }
+
+  /** 点击卡片上的标签即筛选（再次点击取消）。 */
+  protected toggleLabelFilter(name: string): void {
+    this.filterQuery.set(toggleBoardFilterValue(this.filterQuery(), 'label', name));
+    this.suggestionsDismissed.set(true);
+  }
+
+  // ---------- 列 ----------
+
+  protected openColumnMenu(event: Event, column: Column): void {
+    this.togglePopover('column-menu', column.id, event);
+  }
+
+  protected startColumnTitle(columnId: UUID): void {
+    this.closePopover(false);
+    this.columnTitleDraft.set(this.columnTitleOf(columnId));
+    this.editingColumnId.set(columnId);
+    this.focusSoon('[data-testid="column-title-editor"]');
+  }
+
+  protected async commitColumnTitle(): Promise<void> {
+    const columnId = this.editingColumnId();
+    if (columnId === null) return;
+    this.editingColumnId.set(null);
+    const title = this.columnTitleDraft();
+    if (title.trim() === this.columnTitleOf(columnId)) return;
+    const saved = await this.guard(() => this.boardRef.actions.updateColumn(columnId, { title }));
+    if (saved === undefined) this.editingColumnId.set(columnId);
+  }
+
+  protected cancelColumnTitle(event: Event): void {
+    event.stopPropagation();
+    this.editingColumnId.set(null);
+  }
+
+  protected async sortColumnBy(columnId: UUID, mode: 'dueDate' | 'title'): Promise<void> {
+    if (this.sortingColumnId() !== null) return;
+    this.closePopover(false);
+    this.sortingColumnId.set(columnId);
+    try {
+      const result = await this.guard(() => this.boardRef.actions.sortColumn(columnId, mode));
+      if (!result) return;
+      const label = mode === 'dueDate' ? '截止日' : '标题';
+      this.showToast(
+        result.written ? `已按${label}排序「${this.columnTitleOf(columnId)}」` : '已按目标顺序排列，无变化',
+        result.written
+      );
+    } finally {
+      this.sortingColumnId.set(null);
+    }
+  }
+
+  protected async moveColumnBy(columnId: UUID, direction: -1 | 1): Promise<void> {
+    this.closePopover(false);
+    const ids = this.boardRef.columns().map(column => column.id);
+    const index = ids.indexOf(columnId);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= ids.length) return;
+    const target =
+      direction < 0 ?
+        { prevId: ids[targetIndex - 1] ?? null, nextId: ids[targetIndex] }
+      : { prevId: ids[targetIndex], nextId: ids[targetIndex + 1] ?? null };
+    await this.guard(() => this.boardRef.actions.moveColumn(columnId, target));
+    this.focusSoon(`[data-column-header-id="${columnId}"] [data-testid="column-menu-trigger"]`);
+  }
+
+  protected async confirmColumnDelete(column: Column): Promise<void> {
+    this.closePopover(false);
+    const plan = await this.guard(() => this.boardRef.actions.planColumnDelete(column.id));
+    if (plan) this.openDialog({ kind: 'confirm-delete', plan });
+  }
+
+  protected openAddColumn(): void {
+    this.addColumnTitle.set('');
+    this.addingColumn.set(true);
+    this.focusSoon('[data-testid="column-composer-input"]');
+  }
+
+  protected async commitAddColumn(): Promise<void> {
+    const title = this.addColumnTitle().trim();
+    if (title === '') return;
+    const created = await this.guard(() => this.boardRef.actions.createColumn({ title }));
+    if (created === undefined) return;
+    this.addingColumn.set(false);
+    this.addColumnTitle.set('');
+  }
+
+  protected cancelAddColumn(event?: Event): void {
+    event?.stopPropagation();
+    this.addingColumn.set(false);
   }
 
   protected openAddTask(columnId: UUID): void {
     if (this.creatingTask()) return;
     this.addTaskColumnId.set(columnId);
     this.addTaskTitle.set('');
+    this.focusSoon('[data-testid="add-task-input"]');
   }
 
-  protected cancelAddTask(): void {
+  protected cancelAddTask(event?: Event): void {
+    event?.stopPropagation();
     if (this.creatingTask()) return;
     this.addTaskColumnId.set(null);
     this.addTaskTitle.set('');
   }
 
+  /** 列底建任务（GitHub 同款）：回车即建，输入框保持打开以便连续录入。 */
   protected async commitAddTask(): Promise<void> {
-    if (this.creatingTask()) return;
     const columnId = this.addTaskColumnId();
     const title = this.addTaskTitle().trim();
-    if (columnId === null || title === '') {
-      this.cancelAddTask();
-      return;
-    }
+    if (this.creatingTask() || columnId === null || title === '') return;
     this.creatingTask.set(true);
     try {
       const created = await this.guard(() => this.boardRef.actions.createTask({ columnId, title }));
-      if (created !== undefined) {
-        this.addTaskColumnId.set(null);
-        this.addTaskTitle.set('');
-      }
+      if (created !== undefined) this.addTaskTitle.set('');
     } finally {
       this.creatingTask.set(false);
     }
+    this.focusSoon('[data-testid="add-task-input"]');
   }
 
-  // ---------- 标题内联编辑 ----------
+  // ---------- 卡片 ----------
 
-  protected async renameBoard(): Promise<void> {
-    const current = this.boardRef.currentBoard();
-    if (!current) return;
-    const title = window.prompt('改板标题', current.title);
-    if (title === null) return;
-    await this.guard(() => this.boardRef.actions.updateBoard(current.id, { title }));
+  protected openTaskMenu(event: Event, task: Task): void {
+    this.togglePopover('task-menu', task.id, event);
   }
 
-  protected async renameColumn(columnId: UUID): Promise<void> {
-    const column = this.boardRef.columns().find(c => c.id === columnId);
-    if (!column) return;
-    const title = window.prompt('改列标题', column.title);
-    if (title === null) return;
-    await this.guard(() => this.boardRef.actions.updateColumn(columnId, { title }));
+  protected startTaskTitle(task: Task): void {
+    this.closePopover(false);
+    this.taskTitleDraft.set(task.title);
+    this.editingTaskId.set(task.id);
+    this.focusSoon('[data-testid="task-title-editor"]');
   }
 
-  protected async startEditTitle(task: Task): Promise<void> {
-    this.editTitleValue.set(task.title);
-    this.editTitle.set(task.id);
-  }
-
-  protected async commitEditTitle(task: Task): Promise<void> {
-    const value = this.editTitleValue();
-    const result = await this.guard(() => this.boardRef.actions.updateTaskTitle(task.id, value));
+  protected async commitTaskTitle(task: Task): Promise<void> {
+    const saved = await this.guard(() => this.boardRef.actions.updateTaskTitle(task.id, this.taskTitleDraft()));
     // 失败保留编辑器与草稿（US-539 交互约定「失败保留草稿」）
-    if (result === undefined) return;
-    this.editTitle.set(null);
+    if (saved === undefined) return;
+    this.editingTaskId.set(null);
+    this.focusTaskSoon(task.id);
   }
 
-  protected cancelEditTitle(): void {
-    this.editTitle.set(null);
+  protected cancelTaskTitle(event?: Event): void {
+    event?.stopPropagation();
+    const taskId = this.editingTaskId();
+    this.editingTaskId.set(null);
+    if (taskId !== null) this.focusTaskSoon(taskId);
+  }
+
+  protected openMovePicker(task: Task): void {
+    const anchor = this.popoverAnchor();
+    this.popover.set(null);
+    this.openPicker('move-picker', task.id, anchor, [task.columnId]);
+  }
+
+  protected async moveTaskBy(task: Task, direction: BoardMoveDirection): Promise<void> {
+    this.closePopover(false);
+    const target = resolveKeyboardMove(this.keyboardColumns(), task.id, direction);
+    if (target === null) return;
+    if (await this.executeTaskMove(task.id, target)) this.focusTaskSoon(task.id);
+  }
+
+  protected async confirmTaskDelete(task: Task): Promise<void> {
+    this.closePopover(false);
+    const plan = await this.guard(() => this.boardRef.actions.planTaskDelete(task.id));
+    if (plan) this.openDialog({ kind: 'confirm-delete', plan });
+  }
+
+  protected onCardKeydown(event: KeyboardEvent, task: Task): void {
+    if (event.target !== event.currentTarget || !this.runCardKey(event, task)) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  // ---------- 详情侧栏 ----------
+
+  protected async openDetail(taskId: UUID): Promise<void> {
+    this.closePopover(false);
+    const request = ++this.detailRequest;
+    this.pendingDetailTaskId = taskId;
+    const snapshot = await this.guard(() => this.boardRef.actions.openSnapshot(taskId));
+    if (request !== this.detailRequest || !snapshot) return;
+    this.pendingDetailTaskId = null;
+    this.detailTaskId.set(taskId);
+    this.focusedTaskId.set(taskId);
+    this.applyDetailSnapshot(snapshot);
+    this.detailStatus.set(null);
+  }
+
+  protected closeDetail(): void {
+    const taskId = this.detailTaskId();
+    this.detailRequest++;
+    this.detailTaskId.set(null);
+    this.detailBase.set(null);
+    if (taskId !== null) this.focusTaskSoon(taskId);
+  }
+
+  protected commitDetailTitle(): Promise<void> {
+    return this.enqueueDetail(async () => {
+      const base = this.detailBase();
+      if (!base || this.detailTitle() === base.title) return;
+      await this.saveDetailFields({ title: this.detailTitle() });
+    });
+  }
+
+  protected revertDetailTitle(event: Event): void {
+    event.stopPropagation();
+    this.detailTitle.set(this.detailBase()?.title ?? '');
+  }
+
+  protected commitDetailDescription(): Promise<void> {
+    return this.enqueueDetail(async () => {
+      const base = this.detailBase();
+      if (!base || this.detailDescription().trim() === (base.description ?? '')) return;
+      await this.saveDetailFields({ description: this.detailDescription() });
+    });
+  }
+
+  protected onDetailDescriptionKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      this.detailDescription.set(this.detailBase()?.description ?? '');
+    }
+    if (event.key === 'Enter' && isModifier(event)) void this.commitDetailDescription();
+  }
+
+  protected commitDetailDue(value: string): Promise<void> {
+    return this.enqueueDetail(async () => {
+      const dueDate = value === '' ? null : value;
+      if (!this.detailBase() || dueDate === this.detailBase()?.dueDate) return;
+      await this.saveDetailFields({ dueDate });
+    });
+  }
+
+  protected openDetailColumnPicker(event: Event): void {
+    const base = this.detailBase();
+    if (!base) return;
+    this.openPicker('detail-column-picker', this.detailTaskId(), this.anchorOf(event), [base.columnId], event);
+  }
+
+  protected openDetailLabelPicker(event: Event): void {
+    const base = this.detailBase();
+    if (!base) return;
+    this.pickerLabelDraft = base.labelIds;
+    this.openPicker('detail-label-picker', this.detailTaskId(), this.anchorOf(event), base.labelIds, event);
+  }
+
+  protected async deleteDetailTask(event: Event): Promise<void> {
+    const task = this.taskById(this.detailTaskId());
+    this.returnFocus = event.currentTarget as HTMLElement;
+    if (task) await this.confirmTaskDelete(task);
+  }
+
+  // ---------- 选择器 ----------
+
+  protected onPickerInput(value: string): void {
+    this.pickerQuery.set(value);
+    this.pickerActive.set(0);
+  }
+
+  protected onPickerKeydown(event: KeyboardEvent): void {
+    const count = this.pickerOptions().length;
+    if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && count > 0) {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      this.pickerActive.set((this.pickerActive() + step + count) % count);
+      return;
+    }
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const option = this.pickerOptions()[this.pickerActive()];
+    if (option) void this.choosePickerOption(option.id);
+    else if (this.canCreateLabelFromPicker()) void this.createLabelFromPicker();
+  }
+
+  protected async choosePickerOption(optionId: UUID): Promise<void> {
+    const pop = this.popover();
+    if (!pop) return;
+    if (pop.kind === 'detail-label-picker') {
+      const selection = this.pickerSelection();
+      this.pickerSelection.set(
+        selection.includes(optionId) ? selection.filter(id => id !== optionId) : [...selection, optionId]
+      );
+      return;
+    }
+    const fromDetail = pop.kind === 'detail-column-picker';
+    this.closePopover(fromDetail);
+    if (pop.targetId !== null) await this.moveTaskToColumn(pop.targetId, optionId, !fromDetail);
+  }
+
+  protected async createLabelFromPicker(): Promise<void> {
+    const name = this.pickerQuery().trim();
+    const color = nextLabelColor(this.boardRef.labels().map(label => label.color));
+    const created = await this.guard(() => this.boardRef.actions.createLabel({ name, color }));
+    if (!created) return;
+    this.pickerSelection.set([...this.pickerSelection(), created.id]);
+    this.onPickerInput('');
+  }
+
+  protected onPopoverKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape') return;
+    event.stopPropagation();
+    this.closePopover();
+  }
+
+  // ---------- 对话框 ----------
+
+  protected openLabels(event?: Event): void {
+    this.labelEditor.set(null);
+    this.openDialog({ kind: 'labels' }, event);
+  }
+
+  protected openSearch(event?: Event): void {
+    this.openDialog({ kind: 'search' }, event);
+  }
+
+  protected closeDialog(restoreFocus = true): void {
+    const current = this.dialog();
+    this.dialog.set(null);
+    this.labelEditor.set(null);
+    if (current?.kind === 'confirm-label-delete') {
+      this.dialog.set({ kind: 'labels' });
+      return;
+    }
+    if (restoreFocus) this.restoreFocus();
+  }
+
+  protected onBackdropMousedown(event: MouseEvent): void {
+    if (event.target === event.currentTarget) this.closeDialog();
+  }
+
+  protected async executeConfirmedDelete(): Promise<void> {
+    const current = this.dialog();
+    if (current?.kind === 'confirm-label-delete') {
+      this.dialog.set({ kind: 'labels' });
+      const deleted = await this.guard(() => this.boardRef.actions.executeLabelDelete(current.plan));
+      if (deleted !== undefined) this.showToast(`已删除标签「${current.plan.labelName}」`, true);
+      return;
+    }
+    if (current?.kind !== 'confirm-delete') return;
+    this.dialog.set(null);
+    const plan = current.plan;
+    const deleted = await this.guard(async () => {
+      await this.boardRef.actions.executeDelete(plan);
+      return true;
+    });
+    if (!deleted) return;
+    const removedIds = plan.kind === 'task' ? [plan.taskId] : plan.taskIds;
+    // 正在加载的详情若属于被删集合，迟到的快照不得再打开侧栏
+    if (this.pendingDetailTaskId !== null && removedIds.includes(this.pendingDetailTaskId)) this.detailRequest++;
+    const detailTaskId = this.detailTaskId();
+    if (detailTaskId !== null && removedIds.includes(detailTaskId)) {
+      this.detailRequest++;
+      this.detailTaskId.set(null);
+      this.detailBase.set(null);
+    }
+    if (plan.kind === 'board') this.destroySearch();
+    this.showToast(this.deletedMessage(plan), true);
+  }
+
+  protected startCreateLabel(): void {
+    this.labelEditor.set({ labelId: null, name: '', color: nextLabelColor(this.boardRef.labels().map(l => l.color)) });
+    this.focusSoon('[data-testid="label-name-input"]');
+  }
+
+  protected startEditLabel(label: BoardLabel): void {
+    this.labelEditor.set({ labelId: label.id, name: label.name, color: label.color });
+    this.focusSoon('[data-testid="label-name-input"]');
+  }
+
+  protected updateLabelEditor(patch: Partial<LabelEditorState>): void {
+    const editor = this.labelEditor();
+    if (editor) this.labelEditor.set({ ...editor, ...patch });
+  }
+
+  protected cancelLabelEditor(): void {
+    this.labelEditor.set(null);
+  }
+
+  protected async saveLabelEditor(): Promise<void> {
+    const editor = this.labelEditor();
+    if (!editor || editor.name.trim() === '' || !isHexColor(editor.color)) return;
+    const saved = await this.guard(() => this.persistLabel(editor));
+    if (saved !== undefined) this.labelEditor.set(null);
+  }
+
+  protected async deleteLabel(label: BoardLabel): Promise<void> {
+    const plan = await this.guard(() => this.boardRef.actions.planLabelDelete(label.id));
+    if (plan) this.dialog.set({ kind: 'confirm-label-delete', plan });
   }
 
   // ---------- 拖拽（只采集指针事件，落点由核心包换算） ----------
 
   protected onTaskDragStart(event: DragEvent, task: Task): void {
     event.dataTransfer?.setData('application/x-board-task', task.id);
+    this.closePopover(false);
     this.dragging.set({ kind: 'task', id: task.id });
   }
 
   protected onTaskDragOver(event: DragEvent): void {
     // 列头 handler 冒泡到这里，按拖拽类型分流，否则列拖拽的落点会被任务换算覆盖
     event.preventDefault();
-    if (this.dragging()?.kind !== 'task') return;
-    const movedId = this.dragging()?.id as UUID | undefined;
+    const movedId = this.dragging()?.kind === 'task' ? (this.dragging()?.id as UUID) : undefined;
     const area = this.boardArea()?.nativeElement;
     if (!movedId || !area) return;
     const target = resolveCardDrop(this.columnViews(area), movedId, event.clientX, event.clientY);
-    if (!target) {
-      this.dropTarget.set(null);
-      return;
-    }
     this.dropTarget.set(
-      target.kind === 'end' ?
-        { kind: 'task-end', columnId: target.columnId }
+      target === null ? null
+      : target.kind === 'end' ? { kind: 'task-end', columnId: target.columnId }
       : {
           kind: 'task',
           columnId: target.columnId,
@@ -614,393 +1105,50 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected onColumnDragStart(event: DragEvent, column: Column): void {
     event.dataTransfer?.setData('application/x-board-column', column.id);
+    this.closePopover(false);
     this.dragging.set({ kind: 'column', id: column.id });
   }
 
   protected onColumnDragOver(event: DragEvent): void {
     event.preventDefault();
     if (this.dragging()?.kind !== 'column') return;
-    const movedId = this.dragging()?.id as UUID | undefined;
-    if (!movedId) return;
-    const target = resolveColumnDrop(
-      this.boardRef.columns().map(column => ({ columnId: column.id, rect: this.columnRect(column.id) })),
-      this.boardRef.columns().map(column => column.id),
-      movedId,
-      event.clientX
+    const target = this.resolveColumnTarget(this.dragging()!.id as UUID, event.clientX);
+    const anchorId = target === null ? null : (target.prevId ?? target.nextId);
+    this.dropTarget.set(
+      target === null || anchorId === null ?
+        null
+      : { kind: 'column', columnId: anchorId, mode: target.prevId === null ? 'before' : 'after' }
     );
-    if (!target) {
-      this.dropTarget.set(null);
-      return;
-    }
-    const anchorId = target.prevId ?? target.nextId;
-    if (anchorId === null) {
-      this.dropTarget.set(null);
-      return;
-    }
-    this.dropTarget.set({ kind: 'column', columnId: anchorId, mode: target.prevId === null ? 'before' : 'after' });
   }
 
-  protected async onTaskDrop(event: DragEvent, column: Column): Promise<void> {
+  protected async onTaskDrop(event: DragEvent): Promise<void> {
     event.preventDefault();
-    const movedId = (event.dataTransfer?.getData('application/x-board-task') ??
+    const movedId = (event.dataTransfer?.getData('application/x-board-task') ||
       (this.dragging()?.kind === 'task' ? this.dragging()?.id : undefined)) as UUID | undefined;
+    // 列拖拽冒泡到这里时不清理拖拽态：根层的列落点还要用
     if (!movedId) return;
-    this.clearDragFeedback();
     const area = this.boardArea()?.nativeElement;
+    this.clearDragFeedback();
     if (!area) return;
-    const target = this.resolveTaskTarget(column, movedId, event.clientX, event.clientY, area);
-    if (!target) return;
-    await this.executeTaskMove(movedId, target);
+    const target = resolveCardDrop(this.columnViews(area), movedId, event.clientX, event.clientY);
+    if (target) await this.executeTaskMove(movedId, target);
   }
 
   protected async onColumnDrop(event: DragEvent): Promise<void> {
     event.preventDefault();
-    const movedId = (event.dataTransfer?.getData('application/x-board-column') ??
+    const movedId = (event.dataTransfer?.getData('application/x-board-column') ||
       (this.dragging()?.kind === 'column' ? this.dragging()?.id : undefined)) as UUID | undefined;
-    if (!movedId) return;
     this.clearDragFeedback();
-    const area = this.boardArea()?.nativeElement;
-    if (!area) return;
-    const target = this.resolveColumnTarget(movedId, event.clientX, area);
-    if (!target) return;
-    await this.guard(() => this.boardRef.actions.moveColumn(movedId, target));
+    if (!movedId) return;
+    const target = this.resolveColumnTarget(movedId, event.clientX);
+    if (target) await this.guard(() => this.boardRef.actions.moveColumn(movedId, target));
   }
 
-  protected async sortColumnBy(columnId: UUID, mode: 'dueDate' | 'title'): Promise<void> {
-    if (this.sortingColumnId() !== null) return;
-    this.sortingColumnId.set(columnId);
-    try {
-      const result = await this.guard(() => this.boardRef.actions.sortColumn(columnId, mode));
-      if (result && !result.written) this.notice.set('已按目标顺序排列，无变化');
-    } finally {
-      this.sortingColumnId.set(null);
-    }
+  protected clearDragFeedback(): void {
+    this.dragging.set(null);
+    this.dropTarget.set(null);
   }
 
-  protected async moveColumnBy(columnId: UUID, direction: -1 | 1): Promise<void> {
-    const ids = this.boardRef.columns().map(column => column.id);
-    const index = ids.indexOf(columnId);
-    if (index < 0) return;
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= ids.length) return;
-    const target =
-      direction < 0 ?
-        { prevId: ids[targetIndex - 1] ?? null, nextId: ids[targetIndex] }
-      : { prevId: ids[targetIndex], nextId: ids[targetIndex + 1] ?? null };
-    await this.guard(() => this.boardRef.actions.moveColumn(columnId, target));
-  }
-
-  // ---------- 详情面板 ----------
-
-  protected async openDetail(taskId: UUID): Promise<void> {
-    this.invalidateDetailRequest();
-    const request = this.detailRequest;
-    if (this.detailTaskId() === taskId) return;
-    if (this.isDetailDirty() && !window.confirm('有未保存的修改，切换任务将放弃。继续？')) return;
-    this.pendingDetailTaskId = taskId;
-    const draftState = this.detailDraftState();
-    const snap = await this.guard(() => this.boardRef.actions.openSnapshot(taskId));
-    if (request !== this.detailRequest) return;
-    this.pendingDetailTaskId = null;
-    if (!snap) return;
-    if (draftState !== this.detailDraftState()) return;
-    this.snapshot = snap;
-    this.detailTaskId.set(taskId);
-    this.detailDraftTitle.set(snap.title);
-    this.draftDescription.set(snap.description ?? '');
-    this.draftDueDate.set(snap.dueDate ?? '');
-    this.draftLabelIds.set([...snap.labelIds]);
-    this.moveColumnId.set(snap.columnId);
-    this.movePosition.set(0);
-  }
-
-  /** 详情草稿相对快照是否有未保存修改（US-539「详情」行：关闭 / 切板先确认放弃）。 */
-  protected isDetailDirty(): boolean {
-    return (
-      this.snapshot !== null &&
-      (this.detailDraftTitle() !== this.snapshot.title ||
-        this.draftDescription() !== (this.snapshot.description ?? '') ||
-        this.draftDueDate() !== (this.snapshot.dueDate ?? '') ||
-        [...this.draftLabelIds()].sort().join(',') !== [...this.snapshot.labelIds].sort().join(','))
-    );
-  }
-
-  protected closeDetail(): void {
-    if (this.isDetailDirty() && !window.confirm('有未保存的修改，关闭将放弃。继续？')) return;
-    this.invalidateDetailRequest();
-    this.detailTaskId.set(null);
-    this.snapshot = null;
-  }
-
-  /** 菜单式移动（AC#6）：目标列 + 插入下标 → 核心换算表 → 移动；原位零写提示。 */
-  protected async moveTaskByMenu(): Promise<void> {
-    const taskId = this.detailTaskId();
-    const columnId = this.moveColumnId();
-    if (taskId === null || columnId === null) return;
-    const target = resolveMenuMove(
-      this.boardRef.columns().map(column => ({
-        columnId: column.id,
-        taskIds: (this.taskMap().get(column.id) ?? []).map(task => task.id)
-      })),
-      taskId,
-      columnId,
-      this.movePosition()
-    );
-    if (target === null) {
-      this.notice.set('任务已在该位置');
-      return;
-    }
-    if (await this.executeTaskMove(taskId, target)) this.focusMovedCard(taskId);
-  }
-
-  protected async saveDetail(): Promise<void> {
-    const taskId = this.detailTaskId();
-    if (!taskId || !this.snapshot || this.savingDetail()) return;
-    const snapshot = this.snapshot;
-    this.savingDetail.set(true);
-    try {
-      const result = await this.guard(() =>
-        this.boardRef.actions.saveTaskDraft(taskId, snapshot, {
-          title: this.detailDraftTitle(),
-          description: this.draftDescription(),
-          dueDate: this.draftDueDate() === '' ? null : this.draftDueDate(),
-          labelIds: this.draftLabelIds()
-        })
-      );
-      // 保存失败（空标题 / 非法日期 / 快照复核拒绝等）保留草稿，不关面板
-      if (result === undefined) return;
-      if (taskId !== this.detailTaskId() || snapshot !== this.snapshot) return;
-      // 保存成功直接关（不走 closeDetail 的未保存确认：草稿与旧快照的差异已被本次保存清掉）
-      this.detailTaskId.set(null);
-      this.snapshot = null;
-    } finally {
-      this.savingDetail.set(false);
-    }
-  }
-
-  protected toggleDraftLabel(labelId: UUID): void {
-    const current = this.draftLabelIds();
-    this.draftLabelIds.set(current.includes(labelId) ? current.filter(id => id !== labelId) : [...current, labelId]);
-  }
-
-  // ---------- 标签管理 ----------
-
-  protected async createLabel(): Promise<void> {
-    const name = window.prompt('新建标签：名称');
-    if (name === null) return;
-    const color = window.prompt('标签颜色（#rrggbb）', '#e11d48');
-    if (color === null) return;
-    await this.guard(() => this.boardRef.actions.createLabel({ name, color }));
-  }
-
-  protected async renameLabel(labelId: UUID): Promise<void> {
-    const label = this.boardRef.labels().find(item => item.id === labelId);
-    if (!label) return;
-    const name = window.prompt('改标签名', label.name);
-    if (name === null) return;
-    await this.guard(() => this.boardRef.actions.renameLabel(labelId, name));
-  }
-
-  protected async recolorLabel(labelId: UUID): Promise<void> {
-    const label = this.boardRef.labels().find(item => item.id === labelId);
-    if (!label) return;
-    const color = window.prompt('改标签颜色（#rrggbb）', label.color);
-    if (color === null) return;
-    await this.guard(() => this.boardRef.actions.recolorLabel(labelId, color));
-  }
-
-  protected async deleteLabel(labelId: UUID): Promise<void> {
-    const plan = await this.guard(() => this.boardRef.actions.planLabelDelete(labelId));
-    if (!plan) return;
-    const confirmed = window.confirm(`删除标签「${plan.labelName}」？将移除 ${plan.taskLabelIds.length} 条任务关联。`);
-    if (!confirmed) return;
-    await this.guard(() => this.boardRef.actions.executeLabelDelete(plan));
-  }
-
-  // ---------- 删除确认（确认在事务外、集合在事务内复核） ----------
-
-  /** 详情面板删除入口：先出确认（确认在事务外，集合在事务内复核）。 */
-  protected async deleteDetailTask(): Promise<void> {
-    const taskId = this.detailTaskId();
-    if (!taskId) return;
-    const task = this.board()
-      ?.tasks()
-      .find(candidate => candidate.id === taskId);
-    if (task) await this.confirmTaskDelete(task);
-  }
-
-  protected async confirmTaskDelete(task: Task): Promise<void> {
-    const plan = await this.guard(() => this.boardRef.actions.planTaskDelete(task.id));
-    if (!plan) return;
-    this.confirmDelete.set(plan);
-  }
-
-  protected async confirmColumnDelete(column: Column): Promise<void> {
-    const plan = await this.guard(() => this.boardRef.actions.planColumnDelete(column.id));
-    if (!plan) return;
-    this.confirmDelete.set(plan);
-  }
-
-  protected async confirmBoardDelete(): Promise<void> {
-    const current = this.boardRef.currentBoard();
-    if (!current) return;
-    const plan = await this.guard(() => this.boardRef.actions.planBoardDelete(current.id));
-    if (!plan) return;
-    this.confirmDelete.set(plan);
-  }
-
-  protected async executeConfirmedDelete(): Promise<void> {
-    const pending = this.confirmDelete();
-    if (!pending) return;
-    this.confirmDelete.set(null);
-    const deleted = await this.guard(async () => {
-      await this.boardRef.actions.executeDelete(pending);
-      return true;
-    });
-    if (!deleted) return;
-    const removedIds = pending.kind === 'task' ? [pending.taskId] : pending.taskIds;
-    if (this.pendingDetailTaskId !== null && removedIds.includes(this.pendingDetailTaskId)) {
-      this.invalidateDetailRequest();
-    }
-    const taskId = this.detailTaskId();
-    if (taskId !== null && removedIds.includes(taskId)) {
-      this.detailTaskId.set(null);
-      this.snapshot = null;
-    }
-    if (pending.kind === 'board') this.onSearchInput('');
-  }
-
-  protected cancelDelete(): void {
-    this.confirmDelete.set(null);
-  }
-
-  // ---------- 撤销重做 / 备份入口 ----------
-
-  protected async undo(): Promise<void> {
-    await this.guard(() => this.boardRef.actions.undo());
-  }
-
-  protected async redo(): Promise<void> {
-    await this.guard(() => this.boardRef.actions.redo());
-  }
-
-  /** 备份导出入口（US-537 编排由宿主接线；缺省展示占位提示）。 */
-  protected async onExportBackup(): Promise<void> {
-    const callback = this.exportBackup();
-    if (callback) {
-      await callback();
-    } else {
-      this.notice.set('备份导出由宿主接线（US-537）');
-    }
-  }
-
-  /** 统一写入口错误反馈：失败保留输入并提示，不静默。 */
-  protected dueDateText(task: Task): string {
-    const due = task.dueDate;
-    if (!due) return '';
-    // 纯日期比较：早于本地今天才逾期、今天不逾期（US-539 AC#12）
-    const today = this.today();
-    return (
-      due < today ? `已逾期 ${due}`
-      : due === today ? `今天到期 ${due}`
-      : due
-    );
-  }
-
-  protected labelsOf(taskId: UUID): readonly import('@aiao/rxdb-plugin-board').BoardLabel[] {
-    return this.board()?.taskLabels().get(taskId) ?? [];
-  }
-
-  // ---------- 板内搜索（US-539 阶段 B） ----------
-
-  /** 输入变化：空查询销毁句柄退出搜索态；否则按防抖复用同一句柄。 */
-  /** 切板：先切换，再销毁重建句柄重发当前查询（setQuery 同词会被 distinctUntilChanged 吞掉）。 */
-  protected onBoardSelectionChange(event: Event): void {
-    const selector = event.target as HTMLSelectElement;
-    this.onSelectBoard(selector.value as UUID);
-    selector.value = this.boardRef.currentBoardId() ?? '';
-  }
-
-  protected onSelectBoard(boardId: UUID): void {
-    // 切板前确认是否放弃未保存修改。
-    if (this.detailTaskId() !== null) {
-      if (this.isDetailDirty() && !window.confirm('切板将放弃未保存的修改。继续？')) return;
-      this.detailTaskId.set(null);
-      this.snapshot = null;
-    }
-    this.invalidateDetailRequest();
-    this.boardRef.selectBoard(boardId);
-    const query = this.searchQuery().trim();
-    if (query !== '') {
-      this.destroySearch();
-      this.onSearchInput(query);
-    }
-  }
-
-  protected onSearchInput(value: string): void {
-    this.searchQuery.set(value);
-    const query = value.trim();
-    if (query === '') {
-      this.destroySearch();
-      return;
-    }
-    const source = this.board()?.searchSource;
-    if (!source) return;
-    if (this.searchHandle === null) {
-      const handle = source.search(query);
-      this.searchHandle = handle;
-      // 上一组句柄订阅先退订（destroy 不保证上游 observable 不再发射）
-      this.searchSubs.unsubscribe();
-      this.searchSubs = new Subscription();
-      this.searchSubs.add(handle.state$.subscribe(state => this.searchState.set(state)));
-      this.searchSubs.add(handle.results$.subscribe(results => this.searchResults.set(results)));
-      this.searchSubs.add(handle.hasMore$.subscribe(more => this.searchHasMore.set(more)));
-      this.searchSubs.add(handle.error$.subscribe(error => this.searchErrorText.set(String(error))));
-    } else {
-      this.searchHandle.setQuery(query);
-    }
-  }
-
-  protected onSearchMore(): void {
-    if (this.searchState() === 'loading') return;
-    void this.searchHandle?.loadMore();
-  }
-
-  /** 点结果：滚动到目标卡片并短暂高亮（更新中不可点）。 */
-  protected onSearchResultClick(result: SearchResult): void {
-    if (this.searchState() === 'loading') return;
-    const area = this.boardArea()?.nativeElement;
-    const taskElement = area?.querySelector<HTMLElement>(`[data-task-id="${result.id}"]`);
-    taskElement?.scrollIntoView({ block: 'center' });
-    const targetId = result.id as UUID;
-    this.searchHighlightId.set(targetId);
-    window.setTimeout(() => {
-      if (this.searchHighlightId() === targetId) this.searchHighlightId.set(null);
-    }, 2000);
-  }
-
-  protected searchColumnTitle(result: SearchResult): string {
-    const task = this.board()
-      ?.tasks()
-      .find(candidate => candidate.id === (result.id as UUID));
-    const column =
-      task ?
-        this.board()
-          ?.columns()
-          .find(candidate => candidate.id === task.columnId)
-      : undefined;
-    return column?.title ?? '';
-  }
-
-  protected searchResultTitle(result: SearchResult): string {
-    return (
-      this.board()
-        ?.tasks()
-        .find(candidate => candidate.id === (result.id as UUID))?.title ?? ''
-    );
-  }
-
-  /** 落点反馈判定（模板用）。 */
   protected isDropBefore(task: Task): boolean {
     const target = this.dropTarget();
     return target?.kind === 'task' && target.taskId === task.id && target.mode === 'before';
@@ -1012,7 +1160,13 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   protected isDropEnd(column: Column): boolean {
-    return this.dropTarget()?.kind === 'task-end' && this.dropTarget()?.columnId === column.id;
+    const target = this.dropTarget();
+    return target?.kind === 'task-end' && target.columnId === column.id;
+  }
+
+  protected isDropColumn(column: Column): boolean {
+    const target = this.dropTarget();
+    return target !== null && target.kind !== 'column' && target.columnId === column.id;
   }
 
   protected isColumnDropBefore(column: Column): boolean {
@@ -1033,6 +1187,61 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     return this.dragging()?.kind === 'column' && this.dragging()?.id === column.id;
   }
 
+  // ---------- 搜索（US-539 阶段 B） ----------
+
+  /** 输入变化：空查询销毁句柄退出搜索态；否则复用同一句柄。 */
+  protected onSearchInput(value: string): void {
+    this.searchQuery.set(value);
+    const query = value.trim();
+    if (query === '') {
+      this.destroySearch();
+      return;
+    }
+    const source = this.board()?.searchSource;
+    if (!source) return;
+    if (this.searchHandle !== null) {
+      this.searchHandle.setQuery(query);
+      return;
+    }
+    const handle = source.search(query);
+    this.searchHandle = handle;
+    // 上一组句柄订阅先退订（destroy 不保证上游 observable 不再发射）
+    this.searchSubs.unsubscribe();
+    this.searchSubs = new Subscription();
+    this.searchSubs.add(handle.state$.subscribe(state => this.searchState.set(state)));
+    this.searchSubs.add(handle.results$.subscribe(results => this.searchResults.set(results)));
+    this.searchSubs.add(handle.hasMore$.subscribe(more => this.searchHasMore.set(more)));
+    this.searchSubs.add(handle.error$.subscribe(error => this.searchErrorText.set(String(error))));
+  }
+
+  protected onSearchMore(): void {
+    if (this.searchState() === 'loading') return;
+    void this.searchHandle?.loadMore();
+  }
+
+  /** 点结果：关闭对话框、滚动到目标卡片、聚焦并短暂高亮（更新中不可点）。 */
+  protected onSearchResultClick(result: SearchResult): void {
+    if (this.searchState() === 'loading') return;
+    const targetId = result.id as UUID;
+    this.closeDialog(false);
+    this.boardArea()
+      ?.nativeElement.querySelector<HTMLElement>(`[data-task-id="${targetId}"]`)
+      ?.scrollIntoView({ block: 'center', inline: 'center' });
+    this.focusTaskSoon(targetId);
+    this.searchHighlightId.set(targetId);
+    window.setTimeout(() => {
+      if (this.searchHighlightId() === targetId) this.searchHighlightId.set(null);
+    }, 2000);
+  }
+
+  protected searchColumnTitle(result: SearchResult): string {
+    return this.columnTitleOf(this.taskById(result.id as UUID)?.columnId ?? null);
+  }
+
+  protected searchResultTitle(result: SearchResult): string {
+    return this.taskById(result.id as UUID)?.title ?? '';
+  }
+
   protected searchUnavailableText(reason: BoardSearchUnavailableReason | null): string {
     return (
       reason === 'plugin_not_installed' ? '搜索插件未安装'
@@ -1042,48 +1251,346 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     );
   }
 
-  /** 恢复标记跨页同步：读 localStorage 标记并把门禁下发到领域桥。 */
-  private readonly onBoardStorage = (): void => {
-    this.board()?.setRestoring(
-      typeof localStorage !== 'undefined' && localStorage.getItem(RESTORING_MARKER_KEY) !== null
+  // ---------- 弹层 ----------
+
+  protected closePopover(restoreFocus = true): void {
+    const pop = this.popover();
+    if (!pop) return;
+    this.popover.set(null);
+    if (pop.kind === 'detail-label-picker') void this.commitPickerLabels();
+    if (restoreFocus) this.restoreFocus();
+  }
+
+  private togglePopover(kind: BoardPopoverKind, targetId: UUID | null, event: Event): void {
+    if (this.popover()?.kind === kind && this.popover()?.targetId === targetId) {
+      this.closePopover();
+      return;
+    }
+    this.closePopover(false);
+    this.returnFocus = event.currentTarget as HTMLElement;
+    this.popover.set(this.placedPopover(kind, targetId, this.anchorOf(event), 'end'));
+    this.focusSoon('.rxb-popover button:not(:disabled)');
+  }
+
+  private openPicker(
+    kind: BoardPopoverKind,
+    targetId: UUID | null,
+    anchor: DOMRect,
+    selection: readonly UUID[],
+    event?: Event
+  ): void {
+    this.closePopover(false);
+    if (event) this.returnFocus = event.currentTarget as HTMLElement;
+    this.pickerQuery.set('');
+    this.pickerActive.set(0);
+    this.pickerSelection.set(selection);
+    this.popover.set(this.placedPopover(kind, targetId, anchor, kind === 'move-picker' ? 'end' : 'start'));
+    this.focusSoon('[data-testid="picker-filter"]');
+  }
+
+  private placedPopover(
+    kind: BoardPopoverKind,
+    targetId: UUID | null,
+    anchor: DOMRect,
+    align: 'start' | 'end'
+  ): PopoverState {
+    const width = POPOVER_WIDTH[kind];
+    const position = placePopover(
+      anchor,
+      { width, height: POPOVER_HEIGHT[kind] },
+      { width: window.innerWidth, height: window.innerHeight },
+      { align }
     );
+    return { kind, targetId, width, ...position };
+  }
+
+  private anchorOf(event: Event): DOMRect {
+    return (event.currentTarget as HTMLElement).getBoundingClientRect();
+  }
+
+  /** 当前菜单的位置作为子选择器的锚点（「移到列…」从卡片菜单展开）。 */
+  private popoverAnchor(): DOMRect {
+    const pop = this.popover();
+    return pop ? new DOMRect(pop.left + pop.width, pop.top, 0, 0) : new DOMRect();
+  }
+
+  private async commitPickerLabels(): Promise<void> {
+    const selection = this.pickerSelection();
+    const before = this.pickerLabelDraft;
+    if (selection.length === before.length && selection.every(id => before.includes(id))) return;
+    await this.enqueueDetail(() => this.saveDetailFields({ labelIds: selection }));
+  }
+
+  /** 移到目标列末尾（与 GitHub「Move to column」一致）；从详情侧栏发起时焦点留在侧栏。 */
+  private async moveTaskToColumn(taskId: UUID, columnId: UUID, focusCard: boolean): Promise<void> {
+    const column = this.taskMap().get(columnId) ?? [];
+    const target = resolveMenuMove(this.menuColumns(), taskId, columnId, column.length);
+    if (target === null) return;
+    if ((await this.executeTaskMove(taskId, target)) && focusCard) this.focusTaskSoon(taskId);
+  }
+
+  // ---------- 对话框 / 提示 ----------
+
+  private openDialog(state: DialogState, event?: Event): void {
+    this.closePopover(false);
+    if (event) this.returnFocus = event.currentTarget as HTMLElement;
+    this.dialog.set(state);
+    this.focusSoon('.rxb-dialog [data-autofocus]');
+  }
+
+  private restoreFocus(): void {
+    const target = this.returnFocus;
+    this.returnFocus = null;
+    if (target?.isConnected) target.focus();
+  }
+
+  private showNotice(message: string): void {
+    this.notice.set(message);
+    if (this.noticeTimer !== null) window.clearTimeout(this.noticeTimer);
+    this.noticeTimer = window.setTimeout(() => this.notice.set(null), 5000);
+  }
+
+  private showToast(message: string, undoable: boolean): void {
+    this.toast.set({ message, undoable });
+    if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
+    this.toastTimer = window.setTimeout(() => this.toast.set(null), 6000);
+  }
+
+  private deletedMessage(plan: DeletePlan): string {
+    if (plan.kind === 'task') return `已删除任务「${plan.taskTitle}」`;
+    if (plan.kind === 'column') return `已删除列「${plan.columnTitle}」`;
+    return `已删除看板「${plan.boardTitle}」`;
+  }
+
+  /** 新建或保存标签；编辑时只写改动的名称 / 颜色（标签已被删由领域入口报 label_not_found）。 */
+  private async persistLabel(editor: LabelEditorState): Promise<true> {
+    const actions = this.boardRef.actions;
+    const color = editor.color.trim();
+    if (editor.labelId === null) {
+      await actions.createLabel({ name: editor.name, color });
+      return true;
+    }
+    const label = this.boardRef.labels().find(item => item.id === editor.labelId);
+    if (label?.name !== editor.name.trim()) await actions.renameLabel(editor.labelId, editor.name);
+    if (label === undefined || !this.sameColor(label.color, color)) await actions.recolorLabel(editor.labelId, color);
+    return true;
+  }
+
+  // ---------- 详情保存队列 ----------
+
+  /** 详情字段的提交串行执行：回车后紧跟失焦等重复提交读到的是上一笔保存后的基线。 */
+  private enqueueDetail(operation: () => Promise<unknown>): Promise<void> {
+    const next = this.detailQueue.then(operation, operation);
+    this.detailQueue = next.catch(() => undefined);
+    return next.then(() => undefined);
+  }
+
+  private async saveDetailFields(patch: TaskFieldPatch): Promise<void> {
+    const taskId = this.detailTaskId();
+    const base = this.detailBase();
+    if (taskId === null || base === null) return;
+    this.detailStatus.set('保存中…');
+    const result = await this.guard(() => this.boardRef.actions.saveTaskFields(taskId, base, patch));
+    if (taskId !== this.detailTaskId()) return;
+    if (result === undefined) {
+      this.detailStatus.set(null);
+      return;
+    }
+    const fresh = await this.guard(() => this.boardRef.actions.openSnapshot(taskId));
+    if (!fresh || taskId !== this.detailTaskId()) return;
+    this.detailBase.set(fresh);
+    if (patch.title !== undefined) this.detailTitle.set(fresh.title);
+    if (patch.description !== undefined) this.detailDescription.set(fresh.description ?? '');
+    this.detailStatus.set(result.kind === 'saved' ? '已保存' : null);
+  }
+
+  /** 撤销 / 重做后重读详情：侧栏不显示旧值、下次编辑不被误判冲突；任务已不存在则关闭侧栏。 */
+  private async refreshDetail(): Promise<void> {
+    const taskId = this.detailTaskId();
+    if (taskId === null) return;
+    try {
+      const snapshot = await this.boardRef.actions.openSnapshot(taskId);
+      if (taskId === this.detailTaskId()) this.applyDetailSnapshot(snapshot);
+    } catch {
+      if (taskId === this.detailTaskId()) this.closeDetail();
+    }
+  }
+
+  private applyDetailSnapshot(snapshot: TaskDraftSnapshot): void {
+    this.detailBase.set(snapshot);
+    this.detailTitle.set(snapshot.title);
+    this.detailDescription.set(snapshot.description ?? '');
+  }
+
+  // ---------- 键盘 ----------
+
+  private runCardKey(event: KeyboardEvent, task: Task): boolean {
+    const move = event.altKey ? MOVE_KEYS[event.key] : undefined;
+    if (move !== undefined) {
+      void this.moveTaskBy(task, move);
+      return true;
+    }
+    const direction = event.altKey ? undefined : FOCUS_KEYS[event.key];
+    if (direction !== undefined) {
+      const next = nextGridFocus(this.gridColumns(), task.id, direction);
+      if (next !== null) this.focusTaskSoon(next);
+      return true;
+    }
+    return this.runCardCommand(event, task);
+  }
+
+  private runCardCommand(event: KeyboardEvent, task: Task): boolean {
+    if (event.key === 'Enter' || event.key === ' ') {
+      void this.openDetail(task.id);
+      return true;
+    }
+    if (event.key === 'F2') {
+      this.startTaskTitle(task);
+      return true;
+    }
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      this.returnFocus = event.currentTarget as HTMLElement;
+      void this.confirmTaskDelete(task);
+      return true;
+    }
+    if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return false;
+    const card = event.currentTarget as HTMLElement;
+    this.returnFocus = card;
+    this.popover.set(this.placedPopover('task-menu', task.id, card.getBoundingClientRect(), 'end'));
+    this.focusSoon('.rxb-popover button:not(:disabled)');
+    return true;
+  }
+
+  private readonly onDocumentKeydown = (event: KeyboardEvent): void => {
+    const root = this.boardArea()?.nativeElement;
+    const active = document.activeElement;
+    const inside = active === null || active === document.body || (root?.contains(active) ?? false);
+    if (!root || event.defaultPrevented || !inside) return;
+    if (event.key === 'Escape') {
+      if (this.handleEscape()) event.preventDefault();
+      return;
+    }
+    if (isModifier(event) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      if (this.board()?.searchSource || this.board()?.searchUnavailableReason) this.openSearch();
+      return;
+    }
+    if (isEditable(event.target) || this.dialog() !== null) return;
+    if (this.runGlobalShortcut(event)) event.preventDefault();
   };
 
-  /** 帧循环内持续聚焦被移动卡片（提交与重渲染是异步的，固定时长内每帧重试）。 */
-  private focusMovedCard(taskId: UUID, attempts = 60): void {
-    const card = document.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
-    if (card !== null && card.isConnected) card.focus();
-    if (attempts > 0) requestAnimationFrame(() => this.focusMovedCard(taskId, attempts - 1));
+  private runGlobalShortcut(event: KeyboardEvent): boolean {
+    if (isModifier(event) && event.key.toLowerCase() === 'z') {
+      void (event.shiftKey ? this.redo() : this.undo());
+      return true;
+    }
+    if (isModifier(event) || event.altKey) return false;
+    if (event.key === '?') {
+      this.openShortcuts();
+      return true;
+    }
+    if (event.key !== '/') return false;
+    this.boardArea()?.nativeElement.querySelector<HTMLInputElement>('[data-testid="board-filter-input"]')?.focus();
+    return true;
+  }
+
+  /** Esc 由内向外：弹层 → 对话框 → 详情侧栏。 */
+  private handleEscape(): boolean {
+    if (this.popover()) {
+      this.closePopover();
+      return true;
+    }
+    if (this.dialog()) {
+      this.closeDialog();
+      return true;
+    }
+    if (this.detailTaskId() === null) return false;
+    this.closeDetail();
+    return true;
+  }
+
+  private readonly onDocumentPointerdown = (event: PointerEvent): void => {
+    if (!this.popover()) return;
+    const target = event.target as Element | null;
+    if (target?.closest('.rxb-popover, [aria-expanded="true"]')) return;
+    this.closePopover(false);
+  };
+
+  private readonly onViewportChange = (): void => {
+    this.closePopover(false);
+  };
+
+  // ---------- 视图辅助 ----------
+
+  private gridColumns(): { readonly columnId: UUID; readonly taskIds: readonly UUID[] }[] {
+    return this.boardRef.columns().map(column => ({
+      columnId: column.id,
+      taskIds: this.visibleTasksOf(column).map(task => task.id)
+    }));
+  }
+
+  private menuColumns(): { readonly columnId: UUID; readonly taskIds: readonly UUID[] }[] {
+    return this.boardRef.columns().map(column => ({
+      columnId: column.id,
+      taskIds: this.tasksOf(column).map(task => task.id)
+    }));
+  }
+
+  private keyboardColumns() {
+    return this.boardRef.columns().map(column => ({
+      columnId: column.id,
+      taskIds: this.tasksOf(column).map(task => task.id),
+      visibleIds: this.visibleTasksOf(column).map(task => task.id)
+    }));
+  }
+
+  private selectBoard(boardId: UUID): void {
+    this.closePopover(false);
+    this.detailRequest++;
+    this.detailTaskId.set(null);
+    this.detailBase.set(null);
+    this.boardRef.selectBoard(boardId);
+    // 切板销毁旧搜索句柄（setQuery 同词会被 distinctUntilChanged 吞掉，必须重建）
+    const query = this.searchQuery().trim();
+    this.destroySearch();
+    if (query !== '') this.onSearchInput(query);
+  }
+
+  /**
+   * 聚焦卡片并在约 1 秒内守住：提交与重渲染是异步的，卡片节点被移动 / 重建时焦点会掉回 body，
+   * 掉回时补聚焦；用户已把焦点移到别处（如按 `/` 进筛选框）立即停止，不抢焦点。
+   */
+  private focusTaskSoon(taskId: UUID, attempts = 60, force = true): void {
+    const card = this.boardArea()?.nativeElement.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
+    const active = document.activeElement;
+    const idle = active === null || active === document.body || active === card;
+    if (!force && !idle) return;
+    if (card && active !== card) card.focus();
+    if (attempts > 0) requestAnimationFrame(() => this.focusTaskSoon(taskId, attempts - 1, false));
+  }
+
+  /** 等目标渲染出来再聚焦（变更检测与活查询回流都是异步的，逐帧重试至多 30 帧）。 */
+  private focusSoon(selector: string, attempts = 30): void {
+    const target = this.boardArea()?.nativeElement.querySelector<HTMLElement>(selector);
+    if (target) {
+      target.focus();
+      return;
+    }
+    if (attempts > 0) requestAnimationFrame(() => this.focusSoon(selector, attempts - 1));
   }
 
   private async executeTaskMove(taskId: UUID, target: CardDropTarget): Promise<boolean> {
-    const snapshot = this.detailTaskId() === taskId ? this.snapshot : null;
     this.notice.set(null);
     try {
       await this.boardRef.actions.moveTask(taskId, target);
     } catch (error) {
-      this.notice.set(error instanceof Error ? error.message : String(error));
-      this.scheduleNoticeClear();
+      this.showNotice(error instanceof Error ? error.message : String(error));
       return false;
     }
-    if (snapshot !== null && this.detailTaskId() === taskId && this.snapshot === snapshot) {
-      this.snapshot = { ...snapshot, columnId: target.columnId };
-    }
+    const base = this.detailBase();
+    if (this.detailTaskId() === taskId && base !== null) this.detailBase.set({ ...base, columnId: target.columnId });
+    this.showToast(`已移动到「${this.columnTitleOf(target.columnId)}」`, true);
     return true;
-  }
-
-  private invalidateDetailRequest(): void {
-    this.detailRequest++;
-    this.pendingDetailTaskId = null;
-  }
-
-  private detailDraftState(): string {
-    return JSON.stringify([
-      this.detailDraftTitle(),
-      this.draftDescription(),
-      this.draftDueDate(),
-      this.draftLabelIds()
-    ]);
   }
 
   private destroySearch(): void {
@@ -1098,98 +1605,60 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   private columnViews(area: HTMLElement): CardDropColumnView[] {
-    return this.boardRef.columns().map(viewColumn => {
-      const columnEl = area.querySelector<HTMLElement>(`[data-column-id="${viewColumn.id}"]`);
-      const rect = columnEl?.getBoundingClientRect();
-      const cards = (this.taskMap().get(viewColumn.id) ?? [])
-        .map(task => {
-          const cardEl = area.querySelector<HTMLElement>(`[data-task-id="${task.id}"]`);
-          const cardRect = cardEl?.getBoundingClientRect();
-          return cardRect ? { id: task.id, top: cardRect.top, bottom: cardRect.bottom } : null;
-        })
-        .filter((card): card is { readonly id: UUID; readonly top: number; readonly bottom: number } => card !== null);
+    return this.boardRef.columns().map(column => {
+      const rect = area.querySelector<HTMLElement>(`[data-column-id="${column.id}"]`)?.getBoundingClientRect();
+      // 几何只取可见卡片，邻居取完整序列（筛选隐藏的兄弟不被夹在两个邻居之间）
+      const cards = this.visibleTasksOf(column).flatMap(task => {
+        const cardRect = area.querySelector<HTMLElement>(`[data-task-id="${task.id}"]`)?.getBoundingClientRect();
+        return cardRect ? [{ id: task.id, top: cardRect.top, bottom: cardRect.bottom }] : [];
+      });
       return {
-        columnId: viewColumn.id,
+        columnId: column.id,
         rect: { left: rect?.left ?? 0, right: rect?.right ?? 0, top: rect?.top ?? 0, bottom: rect?.bottom ?? 0 },
         cards,
-        taskIds: (this.taskMap().get(viewColumn.id) ?? []).map(task => task.id)
+        taskIds: this.tasksOf(column).map(task => task.id)
       };
     });
   }
 
-  private columnRect(columnId: UUID): { readonly left: number; readonly right: number } {
-    const header = this.boardArea()?.nativeElement.querySelector<HTMLElement>(`[data-column-header-id="${columnId}"]`);
-    const rect = header?.getBoundingClientRect();
-    return { left: rect?.left ?? 0, right: rect?.right ?? 0 };
-  }
-
-  private clearDragFeedback(): void {
-    this.dragging.set(null);
-    this.dropTarget.set(null);
-  }
-
-  private resolveTaskTarget(
-    column: Column,
-    movedId: UUID,
-    clientX: number,
-    clientY: number,
-    area: HTMLElement
-  ): CardDropTarget | null {
-    return resolveCardDrop(this.columnViews(area), movedId, clientX, clientY);
-  }
-
   private resolveColumnTarget(
     movedId: UUID,
-    clientX: number,
-    area: HTMLElement
+    clientX: number
   ): { readonly prevId: UUID | null; readonly nextId: UUID | null } | null {
+    const area = this.boardArea()?.nativeElement;
     const views = this.boardRef.columns().map(column => {
-      const headerEl = area.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`);
-      const rect = headerEl?.getBoundingClientRect();
+      const rect = area?.querySelector<HTMLElement>(`[data-column-header-id="${column.id}"]`)?.getBoundingClientRect();
       return { columnId: column.id, rect: { left: rect?.left ?? 0, right: rect?.right ?? 0 } };
     });
-    const target = resolveColumnDrop(
+    return resolveColumnDrop(
       views,
       this.boardRef.columns().map(column => column.id),
       movedId,
       clientX
     );
-    return target ? { prevId: target.prevId as UUID, nextId: target.nextId as UUID } : null;
   }
-
-  // ---------- 本列排序 / 移动（键盘等价路径） ----------
 
   private async guard<T>(operation: () => Promise<T>): Promise<T | undefined> {
     try {
       this.notice.set(null);
       return await operation();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.notice.set(message);
-      this.scheduleNoticeClear();
+      this.showNotice(error instanceof Error ? error.message : String(error));
       return undefined;
     }
   }
 
-  /** 提示条 5 秒自动消退（GitHub 风格）；新提示重置计时。 */
-  private scheduleNoticeClear(): void {
-    if (this.noticeTimer !== null) window.clearTimeout(this.noticeTimer);
-    this.noticeTimer = window.setTimeout(() => this.notice.set(null), 5000);
-  }
-
-  private localToday(): string {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
+  /** 恢复标记跨页同步：读 localStorage 标记并把门禁下发到领域桥。 */
+  private readonly onBoardStorage = (): void => {
+    this.board()?.setRestoring(
+      typeof localStorage !== 'undefined' && localStorage.getItem(RESTORING_MARKER_KEY) !== null
+    );
+  };
 
   private readonly onTodayActivity = (): void => {
-    this.today.set(this.localToday());
-    if (this.todayTimer !== null) window.clearTimeout(this.todayTimer);
     const now = new Date();
-    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
-    this.todayTimer = window.setTimeout(this.onTodayActivity, Math.max(nextMidnight - now.getTime() + 1, 1000));
+    this.today.set(localDateKey(now));
+    if (this.todayTimer !== null) window.clearTimeout(this.todayTimer);
+    this.todayTimer = window.setTimeout(this.onTodayActivity, msUntilNextLocalMidnight(now));
   };
 }
