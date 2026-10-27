@@ -29,6 +29,7 @@
     "audit:coverage:update": "node scripts/audit/coverage-check.mjs --update",
     "audit:wa-sqlite": "node scripts/audit/wa-sqlite-integrity.mjs",
     "audit:action-pins": "node scripts/audit/workflow-action-pins.mjs",
+    "audit:workspace-patches": "node scripts/audit/workspace-patches.mjs",
     "audit:lazy-backend": "node scripts/audit/desktop-lazy-backend.mjs",
     "audit:suite-callsites": "node scripts/audit/working-tree-suite-callsites.mjs",
     "audit:callsite-drift": "node scripts/audit/working-tree-callsite-drift.mjs",
@@ -203,7 +204,7 @@
     "is-ci": "^4.1.0",
     "jiti": "2.7.0",
     "jsonc-eslint-parser": "^3.3.0",
-    "miniprogram-automator": "0.12.1",
+    "miniprogram-automator": "0.13.0",
     "ng-packagr": "22.2.5",
     "nx": "24.0.1",
     "ora": "^9.4.1",
@@ -222,7 +223,7 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.0",
     "verdaccio": "6.10.5",
-    "vite": "8.3.4",
+    "vite": "8.3.5",
     "vite-plugin-dts": "~5.1.2",
     "vite-plugin-pwa": "^2.0.0",
     "vitest": "4.1.11",
@@ -260,5 +261,5 @@
     "website",
     "benchmarks"
   ],
-  "packageManager": "pnpm@10.34.9"
+  "packageManager": "pnpm@12.15.0"
 }

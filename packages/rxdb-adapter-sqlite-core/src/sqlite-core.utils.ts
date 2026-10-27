@@ -565,7 +565,8 @@ export const get_sql_value = (value: unknown): string | number | Uint8Array | nu
  * @remarks
  * {@link get_sql_value} 对 `Uint8Array` / `Date` / 数字数组返回对象本身（那是给参数绑定用的），
  * 直接 `String()` 拼出来的是 `1,2,3`、`Wed Jul 29 2026 …` 这种裸文本。binary 写成 BLOB 字面量 `X'…'`，
- * Date 按落库口径写成 ISO 串（同 `format_in_values`）；数字数组没有对应的字面量写法，拒绝而不是拼出非法 SQL。
+ * Date 按落库口径写成 ISO 串，并与普通字符串同样转义（同 `format_in_values`）——`toISOString` 可被实例或子类覆写，
+ * 不能当作只含日期字符的可信文本；数字数组没有对应的字面量写法，拒绝而不是拼出非法 SQL。
  *
  * @throws TypeError 值是数字数组
  */
@@ -574,7 +575,7 @@ const inline_sql_literal = (value: unknown): string => {
   if (literal instanceof Uint8Array) {
     return `X'${Array.from(literal, byte => byte.toString(16).padStart(2, '0')).join('')}'`;
   }
-  if (literal instanceof Date) return `'${literal.toISOString()}'`;
+  if (literal instanceof Date) return get_sql_value(literal.toISOString()) as string;
   if (Array.isArray(literal)) throw new TypeError('number[] has no inline SQL literal form');
   return String(literal);
 };

@@ -607,6 +607,11 @@ describe('sqlite.utils', () => {
       );
     });
 
+    it('Date 的 ISO 串与普通字符串同样转义，覆写的 toISOString 拼不出语句', () => {
+      const date = Object.assign(new Date(0), { toISOString: () => "x'); DROP TABLE t; --" });
+      expect(get_sql_with_params('SELECT ?', [date])).toBe("SELECT 'x''); DROP TABLE t; --'");
+    });
+
     it('数字数组没有可内联的字面量形式，应抛 TypeError 而不是拼出非法 SQL', () => {
       expect(() => get_sql_with_params('SELECT ?', [[1, 2]])).toThrow(TypeError);
     });

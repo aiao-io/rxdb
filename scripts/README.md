@@ -57,6 +57,7 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | `audit/working-tree-callsite-drift.mjs`                                     | 改批量写调用点后                             | 仓库里每一处批量重写要么带登记在案的意图，要么报未知入口（R5 / SC-010）                                       | `pnpm audit:callsite-drift`                                                   |
 | `audit/core-plugin-boundary.mjs`                                            | 改 `packages/rxdb/src` 后                    | 核心代码对 `commit/` 与 `working-tree/` 两个待抽出目录只能有登记在案的依赖                                    | `pnpm audit:core-boundary`                                                    |
 | `audit/docs-plugin-surface.mjs`                                             | 改 `website/docs` 后                         | 文档与插件运行期面一致性：移走的方法不得再挂 `versionManager`、示例装包要装齐                                 | `pnpm audit:docs-plugins`（CI setup job）                                     |
+| `audit/workspace-patches.mjs`                                               | 改 `pnpm-workspace.yaml` 的补丁后            | `patchedDependencies` 不得覆盖可发布包的运行时依赖（补丁不随包发出，npm 用户拿到的是原包）                    | `pnpm audit:workspace-patches`（CI setup job 阻塞门禁）                       |
 | `audit/workflow-action-pins.mjs`                                            | 改 workflow 后                               | 第三方 action 钉 40 位 commit SHA，拒绝任何可变引用（tag / 分支 / 短 SHA）                                    | `pnpm audit:action-pins`（CI setup job 阻塞门禁）                             |
 | `audit/desktop-adapter-consumer.mjs`                                        | 发布桌面 adapter 前                          | 在临时 ESM 消费者项目里验证 electron/tauri 发布 tarball 可解析、可类型检查、可运行                            | `node scripts/audit/desktop-adapter-consumer.mjs`（release-desktop workflow） |
 | `audit/release-desktop-gate.mjs`                                            | 改 release-desktop workflow 后               | 按缩进切分 workflow YAML 的纯函数，供 spec 断言发布链路门禁接线（US-905 AC#17）                               | 由 `release-desktop-gate.spec.mjs` 调用（`pnpm test-scripts`）                |
@@ -167,8 +168,10 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   - `normal` 与 `bridge` 都禁止升级系统 schema / change codec；`normal` 额外要求 `bridge.tag` / `bridge.version` 为 null（不进入 bridge 链）；
   - migration 必须有 `bridge.tag`、bridge 与 release 的协议兼容性、bridge tag 必须存在且是 release 的祖先、bridge tag 上的 `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 与 upgrade 布尔位吻合（声明升级则 bridge 严格更旧，未声明则必须相等）；
   - migration 还要求 `bridge.version` **严格大于** `LAST_INELIGIBLE_BRIDGE_VERSION`（当前 `0.0.25`）——`v0.0.24` 这类「是祖先但早于桥接改造」的空桥只有这条下限挡得住，上面的版本常量判据对它恒真；
-  - `oldBundlePolicy` 不能用被淘汰的 `force-update / cache-invalidation / server-version / database-namespace` 策略；
-  - 通过注入 `bridgeTagExists / bridgeTagIsAncestor / bridgeTagSupportsProtocol / bridgeTagVersionConstants` 四个钩子和 `packageVersion`，纯函数可在测试里无网络跑通。
+  - normal / bridge 的**候选发布**（`v<release.version>` 还没有 tag，即发版 PR）上的两个版本常量必须与上一个已发布 tag（HEAD 可达、严格更旧的最高 `v<semver>`）完全相等，任一轴不等即要求改走 migration——0.0.28 声明 normal 却把系统 schema 3→7 发了出去，就是因为此前只核升级位；已打 tag 的清单是历史记录，不再比对；
+  - migration 的 `oldBundlePolicy.strategy` 必须取自 `force-update / cache-invalidation / server-version / database-namespace` 白名单，且 `enforced=true`、`minimumVersion` 不低于 `bridge.version`；
+  - 通过注入 `bridgeTagExists / bridgeTagIsAncestor / bridgeTagSupportsProtocol / bridgeTagVersionConstants`、`releaseTagExists / previousReleaseTag / previousReleaseVersionConstants` 等钩子和 `packageVersion`，纯函数可在测试里无网络跑通。
+- **发版后必须打 `v<版本>` tag**：否则后续每个 PR 都会把这份清单当成未发布的候选，去和更早的 tag 比版本常量。
 - **三种 kind 怎么选**：日常发布一律 `normal`；只有真正发布 writer lease/upgrade guard 协议的那一次写 `bridge`（它才能被后续 migration 引用为 `bridge.tag`）；带系统 schema 或 change codec 升级的写 `migration`。
 - **清单何时改**：`release.version` 跟着 `packages/rxdb/package.json` 走，**在版本 bump 的同一个提交里更新**；`nx release` 不会替你改清单，漏改会被门禁拦下。
 - **何时手动跑**：改了 `requirements/migration-release.json` 想确认字段没写歪；写 release 流程前 dry-run。

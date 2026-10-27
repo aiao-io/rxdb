@@ -195,6 +195,8 @@ export function parseEntityFieldValueStrict(
   }
   // parseInt 会截断（12.9 → 12、1e21 → '1e+21' → 1）：解析结果须等于原始输入的数值，小数输入拒绝而非截断
   if (type === 'integer' && value !== Number(raw)) return { ok: false, message: '必须是整数' };
+  // 2^53 以上两种转换舍入到同一个双精度值，上一条拦不住：放行就存成用户没输入过的数（更大的整数用 bigint 字段）
+  if (type === 'integer' && !Number.isSafeInteger(value)) return { ok: false, message: '超出安全整数范围' };
   if (type === 'bigint' && typeof value !== 'bigint') return { ok: false, message: '必须是大整数' };
   if (type === 'binary' && !(value instanceof Uint8Array)) return { ok: false, message: '必须是十六进制字节序列' };
   if (type === 'date' && value === null) return { ok: false, message: '日期格式不正确' };

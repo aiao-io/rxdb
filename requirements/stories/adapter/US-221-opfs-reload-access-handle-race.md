@@ -1,11 +1,11 @@
 ---
 id: US-221
 title: OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄
-status: In Review
+status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-10-16
-updated: 2026-10-16
+updated: 2026-10-27
 tags: [adapter, sqlite-wasm, opfs, browser, bug]
 ---
 
@@ -149,5 +149,6 @@ Web Lock 先释放、同步访问句柄后关闭，于是新页面落进上面�
 
 ## References
 
+- [PR #122](https://github.com/aiao-io/rxdb/pull/122)（squash `b109ba33`）— 交付
 - [PR #122 的 CI 运行 38740222050](https://github.com/aiao-io/rxdb/actions/runs/38740222050)（`ci / e2e (vue)` 第 1 次尝试的 Playwright 工件）
 - [US-204 SQLite WASM 适配器](US-204-sqlite-wasm-adapter.md)

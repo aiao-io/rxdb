@@ -32,7 +32,7 @@ gitShallowHosts:
   - gitlab.com
   - bitbucket.org
 overrides:
-  '@babel/core': ^7.29.7
+  '@babel/core@7': ^7.29.7
   '@angular/cdk': 22.2.4
   '@angular/common': 22.2.3
   '@angular/core': 22.2.3
@@ -44,6 +44,7 @@ overrides:
   '@jimp/core>mkdirp': ^0.5.6
   '@jimp/core>phin': ^3.7.1
   '@jimp/jpeg>jpeg-js': ^0.4.4
+  miniprogram-automator>debug: ^4.4.3
   '@lucide/angular': 1.61.0
   '@tarojs/helper>esbuild': ^0.25.12
   '@tarojs/plugin-doctor>glob': ^10.5.0
@@ -84,7 +85,7 @@ overrides:
   sockjs>uuid: ^11.1.1
   source-map-js@1: ^1.2.2
   swiper: ^12.2.0
-  tinypool@1: 2.1.2
+  tinypool@1: 2.2.0
   typescript: 6.0.3
   undici@7: ^7.29.1
   vitest: 4.1.11

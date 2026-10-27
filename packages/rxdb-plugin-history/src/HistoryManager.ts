@@ -236,8 +236,7 @@ export class HistoryManager {
     // 当前分支的子分支分叉点：不晚于它的变更已被子分支继承，撤销 / 重做都停在这里（US-315）。
     // 每次都现查「库里当前激活的分支 + 它的子分支」；连上时查一次，此后只在 {@link refreshChildForks} 时重查，
     // `undo()` / `redo()` 执行时现查到的也写回来（见 {@link #publishChildForks}）。
-    // 不订阅分支表的活查询：它不写变更日志，适配器派不出它的事件，有的后端连建分支都看不见、删分支一律看不见；
-    // 常驻一条还会被别人同条件的查询共用，把旧缓存发给它们（工作树的一致性套件在 sqlite / sqliteai 上撞过）。
+    // 不订阅分支表的活查询：常驻一条会被别人同条件的查询共用，把旧缓存发给它们（工作树的一致性套件在 sqlite / sqliteai 上撞过）。
     this.#subscriptions.push(
       this.rxdb.connected$
         .pipe(
