@@ -215,6 +215,29 @@ describe('EntityDetailComponent（真实组件）', () => {
     expect(closeSpy).not.toHaveBeenCalled();
   });
 
+  it('校验失败与保存失败写入错误面板状态，修改字段后清空（US-104）', () => {
+    const { component } = createWithDialog(dialogData());
+
+    component.onSave();
+    expect(component.formErrors()?.errors[0]?.message).toContain('是必填项');
+    expect(component.saveError()).toBeNull();
+
+    component.onFieldChanged({ field: 'title', type: 'string', value: '第一组', previousValue: '' });
+    expect(component.formErrors()).toBeNull();
+    expect(component.saveError()).toBeNull();
+  });
+
+  it('保存失败写入 saveError 状态且对话框不关闭（US-104）', async () => {
+    const { component } = createWithDialog(dialogData());
+
+    component.onFieldChanged({ field: 'title', type: 'string', value: '落不进去', previousValue: '' });
+    vi.spyOn(repoOf(), 'create').mockRejectedValueOnce(new Error('写入被拒'));
+    component.onSave();
+    await FLUSH();
+    expect(component.saveError()).toContain('保存失败：写入被拒');
+    expect(closeSpy).not.toHaveBeenCalled();
+  });
+
   it('补齐必填后保存才落库：dialogRef.close(saved)、草稿清空', async () => {
     const { component, submitted } = createWithDialog(dialogData());
 
@@ -413,6 +436,13 @@ describe('EntityDetailComponent（真实组件）', () => {
     component.selectTab('children');
     expect(component.activeTabKey()).toBe('children');
     expect(component.activeRelationName()).toBe('children');
+  });
+
+  it('tab 可见文字随 radio 渲染（input 伪元素不渲染文字回归）', () => {
+    const { fixture } = createWithDialog(dialogData());
+
+    const tabs = [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="tab"]')];
+    expect(tabs.map(t => t.closest('label')?.textContent?.trim())).toEqual(['基本信息', '子项']);
   });
 
   it('buildFixedQuery 覆盖 MANY_TO_MANY 与不支持的关系类型', () => {

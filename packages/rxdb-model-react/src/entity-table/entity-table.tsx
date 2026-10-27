@@ -32,6 +32,7 @@ import {
   getCSSVariables,
   handleTableKeydown,
   isDocumentDarkMode,
+  isReadonly,
   patchDragIconForReadonlyRows,
   readRowMove,
   restoreTableRecords,
@@ -247,6 +248,13 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
     if (table) table.updateTheme(createTheme(resolvedDarkMode, getCSSVariables()));
   }, [resolvedDarkMode, tableReady]);
 
+  // ── 无障碍：VTable 焦点控制输入没有语义标签（axe label 违规）───────────
+  useEffect(() => {
+    if (!tableReady) return;
+    const input = containerRef.current?.querySelector<HTMLInputElement>('.table-focus-control');
+    input?.setAttribute('aria-label', '数据表格焦点控制');
+  }, [tableReady, columns]);
+
   // ── 初始化 / records / columns 同步（对应 Angular 的 afterNextRender + effect）──
   useEffect(() => {
     const el = containerRef.current;
@@ -384,7 +392,7 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
     const table = tableRef.current;
     const record = table?.getRecordByCell(col, row) as EntityTableRecord | undefined;
     const fieldName = getColDef(col)?.field;
-    if (!record || !fieldName) return;
+    if (!record || !fieldName || (isReadonly(record) && fieldName !== '__selected')) return;
     propsRef.current.onCellChanged?.({ col, row, field: fieldName, value: changedValue, record });
   }
 

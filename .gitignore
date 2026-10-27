@@ -60,8 +60,9 @@ testem.log
 .DS_Store
 Thumbs.db
 
-.nx/cache
-.nx/workspace-data
+# Nx daemon 产物会出现在仓库根与各项目目录（中间斜杠的模式只锚定仓库根，用 ** 前缀盖住嵌套目录）
+**/.nx/cache
+**/.nx/workspace-data
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 

@@ -68,6 +68,7 @@ owner: jimmy
 - [US-223 Supabase 直写路径的 UPDATE 落库语义](../stories/adapter/US-223-supabase-mutations-update-semantics.md) — US-220 的直写路径半边：`mutations()` 仍把修改并进 `p_upserts`，owner 型与共享编辑型 RLS 下改行被 42501 误拒
 - [US-224 Supabase 推送路径上级联删除的子行不写变更日志](../stories/adapter/US-224-supabase-cascade-delete-change-log.md) — `p_skip_sync = true` 时被 `ON DELETE CASCADE` 删掉的子行没有 `rxdb_change`，其它端拉不到这些删除
 - [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`；阶段 B 失败现场数据原样归档与导入（价值证据门禁已豁免；传输限制经主线程 IDB 第二连接绕开）；阶段 C 应用内 rrweb 录制插件与三框架组件（价值待证门禁已豁免）
+- [US-104 rxdb-model 表单校验反馈与保存失败的展示](../stories/framework/US-104-validation-feedback.md) — 三端 EntityDetail 错误面板（US-526 AC#4 触发）
 - [US-910 数据国际化 / 本地化](../stories/future/US-910-data-i18n.md) — 生产方案采用 C-L；阶段 A 依赖 Full/Filter/tombstone 同步夹具，HTTP QueryCache demo 不承担本故事同步验收
 - [US-911 客户端国际化 / 本地化](../stories/future/US-911-client-i18n.md) — UI 文案与 locale 状态：ICU 消息引擎（intl-messageformat）+ locale 状态单行实体 + 三端 `useI18n()`；rxdb-model 去硬编码（默认 zh-Hans 目录随包发布）；阶段 D 目录走 QueryCache 分发、独立后置
 - [US-025 核心包子系统按插件边界外移](../stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体逐阶段外移为插件包；搬消费者不搬 changelog 原语；阶段 B 起前置 US-015 的 `plugin:*` 依赖解析

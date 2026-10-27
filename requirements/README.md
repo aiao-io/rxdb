@@ -38,6 +38,7 @@
 | [capability-matrix.md](capability-matrix.md)  | 仓库**现在能做什么**、哪些组合还不支持                                     |
 | [release-plan.md](release-plan.md)            | **下一次发布**要做什么、桥接版本卡在哪                                     |
 | [vision.md](vision.md)                        | 1.0 之后的长期方向（不是排期、不是承诺）                                   |
+| [teable-research.md](teable-research.md)      | Teable 功能借鉴：价值排序、最小范围、验收场景与后续待决事项                |
 | [versioning-policy.md](versioning-policy.md)  | 什么算公开 API、什么改动算破坏性                                           |
 | [zh-glossary.md](zh-glossary.md)              | 中文注释 / TSDoc 词汇规约（哪些词保留、哪些要改）                          |
 | [code-scanning/](code-scanning/README.md)     | GitHub CodeQL 告警工作集（open 才留文件，关闭即归档删除）                  |

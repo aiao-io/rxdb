@@ -25,6 +25,7 @@ import {
   createTheme,
   getCSSVariables,
   handleTableKeydown,
+  isReadonly,
   isDocumentDarkMode,
   patchDragIconForReadonlyRows,
   readRowMove,
@@ -260,7 +261,7 @@ const getColDef = (col: number): { cellType?: string; field?: string } | undefin
 const handleCellChange = (col: number, row: number, changedValue: unknown): void => {
   const record = tableInstance.value?.getRecordByCell(col, row) as EntityTableRecord | undefined;
   const fieldName = (getColDef(col) as { field?: string } | undefined)?.field;
-  if (!record || !fieldName) return;
+  if (!record || !fieldName || (isReadonly(record) && fieldName !== '__selected')) return;
   emit('cellChanged', { col, row, field: fieldName, value: changedValue, record });
 };
 
@@ -320,6 +321,8 @@ onMounted(() => {
     initTable(el);
     prevColumns = props.columns;
     tableReady.value = true;
+    // 无障碍：VTable 焦点控制输入没有语义标签（axe label 违规）
+    el.querySelector<HTMLInputElement>('.table-focus-control')?.setAttribute('aria-label', '数据表格焦点控制');
   }
 });
 
@@ -333,6 +336,8 @@ watch(
           initTable(el);
           prevColumns = columns;
           tableReady.value = true;
+          // 无障碍：VTable 焦点控制输入没有语义标签（axe label 违规）
+          el.querySelector<HTMLInputElement>('.table-focus-control')?.setAttribute('aria-label', '数据表格焦点控制');
         }
       }
       return;

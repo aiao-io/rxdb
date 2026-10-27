@@ -158,6 +158,23 @@ describe('handleTableKeydown — toggle cell', () => {
     expect(ctx.onCellChange).not.toHaveBeenCalled();
   });
 
+  it('允许只读行的选择 checkbox 用键盘切换', () => {
+    const setCellSwitchState = vi.fn();
+    const ctx = makeCtx({
+      getTable: vi.fn().mockReturnValue({
+        editorManager: { editingEditor: null },
+        getRecordByCell: vi.fn().mockReturnValue({ _readonly: true, __selected: false }),
+        setCellSwitchState
+      }),
+      getSelectedCell: vi.fn().mockReturnValue({ col: 1, row: 1 }),
+      getColDef: vi.fn().mockReturnValue({ cellType: 'checkbox', field: '__selected' })
+    });
+    const e = makeKeyEvent(' ');
+    handleTableKeydown(ctx, e);
+    expect(setCellSwitchState).toHaveBeenCalledWith(1, 1, true);
+    expect(ctx.onCellChange).toHaveBeenCalledWith(1, 1, true);
+  });
+
   it('ignores non-toggle cell types', () => {
     const ctx = makeCtx({
       getSelectedCell: vi.fn().mockReturnValue({ col: 1, row: 1 }),
