@@ -3,7 +3,7 @@
  *
  * workspace patch 不随包发布：可发布包的运行时依赖被补丁修复等于只在仓库里绿、npm 用户原样踩坑
  * （scripts/audit/workspace-patches.mjs 的门禁原因），所以把补丁后的 glue 固化进本包、随 adapter 一起打包。
- * 相对上游原始文件只改了两处：
+ * 相对上游原始文件只改了三处：
  *
  * 1. `_sqlite3_version` 守卫读：iOS 微信的 `WXWebAssembly` 不导出 Global，上游直接读
  *    `wasmExports["$e"].value` 会抛 `undefined is not an object`；缺失时回退
@@ -11,6 +11,9 @@
  * 2. 默认 locateFile 的 `new URL("wa-sqlite.wasm", import.meta.url)` 改成字符串字面量：
  *    adapter 总是显式传 locateFile（见 loader.ts），该分支是死代码；保留 URL 构造会被
  *    vite 把 813 KB 的 wasm 当资产内联进 adapter dist，撑爆小程序主包。
+ * 3. `globalThis` 换成安全查找的 `__global`：小程序逻辑层没有 `globalThis`（1.3.1 的 glue 用
+ *    `typeof window == "object"` 没这个问题，1.4.0 改成直接读 `globalThis.window`），模块初始化
+ *    时即抛 `Cannot read properties of undefined`，`打开 persistence` 一步就停住。
  *
  * 升级依赖时先过 scripts/audit/wa-sqlite-integrity.mjs 与
  * src/__tests__/subframe-glue-exported-globals.spec.ts，再同步 glue 文件名、WASM 指纹与完整性常量。
@@ -19,9 +22,11 @@
 async function Module(moduleArg = {}) {
 	var moduleRtn;
 	var Module = moduleArg;
-	var ENVIRONMENT_IS_WEB = !!globalThis.window;
-	var ENVIRONMENT_IS_WORKER = !!globalThis.WorkerGlobalScope;
-	globalThis.process?.versions?.node && globalThis.process?.type;
+	// 小程序逻辑层可能没有 globalThis（见文件头第 3 处改动）
+	var __global = typeof globalThis !== "undefined" ? globalThis : {};
+	var ENVIRONMENT_IS_WEB = !!__global.window;
+	var ENVIRONMENT_IS_WORKER = !!__global.WorkerGlobalScope;
+	__global.process?.versions?.node && __global.process?.type;
 	var thisProgram = "./this.program";
 	var quit_ = (status, toThrow) => {
 		throw toThrow;
@@ -374,7 +379,7 @@ async function Module(moduleArg = {}) {
 	var FS_stdin_getChar = () => {
 		if (!FS_stdin_getChar_buffer.length) {
 			var result = null;
-			if (globalThis.window?.prompt) {
+			if (__global.window?.prompt) {
 				result = window.prompt("Input: ");
 				if (result !== null) result += "\n";
 			}
@@ -1831,7 +1836,7 @@ async function Module(moduleArg = {}) {
 		},
 		forceLoadFile(obj) {
 			if (obj.isDevice || obj.isFolder || obj.link || obj.contents) return true;
-			if (globalThis.XMLHttpRequest) abort("Lazy loading should have been performed (contents set) in createLazyFile, but it was not. Lazy loading only works in web workers. Use --embed-file or --preload-file in emcc on the main thread.");
+			if (__global.XMLHttpRequest) abort("Lazy loading should have been performed (contents set) in createLazyFile, but it was not. Lazy loading only works in web workers. Use --embed-file or --preload-file in emcc on the main thread.");
 			else try {
 				obj.contents = readBinary(obj.url);
 			} catch (e) {
@@ -1903,7 +1908,7 @@ async function Module(moduleArg = {}) {
 					return this._chunkSize;
 				}
 			}
-			if (globalThis.XMLHttpRequest) {
+			if (__global.XMLHttpRequest) {
 				if (!ENVIRONMENT_IS_WORKER) abort("Cannot do synchronous binary XHRs outside webworkers in modern browsers. Use --embed-file or --preload-file in emcc");
 				var properties = {
 					isDevice: false,
@@ -2440,7 +2445,7 @@ async function Module(moduleArg = {}) {
 				PATH: "/",
 				PWD: "/",
 				HOME: "/home/web_user",
-				LANG: (globalThis.navigator?.language ?? "C").replace("-", "_") + ".UTF-8",
+				LANG: (__global.navigator?.language ?? "C").replace("-", "_") + ".UTF-8",
 				_: getExecutableName()
 			};
 			for (var x in ENV) if (ENV[x] === void 0) delete env[x];
