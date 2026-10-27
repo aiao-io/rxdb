@@ -124,6 +124,9 @@ US-911（派生视图写「症状可复现、owner 立项即可开工」）、US
   「包组合知识随发布更新」第 2 步，`llms.txt` 与 SKILL.md 仍按 0.0.26 的投递范围生成。
 - **P2 审计脚本仍有的盲区**：`checkRoadmap` 不核对行内状态与表格列数；反引号里的路径与 `路径:行号` 写法不在锚点检查范围内；
   叙述词表抓不到「挪到 / 顺带修 / 此前 / 计划里…没做」；全称断言（「只有 X」「唯一的 Y」）符号还在、语义已假时照样通过。
+- **P2 补丁门禁只看直接依赖**：`audit:workspace-patches` 不展开传递依赖。现有两个补丁（typescript、`@tarojs/vite-runner`）都不在
+  任何可发布包的生产依赖树里（`pnpm -r --filter './packages/**' ls --prod --depth Infinity` 复核）；要覆盖传递依赖得在门禁里跑 `pnpm ls`、
+  依赖装好的 node_modules，代价与误报面都更大，有了第一个真实的传递补丁再做。
 - **P2 `audit:suite-callsites` 没接进 CI**（文件头仍写「还没接进 CI，因为它现在就是红的」），实跑 18 / 18 绿，US-313 的 AC 全靠这 18 个调用点。
 - **P2 「零散收尾项」里未关的 owner 决策**：#5（7 个 Angular 包的 `@angular/*` peer 钉成精确版本）、#14（`@aiao/rxdb-model@0.0.26` 坏版本，
   deprecate 或覆盖）仍待处置；#10（23505 / 23502 / 23514 是否计为被拒）等真实部署反馈。

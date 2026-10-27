@@ -10,7 +10,7 @@
 | ------------------------------------------- | ---------------------------------- | ------------------- |
 | `README.md`                                 | 本说明、状态约定与清理记录         | —                   |
 | `review.template.md`                        | 新建 review 记录的模板             | —                   |
-| `requirements-incomplete-stories-review.md` | 未完成需求整体评审（不占 RV 编号） | 36（14 P1 + 22 P2） |
+| `requirements-incomplete-stories-review.md` | 未完成需求整体评审（不占 RV 编号） | 37（14 P1 + 23 P2） |
 
 ## 状态约定
 

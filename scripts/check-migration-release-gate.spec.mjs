@@ -178,6 +178,19 @@ test('release.version 已有 tag 时不比对上一个发布', () => {
   assert.deepEqual(errors, []);
 });
 
+// 同名 tag 打在别的线上（误推、旧分支）时，不能拿它证明这一版已经发布过。
+test('release.version 的 tag 不是 HEAD 祖先时不算已发布', () => {
+  const errors = validateManifest(normalManifest(), {
+    ...candidateHooks,
+    releaseTagExists: () => true,
+    releaseTagIsAncestor: () => false
+  });
+
+  assert.deepEqual(errors, [
+    'release tag v0.0.25 exists but is not an ancestor of HEAD, so it cannot mark 0.0.25 as already published'
+  ]);
+});
+
 test('migration 候选发布不走上一个发布的相等比对', () => {
   const errors = validateManifest(migrationManifest(), {
     ...passingHooks,

@@ -24,11 +24,47 @@ import { scanPackages } from './lib/package-discovery.mjs';
 /** 消费方安装时会解析的依赖种类。 */
 const RUNTIME_DEPENDENCY_KINDS = ['dependencies', 'peerDependencies', 'optionalDependencies'];
 
-/** `patchedDependencies` 段里的一行：两格缩进、可带引号的键、补丁路径。 */
-const PATCH_ENTRY = /^ {2}(['"]?)(.+?)\1:\s*(\S+)\s*$/;
+/** 顶层扁平映射里的一行（行尾注释已剥掉）：两格缩进、可带引号的键、非空的值。 */
+const MAP_ENTRY = /^ {2}(['"]?)(.+?)\1:\s*(\S.*)$/;
+
+/** 行尾注释：YAML 里 `#` 前必须有空白。 */
+const TRAILING_COMMENT = /\s+#.*$/;
 
 /** 精确版本号：只有这种写法能证明消费方解析不到被打补丁的版本。 */
 const EXACT_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+
+/**
+ * 读 `pnpm-workspace.yaml` 里一个顶层扁平映射（`patchedDependencies`、`overrides`）的条目。
+ * 注释行（含顶格的）与行尾注释都跳过，遇到下一个顶层键即结束。
+ *
+ * @param {string} workspaceYaml 文件内容
+ * @param {string} section 顶层键名
+ * @returns {{ key: string, value: string }[]} 段不存在时为空
+ * @throws 段内出现不是「两格缩进的 `键: 值`」的行
+ */
+function readTopLevelMap(workspaceYaml, section) {
+  const lines = workspaceYaml.split('\n');
+  const header = new RegExp(`^${section}:\\s*(?:#.*)?$`);
+  const start = lines.findIndex(line => header.test(line));
+  if (start < 0) return [];
+
+  const entries = [];
+  for (const line of lines.slice(start + 1)) {
+    const trimmed = line.trim();
+    if (trimmed === '' || trimmed.startsWith('#')) continue;
+    if (!line.startsWith('  ')) break;
+    const matched = MAP_ENTRY.exec(line.replace(TRAILING_COMMENT, ''));
+    if (matched === null) throw new Error(`pnpm-workspace.yaml: 无法解析 ${section} 条目「${line}」`);
+    entries.push({ key: matched[2], value: matched[3].trim().replace(/^(['"])(.*)\1$/, '$2') });
+  }
+  return entries;
+}
+
+/** 去掉版本选择器的包名：`@babel/core@7` → `@babel/core`，`axios@1` → `axios`，`left-pad` 不变。 */
+const packageNameOf = spec => {
+  const at = spec.lastIndexOf('@');
+  return at > 0 ? spec.slice(0, at) : spec;
+};
 
 /**
  * 解析 `pnpm-workspace.yaml` 的 `patchedDependencies` 段。
@@ -37,56 +73,80 @@ const EXACT_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
  * @returns {{ key: string, name: string, version: string | null, patch: string }[]} 只写包名的键（对所有版本生效）`version` 为 null
  */
 export function parsePatchedDependencies(workspaceYaml) {
-  const lines = workspaceYaml.split('\n');
-  const start = lines.indexOf('patchedDependencies:');
-  if (start < 0) return [];
-
-  const entries = [];
-  for (const line of lines.slice(start + 1)) {
-    if (line.trim() === '') continue;
-    if (!line.startsWith('  ')) break;
-    const matched = PATCH_ENTRY.exec(line);
-    if (matched === null) throw new Error(`pnpm-workspace.yaml: 无法解析 patchedDependencies 条目「${line}」`);
-    const [, , key, patch] = matched;
-    const at = key.lastIndexOf('@');
-    entries.push(
-      at > 0 ?
-        { key, name: key.slice(0, at), version: key.slice(at + 1), patch }
-      : { key, name: key, version: null, patch }
-    );
-  }
-  return entries;
+  return readTopLevelMap(workspaceYaml, 'patchedDependencies').map(({ key, value }) => {
+    const name = packageNameOf(key);
+    return { key, name, version: name === key ? null : key.slice(name.length + 1), patch: value };
+  });
 }
 
 /**
- * 找出被工作区补丁覆盖的可发布包运行时依赖。
+ * `overrides` 改写的包名：选择器 `父包>子包` 取最后一段，再去掉版本选择器。
  *
- * 依赖写成精确版本且与补丁版本不同，才算没被覆盖；范围、tag、URL 会被消费方解析到哪个版本无从证明，按命中处理。
+ * @param {string} workspaceYaml 文件内容
+ * @returns {Set<string>}
+ */
+export function parseOverriddenPackages(workspaceYaml) {
+  return new Set(readTopLevelMap(workspaceYaml, 'overrides').map(({ key }) => packageNameOf(key.split('>').at(-1))));
+}
+
+/** 依赖声明指向的真实包：`npm:` 别名取别名后面的包名与版本。 */
+const resolveDependency = (key, spec) => {
+  if (!spec.startsWith('npm:')) return { name: key, range: spec };
+  const target = spec.slice('npm:'.length);
+  const name = packageNameOf(target);
+  return { name, range: name === target ? '' : target.slice(name.length + 1) };
+};
+
+const runtimeDependenciesOf = record =>
+  RUNTIME_DEPENDENCY_KINDS.flatMap(kind =>
+    Object.entries(record.manifest[kind] ?? {}).map(([key, spec]) => ({
+      kind,
+      key,
+      spec,
+      ...resolveDependency(key, spec)
+    }))
+  );
+
+/** 精确钉在补丁之外的版本、且没被 overrides 改写，才证明工作区与消费方拿到的都不是补丁版。 */
+const escapesPatch = (patch, dependency, overridden) =>
+  patch.version !== null &&
+  EXACT_VERSION.test(dependency.range) &&
+  dependency.range !== patch.version &&
+  !overridden.has(dependency.name);
+
+/**
+ * 找出被工作区补丁覆盖的可发布包运行时依赖（含 `npm:` 别名）。
+ *
+ * 范围、tag、URL 会被消费方解析到哪个版本无从证明，被 overrides 改写的包工作区装的也不是清单里的版本，都按命中处理。
+ * 只看直接依赖：传递依赖由消费方的包管理器另行解析。
  *
  * @param {{ key: string, name: string, version: string | null, patch: string }[]} patches 解析出的补丁
  * @param {{ name: string, manifest: Record<string, unknown> }[]} packages 可发布包记录
+ * @param {Set<string>} [overridden] `overrides` 改写的包名
  * @returns {string[]} 形如 `@aiao/a dependencies foo@1.4.0 <- foo@1.4.0 (patches/foo@1.4.0.patch)`
  */
-export function findPublishedPatchConflicts(patches, packages) {
-  const conflicts = [];
-  for (const record of packages) {
-    for (const kind of RUNTIME_DEPENDENCY_KINDS) {
-      const dependencies = record.manifest[kind] ?? {};
-      for (const patch of patches) {
-        const range = dependencies[patch.name];
-        if (range === undefined) continue;
-        if (patch.version !== null && EXACT_VERSION.test(range) && range !== patch.version) continue;
-        conflicts.push(`${record.name} ${kind} ${patch.name}@${range} <- ${patch.key} (${patch.patch})`);
-      }
-    }
-  }
-  return conflicts;
+export function findPublishedPatchConflicts(patches, packages, overridden = new Set()) {
+  return packages.flatMap(record =>
+    runtimeDependenciesOf(record).flatMap(dependency =>
+      patches
+        .filter(patch => patch.name === dependency.name && !escapesPatch(patch, dependency, overridden))
+        .map(
+          patch =>
+            `${record.name} ${dependency.kind} ${dependency.key}@${dependency.spec} <- ${patch.key} (${patch.patch})`
+        )
+    )
+  );
 }
 
 const main = () => {
   const root = path.resolve(import.meta.dirname, '../..');
-  const patches = parsePatchedDependencies(readFileSync(path.join(root, 'pnpm-workspace.yaml'), 'utf8'));
-  const conflicts = findPublishedPatchConflicts(patches, scanPackages(path.join(root, 'packages')));
+  const workspaceYaml = readFileSync(path.join(root, 'pnpm-workspace.yaml'), 'utf8');
+  const patches = parsePatchedDependencies(workspaceYaml);
+  const conflicts = findPublishedPatchConflicts(
+    patches,
+    scanPackages(path.join(root, 'packages')),
+    parseOverriddenPackages(workspaceYaml)
+  );
 
   if (conflicts.length > 0) {
     console.error('❌ 工作区补丁覆盖了可发布包的运行时依赖（补丁不随包发出，npm 用户拿到的是原包）：');

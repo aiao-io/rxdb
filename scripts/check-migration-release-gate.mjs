@@ -206,7 +206,7 @@ const collectPreviousReleaseErrors = (release, options) => {
 /**
  * Validate the checked-in release manifest without making network calls.
  * @param {unknown} manifest
- * @param {{ bridgeTagExists?: (tag: string) => boolean, bridgeTagIsAncestor?: (tag: string) => boolean, bridgeTagSupportsProtocol?: (tag: string) => boolean, bridgeTagVersionConstants?: (tag: string) => ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseVersionConstants?: ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseTagExists?: (tag: string) => boolean, previousReleaseTag?: (version: string) => string | null, previousReleaseVersionConstants?: (tag: string) => ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseTag?: string, packageVersion?: string }} [options]
+ * @param {{ bridgeTagExists?: (tag: string) => boolean, bridgeTagIsAncestor?: (tag: string) => boolean, bridgeTagSupportsProtocol?: (tag: string) => boolean, bridgeTagVersionConstants?: (tag: string) => ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseVersionConstants?: ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseTagExists?: (tag: string) => boolean, releaseTagIsAncestor?: (tag: string) => boolean, previousReleaseTag?: (version: string) => string | null, previousReleaseVersionConstants?: (tag: string) => ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseTag?: string, packageVersion?: string }} [options]
  * @returns {string[]}
  */
 export const validateManifest = (manifest, options = {}) => {
@@ -313,13 +313,16 @@ export const validateManifest = (manifest, options = {}) => {
     errors.push(`${release.kind} releases cannot upgrade system schema or change codec`);
   }
   // 只比对候选发布：已打 tag 的清单是历史记录，两次发布之间 HEAD 上的常量照常演进。
-  if (
-    NON_MIGRATION_KINDS.has(release.kind) &&
-    isSemver(release.version) &&
-    options.releaseTagExists &&
-    !options.releaseTagExists(`v${release.version}`)
-  ) {
-    errors.push(...collectPreviousReleaseErrors(release, options));
+  // 同名 tag 必须在 HEAD 的祖先链上才算「已发布」，打在别的线上的 tag 证明不了什么。
+  if (NON_MIGRATION_KINDS.has(release.kind) && isSemver(release.version) && options.releaseTagExists) {
+    const publishedTag = `v${release.version}`;
+    if (!options.releaseTagExists(publishedTag)) {
+      errors.push(...collectPreviousReleaseErrors(release, options));
+    } else if (options.releaseTagIsAncestor && !options.releaseTagIsAncestor(publishedTag)) {
+      errors.push(
+        `release tag ${publishedTag} exists but is not an ancestor of HEAD, so it cannot mark ${release.version} as already published`
+      );
+    }
   }
   if (release.kind === 'migration' && !release.systemSchemaUpgrade && !release.changeCodecUpgrade) {
     errors.push('migration releases must upgrade system schema or change codec');
@@ -444,6 +447,7 @@ const run = async () => {
     bridgeTagSupportsProtocol: gitTagSupportsProtocol,
     bridgeTagVersionConstants: gitTagVersionConstants,
     releaseTagExists: gitTagExists,
+    releaseTagIsAncestor: gitTagIsAncestor,
     previousReleaseTag: gitPreviousReleaseTag,
     previousReleaseVersionConstants: gitTagVersionConstants,
     releaseVersionConstants: await loadReleaseVersionConstants(),

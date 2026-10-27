@@ -213,13 +213,12 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
    源码逐一核对（含 `canEdit`、`formDataToEntityChanges` 参数序等易错点），代码示例取自 demo 应用真实页面；
    侧边栏以新 category「实体模型（rxdb-model）」接入 `website/sidebars.ts`。`nx lint test website` 17 全绿、
    全部 md 链接检查通过。
-5. **Angular 绑定包的 `@angular/*` peer 被钉成精确版本，`@aiao/rxdb-angular` 的版本号与其余包错开**。
-   - 已发布的 `0.0.26`：`rxdb-angular` / `rxdb-plugin-search-angular` / `code-editor-angular` 的 peer 是 `"22.1.6"`，
-     `0.0.25` 是 `^22.0.0`——消费者装 22.1.7 起即报 peer 冲突。
+5. **Angular 绑定包的 `@angular/*` peer 被钉成精确版本**。
+   - 已发布的 `0.0.28`：`rxdb-angular` 的 peer 是 `"@angular/core": "22.2.3"`（`npm view @aiao/rxdb-angular@0.0.28 peerDependencies`），
+     消费者的 Angular 小版本必须与之完全相同，装 22.2.4 起即报 peer 冲突。
    - 工作区现状：7 个 Angular 包（`code-editor-angular`、`rxdb-angular`、`rxdb-model-angular`、`rxdb-plugin-replay-angular`、
-     `rxdb-plugin-search-angular`、`rxdb-plugin-tree-angular`、`rxdb-plugin-working-tree-angular`）的 `@angular/*` peer 都是精确的 `"22.2.2"`。
-   - 1e8336cd 把 `@aiao/rxdb-angular` 单独抬到 `0.0.27`，并把它的 `@aiao/*` peer 从 `*` 改成字面 `^0.0.26`
-     （`rxdb-model-angular` 里另有 `@aiao/rxdb-angular: ^0.0.27`），其余包仍是 `0.0.26`。
+     `rxdb-plugin-search-angular`、`rxdb-plugin-tree-angular`、`rxdb-plugin-working-tree-angular`）的 `@angular/*` peer 都是精确版本
+     （`22.2.3`，`@angular/cdk` 为 `22.2.4`）。包版本已随 `0.0.28` 统一，`@aiao/*` peer 已统一为 `workspace:^`。
    - 处置：owner 决定下次统一发版时一并处理。
 6. **✅ `dev-rxdb-tauri-e2e` 的 `devtools-provider-gear.spec.ts`「fake 档 expired 场景」竞态已修（2026-10-09）**。
    根因：expired 档把空闲计时器设成真实 `setTimeout(…, 0)`，与经「调试窗口 → Rust → 主窗口」IPC 到达的下一页请求

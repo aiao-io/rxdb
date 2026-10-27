@@ -49,8 +49,8 @@
    处置：**owner 稍后处理（deprecate 或随下次发版覆盖）。** 其余没有 `0.0.26` 的 16 个包是 replay / tree / working-tree 各 4 个、
    `rxdb-model-{angular,react,vue}` 与 `rxdb-taro`（US-219 #100 合入后新增，首个 npm 版本是 `0.0.28`；
    复核：`npm view @aiao/<包名> versions`）。
-3. **`@aiao/rxdb-angular` 单独为 `0.0.27`；7 个 Angular 包的 `@angular/*` peer 钉成精确的 `"22.2.2"`。**
-   前者来自 `1e8336cd`（提交信息只有 `23`），违反「工作区同号」；后者让消费方的 Angular 小版本必须与之完全相同。
+3. **7 个 Angular 包的 `@angular/*` peer 钉成精确版本**（`22.2.3`，`@angular/cdk` 为 `22.2.4`，已随 `0.0.28` 发出），
+   消费方的 Angular 小版本必须与之完全相同。包版本已随 `0.0.28` 统一。
    处置：**owner 决定下次统一发版时处理。**
 
 ## 开项：迁移发布须承接的发布说明
