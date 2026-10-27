@@ -27,7 +27,8 @@ vi.mock('@visactor/vtable-editors', () => import('../testing/fake-vtable-editors
   namespace: 'test',
   properties: [
     { name: 'title', type: PropertyType.string, required: true },
-    { name: 'count', type: PropertyType.integer }
+    { name: 'count', type: PropertyType.integer },
+    { name: 'dueAt', type: PropertyType.date }
   ],
   relations: [
     {
@@ -42,6 +43,7 @@ vi.mock('@visactor/vtable-editors', () => import('../testing/fake-vtable-editors
 class DetailGroup extends EntityBase {
   declare title: string;
   declare count: number;
+  declare dueAt: Date | null;
 }
 
 /** 一对多关系的另一端（注册进 RxDB 供关系元数据校验）。 */
@@ -508,6 +510,23 @@ describe('EntityDetailComponent（真实组件）', () => {
     expect(component.dialogTitle()).toBe('DetailGroup');
   });
 
+  it('独立使用且路由参数解析不到实体时降级为空标题 / 空 tabs / 空字段，变更检测不抛错（对齐 React / Vue）', () => {
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), { provide: RxDB, useValue: rxdb }]
+    });
+    const fixture = TestBed.createComponent(EntityDetailComponent);
+    const component = fixture.componentInstance;
+    // 路由参数笔误 / 实体未注册：没有 DIALOG_DATA 可回退
+    fixture.componentRef.setInput('namespace', 'test');
+    fixture.componentRef.setInput('name', 'NotRegistered');
+
+    expect(() => fixture.detectChanges()).not.toThrow();
+    expect(component.metadataValue).toBeUndefined();
+    expect(component.dialogTitle()).toBe('');
+    expect(component.tabs()).toEqual([]);
+    expect(component.formFieldsValue).toEqual([]);
+  });
+
   it('edit 模式内部保存：formSubmitted 变更落库并 emit（保存成功后）', async () => {
     const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '旧标题' });
     await inst.save();
@@ -522,6 +541,26 @@ describe('EntityDetailComponent（真实组件）', () => {
       expect(((await findAll())[0] as Record<string, unknown>)['title']).toBe('新标题');
     });
     expect(submitted).toEqual([{ title: '新标题', count: 0 }]);
+  });
+
+  it('edit 模式原样保存：没动过的日期字段不判为变更，不产生 UPDATE、实体上仍是 Date', async () => {
+    const dueAt = new Date('2026-01-02T03:04:05.678Z');
+    const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '带日期', dueAt });
+    await inst.save();
+
+    const { component } = createWithRouteInputs('test', 'DetailGroup', inst.id);
+    const submitted: EntityFormData[] = [];
+    component.formSubmitted.subscribe(e => submitted.push(e));
+    await FLUSH();
+    const updatesOf = () => adapter.changes.filter(c => c.type === 'UPDATE' && c.entityId === inst.id).length;
+    const updatesBefore = updatesOf();
+
+    // 用户没动任何字段：提交加载出来的表单数据
+    component.onFormSubmitted(component.formDataValue);
+    await vi.waitFor(() => expect(submitted).toHaveLength(1));
+
+    expect(updatesOf() - updatesBefore).toBe(0);
+    expect(component.formDataValue['dueAt']).toBeInstanceOf(Date);
   });
 
   it('edit 对话框模式（DIALOG_DATA entityId）从仓库加载实例作为表单数据', async () => {

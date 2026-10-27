@@ -9,9 +9,10 @@
  */
 import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
 import type { EntityFormData, FormFieldConfig, FormValidationResult } from '@aiao/rxdb-model';
-import { RxDBProvider } from '@aiao/rxdb-react';
+import { RxDBProvider, useRxDBOptional } from '@aiao/rxdb-react';
 import { Account, Contract, Invoice, Todo } from '@aiao/rxdb-test/entities';
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
+import type { JSX } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Dialog } from '../../dialog/dialog';
 import { EntityDetail, type EntityDetailDialogData } from '../../entity-detail/entity-detail';
@@ -62,6 +63,28 @@ class DetailGroup extends EntityBase {
 })
 class DetailChild extends EntityBase {
   declare label: string;
+}
+
+/**
+ * 异步 rxdb source 用例专用实体：只注册进用例自建的库。
+ * 同一实体类同时绑定两个可写库时 `new cls()` 无从选库，不能复用共享库里的实体。
+ */
+@Entity({
+  name: 'AsyncDraftGroup',
+  namespace: 'test',
+  properties: [
+    { name: 'title', type: PropertyType.string, required: true },
+    { name: 'count', type: PropertyType.integer, default: 7 }
+  ]
+})
+class AsyncDraftGroup extends EntityBase {
+  declare title: string;
+  declare count: number;
+}
+
+/** 与被测组件同读 useRxDBOptional：异步 source 的实例到货后才渲染标记。 */
+function DbReadyMarker(): JSX.Element | null {
+  return useRxDBOptional() ? <span data-db-ready='true' /> : null;
 }
 
 const FLUSH = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
@@ -208,6 +231,137 @@ describe('EntityDetail（真实组件）', () => {
       expect(rows).toHaveLength(1);
       expect((rows[0] as Record<string, unknown>)['title']).toBe('第一组');
     });
+  });
+
+  it.each([
+    ['Promise', (db: RxDB) => Promise.resolve(db)],
+    ['工厂', (db: RxDB) => () => db]
+  ] as const)(
+    '异步 rxdb source（%s）首帧未就绪：到货后补建草稿，保存落库而非退化为 emit-only',
+    async (_kind, toSource) => {
+      const asyncDb = createInMemoryRxdb([AsyncDraftGroup as unknown as EntityType]);
+      await asyncDb.connect(IN_MEMORY_ADAPTER_NAME);
+      const submitted: EntityFormData[] = [];
+      const closed: unknown[] = [];
+      const utils = render(
+        <RxDBProvider db={toSource(asyncDb)}>
+          <DbReadyMarker />
+          <Dialog open onClose={result => closed.push(result)} width='720px' height='80vh'>
+            <EntityDetail
+              metadata={getEntityMetadata(AsyncDraftGroup)}
+              formFields={
+                [
+                  { field: 'title', displayName: '标题', type: 'string', required: true },
+                  { field: 'count', displayName: '数量', type: 'integer' }
+                ] as FormFieldConfig[]
+              }
+              formData={{ title: '' }}
+              formMode='create'
+              onFormSubmitted={e => submitted.push(e)}
+            />
+          </Dialog>
+        </RxDBProvider>
+      );
+      try {
+        await waitFor(() => {
+          expect(document.querySelector('[data-db-ready="true"]')).toBeTruthy();
+        });
+        await act(FLUSH);
+
+        const pane = document.querySelector('.rxdb-dialog-pane') as HTMLDivElement;
+        fireEvent.change(pane.querySelector('[data-field="title"] input') as HTMLInputElement, {
+          target: { value: '异步就绪' }
+        });
+        fireEvent.click(pane.querySelector('[data-detail-save="true"]') as HTMLElement);
+
+        expect(submitted).toEqual([]);
+        await waitFor(() => {
+          expect(closed).toEqual(['saved']);
+        });
+        const seen: Array<Array<Record<string, unknown>>> = [];
+        const subscription = asyncDb.entityManager
+          .getRepository(AsyncDraftGroup as unknown as EntityType)
+          .find({ where: { combinator: 'and', rules: [] } } as never)
+          .subscribe(rows => seen.push(rows as Array<Record<string, unknown>>));
+        await waitFor(() => {
+          expect(seen.at(-1)?.map(row => [row['title'], row['count']])).toEqual([['异步就绪', 7]]);
+        });
+        subscription.unsubscribe();
+      } finally {
+        utils.unmount();
+        await asyncDb.destroy();
+      }
+    }
+  );
+
+  /** 宿主改 props 的 create 草稿：rerenderWith 模拟宿主重新传入 props（对应 Angular 侧 setInput）。 */
+  function renderDraftHost() {
+    const submitted: EntityFormData[] = [];
+    const closed: unknown[] = [];
+    const element = (over: Partial<EntityDetailDialogData>) => (
+      <Dialog open onClose={result => closed.push(result)} width='720px' height='80vh'>
+        <RxDBProvider db={rxdb}>
+          <EntityDetail {...dialogData(over)} onFormSubmitted={e => submitted.push(e)} />
+        </RxDBProvider>
+      </Dialog>
+    );
+    const utils = render(element({}));
+    const pane = (): HTMLDivElement => document.querySelector('.rxdb-dialog-pane') as HTMLDivElement;
+    const fill = (field: string, value: string): void => {
+      fireEvent.change(pane().querySelector(`[data-field="${field}"] input`) as HTMLInputElement, {
+        target: { value }
+      });
+    };
+    const save = (): void => {
+      fireEvent.click(pane().querySelector('[data-detail-save="true"]') as HTMLElement);
+    };
+    return {
+      submitted,
+      closed,
+      fill,
+      save,
+      rerenderWith: (over: Partial<EntityDetailDialogData>) => utils.rerender(element(over))
+    };
+  }
+
+  it('保存后宿主改动非触发 props（formData）不会静默再建草稿', async () => {
+    const host = renderDraftHost();
+    host.fill('title', '已保存');
+    host.save();
+    await waitFor(() => {
+      expect(host.closed).toEqual(['saved']);
+    });
+
+    host.rerenderWith({ formData: { title: '', count: 9 } });
+    host.save();
+
+    // 没有草稿：走 emit-only，不再落库
+    expect(host.submitted).toHaveLength(1);
+    expect(await findAll()).toHaveLength(1);
+  });
+
+  it('草稿触发源与 Angular effect / Vue watch 一致：保存前改过 formData，保存后切 metadata 仍按新实体重建草稿', async () => {
+    const host = renderDraftHost();
+    // 草稿存续期间改一个非触发 props：不得重建，也不得丢掉触发源
+    host.rerenderWith({ formData: { title: '', count: 1 } });
+    host.fill('title', '第一条');
+    host.save();
+    await waitFor(() => {
+      expect(host.closed).toEqual(['saved']);
+    });
+
+    host.rerenderWith({
+      metadata: getEntityMetadata(DetailChild),
+      formFields: [{ field: 'label', displayName: '标签', type: 'string' }] as FormFieldConfig[],
+      formData: { label: '' }
+    });
+    host.fill('label', '子项一');
+    host.save();
+
+    await waitFor(() => {
+      expect(host.closed).toEqual(['saved', 'saved']);
+    });
+    expect(host.submitted).toEqual([]);
   });
 
   it('delegateSave 不建草稿，保存时 emit formSubmitted', () => {

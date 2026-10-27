@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 
 use super::error::{ErrorCode, HostError, HostResult};
 use super::paths::validate_database_name;
-use super::value::decode_binding;
+use super::value::{decode_binding, decoded_blob_length};
 
 /// 线协议版本；renderer 在 `handshake` 应答里核对该值（`open` 应答里也带一份）。
 ///
@@ -131,11 +131,9 @@ fn read_sql(record: &Map<String, Value>) -> HostResult<String> {
     Ok(sql.to_string())
 }
 
-fn check_blob_size(value: &rusqlite::types::Value, index: usize) -> HostResult<()> {
-    let rusqlite::types::Value::Blob(blob) = value else {
-        return Ok(());
-    };
-    if blob.len() > MAX_BLOB_BYTES {
+/// 按编码长度在解码**之前**判 blob 上限，理由见 [`decoded_blob_length`]。
+fn check_blob_size(item: &Value, index: usize) -> HostResult<()> {
+    if decoded_blob_length(item).is_some_and(|length| length > MAX_BLOB_BYTES) {
         return Err(violation(format!(
             "binding at index {index} is not a SQLite compatible value within size limits"
         )));
@@ -159,10 +157,9 @@ fn read_bindings(record: &Map<String, Value>) -> HostResult<Vec<rusqlite::types:
 }
 
 fn decode_one_binding((index, item): (usize, &Value)) -> HostResult<rusqlite::types::Value> {
-    let value = decode_binding(item)
-        .map_err(|error| violation(format!("binding at index {index} is invalid: {}", error.message)))?;
-    check_blob_size(&value, index)?;
-    Ok(value)
+    check_blob_size(item, index)?;
+    decode_binding(item)
+        .map_err(|error| violation(format!("binding at index {index} is invalid: {}", error.message)))
 }
 
 /// `batchTimeout` 只接受非负整数；0 表示「尽快派发」，是合法档位。
@@ -455,16 +452,35 @@ mod tests {
         );
     }
 
-    /// blob 上限直接测断言函数：构造一个真的 64 MiB 载荷来跑解析，代价远大于它证明的东西。
+    /// 超限的 blob 绑定只凭编码长度就拒，不先解码、也就不先分配那 64 MiB。载荷是一串非 base64 字符——
+    /// 先解码的实现报的会是字符非法，而不是超限。
+    #[test]
+    fn rejects_an_oversized_blob_binding_before_decoding_it() {
+        // 载荷直接挪进请求：`json!` 会再拷一份，而这里每一份都是 89 MB。
+        let mut request = json!({ "kind": "execute", "sessionId": SESSION, "sql": "SELECT ?", "bindings": [{}] });
+        request["bindings"][0]["$u8"] = Value::String("!".repeat((MAX_BLOB_BYTES / 3 + 1) * 4));
+        let error = parse_request(&request).unwrap_err();
+        assert_eq!(error.code, ErrorCode::ProtocolViolation);
+        assert_eq!(
+            error.message,
+            "binding at index 0 is not a SQLite compatible value within size limits"
+        );
+    }
+
+    /// blob 上限直接测断言函数，上限那一档也一起钉住：长度按补位折算，多算一个字节就会把恰好
+    /// 64 MiB 的 blob 拒掉。只比长度、不解码，载荷用 `A` 加补位凑出真实尺寸即可。
     #[test]
     fn enforces_the_blob_size_limit() {
-        let at_limit = rusqlite::types::Value::Blob(vec![0; 0]);
+        let payload = |text: String| Value::Object(Map::from_iter([("$u8".to_string(), Value::String(text))]));
+        // 64 MiB = 3n + 1：末组只剩一个字节，补两个 `=`；多一个字节则补一个。
+        let at_limit = payload("A".repeat(MAX_BLOB_BYTES.div_ceil(3) * 4 - 2) + "==");
         assert!(check_blob_size(&at_limit, 0).is_ok());
-        let over_limit = rusqlite::types::Value::Blob(vec![0; MAX_BLOB_BYTES + 1]);
+        let over_limit = payload("A".repeat((MAX_BLOB_BYTES + 1).div_ceil(3) * 4 - 1) + "=");
         assert_eq!(
             check_blob_size(&over_limit, 3).unwrap_err().code,
             ErrorCode::ProtocolViolation
         );
+        assert!(check_blob_size(&json!([0, 255]), 0).is_ok());
     }
 
     /// 错误应答的**线上形状**：renderer 的 `assertDesktopHostResponse` 就按这三个键解包。

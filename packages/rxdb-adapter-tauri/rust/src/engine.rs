@@ -194,6 +194,8 @@ impl PendingState {
             return;
         }
         let now = Instant::now();
+        // `batch_timeout` 不设上界：协议只收 u64 毫秒（约 1.8e16 秒），std 的 `Instant` 以 i64 / u64 秒计，
+        // 相加不会溢出；超过 MAX_BATCH_WAIT_MS 的值在 `due_in()` 里被 hard_deadline 压住，与 100ms 等价
         self.deadline = Some(now + batch_timeout);
         self.hard_deadline
             .get_or_insert_with(|| now + Duration::from_millis(MAX_BATCH_WAIT_MS));
@@ -292,6 +294,18 @@ fn classify(error: &rusqlite::Error, fallback: ErrorCode) -> ErrorCode {
     sqlite_error_code(failure.code).unwrap_or(fallback)
 }
 
+/// 打开失败的原因，不带库文件的物理路径。
+///
+/// rusqlite 会把路径接在 `SQLITE_CANTOPEN` 的消息后面（`unable to open database file: /…/rxdb-data/…`），
+/// 原样回给 renderer 就泄露了应用数据目录（AC#4）。结果码自己的描述已经说清原因，
+/// 例如 `Error code 14: Unable to open the database file`。
+fn open_failure_reason(error: &rusqlite::Error) -> String {
+    match error {
+        rusqlite::Error::SqliteFailure(failure, _) => failure.to_string(),
+        other => other.to_string(),
+    }
+}
+
 fn quote_identifier(name: &str) -> String {
     format!("\"{}\"", name.replace('"', "\"\""))
 }
@@ -331,7 +345,11 @@ impl Engine {
         let connection = Connection::open_with_flags(&options.file_path, flags).map_err(|error| {
             HostError::new(
                 classify(&error, ErrorCode::OpenFailed),
-                format!("failed to open desktop database {}: {error}", options.db_name),
+                format!(
+                    "failed to open desktop database {}: {}",
+                    options.db_name,
+                    open_failure_reason(&error)
+                ),
             )
         })?;
 

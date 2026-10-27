@@ -21,6 +21,7 @@ import {
   HttpConfigError,
   HttpDisconnectedError,
   HttpHandlerContractError,
+  HttpInvalidMetadataError,
   HttpResponseError,
   HttpUnsupportedOperationError,
   HttpUnsupportedWireTypeError
@@ -900,6 +901,50 @@ describe('写入口按 handler 存在与否特性探测（AC#4）', () => {
     const remove = adapter.delete;
     if (!remove) throw new Error('配了 onDelete 却没有 delete duck');
     await expect(firstValueFrom(remove.call(adapter, 'HttpRecipe', []))).rejects.toBeInstanceOf(HttpDisconnectedError);
+  });
+});
+
+describe('写回执与 findByIds 行的 updatedAt 过 metadata 同一道门禁', () => {
+  // 这些行被 core 原样写进本地缓存，`updatedAt` 随即成为本地侧的新鲜度基准。无时区串按本机时区解析：
+  // 同一份回执在 UTC+8 与 UTC 的机器上落成不同时刻，与远端 metadata 比较时永远判「远端更新」或反之
+  const NAIVE = '2026-08-23T10:00:00';
+
+  const callWrite = (adapter: RxDBAdapterHttp, duck: 'create' | 'update') => {
+    const observable = duck === 'create' ? adapter.create?.('HttpRecipe', {}) : adapter.update?.('HttpRecipe', 'a', {});
+    if (!observable) throw new Error(`配了 handler 却没有 ${duck} duck`);
+    return firstValueFrom(observable);
+  };
+
+  it.each(['create', 'update'] as const)('%s 回执的无时区 updatedAt → HttpInvalidMetadataError', async duck => {
+    queueResponses([json({ id: 'a', updatedAt: NAIVE })]);
+    const adapter = await createAdapter({ handlers: { ...minimalHandlers, ...writeHandlers } });
+    await expect(callWrite(adapter, duck)).rejects.toBeInstanceOf(HttpInvalidMetadataError);
+  });
+
+  it.each(['create', 'update'] as const)('%s 回执的带时区 updatedAt 归一成 toISOString 同形', async duck => {
+    queueResponses([json({ id: 'a', title: 'x', updatedAt: '2026-08-23T18:00:00+08:00' })]);
+    const adapter = await createAdapter({ handlers: { ...minimalHandlers, ...writeHandlers } });
+    await expect(callWrite(adapter, duck)).resolves.toEqual({
+      id: 'a',
+      title: 'x',
+      updatedAt: '2026-08-23T10:00:00.000Z'
+    });
+  });
+
+  it('findByIds 行的无时区 updatedAt 同样拒收', async () => {
+    queueResponses([json([{ id: 'a', updatedAt: NAIVE }])]);
+    const adapter = await createAdapter();
+    await expect(firstValueFrom(adapter.findByIds('HttpRecipe', ['a']))).rejects.toBeInstanceOf(
+      HttpInvalidMetadataError
+    );
+  });
+
+  it('findByIds 行的带时区 updatedAt 归一，其余字段原样', async () => {
+    queueResponses([json([{ id: 'a', title: 'x', updatedAt: '2026-08-23T18:00:00+08:00' }])]);
+    const adapter = await createAdapter();
+    await expect(firstValueFrom(adapter.findByIds('HttpRecipe', ['a']))).resolves.toEqual([
+      { id: 'a', title: 'x', updatedAt: '2026-08-23T10:00:00.000Z' }
+    ]);
   });
 });
 

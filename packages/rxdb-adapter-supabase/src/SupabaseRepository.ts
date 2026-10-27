@@ -20,6 +20,13 @@ interface RepositoryRuleView {
   where?: RepositoryRuleGroup;
 }
 
+/**
+ * 过滤 readonly 字段后把 patch 归一为属性名键。
+ *
+ * @remarks
+ * 本适配器的远端列名契约：主键按 `id` 的 columnName 解析（`primary_key_column()`），
+ * 其余字段（含外键）的物理列名就是属性名，属性 / 关系上的 columnName 只对本地适配器生效。
+ */
 function normalize_supabase_update(metadata: EntityMetadata, patch: Record<string, unknown>): Record<string, unknown> {
   const normalized = normalizeUpdateEntity(metadata, patch);
   const result: Record<string, unknown> = {};
@@ -203,10 +210,8 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     const patchData = normalize_supabase_update(this.metadata, patch as Record<string, unknown>);
     const userId = this.rxdb.context.userId;
-    if (userId) {
-      const updatedBy = this.metadata.propertyMap.get('updatedBy');
-      if (updatedBy) patchData[updatedBy.columnName] = userId;
-    }
+    // 按属性名写，与 create 及归一后的 patch 同口径：非主键字段的远端列名就是属性名
+    if (userId && this.metadata.propertyMap.has('updatedBy')) patchData['updatedBy'] = userId;
     const { data, error, status } = await this.get_client()
       .update<Record<string, unknown>>(patchData)
       .eq(this.primary_key_column(), entity.id)

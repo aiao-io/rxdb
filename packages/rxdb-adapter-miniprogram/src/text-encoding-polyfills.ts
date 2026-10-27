@@ -95,28 +95,42 @@ function sequenceLength(first: number): number {
   return 0;
 }
 
-/** 验证从 `index` 开始宽度为 `width` 的多字节序列是否合法 UTF-8。 */
-function validSequence(bytes: Uint8Array, index: number, width: number): boolean {
-  if (index + width > bytes.length) return false;
-  const first = bytes[index];
-  const second = bytes[index + 1];
-  if (!isContinuation(second)) return false;
-  if (first === 0xe0 && second < 0xa0) return false;
-  if (first === 0xed && second > 0x9f) return false;
-  if (first === 0xf0 && second < 0x90) return false;
-  if (first === 0xf4 && second > 0x8f) return false;
-  for (let offset = 2; offset < width; offset++) {
-    if (!isContinuation(bytes[index + offset])) return false;
-  }
-  return true;
+/** 第二个字节的下界：E0、F0 收窄，排除过长编码。 */
+function secondByteLower(first: number): number {
+  if (first === 0xe0) return 0xa0;
+  if (first === 0xf0) return 0x90;
+  return 0x80;
 }
 
-/** 无效 UTF-8 序列中实际可跳过的字节数。 */
-function invalidSequenceWidth(bytes: Uint8Array, index: number, width: number): number {
-  if (index + width > bytes.length) return bytes.length - index;
-  let consumed = 1;
-  while (consumed < width && isContinuation(bytes[index + consumed])) consumed++;
-  return consumed;
+/** 第二个字节的上界：ED 收窄排除代理区，F4 收窄排除 U+10FFFF 以上的码点。 */
+function secondByteUpper(first: number): number {
+  if (first === 0xed) return 0x9f;
+  if (first === 0xf4) return 0x8f;
+  return 0xbf;
+}
+
+/** 首字节 `first` 之后第 `offset` 个字节是否落在允许的区间（WHATWG UTF-8 decoder 的 lower/upper boundary）。 */
+function continuesSequence(first: number, offset: number, byte: number): boolean {
+  if (offset > 1) return isContinuation(byte);
+  return byte >= secondByteLower(first) && byte <= secondByteUpper(first);
+}
+
+/**
+ * 从 `index` 起与首字节相符的最长前缀的字节数（含首字节），不超过 `width`；等于 `width` 即一个合法序列。
+ *
+ * 不足 `width` 时按 WHATWG 的「最大子部分」规则：这段前缀只记一个 U+FFFD，打断它的字节不算进来，
+ * 留给下一轮重新判断。所以 `E0 80 80` 是三个 U+FFFD、截在末尾的 `E2 82` 是一个，`E4 41` 里的 `A` 不会被吞掉。
+ */
+function validPrefixLength(bytes: Uint8Array, index: number, width: number): number {
+  let length = 1;
+  while (
+    length < width &&
+    index + length < bytes.length &&
+    continuesSequence(bytes[index], length, bytes[index + length])
+  ) {
+    length++;
+  }
+  return length;
 }
 
 /** 从合法多字节序列中解码码点。 */
@@ -198,13 +212,14 @@ function decodeUtf8(bytes: Uint8Array, fatal: boolean): string {
       continue;
     }
     const width = sequenceLength(bytes[index]);
-    if (width > 0 && validSequence(bytes, index, width)) {
+    const length = width > 0 ? validPrefixLength(bytes, index, width) : 1;
+    if (length === width) {
       output.push(String.fromCodePoint(decodeCodePoint(bytes, index, width)));
       index += width;
       continue;
     }
     output.push(invalidCharacter(fatal, 'utf-8'));
-    index += width > 0 ? invalidSequenceWidth(bytes, index, width) : 1;
+    index += length;
   }
   return output.join('');
 }

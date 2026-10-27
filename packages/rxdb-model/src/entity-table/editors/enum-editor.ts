@@ -37,7 +37,12 @@ export class EnumEditor extends GlobalOverlayEditor {
   #presetItems: EnumItem[] | null = null;
 
   protected get initialFocusIndex(): number {
-    return this.#items.findIndex(i => i.value === this.#currentValue);
+    const idx = this.#items.findIndex(i => i.value === this.#currentValue);
+    if (idx >= 0) return idx;
+    // 不允许 null 且当前值不在列表（含空值）：只把键盘焦点预置到首个真实项供 Enter 确认，
+    // 不改写当前值——Escape / 点击外部等未经选择就结束的编辑原样写回原值
+    const hasNullOption = this.#items.some(i => i.value === '');
+    return hasNullOption ? -1 : this.#items.findIndex(i => i.value !== '');
   }
 
   protected get itemCount(): number {
@@ -71,18 +76,6 @@ export class EnumEditor extends GlobalOverlayEditor {
       text: item.text ?? item.value
     }));
 
-    // 是否允许 null（菜单列表中有 value='' 的项）
-    const hasNullOption = this.#items.some(i => i.value === '');
-    const realItems = this.#items.filter(i => i.value !== '');
-
-    if (!hasNullOption && this.#currentValue === '') {
-      // 不允许 null 且当前值为空，自动选择第一项
-      this.#currentValue = realItems[0]?.value ?? '';
-    } else if (!hasNullOption && !this.#items.some(i => i.value === this.#currentValue)) {
-      // 不允许 null 且当前值不在列表中，自动选择第一项
-      this.#currentValue = realItems[0]?.value ?? '';
-    }
-
     super.onStart(ctx);
   }
 
@@ -112,6 +105,11 @@ export class EnumEditor extends GlobalOverlayEditor {
       const isNullItem = item.value === '';
       const isSelected = item.value === this.#currentValue;
       const isDisabled = item.disabled === true;
+      // 当前值不在列表时没有选中行：预置的焦点行（Enter 的目标）用焦点色标出
+      const background =
+        isSelected ? DAISY_COLORS.selectedBg
+        : idx === this.focusedIndex ? DAISY_COLORS.focusBg
+        : 'transparent';
       const row = document.createElement('div');
       row.dataset['value'] = item.value;
       row.dataset['idx'] = String(idx);
@@ -124,7 +122,7 @@ export class EnumEditor extends GlobalOverlayEditor {
         `color:${DAISY_COLORS.text}`,
         `opacity:${isNullItem || isDisabled ? '0.55' : '1'}`,
         `font-style:${isNullItem ? 'italic' : 'normal'}`,
-        `background:${isSelected ? DAISY_COLORS.selectedBg : 'transparent'}`
+        `background:${background}`
       ].join(';');
       if (item.icon && item.color) {
         row.appendChild(lucideToSvgElement(item.icon, item.color));

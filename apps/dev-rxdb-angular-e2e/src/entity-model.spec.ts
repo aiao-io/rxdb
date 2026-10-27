@@ -255,6 +255,8 @@ test.describe('Entity Model Pages', () => {
       await page.getByRole('button', { name: '保存', exact: true }).click();
       await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
 
+      // 保存后表格按 UPDATE 重绘，重绘途中单元格里还没有图标：与第一次打开一样，轮询到图标出现再点
+      await expect.poll(() => findActionIcon(page, 'view-action')).not.toBeNull();
       const reopen = await findActionIcon(page, 'view-action');
       await page.mouse.click(reopen!.x, reopen!.y);
       await expect(page.getByRole('group', { name: '标题' }).getByRole('textbox')).toHaveValue('e2e-contract-signed');

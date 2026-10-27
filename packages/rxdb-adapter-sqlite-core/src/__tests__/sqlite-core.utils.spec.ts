@@ -592,6 +592,29 @@ describe('sqlite.utils', () => {
         "INSERT INTO users (name, age, email) VALUES ('Alice', 30, 'alice@example.com')"
       );
     });
+
+    it('Uint8Array 应写成 BLOB 字面量，而不是逗号分隔的裸数字', () => {
+      const sql = 'INSERT INTO files (name, payload) VALUES (?, ?)';
+      expect(get_sql_with_params(sql, ['a', new Uint8Array([1, 2, 255])])).toBe(
+        "INSERT INTO files (name, payload) VALUES ('a', X'0102ff')"
+      );
+      expect(get_sql_with_params('SELECT ?', [new Uint8Array()])).toBe("SELECT X''");
+    });
+
+    it('Date 应按落库口径写成 ISO 串字面量', () => {
+      expect(get_sql_with_params('SELECT ?', [new Date('2026-01-01T00:00:00.000Z')])).toBe(
+        "SELECT '2026-01-01T00:00:00.000Z'"
+      );
+    });
+
+    it('Date 的 ISO 串与普通字符串同样转义，覆写的 toISOString 拼不出语句', () => {
+      const date = Object.assign(new Date(0), { toISOString: () => "x'); DROP TABLE t; --" });
+      expect(get_sql_with_params('SELECT ?', [date])).toBe("SELECT 'x''); DROP TABLE t; --'");
+    });
+
+    it('数字数组没有可内联的字面量形式，应抛 TypeError 而不是拼出非法 SQL', () => {
+      expect(() => get_sql_with_params('SELECT ?', [[1, 2]])).toThrow(TypeError);
+    });
   });
 
   describe('transformEntityValueToSql', () => {
@@ -1235,6 +1258,21 @@ describe('sqlite.utils', () => {
             { keyring, namespace: ENCRYPTION_CONTEXT_NAMESPACE }
           )
         ).rejects.toThrow(/keyring is locked/);
+      });
+
+      it('主键也按物理列名给（自定义主键列）：AAD 仍取真实主键，读侧解得开', async () => {
+        const customKeyMetadata = createMetadata([
+          { name: 'id', columnName: 'pk_id', type: PropertyType.uuid, primary: true },
+          { name: 'secret', type: PropertyType.string, encrypted: true, nullable: true }
+        ]);
+        const keyring = await createUnlockedKeyring();
+        const ctx = { keyring, namespace: ENCRYPTION_CONTEXT_NAMESPACE };
+
+        const saved = await transformEntityValueToSql(customKeyMetadata, { pk_id: 'entity-3', secret: 'v' }, ctx);
+
+        await expect(
+          getEntityObjectFromResult(customKeyMetadata, ['pk_id', 'secret'], ['entity-3', saved.secret as string], ctx)
+        ).resolves.toEqual({ id: 'entity-3', secret: 'v' });
       });
     });
   });

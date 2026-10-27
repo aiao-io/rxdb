@@ -88,13 +88,14 @@ pub fn validate_database_name(database_name: &str) -> HostResult<()> {
     Ok(())
 }
 
-fn directory_error(directory: &Path, error: &std::io::Error) -> HostError {
+/// 消息里只有目录的逻辑名：物理根目录不回传（AC#4），`io::Error` 自己也不带路径。
+fn directory_error(error: std::io::Error) -> HostError {
     let code = if error.kind() == std::io::ErrorKind::PermissionDenied {
         ErrorCode::PermissionDenied
     } else {
         ErrorCode::OpenFailed
     };
-    HostError::new(code, format!("failed to prepare {}: {error}", directory.display()))
+    HostError::new(code, format!("failed to prepare the {DATABASE_DIRECTORY} directory: {error}"))
 }
 
 /// 解析出数据库文件的物理路径，必要时创建 `<app_data_dir>/rxdb-data/`。
@@ -109,7 +110,7 @@ fn directory_error(directory: &Path, error: &std::io::Error) -> HostError {
 pub fn resolve_database_path(app_data_dir: &Path, database_name: &str) -> HostResult<PathBuf> {
     validate_database_name(database_name)?;
     let directory = app_data_dir.join(DATABASE_DIRECTORY);
-    fs::create_dir_all(&directory).map_err(|error| directory_error(&directory, &error))?;
+    fs::create_dir_all(&directory).map_err(directory_error)?;
     Ok(directory.join(database_name))
 }
 

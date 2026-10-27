@@ -239,13 +239,15 @@ export class EntityDetailComponent {
 
   readonly activeTab = computed(() => this.tabs().find(t => t.key === this.activeTabKey()));
 
-  // 公开访问器 - 优先级：直接 input > 路由推导 > dialog data
-  get metadataValue(): EntityMetadata {
-    return this.metadata() ?? this.#metadataFromRouteInputs() ?? this.#dialogData!.metadata;
+  // 公开访问器 - 优先级：直接 input > 路由推导 > dialog data。
+  // 三者都缺（独立使用且路由参数解析不到实体）时与 React / Vue 一致降级为 undefined / []，
+  // 不在模板变更检测里抛 TypeError
+  get metadataValue(): EntityMetadata | undefined {
+    return this.metadata() ?? this.#metadataFromRouteInputs() ?? this.#dialogData?.metadata;
   }
 
   get formFieldsValue(): FormFieldConfig[] {
-    const fields = this.formFields() ?? this.#formFieldsFromRouteInputs() ?? this.#dialogData!.formFields;
+    const fields = this.formFields() ?? this.#formFieldsFromRouteInputs() ?? this.#dialogData?.formFields ?? [];
     const fixed = this.fixedFormDataValue;
     if (!fixed) return fields;
     return fields.map(f => (f.field in fixed ? { ...f, readonly: true } : f));
