@@ -13,13 +13,14 @@ import {
   getEntityMetadata,
   PropertyType,
   RxDBConstraintDriftError,
+  WorktreeTableSet,
   type EntityType
 } from '@aiao/rxdb';
 import type { SQLInputValue } from 'node:sqlite';
 import { describe, expect, it, vi } from 'vitest';
 import { assertOo1Static, type Oo1Static } from '../oo1-types.js';
 import type { SQLiteCompatibleType, SqliteSuccessResult } from '../sqlite-core.interface.js';
-import { get_table_name_by_metadata } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import { check_entity_constraints_sqlite } from './check-entity-constraints.js';
 
 @Entity({
@@ -90,7 +91,7 @@ const xinfo = (cid: number, name: string, type: string, hidden: number): Catalog
 
 /** 单表目录：建表 SQL 文本 + `PRAGMA table_xinfo` 的列；没有索引与触发器。 */
 const catalog = (entity: EntityType, definitions: readonly string[], columns: readonly CatalogRow[]) => {
-  const tableName = get_table_name_by_metadata(getEntityMetadata(entity));
+  const tableName = get_table_name_by_metadata(getEntityMetadata(entity), WorktreeTableSet.MAIN);
   const tableSql = `CREATE TABLE "${tableName}" (${['"id" TEXT PRIMARY KEY', '"ext" TEXT', ...definitions].join(', ')})`;
   const rows: readonly CatalogRow[] = [xinfo(0, 'id', 'TEXT', 0), xinfo(1, 'ext', 'TEXT', 0), ...columns];
   return {
@@ -221,7 +222,7 @@ describe('SQLite 生成列漂移：真实引擎目录', () => {
   it('ALTER TABLE 补出的普通 gc_ 列在真实目录上判多余，声明的生成列照常一致', async () => {
     const engine = await openEngine();
     try {
-      const tableName = get_table_name_by_metadata(getEntityMetadata(DriftHotRow));
+      const tableName = get_table_name_by_metadata(getEntityMetadata(DriftHotRow), WorktreeTableSet.MAIN);
       engine.exec(`CREATE TABLE "${tableName}" ("id" TEXT PRIMARY KEY, "ext" TEXT, ${generatedDefinition()})`);
       const executor: CatalogExecutor = {
         execute: async (sql, bindings) => result([], engine.rows(sql, bindings))
