@@ -311,7 +311,7 @@ describe('EntityList（真实组件）', () => {
     });
     try {
       const { container } = await renderList();
-      const button = (label: string) => container.querySelector(`[aria-label="${label}"]`) as HTMLButtonElement;
+      const button = (label: string) => container.querySelector(`[aria-label^="${label}"]`) as HTMLButtonElement;
       await waitFor(() => {
         expect(button('撤销 (Ctrl+Z)').title).toBe('更早的改动已被分支 feature 继承，撤销不了');
       });
@@ -505,7 +505,7 @@ describe('EntityList（真实组件）', () => {
       expect(dialog?.textContent).not.toContain('撤销');
       fireEvent.click(document.querySelector('[data-testid="delete-confirm-submit"]') as HTMLElement);
       await waitFor(() => expect(tableOf().records).toHaveLength(0));
-      expect((view.getByRole('button', { name: '撤销 (Ctrl+Z)' }) as HTMLButtonElement).disabled).toBe(true);
+      expect((view.getByRole('button', { name: '撤销 (Ctrl+Z) 0' }) as HTMLButtonElement).disabled).toBe(true);
     } finally {
       view.unmount();
       await plain.destroy();
