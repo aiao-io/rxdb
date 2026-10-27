@@ -30,8 +30,8 @@ export {
   type TaskDraftSnapshot,
   type TaskFieldPatch
 } from './detail-service.js';
-export { dueStatus, dueStatusText, localDateKey, msUntilNextLocalMidnight, type DueStatus } from './due-status.js';
 export {
+  dropIndicatorAnchor,
   resolveCardDrop,
   resolveColumnDrop,
   resolveMenuMove,
@@ -40,6 +40,7 @@ export {
   type ColumnDropView,
   type MenuMoveColumnView
 } from './drop-resolution.js';
+export { dueStatus, dueStatusText, localDateKey, msUntilNextLocalMidnight, type DueStatus } from './due-status.js';
 export { Board, BoardLabel, Column, Task, TaskLabel } from './entities/index.js';
 export { BoardDomainError, type BoardErrorCode } from './errors.js';
 export {

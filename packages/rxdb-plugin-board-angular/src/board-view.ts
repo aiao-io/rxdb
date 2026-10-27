@@ -1,17 +1,18 @@
 import type { UUID } from '@aiao/rxdb';
 import {
   BOARD_LABEL_COLORS,
+  dropIndicatorAnchor,
   dueStatus,
   dueStatusText,
   isBoardFilterEmpty,
   isHexColor,
-  labelTextColor as pickLabelTextColor,
   localDateKey,
   matchesBoardFilter,
   msUntilNextLocalMidnight,
   nextGridFocus,
   nextLabelColor,
   parseBoardFilter,
+  labelTextColor as pickLabelTextColor,
   placePopover,
   resolveCardDrop,
   resolveColumnDrop,
@@ -57,12 +58,7 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
 
 /** 弹层种类：菜单（板 / 列 / 卡片）与选择器（移到列 / 详情所在列 / 详情标签）。 */
 export type BoardPopoverKind =
-  | 'board-menu'
-  | 'column-menu'
-  | 'task-menu'
-  | 'move-picker'
-  | 'detail-column-picker'
-  | 'detail-label-picker';
+  'board-menu' | 'column-menu' | 'task-menu' | 'move-picker' | 'detail-column-picker' | 'detail-label-picker';
 
 interface PopoverState {
   readonly kind: BoardPopoverKind;
@@ -198,11 +194,14 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   private detailQueue: Promise<unknown> = Promise.resolve();
   private returnFocus: HTMLElement | null = null;
   private pickerLabelDraft: readonly UUID[] = [];
+  private readonly pickerSelection = signal<readonly UUID[]>([]);
+  private readonly suggestionsDismissed = signal(false);
 
-  /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
-  readonly rxdb = input.required<Parameters<typeof useBoard>[0]>();
-  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。 */
-  readonly exportBackup = input<() => void | Promise<void>>();
+  private readonly filteredLabelNames = computed(() =>
+    this.filter()
+      .terms.filter(term => term.field === 'label' && !term.negated)
+      .flatMap(term => term.values.map(value => value.toLowerCase()))
+  );
 
   protected readonly board = signal<UseBoardReturn | null>(null);
   protected readonly boardArea = viewChild<ElementRef<HTMLElement>>('boardArea');
@@ -256,13 +255,11 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   // ---------- 选择器 ----------
   protected readonly pickerQuery = signal('');
   protected readonly pickerActive = signal(0);
-  private readonly pickerSelection = signal<readonly UUID[]>([]);
 
   // ---------- 筛选 ----------
   protected readonly filterQuery = signal('');
   protected readonly filterFocused = signal(false);
   protected readonly activeSuggestion = signal(-1);
-  private readonly suggestionsDismissed = signal(false);
 
   // ---------- 键盘焦点 ----------
   protected readonly focusedTaskId = signal<UUID | null>(null);
@@ -336,13 +333,9 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   );
 
   protected readonly activeSuggestionId = computed(() =>
-    this.suggestionsOpen() && this.activeSuggestion() >= 0 ? `${this.suggestionListId}-${this.activeSuggestion()}` : null
-  );
-
-  private readonly filteredLabelNames = computed(() =>
-    this.filter()
-      .terms.filter(term => term.field === 'label' && !term.negated)
-      .flatMap(term => term.values.map(value => value.toLowerCase()))
+    this.suggestionsOpen() && this.activeSuggestion() >= 0 ?
+      `${this.suggestionListId}-${this.activeSuggestion()}`
+    : null
   );
 
   /** 漫游 tabindex：上次聚焦的可见卡片，否则第一张可见卡片。 */
@@ -386,6 +379,11 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     if (!installed) throw new Error('board 尚未安装');
     return installed;
   }
+
+  /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
+  readonly rxdb = input.required<Parameters<typeof useBoard>[0]>();
+  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。 */
+  readonly exportBackup = input<() => void | Promise<void>>();
 
   ngOnInit(): void {
     // 显式注入上下文：JIT + zoneless 下生命周期钩子不保证自带注入上下文
@@ -539,13 +537,15 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     this.openDialog({ kind: 'board-composer' }, event);
   }
 
+  /** 建板后切到新板；建板落库期间用户已自己切过板则尊重用户的选择。 */
   protected async submitBoardComposer(): Promise<void> {
     const title = this.boardComposerTitle().trim();
     if (title === '') return;
+    const before = this.boardRef.currentBoardId();
     const created = await this.guard(() => this.boardRef.actions.createBoard({ title }));
     if (!created) return;
     this.closeDialog(false);
-    this.selectBoard(created.id);
+    if (this.boardRef.currentBoardId() === before) this.selectBoard(created.id);
   }
 
   protected startBoardTitle(): void {
@@ -630,14 +630,6 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     await this.runHistory(() => this.boardRef.actions.redo());
   }
 
-  private async runHistory(operation: () => Promise<void>): Promise<void> {
-    const done = await this.guard(async () => {
-      await operation();
-      return true;
-    });
-    if (done) await this.refreshDetail();
-  }
-
   protected async undoFromToast(): Promise<void> {
     this.toast.set(null);
     await this.undo();
@@ -645,10 +637,11 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   // ---------- 筛选 ----------
 
+  /** 输入即筛；补全默认高亮第一项，回车直接采纳（GitHub 筛选条同款）。 */
   protected onFilterInput(value: string): void {
     this.filterQuery.set(value);
     this.suggestionsDismissed.set(false);
-    this.activeSuggestion.set(-1);
+    this.activeSuggestion.set(0);
   }
 
   protected onFilterKeydown(event: KeyboardEvent): void {
@@ -921,13 +914,14 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected openDetailColumnPicker(event: Event): void {
     const base = this.detailBase();
-    if (!base) return;
+    if (!base || this.closeIfOpen('detail-column-picker')) return;
     this.openPicker('detail-column-picker', this.detailTaskId(), this.anchorOf(event), [base.columnId], event);
   }
 
   protected openDetailLabelPicker(event: Event): void {
     const base = this.detailBase();
-    if (!base) return;
+    // 再点同一字段 = 关闭（并提交）：不能以未刷新的旧基线重开
+    if (!base || this.closeIfOpen('detail-label-picker')) return;
     this.pickerLabelDraft = base.labelIds;
     this.openPicker('detail-label-picker', this.detailTaskId(), this.anchorOf(event), base.labelIds, event);
   }
@@ -1020,8 +1014,12 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const current = this.dialog();
     if (current?.kind === 'confirm-label-delete') {
       this.dialog.set({ kind: 'labels' });
-      const deleted = await this.guard(() => this.boardRef.actions.executeLabelDelete(current.plan));
-      if (deleted !== undefined) this.showToast(`已删除标签「${current.plan.labelName}」`, true);
+      // executeLabelDelete 成功时返回 void：显式返回 true 区分成功与 guard 吞掉的失败
+      const deleted = await this.guard(async () => {
+        await this.boardRef.actions.executeLabelDelete(current.plan);
+        return true;
+      });
+      if (deleted) this.showToast(`已删除标签「${current.plan.labelName}」`, true);
       return;
     }
     if (current?.kind !== 'confirm-delete') return;
@@ -1091,15 +1089,17 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const area = this.boardArea()?.nativeElement;
     if (!movedId || !area) return;
     const target = resolveCardDrop(this.columnViews(area), movedId, event.clientX, event.clientY);
+    if (target === null) {
+      this.dropTarget.set(null);
+      return;
+    }
+    // 插入线只画在看得见的卡片上（筛选隐藏的邻居退回可见邻居，两侧都隐藏则整列高亮）
+    const visibleIds = (this.visibleTaskMap().get(target.columnId) ?? []).map(task => task.id);
+    const anchor = dropIndicatorAnchor(target, visibleIds);
     this.dropTarget.set(
-      target === null ? null
-      : target.kind === 'end' ? { kind: 'task-end', columnId: target.columnId }
-      : {
-          kind: 'task',
-          columnId: target.columnId,
-          mode: target.prevId === null ? 'before' : 'after',
-          taskId: (target.prevId ?? target.nextId)!
-        }
+      anchor === null ?
+        { kind: 'task-end', columnId: target.columnId }
+      : { kind: 'task', columnId: target.columnId, ...anchor }
     );
   }
 
@@ -1261,6 +1261,25 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     if (restoreFocus) this.restoreFocus();
   }
 
+  // ========== 以下为私有实现 ==========
+
+  // ---------- 撤销 / 重做 ----------
+
+  private async runHistory(operation: () => Promise<void>): Promise<void> {
+    const done = await this.guard(async () => {
+      await operation();
+      return true;
+    });
+    if (done) await this.refreshDetail();
+  }
+
+  /** 该种弹层已打开则关闭并返回 true（触发器再点即关闭）。 */
+  private closeIfOpen(kind: BoardPopoverKind): boolean {
+    if (this.popover()?.kind !== kind) return false;
+    this.closePopover();
+    return true;
+  }
+
   private togglePopover(kind: BoardPopoverKind, targetId: UUID | null, event: Event): void {
     if (this.popover()?.kind === kind && this.popover()?.targetId === targetId) {
       this.closePopover();
@@ -1397,7 +1416,12 @@ export class BoardViewComponent implements OnInit, OnDestroy {
       return;
     }
     const fresh = await this.guard(() => this.boardRef.actions.openSnapshot(taskId));
-    if (!fresh || taskId !== this.detailTaskId()) return;
+    if (taskId !== this.detailTaskId()) return;
+    if (!fresh) {
+      // 已落库但读回失败：不停在「保存中…」，提示走横幅
+      this.detailStatus.set(null);
+      return;
+    }
     this.detailBase.set(fresh);
     if (patch.title !== undefined) this.detailTitle.set(fresh.title);
     if (patch.description !== undefined) this.detailDescription.set(fresh.description ?? '');
@@ -1455,6 +1479,8 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     }
     if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return false;
     const card = event.currentTarget as HTMLElement;
+    // 先关已开的弹层（标签选择器的草稿照常提交），再打开卡片菜单
+    this.closePopover(false);
     this.returnFocus = card;
     this.popover.set(this.placedPopover('task-menu', task.id, card.getBoundingClientRect(), 'end'));
     this.focusSoon('.rxb-popover button:not(:disabled)');
@@ -1569,13 +1595,14 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     if (attempts > 0) requestAnimationFrame(() => this.focusTaskSoon(taskId, attempts - 1, false));
   }
 
-  /** 等目标渲染出来再聚焦（变更检测与活查询回流都是异步的，逐帧重试至多 30 帧）。 */
+  /**
+   * 等目标渲染且可聚焦再聚焦（变更检测与活查询回流都是异步的；禁用中的输入框 focus 会静默失败），
+   * 逐帧重试至多 30 帧。
+   */
   private focusSoon(selector: string, attempts = 30): void {
     const target = this.boardArea()?.nativeElement.querySelector<HTMLElement>(selector);
-    if (target) {
-      target.focus();
-      return;
-    }
+    target?.focus();
+    if (target && document.activeElement === target) return;
     if (attempts > 0) requestAnimationFrame(() => this.focusSoon(selector, attempts - 1));
   }
 

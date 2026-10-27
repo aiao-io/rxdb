@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-011-task-board-domain-model
 created: 2026-10-19
-updated: 2026-10-21
+updated: 2026-10-28
 tags: [domain, board, detail, label]
 ---
 
@@ -75,6 +75,15 @@ tags: [domain, board, detail, label]
 | 16  | 已安装标签，多任务引用标签，另有一块板                        | 分别删除任务、含任务的列、整块板，并验证取消和失败回滚 | 复用 US-534 删除服务；任务 / 列删除清关联但保留板级标签，删板清全部标签定义及关联；异板不变，无孤儿 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
+
+> **看板 v2 补充（2026-10-28，owner 拍板「即改即存」）**：服务层语义不变——`saveTaskDraft` 仍是
+> 「一次保存一个事务、无改动零写、事务内复核快照」，上表 AC 全部继续有效。新增
+> `BoardDetailService.saveTaskFields(taskId, base, patch)` 作为即改即存入口：只提交补丁里的字段，
+> `base` 取该字段开始编辑时的快照，补丁涉及的字段已被其它入口改过才拒绝（字段级冲突），其余字段以最新状态
+> 为准，内部仍走 `saveTaskDraft`（单测见 `board-detail-label.node.spec.ts` 的 `saveTaskFields` 组）。
+> 三端详情侧栏改为字段级提交（标题回车 / 失焦、描述失焦、截止日选择、标签选择器关闭时一次提交），
+> 不再有「取消零写」的整表草稿：每次提交一个事务、可逐次撤销，替代原 AC#9 在 UI 层的「取消」路径
+> （交互约定见 [US-539 阶段 C](US-539-board-tri-framework-ui.md#阶段-c看板-v2github-projects-风格)）。
 
 ## 技术笔记
 

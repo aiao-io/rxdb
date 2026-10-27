@@ -129,7 +129,10 @@ const tokenize = (query: string): string[] => splitOutsideQuotes(query, char => 
 
 const unquote = (value: string): string => value.replaceAll('"', '').trim();
 
-const splitValues = (raw: string): string[] => splitOutsideQuotes(raw, char => char === ',').map(unquote).filter(Boolean);
+const splitValues = (raw: string): string[] =>
+  splitOutsideQuotes(raw, char => char === ',')
+    .map(unquote)
+    .filter(Boolean);
 
 const quoteValue = (value: string): string => (/[\s,"]/.test(value) ? `"${value.replaceAll('"', '')}"` : value);
 
@@ -239,7 +242,8 @@ const valueCandidates = (
   field: BoardFilterField,
   context: BoardFilterContext
 ): readonly { readonly value: string; readonly description: string; readonly color: string | null }[] => {
-  if (field === 'label') return context.labels.map(label => ({ value: label.name, description: '标签', color: label.color }));
+  if (field === 'label')
+    return context.labels.map(label => ({ value: label.name, description: '标签', color: label.color }));
   if (field === 'column') return context.columns.map(column => ({ value: column, description: '列', color: null }));
   const keywords = field === 'due' ? DUE_KEYWORDS : PRESENCE_KEYWORDS;
   return keywords.map(([value, description]) => ({ value, description, color: null }));

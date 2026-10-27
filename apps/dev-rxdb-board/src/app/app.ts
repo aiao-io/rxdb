@@ -146,20 +146,6 @@ export class App implements OnInit, OnDestroy {
     readonly settle: (confirmed: boolean) => void;
   } | null>(null);
 
-  protected settleConfirm(confirmed: boolean): void {
-    const pending = this.pendingConfirm();
-    this.pendingConfirm.set(null);
-    pending?.settle(confirmed);
-  }
-
-  private ask(title: string, message: string, confirmLabel: string): Promise<boolean> {
-    this.pendingConfirm()?.settle(false);
-    return new Promise(settle => {
-      this.pendingConfirm.set({ title, message, confirmLabel, settle });
-      requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-testid="host-confirm-no"]')?.focus());
-    });
-  }
-
   ngOnInit(): void {
     window.addEventListener('storage', this.onActiveDbChanged);
     this.phase.set(this.readStorage(RESTORING_MARKER_KEY) === null ? 'loading' : 'restoring');
@@ -168,6 +154,12 @@ export class App implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('storage', this.onActiveDbChanged);
+  }
+
+  protected settleConfirm(confirmed: boolean): void {
+    const pending = this.pendingConfirm();
+    this.pendingConfirm.set(null);
+    pending?.settle(confirmed);
   }
 
   // ---------- 启动选择 ----------
@@ -220,6 +212,14 @@ export class App implements OnInit, OnDestroy {
     );
     if (!confirmed) return;
     await this.prepareBoard(true);
+  }
+
+  private ask(title: string, message: string, confirmLabel: string): Promise<boolean> {
+    this.pendingConfirm()?.settle(false);
+    return new Promise(settle => {
+      this.pendingConfirm.set({ title, message, confirmLabel, settle });
+      requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-testid="host-confirm-no"]')?.focus());
+    });
   }
 
   private readonly onActiveDbChanged = (event: StorageEvent): void => {

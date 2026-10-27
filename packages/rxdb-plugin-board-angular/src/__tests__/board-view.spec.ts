@@ -92,8 +92,12 @@ describe('BoardViewComponent（Angular 视图，看板 v2）', () => {
     const fixture = await mountSeeded();
     expect(texts(fixture, '[data-testid="column-title"]')).toEqual(['To do', 'Doing', 'Done', 'Ideas']);
     expect(texts(fixture, '[data-testid="column-count"]')).toEqual(['5', '4', '3', '0']);
+    const root = $(fixture, '[data-testid="board-view"]')!;
+    expect(root.classList.contains('has-overlay')).toBe(false);
     $(fixture, '[data-testid="labels-open"]')!.click();
     fixture.detectChanges();
+    // 对话框打开时根节点挂 has-overlay：错误提示浮到遮罩之上
+    expect(root.classList.contains('has-overlay')).toBe(true);
     expect(texts(fixture, '[data-testid="label-chip"]')).toEqual(['核心', '文档', '测试', '发布']);
     fixture.destroy();
   });
@@ -129,6 +133,7 @@ describe('BoardViewComponent（Angular 视图，看板 v2）', () => {
       $$(fixture, '[data-testid="task-card"]').find(element => element.textContent?.includes('写发布说明'))!;
     card().querySelector<HTMLElement>('[data-testid="task-title"]')!.click();
     await waitFor(fixture, () => $(fixture, '[data-testid="detail-panel"]') !== null, '打开详情');
+    expect($(fixture, '[data-testid="board-view"]')!.classList.contains('has-overlay')).toBe(true);
 
     type($(fixture, '[data-testid="detail-title"]'), '写发布说明 v2', 'Enter');
     await waitFor(fixture, () => card()?.textContent?.includes('写发布说明 v2') ?? false, '标题落库');
@@ -139,6 +144,14 @@ describe('BoardViewComponent（Angular 视图，看板 v2）', () => {
     await view['openDetailLabelPicker']({
       currentTarget: $(fixture, '[data-testid="detail-labels"]')
     } as unknown as Event);
+    fixture.detectChanges();
+    expect($(fixture, '.rxb-popover [role="listbox"]')?.getAttribute('aria-label')).toBe('选择标签');
+    // listbox 只容 option：无匹配时不渲染 listbox，空态段落在其外
+    view['onPickerInput']('不存在的标签');
+    fixture.detectChanges();
+    expect($(fixture, '.rxb-popover [role="listbox"]')).toBeNull();
+    expect($(fixture, '.rxb-picker-empty')?.textContent?.trim()).toBe('没有匹配的选项');
+    view['onPickerInput']('');
     const core = view['pickerOptions']().find(option => option.label === '核心')!;
     await view['choosePickerOption'](core.id);
     view['closePopover']();
@@ -151,6 +164,13 @@ describe('BoardViewComponent（Angular 视图，看板 v2）', () => {
     await history.undo();
     await waitFor(fixture, () => card()?.querySelector('[data-testid="task-due"]') === null, '撤销截止日');
     expect(card().textContent).toContain('写发布说明 v2');
+
+    // 关提示不抢焦点：空标题被领域拒绝后，按下关闭按钮不改焦点，编辑中的字段不会失焦重提交
+    type($(fixture, '[data-testid="detail-title"]'), '   ', 'Enter');
+    await waitFor(fixture, () => $(fixture, '[data-testid="board-notice"]') !== null, '空标题被拒');
+    const mousedown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    $(fixture, '[data-testid="board-notice-close"]')!.dispatchEvent(mousedown);
+    expect(mousedown.defaultPrevented).toBe(true);
     fixture.destroy();
   });
 
@@ -201,7 +221,7 @@ describe('BoardViewComponent（Angular 视图，看板 v2）', () => {
     fixture.destroy();
   });
 
-  it('Alt + 方向键移动卡片并持久化，焦点跟随卡片', async () => {
+  it('Alt + 方向键移动卡片并持久化（焦点跟随在 e2e 里验收）', async () => {
     const fixture = await mountSeeded();
     const card = $$(fixture, '[data-testid="task-card"]').find(element => element.textContent?.includes('写发布说明'))!;
     card.focus();

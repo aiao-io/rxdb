@@ -108,6 +108,26 @@ export const resolveCardDrop = (
   return { kind: 'between', columnId: column.columnId, prevId: rest[rest.length - 1], nextId: null };
 };
 
+/**
+ * 落点反馈的可见锚点：插入线画在可见的前邻居之后，前邻居被筛掉时画在可见的后邻居之前；
+ * 两侧都不可见或空列追加返回 `null`（调用方退回整列高亮）。
+ *
+ * @remarks
+ * 落点邻居取自完整序列（隐藏的兄弟不被夹在两个邻居之间），反馈却只能画在看得见的卡片上——
+ * 没有筛选时结果与「前邻居之后 / 列首画在后邻居之前」一致。
+ *
+ * @param visibleIds - 目标列当前可见的卡片 id
+ */
+export const dropIndicatorAnchor = (
+  target: CardDropTarget,
+  visibleIds: readonly UUID[]
+): { readonly mode: 'before' | 'after'; readonly taskId: UUID } | null => {
+  if (target.kind === 'end') return null;
+  if (target.prevId !== null && visibleIds.includes(target.prevId)) return { mode: 'after', taskId: target.prevId };
+  if (target.nextId !== null && visibleIds.includes(target.nextId)) return { mode: 'before', taskId: target.nextId };
+  return null;
+};
+
 /** 列头横向拖动的视图：列头矩形 + 板内完整列序。 */
 export interface ColumnDropView {
   readonly columnId: UUID;

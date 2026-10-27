@@ -1,6 +1,7 @@
 <section
   class="rxb"
   #boardArea
+  [class.has-overlay]="dialog() !== null || detailTaskId() !== null"
   (dragend)="clearDragFeedback()"
   (dragover)="onTaskDragOver($event)"
   (drop)="onColumnDrop($event)"
@@ -13,13 +14,13 @@
         <div class="rxb-board-switch">
           <select
             class="rxb-select"
-            [value]="b.currentBoardId() ?? ''"
             (change)="onBoardSelectionChange($event)"
             aria-label="选择看板"
             data-testid="board-selector"
           >
+            <!-- 逐项绑 selected：新板的选项晚于当前板 id 渲染时，select 的 value 绑定会失配 -->
             @for (item of b.boards(); track item.id) {
-              <option [value]="item.id">{{ item.title }}</option>
+              <option [selected]="item.id === b.currentBoardId()" [value]="item.id">{{ item.title }}</option>
             }
           </select>
           <button
@@ -76,8 +77,8 @@
                 class="rxb-title-button"
                 [disabled]="writeLocked()"
                 (click)="startBoardDescription()"
-                aria-label="编辑看板描述"
                 data-testid="board-description"
+                title="编辑看板描述"
               >
                 @if (current.description) {
                   {{ current.description }}
@@ -121,12 +122,7 @@
             搜索
           </button>
         }
-        <button
-          class="rxb-btn"
-          [disabled]="!b.currentBoard()"
-          (click)="openLabels($event)"
-          data-testid="labels-open"
-        >
+        <button class="rxb-btn" [disabled]="!b.currentBoard()" (click)="openLabels($event)" data-testid="labels-open">
           <span class="rxb-i rxb-i-tag" aria-hidden="true"></span>
           标签
         </button>
@@ -196,8 +192,8 @@
                   [attr.aria-selected]="index === activeSuggestion()"
                   [class.is-active]="index === activeSuggestion()"
                   [id]="suggestionListId + '-' + index"
-                  (mousedown)="$event.preventDefault()"
                   (click)="applySuggestion(suggestion.query)"
+                  (mousedown)="$event.preventDefault()"
                   data-testid="board-filter-suggestion"
                   role="option"
                 >
@@ -230,9 +226,11 @@
     @if (notice(); as message) {
       <p class="rxb-banner rxb-banner-danger" data-testid="board-notice" role="alert">
         <span>{{ message }}</span>
+        <!-- 关提示不抢焦点：正在编辑的字段失焦会把刚被拒的草稿再提交一次 -->
         <button
           class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
           (click)="notice.set(null)"
+          (mousedown)="$event.preventDefault()"
           aria-label="关闭提示"
           data-testid="board-notice-close"
         >
@@ -243,7 +241,7 @@
 
     <!-- 列区 -->
     @if (b.currentBoard()) {
-      <div class="rxb-columns" (scroll)="closePopover()" data-testid="columns">
+      <div class="rxb-columns" (scroll)="closePopover(false)" data-testid="columns">
         @for (column of b.columns(); track column.id; let columnIndex = $index) {
           <section
             class="rxb-column"
@@ -279,9 +277,9 @@
                 />
               } @else {
                 <h2 class="rxb-column-title" data-testid="column-title">{{ column.title }}</h2>
-                <span class="rxb-counter" [attr.title]="countLabel(column)" data-testid="column-count"
-                  >{{ visibleTasksOf(column).length }}</span
-                >
+                <span class="rxb-counter" [attr.title]="countLabel(column)" data-testid="column-count">
+                  {{ visibleTasksOf(column).length }}
+                </span>
                 @if (overdueCount(column); as overdue) {
                   <span class="rxb-column-overdue" data-testid="column-overdue">逾期 {{ overdue }}</span>
                 }
@@ -309,7 +307,7 @@
               </div>
             </header>
 
-            <div class="rxb-cards" role="list">
+            <div class="rxb-cards">
               @for (task of visibleTasksOf(column); track task.id) {
                 <article
                   class="rxb-card"
@@ -326,7 +324,6 @@
                   (focus)="focusedTaskId.set(task.id)"
                   (keydown)="onCardKeydown($event, task)"
                   data-testid="task-card"
-                  role="listitem"
                 >
                   @if (editingTaskId() === task.id) {
                     <div class="rxb-card-editor">
@@ -520,12 +517,18 @@
 
     <!-- 任务详情侧栏：叠加在看板之上，字段即改即存（每次改动一个可撤销事务） -->
     @if (detailTaskId(); as taskId) {
-      <aside class="rxb-panel" [attr.aria-label]="'任务详情：' + detailTitle()" data-testid="detail-panel" role="dialog">
+      <section
+        class="rxb-panel"
+        [attr.aria-label]="'任务详情：' + detailTitle()"
+        data-testid="detail-panel"
+        role="dialog"
+      >
         <div class="rxb-panel-header">
           <span class="rxb-panel-kicker">
             {{ columnTitleOf(detailBase()?.columnId ?? null) }}
             @if (detailStatus(); as status) {
-              · <span class="rxb-panel-status" aria-live="polite" data-testid="detail-status">{{ status }}</span>
+              ·
+              <span class="rxb-panel-status" aria-live="polite" data-testid="detail-status">{{ status }}</span>
               @if (status === '已保存') {
                 <button
                   class="rxb-link-button"
@@ -607,8 +610,9 @@
                     [style.background-color]="label.color"
                     [style.color]="labelTextColor(label.color)"
                     data-testid="detail-label"
-                    >{{ label.name }}</span
                   >
+                    {{ label.name }}
+                  </span>
                 } @empty {
                   <span class="rxb-placeholder">无标签</span>
                 }
@@ -652,7 +656,7 @@
             </div>
           </aside>
         </div>
-      </aside>
+      </section>
     }
 
     <!-- 弹层：菜单与选择器（根层 fixed 定位，避免被横向滚动的列区裁切） -->
@@ -862,30 +866,37 @@
                 placeholder="过滤选项"
               />
             </div>
-            <div [attr.aria-multiselectable]="pop.kind === 'detail-label-picker'" role="listbox">
-              @for (option of pickerOptions(); track option.id; let index = $index) {
-                <button
-                  class="rxb-menu-item"
-                  [attr.aria-selected]="option.selected"
-                  [class.is-active]="index === pickerActive()"
-                  (click)="choosePickerOption(option.id)"
-                  data-testid="picker-option"
-                  role="option"
-                >
-                  <span class="rxb-picker-check">
-                    @if (option.selected) {
-                      <span class="rxb-i rxb-i-check" aria-hidden="true"></span>
+            <!-- listbox 只容 option：空态段落放在 listbox 之外 -->
+            @if (pickerOptions().length > 0) {
+              <div
+                [attr.aria-label]="pop.kind === 'detail-label-picker' ? '选择标签' : '移到列'"
+                [attr.aria-multiselectable]="pop.kind === 'detail-label-picker'"
+                role="listbox"
+              >
+                @for (option of pickerOptions(); track option.id; let index = $index) {
+                  <button
+                    class="rxb-menu-item"
+                    [attr.aria-selected]="option.selected"
+                    [class.is-active]="index === pickerActive()"
+                    (click)="choosePickerOption(option.id)"
+                    data-testid="picker-option"
+                    role="option"
+                  >
+                    <span class="rxb-picker-check">
+                      @if (option.selected) {
+                        <span class="rxb-i rxb-i-check" aria-hidden="true"></span>
+                      }
+                    </span>
+                    @if (option.color) {
+                      <span class="rxb-swatch" [style.background-color]="option.color" aria-hidden="true"></span>
                     }
-                  </span>
-                  @if (option.color) {
-                    <span class="rxb-swatch" [style.background-color]="option.color" aria-hidden="true"></span>
-                  }
-                  {{ option.label }}
-                </button>
-              } @empty {
-                <p class="rxb-picker-empty">没有匹配的选项</p>
-              }
-            </div>
+                    {{ option.label }}
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="rxb-picker-empty">没有匹配的选项</p>
+            }
             @if (canCreateLabelFromPicker()) {
               <div class="rxb-menu-divider" role="separator"></div>
               <button class="rxb-menu-item" (click)="createLabelFromPicker()" data-testid="picker-create">
@@ -1044,7 +1055,11 @@
             >
               <div class="rxb-dialog-header">
                 <h2 class="rxb-dialog-title" [id]="dialogTitleId">
-                  {{ labelEditor() === null ? '标签' : labelEditor()?.labelId === null ? '新建标签' : '编辑标签' }}
+                  {{
+                    labelEditor() === null ? '标签'
+                    : labelEditor()?.labelId === null ? '新建标签'
+                    : '编辑标签'
+                  }}
                 </h2>
                 <button
                   class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
@@ -1062,8 +1077,9 @@
                       class="rxb-label"
                       [style.background-color]="previewColor(editor.color)"
                       [style.color]="labelTextColor(previewColor(editor.color))"
-                      >{{ editor.name.trim() || '标签预览' }}</span
                     >
+                      {{ editor.name.trim() || '标签预览' }}
+                    </span>
                   </div>
                   <label class="rxb-form-field">
                     名称
@@ -1076,7 +1092,7 @@
                       data-testid="label-name-input"
                     />
                   </label>
-                  <div class="rxb-form-field" role="group" aria-label="颜色">
+                  <div class="rxb-form-field" aria-label="颜色" role="group">
                     颜色
                     <div class="rxb-swatches">
                       @for (option of labelColors; track option.color) {
@@ -1135,8 +1151,9 @@
                           [style.background-color]="label.color"
                           [style.color]="labelTextColor(label.color)"
                           data-testid="label-chip"
-                          >{{ label.name }}</span
                         >
+                          {{ label.name }}
+                        </span>
                         <button
                           class="rxb-btn rxb-btn-sm"
                           [attr.aria-label]="'编辑标签 ' + label.name"
@@ -1197,7 +1214,9 @@
                 <input
                   class="rxb-input"
                   [disabled]="!b.searchSource"
-                  [placeholder]="b.searchSource ? '全文搜索标题与描述' : searchUnavailableText(b.searchUnavailableReason)"
+                  [placeholder]="
+                    b.searchSource ? '全文搜索标题与描述' : searchUnavailableText(b.searchUnavailableReason)
+                  "
                   [value]="searchQuery()"
                   (input)="onSearchInput(inputValue($event))"
                   aria-label="搜索当前板任务"
@@ -1225,7 +1244,6 @@
                         @for (result of searchResults(); track result.id) {
                           <button
                             class="rxb-search-result"
-                            [disabled]="searchState() === 'loading'"
                             (click)="onSearchResultClick(result)"
                             data-testid="board-search-result"
                           >

@@ -417,6 +417,18 @@ describe('Angular 看板交互边界（看板 v2）', () => {
       expect(view['dialog']()).toBeNull();
     });
 
+    it('建板落库期间用户已自己切板：尊重用户选择，不再自动切到新板', async () => {
+      let resolve!: (value: Board) => void;
+      vi.mocked(actions.createBoard).mockReturnValueOnce(new Promise(done => (resolve = done)));
+      view['boardComposerTitle'].set('新板');
+      const pending = view['submitBoardComposer']();
+      (installed.currentBoardId as unknown as { set(value: UUID | null): void }).set(id('other'));
+      resolve({ ...current, id: id('created') } as Board);
+      await pending;
+      expect(installed.selectBoard).not.toHaveBeenCalled();
+      expect(view['dialog']()).toBeNull();
+    });
+
     it('板标题 / 描述 / 列标题就地编辑：未改动零调用，失败保留编辑器', async () => {
       view['startBoardTitle']();
       await view['commitBoardTitle']();
@@ -518,6 +530,30 @@ describe('Angular 看板交互边界（看板 v2）', () => {
       await view['executeConfirmedDelete']();
       expect(actions.executeLabelDelete).toHaveBeenCalledOnce();
       expect(view['dialog']()?.kind).toBe('labels');
+      expect(view['toast']()).toEqual({ message: '已删除标签「标签」', undoable: true });
+
+      // 删除失败：不出提示，错误走横幅
+      view['toast'].set(null);
+      vi.mocked(actions.executeLabelDelete).mockRejectedValueOnce(new Error('标签已被删除'));
+      await view['deleteLabel'](label);
+      await view['executeConfirmedDelete']();
+      expect(view['toast']()).toBeNull();
+      expect(view['notice']()).toBe('标签已被删除');
+    });
+
+    it('详情字段选择器：再点同一字段即关闭（标签照常提交），不以旧基线重开', async () => {
+      await view['openDetail'](first.id);
+      view['openDetailLabelPicker'](clickOn(trigger));
+      await view['choosePickerOption'](label.id);
+      view['openDetailLabelPicker'](clickOn(trigger));
+      expect(view['popover']()).toBeNull();
+      await vi.waitFor(() =>
+        expect(actions.saveTaskFields).toHaveBeenCalledWith(first.id, expect.anything(), { labelIds: [label.id] })
+      );
+      view['openDetailColumnPicker'](clickOn(trigger));
+      expect(view['popover']()?.kind).toBe('detail-column-picker');
+      view['openDetailColumnPicker'](clickOn(trigger));
+      expect(view['popover']()).toBeNull();
     });
 
     it('本列排序：执行中阻止重复；无变化提示不可撤销；失败复位', async () => {
@@ -744,6 +780,7 @@ describe('Angular 看板交互边界（看板 v2）', () => {
       vi.mocked(actions.openSnapshot).mockRejectedValueOnce(new Error('读回失败'));
       await view['commitDetailDue']('2026-02-02');
       expect(view['notice']()).toBe('读回失败');
+      expect(view['detailStatus']()).toBeNull();
       vi.mocked(actions.saveTaskFields).mockResolvedValueOnce({ kind: 'unchanged' });
       await view['commitDetailDue']('2026-03-03');
       expect(view['detailStatus']()).toBeNull();
@@ -882,6 +919,35 @@ describe('Angular 看板交互边界（看板 v2）', () => {
       dataTransfer: { setData: vi.fn(), getData: vi.fn(() => value ?? '') }
     }) as unknown as DragEvent;
 
+  it('筛选状态下拖拽：前邻居被隐藏时退回整列反馈，落点仍取完整序列', async () => {
+    view['filterQuery'].set('label:标签');
+    view['onTaskDragStart'](drag(210, 45, third.id), third);
+    view['onTaskDragOver'](drag(10, 200));
+    expect(view['isDropEnd'](firstColumn)).toBe(true);
+    expect(view['isDropAfter'](second)).toBe(false);
+    view['onTaskDragOver'](drag(10, 80));
+    expect(view['isDropAfter'](first)).toBe(true);
+    await view['onTaskDrop'](drag(10, 200, third.id));
+    expect(actions.moveTask).toHaveBeenCalledWith(third.id, {
+      kind: 'between',
+      columnId: firstColumn.id,
+      prevId: second.id,
+      nextId: null
+    });
+  });
+
+  it('Shift+F10 打开卡片菜单前先提交已开的标签选择器草稿', async () => {
+    await view['openDetail'](first.id);
+    view['openDetailLabelPicker'](clickOn(trigger));
+    await view['choosePickerOption'](label.id);
+    const cardA = area.querySelector<HTMLElement>('[data-task-id="A"]')!;
+    view['onCardKeydown'](keydown('F10', { shiftKey: true }, cardA), first);
+    expect(view['popover']()?.kind).toBe('task-menu');
+    await vi.waitFor(() =>
+      expect(actions.saveTaskFields).toHaveBeenCalledWith(first.id, expect.anything(), { labelIds: [label.id] })
+    );
+  });
+
   it('任务拖拽：落点反馈识别首尾与空列，筛选隐藏的卡片仍按完整序列取邻居', async () => {
     const start = drag(10, 50, first.id);
     view['onTaskDragStart'](start, first);
@@ -907,7 +973,10 @@ describe('Angular 看板交互边界（看板 v2）', () => {
     await view['onTaskDrop'](drag(370, 5));
     expect(view['isDraggingColumn'](firstColumn)).toBe(true);
     await view['onColumnDrop'](drag(370, 5, firstColumn.id));
-    expect(actions.moveColumn).toHaveBeenCalledWith(firstColumn.id, { prevId: secondColumn.id, nextId: emptyColumn.id });
+    expect(actions.moveColumn).toHaveBeenCalledWith(firstColumn.id, {
+      prevId: secondColumn.id,
+      nextId: emptyColumn.id
+    });
     expect(view['isFirstColumn'](firstColumn)).toBe(true);
     expect(view['isLastColumn'](emptyColumn)).toBe(true);
     await view['moveColumnBy'](firstColumn.id, -1);

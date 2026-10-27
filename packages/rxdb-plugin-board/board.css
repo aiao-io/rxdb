@@ -330,7 +330,11 @@
   border-radius: 4px;
   background: var(--rxb-canvas-subtle);
   color: var(--rxb-fg-muted);
-  font: 11px/18px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    11px/18px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   text-align: center;
 }
 
@@ -547,6 +551,18 @@
   border-color: color-mix(in srgb, var(--rxb-attention) 40%, transparent);
   background: var(--rxb-attention-muted);
   color: var(--rxb-attention);
+}
+
+/* 对话框 / 详情侧栏打开时，错误提示浮到遮罩与侧栏之上（否则失败原因被遮罩压暗、被侧栏挡住） */
+.rxb.has-overlay .rxb-banner-danger {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 55;
+  width: min(560px, calc(100vw - 32px));
+  margin: 0;
+  transform: translateX(-50%);
+  box-shadow: var(--rxb-shadow-overlay);
 }
 
 /* ---------- 列区 ---------- */
