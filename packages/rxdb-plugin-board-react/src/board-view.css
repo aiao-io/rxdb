@@ -9,7 +9,7 @@
   --board-muted: color-mix(in srgb, var(--board-text) 62%, transparent);
   --board-accent: var(--color-primary, #0969da);
   --board-accent-soft: color-mix(in srgb, var(--board-accent) 10%, var(--board-bg));
-  --board-danger: var(--color-error, #cf222e);
+  --board-danger: #b42318;
   display: block;
   min-height: 100%;
   padding-bottom: 4rem;

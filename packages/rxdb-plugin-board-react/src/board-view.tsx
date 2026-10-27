@@ -495,7 +495,11 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       (dragging?.kind === 'task' ? dragging.id : undefined)) as UUID | undefined;
     if (!movedId) return;
     clearDragFeedback();
-    const target = resolveTaskTarget(movedId, event.clientX, event.clientY);
+    const target =
+      resolveTaskTarget(movedId, event.clientX, event.clientY) ??
+      (event.target instanceof Element && event.target.closest('[data-testid="add-task"]') !== null ?
+        { kind: 'end' as const, columnId: (event.currentTarget as HTMLElement).dataset.columnId as UUID }
+      : null);
     if (!target) return;
     await guard(() => moveTaskAndSyncDetail(movedId, target));
   };
@@ -1168,7 +1172,6 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                         <button
                           className='search-more'
                           onClick={onSearchMore}
-                          disabled={searchState === 'loading'}
                           data-testid='board-search-more'
                         >
                           加载更多
