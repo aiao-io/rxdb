@@ -549,8 +549,8 @@ const auditConsumer = async (combo, manager, packed, bumped) => {
       }
       for (const framework of board ? ['react', 'vue'] : []) {
         const css = await readFile(path.join(root, `dist/binding-${framework}.ts.css`), 'utf8');
-        assert.ok(css.includes('.columns'), `${framework}: 发布产物缺少看板列布局`);
-        assert.ok(css.includes('.drop-before'), `${framework}: 发布产物缺少拖拽落点反馈`);
+        assert.ok(css.includes('.rxb-columns'), `${framework}: 发布产物缺少看板列布局`);
+        assert.ok(css.includes('.is-drop-before'), `${framework}: 发布产物缺少拖拽落点反馈`);
       }
       process.stdout.write(`Published consumer passed: ${combo.id}/${manager} 三框架绑定导入、tsc 与最小构建通过\n`);
       return;
