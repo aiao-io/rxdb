@@ -36,16 +36,18 @@ const columns: EntityGeneratedColumnMetadataOptions[] = [
   }
 ];
 
+const storageProperties = [
+  { name: 'ext', columnName: 'ext_json', type: PropertyType.string, nullable: true },
+  { name: 'title', type: PropertyType.string },
+  { name: 'score', type: PropertyType.number }
+];
+
 @Entity({
   name: 'StorageRow',
   namespace: 'hot_storage',
   tableName: 'row',
   log: false,
-  properties: [
-    { name: 'ext', columnName: 'ext_json', type: PropertyType.string, nullable: true },
-    { name: 'title', type: PropertyType.string },
-    { name: 'score', type: PropertyType.number }
-  ]
+  properties: storageProperties
 })
 class PlainRow extends EntityBase {
   ext!: string | null;
@@ -58,6 +60,7 @@ class PlainRow extends EntityBase {
   namespace: 'hot_storage',
   tableName: 'row',
   log: false,
+  properties: storageProperties,
   generatedColumns: columns,
   indexes: [
     { name: 'rohs_lookup', properties: ['rohs_hot'] },
@@ -71,7 +74,11 @@ class PlainRow extends EntityBase {
     { name: 'score_gist', properties: ['score'], method: 'gist', dialects: ['postgres'] }
   ]
 })
-class IndexedRow extends PlainRow {}
+class IndexedRow extends EntityBase {
+  ext!: string | null;
+  title!: string;
+  score!: number;
+}
 
 @Entity({
   name: 'StorageBootstrap',

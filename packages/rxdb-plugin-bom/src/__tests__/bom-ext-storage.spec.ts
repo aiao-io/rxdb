@@ -55,7 +55,10 @@ const measureMigration = (migration: MigrationType, backend: string): MigrationT
     const samples: { sql: string; ms: number }[] = [];
     const measured: TransactionExecutor = new Proxy(executor, {
       get(target, key) {
-        if (key !== 'query') return Reflect.get(target, key, target);
+        if (key !== 'query') {
+          const value: unknown = Reflect.get(target, key, target);
+          return typeof value === 'function' ? value.bind(target) : value;
+        }
         return async (sql: string, params?: readonly unknown[]) => {
           if (/^(ALTER|CREATE)/.test(sql) && auditFinished === undefined) auditFinished = performance.now();
           if (/^CREATE INDEX/.test(sql) && indexesStarted === undefined) indexesStarted = performance.now();
