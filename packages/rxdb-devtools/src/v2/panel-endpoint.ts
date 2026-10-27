@@ -14,6 +14,8 @@
  *    就是 {@link DevToolsPanelUploadResult} 的 `'sent'`。把它叫成 `'ok'` 会让 UI 顺理成章地
  *    显示「上传成功」，而那句话此刻没有证据。缺一个提交回执是阶段 B 的协议缺口，
  *    记在 US-904 阶段 C 的保留项里，不在这里私自补一个新消息类型。
+ *    upload 请求自己的应答却是现成的：`'sent'` 要等到它，provider 在登记期的拒绝
+ *    （同名冲突、路径非法）才不会被抢先发完的字节盖住。
  * 3. **字节按需读取。** {@link DevToolsPanelUploadSource} 是 `read(offset, length)` 而不是一个
  *    `Uint8Array`，这样 renderer 侧全程只驻留一块 chunk——「不得把完整文件同时缓存」
  *    在 panel 这一端只能靠接口形状保证，靠纪律是保不住的。
@@ -64,8 +66,9 @@ export type DevToolsPanelRequestResult =
  * 一次上传的结果。
  *
  * @remarks
- * `'sent'` 的字面意思就是它的全部含义：全部字节已按协议发出，且在此之前没有收到
- * 针对这次上传的 `ERROR`。它**不是**「provider 已提交」。理由见模块头第 2 条。
+ * `'sent'` 的字面意思就是它的全部含义：全部字节已按协议发出、upload 请求已得到 provider 的
+ * `RESPONSE`，且在此之前没有收到针对这次上传的 `ERROR`。它**不是**「provider 已提交」。
+ * 理由见模块头第 2 条。
  */
 export type DevToolsPanelUploadResult =
   { readonly outcome: 'sent' } | { readonly outcome: 'failed'; readonly error: DevToolsErrorPayload };
@@ -111,6 +114,8 @@ export interface DevToolsPanelDownloadRequest {
    * 与 {@link DevToolsPanelUploadRequest.params} 同构，只是这次穿过去的是 `requestId`：
    * connector 侧的 `createChunkSource(requestId)` 只拿得到它，provider 想知道要读哪个文件，
    * 唯一的机会就是从 download 请求的 params 里拿到这同一个 ID。
+   *
+   * 它抛出时 `download()` 原样 reject，登记照常拆掉——与 {@link DevToolsPanelUploadRequest.params} 同。
    */
   readonly params: (requestId: string) => unknown;
   /** 字节下沉口；只有完整收完才会被 `commit`，其余终态一律 `discard`。 */
@@ -126,6 +131,9 @@ export interface DevToolsPanelUploadRequest {
    * 是**函数**而不是对象：connector 侧的 `createChunkSink(transferId)` 只拿得到 transferId，
    * provider 想把字节落到哪个路径，唯一的机会就是从 upload 请求的 params 里拿到这同一个
    * transferId。让调用方自己拼，好过本模块往调用方的对象里塞键。
+   *
+   * 它抛出时 `upload()` 原样 reject——那是调用方的接线错误，不伪装成协议错误；
+   * 这次上传的登记与计时器照常拆掉，什么帧都不会发出。
    */
   readonly params: (transferId: string) => unknown;
   /** 字节来源。 */
@@ -395,14 +403,21 @@ class PanelEndpoint implements DevToolsPanelEndpoint {
       DEVTOOLS_TRANSFER_TOTAL_TIMEOUT_MS
     );
 
-    // 请求先上线，传输帧紧随其后：同一条通道保序，因此 provider 在收到 START 时
-    // 一定已经见过 params 里的 transferId，不必先等一轮 RESPONSE。
-    void this.#issue(requestId, 'files', 'upload', request.params(transferId)).then(result => {
-      if (result.outcome === 'failed') abort(result.error);
-    });
-
+    // `params` 是调用方的代码，可能抛：必须在 finally 的保护之内求值，否则异常会带着上面的
+    // 登记与计时器逃走。抛出原样交还调用方，与 `download()` 一致。
     try {
-      return await this.#drive(transferId, request.source, aborted);
+      // 请求先上线，传输帧紧随其后：同一条通道保序，因此 provider 在收到 START 时
+      // 一定已经见过 params 里的 transferId，不必先等一轮 RESPONSE。
+      const verdict = this.#issue(requestId, 'files', 'upload', request.params(transferId)).then(result => {
+        if (result.outcome === 'failed') abort(result.error);
+        return result;
+      });
+      const sent = await this.#drive(transferId, request.source, aborted);
+      if (sent.outcome === 'failed') return sent;
+      // 字节发完不等于 provider 接受了这次上传：小文件的字节常常抢在 upload 应答之前发完，
+      // 这时就报 `'sent'`，随后到达的拒绝（同名冲突、路径非法……）就无处可落。
+      const accepted = await verdict;
+      return accepted.outcome === 'failed' ? failed(accepted.error) : sent;
     } finally {
       cancelTotal();
       this.#transfers.delete(transferId);

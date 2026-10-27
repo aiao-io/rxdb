@@ -356,7 +356,7 @@ export class DesktopPGliteClient extends EventDispatcher<PGliteClientEvents> imp
    *
    * @remarks
    * 等在途请求与开着的事务跑完再关，因此调用方返回时 host 上确实已经没有本会话的
-   * 任何残留。并发调用共享同一个关闭流程。
+   * 任何残留；调用之后才发起的请求当场以 `session_closed` 拒绝。并发调用共享同一个关闭流程。
    */
   async disconnect(): Promise<void> {
     this.#closePromise ??= this.#runClose(true);
@@ -440,9 +440,13 @@ export class DesktopPGliteClient extends EventDispatcher<PGliteClientEvents> imp
   }
 
   async #runClose(drain: boolean): Promise<void> {
-    if (drain) await this.#lock.catch(() => undefined);
+    // 先拒绝新请求再排空（与 DesktopSqliteClient 同序）：排空期间还接受的话，后来的请求接在
+    // 互斥队尾上，而这里等的只是调用这一刻的队尾，它们就跟在 pg.close 后面上线。
     this.#closed = true;
-    if (drain) await this.#tail.catch(() => undefined);
+    if (drain) {
+      await this.#lock.catch(() => undefined);
+      await this.#tail.catch(() => undefined);
+    }
     const sessionId = this.#sessionId;
     this.#unsubscribe?.();
     this.#batcher.clear();
@@ -461,11 +465,16 @@ export class DesktopPGliteClient extends EventDispatcher<PGliteClientEvents> imp
       } as DesktopPgliteRequest)
     );
     const transactionId = begun.result.transactionId;
+    /** 已发出 commit / rollback：此后 `tx` 上的语句一律拒绝。 */
     let settled = false;
+    /** host 已答复 commit / rollback（成败皆可）：事务在 host 上已不存在。 */
+    let acknowledged = false;
 
     const end = async (kind: 'pg.commit' | 'pg.rollback'): Promise<void> => {
       settled = true;
-      assertDesktopPgliteResponse(kind, await this.#send({ kind, sessionId: this.sessionId, transactionId }));
+      const response = await this.#send({ kind, sessionId: this.sessionId, transactionId });
+      acknowledged = true;
+      assertDesktopPgliteResponse(kind, response);
     };
     const assertLive = (): void => {
       if (settled) {
@@ -510,7 +519,9 @@ export class DesktopPGliteClient extends EventDispatcher<PGliteClientEvents> imp
       return result;
     } catch (error) {
       // 回滚失败不覆盖原始错误：调用方要看的是业务那条，而不是收摊那条。
-      if (!settled) await end('pg.rollback').catch(() => undefined);
+      // 判据是「host 有没有答复过结束」而不是「发没发过」：commit / rollback 在传输层失败时可能根本
+      // 没到 host，那条事务还攥着唯一的连接；到过的话 host 回 transaction_not_found，无害。
+      if (!acknowledged) await end('pg.rollback').catch(() => undefined);
       throw error;
     }
   }

@@ -79,4 +79,65 @@ describe('Worktree dialogs', () => {
     fireEvent.click(screen.getByTestId('wt-worktree-delete-confirm'));
     expect(onConfirm).toHaveBeenCalledOnce();
   });
+
+  // 页面还有写入在途时命令会被 pendingWrites 守卫丢掉：按钮必须禁用（与 Angular / Vue 一致），不能点了没反应
+  it('busy 时新建对话框的确认与取消都禁用，回车不提交', () => {
+    const onConfirm = vi.fn();
+    render(
+      <WorkingTreeNewDialog
+        activeBranch='main'
+        branches={branches}
+        branchId='feature'
+        busy
+        creating={false}
+        error={null}
+        name='Feature work'
+        onBranchChange={vi.fn()}
+        onClose={vi.fn()}
+        onConfirm={onConfirm}
+        onNameChange={vi.fn()}
+        open
+      />
+    );
+    expect(screen.getByTestId<HTMLButtonElement>('wt-worktree-create-confirm').disabled).toBe(true);
+    expect(screen.getByTestId<HTMLButtonElement>('wt-worktree-create-cancel').disabled).toBe(true);
+    fireEvent.keyDown(screen.getByTestId('wt-worktree-create-name'), { key: 'Enter' });
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('busy 时重命名对话框的确认与取消都禁用，回车不提交', () => {
+    const onConfirm = vi.fn();
+    render(
+      <WorkingTreeRenameDialog
+        busy
+        error={null}
+        name='Renamed'
+        onClose={vi.fn()}
+        onConfirm={onConfirm}
+        onNameChange={vi.fn()}
+        saving={false}
+        worktree={worktree}
+      />
+    );
+    expect(screen.getByTestId<HTMLButtonElement>('wt-worktree-rename-confirm').disabled).toBe(true);
+    expect(screen.getByTestId<HTMLButtonElement>('wt-worktree-rename-cancel').disabled).toBe(true);
+    fireEvent.keyDown(screen.getByTestId('wt-worktree-rename-name'), { key: 'Enter' });
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('busy 时删除对话框的确认与取消都禁用', () => {
+    render(
+      <WorkingTreeDeleteDialog
+        busy
+        deleting={false}
+        dirty={false}
+        error={null}
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+        worktree={worktree}
+      />
+    );
+    expect(screen.getByTestId<HTMLButtonElement>('wt-worktree-delete-confirm').disabled).toBe(true);
+    expect(screen.getByTestId<HTMLButtonElement>('wt-worktree-delete-cancel').disabled).toBe(true);
+  });
 });

@@ -1,4 +1,4 @@
-import { mkdtemp, rm, type FileHandle } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, type FileHandle } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,8 +10,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * 提交路径的资源回收只在**失败**分支上才有意义，而 `sync()` 在真实文件系统上不会按需失败。
  * 故障注入因此单独占一个 spec 文件：`vi.mock` 的作用域是整个模块，塞进主 spec 会让那边
  * 每个用例都跑在被包装过的 `open` 上。
+ *
+ * `shortWrite` 让 `write()` 只写进前一半就返回：libuv 在部分写入之后会吞掉随后的错误（比如
+ * ENOSPC），调用方看到的就是一个不报错的短计数。
  */
-const faults: { sync?: () => Promise<never> } = {};
+const faults: { sync?: () => Promise<never>; shortWrite?: boolean } = {};
+
+/** 只写进前一半、照实报回短计数的 `write()`。 */
+const halfWrite =
+  (target: FileHandle) =>
+  async (buffer: Uint8Array): Promise<{ bytesWritten: number; buffer: Uint8Array }> => {
+    const { bytesWritten } = await target.write(buffer.subarray(0, buffer.byteLength >> 1));
+    return { bytesWritten, buffer };
+  };
 
 /** 被包装的句柄上实际发生过的 `close()` 调用。 */
 const closeCalls: FileHandle[] = [];
@@ -22,6 +33,7 @@ vi.mock('node:fs/promises', async importOriginal => {
     new Proxy(handle, {
       get(target, property, receiver) {
         if (property === 'sync' && faults.sync) return faults.sync;
+        if (property === 'write' && faults.shortWrite) return halfWrite(target);
         if (property === 'close') {
           return async (): Promise<void> => {
             closeCalls.push(target);
@@ -49,6 +61,7 @@ describe('createElectronFileHost — 失败分支的资源回收', () => {
 
   beforeEach(async () => {
     delete faults.sync;
+    delete faults.shortWrite;
     closeCalls.length = 0;
     workspace = await mkdtemp(join(tmpdir(), 'rxdb-file-host-faults-'));
     host = createElectronFileHost({ resolveStorageRoot: () => join(workspace, 'rxdb-files') });
@@ -60,6 +73,7 @@ describe('createElectronFileHost — 失败分支的资源回收', () => {
 
   afterEach(async () => {
     delete faults.sync;
+    delete faults.shortWrite;
     await host.closeAll();
     await rm(workspace, { recursive: true, force: true });
   });
@@ -81,6 +95,23 @@ describe('createElectronFileHost — 失败分支的资源回收', () => {
 
     expect(committed).toMatchObject({ kind: 'error' });
     expect(closeCalls).toHaveLength(1);
+  });
+
+  it('write() 短写时仍把整块写满：提交出去的文件与送来的字节逐字一致', async () => {
+    // 只看 write() 是否抛错的话，短写会让文件位置照常前移、下一块接着写，提交时把带缺口的
+    // 临时文件改名盖住目标——已提交的数据损坏，全程没有一个错误。
+    const writeId = await beginWrite('notes.bin');
+    faults.shortWrite = true;
+    const chunks = [new Uint8Array([1, 2, 3, 4, 5, 6]), new Uint8Array([7, 8, 9, 10])];
+
+    for (const chunk of chunks) {
+      expect(await host.handle({ kind: 'file.writeChunk', sessionId, writeId, chunk })).toEqual({
+        kind: 'file.writeChunk'
+      });
+    }
+    expect(await host.handle({ kind: 'file.writeCommit', sessionId, writeId })).toEqual({ kind: 'file.writeCommit' });
+
+    expect([...(await readFile(join(workspace, 'rxdb-files', 'notes.bin')))]).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
   it('提交失败后额度归还，会话还能继续写', async () => {

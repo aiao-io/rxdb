@@ -6,7 +6,7 @@ import { selectPrimaryAdapterKind } from '../entity/primary-adapter.js';
 import { assertMountedTableSet } from '../entity/worktree-table-set-guard.js';
 import type { RawQueryResult } from '../rxdb-adapter.js';
 import { REMOTE_ENTITY_INVALIDATED_EVENT, RemoteEntityInvalidatedEvent } from '../rxdb-events.js';
-import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
+import { getEntityMetadata, getEntityStatus, tryGetEntityStatus } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBError, RxDBReadOnlyError } from '../RxDBError.js';
 import { SortOrderError } from '../sortable/sortable-error.js';
@@ -379,6 +379,9 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * 因此下发适配器时反转 `orderBy`，返回调用方之前再把数组还原成调用方要求的顺序 ——
    * 增量合并（`merge_create.ts` 的 findByCursor 分支）也按 `options.orderBy` 排序后切片，
    * 两侧必须同序。
+   *
+   * 游标锚定的是 `after` / `before` 这一**行**，不是调用那一刻它的取值：每次执行都按这一行此刻
+   * 已持久化的排序键切窗口，锚点行的排序键被编辑后，相邻页随它移动而不必重开。
    */
   findByCursor(options: FindByCursorOptions<T>): Observable<InstanceType<T>[]> {
     // 验证必需的参数
@@ -398,17 +401,13 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     // 首页因此不带 limit 落到适配器（整表读），而调用方的 options 被就地写上了 100。
     // `?? 100`：同 find，`limit: 0` 是合法的「返回空集」而非「没传」
     const normalized: FindByCursorOptions<T> = { ...options, limit: options.limit ?? 100 };
-    let new_where = structuredClone(options.where);
-    const cursorRuleGroup = _generate_cursor_rule_group(normalized);
-    if (cursorRuleGroup) {
-      new_where = _merge_cursor_rule_group(new_where, cursorRuleGroup);
-    }
     // 反向翻页：反转下发的排序（不改调用方数组），结果按原序还原
     const isBefore = !!options.before;
     const orderBy = isBefore ? _invert_order_by(normalized.orderBy) : normalized.orderBy;
+    // 游标条件在每次执行时现拼（含活查询回 SQL 重查），不在订阅时烘焙一次，见 _cursor_where
     const runner = () =>
       this.primary$.pipe(
-        switchMap(repo => repo.find({ ...normalized, where: new_where, orderBy })),
+        switchMap(repo => repo.find({ ...normalized, where: _cursor_where(normalized), orderBy })),
         map(entities => (isBefore ? [...entities].reverse() : entities)),
         tap(this._setLocals)
       );
@@ -791,6 +790,40 @@ const _invert_order_by = <W extends string>(orderBy: OrderBy<W>[]): OrderBy<W>[]
   orderBy.map(order => ({ ...order, sort: order.sort === 'asc' ? 'desc' : 'asc' }) as OrderBy<W>);
 
 /**
+ * 拼出这一次执行下发的 where：调用方条件并上游标条件
+ *
+ * @param options - 归一化后的游标查询选项
+ * @returns 新的规则组，不改调用方的 `where`
+ *
+ * @remarks
+ * 由 runner 每次执行时调用，不在订阅时算一次：页是活查询，UPDATE 命中时整页回 SQL 重查
+ * （`merge_update.ts` 的 findByCursor 分支），而锚点通常是上一页结果里的实体 —— 排序键被编辑后，
+ * 它在身份缓存里就地更新（本实例保存时由适配器回填，库外写入由增量合并的 `serialize` 回填，
+ * 两者都早于重查）。订阅时烘焙的取值会让改名后仍是上一页尾行的锚点落进本页：
+ * 边界行跨页重复、本页末行被挤出两页的并集，而三端无限滚动只在尾行换成另一行时才重开下一页。
+ */
+const _cursor_where = <T extends EntityType>(options: FindByCursorOptions<T>): RuleGroup<InstanceType<T>> => {
+  const where = structuredClone(options.where);
+  const cursorRuleGroup = _generate_cursor_rule_group(options);
+  return cursorRuleGroup ? _merge_cursor_rule_group(where, cursorRuleGroup) : where;
+};
+
+/**
+ * 游标行在库里的排序键取值
+ *
+ * @param cursor - 调用方传入的 `after` / `before`
+ * @returns 实体取已持久化的基线（`origin`）；不带实体状态的普通对象就是调用方给定的取值
+ *
+ * @remarks
+ * 不读实体上的当前值：未保存的编辑没有挪动这一行在库里的位置，按编辑中的值切窗口，
+ * 用户在锚点行上打字时，相邻页每逢重查就会跟着跳。
+ */
+const _cursor_anchor = <T extends EntityType>(cursor: InstanceType<T>): InstanceType<T> => {
+  const status = tryGetEntityStatus<T>(cursor);
+  return status ? status.origin : cursor;
+};
+
+/**
  * 生成 findByCursor 查询的游标规则组
  * @param options 游标查询选项（只读，比较符按**调用方声明的**排序方向推导）
  * @returns 游标规则组或 null
@@ -812,17 +845,18 @@ const _generate_cursor_rule_group = <T extends EntityType>(
   const cursor = options.after || options.before;
   if (!cursor) return null;
 
+  const anchor = _cursor_anchor(cursor);
   const isAfter = !!options.after;
   const orRules: RuleGroup<InstanceType<T>>[] = [];
 
   for (let i = 0; i < options.orderBy.length; i++) {
     const { field, sort } = options.orderBy[i];
     const useGreater = (sort === 'asc') === isAfter;
-    const boundary = _cursor_boundary_rule<T>(field, cursor[field], useGreater);
+    const boundary = _cursor_boundary_rule<T>(field, anchor[field], useGreater);
     if (!boundary) continue;
 
     // 前面的字段都与游标相等
-    const equalRules = options.orderBy.slice(0, i).map(prev => _cursor_equal_rule<T>(prev.field, cursor[prev.field]));
+    const equalRules = options.orderBy.slice(0, i).map(prev => _cursor_equal_rule<T>(prev.field, anchor[prev.field]));
     orRules.push({ combinator: 'and', rules: [...equalRules, boundary] });
   }
 

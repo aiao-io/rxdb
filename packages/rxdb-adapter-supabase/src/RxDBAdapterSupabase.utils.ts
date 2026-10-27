@@ -1,4 +1,30 @@
-import { EntityType, getEntityMetadata } from '@aiao/rxdb';
+import { EntityType, getEntityMetadata, type EntityMetadata } from '@aiao/rxdb';
+import { SupabaseConfigError } from './errors.js';
+
+/**
+ * 断言实体的主键物理列就是默认的 `id`，批量写入口在发出任何请求前调用。
+ *
+ * @param metadata - 实体元数据
+ * @param operation - 批量写入口名，进错误信息
+ * @throws {SupabaseConfigError} 主键 `id` 声明了别的 columnName
+ *
+ * @remarks
+ * 批量直写（`saveMany` / `mutations`）与单实体 CRUD 写的是同一张业务表，后者按 columnName 解析主键；
+ * 前者的载荷却以 `id` 键定位行：`saveMany` 展开实体交给 PostgREST upsert，`mutations` 交给
+ * `ON CONFLICT (id)`、按 `id` 取实体键与列类型的 `rxdb_mutations` 一族。自定义主键列照常下发的结局是
+ * PostgREST 报列不存在，或在服务端写到一半才失败，所以在发请求前就拒绝。
+ *
+ * 同步推送 `mergeChanges` 不调用本断言：同步协议两端（变更日志触发器 `NEW.id`、`rxdb_mutations`）都绑定
+ * 业务表的 `id` 列、从不读实体主键的 columnName，只在本地改了主键列名的同步实体本来就能推送。
+ */
+export function assert_batch_primary_key_column(metadata: EntityMetadata, operation: string): void {
+  const columnName = metadata.propertyMap.get('id')?.columnName ?? 'id';
+  if (columnName === 'id') return;
+  throw new SupabaseConfigError(
+    `${operation} does not support ${metadata.namespace}:${metadata.name}: its primary key "id" maps to column "${columnName}", ` +
+      'but Supabase batch writes (saveMany / mutations) require the primary key column "id"'
+  );
+}
 
 /**
  * 按实体类型分组

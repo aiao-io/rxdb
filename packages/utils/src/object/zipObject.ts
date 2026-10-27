@@ -24,6 +24,7 @@ import { isArray } from '../types/index.js';
  * **注意：** 如果值数组长度小于键数组，多余的键值为 undefined
  * **注意：** 如果值生成函数抛出错误，会传播该错误
  * **注意：** 空键数组返回空对象
+ * **注意：** 每个键都写成自有属性，`__proto__` 键不会改动结果的原型
  */
 export function zipObject<K extends string | number | symbol, V>(
   keys: K[],
@@ -39,11 +40,7 @@ export function zipObject<K extends string | number | symbol, V>(
     : isArray(values) ? (_k: K, i: number) => values[i]
     : () => values;
 
-  return keys.reduce(
-    (acc, key, idx) => {
-      acc[key] = getValue(key, idx);
-      return acc;
-    },
-    {} as Record<K, V>
-  );
+  // fromEntries 按「定义自有属性」写入：`acc[key] = value` 遇到 `__proto__` 键会走原型 setter，
+  // 值丢失且结果的原型被换成调用方数据
+  return Object.fromEntries(keys.map((key, idx) => [key, getValue(key, idx)] as const)) as Record<K, V>;
 }

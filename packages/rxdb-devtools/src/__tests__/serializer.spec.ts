@@ -199,9 +199,33 @@ describe('serializer', () => {
       expect(nested['self']).toBe('[Circular]');
     });
 
-    it('MUST filter functions from arrays', () => {
+    it('MUST hold the slot of a function in an array as null', () => {
       const result = serialize({ type: 'TEST', arr: [1, vi.fn(), 3] }, 1);
-      expect(result.data['arr']).toEqual([1, 3]);
+      expect(result.data['arr']).toEqual([1, null, 3]);
+    });
+
+    // 数组位一旦省掉，后面每个元素的下标都错一位：面板只读视图把 3 显示在 [1]，
+    // patch 里的数组也整体错位。占位取 JSON.stringify 的 null，任何 transport 两端都读得一致。
+    it('MUST keep array indices stable for values the wire cannot carry', () => {
+      const sparse: unknown[] = [];
+      sparse[0] = 'head';
+      sparse[2] = 'tail';
+
+      expect(serializeDevToolsValue([1, undefined, 3])).toEqual([1, null, 3]);
+      expect(serializeDevToolsValue([Symbol('x'), () => undefined, 'tail'])).toEqual([null, null, 'tail']);
+      expect(serializeDevToolsValue(sparse)).toEqual(['head', null, 'tail']);
+    });
+
+    // `JSON.parse` 产出的对象可以带自有 `__proto__` 键；按赋值写入会触发 Object.prototype 上的
+    // setter：键从线缆上消失，输出对象的原型还被换成了用户数据。
+    it('MUST carry an own __proto__ key as data without replacing the output prototype', () => {
+      const value: unknown = JSON.parse('{"__proto__":{"polluted":true},"a":2}');
+
+      const result = serializeDevToolsValue(value) as Record<string, unknown>;
+
+      expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+      expect(Object.keys(result)).toEqual(['__proto__', 'a']);
+      expect(JSON.stringify(result)).toBe('{"__proto__":{"polluted":true},"a":2}');
     });
 
     it('MUST mask envelope strings to prevent ciphertext leakage', () => {
@@ -234,7 +258,7 @@ describe('serializer', () => {
       expect(result.data['count']).toBe(42);
     });
 
-    it('MUST convert nested Date values and strip bare symbols', () => {
+    it('MUST convert nested Date values and hold bare symbol slots as null', () => {
       const result = serialize(
         {
           type: 'TEST',
@@ -245,7 +269,7 @@ describe('serializer', () => {
         1
       );
       expect(result.data['when']).toBe('2025-01-02T03:04:05.000Z');
-      expect(result.data['items']).toEqual(['2025-02-03T00:00:00.000Z', true]);
+      expect(result.data['items']).toEqual([null, '2025-02-03T00:00:00.000Z', true]);
       expect(result.data['flag']).toBe(false);
     });
 
@@ -330,6 +354,16 @@ describe('serializer', () => {
       });
 
       expect(maskEncryptedFields(value, ['secret'])).toEqual({ publicValue: 7n, secret: '[encrypted]' });
+    });
+
+    // 遮罩在序列化之前跑：这里把自有 `__proto__` 键丢掉，后面的 serializer 再正确也找不回来。
+    it('MUST keep an own __proto__ key while masking', () => {
+      const value: unknown = JSON.parse('{"__proto__":{"x":1},"secret":"s"}');
+
+      const masked = maskEncryptedFields(value, ['secret']) as Record<string, unknown>;
+
+      expect(Object.getPrototypeOf(masked)).toBe(Object.prototype);
+      expect(JSON.stringify(masked)).toBe('{"__proto__":{"x":1},"secret":"[encrypted]"}');
     });
   });
 

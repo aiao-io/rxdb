@@ -66,6 +66,27 @@ function controlledSource() {
   return { source, search, handles, requests, request };
 }
 
+/** 四条流各自可控的句柄；与 Angular 端同名夹具同形 */
+function makeProtocol() {
+  const results = new BehaviorSubject<readonly SearchResult[]>([]);
+  const state = new BehaviorSubject<SearchState>('idle');
+  const error = new BehaviorSubject<SearchExecutionError | undefined>(undefined);
+  const hasMore = new BehaviorSubject(false);
+  const destroy = vi.fn();
+  const handle: SearchHandle = {
+    results$: results.asObservable(),
+    state$: state.asObservable(),
+    error$: error.asObservable(),
+    hasMore$: hasMore.asObservable(),
+    setQuery: vi.fn(),
+    loadMore: vi.fn(async () => undefined),
+    clear: vi.fn(),
+    retry: vi.fn(),
+    destroy
+  };
+  return { results, state, error, hasMore, destroy, handle };
+}
+
 function mountSearch(factory: () => UseSearchReturn) {
   let binding: UseSearchReturn | undefined;
   const Component = defineComponent({
@@ -260,6 +281,55 @@ describe('第二轮收尾：Vue 真实组件与搜索所有权', () => {
     expect(handle.clear).not.toHaveBeenCalled();
     expect(handle.retry).not.toHaveBeenCalled();
     expect(handle.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  // SRA-004 的 Vue 版：四条订阅只挂 next 时，任一流 error 都走 RxJS reportUnhandledError ——
+  // onErrorCaptured 与 app.config.errorHandler 都收不到，其余三条流继续写 ref。
+  // Angular 交给 ErrorHandler，这里交给 Vue 的错误链；handle 与 Angular 一样留到 scope 销毁时释放。
+  it.each(['results', 'state', 'error', 'hasMore'] as const)('%s 协议流损坏交给 Vue 错误链，并解绑所有流', key => {
+    const protocol = makeProtocol();
+    const errorHandler = vi.fn();
+    const Component = defineComponent({
+      setup() {
+        useSearch({ search: () => protocol.handle });
+        return () => h('output');
+      }
+    });
+    const wrapper = mount(Component, { global: { config: { errorHandler } } });
+    try {
+      const cause = new Error(`${key} 协议失败`);
+      protocol[key].error(cause);
+
+      expect(errorHandler).toHaveBeenCalledOnce();
+      expect(errorHandler.mock.calls[0][0]).toBe(cause);
+      for (const subject of [protocol.results, protocol.state, protocol.error, protocol.hasMore])
+        expect(subject.observed).toBe(false);
+      expect(protocol.destroy).not.toHaveBeenCalled();
+    } finally {
+      wrapper.unmount();
+    }
+    expect(protocol.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  // 不在组件里（裸 effectScope）就没有错误链可走：由 Vue 记一条告警收尾，不再落回 RxJS 的全局出口
+  it('脱离组件的 effectScope 里协议流损坏不逃逸成全局未捕获异常', () => {
+    const protocol = makeProtocol();
+    // Vue 开发态先告警，再按环境决定是否 console.error 原始错误；两路都静音，只断言告警
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const scope = effectScope();
+    try {
+      scope.run(() => useSearch({ search: () => protocol.handle }));
+
+      expect(() => protocol.state.error(new Error('state 协议失败'))).not.toThrow();
+      for (const subject of [protocol.results, protocol.state, protocol.error, protocol.hasMore])
+        expect(subject.observed).toBe(false);
+      expect(warn.mock.calls.some(call => String(call[0]).includes('Unhandled error'))).toBe(true);
+    } finally {
+      scope.stop();
+      warn.mockRestore();
+      logged.mockRestore();
+    }
   });
 
   it('真实 RxDB 缺少插件或插件未连接时显式失败，不返回假空态', async () => {

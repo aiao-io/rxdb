@@ -46,7 +46,9 @@ const flattenValue = (value: unknown, prefix: string, result: Record<string, unk
  *
  * 空数组与空对象作为**叶子**写入（值就是 `[]` / `{}`），否则它们会在扁平化中消失，
  * 无法与「该字段不存在」区分（UTL-012）。根级空容器不写入，避免产生空字符串键。
- * 输出可由 {@link flattenPathObjectToPlainObject} 原样还原。
+ *
+ * 根为普通对象、且键名不含 `.` / `[` / `]` 时，输出可由 {@link flattenPathObjectToPlainObject} 原样还原。
+ * 根为数组时扁平键以 `[i]` 开头，而还原结果的根恒为普通对象，还原会抛 TypeError。
  *
  * @param object - 待扁平化对象
  * @returns 路径键值对象

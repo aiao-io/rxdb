@@ -208,7 +208,7 @@ export default async <T extends EntityType = EntityType>(
     await apply[step.kind](step.EntityType, step.entities);
   }
   dispatchUnloggedRemovals(
-    adapter.rxdb,
+    adapter,
     [...mutations.remove.values()].flatMap(entities => [...entities]),
     now
   );

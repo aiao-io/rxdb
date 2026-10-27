@@ -51,6 +51,14 @@ class ShopScopedRecord extends EntityBase {}
 })
 class TenantScopedRecord extends EntityBase {}
 
+/** 主键 `id` 映射到自定义物理列的实体：查询路径按 columnName 解析，批量写只支持默认 `id` 列 */
+@Entity({
+  name: 'KeyedRecord',
+  tableName: 'keyed_records',
+  properties: [{ name: 'id', type: PropertyType.uuid, primary: true, readonly: true, columnName: 'record_key' }]
+})
+class KeyedRecord extends EntityBase {}
+
 const property = (name: string, type: PropertyType): EntityPropertyMetadata =>
   ({ name, columnName: name, type }) as EntityPropertyMetadata;
 
@@ -1771,5 +1779,148 @@ describe('rule_group_builder value escaping', () => {
 
     const orCall = calls.find(call => call.method === 'or');
     expect(orCall?.args[0]).toBe('name.ilike.Jo*,city.ilike.*ton');
+  });
+});
+
+/**
+ * 远端列名契约：主键按 `id` 属性的 columnName 解析，其余字段（含外键）的物理列名就是属性名
+ * （`normalize_supabase_update` 把列名键映回属性名、`create` 直接展开实体、`rule_group_builder`
+ * 只给 `id` 换列名）。批量直写（`saveMany` / `mutations`）的载荷以 `id` 键定位行，只支持默认 `id` 主键列；
+ * 同步推送按协议恒以 `id` 定位，不读主键的 columnName。
+ */
+describe('supabase column-name contract', () => {
+  /** 主键映射到 `record_key` 的实体实例；绕开构造函数，`group_by_type` 只看原型上的 constructor */
+  const keyedRecord = (id: string) => Object.assign(Object.create(KeyedRecord.prototype), { id }) as KeyedRecord;
+
+  it('update injects updatedBy under the property name like create, even when its columnName is customized', async () => {
+    const { client, update } = createRepositoryClientMocks();
+    const adapter = createAdapter(client as Record<string, unknown>);
+    const repository = Object.create(SupabaseRepository.prototype) as SupabaseRepository<typeof FakeTreeEntity>;
+    Object.assign(repository, {
+      adapter,
+      rxdb: adapter.rxdb,
+      EntityType: FakeTreeEntity,
+      metadata: {
+        name: 'FakeTreeEntity',
+        propertyMap: new Map([
+          ['id', { ...property('id', PropertyType.string), readonly: true }],
+          ['title', { ...property('title', PropertyType.string), columnName: 'title_text' }],
+          ['updatedBy', { ...property('updatedBy', PropertyType.string), columnName: 'updated_by', readonly: true }]
+        ]),
+        foreignKeyNames: [],
+        foreignKeyColumnNames: [],
+        foreignKeyRelationMap: new Map()
+      }
+    });
+
+    await repository.update({ id: 'node-1' } as unknown as FakeTreeEntity, { title: 'renamed' });
+
+    // 用户 patch 与审计字段同一口径：都是属性名键，不能一个 `title` 一个 `updated_by`
+    expect(update).toHaveBeenCalledWith({ title: 'renamed', updatedBy: 'test-user' });
+  });
+
+  it('tree queries read the parent column under the parentId property name that CRUD writes', async () => {
+    // 极简 PostgREST 替身：按调用方给的列名过滤，列不存在就什么都匹配不到
+    const rows: Record<string, unknown>[] = [
+      { id: 'root', title: 'Root', parentId: null },
+      { id: 'leaf', title: 'Leaf', parentId: 'root' }
+    ];
+    const select = vi.fn(() => ({
+      eq: vi.fn((column: string, value: unknown) => ({
+        limit: vi.fn(async () => ({ data: rows.filter(row => row[column] === value), error: null }))
+      })),
+      is: vi.fn((column: string) => pagedResponse({ data: rows.filter(row => row[column] === null), error: null })),
+      in: vi.fn((column: string, values: unknown[]) =>
+        pagedResponse({ data: rows.filter(row => values.includes(row[column])), error: null })
+      )
+    }));
+    const from = vi.fn(() => ({ select }));
+    const adapter = createAdapter({ schema: vi.fn(() => ({ from })) });
+    // parent 关系声明了 columnName：只对本地适配器生效，远端那一列仍是 CRUD 写入的 `parentId`
+    const repository = buildTreeRepository(adapter, {
+      relationMap: new Map([['parent', { name: 'parent', kind: 'm:1', columnName: 'parent_id' }]])
+    });
+
+    const ancestors = await repository.findAncestors({ entityId: 'leaf' });
+    const descendants = await repository.findDescendants({});
+
+    expect(ancestors.map(entity => entity.id)).toEqual(['leaf', 'root']);
+    expect(descendants.map(entity => entity.id)).toEqual(['root', 'leaf']);
+  });
+
+  it('findByIds renames a custom primary key column to id without leaking the physical key', async () => {
+    const query = resolvedRecordingQuery({
+      data: [{ record_key: 'k1', updatedAt: '2026-01-01T00:00:00.000Z' }],
+      error: null
+    });
+    const from = vi.fn(() => query.proxy);
+    const adapter = createAdapter({ schema: vi.fn(() => ({ from })) }, {}, [KeyedRecord]);
+
+    const rows = await firstValueFrom(adapter.findByIds('KeyedRecord', ['k1']));
+
+    expect(query.calls).toContainEqual({ method: 'in', args: ['record_key', ['k1']] });
+    // 行会被 QueryCache 原样交给本地 upsertMany：`id` 与 `record_key` 是同一物理列的两种写法，
+    // 两个都带会被本地适配器以「同一列给了两次」拒掉
+    expect(rows).toEqual([{ id: 'k1', updatedAt: '2026-01-01T00:00:00.000Z' }]);
+  });
+
+  it('saveMany rejects a custom primary key column before writing any group', async () => {
+    const upsert = vi.fn(() => ({ select: vi.fn(async () => ({ data: [], error: null, status: 201 })) }));
+    const from = vi.fn(() => ({ upsert }));
+    const adapter = createAdapter({ schema: vi.fn(() => ({ from })) }, {}, [Todo, KeyedRecord]);
+    const todo = Object.assign(Object.create(Todo.prototype), { id: '11111111-1111-4111-8111-111111111111' }) as Todo;
+
+    // Todo 组排在前面：逐组写入时查到第二组才抛，会留下前一组已落库的半批
+    await expect(adapter.saveMany([todo, keyedRecord('k1')])).rejects.toThrow(
+      new SupabaseConfigError(
+        'saveMany does not support public:KeyedRecord: its primary key "id" maps to column "record_key", ' +
+          'but Supabase batch writes (saveMany / mutations) require the primary key column "id"'
+      )
+    );
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it.each(['create', 'update', 'remove'] as const)(
+    'mutations rejects a custom primary key column in %s before calling the RPC',
+    async kind => {
+      const rpc = vi.fn(async () => ({ data: { upserted: [] }, error: null }));
+      const adapter = createAdapter({ rpc }, {}, [KeyedRecord]);
+      const options: RxDBMutationsMap = { create: new Map(), update: new Map(), remove: new Map() };
+      options[kind].set(KeyedRecord, new Set([keyedRecord('k1')]));
+
+      await expect(adapter.mutations(options)).rejects.toThrow(SupabaseConfigError);
+      expect(rpc).not.toHaveBeenCalled();
+    }
+  );
+
+  // 同步协议两端（变更日志触发器 `NEW.id`、`rxdb_mutations` 按 `id` 判冲突）都绑定业务表的 `id` 列：
+  // 只在本地改了主键列名的同步实体推送照常可用，改按 columnName 下发或在这里拒绝都会弄坏它
+  it('mergeChanges keys sync payloads by id regardless of the primary key columnName', async () => {
+    const rpc = vi.fn(async () => ({
+      data: { max_change_id: 1, change_id_mapping: [], entity_results: [] },
+      error: null
+    }));
+    const adapter = createAdapter({ rpc }, {}, [KeyedRecord]);
+    const id = '11111111-1111-4111-8111-111111111111';
+    const key = `public:KeyedRecord:${getRxDBEntityIdentityKey(id)}`;
+
+    await adapter.mergeChanges({
+      inserts: new Map([[key, { patch: { title: 'x' }, inversePatch: null }]]),
+      updates: new Map(),
+      deletes: new Map()
+    });
+
+    expect(rpc).toHaveBeenCalledWith(
+      'rxdb_mutations',
+      expect.objectContaining({
+        p_upserts: [
+          {
+            schema: 'public',
+            table: 'keyed_records',
+            data: [{ id, title: 'x', createdBy: 'test-user', updatedBy: 'test-user' }]
+          }
+        ]
+      })
+    );
   });
 });
