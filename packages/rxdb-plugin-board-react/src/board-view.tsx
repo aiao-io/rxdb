@@ -1169,11 +1169,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
                         </button>
                       ))}
                       {searchHasMore ?
-                        <button
-                          className='search-more'
-                          onClick={onSearchMore}
-                          data-testid='board-search-more'
-                        >
+                        <button className='search-more' onClick={onSearchMore} data-testid='board-search-more'>
                           加载更多
                         </button>
                       : null}
