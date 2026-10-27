@@ -280,7 +280,7 @@ describe('EntityList（真实组件）', () => {
       table.emit('change_cell_value', { col: 2, row: 1, changedValue: 'changed' });
     });
 
-    const undoBtn = () => container.querySelector('[aria-label="撤销 (Ctrl+Z)"]') as HTMLButtonElement;
+    const undoBtn = () => container.querySelector('[aria-label^="撤销 (Ctrl+Z)"]') as HTMLButtonElement;
     await waitFor(() => {
       expect(undoBtn().textContent?.trim()).not.toBe('');
       expect(undoBtn().disabled).toBe(false);
@@ -291,7 +291,7 @@ describe('EntityList（真实组件）', () => {
       expect(tableOf().records.map(r => r['title'])).toContain('undo-me');
     });
 
-    const redoBtn = () => container.querySelector('[aria-label="重做 (Ctrl+Shift+Z)"]') as HTMLButtonElement;
+    const redoBtn = () => container.querySelector('[aria-label^="重做 (Ctrl+Shift+Z)"]') as HTMLButtonElement;
     expect(redoBtn().disabled).toBe(false);
     fireEvent.click(redoBtn());
     await waitFor(() => {
@@ -652,7 +652,7 @@ describe('EntityList（真实组件）', () => {
     act(() => {
       table.emit('change_cell_value', { col: 2, row: 1, changedValue: 'after-edit' });
     });
-    const undoBtn = () => container.querySelector('[aria-label="撤销 (Ctrl+Z)"]') as HTMLButtonElement;
+    const undoBtn = () => container.querySelector('[aria-label^="撤销 (Ctrl+Z)"]') as HTMLButtonElement;
     await waitFor(() => {
       expect(undoBtn().disabled).toBe(false);
     });
@@ -663,7 +663,7 @@ describe('EntityList（真实组件）', () => {
       expect(tableOf().records.map(r => r['title'])).toContain('shortcut-me');
     });
 
-    const redoBtn = () => container.querySelector('[aria-label="重做 (Ctrl+Shift+Z)"]') as HTMLButtonElement;
+    const redoBtn = () => container.querySelector('[aria-label^="重做 (Ctrl+Shift+Z)"]') as HTMLButtonElement;
     await waitFor(() => {
       expect(redoBtn().disabled).toBe(false);
     });
@@ -964,7 +964,7 @@ describe('EntityList（真实组件）', () => {
     act(() => {
       table.emit('change_cell_value', { col: 2, row: 1, changedValue: 'after-meta' });
     });
-    const undoBtn = () => container.querySelector('[aria-label="撤销 (Ctrl+Z)"]') as HTMLButtonElement;
+    const undoBtn = () => container.querySelector('[aria-label^="撤销 (Ctrl+Z)"]') as HTMLButtonElement;
     await waitFor(() => {
       expect(undoBtn().disabled).toBe(false);
     });

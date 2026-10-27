@@ -1014,7 +1014,7 @@ export function EntityList({
                 disabled={!canUndo}
                 title={undoHint ?? undefined}
                 onClick={undo}
-                aria-label='撤销 (Ctrl+Z)'
+                aria-label={`撤销 (Ctrl+Z) ${undoCount}`}
                 type='button'
               >
                 <Undo2 className='h-3.5 w-3.5' size={14} />
@@ -1027,7 +1027,7 @@ export function EntityList({
                 disabled={!canRedo}
                 title={redoHint ?? undefined}
                 onClick={redo}
-                aria-label='重做 (Ctrl+Shift+Z)'
+                aria-label={`重做 (Ctrl+Shift+Z) ${redoCount}`}
                 type='button'
               >
                 <Redo2 className='h-3.5 w-3.5' size={14} />
