@@ -43,12 +43,8 @@ const generateEntityInsertsSql = async <T extends EntityType>(
     const entityData: Record<string, unknown> = normalizeCreateEntity(metadata, entity);
     if (createdBy) entityData['createdBy'] = context?.userId;
     if (updatedBy) entityData['updatedBy'] = context?.userId;
-    const primaryKey = (entityData['id'] as RxDBEntityId | null | undefined) ?? '';
-    const transformed = await transformEntityValueToSql(
-      metadata,
-      entityData as Partial<IEntity>,
-      encryption ? { ...encryption, primaryKey } : undefined
-    );
+    // 主键交给 transformEntityValueToSql 取：entityData 按物理列名为键，自定义主键列下没有 `id`
+    const transformed = await transformEntityValueToSql(metadata, entityData as Partial<IEntity>, encryption);
     rows.push(transformed);
     Object.entries(transformed).forEach(([column, value]) => {
       if (value !== undefined && !(value === null && isSequenceAssignedPrimaryColumn(metadata, column))) {

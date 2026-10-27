@@ -1,16 +1,9 @@
-const UNSAFE_PATH_SEGMENTS = new Set(['__proto__', 'prototype', 'constructor']);
+import { assertSafePath, isArrayIndex } from './object-path.js';
 
 type MutableContainer = Record<string, unknown> | unknown[];
 type SetCustomizer = (currentValue: unknown, key: string, object: MutableContainer) => unknown;
 
 const toArrayPath = (path: string): string[] => path.replace(/\[/g, '.').replace(/\]/g, '').split('.').filter(Boolean);
-
-const assertSafePath = (segments: readonly string[]): void => {
-  const unsafeSegment = segments.find(segment => UNSAFE_PATH_SEGMENTS.has(segment));
-  if (unsafeSegment) {
-    throw new TypeError(`Unsafe object path segment: ${unsafeSegment}`);
-  }
-};
 
 const isContainer = (value: unknown): value is MutableContainer => typeof value === 'object' && value !== null;
 
@@ -40,7 +33,7 @@ export function setBase<T extends object>(object: T, path: string, value: unknow
     const customized = custom?.(existing, key, current);
     const next =
       isContainer(customized) ? customized
-      : /^\d+$/.test(segments[index + 1]) ? []
+      : isArrayIndex(segments[index + 1]) ? []
       : {};
     if (!Reflect.set(current, key, next)) {
       throw new TypeError(`set: 无法在路径段 "${key}"（完整路径 "${path}"）上创建中间容器——目标不可写`);
@@ -53,7 +46,8 @@ export function setBase<T extends object>(object: T, path: string, value: unknow
 
 /**
  * 设置对象中指定路径的属性值，自动创建不存在的嵌套路径。
- * 路径中的数字索引会创建数组；危险的原型链路径会抛出 TypeError。
+ * 下一段是规范数组下标（`0`、`12`，不含 `01` 这类前导零）时创建数组，否则创建对象；
+ * 危险的原型链路径会抛出 TypeError。
  *
  * @param object - 要修改的对象
  * @param path - 点号或方括号路径

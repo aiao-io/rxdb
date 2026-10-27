@@ -1,4 +1,4 @@
-import type { EntityMetadata, IEntity, IMutationContext, RxDBEntityId, WorktreeTableSet } from '@aiao/rxdb';
+import type { EntityMetadata, IEntity, IMutationContext, WorktreeTableSet } from '@aiao/rxdb';
 import { PropertyType } from '@aiao/rxdb';
 import {
   type EncryptionContext,
@@ -43,12 +43,8 @@ export default async (
     if (metadata.propertyMap.has('updatedBy')) entityData['updatedBy'] = context.userId;
   }
 
-  const primaryKey = (entityData['id'] as RxDBEntityId | null | undefined) ?? '';
-  const transformed = await transformEntityValueToSql(
-    metadata,
-    entityData as Partial<IEntity>,
-    context?.encryption ? { ...context.encryption, primaryKey } : undefined
-  );
+  // 主键不在这里取：entityData 按物理列名为键，自定义主键列下没有 `id`，由 transformEntityValueToSql 两种键都认
+  const transformed = await transformEntityValueToSql(metadata, entityData as Partial<IEntity>, context?.encryption);
   const entries = Object.entries(transformed).filter(([column, value]) => {
     if (value === undefined) return false;
     // 序列主键留空由数据库取号；绑 null 会覆盖 DEFAULT nextval(...) 并违反 NOT NULL

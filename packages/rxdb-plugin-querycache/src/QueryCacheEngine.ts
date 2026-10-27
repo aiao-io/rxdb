@@ -336,6 +336,8 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
    * ```
    */
   findById(id: EntityStaticType<T, 'idType'>): Observable<InstanceType<T> | null> {
+    // 代次在发第一个请求之前取，与 #executeFindQuery 同一口径：之后到达的作废说明这次拉到的是写之前的快照
+    const generation = this.#invalidationGeneration;
     // 构造单 ID 查询
     const idFilter: RuleGroup<InstanceType<T>> = {
       combinator: 'and',
@@ -369,17 +371,8 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
           return this.#readLocalByIds([id]).pipe(map(data => data[0] ?? null));
         }
 
-        // 需要从远程获取
-        return this.remoteAdapter.findByIds<InstanceType<T>>(this.entityName, [id]).pipe(
-          switchMap(remoteData => {
-            if (remoteData.length === 0) {
-              return of(null);
-            }
-
-            // 写入本地缓存
-            return this.localAdapter.upsertMany(this.entityName, remoteData).pipe(map(() => remoteData[0]));
-          })
-        );
+        // 需要从远程获取：走 #pull，被作废时拉到的行照常返回、不落本地，免得回退已确认的写
+        return this.#pull([id], generation).pipe(map(rows => rows[0] ?? null));
       })
     );
   }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createStableKey } from '../../object/createStableKey.js';
 import { isEqual } from '../../object/isEqual.js';
 
 describe('isEqual', () => {
@@ -376,5 +377,47 @@ describe('UTL-022 symbol 键参与深比较', () => {
     b[key] = b;
 
     expect(isEqual(a, b)).toBe(true);
+  });
+});
+
+// `Array.prototype.every` 跳过空洞位：`[,]` 与 `['x']` 判等且结果随参数顺序而变，
+// 空洞与 `undefined` 也分不开——与 cloneDeep / createStableKey 把空洞当数据的口径相悖。
+describe('稀疏数组逐位比较', () => {
+  const holes = (length: number): unknown[] => new Array<unknown>(length);
+
+  it('空洞与有值的位不相等，结果与参数顺序无关', () => {
+    expect(isEqual(holes(1), ['x'])).toBe(false);
+    expect(isEqual(['x'], holes(1))).toBe(false);
+  });
+
+  it('空洞与 undefined 不相等', () => {
+    expect(isEqual(holes(1), [undefined])).toBe(false);
+    expect(isEqual([undefined], holes(1))).toBe(false);
+    expect(isEqual({ list: holes(2) }, { list: [undefined, undefined] })).toBe(false);
+  });
+
+  it('空洞位置相同的稀疏数组相等', () => {
+    const left = holes(3);
+    const right = holes(3);
+    left[1] = 'x';
+    right[1] = 'x';
+
+    expect(isEqual(left, right)).toBe(true);
+    expect(isEqual(holes(2), holes(2))).toBe(true);
+  });
+
+  it('判等结论与 createStableKey 一致', () => {
+    const pairs: Array<[unknown[], unknown[]]> = [
+      [holes(1), ['x']],
+      [holes(1), [undefined]],
+      [holes(2), holes(2)],
+      [
+        [1, undefined],
+        [1, undefined]
+      ]
+    ];
+    for (const [left, right] of pairs) {
+      expect(isEqual(left, right)).toBe(createStableKey(left) === createStableKey(right));
+    }
   });
 });

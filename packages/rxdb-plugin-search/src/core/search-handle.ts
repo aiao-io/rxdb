@@ -165,8 +165,12 @@ export const createSearchHandle = (opts: CreateSearchHandleOptions): SearchHandl
   const enqueueQuery = (q: string, page: number): Promise<void> => {
     if (destroyed) return Promise.resolve();
     return new Promise(resolve => {
-      const waiters = pendingQuery?.waiters ?? [];
-      pendingQuery = { query: q, page, waiters: [...waiters, resolve] };
+      const pending = pendingQuery;
+      const waiters = [...(pending?.waiters ?? []), resolve];
+      // 待执行的是第 0 页（新查询或数据变更刷新）时，翻页只并进它的 waiter：第 0 页会把结果重置回第一页，
+      // 翻页基于的正是要被替换的旧结果。顶掉它则刷新被静默丢弃，翻出的页追加在过期结果上
+      // （success 订阅内重入 loadMore 就落在这个窗口里）。反过来第 0 页照常顶掉待执行的翻页。
+      pendingQuery = page > 0 && pending?.page === 0 ? { ...pending, waiters } : { query: q, page, waiters };
       void pumpQueries();
     });
   };

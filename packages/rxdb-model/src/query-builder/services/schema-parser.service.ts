@@ -86,6 +86,8 @@ function defaultDisplayNameGenerator(fieldName: string, metadata?: { displayName
   // 先切开缩写与普通单词，再切开普通 camelCase。
   // 只用零宽断言定位「缩写末字母 + 大写单词首字母」的边界：没有任何带量词的
   // 消费式片段，对任意输入都是线性时间（CodeQL 多项式正则告警）。
+  // 数字与大写混写的缩写（`2FAuth`、`IPv4Address`）不另立规则：`base64URL` 要在数字后切、
+  // `is3DModel` 要把数字并进缩写，没有词典定不出两全的切法，这类字段用 `displayName` 指定标题。
   return fieldName
     .replace(/(?<=[A-Z])(?=[A-Z][a-z])/g, ' ')
     .replace(/([a-z\d])([A-Z])/g, '$1 $2')

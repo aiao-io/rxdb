@@ -173,22 +173,22 @@ describe('QueryBuilder（真实组件）', () => {
   });
 
   it('StrictMode 双挂载重建服务后仍载入 initialQuery', () => {
+    const emitted: Array<RxDBQueryOutput<object>> = [];
     const { container } = render(
       <StrictMode>
         <QueryBuilder<object>
           fields={FIELDS}
           initialQuery={
-            {
-              combinator: 'and',
-              rules: [{ field: 'title', operator: '=', value: 'hello' }]
-            } as RxDBQueryOutput<object>
+            { combinator: 'and', rules: [{ field: 'title', operator: '=', value: 'hello' }] } as RxDBQueryOutput<object>
           }
+          onQueryChange={query => emitted.push(query)}
         />
       </StrictMode>
     );
 
     expect(container.querySelector('.rxdb-query-group')).toBeTruthy();
-    expect((container.querySelector('input[placeholder="输入值"]') as HTMLInputElement).value).toBe('hello');
+    expect((container.querySelector('input[placeholder="输入值"]') as HTMLInputElement | null)?.value).toBe('hello');
+    expect(emitted.at(-1)?.rules).toEqual([expect.objectContaining({ field: 'title', operator: '=', value: 'hello' })]);
   });
 
   it('卸载销毁服务后不再抛错', () => {

@@ -87,6 +87,11 @@ describe('query_sql.utils', () => {
       expect(sql).toBe("('2026-01-01T00:00:00.000Z')");
     });
 
+    it('in 操作符里 Date 的 ISO 串与普通字符串同样转义', () => {
+      const date = Object.assign(new Date(0), { toISOString: () => "x') OR 1=1 --" });
+      expect(get_rule_value({ field: 'createdAt', operator: 'in', value: [date] })).toBe("('x'') OR 1=1 --')");
+    });
+
     it('in 操作符遇不支持的字面量类型应抛错而非拼出非法 SQL', () => {
       expect(() => get_rule_value({ field: 'blob', operator: 'in', value: [new Uint8Array([1, 2])] })).toThrow();
       expect(() => get_rule_value({ field: 'nested', operator: 'in', value: [[1, 2]] })).toThrow();

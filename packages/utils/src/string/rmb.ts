@@ -9,8 +9,13 @@ const max = Math.pow(10, 22);
 
 /**
  * 转换人民币大写
- * @param value
- * @returns
+ *
+ * 小数部分按四舍五入精确到厘，满一元进位（`0.9999` → `壹元整`）。
+ *
+ * @param value - 金额，负数以「欠」开头
+ * @returns 大写金额
+ * @throws {TypeError} value 不是有限数
+ * @throws {Error} 绝对值超过 10^22
  */
 export const rmbUppercase = (value: number) => {
   // 非有限数没有金额语义，且下面的字符串拆分对它们全部失效
@@ -19,25 +24,23 @@ export const rmbUppercase = (value: number) => {
   }
 
   const head = value < 0 ? '欠' : '';
-  let num = Math.abs(value);
+  const amount = Math.abs(value);
 
-  if (num > max) {
+  if (amount > max) {
     throw new Error(`max value is ${max}`);
   }
 
-  let str = '';
-  if (value > Math.floor(value)) {
-    // 不能靠 `${num}`.split('.')[1] 取小数部分：绝对值 < 1e-6 时 JS 用科学计数法
-    // （`${1e-7}` 是 `'1e-7'`），split 结果为 undefined → `Number('0.undefined')` 得到 NaN，
-    // 最终输出里混入 `undefined`。改为在「厘」精度上做整数运算（UTL-016）
-    const n = Math.round((num - Math.floor(num)) * 1000) / 1000;
-    str = fraction.reduce(
-      (p, c, i) => p + (digit[Math.floor(n * 10 * Math.pow(10, i)) % 10] + c).replace(/零./, ''),
-      ''
-    );
+  // 不能靠 `${num}`.split('.')[1] 取小数部分：绝对值 < 1e-6 时 JS 用科学计数法（UTL-016）。
+  // 小数部分一次取整成「厘」后全程整数运算：除回小数再逐位乘 10 会重新引入浮点误差
+  // （0.59 → 伍角捌分），满 1000 厘必须进位到元（0.9999 → 壹元整）
+  let num = Math.floor(amount);
+  let li = Math.round((amount - num) * 1000);
+  if (li === 1000) {
+    num += 1;
+    li = 0;
   }
-  str = str || '整';
-  num = Math.floor(num);
+  const fractionDigits = [Math.floor(li / 100), Math.floor(li / 10) % 10, li % 10];
+  let str = fractionDigits.map((d, i) => (d === 0 ? '' : digit[d] + fraction[i])).join('') || '整';
 
   for (let i = 0; i < unit[0].length && num > 0; i++) {
     let p = '';

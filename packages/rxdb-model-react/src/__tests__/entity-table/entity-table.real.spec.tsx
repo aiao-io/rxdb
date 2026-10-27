@@ -9,7 +9,7 @@
 import type { BatchChangeItem, CellChangeEvent, EntityTableRecord, RowMoveEvent } from '@aiao/rxdb-model';
 import { isRowDragEnabled } from '@aiao/rxdb-model';
 import { act, render } from '@testing-library/react';
-import { createRef } from 'react';
+import { Activity, StrictMode, createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ENTITY_TABLE_CONFIG, EntityTable, type EntityTableHandle } from '../../entity-table';
 import { FakeListTable, getLastListTable } from '../testing/fake-vtable';
@@ -391,5 +391,47 @@ describe('EntityTable（真实组件）', () => {
 
     expect(table.isReleased).toBe(true);
     expect(ref.current).toBeNull();
+  });
+
+  describe('effect 断开后重连（StrictMode 双挂载 / Activity 隐藏再显示）', () => {
+    it('StrictMode 双挂载：模拟卸载释放首个表格，重挂建出可用的新表格', () => {
+      const ref = createRef<EntityTableHandle>();
+      render(
+        <StrictMode>
+          <EntityTable ref={ref} records={RECORDS} columns={COLUMNS as never} />
+        </StrictMode>
+      );
+
+      const table = ref.current?.tableInstance as FakeListTable | null;
+      expect(table).toBeInstanceOf(FakeListTable);
+      expect(table?.isReleased).toBe(false);
+    });
+
+    it('Activity 隐藏时释放表格，再显示时重建并照常桥接事件（不留空白表格）', () => {
+      const ref = createRef<EntityTableHandle>();
+      const cellChanged: CellChangeEvent[] = [];
+      const element = (mode: 'visible' | 'hidden') => (
+        <Activity mode={mode}>
+          <EntityTable
+            ref={ref}
+            records={RECORDS}
+            columns={COLUMNS as never}
+            onCellChanged={e => cellChanged.push(e)}
+          />
+        </Activity>
+      );
+      const { rerender } = render(element('visible'));
+      const first = getLastListTable();
+
+      rerender(element('hidden'));
+      expect(first.isReleased).toBe(true);
+
+      rerender(element('visible'));
+      const table = ref.current?.tableInstance as FakeListTable | null;
+      expect(table).toBeInstanceOf(FakeListTable);
+      expect(table?.isReleased).toBe(false);
+      table?.emit('change_cell_value', { col: 1, row: 1, changedValue: 'Again' });
+      expect(cellChanged).toEqual([{ col: 1, row: 1, field: 'name', value: 'Again', record: RECORDS[0] }]);
+    });
   });
 });

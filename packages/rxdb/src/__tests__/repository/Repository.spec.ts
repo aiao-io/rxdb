@@ -74,8 +74,10 @@ const createEntity = (id: string, extra: Partial<TestEntity> = {}): TestEntity =
   entity.value = extra.value;
   // 这份替身要覆盖 Repository 实际读到的槽位：_setLocal 除了写 local 还会看 patch
   // （只有「无未保存改动」才把 modified 归零），缺 patch 就是替身比真实 EntityStatus 少一块；
-  // 写之前还要核对建出它时挂的那套表（US-314 B2.4）。
-  Object.assign(entity, { [STATUS]: { local: false, modified: false, patch: {}, tableSet: WorktreeTableSet.MAIN } });
+  // 写之前还要核对建出它时挂的那套表（US-314 B2.4）；当游标时取的是已持久化的基线 origin。
+  Object.assign(entity, {
+    [STATUS]: { local: false, modified: false, patch: {}, origin: { ...entity }, tableSet: WorktreeTableSet.MAIN }
+  });
   return entity;
 };
 
@@ -466,6 +468,38 @@ describe('Repository', () => {
     ]);
     expect(result[0]).toBe(first);
     expect(result[1]).toBe(second);
+  });
+
+  // 实体游标按已持久化的基线切窗口（见 review-repository-repro.spec.ts）；没有实体状态的普通对象没有基线可读
+  it('findByCursor 的游标是不带实体状态的普通对象时，按它自身的取值切窗口', async () => {
+    const { repository, localRepo } = setupRepository();
+    localRepo.find.mockResolvedValue([]);
+    const createdAt = new Date('2024-02-01T00:00:00Z');
+
+    await firstValueFrom(
+      repository.findByCursor({
+        where: baseWhere(),
+        orderBy: [
+          { field: 'createdAt', sort: 'asc' },
+          { field: 'id', sort: 'asc' }
+        ],
+        after: { id: 'entity-2', createdAt }
+      } as unknown as FindByCursorOptions<TestEntityCtor>)
+    );
+
+    expect(localRepo.find.mock.calls[0][0].where.rules[0]).toEqual({
+      combinator: 'or',
+      rules: [
+        { combinator: 'and', rules: [{ field: 'createdAt', operator: '>', value: createdAt }] },
+        {
+          combinator: 'and',
+          rules: [
+            { field: 'createdAt', operator: '=', value: createdAt },
+            { field: 'id', operator: '>', value: 'entity-2' }
+          ]
+        }
+      ]
+    });
   });
 
   // 游标谓词对 NULL 的展开。排序约定 NULL 是最小值（与 `compareOrderValues` 一致：asc 靠前、desc 靠后）。

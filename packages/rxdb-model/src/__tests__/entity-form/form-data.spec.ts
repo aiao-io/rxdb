@@ -51,6 +51,36 @@ describe('formDataToEntityChanges', () => {
     ]);
     expect(changes).toEqual({});
   });
+
+  it('treats an untouched date (entity Date, parsed to an ISO string) as unchanged', () => {
+    const entity = { at: new Date('2026-01-02T03:04:05.678Z') };
+    const fields = [field('at', { type: 'date' })];
+    const changes = formDataToEntityChanges(entity, entityToFormData(entity, fields), fields);
+    expect(changes).toEqual({});
+  });
+
+  it('treats the same instant given as an ISO string as unchanged', () => {
+    const changes = formDataToEntityChanges(
+      { at: new Date('2026-01-02T03:04:05.678Z') },
+      { at: '2026-01-02T03:04:05.678Z' },
+      [field('at', { type: 'date' })]
+    );
+    expect(changes).toEqual({});
+  });
+
+  it('reports a changed date as the parsed ISO string', () => {
+    const changes = formDataToEntityChanges(
+      { at: new Date('2026-01-02T03:04:05.678Z') },
+      { at: '2026-02-03T00:00:00.000Z' },
+      [field('at', { type: 'date' })]
+    );
+    expect(changes).toEqual({ at: '2026-02-03T00:00:00.000Z' });
+  });
+
+  it('treats an untouched empty string as unchanged (both sides normalize to null)', () => {
+    const changes = formDataToEntityChanges({ a: '' }, { a: '' }, [field('a')]);
+    expect(changes).toEqual({});
+  });
 });
 
 describe('createDefaultFormData', () => {

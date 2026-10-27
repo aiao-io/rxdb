@@ -97,6 +97,8 @@ export function useSearch(source: SearchSourceLike, options?: SearchOptions): Us
   const [state, setState] = useState<SearchState>('idle');
   const [error, setError] = useState<SearchExecutionError | undefined>(undefined);
   const [hasMore, setHasMore] = useState<boolean>(false);
+  // 协议流损坏的原始错误，有值即在渲染期抛出。包一层：RxJS 允许 `error(undefined)`，裸存分不清「没坏」
+  const [streamFailure, setStreamFailure] = useState<{ readonly cause: unknown } | undefined>(undefined);
 
   /**
    * 当前 query 的「最新值」镜像，供重建时播种新 handle。
@@ -121,10 +123,23 @@ export function useSearch(source: SearchSourceLike, options?: SearchOptions): Us
     handleRef.current = newHandle;
 
     const subs = new Subscription();
-    subs.add(newHandle.results$.subscribe(r => setResults(r)));
-    subs.add(newHandle.state$.subscribe(s => setState(s)));
-    subs.add(newHandle.error$.subscribe(e => setError(e)));
-    subs.add(newHandle.hasMore$.subscribe(h => setHasMore(h)));
+    /**
+     * 桥接流失败的唯一出口，与 Angular `reportStreamFailure`（SRA-004）同一分工。
+     *
+     * @remarks
+     * 可恢复的搜索错误由 handle 经 `error$` 送进 `error`；走到这里的是协议流本身损坏，哪条流都不能再信，
+     * 退订全部后交给 React 的异常边界。不挂 error 处理器时 RxJS 走 `reportUnhandledError`，
+     * 边界与 `onCaughtError` 都收不到，其余三条流还在继续写入。React 只在渲染期接异常，
+     * 所以记进 state、由下一次渲染抛出 —— 与 `source.search()` 抛错同一个去向。
+     */
+    const reportStreamFailure = (cause: unknown): void => {
+      subs.unsubscribe();
+      setStreamFailure({ cause });
+    };
+    subs.add(newHandle.results$.subscribe({ next: r => setResults(r), error: reportStreamFailure }));
+    subs.add(newHandle.state$.subscribe({ next: s => setState(s), error: reportStreamFailure }));
+    subs.add(newHandle.error$.subscribe({ next: e => setError(e), error: reportStreamFailure }));
+    subs.add(newHandle.hasMore$.subscribe({ next: h => setHasMore(h), error: reportStreamFailure }));
     return () => {
       subs.unsubscribe();
       newHandle.destroy();
@@ -147,8 +162,11 @@ export function useSearch(source: SearchSourceLike, options?: SearchOptions): Us
   const retry = useCallback(() => handleRef.current?.retry(), []);
   const loadMore = useCallback(() => handleRef.current?.loadMore() ?? Promise.resolve(), []);
 
-  return useMemo(
+  const value = useMemo(
     () => ({ query, setQuery, results, state, error, hasMore, loadMore, clear, retry }),
     [query, setQuery, results, state, error, hasMore, loadMore, clear, retry]
   );
+  // 全部 hook 调用之后再抛，交给最近的异常边界
+  if (streamFailure) throw streamFailure.cause;
+  return value;
 }

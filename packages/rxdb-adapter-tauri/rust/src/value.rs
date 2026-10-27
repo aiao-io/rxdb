@@ -94,6 +94,22 @@ fn sextet(character: u8) -> HostResult<u32> {
     Ok(u32::from(value))
 }
 
+/// 规范形式的 `(有效字符数, 解码后的字节数)`，只看长度与补位、不碰内容：
+/// 长度必须是 4 的倍数，补位不超过两个。
+fn canonical_extent(bytes: &[u8]) -> HostResult<(usize, usize)> {
+    if !bytes.len().is_multiple_of(4) {
+        return Err(violation(format!(
+            "{BYTES_TAG} must be padded to a multiple of 4 characters"
+        )));
+    }
+    let padding = bytes.iter().rev().take_while(|byte| **byte == b'=').count();
+    if padding > 2 {
+        return Err(violation(format!("{BYTES_TAG} has more than two padding characters")));
+    }
+    let end = bytes.len() - padding;
+    Ok((end, end * 6 / 8))
+}
+
 /// 严格按**规范形式**解码：长度必须是 4 的倍数、补位不超过两个、尾部丢弃的位必须为 0。
 ///
 /// 宽松解码在这里是数据完整性问题而不是风格问题：`$u8` 载荷就是用户的 blob。少掉两个字符的
@@ -105,17 +121,8 @@ fn sextet(character: u8) -> HostResult<u32> {
 /// 因此收严只影响手写或被篡改的载荷。
 fn decode_base64(text: &str) -> HostResult<Vec<u8>> {
     let bytes = text.as_bytes();
-    if !bytes.len().is_multiple_of(4) {
-        return Err(violation(format!(
-            "{BYTES_TAG} must be padded to a multiple of 4 characters"
-        )));
-    }
-    let padding = bytes.iter().rev().take_while(|byte| **byte == b'=').count();
-    if padding > 2 {
-        return Err(violation(format!("{BYTES_TAG} has more than two padding characters")));
-    }
-    let end = bytes.len() - padding;
-    let mut decoded = Vec::with_capacity(end * 6 / 8);
+    let (end, length) = canonical_extent(bytes)?;
+    let mut decoded = Vec::with_capacity(length);
     let mut bits: u32 = 0;
     let mut bit_count: u32 = 0;
     for &character in &bytes[..end] {
@@ -180,6 +187,22 @@ pub fn decode_bytes(value: &Value) -> HostResult<Vec<u8>> {
         .and_then(Value::as_str)
         .ok_or_else(|| violation(format!("expected a {BYTES_TAG} tagged base64 payload")))?;
     decode_base64(text)
+}
+
+/// 二进制载荷（`$u8` 或 `number[]`）解码后的字节数，只看编码长度，不解码也不分配。
+///
+/// 尺寸上限要拿它在解码**之前**比：base64 解码先按载荷长度分配缓冲区，比在之后的话，
+/// renderer 送多大的载荷，宿主就先分配多大。不是这两种形状、或 base64 长度本身不规范时
+/// 返回 `None`，原因留给解码器报。
+pub fn decoded_blob_length(value: &Value) -> Option<usize> {
+    match value {
+        Value::Array(items) => Some(items.len()),
+        Value::Object(object) if object.len() == 1 => {
+            let text = object.get(BYTES_TAG)?.as_str()?;
+            canonical_extent(text.as_bytes()).ok().map(|(_, length)| length)
+        }
+        _ => None,
+    }
 }
 
 /// 编码一个时间戳（epoch 毫秒）。
@@ -334,6 +357,29 @@ mod tests {
         for text in rejected {
             let error = decode_binding(&json!({ "$u8": text })).unwrap_err();
             assert_eq!(error.code, ErrorCode::ProtocolViolation, "for {text:?}");
+        }
+    }
+
+    /// 长度要与解码结果逐字节相等：上限按它判，多算一个字节就会把恰好在上限上的载荷拒掉。
+    #[test]
+    fn measures_blob_payloads_without_decoding_them() {
+        for bytes in [vec![], vec![102], vec![102, 111], vec![102, 111, 111], vec![0; 1000]] {
+            let encoded = encode_bytes(&bytes);
+            assert_eq!(decoded_blob_length(&encoded), Some(bytes.len()), "for {encoded}");
+        }
+        assert_eq!(decoded_blob_length(&json!([1, 2, 3])), Some(3));
+        // 内容不看：非 base64 字符照样按长度算，原因留给解码器报。
+        assert_eq!(decoded_blob_length(&json!({ "$u8": "!!!!" })), Some(3));
+        for value in [
+            json!({ "$u8": "Zm9vY" }),
+            json!({ "$u8": "Z===" }),
+            json!({ "$u8": 7 }),
+            json!({ "$u8": "Zm9v", "extra": 1 }),
+            json!({ "$bigint": "1" }),
+            json!("Zm9v"),
+            json!(null),
+        ] {
+            assert_eq!(decoded_blob_length(&value), None, "for {value}");
         }
     }
 

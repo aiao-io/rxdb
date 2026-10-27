@@ -7,8 +7,37 @@ import {
   type EntityPropertyMetadataOptions,
   type EntityRelationMetadataOptions
 } from '@aiao/rxdb';
+import { createKeyring, type KeyringRow } from '@aiao/rxdb-adapter-encrypted';
 import { describe, expect, it } from 'vitest';
-import { generate_entity_insert_sql as insert_sql, type InsertSqlOptions } from '../../index.js';
+import {
+  getEntityObjectFromResult,
+  generate_entity_insert_sql as insert_sql,
+  type EncryptionContext,
+  type InsertSqlOptions
+} from '../../index.js';
+
+/** 已解锁的加密上下文：密钥环存在内存里 */
+const createEncryption = async (): Promise<EncryptionContext> => {
+  let row: KeyringRow | null = null;
+  const keyring = createKeyring({
+    namespace: 'insert-sql-test',
+    storage: {
+      readSingleton: async () => row,
+      writeSingleton: async next => {
+        row = next;
+      }
+    }
+  });
+  await keyring.unlock({ keyBytes: new Uint8Array(32).fill(7) });
+  return { keyring, namespace: 'insert-sql-test' };
+};
+
+/** INSERT 语句的列清单，顺序与参数一一对应 */
+const insertedColumns = (sql: string): string[] => {
+  const list = /\(([^)]*)\) VALUES/.exec(sql)?.[1];
+  if (list === undefined) throw new Error(`not an INSERT statement: ${sql}`);
+  return list.split(',').map(column => column.replaceAll('"', ''));
+};
 
 // 模拟 Entity 类。
 class TestEntity {
@@ -83,6 +112,27 @@ describe('insert_sql', () => {
     const result = await insert_sql(metadata, WorktreeTableSet.MAIN, new TestEntity(), { useReplace: true });
 
     expect(result.sql).toContain('ON CONFLICT ("id") DO NOTHING');
+  });
+
+  it('自定义主键列 + 加密列：密文的 AAD 用真实主键，读侧解得开', async () => {
+    // 读侧从水合后的实体取 `id` 进 AAD；写侧拿到的是按物理列名为键的数据，主键在 `pk_id` 下
+    const metadata = createMetadata([
+      { name: 'id', columnName: 'pk_id', type: PropertyType.uuid, primary: true },
+      { name: 'secret', type: PropertyType.string, encrypted: true, nullable: true }
+    ]);
+    const encryption = await createEncryption();
+
+    const { sql, params } = await insert_sql(
+      metadata,
+      WorktreeTableSet.MAIN,
+      { id: 'row-1', secret: 'top' },
+      { encryption }
+    );
+
+    await expect(getEntityObjectFromResult(metadata, insertedColumns(sql), params!, encryption)).resolves.toEqual({
+      id: 'row-1',
+      secret: 'top'
+    });
   });
 
   it('应该自动添加 createdAt 时间戳', async () => {

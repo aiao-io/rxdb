@@ -109,6 +109,7 @@ export function QueryBuilder<T extends object = Record<string, unknown>>({
       validationSubscription.unsubscribe();
       service.destroy();
       serviceRef.current = null;
+      // 「已载入」记的是这个服务：StrictMode 双挂载 / Activity 重显会重建服务，复位后由下方 effect 给新服务载入
       lastAppliedInitialQueryRef.current = undefined;
     };
     // 初始 maxDepth 只在服务创建时读取（Angular 侧 constructor 同语义）

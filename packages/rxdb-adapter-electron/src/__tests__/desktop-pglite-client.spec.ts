@@ -199,6 +199,58 @@ describe('DesktopPGliteClient', () => {
     await client.disconnect();
   });
 
+  // `pg.commit` 没送到 host：那条事务还攥着唯一的连接。不补发回滚的话，这个数据目录上之后的
+  // 自动提交语句全部挂死、新事务全部超时，直到窗口关掉——连 disconnect() 都会排在挂死的语句后面。
+  it('rolls the host transaction back when pg.commit never reaches the host', async () => {
+    const base = transport;
+    const lost = new Error('the commit was lost on the channel');
+    transport = {
+      ...base,
+      request: async payload => {
+        if (payload.kind === 'pg.commit') throw lost;
+        return base.request(payload);
+      }
+    };
+    const client = await openClient();
+    await client.exec('CREATE TABLE tx_lost (id int)');
+
+    await expect(
+      client.transaction(async tx => {
+        await tx.query('INSERT INTO tx_lost VALUES (1)');
+      })
+    ).rejects.toBe(lost);
+
+    expect(host.openTransactionCount).toBe(0);
+    expect((await client.query<{ n: number }>('SELECT count(*)::int AS n FROM tx_lost')).rows[0].n).toBe(0);
+    await client.disconnect();
+  });
+
+  // 应答丢了而提交其实已经落地：补发的回滚只换来 transaction_not_found，既不盖住原始错误，也动不了已提交的数据。
+  it('keeps a commit that reached the host when only its reply is lost', async () => {
+    const base = transport;
+    const lost = new Error('the reply to the commit was lost on the channel');
+    transport = {
+      ...base,
+      request: async payload => {
+        const response = await base.request(payload);
+        if (payload.kind === 'pg.commit') throw lost;
+        return response;
+      }
+    };
+    const client = await openClient();
+    await client.exec('CREATE TABLE tx_reply_lost (id int)');
+
+    await expect(
+      client.transaction(async tx => {
+        await tx.query('INSERT INTO tx_reply_lost VALUES (1)');
+      })
+    ).rejects.toBe(lost);
+
+    expect(host.openTransactionCount).toBe(0);
+    expect((await client.query<{ n: number }>('SELECT count(*)::int AS n FROM tx_reply_lost')).rows[0].n).toBe(1);
+    await client.disconnect();
+  });
+
   // 这条是核心回归：没有本地互斥时，第二条事务的 `pg.begin` 会排在会话队列里等主进程
   // 那条唯一连接，而连接要等第一条事务发完剩下的语句才空出来——两边互相等，
   // 表现为 5 秒后一句 `transaction_unavailable`，看上去像 host 有 bug。
@@ -349,6 +401,42 @@ describe('DesktopPGliteClient', () => {
     await client.disconnect();
     expect(host.openSessionCount).toBe(0);
     await expect(client.query('SELECT 1')).rejects.toThrowError(/session_closed/);
+  });
+
+  // 与 SQLite 客户端同一语义：disconnect() 之前发起的请求（含开着的事务）跑完再关，之后发起的当场拒绝。
+  // 关闭标记曾要等本地互斥排空才置位：这段窗口里发起的语句照样被接受，排得靠后的就跟在 pg.close 后面上线。
+  it('drains work issued before disconnect() and refuses work issued after it', async () => {
+    const client = await openClient();
+    // 同一数据目录上的第二个会话：让实例活过断开，好在之后看清到底提交了什么。
+    const observer = await openClient();
+    await client.exec('CREATE TABLE drained (id int)');
+    const before = client.transaction(async tx => {
+      await tx.query('INSERT INTO drained VALUES (1)');
+      await new Promise(resolve => setTimeout(resolve, 20));
+      await tx.query('INSERT INTO drained VALUES (2)');
+    });
+
+    const closing = client.disconnect();
+    const late = await Promise.allSettled([
+      client.query('INSERT INTO drained VALUES (3)'),
+      client.query('INSERT INTO drained VALUES (4)'),
+      client.transaction(async tx => {
+        await tx.query('INSERT INTO drained VALUES (5)');
+      })
+    ]);
+    await before;
+    await closing;
+
+    expect(
+      late.map(outcome =>
+        outcome.status === 'rejected' ? (outcome.reason as RxDBAdapterDesktopError).code : outcome.status
+      )
+    ).toEqual(['session_closed', 'session_closed', 'session_closed']);
+    expect((await observer.query<{ id: number }>('SELECT id FROM drained ORDER BY id')).rows).toEqual([
+      { id: 1 },
+      { id: 2 }
+    ]);
+    await observer.disconnect();
   });
 
   it('releases the session on forceClose as well', async () => {

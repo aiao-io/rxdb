@@ -456,7 +456,9 @@ export const transformEntityValueToSql = async (
   const keys = Object.keys(entity);
   const { encryptedPropertyMap } = metadata;
   const hasEncryption = encryptedPropertyMap && encryptedPropertyMap.size > 0;
-  const entityId = Reflect.get(entity, 'id');
+  // 入参两种键都收（属性名 / 物理列名），主键也得两种都认：创建路径交来的是 normalizeCreateEntity 按列名的产物，
+  // 自定义主键列下只认 `id` 会让 AAD 落成空串，而读侧用真实主键解密，行写进去就再也读不出来
+  const entityId = Reflect.get(entity, 'id') ?? Reflect.get(entity, metadata.propertyMap.get('id')?.columnName ?? 'id');
   const primaryKeyValue = opts?.primaryKey ?? (entityId as RxDBEntityId | null | undefined) ?? '';
 
   // 兼容没有 foreignKeyNames 的情况

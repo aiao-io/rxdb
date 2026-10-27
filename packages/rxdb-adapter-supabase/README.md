@@ -208,6 +208,13 @@ CREATE TABLE public.rxdb_branch (
 );
 ```
 
+### 业务表列名
+
+- **非主键字段的物理列名就是属性名**（camelCase 加引号，如 `"updatedBy"`、外键 `"parentId"`）。属性与关系上声明的 `columnName` 只对本地适配器生效，Supabase 远端的读、写、过滤、排序与树查询都按属性名访问列。
+- **主键例外**：`id` 属性的 `columnName` 对直接访问业务表的路径生效——单实体 `create` / `update` / `remove`、`find` / `count`、树查询、`removeMany` 以及 QueryCache 的 `fetchMetadata` / `findByIds`。
+- **批量直写只支持默认的 `id` 主键列**：`saveMany` 与 `mutations` 的载荷以 `id` 键定位行（`rxdb_mutations` 一族为 `ON CONFLICT (id)`），遇到自定义主键列时在发出任何请求前抛 `SupabaseConfigError`。
+- **同步协议绑定业务表的 `id` 列**：变更日志触发器记录 `NEW.id`，`mergeChanges` 推送也以 `id` 键定位行，都不读实体主键的 `columnName`。参与同步的表主键列必须叫 `id`；只做同步的实体可以只在本地改主键列名。
+
 > Realtime 需把 `rxdb_change` 加入 `supabase_realtime` publication；系统表初始化脚本已处理。
 > 同步事务依赖 RPC：`rxdb_mutations`（内部调用 `rxdb_batch_upsert`、`rxdb_batch_update`、`rxdb_batch_delete`、`rxdb_existing_ids`）、`rxdb_check_rls`、`rxdb_enable_sync_for_branch`。
 > 树查询**不依赖任何数据库函数**：`SupabaseTreeRepository` 按层发 `select`（每层一次 `in('parentId', ...)`）逐级展开，
