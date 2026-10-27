@@ -1,11 +1,11 @@
 ---
 id: US-312
 title: 不切换分支就对比两条分支、预览一次合并（含覆盖标注）
-status: In Review
+status: Done
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-10-15
-updated: 2026-10-17
+updated: 2026-10-27
 tags: [collaboration, branch, merge, history, tri-framework]
 ---
 
@@ -128,5 +128,6 @@ epic-006 多检出位的[场景二](../../epics/epic-006-working-tree-commits.md
 
 ## References
 
+- [PR #122](https://github.com/aiao-io/rxdb/pull/122)（squash `b109ba33`）— 交付
 - [epic-006 多检出位：共同前提](../../epics/epic-006-working-tree-commits.md#共同前提不切换也能读到另一条线)
 - [epic-006 分期与解锁条件](../../epics/epic-006-working-tree-commits.md#分期与解锁条件)

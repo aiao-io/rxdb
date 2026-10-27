@@ -1,11 +1,11 @@
 ---
 id: US-315
 title: 撤销子分支已继承的变更之后，切回父分支写错数据
-status: In Review
+status: Done
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-10-19
-updated: 2026-10-20
+updated: 2026-10-27
 tags: [collaboration, branch, undo, history]
 ---
 
@@ -128,4 +128,5 @@ owner 2026-10-20 定。撤销与重做的候选去掉「当前分支上、不晚
 
 ## References
 
+- [PR #122](https://github.com/aiao-io/rxdb/pull/122)（squash `b109ba33`，含并入的 #140）— 交付
 - [US-302 撤销/重做](US-302-undo-redo.md)、[US-312 对比与合并预览](US-312-branch-compare-merge-preview.md)

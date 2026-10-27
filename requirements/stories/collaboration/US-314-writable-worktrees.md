@@ -1,11 +1,11 @@
 ---
 id: US-314
 title: 可写检出位与从提交建分支：对齐 GitHub Desktop 3.6 的 worktree
-status: In Review
+status: Done
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-10-17
-updated: 2026-10-24
+updated: 2026-10-27
 tags: [collaboration, branch, worktree, history, tri-framework]
 ---
 
@@ -85,6 +85,10 @@ INVEST 检查清单:
 
 ## 技术笔记
 
+- **系统 schema 7 → 8（破坏性）**：`RxDBChange` 新增 `tableSetSuffix` 列（`packages/rxdb/src/system/migration.ts` 第 8 级），
+  事件按表集路由靠它（阶段 B2.3a）。升级过的库，schema 7 及更早的客户端（含已发布的 `0.0.28`）在建连时被拒
+  （`UnsupportedRxDBSystemVersionError`）；下一次发布按 7 → 8 的迁移发布走，见
+  [release-plan](../../release-plan.md#下一次发布迁移发布schema-78)。
 - **从提交建分支（阶段 A）**：提交时在同一事务里记下分叉点（`CommitForkPoint`，`rxdb_commit_fork_point`）：提交所在的分支、
   那一刻它未回滚的最大一条自有变更，以及谱系上不晚于分叉点那一段的回滚条数与最大回滚号。
   `rxdb.workingTree.createBranchFromCommit(branchId, commitId)` 在那里分叉，新分支的 HEAD 就是该提交（与源分支共享之前的历史）、
@@ -121,7 +125,7 @@ INVEST 检查清单:
   - 系统迁移只清旧哨兵，不再按「非空」清，后者会把持有键一起抹掉。
   - 关触发器的写与省略目标分支的切换不拿下任何分支：B1.3 起它们只重挂触发器、不写分支表（见下）。
   - 验收 4 的主检出位这一半就位；可写检出位那一半（再开一个检出位检出被占的分支）随 B1.5 的打开流程。
-  - **已知限制**：B1.2 之前的版本不认持有键，在带持有键的库上切分支会直接覆盖它。检出位是本地概念，不保证跨版本降级。
+  - **跨版本**：带持有键的库一定已迁到系统 schema 8，更旧的客户端在建连时就被 `assertSupportedRxDBSystemVersions()` 拒绝，碰不到持有键。
 - **按表集建表与重建触发器**（阶段 B1.3）：
   - 持有键由表集推出（`WorktreeTableSet.holderKey`）：主表集是哨兵，影子表集是 `*worktree:<后缀>*`。分支表这一行同时说清
     「谁持有」与「是哪一套表」，系统迁移跑在插件装好之前也找得回每一套表该挂哪条分支，没有第二份登记会漂移。
@@ -235,8 +239,8 @@ INVEST 检查清单:
     被占的目标一行不动地拒绝。
 - **事件按表集路由**（阶段 B2.3a，验收 9）：
   - 本地实体事件多了可选的 `tableSetSuffix`：写在可写检出位影子表上的带那套表的后缀，主表集上的不带（没有检出位的库，
-    事件形状与从前逐字相同）。打标三处：变更行派的事件按「分支此刻被哪套表持有」查（变更行只记了分支；一条分支至多被一套表持有，
-    两个适配器的 `read_branch_holders.ts`）；切分支与撤销派的事件按写入的执行器挂的那套表；实体管理器的 NEW 事件与
+    事件形状与从前逐字相同）。打标三处：变更行派的事件沿用变更行写入时记下的 `RxDBChange.tableSetSuffix`（系统 schema 8 新增的列，
+    主表集与旧日志为 `null`；两个适配器的 `handle_rxdb_change.ts`），不依赖分支此刻的持有关系；切分支与撤销派的事件按写入的执行器挂的那套表；实体管理器的 NEW 事件与
     `notifyExternalUpdate` 按实例挂的那套表。QueryCache、不记日志的实体、`RxDBBranch` / `RxDBChange` 这些只在主表集的不打。
   - 收：`WorktreeTableSet#accepts(metadata, suffix)`，按表集判、不按分支判（主检出位上的几个标签页挂的是同一套主表，
     一个切了分支，另一个读到的也是新分支的数据）。有副本的实体只收自己这套表上的，没副本的、不认得的照收。
@@ -263,7 +267,6 @@ INVEST 检查清单:
     适配器断开调 `release(owner)`——摘掉它的监听（Comlink 每传一次监听都在 worker 里造一个新代理，按引用摘不掉；摘下的代理一并释放），
     最后一个持有者交还时才关库，关完回到能再 `init` 的状态。不共用的连法照旧 `disconnect()`。
   - 静音（恢复整库用）是客户端全局的，写明即可：SharedWorker 传输不支持备份与恢复。
-  - 顺带修 B2.3a：变更行派事件前回查持有者那一次查询撞上断开时，与查变更行同口径不算失败（此前在断开的那一刻报一条 change-error）。
   - 一致性：wa-sqlite 与 sqlite-wasm 的 `shared-client.spec.ts`（真实 SharedWorker：一个标签页的事务开着时另一个排在后面、
     一端断开另一端照常读写与收事件且新标签页还能连、孤儿事务被下一个拿锁的回滚；客户端的持有者计数、重复交还、孤儿回滚），
     修之前适配器那三条在两个后端上都红；wa-sqlite `worktree-cross-connection.spec.ts` 按 IndexedDB 多连接与 SharedWorker
@@ -404,8 +407,8 @@ INVEST 检查清单:
   `activation-cas.ts` / `materialize-branch.ts`、`checkout/worktree-writable.ts`（登记行跟随、激活态行、名字）/
   `worktree-manager.ts`（`rename`）/ `worktree.entity.ts`、`plugin.ts` — 检出位里切分支、激活版本号按表集、改名（B2.2）
 - `packages/rxdb/src/rxdb-events.ts`（`tableSetSuffix`）、`system/worktree-table-set.ts`（`accepts` / `ownerSuffixOf` / `eventTagOf`）、
-  `RxDB.ts`（挂载信号）、`entity/entity-manager.ts`、`repository/QueryManager.ts`；两个适配器的 `version/read_branch_holders.ts`、
-  `handle_rxdb_change.ts`、`version/execute_switch_actions.ts`；`packages/rxdb-plugin-search/src/plugin.ts`；
+  `RxDB.ts`（挂载信号）、`entity/entity-manager.ts`、`repository/QueryManager.ts`、`system/change.ts`（`tableSetSuffix` 列）、
+  `system/migration.ts`（系统 schema 8）；两个适配器的 `handle_rxdb_change.ts`、`version/execute_switch_actions.ts`；`packages/rxdb-plugin-search/src/plugin.ts`；
   `packages/rxdb-adapter-wa-sqlite/src/__tests__/worktree-cross-connection.spec.ts` — 事件按表集路由（B2.3a）
 - `packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts`（`sharedClientLockName` / `clientOwner`）、`sqlite-core.types.ts`
   （`release` / `rollbackOrphanTransaction`）、`handle_rxdb_change.ts`；`packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts`、
@@ -435,5 +438,6 @@ INVEST 检查清单:
 
 ## References
 
+- [PR #122](https://github.com/aiao-io/rxdb/pull/122)（squash `b109ba33`）— 交付
 - [GitHub Desktop 3.6: Worktrees and deeper Copilot integration](https://github.blog/changelog/2026-06-26-github-desktop-3-6-worktrees-and-deeper-copilot-integration/)
 - [Managing worktrees in GitHub Desktop](https://docs.github.com/en/desktop/making-changes-in-a-branch/managing-worktrees-in-github-desktop)

@@ -290,7 +290,7 @@ export class VersionManager {
    */
   async removeBranch(branchId: string): Promise<void> {
     await remove_branch(this, branchId);
-    // 被它继承的变更重新可撤销；分支表不写变更日志，活查询看不见这次删除，得显式重查
+    // 被它继承的变更重新可撤销；分叉点不订阅分支表的活查询（见 HistoryManager），得显式重查
     this.refreshChildForks();
   }
 

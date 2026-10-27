@@ -626,7 +626,7 @@ await checkouts.remove(worktree.id); // 删那套表、放开分支、删登记�
 - 自动重建叠不上新结构的增量：列改了名、新加了没默认值的必填列，重建整笔失败（`schema_rebuild_failed`），检出位原样留着、挂不上。新加密的列在旧变更里是明文，重建照搬；主检出位上不记日志的写（拉取回填这类）会混进重建出来的副本。
 - 实体用整数自增主键时，两套表各自递增，跨套可能分出相同的 id（播种时已对齐序列）。
 - 远端分支要先在主检出位上切过去一次、把数据物化到本地，才能开检出位或在检出位里切过去。
-- 检出位是本地概念，不保证降级：B1.2 之前的版本在带持有键的库上切分支会把持有键抹掉。
+- 检出位是本地概念，不保证降级：带持有键的库已迁到系统 schema 8，更旧的客户端在建连时就被拒绝（`UnsupportedRxDBSystemVersionError`）。
 
 PGlite 与 SQLite 系（wa-sqlite、sqlite-wasm、sqlite、sqliteai、Electron）都支持，一致性套件同一份。适配器没有建删表集的槽位（`createWorktreeTableSet` / `dropWorktreeTableSet`）时 `add()` 报 `unsupported_adapter`。
 

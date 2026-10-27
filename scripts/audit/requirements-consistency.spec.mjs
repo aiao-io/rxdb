@@ -108,6 +108,7 @@ async function scaffold(
   );
   await writeFile(path.join(dir, 'requirements/roadmap.md'), roadmapText);
   await writeFile(path.join(dir, 'README.md'), `# x\n\n当前交付状态 ${readme}\n`);
+  await writeFile(path.join(dir, 'requirements/README.md'), '# 需求管理\n');
   await writeFile(path.join(dir, 'packages/x/src/a.ts'), 'a\nb\nc\n');
 }
 
@@ -570,6 +571,18 @@ test('README 大故事清单与「正文含交付阶段」的集合不一致时�
   assert.match(offenders.join('\n'), /大故事清单写「现有 2 条」，实际 1 条/);
   assert.match(offenders.join('\n'), /清单 US-001 US-002，实际 US-001/);
   void stories;
+});
+
+// 大故事清单写在 requirements/README.md；run() 曾把仓库根 README.md 传给这道检查，
+// 根 README 里没有「现有 N 条」，检查因此恒绿，清单漏掉 US-313 / US-314 也没人发现。
+test('run() 按 requirements/README.md 核对大故事清单', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'requirements/README.md'),
+    '# 需求管理\n\n现有 1 条：[US-002](stories/core/US-002-x.md)。\n'
+  );
+  const { offenders } = await run({ root: dir });
+  assert.match(offenders.join('\n'), /requirements\/README\.md: 大故事清单写「现有 1 条」，实际 0 条/);
 });
 
 test('capability-matrix / versioning-policy 的包计数与 packages/、api-baseline/ 实际不符时被抓出', async () => {
