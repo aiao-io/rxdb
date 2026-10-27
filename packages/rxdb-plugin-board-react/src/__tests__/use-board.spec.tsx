@@ -172,9 +172,10 @@ describe('useBoard（React 桥接）', () => {
     await run(() => board().actions.moveColumn(second.id, { prevId: null, nextId: first.id }));
     await run(() => board().actions.sortColumn(second.id, 'title'));
     await waitFor(() => board().tasks[0]?.columnId === second.id, '任务移动');
-    expect(board().currentBoard?.title).toBe('改名板');
+    // 板、标签与任务各是一条独立活查询：任务先刷新不代表另两条也已刷新
+    await waitFor(() => board().currentBoard?.title === '改名板', '板改名');
+    await waitFor(() => board().labels[0]?.color === '#654321', '标签改色');
     expect(board().labels[0].name).toBe('改名标签');
-    expect(board().labels[0].color).toBe('#654321');
     await run(async () => board().actions.executeLabelDelete(await board().actions.planLabelDelete(label.id)));
     await run(async () => board().actions.executeDelete(await board().actions.planTaskDelete(task.id)));
     await run(() => board().actions.undo());
