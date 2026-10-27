@@ -4,7 +4,7 @@
  * 两端没有同一个可信的字节来源（US-211 支付宝探针 v3–v6 实测）：
  *
  * - 开发者工具模拟器把代码包文件当 UTF-8 文本读，不论传什么编码，非法字节序列都变成 `EF BF BD`
- *   （812876 字节的 wa-sqlite.wasm 读回约 900 KiB）；base64 只含 ASCII，读回原样；
+ *   （727646 字节的 wa-sqlite.wasm 读回 814795 字节）；base64 只含 ASCII，读回原样；
  * - iOS 真机的 `.wasm` 原文件读回原样，代码包里却没有 `.base64.txt` 文本副本（10022）。
  *
  * 所以应用要在 wasm 旁边放一份 base64 文本副本，运行时按锁定版本的指纹判断读到的字节是不是原样：
@@ -23,12 +23,12 @@ export interface AlipayWasmFingerprint {
 }
 
 /**
- * 锁定版本 `@subframe7536/sqlite-wasm@1.4.0` 的 `dist/wa-sqlite.wasm` 的指纹。
+ * 锁定版本 `@subframe7536/sqlite-wasm@1.3.1` 的 `dist/wa-sqlite.wasm` 的指纹。
  *
  * adapter 内置的 glue 与这份 wasm 同源，跨构建混用会 `LinkError`，所以代码包里只可能放这一份；
  * 升级依赖时单测会核对常量。
  */
-export const ALIPAY_WASM_FINGERPRINT: AlipayWasmFingerprint = Object.freeze({ bytes: 812_876, fnv1a: 1_627_926_554 });
+export const ALIPAY_WASM_FINGERPRINT: AlipayWasmFingerprint = Object.freeze({ bytes: 727_646, fnv1a: 2_641_369_642 });
 
 /** 代码包里 wasm 的 base64 文本副本的后缀：`wa-sqlite/wa-sqlite.wasm` 的副本是 `wa-sqlite/wa-sqlite.wasm.base64.txt`。 */
 export const ALIPAY_WASM_TEXT_COPY_SUFFIX = '.base64.txt';
@@ -43,7 +43,7 @@ const FNV_PRIME = 0x01_00_01_93;
  */
 export function fingerprintWasm(bytes: Uint8Array): AlipayWasmFingerprint {
   let hash = FNV_OFFSET_BASIS;
-  // 下标循环：逻辑层按 es2018 打包，`for…of` 保留迭代器协议，iOS 真机每次打开库算 813 KiB；下标不越界，`?? 0` 只为过类型检查
+  // 下标循环：逻辑层按 es2018 打包，`for…of` 保留迭代器协议，iOS 真机每次打开库算 727 KiB 要 4–11 秒（v6 / v7 实测）；下标不越界，`?? 0` 只为过类型检查
   for (let index = 0; index < bytes.length; index++) hash = Math.imul(hash ^ (bytes[index] ?? 0), FNV_PRIME);
   return { bytes: bytes.byteLength, fnv1a: hash >>> 0 };
 }

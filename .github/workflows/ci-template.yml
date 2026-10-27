@@ -214,6 +214,11 @@ jobs:
       - name: Package runtime conditions gate
         run: pnpm audit:conditions
 
+      # pnpm patch 不随包发出：补丁若覆盖可发布包的运行时依赖，工作区测试因补丁而绿、
+      # npm 用户装到的却是原包（sqlite-wasm 1.4.0 的 iOS 微信初始化崩溃就是这样差点发出去）。
+      - name: Workspace patch gate
+        run: pnpm audit:workspace-patches
+
       # 文件头那条「第三方 action 一律钉 commit SHA」从此有人执行。
       # tag 能被强推，靠 review 盯不住；这一步扫 .github 下全部 workflow 与复合 action。
       - name: Third-party action pin gate
@@ -262,8 +267,10 @@ jobs:
       # 判定，branch/PR 事件下跳过 tag 比对，只校验清单本身与 `packages/rxdb/package.json`
       # 的一致性；tag 事件下才回落到 `GITHUB_REF_NAME`。
       #
-      # `kind=bridge` / `normal` 时四条钩子都不参与判定（见脚本的 migration 分支），
-      # 所以这一步今天是绿的 —— 它守的是「清单变成 migration 的那次 PR」。
+      # `kind=bridge` / `normal` 时四条 bridge 钩子不参与判定（见脚本的 migration 分支）；
+      # 但只要 `v<release.version>` 还没打 tag（即发版 PR），候选提交上的系统版本常量必须与
+      # 上一个已发布 tag 完全相等 —— 0.0.28 声明 normal 却把 schema 3→7 发了出去，就是因为这里当时只核升级位。
+      # 发版后要打 `v<version>` tag，否则后续每个 PR 都会把这份清单当成未发布的候选来比。
       - name: Migration release manifest gate
         run: pnpm check-migration-release-gate
 
