@@ -97,7 +97,7 @@ test.describe('看板页对齐（US-539 阶段 A）', () => {
     const ideasColumn = page
       .getByTestId('column')
       .filter({ has: page.getByTestId('column-title').getByText('Ideas', { exact: true }) });
-    await toIdeas.dragTo(ideasColumn.getByTestId('add-task'));
+    await toIdeas.dragTo(ideasColumn.getByTestId('add-task'), { sourcePosition: { x: 10, y: 5 } });
     await expect(ideasColumn.getByTestId('task-title')).toHaveText('写发布说明');
     await page.reload();
     await expect(page.getByTestId('board-view')).toBeVisible();

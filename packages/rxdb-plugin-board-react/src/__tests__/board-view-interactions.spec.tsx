@@ -256,7 +256,7 @@ describe('看板公开交互', () => {
     fireEvent.change(screen.getByTestId('label-composer-input'), { target: { value: '新标签' } });
     fireEvent.change(screen.getByTestId('label-composer-color'), { target: { value: '#123456' } });
     click('label-composer-submit');
-    fireEvent.click(screen.getByRole('button', { name: '改名' }));
+    fireEvent.click(screen.getByRole('button', { name: `改名 ${label.name}` }));
     const labelEditor = screen.getByRole('textbox', { name: `标签名称 ${label.name}` });
     fireEvent.change(labelEditor, { target: { value: '改标签' } });
     fireEvent.keyDown(labelEditor, { key: 'Enter' });

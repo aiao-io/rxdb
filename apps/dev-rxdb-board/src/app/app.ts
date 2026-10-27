@@ -223,10 +223,11 @@ export class App implements OnInit, OnDestroy {
     try {
       if (target !== null && target !== active) await cleanupBoardRestoreTarget(target, active);
       this.clearStorage(RESTORE_TARGET_KEY);
-      this.clearStorage(RESTORING_MARKER_KEY);
       return null;
     } catch (cause) {
       return `恢复目标清理失败：${failureMessage(cause)}，可重新打开页面重试清理`;
+    } finally {
+      this.clearStorage(RESTORING_MARKER_KEY);
     }
   }
 

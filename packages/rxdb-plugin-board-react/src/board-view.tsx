@@ -495,11 +495,7 @@ export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {
       (dragging?.kind === 'task' ? dragging.id : undefined)) as UUID | undefined;
     if (!movedId) return;
     clearDragFeedback();
-    const target =
-      resolveTaskTarget(movedId, event.clientX, event.clientY) ??
-      (event.target instanceof Element && event.target.closest('[data-testid="add-task"]') !== null ?
-        { kind: 'end' as const, columnId: (event.currentTarget as HTMLElement).dataset.columnId as UUID }
-      : null);
+    const target = resolveTaskTarget(movedId, event.clientX, event.clientY);
     if (!target) return;
     await guard(() => moveTaskAndSyncDetail(movedId, target));
   };
