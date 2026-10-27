@@ -96,6 +96,19 @@ describe('realmVitePlugin 的公共部分', () => {
 describe('realmVitePlugin：抖音', () => {
   it('入口带 use strict 时报错：非严格函数的 this 拿不到真实全局对象', () => {
     expect(() => generate('tt', { 'app.js': chunk('app.js', '"use strict";') })).toThrow(/use strict/);
+    expect(() => generate('tt', { 'app.js': chunk('app.js', "\n  'use strict'\nfoo();") })).toThrow(/use strict/);
+  });
+
+  it('只认入口最前面的 use strict 指令：字符串字面量与函数体里的同名文本不算，照常登记', () => {
+    const appCode = `var message="use strict";function helper(){'use strict';return message}`;
+    const bundle: Bundle = { 'app.js': chunk('app.js', appCode) };
+    const [realmModule] = generate('tt', bundle);
+    if (!realmModule) throw new Error('没有发出登记模块');
+    const app = (bundle['app.js'] as FakeChunk).code;
+
+    expect(app.endsWith(appCode)).toBe(true);
+    const { captured, realmGlobal } = runCapture(app, realmModule.source, false);
+    expect(captured).toBe(realmGlobal);
   });
 
   it('入口用非严格函数的 this 登记', () => {

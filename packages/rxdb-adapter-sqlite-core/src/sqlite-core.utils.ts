@@ -380,7 +380,12 @@ export const transformEntityValueToSql = async (
   const { propertyMap, columnNameToPropertyName, encryptedPropertyMap } = metadata;
   const hasForeignKeys = foreignKeyNames.length > 0;
   const hasEncryption = encryptedPropertyMap && encryptedPropertyMap.size > 0;
-  const primaryKeyValue = opts?.primaryKey ?? (entity['id'] as RxDBEntityId | null | undefined) ?? '';
+  // 入参两种键都收（属性名 / 物理列名），主键也得两种都认：创建路径交来的是 normalizeCreateEntity 按列名的产物，
+  // 自定义主键列下只认 `id` 会让 AAD 落成空串，而读侧用真实主键解密，行写进去就再也读不出来
+  const primaryKeyValue =
+    opts?.primaryKey ??
+    ((entity['id'] ?? entity[get_primary_key_column(metadata)]) as RxDBEntityId | null | undefined) ??
+    '';
   const transformForeignKey = (foreignKeyName: string, value: unknown): SQLiteCompatibleType | undefined => {
     const relation = metadata.foreignKeyRelationMap?.get(foreignKeyName);
     if (!relation || !opts?.resolveEntityMetadata) return toSQLiteCompatibleValue(value, foreignKeyName);
@@ -555,14 +560,36 @@ export const get_sql_value = (value: unknown): string | number | Uint8Array | nu
 };
 
 /**
+ * 把一个参数写成可以直接拼进 SQL 文本的字面量。
+ *
+ * @remarks
+ * {@link get_sql_value} 对 `Uint8Array` / `Date` / 数字数组返回对象本身（那是给参数绑定用的），
+ * 直接 `String()` 拼出来的是 `1,2,3`、`Wed Jul 29 2026 …` 这种裸文本。binary 写成 BLOB 字面量 `X'…'`，
+ * Date 按落库口径写成 ISO 串，并与普通字符串同样转义（同 `format_in_values`）——`toISOString` 可被实例或子类覆写，
+ * 不能当作只含日期字符的可信文本；数字数组没有对应的字面量写法，拒绝而不是拼出非法 SQL。
+ *
+ * @throws TypeError 值是数字数组
+ */
+const inline_sql_literal = (value: unknown): string => {
+  const literal = get_sql_value(value);
+  if (literal instanceof Uint8Array) {
+    return `X'${Array.from(literal, byte => byte.toString(16).padStart(2, '0')).join('')}'`;
+  }
+  if (literal instanceof Date) return get_sql_value(literal.toISOString()) as string;
+  if (Array.isArray(literal)) throw new TypeError('number[] has no inline SQL literal form');
+  return String(literal);
+};
+
+/**
  * 将 SQL 模板和参数合并为完整 SQL
  * @param sql SQL 模板字符串
  * @param params 参数数组
  * @returns 完整的 SQL 字符串
+ * @throws TypeError 参数里有数字数组（没有可内联的字面量形式）
  */
 export const get_sql_with_params = /*@__PURE__*/ (sql: string, params: readonly unknown[] = []): string => {
   let i = 0;
-  return sql.replace(/\?/g, () => String(get_sql_value(params[i++])));
+  return sql.replace(/\?/g, () => inline_sql_literal(params[i++]));
 };
 
 // 缓存 metadata 列名与属性名的转换映射，提升大批量检索时的字段映射性能

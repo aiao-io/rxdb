@@ -16,6 +16,13 @@ function codeOf(result: { outcome: string; error?: { code: string } }): string {
   return result.outcome === 'failed' ? (result.error?.code ?? '') : 'ok';
 }
 
+/** 根目录下残留的上传临时文件名。 */
+async function temporaryNames(provider: ReturnType<typeof setup>['provider']): Promise<string[]> {
+  const listed = await provider.invoke('list', { path: '' });
+  const entries = (listed as { result: { entries: readonly { name: string }[] } }).result.entries;
+  return entries.map(entry => entry.name).filter(name => name.startsWith('.rxdb-devtools-upload-'));
+}
+
 describe('OPFS files provider — descriptor', () => {
   it('MUST declare the browser opfs kind with the protocol operation order', () => {
     const { provider } = setup();
@@ -125,23 +132,41 @@ describe('OPFS files provider — upload binding', () => {
    * 而且占着浏览器存储配额。
    */
   it('MUST clean up the temporary file when commit fails part-way', async () => {
-    const { provider } = setup(r => {
-      // 目标名被一个目录占着：搬运时的 `getFileHandle(name)` 必然抛 TypeMismatchError，
-      // 而临时文件此时已经写好并关闭了。
-      r.mkdir('blocked.bin');
-    });
+    const { provider, root } = setup();
     await provider.invoke('upload', { transferId: 'trf-commit-fail', path: '', name: 'blocked.bin', size: 1 });
+    // 目标名在登记**之后**才被一个目录占住：commit 搬运前的二次探测必然拒绝，
+    // 而临时文件此时已经写好并关闭了。（登记时就被占的情形见下方「同名冲突」。）
+    root.mkdir('blocked.bin');
 
     const sink = provider.createChunkSink('trf-commit-fail');
     await sink.write(new Uint8Array([7]));
     await expect(sink.commit()).rejects.toThrow();
     await sink.discard();
 
-    const listed = await provider.invoke('list', { path: '' });
-    const names = (listed as { result: { entries: readonly { name: string }[] } }).result.entries.map(
-      entry => entry.name
-    );
-    expect(names.filter(name => name.startsWith('.rxdb-devtools-upload-'))).toEqual([]);
+    expect(await temporaryNames(provider)).toEqual([]);
+    // 占住目标名的是别人的条目，commit 失败的收尾不得顺手删掉它。
+    expect(root.exists('blocked.bin')).toBe(true);
+  });
+
+  /**
+   * 写目标半途失败（配额）时，本次新建的目标要撤掉。
+   *
+   * @remarks
+   * `getFileHandle(name, { create: true })` 一返回目标就已经存在；随后写入抛出而不撤的话，
+   * 留下的是一个对同源读者可见的空文件——面板按文件名确认上传，会把它报成上传成功。
+   */
+  it('MUST remove the target it created when writing the target fails', async () => {
+    const { provider, root } = setup();
+    root.failWritesTo('full.bin');
+    await provider.invoke('upload', { transferId: 'trf-quota', path: '', name: 'full.bin', size: 2 });
+
+    const sink = provider.createChunkSink('trf-quota');
+    await sink.write(new Uint8Array([1, 2]));
+    await expect(sink.commit()).rejects.toThrow();
+    await sink.discard();
+
+    expect(root.exists('full.bin')).toBe(false);
+    expect(await temporaryNames(provider)).toEqual([]);
   });
 
   // transferId 是 sink 与 upload 请求之间唯一的绑定；对不上必须炸，不能开一个无主 sink。
@@ -163,6 +188,62 @@ describe('OPFS files provider — upload binding', () => {
     expect(codeOf(await provider.invoke('upload', { transferId: 'dup', path: '', name: 'b', size: 1 }))).toBe(
       'resource_conflict'
     );
+  });
+});
+
+describe('OPFS files provider — upload name conflicts', () => {
+  /**
+   * 同名条目已在时，上传在登记期就以 `resource_conflict` 拒绝。
+   *
+   * @remarks
+   * OPFS 根目录与宿主应用共享：照写不误的话，被静默覆盖的可能是应用自己的数据库文件。
+   * 与 `create-directory` 同一条规则——占住这个名字的是文件还是目录都算冲突。
+   */
+  it('MUST refuse an upload onto a taken name and keep the existing entry intact', async () => {
+    const { provider, root } = setup(r => {
+      r.writeFile('db/main.sqlite', 12);
+      r.mkdir('db/wal');
+    });
+
+    const onFile = await provider.invoke('upload', {
+      transferId: 'trf-file',
+      path: 'db',
+      name: 'main.sqlite',
+      size: 3
+    });
+    const onDirectory = await provider.invoke('upload', { transferId: 'trf-dir', path: 'db', name: 'wal', size: 3 });
+
+    expect(codeOf(onFile)).toBe('resource_conflict');
+    expect(codeOf(onDirectory)).toBe('resource_conflict');
+    expect(root.fileSize('db/main.sqlite')).toBe(12);
+    expect(root.exists('db/wal')).toBe(true);
+    // 被拒的登记不得留下可取的 sink。
+    expect(() => provider.createChunkSink('trf-file')).toThrow();
+  });
+
+  /**
+   * START 不等 RESPONSE：sink 在登记期探出冲突**之前**就已被取走，commit 必须自己再挡一次。
+   *
+   * @remarks
+   * 协议让面板把 `TRANSFER_START` 紧跟在 upload 请求后面发出，connector 同步派发它（见
+   * `upload` 里的登记注释）。所以「登记期拒绝」挡不住已经绑好的那个 sink——只靠它的话，
+   * 字节照样会在 COMPLETE 时覆盖目标。
+   */
+  it('MUST NOT overwrite a taken name through a sink bound before the conflict was known', async () => {
+    const { provider, root } = setup(r => {
+      r.writeFile('taken.bin', 4);
+    });
+
+    const answer = provider.invoke('upload', { transferId: 'trf-race', path: '', name: 'taken.bin', size: 2 });
+    const sink = provider.createChunkSink('trf-race');
+    expect(codeOf(await answer)).toBe('resource_conflict');
+
+    await sink.write(new Uint8Array([1, 2]));
+    await expect(sink.commit()).rejects.toThrow();
+    await sink.discard();
+
+    expect(root.fileSize('taken.bin')).toBe(4);
+    expect(await temporaryNames(provider)).toEqual([]);
   });
 });
 

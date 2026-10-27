@@ -107,6 +107,29 @@ class CpkNote extends EntityBase {
   };
 }
 
+/**
+ * 自定义主键列 + 加密列：加密 AAD 里带着行主键，写、读两侧取到的必须是同一个值。
+ *
+ * @remarks
+ * 读侧从水合后的实体取 `id`；创建路径交给加密的是按物理列名为键的数据，主键在 `pk_id` 下。
+ * 两侧对不上时写入不报错，之后每次读都是 `EncryptedDecryptError`。单独起一个适配器：
+ * 实体声明了加密列，适配器就要先解锁才能写，不该把这个前提压到上面那组用例身上。
+ */
+@Entity({
+  name: 'CpkSecret',
+  namespace: 'cpk',
+  tableName: 'cpk_secret',
+  properties: [
+    { ...CUSTOM_ID },
+    { name: 'label', type: PropertyType.string },
+    { name: 'secret', type: PropertyType.string, encrypted: true, nullable: true }
+  ]
+})
+class CpkSecret extends EntityBase {
+  label!: string;
+  secret!: string | null;
+}
+
 /** 自定义主键列测试：非默认主键列的建表、写入与查询。 */
 export function customPrimaryKeySuite(factory: AdapterFactory) {
   describe.sequential(`自定义主键列 [${factory.name}]`, () => {
@@ -262,6 +285,74 @@ export function customPrimaryKeySuite(factory: AdapterFactory) {
       expect((await firstValueFrom(CpkBook.get(book.id))).title).toBe('cpk-e');
       expect(await allBookTitles()).toEqual(['cpk-e']);
       expect(onBranch.id).toBeDefined();
+    });
+  });
+
+  describe.sequential(`自定义主键列 + 加密列 [${factory.name}]`, () => {
+    let adapter: RxDBAdapterSqliteBase;
+    let rxdb: RxDB;
+
+    beforeAll(async () => {
+      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [CpkSecret] });
+      rxdb = adapter.rxdb;
+      await adapter.encryption.unlock({ keyBytes: new Uint8Array(32).fill(7) });
+    });
+
+    beforeEach(async () => await cleanup_db(adapter));
+
+    afterAll(async () => {
+      if (adapter) {
+        await cleanup_db(adapter);
+        await adapter.rxdb.disconnectAll();
+      }
+    });
+
+    const createSecret = (label: string, secret: string): CpkSecret => {
+      const row = new CpkSecret();
+      row.label = label;
+      row.secret = secret;
+      return row;
+    };
+
+    /** 清掉实体缓存再从库里读：缓存里的实例还带着写入时的明文 */
+    const readSecrets = async (): Promise<Array<{ id: string; secret: string | null }>> => {
+      rxdb.entityManager.cleanAllCache();
+      adapter.cleanAllCache();
+      const rows = await firstValueFrom(
+        CpkSecret.find({ where: { combinator: 'and', rules: [] }, orderBy: [{ field: 'label', sort: 'asc' }] })
+      );
+      return rows.map(row => ({ id: row.id, secret: row.secret }));
+    };
+
+    it('单条创建：读回解得开', async () => {
+      const row = createSecret('a', 'secret-a');
+      await row.save();
+
+      expect(await readSecrets()).toEqual([{ id: row.id, secret: 'secret-a' }]);
+    });
+
+    it('批量创建：每行都读回解得开', async () => {
+      const first = createSecret('b1', 'secret-b1');
+      const second = createSecret('b2', 'secret-b2');
+      await rxdb.entityManager.saveMany([first, second]);
+
+      expect(await readSecrets()).toEqual([
+        { id: first.id, secret: 'secret-b1' },
+        { id: second.id, secret: 'secret-b2' }
+      ]);
+    });
+
+    it('版本切换重新插回的行：读回解得开', async () => {
+      const row = createSecret('c', 'secret-c');
+      await row.save();
+      await rxdb.versionManager.createBranch('cpk_secret_branch');
+      await rxdb.versionManager.switchBranch('cpk_secret_branch');
+      await row.remove();
+      expect(await readSecrets()).toEqual([]);
+
+      await rxdb.versionManager.switchBranch('main');
+
+      expect(await readSecrets()).toEqual([{ id: row.id, secret: 'secret-c' }]);
     });
   });
 }

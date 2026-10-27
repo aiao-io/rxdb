@@ -257,7 +257,8 @@ new RxDBAdapterHttp(db, { baseUrl, handlers, conditionalRequests: true });
 - **`getRepository` / `saveMany` / `removeMany` / `mutations`**：一律抛 `HttpUnsupportedOperationError`；
   QueryCache 的批量写不经过它们（走 core 的 remote-then-local）
 - **`rawQuery`、分支成员（`pushBranches` / `branchExists` / `pullBranches`）**：不实现
-- **`updatedAt`** 必须是合法 ISO 8601 串；带偏移或缺毫秒的会被 canonicalize 成 UTC + 3 位毫秒，非法串抛 `HttpInvalidMetadataError`
+- **`updatedAt`** 必须是带时区标识的 ISO 8601 串；带偏移或缺毫秒的会被 canonicalize 成 UTC + 3 位毫秒，无时区或非法串抛 `HttpInvalidMetadataError`。
+  metadata、`findByIds` 行与 `create` / `update` 回执是同一道门禁（后两者整行落本地缓存）；行与回执不带 `updatedAt` 时不判
 
 ## 文档
 

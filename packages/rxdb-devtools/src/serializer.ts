@@ -57,6 +57,17 @@ const ENVELOPE_REGEX = /^[12]\|AGCM256\|[A-Za-z0-9_-]{11}\|[A-Za-z0-9_-]{16}\|[A
 
 const MASKED_ENVELOPE = '[encrypted]' as const;
 
+/**
+ * 以自有数据属性写入一个键。
+ *
+ * @remarks
+ * 不能写成 `target[key] = value`：`JSON.parse` 产出的对象可以带自有 `__proto__` 键，赋值会走
+ * `Object.prototype` 上的 setter——键从线缆上消失，输出对象的原型还被换成了用户数据。
+ */
+function defineEntry(target: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
 /** 将 metadata 声明的顶层加密字段替换为固定占位符。 */
 export function maskEncryptedFields(value: unknown, encryptedFields: readonly string[]): unknown {
   if (typeof value !== 'object' || value === null || Array.isArray(value) || encryptedFields.length === 0) {
@@ -67,11 +78,11 @@ export function maskEncryptedFields(value: unknown, encryptedFields: readonly st
   const encrypted = new Set(encryptedFields);
   const masked: Record<string, unknown> = {};
   for (const field of Object.keys(source)) {
-    if (!encrypted.has(field)) masked[field] = source[field];
+    if (!encrypted.has(field)) defineEntry(masked, field, source[field]);
   }
   for (const field of encryptedFields) {
     if (Object.hasOwn(source, field)) {
-      masked[field] = MASKED_ENVELOPE;
+      defineEntry(masked, field, MASKED_ENVELOPE);
     }
   }
   return masked;
@@ -158,7 +169,9 @@ function toBase64Url(bytes: Uint8Array): string {
 /** 序列化 object 分支：数组、已知内建类型与普通对象。 */
 function serializeObject(obj: unknown, path: Set<object>): unknown {
   if (Array.isArray(obj)) {
-    return obj.map(item => safeSerialize(item, path)).filter(item => item !== undefined);
+    // 每一位都要占住：省掉一位，后面每个元素的下标都错一位（面板视图与 patch 里的数组整体错位）。
+    // 线缆带不了的值与空位按 JSON.stringify 的规矩落成 null，各 transport 两端读到同一个数组。
+    return Array.from(obj, (item: unknown) => safeSerialize(item, path) ?? null);
   }
   // message / stack 是不可枚举的自有属性，Object.keys 拿不到；同步失败事件里
   // error 是唯一有价值的字段，退化成 {} 等于调试工具在最关键的路径上什么都不说。
@@ -187,7 +200,7 @@ function serializeObject(obj: unknown, path: Set<object>): unknown {
     const value = (obj as Record<string, unknown>)[key];
     const serialized = safeSerialize(value, path);
     if (serialized !== undefined) {
-      result[key] = serialized;
+      defineEntry(result, key, serialized);
     }
   }
   return result;

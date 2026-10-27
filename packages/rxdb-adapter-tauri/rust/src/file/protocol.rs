@@ -14,7 +14,7 @@ use serde_json::{Map, Value};
 use crate::error::{ErrorCode, HostError, HostResult};
 use crate::paths::is_windows_reserved_device_name;
 use crate::protocol::is_session_id;
-use crate::value::decode_bytes;
+use crate::value::{decode_bytes, decoded_blob_length};
 
 /// 单个分片的字节上限，与 TS 侧 `DESKTOP_HOST_MAX_FILE_CHUNK_BYTES` 相同。
 pub const MAX_FILE_CHUNK_BYTES: usize = 4 * 1024 * 1024;
@@ -280,11 +280,11 @@ fn read_chunk(record: &Map<String, Value>) -> HostResult<Vec<u8>> {
     let chunk = record
         .get("chunk")
         .ok_or_else(|| violation("chunk must be a Uint8Array"))?;
-    let bytes = decode_bytes(chunk)?;
-    if bytes.len() > MAX_FILE_CHUNK_BYTES {
+    // 按编码长度在解码**之前**判上限，理由见 `decoded_blob_length`。
+    if decoded_blob_length(chunk).is_some_and(|length| length > MAX_FILE_CHUNK_BYTES) {
         return Err(violation(format!("chunk exceeds {MAX_FILE_CHUNK_BYTES} bytes")));
     }
-    Ok(bytes)
+    decode_bytes(chunk)
 }
 
 /// `length` 下界是 1：零长度的读没有语义，只会让调用方误以为读到了文件尾。
@@ -591,6 +591,19 @@ mod tests {
         assert!(parse(request(MAX_FILE_CHUNK_BYTES)).is_ok());
 
         assert_eq!(code_of(request(MAX_FILE_CHUNK_BYTES + 1)), ErrorCode::ProtocolViolation);
+    }
+
+    /// 超限只凭编码长度就拒：解码先按载荷长度分配缓冲区，判在解码之后，renderer 送多大宿主就先分配多大，
+    /// 上限只拦得住落盘、拦不住内存。载荷是一串非 base64 字符——先解码的实现报的会是字符非法，而不是超限。
+    #[test]
+    fn rejects_an_oversized_chunk_before_decoding_it() {
+        let oversized = "!".repeat((MAX_FILE_CHUNK_BYTES / 3 + 1) * 4);
+        let error = parse(json!({
+            "kind": "file.writeChunk", "sessionId": SESSION, "writeId": WRITE, "chunk": { "$u8": oversized }
+        }))
+        .unwrap_err();
+        assert_eq!(error.code, ErrorCode::ProtocolViolation);
+        assert_eq!(error.message, format!("chunk exceeds {MAX_FILE_CHUNK_BYTES} bytes"));
     }
 
     /// `chunk` 只有 `$u8` 一种合法写法：放行字符串会让一段文本被静默写进用户的文件。

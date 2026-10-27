@@ -443,10 +443,10 @@ class DevToolsConnectorEndpointImpl implements DevToolsConnectorEndpoint {
     const transferId = `dl-${this.#ids.next()}`;
     const registration = this.#session?.registerTransfer(transferId);
     if (registration === undefined) return this.#abandon(source, payload.requestId, 'session_closed');
-    if (registration.outcome === 'rejected') {
-      this.#session?.releaseTransfer(transferId);
-      return this.#abandon(source, payload.requestId, registration.error.code);
-    }
+    // 被拒的登记什么都没记下，没有可退的名额。尤其不能按 ID 去 release：撞 `transfer_duplicate`
+    // 时账上那个同名 ID 属于对端一条仍在跑的入站传输（下载 ID 可预测，对端可以先占），退掉它
+    // 等于让出它的并发名额，它结算时也记不上墓碑。
+    if (registration.outcome === 'rejected') return this.#abandon(source, payload.requestId, registration.error.code);
 
     const transfer: OutboundTransfer = {
       transferId,

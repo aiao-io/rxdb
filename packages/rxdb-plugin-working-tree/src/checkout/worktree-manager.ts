@@ -274,7 +274,8 @@ export class WorktreeManager {
         : { branchId: record.branchId };
       return this.#view({ id, target, owner: 'persistent', dbName }, snapshot, snapshotAdapter, release);
     } catch (error) {
-      await snapshot?.disconnectAll();
+      // 断开再失败也要还锁、且不盖住原错：失败的 attach() 交不出视图，调用方没有别的办法还这把锁
+      await Promise.allSettled([snapshot?.disconnectAll()]);
       await release();
       throw error;
     }

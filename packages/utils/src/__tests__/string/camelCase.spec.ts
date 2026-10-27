@@ -43,4 +43,10 @@ describe('camelCase', () => {
     expect(camelCase('用户ID')).toEqual('用户Id');
     expect(camelCase('héllo wörld')).toEqual('hélloWörld');
   });
+
+  it('keeps combining marks and emoji', async () => {
+    const nfd = (text: string): string => text.normalize('NFD');
+    expect(camelCase(nfd('café au lait'))).toEqual(nfd('caféAuLait'));
+    expect(camelCase('😀x')).toEqual('😀X');
+  });
 });

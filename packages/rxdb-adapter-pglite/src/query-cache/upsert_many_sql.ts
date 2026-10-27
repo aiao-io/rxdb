@@ -59,7 +59,7 @@ export const buildQueryCacheUpsertStatements = async (
     assertSingleSpellingPerColumn(target.entityName, target.metadata, foreignKeyColumns, row);
     const keyed = withForeignKeyColumns(foreignKeyColumns, row);
     assertKnownKeys(target.entityName, target.metadata, keyed);
-    // primaryKey 刻意不显式传入：`transformEntityValueToSql` 默认取 `row.id`，
+    // primaryKey 刻意不显式传入：`transformEntityValueToSql` 按 `id` 或主键物理列取，
     // 与常规写入路径（entity/inserts_sql.ts）取的是同一个值。
     // 传一个不同的值会让加密 AAD 与常规路径分叉，密文将无法被读路径解开。
     normalizedRows.push(await transformEntityValueToSql(target.metadata, keyed, encryption));

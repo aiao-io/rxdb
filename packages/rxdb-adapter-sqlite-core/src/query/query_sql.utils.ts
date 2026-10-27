@@ -312,14 +312,14 @@ export const get_sql_operator = (operator: string): string => {
  * `toString()` 成 `Wed Jul 29 2026 ...` 这类带空格的裸文本拼进 SQL —— 直接语法错误。
  *
  * 这里只接受能安全转成字面量的标量：字符串 / 数字 / bigint / 布尔 / null 由 `get_sql_value`
- * 返回字符串或数字；`Date` 单独转成 ISO 字符串字面量；其余（二进制、嵌套数组）在 IN 列表里
- * 本就无合法字面量形式，fail-fast 而不是拼出非法 SQL。
+ * 返回字符串或数字；`Date` 单独转成 ISO 串、再按字符串转义（与 `format_value` 同口径）；其余（二进制、
+ * 嵌套数组）在 IN 列表里本就无合法字面量形式，fail-fast 而不是拼出非法 SQL。
  */
 const format_in_values = (value: unknown): string => {
   if (!Array.isArray(value)) return '(NULL)';
   if (!value.length) return '(NULL)';
   const literals = value.map(item => {
-    if (item instanceof Date) return `'${item.toISOString()}'`;
+    if (item instanceof Date) return get_sql_value(item.toISOString()) as string;
     const literal = get_sql_value(item);
     if (typeof literal === 'string' || typeof literal === 'number' || typeof literal === 'bigint') return literal;
     if (typeof literal === 'boolean') return literal ? 1 : 0;
