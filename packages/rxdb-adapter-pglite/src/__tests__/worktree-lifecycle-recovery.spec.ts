@@ -12,6 +12,7 @@ import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterEach, expect, it, vi } from 'vitest';
+import { PGliteClient } from '../PGliteClient.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 
 @Entity({
@@ -83,11 +84,15 @@ it('换挂先入队时，切分支不能继续修改原来的主检出位', asyn
   }, false);
   await entered.promise;
   const mounting = db.mountWorktreeTableSet(tableSet);
-  const queued = Promise.withResolvers<void>();
-  const transaction = adapter.transaction.bind(adapter);
-  vi.spyOn(adapter, 'transaction').mockImplementation((fun, log) => {
-    queued.resolve();
-    return transaction(fun, log);
+  const flushing = Promise.withResolvers<void>();
+  const resume = Promise.withResolvers<void>();
+  const flush = PGliteClient.prototype.flushPendingNotifications;
+  vi.spyOn(PGliteClient.prototype, 'flushPendingNotifications').mockImplementationOnce(async function (
+    this: PGliteClient
+  ) {
+    flushing.resolve();
+    await resume.promise;
+    return flush.call(this);
   });
   let executingSuffix: string | null | undefined;
   const switching = adapter.switchBranch({
@@ -97,8 +102,10 @@ it('换挂先入队时，切分支不能继续修改原来的主检出位', asyn
       executingSuffix = executor.tableSet.suffix;
     }
   });
-  await queued.promise;
+  await flushing.promise;
   release.resolve();
+  await mounting;
+  resume.resolve();
   const results = await Promise.allSettled([blocker, mounting, switching]);
   expect(results.map(result => result.status)).toEqual(['fulfilled', 'fulfilled', 'rejected']);
   expect(results[2]).toMatchObject({
