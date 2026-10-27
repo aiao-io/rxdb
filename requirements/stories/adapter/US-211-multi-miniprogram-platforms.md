@@ -196,8 +196,8 @@ INVEST 检查清单:
 ### 走查证据对应的构建
 
 抖音 spike v9、支付宝探针 v7 与 Taro demo 的各次走查，跑在 `@subframe7536/sqlite-wasm` 1.3.1（wasm 727646 字节）与 Taro 4.2.1 的构建上。
-adapter、demo 与支付宝 wasm 指纹锁的也是 1.3.1：1.4.0 的 glue 读 wasm 导出的 Global，iOS 的 `WXWebAssembly` 不导出，真机初始化即失败
-（原因与 `subframe-glue-exported-globals.spec.ts` 门禁见 [US-219](./US-219-taro-plugin.md)），所以矩阵证据与当前 adapter 是同一份 wasm。
+adapter、demo 与支付宝 wasm 指纹后来升到 1.4.0（wasm 812876 字节）：1.4.0 的 glue 读 wasm 导出的 Global，iOS 的 `WXWebAssembly` 不导出，真机初始化即失败，
+adapter 把补丁后的 glue 固化进自己的包随发布走（原因与 `subframe-glue-exported-globals.spec.ts` 门禁见 [US-219](./US-219-taro-plugin.md)）；1.4.0 下的矩阵证据按 US-219 的复跑为准。
 没复跑的是 Taro 4.3.0 + demo 去 babel 的构建：微信开发者工具已走查（US-219 AC#9 的微信半边），抖音、支付宝的开发者工具与真机都还没有；
 复跑后在矩阵各平台「实验」一行补报告。
 

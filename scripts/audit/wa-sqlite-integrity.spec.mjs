@@ -6,11 +6,12 @@ import { test } from 'node:test';
 import {
   assertEqual,
   packageResolution,
+  SUBFRAME_GLUE_FALLBACK,
   SUBFRAME_GLUE_FILE,
   SUBFRAME_GLUE_SOURCE,
   SUBFRAME_INTEGRITY,
-  SUBFRAME_PATCH_FALLBACK,
-  SUBFRAME_PATCH_FILE,
+  SUBFRAME_UNGUARDED_READ,
+  SUBFRAME_VENDORED_GLUE,
   SUBFRAME_VERSION,
   verifyLockfile,
   verifyManifestDependencies,
@@ -72,16 +73,23 @@ test('pnpm 12 的双文档锁文件：只在工作区文档的 packages 段取�
   assert.ok(packageResolution(lockfile, packageKey).includes(`integrity: ${SUBFRAME_INTEGRITY}`));
 });
 
-test('源码 import 的 glue 文件名与钉死的内容哈希一致', () => {
+test('源码 import 的是 vendor 里钉死内容哈希的固化 glue', () => {
   const source = readFileSync(path.join(ROOT, SUBFRAME_GLUE_SOURCE), 'utf8');
 
-  assert.ok(source.includes(`@subframe7536/sqlite-wasm/dist/${SUBFRAME_GLUE_FILE}`));
+  assert.ok(source.includes(`./vendor/${SUBFRAME_GLUE_FILE}`));
 });
 
-test('1.4.0 patch 保留 Global 缺失时的函数回退', () => {
-  const patch = readFileSync(path.join(ROOT, SUBFRAME_PATCH_FILE), 'utf8');
+test('vendor glue 保留 Global 缺失回退、不含上游未守卫的直接读', () => {
+  const vendored = readFileSync(path.join(ROOT, SUBFRAME_VENDORED_GLUE), 'utf8');
 
-  assert.ok(patch.includes(SUBFRAME_PATCH_FALLBACK));
+  assert.ok(vendored.includes(SUBFRAME_GLUE_FALLBACK));
+  assert.ok(!vendored.includes(SUBFRAME_UNGUARDED_READ));
+});
+
+test('pnpm-workspace.yaml 不再给 sqlite-wasm 打 patch（回退随 vendor glue 发布）', () => {
+  const workspace = readFileSync(path.join(ROOT, 'pnpm-workspace.yaml'), 'utf8');
+
+  assert.ok(!workspace.includes(`'@subframe7536/sqlite-wasm@${SUBFRAME_VERSION}'`));
 });
 
 test('assertEqual 把实际值一起报出来，而不是只说不相等', () => {

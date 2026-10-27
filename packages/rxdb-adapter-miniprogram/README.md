@@ -22,9 +22,10 @@ wa-sqlite 的 Emscripten glue 与 wasm 二进制都取自
 本包把它列为**精确版本**依赖：glue 只经 `./dist/*` 暴露、文件名带内容哈希，用 `^` 放宽会让
 `loadSubframeModuleFactory()` 指向不存在的文件。
 
-当前锁在 1.4.0，并通过 pnpm patch 为同步与异步 glue 增加兼容回退。上游 glue 把 `_sqlite3_version` 改成读 wasm 导出的
-Global，而 iOS 微信的 `WXWebAssembly` 不导出 Global；补丁在 Global 缺失时调用 `_sqlite3_libversion()`，避免真机初始化报
-`undefined is not an object`。开发者工具模拟器使用标准 WebAssembly，无法覆盖这个差异。
+当前锁在 1.4.0。上游 glue 把 `_sqlite3_version` 改成读 wasm 导出的 Global，而 iOS 微信的 `WXWebAssembly` 不导出 Global，
+真机初始化报 `undefined is not an object`；补丁后的 glue（Global 缺失时回退 `_sqlite3_libversion()`）固化在
+`src/vendor/` 里随本包发布——workspace patch 不随包走，npm 用户装到未补丁的上游 glue 会原样踩坑（门禁见
+`scripts/audit/workspace-patches.mjs`）。开发者工具模拟器使用标准 WebAssembly，无法覆盖这个差异。
 升级前先过 `src/__tests__/subframe-glue-exported-globals.spec.ts`：必须保留函数回退，并同步更新 glue 文件名、WASM 指纹与完整性门禁。
 
 宿主应用只需把 wasm 复制进小程序代码包，glue 由 `loadSubframeModuleFactory()` 自行定位：

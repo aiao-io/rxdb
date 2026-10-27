@@ -89,8 +89,8 @@ test('Worker：adapter 包里的预编译 ES5 Worker 跑得起来，经正式 ho
 test('WASM：二进制读被当 UTF-8 文本改写、与锁定版本指纹不符，正式 host 改用文本副本', () => {
   expect(report['wasm']).toMatchObject({
     standardAvailable: true,
-    // 磁盘上 727646 字节，非法 UTF-8 序列各变成 EF BF BD
-    codePackageBinary: { ok: true, value: { binaryBytes: 814_795, expectedBytes: 727_646, bytesMatch: false } },
+    // 磁盘上 812876 字节（1.4.0），非法 UTF-8 序列各变成 EF BF BD
+    codePackageBinary: { ok: true, value: { binaryBytes: 912_239, expectedBytes: 812_876, bytesMatch: false } },
     sources: { 'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 'textCopy' } }
   });
 });

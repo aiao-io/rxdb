@@ -51,3 +51,6 @@ requirements/generated/
 
 # 主包 Agent Skill 同为逐字节门禁校验的生成物（US-602 C），Prettier 改写会让门禁失配。
 packages/rxdb/skills/
+
+# 上游 Emscripten glue 的固化副本（见文件头部说明），保持与上游 + 补丁逐字节一致，不做格式改写。
+packages/rxdb-adapter-miniprogram/src/vendor/

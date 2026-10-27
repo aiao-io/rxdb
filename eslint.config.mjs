@@ -20,6 +20,8 @@ export default [
       '**/coverage',
       '**/tmp',
       '**/*.min.js',
+      // 上游 Emscripten glue 的固化副本（见文件头部说明），不按仓库风格 lint。
+      'packages/rxdb-adapter-miniprogram/src/vendor/**',
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
       '**/test-output',

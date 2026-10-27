@@ -44,10 +44,11 @@ npm install @aiao/rxdb @aiao/rxdb-adapter-miniprogram
 
 wa-sqlite 的 Emscripten glue 与 wasm 二进制都取自
 [`@subframe7536/sqlite-wasm`](https://www.npmjs.com/package/@subframe7536/sqlite-wasm)，本包把它列为**精确版本**依赖
-（当前锁 1.3.1）：glue 只经 `./dist/*` 暴露、文件名带内容哈希，用 `^` 放宽会让 `loadSubframeModuleFactory()` 指向不存在的文件。
+（当前锁 1.4.0）：glue 只经 `./dist/*` 暴露、文件名带内容哈希，用 `^` 放宽会让 `loadSubframeModuleFactory()` 指向不存在的文件。
 
 1.4.0 的 glue 把 `_sqlite3_version` 改成读 wasm 导出的 Global，而 iOS 微信的 `WXWebAssembly` 不导出 Global，真机初始化即报
-`undefined is not an object`；开发者工具模拟器用的是标准 WebAssembly，测不出来。升级前必须过 glue 导出 Global 的回归门禁。
+`undefined is not an object`；adapter 把补丁后的 glue 固化进自己的包随发布走（Global 缺失时回退 `_sqlite3_libversion()`），
+不依赖 workspace patch。开发者工具模拟器用的是标准 WebAssembly，测不出这个差异，升级依赖前必须过 glue 导出 Global 的回归门禁。
 
 宿主应用只需把 wasm 复制进小程序代码包，glue 由 `loadSubframeModuleFactory()` 自行定位：
 

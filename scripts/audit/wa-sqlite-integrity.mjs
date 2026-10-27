@@ -5,9 +5,9 @@
  * 两条来源各有各的钉法：
  * - `wa-sqlite`（JS API 层 `sqlite-api.js`）走不可变 tarball，钉 commit + SHA-512；
  * - `@subframe7536/sqlite-wasm`（编入 FTS5 的 glue + wasm）走 npm，钉精确版本 +
- *   锁文件 integrity，并通过仓库内 pnpm patch 固定 iOS WXWebAssembly 的 Global 兼容回退。
- *   它的 glue 只在 `./dist/*` 下暴露，文件名带内容哈希，所以版本号与源码里写的 glue 文件名必须成对更新，
- *   否则运行时才会炸。
+ *   锁文件 integrity。它的 glue 带 iOS WXWebAssembly 的 Global 缺失回退，但该回退不能靠
+ *   workspace patch（不随包发布），已固化进 adapter 的 `src/vendor/` 随包打包——这里校验
+ *   固化副本、版本号与源码 import 成对更新，否则运行时才会炸。
  */
 
 import { createHash } from 'node:crypto';
@@ -23,10 +23,14 @@ export const WA_SQLITE_INTEGRITY =
 export const SUBFRAME_VERSION = '1.4.0';
 export const SUBFRAME_INTEGRITY =
   'sha512-Oo29xlIrUGKj7bIwwlZQaBUhoH2AISkW7q+5LdViT/lTbfWwJr9/+q51yUlQI81Xu+QJh4jX5IVnYiYfJsVXGA==';
-/** `@subframe7536/sqlite-wasm@1.4.0` 里 Emscripten glue 的内容哈希文件名。 */
+/** `@subframe7536/sqlite-wasm@1.4.0` 里 Emscripten glue 的内容哈希文件名（含 vendor 副本）。 */
 export const SUBFRAME_GLUE_FILE = 'wa-sqlite-bT14NS4h.js';
-export const SUBFRAME_PATCH_FILE = 'patches/@subframe7536__sqlite-wasm@1.4.0.patch';
-export const SUBFRAME_PATCH_FALLBACK = 'Module["_sqlite3_libversion"]()';
+/** adapter 内固化 glue 的仓库相对路径：补丁后的 glue 必须随包发布，而不是留在 workspace patch 里。 */
+export const SUBFRAME_VENDORED_GLUE = 'packages/rxdb-adapter-miniprogram/src/vendor/wa-sqlite-bT14NS4h.js';
+/** 固化 glue 里 Global 缺失时的回退调用（iOS WXWebAssembly 不导出 Global）。 */
+export const SUBFRAME_GLUE_FALLBACK = 'Module["_sqlite3_libversion"]()';
+/** 上游 1.4.0 glue 未守卫的直接读，固化副本里不得再出现。 */
+export const SUBFRAME_UNGUARDED_READ = 'Module["_sqlite3_version"] = wasmExports["$e"].value';
 export const SUBFRAME_GLUE_SOURCE = 'packages/rxdb-adapter-miniprogram/src/subframe-glue.ts';
 
 export function assertEqual(actual, expected, label) {
@@ -101,19 +105,23 @@ export function verifySubframeSqliteWasm() {
   }
 
   const source = readFileSync(resolve(ROOT, SUBFRAME_GLUE_SOURCE), 'utf8');
-  if (!source.includes(`@subframe7536/sqlite-wasm/dist/${SUBFRAME_GLUE_FILE}`)) {
+  if (!source.includes(`./vendor/${SUBFRAME_GLUE_FILE}`)) {
     throw new Error(
-      `${SUBFRAME_GLUE_SOURCE} must import the glue pinned for ${SUBFRAME_VERSION} (dist/${SUBFRAME_GLUE_FILE})`
+      `${SUBFRAME_GLUE_SOURCE} must import the vendored glue pinned for ${SUBFRAME_VERSION} (./vendor/${SUBFRAME_GLUE_FILE})`
     );
   }
 
-  const workspace = readFileSync(resolve(ROOT, 'pnpm-workspace.yaml'), 'utf8');
-  if (!workspace.includes(`'@subframe7536/sqlite-wasm@${SUBFRAME_VERSION}': ${SUBFRAME_PATCH_FILE}`)) {
-    throw new Error(`pnpm-workspace.yaml must apply ${SUBFRAME_PATCH_FILE} to sqlite-wasm ${SUBFRAME_VERSION}`);
+  const vendored = readFileSync(resolve(ROOT, SUBFRAME_VENDORED_GLUE), 'utf8');
+  if (!vendored.includes(SUBFRAME_GLUE_FALLBACK)) {
+    throw new Error(`${SUBFRAME_VENDORED_GLUE} must fall back to sqlite3_libversion when the wasm Global is absent`);
   }
-  const patch = readFileSync(resolve(ROOT, SUBFRAME_PATCH_FILE), 'utf8');
-  if (!patch.includes(SUBFRAME_PATCH_FALLBACK)) {
-    throw new Error(`${SUBFRAME_PATCH_FILE} must fall back to sqlite3_libversion when the wasm Global is absent`);
+  if (vendored.includes(SUBFRAME_UNGUARDED_READ)) {
+    throw new Error(`${SUBFRAME_VENDORED_GLUE} still contains the upstream unguarded Global read`);
+  }
+
+  const workspace = readFileSync(resolve(ROOT, 'pnpm-workspace.yaml'), 'utf8');
+  if (workspace.includes(`'@subframe7536/sqlite-wasm@${SUBFRAME_VERSION}'`)) {
+    throw new Error('pnpm-workspace.yaml must not patch sqlite-wasm; the patched glue is vendored in the adapter');
   }
 }
 
