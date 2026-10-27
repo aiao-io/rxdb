@@ -11,15 +11,16 @@
   npm 上 34 个包已有 `0.0.26`（6 个首发）。迁移发布因此有了合法锚点，过程与踩到的坑见[线 A 执行记录](#线-a-执行记录v0026)。
   `v0.0.25` 的 commit 已因 squash 脱离发布主线（`git merge-base --is-ancestor v0.0.25 HEAD` 失败），不得移动或重打，
   也不能作为桥接锚点。
-- **系统 schema 版本常量：`v0.0.26` 为 3，`HEAD` 为 7，`RXDB_CHANGE_CODEC_VERSION` 两端都是 1。** 这次抬升还没有发布过；
-  **迁移发布与迁移收尾已暂缓到 1.0.0 前（2026-08-16 定案）**，0.x 阶段不发布 schema 3→7，
-  检查清单与口径见[下一次发布：迁移发布（schema 3→7）](#下一次发布迁移发布schema-37)。
-- **`requirements/migration-release.json` 记录的是已发布的桥接发布**（`kind=bridge`、`version=0.0.26`、`bridge.tag=null`）。
-  `bridge.tag` 为 `null` 对 `kind=bridge` 是预期；`pnpm check-migration-release-gate` 在 `HEAD` 上是绿的，
+- **系统 schema 版本常量：`v0.0.26` 为 3，已发布的 `v0.0.28` 为 7，`HEAD` 为 8；`RXDB_CHANGE_CODEC_VERSION` 三处都是 1。**
+  `0.0.28` 把 3 → 7 当 `kind=normal` 发了出去（清单写 `systemSchemaUpgrade: false`，发布时没打 tag），已按迁移发布追认：
+  补打 `v0.0.28` tag（`23d8a098`），CHANGELOG 补记升级影响。门禁现在会拦下「常量变了却声明 normal / bridge」的发版 PR，
+  **下一次发布必须是 7 → 8 的迁移发布**，检查清单与口径见[下一次发布：迁移发布（schema 7→8）](#下一次发布迁移发布schema-78)。
+- **`requirements/migration-release.json` 记录的是已发布的 `0.0.28`**（`kind=normal`、升级位全 `false`）。清单是发布当下的声明，
+  与产物不符的部分由本文与 CHANGELOG 追认、清单不改写；`v0.0.28` 已有 tag，`pnpm check-migration-release-gate` 在 `HEAD` 上是绿的，
   **这不说明迁移发布已就绪**（见[门禁 tag 钩子的状态](#门禁-tag-钩子的状态)）。
 - **[US-218](stories/adapter/US-218-supabase-rls-push-integrity.md) 阶段 A 与阶段 B 必须同一版本发布**（`git show 8cc005bb:specs/007-us218-rls-push-integrity/research.md` D4）：
-  阶段 A 让被行级权限拒绝的删除整批失败，没有阶段 B 逐实体回执的客户端会卡在这条变更上。两阶段已同在 `main`，
-  阶段 B 把系统 schema 抬到 7，所以它们随迁移发布一起出去。
+  阶段 A 让被行级权限拒绝的删除整批失败，没有阶段 B 逐实体回执的客户端会卡在这条变更上。两阶段随 `0.0.28` 一起发出
+  （阶段 B 把系统 schema 抬到 7）。
 - **自动生成的 changelog 只认 `feat` / `fix` 与 `!` / `BREAKING CHANGE:` 脚注**，会多报、漏报，破坏性改动一个字都不写，
   定稿必须人工过一遍（见下一次发布一节与[约束 12 修订](#约束-12-修订破坏性改动如实声明)）。
 
@@ -46,7 +47,7 @@
    `getEntityPermission`、`isManualOrderEntity`、`manualOrderGroupFields`、`normalizeManualOrderBy`，这四个符号
    在 `@aiao/rxdb@0.0.26` 里不存在，而它的依赖又钉死在 `@aiao/rxdb` `0.0.26`。
    处置：**owner 稍后处理（deprecate 或随下次发版覆盖）。** 其余没有 `0.0.26` 的 16 个包是 replay / tree / working-tree 各 4 个、
-   `rxdb-model-{angular,react,vue}` 与 `rxdb-taro`（US-219 #100 合入后新增，npm 上尚无任何版本；
+   `rxdb-model-{angular,react,vue}` 与 `rxdb-taro`（US-219 #100 合入后新增，首个 npm 版本是 `0.0.28`；
    复核：`npm view @aiao/<包名> versions`）。
 3. **`@aiao/rxdb-angular` 单独为 `0.0.27`；7 个 Angular 包的 `@angular/*` peer 钉成精确的 `"22.2.2"`。**
    前者来自 `1e8336cd`（提交信息只有 `23`），违反「工作区同号」；后者让消费方的 Angular 小版本必须与之完全相同。
@@ -62,8 +63,9 @@
 但**抽包之前**就启用过提交能力的库接不住：它停在水位 4 / 5，十张表带着真实数据物理还在，却**没有能力水位行**。
 新客户端即便不装插件也照常打开它，写入不再经过捕获。
 
-**不为它单开迁移**：epic-006 一行都没发出去过（已发布的 `@aiao/rxdb@0.0.25` / `0.0.26` 里 `RXDB_SYSTEM_SCHEMA_VERSION = 3`），
-这批库只存在于开发机上。但这是个判断而不是保证，所以进 release note——谁在本机开过 epic-006 的提交能力，删库重建，不要带着它升上来。
+**不为它单开迁移**：epic-006 首次发布在 `0.0.28`（此前已发布的 `@aiao/rxdb@0.0.25` / `0.0.26` 里 `RXDB_SYSTEM_SCHEMA_VERSION = 3`），
+抽包之前的库只存在于开发机上。但这是个判断而不是保证，所以进 release note——谁在本机开过 epic-006 的提交能力，删库重建，不要带着它升上来
+（`0.0.28` 的 CHANGELOG 已补记）。
 
 ### ② 三个框架绑定包的破坏性变更
 
@@ -82,18 +84,16 @@
 这条守卫早于 epic-006 就在（`v0.0.24` 起 `RXDB_SYSTEM_SCHEMA_VERSION = 3`），2 → 3 那次抬升对停在 2 的客户端是同一个拒绝，
 不是新增的危险面；写进 release note 是为了让升级者提前知道「降级回旧版本客户端这条路已经关了」。
 
-**版本号按发布当下的实况写**：`v0.0.26` 之后的发布写「3 → 7」。中间的 4、5、6、7 这几级从未单独发布，用户手里不存在停在这些水位的客户端
-（4 / 5 / 6 来自 epic-006，7 来自 US-218 阶段 B）。**没有缓解措施，也不该造一个**：让新库对旧客户端「看起来能打开」需要向下兼容地写系统表，
+**版本号按发布当下的实况写**：`0.0.28` 写「3 → 7」（已补记），下一次发布写「7 → 8」。中间的 4、5、6 这几级从未单独发布，用户手里不存在停在这些水位的客户端
+（4 / 5 / 6 来自 epic-006，7 来自 US-218 阶段 B，8 来自 US-314）。**没有缓解措施，也不该造一个**：让新库对旧客户端「看起来能打开」需要向下兼容地写系统表，
 那正是 fail-closed 要挡的事。说明里给出的动作只有一个——**升级客户端**。
 
-## 下一次发布：迁移发布（schema 3→7）
+## 下一次发布：迁移发布（schema 7→8）
 
-> **本节已暂缓（2026-08-16 定案：迁移发布与迁移收尾暂缓到 1.0.0 前）。** 0.x 阶段不发布 schema 3→7 的迁移版本；
-> 本节保留为接近 1.0.0 时的执行清单，版本号、`oldBundlePolicy` 等「待定」项届时定案。
-> `migrateSystemSchema`（US-303 交付物）与 `check-migration-release-gate` 门禁不受暂缓影响、继续保留
-> （门禁的版本漂移校验独立有价值）。
+> `0.0.28` 已把 3 → 7 发出（按迁移发布追认），`HEAD` 又在 #122 抬到 8：下一次发布不论何时发都是 `kind=migration`，
+> 门禁会拦下声明成 normal / bridge 的发版 PR。版本号、`oldBundlePolicy` 等「待定」项在发布前定案。
 
-迁移发布要把系统 schema 从桥接版本的 3 一次抬到 `HEAD` 的 7，所以是 `kind=migration`。
+迁移发布要把系统 schema 从已发布的 7 抬到 `HEAD` 的 8，所以是 `kind=migration`。
 
 **门禁对这次清单的要求**（逐条取自 `scripts/check-migration-release-gate.mjs` 的 `validateManifest`）：
 
@@ -101,32 +101,30 @@
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `release.kind`                                       | `migration`                                                                                                               |
 | `release.version`                                    | 严格 semver，且与 `packages/rxdb/package.json` 的版本、发布 tag（`v<version>`）三处相同；具体取值**待定**，见下           |
-| `release.systemSchemaUpgrade` / `changeCodecUpgrade` | `systemSchemaUpgrade=true`（tag 上 3 < 工作树 7）；codec 仍是 1，`changeCodecUpgrade` 保持 `false`；两者至少一个为 `true` |
-| `bridge.tag` / `bridge.version`                      | `v0.0.26` / `0.0.26`；tag 存在、是 `HEAD` 祖先、含迁移面四个文件、版本严格新于 `0.0.25` 且旧于 `release.version`          |
+| `release.systemSchemaUpgrade` / `changeCodecUpgrade` | `systemSchemaUpgrade=true`（tag 上 7 < 工作树 8）；codec 仍是 1，`changeCodecUpgrade` 保持 `false`；两者至少一个为 `true` |
+| `bridge.tag` / `bridge.version`                      | `v0.0.28` / `0.0.28`；tag 存在、是 `HEAD` 祖先、含迁移面四个文件、版本严格新于 `0.0.25` 且旧于 `release.version`          |
 | `oldBundlePolicy.strategy`                           | `force-update` / `cache-invalidation` / `server-version` / `database-namespace` 四选一；选哪项**待定**（owner）           |
-| `oldBundlePolicy.minimumVersion` / `enforced`        | `minimumVersion` 不低于 `0.0.26`；`enforced=true`                                                                         |
+| `oldBundlePolicy.minimumVersion` / `enforced`        | `minimumVersion` 不低于 `0.0.28`；`enforced=true`                                                                         |
 | `release.protocolVersion`                            | 正整数，当前为 `1`                                                                                                        |
 
 **版本号是算出来的，不是选的**：`conventionalCommits: true`，`nx.json` 只自定义了 `cleanup` / `__INVALID__` 两个类型（均 `semverBump: none`），
 其余走 nx 23.3.0 的默认配置——只有 `feat:` → minor、`fix:` → patch，其余全部 `none`；非规范标题一律 `none`。
-`adjustSemverBumpsForZeroMajorVersion` 默认 `true`，major 为 0 时 `minor` 降成 `patch`。基准 tag 现在解析为 `v0.0.26`
-（`git describe --tags --abbrev=0` 与 nx 都是），所以默认推算大概率是 `0.0.27`（**推断**，以 `pnpm nx release version --dry-run` 的输出为准）。
-是否取 `0.0.27` **待定**；`@aiao/rxdb-angular` 已经单独是 `0.0.27`（见上方开项 3），取值时一并处理。
+`adjustSemverBumpsForZeroMajorVersion` 默认 `true`，major 为 0 时 `minor` 降成 `patch`。基准 tag 现在解析为 `v0.0.28`
+（`git describe --tags --abbrev=0` 与 nx 都是），所以默认推算大概率是 `0.0.29`（**推断**，以 `pnpm nx release version --dry-run` 的输出为准）。
+是否取 `0.0.29` **待定**。
 `preVersionCommand` 会先全量构建 `packages/*`，它红了 dry-run 就跑不到版本计算，报错只有一句 `The pre-version command failed`；
 `node_modules` 漂移时需要 `pnpm install --frozen-lockfile --force`。动手前确认 dry-run 真的输出了版本号。
 
-**changelog 区间从 `v0.0.26` 起量。** 特性分支上有大量 `123` / `213213` 类中间提交，squash 后不进 `main`，所以在 `main` 上量：
+**changelog 区间从 `v0.0.28` 起量。** 特性分支上有大量 `123` / `213213` 类中间提交，squash 后不进 `main`，所以在 `main` 上量：
 
 ```bash
-git log --format='%h %s' v0.0.26..origin/main | grep -vE ' (feat|fix|chore|docs|refactor|test|perf|build|ci|style|revert|cleanup)(\(.*\))?!?:'
+git log --format='%h %s' v0.0.28..origin/main | grep -vE ' (feat|fix|chore|docs|refactor|test|perf|build|ci|style|revert|cleanup)(\(.*\))?!?:'
 ```
 
 应当无输出（2026-10-06 实测无输出）；这是每次推送前的例行检查，不是一次性清理。
-已知该区间里有破坏性改动，nx 不会写进 changelog，须人工声明并链迁移页：
-[supabase-update-push](../website/docs/migration/supabase-update-push.md)、
-[supabase-push-receipts](../website/docs/migration/supabase-push-receipts.md)、
-[working-tree-split](../website/docs/migration/working-tree-split.md)、[tree-split](../website/docs/migration/tree-split.md)，
-以及 [v1.md「0.0.26 之后」](../website/docs/migration/v1.md) 登记的各项。完整清单发布当下以 `requirements/api-baseline` 对 `v0.0.26` 的 diff 为准。
+已知该区间里有破坏性改动，nx 不会写进 changelog，须人工声明并链迁移页：系统 schema 7 → 8、
+[table-set-parameter](../website/docs/migration/table-set-parameter.md)，以及 CHANGELOG「Unreleased」的 Breaking Changes。
+完整清单发布当下以 `requirements/api-baseline` 对 `v0.0.28` 的 diff 为准。`v0.0.26..v0.0.28` 的破坏性改动已补记进 `0.0.28` 的 CHANGELOG。
 
 **执行步骤：待定。** 需要 owner 决定版本号与 `oldBundlePolicy` 之后再写；不预设分支策略。
 [线 A 执行记录](#线-a-执行记录v0026)里的坑（lockfile、adapter-consumer 审计、README 里的版本号、npm 网页两步验证）同样适用；
@@ -241,7 +239,8 @@ writer lease 那组在 `@aiao/rxdb` 之外还带走两处：`@aiao/rxdb-adapter-
    - 脚本按 `GITHUB_REF_TYPE` 解析发布 tag（`resolveReleaseTag`）：PR 事件下 `GITHUB_REF_NAME` 是 `42/merge`，
      直接取会让每个 PR 都红在与发布无关的 `release.version … does not match tag 42/merge` 上。
 
-   这些钩子只对 `kind=migration` 生效，下一次迁移发布才会真正吃到。
+   这些钩子只对 `kind=migration` 生效，下一次迁移发布才会真正吃到。另有一条对 normal / bridge 生效：`v<release.version>` 还没有 tag 时
+   （发版 PR），候选提交上的版本常量必须与上一个已发布 tag 完全相等——这条拦得住 `0.0.28` 那样把 schema 升级当普通发布发出去。
 
 1. **桥接发布（线 A，已完成）**——四段，顺序不可交换：
 
@@ -252,7 +251,7 @@ writer lease 那组在 `@aiao/rxdb` 之外还带走两处：`@aiao/rxdb-adapter-
    | 3   | 验祖先后在 B 上打 `v0.0.26`，从 B 发布                                   | 桥接 tag 只有在 `main` 祖先链上，将来的 migration 发布才引用得了；tag 最后打                | ✅   |
    | 4   | 在真实迁移发布上验证门禁                                                 | 四条 tag 钩子、`bridge.version` 下限与 `oldBundlePolicy` 只有在真实迁移发布上才验得全       | ⬜   |
 
-   第 4 段随迁移发布做，见[下一次发布](#下一次发布迁移发布schema-37)。桥接段不能塞进 [US-305](stories/collaboration/US-305-commit-graph-head.md)：
+   第 4 段随迁移发布做，见[下一次发布](#下一次发布迁移发布schema-78)。桥接段不能塞进 [US-305](stories/collaboration/US-305-commit-graph-head.md)：
    US-305 的范围含「已有数据库的一次性初始化」，属 schema 迁移，会强制 `kind=migration`，而 migration 要求 `bridge.tag` 指向一个已存在的桥接发布。
 
 ### 门禁 tag 钩子的状态
@@ -264,12 +263,12 @@ fail-closed 成立。第四条钩子 `bridgeTagVersionConstants` 从 tag 上读 
 ⚠️ **版本常量比对挡不住 `v0.0.24`。** `v0.0.24` / `v0.0.25` / `v0.0.26` 的两个常量都是 `{3, 1}`，迁移发布声明了升级后，拿 `v0.0.24` 当锚点同样通过「严格更旧」。
 真正挡住空桥的**只有** `bridge.version` 下限那一条硬编码：比对那条只管「升级位撒谎」，下限那条只管「锚点太老」，互不是备份。
 
-⚠️ **这四条只对 `kind=migration` 生效**（`validateManifest` 把它们放在 migration 分支里）。当前清单是 `kind=bridge`，
-所以门禁在 `HEAD`（schema 7）上也是绿的：
+⚠️ **这四条只对 `kind=migration` 生效**（`validateManifest` 把它们放在 migration 分支里）。当前清单是 `kind=normal` 的 `0.0.28`，
+`v0.0.28` 已有 tag、不再按候选发布比对版本常量，所以门禁在 `HEAD`（schema 8）上也是绿的：
 
 ```bash
 $ node scripts/check-migration-release-gate.mjs --check
-Migration release gate passed for bridge 0.0.26.          # exit 0
+Migration release gate passed for normal 0.0.28.          # exit 0
 ```
 
 「门禁全绿」不能作为「迁移发布已就绪」的证据。`bridgeTagSupportsProtocol` 只用 `git cat-file -e` 校验四个文件存在、不校验内容，
@@ -279,10 +278,10 @@ Migration release gate passed for bridge 0.0.26.          # exit 0
 
 关闭迁移发布门禁要两件事：本仓库存在位于 `HEAD` 祖先链上的桥接 tag，以及发布门禁阻止升级、或强制更新 / 缓存失效 / 新命名空间隔离。
 
-| 子句                                                 | 状态                                   |
-| ---------------------------------------------------- | -------------------------------------- |
-| 本仓库须存在位于 HEAD 祖先链上的桥接 tag             | ✅ `v0.0.26`                           |
-| 发布门禁阻止升级，或强制更新/缓存失效/新命名空间隔离 | ❌ 需要一次真实 migration 发布才验得了 |
+| 子句                                                 | 状态                                      |
+| ---------------------------------------------------- | ----------------------------------------- |
+| 本仓库须存在位于 HEAD 祖先链上的桥接 tag             | ✅ `v0.0.26`（3 → 7）、`v0.0.28`（7 → 8） |
+| 发布门禁阻止升级，或强制更新/缓存失效/新命名空间隔离 | ❌ 需要一次真实 migration 发布才验得了    |
 
 真正关闭迁移发布门禁的那次发布必须同时满足：抬升 `RXDB_SYSTEM_SCHEMA_VERSION` 或 `RXDB_CHANGE_CODEC_VERSION`、
 清单切 `kind=migration`、`bridge.tag` / `bridge.version` 指向该次桥接版本、`oldBundlePolicy.strategy` 四选一、

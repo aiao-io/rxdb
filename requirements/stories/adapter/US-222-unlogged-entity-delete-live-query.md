@@ -1,11 +1,11 @@
 ---
 id: US-222
 title: 删分支之后按活查询列分支的地方不刷新：`log: false` 的实体删行派不出本地事件
-status: In Review
+status: Done
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-27
 tags: [adapter, reactive-query, branch, bug]
 ---
 
@@ -81,7 +81,9 @@ owner 2026-10-20 定，随 PR #122 交付（原 #140，2026-10-21 并入 #122）
 - **代价**：插件内部表（工作树的物化分页与工作树条目、replay 的录制事件等）批量删行时，也派一条带整行的删除事件，
   并经跨标签页网关广播；这些表没有活查询，事件没人收。量与删掉的行数成正比，只出现在物化、提交、删录制这些本来就重的操作里
   （物化随后的切分支也按切换的行派事件）。要省掉，可以把插件登记的系统表排除在外。
-- **事务语义由核心兜着**：在事务里派的事件排进本事务的队列，提交才发出、回滚丢弃。
+- **删除通知随事务提交才发出（AC#6）**：两个适配器的口径不同。sqlite-core 在事务里派的事件排进核心的本事务队列；
+  PGlite 不派核心的事务事件，删行路径经 `dispatchAfterCommit` 挂到所属事务（`PGliteTransactionExecutor.dispatchAfterCommit`，
+  事务外落到 `RxDBAdapterPGlite.dispatchAfterCommit`），提交之后才发出。回滚、COMMIT 报延迟外键违约时一条都不发。
 - **行号回查跳过这些表的删除**：它查不到被删的行，只会撞上实体缓存里的旧实体，或复用了这个行号（PGlite 是同一个 id）的新行。
   测试清库裸删 main 又补回，这样一条迟到的删除会把补回的 main 从活查询里抹掉：wa-sqlite 按完整顺序跑共享套件时，
   本故事的用例第一步就读到 `[]`。跳过之后，删除事件只有删行路径一个来源，也就不再重复。变更日志表的删除原先就不派事件，跳过与否结果相同。
@@ -91,13 +93,14 @@ owner 2026-10-20 定，随 PR #122 交付（原 #140，2026-10-21 并入 #122）
 
 ## 验收标准
 
-| #   | 前置条件                                                 | 操作                               | 预期结果                                                                                | 状态 |
-| --- | -------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------- | ---- |
-| 1   | 订阅分支表的活查询，七个后端（含 Tauri）                 | `createBranch()`、`removeBranch()` | 每一步之后发出的行与库里的行一致                                                        | ✅   |
-| 2   | 三端 demo 的分支下拉里有一条非当前分支                   | 删掉它                             | 列表里立刻没有它（三端 e2e；关掉修复时这一步红）                                        | ✅   |
-| 3   | `mergeBranch()` 合并之后删源分支                         | 合并                               | 分支列表同样立刻反映                                                                    | ✅   |
-| 4   | 修法 A：其余 `log: false` 实体（`entity.remove()` 单删） | 删行                               | 它们的活查询同样立刻反映                                                                | ✅   |
-| 5   | 测试清库裸删分支行、再补回 main                          | 下一条用例订阅分支表               | 发出 `[main]`，不被行号回查派出的迟到删除抹掉（两个适配器的单测；wa-sqlite 按完整顺序） | ✅   |
+| #   | 前置条件                                                 | 操作                                  | 预期结果                                                                                | 状态 |
+| --- | -------------------------------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------- | ---- |
+| 1   | 订阅分支表的活查询，七个后端（含 Tauri）                 | `createBranch()`、`removeBranch()`    | 每一步之后发出的行与库里的行一致                                                        | ✅   |
+| 2   | 三端 demo 的分支下拉里有一条非当前分支                   | 删掉它                                | 列表里立刻没有它（三端 e2e；关掉修复时这一步红）                                        | ✅   |
+| 3   | `mergeBranch()` 合并之后删源分支                         | 合并                                  | 分支列表同样立刻反映                                                                    | ✅   |
+| 4   | 修法 A：其余 `log: false` 实体（`entity.remove()` 单删） | 删行                                  | 它们的活查询同样立刻反映                                                                | ✅   |
+| 5   | 测试清库裸删分支行、再补回 main                          | 下一条用例订阅分支表                  | 发出 `[main]`，不被行号回查派出的迟到删除抹掉（两个适配器的单测；wa-sqlite 按完整顺序） | ✅   |
+| 6   | 显式事务里删 `log: false` 实体的行，两个适配器           | 回滚；COMMIT 报延迟外键违约；正常提交 | 前两者行还在、零删除通知；正常提交恰好一条                                              | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -124,8 +127,12 @@ owner 2026-10-20 定，随 PR #122 交付（原 #140，2026-10-21 并入 #122）
   PGlite `version/branch_live_query.spec.ts`、两个适配器的 `handle_rxdb_change.spec.ts`（行号回查不派删除）、
   三端 e2e `working-tree.spec.ts`「删分支（US-222）」
 - `packages/rxdb-adapter-sqlite-core/src/__tests__/test-utils.ts` — 清库之后等时钟走过清空 undo 会话的那一毫秒（单测见同目录 `test-utils.spec.ts`）
+- `packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts`、`transaction/PGliteTransactionExecutor.ts` 的 `dispatchAfterCommit` — PGlite 删除通知随事务提交（AC#6）；
+  用例：PGlite `unlogged-removal-commit.spec.ts`、sqlite-core `shared-repository.suite.ts`「无日志实体的删除通知随事务提交（INC-002）」
 
 ## References
+
+- [PR #122](https://github.com/aiao-io/rxdb/pull/122)（squash `b109ba33`）、[PR #163](https://github.com/aiao-io/rxdb/pull/163)（`dc21bfb0`，AC#6）— 交付
 
 - [US-315 撤销子分支已继承的变更之后，切回父分支写错数据](../collaboration/US-315-undo-inherited-change-switch-corruption.md) — 发现处
 - [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](../collaboration/US-311-unlogged-entities-scope.md) — `log: false` 的归类

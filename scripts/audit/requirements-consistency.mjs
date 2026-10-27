@@ -619,7 +619,7 @@ export function checkInheritedAcs(stories) {
  * README「大故事」清单必须与「正文含交付阶段」的 story 文件集合一致。
  * 清单是手写维护的派生视图，历史上 13 条清单对 19 条实际都未被任何门禁发现。
  *
- * @param {string} readmeText README.md 全文
+ * @param {string} readmeText requirements/README.md 全文
  * @param {Array<{id: string, text: string}>} stories
  */
 export function checkBigStoryList(readmeText, stories) {
@@ -632,10 +632,10 @@ export function checkBigStoryList(readmeText, stories) {
   const paragraph = readmeText.split(/现有\s*\d+\s*条：/)[1]?.split('\n\n')[0] ?? '';
   const listed = [...paragraph.matchAll(/\((stories\/[^)]+)\)/g)].map(m => path.basename(m[1]).slice(0, 6)).sort();
   if (count && Number(count[1]) !== actual.length)
-    offenders.push(`README.md: 大故事清单写「现有 ${count[1]} 条」，实际 ${actual.length} 条`);
+    offenders.push(`requirements/README.md: 大故事清单写「现有 ${count[1]} 条」，实际 ${actual.length} 条`);
   if (listed.length && (listed.length !== actual.length || listed.some((id, i) => id !== actual[i])))
     offenders.push(
-      `README.md: 大故事清单与「正文含交付阶段」的故事不一致（清单 ${listed.join(' ')}，实际 ${actual.join(' ')}）`
+      `requirements/README.md: 大故事清单与「正文含交付阶段」的故事不一致（清单 ${listed.join(' ')}，实际 ${actual.join(' ')}）`
     );
   return offenders;
 }
@@ -943,6 +943,7 @@ export async function run({ root, update = false }) {
   const counts = countStatuses(stories);
   const overviewPath = path.join(root, 'requirements', 'status-overview.md');
   const readmePath = path.join(root, 'README.md');
+  const requirementsReadmePath = path.join(root, 'requirements', 'README.md');
   const roadmapPath = path.join(root, 'requirements', 'roadmap.md');
 
   if (update) {
@@ -956,7 +957,7 @@ export async function run({ root, update = false }) {
     ...checkFrontmatter(stories, new Set(epics.map(e => e.id))),
     ...checkAcSymbols(stories),
     ...checkInheritedAcs(stories),
-    ...checkBigStoryList(await readFile(readmePath, 'utf8'), stories),
+    ...checkBigStoryList(await readFile(requirementsReadmePath, 'utf8'), stories),
     ...(await checkPackageCounts(root)),
     ...checkStatusOverview(await readFile(overviewPath, 'utf8'), stories),
     ...checkReadme(await readFile(readmePath, 'utf8'), counts),

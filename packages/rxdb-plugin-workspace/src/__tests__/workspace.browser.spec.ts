@@ -58,7 +58,7 @@ interface DraftLike {
  * 元数据里的 `namespace:name` 保持一致，恢复路径的 `getEntityType()` 才认得出来。
  */
 const defineDraft = () => {
-  // 写变更日志（缺省 `log: true`）：草稿缓存只收这类实体，它们的保存与删除才派发 CREATE / REMOVE 收尾。
+  // 写变更日志（缺省 `log: true`）：草稿缓存只收这类实体，只有它们保存时派发 CREATE 收尾。
   @Entity({
     namespace: 'ws_it',
     name: 'Draft',
@@ -259,7 +259,7 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       expect(value?.['meta']).toEqual({ labels: ['a'], nested: { value: 'v1' } });
     });
 
-    it('关闭变更日志的实体不进草稿缓存：它保存与删除都不发事件，草稿等不到收尾', async () => {
+    it('关闭变更日志的实体不进草稿缓存：它保存时不发 CREATE，草稿等不到收尾', async () => {
       const { Note, idbName, workspace } = await open(nextDbName());
       await workspace.ready;
 
