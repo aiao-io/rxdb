@@ -1,6 +1,8 @@
 import { Entity, EntityBase, MAIN_BRANCH_ID, PropertyType, RxDB, SyncType, WorktreeTableSet } from '@aiao/rxdb';
+import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { describe, expect, it } from 'vitest';
 import { create_tables_sql } from '../../index.js';
+import { assertOo1Static } from '../../oo1-types.js';
 import type { RxDBAdapterSqliteBase } from '../../RxDBAdapterSqliteBase.js';
 
 @Entity({
@@ -20,9 +22,20 @@ class CtsAlpha extends EntityBase {
 })
 class CtsQuiet extends EntityBase {}
 
+/** 种子行带 binary 列：建表 SQL 把种子 INSERT 的参数内联成字面量，Uint8Array 要写成 BLOB 字面量 */
+@Entity({
+  name: 'CtsBinary',
+  tableName: 'cts_binary',
+  log: false,
+  properties: [{ name: 'payload', type: PropertyType.binary, nullable: true }]
+})
+class CtsBinary extends EntityBase {
+  payload?: Uint8Array | null;
+}
+
 const rxdb = new RxDB({
   dbName: 'sqlite-core-create-tables',
-  entities: [CtsAlpha, CtsQuiet],
+  entities: [CtsAlpha, CtsQuiet, CtsBinary],
   sync: { local: { adapter: 'noop' }, type: SyncType.None }
 });
 rxdb.schemaManager.init();
@@ -72,5 +85,24 @@ describe('create_tables_sql', () => {
     // 查询当前分支，也不该在这里替调用方兜底，branchId 必须原样透传进触发器体。
     expect(sql).toContain(`'cts-branch'`);
     expect(sql).not.toContain(`'${MAIN_BRANCH_ID}'`);
+  });
+
+  it('种子行的 binary 值内联成 BLOB 字面量：建表 SQL 在真实引擎上跑得通，字节原样落库', async () => {
+    const seed = Object.assign(new CtsBinary(), { id: 'b-1', payload: new Uint8Array([1, 2, 255]) });
+
+    const sql = await create_tables_sql(adapter, WorktreeTableSet.MAIN, [CtsBinary], MAIN_BRANCH_ID, [seed]);
+
+    const initFn = sqlite3InitModule as (options: Record<string, unknown>) => Promise<unknown>;
+    const module = await initFn({ print: () => undefined, printErr: () => undefined });
+    assertOo1Static(module);
+    const db = new module.oo1.DB(':memory:');
+    try {
+      db.exec({ sql });
+      const resultRows: unknown[][] = [];
+      db.exec({ sql: 'SELECT "id", hex("payload") FROM "public$cts_binary"', rowMode: 'array', resultRows });
+      expect(resultRows).toEqual([['b-1', '0102FF']]);
+    } finally {
+      db.close();
+    }
   });
 });

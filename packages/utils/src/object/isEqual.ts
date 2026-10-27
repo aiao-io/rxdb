@@ -57,15 +57,27 @@ const isEqualRecord = (a: object, b: object, seen: Seen): boolean => {
 };
 
 /**
+ * 逐位比较数组。
+ *
+ * 不能用 `every`：它跳过空洞位，`[,]` 与 `['x']` 会判等且结果随参数顺序而变。
+ * 空洞与 `undefined` 也要区分——cloneDeep / createStableKey 都把空洞当作数据。
+ */
+const isEqualArray = (a: readonly unknown[], b: readonly unknown[], seen: Seen): boolean => {
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index++) {
+    if (Object.hasOwn(a, index) !== Object.hasOwn(b, index)) return false;
+    if (!isEqualDeep(a[index], b[index], seen)) return false;
+  }
+  return true;
+};
+
+/**
  * 同构造函数对象的分类比较。
  *
  * 调用方已保证：两侧都是非 null 对象、构造函数相同、不构成循环。
  */
 const isEqualObject = (a: object, b: object, seen: Seen): boolean => {
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) return false;
-    return a.every((value, index) => isEqualDeep(value, b[index], seen));
-  }
+  if (Array.isArray(a) && Array.isArray(b)) return isEqualArray(a, b, seen);
 
   if (isUint8Array(a) && isUint8Array(b)) return isEqualUint8Array(a, b);
 
@@ -162,6 +174,7 @@ const isEqualDeep = (a: unknown, b: unknown, seen: Seen): boolean => {
  * 通用对象按**自有可枚举**键比较，字符串键与 symbol 键同等对待。
  *
  * 已知边界：
+ * - 数组逐位比较，稀疏数组的空洞与 `undefined` 不相等（与 `createStableKey` 一致）。
  * - `Map` 的 key 按引用比较，只有 value 深比较（与 `Map#get` 的查找语义一致）。
  * - 仅覆盖 `toString` 的对象（如 `URL`、`Error`）按 `toString()` 结果比较。
  * - 不可枚举属性不参与比较（symbol 键与字符串键规则一致）。

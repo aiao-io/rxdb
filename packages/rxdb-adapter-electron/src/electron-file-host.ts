@@ -667,7 +667,9 @@ export function createElectronFileHost(options: ElectronFileHostOptions): Electr
     if (request.kind === 'file.writeChunk') {
       const pending = requireWrite(session, request.writeId);
       try {
-        await pending.handle.write(request.chunk);
+        // 单次 `write()` 可能只写进一部分却不报错（短写），位置照样前移；`writeFile` 在当前位置
+        // 把整块写满，写不满就抛错。临时文件以 `wx` 打开后只经这里顺序写入。
+        await pending.handle.writeFile(request.chunk);
       } catch (error) {
         throw toFilesystemError(error, pending.logicalPath);
       }

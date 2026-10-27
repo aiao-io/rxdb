@@ -1,10 +1,46 @@
-import { getEntityStatus, RxDBChange } from '@aiao/rxdb';
+import {
+  Entity,
+  ENTITY_LOCAL_REMOVE_EVENT,
+  EntityBase,
+  getEntityStatus,
+  PropertyType,
+  RxDBChange,
+  type EntityLocalRemovedEvent
+} from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { AdapterFactory } from './adapter-factory.js';
-import { settle_change_notifications } from './test-utils.js';
+import { cleanup_db, settle_change_notifications } from './test-utils.js';
+
+/**
+ * 「无日志实体的删除通知随事务提交（INC-002）」的夹具：不写变更日志，删除通知由删行路径直接派。
+ */
+@Entity({
+  name: 'RepoUnloggedNote',
+  tableName: 'repo_unlogged_note',
+  log: false,
+  properties: [{ name: 'title', type: PropertyType.string, nullable: true }]
+})
+class RepoUnloggedNote extends EntityBase {
+  title?: string | null;
+}
+
+/**
+ * 引用 {@link RepoUnloggedNote} 的行。外键不带 `onDelete`，事务里开着 `defer_foreign_keys`：
+ * 引用还在时删被引用的行，DELETE 本身成功，违约到 COMMIT 才报。
+ */
+@Entity({
+  name: 'RepoUnloggedNoteRef',
+  tableName: 'repo_unlogged_note_ref',
+  log: false,
+  properties: [{ name: 'noteId', type: PropertyType.uuid, required: true }],
+  foreignKeys: [{ name: 'note', properties: ['noteId'], mappedEntity: 'RepoUnloggedNote', mappedProperties: ['id'] }]
+})
+class RepoUnloggedNoteRef extends EntityBase {
+  noteId!: string;
+}
 
 /** SqliteRepository 测试：仓库层 CRUD、查询与变更事件。 */
 export function sqliteRepositorySuite(factory: AdapterFactory) {
@@ -133,6 +169,96 @@ export function sqliteRepositorySuite(factory: AdapterFactory) {
       expect(querySpy.mock.calls[0][1]).toEqual([rowId]);
 
       querySpy.mockRestore();
+    });
+  });
+
+  // 核心在事务栈非空时把非事务事件排进本事务的队列，提交才派、回滚丢弃；本适配器在 BEGIN 之前、COMMIT 成功或失败之后
+  // 各派一次事务事件，删行路径在事务里派的删除通知因此随事务走。这组用例钉住这条行为（INC-002：PGlite 曾在提交前就派了）。
+  describe.sequential(`无日志实体的删除通知随事务提交（INC-002） [${factory.name}]`, () => {
+    let adapter: RxDBAdapterSqliteBase;
+    let removedIds: string[] = [];
+    const onRemoved = (event: EntityLocalRemovedEvent): void => {
+      removedIds.push(...event.entities.map(entity => String(entity.id)));
+    };
+
+    beforeAll(async () => {
+      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({
+        entities: [RepoUnloggedNote, RepoUnloggedNoteRef]
+      });
+      adapter.rxdb.addEventListener(ENTITY_LOCAL_REMOVE_EVENT, onRemoved);
+    });
+
+    beforeEach(async () => {
+      await cleanup_db(adapter);
+      removedIds = [];
+    });
+
+    afterAll(async () => {
+      if (adapter) {
+        adapter.rxdb.removeEventListener(ENTITY_LOCAL_REMOVE_EVENT, onRemoved);
+        await adapter.rxdb.disconnectAll();
+      }
+    });
+
+    const saveNote = async (): Promise<RepoUnloggedNote> => {
+      const note = new RepoUnloggedNote();
+      note.title = 'note';
+      await note.save();
+      return note;
+    };
+
+    const countNotes = async (): Promise<number> => {
+      const { rows } = await adapter.rawQuery('SELECT COUNT(*) FROM "public$repo_unlogged_note"');
+      return Number(rows[0][0]);
+    };
+
+    it('显式事务里经仓库删除后回滚：行还在，一条删除通知都不发', async () => {
+      const note = await saveNote();
+
+      await expect(
+        adapter.transaction(async executor => {
+          await executor.getRepository(RepoUnloggedNote).remove(note);
+          throw new Error('业务失败');
+        })
+      ).rejects.toThrow('业务失败');
+
+      expect(await countNotes()).toBe(1);
+      expect(removedIds).toEqual([]);
+    });
+
+    it('显式事务里经批量删除后回滚：同样零通知', async () => {
+      const note = await saveNote();
+
+      await expect(
+        adapter.transaction(async executor => {
+          await executor.removeMany([note]);
+          throw new Error('业务失败');
+        })
+      ).rejects.toThrow('业务失败');
+
+      expect(await countNotes()).toBe(1);
+      expect(removedIds).toEqual([]);
+    });
+
+    it('COMMIT 时延迟外键违约：删除失败，零通知', async () => {
+      const note = await saveNote();
+      const ref = new RepoUnloggedNoteRef();
+      ref.noteId = note.id;
+      await ref.save();
+
+      await expect(note.remove()).rejects.toThrow();
+
+      expect(await countNotes()).toBe(1);
+      expect(removedIds).toEqual([]);
+    });
+
+    it('正常删除：恰好一条通知', async () => {
+      const note = await saveNote();
+
+      await note.remove();
+
+      expect(removedIds).toEqual([note.id]);
+      expect(await countNotes()).toBe(0);
     });
   });
 }

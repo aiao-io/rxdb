@@ -95,6 +95,29 @@ describe('OPFS 上传 — 走 wire', () => {
     expect(root.fileSize('uploaded.bin')).toBe(40);
   });
 
+  /**
+   * 同名冲突必须落到这次 upload 的结果上，且既有文件一个字节都不动。
+   *
+   * @remarks
+   * 小文件的字节在 upload 请求的应答回来之前就发完了（START 不等 RESPONSE）。面板端点此时就报
+   * `'sent'` 的话，随后到达的 `resource_conflict` 无处可落；面板再按文件名重列确认，同名的
+   * 旧文件会让这次被拒的上传显示成「上传成功」。
+   */
+  it('MUST 把同名冲突报给 upload 的调用方，且不覆盖既有文件', async () => {
+    const { panel, root } = harness();
+    root.writeFile('taken.bin', 4);
+
+    const result = await panel.upload({
+      source: source(2),
+      params: transferId => ({ transferId, path: '', name: 'taken.bin', size: 2 })
+    });
+
+    expect(result).toEqual({ outcome: 'failed', error: { code: 'resource_conflict', retryable: false } });
+    // connector 侧的收尾（commit 的二次探测 + discard）是异步的；让它跑完再看盘。
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(root.fileSize('taken.bin')).toBe(4);
+  });
+
   it('MUST 在 sink 建不起来时回 ERROR 帧，而不是把异常抛回投递栈', () => {
     const { connector, inbound } = harness();
 

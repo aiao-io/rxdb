@@ -5,8 +5,10 @@ import {
   type EntityMetadata,
   type EntityPropertyMetadataOptions
 } from '@aiao/rxdb';
+import { createKeyring, type KeyringRow } from '@aiao/rxdb-adapter-encrypted';
 import { describe, expect, it } from 'vitest';
 import { generate_entity_inserts_sql } from '../../entity/inserts_sql.js';
+import { getEntityObjectFromResult, type EncryptionContext } from '../../sqlite-core.utils.js';
 
 class TestEntity {
   status?: string | null;
@@ -195,5 +197,53 @@ describe('generate_entity_inserts_sql - 默认值语义', () => {
 
     expect(sql).toContain('"created_by"');
     expect(params).toEqual(['e-1', 'user-1', 'user-1']);
+  });
+});
+
+describe('generate_entity_inserts_sql - 自定义主键列 + 加密列', () => {
+  /** 已解锁的加密上下文：密钥环存在内存里 */
+  const createEncryption = async (): Promise<EncryptionContext> => {
+    let row: KeyringRow | null = null;
+    const keyring = createKeyring({
+      namespace: 'inserts-sql-test',
+      storage: {
+        readSingleton: async () => row,
+        writeSingleton: async next => {
+          row = next;
+        }
+      }
+    });
+    await keyring.unlock({ keyBytes: new Uint8Array(32).fill(7) });
+    return { keyring, namespace: 'inserts-sql-test' };
+  };
+
+  it('每行密文的 AAD 用各自的真实主键，读侧解得开', async () => {
+    // 读侧从水合后的实体取 `id` 进 AAD；写侧拿到的是按物理列名为键的数据，主键在 `pk_id` 下
+    const metadata = createMetadata([
+      { name: 'id', columnName: 'pk_id', type: PropertyType.uuid, primary: true },
+      { name: 'note', type: PropertyType.string, encrypted: true, nullable: true }
+    ]);
+    const encryption = await createEncryption();
+    const first = Object.assign(new TestEntity('row-1'), { note: 'one' });
+    const second = Object.assign(new TestEntity('row-2'), { note: 'two' });
+
+    const { sql, params } = await generate_entity_inserts_sql(
+      metadata,
+      WorktreeTableSet.MAIN,
+      [first, second],
+      undefined,
+      encryption
+    );
+
+    expect(sql).toContain('("pk_id","note")');
+    const restored = await Promise.all(
+      [params.slice(0, 2), params.slice(2)].map(row =>
+        getEntityObjectFromResult(metadata, ['pk_id', 'note'], row, encryption)
+      )
+    );
+    expect(restored).toEqual([
+      { id: 'row-1', note: 'one' },
+      { id: 'row-2', note: 'two' }
+    ]);
   });
 });

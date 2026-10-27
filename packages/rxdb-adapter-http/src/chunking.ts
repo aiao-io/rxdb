@@ -9,6 +9,7 @@
 
 import { HttpHandlerContractError } from './errors.js';
 import type { FindByIdsContext, FindByIdsHandler, HttpNumericConfig } from './http.interface.js';
+import { canonicalizeRowUpdatedAt } from './metadata.js';
 import type { HttpTransport } from './transport.js';
 
 /** 分块所需的协作方 */
@@ -40,8 +41,9 @@ const chunk = (ids: string[], size: number): string[][] => {
  *
  * @param deps - transport、handler 与分块尺寸
  * @param ctx - 实体名与完整 id 列表
- * @returns 各块合并后的原始行，顺序即块序
- * @throws 任一块失败即整体抛出该块的错误，**不**降级成空块继续合并
+ * @returns 各块合并后的行（`updatedAt` 已归一），顺序即块序
+ * @throws 任一块失败即整体抛出该块的错误，**不**降级成空块继续合并；
+ *   行的 `updatedAt` 不是带时区的 ISO 8601 时抛 `HttpInvalidMetadataError`
  */
 export const findByIdsInChunks = async (
   deps: ChunkingDeps,
@@ -61,8 +63,9 @@ export const findByIdsInChunks = async (
       );
     }
     // 少于本块 id 数是**合法**的（远端确实删了），不重试、不补空对象——
-    // 把它和「这一块请求失败」区分开正是本模块的价值
-    rows.push(...parsed);
+    // 把它和「这一块请求失败」区分开正是本模块的价值。
+    // 整行原样落本地缓存，updatedAt 过与 metadata 同一道时区门禁
+    rows.push(...parsed.map(row => canonicalizeRowUpdatedAt(ctx.entityName, 'findByIds', row)));
   }
   return rows;
 };

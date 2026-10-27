@@ -162,8 +162,8 @@ export function EntityDetail({
     };
   }, [rxdb, loadCls, entityId]);
 
-  // create 模式（对话框数据通道）立即建内存草稿，不保存
-  const [draftEntity, setDraftEntity] = useState<EntityInstance | null>(() => {
+  /** create 模式（对话框数据通道）按当前输入建内存草稿，不保存；条件不齐时返回 null。 */
+  const createDraftEntity = (): EntityInstance | null => {
     if (formMode !== 'create' || delegateSave) return null;
     if (!metadata) return null;
     if (!rxdb) return null;
@@ -172,13 +172,34 @@ export function EntityDetail({
     const fixed = fixedFormData;
     const merged = { ...(formData || {}), ...fixed };
     return new (cls as new (...args: unknown[]) => unknown)(merged) as EntityInstance;
-  });
+  };
+
+  // 条件齐备时首帧即建（与 Angular 构造期同一时机）
+  const [draftEntity, setDraftEntity] = useState<EntityInstance | null>(createDraftEntity);
 
   /** 当前表单编辑数据（create 模式下跟踪用户输入）。 */
   const [draftFormData, setDraftFormData] = useState<EntityFormData>(() => {
     if (!draftEntity) return {};
     return entityToFormData(draftEntity as Record<string, unknown>, formFields ?? []);
   });
+
+  // 首帧条件不齐（异步 rxdb source 首帧读到 undefined；metadata / formMode / delegateSave 后到）时补建。
+  // 渲染期比对 Angular effect / Vue watch 的同一组触发源（formMode / delegateSave / 实体类，后者含 rxdb 到货），
+  // 变化且尚无草稿才建：formData / fixedFormData / formFields 只在建草稿那一刻取值，
+  // 保存或取消清空后要等触发源再变才开始新一轮
+  const [draftTrigger, setDraftTrigger] = useState({ formMode, delegateSave, cls: entityClsFromDialog });
+  if (
+    draftTrigger.formMode !== formMode ||
+    draftTrigger.delegateSave !== delegateSave ||
+    draftTrigger.cls !== entityClsFromDialog
+  ) {
+    setDraftTrigger({ formMode, delegateSave, cls: entityClsFromDialog });
+    const draft = draftEntity ? null : createDraftEntity();
+    if (draft) {
+      setDraftEntity(draft);
+      setDraftFormData(entityToFormData(draft as Record<string, unknown>, formFields ?? []));
+    }
+  }
 
   const [activeTabKey, setActiveTabKey] = useState('basic');
 

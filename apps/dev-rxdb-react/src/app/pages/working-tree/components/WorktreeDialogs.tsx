@@ -11,6 +11,8 @@ interface NewWorktreeDialogProps {
   readonly branches: readonly RxDBBranch[];
   readonly name: string;
   readonly branchId: string;
+  /** 工作树命令此刻不收新请求（写入在途等）：确认与取消一并禁用，与 Angular / Vue 同口径 */
+  readonly busy?: boolean;
   readonly creating: boolean;
   readonly error: string | null;
   readonly onNameChange: (name: string) => void;
@@ -23,6 +25,7 @@ export function WorkingTreeNewDialog({
   activeBranch,
   branches,
   branchId,
+  busy = false,
   creating,
   error,
   name,
@@ -39,7 +42,7 @@ export function WorkingTreeNewDialog({
     return () => clearTimeout(timer);
   }, [open]);
   if (!open) return null;
-  const canSubmit = name.trim() !== '' && !creating;
+  const canSubmit = name.trim() !== '' && !creating && !busy;
   const submit = (): void => {
     if (canSubmit) onConfirm();
   };
@@ -114,7 +117,7 @@ export function WorkingTreeNewDialog({
         <button
           className='gd-btn-secondary'
           data-testid='wt-worktree-create-cancel'
-          disabled={creating}
+          disabled={creating || busy}
           onClick={onClose}
           type='button'
         >
@@ -137,6 +140,8 @@ export function WorkingTreeNewDialog({
 interface RenameWorktreeDialogProps {
   readonly worktree: Worktree | null;
   readonly name: string;
+  /** 同 {@link NewWorktreeDialogProps.busy} */
+  readonly busy?: boolean;
   readonly saving: boolean;
   readonly error: string | null;
   readonly onNameChange: (name: string) => void;
@@ -145,6 +150,7 @@ interface RenameWorktreeDialogProps {
 }
 
 export function WorkingTreeRenameDialog({
+  busy = false,
   error,
   name,
   onClose,
@@ -160,7 +166,7 @@ export function WorkingTreeRenameDialog({
     return () => clearTimeout(timer);
   }, [worktree]);
   if (worktree === null) return null;
-  const canSubmit = name.trim() !== '' && !saving;
+  const canSubmit = name.trim() !== '' && !saving && !busy;
   return (
     <WorkingTreeDialogShell
       labelledBy='wt-worktree-rename-title'
@@ -198,7 +204,7 @@ export function WorkingTreeRenameDialog({
         <button
           className='gd-btn-secondary'
           data-testid='wt-worktree-rename-cancel'
-          disabled={saving}
+          disabled={saving || busy}
           onClick={onClose}
           type='button'
         >
@@ -221,6 +227,8 @@ export function WorkingTreeRenameDialog({
 interface DeleteWorktreeDialogProps {
   readonly worktree: Worktree | null;
   readonly dirty: boolean;
+  /** 同 {@link NewWorktreeDialogProps.busy} */
+  readonly busy?: boolean;
   readonly deleting: boolean;
   readonly error: string | null;
   readonly onConfirm: () => void;
@@ -230,6 +238,7 @@ interface DeleteWorktreeDialogProps {
 export function WorkingTreeDeleteDialog({
   worktree,
   dirty,
+  busy = false,
   deleting,
   error,
   onClose,
@@ -271,7 +280,7 @@ export function WorkingTreeDeleteDialog({
         <button
           className='gd-btn-secondary'
           data-testid='wt-worktree-delete-cancel'
-          disabled={deleting}
+          disabled={deleting || busy}
           onClick={onClose}
           type='button'
         >
@@ -280,7 +289,7 @@ export function WorkingTreeDeleteDialog({
         <button
           className='gd-btn-danger'
           data-testid='wt-worktree-delete-confirm'
-          disabled={deleting}
+          disabled={deleting || busy}
           onClick={onConfirm}
           type='button'
         >

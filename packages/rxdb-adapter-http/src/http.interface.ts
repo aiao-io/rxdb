@@ -132,7 +132,7 @@ export interface FindByIdsContext {
  *
  * @remarks
  * 某块返回的行数**少于**该块 id 数是**合法**结果（远端确实删了），
- * 适配器不会据此重试或补空对象。
+ * 适配器不会据此重试或补空对象。行带 `updatedAt` 时须是带时区的 ISO 8601（与 metadata 同口径）。
  */
 export interface FindByIdsHandler {
   /** 产出本块请求描述。纯函数，不碰网络 */
@@ -182,6 +182,8 @@ export interface CreateHandler {
    * 必须解析远端回执、**不能回显入参**：回执才是落库后的那份，回显会让本地留下一条
    * 远端从不存在的行。时间戳一律由远端定型；id 则可能是客户端给的那个——离线新建的行
    * 带着本地 id 入队，远端采纳它，本地那份才对得上远端。
+   *
+   * 回执带 `updatedAt` 时须是带时区的 ISO 8601，适配器归一后才交给 core（与 metadata 同口径）。
    */
   parse(body: unknown, ctx: CreateContext): unknown;
 }
@@ -189,6 +191,7 @@ export interface CreateHandler {
 /** `update` 的协议 mapping。 */
 export interface UpdateHandler {
   request(ctx: UpdateContext): HttpRequestSpec;
+  /** 解析写入后的完整实体，回执契约同 {@link CreateHandler.parse} */
   parse(body: unknown, ctx: UpdateContext): unknown;
 }
 

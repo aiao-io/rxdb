@@ -386,11 +386,15 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     return entity;
   }
 
+  /**
+   * 父节点外键的远端列名，固定为属性名 `parentId`
+   *
+   * @remarks
+   * 与 CRUD 同口径：外键同样遵守「非主键字段的远端列名就是属性名」，`create` 展开实体、
+   * `update` 经 `normalize_supabase_update` 映回属性名，写的都是 `parentId`。
+   * parent 关系上声明的 columnName 只对本地适配器生效，树查询改按它查就会与写入打不中同一列。
+   */
   private parent_column_name(): string {
-    return (
-      this.metadata.relationMap?.get('parent')?.columnName ??
-      this.metadata.propertyMap?.get('parentId')?.columnName ??
-      'parentId'
-    );
+    return 'parentId';
   }
 }

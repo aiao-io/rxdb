@@ -378,6 +378,8 @@ export const createPgliteRestoreCoordinator = (options: PgliteRestoreCoordinator
 
   const commit = (entry: RestoreEntry): void => {
     expectStage(entry, 'persisted', 'pg.restore.commit');
+    // 删标记就是提交点：删不掉即未提交，与其余步骤失败一样只接受 abort、回到从未恢复的状态。
+    // begin 已确认目标为空，回滚丢的只是本次写出的目录，归档仍在，重跑恢复即可
     entry.lock.clearRestoring();
     finish(entry);
   };

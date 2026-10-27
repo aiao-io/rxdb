@@ -46,6 +46,7 @@ import type {
   HttpNumericConfig,
   UpdateContext
 } from './http.interface.js';
+import { canonicalizeRowUpdatedAt } from './metadata.js';
 import { fetchAllMetadataPages } from './pagination.js';
 import { HttpTransport, readErrorBody } from './transport.js';
 
@@ -655,7 +656,11 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
         return defer(() => {
           this.#assertConnected('create');
           return from(this.#transport.sendJson(onCreate.request(ctx), 'create'));
-        }).pipe(map(body => assertHandlerRow('create', entityName, onCreate.parse(body, ctx)) as R));
+        }).pipe(
+          map(body => assertHandlerRow('create', entityName, onCreate.parse(body, ctx))),
+          // 回执原样落本地缓存，updatedAt 是之后的新鲜度基准：过与 metadata 同一道时区门禁
+          map(row => canonicalizeRowUpdatedAt(entityName, 'create receipt', row) as R)
+        );
       };
     }
     if (onUpdate) {
@@ -664,7 +669,10 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
         return defer(() => {
           this.#assertConnected('update');
           return from(this.#transport.sendJson(onUpdate.request(ctx), 'update'));
-        }).pipe(map(body => assertHandlerRow('update', entityName, onUpdate.parse(body, ctx)) as R));
+        }).pipe(
+          map(body => assertHandlerRow('update', entityName, onUpdate.parse(body, ctx))),
+          map(row => canonicalizeRowUpdatedAt(entityName, 'update receipt', row) as R)
+        );
       };
     }
     if (onDelete) {

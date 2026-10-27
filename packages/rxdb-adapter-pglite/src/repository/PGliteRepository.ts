@@ -95,7 +95,7 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
 
     const { sql, params } = generate_entity_delete_sql(this.metadata, this.adapter.tableSet, entity);
     await this.adapter.writeQuery(sql, params);
-    dispatchUnloggedRemovals(this.adapter.rxdb, [entity], new Date());
+    dispatchUnloggedRemovals(this.adapter, [entity], new Date());
 
     status.origin = structuredClone({ ...entity });
     status.modified = false;
