@@ -75,8 +75,14 @@
 
 ## 0.0.28 (2026-10-24)
 
+本版把系统表结构从 3 升到 7，实为一次迁移发布；发布时按普通版本声明、漏写了下面前四条，事后补记。
+
 ### ⚠️ Breaking Changes
 
+- **rxdb:** 系统表结构从 3 升到 7（4～6 来自工作树与提交历史，7 来自 Supabase 推送回执）。用 0.0.28 打开过的库，0.0.26 及更早的客户端会拒绝打开（`UnsupportedRxDBSystemVersionError`），所有客户端须一起升级，没有降级路径。在本机开过工作树提交能力、又早于工作树拆包的开发库，删库重建，不要带着它升级。→ [v1](https://rxdb.aiao.io/docs/migration/v1)
+- **rxdb-adapter-supabase:** 推送本地修改改走普通 `UPDATE`（`rxdb_mutations` 新参数 `p_updates`），推送路径改为逐实体回执（`RemoteMergeResult` 改形状）；须先升级参考 SQL，再升级客户端。→ [supabase-update-push](https://rxdb.aiao.io/docs/migration/supabase-update-push)、[supabase-push-receipts](https://rxdb.aiao.io/docs/migration/supabase-push-receipts)
+- **rxdb:** 工作树与提交历史拆成 `@aiao/rxdb-plugin-working-tree`，树结构拆成 `@aiao/rxdb-plugin-tree`（三框架 hook 随 `-angular` / `-react` / `-vue` 子包）；不涉及数据迁移，要改依赖、import 与 `use()`。→ [working-tree-split](https://rxdb.aiao.io/docs/migration/working-tree-split)、[tree-split](https://rxdb.aiao.io/docs/migration/tree-split)
+- **rxdb / rxdb-plugin-querycache:** 接口成员与函数参数的九项变化（`SwitchBranchOptions.prepare` 必填、SQL 生成函数的 `branchId` 必填、`getEntityMutations` 入参改 camelCase、`@aiao/rxdb` 改放 `peerDependencies` 等），逐项见 [v1「0.0.28」](https://rxdb.aiao.io/docs/migration/v1)
 - **aiao:** `@aiao/*` 包间 peer 依赖统一为 `workspace:^`（发布时改写为 `^0.0.28`），替换此前混用的 `*` / `workspace:*` / `^0.0.26` 写法（US-602 A2）
 
 ### 🩹 Fixes

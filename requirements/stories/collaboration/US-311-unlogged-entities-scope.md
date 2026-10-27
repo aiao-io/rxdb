@@ -1,11 +1,11 @@
 ---
 id: US-311
 title: 不写变更日志的实体与插件系统表退出草稿缓存与版本化域
-status: In Review
+status: Done
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-10-15
-updated: 2026-10-20
+updated: 2026-10-27
 tags: [collaboration, workspace, storage, working-tree, version-control]
 ---
 
@@ -133,5 +133,6 @@ demo 的草稿页只显示 `entity === 'Todo'` 的条目（`workspace.page.ts` �
 
 ## References
 
+- [PR #122](https://github.com/aiao-io/rxdb/pull/122)（squash `b109ba33`）— 交付
 - [epic-006 多检出位对 storage 与 workspace 插件的影响](../../epics/epic-006-working-tree-commits.md#对-storage-与-workspace-插件的影响)
 - [epic-006 版本化域](../../epics/epic-006-working-tree-commits.md#版本化域tracked--untracked)

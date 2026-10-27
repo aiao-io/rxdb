@@ -29,6 +29,9 @@ COREPACK_INTEGRITY_KEYS = "0"
 GIT_SSH_COMMAND = "true"
 # 禁用 Nx Cloud（免费额度用完时构建会失败）
 NX_NO_CLOUD = "true"
+# 静态页面渲染限制并发，避免数千份 API 文档在 Netlify 构建机上耗尽内存。
+DOCUSAURUS_SSR_CONCURRENCY = "4"
+DOCUSAURUS_SSG_WORKER_THREAD_COUNT = "2"
 
 # 生产环境配置
 [context.production]
