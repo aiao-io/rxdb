@@ -113,7 +113,7 @@ const generatedDefinition = (): string => {
 type CatalogExecutor = { execute(sql: string, bindings?: unknown[]): Promise<SqliteSuccessResult> };
 
 const driftOf = async (executor: CatalogExecutor, entity: EntityType): Promise<RxDBConstraintDriftError> => {
-  const error = await check_entity_constraints_sqlite(executor as never, [entity]).then(
+  const error = await check_entity_constraints_sqlite(executor, WorktreeTableSet.MAIN, [entity]).then(
     () => undefined,
     (reason: unknown) => reason
   );
@@ -125,7 +125,9 @@ describe('SQLite 生成列漂移：gc_ 前缀列全部纳入比对', () => {
   it('声明的生成列与库一致时不抛错', async () => {
     const column = hotColumn();
     const executor = catalog(DriftHotRow, [generatedDefinition()], [xinfo(2, column.columnName, column.sqlType, 2)]);
-    await expect(check_entity_constraints_sqlite(executor as never, [DriftHotRow])).resolves.toBeUndefined();
+    await expect(
+      check_entity_constraints_sqlite(executor, WorktreeTableSet.MAIN, [DriftHotRow])
+    ).resolves.toBeUndefined();
   });
 
   it('与声明的生成列并存的用户普通 gc_ 列判多余', async () => {
@@ -164,12 +166,16 @@ describe('SQLite 生成列漂移：gc_ 前缀列全部纳入比对', () => {
 
   it('实体自己声明的同前缀普通属性列不算多余', async () => {
     const executor = catalog(DriftOwnColumnRow, ['"gc_flag" TEXT'], [xinfo(2, 'gc_flag', 'TEXT', 0)]);
-    await expect(check_entity_constraints_sqlite(executor as never, [DriftOwnColumnRow])).resolves.toBeUndefined();
+    await expect(
+      check_entity_constraints_sqlite(executor, WorktreeTableSet.MAIN, [DriftOwnColumnRow])
+    ).resolves.toBeUndefined();
   });
 
   it('建表文本里没有 gc_ 且未声明生成列时不查 PRAGMA table_xinfo', async () => {
     const executor = catalog(DriftPlainRow, [], []);
-    await expect(check_entity_constraints_sqlite(executor as never, [DriftPlainRow])).resolves.toBeUndefined();
+    await expect(
+      check_entity_constraints_sqlite(executor, WorktreeTableSet.MAIN, [DriftPlainRow])
+    ).resolves.toBeUndefined();
     expect(executor.execute.mock.calls.some(([sql]) => String(sql).startsWith('PRAGMA'))).toBe(false);
   });
 });
@@ -227,7 +233,9 @@ describe('SQLite 生成列漂移：真实引擎目录', () => {
       const executor: CatalogExecutor = {
         execute: async (sql, bindings) => result([], engine.rows(sql, bindings))
       };
-      await expect(check_entity_constraints_sqlite(executor as never, [DriftHotRow])).resolves.toBeUndefined();
+      await expect(
+        check_entity_constraints_sqlite(executor, WorktreeTableSet.MAIN, [DriftHotRow])
+      ).resolves.toBeUndefined();
 
       engine.exec(`ALTER TABLE "${tableName}" ADD COLUMN "gc_note" TEXT`);
       const drift = await driftOf(executor, DriftHotRow);

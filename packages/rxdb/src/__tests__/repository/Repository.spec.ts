@@ -76,7 +76,14 @@ const createEntity = (id: string, extra: Partial<TestEntity> = {}): TestEntity =
   // （只有「无未保存改动」才把 modified 归零），缺 patch 就是替身比真实 EntityStatus 少一块；
   // 写之前还要核对建出它时挂的那套表（US-314 B2.4）；当游标时取的是已持久化的基线 origin。
   Object.assign(entity, {
-    [STATUS]: { local: false, modified: false, patch: {}, origin: { ...entity }, tableSet: WorktreeTableSet.MAIN }
+    [STATUS]: {
+      local: false,
+      modified: false,
+      patch: {},
+      origin: { ...entity },
+      tableSet: WorktreeTableSet.MAIN,
+      prepareUpdate: vi.fn(() => ({ release: vi.fn() }))
+    }
   });
   return entity;
 };
@@ -721,12 +728,29 @@ describe('Repository', () => {
   it('update 转发补丁并标记实体为本地', async () => {
     const { repository, localRepo } = setupRepository();
     const entity = createEntity('entity-update', { value: 1 });
+    const patch = { value: 2 };
 
-    const result = await repository.update(entity, { value: 2 });
+    const result = await repository.update(entity, patch);
 
     expect(result.value).toBe(2);
     expect(getEntityStatus(entity).local).toBe(true);
     expect(localRepo.update).toHaveBeenCalledWith(entity, { value: 2 });
+    const prepare = vi.mocked(getEntityStatus(entity).prepareUpdate);
+    expect(prepare).toHaveBeenCalledWith(patch);
+    expect(prepare.mock.results[0].value.release).toHaveBeenCalledOnce();
+  });
+
+  it('update 失败时释放编辑起点并保留原始错误', async () => {
+    const { repository, localRepo } = setupRepository();
+    const entity = createEntity('entity-update', { value: 1 });
+    const error = new Error('写入失败');
+    localRepo.update.mockRejectedValue(error);
+
+    await expect(repository.update(entity, { value: 2 })).rejects.toBe(error);
+
+    const prepare = vi.mocked(getEntityStatus(entity).prepareUpdate);
+    expect(prepare.mock.results[0].value.release).toHaveBeenCalledOnce();
+    expect(getEntityStatus(entity).local).toBe(false);
   });
 
   it('remove 委托给本地仓储', async () => {
