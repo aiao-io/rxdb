@@ -821,6 +821,9 @@ importers:
       lucide-react:
         specifier: ^1.57.0
         version: 1.61.0(@types/react@19.3.0)(react@19.3.1)
+      wa-sqlite:
+        specifier: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
+        version: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.3.3

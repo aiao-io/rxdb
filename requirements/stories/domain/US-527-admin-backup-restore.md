@@ -5,7 +5,7 @@ status: In Review
 priority: Low
 epic: epic-010-model-driven-admin-framework
 created: 2026-10-19
-updated: 2026-10-25
+updated: 2026-10-27
 tags: [domain, admin-framework, backup, restore]
 ---
 
@@ -72,6 +72,10 @@ US-217 已交付的契约（证据见其[阶段 A / B 验收记录](../adapter/U
 工作台首页在任何列表或搜索查询之前提供「打开工作台」与「从备份恢复」入口。恢复路径先导入，
 再连接；已初始化的目标即使没有业务记录，也不再满足空目标契约。刷新不能清空目标，界面应指引用户
 在新浏览器配置中从首页选择恢复。备份、恢复与清理残留互斥，操作完成或失败后释放入口。
+
+**已知限制**：备份归档先在页面内存里拼成 Blob 再交给浏览器下载，库大到超出标签页可用内存时备份会失败。
+引擎的 `backup(sink)` 本身是流式的，流式写盘要用 `showSaveFilePicker`，但它只有 Chromium 提供，
+其他浏览器仍要走 Blob 下载，两条路径并存与「无 fallback」规范冲突；单人本地工作台的数据量下首版不做。
 
 ## 价值待证
 

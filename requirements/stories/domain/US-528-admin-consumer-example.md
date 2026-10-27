@@ -5,7 +5,7 @@ status: In Review
 priority: Low
 epic: epic-010-model-driven-admin-framework
 created: 2026-10-19
-updated: 2026-10-21
+updated: 2026-10-27
 tags: [domain, admin-framework, docs, consumer-example]
 ---
 
@@ -68,7 +68,7 @@ tags: [domain, admin-framework, docs, consumer-example]
 
 ## 实现文件
 
-- `apps/dev-rxdb-admin-consumer/` — 已交付；只用发布包的最小独立消费应用
+- `apps/dev-rxdb-admin-consumer/` — 已交付；只 import 发布包的最小独立消费应用（仓库内经 workspace 源码解析，验证范围见成本记录）
 - `website/docs/` — 接入成本记录与接入文档
 
 ## References
