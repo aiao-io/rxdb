@@ -64,7 +64,7 @@
   },
   "peerDependencies": {
     "@aiao/rxdb": "workspace:^",
-    "vitest": "4.1.12"
+    "vitest": "4.1.11"
   },
   "peerDependenciesMeta": {
     "vitest": {
@@ -75,6 +75,6 @@
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-encrypted": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
-    "vitest": "4.1.12"
+    "vitest": "4.1.11"
   }
 }
