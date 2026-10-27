@@ -268,6 +268,8 @@ export function EntityList({
   const [openDialog, setOpenDialog] = useState<OpenDialog | null>(null);
   /** 删除确认目标行：删除前经确认弹层（误删成本高，撤销入口不显眼）。 */
   const [deleteConfirm, setDeleteConfirm] = useState<EntityTableRecord | null>(null);
+  /** 最近一次删除被存储层拒绝的原因（如仍被其他记录引用）；重新删除或切换实体时清除。 */
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   /** 保存成功 toast（2 秒自动消失）。 */
   const [saveToastVisible, setSaveToastVisible] = useState(false);
   const saveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -299,6 +301,7 @@ export function EntityList({
     setShowFilterPopover(false);
     setOpenDialog(null);
     setDeleteConfirm(null);
+    setDeleteError(null);
     setReorderError(null);
   }
   const activeViewState =
@@ -677,7 +680,12 @@ export function EntityList({
     void vHistory.redo();
   }, [vHistory]);
 
-  /** 关系字段下拉的数据源（对应 Angular `#makeRelatedEntityProvider`）。 */
+  /**
+   * 关系字段下拉的数据源（对应 Angular `#makeRelatedEntityProvider`）。
+   *
+   * 读本轮渲染的列表资源而不是 ref 镜像：关联列表每次发射都换出新的 provider，打开中的表单据此重算候选。
+   * Angular / Vue 的 provider 读信号 / ref，模板天然跟随；React 只能靠 provider 换新驱动。
+   */
   const makeRelatedEntityProvider = useCallback(
     (draftParent: EntityInstance | null): RelatedEntityProvider => {
       const strVal = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined);
@@ -688,7 +696,7 @@ export function EntityList({
         });
         if (!relCls) return [];
         const relMeta = getEntityMetadata(relCls);
-        const list = listResourcesRef.current.get(`${relMeta.namespace}:${relMeta.name}`);
+        const list = listResources.get(`${relMeta.namespace}:${relMeta.name}`);
         const items = ((list?.value ?? []) as unknown as Record<string, unknown>[]).map(inst => ({
           id: String(inst['id'] ?? ''),
           displayName: strVal(inst['displayName']) ?? strVal(inst['name']) ?? String(inst['id'] ?? '')
@@ -708,8 +716,14 @@ export function EntityList({
         return items;
       };
     },
-    [entityClsMap]
+    [entityClsMap, listResources]
   );
+  /** 打开中的新建 / 查看对话框的关联候选（不进打开时的快照，随列表资源换新）。 */
+  const createDialogRelatedEntityProvider = useMemo(
+    () => makeRelatedEntityProvider(draftParentEntity ?? null),
+    [makeRelatedEntityProvider, draftParentEntity]
+  );
+  const viewDialogRelatedEntityProvider = useMemo(() => makeRelatedEntityProvider(null), [makeRelatedEntityProvider]);
 
   /** 打开详情对话框（「查看」行）：`_readonly` 行走 view 模式、其余走 edit；详情数据在打开时快照（Angular 侧 #openViewDialog 同语义）。 */
   const openViewDialog = useCallback(
@@ -728,12 +742,11 @@ export function EntityList({
         formData: {},
         formMode,
         entityId: id,
-        editChain: [...editChain, id],
-        relatedEntityProvider: makeRelatedEntityProvider(null)
+        editChain: [...editChain, id]
       };
       setOpenDialog({ kind: 'view', recordId: id, data });
     },
-    [editChain, makeRelatedEntityProvider]
+    [editChain]
   );
 
   const onIconClicked = useCallback(
@@ -754,6 +767,7 @@ export function EntityList({
     const record = deleteConfirm;
     setDeleteConfirm(null);
     if (!record) return;
+    setDeleteError(null);
     const id = record['id'] as string;
 
     const draftInst = localDraftItemsRef.current.find(i => i.id === id);
@@ -767,6 +781,8 @@ export function EntityList({
     try {
       await inst.remove();
     } catch (error) {
+      // 确认弹层已关：存储层拒绝的原因（如仍被引用时外键 RESTRICT）留在列表上
+      setDeleteError(errorMessage(error));
       console.error(error);
     }
   }, [deleteConfirm]);
@@ -904,20 +920,12 @@ export function EntityList({
       formFields: fields,
       formData: {},
       formMode: 'create',
-      relatedEntityProvider: makeRelatedEntityProvider(draftParentEntity ?? null),
       fixedFormData,
       delegateSave: !!draftParentEntity,
       creationChain
     };
     setOpenDialog({ kind: 'create', data });
-  }, [
-    isCreateBlocked,
-    createFormFieldConfigs,
-    makeRelatedEntityProvider,
-    draftParentEntity,
-    fixedFormData,
-    creationChain
-  ]);
+  }, [isCreateBlocked, createFormFieldConfigs, draftParentEntity, fixedFormData, creationChain]);
 
   /** 打开 M2M 选择对话框（已打开时重入被挡）。 */
   const openM2mSelectDialog = useCallback((): void => {
@@ -1089,6 +1097,13 @@ export function EntityList({
         </div>
       )}
 
+      {/* 删除被存储层拒绝 */}
+      {deleteError !== null && (
+        <div role='alert' className='alert alert-error alert-soft mx-4 mt-2 py-2 text-sm' data-testid='delete-error'>
+          删除失败：{deleteError}
+        </div>
+      )}
+
       {/* 表格主体 */}
       <div className='min-h-0 flex-1'>
         {isBrowser && (
@@ -1163,6 +1178,7 @@ export function EntityList({
         >
           <EntityDetail
             {...openDialog.data}
+            relatedEntityProvider={createDialogRelatedEntityProvider}
             onFormSubmitted={data => {
               void handleCreateSubmit(data);
               setOpenDialog(null);
@@ -1188,7 +1204,7 @@ export function EntityList({
           minHeight='300px'
           className='entity-detail-dialog'
         >
-          <EntityDetail {...openDialog.data} />
+          <EntityDetail {...openDialog.data} relatedEntityProvider={viewDialogRelatedEntityProvider} />
         </Dialog>
       )}
 

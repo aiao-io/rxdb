@@ -129,6 +129,13 @@
   <div class="alert alert-error alert-soft mx-4 mt-2 py-2 text-sm" role="alert">排序保存失败：{{ error }}</div>
 }
 
+<!-- 删除被存储层拒绝 -->
+@if (deleteError(); as error) {
+  <div class="alert alert-error alert-soft mx-4 mt-2 py-2 text-sm" data-testid="delete-error" role="alert">
+    删除失败：{{ error }}
+  </div>
+}
+
 <!-- 表格主体 -->
 <div class="min-h-0 flex-1">
   @if (isBrowser) {

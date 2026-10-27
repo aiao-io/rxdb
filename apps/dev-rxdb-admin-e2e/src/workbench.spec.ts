@@ -141,6 +141,25 @@ test.describe('模型驱动数据工作台', () => {
     await expectListEmpty(page);
   });
 
+  test('删除仍被资产引用的分类：给出失败原因，分类保留', async ({ page }) => {
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '办公设备');
+    await page.goto('/entities/assets/Asset');
+    await createAsset(page, '笔记本', '办公设备');
+
+    // 资产的「分类」是非空多对一，外键默认 RESTRICT：分类仍被引用时存储层拒绝删除
+    await page.getByTestId('entity-catalog').getByRole('link', { name: '资产分类' }).click();
+    const del = await expectActionIcon(page, 'delete-action', 1);
+    await page.mouse.click(del.x, del.y);
+    await page.getByTestId('delete-confirm-submit').click();
+    await expect(page.getByTestId('delete-error')).toContainText('删除失败');
+
+    await page.reload();
+    const view = await expectActionIcon(page, 'view-action', 1);
+    await page.mouse.click(view.x, view.y);
+    await expect(page.getByRole('group', { name: '分类名' }).getByRole('textbox')).toHaveValue('办公设备');
+  });
+
   test('维护记录：日期选择器与必填关联校验（评审反馈回归）', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');

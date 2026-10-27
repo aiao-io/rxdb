@@ -565,6 +565,38 @@ describe('EntityList（真实组件）', () => {
     expect(await findTitles()).toEqual(['keep-me']);
   });
 
+  it('删除被存储层拒绝时列表给出可读原因并保留该行，再次删除成功后提示消失', async () => {
+    const victim = await seedTodo('referenced');
+    const { wrapper, component } = await renderList();
+    await FLUSH();
+    expect(component.tableRecords).toHaveLength(1);
+    const remove = vi
+      .spyOn(rxdb.entityManager, 'remove')
+      .mockRejectedValueOnce(new Error('FOREIGN KEY constraint failed'));
+    const deleteErrorOf = (): Element | null => wrapper.element.querySelector('[data-testid="delete-error"]');
+
+    try {
+      await component.onRowDeleted({ id: victim.id });
+      await FLUSH();
+      await component.confirmDelete();
+      await vi.waitFor(() => {
+        expect(deleteErrorOf()?.textContent?.trim()).toBe('删除失败：FOREIGN KEY constraint failed');
+      });
+      expect(await findTitles()).toEqual(['referenced']);
+
+      await component.onRowDeleted({ id: victim.id });
+      await FLUSH();
+      await component.confirmDelete();
+      await vi.waitFor(() => {
+        expect(component.tableRecords).toHaveLength(0);
+      });
+      expect(deleteErrorOf()).toBeNull();
+      expect(remove).toHaveBeenCalledTimes(2);
+    } finally {
+      remove.mockRestore();
+    }
+  });
+
   it('view-action 图标点击输出 viewEntity', async () => {
     await seedTodo('view-me');
     const { component, viewed } = await renderList();

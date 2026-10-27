@@ -22,7 +22,7 @@ import {
   type RelatedEntityItem,
   type RelatedEntityProvider
 } from '@aiao/rxdb-model';
-import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
+import { useMemo, useState, type JSX } from 'react';
 
 /** {@link EntityForm} 的 props。 */
 export interface EntityFormProps {
@@ -32,7 +32,12 @@ export interface EntityFormProps {
   data: EntityFormData;
   /** 表单模式（view / edit / create），缺省 `view`。 */
   mode?: FormMode;
-  /** 关联实体候选提供者（关系字段下拉数据源）。 */
+  /**
+   * 关联实体候选提供者（关系字段下拉数据源）。
+   *
+   * @remarks 候选按 provider 实例缓存：候选数据变化时传入一个新的 provider 才会重算下拉
+   * （`EntityList` 随关联列表资源的每次发射换新）。
+   */
   relatedEntityProvider?: RelatedEntityProvider;
   /** 是否渲染保存 / 取消按钮，缺省 `true`。 */
   showActions?: boolean;
@@ -179,12 +184,8 @@ export function EntityForm({
   const editableFields = useMemo(() => fields.filter(field => !field.hidden), [fields]);
   const isReadonly = mode === 'view';
 
-  /**
-   * 关联实体候选：provider 是同步快照，而关联实体的活查询异步到达。
-   * memo 负责 provider 变化时的同步重算；有界轮询（5 秒、100ms）负责
-   * 数据异步到达后的刷新，保证下拉不会停留在 (空)。
-   */
-  const computeRelatedItemsMap = useCallback((): Map<string, RelatedEntityItem[]> => {
+  /** 关联实体候选：provider 是同步快照，候选变化由宿主换新 provider 驱动重算（Angular / Vue 由信号 / ref 跟随）。 */
+  const relatedItemsMap = useMemo(() => {
     const map = new Map<string, RelatedEntityItem[]>();
     if (!relatedEntityProvider) return map;
     for (const field of editableFields) {
@@ -194,37 +195,6 @@ export function EntityForm({
     }
     return map;
   }, [relatedEntityProvider, editableFields]);
-  const memoRelatedItemsMap = useMemo(() => computeRelatedItemsMap(), [computeRelatedItemsMap]);
-  /** 轮询快照：source 绑定计算它的 memo，memo 变化（provider / 字段集变化）时快照自动失效。 */
-  const [polledMap, setPolledMap] = useState<{
-    source: ReadonlyMap<string, RelatedEntityItem[]>;
-    value: ReadonlyMap<string, RelatedEntityItem[]>;
-  } | null>(null);
-  useEffect(() => {
-    const deadline = Date.now() + 5000;
-    const timer = setInterval(() => {
-      const next = computeRelatedItemsMap();
-      setPolledMap(previous => {
-        if (previous && previous.value.size === next.size) {
-          let same = true;
-          for (const [field, items] of next) {
-            const prevItems = previous.value.get(field) ?? [];
-            if (prevItems.length !== items.length || prevItems.some((item, i) => item.id !== items[i].id)) {
-              same = false;
-              break;
-            }
-          }
-          if (same) return previous;
-        }
-        return { source: memoRelatedItemsMap, value: next };
-      });
-      if (Date.now() > deadline) clearInterval(timer);
-    }, 100);
-    return () => clearInterval(timer);
-  }, [memoRelatedItemsMap, computeRelatedItemsMap]);
-
-  const relatedItemsMap =
-    polledMap !== null && polledMap.source === memoRelatedItemsMap ? polledMap.value : memoRelatedItemsMap;
 
   const displayValueMap = useMemo(() => {
     const map = new Map<string, string>();

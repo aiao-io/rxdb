@@ -379,6 +379,29 @@ describe('EntityList（真实组件）', () => {
     });
   });
 
+  it('对话框开着时关联候选跟随活查询：后落库的记录出现，改名同步刷新', async () => {
+    const { container } = await renderList({ name: 'Contract' });
+    fireEvent.click([...container.querySelectorAll('button')].find(button => button.textContent?.includes('+ 新增'))!);
+    await waitFor(() => {
+      expect(document.querySelector('.rxdb-dialog-pane [data-testid="relation-empty-hint"]')).not.toBeNull();
+    });
+    const optionTexts = (): Array<string | null> =>
+      [...document.querySelectorAll('.rxdb-dialog-pane select option')].map(option => option.textContent);
+
+    const account = new Account({ name: '后到账户' });
+    await account.save();
+    await waitFor(() => {
+      expect(optionTexts()).toContain('后到账户');
+    });
+
+    account.name = '改名账户';
+    await account.save();
+    await waitFor(() => {
+      expect(optionTexts()).toContain('改名账户');
+    });
+    expect(optionTexts()).not.toContain('后到账户');
+  });
+
   it('筛选弹层：query-builder 条件应用后列表按 where 重查', async () => {
     await seedTodo('match-alpha');
     await seedTodo('match-beta');
@@ -539,6 +562,43 @@ describe('EntityList（真实组件）', () => {
     });
     expect(await findTitles()).toEqual(['keep-me']);
     void container;
+  });
+
+  it('删除被存储层拒绝时列表给出可读原因并保留该行，再次删除成功后提示消失', async () => {
+    await seedTodo('referenced');
+    const { container } = await renderList();
+    await waitFor(() => {
+      expect(tableOf().records).toHaveLength(1);
+    });
+    const remove = vi
+      .spyOn(rxdb.entityManager, 'remove')
+      .mockRejectedValueOnce(new Error('FOREIGN KEY constraint failed'));
+    const confirmFirstRowDelete = async (): Promise<void> => {
+      act(() => tableOf().emit('icon_click', { name: 'delete-action', col: 2, row: 1 }));
+      await waitFor(() => {
+        expect(document.querySelector('[data-testid="delete-confirm-submit"]')).not.toBeNull();
+      });
+      fireEvent.click(document.querySelector('[data-testid="delete-confirm-submit"]') as HTMLElement);
+    };
+
+    try {
+      await confirmFirstRowDelete();
+      await waitFor(() => {
+        expect(container.querySelector('[data-testid="delete-error"]')?.textContent).toBe(
+          '删除失败：FOREIGN KEY constraint failed'
+        );
+      });
+      expect(await findTitles()).toEqual(['referenced']);
+
+      await confirmFirstRowDelete();
+      await waitFor(() => {
+        expect(tableOf().records).toHaveLength(0);
+      });
+      expect(container.querySelector('[data-testid="delete-error"]')).toBeNull();
+      expect(remove).toHaveBeenCalledTimes(2);
+    } finally {
+      remove.mockRestore();
+    }
   });
 
   it('view-action 图标点击输出 onViewEntity 并打开编辑对话框', async () => {

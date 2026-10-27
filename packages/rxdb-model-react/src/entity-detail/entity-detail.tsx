@@ -50,6 +50,7 @@ export interface EntityDetailDialogData {
   entityId?: string;
   /** 已打开详情对话框的记录 id 栈（含当前记录），关系 tab 列表据此阻断无限套娃 */
   editChain?: string[];
+  /** 关系字段下拉的候选来源；候选变化时传入新的 provider 才会重算（见 `EntityForm` 同名 prop） */
   relatedEntityProvider?: RelatedEntityProvider;
   /** 预填充的外键数据（不可编辑），用于级联新增场景 */
   fixedFormData?: EntityFormData;

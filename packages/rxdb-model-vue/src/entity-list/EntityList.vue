@@ -212,6 +212,8 @@ const pendingEditBatches = ref(0);
 const reorderPending = ref(false);
 /** 最近一次重排落库失败的提示；成功或重新拖放时清除 */
 const reorderError = ref<string | null>(null);
+/** 最近一次删除被存储层拒绝的原因（如仍被其他记录引用）；重新删除或切换实体时清除 */
+const deleteError = ref<string | null>(null);
 /** 表格链路（列表 → QueryTable → EntityTable），用于把被拒或失败的拖放恢复原顺序 */
 const queryTableRef = ref<InstanceType<typeof QueryTable> | null>(null);
 
@@ -614,6 +616,7 @@ watch(entityKey, () => {
   showFilterPopover.value = false;
   deleteConfirmRecord.value = null;
   m2mDialogOpen.value = false;
+  deleteError.value = null;
   reorderError.value = null;
 });
 
@@ -622,6 +625,7 @@ const confirmDelete = async (): Promise<void> => {
   const record = deleteConfirmRecord.value;
   deleteConfirmRecord.value = null;
   if (!record) return;
+  deleteError.value = null;
   const id = record['id'] as string;
 
   const draftInst = localDraftItems.value.find(i => i.id === id);
@@ -635,6 +639,8 @@ const confirmDelete = async (): Promise<void> => {
   try {
     await inst.remove();
   } catch (e) {
+    // 确认弹层已关：存储层拒绝的原因（如仍被引用时外键 RESTRICT）留在列表上
+    deleteError.value = errorMessage(e);
     handleError(e);
   }
 };
@@ -1026,6 +1032,7 @@ defineExpose({
   sortState,
   rowDragEnabled,
   reorderError,
+  deleteError,
   toggleFilterPopover,
   closeFilterPopover,
   applyFilter,
@@ -1234,6 +1241,16 @@ defineExpose({
       role="alert"
     >
       排序保存失败：{{ reorderError }}
+    </div>
+
+    <!-- 删除被存储层拒绝 -->
+    <div
+      v-if="deleteError"
+      class="alert alert-error alert-soft mx-4 mt-2 py-2 text-sm"
+      role="alert"
+      data-testid="delete-error"
+    >
+      删除失败：{{ deleteError }}
     </div>
 
     <!-- 表格主体 -->

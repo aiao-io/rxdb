@@ -488,6 +488,8 @@ export class EntityListComponent {
   readonly m2mSelectTpl = viewChild<TemplateRef<void>>('m2mSelectTpl');
   /** 删除确认弹层模板（误删成本高，撤销入口不显眼）。 */
   readonly deleteConfirmTpl = viewChild<TemplateRef<void>>('deleteConfirmTpl');
+  /** 最近一次删除被存储层拒绝的原因（如仍被其他记录引用）；重新删除或切换实体时清除，`null` 为无错误 */
+  readonly deleteError = signal<string | null>(null);
   /** 保存成功 toast（2 秒自动消失）。 */
   readonly saveToast = signal(false);
 
@@ -560,6 +562,7 @@ export class EntityListComponent {
       this.pendingQueryValid.set(true);
       this.showFilterPopover.set(false);
       this.reorderError.set(null);
+      this.deleteError.set(null);
       this.#deleteConfirmRef?.close();
       this.#deleteConfirmRecord.set(null);
       this.#m2mDialogRef?.close();
@@ -657,6 +660,7 @@ export class EntityListComponent {
     // 弹层与确认状态在 await 前清空：二次点击被早退挡掉，恢复后也不会误关之后打开的新弹层
     this.#deleteConfirmRef?.close();
     this.#deleteConfirmRecord.set(null);
+    this.deleteError.set(null);
     const id = record['id'] as string;
 
     const draftInst = this.#localDraftItems().find(i => i.id === id);
@@ -668,6 +672,8 @@ export class EntityListComponent {
         try {
           await inst.remove();
         } catch (e) {
+          // 确认弹层已关：存储层拒绝的原因（如仍被引用时外键 RESTRICT）留在列表上
+          this.deleteError.set(errorMessage(e));
           this.#errorHandler.handleError(e);
         }
       }
