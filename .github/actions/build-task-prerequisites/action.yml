@@ -1,0 +1,28 @@
+name: Build task prerequisites
+description: 先并行构建可缓存的 build 依赖，测试和不缓存前置任务仍由调用方串行执行。
+
+inputs:
+  targets:
+    description: 需要预构建依赖的目标，多个目标用逗号分隔。
+    required: true
+  projects:
+    description: Nx 项目，多个项目用逗号分隔。
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Build task prerequisites
+      shell: bash
+      env:
+        INPUT_TARGETS: ${{ inputs.targets }}
+        INPUT_PROJECTS: ${{ inputs.projects }}
+      run: |
+        set -euo pipefail
+        graph="$RUNNER_TEMP/nx-prereq-task-graph.json"
+        plan="$RUNNER_TEMP/nx-prereq-tasks.tsv"
+        pnpm exec nx run-many --targets="$INPUT_TARGETS" -p "$INPUT_PROJECTS" --graph="$graph" > /dev/null
+        node scripts/ci/test-prereq-tasks.mjs "$graph" --cacheable-builds-only > "$plan"
+        while IFS=$'\t' read -r target projects; do
+          pnpm exec nx run-many -t "$target" -p "$projects" --output-style=stream --parallel=3
+        done < "$plan"
