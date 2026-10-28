@@ -89,7 +89,7 @@ async function scaffold(
   await writeFile(path.join(dir, 'requirements/stories/core/US-003-x.md'), story('US-003', 'Backlog'));
   await writeFile(
     path.join(dir, 'requirements/epics/epic-001-x.md'),
-    `---\nid: epic-001-x\nstatus: ${epicStatus}\n---\n\n- [US-001](../stories/core/US-001-x.md)\n- [US-002](../stories/core/US-002-x.md)\n- [US-003](../stories/core/US-003-x.md)\n`
+    `---\nid: epic-001-x\nstatus: ${epicStatus}\n---\n\n## 故事\n\n- [US-001](../stories/core/US-001-x.md)\n- [US-002](../stories/core/US-002-x.md)\n- [US-003](../stories/core/US-003-x.md)\n`
   );
   await writeFile(
     path.join(dir, 'requirements/status-overview.md'),
@@ -243,7 +243,7 @@ test('epic 只顺带链接、不持有的故事不受状态约束；故事声明
   await scaffold(dir, { epicStatus: 'Backlog' });
   await writeFile(
     path.join(dir, 'requirements/epics/epic-001-x.md'),
-    `---\nid: epic-001-x\nstatus: Backlog\n---\n\n- [US-003](../stories/core/US-003-x.md)\n`
+    `---\nid: epic-001-x\nstatus: Backlog\n---\n\n## 故事\n\n- [US-003](../stories/core/US-003-x.md)\n`
   );
   await writeFile(
     path.join(dir, 'requirements/epics/epic-002-y.md'),
@@ -251,7 +251,34 @@ test('epic 只顺带链接、不持有的故事不受状态约束；故事声明
   );
   const offenders = checkEpics(await collectEpics(dir), await collectStories(dir));
   assert.equal(offenders.filter(o => o.includes('epic-002-y')).length, 0, 'epic-002 只是引用 US-001，不该被判');
-  assert.match(offenders.join('\n'), /US-001-x\.md: 声明 epic epic-001-x，但该 epic 文件没有链接到它/);
+  assert.match(offenders.join('\n'), /US-001-x\.md: 声明 epic epic-001-x，但该 epic 的故事清单没有链接到它/);
+});
+
+test('epic 的故事清单漏项不能由 References 里的旁链代替', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'requirements/epics/epic-001-x.md'),
+    `---\nid: epic-001-x\nstatus: In Progress\n---\n\n## 故事\n\n- [US-001](../stories/core/US-001-x.md)\n- [US-002](../stories/core/US-002-x.md)\n\n## References\n\n[US-003](../stories/core/US-003-x.md) 是正文里的背景引用。\n`
+  );
+  const offenders = checkEpics(await collectEpics(dir), await collectStories(dir));
+  assert.match(offenders.join('\n'), /US-003.*故事清单/);
+});
+
+test('roadmap 全景表的行内状态必须与该行故事的 YAML 一致', async () => {
+  await scaffold(dir);
+  const stories = await collectStories(dir);
+  const table = `\n## 未完成需求全景\n\n| Story | 状态 | 剩什么 | 排期位置 |\n| --- | --- | --- | --- |\n| [US-003](stories/core/US-003-x.md) | 👀 In Review | 待评审 | 批次 1 |\n`;
+  assert.match(checkRoadmap(roadmap(1, 0, 0, 1) + table, stories).join('\n'), /US-003.*In Review.*Backlog/);
+  assert.deepEqual(checkRoadmap(roadmap(1, 0, 0, 1) + table.replace('👀 In Review', '📝 Backlog'), stories), []);
+});
+
+test('roadmap 全景表成组列出故事时逐个核对状态，其他章节的状态示例不参与', async () => {
+  await scaffold(dir);
+  const stories = await collectStories(dir);
+  const table = `\n## 未完成需求全景\n\n| Story | 状态 | 剩什么 | 排期位置 |\n| --- | --- | --- | --- |\n| [US-001](stories/core/US-001-x.md) / [US-003](stories/core/US-003-x.md) | 📝 Backlog | 待办 | 批次 1 |\n\n## 排期约束\n\n| [US-001](stories/core/US-001-x.md) | 📝 Backlog | 状态示例 | — |\n`;
+  const offenders = checkRoadmap(roadmap(1, 0, 0, 1) + table, stories);
+  assert.equal(offenders.length, 1);
+  assert.match(offenders[0], /US-001.*Backlog.*Done/);
 });
 
 test('死链与超出文件行数的 #L 锚点被抓出，合法锚点与 http 链接放行', async () => {
@@ -535,6 +562,42 @@ test('acIdsOf 只数验收标准节里带编号的行，节外与 Given/When 行
     '# x\n\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n| 1 | a | b | c | ✅ |\n| 2 | a | b | c | ✅ |\n\n## 技术笔记\n\n| 99 | 这不是 AC |\n';
   assert.deepEqual(acIdsOf(text), [1, 2]);
   assert.deepEqual(acIdsOf('# x\n\n## 验收标准\n\n**Given** a / **When** b / **Then** c\n'), []);
+});
+
+test('Done 的当前承诺通过后可保留明确登记的候选 AC 未验，但不能漏掉当前 AC', () => {
+  const text = '## 验收标准\n\n| 1 | 当前范围 | 操作 | 结果 | ✅ |\n| 2 | 候选阶段 | 操作 | 结果 | ⬜ |\n';
+  const current = { rel: 'US-001.md', fm: { status: 'Done', candidate_acs: '[2]' }, text };
+  assert.deepEqual(checkAcSymbols([current]), []);
+  assert.match(checkAcSymbols([{ ...current, text: text.replace('✅', '⬜') }]).join('\n'), /Done.*⬜/);
+});
+
+test('候选 AC 登记必须是存在且不重复的整数，不能借无效登记绕过验收', () => {
+  const text = '## 验收标准\n\n| 1 | 当前范围 | 操作 | 结果 | ⬜ |\n';
+  for (const raw of ['[2]', '[1, 1]', '["1"]', 'not-a-list']) {
+    const current = { rel: 'US-001.md', fm: { status: 'Backlog', candidate_acs: raw }, text };
+    assert.match(checkAcSymbols([current]).join('\n'), /candidate_acs/);
+  }
+});
+
+test('候选 AC 不得先标通过；解锁后应移除候选登记再按正常范围验收', () => {
+  const current = {
+    rel: 'US-001.md',
+    fm: { status: 'Backlog', candidate_acs: '[1]' },
+    text: '## 验收标准\n\n| 1 | 候选阶段 | 操作 | 结果 | ✅ |\n'
+  };
+  assert.match(checkAcSymbols([current]).join('\n'), /候选 AC.*✅/);
+});
+
+test('CRLF 和行尾空白不改变当前 AC 未验与候选 AC 提前通过的阻断', () => {
+  const current = {
+    rel: 'US-001.md',
+    fm: { status: 'Done', candidate_acs: '[2]' },
+    text: '## 验收标准\r\n\r\n| 1 | 当前范围 | 操作 | 结果 | ⬜ |  \r\n| 2 | 候选阶段 | 操作 | 结果 | ✅ |\r\n'
+  };
+  const offenders = checkAcSymbols([current]);
+  assert.equal(offenders.length, 2);
+  assert.match(offenders.join('\n'), /Done.*⬜/);
+  assert.match(offenders.join('\n'), /候选 AC.*✅/);
 });
 
 test('inherited_acs：from 指向不存在的故事、纯数字 ac 超出源 AC 行数，都被抓出', async () => {

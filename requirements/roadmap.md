@@ -1,181 +1,104 @@
 # 路线图（Roadmap）
 
-> 本文回答「接下来做什么、什么必须排在什么前面」。故事当前状态见 [status-overview.md](status-overview.md)，
-> 发布执行见 [release-plan.md](release-plan.md)，能力缺口见 [capability-matrix.md](capability-matrix.md)。
->
-> 本文是**排期建议**，不改变各 story frontmatter 中的 `status`；实现时以对应 story 的验收标准（AC）为准。
+> 本文回答下一步顺序、前置与当前准入条件，是排期建议，不改变 story 的 YAML 状态。
+> 状态见 [status-overview](status-overview.md)，当前能力见 [capability-matrix](capability-matrix.md)，发布执行见 [release-plan](release-plan.md)。
 
 ## 现状快照
 
 | 状态           | 数量   |
 | :------------- | :----- |
-| ✅ Done        | 85     |
+| ✅ Done        | 89     |
 | 🚧 In Progress | 5      |
-| 👀 In Review   | 7      |
-| 📝 Backlog     | 30     |
+| 👀 In Review   | 3      |
+| 📝 Backlog     | 31     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **42** |
+| **未完成合计** | **39** |
 
-仓库还剩 **42 条**未关闭故事（5 In Progress + 7 In Review + 30 Backlog + 0 Blocked）。
-
-> 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
-> rxdb-model 实体模型库与三框架默认 UI 的初始移植没有故事文件，三框架代码已随 #62 合入；跨框架对拍、三端对称复核与文档
-> 不在故事计数内，登记在[零散收尾项](#零散收尾项不成故事随手可带)第 2～4 条，原规格见
-> `git show 41ce2181:specs/002-rxdb-model-port/spec.md`。US-027 / US-028 / US-029 的 UI 侧改动都落在这组包上，
-> 一律三端对称交付，见[排期约束](#排期约束)第 4 条。
+仓库还剩 **39 条**未关闭故事（5 In Progress + 3 In Review + 31 Backlog + 0 Blocked）。
+数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
 
-下表只列**进了批次或立项池**的未完成故事的「剩什么」与「排期位置」。
-[epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md) 的 19 条于 2026-10-12 由 owner 解锁
-（驱动者 = 完整功能的演示应用，见 epic [解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)），
-排在[批次 4](#批次-4bom-首轮切片epic-009-已解锁)。从它拆出的 [US-030](stories/core/US-030-declarative-storage-constraints.md)
-阶段 A～C 仍在[批次 3](#批次-3能力补齐可并行开-pr)，是首轮切片第 1 步的前置。
-[epic-010 模型驱动后台管理框架](epics/epic-010-model-driven-admin-framework.md) 的 3 条（US-526~528）已孵化
-并于 2026-10-21 由 owner 解锁（驱动者 = 可用的单人本地数据工作台），排在[批次 5](#批次-5模型驱动后台首版epic-010-已解锁)。
-
-[epic-011 任务看板领域模型](epics/epic-011-task-board-domain-model.md) 范围共 8 条，其中 US-534～US-540 共 7 条于 2026-10-19 由
-owner 解锁（驱动者 = 下一个完整演示应用，见 epic [解锁记录](epics/epic-011-task-board-domain-model.md#价值待证整个-epic)），
-排在[批次 6](#批次-6看板首轮切片epic-011-已解锁)，与批次 3 / 4 无先后依赖。
-
-| Story                                                                                                                                                                                                                                                    | 状态           | 剩什么                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 排期位置 |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                                                                                           | 🚧 In Progress | 阶段 A 已交付（宿主契约 + [可行性矩阵](stories/adapter/miniprogram-platform-feasibility.md)）；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 开发者工具走查已通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测）；百度 / QQ 已判 `unsupported`，按未知平台拒绝；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 | 批次 3   |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                                                                                                                                                               | 👀 In Review   | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；剩抖音、支付宝开发者工具手工走查；webpack5 不支持                                                                                                                                                                                                                                                                                                            | 批次 3   |
-| [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                                              | 📝 Backlog     | 未立项；**价值待证**（评审 `git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`：已去掉多租户，仍无具名使用方）。前置 US-027 与 US-218 均已 Done                                                                                                                                                                                                                                                                                                                                                                                                      | 立项池   |
-| [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                                                                                                                                                                                     | 📝 Backlog     | 未立项（待 owner 定批次）；阶段 A（盘点与可行性）→ B（`@aiao/rxdb-i18n` 核心 + 三端 `useI18n()`）→ C（rxdb-model 去硬编码 + 三端 demo 切换器）均无硬前置、全本地能力；阶段 D（目录 QueryCache 分发 + DevTools 面板）复用已 Done 的 US-212 / US-023 / US-902，独立后置关闭。与 US-910 的协调点：fallback 链与「用户显示偏好」只实现一份；`rxdb-plugin-i18n`（数据翻译）与 `@aiao/rxdb-i18n`（UI 文案）包名重叠由 owner 裁决                                                                                                                                                  | 立项池   |
-| [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md) 19 条（已解锁 2026-10-12）                                                                                                                                                                   | 📝 Backlog     | 第 0 步复核决策 1～8 与演示范围（US-525 阶段 A～F）→ 首轮切片第 1～4 步 → 演示阶段 B～F 的消费方按前置接入；US-513 阶段 B 联产品与 US-519 AC#3 / #7 仍价值待证                                                                                                                                                                                                                                                                                                                                                                                                              | 批次 4   |
-| [epic-011 任务看板领域模型](epics/epic-011-task-board-domain-model.md) 8 条（7 条已解锁，团队版待证）                                                                                                                                                    | 🚧 In Progress | 首轮切片第 1～3 步已交付；剩阶段 A 保留项收尾（见 [RV-083](reviews/RV-083-board-v1-closeout-checklist.md)）→ US-540 阶段 B 的 demo 侧用例；US-541 团队版仍价值待证                                                                                                                                                                                                                                                                                                                                                                                                          | 批次 6   |
-| [US-526](stories/domain/US-526-admin-workbench.md) / [US-527](stories/domain/US-527-admin-backup-restore.md) / [US-528](stories/domain/US-528-admin-consumer-example.md) / [US-529](stories/domain/US-529-entity-list-view-settings.md) 模型驱动后台首版 | 👀 In Review   | 首版闭环已交付并完成工作台、备份恢复、独立消费示例与三端列表视图验收，待代码评审；公共包改动按提取评审流程处理                                                                                                                                                                                                                                                                                                                                                                                                                                                              | 批次 5   |
-| [US-704](stories/future/US-704-p2p-manifest-discovery.md)～[US-707](stories/future/US-707-p2p-cross-runtime-e2e.md) 局域网 P2P 大文件共享（[epic-011](epics/epic-011-p2p-file-share.md) 未解锁）                                                         | 📝 Backlog     | **价值待证**（场景推演，无具名使用方症状）：清单与发现 → 字节传输（阶段 A 浏览器 WebRTC；阶段 B 桌面 TCP 以 US-706 链路加密为前置）→ 兜底与认证，跨运行时 e2e 随各阶段并行；解锁条件见 [epic-011](epics/epic-011-p2p-file-share.md#价值待证)                                                                                                                                                                                                                                                                                                                                | 立项池   |
-| [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)                                                                                                                                              | 📝 Backlog     | 未开工；症状已复现（`mutations-update-rls-repro.spec.ts`：owner 型与共享编辑型 RLS 下直写改行被 42501 误拒），修法与 US-220 同源                                                                                                                                                                                                                                                                                                                                                                                                                                            | 立项池   |
-| [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md)                                                                                                                                     | 📝 Backlog     | 未开工；症状已复现（回归 SQL `test_cascade_delete_logging`：推送路径上级联子行 0 条日志），修法待 plan 定                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | 立项池   |
+| Story                                                                                                                                                                                                                              | 状态           | 剩什么                                                                  | 排期位置   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------------------------- | ---------- |
+| [US-223](stories/adapter/US-223-supabase-mutations-update-semantics.md) / [US-224](stories/adapter/US-224-supabase-cascade-delete-change-log.md)                                                                                   | 📝 Backlog     | 已有复现：RLS 误拒直写 UPDATE、级联删除遗漏同步日志；补齐边界后优先修复 | 建议批次 3 |
+| [US-030](stories/core/US-030-declarative-storage-constraints.md)                                                                                                                                                                   | 👀 In Review   | 当前承诺 A～C 的评审收尾；候选 D 不参与本轮关闭                         | 批次 3     |
+| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                                                                                    | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                     | 批次 3     |
+| [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                                                                                    | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                            | 批次 3     |
+| [epic-009 BOM](epics/epic-009-bom-domain-model.md)（19 条）                                                                                                                                                                        | 📝 Backlog     | 先首轮切片与贯穿应用，再按前置推进；候选优化不自动解锁                  | 批次 4     |
+| [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                                                                                          | 👀 In Review   | 仓外发布 tarball 消费与按文档独立重搭；workspace 证据不能替代           | 批次 5     |
+| [US-534](stories/domain/US-534-board-column-task-skeleton.md)                                                                                                                                                                      | 🚧 In Progress | 既有库增加看板实体的组合验收                                            | 批次 6     |
+| [US-537](stories/domain/US-537-board-backup-restore.md)                                                                                                                                                                            | 🚧 In Progress | 恢复异常分支和三端宿主恢复入口                                          | 批次 6     |
+| [US-539](stories/domain/US-539-board-tri-framework-ui.md)                                                                                                                                                                          | 🚧 In Progress | 三端恢复、鼠标拖列、截止日与错误态验收收尾                              | 批次 6     |
+| [US-540](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                                                                                           | 🚧 In Progress | 独立 demo 的搜索隔离、升级重开组合证据                                  | 批次 6     |
+| [US-541](stories/domain/US-541-board-team-sync.md)                                                                                                                                                                                 | 📝 Backlog     | 具名团队触发后冻结身份、成员权限、RLS 与冲突规则                        | 立项池     |
+| [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                                                                                          | 📝 Backlog     | 按现有公开逻辑与 #152 列表能力界定入口/依赖隔离，保留默认 UI            | 立项池     |
+| [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                                                        | 📝 Backlog     | 价值待证，等待具名多用户写授权症状；解锁时重验当前 API 前提             | 立项池     |
+| [US-910](stories/future/US-910-data-i18n.md)                                                                                                                                                                                       | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具          | 立项池     |
+| [US-911](stories/future/US-911-client-i18n.md)                                                                                                                                                                                     | 📝 Backlog     | 先冻结偏好持久化/通知与唯一 fallback 合同，再做三端文案                 | 立项池     |
+| [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) / [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md) | 📝 Backlog     | 价值待证；先证明离线发现/连接与认证宿主，明确 Tauri 验收归属            | 立项池     |
+| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                       | 📝 Backlog     | 手工发布前置校验结果与提交/产物绑定，当前仅有手工要求                   | 立项池     |
 
 ## 即办清单
 
-不进批次、随手可完成的事：
-
-当前无。桥接版本 `v0.0.26` 是 `main` 的祖先（从 `de70a1a9` 切发布分支、真 merge 并回），
-见 [release-plan 桥接锚点定案](release-plan.md#桥接锚点定案)。
+当前没有独立于下列故事的即办项。US-223/224 是已有用户症状的修复建议，不与仍价值待证的新增抽象混排。
 
 ## 排期批次
 
 ### 批次 3：能力补齐（可并行开 PR）
 
-同一批内的行彼此无依赖，可各开各的 PR；批次之间才是顺序。US-220 与 US-218 的先后关系见[约束 16](#排期约束)（已随 #99 满足）。
+| 顺序         | 范围            | 关闭条件                                                                  |
+| ------------ | --------------- | ------------------------------------------------------------------------- |
+| 优先修复建议 | US-223 / US-224 | 各自复现翻为正向断言，RLS、级联、重试和双端收敛边界通过；保持两条独立故事 |
+| 并行收尾     | US-030 A～C     | 当前承诺的双后端 AC 与评审完成；D 保留未验状态和独立准入                  |
+| 并行收尾     | US-211 / US-219 | 当前构建/工具/设备矩阵可复验，未验证的设备与平台不扩大支持声明            |
 
-| 故事                                                                                                                                              | 为什么排这里                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 关闭判据                                                                                                                                                                                                                                                                                                                                                      |
-| ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-026](stories/core/US-026-instance-sync-override.md) 实例级实体同步配置覆盖（✅ Done 2026-09-27）                                              | HTTP demo 的前后端共用同一个 `Recipe` 实体类，各自经 `syncOverrides` 声明生效的同步策略；无桥接发布前置。**改动面比标题大**：同步配置由 core（`getEntitySync`、`Repository` 构造、`validateSyncStrategy`、`EntityManager.init()`）与 sync / working-tree / history / search / storage / devtools / http / supabase 共 9 个包直接读取，实例覆盖要收口到单一解析点                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 实例隔离、三框架契约和前后端单类 demo 全部通过                                                                                                                                                                                                                                                                                                                |
-| [US-217](stories/adapter/US-217-local-database-backup-restore.md) 本地数据库一致性备份与恢复（✅ Done 2026-09-29）                                | US-207 / US-208 / US-210 都把导入导出与热备份排除在范围外，DevTools 的数据库下载已被 US-904 作为不安全热拷贝停用，并写明一致性导出须另立故事，即本故事。PGlite、SQLite 共享层与桌面 host 三阶段均已交付；不依赖工作树 / commit graph，无桥接发布前置                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 阶段 A → B → C；一个 PR 只交付一个阶段；尚未交付的组合必须**明确拒绝**备份与恢复，拒绝行为通过测试不等于该组合已支持                                                                                                                                                                                                                                          |
-| [US-030](stories/core/US-030-declarative-storage-constraints.md) 实体元数据层的声明式存储约束（阶段 A～C）                                        | owner 于 2026-10-02 确认 epic-009 默认决策 1～8 并决定提前解锁：`EntityMetadataOptions` 无 CHECK 落点、`EntityIndexMetadataOptions` 无 `where`，区间排他两后端都没有。**不是独立病灶驱动**，豁免理由写在故事「解锁记录」；阶段 D 仍价值待证                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | A → B → C；阶段 A 同 PR 把 Tauri 升到 rusqlite ≥ 0.33（SQLite 3.48），否则 AC#7 的版本门槛会让 Tauri `init()` 失败；错误类按「违约错误的判别」命名                                                                                                                                                                                                            |
-| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 多端小程序宿主（建议 P3）                                                         | Taro 有 `build:alipay/tt/qq/swan`，适配器已登记 `wechat`、`douyin` 与 `alipay`（抖音、支付宝均实验性，Android 未验证），百度 / QQ 判 `unsupported`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）；未关闭的阶段不得改支持声明                                                                                                                                                                                                                                                                             |
-| [US-909](stories/future/US-909-session-replay-debugging.md) 会话录制回放与失败现场数据还原（✅ Done 2026-10-03）                                  | owner 2026-10-01 决定 A / B / C 全做，B / C 的价值门禁豁免（原解锁条件：一次 trace 不够、必须带出失败时刻数据的真实 e2e 失败；写出「今天用户踩得到的具体症状」）。阶段 A 的病灶是实的：五个 web e2e 配置都是 `retries: isCI ? 2 : 0` 叠 `trace: 'on-first-retry'`，本地失败从不产生 trace，CI 只录第一次重试、首次失败那次没有；`rxdb-devtools-extension-e2e` 同样重试却完全不录，六个配置改 `retain-on-failure` 即关，不引入 rrweb；已交付（`screenshots: false`，开销实测 +32.7%，上限经 owner 裁决由 +10% 改为 +33%，B / C 须继续守住）。阶段 B 原定的前提「等 US-217 阶段 B 的 SQLite 共享层导出」不成立：US-217 只交付主线程连接，三个 demo 的 OPFS 专用 Worker 与 IDB SharedWorker 两条分支都返回 `unsupported_combination`（Angular e2e 走 8200 端口强制 IDB）；但 IDB 档的存储与传输无关，同库名的主线程 IDB 第二连接能备份同一个库（spike 2026-10-02 通过） | A → B → C，一阶段一 PR，每个阶段单独 plan；AC#1～3 每个阶段都须继续通过；B 的 spike 不过则另需传输侧备份恢复另立故事（owner 决定）；C 的事件流不得落进默认追踪的版本化域，三框架 parity；AC#1～17 全 ✅，A～C 经三个堆叠 PR 合成 [#85](https://github.com/aiao-io/rxdb/pull/85) 一次合入                                                                      |
-| [US-027](stories/core/US-027-entity-permission-model.md) 实体操作权限模型（✅ Done 2026-10-03）                                                   | 阶段 0 针对的症状：只读行没有「查看」、详情固定以 edit 模式打开。阶段 A / B / C 病灶数 < 抽象数（程序化误写系统表是潜在风险），owner 决定不等 US-029 立项一并交付；下游 US-029 依赖的权限类型、判定原语、`PermissionDeniedError` 与 UI 能力派生均已就绪（约束 4）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | 三框架同交；AC#1～16 全 ✅：公开写入口越权抛 `PermissionDeniedError`、批量整批预检、适配器 / 执行器层不判定，三端 `EntityList` 按 `deriveEntityCapabilities()` 派生入口，三端 e2e 绿                                                                                                                                                                          |
-| [US-220](stories/adapter/US-220-supabase-update-push-semantics.md) Supabase 推送 UPDATE 的落库语义（✅ Done 2026-10-06）                          | 症状已复现：本地 UPDATE 的 patch 只含变更列，`rxdb_batch_upsert` 的拟插入行把其余列填成 NULL，参考 schema 的 `todos.title NOT NULL` 直接 23502；拟插入行还要过 INSERT 与 SELECT 策略，owner 型 RLS 下改自己的行、共享编辑表上改别人的行（整行载荷也一样）都误报 42501；远端行已删时则复活一条残缺行。用当前行补齐载荷修不了共享编辑表，落库方式定为普通 UPDATE。连真实数据库的推送 spec 恰好都带了 `title`，demo e2e 只测新建，没拦住。评审 US-218 时发现，无桥接发布前置                                                                                                                                                                                                                                                                                                                                                                                            | 单个 PR；普通 UPDATE 的零行生效须区分被拒（42501）与已不存在（另一 SQLSTATE），不得静默成功（AC#4、AC#5）；与 US-218 阶段 A 共用存在性判定原语；与 US-218 的 plan 全部完成后再开工，先于 US-218 阶段 B 合入（约束 16）                                                                                                                                        |
-| [US-218](stories/adapter/US-218-supabase-rls-push-integrity.md) Supabase 远端启用 RLS 时的推送完整性（✅ Done 2026-10-06）                        | 症状已复现：`rxdb_mutations` 先写 `rxdb_change` 再删业务行，DELETE 被 RLS 过滤成零行时不报错也不回收日志，推送方和其它端都删掉本地行，远端行仍在；目标行连 SELECT 都看不到时同样如此。该 RPC 还接受不配对的 main 分支日志，只回收客户端直写关不掉伪造删除。适配器的 `rxdb_check_rls` 自检本就引导部署方给业务表开 RLS。出自 RV-022，不依赖 US-029 的任何声明，无桥接发布前置                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 阶段 A → B → C，一个 PR 一个阶段（2026-10-05 owner 要求与 US-220 合并为 #99 一起评审，提交仍按阶段拆）；A 只动参考 SQL，以 `rls-filtered-delete` 与新增用例转绿为门禁；A 单独发布会把幽灵删除变成卡住推送的拒绝，推荐与 B 同版本发布；B 改 `RemoteMergeResult` 契约，过 API 基线并附迁移说明，以 US-220 为前置；与 US-220 的 plan 全部完成后再开工（约束 16） |
-| [US-219](stories/adapter/US-219-taro-plugin.md) Taro 插件一行接入小程序 adapter 的构建配置                                                        | adapter README 把 npm 用户指向 `apps/dev-rxdb-miniprogram/config/`，该目录不随包发布；三个构建前提漏任何一个都在开发者工具或真机上才炸；「npm 安装 + Taro 构建」路径从未被验证。只依赖已 Done 的 US-209 与 US-211 已登记的 `douyin`，与 US-211 剩余阶段无先后                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 不扩大平台支持面（约束 7）：只放行 `weapp` / `tt` + vite，其余构建期报错；阶段 A 以 local-registry 真实安装路径（AC#10）为门禁；webpack5 不支持                                                                                                                                                                                                               |
-| [US-028](stories/core/US-028-sortable-entity.md) 可排序实体（✅ Done 2026-10-03）                                                                 | owner 确认三端 Todo 列表需要手动排序；进行中与已完成各一条序列，正是按 `completed` 分组的排序域，三端 todo 页现用独立的可排序 `Task` 实体拖拽重排。新增抽象至少 5 个，症状来自具名需求而非缺陷，与 US-027 同属 owner 决定的能力补齐。共享 `Todo` 被约 17 个项目引用、supabase demo 以 Full 同步到无 `sortOrder` 列的远端 `todos` 表，直接声明可排序会让远端缺列、让不带 `orderBy` 的查询改序，所以阶段 E 用独立的可排序待办实体。US-027 已交付，重排 API 在开事务前调用 `assertEntityOperationAllowed`（约束 4）；无桥接发布前置                                                                                                                                                                                                                                                                                                                                     | A → D → E 一阶段一 PR，E 三框架同交、三端 Playwright 真实拖拽后 DB 重查（AC#18），现有 `Todo` 消费方行为不变（AC#19）；B / C 可在 E 之后单独交付，全部阶段完成才关闭                                                                                                                                                                                          |
-| [US-031](stories/core/US-031-tree-sortable-migration.md) 树形实体迁移到排序模块（✅ Done 2026-10-09）                                             | 症状已复现：Angular 文件管理器新建根文件夹与根级文件撞键（`createRootFolder` 只看根级文件夹）；删除并提升子节点后，子节点带着旧键进祖父组撞键（三端）；Angular / Vue 懒加载拖进未展开节点算出 `a0`，与它的首个子节点撞键（React 已用 `resolveSiblings` 修过）。三端在懒加载取兄弟、算键失败的恢复、删除提升的原子性上已分叉，根因是 demo 各自从内存里的局部列表算键。US-028 阶段 A + D 已提供按组追加、`reorder()` 与改分组字段追加。现有四个树实体被六个 SQLite runner 的共享套件、PGlite / supabase 测试与远端 `menu_large` 表共用，引擎也改不了既有表的列，所以沿 US-028 `Task` 先例另建可排序树实体；无桥接发布前置                                                                                                                                                                                                                                              | A、B 同一分支、同一 PR（owner 2026-10-08 定），每阶段三端同交；按写入类型切（React / Vue 的拖放层由菜单与文件管理器共用）；三端 Playwright 操作后刷新读回，拖放用真实拖拽；旧的四个树实体 schema 与测试不变（AC#1）；AC#9 两条检索无输出                                                                                                                      |
-| [US-602 A1](stories/tooling/US-602-ai-comprehensible-artifacts.md) 发布知识与门禁（✅ Done 2026-10-15）                                           | owner 2026-10-11 授权并完成 A1 实现；无硬前置，离线自动验收；A1 最终 affected 门禁已通过                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | AC#1～3、#5、#6、#12～15；A2、C 已关闭，B 经 2026-10-15 部署后线上 smoke 关闭 AC#10，四阶段全部关闭、故事 Done                                                                                                                                                                                                                                                |
-| [US-311](stories/collaboration/US-311-unlogged-entities-scope.md) 不写变更日志的实体与插件系统表退出草稿缓存与版本化域（✅ Done 2026-10-26）      | 症状已复现：已发布的 workspace + storage 组合每上传一个文件就留一条永久草稿；装了工作树插件后，每次启用、捕获、提交还会留下 `rxdb:Commit` 等系统表行的草稿（demo 上读 IndexedDB 实测）。只依赖 epic-006 v1（US-305～US-308），是 epic-006 多检出位阶段 1，无桥接发布前置                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | AC 1～12；workspace / 工作树插件单测与浏览器用例、Angular e2e、`audit:requirements` / `audit:api-surface` 全绿                                                                                                                                                                                                                                                |
-| [US-312](stories/collaboration/US-312-branch-compare-merge-preview.md) 不切换分支就对比两条分支、预览一次合并（含覆盖标注）（✅ Done 2026-10-26） | 症状由读源码确认：没有任何 API 能不切换就读到另一条线；三端合并对话框没有预览，确认即落库；合并是单向覆盖，目标分支分叉以来的改动会被悄悄盖掉。只读积木已在历史插件里（切分支的增量计算、合并读源分支变更的那一半），是 epic-006 多检出位阶段 2，解锁条件阶段 1（US-311）已满足，无桥接发布前置                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | AC 1～15；历史插件与 PGlite 单测、SQLite 共享套件、三端单测与 e2e（含 a11y）、`audit:requirements` / `audit:api-surface` 全绿                                                                                                                                                                                                                                 |
-| [US-221](stories/adapter/US-221-opfs-reload-access-handle-race.md) OPFS 库在整页刷新后偶发打不开（✅ Done 2026-10-26）                            | 症状实测：PR #122 的 CI 上 Vue e2e 整页刷新后三次尝试都打不开库（`NoModificationAllowedError`），三端 demo 都走这条路径；owner 2026-10-16 决定与 #122 一起交付，无前置                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | AC 1～6；sqlite-wasm 与 wa-sqlite 适配器单测与浏览器用例、三端 e2e、`audit:requirements` 全绿                                                                                                                                                                                                                                                                 |
-| [US-313](stories/collaboration/US-313-read-only-checkout.md) 只读检出位（✅ Done 2026-10-26）                                                     | epic-006 多检出位阶段 3，解锁条件是阶段 2（US-312）；owner 2026-10-16 确认设计决定并决定与 US-312 同在 #122 交付                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | AC 1～12；首批后端真库比对、三端单测与 e2e、`audit:api-surface` / `audit:requirements` 全绿                                                                                                                                                                                                                                                                   |
+US-211/219 有人工宿主验收，不用单元测试通过替代。US-030 的候选 D 不阻塞已授权范围。
 
 ### 批次 4：BOM 首轮切片（epic-009 已解锁）
 
-owner 2026-10-12 解锁 [epic-009](epics/epic-009-bom-domain-model.md)：驱动者 = **完整功能的 BOM 演示应用**——
-`apps/dev-rxdb-bom` 独立 app 展示全域能力（[US-525](stories/domain/US-525-bom-end-to-end-demo.md) 阶段 A～F）。
-豁免依据见 epic 解锁记录。与批次 3 无先后依赖；US-030 阶段 A～C（批次 3）是第 1 步的前置，Tauri 升 rusqlite ≥ 0.33 随第 1 步同 PR。
+owner 已授权以完整演示应用为驱动，见 [epic-009](epics/epic-009-bom-domain-model.md)；不重新要求具名客户才能推进已批准切片。
+US-030 A～C 是首轮第 1 步前置；当前 Tauri rusqlite 已达 0.33，无需重复规划升级。
 
-| 顺序 | 交付                                                                                                                                                       | 关闭判据                                                                                                                                                                                                                   |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | 真实样本与决策复核：默认决策 1～8 对照演示范围（US-525 阶段 A～F 覆盖的 story）与种子                                                                      | 决策与样本无冲突（冲突先改对应故事）；演示范围确认                                                                                                                                                                         |
-| 1～4 | 首轮切片第 1～4 步：US-030 A/B/C + US-507 A/B/C、US-508、US-509 首轮 AC、US-510 A、US-511 A/C/B1、US-525 阶段 A                                            | 各步「可以验收」子集见 [epic 切片表](epics/epic-009-bom-domain-model.md#首轮可开工切片)；故事不提前置 Done                                                                                                                 |
-| 后续 | US-525 阶段 B～F 的消费方：US-512 / US-513 / US-515 / US-516 / US-517 / US-518 / US-519 / US-520 / US-521 / US-523 / US-524 各按自身 References 的前置接入 | [US-524](stories/domain/US-524-routing-master-model.md) 排在 US-520 与 US-514 之前、不在首轮；US-522 三框架绑定不随演示捆绑，全部前置就绪后单独排期；US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值待证 |
+| 顺序 | 交付                                                                                                                            | 关闭条件                                                                                              |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 0    | 复核默认决策 1～8 与演示种子/样本                                                                                               | 样本与决策无冲突，范围明确                                                                            |
+| 1～4 | US-507 A/B/C、US-508、US-509 首轮 AC、US-510 A、US-511 A/C/B1、US-525 A                                                         | 按 [首轮切片表](epics/epic-009-bom-domain-model.md#首轮可开工切片)逐步验收，当前承诺未完成不提前 Done |
+| 后续 | US-525 B～F 的消费方：US-512 / US-513 / US-514 / US-515 / US-516 / US-517 / US-518 / US-519 / US-520 / US-521 / US-523 / US-524 | 各按自身前置接入；US-524 在 US-520/514 前；US-522 三框架绑定单独排期                                  |
+
+US-513 联产品、US-510 热路径优化、US-519 可选索引与 US-030 D 保留各自准入；候选阶段不扩大本轮承诺。
 
 ### 批次 5：模型驱动后台首版（epic-010 已解锁）
 
-owner 2026-10-21 解锁 [epic-010](epics/epic-010-model-driven-admin-framework.md)：驱动者 = **可用的单人本地数据工作台**——
-首版闭环（录入 / 编辑 / 筛选 / 持久化 / 备份恢复 + 独立消费示例）直接验证「定义实体之后少写了多少 CRUD」。
-豁免依据见 [epic 解锁记录](epics/epic-010-model-driven-admin-framework.md#价值待证整个-epic)。
-首版故事不新增引擎抽象、无硬前置。
-
-| 顺序 | 交付                                                                            | 关闭判据                                                                        |
-| ---- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 1    | US-526 阶段 A → B → C：`apps/dev-rxdb-admin` 工作台 + `apps/dev-rxdb-admin-e2e` | 阶段归属的 AC 全部 ✅；e2e 走录入 → 编辑 → 筛选 → 刷新 → 重开全流程，故事待评审 |
-| 2    | US-527：备份 / 恢复入口与失败语义接线                                           | AC#1～4 全 ✅；恢复失败不破坏当前库，故事待评审                                 |
-| 3    | US-528：独立消费示例与接入成本记录                                              | AC#1～3 全 ✅；示例只用发布包、成本记录逐项可复验，故事待评审                   |
-| 4    | US-529：三端实体列表视图配置                                                    | 字段显隐与顺序、多字段查询排序、单字段分组验收通过，故事待评审                  |
-
-US-104 是工作台组装时发现并已修复的三端校验 / 保存失败反馈缺口，随批次 5 一并待评审。
+当前剩余为 US-528 的真实发布消费证据。以仓外安装、样式/WASM 资源、CRUD 和重开闭环证明独立接入；
+再记录一个真实任务的接入成本，不能只靠 workspace 应用代码量推导用户收益。
 
 ### 批次 6：看板首轮切片（epic-011 已解锁）
 
-owner 2026-10-19 解锁 [epic-011](epics/epic-011-task-board-domain-model.md)：驱动者 = **下一个完整演示应用**——
-`apps/dev-rxdb-board` 独立 app 展示全域能力（[US-540](stories/domain/US-540-board-end-to-end-demo.md) 阶段 A～B）。
-范围共 8 条，仅 US-534～US-540 共 7 条已解锁，US-541 仍价值待证。与批次 3 / 4 无先后依赖；
-首轮使用已有公开能力，在应用层补齐 executor 本列排序、落点换算、板级搜索协调与连接前恢复 / 重载切换流程。
+owner 已批准以完整单人演示应用驱动 US-534～US-540，范围与默认决策见
+[epic-011](epics/epic-011-task-board-domain-model.md#首轮可开工切片)。
+当前收尾按 US-534、US-537、US-539、US-540 的保留 AC 推进，组合验收由 `apps/dev-rxdb-board` 承接。
+US-541 团队版没有随首轮解锁，仍按具名团队症状和身份/冲突合同准入。
 
-| 顺序 | 交付                                                                                      | 关闭判据                                                                                                                                                                                                            |
-| ---- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | 演示范围与默认决策 1～6 对照种子样本（US-540 阶段 A～B 覆盖的 story）复核，并实测存储组合 | 决策与样本无冲突；核对事务组合、连接前恢复与重载切换、多板搜索和三端阶段边界；sqlite-wasm 主线程 `vfs: 'idb'` 实测多页并发写、多页导出、恢复到新库名与中文词中检索                                                  |
-| 1～3 | 首轮切片第 1～3 步：US-534 + US-535、US-536 + US-537、US-539 阶段 A + US-540 阶段 A       | 各步「可以验收」子集见 [epic 切片表](epics/epic-011-task-board-domain-model.md#首轮可开工切片)；故事不提前置 Done                                                                                                   |
-| 后续 | 阶段 A 保留项收尾 → US-540 阶段 B                                                         | 保留项清单见 [RV-083](reviews/RV-083-board-v1-closeout-checklist.md)（US-538 已 Done、US-539 阶段 B 已 ✅，不再列为待办）；US-541 团队版仍价值待证（入场条件 = 具名团队「离线拖拽任务、回网后互相覆盖」的具体症状） |
+| 范围            | 关闭条件                                                                                                               |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| US-534 / US-537 | 既有库新实体、恢复异常分支与三端宿主入口按原承诺验收。                                                                 |
+| US-539 / US-540 | 三端交互和独立 demo 的搜索隔离、升级重开组合证据齐全；缺口见 [RV-083](reviews/RV-083-board-v1-closeout-checklist.md)。 |
 
 ### 线 A：桥接版本发布（owner 门控）
 
-> **✅ 已完成（2026-10-01）**：`v0.0.26` 打在 B = `852f3b20`，经 [#77](https://github.com/aiao-io/rxdb/pull/77) 的
-> merge commit `8597bddf` 并回 `main`，34 个包已发到 npm（`v0.0.26` tag 树里的非 private 包）。五条关闭判据全部成立，证据与执行记录见
-> [release-plan「迁移发布的关闭条件」](release-plan.md#迁移发布的关闭条件)。下面保留启动前的排期记录。
->
-> 线 A 是一次对外的不可逆动作（推 tag + `pnpm publish`），由 owner 手动发起、手动决定时点。
-> 线 A 只挡**迁移发布**，不挡任何故事的代码与合入；桥接版本本身的清单 `bridge.tag` 保持 `null`，
-> 由下一次 `kind=migration` 发布填成 `v0.0.26`。
-> 执行时按 [release-plan.md](release-plan.md) 的执行顺序与两条硬前提走（执行顺序已按出路 1 重写）。
-
-**启动前置**——三项 owner 决定**均已定案**；启动线 A 本身（切分支、临时放开线性历史、推 tag、`pnpm publish`）仍需 owner 逐项确认：
-
-1. **桥接锚点出路（2026-10-01 定案）**：出路 1，从 `main` 上最后一个 schema 3 的提交 `de70a1a9` 切发布分支，
-   bump 提交 B 以**真 merge** 并回 `main`、tag 打在 B 上。代价是临时关一次 `main` 的线性历史保护，
-   见 [release-plan 桥接锚点定案](release-plan.md#桥接锚点定案)。
-2. **[约束 12](#排期约束) 已定案并修订**：区间内**首发**的破坏性改动必须在桥接版本的 changelog 如实声明——
-   六组（writer lease / `RemoteSyncOptions` / US-025 抽包 / 桌面拆包 / 插件作用域 / Supabase 错误类型）之外，
-   US-018 的 `BREAKING CHANGE` 首发于 0.0.26，发布时漏声明，已在 CHANGELOG 0.0.26 补录。
-3. **显式版本号（2026-10-01 定案）**：`0.0.26`。`--dry-run` 推算出来的是禁用的 `0.0.25`，必须显式传参，
-   见[零散收尾项](#零散收尾项不成故事随手可带)第 1 条。
-
-**关闭判据**——发一个 `kind=bridge` 的**非迁移**版本，下面五条**全部**成立才算完（2026-10-01 五条全 ✅）：
-
-- ✅ ① `release.version` = **`0.0.26`**（**≠ `0.0.25`**）。`0.0.25` 是禁用值（npm 上已被占用，且其 tag 脱离当前 ancestry）；
-- ✅ ② 与 `packages/rxdb/package.json` 同值；
-- ✅ ③ `v0.0.26` 打在 B（不是 merge commit）上并已推送，`git merge-base --is-ancestor v0.0.26^{commit} origin/main`
-  人工跑过并留证；`main` 的线性历史保护已恢复并用 `gh api` 复查留证；
-- ✅ ④ `migration-release-gate --release-tag=v0.0.26` 全绿；
-- ✅ ⑤ 回写 [release-plan「迁移发布的关闭条件」](release-plan.md#迁移发布的关闭条件)（US-305 AC14 的绿半边在那里关闭）。
-
-**④ 单独没有区分力**：四条 bridge 钩子只对 `kind=migration` 生效，桥接发布走不到它们。真正有区分力的是 ① 和 ③，
-这两条在**发布当下没有任何自动化在守**。另有一条隐含判据：桥接**不得抬升** `RXDB_SYSTEM_SCHEMA_VERSION` /
-`RXDB_CHANGE_CODEC_VERSION`。门禁现在会拿候选发布提交上的常量与上一个已发布 tag 比对；`v0.0.26` 发布时它还只比对布尔位，当时按 [release-plan 约束 12 修订](release-plan.md#约束-12-修订破坏性改动如实声明) 的
-两条 `git log -G` 人工复测（`-S` 恒空、会给出假清白）；区间是 `v0.0.24..B`，在锚点 `de70a1a9` 与 B 上实测均为空。
-
-**启动前必读**：changelog 会同时**多报**（0.0.25 已发内容再写一遍，判断发没发过只能 `npm pack` 拉产物搜）与
-**漏报**（squash 进 `chore(aiao): update deps (#53)` 的 US-908 修复与 US-906 交付，以及按[约束 12](#排期约束) 必须声明的七组破坏性改动）；非规范提交信息一律记为 `none`、
-等于零 bump 量。区间已冻结在 `de70a1a9`，但发布分支上为跑绿补的提交会进区间，补了就要复测，细则见[零散收尾项](#零散收尾项不成故事随手可带)第 1 条与
-[release-plan「下一次发布」](release-plan.md#下一次发布迁移发布schema-78)。
+当前下一次迁移的桥接锚点是 v0.0.28。此处仅保留引用入口，不重跑 v0.0.26 的历史操作；执行以 [发布计划](release-plan.md)为准。
 
 ### 立项池（待 owner 决策，未进任何批次）
 
-[US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md) 已登记为 Backlog，尚未排期。症状与源码证据见故事正文，按 A 表单与共享契约 → B 查询构建器 → C 列表/详情与可选渲染 → D 独立消费验证顺序交付；各阶段均需三框架对称并保留默认 UI，无 BOM / 后台 / P2P 立项前置。
-
-| 故事                                                                                                                                                                                                                                                           | 依赖                                                                                                                                                                                           | 入场条件 / 建议顺序                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-029](stories/core/US-029-rbac-owner-role-permission.md) RBAC：角色与所有权写权限                                                                                                                                                                           | 前置 US-027、US-218 均已 Done（约束 4）                                                                                                                                                        | **价值待证**（[CONVENTIONS](CONVENTIONS.md#价值待证)），`priority: Low`，经评审（`git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`）后**移出多租户**，只做写授权：`access.owner` 声明、`roles` 与一实例一身份、角色 / 所有权谓词、测试 RLS fixture、三框架能力派生，新增抽象 5 项、已知病灶 0。同步实体不限读（`rxdb_change` 不受业务表读策略约束），限读数据走 remote / QueryCache。评审中复现的真实病灶（RLS 下的幽灵 DELETE）与权限无关，已拆为 US-218 进批次 3。**解锁条件**：出现具名多用户使用方，并写出今天踩得到的症状 |
-| [US-911](stories/future/US-911-client-i18n.md) 客户端国际化 / 本地化                                                                                                                                                                                           | 无硬前置（阶段 D 复用 US-212 / US-023 / US-902，均已 Done）                                                                                                                                    | owner 立项即可开工，建议 A → B → C 顺序交付（一阶段一 PR），D 独立后置。**症状可复现**：rxdb-model 四包用户可见文案硬编码中文（2026-10-12 盘点 207 处字符串字面量 + 三端模板文案），非中文用户拿到组件每一项操作入口都是中文。与 US-910 共享 fallback 链与「用户显示偏好」状态（只实现一份）；包名重叠（`rxdb-plugin-i18n` vs `rxdb-i18n`）在阶段 B 开工前由 owner 裁决                                                                                                                                                                                 |
-| [US-223](stories/adapter/US-223-supabase-mutations-update-semantics.md) / [US-224](stories/adapter/US-224-supabase-cascade-delete-change-log.md) Supabase 直写 UPDATE 语义 / 推送路径级联删除日志                                                              | 无前置（与已 Done 的 US-218 / US-220 同一套 `rxdb_mutations`）                                                                                                                                 | **症状已复现**：直写路径改行在 owner 型 / 共享编辑型 RLS 下被 42501 误拒；推送路径上被级联删掉的子行不写 `rxdb_change`，其它端拉不到这些删除。owner 定批次即可开工                                                                                                                                                                                                                                                                                                                                                                                      |
-| [US-526](stories/domain/US-526-admin-workbench.md) / [US-527](stories/domain/US-527-admin-backup-restore.md) / [US-528](stories/domain/US-528-admin-consumer-example.md) 模型驱动后台首版（[epic-010](epics/epic-010-model-driven-admin-framework.md) 未解锁） | 无硬前置（rxdb-model 四包与三端实体页已交付；US-527 复用已 Done 的 US-217；US-528 阶段 B 以 US-526 为对照基线）                                                                                | **价值待证**，未解锁：无具名试用者、仓库未自举。**解锁条件**（出现其一即提请 owner）：① 具名团队报告「又一个 CRUD 系统要写」——列表 + 表单 + 权限 + 审计重复劳动第三遍；② 自举——requirements / roadmap / status-overview 改用本框架管理。首版边界与不做的范围见 [候选分析](domain-research/admin-framework.md)，候选顺位见 [domain-research 优先级结论](domain-research/README.md)                                                                                                                                                                       |
-| [US-704](stories/future/US-704-p2p-manifest-discovery.md)～[US-707](stories/future/US-707-p2p-cross-runtime-e2e.md) 局域网 P2P 大文件共享（[epic-011](epics/epic-011-p2p-file-share.md) 未解锁）                                                               | 无硬前置（US-704 依赖的 sync 插件与 storage 插件均已 Done）；内部顺序 US-704 → US-705 阶段 A → US-706（阶段 B 的链路加密前置）→ US-705 阶段 B，US-707 随各阶段并行；Tauri 用例为 epic 关闭条件 | **价值待证**，未解锁：驱动力是「公司团队共享大文件」的场景推演，无具名使用方踩到的症状。**解锁条件**（出现其一即提请 owner）：① 具名团队 / 应用出现「大文件经服务器同步慢、占带宽」的症状；② 仓库自举——某个 demo 或工具（如 DevTools 会话回放归档）成为真实使用方。US-705 阶段 A 可独立验收                                                                                                                                                                                                                                                             |
+| 故事            | 准入条件                                                                                                    |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| US-403          | 明确使用方要替换的展示层；以现有逻辑 API 和独立消费闭环界定首个阶段                                         |
+| US-029          | 具名多用户使用方与当前可复现写授权症状；解锁时重定库级身份、owner 外键和按行能力                            |
+| US-910 / US-911 | 先完成故事中的能力/持久化合同验证；共享 locale/fallback 仅有一份定义，不预先承诺无需同步改动                |
+| US-704～707     | 按 [epic-011](epics/epic-011-p2p-file-share.md#价值待证)解锁，先验证断服务器超过 TTL 的局域网路径与认证前置 |
+| US-603          | owner 选择发布入口约束范围；已有门禁缺口按独立 tooling story 验收，不引入自动发布                           |
+| US-541          | 具名团队离线协作症状出现后，先冻结身份、成员权限、RLS 与冲突合同                                            |
 
 ### epic-006 评审顺延的架构项
 
@@ -199,221 +122,51 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
 
 ## 零散收尾项（不成故事，随手可带）
 
-1. ✅ **线 A 启动前先跑 `nx release version --dry-run` 看真实版本号**（2026-10-01 已随[线 A](#线-a桥接版本发布owner-门控)执行，下次发布仍适用）。
-   几条坑与处置（区间已冻结为 `v0.0.24..de70a1a9`；发布分支上补了提交就要复测）：
+仅登记仍有动作或决策的条目，完成的执行记录由 Git 历史回答。
 
-   - **默认推算出来的就是 `0.0.25`**——正好是线 A 关闭判据 ① 的禁用值，且 npm 上已被占用。
-     specifier 解析成 `minor`，但 nx 的 `adjustSemverBumpsForZeroMajorVersion` 默认 `true`，
-     major 为 0 时把 `minor` 降级成 `patch`，于是 `0.0.24 → 0.0.25`。**线 A 必须显式指定版本号**，
-     已定案为 `0.0.26`。机制与命令见 [release-plan「下一次发布」](release-plan.md#下一次发布迁移发布schema-78)。
-   - **`preVersionCommand` 红了就跑不到版本计算**，只报一句 `The pre-version command failed`。
-     `code-editor-angular:build` 会因本机 `node_modules` 残留 codemirror 旧副本而红
-     （lockfile 是干净的，属安装态漂移）；`pnpm install --frozen-lockfile` 会跳过，需要加 `--force`。
-     别把这种红误读成「没有可发布的变更」。
-   - 区间（桥接定案后固定为 `v0.0.24..de70a1a9`）**包含已随 0.0.25 发布过的内容**，changelog 会再写一遍，定稿前需人工裁剪
-     （[release-plan「下一次发布」](release-plan.md#下一次发布迁移发布schema-78)）。
-     判断「发没发过」以 `npm pack` 拉产物搜为准，见 [release-plan「开项：版本漂移」](release-plan.md#开项版本漂移)。
-   - **同一份 changelog 还会漏报**：`f4e0778 chore(aiao): update deps (#53)` 是一次 squash 合并，
-     标题写升级依赖，实际带走的是 [US-908](stories/future/US-908-devtools-transfer-session-defects.md)
-     的**两条缺陷修复**与 [US-906](stories/future/US-906-electron-devtools-developer-path.md) 的交付。
-     标题是 `chore`，这两条 `fix` 既不贡献 bump 也不进 Bug Fixes。该提交已推送**不得重写**，
-     只能在 changelog 生成后人工补写。**多报和漏报要一起过**，细则见 [release-plan「下一次发布」](release-plan.md#下一次发布迁移发布schema-78)。
-     US-018 也属漏报：它首发于 0.0.26、发布时漏声明，已在 CHANGELOG 0.0.26 补录，见[约束 12](#排期约束)。
+1. Angular 包精确 peer 的兼容范围：下次统一发版前由 owner 定案，见 [发布计划](release-plan.md#开项版本漂移)。
+2. `ci / benchmarks` 缺少 Xeon 8370C 参考档：同一机型再次出现时按既有基准冻结规则处理。
+3. 23505 / 23502 / 23514 仍整批失败，不作为逐实体 rejected；只有真实部署反馈出现后才评估改判。
+4. 被拒变更与 undo/redo 的交互：现有 `undo-redo-rejected-change.spec.ts` 固定了水位线行为；redo 后可能本地重放而不再推送、待推计数缺显式 rejected 过滤，仍待评估，不宣称已修复。
+5. `@aiao/rxdb-model@0.0.26` 坏产物的处置与 GitHub Release 正文同步，见 [发布计划](release-plan.md#开项版本漂移)。
 
-2. **✅ rxdb-model 跨框架对拍（T049）已落地（2026-10-09）**。三个 e2e 应用跑同一份 `entity-model.spec.ts` 之外，
-   新增三端薄 spec `entity-model-parity.spec.ts`：同一份 Todo 种子（3 条固定标题）→ 采集 create 表单字段 → 点 title
-   列头升序 → 列表快照 → 首行详情对话框快照 → 筛选弹层查询构建器条件树 → 应用筛选后的计数徽标与过滤列表。输出归一化
-   为语义级结构化快照（行内容、字段值、顺序、列布局、条件树；易失值统一 `<uuid>` / `<date>` 占位符），归一化函数单一
-   实现 `modules/e2e-parity/entity-model-parity.mjs`、golden 唯一文件 `entity-model-parity.golden.json`——三端都过同一
-   golden 即两两一致（`modules/e2e-parity/README.md` 记了两个实测踩出的约束）。三端对拍均已本地验证通过
-   （React 4 次含 `--repeat-each=2`、Angular / Vue 各 1 次）；三端 typecheck / lint / `nx sync:check` 全过。
-3. **✅ rxdb-model 三端对称复核（T050）已跑并修复 7 处不对称（2026-10-09）**。按 `.claude/skills/tri-framework-check`
-   核对三端命名、签名与行为，最终判定 🟢 完全对称。修复：Vue 补 `TreeItemDirective`（实现 + 导出 + spec）；
-   `EntityInstance` / `FilterQuery` 提升到 core 收敛三端 5 处重复定义；`EntityTableHandle` / `QueryTableHandle` 同样定义在
-   core（4 个命令成员），三端共用同一份契约（React `forwardRef` 直接用、Vue 以 `InstanceType` 守卫钉住 `defineExpose`、
-   Angular 组件 `implements`），public-api spec 以 `expectTypeOf` 钉住三端导出与 core 同型；拖拽编排（`QueryDragDropHandler` / `calculateDropMode` /
-   `UIRuleGroup` / `QueryDropMode` / `QueryDragDropState` / `UIRuleWithWhere`）补 Angular、React 导出；Angular
-   `EntityDetail` 补 4 个 input 对齐 React / Vue props（`creationChain` / `editChain` 以同名别名声明，同名类成员仍是 main
-   起就公开的有效链路 computed；create 草稿在 DIALOG_DATA 语境构造期同步建，独立使用语境由 effect 按与 Vue 端 watch
-   相同的触发源补建，只认 metadata）；Angular 补 subquery-builder spec（18 用例，镜像另两端）。
-   每包新增 public-api 对称守卫 spec；`requirements/api-baseline/` 四个包已随导出重算回写（纯新增，非 breaking）。
-   验证：四包 vitest 全绿（rxdb-model 993 + angular 328 + vue 325 + react 280）、源码级 tsc / vue-tsc 零错误、`node scripts/audit/api-surface.mjs`
-   50 包全 ✅。保留的端差异（React `*Props` 接口、`QueryBuilderThemeProvider` 组件式、`*Component` 后缀等）均为
-   设计选择，源文件注释互相声明等价。
-4. **✅ rxdb-model 文档页（T051）已补（2026-10-09）**。`website/docs/entity-model/` 新增 7 页：README（包结构与核心
-   概念）、core（框架无关核心：字段值工具、表单字段与双向转换、详情 Tab、可编辑列、查询构建器引擎、手动排序、能力派生）、
-   angular / react / vue（三框架组件用法 + 集成方式 + 主题注入）、styling（样式接入：Tailwind + daisyUI 管线、
-   各包 tailwind.css 注册入口、Shadow DOM、无样式管线行为）、migration（迁移说明）。API 与 `packages/rxdb-model*`
-   源码逐一核对（含 `canEdit`、`formDataToEntityChanges` 参数序等易错点），代码示例取自 demo 应用真实页面；
-   侧边栏以新 category「实体模型（rxdb-model）」接入 `website/sidebars.ts`。`nx lint test website` 17 全绿、
-   全部 md 链接检查通过。
-5. **Angular 绑定包的 `@angular/*` peer 被钉成精确版本**。
-   - 已发布的 `0.0.28`：`rxdb-angular` 的 peer 是 `"@angular/core": "22.2.3"`（`npm view @aiao/rxdb-angular@0.0.28 peerDependencies`），
-     消费者的 Angular 小版本必须与之完全相同，装 22.2.4 起即报 peer 冲突。
-   - 工作区现状：7 个 Angular 包（`code-editor-angular`、`rxdb-angular`、`rxdb-model-angular`、`rxdb-plugin-replay-angular`、
-     `rxdb-plugin-search-angular`、`rxdb-plugin-tree-angular`、`rxdb-plugin-working-tree-angular`）的 `@angular/*` peer 都是精确版本
-     （`22.2.3`，`@angular/cdk` 为 `22.2.4`）。包版本已随 `0.0.28` 统一，`@aiao/*` peer 已统一为 `workspace:^`。
-   - 处置：owner 决定下次统一发版时一并处理。
-6. **✅ `dev-rxdb-tauri-e2e` 的 `devtools-provider-gear.spec.ts`「fake 档 expired 场景」竞态已修（2026-10-09）**。
-   根因：expired 档把空闲计时器设成真实 `setTimeout(…, 0)`，与经「调试窗口 → Rust → 主窗口」IPC 到达的下一页请求
-   是两条互不相关的时间源；翻页先到就照常交付第二页、expired 断言必红（#58 引入）。慢 runner 上走查完成点漂移还会
-   撞破 60s Rust 看门狗——#102 第二轮 windows-latest 的 `timedOut`（renderer never reported within 60s）即此症状，
-   看门狗只报粗粒度症状掩盖了真因。修法按 roadmap 原案：场景时钟改由测试显式推进——`createScenarioClock('expired')`
-   把 idle 回调登记为待触发并暴露 `advanceScenarioIdle` 手柄，驱动 `walkSnapshot` 在第一次翻页前经
-   `devtools:scenario-clock-advance` 事件先推进再发翻页 REQUEST（同一 IPC 流保序，「先推进、后翻页」成为有保证的顺序）；
-   另加「不推进则第二页照常交付」反向回归用例钉死两个方向。验证：expired 场景连跑 3 次全过、完整 spec 14/14、
-   real 档 `devtools-window-transport.spec.ts` 29/29、lint / typecheck / build 全绿。Windows 的 WebView2 时序差异
-   只能靠 CI 最终确认，但竞态已从机制上消除（不再存在两条无序时间源）。
-7. **`ci / benchmarks` 缺 Xeon 8370C 的参考档**。该 CPU 上报 `benchmark_environment_mismatch`，线 A 的 PR 上重跑两次才落到
-   有档的机型；按 epic-006 的规则，同一机型再出现就冻结一份新档（`benchmarks/reports/working-tree-reference/`）。
-8. **`mutations()` 直写路径的 UPDATE 语义**：已立项为 [US-223](stories/adapter/US-223-supabase-mutations-update-semantics.md)。
-
-9. **✅ SQL 安全回归已接入 nx target / CI（2026-10-09）**。`packages/rxdb-adapter-supabase` 新增
-   `sql-security-regressions` target（`bash src/__tests__/run-supabase-sql-security-regressions.sh`；
-   容器名解析：`SUPABASE_DB_CONTAINER` 显式值 → `docker/.supabase-ci-state.*.env` 派生名 → 回落 `supabase-db`）。
-   `ci-template.yml` 的 test job 在 supabase 栈起来后、Stop Supabase 之前执行（`if: matrix.supabase`）。
-   `production-change-grants` 用例在 BEGIN…ROLLBACK 内加载生产权限脚本，跑完回滚无污染（已核实）。
-   本地验证 30 用例全绿（含新增 `cascade-delete-logging`）。来源：US-220 quickstart 末注（`git show 8cc005bb:specs/006-us220-update-push-semantics/quickstart.md`）。
-10. **待评估：23505 / 23502 / 23514 是否计为被拒**。US-218 阶段 B 的逐实体回执只把 42501、`RX001`、23503 转成 `rejected`，
-    唯一、非空、检查约束违反仍整批失败、水位线不推进——它们多半是客户端或模式缺陷，按失败暴露更安全。
-    有真实部署反馈再评估是否改判。来源：US-218 research D7 / D20（`git show 8cc005bb:specs/007-us218-rls-push-integrity/research.md`）。
-11. **已评估（2026-10-09）：撤销 / 重做与被拒变更的交互**。补 `undo-redo-rejected-change.spec.ts` 8 用例固定行为
-    （只补测试、未改实现）：
-    - 机制层对被拒变更一视同仁：undo 照常落 inversePatch 并打 `revertChangeId`，redo 照常重放 patch 并清
-      `revertChangeId`；`rejectedAt` / `rejection` 从头到尾不被触碰、不会被撤销清掉；
-    - 公开入口的排除是**间接的**：`persistPushReceipts` 同事务写 `rejectedAt` 并推进仓库水位线 `lastPushedChangeId`，
-      `filterUndoableHistories` 只靠 `id > lastPushedChangeId` 排掉它，谓词完全不看 `rejectedAt`（测试证明：水位线
-      缺位时被拒变更会重新变得可撤销）；
-    - 疑似缺陷三处：(a) redo 被拒变更 = 本地重新应用远端拒绝过的编辑且永不重推，本地与远端静默永久分叉，无任何
-      错误或提示；(b) 「被拒变更不可撤销、不再待推」在 history 侧完全扛在水位线一个机制上，回执语义若改为逐条推进
-      会失效；(c) `updatePushableCount` 是唯一仍缺 `rejectedAt = null` 显式规则的「待推」查询。是否修复另议。
-      来源：US-218 research D13 / D20。
-12. **`ON DELETE CASCADE` 级联删除不写日志**：已立项为 [US-224](stories/adapter/US-224-supabase-cascade-delete-change-log.md)。
-
-13. **✅ Supabase 测试清理已改用 `service_role`，开发默认已收紧日志表写权限（2026-10-09）**。
-    12 个 spec 对 `rxdb_change` 的直写与清场改走共享 helper `getSupabaseServiceRoleClient()` /
-    `clearRemoteRxdbChange()`；测 RLS 拒绝路径的用例（push-receipts 等）保留 anon 直写语义不动。
-    `docker/init-db.sh` 在 01～04 之后加载 `production/rxdb-change-grants.sql`（CI 的 supabase action 同步），
-    dev 与生产日志表写权限一致；回归 SQL 里 anon 清场改走 SECURITY DEFINER helper
-    `rxdb_sql_regression.clear_change_log(text[])`。全量 vitest 41 files / 610 tests 全绿，SQL 回归 30/30。
-    来源：US-218 阶段 C 的 T083 记录与站点「生产部署 · 已知限制」。
-14. **`@aiao/rxdb-model@0.0.26` 是从 next-11 发出的坏版本**。它于 2026-10-05 发布到 npm，没打 `latest`（`latest` 仍是 0.0.19）；
-    引用了 `getEntityPermission` 等符号，而它钉死依赖的 `@aiao/rxdb@0.0.26` 里没有这些导出，显式安装 `0.0.26` 就会坏。
-    处置：owner 决定稍后处理（`npm deprecate`，或随下次发版覆盖）。
-
-15. **✅ Angular demo 菜单页的两份死代码已删（2026-10-09）**：`apps/dev-rxdb-angular/src/app/pages/menu/utils/tree-menu.basic.ts`
-    （`TreeMenuBasic`）与 `menu/models/menu-operation.types.ts`（仍导入旧实体 `MenuSimple` / `MenuLarge`）。US-031 阶段 A
-    盘点写入口时发现、按范围未删；删除前已用全仓 `grep -rn "TreeMenuBasic\|menu-operation"` 复核无引用。
-
-16. **✅ coverage-acceptance 日志里的 `Failed to parse` 噪音已消除（2026-10-09）**。
-    根因（对照 vitest 4.1.11 源码确认）：`@vitest/coverage-v8` 给「进了 `coverage.include` 但本段测试没加载」的文件
-    补 0 覆盖时，只遍历 `config.root` 是文件路径前缀的 project 做转译；一个都匹配不上时 `throw lastError`
-    （此时是 undefined）被吞掉，退回把 TS 原文当 JS 解析。分段配置的 root 设在别的适配器包（pglite 段 root =
-    rxdb-adapter-pglite；四个适配器 suite root = 各自包），分母文件（rxdb-test 的 entities / shop、sqlite-core 的
-    desktop*）谁都匹配不上，与 #102 排查时的记载一致。
-    修法：两份 run 配置改双 project 结构——**runner**（root 保持原状，行为逐字等价）+ **coverage-root helper**
-    （root = 分母文件所在包，`include: []`，只服务未加载文件的转译查找）；merge 分支未动。两份配置都不设
-    `passWithNoTests`：vitest 只在所有 project 合计零个测试文件时才判 No test files found，空 helper 用不到它，
-    而 runner 的 include 一条都没匹配上时必须照常 exit 1。
-    验证：两个包 `grep -c 'Failed to parse file'` 均为 0；合并覆盖率无回退（rxdb-test S 95.14 → 95.43、其余指标不变，
-    差异来自 entities / shop 两个 barrel 文件修复后各少计 1 条未覆盖 statement，方向是改善）；
-    rxdb-adapter-sqlite-core 四个指标逐字节相同。全仓其余 vitest 配置无跨包 root，无同类噪音。
-
-第 5～7 条是线 A 执行时发现的后续项，第 10～13 条是 US-218 登记的范围外后续项（tasks T088），第 14 条是 next-11 误发的包，第 15 条是 US-031 阶段 A 盘点时发现的死代码，第 16 条是依赖升级 PR #102 排查 CI 时发现的日志噪音。第 2～4 条的原任务清单见 `git show 41ce2181:specs/002-rxdb-model-port/tasks.md`（T049～T051）。
+US-223/224 与 US-603 已有独立故事，不在这里另建一份待办。
 
 ## 排期约束
 
-1. US-012 已 Done。其 DTO 不得重新定义 `bigint/binary` 的值 wire codec——该不变量随 DTO 发布而永久成立。
-2. US-207 已锁定 Electron SQLite 的真实连接语义并抽出共享桌面 host 契约
-   （`rxdb-adapter-sqlite-core/desktop-host` 子路径，US-208 / US-210 复用）。「无法保证单连接事务时应
-   fail-fast、不得降级成伪事务」作为长期铁律保留，对所有复用该契约的后端同样成立。
-3. US-208 事务方案**已冻结**为「IPC 事务 ID 协议」（「adapter 完整托管在主进程」因接口面随业务事务数线性
-   增长、且崩溃后事务仍照跑照提交被否决）；US-210 事务方案**已冻结**为「Rust command 持有
-   `rusqlite::Connection`」（「配置单连接池」因 `sqlx` 池连续调用可能落在不同物理连接被否决）。
-4. **权限链的顺序**：US-027 阶段 A 先于 US-029 阶段 A，US-027 阶段 B（公开写入口判定与 `PermissionDeniedError`）先于 US-029 阶段 B，US-027 阶段 C 先于 US-029 阶段 D；US-218 先于 US-029 阶段 C（日志由真实生效的写推导、逐实体回执都由 US-218 交付，US-029 只在其上追加 owner / 角色策略 fixture）。US-028 不受 US-027 阻塞（后者已交付），但重排不会被自动覆盖：
-   重排在主适配器事务内经执行器写，属 US-027 不判定的那一层，US-028 的重排 API 须在开事务前显式调用 `assertEntityOperationAllowed(…, 'update')`；UI 侧由阶段 C 的 `_readonly` 派生关手柄。三条故事的 UI 侧都落在
-   rxdb-model 三框架包上，一律三端对称交付——`rxdb-model-react` / `rxdb-model-vue` 与 Angular 端同时存在，
-   不接受只交 Angular。
-5. US-305 的提交竞争只使用领域 `headRevision` CAS，不引入 writer lease 或迁移 epoch。US-305 的
-   schema migration 前必须从当前发布主线产生新的有效 bridge ancestor：`v0.0.26`（切自 #55 之前的 `de70a1a9`，已是 `main` 祖先）即这个锚点，
-   历史 `v0.0.25` 已脱离当前 ancestry，见 [release-plan 桥接锚点定案](release-plan.md#桥接锚点定案)。
-   源码 `RXDB_SYSTEM_SCHEMA_VERSION` 现为 8（#122 从 7 抬到 8），已发布线（`v0.0.28`）是 7；下一次迁移发布（7 → 8）以 `v0.0.28` 为锚点。
-6. 搜索改动复用现有搜索公开 API 和跨框架 parity fixture，不为某个后端借用另一后端专属的 fallback
-   （US-703 的 PGlite 全文搜索按此交付）。
-7. **小程序路径的能力上限**（US-209）：WAL、多页面并发、崩溃恢复保证在微信路径上不得扩大；
-   文档一律写「实验性」。**平台集合**的扩展由 US-211 认领：宿主契约与可行性矩阵已就位；
-   阶段 B/C 只吃矩阵里 `decision: supported` 的平台，未关闭的阶段不得改公开支持声明。
-8. **epic-008（生命周期作用域）追加故事的准入**：每一条都必须写出「今天用户踩得到的具体症状」才允许排期，
-   写不出就留在 Backlog，判据细则见约束 9。`IRxDBPlugin` 的成员签名由类型契约测试守住，
-   不扩大 epic-007 的范围。
-9. **过度设计判据，不是建议。** 进入 epic-008 的两条要同时满足：是「资源获取与释放拆成两处」的问题，
-   且能写出今天用户踩得到的具体症状。**状态变量复位不算病灶**——`#shutdown()` 里 `#transaction_stack = []`、
-   `#connected_sub.next(false)` 这类复位，作用域原语按定义碰不到。
-10. **HTTP 适配器（US-212）按 `stable` 发布，与 US-020 之间没有门禁**（包本体不标 `experimental`，
-    只有 `changeFeed` 标实验性）。协议不变量是硬的：HTTP 是独立 `adapter:remote`，sqlite 是独立
-    `adapter:local`，**禁止 HTTP 内部拥有 sqlite**；v1 changelog 方法（`pullChanges` / `mergeChanges` /
-    `getChangeCount`）必须 throw unsupported，**不得假空**；`pullChangesBatch` 是 optional 成员，调用点做
-    特性探测，不实现即可，实现了也不得返回空数组。
-11. **HTTP 适配器与 epic-006 的关系由一条结构隔离不变量表达**：
-    > **US-212 MUST NOT 实现或调用 `upsertMany()` / `deleteByIds()` / `getMetadataByIds()`，
-    > MUST NOT 持有任何 `QueryCacheLocalAdapter`，构造函数 MUST NOT `new` 任何本地存储。**
-    > 该不变量由 US-212 阶段 A 的 AC#19 契约测试冻结。SC-004 漂移扫描（`pnpm audit:callsite-drift`）
-    > 递归扫整个 `packages/`，HTTP 包在其核对范围内。
-12. **线 A 的桥接版本如实声明区间内的破坏性改动（2026-10-01 修订）。** 原文是「桥接版本不得对外宣告破坏性改动」，
-    理由是「只做迁移锚点」的版本带着 `BREAKING CHANGE` 是错误的对外信号。它在**任何锚点上都满足不了**：
-    `v0.0.24..de70a1a9` 里已有六组首发的破坏性改动（`@aiao/rxdb` 导出删除：writer lease 16 个 / `RemoteSyncOptions` / US-025 抽包 13 个；包级：桌面拆包 / 插件作用域 / Supabase 错误类型），
-    都在锚点之前就进了 `main`，自动 changelog 却一字不提（区间内没有 `!` 或 `BREAKING CHANGE:` 脚注）。
-    owner 定案修订为：**桥接区间可以带锚点之前已在 `main` 上的破坏性改动，但定稿 changelog 必须逐条声明并附迁移说明**；
-    悄悄发出去比声明更糟。桥接的硬不变量仍然只有一条：**不抬系统版本常量**（[release-plan 约束 12 修订](release-plan.md#约束-12-修订破坏性改动如实声明)）。
-    判据是发布区间的提交范围，不是故事状态；区间已冻结为 `v0.0.24..de70a1a9`，此后合入 `main` 的破坏性提交
-    （如 [US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A2）进不了桥接版本，随其后的迁移发布声明。
-    六组的名字、去向与迁移页见 [release-plan 约束 12 修订](release-plan.md#约束-12-修订破坏性改动如实声明)。
-
-    **US-018 属于这批破坏性改动，首发于 0.0.26，发布时漏声明，已在 CHANGELOG 0.0.26 补录。**
-    `unsupportedDefaultFactory` 的破坏性实现落在 `a63321c`（在 `v0.0.24..main` 区间内），是 `v0.0.26` 的祖先、不是 `v0.0.25` 的祖先；
-    `@aiao/rxdb-client-generator@0.0.25` 的 tarball 里没有该符号，`0.0.26` 里有。该提交的提交信息只有一行
-    `feat(rxdb): 添加 rxdb-adapter-http 适配器 (#39)`，没有 `!` 也没有 `BREAKING CHANGE:` 脚注，而 nx 只凭这两处判破坏性
-    （`nx/dist/src/command-line/release/utils/git.js` 的 `isBreaking`），所以自动 changelog 没有 US-018 的条目，也不因它抬 bump，
-    须人工补录；迁移说明见 `website/docs/migration/generator-default.md`。同一提交带入的 `@aiao/rxdb-adapter-http`
-    之前从未发布过，那一行是真新增。
-
-13. **US-213 暴露的协议缺陷不在该故事内修。** 若参考后端按文档逐字实现后暴露出协议本身不自洽，US-213
-    MUST NOT 改 `src/`、也 MUST NOT 改参考后端去迁就客户端。处置是：该用例标 `it.fails` 或单列
-    `describe.skip`，在故事里记为「协议缺陷 → 另开 US」，由新故事带着自己的 breaking-change 与迁移表走
-    发布流程。本条对后续接入方仍然有效。
-14. **US-214 同样不改 `src/`，唯一例外是 `http-protocol.md` 的「跨源（CORS）」一节**：那**不是改协议**，
-    是把一个客观存在、只是没写下来的浏览器前置补进文档，且**只增不改**。demo 后端的 `__control/*` 是演示
-    开关**不是协议的一部分**，MUST NOT 出现在 `http-protocol.md`。
-15. **Electron 打包里凡被 esbuild 标成 `external` 的运行时包，MUST 声明进
-    `apps/dev-rxdb-electron/package.json` 的 `dependencies`**（不是 `devDependencies`）。
-    electron-builder 26 只走 **production** 依赖图收集 node_modules（`pnpm list --prod`；回退遍历
-    也只读 `dependencies` + `optionalDependencies`），放错位置在本机 dev 与 Linux/macOS 打包下都
-    碰巧能跑，**只在 Windows 产物里**炸成 `Cannot find module '<包名>'`。防回归已就位：
-    `desktop-sqlite-bridge.spec.ts` 两条单测把搬运清单同时钉在 `dependencies` 与 esbuild 的 `external` 上，
-    三者任一处漂移即红。本条**不随 US-208 关闭而失效**，对后续每一个新增 external 依赖同样成立。
-16. **US-220 与 US-218 的先后关系（已随 #99 一并合入而满足）。** 两者同在批次 3，当时不是互相独立的两行：
-    - **共用原语**：两者都要在零行生效时区分「被 RLS 拒绝」与「行已不存在」，判定都绕开调用方 RLS，只交付一个判定原语（存在性探针 `rxdb_existing_ids`）；
-      US-220 的「已不存在」SQLSTATE（`RX001`）是 US-218 阶段 B 错误分类的输入。
-    - **不退化**：UPDATE 被拒必须抛 42501，不得退化成静默零行；UPDATE 按 INSERT 语义落库带来的 23502 / 误报 42501，
-      会被 US-218 阶段 B 当成真实拒绝标成 rejected，所以必须在普通 UPDATE 路径上修掉。
+1. US-012 DTO 不得重新定义 bigint/binary 的 wire codec。
+2. 桌面宿主必须保证真实单连接事务；无法保证时 fail-fast，不降级为伪事务。
+3. Electron PGlite 使用 IPC 事务 ID 协议；Tauri 使用 Rust command 持有 rusqlite Connection，不用跨调用连接池伪装事务。
+4. 权限链：US-027 是 US-029 的声明/写入口/UI 前置，US-218 是其日志与逐实体回执前置。排序 API 在开事务前显式判 update 权限；rxdb-model UI 一律 Angular/React/Vue 对称。
+5. 提交竞争只使用 headRevision CAS，不引入 writer lease/迁移 epoch。当前已发布 schema 7、源码 8；下一次迁移以 v0.0.28 为锚点。
+6. 搜索复用现有 API 与 parity fixture，不借另一后端专属 fallback。
+7. 小程序能力上限仍为实验性、单连接，不扩大 WAL/多页面并发/崩溃恢复保证；支持平台与设备证据按 US-211 的可行性矩阵核对，未关闭验收不扩大公开声明。
+8. 生命周期 Epic 的追加故事须有今天可复现的资源获取/释放症状，IRxDBPlugin 签名由类型契约守住。
+9. 状态变量复位不算生命周期病灶；新增抽象不能仅凭 Epic 惯性排期。
+10. HTTP 本体按 stable 交付，changeFeed 仍实验性；v1 changelog 方法不支持就明确抛错，不假空。
+11. HTTP 不得内部拥有本地 adapter，不实现 upsertMany/deleteByIds/getMetadataByIds；本地行缓存独立注册。
+12. 破坏性变更如实声明并附迁移页；桥接不得抬系统版本。当前区间从 v0.0.28 起，见 [发布计划](release-plan.md#约束-12-修订破坏性改动如实声明)。
+13. US-213 暴露的协议缺陷另开故事，不改 src 或参考后端迁就客户端；回归中明确记录缺口。
+14. US-214 的 CORS 文档补全不改变协议；`__control/*` 演示开关不得进入 HTTP 协议文档。
+15. Electron 构建中 external 的运行时包必须声明在应用 dependencies，并与搬运清单和打包回归保持一致。
+16. Supabase UPDATE 与回执共用实际生效判定原语：UPDATE 被拒仍抛 42501、行不存在使用 RX001，日志只来自真实生效写入。
 
 ## 明确不排期
 
-| 项                                                                                          | 判定                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [US-910 数据国际化 / 本地化](stories/future/US-910-data-i18n.md)                            | **暂不排期**。需求已完成规格收敛，但阶段 A 依赖 Full/Filter/tombstone 同步夹具；当前 HTTP 适配器只支持 QueryCache。先补同步基础能力，再实现 C-L 翻译实体。**解锁条件 = 同步夹具能验证历史 locale 补拉、部分语言删除 tombstone 和迟到更新不复活**                                                                                                                                                             |
-| `US-016` 连接纪元与停机收敛                                                                 | **不排期，不再解锁**——原症状由 US-015 阶段 A 覆盖，剩余的资源降级路径已按 bugfix 补齐                                                                                                                                                                                                                                                                                                                        |
-| `US-017` 三框架宿主作用域                                                                   | **不排期**。三端各自已有原生作用域（Angular `DestroyRef` / React `useEffect` cleanup / Vue `onScopeDispose`）。**解锁条件 = 三端任一出现可复现的清理泄漏**                                                                                                                                                                                                                                                   |
-| US-212 AC#30 行缓存 eviction                                                                | **不在 US-212 范围内**。执行面只有 core 有、HTTP 包按约束 11 的结构隔离碰不到。**解锁条件 = 出现可复现的缓存膨胀症状（具体实体 + 量级）**                                                                                                                                                                                                                                                                    |
-| `npm deprecate @aiao/rxdb-adapter-desktop`（US-207 E6）                                     | **判定不做**。`@aiao/rxdb-adapter-desktop@0.0.25` 保留在 registry 上，未来仍可更新；迁移路径由 `website/docs/migration/desktop-split.md` 指路                                                                                                                                                                                                                                                                |
-| `packages/rxdb-adapter-tauri/rust/` 发 crates.io                                            | **本轮不发**（US-210 T7，`publish = false`）。README 已写清 path / git 依赖的用法与限制                                                                                                                                                                                                                                                                                                                      |
-| 桌面安装包（installer / bundle）的自动化验证                                                | **人工验收，不排自动化**。`release-desktop.yml` 跑 `tauri build --ci --no-bundle`，只验编译与 smoke、不产安装包；装包能否安装启动由人工过一遍                                                                                                                                                                                                                                                                |
-| 受信写调用点漂移门禁改用 AST（epic-006 评审顺延项）                                         | **判定不做**。收益与代价不成比例：要给一条秒级轻量审计（`pnpm audit:callsite-drift`，只手跑、未接 pre-commit 与 CI）配一份覆盖全仓的类型化 Program。扫描器的三张词表每次运行前都与 `TrustedWritePrimitive` / `METHOD_NAMES` 机械对照，已知失败形态都会报红而不是静默。**解锁条件 = 给出一处现有词法判据放过、AST 能拦住的实例**。全部失败形态见 `scripts/audit/working-tree-callsite-drift.mjs` 的文件头注释 |
-| [US-030](stories/core/US-030-declarative-storage-constraints.md) 阶段 D（生成列与索引方法） | **不排期**——阶段 A～C 由 owner 提前解锁、排在批次 3。阶段 D 的消费方只有 US-519 的可选索引优化，查询契约不依赖它，仍价值待证。**解锁条件 = 任意一条需要生成列或 GIN / GiST 才能达标的故事**                                                                                                                                                                                                                  |
+| 项                               | 条件或边界                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------ |
+| US-030 D、US-519 可选索引        | 真实故事必须生成列/表达式索引/索引方法才能达标时再解锁；不阻塞当前基础查询合同 |
+| US-016（无故事文件）             | 原症状由 US-015 覆盖，不再独立解锁                                             |
+| US-017（无故事文件）             | 三框架各有原生清理作用域，出现可复现泄漏才立项                                 |
+| US-212 行缓存 eviction           | 具体实体/量级出现缓存膨胀后再立项；HTTP 包不拥有本地执行面                     |
+| `rxdb-adapter-desktop` deprecate | 当前不做，迁移文档提供拆包路径                                                 |
+| Tauri Rust crate 发布            | 当前不发 crates.io，维持 path/git 消费边界                                     |
+| 桌面 installer 自动验收          | 当前人工验收；编译与 smoke 不冒充装包后启动验证                                |
+| 漂移门禁改 AST                   | 出现现有词法判据漏掉、AST 能拦的实例再评估，不为空泛稳健性增加全仓 Program     |
 
 ## 建议补充的验收维度
 
-- **故障恢复**：迁移者、桌面 host 或搜索索引初始化中途崩溃后，重试结果必须可预测且不可产生半状态。
-- **能力矩阵**：SQLite family、PGlite、Electron、Tauri、Angular、React、Vue 的支持/不支持组合必须在 story 和公开文档中显式列出。
-- **发布门禁**：新增公开 API 同步更新 API baseline、TSDoc、覆盖率门禁和跨框架 parity 测试。
-- **可观测性**：连接、迁移、索引回填失败应提供稳定错误码和可诊断上下文，不静默回退到 memory、OPFS 或 IndexedDB。
+- 故障恢复：迁移/宿主/索引初始化中断后可预测，不留下半成功状态。
+- 能力组合：框架对称与适配器/宿主支持范围分开记录，不从一种对称推导另一种支持。
+- 证据层级：源码、构建产物、独立安装、真实设备各自验收，不互相冒充。
+- 诊断：使用稳定错误码和上下文，不静默切换存储后端。

@@ -146,4 +146,4 @@ React / Vue 虽能换实例，三端数据 hooks 在库关闭后都不重新订�
 - [US-217 本地数据库一致性备份与恢复](../adapter/US-217-local-database-backup-restore.md) — 前置：备份 / 恢复 API 与边界（同 adapter、连接前恢复、损坏拒绝、结构指纹、加密字段）
 - [US-909 会话录制回放](../future/US-909-session-replay-debugging.md) — 阶段 B 实测：Worker / SharedWorker 连接返回 `unsupported_combination`
 - [US-534 看板领域模型骨架](US-534-board-column-task-skeleton.md) — 前置：实体与恢复中写门禁
-- [domain-research 产品形态](../../domain-research/README.md#产品形态零后端单机版) — 坑 ①：浏览器清数据即丢库
+- [domain-research 底线判据](../../domain-research/README.md#底线判据) — 坑 ①：浏览器清数据即丢库

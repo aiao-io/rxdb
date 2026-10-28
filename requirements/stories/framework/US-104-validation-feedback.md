@@ -1,11 +1,11 @@
 ---
 id: US-104
 title: rxdb-model 表单校验反馈与保存失败的展示（三端对称）
-status: In Review
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-10-21
-updated: 2026-10-21
+updated: 2026-10-28
 tags: [framework, rxdb-model, tri-framework, validation]
 ---
 
@@ -45,15 +45,17 @@ tags: [framework, rxdb-model, tri-framework, validation]
 
 ## 技术笔记
 
-模型驱动后台工作台的组装（[admin-framework 候选分析](../../domain-research/admin-framework.md) 首版
-AC「校验反馈可读」）实测发现：三端 `EntityDetail` 都只把 `FormValidationResult` 转发给宿主
-（React 回调 / Angular output / Vue emit），保存失败只进 `console.error` / `ErrorHandler`——
-内置对话框没有任何可见反馈，用户点保存后「什么都没有发生」。
-
-修复落在组件层而非工作台层：三端同改、同一组 `data-testid` 与文案；回归由三端包内 spec 与
-工作台 e2e 共同钉住。错误消息源：
+三端 `EntityDetail` 在对话框内显示校验与保存错误，同时保留对宿主的事件通知；
+三端使用同一组 `data-testid` 与文案。错误消息源：
 [`validateEntityFieldValue`](../../../packages/rxdb-model/src/entity-value.utils.ts) 的
 「`X` 是必填项」与 [`validateForm`](../../../packages/rxdb-model/src/entity-form/form-validation.ts)。
+
+交付已合入 [PR #152](https://github.com/aiao-io/rxdb/pull/152)（`7bb16a90`）。证据入口：
+
+- [Angular `entity-detail.real.spec.ts`](../../../packages/rxdb-model-angular/src/__tests__/entity-detail/entity-detail.real.spec.ts)：校验拒绝、错误状态、字段变更清空、保存失败保留对话框
+- [React `entity-detail.real.spec.tsx`](../../../packages/rxdb-model-react/src/__tests__/entity-detail/entity-detail.real.spec.tsx)：create / edit 校验面板、保存错误、字段变更与取消
+- [Vue `entity-detail.real.spec.ts`](../../../packages/rxdb-model-vue/src/__tests__/entity-detail/entity-detail.real.spec.ts)：错误面板、保存错误、字段变更与取消
+- [工作台 `workbench.spec.ts`](../../../apps/dev-rxdb-admin-e2e/src/workbench.spec.ts)：必填字段校验可见、不入库、关闭后列表仍为空
 
 ## 实现文件
 

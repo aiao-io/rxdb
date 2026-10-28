@@ -272,6 +272,29 @@ const ROADMAP_OPEN_COUNT = /仓库还剩 \*\*(\d+) 条\*\*未关闭故事（(\d+
 const ROADMAP_SNAPSHOT_ROWS = SUMMARY_ROWS.filter(([, key]) => key !== 'total');
 const ROADMAP_OPEN_TOTAL_ROW = /^(\| \*\*未完成合计\*\*\s*\| )(\*\*(\d+)\*\*)(\s*\|)[ \t]*$/m;
 
+function markdownSection(text, heading) {
+  const start = new RegExp(`^## ${escapeRegex(heading)}[ \\t]*\\r?\\n`, 'm').exec(text);
+  if (!start) return '';
+  return text.slice(start.index + start[0].length).split(/^## /m)[0];
+}
+
+function checkRoadmapRowStatuses(text, stories) {
+  const byId = new Map(stories.map(story => [story.id, story.fm.status]));
+  const rows = markdownSection(text, '未完成需求全景').matchAll(
+    /^\|([^|]+)\|\s*(?:✅|🚧|👀|⬜|📝|🚫)\s*(Done|In Progress|In Review|Backlog|Blocked)\s*\|/gm
+  );
+  const offenders = [];
+  for (const [, cell, status] of rows) {
+    const ids = new Set([...cell.matchAll(/\[(US-\d+)\b/g)].map(match => match[1]));
+    for (const id of ids) {
+      const actual = byId.get(id);
+      if (actual && actual !== status)
+        offenders.push(`roadmap.md: 未完成需求全景 ${id} 标 ${status}，YAML 是 ${actual}`);
+    }
+  }
+  return offenders;
+}
+
 /**
  * 校验 `roadmap.md`：未关闭故事的条数与分项，以及**每条未关闭故事都在排期里露过面**。
  *
@@ -285,7 +308,7 @@ const ROADMAP_OPEN_TOTAL_ROW = /^(\| \*\*未完成合计\*\*\s*\| )(\*\*(\d+)\*\
  * @returns {string[]}
  */
 export function checkRoadmap(text, stories) {
-  const offenders = [];
+  const offenders = checkRoadmapRowStatuses(text, stories);
   const counts = countStatuses(stories);
   const open = counts.total - counts.Done;
   const m = ROADMAP_OPEN_COUNT.exec(text);
@@ -353,7 +376,17 @@ export async function collectEpics(root) {
     const fm = parseFrontmatter(text);
     if (!fm) continue;
     const storyIds = new Set([...text.matchAll(/\(\.\.\/stories\/[^)]*?(US-\d+)-[^)]*\.md\)/g)].map(m => m[1]));
-    epics.push({ file, rel: path.relative(root, file), id: fm.id ?? path.basename(file, '.md'), fm, storyIds });
+    const listedStoryIds = new Set(
+      [...markdownSection(text, '故事').matchAll(/\(\.\.\/stories\/[^)]*?(US-\d+)-[^)]*\.md\)/g)].map(m => m[1])
+    );
+    epics.push({
+      file,
+      rel: path.relative(root, file),
+      id: fm.id ?? path.basename(file, '.md'),
+      fm,
+      storyIds,
+      listedStoryIds
+    });
   }
   return epics;
 }
@@ -383,8 +416,8 @@ export function checkEpics(epics, stories) {
     const owner = epicById.get(story.fm.epic);
     if (!owner) continue;
     const status = story.fm.status;
-    if (!owner.storyIds.has(story.id))
-      offenders.push(`${story.rel}: 声明 epic ${story.fm.epic}，但该 epic 文件没有链接到它`);
+    if (!owner.listedStoryIds.has(story.id))
+      offenders.push(`${story.rel}: 声明 epic ${story.fm.epic}，但该 epic 的故事清单没有链接到它`);
     if (owner.fm.status === 'Done' && status !== 'Done' && status !== 'In Review') {
       offenders.push(`${owner.rel}: epic 是 Done，但 ${story.id} 是 ${status}`);
     }
@@ -563,23 +596,48 @@ export function acIdsOf(text) {
   return ids;
 }
 
+function candidateAcIds({ rel, fm, text }, offenders) {
+  if (fm.candidate_acs === undefined) return new Set();
+  let ids;
+  try {
+    ids = JSON.parse(fm.candidate_acs);
+  } catch {
+    offenders.push(`${rel}: candidate_acs 必须是整数数组`);
+    return new Set();
+  }
+  if (!Array.isArray(ids) || ids.some(id => !Number.isInteger(id) || id < 1) || new Set(ids).size !== ids.length) {
+    offenders.push(`${rel}: candidate_acs 必须是不重复的正整数数组`);
+    return new Set();
+  }
+  const known = new Set(acIdsOf(text));
+  const missing = ids.filter(id => !known.has(id));
+  if (missing.length) offenders.push(`${rel}: candidate_acs 引用了不存在的 AC ${missing.join(' / ')}`);
+  return new Set(ids);
+}
+
 /**
- * Done 故事的 AC 表不得残留 ⬜：YAML `status: Done` 与 AC 符号脱节（如 US-216 曾全表 ⬜）
- * 是唯一能让「真相源」与验收状态互相矛盾的形态，机器可判。
+ * Done 故事的当前承诺 AC 不得残留 ⬜；候选 AC 由 candidate_acs 显式登记，保留未验状态。
+ * 候选编号不存在、重复或提前标 ✅ 同样阻断，避免候选范围成为隐藏未完成工作的缺口。
  *
  * @param {Array<{rel: string, fm: Record<string, string>, text: string}>} stories
  */
 export function checkAcSymbols(stories) {
   const offenders = [];
-  for (const { rel, fm, text } of stories) {
-    if (fm.status !== 'Done') continue;
+  for (const story of stories) {
+    const { rel, fm, text } = story;
+    const candidates = candidateAcIds(story, offenders);
     const section = text.split(/^## 验收标准\s*$/m)[1];
     if (!section) continue;
     const body = section.split(/^##\s/m)[0];
     for (const line of body.split('\n')) {
-      if (!/^\|\s*\d+\s*\|/.test(line.trim())) continue;
-      const cells = line.replace(/\|$/, '').split('|');
-      if ((cells[cells.length - 1] ?? '').includes('⬜'))
+      const id = /^\|\s*(\d+)\s*\|/.exec(line.trim());
+      if (!id) continue;
+      const cells = line.trim().replace(/\|$/, '').split('|');
+      const status = cells[cells.length - 1] ?? '';
+      const candidate = candidates.has(Number(id[1]));
+      if (candidate && status.includes('✅'))
+        offenders.push(`${rel}: 候选 AC#${id[1]} 不得标 ✅，解锁后应移除候选登记`);
+      if (fm.status === 'Done' && !candidate && status.includes('⬜'))
         offenders.push(`${rel}: Done 故事的 AC 行仍标 ⬜（应 ✅，或改为带移出依据的 ⚠️）`);
     }
   }

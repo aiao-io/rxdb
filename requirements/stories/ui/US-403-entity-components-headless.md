@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-10-28
 tags: [ui, headless, rxdb-model, cross-framework, customization]
 ---
 
@@ -19,12 +19,13 @@ tags: [ui, headless, rxdb-model, cross-framework, customization]
 
 ## 当前问题与证据
 
-当前默认组件能够快速搭建界面，但消费方替换控件或布局时，缺少完整的公开逻辑入口：
+当前已公开的逻辑与默认展示需要分别看待：`@aiao/rxdb-model` 根入口已有表单纯函数、`createQueryBuilderService()` 和列表视图设置能力；本故事补齐公开消费边界及默认组件复用，不重做这些逻辑。消费方替换控件或布局时仍有以下缺口：
 
 - [Angular 样式约定](../../../packages/rxdb-model-angular/README.md#样式约定重要)明确要求消费方提供 Tailwind CSS + daisyUI 管线；组件模板中的类名参与布局和控件外观。
 - [`EntityForm`](../../../packages/rxdb-model-react/src/entity-form/entity-form.tsx)在同一组件内维护表单数据、解析输入、校验和提交，同时固定渲染网格、fieldset、输入控件与操作按钮；公开的 `EntityFormProps` 没有字段渲染器或布局插槽。消费方要换成自己的表单控件，需要重新编排这部分状态和行为。
 - [`QueryBuilderTheme`](../../../packages/rxdb-model-react/src/query-builder/theme/query-builder-theme.tsx)只提供 `fieldSelector`、`operatorSelector`、`valueInput` 三个替换点；根布局、分组和规则行的展示不在该主题接口内。
-- [`createListTable`](../../../packages/rxdb-model/src/entity-table/vtable/table-factory.ts)和 [`createTheme`](../../../packages/rxdb-model/src/entity-table/vtable/table-theme.ts)分别绑定 VTable 渲染与 daisyUI CSS 变量；框架无关的 `rxdb-model` 当前也导出了这些展示基础设施。
+- [`createListTable`](../../../packages/rxdb-model/src/entity-table/vtable/table-factory.ts)和 [`createTheme`](../../../packages/rxdb-model/src/entity-table/vtable/table-theme.ts)分别绑定 VTable 渲染与 daisyUI CSS 变量；[`rxdb-model` 根入口](../../../packages/rxdb-model/src/index.ts)同时值导出展示设施与逻辑入口，包 manifest 把 VTable 和编辑器列为必装 peer。只消费表单纯函数也无法从安装合同中排除表格依赖。
+- [`list-view.ts`](../../../packages/rxdb-model/src/entity-list/list-view.ts)与 [`list-view-settings.ts`](../../../packages/rxdb-model/src/entity-list/list-view-settings.ts)已经由根入口导出。列表视图、列设置及其持久化是当前兼容基线，阶段 C 须复用并隔离其中的展示依赖，不能以 headless 改造重新定义已发布的视图语义。
 
 复验方式：检查上述符号及其公开接口，沿表单输入到提交的调用链、查询构建器主题接口和表格创建链路核对。这里描述源码边界，不声称已有具名消费方的接入故障。
 
@@ -41,7 +42,7 @@ tags: [ui, headless, rxdb-model, cross-framework, customization]
 | 阶段 | 交付内容                                                                                | 独立验收价值                                                     | 前置         | 状态 |
 | ---- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------ | ---- |
 | A    | 共享契约、稳定公开入口、EntityForm headless 与三框架绑定                                | 用自己的控件完成实体表单，复用解析、校验、提交与取消             | 无           | ⬜   |
-| B    | QueryBuilder headless 与默认展示复用                                                    | 自定义分组、规则行和控件，生成与默认组件等价的查询               | A 的共享契约 | ⬜   |
+| B    | QueryBuilder 已有 service 的独立消费与三框架绑定、默认展示复用                          | 自定义分组、规则行和控件，生成与默认组件等价的查询               | A 的共享契约 | ⬜   |
 | C    | EntityList / EntityDetail / EntityDialog / QueryTable 的状态与动作边界，VTable 可选装配 | 自定义列表工具栏、详情布局、弹窗外壳和数据展示，继续复用数据操作 | A、B         | ⬜   |
 | D    | 独立消费示例、依赖边界验证与文档                                                        | 三框架消费方按文档接入自己的样式，并能继续使用默认组件           | A、B、C      | ⬜   |
 
@@ -115,12 +116,12 @@ tags: [ui, headless, rxdb-model, cross-framework, customization]
 
 ## 技术笔记
 
-- 优先复用已有 [`buildFormFields`](../../../packages/rxdb-model/src/entity-form/form-fields.ts)、[`validateForm`](../../../packages/rxdb-model/src/entity-form/form-validation.ts)、[`QueryBuilderService`](../../../packages/rxdb-model/src/query-builder/services/query-builder.service.ts) 等框架无关逻辑；不再创建第二套解析、校验或查询引擎。
+- 优先复用已公开的 `createQueryBuilderService()` 与 [`buildFormFields`](../../../packages/rxdb-model/src/entity-form/form-fields.ts)、[`validateForm`](../../../packages/rxdb-model/src/entity-form/form-validation.ts)、[`QueryBuilderService`](../../../packages/rxdb-model/src/query-builder/services/query-builder.service.ts) 等框架无关逻辑；不再创建第二套解析、校验或查询引擎。
 - headless 入口必须能够被独立消费。新增子路径、可选 peer 或拆分展示适配的具体方式在实现计划中确定，以安装隔离和构建依赖图验证 AC#13，不能只依靠 tree shaking 推断依赖已隔离。
 - 三框架共享状态与动作契约，各自采用惯用的响应性和销毁机制；具体 hook、composable、注入函数或指令名称在 API 设计时确定。
 - 默认组件作为同一逻辑的消费方；通用交互所需的 DOM 绑定放在适当的框架/展示层，框架无关核心保持无 DOM。自定义第三方控件按文档对接自己的键盘和焦点实现。
 - 每阶段先写可失败的契约用例，再接入默认组件并完成回归。阶段 D 的独立消费验证使用公开构建产物，避免源码路径别名掩盖导出或 peer 依赖问题。
-- 本故事是 packages 的通用能力，独立于 BOM、后台工作台或 P2P 领域交付；涉及候选领域时继续遵守 [AGENTS.md](../../../AGENTS.md) 的 packages 提取与评审要求。
+- 本故事是 packages 的通用能力，独立于 BOM、后台工作台或 P2P 领域交付；涉及候选领域时继续遵守 [AGENTS.md](../../../AGENTS.md) 的领域与公共包统一评审、验证要求。
 
 ## 实现文件
 

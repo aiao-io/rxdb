@@ -69,16 +69,15 @@ owner: jimmy
 - [US-224 Supabase 推送路径上级联删除的子行不写变更日志](../stories/adapter/US-224-supabase-cascade-delete-change-log.md) — `p_skip_sync = true` 时被 `ON DELETE CASCADE` 删掉的子行没有 `rxdb_change`，其它端拉不到这些删除
 - [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`；阶段 B 失败现场数据原样归档与导入（价值证据门禁已豁免；传输限制经主线程 IDB 第二连接绕开）；阶段 C 应用内 rrweb 录制插件与三框架组件（价值待证门禁已豁免）
 - [US-104 rxdb-model 表单校验反馈与保存失败的展示](../stories/framework/US-104-validation-feedback.md) — 三端 EntityDetail 错误面板（US-526 AC#4 触发）
-- [US-910 数据国际化 / 本地化](../stories/future/US-910-data-i18n.md) — 生产方案采用 C-L；阶段 A 依赖 Full/Filter/tombstone 同步夹具，HTTP QueryCache demo 不承担本故事同步验收
-- [US-911 客户端国际化 / 本地化](../stories/future/US-911-client-i18n.md) — UI 文案与 locale 状态：ICU 消息引擎（intl-messageformat）+ locale 状态单行实体 + 三端 `useI18n()`；rxdb-model 去硬编码（默认 zh-Hans 目录随包发布）；阶段 D 目录走 QueryCache 分发、独立后置
+- [US-910 数据国际化 / 本地化](../stories/future/US-910-data-i18n.md) — 生产方案采用 C-L；阶段 A 先验证同步启停公开入口与删除证据/合并扩展点，再做 Full/Filter 试点；HTTP QueryCache demo 不承担同步验收
+- [US-911 客户端国际化 / 本地化](../stories/future/US-911-client-i18n.md) — UI 文案与 locale 状态：ICU 消息引擎（intl-messageformat）+ 三端 `useI18n()`；locale 状态须先比较现成 PersistedState 与非版本化实体方案，验证通知及历史边界；rxdb-model 去硬编码（默认 zh-Hans 目录随包发布）；阶段 D 目录走 QueryCache 分发、独立后置
 - [US-025 核心包子系统按插件边界外移](../stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体逐阶段外移为插件包；搬消费者不搬 changelog 原语；阶段 B 起前置 US-015 的 `plugin:*` 依赖解析
 - [US-506 website 插件文档补齐（history / sync / querycache）](../stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏导航与 typedoc 收录，含 flatten 重写坏链修复；`site-build` 已绿
 - [US-030 实体元数据层的声明式存储约束](../stories/core/US-030-declarative-storage-constraints.md) — 四阶段（CHECK → 条件唯一 → 区间排他双后端等价 → 生成列、表达式索引与索引方法）；阶段 A～C（`checks` / 索引 `where` / `exclusions`）代码完成、待评审（[#114](https://github.com/aiao-io/rxdb/pull/114)），阶段 D 仍**价值待证**；当前消费方全在 epic-009
 - [US-031 树形实体迁移到排序模块](../stories/core/US-031-tree-sortable-migration.md) — 三端 demo 的树改用新建的可排序树实体（`parentId` 分组；旧的四个树实体不改），新建、批量添加、删除提升子节点与拖放改走 US-028 排序模块；症状可复现（三处撞键），三端行为已分叉；A 新实体与创建类写入 → B 拖放与显示顺序；前置 US-028 阶段 A + D
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的事务 host 协议，
-> 故 US-208 从 US-207 拆出。US-020 / US-212 / US-023 / US-213 / US-214 / US-021 / US-022 / US-215 / US-218 / US-220 归本 Epic
-> 而非已 `Done` 的 epic-002（Done 的 epic 不得持有未完成故事、不得重开）。US-021 / US-022 / US-215 是
+> 故 US-208 从 US-207 拆出。US-020 / US-212 / US-023 / US-213 / US-214 / US-021 / US-022 / US-215 / US-218 / US-220 保留在本 Epic 的历史范围内；Epic 归属按用户目标和当前范围维护，新增承诺需要同步目标与关闭条件。US-021 / US-022 / US-215 是
 > US-214 的产出（约束 14 禁止 US-214 改 `src/`，故每条产物缺陷另开故事）。
 > US-030 归本 Epic 而非 epic-001 / epic-005：那两个 Epic 都已 `Done`，不得持有未完成故事；
 > 它从 [epic-009](epic-009-bom-domain-model.md) 拆出，因为这四类约束能力与 BOM 场景无关，

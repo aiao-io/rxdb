@@ -162,5 +162,5 @@ AC#6 验两条成功路径，AC#8 验失败后保留源库并继续写入；清�
 - [US-534](US-534-board-column-task-skeleton.md) / [US-535](US-535-cross-column-move-ordering.md) / [US-536](US-536-task-detail-editing.md) / [US-537](US-537-board-backup-restore.md) / [US-538](US-538-board-task-search.md) / [US-539](US-539-board-tri-framework-ui.md) — 前置
 - [US-525 BOM 端到端 demo](US-525-bom-end-to-end-demo.md) — 同型故事：确定性种子、既有库重开、单端划界
 - [US-214 HTTP 适配器浏览器端到端 demo](../adapter/US-214-http-browser-demo.md) — 单端先例
-- [domain-research 产品形态](../../domain-research/README.md#产品形态零后端单机版) — 坑 ① 备份一等公民
+- [domain-research 底线判据](../../domain-research/README.md#底线判据) — 坑 ① 备份一等公民
 - [GitHub Projects 文档](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects) — demo 的卡片与列头交互参照
