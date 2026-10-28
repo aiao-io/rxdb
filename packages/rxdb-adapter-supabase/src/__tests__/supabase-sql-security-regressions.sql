@@ -412,6 +412,11 @@ CREATE TABLE rxdb_sql_regression.cascade_uuid_nodes (
   value text NOT NULL
 );
 SELECT public.rxdb_enable_sync_for_table('cascade_uuid_nodes', 'rxdb_sql_regression', 'CascadeUuidNode');
+ALTER TABLE rxdb_sql_regression.cascade_uuid_nodes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY cascade_uuid_select ON rxdb_sql_regression.cascade_uuid_nodes FOR SELECT USING (true);
+CREATE POLICY cascade_uuid_insert ON rxdb_sql_regression.cascade_uuid_nodes FOR INSERT WITH CHECK (true);
+CREATE POLICY cascade_uuid_delete ON rxdb_sql_regression.cascade_uuid_nodes
+  FOR DELETE USING (id != 'fedcba00-0000-4000-8000-000000000002'::uuid);
 
 SELECT public.rxdb_enable_sync_for_table('cascade_hidden_children', 'rxdb_sql_regression', 'CascadeHiddenChild');
 ALTER TABLE rxdb_sql_regression.cascade_hidden_children ENABLE ROW LEVEL SECURITY;
@@ -2889,6 +2894,7 @@ AS $$
 DECLARE
   deletes jsonb := '[{"schema":"rxdb_sql_regression","table":"cascade_uuid_nodes",
     "ids":["ABCDEF00-0000-4000-8000-000000000001","ABCDEF00-0000-4000-8000-000000000002"]}]';
+  result jsonb;
 BEGIN
   INSERT INTO rxdb_sql_regression.cascade_uuid_nodes (id, "parentId", value)
   VALUES ('abcdef00-0000-4000-8000-000000000001', NULL, 'parent'),
@@ -2901,6 +2907,30 @@ BEGIN
       AND (SELECT pg_catalog.count(*) FROM public.rxdb_change
         WHERE entity = 'CascadeUuidNode' AND type = 'DELETE' AND "clientId" IS NULL) = 0,
     'UUID input spelling must not produce duplicate server-origin deletes, including after retry'
+  );
+
+  INSERT INTO rxdb_sql_regression.cascade_uuid_nodes (id, "parentId", value)
+  VALUES ('fedcba00-0000-4000-8000-000000000001', NULL, 'parent'),
+         ('fedcba00-0000-4000-8000-000000000002', 'fedcba00-0000-4000-8000-000000000001', 'child');
+  deletes := '[
+    {"schema":"rxdb_sql_regression","table":"cascade_uuid_nodes","ids":["FEDCBA00-0000-4000-8000-000000000002"]},
+    {"schema":"rxdb_sql_regression","table":"cascade_uuid_nodes","ids":["FEDCBA00-0000-4000-8000-000000000001"]}]';
+  result := rxdb_sql_regression.push_cascade_deletes(deletes, true);
+  PERFORM rxdb_sql_regression.assert_true(
+    result->'entity_results'->0->>'entityId' = 'FEDCBA00-0000-4000-8000-000000000002'
+      AND result->'entity_results'->0->>'status' = 'applied'
+      AND result->'entity_results'->1->>'status' = 'applied'
+      AND NOT (result->'entity_results'->0 ? 'reason'),
+    'an uppercase UUID child denied before its allowed parent cascade must retain the source receipt key'
+  );
+  PERFORM rxdb_sql_regression.push_cascade_deletes(deletes, true);
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_change
+      WHERE entity = 'CascadeUuidNode' AND type = 'DELETE'
+        AND "entityId" IN ('FEDCBA00-0000-4000-8000-000000000001', 'FEDCBA00-0000-4000-8000-000000000002')
+        AND "clientId" IS NOT NULL AND "snapshotComplete"
+        AND "beforeData"->>'id' = pg_catalog.lower("entityId")) = 2,
+    'uppercase UUID cascade replay must preserve both source mappings and complete snapshots without duplicate logs'
   );
 END;
 $$;

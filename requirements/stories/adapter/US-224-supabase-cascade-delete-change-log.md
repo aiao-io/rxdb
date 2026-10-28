@@ -85,7 +85,8 @@ INVEST 检查清单:
   一起回滚，不能污染后续调用。
 - 外键动作可删除调用方按 RLS 看不到的行。完整 `OLD` 进入日志沿用现有触发器模式的可读边界，
   不只暴露 id；业务表 RLS 不等于日志的逐行授权隔离。需要隔离日志读取的应用必须另行限制日志访问。
-- 部署先更新 `docker/sql/02-rxdb-sync-functions.sql` 与 `04-rxdb-utils-functions.sql`，再升级客户端；
+- 部署先在同一数据库事务中按 02 → 04 更新 `docker/sql/02-rxdb-sync-functions.sql` 与 `04-rxdb-utils-functions.sql`
+  并一起提交，再升级客户端；不能原子执行时须在维护窗口禁止写入，避免新触发器与旧 RPC 混用。
   `01-rxdb-system-tables.sql` 无变化。升级与边界见[迁移说明](../../../website/docs/migration/supabase-update-push.md)。
 
 ## 验证记录
@@ -96,6 +97,7 @@ INVEST 检查清单:
 - 与 US-223 共同完成完整 affected 门禁：49 项任务、4 个受影响项目、36 项依赖任务全部通过。
 - Supabase 适配器 43 个 spec 文件、630 个用例通过；应用单测 50 个、本地模式 e2e 4 个、远端模式 e2e 4 个通过；两客户端同步验证父行及隐式子行最终均不存在。
 - SQL 安全回归 36 个独立用例及 `all` 单事务组合全部通过；脚本套件已执行版本 489 个用例通过。
+- PR 复核补充：大写 UUID 子行先被 RLS 拒绝、随后由父行级联删除及重试的组合验证通过，保留源回执键、映射与完整快照；02 / 04 同事务升级与中途 SQL 错误整组回滚实测通过。
 - 适配器覆盖率：Lines 97.52%、Statements 96.65%、Functions 97.71%、Branches 88.20%，四项均达到 80% 门槛。
 
 ## 实现文件
@@ -110,3 +112,5 @@ INVEST 检查清单:
 
 - [US-218 Supabase 远端启用 RLS 时的推送完整性](US-218-supabase-rls-push-integrity.md) — 推送路径的日志由客户端随批下发
 - [US-223 Supabase 直写路径的 UPDATE 落库语义](US-223-supabase-mutations-update-semantics.md)
+
+- [PR #170](https://github.com/aiao-io/rxdb/pull/170)

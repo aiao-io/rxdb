@@ -190,7 +190,7 @@ ON public.rxdb_change("clientId", "localId")
 WHERE "clientId" IS NOT NULL AND "localId" IS NOT NULL;
 ```
 
-`clientId + localId` 是本地 push 到远端的幂等键。升级既有数据库时应重新执行 `docker/sql/01-rxdb-system-tables.sql` 和 `docker/sql/04-rxdb-utils-functions.sql`；系统表脚本会为每个重复键保留最早的远端 change、删除后续重复记录，再建立部分唯一索引。
+`clientId + localId` 是本地 push 到远端的幂等键。从尚无此索引的旧库升级时，须按系统表迁移执行 `docker/sql/01-rxdb-system-tables.sql`；它为每个重复键保留最早的远端 change、删除后续重复记录，再建立部分唯一索引。本次函数升级还须将 02 与 04 放在同一数据库事务内执行，见下方[级联删除](#级联删除)及[迁移说明](https://rxdb.aiao.io/docs/migration/supabase-update-push)。
 
 ### `rxdb_branch`（分支元数据）
 
@@ -307,11 +307,13 @@ class SupabaseTreeRepository<T> extends SupabaseRepository<T> {
 
 ### 直写事务（`mutations`）
 
-直接连接 Supabase 的 `save()` / `mutations()` 把新增发到 `p_upserts`，修改发到 `p_updates`，在一个 RPC 事务里执行。修改使用普通 `UPDATE`，不再经过 INSERT 策略；`createdBy` 保持原值，`updatedBy` 使用当前用户。
+`mutations()` 把新增发到 `p_upserts`，修改发到 `p_updates`，在一个 RPC 事务里执行。修改使用普通 `UPDATE`，不再经过 INSERT 策略；`createdBy` 保持原值，`updatedBy` 使用当前用户。
 
-直写路径没有逐列脏追踪：`id` 用于定位，序列化整实体中除 `createdBy` 外的其余列参与更新。推送路径则只发送变更列；两者都只更新载荷中出现的列。直写通过 `UPDATE … RETURNING` 将服务器结果与新增行一起返回，实体由此回填 `updatedAt` 等服务器字段。UPDATE 被策略拒绝报 `42501`，目标行已不存在报 `RX001`；直写批次任一写入失败，整批回滚。
+该批量直写路径没有逐列脏追踪：`id` 用于定位，序列化整实体中除 `createdBy` 外的其余列参与更新。推送路径则只发送变更列；两者都只更新载荷中出现的列。`mutations()` 通过 `UPDATE … RETURNING` 将服务器结果与新增行一起返回，调用方可从返回值读取 `updatedAt` 等服务器字段。UPDATE 被策略拒绝报 `42501`，目标行已不存在报 `RX001`；直写批次任一写入失败，整批回滚。
 
-返回完整行要求直写角色具备相应列的 SELECT 权限，修改后的行也需满足 SELECT 策略。推送及原 `rxdb_batch_update` 计数入口继续执行不带 RETURNING 的 UPDATE，保留原有权限与可见性语义；不会因本次直写回填需求追加全列 SELECT 或修改后行可见性要求。
+普通单实体修改的 `save()` 经 `EntityManager.update` → `SupabaseRepository.update`，使用 PostgREST 普通 UPDATE；只有需要批量图变更时才走 `mutations()`。现有 `EntityManager.save` 返回原实体，未合并批量 RPC 的返回行；本次只保证 `mutations()` 的返回值，不承诺 `save()` 自动覆盖服务器字段。
+
+返回完整行要求直写角色具备相应列的 SELECT 权限，修改后的行也需满足 SELECT 策略。推送及原 `rxdb_batch_update` 计数入口继续执行不带 RETURNING 的 UPDATE，保留原有权限与可见性语义；不会因本次返回值需求追加全列 SELECT 或修改后行可见性要求。
 
 ### Push（`mergeChanges`）
 
@@ -351,7 +353,7 @@ class SupabaseTreeRepository<T> extends SupabaseRepository<T> {
 
 隐式级联日志保留完整 `OLD`（`beforeData`）、空 `afterData` 与 `snapshotComplete = true`，`clientId` / `localId` 为 NULL，因此推送端自己也能拉回子行删除。外键可删除按业务表 RLS 不可见的子行；日志沿用触发器模式现有的读取边界，业务表 RLS 不会自动给变更日志提供逐行授权隔离。
 
-升级本次直写 UPDATE 与级联日志修复时，先依次执行 `docker/sql/02-rxdb-sync-functions.sql`、`docker/sql/04-rxdb-utils-functions.sql`，再升级客户端。`01-rxdb-system-tables.sql` 无变化；已安装系统表及幂等索引的数据库无需为这两项修复重跑它。完整步骤见[迁移说明](https://rxdb.aiao.io/docs/migration/supabase-update-push)。
+升级本次直写 UPDATE 与级联日志修复时，先在同一数据库事务中按 02 → 04 执行 `docker/sql/02-rxdb-sync-functions.sql`、`docker/sql/04-rxdb-utils-functions.sql` 并一起提交，再升级客户端。使用 `psql --single-transaction` 同时传入两个 `-f`；使用 Supabase SQL Editor 时，在同一次执行中以 `BEGIN` / `COMMIT` 包住两份文件的完整内容。不能原子执行时须在维护窗口禁止写入，避免新触发器与旧 RPC 混用。`01-rxdb-system-tables.sql` 无变化；已安装系统表及幂等索引的数据库无需为这两项修复重跑它。完整命令见[迁移说明](https://rxdb.aiao.io/docs/migration/supabase-update-push)。
 
 ### Pull（`pullChanges` / `pullChangesBatch`）
 
