@@ -1975,6 +1975,40 @@
         "version": "0.0.28"
       },
       {
+        "description": "局域网 P2P 大文件共享：清单发现、分块校验、多源续传与服务器回退。",
+        "framework": null,
+        "homepage": null,
+        "hosts": [
+          "browser",
+          "node",
+          "electron",
+          "tauri"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/utils",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-p2p-files",
+        "plugin": {
+          "class": "RxDBPluginP2PFiles",
+          "factory": "rxDBPluginP2PFiles",
+          "source": "src/plugin.ts"
+        },
+        "role": "plugin",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
         "description": "> Implements: [US-025 核心插件化外移](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-025-core-plugin-extraction.md)",
         "framework": null,
         "homepage": "https://rxdb.aiao.io/docs/plugins",
@@ -2952,7 +2986,7 @@
       }
     ]
   },
-  "digest": "5f5e12cd80d8f5165fa7b001652a94fe00124f266295673a96b1b9213ed65b06",
+  "digest": "f0f6bd09b83ad44e78c58eeb168b15744d134a09deedba5ad3e58e9c05823f49",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

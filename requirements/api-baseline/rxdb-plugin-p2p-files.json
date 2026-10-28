@@ -1,0 +1,230 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "createAuthenticatedP2PFileManifest",
+        "kind": "value"
+      },
+      {
+        "name": "createChunkRequestHandler",
+        "kind": "value"
+      },
+      {
+        "name": "createLocalManifestDiscovery",
+        "kind": "value"
+      },
+      {
+        "name": "createManifestRecord",
+        "kind": "value"
+      },
+      {
+        "name": "createP2PFileManifest",
+        "kind": "value"
+      },
+      {
+        "name": "createP2PTransportPeer",
+        "kind": "value"
+      },
+      {
+        "name": "createTcpTransport",
+        "kind": "value"
+      },
+      {
+        "name": "createWebRTCTransport",
+        "kind": "value"
+      },
+      {
+        "name": "decodeP2PFrame",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_P2P_CHUNK_SIZE",
+        "kind": "value"
+      },
+      {
+        "name": "deriveHolderId",
+        "kind": "value"
+      },
+      {
+        "name": "describeChunk",
+        "kind": "value"
+      },
+      {
+        "name": "describeChunks",
+        "kind": "value"
+      },
+      {
+        "name": "downloadFromServer",
+        "kind": "value"
+      },
+      {
+        "name": "downloadP2PFile",
+        "kind": "value"
+      },
+      {
+        "name": "encodeP2PFrame",
+        "kind": "value"
+      },
+      {
+        "name": "findP2PFileHolders",
+        "kind": "value"
+      },
+      {
+        "name": "isManifestOwnedBy",
+        "kind": "value"
+      },
+      {
+        "name": "manifestId",
+        "kind": "value"
+      },
+      {
+        "name": "MAX_P2P_CHUNK_SIZE",
+        "kind": "value"
+      },
+      {
+        "name": "P2P_FILE_MANIFEST_ENTITY",
+        "kind": "value"
+      },
+      {
+        "name": "P2P_FILE_MANIFEST_SCHEMA",
+        "kind": "value"
+      },
+      {
+        "name": "P2PByteTransport",
+        "kind": "type"
+      },
+      {
+        "name": "P2PChunkDescriptor",
+        "kind": "type"
+      },
+      {
+        "name": "P2PChunkSource",
+        "kind": "type"
+      },
+      {
+        "name": "P2PDataChannelLike",
+        "kind": "type"
+      },
+      {
+        "name": "P2PDownloadOptions",
+        "kind": "type"
+      },
+      {
+        "name": "P2PFileManifest",
+        "kind": "type"
+      },
+      {
+        "name": "P2PFileManifestEntity",
+        "kind": "both"
+      },
+      {
+        "name": "P2PFrame",
+        "kind": "type"
+      },
+      {
+        "name": "P2PHandshakeRequest",
+        "kind": "type"
+      },
+      {
+        "name": "P2PHandshakeResult",
+        "kind": "type"
+      },
+      {
+        "name": "P2PManifestRecord",
+        "kind": "type"
+      },
+      {
+        "name": "P2PManifestRepository",
+        "kind": "type"
+      },
+      {
+        "name": "P2PManifestStore",
+        "kind": "both"
+      },
+      {
+        "name": "P2PPeerDiscovery",
+        "kind": "type"
+      },
+      {
+        "name": "P2PPrincipal",
+        "kind": "type"
+      },
+      {
+        "name": "P2PServerFallback",
+        "kind": "type"
+      },
+      {
+        "name": "P2PSignalingChannel",
+        "kind": "type"
+      },
+      {
+        "name": "P2PSignalingMessage",
+        "kind": "type"
+      },
+      {
+        "name": "P2PTcpSocketLike",
+        "kind": "type"
+      },
+      {
+        "name": "P2PTransferError",
+        "kind": "both"
+      },
+      {
+        "name": "P2PTransferOptions",
+        "kind": "type"
+      },
+      {
+        "name": "P2PTransferProgress",
+        "kind": "type"
+      },
+      {
+        "name": "P2PTransferResult",
+        "kind": "type"
+      },
+      {
+        "name": "P2PTransportPeer",
+        "kind": "type"
+      },
+      {
+        "name": "rxDBPluginP2PFiles",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginP2PFiles",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBPluginP2PFilesOptions",
+        "kind": "type"
+      },
+      {
+        "name": "sha256Hex",
+        "kind": "value"
+      },
+      {
+        "name": "toRxDBManifestDocument",
+        "kind": "value"
+      },
+      {
+        "name": "toSyncManifestDocument",
+        "kind": "value"
+      },
+      {
+        "name": "transferP2PFile",
+        "kind": "value"
+      },
+      {
+        "name": "validateHandshake",
+        "kind": "value"
+      },
+      {
+        "name": "verifyChunk",
+        "kind": "value"
+      },
+      {
+        "name": "verifyContentHash",
+        "kind": "value"
+      }
+    ]
+  }
+}

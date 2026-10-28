@@ -221,6 +221,19 @@
       }
     },
     {
+      "name": "@aiao/rxdb-plugin-p2p-files",
+      "description": "局域网 P2P 大文件共享：清单发现、分块校验、多源续传与服务器回退。",
+      "role": "plugin",
+      "hosts": ["browser", "node", "electron", "tauri"],
+      "slots": [],
+      "framework": null,
+      "plugin": {
+        "source": "src/plugin.ts",
+        "class": "RxDBPluginP2PFiles",
+        "factory": "rxDBPluginP2PFiles"
+      }
+    },
+    {
       "name": "@aiao/rxdb-plugin-querycache",
       "description": "> Implements: [US-025 核心插件化外移](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-025-core-plugin-extraction.md)",
       "role": "plugin",
