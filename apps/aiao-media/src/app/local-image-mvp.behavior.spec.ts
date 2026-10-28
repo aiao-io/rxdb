@@ -235,7 +235,7 @@ describe('local result lifecycle', () => {
     const rootOf = vi.fn(async () => (++reads === 2 ? pending.promise : profileId));
     const r = await boot(undefined, { rootOf, waitReady: false });
     await vi.waitFor(() => expect(rootOf).toHaveBeenCalledTimes(2));
-    expect(r.component.localStatus()).toBe('ready');
+    expect(r.component.localStatus()).toBe('opening');
     try {
       await r.component.enableSync();
       expect(authorization).not.toHaveBeenCalled();

@@ -11,6 +11,50 @@ import {
   provider,
   verifyImageDownload
 } from './local-first.helpers';
+test('初始工作区目录就绪前禁用保存，完成后首次点击即可保存供应商', async ({ page }) => {
+  await page.addInitScript(() => {
+    let reads = 0;
+    const ready = new Promise<void>(resolve =>
+      document.addEventListener('fixture-release-initial-registry', () => resolve(), { once: true })
+    );
+    navigator.locks.request = new Proxy(navigator.locks.request, {
+      async apply(request, locks, args) {
+        const initial = args[0] === 'aiao-local-profile-v1' && ++reads === 2;
+        const result: unknown = await Reflect.apply(request, locks, args);
+        if (initial) {
+          document.documentElement.dataset['initialRegistry'] = 'pending';
+          await ready;
+          delete document.documentElement.dataset['initialRegistry'];
+        }
+        return result;
+      }
+    });
+  });
+  let requests = 0;
+  await page.route('**/*', route => {
+    const request = route.request();
+    if (request.method() === 'POST' && /\/(images\/generations|image_generation|api\/relay)$/.test(request.url())) {
+      requests++;
+      return route.abort('blockedbyclient');
+    }
+    return route.fallback();
+  });
+  await page.goto('/providers');
+  await expect(page.locator('html')).toHaveAttribute('data-initial-registry', 'pending');
+  await page.getByLabel('名称', { exact: true }).fill('本机供应商');
+  await page.getByLabel('HTTPS Base URL').fill('https://images.example.test/v1');
+  await page.getByLabel('图片模型 ID').fill('test-image');
+  const save = page.getByRole('button', { name: '保存到本机', exact: true });
+  try {
+    await expect(save).toBeDisabled();
+  } finally {
+    await page.evaluate(() => document.dispatchEvent(new Event('fixture-release-initial-registry')));
+  }
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
+  expect(requests).toBe(0);
+});
 test('首次没有供应商时自动启用默认免费供应商', async ({ page }) => {
   await page.goto('/providers');
   await expect(page.getByRole('heading', { name: '默认免费供应商 · 默认' })).toBeVisible();

@@ -1214,6 +1214,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         })
       );
       await this.reconcileIdentity();
+      this.localStatus.set('ready');
     } catch (error) {
       this.localStatus.set('unavailable');
       this.storageMessage.set(
@@ -1319,7 +1320,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           }
         })
       );
-      this.localStatus.set('ready');
+      if (!initial) this.localStatus.set('ready');
       this.product?.selection();
     })();
     if (old && old !== store) void old.close();
