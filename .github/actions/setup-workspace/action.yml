@@ -2,6 +2,10 @@ name: Setup workspace
 description: pnpm + Node + 依赖安装。CI 里每个 job 的固定开销，抽出来避免十几处复制粘贴各自漂移。
 
 inputs:
+  save-metadata-cache:
+    description: '安装后保存 pnpm 元数据与 lockfile 校验记录；只由 CI setup job 写入。'
+    required: false
+    default: 'false'
   free-disk:
     description: >
       根分区紧张时是否删除 runner 预装但本仓库用不到的工具链（约 16-19GB）。
@@ -52,6 +56,29 @@ runs:
           pnpm-lock.yaml
           .nvmrc
 
+    # setup-node 只缓存 store，pnpm 12 的供应链校验记录与元数据另在 cacheDir。
+    # run 40650707113 全部 3322 个包复用，却在一次元数据请求上等了 565 秒。
+    - name: Resolve pnpm metadata cache
+      id: metadata-path
+      shell: bash
+      run: echo "path=$(pnpm cache path)" >> "$GITHUB_OUTPUT"
+
+    - name: Restore pnpm metadata cache
+      id: metadata-cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.metadata-path.outputs.path }}
+        key: pnpm-metadata-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json', '.nvmrc') }}
+        restore-keys: |
+          pnpm-metadata-${{ runner.os }}-
+
     - name: Install dependencies
       shell: bash
-      run: pnpm install --frozen-lockfile
+      run: pnpm install --frozen-lockfile --prefer-offline --fetch-timeout=30000
+
+    - name: Save pnpm metadata cache
+      if: inputs.save-metadata-cache == 'true' && steps.metadata-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.metadata-path.outputs.path }}
+        key: ${{ steps.metadata-cache.outputs.cache-primary-key }}
