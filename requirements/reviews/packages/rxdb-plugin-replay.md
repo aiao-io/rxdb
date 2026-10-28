@@ -1,0 +1,30 @@
+# rxdb-plugin-replay 深度评审
+
+- 包：`@aiao/rxdb-plugin-replay`
+- 日期：2026-10-28
+- 基线：`7bb16a9014095d4003bd059244722013b36867c1`
+- 结论：🟢好。本次已审范围未发现新增确定缺陷；不代表全部路径无缺陷。
+
+## 评审计划与实际范围
+
+检查录制启动/停止重入、事件缓冲、刷盘事务、体积上限、刷新暂存认领、连接纪元释放、恢复提交与播放器异步加载代次。
+
+## 核查结果
+
+- [`ReplayRuntime.start`](../../../packages/rxdb-plugin-replay/src/manager.ts) 串起 resuming 与 starting；`stop` 共享正在进行的停止 Promise，release 等停止后销毁独立录制库。
+- [`ReplayRecorder.#flush`](../../../packages/rxdb-plugin-replay/src/recorder.ts) 单一在飞批次，stop 先停录制再排空缓冲；失败和截断停止后续事件接收。
+- [`ReplayStore.appendBatch`](../../../packages/rxdb-plugin-replay/src/store.ts) 在同一事务写事件行与会话计数/nextSeq；删除会话也在一个事务删关联事件。
+- [`claimReplayStash`](../../../packages/rxdb-plugin-replay/src/resume.ts) 先删除暂存键再解码，非法形状交出明确失败；`unwrittenStashEvents` 按已落库 seq 去重。
+- [`ReplayerView.#load`](../../../packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts) 通过 generation 丢弃切换会话/销毁后的迟到结果；恢复后的 UI 回写也验证 generation。
+- [`restoreToCommit`](../../../packages/rxdb-plugin-replay/src/restore.ts) 每次读取当前工作树凭据后执行恢复，不复用录制时的旧 HEAD。
+
+## 问题
+
+本次未发现可给出确定触发链的新增包内问题。
+
+## 验证证据与边界
+
+- 静态证据：逐一读取上述符号的实现，并沿对应调用链核对；未修改产品代码或既有测试。
+- 发现仓库测试文件 18 份；文件数仅描述现有测试入口，不等于本次覆盖率。
+- 本次 `rxdb-plugin-replay:test`：149 passed | 1 skipped (150)；目标实际执行。命令及整体边界见[总索引](README.md)。
+- 未逐 rrweb DOM 事件种类验证脱敏结果，未模拟浏览器崩溃、sessionStorage 配额及真实 BFCache。录制库依赖调用方工厂的隔离配置，源码检查不能替代部署级验证。

@@ -1,0 +1,28 @@
+# rxdb-plugin-working-tree-vue 深度评审
+
+- 包：`@aiao/rxdb-plugin-working-tree-vue`
+- 日期：2026-10-28
+- 基线：`7bb16a9014095d4003bd059244722013b36867c1`
+- 结论：🟢好。本次已审范围未发现新增确定缺陷；不代表全部路径无缺陷。
+
+## 评审计划与实际范围
+
+实际比对本组 Angular/React/Vue 三个 src/index.ts，再审查本端运行时实现，重点是effectScope 释放、props/ref 身份与只读输出。框架原生容器差异按设计归一，不把 inject/use 或事件命名差异当成产品缺陷。
+
+## 核查结果
+
+- [`useWorkingTree`](../../../packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts) 与 [`useWorktrees`](../../../packages/rxdb-plugin-working-tree-vue/src/use-worktrees.ts)：useWorkingTree 用 shallowRef+computed；useWorktrees 订阅挂载流并在 onScopeDispose 退订，避免代理表集的私有字段。
+- 工作树十四格与检出位十格沿用核心状态类型及同名命令；恢复拒绝是返回值，不被包装成空状态。
+- 三端 index.ts 的 `useWorkingTree/WorkingTreeResource/useWorktrees/WorktreesResource` 导出集合相同；核心错误类型按共同约定从 peer 包读取。
+- 方法只在命令发起时调用数据库；创建入口没有额外 I/O。并发同格 latest-only 由核心共用命令层负责。
+
+## 问题
+
+本次未发现可给出确定触发链的新增包内问题。
+
+## 验证证据与边界
+
+- 静态证据：逐一读取上述符号的实现，并沿对应调用链核对；未修改产品代码或既有测试。
+- 发现仓库测试文件 5 份；文件数仅描述现有测试入口，不等于本次覆盖率。
+- 本次 `rxdb-plugin-working-tree-vue:test`：68 passed (68)；目标实际执行。命令及整体边界见[总索引](README.md)。
+- Angular/Vue 的入口绑定创建时数据库，换库要求重建组件是当前源码公开约定；React 自动跟随 Provider 换库。工作树状态不自动跟随外部写更新也已文档化，本次不报成漏订阅。未做六后端框架组合验收。
