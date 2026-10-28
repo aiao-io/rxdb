@@ -171,11 +171,11 @@ for (const backend of BACKENDS) {
     it('根指定但零匹配：四引擎都显式拒绝并点名 alternativeNo，不返回空结果', async () => {
       const target = { parentRevisionId: fixture.revisions.r3 };
       for (const attempt of [
-        resolveBom(adapter, context(2), target),
-        expandBom(adapter, context(2), target),
-        explodeBom(adapter, context(2), target, PLANNED)
+        () => resolveBom(adapter, context(2), target),
+        () => expandBom(adapter, context(2), target),
+        () => explodeBom(adapter, context(2), target, PLANNED)
       ]) {
-        const error = await settle(attempt);
+        const error = await settle(attempt());
         expect(error).toBeInstanceOf(BomResolutionError);
         expect((error as BomResolutionError).field).toBe('alternativeNo');
         expect(String((error as Error).message)).toContain('备选 2');
