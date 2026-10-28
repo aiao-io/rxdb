@@ -55,7 +55,7 @@ WebContainer 依赖三样明确不抄。
 | Web 本地优先 AI 构建器 | 浏览器（OPFS SQLite） | 对标 Bolt.new / Lovable；项目数据在本地库，BYOK 推理，静态托管上线        |
 | 桌面 AI 开发环境       | Electron / Tauri      | 对标 Cursor agent 模式；项目 + agent 会话 + 回放 + RAG 索引全在本地加密库 |
 
-两个形态是同一份引擎：Web / Electron / Tauri 宿主适配器均已交付，不存在第二套实现。
+两个形态可复用同一份数据模型；文件访问、构建预览、权限与打包分别按 Web / Electron / Tauri 验收。
 
 ## 契合点：现有能力逐项映射
 
@@ -70,7 +70,7 @@ WebContainer 依赖三样明确不抄。
 | 一致性备份               | 数据库备份已交付；完整项目备份还需文件与 `.git` 导出及一致性设计                                                               | [US-217](../stories/adapter/US-217-local-database-backup-restore.md) · [Git + OPFS](browser-git-opfs.md)                                                                                                   |
 | 生成物的数据层           | 模型驱动实体 + 声明式约束（CHECK / 条件唯一 / 区间排他）+ 三端类型安全仓库                                                     | [epic-001](../epics/epic-001-core-mvp.md) · [US-030](../stories/core/US-030-declarative-storage-constraints.md)                                                                                            |
 | 代码编辑器 UI            | `@aiao/code-editor` 三端（CodeMirror 6）已交付并被 demo 使用                                                                   | [capability-matrix](../capability-matrix.md) 包清单                                                                                                                                                        |
-| 生成物多宿主部署         | Web / Electron / Tauri / 小程序适配器——生成的应用第一天就多端                                                                  | [US-207](../stories/adapter/US-207-desktop-local-database.md) · [US-208](../stories/adapter/US-208-electron-pglite-data-directory.md) · [US-210](../stories/adapter/US-210-tauri-sqlite-local-database.md) |
+| 生成物多宿主部署         | 数据适配器可复用；生成应用的构建、UI、权限、资源与打包需逐宿主验收，小程序支持另定范围                                         | [US-207](../stories/adapter/US-207-desktop-local-database.md) · [US-208](../stories/adapter/US-208-electron-pglite-data-directory.md) · [US-210](../stories/adapter/US-210-tauri-sqlite-local-database.md) |
 
 ## 关键闭环：产品哲学决定技术复杂度
 

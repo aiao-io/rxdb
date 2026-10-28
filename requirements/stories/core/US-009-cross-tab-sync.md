@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-10-06
+updated: 2026-10-28
 tags: [core, sync, broadcast]
 ---
 
@@ -39,4 +39,4 @@ tags: [core, sync, broadcast]
 
 ## 参考
 
-- 源码：[`isCrossTabEvent`](../../../packages/rxdb/src/rxdb-events.ts#L722)
+- 源码：[`isCrossTabEvent`](../../../packages/rxdb/src/rxdb-events.ts)

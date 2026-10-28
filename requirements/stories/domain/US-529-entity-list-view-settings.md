@@ -1,11 +1,11 @@
 ---
 id: US-529
 title: 实体列表视图配置：字段显隐、多字段排序与分组
-status: In Review
+status: Done
 priority: Medium
 epic: epic-010-model-driven-admin-framework
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-10-28
 tags: [domain, admin-framework, rxdb-model, table, cross-framework]
 ---
 
@@ -17,14 +17,11 @@ tags: [domain, admin-framework, rxdb-model, table, cross-framework]
 **我想要** 调整列表字段显隐和顺序、按多个字段排序、按一个字段分组
 **以便** 在同一份数据上组织当前需要的展示和浏览顺序，减少无关列与逐条查找。
 
-## 立项与范围依据
+## 范围依据
 
-2026-10-25 owner 明确要求先加入字段配置、排序、分组三项，依据为
-[Teable 调研](../../teable-research.md)。当前列表字段固定、工具栏没有多字段排序与分组入口；
-现有列头排序、关系编辑、筛选和 CRUD 继续复用。本故事承接首版工作台后的通用模型 UI 扩展，
-公共逻辑集中于 `rxdb-model`，三端同时交付。
-
-2026-10-25 owner 追加交互要求：字段顺序改为拖拽调整，显隐改为开关，并修复排序、分组弹层在右侧被截断的问题。
+owner 批准字段配置、排序和分组三项，依据为 [Teable 调研](../../teable-research.md)。
+该切片扩展通用模型 UI：公共逻辑集中于 `rxdb-model`，三端同时交付，复用列头排序、关系编辑、筛选与 CRUD。
+字段顺序使用拖拽，显隐使用开关，配置弹层须完整显示在视口内。
 
 ## 范围边界
 
@@ -62,7 +59,7 @@ tags: [domain, admin-framework, rxdb-model, table, cross-framework]
 - [`isReadonly`](../../../packages/rxdb-model/src/entity-table/columns/column-utils.ts) 识别分组标题，
   复用于编辑器、剪贴板、键盘及三端单元格事件入口。
 - `ListViewSettingsController` 统一三端弹层定位及拖拽生命周期，复用 `@aiao/utils` 的 `FixedRowDrag`；取消拖拽或字段序列变化时不提交旧落点。
-- 领域功能与 `packages/*` 改动按 [AGENTS.md](../../../AGENTS.md) 单独提取、评审和合并。
+- 领域功能与 `packages/*` 公共包改动按 [AGENTS.md](../../../AGENTS.md) 在同一 PR 中统一评审、验证，通过后一起合入 main。
 
 ## 实现文件
 
@@ -76,27 +73,17 @@ tags: [domain, admin-framework, rxdb-model, table, cross-framework]
 - `packages/rxdb-model-{angular,react,vue}/src/__tests__/entity-list/` — 三端真实组件交互回归。
 - `apps/dev-rxdb-admin-e2e/src/list-view.spec.ts` — 真实表格、空值分组、分组后编辑与窄屏验收。
 
-## 验证记录
+## 验收证据
 
-验证日期：2026-10-25。
-
-- 四个模型包全量测试：`rxdb-model` 1015、Angular 337、React 288、Vue 333，共 1973 个用例通过。
-- 三端列表组件额外回归：显隐开关、拖拽手柄方向键排序、最后一个可见字段不可隐藏、重置字段、清除排序、切换实体恢复配置；字段显隐不发起新的游标查询。
-- 工作台 Chromium E2E：25/25 通过，包含真实表格中的字段开关与跨行拖拽、升降序、空值组、折叠展开、分组后编辑；三个配置弹层在 1280 / 768 / 375px 视口内完整可见，支持 Escape 关闭。
-- 五个相关项目 lint 零警告、三端构建与四包 typecheck 通过；公共 API 基线新增共享视图类型、派生函数及配置交互控制器，三框架统一透传。
-- 四包全量覆盖率均满足 80% 门槛，四项分别判定：
-
-| 包                 | Lines  | Statements | Functions | Branches |
-| ------------------ | ------ | ---------- | --------- | -------- |
-| rxdb-model         | 95.82% | 94.37%     | 94.53%    | 86.59%   |
-| rxdb-model-angular | 95.16% | 93.41%     | 91.98%    | 85.43%   |
-| rxdb-model-react   | 95.08% | 92.47%     | 90.19%    | 84.21%   |
-| rxdb-model-vue     | 92.08% | 90.66%     | 84.45%    | 86.57%   |
+- [共享视图断言](../../../packages/rxdb-model/src/__tests__/entity-list/list-view.spec.ts)与[配置交互断言](../../../packages/rxdb-model/src/__tests__/entity-list/list-view-settings.spec.ts)：排序、分组、弹层边界、拖拽取消与销毁清理。
+- [Angular](../../../packages/rxdb-model-angular/src/__tests__/entity-list/entity-list.real.spec.ts)、[React](../../../packages/rxdb-model-react/src/__tests__/entity-list/entity-list.real.spec.tsx)、[Vue](../../../packages/rxdb-model-vue/src/__tests__/entity-list/entity-list.real.spec.ts)：真实组件的字段显隐、方向键调序、重置、排序清除与实体切换；字段显隐不重查分页。
+- [工作台真实表格验收](../../../apps/dev-rxdb-admin-e2e/src/list-view.spec.ts)：拖拽、排序、空值分组、折叠与分组后编辑；桌面及窄屏弹层完整可见，Escape 关闭。
 
 配置只保存在当前组件会话中；页面刷新或切换实体会恢复默认值。分组计数只覆盖已加载记录。
 命名视图、配置持久化、多层分组及全量汇总仍需单独确定范围。
 
 ## References
 
+- [合入 PR #152](https://github.com/aiao-io/rxdb/pull/152)
 - [epic-010 模型驱动后台管理框架](../../epics/epic-010-model-driven-admin-framework.md)
 - [Teable 调研与后续决策依据](../../teable-research.md)
