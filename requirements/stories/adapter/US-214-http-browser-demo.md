@@ -1,18 +1,18 @@
 ---
 id: US-214
-title: HTTP 适配器浏览器端到端 demo（Angular 前端 + node:sqlite 参考后端）
+title: HTTP 适配器浏览器端到端 demo（Angular 前端 + RxDB/PGlite 参考后端）
 status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-26
-updated: 2026-10-06
+updated: 2026-10-28
 tags: [adapter, http, demo, e2e, angular, node, sqlite, cors]
 ---
 
 <!--
 INVEST 检查清单:
 - [x] Independent: 零前置。US-212 已 Done 且按 stable 发布；与 US-213 无先后关系（两条各建各的后端，见「与 US-213 的分工」）
-- [x] Negotiable: 端口号、UI 形态、种子行数、实体字段可调；「浏览器真实 fetch + 真 sqlite 后端 + 真本地行缓存」三条不可协商——去掉任何一条，本故事就退化成 US-213 的重复
+- [x] Negotiable: 端口号、UI 形态、种子行数、实体字段可调；「浏览器真实 fetch + 真持久化后端 + 真本地行缓存」三条不可协商——去掉任何一条，本故事就退化成 US-213 的重复
 - [x] Valuable: `http-protocol.md` 全篇没有一个字提 CORS，而浏览器接入方 100% 会撞上它；跨源下 `HttpTransport.#cacheAndReturn` 读不到 ETag 会让条件请求静默失效且不报错。而这条链路只有浏览器 + 真后端的 demo 才走得到
 - [x] Estimable: 一个 node 后端 app（7 端点 + RuleGroup→SQL + 种子）、一个 Angular app（照 dev-rxdb-supabase 接线）、一个 playwright e2e app
 - [x] Small: 体量确实偏大，因此按 CONVENTIONS「大故事分阶段」切成 A（能手工跑通）/ B（自动化门禁 + 浏览器专属证据）两阶段，不拆子文件
@@ -25,7 +25,7 @@ INVEST 检查清单:
 
 **作为** 打算把自己的 REST 后端接上 `@aiao/rxdb-adapter-http`、并在**浏览器里**跑 RxDB 的开发者
 **我想要** 一个能一键起起来的完整 demo——Angular 前端（`SyncType.QueryCache` + wa-sqlite 行缓存）
-打一个**真 SQLite 落盘**的 node 后端，两端**不同源**，页面上能看见每一次真实请求
+打一个由 **RxDB + PGlite 持久化**的 node 后端，两端**不同源**，页面上能看见每一次真实请求
 **以便** 我在写自己的后端之前，先有一份**照抄就能跑**的参考实现，并且那些 vitest 用例结构上
 够不到的浏览器现实（CORS 预检、`ETag` 要显式暴露才读得到、离线降级、孤儿行清理）
 在 demo 里当场发生、当场看见，而不是等我上线后自己踩。
@@ -36,7 +36,7 @@ INVEST 检查清单:
 
 - **`apps/dev-rxdb-http-server`**：node 后端，`node:http` 路由，按 `http-protocol.md` 实现七个端点，
   数据**真落盘**。当前由 RxDB 引擎 + pglite 实现（见 [US-216](./US-216-server-side-rxdb.md)）：`where` 由引擎翻译成
-  参数化 SQL，不再有手写的翻译模块；阶段 A 交付时的形态是 `node:sqlite` + `rule-group-to-sql.ts`，AC#1 / #3 / #6 按那一形态验收
+  参数化 SQL，不再有手写的翻译模块；原 `node:sqlite` 方案的 AC#1 / #3 / #6 与 AC#17 的模块断言按下文「当前验收归属」解释
 - **`apps/dev-rxdb-http`**：Angular 前端，`SyncType.QueryCache` + `remote: {adapter:'http'}` +
   `local: {adapter:'wa-sqlite'}`，handlers 走 `createRestHandlers()`
 - **协议流量面板**：页面上按发生顺序列出真实请求（方法 / 路径 / 状态码 / 耗时 / 是否 304）
@@ -52,9 +52,8 @@ INVEST 检查清单:
   跨源读不到 ETag 时应不应该告警而不是静默降级），本故事只把症状冻结成用例并记为
   「→ 另开 US」，不动已按 `stable` 发布的包。同 US-213 的处置口径（[roadmap 约束 13](../../roadmap.md#排期约束)）
 - **把 demo 后端做成可发布产物或"官方 SDK"**。它是 `apps/` 下的参考实现，不进 `dist`、不发 npm
-- **为"以后换 PostgreSQL"预留抽象层**。用户意图里的「先用 sqlite」由「方言相关代码只集中在
-  `rule-group-to-sql.ts` 一个文件」承接，不提前抽 `Store` 接口——病灶数尚未 ≥ 抽象数
-  （[CONVENTIONS 价值待证](../../CONVENTIONS.md#价值待证)）
+- **在 demo 内另建存储抽象层或 SQL 翻译器**。方言与查询交给 RxDB 引擎；不在参考后端复制一份
+  `Store` 或已由引擎承担的 SQL 生成逻辑
 - **真实身份认证**。auth hook 返回一个固定的假 token，后端只校验它存在；接 IdP 是另一件事
 - **Full / Filter 同步**。v1 的 HTTP 适配器只支持 `QueryCache`
   - 离线写队列与冲突解决 —— 归 [US-020 D5-R](../core/US-020-querycache-repository.md)：
@@ -76,6 +75,18 @@ INVEST 检查清单:
 **全部阶段关闭后才置 `Done`**（[CONVENTIONS 大故事分阶段](../../CONVENTIONS.md#大故事分阶段不拆子故事文件硬规则)）。
 
 ## 验收标准
+
+### 当前验收归属
+
+本故事的浏览器协议、CORS、缓存与界面行为仍是当前契约。下表明确被 US-216 接替的实现约束，
+原 AC 编号和历史验收结果保留用于追溯，**不能按旧方案复验当前后端**：
+
+| 本故事原 AC                                       | 当前契约与验收归属                                                                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| #1 的零依赖、`node:sqlite` 与 `.data/demo.sqlite` | [US-216](./US-216-server-side-rxdb.md) A1 / B3 / B6：RxDB + PGlite 初始化、dataDir 重启持久化，README 如实声明依赖；服务端口仍为 4301 |
+| #3 的手写 `RuleGroup` 翻译与 `?` 绑定             | US-216 A2 / B5：经 Repository 查询，既有协议断言继续通过；手写 `rule-group-to-sql.ts` 已删除                                          |
+| #6 的 reset / seed 落点                           | US-216 B2：控制入口适配当前存储层，两次 reset 读出的 250 行逐字节相同                                                                 |
+| #17 的 `rule-group-to-sql.ts` 单测                | US-216 B5：移除翻译模块，保留后端协议回归、浏览器 e2e 与受影响项目门禁                                                                |
 
 前置条件里的「两端已起」统一指：后端在 `127.0.0.1:4301` 且已跑过 `seed`，前端在 `127.0.0.1:4300`，
 前端的 `baseUrl` 指向 `http://127.0.0.1:4301/v1`。
