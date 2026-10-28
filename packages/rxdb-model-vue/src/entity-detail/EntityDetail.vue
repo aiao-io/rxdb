@@ -97,13 +97,16 @@ const dialogContext = inject(ENTITY_DIALOG_CONTEXT, undefined);
 const databaseRef = injectRxDBRef(true);
 const rxdb = computed(() => databaseRef?.value);
 const relationListKey = ref(0);
+let editGeneration = 0;
 watch(
   rxdb,
   (_database, previous) => {
+    editGeneration++;
     relationListKey.value++;
     if (!previous) return;
     cleanupDraftEntity();
     draftFormData.value = {};
+    editFormChanges.value = {};
     formErrors.value = null;
     saveError.value = null;
   },
@@ -127,6 +130,15 @@ const saveErrorMessage = (error: unknown): string =>
 /** create 模式下的草稿实体实例（立即创建，不保存） */
 const draftEntity = shallowRef<EntityInstance | null>(null);
 let draftDatabase: RxDB | undefined;
+const editFormChanges = ref<EntityFormData>({});
+watch(
+  [() => props.namespace ?? props.metadata?.namespace, () => props.name ?? props.metadata?.name, () => props.entityId],
+  () => {
+    editGeneration++;
+    editFormChanges.value = {};
+  },
+  { flush: 'sync' }
+);
 
 // 根据 namespace + name 查找对应实体类
 const entityCls = computed<EntityType | null>(() => {
@@ -170,12 +182,14 @@ const formFieldsFromRouteInputs = computed<FormFieldConfig[] | null>(() => {
 /** 编辑模式按 id 加载实体实例（等价 Angular 的 toSignal(switchMap(get(id)))） */
 const entityInstance = shallowRef<EntityInstance | null>(null);
 watch(
-  () => [rxdb.value, entityCls.value ?? entityClsFromDialog.value, props.entityId] as const,
+  () => [rxdb.value, entityCls.value ?? entityClsFromDialog.value, props.entityId, props.formMode ?? 'edit'] as const,
   ([database, cls, id], _old, onCleanup) => {
+    editGeneration++;
     entityInstance.value = null;
     let cancelled = false;
     let subscription: Subscription | undefined;
     onCleanup(() => {
+      editGeneration++;
       cancelled = true;
       subscription?.unsubscribe();
       entityInstance.value = null;
@@ -203,6 +217,10 @@ const formModeValue = computed<FormMode>(() => props.formMode ?? 'edit');
 
 /** 是否使用外部保存模式（create 模式下，保存/取消按钮在 tabs 下面，而非 form 内） */
 const isCreateMode = computed(() => formModeValue.value === 'create');
+const isEditPending = computed(
+  () => databaseRef !== undefined && !isCreateMode.value && !!props.entityId && !entityInstance.value
+);
+const isCreatePending = computed(() => databaseRef !== undefined && !rxdb.value && !props.delegateSave);
 
 /** 当前表单编辑数据（create 模式下跟踪用户输入） */
 const draftFormData = ref<EntityFormData>({});
@@ -248,15 +266,15 @@ const formFieldsValue = computed<FormFieldConfig[]>(() => {
 
 const formDataValue = computed<EntityFormData>(() => {
   if (isCreateMode.value) {
-    const draft = draftFormData.value;
+    const draft = draftEntity.value ? draftFormData.value : { ...props.formData, ...draftFormData.value };
     const fixed = props.fixedFormData;
     return fixed ? { ...draft, ...fixed } : draft;
   }
   const inst = entityInstance.value;
-  if (inst) return entityToFormData(inst as Record<string, unknown>, formFieldsValue.value);
-  const base = props.formData ?? {};
+  const base = inst ? entityToFormData(inst as Record<string, unknown>, formFieldsValue.value) : props.formData;
+  const changes = databaseRef && props.entityId ? editFormChanges.value : {};
   const fixed = props.fixedFormData;
-  return fixed ? { ...base, ...fixed } : base;
+  return { ...base, ...changes, ...fixed };
 });
 const relatedEntityProviderValue = computed<RelatedEntityProvider | undefined>(() => props.relatedEntityProvider);
 
@@ -301,7 +319,7 @@ watch(
     const inst = database.entityManager.instantiate(cls, merged) as EntityInstance;
     draftDatabase = database;
     draftEntity.value = inst;
-    draftFormData.value = entityToFormData(inst as Record<string, unknown>, props.formFields ?? []);
+    draftFormData.value = entityToFormData(inst as Record<string, unknown>, formFieldsValue.value);
   },
   { immediate: true }
 );
@@ -329,6 +347,7 @@ const onFormDataChanged = (data: EntityFormData): void => {
 };
 
 const onFormSubmitted = (data: EntityFormData): void => {
+  if (isEditPending.value) return;
   // create 模式与无实例（纯表单数据透传）保持 delegate 语义：只 emit 由宿主处理
   if (isCreateMode.value) {
     emit('formSubmitted', data);
@@ -343,11 +362,14 @@ const onFormSubmitted = (data: EntityFormData): void => {
   const changes = formDataToEntityChanges(inst as Record<string, unknown>, data, formFieldsValue.value);
   Object.assign(inst as Record<string, unknown>, changes);
   const database = rxdb.value;
-  const isCurrent = (): boolean => entityInstance.value === inst && rxdb.value === database;
+  const generation = editGeneration;
+  const isCurrent = (): boolean =>
+    generation === editGeneration && entityInstance.value === inst && rxdb.value === database;
   inst
     .save()
     .then(() => {
       if (!isCurrent()) return;
+      editFormChanges.value = {};
       dialogContext?.close('saved');
       emit('formSubmitted', data);
     })
@@ -358,6 +380,8 @@ const onFormSubmitted = (data: EntityFormData): void => {
 };
 
 const onFormCancelled = (): void => {
+  editGeneration++;
+  editFormChanges.value = {};
   cleanupDraftEntity();
   emit('formCancelled');
   dialogContext?.close();
@@ -366,6 +390,8 @@ const onFormCancelled = (): void => {
 const onFieldChanged = (event: FormFieldChangeEvent): void => {
   if (isCreateMode.value) {
     draftFormData.value = { ...draftFormData.value, [event.field]: event.value };
+  } else if (databaseRef && props.entityId) {
+    editFormChanges.value = { ...editFormChanges.value, [event.field]: event.value };
   }
   formErrors.value = null;
   saveError.value = null;
@@ -380,6 +406,7 @@ const onValidationErrors = (result: FormValidationResult): void => {
 
 /** 外部保存按钮（create 模式） */
 const onSave = (): void => {
+  if (isCreatePending.value) return;
   const fields = formFieldsValue.value;
   const data = draftFormData.value;
   const fixed = props.fixedFormData;
@@ -393,12 +420,15 @@ const onSave = (): void => {
     syncDraftEntity();
     const draft = draftEntity.value;
     const database = rxdb.value;
-    const isCurrent = (): boolean => draftEntity.value === draft && rxdb.value === database;
+    const generation = editGeneration;
+    const isCurrent = (): boolean =>
+      generation === editGeneration && draftEntity.value === draft && rxdb.value === database;
     draft
       .save()
       .then(() => {
         if (!isCurrent()) return;
         draftEntity.value = null;
+        draftDatabase = undefined;
         dialogContext?.close('saved');
       })
       .catch(e => {
@@ -529,7 +559,7 @@ defineExpose({
               :fields="formFieldsValue"
               :mode="formModeValue"
               :related-entity-provider="relatedEntityProviderValue"
-              :show-actions="!isCreateMode"
+              :show-actions="!isCreateMode && !isEditPending"
               @field-changed="onFieldChanged"
               @form-cancelled="onFormCancelled"
               @form-submitted="onFormSubmitted"
@@ -588,6 +618,7 @@ defineExpose({
         </button>
         <button
           class="btn btn-primary"
+          :disabled="isCreatePending"
           type="button"
           @click="onSave"
         >

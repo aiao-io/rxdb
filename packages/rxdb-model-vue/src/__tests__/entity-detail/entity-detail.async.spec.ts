@@ -71,6 +71,8 @@ type DetailVM = InstanceType<typeof EntityDetail> & {
   draftEntity: EntityInstance | null;
   entityInstance: EntityInstance | null;
   formDataValue: EntityFormData;
+  onSave(): void;
+  onFormSubmitted(data: EntityFormData): void;
 };
 
 const formFields: FormFieldConfig[] = [
@@ -139,14 +141,19 @@ describe('EntityDetail 异步数据库就绪', () => {
     return { database, adapter };
   }
 
-  function renderDetail(source: RxDBInput<RxDB>, overrides: Partial<EntityDetailDialogData> = {}) {
+  function renderDetail(
+    source: RxDBInput<RxDB>,
+    overrides: Partial<EntityDetailDialogData> & { namespace?: string; name?: string } = {}
+  ) {
     const closed = vi.fn<(result?: unknown) => void>();
     const Host = defineComponent({
       props: {
         metadata: { type: Object as PropType<EntityDetailDialogData['metadata']>, default: undefined },
         formData: { type: Object as PropType<EntityFormData>, default: undefined },
         formMode: { type: String as PropType<FormMode>, default: undefined },
-        entityId: { type: String, default: undefined }
+        entityId: { type: String, default: undefined },
+        namespace: { type: String, default: undefined },
+        name: { type: String, default: undefined }
       },
       setup(props) {
         provideRxDB(source);
@@ -252,6 +259,111 @@ describe('EntityDetail 异步数据库就绪', () => {
     await vi.waitFor(() => {
       expect([...adapter.tableFor(AsyncDetailParent).values()].map(row => [row['title'], row['count']])).toEqual([
         ['等待时填写', 42]
+      ]);
+      expect(closed).toHaveBeenCalledExactlyOnceWith('saved');
+    });
+  });
+
+  it.each<SourceKind>(['Promise', '异步工厂', 'Ref'])('%s 等待时显示创建初始值并阻止提前提交', async kind => {
+    const { database, adapter } = await createDatabase();
+    const pending = pendingDatabase(kind);
+    const { detail, component, closed } = renderDetail(pending.source, {
+      formData: { title: '已提供的初始值', count: 23 }
+    });
+
+    expect((detail.get('form input[type="text"]').element as HTMLInputElement).value).toBe('已提供的初始值');
+    await detail.get('form input[type="text"]').setValue('等待时继续填写');
+    const enabledSave = detail
+      .findAll('button')
+      .find(button => button.text() === '保存' && button.attributes('disabled') === undefined);
+    expect(enabledSave).toBeUndefined();
+    component.onSave();
+    expect(closed).not.toHaveBeenCalled();
+    expect(detail.emitted('formSubmitted')).toBeUndefined();
+    expect(adapter.tableFor(AsyncDetailParent).size).toBe(0);
+
+    pending.settle(database);
+    await vi.waitFor(() => expect(component.draftEntity).not.toBeNull());
+    await flushPromises();
+    expect((detail.get('form input[type="text"]').element as HTMLInputElement).value).toBe('等待时继续填写');
+    expect(component.formDataValue['count']).toBe(23);
+    await detail
+      .findAll('button')
+      .find(button => button.text() === '保存')!
+      .trigger('click');
+    await vi.waitFor(() => {
+      expect([...adapter.tableFor(AsyncDetailParent).values()].map(row => [row['title'], row['count']])).toEqual([
+        ['等待时继续填写', 23]
+      ]);
+      expect(closed).toHaveBeenCalledExactlyOnceWith('saved');
+    });
+  });
+
+  it.each(['数据库', '实体查询'] as const)('%s 等待期间保留编辑输入，加载前不提交、加载后实际保存', async waiting => {
+    const { database, adapter } = await createDatabase();
+    const original = database.entityManager.instantiate(AsyncDetailParent, { title: '已保存的标题', count: 19 });
+    await original.save();
+    const pending = pendingDatabase('Ref');
+    const loaded = new Subject<AsyncDetailParent>();
+    if (waiting === '实体查询') {
+      const repository = database.entityManager.getRepository(AsyncDetailParent);
+      vi.spyOn(repository, 'get').mockReturnValue(loaded as ReturnType<typeof repository.get>);
+    }
+    const { detail, component, closed } = renderDetail(waiting === '数据库' ? pending.source : database, {
+      formMode: 'edit',
+      entityId: original.id
+    });
+
+    expect(component.entityInstance).toBeNull();
+    expect(detail.find('form button[type="submit"]').exists()).toBe(false);
+    await detail.get('form input[type="text"]').setValue('等待期间的编辑');
+    component.onFormSubmitted({ title: '等待期间的编辑' });
+    expect(detail.emitted('formSubmitted')).toBeUndefined();
+    expect(closed).not.toHaveBeenCalled();
+    expect(adapter.tableFor(AsyncDetailParent).get(original.id)?.['title']).toBe('已保存的标题');
+
+    if (waiting === '数据库') pending.settle(database);
+    else loaded.next(original);
+    await vi.waitFor(() => expect(component.entityInstance).not.toBeNull());
+    await flushPromises();
+    expect(component.formDataValue['title']).toBe('等待期间的编辑');
+    expect(component.formDataValue['count']).toBe(19);
+    expect((detail.get('form input[type="text"]').element as HTMLInputElement).value).toBe('等待期间的编辑');
+    await detail.get('form').trigger('submit');
+    await vi.waitFor(() => {
+      expect(adapter.tableFor(AsyncDetailParent).get(original.id)?.['title']).toBe('等待期间的编辑');
+      expect(closed).toHaveBeenCalledExactlyOnceWith('saved');
+    });
+    expect(detail.emitted('formSubmitted')).toEqual([
+      [expect.objectContaining({ title: '等待期间的编辑', count: 19 })]
+    ]);
+    loaded.complete();
+  });
+
+  it('metadata 与路由输入同时提供时，数据库到货后用派生字段保留初始值和默认值', async () => {
+    const { database, adapter } = await createDatabase();
+    const pending = pendingDatabase('Ref');
+    const { detail, component, closed } = renderDetail(pending.source, {
+      namespace: 'detail-async',
+      name: 'AsyncDetailParent',
+      formFields: undefined,
+      formData: { title: '派生字段中的初始值' }
+    });
+
+    pending.settle(database);
+    await vi.waitFor(() => expect(component.draftEntity).not.toBeNull());
+    await flushPromises();
+    expect(component.formDataValue['title']).toBe('派生字段中的初始值');
+    expect(component.formDataValue['count']).toBe(7);
+    expect((detail.get('form input[type="text"]').element as HTMLInputElement).value).toBe('派生字段中的初始值');
+    expect((detail.get('form input[type="number"]').element as HTMLInputElement).value).toBe('7');
+    await detail
+      .findAll('button')
+      .find(button => button.text() === '保存')!
+      .trigger('click');
+    await vi.waitFor(() => {
+      expect([...adapter.tableFor(AsyncDetailParent).values()].map(row => [row['title'], row['count']])).toEqual([
+        ['派生字段中的初始值', 7]
       ]);
       expect(closed).toHaveBeenCalledExactlyOnceWith('saved');
     });
@@ -461,6 +573,78 @@ describe('EntityDetail 异步数据库就绪', () => {
     expect(detail.emitted('formSubmitted')).toBeUndefined();
     expect(detail.find('[data-testid="entity-detail-errors"]').exists()).toBe(false);
     expect(second.adapter.tableFor(AsyncDetailReplacement).size).toBe(0);
+  });
+
+  it.each([
+    { switching: '数据库', outcome: '成功' },
+    { switching: '数据库', outcome: '失败' },
+    { switching: '实体 id', outcome: '成功' },
+    { switching: '实体 id', outcome: '失败' }
+  ] as const)('$switching A→B→A 后旧编辑保存迟到$outcome 不影响当前视图', async ({ switching, outcome }) => {
+    const first = await createDatabase();
+    const second = switching === '数据库' ? await createDatabase() : first;
+    const original = first.database.entityManager.instantiate(AsyncDetailParent, { title: '记录 A' });
+    const other = second.database.entityManager.instantiate(AsyncDetailParent, {
+      ...(switching === '数据库' ? { id: original.id } : {}),
+      title: '记录 B'
+    });
+    await original.save();
+    await other.save();
+    const databaseRef = shallowRef(first.database);
+    const { wrapper, detail, component, closed } = renderDetail(databaseRef, {
+      formMode: 'edit',
+      entityId: original.id
+    });
+    await vi.waitFor(() => expect(component.entityInstance).not.toBeNull());
+    const oldEntity = component.entityInstance!;
+    let resolve!: () => void;
+    let reject!: (error: Error) => void;
+    const saving = new Promise<void>((complete, fail) => {
+      resolve = complete;
+      reject = fail;
+    });
+    const save = vi.spyOn(oldEntity, 'save').mockReturnValueOnce(saving);
+    await detail.get('form input[type="text"]').setValue('旧保存中的内容');
+    await detail.get('form').trigger('submit');
+    expect(save).toHaveBeenCalledOnce();
+
+    if (switching === '数据库') databaseRef.value = second.database;
+    else await wrapper.setProps({ entityId: other.id });
+    await vi.waitFor(() => expect(component.formDataValue['title']).toBe('记录 B'));
+    if (switching === '数据库') databaseRef.value = first.database;
+    else await wrapper.setProps({ entityId: original.id });
+    await vi.waitFor(() => expect(component.entityInstance).toBe(oldEntity));
+    await flushPromises();
+    await detail.get('form input[type="text"]').setValue('当前视图的新编辑');
+
+    if (outcome === '成功') resolve();
+    else reject(new Error('旧操作迟到的失败'));
+    await flushPromises();
+
+    expect(component.entityInstance).toBe(oldEntity);
+    expect((detail.get('form input[type="text"]').element as HTMLInputElement).value).toBe('当前视图的新编辑');
+    expect(closed).not.toHaveBeenCalled();
+    expect(detail.emitted('formSubmitted')).toBeUndefined();
+    expect(detail.find('[data-testid="entity-detail-errors"]').exists()).toBe(false);
+  });
+
+  it('编辑输入后取消恢复已加载的原值，不留下待保存的编辑补丁', async () => {
+    const { database, adapter } = await createDatabase();
+    const original = database.entityManager.instantiate(AsyncDetailParent, { title: '原始内容', count: 19 });
+    await original.save();
+    const { detail, component } = renderDetail(database, { formMode: 'edit', entityId: original.id });
+    await vi.waitFor(() => expect(component.formDataValue['title']).toBe('原始内容'));
+
+    await detail.get('form input[type="text"]').setValue('需要取消的内容');
+    await detail
+      .findAll('form button')
+      .find(button => button.text() === '取消')!
+      .trigger('click');
+    await flushPromises();
+
+    expect(component.formDataValue['title']).toBe('原始内容');
+    expect((detail.get('form input[type="text"]').element as HTMLInputElement).value).toBe('原始内容');
+    expect(adapter.tableFor(AsyncDetailParent).get(original.id)?.['title']).toBe('原始内容');
   });
 
   it('没有数据库 provider 的委托表单仍可提交，且不产生注入警告', async () => {
