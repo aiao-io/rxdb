@@ -14,6 +14,7 @@ import {
  * @remarks
  * `board_id` 非空外键 + RESTRICT 默认级联：删板被应用层删除服务先行清空列，直连 SQL 删板仍被外键拦下。
  * `column.board_id` 的「创建后不可改」由领域服务入口守住（US-534 技术笔记），本实体不承诺存储层拒绝。
+ * `(boardId, sortOrder)` 索引服务板内列序与删板清单（存储层不为外键自动建索引）。
  */
 @Entity({
   name: 'Column',
@@ -34,7 +35,8 @@ import {
       mappedProperty: 'columns'
     },
     { name: 'tasks', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'Task', mappedProperty: 'column' }
-  ]
+  ],
+  indexes: [{ name: 'board_sort', properties: ['boardId', 'sortOrder'] }]
 })
 export class Column extends EntityBase implements ISortableEntity {
   boardId!: UUID;

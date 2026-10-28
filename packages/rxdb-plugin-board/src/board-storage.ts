@@ -6,6 +6,7 @@
  * 不会共用网关。存储接口由宿主注入（浏览器 `localStorage` / 测试内存表）。
  */
 
+/** 键值存储接口（宿主注入：浏览器 `localStorage` / 测试内存表）。 */
 export interface BoardStorage {
   get(key: string): string | null;
   set(key: string, value: string): void;
@@ -29,15 +30,19 @@ export const writeActiveDbName = (storage: BoardStorage, dbName: string): void =
 export const writePendingSwitch = (storage: BoardStorage, dbName: string): void =>
   storage.set(PENDING_SWITCH_KEY, dbName);
 
+/** 待切换库名；无记录 = 没有待读回的恢复。 */
 export const readPendingSwitch = (storage: BoardStorage): string | null => storage.get(PENDING_SWITCH_KEY);
 
+/** 读回成功写成活动位置后，或读回失败清理完目标后清除待切换记录。 */
 export const clearPendingSwitch = (storage: BoardStorage): void => storage.remove(PENDING_SWITCH_KEY);
 
 /** 恢复中标记：所有页面据此暂停写入（US-534 恢复中写门禁的状态来源）。 */
 export const writeRestoringMarker = (storage: BoardStorage): void => storage.set(RESTORING_MARKER_KEY, '1');
 
+/** 是否有页面正在恢复（标记存在即暂停写入）。 */
 export const readRestoringMarker = (storage: BoardStorage): boolean => storage.get(RESTORING_MARKER_KEY) !== null;
 
+/** 恢复结束（成功切换或失败清理）后清除恢复中标记，各页面恢复写入。 */
 export const clearRestoringMarker = (storage: BoardStorage): void => storage.remove(RESTORING_MARKER_KEY);
 
 /** 生成一个不与活动位置冲突的新库名。 */

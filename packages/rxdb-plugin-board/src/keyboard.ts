@@ -79,7 +79,7 @@ const acrossTarget = (column: BoardKeyboardColumn, movedId: UUID, row: number): 
  * @remarks
  * 邻居取自完整任务序列（与 `resolveCardDrop` 同一语义），筛选隐藏的兄弟不会被夹在两个邻居之间。
  *
- * @returns 移动目标；边界或原位返回 `null`（调用方零写）
+ * @returns 移动目标；边界、原位或被移动卡片自身不可见（没有「同一行」可言）返回 `null`（调用方零写）
  */
 export const resolveKeyboardMove = (
   columns: readonly BoardKeyboardColumn[],
@@ -90,6 +90,7 @@ export const resolveKeyboardMove = (
   if (source < 0) return null;
   const column = columns[source];
   const row = column.visibleIds.indexOf(movedId);
+  if (row < 0) return null;
   if (direction === 'up' || direction === 'down') {
     const anchor = column.visibleIds[row + (direction === 'up' ? -1 : 1)];
     if (anchor === undefined) return null;

@@ -1,10 +1,13 @@
 import { type RxDB, type UUID } from '@aiao/rxdb';
+import { firstValueFrom } from 'rxjs';
 
 import { BoardLabel } from '../entities/board-label.entity.js';
 import { Board } from '../entities/board.entity.js';
 import { Column } from '../entities/column.entity.js';
 import { TaskLabel } from '../entities/task-label.entity.js';
 import { Task } from '../entities/task.entity.js';
+import { BoardDomainError } from '../errors.js';
+import { matchAll } from '../query.js';
 
 /**
  * @fileoverview 看板确定性种子（US-540）
@@ -35,6 +38,7 @@ export const RELEASE_COLUMN_IDS = [
   'c0000000-0000-4000-8000-000000000004'
 ] as const;
 
+/** 隔离板唯一的列「研究」。 */
 export const ISOLATION_COLUMN_ID: UUID = 'c0000000-0000-4000-8000-000000000005';
 
 /** 主板标签：核心 / 文档 / 测试 / 发布。 */
@@ -116,10 +120,16 @@ const ISOLATION_DESCRIPTION = '同步机制同步回放';
 /**
  * 装载确定性种子：主板 + 隔离板，固定 ID 与审计时间戳。
  * 经门面仓储写入（自动按组追加 `sortOrder`），两次装载的五张业务表逐字节相同。
+ *
+ * @throws {@link BoardDomainError} `seed_target_not_empty`：库里已有看板（种子不向已有库追加，
+ *   否则固定 ID 撞主键、逐条写入会在中途失败留下半套种子）。外键 RESTRICT 保证无板即五张表全空
  */
 export async function seedReleaseBoardDataset(rxdb: RxDB): Promise<void> {
   const instantiate = rxdb.entityManager.instantiate.bind(rxdb.entityManager);
   const boardRepo = rxdb.entityManager.getRepository(Board);
+  if ((await firstValueFrom(boardRepo.count({ where: matchAll() }))) > 0) {
+    throw new BoardDomainError('seed_target_not_empty', '演示数据只能装进空库');
+  }
   const columnRepo = rxdb.entityManager.getRepository(Column);
   const taskRepo = rxdb.entityManager.getRepository(Task);
   const labelRepo = rxdb.entityManager.getRepository(BoardLabel);
@@ -229,6 +239,9 @@ export async function seedReleaseBoardDataset(rxdb: RxDB): Promise<void> {
   }
 }
 
+/** 种子看板实体实例类型。 */
 export type BoardSeedEntity = InstanceType<typeof Board>;
+/** 种子列实体实例类型。 */
 export type ColumnSeedEntity = InstanceType<typeof Column>;
+/** 种子任务实体实例类型。 */
 export type TaskSeedEntity = InstanceType<typeof Task>;

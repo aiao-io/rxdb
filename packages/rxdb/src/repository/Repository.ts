@@ -505,11 +505,13 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    *
    * @param id - 被移动行的 id
    * @param target - 目标位置：前后邻居 `{ prevId, nextId }`，或追加到某组末尾 `{ group }`
-   *   （键恰好是分组字段，整表排序为 `{}`）；邻居目标可带 `expectedGroup`，在事务内拒绝已换组的邻居
+   *   （键恰好是分组字段，整表排序为 `{}`）；邻居目标可带 `expectedGroup`，在事务内拒绝已换组的邻居。
+   *   两种目标的字段不能混写（`{ group, expectedGroup }` 以 `invalidTarget` 拒绝）
    * @returns 移动后的实体；已在目标位置时原样返回、零写
    * @throws {@link RxDBReadOnlyError} 只读实例，在开事务前抛出
    * @throws {@link PermissionDeniedError} 实体声明 `update: 'system'`，在开事务前抛出
-   * @throws {@link SortOrderError} 见 {@link SortOrderErrorReason}；抛出时一条写都没有提交
+   * @throws {@link SortOrderError} 见 {@link SortOrderErrorReason}（邻居已不在 `expectedGroup` 为 `'staleTarget'`）；
+   *   抛出时一条写都没有提交
    *
    * @remarks
    * 输入是移动意图而不是最终排列：读邻居、复核相邻、算键、写入都在主适配器的同一个事务内，

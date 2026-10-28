@@ -86,7 +86,8 @@ export const useDialogModel = (core: ViewCore, model: ModelGetter): DialogModel 
     });
     if (!deleted) return;
     model().detail.dropRemoved(plan.kind === 'task' ? [plan.taskId] : plan.taskIds);
-    if (plan.kind === 'board') model().search.destroySearch();
+    // 删掉的是当前板：查询词随句柄一起清空（只销毁句柄会留下旧词，再打开搜索框是一个失效的搜索态）
+    if (plan.kind === 'board') model().search.onSearchInput('');
     core.showToast(deletedMessage(plan), true);
   };
 

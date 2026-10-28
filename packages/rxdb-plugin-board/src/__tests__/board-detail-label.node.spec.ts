@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { BoardDomain } from '../board-domain.js';
 import { BoardDeleteService } from '../delete-service.js';
-import { BoardDetailService, type TaskDraftSnapshot } from '../detail-service.js';
+import { BoardDetailService, type TaskDraftSnapshot, type TaskFieldPatch } from '../detail-service.js';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '../entities/index.js';
 import { BoardLabelService } from '../label-service.js';
 import { matchAll, readFirst, whereEq } from '../query.js';
@@ -397,6 +397,15 @@ describe('BoardDetailService / BoardLabelService（US-536）', () => {
       const result = await details.saveTaskFields(task.id, await details.openSnapshot(task.id), { dueDate: null });
       expect(result.kind).toBe('unchanged');
       expect(await firstUndoCount()).toBe(undoCount);
+    });
+
+    it('「未涉及」只认 undefined：无类型约束的补丁给描述 null，与截止日同口径视为清空', async () => {
+      const { task } = await seedTask();
+      await details.saveTaskFields(task.id, await details.openSnapshot(task.id), { description: '描述' });
+      // 反序列化 / JS 调用方的补丁不受 TaskFieldPatch 类型约束：冲突校验与合并必须同一判据
+      const patch = JSON.parse('{"description":null}') as TaskFieldPatch;
+      await details.saveTaskFields(task.id, await details.openSnapshot(task.id), patch);
+      expect((await taskOf(task.id)).description).toBeNull();
     });
 
     it('字段级冲突：补丁涉及的字段被其它入口改过则拒绝零写，其它字段的外部修改不冲突', async () => {

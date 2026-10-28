@@ -13,7 +13,8 @@ export type RestoreState = 'startup_choice' | 'selecting_archive' | 'restoring' 
 /** 状态机输入（宿主把用户动作与执行结果翻译成输入）。 */
 export type RestoreInput =
   | { readonly kind: 'choose_restore' }
-  | { readonly kind: 'archive_selected' }
+  /** 已选定归档并生成了本次恢复的目标库名（宿主据此写恢复中标记与目标记录）。 */
+  | { readonly kind: 'archive_selected'; readonly targetDbName: string }
   | { readonly kind: 'cancel' }
   | { readonly kind: 'restore_succeeded' }
   | { readonly kind: 'readback_succeeded' }
@@ -24,7 +25,7 @@ export type RestoreInput =
 /** 状态机快照：状态 + 本次恢复的目标与失败去向。 */
 export interface RestoreSnapshot {
   readonly state: RestoreState;
-  /** 本次恢复的目标库名；未开始或已清理为 `null`。 */
+  /** 本次恢复的目标库名：选定归档起携带到切换与已恢复；未开始、失败或取消（目标已清理）为 `null`。 */
   readonly targetDbName: string | null;
   /** 恢复中标记是否在写（所有页面据此暂停写入）。 */
   readonly restoringMarker: boolean;
@@ -36,6 +37,7 @@ export interface RestoreSnapshot {
   } | null;
 }
 
+/** 初始快照：启动选择、无恢复目标、无标记。 */
 export const initialRestoreSnapshot: RestoreSnapshot = {
   state: 'startup_choice',
   targetDbName: null,
@@ -68,7 +70,7 @@ export const restoreStateMachine = (snapshot: RestoreSnapshot, input: RestoreInp
 
     case 'archive_selected':
       return snapshot.state === 'selecting_archive' ?
-          { ...snapshot, state: 'restoring', restoringMarker: true }
+          { ...snapshot, state: 'restoring', targetDbName: input.targetDbName, restoringMarker: true }
         : snapshot;
 
     case 'cancel':

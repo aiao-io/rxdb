@@ -258,6 +258,18 @@ describe('US-028 AC#15 分组实体的 reorder()', () => {
     expect(repository.update).not.toHaveBeenCalled();
   });
 
+  it('group 与邻居目标的字段混用在事务前拒绝：不静默丢掉 expectedGroup 的并发保护', async () => {
+    // 两个成员各自的字段并在一个对象里能过联合类型的多余属性检查，运行期必须拒绝
+    for (const target of [
+      { group: { shelf: 'B' }, expectedGroup: { shelf: 'A' } },
+      { group: { shelf: 'B' }, prevId: 'B0', nextId: null }
+    ]) {
+      await expectSortOrderError(reorder('A2', target as ReorderTarget<string>), 'invalidTarget');
+    }
+    expect(ctx.adapter.transaction).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
   it('期望分组允许 NULL，非法字段集合在事务前拒绝', async () => {
     await reorder('A2', { prevId: 'n0', nextId: 'n1', expectedGroup: { shelf: null } });
     expect(layout(repository).null).toEqual(['n0', 'A2', 'n1']);

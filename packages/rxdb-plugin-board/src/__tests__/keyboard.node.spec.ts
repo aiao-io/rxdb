@@ -90,6 +90,16 @@ describe('resolveKeyboardMove（Alt + 方向键移动卡片）', () => {
     });
   });
 
+  it('被移动卡片自身被筛掉（不在可见序列里）：四个方向都无目标，不抛错', () => {
+    const filtered: BoardKeyboardColumn[] = [
+      { columnId: id('A'), taskIds: [id('a1'), id('a2')], visibleIds: [id('a1')] },
+      { columnId: id('C'), taskIds: [id('c1'), id('c2')], visibleIds: [id('c1'), id('c2')] }
+    ];
+    for (const direction of ['up', 'down', 'left', 'right'] as const) {
+      expect(resolveKeyboardMove(filtered, id('a2'), direction)).toBeNull();
+    }
+  });
+
   it('目标列全部被筛掉：追加到完整序列末尾', () => {
     const hidden: BoardKeyboardColumn[] = [
       { columnId: id('A'), taskIds: [id('a1')], visibleIds: [id('a1')] },

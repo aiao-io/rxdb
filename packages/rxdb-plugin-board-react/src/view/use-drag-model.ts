@@ -69,7 +69,10 @@ export const useDragModel = (core: ViewCore, data: BoardData, model: ModelGetter
     setDropTarget(null);
   };
 
-  /** 几何只取可见卡片，邻居取完整序列（筛选隐藏的兄弟不被夹在两个邻居之间）。 */
+  /**
+   * 几何只取可见卡片，邻居取完整序列（筛选隐藏的兄弟不被夹在两个邻居之间）。
+   * 每次 dragover 现量：落点指示是伪元素 / 阴影、不触发重排，读的是干净布局；拖拽开始时缓存会在拖拽自动滚动后失效。
+   */
   const columnViews = (area: HTMLElement): CardDropColumnView[] =>
     columns().map(column => {
       const rect = area.querySelector<HTMLElement>(`[data-column-id="${column.id}"]`)?.getBoundingClientRect();

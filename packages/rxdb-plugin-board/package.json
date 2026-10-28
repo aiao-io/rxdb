@@ -35,8 +35,9 @@
     },
     "./testing": {
       "@aiao/source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
       "import": "./dist/testing.js",
-      "types": "./dist/testing/index.d.ts"
+      "default": "./dist/testing.js"
     },
     "./board.css": "./board.css"
   },

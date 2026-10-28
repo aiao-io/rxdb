@@ -577,6 +577,55 @@
   overflow-x: auto;
 }
 
+/*
+ * 横向溢出提示（US-539 交互约定「列头」行：保留明显的横向溢出提示）：还能往哪边滚，哪边的列就渐隐到边缘。
+ * 滚动驱动动画由列区自己的横向滚动进度推动渐隐宽度；没有溢出时滚动时间线不激活，列区原样显示。
+ * 三端共用这一份纯 CSS；不支持滚动驱动动画的浏览器只剩滚动条。
+ */
+@property --rxb-columns-fade-start {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --rxb-columns-fade-end {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes rxb-columns-overflow {
+  from {
+    --rxb-columns-fade-start: 0px;
+    --rxb-columns-fade-end: 48px;
+  }
+
+  8%,
+  92% {
+    --rxb-columns-fade-start: 48px;
+    --rxb-columns-fade-end: 48px;
+  }
+
+  to {
+    --rxb-columns-fade-start: 48px;
+    --rxb-columns-fade-end: 0px;
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  .rxb .rxb-columns {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 var(--rxb-columns-fade-start),
+      #000 calc(100% - var(--rxb-columns-fade-end)),
+      transparent
+    );
+    animation: rxb-columns-overflow linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+
 .rxb-column {
   display: flex;
   flex: 0 0 var(--rxb-column-width);
@@ -766,10 +815,20 @@
   box-shadow: var(--rxb-shadow-md);
 }
 
-.rxb-card:focus-visible,
 .rxb-card.is-selected {
   border-color: var(--rxb-accent);
   box-shadow: inset 0 0 0 1px var(--rxb-accent);
+}
+
+/* 焦点用外侧焦点环、选中用内描边，两者可叠加：键盘用户能分辨焦点停在哪张、详情开的是哪张（WCAG 2.4.7） */
+.rxb-card:focus-visible {
+  box-shadow: var(--rxb-focus);
+}
+
+.rxb-card.is-selected:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px var(--rxb-accent),
+    var(--rxb-focus);
 }
 
 .rxb-card.is-dragging {
@@ -1505,5 +1564,13 @@ button.rxb-label:hover {
   .rxb *::after {
     animation: none !important;
     transition: none !important;
+  }
+
+  /* 溢出提示是随滚动位置的静态渐隐、没有位移，减弱动效下照样保留 */
+  @supports (animation-timeline: scroll()) {
+    .rxb .rxb-columns {
+      animation: rxb-columns-overflow linear both !important;
+      animation-timeline: scroll(self inline) !important;
+    }
   }
 }

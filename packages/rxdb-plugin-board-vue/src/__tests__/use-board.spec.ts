@@ -4,7 +4,7 @@ import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-bo
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, effectScope, h } from 'vue';
 
 import { LAST_BOARD_KEY, useBoard, type UseBoardOptions, type UseBoardReturn } from '../use-board.js';
 
@@ -60,6 +60,19 @@ describe('useBoard（Vue 桥接）', () => {
   });
 
   const board = (): UseBoardReturn => holder.current!;
+
+  it('作用域外调用直接报错（订阅无人释放）；在 effectScope 里调用随作用域停止释放', async () => {
+    expect(() => useBoard(rxdb)).toThrow(/effectScope/);
+
+    const scope = effectScope();
+    const scoped = scope.run(() => useBoard(rxdb, { storage: { get: () => null, set: () => undefined } }))!;
+    await scoped.actions.createBoard({ title: '作用域内建板' });
+    await waitFor(() => scoped.boards.value.length === 1, '作用域内读到新板');
+    scope.stop();
+    await board().actions.createBoard({ title: '作用域停止后建板' });
+    await waitFor(() => board().boards.value.length === 2, '组件内读到两块板');
+    expect(scoped.boards.value).toHaveLength(1);
+  });
 
   it('删除当前板重新选中有效板，清空后重建仍自动打开', async () => {
     const first = await board().actions.createBoard({ title: '旧板' });

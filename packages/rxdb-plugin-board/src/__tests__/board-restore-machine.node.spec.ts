@@ -32,11 +32,24 @@ const memoryStorage = (): BoardStorage & { data: Map<string, string> } => {
 describe('restoreStateMachine（US-537 AC#10）', () => {
   const drive = (inputs: Parameters<typeof restoreStateMachine>[1][], from: RestoreSnapshot = initialRestoreSnapshot) =>
     inputs.reduce((snapshot, input) => restoreStateMachine(snapshot, input), from);
+  const selectArchive = { kind: 'archive_selected', targetDbName: 'rxdb-board-restore-0' } as const;
+
+  it('目标库名随恢复与切换携带，读回成功后仍指向新库；失败与取消即清空', () => {
+    const restoring = drive([{ kind: 'choose_restore' }, selectArchive]);
+    expect(restoring.targetDbName).toBe('rxdb-board-restore-0');
+    const switching = restoreStateMachine(restoring, { kind: 'restore_succeeded' });
+    expect(switching.targetDbName).toBe('rxdb-board-restore-0');
+    expect(restoreStateMachine(switching, { kind: 'readback_succeeded' }).targetDbName).toBe('rxdb-board-restore-0');
+
+    expect(restoreStateMachine(restoring, { kind: 'restore_failed', reason: 'io_error' }).targetDbName).toBeNull();
+    expect(restoreStateMachine(switching, { kind: 'readback_failed', reason: 'io_error' }).targetDbName).toBeNull();
+    expect(restoreStateMachine(restoring, { kind: 'cancel' }).targetDbName).toBeNull();
+  });
 
   it('启动恢复全流程：选择 → 恢复 → 切换 → 读回成功 → 已恢复', () => {
     const end = drive([
       { kind: 'choose_restore' },
-      { kind: 'archive_selected' },
+      selectArchive,
       { kind: 'restore_succeeded' },
       { kind: 'readback_succeeded' }
     ]);
@@ -47,7 +60,7 @@ describe('restoreStateMachine（US-537 AC#10）', () => {
   });
 
   it('恢复中标记覆盖写入期：archive_selected 之后到 restore_succeeded 之前 marker 为真', () => {
-    const restoring = drive([{ kind: 'choose_restore' }, { kind: 'archive_selected' }]);
+    const restoring = drive([{ kind: 'choose_restore' }, selectArchive]);
     expect(restoring.state).toBe('restoring');
     expect(restoring.restoringMarker).toBe(true);
 
@@ -61,7 +74,7 @@ describe('restoreStateMachine（US-537 AC#10）', () => {
     expect(cancelled).toEqual(initialRestoreSnapshot);
 
     // 恢复中取消：清理标记与目标
-    const midCancel = drive([{ kind: 'choose_restore' }, { kind: 'archive_selected' }, { kind: 'cancel' }]);
+    const midCancel = drive([{ kind: 'choose_restore' }, selectArchive, { kind: 'cancel' }]);
     expect(midCancel).toEqual(initialRestoreSnapshot);
   });
 
@@ -75,7 +88,7 @@ describe('restoreStateMachine（US-537 AC#10）', () => {
   it('恢复失败与读回失败：清理标记，保留失败去向', () => {
     const restoreFailed = drive([
       { kind: 'choose_restore' },
-      { kind: 'archive_selected' },
+      selectArchive,
       { kind: 'restore_failed', reason: 'target_not_empty' }
     ]);
     expect(restoreFailed.state).toBe('failed');
@@ -84,7 +97,7 @@ describe('restoreStateMachine（US-537 AC#10）', () => {
 
     const readbackFailed = drive([
       { kind: 'choose_restore' },
-      { kind: 'archive_selected' },
+      selectArchive,
       { kind: 'restore_succeeded' },
       { kind: 'readback_failed', reason: 'io_error' }
     ]);
@@ -93,7 +106,7 @@ describe('restoreStateMachine（US-537 AC#10）', () => {
   });
 
   it('恢复中 / 切换中拒绝重复进入与非法输入', () => {
-    const restoring = drive([{ kind: 'choose_restore' }, { kind: 'archive_selected' }]);
+    const restoring = drive([{ kind: 'choose_restore' }, selectArchive]);
     expect(restoreStateMachine(restoring, { kind: 'choose_restore' })).toBe(restoring);
     expect(restoreStateMachine(restoring, { kind: 'readback_succeeded' })).toBe(restoring);
     expect(restoreStateMachine(initialRestoreSnapshot, { kind: 'restore_succeeded' })).toBe(initialRestoreSnapshot);

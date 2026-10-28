@@ -22,7 +22,6 @@ export interface SearchModel {
   readonly onSearchMore: () => void;
   /** 点结果：关闭对话框、滚动到目标卡片、聚焦并短暂高亮（更新中不可点）。 */
   readonly onSearchResultClick: (result: SearchResult) => void;
-  readonly destroySearch: () => void;
   /** 切板：销毁旧句柄，按原查询词重建。 */
   readonly rebuildSearch: () => void;
   readonly searchResultTitle: (result: SearchResult) => string;
@@ -119,7 +118,6 @@ export const useSearchModel = (core: ViewCore, data: BoardData, model: ModelGett
         if (searchHighlightIdRef.current === targetId) setSearchHighlightId(null);
       }, 2000);
     },
-    destroySearch,
     rebuildSearch: () => {
       const query = searchQueryRef.current.trim();
       destroySearch();

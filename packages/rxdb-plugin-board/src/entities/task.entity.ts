@@ -15,6 +15,7 @@ import {
  * 无独立 `board_id`：board 由所属列推导，单一真相源（US-534）。
  * `dueDate` 是纯日期串 `YYYY-MM-DD`，不经 `Date` / UTC 换算（US-536）；存储列 `due_date`。
  * 标题与描述自首个持久化版本起声明 `searchable`，搜索插件从阶段 A 起维护索引（epic 首轮切片）。
+ * 存储层不为外键自动建索引：`(columnId, sortOrder)` 同时服务列渲染、组内默认排序与删列 / 删板清单。
  */
 @Entity({
   name: 'Task',
@@ -37,7 +38,8 @@ import {
       mappedProperty: 'tasks'
     },
     { name: 'labels', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'TaskLabel', mappedProperty: 'task' }
-  ]
+  ],
+  indexes: [{ name: 'column_sort', properties: ['columnId', 'sortOrder'] }]
 })
 export class Task extends EntityBase implements ISortableEntity {
   columnId!: UUID;

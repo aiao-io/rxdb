@@ -108,7 +108,9 @@ export class BoardColumnSortService {
         if (ordered.every((task, index) => task.id === tasks[index].id)) return false;
 
         // 新键严格大于全部旧键：码点比较取当前最大键，向后生成整列新键，
-        // 按目标顺序分配给对应任务
+        // 按目标顺序分配给对应任务。读最大键与写新键在同一事务里：SQLite 事务可串行化（并发的
+        // 后一个要么读到前一个的提交、要么升级写锁时 BUSY 失败走 sort-failed），PGlite 单连接串行，
+        // 不会两边读到同一个最大键写出重复键
         const maxKey = tasks.reduce((max, task) => (task.sortOrder > max ? task.sortOrder : max), '');
         const keys = generateKeysBetween(maxKey, null, ordered.length);
         const rowById = new Map(rows.map(row => [row.id, row]));
