@@ -4,17 +4,17 @@
 > [本目录 README](README.md)。
 >
 > **已孵化冻结**：首版切片已建为 [epic-010](../epics/epic-010-model-driven-admin-framework.md) 下
-> US-526~528 三条 story（2026-10-21 已解锁），本文是其 References 设计依据，不再独立演进。
+> US-526~528 三条 story，owner 已批准首版范围，本文保留选型依据，当前交付合同在故事里维护。
 
-2026-10-18 优先级复核确定本候选为**第一顺位**：首版做给定实体 schema 的单人 Web 本地数据工作台。
-下文是早期能力映射：现有权限是实体操作约束，生成器输出实体代码；多用户后台、完整应用生成和跨宿主 UI
+本候选是**第一顺位**：首版做给定实体 schema 的单人 Web 本地数据工作台。
+现有权限是实体操作约束，生成器输出实体代码；多用户后台、完整应用生成和跨宿主 UI
 仍需额外实现，首版边界与验收见文末。
 
 **一句话结论**：后台管理 = 看数据 + 提交数据的重复劳动；把 `EntityMetadata` 作为唯一真相源，
 从同一份 schema 派生表单、表格、查询构建器、校验、权限与审计——`rxdb-model` 四包与 demo 的
 实体页面已是半成品，本候选是全场立项门槛最低的候选。与
 [ai-native-builder](ai-native-builder.md) 是兄弟：一个确定性生成、一个 AI 生成。
-生成物默认跨宿主：同一份 admin 应用跑 Web / Electron / Tauri / 小程序（实验性），桌面端首选 Tauri。
+首版只承诺 Web；桌面可复用数据层，小程序 UI 与运行时均需独立验证，适配器存在不代表工作台可直接运行。
 
 **对标产品**：react-admin / refine（React 系，绑 REST/GraphQL 后端）；AdminJS（Node 系）；
 vben admin / ng-alain / Ant Design Pro（框架模板系）；Airtable（数据表格 UX 标杆）。
@@ -39,7 +39,7 @@ vben admin / ng-alain / Ant Design Pro（框架模板系）；Airtable（数据�
 
 ## 生成物跨宿主（Web / 桌面 / 小程序）
 
-同一份 admin 应用，三框架任选 + 多宿主部署：
+后续宿主的可复用能力与待验边界：
 
 - **Web**：静态托管单机版（零后端可交付），需要服务端时挂 Supabase / HTTP 适配器
 - **桌面（首选 Tauri）**：rusqlite 原生 SQLite（[US-210](../stories/adapter/US-210-tauri-sqlite-local-database.md)
@@ -49,7 +49,7 @@ vben admin / ng-alain / Ant Design Pro（框架模板系）；Airtable（数据�
   （[US-207](../stories/adapter/US-207-desktop-local-database.md) · [US-208](../stories/adapter/US-208-electron-pglite-data-directory.md)）
 - **小程序（实验性）**：微信 / 抖音 / 支付宝逻辑层（[US-209](../stories/adapter/US-209-miniprogram-adapter.md) ·
   [US-211](../stories/adapter/US-211-multi-miniprogram-platforms.md)），Taro 构建插件
-  （[US-219](../stories/adapter/US-219-taro-plugin.md)）
+  （[US-219](../stories/adapter/US-219-taro-plugin.md)）；DOM / VTable UI 不在上述验证范围
 
 ## 引擎缺口
 
@@ -67,7 +67,7 @@ vben admin / ng-alain / Ant Design Pro（框架模板系）；Airtable（数据�
   版本——AI 生成器走的是同一个 `rxdb-model` 生成路径；本候选不需要 LLM
 - 其余候选不重叠：本候选是开发者工具向，不是终端产品领域
 
-## 首版边界与验收（2026-10-18 优先级评审确定）
+## 首版边界与验收
 
 首版只交付**单人 Web 本地数据工作台**：
 

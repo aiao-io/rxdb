@@ -461,7 +461,7 @@
       "framework": null
     }
   ],
-  "release": "v0.0.26",
+  "release": "v0.0.28",
   "scenarios": [
     {
       "id": "binding-angular",

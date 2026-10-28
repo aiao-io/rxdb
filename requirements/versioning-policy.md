@@ -4,10 +4,10 @@
 
 ## 1. semver 约定
 
-遵循 [semver 2.0](https://semver.org/)。当前处于 `0.x`（最新发布 `0.0.26`，见 [CHANGELOG](../CHANGELOG.md)），次版本即可含破坏性变更，公开 API 尚未冻结。1.0 发布即进入稳定维护。
+遵循 [semver 2.0](https://semver.org/)。当前处于 `0.x`，公开 API 尚未冻结。已发布版本与下一次迁移基线统一见 [release-plan](release-plan.md)，不在策略文档重复维护。1.0 发布即进入稳定维护。
 
 所有 `@aiao/*` 采用 Nx **fixed release group**，工作区内同号（`nx.json` › `release.projects: ["packages/*"]`）。
-同号不等于都已发布，`rxdb-angular` 也尚有单独抬版的漂移，见 [release-plan 开项：版本漂移](release-plan.md#开项版本漂移)。
+同号不等于所有包的每个历史版本都已发布；产物与登记偏差见 [release-plan 开项：版本漂移](release-plan.md#开项版本漂移)。
 
 ## 2. 公开 API 范围
 
@@ -86,7 +86,7 @@
 
 ## 6. 实验性层级（1.0 冻结范围之外）
 
-全部公开包同号（清单见 `packages/`，除 `rxdb-test` 外都受 API 基线保护；当前工作区存在例外：`@aiao/rxdb-angular` 为 `0.0.27`，见 [release-plan 开项：版本漂移](release-plan.md#开项版本漂移)），但**不是每个入口都进 1.0 的兼容承诺**。下列能力标为实验性：破坏性变更不受第 3 节废弃周期约束，
+全部公开包同号（清单见 `packages/`，除 `rxdb-test` 外都受 API 基线保护），但**不是每个入口都进 1.0 的兼容承诺**。下列能力标为实验性：破坏性变更不受第 3 节废弃周期约束，
 只需在 changelog 与迁移指南注明。1.0 发布前必须把这份清单与 TSDoc `@experimental` 标注、各包 README 对齐。
 
 | 能力                                                            | 为什么是实验性                                                                                                           |

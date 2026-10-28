@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-07-31
-updated: 2026-10-06
+updated: 2026-10-28
 tags: [collaboration, change-tracking, migration, history, cross-tab]
 ---
 
@@ -21,12 +21,10 @@ INVEST 检查清单:
 
 # 用户故事：bigint/binary change codec 与系统迁移
 
-> **迁移路径尚未被真实发布行使过。** 已发布的 v0.0.26 上 `RXDB_SYSTEM_SCHEMA_VERSION` 为 3、
-> `RXDB_CHANGE_CODEC_VERSION` 为 1，`migrateSystemSchema()` 在已发布版本中始终走
-> 「版本已是最新，无事可做」的分支；源码里 schema 版本常量已更高（当前值见
-> [`migration.ts`](../../../packages/rxdb/src/system/migration.ts)），首次真实迁移发布
-> 将是 3 → 当前值的升级。AC10–AC14 的正确性由旧库 fixture 与注入失败的测试担保，
-> 首次真实迁移发布时应重新过一遍。
+> 当前已发布基线是 `v0.0.28`（系统 schema 7、change codec 1），已包含 3 → 7 的升级。源码系统 schema 为 8，
+> 下一次发布须验收 7 → 8；3 → 7 的旧库 fixture 继续作为兼容回归。当前版本常量见
+> [`migration.ts`](../../../packages/rxdb/src/system/migration.ts)，发布与真实 tag 门禁见
+> [release-plan](../../release-plan.md#下一次发布迁移发布schema-78)。AC10–AC14 的 fixture 通过不代替真实发布门禁。
 
 ## 作为/我想要/以便
 
