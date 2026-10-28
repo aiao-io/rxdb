@@ -137,7 +137,8 @@ export class P2PManifestStore {
 
   /** 认证主体写入自己的持有声明，禁止伪造其它 holderId。 */
   upsertForSubject(record: P2PManifestRecord, authenticatedSubject: string | P2PPrincipal): void {
-    if (record.holderId !== deriveHolderId(authenticatedSubject)) throw new Error('manifest holderId does not match authenticated identity');
+    if (record.holderId !== deriveHolderId(authenticatedSubject))
+      throw new Error('manifest holderId does not match authenticated identity');
     this.upsert(record);
   }
 
@@ -176,5 +177,4 @@ export class P2PManifestStore {
       .sort((left, right) => right.updatedAt - left.updatedAt)
       .map(record => ({ ...record, chunkHashes: [...record.chunkHashes] }));
   }
-
 }

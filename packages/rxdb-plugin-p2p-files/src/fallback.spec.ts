@@ -72,13 +72,21 @@ describe('P2P 服务器回退', () => {
     const { manifest, bytes } = await fixture();
     const server = vi.fn(async () => bytes);
     const progress: string[] = [];
-    await expect(downloadP2PFile({
-      manifest,
-      sources: [{ id: 'peer', requestChunk: async (_hash, index) => bytes.slice(index * manifest.chunkSize, (index + 1) * manifest.chunkSize) }],
-      fallback: { download: server },
-      writeChunk: async () => undefined,
-      onProgress: value => progress.push(value.route)
-    })).resolves.toMatchObject({ sourcesUsed: ['peer'] });
+    await expect(
+      downloadP2PFile({
+        manifest,
+        sources: [
+          {
+            id: 'peer',
+            requestChunk: async (_hash, index) =>
+              bytes.slice(index * manifest.chunkSize, (index + 1) * manifest.chunkSize)
+          }
+        ],
+        fallback: { download: server },
+        writeChunk: async () => undefined,
+        onProgress: value => progress.push(value.route)
+      })
+    ).resolves.toMatchObject({ sourcesUsed: ['peer'] });
     expect(server).not.toHaveBeenCalled();
     expect(progress.every(route => route === 'p2p')).toBe(true);
   });
@@ -95,5 +103,4 @@ describe('P2P 服务器回退', () => {
     expect(result.sourcesUsed).toEqual(['server']);
     expect(server).toHaveBeenCalledOnce();
   });
-
 });

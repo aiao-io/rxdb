@@ -28,9 +28,9 @@ describe('P2P chunking', () => {
     const manifest = { size: 1, chunkSize: 1024, chunkHashes: [hash] };
     expect(() => describeChunk(manifest, 1)).toThrow(RangeError);
     expect(await verifyChunk(new Uint8Array([2]), { size: 1, hash })).toBe(false);
-    await expect(createP2PFileManifest({ fileName: 'x', size: 2, chunkSize: 1024, readChunk: async () => new Uint8Array([1]) })).rejects.toThrow(
-      RangeError
-    );
+    await expect(
+      createP2PFileManifest({ fileName: 'x', size: 2, chunkSize: 1024, readChunk: async () => new Uint8Array([1]) })
+    ).rejects.toThrow(RangeError);
   });
 
   it('verifies the complete file hash from chunks', async () => {

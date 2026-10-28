@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { createP2PTransportPeer, createTcpTransport, createWebRTCTransport, decodeP2PFrame, encodeP2PFrame, type P2PByteTransport } from './transport';
 import { createP2PFileManifest } from './chunking';
+import {
+  createP2PTransportPeer,
+  createTcpTransport,
+  createWebRTCTransport,
+  decodeP2PFrame,
+  encodeP2PFrame,
+  type P2PByteTransport
+} from './transport';
 
 type Listener = (event: Event) => void;
 
@@ -11,7 +18,9 @@ class FakeChannel {
   readonly listeners = new Map<string, Set<Listener>>();
 
   send(data: ArrayBuffer | ArrayBufferView): void {
-    this.sent.push(data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+    this.sent.push(
+      data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+    );
   }
 
   close(): void {
@@ -29,7 +38,10 @@ class FakeChannel {
   }
 
   emit(type: string, data?: unknown): void {
-    const event = type === 'message' ? new MessageEvent(type, { data }) : (data instanceof Error ? data : new Event(type));
+    const event =
+      type === 'message' ? new MessageEvent(type, { data })
+      : data instanceof Error ? data
+      : new Event(type);
     for (const listener of this.listeners.get(type) ?? []) listener(event as Event);
   }
 }
@@ -78,11 +90,15 @@ class LinkedTransport implements P2PByteTransport {
     return new Promise((resolve, reject) => {
       const waiter = (frame: Uint8Array): void => resolve(frame);
       this.waiters.push(waiter);
-      signal?.addEventListener('abort', () => {
-        const index = this.waiters.indexOf(waiter);
-        if (index >= 0) this.waiters.splice(index, 1);
-        reject(signal.reason ?? new Error('aborted'));
-      }, { once: true });
+      signal?.addEventListener(
+        'abort',
+        () => {
+          const index = this.waiters.indexOf(waiter);
+          if (index >= 0) this.waiters.splice(index, 1);
+          reject(signal.reason ?? new Error('aborted'));
+        },
+        { once: true }
+      );
     });
   }
 
@@ -227,11 +243,12 @@ describe('P2P 字节传输适配器', () => {
     right.peer = left;
     const local = createP2PTransportPeer(left, 'left', manifest, async index => bytes.slice(index * 3, index * 3 + 3));
     createP2PTransportPeer(right, 'right', manifest, async index => bytes.slice(index * 3, index * 3 + 3));
-    await expect(Promise.all([
-      local.source.requestChunk(manifest.contentHash, 0, new AbortController().signal),
-      local.source.requestChunk(manifest.contentHash, 1, new AbortController().signal)
-    ])).resolves.toEqual([bytes.slice(0, 3), bytes.slice(3)]);
+    await expect(
+      Promise.all([
+        local.source.requestChunk(manifest.contentHash, 0, new AbortController().signal),
+        local.source.requestChunk(manifest.contentHash, 1, new AbortController().signal)
+      ])
+    ).resolves.toEqual([bytes.slice(0, 3), bytes.slice(3)]);
     await local.close();
   });
-
 });

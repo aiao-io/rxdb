@@ -44,27 +44,41 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
 }
 
 /** 根据清单返回一个块的描述。 */
-export function describeChunk(manifest: Pick<P2PFileManifest, 'size' | 'chunkSize' | 'chunkHashes'>, index: number): P2PChunkDescriptor {
+export function describeChunk(
+  manifest: Pick<P2PFileManifest, 'size' | 'chunkSize' | 'chunkHashes'>,
+  index: number
+): P2PChunkDescriptor {
   assertFileSize(manifest.size);
   assertChunkSize(manifest.chunkSize);
   if (!Number.isSafeInteger(index) || index < 0 || index >= manifest.chunkHashes.length) {
     throw new RangeError(`chunk index out of range: ${index}`);
   }
   const offset = index * manifest.chunkSize;
-  return { index, offset, size: Math.min(manifest.chunkSize, manifest.size - offset), hash: manifest.chunkHashes[index] };
+  return {
+    index,
+    offset,
+    size: Math.min(manifest.chunkSize, manifest.size - offset),
+    hash: manifest.chunkHashes[index]
+  };
 }
 
 /** 枚举清单中的所有块。 */
-export function describeChunks(manifest: Pick<P2PFileManifest, 'size' | 'chunkSize' | 'chunkHashes'>): P2PChunkDescriptor[] {
+export function describeChunks(
+  manifest: Pick<P2PFileManifest, 'size' | 'chunkSize' | 'chunkHashes'>
+): P2PChunkDescriptor[] {
   assertFileSize(manifest.size);
   assertChunkSize(manifest.chunkSize);
   const expectedCount = Math.ceil(manifest.size / manifest.chunkSize);
-  if (manifest.chunkHashes.length !== expectedCount) throw new RangeError('chunkHashes length does not match file size');
+  if (manifest.chunkHashes.length !== expectedCount)
+    throw new RangeError('chunkHashes length does not match file size');
   return manifest.chunkHashes.map((_, index) => describeChunk(manifest, index));
 }
 
 /** 校验一个从 peer 收到的块。 */
-export async function verifyChunk(bytes: Uint8Array, descriptor: Pick<P2PChunkDescriptor, 'size' | 'hash'>): Promise<boolean> {
+export async function verifyChunk(
+  bytes: Uint8Array,
+  descriptor: Pick<P2PChunkDescriptor, 'size' | 'hash'>
+): Promise<boolean> {
   return bytes.byteLength === descriptor.size && (await sha256Hex(bytes)) === descriptor.hash;
 }
 
@@ -93,7 +107,8 @@ export async function createP2PFileManifest(options: {
   for (let offset = 0; offset < options.size; offset += chunkSize) {
     const expectedSize = Math.min(chunkSize, options.size - offset);
     const bytes = await options.readChunk(offset, expectedSize);
-    if (bytes.byteLength !== expectedSize) throw new RangeError(`readChunk returned ${bytes.byteLength} bytes, expected ${expectedSize}`);
+    if (bytes.byteLength !== expectedSize)
+      throw new RangeError(`readChunk returned ${bytes.byteLength} bytes, expected ${expectedSize}`);
     contentHash.update(bytes);
     chunkHashes.push(await sha256Hex(bytes));
   }

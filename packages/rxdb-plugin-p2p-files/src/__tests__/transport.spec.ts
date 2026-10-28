@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createTcpTransport, createWebRTCTransport, type P2PDataChannelLike, type P2PTcpSocketLike } from '../transport.js';
+import {
+  createTcpTransport,
+  createWebRTCTransport,
+  type P2PDataChannelLike,
+  type P2PTcpSocketLike
+} from '../transport.js';
 
 class FakeDataChannel implements P2PDataChannelLike {
   #listeners = new Map<string, Set<(event: Event) => void>>();
@@ -7,15 +12,25 @@ class FakeDataChannel implements P2PDataChannelLike {
   binaryType = 'blob';
   sent: Uint8Array[] = [];
   send(data: ArrayBuffer | ArrayBufferView): void {
-    this.sent.push(new Uint8Array(data instanceof ArrayBuffer ? data : data.buffer, data instanceof ArrayBuffer ? 0 : data.byteOffset, data instanceof ArrayBuffer ? data.byteLength : data.byteLength));
+    this.sent.push(
+      new Uint8Array(
+        data instanceof ArrayBuffer ? data : data.buffer,
+        data instanceof ArrayBuffer ? 0 : data.byteOffset,
+        data instanceof ArrayBuffer ? data.byteLength : data.byteLength
+      )
+    );
   }
-  close(): void { this.readyState = 'closed'; }
+  close(): void {
+    this.readyState = 'closed';
+  }
   addEventListener(type: 'message' | 'close' | 'error' | 'open', listener: (event: Event) => void): void {
     const listeners = this.#listeners.get(type) ?? new Set();
     listeners.add(listener);
     this.#listeners.set(type, listeners);
   }
-  removeEventListener(type: 'message' | 'close' | 'error' | 'open', listener: (event: Event) => void): void { this.#listeners.get(type)?.delete(listener); }
+  removeEventListener(type: 'message' | 'close' | 'error' | 'open', listener: (event: Event) => void): void {
+    this.#listeners.get(type)?.delete(listener);
+  }
   emit(type: 'message' | 'close' | 'error' | 'open', data?: Uint8Array): void {
     const event = (type === 'message' ? { data: data?.buffer } : data) as unknown as Event;
     for (const listener of this.#listeners.get(type) ?? []) listener(event);
@@ -26,15 +41,23 @@ class FakeSocket implements P2PTcpSocketLike {
   #listeners = new Map<string, Set<(value: Uint8Array | Error) => void>>();
   encrypted = true;
   writes: Uint8Array[] = [];
-  write(data: Uint8Array): void { this.writes.push(data); }
-  end(): void { /* test socket */ }
+  write(data: Uint8Array): void {
+    this.writes.push(data);
+  }
+  end(): void {
+    /* test socket */
+  }
   on(event: 'data' | 'error' | 'close', listener: (value: Uint8Array | Error) => void): void {
     const listeners = this.#listeners.get(event) ?? new Set();
     listeners.add(listener);
     this.#listeners.set(event, listeners);
   }
-  off(event: 'data' | 'error' | 'close', listener: (value: Uint8Array | Error) => void): void { this.#listeners.get(event)?.delete(listener); }
-  emit(event: 'data' | 'error' | 'close', value: Uint8Array | Error): void { for (const listener of this.#listeners.get(event) ?? []) listener(value); }
+  off(event: 'data' | 'error' | 'close', listener: (value: Uint8Array | Error) => void): void {
+    this.#listeners.get(event)?.delete(listener);
+  }
+  emit(event: 'data' | 'error' | 'close', value: Uint8Array | Error): void {
+    for (const listener of this.#listeners.get(event) ?? []) listener(value);
+  }
 }
 
 describe('P2P transports', () => {

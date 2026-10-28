@@ -6,7 +6,9 @@ import dts from 'vite-plugin-dts';
 export default defineConfig({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/packages/rxdb-plugin-p2p-files',
-  plugins: [dts({ entryRoot: 'src', pathsToAliases: false, tsconfigPath: path.join(import.meta.dirname, 'tsconfig.lib.json') })],
+  plugins: [
+    dts({ entryRoot: 'src', pathsToAliases: false, tsconfigPath: path.join(import.meta.dirname, 'tsconfig.lib.json') })
+  ],
   build: {
     outDir: './dist',
     emptyOutDir: true,

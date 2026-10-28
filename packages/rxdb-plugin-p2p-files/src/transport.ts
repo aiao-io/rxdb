@@ -1,6 +1,6 @@
 /** 传输层只承载已编码的帧，不感知清单和同步协议。 */
-import { createChunkRequestHandler, type P2PChunkSource } from './transfer.js';
 import type { P2PFileManifest } from './chunking.js';
+import { createChunkRequestHandler, type P2PChunkSource } from './transfer.js';
 export interface P2PByteTransport {
   readonly send: (frame: Uint8Array) => Promise<void>;
   readonly receive: (signal?: AbortSignal) => Promise<Uint8Array>;
@@ -33,7 +33,10 @@ export function createP2PTransportPeer(
   manifest: P2PFileManifest,
   readChunk: (index: number) => Promise<Uint8Array>
 ): P2PTransportPeer {
-  const pending = new Map<string, { readonly resolve: (bytes: Uint8Array) => void; readonly reject: (error: unknown) => void }>();
+  const pending = new Map<
+    string,
+    { readonly resolve: (bytes: Uint8Array) => void; readonly reject: (error: unknown) => void }
+  >();
   const handler = createChunkRequestHandler(manifest, readChunk);
   let sequence = 0;
   let stopped = false;
@@ -51,8 +54,17 @@ export function createP2PTransportPeer(
           continue;
         }
         void handler(frame.contentHash, frame.index).then(
-          payload => transport.send(encodeP2PFrame({ kind: 'response', requestId: frame.requestId, ok: true, payload })),
-          error => transport.send(encodeP2PFrame({ kind: 'response', requestId: frame.requestId, ok: false, error: error instanceof Error ? error.message : String(error) }))
+          payload =>
+            transport.send(encodeP2PFrame({ kind: 'response', requestId: frame.requestId, ok: true, payload })),
+          error =>
+            transport.send(
+              encodeP2PFrame({
+                kind: 'response',
+                requestId: frame.requestId,
+                ok: false,
+                error: error instanceof Error ? error.message : String(error)
+              })
+            )
         );
       }
     } catch (error) {
@@ -79,7 +91,8 @@ export function createP2PTransportPeer(
         pending.set(requestId, { resolve, reject });
       });
       const abort = (): void => {
-        if (pending.delete(requestId)) rejectRequest(signal?.reason ?? new DOMException('The operation was aborted', 'AbortError'));
+        if (pending.delete(requestId))
+          rejectRequest(signal?.reason ?? new DOMException('The operation was aborted', 'AbortError'));
       };
       signal?.addEventListener('abort', abort, { once: true });
       try {
@@ -108,7 +121,10 @@ export function createP2PTransportPeer(
 /** 编码一帧，供 WebRTC 和 TCP 适配器共用。 */
 export const encodeP2PFrame = (frame: P2PFrame): Uint8Array => {
   const payload = frame.kind === 'response' && frame.ok ? frame.payload : undefined;
-  const metadata = frame.kind === 'response' && frame.ok ? { ...frame, payload: undefined, payloadLength: payload?.byteLength ?? 0 } : frame;
+  const metadata =
+    frame.kind === 'response' && frame.ok ?
+      { ...frame, payload: undefined, payloadLength: payload?.byteLength ?? 0 }
+    : frame;
   const metadataBytes = frameEncoder.encode(JSON.stringify(metadata));
   const result = new Uint8Array(4 + metadataBytes.byteLength + (payload?.byteLength ?? 0));
   new DataView(result.buffer).setUint32(0, metadataBytes.byteLength);
@@ -121,23 +137,41 @@ export const encodeP2PFrame = (frame: P2PFrame): Uint8Array => {
 export const decodeP2PFrame = (bytes: Uint8Array): P2PFrame => {
   if (bytes.byteLength < 4) throw new RangeError('P2P frame is truncated');
   const metadataLength = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0);
-  if (metadataLength === 0 || metadataLength > bytes.byteLength - 4) throw new RangeError('P2P frame metadata is truncated');
+  if (metadataLength === 0 || metadataLength > bytes.byteLength - 4)
+    throw new RangeError('P2P frame metadata is truncated');
   let metadata: Record<string, unknown>;
   try {
     metadata = JSON.parse(frameDecoder.decode(bytes.slice(4, 4 + metadataLength))) as Record<string, unknown>;
   } catch (error) {
     throw new RangeError('P2P frame metadata is invalid', { cause: error });
   }
-  if (metadata.kind === 'request' && typeof metadata.requestId === 'string' && typeof metadata.contentHash === 'string' && typeof metadata.index === 'number' && Number.isSafeInteger(metadata.index)) {
+  if (
+    metadata.kind === 'request' &&
+    typeof metadata.requestId === 'string' &&
+    typeof metadata.contentHash === 'string' &&
+    typeof metadata.index === 'number' &&
+    Number.isSafeInteger(metadata.index)
+  ) {
     if (4 + metadataLength !== bytes.byteLength) throw new RangeError('request frame has an unexpected payload');
     return { kind: 'request', requestId: metadata.requestId, contentHash: metadata.contentHash, index: metadata.index };
   }
-  if (metadata.kind === 'response' && typeof metadata.requestId === 'string' && metadata.ok === true && Number.isSafeInteger(metadata.payloadLength)) {
+  if (
+    metadata.kind === 'response' &&
+    typeof metadata.requestId === 'string' &&
+    metadata.ok === true &&
+    Number.isSafeInteger(metadata.payloadLength)
+  ) {
     const payloadLength = metadata.payloadLength as number;
-    if (payloadLength < 0 || 4 + metadataLength + payloadLength !== bytes.byteLength) throw new RangeError('response payload is truncated');
+    if (payloadLength < 0 || 4 + metadataLength + payloadLength !== bytes.byteLength)
+      throw new RangeError('response payload is truncated');
     return { kind: 'response', requestId: metadata.requestId, ok: true, payload: bytes.slice(4 + metadataLength) };
   }
-  if (metadata.kind === 'response' && typeof metadata.requestId === 'string' && metadata.ok === false && typeof metadata.error === 'string') {
+  if (
+    metadata.kind === 'response' &&
+    typeof metadata.requestId === 'string' &&
+    metadata.ok === false &&
+    typeof metadata.error === 'string'
+  ) {
     if (4 + metadataLength !== bytes.byteLength) throw new RangeError('error response has an unexpected payload');
     return { kind: 'response', requestId: metadata.requestId, ok: false, error: metadata.error };
   }
@@ -162,7 +196,10 @@ export const createWebRTCTransport = (channel: P2PDataChannelLike): P2PByteTrans
   let failure: unknown;
   const onMessage = (event: Event): void => {
     const data = (event as MessageEvent).data;
-    const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : data instanceof Uint8Array ? new Uint8Array(data) : null;
+    const bytes =
+      data instanceof ArrayBuffer ? new Uint8Array(data)
+      : data instanceof Uint8Array ? new Uint8Array(data)
+      : null;
     if (!bytes) {
       onFailure(new TypeError('WebRTC DataChannel delivered a non-binary frame'));
       return;
@@ -221,8 +258,12 @@ export interface P2PTcpSocketLike {
 }
 
 /** 长度前缀帧：4 字节无符号大端长度 + payload，防止 TCP 粘包/拆包。 */
-export const createTcpTransport = (socket: P2PTcpSocketLike, options: { readonly requireEncryption?: boolean } = {}): P2PByteTransport => {
-  if (options.requireEncryption !== false && socket.encrypted !== true) throw new Error('P2P TCP transport requires an encrypted TLS socket');
+export const createTcpTransport = (
+  socket: P2PTcpSocketLike,
+  options: { readonly requireEncryption?: boolean } = {}
+): P2PByteTransport => {
+  if (options.requireEncryption !== false && socket.encrypted !== true)
+    throw new Error('P2P TCP transport requires an encrypted TLS socket');
   const queue: Uint8Array[] = [];
   const waiters: Array<{ resolve: (value: Uint8Array) => void; reject: (error: unknown) => void }> = [];
   let buffer = new Uint8Array(0);
@@ -274,11 +315,15 @@ export const createTcpTransport = (socket: P2PTcpSocketLike, options: { readonly
       return new Promise<Uint8Array>((resolve, reject) => {
         const waiter = { resolve, reject };
         waiters.push(waiter);
-        signal?.addEventListener('abort', () => {
-          const index = waiters.indexOf(waiter);
-          if (index >= 0) waiters.splice(index, 1);
-          reject(signal.reason ?? new DOMException('The operation was aborted', 'AbortError'));
-        }, { once: true });
+        signal?.addEventListener(
+          'abort',
+          () => {
+            const index = waiters.indexOf(waiter);
+            if (index >= 0) waiters.splice(index, 1);
+            reject(signal.reason ?? new DOMException('The operation was aborted', 'AbortError'));
+          },
+          { once: true }
+        );
       });
     },
     close() {

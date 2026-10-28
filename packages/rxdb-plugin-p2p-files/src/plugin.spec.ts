@@ -4,9 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { P2PFileManifestEntity } from './p2p-file-manifest.entity';
 import { RxDBPluginP2PFiles, rxDBPluginP2PFiles } from './plugin';
 
-const createDatabase = (): RxDB => ({
-  config: { entities: [], sync: {} }
-} as unknown as RxDB);
+const createDatabase = (): RxDB =>
+  ({
+    config: { entities: [], sync: {} }
+  }) as unknown as RxDB;
 
 describe('P2P 文件插件', () => {
   it('安装时注册同步清单实体，并在作用域销毁时撤销', async () => {
@@ -33,6 +34,8 @@ describe('P2P 文件插件', () => {
   it('实体元数据保留清单索引', () => {
     const metadata = getEntityMetadata(P2PFileManifestEntity);
     expect(metadata.name).toBe('P2PFileManifest');
-    expect(metadata.indexes.map(index => index.name)).toEqual(expect.arrayContaining(['content_hash', 'content_holder', 'updated_at']));
+    expect(metadata.indexes.map(index => index.name)).toEqual(
+      expect.arrayContaining(['content_hash', 'content_holder', 'updated_at'])
+    );
   });
 });

@@ -37,19 +37,27 @@ export async function downloadFromServer(options: {
   readonly onProgress?: P2PDownloadOptions['onProgress'];
 }): Promise<P2PTransferResult> {
   options.signal?.throwIfAborted();
-  const value = await options.fallback.download({ manifest: options.manifest, signal: options.signal, token: options.token });
+  const value = await options.fallback.download({
+    manifest: options.manifest,
+    signal: options.signal,
+    token: options.token
+  });
   const bytes = value instanceof Blob ? new Uint8Array(await value.arrayBuffer()) : value;
   if (bytes.byteLength !== options.manifest.size) throw new Error('server response size does not match manifest');
   const chunks: Uint8Array[] = [];
   for (let offset = 0, index = 0; offset < bytes.byteLength; offset += options.manifest.chunkSize, index += 1) {
     const chunk = bytes.slice(offset, offset + options.manifest.chunkSize);
-    if (!(await verifyChunk(chunk, {
-      size: Math.min(options.manifest.chunkSize, options.manifest.size - offset),
-      hash: options.manifest.chunkHashes[index] ?? ''
-    }))) throw new Error(`server response chunk ${index} does not match manifest`);
+    if (
+      !(await verifyChunk(chunk, {
+        size: Math.min(options.manifest.chunkSize, options.manifest.size - offset),
+        hash: options.manifest.chunkHashes[index] ?? ''
+      }))
+    )
+      throw new Error(`server response chunk ${index} does not match manifest`);
     chunks.push(chunk);
   }
-  if (!(await verifyContentHash(chunks, options.manifest.contentHash))) throw new Error('server response contentHash does not match manifest');
+  if (!(await verifyContentHash(chunks, options.manifest.contentHash)))
+    throw new Error('server response contentHash does not match manifest');
   for (const [index, chunk] of chunks.entries()) {
     await options.writeChunk(index, chunk);
     options.onProgress?.({
@@ -80,7 +88,8 @@ export async function downloadP2PFile(options: P2PDownloadOptions): Promise<P2PT
         onProgress: progress => options.onProgress?.({ ...progress, route: 'p2p' })
       });
     } catch (error) {
-      if (options.signal?.aborted || !options.fallback || !(error instanceof P2PTransferError) || !error.retryable) throw error;
+      if (options.signal?.aborted || !options.fallback || !(error instanceof P2PTransferError) || !error.retryable)
+        throw error;
       return downloadFromServer({
         manifest: options.manifest,
         fallback: options.fallback,

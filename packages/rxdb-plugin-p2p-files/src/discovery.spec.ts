@@ -1,16 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createAuthenticatedP2PFileManifest,
-  P2PManifestStore,
-  deriveHolderId,
-  findP2PFileHolders
-} from './manifest';
-import {
   createLocalManifestDiscovery,
   toRxDBManifestDocument,
   toSyncManifestDocument,
   validateHandshake
 } from './discovery';
+import { createAuthenticatedP2PFileManifest, deriveHolderId, findP2PFileHolders, P2PManifestStore } from './manifest';
 
 async function recordFixture(options: { readonly subject?: string; readonly now?: number } = {}) {
   return createAuthenticatedP2PFileManifest({
@@ -42,16 +37,22 @@ describe('P2P 发现与信令', () => {
       })
     ).resolves.toEqual({ connectionId: 'c1', contentHash: record.contentHash, holderId: record.holderId });
     await expect(
-      validateHandshake({ ...request, token: 'bad' }, {
-        authenticate: async () => null,
-        manifests: store
-      })
+      validateHandshake(
+        { ...request, token: 'bad' },
+        {
+          authenticate: async () => null,
+          manifests: store
+        }
+      )
     ).rejects.toThrow('peer is not authorized');
     await expect(
-      validateHandshake({ ...request, holderId: deriveHolderId('device-b') }, {
-        authenticate: async () => ({ subject: 'device-b' }),
-        manifests: store
-      })
+      validateHandshake(
+        { ...request, holderId: deriveHolderId('device-b') },
+        {
+          authenticate: async () => ({ subject: 'device-b' }),
+          manifests: store
+        }
+      )
     ).rejects.toThrow('peer does not hold requested content');
   });
 
@@ -76,12 +77,16 @@ describe('P2P 发现与信令', () => {
   it('把清单映射为同步文档并复制 chunkHashes', async () => {
     const record = await recordFixture({ now: 10 });
     const document = toSyncManifestDocument(record);
-    expect(document).toMatchObject({ id: record.id, contentHash: record.contentHash, holderId: record.holderId, updatedAt: 10 });
+    expect(document).toMatchObject({
+      id: record.id,
+      contentHash: record.contentHash,
+      holderId: record.holderId,
+      updatedAt: 10
+    });
     expect(document.chunkHashes).toEqual(record.chunkHashes);
     expect(document.chunkHashes).not.toBe(record.chunkHashes);
     expect(toRxDBManifestDocument(record).updatedAt).toEqual(new Date(10));
     expect(findP2PFileHolders([record], record.contentHash, { now: 100, ttlMs: 100 })).toHaveLength(1);
     expect(findP2PFileHolders([record], record.contentHash, { now: 111, ttlMs: 100 })).toHaveLength(0);
   });
-
 });

@@ -1,5 +1,4 @@
 {
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
@@ -7,7 +6,8 @@
     "emitDeclarationOnly": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "vite.config.mts"],
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/**/*.ts"],
   "references": [{ "path": "../utils/tsconfig.lib.json" }, { "path": "../rxdb/tsconfig.lib.json" }]
 }

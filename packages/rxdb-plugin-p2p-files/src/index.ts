@@ -6,5 +6,5 @@ export * from './fallback.js';
 export * from './manifest.js';
 export * from './p2p-file-manifest.entity.js';
 export * from './plugin.js';
-export * from './transport.js';
 export * from './transfer.js';
+export * from './transport.js';

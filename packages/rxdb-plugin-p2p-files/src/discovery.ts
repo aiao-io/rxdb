@@ -10,7 +10,11 @@ export interface P2PSignalingChannel {
 
 export type P2PSignalingMessage =
   | { readonly type: 'offer' | 'answer' | 'ice'; readonly connectionId: string; readonly payload: unknown }
-  | { readonly type: 'reject'; readonly connectionId: string; readonly reason: 'unauthorized' | 'not_holder' | 'expired' };
+  | {
+      readonly type: 'reject';
+      readonly connectionId: string;
+      readonly reason: 'unauthorized' | 'not_holder' | 'expired';
+    };
 
 export interface P2PHandshakeRequest {
   readonly connectionId: string;
@@ -36,7 +40,9 @@ export const validateHandshake = async (
 ): Promise<P2PHandshakeResult> => {
   const identity = await options.authenticate(request.token);
   if (!identity || deriveHolderId(identity.subject) !== request.holderId) throw new Error('peer is not authorized');
-  const record = options.manifests.findHolders(request.contentHash, options.now).find(item => item.holderId === request.holderId);
+  const record = options.manifests
+    .findHolders(request.contentHash, options.now)
+    .find(item => item.holderId === request.holderId);
   if (!record) throw new Error('peer does not hold requested content');
   return { connectionId: request.connectionId, contentHash: request.contentHash, holderId: request.holderId };
 };
@@ -69,7 +75,10 @@ export const createLocalManifestDiscovery = (store: P2PManifestStore): P2PPeerDi
 export interface P2PManifestRepository {
   readonly upsert: (record: P2PManifestRecord) => Promise<void> | void;
   readonly revoke: (contentHash: string, holderId: string) => Promise<void> | void;
-  readonly findHolders: (contentHash: string, now?: number) => readonly P2PManifestRecord[] | Promise<readonly P2PManifestRecord[]>;
+  readonly findHolders: (
+    contentHash: string,
+    now?: number
+  ) => readonly P2PManifestRecord[] | Promise<readonly P2PManifestRecord[]>;
 }
 
 /** 把 manifest 转成同步文档，明确声明它走同步而不是本地 storage。 */

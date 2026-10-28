@@ -5,11 +5,7 @@ WebRTC DataChannel 或 TLS TCP 直传；传输按 SHA-256 分块校验，支持�
 坏 peer 退避和服务器回退。
 
 ```ts
-import {
-  createAuthenticatedP2PFileManifest,
-  downloadP2PFile,
-  rxDBPluginP2PFiles
-} from '@aiao/rxdb-plugin-p2p-files';
+import { createAuthenticatedP2PFileManifest, downloadP2PFile, rxDBPluginP2PFiles } from '@aiao/rxdb-plugin-p2p-files';
 ```
 
 插件只注册 `P2PFileManifestEntity`，不会在 `use()` 或 `connect()` 时自行建立网络连接。

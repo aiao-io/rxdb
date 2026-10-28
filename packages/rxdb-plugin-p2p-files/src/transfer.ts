@@ -67,7 +67,9 @@ export async function transferP2PFile(options: P2PTransferOptions): Promise<P2PT
   const pending = descriptors.filter(descriptor => !completed.has(descriptor.index));
   const failures = new Map<string, number>();
   const used = new Set<string>();
-  let bytesTransferred = descriptors.filter(descriptor => completed.has(descriptor.index)).reduce((total, descriptor) => total + descriptor.size, 0);
+  let bytesTransferred = descriptors
+    .filter(descriptor => completed.has(descriptor.index))
+    .reduce((total, descriptor) => total + descriptor.size, 0);
   let cursor = 0;
   const report = (): void => {
     options.onProgress?.({
@@ -81,7 +83,8 @@ export async function transferP2PFile(options: P2PTransferOptions): Promise<P2PT
 
   const worker = async (): Promise<void> => {
     while (cursor < pending.length) {
-      if (options.signal?.aborted) throw options.signal.reason ?? new DOMException('The operation was aborted', 'AbortError');
+      if (options.signal?.aborted)
+        throw options.signal.reason ?? new DOMException('The operation was aborted', 'AbortError');
       const descriptor = pending[cursor++];
       let lastError: unknown;
       for (let attempt = 0; attempt < attemptsLimit; attempt++) {
@@ -99,7 +102,10 @@ export async function transferP2PFile(options: P2PTransferOptions): Promise<P2PT
           try {
             await options.writeChunk(descriptor.index, bytes);
           } catch (error) {
-            throw new P2PTransferError(`failed to persist chunk ${descriptor.index}`, { cause: error, retryable: false });
+            throw new P2PTransferError(`failed to persist chunk ${descriptor.index}`, {
+              cause: error,
+              retryable: false
+            });
           }
           completed.add(descriptor.index);
           bytesTransferred += bytes.byteLength;
@@ -107,7 +113,8 @@ export async function transferP2PFile(options: P2PTransferOptions): Promise<P2PT
           lastError = undefined;
           break;
         } catch (error) {
-          if (options.signal?.aborted) throw options.signal.reason ?? new DOMException('The operation was aborted', 'AbortError');
+          if (options.signal?.aborted)
+            throw options.signal.reason ?? new DOMException('The operation was aborted', 'AbortError');
           lastError = error;
           failures.set(source.id, (failures.get(source.id) ?? 0) + 1);
           if ((failures.get(source.id) ?? 0) >= peerFailureLimit) failures.set(source.id, Number.MAX_SAFE_INTEGER);
@@ -126,17 +133,27 @@ export async function transferP2PFile(options: P2PTransferOptions): Promise<P2PT
     const hash = createSha256();
     for (const descriptor of descriptors) {
       const bytes = await options.readChunk(descriptor.index);
-      if (!(await verifyChunk(bytes, descriptor))) throw new P2PTransferError(`stored chunk ${descriptor.index} failed verification`);
+      if (!(await verifyChunk(bytes, descriptor)))
+        throw new P2PTransferError(`stored chunk ${descriptor.index} failed verification`);
       hash.update(bytes);
     }
     if (hash.digestHex() !== manifest.contentHash) {
       throw new P2PTransferError('stored file contentHash does not match manifest');
     }
   }
-  return { contentHash: manifest.contentHash, completedChunks: completed.size, bytesTransferred, sourcesUsed: [...used] };
+  return {
+    contentHash: manifest.contentHash,
+    completedChunks: completed.size,
+    bytesTransferred,
+    sourcesUsed: [...used]
+  };
 }
 
-function selectSource(sources: readonly P2PChunkSource[], failures: ReadonlyMap<string, number>, attempt: number): P2PChunkSource | undefined {
+function selectSource(
+  sources: readonly P2PChunkSource[],
+  failures: ReadonlyMap<string, number>,
+  attempt: number
+): P2PChunkSource | undefined {
   const available = sources.filter(source => (failures.get(source.id) ?? 0) < Number.MAX_SAFE_INTEGER);
   if (available.length === 0) return undefined;
   return available[attempt % available.length];
@@ -152,7 +169,8 @@ export function createChunkRequestHandler(
     if (signal?.aborted) throw signal.reason ?? new DOMException('The operation was aborted', 'AbortError');
     const descriptor = describeChunk(manifest, index);
     const bytes = await readChunk(index);
-    if (!(await verifyChunk(bytes, descriptor))) throw new P2PTransferError(`local chunk ${index} does not match manifest`);
+    if (!(await verifyChunk(bytes, descriptor)))
+      throw new P2PTransferError(`local chunk ${index} does not match manifest`);
     return bytes;
   };
 }

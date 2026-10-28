@@ -16,10 +16,29 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "src", "!src/**/*.spec.*", "!src/**/__tests__/**", "!**/*.tsbuildinfo"],
-  "publishConfig": { "access": "public" },
-  "dependencies": { "@aiao/utils": "workspace:^" },
-  "peerDependencies": { "@aiao/rxdb": "workspace:^" },
-  "devDependencies": { "vitest": "4.1.11" },
-  "nx": { "name": "rxdb-plugin-p2p-files", "tags": ["js-lib"] }
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@aiao/utils": "workspace:^"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb": "workspace:^"
+  },
+  "devDependencies": {
+    "vitest": "4.1.11"
+  },
+  "nx": {
+    "name": "rxdb-plugin-p2p-files",
+    "tags": [
+      "js-lib"
+    ]
+  }
 }
