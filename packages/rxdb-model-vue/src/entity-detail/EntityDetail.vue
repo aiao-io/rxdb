@@ -10,7 +10,7 @@
  * 对话框关闭经注入的 {@link ENTITY_DIALOG_CONTEXT}（CDK `DialogRef` 的包内替代）：
  * 无对话框语境时组件以独立表单形态运行，不主动关闭任何宿主。
  */
-import { getEntityMetadata, RelationKind, type EntityMetadata, type EntityType } from '@aiao/rxdb';
+import { getEntityMetadata, RelationKind, type EntityMetadata, type EntityType, type RxDB } from '@aiao/rxdb';
 import type {
   DetailTableTab,
   EntityFormData,
@@ -28,9 +28,9 @@ import {
   formDataToEntityChanges,
   validateForm
 } from '@aiao/rxdb-model';
-import { useRxDBOptional } from '@aiao/rxdb-vue';
+import { injectRxDBRef } from '@aiao/rxdb-vue';
 import type { Subscription } from 'rxjs';
-import { computed, inject, ref, shallowRef, watch } from 'vue';
+import { computed, inject, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { ENTITY_DIALOG_CONTEXT } from '../entity-dialog/dialog-context';
 import EntityDialog from '../entity-dialog/EntityDialog.vue';
 import EntityForm from '../entity-form/EntityForm.vue';
@@ -94,7 +94,21 @@ const emit = defineEmits<{
 
 const dialogContext = inject(ENTITY_DIALOG_CONTEXT, undefined);
 
-const rxdb = useRxDBOptional();
+const databaseRef = injectRxDBRef(true);
+const rxdb = computed(() => databaseRef?.value);
+const relationListKey = ref(0);
+watch(
+  rxdb,
+  (_database, previous) => {
+    relationListKey.value++;
+    if (!previous) return;
+    cleanupDraftEntity();
+    draftFormData.value = {};
+    formErrors.value = null;
+    saveError.value = null;
+  },
+  { flush: 'sync' }
+);
 
 /** 统一错误处理（Angular ErrorHandler 的最小等价） */
 const handleError = (error: unknown): void => {
@@ -112,15 +126,17 @@ const saveErrorMessage = (error: unknown): string =>
 
 /** create 模式下的草稿实体实例（立即创建，不保存） */
 const draftEntity = shallowRef<EntityInstance | null>(null);
+let draftDatabase: RxDB | undefined;
 
 // 根据 namespace + name 查找对应实体类
 const entityCls = computed<EntityType | null>(() => {
-  if (!rxdb) return null;
+  const database = rxdb.value;
+  if (!database) return null;
   const ns = props.namespace;
   const nm = props.name;
   if (!ns || !nm) return null;
   return (
-    rxdb.config.entities.find(cls => {
+    database.config.entities.find(cls => {
       const meta = getEntityMetadata(cls);
       return meta.namespace === ns && meta.name === nm;
     }) ?? null
@@ -130,9 +146,10 @@ const entityCls = computed<EntityType | null>(() => {
 /** 对话框传入的实体类（根据 metadata prop 查找） */
 const entityClsFromDialog = computed<EntityType | null>(() => {
   const meta = props.metadata;
-  if (!rxdb || !meta) return null;
+  const database = rxdb.value;
+  if (!database || !meta) return null;
   return (
-    rxdb.config.entities.find(cls => {
+    database.config.entities.find(cls => {
       const m = getEntityMetadata(cls);
       return m.namespace === meta.namespace && m.name === meta.name;
     }) ?? null
@@ -153,19 +170,18 @@ const formFieldsFromRouteInputs = computed<FormFieldConfig[] | null>(() => {
 /** 编辑模式按 id 加载实体实例（等价 Angular 的 toSignal(switchMap(get(id)))） */
 const entityInstance = shallowRef<EntityInstance | null>(null);
 watch(
-  () => [entityCls.value ?? entityClsFromDialog.value, props.entityId] as const,
-  ([cls, id], _old, onCleanup) => {
+  () => [rxdb.value, entityCls.value ?? entityClsFromDialog.value, props.entityId] as const,
+  ([database, cls, id], _old, onCleanup) => {
+    entityInstance.value = null;
     let cancelled = false;
     let subscription: Subscription | undefined;
     onCleanup(() => {
       cancelled = true;
       subscription?.unsubscribe();
-    });
-    if (!cls || !id || !rxdb) {
       entityInstance.value = null;
-      return;
-    }
-    subscription = rxdb.entityManager
+    });
+    if (!cls || !id || !database) return;
+    subscription = database.entityManager
       .getRepository(cls)
       .get(id)
       .subscribe({
@@ -275,14 +291,15 @@ const activeTab = computed(() => tabs.value.find(t => t.key === activeTabKey.val
 // ── create 模式草稿实体生命周期（等价 Angular 构造器） ────────────────
 
 watch(
-  () => [props.metadata, formModeValue.value, props.delegateSave, entityClsFromDialog.value, rxdb] as const,
-  ([meta, mode, delegateSave, cls]) => {
+  () => [props.metadata, formModeValue.value, props.delegateSave, entityClsFromDialog.value, rxdb.value] as const,
+  ([meta, mode, delegateSave, cls, database]) => {
     if (draftEntity.value) return;
     if (mode !== 'create') return;
     if (delegateSave) return;
-    if (!meta || !cls || !rxdb) return;
-    const merged = { ...(props.formData || {}), ...props.fixedFormData };
-    const inst = new (cls as new (...args: unknown[]) => unknown)(merged) as EntityInstance;
+    if (!meta || !cls || !database) return;
+    const merged = { ...props.formData, ...draftFormData.value, ...props.fixedFormData };
+    const inst = database.entityManager.instantiate(cls, merged) as EntityInstance;
+    draftDatabase = database;
     draftEntity.value = inst;
     draftFormData.value = entityToFormData(inst as Record<string, unknown>, props.formFields ?? []);
   },
@@ -325,13 +342,17 @@ const onFormSubmitted = (data: EntityFormData): void => {
   // edit 模式内部保存：变更应用到已加载实例并落库，成功后关闭对话框并通知宿主
   const changes = formDataToEntityChanges(inst as Record<string, unknown>, data, formFieldsValue.value);
   Object.assign(inst as Record<string, unknown>, changes);
+  const database = rxdb.value;
+  const isCurrent = (): boolean => entityInstance.value === inst && rxdb.value === database;
   inst
     .save()
     .then(() => {
+      if (!isCurrent()) return;
       dialogContext?.close('saved');
       emit('formSubmitted', data);
     })
     .catch(e => {
+      if (!isCurrent()) return;
       saveError.value = saveErrorMessage(e);
     });
 };
@@ -370,13 +391,18 @@ const onSave = (): void => {
   }
   if (draftEntity.value) {
     syncDraftEntity();
-    draftEntity.value
+    const draft = draftEntity.value;
+    const database = rxdb.value;
+    const isCurrent = (): boolean => draftEntity.value === draft && rxdb.value === database;
+    draft
       .save()
       .then(() => {
+        if (!isCurrent()) return;
         draftEntity.value = null;
         dialogContext?.close('saved');
       })
       .catch(e => {
+        if (!isCurrent()) return;
         saveError.value = saveErrorMessage(e);
       });
   } else {
@@ -426,10 +452,13 @@ const syncDraftEntity = (): void => {
 
 /** 清理草稿实体缓存 */
 const cleanupDraftEntity = (): void => {
-  if (!draftEntity.value || !rxdb) return;
-  rxdb.entityManager.removeEntityCache(draftEntity.value);
+  if (!draftEntity.value || !draftDatabase) return;
+  draftDatabase.entityManager.removeEntityCache(draftEntity.value);
   draftEntity.value = null;
+  draftDatabase = undefined;
 };
+
+onBeforeUnmount(cleanupDraftEntity);
 
 defineExpose({
   dialogTitle,
@@ -507,7 +536,8 @@ defineExpose({
               @validation-errors="onValidationErrors"
             />
             <EntityList
-              v-if="tab.type === 'table'"
+              v-if="tab.type === 'table' && rxdb"
+              :key="relationListKey"
               :creation-chain="creationChain"
               :draft-parent-entity="draftEntity"
               :edit-chain="editChain"

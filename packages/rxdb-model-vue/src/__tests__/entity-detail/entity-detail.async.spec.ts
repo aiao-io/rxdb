@@ -1,0 +1,486 @@
+import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
+import type { EntityFormData, EntityInstance, FormFieldConfig, FormMode } from '@aiao/rxdb-model';
+import { provideRxDB, type RxDBInput } from '@aiao/rxdb-vue';
+import { flushPromises, mount } from '@vue/test-utils';
+import { firstValueFrom, Observable, Subject } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent, h, markRaw, provide, shallowRef, useAttrs, type PropType } from 'vue';
+import EntityDetail from '../../entity-detail/EntityDetail.vue';
+import type { EntityDetailDialogData } from '../../entity-detail/entity-detail-types';
+import { ENTITY_DIALOG_CONTEXT } from '../../entity-dialog/dialog-context';
+import EntityList from '../../entity-list/EntityList.vue';
+import { createInMemoryRxdb, IN_MEMORY_ADAPTER_NAME, InMemoryRxDBAdapter } from '../testing/in-memory-rxdb';
+
+vi.mock('@visactor/vtable', () => import('../testing/fake-vtable'));
+vi.mock('@visactor/vtable-editors', () => import('../testing/fake-vtable-editors'));
+
+@Entity({
+  name: 'AsyncDetailParent',
+  namespace: 'detail-async',
+  properties: [
+    { name: 'title', type: PropertyType.string, required: true },
+    { name: 'count', type: PropertyType.integer, default: 7 }
+  ],
+  relations: [
+    {
+      name: 'children',
+      kind: RelationKind.ONE_TO_MANY,
+      mappedEntity: 'AsyncDetailChild',
+      mappedProperty: 'parent'
+    }
+  ]
+})
+class AsyncDetailParent extends EntityBase {
+  declare title: string;
+  declare count: number;
+}
+
+@Entity({
+  name: 'AsyncDetailChild',
+  namespace: 'detail-async',
+  properties: [{ name: 'label', type: PropertyType.string }],
+  relations: [
+    {
+      name: 'parent',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'AsyncDetailParent',
+      mappedProperty: 'children'
+    }
+  ]
+})
+class AsyncDetailChild extends EntityBase {
+  declare label: string;
+}
+
+@Entity({
+  name: 'AsyncDetailReplacement',
+  namespace: 'detail-async',
+  properties: [
+    { name: 'title', type: PropertyType.string, required: true },
+    { name: 'count', type: PropertyType.integer, default: 11 }
+  ]
+})
+class AsyncDetailReplacement extends EntityBase {
+  declare title: string;
+  declare count: number;
+}
+
+type SourceKind = 'Promise' | '异步工厂' | 'Ref';
+
+type DetailVM = InstanceType<typeof EntityDetail> & {
+  draftEntity: EntityInstance | null;
+  entityInstance: EntityInstance | null;
+  formDataValue: EntityFormData;
+};
+
+const formFields: FormFieldConfig[] = [
+  { field: 'title', displayName: '标题', type: 'string', required: true },
+  { field: 'count', displayName: '数量', type: 'integer' }
+];
+
+const pendingDatabase = (kind: SourceKind) => {
+  const databaseRef = shallowRef<RxDB>();
+  let resolve!: (database: RxDB) => void;
+  const pending = new Promise<RxDB>(settle => (resolve = settle));
+  const source: RxDBInput<RxDB> =
+    kind === 'Ref' ? databaseRef
+    : kind === '异步工厂' ? async () => pending
+    : pending;
+  return {
+    source,
+    settle(database: RxDB): void {
+      if (kind === 'Ref') databaseRef.value = database;
+      else resolve(database);
+    }
+  };
+};
+
+describe('EntityDetail 异步数据库就绪', () => {
+  const mounted: Array<ReturnType<typeof mount>> = [];
+  const disposeDatabases: Array<() => Promise<void>> = [];
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      'BroadcastChannel',
+      class {
+        addEventListener = vi.fn<() => void>();
+        removeEventListener = vi.fn<() => void>();
+        postMessage = vi.fn<() => void>();
+        close = vi.fn<() => void>();
+      }
+    );
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe = vi.fn<() => void>();
+        unobserve = vi.fn<() => void>();
+        disconnect = vi.fn<() => void>();
+      }
+    );
+  });
+
+  afterEach(async () => {
+    for (const wrapper of mounted.splice(0).reverse()) wrapper.unmount();
+    for (const dispose of disposeDatabases.splice(0).reverse()) await dispose();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  async function createDatabase(entities: EntityType[] = [AsyncDetailParent, AsyncDetailChild]) {
+    const database = createInMemoryRxdb(entities);
+    await database.connect(IN_MEMORY_ADAPTER_NAME);
+    const destroy = vi.spyOn(database, 'destroy');
+    disposeDatabases.push(async () => {
+      const started = destroy.mock.results.find(result => result.type === 'return');
+      if (started?.type === 'return') await started.value;
+      else await database.destroy();
+    });
+    const adapter = (await firstValueFrom(database.localAdapter$)) as unknown as InMemoryRxDBAdapter;
+    return { database, adapter };
+  }
+
+  function renderDetail(source: RxDBInput<RxDB>, overrides: Partial<EntityDetailDialogData> = {}) {
+    const closed = vi.fn<(result?: unknown) => void>();
+    const Host = defineComponent({
+      props: {
+        metadata: { type: Object as PropType<EntityDetailDialogData['metadata']>, default: undefined },
+        formData: { type: Object as PropType<EntityFormData>, default: undefined },
+        formMode: { type: String as PropType<FormMode>, default: undefined },
+        entityId: { type: String, default: undefined }
+      },
+      setup(props) {
+        provideRxDB(source);
+        provide(ENTITY_DIALOG_CONTEXT, { close: closed });
+        const attrs = useAttrs();
+        return () => h(EntityDetail, { ...attrs, ...props });
+      }
+    });
+    const wrapper = mount(Host, {
+      props: {
+        metadata: markRaw(getEntityMetadata(AsyncDetailParent)),
+        formFields,
+        formData: { title: '' },
+        formMode: 'create',
+        ...overrides
+      }
+    });
+    mounted.push(wrapper);
+    const detail = wrapper.findComponent(EntityDetail);
+    return { wrapper, detail, component: detail.vm as unknown as DetailVM, closed };
+  }
+
+  it.each<SourceKind>(['Promise', '异步工厂', 'Ref'])('%s 到货后创建草稿，保存实际落库', async kind => {
+    const { database, adapter } = await createDatabase();
+    const pending = pendingDatabase(kind);
+    const { detail, component, closed } = renderDetail(pending.source);
+
+    expect(component.draftEntity).toBeNull();
+    expect(detail.findComponent(EntityList).exists()).toBe(false);
+
+    pending.settle(database);
+    await vi.waitFor(() => expect(component.draftEntity).not.toBeNull());
+    await flushPromises();
+    expect(detail.findComponent(EntityList).exists()).toBe(true);
+    expect(component.formDataValue['count']).toBe(7);
+    expect(adapter.tableFor(AsyncDetailParent).size).toBe(0);
+
+    await detail.get('form input[type="text"]').setValue(`${kind} 创建`);
+    await detail
+      .findAll('button')
+      .find(button => button.text() === '保存')!
+      .trigger('click');
+    await vi.waitFor(() => {
+      expect([...adapter.tableFor(AsyncDetailParent).values()].map(row => [row['title'], row['count']])).toEqual([
+        [`${kind} 创建`, 7]
+      ]);
+      expect(closed).toHaveBeenCalledExactlyOnceWith('saved');
+    });
+    expect(detail.emitted('formSubmitted')).toBeUndefined();
+    expect(component.draftEntity).toBeNull();
+  });
+
+  it.each<SourceKind>(['Promise', '异步工厂', 'Ref'])('%s 到货后加载现有实体，提交实际更新', async kind => {
+    const { database, adapter } = await createDatabase();
+    const entity = database.entityManager.instantiate(AsyncDetailParent, { title: '原始标题', count: 19 });
+    await entity.save();
+    const pending = pendingDatabase(kind);
+    const { detail, component, closed } = renderDetail(pending.source, {
+      formMode: 'edit',
+      entityId: entity.id
+    });
+
+    expect(component.entityInstance).toBeNull();
+    expect(detail.findComponent(EntityList).exists()).toBe(false);
+
+    pending.settle(database);
+    await vi.waitFor(() => expect(component.formDataValue['title']).toBe('原始标题'));
+    await flushPromises();
+    expect((detail.get('form input[type="text"]').element as HTMLInputElement).value).toBe('原始标题');
+
+    await detail.get('form input[type="text"]').setValue(`${kind} 已更新`);
+    await detail.get('form').trigger('submit');
+    await vi.waitFor(() => {
+      expect(adapter.tableFor(AsyncDetailParent).get(entity.id)?.['title']).toBe(`${kind} 已更新`);
+      expect(closed).toHaveBeenCalledExactlyOnceWith('saved');
+    });
+    expect(adapter.tableFor(AsyncDetailParent).size).toBe(1);
+    expect(detail.emitted('formSubmitted')).toEqual([
+      [expect.objectContaining({ title: `${kind} 已更新`, count: 19 })]
+    ]);
+  });
+
+  it('数据库等待期间填写的内容进入迟到草稿，不被初始数据覆盖', async () => {
+    const { database, adapter } = await createDatabase();
+    const pending = pendingDatabase('Ref');
+    const { detail, component, closed } = renderDetail(pending.source, {
+      formData: { title: '宿主初始值', count: 3 },
+      fixedFormData: { count: 42 }
+    });
+
+    await detail.get('form input[type="text"]').setValue('等待时填写');
+    expect(component.draftEntity).toBeNull();
+    pending.settle(database);
+    await vi.waitFor(() => expect(component.draftEntity).not.toBeNull());
+    await flushPromises();
+    expect((detail.get('form input[type="text"]').element as HTMLInputElement).value).toBe('等待时填写');
+    expect(component.formDataValue['count']).toBe(42);
+
+    await detail
+      .findAll('button')
+      .find(button => button.text() === '保存')!
+      .trigger('click');
+    await vi.waitFor(() => {
+      expect([...adapter.tableFor(AsyncDetailParent).values()].map(row => [row['title'], row['count']])).toEqual([
+        ['等待时填写', 42]
+      ]);
+      expect(closed).toHaveBeenCalledExactlyOnceWith('saved');
+    });
+  });
+
+  it('等待期间卸载之后，数据库到货不补建草稿或订阅实体查询', async () => {
+    const { database } = await createDatabase();
+    const pending = pendingDatabase('Ref');
+    const repository = database.entityManager.getRepository(AsyncDetailParent);
+    const load = vi.spyOn(repository, 'get');
+    const instantiate = vi.spyOn(database.entityManager, 'instantiate');
+    const create = renderDetail(pending.source);
+    const edit = renderDetail(pending.source, { formMode: 'edit', entityId: 'late-id' });
+
+    create.wrapper.unmount();
+    edit.wrapper.unmount();
+    mounted.splice(0);
+    pending.settle(database);
+    await flushPromises();
+
+    expect(instantiate).not.toHaveBeenCalledWith(AsyncDetailParent, expect.anything());
+    expect(load).not.toHaveBeenCalled();
+    expect(create.component.draftEntity).toBeNull();
+    expect(edit.component.entityInstance).toBeNull();
+  });
+
+  it('已订阅的编辑查询在卸载时取消，迟到结果不写入已卸载组件', async () => {
+    const { database } = await createDatabase();
+    const entity = database.entityManager.instantiate(AsyncDetailParent, { title: '迟到结果' });
+    const repository = database.entityManager.getRepository(AsyncDetailParent);
+    const result = new Subject<AsyncDetailParent>();
+    const unsubscribed = vi.fn<() => void>();
+    const query = new Observable<AsyncDetailParent>(subscriber => {
+      const subscription = result.subscribe(subscriber);
+      return () => {
+        subscription.unsubscribe();
+        unsubscribed();
+      };
+    });
+    const load = vi.spyOn(repository, 'get').mockReturnValue(query as ReturnType<typeof repository.get>);
+    const { wrapper, component } = renderDetail(database, { formMode: 'edit', entityId: entity.id });
+    await vi.waitFor(() => expect(load).toHaveBeenCalledWith(entity.id));
+
+    wrapper.unmount();
+    mounted.splice(0);
+    expect(unsubscribed).toHaveBeenCalledOnce();
+    result.next(entity);
+    await flushPromises();
+    expect(component.entityInstance).toBeNull();
+    result.complete();
+  });
+
+  it('数据库引用切换时从旧库移除草稿，并只把新草稿保存到新库', async () => {
+    const first = await createDatabase();
+    const second = await createDatabase([AsyncDetailReplacement]);
+    const databaseRef = shallowRef<RxDB | undefined>(first.database);
+    const removeOldDraft = vi.spyOn(first.database.entityManager, 'removeEntityCache');
+    const { wrapper, detail, component } = renderDetail(databaseRef, { formData: { title: '旧库草稿' } });
+    await vi.waitFor(() => expect(component.draftEntity).not.toBeNull());
+    const oldDraft = component.draftEntity!;
+
+    databaseRef.value = undefined;
+    await flushPromises();
+    expect(removeOldDraft).toHaveBeenCalledWith(oldDraft);
+    expect(component.draftEntity).toBeNull();
+    expect(first.database.entityManager.getEntityRef(AsyncDetailParent, oldDraft.id as never)).toBeUndefined();
+
+    await wrapper.setProps({
+      metadata: markRaw(getEntityMetadata(AsyncDetailReplacement)),
+      formData: { title: '新库草稿' }
+    });
+    databaseRef.value = second.database;
+    await vi.waitFor(() => expect(component.draftEntity?.constructor).toBe(AsyncDetailReplacement));
+    await flushPromises();
+    await detail.get('form input[type="text"]').setValue('仅写新库');
+    await detail
+      .findAll('button')
+      .find(button => button.text() === '保存')!
+      .trigger('click');
+    await vi.waitFor(() => {
+      expect([...second.adapter.tableFor(AsyncDetailReplacement).values()].map(row => row['title'])).toEqual([
+        '仅写新库'
+      ]);
+    });
+    expect(first.adapter.tableFor(AsyncDetailParent).size).toBe(0);
+  });
+
+  it('直接换库时取消旧编辑查询，并重新装配同一实体类型的关系列表', async () => {
+    const first = await createDatabase();
+    const second = await createDatabase();
+    const original = first.database.entityManager.instantiate(AsyncDetailParent, { title: '旧库' });
+    const replacement = second.database.entityManager.instantiate(AsyncDetailParent, {
+      id: original.id,
+      title: '新库'
+    });
+    await original.save();
+    await replacement.save();
+    const repository = first.database.entityManager.getRepository(AsyncDetailParent);
+    const query = repository.get(original.id);
+    const unsubscribed = vi.fn<() => void>();
+    vi.spyOn(repository, 'get').mockImplementation(
+      () =>
+        new Observable(subscriber => {
+          const subscription = query.subscribe(subscriber);
+          return () => {
+            subscription.unsubscribe();
+            unsubscribed();
+          };
+        })
+    );
+    const databaseRef = shallowRef(first.database);
+    const { detail, component } = renderDetail(databaseRef, { formMode: 'edit', entityId: original.id });
+    await vi.waitFor(() => expect(component.formDataValue['title']).toBe('旧库'));
+    const oldList = detail.findComponent(EntityList).vm;
+
+    databaseRef.value = second.database;
+    await vi.waitFor(() => expect(component.formDataValue['title']).toBe('新库'));
+    expect(unsubscribed).toHaveBeenCalledOnce();
+    expect(detail.findComponent(EntityList).vm).not.toBe(oldList);
+  });
+
+  it.each(['等价 metadata', '临时 view 模式'] as const)('%s 不替换同库草稿或清空用户输入', async change => {
+    const { database } = await createDatabase();
+    const { wrapper, detail, component } = renderDetail(database, { formData: { title: '初始内容' } });
+    const originalDraft = component.draftEntity;
+    expect(originalDraft).not.toBeNull();
+    await detail.get('form input[type="text"]').setValue('用户已填写');
+
+    if (change === '等价 metadata') {
+      const metadata = getEntityMetadata(AsyncDetailParent);
+      const equivalent = Object.create(
+        Object.getPrototypeOf(metadata),
+        Object.getOwnPropertyDescriptors(metadata)
+      ) as typeof metadata;
+      await wrapper.setProps({ metadata: markRaw(equivalent) });
+    } else {
+      await wrapper.setProps({ formMode: 'view' });
+      expect(component.draftEntity).toBe(originalDraft);
+      await wrapper.setProps({ formMode: 'create' });
+    }
+
+    expect(component.draftEntity).toBe(originalDraft);
+    expect(component.formDataValue['title']).toBe('用户已填写');
+    expect((detail.get('form input[type="text"]').element as HTMLInputElement).value).toBe('用户已填写');
+  });
+
+  it.each([
+    { mode: 'create', outcome: '成功' },
+    { mode: 'create', outcome: '失败' },
+    { mode: 'edit', outcome: '成功' },
+    { mode: 'edit', outcome: '失败' }
+  ] as const)('$mode 的旧保存迟到$outcome 不影响换库后的新草稿', async ({ mode, outcome }) => {
+    const first = await createDatabase();
+    const second = await createDatabase([AsyncDetailReplacement]);
+    const original = first.database.entityManager.instantiate(AsyncDetailParent, { title: '旧库记录' });
+    if (mode === 'edit') await original.save();
+    const databaseRef = shallowRef<RxDB | undefined>(first.database);
+    const { wrapper, detail, component, closed } = renderDetail(databaseRef, {
+      formMode: mode,
+      entityId: mode === 'edit' ? original.id : undefined,
+      formData: { title: '旧库记录' }
+    });
+    await vi.waitFor(() => {
+      expect(mode === 'create' ? component.draftEntity : component.entityInstance).not.toBeNull();
+    });
+    const oldEntity = (mode === 'create' ? component.draftEntity : component.entityInstance)!;
+    let resolve!: () => void;
+    let reject!: (error: Error) => void;
+    const saving = new Promise<void>((complete, fail) => {
+      resolve = complete;
+      reject = fail;
+    });
+    const save = vi.spyOn(oldEntity, 'save').mockReturnValueOnce(saving);
+    await detail.get('form input[type="text"]').setValue('旧库保存中的修改');
+    if (mode === 'create') {
+      await detail
+        .findAll('button')
+        .find(button => button.text() === '保存')!
+        .trigger('click');
+    } else {
+      await detail.get('form').trigger('submit');
+    }
+    expect(save).toHaveBeenCalledOnce();
+
+    databaseRef.value = undefined;
+    await flushPromises();
+    await wrapper.setProps({
+      metadata: markRaw(getEntityMetadata(AsyncDetailReplacement)),
+      formMode: 'create',
+      entityId: undefined,
+      formData: { title: '新库草稿' }
+    });
+    databaseRef.value = second.database;
+    await vi.waitFor(() => expect(component.draftEntity?.constructor).toBe(AsyncDetailReplacement));
+    await flushPromises();
+    await detail.get('form input[type="text"]').setValue('新库独立填写');
+    const newDraft = component.draftEntity;
+
+    if (outcome === '成功') resolve();
+    else reject(new Error('旧库保存失败'));
+    await flushPromises();
+
+    expect(component.draftEntity).toBe(newDraft);
+    expect(component.formDataValue['title']).toBe('新库独立填写');
+    expect((detail.get('form input[type="text"]').element as HTMLInputElement).value).toBe('新库独立填写');
+    expect(closed).not.toHaveBeenCalled();
+    expect(detail.emitted('formSubmitted')).toBeUndefined();
+    expect(detail.find('[data-testid="entity-detail-errors"]').exists()).toBe(false);
+    expect(second.adapter.tableFor(AsyncDetailReplacement).size).toBe(0);
+  });
+
+  it('没有数据库 provider 的委托表单仍可提交，且不产生注入警告', async () => {
+    const warning = vi.spyOn(console, 'warn');
+    const wrapper = mount(EntityDetail, {
+      props: {
+        metadata: markRaw(getEntityMetadata(AsyncDetailReplacement)),
+        formFields,
+        formMode: 'create',
+        delegateSave: true
+      }
+    });
+    mounted.push(wrapper);
+
+    await wrapper.get('form input[type="text"]').setValue('由宿主保存');
+    await wrapper
+      .findAll('button')
+      .find(button => button.text() === '保存')!
+      .trigger('click');
+    expect(wrapper.emitted('formSubmitted')).toEqual([[{ title: '由宿主保存' }]]);
+    expect(warning).not.toHaveBeenCalled();
+  });
+});
