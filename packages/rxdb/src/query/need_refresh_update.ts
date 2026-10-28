@@ -10,7 +10,7 @@ import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalUpdatedEventData } from '../rxdb-events.js';
 import { tryGetEntityMetadata } from '../rxdb-utils.js';
 import { UpdateDataCache } from './merge-update.utils.js';
-import { isEntityMatchWhere, runMatches } from './query-matching.utils.js';
+import { isEntityMatchWhere, isRuleGroup, runMatches } from './query-matching.utils.js';
 import { separateEntities, whereUsesRelations } from './query-relation.utils.js';
 import { QueryRulesBuilder } from './query-rules-builder.js';
 
@@ -24,6 +24,17 @@ const getWhere = <T extends EntityType>(options: unknown) => {
 
 const hasKeys = (value: unknown): boolean =>
   !!value && typeof value === 'object' && Object.keys(value as object).length > 0;
+
+const rootField = (field: string): string => field.split(/[.:]/)[0];
+
+/** JSON 子键缺失是已知值；完整性只检查承载该路径的顶层列。 */
+const whereFields = (where: unknown): string[] => {
+  if (!isRuleGroup(where)) return [];
+  return where.rules.flatMap(rule => (isRuleGroup(rule) ? whereFields(rule) : [rootField(rule.field)]));
+};
+
+const hasFields = (entity: object, fields: Iterable<string>): boolean =>
+  Array.from(fields).every(field => Object.hasOwn(entity, field) && Reflect.get(entity, field) !== undefined);
 
 /**
  * 更新前态是否无法还原。
@@ -83,13 +94,39 @@ export const query_need_refresh_update = <T extends EntityType>(
     };
   });
 
+  const requiredFields = new Set([
+    ...whereFields(where),
+    ...((task.options as FindOptions<T>).orderBy?.map(order => rootField(order.field)) ?? [])
+  ]);
+  const incompletePredicate = resolvedCurrentEntities.some(
+    e => !hasFields(e.patch, requiredFields) || !hasFields(e.inversePatch, requiredFields)
+  );
+  const resultFields =
+    task.type === 'findAll' && query_entity_metadata ?
+      [...query_entity_metadata.propertyMap.keys(), ...query_entity_metadata.foreignKeyNames]
+    : [];
+  const incompleteResult =
+    resultFields.length > 0 &&
+    resolvedCurrentEntities.some(
+      e => (!where || isEntityMatchWhere(e.patch, where)) && !hasFields(e.patch, resultFields)
+    );
+
+  // 残缺缓存不能证明更新前后的匹配状态，也不能作为完整查询行下发。
+  if (hasUnknownBefore(current_entities) || incompletePredicate || incompleteResult) {
+    return {
+      refresh: true,
+      recalculate: false,
+      current_entities,
+      relation_entities,
+      count_boundary_crossed: false
+    };
+  }
+
   // 构建规则
   const builder = new QueryRulesBuilder(task, resolvedCurrentEntities, relation_entities.length > 0, uses_relations);
   const rules = builder.buildUpdateRules();
 
   const matches = runMatches(rules, refresh_rules, recalculate_rules);
-  // 更新前态未知时不能走 JS 增量：它的每一条规则都建立在「能对比更新前后」之上。
-  const before_unknown = hasUnknownBefore(current_entities);
 
   // count 专用的精确判据（其余 task.type 都有更合适的机制，不该消费这个字段——见
   // merge_update.ts 的 count 分支）。match_where / match_where_before 是整个批次的
@@ -100,17 +137,6 @@ export const query_need_refresh_update = <T extends EntityType>(
   // 不受同批次其它实体方向的干扰。用 resolvedCurrentEntities 而不是原始
   // current_entities——复合 where 下真实的增量 patch 可能只含被改字段，必须先合并进
   // 缓存实体补全字段（RXD-017），否则缺失字段在 isEntityMatchWhere 里恒判 false。
-  //
-  // 边界：补全靠的是**本 tab 的实体缓存**。缓存里没有这个实体时，`task.serialize` 只能拿
-  // patch 本身建实体，where 用到的其余字段在更新前后两侧同为缺失、按同一个缺失值判定——
-  // 缺失值过不了其余子句（`=` 子句恒如此）时两侧一起判 false，跨界探测失效，count 静默停在
-  // 旧值。典型来源是他 tab 转来的增量 UPDATE 落到只挂着 count 的 tab：count 不往缓存里装实体。
-  // 空 inversePatch 的事件（notifyExternalUpdate、适配器写系统表）不在此列，已由 before_unknown
-  // 回 SQL。find 系判「新匹配」的 match_where 规则同病，是既有缺口，不是本判据引入的。
-  //
-  // 不在这里就地修：未命中时 `serialize` 会把这份残缺实体写进缓存，同一实体的下一条事件就按
-  // 命中处理，「命中与否」分不出完整与残缺；要么门控改判「where 用到的字段是否齐全」，要么跨 tab
-  // 事件改带整行，两条都动整个 UPDATE 门控。已登记 roadmap「epic-006 评审顺延的架构项」。
   const count_boundary_crossed =
     where ?
       resolvedCurrentEntities.some(
@@ -119,8 +145,8 @@ export const query_need_refresh_update = <T extends EntityType>(
     : false;
 
   return {
-    refresh: matches.refresh || before_unknown,
-    recalculate: before_unknown ? false : matches.recalculate,
+    refresh: matches.refresh,
+    recalculate: matches.recalculate,
     current_entities,
     relation_entities,
     count_boundary_crossed

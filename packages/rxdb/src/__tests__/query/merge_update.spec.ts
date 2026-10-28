@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import query_merge_update_cache_impl from '../../query/merge_update.js';
 import type { CountOptions } from '../../repository/query-options.interface.js';
+import type { QueryOptions } from '../../repository/QueryManager.interface.js';
 import { QueryTask } from '../../repository/QueryTask.js';
 import type { RxDBEntityLocalUpdatedEventData } from '../../rxdb-events.js';
 import {
@@ -904,6 +905,216 @@ describe('query_merge_update_cache', () => {
 
       expect(refresh).toHaveBeenCalledTimes(1);
       expect(emissions).toEqual([1, 0]);
+    });
+  });
+
+  describe('跨 Tab 增量 UPDATE 的字段完整性', () => {
+    const where: CountOptions<TestEntityType>['where'] = {
+      combinator: 'and',
+      rules: [
+        { field: 'status', operator: '=', value: 'active' },
+        { field: 'priority', operator: '=', value: 5 }
+      ]
+    };
+
+    const createPartialUpdate = (
+      patch: Partial<TestEntityData>,
+      inversePatch: Partial<TestEntityData>
+    ): UpdateEvent => ({
+      type: 'UPDATE',
+      namespace: 'test',
+      entity: 'TestEntity',
+      id: '1',
+      entityType: TestEntity,
+      origin: 'cross-tab',
+      recordAt: new Date(0),
+      patch,
+      inversePatch
+    });
+
+    it.each([
+      { direction: '新匹配', before: 'inactive', after: 'active', counts: [0, 1] },
+      { direction: '不再匹配', before: 'active', after: 'inactive', counts: [1, 0] }
+    ])('没有实体缓存时 count 通过 SQL 识别$direction', ({ before, after, counts }) => {
+      let call = 0;
+      const task = createMockQueryTask({
+        type: 'count',
+        options: { where },
+        runner: () => of(counts[Math.min(call++, counts.length - 1)])
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [createPartialUpdate({ status: after }, { status: before })]);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual(counts);
+    });
+
+    it('同一残缺缓存连续收到增量事件时每次都按 SQL 结果更新 count', () => {
+      const counts = [0, 1, 0];
+      let call = 0;
+      const task = createMockQueryTask({
+        type: 'count',
+        options: { where },
+        cachedById: { '1': { id: '1', status: 'inactive' } },
+        runner: () => of(counts[Math.min(call++, counts.length - 1)])
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [createPartialUpdate({ status: 'active' }, { status: 'inactive' })]);
+      query_merge_update_cache(task, [createPartialUpdate({ status: 'inactive' }, { status: 'active' })]);
+
+      expect(refresh).toHaveBeenCalledTimes(2);
+      expect(emissions).toEqual(counts);
+    });
+
+    it.each(['and', 'or'] as const)('嵌套 %s 条件缺少字段时 count 不能把未知匹配当成不匹配', combinator => {
+      const counts = [0, 1];
+      let call = 0;
+      const task = createMockQueryTask({
+        type: 'count',
+        options: {
+          where: {
+            combinator,
+            rules: [
+              {
+                combinator: 'and',
+                rules: [
+                  { field: 'status', operator: '=', value: 'active' },
+                  { field: 'priority', operator: '=', value: 5 }
+                ]
+              },
+              { field: 'archived', operator: '=', value: false }
+            ]
+          }
+        },
+        runner: () => of(counts[Math.min(call++, counts.length - 1)])
+      });
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [createPartialUpdate({ status: 'active' }, { status: 'inactive' })]);
+
+      expect(emissions).toEqual(counts);
+    });
+
+    it.each(['find', 'findAll', 'findByCursor'] as const)('%s 没有缓存时通过 SQL 取得新匹配行的完整字段', type => {
+      const row = { id: '1', title: 'Task 1', status: 'active', priority: 5 };
+      let call = 0;
+      const options = { where, orderBy: [{ field: 'id', sort: 'asc' as const }], limit: 3 };
+      const query: QueryOptions<TestEntityType> =
+        type === 'findAll' ? { type, options: { where } }
+        : type === 'find' ? { type, options }
+        : { type, options };
+      const task = createMockQueryTask({
+        ...query,
+        runner: () => of(call++ === 0 ? [] : [row])
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [createPartialUpdate({ status: 'active' }, { status: 'inactive' })]);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([[], [row]]);
+    });
+
+    it('findOne 没有缓存时通过 SQL 取得新匹配行的完整字段', () => {
+      const row = { id: '1', title: 'Task 1', status: 'active', priority: 5 };
+      let call = 0;
+      const task = createMockQueryTask({
+        type: 'findOne',
+        options: { where },
+        runner: () => of(call++ === 0 ? null : row)
+      });
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [createPartialUpdate({ status: 'active' }, { status: 'inactive' })]);
+
+      expect(emissions).toEqual([null, row]);
+    });
+
+    it.each([
+      { name: '显式 null', cached: { id: '1', optional: null }, refreshes: 0 },
+      { name: 'undefined', cached: { id: '1', optional: undefined }, refreshes: 1 },
+      { name: '缺少字段', cached: { id: '1' }, refreshes: 1 }
+    ])('count 对$name采用正确的刷新策略', ({ cached, refreshes }) => {
+      const runner = vi.fn(() => of(1));
+      const task = createMockQueryTask({
+        type: 'count',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'optional', operator: '=', value: null }]
+          }
+        },
+        cachedById: { '1': cached },
+        runner
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      collectEmissions(task);
+
+      query_merge_update_cache(task, [createPartialUpdate({ title: 'Updated' }, { title: 'Original' })]);
+
+      expect(refresh).toHaveBeenCalledTimes(refreshes);
+      expect(runner).toHaveBeenCalledTimes(refreshes + 1);
+    });
+
+    it.each([
+      { name: '完整空对象', cached: { id: '1', settings: {} }, refreshes: 0 },
+      { name: '显式 null', cached: { id: '1', settings: null }, refreshes: 0 },
+      { name: '缺少顶层字段', cached: { id: '1' }, refreshes: 1 }
+    ])('JSON 路径在$name中缺键时 count 保持正确刷新策略', ({ cached, refreshes }) => {
+      const runner = vi.fn(() => of(0));
+      const task = createMockQueryTask({
+        type: 'count',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'settings.theme', operator: '=', value: 'dark' }]
+          }
+        },
+        cachedById: { '1': cached },
+        runner
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      collectEmissions(task);
+
+      query_merge_update_cache(task, [createPartialUpdate({ title: 'Updated' }, { title: 'Original' })]);
+
+      expect(refresh).toHaveBeenCalledTimes(refreshes);
+      expect(runner).toHaveBeenCalledTimes(refreshes + 1);
+    });
+
+    it.each(['find', 'findByCursor'] as const)('%s 缺少次级排序列时通过 SQL 决定新窗口', type => {
+      const original = { id: '2', title: 'Task 2', status: 'active', priority: 10, score: 5 };
+      const updated = { id: '1', title: 'Task 1', status: 'active', priority: 10, score: 10 };
+      let call = 0;
+      const task = createMockQueryTask({
+        type,
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'status', operator: '=', value: 'active' }]
+          },
+          orderBy: [
+            { field: 'priority', sort: 'asc' },
+            { field: 'score', sort: 'desc' },
+            { field: 'id', sort: 'asc' }
+          ],
+          limit: 1
+        },
+        cachedById: { '1': { id: '1', status: 'active', priority: 20 } },
+        runner: () => of(call++ === 0 ? [original] : [updated])
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [createPartialUpdate({ priority: 10 }, { priority: 20 })]);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([[original], [updated]]);
     });
   });
 

@@ -10,10 +10,10 @@
 | :------------- | :--- |
 | ✅ Done        | 82   |
 | 🚧 In Progress | 1    |
-| 👀 In Review   | 7    |
+| 👀 In Review   | 8    |
 | 📝 Backlog     | 29   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 119  |
+| **合计**       | 120  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
@@ -33,10 +33,11 @@
 | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
 
-## 待评审（7 条）
+## 待评审（8 条）
 
 | Story                                                                                             | 进展                                                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)      | 字段不足时回 SQL；核心 2671 条测试、覆盖率与 lint / typecheck / build 通过，真实双连接 7 条回归通过；待评审，affected 门禁运行中                                                                                                                                                                                                                             |
 | [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)     | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
 | [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)        | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
 | [US-104 rxdb-model 表单校验反馈与保存失败的展示](stories/framework/US-104-validation-feedback.md) | 三端 EntityDetail 错误面板已交付：校验逐条显示、保存失败可读、字段变更清空；工作台 e2e AC#4 与三端包内 spec 已覆盖，待评审                                                                                                                                                                                                                                   |
@@ -123,6 +124,7 @@
 - ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md) — 实体显式声明 `access.owner`（指向自有属性，不加 `EntityBase` 字段、引擎不补列）+ US-027 操作权限扩展为角色 / 所有权谓词 + `RxDBContext.roles` 与一实例一身份（换用户 = 新实例）；只做写授权，同步实体不限读，多租户已移出；A～D 四阶段交付；前置 US-027 与 US-218 均已 Done；**价值待证**，评审见 `git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`
 - 👀 [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — 阶段 A～C 代码完成：`checks`（属性级语法糖 + 实体级）、索引 `where`（条件唯一）、`exclusions`（相等列 + 区间维，PG `EXCLUDE USING gist` / SQLite 两个触发器），CHECK 与 `where` 共用收窄后的 `RuleGroup` 并补字段对字段比较；违约归一为 `RxDBCheckViolationError` / `RxDBExclusionViolationError`，已有表的约束漂移在 `init()` fail-fast、不自动补建；**阶段 D 仍价值待证**；当前消费方全在 epic-009，但解锁条件不限 BOM
 - ✅ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md) — 三端 demo 的树改用新建的可排序树实体（`parentId` 分组；旧四个树实体不改）。阶段 A、B 均已完成（#101 合入）。A：四个可排序树实体；三端六页的新建、批量添加、删除并提升子节点不再自己算键，删除提升一次提交、从库里取子节点；core 批内追加优化（demo 随机树 10,000 行由 3.6 倍降到 0.95 倍）。B：三端拖放改走 `reorder()`（拖进节点不读子节点，缺陷三关闭；前后放置由 core `reorderTargetForDrop` 换算），三端同一张落点判定表与三等分落点区间，显示顺序取自查询默认排序，demo 内的算键、比较器与重编号全部删除，写入失败（含拖放）统一为页内提示。AC#1～9 ✅
+- 👀 [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md) — where / 排序字段不足时回 SQL，findAll 新匹配行保留完整持久列；核心与双连接回归通过，待评审
 - ✅ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — PGlite、SQLite 共享层与桌面 host（Electron SQLite / PGlite、Tauri SQLite）三阶段交付；只承诺同 adapter 恢复，外置文件不在归档内
 - 👀 [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md) — 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；剩抖音、支付宝开发者工具手工走查；webpack5 不支持
 - ✅ [US-218 Supabase 远端启用 RLS 时的推送完整性](stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：被 RLS 过滤的删除仍写进 `rxdb_change`（目标行连 SELECT 都看不到时同样如此），其它端拉到幽灵 DELETE；`rxdb_mutations` 也不校验日志与业务写是否配对；三阶段（不写幽灵日志 + 配对校验 → 逐实体回执与被拒实体本地对齐 → 日志表收口与部署指引），阶段 B 以 US-220 为前置；阶段 A～C 全部落地，与 US-220 合并为 #99 合入

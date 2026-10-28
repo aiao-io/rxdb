@@ -75,6 +75,7 @@ owner: jimmy
 - [US-506 website 插件文档补齐（history / sync / querycache）](../stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏导航与 typedoc 收录，含 flatten 重写坏链修复；`site-build` 已绿
 - [US-030 实体元数据层的声明式存储约束](../stories/core/US-030-declarative-storage-constraints.md) — 四阶段（CHECK → 条件唯一 → 区间排他双后端等价 → 生成列、表达式索引与索引方法）；阶段 A～C（`checks` / 索引 `where` / `exclusions`）代码完成、待评审（[#114](https://github.com/aiao-io/rxdb/pull/114)），阶段 D 仍**价值待证**；当前消费方全在 epic-009
 - [US-031 树形实体迁移到排序模块](../stories/core/US-031-tree-sortable-migration.md) — 三端 demo 的树改用新建的可排序树实体（`parentId` 分组；旧的四个树实体不改），新建、批量添加、删除提升子节点与拖放改走 US-028 排序模块；症状可复现（三处撞键），三端行为已分叉；A 新实体与创建类写入 → B 拖放与显示顺序；前置 US-028 阶段 A + D
+- [US-032 跨 Tab 增量 UPDATE 的活查询刷新](../stories/core/US-032-cross-tab-update-live-query.md) — where 字段不完整时回 SQL，避免冷缓存或残缺缓存下的 count 与 find 系查询静默过期；保留既有事件协议
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的事务 host 协议，
 > 故 US-208 从 US-207 拆出。US-020 / US-212 / US-023 / US-213 / US-214 / US-021 / US-022 / US-215 / US-218 / US-220 归本 Epic
