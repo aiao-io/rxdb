@@ -241,6 +241,34 @@ describe('EntityDetail（真实组件）', () => {
     expect(closeSpy).not.toHaveBeenCalled();
   });
 
+  it('校验失败在对话框内给出可读反馈，修改字段后消失（US-104）', async () => {
+    const { wrapper, component } = createWithDialog(dialogData());
+    await FLUSH();
+
+    component.onSave();
+    await FLUSH();
+    const panel = wrapper.find('[data-testid="entity-detail-errors"]');
+    expect(panel.exists()).toBe(true);
+    expect(panel.attributes('role')).toBe('alert');
+    expect(panel.text()).toContain('是必填项');
+
+    component.onFieldChanged({ field: 'title', type: 'string', value: '第一组', previousValue: '' });
+    await FLUSH();
+    expect(wrapper.find('[data-testid="entity-detail-errors"]').exists()).toBe(false);
+  });
+
+  it('保存失败在对话框内给出可读反馈（US-104）', async () => {
+    const { wrapper, component } = createWithDialog(dialogData());
+    await FLUSH();
+
+    component.onFieldChanged({ field: 'title', type: 'string', value: '落不进去', previousValue: '' });
+    vi.spyOn(repoOf(), 'create').mockRejectedValueOnce(new Error('写入被拒'));
+    component.onSave();
+    await FLUSH();
+    await FLUSH();
+    expect(wrapper.find('[data-testid="entity-detail-errors"]').text()).toContain('保存失败：写入被拒');
+  });
+
   it('补齐必填后保存才落库：close(saved)、草稿清空', async () => {
     const { component, submitted } = createWithDialog(dialogData());
     await FLUSH();
@@ -310,6 +338,14 @@ describe('EntityDetail（真实组件）', () => {
     component.selectTab('children');
     expect(component.activeTabKey).toBe('children');
     expect(component.activeRelationName).toBe('children');
+  });
+
+  it('tab 可见文字随 radio 渲染（input 伪元素不渲染文字回归）', async () => {
+    const { wrapper } = createWithDialog(dialogData());
+    await FLUSH();
+
+    const tabs = wrapper.findAll('[role="tab"]');
+    expect(tabs.map(t => t.element.closest('label')?.textContent?.trim())).toEqual(['基本信息', '子项']);
   });
 
   it('buildFixedQuery 覆盖 MANY_TO_MANY 与不支持的关系类型', async () => {

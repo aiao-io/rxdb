@@ -257,6 +257,18 @@
     },
     {
       "path": "./packages/rxdb-plugin-bom-vue"
+    },
+    {
+      "path": "./apps/dev-rxdb-admin-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-admin"
+    },
+    {
+      "path": "./apps/dev-rxdb-admin-consumer-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-admin-consumer"
     }
   ]
 }

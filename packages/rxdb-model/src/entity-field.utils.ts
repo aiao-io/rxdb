@@ -141,11 +141,17 @@ function propertyToField(key: string, prop: EntityPropertyMetadata): EntityField
  * 将关系元数据转换为字段配置
  */
 function relationToField(fkField: string, relation: EntityRelationMetadata): EntityFieldConfig {
+  const nullable = (relation as Record<string, unknown>)['nullable'] === true;
+  // 与 sqlite-core create_table_sql 的 mustBeNullable 同口径：SET NULL 关联即使声明非空
+  // 也不发 NOT NULL（父级删除后该列可为 NULL），表单必填判定同样豁免
+  const mustBeNullable = relation.onDelete === 'SET NULL' || relation.onUpdate === 'SET NULL';
   return {
     field: fkField,
     displayName: relation.displayName ?? fkField,
     type: relation.kind === RelationKind.ONE_TO_ONE ? 'oneToOne' : 'manyToOne',
-    nullable: (relation as Record<string, unknown>)['nullable'] === true,
+    nullable,
+    // 非空关联在表单层必填：校验先于数据库约束，避免 NOT NULL 打到用户脸上
+    required: !nullable && !mustBeNullable,
     relatedEntityName: relation.mappedEntity,
     relatedNamespace: relation.mappedNamespace
   };

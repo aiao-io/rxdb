@@ -668,10 +668,11 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
 
   /** 切换分支期间抑制 `rxdb_branch` NOTIFY。 */
   async switchBranch(options: SwitchBranchOptions): Promise<void> {
+    const tableSet = this.tableSet;
     this.#suppressedChangeTables.add('rxdb_branch');
     try {
       await this.#flushPendingChangePipeline();
-      await switch_branch(this, options);
+      await switch_branch(this, options, tableSet);
       await this.#flushPendingChangePipeline();
     } finally {
       this.#suppressedChangeTables.delete('rxdb_branch');

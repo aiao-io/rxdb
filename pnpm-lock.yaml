@@ -755,6 +755,90 @@ importers:
         specifier: ^9.5.1
         version: 9.5.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
 
+  apps/dev-rxdb-admin:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../../packages/rxdb
+      '@aiao/rxdb-adapter-sqlite-wasm':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-adapter-sqlite-wasm
+      '@aiao/rxdb-devtools':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-devtools
+      '@aiao/rxdb-model-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-model-react
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-history
+      '@aiao/rxdb-plugin-search':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-search
+      '@aiao/rxdb-plugin-search-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-search-react
+      '@aiao/rxdb-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-react
+      '@aiao/rxdb-test':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-test
+      lucide-react:
+        specifier: ^1.57.0
+        version: 1.61.0(@types/react@19.3.0)(react@19.3.1)
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.3.3
+        version: 4.3.3(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.106.1)(terser@5.51.2)(yaml@2.9.1))
+      daisyui:
+        specifier: ^5.7.50
+        version: 5.7.50
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
+
+  apps/dev-rxdb-admin-consumer:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../../packages/rxdb
+      '@aiao/rxdb-adapter-wa-sqlite':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-adapter-wa-sqlite
+      '@aiao/rxdb-model-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-model-react
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-history
+      '@aiao/rxdb-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-react
+      lucide-react:
+        specifier: ^1.57.0
+        version: 1.61.0(@types/react@19.3.0)(react@19.3.1)
+      wa-sqlite:
+        specifier: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
+        version: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.3.3
+        version: 4.3.3(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.106.1)(terser@5.51.2)(yaml@2.9.1))
+      daisyui:
+        specifier: ^5.7.50
+        version: 5.7.50
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
+
+  apps/dev-rxdb-admin-consumer-e2e: {}
+
+  apps/dev-rxdb-admin-e2e: {}
+
   apps/dev-rxdb-angular-e2e: {}
 
   apps/dev-rxdb-bom: {}
@@ -1879,6 +1963,9 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:^
         version: link:../rxdb
+      '@aiao/utils':
+        specifier: workspace:^
+        version: link:../utils
       '@visactor/vtable':
         specifier: ~1.26.5
         version: 1.26.8

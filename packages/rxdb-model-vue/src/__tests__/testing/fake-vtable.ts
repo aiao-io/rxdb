@@ -57,6 +57,11 @@ export class FakeListTable {
     return this.#records;
   }
 
+  /** 供字段配置交互测试核对当前列顺序。 */
+  get columns(): Column[] {
+    return this.#columns;
+  }
+
   get isReleased(): boolean {
     return this.#released;
   }

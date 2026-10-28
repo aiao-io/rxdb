@@ -1,0 +1,213 @@
+import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  createAsset,
+  createCategory,
+  expectActionIcon,
+  expectListEmpty,
+  expectListHasRows,
+  resetE2eState
+} from './e2e-utils.js';
+
+/**
+ * US-527 备份恢复闭环：备份产出可下载归档；独立环境（全新 browser context =
+ * 另一浏览器 profile）恢复后继续查询与编辑；损坏归档与已有数据的恢复失败
+ * 给出可读原因、数据保留不变。工作台存储选主线程 IDBBatchAtomicVFS，
+ * 正是 US-217 备份矩阵里浏览器可备份的组合。
+ */
+
+async function backupToFile(page: Page, dir: string): Promise<string> {
+  await page.goto('/backup');
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByTestId('backup-start').click();
+  const download = await downloadPromise;
+  const file = join(dir, download.suggestedFilename());
+  await download.saveAs(file);
+  await expect(page.getByTestId('backup-result')).toContainText('备份成功');
+  return file;
+}
+
+async function freshContextPage(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await resetE2eState(page);
+  return { context, page };
+}
+
+test.describe('工作台备份与恢复', () => {
+  let dir: string;
+
+  test.beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'rxdb-admin-backup-'));
+  });
+
+  test.afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test('AC#1 备份成功并下载归档', async ({ page }) => {
+    await resetE2eState(page);
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '办公设备');
+    const archive = await backupToFile(page, dir);
+    expect((await stat(archive)).size).toBeGreaterThan(0);
+  });
+
+  test('AC#2 备份写入失败提示空间不足，仍可重试并继续编辑原数据', async ({ page }) => {
+    await resetE2eState(page);
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '办公设备');
+    await page.goto('/backup');
+    await expect(page.getByTestId('backup-start')).toBeEnabled();
+    await page.evaluate(() => {
+      const write = WritableStreamDefaultWriter.prototype.write;
+      WritableStreamDefaultWriter.prototype.write = function () {
+        WritableStreamDefaultWriter.prototype.write = write;
+        return Promise.reject(new DOMException('Injected backup storage failure', 'QuotaExceededError'));
+      };
+    });
+    await page.getByTestId('backup-start').click();
+    await expect(page.getByTestId('backup-result').getByRole('alert')).toHaveText('存储空间不足，无法完成备份');
+    await expect(page.getByTestId('backup-start')).toBeEnabled();
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByTestId('backup-start').click();
+    const download = await downloadPromise;
+    await download.saveAs(join(dir, download.suggestedFilename()));
+    await expect(page.getByTestId('backup-result')).toContainText('备份成功');
+    await page.getByTestId('entity-catalog').getByRole('link', { name: '资产分类' }).click();
+    const edit = await expectActionIcon(page, 'view-action');
+    await page.mouse.click(edit.x, edit.y);
+    const name = page.getByRole('group', { name: '分类名' }).getByRole('textbox');
+    await expect(name).toHaveValue('办公设备');
+    await name.fill('办公设备（已核验）');
+    await page.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
+    await page.reload();
+    const persisted = await expectActionIcon(page, 'view-action');
+    await page.mouse.click(persisted.x, persisted.y);
+    await expect(name).toHaveValue('办公设备（已核验）');
+  });
+
+  test('AC#3 独立环境恢复归档后可继续查询、编辑，刷新重开数据仍在', async ({ page, browser }) => {
+    await resetE2eState(page);
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '办公设备');
+    await page.goto('/entities/assets/Asset');
+    await createAsset(page, '笔记本', '办公设备');
+    const archive = await backupToFile(page, dir);
+
+    const { context, page: fresh } = await freshContextPage(browser);
+    try {
+      await fresh.goto('/');
+      await fresh.getByRole('link', { name: '从备份恢复', exact: true }).click();
+      await fresh.getByTestId('restore-input').setInputFiles(archive);
+      await expect(fresh.getByTestId('restore-result')).toContainText('恢复成功');
+      await fresh.getByRole('link', { name: /去实体列表继续编辑/ }).click();
+      await fresh.waitForURL('**/entities/assets/Asset');
+      await expectListHasRows(fresh);
+      // 恢复后继续编辑：查看即编辑模式，改名保存，刷新重开仍在
+      const edit = await expectActionIcon(fresh, 'view-action', 1);
+      await fresh.mouse.click(edit.x, edit.y);
+      await expect(fresh.getByRole('tab', { name: '基本信息' })).toBeVisible();
+      await expect(fresh.getByRole('group', { name: '分类' }).locator('option:checked')).toHaveText('办公设备');
+      await fresh.getByRole('group', { name: '名称' }).getByRole('textbox').fill('工作站');
+      await fresh.getByRole('button', { name: '保存', exact: true }).click();
+      await expect(fresh.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
+      await fresh.reload();
+      const persisted = await expectActionIcon(fresh, 'view-action');
+      await fresh.mouse.click(persisted.x, persisted.y);
+      await expect(fresh.getByRole('group', { name: '名称' }).getByRole('textbox')).toHaveValue('工作站');
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('恢复处理中禁止再次选择归档或备份，完成后恢复操作入口', async ({ page, browser }) => {
+    await resetE2eState(page);
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '互斥恢复分类');
+    const archive = await backupToFile(page, dir);
+    const { context, page: fresh } = await freshContextPage(browser);
+    try {
+      await fresh.goto('/backup');
+      await fresh.evaluate(() => {
+        const stream = File.prototype.stream;
+        File.prototype.stream = function () {
+          File.prototype.stream = stream;
+          const reader = stream.call(this).getReader();
+          let first = true;
+          return new ReadableStream<Uint8Array<ArrayBuffer>>({
+            async pull(controller) {
+              if (first) {
+                first = false;
+                document.documentElement.dataset['restoreReading'] = 'true';
+                await new Promise<void>(resolve => {
+                  window.addEventListener('release-restore', () => resolve(), { once: true });
+                });
+              }
+              const item = await reader.read();
+              if (item.done) controller.close();
+              else controller.enqueue(item.value);
+            },
+            cancel: reason => reader.cancel(reason)
+          });
+        };
+      });
+      const input = fresh.getByTestId('restore-input');
+      await input.setInputFiles(archive);
+      await fresh.waitForFunction(() => document.documentElement.dataset['restoreReading'] === 'true');
+      await expect(input).toBeDisabled();
+      await expect(fresh.getByTestId('backup-start')).toBeDisabled();
+      await expect(fresh.getByTestId('restore-result')).toContainText('处理中');
+      await fresh.evaluate(() => window.dispatchEvent(new Event('release-restore')));
+      await expect(fresh.getByTestId('restore-result')).toContainText('恢复成功');
+      await expect(input).toBeEnabled();
+      await expect(fresh.getByTestId('backup-start')).toBeEnabled();
+      await fresh.getByTestId('entity-catalog').getByRole('link', { name: '资产分类' }).click();
+      const edit = await expectActionIcon(fresh, 'view-action');
+      await fresh.mouse.click(edit.x, edit.y);
+      await expect(fresh.getByRole('group', { name: '分类名' }).getByRole('textbox')).toHaveValue('互斥恢复分类');
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('AC#4 损坏归档恢复失败给出可读原因，数据保留不变', async ({ page, browser }) => {
+    await resetE2eState(page);
+    const corrupt = join(dir, 'corrupt.rxdb-backup');
+    await writeFile(corrupt, '这不是一个备份归档', 'utf8');
+
+    const { context, page: fresh } = await freshContextPage(browser);
+    try {
+      await fresh.goto('/backup');
+      await fresh.getByTestId('restore-input').setInputFiles(corrupt);
+      await expect(fresh.getByTestId('restore-result')).toContainText('归档文件损坏');
+      // 失败后工作台仍可用：实体列表照常打开（空库保持空态）
+      await fresh.goto('/entities/assets/AssetCategory');
+      await expectListEmpty(fresh);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('AC#4 已有数据时恢复被拒并保持数据不变', async ({ page }) => {
+    await resetE2eState(page);
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '办公设备');
+    const archive = await backupToFile(page, dir);
+
+    // 同一工作台已有数据，恢复应被拒绝（target_busy），原数据不变
+    await page.getByTestId('restore-input').setInputFiles(archive);
+    await expect(page.getByTestId('restore-result')).toContainText('恢复只支持空工作台');
+    await expect(page.getByTestId('restore-result')).not.toContainText('刷新页面后');
+    await page.reload();
+    await page.getByTestId('restore-input').setInputFiles(archive);
+    await expect(page.getByTestId('restore-result')).toContainText('已初始化');
+    await expect(page.getByTestId('restore-result')).toContainText('新浏览器');
+    await page.goto('/entities/assets/AssetCategory');
+    await expectListHasRows(page);
+  });
+});

@@ -1,12 +1,18 @@
+@if (saveToast()) {
+  <div class="toast toast-end z-[1100]" data-testid="save-toast" role="status">
+    <div class="alert alert-success py-2 text-sm">已保存</div>
+  </div>
+}
+
 <!-- 顶栏：实体名称 + 计数 + 筛选按钮 + 新增按钮 -->
-<div class="border-base-300 flex h-10 min-h-10 shrink-0 items-center justify-between border-b px-4">
+<div class="border-base-300 flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-1">
   <div class="flex items-center gap-2 text-sm">
     <span class="font-medium">{{ displayName() }}</span>
     @if ($isFilterQuery()) {
       <span class="badge badge-ghost badge-sm">{{ filteredCount() }} 条记录</span>
     }
   </div>
-  <div class="flex items-center gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     @if (!isSelectMode()) {
       <!-- Undo / Redo -->
       <button
@@ -37,6 +43,11 @@
       </button>
       <div class="divider divider-horizontal mx-0.5 h-5 self-center"></div>
     }
+    <rxdb-list-view-settings
+      [fields]="viewFields()"
+      [value]="viewState()"
+      (valueChange)="onViewSettingsChange($event)"
+    />
     <!-- 筛选 popover 触发器 -->
     <div>
       <button
@@ -95,6 +106,13 @@
         }
       </ng-template>
     </div>
+    <!-- 快捷清除筛选：有筛选时工具栏一键还原 -->
+    @if (isQueryActive() && !isSelectMode()) {
+      <button class="btn btn-ghost btn-sm gap-1" (click)="resetFilter()" data-testid="clear-filter" type="button">
+        <svg class="h-3.5 w-3.5" [lucideIcon]="X"></svg>
+        清除筛选
+      </button>
+    }
     @if (!isCreateBlocked()) {
       @if (isSelectMode()) {
         <button class="btn btn-sm btn-outline" (click)="openCreateDialog()" type="button">+ 新建</button>
@@ -111,10 +129,17 @@
   <div class="alert alert-error alert-soft mx-4 mt-2 py-2 text-sm" role="alert">排序保存失败：{{ error }}</div>
 }
 
+<!-- 删除被存储层拒绝 -->
+@if (deleteError(); as error) {
+  <div class="alert alert-error alert-soft mx-4 mt-2 py-2 text-sm" data-testid="delete-error" role="alert">
+    删除失败：{{ error }}
+  </div>
+}
+
 <!-- 表格主体 -->
 <div class="min-h-0 flex-1">
   @if (isBrowser) {
-    @for (key of [namespace() + ':' + name()]; track key) {
+    @for (key of [namespace() + ':' + name() + ':' + viewState().groupBy]; track key) {
       <rxdb-query-table
         [columns]="tableColumns()"
         [filteredCount]="filteredCount()"
@@ -124,14 +149,21 @@
         [queryActive]="isQueryActive()"
         [records]="tableRecords()"
         [rowDragEnabled]="rowDragEnabled()"
-        [tableOptions]="listTableOptions"
+        [tableOptions]="listTableOptions()"
         (batchUpdated)="onBatchUpdated($event)"
         (cellChanged)="onCellChanged($event)"
         (iconClicked)="onIconClicked($event)"
         (rowDeleted)="onRowDeleted($event)"
         (rowMoved)="onRowMoved($event)"
         (sortClicked)="onSortClicked($event)"
-      />
+      >
+        <div class="flex flex-col items-center gap-1 py-10" data-testid="entity-empty-state" emptyState>
+          <span class="text-base-content/40 text-sm">暂无数据</span>
+          @if (!isSelectMode() && !isCreateBlocked()) {
+            <span class="text-base-content/40 text-sm">点击「+ 新增」开始录入第一条{{ displayName() }}</span>
+          }
+        </div>
+      </rxdb-query-table>
     }
   }
 </div>
@@ -159,6 +191,18 @@
 }
 
 <!-- M2M Selection Dialog Template -->
+<ng-template #deleteConfirmTpl>
+  <rxdb-entity-dialog (closeRequested)="cancelDelete()" title="删除确认">
+    <p class="text-sm">确定删除这条{{ displayName() }}记录？</p>
+    <div class="flex justify-end gap-2 pt-3">
+      <button class="btn btn-sm" (click)="cancelDelete()" type="button">取消</button>
+      <button class="btn btn-error btn-sm" (click)="confirmDelete()" data-testid="delete-confirm-submit" type="button">
+        删除
+      </button>
+    </div>
+  </rxdb-entity-dialog>
+</ng-template>
+
 <ng-template #m2mSelectTpl>
   <rxdb-entity-dialog [title]="'添加' + displayName()" (closeRequested)="m2mCancelSelection()">
     <rxdb-entity-list

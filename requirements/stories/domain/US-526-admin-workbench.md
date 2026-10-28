@@ -1,11 +1,11 @@
 ---
 id: US-526
 title: 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环
-status: Backlog
+status: In Review
 priority: Low
 epic: epic-010-model-driven-admin-framework
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-21
 tags: [domain, admin-framework, workbench, rxdb-model, e2e]
 ---
 
@@ -22,9 +22,9 @@ tags: [domain, admin-framework, workbench, rxdb-model, e2e]
 
 | 阶段 | 内容                                                                                                                                 | 状态 |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| A    | 应用壳 `apps/dev-rxdb-admin`：预置有关联的实体 schema + 会持续维护的轻量数据场景（非演示种子）、实体可见性声明、列表与详情构成的导航 | ⬜   |
-| B    | CRUD 接线：创建 / 编辑 / 删除、校验反馈、查询筛选；加载 / 失败 / 空态                                                                | ⬜   |
-| C    | 本地持久化（刷新 / 重开继续编辑）+ `apps/dev-rxdb-admin-e2e` 端到端组合验收                                                          | ⬜   |
+| A    | 应用壳 `apps/dev-rxdb-admin`：预置有关联的实体 schema + 会持续维护的轻量数据场景（非演示种子）、实体可见性声明、列表与详情构成的导航 | ✅   |
+| B    | CRUD 接线：创建 / 编辑 / 删除、校验反馈、查询筛选；加载 / 失败 / 空态                                                                | ✅   |
+| C    | 本地持久化（刷新 / 重开继续编辑）+ `apps/dev-rxdb-admin-e2e` 端到端组合验收                                                          | ✅   |
 
 阶段归属：A 关闭 AC#1 / #2；B 关闭 AC#3～#6；C 关闭 AC#7 / #8。
 
@@ -56,14 +56,14 @@ tags: [domain, admin-framework, workbench, rxdb-model, e2e]
 
 | #   | 前置条件                                 | 操作                                                  | 预期结果                                       | 状态 |
 | --- | ---------------------------------------- | ----------------------------------------------------- | ---------------------------------------------- | ---- |
-| 1   | 工作台已启动，schema 预置完成            | 打开导航                                              | 只出现声明可见的实体入口；未声明实体无入口     | ⬜   |
-| 2   | 工作台已启动，两个可见实体间存在关联字段 | 从导航进入实体列表，再从行进入详情                    | 列表与详情由现有组件构成，详情显示关联字段的值 | ⬜   |
-| 3   | 实体列表为空                             | 打开列表                                              | 空态有明确呈现                                 | ⬜   |
-| 4   | 创建表单已打开                           | 提交缺少必填字段或非法格式的数据                      | 校验反馈可读、数据不入库、表单保留输入         | ⬜   |
-| 5   | 已有一条记录                             | 编辑并保存，再删除                                    | 保存后列表与详情即时刷新；删除后行消失且有反馈 | ⬜   |
-| 6   | 已有多条记录                             | 用查询筛选（含关联字段条件）筛选                      | 列表即时只显示命中行；无命中时呈现空态         | ⬜   |
-| 7   | 已录入数据                               | 刷新页面、关闭并重开浏览器标签                        | 数据仍在、可继续编辑（本地 SQLite 持久化）     | ⬜   |
-| 8   | e2e 应用已就绪                           | Playwright 走 录入 → 编辑 → 筛选 → 刷新 → 重开 全流程 | 组合验收用例绿；加载与失败态有断言覆盖         | ⬜   |
+| 1   | 工作台已启动，schema 预置完成            | 打开导航                                              | 只出现声明可见的实体入口；未声明实体无入口     | ✅   |
+| 2   | 工作台已启动，两个可见实体间存在关联字段 | 从导航进入实体列表，再从行进入详情                    | 列表与详情由现有组件构成，详情显示关联字段的值 | ✅   |
+| 3   | 实体列表为空                             | 打开列表                                              | 空态有明确呈现                                 | ✅   |
+| 4   | 创建表单已打开                           | 提交缺少必填字段或非法格式的数据                      | 校验反馈可读、数据不入库、表单保留输入         | ✅   |
+| 5   | 已有一条记录                             | 编辑并保存，再删除                                    | 保存后列表与详情即时刷新；删除后行消失且有反馈 | ✅   |
+| 6   | 已有多条记录                             | 用查询筛选（含关联字段条件）筛选                      | 列表即时只显示命中行；无命中时呈现空态         | ✅   |
+| 7   | 已录入数据                               | 刷新页面、关闭并重开浏览器标签                        | 数据仍在、可继续编辑（本地 SQLite 持久化）     | ✅   |
+| 8   | e2e 应用已就绪                           | Playwright 走 录入 → 编辑 → 筛选 → 刷新 → 重开 全流程 | 组合验收用例绿；加载与失败态有断言覆盖         | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -77,24 +77,27 @@ tags: [domain, admin-framework, workbench, rxdb-model, e2e]
 [Angular 实体页](../../../apps/dev-rxdb-angular/src/app/pages/entity/entity.page.ts)、
 [Vue GeneratorPage](../../../apps/dev-rxdb-vue/src/pages/GeneratorPage.vue)。
 
-**框架与适配器选取**：三端组件已对称（`modules/e2e-parity` 对拍同一 golden），工作台固定一个 Web 宿主即可；
-实现时在 Angular / React / Vue 中选一端，选型以「少写接线」为准。本地适配器在已验证的 wa-sqlite / sqlite-wasm
-中选一（OPFS 持久化，满足 AC#7）。本故事不新增公共框架 API，因此不触发三端对称义务；若实现中必须新增，
-按铁律三端同交。
+**框架与适配器选取（已定案）**：React + sqlite-wasm 主线程 `idb`（IndexedDB 持久化，满足 AC#7）。
+选主线程 IndexedDB 而不是 OPFS 是硬约束：US-217 的备份 / 恢复矩阵里浏览器可备份的组合只有主线程 memory/idb，
+OPFS 系 VFS 与 worker/sharedWorker transport 都报 `unsupported_combination`（US-527 依赖备份能力）。
+sqlite-wasm 而非 wa-sqlite 是第二个硬约束：全文搜索需要 FTS5，而 wa-sqlite 的固定 wasm 构建未开
+`SQLITE_ENABLE_FTS5`（search 插件会拒绝该 adapter）。
+本故事不新增公共框架 API，不触发三端对称义务；组装中发现的两处组件缺口（校验反馈展示）已另立
+[US-104](../framework/US-104-validation-feedback.md) 三端同改。
 
 **权限接线**：实体可见性（AC#1）与操作入口（AC#4 / #5 的按钮）都从同一份 `EntityMetadata` 派生，不另建
 菜单配置表——与「schema 单一真相源」的候选定位一致（见 [admin-framework 候选分析](../../domain-research/admin-framework.md)）。
 
 ## 价值待证
 
-本故事随 [epic-010](../../epics/epic-010-model-driven-admin-framework.md) 成立但**未解锁**：写不出「今天用户
-踩得到的具体症状」（无具名试用者、仓库未自举），按 [CONVENTIONS](../../CONVENTIONS.md#价值待证) 留在 Backlog、
-不进排期批次。解锁条件见 epic 的「价值待证（整个 Epic）」。
+本故事已随 [epic-010 解锁记录](../../epics/epic-010-model-driven-admin-framework.md#价值待证整个-epic) 解锁
+（2026-10-21，owner 决定）：三条故事不新增引擎抽象、对应零个已知病灶，「病灶数 ≥ 抽象数」按 owner
+决定豁免，依据与边界见 epic。
 
 ## 实现文件
 
-- `apps/dev-rxdb-admin/` — 待建；工作台应用（壳、预置 schema、导航、CRUD 接线、持久化）
-- `apps/dev-rxdb-admin-e2e/` — 待建；端到端组合验收（domain/ 目录硬约束的领域测试应用）
+- `apps/dev-rxdb-admin/` — 工作台应用（壳、预置 schema、导航、CRUD 接线、持久化；`@aiao/rxdb-devtools` 经 `getDevToolsConnector` 接线）
+- `apps/dev-rxdb-admin-e2e/` — 已交付；端到端组合验收（domain/ 目录硬约束的领域测试应用）
 
 ## References
 

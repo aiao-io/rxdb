@@ -2,15 +2,17 @@
   <!-- Tab Bar -->
   <div class="tabs tabs-border min-h-0 flex-1 overflow-x-auto" role="tablist">
     @for (tab of tabs(); track tab.key) {
-      <input
-        class="tab"
-        [attr.aria-label]="tab.label"
-        [checked]="tab.key === activeTabKey()"
-        [name]="tabGroupName"
-        (change)="selectTab(tab.key)"
-        role="tab"
-        type="radio"
-      />
+      <label class="tab">
+        <input
+          [attr.aria-label]="tab.label"
+          [checked]="tab.key === activeTabKey()"
+          [name]="tabGroupName"
+          (change)="selectTab(tab.key)"
+          role="tab"
+          type="radio"
+        />
+        {{ tab.label }}
+      </label>
       <div
         class="tab-content border-base-300 bg-base-100 order-1 flex w-full flex-col"
         [class.overflow-auto]="tab.type === 'form'"
@@ -48,6 +50,22 @@
       </div>
     }
   </div>
+
+  <!-- 校验 / 保存错误面板（US-104）：只转发不渲染时用户看不到任何反馈 -->
+  @if (formErrors() !== null || saveError() !== null) {
+    <div
+      class="border-base-300 flex shrink-0 flex-col gap-1 border-t px-4 py-3 text-sm"
+      data-testid="entity-detail-errors"
+      role="alert"
+    >
+      @for (error of formErrors()?.errors ?? []; track error.field + ':' + error.message) {
+        <span class="text-error">{{ error.message }}</span>
+      }
+      @if (saveError() !== null) {
+        <span class="text-error">{{ saveError() }}</span>
+      }
+    </div>
+  }
 
   <!-- Save/Cancel buttons for create mode (below tabs) -->
   @if (isCreateMode()) {

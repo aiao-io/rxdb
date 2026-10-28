@@ -133,6 +133,11 @@ export function createTheme(isDark: boolean, cssVars: CSSVariables): ReturnType<
     disableUncheckedFill: isDark ? '#ffffff11' : '#00000011'
   };
 
+  // VTable DEFAULT 主题的 hover 残留是固定浅色（#CCE0FF / #F3F8FF），
+  // 暗色下与亮文字撞色、单行时画出与深色边框打架的浅色带——必须全部覆盖
+  const headerHoverCell = `color-mix(in srgb, ${cssVars.baseContent} ${isDark ? '8' : '6'}%, ${cssVars.base200})`;
+  const bodyHoverInline = `color-mix(in srgb, ${cssVars.baseContent} ${isDark ? '6' : '4'}%, ${cssVars.base100})`;
+
   return VTable.themes.DEFAULT.extends({
     underlayBackgroundColor: cssVars.rootBg,
     defaultStyle: {
@@ -148,14 +153,21 @@ export function createTheme(isDark: boolean, cssVars: CSSVariables): ReturnType<
       bgColor: cssVars.base200,
       fontSize: 13,
       fontWeight: 600,
-      fontFamily: SYSTEM_FONT
+      fontFamily: SYSTEM_FONT,
+      hover: {
+        cellBgColor: headerHoverCell,
+        inlineRowBgColor: headerHoverCell,
+        inlineColumnBgColor: headerHoverCell
+      }
     },
     bodyStyle: {
       borderColor: cssVars.base300,
       color: cssVars.baseContent,
       bgColor: cssVars.base100,
       hover: {
-        cellBgColor: cssVars.base200
+        cellBgColor: cssVars.base200,
+        inlineRowBgColor: bodyHoverInline,
+        inlineColumnBgColor: bodyHoverInline
       }
     },
     frameStyle: {

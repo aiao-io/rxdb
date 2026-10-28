@@ -45,6 +45,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@aiao/utils": "workspace:^",
     "clsx": "^2.1.1",
     "rxjs": "^7.8.2",
     "uuid": "^14.0.3"

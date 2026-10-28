@@ -1,4 +1,5 @@
 import type * as VTable from '@visactor/vtable';
+import { isReadonly } from '../columns/column-utils.js';
 import type { EntityTableRecord } from '../interfaces.js';
 import { isTableEditing, setCellSwitchState } from './vtable-compat.js';
 
@@ -79,7 +80,7 @@ function toggleCellValue(ctx: KeyboardHandlerContext, e: KeyboardEvent): void {
   if (!colDef?.cellType || !TOGGLE_CELL_TYPES.has(colDef.cellType)) return;
   const table = ctx.getTable()!;
   const record = table.getRecordByCell(sel.col, sel.row) as EntityTableRecord | undefined;
-  if (record?._readonly) return;
+  if (isReadonly(record) && colDef.field !== '__selected') return;
   e.preventDefault();
   if (!colDef.field) return;
   const currentValue = (record as Record<string, unknown> | undefined)?.[colDef.field];

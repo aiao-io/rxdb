@@ -245,12 +245,15 @@ const switchCheckoutBranch = async (
  * @param adapter - PGlite 适配器实例
  * @param options - 分支切换选项；省略 `branchId` 即「留在当前激活分支」，仅套用 actions：
  *   不查持有、不写分支表，只按当前分支重挂触发器
+ * @param tableSet - 发起切换时的表集，等待通知或事务期间换挂则拒绝切换
  * @throws {@link WorktreeBranchHeldError} 目标分支在可写检出位手里时；原样抛出，一行都没动
  */
-export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchBranchOptions) => {
+export const switch_branch = async (
+  adapter: RxDBAdapterPGlite,
+  options: SwitchBranchOptions,
+  tableSet = adapter.tableSet
+) => {
   const { branchId, actions, prepare } = options;
-  // 本实例挂的那套表：增量落在它里面，切分支时主检出位熄灭、点亮那一行，可写检出位放开、持有自己的键（US-314 B2.2）
-  const tableSet = adapter.tableSet;
 
   let switchAction: Awaited<ReturnType<typeof convertSwitchResultToSql>> | undefined;
   let branchSwitchResult: Results<Record<string, unknown>> | undefined;
