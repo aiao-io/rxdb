@@ -1,11 +1,11 @@
 ---
 id: US-526
 title: 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环
-status: In Review
+status: Done
 priority: Low
 epic: epic-010-model-driven-admin-framework
 created: 2026-10-19
-updated: 2026-10-21
+updated: 2026-10-28
 tags: [domain, admin-framework, workbench, rxdb-model, e2e]
 ---
 
@@ -101,6 +101,8 @@ sqlite-wasm 而非 wa-sqlite 是第二个硬约束：全文搜索需要 FTS5，�
 
 ## References
 
+- [合入 PR #152](https://github.com/aiao-io/rxdb/pull/152)
+- [工作台组合验收](../../../apps/dev-rxdb-admin-e2e/src/workbench.spec.ts) — AC#1～#8 的导航、CRUD、校验、关联筛选、刷新重开与失败反馈
 - [epic-010 模型驱动后台管理框架](../../epics/epic-010-model-driven-admin-framework.md)
 - [admin-framework 候选分析](../../domain-research/admin-framework.md) — 设计依据（孵化即冻结；首版边界与成功信号见其「首版边界与验收」）
 - [US-527 工作台备份恢复闭环](US-527-admin-backup-restore.md) · [US-528 独立消费接入示例](US-528-admin-consumer-example.md)

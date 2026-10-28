@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-10-16
-updated: 2026-10-27
+updated: 2026-10-28
 tags: [collaboration, branch, checkout, history, tri-framework]
 ---
 
@@ -54,7 +54,7 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 - **加密与权限照旧**：加密字段按 envelope 原样复制、不解密，建快照不调用密钥环；快照实例与主实例共用同一个密钥环
   （信封的 AAD 绑定库名，快照库自己的库名解不开）；系统实体权限不放宽（设计指点 11）
 - **生命周期与回收**：显式关闭即删快照库与登记；标签页会话归属的检出位在会话消失后可回收；启动时清理孤儿（设计指点 8，对应 `git worktree prune`）。
-  删库能力（`dropStorage`）在首批六个后端都新增：仓库里今天没有任何删库 API
+  首批六个后端提供 `dropStorage`，用于关闭与回收快照库
 - **三端绑定**：Angular / React / Vue 同名同 API（设计指点 13）
 
 ### Out of Scope
@@ -183,10 +183,9 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
   （快照实例的实体全是 `log: false` 的克隆，否则封印后 SQLite 带日志的事务要重建它的触发器，会被拒）。
   一致性套件接多对多时还暴露了一个既有缺陷，已一并修掉：解绑后保存，中间行留在根实体的待删集合里，切走再切回来
   那一行被切换插回，下一次哪怕只改一个标量的 `save()` 都会把它再删一遍。
-- **登记表**：`Worktree`（命名空间 `rxdb`，表 `rxdb_worktree`，`log: false`，系统权限，无外键）。字段：`id`、`kind`、`branchId`、
-  `commitId`、`sourceBranchId`、`sourceChangeId`、`targetChangeId`、`dbName`、`owner`（`session` / `persistent`）、
-  `state`（`building` / `ready`）、`schemaFingerprint`、`createdAt`、`lastAccessedAt`。既有库连接时由 `RxDB.#ensureSystemTables`
-  补建缺的贡献表，不需要迁移、不动 `RXDB_SYSTEM_SCHEMA_VERSION`。顺序不变量：先写登记行再建库，先删库再删登记行。
+- **登记表**：[`Worktree`](../../../packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts) 定义当前字段、模式与表集标识，
+  命名空间为 `rxdb`，使用系统权限与 `log: false`。缺失的贡献表由 `RxDB.#ensureSystemTables` 补建。
+  顺序不变量：先写登记行再建库，先删库再删登记行；不在本文复制容易随可写检出位演进而过期的字段清单。
 - **提交视图**：`selectRestoreReplayPath()` 取可达路径（取不到即 `unreachable_target`，与 restore 同口径），
   `findFirstReplayIncompatibility(path)` 预检，`assertCommitGraphIntact`。算法：先把 active 分支的 `WorkingTreeEntry` 反向，
   回到 HEAD 的投影；再从 HEAD 沿路径往回，逐个提交反向应用它的变更单元；用 `get_switch_version_actions` 折叠后叠到当前分支的

@@ -16,8 +16,11 @@
  *   先单独并行跑完前置任务，测试那一步就全部命中本地缓存。
  *
  * 用法：
- *   node scripts/ci/test-prereq-tasks.mjs <task-graph.json>
+ *   node scripts/ci/test-prereq-tasks.mjs <task-graph.json> [--cacheable-builds-only]
  *   → 每行一个 `<target>\t<逗号分隔的项目>`，build 排在最前
+ *
+ * 浏览器测试、验收与基准使用 `--cacheable-builds-only`：只预构建可缓存的 build，coverage 等真实
+ * 测试依赖与不缓存的 typecheck 留给原阶段，避免并发采样或重复执行。
  *
  * 带 configuration 的任务（Angular 库的 `build:production`）按 target 归组：`run-many -t build`
  * 走 defaultConfiguration，与 `^build` 解析到的是同一个任务。万一某个依赖用的不是默认配置，
@@ -32,19 +35,21 @@ const isTestTarget = target => target === 'test' || target.startsWith('test-');
 /**
  * 按 target 分组的前置任务。
  *
- * @param {{ tasks?: { tasks?: Record<string, { target: { project: string, target: string } }> } }} graph
+ * @param {{ tasks?: { tasks?: Record<string, { target: { project: string, target: string }, cache?: boolean }> } }} graph
  *   `nx run-many --graph=<file>` 写出的 JSON
+ * @param {{ cacheableBuildsOnly?: boolean }} [options] 只预构建可缓存的 build，其余前置任务留给调用方执行
  * @returns {{ target: string, projects: string[] }[]} 不含 `test` / `test-*`；build 在最前，其余按 target 名排序；项目去重、排序
  * @throws {Error} 任务图里没有 `tasks.tasks`：形状不对时宁可失败，也不静默跳过预构建
  */
-export function prereqTargets(graph) {
+export function prereqTargets(graph, { cacheableBuildsOnly = false } = {}) {
   const tasks = graph?.tasks?.tasks;
   if (tasks === undefined || tasks === null || typeof tasks !== 'object') {
     throw new Error('任务图缺少 tasks.tasks：确认它来自 `nx run-many ... --graph=<file>`');
   }
 
   const byTarget = new Map();
-  for (const { target } of Object.values(tasks)) {
+  for (const { target, cache } of Object.values(tasks)) {
+    if (cacheableBuildsOnly && (target.target !== 'build' || cache !== true)) continue;
     if (isTestTarget(target.target)) continue;
     const projects = byTarget.get(target.target) ?? new Set();
     projects.add(target.project);
@@ -60,12 +65,13 @@ export function prereqTargets(graph) {
 const main = argv => {
   const [file] = argv;
   if (file === undefined) {
-    console.error('用法: node scripts/ci/test-prereq-tasks.mjs <task-graph.json>');
+    console.error('用法: node scripts/ci/test-prereq-tasks.mjs <task-graph.json> [--cacheable-builds-only]');
     process.exit(1);
   }
 
   const graph = JSON.parse(readFileSync(file, 'utf8'));
-  for (const { target, projects } of prereqTargets(graph)) {
+  const cacheableBuildsOnly = argv.includes('--cacheable-builds-only');
+  for (const { target, projects } of prereqTargets(graph, { cacheableBuildsOnly })) {
     process.stdout.write(`${target}\t${projects.join(',')}\n`);
   }
 };
