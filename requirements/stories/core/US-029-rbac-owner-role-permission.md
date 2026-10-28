@@ -5,21 +5,24 @@ status: Backlog
 priority: Low
 epic: epic-004-future-features
 created: 2026-09-20
-updated: 2026-10-06
+updated: 2026-10-28
 tags: [core, permission, rbac, rxdb-model]
 ---
 
 <!--
 INVEST 检查清单:
 - [ ] Independent: 阶段 A（声明与身份）只依赖 US-027 阶段 A；B 依赖 A 与 US-027 阶段 B；C 依赖 B 与 US-218；D 依赖 B 与 US-027 阶段 C
-- [ ] Negotiable: 声明键名（access / owner）与 API 名可协商；判定真值表、写规则、读边界与身份模型在「技术笔记」锁定
+- [ ] Negotiable: 声明键名（access / owner）与 API 名可协商；候选真值表、写规则、读边界与身份模型在解锁评审时复核
 - [ ] Valuable: 价值待证——无具名多用户使用方，见「价值待证」
-- [ ] Estimable: 判定真值表、写规则、读边界与身份模型已定死；plan 阶段只剩落点与命名
+- [ ] Estimable: 候选规则与边界见正文；解锁时先复核当前能力派生、实例身份与同步前提，再估算
 - [ ] Small: 不是单迭代可完成的小故事；文件内按「交付阶段」A～D 拆分，一阶段一 PR
 - [ ] Testable: 每条契约都有负向验收；权威端验收要求真实 RLS + 普通 authenticated 身份，不接受 mock
 -->
 
 # 用户故事：多用户 RBAC：角色与所有权写权限
+
+**准入状态：价值待证，不排期。** 下文保留候选方案与范围；真实使用方解锁后，须先按当前源码复核前提，
+再确认实施方案，不把既有设计细节视为开工授权。
 
 ## 作为/我想要/以便
 
@@ -35,7 +38,7 @@ INVEST 检查清单:
 - 服务端没有业务策略：参考 SQL [`docker/sql/`](../../../docker/sql/) 里业务表没有 RLS 策略，只有测试夹具表 `rls_todos`（[`03-business-tables.sql`](../../../docker/sql/03-business-tables.sql)）用 `auth.uid()` 开了 RLS，锚点是 `createdBy`；写入 RPC `rxdb_mutations`（[`04-rxdb-utils-functions.sql`](../../../docker/sql/04-rxdb-utils-functions.sql)）是 `SECURITY INVOKER`。业务表开 RLS 后推送的幽灵 DELETE 已由 [US-218](../adapter/US-218-supabase-rls-push-integrity.md)（Done）修复。
 - **同步日志不受业务表读策略约束**：`rxdb_change` 未开 RLS 且对 `anon` / `authenticated` 授权（生产脚本 `docker/sql/production/rxdb-change-grants.sql` 只收回写权限，保留 SELECT）；[`rxdb_pull_changes`](../../../docker/sql/02-rxdb-sync-functions.sql) 从日志返回 `afterData` 全行。业务表上的 SELECT 策略挡不住同步实体经日志被拉走——同步实体的「读权限」在现有协议下无从实现。
 - 远端直读的路径**会**受业务表 SELECT 策略约束：remote 仓库（`SyncType.None` + `remote`）的 [`SupabaseRepository`](../../../packages/rxdb-adapter-supabase/src/SupabaseRepository.ts) 与 `SyncType.QueryCache` 的 `fetchMetadata` / `findByIds`（[`RxDBAdapterSupabase`](../../../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts)）都直接 `.from(tableName)` 查业务表。
-- 身份与实例：[`RxDB.context`](../../../packages/rxdb/src/RxDB.ts) setter 整体替换、不发事件；三端 provider（Angular `provideRxDB` 走 `provideAppInitializer`、React `RxDBProvider`、Vue `provide(RxDBKey, …)`）都是一个应用一个实例。demo 的 `context.userId` 除 supabase demo 外都是启动时写死的常量；supabase demo 取 `VITE_RXDB_USER_ID` 或 localStorage 里生成的随机 UUID（`getOrCreateUserId`）。都没有切换用户的路径。
+- 身份与实例：[`RxDB.context`](../../../packages/rxdb/src/RxDB.ts) setter 整体替换、不发事件；三端 provider 接受实例 / Promise / 工厂，并按作用域提供实例，不能把「一个应用一个实例」当作库级限制。当前 demo 没有同一本地库运行时换用户的路径；本故事的「一实例一身份」是待实现约束。
 - [US-027 实体操作权限模型](US-027-entity-permission-model.md) 按层区分执行者：经公开写入口的写是用户写、在那里判定，适配器 / 执行器层的写是系统写、不判定；每个操作取 `'both' | 'system'`。本故事把用户写的判定扩展到**角色 / 所有权**，US-027 的 Out of Scope 明确指向本故事。
 - [vision.md](../../vision.md) 阶段 3 规划「用户身份、设备身份、工作区成员和权限模型」。
 
@@ -85,7 +88,7 @@ interface EntityAccessOptions {
 库中存在任一声明了 `access` 或规则形式权限的实体时：
 
 - 身份**只能设入一次**：`userId` 从未设置到设置（允许应用先建实例、登录后再设入）成功，此后经 `context` setter 改动 `userId` 或 `roles` 抛错；context 冻结保存，原地 `roles.push()` 抛错。未声明的库 setter 行为不变。
-- **换用户 = 新实例**：退出登录时销毁实例（Angular 一般为整页重载，React / Vue 卸载 provider 后重建），新用户用新实例。角色变化同理——它本来也要等 JWT 刷新才在远端生效。不引入 `switchContext`、代次与缓存清理。
+- **换用户 = 新实例**：退出登录时销毁实例，新用户使用新实例；宿主按 provider 所在作用域重建。角色变化同理。不引入 `switchContext`、代次与缓存清理；解锁时须验证三端的实例所有权与释放行为，不假设 Angular 必须整页重载。
 - **待推变更不跨身份**：同一本地库里用户 A 的未推送变更，不得以用户 B 的身份推送（推送时审计列取推送时的 `userId`，见「背景与动机」）。推荐每用户一个 `dbName`；引擎侧的守卫落点（本地库绑定首个 `userId`，或打开时检查待推变更的写入身份）留给 plan 阶段。
 
 ### 判定层：US-027 的操作权限扩展为可携带谓词
@@ -125,11 +128,15 @@ type EntityOperationPermission = 'both' | 'system' | EntityPermissionRule;
 - 测试 fixture：现有 `rls_todos` 的 RLS 锚定在审计字段 `createdBy` 上，是 US-218 的推送完整性夹具，不改；本故事另建一张以显式 owner 列为锚点的夹具表，`owner` 与 `createdBy` 分离的判定只在新表上验证。
 - 写入 RPC 与日志的完整性（日志由真实生效的写推导、逐操作确认与拒绝处置）以 [US-218](../adapter/US-218-supabase-rls-push-integrity.md) 为准，本故事不重复交付。
 - 降权窗口：角色变化对远端的生效时间（JWT 刷新周期）在部署说明中写明。
-- 测试登录态 harness：建测试用户、写 `app_metadata` 角色、取 JWT 并注入 PostgREST——唯一的登录调用是 `rxdb-adapter-supabase` 的 `push-receipts.spec.ts` 用 `auth.signUp` 注册随机用户取会话（US-218）；`rxdb-plugin-sync` / `apps/dev-rxdb-supabase` 没有登录调用，写 `app_metadata` 角色与注入 JWT 的部分仍需新搭。
+- 测试登录态 harness：现有 Supabase RLS 用例可提供测试身份，不能据此视为已有角色 harness；解锁时核对测试用户、`app_metadata` 角色、JWT 注入与刷新这条完整路径。
 
 ### UI 层：按操作区分的能力派生
 
-沿用 US-027 的 `deriveEntityCapabilities()`：`canCreate` 由实体规则与身份求值，`canEdit` / `canDelete` 按行求值（US-027 已把删除能力参数定成按行谓词 `(record) => boolean`，签名不用再改）；能读到的行总是可查看。rxdb-model 的列表、详情、表单、批量动作消费同一派生，不复制权限条件；`_readonly` 只由 `!canEdit` 派生，删除入口按 `canDelete` 单独显示。身份未设入时一律不可操作。身份在实例内不变，派生不需要订阅上下文变化。三框架对称（铁律），依赖 US-027 阶段 C 的「查看与删除拆开」UI 契约。
+当前 [`deriveEntityCapabilities()`](../../../packages/rxdb-model/src/entity-capabilities.ts) 根据实体权限与实例 `readOnly`
+返回三个布尔值 `canCreate` / `canEdit` / `canDelete`，尚无身份或按行求值参数。
+本故事需要扩展按身份与所有权求值的能力契约，解锁时须评审类型兼容和三端调用面，不能假设已有按行谓词可直接复用。
+目标是：能读到的行仍可查看；列表、详情、表单与批量动作共用同一派生，`_readonly` 由行级编辑能力派生，
+删除入口独立按行判断。身份未设入时不允许操作，实例只读时三项全关；三框架行为对称。
 
 ## 范围边界
 
@@ -188,7 +195,7 @@ type EntityOperationPermission = 'both' | 'system' | EntityPermissionRule;
 
 ## 技术笔记
 
-**关键设计决策**（已锁定）：
+**候选设计决策**（解锁评审时复核）：
 
 - **只做写授权**：同步日志不受业务表读策略约束，在同步实体上做读权限就得按身份过滤日志——那是租户 / 部分复制的工作量。本期把读边界明说出来，限读数据交给远端直读的同步模式。
 - **一实例一身份**：换用户、换角色都走新实例，省掉 `switchContext`、上下文代次、缓存清理与 UI 订阅。代价是 Angular 退出登录要整页重载；三端 provider 本来就是一个应用一个实例，模式对称。
@@ -223,7 +230,9 @@ RLS fixture 与登录态 harness、操作级能力派生。已知病灶为 0，�
 [US-218](../adapter/US-218-supabase-rls-push-integrity.md)（Done）；阶段 C 以它为前置，该前置已满足。
 
 **解锁条件**：出现具名的多用户使用方（demo、外部 issue 或下游项目），并能写出今天踩得到的具体症状。
-届时上调优先级，并按 RV-022 中仍适用的 R10 与 P2 各条复核（`git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`）。
+解锁前不继续扩展设计；届时复核当前的布尔能力接口、实例作用域与身份归属、真实 RLS 测试路径，
+再裁定正文候选方案与优先级。既有 RV-022 可作背景（`git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`），
+不能代替对当前源码的准入评审。
 上游 [US-027](US-027-entity-permission-model.md) 阶段 A / B / C 不等本故事解锁，已独立交付。
 
 ## 实现文件
