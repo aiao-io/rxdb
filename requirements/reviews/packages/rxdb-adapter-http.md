@@ -39,7 +39,7 @@
 **完整 adapter 诊断。** 本轮将当前 HTTP 包各源码模块转译后运行真实 `RxDBAdapterHttp`、transport、条件缓存和分块实现，仅把 fetch 替换成可控制响应交付时序的网络替身。调用公开 `connect → findByIds(挂起) → await update → findByIds → 交付旧读`，实际观测：
 
 ```json
-{ "confirmedWrite": "new", "afterWriteRead": "old", "httpReadRequests": 1 }
+{ "afterWriteRead": "old", "confirmedWrite": "new", "httpReadRequests": 1 }
 ```
 
 这是公开 HTTP adapter 的编排实证；未声称已用真实 HTTP 服务和本地 QueryCache 数据库复现持久化回退。未开启条件请求的路径不走该合流表。

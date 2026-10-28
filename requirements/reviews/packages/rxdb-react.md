@@ -38,7 +38,6 @@ source A -> unresolved B, committed layout snapshots: ["A","loading"]
 
 建议回归：A 已解析→B 挂起、A 失败→同步 B、A/B 反序解析、同步实例→工厂；在子组件 layout effect 中断言，避免只等 passive effect 跑完再检查而漏掉首帧。
 
-
 ### RRE-20261028-02 [P2] Activity 隐藏后销毁 owned Promise 结果，重显又提供同一已销毁实例
 
 证据：[`closeLease` / `openLease` / `useResolvedRxDB`](../../../packages/rxdb-react/src/rxdb-react.tsx)。Provider 将 Promise source 判为 owned。Activity 隐藏清理 effect 时，closeLease 在下一个微任务把租约标为 closed，再对已解析数据库调用 destroy。Activity 保留组件状态并在重显时重新接通 effect；openLease 不复用 closed 租约，创建的新租约却仍然解析同一个稳定 Promise，得到的还是已经销毁的数据库。Provider 没有重新创建或连接该实例。
@@ -59,7 +58,6 @@ shown: useRxDBOptional() -> { id: 'owned', dead: true }
 
 建议回归：稳定 Promise 已解析和未解析两种时刻隐藏、微任务之后重显、重复隐藏/显示、真正卸载；同时以直接实例和返回新库的稳定 factory 作对照。断言重显时不会向消费者交付已销毁对象，真实卸载仍能收回 owned 资源。
 
-
 ### RRE-20261028-03 [P2] useAction 在新提交的 layout effect 中仍执行旧回调
 
 证据：[`useAction`](../../../packages/rxdb-react/src/use-action.ts) 通过 passive `useEffect` 更新 `latest.current = promiseFn`，execute 则固定调用这个 ref。公开 ActionResource 合同明确承诺 execute 始终调用“最新一次渲染”传入的函数。新提交的 layout effect 发生在该 passive effect 之前，因此期间调用 execute 仍读到旧闭包。源码注释“execute 从 effect 调用时，effect 早已提交”不能覆盖 layout effect。
@@ -69,7 +67,7 @@ shown: useRxDBOptional() -> { id: 'owned', dead: true }
 复验：真实 use-action.ts 经内存转译，ReactDOM 19.3.1 + happy-dom；只用记录 target 的异步函数替代业务保存，没有替换 hooks 或提交顺序。A 提交结束后清空记录，再提交 B，输出：
 
 ```json
-{"committedTarget":"B","actualCallbackTargets":["A"]}
+{ "actualCallbackTargets": ["A"], "committedTarget": "B" }
 ```
 
 影响与限定：依赖新 props 在 layout effect 执行的自动操作可能使用旧记录/旧库闭包。本条证明错误 callback 被调用，未使用真实数据库，也不声称已经复现持久写错记录。等待 passive effect 完成后再触发的普通点击通常不落在该窗口；Angular/Vue action 在创建时捕获函数的合同与 React 的“每次渲染更新函数”不同，不重复登记到另外两包。

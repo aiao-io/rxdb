@@ -53,7 +53,6 @@ if (service && fieldsComputed.length > 0) service.setFields(fieldsComputed);
 
 建议回归：保持同一组件，fields 从非空切空、schema 从有值切 undefined、再恢复字段，断言现有规则的 validationChange 与字段选择器一致；同一用例同时覆盖后续修改规则再校验，避免只验证上游是否重算。
 
-
 ### MDR-20261028-03 [P2] Activity 重显把用户查询重置为空并发出 queryChange
 
 证据：[`QueryBuilder` 的服务生命周期 effect](../../../packages/rxdb-model-react/src/query-builder/query-builder/query-builder.tsx) 每次接通创建一个新的 QueryBuilderService，立即订阅其 rootGroup$；订阅会覆盖保留的 React rootGroup state 并调用 onQueryChange。清理会销毁服务，仅清空 lastAppliedInitialQueryRef，没有保存用户当前查询。重显后的 initialQuery effect 只能恢复宿主传入的 initialQuery，无法恢复用户内部编辑而未回写 props 的查询。

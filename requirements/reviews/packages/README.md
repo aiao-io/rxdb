@@ -8,13 +8,13 @@
 
 ## 优先处理的问题
 
-| 问题族 | 责任包与证据 |
-| --- | --- |
-| P1：目录重命名失败后丢失完整副本 | [storage / STORAGE-002](rxdb-plugin-storage.md)：复制分支的源目录部分删除失败后，补偿删除了完整目标副本；真实补偿函数故障注入与独立调用链复核均确认。限定 OPFS 无目录 move 或自定义文件系统。 |
-| P1：离线队列丢失 namespace | [sync / SYNC-001](rxdb-plugin-sync.md)：重放使用裸实体名仍推进水位；实际 HTTP 资源映射可路由到公共同名实体。 |
-| P1：切换详情目标期间保存旧记录 | [Angular](rxdb-model-angular.md)、[React](rxdb-model-react.md)、[Vue](rxdb-model-vue.md)：新 id 尚未到货时仍保存旧实例；React 真实组件接缝复现，三端保存链均独立复核。 |
-| P1：Activity 恢复丢失编辑文本 | [code-editor-react](code-editor-react.md)：真实 React Activity 与 EditorView 隔离复现。 |
-| P1：SharedWorker 实例推断遗漏共享治理 | [sqlite-wasm / SWM-001](rxdb-adapter-sqlite-wasm.md)：只传实例时跳过跨标签锁并走整连接关闭；源码链已交叉复核，双标签实测待补。 |
+| 问题族                                | 责任包与证据                                                                                                                                                                                  |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1：目录重命名失败后丢失完整副本      | [storage / STORAGE-002](rxdb-plugin-storage.md)：复制分支的源目录部分删除失败后，补偿删除了完整目标副本；真实补偿函数故障注入与独立调用链复核均确认。限定 OPFS 无目录 move 或自定义文件系统。 |
+| P1：离线队列丢失 namespace            | [sync / SYNC-001](rxdb-plugin-sync.md)：重放使用裸实体名仍推进水位；实际 HTTP 资源映射可路由到公共同名实体。                                                                                  |
+| P1：切换详情目标期间保存旧记录        | [Angular](rxdb-model-angular.md)、[React](rxdb-model-react.md)、[Vue](rxdb-model-vue.md)：新 id 尚未到货时仍保存旧实例；React 真实组件接缝复现，三端保存链均独立复核。                        |
+| P1：Activity 恢复丢失编辑文本         | [code-editor-react](code-editor-react.md)：真实 React Activity 与 EditorView 隔离复现。                                                                                                       |
+| P1：SharedWorker 实例推断遗漏共享治理 | [sqlite-wasm / SWM-001](rxdb-adapter-sqlite-wasm.md)：只传实例时跳过跨标签锁并走整连接关闭；源码链已交叉复核，双标签实测待补。                                                                |
 
 [SQLC-001](rxdb-adapter-sqlite-core.md) 当前为 P2：加密 Id 后缀列跳过转换，普通 CRUD 解密回填失败并回滚。完整公开 `entity.save()` 及真实 SQLite 诊断确认锁定/解锁两种失败后原始行均为空；低层参数绕过不能等同于普通保存已提交明文。
 
@@ -22,57 +22,57 @@
 
 | 项目包                                                                  | 结论 | 新增独立修复点 | 首轮 `test` 结果                                                            |
 | ----------------------------------------------------------------------- | ---- | -------------- | --------------------------------------------------------------------------- |
-| [code-editor](code-editor.md)                                           | 🟢 | 0 | 107 passed (107)（实际执行）                                                |
-| [code-editor-angular](code-editor-angular.md)                           | 🟢 | 0 | 79 passed (79)（实际执行）                                                  |
-| [code-editor-react](code-editor-react.md)                               | 🟡 | P1 × 1 | 41 passed (41)（实际执行）                                                  |
-| [code-editor-vue](code-editor-vue.md)                                   | 🟢 | 0 | 68 passed (68)（实际执行）                                                  |
-| [rxdb](rxdb.md)                                                         | 🟡 | P2 × 1 | 2653 passed ； 1 skipped (2654)（实际执行）                                 |
-| [rxdb-adapter-electron](rxdb-adapter-electron.md)                       | 🟡 | 0 | 4 failed ； 1386 passed ； 8 skipped (1398)；失败文件复跑见下文（实际执行） |
-| [rxdb-adapter-encrypted](rxdb-adapter-encrypted.md)                     | 🟢 | 0 | 321 passed (321)（实际执行）                                                |
-| [rxdb-adapter-http](rxdb-adapter-http.md)                               | 🟡 | P2 × 2 | 501 passed (501)（实际执行）                                                |
-| [rxdb-adapter-miniprogram](rxdb-adapter-miniprogram.md)                 | 🟡 | 0 | 359 passed (359)（实际执行）                                                |
-| [rxdb-adapter-pglite](rxdb-adapter-pglite.md)                           | 🟡 | P3 × 1 | 1562 passed (1562)（实际执行）                                              |
-| [rxdb-adapter-sqlite](rxdb-adapter-sqlite.md)                           | 🟡 | 0 | 834 passed ； 13 skipped (847)（实际执行）                                  |
-| [rxdb-adapter-sqlite-core](rxdb-adapter-sqlite-core.md)                 | 🟡 | P2 × 1 | 1576 passed ； 21 skipped (1597)（实际执行）                                |
-| [rxdb-adapter-sqlite-wasm](rxdb-adapter-sqlite-wasm.md)                 | 🟡 | P1 × 1 | 994 passed ； 13 skipped (1007)（实际执行）                                 |
-| [rxdb-adapter-sqliteai](rxdb-adapter-sqliteai.md)                       | 🟡 | 0 | 843 passed ； 10 skipped (853)（实际执行）                                  |
-| [rxdb-adapter-supabase](rxdb-adapter-supabase.md)                       | 🟡 | P2 × 1 | 620 passed (620)（实际执行）                                                |
-| [rxdb-adapter-tauri](rxdb-adapter-tauri.md)                             | 🟡 | P2 × 1 | 39 passed (39)（实际执行）                                                  |
-| [rxdb-adapter-wa-sqlite](rxdb-adapter-wa-sqlite.md)                     | 🟡 | 0 | 1007 passed ； 14 skipped (1021)（实际执行）                                |
-| [rxdb-angular](rxdb-angular.md)                                         | 🟢 | 0 | 266 passed (266)（实际执行）                                                |
-| [rxdb-client-generator](rxdb-client-generator.md)                       | 🟡 | P2 × 1 | 382 passed (382)（实际执行）                                                |
-| [rxdb-devtools](rxdb-devtools.md)                                       | 🟡 | P2 × 1 | 1008 passed (1008)（实际执行）                                              |
-| [rxdb-model](rxdb-model.md)                                             | 🟡 | P2 × 2 | 1034 passed (1034)（实际执行）                                              |
-| [rxdb-model-angular](rxdb-model-angular.md)                             | 🟡 | P1 × 1、P2 × 1 | 344 passed (344)（本地缓存）                                                |
-| [rxdb-model-react](rxdb-model-react.md)                                 | 🟡 | P1 × 1、P2 × 2 | 302 passed (302)（本地缓存）                                                |
-| [rxdb-model-vue](rxdb-model-vue.md)                                     | 🟡 | P1 × 1、P2 × 1 | 338 passed (338)（本地缓存）                                                |
-| [rxdb-plugin-graph](rxdb-plugin-graph.md)                               | 🟡 | P2 × 1 | 192 passed (192)（实际执行）                                                |
-| [rxdb-plugin-history](rxdb-plugin-history.md)                           | 🟢 | 0 | 439 passed (439)（实际执行）                                                |
-| [rxdb-plugin-querycache](rxdb-plugin-querycache.md)                     | 🟡 | P2 × 1 | 206 passed (206)（实际执行）                                                |
-| [rxdb-plugin-replay](rxdb-plugin-replay.md)                             | 🟢 | 0 | 149 passed ； 1 skipped (150)（实际执行）                                   |
-| [rxdb-plugin-replay-angular](rxdb-plugin-replay-angular.md)             | 🟢 | 0 | 32 passed (32)（实际执行）                                                  |
-| [rxdb-plugin-replay-react](rxdb-plugin-replay-react.md)                 | 🟢 | 0 | 15 passed (15)（实际执行）                                                  |
-| [rxdb-plugin-replay-vue](rxdb-plugin-replay-vue.md)                     | 🟢 | 0 | 11 passed (11)（实际执行）                                                  |
-| [rxdb-plugin-search](rxdb-plugin-search.md)                             | 🟢 | 0 | 302 passed (302)（实际执行）                                                |
-| [rxdb-plugin-search-angular](rxdb-plugin-search-angular.md)             | 🟢 | 0 | 40 passed (40)（实际执行）                                                  |
-| [rxdb-plugin-search-react](rxdb-plugin-search-react.md)                 | 🟢 | 0 | 42 passed (42)（实际执行）                                                  |
-| [rxdb-plugin-search-vue](rxdb-plugin-search-vue.md)                     | 🟢 | 0 | 40 passed (40)（实际执行）                                                  |
-| [rxdb-plugin-storage](rxdb-plugin-storage.md)                           | 🟡 | P1 × 1、P2 × 1 | 277 passed (277)（实际执行）                                                |
-| [rxdb-plugin-sync](rxdb-plugin-sync.md)                                 | 🟡 | P1 × 1 | 500 passed (500)（实际执行）                                                |
-| [rxdb-plugin-tree](rxdb-plugin-tree.md)                                 | 🟡 | P2 × 1 | 7 passed (7)（实际执行）                                                    |
-| [rxdb-plugin-tree-angular](rxdb-plugin-tree-angular.md)                 | 🟢 | 0 | 15 passed (15)（实际执行）                                                  |
-| [rxdb-plugin-tree-react](rxdb-plugin-tree-react.md)                     | 🟢 | 0 | 16 passed (16)（实际执行）                                                  |
-| [rxdb-plugin-tree-vue](rxdb-plugin-tree-vue.md)                         | 🟢 | 0 | 35 passed (35)（实际执行）                                                  |
-| [rxdb-plugin-working-tree](rxdb-plugin-working-tree.md)                 | 🟢 | 0 | 1285 passed (1285)（实际执行）                                              |
-| [rxdb-plugin-working-tree-angular](rxdb-plugin-working-tree-angular.md) | 🟢 | 0 | 77 passed (77)（实际执行）                                                  |
-| [rxdb-plugin-working-tree-react](rxdb-plugin-working-tree-react.md)     | 🟢 | 0 | 67 passed (67)（实际执行）                                                  |
-| [rxdb-plugin-working-tree-vue](rxdb-plugin-working-tree-vue.md)         | 🟢 | 0 | 68 passed (68)（实际执行）                                                  |
-| [rxdb-plugin-workspace](rxdb-plugin-workspace.md)                       | 🟡 | P2 × 1 | 112 passed (112)（实际执行）                                                |
-| [rxdb-react](rxdb-react.md)                                             | 🟡 | P2 × 3 | 205 passed (205)（实际执行）                                                |
-| [rxdb-taro](rxdb-taro.md)                                               | 🟢 | 0 | 72 passed (72)（实际执行）                                                  |
-| [rxdb-test](rxdb-test.md)                                               | 🟢 | 0 | 249 passed (249)（实际执行）                                                |
-| [rxdb-vue](rxdb-vue.md)                                                 | 🟢 | 0 | 227 passed (227)（实际执行）                                                |
-| [utils](utils.md)                                                       | 🟡 | P2 × 1、P3 × 1 | 982 passed (982)（实际执行）                                                |
+| [code-editor](code-editor.md)                                           | 🟢   | 0              | 107 passed (107)（实际执行）                                                |
+| [code-editor-angular](code-editor-angular.md)                           | 🟢   | 0              | 79 passed (79)（实际执行）                                                  |
+| [code-editor-react](code-editor-react.md)                               | 🟡   | P1 × 1         | 41 passed (41)（实际执行）                                                  |
+| [code-editor-vue](code-editor-vue.md)                                   | 🟢   | 0              | 68 passed (68)（实际执行）                                                  |
+| [rxdb](rxdb.md)                                                         | 🟡   | P2 × 1         | 2653 passed ； 1 skipped (2654)（实际执行）                                 |
+| [rxdb-adapter-electron](rxdb-adapter-electron.md)                       | 🟡   | 0              | 4 failed ； 1386 passed ； 8 skipped (1398)；失败文件复跑见下文（实际执行） |
+| [rxdb-adapter-encrypted](rxdb-adapter-encrypted.md)                     | 🟢   | 0              | 321 passed (321)（实际执行）                                                |
+| [rxdb-adapter-http](rxdb-adapter-http.md)                               | 🟡   | P2 × 2         | 501 passed (501)（实际执行）                                                |
+| [rxdb-adapter-miniprogram](rxdb-adapter-miniprogram.md)                 | 🟡   | 0              | 359 passed (359)（实际执行）                                                |
+| [rxdb-adapter-pglite](rxdb-adapter-pglite.md)                           | 🟡   | P3 × 1         | 1562 passed (1562)（实际执行）                                              |
+| [rxdb-adapter-sqlite](rxdb-adapter-sqlite.md)                           | 🟡   | 0              | 834 passed ； 13 skipped (847)（实际执行）                                  |
+| [rxdb-adapter-sqlite-core](rxdb-adapter-sqlite-core.md)                 | 🟡   | P2 × 1         | 1576 passed ； 21 skipped (1597)（实际执行）                                |
+| [rxdb-adapter-sqlite-wasm](rxdb-adapter-sqlite-wasm.md)                 | 🟡   | P1 × 1         | 994 passed ； 13 skipped (1007)（实际执行）                                 |
+| [rxdb-adapter-sqliteai](rxdb-adapter-sqliteai.md)                       | 🟡   | 0              | 843 passed ； 10 skipped (853)（实际执行）                                  |
+| [rxdb-adapter-supabase](rxdb-adapter-supabase.md)                       | 🟡   | P2 × 1         | 620 passed (620)（实际执行）                                                |
+| [rxdb-adapter-tauri](rxdb-adapter-tauri.md)                             | 🟡   | P2 × 1         | 39 passed (39)（实际执行）                                                  |
+| [rxdb-adapter-wa-sqlite](rxdb-adapter-wa-sqlite.md)                     | 🟡   | 0              | 1007 passed ； 14 skipped (1021)（实际执行）                                |
+| [rxdb-angular](rxdb-angular.md)                                         | 🟢   | 0              | 266 passed (266)（实际执行）                                                |
+| [rxdb-client-generator](rxdb-client-generator.md)                       | 🟡   | P2 × 1         | 382 passed (382)（实际执行）                                                |
+| [rxdb-devtools](rxdb-devtools.md)                                       | 🟡   | P2 × 1         | 1008 passed (1008)（实际执行）                                              |
+| [rxdb-model](rxdb-model.md)                                             | 🟡   | P2 × 2         | 1034 passed (1034)（实际执行）                                              |
+| [rxdb-model-angular](rxdb-model-angular.md)                             | 🟡   | P1 × 1、P2 × 1 | 344 passed (344)（本地缓存）                                                |
+| [rxdb-model-react](rxdb-model-react.md)                                 | 🟡   | P1 × 1、P2 × 2 | 302 passed (302)（本地缓存）                                                |
+| [rxdb-model-vue](rxdb-model-vue.md)                                     | 🟡   | P1 × 1、P2 × 1 | 338 passed (338)（本地缓存）                                                |
+| [rxdb-plugin-graph](rxdb-plugin-graph.md)                               | 🟡   | P2 × 1         | 192 passed (192)（实际执行）                                                |
+| [rxdb-plugin-history](rxdb-plugin-history.md)                           | 🟢   | 0              | 439 passed (439)（实际执行）                                                |
+| [rxdb-plugin-querycache](rxdb-plugin-querycache.md)                     | 🟡   | P2 × 1         | 206 passed (206)（实际执行）                                                |
+| [rxdb-plugin-replay](rxdb-plugin-replay.md)                             | 🟢   | 0              | 149 passed ； 1 skipped (150)（实际执行）                                   |
+| [rxdb-plugin-replay-angular](rxdb-plugin-replay-angular.md)             | 🟢   | 0              | 32 passed (32)（实际执行）                                                  |
+| [rxdb-plugin-replay-react](rxdb-plugin-replay-react.md)                 | 🟢   | 0              | 15 passed (15)（实际执行）                                                  |
+| [rxdb-plugin-replay-vue](rxdb-plugin-replay-vue.md)                     | 🟢   | 0              | 11 passed (11)（实际执行）                                                  |
+| [rxdb-plugin-search](rxdb-plugin-search.md)                             | 🟢   | 0              | 302 passed (302)（实际执行）                                                |
+| [rxdb-plugin-search-angular](rxdb-plugin-search-angular.md)             | 🟢   | 0              | 40 passed (40)（实际执行）                                                  |
+| [rxdb-plugin-search-react](rxdb-plugin-search-react.md)                 | 🟢   | 0              | 42 passed (42)（实际执行）                                                  |
+| [rxdb-plugin-search-vue](rxdb-plugin-search-vue.md)                     | 🟢   | 0              | 40 passed (40)（实际执行）                                                  |
+| [rxdb-plugin-storage](rxdb-plugin-storage.md)                           | 🟡   | P1 × 1、P2 × 1 | 277 passed (277)（实际执行）                                                |
+| [rxdb-plugin-sync](rxdb-plugin-sync.md)                                 | 🟡   | P1 × 1         | 500 passed (500)（实际执行）                                                |
+| [rxdb-plugin-tree](rxdb-plugin-tree.md)                                 | 🟡   | P2 × 1         | 7 passed (7)（实际执行）                                                    |
+| [rxdb-plugin-tree-angular](rxdb-plugin-tree-angular.md)                 | 🟢   | 0              | 15 passed (15)（实际执行）                                                  |
+| [rxdb-plugin-tree-react](rxdb-plugin-tree-react.md)                     | 🟢   | 0              | 16 passed (16)（实际执行）                                                  |
+| [rxdb-plugin-tree-vue](rxdb-plugin-tree-vue.md)                         | 🟢   | 0              | 35 passed (35)（实际执行）                                                  |
+| [rxdb-plugin-working-tree](rxdb-plugin-working-tree.md)                 | 🟢   | 0              | 1285 passed (1285)（实际执行）                                              |
+| [rxdb-plugin-working-tree-angular](rxdb-plugin-working-tree-angular.md) | 🟢   | 0              | 77 passed (77)（实际执行）                                                  |
+| [rxdb-plugin-working-tree-react](rxdb-plugin-working-tree-react.md)     | 🟢   | 0              | 67 passed (67)（实际执行）                                                  |
+| [rxdb-plugin-working-tree-vue](rxdb-plugin-working-tree-vue.md)         | 🟢   | 0              | 68 passed (68)（实际执行）                                                  |
+| [rxdb-plugin-workspace](rxdb-plugin-workspace.md)                       | 🟡   | P2 × 1         | 112 passed (112)（实际执行）                                                |
+| [rxdb-react](rxdb-react.md)                                             | 🟡   | P2 × 3         | 205 passed (205)（实际执行）                                                |
+| [rxdb-taro](rxdb-taro.md)                                               | 🟢   | 0              | 72 passed (72)（实际执行）                                                  |
+| [rxdb-test](rxdb-test.md)                                               | 🟢   | 0              | 249 passed (249)（实际执行）                                                |
+| [rxdb-vue](rxdb-vue.md)                                                 | 🟢   | 0              | 227 passed (227)（实际执行）                                                |
+| [utils](utils.md)                                                       | 🟡   | P2 × 1、P3 × 1 | 982 passed (982)（实际执行）                                                |
 
 ## 校验范围
 
