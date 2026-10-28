@@ -9,12 +9,12 @@ import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
   properties: [
     { name: 'contentHash', type: PropertyType.string, required: true },
     { name: 'fileName', type: PropertyType.string, required: true },
-    { name: 'size', type: PropertyType.integer, required: true },
+    { name: 'size', type: PropertyType.number, required: true },
     { name: 'chunkSize', type: PropertyType.integer, required: true },
     { name: 'chunkHashes', type: PropertyType.stringArray, required: true },
     { name: 'sourceUrl', type: PropertyType.string },
     { name: 'holderId', type: PropertyType.string, required: true },
-    { name: 'expiresAt', type: PropertyType.integer }
+    { name: 'expiresAt', type: PropertyType.number }
   ],
   indexes: [
     { name: 'content_hash', properties: ['contentHash'] },

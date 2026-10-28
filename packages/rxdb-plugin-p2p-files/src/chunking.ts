@@ -24,8 +24,8 @@ export interface P2PChunkDescriptor {
   readonly hash: string;
 }
 
-/** 默认 64 KiB；浏览器 DataChannel 与桌面 TCP 都支持该大小。 */
-export const DEFAULT_P2P_CHUNK_SIZE = 64 * 1024;
+/** 默认 60 KiB，为 DataChannel 帧元数据预留消息上限空间。 */
+export const DEFAULT_P2P_CHUNK_SIZE = 60 * 1024;
 export const MAX_P2P_CHUNK_SIZE = 1024 * 1024;
 
 function assertChunkSize(chunkSize: number): void {

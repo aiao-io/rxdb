@@ -1,4 +1,4 @@
-import { verifyChunk, verifyContentHash, type P2PFileManifest } from './chunking.js';
+import { describeChunks, verifyChunk, verifyContentHash, type P2PFileManifest } from './chunking.js';
 import { P2PTransferError, transferP2PFile, type P2PChunkSource, type P2PTransferResult } from './transfer.js';
 
 /** 服务器兜底下载器；实现方负责复用现有 HTTP 适配器的认证配置。 */
@@ -18,6 +18,10 @@ export interface P2PDownloadOptions {
   readonly token?: string;
   readonly signal?: AbortSignal;
   readonly writeChunk: (index: number, bytes: Uint8Array) => Promise<void>;
+  readonly readChunk?: (index: number) => Promise<Uint8Array>;
+  readonly completedChunks?: Iterable<number>;
+  readonly requestTimeoutMs?: number;
+  readonly concurrency?: number;
   readonly onProgress?: (progress: {
     readonly completedChunks: number;
     readonly totalChunks: number;
@@ -42,10 +46,13 @@ export async function downloadFromServer(options: {
     signal: options.signal,
     token: options.token
   });
+  options.signal?.throwIfAborted();
   const bytes = value instanceof Blob ? new Uint8Array(await value.arrayBuffer()) : value;
   if (bytes.byteLength !== options.manifest.size) throw new Error('server response size does not match manifest');
+  describeChunks(options.manifest);
   const chunks: Uint8Array[] = [];
   for (let offset = 0, index = 0; offset < bytes.byteLength; offset += options.manifest.chunkSize, index += 1) {
+    options.signal?.throwIfAborted();
     const chunk = bytes.slice(offset, offset + options.manifest.chunkSize);
     if (
       !(await verifyChunk(chunk, {
@@ -59,6 +66,7 @@ export async function downloadFromServer(options: {
   if (!(await verifyContentHash(chunks, options.manifest.contentHash)))
     throw new Error('server response contentHash does not match manifest');
   for (const [index, chunk] of chunks.entries()) {
+    options.signal?.throwIfAborted();
     await options.writeChunk(index, chunk);
     options.onProgress?.({
       completedChunks: index + 1,
@@ -85,6 +93,10 @@ export async function downloadP2PFile(options: P2PDownloadOptions): Promise<P2PT
         sources: options.sources,
         signal: options.signal,
         writeChunk: options.writeChunk,
+        readChunk: options.readChunk,
+        completedChunks: options.completedChunks,
+        requestTimeoutMs: options.requestTimeoutMs,
+        concurrency: options.concurrency,
         onProgress: progress => options.onProgress?.({ ...progress, route: 'p2p' })
       });
     } catch (error) {

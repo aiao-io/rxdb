@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createP2PFileManifest, type P2PFileManifest } from './chunking';
+import { createP2PFileManifest, sha256Hex, type P2PFileManifest } from './chunking';
 import { transferP2PFile, type P2PChunkSource } from './transfer';
 
 const makeFixture = async (): Promise<{
@@ -110,5 +110,34 @@ describe('P2P 传输选路与取消', () => {
     });
     controller.abort(new Error('cancelled during transfer'));
     await expect(task).rejects.toThrow('cancelled during transfer');
+  });
+
+  it('没有 readChunk 时仍校验收到的完整文件哈希', async () => {
+    const { manifest, chunks } = await makeFixture();
+    const badManifest = { ...manifest, contentHash: await sha256Hex(new Uint8Array([99])) };
+    await expect(
+      transferP2PFile({
+        manifest: badManifest,
+        sources: [{ id: 'peer', requestChunk: async (_hash, index) => chunks[index] }],
+        writeChunk: async () => undefined
+      })
+    ).rejects.toThrow('contentHash does not match');
+  });
+
+  it('续传前发现坏块时会重新拉取该块', async () => {
+    const { manifest, chunks } = await makeFixture();
+    const stored = new Map<number, Uint8Array>([
+      [0, new Uint8Array([9, 9, 9])],
+      [1, chunks[1]]
+    ]);
+    const result = await transferP2PFile({
+      manifest,
+      sources: [{ id: 'peer', requestChunk: async (_hash, index) => chunks[index] }],
+      completedChunks: [0, 1],
+      readChunk: async index => stored.get(index) as Uint8Array,
+      writeChunk: async (index, bytes) => void stored.set(index, bytes)
+    });
+    expect(result.completedChunks).toBe(2);
+    expect(stored.get(0)).toEqual(chunks[0]);
   });
 });

@@ -42,6 +42,10 @@
         "kind": "value"
       },
       {
+        "name": "DEFAULT_P2P_MANIFEST_TTL_MS",
+        "kind": "value"
+      },
+      {
         "name": "deriveHolderId",
         "kind": "value"
       },
@@ -150,6 +154,10 @@
         "kind": "type"
       },
       {
+        "name": "P2PRequestContext",
+        "kind": "type"
+      },
+      {
         "name": "P2PServerFallback",
         "kind": "type"
       },
@@ -183,6 +191,10 @@
       },
       {
         "name": "P2PTransportPeer",
+        "kind": "type"
+      },
+      {
+        "name": "P2PTransportPeerOptions",
         "kind": "type"
       },
       {

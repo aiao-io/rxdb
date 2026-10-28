@@ -79,8 +79,10 @@ class LinkedTransport implements P2PByteTransport {
   readonly queue: Uint8Array[] = [];
   readonly waiters: Array<(frame: Uint8Array) => void> = [];
   closed = false;
+  failSend = false;
 
   async send(frame: Uint8Array): Promise<void> {
+    if (this.failSend) throw new Error('send failed');
     this.peer?.deliver(frame);
   }
 
@@ -229,6 +231,14 @@ describe('P2P 字节传输适配器', () => {
     await unhooked.close();
   });
 
+  it('TCP close 会立即拒绝尚未返回的 receive', async () => {
+    const socket = new FakeSocket();
+    const transport = createTcpTransport(socket);
+    const pending = transport.receive();
+    await transport.close();
+    await expect(pending).rejects.toThrow('transport closed');
+  });
+
   it('双向 transport peer 可并发请求并校验响应块', async () => {
     const bytes = Uint8Array.from({ length: 6 }, (_, index) => index + 1);
     const manifest = await createP2PFileManifest({
@@ -241,8 +251,13 @@ describe('P2P 字节传输适配器', () => {
     const right = new LinkedTransport();
     left.peer = right;
     right.peer = left;
-    const local = createP2PTransportPeer(left, 'left', manifest, async index => bytes.slice(index * 3, index * 3 + 3));
-    createP2PTransportPeer(right, 'right', manifest, async index => bytes.slice(index * 3, index * 3 + 3));
+    const authorize = (): void => undefined;
+    const local = createP2PTransportPeer(left, 'left', manifest, async index => bytes.slice(index * 3, index * 3 + 3), {
+      authorizeRequest: authorize
+    });
+    createP2PTransportPeer(right, 'right', manifest, async index => bytes.slice(index * 3, index * 3 + 3), {
+      authorizeRequest: authorize
+    });
     await expect(
       Promise.all([
         local.source.requestChunk(manifest.contentHash, 0, new AbortController().signal),
@@ -250,5 +265,99 @@ describe('P2P 字节传输适配器', () => {
       ])
     ).resolves.toEqual([bytes.slice(0, 3), bytes.slice(3)]);
     await local.close();
+  });
+
+  it('入站请求先经过认证上下文，并拒绝未授权请求', async () => {
+    const bytes = Uint8Array.from({ length: 3 }, (_, index) => index + 1);
+    const manifest = await createP2PFileManifest({
+      fileName: 'auth.bin',
+      size: bytes.byteLength,
+      chunkSize: 3,
+      readChunk: async (offset, size) => bytes.slice(offset, offset + size)
+    });
+    const left = new LinkedTransport();
+    const right = new LinkedTransport();
+    left.peer = right;
+    right.peer = left;
+    const contexts: unknown[] = [];
+    let allow = true;
+    const local = createP2PTransportPeer(left, 'local', manifest, async () => bytes, {
+      authorizeRequest: () => undefined
+    });
+    const remote = createP2PTransportPeer(right, 'remote', manifest, async () => bytes, {
+      authenticatedContext: { subject: 'user-a' },
+      authorizeRequest: request => {
+        contexts.push(request.authenticatedContext);
+        if (!allow) throw new Error('unauthorized');
+      }
+    });
+    await expect(local.source.requestChunk(manifest.contentHash, 0, new AbortController().signal)).resolves.toEqual(
+      bytes
+    );
+    allow = false;
+    await expect(local.source.requestChunk(manifest.contentHash, 0, new AbortController().signal)).rejects.toThrow(
+      'unauthorized'
+    );
+    expect(contexts).toEqual([{ subject: 'user-a' }, { subject: 'user-a' }]);
+    await local.close();
+    await remote.close();
+  });
+
+  it('发送请求失败时清理 pending，关闭会话不会遗留未处理 promise', async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    const manifest = await createP2PFileManifest({
+      fileName: 'send-fail.bin',
+      size: bytes.byteLength,
+      chunkSize: 3,
+      readChunk: async () => bytes
+    });
+    const transport = new LinkedTransport();
+    transport.failSend = true;
+    const peer = createP2PTransportPeer(transport, 'local', manifest, async () => bytes, {
+      authorizeRequest: () => undefined
+    });
+    await expect(peer.source.requestChunk(manifest.contentHash, 0, new AbortController().signal)).rejects.toThrow(
+      'send failed'
+    );
+    await peer.close();
+  });
+
+  it('限制入站并发请求，超限请求得到可诊断错误', async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    const manifest = await createP2PFileManifest({
+      fileName: 'bounded.bin',
+      size: bytes.byteLength,
+      chunkSize: 3,
+      readChunk: async () => bytes
+    });
+    const left = new LinkedTransport();
+    const right = new LinkedTransport();
+    left.peer = right;
+    right.peer = left;
+    let release!: () => void;
+    const firstRead = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const local = createP2PTransportPeer(left, 'local', manifest, async () => bytes, {
+      authorizeRequest: () => undefined
+    });
+    const remote = createP2PTransportPeer(
+      right,
+      'remote',
+      manifest,
+      async () => {
+        await firstRead;
+        return bytes;
+      },
+      { maxInboundRequests: 1, authorizeRequest: () => undefined }
+    );
+    const first = local.source.requestChunk(manifest.contentHash, 0, new AbortController().signal);
+    await Promise.resolve();
+    const second = local.source.requestChunk(manifest.contentHash, 0, new AbortController().signal);
+    await expect(second).rejects.toThrow('too many inbound requests');
+    release();
+    await expect(first).resolves.toEqual(bytes);
+    await local.close();
+    await remote.close();
   });
 });

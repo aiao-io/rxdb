@@ -4,6 +4,9 @@ import { createP2PFileManifest, type P2PFileManifest } from './chunking.js';
 /** 同步层使用的文件清单实体名。 */
 export const P2P_FILE_MANIFEST_ENTITY = 'P2PFileManifest' as const;
 
+/** 未显式配置 TTL 时的持有声明存活时间。 */
+export const DEFAULT_P2P_MANIFEST_TTL_MS = 5 * 60 * 1000;
+
 /** 清单的最小 JSON Schema，供 RxDB 实体注册和同步过滤复用。 */
 export const P2P_FILE_MANIFEST_SCHEMA = {
   version: 0,
@@ -12,7 +15,7 @@ export const P2P_FILE_MANIFEST_SCHEMA = {
   additionalProperties: false,
   required: ['id', 'contentHash', 'fileName', 'size', 'chunkSize', 'chunkHashes', 'holderId', 'updatedAt'],
   properties: {
-    id: { type: 'string', maxLength: 128 },
+    id: { type: 'string', minLength: 36, maxLength: 36 },
     contentHash: { type: 'string', minLength: 64, maxLength: 64 },
     fileName: { type: 'string', minLength: 1, maxLength: 1024 },
     size: { type: 'number', minimum: 0 },
@@ -49,7 +52,9 @@ export const deriveHolderId = (authenticatedSubject: string | P2PPrincipal): str
 export const manifestId = (contentHash: string, holderId: string): string => {
   if (!/^[0-9a-f]{64}$/.test(contentHash)) throw new TypeError('contentHash must be a lowercase SHA-256 hash');
   if (!holderId) throw new TypeError('holderId must not be empty');
-  return `${contentHash}:${holderId}`;
+  const digest = syncSha256Hex(new TextEncoder().encode(`${contentHash}:${holderId}`));
+  const variant = (8 + (Number.parseInt(digest[16] ?? '0', 16) % 4)).toString(16);
+  return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-${variant}${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
 };
 
 /** 仅允许由认证身份生成持有者声明，调用方不能自报其它 holderId。 */
@@ -60,8 +65,8 @@ export const createManifestRecord = (
   const holderId = deriveHolderId(options.authenticatedSubject);
   const now = options.now ?? Date.now();
   if (!Number.isSafeInteger(now) || now < 0) throw new RangeError('now must be a non-negative safe integer');
-  const ttlMs = options.ttlMs;
-  if (ttlMs !== undefined && (!Number.isSafeInteger(ttlMs) || ttlMs <= 0)) {
+  const ttlMs = options.ttlMs ?? DEFAULT_P2P_MANIFEST_TTL_MS;
+  if (!Number.isSafeInteger(ttlMs) || ttlMs <= 0) {
     throw new RangeError('ttlMs must be a positive safe integer');
   }
   return {
@@ -69,7 +74,7 @@ export const createManifestRecord = (
     id: manifestId(manifest.contentHash, holderId),
     holderId,
     updatedAt: now,
-    ...(ttlMs === undefined ? {} : { expiresAt: now + ttlMs })
+    expiresAt: now + ttlMs
   };
 };
 
@@ -103,10 +108,12 @@ export const findP2PFileHolders = (
   options: { readonly now?: number; readonly ttlMs?: number } = {}
 ): readonly P2PManifestRecord[] => {
   const now = options.now ?? Date.now();
-  const ttlMs = options.ttlMs ?? 5 * 60 * 1000;
+  const ttlMs = options.ttlMs ?? DEFAULT_P2P_MANIFEST_TTL_MS;
   const latest = new Map<string, P2PManifestRecord>();
   for (const record of records) {
-    if (record.contentHash !== contentHash || record.updatedAt + ttlMs <= now) continue;
+    if (record.contentHash !== contentHash || record.updatedAt > now) continue;
+    const expiresAt = Math.min(record.expiresAt ?? Number.POSITIVE_INFINITY, record.updatedAt + ttlMs);
+    if (expiresAt <= now) continue;
     const previous = latest.get(record.holderId);
     if (!previous || previous.updatedAt < record.updatedAt) latest.set(record.holderId, record);
   }
@@ -116,6 +123,7 @@ export const findP2PFileHolders = (
 /** 本地清单仓库；同步适配器可把 upsert/revoke 调用映射到 RxDB repository。 */
 export class P2PManifestStore {
   readonly #records = new Map<string, P2PManifestRecord>();
+  readonly #revokedAt = new Map<string, number>();
 
   get size(): number {
     return this.#records.size;
@@ -130,8 +138,11 @@ export class P2PManifestStore {
   upsert(record: P2PManifestRecord): void {
     const expectedId = manifestId(record.contentHash, record.holderId);
     if (record.id !== expectedId) throw new Error('manifest id does not match contentHash and holderId');
+    const revokedAt = this.#revokedAt.get(record.id);
+    if (revokedAt !== undefined && record.updatedAt <= revokedAt) return;
+    if (revokedAt !== undefined) this.#revokedAt.delete(record.id);
     const current = this.#records.get(record.id);
-    if (current && current.updatedAt > record.updatedAt) return;
+    if (current && current.updatedAt >= record.updatedAt) return;
     this.#records.set(record.id, { ...record, chunkHashes: [...record.chunkHashes] });
   }
 
@@ -143,7 +154,11 @@ export class P2PManifestStore {
   }
 
   revoke(contentHash: string, holderId: string): boolean {
-    return this.#records.delete(manifestId(contentHash, holderId));
+    const id = manifestId(contentHash, holderId);
+    const current = this.#records.get(id);
+    const revokedAt = Math.max(Date.now(), current?.updatedAt ?? 0);
+    this.#revokedAt.set(id, revokedAt);
+    return this.#records.delete(id);
   }
 
   heartbeat(contentHash: string, holderId: string, now = Date.now(), ttlMs?: number): P2PManifestRecord {
@@ -153,7 +168,7 @@ export class P2PManifestStore {
     const next: P2PManifestRecord = {
       ...current,
       updatedAt: now,
-      ...(ttlMs === undefined ? {} : { expiresAt: now + ttlMs })
+      expiresAt: now + (ttlMs ?? DEFAULT_P2P_MANIFEST_TTL_MS)
     };
     this.#records.set(id, next);
     return next;
@@ -162,7 +177,10 @@ export class P2PManifestStore {
   pruneExpired(now = Date.now()): number {
     let removed = 0;
     for (const [id, record] of this.#records) {
-      if (record.expiresAt !== undefined && record.expiresAt <= now) {
+      if (
+        (record.expiresAt !== undefined && record.expiresAt <= now) ||
+        (record.expiresAt === undefined && record.updatedAt + DEFAULT_P2P_MANIFEST_TTL_MS <= now)
+      ) {
         this.#records.delete(id);
         removed += 1;
       }
@@ -173,7 +191,7 @@ export class P2PManifestStore {
   findHolders(contentHash: string, now = Date.now()): readonly P2PManifestRecord[] {
     this.pruneExpired(now);
     return [...this.#records.values()]
-      .filter(record => record.contentHash === contentHash)
+      .filter(record => record.contentHash === contentHash && record.updatedAt <= now)
       .sort((left, right) => right.updatedAt - left.updatedAt)
       .map(record => ({ ...record, chunkHashes: [...record.chunkHashes] }));
   }

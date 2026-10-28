@@ -13,7 +13,7 @@ async function recordFixture(options: { readonly subject?: string; readonly now?
     fileName: 'demo.bin',
     size: 3,
     chunkSize: 1,
-    updatedAt: options.now ?? 100,
+    updatedAt: options.now ?? Date.now(),
     readChunk: async (offset, size) => Uint8Array.from({ length: size }, (_, index) => offset + index)
   });
 }
@@ -33,7 +33,7 @@ describe('P2P 发现与信令', () => {
       validateHandshake(request, {
         authenticate: async token => (token === 'token-a' ? { subject: 'device-a' } : null),
         manifests: store,
-        now: 100
+        now: record.updatedAt
       })
     ).resolves.toEqual({ connectionId: 'c1', contentHash: record.contentHash, holderId: record.holderId });
     await expect(

@@ -22,6 +22,25 @@ export interface P2PTransportPeer {
   readonly close: () => Promise<void>;
 }
 
+/** 收到块请求时传给认证钩子的上下文。 */
+export interface P2PRequestContext {
+  readonly requestId: string;
+  readonly contentHash: string;
+  readonly index: number;
+  readonly signal: AbortSignal;
+  readonly authenticatedContext?: unknown;
+}
+
+/** 对端传输会话的认证与资源限制。 */
+export interface P2PTransportPeerOptions {
+  /** 在读取本地块前校验会话身份；抛错会拒绝请求且不读取文件。 */
+  readonly authorizeRequest?: (request: P2PRequestContext) => Promise<void> | void;
+  /** 由信令/握手层绑定的认证上下文，不会从帧内容推断身份。 */
+  readonly authenticatedContext?: unknown;
+  /** 单条连接同时处理的入站块请求上限。 */
+  readonly maxInboundRequests?: number;
+}
+
 /**
  * 将帧传输适配成可供 `transferP2PFile` 使用的块 source，并同时响应对端请求。
  *
@@ -31,16 +50,73 @@ export function createP2PTransportPeer(
   transport: P2PByteTransport,
   id: string,
   manifest: P2PFileManifest,
-  readChunk: (index: number) => Promise<Uint8Array>
+  readChunk: (index: number) => Promise<Uint8Array>,
+  options: P2PTransportPeerOptions
 ): P2PTransportPeer {
   const pending = new Map<
     string,
-    { readonly resolve: (bytes: Uint8Array) => void; readonly reject: (error: unknown) => void }
+    {
+      readonly resolve: (bytes: Uint8Array) => void;
+      readonly reject: (error: unknown) => void;
+      readonly cleanup: () => void;
+    }
   >();
   const handler = createChunkRequestHandler(manifest, readChunk);
+  const maxInboundRequests = Math.max(1, Math.floor(options.maxInboundRequests ?? 16));
   let sequence = 0;
   let stopped = false;
+  let inboundRequests = 0;
   let pumpPromise: Promise<void> | undefined;
+  const stop = (error: unknown): void => {
+    if (stopped) return;
+    stopped = true;
+    for (const waiter of pending.values()) {
+      waiter.cleanup();
+      waiter.reject(error);
+    }
+    pending.clear();
+  };
+  const sendResponse = async (frame: P2PFrame): Promise<void> => {
+    try {
+      await transport.send(encodeP2PFrame(frame));
+    } catch (error) {
+      stop(error);
+      await Promise.resolve(transport.close()).catch(() => undefined);
+    }
+  };
+  const handleRequest = async (frame: Extract<P2PFrame, { kind: 'request' }>): Promise<void> => {
+    if (inboundRequests >= maxInboundRequests) {
+      await sendResponse({
+        kind: 'response',
+        requestId: frame.requestId,
+        ok: false,
+        error: 'too many inbound requests'
+      });
+      return;
+    }
+    inboundRequests += 1;
+    const controller = new AbortController();
+    try {
+      await options.authorizeRequest({
+        requestId: frame.requestId,
+        contentHash: frame.contentHash,
+        index: frame.index,
+        signal: controller.signal,
+        authenticatedContext: options.authenticatedContext
+      });
+      const payload = await handler(frame.contentHash, frame.index);
+      await sendResponse({ kind: 'response', requestId: frame.requestId, ok: true, payload });
+    } catch (error) {
+      await sendResponse({
+        kind: 'response',
+        requestId: frame.requestId,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    } finally {
+      inboundRequests -= 1;
+    }
+  };
   const pump = async (): Promise<void> => {
     try {
       while (!stopped) {
@@ -49,30 +125,15 @@ export function createP2PTransportPeer(
           const waiter = pending.get(frame.requestId);
           if (!waiter) continue;
           pending.delete(frame.requestId);
+          waiter.cleanup();
           if (frame.ok) waiter.resolve(frame.payload);
           else waiter.reject(new Error(frame.error));
           continue;
         }
-        void handler(frame.contentHash, frame.index).then(
-          payload =>
-            transport.send(encodeP2PFrame({ kind: 'response', requestId: frame.requestId, ok: true, payload })),
-          error =>
-            transport.send(
-              encodeP2PFrame({
-                kind: 'response',
-                requestId: frame.requestId,
-                ok: false,
-                error: error instanceof Error ? error.message : String(error)
-              })
-            )
-        );
+        void handleRequest(frame);
       }
     } catch (error) {
-      if (!stopped) {
-        stopped = true;
-        for (const waiter of pending.values()) waiter.reject(error);
-        pending.clear();
-      }
+      stop(error);
     }
   };
   const ensurePump = (): void => {
@@ -86,20 +147,31 @@ export function createP2PTransportPeer(
       const requestId = `${id}:${sequence++}`;
       if (signal?.aborted) throw signal.reason ?? new DOMException('The operation was aborted', 'AbortError');
       let rejectRequest: (error: unknown) => void = () => undefined;
+      let abort = (): void => undefined;
+      const cleanup = (): void => signal?.removeEventListener('abort', abort);
       const result = new Promise<Uint8Array>((resolve, reject) => {
         rejectRequest = reject;
-        pending.set(requestId, { resolve, reject });
+        pending.set(requestId, { resolve, reject, cleanup });
       });
-      const abort = (): void => {
-        if (pending.delete(requestId))
+      abort = (): void => {
+        if (pending.delete(requestId)) {
+          cleanup();
           rejectRequest(signal?.reason ?? new DOMException('The operation was aborted', 'AbortError'));
+        }
       };
       signal?.addEventListener('abort', abort, { once: true });
       try {
         await transport.send(encodeP2PFrame({ kind: 'request', requestId, contentHash, index }));
         return await result;
+      } catch (error) {
+        const waiter = pending.get(requestId);
+        if (waiter) {
+          pending.delete(requestId);
+          waiter.cleanup();
+        }
+        throw error;
       } finally {
-        signal?.removeEventListener('abort', abort);
+        cleanup();
       }
     }
   };
@@ -107,10 +179,8 @@ export function createP2PTransportPeer(
   return {
     source,
     async close() {
-      stopped = true;
       const error = new Error('P2P transport peer closed');
-      for (const waiter of pending.values()) waiter.reject(error);
-      pending.clear();
+      stop(error);
       await transport.close();
       // 底层 receive 可能在 close() 与下一轮 pump 之间登记 waiter；底层实现会
       // 在关闭时唤醒它。这里不等待 pump，避免关闭竞态把调用方永久挂起。
@@ -191,7 +261,11 @@ export interface P2PDataChannelLike {
 export const createWebRTCTransport = (channel: P2PDataChannelLike): P2PByteTransport => {
   channel.binaryType = 'arraybuffer';
   const queue: Uint8Array[] = [];
-  const waiters: Array<{ resolve: (value: Uint8Array) => void; reject: (error: unknown) => void }> = [];
+  const waiters: Array<{
+    readonly resolve: (value: Uint8Array) => void;
+    readonly reject: (error: unknown) => void;
+    readonly cleanup: () => void;
+  }> = [];
   let closed = false;
   let failure: unknown;
   const onMessage = (event: Event): void => {
@@ -205,13 +279,19 @@ export const createWebRTCTransport = (channel: P2PDataChannelLike): P2PByteTrans
       return;
     }
     const waiter = waiters.shift();
-    if (waiter) waiter.resolve(bytes);
-    else queue.push(bytes);
+    if (waiter) {
+      waiter.cleanup();
+      waiter.resolve(bytes);
+    } else queue.push(bytes);
   };
   const onFailure = (error: unknown): void => {
     failure = error instanceof Error ? error : new Error('WebRTC DataChannel closed');
     closed = true;
-    while (waiters.length) waiters.shift()?.reject(failure);
+    while (waiters.length) {
+      const waiter = waiters.shift();
+      waiter?.cleanup();
+      waiter?.reject(failure);
+    }
   };
   const onClose = (): void => onFailure(new Error('WebRTC DataChannel closed'));
   channel.addEventListener('message', onMessage);
@@ -225,14 +305,19 @@ export const createWebRTCTransport = (channel: P2PDataChannelLike): P2PByteTrans
     receive(signal) {
       if (queue.length) return Promise.resolve(queue.shift() as Uint8Array);
       if (closed) return Promise.reject(failure ?? new Error('WebRTC DataChannel is closed'));
+      if (signal?.aborted)
+        return Promise.reject(signal.reason ?? new DOMException('The operation was aborted', 'AbortError'));
       return new Promise<Uint8Array>((resolve, reject) => {
-        const waiter = { resolve, reject };
-        waiters.push(waiter);
-        const abort = (): void => {
+        let abort = (): void => undefined;
+        const cleanup = (): void => signal?.removeEventListener('abort', abort);
+        const waiter = { resolve, reject, cleanup };
+        abort = (): void => {
           const index = waiters.indexOf(waiter);
           if (index >= 0) waiters.splice(index, 1);
+          cleanup();
           reject(signal?.reason ?? new DOMException('The operation was aborted', 'AbortError'));
         };
+        waiters.push(waiter);
         signal?.addEventListener('abort', abort, { once: true });
       });
     },
@@ -243,7 +328,11 @@ export const createWebRTCTransport = (channel: P2PDataChannelLike): P2PByteTrans
       channel.removeEventListener('error', onFailure as (event: Event) => void);
       channel.removeEventListener('close', onClose);
       channel.close();
-      while (waiters.length) waiters.shift()?.reject(new Error('WebRTC DataChannel closed'));
+      while (waiters.length) {
+        const waiter = waiters.shift();
+        waiter?.cleanup();
+        waiter?.reject(new Error('WebRTC DataChannel closed'));
+      }
     }
   };
 };
@@ -265,7 +354,11 @@ export const createTcpTransport = (
   if (options.requireEncryption !== false && socket.encrypted !== true)
     throw new Error('P2P TCP transport requires an encrypted TLS socket');
   const queue: Uint8Array[] = [];
-  const waiters: Array<{ resolve: (value: Uint8Array) => void; reject: (error: unknown) => void }> = [];
+  const waiters: Array<{
+    readonly resolve: (value: Uint8Array) => void;
+    readonly reject: (error: unknown) => void;
+    readonly cleanup: () => void;
+  }> = [];
   let buffer = new Uint8Array(0);
   let failure: unknown;
   const flush = (): void => {
@@ -280,8 +373,10 @@ export const createTcpTransport = (
       const frame = buffer.slice(4, size + 4);
       buffer = buffer.slice(size + 4);
       const waiter = waiters.shift();
-      if (waiter) waiter.resolve(frame);
-      else queue.push(frame);
+      if (waiter) {
+        waiter.cleanup();
+        waiter.resolve(frame);
+      } else queue.push(frame);
     }
   };
   const onData = (value: Uint8Array | Error): void => {
@@ -294,7 +389,11 @@ export const createTcpTransport = (
   };
   const onFailure = (error: unknown): void => {
     failure = error instanceof Error ? error : new Error('P2P TCP socket closed');
-    while (waiters.length) waiters.shift()?.reject(failure);
+    while (waiters.length) {
+      const waiter = waiters.shift();
+      waiter?.cleanup();
+      waiter?.reject(failure);
+    }
   };
   socket.on('data', onData);
   socket.on('error', onFailure as (value: Uint8Array | Error) => void);
@@ -312,21 +411,24 @@ export const createTcpTransport = (
     receive(signal) {
       if (queue.length) return Promise.resolve(queue.shift() as Uint8Array);
       if (failure) return Promise.reject(failure);
+      if (signal?.aborted)
+        return Promise.reject(signal.reason ?? new DOMException('The operation was aborted', 'AbortError'));
       return new Promise<Uint8Array>((resolve, reject) => {
-        const waiter = { resolve, reject };
+        let abort = (): void => undefined;
+        const cleanup = (): void => signal?.removeEventListener('abort', abort);
+        const waiter = { resolve, reject, cleanup };
+        abort = (): void => {
+          const index = waiters.indexOf(waiter);
+          if (index >= 0) waiters.splice(index, 1);
+          cleanup();
+          reject(signal?.reason ?? new DOMException('The operation was aborted', 'AbortError'));
+        };
         waiters.push(waiter);
-        signal?.addEventListener(
-          'abort',
-          () => {
-            const index = waiters.indexOf(waiter);
-            if (index >= 0) waiters.splice(index, 1);
-            reject(signal.reason ?? new DOMException('The operation was aborted', 'AbortError'));
-          },
-          { once: true }
-        );
+        signal?.addEventListener('abort', abort, { once: true });
       });
     },
     close() {
+      onFailure(new Error('P2P TCP transport closed'));
       socket.end();
       if (socket.off) {
         socket.off('data', onData);

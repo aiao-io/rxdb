@@ -32,6 +32,7 @@ describe('P2P manifest identity', () => {
     ]);
     expect(first.holderId).toBe(await deriveHolderId(principal));
     expect(first.holderId).toBe(second.holderId);
+    expect(first.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(isManifestOwnedBy(first, other)).toBe(false);
   });
 
@@ -93,6 +94,9 @@ describe('P2P manifest identity', () => {
     expect(() => store.upsertForSubject(record, 'other')).toThrow(/holderId/);
     store.upsert(record);
     store.upsert({ ...record, updatedAt: 1 });
+    expect(store.findHolders(record.contentHash, 10)[0]?.updatedAt).toBe(10);
+    store.upsert({ ...record, fileName: 'same-time-replay' });
+    expect(store.findHolders(record.contentHash, 10)[0]?.fileName).toBe('x');
     expect(store.heartbeat(record.contentHash, record.holderId, 20, 2).expiresAt).toBe(22);
     expect(store.pruneExpired(22)).toBe(1);
     expect(() => store.heartbeat(record.contentHash, record.holderId)).toThrow(/not registered/);
@@ -114,5 +118,44 @@ describe('P2P manifest identity', () => {
         { now: 100, ttlMs: 200 }
       )
     ).toHaveLength(1);
+  });
+
+  it('refreshes default expiry, keeps revocation tombstones, and permits newer re-announcements', async () => {
+    const record = await createAuthenticatedP2PFileManifest({
+      principal: { principal: 'user-a' },
+      fileName: 'x',
+      size: 0,
+      chunkSize: 1024,
+      updatedAt: 10,
+      ttlMs: 2,
+      readChunk: async () => new Uint8Array()
+    });
+    const store = new P2PManifestStore();
+    store.upsert(record);
+    const heartbeat = store.heartbeat(record.contentHash, record.holderId, 11);
+    expect(heartbeat.expiresAt).toBeGreaterThan(11 + 2);
+    store.revoke(record.contentHash, record.holderId);
+    store.upsert(record);
+    expect(store.findHolders(record.contentHash, 11)).toEqual([]);
+    const newer = { ...record, updatedAt: Date.now() + 1, expiresAt: Date.now() + 1001 };
+    store.upsert(newer);
+    expect(store.findHolders(record.contentHash, newer.updatedAt)).toHaveLength(1);
+  });
+
+  it('handles legacy rows without expiry and revocation of an unknown holder', async () => {
+    const record = await createAuthenticatedP2PFileManifest({
+      principal: { principal: 'legacy-holder' },
+      fileName: 'legacy.bin',
+      size: 0,
+      chunkSize: 1024,
+      updatedAt: 10,
+      readChunk: async () => new Uint8Array()
+    });
+    const legacy = { ...record, expiresAt: undefined };
+    expect(findP2PFileHolders([legacy], record.contentHash, { now: 20, ttlMs: 100 })).toHaveLength(1);
+    const store = new P2PManifestStore();
+    store.upsert(legacy);
+    expect(store.pruneExpired(record.updatedAt + 5 * 60 * 1000)).toBe(1);
+    expect(store.revoke(record.contentHash, record.holderId)).toBe(false);
   });
 });
