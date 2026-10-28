@@ -123,6 +123,12 @@ export async function transferP2PFile(options: P2PTransferOptions): Promise<P2PT
           if (!(await verifyChunk(bytes, descriptor))) {
             throw new P2PTransferError(`peer ${source.id} returned an invalid chunk ${descriptor.index}`);
           }
+          if (options.signal?.aborted || workerAbort.signal.aborted)
+            throw (
+              options.signal?.reason ??
+              workerAbort.signal.reason ??
+              new DOMException('The operation was aborted', 'AbortError')
+            );
           try {
             await options.writeChunk(descriptor.index, bytes);
           } catch (error) {

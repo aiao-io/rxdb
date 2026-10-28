@@ -273,6 +273,7 @@ export const createWebRTCTransport = (channel: P2PDataChannelLike): P2PByteTrans
     readonly cleanup: () => void;
   }> = [];
   let closed = false;
+  let cleanedUp = false;
   let failure: unknown;
   const onMessage = (event: Event): void => {
     const data = (event as MessageEvent).data;
@@ -328,8 +329,9 @@ export const createWebRTCTransport = (channel: P2PDataChannelLike): P2PByteTrans
       });
     },
     close() {
-      if (closed) return;
+      if (cleanedUp) return;
       closed = true;
+      cleanedUp = true;
       channel.removeEventListener('message', onMessage);
       channel.removeEventListener('error', onFailure as (event: Event) => void);
       channel.removeEventListener('close', onClose);
