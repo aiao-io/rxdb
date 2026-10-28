@@ -115,6 +115,24 @@ describe('explicit workspace sync activation', () => {
     expect((await r.registry.read()).profiles[0].binding?.state).toBe('pending');
     expect(r.controller.state.status).toBe('failed');
   });
+  it('身份暂停后丢弃迟到的首次绑定预览，不创建远端工作区', async () => {
+    const r = await rig(false);
+    let release!: () => void;
+    r.api.ownWorkspace.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          release = () => resolve(null);
+        })
+    );
+    const preview = r.controller.requestEnable();
+    await vi.waitFor(() => expect(r.api.ownWorkspace).toHaveBeenCalledOnce());
+    r.controller.pause();
+    release();
+    await preview;
+    expect(r.controller.state.confirmation).toBeNull();
+    await r.controller.confirmEnable();
+    expect(r.api.ensureWorkspace).not.toHaveBeenCalled();
+  });
   it('discards a late replica open after pausing the account', async () => {
     const r = await rig();
     let release!: (replica: typeof r.replica) => void;

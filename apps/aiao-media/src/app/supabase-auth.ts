@@ -82,6 +82,7 @@ export class SupabaseAuthClient {
   private disposed = false;
   private mutating = false;
   private restoring: Promise<void> | null = null;
+  private verifiedSession: Pick<Session, 'access_token' | 'expires_at'> | null = null;
   private expiryTimer?: ReturnType<typeof setTimeout>;
   readonly config: SupabaseAuthConfig;
   get state(): SupabaseAuthState {
@@ -103,7 +104,8 @@ export class SupabaseAuthClient {
     if (this.disposed || this.mutating) return Promise.resolve();
     if (this.restoring) return this.restoring;
     const generation = this.generation;
-    this.publish({ status: 'checking', user: null, message: '' });
+    if (this.current.status !== 'signed-in' || (this.verifiedSession?.expires_at ?? 0) <= Date.now() / 1000)
+      this.publish({ status: 'checking', user: null, message: '' });
     const pending = this.verify(generation).finally(() => {
       if (this.restoring === pending) this.restoring = null;
     });
@@ -131,7 +133,15 @@ export class SupabaseAuthClient {
     )
       throw new Error('账号会话已变化，远程操作未执行。');
     const verified = await port.getUser(data.session.access_token);
-    if (verified.error || verified.data.user?.id !== userId || this.stale(generation))
+    if (
+      verified.error ||
+      verified.data.user?.id !== userId ||
+      this.stale(generation) ||
+      this.current.status !== 'signed-in' ||
+      this.current.user?.id !== userId ||
+      this.verifiedSession?.access_token !== data.session.access_token ||
+      !this.validSession(data.session)
+    )
       throw new Error('当前账号尚未通过服务端验证。');
     return { config: this.config, session: data.session, userId };
   }
@@ -160,11 +170,13 @@ export class SupabaseAuthClient {
     ++this.generation;
     this.clearExpiry();
     this.subscription?.unsubscribe();
+    this.verifiedSession = null;
     this.listeners.clear();
     void this.client?.then(port => port.stopAutoRefresh()).catch(() => undefined);
   }
   private publish(state: SupabaseAuthState) {
     if (this.disposed) return;
+    if (state.status !== 'signed-in') this.verifiedSession = null;
     this.current = state;
     for (const listener of this.listeners) listener(this.state);
   }
@@ -245,7 +257,13 @@ export class SupabaseAuthClient {
     this.expiryTimer = undefined;
   }
   private accept(session: Session, user: User) {
-    this.publish({ status: 'signed-in', user: account(user), message: '' });
+    const changed =
+      this.current.status !== 'signed-in' ||
+      this.current.user?.id !== user.id ||
+      this.current.user.email !== (user.email ?? null) ||
+      this.verifiedSession?.access_token !== session.access_token;
+    this.verifiedSession = { access_token: session.access_token, expires_at: session.expires_at };
+    if (changed) this.publish({ status: 'signed-in', user: account(user), message: '' });
     this.clearExpiry();
     this.expiryTimer = setTimeout(
       () => {

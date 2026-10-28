@@ -89,7 +89,9 @@ describe('account session boundary', () => {
 
   it('verifies a persisted session with the server before showing an account', async () => {
     const { client, port } = fixture();
-    await client.restore();
+    const restoring = client.restore();
+    expect(client.state).toMatchObject({ status: 'checking', user: null });
+    await restoring;
     expect(port.getUser).toHaveBeenCalledWith('fixture-access');
     expect(client.state).toEqual({
       status: 'signed-in',
@@ -248,6 +250,109 @@ describe('verified product session authorization', () => {
     const before = listener.mock.calls.length;
     emit('SIGNED_OUT');
     expect(listener).toHaveBeenCalledTimes(before);
+  });
+
+  it('相同有效会话的后台复验不清空已验证身份或重复通知工作区', async () => {
+    const { client, port, emit } = fixture();
+    await client.restore();
+    const listener = vi.fn();
+    client.subscribe(listener);
+    listener.mockClear();
+    let release!: () => void;
+    port.getUser.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          release = () => resolve({ data: { user }, error: null });
+        })
+    );
+    emit('SIGNED_IN');
+    await vi.waitFor(() => expect(port.getUser).toHaveBeenCalledTimes(2));
+    try {
+      expect(client.state.status).toBe('signed-in');
+      expect(client.state.user?.id).toBe(user.id);
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      release();
+      await client.restore();
+    }
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('刷新得到不同token时仍通知工作区重新建立授权副本', async () => {
+    const { client, port, emit } = fixture();
+    await client.restore();
+    const listener = vi.fn();
+    client.subscribe(listener);
+    listener.mockClear();
+    port.getSession.mockResolvedValueOnce({
+      data: { session: { ...session(), access_token: 'fixture-refreshed-access' } },
+      error: null
+    });
+    emit('TOKEN_REFRESHED');
+    await vi.waitFor(() => expect(port.getUser).toHaveBeenCalledWith('fixture-refreshed-access'));
+    await vi.waitFor(() => expect(listener).toHaveBeenCalledWith(expect.objectContaining({ status: 'signed-in' })));
+    expect(JSON.stringify(listener.mock.calls)).not.toContain('fixture-refreshed-access');
+  });
+
+  it.each(['token', 'account', 'verification'] as const)('在%s变化后拒绝迟到的旧会话授权', async change => {
+    const { client, port, emit } = fixture();
+    await client.restore();
+    let release!: () => void;
+    port.getUser.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          release = () => resolve({ data: { user }, error: null });
+        })
+    );
+    const pending = client.authorizeProduct();
+    const rejected = expect(pending).rejects.toThrow('服务端验证');
+    await vi.waitFor(() => expect(port.getUser).toHaveBeenCalledTimes(2));
+    if (change === 'verification') {
+      port.getUser.mockRejectedValueOnce(new Error('revoked'));
+      emit('SIGNED_IN');
+      await vi.waitFor(() => expect(client.state.status).toBe('unverified'));
+      expect(client.state.user).toBeNull();
+    } else {
+      const nextUser = change === 'account' ? { ...user, id: 'account-b' } : user;
+      port.getSession.mockResolvedValueOnce({
+        data: { session: { ...session(), user: nextUser, access_token: 'fixture-next-access' } },
+        error: null
+      });
+      port.getUser.mockResolvedValueOnce({ data: { user: nextUser }, error: null });
+      const listener = vi.fn();
+      client.subscribe(listener);
+      listener.mockClear();
+      emit(change === 'token' ? 'TOKEN_REFRESHED' : 'SIGNED_IN');
+      await vi.waitFor(() =>
+        expect(listener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: 'signed-in',
+            user: { id: nextUser.id, email: nextUser.email }
+          })
+        )
+      );
+    }
+    release();
+    await rejected;
+  });
+
+  it('服务端验证返回时已过期的会话不能得到产品授权', async () => {
+    vi.useFakeTimers();
+    const { client, port } = fixture();
+    await client.restore();
+    let release!: () => void;
+    port.getUser.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          release = () => resolve({ data: { user }, error: null });
+        })
+    );
+    const pending = client.authorizeProduct();
+    const rejected = expect(pending).rejects.toThrow('服务端验证');
+    await vi.waitFor(() => expect(port.getUser).toHaveBeenCalledTimes(2));
+    vi.setSystemTime(Date.now() + 3600001);
+    release();
+    await rejected;
   });
 
   it('expires a verified session and retries verification without treating an expired cache as authenticated', async () => {

@@ -83,6 +83,36 @@ function rig() {
 }
 
 describe('library ownership presentation', () => {
+  it('本机数据打开后仍等待身份就绪才允许首次启用同步', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+      configurable: true,
+      value(this: HTMLDialogElement) {
+        this.open = true;
+      }
+    });
+    const r = rig();
+    try {
+      r.component.view.set('providers');
+      r.component.authConfigured.set(true);
+      r.component.authStatus.set('signed-in');
+      r.component.authUser.set({ id: 'fixture-account', email: null });
+      r.component.authOpen.set(true);
+      r.text();
+      const button = [...r.element.querySelectorAll<HTMLButtonElement>('button')].find(
+        element => element.textContent?.trim() === '启用同步'
+      );
+      expect(button).toBeDefined();
+      expect(button!.disabled).toBe(true);
+      r.component.syncReady.set(true);
+      r.text();
+      expect(button!.disabled).toBe(false);
+    } finally {
+      r.session.close();
+      if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, 'showModal', descriptor);
+      else Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+    }
+  });
   it('does not infer missing originals, empty libraries or absent task copies before the first successful read', () => {
     const r = rig();
     r.streams[0].error(new Error('metadata failed'));

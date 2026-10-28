@@ -793,7 +793,11 @@
             </button>
             <button class="secondary" (click)="cancelSync()">取消同步确认</button>
           } @else if (!syncInitialized()) {
-            <button class="primary" [disabled]="settingsBusy() || localStatus() !== 'ready'" (click)="enableSync()">
+            <button
+              class="primary"
+              [disabled]="!syncReady() || settingsBusy() || localStatus() !== 'ready'"
+              (click)="enableSync()"
+            >
               启用同步
             </button>
           } @else {

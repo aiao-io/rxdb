@@ -10,11 +10,13 @@ import { defaultFreeProvider } from './default-provider';
 import { LocalImageMvp } from './local-image-mvp';
 import type { LocalProvider } from './local-provider';
 import * as providerApi from './local-provider';
+import { ProductClient } from './product-client';
 import { plainPrompt } from './prompts/prompt-state';
 import { SupabaseAuthClient } from './supabase-auth';
 import type { LibraryWork } from './work-library-session';
 
 const cleanup: (() => void)[] = [];
+const initialize = LocalImageMvp.prototype.ngOnInit;
 const backupApi = vi.hoisted(() => ({
   createLocalBackup: vi.fn<(typeof import('./local-backup'))['createLocalBackup']>(),
   readLocalBackup: vi.fn<(typeof import('./local-backup'))['readLocalBackup']>()
@@ -146,7 +148,10 @@ function rig() {
   return { fixture, component, ...memory };
 }
 
-async function boot(prepare: (r: ReturnType<typeof rig>) => void = () => undefined) {
+async function boot(
+  prepare: (r: ReturnType<typeof rig>) => void = () => undefined,
+  options: { rootOf?: WorkspaceRegistryStore['rootOf']; waitReady?: boolean } = {}
+) {
   const r = rig();
   prepare(r);
   const state: WorkspaceRegistryState = {
@@ -161,7 +166,7 @@ async function boot(prepare: (r: ReturnType<typeof rig>) => void = () => undefin
   let row = { payload: JSON.stringify(state), revision: 1 };
   const changes = new Subject<string | null>();
   const metadata = {
-    rootOf: vi.fn(async () => profileId),
+    rootOf: vi.fn(options.rootOf ?? (async () => profileId)),
     read: vi.fn(async () => row),
     write: vi.fn(async (_id: string, payload: string) => {
       row = { payload, revision: row.revision + 1 };
@@ -171,14 +176,17 @@ async function boot(prepare: (r: ReturnType<typeof rig>) => void = () => undefin
   };
   vi.spyOn(LocalMediaStore, 'open').mockResolvedValue(r.store as unknown as LocalMediaStore);
   vi.spyOn(WorkspaceRegistryStore, 'open').mockResolvedValue(metadata as unknown as WorkspaceRegistryStore);
-  r.component.ngOnInit();
-  await vi.waitFor(() => expect(r.component.localStatus()).toBe('ready'));
-  await vi.waitFor(() => expect(metadata.watch).toHaveBeenCalled());
+  initialize.call(r.component);
+  if (options.waitReady !== false) {
+    await vi.waitFor(() => expect(r.component.localStatus()).toBe('ready'));
+    await vi.waitFor(() => expect(metadata.watch).toHaveBeenCalled());
+  }
   return { ...r, metadata, changes };
 }
 
 beforeEach(() => {
   TestBed.overrideComponent(LocalImageMvp, { set: { template: '', imports: [] } });
+  vi.spyOn(LocalImageMvp.prototype, 'ngOnInit').mockImplementation(() => undefined);
   localStorage.clear();
   backupApi.createLocalBackup.mockReset();
   backupApi.readLocalBackup.mockReset();
@@ -214,6 +222,31 @@ afterEach(() => {
 });
 
 describe('local result lifecycle', () => {
+  it('本机数据已打开但身份初始化未结束时不启动同步预览', async () => {
+    vi.stubGlobal('__AIAO_SUPABASE_CONFIG__', { url: 'https://account.example', anonKey: 'sb_publishable_fixture' });
+    vi.spyOn(SupabaseAuthClient.prototype, 'restore').mockResolvedValue(undefined);
+    vi.spyOn(SupabaseAuthClient.prototype, 'subscribe').mockImplementation(listener => {
+      listener({ status: 'signed-in', user: { id: profileId, email: 'fixture@example.test' }, message: '' });
+      return () => undefined;
+    });
+    const authorization = vi.spyOn(ProductClient.prototype, 'authorization').mockRejectedValue(new Error('offline'));
+    const pending = deferred<string>();
+    let reads = 0;
+    const rootOf = vi.fn(async () => (++reads === 2 ? pending.promise : profileId));
+    const r = await boot(undefined, { rootOf, waitReady: false });
+    await vi.waitFor(() => expect(rootOf).toHaveBeenCalledTimes(2));
+    expect(r.component.localStatus()).toBe('ready');
+    try {
+      await r.component.enableSync();
+      expect(authorization).not.toHaveBeenCalled();
+      expect(r.component.authMessage()).toContain('尚未就绪');
+    } finally {
+      pending.resolve(profileId);
+    }
+    await vi.waitFor(() => expect(r.component.syncReady()).toBe(true));
+    await r.component.enableSync();
+    expect(authorization).toHaveBeenCalledOnce();
+  });
   it('keeps a completed save in its original workspace when the user switches during the file write', async () => {
     const r = rig();
     const pending = deferred<void>();
@@ -307,7 +340,7 @@ describe('workspace initialization and isolation', () => {
     vi.spyOn(WorkspaceRegistryStore, 'open').mockRejectedValue(
       Object.assign(new Error('new schema'), { code: 'incompatible' })
     );
-    r.component.ngOnInit();
+    initialize.call(r.component);
     await vi.waitFor(() => expect(r.component.localStatus()).toBe('unavailable'));
     expect(r.component.storageMessage()).toContain('原数据未更改');
   });
@@ -316,7 +349,7 @@ describe('workspace initialization and isolation', () => {
     const r = rig();
     localStorage.setItem('aiao-local-profile-v1', 'invalid');
     const open = vi.spyOn(LocalMediaStore, 'open');
-    r.component.ngOnInit();
+    initialize.call(r.component);
     await vi.waitFor(() => expect(r.component.localStatus()).toBe('unavailable'));
     expect(open).not.toHaveBeenCalled();
     expect(localStorage.getItem('aiao-local-profile-v1')).toBe('invalid');

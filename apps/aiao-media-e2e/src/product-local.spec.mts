@@ -33,7 +33,17 @@ async function signIn(page: Page, user: { email: string; password: string }) {
   await page.getByRole('button', { name: '登录账号', exact: true }).click();
   await page.getByLabel('邮箱', { exact: true }).fill(user.email);
   await page.getByLabel('密码', { exact: true }).fill(user.password);
-  await page.getByRole('button', { name: '登录', exact: true }).click();
+  const [authenticated] = await Promise.all([
+    page.waitForResponse(
+      response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/auth/v1/token'
+    ),
+    page.getByRole('button', { name: '登录', exact: true }).click()
+  ]);
+  expect(authenticated.ok()).toBe(true);
+  const session = (await authenticated.json()) as { access_token: string };
+  const verified = await admin.auth.getUser(session.access_token);
+  expect(verified.error).toBeNull();
+  expect(verified.data.user?.email).toBe(user.email);
   await expect(page.getByRole('heading', { name: '已登录', exact: true })).toBeVisible();
 }
 async function synchronizePage(page: Page) {
@@ -43,6 +53,28 @@ async function synchronizePage(page: Page) {
   await verified;
   await expect(button).toBeEnabled({ timeout: 25000 });
   await expect(page.getByText('同步已确认', { exact: true })).toBeVisible({ timeout: 25000 });
+}
+async function deleteRemoteDraft(page: Page, ownerId: string) {
+  const workspace = (await admin.from('media_workspaces').select('id').eq('owner_id', ownerId).single()).data!;
+  const button = page.getByRole('button', { name: '删除同步端草稿', exact: true });
+  page.once('dialog', dialog => dialog.accept());
+  await button.click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await admin
+            .from('media_sync_records')
+            .select('deleted')
+            .eq('workspaceId', workspace.id)
+            .eq('kind', 'draft')
+            .single()
+        ).data?.deleted
+    )
+    .toBe(true);
+  await expect(page.getByRole('button', { name: '立即同步', exact: true })).toBeEnabled();
+  await expect(page.getByText('同步已确认', { exact: true })).toBeVisible();
+  await expect(button).toBeDisabled();
 }
 test('真实登录不绑定，取消首次同步确认不上传或改变本机副本', async ({ page }) => {
   const user = await account();
@@ -59,6 +91,44 @@ test('真实登录不绑定，取消首次同步确认不上传或改变本机�
   expect(await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'))).toBe(profile);
   await page.getByRole('button', { name: '关闭账号窗口' }).click();
   await expect(page.locator('[contenteditable=true]')).toContainText('本机未绑定的草稿');
+});
+
+test('有效会话在同步预览期间恢复焦点，确认范围仍保留且不会自动绑定', async ({ page }) => {
+  const user = await account();
+  await page.goto('/create');
+  await editDraft(page, '焦点恢复前的本机草稿');
+  await signIn(page, user);
+  let releasePreview!: () => void;
+  let previewStarted!: () => void;
+  const blocked = new Promise<void>(resolve => {
+    releasePreview = resolve;
+  });
+  const started = new Promise<void>(resolve => {
+    previewStarted = resolve;
+  });
+  const pattern = '**/rest/v1/media_workspaces?**';
+  await page.route(pattern, async route => {
+    if (new URL(route.request().url()).searchParams.get('select') === 'id,owner_id,request_id') {
+      previewStarted();
+      await blocked;
+    }
+    await route.continue();
+  });
+  try {
+    await page.getByRole('button', { name: '启用同步', exact: true }).click();
+    await started;
+    const reverified = page.waitForResponse(response => new URL(response.url()).pathname === '/auth/v1/user');
+    await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+    await reverified;
+    releasePreview();
+    await expect(page.getByRole('button', { name: '确认并启用同步' })).toBeVisible();
+    expect((await admin.from('media_workspaces').select('id').eq('owner_id', user.id)).data).toEqual([]);
+    await page.getByRole('button', { name: '取消同步确认' }).click();
+    expect((await admin.from('media_workspaces').select('id').eq('owner_id', user.id)).data).toEqual([]);
+  } finally {
+    releasePreview();
+    await page.unroute(pattern);
+  }
 });
 
 test('两台独立设备通过原生 RxDB 同步草稿，登录/退出与 A→B→A 保留独立副本', async ({ page, browser, baseURL }) => {
@@ -240,9 +310,7 @@ test('离线多次编辑与重开可推送，修改冲突和删除冲突保留�
     await synchronizePage(page);
     await context.setOffline(true);
     await editDraft(second, '删除前B未上传的修改');
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByRole('button', { name: '删除同步端草稿', exact: true }).click();
-    await expect(page.getByRole('button', { name: '删除同步端草稿', exact: true })).toBeDisabled({ timeout: 25000 });
+    await deleteRemoteDraft(page, user.id);
     await context.setOffline(false);
     await second.getByRole('button', { name: '我的账号', exact: true }).click();
     await second.getByRole('button', { name: '立即同步', exact: true }).click();
@@ -336,9 +404,7 @@ test('明确重新扫描重放旧日志，保留未上传修订和删除冲突�
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await context.setOffline(true);
     await editDraft(second, '检查点恢复仍须保留的本机修改');
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByRole('button', { name: '删除同步端草稿', exact: true }).click();
-    await expect(page.getByRole('button', { name: '删除同步端草稿', exact: true })).toBeDisabled({ timeout: 25000 });
+    await deleteRemoteDraft(page, user.id);
     await context.setOffline(false);
     await second.getByRole('button', { name: '我的账号', exact: true }).click();
     const scans: string[] = [];

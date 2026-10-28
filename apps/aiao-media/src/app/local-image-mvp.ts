@@ -149,6 +149,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly availableProfiles = signal<WorkspaceProfile[]>([]);
   readonly currentProfileId = signal('');
   readonly syncInitialized = signal(false);
+  readonly syncReady = signal(false);
   readonly syncLabel = computed(
     () =>
       ({
@@ -303,6 +304,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         this.authConfigured.set(true);
         void this.loadCatalog();
         this.unsubscribeAuth = this.auth.subscribe(state => {
+          this.syncReady.set(false);
           this.authUser.set(state.user);
           this.authStatus.set(state.status);
           this.authMessage.set(state.message);
@@ -718,9 +720,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   async reloadDraft() {
     await this.studio?.reload();
+    await this.reconcileIdentity();
   }
   async overwriteDraft() {
     await this.studio?.keepCurrent();
+    await this.reconcileIdentity();
   }
   applyTemplate(template: PromptTemplate) {
     if (this.inFlight()) {
@@ -957,7 +961,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     );
   }
   async enableSync() {
-    await this.product?.requestEnable();
+    const product = this.product;
+    if (!product || !this.syncReady()) {
+      this.authMessage.set('本机工作区尚未就绪，请稍后启用同步。');
+      return;
+    }
+    this.authMessage.set('');
+    await product.requestEnable();
   }
   async confirmSync() {
     await this.product?.confirmEnable();
@@ -1400,6 +1410,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       if (version !== this.identityVersion || this.disposed) return;
       this.identitySelection = identityKey;
       this.refreshProfiles();
+      this.syncReady.set(this.product !== undefined);
       if (this.authStatus() === 'signed-in' && this.currentProfile()?.binding?.initialized)
         await this.product?.resume();
     } catch (error) {
