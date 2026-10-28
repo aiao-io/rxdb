@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-20
+updated: 2026-10-28
 tags: [domain, bom, process-industry]
 ---
 
@@ -166,7 +166,7 @@ AC#5 的理由：允许 `consume` 边带负用量等于给同一件事留了两�
 
 ## 最终验收
 
-最终完整affected351任务EXIT0、三端共享51/51、demo24/24（2026-10-18时点）、Tauri额外门禁及8包严格覆盖率全部通过，本故事全部功能AC与最终门禁已关闭，status为Done。证据及失败/修复历史见[最终验收](../../../specs/021-bom-closure/closure-map.md)。
+当前功能验收材料见[BOM验收结果](../../../specs/021-bom-closure/closure-map.md)；历史命令结果不替代最新分支的 CI 门禁。
 
 ## 验收依据
 

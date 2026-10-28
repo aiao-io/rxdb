@@ -16,12 +16,12 @@ owner: jimmy
 `commit(message)` 把 HEAD 之后的**全部**工作树变更打成一个提交点，不提供「只提交其中一部分」。
 理由与代价见「非目标」的对应条目，那里是唯一可以改这个结论的地方。
 
-**v1 之后是多检出位**（git worktree）：不动全库唯一的 active 分支，也能在另一个检出位上查看、对比或写入另一条线，
-写完经合并回到主线。按场景分期解锁，见[多检出位](#多检出位v1-之后)；v1 的目标、发布门禁与已交付结论不随之改变。
+**当前支持多检出位**（git worktree）：主检出位保留唯一 `activated` 分支，可写检出位各持有另一条分支与独立表集；
+只读检出位使用快照库。能力与边界见[多检出位](#多检出位v1-之后)，v1 的真实发布门禁仍须单独满足。
 
 ## 为什么是 Epic 而不是一个 Story
 
-这项能力横跨 `packages/rxdb-plugin-history/`、`packages/rxdb-plugin-working-tree/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo，且没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，单个 story 的 INVEST「Small」不成立。因此按可独立验收的最小闭环切成四条 story；其中 [US-306](../stories/collaboration/US-306-working-tree-commits.md) 仍同时覆盖全部写入口、提交状态机、三框架和 benchmark，在文件内再切成「交付阶段 A/B/C」，每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
+这项能力横跨 `packages/rxdb-plugin-history/`、`packages/rxdb-plugin-working-tree/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo，且没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，单个 story 的 INVEST「Small」不成立。因此按可独立验收的闭环组织故事（范围见下方故事清单）；其中 [US-306](../stories/collaboration/US-306-working-tree-commits.md) 仍同时覆盖全部写入口、提交状态机、三框架和 benchmark，在文件内再切成「交付阶段 A/B/C」，每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
 
 ## 目标
 
@@ -46,8 +46,7 @@ owner: jimmy
 
 - [x] 不切换 active 分支就能对比两条分支、预览一次合并会改什么（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)，场景二）
 - [x] 不切换 active 分支就能只读查看任一分支或可达提交的完整数据（[US-313](../stories/collaboration/US-313-read-only-checkout.md)，场景二）
-- [ ] 后台写入方写进自己的线，经审阅合并回主线，覆盖可见（**尚无故事认领**，场景三，价值待证）
-- [x] 多个标签页各自检出可写的分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md)，场景一，价值待证；owner 2026-10-21 先行解锁库层底座 B1）
+- [x] 多个标签页各自检出可写的分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md)）；已交付不等于后台写入场景已立项
 
 ## 术语（与既有 Workspace 插件的命名冲突处置）
 
@@ -79,7 +78,7 @@ owner: jimmy
 
 - **插件包名是 `@aiao/rxdb-plugin-working-tree`**，公开名是 `WorkingTree*`、`db.workingTree`、`useWorkingTree()`。
   它交付的是工作树、提交与历史，按 git 术语正是 working tree。`Worktree*` 只留给检出位，两者不混用。
-- **今天一个库只有一个检出位**，即**主检出位**：业务表就是它的数据视图。「多检出位」一节里的「检出位」都指新增的那种。
+- **主检出位**使用默认业务表，**可写检出位**使用同库影子表集，**只读检出位**使用独立快照库；工作树仍按分支保存。
 
 ### 三层分层对照（读本 Epic 前必须先对齐）
 
@@ -122,8 +121,9 @@ owner: jimmy
 ## v1 状态模型（唯一真相源）
 
 v1 不持久化第二份独立 `HEAD`。当前分支仍由既有 `RxDBBranch.activated` 表示，当前 HEAD 从该分支的
-`CommitBranchRef.headCommitId` 派生。业务实体表只保存**当前激活分支的物化投影**，不是所有分支工作树的
-唯一持久化副本；非激活分支必须能仅凭 HEAD 与自己的未提交变更单元恢复，不得依赖离开分支时残留在业务表里的值。
+`CommitBranchRef.headCommitId` 派生。主检出位的业务实体表保存**主检出位激活分支的物化投影**，不是所有分支工作树的
+唯一持久化副本；非激活分支必须能仅凭 HEAD 与自己的未提交变更单元恢复，不得依赖离开分支时残留的业务表值。
+当前可写检出位在同一库内各有独立表集，按 `WorktreeTableSet.heldBranchWhere` 解析持有分支；下表的 v1 数据库级 active 约束适用于主检出位。
 
 启用 commit 能力后，`RxDBBranch.activated` 必须满足“恰好一行是 true”。首次迁移发现零个 active 时沿用既有
 `resolve_current_branch` 语义：优先激活 `main`，没有 `main` 时创建它；发现多个 active 时以
@@ -537,7 +537,7 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
   但默认视图不隐藏任何一类
 - v1 **不提供** auto-baseline（同步后自动把远端变化并入 HEAD）。它会引入"谁在什么时刻替用户提交了什么"的
   隐式历史，与"不伪造远端作者"和"不改写历史"两条承诺冲突；若产品后续不接受"同步即变脏"，落在多检出位的
-  [场景三](#场景三隔离的写入方)单独拍板（设计指点 12），不在 v1 夹带
+  [长期愿景](../vision.md#阶段-3-多端协作与同步)单独立项（设计指点 12），不在本 Epic 夹带
 
 ## 启用与存储边界
 
@@ -859,150 +859,61 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
 
 ## 多检出位（v1 之后）
 
-让一个库**同时打开多条工作线**：不动全库唯一的 active 分支，也能在另一个**检出位**上查看、对比或写入另一条分支
-（或某个历史提交），写完经合并回到主线。对照 git，就是一个仓库挂多个 worktree，每个各有自己的 HEAD 与未提交改动。
+本节描述已交付的对比、预览、只读快照与可写检出位。各故事按自己的 AC 关闭；v1 的真实迁移发布与性能门禁仍以
+[发布门禁](#发布门禁)和 [release-plan](../release-plan.md) 为准，不能用故事 Done 代替发布验收。
 
-它要动的是 [v1 状态模型](#v1-状态模型唯一真相源)里「业务实体表只保存当前激活分支的物化投影」这条前提，牵动变更日志、
-写捕获、合并、同步，以及 storage 与 workspace 两个插件；还要重开[非目标](#非目标)里的只读历史浏览，与
-[工作树包含远端来源的净变化](#工作树包含远端来源的净变化已裁决)留下的「同步即变脏」讨论。所以它和 v1 写在同一个 Epic 里，
-各阶段按[分期与解锁条件](#分期与解锁条件)解锁，不进上文的发布门禁。
+### 当前能力与存储模型
 
-驱动它的是[三类场景](#三类场景)。三类都卡在同一个前提上：**不切换 active 分支也能读到另一条线**
-（见[共同前提](#共同前提不切换也能读到另一条线)）。这是存储层的能力，也是本节的主体；「给分支起个名字」不是。
+1. **主检出位唯一激活，可写检出位独立持有分支。** [`RxDBBranch`](../../packages/rxdb/src/system/branch.ts) 的
+   `activeKey` 区分主检出位哨兵与影子表集持有键。主检出位保留恰好一个 `activated` 分支；一条分支至多被一个可写检出位持有。
+   [`WorktreeTableSet`](../../packages/rxdb/src/system/worktree-table-set.ts) 的 `heldBranchWhere` 让实例读取自己挂载表集的分支。
+2. **可写检出位使用同库独立业务表集。** SQLite/PGlite 的表名解析器接收必填表集，事务、触发器重建、写捕获与活查询按表集/分支隔离。
+   系统表、QueryCache 与 `log: false` 实体保持共享；它们不因挂载检出位获得独立版本副本。具体合同见
+   [US-314](../stories/collaboration/US-314-writable-worktrees.md)。
+3. **HEAD 与未提交工作树仍按分支保存。** 检出位切分支时改动留在原分支；普通 `createBranch()` 复制当前工作树，
+   `createBranchFromCommit()` 则从可达提交的冻结分叉点创建空工作树，两者不混用。
+4. **跨分支对比与合并预览无需切换。** [`VersionManager`](../../packages/rxdb-plugin-history/src/VersionManager.ts) 的
+   `compareBranches()` 与 `previewMerge()` 提供差异和覆盖标注；`mergeBranch()` 写入本实例持有分支的工作树，
+   不自动生成 commit，也不提供完整三方合并。CAS 冲突与内容覆盖是两个独立问题。
+5. **只读检出位提供完整快照。** `workingTree.checkouts.open({ branchId } | { commitId })` 使用独立库和只读实例，
+   `refresh()` 重建快照，`close()`/回收释放存储；不改变主实例的 active 分支或工作树。公开生命周期见
+   [US-313](../stories/collaboration/US-313-read-only-checkout.md)。
+6. **可写检出位可挂载、切分支、提交与合并。** `workingTree.checkouts` 的 `add()` / `mount()` / `mountMain()` /
+   `release()` / `remove()` 管理实例与持有关系，三端 demo 提供相应入口；不是只有名字和分支 ID 的标签层。
+7. **远端同步只在主检出位运行。** 可写检出位实例的同步写入口拒绝执行；其提交需要在分支回到主检出位或合并后进入同步。
+   `pullBatchOnce()` 仍在主检出位产生 `origin=remote_sync` 未提交单元，“同步即变脏”的默认语义不变。
+8. **实例、事件与缓存受检出位边界约束。** 挂载变化清理实体身份缓存并重跑活查询；本地及跨 Tab 实体事件按表集后缀过滤，历史事件按分支归属处理，
+   具体隔离用例见 US-314。DevTools 仍只连接一个实例，不承诺同时检查所有快照或检出位。
 
-### 现状：一个库只有一个检出位
-
-以下各条由读源码确认，复验方式即所附符号与原文；标「推断」的没有跑测试复现。
-
-1. **active 分支全库唯一，由 schema 兜底。** [`active-branch-guard.ts`](../../packages/rxdb/src/system/active-branch-guard.ts)
-   文件头：「这一半由 `RxDBBranch.activeKey` 的可空唯一列承担」。同一段注释点名了「两个 Tab 各自 `switchBranch` 的竞态」：
-   各标签页、各桌面窗口连的是同一个库文件，共用这一条 active 分支。
-
-2. **分支是变更日志上的一条线，业务表只装 active 分支的数据。** 每条分支由父分支链、分叉点 `fromChangeId`
-   和自己的 `rxdb_change` 行组成；变更日志触发器把 active 分支 id 当字面量写死，切换时重建
-   （[`switch_branch.ts`](../../packages/rxdb-adapter-sqlite-core/src/version/switch_branch.ts)）。
-   切分支由 [`compute_switch_branch_actions`](../../packages/rxdb-plugin-history/src/switch-branch-actions.ts)
-   沿「当前分支 → 共同祖先 → 目标分支」的变更区间折叠出增删改，再在一个事务里应用；起点写死为当前 active 分支
-   （`rules: [{ field: 'activated', operator: '=', value: true }]`）。成本与两条线之间的变更行数成正比（推断），
-   不是整表重建。只在远端存在、本地从没物化过的分支
-   （[`classifyBranchMaterialization`](../../packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts)
-   判为 `metadata_only`）首次切换时才拉整份快照。
-
-3. **未提交改动按分支保存，切走再切回原样还在。** 未提交的编辑本身就是那条分支上的 `rxdb_change` 行：
-   切走时按 inversePatch 撤掉，切回时重放。[`WorkingTreeState`](../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-state.entity.ts)
-   一条分支一行（主键 = `branchId`），切换不碰它。效果相当于 git 每次切分支都自动 stash。
-
-4. **写入只能落在 active 分支上。** 三层锚定：触发器里写死的分支 id；捕获在写事务内读 active 分支令牌；
-   令牌与库里的 active 分支不符时 [`write-entry.ts`](../../packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts)
-   抛 `StaleActiveBranchError`。除了 `createBranch()` 复制工作树条目、`removeBranch()` 清理，没有任何路径往非 active 分支写。
-
-5. **没有任何 API 能不切换就读到另一条线或某个提交的完整数据。** 最近的积木是上面的 `compute_switch_branch_actions`：
-   只读、能在任意事务里跑，算出「当前业务表 → 目标分支」的增量；它从 `@aiao/rxdb-plugin-history` 的桶里作为内部符号导出，
-   [`index.ts`](../../packages/rxdb-plugin-history/src/index.ts) 写明「应用代码不该引用它们」。基线提交不带变更单元
-   （[`branch-commit-rows.ts`](../../packages/rxdb-plugin-working-tree/src/commit/branch-commit-rows.ts)：`units: []`），
-   提交图本身拼不出快照。
-
-6. **合并只能合进 active 分支，而且是单向覆盖。** [`VersionManager`](../../packages/rxdb-plugin-history/src/VersionManager.ts)
-   的 `mergeBranch()`：`const targetBranchId = currentBranch.id;`。[`merge_branch`](../../packages/rxdb-plugin-history/src/merge-branch.ts)
-   把源分支分叉以来的变更（squash 或逐条）写进目标分支，结果是未提交变更，近似 `git merge --squash --no-commit`。
-   它不做三方合并：目标分支分叉以来改过的字段会被源分支的值覆盖，插入走 `useReplace: true`
-   （[`switch-result.utils.ts`](../../packages/rxdb-adapter-sqlite-core/src/version/switch-result.utils.ts)），没有内容冲突检测。
-   US-308 的「冲突」指并发 CAS，不是合并内容冲突。
-
-7. **远端同步写进当前工作树。** [`pull-batch.ts`](../../packages/rxdb-plugin-sync/src/pull-batch.ts) 的 `pullBatchOnce`
-   以 `remote_sync` 意图、关掉触发器写业务表，捕获照样记成 `origin = 'remote_sync'` 的未提交单元。上文
-   [明示接受](#工作树包含远端来源的净变化已裁决)「一次后台同步就会让 `status()` 出现未提交变化」，
-   场景三就是「若产品后续不接受"同步即变脏"」那个讨论的落点。另外，在 feature 分支上拉取时，
-   [`pullAncestorBranchChanges`](../../packages/rxdb-plugin-sync/src/pull-ancestor-changes.ts) 对祖先分支只有下界水位
-   （`AncestorPullRequest` 只有 `sinceId`），main 在分叉之后的远端变更也会进来。
-
-8. **跨标签页只同步实体事件，不同步分支切换。** [`RxDBTabsGateway`](../../packages/rxdb/src/gateway/RxDBTabsGateway.ts)
-   只转发 `ENTITY_LOCAL_CREATE` / `ENTITY_LOCAL_UPDATE` / `ENTITY_LOCAL_REMOVE`；[`SyncManager`](../../packages/rxdb-plugin-sync/src/SyncManager.ts)
-   的 `branchSwitchGeneration` 注释自认「A→B→A 在跨标签页时不可见，属已知限制」。
-
-9. **一个页面里可以开多个 RxDB 实例，但实体类不能共用。** demo 的失败归档导入
-   （[`failure-archive-import.ts`](../../apps/dev-rxdb-angular/src/app/rxdb/failure-archive-import.ts)）与录制回放
-   （[`replay-recording.ts`](../../apps/dev-rxdb-angular/src/app/rxdb/replay-recording.ts)）都另开实例。同一个实体类注册进两个实例后，
-   [`entity-manager.ts`](../../packages/rxdb/src/entity/entity-manager.ts) 拒绝：「is registered with multiple RxDB instances」，
-   所以失败归档克隆了实体类。工作树捕获挂在各自的适配器实例上（[`rxdb-adapter.ts`](../../packages/rxdb/src/rxdb-adapter.ts)
-   的私有字段 `#workingTreeCaptureHook`），两套捕获上下文可以并存。DevTools 只连一个实例
-   （[`connector.ts`](../../packages/rxdb-devtools/src/connector.ts)：`DevToolsConnector supports a single RxDB instance`）。
-
-10. **看旧版本只有 `restore()` 一条路，比较只有一条轴，合并前看不到对方。**
-    - [`restore-command.ts`](../../packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts)：
-      `if (state.entryCount !== 0) return { ok: false, reason: 'dirty_working_tree' };`。restore 把历史内容作为新的未提交变更写回工作树，
-      看完只能 `discard()` 整棵工作树。
-    - [`diff.ts`](../../packages/rxdb-plugin-working-tree/src/working-tree/diff.ts) 文件头：「这里只有一条轴，而且它没有入参」，
-      不加第二条轴的理由是 `status()` 的 `clean` 与 `diff()` 会不再指同一件事。
-    - demo 的合并对话框（`merge-dialog.component.ts`）只有源 / 目标分支名、合并策略与「合并后删除源分支」，没有预览；
-      合并结果直接混进当前工作树。
-
-**阶段 2（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)）之后**，以上快照有四处变化：现状 2 的增量计算可以指定任意两点
-（`compute_branch_transition_actions`，切换与对比共用）；现状 5 里两条分支的**差异**可以不切换读到（`compareBranches()`），
-完整数据仍然没有；现状 6 的覆盖在合并前可见（`previewMerge()` 的四类标注），合并的写法不变；现状 10 的 demo 合并对话框
-选好来源即显示预览，History 顶部可以拿任一分支与当前分支对比（入口对齐 GitHub Desktop）。
-
-**阶段 3（[US-313](../stories/collaboration/US-313-read-only-checkout.md)）之后**，现状 1 与现状 5 有了不切换的出路：
-`rxdb.workingTree.checkouts.open({ branchId } | { commitId })` 把另一条分支或当前分支上一个可达提交的**完整数据**建成只读快照库
-（与主库同一种后端、独立库名），用第二个只读实例浏览，active 分支与工作树都不动。只读检出位是库能力，三端 demo 不提供入口：
-demo 的工作树页对齐 GitHub Desktop（3.6 起的 worktree 是可写的），worktree 界面随可写检出位做（[US-314](../stories/collaboration/US-314-writable-worktrees.md)）。
-现状 9 照旧：DevTools 只连主实例。只读检出位在 PGlite 与 SQLite 系六个后端上验过一致性（检出位一致性套件），
-各后端新增了删库能力（`dropStorage()` / `canDropStorage()`）用来回收快照库。
-
-**阶段 5 的从提交建分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md) 阶段 A）之后**，提交在同一事务里记下分叉点，
-`rxdb.workingTree.createBranchFromCommit()` 从当前分支历史里的一个提交建分支：HEAD 就是那个提交、工作树为空，切过去读到那次
-`commit()` 刚完成时的数据。从提交建分支不复制工作树，所以上面 revision 矩阵里它只核对 HEAD 可达与分叉点之前的回滚状态，
-不核对来源的 head 与 working-tree revision。三端 demo 的 History 右键与分支下拉的 New branch 共用 GitHub Desktop 的
-「Create a branch」对话框。
+复验方式：按上述公开符号、US-313/314 的实现文件与检出位一致性套件核对；本节不保留修复前的源码快照。
 
 ### 三类场景
 
-价值状态按 [CONVENTIONS 的价值待证](../CONVENTIONS.md#价值待证)：写得出今天用户踩得到的症状才算实。
-
 #### 场景一：多个标签页 / 窗口各自检出
 
-- **要什么**：标签页 A 停在 `main`、标签页 B 停在 `feature/x`，各自读写、互不影响。
-- **今天**：做不到。active 分支全库唯一（现状 1），一个标签页切了分支，其他标签页的活查询随之读到新分支的数据；
-  没带 `expectedActivationRevision` 的写会直接落进新分支（推断：触发器已按新分支重建）。
-- **价值状态**：**价值待证**。没有具名诉求；「另开一个标签页看别的分支」只读的那一半由场景二覆盖。
+US-314 已提供独立可写检出位和三端操作面；主检出位、分支持有与同步边界按当前合同验收。
+已交付底座不代表所有后台使用场景都有具名需求，也不豁免后续功能的价值门禁。
 
 #### 场景二：不切换就预览或对比
 
-- **要什么**：看某个历史提交时的完整数据；看另一条分支的数据；合并前看清会改什么。
-- **今天的症状**（现状 5、6、10）：看旧版本要先清空工作树、restore 进来、看完 discard；合并没有预览，结果直接混进当前工作树，
-  单向覆盖还会悄悄盖掉目标分支上的改动。
-- **价值状态**：症状实，三类里最便宜。
-- **不覆盖**：BOM 的 ECN 差异。[US-515](../stories/domain/US-515-bom-change-management.md) 已说明它的轴、单位、维度都不是提交图给得了的，
-  本场景只解决「轴」。
+US-312 提供分支对比与合并覆盖预览，US-313 提供完整只读数据快照。不覆盖 BOM ECN 的业务差异单位与维度，
+领域合同仍由 [US-515](../stories/domain/US-515-bom-change-management.md) 定义。
 
 #### 场景三：隔离的写入方
 
-- **要什么**：远端同步、批量导入、AI agent 写进自己的线，用户审完再合并。
-- **今天**（现状 4、6、7）：没有往非 active 分支写的入口；同步进当前工作树是 v1 接受的取舍；
-  合并是单向覆盖，审完再合并也会盖掉用户在主线上的改动。
-- **价值状态**：
-  - 同步：已记录的取舍，不是缺陷。要改，先由 owner 判断「同步即变脏」是否还可接受。
-  - 批量导入、agent：**价值待证**，没有具名使用方。
+后台同步、批量导入或 AI agent 经审阅合并的产品闭环尚无具名使用方，移至
+[长期愿景](../vision.md#阶段-3-多端协作与同步)。现有可写检出位已是可复用底座，是否需要新写入原语必须由真实场景证明；
+该候选方向不属于本 Epic 当前目标或关闭条件，不因此新增故事或解锁开发。
 
 ### 共同前提：不切换也能读到另一条线
 
-现状 1、2 决定了两个同时存在的检出位**不能**是同一个库文件上的两条连接：库里只有一条 active 分支，触发器里写死的也只有它。
-可行的只有三种做法：
+| 做法       | 当前用途                       | 边界                                                                       |
+| ---------- | ------------------------------ | -------------------------------------------------------------------------- |
+| 只读快照库 | US-313：完整只读查询与历史浏览 | 独立库、建立时刻快照，刷新重建；DevTools 不自动切到快照实例                |
+| 库内影子表 | US-314：同库可写检出位         | 按表集路由、独立持有分支；系统表/QueryCache/无日志实体共享，影子实例不同步 |
+| 查询时叠加 | 未采用                         | 排序、分页、关系、聚合与全文检索需要额外查询合同，不在当前承诺内           |
 
-| 做法       | 怎么做                                                                                                | 查询兼容                                 | 能否写                           | 存储               | 新鲜度                     | 主要代价                                                                                                                                    |
-| ---------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------- | ------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 只读快照库 | 把当前业务表复制进一个独立库，叠上 `compute_switch_branch_actions` 算出的增量，用第二个 RxDB 实例打开 | 全兼容（就是普通库）                     | 只读                             | 每个检出位一份全量 | 建立时刻的快照，刷新即重建 | 增量计算要能指定起点；第二个实例要用克隆的实体类（现状 9）；DevTools 只连主实例                                                             |
-| 库内影子表 | 同一个库里每个检出位一套业务表，仓储按检出位路由表名，触发器写各自的分支 id                           | 全兼容                                   | 可写，同库同事务，合并在库内完成 | 每个检出位一份全量 | 实时                       | 表名今天只来自实体元数据、没有改写口；schema 迁移、索引、全文检索要覆盖每套表；「全库唯一 active 分支」要改成「每条分支至多一个可写检出位」 |
-| 查询时叠加 | 不复制，查询时把增量叠到业务表上                                                                      | 排序、分页、聚合、关联、全文检索都要重写 | 难                               | 无额外             | 实时                       | 查询引擎改造                                                                                                                                |
-
-**指点**：
-
-- **对比不需要检出位。** 两条分支的差异就是 `compute_switch_branch_actions` 的结果；合并预览就是 `merge_branch` 读源分支变更的那一半，
-  再标出目标分支分叉以来改过、会被覆盖的字段。两者都只读，把内部积木提成公开的只读 API 即可，场景二的「对比」与「合并预览」
-  先于任何检出位交付。
-- **完整只读视图用只读快照库**：查询栈不用动，复用失败归档导入已经走通的「另开实例 + 克隆实体类」做法。
-  历史提交的视图沿 restore 的可达性判断取起点（推断）。
-- **写进非 active 线是独立的原语**，场景三需要时再做；影子表只在场景一有具名需求时立项；查询时叠加不做。
+对比与覆盖预览直接读取分支增量，不要求创建完整快照或新增可写检出位。
 
 ### 设计指点
 
@@ -1011,12 +922,12 @@ demo 的工作树页对齐 GitHub Desktop（3.6 起的 worktree 是可写的）�
 2. **一条分支至多被一个可写检出位检出**（git：`fatal: 'main' is already used by worktree at …`），只读检出位不受限。
    可写检出位的未提交改动就是它所检出分支的未提交改动：这条规则保证两者一一对应，不需要另一套按检出位存的工作树。
 3. **主检出位就是业务表**，永远存在、不可删除。
-4. **在检出位里切分支时，改动留在原分支。** 这是现状 3 的直接结果，与 git 的「带着改动切过去」不同，
+4. **在检出位里切分支时，改动留在原分支。** 这是按分支持久化工作树的结果，与 git 的「带着改动切过去」不同，
    相当于 GitHub Desktop 的「Leave my changes on X」。要带过去，另做显式动作。
 5. **新检出位从目标分支自己的状态起步**，不复制任何未提交改动。`createBranch()` 复制工作树的现行语义（FR-017）不变：
    那是建分支，不是建检出位。
-6. **对比走独立 API，不给 `diff()` 加第二条轴**（现状 10）。
-7. **合并回主线之前要能发现覆盖。** 现行合并是单向覆盖（现状 6）。场景三的写入方合并进用户的线之前，
+6. **对比走独立 API，不给 `diff()` 加第二条轴**（当前 `diff()` 只比较 HEAD 与本分支工作树）。
+7. **合并回主线之前要能发现覆盖。** 现行合并是单向覆盖。任何写入方合并进用户的线之前，
    至少要标出目标分支分叉以来被改过、会被盖掉的字段；完整的三方合并按需另立。
 8. **生命周期显式登记**：每个检出位记归属（标签页会话 / 持久 / 后台任务）。标签页崩溃、任务中断留下的检出位要能回收，
    对应 git 的 `worktree prune`。
@@ -1024,8 +935,7 @@ demo 的工作树页对齐 GitHub Desktop（3.6 起的 worktree 是可写的）�
 10. **只读检出位不得进主实例的实体缓存，也不得派发 NEW 事件**，否则草稿缓存会把预览实体当成新草稿（见下节 workspace）。
 11. **加密与权限照旧**：快照库里的加密字段按 envelope 原样复制、不先解密，与横切约束 5 同口径；系统实体权限不放宽。
 12. **改「同步即变脏」要单独拍板。** git 的答案是 fetch 进远端跟踪分支、用户再 merge，但那样远端数据在合并前不会出现在业务表里，
-    对本地优先应用是语义级变化。只能按实体或同步配置选用，默认行为不变。多检出位下「谁接收同步」也要重新定义
-    （现状 7：在 feature 上拉取已经会带进 main 分叉之后的变更）。
+    对本地优先应用是语义级变化。只能按实体或同步配置选用，默认行为不变。当前同步归属已经明确：只有主检出位参与同步。
     **多检出位下只有主检出位同步**（owner 2026-10-21 定）：拉取、推送照旧只作用于主检出位所在的分支，挂在可写检出位上的实例不跑同步；
     检出位上的提交等那条分支回到主检出位、或合并进主线之后才进同步。默认同步语义不变，以后要放开也不用迁移。
 13. **三端对称**：检出位的绑定在 Angular / React / Vue 同时交付。
@@ -1080,25 +990,23 @@ demo 的工作树页对齐 GitHub Desktop（3.6 起的 worktree 是可写的）�
   草稿等不到收尾。这与多检出位无关，由 [US-311](../stories/collaboration/US-311-unlogged-entities-scope.md) 交付，
   症状与 demo 实测见该故事。
 
-多检出位下（推断）：
+多检出位下的当前合同：
 
-- 场景一：草稿要按检出位划分。现行解码把四段键判为损坏，键格式要带版本并迁移；广播与 `list()` 按检出位过滤；
-  保存时校验草稿所属的检出位就是当前检出位。（已交付，[US-314](../stories/collaboration/US-314-writable-worktrees.md) B2.4：
-  主检出位的键不改、可写检出位的键前面加表集后缀，所以不用带版本、不用迁移；保存时的校验放在核心，见 `WorktreeTableSetMismatchError`。）
-- 场景二：预览实例不得走共享实体缓存与构造器，否则会和用户草稿撞 id、或凭空生成草稿（设计指点 10）。
-- 场景三：后台写入方每 `new` 一个实体就是一次 IndexedDB 写和一次广播，批量导入会淹没所有标签页。写入方要用自己的实例，
-  或走不产生草稿的写入口。
-- 引用文件的草稿是 storage 回收的根之一。
+- 主检出位保留原草稿键，可写检出位按表集后缀隔离；广播与列表按检出位过滤，保存核对表集，
+  失配报 `WorktreeTableSetMismatchError`（US-314）。
+- 只读快照实例不共用主实例的实体身份缓存，不派发会形成新草稿的 NEW 事件（US-313）。
+- 草稿引用文件时仍受 storage 的非版本化边界约束；尚未立项的后台任务不在这里预设第二套草稿方案。
 
 ### 分期与解锁条件
 
-| 阶段 | 交付                                                                                                                                                                                             | 覆盖                     | 解锁条件                                                            | 明确不承诺               |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ | ------------------------------------------------------------------- | ------------------------ |
-| 1    | 草稿缓存不收系统表与关闭变更日志的实体；版本化域把 `log: false` 的实体归为第四类 untracked；storage 文档写明文件不随版本（[US-311](../stories/collaboration/US-311-unlogged-entities-scope.md)） | 前置                     | 无，今天就是缺口                                                    | 不做检出位；不做内容寻址 |
-| 2    | 只读的对比与合并预览 API（含覆盖标注）（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)）                                                                              | 场景二的对比部分         | 阶段 1                                                              | 不提供完整视图           |
-| 3    | 只读检出位：快照库 + 第二实例 + 生命周期与回收 + 三端绑定（[US-313](../stories/collaboration/US-313-read-only-checkout.md)）                                                                     | 场景二、场景一的只读部分 | 阶段 2                                                              | 不可写；不实时           |
-| 4    | 写进非 active 线的原语 + 隔离写入方 + 合并前覆盖检测                                                                                                                                             | 场景三                   | 具名使用方（批量导入或 agent），或 owner 判定「同步即变脏」不可接受 | 不改默认同步语义         |
-| 5    | 可写检出位（库内影子表，[存储方案](../stories/collaboration/US-314-storage-options.md)）与从提交建分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md)；从提交建分支已交付）    | 场景一                   | 具名需求；owner 2026-10-21 先行解锁库层底座 B1，不等具名需求        | —                        |
+下表保留既有阶段编号以供引用；候选阶段 4 不计入本 Epic，后续立项见长期愿景。故事交付不代替上文真实发布门禁。
+
+| 阶段 | 交付                                                                                                                                                                                             | 覆盖                     | 解锁条件                                           | 明确不承诺               |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ | -------------------------------------------------- | ------------------------ |
+| 1    | 草稿缓存不收系统表与关闭变更日志的实体；版本化域把 `log: false` 的实体归为第四类 untracked；storage 文档写明文件不随版本（[US-311](../stories/collaboration/US-311-unlogged-entities-scope.md)） | 前置                     | 无，今天就是缺口                                   | 不做检出位；不做内容寻址 |
+| 2    | 只读的对比与合并预览 API（含覆盖标注）（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)）                                                                              | 场景二的对比部分         | 阶段 1                                             | 不提供完整视图           |
+| 3    | 只读检出位：快照库 + 第二实例 + 生命周期与回收 + 三端绑定（[US-313](../stories/collaboration/US-313-read-only-checkout.md)）                                                                     | 场景二、场景一的只读部分 | 阶段 2                                             | 不可写；不实时           |
+| 5    | 可写检出位与从提交建分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md)）                                                                                                      | 场景一                   | A/B/C 按故事 AC 已交付；不据此解锁后台写入产品闭环 | 不改变默认同步语义       |
 
 ## 非目标
 
@@ -1106,7 +1014,7 @@ demo 的工作树页对齐 GitHub Desktop（3.6 起的 worktree 是可写的）�
 - rebase、cherry-pick、interactive rebase 与任意历史改写
 - 自动 stash、stash pop 与跨分支携带脏工作树
 - 自动合并冲突的最终解决 UI（只要求检测并阻止静默覆盖）。今天检测只覆盖并发 CAS（US-308）；合并内容是单向覆盖
-  （多检出位现状 6），覆盖标注见设计指点 7
+  覆盖标注由 `previewMerge()` 提供，见设计指点 7
 - 基于时间或大小的 commit 自动清理策略
 - 改变 `VersionManager.switchBranch()` 的现有默认行为（见 US-308）
 - **钉在分支上的 label 层**（一行 = 一个名字钉一条分支）：它不构成检出位（设计指点 1）；经它切换切的仍是全库 active 分支，
@@ -1114,7 +1022,7 @@ demo 的工作树页对齐 GitHub Desktop（3.6 起的 worktree 是可写的）�
 - **查询时叠加**：见[共同前提](#共同前提不切换也能读到另一条线)
 - **检出位跨设备**：检出位是本地概念，不进同步范围
 - **`git worktree move` / `lock`**：检出位没有路径；防回收靠生命周期登记
-- **改变默认同步语义**：场景三只提供可选的隔离写入
+- **改变默认同步语义与后台写入产品闭环**：仍属长期愿景，需独立立项
 - **未提交变更对查询不可见**的长事务 / 预览语义（已裁决）：`save()` 后数据立即对全部查询生效，
   commit 只是存档打点。「未提交的东西攒够了再一起生效」需要读时按 HEAD 过滤或影子表，是数量级的成本上升
   且会波及全部既有查询路径。它在 Git 里的对照物不是 commit，而是「在分支上工作」，应走分支而非 commit

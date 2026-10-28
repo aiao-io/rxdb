@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-22
-updated: 2026-10-20
+updated: 2026-10-28
 tags: [core, schema, integrity]
 ---
 
@@ -14,7 +14,7 @@ tags: [core, schema, integrity]
 ## 作为/我想要/以便
 
 **作为** 实体模型作者
-**我想要** 在 `@Entity` 元数据里声明 CHECK、条件唯一、区间排他与生成列
+**我想要** 在 `@Entity` 元数据里声明 CHECK、条件唯一与区间排他约束
 **以便** 业务不变量落在存储层，而不是只活在仓储方法里
 
 ## 交付阶段
@@ -34,7 +34,7 @@ C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分；D 关闭 AC#5�
 
 ### In Scope
 
-- `EntityMetadataOptions` 增 `checks`（阶段 A）与 `exclusions`（阶段 C）；`EntityIndexMetadataOptions` 增 `where`（阶段 B），`expression` / `method` 归阶段 D
+- `EntityMetadataOptions` 的 `checks`（阶段 A）与 `exclusions`（阶段 C）；`EntityIndexMetadataOptions` 的 `where`（阶段 B）
 - 声明语法：CHECK 与条件唯一共用收窄后的 `RuleGroup`；区间排他是「相等列 + 区间维」，见技术笔记各节
 - CHECK 表达式复用查询 `RuleGroup` 的形状，收窄为单行子集，另补字段对字段比较（见技术笔记「CHECK 的声明语法」）
 - 已有表与声明的约束不一致时 `init()` fail-fast，指向用户迁移（AC#10 / #11）
@@ -46,6 +46,7 @@ C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分；D 关闭 AC#5�
 
 ### Out of Scope
 
+- 阶段 D：生成列、表达式索引与 GIN / GiST 声明；由 US-519 热字段消费，按后端能力显式验证
 - 插件自有的写入期触发器（图可达性这类跨行判定）——机制已有先例，见技术笔记
 - 跨行聚合（位号计数、替代组概率合计、工序分摊合计、ECN 整批校验）——落在 BOM 头的 `draft → released` 发布转移上，见技术笔记
 - 跨表断言（ASSERTION）与延迟约束——区间排他按行即时检查，见技术笔记「区间排他的声明与语义」
@@ -80,21 +81,10 @@ C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分；D 关闭 AC#5�
 
 ## 技术笔记
 
-**当前 DSL 一项都没有。** [`EntityMetadataOptions`](../../../packages/rxdb/src/entity/entity-options.interface.ts) 的字段集是
-`namespace` / `name` / `tableName` / `displayName` / `extends` / `repository` / `log` / `sync` / `abstract` /
-`properties` / `computedProperties` / `relations` / `indexes` / `foreignKeys` / `features` / `permissions` / `manualOrder` —— 没有 CHECK 的落点。
-[`EntityIndexMetadataOptions`](../../../packages/rxdb/src/entity/property-types.interface.ts) 的自有字段只有两项，
-`unique` 来自它继承的 `IEntityObject`：
-
-```ts
-export interface EntityIndexMetadataOptions extends IEntityObject {
-  properties?: string[];
-  normalized?: boolean;
-}
-```
-
-`normalized` 是本仓已经为「唯一约束在存储层拦不住」付过一次代价的证据——它解决的正是
-「NULL 让唯一索引整条失效」与「大小写变体绕过重名校验」。本故事是同一类问题的通解。
+**当前声明面覆盖 A～C。** [`EntityMetadataOptions`](../../../packages/rxdb/src/entity/entity-options.interface.ts)
+提供 `checks` / `exclusions`；[`EntityIndexMetadataOptions`](../../../packages/rxdb/src/entity/property-types.interface.ts)
+提供条件唯一的 `where`，并保留 `properties` / `normalized` 等既有声明。
+生成列、索引 `expression` / `method` 已进入声明面；元数据由 `getEntityStorageMetadata` 按实例合并，方言支持由 `compileGeneratedColumn` / `compileAdvancedIndex` 校验，详见下方实现与验收文件。
 
 **阶段 C 的双后端等价是最贵的一段。** PGlite 有范围类型 + GiST `EXCLUDE`；SQLite 没有，
 必须用触发器补。触发器生成在本仓有现成先例——FTS 按方言各有一份生成器：PGlite 的
@@ -104,20 +94,12 @@ export interface EntityIndexMetadataOptions extends IEntityObject {
 
 **SQLite 版本门槛是阶段 C 与插件触发器的共同前置。** SQLite 的 `RAISE(ABORT, msg)` 在 3.47.0（2024-10-21）之前只接受字符串字面量，
 触发器拼不出「冲突区间」「环路径」「位号数与 `qty`」这类动态消息——AC#4、[US-509](../domain/US-509-bom-dag-cycle-detection.md) AC#1、
-[US-507](../domain/US-507-bom-graph-skeleton.md) AC#5 都依赖它。本仓各宿主：
-
-| 宿主                                                   | SQLite 版本                                     | 达标 |
-| ------------------------------------------------------ | ----------------------------------------------- | ---- |
-| `@sqlite.org/sqlite-wasm`                              | 3.53.4                                          | ✅   |
-| wa-sqlite（含 `miniprogram`）                          | 3.53.0                                          | ✅   |
-| `@sqliteai/sqlite-wasm`                                | 3.50.4                                          | ✅   |
-| Node `node:sqlite`（`sqlite` / `electron`）            | 随 Node 26 / Electron 的 Node 版本，本机 3.53.1 | ✅   |
-| `tauri`：rusqlite 0.32 → libsqlite3-sys 0.30.1 bundled | 3.46.0                                          | ❌   |
-
-Tauri 的证据在 [`rust/Cargo.toml`](../../../packages/rxdb-adapter-tauri/rust/Cargo.toml) 的 rusqlite 依赖与
-libsqlite3-sys 0.30.1 自带的 `sqlite3.h`。满足门槛的最小升级是 **rusqlite 0.33**（依赖 libsqlite3-sys ^0.31.0，其 crate 自带 SQLite 3.48.0；0.34 → libsqlite3-sys 0.32.0 → 3.49.1），
-这是 epic-009 第 1 步的前置。升级跨越 rusqlite 的破坏性版本，`functions` / `hooks` 两个 feature 的调用点须随之核对；不升级则 Tauri 按 AC#7 在 `init()` 显式失败，而不是把错误消息退化成常量。
-门槛检查放在 `sqlite-core` 共享层（`SELECT sqlite_version()`），只做一次。
+[US-507](../domain/US-507-bom-graph-skeleton.md) AC#5 都依赖它。
+门槛由 [`SQLITE_MIN_HOST_VERSION` / `assertSqliteHostVersion()`](../../../packages/rxdb-adapter-sqlite-core/src/system/sqlite-version.ts)
+定义，`RxDBAdapterSqliteBase` 每次连接读取一次 `SELECT sqlite_version()`，按实际宿主版本判定，不从包版本猜测。
+Tauri 的 [`rust/Cargo.toml`](../../../packages/rxdb-adapter-tauri/rust/Cargo.toml) 使用 **rusqlite 0.33**，
+[`Cargo.lock`](../../../packages/rxdb-adapter-tauri/rust/Cargo.lock) 锁定 rusqlite 0.33.0 / libsqlite3-sys 0.31.0；
+它不再是待升级的前置。其他宿主同样以运行时检查为准，低于门槛时按 AC#7 显式失败。
 
 **违约错误的判别。** 按 [`RxDBError.ts`](../../../packages/rxdb/src/RxDBError.ts) 的约定「新错误按类名主判别」，
 各 AC 说的「同一错误码」指适配器归一后的**同一个错误类**，不另立码表：
@@ -293,24 +275,16 @@ PG 虽能 `ADD CONSTRAINT`，但老数据违约时，启动就成了一次无界
 
 ## 价值待证
 
-本故事立项时标为**价值待证**：当时没有已交付故事因缺这四项能力而出缺陷——
-`normalized` 已经单点解决了实际踩到的那一个。
+A～C 沿用 owner 对存储约束的授权；完整 BOM 范围包含阶段 D 与 US-519 的实际消费。
+本分支 A～D 均已有实现，阶段 D 的生成列、表达式与索引方法验证见
+[`generated-column.spec.ts`](../../../packages/rxdb/src/__tests__/entity/generated-column.spec.ts)、
+[`advanced-index.spec.ts`](../../../packages/rxdb/src/__tests__/entity/advanced-index.spec.ts) 与
+[spec023 验收](../../../specs/023-bom-hot-fields/validation.md)。
+后端缺某项能力时显式拒绝该声明，不把热字段优化当作基础扩展属性的前置。
 
-**解锁记录（2026-10-02，owner 决定）**：阶段 A～C 提前解锁、进批次 3，`priority` 由 Low 升为 Medium；该记录当时保留阶段D；2026-10-18用户要求完整BOM剩余任务后，阶段D已纳入spec023，最终完整验收通过，故事已Done。
-依据是 owner 已确认 [epic-009 默认决策](../../epics/epic-009-bom-domain-model.md#解锁前须先处理) 1～8 条，A～C 正是那份模型在存储层的落点（epic-009 第 1 步前置）。这**不是**发现了独立病灶——「病灶数 ≥ 抽象数」此处由 owner 决定豁免，写在这里，免得后来者把它读成已有缺陷驱动。
-**设计取舍确认（2026-10-02，owner）**：同步拉取遇本地约束拒绝记为已知限制、不做隔离；区间排他保留 AC#14，改执行顺序支持「截旧 + 新开」的重放，区间互换不支持；
-继承同名约束子覆盖父；约束 `name` 只允许 `[a-z0-9_]`；表达式索引归阶段 D。
-该历史记录当时以epic-009第0步真实样本为前置；样本与手工golden已在后续首轮就位，本轮完整BOM授权及消费方验收见最新记录。
-
-消费方目前全部集中在 [epic-009](../../epics/epic-009-bom-domain-model.md)：
-阶段 A 被 US-511 AC#7 / #21、US-512 AC#10、US-518 AC#4 消费（US-511 AC#12 与 US-513 AC#5 判的是十进制文本，改由 BOM 插件的格式触发器承担，见 US-511「十进制值合同」）（AC#7 的版本门槛被 US-507 AC#5 与 US-509 AC#1 消费）；
-阶段 B 被 US-508 AC#10 消费；阶段 C 被 US-507 AC#9、US-508 AC#2、US-518 AC#5（日期 × 序列两维，以 US-518 启动时对三维判定落点的裁决为准；批次集合维不在本故事）与 US-524 AC#3 消费；
-阶段 D 被 US-519 AC#3 / #7 消费——那里的 GIN、表达式索引与生成列是按后端能力启用的**优化**，US-519 的查询契约不依赖它们，
-后端缺某项索引能力时按 AC#6 显式声明不支持该索引，而不是让 SQLite 上整个扩展属性不可用。
-
-**解锁条件比 epic-009 低一档**：任意一条需要「不变量在存储层成立」的故事即可解锁，
-不限 BOM 场景。本故事单列的理由也在这里——它的价值不依赖 BOM，
-把它埋在 BOM Epic 里会让这四项引擎缺口只能等 BOM 的驱动场景。
+owner 确认的约束仍有效：同步拉取遇本地约束拒绝不做隔离；区间排他支持「截旧 + 新开」重放，
+不支持区间互换；继承同名约束子覆盖父；命名与漂移扫描遵守对应技术笔记。
+新索引能力的扩展仍须具名消费方、范围评审与后端矩阵，不能借已实现的 D 自动扩大支持。
 
 ## 实现文件
 
@@ -336,7 +310,7 @@ PG 虽能 `ADD CONSTRAINT`，但老数据违约时，启动就成了一次无界
 
 ## 最终验收
 
-最终完整affected351任务EXIT0、三端共享51/51、demo24/24（2026-10-18时点）、Tauri额外门禁及8包严格覆盖率全部通过，本故事全部功能AC与最终门禁已关闭，status为Done。证据及失败/修复历史见[最终验收](../../../specs/021-bom-closure/closure-map.md)。
+当前功能验收材料见[BOM验收结果](../../../specs/021-bom-closure/closure-map.md)；历史命令结果不替代最新分支的 CI 门禁。
 
 ## 验收依据
 

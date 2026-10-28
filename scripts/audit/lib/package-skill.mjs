@@ -18,11 +18,14 @@ export const SKILL_NAME = 'aiao-rxdb';
 /** 情景时序令牌的可读文本。 */
 const TIMING_TEXT = {
   'use-before-connect': '首次 connect() 之前 use',
-  'use-before-init': 'init() 之前 use（即首次 connect() 之前）'
+  'use-before-init': 'init() 之前 use'
 };
 
 /** 只认纯 `---` 围栏的 frontmatter（与 skills-npm 的解析口径一致）。 */
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+
+/** 清单与情景共用的包名显示：只省略公共 scope，安装命令和样例保留完整名。 */
+const displayPackage = name => name.replace(/^@aiao\//, '');
 
 /**
  * 渲染 Skill 文本。
@@ -34,11 +37,13 @@ const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
  */
 export function renderSkill(knowledge, template) {
   const packages = [
-    '| 包 | 角色 | 槽位 | 宿主/备注 | 框架 |',
-    '| --- | --- | --- | --- | --- |',
+    '清单与情景包名省略 `@aiao/`，安装时补全；其他 scope 原样保留。',
+    '',
+    '|包|角色|槽位|宿主/备注|框架|',
+    '|---|---|---|---|---|',
     ...knowledge.delivery.packages.map(pkg => {
-      const hostNotes = pkg.notes ? `${pkg.hosts.join(', ')}；${pkg.notes}` : pkg.hosts.join(', ');
-      return `| ${pkg.name}${pkg.retired ? '（已退役）' : ''} | ${pkg.role} | ${pkg.slots.join(', ')} | ${hostNotes} | ${pkg.framework ?? ''} |`;
+      const hostNotes = pkg.notes ? `${pkg.hosts.join(',')}；${pkg.notes}` : pkg.hosts.join(',');
+      return `|${displayPackage(pkg.name)}${pkg.retired ? '（已退役）' : ''}|${pkg.role}|${pkg.slots.join(',')}|${hostNotes}|${pkg.framework ?? ''}|`;
     })
   ].join('\n');
   const scenarios = knowledge.delivery.scenarios
@@ -50,11 +55,11 @@ export function renderSkill(knowledge, template) {
       });
       const slots = Object.entries(scenario.slots)
         .sort(([a], [b]) => a.localeCompare(b, 'en'))
-        .map(([slot, name]) => `${slot}=${name}`)
+        .map(([slot, name]) => `${slot}=${displayPackage(name)}`)
         .join('、');
       return [
         `### ${scenario.description}`,
-        `必需包：${scenario.packages.join('、')}`,
+        `必需包：${scenario.packages.map(displayPackage).join('、')}`,
         `插件（注册工厂，顺序不限）：${scenario.plugins.map(plugin => plugin.factory).join('、') || '无'}`,
         `槽位：${slots || '无'}`,
         `时序：${timing.join('、') || '无'}`

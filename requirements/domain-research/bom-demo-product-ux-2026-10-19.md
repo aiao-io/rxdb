@@ -207,7 +207,7 @@
 
 红测及修复过程保留于 `bom-product-red.log`、`bom-product-red2.log`、`bom-product-review-red.log`、`bom-product-tier-red.log`。`full1` 因旧导航选择器歧义主动中断，`full2` 为 31/34；上述失败不作为完成证据，最终结果以 `full3` 为准。
 
-## 8. 生产改版核对主线（2026-10-23）
+## 8. 生产改版核对主线
 
 本轮将首次入口改为制造工程师的生产准备任务：准备 10 台 SC-100，核对 ECN-2026-014 生效前后的有效结构、备料与核算成本，并形成可交接的人工核对摘要。
 
@@ -233,7 +233,7 @@
 - 桌面首页、比较、结论及手机结论已做截图复核，未发现横向溢出或结论不可见。截图为 `apps/dev-rxdb-bom-e2e/test-results/bom-product-{task-home,change-comparison,review-conclusion}.png` 与 `bom-change-review-mobile.png`。
 - 最终门禁日志：`/tmp/bom-product-delivery-gate.log`；首次文案适配导致的旧初始化超时和被中断的运行不计为通过证据。
 
-## 9. 多修订备料核对（2026-10-25）
+## 9. 多修订备料核对
 
 合入 main 后复核生产改版主线，发现同一物料的总需求和修订集合都未变化时，各修订用量重新分配会漏报。例如 A 版 2 件、B 版 8 件变成 A 版 8 件、B 版 2 件，旧实现会显示没有备料或修订变化。
 

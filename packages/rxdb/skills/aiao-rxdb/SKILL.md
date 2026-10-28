@@ -1,124 +1,146 @@
 ---
 name: aiao-rxdb
-description: Aiao RxDB（@aiao/rxdb）包选型、槽位组合、插件时序与事务规则，覆盖 v0.0.26 发布范围。
+description: Aiao RxDB（@aiao/rxdb）包选型、槽位组合、插件时序与事务规则，覆盖 v0.0.28 发布范围。
 license: MIT
 ---
 
 # Aiao RxDB 组合指南
 
-事实摘要：`895455b7f2eec5507111eaf6f0592599c581d85f44c08ec03d305d3326372bba`。本文件由事实源、manifest、插件源码与已验证样例生成，只覆盖 v0.0.26 投递范围（不含仅在仓库 main 上、未发布的包）。
+事实摘要：`08f6ed5f924ec99ba1f49f71503eded1c2de7c893f3d6ee015ce3de73e2754e7`。由事实源、manifest、插件源码与已验证样例生成，仅列 v0.0.28 已发布包。
 
 ## 何时使用
 
-- 回答「装哪几个 `@aiao/*` 包、每个配到哪个槽位、按什么顺序组合」；
-- 给出最小可运行的 `use → 注册 adapter → await connect → CRUD → disconnect` 初始化代码；
-- 核对插件 `use()` 时序与事务内 `await entity.save()` 的禁止规则。
+用于选包、槽位和插件组合，以及初始化、CRUD 和事务代码。
 
 ## 选型规则
 
-- 核心一个：`@aiao/rxdb`，列为消费者直接依赖。
-- 每个 backend 槽位各选一个 adapter：local 一个、remote 一个（本地 + 远端组合是常态）。
-- 插件可叠加；贡献仓储或带系统贡献的插件必须在 `init()`（首次 `connect()`）之前 `use()`。
-- 框架绑定按应用框架选一个；shared-impl 与 capability 不占槽位。
+- 核心 `@aiao/rxdb` 必须是消费者直接依赖。
+- local、remote 各选一个 backend adapter，可组合本地与远端。
+- 框架绑定按应用选一个；shared-impl、capability 不占槽位。
 
 ## 投递范围安装清单
 
-| 包 | 角色 | 槽位 | 宿主/备注 | 框架 |
-| --- | --- | --- | --- | --- |
-| @aiao/code-editor | standalone |  | browser |  |
-| @aiao/code-editor-angular | binding |  | browser | angular |
-| @aiao/code-editor-react | binding |  | browser | react |
-| @aiao/code-editor-vue | binding |  | browser | vue |
-| @aiao/rxdb | core |  | browser, node, electron, tauri, miniprogram |  |
-| @aiao/rxdb-adapter-electron | backend | local | electron |  |
-| @aiao/rxdb-adapter-encrypted | capability |  | browser, node, electron, tauri；依赖 WebCrypto（crypto.subtle）。小程序宿主会随 sqlite-core 加载本包，但没有 crypto.subtle，加密能力不可用。 |  |
-| @aiao/rxdb-adapter-http | backend | remote | browser, node |  |
-| @aiao/rxdb-adapter-miniprogram | backend | local | miniprogram；实验性；仅已登记平台；单连接，不承诺崩溃恢复；Android 验证状态见兼容性矩阵。 |  |
-| @aiao/rxdb-adapter-pglite | backend | local | browser, node |  |
-| @aiao/rxdb-adapter-sqlite | backend | local | browser |  |
-| @aiao/rxdb-adapter-sqlite-core | shared-impl |  | browser, node, electron, tauri, miniprogram |  |
-| @aiao/rxdb-adapter-sqlite-wasm | backend | local | browser |  |
-| @aiao/rxdb-adapter-sqliteai | backend | local | browser |  |
-| @aiao/rxdb-adapter-supabase | backend | remote | browser, node |  |
-| @aiao/rxdb-adapter-tauri | backend | local | tauri |  |
-| @aiao/rxdb-adapter-wa-sqlite | backend | local | browser |  |
-| @aiao/rxdb-angular | binding |  | browser | angular |
-| @aiao/rxdb-client-generator | tool |  | node |  |
-| @aiao/rxdb-devtools | tool |  | browser |  |
-| @aiao/rxdb-plugin-graph | plugin |  | browser, node |  |
-| @aiao/rxdb-plugin-history | plugin |  | browser, node |  |
-| @aiao/rxdb-plugin-querycache | plugin |  | browser, node |  |
-| @aiao/rxdb-plugin-search | plugin |  | browser, node |  |
-| @aiao/rxdb-plugin-search-angular | binding |  | browser | angular |
-| @aiao/rxdb-plugin-search-react | binding |  | browser | react |
-| @aiao/rxdb-plugin-search-vue | binding |  | browser | vue |
-| @aiao/rxdb-plugin-storage | plugin |  | browser, node |  |
-| @aiao/rxdb-plugin-sync | plugin |  | browser, node |  |
-| @aiao/rxdb-plugin-workspace | plugin |  | browser |  |
-| @aiao/rxdb-react | binding |  | browser | react |
-| @aiao/rxdb-test | tool |  | browser, node |  |
-| @aiao/rxdb-vue | binding |  | browser | vue |
-| @aiao/utils | standalone |  | browser, node, electron, tauri, miniprogram |  |
+清单与情景包名省略 `@aiao/`，安装时补全；其他 scope 原样保留。
+
+|包|角色|槽位|宿主/备注|框架|
+|---|---|---|---|---|
+|code-editor|standalone||browser||
+|code-editor-angular|binding||browser|angular|
+|code-editor-react|binding||browser|react|
+|code-editor-vue|binding||browser|vue|
+|rxdb|core||browser,node,electron,tauri,miniprogram||
+|rxdb-adapter-electron|backend|local|electron||
+|rxdb-adapter-encrypted|capability||browser,node,electron,tauri；依赖 WebCrypto（crypto.subtle）。小程序宿主会随 sqlite-core 加载本包，但没有 crypto.subtle，加密能力不可用。||
+|rxdb-adapter-http|backend|remote|browser,node||
+|rxdb-adapter-miniprogram|backend|local|miniprogram；实验性；仅已登记平台；单连接，不承诺崩溃恢复；Android 验证状态见兼容性矩阵。||
+|rxdb-adapter-pglite|backend|local|browser,node||
+|rxdb-adapter-sqlite|backend|local|browser||
+|rxdb-adapter-sqlite-core|shared-impl||browser,node,electron,tauri,miniprogram||
+|rxdb-adapter-sqlite-wasm|backend|local|browser||
+|rxdb-adapter-sqliteai|backend|local|browser||
+|rxdb-adapter-supabase|backend|remote|browser,node||
+|rxdb-adapter-tauri|backend|local|tauri||
+|rxdb-adapter-wa-sqlite|backend|local|browser||
+|rxdb-angular|binding||browser|angular|
+|rxdb-client-generator|tool||node||
+|rxdb-devtools|tool||browser||
+|rxdb-model|model||browser,node||
+|rxdb-model-angular|binding||browser|angular|
+|rxdb-model-react|binding||browser|react|
+|rxdb-model-vue|binding||browser|vue|
+|rxdb-plugin-graph|plugin||browser,node||
+|rxdb-plugin-history|plugin||browser,node||
+|rxdb-plugin-querycache|plugin||browser,node||
+|rxdb-plugin-replay|plugin||browser,node||
+|rxdb-plugin-replay-angular|binding||browser|angular|
+|rxdb-plugin-replay-react|binding||browser|react|
+|rxdb-plugin-replay-vue|binding||browser|vue|
+|rxdb-plugin-search|plugin||browser,node||
+|rxdb-plugin-search-angular|binding||browser|angular|
+|rxdb-plugin-search-react|binding||browser|react|
+|rxdb-plugin-search-vue|binding||browser|vue|
+|rxdb-plugin-storage|plugin||browser,node||
+|rxdb-plugin-sync|plugin||browser,node||
+|rxdb-plugin-tree|plugin||browser,node||
+|rxdb-plugin-tree-angular|binding||browser|angular|
+|rxdb-plugin-tree-react|binding||browser|react|
+|rxdb-plugin-tree-vue|binding||browser|vue|
+|rxdb-plugin-working-tree|plugin||browser,node||
+|rxdb-plugin-working-tree-angular|binding||browser|angular|
+|rxdb-plugin-working-tree-react|binding||browser|react|
+|rxdb-plugin-working-tree-vue|binding||browser|vue|
+|rxdb-plugin-workspace|plugin||browser||
+|rxdb-react|binding||browser|react|
+|rxdb-taro|tool||node,miniprogram||
+|rxdb-test|tool||browser,node||
+|rxdb-vue|binding||browser|vue|
+|utils|standalone||browser,node,electron,tauri,miniprogram||
 
 ## 组合情景
 
 ### angular
-必需包：@aiao/rxdb、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-angular
+必需包：rxdb、rxdb-adapter-wa-sqlite、rxdb-angular
 插件（注册工厂，顺序不限）：无
-槽位：local=@aiao/rxdb-adapter-wa-sqlite
+槽位：local=rxdb-adapter-wa-sqlite
 时序：首次 connect() 之前 use
 
 ### react
-必需包：@aiao/rxdb、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-react
+必需包：rxdb、rxdb-adapter-wa-sqlite、rxdb-react
 插件（注册工厂，顺序不限）：无
-槽位：local=@aiao/rxdb-adapter-wa-sqlite
+槽位：local=rxdb-adapter-wa-sqlite
 时序：首次 connect() 之前 use
 
 ### vue
-必需包：@aiao/rxdb、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-vue
+必需包：rxdb、rxdb-adapter-wa-sqlite、rxdb-vue
 插件（注册工厂，顺序不限）：无
-槽位：local=@aiao/rxdb-adapter-wa-sqlite
+槽位：local=rxdb-adapter-wa-sqlite
 时序：首次 connect() 之前 use
 
 ### 独立编辑器
-必需包：@aiao/code-editor
+必需包：code-editor
 插件（注册工厂，顺序不限）：无
 槽位：无
 时序：无
 
 ### 图插件
-必需包：@aiao/rxdb、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-plugin-graph
+必需包：rxdb、rxdb-adapter-wa-sqlite、rxdb-plugin-graph
 插件（注册工厂，顺序不限）：rxDBPluginGraph
-槽位：local=@aiao/rxdb-adapter-wa-sqlite
-时序：init() 之前 use（即首次 connect() 之前）
+槽位：local=rxdb-adapter-wa-sqlite
+时序：init() 之前 use
 
 ### HTTP QueryCache
-必需包：@aiao/rxdb、@aiao/rxdb-adapter-http、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-plugin-history、@aiao/rxdb-plugin-querycache、@aiao/rxdb-plugin-sync
+必需包：rxdb、rxdb-adapter-http、rxdb-adapter-wa-sqlite、rxdb-plugin-history、rxdb-plugin-querycache、rxdb-plugin-sync
 插件（注册工厂，顺序不限）：rxDBPluginHistory、rxDBPluginQueryCache、rxDBPluginSync
-槽位：local=@aiao/rxdb-adapter-wa-sqlite、remote=@aiao/rxdb-adapter-http
+槽位：local=rxdb-adapter-wa-sqlite、remote=rxdb-adapter-http
 时序：首次 connect() 之前 use
 
 ### 纯本地
-必需包：@aiao/rxdb、@aiao/rxdb-adapter-pglite
+必需包：rxdb、rxdb-adapter-pglite
 插件（注册工厂，顺序不限）：无
-槽位：local=@aiao/rxdb-adapter-pglite
+槽位：local=rxdb-adapter-pglite
 时序：首次 connect() 之前 use
 
 ### 双向同步
-必需包：@aiao/rxdb、@aiao/rxdb-adapter-supabase、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-plugin-history、@aiao/rxdb-plugin-sync
+必需包：rxdb、rxdb-adapter-supabase、rxdb-adapter-wa-sqlite、rxdb-plugin-history、rxdb-plugin-sync
 插件（注册工厂，顺序不限）：rxDBPluginHistory、rxDBPluginSync
-槽位：local=@aiao/rxdb-adapter-wa-sqlite、remote=@aiao/rxdb-adapter-supabase
+槽位：local=rxdb-adapter-wa-sqlite、remote=rxdb-adapter-supabase
 时序：首次 connect() 之前 use
+
+### 树插件
+必需包：rxdb、rxdb-adapter-wa-sqlite、rxdb-plugin-tree
+插件（注册工厂，顺序不限）：rxDBPluginTree
+槽位：local=rxdb-adapter-wa-sqlite
+时序：init() 之前 use
 
 ## 时序与事务
 
-- 插件早装：贡献仓储的插件晚于 `init()` `use()` 会按旧注册表初始化；带系统贡献的晚装直接抛错。普通插件晚装合法（立即安装）。
+- 插件可叠加。贡献仓储或系统贡献的插件必须在 `init()`（首次 `connect()`）前 `use()`；晚装时前者按旧注册表初始化，后者抛错。普通插件可晚装，立即安装。
 - 事务内禁止 `await entity.save()`：会落回队列并永久挂起。事务内经 `executor.getRepository(...)` 读写，见下方样例。
 
 ## Node 离线样例
 
 ```sh
-pnpm add @aiao/rxdb@^0.0.26 @aiao/rxdb-adapter-pglite@^0.0.26 @aiao/rxdb-plugin-history@^0.0.26
+pnpm add @aiao/rxdb@^0.0.28 @aiao/rxdb-adapter-pglite@^0.0.28 @aiao/rxdb-plugin-history@^0.0.28
 pnpm add -D typescript@~6.0.3 @types/node@^26.6.5 @types/emscripten@^1.41.6
 ```
 

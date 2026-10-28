@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-20
+updated: 2026-10-28
 tags: [domain, bom, extensibility, schema]
 ---
 
@@ -45,6 +45,15 @@ tags: [domain, bom, extensibility, schema]
 - 跨组织的属性字典治理流程
 - EAV 表——**本故事明确不采用**
 
+### 按需索引优化
+
+本分支已实现 AC#3/#7：`createBomExtStorage` 按消费方声明生成热字段与索引，
+`createBomExtStorageMigration` 审计存量值后安装，`filterByAttr` 透明选择已声明生成列或 GIN 查询形态。
+基础校验和查询语义仍可独立使用；不开启索引时结果不变，开启后的计划命中由
+[`bom-hot-fields.spec.ts`](../../../packages/rxdb-plugin-bom/src/__tests__/bom-hot-fields.spec.ts) 与
+[spec023 验收](../../../specs/023-bom-hot-fields/validation.md) 复核。
+查询计划断言只覆盖明示的后端、数据和操作符，不把可选加速扩大成任意查询都会自动命中索引。
+
 ## 验收标准
 
 | #   | 前置条件                               | 操作                                                             | 预期结果                                                                                                                 | 状态 |
@@ -61,16 +70,9 @@ tags: [domain, bom, extensibility, schema]
 
 ## 技术笔记
 
-**本故事的关闭条件是「没有 EAV 表」。** EAV（`entity_id` / `attr_name` / `attr_value`）的四个致命问题：
-
-1. 行爆炸——一个物料 30 个属性就是 30 行，百万物料即三千万行
-2. 每取一个字段要一次 self-join，取 10 个字段就是 10 次
-3. `attr_value` 只能是 text，类型安全彻底丢失
-4. 约束无处安放——必填、枚举、区间都没有落点
-
-jsonb 解决 1～2（一行一物料，一次读取）；`attr_def` 解决 3～4（类型与约束有了落点）；
-generated column 解决「jsonb 字段无法建高效索引」这一 jsonb 自身的短板（AC#3）。
-三者缺一，方案就退化成 EAV 的某种变体。
+**当前关闭条件是扩展属性校验与两端查询语义一致。** 本方案用 jsonb 保存一个对象的扩展值，
+`attr_def` 承载类型与约束，不采用按属性拆行的 EAV。generated column 是按需启用的索引优化（AC#3），
+缺少它只影响加速，不影响当前扩展属性合同。
 
 AC#3 的关键是**提升不改读写路径**：`ext->>'rohs_status'` 与 generated column 同时可用，
 消费方不需要知道某个字段被提升过。否则「提升」就成了一次 breaking change。
@@ -110,7 +112,7 @@ AC#3/#7与[US-030阶段D](../core/US-030-declarative-storage-constraints.md)已�
 
 ## 最终验收
 
-最终完整affected351任务EXIT0、三端共享51/51、demo24/24（2026-10-18时点）、Tauri额外门禁及8包严格覆盖率全部通过，本故事全部功能AC与最终门禁已关闭，status为Done。证据及失败/修复历史见[最终验收](../../../specs/021-bom-closure/closure-map.md)。
+当前功能验收材料见[BOM验收结果](../../../specs/021-bom-closure/closure-map.md)；历史命令结果不替代最新分支的 CI 门禁。
 
 ## 验收依据
 
