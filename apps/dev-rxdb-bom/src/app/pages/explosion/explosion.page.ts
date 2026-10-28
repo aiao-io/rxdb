@@ -98,7 +98,10 @@ export class ExplosionPage {
   readonly busy = signal(false);
   readonly basis = signal<RequirementCalculationBasis | null>(null);
   readonly basisError = signal('');
-  readonly stale = computed(() => this.view() !== null && this.view()!.key !== this.workspace.contextKey());
+  readonly stale = computed(() => {
+    const view = this.view();
+    return view !== null && (view.key !== this.workspace.contextKey() || view.revision !== this.service.dataRevision());
+  });
   readonly complete = computed(() => {
     const result = this.view()?.result;
     return !!result && !result.truncated && result.unresolved.length === 0 && result.manifest.unresolved.length === 0;
@@ -113,12 +116,14 @@ export class ExplosionPage {
     inject(DestroyRef).onDestroy(() => this.requestId++);
     effect(() => {
       const epoch = this.service.dataEpoch();
+      const revision = this.service.dataRevision();
       const view = untracked(this.view);
-      if (this.ready() && (!view || view.epoch === epoch)) return;
+      if (this.ready() && (!view || (view.epoch === epoch && view.revision === revision))) return;
       this.requestId++;
       this.view.set(null);
       this.busy.set(false);
       this.basis.set(null);
+      this.basisError.set('');
       this.explodeError.set('');
     });
   }
@@ -148,7 +153,7 @@ export class ExplosionPage {
         !this.ready()
       )
         return;
-      this.view.set({ result, selected: null, context, key, epoch });
+      this.view.set({ result, selected: null, context, key, epoch, revision });
     } catch (error) {
       if (id === this.requestId && epoch === this.service.dataEpoch()) this.explodeError.set(String(error));
     } finally {

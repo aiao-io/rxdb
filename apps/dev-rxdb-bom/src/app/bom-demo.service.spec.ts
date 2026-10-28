@@ -783,14 +783,80 @@ describe('BomDemoService', () => {
   });
 
   it('直连成环：只有成环那条写入的存储层拒绝进结果，前置建行失败照常抛出', async () => {
-    const { service, adapter } = transactionHarness([], () => false);
+    const { service, query } = transactionHarness([], () => false);
     Object.assign(service, { demoHeaderId: 'demo-header' });
     const cycle = new Error('SQLITE_CONSTRAINT: rxdb:bom_cycle:a>b>a');
-    adapter.rawQuery.mockResolvedValueOnce({ rows: [], columns: [], rowsAffected: 1 }).mockRejectedValueOnce(cycle);
+    query
+      .mockResolvedValueOnce({ rows: [[500]], columns: [], rowsAffected: 0 })
+      .mockResolvedValueOnce({ rows: [], columns: [], rowsAffected: 1 })
+      .mockRejectedValueOnce(cycle);
 
     expect(await service.rawCycleInsert()).toEqual({ ok: false, error: cycle });
-    adapter.rawQuery.mockRejectedValueOnce(new Error('UNIQUE constraint failed: bom$bom_line.id'));
+    query.mockRejectedValueOnce(new Error('UNIQUE constraint failed: bom$bom_line.id'));
     await expect(service.rawCycleInsert()).rejects.toThrow('UNIQUE');
+  });
+
+  it('直连成环连续拒绝不增加空行，旧库残留行不影响重试', async () => {
+    const fixture = transactionHarness([], () => false);
+    Object.assign(fixture.service, { demoHeaderId: 'demo-header' });
+    const database = new DatabaseSync(':memory:');
+    database.exec(`
+      CREATE TABLE "bom$bom_line" ("id" TEXT PRIMARY KEY, "headerId" TEXT, "lineNo" INTEGER, "createdAt" TEXT, "updatedAt" TEXT, UNIQUE("headerId", "lineNo"));
+      CREATE TABLE "bom$bom_line_occurrence" ("id" TEXT, "lineId" TEXT, "childItemId" TEXT, "qty" TEXT, "uom" TEXT, "effectiveFrom" TEXT, "createdAt" TEXT, "updatedAt" TEXT);
+      INSERT INTO "bom$bom_line" VALUES ('legacy-empty', 'demo-header', 500, '', '');
+      CREATE TRIGGER reject_cycle BEFORE INSERT ON "bom$bom_line_occurrence" BEGIN SELECT RAISE(ABORT, 'rxdb:bom_cycle:a>b>a'); END;
+    `);
+    const execute = async (sql: string, params: readonly unknown[] = []) => {
+      const values = params.map(value => String(value));
+      const statement = database.prepare(sql);
+      if (sql.startsWith('SELECT')) {
+        statement.setReturnArrays(true);
+        return { rows: statement.all(...values) as unknown as unknown[][], columns: [], rowsAffected: 0 };
+      }
+      const result = statement.run(...values);
+      return { rows: [], columns: [], rowsAffected: Number(result.changes) };
+    };
+    fixture.adapter.rawQuery.mockImplementation(execute);
+    fixture.query.mockImplementation(execute);
+    Object.assign(fixture.executor, { tableRef: () => '"bom$bom_line"' });
+    fixture.adapter.transaction.mockImplementation(async work => {
+      database.exec('BEGIN');
+      try {
+        const result = await work(fixture.executor);
+        database.exec('COMMIT');
+        return result;
+      } catch (error) {
+        database.exec('ROLLBACK');
+        throw error;
+      }
+    });
+    try {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        expect(await fixture.service.rawCycleInsert()).toMatchObject({ ok: false });
+        expect(database.prepare('SELECT COUNT(*) AS count FROM "bom$bom_line"').get()).toEqual({ count: 1 });
+      }
+    } finally {
+      database.close();
+    }
+  });
+
+  it('表单成环连续拒绝会回滚前置建行，实体写入全部经过同一执行器', async () => {
+    const cycle = new Error('SQLITE_CONSTRAINT: rxdb:bom_cycle:a>b>a');
+    const fixture = transactionHarness(
+      [],
+      entity => entity === BomLineOccurrence,
+      () => cycle
+    );
+    Object.assign(fixture.service, { demoHeaderId: 'demo-header' });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      expect(await fixture.service.formCycleInsert()).toMatchObject({
+        ok: false,
+        error: { code: 'BOM_CYCLE', payload: { path: ['a', 'b', 'a'] } }
+      });
+      expect(fixture.rows(BomLine).size).toBe(0);
+    }
+    expect(fixture.legacySave).not.toHaveBeenCalled();
+    expect(fixture.adapter.transaction).toHaveBeenCalledTimes(2);
   });
 
   it('扩展属性校验拒绝保留原始错误且不推进数据版本，物料缺失照常抛错', async () => {

@@ -3,7 +3,7 @@ import { concat, defer, firstValueFrom, from, of, type Observable } from 'rxjs';
 import { explodeBom } from './quantity/explosion-api.js';
 import { scopedBomAdapter } from './resolve/bom-adapter.js';
 import { bomSqlDialectFor, type BomSqlDialect } from './resolve/bom-sql.js';
-import { expandBom } from './resolve/expansion.js';
+import { expandBom } from './resolve/expansion-api.js';
 import { viewItemIds } from './view-projection.js';
 import type { BomViewInput, BomViewSnapshot } from './view-types.js';
 

@@ -17,7 +17,6 @@ import {
 } from '../coproduct.js';
 import type { BomLocalAdapter } from '../resolve/bom-adapter.js';
 import { bomSqlDialectFor, buildAlternativeHeadersSql, buildParentRevisionSql } from '../resolve/bom-sql.js';
-import { DEFAULT_EXPANSION_BUDGETS } from '../resolve/expansion.js';
 import { BomResolutionError, type ResolutionContext } from '../resolve/resolution.js';
 import {
   assertContext,
@@ -27,6 +26,7 @@ import {
   type ResolveTarget
 } from '../resolve/resolver.js';
 import { BomError, BomTruncationError } from '../types.js';
+import { DEFAULT_COST_ROLLUP_BUDGETS } from './cost-budgets.js';
 import { BomCostError } from './cost-error.js';
 import {
   decimalAdd,
@@ -61,6 +61,7 @@ import { normalizePlannedQuantity } from './planned-quantity.js';
 import { findMissingOperation, routingUncoveredReason } from './routing-effectivity.js';
 import { convertUom, type UomConversionRates } from './uom.js';
 
+export { DEFAULT_COST_ROLLUP_BUDGETS } from './cost-budgets.js';
 export { BomCostError } from './cost-error.js';
 
 /** 成本卷算的上下文：评估日 + 币种 + 费率日（与 as_of_date 一并进缓存键）。 */
@@ -90,12 +91,6 @@ export interface CostRollupOptions {
   budgets?: CostRollupBudgets;
   signal?: AbortSignal;
 }
-
-/** 成本明细默认预算，与数量展开保持同一安全量级。 */
-export const DEFAULT_COST_ROLLUP_BUDGETS: Readonly<Required<CostRollupBudgets>> = {
-  depth: DEFAULT_EXPANSION_BUDGETS.depth,
-  nodes: DEFAULT_EXPANSION_BUDGETS.paths
-};
 
 /** 一条材料明细（本层局部）。 */
 export interface CostMaterialLine {
@@ -900,12 +895,7 @@ const rollupCostInSnapshot = async (
       return result;
     };
 
-    const computeBatchCostOf = async (
-      headerMeta: HeaderMeta,
-      L: Decimal,
-      path: readonly string[] = []
-    ): Promise<Decimal> => {
-      assertAcyclic(headerMeta, path);
+    const readCostLayerRows = async (headerMeta: HeaderMeta, L: Decimal): Promise<ExplosionRowLike[]> => {
       const byHeader = await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId]);
       const rows = byHeader.get(headerMeta.headerId) ?? [];
       const effectiveRows = selectCostTierRows(headerMeta.headerId, rows, L);
@@ -915,6 +905,16 @@ const rollupCostInSnapshot = async (
       ) {
         throw new BomCostError(`头 ${headerMeta.headerId}`, '没有 consume 行（无投入），不能构成成本层级');
       }
+      return effectiveRows;
+    };
+
+    const computeBatchCostOf = async (
+      headerMeta: HeaderMeta,
+      L: Decimal,
+      path: readonly string[] = []
+    ): Promise<Decimal> => {
+      assertAcyclic(headerMeta, path);
+      const effectiveRows = await readCostLayerRows(headerMeta, L);
       // P′ = 装配损耗后的计划量（加工量与副产缩放共用）
       const pPrime = scrap(L, headerMeta.assemblyScrap, headerMeta.assemblyScrapConvention);
       // 路由工序链（批级加工量用）+ 加工明细
@@ -1022,9 +1022,7 @@ const rollupCostInSnapshot = async (
     ): Promise<LayerCostDetail> => {
       assertDetailBudget(path, false);
       assertAcyclic(headerMeta, path);
-      const byHeader = await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId]);
-      const rows = byHeader.get(headerMeta.headerId) ?? [];
-      const effectiveRows = selectCostTierRows(headerMeta.headerId, rows, L);
+      const effectiveRows = await readCostLayerRows(headerMeta, L);
       const pPrime = scrap(L, headerMeta.assemblyScrap, headerMeta.assemblyScrapConvention);
       const routing = await loadLayerRouting(q, dialect, headerMeta, effectiveRows, context.asOfDate);
       const material: CostMaterialLine[] = [];

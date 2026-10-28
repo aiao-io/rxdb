@@ -129,12 +129,26 @@ const headerRoutingViolations = (
   };
 };
 
+const headerEcnOwnershipViolation = (table: TableOf, headerId: string): string => {
+  const mismatches = (owner: string): string =>
+    `${owner}."ecnInId" IS NOT NULL AND (occ."ecnInId" IS NULL OR ${owner}."ecnInId" <> occ."ecnInId")` +
+    ` AND NOT EXISTS (SELECT 1 FROM ${table(BomEcn)} e WHERE e."id" = ${owner}."ecnInId" AND e."state" = 'released')`;
+  return (
+    `SELECT 1 FROM ${table(BomLineOccurrence)} occ JOIN ${table(BomLine)} l ON l."id" = occ."lineId"` +
+    ` LEFT JOIN ${table(BomSubstituteGroup)} g ON g."id" = occ."substituteGroupId"` +
+    ` WHERE l."headerId" = ${headerId} AND ((${mismatches('l')}) OR (${mismatches('g')}))`
+  );
+};
+
 const historyProjectionQueries = (table: TableOf, batchNo: string): string[] => {
   const visible = (row: string): string =>
     `(${row}."ecnInId" IS NULL OR EXISTS (SELECT 1 FROM ${table(BomEcn)} e WHERE e."id" = ${row}."ecnInId" AND e."state" = 'released'))`;
   const routing = headerRoutingViolations(table, 'h', `${visible('occ')} AND ${visible('l')}`);
   const affected = historyAffectedHeader(table, 'h', batchNo);
   return [
+    `SELECT '${PUBLISH_VALIDATION('bom_header', '逻辑行 / 替代组与发生项的 ECN 归属不一致')}' AS message` +
+      ` FROM ${table(BomHeader)} h WHERE h."state" = 'released' AND ${affected}` +
+      ` AND EXISTS (${headerEcnOwnershipViolation(table, 'h."id"')}) LIMIT 1`,
     `SELECT '${PUBLISH_VALIDATION('bom_header', '投料工序 / 分摊行不在路由工序序集内（挂了必须可解析）')}' AS message` +
       ` FROM ${table(BomHeader)} h WHERE h."state" = 'released' AND ${affected}` +
       ` AND (${routing.unrouted} OR ${routing.seqUncovered} OR ${routing.splitUncovered}) LIMIT 1`,
@@ -1293,6 +1307,30 @@ const sqliteReleasedHeaderGuard = (metadata: EntityMetadata): string[] => {
   );
 };
 
+const sqliteHeaderEcnOwnershipGuard = (metadata: EntityMetadata): string[] => {
+  if (!isEntity(metadata, BomHeader)) return [];
+  const body = raiseWhen(
+    PUBLISH_VALIDATION('bom_header', '逻辑行 / 替代组与发生项的 ECN 归属不一致'),
+    `EXISTS (${headerEcnOwnershipViolation(sqliteTableOf, 'NEW."id"')})`
+  );
+  return [
+    ...sqliteTrigger(
+      sqliteTableRef(metadata),
+      'bom_header_ecn_ownership_i',
+      'BEFORE INSERT',
+      body,
+      `NEW."state" = 'released'`
+    ),
+    ...sqliteTrigger(
+      sqliteTableRef(metadata),
+      'bom_header_ecn_ownership_u',
+      'BEFORE UPDATE OF "state"',
+      body,
+      `OLD."state" = 'draft' AND NEW."state" = 'released'`
+    )
+  ];
+};
+
 /**
  * ECN 状态机（US-515 存储层，SQLite）：三种转换——发布（draft → released，禁止追溯生效）、
  * 改期（released 且生效日变，未生效才可、不得越过同一逻辑行后继 ECN、级联先收窄后放宽）、
@@ -1643,6 +1681,7 @@ export const buildSqliteBomTriggerDdl = (
   ...sqliteReleasedHeaderMembersGuard(metadata),
   ...sqliteEcnOccurrenceGuards(metadata),
   ...sqliteReleasedHeaderGuard(metadata),
+  ...sqliteHeaderEcnOwnershipGuard(metadata),
   ...sqliteMapNullRuleTriggers(metadata),
   ...sqliteDecimalFormatTriggers(metadata),
   ...sqliteTierPublishGuard(metadata),
@@ -1918,6 +1957,19 @@ const pgReleasedHeaderFunction = (metadata: EntityMetadata): string[] => {
       'BEFORE UPDATE',
       'bom_header__released_guard'
     )
+  ];
+};
+
+const pgHeaderEcnOwnershipFunction = (metadata: EntityMetadata): string[] => {
+  if (!isEntity(metadata, BomHeader)) return [];
+  const name = 'bom_header__ecn_ownership_guard';
+  const body =
+    `IF NEW."state" = 'released' AND (TG_OP = 'INSERT' OR OLD."state" = 'draft')` +
+    ` AND EXISTS (${headerEcnOwnershipViolation(pgTableOf, 'NEW."id"')}) THEN` +
+    ` RAISE EXCEPTION '${PUBLISH_VALIDATION('bom_header', '逻辑行 / 替代组与发生项的 ECN 归属不一致')}'; END IF;`;
+  return [
+    pgTriggerFunction(metadata, name, body),
+    pgCreateTrigger(metadata, pgTableRef(metadata), 'bom_header__ecn_ownership_trg', 'BEFORE INSERT OR UPDATE', name)
   ];
 };
 
@@ -2736,6 +2788,7 @@ export const buildPgBomTriggerDdl = (
   ...pgEcnOccurrenceFunction(metadata),
   ...pgReleasedHeaderMembersFunction(metadata),
   ...pgReleasedHeaderFunction(metadata),
+  ...pgHeaderEcnOwnershipFunction(metadata),
   ...pgMapNullRuleFunction(metadata),
   ...pgDecimalFormatFunction(metadata),
   ...pgTierPublishFunction(metadata),

@@ -155,6 +155,12 @@ describe.each(['wa-sqlite', 'pglite'] as const)('副产品抵减计价 [%s]', ba
     expect(result.root.credits[0]).toMatchObject({ outQty: '10', outUom: 'kg', creditPrice: '0.5', amount: '5' });
   });
 
+  it('有真实投入时允许副产抵减超过材料成本，保留合法负净成本', async () => {
+    const { target } = await seedCredit(adapter, { item: { creditPrice: '30' } });
+    const result = await rollupCost(adapter, context, target);
+    expect(result.root).toMatchObject({ batchCost: '-80', unitCost: '-0.8' });
+  });
+
   it('显式零抵减价保留零金额明细', async () => {
     const { target } = await seedCredit(adapter, { item: { creditPrice: '0' } });
     const result = await rollupCost(adapter, context, target);

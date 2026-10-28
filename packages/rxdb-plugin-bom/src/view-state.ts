@@ -2,7 +2,7 @@ import type { RxDB } from '@aiao/rxdb';
 import { BehaviorSubject, defer, Observable, Subscription } from 'rxjs';
 import { BomHeader } from './entities.js';
 import type { BomRepository } from './repository.js';
-import { assertCompleteResolution } from './resolve/expansion.js';
+import { assertCompleteResolution } from './resolve/expansion-api.js';
 import { BomResolutionError } from './resolve/resolution.js';
 import { assertContext, type ResolveTarget } from './resolve/resolver.js';
 import { BomTruncationError } from './types.js';

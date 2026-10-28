@@ -16,6 +16,7 @@
 
 import { BomMap } from '../entities.js';
 import { scopedBomAdapter, type BomLocalAdapter } from './bom-adapter.js';
+import { BomMapError } from './bom-map-error.js';
 import { bomSqlDialectFor, type BomSqlDialect } from './bom-sql.js';
 import { BomConfigError } from './config-condition.js';
 import { expandBom, type ExpansionResult } from './expansion.js';
@@ -39,17 +40,7 @@ export interface MapScopeInfo {
   mbomRootHeaderId: string;
 }
 
-/** 映射保存违约。 */
-export class BomMapError extends Error {
-  constructor(
-    readonly subject: string,
-    message: string
-  ) {
-    super(`[rxdb-plugin-bom] 映射违约（${subject}）：${message}`);
-    this.name = 'BomMapError';
-    Object.setPrototypeOf(this, BomMapError.prototype);
-  }
-}
+export { BomMapError } from './bom-map-error.js';
 
 /** IN 列表分块大小（避开两后端的绑定变量上限，与展开同口径）。 */
 const CHUNK_SIZE = 200;

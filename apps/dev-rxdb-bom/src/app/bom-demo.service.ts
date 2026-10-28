@@ -116,6 +116,14 @@ const executorCreate =
   <T extends EntityType>(Entity: T, fields: Partial<InstanceType<T>>): Promise<InstanceType<T>> =>
     executor.getRepository(Entity).create(Object.assign(rxdb.entityManager.instantiate(Entity), fields));
 
+const nextDemoLineNo = async (executor: TransactionExecutor, headerId: string): Promise<number> => {
+  const { rows } = await executor.query(
+    `SELECT COALESCE(MAX("lineNo"), 0) + 10 FROM ${executor.tableRef(BomLine)} WHERE "headerId" = ?`,
+    [headerId]
+  );
+  return Number(rows[0][0]);
+};
+
 /** 在原快照内读取结果实际引用的修订，不从物料编码或种子推测版本。 */
 const loadReviewRevisions = async (
   executor: TransactionExecutor,
@@ -708,19 +716,20 @@ export class BomDemoService {
       if (!this.adapter) throw new Error('demo 未就绪');
       const headerId = this.demoHeaderId;
       if (!headerId) throw new Error('演示头未就绪');
-      // 行号随机：重复点击会留空行，固定行号会撞 (headerId, lineNo) 唯一约束
-      const lineId = crypto.randomUUID();
-      const lineNo = 500 + Math.floor(Math.random() * 400);
-      const now = '2026-01-01T00:00:00.000Z';
-      await this.adapter.rawQuery(
-        'INSERT INTO "bom$bom_line" ("id", "headerId", "lineNo", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?)',
-        [lineId, headerId, lineNo, now, now]
-      );
       try {
-        await this.adapter.rawQuery(
-          'INSERT INTO "bom$bom_line_occurrence" ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [crypto.randomUUID(), lineId, goldenItemId('SC-100'), '1', 'pcs', now, now, now]
-        );
+        await this.adapter.transaction(async executor => {
+          const lineId = crypto.randomUUID();
+          const now = '2026-01-01T00:00:00.000Z';
+          const lineNo = await nextDemoLineNo(executor, headerId);
+          await executor.query(
+            'INSERT INTO "bom$bom_line" ("id", "headerId", "lineNo", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?)',
+            [lineId, headerId, lineNo, now, now]
+          );
+          await executor.query(
+            'INSERT INTO "bom$bom_line_occurrence" ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [crypto.randomUUID(), lineId, goldenItemId('SC-100'), '1', 'pcs', now, now, now]
+          );
+        });
       } catch (error) {
         return rejected(error);
       }
@@ -732,21 +741,23 @@ export class BomDemoService {
   async formCycleInsert(): Promise<BomDemoOutcome> {
     return this.#run(async () => {
       if (!this.demoHeaderId) throw new Error('演示头未就绪');
-      const line = new BomLine();
-      line.headerId = this.demoHeaderId;
-      // 行号随机（同直连按钮：重复点击不撞 (headerId, lineNo) 唯一）
-      line.lineNo = 500 + Math.floor(Math.random() * 400);
-      await line.save();
-      const occurrence = new BomLineOccurrence();
-      occurrence.lineId = line.id;
-      occurrence.childItemId = goldenItemId('SC-100');
-      occurrence.qty = '1';
-      occurrence.uom = 'pcs';
-      occurrence.effectiveFrom = new Date('2026-01-01T00:00:00.000Z');
+      if (!this.rxdb || !this.adapter) throw new Error('demo 未就绪');
+      const rxdb = this.rxdb;
+      const headerId = this.demoHeaderId;
       try {
-        await occurrence.save();
+        await this.adapter.transaction(async executor => {
+          const create = executorCreate(executor, rxdb);
+          const line = await create(BomLine, { headerId, lineNo: await nextDemoLineNo(executor, headerId) });
+          await create(BomLineOccurrence, {
+            lineId: line.id,
+            childItemId: goldenItemId('SC-100'),
+            qty: '1',
+            uom: 'pcs',
+            effectiveFrom: new Date('2026-01-01T00:00:00.000Z')
+          });
+        });
       } catch (error) {
-        return rejected(error);
+        return rejected(normalizeBomError(error) ?? error);
       }
       return { ok: true };
     });

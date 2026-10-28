@@ -17,7 +17,7 @@ import {
 } from '@aiao/rxdb';
 import { firstValueFrom, type Observable } from 'rxjs';
 import { BOM_ENTITIES, BomInstanceNode } from './entities.js';
-import { BomMapError } from './resolve/bom-map.js';
+import { BomMapError } from './resolve/bom-map-error.js';
 import { bomSqlDialectFor, type BomSqlDialect } from './resolve/bom-sql.js';
 import { BomConfigError, CONDITION_GRAMMAR_VERSION } from './resolve/config-condition.js';
 import { validateConditionReferences } from './resolve/config-validate.js';

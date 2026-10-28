@@ -213,4 +213,29 @@ describe('整机展开的主任务流程', () => {
     expect(element(fixture).querySelector('[data-testid=explosion-empty]')?.textContent).toContain('没有');
     expect(element(fixture).textContent).not.toContain('尚未展开');
   });
+
+  it('数据库修订变化后清除旧展开和计算依据，禁止继续导出', async () => {
+    const service = makeService();
+    const fixture = await mount(service);
+    await fixture.componentInstance.runExplode();
+    fixture.componentInstance.select(requirement());
+    await fixture.whenStable();
+    expect(fixture.componentInstance.exportable()).toBe(true);
+    service.dataRevision.update(value => value + 1);
+    await fixture.whenStable();
+    expect(fixture.componentInstance.view()).toBeNull();
+    expect(fixture.componentInstance.basis()).toBeNull();
+    expect(fixture.componentInstance.exportable()).toBe(false);
+  });
+
+  it('离开页面期间数据变化，重建页面时不会恢复旧展开', async () => {
+    const service = makeService();
+    const first = await mount(service);
+    await first.componentInstance.runExplode();
+    first.destroy();
+    service.dataRevision.update(value => value + 1);
+    const restored = TestBed.createComponent(ExplosionPage);
+    await restored.whenStable();
+    expect(restored.componentInstance.view()).toBeNull();
+  });
 });

@@ -451,6 +451,10 @@ describe('US-521 导入契约解析（import-contract.parseImportPayload）', ()
       ['lotCodes', '"AB"'],
       ['lotCodes', '[1,2]'],
       ['effectiveFrom', 'not-a-date'],
+      ['effectiveFrom', '2026-02-30T00:00:00.000Z'],
+      ['effectiveFrom', '2025-02-29'],
+      ['effectiveFrom', '2026-04-31T09:00:00+08:00'],
+      ['effectiveFrom', '2026-01-01T25:00:00Z'],
       ['effectiveFrom', 0],
       ['effectiveFrom', '0']
     ];
@@ -465,6 +469,18 @@ describe('US-521 导入契约解析（import-contract.parseImportPayload）', ()
     // 非键日期列同一日期契约：epoch 数值不再经 new Date("0") 静默变成 2000-01-01
     expect(() => parse([{ ...base, effectiveTo: 0 }])).toThrow(/records\[0\]\.effectiveTo/);
     expect(() => parse([{ ...base, effectiveTo: 'never' }])).toThrow(BomImportContractError);
+    expect(() => parse([{ ...base, effectiveTo: '2026-02-30T00:00:00.000Z' }])).toThrow(BomImportContractError);
+    for (const iso of [
+      '2024-02-29',
+      '2000-02-29T23:30:00-02:00',
+      '2026-01-01T00:30:00+08:00',
+      '2026-01-01 00:30:00+00',
+      '2026-01-01 00:30:00+0800'
+    ]) {
+      expect(naturalKeyFor('occurrence', { ...base, effectiveFrom: iso })).toBe(
+        naturalKeyFor('occurrence', { ...base, effectiveFrom: new Date(iso) })
+      );
+    }
     // 合法形态照常：批次集合数组 / JSON 文本、Date 与 ISO 文本同键
     expect(naturalKeyFor('occurrence', { ...base, lotCodes: ['B', 'A'] })).toBe(
       naturalKeyFor('occurrence', { ...base, lotCodes: '["A","B"]' })

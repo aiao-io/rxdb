@@ -17,7 +17,7 @@ import {
   saveMapping,
   type MappingSaveInput,
   type MappingStep
-} from '../resolve/bom-map.js';
+} from '../index.js';
 import { bomSqlDialectFor } from '../resolve/bom-sql.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import type { ResolutionContext } from '../resolve/resolution.js';

@@ -127,11 +127,19 @@ const KEY_SEGMENT_FIELDS: Record<ImportKind, readonly string[]> = {
 /** 把标识列值归一为键段文本（数值列取十进制文本、Date 取 ISO 文本——同值同键）。 */
 const normalizeKeySegment = (value: unknown): string => (value instanceof Date ? value.toISOString() : String(value));
 
-/** ISO 8601 日期起首（`YYYY-MM-DD`，其后为结尾、`T` 或空格接时刻）。 */
+/** ISO 日期起首；后续时刻与时区继续由既有 Date 解析合同判定。 */
 const ISO_DATE_PREFIX = /^\d{4}-\d{2}-\d{2}(?:$|[T ])/;
 
+const parseIsoDate = (value: string): Date | null => {
+  if (!ISO_DATE_PREFIX.test(value)) return null;
+  const calendarDate = value.slice(0, 10);
+  const calendar = new Date(`${calendarDate}T00:00:00.000Z`);
+  if (Number.isNaN(calendar.getTime()) || calendar.toISOString().slice(0, 10) !== calendarDate) return null;
+  return new Date(value);
+};
+
 /**
- * 导入契约的日期值：Date，或以 ISO 8601 日期起首的文本，且须解析为有效时刻。
+ * 导入契约的日期值：Date，或日历日期与时刻均有效的 ISO 8601 文本。
  *
  * @remarks
  * 数值（epoch）等其余形态一律拒绝——`new Date("0")` 在 V8 上静默解析为 2000-01-01，
@@ -145,7 +153,7 @@ const ISO_DATE_PREFIX = /^\d{4}-\d{2}-\d{2}(?:$|[T ])/;
 export const importDate = (subject: string, value: unknown): Date => {
   const date =
     value instanceof Date ? value
-    : typeof value === 'string' && ISO_DATE_PREFIX.test(value) ? new Date(value)
+    : typeof value === 'string' ? parseIsoDate(value)
     : null;
   if (date === null || Number.isNaN(date.getTime())) {
     const shown =

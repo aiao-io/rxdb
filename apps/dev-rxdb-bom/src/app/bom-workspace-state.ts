@@ -24,6 +24,7 @@ export interface BomExplosionView {
   context: BomWorkspaceContext;
   key: string;
   epoch: number;
+  revision: number;
 }
 
 const record = (value: unknown): value is Record<string, unknown> =>

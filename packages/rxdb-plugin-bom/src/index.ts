@@ -54,8 +54,8 @@ export type {
 } from './instance.js';
 export { RxDBPluginBom, rxDBPluginBom } from './plugin.js';
 export { rollupCost } from './quantity/cost-api.js';
+export { DEFAULT_COST_ROLLUP_BUDGETS } from './quantity/cost-budgets.js';
 export { BomCostError } from './quantity/cost-error.js';
-export { DEFAULT_COST_ROLLUP_BUDGETS } from './quantity/cost.js';
 export type {
   CostCreditLine,
   CostMaterialLine,
@@ -99,18 +99,15 @@ export type { JointCostOutput, JointCostSummary } from './quantity/joint-cost.js
 export { convertUom, type UomConversionRates } from './quantity/uom.js';
 export { EXPLOSION_ALGORITHM_VERSION } from './quantity/versions.js';
 export { BomRepository } from './repository.js';
-export {
-  BomMapError,
-  confirmMapping,
-  mappingCoverage,
-  mappingGaps,
-  saveMapping,
-  type MapScopeInfo,
-  type MappingCoverageResult,
-  type MappingGap,
-  type MappingGapsResult,
-  type MappingSaveInput,
-  type MappingStep
+export { confirmMapping, mappingCoverage, mappingGaps, saveMapping } from './resolve/bom-map-api.js';
+export { BomMapError } from './resolve/bom-map-error.js';
+export type {
+  MapScopeInfo,
+  MappingCoverageResult,
+  MappingGap,
+  MappingGapsResult,
+  MappingSaveInput,
+  MappingStep
 } from './resolve/bom-map.js';
 export { bomSqlDialectFor, pgliteBomDialect, sqliteBomDialect, type BomSqlDialect } from './resolve/bom-sql.js';
 export {
@@ -139,7 +136,7 @@ export {
   type ExpansionOptions,
   type ExpansionResult,
   type WhereUsedTarget
-} from './resolve/expansion.js';
+} from './resolve/expansion-api.js';
 export {
   BomExportRejectedError,
   EXPORT_CONTRACT_VERSION,

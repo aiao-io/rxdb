@@ -49,7 +49,7 @@ import {
   type ExpansionOptions,
   type ExpansionResult,
   type WhereUsedTarget
-} from './resolve/expansion.js';
+} from './resolve/expansion-api.js';
 import type { BomExportPayload } from './resolve/export-contract.js';
 import { filterByAttr as runFilterByAttr, type ExtAttrQueryFilter, type ExtAttrScope } from './resolve/ext-attr.js';
 import { loadHistory } from './resolve/history-api.js';
