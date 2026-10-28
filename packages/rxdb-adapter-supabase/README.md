@@ -160,7 +160,7 @@ const adapter = new RxDBAdapterSupabase(rxdb, {
 
 严格模式下，目标表不存在、RLS 未启用、RPC 响应遗漏目标表、检查 RPC 缺失或检查请求失败都会拒绝 `connect()`，且不会启动 Realtime；后续重试会重新执行检查。该检查只确认目标表已启用 RLS，不验证 policy 内容、认证 claims、tenant ownership 或表级 grants，这些仍需在服务端独立审计。
 
-`rxdb_mutations`、`rxdb_batch_upsert`、`rxdb_batch_update` 和 `rxdb_batch_delete` 均以 `SECURITY INVOKER` 执行。调用角色必须拥有目标 schema 的 `USAGE`、目标表所需的 DML 权限及相关 sequence 权限；所有写入同时受该角色的 RLS policy 约束。仅授予 RPC 的 `EXECUTE` 权限不会绕过目标表权限或 RLS，也不要求目标表设置 `FORCE ROW LEVEL SECURITY`。
+`rxdb_mutations`、`rxdb_batch_upsert`、`rxdb_batch_update_rows`、`rxdb_batch_update` 和 `rxdb_batch_delete` 均以 `SECURITY INVOKER` 执行。调用角色必须拥有目标 schema 的 `USAGE`、目标表所需的 DML 权限及相关 sequence 权限；显式写入受该角色的 RLS policy 约束。仅授予 RPC 的 `EXECUTE` 权限不会绕过目标表权限或 RLS，也不要求目标表设置 `FORCE ROW LEVEL SECURITY`。外键级联可能删除调用方不可见的子行，其日志边界见下方[级联删除](#级联删除)。
 
 ## 数据库 Schema
 
@@ -216,7 +216,7 @@ CREATE TABLE public.rxdb_branch (
 - **同步协议绑定业务表的 `id` 列**：变更日志触发器记录 `NEW.id`，`mergeChanges` 推送也以 `id` 键定位行，都不读实体主键的 `columnName`。参与同步的表主键列必须叫 `id`；只做同步的实体可以只在本地改主键列名。
 
 > Realtime 需把 `rxdb_change` 加入 `supabase_realtime` publication；系统表初始化脚本已处理。
-> 同步事务依赖 RPC：`rxdb_mutations`（内部调用 `rxdb_batch_upsert`、`rxdb_batch_update`、`rxdb_batch_delete`、`rxdb_existing_ids`）、`rxdb_check_rls`、`rxdb_enable_sync_for_branch`。
+> 同步事务依赖 RPC：`rxdb_mutations`（内部调用 `rxdb_batch_upsert`、`rxdb_batch_update_rows`、`rxdb_batch_delete`、`rxdb_existing_ids`）、`rxdb_check_rls`、`rxdb_enable_sync_for_branch`。`rxdb_batch_update` 保留原有整数计数返回值。
 > 树查询**不依赖任何数据库函数**：`SupabaseTreeRepository` 按层发 `select`（每层一次 `in('parentId', ...)`）逐级展开，
 > 因此深树会产生与深度成正比的往返次数。
 
@@ -305,26 +305,34 @@ class SupabaseTreeRepository<T> extends SupabaseRepository<T> {
 
 ## 同步机制
 
+### 直写事务（`mutations`）
+
+直接连接 Supabase 的 `save()` / `mutations()` 把新增发到 `p_upserts`，修改发到 `p_updates`，在一个 RPC 事务里执行。修改使用普通 `UPDATE`，不再经过 INSERT 策略；`createdBy` 保持原值，`updatedBy` 使用当前用户。
+
+直写路径没有逐列脏追踪：`id` 用于定位，序列化整实体中除 `createdBy` 外的其余列参与更新。推送路径则只发送变更列；两者都只更新载荷中出现的列。直写通过 `UPDATE … RETURNING` 将服务器结果与新增行一起返回，实体由此回填 `updatedAt` 等服务器字段。UPDATE 被策略拒绝报 `42501`，目标行已不存在报 `RX001`；直写批次任一写入失败，整批回滚。
+
+返回完整行要求直写角色具备相应列的 SELECT 权限，修改后的行也需满足 SELECT 策略。推送及原 `rxdb_batch_update` 计数入口继续执行不带 RETURNING 的 UPDATE，保留原有权限与可见性语义；不会因本次直写回填需求追加全列 SELECT 或修改后行可见性要求。
+
 ### Push（`mergeChanges`）
 
 1. 收集本地未推送变更（`remoteId = null`）
 2. 变更压缩：`INSERT→UPDATE*` → `INSERT`；`INSERT→DELETE` → 丢弃；`UPDATE*→DELETE` → `DELETE`
-3. 调用 RPC `rxdb_mutations`，在单事务内写 `rxdb_change` + 实体表（`p_skip_sync=true` 跳过触发器），参数见下表
+3. 调用 RPC `rxdb_mutations`，在单事务内写 `rxdb_change` + 实体表（`p_skip_sync=true`，触发器捕获实际删除，RPC 先写源日志再写隐式级联 DELETE），参数见下表
 4. 返回 `maxChangeId` 与 `changeIdMapping`（localId → remoteId）
 5. 相同 `(clientId, localId)` 重试时返回首次提交的 remoteId，不重复写 change，也不重复执行实体副作用
 6. 全部远端批次成功后，在一个本地事务内同时保存 mapping 和推送水位；本地事务失败时可重试整个未确认批次
 
 `rxdb_mutations` 参数（实体表按 `p_upserts` → `p_updates` → `p_deletes` 顺序执行；非 main 分支三个写数组为空，只写变更记录）：
 
-| 参数          | 形状                                               | 落库方式                                                         |
-| ------------- | -------------------------------------------------- | ---------------------------------------------------------------- |
-| `p_upserts`   | `[{ table, schema, data: [{ id, ...全部列 }] }]`   | 新增实体：`INSERT … ON CONFLICT (id) DO UPDATE`                  |
-| `p_updates`   | `[{ table, schema, data: [{ id, ...修改的列 }] }]` | 修改实体：普通 `UPDATE`，只改出现的列，未出现的列保持原值        |
-| `p_deletes`   | `[{ table, schema, ids: [...] }]`                  | 删除实体                                                         |
-| `p_changes`   | `RxDBChange[]`                                     | 写入 `rxdb_change`；`(clientId, localId)` 重复时整批实体操作跳过 |
-| `p_skip_sync` | `boolean`                                          | `true` 时本事务内不触发同步日志触发器                            |
+| 参数          | 形状                                               | 落库方式                                                                                   |
+| ------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `p_upserts`   | `[{ table, schema, data: [{ id, ...全部列 }] }]`   | 新增实体：`INSERT … ON CONFLICT (id) DO UPDATE`                                            |
+| `p_updates`   | `[{ table, schema, data: [{ id, ...修改的列 }] }]` | 修改实体：普通 `UPDATE`，只改出现的列，未出现的列保持原值                                  |
+| `p_deletes`   | `[{ table, schema, ids: [...] }]`                  | 删除实体                                                                                   |
+| `p_changes`   | `RxDBChange[]`                                     | 写入 `rxdb_change`；`(clientId, localId)` 重复时整批实体操作跳过                           |
+| `p_skip_sync` | `boolean`                                          | `true` 时显式变更使用 `p_changes`，触发器捕获实际删除，RPC 在源日志之后统一写入隐式 DELETE |
 
-返回对象含 `upserted` / `updated` / `deleted` / `changes` / `max_change_id` / `change_id_mapping`。
+推送返回对象含 `upserted`（新增行）/ `updated`（修改计数）/ `deleted` / `changes` / `max_change_id` / `change_id_mapping`；直写事务的 `upserted` 另包含修改的服务器行，推送不返回这些修改行。
 
 修改只受目标表的 UPDATE 与 SELECT 策略约束，不受 INSERT 策略约束：owner 型策略下推送不必携带 `owner` 列，共享编辑表上可以改他人创建的行。某条修改更新到 0 行时整批回滚并报错，两类错误的 `DETAIL` 都是 JSON `{"op","schema","table","entityId","reason"}`：
 
@@ -334,6 +342,16 @@ class SupabaseTreeRepository<T> extends SupabaseRepository<T> {
 | `RX001`  | `gone`   | 行已不存在（被删除），不会插入残缺行把它复活 |
 
 错误码口径见 [US-220 sqlstate-registry](https://github.com/aiao-io/rxdb/blob/8cc005bb2dda3de51ab0eabb0cdea7e833395c35/specs/006-us220-update-push-semantics/contracts/sqlstate-registry.md)。从旧版本升级须先执行新版 SQL 再升级客户端，见 [迁移说明](https://rxdb.aiao.io/docs/migration/supabase-update-push)。
+
+### 级联删除
+
+推送父行删除后，数据库按 `ON DELETE CASCADE` 实际删除的子行各有一条 DELETE 日志。同批已显式删除的子行沿用客户端日志与 `clientId + localId` 映射，RPC 不再追加重复的隐式日志；若子行先被 RLS 拒绝、随后被允许的父删除级联，最终回执按实际结果记为 `applied`。缺失的最终 DELETE 快照由被删行的 `OLD` 补齐，重试成功批次不重复记日志。
+
+触发器先在事务上下文中捕获实际删除；RPC 将隐式 DELETE 追加在客户端源日志之后，统一写入。同批先新增或修改子行、再删父行时，其他端按 INSERT / UPDATE → 隐式 DELETE 的顺序拉取，最终子行不会被较晚的源日志复活；全部日志与业务写一同提交或回滚。
+
+隐式级联日志保留完整 `OLD`（`beforeData`）、空 `afterData` 与 `snapshotComplete = true`，`clientId` / `localId` 为 NULL，因此推送端自己也能拉回子行删除。外键可删除按业务表 RLS 不可见的子行；日志沿用触发器模式现有的读取边界，业务表 RLS 不会自动给变更日志提供逐行授权隔离。
+
+升级本次直写 UPDATE 与级联日志修复时，先依次执行 `docker/sql/02-rxdb-sync-functions.sql`、`docker/sql/04-rxdb-utils-functions.sql`，再升级客户端。`01-rxdb-system-tables.sql` 无变化；已安装系统表及幂等索引的数据库无需为这两项修复重跑它。完整步骤见[迁移说明](https://rxdb.aiao.io/docs/migration/supabase-update-push)。
 
 ### Pull（`pullChanges` / `pullChangesBatch`）
 

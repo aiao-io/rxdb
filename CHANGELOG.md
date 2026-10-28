@@ -2,6 +2,8 @@
 
 ### ⚠️ Breaking Changes
 
+- **rxdb-adapter-supabase:** 直写事务的 UPDATE 与级联删除日志修复需要配套参考 SQL：先依次更新 `docker/sql/02-rxdb-sync-functions.sql`、`docker/sql/04-rxdb-utils-functions.sql`，再升级客户端；本次不改 `01-rxdb-system-tables.sql`。推送与原 `rxdb_batch_update` 继续使用无 RETURNING 的计数模式，保留原有权限与可见性语义。→ [supabase-update-push](https://rxdb.aiao.io/docs/migration/supabase-update-push)（US-223 / US-224）
+
 - **rxdb / rxdb-adapter-sqlite-core / -pglite:** 系统表结构升至 8，`RxDBChange` 新增可空的 `tableSetSuffix`，固定变更写入时的表集来源，避免迟到事件污染其他检出位。旧库自动补列并重建触发器；升级后旧客户端会拒绝打开该库，需一起升级。
 
 - **rxdb-adapter-sqlite-core / -pglite / -sqlite / -sqlite-wasm / -sqliteai / -wa-sqlite:** 推导物理表名、生成建表 / 读写 / 触发器 SQL 的公开函数多了必填的表集参数（`WorktreeTableSet`），如 `get_table_name_by_metadata(metadata, tableSet)`、`getTableNameByMetadata(metadata, tableSet)`、`create_tables_sql(adapter, tableSet, …)`，触发器生成选项的 `tableSet` 必填。可写检出位在同一个库里各有一套业务表，不说哪一套推出来的永远是主检出位那一套，挂在别的检出位上会静默读写错表。只有主检出位的代码补 `WorktreeTableSet.MAIN` 即可，物理名与之前逐字相同，库文件无需迁移。→ [table-set-parameter](https://rxdb.aiao.io/docs/migration/table-set-parameter)（US-314）
@@ -47,6 +49,9 @@
 - **rxdb-model / -angular / -react / -vue:** 实体列表的撤销 / 重做按钮因子分支分叉点停用时，`title` 说明是哪条分支继承了下一步；文案在 `describeHistoryBarrier()`（US-315）
 
 ### 🩹 Fixes
+
+- **rxdb-adapter-supabase:** `mutations()` 的修改改走普通 UPDATE，修复 owner 型与共享编辑型 RLS 下被 INSERT 策略误拒的问题；直写仍按序列化整实体更新，不引入逐列脏追踪，`createdBy` 保持不变。仅直写 UPDATE 返回服务器实际写入的行，供实体回填 `updatedAt` 等字段；推送保留原计数模式。被拒与目标已删除分别报 `42501` / `RX001`，直写失败整批回滚（US-223）
+- **rxdb-adapter-supabase:** 推送父行删除时，触发器捕获实际级联删除，RPC 在源日志之后统一写入完整隐式 DELETE，所有客户端（包括推送端）均可拉取；同批 INSERT / UPDATE 子行后删除父行，拉取不再因日志顺序把子行复活。显式删除保留原映射并去重，最终回执按实际删除结果修正。日志沿用触发器模式现有的读取边界，业务表 RLS 不提供日志的逐行授权隔离（US-224）
 
 - **rxdb / rxdb-adapter-pglite / -sqlite-core:** 公开仓库写入在 COMMIT 失败时恢复实体状态、变更基线与身份缓存，并保留等待期间的本地编辑，修复延迟外键失败后重试漏写。
 - **rxdb-plugin-history / rxdb-adapter-pglite / -sqlite-core:** 切分支在事务内生成 SQL，并拒绝计算增量或排队期间已改变表集、当前分支的旧计划，防止切换可写检出位时误改主检出位。

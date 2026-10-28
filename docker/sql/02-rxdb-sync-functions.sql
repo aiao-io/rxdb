@@ -40,17 +40,31 @@ DECLARE
     v_val_new jsonb;
     v_val_old jsonb;
     v_branch_id text := 'main'; -- 默认为 main 分支
-    v_sync_enabled text;
+    v_explicit_deletes jsonb;
+    v_entity_key text;
 BEGIN
-    -- 检查是否禁用了同步 (通过会话变量)
-    BEGIN
-        v_sync_enabled := pg_catalog.current_setting('rxdb.sync_enabled', true);
-    EXCEPTION WHEN OTHERS THEN
-        v_sync_enabled := 'true';
-    END;
+    IF pg_catalog.current_setting('rxdb.sync_enabled', true) = 'false' THEN
+        IF TG_OP != 'DELETE' THEN
+            RETURN NULL;
+        END IF;
 
-    IF v_sync_enabled = 'false' THEN
-        RETURN NULL; -- 跳过记录变更
+        v_explicit_deletes := NULLIF(pg_catalog.current_setting('rxdb.explicit_deletes', true), '')::jsonb;
+        IF v_explicit_deletes IS NULL THEN
+            RETURN NULL;
+        END IF;
+
+        v_entity_key := pg_catalog.jsonb_build_array(TG_TABLE_SCHEMA, TG_TABLE_NAME, OLD.id::text)::text;
+        PERFORM pg_catalog.set_config(
+            'rxdb.explicit_deletes',
+            pg_catalog.jsonb_set(v_explicit_deletes, ARRAY[v_entity_key],
+                COALESCE(v_explicit_deletes->v_entity_key, pg_catalog.jsonb_build_object('entityKey', NULL))
+                || pg_catalog.jsonb_build_object(
+                    'namespace', v_namespace, 'entity', v_entity, 'beforeData', pg_catalog.to_jsonb(OLD)
+                )
+            )::text,
+            true
+        );
+        RETURN OLD;
     END IF;
 
     -- 尝试从配置或会话变量获取 branchId (可选)
