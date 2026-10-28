@@ -105,7 +105,7 @@ owner 已批准完整功能演示应用；授权与边界见 [epic-009](../epics
 2. 否决理由保留在 rejected-domains，当前结论直接覆盖；演进过程由 Git 历史记录。
 3. 孵化后研究冻结为设计依据；更新交付范围、AC 和状态只改对应故事与派生视图。
 4. 每次 roadmap 批次评审或 release 核对候选；已孵化只保留指针，避免第二份待办与状态表。
-5. 领域代码遵守 [AGENTS.md](../../AGENTS.md) 与 [CONTRIBUTING](../../CONTRIBUTING.md)：领域功能先评审，`packages/*` 改动单独提取、评审并先合入 main，再合回领域分支。
+5. 领域代码遵守 [AGENTS.md](../../AGENTS.md) 与 [CONTRIBUTING](../../CONTRIBUTING.md)：领域功能与 `packages/*` 公共包改动在同一 PR 中统一评审、验证，通过后一起合入 main。
 
 ## 毕业路径
 

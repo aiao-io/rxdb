@@ -59,7 +59,7 @@ owner 批准字段配置、排序和分组三项，依据为 [Teable 调研](../
 - [`isReadonly`](../../../packages/rxdb-model/src/entity-table/columns/column-utils.ts) 识别分组标题，
   复用于编辑器、剪贴板、键盘及三端单元格事件入口。
 - `ListViewSettingsController` 统一三端弹层定位及拖拽生命周期，复用 `@aiao/utils` 的 `FixedRowDrag`；取消拖拽或字段序列变化时不提交旧落点。
-- 领域功能与 `packages/*` 改动按 [AGENTS.md](../../../AGENTS.md) 单独提取、评审和合并。
+- 领域功能与 `packages/*` 公共包改动按 [AGENTS.md](../../../AGENTS.md) 在同一 PR 中统一评审、验证和合并。
 
 ## 实现文件
 
