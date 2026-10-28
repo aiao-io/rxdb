@@ -3,8 +3,9 @@ import { RefreshMatchRules } from '../repository/QueryManager.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalUpdatedEventData } from '../rxdb-events.js';
 import { handleFindAllUpdate, handleFindOneUpdate } from './merge-update-basic.js';
-import { applyExternalEntityUpdate, prepareIncrementalUpdate } from './merge-update.utils.js';
+import { applyExternalEntityUpdate, foldUpdate, prepareIncrementalUpdate } from './merge-update.utils.js';
 import { query_need_refresh_update } from './need_refresh_update.js';
+import { separateEntities } from './query-relation.utils.js';
 
 /**
  * 重新计算查询结果（JS 增量更新）
@@ -36,7 +37,7 @@ import { query_need_refresh_update } from './need_refresh_update.js';
  * `recalculate_rules` 对 count 也恒为空。
  *
  * @param task 查询任务
- * @param data 更新的实体数据
+ * @param data 本任务实体类型的更新事件（与 merge_create / merge_remove 同口径，不含同批的关系实体事件）
  */
 const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntityLocalUpdatedEventData<T>[]) => {
   const { cache, classification } = prepareIncrementalUpdate(task, data);
@@ -67,7 +68,7 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
  * 这正是「查的时候还不存在、随后被别的端建出来」的那一幕。
  *
  * @param task - 目标 `get` 任务
- * @param update - 命中目标 id 的那条更新事件
+ * @param update - 命中目标 id 的更新事件，同批多条已合成一条
  */
 const applyGetUpdate = <T extends EntityType>(task: QueryTask<T>, update: RxDBEntityLocalUpdatedEventData<T>) => {
   if (task.result && typeof task.result === 'object') {
@@ -116,8 +117,9 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
   const recalculate_rules: RefreshMatchRules = [];
 
   if (task.type === 'get') {
-    const update = entities.find(entity => entity.id === task.options);
-    if (update) applyGetUpdate(task, update);
+    // 只认本类型的事件（同 id 的关系实体不是它），同批同 id 的多条合成一条再落
+    const updates = separateEntities(task, entities).current_entities.filter(entity => entity.id === task.options);
+    if (updates.length > 0) applyGetUpdate(task, updates.reduce(foldUpdate));
     return;
   }
 
@@ -212,6 +214,6 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
   if (needs_refresh) {
     task.refresh();
   } else if (result.recalculate) {
-    _recalculate(task, entities);
+    _recalculate(task, result.current_entities);
   }
 };

@@ -1,17 +1,21 @@
+import { emptyFunction } from '@aiao/utils';
 import { firstValueFrom, map, of, timer } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import query_merge_update_cache_impl from '../../query/merge_update.js';
-import type { CountOptions } from '../../repository/query-options.interface.js';
+import type { CountOptions, FindAllOptions } from '../../repository/query-options.interface.js';
 import type { QueryOptions } from '../../repository/QueryManager.interface.js';
 import { QueryTask } from '../../repository/QueryTask.js';
 import type { RxDBEntityLocalUpdatedEventData } from '../../rxdb-events.js';
+import { STATUS } from '../../rxdb.private.js';
+import { getEntityMetadata } from '../../rxdb-utils.js';
 import {
   collectEmissions,
   createHarnessQueryTask,
   type EntityCache,
   type HarnessTaskOptions
 } from '../../testing/query-task-harness.js';
+import { Post, Tag } from '../fixtures/test-entities.js';
 
 describe('query_merge_update_cache', () => {
   class TestEntity {
@@ -127,6 +131,22 @@ describe('query_merge_update_cache', () => {
 
       expect(refreshSpy).not.toHaveBeenCalled();
       expect(emissions).toEqual([{ id: 'run-1', title: 'Delay task', status: 'queued' }]);
+    });
+
+    it('同批同 id 的多条 UPDATE 全部落到结果上', () => {
+      const task = createMockQueryTask({
+        type: 'get',
+        options: 'run-1',
+        runner: () => of({ id: 'run-1', status: 'queued', progress: 0 })
+      });
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [
+        createMockUpdateEvent({ id: 'run-1', status: 'running' }, { id: 'run-1', status: 'queued' }),
+        createMockUpdateEvent({ id: 'run-1', progress: 50 }, { id: 'run-1', progress: 0 })
+      ]);
+
+      expect(emissions.at(-1)).toEqual({ id: 'run-1', status: 'running', progress: 50 });
     });
   });
 
@@ -1035,6 +1055,8 @@ describe('query_merge_update_cache', () => {
       expect(emissions).toEqual([null, row]);
     });
 
+    // 补丁改的是条件读的 status（前后都不命中 'active'），条件里另一列取自缓存：
+    // 明确的 null 是已知值，由 JS 判定不跨界；undefined 与缺失说明这一列没加载过，回 SQL。
     it.each([
       { name: '显式 null', cached: { id: '1', optional: null }, refreshes: 0 },
       { name: 'undefined', cached: { id: '1', optional: undefined }, refreshes: 1 },
@@ -1046,7 +1068,10 @@ describe('query_merge_update_cache', () => {
         options: {
           where: {
             combinator: 'and',
-            rules: [{ field: 'optional', operator: '=', value: null }]
+            rules: [
+              { field: 'optional', operator: '=', value: null },
+              { field: 'status', operator: '=', value: 'active' }
+            ]
           }
         },
         cachedById: { '1': cached },
@@ -1055,12 +1080,13 @@ describe('query_merge_update_cache', () => {
       const refresh = vi.spyOn(task, 'refresh');
       collectEmissions(task);
 
-      query_merge_update_cache(task, [createPartialUpdate({ title: 'Updated' }, { title: 'Original' })]);
+      query_merge_update_cache(task, [createPartialUpdate({ status: 'archived' }, { status: 'inactive' })]);
 
       expect(refresh).toHaveBeenCalledTimes(refreshes);
       expect(runner).toHaveBeenCalledTimes(refreshes + 1);
     });
 
+    // JSON 路径只看承载它的顶层列：列已知时内部缺键是数据本身的状态，列没加载过才回 SQL。
     it.each([
       { name: '完整空对象', cached: { id: '1', settings: {} }, refreshes: 0 },
       { name: '显式 null', cached: { id: '1', settings: null }, refreshes: 0 },
@@ -1072,7 +1098,10 @@ describe('query_merge_update_cache', () => {
         options: {
           where: {
             combinator: 'and',
-            rules: [{ field: 'settings.theme', operator: '=', value: 'dark' }]
+            rules: [
+              { field: 'settings.theme', operator: '=', value: 'dark' },
+              { field: 'status', operator: '=', value: 'active' }
+            ]
           }
         },
         cachedById: { '1': cached },
@@ -1081,10 +1110,191 @@ describe('query_merge_update_cache', () => {
       const refresh = vi.spyOn(task, 'refresh');
       collectEmissions(task);
 
-      query_merge_update_cache(task, [createPartialUpdate({ title: 'Updated' }, { title: 'Original' })]);
+      query_merge_update_cache(task, [createPartialUpdate({ status: 'archived' }, { status: 'inactive' })]);
 
       expect(refresh).toHaveBeenCalledTimes(refreshes);
       expect(runner).toHaveBeenCalledTimes(refreshes + 1);
+    });
+
+    it('JSON 路径的 = null 把缺键当作 NULL，与 SQL 的 IS NULL 一致', () => {
+      // json_extract(settings, '$.theme') IS NULL 对缺失的键为真：主题被清掉的这一行进了计数
+      const counts = [0, 1];
+      let call = 0;
+      const task = createMockQueryTask({
+        type: 'count',
+        options: {
+          where: { combinator: 'and', rules: [{ field: 'settings.theme', operator: '=', value: null }] }
+        },
+        cachedById: { '1': { id: '1', settings: { theme: 'dark' } } },
+        runner: () => of(counts[Math.min(call++, counts.length - 1)])
+      });
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [createPartialUpdate({ settings: {} }, { settings: { theme: 'dark' } })]);
+
+      expect(emissions).toEqual(counts);
+    });
+
+    const createUncachedTask = (type: 'count' | 'find' | 'findAll' | 'findByCursor' | 'findOne') => {
+      const orderBy = [{ field: 'id', sort: 'asc' as const }];
+      switch (type) {
+        case 'count':
+          return createMockQueryTask({ type, options: { where }, runner: () => of(0) });
+        case 'findOne':
+          return createMockQueryTask({ type, options: { where }, runner: () => of(null) });
+        case 'findAll':
+          return createMockQueryTask({ type, options: { where }, runner: () => of<TestEntityData[]>([]) });
+        case 'find':
+        case 'findByCursor':
+          return createMockQueryTask({
+            type,
+            options: { where, orderBy, limit: 3 },
+            runner: () => of<TestEntityData[]>([])
+          });
+      }
+    };
+
+    it.each(['count', 'find', 'findAll', 'findByCursor', 'findOne'] as const)(
+      '%s 收到只改条件与排序都不读的列的残缺补丁时不回 SQL',
+      type => {
+        // 补丁没碰 status / priority / id：这一行的匹配状态与排序位置都没动，缓存缺哪一列都不影响结论
+        const task = createUncachedTask(type);
+        const refresh = vi.spyOn(task, 'refresh');
+        collectEmissions(task);
+
+        query_merge_update_cache(task, [createPartialUpdate({ title: 'Updated' }, { title: 'Original' })]);
+
+        expect(refresh).not.toHaveBeenCalled();
+      }
+    );
+
+    it('where 里有 JS 判定不认的组合子时，收集字段不抛错，求值仍按短路语义', () => {
+      // 大写 'AND' 能过 sqlite-core / PGlite 的 SQL 翻译，JS 判定不认；首条规则已判 false，走不到它
+      const task = createMockQueryTask({
+        type: 'count',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [
+              { field: 'status', operator: '=', value: 'active' },
+              { combinator: 'AND', rules: [{ field: 'priority', operator: '=', value: 5 }] }
+            ]
+          } as unknown as CountOptions<TestEntityType>['where']
+        },
+        cachedById: { '1': { id: '1', status: 'inactive', priority: 5 } },
+        runner: () => of(0)
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      collectEmissions(task);
+
+      expect(() =>
+        query_merge_update_cache(task, [createPartialUpdate({ title: 'Updated' }, { title: 'Original' })])
+      ).not.toThrow();
+      expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it('同一批里同一实体的两条 UPDATE 合起来判定，两条补丁都落到缓存实例上', () => {
+      // 16ms 批处理窗口里先改 status、再改 title：只被第一条改过的条件列同样算数
+      const cached = { id: '1', status: 'inactive', priority: 5, title: 'draft' };
+      const counts = [0, 1];
+      let call = 0;
+      const task = createMockQueryTask({
+        type: 'count',
+        options: { where },
+        cachedById: { '1': cached },
+        runner: () => of(counts[Math.min(call++, counts.length - 1)])
+      });
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [
+        createPartialUpdate({ status: 'active' }, { status: 'inactive' }),
+        createPartialUpdate({ title: 'ready' }, { title: 'draft' })
+      ]);
+
+      expect(emissions).toEqual(counts);
+      expect(cached).toMatchObject({ status: 'active', title: 'ready' });
+    });
+
+    it('冷缓存下同一实体的两条 UPDATE 也按合并后的前后态判定', () => {
+      const counts = [0, 1];
+      let call = 0;
+      const task = createMockQueryTask({
+        type: 'count',
+        options: { where: { combinator: 'and', rules: [{ field: 'body', operator: '=', value: 'x' }] } },
+        runner: () => of(counts[Math.min(call++, counts.length - 1)])
+      });
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [
+        createPartialUpdate({ title: 'ready' }, { title: 'draft' }),
+        createPartialUpdate({ body: 'x' }, { body: 'shared' })
+      ]);
+
+      expect(emissions).toEqual(counts);
+    });
+
+    it('findAll 合并同一实体同批的多条 UPDATE 时每条补丁都落到结果实体上', () => {
+      const row = { id: '1', title: 'draft', status: 'active', priority: 5 };
+      const task = createMockQueryTask({
+        type: 'findAll',
+        options: { where: { combinator: 'and', rules: [{ field: 'status', operator: '=', value: 'active' }] } },
+        runner: () => of<TestEntityData[]>([row])
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [
+        createPartialUpdate({ title: 'ready' }, { title: 'draft' }),
+        createPartialUpdate({ priority: 3 }, { priority: 5 })
+      ]);
+
+      expect(refresh).not.toHaveBeenCalled();
+      expect(emissions).toEqual([
+        [{ id: '1', title: 'draft', status: 'active', priority: 5 }],
+        [{ id: '1', title: 'ready', status: 'active', priority: 3 }]
+      ]);
+    });
+
+    it('脏实体按已持久化的值判定：未保存的编辑不参与 SQL 活查询的跨界判断', () => {
+      // 库里是 { inactive, 5 }，用户在表单里把 priority 改成 3 还没保存；另一个 Tab 把 status 改成 active
+      const cached = { id: '1', status: 'inactive', priority: 3 };
+      Object.defineProperty(cached, STATUS, {
+        value: { markContentChanged: emptyFunction, modified: true, inversePatch: { priority: 5 } },
+        enumerable: false
+      });
+      const counts = [0, 1];
+      let call = 0;
+      const task = createMockQueryTask({
+        type: 'count',
+        options: { where },
+        cachedById: { '1': cached },
+        runner: () => of(counts[Math.min(call++, counts.length - 1)])
+      });
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [createPartialUpdate({ status: 'active' }, { status: 'inactive' })]);
+
+      expect(emissions).toEqual(counts);
+    });
+
+    it('缓存比迟到的事件新时拼不出前态，改了条件列就回 SQL', () => {
+      // N 原是 { active, 5 }、计入 count。另一个 Tab 先改 status（t1）、再改 priority → 1（t2）；
+      // 本 Tab 处理第一条之前，别的查询已把 N 水合成 t2 的样子
+      const counts = [1, 0];
+      let call = 0;
+      const task = createMockQueryTask({
+        type: 'count',
+        options: { where },
+        cachedById: { '1': { id: '1', status: 'inactive', priority: 1, updatedAt: new Date(2) } },
+        runner: () => of(counts[Math.min(call++, counts.length - 1)])
+      });
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [
+        createPartialUpdate({ status: 'inactive', updatedAt: new Date(1) }, { status: 'active', updatedAt: new Date(0) })
+      ]);
+
+      expect(emissions).toEqual(counts);
     });
 
     it.each(['find', 'findByCursor'] as const)('%s 缺少次级排序列时通过 SQL 决定新窗口', type => {
@@ -1115,6 +1325,176 @@ describe('query_merge_update_cache', () => {
 
       expect(refresh).toHaveBeenCalledTimes(1);
       expect(emissions).toEqual([[original], [updated]]);
+    });
+  });
+
+  describe('带实体元数据的 UPDATE 门控', () => {
+    type PostType = typeof Post;
+    type PostUpdate = RxDBEntityLocalUpdatedEventData<PostType>;
+
+    const postMetadata = getEntityMetadata(Post);
+    const published: FindAllOptions<PostType>['where'] = {
+      combinator: 'and',
+      rules: [{ field: 'published', operator: '=', value: true }]
+    };
+
+    /** 一整行持久列：元数据的全部属性加外键 */
+    const postRow = (overrides: Partial<Post> = {}): Post =>
+      ({
+        id: 'p1',
+        createdAt: new Date(0),
+        updatedAt: new Date(10),
+        createdBy: null,
+        updatedBy: null,
+        title: 'A',
+        content: 'body',
+        published: true,
+        authorId: 'u1',
+        ...overrides
+      }) as unknown as Post;
+
+    const postUpdate = (id: string, patch: Partial<Post>, inversePatch: Partial<Post>): PostUpdate => ({
+      type: 'UPDATE',
+      namespace: postMetadata.namespace,
+      entity: postMetadata.name,
+      id,
+      entityType: Post,
+      origin: 'cross-tab',
+      recordAt: new Date(0),
+      patch,
+      inversePatch
+    });
+
+    const tagUpdate = (id: string, patch: Partial<Tag>, inversePatch: Partial<Tag>): PostUpdate =>
+      ({
+        type: 'UPDATE',
+        namespace: getEntityMetadata(Tag).namespace,
+        entity: getEntityMetadata(Tag).name,
+        id,
+        entityType: Tag,
+        recordAt: new Date(0),
+        patch,
+        inversePatch
+      }) as unknown as PostUpdate;
+
+    const mergePostUpdate = <RT>(task: QueryTask<PostType, RT>, events: PostUpdate[]): void => {
+      query_merge_update_cache_impl(task as unknown as QueryTask<PostType>, events);
+    };
+
+    it('按关系路径排序时，只改了标题的结果行仍走 JS 增量合并', () => {
+      // 关系 author 不是实例上的自有属性；排序读的是本表外键 authorId，补丁没碰它
+      const post = postRow();
+      const task = createHarnessQueryTask<PostType, Post[]>(Post, {
+        type: 'findAll',
+        options: { where: published, orderBy: [{ field: 'author.name', sort: 'asc' }] },
+        runner: () => of([post])
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      mergePostUpdate(task, [postUpdate('p1', { title: 'B' }, { title: 'A' })]);
+
+      expect(refresh).not.toHaveBeenCalled();
+      expect(emissions.map(rows => rows.map(row => row.title))).toEqual([['A'], ['B']]);
+    });
+
+    it('关系路径排序读的是本表外键：残缺补丁改了外键时回 SQL', () => {
+      let call = 0;
+      const task = createHarnessQueryTask<PostType, Post[]>(Post, {
+        type: 'findAll',
+        options: { where: published, orderBy: [{ field: 'author.name', sort: 'asc' }] },
+        runner: () => of(call++ === 0 ? [] : [postRow({ authorId: 'u2' })])
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      collectEmissions(task);
+
+      mergePostUpdate(task, [postUpdate('p1', { authorId: 'u2' }, { authorId: 'u1' })]);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it('findAll 要追加的新匹配行缺少未改的持久列时回 SQL 取整行', () => {
+      const row = postRow({ title: 'ready' });
+      let call = 0;
+      const task = createHarnessQueryTask<PostType, Post[]>(Post, {
+        type: 'findAll',
+        options: { where: { combinator: 'and', rules: [{ field: 'title', operator: '=', value: 'ready' }] } },
+        runner: () => of(call++ === 0 ? [] : [row])
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      mergePostUpdate(task, [postUpdate('p1', { title: 'ready' }, { title: 'draft' })]);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([[], [row]]);
+    });
+
+    it('findAll 的新匹配行带齐全部持久列时直接追加，不回 SQL', () => {
+      const row = postRow({ title: 'ready' });
+      const task = createHarnessQueryTask<PostType, Post[]>(Post, {
+        type: 'findAll',
+        options: { where: { combinator: 'and', rules: [{ field: 'title', operator: '=', value: 'ready' }] } },
+        runner: () => of([])
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      mergePostUpdate(task, [postUpdate('p1', row, { title: 'draft' })]);
+
+      expect(refresh).not.toHaveBeenCalled();
+      expect(emissions).toEqual([[], [row]]);
+    });
+
+    it('批次里的外类型事件不进 JS 增量：外类型实例不会被追加进结果', () => {
+      // 共享依赖表放行的 Tag 事件也越过了 updatedAt 下限，但它不是 Post
+      const post = postRow();
+      const task = createHarnessQueryTask<PostType, Post[]>(Post, {
+        type: 'findAll',
+        options: { where: { combinator: 'and', rules: [{ field: 'updatedAt', operator: '>=', value: new Date(5) }] } },
+        runner: () => of([post])
+      });
+      const emissions = collectEmissions(task);
+
+      mergePostUpdate(task, [
+        postUpdate('p1', { title: 'B' }, { title: 'A' }),
+        tagUpdate('t1', { name: 'x', updatedAt: new Date(8) }, { name: 'y', updatedAt: new Date(1) })
+      ]);
+
+      expect(emissions.map(rows => rows.map(row => row.id))).toEqual([['p1'], ['p1']]);
+    });
+
+    it('同 id 的外类型事件顶替不了本类型的补丁', () => {
+      // 整数主键下 Post#5 与 Tag#5 撞 id：门控与 JS 增量都只认 Post 自己的事件
+      const post = postRow({ id: '5' });
+      const task = createHarnessQueryTask<PostType, Post[]>(Post, {
+        type: 'findAll',
+        options: { where: { combinator: 'and', rules: [] } },
+        runner: () => of([post])
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      mergePostUpdate(task, [
+        postUpdate('5', { title: 'B' }, { title: 'A' }),
+        tagUpdate('5', { name: 'x' }, { name: 'y' })
+      ]);
+
+      expect(refresh).not.toHaveBeenCalled();
+      expect(emissions.at(-1)).toEqual([postRow({ id: '5', title: 'B' })]);
+    });
+
+    it('get 不吃同 id 的外类型事件', () => {
+      const task = createHarnessQueryTask<PostType, Post | null>(Post, {
+        type: 'get',
+        options: '5',
+        runner: () => of(postRow({ id: '5' }))
+      });
+      const emissions = collectEmissions(task);
+
+      mergePostUpdate(task, [tagUpdate('5', { name: 'x' }, { name: 'y' })]);
+
+      expect(emissions).toEqual([postRow({ id: '5' })]);
     });
   });
 

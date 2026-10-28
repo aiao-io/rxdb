@@ -725,6 +725,28 @@ describe('query.utils', () => {
   });
 
   describe('RXD-024: JS 匹配与 SQL 三值逻辑/空规则组/集合语义对齐', () => {
+    it('= null 与 IS NULL 同义：JSON 缺键、整列为空都算命中，有值不算', () => {
+      // SQL 侧把 `= null` 译成 `IS NULL`，json_extract / ->> 对缺失的键取出的正是 NULL
+      const where: RuleGroup<{ id: number; settings?: { theme?: string } | null }> = {
+        combinator: 'and',
+        rules: [{ field: 'settings.theme', operator: '=', value: null }]
+      };
+
+      expect(isEntityMatchWhere({ id: 1, settings: {} }, where)).toBe(true);
+      expect(isEntityMatchWhere({ id: 1, settings: null }, where)).toBe(true);
+      expect(isEntityMatchWhere({ id: 1, settings: { theme: 'dark' } }, where)).toBe(false);
+    });
+
+    it('!= null 与 IS NOT NULL 同义：JSON 缺键不算命中', () => {
+      const where: RuleGroup<{ id: number; settings?: { theme?: string } | null }> = {
+        combinator: 'and',
+        rules: [{ field: 'settings.theme', operator: '!=', value: null }]
+      };
+
+      expect(isEntityMatchWhere({ id: 1, settings: {} }, where)).toBe(false);
+      expect(isEntityMatchWhere({ id: 1, settings: { theme: 'dark' } }, where)).toBe(true);
+    });
+
     it('!= 对缺失字段应判定不匹配（SQL 里 col != value 在 col IS NULL 时是 UNKNOWN，被 WHERE 排除，不是"当匹配"）', () => {
       const is = isEntityMatchWhere(
         { id: 1, role: null },

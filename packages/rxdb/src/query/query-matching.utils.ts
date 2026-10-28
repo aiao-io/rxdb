@@ -166,7 +166,7 @@ const compareRuleValues = (
  * 意外凑出和 SQL 不一致的结果，需要统一在这里短路。
  *
  * 不包含在这个集合里的操作符：
- * - `=`：isEqual(value, null) 已经正确处理——两边都是 null 时应该匹配（IS NULL 语义）。
+ * - `=`：规则值为 null 时就是 IS NULL，实体侧为空恰恰应该匹配（见 `get_entity_match_rule` 的 `=` 分支）。
  * - `null`/`notNull`：本来就是判空操作符。
  * - `exists`/`notExists`：判的是关系基数而非 SQL NULL 比较，关系未加载时 notExists 必须为 true。
  */
@@ -268,10 +268,21 @@ const get_entity_match_rule = (rule: RuntimeRule, entity: object): boolean => {
     case '=':
     case '!=': {
       const { value } = rule;
+      // 规则值为 null 时 SQL 侧发的是 IS NULL / IS NOT NULL，而 json_extract / ->> 对缺失的
+      // JSON 键取出的同样是 NULL：实体侧 undefined 与 null 一并算空，与 null / notNull 操作符同口径。
+      // （`!=` 的实体侧为空已由 NULL_EXCLUDED_OPERATORS 短路。）
+      if (value === null) {
+        const isNull = entityValue === null || entityValue === undefined;
+        return operator === '=' ? isNull : !isNull;
+      }
       // 两侧都非空且任一为 Date 时按时间点比：`isEqual(Date, '2024-01-01T00:00:00Z')` 恒为 false，
       // 触发器透传的 ISO 字符串 patch 会因此永远匹配不上日期等值规则。
-      // 有一侧为空时保留 isEqual —— `=` 不在 NULL_EXCLUDED_OPERATORS 里，靠它实现 IS NULL 语义。
-      const comparable = value !== null && value !== undefined && isDateComparison(value, entityValue);
+      // 有一侧为空时保留 isEqual：空值转不成时间点，SQL 里与它比较也恒不成立。
+      const comparable =
+        value !== undefined &&
+        entityValue !== null &&
+        entityValue !== undefined &&
+        isDateComparison(value, entityValue);
       const equal =
         comparable ? toEpochMs(rule.field, value) === toEpochMs(rule.field, entityValue) : isEqual(value, entityValue);
       return operator === '=' ? equal : !equal;

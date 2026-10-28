@@ -63,8 +63,33 @@ export const applyExternalEntityUpdate = <T extends EntityType>(
 };
 
 /**
+ * 把同一实体在一批里的前后两条 UPDATE 合成一条。
+ *
+ * @remarks
+ * patch 后写覆盖、inversePatch 先写为准，合成后描述的是「本批之前 → 本批之后」整段变化。
+ * 16ms 批处理窗口里连存两次就会出现同 id 的两条事件；不合的话，只被前一条改过的列不会落进
+ * 缓存实例，在更新前态里又被照抄成更新后的值，跨界判定与增量合并都看不见这次修改。
+ *
+ * @param earlier - 先发生的那条
+ * @param later - 后发生的那条
+ * @returns 合并后的事件，其余字段取后一条
+ */
+export const foldUpdate = <T extends EntityType>(
+  earlier: RxDBEntityLocalUpdatedEventData<T>,
+  later: RxDBEntityLocalUpdatedEventData<T>
+): RxDBEntityLocalUpdatedEventData<T> => ({
+  ...later,
+  patch: { ...earlier.patch, ...later.patch },
+  inversePatch: { ...later.inversePatch, ...earlier.inversePatch }
+});
+
+/**
  * 更新数据的缓存管理器
  * 用于缓存序列化后的实体数据,避免重复序列化
+ *
+ * @remarks
+ * 同 id 的多条事件在构造时按 {@link foldUpdate} 合成一条，`getData` / `getSerializedUpdate` /
+ * `getSerializedBefore` 看到的都是合并后的那一条。
  */
 export class UpdateDataCache<T extends EntityType> {
   private dataById = new Map<RxDBEntityId, RxDBEntityLocalUpdatedEventData<T>>();
@@ -75,7 +100,11 @@ export class UpdateDataCache<T extends EntityType> {
     data: RxDBEntityLocalUpdatedEventData<T>[],
     private serialize: (event: RxDBEntityLocalUpdatedEventData<T>) => InstanceType<T>
   ) {
-    data.forEach(event => this.dataById.set(event.id as RxDBEntityId, event));
+    for (const event of data) {
+      const id = event.id as RxDBEntityId;
+      const earlier = this.dataById.get(id);
+      this.dataById.set(id, earlier ? foldUpdate(earlier, event) : event);
+    }
   }
 
   /**
@@ -98,10 +127,19 @@ export class UpdateDataCache<T extends EntityType> {
    * 获取序列化后的更新前数据
    *
    * inversePatch 只含被改字段的旧值，单独重建会丢失所有未变字段，导致复合
-   * where 判定错误。这里以"完整更新后实体"为底，叠加 inversePatch 还原出
-   * 完整的更新前态。返回的是全新的普通对象，不会改写共享的实体缓存实例。
+   * where 判定错误。这里以更新后实体为底叠加 inversePatch，补足没改的字段。
+   * 返回的是全新的普通对象，不会改写共享的实体缓存实例。
+   *
+   * 更新后实体取自身份缓存：缓存未命中时它只有补丁里的字段，叠加出来的前态同样残缺。
+   * 补不齐的情形由 UPDATE 门控拦在增量合并之前（见 `need_refresh_update.ts`）。
+   *
+   * @param id - 实体 id
+   * @param inversePatch - 叠加用的旧值；省略时取本批合并后的那一份
    */
-  getSerializedBefore(id: RxDBEntityId, inversePatch: Readonly<Partial<InstanceType<T>>>): InstanceType<T> | undefined {
+  getSerializedBefore(
+    id: RxDBEntityId,
+    inversePatch: Readonly<Partial<InstanceType<T>>> | undefined = this.dataById.get(id)?.inversePatch
+  ): InstanceType<T> | undefined {
     if (this.serializedBeforeCache.has(id)) {
       return this.serializedBeforeCache.get(id);
     }
@@ -141,10 +179,11 @@ export interface UpdateClassification {
  * 分类更新的实体
  * 根据 where 条件判断实体的匹配状态变化
  *
- * 关键：where 判定必须基于"完整实体"。patch/inversePatch 是增量字段，复合
+ * 关键：where 判定必须基于补足后的实体。patch/inversePatch 是增量字段，复合
  * where（如 status='active' AND priority='high'）下若直接拿裸 patch 判定，
  * 缺失字段会恒判 false，导致 newlyUnmatchedIds 漏算、count 静默偏差。
- * 这里统一通过 cache 取完整的更新前/后态再判定。
+ * 这里统一通过 cache 取更新前/后态再判定；where 用到的字段补不齐时，
+ * UPDATE 门控已经回 SQL，走不到这里。
  */
 export const classifyUpdates = <T extends EntityType>(
   data: RxDBEntityLocalUpdatedEventData<T>[],
@@ -160,7 +199,7 @@ export const classifyUpdates = <T extends EntityType>(
     const id = e.id as RxDBEntityId;
     updatedIds.add(id);
     const nowEntity = cache.getSerializedUpdate(id);
-    const beforeEntity = cache.getSerializedBefore(id, e.inversePatch);
+    const beforeEntity = cache.getSerializedBefore(id);
     if (!where || isEntityMatchWhere(nowEntity, where)) matchNowIds.add(id);
     if (!where || isEntityMatchWhere(beforeEntity, where)) matchBeforeIds.add(id);
   }
