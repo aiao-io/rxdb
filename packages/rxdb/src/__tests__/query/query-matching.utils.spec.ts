@@ -727,21 +727,31 @@ describe('query.utils', () => {
   describe('RXD-024: JS 匹配与 SQL 三值逻辑/空规则组/集合语义对齐', () => {
     it('= null 与 IS NULL 同义：JSON 缺键、整列为空都算命中，有值不算', () => {
       // SQL 侧把 `= null` 译成 `IS NULL`，json_extract / ->> 对缺失的键取出的正是 NULL
-      const where: RuleGroup<{ id: number; settings?: { theme?: string } | null }> = {
+      const where = {
         combinator: 'and',
         rules: [{ field: 'settings.theme', operator: '=', value: null }]
-      };
+      } as unknown as RuleGroup<{ id: number }>;
 
       expect(isEntityMatchWhere({ id: 1, settings: {} }, where)).toBe(true);
       expect(isEntityMatchWhere({ id: 1, settings: null }, where)).toBe(true);
       expect(isEntityMatchWhere({ id: 1, settings: { theme: 'dark' } }, where)).toBe(false);
     });
 
+    it('日期等值规则遇到实体侧为空时判不命中，不当成类型错配抛错', () => {
+      // SQL 里 col = ? 在 col IS NULL 时是 UNKNOWN，WHERE 不保留该行
+      const where: RuleGroup<{ id: number; dueAt: Date | null }> = {
+        combinator: 'and',
+        rules: [{ field: 'dueAt', operator: '=', value: new Date(0) }]
+      };
+
+      expect(isEntityMatchWhere({ id: 1, dueAt: null }, where)).toBe(false);
+    });
+
     it('!= null 与 IS NOT NULL 同义：JSON 缺键不算命中', () => {
-      const where: RuleGroup<{ id: number; settings?: { theme?: string } | null }> = {
+      const where = {
         combinator: 'and',
         rules: [{ field: 'settings.theme', operator: '!=', value: null }]
-      };
+      } as unknown as RuleGroup<{ id: number }>;
 
       expect(isEntityMatchWhere({ id: 1, settings: {} }, where)).toBe(false);
       expect(isEntityMatchWhere({ id: 1, settings: { theme: 'dark' } }, where)).toBe(true);

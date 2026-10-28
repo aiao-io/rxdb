@@ -25,12 +25,12 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 ## 待评审（4 条）
 
-| Story                                                                                         | 剩余范围                                                                             |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)  | 字段不足时回 SQL 已实现，核心与真实双连接回归通过；待代码评审，affected 门禁运行中。 |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                      |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。          |
-| [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)      | workspace接线已验证；发布tarball仓外消费与独立重搭仍待验证，AC#1/#3不能标绿。        |
+| Story                                                                                         | 剩余范围                                                                      |
+| --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)  | 改了读取列而缓存补不齐时回 SQL 已实现，核心与真实双连接回归通过；待代码评审。 |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                               |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。   |
+| [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)      | workspace接线已验证；发布tarball仓外消费与独立重搭仍待验证，AC#1/#3不能标绿。 |
 
 ## 阻塞（0 条）
 

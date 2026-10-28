@@ -66,16 +66,23 @@ const openPair = async (): Promise<{ a: RxDB; b: RxDB; id: ConformanceNote['id']
   return { a, b, id };
 };
 
-const renameNote = async (database: RxDB, id: ConformanceNote['id'], title: string): Promise<void> => {
+const updateNote = async (
+  database: RxDB,
+  id: ConformanceNote['id'],
+  patch: Partial<Pick<ConformanceNote, 'title' | 'body'>>
+): Promise<void> => {
   const adapter = await database.getAdapter('wa-sqlite');
   await adapter.transaction(async (executor: TransactionExecutor) => {
     const repository = executor.getRepository(ConformanceNote);
     const [note] = await repository.find({
       where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: id }] }
     });
-    await repository.update(note, { title });
+    await repository.update(note, patch);
   });
 };
+
+const renameNote = (database: RxDB, id: ConformanceNote['id'], title: string): Promise<void> =>
+  updateNote(database, id, { title });
 
 const receivedUpdates = (database: RxDB, id: ConformanceNote['id']): RxDBEntityLocalUpdatedEventData[] => {
   const received: RxDBEntityLocalUpdatedEventData[] = [];
@@ -109,16 +116,49 @@ describe('真实双连接的跨 Tab 增量 UPDATE 与未缓存实体的活查询
     await expect.poll(() => counts.at(-1), POLL).toBe(0);
     expect(b.entityManager.hasEntityRef(ConformanceNote, id)).toBe(false);
     const updates = receivedUpdates(b, id);
+    // 身份缓存按 WeakRef 存，count 不强引用实体：残缺实体要一直持有到最后一次 poll，
+    // 否则第二条更新可能落到冷缓存分支，两条路径都刷到 1，分不出验的是哪一条
+    let sparse: ConformanceNote | undefined;
 
     if (primeCache) {
       await renameNote(a, id, 'queued');
       await expect.poll(() => updates.length, POLL).toBe(1);
       expectIncrementalUpdate(updates[0], 'queued');
+      await expect.poll(() => b.entityManager.getEntityRef(ConformanceNote, id), POLL).toBeDefined();
+      sparse = b.entityManager.getEntityRef(ConformanceNote, id);
+      expect(Object.hasOwn(sparse!, 'body')).toBe(false);
     }
     await renameNote(a, id, 'ready');
     await expect.poll(() => updates.length, POLL).toBe(primeCache ? 2 : 1);
     expectIncrementalUpdate(updates.at(-1)!, 'ready');
     await expect.poll(() => counts.at(-1), POLL).toBe(1);
+    if (primeCache) expect(b.entityManager.getEntityRef(ConformanceNote, id)).toBe(sparse);
+  });
+
+  it('接收端只有 count，另一个连接只改了条件不读的列时不重数', async () => {
+    const { a, b, id } = await openPair();
+    const counts: number[] = [];
+    const subscription = b.entityManager
+      .getRepository(ConformanceNote)
+      .count({ where: { combinator: 'and', rules: [{ field: 'body', operator: '=', value: 'shared' }] } })
+      .subscribe(count => {
+        counts.push(count);
+      });
+    cleanups.push(() => subscription.unsubscribe());
+    await expect.poll(() => counts.at(-1), POLL).toBe(1);
+    expect(b.entityManager.hasEntityRef(ConformanceNote, id)).toBe(false);
+    const adapter = await b.getAdapter('wa-sqlite');
+    const queries = vi.spyOn(adapter, 'transaction');
+    cleanups.push(() => queries.mockRestore());
+    const updates = receivedUpdates(b, id);
+
+    await renameNote(a, id, 'ready');
+    await expect.poll(() => updates.length, POLL).toBe(1);
+    expectIncrementalUpdate(updates[0], 'ready');
+    // 第二条改了条件读的 body：它的重数是唯一一次查询，第一条若也重数，这里会是两次
+    await updateNote(a, id, { body: 'x' });
+    await expect.poll(() => counts.at(-1), POLL).toBe(0);
+    expect(queries).toHaveBeenCalledTimes(1);
   });
 
   it.each(['findAll', 'find', 'findByCursor'] as const)(

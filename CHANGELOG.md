@@ -48,7 +48,7 @@
 
 ### 🩹 Fixes
 
-- **rxdb:** 修复跨 Tab 增量 UPDATE 在冷缓存或残缺缓存下让 count / find 系查询静默过期；条件或排序字段不足时回 SQL，findAll 新匹配结果不再缺少未改的持久列（US-032）。
+- **rxdb / rxdb-plugin-tree:** 修复跨 Tab 增量 UPDATE 在冷缓存或残缺缓存下让 count / find 系与树查询静默过期：补丁改了查询读取的列（树查询含父列）而缓存补不齐、或缓存比事件新时回 SQL，只改无关列的补丁不再多打查询；同批同 id 的多条 UPDATE 合并判定、每条补丁都落到缓存，脏实体按已持久化的值判定，增量合并不再混入同批的其他实体类型；findAll 新匹配结果不再缺少未改的持久列；JSON 路径的 `= null` 与 SQL 的 `IS NULL` 一致（US-032）。
 
 - **rxdb / rxdb-adapter-pglite / -sqlite-core:** 公开仓库写入在 COMMIT 失败时恢复实体状态、变更基线与身份缓存，并保留等待期间的本地编辑，修复延迟外键失败后重试漏写。
 - **rxdb-plugin-history / rxdb-adapter-pglite / -sqlite-core:** 切分支在事务内生成 SQL，并拒绝计算增量或排队期间已改变表集、当前分支的旧计划，防止切换可写检出位时误改主检出位。

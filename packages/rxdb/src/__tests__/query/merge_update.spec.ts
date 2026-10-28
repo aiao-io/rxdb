@@ -7,8 +7,8 @@ import type { CountOptions, FindAllOptions } from '../../repository/query-option
 import type { QueryOptions } from '../../repository/QueryManager.interface.js';
 import { QueryTask } from '../../repository/QueryTask.js';
 import type { RxDBEntityLocalUpdatedEventData } from '../../rxdb-events.js';
-import { STATUS } from '../../rxdb.private.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
+import { STATUS } from '../../rxdb.private.js';
 import {
   collectEmissions,
   createHarnessQueryTask,
@@ -1135,22 +1135,23 @@ describe('query_merge_update_cache', () => {
       expect(emissions).toEqual(counts);
     });
 
-    const createUncachedTask = (type: 'count' | 'find' | 'findAll' | 'findByCursor' | 'findOne') => {
+    const createUncachedTask = (
+      type: 'count' | 'find' | 'findAll' | 'findByCursor' | 'findOne'
+    ): QueryTask<TestEntityType> => {
       const orderBy = [{ field: 'id', sort: 'asc' as const }];
+      const erase = <RT>(task: QueryTask<TestEntityType, RT>) => task as unknown as QueryTask<TestEntityType>;
       switch (type) {
         case 'count':
-          return createMockQueryTask({ type, options: { where }, runner: () => of(0) });
+          return erase(createMockQueryTask({ type, options: { where }, runner: () => of(0) }));
         case 'findOne':
-          return createMockQueryTask({ type, options: { where }, runner: () => of(null) });
+          return erase(createMockQueryTask({ type, options: { where }, runner: () => of(null) }));
         case 'findAll':
-          return createMockQueryTask({ type, options: { where }, runner: () => of<TestEntityData[]>([]) });
+          return erase(createMockQueryTask({ type, options: { where }, runner: () => of<TestEntityData[]>([]) }));
         case 'find':
         case 'findByCursor':
-          return createMockQueryTask({
-            type,
-            options: { where, orderBy, limit: 3 },
-            runner: () => of<TestEntityData[]>([])
-          });
+          return erase(
+            createMockQueryTask({ type, options: { where, orderBy, limit: 3 }, runner: () => of<TestEntityData[]>([]) })
+          );
       }
     };
 
@@ -1291,7 +1292,10 @@ describe('query_merge_update_cache', () => {
       const emissions = collectEmissions(task);
 
       query_merge_update_cache(task, [
-        createPartialUpdate({ status: 'inactive', updatedAt: new Date(1) }, { status: 'active', updatedAt: new Date(0) })
+        createPartialUpdate(
+          { status: 'inactive', updatedAt: new Date(1) },
+          { status: 'active', updatedAt: new Date(0) }
+        )
       ]);
 
       expect(emissions).toEqual(counts);
@@ -1338,8 +1342,8 @@ describe('query_merge_update_cache', () => {
       rules: [{ field: 'published', operator: '=', value: true }]
     };
 
-    /** 一整行持久列：元数据的全部属性加外键 */
-    const postRow = (overrides: Partial<Post> = {}): Post =>
+    /** 一整行持久列：元数据的全部属性加外键。id 用短串，不必是 UUID */
+    const postRow = (overrides: Record<string, unknown> = {}): Post =>
       ({
         id: 'p1',
         createdAt: new Date(0),
@@ -1357,7 +1361,7 @@ describe('query_merge_update_cache', () => {
       type: 'UPDATE',
       namespace: postMetadata.namespace,
       entity: postMetadata.name,
-      id,
+      id: id as Post['id'],
       entityType: Post,
       origin: 'cross-tab',
       recordAt: new Date(0),
@@ -1487,7 +1491,7 @@ describe('query_merge_update_cache', () => {
     it('get 不吃同 id 的外类型事件', () => {
       const task = createHarnessQueryTask<PostType, Post | null>(Post, {
         type: 'get',
-        options: '5',
+        options: '5' as Post['id'],
         runner: () => of(postRow({ id: '5' }))
       });
       const emissions = collectEmissions(task);
