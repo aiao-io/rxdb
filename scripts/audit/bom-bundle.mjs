@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
+import { format, resolveConfig } from 'prettier';
 import ts from 'typescript';
 
 const root = resolve(import.meta.dirname, '../..');
@@ -76,7 +77,9 @@ const report = {
 };
 const directory = resolve(root, 'benchmarks/reports');
 mkdirSync(directory, { recursive: true });
-writeFileSync(resolve(directory, 'bom-bundle.json'), `${JSON.stringify(report, null, 2)}\n`);
+const reportFile = resolve(directory, 'bom-bundle.json');
+const formatOptions = await resolveConfig(reportFile);
+writeFileSync(reportFile, await format(JSON.stringify(report), { ...formatOptions, filepath: reportFile }));
 for (const [name, entry] of Object.entries(report.entries)) {
   console.log(
     `${name}: entry=${entry.entryGzipBytes}, static=${entry.static.gzipBytes}, reachable=${entry.reachable.gzipBytes}, budget=${entry.withinBudget ? 'PASS' : 'FAIL'}`

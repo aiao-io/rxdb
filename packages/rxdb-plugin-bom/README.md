@@ -31,7 +31,7 @@ BOM（物料清单）领域插件，提供修订、生效域、数量展开、�
 
 ## 使用
 
-宿主在连接前注册对应适配器，并把适配器侧的 `BomRepository` 映射到 SQLite 的 `SqliteRepository` 或 PGlite 的 `PGliteRepository`（适配器 `options.repositories`）。漏注册时插件在 `connect()` 的安装期即报 `BomBackendCapabilityError` 并给出应注册的写法，不拖到首次读写。下列配置与宿主装配配合使用；完整装配见 [Angular 消费页](../../apps/dev-rxdb-angular/src/app/pages/bom-view.ts)。
+宿主在连接前注册对应适配器，并把适配器侧的 `BomRepository` 映射到 SQLite 的 `SqliteRepository` 或 PGlite 的 `PGliteRepository`（适配器 `options.repositories`）。漏注册时插件在 `connect()` 的安装期即报 `BomBackendCapabilityError` 并给出应注册的写法，不拖到首次读写。下列配置与宿主装配配合使用；完整装配见 [Angular 消费页](https://github.com/aiao-io/rxdb/blob/a71c7682714ba63224e30019d6ac06592bc9368e/apps/dev-rxdb-angular/src/app/pages/bom-view.ts)。
 
 ```typescript
 import { RxDB, SyncType } from '@aiao/rxdb';
