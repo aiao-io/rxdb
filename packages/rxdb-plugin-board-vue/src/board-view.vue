@@ -2,6 +2,7 @@
 import type { UUID } from '@aiao/rxdb';
 import {
   BOARD_LABEL_COLORS,
+  focusModalTab,
   dropIndicatorAnchor,
   dueStatus,
   dueStatusText,
@@ -64,6 +65,12 @@ const props = defineProps<{
 /** 弹层种类：菜单（板 / 列 / 卡片）与选择器（移到列 / 详情所在列 / 详情标签）。 */
 type BoardPopoverKind =
   'board-menu' | 'column-menu' | 'task-menu' | 'move-picker' | 'detail-column-picker' | 'detail-label-picker';
+
+interface DetailSession {
+  readonly taskId: UUID;
+  readonly actions: ReturnType<typeof useBoard>['actions'];
+  base: TaskDraftSnapshot;
+}
 
 interface PopoverState {
   readonly kind: BoardPopoverKind;
@@ -214,6 +221,7 @@ let searchSubs = new Subscription();
 let detailRequest = 0;
 let pendingDetailTaskId: UUID | null = null;
 let detailQueue: Promise<unknown> = Promise.resolve();
+let detailSession: DetailSession | null = null;
 let returnFocus: HTMLElement | null = null;
 let pickerLabelDraft: readonly UUID[] = [];
 
@@ -793,9 +801,11 @@ const openDetail = async (taskId: UUID): Promise<void> => {
   closePopover(false);
   const request = ++detailRequest;
   pendingDetailTaskId = taskId;
-  const snapshot = await guard(() => board.actions.openSnapshot(taskId));
+  const currentActions = board.actions;
+  const snapshot = await guard(() => currentActions.openSnapshot(taskId));
   if (request !== detailRequest || !snapshot) return;
   pendingDetailTaskId = null;
+  detailSession = { taskId, actions: currentActions, base: snapshot };
   detailTaskId.value = taskId;
   focusedTaskId.value = taskId;
   applyDetailSnapshot(snapshot);
@@ -805,30 +815,28 @@ const openDetail = async (taskId: UUID): Promise<void> => {
 const closeDetail = (): void => {
   const taskId = detailTaskId.value;
   detailRequest++;
+  detailSession = null;
   detailTaskId.value = null;
   detailBase.value = null;
   if (taskId !== null) focusTaskSoon(taskId);
 };
 
-const commitDetailTitle = (): Promise<void> =>
-  enqueueDetail(async () => {
-    const base = detailBase.value;
-    if (!base || detailTitle.value === base.title) return;
-    await saveDetailFields({ title: detailTitle.value });
+const commitDetailTitle = (): Promise<void> => {
+  const title = detailTitle.value;
+  return enqueueDetail(async session => {
+    if (title !== session.base.title) await saveDetailFields(session, { title });
   });
-
+};
 const revertDetailTitle = (event: Event): void => {
   event.stopPropagation();
   detailTitle.value = detailBase.value?.title ?? '';
 };
-
-const commitDetailDescription = (): Promise<void> =>
-  enqueueDetail(async () => {
-    const base = detailBase.value;
-    if (!base || detailDescription.value.trim() === (base.description ?? '')) return;
-    await saveDetailFields({ description: detailDescription.value });
+const commitDetailDescription = (): Promise<void> => {
+  const description = detailDescription.value;
+  return enqueueDetail(async session => {
+    if (description.trim() !== (session.base.description ?? '')) await saveDetailFields(session, { description });
   });
-
+};
 const onDetailDescriptionKeydown = (event: KeyboardEvent): void => {
   if (event.key === 'Escape') {
     event.stopPropagation();
@@ -836,12 +844,10 @@ const onDetailDescriptionKeydown = (event: KeyboardEvent): void => {
   }
   if (event.key === 'Enter' && isModifier(event)) void commitDetailDescription();
 };
-
 const commitDetailDue = (value: string): Promise<void> =>
-  enqueueDetail(async () => {
+  enqueueDetail(async session => {
     const dueDate = value === '' ? null : value;
-    if (!detailBase.value || dueDate === detailBase.value.dueDate) return;
-    await saveDetailFields({ dueDate });
+    if (dueDate !== session.base.dueDate) await saveDetailFields(session, { dueDate });
   });
 
 const openDetailColumnPicker = (event: Event): void => {
@@ -963,10 +969,12 @@ const executeConfirmedDelete = async (): Promise<void> => {
   const openTaskId = detailTaskId.value;
   if (openTaskId !== null && removedIds.includes(openTaskId)) {
     detailRequest++;
+    detailSession = null;
     detailTaskId.value = null;
     detailBase.value = null;
   }
-  if (plan.kind === 'board') destroySearch();
+  // 删掉的是当前板：查询词随句柄一起清空（只销毁句柄会留下旧词，再打开搜索框是一个失效的搜索态）
+  if (plan.kind === 'board') onSearchInput('');
   showToast(deletedMessage(plan), true);
 };
 
@@ -1241,7 +1249,7 @@ const commitPickerLabels = async (): Promise<void> => {
   const selection = pickerSelection.value;
   const before = pickerLabelDraft;
   if (selection.length === before.length && selection.every(id => before.includes(id))) return;
-  await enqueueDetail(() => saveDetailFields({ labelIds: selection }));
+  await enqueueDetail(session => saveDetailFields(session, { labelIds: selection }));
 };
 
 /** 移到目标列末尾（与 GitHub「Move to column」一致）；从详情侧栏发起时焦点留在侧栏。 */
@@ -1302,33 +1310,33 @@ const persistLabel = async (editor: LabelEditorState): Promise<true> => {
 // ---------- 详情保存队列 ----------
 
 /** 详情字段的提交串行执行：回车后紧跟失焦等重复提交读到的是上一笔保存后的基线。 */
-const enqueueDetail = (operation: () => Promise<unknown>): Promise<void> => {
-  const next = detailQueue.then(operation, operation);
+const enqueueDetail = (operation: (session: DetailSession) => Promise<unknown>): Promise<void> => {
+  const session = detailSession;
+  if (session === null) return Promise.resolve();
+  const run = () => operation(session);
+  const next = detailQueue.then(run, run);
   detailQueue = next.catch(() => undefined);
   return next.then(() => undefined);
 };
 
-const saveDetailFields = async (patch: TaskFieldPatch): Promise<void> => {
-  const taskId = detailTaskId.value;
-  const base = detailBase.value;
-  if (taskId === null || base === null) return;
-  detailStatus.value = '保存中…';
-  const result = await guard(() => board.actions.saveTaskFields(taskId, base, patch));
-  if (taskId !== detailTaskId.value) return;
+const saveDetailFields = async (session: DetailSession, patch: TaskFieldPatch): Promise<void> => {
+  if (session === detailSession) detailStatus.value = '保存中…';
+  const result = await guard(() => session.actions.saveTaskFields(session.taskId, session.base, patch));
   if (result === undefined) {
-    detailStatus.value = null;
+    if (session === detailSession) detailStatus.value = null;
     return;
   }
-  const fresh = await guard(() => board.actions.openSnapshot(taskId));
-  if (taskId !== detailTaskId.value) return;
+  const fresh = await guard(() => session.actions.openSnapshot(session.taskId));
+  if (fresh) session.base = fresh;
+  if (session !== detailSession) return;
   if (!fresh) {
-    // 已落库但读回失败：不停在「保存中…」，提示走横幅
     detailStatus.value = null;
     return;
   }
   detailBase.value = fresh;
   if (patch.title !== undefined) detailTitle.value = fresh.title;
   if (patch.description !== undefined) detailDescription.value = fresh.description ?? '';
+  if (patch.dueDate !== undefined) detailDue.value = fresh.dueDate ?? '';
   detailStatus.value = result.kind === 'saved' ? '已保存' : null;
 };
 
@@ -1345,6 +1353,7 @@ const refreshDetail = async (): Promise<void> => {
 };
 
 const applyDetailSnapshot = (snapshot: TaskDraftSnapshot): void => {
+  if (detailSession !== null) detailSession.base = snapshot;
   detailBase.value = snapshot;
   detailTitle.value = snapshot.title;
   detailDescription.value = snapshot.description ?? '';
@@ -1392,6 +1401,7 @@ const runCardCommand = (event: KeyboardEvent, task: Task): boolean => {
   return true;
 };
 
+/** 模态对话框打开时 Tab 只在对话框内循环（首尾绕回，目标由核心包 `trapTabFocus` 换算）；返回是否接管。 */
 const onDocumentKeydown = (event: KeyboardEvent): void => {
   const root = boardArea.value;
   const active = document.activeElement;
@@ -1399,6 +1409,10 @@ const onDocumentKeydown = (event: KeyboardEvent): void => {
   if (!root || event.defaultPrevented || !inside) return;
   if (event.key === 'Escape') {
     if (handleEscape()) event.preventDefault();
+    return;
+  }
+  if (event.key === 'Tab' && dialog.value !== null) {
+    if (focusModalTab(root, event.shiftKey)) event.preventDefault();
     return;
   }
   if (isModifier(event) && event.key.toLowerCase() === 'k') {
@@ -1440,10 +1454,14 @@ const handleEscape = (): boolean => {
   return true;
 };
 
+/**
+ * 外部指针按下（捕获阶段）关闭弹层；本实例的弹层内与本实例展开中的触发器除外——
+ * 同页另一个看板、宿主自己的展开控件（accordion / combobox）都算外部。
+ */
 const onDocumentPointerdown = (event: PointerEvent): void => {
   if (!popover.value) return;
-  const target = event.target as Element | null;
-  if (target?.closest('.rxb-popover, [aria-expanded="true"]')) return;
+  const hit = (event.target as Element | null)?.closest('.rxb-popover, [aria-expanded="true"]');
+  if (hit && boardArea.value?.contains(hit)) return;
   closePopover(false);
 };
 
@@ -1475,6 +1493,7 @@ const keyboardColumns = () =>
 const selectBoard = (boardId: UUID): void => {
   closePopover(false);
   detailRequest++;
+  detailSession = null;
   detailTaskId.value = null;
   detailBase.value = null;
   board.selectBoard(boardId);
@@ -1517,7 +1536,11 @@ const executeTaskMove = async (taskId: UUID, target: CardDropTarget): Promise<bo
     return false;
   }
   const base = detailBase.value;
-  if (detailTaskId.value === taskId && base !== null) detailBase.value = { ...base, columnId: target.columnId };
+  if (detailTaskId.value === taskId && base !== null) {
+    const fresh = { ...base, columnId: target.columnId };
+    if (detailSession !== null) detailSession.base = fresh;
+    detailBase.value = fresh;
+  }
   showToast(`已移动到「${columnTitleOf(target.columnId)}」`, true);
   return true;
 };
@@ -1533,6 +1556,7 @@ const destroySearch = (): void => {
   searchErrorText.value = null;
 };
 
+/** 拖拽几何：每次 dragover 现量：落点指示是伪元素 / 阴影、不触发重排，读的是干净布局；拖拽开始时缓存会在拖拽自动滚动后失效。 */
 const columnViews = (area: HTMLElement): CardDropColumnView[] =>
   columns.value.map(column => {
     const rect = area.querySelector<HTMLElement>(`[data-column-id="${column.id}"]`)?.getBoundingClientRect();

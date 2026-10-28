@@ -158,6 +158,45 @@ describe('Angular 看板交互边界（看板 v2）', () => {
     vi.useRealTimers();
   });
 
+  it('A的排队截止日编辑不会因切到B而重定向', async () => {
+    vi.mocked(actions.openSnapshot).mockImplementation(async taskId => ({ ...snapshot, title: taskId }));
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    vi.mocked(actions.saveTaskFields).mockImplementationOnce(async () => {
+      await pending;
+      return { kind: 'saved', task: first };
+    });
+    await view['openDetail'](first.id);
+    const firstSave = view['commitDetailDue']('2026-12-01');
+    await Promise.resolve();
+    const secondSave = view['commitDetailDue']('2026-12-02');
+    await view['openDetail'](second.id);
+    release();
+    await Promise.all([firstSave, secondSave]);
+    expect(vi.mocked(actions.saveTaskFields).mock.calls.map(([taskId]) => taskId)).toEqual([first.id, first.id]);
+    expect(view['detailTaskId']()).toBe(second.id);
+  });
+
+  it('模态删除确认首尾Tab循环，背景焦点被拉回', () => {
+    view['dialog'].set({ kind: 'board-composer' });
+    const backdrop = document.createElement('div');
+    backdrop.className = 'rxb-dialog-backdrop';
+    backdrop.innerHTML =
+      '<section aria-modal="true"><button id="first">取消</button><button id="last">确认</button></section>';
+    area.append(backdrop);
+    const firstButton = backdrop.querySelector<HTMLButtonElement>('#first')!;
+    const lastButton = backdrop.querySelector<HTMLButtonElement>('#last')!;
+    lastButton.focus();
+    const forward = keydown('Tab', {}, lastButton);
+    view['onDocumentKeydown'](forward);
+    expect(forward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(firstButton);
+    view['onDocumentKeydown'](keydown('Tab', { shiftKey: true }, firstButton));
+    expect(document.activeElement).toBe(lastButton);
+  });
+
   describe('详情侧栏（即改即存）', () => {
     it('字段提交只发补丁、成功后以最新快照为基线，未改动零调用', async () => {
       await view['openDetail'](first.id);
@@ -746,7 +785,7 @@ describe('Angular 看板交互边界（看板 v2）', () => {
       view['openTaskMenu'](clickOn(trigger), first);
       const inside = document.createElement('div');
       inside.className = 'rxb-popover';
-      document.body.append(inside);
+      area.append(inside);
       view['onDocumentPointerdown']({ target: inside } as unknown as PointerEvent);
       expect(view['popover']()).not.toBeNull();
       inside.remove();

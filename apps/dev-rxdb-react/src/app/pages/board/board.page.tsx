@@ -99,7 +99,7 @@ export default function BoardPage() {
 
   return (
     <>
-      <BoardView rxdb={rxdb} onExportBackup={() => void exportBackup()} />
+      <BoardView rxdb={rxdb} onExportBackup={exportBackup} />
       <footer className='board-tools' data-testid='board-tools'>
         <button type='button' data-testid='seed-demo' onClick={() => void seedDemo()}>
           装载演示数据

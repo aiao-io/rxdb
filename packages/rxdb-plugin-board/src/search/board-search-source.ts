@@ -42,6 +42,7 @@ export interface BoardSearchUpstream {
   searchCollection(collection: string, query: string, options?: SearchOptions): SearchHandle;
 }
 
+/** 板级搜索源的可选参数（防抖、板内页大小、变更重查合并窗口）。 */
 export interface BoardSearchSourceOptions {
   /** 查询防抖（默认沿用引擎 300ms）。 */
   readonly debounceMs?: number;
@@ -63,6 +64,8 @@ const waitUpstreamSettled = async (handle: SearchHandle): Promise<void> => {
     )
   );
   if (state === 'error') {
+    // 状态与错误同帧写入；两次读之间上游若被数据变更拉回 loading，错误已被清空、原因不可得，
+    // 只能报通用失败（直接 throw 会抛出 undefined）
     const error = await firstValueFrom(handle.error$);
     throw error ?? new Error('搜索执行失败');
   }
@@ -102,7 +105,8 @@ export class BoardSearchSource implements SearchSourceLike {
     const boardId = this.ctx().boardId;
     if (boardId === null) return { results: [], hasMore: false };
 
-    // 一次取全：pageSize = 全部任务数，全部命中在第 0 页一次返回
+    // 一次取全：pageSize = 全库任务数，全部命中在第 0 页一次返回。不能缩成本板任务数——
+    // 上游按全库排名、不认板，异板高排位命中（隔离板种子即为此设）会把本板命中挤出第 0 页
     const taskCount = await this.countAllTasks();
     const upstream = this.upstream.searchCollection('Task', query, { pageSize: Math.max(taskCount, 1) });
     try {
@@ -138,14 +142,14 @@ export class BoardSearchSource implements SearchSourceLike {
   /** 当前板全部任务 id（板由列推导，命中 id 与视图已加载的任务求交）。 */
   private async currentBoardTaskIds(boardId: UUID): Promise<readonly string[]> {
     const columns = await readFirst(
-      this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', boardId) })
+      this.rxdb.entityManager.getRepository(Column).findAll({ where: whereEq('boardId', boardId) })
     );
     const columnIds = columns.map(column => column.id);
     if (columnIds.length === 0) return [];
     const tasks = await readFirst(
       this.rxdb.entityManager
         .getRepository(Task)
-        .find({ where: { combinator: 'and', rules: [{ field: 'columnId', operator: 'in', value: columnIds }] } })
+        .findAll({ where: { combinator: 'and', rules: [{ field: 'columnId', operator: 'in', value: columnIds }] } })
     );
     return tasks.map(task => task.id);
   }
@@ -172,4 +176,5 @@ export class BoardSearchSource implements SearchSourceLike {
   }
 }
 
+/** 板内搜索的执行错误：沿用上游插件的 `SearchExecutionError`。 */
 export type BoardSearchExecutionError = SearchExecutionError;

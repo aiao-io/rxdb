@@ -1,5 +1,6 @@
 export type { SearchHandle, SearchResult } from '@aiao/rxdb-plugin-search';
 export { BoardDomain } from './board-domain.js';
+export { observeBoardRead, type BoardReadSnapshot, type BoardReadState } from './board-read.js';
 export {
   ACTIVE_DB_KEY,
   PENDING_SWITCH_KEY,
@@ -57,6 +58,7 @@ export {
   type BoardFilterTerm,
   type BoardFilterText
 } from './filter/board-filter.js';
+export { DIALOG_FOCUSABLE_SELECTOR, focusModalTab, trapTabFocus } from './focus-trap.js';
 export { assertBoardWritable, requireBoardId, type BoardHostContext } from './host-context.js';
 export {
   nextGridFocus,

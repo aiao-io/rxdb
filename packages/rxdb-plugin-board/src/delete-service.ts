@@ -8,7 +8,7 @@ import { TaskLabel } from './entities/task-label.entity.js';
 import { Task } from './entities/task.entity.js';
 import { BoardDomainError } from './errors.js';
 import { assertBoardWritable, requireBoardId, type BoardHostContext } from './host-context.js';
-import { inRule, readFirst, whereEq } from './query.js';
+import { inRule, readFirst, sameIdSet, whereEq } from './query.js';
 
 /**
  * 删除服务（US-534）：确认在事务外、删除集合在事务内复核。
@@ -51,11 +51,10 @@ export interface BoardDeletePlan {
   readonly boardLabelIds: readonly UUID[];
 }
 
+/** 删除清单：任务 / 列 / 板三种，`kind` 区分。 */
 export type DeletePlan = TaskDeletePlan | ColumnDeletePlan | BoardDeletePlan;
 
-const sameSet = (a: readonly string[], b: readonly string[]): boolean =>
-  a.length === b.length && new Set(a).size === new Set(b).size && a.every(id => b.includes(id));
-
+/** 删除服务：事务外出清单、确认后事务内复核集合再按子先父后删除（见文件头）。 */
 export class BoardDeleteService {
   constructor(
     private readonly rxdb: RxDB,
@@ -65,17 +64,19 @@ export class BoardDeleteService {
   /** 任务删除清单（事务外读取，不持有事务）。 */
   async planTaskDelete(taskId: UUID): Promise<TaskDeletePlan> {
     assertBoardWritable(this.ctx());
-    const tasks = await readFirst(this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('id', taskId) }));
+    const tasks = await readFirst(
+      this.rxdb.entityManager.getRepository(Task).findAll({ where: whereEq('id', taskId) })
+    );
     if (tasks.length === 0) throw new BoardDomainError('task_not_found', `任务不存在：${taskId}`);
     const task = tasks[0];
     const columns = await readFirst(
-      this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', task.columnId) })
+      this.rxdb.entityManager.getRepository(Column).findAll({ where: whereEq('id', task.columnId) })
     );
     if (columns.length === 0 || columns[0].boardId !== requireBoardId(this.ctx())) {
       throw new BoardDomainError('cross_board', '任务不属于当前看板');
     }
     const labels = await readFirst(
-      this.rxdb.entityManager.getRepository(TaskLabel).find({ where: whereEq('taskId', taskId) })
+      this.rxdb.entityManager.getRepository(TaskLabel).findAll({ where: whereEq('taskId', taskId) })
     );
     return {
       kind: 'task',
@@ -89,14 +90,14 @@ export class BoardDeleteService {
   async planColumnDelete(columnId: UUID): Promise<ColumnDeletePlan> {
     assertBoardWritable(this.ctx());
     const columns = await readFirst(
-      this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', columnId) })
+      this.rxdb.entityManager.getRepository(Column).findAll({ where: whereEq('id', columnId) })
     );
     if (columns.length === 0) throw new BoardDomainError('column_not_found', `列不存在：${columnId}`);
     if (columns[0].boardId !== requireBoardId(this.ctx())) {
       throw new BoardDomainError('cross_board', '列不属于当前看板');
     }
     const tasks = await readFirst(
-      this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('columnId', columnId) })
+      this.rxdb.entityManager.getRepository(Task).findAll({ where: whereEq('columnId', columnId) })
     );
     const taskIds = tasks.map(task => task.id);
     const labels =
@@ -105,7 +106,7 @@ export class BoardDeleteService {
       : await readFirst(
           this.rxdb.entityManager
             .getRepository(TaskLabel)
-            .find({ where: { combinator: 'and', rules: [inRule('taskId', taskIds)] } })
+            .findAll({ where: { combinator: 'and', rules: [inRule('taskId', taskIds)] } })
         );
     return {
       kind: 'column',
@@ -123,11 +124,11 @@ export class BoardDeleteService {
       throw new BoardDomainError('cross_board', '看板不是当前看板');
     }
     const boards = await readFirst(
-      this.rxdb.entityManager.getRepository(Board).find({ where: whereEq('id', boardId) })
+      this.rxdb.entityManager.getRepository(Board).findAll({ where: whereEq('id', boardId) })
     );
     if (boards.length === 0) throw new BoardDomainError('board_not_found', `看板不存在：${boardId}`);
     const columns = await readFirst(
-      this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', boardId) })
+      this.rxdb.entityManager.getRepository(Column).findAll({ where: whereEq('boardId', boardId) })
     );
     const columnIds = columns.map(column => column.id);
     const tasks =
@@ -136,7 +137,7 @@ export class BoardDeleteService {
       : await readFirst(
           this.rxdb.entityManager
             .getRepository(Task)
-            .find({ where: { combinator: 'and', rules: [inRule('columnId', columnIds)] } })
+            .findAll({ where: { combinator: 'and', rules: [inRule('columnId', columnIds)] } })
         );
     const taskIds = tasks.map(task => task.id);
     const taskLabels =
@@ -145,10 +146,10 @@ export class BoardDeleteService {
       : await readFirst(
           this.rxdb.entityManager
             .getRepository(TaskLabel)
-            .find({ where: { combinator: 'and', rules: [inRule('taskId', taskIds)] } })
+            .findAll({ where: { combinator: 'and', rules: [inRule('taskId', taskIds)] } })
         );
     const boardLabels = await readFirst(
-      this.rxdb.entityManager.getRepository(BoardLabel).find({ where: whereEq('boardId', boardId) })
+      this.rxdb.entityManager.getRepository(BoardLabel).findAll({ where: whereEq('boardId', boardId) })
     );
     return {
       kind: 'board',
@@ -187,7 +188,7 @@ export class BoardDeleteService {
       }
       const labels = await executor.getRepository(TaskLabel).find({ where: whereEq('taskId', plan.taskId) });
       if (
-        !sameSet(
+        !sameIdSet(
           plan.taskLabelIds,
           labels.map(row => row.id)
         )
@@ -209,7 +210,7 @@ export class BoardDeleteService {
       }
       const tasks = await executor.getRepository(Task).find({ where: whereEq('columnId', plan.columnId) });
       if (
-        !sameSet(
+        !sameIdSet(
           plan.taskIds,
           tasks.map(task => task.id)
         )
@@ -224,7 +225,7 @@ export class BoardDeleteService {
             .getRepository(TaskLabel)
             .find({ where: { combinator: 'and', rules: [inRule('taskId', taskIds)] } });
       if (
-        !sameSet(
+        !sameIdSet(
           plan.taskLabelIds,
           labels.map(row => row.id)
         )
@@ -247,7 +248,7 @@ export class BoardDeleteService {
       if (boards.length === 0) throw new BoardDomainError('confirm_stale', '看板已被删除，清单已过期');
       const columns = await executor.getRepository(Column).find({ where: whereEq('boardId', plan.boardId) });
       if (
-        !sameSet(
+        !sameIdSet(
           plan.columnIds,
           columns.map(column => column.id)
         )
@@ -262,7 +263,7 @@ export class BoardDeleteService {
             .getRepository(Task)
             .find({ where: { combinator: 'and', rules: [inRule('columnId', columnIds)] } });
       if (
-        !sameSet(
+        !sameIdSet(
           plan.taskIds,
           tasks.map(task => task.id)
         )
@@ -277,7 +278,7 @@ export class BoardDeleteService {
             .getRepository(TaskLabel)
             .find({ where: { combinator: 'and', rules: [inRule('taskId', taskIds)] } });
       if (
-        !sameSet(
+        !sameIdSet(
           plan.taskLabelIds,
           taskLabels.map(row => row.id)
         )
@@ -286,7 +287,7 @@ export class BoardDeleteService {
       }
       const boardLabels = await executor.getRepository(BoardLabel).find({ where: whereEq('boardId', plan.boardId) });
       if (
-        !sameSet(
+        !sameIdSet(
           plan.boardLabelIds,
           boardLabels.map(row => row.id)
         )

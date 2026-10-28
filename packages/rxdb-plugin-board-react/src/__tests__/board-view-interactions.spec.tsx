@@ -1,6 +1,7 @@
 import type { RxDB, UUID } from '@aiao/rxdb';
 import {
   BOARD_LABEL_COLORS,
+  DIALOG_FOCUSABLE_SELECTOR,
   localDateKey,
   RESTORING_MARKER_KEY,
   type Board,
@@ -634,11 +635,34 @@ describe('React 看板交互边界（看板 v2）', () => {
       expect(unhandled.defaultPrevented).toBe(false);
     });
 
+    it('模态对话框：Tab / Shift+Tab 在对话框内首尾循环，焦点被移到背后的卡片时拉回对话框', () => {
+      mount();
+      fireEvent.click(byTestId('create-board'));
+      const focusables = [...byTestId('board-composer').querySelectorAll<HTMLElement>(DIALOG_FOCUSABLE_SELECTOR)];
+      expect(focusables.length).toBeGreaterThan(1);
+      const [first, last] = [focusables[0], focusables[focusables.length - 1]];
+      focus(last);
+      const forward = createEvent.keyDown(last, { key: 'Tab' });
+      fireEvent(last, forward);
+      expect(forward.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(first);
+      fireEvent.keyDown(first, { key: 'Tab', shiftKey: true });
+      expect(document.activeElement).toBe(last);
+      // 中间位置交给浏览器默认顺序
+      const middle = createEvent.keyDown(first, { key: 'Tab' });
+      focus(first);
+      fireEvent(first, middle);
+      expect(middle.defaultPrevented).toBe(false);
+      focus(cardByTitle('A'));
+      fireEvent.keyDown(cardByTitle('A'), { key: 'Tab' });
+      expect(document.activeElement).toBe(first);
+    });
+
     it('全局按键：看板外或编辑框内忽略，对话框打开时不响应单键，⌘K 打开搜索', () => {
       mount();
       const outside = document.createElement('button');
       document.body.append(outside);
-      outside.focus();
+      focus(outside);
       fireEvent.keyDown(outside, { key: '?' });
       expect(screen.queryByTestId('shortcuts-dialog')).toBeNull();
       outside.remove();

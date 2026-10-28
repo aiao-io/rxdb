@@ -7,6 +7,12 @@ import { isModifier } from './types.js';
 import { useStateRef, type LatestRef } from './use-state-ref.js';
 import type { ViewCore } from './use-view-core.js';
 
+interface DetailSession {
+  readonly taskId: UUID;
+  readonly actions: ViewCore['board']['actions'];
+  base: TaskDraftSnapshot;
+}
+
 /** 任务详情侧栏（叠加在看板之上，字段即改即存，每次改动一个可撤销事务）。 */
 export interface DetailModel {
   readonly detailTaskId: UUID | null;
@@ -54,6 +60,7 @@ export const useDetailModel = (core: ViewCore, model: ModelGetter): DetailModel 
   const requestRef = useRef(0);
   const pendingRef = useRef<UUID | null>(null);
   const queueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const sessionRef = useRef<DetailSession | null>(null);
 
   // 卸载后迟到的快照不再写入
   useEffect(
@@ -66,6 +73,7 @@ export const useDetailModel = (core: ViewCore, model: ModelGetter): DetailModel 
   const actions = () => core.boardRef.current.actions;
 
   const applySnapshot = (snapshot: TaskDraftSnapshot): void => {
+    if (sessionRef.current !== null) sessionRef.current.base = snapshot;
     setDetailBase(snapshot);
     setDetailTitle(snapshot.title);
     setDetailDescription(snapshot.description ?? '');
@@ -74,31 +82,31 @@ export const useDetailModel = (core: ViewCore, model: ModelGetter): DetailModel 
 
   const clear = (): void => {
     requestRef.current++;
+    sessionRef.current = null;
     setDetailTaskId(null);
     setDetailBase(null);
   };
 
   /** 详情字段的提交串行执行：回车后紧跟失焦等重复提交读到的是上一笔保存后的基线。 */
-  const enqueue = (operation: () => Promise<unknown>): Promise<void> => {
-    const next = queueRef.current.then(operation, operation);
+  const enqueue = (operation: (session: DetailSession) => Promise<unknown>): Promise<void> => {
+    const session = sessionRef.current;
+    if (session === null) return Promise.resolve();
+    const run = () => operation(session);
+    const next = queueRef.current.then(run, run);
     queueRef.current = next.catch(() => undefined);
     return next.then(() => undefined);
   };
 
-  /** 提交补丁；成功后重读快照作为新基线，失败保留草稿（提示由 guard 给出）。 */
-  const saveFields = async (patch: TaskFieldPatch): Promise<void> => {
-    const taskId = detailTaskIdRef.current;
-    const base = detailBaseRef.current;
-    if (taskId === null || base === null) return;
-    setDetailStatus('保存中…');
-    const result = await core.guard(() => actions().saveTaskFields(taskId, base, patch));
-    if (taskId !== detailTaskIdRef.current) return;
+  const saveFields = async (session: DetailSession, patch: TaskFieldPatch): Promise<void> => {
+    if (session === sessionRef.current) setDetailStatus('保存中…');
+    const result = await core.guard(() => session.actions.saveTaskFields(session.taskId, session.base, patch));
     if (result === undefined) {
-      setDetailStatus(null);
+      if (session === sessionRef.current) setDetailStatus(null);
       return;
     }
-    const fresh = await core.guard(() => actions().openSnapshot(taskId));
-    if (taskId !== detailTaskIdRef.current) return;
+    const fresh = await core.guard(() => session.actions.openSnapshot(session.taskId));
+    if (fresh) session.base = fresh;
+    if (session !== sessionRef.current) return;
     if (!fresh) {
       setDetailStatus(null);
       return;
@@ -116,26 +124,22 @@ export const useDetailModel = (core: ViewCore, model: ModelGetter): DetailModel 
     if (taskId !== null) core.focusTaskSoon(taskId);
   };
 
-  const commitDetailTitle = (): Promise<void> =>
-    enqueue(async () => {
-      const base = detailBaseRef.current;
-      if (!base || detailTitleRef.current === base.title) return;
-      await saveFields({ title: detailTitleRef.current });
+  const commitDetailTitle = (): Promise<void> => {
+    const title = detailTitleRef.current;
+    return enqueue(async session => {
+      if (title !== session.base.title) await saveFields(session, { title });
     });
-
-  const commitDetailDescription = (): Promise<void> =>
-    enqueue(async () => {
-      const base = detailBaseRef.current;
-      if (!base || detailDescriptionRef.current.trim() === (base.description ?? '')) return;
-      await saveFields({ description: detailDescriptionRef.current });
+  };
+  const commitDetailDescription = (): Promise<void> => {
+    const description = detailDescriptionRef.current;
+    return enqueue(async session => {
+      if (description.trim() !== (session.base.description ?? '')) await saveFields(session, { description });
     });
-
+  };
   const commitDetailDue = (value: string): Promise<void> =>
-    enqueue(async () => {
+    enqueue(async session => {
       const dueDate = value === '' ? null : value;
-      const base = detailBaseRef.current;
-      if (!base || dueDate === base.dueDate) return;
-      await saveFields({ dueDate });
+      if (dueDate !== session.base.dueDate) await saveFields(session, { dueDate });
     });
 
   return {
@@ -153,9 +157,11 @@ export const useDetailModel = (core: ViewCore, model: ModelGetter): DetailModel 
       model().popover.closePopover(false);
       const request = ++requestRef.current;
       pendingRef.current = taskId;
-      const snapshot = await core.guard(() => actions().openSnapshot(taskId));
+      const currentActions = actions();
+      const snapshot = await core.guard(() => currentActions.openSnapshot(taskId));
       if (request !== requestRef.current || !snapshot) return;
       pendingRef.current = null;
+      sessionRef.current = { taskId, actions: currentActions, base: snapshot };
       setDetailTaskId(taskId);
       model().data.setFocusedTaskId(taskId);
       applySnapshot(snapshot);
@@ -205,7 +211,7 @@ export const useDetailModel = (core: ViewCore, model: ModelGetter): DetailModel 
       core.setReturnFocus(event.currentTarget);
       if (task) await model().cards.confirmTaskDelete(task);
     },
-    saveLabels: labelIds => enqueue(() => saveFields({ labelIds })),
+    saveLabels: labelIds => enqueue(session => saveFields(session, { labelIds: [...labelIds] })),
     refreshDetail: async () => {
       const taskId = detailTaskIdRef.current;
       if (taskId === null) return;
@@ -224,7 +230,11 @@ export const useDetailModel = (core: ViewCore, model: ModelGetter): DetailModel 
     reset: clear,
     applyMovedColumn: (taskId, columnId) => {
       const base = detailBaseRef.current;
-      if (detailTaskIdRef.current === taskId && base !== null) setDetailBase({ ...base, columnId });
+      if (detailTaskIdRef.current === taskId && base !== null) {
+        const fresh = { ...base, columnId };
+        if (sessionRef.current !== null) sessionRef.current.base = fresh;
+        setDetailBase(fresh);
+      }
     }
   };
 };

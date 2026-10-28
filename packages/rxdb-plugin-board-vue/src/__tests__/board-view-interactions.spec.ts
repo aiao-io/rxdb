@@ -280,6 +280,39 @@ describe('Vue 看板交互边界（看板 v2）', () => {
     vi.useRealTimers();
   });
 
+  it('A的排队截止日编辑不会因切到B而重定向', async () => {
+    mountView();
+    await openDetailOf(first.id);
+    const pending = deferred<void>();
+    vi.mocked(actions.saveTaskFields).mockImplementationOnce(async () => {
+      await pending.promise;
+      return { kind: 'saved', task: first };
+    });
+    const firstSave = vm.commitDetailDue('2026-12-01');
+    await Promise.resolve();
+    const secondSave = vm.commitDetailDue('2026-12-02');
+    await vm.openDetail(second.id);
+    pending.resolve();
+    await Promise.all([firstSave, secondSave]);
+    expect(vi.mocked(actions.saveTaskFields).mock.calls.map(([taskId]) => taskId)).toEqual([first.id, first.id]);
+    expect(vm.detailTaskId).toBe(second.id);
+  });
+
+  it('模态对话框Tab与Shift+Tab在首尾环绕', async () => {
+    mountView();
+    await click('create-board');
+    const dialog = element('[data-testid="board-composer"]');
+    const buttons = [...dialog.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])')];
+    const firstButton = buttons[0],
+      lastButton = buttons[buttons.length - 1];
+    lastButton.focus();
+    const forward = await press(lastButton, 'Tab');
+    expect(forward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(firstButton);
+    await press(firstButton, 'Tab', { shiftKey: true });
+    expect(document.activeElement).toBe(lastButton);
+  });
+
   describe('详情侧栏（即改即存）', () => {
     it('字段提交只发补丁、成功后以最新快照为基线，未改动零调用', async () => {
       await openDetailOf(first.id);

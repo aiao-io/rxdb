@@ -27,6 +27,7 @@ export interface LabelDeletePlan {
   readonly taskLabelIds: readonly UUID[];
 }
 
+/** 板级标签服务：创建 / 改名 / 改色与「确认在事务外、复核在事务内」的删除（见文件头）。 */
 export class BoardLabelService {
   constructor(
     private readonly rxdb: RxDB,
@@ -69,7 +70,7 @@ export class BoardLabelService {
     assertBoardWritable(this.ctx());
     const label = await this.requireLabelInBoard(labelId);
     const links = await readFirst(
-      this.rxdb.entityManager.getRepository(TaskLabel).find({ where: whereEq('labelId', labelId) })
+      this.rxdb.entityManager.getRepository(TaskLabel).findAll({ where: whereEq('labelId', labelId) })
     );
     return { labelId, labelName: label.name, taskLabelIds: links.map(link => link.id) };
   }
@@ -99,7 +100,7 @@ export class BoardLabelService {
   async listLabels(): Promise<InstanceType<typeof BoardLabel>[]> {
     const boardId = requireBoardId(this.ctx());
     return readFirst(
-      this.rxdb.entityManager.getRepository(BoardLabel).find({
+      this.rxdb.entityManager.getRepository(BoardLabel).findAll({
         where: whereEq('boardId', boardId),
         orderBy: [
           { field: 'createdAt', sort: 'asc' },
@@ -112,7 +113,7 @@ export class BoardLabelService {
   private async requireLabelInBoard(labelId: UUID): Promise<InstanceType<typeof BoardLabel>> {
     const boardId = requireBoardId(this.ctx());
     const found = await readFirst(
-      this.rxdb.entityManager.getRepository(BoardLabel).find({ where: whereEq('id', labelId) })
+      this.rxdb.entityManager.getRepository(BoardLabel).findAll({ where: whereEq('id', labelId) })
     );
     if (found.length === 0) throw new BoardDomainError('label_not_found', `标签不存在：${labelId}`);
     if (found[0].boardId !== boardId) throw new BoardDomainError('cross_board', '标签不属于当前看板');
@@ -121,7 +122,7 @@ export class BoardLabelService {
 
   private async assertNameFree(boardId: UUID, name: string, excludeId?: string): Promise<void> {
     const existing = await readFirst(
-      this.rxdb.entityManager.getRepository(BoardLabel).find({ where: whereEq('boardId', boardId) })
+      this.rxdb.entityManager.getRepository(BoardLabel).findAll({ where: whereEq('boardId', boardId) })
     );
     if (existing.some(label => label.name === name && label.id !== excludeId)) {
       throw new BoardDomainError('duplicate_label', '同板已存在同名标签');

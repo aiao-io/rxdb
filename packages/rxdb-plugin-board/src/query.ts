@@ -32,6 +32,15 @@ export const readFirst = async <T>(query: Observable<readonly T[]> | Promise<T[]
   return [...result];
 };
 
+/**
+ * 两组 id 作为集合是否相等（顺序与重复都不计）：删除清单与详情快照的复核共用同一判据。
+ */
+export const sameIdSet = (a: readonly string[], b: readonly string[]): boolean => {
+  const left = new Set(a);
+  const right = new Set(b);
+  return left.size === right.size && [...left].every(id => right.has(id));
+};
+
 /** `field = value` 规则组。 */
 export const whereEq = <F extends string, V extends string>(field: F, value: V) => ({
   combinator: 'and' as const,

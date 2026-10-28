@@ -7,7 +7,7 @@ import { TaskLabel } from './entities/task-label.entity.js';
 import { Task } from './entities/task.entity.js';
 import { BoardDomainError } from './errors.js';
 import { assertBoardWritable, type BoardHostContext, requireBoardId } from './host-context.js';
-import { inRule, readFirst, whereEq } from './query.js';
+import { inRule, readFirst, sameIdSet, whereEq } from './query.js';
 import { isValidDueDate, normalizeBoardTitle } from './title.js';
 
 /**
@@ -39,17 +39,16 @@ export interface TaskDraft {
   readonly labelIds: readonly UUID[];
 }
 
+/** 保存结果：已写入（带重查后的任务）或内容未变零写。 */
 export type SaveTaskDraftResult =
   { readonly kind: 'saved'; readonly task: InstanceType<typeof Task> } | { readonly kind: 'unchanged' };
 
 /** 即改即存的字段补丁（看板 v2 详情侧栏）：只列出本次改动的字段。 */
 export type TaskFieldPatch = Partial<TaskDraft>;
 
-const sameIdSet = (a: readonly string[], b: readonly string[]): boolean =>
-  a.length === b.length && new Set(a).size === b.length && a.every(id => b.includes(id));
-
 const SCALAR_FIELDS = ['title', 'description', 'dueDate'] as const;
 
+/** 详情编辑服务：打开快照、一次保存与即改即存（见文件头）。 */
 export class BoardDetailService {
   constructor(
     private readonly rxdb: RxDB,
@@ -59,17 +58,19 @@ export class BoardDetailService {
   /** 打开详情：读取当前状态作为快照（不持有事务）。 */
   async openSnapshot(taskId: UUID): Promise<TaskDraftSnapshot> {
     const boardId = requireBoardId(this.ctx());
-    const tasks = await readFirst(this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('id', taskId) }));
+    const tasks = await readFirst(
+      this.rxdb.entityManager.getRepository(Task).findAll({ where: whereEq('id', taskId) })
+    );
     if (tasks.length === 0) throw new BoardDomainError('task_not_found', `任务不存在：${taskId}`);
     const task = tasks[0];
     const columns = await readFirst(
-      this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', task.columnId) })
+      this.rxdb.entityManager.getRepository(Column).findAll({ where: whereEq('id', task.columnId) })
     );
     if (columns.length === 0 || columns[0].boardId !== boardId) {
       throw new BoardDomainError('cross_board', '任务不属于当前看板');
     }
     const links = await readFirst(
-      this.rxdb.entityManager.getRepository(TaskLabel).find({ where: whereEq('taskId', taskId) })
+      this.rxdb.entityManager.getRepository(TaskLabel).findAll({ where: whereEq('taskId', taskId) })
     );
     return {
       title: task.title,
@@ -167,7 +168,7 @@ export class BoardDetailService {
     });
     if (!saved) return { kind: 'unchanged' };
     const refreshed = await readFirst(
-      this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('id', taskId) })
+      this.rxdb.entityManager.getRepository(Task).findAll({ where: whereEq('id', taskId) })
     );
     const task = refreshed[0];
     // 提交后、重查前被另一入口删除的窄窗口：不给调用方 `task: undefined` 的假保存
@@ -194,11 +195,12 @@ export class BoardDetailService {
     if (patch.labelIds !== undefined && !sameIdSet(fresh.labelIds, base.labelIds)) {
       throw new BoardDomainError('labels_changed', '标签引用已被其它入口修改，请刷新后重新确认');
     }
+    // 「未涉及」只认 undefined，与上方冲突校验同一判据（`null` 一律算改动：截止日 / 描述即清空）
     return this.saveTaskDraft(taskId, fresh, {
-      title: patch.title ?? fresh.title,
-      description: patch.description ?? fresh.description ?? '',
+      title: patch.title === undefined ? fresh.title : patch.title,
+      description: patch.description === undefined ? (fresh.description ?? '') : patch.description,
       dueDate: patch.dueDate === undefined ? fresh.dueDate : patch.dueDate,
-      labelIds: patch.labelIds ?? fresh.labelIds
+      labelIds: patch.labelIds === undefined ? fresh.labelIds : patch.labelIds
     });
   }
 }

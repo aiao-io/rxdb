@@ -4,6 +4,7 @@ import {
   dropIndicatorAnchor,
   dueStatus,
   dueStatusText,
+  focusModalTab,
   isBoardFilterEmpty,
   isHexColor,
   localDateKey,
@@ -59,6 +60,12 @@ import { useBoard, type UseBoardReturn } from './use-board.js';
 /** 弹层种类：菜单（板 / 列 / 卡片）与选择器（移到列 / 详情所在列 / 详情标签）。 */
 export type BoardPopoverKind =
   'board-menu' | 'column-menu' | 'task-menu' | 'move-picker' | 'detail-column-picker' | 'detail-label-picker';
+
+interface DetailSession {
+  readonly taskId: UUID;
+  readonly actions: UseBoardReturn['actions'];
+  base: TaskDraftSnapshot;
+}
 
 interface PopoverState {
   readonly kind: BoardPopoverKind;
@@ -192,6 +199,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   private detailRequest = 0;
   private pendingDetailTaskId: UUID | null = null;
   private detailQueue: Promise<unknown> = Promise.resolve();
+  private detailSession: DetailSession | null = null;
   private returnFocus: HTMLElement | null = null;
   private pickerLabelDraft: readonly UUID[] = [];
   private readonly pickerSelection = signal<readonly UUID[]>([]);
@@ -858,9 +866,11 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     this.closePopover(false);
     const request = ++this.detailRequest;
     this.pendingDetailTaskId = taskId;
-    const snapshot = await this.guard(() => this.boardRef.actions.openSnapshot(taskId));
+    const currentActions = this.boardRef.actions;
+    const snapshot = await this.guard(() => currentActions.openSnapshot(taskId));
     if (request !== this.detailRequest || !snapshot) return;
     this.pendingDetailTaskId = null;
+    this.detailSession = { taskId, actions: currentActions, base: snapshot };
     this.detailTaskId.set(taskId);
     this.focusedTaskId.set(taskId);
     this.applyDetailSnapshot(snapshot);
@@ -870,32 +880,29 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   protected closeDetail(): void {
     const taskId = this.detailTaskId();
     this.detailRequest++;
+    this.detailSession = null;
     this.detailTaskId.set(null);
     this.detailBase.set(null);
     if (taskId !== null) this.focusTaskSoon(taskId);
   }
 
   protected commitDetailTitle(): Promise<void> {
-    return this.enqueueDetail(async () => {
-      const base = this.detailBase();
-      if (!base || this.detailTitle() === base.title) return;
-      await this.saveDetailFields({ title: this.detailTitle() });
+    const title = this.detailTitle();
+    return this.enqueueDetail(async session => {
+      if (title !== session.base.title) await this.saveDetailFields(session, { title });
     });
   }
-
   protected revertDetailTitle(event: Event): void {
     event.stopPropagation();
     this.detailTitle.set(this.detailBase()?.title ?? '');
   }
-
   protected commitDetailDescription(): Promise<void> {
-    return this.enqueueDetail(async () => {
-      const base = this.detailBase();
-      if (!base || this.detailDescription().trim() === (base.description ?? '')) return;
-      await this.saveDetailFields({ description: this.detailDescription() });
+    const description = this.detailDescription();
+    return this.enqueueDetail(async session => {
+      if (description.trim() !== (session.base.description ?? ''))
+        await this.saveDetailFields(session, { description });
     });
   }
-
   protected onDetailDescriptionKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       event.stopPropagation();
@@ -903,12 +910,10 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     }
     if (event.key === 'Enter' && isModifier(event)) void this.commitDetailDescription();
   }
-
   protected commitDetailDue(value: string): Promise<void> {
-    return this.enqueueDetail(async () => {
+    return this.enqueueDetail(async session => {
       const dueDate = value === '' ? null : value;
-      if (!this.detailBase() || dueDate === this.detailBase()?.dueDate) return;
-      await this.saveDetailFields({ dueDate });
+      if (dueDate !== session.base.dueDate) await this.saveDetailFields(session, { dueDate });
     });
   }
 
@@ -1036,10 +1041,12 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const detailTaskId = this.detailTaskId();
     if (detailTaskId !== null && removedIds.includes(detailTaskId)) {
       this.detailRequest++;
+      this.detailSession = null;
       this.detailTaskId.set(null);
       this.detailBase.set(null);
     }
-    if (plan.kind === 'board') this.destroySearch();
+    // 删掉的是当前板：查询词随句柄一起清空（只销毁句柄会留下旧词，再打开搜索框是一个失效的搜索态）
+    if (plan.kind === 'board') this.onSearchInput('');
     this.showToast(this.deletedMessage(plan), true);
   }
 
@@ -1337,7 +1344,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     const selection = this.pickerSelection();
     const before = this.pickerLabelDraft;
     if (selection.length === before.length && selection.every(id => before.includes(id))) return;
-    await this.enqueueDetail(() => this.saveDetailFields({ labelIds: selection }));
+    await this.enqueueDetail(session => this.saveDetailFields(session, { labelIds: selection }));
   }
 
   /** 移到目标列末尾（与 GitHub「Move to column」一致）；从详情侧栏发起时焦点留在侧栏。 */
@@ -1398,27 +1405,26 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   // ---------- 详情保存队列 ----------
 
   /** 详情字段的提交串行执行：回车后紧跟失焦等重复提交读到的是上一笔保存后的基线。 */
-  private enqueueDetail(operation: () => Promise<unknown>): Promise<void> {
-    const next = this.detailQueue.then(operation, operation);
+  private enqueueDetail(operation: (session: DetailSession) => Promise<unknown>): Promise<void> {
+    const session = this.detailSession;
+    if (session === null) return Promise.resolve();
+    const run = () => operation(session);
+    const next = this.detailQueue.then(run, run);
     this.detailQueue = next.catch(() => undefined);
     return next.then(() => undefined);
   }
 
-  private async saveDetailFields(patch: TaskFieldPatch): Promise<void> {
-    const taskId = this.detailTaskId();
-    const base = this.detailBase();
-    if (taskId === null || base === null) return;
-    this.detailStatus.set('保存中…');
-    const result = await this.guard(() => this.boardRef.actions.saveTaskFields(taskId, base, patch));
-    if (taskId !== this.detailTaskId()) return;
+  private async saveDetailFields(session: DetailSession, patch: TaskFieldPatch): Promise<void> {
+    if (session === this.detailSession) this.detailStatus.set('保存中…');
+    const result = await this.guard(() => session.actions.saveTaskFields(session.taskId, session.base, patch));
     if (result === undefined) {
-      this.detailStatus.set(null);
+      if (session === this.detailSession) this.detailStatus.set(null);
       return;
     }
-    const fresh = await this.guard(() => this.boardRef.actions.openSnapshot(taskId));
-    if (taskId !== this.detailTaskId()) return;
+    const fresh = await this.guard(() => session.actions.openSnapshot(session.taskId));
+    if (fresh) session.base = fresh;
+    if (session !== this.detailSession) return;
     if (!fresh) {
-      // 已落库但读回失败：不停在「保存中…」，提示走横幅
       this.detailStatus.set(null);
       return;
     }
@@ -1441,6 +1447,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   private applyDetailSnapshot(snapshot: TaskDraftSnapshot): void {
+    if (this.detailSession !== null) this.detailSession.base = snapshot;
     this.detailBase.set(snapshot);
     this.detailTitle.set(snapshot.title);
     this.detailDescription.set(snapshot.description ?? '');
@@ -1496,6 +1503,10 @@ export class BoardViewComponent implements OnInit, OnDestroy {
       if (this.handleEscape()) event.preventDefault();
       return;
     }
+    if (event.key === 'Tab' && this.dialog() !== null) {
+      if (focusModalTab(root, event.shiftKey)) event.preventDefault();
+      return;
+    }
     if (isModifier(event) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
       if (this.board()?.searchSource || this.board()?.searchUnavailableReason) this.openSearch();
@@ -1505,6 +1516,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     if (this.runGlobalShortcut(event)) event.preventDefault();
   };
 
+  /** 模态对话框打开时 Tab 只在对话框内循环（首尾绕回，目标由核心包 `trapTabFocus` 换算）；返回是否接管。 */
   private runGlobalShortcut(event: KeyboardEvent): boolean {
     if (isModifier(event) && event.key.toLowerCase() === 'z') {
       void (event.shiftKey ? this.redo() : this.undo());
@@ -1535,10 +1547,14 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     return true;
   }
 
+  /**
+   * 外部指针按下（捕获阶段）关闭弹层；本实例的弹层内与本实例展开中的触发器除外——
+   * 同页另一个看板、宿主自己的展开控件（accordion / combobox）都算外部。
+   */
   private readonly onDocumentPointerdown = (event: PointerEvent): void => {
     if (!this.popover()) return;
-    const target = event.target as Element | null;
-    if (target?.closest('.rxb-popover, [aria-expanded="true"]')) return;
+    const hit = (event.target as Element | null)?.closest('.rxb-popover, [aria-expanded="true"]');
+    if (hit && this.boardArea()?.nativeElement.contains(hit)) return;
     this.closePopover(false);
   };
 
@@ -1573,6 +1589,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   private selectBoard(boardId: UUID): void {
     this.closePopover(false);
     this.detailRequest++;
+    this.detailSession = null;
     this.detailTaskId.set(null);
     this.detailBase.set(null);
     this.boardRef.selectBoard(boardId);
@@ -1615,7 +1632,11 @@ export class BoardViewComponent implements OnInit, OnDestroy {
       return false;
     }
     const base = this.detailBase();
-    if (this.detailTaskId() === taskId && base !== null) this.detailBase.set({ ...base, columnId: target.columnId });
+    if (this.detailTaskId() === taskId && base !== null) {
+      const fresh = { ...base, columnId: target.columnId };
+      if (this.detailSession !== null) this.detailSession.base = fresh;
+      this.detailBase.set(fresh);
+    }
     this.showToast(`已移动到「${this.columnTitleOf(target.columnId)}」`, true);
     return true;
   }
@@ -1631,6 +1652,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     this.searchErrorText.set(null);
   }
 
+  /** 拖拽几何：每次 dragover 现量：落点指示是伪元素 / 阴影、不触发重排，读的是干净布局；拖拽开始时缓存会在拖拽自动滚动后失效。 */
   private columnViews(area: HTMLElement): CardDropColumnView[] {
     return this.boardRef.columns().map(column => {
       const rect = area.querySelector<HTMLElement>(`[data-column-id="${column.id}"]`)?.getBoundingClientRect();

@@ -14,8 +14,11 @@ import {
   BoardSearchSource,
   BoardWriteNotifier,
   Column,
+  matchAll,
+  observeBoardRead,
   Task,
-  TaskLabel,
+  type BoardHostContext,
+  type BoardReadState,
   type BoardSearchUnavailableReason,
   type BoardSearchUpstream,
   type CardDropTarget,
@@ -28,8 +31,18 @@ import {
   type TaskFieldPatch
 } from '@aiao/rxdb-plugin-board';
 import type {} from '@aiao/rxdb-plugin-history';
-import { useEffect, useRef, useState } from 'react';
-import { BehaviorSubject, catchError, combineLatest, EMPTY, map, of, Subscription, switchMap, tap } from 'rxjs';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  BehaviorSubject,
+  catchError,
+  combineLatest,
+  EMPTY,
+  shareReplay,
+  Subscription,
+  switchMap,
+  tap,
+  type Observable
+} from 'rxjs';
 
 /**
  * React 集成 - rxdb-plugin-board
@@ -58,7 +71,7 @@ export interface UseBoardOptions {
 }
 
 export interface UseBoardReturn {
-  /** 板级搜索源（US-539 阶段 B）；宿主未注入上游时为 `null`。 */
+  /** 板级搜索源（US-539 阶段 B）；宿主未注入上游时为 `null`，注入后随上游重建。 */
   readonly searchSource: BoardSearchSource | null;
   /** 搜索入口不可用时的稳定原因。 */
   readonly searchUnavailableReason: BoardSearchUnavailableReason | null;
@@ -78,6 +91,7 @@ export interface UseBoardReturn {
   readonly writeEvent: { readonly kind: string; readonly reason?: string } | null;
   readonly selectBoard: (boardId: UUID) => void;
   readonly setRestoring: (value: boolean) => void;
+  /** 领域动作（首帧即完整，同一 `rxdb` 实例内引用稳定）。 */
   readonly actions: UseBoardActions;
 }
 
@@ -117,17 +131,69 @@ const defaultStorage = (): UseBoardStorage => {
   return { get: key => memory.get(key) ?? null, set: (key, value) => void memory.set(key, value) };
 };
 
-const eq = <F extends string, V>(field: F, value: V) => ({
-  combinator: 'and' as const,
-  rules: [{ field, operator: '=' as const, value }]
-});
-const inRule = <F extends string, V>(field: F, values: readonly V[]) => ({
-  combinator: 'and' as const,
-  rules: [{ field, operator: 'in' as const, value: [...values] }]
-});
+/** 领域服务、写入通知器与动作集合：构造无副作用，可在渲染期按实例创建。 */
+const createBoardServices = (
+  rxdb: RxDB,
+  boardId$: BehaviorSubject<UUID | null>,
+  restoring$: BehaviorSubject<boolean>
+): {
+  readonly ctx: () => BoardHostContext;
+  readonly notifier: BoardWriteNotifier;
+  readonly actions: UseBoardActions;
+} => {
+  const ctx = () => ({ boardId: boardId$.value, restoring: restoring$.value });
+  const domain = new BoardDomain(rxdb, ctx);
+  const deletes = new BoardDeleteService(rxdb, ctx);
+  const details = new BoardDetailService(rxdb, ctx);
+  const labelService = new BoardLabelService(rxdb, ctx);
+  const notifier = new BoardWriteNotifier();
+  const moves = new BoardMoveService(rxdb, ctx, notifier);
+  const sorts = new BoardColumnSortService(rxdb, ctx, notifier);
+  const actions: UseBoardActions = {
+    createBoard: input => domain.createBoard(input),
+    createColumn: input => domain.createColumn(input),
+    createTask: input => domain.createTask(input),
+    updateBoard: (boardId, patch) => domain.updateBoard(boardId, patch),
+    updateColumn: (columnId, patch) => domain.updateColumn(columnId, patch),
+    updateTaskTitle: (taskId, title) => domain.updateTaskTitle(taskId, title),
+    openSnapshot: taskId => details.openSnapshot(taskId),
+    saveTaskDraft: (taskId, snapshot, draft) => details.saveTaskDraft(taskId, snapshot, draft),
+    saveTaskFields: (taskId, base, patch) => details.saveTaskFields(taskId, base, patch),
+    planTaskDelete: taskId => deletes.planTaskDelete(taskId),
+    planColumnDelete: columnId => deletes.planColumnDelete(columnId),
+    planBoardDelete: boardId => deletes.planBoardDelete(boardId),
+    executeDelete: plan => deletes.executeDelete(plan),
+    moveTask: (taskId, target) => moves.moveTask(taskId, target),
+    moveColumn: (columnId, target) => moves.moveColumn(columnId, target),
+    sortColumn: (columnId, mode) => sorts.sortColumn(columnId, mode),
+    createLabel: input => labelService.createLabel(input),
+    renameLabel: (labelId, name) => labelService.renameLabel(labelId, name),
+    recolorLabel: (labelId, color) => labelService.recolorLabel(labelId, color),
+    planLabelDelete: labelId => labelService.planLabelDelete(labelId),
+    executeLabelDelete: plan => labelService.executeLabelDelete(plan),
+    undo: async () => {
+      assertBoardWritable(ctx());
+      await rxdb.versionManager.history().undo();
+    },
+    redo: async () => {
+      assertBoardWritable(ctx());
+      await rxdb.versionManager.history().redo();
+    }
+  };
+  return { ctx, notifier, actions };
+};
+
+/** 同一查询的多个下游共享一条订阅与同一份快照（派生链只跑一遍）。 */
+const shareLatest = <T>(source: Observable<T>): Observable<T> =>
+  source.pipe(shareReplay({ bufferSize: 1, refCount: true }));
 
 /**
  * 看板领域桥：React state + 动作集合。卸载时自动释放全部订阅。
+ *
+ * @remarks
+ * 领域服务构造无副作用，在渲染期按 `rxdb` 实例创建：首帧返回的 `actions` 就是完整动作集
+ * （子组件的 effect 先于本 hook 的 effect 执行，也能直接调用），与 Angular 构造期、Vue setup 期就绪对称。
+ * 订阅只在 effect 里建立；搜索源随宿主注入的上游变化重建（搜索插件可以晚于看板装好）。
  *
  * @param rxdb - 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）
  * @param options - 本地记录存储（默认 localStorage）
@@ -153,53 +219,57 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   const [readError, setReadError] = useState<string | null>(null);
   const [readAttempt, setReadAttempt] = useState(0);
 
-  // 服务与 Subject 在实例生命周期内保持同一引用；state 更新经 setState
-  const searchSourceRef = useRef<BoardSearchSource | null>(null);
+  // 板选择与恢复中的 Subject 在实例生命周期内保持同一引用；state 更新经 setState
   const stateRef = useRef({
-    rxdb,
     boardId$: new BehaviorSubject<UUID | null>(null),
     restoring$: new BehaviorSubject<boolean>(false)
   });
   const { boardId$, restoring$ } = stateRef.current;
+  const services = useMemo(() => createBoardServices(rxdb, boardId$, restoring$), [rxdb, boardId$, restoring$]);
+  const upstream = options?.search?.upstream;
+  const searchSource = useMemo(
+    () => (upstream ? new BoardSearchSource(rxdb, services.ctx, upstream, {}) : null),
+    [rxdb, services, upstream]
+  );
 
   useEffect(() => {
-    const ctx = () => ({ boardId: boardId$.value, restoring: restoring$.value });
-    searchSourceRef.current = options?.search ? new BoardSearchSource(rxdb, ctx, options.search.upstream, {}) : null;
-    const domain = new BoardDomain(rxdb, ctx);
-    const deletes = new BoardDeleteService(rxdb, ctx);
-    const details = new BoardDetailService(rxdb, ctx);
-    const labelService = new BoardLabelService(rxdb, ctx);
-    const notifier = new BoardWriteNotifier();
-    const moves = new BoardMoveService(rxdb, ctx, notifier);
-    const sorts = new BoardColumnSortService(rxdb, ctx, notifier);
-
     const boardRepo = rxdb.entityManager.getRepository(Board);
-    const columnRepo = rxdb.entityManager.getRepository(Column);
-    const taskRepo = rxdb.entityManager.getRepository(Task);
-    const labelRepo = rxdb.entityManager.getRepository(BoardLabel);
-    const linkRepo = rxdb.entityManager.getRepository(TaskLabel);
 
     const subs = new Subscription();
+    let boardsReady = false;
+    let dataReady = false;
+    let failed = false;
+    const settleRead = (): void => {
+      setLoading(!failed && !(boardsReady && dataReady));
+    };
     const failRead = (error: unknown): void => {
+      failed = true;
       setLoading(false);
       setReadError(error instanceof Error ? error.message : String(error));
     };
-    const read = <T>(source: import('rxjs').Observable<T>): import('rxjs').Observable<T> =>
+    const read = <T>(source: Observable<T>): Observable<T> =>
       source.pipe(
         catchError(error => {
           failRead(error);
           return EMPTY;
         })
       );
-    const boards$ = read(
-      boardRepo.find({
-        where: { combinator: 'and', rules: [] },
-        orderBy: [
-          { field: 'createdAt', sort: 'asc' },
-          { field: 'id', sort: 'asc' }
-        ]
-      })
-    ).pipe(tap(() => setLoading(false)));
+    const boards$ = shareLatest(
+      read(
+        boardRepo.findAll({
+          where: matchAll(),
+          orderBy: [
+            { field: 'createdAt', sort: 'asc' },
+            { field: 'id', sort: 'asc' }
+          ]
+        })
+      ).pipe(
+        tap(() => {
+          boardsReady = true;
+          settleRead();
+        })
+      )
+    );
     subs.add(boards$.subscribe({ next: setBoards, error: failRead }));
     subs.add(
       combineLatest([boards$, boardId$]).subscribe(([list, id]) =>
@@ -207,78 +277,35 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
       )
     );
 
-    const columns$ = boardId$.pipe(
-      switchMap(boardId =>
-        boardId === null ? of([] as readonly Column[]) : read(columnRepo.find({ where: eq('boardId', boardId) }))
-      )
-    );
-    subs.add(columns$.subscribe({ next: setColumns, error: failRead }));
-    const tasks$ = combineLatest([boardId$, columns$]).pipe(
-      switchMap(([boardId, cols]) => {
-        if (boardId === null || cols.length === 0) return of([] as readonly Task[]);
-        return read(
-          taskRepo.find({
-            where: {
-              combinator: 'and',
-              rules: [
-                inRule(
-                  'columnId',
-                  cols.map(column => column.id)
-                )
-              ]
-            }
-          })
-        );
-      })
-    );
-    subs.add(tasks$.subscribe({ next: setTasks, error: failRead }));
-    const labels$ = boardId$.pipe(
-      switchMap(boardId =>
-        boardId === null ?
-          of([] as readonly BoardLabel[])
-        : read(
-            labelRepo.find({
-              where: eq('boardId', boardId),
-              orderBy: [
-                { field: 'createdAt', sort: 'asc' },
-                { field: 'id', sort: 'asc' }
-              ]
-            })
-          )
-      )
-    );
-    subs.add(labels$.subscribe({ next: setLabels, error: failRead }));
-    const taskLabels$ = combineLatest([boardId$, tasks$, labels$]).pipe(
-      switchMap(([boardId, currentTasks, currentLabels]) => {
-        if (boardId === null || currentTasks.length === 0) return of(new Map<UUID, readonly BoardLabel[]>());
-        const ids = currentTasks.map(task => task.id);
-        return read(linkRepo.find({ where: { combinator: 'and', rules: [inRule('taskId', ids)] } })).pipe(
-          map(links => {
-            const labelIdsByTask = new Map<UUID, Set<UUID>>();
-            for (const link of links) {
-              const labelIds = labelIdsByTask.get(link.taskId) ?? new Set<UUID>();
-              labelIds.add(link.labelId);
-              labelIdsByTask.set(link.taskId, labelIds);
-            }
-            const grouped = new Map<UUID, readonly BoardLabel[]>();
-            for (const task of currentTasks) {
-              const labelIds = labelIdsByTask.get(task.id);
-              if (!labelIds) continue;
-              const taskLabels = currentLabels.filter(label => labelIds.has(label.id));
-              if (taskLabels.length > 0) grouped.set(task.id, taskLabels);
-            }
-            return grouped;
-          })
-        );
-      })
-    );
-    subs.add(taskLabels$.subscribe({ next: setTaskLabels, error: failRead }));
+    const applyReadState = (state: BoardReadState): void => {
+      dataReady = state.kind === 'ready';
+      if (state.kind === 'failed') {
+        failRead(state.message);
+        return;
+      }
+      if (state.kind === 'loading') {
+        setColumns([]);
+        setTasks([]);
+        setLabels([]);
+        setTaskLabels(new Map());
+
+        settleRead();
+        return;
+      }
+      const snapshot = state.snapshot;
+      setColumns(snapshot.columns);
+      setTasks(snapshot.tasks);
+      setLabels(snapshot.labels);
+      setTaskLabels(snapshot.taskLabels);
+      settleRead();
+    };
+    subs.add(boardId$.pipe(switchMap(boardId => observeBoardRead(rxdb, boardId))).subscribe(applyReadState));
 
     const history = rxdb.versionManager.history();
     subs.add(history.undoCount$.subscribe({ next: setUndoCount, error: failRead }));
     subs.add(history.redoCount$.subscribe({ next: setRedoCount, error: failRead }));
     subs.add(
-      notifier.events$.subscribe({
+      services.notifier.events$.subscribe({
         next: event => setWriteEvent({ kind: event.kind, reason: 'reason' in event ? event.reason : undefined }),
         error: failRead
       })
@@ -297,46 +324,9 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
       })
     );
 
-    actionsRef.current = {
-      createBoard: input => domain.createBoard(input),
-      createColumn: input => domain.createColumn(input),
-      createTask: input => domain.createTask(input),
-      updateBoard: (boardId, patch) => domain.updateBoard(boardId, patch),
-      updateColumn: (columnId, patch) => domain.updateColumn(columnId, patch),
-      updateTaskTitle: (taskId, title) => domain.updateTaskTitle(taskId, title),
-      openSnapshot: taskId => details.openSnapshot(taskId),
-      saveTaskDraft: (taskId, snapshot, draft) => details.saveTaskDraft(taskId, snapshot, draft),
-      saveTaskFields: (taskId, base, patch) => details.saveTaskFields(taskId, base, patch),
-      planTaskDelete: taskId => deletes.planTaskDelete(taskId),
-      planColumnDelete: columnId => deletes.planColumnDelete(columnId),
-      planBoardDelete: boardId => deletes.planBoardDelete(boardId),
-      executeDelete: plan => deletes.executeDelete(plan),
-      moveTask: (taskId, target) => moves.moveTask(taskId, target),
-      moveColumn: (columnId, target) => moves.moveColumn(columnId, target),
-      sortColumn: (columnId, mode) => sorts.sortColumn(columnId, mode),
-      createLabel: input => labelService.createLabel(input),
-      renameLabel: (labelId, name) => labelService.renameLabel(labelId, name),
-      recolorLabel: (labelId, color) => labelService.recolorLabel(labelId, color),
-      planLabelDelete: labelId => labelService.planLabelDelete(labelId),
-      executeLabelDelete: plan => labelService.executeLabelDelete(plan),
-      undo: async () => {
-        assertBoardWritable(ctx());
-        await history.undo();
-      },
-      redo: async () => {
-        assertBoardWritable(ctx());
-        await history.redo();
-      }
-    };
-
-    return () => {
-      subs.unsubscribe();
-      notifier.complete();
-    };
-    // 服务与订阅随实例生命周期重建；boardId/restoring Subject 独立于本 effect
-  }, [readAttempt, rxdb, boardId$, restoring$]);
-
-  const actionsRef = useRef<UseBoardActions | null>(null);
+    // 通知器随服务存活（重试读取只重建订阅），这里只退订、不 complete
+    return () => subs.unsubscribe();
+  }, [readAttempt, rxdb, services, boardId$, restoring$]);
 
   const selectBoard = (boardId: UUID): void => {
     storageRef.current.set(LAST_BOARD_KEY, boardId);
@@ -352,10 +342,8 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     setReadAttempt(value => value + 1);
   };
 
-  const actions = actionsRef.current ?? ({} as UseBoardActions);
-
   return {
-    searchSource: searchSourceRef.current,
+    searchSource,
     searchUnavailableReason: options?.searchUnavailableReason ?? null,
     boards,
     currentBoardId,
@@ -373,6 +361,6 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     writeEvent,
     selectBoard,
     setRestoring,
-    actions
+    actions: services.actions
   };
 }

@@ -12,8 +12,10 @@ import {
   BoardSearchSource,
   BoardWriteNotifier,
   Column,
+  matchAll,
+  observeBoardRead,
   Task,
-  TaskLabel,
+  type BoardReadState,
   type BoardSearchUnavailableReason,
   type BoardSearchUpstream,
   type CardDropTarget,
@@ -26,8 +28,18 @@ import {
   type TaskFieldPatch
 } from '@aiao/rxdb-plugin-board';
 import type {} from '@aiao/rxdb-plugin-history';
-import { BehaviorSubject, catchError, combineLatest, EMPTY, map, of, Subscription, switchMap, tap } from 'rxjs';
-import { effectScope, getCurrentScope, onScopeDispose, readonly, ref, type Ref } from 'vue';
+import {
+  BehaviorSubject,
+  catchError,
+  combineLatest,
+  EMPTY,
+  shareReplay,
+  Subscription,
+  switchMap,
+  tap,
+  type Observable
+} from 'rxjs';
+import { getCurrentScope, onScopeDispose, readonly, ref, type Ref } from 'vue';
 
 /**
  * Vue 集成 - rxdb-plugin-board
@@ -115,22 +127,23 @@ const defaultStorage = (): UseBoardStorage => {
   return { get: key => memory.get(key) ?? null, set: (key, value) => void memory.set(key, value) };
 };
 
-const eq = <F extends string, V>(field: F, value: V) => ({
-  combinator: 'and' as const,
-  rules: [{ field, operator: '=' as const, value }]
-});
-const inRule = <F extends string, V>(field: F, values: readonly V[]) => ({
-  combinator: 'and' as const,
-  rules: [{ field, operator: 'in' as const, value: [...values] }]
-});
+/** 同一查询的多个下游共享一条订阅与同一份快照（派生链只跑一遍）。 */
+const shareLatest = <T>(source: Observable<T>): Observable<T> =>
+  source.pipe(shareReplay({ bufferSize: 1, refCount: true }));
 
 /**
  * 看板领域桥：Vue ref + 动作集合。组件卸载（或作用域释放）时自动清理订阅。
  *
  * @param rxdb - 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）
  * @param options - 本地记录存储（默认 localStorage）
+ * @throws Error 不在 `setup()` 或活动的 `effectScope()` 里调用（订阅与通知器将无人释放）
  */
 export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn {
+  if (!getCurrentScope()) {
+    throw new Error(
+      '[rxdb-plugin-board-vue] useBoard() 必须在 setup() 或活动的 effectScope() 里调用——否则订阅与写入通知器永远不会释放'
+    );
+  }
   const storage: UseBoardStorage = options?.storage ?? defaultStorage();
 
   const boards = ref<readonly Board[]>([]);
@@ -151,196 +164,160 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   const restoring$ = new BehaviorSubject<boolean>(false);
   const readAttempt$ = new BehaviorSubject(0);
 
-  let actions!: UseBoardActions;
-  let searchSource: BoardSearchSource | null = null;
+  const ctx = () => ({ boardId: boardId$.value, restoring: restoring$.value });
+  const searchSource = options?.search ? new BoardSearchSource(rxdb, ctx, options.search.upstream, {}) : null;
+  const domain = new BoardDomain(rxdb, ctx);
+  const deletes = new BoardDeleteService(rxdb, ctx);
+  const details = new BoardDetailService(rxdb, ctx);
+  const labelService = new BoardLabelService(rxdb, ctx);
+  const notifier = new BoardWriteNotifier();
+  const moves = new BoardMoveService(rxdb, ctx, notifier);
+  const sorts = new BoardColumnSortService(rxdb, ctx, notifier);
 
-  const scope = effectScope();
-  scope.run(() => {
-    const ctx = () => ({ boardId: boardId$.value, restoring: restoring$.value });
-    searchSource = options?.search ? new BoardSearchSource(rxdb, ctx, options.search.upstream, {}) : null;
-    const domain = new BoardDomain(rxdb, ctx);
-    const deletes = new BoardDeleteService(rxdb, ctx);
-    const details = new BoardDetailService(rxdb, ctx);
-    const labelService = new BoardLabelService(rxdb, ctx);
-    const notifier = new BoardWriteNotifier();
-    const moves = new BoardMoveService(rxdb, ctx, notifier);
-    const sorts = new BoardColumnSortService(rxdb, ctx, notifier);
+  const boardRepo = rxdb.entityManager.getRepository(Board);
 
-    const boardRepo = rxdb.entityManager.getRepository(Board);
-    const columnRepo = rxdb.entityManager.getRepository(Column);
-    const taskRepo = rxdb.entityManager.getRepository(Task);
-    const labelRepo = rxdb.entityManager.getRepository(BoardLabel);
-    const linkRepo = rxdb.entityManager.getRepository(TaskLabel);
-
-    const subs = new Subscription();
-    onScopeDispose(() => {
-      subs.unsubscribe();
-      notifier.complete();
-    });
-    const failRead = (error: unknown): void => {
-      loading.value = false;
-      readError.value = error instanceof Error ? error.message : String(error);
-    };
-    const read = <T>(factory: () => import('rxjs').Observable<T>): import('rxjs').Observable<T> =>
-      readAttempt$.pipe(
-        switchMap(() =>
-          factory().pipe(
-            catchError(error => {
-              failRead(error);
-              return EMPTY;
-            })
-          )
+  const subs = new Subscription();
+  onScopeDispose(() => {
+    subs.unsubscribe();
+    notifier.complete();
+  });
+  let boardsReady = false;
+  let dataReady = false;
+  let failed = false;
+  const settleRead = (): void => {
+    loading.value = !failed && !(boardsReady && dataReady);
+  };
+  const failRead = (error: unknown): void => {
+    failed = true;
+    loading.value = false;
+    readError.value = error instanceof Error ? error.message : String(error);
+  };
+  const read = <T>(factory: () => Observable<T>): Observable<T> =>
+    readAttempt$.pipe(
+      tap(() => {
+        boardsReady = false;
+        failed = false;
+      }),
+      switchMap(() =>
+        factory().pipe(
+          catchError(error => {
+            failRead(error);
+            return EMPTY;
+          })
         )
-      );
+      )
+    );
 
-    const boards$ = read(() =>
-      boardRepo.find({
-        where: { combinator: 'and', rules: [] },
+  const boards$ = shareLatest(
+    read(() =>
+      boardRepo.findAll({
+        where: matchAll(),
         orderBy: [
           { field: 'createdAt', sort: 'asc' },
           { field: 'id', sort: 'asc' }
         ]
       })
-    ).pipe(tap(() => (loading.value = false)));
-    subs.add(boards$.subscribe({ next: list => void (boards.value = list), error: failRead }));
-    subs.add(
-      combineLatest([boards$, boardId$]).subscribe({
-        next: ([list, id]) => void (currentBoard.value = list.find(board => board.id === id) ?? null),
-        error: failRead
+    ).pipe(
+      tap(() => {
+        boardsReady = true;
+        settleRead();
       })
-    );
+    )
+  );
+  subs.add(boards$.subscribe({ next: list => void (boards.value = list), error: failRead }));
+  subs.add(
+    combineLatest([boards$, boardId$]).subscribe({
+      next: ([list, id]) => void (currentBoard.value = list.find(board => board.id === id) ?? null),
+      error: failRead
+    })
+  );
 
-    const columns$ = boardId$.pipe(
-      switchMap(boardId =>
-        boardId === null ? of([] as readonly Column[]) : read(() => columnRepo.find({ where: eq('boardId', boardId) }))
-      )
-    );
-    subs.add(columns$.subscribe({ next: list => void (columns.value = list), error: failRead }));
-    const tasks$ = combineLatest([boardId$, columns$]).pipe(
-      switchMap(([boardId, cols]) => {
-        if (boardId === null || cols.length === 0) return of([] as readonly Task[]);
-        return read(() =>
-          taskRepo.find({
-            where: {
-              combinator: 'and',
-              rules: [
-                inRule(
-                  'columnId',
-                  cols.map(column => column.id)
-                )
-              ]
-            }
-          })
-        );
-      })
-    );
-    subs.add(tasks$.subscribe({ next: list => void (tasks.value = list), error: failRead }));
-    const labels$ = boardId$.pipe(
-      switchMap(boardId =>
-        boardId === null ?
-          of([] as readonly BoardLabel[])
-        : read(() =>
-            labelRepo.find({
-              where: eq('boardId', boardId),
-              orderBy: [
-                { field: 'createdAt', sort: 'asc' },
-                { field: 'id', sort: 'asc' }
-              ]
-            })
-          )
-      )
-    );
-    subs.add(labels$.subscribe({ next: list => void (labels.value = list), error: failRead }));
-    const taskLabels$ = combineLatest([boardId$, tasks$, labels$]).pipe(
-      switchMap(([boardId, currentTasks, currentLabels]) => {
-        if (boardId === null || currentTasks.length === 0) return of(new Map<UUID, readonly BoardLabel[]>());
-        const ids = currentTasks.map(task => task.id);
-        return read(() => linkRepo.find({ where: { combinator: 'and', rules: [inRule('taskId', ids)] } })).pipe(
-          map(links => {
-            const labelIdsByTask = new Map<UUID, Set<UUID>>();
-            for (const link of links) {
-              const labelIds = labelIdsByTask.get(link.taskId) ?? new Set<UUID>();
-              labelIds.add(link.labelId);
-              labelIdsByTask.set(link.taskId, labelIds);
-            }
-            const grouped = new Map<UUID, readonly BoardLabel[]>();
-            for (const task of currentTasks) {
-              const labelIds = labelIdsByTask.get(task.id);
-              if (!labelIds) continue;
-              const taskLabels = currentLabels.filter(label => labelIds.has(label.id));
-              if (taskLabels.length > 0) grouped.set(task.id, taskLabels);
-            }
-            return grouped;
-          })
-        );
-      })
-    );
-    subs.add(taskLabels$.subscribe({ next: mapValue => void (taskLabels.value = mapValue), error: failRead }));
+  const applyReadState = (state: BoardReadState): void => {
+    dataReady = state.kind === 'ready';
+    if (state.kind === 'failed') {
+      failRead(state.message);
+      return;
+    }
+    if (state.kind === 'loading') {
+      columns.value = [];
+      tasks.value = [];
+      labels.value = [];
+      taskLabels.value = new Map();
 
-    const history = rxdb.versionManager.history();
-    subs.add(history.undoCount$.subscribe({ next: count => void (undoCount.value = count), error: failRead }));
-    subs.add(history.redoCount$.subscribe({ next: count => void (redoCount.value = count), error: failRead }));
-    subs.add(
-      notifier.events$.subscribe({
-        next: event =>
-          void (writeEvent.value = { kind: event.kind, reason: 'reason' in event ? event.reason : undefined }),
-        error: failRead
-      })
-    );
-    subs.add(restoring$.subscribe(value => void (restoring.value = value)));
+      settleRead();
+      return;
+    }
+    const snapshot = state.snapshot;
+    columns.value = snapshot.columns;
+    tasks.value = snapshot.tasks;
+    labels.value = snapshot.labels;
+    taskLabels.value = snapshot.taskLabels;
+    settleRead();
+  };
+  subs.add(
+    combineLatest([boardId$, readAttempt$])
+      .pipe(switchMap(([boardId]) => observeBoardRead(rxdb, boardId)))
+      .subscribe(applyReadState)
+  );
 
-    subs.add(
-      boards$.subscribe({
-        next: list => {
-          const selected = boardId$.value;
-          if (list.some(board => board.id === selected)) return;
-          const target = list.find(board => board.id === storage.get(LAST_BOARD_KEY)) ?? list[0];
-          const next = target?.id ?? null;
-          if (next === selected) return;
-          boardId$.next(next);
-          currentBoardId.value = next;
-        },
-        error: failRead
-      })
-    );
+  const history = rxdb.versionManager.history();
+  subs.add(history.undoCount$.subscribe({ next: count => void (undoCount.value = count), error: failRead }));
+  subs.add(history.redoCount$.subscribe({ next: count => void (redoCount.value = count), error: failRead }));
+  subs.add(
+    notifier.events$.subscribe({
+      next: event =>
+        void (writeEvent.value = { kind: event.kind, reason: 'reason' in event ? event.reason : undefined }),
+      error: failRead
+    })
+  );
+  subs.add(restoring$.subscribe(value => void (restoring.value = value)));
 
-    actions = {
-      createBoard: input => domain.createBoard(input),
-      createColumn: input => domain.createColumn(input),
-      createTask: input => domain.createTask(input),
-      updateBoard: (boardId, patch) => domain.updateBoard(boardId, patch),
-      updateColumn: (columnId, patch) => domain.updateColumn(columnId, patch),
-      updateTaskTitle: (taskId, title) => domain.updateTaskTitle(taskId, title),
-      openSnapshot: taskId => details.openSnapshot(taskId),
-      saveTaskDraft: (taskId, snapshot, draft) => details.saveTaskDraft(taskId, snapshot, draft),
-      saveTaskFields: (taskId, base, patch) => details.saveTaskFields(taskId, base, patch),
-      planTaskDelete: taskId => deletes.planTaskDelete(taskId),
-      planColumnDelete: columnId => deletes.planColumnDelete(columnId),
-      planBoardDelete: boardId => deletes.planBoardDelete(boardId),
-      executeDelete: plan => deletes.executeDelete(plan),
-      moveTask: (taskId, target) => moves.moveTask(taskId, target),
-      moveColumn: (columnId, target) => moves.moveColumn(columnId, target),
-      sortColumn: (columnId, mode) => sorts.sortColumn(columnId, mode),
-      createLabel: input => labelService.createLabel(input),
-      renameLabel: (labelId, name) => labelService.renameLabel(labelId, name),
-      recolorLabel: (labelId, color) => labelService.recolorLabel(labelId, color),
-      planLabelDelete: labelId => labelService.planLabelDelete(labelId),
-      executeLabelDelete: plan => labelService.executeLabelDelete(plan),
-      undo: async () => {
-        assertBoardWritable(ctx());
-        await history.undo();
+  subs.add(
+    boards$.subscribe({
+      next: list => {
+        const selected = boardId$.value;
+        if (list.some(board => board.id === selected)) return;
+        const target = list.find(board => board.id === storage.get(LAST_BOARD_KEY)) ?? list[0];
+        const next = target?.id ?? null;
+        if (next === selected) return;
+        boardId$.next(next);
+        currentBoardId.value = next;
       },
-      redo: async () => {
-        assertBoardWritable(ctx());
-        await history.redo();
-      }
-    };
-  });
+      error: failRead
+    })
+  );
 
-  // 组件内调用时随组件卸载停用；独立调用（测试）由调用方 stop
-  if (getCurrentScope()) {
-    onScopeDispose(() => scope.stop());
-  }
+  const actions: UseBoardActions = {
+    createBoard: input => domain.createBoard(input),
+    createColumn: input => domain.createColumn(input),
+    createTask: input => domain.createTask(input),
+    updateBoard: (boardId, patch) => domain.updateBoard(boardId, patch),
+    updateColumn: (columnId, patch) => domain.updateColumn(columnId, patch),
+    updateTaskTitle: (taskId, title) => domain.updateTaskTitle(taskId, title),
+    openSnapshot: taskId => details.openSnapshot(taskId),
+    saveTaskDraft: (taskId, snapshot, draft) => details.saveTaskDraft(taskId, snapshot, draft),
+    saveTaskFields: (taskId, base, patch) => details.saveTaskFields(taskId, base, patch),
+    planTaskDelete: taskId => deletes.planTaskDelete(taskId),
+    planColumnDelete: columnId => deletes.planColumnDelete(columnId),
+    planBoardDelete: boardId => deletes.planBoardDelete(boardId),
+    executeDelete: plan => deletes.executeDelete(plan),
+    moveTask: (taskId, target) => moves.moveTask(taskId, target),
+    moveColumn: (columnId, target) => moves.moveColumn(columnId, target),
+    sortColumn: (columnId, mode) => sorts.sortColumn(columnId, mode),
+    createLabel: input => labelService.createLabel(input),
+    renameLabel: (labelId, name) => labelService.renameLabel(labelId, name),
+    recolorLabel: (labelId, color) => labelService.recolorLabel(labelId, color),
+    planLabelDelete: labelId => labelService.planLabelDelete(labelId),
+    executeLabelDelete: plan => labelService.executeLabelDelete(plan),
+    undo: async () => {
+      assertBoardWritable(ctx());
+      await history.undo();
+    },
+    redo: async () => {
+      assertBoardWritable(ctx());
+      await history.redo();
+    }
+  };
 
   const selectBoard = (boardId: UUID): void => {
     storage.set(LAST_BOARD_KEY, boardId);

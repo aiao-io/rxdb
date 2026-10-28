@@ -1,4 +1,5 @@
 import type { RxDB } from '@aiao/rxdb';
+import { focusModalTab } from '@aiao/rxdb-plugin-board';
 import { useCallback, useEffect, useRef } from 'react';
 
 import type { BoardViewModel, ModelGetter } from './model.js';
@@ -45,6 +46,7 @@ const runGlobalShortcut = (vm: BoardViewModel, event: KeyboardEvent): boolean =>
   return true;
 };
 
+/** 模态对话框打开时 Tab 只在对话框内循环（首尾绕回，目标由核心包 `trapTabFocus` 换算）；返回是否接管。 */
 /** document 级按键：只在焦点位于看板内或 body 时生效。 */
 const onDocumentKeydown = (vm: BoardViewModel, event: KeyboardEvent): void => {
   const root = vm.core.areaRef.current;
@@ -53,6 +55,10 @@ const onDocumentKeydown = (vm: BoardViewModel, event: KeyboardEvent): void => {
   if (!root || event.defaultPrevented || !inside) return;
   if (event.key === 'Escape') {
     if (handleEscape(vm)) event.preventDefault();
+    return;
+  }
+  if (event.key === 'Tab' && vm.dialog.dialogRef.current !== null) {
+    if (focusModalTab(root, event.shiftKey)) event.preventDefault();
     return;
   }
   if (isModifier(event) && event.key.toLowerCase() === 'k') {
@@ -65,11 +71,14 @@ const onDocumentKeydown = (vm: BoardViewModel, event: KeyboardEvent): void => {
   if (runGlobalShortcut(vm, event)) event.preventDefault();
 };
 
-/** 外部指针按下（捕获阶段）关闭弹层；弹层内与展开中的触发器除外。 */
+/**
+ * 外部指针按下（捕获阶段）关闭弹层；本实例的弹层内与本实例展开中的触发器除外——
+ * 同页另一个看板、宿主自己的展开控件（accordion / combobox）都算外部。
+ */
 const onDocumentPointerdown = (vm: BoardViewModel, event: PointerEvent): void => {
   if (!vm.popover.popoverRef.current) return;
-  const target = event.target;
-  if (target instanceof Element && target.closest('.rxb-popover, [aria-expanded="true"]')) return;
+  const hit = event.target instanceof Element ? event.target.closest('.rxb-popover, [aria-expanded="true"]') : null;
+  if (hit && vm.core.areaRef.current?.contains(hit)) return;
   vm.popover.closePopover(false);
 };
 

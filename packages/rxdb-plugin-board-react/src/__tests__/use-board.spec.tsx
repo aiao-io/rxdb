@@ -2,10 +2,12 @@ import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import { act, renderHook, waitFor as waitForUpdate, type RenderHookResult } from '@testing-library/react';
+import { act, render, renderHook, waitFor as waitForUpdate, type RenderHookResult } from '@testing-library/react';
+import { useEffect, type ReactNode } from 'react';
+import { Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { LAST_BOARD_KEY, useBoard, type UseBoardReturn } from '../use-board.js';
+import { LAST_BOARD_KEY, useBoard, type UseBoardActions, type UseBoardReturn } from '../use-board.js';
 
 /**
  * useBoard 桥接（React）：真实 PGlite + 历史插件，与 Angular / Vue 同组验收语义。
@@ -88,6 +90,73 @@ describe('useBoard（React 桥接）', () => {
     } finally {
       if (original) Object.defineProperty(globalThis, 'localStorage', original);
       else Reflect.deleteProperty(globalThis, 'localStorage');
+    }
+  });
+
+  it('首帧即完整动作集：子组件的 effect 先于本 hook 的 effect 执行也能直接建板，动作引用稳定', async () => {
+    const frames: UseBoardReturn[] = [];
+    const Child = ({ actions }: { readonly actions: UseBoardActions }): null => {
+      useEffect(() => {
+        void actions.createBoard({ title: '子组件建板' });
+      }, [actions]);
+      return null;
+    };
+    const Parent = (): ReactNode => {
+      const value = useBoard(rxdb, { storage: { get: () => null, set: () => undefined } });
+      frames.push(value);
+      return <Child actions={value.actions} />;
+    };
+    const view = render(<Parent />);
+    try {
+      await waitFor(() => frames.at(-1)?.boards.some(item => item.title === '子组件建板') === true, '子组件建板');
+      expect(new Set(frames.map(frame => frame.actions)).size).toBe(1);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it('搜索上游晚于看板注入（插件异步装好）：搜索源随之建立，上游不变则引用不变', () => {
+    const upstream = { searchCollection: vi.fn() };
+    const hook = renderHook(
+      ({ withSearch }: { readonly withSearch: boolean }) =>
+        useBoard(rxdb, {
+          storage: { get: () => null, set: () => undefined },
+          ...(withSearch ? { search: { upstream } } : { searchUnavailableReason: 'plugin_not_installed' as const })
+        }),
+      { initialProps: { withSearch: false } }
+    );
+    try {
+      expect(hook.result.current.searchSource).toBeNull();
+      hook.rerender({ withSearch: true });
+      const source = hook.result.current.searchSource;
+      expect(source).not.toBeNull();
+      expect(hook.result.current.searchUnavailableReason).toBeNull();
+      hook.rerender({ withSearch: true });
+      expect(hook.result.current.searchSource).toBe(source);
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it('任务首个快照未返回前保持读取中，收到完整快照后才解除', async () => {
+    const created = await run(() => board().actions.createBoard({ title: '慢读取板' }));
+    await waitFor(() => board().currentBoardId === created.id, '选板');
+    await run(() => board().actions.createColumn({ title: '待办' }));
+    await waitFor(() => board().columns.length === 1, '列就绪');
+    rendered.unmount();
+    const delayed = new Subject<InstanceType<typeof Task>[]>();
+    const repo = rxdb.entityManager.getRepository(Task);
+    const limited = vi.spyOn(repo, 'find').mockReturnValue(delayed);
+    const complete = vi.spyOn(repo, 'findAll').mockReturnValue(delayed);
+    rendered = renderHook(() => useBoard(rxdb, { storage: { get: () => null, set: () => undefined } }));
+    try {
+      await waitFor(() => rendered.result.current.currentBoard !== null, '板已就绪');
+      expect(rendered.result.current.loading).toBe(true);
+      act(() => delayed.next([]));
+      await waitFor(() => !rendered.result.current.loading, '完整读取结束');
+    } finally {
+      limited.mockRestore();
+      complete.mockRestore();
     }
   });
 

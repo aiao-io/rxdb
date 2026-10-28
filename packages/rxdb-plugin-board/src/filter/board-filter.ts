@@ -112,7 +112,18 @@ const splitOutsideQuotes = (input: string, isSeparator: (char: string) => boolea
   const parts: string[] = [];
   let current = '';
   let quoted = false;
+  let escaped = false;
   for (const char of input) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      current += char;
+      escaped = true;
+      continue;
+    }
     if (char === '"') quoted = !quoted;
     if (quoted || !isSeparator(char)) {
       current += char;
@@ -127,14 +138,28 @@ const splitOutsideQuotes = (input: string, isSeparator: (char: string) => boolea
 
 const tokenize = (query: string): string[] => splitOutsideQuotes(query, char => /\s/.test(char)).filter(Boolean);
 
-const unquote = (value: string): string => value.replaceAll('"', '').trim();
+const unquote = (value: string): string => {
+  let decoded = '';
+  for (let index = 0; index < value.length; index++) {
+    const char = value[index];
+    const next = value[index + 1];
+    if (char === '\\' && (next === '"' || next === '\\')) {
+      decoded += next;
+      index++;
+      continue;
+    }
+    if (char !== '"') decoded += char;
+  }
+  return decoded.trim();
+};
 
 const splitValues = (raw: string): string[] =>
   splitOutsideQuotes(raw, char => char === ',')
     .map(unquote)
     .filter(Boolean);
 
-const quoteValue = (value: string): string => (/[\s,"]/.test(value) ? `"${value.replaceAll('"', '')}"` : value);
+const quoteValue = (value: string): string =>
+  /[\s,"\\]/.test(value) ? `"${value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"` : value;
 
 const asField = (name: string): BoardFilterField | null => FIELDS.find(field => field === name.toLowerCase()) ?? null;
 
@@ -255,7 +280,7 @@ const valueCandidates = (
  */
 export const suggestBoardFilter = (query: string, context: BoardFilterContext): BoardFilterSuggestion[] => {
   const tokens = tokenize(query);
-  const insideQuotes = (query.match(/"/g)?.length ?? 0) % 2 === 1;
+  const insideQuotes = (query.replace(/\\./g, '').match(/"/g)?.length ?? 0) % 2 === 1;
   const active = query === '' || (/\s$/.test(query) && !insideQuotes) ? '' : (tokens.at(-1) ?? '');
   const head = query.slice(0, query.length - active.length);
   const parsed = parseToken(active);

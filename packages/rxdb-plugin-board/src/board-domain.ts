@@ -90,7 +90,9 @@ export class BoardDomain {
 
   /** 当前板是否存在。 */
   async requireBoard(boardId: UUID): Promise<InstanceType<typeof Board>> {
-    const found = await readFirst(this.rxdb.entityManager.getRepository(Board).find({ where: whereEq('id', boardId) }));
+    const found = await readFirst(
+      this.rxdb.entityManager.getRepository(Board).findAll({ where: whereEq('id', boardId) })
+    );
     if (found.length === 0) throw new BoardDomainError('board_not_found', `看板不存在：${boardId}`);
     return found[0];
   }
@@ -98,7 +100,7 @@ export class BoardDomain {
   /** 列存在且属于指定板（跨板任务归属与跨板移动都在这里拒绝）。 */
   async requireColumnInBoard(columnId: UUID, boardId: UUID): Promise<InstanceType<typeof Column>> {
     const found = await readFirst(
-      this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('id', columnId) })
+      this.rxdb.entityManager.getRepository(Column).findAll({ where: whereEq('id', columnId) })
     );
     if (found.length === 0) throw new BoardDomainError('column_not_found', `列不存在：${columnId}`);
     if (found[0].boardId !== boardId) {
@@ -109,7 +111,9 @@ export class BoardDomain {
 
   /** 任务存在且经所属列推导属于指定板。 */
   async requireTaskInBoard(taskId: UUID, boardId: UUID): Promise<InstanceType<typeof Task>> {
-    const found = await readFirst(this.rxdb.entityManager.getRepository(Task).find({ where: whereEq('id', taskId) }));
+    const found = await readFirst(
+      this.rxdb.entityManager.getRepository(Task).findAll({ where: whereEq('id', taskId) })
+    );
     if (found.length === 0) throw new BoardDomainError('task_not_found', `任务不存在：${taskId}`);
     await this.requireColumnInBoard(found[0].columnId, boardId);
     return found[0];
@@ -118,14 +122,14 @@ export class BoardDomain {
   /** 当前板全部任务（不分页）。 */
   async listTasksOfBoard(boardId: UUID): Promise<InstanceType<typeof Task>[]> {
     const columns = await readFirst(
-      this.rxdb.entityManager.getRepository(Column).find({ where: whereEq('boardId', boardId) })
+      this.rxdb.entityManager.getRepository(Column).findAll({ where: whereEq('boardId', boardId) })
     );
     const columnIds = columns.map(column => column.id);
     if (columnIds.length === 0) return [];
     return readFirst(
       this.rxdb.entityManager
         .getRepository(Task)
-        .find({ where: { combinator: 'and', rules: [{ field: 'columnId', operator: 'in', value: columnIds }] } })
+        .findAll({ where: { combinator: 'and', rules: [{ field: 'columnId', operator: 'in', value: columnIds }] } })
     );
   }
 

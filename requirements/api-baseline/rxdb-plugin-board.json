@@ -106,6 +106,14 @@
         "kind": "both"
       },
       {
+        "name": "BoardReadSnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "BoardReadState",
+        "kind": "type"
+      },
+      {
         "name": "BoardSearchSource",
         "kind": "both"
       },
@@ -182,6 +190,10 @@
         "kind": "value"
       },
       {
+        "name": "DIALOG_FOCUSABLE_SELECTOR",
+        "kind": "value"
+      },
+      {
         "name": "dropIndicatorAnchor",
         "kind": "value"
       },
@@ -199,6 +211,10 @@
       },
       {
         "name": "eq",
+        "kind": "value"
+      },
+      {
+        "name": "focusModalTab",
         "kind": "value"
       },
       {
@@ -263,6 +279,10 @@
       },
       {
         "name": "normalizeBoardTitle",
+        "kind": "value"
+      },
+      {
+        "name": "observeBoardRead",
         "kind": "value"
       },
       {
@@ -383,6 +403,10 @@
       },
       {
         "name": "toggleBoardFilterValue",
+        "kind": "value"
+      },
+      {
+        "name": "trapTabFocus",
         "kind": "value"
       },
       {

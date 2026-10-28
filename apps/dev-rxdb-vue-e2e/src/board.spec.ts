@@ -71,6 +71,24 @@ const pressEscape = async (page: Page): Promise<void> => {
 };
 
 test.describe('看板页对齐（US-539，看板 v2）', () => {
+  test('模态删除确认：Tab与Shift+Tab不离开对话框，关闭后恢复焦点', async ({ boardPage: page }) => {
+    await startWithSeed(page);
+    await openTaskMenu(page, '修复登录 bug');
+    await page.getByTestId('task-delete').click();
+    const cancel = page.getByTestId('confirm-delete-no');
+    const confirm = page.getByTestId('confirm-delete-yes');
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(confirm).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('confirm-delete')).toHaveCount(0);
+    await expect(
+      page.getByTestId('task-card').filter({ hasText: '修复登录 bug' }).getByTestId('task-menu-trigger')
+    ).toBeFocused();
+  });
+
   test('AC#1：装载演示数据——列头、任务、标签与截止日与种子一致，重开后原样', async ({ boardPage: page }) => {
     await expect(page.getByTestId('empty-board')).toBeVisible();
     await startWithSeed(page);

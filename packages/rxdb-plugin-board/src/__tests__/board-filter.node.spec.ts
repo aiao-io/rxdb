@@ -186,3 +186,20 @@ describe('suggestBoardFilter（输入补全）', () => {
     expect(suggestBoardFilter('登录', context)).toEqual([]);
   });
 });
+
+describe('筛选名称往返', () => {
+  it.each([
+    '分行' + String.fromCharCode(10) + '标签',
+    '制表' + String.fromCharCode(9) + '标签',
+    '版本"A"',
+    'C:\\目录',
+    '引号"逗号, 空格\\'
+  ])('标签 %s 经点击与补全后仍精确匹配', name => {
+    const target = { title: '任务', description: null, dueDate: null, columnTitle: name, labelNames: [name] };
+    const query = toggleBoardFilterValue('', 'label', name);
+    expect(matchesBoardFilter(target, parseBoardFilter(query), '2026-10-28')).toBe(true);
+    expect(toggleBoardFilterValue(query, 'label', name)).toBe('');
+    const suggestion = suggestBoardFilter('label:', { labels: [{ name, color: '#000000' }], columns: [] })[0];
+    expect(matchesBoardFilter(target, parseBoardFilter(suggestion.query), '2026-10-28')).toBe(true);
+  });
+});

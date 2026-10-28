@@ -12,8 +12,10 @@ import {
   BoardSearchSource,
   BoardWriteNotifier,
   Column,
+  matchAll,
+  observeBoardRead,
   Task,
-  TaskLabel,
+  type BoardReadState,
   type BoardSearchUnavailableReason,
   type BoardSearchUpstream,
   type CardDropTarget,
@@ -27,9 +29,17 @@ import {
 } from '@aiao/rxdb-plugin-board';
 import type {} from '@aiao/rxdb-plugin-history';
 import { DestroyRef, inject, signal, type Signal } from '@angular/core';
-import { BehaviorSubject, catchError, combineLatest, EMPTY, map, of, Subscription, switchMap, tap } from 'rxjs';
-
-import { eq, inRule } from './query-helpers.js';
+import {
+  BehaviorSubject,
+  catchError,
+  combineLatest,
+  EMPTY,
+  shareReplay,
+  Subscription,
+  switchMap,
+  tap,
+  type Observable
+} from 'rxjs';
 
 /**
  * Angular 集成 - rxdb-plugin-board
@@ -136,8 +146,12 @@ const defaultStorage = (): UseBoardStorage => {
   return { get: key => memory.get(key) ?? null, set: (key, value) => void memory.set(key, value) };
 };
 
+/** 同一查询的多个下游共享一条订阅与同一份快照（派生链只跑一遍）。 */
+const shareLatest = <T>(source: Observable<T>): Observable<T> =>
+  source.pipe(shareReplay({ bufferSize: 1, refCount: true }));
+
 const bind = <T>(
-  source: import('rxjs').Observable<T>,
+  source: Observable<T>,
   target: { set(value: T): void },
   subs: Subscription,
   onError: (error: unknown) => void
@@ -185,18 +199,25 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
   const sorts = new BoardColumnSortService(rxdb, ctx, notifier);
 
   const boardRepo = rxdb.entityManager.getRepository(Board);
-  const columnRepo = rxdb.entityManager.getRepository(Column);
-  const taskRepo = rxdb.entityManager.getRepository(Task);
-  const labelRepo = rxdb.entityManager.getRepository(BoardLabel);
-  const linkRepo = rxdb.entityManager.getRepository(TaskLabel);
 
   const subs = new Subscription();
+  let boardsReady = false;
+  let dataReady = false;
+  let failed = false;
+  const settleRead = (): void => {
+    loading.set(!failed && !(boardsReady && dataReady));
+  };
   const failRead = (error: unknown): void => {
+    failed = true;
     loading.set(false);
     readError.set(error instanceof Error ? error.message : String(error));
   };
-  const read = <T>(factory: () => import('rxjs').Observable<T>): import('rxjs').Observable<T> =>
+  const read = <T>(factory: () => Observable<T>): Observable<T> =>
     readAttempt$.pipe(
+      tap(() => {
+        boardsReady = false;
+        failed = false;
+      }),
       switchMap(() =>
         factory().pipe(
           catchError(error => {
@@ -208,15 +229,22 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     );
 
   // 板列表：创建时间升序、同时刻按 id
-  const boards$ = read(() =>
-    boardRepo.find({
-      where: { combinator: 'and', rules: [] },
-      orderBy: [
-        { field: 'createdAt', sort: 'asc' },
-        { field: 'id', sort: 'asc' }
-      ]
-    })
-  ).pipe(tap(() => loading.set(false)));
+  const boards$ = shareLatest(
+    read(() =>
+      boardRepo.findAll({
+        where: matchAll(),
+        orderBy: [
+          { field: 'createdAt', sort: 'asc' },
+          { field: 'id', sort: 'asc' }
+        ]
+      })
+    ).pipe(
+      tap(() => {
+        boardsReady = true;
+        settleRead();
+      })
+    )
+  );
   bind(boards$, boards, subs, failRead);
   // 当前板
   subs.add(
@@ -228,73 +256,33 @@ export function useBoard(rxdb: RxDB, options?: UseBoardOptions): UseBoardReturn 
     })
   );
   // 列 / 任务 / 标签随当前板切换（活查询 switchMap；signal 只是流的镜像）
-  const columns$ = boardId$.pipe(
-    switchMap(boardId =>
-      boardId === null ? of([] as readonly Column[]) : read(() => columnRepo.find({ where: eq('boardId', boardId) }))
-    )
+  const applyReadState = (state: BoardReadState): void => {
+    dataReady = state.kind === 'ready';
+    if (state.kind === 'failed') {
+      failRead(state.message);
+      return;
+    }
+    if (state.kind === 'loading') {
+      columns.set([]);
+      tasks.set([]);
+      labels.set([]);
+      taskLabels.set(new Map());
+
+      settleRead();
+      return;
+    }
+    const snapshot = state.snapshot;
+    columns.set(snapshot.columns);
+    tasks.set(snapshot.tasks);
+    labels.set(snapshot.labels);
+    taskLabels.set(snapshot.taskLabels);
+    settleRead();
+  };
+  subs.add(
+    combineLatest([boardId$, readAttempt$])
+      .pipe(switchMap(([boardId]) => observeBoardRead(rxdb, boardId)))
+      .subscribe(applyReadState)
   );
-  bind(columns$, columns, subs, failRead);
-  const tasks$ = combineLatest([boardId$, columns$]).pipe(
-    switchMap(([boardId, cols]) => {
-      if (boardId === null || cols.length === 0) return of([] as readonly Task[]);
-      return read(() =>
-        taskRepo.find({
-          where: {
-            combinator: 'and',
-            rules: [
-              inRule(
-                'columnId',
-                cols.map(column => column.id)
-              )
-            ]
-          }
-        })
-      );
-    })
-  );
-  bind(tasks$, tasks, subs, failRead);
-  const labels$ = boardId$.pipe(
-    switchMap(boardId =>
-      boardId === null ?
-        of([] as readonly BoardLabel[])
-      : read(() =>
-          labelRepo.find({
-            where: eq('boardId', boardId),
-            orderBy: [
-              { field: 'createdAt', sort: 'asc' },
-              { field: 'id', sort: 'asc' }
-            ]
-          })
-        )
-    )
-  );
-  bind(labels$, labels, subs, failRead);
-  // 任务 → 标签：当前板全部关联与标签定义求交
-  const taskLabels$ = combineLatest([boardId$, tasks$, labels$]).pipe(
-    switchMap(([boardId, currentTasks, currentLabels]) => {
-      if (boardId === null || currentTasks.length === 0) return of(new Map<UUID, readonly BoardLabel[]>());
-      const ids = currentTasks.map(task => task.id);
-      return read(() => linkRepo.find({ where: { combinator: 'and', rules: [inRule('taskId', ids)] } })).pipe(
-        map(links => {
-          const labelIdsByTask = new Map<UUID, Set<UUID>>();
-          for (const link of links) {
-            const labelIds = labelIdsByTask.get(link.taskId) ?? new Set<UUID>();
-            labelIds.add(link.labelId);
-            labelIdsByTask.set(link.taskId, labelIds);
-          }
-          const grouped = new Map<UUID, readonly BoardLabel[]>();
-          for (const task of currentTasks) {
-            const labelIds = labelIdsByTask.get(task.id);
-            if (!labelIds) continue;
-            const taskLabels = currentLabels.filter(label => labelIds.has(label.id));
-            if (taskLabels.length > 0) grouped.set(task.id, taskLabels);
-          }
-          return grouped;
-        })
-      );
-    })
-  );
-  bind(taskLabels$, taskLabels, subs, failRead);
 
   // 撤销 / 重做计数（数据库级历史，跨实体一次保存一个事务）
   const history = rxdb.versionManager.history();
