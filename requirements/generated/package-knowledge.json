@@ -1899,6 +1899,120 @@
         "version": "0.0.28"
       },
       {
+        "description": "看板领域模型：Board / Column / Task 实体、排序域与跨列移动、删除级联、详情草稿、恢复编排等单人看板领域服务，附确定性种子（epic-011）。",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/rxdb-plugin-search",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/utils",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-board",
+        "role": "model",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "看板插件（rxdb-plugin-board）的 Angular 绑定：useBoard() 领域数据 signal 桥接与领域动作集合（epic-011 / US-539）。",
+        "framework": "angular",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-board",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-board-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "看板插件（rxdb-plugin-board）的 React 绑定：useBoard() 领域数据 state 桥接与领域动作集合（epic-011 / US-539）。",
+        "framework": "react",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/rxdb-plugin-board",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-board-react",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "看板插件（rxdb-plugin-board）的 Vue 绑定：useBoard() 领域数据 ref 桥接与领域动作集合（epic-011 / US-539）。",
+        "framework": "vue",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/rxdb-plugin-board",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-board-vue",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
         "description": "> Implements: [US-503 图数据插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-503-graph-data.md)",
         "framework": null,
         "homepage": "https://rxdb.aiao.io/docs/plugins",
@@ -2952,7 +3066,7 @@
       }
     ]
   },
-  "digest": "5f5e12cd80d8f5165fa7b001652a94fe00124f266295673a96b1b9213ed65b06",
+  "digest": "600a699efacc5fdfaba1c2f3d7cde691f36cd66ed10542471d185d8b1e3ec497",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

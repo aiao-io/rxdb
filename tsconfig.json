@@ -241,6 +241,18 @@
       "path": "./packages/rxdb-plugin-tree-vue"
     },
     {
+      "path": "./packages/rxdb-plugin-board"
+    },
+    {
+      "path": "./packages/rxdb-plugin-board-angular"
+    },
+    {
+      "path": "./packages/rxdb-plugin-board-react"
+    },
+    {
+      "path": "./packages/rxdb-plugin-board-vue"
+    },
+    {
       "path": "./apps/dev-rxdb-admin-e2e"
     },
     {

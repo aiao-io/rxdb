@@ -1,0 +1,257 @@
+import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
+import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { act, render, renderHook, waitFor as waitForUpdate, type RenderHookResult } from '@testing-library/react';
+import { useEffect, type ReactNode } from 'react';
+import { Subject } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { LAST_BOARD_KEY, useBoard, type UseBoardActions, type UseBoardReturn } from '../use-board.js';
+
+/**
+ * useBoard 桥接（React）：真实 PGlite + 历史插件，与 Angular / Vue 同组验收语义。
+ */
+describe('useBoard（React 桥接）', () => {
+  let rxdb: RxDB;
+  let rendered: RenderHookResult<UseBoardReturn, unknown>;
+
+  const waitFor = async (probe: () => boolean, label: string, timeoutMs = 5000): Promise<void> => {
+    await waitForUpdate(() => expect(probe(), label).toBe(true), { timeout: timeoutMs });
+  };
+
+  beforeEach(async () => {
+    rxdb = new RxDB({
+      dbName: `board-react-${Math.random().toString(36).slice(2)}`,
+      entities: [Board, Column, Task, BoardLabel, TaskLabel],
+      sync: { local: { adapter: 'pglite' }, type: SyncType.None },
+      multiInstance: false
+    });
+    rxdb.use(rxDBPluginHistory);
+    rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' }));
+    await rxdb.connect('pglite');
+
+    rendered = renderHook(() =>
+      useBoard(rxdb, {
+        storage: { get: () => null, set: () => undefined },
+        search: { upstream: { searchCollection: vi.fn() } }
+      })
+    );
+  });
+
+  const run = async <T,>(operation: () => Promise<T>): Promise<T> => {
+    let result: T;
+    await act(async () => {
+      result = await operation();
+    });
+    return result!;
+  };
+
+  /** 每次渲染后的最新返回值（React 每次渲染返回新对象，不能缓存首帧）。 */
+  const board = (): UseBoardReturn => rendered.result.current;
+
+  afterEach(async () => {
+    rendered.unmount();
+    await rxdb.disconnectAll();
+  });
+
+  it('删除当前板重新选中有效板，清空后重建仍自动打开', async () => {
+    const first = await run(() => board().actions.createBoard({ title: '旧板' }));
+    await waitFor(() => board().currentBoardId === first.id, '选中旧板');
+    const second = await run(() => board().actions.createBoard({ title: '保留板' }));
+    await waitFor(() => board().boards.length === 2, '两块板');
+    expect(board().currentBoardId).toBe(first.id);
+    const firstPlan = await run(() => board().actions.planBoardDelete(first.id));
+    await run(() => board().actions.executeDelete(firstPlan));
+    await waitFor(() => board().currentBoardId === second.id, '选中剩余板');
+    const secondPlan = await run(() => board().actions.planBoardDelete(second.id));
+    await run(() => board().actions.executeDelete(secondPlan));
+    await waitFor(() => board().boards.length === 0, '清空看板');
+    expect(board().currentBoardId).toBeNull();
+    const next = await run(() => board().actions.createBoard({ title: '新板' }));
+    await waitFor(() => board().currentBoardId === next.id, '选中新板');
+  });
+
+  it('自定义存储绕过被浏览器禁止访问的本地存储', async () => {
+    rendered.unmount();
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    const blockedStorage = vi.fn(() => {
+      throw new DOMException('禁止访问本地存储', 'SecurityError');
+    });
+    const storage = { get: vi.fn(() => null), set: vi.fn() };
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, get: blockedStorage });
+    try {
+      rendered = renderHook(() => useBoard(rxdb, { storage }));
+      const created = await run(() => board().actions.createBoard({ title: '自定义存储板' }));
+      await waitFor(() => board().currentBoardId === created.id, '自动选中板');
+      act(() => board().selectBoard(created.id));
+      expect(storage.set).toHaveBeenCalledWith(LAST_BOARD_KEY, created.id);
+      expect(blockedStorage).not.toHaveBeenCalled();
+    } finally {
+      if (original) Object.defineProperty(globalThis, 'localStorage', original);
+      else Reflect.deleteProperty(globalThis, 'localStorage');
+    }
+  });
+
+  it('首帧即完整动作集：子组件的 effect 先于本 hook 的 effect 执行也能直接建板，动作引用稳定', async () => {
+    const frames: UseBoardReturn[] = [];
+    const Child = ({ actions }: { readonly actions: UseBoardActions }): null => {
+      useEffect(() => {
+        void actions.createBoard({ title: '子组件建板' });
+      }, [actions]);
+      return null;
+    };
+    const Parent = (): ReactNode => {
+      const value = useBoard(rxdb, { storage: { get: () => null, set: () => undefined } });
+      frames.push(value);
+      return <Child actions={value.actions} />;
+    };
+    const view = render(<Parent />);
+    try {
+      await waitFor(() => frames.at(-1)?.boards.some(item => item.title === '子组件建板') === true, '子组件建板');
+      expect(new Set(frames.map(frame => frame.actions)).size).toBe(1);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it('搜索上游晚于看板注入（插件异步装好）：搜索源随之建立，上游不变则引用不变', () => {
+    const upstream = { searchCollection: vi.fn() };
+    const hook = renderHook(
+      ({ withSearch }: { readonly withSearch: boolean }) =>
+        useBoard(rxdb, {
+          storage: { get: () => null, set: () => undefined },
+          ...(withSearch ? { search: { upstream } } : { searchUnavailableReason: 'plugin_not_installed' as const })
+        }),
+      { initialProps: { withSearch: false } }
+    );
+    try {
+      expect(hook.result.current.searchSource).toBeNull();
+      hook.rerender({ withSearch: true });
+      const source = hook.result.current.searchSource;
+      expect(source).not.toBeNull();
+      expect(hook.result.current.searchUnavailableReason).toBeNull();
+      hook.rerender({ withSearch: true });
+      expect(hook.result.current.searchSource).toBe(source);
+    } finally {
+      hook.unmount();
+    }
+  });
+
+  it('任务首个快照未返回前保持读取中，收到完整快照后才解除', async () => {
+    const created = await run(() => board().actions.createBoard({ title: '慢读取板' }));
+    await waitFor(() => board().currentBoardId === created.id, '选板');
+    await run(() => board().actions.createColumn({ title: '待办' }));
+    await waitFor(() => board().columns.length === 1, '列就绪');
+    rendered.unmount();
+    const delayed = new Subject<InstanceType<typeof Task>[]>();
+    const repo = rxdb.entityManager.getRepository(Task);
+    const limited = vi.spyOn(repo, 'find').mockReturnValue(delayed);
+    const complete = vi.spyOn(repo, 'findAll').mockReturnValue(delayed);
+    rendered = renderHook(() => useBoard(rxdb, { storage: { get: () => null, set: () => undefined } }));
+    try {
+      await waitFor(() => rendered.result.current.currentBoard !== null, '板已就绪');
+      expect(rendered.result.current.loading).toBe(true);
+      act(() => delayed.next([]));
+      await waitFor(() => !rendered.result.current.loading, '完整读取结束');
+    } finally {
+      limited.mockRestore();
+      complete.mockRestore();
+    }
+  });
+
+  it('空库建板进入第一块；建列建任务后数据就位', async () => {
+    const created = await run(() => board().actions.createBoard({ title: '发布计划' }));
+    await waitFor(() => board().currentBoard?.id === created.id, '进入第一块板');
+    expect(board().boards.map(b => b.title)).toEqual(['发布计划']);
+    expect(board().searchSource).not.toBeNull();
+
+    const c1 = await run(() => board().actions.createColumn({ title: 'To do' }));
+    const c2 = await run(() => board().actions.createColumn({ title: 'Done' }));
+    await run(() => board().actions.createTask({ columnId: c1.id, title: '任务 1' }));
+    await run(() => board().actions.createTask({ columnId: c1.id, title: '任务 2' }));
+    await run(() => board().actions.createTask({ columnId: c2.id, title: '任务 3' }));
+    await waitFor(() => board().columns.length === 2 && board().tasks.length === 3, '数据');
+    expect(board().columns.map(column => column.title)).toEqual(['To do', 'Done']);
+    expect(board().tasks.filter(task => task.columnId === c1.id)).toHaveLength(2);
+  });
+
+  it('切板只显示所选板数据', async () => {
+    const b1 = await run(() => board().actions.createBoard({ title: '板 1' }));
+    await waitFor(() => board().currentBoard?.id === b1.id, '进入板 1');
+    const c1 = await run(() => board().actions.createColumn({ title: 'C1' }));
+    await run(() => board().actions.createTask({ columnId: c1.id, title: '板 1 任务' }));
+
+    const b2 = await run(() => board().actions.createBoard({ title: '板 2' }));
+    act(() => board().selectBoard(b2.id));
+    await waitFor(() => board().currentBoard?.id === b2.id && board().tasks.length === 0, '切到板 2');
+    act(() => board().selectBoard(b1.id));
+    await waitFor(() => board().tasks.length === 1, '切回板 1');
+    expect(board().tasks[0].title).toBe('板 1 任务');
+  });
+
+  it('标签与任务标签求交；恢复中门禁；undo 计数', async () => {
+    const b1 = await run(() => board().actions.createBoard({ title: '板' }));
+    await waitFor(() => board().currentBoard?.id === b1.id, '进入板');
+    const c1 = await run(() => board().actions.createColumn({ title: 'C1' }));
+    const task = await run(() => board().actions.createTask({ columnId: c1.id, title: '任务' }));
+    const label = await run(() => board().actions.createLabel({ name: '核心', color: '#e11d48' }));
+    const secondary = await run(() => board().actions.createLabel({ name: '次要', color: '#2563eb' }));
+    const snapshot = await run(() => board().actions.openSnapshot(task.id));
+    await run(() =>
+      board().actions.saveTaskDraft(task.id, snapshot, {
+        title: snapshot.title,
+        description: snapshot.description ?? '',
+        dueDate: snapshot.dueDate,
+        labelIds: [secondary.id, label.id]
+      })
+    );
+    await waitFor(() => (board().taskLabels.get(task.id) ?? []).length === 2, '任务标签');
+    expect(
+      board()
+        .taskLabels.get(task.id)
+        ?.map(item => item.name)
+    ).toEqual(['核心', '次要']);
+
+    act(() => board().setRestoring(true));
+    await waitFor(() => board().restoring, '恢复中状态');
+    await expect(board().actions.createTask({ columnId: c1.id, title: 'x' })).rejects.toMatchObject({
+      code: 'restore_in_progress'
+    });
+    act(() => board().setRestoring(false));
+    await waitFor(() => !board().restoring, '恢复解除');
+
+    await waitFor(() => board().undoCount >= 1, 'undo 计数');
+    await run(() => board().actions.undo());
+    await waitFor(() => board().tasks.find(t => t.id === task.id)?.title === '任务', 'undo 回退');
+  });
+  it('公开动作保持领域契约，标签删除、列删除和板删除都执行原清单', async () => {
+    const created = await run(() => board().actions.createBoard({ title: '动作板' }));
+    await waitFor(() => board().currentBoardId === created.id, '选中动作板');
+    await run(() => board().actions.updateBoard(created.id, { title: '改名板', description: '说明' }));
+    const first = await run(() => board().actions.createColumn({ title: '一列' }));
+    const second = await run(() => board().actions.createColumn({ title: '二列' }));
+    await run(() => board().actions.updateColumn(first.id, { title: '改名列' }));
+    const task = await run(() => board().actions.createTask({ columnId: first.id, title: '原任务' }));
+    await run(() => board().actions.updateTaskTitle(task.id, '改名任务'));
+    const label = await run(() => board().actions.createLabel({ name: '原标签', color: '#123456' }));
+    await run(() => board().actions.renameLabel(label.id, '改名标签'));
+    await run(() => board().actions.recolorLabel(label.id, '#654321'));
+    await run(() => board().actions.moveTask(task.id, { kind: 'end', columnId: second.id }));
+    await run(() => board().actions.moveColumn(second.id, { prevId: null, nextId: first.id }));
+    await run(() => board().actions.sortColumn(second.id, 'title'));
+    await waitFor(() => board().tasks[0]?.columnId === second.id, '任务移动');
+    // 板、标签与任务各是一条独立活查询：任务先刷新不代表另两条也已刷新
+    await waitFor(() => board().currentBoard?.title === '改名板', '板改名');
+    await waitFor(() => board().labels[0]?.color === '#654321', '标签改色');
+    expect(board().labels[0].name).toBe('改名标签');
+    await run(async () => board().actions.executeLabelDelete(await board().actions.planLabelDelete(label.id)));
+    await run(async () => board().actions.executeDelete(await board().actions.planTaskDelete(task.id)));
+    await run(() => board().actions.undo());
+    await run(() => board().actions.redo());
+    await run(async () => board().actions.executeDelete(await board().actions.planColumnDelete(first.id)));
+    await waitFor(() => board().columns.length === 1, '列删除完成');
+    await run(async () => board().actions.executeDelete(await board().actions.planBoardDelete(created.id)));
+    await waitFor(() => board().boards.length === 0, '删除板');
+  });
+});

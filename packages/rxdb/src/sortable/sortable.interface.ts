@@ -76,6 +76,8 @@ export interface ReorderBetween<Id> {
   prevId: Id | null;
   /** 目标位置之后的那一行；移到尾部时为 `null` */
   nextId: Id | null;
+  /** 可选的期望目标分组；键集合与分组字段一致，事务内发现邻居已换组时报 staleTarget。 */
+  expectedGroup?: Readonly<Record<string, unknown>>;
 }
 
 /**

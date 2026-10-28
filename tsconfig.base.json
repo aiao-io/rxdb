@@ -88,6 +88,11 @@
       "@aiao/rxdb-plugin-storage/testing": ["./packages/rxdb-plugin-storage/src/testing.ts"],
       "@aiao/rxdb-plugin-sync": ["./packages/rxdb-plugin-sync/src/index.ts"],
       "@aiao/rxdb-plugin-tree": ["./packages/rxdb-plugin-tree/src/index.ts"],
+      "@aiao/rxdb-plugin-board": ["./packages/rxdb-plugin-board/src/index.ts"],
+      "@aiao/rxdb-plugin-board/testing": ["./packages/rxdb-plugin-board/src/testing/index.ts"],
+      "@aiao/rxdb-plugin-board-angular": ["./packages/rxdb-plugin-board-angular/src/index.ts"],
+      "@aiao/rxdb-plugin-board-react": ["./packages/rxdb-plugin-board-react/src/index.ts"],
+      "@aiao/rxdb-plugin-board-vue": ["./packages/rxdb-plugin-board-vue/src/index.ts"],
       "@aiao/rxdb-plugin-tree/generator": ["./packages/rxdb-plugin-tree/src/generator/index.ts"],
       "@aiao/rxdb-plugin-tree-angular": ["./packages/rxdb-plugin-tree-angular/src/index.ts"],
       "@aiao/rxdb-plugin-tree-react": ["./packages/rxdb-plugin-tree-react/src/index.ts"],
@@ -115,7 +120,8 @@
       "@modules/rxdb-devtools-panel/wire": ["./modules/rxdb-devtools-panel/wire/index.ts"],
       "@modules/recipes-domain": ["./modules/recipes-domain/src/index.ts"],
       "@modules/wujie": ["./modules/wujie/src/index.ts"],
-      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"]
+      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"],
+      "@aiao/rxdb-plugin-board-react/board-view.css": ["./packages/rxdb-plugin-board-react/src/board-view.css"]
     },
     "resolveJsonModule": true,
     "skipDefaultLibCheck": true,

@@ -1,0 +1,460 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "ACTIVE_DB_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "assertBoardWritable",
+        "kind": "value"
+      },
+      {
+        "name": "Board",
+        "kind": "both"
+      },
+      {
+        "name": "BOARD_LABEL_COLORS",
+        "kind": "value"
+      },
+      {
+        "name": "BoardColumnSortService",
+        "kind": "both"
+      },
+      {
+        "name": "BoardDeletePlan",
+        "kind": "type"
+      },
+      {
+        "name": "BoardDeleteService",
+        "kind": "both"
+      },
+      {
+        "name": "BoardDetailService",
+        "kind": "both"
+      },
+      {
+        "name": "BoardDomain",
+        "kind": "both"
+      },
+      {
+        "name": "BoardDomainError",
+        "kind": "both"
+      },
+      {
+        "name": "BoardErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "BoardFilter",
+        "kind": "type"
+      },
+      {
+        "name": "BoardFilterContext",
+        "kind": "type"
+      },
+      {
+        "name": "BoardFilterField",
+        "kind": "type"
+      },
+      {
+        "name": "BoardFilterSuggestion",
+        "kind": "type"
+      },
+      {
+        "name": "BoardFilterTarget",
+        "kind": "type"
+      },
+      {
+        "name": "BoardFilterTerm",
+        "kind": "type"
+      },
+      {
+        "name": "BoardFilterText",
+        "kind": "type"
+      },
+      {
+        "name": "BoardGridColumn",
+        "kind": "type"
+      },
+      {
+        "name": "BoardGridDirection",
+        "kind": "type"
+      },
+      {
+        "name": "BoardHostContext",
+        "kind": "type"
+      },
+      {
+        "name": "BoardKeyboardColumn",
+        "kind": "type"
+      },
+      {
+        "name": "BoardLabel",
+        "kind": "both"
+      },
+      {
+        "name": "BoardLabelService",
+        "kind": "both"
+      },
+      {
+        "name": "BoardMoveDirection",
+        "kind": "type"
+      },
+      {
+        "name": "BoardMoveService",
+        "kind": "both"
+      },
+      {
+        "name": "BoardReadSnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "BoardReadState",
+        "kind": "type"
+      },
+      {
+        "name": "BoardSearchSource",
+        "kind": "both"
+      },
+      {
+        "name": "BoardSearchSourceOptions",
+        "kind": "type"
+      },
+      {
+        "name": "BoardSearchUnavailableReason",
+        "kind": "type"
+      },
+      {
+        "name": "BoardSearchUpstream",
+        "kind": "type"
+      },
+      {
+        "name": "BoardStorage",
+        "kind": "type"
+      },
+      {
+        "name": "BoardWriteEvent",
+        "kind": "type"
+      },
+      {
+        "name": "BoardWriteNotifier",
+        "kind": "both"
+      },
+      {
+        "name": "CardDropColumnView",
+        "kind": "type"
+      },
+      {
+        "name": "CardDropTarget",
+        "kind": "type"
+      },
+      {
+        "name": "clearPendingSwitch",
+        "kind": "value"
+      },
+      {
+        "name": "clearRestoringMarker",
+        "kind": "value"
+      },
+      {
+        "name": "Column",
+        "kind": "both"
+      },
+      {
+        "name": "ColumnDeletePlan",
+        "kind": "type"
+      },
+      {
+        "name": "ColumnDropView",
+        "kind": "type"
+      },
+      {
+        "name": "ColumnSortMode",
+        "kind": "type"
+      },
+      {
+        "name": "ColumnSortResult",
+        "kind": "type"
+      },
+      {
+        "name": "DEFAULT_BOARD_SEARCH_PAGE_SIZE",
+        "kind": "value"
+      },
+      {
+        "name": "DeletePlan",
+        "kind": "type"
+      },
+      {
+        "name": "describeBoardFailure",
+        "kind": "value"
+      },
+      {
+        "name": "DIALOG_FOCUSABLE_SELECTOR",
+        "kind": "value"
+      },
+      {
+        "name": "dropIndicatorAnchor",
+        "kind": "value"
+      },
+      {
+        "name": "dueStatus",
+        "kind": "value"
+      },
+      {
+        "name": "DueStatus",
+        "kind": "type"
+      },
+      {
+        "name": "dueStatusText",
+        "kind": "value"
+      },
+      {
+        "name": "eq",
+        "kind": "value"
+      },
+      {
+        "name": "focusModalTab",
+        "kind": "value"
+      },
+      {
+        "name": "initialRestoreSnapshot",
+        "kind": "value"
+      },
+      {
+        "name": "inRule",
+        "kind": "value"
+      },
+      {
+        "name": "isBoardFilterEmpty",
+        "kind": "value"
+      },
+      {
+        "name": "isHexColor",
+        "kind": "value"
+      },
+      {
+        "name": "isValidDueDate",
+        "kind": "value"
+      },
+      {
+        "name": "LabelDeletePlan",
+        "kind": "type"
+      },
+      {
+        "name": "labelTextColor",
+        "kind": "value"
+      },
+      {
+        "name": "localDateKey",
+        "kind": "value"
+      },
+      {
+        "name": "matchAll",
+        "kind": "value"
+      },
+      {
+        "name": "matchesBoardFilter",
+        "kind": "value"
+      },
+      {
+        "name": "MenuMoveColumnView",
+        "kind": "type"
+      },
+      {
+        "name": "msUntilNextLocalMidnight",
+        "kind": "value"
+      },
+      {
+        "name": "nextGridFocus",
+        "kind": "value"
+      },
+      {
+        "name": "nextLabelColor",
+        "kind": "value"
+      },
+      {
+        "name": "nextRestoreDbName",
+        "kind": "value"
+      },
+      {
+        "name": "normalizeBoardTitle",
+        "kind": "value"
+      },
+      {
+        "name": "observeBoardRead",
+        "kind": "value"
+      },
+      {
+        "name": "parseBoardFilter",
+        "kind": "value"
+      },
+      {
+        "name": "PENDING_SWITCH_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "placePopover",
+        "kind": "value"
+      },
+      {
+        "name": "PopoverAnchor",
+        "kind": "type"
+      },
+      {
+        "name": "PopoverOptions",
+        "kind": "type"
+      },
+      {
+        "name": "readActiveDbName",
+        "kind": "value"
+      },
+      {
+        "name": "readFirst",
+        "kind": "value"
+      },
+      {
+        "name": "readPendingSwitch",
+        "kind": "value"
+      },
+      {
+        "name": "readRestoringMarker",
+        "kind": "value"
+      },
+      {
+        "name": "requireBoardId",
+        "kind": "value"
+      },
+      {
+        "name": "resolveCardDrop",
+        "kind": "value"
+      },
+      {
+        "name": "resolveColumnDrop",
+        "kind": "value"
+      },
+      {
+        "name": "resolveKeyboardMove",
+        "kind": "value"
+      },
+      {
+        "name": "resolveMenuMove",
+        "kind": "value"
+      },
+      {
+        "name": "RestoreInput",
+        "kind": "type"
+      },
+      {
+        "name": "RestoreSnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "RestoreState",
+        "kind": "type"
+      },
+      {
+        "name": "restoreStateMachine",
+        "kind": "value"
+      },
+      {
+        "name": "RESTORING_MARKER_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "SaveTaskDraftResult",
+        "kind": "type"
+      },
+      {
+        "name": "SearchHandle",
+        "kind": "type"
+      },
+      {
+        "name": "SearchResult",
+        "kind": "type"
+      },
+      {
+        "name": "suggestBoardFilter",
+        "kind": "value"
+      },
+      {
+        "name": "Task",
+        "kind": "both"
+      },
+      {
+        "name": "TaskDeletePlan",
+        "kind": "type"
+      },
+      {
+        "name": "TaskDraft",
+        "kind": "type"
+      },
+      {
+        "name": "TaskDraftSnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "TaskFieldPatch",
+        "kind": "type"
+      },
+      {
+        "name": "TaskLabel",
+        "kind": "both"
+      },
+      {
+        "name": "toggleBoardFilterValue",
+        "kind": "value"
+      },
+      {
+        "name": "trapTabFocus",
+        "kind": "value"
+      },
+      {
+        "name": "whereEq",
+        "kind": "value"
+      },
+      {
+        "name": "writeActiveDbName",
+        "kind": "value"
+      },
+      {
+        "name": "writePendingSwitch",
+        "kind": "value"
+      },
+      {
+        "name": "writeRestoringMarker",
+        "kind": "value"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "ISOLATION_BOARD_ID",
+        "kind": "value"
+      },
+      {
+        "name": "ISOLATION_COLUMN_ID",
+        "kind": "value"
+      },
+      {
+        "name": "RELEASE_BOARD_ID",
+        "kind": "value"
+      },
+      {
+        "name": "RELEASE_COLUMN_IDS",
+        "kind": "value"
+      },
+      {
+        "name": "RELEASE_LABEL_IDS",
+        "kind": "value"
+      },
+      {
+        "name": "SEED_TIMESTAMP",
+        "kind": "value"
+      },
+      {
+        "name": "seedReleaseBoardDataset",
+        "kind": "value"
+      }
+    ]
+  }
+}

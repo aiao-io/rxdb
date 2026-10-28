@@ -244,6 +244,29 @@ describe('US-028 AC#15 分组实体的 reorder()', () => {
     return Object.keys(repository.update.mock.calls[0][1]).sort();
   };
 
+  it('目标分组仍匹配时允许跨组重排', async () => {
+    await reorder('A2', { prevId: 'B0', nextId: 'B1', expectedGroup: { shelf: 'B' } });
+    expect(layout(repository).B).toEqual(['B0', 'A2', 'B1']);
+    expect(writtenFields()).toEqual(['shelf', 'sortOrder']);
+  });
+
+  it('目标邻居已移到其他分组时拒绝，零写', async () => {
+    await expectSortOrderError(
+      reorder('A2', { prevId: null, nextId: 'B0', expectedGroup: { shelf: 'A' } }),
+      'staleTarget'
+    );
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it('期望分组允许 NULL，非法字段集合在事务前拒绝', async () => {
+    await reorder('A2', { prevId: 'n0', nextId: 'n1', expectedGroup: { shelf: null } });
+    expect(layout(repository).null).toEqual(['n0', 'A2', 'n1']);
+    await expectSortOrderError(
+      reorder('A1', { prevId: null, nextId: 'A0', expectedGroup: { other: 'A' } }),
+      'invalidTarget'
+    );
+  });
+
   it('组内移动只写 sortOrder', async () => {
     await reorder('A3', { prevId: null, nextId: 'A0' });
     expect(layout(repository).A).toEqual(['A3', 'A0', 'A1', 'A2']);
