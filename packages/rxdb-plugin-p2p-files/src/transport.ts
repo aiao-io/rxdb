@@ -66,10 +66,13 @@ export function createP2PTransportPeer(
   let sequence = 0;
   let stopped = false;
   let inboundRequests = 0;
+  const inboundControllers = new Set<AbortController>();
   let pumpPromise: Promise<void> | undefined;
   const stop = (error: unknown): void => {
     if (stopped) return;
     stopped = true;
+    for (const controller of inboundControllers) controller.abort(error);
+    inboundControllers.clear();
     for (const waiter of pending.values()) {
       waiter.cleanup();
       waiter.reject(error);
@@ -96,7 +99,9 @@ export function createP2PTransportPeer(
     }
     inboundRequests += 1;
     const controller = new AbortController();
+    inboundControllers.add(controller);
     try {
+      if (!options.authorizeRequest) throw new Error('peer authorization is required before serving chunks');
       await options.authorizeRequest({
         requestId: frame.requestId,
         contentHash: frame.contentHash,
@@ -114,6 +119,7 @@ export function createP2PTransportPeer(
         error: error instanceof Error ? error.message : String(error)
       });
     } finally {
+      inboundControllers.delete(controller);
       inboundRequests -= 1;
     }
   };
@@ -388,6 +394,7 @@ export const createTcpTransport = (
     flush();
   };
   const onFailure = (error: unknown): void => {
+    if (failure) return;
     failure = error instanceof Error ? error : new Error('P2P TCP socket closed');
     while (waiters.length) {
       const waiter = waiters.shift();
