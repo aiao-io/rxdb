@@ -29,11 +29,8 @@ import { pathToFileURL } from 'node:url';
 /**
  * 非 Supabase 任务铺开的 lane 上限。
  *
- * 4 有两个独立的理由，任一成立就不该往上调：
- *   1. 并发位：免费额度上限 20，实测峰值并发是 16，内存 lane 再占 1 个。
- *   2. 墙钟的下界是单个最重的任务：`rxdb-adapter-pglite`（667s，见 WEIGHTS）。按 PR #101
- *      的实测权重装箱，4 条 lane 的负载约 730s 一条，离这个下界只差 1 分钟；开到 5 条省下的
- *      也就这 1 分钟，换来的是峰值并发顶到 18 以上、PR 一多就排队。
+ * main 的两轮冷测按当前权重装箱，四条 lane 约 761s，离最重的 PGlite（709s）仅差 52s。
+ * 再加 lane 收益有限，却多占一个并发位；多条 PR 同跑时排队已经是主要瓶颈。
  */
 export const LANE_COUNT = 4;
 
@@ -67,96 +64,87 @@ export const MEMORY_TARGET = 'test-memory';
 export const NO_COVERAGE_PROJECTS = ['website', 'e2e-parity'];
 
 /**
- * 各项目 test 任务的实测耗时（秒），用于装箱时估算 lane 负载。
- * 只影响**分桶是否均衡**，不影响正确性 —— 填错了 CI 还是全跑，只是慢。
+ * 各项目 test 任务的实测耗时（秒），只用于 lane 装箱。
  *
- * 数据来源：PR #101 的 run 37850537027（affected 冷跑，被测的 58 个项目全部 Cache Miss）。
- * 提取方式：每条 lane 都以 `--parallel=1` 串行执行，于是同一条 lane 的日志里
- * 相邻两条 vitest `Duration` 行的时间差就是后一个项目的净耗时；一个 nx 项目里有多个
- * vitest project 时（pglite、electron）按项目求和。
- * （不能用「项目首行到末行」的时间跨度 —— 那会把 Nx 的调度输出算进去。）
- * 那一轮没测到的项目（supabase 两项在独立 lane、website / utils / code-editor 等未受影响）保留上一版的值。
- *
- * 上一版取自 main 的 run 31874082535，此后几个项目的用例量翻了几倍，表没有跟着更新：
- *   rxdb-adapter-electron   21 → 840（含内存组 469，拆到 `test-memory` 后按 371 计）
- *   rxdb-adapter-pglite    238 → 667
- *   dev-rxdb-miniprogram-alipay-probe、rxdb-model-angular 缺项（走 DEFAULT_WEIGHT=60，实测 185 / 99）
- * LPT 拿着 21s 的 electron 把它和 alipay-probe、dev-rxdb-angular、rxdb-model-angular 装进了同一条 lane，
- * 那条 lane 的 Test step 跑了 29 分钟，其余 lane 在 3～17 分钟内结束。
- * 教训不变：命中缓存的那轮数据不能用来填这张表；本地 M 系列的数据也不能（同配置约快 3 倍）。
- * 每当某条 lane 的 Test step 明显长于其它 lane，先拿那一轮的日志按上面的口径重算这张表。
+ * 来源：main 成功运行 40493402982、40453820388（2026-10-27），取可用冷测均值向上取整。
+ * 只量 Test step 内相邻串行任务的起始时间差；最后一个量到 Nx 完成行。
+ * 排除缓存回放与 build/typecheck，项目内 test-node/test-env 的实测时间合并进 test 权重。
+ * dev-rxdb-angular 已从 188s 增至 350s，alipay-probe 从 185s 降至 21s；旧权重会让四条
+ * lane 的实测负载落在 534–887s，更新后约 760–761s。不要拿缓存命中或本地机器耗时回填。
  */
 export const WEIGHTS = {
-  'rxdb-adapter-pglite': 667,
-  'rxdb-adapter-electron': 371,
-  'dev-rxdb-angular': 188,
-  'dev-rxdb-miniprogram-alipay-probe': 185,
-  'rxdb-client-generator': 117,
-  'rxdb-adapter-sqliteai': 116,
-  'rxdb-model-angular': 99,
-  'rxdb-plugin-replay': 94,
-  'rxdb-adapter-sqlite': 93,
-  rxdb: 88,
-  'dev-rxdb-http-server': 84,
-  'rxdb-devtools-panel': 77,
-  'dev-rxdb-tauri': 62,
-  'rxdb-adapter-sqlite-wasm': 61,
-  'rxdb-adapter-wa-sqlite': 61,
-  'angular-todo': 52,
-  'rxdb-adapter-sqlite-core': 49,
-  'dev-rxdb-supabase': 43,
-  'rxdb-devtools-extension': 38,
-  'rxdb-adapter-supabase': 36,
-  utils: 26,
-  'rxdb-plugin-search': 24,
-  'rxdb-plugin-graph': 23,
-  'rxdb-plugin-working-tree': 21,
-  'rxdb-plugin-sync': 19,
+  'rxdb-adapter-pglite': 709,
+  'rxdb-adapter-electron': 393,
+  'dev-rxdb-angular': 350,
+  'rxdb-adapter-sqliteai': 125,
+  'rxdb-model-angular': 111,
+  'rxdb-adapter-sqlite': 107,
+  'rxdb-plugin-replay': 105,
+  'rxdb-client-generator': 98,
+  'rxdb-adapter-wa-sqlite': 86,
+  'rxdb-devtools-panel': 83,
+  'dev-rxdb-http-server': 75,
+  'rxdb-adapter-sqlite-wasm': 71,
+  'dev-rxdb-tauri': 59,
+  rxdb: 55,
+  'angular-todo': 54,
+  'rxdb-adapter-sqlite-core': 47,
+  'rxdb-adapter-supabase': 37,
+  'dev-rxdb-supabase': 35,
+  'rxdb-devtools-extension': 34,
+  'rxdb-plugin-search': 27,
+  'rxdb-plugin-graph': 24,
+  'rxdb-plugin-working-tree': 24,
+  utils: 24,
+  'dev-rxdb-vue': 22,
+  'dev-rxdb-miniprogram-alipay-probe': 21,
+  'dev-rxdb-react': 21,
   'dev-rxdb-electron': 18,
-  'rxdb-model-react': 16,
-  'rxdb-plugin-history': 16,
-  'dev-rxdb-react': 15,
-  'dev-rxdb-vue': 15,
-  'rxdb-devtools': 15,
-  'rxdb-model': 13,
-  'rxdb-model-vue': 13,
-  'rxdb-angular': 12,
-  'rxdb-plugin-replay-angular': 11,
-  'rxdb-plugin-working-tree-angular': 11,
+  'rxdb-model-react': 18,
+  'rxdb-devtools': 16,
+  'rxdb-plugin-sync': 16,
+  'rxdb-model': 15,
+  'rxdb-plugin-history': 15,
+  'rxdb-angular': 13,
+  'rxdb-model-vue': 12,
+  'rxdb-plugin-replay-angular': 12,
+  'rxdb-plugin-working-tree-angular': 12,
+  'rxdb-plugin-search-angular': 11,
   'dev-rxdb-http': 10,
-  'rxdb-plugin-search-angular': 10,
   'rxdb-plugin-tree-angular': 10,
   'rxdb-adapter-miniprogram': 9,
-  'rxdb-plugin-querycache': 9,
+  'rxdb-plugin-querycache': 8,
   'rxdb-react': 8,
   angular: 7,
-  'rxdb-plugin-storage': 7,
+  'rxdb-plugin-workspace': 7,
+  'rxdb-test': 7,
+  benchmarks: 6,
   'code-editor-angular': 6,
   'dev-rxdb-miniprogram-douyin-spike': 6,
-  'rxdb-plugin-workspace': 6,
-  'rxdb-test': 6,
-  'rxdb-vue': 6,
+  'rxdb-plugin-storage': 6,
   'rxdb-adapter-encrypted': 5,
-  benchmarks: 4,
+  'rxdb-adapter-http': 5,
+  'rxdb-vue': 5,
   'code-editor-vue': 4,
-  'rxdb-adapter-http': 4,
-  website: 4,
-  'rxdb-plugin-search-react': 3,
-  'rxdb-plugin-search-vue': 3,
+  'rxdb-plugin-search-react': 4,
+  'rxdb-plugin-search-vue': 4,
+  'rxdb-plugin-tree': 4,
+  'code-editor-react': 3,
+  'dev-rxdb-admin': 3,
+  'recipes-domain': 3,
+  'rxdb-adapter-tauri': 3,
   'rxdb-plugin-tree-react': 3,
+  'rxdb-plugin-tree-vue': 3,
   'rxdb-plugin-working-tree-react': 3,
+  'rxdb-plugin-working-tree-vue': 3,
+  'rxdb-taro': 3,
   'code-editor': 2,
-  'code-editor-react': 2,
-  'recipes-domain': 2,
-  'rxdb-adapter-tauri': 2,
+  'dev-rxdb-miniprogram': 2,
   'rxdb-plugin-replay-react': 2,
   'rxdb-plugin-replay-vue': 2,
-  'rxdb-plugin-tree': 2,
-  'rxdb-plugin-tree-vue': 2,
-  'rxdb-plugin-working-tree-vue': 2,
-  'rxdb-taro': 2,
-  // 一份 node --test 单测，不到 1 秒；没有实测记录，按下限登记，免得落进 DEFAULT_WEIGHT 被高估成大包
-  'e2e-parity': 1
+  wujie: 2,
+  'e2e-parity': 1,
+  website: 1
 };
 
 /** 权重表里没登记的新包按这个值估算。宁可高估，避免新包把一条 lane 拖成长尾。 */
