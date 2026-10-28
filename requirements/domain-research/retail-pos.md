@@ -15,7 +15,7 @@
 | 断网收银               | Local-first：断网交易照常落库，回网同步                                      | [epic-002](../epics/epic-002-data-sync.md)                                                                                                 |
 | 门店 ↔ 总部多端同步    | Supabase 远端：RLS 下的推送完整性已打磨（幽灵删除、UPDATE 语义、逐实体回执） | [US-218](../stories/adapter/US-218-supabase-rls-push-integrity.md) · [US-220](../stories/adapter/US-220-supabase-update-push-semantics.md) |
 | 库存分类树             | 树插件（单父邻接表）+ 可排序实体                                             | [US-028](../stories/core/US-028-sortable-entity.md)                                                                                        |
-| 操作审计与写授权       | 实体操作权限模型，越权即拒                                                   | [US-027](../stories/core/US-027-entity-permission-model.md)                                                                                |
+| 实体操作约束           | `both / system` 约束操作入口；按人授权与可信审计需另定边界                   | [US-027](../stories/core/US-027-entity-permission-model.md)                                                                                |
 | 收银数据安全           | 加密 keyring + 一致性备份恢复                                                | [US-803](../stories/future/US-803-local-encryption.md) · [US-217](../stories/adapter/US-217-local-database-backup-restore.md)              |
 | 移动 / 桌面 / Web 三端 | 三框架对称 + Electron / Tauri 桌面适配器，正好摊销「三框架对称」的税         | [capability-matrix](../capability-matrix.md)                                                                                               |
 

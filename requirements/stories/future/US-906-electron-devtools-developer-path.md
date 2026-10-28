@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-09-03
-updated: 2026-10-06
+updated: 2026-10-28
 tags: [tooling, devtools, desktop, electron, dx]
 ---
 
@@ -62,7 +62,7 @@ INVEST 检查清单:
 
 | #   | 前置条件                                                    | 操作                                                              | 预期结果                                                                                                                                                                                      | 状态 |
 | --- | ----------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 工作区已安装依赖                                            | 跑 dev-only 扩展构建变体                                          | 产物 manifest 含 `host_permissions: ['http://localhost/*']`；且默认 `nx build rxdb-devtools-extension` 的 manifest 仍**无** `host_permissions`、**无** `web_accessible_resources`             | ✅   |
+| 1   | 工作区已安装依赖                                            | 跑 dev-only 扩展构建变体                                          | 源配置不显式覆盖 `web_accessible_resources`，构建产物保留 crxjs 默认资源声明；dev 与默认产物仅相差 `host_permissions: ['http://localhost/*']`，默认产物无静态 host permission                 | ✅   |
 | 2   | AC#1 的变体已构建；`nx serve dev-rxdb-electron` 已起在 4120 | 按文档启动 `nx dev dev-rxdb-electron`，打开 DevTools 的 RxDB 面板 | 面板进入 `granted`、四段 relay 握手完成，Database 页读到真实实体行；证据全程经过真实 extension/renderer/preload/main/host，无 mock 替代（人按文档手跑一遍的确认已移出承诺范围，见下方证据链） | ✅   |
 | 3   | AC#1 的变体已存在                                           | 跑 `nx e2e dev-rxdb-electron-e2e`                                 | `devtools-restart-persistence.spec.ts` 不再在测试内改写 manifest（`devtoolsExtensionCopy()` 收敛为指向 dev 变体或删除），全套 e2e 仍全绿                                                      | ✅   |
 | 4   | 跑打包产物（`app://` 入口），DevTools 打开 RxDB 面板        | 观察面板                                                          | 面板说明**原因**（当前页面协议不在扩展可注入的 scheme 集内），而非只给结论；状态仍为 `unsupported`，`permissionPatternForUrl('app://…')` 仍返回 `null`                                        | ✅   |
@@ -137,7 +137,7 @@ AC#2 判据里的每一项都在这条链上得证。
 
 ## 技术笔记
 
-**dev 变体怎么落。** `manifest.config.ts` 已是 TS 函数式配置（`defineManifest`），最小改动是按 vite mode 分支产出两份 manifest，构建目标各自用不同 `outDir`，避免 dev 变体覆盖默认产物、被 `electron-package-dir` 误打包。无论选哪种承载形式，AC#1 的**负契约**（默认产物不含 `host_permissions` / `web_accessible_resources`）是硬约束。
+**dev 变体怎么落。** `manifest.config.ts` 已是 TS 函数式配置（`defineManifest`），最小改动是按 vite mode 分支产出两份 manifest，构建目标各自用不同 `outDir`，避免 dev 变体覆盖默认产物、被 `electron-package-dir` 误打包。无论选哪种承载形式，AC#1 的**负契约**（默认源配置不加静态 host permission、不覆盖 crxjs 资源声明）与产物差异检查是硬约束。
 
 **dev 流程的既有零件都在，不用新造。** `apps/dev-rxdb-electron/project.json` 的 `serve`（Angular dev-server，4120）与 `dev`（`electron dist/apps/dev-rxdb-electron --serve`）已经把 renderer 换成 http；`resolveDevToolsDevConfig()` / `loadDevToolsExtension()` 已经读 `DEV_RXDB_DEVTOOLS`、`DEV_RXDB_DEVTOOLS_EXTENSION`、`DEV_RXDB_DEVTOOLS_CAPABILITY`、`DEV_RXDB_DEVTOOLS_MUTATION` 四个开关，并断言「加载前 0 个、加载后恰好 1 个」。本故事补的是一份开发者拿得到的扩展产物 + 一份说明。
 

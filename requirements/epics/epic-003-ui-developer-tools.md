@@ -25,7 +25,7 @@ owner: jimmy
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
 
 - [US-402 代码编辑器组件](../stories/ui/US-402-code-editor.md) (Medium)
-- [US-403 实体组件 Headless API 与可定制展示层](../stories/ui/US-403-entity-components-headless.md) (Medium) — A 表单与共享契约 → B 查询构建器 → C 列表/详情与可选渲染 → D 独立消费验证与文档
+- [US-403 实体组件 Headless API 与可定制展示层](../stories/ui/US-403-entity-components-headless.md) (Medium) — A 表单与共享契约 → B 已公开查询 service 的消费与绑定 → C 现有列表视图/详情与可选渲染 → D 独立消费验证与文档；以当前 main 的列表设置 API 为兼容基线
 - [US-902 DevTools 面板](../stories/future/US-902-devtools-panel.md) (Low)
 - [US-904 DevTools 原生本地存储调试](../stories/future/US-904-devtools-native-storage-contract.md) (Medium) — 单文件四阶段：
   - 阶段 A Electron 43 MV3 DevTools 可行性门禁

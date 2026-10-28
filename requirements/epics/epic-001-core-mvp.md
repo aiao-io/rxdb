@@ -25,7 +25,9 @@ owner: jimmy
 - [x] 支持跨 Tab 数据同步
 - [x] 支持树形和图数据结构
 
-## 核心引擎故事
+## 故事
+
+### 核心引擎故事
 
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
 
@@ -40,13 +42,13 @@ owner: jimmy
 - [US-009 跨 Tab 同步](../stories/core/US-009-cross-tab-sync.md) (High)
 - [US-010 树形数据结构](../stories/core/US-010-tree-entity.md) (Medium)
 
-## 框架集成故事
+### 框架集成故事
 
 - [US-101 Angular 集成](../stories/framework/US-101-angular-integration.md) (High)
 - [US-102 React 集成](../stories/framework/US-102-react-integration.md) (High)
 - [US-103 Vue 集成](../stories/framework/US-103-vue-integration.md) (High)
 
-## 适配器故事（本地存储）
+### 适配器故事（本地存储）
 
 - [US-201 SQLite 适配器](../stories/adapter/US-201-sqlite-adapter.md) (High)
 - [US-202 PGlite 适配器](../stories/adapter/US-202-pglite-adapter.md) (High)
@@ -55,7 +57,7 @@ owner: jimmy
 
 > Supabase 适配器（US-203）作为远程同步入口归属 epic-002-data-sync。
 
-## 插件故事
+### 插件故事
 
 - [US-501 Workspace 插件](../stories/plugin/US-501-workspace-plugin.md) (Medium)
 - [US-502 Storage 插件](../stories/plugin/US-502-storage-plugin.md) (Medium)
