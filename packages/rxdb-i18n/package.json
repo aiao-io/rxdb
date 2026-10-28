@@ -62,6 +62,8 @@
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-electron": "workspace:*",
     "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-plugin-working-tree": "workspace:*",
     "vitest": "4.1.11"
   },
   "peerDependencies": {

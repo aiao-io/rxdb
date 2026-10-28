@@ -6,7 +6,7 @@ export interface LocalePreferences {
   devicePreferredLocale?: string | null;
   /** 宿主语言。 */
   deviceLocale: string;
-  /** 应用默认语言。 */
+  /** 调用方默认语言：UI 应用默认语言或数据实体默认内容语言。 */
   defaultLocale: string;
 }
 
