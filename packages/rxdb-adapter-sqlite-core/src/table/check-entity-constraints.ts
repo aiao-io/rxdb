@@ -149,6 +149,7 @@ export const check_entity_constraints_sqlite = async (
     const storage = await checkStorageDeclarationsSqlite(
       adapter,
       metadata,
+      tableSet,
       tableName,
       String(rows[0]?.[0] ?? ''),
       indexes,

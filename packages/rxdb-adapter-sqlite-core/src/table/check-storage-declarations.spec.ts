@@ -12,16 +12,20 @@ import {
   generatedColumnsOf,
   getEntityMetadata,
   PropertyType,
+  RxDB,
   RxDBConstraintDriftError,
+  SyncType,
   WorktreeTableSet,
   type EntityType
 } from '@aiao/rxdb';
 import type { SQLInputValue } from 'node:sqlite';
 import { describe, expect, it, vi } from 'vitest';
 import { assertOo1Static, type Oo1Static } from '../oo1-types.js';
+import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType, SqliteSuccessResult } from '../sqlite-core.interface.js';
 import { get_table_name_by_metadata } from '../table-name-resolver.js';
 import { check_entity_constraints_sqlite } from './check-entity-constraints.js';
+import { create_table_sql } from './create_table_sql.js';
 
 @Entity({
   name: 'DriftPlainRow',
@@ -63,6 +67,31 @@ class DriftHotRow extends EntityBase {
   ]
 })
 class DriftOwnColumnRow extends EntityBase {}
+
+@Entity({
+  name: 'DriftIndexedRow',
+  namespace: 'drift_fx',
+  tableName: 'indexed_row',
+  properties: [
+    { name: 'title', type: PropertyType.string },
+    { name: 'ext', type: PropertyType.string, nullable: true }
+  ],
+  generatedColumns: [
+    {
+      name: 'hot',
+      expression: { kind: 'jsonScalar', property: 'ext', key: 'code', dataType: 'string', jsonText: true }
+    }
+  ],
+  indexes: [
+    { name: 'title_lookup', properties: ['title'], method: 'btree' },
+    { name: 'hot_lookup', properties: ['hot'], unique: true },
+    {
+      name: 'active_expression',
+      expression: { kind: 'jsonScalar', property: 'ext', key: 'active', dataType: 'boolean', jsonText: true }
+    }
+  ]
+})
+class DriftIndexedRow extends EntityBase {}
 
 type CatalogRow = readonly SQLiteCompatibleType[];
 
@@ -225,6 +254,55 @@ const openEngine = async (): Promise<CatalogEngine> => {
 };
 
 describe('SQLite 生成列漂移：真实引擎目录', () => {
+  it('主表与两个检出位各自建立高级索引，重复目录检查并隔离缺失及定义漂移', async () => {
+    const engine = await openEngine();
+    const rxdb = new RxDB({
+      dbName: 'storage-index-worktree',
+      entities: [DriftIndexedRow],
+      sync: { type: SyncType.None, local: { adapter: 'noop' } }
+    });
+    rxdb.schemaManager.init();
+    const adapter = { rxdb } as unknown as RxDBAdapterSqliteBase;
+    const metadata = getEntityMetadata(DriftIndexedRow);
+    const tableSets = [
+      WorktreeTableSet.MAIN,
+      WorktreeTableSet.of('wt_first', [DriftIndexedRow]),
+      WorktreeTableSet.of('wt_second', [DriftIndexedRow])
+    ];
+    const executor: CatalogExecutor = {
+      execute: async (sql, bindings) => result([], engine.rows(sql, bindings))
+    };
+    try {
+      for (const tableSet of tableSets) engine.exec(create_table_sql(adapter, metadata, tableSet));
+      const indexes = engine.rows("SELECT name FROM sqlite_master WHERE type = 'index' AND name GLOB 'sx_*'");
+      expect(indexes).toHaveLength(9);
+      expect(new Set(indexes.map(row => row[0])).size).toBe(9);
+      for (const tableSet of [...tableSets, ...tableSets]) {
+        await expect(check_entity_constraints_sqlite(executor, tableSet, [DriftIndexedRow])).resolves.toBeUndefined();
+      }
+      const shadowName = get_table_name_by_metadata(metadata, tableSets[1]);
+      const [[indexName]] = engine.rows(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND name GLOB 'sx_*_title_lookup_*'",
+        [shadowName]
+      );
+      expect(typeof indexName).toBe('string');
+      engine.exec(`DROP INDEX "${indexName}"`);
+      await expect(check_entity_constraints_sqlite(executor, tableSets[1], [DriftIndexedRow])).rejects.toMatchObject({
+        missing: [indexName]
+      });
+      await expect(check_entity_constraints_sqlite(executor, tableSets[0], [DriftIndexedRow])).resolves.toBeUndefined();
+      await expect(check_entity_constraints_sqlite(executor, tableSets[2], [DriftIndexedRow])).resolves.toBeUndefined();
+      engine.exec(`CREATE INDEX "${indexName}" ON "${shadowName}" ("title" DESC)`);
+      await expect(check_entity_constraints_sqlite(executor, tableSets[1], [DriftIndexedRow])).rejects.toMatchObject({
+        missing: [],
+        changed: [indexName]
+      });
+    } finally {
+      engine.close();
+      await rxdb.destroy();
+    }
+  });
+
   it('ALTER TABLE 补出的普通 gc_ 列在真实目录上判多余，声明的生成列照常一致', async () => {
     const engine = await openEngine();
     try {

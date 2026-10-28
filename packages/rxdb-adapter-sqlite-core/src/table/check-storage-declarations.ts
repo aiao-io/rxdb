@@ -8,9 +8,11 @@ import {
   storageExpressionIdentity,
   storageGeneratedExpressions,
   storageIndexExpressions,
-  type EntityMetadata
+  type EntityMetadata,
+  type WorktreeTableSet
 } from '@aiao/rxdb';
 import type { SqliteResult } from '../sqlite-core.interface.js';
+import { get_storage_object_name } from '../table-name-resolver.js';
 
 /** SQLite 目录中索引的原始声明。 */
 export interface StorageIndexCatalogEntry {
@@ -48,6 +50,7 @@ const sameIndexExpressions = (sql: string, expected: readonly string[]): boolean
 export const checkStorageDeclarationsSqlite = async (
   executor: CatalogExecutor,
   metadata: EntityMetadata,
+  tableSet: WorktreeTableSet,
   tableName: string,
   tableSql: string,
   indexes: readonly StorageIndexCatalogEntry[],
@@ -56,7 +59,7 @@ export const checkStorageDeclarationsSqlite = async (
   const columns = generatedColumnsOf(metadata).map(column => compileGeneratedColumn(metadata, column, 'sqlite'));
   const declarations = advancedIndexesOf(metadata).flatMap(index => {
     const compiled = compileAdvancedIndex(metadata, index, 'sqlite');
-    return compiled === null ? [] : [compiled];
+    return compiled === null ? [] : [{ ...compiled, name: get_storage_object_name(compiled.name, metadata, tableSet) }];
   });
   const expected = [...columns.map(column => column.columnName), ...declarations.map(index => index.name)];
   if (tableMissing) return { expected, actual: [], changed: [] };

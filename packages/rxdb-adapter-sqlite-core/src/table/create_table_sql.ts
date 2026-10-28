@@ -303,7 +303,11 @@ const create_table_column_sql = (
     });
   }
 
-  runSQL += '\n' + advancedIndexStatements(metadata, 'sqlite', quote_sql_identifier(tableName)).join('\n');
+  runSQL +=
+    '\n' +
+    advancedIndexStatements(metadata, 'sqlite', quote_sql_identifier(tableName), name =>
+      get_storage_object_name(name, metadata, tableSet)
+    ).join('\n');
 
   // 条件唯一索引（US-030 阶段 B）：确定性名 uq_ + 部分索引 WHERE。读 indexMap（继承合并后的全集）。
   // 名字含 namespace 参与的定义哈希——SQLite 的索引名是库级的，跨 namespace 的同名表不撞名。
