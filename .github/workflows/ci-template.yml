@@ -170,6 +170,8 @@ jobs:
         run: git fetch origin "$BASE_REF:refs/remotes/origin/$BASE_REF"
 
       - uses: ./.github/actions/setup-workspace
+        with:
+          save-metadata-cache: 'true'
 
       - uses: nrwl/nx-set-shas@e602fada7ad5987b0f7b1905e7a99ea1c661514c # v5
 
@@ -711,6 +713,11 @@ jobs:
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
 
+      - uses: ./.github/actions/build-task-prerequisites
+        with:
+          targets: test-browser
+          projects: ${{ needs.setup.outputs.test_browser_projects }}
+
       # --parallel=1：几个包共用一个 chromium，多开只会互相抢 4 vCPU。
       - name: Run browser tests
         env:
@@ -759,6 +766,11 @@ jobs:
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
+
+      - uses: ./.github/actions/build-task-prerequisites
+        with:
+          targets: coverage-acceptance
+          projects: ${{ needs.setup.outputs.acceptance_projects }}
 
       - name: Run coverage acceptance
         env:
@@ -1159,6 +1171,10 @@ jobs:
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
+      - uses: ./.github/actions/build-task-prerequisites
+        with:
+          targets: search-ci,bench-working-tree,bench-sortable-batch
+          projects: benchmarks
       - run: pnpm exec nx run-many -t search-ci bench-working-tree bench-sortable-batch -p benchmarks --output-style=stream --parallel=1
 
   # ---------------------------------------------------------------------------

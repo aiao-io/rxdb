@@ -62,6 +62,32 @@ test('只有测试任务时没有前置任务', () => {
   assert.deepEqual(prereqTargets(taskGraph(['a:test', 'b:test'])), []);
 });
 
+test('只预构建可缓存 build，覆盖率用例、基准和不缓存前置任务留给原阶段', () => {
+  const graph = taskGraph([
+    'core:build',
+    'fresh:build',
+    'legacy:build',
+    'core:generate-skill',
+    'benchmarks:typecheck',
+    'search:coverage',
+    'search:test-browser',
+    'sqlite:coverage-acceptance',
+    'benchmarks:bench-working-tree'
+  ]);
+  for (const id of [
+    'core:build',
+    'search:coverage',
+    'search:test-browser',
+    'sqlite:coverage-acceptance',
+    'benchmarks:bench-working-tree'
+  ]) {
+    graph.tasks.tasks[id].cache = true;
+  }
+  graph.tasks.tasks['fresh:build'].cache = false;
+
+  assert.deepEqual(prereqTargets(graph, { cacheableBuildsOnly: true }), [{ target: 'build', projects: ['core'] }]);
+});
+
 test('任务图形状不对时直接失败 —— 不能静默跳过预构建、把串行构建留给测试那一步', () => {
   assert.throws(() => prereqTargets({ graph: {} }), /tasks\.tasks/);
 });
@@ -82,4 +108,19 @@ test('CLI：缺任务图参数时给出用法并失败', () => {
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /用法/);
+});
+
+test('CLI：--cacheable-builds-only 排除缓存覆盖率任务和不缓存的 typecheck', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prereq-'));
+  const file = join(dir, 'graph.json');
+  const graph = taskGraph(['core:build', 'search:coverage', 'benchmarks:typecheck']);
+  graph.tasks.tasks['core:build'].cache = true;
+  graph.tasks.tasks['search:coverage'].cache = true;
+  graph.tasks.tasks['benchmarks:typecheck'].cache = false;
+  writeFileSync(file, JSON.stringify(graph));
+
+  const result = spawnSync(process.execPath, [cliPath, file, '--cacheable-builds-only'], { encoding: 'utf8' });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'build\tcore\n');
 });
