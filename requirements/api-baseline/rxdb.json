@@ -26,6 +26,14 @@
         "kind": "type"
       },
       {
+        "name": "advancedIndexesOf",
+        "kind": "value"
+      },
+      {
+        "name": "advancedIndexStatements",
+        "kind": "value"
+      },
+      {
         "name": "AmbiguousActiveBranchError",
         "kind": "both"
       },
@@ -218,6 +226,10 @@
         "kind": "value"
       },
       {
+        "name": "compileAdvancedIndex",
+        "kind": "value"
+      },
+      {
         "name": "compileCheckConstraint",
         "kind": "value"
       },
@@ -232,6 +244,10 @@
       {
         "name": "compileConditionalUniqueIndex",
         "kind": "value"
+      },
+      {
+        "name": "CompiledAdvancedIndex",
+        "kind": "type"
       },
       {
         "name": "CompiledCheckConstraint",
@@ -254,7 +270,23 @@
         "kind": "type"
       },
       {
+        "name": "CompiledGeneratedColumn",
+        "kind": "type"
+      },
+      {
+        "name": "CompiledStorageExpression",
+        "kind": "type"
+      },
+      {
         "name": "compileExclusionConstraint",
+        "kind": "value"
+      },
+      {
+        "name": "compileGeneratedColumn",
+        "kind": "value"
+      },
+      {
+        "name": "compileStorageExpression",
         "kind": "value"
       },
       {
@@ -514,6 +546,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityGeneratedColumnMetadataOptions",
+        "kind": "type"
+      },
+      {
         "name": "EntityIndexMetadataOptions",
         "kind": "type"
       },
@@ -643,6 +679,10 @@
       },
       {
         "name": "EntityStatus",
+        "kind": "type"
+      },
+      {
+        "name": "EntityStorageOverride",
         "kind": "type"
       },
       {
@@ -842,6 +882,14 @@
         "kind": "value"
       },
       {
+        "name": "generatedColumnDefinitions",
+        "kind": "value"
+      },
+      {
+        "name": "generatedColumnsOf",
+        "kind": "value"
+      },
+      {
         "name": "getCurrentBranch",
         "kind": "value"
       },
@@ -867,6 +915,10 @@
       },
       {
         "name": "getEntityStatus",
+        "kind": "value"
+      },
+      {
+        "name": "getEntityStorageMetadata",
         "kind": "value"
       },
       {
@@ -1054,6 +1106,10 @@
         "kind": "value"
       },
       {
+        "name": "isAdvancedIndex",
+        "kind": "value"
+      },
+      {
         "name": "isConditionalUniqueIndex",
         "kind": "value"
       },
@@ -1138,7 +1194,19 @@
         "kind": "value"
       },
       {
+        "name": "JsonDocumentStorageExpression",
+        "kind": "type"
+      },
+      {
         "name": "JSONProperty",
+        "kind": "type"
+      },
+      {
+        "name": "JsonScalarDataType",
+        "kind": "type"
+      },
+      {
+        "name": "JsonScalarStorageExpression",
         "kind": "type"
       },
       {
@@ -2286,6 +2354,10 @@
         "kind": "value"
       },
       {
+        "name": "snapshotEntityStorage",
+        "kind": "value"
+      },
+      {
         "name": "SORT_ORDER_FIELD",
         "kind": "value"
       },
@@ -2324,6 +2396,30 @@
       {
         "name": "storageConstraintName",
         "kind": "value"
+      },
+      {
+        "name": "StorageDialect",
+        "kind": "type"
+      },
+      {
+        "name": "StorageExpression",
+        "kind": "type"
+      },
+      {
+        "name": "storageExpressionIdentity",
+        "kind": "value"
+      },
+      {
+        "name": "storageGeneratedExpressions",
+        "kind": "value"
+      },
+      {
+        "name": "storageIndexExpressions",
+        "kind": "value"
+      },
+      {
+        "name": "StorageIndexMethod",
+        "kind": "type"
       },
       {
         "name": "StringArrayProperty",

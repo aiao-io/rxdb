@@ -30,6 +30,7 @@ function createMockEntityMetadata(name: Capitalize<string>, properties: EntityPr
     foreignKeyColumnNames: [],
     columnNameToPropertyName: new Map(),
     indexMap: new Map(),
+    generatedColumnMap: new Map(),
     encryptedPropertyMap: new Map(),
     foreignKeys: [],
     checks: [],

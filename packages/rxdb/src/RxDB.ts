@@ -6,6 +6,7 @@ import { assertSystemEntityPermissions } from './entity/entity-permissions.js';
 import { EntityType } from './entity/entity.interface.js';
 import { SyncType } from './entity/metadata-options.interface.js';
 import { selectPrimaryAdapter } from './entity/primary-adapter.js';
+import { getEntityStorageMetadata, snapshotEntityStorage } from './entity/storage-override.js';
 import { assertNoSystemEntityOverride, snapshotSyncOverrides } from './entity/sync-override.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { ReachabilityMonitor } from './network/reachability.js';
@@ -637,6 +638,9 @@ export class RxDB {
         undefined
       : snapshotSyncOverrides(options.syncOverrides, options.entities, isSystemEntity, this.#config.sync);
     if (overrides) this.#config.syncOverrides = overrides.entries;
+    if (options.entityStorage !== undefined) {
+      this.#config.entityStorage = snapshotEntityStorage(options.entityStorage, options.entities, isSystemEntity);
+    }
     this.entitySync = createEntitySyncResolver(this.#config.sync, overrides?.index);
     this.schemaManager = new SchemaManager(this);
     this.entityManager = new EntityManager(this);
@@ -2187,7 +2191,9 @@ export class RxDB {
    * 不会占住 SQLite 族的文件存储锁。
    */
   #assert_storage_constraint_support(adapterName: string, adapter: IRxDBAdapter): void {
-    const declaring = this.#config.entities.filter(entity => declaresStorageConstraints(getEntityMetadata(entity)));
+    const declaring = this.#config.entities.filter(entity =>
+      declaresStorageConstraints(getEntityStorageMetadata(this, entity))
+    );
     if (declaring.length === 0) return;
     // 接口成员访问（RxDBAdapterLocalBase.checkEntityConstraints?）而非 duck-typed 字符串探测
     const driftCapability = adapter as Pick<RxDBAdapterLocalBase, 'checkEntityConstraints'>;

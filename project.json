@@ -103,6 +103,47 @@
       "options": {
         "command": "eslint scripts --max-warnings=0 --ignore-pattern \"scripts/**/__fixtures__/**\""
       }
+    },
+    "audit-bom-bundle": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": ["rxdb-plugin-bom", "rxdb-plugin-bom-angular", "rxdb-plugin-bom-react", "rxdb-plugin-bom-vue"]
+        }
+      ],
+      "options": {
+        "command": "node scripts/audit/bom-bundle.mjs"
+      }
+    },
+    "audit-api-surface": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/audit/api-surface.mjs"
+      }
+    },
+    "audit-build-entries": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/audit/subpath-build-entries.mjs"
+      }
+    },
+    "audit-requirements": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/audit/requirements-consistency.mjs"
+      }
+    },
+    "audit-coverage": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/audit/coverage-check.mjs"
+      }
     }
   }
 }

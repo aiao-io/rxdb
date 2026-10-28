@@ -1609,7 +1609,7 @@ importers:
         specifier: workspace:^
         version: link:../utils
       '@electric-sql/pglite':
-        specifier: ^0.5.10
+        specifier: ^0.5.11
         version: 0.5.11
       rxjs:
         specifier: ^7.8.2
@@ -2076,6 +2076,94 @@ importers:
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.106.1)(terser@5.51.2)(yaml@2.9.1))
+      vue:
+        specifier: ^3.5.43
+        version: 3.5.44(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
+
+  packages/rxdb-plugin-bom:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:^
+        version: link:../rxdb
+      '@aiao/utils':
+        specifier: workspace:^
+        version: link:../utils
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-adapter-pglite':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-pglite
+      '@aiao/rxdb-adapter-wa-sqlite':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-wa-sqlite
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      pg:
+        specifier: 8.23.1
+        version: 8.23.1
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.106.1)(terser@5.51.2)(yaml@2.9.1))
+
+  packages/rxdb-plugin-bom-angular:
+    dependencies:
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/rxdb-plugin-bom':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-bom
+      '@angular/common':
+        specifier: 22.2.3
+        version: 22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/compiler':
+        specifier: 22.2.3
+        version: 22.2.3
+      '@angular/core':
+        specifier: 22.2.3
+        version: 22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2)
+      '@angular/platform-browser':
+        specifier: 22.2.3
+        version: 22.2.3(@angular/common@22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.106.1)(terser@5.51.2)(yaml@2.9.1))
+
+  packages/rxdb-plugin-bom-react:
+    dependencies:
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/rxdb-plugin-bom':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-bom
+      react:
+        specifier: ^19.3.0
+        version: 19.3.1
+
+  packages/rxdb-plugin-bom-vue:
+    dependencies:
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/rxdb-plugin-bom':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-bom
       vue:
         specifier: ^3.5.43
         version: 3.5.44(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
@@ -10870,8 +10958,8 @@ packages:
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
-  baseline-browser-mapping@2.11.32:
-    resolution: {integrity: sha512-UvuxFU9P3hM29LrQdwu0cD6w6/+SFr+UlB9s/knI7+O2rK9xFxKUwSDWxGdbbqQ9/V7BJ5s0NI5nQAE4uJp3gQ==}
+  baseline-browser-mapping@2.11.33:
+    resolution: {integrity: sha512-yiVKDX+qCMRKBE084lXvq9EcwFUhKZ2nU8TK1EQQuOgPNR/lmbGxXOeDdlGUqC2Zz11Cs9rk1d/8NfgBmlkt0w==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -29949,7 +30037,7 @@ snapshots:
 
   base64-js@1.5.1: {}
 
-  baseline-browser-mapping@2.11.32: {}
+  baseline-browser-mapping@2.11.33: {}
 
   basic-auth@2.0.1:
     dependencies:
@@ -30083,7 +30171,7 @@ snapshots:
 
   browserslist@4.29.4:
     dependencies:
-      baseline-browser-mapping: 2.11.32
+      baseline-browser-mapping: 2.11.33
       caniuse-lite: 1.0.30001819
       electron-to-chromium: 1.5.464
       node-releases: 2.0.60

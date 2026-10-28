@@ -14,7 +14,7 @@
  * @module transaction_pglite_result
  */
 
-import { EntityStaticType, EntityType, getEntityMetadata, getEntityStatus } from '@aiao/rxdb';
+import { EntityStaticType, EntityType, getEntityStatus, getEntityStorageMetadata } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import { getEntityObjectFromResult } from './pglite.utils.js';
 import { decodeRxDBChangeRow, isRxDBChangeMetadata } from './system/change-row.js';
@@ -85,7 +85,7 @@ export const transaction_pglite_result = async <T extends EntityType>(
     return [];
   }
 
-  const metadata = getEntityMetadata(EntityType);
+  const metadata = getEntityStorageMetadata(adapter.rxdb, EntityType);
   const entities: InstanceType<T>[] = [];
   const em = adapter.rxdb.entityManager;
   // 变更行的 entityId / patch / inversePatch 存的是编码形态，必须与仓储查询走同一份解码。

@@ -48,6 +48,16 @@ export interface IRepository<T extends EntityType> {
    * @param entity 待更新的实体（提供 `id` 与最新字段）
    * @param patch 字段级 patch；未列出的字段不会被改动
    * @returns 持久化完成后的实体
+   *
+   * @remarks
+   * **同一轮更新沿仓储链必须传同一个 `patch` 引用**：门面、验证层与本地适配器各自拿它调
+   * `EntityStatus.prepareUpdate`，按引用共享编辑起点。中间层克隆或重建 `patch`，写入期间的编辑
+   * （含改回原值）在回填时就失去保护。
+   *
+   * 回填语义随实现而异：本地 SQL 仓储（sqlite-core / PGlite）经 `prepareUpdate().apply` 把 UPDATE 的
+   * 回填行合回**入参实体**并返回它，基线前移、已保存字段的差异收敛。远端主端不走这条（既有行为）：
+   * Supabase 返回新建实例，入参实体的基线不前移、`patch` 不清空；QueryCache 主端远端写成功时只把返回
+   * 字段赋回入参实体，基线靠本地落地回刷推进，不经 `apply` 的写入期编辑保护（离线降级转给本地 SQL 仓储）。
    */
   update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>>;
 

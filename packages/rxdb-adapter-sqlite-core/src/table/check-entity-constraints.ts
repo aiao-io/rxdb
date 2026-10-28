@@ -13,7 +13,7 @@
  * 系统 CRUD 触发器与 FTS 触发器都不在范围——否则每张既有表首次 `init()` 就被报「多余」（AC#16）。
  */
 
-import type { EntityType, WorktreeTableSet } from '@aiao/rxdb';
+import type { EntityMetadata, EntityType, WorktreeTableSet } from '@aiao/rxdb';
 import {
   assertNoEntityConstraintDrift,
   CHECK_NAME_PREFIX,
@@ -28,6 +28,7 @@ import {
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SqliteResult } from '../sqlite-core.interface.js';
 import { get_storage_object_name, get_table_name_by_metadata } from '../table-name-resolver.js';
+import { checkStorageDeclarationsSqlite, type StorageIndexCatalogEntry } from './check-storage-declarations.js';
 
 /** 漂移检查只读查询的最小接口：引导事务执行器门面（`execute` 落在当前事务里，返回原生结果）。 */
 type ConstraintCatalogQuerier = Pick<RxDBAdapterSqliteBase, never> & {
@@ -119,10 +120,11 @@ const actualObjectNames = async (
 export const check_entity_constraints_sqlite = async (
   adapter: ConstraintCatalogQuerier,
   tableSet: WorktreeTableSet,
-  EntityTypes: readonly EntityType[]
+  EntityTypes: readonly EntityType[],
+  resolveMetadata: (entity: EntityType) => EntityMetadata = getEntityMetadata
 ): Promise<void> => {
   for (const EntityType of EntityTypes) {
-    const metadata = getEntityMetadata(EntityType);
+    const metadata = resolveMetadata(EntityType);
     const tableName = get_table_name_by_metadata(metadata, tableSet);
     const result = await adapter.execute(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, [
       tableName
@@ -131,14 +133,37 @@ export const check_entity_constraints_sqlite = async (
     // 表缺失：fail-fast（缺表补建排在漂移检查之前，走到这里表必在；真缺失就是
     // 异常状态，两后端同口径报漂移点名表缺失，不静默跳过）
     const tableMissing = rows.length === 0;
+    const indexRows =
+      tableMissing ?
+        []
+      : ((
+          await adapter.execute(`SELECT name, sql FROM sqlite_master WHERE type = ? AND tbl_name = ?`, [
+            'index',
+            tableName
+          ])
+        ).results[0]?.rows ?? []);
+    const indexes: StorageIndexCatalogEntry[] = indexRows.map(row => ({
+      name: String(row[0]),
+      sql: String(row[1] ?? '')
+    }));
+    const storage = await checkStorageDeclarationsSqlite(
+      adapter,
+      metadata,
+      tableSet,
+      tableName,
+      String(rows[0]?.[0] ?? ''),
+      indexes,
+      tableMissing
+    );
     const actual =
       tableMissing ?
         []
       : [
           ...actualCheckNames(String(rows[0][0] ?? '')),
-          ...(await actualObjectNames(adapter, 'index', tableName, UNIQUE_INDEX_NAME_PREFIX)),
+          ...indexes.map(index => index.name).filter(name => name.startsWith(UNIQUE_INDEX_NAME_PREFIX)),
           ...(await actualObjectNames(adapter, 'trigger', tableName, EXCLUSION_NAME_PREFIX))
         ];
+    actual.push(...storage.actual);
     assertNoEntityConstraintDrift({
       entity: metadata.name,
       tableName: metadata.tableName,
@@ -148,9 +173,11 @@ export const check_entity_constraints_sqlite = async (
         ...expectedConditionalUniqueIndexNames(metadata).map(name => get_storage_object_name(name, metadata, tableSet)),
         ...expectedExclusionConstraintNames(metadata).flatMap(name =>
           exclusionTriggerNames(get_storage_object_name(name, metadata, tableSet))
-        )
+        ),
+        ...storage.expected
       ],
-      actual
+      actual,
+      changed: storage.changed
     });
   }
 };
