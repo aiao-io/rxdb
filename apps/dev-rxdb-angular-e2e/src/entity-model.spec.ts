@@ -104,10 +104,10 @@ test.describe('Entity Model Pages', () => {
       await expect(page.getByText('Todo', { exact: true }).first()).toBeVisible();
       await expect(page.getByRole('button', { name: '撤销 (Ctrl+Z)' })).toBeVisible();
       await expect(page.getByRole('button', { name: '重做 (Ctrl+Shift+Z)' })).toBeVisible();
-      await expect(page.getByRole('button', { name: '筛选' })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^筛选/ })).toBeVisible();
       await expect(page.getByRole('button', { name: '+ 新增' })).toBeVisible();
       // 空库时表格渲染空态
-      await expect(page.getByText('暂无数据')).toBeVisible();
+      await expect(page.getByTestId('entity-empty-state')).toBeVisible();
     });
 
     test('should create a todo through the detail dialog and refresh the list', async ({ page }) => {
@@ -123,7 +123,7 @@ test.describe('Entity Model Pages', () => {
 
       // 保存成功：对话框关闭，列表刷新后空态消失
       await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
-      await expect(page.getByText('暂无数据')).toHaveCount(0);
+      await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
     });
 
     test('undo / redo 回滚并重放新增的记录', async ({ page }) => {
@@ -133,16 +133,16 @@ test.describe('Entity Model Pages', () => {
       const undo = page.getByRole('button', { name: '撤销 (Ctrl+Z)' });
       const redo = page.getByRole('button', { name: '重做 (Ctrl+Shift+Z)' });
       await expect(undo).toBeEnabled();
-      await expect(page.getByText('暂无数据')).toHaveCount(0);
+      await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
 
       // 撤销：记录回滚 → 空态恢复，重做变可用
       await undo.click();
-      await expect(page.getByText('暂无数据')).toBeVisible();
+      await expect(page.getByTestId('entity-empty-state')).toBeVisible();
       await expect(redo).toBeEnabled();
 
       // 重做走键盘快捷键：焦点落在列表内的非输入控件上才会命中 keydown 监听
-      await page.getByRole('button', { name: '筛选' }).press('Control+Shift+z');
-      await expect(page.getByText('暂无数据')).toHaveCount(0);
+      await page.getByRole('button', { name: /^筛选/ }).press('Control+Shift+z');
+      await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
       await expect(undo).toBeEnabled();
     });
 
@@ -150,7 +150,7 @@ test.describe('Entity Model Pages', () => {
       await page.goto('/entities/public/Todo');
       await createTodo(page, 'e2e-filter-hit');
 
-      await page.getByRole('button', { name: '筛选' }).click();
+      await page.getByRole('button', { name: /^筛选/ }).click();
       // 弹层里的控件必须能按 role 定位：整片带上 aria-hidden 会让这一步连同读屏一起落空
       const apply = page.getByRole('button', { name: '确定' });
       await expect(apply).toBeVisible();
@@ -168,23 +168,23 @@ test.describe('Entity Model Pages', () => {
       await expect(page.getByText('1 条记录')).toBeVisible();
 
       // 换成匹配不到的值：计数归零并回到空态
-      await page.getByRole('button', { name: '筛选' }).click();
+      await page.getByRole('button', { name: /^筛选/ }).click();
       await rule.locator('input[placeholder="输入值"]').fill('no-such-todo');
       await apply.click();
       await expect(page.getByText('0 条记录')).toBeVisible();
-      await expect(page.getByText('暂无数据')).toBeVisible();
+      await expect(page.getByTestId('entity-empty-state')).toBeVisible();
 
       // 重置：计数徽标随筛选条件一起消失，列表恢复全量（resetFilter 不关闭弹层）
-      await page.getByRole('button', { name: '筛选' }).click();
+      await page.getByRole('button', { name: /^筛选/ }).click();
       await page.getByRole('button', { name: '重置' }).click();
       await expect(page.getByText('条记录')).toHaveCount(0);
-      await expect(page.getByText('暂无数据')).toHaveCount(0);
+      await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
     });
 
     test('系统表只读：无新增 / 删除入口，「查看」以 view 模式打开详情', async ({ page }) => {
       await page.goto('/entities/rxdb/RxDBBranch');
-      await expect(page.getByRole('button', { name: '筛选' })).toBeVisible();
-      await expect(page.getByText('暂无数据')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^筛选/ })).toBeVisible();
+      await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
       await expect(page.getByRole('button', { name: '+ 新增' })).toHaveCount(0);
 
       // 只读行的操作列只留「查看」，不出「删除」
@@ -208,15 +208,15 @@ test.describe('Entity Model Pages', () => {
 
     test('US-027 create: system（AuditLog）：不提供「+ 新增」', async ({ page }) => {
       await page.goto('/entities/public/AuditLog');
-      await expect(page.getByRole('button', { name: '筛选' })).toBeVisible();
-      await expect(page.getByText('暂无数据')).toBeVisible();
+      await expect(page.getByRole('button', { name: /^筛选/ })).toBeVisible();
+      await expect(page.getByTestId('entity-empty-state')).toBeVisible();
       await expect(page.getByRole('button', { name: '+ 新增' })).toHaveCount(0);
     });
 
     test('US-027 update: system（Invoice）：可新增，行以 view 模式打开，「删除」仍可用', async ({ page }) => {
       await page.goto('/entities/public/Invoice');
       await createTitled(page, 'e2e-invoice');
-      await expect(page.getByText('暂无数据')).toHaveCount(0);
+      await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
 
       // 行只读：「查看」打开的详情是 view 模式，没有可编辑控件与保存入口
       await expect.poll(() => findActionIcon(page, 'view-action')).not.toBeNull();
@@ -233,13 +233,15 @@ test.describe('Entity Model Pages', () => {
       const remove = await findActionIcon(page, 'delete-action');
       expect(remove).not.toBeNull();
       await page.mouse.click(remove!.x, remove!.y);
-      await expect(page.getByText('暂无数据')).toBeVisible();
+      await expect(page.getByTestId('delete-confirm-submit')).toBeVisible();
+      await page.getByTestId('delete-confirm-submit').click();
+      await expect(page.getByTestId('entity-empty-state')).toBeVisible();
     });
 
     test('US-027 delete: system（Contract）：行可编辑并保存，操作列不出「删除」', async ({ page }) => {
       await page.goto('/entities/public/Contract');
       await createTitled(page, 'e2e-contract');
-      await expect(page.getByText('暂无数据')).toHaveCount(0);
+      await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
 
       await expect.poll(() => findActionIcon(page, 'view-action')).not.toBeNull();
       expect(await findActionIcon(page, 'delete-action')).toBeNull();

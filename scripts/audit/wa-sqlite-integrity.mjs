@@ -52,6 +52,7 @@ export function verifyManifestDependencies() {
   const manifests = [
     'package.json',
     'benchmarks/package.json',
+    'apps/dev-rxdb-admin-consumer/package.json',
     'packages/rxdb-adapter-wa-sqlite/package.json',
     'packages/rxdb-adapter-miniprogram/package.json'
   ];

@@ -1,5 +1,6 @@
 import type * as VTable from '@visactor/vtable';
 import { UUID_RE } from '../../entity-value.utils.js';
+import { isReadonlyOrAddRow } from '../columns/column-utils.js';
 import type { EntityTableRecord, PendingWrite } from '../interfaces.js';
 
 /** 布尔类型列 */
@@ -196,7 +197,7 @@ export function snapshotSelection(
       if (!field || field.startsWith('_')) continue;
 
       const record = table.getRecordByCell(cell.col, cell.row) as EntityTableRecord | undefined;
-      if (!record || record._readonly || record._isAddRow) continue;
+      if (!record || isReadonlyOrAddRow(record)) continue;
 
       clipRow.push({
         col: cell.col,
@@ -252,7 +253,7 @@ export function applyClipboard(
     const clipRow = clipboard[rowI % clipRowCount];
 
     const targetRecord = table.getRecordByCell(destCols[0], targetRow) as EntityTableRecord | undefined;
-    if (!targetRecord || targetRecord._readonly || targetRecord._isAddRow) continue;
+    if (!targetRecord || isReadonlyOrAddRow(targetRecord)) continue;
 
     for (let colI = 0; colI < destCols.length; colI++) {
       const targetCol = destCols[colI];
@@ -305,7 +306,7 @@ export function applySystemText(
     const clipRow = rows[rowI % clipRowCount];
 
     const targetRecord = table.getRecordByCell(destCols[0], targetRow) as EntityTableRecord | undefined;
-    if (!targetRecord || targetRecord._readonly || targetRecord._isAddRow) continue;
+    if (!targetRecord || isReadonlyOrAddRow(targetRecord)) continue;
 
     for (let colI = 0; colI < destCols.length; colI++) {
       const targetCol = destCols[colI];
@@ -358,7 +359,7 @@ export function collectDeleteWrites(
     for (const cell of rowCells) {
       if (cell.row === 0) continue;
       const record = table.getRecordByCell(cell.col, cell.row) as Record<string, unknown> | undefined;
-      if (!record || record['_readonly'] || record['_isAddRow']) continue;
+      if (!record || isReadonlyOrAddRow(record)) continue;
       const colDef = columns[cell.col - 1];
       const field = colDef?.field;
       if (!field || field.startsWith('_')) continue;

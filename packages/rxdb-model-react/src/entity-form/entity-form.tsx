@@ -32,7 +32,12 @@ export interface EntityFormProps {
   data: EntityFormData;
   /** 表单模式（view / edit / create），缺省 `view`。 */
   mode?: FormMode;
-  /** 关联实体候选提供者（关系字段下拉数据源）。 */
+  /**
+   * 关联实体候选提供者（关系字段下拉数据源）。
+   *
+   * @remarks 候选按 provider 实例缓存：候选数据变化时传入一个新的 provider 才会重算下拉
+   * （`EntityList` 随关联列表资源的每次发射换新）。
+   */
   relatedEntityProvider?: RelatedEntityProvider;
   /** 是否渲染保存 / 取消按钮，缺省 `true`。 */
   showActions?: boolean;
@@ -179,6 +184,7 @@ export function EntityForm({
   const editableFields = useMemo(() => fields.filter(field => !field.hidden), [fields]);
   const isReadonly = mode === 'view';
 
+  /** 关联实体候选：provider 是同步快照，候选变化由宿主换新 provider 驱动重算（Angular / Vue 由信号 / ref 跟随）。 */
   const relatedItemsMap = useMemo(() => {
     const map = new Map<string, RelatedEntityItem[]>();
     if (!relatedEntityProvider) return map;
@@ -409,21 +415,30 @@ export function EntityForm({
         );
       }
       case 'oneToOne':
-      case 'manyToOne':
+      case 'manyToOne': {
+        const relatedItems = relatedItemsMap.get(field.field) ?? [];
         return (
-          <select
-            className='select'
-            value={(formData[field.field] as string) ?? ''}
-            onChange={event => onFieldChange(field, event.target.value)}
-          >
-            <option value=''>(空)</option>
-            {(relatedItemsMap.get(field.field) ?? []).map(item => (
-              <option key={item.id} value={item.id}>
-                {item.displayName}
-              </option>
-            ))}
-          </select>
+          <>
+            <select
+              className='select'
+              value={(formData[field.field] as string) ?? ''}
+              onChange={event => onFieldChange(field, event.target.value)}
+            >
+              <option value=''>(空)</option>
+              {relatedItems.map(item => (
+                <option key={item.id} value={item.id}>
+                  {item.displayName}
+                </option>
+              ))}
+            </select>
+            {relatedItems.length === 0 && (
+              <span className='text-warning text-xs' data-testid='relation-empty-hint'>
+                暂无「{field.displayName}」可选，请先创建对应记录
+              </span>
+            )}
+          </>
         );
+      }
       default:
         if (field.format?.kind === 'color') {
           return (
@@ -488,7 +503,10 @@ export function EntityForm({
           data-field={field.field}
           key={field.field}
         >
-          <legend className='fieldset-legend'>{field.displayName}</legend>
+          <legend className='fieldset-legend'>
+            {field.displayName}
+            {field.required && <span className='text-error'> *</span>}
+          </legend>
           {renderFieldInput(field)}
           {field.helpText && <p className='label'>{field.helpText}</p>}
         </fieldset>

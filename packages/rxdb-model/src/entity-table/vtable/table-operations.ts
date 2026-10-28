@@ -1,5 +1,6 @@
 import type * as VTable from '@visactor/vtable';
 import type { ListTableConstructorOptions } from '@visactor/vtable';
+import { isReadonlyOrAddRow } from '../columns/column-utils.js';
 import type { EntityTableRecord } from '../interfaces.js';
 import { isRowDragEnabled } from './table-row-move.js';
 
@@ -27,7 +28,7 @@ export function patchDragIconForReadonlyRows(table: VTable.ListTable): void {
   helper.rowSeriesNumberHelper.getIcons = (col: number, row: number): unknown[] => {
     if (!isRowDragEnabled(table)) return [];
     const record = table.getRecordByCell(col, row) as EntityTableRecord | undefined;
-    if (record?._readonly || record?._isAddRow) return [];
+    if (isReadonlyOrAddRow(record)) return [];
     return original(col, row);
   };
 }
@@ -80,7 +81,7 @@ export function collectReorderedIds(table: VTable.ListTable, idField: string): s
   const orderedIds: string[] = [];
   for (let row = 1; row < rowCount; row++) {
     const record = table.getRecordByCell(0, row) as EntityTableRecord | undefined;
-    if (record && !record._readonly && !record._isAddRow) {
+    if (record && !isReadonlyOrAddRow(record)) {
       const id = record[idField];
       if (typeof id === 'string') orderedIds.push(id);
     }

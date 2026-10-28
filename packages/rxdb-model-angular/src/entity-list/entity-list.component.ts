@@ -1,23 +1,20 @@
-import {
-  getEntityMetadata,
-  RelationKind,
-  RxDB,
-  type EntityMetadata,
-  type EntityType,
-  type FindByCursorOptions,
-  type OrderBy
-} from '@aiao/rxdb';
+import { getEntityMetadata, RelationKind, RxDB, type EntityType, type FindByCursorOptions } from '@aiao/rxdb';
 import { InfiniteScrollingList } from '@aiao/rxdb-angular';
 import {
   actionsColumn,
+  applyListViewColumns,
   buildEditableColumns,
   buildFormFields,
+  buildListViewOrderBy,
+  buildListViewRecords,
+  buildListViewTableOptions,
   canReorderEntityList,
   commitRowMove,
-  defaultListOrderBy,
+  createListViewState,
   deriveEntityCapabilities,
   describeHistoryBarrier,
   extractFieldsFromMetadata,
+  getListViewFields,
   organizeFields,
   parsePropertyColumnValue,
   type BatchChangeItem,
@@ -28,6 +25,7 @@ import {
   type FieldMetadata,
   type FilterQuery,
   type FormFieldConfig,
+  type ListViewState,
   type ModelInfo,
   type RelatedEntityProvider,
   type RowMoveEvent,
@@ -59,13 +57,20 @@ import {
   type WritableSignal
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { LucideFunnel as Funnel, LucideDynamicIcon, LucideRedo2 as Redo2, LucideUndo2 as Undo2 } from '@lucide/angular';
+import {
+  LucideFunnel as Funnel,
+  LucideDynamicIcon,
+  LucideRedo2 as Redo2,
+  LucideUndo2 as Undo2,
+  LucideX as X
+} from '@lucide/angular';
 import type { ColumnsDefine, ListTableConstructorOptions } from '@visactor/vtable';
 import { of } from 'rxjs';
 import type { EntityDetailDialogData } from '../entity-detail/entity-detail';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
 import { QueryTableComponent } from '../entity-table/query-table/query-table.component';
 import { QueryBuilderComponent } from '../query-builder/query-builder/query-builder.component';
+import { ListViewSettingsComponent } from './list-view-settings.component';
 
 // 历史 / 撤销重做子系统在开源核心中被拆为 rxdb-plugin-history 插件（US-025）：
 // 其装配期在 RxDB 实例上挂载 `versionManager` 槽位，此处声明合并恢复该类型的可见性。
@@ -79,6 +84,15 @@ const EMPTY_FILTER: FilterQuery = { combinator: 'and', rules: [] };
 
 /** 列表列头排序状态（normal = 默认 id desc） */
 type ListSortState = { field: string; order: 'asc' | 'desc' | 'normal' };
+
+interface PendingEntityChange {
+  entityKey: string;
+  recordId: string;
+  entityClass: EntityType;
+  target: EntityInstance;
+  draft: boolean;
+  changes: Record<string, unknown>;
+}
 
 const DEFAULT_SORT_STATE: ListSortState = { field: 'id', order: 'normal' };
 
@@ -108,23 +122,6 @@ function normalizeSortOrder(order: unknown): ListSortState['order'] {
   const lower = order.toLowerCase();
   if (lower === 'asc' || lower === 'desc' || lower === 'normal') return lower;
   return 'normal';
-}
-
-/**
- * 构造 FindByCursor 所需 orderBy。
- * normal → 实体默认排序（手动排序实体按手动顺序）；用户字段 → [field, id] 同向（末尾唯一键满足游标定位）。
- */
-function buildCursorOrderBy(state: ListSortState, metadata: EntityMetadata | undefined): OrderBy[] {
-  if (state.order === 'normal' || !state.field) {
-    return defaultListOrderBy(metadata);
-  }
-  if (state.field === 'id') {
-    return [{ field: 'id', sort: state.order }];
-  }
-  return [
-    { field: state.field, sort: state.order },
-    { field: 'id', sort: state.order }
-  ];
 }
 
 /** 落库错误转为提示文案 */
@@ -166,6 +163,7 @@ function parseInitialFilter(raw: string | undefined): FilterQuery | undefined {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     QueryTableComponent,
+    ListViewSettingsComponent,
     QueryBuilderComponent,
     LucideDynamicIcon,
     CdkConnectedOverlay,
@@ -181,6 +179,10 @@ function parseInitialFilter(raw: string | undefined): FilterQuery | undefined {
  */
 export class EntityListComponent {
   #m2mDialogRef: DialogRef<unknown, void> | null = null;
+  /** 待确认删除的行；非空即弹层打开。 */
+  readonly #deleteConfirmRecord = signal<EntityTableRecord | null>(null);
+  #deleteConfirmRef: DialogRef<unknown, void> | null = null;
+  #saveToastTimer: ReturnType<typeof setTimeout> | null = null;
   // ── Service injections ────────────────────────────────────────────────
   readonly #rxdb = inject(RxDB);
   readonly #injector = inject(Injector);
@@ -189,7 +191,7 @@ export class EntityListComponent {
   readonly #destroyRef = inject(DestroyRef);
 
   // ── Save coalescing ───────────────────────────────────────────────────
-  readonly #pendingChanges = new Map<string, Record<string, unknown>>();
+  readonly #pendingChanges = new Map<string, PendingEntityChange>();
   #flushHandle = false;
   /** 已排队或正在落库的行内编辑批次数；不为 0 时拒绝拖放排序 */
   readonly #pendingEditBatches = signal(0);
@@ -288,6 +290,9 @@ export class EntityListComponent {
     return { ...DEFAULT_SORT_STATE };
   });
 
+  readonly #querySorts = computed(() => this.viewState().sorts);
+  readonly #groupBy = computed(() => this.viewState().groupBy);
+
   /** 内部查询表格：拖放被拒或落库失败时恢复行序 */
   private readonly queryTable = viewChild(QueryTableComponent);
 
@@ -295,7 +300,43 @@ export class EntityListComponent {
   protected readonly Undo2 = Undo2;
   protected readonly Redo2 = Redo2;
   protected readonly Funnel = Funnel;
-  protected readonly listTableOptions = LIST_TABLE_OPTIONS;
+  protected readonly X = X;
+  protected readonly viewState = linkedSignal(() => {
+    this.#entityKey();
+    return createListViewState();
+  });
+  protected readonly sourceTableRecords = computed<EntityTableRecord[]>(() => {
+    // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
+    // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
+    const isRowReadonly = this.#capabilities()?.canEdit === false;
+    const dbRecords = this.#instances().map(inst => ({
+      ...(inst as Record<string, unknown>),
+      ...(isRowReadonly ? { _readonly: true } : {})
+    }));
+    const draftRecords = this.#localDraftItems().map(inst => ({ ...(inst as Record<string, unknown>) }));
+    let records: EntityTableRecord[] = [...draftRecords, ...dbRecords];
+    if (this.isSelectMode()) {
+      const linkedIds = this.alreadyLinkedIds();
+      const selIds = this.selectedIds();
+      records = records
+        .filter(r => !linkedIds.has(r['id'] as string))
+        .map(r => ({ ...r, __selected: selIds.has(r['id'] as string) }));
+    }
+    return records;
+  });
+  protected readonly baseTableColumns = computed<ColumnsDefine>(() => {
+    // 未注册实体无元数据可派生，不给删除
+    const base = this.#columnsCache.get(this.#entityKey()) ?? [actionsColumn('操作', '删除', () => false, '查看')];
+    if (this.isSelectMode()) {
+      const withoutActions = base.filter(c => (c as Record<string, unknown>)['field'] !== 'actions');
+      return [{ field: '__selected', title: '', cellType: 'checkbox', width: 50 }, ...withoutActions];
+    }
+    return base;
+  });
+  protected readonly listTableOptions = computed<Partial<ListTableConstructorOptions>>(() => ({
+    ...LIST_TABLE_OPTIONS,
+    ...buildListViewTableOptions(this.viewState(), this.baseTableColumns())
+  }));
 
   /** CDK Overlay 定位策略：优先下方右对齐，其次上方右对齐 */
   protected readonly overlayPositions = [
@@ -427,36 +468,6 @@ export class EntityListComponent {
     return organizeFields(extractFieldsFromMetadata(getEntityMetadata(cls), this.#modelInfoMap));
   });
 
-  readonly tableRecords = computed<EntityTableRecord[]>(() => {
-    // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
-    // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
-    const isRowReadonly = this.#capabilities()?.canEdit === false;
-    const dbRecords = this.#instances().map(inst => ({
-      ...(inst as Record<string, unknown>),
-      ...(isRowReadonly ? { _readonly: true } : {})
-    }));
-    const draftRecords = this.#localDraftItems().map(inst => ({ ...(inst as Record<string, unknown>) }));
-    let records: EntityTableRecord[] = [...draftRecords, ...dbRecords];
-    if (this.isSelectMode()) {
-      const linkedIds = this.alreadyLinkedIds();
-      const selIds = this.selectedIds();
-      records = records
-        .filter(r => !linkedIds.has(r['id'] as string))
-        .map(r => ({ ...r, __selected: selIds.has(r['id'] as string) }));
-    }
-    return records;
-  });
-
-  readonly tableColumns = computed<ColumnsDefine>(() => {
-    // 未注册实体无元数据可派生，不给删除
-    const base = this.#columnsCache.get(this.#entityKey()) ?? [actionsColumn('操作', '删除', () => false, '查看')];
-    if (this.isSelectMode()) {
-      const withoutActions = base.filter(c => (c as Record<string, unknown>)['field'] !== 'actions');
-      return [{ field: '__selected', title: '', cellType: 'checkbox', width: 50 }, ...withoutActions];
-    }
-    return base;
-  });
-
   readonly createFormFieldConfigs = computed<FormFieldConfig[]>(() => {
     const cls = this.#entityCls();
     if (!cls) return [];
@@ -464,11 +475,23 @@ export class EntityListComponent {
     return buildFormFields(meta, 'create');
   });
 
+  readonly tableColumns = computed(() => applyListViewColumns(this.baseTableColumns(), this.viewState()));
+  readonly viewFields = computed(() =>
+    getListViewFields(applyListViewColumns(this.baseTableColumns(), { ...this.viewState(), hiddenFields: [] }))
+  );
+  readonly tableRecords = computed(() => buildListViewRecords(this.sourceTableRecords(), this.viewState()));
+
   // ── Select mode ───────────────────────────────────────────────────────
   readonly isSelectMode = computed(() => this.mode() === 'select');
   readonly isM2m = computed(() => this.relationKind() === RelationKind.MANY_TO_MANY);
 
   readonly m2mSelectTpl = viewChild<TemplateRef<void>>('m2mSelectTpl');
+  /** 删除确认弹层模板（误删成本高，撤销入口不显眼）。 */
+  readonly deleteConfirmTpl = viewChild<TemplateRef<void>>('deleteConfirmTpl');
+  /** 最近一次删除被存储层拒绝的原因（如仍被其他记录引用）；重新删除或切换实体时清除，`null` 为无错误 */
+  readonly deleteError = signal<string | null>(null);
+  /** 保存成功 toast（2 秒自动消失）。 */
+  readonly saveToast = signal(false);
 
   // ── Manual order (US-028) ─────────────────────────────────────────────
   /** 最近一次拖放排序落库失败的提示；`null` 为无错误 */
@@ -478,18 +501,21 @@ export class EntityListComponent {
   readonly rowDragEnabled = computed(() => {
     const cls = this.#entityCls();
     const list = this.#currentList();
-    return canReorderEntityList({
-      metadata: cls ? getEntityMetadata(cls) : undefined,
-      sortOrder: this.#sortState().order,
-      hasUserFilter: this.filterQuery().rules.length > 0,
-      selectMode: this.isSelectMode(),
-      fixedQuery: this.fixedQuery(),
-      fullyLoaded: !!list && !list.hasMore() && !list.isLoading(),
-      hasReadonlyRows: this.#capabilities()?.canEdit === false,
-      hasDrafts: this.#localDraftItems().length > 0,
-      hasPendingEdits: this.#pendingEditBatches() > 0,
-      reorderPending: this.#reorderPending()
-    });
+    return (
+      this.viewState().groupBy === null &&
+      canReorderEntityList({
+        metadata: cls ? getEntityMetadata(cls) : undefined,
+        sortOrder: this.#sortState().order,
+        hasUserFilter: this.filterQuery().rules.length > 0,
+        selectMode: this.isSelectMode(),
+        fixedQuery: this.fixedQuery(),
+        fullyLoaded: !!list && !list.hasMore() && !list.isLoading(),
+        hasReadonlyRows: this.#capabilities()?.canEdit === false,
+        hasDrafts: this.#localDraftItems().length > 0,
+        hasPendingEdits: this.#pendingEditBatches() > 0,
+        reorderPending: this.#reorderPending()
+      })
+    );
   });
 
   readonly selectedIds = signal<Set<string>>(new Set());
@@ -520,6 +546,27 @@ export class EntityListComponent {
       if (!parsed) return;
       this.pendingQuery.set(parsed);
       this.filterQuery.set(parsed);
+    });
+
+    let previousEntityKey: string | undefined;
+    effect(() => {
+      const key = this.#entityKey();
+      if (previousEntityKey === undefined) {
+        previousEntityKey = key;
+        return;
+      }
+      if (key === previousEntityKey) return;
+      previousEntityKey = key;
+      this.selectedIds.set(new Set());
+      this.#localDraftItems.set([]);
+      this.pendingQueryValid.set(true);
+      this.showFilterPopover.set(false);
+      this.reorderError.set(null);
+      this.deleteError.set(null);
+      this.#deleteConfirmRef?.close();
+      this.#deleteConfirmRecord.set(null);
+      this.#m2mDialogRef?.close();
+      this.#m2mDialogRef = null;
     });
   }
 
@@ -603,21 +650,38 @@ export class EntityListComponent {
       return;
     }
     if (event.name !== 'delete-action') return;
-    const id = event.record['id'] as string;
+    this.#openDeleteConfirm(event.record);
+  }
+
+  /** 确认弹层里的删除执行（与删除图标同一条路径）。 */
+  async confirmDelete(): Promise<void> {
+    const record = this.#deleteConfirmRecord();
+    if (!record) return;
+    // 弹层与确认状态在 await 前清空：二次点击被早退挡掉，恢复后也不会误关之后打开的新弹层
+    this.#deleteConfirmRef?.close();
+    this.#deleteConfirmRecord.set(null);
+    this.deleteError.set(null);
+    const id = record['id'] as string;
 
     const draftInst = this.#localDraftItems().find(i => i.id === id);
     if (draftInst) {
       this.#localDraftItems.update(items => items.filter(i => i.id !== id));
-      return;
+    } else {
+      const inst = this.#instances().find(i => i.id === id);
+      if (inst) {
+        try {
+          await inst.remove();
+        } catch (e) {
+          // 确认弹层已关：存储层拒绝的原因（如仍被引用时外键 RESTRICT）留在列表上
+          this.deleteError.set(errorMessage(e));
+          this.#errorHandler.handleError(e);
+        }
+      }
     }
+  }
 
-    const inst = this.#instances().find(i => i.id === id);
-    if (!inst) return;
-    try {
-      await inst.remove();
-    } catch (e) {
-      this.#errorHandler.handleError(e);
-    }
+  cancelDelete(): void {
+    this.#deleteConfirmRef?.close();
   }
 
   async onRowDeleted(event: EntityTableRecord): Promise<void> {
@@ -669,7 +733,10 @@ export class EntityListComponent {
     });
 
     dialogRef.closed.subscribe(result => {
-      if (result === 'saved') this.#currentList()?.refresh();
+      if (result === 'saved') {
+        this.#currentList()?.refresh();
+        this.#showSaveToast();
+      }
     });
   }
 
@@ -750,13 +817,20 @@ export class EntityListComponent {
     });
   }
 
-  /**
-   * 列头排序点击：驱动 cursor orderBy 重查（VTable 客户端排序已禁用）。
-   */
+  /** 应用列表视图配置并同步手动排序约束。 */
+  onViewSettingsChange(value: ListViewState): void {
+    this.viewState.set(value);
+    const first = value.sorts[0];
+    this.#sortState.set(first ? { field: first.field, order: first.sort } : { ...DEFAULT_SORT_STATE });
+  }
+
+  /** 列头排序点击：驱动 cursor orderBy 重查（VTable 客户端排序已禁用）。 */
   onSortClicked(event: { field: unknown; order: unknown }): void {
     const field = normalizeSortField(event.field);
     if (!field) return;
-    this.#sortState.set({ field, order: normalizeSortOrder(event.order) });
+    const order = normalizeSortOrder(event.order);
+    this.#sortState.set({ field, order });
+    this.viewState.update(current => ({ ...current, sorts: order === 'normal' ? [] : [{ field, sort: order }] }));
   }
 
   // ── Private helpers ───────────────────────────────────────────────────
@@ -765,6 +839,29 @@ export class EntityListComponent {
    * 「查看」行 → 打开详情对话框：可写行走 edit 模式（内置弹窗修改），`_readonly` 行走 view 模式（无保存入口）。
    * 关系 Tab 内嵌的列表同样走这里，套娃下钻；`editChain` 命中或未落库草稿时只 emit 不打开。
    */
+  #showSaveToast(): void {
+    if (this.#saveToastTimer !== null) clearTimeout(this.#saveToastTimer);
+    this.saveToast.set(true);
+    this.#saveToastTimer = setTimeout(() => this.saveToast.set(false), 2000);
+  }
+
+  /** 打开删除确认弹层。 */
+  #openDeleteConfirm(record: EntityTableRecord): void {
+    if (this.#deleteConfirmRef) return;
+    const tpl = this.deleteConfirmTpl();
+    if (!tpl) return;
+    this.#deleteConfirmRecord.set(record);
+    const ref = this.#dialog.open(tpl, {
+      width: 'min(420px, calc(100vw - 1rem))',
+      panelClass: 'entity-delete-confirm-dialog'
+    });
+    this.#deleteConfirmRef = ref;
+    ref.closed.subscribe(() => {
+      this.#deleteConfirmRef = null;
+      this.#deleteConfirmRecord.set(null);
+    });
+  }
+
   async #openViewDialog(record: EntityTableRecord): Promise<void> {
     const id = record['id'];
     if (typeof id !== 'string' || !id) return;
@@ -799,7 +896,10 @@ export class EntityListComponent {
     });
 
     dialogRef.closed.subscribe(result => {
-      if (result === 'saved') this.#currentList()?.refresh();
+      if (result === 'saved') {
+        this.#currentList()?.refresh();
+        this.#showSaveToast();
+      }
     });
   }
 
@@ -877,11 +977,15 @@ export class EntityListComponent {
       } else {
         where = { combinator: 'and', rules: [...fixed.rules, ...userFilter.rules] };
       }
-      // 关联实体下拉的 list 不跟主表列头排序，避免外键侧字段缺失
-      const sortState = key === this.#entityKey() ? this.#sortState() : DEFAULT_SORT_STATE;
+      // 关联候选不使用主表的筛选与排序
+      const isCurrent = key === this.#entityKey();
+      const view =
+        isCurrent ?
+          { ...createListViewState(), sorts: this.#querySorts(), groupBy: this.#groupBy() }
+        : createListViewState();
       return {
-        where: where as never,
-        orderBy: buildCursorOrderBy(sortState, getEntityMetadata(cls)) as FindByCursorOptions<EntityType>['orderBy']
+        where: (isCurrent ? where : EMPTY_FILTER) as never,
+        orderBy: buildListViewOrderBy(view, getEntityMetadata(cls)) as FindByCursorOptions<EntityType>['orderBy']
       };
     });
     const list = runInInjectionContext(this.#injector, () => new InfiniteScrollingList(this.#rxdb, cls, options));
@@ -890,61 +994,73 @@ export class EntityListComponent {
   }
 
   #enqueue(recordId: string, changes: Record<string, unknown>): void {
-    const cur = this.#pendingChanges.get(recordId) ?? {};
-    this.#pendingChanges.set(recordId, { ...cur, ...changes });
+    const entityKey = this.#entityKey();
+    const entityClass = this.#entityCls();
+    if (!entityClass) return;
+    const records = this.#instances();
+    const target =
+      records.find(item => item.id === recordId) ?? this.#localDraftItems().find(item => item.id === recordId);
+    if (!target) return;
+    const key = `${entityKey}:${recordId}`;
+    const current = this.#pendingChanges.get(key);
+    this.#pendingChanges.set(key, {
+      entityKey,
+      recordId,
+      entityClass,
+      target: current?.target ?? target,
+      draft: current?.draft ?? !records.some(item => item.id === recordId),
+      changes: { ...current?.changes, ...changes }
+    });
     if (this.#flushHandle) return;
     this.#flushHandle = true;
     this.#pendingEditBatches.update(count => count + 1);
     queueMicrotask(() => {
       this.#flushHandle = false;
-      const snapshot = [...this.#pendingChanges.entries()];
+      const snapshot = [...this.#pendingChanges.values()];
       this.#pendingChanges.clear();
       void this.#flushPending(snapshot).finally(() => this.#pendingEditBatches.update(count => count - 1));
     });
   }
 
-  async #flushPending(pending: [string, Record<string, unknown>][]): Promise<void> {
+  async #flushPending(pending: PendingEntityChange[]): Promise<void> {
     if (!pending.length) return;
-    const EntityClass = this.#entityCls();
-    if (!EntityClass) return;
-    const toUpdate = new Set<EntityInstance>();
+    const updateGroups = new Map<EntityType, Set<EntityInstance>>();
     const prevMap = new Map<EntityInstance, Record<string, unknown>>();
     const draftUpdated = new Set<EntityInstance>();
-    for (const [id, changes] of pending) {
-      let inst = this.#instances().find(i => i.id === id);
-      const isDraft = !inst;
-      if (!inst) {
-        inst = this.#localDraftItems().find(i => i.id === id);
-      }
-      if (!inst) continue;
+    for (const entry of pending) {
+      const inst = entry.target;
       const prev: Record<string, unknown> = {};
       const actual: Record<string, unknown> = {};
       let hasChange = false;
-      for (const k of Object.keys(changes)) {
-        if (inst[k] !== changes[k]) {
-          prev[k] = inst[k];
-          actual[k] = changes[k];
+      for (const key of Object.keys(entry.changes)) {
+        if (inst[key] !== entry.changes[key]) {
+          prev[key] = inst[key];
+          actual[key] = entry.changes[key];
           hasChange = true;
         }
       }
       if (!hasChange) continue;
       prevMap.set(inst, prev);
       Object.assign(inst as Record<string, unknown>, actual);
-      if (isDraft) {
+      if (entry.draft) {
         draftUpdated.add(inst);
       } else {
-        toUpdate.add(inst);
+        const group = updateGroups.get(entry.entityClass) ?? new Set<EntityInstance>();
+        group.add(inst);
+        updateGroups.set(entry.entityClass, group);
       }
     }
 
     // 草稿实体直接更新 signal 触发重渲染（不写DB）
     if (draftUpdated.size) {
-      this.#localDraftItems.update(items => [...items]);
+      this.#localDraftItems.update(items => (items.some(item => draftUpdated.has(item)) ? [...items] : items));
     }
 
-    if (!toUpdate.size) return;
+    if (!updateGroups.size) return;
 
-    const updateMap = new Map([[EntityClass, toUpdate as unknown as Set<unknown>]]);
+    const updateMap = new Map(
+      [...updateGroups.entries()].map(([entityClass, items]) => [entityClass, items as Set<unknown>] as const)
+    );
     try {
       await this.#rxdb.entityManager.mutations({ create: new Map(), update: updateMap, remove: new Map() });
     } catch (e) {

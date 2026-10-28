@@ -227,7 +227,7 @@ test.describe('Entity Model Cross-Framework Parity', () => {
   test('同一份 Todo 种子数据下的语义快照与三端共享 golden 一致', async ({ page }, testInfo) => {
     await page.goto('/entities/public/Todo');
     await expect(page.getByTestId('entity-shell')).toBeVisible();
-    await expect(page.getByText('暂无数据')).toBeVisible();
+    await expect(page.getByTestId('entity-empty-state')).toBeVisible();
 
     // 1) create 模式表单字段（空值）——从第一笔种子的对话框里采集
     await page.getByRole('button', { name: '+ 新增' }).click();
@@ -241,7 +241,7 @@ test.describe('Entity Model Cross-Framework Parity', () => {
     for (const title of SEED_TITLES.slice(1)) {
       await createTodo(page, title);
     }
-    await expect(page.getByText('暂无数据')).toHaveCount(0);
+    await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
 
     // 3) 列表渲染：点 title 列头按标题升序（默认 id 倒序的 UUID 是随机的，顺序必须由排序交互确定）。
     // 先等三笔种子都进了表格：表格没就绪时点击会落空，而排序只能点一次（再点就翻成降序），不能重试
@@ -270,7 +270,7 @@ test.describe('Entity Model Cross-Framework Parity', () => {
     await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
 
     // 5) 查询构建器：title 包含 parity-bravo 的条件树
-    await page.getByRole('button', { name: '筛选' }).click();
+    await page.getByRole('button', { name: /^筛选/ }).click();
     await page.getByRole('button', { name: '添加第一个条件' }).click();
     const rule = page.locator('.rxdb-query-rule').first();
     await rule.locator('button[popovertarget]').first().click();
