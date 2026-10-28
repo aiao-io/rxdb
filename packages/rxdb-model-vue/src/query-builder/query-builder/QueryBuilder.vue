@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t, runtime: modelI18n } = useModelI18n();
+
+import { useModelI18n } from '../../i18n';
+
 /**
  * Vue Query Builder 主组件（对齐 Angular 侧 `QueryBuilderComponent`）。
  *
@@ -52,6 +56,7 @@ const emit = defineEmits<{
 }>();
 
 const service = createQueryBuilderService<Record<string, unknown>>({
+  i18n: modelI18n,
   config: { maxNestingLevel: props.maxDepth }
 });
 
@@ -221,7 +226,7 @@ defineExpose({
 <template>
   <div
     class="rxdb-query-builder bg-base-100"
-    aria-label="查询条件构建器"
+    :aria-label="t('text.56a9f5c541')"
     role="search"
     tabindex="0"
     @keydown="onKeyDown"
@@ -237,23 +242,23 @@ defineExpose({
           id="query-builder-title"
           class="text-base"
         >
-          查询条件
+          {{ t('text.648fdced03') }}
         </h3>
         <div
           class="flex gap-2"
-          aria-label="查询操作"
+          :aria-label="t('text.7ed37bf1ef')"
           role="toolbar"
         >
           <button
             v-if="hasRules"
             class="btn btn-ghost btn-sm"
-            aria-label="清空所有查询条件"
-            title="清空所有查询条件 (Escape)"
+            :aria-label="t('text.d5766fc7e7')"
+            :title="t('text.aa3624ed89')"
             type="button"
             @click="clearAll"
             @keydown.enter="clearAll"
           >
-            清空
+            {{ t('text.1ef3de06b3') }}
           </button>
         </div>
       </div>
@@ -287,14 +292,14 @@ defineExpose({
             <path d="m21 21-4.3-4.3" />
           </svg>
         </div>
-        <p class="mb-4"> 还没有任何查询条件 </p>
+        <p class="mb-4"> {{ t('text.d9f64a68c4') }} </p>
         <button
           class="btn btn-sm"
-          aria-label="添加第一个条件"
+          :aria-label="t('text.25ed2ab519')"
           type="button"
           @click="addFirstRule"
         >
-          添加第一个条件
+          {{ t('text.25ed2ab519') }}
         </button>
       </div>
 

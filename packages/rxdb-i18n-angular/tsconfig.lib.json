@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "emitDeclarationOnly": false,
+    "outDir": "../../dist/out-tsc/rxdb-i18n-angular/lib",
+    "declaration": true,
+    "declarationMap": true,
+    "types": [],
+    "rootDir": "."
+  },
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../rxdb-i18n/tsconfig.lib.json"
+    }
+  ]
+}

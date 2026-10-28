@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t, runtime: modelI18n } = useModelI18n();
+
+import { useModelI18n } from '../i18n';
+
 /**
  * Tab 式实体详情组件（对齐 Angular 侧 `EntityDetailComponent`）。
  *
@@ -108,7 +112,7 @@ const saveError = ref<string | null>(null);
 
 /** 落库失败：可读原因进错误面板（不再只进 console，US-104）。 */
 const saveErrorMessage = (error: unknown): string =>
-  `保存失败：${error instanceof Error ? error.message : String(error)}`;
+  t('text.6ba723c9e6', { p0: error instanceof Error ? error.message : String(error) });
 
 /** create 模式下的草稿实体实例（立即创建，不保存） */
 const draftEntity = shallowRef<EntityInstance | null>(null);
@@ -147,7 +151,7 @@ const metadataFromRouteInputs = computed<EntityMetadata | null>(() => {
 const formFieldsFromRouteInputs = computed<FormFieldConfig[] | null>(() => {
   const meta = metadataFromRouteInputs.value;
   if (!meta) return null;
-  return buildFormFields(meta, formModeValue.value);
+  return buildFormFields(meta, formModeValue.value, modelI18n);
 });
 
 /** 编辑模式按 id 加载实体实例（等价 Angular 的 toSignal(switchMap(get(id)))） */
@@ -201,7 +205,7 @@ const dialogTitle = computed(() => {
   const meta = metadataValue.value;
   const mode = formModeValue.value;
   const name = meta?.displayName ?? meta?.name ?? '';
-  return mode === 'create' ? `新建${name}` : name;
+  return mode === 'create' ? t('text.ec43629967', { p0: name }) : name;
 });
 
 /** 创建链路：当前实体 + 祖先链路，传递给子 entity-list 以阻断循环创建 */
@@ -253,7 +257,9 @@ const tabs = computed(() => {
   const meta = metadataValue.value;
   if (!meta) return [];
   const chain = creationChain.value;
-  return buildDetailTabs(meta).filter(tab => {
+
+  t('detail.basic');
+  return buildDetailTabs(meta, modelI18n).filter(tab => {
     if (tab.type !== 'table') return true;
     const t = tab as DetailTableTab;
     const key = `${t.relatedNamespace}:${t.relatedEntityName}`;
@@ -297,7 +303,7 @@ const selectTab = (key: string): void => {
     const data = draftFormData.value;
     const fixed = props.fixedFormData;
     const merged = fixed ? { ...data, ...fixed } : data;
-    const result = validateForm(fields, merged);
+    const result = validateForm(fields, merged, modelI18n);
     if (!result.valid) {
       onValidationErrors(result);
       return;
@@ -363,7 +369,7 @@ const onSave = (): void => {
   const data = draftFormData.value;
   const fixed = props.fixedFormData;
   const merged = fixed ? { ...data, ...fixed } : data;
-  const result = validateForm(fields, merged);
+  const result = validateForm(fields, merged, modelI18n);
   if (!result.valid) {
     onValidationErrors(result);
     return;
@@ -554,14 +560,14 @@ defineExpose({
           type="button"
           @click="onCancel"
         >
-          取消
+          {{ t('common.cancel') }}
         </button>
         <button
           class="btn btn-primary"
           type="button"
           @click="onSave"
         >
-          保存
+          {{ t('common.save') }}
         </button>
       </div>
     </EntityDialog>

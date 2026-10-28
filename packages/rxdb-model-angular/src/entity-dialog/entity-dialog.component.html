@@ -20,7 +20,7 @@
       <!-- Fullscreen Toggle -->
       <button
         class="btn btn-ghost btn-xs btn-square"
-        [attr.aria-label]="isFullscreen() ? '退出全屏' : '全屏'"
+        [attr.aria-label]="isFullscreen() ? t('text.0f1505b6ad') : t('text.22ea3f47fe')"
         (click)="toggleFullscreen()"
         type="button"
       >
@@ -35,7 +35,12 @@
         }
       </button>
       <!-- Close -->
-      <button class="btn btn-ghost btn-xs btn-square" (click)="close()" aria-label="关闭" type="button">
+      <button
+        class="btn btn-ghost btn-xs btn-square"
+        [attr.aria-label]="t('common.close')"
+        (click)="close()"
+        type="button"
+      >
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path d="M18 6 6 18M6 6l12 12" />
         </svg>

@@ -1,3 +1,4 @@
+import { useModelI18n } from '../../i18n.js';
 /**
  * @fileoverview Query Builder 主组件（Angular `QueryBuilderComponent` 的 React 移植）。
  *
@@ -64,6 +65,8 @@ export function QueryBuilder<T extends object = Record<string, unknown>>({
   onQueryChange,
   onValidationChange
 }: QueryBuilderProps<T>): JSX.Element {
+  const { t, runtime: modelI18n } = useModelI18n();
+
   const serviceRef = useRef<QueryBuilderService<T> | null>(null);
   const lastAppliedInitialQueryRef = useRef<unknown>(undefined);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -87,7 +90,7 @@ export function QueryBuilder<T extends object = Record<string, unknown>>({
 
   // 服务生命周期（挂载创建 / 卸载销毁，对应 Angular constructor + ngOnDestroy）
   useEffect(() => {
-    const service = createQueryBuilderService<T>({ config: { maxNestingLevel: maxDepth } });
+    const service = createQueryBuilderService<T>({ i18n: modelI18n, config: { maxNestingLevel: maxDepth } });
     serviceRef.current = service;
 
     // 拖拽 moveItem 实现绑定到服务（服务实例 effect 期才就绪）
@@ -114,7 +117,7 @@ export function QueryBuilder<T extends object = Record<string, unknown>>({
     };
     // 初始 maxDepth 只在服务创建时读取（Angular 侧 constructor 同语义）
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragDropHandler]);
+  }, [dragDropHandler, modelI18n]);
 
   // 字段变化同步到服务（Angular 侧 effect 同语义）
   useEffect(() => {
@@ -197,16 +200,16 @@ export function QueryBuilder<T extends object = Record<string, unknown>>({
     <div
       className='rxdb-query-builder bg-base-100'
       onKeyDown={onKeyDown}
-      aria-label='查询条件构建器'
+      aria-label={t('text.56a9f5c541')}
       role='search'
       tabIndex={0}
     >
       <div className='overflow-y-auto' ref={scrollContainerRef} style={{ maxHeight: height }}>
         <div className='mb-4 flex items-center justify-between'>
           <h3 className='text-base' id='query-builder-title'>
-            查询条件
+            {t('text.648fdced03')}
           </h3>
-          <div className='flex gap-2' aria-label='查询操作' role='toolbar'>
+          <div className='flex gap-2' aria-label={t('text.7ed37bf1ef')} role='toolbar'>
             {hasRules && (
               <button
                 className='btn btn-ghost btn-sm'
@@ -214,11 +217,11 @@ export function QueryBuilder<T extends object = Record<string, unknown>>({
                 onKeyDown={event => {
                   if (event.key === 'Enter') clearAll();
                 }}
-                aria-label='清空所有查询条件'
-                title='清空所有查询条件 (Escape)'
+                aria-label={t('text.d5766fc7e7')}
+                title={t('text.aa3624ed89')}
                 type='button'
               >
-                清空
+                {t('text.1ef3de06b3')}
               </button>
             )}
           </div>
@@ -240,9 +243,9 @@ export function QueryBuilder<T extends object = Record<string, unknown>>({
                 <path d='m21 21-4.3-4.3' />
               </svg>
             </div>
-            <p className='mb-4'>还没有任何查询条件</p>
-            <button className='btn btn-sm' onClick={addFirstRule} aria-label='添加第一个条件' type='button'>
-              添加第一个条件
+            <p className='mb-4'>{t('text.d9f64a68c4')}</p>
+            <button className='btn btn-sm' onClick={addFirstRule} aria-label={t('text.25ed2ab519')} type='button'>
+              {t('text.25ed2ab519')}
             </button>
           </div>
         : <QueryGroup

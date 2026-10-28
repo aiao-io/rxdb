@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t } = useModelI18n();
+
+import { useModelI18n } from '../../i18n';
+
 /**
  * 查询规则组组件（递归，对齐 Angular 侧 `QueryGroupComponent`）。
  *
@@ -55,7 +59,7 @@ const collapsed = ref(false);
 const canAddGroup = computed(() => props.depth < props.maxDepth - 1);
 
 /** 达到嵌套上限时展示给用户的原因（不能静默） */
-const nestingLimitHint = computed(() => `已达最大嵌套层级（${props.maxDepth} 层）`);
+const nestingLimitHint = computed(() => t('text.6c886ad5ce', { p0: props.maxDepth }));
 
 /** 切换折叠状态 */
 const toggleCollapse = (): void => {
@@ -265,7 +269,7 @@ defineExpose({
       <button
         v-if="allowCollapse"
         class="btn btn-ghost btn-xs btn-square"
-        :title="collapsed ? '展开' : '收起'"
+        :title="collapsed ? t('text.00bd3960fe') : t('text.afd4b78353')"
         type="button"
         @click="toggleCollapse"
       >
@@ -292,7 +296,7 @@ defineExpose({
           type="button"
           @click="onAddRule"
         >
-          + 条件
+          {{ t('text.85bdca3be7') }}
         </button>
 
         <!-- 达到上限时保留按钮并禁用，而不是整个条件渲染掉（超出需给出可见原因） -->
@@ -304,7 +308,7 @@ defineExpose({
           type="button"
           @click="onAddGroup"
         >
-          + 分组
+          {{ t('text.4431aae209') }}
         </button>
         <span
           v-if="!canAddGroup"
@@ -316,7 +320,7 @@ defineExpose({
         <button
           v-if="depth > 0"
           class="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-error"
-          title="删除组"
+          :title="t('text.b85068a840')"
           type="button"
           @click="onRemove"
         >
@@ -403,7 +407,7 @@ defineExpose({
       v-if="!collapsed && group.rules.length === 0"
       class="text-base-content/50 py-2 text-center text-sm select-none"
     >
-      暂无条件
+      {{ t('text.9b25f95c75') }}
     </div>
   </div>
 </template>

@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t, runtime: modelI18n } = useModelI18n();
+
+import { useModelI18n } from '../i18n';
+
 /**
  * 实体列表组件（对齐 Angular 侧 `EntityListComponent`）。
  *
@@ -337,39 +341,43 @@ watchEffect(onCleanup => {
 
 const canUndo = computed(() => undoCount.value > 0);
 const canRedo = computed(() => redoCount.value > 0);
-const undoHint = computed(() => (canUndo.value ? null : describeHistoryBarrier('undo', undoBarrier.value)));
-const redoHint = computed(() => (canRedo.value ? null : describeHistoryBarrier('redo', redoBarrier.value)));
+const undoHint = computed(() => (canUndo.value ? null : describeHistoryBarrier('undo', undoBarrier.value, modelI18n)));
+const redoHint = computed(() => (canRedo.value ? null : describeHistoryBarrier('redo', redoBarrier.value, modelI18n)));
 
 // ── Columns cache（每实体一次） ───────────────────────────────────────
-const columnsCache = new Map<string, ColumnsDefine>(
-  rxdb.config.entities.map(cls => {
-    const meta = getEntityMetadata(cls);
-    return [
-      `${meta.namespace}:${meta.name}`,
-      buildEditableColumns(meta, {
-        readOnly: rxdb.readOnly,
-        relatedItemsProviderFactory: (_fkField, relatedEntityName) => {
-          const relCls = [...entityClsMap.values()].find(c => {
-            const m = getEntityMetadata(c);
-            return m.name === relatedEntityName;
-          });
-          if (!relCls) return undefined;
-          const relMeta = getEntityMetadata(relCls);
-          const relKey = `${relMeta.namespace}:${relMeta.name}`;
-          const list = scrollListMap.get(relKey);
-          if (!list) return undefined;
-          const strVal = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined);
-          return () => {
-            return (list.value.value as Record<string, unknown>[]).map(inst => ({
-              id: String(inst['id'] ?? ''),
-              displayName: strVal(inst['displayName']) ?? strVal(inst['name']) ?? String(inst['id'] ?? '')
-            }));
-          };
-        }
-      })
-    ] as const;
-  })
-);
+const columnsCache = computed(() => {
+  t('common.actions');
+  return new Map<string, ColumnsDefine>(
+    rxdb.config.entities.map(cls => {
+      const meta = getEntityMetadata(cls);
+      return [
+        `${meta.namespace}:${meta.name}`,
+        buildEditableColumns(meta, {
+          i18n: modelI18n,
+          readOnly: rxdb.readOnly,
+          relatedItemsProviderFactory: (_fkField, relatedEntityName) => {
+            const relCls = [...entityClsMap.values()].find(c => {
+              const m = getEntityMetadata(c);
+              return m.name === relatedEntityName;
+            });
+            if (!relCls) return undefined;
+            const relMeta = getEntityMetadata(relCls);
+            const relKey = `${relMeta.namespace}:${relMeta.name}`;
+            const list = scrollListMap.get(relKey);
+            if (!list) return undefined;
+            const strVal = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined);
+            return () => {
+              return (list.value.value as Record<string, unknown>[]).map(inst => ({
+                id: String(inst['id'] ?? ''),
+                displayName: strVal(inst['displayName']) ?? strVal(inst['name']) ?? String(inst['id'] ?? '')
+              }));
+            };
+          }
+        })
+      ] as const;
+    })
+  );
+});
 
 // ── View bindings ─────────────────────────────────────────────────────
 const loadMore = computed(() => {
@@ -465,7 +473,9 @@ const sourceTableRecords = computed<EntityTableRecord[]>(() => {
 
 const baseTableColumns = computed<ColumnsDefine>(() => {
   // 未注册实体无元数据可派生，不给删除
-  const base = columnsCache.get(entityKey.value) ?? [actionsColumn('操作', '删除', () => false, '查看')];
+  const base = columnsCache.value.get(entityKey.value) ?? [
+    actionsColumn(t('common.actions'), t('common.delete'), () => false, t('common.view'))
+  ];
   if (isSelectMode.value) {
     const withoutActions = base.filter(c => (c as Record<string, unknown>)['field'] !== 'actions');
     return [{ field: '__selected', title: '', cellType: 'checkbox', width: 50 }, ...withoutActions];
@@ -480,7 +490,7 @@ const viewFields = computed(() =>
 const tableRecords = computed(() => buildListViewRecords(sourceTableRecords.value, viewState.value));
 const listTableOptions = computed(() => ({
   ...LIST_TABLE_OPTIONS,
-  ...buildListViewTableOptions(viewState.value, baseTableColumns.value)
+  ...buildListViewTableOptions(viewState.value, baseTableColumns.value, modelI18n)
 }));
 const onViewSettingsChange = (value: ListViewState): void => {
   viewState.value = value;
@@ -492,7 +502,7 @@ const createFormFieldConfigs = computed<FormFieldConfig[]>(() => {
   const cls = entityCls.value;
   if (!cls) return [];
   const meta = getEntityMetadata(cls);
-  return buildFormFields(meta, 'create');
+  return buildFormFields(meta, 'create', modelI18n);
 });
 
 // ── 对话框状态（CDK Dialog 的包内替代：DialogPortal 渲染 + v-if 开关） ──
@@ -795,7 +805,7 @@ const openViewDialog = (record: EntityTableRecord): void => {
 
   const meta = getEntityMetadata(cls);
   const formMode = record['_readonly'] === true ? 'view' : 'edit';
-  const fields = buildFormFields(meta, formMode);
+  const fields = buildFormFields(meta, formMode, modelI18n);
 
   viewDialogData.value = {
     metadata: meta,
@@ -1070,7 +1080,7 @@ defineExpose({
       data-testid="save-toast"
       role="status"
     >
-      <div class="alert alert-success py-2 text-sm">已保存</div>
+      <div class="alert alert-success py-2 text-sm">{{ t('text.1bd91a7d0c') }}</div>
     </div>
 
     <!-- 顶栏：实体名称 + 计数 + 筛选按钮 + 新增按钮 -->
@@ -1080,7 +1090,7 @@ defineExpose({
         <span
           v-if="$isFilterQuery"
           class="badge badge-ghost badge-sm"
-          >{{ filteredCount }} 条记录</span
+          >{{ t('text.3a517ca2dd', { p0: filteredCount }) }}</span
         >
       </div>
       <div class="flex items-center gap-2">
@@ -1090,7 +1100,7 @@ defineExpose({
             class="btn btn-xs btn-ghost"
             :disabled="!canUndo"
             :title="undoHint ?? undefined"
-            aria-label="撤销 (Ctrl+Z)"
+            :aria-label="t('text.2b712a273d')"
             type="button"
             @click="undo"
           >
@@ -1108,7 +1118,7 @@ defineExpose({
             class="btn btn-xs btn-ghost"
             :disabled="!canRedo"
             :title="redoHint ?? undefined"
-            aria-label="重做 (Ctrl+Shift+Z)"
+            :aria-label="t('text.e8f69d1ab3')"
             type="button"
             @click="redo"
           >
@@ -1141,7 +1151,7 @@ defineExpose({
             class="h-4 w-4"
             :size="16"
           />
-          筛选
+          {{ t('text.b5f15473fd') }}
           <span
             v-if="isQueryActive"
             class="badge badge-primary badge-xs"
@@ -1160,7 +1170,7 @@ defineExpose({
             class="h-3.5 w-3.5"
             :size="14"
           />
-          清除筛选
+          {{ t('text.657d9cbf45') }}
         </button>
         <button
           v-if="!isCreateBlocked && isSelectMode"
@@ -1168,7 +1178,7 @@ defineExpose({
           type="button"
           @click="openCreateDialog"
         >
-          + 新建
+          {{ t('text.e514cb19f5') }}
         </button>
         <button
           v-else-if="!isCreateBlocked && isM2m"
@@ -1176,7 +1186,7 @@ defineExpose({
           type="button"
           @click="openM2mSelectDialog"
         >
-          + 添加
+          {{ t('text.42bb5c118d') }}
         </button>
         <button
           v-else-if="!isCreateBlocked"
@@ -1184,7 +1194,7 @@ defineExpose({
           type="button"
           @click="openCreateDialog"
         >
-          + 新增
+          {{ t('text.a91e87b292') }}
         </button>
       </div>
     </div>
@@ -1220,7 +1230,7 @@ defineExpose({
               type="button"
               @click="resetFilter"
             >
-              重置
+              {{ t('text.cb5d682bac') }}
             </button>
             <button
               class="btn btn-primary btn-sm"
@@ -1228,7 +1238,7 @@ defineExpose({
               type="button"
               @click="applyFilter"
             >
-              确定
+              {{ t('text.fac2a67ad8') }}
             </button>
           </div>
         </div>
@@ -1240,7 +1250,7 @@ defineExpose({
       class="alert alert-error alert-soft mx-4 mt-2 py-2 text-sm"
       role="alert"
     >
-      排序保存失败：{{ reorderError }}
+      {{ t('text.10bbe3c44d', { p0: reorderError }) }}
     </div>
 
     <!-- 删除被存储层拒绝 -->
@@ -1250,7 +1260,7 @@ defineExpose({
       role="alert"
       data-testid="delete-error"
     >
-      删除失败：{{ deleteError }}
+      {{ t('text.9619d77cba', { p0: deleteError }) }}
     </div>
 
     <!-- 表格主体 -->
@@ -1279,12 +1289,12 @@ defineExpose({
             class="flex flex-col items-center gap-1 py-10"
             data-testid="entity-empty-state"
           >
-            <span class="text-base-content/40 text-sm">暂无数据</span>
+            <span class="text-base-content/40 text-sm">{{ t('common.noData') }}</span>
             <span
               v-if="!isSelectMode && !isCreateBlocked"
               class="text-base-content/40 text-sm"
             >
-              点击「+ 新增」开始录入第一条{{ displayName }}
+              {{ t('text.0d4d0cde26', { p0: displayName }) }}
             </span>
           </div>
         </template>
@@ -1299,12 +1309,12 @@ defineExpose({
       <span
         v-if="selectedCount > 0"
         class="text-base-content/70 text-sm"
-        >已选 {{ selectedCount }} 项</span
+        >{{ t('text.dfd3db5fee', { p0: selectedCount }) }}</span
       >
       <span
         v-else
         class="text-base-content/40 text-sm"
-        >请选择要关联的{{ displayName }}</span
+        >{{ t('text.f2baa39ff0', { p0: displayName }) }}</span
       >
       <div class="flex gap-2">
         <button
@@ -1312,7 +1322,7 @@ defineExpose({
           type="button"
           @click="cancelSelection"
         >
-          取消
+          {{ t('common.cancel') }}
         </button>
         <button
           class="btn btn-primary btn-sm"
@@ -1320,7 +1330,7 @@ defineExpose({
           type="button"
           @click="confirmSelection"
         >
-          确认添加
+          {{ t('text.72dde8dfef') }}
         </button>
       </div>
     </div>
@@ -1362,16 +1372,16 @@ defineExpose({
       @closed="cancelDelete"
     >
       <EntityDialog
-        title="删除确认"
+        :title="t('text.fe43bc43c2')"
         @close-requested="cancelDelete"
       >
-        <p class="text-sm">确定删除这条{{ displayName }}记录？</p>
+        <p class="text-sm">{{ t('text.2ec52fff03', { p0: displayName }) }}</p>
         <div class="flex justify-end gap-2 pt-3">
           <button
             class="btn btn-sm"
             type="button"
             @click="cancelDelete"
-            >取消</button
+            >{{ t('common.cancel') }}</button
           >
           <button
             class="btn btn-error btn-sm"
@@ -1379,7 +1389,7 @@ defineExpose({
             type="button"
             @click="confirmDelete"
           >
-            删除
+            {{ t('common.delete') }}
           </button>
         </div>
       </EntityDialog>
@@ -1396,7 +1406,7 @@ defineExpose({
       @closed="m2mDialogOpen = false"
     >
       <EntityDialog
-        :title="`添加${displayName}`"
+        :title="t('text.bdb86a1198', { p0: displayName })"
         @close-requested="m2mCancelSelection"
       >
         <EntityList

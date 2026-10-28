@@ -1,4 +1,5 @@
 import type { EditContext, IEditor, RectProps } from '@visactor/vtable-editors';
+import { ModelEditorI18n } from '../../i18n.js';
 import { DAISY_COLORS, refocusTable, scheduleEditorSetup } from './global-overlay-editor.js';
 
 type TableLike = { getCellOriginValue(col: number, row: number): unknown } | null;
@@ -29,6 +30,7 @@ const INTEGER_RE = /^-?\d+$/;
  * 支持整数 / 小数 / bigint 三种模式，并可按 min / max / step 约束值域。
  */
 export class NumberEditor implements IEditor<unknown> {
+  readonly #messages = new ModelEditorI18n();
   #value: number | bigint | null = null;
   #originalValue: number | bigint | null = null;
   #input: HTMLInputElement | null = null;
@@ -65,6 +67,7 @@ export class NumberEditor implements IEditor<unknown> {
 
   /** 创建并显示输入框与错误提示浮层，绑定输入校验与提交逻辑 */
   onStart(ctx: EditContext<unknown>): void {
+    this.#messages.start(ctx.table);
     const container = ctx.container as HTMLElement;
     this.#container = container;
     this.#endEdit = () => {
@@ -138,11 +141,11 @@ export class NumberEditor implements IEditor<unknown> {
 
     const setError = (show: boolean, msg?: string) => {
       if (show && msg) {
-        tooltip.textContent = msg;
+        this.#messages.bindValue(tooltip, 'textContent', msg);
         tooltip.style.display = 'block';
         input.style.borderColor = DAISY_COLORS.error;
       } else {
-        tooltip.textContent = '';
+        this.#messages.bind(tooltip, 'textContent', () => '');
         tooltip.style.display = 'none';
         input.style.borderColor = DAISY_COLORS.primary;
       }
@@ -202,6 +205,7 @@ export class NumberEditor implements IEditor<unknown> {
 
   /** 移除输入框与提示浮层，解绑全局点击事件 */
   onEnd(): void {
+    this.#messages.clear();
     this.#cleanup();
   }
 
@@ -236,20 +240,21 @@ export class NumberEditor implements IEditor<unknown> {
   }
 
   #typeErrorHint(detailed: boolean): string {
-    if (this.#isBigint) return detailed ? '请输入 64 位整数（如 42、-7）' : '请输入 64 位整数';
-    if (this.#isInteger) return detailed ? '请输入整数（如 42、-7）' : '请输入整数';
-    return detailed ? '请输入有效数字（如 3.14、-2）' : '请输入有效数字';
+    if (this.#isBigint) return detailed ? this.#messages.t('text.fdfb60afaf') : this.#messages.t('text.0f4733cf8c');
+    if (this.#isInteger) return detailed ? this.#messages.t('text.7e6e4335c4') : this.#messages.t('text.9c75115484');
+    return detailed ? this.#messages.t('text.3e3f6270ef') : this.#messages.t('text.d1e6c6f018');
   }
 
   #boundsError(v: number | bigint): string | null {
     // bigint 模式不携带 format，没有值域约束
     if (this.#isBigint) return null;
     const n = v as number;
-    if (this.#min !== undefined && n < this.#min) return `必须不小于 ${this.#min}`;
-    if (this.#max !== undefined && n > this.#max) return `必须不大于 ${this.#max}`;
+    if (this.#min !== undefined && n < this.#min) return this.#messages.t('text.ffd639a2f3', { p0: this.#min });
+    if (this.#max !== undefined && n > this.#max) return this.#messages.t('text.69594dd756', { p0: this.#max });
     if (this.#step !== undefined && this.#min !== undefined) {
       const steps = (n - this.#min) / this.#step;
-      if (Math.abs(steps - Math.round(steps)) >= STEP_TOLERANCE) return `必须按步长 ${this.#step} 取值`;
+      if (Math.abs(steps - Math.round(steps)) >= STEP_TOLERANCE)
+        return this.#messages.t('text.2279bb8362', { p0: this.#step });
     }
     return null;
   }
@@ -303,12 +308,13 @@ export class NumberEditor implements IEditor<unknown> {
     const tooltip = this.#tooltip;
     const input = this.#input;
     if (!tooltip || !input) return;
-    tooltip.textContent = message;
+    this.#messages.bindValue(tooltip, 'textContent', message);
     tooltip.style.display = 'block';
     input.style.borderColor = DAISY_COLORS.error;
   }
 
   #cleanup(): void {
+    this.#messages.clear();
     if (this.#outsideHandler) {
       document.removeEventListener('mousedown', this.#outsideHandler, { capture: true });
       this.#outsideHandler = null;

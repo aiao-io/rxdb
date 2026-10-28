@@ -1758,6 +1758,90 @@
         "version": "0.0.28"
       },
       {
+        "description": "框架无关的 ICU 客户端国际化运行时，语言偏好与目录覆盖存入本地 RxDB。",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser",
+          "node",
+          "electron",
+          "tauri"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-i18n",
+        "notes": "依赖宿主 Intl 系列 API；小程序运行时不支持。静态目录模式不需要数据库。",
+        "role": "capability",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "客户端国际化的 Angular 原生响应式绑定，提供 useI18n() 与组件树注入。",
+        "framework": "angular",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-i18n",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-i18n-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "客户端国际化的 React 原生响应式绑定，提供 useI18n() 与组件树注入。",
+        "framework": "react",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-i18n",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-i18n-react",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "客户端国际化的 Vue 原生响应式绑定，提供 useI18n() 与组件树注入。",
+        "framework": "vue",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-i18n",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-i18n-vue",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
         "description": "框架无关的 RxDB 实体模型核心库：从实体元数据（`EntityMetadata`）派生表单、详情页、可编辑表格与可视化查询构建器所需的全部纯逻辑，并配套 VTable 表格运行时基础设施。",
         "framework": null,
         "homepage": "https://rxdb.aiao.io/docs",
@@ -1769,6 +1853,12 @@
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/rxdb-i18n",
             "optional": false,
             "range": "workspace:^"
           },
@@ -1806,6 +1896,12 @@
           },
           {
             "kind": "peerDependencies",
+            "name": "@aiao/rxdb-i18n-angular",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb-model",
             "optional": false,
             "range": "workspace:^"
@@ -1833,6 +1929,12 @@
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/rxdb-i18n-react",
             "optional": false,
             "range": "workspace:^"
           },
@@ -1871,6 +1973,12 @@
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/rxdb-i18n-vue",
             "optional": false,
             "range": "workspace:^"
           },
@@ -2952,7 +3060,7 @@
       }
     ]
   },
-  "digest": "5f5e12cd80d8f5165fa7b001652a94fe00124f266295673a96b1b9213ed65b06",
+  "digest": "220895167f43d24264c1aa61ada09b18b77b1379e9dde1df7aa24fe9ae827dc2",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

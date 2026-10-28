@@ -1,3 +1,4 @@
+import { modelText, type ModelI18n } from './i18n.js';
 /**
  * RxDB Model 实体字段工具模块
  * 提供实体字段值的解析、格式化、验证等功能
@@ -187,11 +188,11 @@ export function extractEntityFields(metadata: EntityMetadata): EntityFieldConfig
   return fields;
 }
 
-const SYSTEM_FIELD_CONFIGS: ReadonlyArray<Omit<EntityFieldConfig, 'readonly'>> = [
-  { field: 'createdAt', displayName: '创建时间', type: PropertyType.date },
-  { field: 'updatedAt', displayName: '更新时间', type: PropertyType.date },
-  { field: 'createdBy', displayName: '创建者', type: PropertyType.string },
-  { field: 'updatedBy', displayName: '更新者', type: PropertyType.string }
+const systemFieldConfigs = (i18n?: ModelI18n): ReadonlyArray<Omit<EntityFieldConfig, 'readonly'>> => [
+  { field: 'createdAt', displayName: modelText('common.createdAt', undefined, i18n), type: PropertyType.date },
+  { field: 'updatedAt', displayName: modelText('common.updatedAt', undefined, i18n), type: PropertyType.date },
+  { field: 'createdBy', displayName: modelText('text.f46c86c028', undefined, i18n), type: PropertyType.string },
+  { field: 'updatedBy', displayName: modelText('text.e9045a7d8f', undefined, i18n), type: PropertyType.string }
 ];
 
 /**
@@ -200,9 +201,9 @@ const SYSTEM_FIELD_CONFIGS: ReadonlyArray<Omit<EntityFieldConfig, 'readonly'>> =
  * @param metadata - 实体元数据
  * @returns 系统字段配置列表
  */
-export function extractSystemFields(metadata: EntityMetadata): EntityFieldConfig[] {
+export function extractSystemFields(metadata: EntityMetadata, i18n?: ModelI18n): EntityFieldConfig[] {
   const fields: EntityFieldConfig[] = [{ field: 'id', displayName: 'ID', type: PropertyType.uuid, readonly: true }];
-  for (const cfg of SYSTEM_FIELD_CONFIGS) {
+  for (const cfg of systemFieldConfigs(i18n)) {
     if (metadata.propertyMap.has(cfg.field)) {
       fields.push({ ...cfg, readonly: true });
     }

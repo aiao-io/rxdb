@@ -30,6 +30,9 @@
     },
     {
       "path": "../../packages/rxdb-plugin-sync/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-i18n/tsconfig.lib.json"
     }
   ]
 }

@@ -36,6 +36,7 @@ import { of, switchMap } from 'rxjs';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
 import { EntityFormComponent } from '../entity-form/rxdb-entity-form-angular';
 import { EntityListComponent } from '../entity-list/entity-list.component';
+import { useModelI18n } from '../i18n';
 
 /** CDK Dialog 传入的数据结构 */
 export interface EntityDetailDialogData {
@@ -72,6 +73,8 @@ let nextDetailId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EntityDetailComponent {
+  readonly #modelBinding = useModelI18n();
+
   readonly #dialogRef = inject(DialogRef, { optional: true });
   readonly #dialogData = inject(DIALOG_DATA, { optional: true }) as EntityDetailDialogData | null;
   readonly #rxdb = inject(RxDB, { optional: true }) as RxDB | null;
@@ -115,7 +118,7 @@ export class EntityDetailComponent {
   readonly #formFieldsFromRouteInputs = computed<FormFieldConfig[] | null>(() => {
     const meta = this.#metadataFromRouteInputs();
     if (!meta) return null;
-    return buildFormFields(meta, this.formModeValue);
+    return buildFormFields(meta, this.formModeValue, this.modelI18n);
   });
 
   readonly #entityInstance = toSignal(
@@ -199,7 +202,7 @@ export class EntityDetailComponent {
     const meta = this.metadataValue;
     const mode = this.formModeValue;
     const name = meta?.displayName ?? meta?.name ?? '';
-    return mode === 'create' ? `新建${name}` : name;
+    return mode === 'create' ? this.t('text.ec43629967', { p0: name }) : name;
   });
 
   /** 创建链路：当前实体 + 祖先链路，传递给子 entity-list 以阻断循环创建（祖先链路 input 优先，缺省回退 DIALOG_DATA） */
@@ -225,7 +228,9 @@ export class EntityDetailComponent {
     const meta = this.metadataValue;
     if (!meta) return [];
     const chain = this.creationChain();
-    return buildDetailTabs(meta).filter(tab => {
+
+    this.t('detail.basic');
+    return buildDetailTabs(meta, this.modelI18n).filter(tab => {
       if (tab.type !== 'table') return true;
       const t = tab as DetailTableTab;
       const key = `${t.relatedNamespace}:${t.relatedEntityName}`;
@@ -284,6 +289,13 @@ export class EntityDetailComponent {
     return this.delegateSave() ?? this.#dialogData?.delegateSave ?? false;
   }
 
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
+
   constructor() {
     // create 模式草稿实体生命周期。DIALOG_DATA 在构造期就齐了：同步建草稿，
     // Dialog.open() 返回时调用方即可读到（React 端 useState 初始化同一时机）。
@@ -307,7 +319,7 @@ export class EntityDetailComponent {
       const data = this.draftFormData();
       const fixed = this.fixedFormDataValue;
       const merged = fixed ? { ...data, ...fixed } : data;
-      const result = validateForm(fields, merged);
+      const result = validateForm(fields, merged, this.modelI18n);
       if (!result.valid) {
         this.onValidationErrors(result);
         return;
@@ -371,7 +383,7 @@ export class EntityDetailComponent {
     const data = this.draftFormData();
     const fixed = this.fixedFormDataValue;
     const merged = fixed ? { ...data, ...fixed } : data;
-    const result = validateForm(fields, merged);
+    const result = validateForm(fields, merged, this.modelI18n);
     if (!result.valid) {
       this.onValidationErrors(result);
       return;
@@ -458,6 +470,6 @@ export class EntityDetailComponent {
 
   /** 落库失败：可读原因进错误面板（不再只进 ErrorHandler，US-104）。 */
   #saveErrorMessage(error: unknown): string {
-    return `保存失败：${error instanceof Error ? error.message : String(error)}`;
+    return this.t('text.6ba723c9e6', { p0: error instanceof Error ? error.message : String(error) });
   }
 }

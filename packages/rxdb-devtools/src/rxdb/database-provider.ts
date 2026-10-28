@@ -30,8 +30,10 @@ import { createEntityRegistry, resolveEntityKey, type EntityRegistry } from '../
 import { RXDB_EVENT_TYPES, toEventRecord } from '../connector-events.js';
 import { maskEncryptedDocument, maskEncryptedEvent, type ConnectorMaskContext } from '../connector-mask.js';
 import { serializeDocument } from '../connector-runtime.js';
+import type { Subscription } from '../connector-subscribe-once.js';
 import { subscribeOnce, type Subscribable } from '../connector-subscribe-once.js';
 import type { DevToolsRxDB, DevToolsVersionManager, GetEntityMetadataFn } from '../connector-types.js';
+import type { DevToolsI18nPort, DevToolsI18nSnapshot } from '../i18n-port.js';
 import {
   DEVTOOLS_PROVIDER_OPERATIONS,
   type DevToolsProviderDescriptor,
@@ -77,6 +79,10 @@ export interface DevToolsRxdbDatabaseProviderPorts {
    * @param data - 事件载荷；调用方不再持有它。
    */
   emitEvent(eventType: string, data: unknown): void;
+  /** 应用显式提供的国际化运行时。 */
+  readonly i18n?: DevToolsI18nPort;
+  /** 当前session确实允许清空诊断。 */
+  readonly canClearI18nMissing?: boolean;
 }
 
 /** `database` provider；额外暴露订阅回收入口。 */
@@ -162,6 +168,28 @@ export function createDevToolsRxdbDatabaseProvider(
   let cachedRegistry: { instance: DevToolsRxDB; registry: EntityRegistry } | undefined;
   let subscribedTo: DevToolsRxDB | undefined;
   const listeners = new Map<keyof RxDBEventMap, (event: RxDBEvent) => void>();
+  let i18nSubscription: Subscription | undefined;
+  let inspectionGeneration = 0;
+
+  async function inspectI18n(): Promise<DevToolsI18nSnapshot | undefined> {
+    if (!ports.i18n) return undefined;
+    return {
+      ...(await ports.i18n.inspect()),
+      canClearMissing: ports.canClearI18nMissing === true && ports.i18n.clearMissingMessages !== undefined
+    };
+  }
+
+  function publishI18n(): void {
+    const generation = ++inspectionGeneration;
+    void inspectI18n()
+      .then(snapshot => {
+        if (snapshot && subscribedTo && generation === inspectionGeneration) ports.emitEvent('I18N_CHANGED', snapshot);
+      })
+      .catch(error => {
+        if (subscribedTo && generation === inspectionGeneration)
+          ports.emitEvent('I18N_ERROR', mapPlatformError('dom', error));
+      });
+  }
 
   /** 实体索引跟着实例走：实例被换掉时整份重建，不复用上一份的加密字段表。 */
   function registryFor(rxdb: DevToolsRxDB): EntityRegistry {
@@ -176,6 +204,9 @@ export function createDevToolsRxdbDatabaseProvider(
   }
 
   function unsubscribe(): void {
+    inspectionGeneration++;
+    i18nSubscription?.unsubscribe();
+    i18nSubscription = undefined;
     const rxdb = subscribedTo;
     if (rxdb === undefined) return;
     for (const [eventType, listener] of listeners) rxdb.removeEventListener(eventType, listener);
@@ -189,19 +220,19 @@ export function createDevToolsRxdbDatabaseProvider(
     ports.emitEvent(record.type, serializeDevToolsValue(maskEncryptedEvent(context, record)));
   }
 
-  const inspect: Handler = rxdb => {
+  const inspect: Handler = async rxdb => {
     const { entityInfo } = registryFor(rxdb).sync();
-    return Promise.resolve(
-      ok({
-        version: rxdb.version,
-        dbName: rxdb.config.dbName,
-        entities: entityInfo.map(info => ({
-          name: info.name,
-          namespace: info.namespace,
-          encryptedFields: [...info.encryptedFields]
-        }))
-      })
-    );
+    const i18n = await inspectI18n();
+    return ok({
+      version: rxdb.version,
+      dbName: rxdb.config.dbName,
+      entities: entityInfo.map(info => ({
+        name: info.name,
+        namespace: info.namespace,
+        encryptedFields: [...info.encryptedFields]
+      })),
+      ...(i18n === undefined ? {} : { i18n })
+    });
   };
 
   const query: Handler = async (rxdb, params) => {
@@ -240,6 +271,7 @@ export function createDevToolsRxdbDatabaseProvider(
         rxdb.addEventListener(eventType, listener);
         listeners.set(eventType, listener);
       }
+      i18nSubscription = ports.i18n?.inspection$.subscribe(publishI18n);
     }
     return Promise.resolve(ok({ eventTypes: listeners.size }));
   };

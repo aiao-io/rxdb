@@ -2,6 +2,7 @@ import type { FieldFormat, FieldOptions } from '@aiao/rxdb';
 import type { ColumnDefine, StylePropertyFunctionArg } from '@visactor/vtable/es/ts-types/index.js';
 import type { RelatedEntityItem } from '../../entity-form/interfaces.js';
 import { formatEntityFieldValue, parseEntityFieldValue } from '../../entity-value.utils.js';
+import { modelText, type ModelI18n } from '../../i18n.js';
 import { ColorEditor } from '../editors/color-editor.js';
 import { EnumEditor, type EnumItem } from '../editors/enum-editor.js';
 import { KeyValueEditor } from '../editors/key-value-editor.js';
@@ -50,6 +51,8 @@ export type PropertyTypeString =
  * 构建属性列所需的配置
  */
 export interface PropertyColumnConfig {
+  /** 组件翻译与格式化运行时。 */
+  i18n?: ModelI18n;
   /** 字段名（record 中的键） */
   field: string;
   /** 列标题（默认用 field） */
@@ -110,10 +113,22 @@ export interface KVSchemaEntry {
  * 格式化日期值为本地字符串
  *
  * @param v 待格式化的日期值
- * @returns 本地化日期字符串
+ * @param i18n 显式配置的格式化运行时；省略时保留原日期格式
+ * @returns 包含时分秒的本地化日期字符串
  */
-export function formatDateValue(v: unknown): string {
-  return formatEntityFieldValue('date', v);
+export function formatDateValue(v: unknown, i18n?: ModelI18n): string {
+  if (!i18n?.formatDate) return formatEntityFieldValue('date', v);
+  if (v == null || v === '') return '';
+  const date = v instanceof Date ? v : new Date(typeof v === 'number' ? v : String(v));
+  if (Number.isNaN(date.getTime())) return '';
+  return i18n.formatDate(date, {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric'
+  });
 }
 
 /**
@@ -224,6 +239,7 @@ function applyDefaultSizes(
  */
 export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine {
   const {
+    i18n,
     field,
     title,
     type,
@@ -280,7 +296,13 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
       };
       applyDefaultSizes(col, type, config.width);
       if (!propReadonly) {
-        const allItems: EnumItem[] = nullable ? [{ value: '', text: '(空)' }, ...resolvedItems] : resolvedItems;
+        const allItems: EnumItem[] =
+          nullable ?
+            [
+              { value: '', text: modelText('text.98057319c7', undefined, i18n), textKey: 'text.98057319c7' },
+              ...resolvedItems
+            ]
+          : resolvedItems;
         const enumInst = new EnumEditor(allItems);
         col['editor'] = ((args: StylePropertyFunctionArg) =>
           isReadonly(getCellRecord(args)) ? undefined : enumInst) as ColumnDefine['editor'];
@@ -290,7 +312,8 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
     }
 
     case 'date':
-      col['fieldFormat'] = (r: Record<string, unknown>) => formatEntityFieldValue('date', r[field], format);
+      col['fieldFormat'] = (r: Record<string, unknown>) =>
+        format ? formatEntityFieldValue('date', r[field], format) : formatDateValue(r[field], i18n);
       applyDefaultSizes(col, type, config.width);
       if (!propReadonly) col['editor'] = makeEditorForReadonly('date-editor');
       break;
@@ -361,7 +384,10 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
       break;
 
     case 'number':
-      col['fieldFormat'] = (r: Record<string, unknown>) => formatEntityFieldValue('number', r[field], format);
+      col['fieldFormat'] = (r: Record<string, unknown>) =>
+        i18n?.formatNumber && !format && typeof r[field] === 'number' ?
+          i18n.formatNumber(r[field] as number)
+        : formatEntityFieldValue('number', r[field], format);
       applyDefaultSizes(col, type, config.width);
       if (!propReadonly) {
         const bounds = numericBoundsOf(format);
@@ -376,7 +402,10 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
       break;
 
     case 'integer':
-      col['fieldFormat'] = (r: Record<string, unknown>) => formatEntityFieldValue('integer', r[field], format);
+      col['fieldFormat'] = (r: Record<string, unknown>) =>
+        i18n?.formatNumber && !format && typeof r[field] === 'number' ?
+          i18n.formatNumber(r[field] as number)
+        : formatEntityFieldValue('integer', r[field], format);
       applyDefaultSizes(col, type, config.width);
       if (!propReadonly) {
         const bounds = numericBoundsOf(format);

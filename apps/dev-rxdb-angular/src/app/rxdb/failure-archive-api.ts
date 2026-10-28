@@ -134,7 +134,7 @@ function releaseSecondary(secondary: RxDB, connecting: Promise<unknown>): Promis
  *
  * @remarks
  * `archive()` 在同一页面里另开一个主线程 IDB 连接（{@link createMainThreadIdbRxDB}）连上同一个库，按截止依次
- * 等主实例的 `connect()` 停手（成败不论；两边同时建触发器会撞 `database is locked`）→ 连接 → 读业务表行数与工作树
+ * 等应用初始化（含 i18n 首轮事务）与主实例的 `connect()` 停手（成败不论；两边同时建触发器会撞 `database is locked`）→ 连接 → 读业务表行数与工作树
  * → `backup()`，返回 base64 归档；不动主实例（它可能在 Worker / SharedWorker 里，
  * 没有 `backup()`）。所有失败折成 `{ ok: false, reason }`，从不抛；第二实例在返回前销毁（截止落在 `connect()`
  * 上时等它 settle 后在后台销毁）。
@@ -147,11 +147,14 @@ function releaseSecondary(secondary: RxDB, connecting: Promise<unknown>): Promis
  * 只在浏览器里安装；dev 应用专用，不进公开包。
  *
  * @param primary - 应用的主实例（已 `init()`）
- * @param options - `dbName` 为原始库名；`baseHref` 为应用的 `APP_BASE_HREF`
+ * @param options - 原始库名、应用基础路径，以及全部应用初始化任务的完成信号
  */
-export function installFailureArchiveApi(primary: RxDB, options: { dbName: string; baseHref: string }): void {
+export function installFailureArchiveApi(
+  primary: RxDB,
+  options: { dbName: string; baseHref: string; startupReady: Promise<unknown> }
+): void {
   if (typeof window === 'undefined') return;
-  const { dbName, baseHref } = options;
+  const { dbName, baseHref, startupReady } = options;
   // 上一次 `archive()` 的第二实例销毁完成
   let idle: Promise<void> = Promise.resolve();
 
@@ -163,8 +166,9 @@ export function installFailureArchiveApi(primary: RxDB, options: { dbName: strin
     const started = performance.now();
     const signal = AbortSignal.timeout(request.deadlineMs);
     try {
-      // 主实例的 `connect()` 会重建触发器；重开的页面上它可能还没连完，第二实例同时连接会撞 `database is locked`。
-      // 只等它停手，成败不论：主实例连不上时库里的数据照样要导出
+      // 连接就绪早于 i18n 首轮事务结束；应用启动停手后，第二实例才可申请迁移独占锁。
+      // 只等启动与连接停手，成败不论：初始化失败时库里的数据照样要导出。
+      await beforeDeadline(startupReady.then(noop, noop), signal);
       await beforeDeadline(primary.connect(DEMO_ADAPTER_NAME).then(noop, noop), signal);
     } catch (error) {
       markIdle();
@@ -196,6 +200,7 @@ export function installFailureArchiveApi(primary: RxDB, options: { dbName: strin
 
   const snapshot = async (): Promise<DemoDbSnapshot> => {
     await idle;
+    await startupReady.then(noop, noop);
     const adapter = await primary.connect(DEMO_ADAPTER_NAME);
     return {
       schemaSql: String(await firstCell(adapter, SCHEMA_SQL)),

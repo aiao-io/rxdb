@@ -1,4 +1,5 @@
 import type { RxDB } from '@aiao/rxdb';
+import type { I18nRuntimeSmokeResult } from '@aiao/rxdb-i18n/testing';
 import type { BackupProbeDatabase, BackupProbeMode, BackupProbeResult } from './backup-probe';
 import type { DevToolsProbeResult } from './devtools-probe';
 import type { RxDBConnectionStateWriter } from './rxdb-connection-state';
@@ -110,6 +111,8 @@ export interface LocalDatabaseStartup {
    * release 里根本没有调试窗口，跑它只会白等一个预算。
    */
   readonly probeDevTools: () => Promise<DevToolsProbeResult | null>;
+  /** 当前原生 WebView 的 ICU 能力探针。 */
+  readonly probeI18n: () => Promise<I18nRuntimeSmokeResult>;
   /**
    * 备份 / 恢复探针（US-217 AC#18）。
    *
@@ -198,6 +201,8 @@ export const startLocalDatabase = async (startup: LocalDatabaseStartup): Promise
     await startup.report({ status: 'failed', message: describeError(connectionError) });
     return;
   }
+  const i18nRuntimeSmoke = await attempt(startup, startup.probeI18n);
+  if (i18nRuntimeSmoke === FAILED) return;
   // 连上了却写不进去，对用户来说和没连上没有区别，因此照样落到失败态。
   const launchCount = await attempt(startup, () => startup.launches.record(database));
   if (launchCount === FAILED) return;
@@ -224,5 +229,13 @@ export const startLocalDatabase = async (startup: LocalDatabaseStartup): Promise
   // 握手时机与建库快慢无关。放前面只会把这段等待叠进建库路径。失败不吞的理由同 webview 探针。
   const devtools = await attempt(startup, startup.probeDevTools);
   if (devtools === FAILED) return;
-  await startup.report({ status: 'ok', launchCount, storage, webview, devtools, backup });
+  await startup.report({
+    status: 'ok',
+    launchCount,
+    storage,
+    webview,
+    devtools,
+    backup,
+    message: JSON.stringify({ i18nRuntimeSmoke })
+  });
 };

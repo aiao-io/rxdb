@@ -45,6 +45,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@aiao/rxdb-i18n": "workspace:^",
     "@aiao/utils": "workspace:^",
     "clsx": "^2.1.1",
     "rxjs": "^7.8.2",

@@ -1,3 +1,4 @@
+import { useModelI18n } from '../i18n.js';
 /**
  * @fileoverview 元数据驱动表单组件（Angular `EntityFormComponent` 的 React 移植）。
  *
@@ -170,6 +171,8 @@ export function EntityForm({
   onFormCancelled,
   onValidationErrors
 }: EntityFormProps): JSX.Element {
+  const { t, runtime: modelI18n } = useModelI18n();
+
   const [initialData, setInitialData] = useState<EntityFormData>(() => ({ ...data }));
   const [formData, setFormData] = useState<EntityFormData>(() => ({ ...data }));
 
@@ -224,7 +227,7 @@ export function EntityForm({
   /** 字段变更：严格解析失败输出 validationErrors 且不更新本地数据（Angular 侧同语义）。 */
   const onFieldChange = (field: FormFieldConfig, rawValue: unknown): void => {
     const previousValue = formData[field.field];
-    const result = parseEntityFieldValueStrict(field.type, rawValue);
+    const result = parseEntityFieldValueStrict(field.type, rawValue, modelI18n);
     if (!result.ok) {
       onValidationErrors?.({
         valid: false,
@@ -238,7 +241,7 @@ export function EntityForm({
   };
 
   const onSubmit = (): void => {
-    const result = validateForm(fields, formData);
+    const result = validateForm(fields, formData, modelI18n);
     if (!result.valid) {
       onValidationErrors?.(result);
       return;
@@ -302,7 +305,7 @@ export function EntityForm({
             value={(formData[field.field] as string) ?? ''}
             onChange={event => onFieldChange(field, event.target.value)}
           >
-            {field.nullable && <option value=''>(空)</option>}
+            {field.nullable && <option value=''>{t('text.98057319c7')}</option>}
             {(field.enumValues ?? []).map(value => (
               <option key={value} value={value} disabled={field.options?.[value]?.disabled === true}>
                 {field.options?.[value]?.label ?? value}
@@ -353,7 +356,7 @@ export function EntityForm({
         return (
           <textarea
             className='textarea min-h-16 font-mono'
-            placeholder={field.placeholder ?? '十六进制字节序列（如 0a0b）'}
+            placeholder={field.placeholder ?? t('text.0f4507b76e')}
             value={binaryToHex(formData[field.field])}
             onChange={event => onFieldChange(field, event.target.value)}
           />
@@ -386,7 +389,7 @@ export function EntityForm({
         return (
           <input
             className='input'
-            placeholder={field.placeholder ?? '逗号分隔'}
+            placeholder={field.placeholder ?? t('text.07a7f1dd37')}
             value={((formData[field.field] as string[] | undefined) ?? []).join(', ')}
             onChange={event => onFieldChange(field, event.target.value)}
             type='text'
@@ -396,7 +399,7 @@ export function EntityForm({
         return (
           <input
             className='input'
-            placeholder={field.placeholder ?? '逗号分隔数字'}
+            placeholder={field.placeholder ?? t('text.65c1f50349')}
             value={((formData[field.field] as number[] | undefined) ?? []).join(', ')}
             onChange={event => onFieldChange(field, event.target.value)}
             type='text'
@@ -424,7 +427,7 @@ export function EntityForm({
               value={(formData[field.field] as string) ?? ''}
               onChange={event => onFieldChange(field, event.target.value)}
             >
-              <option value=''>(空)</option>
+              <option value=''>{t('text.98057319c7')}</option>
               {relatedItems.map(item => (
                 <option key={item.id} value={item.id}>
                   {item.displayName}
@@ -433,7 +436,7 @@ export function EntityForm({
             </select>
             {relatedItems.length === 0 && (
               <span className='text-warning text-xs' data-testid='relation-empty-hint'>
-                暂无「{field.displayName}」可选，请先创建对应记录
+                {t('text.5366e25b36', { p0: field.displayName })}
               </span>
             )}
           </>
@@ -514,10 +517,10 @@ export function EntityForm({
       {!isReadonly && showActions && (
         <div className='flex justify-end gap-2 pt-2 md:col-span-2'>
           <button className='btn' onClick={onCancel} type='button'>
-            取消
+            {t('common.cancel')}
           </button>
           <button className='btn btn-primary' type='submit'>
-            保存
+            {t('common.save')}
           </button>
         </div>
       )}

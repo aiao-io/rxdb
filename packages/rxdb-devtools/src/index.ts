@@ -553,6 +553,13 @@ export type {
   /** 页内装配出来的 registry；比裸 registry 多一个订阅回收入口。 */
   ConnectorProviderRegistry
 } from './connector-providers.js';
+export { isDevToolsI18nSnapshot } from './i18n-port.js';
+export type {
+  DevToolsI18nMessage,
+  DevToolsI18nMissingMessage,
+  DevToolsI18nPort,
+  DevToolsI18nSnapshot
+} from './i18n-port.js';
 export {
   /** 建原生文件后端的 `files` provider。 */
   createDevToolsNativeFilesProvider

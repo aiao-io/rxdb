@@ -1,6 +1,6 @@
 import { requestIdleCallbackPolyfill } from '@aiao/utils';
 import { isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DOCUMENT, inject, OnInit, PLATFORM_ID } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { SwUpdatesService } from '@modules/angular';
 import { NgxLoadingBar } from '@ngx-loading-bar/core';
@@ -43,16 +43,11 @@ import { ImportedDbBanner } from './components/imported-db-banner';
   }
 })
 export class App implements OnInit {
-  #document = inject(DOCUMENT);
-
   #swUpdatesService = inject(SwUpdatesService);
   app = inject(AppService);
   isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   ngOnInit(): void {
-    const local = Intl.DateTimeFormat().resolvedOptions().locale;
-    this.#document.documentElement.lang = local;
-
     if (this.isBrowser) {
       // safari 不支持 requestIdleCallback
       requestIdleCallbackPolyfill();

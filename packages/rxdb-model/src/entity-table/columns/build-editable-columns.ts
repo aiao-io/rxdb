@@ -9,6 +9,7 @@ import { PropertyType, RelationKind } from '@aiao/rxdb';
 import type { ColumnDefine } from '@visactor/vtable/es/ts-types/index.js';
 import { deriveEntityCapabilities } from '../../entity-capabilities.js';
 import type { RelatedEntityItem } from '../../entity-form/interfaces.js';
+import { modelText, type ModelI18n } from '../../i18n.js';
 import { actionsColumn, buildPropertyColumn, formatDateValue, type KVSchemaEntry } from './column-utils.js';
 
 /** 仅展示（不可编辑）的系统字段 */
@@ -25,6 +26,8 @@ export type RelatedItemsProviderFactory = (
 
 /** 构建可编辑列的选项 */
 export interface BuildEditableColumnsOptions {
+  /** 组件翻译与格式化运行时。 */
+  i18n?: ModelI18n;
   /** 关联实体候选 provider 工厂（按外键字段与关联实体名返回 provider） */
   relatedItemsProviderFactory?: RelatedItemsProviderFactory;
   /** 操作列标题（默认「操作」） */
@@ -115,11 +118,12 @@ export function buildEditableColumns(
 ): ColumnDefine[] {
   const {
     relatedItemsProviderFactory,
-    actionsTitle = '操作',
-    deleteLabel = '删除',
-    viewLabel = '查看',
-    createdAtTitle = '创建时间',
-    updatedAtTitle = '更新时间',
+    i18n,
+    actionsTitle = modelText('common.actions', undefined, i18n),
+    deleteLabel = modelText('common.delete', undefined, i18n),
+    viewLabel = modelText('common.view', undefined, i18n),
+    createdAtTitle = modelText('common.createdAt', undefined, i18n),
+    updatedAtTitle = modelText('common.updatedAt', undefined, i18n),
     readOnly = false
   } = options;
 
@@ -131,6 +135,7 @@ export function buildEditableColumns(
     const raw = prop as Record<string, unknown>;
     columns.push(
       buildPropertyColumn({
+        i18n,
         field: key,
         title: prop.displayName ?? key,
         type: prop.type,
@@ -146,6 +151,7 @@ export function buildEditableColumns(
   for (const [key, prop] of metadata.computedPropertyMap) {
     columns.push(
       buildPropertyColumn({
+        i18n,
         field: key,
         title: prop.displayName ?? key,
         type: 'computed',
@@ -158,6 +164,7 @@ export function buildEditableColumns(
     const type = relation.kind === RelationKind.ONE_TO_ONE ? 'oneToOne' : 'manyToOne';
     columns.push(
       buildPropertyColumn({
+        i18n,
         field: fkField,
         title: relation.displayName ?? fkField,
         type,
@@ -173,13 +180,13 @@ export function buildEditableColumns(
       field: 'createdAt',
       title: createdAtTitle,
       width: 160,
-      fieldFormat: (r: Record<string, unknown>) => formatDateValue(r['createdAt'])
+      fieldFormat: (r: Record<string, unknown>) => formatDateValue(r['createdAt'], i18n)
     },
     {
       field: 'updatedAt',
       title: updatedAtTitle,
       width: 160,
-      fieldFormat: (r: Record<string, unknown>) => formatDateValue(r['updatedAt'])
+      fieldFormat: (r: Record<string, unknown>) => formatDateValue(r['updatedAt'], i18n)
     },
     actionsColumn(actionsTitle, deleteLabel, () => canDelete, viewLabel)
   );

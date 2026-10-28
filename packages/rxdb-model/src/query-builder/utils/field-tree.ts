@@ -1,3 +1,4 @@
+import { modelText, type ModelI18n } from '../../i18n.js';
 /**
  * @fileoverview 字段树工具函数
  *
@@ -79,7 +80,7 @@ export interface FieldTreeNode {
  * // tree[1] = { label: 'orders', displayName: '订单', children: [...] }
  * ```
  */
-export function buildFieldTree(fields: FieldMetadata[]): FieldTreeNode[] {
+export function buildFieldTree(fields: FieldMetadata[], i18n?: ModelI18n): FieldTreeNode[] {
   // 去重：相同 name 的字段只保留第一个
   const seen = new Set<string>();
   const uniqueFields = fields.filter(f => {
@@ -192,7 +193,7 @@ export function buildFieldTree(fields: FieldMetadata[]): FieldTreeNode[] {
   // 「该关系是否存在」或「该 keyValue 是否为空」。
   const fieldMap = new Map<string, FieldMetadata>();
   for (const f of uniqueFields) fieldMap.set(f.name, f);
-  addSpecialOptionsToNodes(root, fieldMap);
+  addSpecialOptionsToNodes(root, fieldMap, i18n);
 
   return root;
 }
@@ -208,7 +209,11 @@ export function buildFieldTree(fields: FieldMetadata[]): FieldTreeNode[] {
  * @param nodes 树节点列表
  * @param fields 原始字段元数据列表
  */
-function addSpecialOptionsToNodes(nodes: FieldTreeNode[], fieldMap: Map<string, FieldMetadata>): void {
+function addSpecialOptionsToNodes(
+  nodes: FieldTreeNode[],
+  fieldMap: Map<string, FieldMetadata>,
+  i18n?: ModelI18n
+): void {
   for (const node of nodes) {
     const children = node.children;
     if (children && children.length > 0) {
@@ -217,11 +222,11 @@ function addSpecialOptionsToNodes(nodes: FieldTreeNode[], fieldMap: Map<string, 
         children.unshift({
           label: EXISTS_OPTION_LABEL,
           value: node.value,
-          displayName: '(存在性检查)',
+          displayName: modelText('text.96b26e8299', undefined, i18n),
           type: 'relation',
           isRelation: true,
           isExistsOption: true,
-          description: `检查 ${node.displayName} 是否存在`,
+          description: modelText('text.c006ecd7b5', { p0: node.displayName }, i18n),
           relationFields: fieldMap.get(node.value)?.relationFields
         });
       }
@@ -232,17 +237,17 @@ function addSpecialOptionsToNodes(nodes: FieldTreeNode[], fieldMap: Map<string, 
           children.unshift({
             label: NULL_CHECK_OPTION_LABEL,
             value: node.value,
-            displayName: '(空值检查)',
+            displayName: modelText('text.e2c3043c3d', undefined, i18n),
             type: 'keyValue',
             isRelation: false,
             isNullCheckOption: true,
-            description: `检查 ${node.displayName} 是否为空`
+            description: modelText('text.f4cad2319e', { p0: node.displayName }, i18n)
           });
         }
       }
 
       // 递归处理子节点
-      addSpecialOptionsToNodes(children, fieldMap);
+      addSpecialOptionsToNodes(children, fieldMap, i18n);
     }
   }
 }

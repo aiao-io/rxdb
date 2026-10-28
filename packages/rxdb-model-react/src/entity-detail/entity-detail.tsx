@@ -1,3 +1,4 @@
+import { useModelI18n } from '../i18n.js';
 /**
  * @fileoverview Tab 式实体详情组件（Angular `EntityDetailComponent` 的 React 移植）。
  *
@@ -97,6 +98,8 @@ export function EntityDetail({
   onFieldChanged,
   onValidationErrors
 }: EntityDetailProps): JSX.Element {
+  const { t, runtime: modelI18n } = useModelI18n();
+
   const rxdb = useRxDBOptional();
   const dialog = useContext(DialogContext);
 
@@ -215,12 +218,16 @@ export function EntityDetail({
   const metadataValue: EntityMetadata | undefined = metadata ?? (entityCls ? getEntityMetadata(entityCls) : undefined);
 
   const formFieldsValue: FormFieldConfig[] = useMemo(() => {
+    t('common.actions');
+
     const fields =
-      formFields ?? (entityCls && metadataValue ? buildFormFields(metadataValue, formModeValue) : undefined) ?? [];
+      formFields ??
+      (entityCls && metadataValue ? buildFormFields(metadataValue, formModeValue, modelI18n) : undefined) ??
+      [];
     const fixed = fixedFormData;
     if (!fixed) return fields;
     return fields.map(f => (f.field in fixed ? { ...f, readonly: true } : f));
-  }, [formFields, entityCls, metadataValue, formModeValue, fixedFormData]);
+  }, [formFields, entityCls, metadataValue, formModeValue, fixedFormData, modelI18n, t]);
 
   const formDataValue: EntityFormData = useMemo(() => {
     if (isCreateMode) {
@@ -240,7 +247,7 @@ export function EntityDetail({
     const meta = metadataValue;
     const mode = formModeValue;
     const title = meta?.displayName ?? meta?.name ?? '';
-    return mode === 'create' ? `新建${title}` : title;
+    return mode === 'create' ? t('text.ec43629967', { p0: title }) : title;
   })();
 
   /** 创建链路：当前实体 + 祖先链路，传递给子 entity-list 以阻断循环创建。 */
@@ -258,13 +265,15 @@ export function EntityDetail({
   const tabs = useMemo(() => {
     if (!metadataValue) return [];
     const chain = creationChainValue;
-    return buildDetailTabs(metadataValue).filter(tab => {
+
+    t('detail.basic');
+    return buildDetailTabs(metadataValue, modelI18n).filter(tab => {
       if (tab.type !== 'table') return true;
       const t = tab as DetailTableTab;
       const key = `${t.relatedNamespace}:${t.relatedEntityName}`;
       return !chain.includes(key);
     });
-  }, [metadataValue, creationChainValue]);
+  }, [t, metadataValue, creationChainValue, modelI18n]);
 
   // tabs 变化时活动 tab 重置为首个（Angular 侧 linkedSignal 同语义；渲染期调整状态）
   const [prevTabs, setPrevTabs] = useState(tabs);
@@ -301,8 +310,10 @@ export function EntityDetail({
   );
 
   /** 落库失败：可读原因进错误面板（不再只进 console，US-104）。 */
-  const saveErrorMessage = (error: unknown): string =>
-    `保存失败：${error instanceof Error ? error.message : String(error)}`;
+  const saveErrorMessage = useCallback(
+    (error: unknown): string => t('text.6ba723c9e6', { p0: error instanceof Error ? error.message : String(error) }),
+    [t]
+  );
 
   /** 切 tab：create 模式切到关系 tab 前先校验草稿并同步（Angular 侧同语义）。 */
   const selectTab = useCallback(
@@ -313,7 +324,7 @@ export function EntityDetail({
         const data = draftFormData;
         const fixed = fixedFormData;
         const merged = fixed ? { ...data, ...fixed } : data;
-        const result = validateForm(fields, merged);
+        const result = validateForm(fields, merged, modelI18n);
         if (!result.valid) {
           handleValidationErrors(result);
           return;
@@ -322,7 +333,7 @@ export function EntityDetail({
       }
       setActiveTabKey(key);
     },
-    [tabs, isCreateMode, formFieldsValue, draftFormData, fixedFormData, handleValidationErrors]
+    [tabs, isCreateMode, formFieldsValue, draftFormData, fixedFormData, handleValidationErrors, modelI18n]
   );
 
   /** 清理草稿实体缓存（Angular 侧 #cleanupDraftEntity 同语义：无 rxdb 时保留草稿）。 */
@@ -354,7 +365,7 @@ export function EntityDetail({
         })
         .catch(error => setSaveError(saveErrorMessage(error)));
     },
-    [isCreateMode, entityInstance, formFieldsValue, dialog, onFormSubmitted]
+    [isCreateMode, entityInstance, formFieldsValue, dialog, onFormSubmitted, saveErrorMessage]
   );
 
   /** 表单取消：清理草稿缓存并 emit formCancelled。 */
@@ -382,7 +393,7 @@ export function EntityDetail({
     const data = draftFormData;
     const fixed = fixedFormData;
     const merged = fixed ? { ...data, ...fixed } : data;
-    const result = validateForm(fields, merged);
+    const result = validateForm(fields, merged, modelI18n);
     if (!result.valid) {
       handleValidationErrors(result);
       return;
@@ -400,7 +411,17 @@ export function EntityDetail({
       onFormSubmitted?.(merged);
       dialog?.close();
     }
-  }, [formFieldsValue, draftFormData, fixedFormData, draftEntity, dialog, onFormSubmitted, handleValidationErrors]);
+  }, [
+    formFieldsValue,
+    draftFormData,
+    fixedFormData,
+    draftEntity,
+    dialog,
+    onFormSubmitted,
+    handleValidationErrors,
+    saveErrorMessage,
+    modelI18n
+  ]);
 
   /** 取消按钮（create 模式页脚）。 */
   const handleCancel = useCallback((): void => {
@@ -516,10 +537,10 @@ export function EntityDetail({
         {isCreateMode && (
           <div className='border-base-300 flex shrink-0 justify-end gap-2 border-t px-4 py-3'>
             <button className='btn' data-detail-cancel='true' onClick={handleCancel} type='button'>
-              取消
+              {t('common.cancel')}
             </button>
             <button className='btn btn-primary' data-detail-save='true' onClick={handleSave} type='button'>
-              保存
+              {t('common.save')}
             </button>
           </div>
         )}

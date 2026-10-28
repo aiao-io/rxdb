@@ -29,6 +29,7 @@
   "peerDependencies": {
     "@aiao/rxdb": "workspace:^",
     "@aiao/rxdb-angular": "workspace:^",
+    "@aiao/rxdb-i18n-angular": "workspace:^",
     "@aiao/rxdb-model": "workspace:^",
     "@aiao/rxdb-plugin-history": "workspace:^",
     "@angular/cdk": "22.2.4",
@@ -43,6 +44,7 @@
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-angular": "workspace:*",
+    "@aiao/rxdb-i18n-angular": "workspace:*",
     "@aiao/rxdb-model": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",

@@ -436,6 +436,12 @@ importers:
       '@aiao/rxdb-adapter-pglite':
         specifier: workspace:*
         version: link:packages/rxdb-adapter-pglite
+      '@aiao/rxdb-i18n':
+        specifier: workspace:*
+        version: link:packages/rxdb-i18n
+      '@aiao/rxdb-i18n-angular':
+        specifier: workspace:*
+        version: link:packages/rxdb-i18n-angular
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:packages/rxdb-plugin-history
@@ -853,6 +859,9 @@ importers:
       '@aiao/rxdb-devtools':
         specifier: workspace:*
         version: link:../../packages/rxdb-devtools
+      '@aiao/rxdb-i18n':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-i18n
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-history
@@ -878,6 +887,9 @@ importers:
       '@aiao/rxdb-adapter-pglite':
         specifier: workspace:*
         version: link:../../packages/rxdb-adapter-pglite
+      '@aiao/rxdb-i18n':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-i18n
       '@modules/recipes-domain':
         specifier: workspace:*
         version: link:../../modules/recipes-domain
@@ -1022,6 +1034,15 @@ importers:
       '@aiao/rxdb-devtools':
         specifier: workspace:*
         version: link:../../packages/rxdb-devtools
+      '@aiao/rxdb-i18n':
+        specifier: workspace:^
+        version: link:../../packages/rxdb-i18n
+      '@aiao/rxdb-i18n-react':
+        specifier: workspace:^
+        version: link:../../packages/rxdb-i18n-react
+      '@aiao/rxdb-model':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-model
       '@aiao/rxdb-model-react':
         specifier: workspace:*
         version: link:../../packages/rxdb-model-react
@@ -1110,6 +1131,15 @@ importers:
       '@aiao/rxdb-devtools':
         specifier: workspace:*
         version: link:../../packages/rxdb-devtools
+      '@aiao/rxdb-i18n':
+        specifier: workspace:^
+        version: link:../../packages/rxdb-i18n
+      '@aiao/rxdb-i18n-vue':
+        specifier: workspace:^
+        version: link:../../packages/rxdb-i18n-vue
+      '@aiao/rxdb-model':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-model
       '@aiao/rxdb-model-vue':
         specifier: workspace:*
         version: link:../../packages/rxdb-model-vue
@@ -1939,11 +1969,87 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.106.1)(terser@5.51.2)(yaml@2.9.1))
 
+  packages/rxdb-i18n:
+    dependencies:
+      intl-messageformat:
+        specifier: ^12.1.4
+        version: 12.1.4
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/rxdb-adapter-electron':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-electron
+      '@aiao/rxdb-adapter-pglite':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-pglite
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.106.1)(terser@5.51.2)(yaml@2.9.1))
+
+  packages/rxdb-i18n-angular:
+    dependencies:
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-i18n':
+        specifier: workspace:*
+        version: link:../rxdb-i18n
+      '@angular/common':
+        specifier: 22.2.3
+        version: 22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/compiler':
+        specifier: 22.2.3
+        version: 22.2.3
+      '@angular/core':
+        specifier: 22.2.3
+        version: 22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2)
+      '@angular/platform-browser':
+        specifier: 22.2.3
+        version: 22.2.3(@angular/common@22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.106.1)(terser@5.51.2)(yaml@2.9.1))
+
+  packages/rxdb-i18n-react:
+    dependencies:
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-i18n':
+        specifier: workspace:*
+        version: link:../rxdb-i18n
+      react:
+        specifier: ^19.3.0
+        version: 19.3.1
+
+  packages/rxdb-i18n-vue:
+    dependencies:
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-i18n':
+        specifier: workspace:*
+        version: link:../rxdb-i18n
+      vue:
+        specifier: ^3.5.43
+        version: 3.5.44(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
+
   packages/rxdb-model:
     dependencies:
       '@aiao/rxdb':
         specifier: workspace:^
         version: link:../rxdb
+      '@aiao/rxdb-i18n':
+        specifier: workspace:^
+        version: link:../rxdb-i18n
       '@aiao/utils':
         specifier: workspace:^
         version: link:../utils
@@ -1996,6 +2102,9 @@ importers:
       '@aiao/rxdb-angular':
         specifier: workspace:*
         version: link:../rxdb-angular
+      '@aiao/rxdb-i18n-angular':
+        specifier: workspace:*
+        version: link:../rxdb-i18n-angular
       '@aiao/rxdb-model':
         specifier: workspace:*
         version: link:../rxdb-model
@@ -2014,6 +2123,9 @@ importers:
 
   packages/rxdb-model-react:
     dependencies:
+      '@aiao/rxdb-i18n-react':
+        specifier: workspace:^
+        version: link:../rxdb-i18n-react
       '@visactor/vtable':
         specifier: ~1.26.5
         version: 1.26.8
@@ -2048,6 +2160,9 @@ importers:
 
   packages/rxdb-model-vue:
     dependencies:
+      '@aiao/rxdb-i18n-vue':
+        specifier: workspace:^
+        version: link:../rxdb-i18n-vue
       '@lucide/vue':
         specifier: ^1.47.0
         version: 1.61.0(vue@3.5.44(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb)))
@@ -5111,6 +5226,15 @@ packages:
   '@faker-js/faker@5.5.3':
     resolution: {integrity: sha512-R11tGE6yIFwqpaIqcfkcg7AICXzFg14+5h5v0TfF/9+RMDL6jhzCy/pxHVOfbALGdtVYdt6JdR21tuxEgl34dw==}
     deprecated: Please update to a newer version.
+
+  '@formatjs/fast-memoize@3.1.7':
+    resolution: {integrity: sha512-zXfhLpvA6T7+efdt9JLbBwZ00tT7NsBMDVnDu8rpHeNNv8KfRZAMo2gkG0k9lK/Nzc//3kJ9pImsfuJxk3KhUA==}
+
+  '@formatjs/icu-messageformat-parser@3.5.22':
+    resolution: {integrity: sha512-YuwN+dDKgssfuYwtOyGQD0CSn7K46g9cv1Fp0VgKpjZDDFvv8b8crzP990IcJhRPWHhKzCGsbUSJVIguyyFA5A==}
+
+  '@formatjs/icu-skeleton-parser@2.1.12':
+    resolution: {integrity: sha512-ca7tZMLpfHX3sUD7hP6gE/qr6Iq89EDd3ZLeRhbsB7r0UD55DGJq+tmFLzrGrnx5StahUevQmQQVtbDRHsfDHA==}
 
   '@gerrit0/mini-shiki@3.23.0':
     resolution: {integrity: sha512-bEMORlG0cqdjVyCEuU0cDQbORWX+kYCeo0kV1lbxF5bt4r7SID2l9bqsxJEM0zndaxpOUT7riCyIVEuqq/Ynxg==}
@@ -13848,6 +13972,9 @@ packages:
   interpret@1.4.0:
     resolution: {integrity: sha512-agE4QfB2Lkp9uICn7BAqoscw4SZP9kTE2hxiFI3jBPmXJfdqiahTbUuKGsMoN2GtqL9AxhYioAcVvgsb1HvRbA==}
     engines: {node: '>= 0.10'}
+
+  intl-messageformat@12.1.4:
+    resolution: {integrity: sha512-JUkmv3cAEyijN3oiRiV3ctel7yVMuUCgfh7Pu8pj1/z6L1DSEPRyhuMaLjVw3pGmGJ5RDH54WVFxfMHZWTwyHw==}
 
   into-stream@3.1.0:
     resolution: {integrity: sha512-TcdjPibTksa1NQximqep2r17ISRiNE9fwlfbg3F8ANdvP5/yrFTew86VcO//jk4QTaMlbjypPBq76HN2zaKfZQ==}
@@ -23869,6 +23996,14 @@ snapshots:
 
   '@faker-js/faker@5.5.3': {}
 
+  '@formatjs/fast-memoize@3.1.7': {}
+
+  '@formatjs/icu-messageformat-parser@3.5.22':
+    dependencies:
+      '@formatjs/icu-skeleton-parser': 2.1.12
+
+  '@formatjs/icu-skeleton-parser@2.1.12': {}
+
   '@gerrit0/mini-shiki@3.23.0':
     dependencies:
       '@shikijs/engine-oniguruma': 3.23.0
@@ -33618,6 +33753,11 @@ snapshots:
   internmap@2.0.3: {}
 
   interpret@1.4.0: {}
+
+  intl-messageformat@12.1.4:
+    dependencies:
+      '@formatjs/fast-memoize': 3.1.7
+      '@formatjs/icu-messageformat-parser': 3.5.22
 
   into-stream@3.1.0:
     dependencies:

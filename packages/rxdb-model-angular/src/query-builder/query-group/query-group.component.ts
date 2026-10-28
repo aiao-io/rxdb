@@ -1,6 +1,7 @@
 import type { FieldMetadata, UIRule, ValidationError } from '@aiao/rxdb-model';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { useModelI18n } from '../../i18n';
 import { QueryRuleComponent } from '../query-rule/query-rule.component';
 
 /**
@@ -118,7 +119,7 @@ export function calculateDropMode(clientY: number, rect: DOMRect, isGroup: boole
         @if (allowCollapse()) {
           <button
             class="btn btn-ghost btn-xs btn-square"
-            [title]="collapsed() ? '展开' : '收起'"
+            [title]="collapsed() ? t('text.00bd3960fe') : t('text.afd4b78353')"
             (click)="toggleCollapse()"
             type="button"
           >
@@ -141,7 +142,7 @@ export function calculateDropMode(clientY: number, rect: DOMRect, isGroup: boole
         <div class="flex-1"></div>
 
         @if (!collapsed()) {
-          <button class="btn btn-ghost btn-xs" (click)="onAddRule()" type="button">+ 条件</button>
+          <button class="btn btn-ghost btn-xs" (click)="onAddRule()" type="button">{{ t('text.85bdca3be7') }}</button>
 
           <!--
             ⚠️ 达到上限时保留按钮并禁用，而不是整个条件渲染掉。
@@ -151,12 +152,12 @@ export function calculateDropMode(clientY: number, rect: DOMRect, isGroup: boole
           <button
             class="btn btn-ghost btn-xs"
             [attr.aria-disabled]="!canAddGroup()"
-            [attr.title]="canAddGroup() ? null : nestingLimitHint()"
             [disabled]="!canAddGroup()"
+            [title]="canAddGroup() ? null : nestingLimitHint()"
             (click)="onAddGroup()"
             type="button"
           >
-            + 分组
+            {{ t('text.4431aae209') }}
           </button>
           @if (!canAddGroup()) {
             <span class="text-base-content/50 text-xs" role="status">{{ nestingLimitHint() }}</span>
@@ -165,8 +166,8 @@ export function calculateDropMode(clientY: number, rect: DOMRect, isGroup: boole
           @if (depth() > 0) {
             <button
               class="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-error"
+              [title]="t('text.b85068a840')"
               (click)="onRemove()"
-              title="删除组"
               type="button"
             >
               ✕
@@ -257,7 +258,7 @@ export function calculateDropMode(clientY: number, rect: DOMRect, isGroup: boole
 
         <!-- 空状态 -->
         @if (group().rules.length === 0) {
-          <div class="text-base-content/50 py-2 text-center text-sm select-none">暂无条件</div>
+          <div class="text-base-content/50 py-2 text-center text-sm select-none">{{ t('text.9b25f95c75') }}</div>
         }
       }
     </div>
@@ -307,6 +308,8 @@ export function calculateDropMode(clientY: number, rect: DOMRect, isGroup: boole
   `
 })
 export class QueryGroupComponent {
+  readonly #modelBinding = useModelI18n();
+
   readonly group = input.required<UIRuleGroup>();
   readonly fields = input.required<FieldMetadata[]>();
   readonly errors = input<ValidationError[]>([]);
@@ -329,9 +332,16 @@ export class QueryGroupComponent {
   readonly canAddGroup = computed(() => this.depth() < this.maxDepth() - 1);
 
   /** 达到嵌套上限时展示给用户的原因（AC 要求「超过提示」，不能静默） */
-  readonly nestingLimitHint = computed(() => `已达最大嵌套层级（${this.maxDepth()} 层）`);
+  readonly nestingLimitHint = computed(() => this.t('text.6c886ad5ce', { p0: this.maxDepth() }));
 
   /** 切换折叠状态 */
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
+
   toggleCollapse(): void {
     this.collapsed.update(v => !v);
   }

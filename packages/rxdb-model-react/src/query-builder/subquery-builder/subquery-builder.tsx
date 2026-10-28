@@ -1,3 +1,4 @@
+import { useModelI18n } from '../../i18n.js';
 /**
  * @fileoverview 子查询构建器组件（Angular `SubqueryBuilderComponent` 的 React 移植）。
  *
@@ -43,6 +44,8 @@ export function SubqueryBuilder({
   onQueryChange,
   onValidationChange
 }: SubqueryBuilderProps): JSX.Element {
+  const { t, runtime: modelI18n } = useModelI18n();
+
   const serviceRef = useRef<QueryBuilderService<Record<string, unknown>> | null>(null);
   const initialQueryAppliedRef = useRef(false);
   const onQueryChangeRef = useRef(onQueryChange);
@@ -60,7 +63,10 @@ export function SubqueryBuilder({
 
   // 服务生命周期（挂载创建 / 卸载销毁，对应 Angular constructor + ngOnDestroy）
   useEffect(() => {
-    const service = createQueryBuilderService<Record<string, unknown>>({ config: { maxNestingLevel: maxDepth } });
+    const service = createQueryBuilderService<Record<string, unknown>>({
+      i18n: modelI18n,
+      config: { maxNestingLevel: maxDepth }
+    });
     serviceRef.current = service;
 
     const groupSubscription = service.rootGroup$.subscribe(group => {
@@ -83,7 +89,7 @@ export function SubqueryBuilder({
       initialQueryAppliedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [modelI18n]);
 
   // 字段变化同步到服务（Angular 侧 effect 同语义）
   useEffect(() => {
@@ -154,9 +160,9 @@ export function SubqueryBuilder({
       {!hasRules ?
         <div className='text-base-content/60 flex items-center gap-2'>
           <button className='btn btn-ghost btn-xs' onClick={handleAddFirstRule} type='button'>
-            + 添加子条件
+            {t('text.cb29450db8')}
           </button>
-          <span className='text-xs opacity-50'>（可选）</span>
+          <span className='text-xs opacity-50'>{t('text.3d5c3c3dba')}</span>
         </div>
       : <>
           <QueryGroup
@@ -173,7 +179,7 @@ export function SubqueryBuilder({
           />
           <div className='mt-2 flex justify-end'>
             <button className='btn btn-ghost btn-xs text-error' onClick={handleClear} type='button'>
-              清空
+              {t('text.1ef3de06b3')}
             </button>
           </div>
         </>

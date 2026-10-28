@@ -15,6 +15,7 @@
   "devDependencies": {
     "@aiao/rxdb-adapter-electron": "workspace:*",
     "@aiao/rxdb-devtools": "workspace:*",
+    "@aiao/rxdb-i18n": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-plugin-tree": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",

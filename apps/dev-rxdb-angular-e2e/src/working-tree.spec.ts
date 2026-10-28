@@ -162,7 +162,9 @@ test.describe('Working Tree 页面功能', () => {
     await page.getByTestId('wt-diff-settings').click();
     await expect(page.getByTestId('wt-diff-settings-popup')).toBeVisible();
     await expect(page.getByRole('radio', { name: 'Split' })).toBeChecked();
-    await page.getByRole('radio', { name: 'Unified' }).check();
+    // 选中设置会立即卸载弹层，用点击和实际显示效果验证，不在已卸载节点上核验 checked。
+    await page.getByRole('radio', { name: 'Unified' }).click();
+    await expect(page.getByTestId('wt-diff-settings-popup')).toHaveCount(0);
     await expect(page.getByTestId('wt-split')).toHaveCount(0);
     // Unified：逐字段 -/+ 行，增行整行绿底。
     await expect(viewer.locator('.gd-hunk')).toBeVisible();
@@ -173,12 +175,14 @@ test.describe('Working Tree 页面功能', () => {
     await page.getByTestId('wt-diff-settings').click();
     await expect(page.getByTestId('wt-diff-whitespace')).not.toBeChecked();
     await expect(page.getByTestId('wt-diff-wrap')).toBeChecked();
-    await page.getByTestId('wt-diff-wrap').uncheck();
+    await page.getByTestId('wt-diff-wrap').click();
+    await expect(page.getByTestId('wt-diff-settings-popup')).toHaveCount(0);
     await expect(viewer.locator('.gd-diff-content').first()).toHaveCSS('white-space', 'pre');
     await page.getByTestId('wt-diff-settings').click();
-    await page.getByTestId('wt-diff-wrap').check();
-    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('wt-diff-wrap')).not.toBeChecked();
+    await page.getByTestId('wt-diff-wrap').click();
     await expect(page.getByTestId('wt-diff-settings-popup')).toHaveCount(0);
+    await expect(viewer.locator('.gd-diff-content').first()).toHaveCSS('white-space', 'pre-wrap');
     await page.getByTestId('wt-change-filter').fill('no-match');
     await expect(page.getByTestId('wt-diff-item')).toHaveCount(0);
     await page.getByTestId('wt-change-filter').fill('tasks');

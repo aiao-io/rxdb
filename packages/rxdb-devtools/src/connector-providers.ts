@@ -21,6 +21,7 @@ import type { DevToolsOpfsFilesProvider } from './browser/opfs-files-provider.js
 import { createDevToolsOpfsFilesProvider } from './browser/opfs-files-provider.js';
 import { createDevToolsBrowserSettingsProvider } from './browser/settings-provider.js';
 import type { DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
+import { withI18nSettings, type DevToolsI18nPort } from './i18n-port.js';
 import {
   createDevToolsNativeFilesProvider,
   type DevToolsNativeFilesProvider,
@@ -119,6 +120,10 @@ export interface ConnectorProviderPorts {
    * 用的是同一个 kind、同一套操作与限额，runtime 只说明「这份数据来自哪个宿主」。
    */
   runtime?: DevToolsProviderRuntime;
+  /** 应用显式注入的国际化结构端口。 */
+  i18n?: DevToolsI18nPort;
+  /** 已由连接器能力档与写策略计算的诊断清空许可。 */
+  canClearI18nMissing?: boolean;
 }
 
 /**
@@ -182,10 +187,16 @@ export function createConnectorProviders(ports: ConnectorProviderPorts = {}): Co
         runtime
       }));
 
+  const originalSettings = ports.settings ?? createDevToolsBrowserSettingsProvider();
+  const settings: DevToolsProvider = withI18nSettings(originalSettings, ports.i18n);
+  const canClearI18nMissing =
+    ports.canClearI18nMissing === true &&
+    settings.descriptor.kind !== 'unavailable' &&
+    settings.descriptor.operations.includes('clear');
   const database: DevToolsRxdbDatabaseProvider | undefined =
-    ports.database === undefined ? undefined : createDevToolsRxdbDatabaseProvider({ ...ports.database, runtime });
-
-  const settings: DevToolsProvider = ports.settings ?? createDevToolsBrowserSettingsProvider();
+    ports.database === undefined ?
+      undefined
+    : createDevToolsRxdbDatabaseProvider({ ...ports.database, runtime, i18n: ports.i18n, canClearI18nMissing });
 
   const providers = new Map<DevToolsProviderDomain, DevToolsProvider>([['settings', settings]]);
   if (files !== undefined) providers.set('files', files);

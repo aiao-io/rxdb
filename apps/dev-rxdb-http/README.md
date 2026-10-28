@@ -202,3 +202,16 @@ Chrome 打开 `chrome://extensions` → 开发者模式 → 「加载已解压�
 - 协议规范：[`website/docs/adapters/http-protocol.md`](../../website/docs/adapters/http-protocol.md)
 - 参考后端：[`apps/dev-rxdb-http-server`](../dev-rxdb-http-server/README.md)
 - e2e：[`apps/dev-rxdb-http-e2e`](../dev-rxdb-http-e2e)
+
+## 国际化目录分发（US-911）
+
+点击顶栏「国际化目录演示」，或打开 `http://localhost:4300/?i18n=1`。此入口为
+`RemoteMessageEntry` 单独启用 QueryCache，复用 HTTP 适配器、SSE changeFeed 和本地 wa-sqlite 缓存；
+其余 i18n 实体保持 `SyncType.None`。
+
+目录面板显示 greeting/status 两个英文消息和当前来源。修改远端 greeting 后，页面通过 SSE 失效上报、
+metadata 对账和单条 by-ids 拉取直接更新。设置本地 greeting 覆盖后再删除远端目录，greeting 保留本地值，
+status 回退随包默认值；读取目录行数可确认远端缓存为 0、本地覆盖仍为 1。清除本地覆盖后 greeting 也回退默认值。
+
+用现有离线开关断开后端后刷新，已缓存的目录仍可显示；远端目录为空时也能离线显示随包目录。
+恢复联网后，SSE 重连会重新对账。顶栏「重置后端」恢复远端种子，并通知打开中的目录面板。

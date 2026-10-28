@@ -2,7 +2,7 @@
 
 > 本文是 US-911 的设计依据，不是用户故事。结论已经收敛：消息引擎采用 ICU MessageFormat 的
 > `intl-messageformat`（FormatJS 参考实现，纯函数、无框架绑定）；locale 状态作为 **rxdb 单行实体**
-> 存储（切换语言 = 写一行数据）；目录分「包内默认（bundle）+ 本地库 per-message 覆盖（db）」两层；
+> 存储（切换语言 = 写一行数据）；目录分「包内默认（bundle）+ 远端目录（remote）+ 本地库 per-message 覆盖（db）」三层；
 > 小程序运行时明确排除，不写 fallback。
 
 ## 1. 范围与术语
@@ -214,6 +214,19 @@ defaultLocale           string
 
 小程序解锁条件 = 真机探针证明所需 Intl API 存在（独立记录，不在本故事 AC 内）。
 
+### A2 实际运行验证
+
+2026-10-28 在 macOS / arm64 验证。四类运行时使用同一 `@aiao/rxdb-i18n/testing` 的 `assertI18nRuntimeSmoke()`。该入口不依赖 Vitest；验证参数插值、单复数、select 指定与默认分支、`fr-CA → fr` 父语言回退和默认中文回退，返回实际消息输出。
+
+| 运行时          | 验证入口                                                                                                                                             | 本机结果                                                                                    |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Node            | `pnpm nx test rxdb-i18n`，`src/runtime-smoke.spec.ts`                                                                                                | 通过共享断言                                                                                |
+| Web             | `pnpm nx run rxdb-i18n:test-browser`，真实 Chromium                                                                                                  | 1 条通过                                                                                    |
+| Electron 44.9.3 | `dev-rxdb-electron:electron-package-dir` 后运行 `dev-rxdb-electron-e2e:e2e --args='src/electron-smoke.spec.ts --grep=ICU' --excludeTaskDependencies` | 真实 `.app` 渲染页 1 条通过；冷打包 1 分 03 秒，运行 3.8 秒                                 |
+| Tauri 2.12.5    | `dev-rxdb-tauri:tauri-package-release` 后运行 `dev-rxdb-tauri-e2e:desktop-smoke --args='src/desktop-persistence.spec.ts' --excludeTaskDependencies`  | 真实 release WebView、Rust 自检 JSON 2 条通过；冷打包 4 分 41 秒，其中 Rust 编译 3 分 17 秒 |
+
+原生验证平台为 macOS / arm64。Electron 用 Playwright 从真实渲染页读取共享断言的输出；Tauri 通过已有启动探针在原生 WebView 执行，结果以 JSON 字符串写入 Rust 报告的 `message` 字段，其中 `i18nRuntimeSmoke` 保存实际输出。ICU 失败沿现有 `status: 'failed'` 通道上报，单测已验证该失败分支。Node 适配器测试没有计作原生运行时证据。
+
 ## 7. 阶段路线
 
 - **阶段 A 盘点与可行性验证**：全量文案盘点表（每行含 key、默认中文值、所在符号）；消息引擎与
@@ -239,11 +252,11 @@ defaultLocale           string
    优先级高于目录。
 5. 小程序运行时明确排除，不写 fallback；真机 Intl 探针是**独立解锁条件**，不进入本故事任何阶段的 AC。
 6. 与 US-910 共享 BCP 47 规范化（含父语言降级）、fallback 链契约与「用户显示偏好」状态：持久化字段名
-   统一为 `devicePreferredLocale`；纯函数只实现一份，落点任选 `@aiao/rxdb-i18n` 或 `@aiao/utils`、
+   统一为 `devicePreferredLocale`；纯函数已统一实现于 `@aiao/rxdb-i18n`、
    不得双实现；US-910 的数据翻译 fallback 读取本故事的 `I18nSettings.devicePreferredLocale` / `deviceLocale`。
 7. 包命名：客户端运行时用 `@aiao/rxdb-i18n`（+ `rxdb-i18n-{angular,react,vue}`）。它与 US-910 规划的
-   `rxdb-plugin-i18n`（数据翻译）存在命名重叠——两个包都不存在、两条故事都在 Backlog，实现期由 owner
-   裁决改名一方（推荐 US-910 改 `@aiao/rxdb-plugin-translation`），本文不修改 US-910。
+   `rxdb-plugin-i18n`（数据翻译）的职责需保持区分。客户端运行时已按本故事落地；US-910 的包名在其实现评审中
+   确认（推荐 `@aiao/rxdb-plugin-translation`），本文不修改 US-910。
 8. rxdb-model 框架无关核心（DOM 编辑器等）走命令式 `t()`，并**订阅 locale 变化刷新已打开的编辑器文案**；
    三框架绑定走响应式 `useI18n()`。
 9. 目录注册与远端合入时校验 ICU 语法（非法条目拒绝）；`t()` 全链缺失返回 key 本身并记录诊断，

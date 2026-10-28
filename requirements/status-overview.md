@@ -10,18 +10,18 @@
 | :------------- | :--- |
 | ✅ Done        | 82   |
 | 🚧 In Progress | 1    |
-| 👀 In Review   | 7    |
-| 📝 Backlog     | 29   |
+| 👀 In Review   | 8    |
+| 📝 Backlog     | 28   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 119  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **29 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
+> **28 条 Backlog 里 BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；
 > [模型驱动后台](epics/epic-010-model-driven-admin-framework.md) 首版切片 3 条（US-526~528）已孵化，并于 2026-10-21 由 owner 解锁进批次 5（驱动者 = 可用的本地数据工作台，见 [epic-010 解锁记录](epics/epic-010-model-driven-admin-framework.md#价值待证整个-epic)）；
 > [US-223](stories/adapter/US-223-supabase-mutations-update-semantics.md) / [US-224](stories/adapter/US-224-supabase-cascade-delete-change-log.md)（Supabase 直写路径改行被 RLS 误拒、推送路径级联删除不写日志）症状已复现、无前置，在立项池待 owner 定批次；
-> [US-911](stories/future/US-911-client-i18n.md) 阶段 A～C 无硬前置、可开工，在立项池待 owner 定批次；[US-403](stories/ui/US-403-entity-components-headless.md) 已登记、尚未排期；[US-029](stories/core/US-029-rbac-owner-role-permission.md)
+> [US-911](stories/future/US-911-client-i18n.md) 的 A～D 已实现，四运行时冒烟、三端验收、远端目录分发 / DevTools 与串行全量门禁均已通过，待代码评审；[US-403](stories/ui/US-403-entity-components-headless.md) 已登记、尚未排期；[US-029](stories/core/US-029-rbac-owner-role-permission.md)
 > 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期；[epic-011 局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md) 4 条**价值待证**，在立项池待 owner 决策。
 > 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
@@ -33,10 +33,11 @@
 | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
 
-## 待评审（7 条）
+## 待评审（8 条）
 
 | Story                                                                                             | 进展                                                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                              | A～D 全部实现；四运行时 ICU、三端语言切换 / 持久化 / 跨 Tab、远端目录与 DevTools 通过，串行全量门禁 88 项目 / 357 任务通过，待代码评审                                                                                                                                                                                                                       |
 | [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)     | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
 | [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)        | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
 | [US-104 rxdb-model 表单校验反馈与保存失败的展示](stories/framework/US-104-validation-feedback.md) | 三端 EntityDetail 错误面板已交付：校验逐条显示、保存失败可读、字段变更清空；工作台 e2e AC#4 与三端包内 spec 已覆盖，待评审                                                                                                                                                                                                                                   |
@@ -132,7 +133,7 @@
 - ✅ [US-221 OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄](stories/adapter/US-221-opfs-reload-access-handle-race.md) — 症状来自 CI 实测：Vue e2e 整页刷新后库打不开（`NoModificationAllowedError`）；有界重试 + 连接失败提示 + 确定性复现，随 #122 合入
 - ✅ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做，B / C 的价值门禁豁免。三阶段合为 #85 一次合入，AC#1～17 全 ✅：A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`（`screenshots: false`），开销实测 +32.7%，上限经 owner 裁决由 +10% 改为 +33%；B Angular e2e 失败现场数据原样归档与 `dev-rxdb-angular` 导入入口，demo 的 Worker / SharedWorker 连接备份被拒（US-217 只交付主线程连接），IDB 档经同库名的主线程第二连接绕开（spike 2026-10-02 通过）；C 新包 `@aiao/rxdb-plugin-replay`（rrweb 应用内录制，独立录制库，单会话 16 MiB + 总量 128 MiB，门面 `commits$` 关联 commit）加 `rxdb-plugin-replay-{angular,react,vue}` 三框架 Replayer，`dev-rxdb-angular` opt-in 演示
 - ⬜ [US-910 数据国际化 / 本地化](stories/future/US-910-data-i18n.md) — 生产方案收敛为 C-L；阶段 A 依赖 Full/Filter/tombstone 同步夹具，暂不排期
-- ⬜ [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md) — UI 文案与 locale 状态：intl-messageformat 消息引擎 + `I18nSettings` 单行实体 + 三端 `useI18n()`；rxdb-model 去硬编码（默认 zh-Hans 目录随包发布）；阶段 A～C 无硬前置，阶段 D 目录 QueryCache 分发独立后置
+- 👀 [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md) — A～D 已实现：ICU 运行时、持久语言偏好、三端 `useI18n()`、模型文案与 demo、QueryCache 目录分发、DevTools 检视；四运行时与串行全量门禁通过，待代码评审
 - ✅ [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包，A～E 全部交付；破坏性变更清单见 [release-plan「约束 12 修订」](release-plan.md#约束-12-修订破坏性改动如实声明)
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏与 typedoc 收录；含 flatten 坏链修复
 

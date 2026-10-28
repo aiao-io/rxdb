@@ -1,3 +1,4 @@
+import { modelText, type ModelI18n } from '../../i18n.js';
 /**
  * @fileoverview QueryBuilder 核心服务
  * 提供 RxJS 响应式状态管理，支持规则增删改和双向转换
@@ -25,6 +26,8 @@ import { ValidationService, createValidationService, type ValidationGroupInput }
  * QueryBuilderService 选项
  */
 export interface QueryBuilderServiceOptions<T = Record<string, unknown>> {
+  /** 文案运行时。 */
+  i18n?: ModelI18n;
   /**
    * 初始查询状态
    */
@@ -91,6 +94,7 @@ function createEmptyRootGroup<T>(): QueryBuilderRuleGroup<T> {
  * 基于 RxJS 的响应式状态管理
  */
 export class QueryBuilderService<T = Record<string, unknown>> {
+  private readonly i18n: ModelI18n | undefined;
   private readonly stateSubject: BehaviorSubject<QueryBuilderState<T>>;
   private readonly fieldsMap: Map<string, FieldMetadata>;
   private readonly config: QueryBuilderConfig<T>;
@@ -121,11 +125,13 @@ export class QueryBuilderService<T = Record<string, unknown>> {
 
   /** @param options - 查询构建器配置（schema / initialQuery / 嵌套上限等） */
   constructor(options: QueryBuilderServiceOptions<T> = {}) {
+    this.i18n = options.i18n;
     // 初始化依赖
     this.operatorRegistry = options.operatorRegistry ?? createOperatorRegistry();
     this.validationService =
       options.validationService ??
       createValidationService({
+        i18n: options.i18n,
         operatorRegistry: this.operatorRegistry
       });
     this.queryConverter = options.queryConverter ?? createQueryConverter<T>();
@@ -246,7 +252,7 @@ export class QueryBuilderService<T = Record<string, unknown>> {
     const targetId = parentGroupId ?? state.rootGroup.id;
     const targetDepth = this.getGroupDepth(state.rootGroup, targetId);
     if (targetDepth === -1) {
-      throw new Error(`目标分组不存在: ${targetId}`);
+      throw new Error(modelText('text.2fbfbbc990', { p0: targetId }, this.i18n));
     }
 
     const newRootGroup = this.addItemToGroup(state.rootGroup, targetId, newRule);
@@ -265,11 +271,11 @@ export class QueryBuilderService<T = Record<string, unknown>> {
     // 检查嵌套深度
     const currentDepth = this.getGroupDepth(state.rootGroup, targetId);
     if (currentDepth === -1) {
-      throw new Error(`目标分组不存在: ${targetId}`);
+      throw new Error(modelText('text.2fbfbbc990', { p0: targetId }, this.i18n));
     }
     const maxDepth = this.getMaxNestingLevel();
     if (currentDepth >= maxDepth) {
-      throw new Error(`已达到最大嵌套深度 ${maxDepth}`);
+      throw new Error(modelText('text.256e07d03d', { p0: maxDepth }, this.i18n));
     }
 
     const newGroup: QueryBuilderRuleGroup<T> = {
@@ -313,7 +319,7 @@ export class QueryBuilderService<T = Record<string, unknown>> {
 
     // 不允许删除根组
     if (itemId === state.rootGroup.id) {
-      throw new Error('不能删除根组');
+      throw new Error(modelText('text.1779b83a76', undefined, this.i18n));
     }
 
     const newRootGroup = this.removeItemFromGroup(state.rootGroup, itemId);
@@ -328,29 +334,29 @@ export class QueryBuilderService<T = Record<string, unknown>> {
 
     // 不允许移动根组
     if (itemId === state.rootGroup.id) {
-      throw new Error('不能移动根组');
+      throw new Error(modelText('text.abdc9d7ace', undefined, this.i18n));
     }
 
     // 查找要移动的项
     const item = this.findItem(state.rootGroup, itemId);
     if (!item) {
-      throw new Error(`项目不存在: ${itemId}`);
+      throw new Error(modelText('text.ea9c3f732d', { p0: itemId }, this.i18n));
     }
 
     if (!this.findGroup(state.rootGroup, targetGroupId)) {
-      throw new Error(`目标分组不存在: ${targetGroupId}`);
+      throw new Error(modelText('text.2fbfbbc990', { p0: targetGroupId }, this.i18n));
     }
 
     // 如果是规则组，不能移动到自身内部
     if (isRuleGroup<T>(item) && this.isDescendant(item, targetGroupId)) {
-      throw new Error('不能将分组移动到其自身内部');
+      throw new Error(modelText('text.562a75620a', undefined, this.i18n));
     }
 
     if (isRuleGroup<T>(item)) {
       const targetDepth = this.getGroupDepth(state.rootGroup, targetGroupId);
       const subtreeHeight = this.getGroupHeight(item);
       if (targetDepth + subtreeHeight > this.getMaxNestingLevel()) {
-        throw new Error(`移动后超过最大嵌套深度 ${this.getMaxNestingLevel()}`);
+        throw new Error(modelText('text.d3e37adc11', { p0: this.getMaxNestingLevel() }, this.i18n));
       }
     }
 

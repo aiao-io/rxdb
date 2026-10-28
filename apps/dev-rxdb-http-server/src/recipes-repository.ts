@@ -67,7 +67,7 @@ const assertWhereDepth = (node: unknown, depth: number): void => {
 };
 
 /** 把客户端 `where` 归一成默认 RuleGroup；缺省 / `null` 视为无过滤。超过 {@link MAX_WHERE_DEPTH} → 400。 */
-const normalizeWhere = (where: unknown): RuleGroup => {
+export const normalizeWhere = (where: unknown): RuleGroup => {
   if (where === undefined || where === null) return EMPTY_WHERE;
   assertWhereDepth(where, 1);
   return where as RuleGroup;
