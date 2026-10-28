@@ -18,6 +18,8 @@
 - [`ReplayerView.#load`](../../../packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts) 通过 generation 丢弃切换会话/销毁后的迟到结果；恢复后的 UI 回写也验证 generation。
 - [`restoreToCommit`](../../../packages/rxdb-plugin-replay/src/restore.ts) 每次读取当前工作树凭据后执行恢复，不复用录制时的旧 HEAD。
 
+- [`ReplayStore.#transaction` / `readEvents` / `totalBytes`](../../../packages/rxdb-plugin-replay/src/store.ts) 使用适配器事务仓储；它不经过核心 Repository 门面的默认分页，因此没有把缺少显式 limit 误报成“只读取 100 条事件”。读写会话与计数继续由同一个执行器串起。
+
 ## 问题
 
 本次未发现可给出确定触发链的新增包内问题。

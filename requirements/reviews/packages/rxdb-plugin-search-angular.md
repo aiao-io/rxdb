@@ -7,7 +7,7 @@
 
 ## 评审计划与实际范围
 
-实际比对本组 Angular/React/Vue 三个 src/index.ts，再审查本端运行时实现，重点是必填 signal 尚未绑定、DestroyRef 清理与首次 effect flush。框架原生容器差异按设计归一，不把 inject/use 或事件命名差异当成产品缺陷。
+比对本组三端实际 src/index.ts 的值/类型导出；检查 required signal 未绑定时的读取边界、source/options 改变后的句柄替换、两个 effect 的清理顺序及 ErrorHandler 错误通道。
 
 ## 核查结果
 
@@ -15,6 +15,8 @@
 - [`useSearch`](../../../packages/rxdb-plugin-search-angular/src/inject-search.ts)：旧 handle 的订阅先退订再销毁；loadMore/clear/retry 现取 active。DestroyRef 清理两个 effect 与订阅。
 - [`useSearch`](../../../packages/rxdb-plugin-search-angular/src/inject-search.ts)：结果/state/error/hasMore 通过 asReadonly 暴露；协议流异常交给 ErrorHandler。
 - 三端都导出运行时 `SearchExecutionError`，共享类型 `SearchHandle/SearchOptions/SearchResult/SearchState` 与本地 `SearchSourceLike/UseSearchReturn` 均齐全；无仅 type 导出错误类的旧问题。
+
+- initialQuery 用于种子值，活动查询由当前 query 状态驱动；source/options 的配置更换与 query 文本变化使用不同路径，不能把后续 initialQuery 变化未强制覆盖用户输入直接判成丢失更新。
 
 ## 问题
 

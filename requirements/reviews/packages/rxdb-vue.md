@@ -20,6 +20,10 @@
 
 源码实际入口提供三端公共 Source、查询/Graph 资源、action、持久化和同步状态。Vue 额外接受 Ref/undefined 并提供 Ref injector，和 React 组件重渲染、Angular bootstrap 等待的响应式机制不同。
 
+## 注入与作用域反证检查
+
+`createSlot` 对调用方 Ref 直接保留该 Ref，对 owned source 单独登记 onScopeDispose；迟到 resolve 根据 disposed 清理，未将 caller-owned Ref 的替换误判为必须由 provider 销毁旧库。`useRepositoryQuery` 有 requestId 与内容 key，`useInfiniteScroll` 读取响应式 databaseRef；模型详情使用快照造成的既有缺口不归 provider。
+
 ## 验证与边界
 
 对照 [`rxdb-vue.spec.ts`](../../../packages/rxdb-vue/src/__tests__/rxdb-vue.spec.ts)、[`useInfiniteScroll.spec.ts`](../../../packages/rxdb-vue/src/__tests__/useInfiniteScroll.spec.ts)、[`tri-framework-provider.spec.ts`](../../../packages/rxdb-vue/src/__tests__/tri-framework-provider.spec.ts)。

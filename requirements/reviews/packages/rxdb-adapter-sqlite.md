@@ -6,7 +6,7 @@
 
 ## 结论与范围
 
-🟡凑合：本包的薄封装未发现新增确定缺陷；继承共享 SQLite 加密问题。官方 sqlite-wasm 的加载与存储配置被限制在入口层，主要数据库逻辑由 core 负责。
+🟡凑合：本包的薄封装未发现新增确定缺陷；继承共享 SQLite 加密写入失败问题（P2）。官方 sqlite-wasm 的加载与存储配置被限制在入口层，主要数据库逻辑由 core 负责。
 
 | 评审重点           | 证据入口                                                                                                                                                                       | 当前判断                                                                      |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
@@ -16,7 +16,7 @@
 
 ## 问题清单与共享风险
 
-新增独立确定缺陷：0。继承 [sqlite-core SQLC-001](rxdb-adapter-sqlite-core.md)：无关系实体的加密 `*Id` 列被后缀兼容分支明文写出。修 core 后需要本包的真实 SQLite 加密 CRUD 与落盘字节验证，不能只跑 Keyring 单元测试。
+新增独立确定缺陷：0。继承 [sqlite-core SQLC-001](rxdb-adapter-sqlite-core.md)：无关系实体归一化后的加密物理列以 `Id` 结尾时跳过加密，正常公开仓库在解密回填时失败并回滚；未证普通保存后提交明文。修 core 后需要本包的真实 SQLite 加密 CRUD 与落盘字节验证，不能只跑 Keyring 单元测试。
 
 ## 已有契约与风险边界
 
@@ -25,6 +25,10 @@ OPFS 的 `memory` fallback 与恢复组合被明确拒绝，因为持久目标�
 ## 测试与后续计划
 
 已定位 [`sqlite-official-load.utils.spec.ts`](../../../packages/rxdb-adapter-sqlite/src/__tests__/sqlite-official-load.utils.spec.ts)、[`SqliteOfficialClient.spec.ts`](../../../packages/rxdb-adapter-sqlite/src/__tests__/SqliteOfficialClient.spec.ts)、[`encrypted-bigint-binary.spec.ts`](../../../packages/rxdb-adapter-sqlite/src/__tests__/encrypted-bigint-binary.spec.ts) 和 backup/drop-storage 入口。未独立重跑真实 OPFS、Worker 重连、浏览器崩溃恢复与全部 conformance；本报告不据此宣称生产环境零风险。
+
+## 调用链交叉核查
+
+官方 oo1 transport 的 [`wrapWithComlinkEndpoint`](../../../packages/rxdb-adapter-sqlite-core/src/create_sqlite_client.ts) 明确要求同一底层 Worker 客户端单活；该共用入口同时处理 SharedWorker。不同 realm 的对象不会共享 WeakMap，接入方仍必须遵守单活约定，不能从 sharedWorker 选项推导出多标签页并用支持。违反该约定后错关共有连接的局部诊断不登记为新缺陷。
 
 ## 本次 Nx 校验
 

@@ -4,7 +4,7 @@
 
 ## 结论
 
-🟡 凑合。发现 1 条 P1、1 条 P2。三端 EntityDetail 共享“切换目标时保存旧实例”问题族；本文件登记本包独立实现的修复点。共享核心问题以链接引用，不重复计数。
+🟡 凑合。发现 1 条 P1、2 条 P2。三端 EntityDetail 共享“切换目标时保存旧实例”问题族；本文件登记本包独立实现的修复点。共享核心问题以链接引用，不重复计数。
 
 ## 检查范围与证据
 
@@ -53,11 +53,35 @@ if (service && fieldsComputed.length > 0) service.setFields(fieldsComputed);
 
 建议回归：保持同一组件，fields 从非空切空、schema 从有值切 undefined、再恢复字段，断言现有规则的 validationChange 与字段选择器一致；同一用例同时覆盖后续修改规则再校验，避免只验证上游是否重算。
 
+
+### MDR-20261028-03 [P2] Activity 重显把用户查询重置为空并发出 queryChange
+
+证据：[`QueryBuilder` 的服务生命周期 effect](../../../packages/rxdb-model-react/src/query-builder/query-builder/query-builder.tsx) 每次接通创建一个新的 QueryBuilderService，立即订阅其 rootGroup$；订阅会覆盖保留的 React rootGroup state 并调用 onQueryChange。清理会销毁服务，仅清空 lastAppliedInitialQueryRef，没有保存用户当前查询。重显后的 initialQuery effect 只能恢复宿主传入的 initialQuery，无法恢复用户内部编辑而未回写 props 的查询。
+
+最小触发：`<Activity><QueryBuilder fields={[title]} /></Activity>`，通过组件“添加第一个条件”按钮建立条件，然后隐藏并重显同一个 Activity；不需要换 key、卸载组件或传入非法查询。预期保留尚在编辑的条件；实际条件消失，onQueryChange 收到空根组。宿主若根据该事件应用列表筛选，筛选也会被清空。
+
+复验：真实 QueryBuilder、真实 QueryBuilderService/校验器/转换器，经 esbuild 在内存中转译，在 ReactDOM 19.3.1 + happy-dom 中运行；仅 QueryGroup 展示子组件与拖放桥做轻量替身。实际点击的是主组件的首个条件按钮，服务订阅、状态与 queryChange 都保留原实现。记录为：
+
+```text
+before: {"combinator":"and","rules":[{"field":"title","operator":"=","value":""}]}
+after hide/show: {"combinator":"and","rules":[]}
+```
+
+影响与限定：Activity 保留状态的页签/面板会丢失未回写到 initialQuery 的用户查询。宿主每次都将最新条件回写为 initialQuery 时可恢复最终条件，但新服务的初始空组订阅仍先发出空查询；本条没有验证真实 VTable 或业务列表执行结果，不推断数据库数据被修改。
+
+修复建议：把当前查询快照随组件状态保留，重接时先从该快照建服务，再建立向外通知的订阅；区分宿主主动替换 initialQuery 和内部编辑快照，防止恢复过程先发布一个临时空查询。
+
+建议回归：无 initialQuery、稳定 initialQuery 后用户修改、宿主回写当前查询三种配置；隐藏期间更新 initialQuery、反复显示及 StrictMode；同时断言界面规则和 queryChange 序列，不只等所有 effect 跑完看最终 DOM。
+
 ## 共享问题与 API 对照
 
 React 使用 props/callback 与 DialogContext；表格句柄由 useImperativeHandle 提供，复用核心 EntityTableHandle/QueryTableHandle。已查看实际公开入口以及查询构建器入口，未将 Angular inject 与 React hook 名字差别误报为缺失。
 
-本包的表格快捷键与批量事件使用核心 [MOD-20261028-01](rxdb-model.md)，列级只读绕过问题只在核心报告计数；框架层应在同一修复中执行交互回归。React EntityDetail 对异步 source 后到的 create 草稿补建已存在，且有专门用例；未重复登记旧问题。EntityTable 的 Activity hide/show tableReady 复位也已在源码与回归中实现。QueryBuilder 重建服务时能恢复 initialQuery，但没有为未回写到 props 的用户查询另存快照；该边界未做运行复现，不计确定缺陷。
+本包的表格快捷键与批量事件使用核心 [MOD-20261028-01](rxdb-model.md)，列级只读绕过问题只在核心报告计数；框架层应在同一修复中执行交互回归。React EntityDetail 对异步 source 后到的 create 草稿补建已存在，且有专门用例；未重复登记旧问题。EntityTable 的 Activity hide/show tableReady 复位也已在源码与回归中实现。QueryBuilder 重建服务时恢复 initialQuery 的能力仅覆盖宿主当前 prop，内部编辑快照与重接事件序列见 MDR-20261028-03。
+
+## 保存身份与 Activity 边界
+
+有效 A→B 时 prevLoad 更新身份但不清旧实例，handleFormSubmitted 不检查加载结果是否属于当前 cls/id；EntityForm 没有 loading 保护，核心保存也不会读取路由目标。EntityTable 清理中已释放表格并 setTableReady(false)，不重复登记过去的 Activity tableReady 缺陷；本包新增的 Activity 问题发生在 QueryBuilder 查询服务快照。
 
 ## 验证与边界
 

@@ -7,7 +7,7 @@
 
 ## 评审计划与实际范围
 
-实际比对本组 Angular/React/Vue 三个 src/index.ts，再审查本端运行时实现，重点是StrictMode、Provider 换库与迟到异步结果。框架原生容器差异按设计归一，不把 inject/use 或事件命名差异当成产品缺陷。
+比对本组三端实际 src/index.ts；检查 useWorkingTree/useWorktrees 的 database 身份槽、render 复位、拒绝旧库迟到 patch、命令 memo，以及 useSyncExternalStore 的 mounted 快照/退订。
 
 ## 核查结果
 
@@ -15,6 +15,8 @@
 - 工作树十四格与检出位十格沿用核心状态类型及同名命令；恢复拒绝是返回值，不被包装成空状态。
 - 三端 index.ts 的 `useWorkingTree/WorkingTreeResource/useWorktrees/WorktreesResource` 导出集合相同；核心错误类型按共同约定从 peer 包读取。
 - 方法只在命令发起时调用数据库；创建入口没有额外 I/O。并发同格 latest-only 由核心共用命令层负责。
+
+- [`createLatestOnlyPatch`](../../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts) 只抑制旧状态回写，不取消数据库操作本身；框架卸载不等于用户发起的持久化命令应回滚。检出位 mounted 订阅和命令 Promise 的所有权分别检查。
 
 ## 问题
 

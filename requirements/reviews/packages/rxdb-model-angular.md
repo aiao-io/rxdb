@@ -59,6 +59,10 @@ Angular 经 input/output 与 CDK DialogRef/DIALOG_DATA 对接；creationChain/ed
 
 本包的表格快捷键与批量事件使用核心 [MOD-20261028-01](rxdb-model.md)，列级只读绕过问题只在核心报告计数；框架层应在同一修复中执行交互回归。根级 provideRxDB 在 bootstrap 前等待 source，不适用 Vue 的异步 setup 快照缺口。QueryBuilder 的 maxDepth 在构造时捕获、Vue 端动态同步，是需要明确的现有配置行为差异；本报告未把未经交互复验的深度约束推断列为确定问题。
 
+## 保存目标与包装边界
+
+模板没有按加载目标禁用 EntityForm 的动作，`formDataToEntityChanges` 只处理字段类型/readonly，核心 `EntityManager.save(this)` 只知道实例身份；没有上游会把旧 A 自动校正为当前 entityId=B。合法 A→B 等待窗口的 P1 保留。字段清空时即使随后修改规则触发核心重算，包装层未传入的空 schema 仍使旧字段 Map 生效，P2 与核心通知缺失分别成立。
+
 ## 验证与边界
 
 重点核对 [`entity-detail/entity-detail.real.spec.ts`](../../../packages/rxdb-model-angular/src/__tests__/entity-detail/entity-detail.real.spec.ts) 的现有 create/edit、保存失败、草稿取消、固定字段与关系 tab 覆盖；现有目标加载测试以单个已就绪记录为主，不能证明有效 id 切换的加载窗口安全。

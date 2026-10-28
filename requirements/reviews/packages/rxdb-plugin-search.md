@@ -17,6 +17,8 @@
 - [`buildFieldContainsSql`](../../../packages/rxdb-plugin-search/src/core/search-engine.ts) 将列名交给标识符转义、查询词走参数；本次未将 token 内容插进 SQL。
 - [`createSearchHandle`](../../../packages/rxdb-plugin-search/src/core/search-handle.ts) 在销毁后结清 pending 请求的等待者，避免调用方永久挂在已丢弃的排队请求上。
 
+- [`createSearchHandle`](../../../packages/rxdb-plugin-search/src/core/search-handle.ts) 的 page-0 排队优先级与 generation 是两套判据：队列决定下一次执行，generation 负责拒绝被 clear/destroy 作废的结果。未把有界串行查询泵描述成可以取消任意后端 Promise。
+
 ## 问题
 
 本次未发现可给出确定触发链的新增包内问题。

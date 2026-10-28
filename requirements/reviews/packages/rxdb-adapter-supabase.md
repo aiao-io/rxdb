@@ -51,6 +51,10 @@
 
 `saveMany`/`mutations` 不支持自定义主键物理列；`saveMany` 分组写本身不是跨组原子事务。它们已经公开说明，不计新增缺陷。此次未验证真实 RLS 策略、Realtime 重连、RPC 的 PostgreSQL 权限配置；本地 mock 通过不能替代服务端验收。
 
+## 调用链交叉核查
+
+通过当前 `apply_rule_group` 的完整公开编译入口再次传入 exists→OR，记录到 not(posts,is,null) 后两个连续 eq，SUP-001 保留。顶层 OR 中关系过滤及带 where 的 notExists 有显式拒绝，不能把它们当作同一个静默编译缺陷。字符串过滤使用 ilike 是站点文档公开的后端映射，本轮不另加一条仅据实现差异推断的缺陷。
+
 ## 本次 Nx 校验
 
 本次 `rxdb-adapter-supabase:test`：620 passed (620)；目标实际执行。命令及整体边界见[总索引](README.md)。

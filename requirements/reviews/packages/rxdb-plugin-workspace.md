@@ -16,6 +16,8 @@
 - 同一类 `#runTask` 对坏记录做 structuredClone 预检，其余记录可继续写；错误向 flushWaiters 传播，未把坏草稿静默记成功。
 - `#queued_keys` 试图保存旧分区身份，但与两个待写集合一样只按 cacheId 键控，无法同时表示同一实体两个分区尚未结算的写，见 WORKSPACE-001。
 
+- [`RxDBPluginWorkspace.#entityEventHandler`](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts) 在 restoring 期间仍接收当前表集的合法 NEW；ready 是等待接口，没有禁止此期间新建的写入屏障，因此 WORKSPACE-001 的窗口未被隐藏前置条件排除。
+
 ## 问题
 
 ### WORKSPACE-001 [P2] 换挂恢复窗口内同 UUID 的新草稿覆盖旧分区待写草稿

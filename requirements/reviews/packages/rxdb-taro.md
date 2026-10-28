@@ -20,6 +20,10 @@
 
 本包是构建/小程序运行时桥接，不属于 Angular/React/Vue 三端同名包装组。Taro 插件与 runtime 只支持微信/抖音；vite 组装可处理支付宝，其额外要求在源码与 README 中明确。
 
+## 公开子路径与宿主边界
+
+除包根之外，vite/runtime 子路径分别承担构建插件与宿主适配。平台选择先于资源装配，assets 从 adapter 的依赖解析 WASM；realm 插件按 chunk 所在目录生成相对 require，并在不安全的抖音 strict 入口明确报错。未把“不实际驱动开发者工具”的验证缺口冒充构建缺陷。
+
 ## 验证与边界
 
 检查八类入口对应的测试文件，重点包括 [`realm-plugin.spec.ts`](../../../packages/rxdb-taro/src/__tests__/realm-plugin.spec.ts)、[`assets-plugin.spec.ts`](../../../packages/rxdb-taro/src/__tests__/assets-plugin.spec.ts)、[`runtime.spec.ts`](../../../packages/rxdb-taro/src/__tests__/runtime.spec.ts)。

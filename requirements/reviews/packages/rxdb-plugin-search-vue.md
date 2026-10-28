@@ -7,7 +7,7 @@
 
 ## 评审计划与实际范围
 
-实际比对本组 Angular/React/Vue 三个 src/index.ts，再审查本端运行时实现，重点是effectScope 释放、props/ref 身份与只读输出。框架原生容器差异按设计归一，不把 inject/use 或事件命名差异当成产品缺陷。
+比对本组三端实际 src/index.ts 的值/类型导出；检查活动 effectScope 前提、options getter/数组原地变更、source 替换先销毁旧句柄、readonly 输出及 scopeDispose 退订。
 
 ## 核查结果
 
@@ -15,6 +15,8 @@
 - [`useSearch`](../../../packages/rxdb-plugin-search-vue/src/use-search.ts)：要求活动 scope；重建时先清旧订阅/handle，scopeDispose 将 active 置空后清理，旧命令 no-op。
 - [`useSearch`](../../../packages/rxdb-plugin-search-vue/src/use-search.ts)：四个流输出使用 readonly，query 是唯一可写输出；协议流失败交给 Vue 错误链，clear 抑制重复 watcher 转发。
 - 三端都导出运行时 `SearchExecutionError`，共享类型 `SearchHandle/SearchOptions/SearchResult/SearchState` 与本地 `SearchSourceLike/UseSearchReturn` 均齐全；无仅 type 导出错误类的旧问题。
+
+- initialQuery 用于种子值，活动查询由当前 query 状态驱动；source/options 的配置更换与 query 文本变化使用不同路径，不能把后续 initialQuery 变化未强制覆盖用户输入直接判成丢失更新。
 
 ## 问题
 

@@ -59,6 +59,10 @@ Vue 的 props/emits、DialogPortal 注入上下文、defineExpose 对应另外�
 
 本包的表格快捷键与批量事件使用核心 [MOD-20261028-01](rxdb-model.md)，列级只读绕过问题只在核心报告计数；框架层应在同一修复中执行交互回归。已知限制，非新增发现：EntityDetail 在 setup 执行 `const rxdb = useRxDBOptional()` 只保存快照；其 entityCls 与创建草稿 watch 不会因 provider Ref 后到而重新获得数据库。因此 Promise/Ref source 首帧未就绪时，edit 加载与 create 草稿补建缺失。当前源码与 2026-10-27 清理记录一致；应消费响应式 useRxDBRef/injectRxDBRef。该条不再计入本次新增 P 级统计。
 
+## 保存目标与异步源边界
+
+entityInstance watch 的 cleanup 只撤销旧订阅，不撤销已存的 A；EntityForm 的保存动作没有 loading/身份保护，因此有效 B 尚未发射时的 P1 可达。`useRxDBOptional()` setup 快照的既有缺口保留在已知限制中，没有重新计作新增。字段列表清空 guard 与核心 validation$ 不通知也不是同一修复位置。
+
 ## 验证与边界
 
 重点核对 [`entity-detail/entity-detail.real.spec.ts`](../../../packages/rxdb-model-vue/src/__tests__/entity-detail/entity-detail.real.spec.ts) 的现有 create/edit、保存失败、草稿取消、固定字段与关系 tab 覆盖；现有目标加载测试以单个已就绪记录为主，不能证明有效 id 切换的加载窗口安全。

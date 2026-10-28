@@ -17,6 +17,8 @@
 - [`RedoStack.push`](../../../packages/rxdb-plugin-history/src/redo-stack.ts) 限制最大栈大小；remove 按 fingerprint 精确移除。
 - [US-315](../../stories/collaboration/US-315-undo-inherited-change-switch-corruption.md) 当前 `status: Done`；继承 floor 防线已落在上述源码，本次不把 README 的历史遗留叙述当成当前未修漏洞。
 
+- [`table_set_scope` / `keep_table_set_actions`](../../../packages/rxdb-plugin-history/src/table-set-scope.ts) 让影子检出位只重放本表集成员；[`buildLastPushedMap`](../../../packages/rxdb-plugin-history/src/history-filters.ts) 合并持久水位与在飞认领，未把已推变更重新纳入可撤销集合。
+
 ## 问题
 
 本次未发现可给出确定触发链的新增包内问题。

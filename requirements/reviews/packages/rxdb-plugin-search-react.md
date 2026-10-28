@@ -7,7 +7,7 @@
 
 ## 评审计划与实际范围
 
-实际比对本组 Angular/React/Vue 三个 src/index.ts，再审查本端运行时实现，重点是StrictMode、Provider 换库与迟到异步结果。框架原生容器差异按设计归一，不把 inject/use 或事件命名差异当成产品缺陷。
+比对本组三端实际 src/index.ts 的值/类型导出；检查 options 的稳定快照、collections 复制、同构 layout effect 的订阅/销毁、queryRef 和当前 handleRef，以及协议流失败的异常边界通道。
 
 ## 核查结果
 
@@ -15,6 +15,8 @@
 - [`useSearch`](../../../packages/rxdb-plugin-search-react/src/use-search.ts)：同构 layout effect 创建并订阅句柄，cleanup 退订并 destroy；queryRef 保留输入，命令读取最新 handleRef。
 - [`useSearch`](../../../packages/rxdb-plugin-search-react/src/use-search.ts)：协议流失败先退订全部再写 streamFailure，由渲染期抛给异常边界。
 - 三端都导出运行时 `SearchExecutionError`，共享类型 `SearchHandle/SearchOptions/SearchResult/SearchState` 与本地 `SearchSourceLike/UseSearchReturn` 均齐全；无仅 type 导出错误类的旧问题。
+
+- initialQuery 用于种子值，活动查询由当前 query 状态驱动；source/options 的配置更换与 query 文本变化使用不同路径，不能把后续 initialQuery 变化未强制覆盖用户输入直接判成丢失更新。
 
 ## 问题
 

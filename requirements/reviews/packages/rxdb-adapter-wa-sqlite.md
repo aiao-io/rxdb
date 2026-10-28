@@ -6,7 +6,7 @@
 
 ## 结论与范围
 
-🟡凑合：本包重点路径未发现新增确定缺陷；继承共享 SQLite 加密风险。VFS 分级与 transport 成对校验较清晰，不能把实验性 VFS 与默认 IDB 后端混作同一成熟度。
+🟡凑合：本包重点路径未发现新增确定缺陷；继承共享 SQLite 加密写入失败问题（P2）。VFS 分级与 transport 成对校验较清晰，不能把实验性 VFS 与默认 IDB 后端混作同一成熟度。
 
 | 评审重点             | 源码与符号                                                                                                                                                                                                                  | 当前判断                                                                        |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -17,7 +17,7 @@
 
 ## 问题清单与共享风险
 
-新增独立确定缺陷：0。继承 [sqlite-core SQLC-001](rxdb-adapter-sqlite-core.md)：无关系实体的加密 `*Id` 列明文写出。sqlite-wasm 的“只有 sharedWorkerInstance”问题不重复登记到本包，因为 `validateTransport` 在 wrap 前拒绝这个组合。
+新增独立确定缺陷：0。继承 [sqlite-core SQLC-001](rxdb-adapter-sqlite-core.md)：无关系实体的加密 `*Id` 列跳过加密转换，正常公开写入在解密回填时失败并回滚。sqlite-wasm 的“只有 sharedWorkerInstance”问题不重复登记到本包，因为 `validateTransport` 在 wrap 前拒绝这个组合。
 
 ## 当前契约
 
@@ -26,6 +26,10 @@
 ## 测试与后续计划
 
 已定位 create_sqlite_client、drop-storage、encrypted-crud/lifecycle/tamper、OPFS reload 和 shared-client 相关测试入口。优先补共享内核的加密列后缀真实落盘回归，再运行默认 IDB 及双标签 SharedWorker 事务套件；实验性 VFS 单独验收。此次未重跑所有浏览器 VFS、持久化与崩溃恢复组合，也未重新测量 coverage。
+
+## 调用链交叉核查
+
+`validateTransport` 在 wrap 前要求 flag/instance 成对；`sharedClientLockName` 因而与实际 SharedWorker transport 一致。共享 owner release 和 orphan rollback 的存在，不能代替真双标签验证，但足以反证把 SWM-001 同形配置直接套到本包。
 
 ## 本次 Nx 校验
 

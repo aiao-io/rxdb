@@ -17,6 +17,8 @@
 - [`repairLocalCache`](../../../packages/rxdb-plugin-sync/src/query-cache-outbox.ts) 修复缓存前再次查询比本轮快照更新的离线改动，避免直接覆盖新写。
 - [`createResumeTrigger`](../../../packages/rxdb-plugin-sync/src/sync-listeners.ts) 只有连接就绪、可联网且位于主检出位才触发自动恢复；与名称空间参数丢失是两条不同问题。
 
+- [`settledWatermark`](../../../packages/rxdb-plugin-sync/src/query-cache-outbox.ts) 只推进到最早未结算实体原始变更之前；交错实体导致部分已结算行可能再次处理是源码明确的现有边界。`repairLocalCache` 在远端行到达后才检查更晚待推记录，未将早已修复的“检查发生在网络往返之前”重复登记。
+
 ## 问题
 
 ### SYNC-001 [P1] 非 public 命名空间的离线写被按裸实体名重放，仍推进成功水位

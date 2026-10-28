@@ -18,7 +18,7 @@
 
 ## 确定问题
 
-### TAU-001 · P2 · JSON codec 把 **proto** 数据键写成结果对象原型
+### TAU-001 · P2 · JSON codec 把 `__proto__` 数据键写成结果对象原型
 
 **证据与根因。** [`encodeEntries` / `decodeEntries`](../../../packages/rxdb-adapter-tauri/src/desktop-json-codec.ts) 都新建 `{}` 后用 `result[key] = value` 填值。合法 JSON 自有键 `__proto__` 会调用普通对象的原型 setter。两个函数通过包根公开导出，声明接受一般 JSON payload，并专门保证类似标签的用户对象可以往返；该键没有被契约排除。
 
@@ -42,11 +42,15 @@
 
 ## 共享风险
 
-[sqlite-core SQLC-001](rxdb-adapter-sqlite-core.md) 会经 `RxDBAdapterSqliteBase` 影响 Tauri。根因在 TypeScript 数据转换，Rust 看到的已经是明文绑定参数，不能靠 Rust 路径或 SQL 守卫补救；不重复计数。
+[sqlite-core SQLC-001](rxdb-adapter-sqlite-core.md)（P2）会经 `RxDBAdapterSqliteBase` 影响 Tauri：合法加密 Id 后缀列写入失败。TypeScript 生成的绑定参数跳过加密，但普通公开仓库的解密回填失败会回滚同一事务；不能据此宣称 Tauri 普通保存后已提交明文。修复归共享转换层，不重复计数。
 
 ## 测试与宿主边界
 
 已定位 [`desktop-json-codec.spec.ts`](../../../packages/rxdb-adapter-tauri/src/__tests__/desktop-json-codec.spec.ts)、[`tauri-host-transport.spec.ts`](../../../packages/rxdb-adapter-tauri/src/__tests__/tauri-host-transport.spec.ts) 与 Rust authorizer/路径内置测试。上述局部 codec 复现不等于已运行 Rust 或真实 Tauri WebView；窗口销毁回收、多窗口事件投递和文件锁还需宿主验收。
+
+## 调用链交叉核查
+
+TAU-001 限于编解码 helper 对结果对象继承链及自有键的修改，不影响全局 Object.prototype。Rust owner 校验和路径白名单与 TypeScript codec 是不同边界，未因 helper 复现而宣称已穿透窗口/文件访问控制。
 
 ## 本次 Nx 校验
 

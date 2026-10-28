@@ -36,7 +36,7 @@ switchState true
 disabled column emitted true
 ```
 
-影响：三端 EntityTable/EntityList 共用此入口，批量与单元格处理随后会修改实体内存并通知宿主。核心 [`normalizeUpdateData`](../../../packages/rxdb/src/entity/entity.utils.ts) 会过滤 readonly 持久化字段，因此本报告不声称所有 readonly 值必然写入数据库；内存、显示与回调已经违背字段只读合同，底层过滤也不会自动恢复被前端修改的内存值。
+影响：三端 EntityTable/EntityList 共用此入口，批量与单元格处理随后会修改实体内存并通知宿主。核心 [`normalizeUpdateEntity`](../../../packages/rxdb/src/entity/entity.utils.ts) 会过滤 readonly 持久化字段，因此本报告不声称只读值必然写入数据库。已确定的是只读列产生了 PendingWrite、布尔视觉切换与变更回调，并进入前端写入队列；入口已违背字段只读合同。下游 [`EntityList.flushPending`](../../../packages/rxdb-model-react/src/entity-list/entity-list.tsx) 会在 mutations reject 后用 prevMap 回滚实例，正常数据库回执也可能回填旧值；最终内存是否恢复取决于对应保存路径，本次局部复现没有证明永久内存漂移。
 
 修复建议：列定义保留明确的可写标记，由共享谓词统一约束鼠标编辑、布尔切换、粘贴和清空；同时排除系统/选择/操作字段，不能仅把禁用 editor 当作所有输入入口的保护。
 
@@ -63,6 +63,10 @@ after setFields([]), emitted validity: [true] direct validate: false
 ## 公开 API 与三端对照
 
 本包是三端共享模型与表格内核；共享错误只在这里登记一次。各框架报告链接本条，不重复把同一核心修复计算成三个独立缺陷。表单转换已跳过 readonly，表格批量入口缺少等价约束。
+
+## 下游反证与缺陷归属
+
+列级只读的鼠标 editor/disable 保护没有传到共享键盘/剪贴板谓词，三端包装的 handleCellChange 也只判行级只读；确定入口绕过仍成立。保存失败回滚与后端回执回填已经纳入影响限定，不再用此局部复现推断最终内存或磁盘必然保持错误值。`setFields` 的普通 Map 与只由 state$ 驱动的 validation$ 是另一条独立依赖遗漏。
 
 ## 验证与边界
 

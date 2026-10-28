@@ -19,6 +19,8 @@
 - [`WorktreeManager.#view`](../../../packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts) refresh 先成功创建新快照再结算旧视图，旧视图收尾失败会关闭新快照。
 - [`createLatestOnlyPatch`](../../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts) 按状态格独立 generation 抑制同一格旧命令的迟到结果；方法执行本身不因 UI 过期而取消。
 
+- [`restoreWorkingTree`](../../../packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts) 与 [`readWorkingTreeStatus`](../../../packages/rxdb-plugin-working-tree/src/working-tree/status.ts) 分别核对凭据、entryCount 与恢复会话版本；[`createWorktreeCommands`](../../../packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts) 的状态过期只影响 UI，不静默取消用户数据库命令。
+
 ## 问题
 
 本次未发现可给出确定触发链的新增包内问题。

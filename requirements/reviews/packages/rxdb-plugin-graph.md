@@ -16,6 +16,8 @@
 - [`SqliteGraphRepository.addEdge`](../../../packages/rxdb-plugin-graph/src/sqlite/SqliteGraphRepository.ts) 对无向图双向写入使用同一事务；自环只写一次。
 - [`generate_entity_find_paths_sql`](../../../packages/rxdb-plugin-graph/src/sqlite/query_graph_sql.ts) 以扩展次数上限截断搜索并显式回传元数据；本次未把有上限的枚举当作无限递归误报。
 
+- 节点表名由 [`query_graph_sql`](../../../packages/rxdb-plugin-graph/src/sqlite/query_graph_sql.ts) 读取原始物理名，边表名由 [`graph_edge_table_name`](../../../packages/rxdb-plugin-graph/src/sqlite/graph_edge_table.ts) 返回已转义引用；两个返回合同不同，不能据边表已经安全就认定节点表的字符串插值也安全。
+
 ## 问题
 
 ### GRAPH-001 [P2] 图查询没有转义节点物理表名中的双引号

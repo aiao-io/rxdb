@@ -43,6 +43,10 @@ after show: initial
 
 公共配置和错误载荷与另外两端对齐，React 使用 callback prop 的命名差异属于框架惯例。此次差异是内部状态在 effect 断开后是否保留，不能靠 index.ts 导出检查发现。
 
+## 状态恢复与受控边界
+
+创建 EditorView 的 effect 与 value 同步 effect 都会在 Activity 重接时重新执行。宿主将最新文本回写到 value 时，后者能恢复文本，但无法恢复新 EditorState 已丢弃的选区与历史；未回写 value 时，文本仍会重置。CER-20261028-01 的 P1 以组件明示允许的非严格受控输入为依据，不将所有受控用法概括为同样丢文本。
+
 ## 验证与边界
 
 运行了上述真实 Activity 隔离复现；没有提交新测试，也没有修改实现。已有回归中的“StrictMode 销毁两次”“卸载后 loader 不再 dispatch”“父 layout effect 使用新回调”均作为已实现防护审阅。

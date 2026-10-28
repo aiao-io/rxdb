@@ -20,6 +20,10 @@
 
 三端共享的 `view` / `host` / `focus` / `blur`、语言错误载荷、常用配置项语义一致。Angular 另保留 CVA 与 `setLanguage` / `setExtensions` 命令；React/Vue handle 没有这两个额外命令，这是现有 API 差异，不能据“导出名不相同”直接判定共享功能缺失。
 
+## 值与回调的反证检查
+
+`#formOwnsValue` 使首次 CVA writeValue 后的 value input 不再争夺文档；`ngOnInit` 消费 pendingValue，disabled/readOnly/a11y 经同一 dispatch 更新。语言 loader 的回调同时校验 request 与 view，ngOnDestroy 先使 request 失效，未发现能把 React Activity 的 effect 重放缺陷直接套到 Angular 生命周期的调用链。
+
 ## 验证与边界
 
 重点核对 [`review-parallel-form-value.spec.ts`](../../../packages/code-editor-angular/src/__tests__/review-parallel-form-value.spec.ts) 与 [`review-language-sync-throw.spec.ts`](../../../packages/code-editor-angular/src/__tests__/review-language-sync-throw.spec.ts) 所覆盖的表单和值所有权、同步失败路径。

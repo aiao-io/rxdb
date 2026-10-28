@@ -6,7 +6,7 @@
 
 ## 结论与范围
 
-🟡凑合：本包自身未发现新增确定缺陷；继承共享 SQLite 加密问题。sqliteai 与官方 oo1 后端共用生命周期，但其内置扩展初始表必须采用独立恢复验收。
+🟡凑合：本包自身未发现新增确定缺陷；继承共享 SQLite 加密写入失败问题（P2）。sqliteai 与官方 oo1 后端共用生命周期，但其内置扩展初始表必须采用独立恢复验收。
 
 | 评审重点           | 源码与符号                                                                                                                                                                     | 当前判断                                                                                             |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
@@ -16,7 +16,7 @@
 
 ## 问题清单与共享风险
 
-新增独立确定缺陷：0。继承 [sqlite-core SQLC-001](rxdb-adapter-sqlite-core.md)：无关系实体的加密 `*Id` 列明文写出。sqliteai 扩展不会替这段 renderer 数据归一化补加密，不应在扩展层另加特判。
+新增独立确定缺陷：0。继承 [sqlite-core SQLC-001](rxdb-adapter-sqlite-core.md)：无关系实体的加密 `*Id` 列跳过加密转换，正常公开写入在解密回填时失败并回滚。sqliteai 扩展不会替这段 renderer 数据归一化补加密，不应在扩展层另加特判。
 
 ## 已知约束与验证边界
 
@@ -25,6 +25,10 @@
 ## 测试与后续计划
 
 已定位 [`sqliteai-load.utils.spec.ts`](../../../packages/rxdb-adapter-sqliteai/src/__tests__/sqliteai-load.utils.spec.ts)、[`SqliteaiClient.spec.ts`](../../../packages/rxdb-adapter-sqliteai/src/__tests__/SqliteaiClient.spec.ts)、[`sqliteai-backup.spec.ts`](../../../packages/rxdb-adapter-sqliteai/src/__tests__/backup/sqliteai-backup.spec.ts)、加密与 worktree conformance。后续优先跑共享加密回归，再在真实扩展库验证备份恢复字节一致。此次未独立执行浏览器 OPFS 和扩展升级兼容验证。
+
+## 调用链交叉核查
+
+与官方 oo1 后端一样，Worker/SharedWorker 接入服从 [`wrapWithComlinkEndpoint`](../../../packages/rxdb-adapter-sqlite-core/src/create_sqlite_client.ts) 的同一底层客户端单活约定；Oo1ClientBase 没有 wa-sqlite/sqlite-wasm 的多 owner 共享合同。未将超出此约定的并发接入计为产品 P1。加载配置指纹仍经全局 oo1 锁串行。
 
 ## 本次 Nx 校验
 

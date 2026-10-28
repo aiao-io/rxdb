@@ -7,7 +7,7 @@
 
 ## 评审计划与实际范围
 
-实际比对本组 Angular/React/Vue 三个 src/index.ts，再审查本端运行时实现，重点是effectScope 释放、props/ref 身份与只读输出。框架原生容器差异按设计归一，不把 inject/use 或事件命名差异当成产品缺陷。
+比对本组三端实际 src/index.ts 的四个运行时入口；逐项核对 vue use-tree.ts 的仓库方法名、EntityStaticType 选项、列表/计数默认值及 RxDBResource 返回类型。订阅、错误、选项追踪和销毁委托本端 useRepositoryQuery，另对照公共树合并器的 TREE-001。
 
 ## 核查结果
 
@@ -15,6 +15,8 @@
 - 列表默认值为 `[]`，计数为 `0`，输入与返回值继续使用核心 `EntityStaticType` 和本端 `RxDBResource`，本层未另建查询状态机。
 - 三个 index.ts 的四个运行时导出集合完全一致；没有添加单端专属功能面。
 - 生命周期、错误和 options 追踪委托 `@aiao/rxdb-vue`，本层没有额外订阅需要释放。
+
+- 四个入口都在同一个 useRepositoryQuery 资源模型内执行；本层没有自建缓存，不把核心合并器缺陷复制成三条薄包装缺陷。
 
 ## 问题
 

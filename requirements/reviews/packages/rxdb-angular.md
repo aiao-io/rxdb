@@ -20,6 +20,10 @@
 
 对比三端实际 index.ts：`RxDBSource`、查询资源、GraphPath / GraphQueryResult / NeighborResult、useAction、usePersistedState、useSyncState 均存在。Signal、React 快照与 Vue reactive/ComputedRef 的差异属于各框架容器，不能按字符串逐字相同判 API 缺失。
 
+## 所有权与查询边界
+
+`createHolder` 对已就绪实例不登记 destroy，对 Promise/工厂只在注入器 DestroyRef 销毁后清理；根 initializer 等待 ready。查询 hook 的 lazy value 与四项状态共用启动链，清理销毁查询 effect；路由级异步 source 的等待问题已经公开约束，不作为新增缺陷。
+
 ## 验证与边界
 
 审阅 provider 的异步失败合同和查询/分页实现；基线用例入口包括 [`rxdb.provider.spec.ts`](../../../packages/rxdb-angular/src/__tests__/rxdb.provider.spec.ts)、[`InfiniteScrollingList.spec.ts`](../../../packages/rxdb-angular/src/__tests__/InfiniteScrollingList.spec.ts)、[`tri-framework-provider.spec.ts`](../../../packages/rxdb-angular/src/__tests__/tri-framework-provider.spec.ts)。

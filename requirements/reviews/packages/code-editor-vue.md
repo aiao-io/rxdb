@@ -20,6 +20,10 @@
 
 `CodeEditorProps` 与 React 共享的配置逐项对应；Vue 的 `update:value` 是 v-model 通道，`change` 和 `language-error` 分别对应另外两端的用户编辑和语言失败通道。暴露的四项命令式 API 与 React 对齐。
 
+## 生命周期反证检查
+
+`onMounted` 用当前 props.value 建状态，`onUnmounted` 清空 viewRef 并推进 languageRequest；KeepAlive 停用没有调用该卸载清理，不能据 React 的 Activity 复现断言 Vue 也会同样重建丢文档。语言配置去重与在途请求守卫分别按 description 和 view 身份执行。
+
 ## 验证与边界
 
 对照 [`CodeEditor.document-sync.spec.ts`](../../../packages/code-editor-vue/src/__tests__/CodeEditor.document-sync.spec.ts)、[`CodeEditor.language.spec.ts`](../../../packages/code-editor-vue/src/__tests__/CodeEditor.language.spec.ts) 和 [`review-language-sync-throw.spec.ts`](../../../packages/code-editor-vue/src/__tests__/review-language-sync-throw.spec.ts) 的差量、竞态及异常入口。

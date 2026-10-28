@@ -16,6 +16,8 @@
 - [`handleFindAncestorsUpdate`](../../../packages/rxdb-plugin-tree/src/query/merge-update-tree.ts) 对父链移动、where 翻转导致的不可局部恢复场景请求 SQL 重算。
 - [`merge_remove`](../../../packages/rxdb-plugin-tree/src/query/merge_remove.ts) 对列表的删除既看结果成员也看关系影响；但 CREATE 以及计数仍漏了基准成员特殊语义，见 TREE-001。
 
+- [`TreeRepository.#normalizeOptions`](../../../packages/rxdb-plugin-tree/src/repository/TreeRepository.ts) 保留基准节点语义；[`merge_create`](../../../packages/rxdb-plugin-tree/src/query/merge_create.ts) 在刷新匹配与本地重算两处都应用 where，因此只修其中一层不能关闭 TREE-001。
+
 ## 问题
 
 ### TREE-001 [P2] 创建不匹配 where 的基准根节点时，实时列表和计数不更新

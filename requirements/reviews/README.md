@@ -14,7 +14,7 @@
 | `review.template.md`                        | 新建 review 记录的模板                | —                         |
 | `requirements-incomplete-stories-review.md` | 未完成需求整体评审（不占 RV 编号）    | 37（14 P1 + 23 P2）       |
 | [packages/PLAN.md](packages/PLAN.md)        | packages 全包评审计划（不占 RV 编号） | 51 个包                   |
-| [packages/README.md](packages/README.md)    | 逐包报告索引、问题分级与本次校验结果  | 26（7 P1 + 17 P2 + 2 P3） |
+| [packages/README.md](packages/README.md)    | 逐包报告索引、问题分级与本次校验结果  | 32（7 P1 + 23 P2 + 2 P3） |
 
 ## 状态约定
 

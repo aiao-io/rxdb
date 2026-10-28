@@ -38,6 +38,10 @@
 
 优先补同实例重连诊断回归；既有测试入口包括 [`PGliteClient.spec.ts`](../../../packages/rxdb-adapter-pglite/src/__tests__/PGliteClient.spec.ts)、[`RxDBAdapterPGlite.change-queue.spec.ts`](../../../packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.change-queue.spec.ts) 与 [`change-pipeline.spec.ts`](../../../packages/rxdb-adapter-pglite/src/__tests__/change-pipeline.spec.ts)。此包 `test` 与 memory/browser 目标不同，未将普通 test 当作真实持久化/OPFS/浏览器并发验证，也未重跑所有迁移与切分支组合。
 
+## 调用链交叉核查
+
+PGL-001 的前提限定为同一 adapter 实例复用；`#pipelineHost` 固定捕获原 Subject，因此只重建对外 Observable 不足以修复。普通工厂每次创建新 adapter 不继承已完成流，本轮保留 P3 限定。另核对 QueryCache 实体标识解析和加密写转换，没有找到 SQLite Id 后缀捷径。
+
 ## 本次 Nx 校验
 
 本次 `rxdb-adapter-pglite:test`：1562 passed (1562)；目标实际执行。命令及整体边界见[总索引](README.md)。

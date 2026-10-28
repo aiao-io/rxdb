@@ -7,7 +7,7 @@
 
 ## 评审计划与实际范围
 
-实际比对本组 Angular/React/Vue 三个 src/index.ts，再审查本端运行时实现，重点是StrictMode、Provider 换库与迟到异步结果。框架原生容器差异按设计归一，不把 inject/use 或事件命名差异当成产品缺陷。
+比对本组三端实际 src/index.ts；检查 Replayer 的 mount effect / cleanup、useEffectEvent 最新回调、useImperativeHandle 命令，以及 replay/sessionId/initialTime 改变时 handle.update 的差分。该组件消费 replay prop，不把 RxDB Provider 换库当成本层独立能力。
 
 ## 核查结果
 
@@ -15,6 +15,8 @@
 - `changedInputs` 只对 replay/sessionId/initialTime 真变化调用 update，事件回调不强迫播放器重建。
 - 三端同一组输入、time-change/commit-restore 语义与 play/pause/seek 命令；共享 `replayRestoreHint` 和 `ReplayerCommitRestoreEvent` 都再导出。
 - Angular output、React callback/ref、Vue emit/expose 的容器差异与其框架惯例相符，本次没有当作 API 缺失。
+
+- handle.update 只替换播放器观察的输入；组件 cleanup 调用 handle.destroy，未对调用方提供的 replay 门面调用 destroy。两类资源的所有权没有混用。
 
 ## 问题
 

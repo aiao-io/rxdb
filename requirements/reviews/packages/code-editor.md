@@ -20,6 +20,10 @@
 
 Angular、React、Vue 均调用同一份差量、语言解析、错误载荷和无障碍工具，纯逻辑没有三份分叉。`CodeEditorTheme` 是核心共享类型，各绑定均提供同名入口。
 
+## 公开入口与纯逻辑边界
+
+`index.ts` 只导出共享纯工具、语言描述与类型；差量函数没有生命周期或缓存状态。`findLanguageByName` 对 name/alias 做大小写归一，差量坐标采用 JS/CodeMirror 共用的 UTF-16 单位。未将 React 绑定销毁 view 的问题重复记到核心，也未将显式 JSON5 别名对应严格 JSON parser 的已说明限制记为新缺陷。
+
 ## 验证与边界
 
 核对 [`review-document-change-properties.spec.ts`](../../../packages/code-editor/src/__tests__/review-document-change-properties.spec.ts)、[`language-resolution.spec.ts`](../../../packages/code-editor/src/__tests__/language-resolution.spec.ts) 与 [`accessibility.spec.ts`](../../../packages/code-editor/src/__tests__/accessibility.spec.ts) 的断言范围：差量可重构目标字符串，等价解析和空属性分别有用例。
