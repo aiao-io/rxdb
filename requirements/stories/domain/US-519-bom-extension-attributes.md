@@ -5,8 +5,9 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-10-28
 tags: [domain, bom, extensibility, schema]
+candidate_acs: [3, 7]
 ---
 
 # 用户故事：扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升
@@ -33,9 +34,6 @@ tags: [domain, bom, extensibility, schema]
   过滤值类型与 `data_type` 不符即拒绝查询，不做隐式转换
 - **索引是能力化优化**：PGlite 的 GIN、两端的表达式索引与 generated column 都是可选加速，按后端能力启用；
   没有某项索引能力不等于不支持扩展属性，只是没有加速
-- 热字段提升为 generated column + 索引：消费方的读写方式与查询写法不变、不需要手工回填；DDL 与建索引成本照常存在。
-  生成列、表达式索引与索引方法的声明面是 [US-030](../core/US-030-declarative-storage-constraints.md) 阶段 D（AC#3 / #7 的前置，D 同样价值待证），
-  本故事验收的是提升后的读写与查询计划
 - `required` 的语义：**新写入与完整更新**必须有；既有行读取允许缺失；局部更新只要没触碰扩展属性就不强制补齐
 
 ### Out of Scope
@@ -44,6 +42,14 @@ tags: [domain, bom, extensibility, schema]
   **演示级**展示与编辑面板随驱动场景（完整功能演示）落在 [US-525](US-525-bom-end-to-end-demo.md) 阶段 E（单端）
 - 跨组织的属性字典治理流程
 - EAV 表——**本故事明确不采用**
+
+### 候选优化
+
+AC#3 / #7 的 generated column、表达式索引与 GIN 加速需先有热字段或查询瓶颈证据，
+再与 [US-030](../core/US-030-declarative-storage-constraints.md) 阶段 D 一并评审。
+消费方读写与查询写法不变、无需手工回填仍是优化的验收要求，DDL 与建索引成本须实测。
+当前承诺为 AC#1 / #2 / #4 / #5 / #6；全部通过并合入后可置 Done，`candidate_acs: [3, 7]` 的候选优化不阻塞当前关闭。
+优化获准进入交付范围时，从 `candidate_acs` 移除对应编号。
 
 ## 验收标准
 
@@ -61,16 +67,9 @@ tags: [domain, bom, extensibility, schema]
 
 ## 技术笔记
 
-**本故事的关闭条件是「没有 EAV 表」。** EAV（`entity_id` / `attr_name` / `attr_value`）的四个致命问题：
-
-1. 行爆炸——一个物料 30 个属性就是 30 行，百万物料即三千万行
-2. 每取一个字段要一次 self-join，取 10 个字段就是 10 次
-3. `attr_value` 只能是 text，类型安全彻底丢失
-4. 约束无处安放——必填、枚举、区间都没有落点
-
-jsonb 解决 1～2（一行一物料，一次读取）；`attr_def` 解决 3～4（类型与约束有了落点）；
-generated column 解决「jsonb 字段无法建高效索引」这一 jsonb 自身的短板（AC#3）。
-三者缺一，方案就退化成 EAV 的某种变体。
+**当前关闭条件是扩展属性校验与两端查询语义一致。** 本方案用 jsonb 保存一个对象的扩展值，
+`attr_def` 承载类型与约束，不采用按属性拆行的 EAV。generated column 是候选索引优化（AC#3），
+缺少它只影响加速，不影响当前扩展属性合同。
 
 AC#3 的关键是**提升不改读写路径**：`ext->>'rohs_status'` 与 generated column 同时可用，
 消费方不需要知道某个字段被提升过。否则「提升」就成了一次 breaking change。
@@ -86,7 +85,7 @@ SQLite 侧的 `json_extract` 表达式索引与 generated column 索引同样在
 ## 价值待证
 
 已随 [epic-009 解锁记录](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 解锁（2026-10-12，owner 决定）。
-AC#3 / #7 仍等 [US-030](../core/US-030-declarative-storage-constraints.md) 阶段 D（价值待证）。
+AC#3 / #7 是价值待证的候选优化，依赖 [US-030](../core/US-030-declarative-storage-constraints.md) 阶段 D，不属于当前关闭条件。
 
 ## 实现文件
 

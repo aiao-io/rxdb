@@ -27,11 +27,11 @@ epic-001~006 按产品能力分组，[epic-009](epic-009-bom-domain-model.md) �
 
 三条都是可核对的状态：
 
-- [ ] 预置两三个有关联的实体 schema 后，工作台即提供导航、列表、详情、创建 / 编辑 / 删除、校验反馈与
+- [x] 预置两三个有关联的实体 schema 后，工作台即提供导航、列表、详情、创建 / 编辑 / 删除、校验反馈与
       查询筛选，覆盖加载 / 失败 / 空态（[US-526](../stories/domain/US-526-admin-workbench.md)）
-- [ ] 本地持久化：刷新 / 关闭重开后可继续编辑；备份可在独立环境恢复并继续使用，失败结果与数据保留
+- [x] 本地持久化：刷新 / 关闭重开后可继续编辑；备份可在独立环境恢复并继续使用，失败结果与数据保留
       状态明确（[US-526](../stories/domain/US-526-admin-workbench.md) / [US-527](../stories/domain/US-527-admin-backup-restore.md)）
-- [ ] 一份独立消费接入示例存在，记录新增代码、依赖与样式要求，证明接入成本降低
+- [ ] 独立消费示例通过发布产物隔离安装与按文档重搭，记录新增代码、依赖、样式和真实接入任务，验证接入成本
       （[US-528](../stories/domain/US-528-admin-consumer-example.md)）
 
 ## 故事
@@ -41,30 +41,26 @@ epic-001~006 按产品能力分组，[epic-009](epic-009-bom-domain-model.md) �
 - [US-526 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环](../stories/domain/US-526-admin-workbench.md) (Low)
 - [US-527 工作台备份恢复闭环：失败语义与数据保留](../stories/domain/US-527-admin-backup-restore.md) (Low)
 - [US-528 独立消费接入示例与接入成本记录](../stories/domain/US-528-admin-consumer-example.md) (Low)
+- [US-529 实体列表视图配置：字段显隐、多字段排序与分组](../stories/domain/US-529-entity-list-view-settings.md) (Medium)
 
 ## 列表视图扩展
 
-2026-10-25 owner 选择字段配置、排序和分组作为后续切片，见
+owner 批准的列表字段配置、排序和分组切片见
 [US-529 实体列表视图配置](../stories/domain/US-529-entity-list-view-settings.md)。该故事扩展通用模型 UI，
 新增公共逻辑与三端接线独立评审，首版 US-526～528 的范围保持各自 story 定义。
 
 ## 价值待证（整个 Epic）
 
-**解锁记录（2026-10-21，owner 决定）**：本 Epic 的 3 条故事原标价值待证、不进任何排期批次；
-owner 于 2026-10-21 决定解锁，**驱动者 = 尽快交付可用的单人本地数据工作台**——首版闭环
+**owner 已批准首版范围并解锁**，驱动者是尽快交付可用的单人本地数据工作台。首版闭环
 （录入 / 编辑 / 筛选 / 持久化 / 备份恢复 + 独立消费示例）直接验证「定义实体之后少写了多少 CRUD」
 这一接入成本主张，正是 domain-research 优先级评审确定的第一顺位。
 
-原判据是 [CONVENTIONS 的病灶数 ≥ 抽象数](../CONVENTIONS.md#价值待证)：这三条故事**不新增引擎抽象**
-（全部行为复用 rxdb-model 四包与已 Done 的 US-217），对应零个已知病灶；入场条件（具名团队 CRUD
-重复劳动第三遍，或仓库自举）至今未出现。本记录按 **owner 决定豁免**（先例
-[epic-009](epic-009-bom-domain-model.md#价值待证整个-epic)），驱动者是产品交付与接入成本验证，
-不是缺陷；「空工作台只是更好看的 DevTools」的反方已由 US-526 的「会持续维护的真实数据」要求
-与 US-528 的成本记录承接。
+[CONVENTIONS 的价值待证准入](../CONVENTIONS.md#价值待证)按 **owner 决定豁免**：首版三条故事
+不新增引擎抽象，复用 rxdb-model 四包与 US-217，驱动者是产品交付与接入成本验证。
+这份授权继续生效；真实数据任务与独立接入收益由 US-526 / US-528 验收，不重新以缺少具名团队阻止已批准范围。
 
-`priority` 保持 `Low`，排期以 roadmap 批次 5 为准；`startDate` 定为本记录日期，`targetDate` 仍 `TBD`
-（不估完整三条故事的交期）。开工顺序：US-526 阶段 A → B → C，随后 US-527、US-528（见
-[roadmap 批次 5](../roadmap.md#批次-5模型驱动后台首版epic-010-已解锁)）。
+首版故事 `priority` 保持 `Low`，US-529 为 `Medium`。当前剩余验收是 US-528 的发布产物独立消费，
+排期以 [roadmap 批次 5](../roadmap.md#批次-5模型驱动后台首版epic-010-已解锁)为准，`targetDate` 为 `TBD`。
 
 ## 非目标
 

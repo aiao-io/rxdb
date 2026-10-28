@@ -1,6 +1,6 @@
-# Aiao 包组合知识（v0.0.26）
+# Aiao 包组合知识（v0.0.28）
 
-事实摘要：`f0f6bd09b83ad44e78c58eeb168b15744d134a09deedba5ad3e58e9c05823f49`。本文件由事实源、manifest、插件源码与已验证样例生成。
+事实摘要：`9b57624e4c96d2246ba4eb8a788e07f5fc26756e43fbc4ca492e34f522141e61`。本文件由事实源、manifest、插件源码与已验证样例生成。
 安装清单只包含此发布标签树里的包；工作区新增能力见同目录 JSON 的 development 部分。
 情景的插件组合与下方样例取自工作区源码（样例在 CI 中执行过），可能新于此发布标签。
 
@@ -31,17 +31,34 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 | @aiao/rxdb-angular | binding |  | browser | angular |
 | @aiao/rxdb-client-generator | tool |  | node |  |
 | @aiao/rxdb-devtools | tool |  | browser |  |
+| @aiao/rxdb-model | model |  | browser, node |  |
+| @aiao/rxdb-model-angular | binding |  | browser | angular |
+| @aiao/rxdb-model-react | binding |  | browser | react |
+| @aiao/rxdb-model-vue | binding |  | browser | vue |
 | @aiao/rxdb-plugin-graph | plugin |  | browser, node |  |
 | @aiao/rxdb-plugin-history | plugin |  | browser, node |  |
 | @aiao/rxdb-plugin-querycache | plugin |  | browser, node |  |
+| @aiao/rxdb-plugin-replay | plugin |  | browser, node |  |
+| @aiao/rxdb-plugin-replay-angular | binding |  | browser | angular |
+| @aiao/rxdb-plugin-replay-react | binding |  | browser | react |
+| @aiao/rxdb-plugin-replay-vue | binding |  | browser | vue |
 | @aiao/rxdb-plugin-search | plugin |  | browser, node |  |
 | @aiao/rxdb-plugin-search-angular | binding |  | browser | angular |
 | @aiao/rxdb-plugin-search-react | binding |  | browser | react |
 | @aiao/rxdb-plugin-search-vue | binding |  | browser | vue |
 | @aiao/rxdb-plugin-storage | plugin |  | browser, node |  |
 | @aiao/rxdb-plugin-sync | plugin |  | browser, node |  |
+| @aiao/rxdb-plugin-tree | plugin |  | browser, node |  |
+| @aiao/rxdb-plugin-tree-angular | binding |  | browser | angular |
+| @aiao/rxdb-plugin-tree-react | binding |  | browser | react |
+| @aiao/rxdb-plugin-tree-vue | binding |  | browser | vue |
+| @aiao/rxdb-plugin-working-tree | plugin |  | browser, node |  |
+| @aiao/rxdb-plugin-working-tree-angular | binding |  | browser | angular |
+| @aiao/rxdb-plugin-working-tree-react | binding |  | browser | react |
+| @aiao/rxdb-plugin-working-tree-vue | binding |  | browser | vue |
 | @aiao/rxdb-plugin-workspace | plugin |  | browser |  |
 | @aiao/rxdb-react | binding |  | browser | react |
+| @aiao/rxdb-taro | tool |  | node, miniprogram |  |
 | @aiao/rxdb-test | tool |  | browser, node |  |
 | @aiao/rxdb-vue | binding |  | browser | vue |
 | @aiao/utils | standalone |  | browser, node, electron, tauri, miniprogram |  |
@@ -144,13 +161,25 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 
 时序：use-before-connect
 
+### 树插件
+
+必需包：@aiao/rxdb、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-plugin-tree
+
+插件（顺序不限）：rxDBPluginTree
+
+槽位：{
+  "local": "@aiao/rxdb-adapter-wa-sqlite"
+}
+
+时序：use-before-init
+
 ## Node 离线样例
 
 在 ESM 项目中运行（`package.json` 设置 `"type": "module"`），使用下面的编译选项。
 下方开发依赖包含 TypeScript、Node 与 PGlite 公共声明所需的 Emscripten 类型。执行 `tsc` 后用 `node` 运行输出文件。
 
 ```sh
-pnpm add @aiao/rxdb@^0.0.26 @aiao/rxdb-adapter-pglite@^0.0.26 @aiao/rxdb-plugin-history@^0.0.26
+pnpm add @aiao/rxdb@^0.0.28 @aiao/rxdb-adapter-pglite@^0.0.28 @aiao/rxdb-plugin-history@^0.0.28
 pnpm add -D typescript@~6.0.3 @types/node@^26.6.5 @types/emscripten@^1.41.6
 ```
 

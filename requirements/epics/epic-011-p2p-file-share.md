@@ -14,16 +14,24 @@ owner: jimmy
 
 ## 为什么单列一个 Epic
 
-- **字节面与同步协议正交**：传输走 WebRTC DataChannel / 桌面 TCP，不经过 `rxdb-plugin-sync` 的文档复制路径。epic-002 已 `Done`，不得持有未完成故事；epic-004 现有驱动场景（全文搜索、桌面本地文件、小程序宿主、HTTP 适配器）都不需要 P2P 传输，埋进去只会让它等别的场景。
+- **字节面与同步协议正交**：传输走 WebRTC DataChannel / 桌面 TCP，不经过 `rxdb-plugin-sync` 的文档复制路径。P2P 有自己的用户目标；epic-004 现有驱动场景（全文搜索、桌面本地文件、小程序宿主、HTTP 适配器）都不需要 P2P 传输，埋进去只会让它等别的场景。
 - **自己的验证形态**：需要「两台机器之间字节流 + 流量隔离」的验收——断言文件字节不经过服务器。现有 e2e 是单应用内交互，仓库没有这种用例形态（复验：全仓检索 `webrtc|libp2p|peer-to-peer` 无实现痕迹）。
-- **跨运行时交付面**：browser / Electron / Tauri 三条运行时（CLAUDE.md 铁律：单端缺失 = 未完成），需要独立的对称收口。
+- **跨运行时交付面**：本 Epic 明确承诺 browser / Electron / Tauri 三条运行时，各有验收；这是产品支持范围，不把 Angular/React/Vue 三框架对称规则解释成三运行时规则。
 
 ## 目标
 
 - [ ] 文件清单实体与「局域网里谁有」的本地活查询、对等发现与信令（[US-704](../stories/future/US-704-p2p-manifest-discovery.md)）
 - [ ] 浏览器 WebRTC / 桌面 TCP 的分块直传、内容校验、断点续传与多源（[US-705](../stories/future/US-705-p2p-byte-transfer.md)）
 - [ ] 无 peer 回退服务器、认证复用与坏 peer 隔离（[US-706](../stories/future/US-706-p2p-fallback-auth.md)）
-- [ ] 跨运行时 demo 与多实例 e2e（[US-707](../stories/future/US-707-p2p-cross-runtime-e2e.md)）；Tauri 双进程用例为 epic 关闭条件（随 US-505 成熟后补齐）
+- [ ] 跨运行时 demo 与多实例 e2e（[US-707](../stories/future/US-707-p2p-cross-runtime-e2e.md)）；Tauri 双进程、大文件与离线超 TTL 验收由 US-707 阶段 B 认领
+
+## 交付前置与关闭边界
+
+- 价值门禁未关闭，四条故事继续 Backlog；本次整理不授权开工。
+- US-704 先选定真实认证宿主、用户/设备标识和服务端授权合同；现有 HTTP 示例的 Bearer 格式检查不能作为身份验证。
+- 持久持有声明与临时在线状态分离：服务器断开超过 presence TTL 后，局域网发现/探测仍可恢复可用 peer，心跳不写同步实体。
+- 大文件目标与缓冲上限见 US-705；US-707 的 1 MiB 用例只作握手/协议冒烟，不能代替大文件验收。
+- 四条故事的全部承诺通过后方可关闭 Epic；Tauri 验收有明确故事与阶段，不留范围外的永久关闭条件。
 
 ## 故事
 
@@ -37,7 +45,7 @@ owner: jimmy
 ## 非目标
 
 - **不做公网 P2P**：不做 STUN/TURN 中继与 NAT 穿透，不做 DHT 对等发现；发现只靠公司内网（mDNS / 同步服务器信令）。
-- **浏览器端断外网新建连接的边界**：已建立的直连不依赖服务器，可继续传输；浏览器**新建**连接需要信令通道可达（桌面端 mDNS 不受此限），边界与用例口径见 US-704 / US-707。
+- **浏览器端断外网新建连接的边界**：已建立的直连不依赖服务器，可继续传输；浏览器**新建**连接需要信令通道可达；桌面端可通过局域网发现新建连接，但仍须满足有效离线凭据的认证合同。边界与用例口径见 US-704 / US-707。
 - **不做目录级双向同步**（Syncthing 式文件夹镜像）：只做单文件按需拉取，方向是「有 → 没有」，不解决两台机器都改了同一文件。
 - **不替换同步协议**：结构化文档的复制仍走 `rxdb-plugin-sync`；P2P 只传大文件字节。
 - **不做字节级持久加密**：链路加密（浏览器 WebRTC DTLS / 桌面 TLS）在 US-706 范围；落盘加密已有 [US-803](../stories/future/US-803-local-encryption.md)。

@@ -4,7 +4,7 @@
       {
         "description": "CodeMirror 6 编辑器绑定共享的语言描述与主题类型。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/code-editor",
+        "homepage": "https://rxdb.aiao.io/docs/code-editor",
         "hosts": [
           "browser"
         ],
@@ -12,12 +12,12 @@
         "name": "@aiao/code-editor",
         "role": "standalone",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "基于 CodeMirror 6 的 standalone Angular 代码编辑器，支持 Angular Forms、动态语言、主题与编辑状态配置。",
         "framework": "angular",
-        "homepage": "https://rxdb.netlify.app/docs/code-editor",
+        "homepage": "https://rxdb.aiao.io/docs/code-editor",
         "hosts": [
           "browser"
         ],
@@ -26,18 +26,18 @@
             "kind": "peerDependencies",
             "name": "@aiao/code-editor",
             "optional": false,
-            "range": ">=0.0.26"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/code-editor-angular",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "基于 CodeMirror 6 的 React 代码编辑器组件。",
         "framework": "react",
-        "homepage": "https://rxdb.netlify.app/docs/code-editor",
+        "homepage": "https://rxdb.aiao.io/docs/code-editor",
         "hosts": [
           "browser"
         ],
@@ -46,18 +46,18 @@
             "kind": "dependencies",
             "name": "@aiao/code-editor",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/code-editor-react",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "基于 CodeMirror 6 的 Vue 3 代码编辑器组件。",
         "framework": "vue",
-        "homepage": "https://rxdb.netlify.app/docs/code-editor",
+        "homepage": "https://rxdb.aiao.io/docs/code-editor",
         "hosts": [
           "browser"
         ],
@@ -66,18 +66,18 @@
             "kind": "dependencies",
             "name": "@aiao/code-editor",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/code-editor-vue",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "面向 Local-first 应用的 TypeScript 数据库核心。通过装饰器驱动的实体定义，自动生成类型安全的 Repository 与响应式查询 API，让你在浏览器中直接运行 SQLite，以接近原生 App 的方式构建离线优先、数据驱动的 Web 应用。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/getting-started",
+        "homepage": "https://rxdb.aiao.io/docs/getting-started",
         "hosts": [
           "browser",
           "node",
@@ -90,45 +90,45 @@
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb",
         "role": "core",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 适配器，把数据落到 **Electron 应用私有目录里的真实文件**。本包提供两个并列的适配器，可同时注册：",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/adapters",
+        "homepage": "https://rxdb.aiao.io/docs/adapters",
         "hosts": [
           "electron"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-adapter-pglite",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-electron",
@@ -136,12 +136,12 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "Local field-level **AES-GCM-256** envelope encryption for [`@aiao/rxdb`](../rxdb).",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/adapters/encrypted",
+        "homepage": "https://rxdb.aiao.io/docs/adapters/encrypted",
         "hosts": [
           "browser",
           "node",
@@ -153,19 +153,19 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-encrypted",
         "notes": "依赖 WebCrypto（crypto.subtle）。小程序宿主会随 sqlite-core 加载本包，但没有 crypto.subtle，加密能力不可用。",
         "role": "capability",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB HTTP 适配器 — 让**你自己的 REST API** 充当 QueryCache 的远端事实源。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/adapters/http",
+        "homepage": "https://rxdb.aiao.io/docs/adapters/http",
         "hosts": [
           "browser",
           "node"
@@ -175,7 +175,7 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-http",
@@ -183,33 +183,33 @@
         "slots": [
           "remote"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "实验性的微信 / 抖音 / 支付宝小程序单连接 RxDB adapter。它复用 `rxdb-adapter-sqlite-core` 的仓库、事务、迁移和变更事件，",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/adapters",
+        "homepage": "https://rxdb.aiao.io/docs/adapters",
         "hosts": [
           "miniprogram"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-wa-sqlite",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-miniprogram",
@@ -218,34 +218,40 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 适配器，使用 PGlite 在浏览器中运行 PostgreSQL。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/adapters/pglite",
+        "homepage": "https://rxdb.aiao.io/docs/adapters/pglite",
         "hosts": [
           "browser",
           "node"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-encrypted",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-tree",
+            "optional": true,
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-pglite",
@@ -253,27 +259,27 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "`@aiao/rxdb` 的官方 SQLite 适配器，基于 SQLite 官方 WASM 构建，为核心引擎提供 SQLite 存储后端。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/adapters/sqlite",
+        "homepage": "https://rxdb.aiao.io/docs/adapters/sqlite",
         "hosts": [
           "browser"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-sqlite",
@@ -281,12 +287,12 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "`@aiao/rxdb` 的 SQLite 适配器共享内核。它把「实体 → SQL」的映射、表名解析、规则组构建、基础 Repository 与变更事件等能力抽象为后端无关的基类，供各具体 SQLite 适配器复用。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/adapters",
+        "homepage": "https://rxdb.aiao.io/docs/adapters",
         "hosts": [
           "browser",
           "node",
@@ -296,66 +302,72 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-encrypted",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-history",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-tree",
+            "optional": true,
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-test",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-sqlite-core",
         "role": "shared-impl",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB SQLite 适配器，基于 [@subframe7536/sqlite-wasm](https://github.com/subframe7536/sqlite-wasm)。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/adapters/sqlite-wasm",
+        "homepage": "https://rxdb.aiao.io/docs/adapters/sqlite-wasm",
         "hosts": [
           "browser"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-sqlite-wasm",
@@ -363,27 +375,27 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "`@aiao/rxdb` 的 [sqliteai](https://github.com/sqliteai) 存储适配器，为核心引擎提供基于 sqliteai 运行时的 SQLite 后端。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/adapters/sqliteai",
+        "homepage": "https://rxdb.aiao.io/docs/adapters/sqliteai",
         "hosts": [
           "browser"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-sqliteai",
@@ -391,12 +403,12 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB Supabase 适配器 — 基于 PostgreSQL 的远程同步实现。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/adapters/supabase",
+        "homepage": "https://rxdb.aiao.io/docs/adapters/supabase",
         "hosts": [
           "browser",
           "node"
@@ -406,7 +418,13 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-tree",
+            "optional": true,
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-supabase",
@@ -414,7 +432,7 @@
         "slots": [
           "remote"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 适配器，把数据落到 **Tauri 应用私有目录里的真实 SQLite 文件**。",
@@ -425,16 +443,16 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-tauri",
@@ -442,33 +460,33 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 适配器，使用 wa-sqlite 在浏览器中运行 SQLite。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/adapters",
+        "homepage": "https://rxdb.aiao.io/docs/adapters",
         "hosts": [
           "browser"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-wa-sqlite",
@@ -476,12 +494,12 @@
         "slots": [
           "local"
         ],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "Angular 框架集成库，为 Angular 应用提供 RxDB 支持。基于 Angular Signals 实现响应式数据流。",
         "framework": "angular",
-        "homepage": "https://rxdb.netlify.app/docs/frameworks/angular",
+        "homepage": "https://rxdb.aiao.io/docs/frameworks/angular",
         "hosts": [
           "browser"
         ],
@@ -490,56 +508,56 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-graph",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-angular",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 客户端代码生成器，从实体定义生成 JavaScript 实体入口和 TypeScript 声明。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/client-generator",
+        "homepage": "https://rxdb.aiao.io/docs/client-generator",
         "hosts": [
           "node"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-client-generator",
         "role": "tool",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 与浏览器 DevTools Extension 之间的开发期连接器。它通过当前页面的 `window.postMessage` 发送事件、数据库摘要、实体查询结果和分支操作结果。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/devtools",
+        "homepage": "https://rxdb.aiao.io/docs/devtools",
         "hosts": [
           "browser"
         ],
@@ -548,46 +566,181 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-devtools",
         "role": "tool",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
-        "description": "> Implements: [US-503 图数据插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-503-graph-data.md)",
+        "description": "框架无关的 RxDB 实体模型核心库：从实体元数据（`EntityMetadata`）派生表单、详情页、可编辑表格与可视化查询构建器所需的全部纯逻辑，并配套 VTable 表格运行时基础设施。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/plugins",
+        "homepage": "https://rxdb.aiao.io/docs",
         "hosts": [
           "browser",
           "node"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-model",
+        "role": "model",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "@aiao/rxdb-model-angular",
+        "framework": "angular",
+        "homepage": "https://rxdb.aiao.io/docs",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-angular",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-model",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-history",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-model-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "@aiao/rxdb-model-react",
+        "framework": "react",
+        "homepage": "https://rxdb.aiao.io/docs",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-model",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-history",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-react",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-model-react",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "@aiao/rxdb-model-vue",
+        "framework": "vue",
+        "homepage": "https://rxdb.aiao.io/docs",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-model",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-history",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-vue",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-model-vue",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "> Implements: [US-503 图数据插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-503-graph-data.md)",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-client-generator",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-graph",
@@ -598,28 +751,28 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "> Implements: [US-025 核心插件化外移](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-025-core-plugin-extraction.md)",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/plugins",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
           "browser",
           "node"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-history",
@@ -630,28 +783,40 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "> Implements: [US-025 核心插件化外移](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-025-core-plugin-extraction.md)",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/plugins",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
           "browser",
           "node"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-history",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-sync",
+            "optional": false,
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-querycache",
@@ -662,46 +827,144 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
-        "description": "`@aiao/rxdb` 的全局搜索插件。为标注 `searchable: true` 字段的 collection 提供响应式全文检索，SQLite 走 FTS5，PGlite 走 `tsvector` / GIN。",
+        "description": "`@aiao/rxdb` 的会话录制回放插件，**默认不录**，由应用显式开始。它用 rrweb 录下页面 DOM，事件写进一个**独立的录制库**，被录的应用库里不多一行数据。回放时间轴上会标出工作树的 commit，点一下标记，就能把工作树恢复到那次提交。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/plugins",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
           "browser",
           "node"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
-            "name": "@aiao/rxdb-adapter-pglite",
+            "name": "@aiao/rxdb-plugin-working-tree",
             "optional": true,
-            "range": "workspace:*"
-          },
-          {
-            "kind": "dependencies",
-            "name": "@aiao/rxdb-adapter-sqlite-core",
-            "optional": false,
-            "range": "workspace:*"
-          },
-          {
-            "kind": "peerDependencies",
-            "name": "@aiao/rxdb-adapter-sqlite-wasm",
-            "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-replay",
+        "plugin": {
+          "class": "RxDBPluginReplay",
+          "factory": "rxDBPluginReplay",
+          "source": "src/plugin.ts"
+        },
+        "role": "plugin",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "@aiao/rxdb-plugin-replay-angular",
+        "framework": "angular",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-replay",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-replay-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "@aiao/rxdb-plugin-replay-react",
+        "framework": "react",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-replay",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-replay-react",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "@aiao/rxdb-plugin-replay-vue",
+        "framework": "vue",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-replay",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-replay-vue",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "`@aiao/rxdb` 的全局搜索插件。为标注 `searchable: true` 字段的 collection 提供响应式全文检索，SQLite 走 FTS5，PGlite 走 `tsvector` / GIN。",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-adapter-pglite",
+            "optional": true,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/rxdb-adapter-sqlite-core",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-adapter-sqlite-wasm",
+            "optional": true,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/utils",
+            "optional": false,
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-search",
@@ -712,12 +975,12 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-search-angular",
         "framework": "angular",
-        "homepage": "https://rxdb.netlify.app/docs/plugins",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
           "browser"
         ],
@@ -726,24 +989,24 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-search",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-search-angular",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-search-react",
         "framework": "react",
-        "homepage": "https://rxdb.netlify.app/docs/plugins",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
           "browser"
         ],
@@ -752,24 +1015,24 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-search",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-search-react",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-search-vue",
         "framework": "vue",
-        "homepage": "https://rxdb.netlify.app/docs/plugins",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
           "browser"
         ],
@@ -778,52 +1041,52 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-search",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-search-vue",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "@aiao/rxdb-plugin-storage",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/plugins",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
           "browser",
           "node"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-devtools",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-storage",
@@ -834,34 +1097,34 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "> Implements: [US-025 核心插件化外移](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-025-core-plugin-extraction.md)",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/plugins",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
           "browser",
           "node"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-history",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-sync",
@@ -872,27 +1135,295 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
-        "description": "RxDB Workspace 插件为**尚未入库的 NEW 实体草稿**提供本地恢复能力：草稿保存在内存和 IndexedDB 中，并通过 BroadcastChannel 同步同源标签页。刷新或重开页面后，草稿会自动恢复，可继续编辑、保存或丢弃。",
+        "description": "> Implements: [US-025 核心插件化拆分](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-025-core-plugin-extraction.md)",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/collaboration",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
-          "browser"
+          "browser",
+          "node"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/rxdb-client-generator",
+            "optional": false,
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-tree",
+        "plugin": {
+          "class": "RxDBPluginTree",
+          "factory": "rxDBPluginTree",
+          "source": "src/plugin.ts"
+        },
+        "role": "plugin",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "@aiao/rxdb-plugin-tree-angular",
+        "framework": "angular",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-angular",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-tree",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-tree-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "@aiao/rxdb-plugin-tree-react",
+        "framework": "react",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-tree",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-react",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-tree-react",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "@aiao/rxdb-plugin-tree-vue",
+        "framework": "vue",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-tree",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-vue",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-tree-vue",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提交历史」作为一等概念加进 `@aiao/rxdb`。",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs/getting-started",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/rxdb-plugin-history",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/utils",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-working-tree",
+        "plugin": {
+          "class": "RxDBPluginWorkingTree",
+          "factory": "rxDBPluginWorkingTree",
+          "source": "src/plugin.ts"
+        },
+        "role": "plugin",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "@aiao/rxdb-plugin-working-tree-angular",
+        "framework": "angular",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-angular",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-working-tree",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-working-tree-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "@aiao/rxdb-plugin-working-tree-react",
+        "framework": "react",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-working-tree",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-react",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-working-tree-react",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "@aiao/rxdb-plugin-working-tree-vue",
+        "framework": "vue",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-working-tree",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-vue",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-working-tree-vue",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "RxDB Workspace 插件为**尚未入库的 NEW 实体草稿**提供本地恢复能力：草稿保存在内存和 IndexedDB 中，并通过 BroadcastChannel 同步同源标签页。刷新或重开页面后，草稿会自动恢复，可继续编辑、保存或丢弃。",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs/collaboration",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/utils",
+            "optional": false,
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-workspace",
@@ -903,97 +1434,124 @@
         },
         "role": "plugin",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "`@aiao/rxdb-react` 把 `@aiao/rxdb` 的响应式仓库查询接入 React 19。",
         "framework": "react",
-        "homepage": "https://rxdb.netlify.app/docs/frameworks/react",
+        "homepage": "https://rxdb.aiao.io/docs/frameworks/react",
         "hosts": [
           "browser"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-graph",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-react",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
+      },
+      {
+        "description": "**实验性。** 给 Taro 4.3（vite 编译器）项目一行接入",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs/adapters",
+        "hosts": [
+          "node",
+          "miniprogram"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-adapter-miniprogram",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-taro",
+        "role": "tool",
+        "slots": [],
+        "version": "0.0.28"
       },
       {
         "description": "RxDB 测试资源包，集中放测试实体、跨 adapter 契约套件、跨框架行为夹具和可复用的测试辅助函数。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/frameworks",
+        "homepage": "https://rxdb.aiao.io/docs/frameworks",
         "hosts": [
           "browser",
           "node"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-tree",
+            "optional": true,
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-test",
         "role": "tool",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "`@aiao/rxdb-vue` 把 `@aiao/rxdb` 的实时查询接入 Vue 3 Composition API。该包提供依赖注入、响应式查询 hooks 和游标无限滚动，不包含 UI 组件。",
         "framework": "vue",
-        "homepage": "https://rxdb.netlify.app/docs/frameworks/vue",
+        "homepage": "https://rxdb.aiao.io/docs/frameworks/vue",
         "hosts": [
           "browser"
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-graph",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-vue",
         "role": "binding",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       },
       {
         "description": "Aiao 项目通用工具库，提供常用的工具函数。",
         "framework": null,
-        "homepage": "https://rxdb.netlify.app/docs/",
+        "homepage": "https://rxdb.aiao.io/docs/",
         "hosts": [
           "browser",
           "node",
@@ -1005,7 +1563,7 @@
         "name": "@aiao/utils",
         "role": "standalone",
         "slots": [],
-        "version": "0.0.26"
+        "version": "0.0.28"
       }
     ],
     "scenarios": [
@@ -1178,6 +1736,29 @@
         },
         "timing": [
           "use-before-connect"
+        ]
+      },
+      {
+        "description": "树插件",
+        "id": "tree",
+        "packages": [
+          "@aiao/rxdb",
+          "@aiao/rxdb-adapter-wa-sqlite",
+          "@aiao/rxdb-plugin-tree"
+        ],
+        "plugins": [
+          {
+            "factory": "rxDBPluginTree",
+            "id": "tree",
+            "inject": [],
+            "name": "@aiao/rxdb-plugin-tree"
+          }
+        ],
+        "slots": {
+          "local": "@aiao/rxdb-adapter-wa-sqlite"
+        },
+        "timing": [
+          "use-before-init"
         ]
       }
     ]
@@ -2986,7 +3567,7 @@
       }
     ]
   },
-  "digest": "f0f6bd09b83ad44e78c58eeb168b15744d134a09deedba5ad3e58e9c05823f49",
+  "digest": "9b57624e4c96d2246ba4eb8a788e07f5fc26756e43fbc4ca492e34f522141e61",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,
@@ -3001,9 +3582,9 @@
       ]
     },
     "devInstall": "pnpm add -D typescript@~6.0.3 @types/node@^26.6.5 @types/emscripten@^1.41.6",
-    "install": "pnpm add @aiao/rxdb@^0.0.26 @aiao/rxdb-adapter-pglite@^0.0.26 @aiao/rxdb-plugin-history@^0.0.26",
+    "install": "pnpm add @aiao/rxdb@^0.0.28 @aiao/rxdb-adapter-pglite@^0.0.28 @aiao/rxdb-plugin-history@^0.0.28",
     "source": "import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';\nimport { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';\nimport { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';\nimport assert from 'node:assert/strict';\n\n@Entity({\n  name: 'AiNote',\n  namespace: 'ai_example',\n  tableName: 'notes',\n  log: false,\n  properties: [{ name: 'label', type: PropertyType.string, required: true }]\n})\nexport class Note extends EntityBase {\n  label!: string;\n}\n\nconst database = new RxDB({\n  dbName: 'aiao-ai-local',\n  context: { userId: 'ai-example' },\n  entities: [Note],\n  sync: { local: { adapter: 'pglite' }, type: SyncType.None }\n});\n\ndatabase.use(rxDBPluginHistory);\ndatabase.adapter('pglite', async db => new RxDBAdapterPGlite(db, { store: 'memory' }));\n\ntry {\n  const adapter = await database.connect('pglite');\n  assert.ok(adapter instanceof RxDBAdapterPGlite);\n  await adapter.transaction(async executor => {\n    const repository = executor.getRepository(Note);\n    const draft = database.entityManager.instantiate(Note);\n    draft.label = 'created';\n    const created = await repository.create(draft);\n    const query = { where: { combinator: 'and' as const, rules: [] } };\n    const rows = await repository.find(query);\n    assert.equal(rows.length, 1);\n    assert.equal(rows[0]?.label, 'created');\n    await repository.update(created, { label: 'updated' });\n    assert.equal((await repository.find(query))[0]?.label, 'updated');\n    await repository.remove(created);\n    assert.equal((await repository.find(query)).length, 0);\n  });\n  console.log('✅ 离线样例：初始化、CRUD 与事务执行器全部通过');\n} finally {\n  await database.disconnectAll();\n}\n"
   },
   "schemaVersion": 1,
-  "version": "v0.0.26"
+  "version": "v0.0.28"
 }

@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-10-28
 tags: [domain, bom, process-industry]
 ---
 
@@ -19,18 +19,19 @@ tags: [domain, bom, process-industry]
 
 ## 交付阶段
 
-| 阶段 | 内容                                                                                                    | 状态 |
-| ---- | ------------------------------------------------------------------------------------------------------- | ---- |
-| A    | `flow_direction` 三值 `consume` / `by_product` / `scrap_out`；主产物 = 头父件；副产量的基准、单位与缩放 | ⬜   |
-| B    | 联产品（第二个主产物，`produce`）与联合成本分配合同——**价值待证**，有驱动场景再开                       | ⬜   |
+| 阶段      | 内容                                                                                                    | 状态 |
+| --------- | ------------------------------------------------------------------------------------------------------- | ---- |
+| A         | `flow_direction` 三值 `consume` / `by_product` / `scrap_out`；主产物 = 头父件；副产量的基准、单位与缩放 | ⬜   |
+| B（候选） | 联产品（第二个主产物，`produce`）与联合成本分配合同——**价值待证**，未纳入当前承诺                       | ⬜   |
 
-除 AC#2 / #7 外全部归阶段 A——这两条的操作是卷算（US-514 的交付物），随 US-514 同批关闭，数值断言以其 AC#5 / #17 为准；阶段 B 立项时另写 AC。本故事在阶段 B 与 AC#2 / #7 关闭前不置 Done。
+当前承诺是阶段 A 与本表全部 AC。AC#2 / #7 随 US-514 同批关闭，数值断言以其 AC#5 / #17 为准；
+当前承诺全部通过并合入后可置 Done。阶段 B 不阻塞当前关闭，需独立立项、定义联合成本合同与 AC 后再进入交付范围。
 
 ## 范围边界
 
 ### In Scope
 
-- 行发生项的 `flow_direction`：阶段 A 只有 `consume` / `by_product` / `scrap_out` 三值，`produce` 随阶段 B 加入
+- 行发生项的 `flow_direction`：当前只有 `consume` / `by_product` / `scrap_out` 三值，`produce` 不在当前范围
 - **主产物就是头的父件**：头的 `base_qty` / `base_uom` 就是一个基准批次的主产量，不另写产出行；
   [US-514](US-514-bom-cost-rollup.md) 卷算的头成本即主产物成本，下游 `consume` 主产物直接取这个单价
 - **副产量的合同**：`by_product` 行的 `qty` 是**每个头基准批量**的产出量，单位为行 UoM；随装配损耗后的 `P'` 线性缩放

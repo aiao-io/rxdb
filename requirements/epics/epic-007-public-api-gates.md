@@ -36,7 +36,7 @@ epic-001～006 都以**产品能力**分组（核心引擎、同步、UI、平�
       `bridgeTagVersionConstants`）进入 PR CI，而不只在打 tag 时跑——已挂进 `ci-template.yml` 的 `setup` job（不带 `--release-tag`，
       配 `fetch-tags: true` 与按 `GITHUB_REF_TYPE` 解析 tag），未单开故事，落点见
       [release-plan 的执行顺序第 0 步](../release-plan.md#执行顺序)
-- [ ] 手工发布路径的前置校验：`pnpm test-all` 未跑绿即发布，会重演 0.0.25 的版本漂移——**尚无故事认领**，
+- [ ] 手工发布路径的前置校验：[US-603](../stories/tooling/US-603-manual-release-preflight.md) 将校验结果与待发布提交和产物绑定，
       背景见 [release-plan「开项：版本漂移」](../release-plan.md#开项版本漂移)
 - [x] 发布产物的语义事实源进漂移门禁：公开包的用途与关系有单一事实源，README / 站点 / 包元数据与它不一致即红
       （[US-602](../stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A1；A2 / B / C 已随其后全部关闭，故事 Done 2026-10-15）
@@ -50,6 +50,7 @@ epic-001～006 都以**产品能力**分组（核心引擎、同步、UI、平�
 
 - [US-601 子路径入口纳入 API 表面基线](../stories/tooling/US-601-subpath-api-surface-baseline.md) (Medium)
 - [US-602 发布产物面向 AI 的可理解性](../stories/tooling/US-602-ai-comprehensible-artifacts.md) (Medium)
+- [US-603 手工发布入口的提交与校验结果一致性](../stories/tooling/US-603-manual-release-preflight.md) (Medium)
 
 ## 非目标
 
