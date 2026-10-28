@@ -311,13 +311,14 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   checks 列表里等于没说，红了得点进去才知道是哪个包。两者的映射打进 `setup` 的 job summary。
 - **为什么不在 workflow 里写死项目名**：写死的清单会在新增包时静默漏测。这里从
   `nx show projects` 的实际输出分桶，权重表里没有的新包按 60s 估算并**打印告警**。
-- **改它要同步改什么**：`WEIGHTS` 是 CI 冷跑（全部 Cache Miss）的实测秒数，只影响分桶是否均衡，
-  不影响正确性；跑一轮 CI 后把偏差大的值补回来即可，**别拿本地耗时填**（本地 M 系列比 runner 快 3 倍）。
+- **改它要同步改什么**：`WEIGHTS` 只取 CI `Test` step 内未命中缓存的测试任务实测秒数，剔除
+  build / typecheck 等前置任务，同项目的 `test-node` / `test-env` 合并计算。它只影响分桶是否均衡，
+  不影响正确性；跑一轮 CI 后把偏差大的值补回来即可，**别拿本地耗时填**。
   `LANE_COUNT` 受 GitHub 免费额度的 20 并发 job 约束。
-- **当前瓶颈**：`rxdb-adapter-pglite` 238s，是第二名（`dev-rxdb-angular` 116s）的两倍，LPT
-  会给它一条几乎独占的 lane，其余三条各 ~242s。test 阶段的下界就是它一个包 —— 想再压只能拆
-  它自己的用例，加 lane 没用。`website` / `benchmarks` 必须进 WEIGHTS：缺项会按 60s 估成
-  种子道，run 31945480551 已经把四条 lane 拉成 445 / 370 / 241 / 186。
+- **当前瓶颈**：main 成功运行 `40493402982` / `40453820388` 的两次冷测均值显示，PGlite
+  约 709s、Electron 393s、Angular demo 350s；更新权重后四条常规 lane 估算为 761 / 761 / 760 / 761s，
+  旧权重按同一批项目回放则为 830 / 792 / 887 / 534s。保持四条 lane，优先消除负载失衡。
+  `website` / `benchmarks` 等轻项目同样必须登记：缺项会按 60s 估成重任务，挤歪装箱。
 
 ### `ci/plan-test-lanes.spec.mjs`
 
