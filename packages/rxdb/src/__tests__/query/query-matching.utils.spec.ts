@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isEntityEffectOrderBy, isEntityMatchWhere } from '../../query/query-matching.utils.js';
 import type { OrderBy } from '../../repository/query-options.interface.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
+import { RxDBError } from '../../RxDBError.js';
 
 describe('query.utils', () => {
   describe('isEntityMatchWhere', () => {
@@ -14,6 +15,26 @@ describe('query.utils', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
       }
+    });
+
+    it.each([
+      [
+        '嵌套组',
+        {
+          combinator: 'and',
+          rules: [
+            { field: 'id', operator: '=', value: 1 },
+            { combinator: 'AND', rules: [] }
+          ]
+        }
+      ],
+      ['顶层组', { combinator: 'AND', rules: [{ field: 'id', operator: '=', value: 1 }] }]
+    ])('%s用大写组合子时抛带原文的 RxDBError，不落成取值的 TypeError', (_, where) => {
+      // 大写 'AND' 能过 sqlite-core / PGlite 的 SQL 翻译，JS 判定只认类型声明的小写
+      const match = () => isEntityMatchWhere({ id: 1 }, where as unknown as RuleGroup<{ id: number }>);
+
+      expect(match).toThrow(RxDBError);
+      expect(match).toThrow('"combinator":"AND"');
     });
 
     it('测试等于操作符', () => {

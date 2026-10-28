@@ -127,22 +127,21 @@ export class UpdateDataCache<T extends EntityType> {
    * 获取序列化后的更新前数据
    *
    * inversePatch 只含被改字段的旧值，单独重建会丢失所有未变字段，导致复合
-   * where 判定错误。这里以更新后实体为底叠加 inversePatch，补足没改的字段。
+   * where 判定错误。这里以更新后实体为底叠加本批合并后的 inversePatch，补足没改的字段。
    * 返回的是全新的普通对象，不会改写共享的实体缓存实例。
    *
    * 更新后实体取自身份缓存：缓存未命中时它只有补丁里的字段，叠加出来的前态同样残缺。
    * 补不齐的情形由 UPDATE 门控拦在增量合并之前（见 `need_refresh_update.ts`）。
    *
+   * 前态按 id 缓存、只有一份，所以不收调用方给的旧值：给了也只会拿到先算出来的那一份。
+   *
    * @param id - 实体 id
-   * @param inversePatch - 叠加用的旧值；省略时取本批合并后的那一份
    */
-  getSerializedBefore(
-    id: RxDBEntityId,
-    inversePatch: Readonly<Partial<InstanceType<T>>> | undefined = this.dataById.get(id)?.inversePatch
-  ): InstanceType<T> | undefined {
+  getSerializedBefore(id: RxDBEntityId): InstanceType<T> | undefined {
     if (this.serializedBeforeCache.has(id)) {
       return this.serializedBeforeCache.get(id);
     }
+    const inversePatch = this.dataById.get(id)?.inversePatch;
     const after = this.getSerializedUpdate(id);
     const before = (after ? { ...after, ...inversePatch, id } : { id, ...inversePatch }) as unknown as InstanceType<T>;
     this.serializedBeforeCache.set(id, before);

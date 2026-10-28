@@ -171,7 +171,8 @@ export const fieldRoot = (field: string): string => (field.includes('.') ? field
  * @remarks
  * 既不是规则也不是规则组的元素跳过，例如大写的 `'AND'` 组合子：sqlite-core / PGlite 的
  * SQL 翻译接受它，JS 判定（{@link isRuleGroup}）不认。这里只收集字段，判不了的元素留给
- * 真正求值的一侧去报错。
+ * 求值一侧：`isEntityMatchWhere` 走到它就抛 `RxDBError`，由 `QueryManager` 按任务退回整查；
+ * 走不到说明短路已定结论，它组内的字段读不读都一样。
  */
 export function* whereRules(where: unknown): Generator<{ field: string }> {
   if (!isRuleGroup(where)) return;
@@ -182,19 +183,21 @@ export function* whereRules(where: unknown): Generator<{ field: string }> {
 }
 
 /**
- * 规则或排序字段在本实体上读的是哪一列
+ * 规则或排序字段在本实体上读的是哪个属性
  *
  * @param field - 规则或排序字段，可带点号路径
  * @param metadata - 本实体的元数据；没有时按根段本身算
- * @returns 本表列名；路径穿过 to-many 关系时为 `undefined`
+ * @returns 实体上的 JS 属性名；路径穿过 to-many 关系时为 `undefined`
  *
  * @remarks
- * 普通字段与 keyValue 路径读根段那一列。穿过 MANY_TO_ONE / ONE_TO_ONE 关系的路径读本表外键
+ * 返回的是属性名，不是数据库列名（`columnName` 可以另起），只拿来查实体实例与补丁。
+ *
+ * 普通字段与 keyValue 路径读根段那个属性。穿过 MANY_TO_ONE / ONE_TO_ONE 关系的路径读外键属性
  * （`'owner.name'` → `ownerId`）：关系不是实例的自有属性（原型上装的是 `owner$` 访问器），
- * 拿关系名当列去查，永远查不到。to-many 关系在本表没有列，where 里用到时由
+ * 拿关系名去查，永远查不到。to-many 关系在本实体上没有外键，where 里用到时由
  * {@link whereUsesRelations} 交给 SQL。
  */
-export const fieldColumn = (field: string, metadata: EntityMetadata | undefined): string | undefined => {
+export const fieldProperty = (field: string, metadata: EntityMetadata | undefined): string | undefined => {
   const root = fieldRoot(field);
   if (!metadata) return root;
   for (const relation of allRelations(metadata)) {

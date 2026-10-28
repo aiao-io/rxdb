@@ -13,7 +13,7 @@ import { RxDBEntityLocalUpdatedEventData } from '../rxdb-events.js';
 import { tryGetEntityMetadata, tryGetEntityStatus } from '../rxdb-utils.js';
 import { UpdateDataCache } from './merge-update.utils.js';
 import { isEntityMatchWhere, runMatches } from './query-matching.utils.js';
-import { fieldColumn, separateEntities, whereRules, whereUsesRelations } from './query-relation.utils.js';
+import { fieldProperty, separateEntities, whereRules, whereUsesRelations } from './query-relation.utils.js';
 import { QueryRulesBuilder } from './query-rules-builder.js';
 import { isStaleEventPayload } from './stale-event.utils.js';
 
@@ -23,7 +23,7 @@ const getFindOptions = <T extends EntityType>(options: unknown): FindOptions<T> 
 const hasKeys = (value: unknown): boolean =>
   !!value && typeof value === 'object' && Object.keys(value as object).length > 0;
 
-/** 实体在这些列上都有已知值：是自有属性且不是 `undefined`（`null` 是已知值）。 */
+/** 实体在这些属性上都有已知值：是自有属性且不是 `undefined`（`null` 是已知值）。 */
 const hasFields = (entity: object, fields: Iterable<string>): boolean => {
   for (const field of fields) {
     if (!Object.hasOwn(entity, field) || Reflect.get(entity, field) === undefined) return false;
@@ -56,37 +56,37 @@ const hasUnknownBefore = <T extends EntityType>(events: RxDBEntityLocalUpdatedEv
   events.some(event => hasKeys(event.patch) && !hasKeys(event.inversePatch));
 
 /**
- * 任务读取的本表列：where 规则与 orderBy 字段落在的列，外加调用方声明的列。
+ * 任务读取的实体属性：where 规则与 orderBy 字段落在的属性，外加调用方声明的属性。
  */
-const readColumnsOf = (
+const readPropertiesOf = (
   where: unknown,
   orderBy: OrderBy<string>[] | undefined,
   metadata: EntityMetadata | undefined,
   extra: Iterable<string>
 ): Set<string> => {
-  const columns = new Set(extra);
+  const properties = new Set(extra);
   const add = (field: string) => {
-    const column = fieldColumn(field, metadata);
-    if (column !== undefined) columns.add(column);
+    const property = fieldProperty(field, metadata);
+    if (property !== undefined) properties.add(property);
   };
   for (const rule of whereRules(where)) add(rule.field);
   for (const order of orderBy ?? []) add(order.field);
-  return columns;
+  return properties;
 };
 
 /**
- * 这条更新（同批同 id 已合并）是否改动了给定列中的某一列。
+ * 这条更新（同批同 id 已合并）是否改动了给定属性中的某一个。
  *
  * @remarks
- * 只认值真的变了的列：有的写入路径会把没变的列一起带上（树节点只改名时 patch 里仍可能有
+ * 只认值真的变了的属性：有的写入路径会把没变的属性一起带上（树节点只改名时 patch 里仍可能有
  * `parentId`）。一侧缺这个键按「变了」算。
  */
-const touchesColumns = (event: RxDBEntityLocalUpdatedEventData, columns: ReadonlySet<string>): boolean => {
+const touchesProperties = (event: RxDBEntityLocalUpdatedEventData, properties: ReadonlySet<string>): boolean => {
   const patch = event.patch as Record<string, unknown>;
   const inversePatch = event.inversePatch as Record<string, unknown>;
-  for (const column of columns) {
-    const present = Object.hasOwn(patch, column) || Object.hasOwn(inversePatch, column);
-    if (present && !isEqual(patch[column], inversePatch[column])) return true;
+  for (const property of properties) {
+    const present = Object.hasOwn(patch, property) || Object.hasOwn(inversePatch, property);
+    if (present && !isEqual(patch[property], inversePatch[property])) return true;
   }
   return false;
 };
@@ -136,7 +136,7 @@ const resolveUpdate = <T extends EntityType>(cache: UpdateDataCache<T>, id: RxDB
  * @param changes - 本批更新事件，可含关系实体的事件
  * @param refresh_rules - 命中即回 SQL 的规则组
  * @param recalculate_rules - 命中即走 JS 增量的规则组
- * @param readFields - 任务在 where / orderBy 之外还读的本表列（树查询的父列）
+ * @param readFields - 任务在 where / orderBy 之外还读的实体属性（树查询的 `parentId`）
  * @returns 判定结论，以及按类型分好的原始事件
  */
 export const query_need_refresh_update = <T extends EntityType>(
@@ -158,7 +158,7 @@ export const query_need_refresh_update = <T extends EntityType>(
   // 复合 where（多字段 AND）下用裸 patch 做 Reflect.get 判定，未变但满足条件的字段恒判
   // false，match_where 永远算不出"新匹配"——recalculate/refresh 都不会触发，查询结果
   // 永久性静默过期。这里与 classifyUpdates（merge-update.utils.ts）用同一套机制：用身份
-  // 缓存里的实例叠加 patch/inversePatch，补足没改的字段；补不齐任务读取的列时由下面的
+  // 缓存里的实例叠加 patch/inversePatch，补足没改的字段；补不齐任务读取的属性时由下面的
   // 门控回 SQL。返回值里的 current_entities/relation_entities 仍是原始事件，保持公开契约不变。
   // 缓存只收本任务实体类型的事件：关系实体与它同 id 时会互相顶替（整数主键最常见）。
   const cache = new UpdateDataCache(current_entities, event => task.serialize(event));
@@ -169,7 +169,7 @@ export const query_need_refresh_update = <T extends EntityType>(
   }
   const resolvedCurrentEntities = Array.from(resolvedById.values());
 
-  const readColumns = readColumnsOf(where, options?.orderBy, query_entity_metadata, readFields);
+  const readProperties = readPropertiesOf(where, options?.orderBy, query_entity_metadata, readFields);
   const resultFields = once(() =>
     query_entity_metadata ? [...query_entity_metadata.propertyMap.keys(), ...query_entity_metadata.foreignKeyNames] : []
   );
@@ -183,13 +183,16 @@ export const query_need_refresh_update = <T extends EntityType>(
     !hasFields(resolved.patch, resultFields());
 
   const isUndecidable = (resolved: ResolvedUpdate<T>): boolean => {
-    // 没改任务读取的列：这一行的匹配状态与排序位置都没动，缓存缺哪一列都不影响结论
-    if (!touchesColumns(resolved.event, readColumns)) return false;
+    // 没改任务读取的属性：这一行的匹配状态与排序位置都没动，缓存缺哪个属性都不影响结论。
+    // findAll 结果外的行同理：此前不匹配，此后仍不匹配（无筛选时结果外没有行，新行由 INSERT 追加）。
+    // 不能拿残缺补丁判它新匹配：缺失的列在判空条件（`null`、`= null`）下按空算，不匹配的行会被判进来、
+    // 改一次无关列就整查一次
+    if (!touchesProperties(resolved.event, readProperties)) return false;
     // 缓存比事件新：更新后态是更晚的版本，叠加这条迟到的 inversePatch 拼出的前态哪个版本都不是
     if (isStaleEventPayload(resolved.patch, resolved.event.patch)) return true;
     return (
-      !hasFields(resolved.patch, readColumns) ||
-      !hasFields(resolved.inversePatch, readColumns) ||
+      !hasFields(resolved.patch, readProperties) ||
+      !hasFields(resolved.inversePatch, readProperties) ||
       isIncompleteNewRow(resolved)
     );
   };

@@ -2,6 +2,7 @@ import { get, isEqual } from '@aiao/utils';
 import { OrderBy } from '../repository/query-options.interface.js';
 import { RuleGroup } from '../repository/query.interface.js';
 import { RefreshMatchRules } from '../repository/QueryManager.interface.js';
+import { deterministicStringify } from '../rxdb-utils.js';
 import { RxDBError } from '../RxDBError.js';
 
 /**
@@ -344,11 +345,10 @@ const get_entity_match_rule = (rule: RuntimeRule, entity: object): boolean => {
 
 /**
  * 判断实体数据是否匹配规则
+ *
+ * @throws RxDBError 走到既不是规则也不是规则组的条件时
  */
-const is_entity_match_rule_group_or_rule = (
-  ruleOrRuleGroup: RuntimeRuleGroup | RuntimeRule,
-  entity: object
-): boolean => {
+const is_entity_match_rule_group_or_rule = (ruleOrRuleGroup: unknown, entity: object): boolean => {
   if (isRuleGroup(ruleOrRuleGroup)) {
     const { combinator, rules } = ruleOrRuleGroup;
     if (combinator === 'and') {
@@ -361,9 +361,13 @@ const is_entity_match_rule_group_or_rule = (
       if (rules.length === 0) return true;
       return rules.some(rule => is_entity_match_rule_group_or_rule(rule, entity));
     }
-  } else {
-    return get_entity_match_rule(ruleOrRuleGroup, entity);
   }
+  if (isRule(ruleOrRuleGroup)) return get_entity_match_rule(ruleOrRuleGroup, entity);
+  // 大写的 'AND' / 'OR' 能过 sqlite-core / PGlite 的 SQL 翻译，这里只认类型声明的小写。
+  // 不拦就落到 get() 的路径解析，抛一个指不到条件的 TypeError
+  throw new RxDBError(
+    `where 里有认不出的条件（规则要有字符串 field 与 operator，规则组的 combinator 只认 'and' / 'or'）: ${deterministicStringify(ruleOrRuleGroup)}`
+  );
 };
 
 /**
@@ -376,6 +380,7 @@ const is_entity_match_rule_group_or_rule = (
  * @param entity - 待判定的实体；`null` / `undefined`（INSERT 的 inversePatch、DELETE 的 patch）一律不匹配
  * @param ruleGroup - 规则组
  * @returns 命中返回 `true`
+ * @throws RxDBError 求值走到认不出的条件时（如大写组合子），错误里带该条件的原文；短路跳过的不报
  */
 export const isEntityMatchWhere = <T>(entity: object | null | undefined, ruleGroup: RuleGroup<T>): boolean => {
   // INSERT 的 inversePatch 和 DELETE 的 patch 都是 null
@@ -383,7 +388,7 @@ export const isEntityMatchWhere = <T>(entity: object | null | undefined, ruleGro
   if (entity === null || entity === undefined) {
     return false;
   }
-  return is_entity_match_rule_group_or_rule(ruleGroup as unknown as RuntimeRuleGroup, entity);
+  return is_entity_match_rule_group_or_rule(ruleGroup, entity);
 };
 
 /**

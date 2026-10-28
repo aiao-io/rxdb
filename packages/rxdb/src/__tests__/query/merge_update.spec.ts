@@ -9,6 +9,7 @@ import { QueryTask } from '../../repository/QueryTask.js';
 import type { RxDBEntityLocalUpdatedEventData } from '../../rxdb-events.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
 import { STATUS } from '../../rxdb.private.js';
+import { RxDBError } from '../../RxDBError.js';
 import {
   collectEmissions,
   createHarnessQueryTask,
@@ -103,8 +104,7 @@ describe('query_merge_update_cache', () => {
 
       // `null` 是"查过、没有"，不是"还没查"——上游守卫只拦 `undefined`，所以这条 UPDATE
       // 会真的落到结果上。此刻手里没有实例可以就地打 patch，只能把事件负载整个序列化出去。
-      // 现场形态：本端 `get` 落空之后，另一端才把这条建出来并改了一次，两条事件里只有
-      // UPDATE 追上了这个活查询。
+      // 只有 runner 查空时返回 `null` 才有这一幕：`Repository.get` 查空直接报错，流随之终结。
       query_merge_update_cache(task as unknown as QueryTask<TestEntityType>, [
         createMockUpdateEvent({ id: 'run-1', title: 'Delay task', status: 'completed' })
       ]);
@@ -1169,19 +1169,20 @@ describe('query_merge_update_cache', () => {
       }
     );
 
+    // 大写 'AND' 能过 sqlite-core / PGlite 的 SQL 翻译，JS 判定只认类型声明的小写
+    const upperCaseGroupWhere = {
+      combinator: 'and',
+      rules: [
+        { field: 'status', operator: '=', value: 'active' },
+        { combinator: 'AND', rules: [{ field: 'priority', operator: '=', value: 5 }] }
+      ]
+    } as unknown as CountOptions<TestEntityType>['where'];
+
     it('where 里有 JS 判定不认的组合子时，收集字段不抛错，求值仍按短路语义', () => {
-      // 大写 'AND' 能过 sqlite-core / PGlite 的 SQL 翻译，JS 判定不认；首条规则已判 false，走不到它
+      // 首条规则已判 false，走不到它
       const task = createMockQueryTask({
         type: 'count',
-        options: {
-          where: {
-            combinator: 'and',
-            rules: [
-              { field: 'status', operator: '=', value: 'active' },
-              { combinator: 'AND', rules: [{ field: 'priority', operator: '=', value: 5 }] }
-            ]
-          } as unknown as CountOptions<TestEntityType>['where']
-        },
+        options: { where: upperCaseGroupWhere },
         cachedById: { '1': { id: '1', status: 'inactive', priority: 5 } },
         runner: () => of(0)
       });
@@ -1192,6 +1193,22 @@ describe('query_merge_update_cache', () => {
         query_merge_update_cache(task, [createPartialUpdate({ title: 'Updated' }, { title: 'Original' })])
       ).not.toThrow();
       expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it('首条规则为真、求值走到 JS 判定不认的组合子时抛带原文的 RxDBError', () => {
+      // QueryManager 按任务兜住这个错并退回整查；这里直接调合并，钉住报的是指得到条件的错，不是取值的 TypeError
+      const task = createMockQueryTask({
+        type: 'count',
+        options: { where: upperCaseGroupWhere },
+        cachedById: { '1': { id: '1', status: 'active', priority: 5 } },
+        runner: () => of(0)
+      });
+      collectEmissions(task);
+      const merge = () =>
+        query_merge_update_cache(task, [createPartialUpdate({ title: 'Updated' }, { title: 'Original' })]);
+
+      expect(merge).toThrow(RxDBError);
+      expect(merge).toThrow('"combinator":"AND"');
     });
 
     it('同一批里同一实体的两条 UPDATE 合起来判定，两条补丁都落到缓存实例上', () => {
@@ -1448,6 +1465,22 @@ describe('query_merge_update_cache', () => {
 
       expect(refresh).not.toHaveBeenCalled();
       expect(emissions).toEqual([[], [row]]);
+    });
+
+    it('findAll 结果外的行只改条件不读的列时不回 SQL，不拿残缺补丁判新匹配', () => {
+      // p1 有正文，本就不在「正文为空」的结果里。冷缓存的补丁只有 title，拿它判 where 的话
+      // 缺失的 content 在判空条件下按空算，p1 会被当成缺整行的新匹配去整查
+      const task = createHarnessQueryTask<PostType, Post[]>(Post, {
+        type: 'findAll',
+        options: { where: { combinator: 'and', rules: [{ field: 'content', operator: 'null' }] } },
+        runner: () => of([])
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      collectEmissions(task);
+
+      mergePostUpdate(task, [postUpdate('p1', { title: 'B' }, { title: 'A' })]);
+
+      expect(refresh).not.toHaveBeenCalled();
     });
 
     it('批次里的外类型事件不进 JS 增量：外类型实例不会被追加进结果', () => {

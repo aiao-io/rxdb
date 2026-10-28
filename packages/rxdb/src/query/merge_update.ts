@@ -63,9 +63,9 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
  * 「再 `find` 一次目标 id」的守卫，但传进去的已经是按同一个 id 过滤过的非空数组，
  * 那次 `find` 恒命中，`if (!update) return` 是死分支。收进来之后只剩一处 id 判定。
  *
- * 两条分支不是兜底而是两种真实形态：命中缓存实例时就地打 patch，保住订阅者手里的引用；
- * 结果是 `null`（`get` 未命中）时没有实例可打，只能把事件负载序列化成新实例发出去——
- * 这正是「查的时候还不存在、随后被别的端建出来」的那一幕。
+ * 命中缓存实例时就地打 patch，保住订阅者手里的引用。结果是 `null` 时没有实例可打，只能把
+ * 事件负载序列化成新实例发出去，补丁之外的列缺着。这一支只有 runner 查空时返回 `null` 的
+ * 任务走得到：`Repository.get` 查空直接报错、流随之终结，不会停在 `null` 上等 UPDATE。
  *
  * @param task - 目标 `get` 任务
  * @param update - 命中目标 id 的更新事件，同批多条已合成一条

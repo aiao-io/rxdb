@@ -5,7 +5,7 @@ status: In Review
 priority: High
 epic: epic-004-future-features
 created: 2026-10-28
-updated: 2026-10-28
+updated: 2026-10-29
 tags: [core, reactive-query, cross-tab, bug]
 ---
 
@@ -70,18 +70,19 @@ tags: [core, reactive-query, cross-tab, bug]
 ## 技术笔记
 
 - 缺失字段表示无法确定匹配结果，应回到数据库查询，不能用默认值代替持久值。
-- 只有补丁改了查询读取的列，才要求这些列已知：没改读取列，这一行的匹配状态与排序位置都没变，缓存缺哪一列都不影响结论。
+- 只有补丁改了查询读取的列，才要求这些列已知：没改读取列，这一行的匹配状态与排序位置都没变，缓存缺哪一列都不影响结论。findAll 结果外的行同理，不拿残缺补丁判它新匹配：缺失的列在判空条件（`null`、`= null`）下按空算，不匹配的行会被当成新匹配去整查。
 - JSON 顶层列已知时，内部键不存在是数据本身的状态，不等于整列未知；它在 SQL 里取出来是 `NULL`，`= null` 按 `IS NULL` 判。
 - 关系不是实体实例的自有属性，条件或排序经多对一 / 一对一关系时读本表外键；to-many 关系由既有的关系规则交给 SQL。
 - 同批同 id 的多条 UPDATE 先合并（patch 后写覆盖、inversePatch 先写为准），否则只被前一条改过的列在更新后态里看不见。
+- where 里认不出的条件（如大写组合子 `'AND'`，SQL 翻译接受、类型与 JS 判定只认小写）收集读取属性时跳过，求值走到时抛带原文的 `RxDBError`、由 `QueryManager` 按任务退回整查；短路没走到它，结论就与它组内的属性无关。
 - 变更限于核心查询门控与树插件的接线；Angular / React / Vue 继续消费同一 Repository 结果流。
 
 ## 实现文件
 
 - `packages/rxdb/src/query/need_refresh_update.ts` — UPDATE 门控。
 - `packages/rxdb/src/query/merge-update.utils.ts` — 同批同 id 事件合并。
-- `packages/rxdb/src/query/query-relation.utils.ts` — where 遍历与字段落列。
-- `packages/rxdb/src/query/query-matching.utils.ts` — `= null` 的 `IS NULL` 语义。
+- `packages/rxdb/src/query/query-relation.utils.ts` — where 遍历与字段落到实体属性。
+- `packages/rxdb/src/query/query-matching.utils.ts` — `= null` 的 `IS NULL` 语义；认不出的条件报带原文的错误。
 - `packages/rxdb/src/query/merge_update.ts` — 增量合并与 `get` 只收本类型事件。
 - `packages/rxdb-plugin-tree/src/query/merge_update.ts` — 树查询声明父列。
 - `packages/rxdb/src/__tests__/query/merge_update.spec.ts` — 核心条件与缺失值回归。
@@ -90,10 +91,13 @@ tags: [core, reactive-query, cross-tab, bug]
 
 ## 验证
 
-- 核心测试 2693 条通过（另有 1 条与本故事无关的条件跳过）；lint、typecheck、build 通过。
-- 核心覆盖率：Statements 95.55%、Branches 92.14%、Functions 95.77%、Lines 96.25%，均达到核心 90% 门槛。
+以下数字为 2026-10-29 的复跑结果。核心在第三轮评审处理后重跑（该轮只补一条核心用例、改注释）；其余在第二轮修复后跑，第三轮的改动不影响它们。
+
+- 核心测试 2698 条通过（另有 1 条与本故事无关的条件跳过）；lint、typecheck、build 通过。
+- 核心覆盖率：Statements 95.56%、Branches 92.14%、Functions 95.77%、Lines 96.25%，均达到核心 90% 门槛。
 - wa-sqlite 真实双连接 8 / 8 通过；「只改条件不读的列不重数」在评审前的门控下失败（多一次查询）。primeCache 变体持有残缺实体到最后一次断言，钉住走的是残缺缓存分支。
 - 树插件浏览器用例 256 条、graph 192 条、history 439 条、sqlite-core 1576 条、wa-sqlite 1015 条、PGlite 1562 条全部通过。
+- Angular / React / Vue 绑定（含树插件三端）没有单独补跨连接用例：本故事不加 API，三端订阅的就是上面验过的 Repository / 树查询结果流。这是共享核心的覆盖，不是三端各自验证。
 
 ## References
 
