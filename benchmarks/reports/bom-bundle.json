@@ -1,8 +1,5 @@
 {
-  "generatedAt": "2026-10-28T08:07:34.134Z",
-  "node": "v26.12.0",
   "budgetBytes": 50000,
-  "method": "TypeScript AST遍历包内相对静态import/export及字面动态import；每文件gzip(level=6)求和，外部peer依赖另列",
   "entries": {
     "core": {
       "path": "packages/rxdb-plugin-bom/dist/index.js",
@@ -20,10 +17,7 @@
           "packages/rxdb-plugin-bom/dist/versions-9M5VsJZK.js",
           "packages/rxdb-plugin-bom/dist/export-contract-DPP7iyOJ.js"
         ],
-        "external": [
-          "@aiao/rxdb",
-          "rxjs"
-        ]
+        "external": ["@aiao/rxdb", "rxjs"]
       },
       "reachable": {
         "gzipBytes": 107852,
@@ -48,10 +42,7 @@
           "packages/rxdb-plugin-bom/dist/instance-BRmXt1sZ.js",
           "packages/rxdb-plugin-bom/dist/bom-map-DTSbMOwX.js"
         ],
-        "external": [
-          "@aiao/rxdb",
-          "rxjs"
-        ]
+        "external": ["@aiao/rxdb", "rxjs"]
       },
       "withinBudget": true
     },
@@ -67,10 +58,7 @@
           "packages/rxdb-plugin-bom/dist/repository-CS9gC2Ir.js",
           "packages/rxdb-plugin-bom/dist/history-loader-CkWyh0jE.js"
         ],
-        "external": [
-          "@aiao/rxdb",
-          "rxjs"
-        ]
+        "external": ["@aiao/rxdb", "rxjs"]
       },
       "reachable": {
         "gzipBytes": 52634,
@@ -86,10 +74,7 @@
           "packages/rxdb-plugin-bom/dist/explosion-DAuyDOiS.js",
           "packages/rxdb-plugin-bom/dist/versions-9M5VsJZK.js"
         ],
-        "external": [
-          "@aiao/rxdb",
-          "rxjs"
-        ]
+        "external": ["@aiao/rxdb", "rxjs"]
       },
       "withinBudget": true
     },
@@ -99,24 +84,14 @@
       "static": {
         "gzipBytes": 4092,
         "rawBytes": 22297,
-        "files": [
-          "dist/packages/rxdb-plugin-bom-angular/fesm2022/aiao-rxdb-plugin-bom-angular.mjs"
-        ],
-        "external": [
-          "@aiao/rxdb-plugin-bom",
-          "@angular/core"
-        ]
+        "files": ["dist/packages/rxdb-plugin-bom-angular/fesm2022/aiao-rxdb-plugin-bom-angular.mjs"],
+        "external": ["@aiao/rxdb-plugin-bom", "@angular/core"]
       },
       "reachable": {
         "gzipBytes": 4092,
         "rawBytes": 22297,
-        "files": [
-          "dist/packages/rxdb-plugin-bom-angular/fesm2022/aiao-rxdb-plugin-bom-angular.mjs"
-        ],
-        "external": [
-          "@aiao/rxdb-plugin-bom",
-          "@angular/core"
-        ]
+        "files": ["dist/packages/rxdb-plugin-bom-angular/fesm2022/aiao-rxdb-plugin-bom-angular.mjs"],
+        "external": ["@aiao/rxdb-plugin-bom", "@angular/core"]
       },
       "withinBudget": true
     },
@@ -126,26 +101,14 @@
       "static": {
         "gzipBytes": 2484,
         "rawBytes": 7226,
-        "files": [
-          "packages/rxdb-plugin-bom-react/dist/index.js"
-        ],
-        "external": [
-          "@aiao/rxdb-plugin-bom",
-          "react",
-          "react/jsx-runtime"
-        ]
+        "files": ["packages/rxdb-plugin-bom-react/dist/index.js"],
+        "external": ["@aiao/rxdb-plugin-bom", "react", "react/jsx-runtime"]
       },
       "reachable": {
         "gzipBytes": 2484,
         "rawBytes": 7226,
-        "files": [
-          "packages/rxdb-plugin-bom-react/dist/index.js"
-        ],
-        "external": [
-          "@aiao/rxdb-plugin-bom",
-          "react",
-          "react/jsx-runtime"
-        ]
+        "files": ["packages/rxdb-plugin-bom-react/dist/index.js"],
+        "external": ["@aiao/rxdb-plugin-bom", "react", "react/jsx-runtime"]
       },
       "withinBudget": true
     },
@@ -155,26 +118,19 @@
       "static": {
         "gzipBytes": 3362,
         "rawBytes": 8736,
-        "files": [
-          "packages/rxdb-plugin-bom-vue/dist/index.js"
-        ],
-        "external": [
-          "@aiao/rxdb-plugin-bom",
-          "vue"
-        ]
+        "files": ["packages/rxdb-plugin-bom-vue/dist/index.js"],
+        "external": ["@aiao/rxdb-plugin-bom", "vue"]
       },
       "reachable": {
         "gzipBytes": 3362,
         "rawBytes": 8736,
-        "files": [
-          "packages/rxdb-plugin-bom-vue/dist/index.js"
-        ],
-        "external": [
-          "@aiao/rxdb-plugin-bom",
-          "vue"
-        ]
+        "files": ["packages/rxdb-plugin-bom-vue/dist/index.js"],
+        "external": ["@aiao/rxdb-plugin-bom", "vue"]
       },
       "withinBudget": true
     }
-  }
+  },
+  "generatedAt": "2026-10-28T08:43:47.218Z",
+  "method": "TypeScript AST遍历包内相对静态import/export及字面动态import；每文件gzip(level=6)求和，外部peer依赖另列",
+  "node": "v26.12.0"
 }
