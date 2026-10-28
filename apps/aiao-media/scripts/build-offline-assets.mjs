@@ -7,7 +7,7 @@ const root = resolve(import.meta.dirname, '../dist/browser');
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 // Only compiler output and the non-personalized CSR shell, never SSR/API HTML.
 const assets = [];
-const extensions = new Set(['.js', '.css', '.wasm', '.ico', '.png', '.svg', '.woff', '.woff2']);
+const extensions = new Set(['.js', '.css', '.wasm', '.ico', '.png', '.jpg', '.jpeg', '.svg', '.woff', '.woff2']);
 async function walk(path) {
   for (const item of await readdir(path, { withFileTypes: true })) {
     const full = resolve(path, item.name);

@@ -183,6 +183,29 @@ test('首次缓存后四条页面离线可打开，设置和草稿仍可读', as
     await expect(page.getByRole('link', { name: 'Aiao Images 首页' })).toBeVisible();
   }
 });
+test('从创作页首次安装后，离线冷开首页仍可解码六张参考图', async ({ page, context }) => {
+  await page.goto('/create');
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  await context.setOffline(true);
+  const offline = await context.newPage();
+  await page.close();
+  const response = await offline.goto('/');
+  expect(response?.fromServiceWorker()).toBe(true);
+  const referenceIds = ['coffee', 'ceramic', 'map', 'illustration', 'vr', 'portrait'];
+  for (const [index, id] of referenceIds.entries()) {
+    const card = offline.locator('.cards .card').nth(index);
+    await card.scrollIntoViewIfNeeded();
+    const image = card.locator(`img[src="/image-examples/${id}.jpg"]`);
+    await expect(image).toBeVisible();
+    await expect
+      .poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0))
+      .toBe(true);
+  }
+  await expect(offline.getByText('示例图暂时无法加载，可继续查看提示词')).toHaveCount(0);
+});
 test('移动端供应商页和创作页不产生横向溢出', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await provider(page);
