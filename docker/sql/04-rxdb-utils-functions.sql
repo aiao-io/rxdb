@@ -104,6 +104,49 @@ END;
 $$;
 
 /**
+ * rxdb_id_column_type - 取业务表 id 列的完整类型文本（保留列类型修饰，如 numeric(8,2)）
+ *
+ * 显式删除登记映射时要按列精度规范化 id：数组 regtype 不带修饰，会把存储的 1.00 登记成 "1"，
+ * 与触发器看到的 OLD.id::text 对不上。只读系统目录，与 rxdb_id_array_type 同一套校验。
+ *
+ * @param p_table 表名
+ * @param p_schema schema 名称
+ * @returns id 列的完整类型文本
+ */
+CREATE OR REPLACE FUNCTION public.rxdb_id_column_type(
+  p_table text,
+  p_schema text
+)
+RETURNS text
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  v_id_type text;
+BEGIN
+  SELECT pg_catalog.format_type(a.atttypid, a.atttypmod)
+  INTO v_id_type
+  FROM pg_catalog.pg_attribute AS a
+  JOIN pg_catalog.pg_class AS c ON c.oid = a.attrelid
+  JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+  WHERE n.nspname = p_schema
+    AND c.relname = p_table
+    AND c.relkind IN ('r', 'p')
+    AND a.attname = 'id'
+    AND a.attnum > 0
+    AND NOT a.attisdropped;
+
+  IF v_id_type IS NULL THEN
+    RAISE EXCEPTION 'Missing id column: %.%', p_schema, p_table;
+  END IF;
+
+  RETURN v_id_type;
+END;
+$$;
+
+/**
  * rxdb_execute_batch_update - 共享 UPDATE 执行器，按需返回最终行
  *
  * 逐行执行普通 UPDATE，只 SET 该行出现的非 id 列；未出现的列保持原值。
@@ -918,6 +961,8 @@ DECLARE
   v_explicit_deletes jsonb := '{}'::jsonb;
   v_delete_group jsonb;
   v_delete_context jsonb;
+  v_relation regclass;
+  v_root_oid oid;
 BEGIN
   -- 0. 只读载荷校验配对，失败时快照、日志与业务表都还没动
   PERFORM public.rxdb_assert_push_integrity(p_upserts, p_deletes, p_changes, p_skip_sync, p_updates);
@@ -926,15 +971,20 @@ BEGIN
   LOOP
     schema_name := COALESCE(op->>'schema', 'public');
     table_name := op->>'table';
+    -- 登记键与触发器的 (根表 oid, OLD.id::text) 一致：id 按列类型修饰规范化（1.00 不是 1），
+    -- 关系取分区根（叶分区删行时触发器看到的是叶名）。同一行以不同拼写（uuid 大小写）同批出现时键相同，
+    -- jsonb_object_agg 保留后一条——病态输入，回滚无损，不为此改校验规则
+    v_relation := pg_catalog.to_regclass(pg_catalog.format('%I.%I', schema_name, table_name));
+    v_root_oid := COALESCE(pg_catalog.pg_partition_root(v_relation), v_relation)::oid;
     EXECUTE pg_catalog.format(
       'SELECT COALESCE(pg_catalog.jsonb_object_agg(
-        pg_catalog.jsonb_build_array($2, $3, (ARRAY[ids.value]::%s)[1]::text)::text,
+        pg_catalog.jsonb_build_array($4, (ids.value::%s)::text)::text,
         pg_catalog.jsonb_build_object(
           ''entityKey'', pg_catalog.jsonb_build_array($2, $3, ids.value)::text, ''beforeData'', NULL
         )
       ), ''{}''::jsonb) FROM pg_catalog.jsonb_array_elements_text($1) AS ids(value)',
-      public.rxdb_id_array_type(table_name, schema_name)
-    ) INTO v_delete_group USING op->'ids', schema_name, table_name;
+      public.rxdb_id_column_type(table_name, schema_name)
+    ) INTO v_delete_group USING op->'ids', schema_name, table_name, v_root_oid::text;
     v_explicit_deletes := v_explicit_deletes || v_delete_group;
   END LOOP;
 

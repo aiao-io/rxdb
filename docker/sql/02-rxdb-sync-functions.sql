@@ -53,7 +53,10 @@ BEGIN
             RETURN NULL;
         END IF;
 
-        v_entity_key := pg_catalog.jsonb_build_array(TG_TABLE_SCHEMA, TG_TABLE_NAME, OLD.id::text)::text;
+        -- 登记键按分区根计算：显式删除登记的是请求里的关系（可能是根表），叶分区触发时 TG_TABLE_NAME 是叶名
+        v_entity_key := pg_catalog.jsonb_build_array(
+          COALESCE(pg_catalog.pg_partition_root(TG_RELID::regclass)::oid, TG_RELID)::text, OLD.id::text
+        )::text;
         PERFORM pg_catalog.set_config(
             'rxdb.explicit_deletes',
             pg_catalog.jsonb_set(v_explicit_deletes, ARRAY[v_entity_key],

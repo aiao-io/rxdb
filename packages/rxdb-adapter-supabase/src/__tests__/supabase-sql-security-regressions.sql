@@ -423,6 +423,23 @@ ALTER TABLE rxdb_sql_regression.cascade_hidden_children ENABLE ROW LEVEL SECURIT
 CREATE POLICY cascade_hidden_insert ON rxdb_sql_regression.cascade_hidden_children
   FOR INSERT WITH CHECK (true);
 
+-- 数值主键：numeric(8,2) 存的是 1.00，客户端按 "1" 删除（显式删除上下文按列精度登记）
+CREATE TABLE rxdb_sql_regression.numeric_key_nodes (
+  id numeric(8,2) PRIMARY KEY,
+  value text NOT NULL
+);
+SELECT public.rxdb_enable_sync_for_table('numeric_key_nodes', 'rxdb_sql_regression', 'NumericKeyNode');
+
+-- 分区表：同步挂在根表上，叶分区的触发器由 PostgreSQL 克隆，TG_TABLE_NAME 是叶分区名
+CREATE TABLE rxdb_sql_regression.partitioned_key_nodes (
+  id integer,
+  value text NOT NULL,
+  PRIMARY KEY (id)
+) PARTITION BY RANGE (id);
+CREATE TABLE rxdb_sql_regression.partitioned_key_nodes_low
+  PARTITION OF rxdb_sql_regression.partitioned_key_nodes FOR VALUES FROM (0) TO (100);
+SELECT public.rxdb_enable_sync_for_table('partitioned_key_nodes', 'rxdb_sql_regression', 'PartitionedKeyNode');
+
 CREATE TABLE public.rxdb_sql_trigger_probe (
   id varchar(64) PRIMARY KEY,
   value text NOT NULL,
@@ -3069,6 +3086,137 @@ BEGIN
 END;
 $$;
 
+-- 隐藏子行带 inversePatch 时，它被允许的父删除级联删掉，最终 DELETE 快照必须是服务端真实 OLD（含 id）。
+-- 只靠客户端 inversePatch 拼出的快照缺 id，按 id 过滤的拉取会漏掉这条删除。
+CREATE FUNCTION rxdb_sql_regression.test_cascade_hidden_inverse_patch()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  result jsonb;
+BEGIN
+  INSERT INTO rxdb_sql_regression.cascade_parent_ids (id, value) VALUES ('hidden-inverse-parent', 'parent');
+  INSERT INTO rxdb_sql_regression.cascade_hidden_children (id, "parentId", value)
+  VALUES ('hidden-inverse-child', 'hidden-inverse-parent', 'hidden-inverse-value');
+
+  result := public.rxdb_mutations(
+    p_deletes => '[
+      {"schema":"rxdb_sql_regression","table":"cascade_hidden_children","ids":["hidden-inverse-child"]},
+      {"schema":"rxdb_sql_regression","table":"cascade_parent_ids","ids":["hidden-inverse-parent"]}]',
+    p_changes => '[
+      {"namespace":"rxdb_sql_regression","entity":"CascadeHiddenChild","schema":"rxdb_sql_regression",
+       "table":"cascade_hidden_children","entityId":"hidden-inverse-child","type":"DELETE",
+       "inversePatch":{"parentId":"hidden-inverse-parent","value":"hidden-inverse-value"},
+       "branchId":"main","clientId":"sql-cascade-hidden-inverse","localId":1},
+      {"namespace":"rxdb_sql_regression","entity":"CascadeParent","schema":"rxdb_sql_regression",
+       "table":"cascade_parent_ids","entityId":"hidden-inverse-parent","type":"DELETE",
+       "inversePatch":{"value":"parent"},
+       "branchId":"main","clientId":"sql-cascade-hidden-inverse","localId":2}]',
+    p_skip_sync => true,
+    p_receipts => true
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    result->'entity_results'->0->>'status' = 'applied' AND NOT (result->'entity_results'->0 ? 'reason'),
+    'hidden child with inversePatch really deleted by its allowed parent must be applied in the final receipt'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_change
+      WHERE namespace = 'rxdb_sql_regression' AND entity = 'CascadeHiddenChild'
+        AND "entityId" = 'hidden-inverse-child' AND type = 'DELETE'
+        AND "clientId" = 'sql-cascade-hidden-inverse' AND "localId" = 1
+        AND "snapshotComplete" AND "beforeData"->>'id' = 'hidden-inverse-child'
+        AND "beforeData"->>'value' = 'hidden-inverse-value') = 1,
+    'hidden child DELETE must carry the real server OLD (with id), not the client inversePatch'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_pull_changes(
+      0, 100, 'rxdb_sql_regression', 'CascadeHiddenChild', 'main',
+      '{"combinator":"and","rules":[{"field":"id","operator":"=","value":"hidden-inverse-child"}]}'
+    ) WHERE type = 'DELETE') = 1,
+    'filtered pull by id must return the hidden child DELETE'
+  );
+END;
+$$;
+
+-- numeric(8,2) 主键：客户端的 "1" 与存储的 1.00 是同一行，显式删除只记一条源日志，不再追加隐式日志
+CREATE FUNCTION rxdb_sql_regression.test_cascade_numeric_keys()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  result jsonb;
+BEGIN
+  INSERT INTO rxdb_sql_regression.numeric_key_nodes (id, value) VALUES (1, 'first');
+  result := public.rxdb_mutations(
+    p_deletes => '[{"schema":"rxdb_sql_regression","table":"numeric_key_nodes","ids":["1"]}]',
+    p_changes => '[{"namespace":"rxdb_sql_regression","entity":"NumericKeyNode","schema":"rxdb_sql_regression",
+      "table":"numeric_key_nodes","entityId":"1","type":"DELETE","inversePatch":{"value":"first"},
+      "branchId":"main","clientId":"sql-numeric-key","localId":1}]',
+    p_skip_sync => true,
+    p_receipts => true
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    result->'entity_results'->0->>'status' = 'applied',
+    'numeric key: explicit delete must be applied'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_change
+      WHERE namespace = 'rxdb_sql_regression' AND entity = 'NumericKeyNode' AND type = 'DELETE') = 1
+      AND (SELECT pg_catalog.count(*) FROM public.rxdb_change
+        WHERE namespace = 'rxdb_sql_regression' AND entity = 'NumericKeyNode' AND type = 'DELETE'
+          AND "clientId" = 'sql-numeric-key' AND "localId" = 1 AND "snapshotComplete") = 1,
+    'numeric key: one explicit delete must produce exactly one mapped complete DELETE, no implicit duplicate'
+  );
+END;
+$$;
+
+-- 分区表：根表与叶分区两种目标删同一行，都只记一条带源映射的 DELETE，不追加隐式日志
+CREATE FUNCTION rxdb_sql_regression.test_cascade_partition_keys()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  result jsonb;
+BEGIN
+  INSERT INTO rxdb_sql_regression.partitioned_key_nodes (id, value) VALUES (1, 'root-target'), (2, 'leaf-target');
+  result := public.rxdb_mutations(
+    p_deletes => '[{"schema":"rxdb_sql_regression","table":"partitioned_key_nodes","ids":["1"]}]',
+    p_changes => '[{"namespace":"rxdb_sql_regression","entity":"PartitionedKeyNode","schema":"rxdb_sql_regression",
+      "table":"partitioned_key_nodes","entityId":"1","type":"DELETE","inversePatch":{"value":"root-target"},
+      "branchId":"main","clientId":"sql-partition-root","localId":1}]',
+    p_skip_sync => true,
+    p_receipts => true
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    result->'entity_results'->0->>'status' = 'applied',
+    'partition root target: explicit delete must be applied'
+  );
+  result := public.rxdb_mutations(
+    p_deletes => '[{"schema":"rxdb_sql_regression","table":"partitioned_key_nodes_low","ids":["2"]}]',
+    p_changes => '[{"namespace":"rxdb_sql_regression","entity":"PartitionedKeyNode","schema":"rxdb_sql_regression",
+      "table":"partitioned_key_nodes_low","entityId":"2","type":"DELETE","inversePatch":{"value":"leaf-target"},
+      "branchId":"main","clientId":"sql-partition-leaf","localId":1}]',
+    p_skip_sync => true,
+    p_receipts => true
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    result->'entity_results'->0->>'status' = 'applied',
+    'partition leaf target: explicit delete must be applied'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_change
+      WHERE namespace = 'rxdb_sql_regression' AND entity = 'PartitionedKeyNode' AND type = 'DELETE') = 2
+      AND (SELECT pg_catalog.count(*) FROM public.rxdb_change
+        WHERE namespace = 'rxdb_sql_regression' AND entity = 'PartitionedKeyNode' AND type = 'DELETE'
+          AND "clientId" IN ('sql-partition-root', 'sql-partition-leaf') AND "localId" = 1) = 2,
+    'partition: each explicit delete must produce exactly one mapped DELETE, through root and leaf targets alike'
+  );
+END;
+$$;
+
 -- US-218 阶段 C：生产权限脚本生效后（客户端无 rxdb_change 写权限），同步写路径仍可用
 CREATE FUNCTION rxdb_sql_regression.test_production_change_grants()
 RETURNS void
@@ -3245,6 +3393,12 @@ SELECT rxdb_sql_regression.test_cascade_rejected_child()
 WHERE :'test_case' IN ('all', 'cascade-rejected-child');
 SELECT rxdb_sql_regression.test_cascade_replay_and_rollback()
 WHERE :'test_case' IN ('all', 'cascade-replay-rollback');
+SELECT rxdb_sql_regression.test_cascade_hidden_inverse_patch()
+WHERE :'test_case' IN ('all', 'cascade-hidden-inverse-patch');
+SELECT rxdb_sql_regression.test_cascade_numeric_keys()
+WHERE :'test_case' IN ('all', 'cascade-numeric-keys');
+SELECT rxdb_sql_regression.test_cascade_partition_keys()
+WHERE :'test_case' IN ('all', 'cascade-partition-keys');
 RESET ROLE;
 
 SELECT rxdb_sql_regression.test_delete_hidden_row_verify()
