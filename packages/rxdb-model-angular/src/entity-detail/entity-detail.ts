@@ -298,7 +298,16 @@ export class EntityDetailComponent {
     return fields.map(f => (f.field in fixed ? { ...f, readonly: true } : f));
   }
 
-  get formDataValue(): EntityFormData {
+  /**
+   * 交给 EntityForm 的表单数据。
+   *
+   * @remarks
+   * 必须是 computed 而不是每次求值都拼新对象的 getter：模板绑定每轮变更检测都会重新求值，
+   * EntityForm 的本地表单按 `data` 的对象身份重置，换一个新对象就把用户还没提交的输入冲回
+   * 实例上的旧值（界面仍显示输入，提交出去的却是旧值）。只在依赖的信号变化时重建，
+   * 与 React 的 `useMemo`、Vue 的 `computed` 同口径。
+   */
+  readonly #formDataValue = computed<EntityFormData>(() => {
     if (this.isCreateMode()) {
       const draft = this.draftFormData();
       const fixed = this.fixedFormDataValue;
@@ -309,6 +318,10 @@ export class EntityDetailComponent {
     const base = this.formData() ?? this.#dialogData?.formData ?? {};
     const fixed = this.fixedFormDataValue;
     return fixed ? { ...base, ...fixed } : base;
+  });
+
+  get formDataValue(): EntityFormData {
+    return this.#formDataValue();
   }
 
   get formModeValue(): FormMode {
