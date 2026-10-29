@@ -204,7 +204,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * 通过 PostgreSQL RPC 调用 `rxdb_mutations` 存储过程，
    * 在单个数据库事务中执行所有操作，确保原子性。
    *
+   * @returns 新增和修改的服务器最终行，以及删除的原实体
    * @throws {SupabaseConfigError} 批内有实体的主键 `id` 映射到了别的物理列，RPC 不会发出
+   * @throws {SupabaseDataError} 修改被拒绝时为 `42501`，目标行不存在时为 `RX001`；整批回滚
    */
   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {
     for (const EntityType of [...options.create.keys(), ...options.update.keys(), ...options.remove.keys()]) {
@@ -212,16 +214,11 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
     const userId = this.rxdb.context.userId;
 
-    // 构建 RPC 参数。create / update 必须分别按插入、更新语义注入审计字段 ——
-    // 更新集若下发 createdBy，服务端的 DO UPDATE SET 会把原作者覆写成当前用户。
-    const upserts = [
-      ...build_upsert_params(options.create, userId, 'insert'),
-      ...build_upsert_params(options.update, userId, 'update')
-    ];
-
+    const upserts = build_upsert_params(options.create, userId, 'insert');
+    const updates = build_upsert_params(options.update, userId, 'update');
     const deletes = build_delete_params(options.remove);
 
-    if (upserts.length === 0 && deletes.length === 0) {
+    if (upserts.length === 0 && updates.length === 0 && deletes.length === 0) {
       return [];
     }
 
@@ -231,6 +228,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       async () => {
         const { data, error, status } = await this.#client.rpc('rxdb_mutations', {
           p_upserts: upserts,
+          p_updates: updates,
           p_deletes: deletes
         });
         return { data, error, status };
