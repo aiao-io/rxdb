@@ -11,7 +11,8 @@ import { promisify } from 'node:util';
 const execute = promisify(execFile);
 /** macOS 自带「简体拼音」输入模式。 */
 export const PINYIN_INPUT_SOURCE = 'com.apple.inputmethod.SCIM.ITABC';
-const LOCAL_ORIGIN = 'http://127.0.0.1:4399';
+// 不与本机（4398）、真实账号（4399）和图库（4407）浏览器套件的端口冲突。
+const LOCAL_ORIGIN = 'http://127.0.0.1:4412';
 const TEMPLATE = '查看把一杯咖啡，拍成一张好海报';
 // ANSI 物理键码：经 System Events 发出的是硬件按键，由系统输入法自行组字。
 const KEY_CODES = {
