@@ -200,10 +200,8 @@ describe('QueryBuilder（真实组件）', () => {
     container.querySelector('input[placeholder="输入值"]');
 
   /** 单条 `title = value` 的查询。 */
-  const titleQuery = (value: string): RxDBQueryOutput<object> => ({
-    combinator: 'and',
-    rules: [{ field: 'title', operator: '=', value }]
-  });
+  const titleQuery = (value: string): RxDBQueryOutput<object> =>
+    ({ combinator: 'and', rules: [{ field: 'title', operator: '=', value }] }) as RxDBQueryOutput<object>;
 
   describe('字段集合变化（含清空）同步给服务', () => {
     const SCHEMA: SchemaInfo = { entityName: 'Post', fields: [FIELDS[0]] };
