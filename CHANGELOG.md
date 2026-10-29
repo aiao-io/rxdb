@@ -80,6 +80,27 @@
 - **rxdb-model:** 实体表格接键盘焦点的隐藏输入框补上可读名，此前 axe 判 `label`（critical），读屏只念「编辑框，只读」（US-313）
 - **rxdb-plugin-workspace:** 草稿缓存不再收系统表与关闭变更日志（`log: false`）实体的草稿。此前系统表名单只认核心四张表，插件登记的系统表（如工作树插件的提交表）与 storage 插件的 `StorageFileMeta` 每次构造都留下一条永远清不掉的草稿：它们出现在 `list()` / `cacheCount` 里、广播给其他标签页、每次启动被恢复。`install()` 会删掉 IndexedDB 里已有的这类草稿（US-311）
 
+- **rxdb:** `disconnectAll()` / `destroy()` 遇到在途的适配器工厂失败时不再跳过整个拆卸：先等全部工厂结算，断开已建好的适配器、释放插件作用域，全部走完再抛出首个错误。此前一个工厂拒绝，其余适配器一个都没断开，`destroy()` 已置终态也补不回来。
+- **rxdb-adapter-sqlite-core（及 -sqlite / -sqlite-wasm / -sqliteai / -wa-sqlite / -miniprogram / -electron / -tauri）:** 没有外键的实体上声明的 `*Id` 属性（如加密的 `secretId`）按声明类型转换并加密，不再按 `Id` 后缀猜成外键原样写入。此前这类加密列写入后解密回填失败、整笔回滚，合法属性存不进去；未声明的 `*Id` 键与其他未声明键一样忽略。
+- **rxdb-adapter-sqlite-wasm:** 只传 `sharedWorkerInstance`、不写 `sharedWorker: true` 时同样进跨标签页事务锁，断开只交还本标签页那一份。此前事务不排队，断开时还会关掉其他标签页正在用的共用连接。
+- **rxdb-adapter-http:** 浏览器里同源相对 `baseUrl` 可以配 `changeFeed`：普通请求与 SSE 走同一个地址出口，按文档基准地址补成绝对地址（此前构造期就抛 `HttpConfigError`）。条件读的 single-flight 只在同一代次内合流：`create` / `update` / `delete` 结算（成败都算）或变更通知上报失效之后发起的读，不再并进写之前的在飞请求、刚写完读回旧值。
+- **rxdb-adapter-supabase:** `exists` 子查询里的 OR（及 `notBetween`）改在关系作用域内表达（`<嵌入路径>.or=(…)`），不再拆成 AND 静默漏行；两层 `exists` 的嵌入按当前层实体解析关系名，此前第二层进不了 select、整个查询被 PostgREST 拒绝。
+- **rxdb-adapter-tauri:** JSON 编解码把 `__proto__` 等数据键作为自有属性往返，不再丢键、也不再把结果对象的原型换成载荷。
+- **rxdb-adapter-pglite:** `changeErrors$` 随适配器实例存活：`disconnect()` 不再完成它，同一实例重连后的变更管线失败照常送达（此前重新订阅时它已经完成）。
+- **rxdb-plugin-graph:** 节点物理表名含双引号时，`findNeighbors` / `countNeighbors` / `findPaths`（含节点回填）正确转义，不再报 SQL 语法错误。
+- **rxdb-plugin-tree:** 实时树查询的起点（全树查询的各根、指定 `entityId` 时的目标）与 SQL 同口径不过 `where`：新建或删除不匹配 `where` 的起点时列表与计数即时更新，`findAncestors` 全树收得到新根，目标新建而祖先链在本地拼不全时回 SQL；全树且带 `where` / `level` 时，节点改父跨进或跨出根层回 SQL。
+- **rxdb-plugin-querycache:** 同一行在线写的回执反序到达时按发出顺序落缓存：迟到的更新回执不再把已删除（含离线删除）的缓存行写回来，两次更新的回执反序也不再让旧值覆盖新值。`QueryCacheEngine`（experimental）新增 `supersedeInflightWrites(ids)`。
+- **rxdb-plugin-sync / -querycache:** 非 `public` 命名空间的离线写重放与缓存修复按 `namespace:entity` 定位，不再打到同名的公共实体、也不再在错误目标上推进水位；标识函数 `queryCacheEntityIdentifier` 由 sync 新导出，querycache 的在线读写复用同一个。
+- **rxdb-plugin-storage:** 远端拉取在本地写流打不开时先取消未消费的响应体、再抛原始错误，不留后台下载；复制式目录重命名删源目录半途失败时，先用目标里的完整副本补齐源目录、确认无误再撤回，补不齐时保留全部副本并抛出点名路径的 `AggregateError`，不再删掉唯一的完整副本。
+- **rxdb-plugin-workspace:** 换挂恢复窗口里，新挂那套表上同 UUID 的新草稿（含跨标签页收到的）不再顶掉旧分区还没落盘的草稿：待写队列按带分区的完整键记账。
+- **rxdb-react:** 换 `db` 的首个提交起，子树只拿得到新 source 的结果，不再先读到旧库或旧 source 的创建异常；`<Activity>` 隐藏后重显时工厂重新建库，Promise source 报明确的错误，不再把已销毁的实例当就绪库交出去（工厂交回已被销毁的实例同样报错）；`useAction` 在本次提交的 layout effect 与提交途中同步派发的事件里也调用最新回调。
+- **code-editor-react:** 放在 `<Activity>` 里隐藏再显示，编辑器的文本、选区与撤销历史都保留；隐藏期间 `value` 若有变化，重显时按差量补同步。
+- **rxdb-model-angular / -react:** `EntityDetail` 切换编辑目标期间不再把输入保存到旧记录（与 Vue 同口径）：目标未就绪时只留取消并拦截提交，加载失败原因进错误面板，换目标、取消或卸载之后迟到的保存结果不再关闭对话框或发事件。Angular 编辑模式下输入之后再跑一轮变更检测，表单不再被重置回实例旧值（此前界面仍显示输入，提交出去的却是旧值）。
+- **rxdb-model / -angular / -react / -vue:** 列级只读贯穿键盘与批量入口：Enter / Space 切换、内部 / 系统剪贴板粘贴、Delete 清空都不再写只读属性列、计算列、id / 时间戳列、操作列与选择列，只读开关也不再被刷成关；`QueryBuilderService.setFields()` 之后已订阅的 `validation$` 立即按新字段重算；三端 `QueryBuilder` / `SubqueryBuilder` 把清空后的字段列表也同步给服务；React `QueryBuilder` 在 `<Activity>` 重显时保留用户查询，不再先对外发一个空查询（首次挂载带 `initialQuery` 时只发一次 `queryChange`）。
+- **rxdb-client-generator:** 输出目录尚未创建、经父目录软链指向同一物理目录的多个配置，在 CLI 加载配置与 Vite 插件创建时即被拒绝，不再首次生成时互删产物；判据统一为从最近存在的祖先解析物理路径，大小写不敏感的文件系统上只差大小写的已存在目录同样判为重复。
+- **rxdb-devtools:** database provider 在运行期换实例后自动换绑事件订阅：旧实例在切换后发出的事件不再转发，新实例的事件不必重新调用 `events` 就能收到。
+- **utils:** `toPlainObject` 把 `__proto__` 数据键写成自有属性，不再改写结果对象的原型；`plainObjectToFlattenPathObject` 遇到末位是空洞的数组（含 `new Array(n)`）改为抛 `TypeError`，不再静默缩短或丢弃（中间空洞、显式 `undefined` 与密集数组不变）。
+
 ## 0.0.28 (2026-10-24)
 
 本版把系统表结构从 3 升到 7，实为一次迁移发布；发布时按普通版本声明、漏写了下面前四条，事后补记。
