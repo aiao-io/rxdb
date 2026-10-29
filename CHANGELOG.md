@@ -9,6 +9,7 @@
 - **rxdb-adapter-sqlite-core:** `readCurrentBranchId(tx)` 改为 `readCurrentBranchId(tx, tableSet)`：挂在可写检出位上时读那套表持有的分支（US-314）
 - **rxdb:** `TransactionExecutor` 多了必填的只读成员 `tableSet`：本事务落在哪一套业务表上（发起它的实例挂的那一套）。自己实现事务执行器的适配器要补上，取适配器的 `tableSet` 即可；两个内置适配器已带（US-314）
 - **rxdb-plugin-search:** `FtsInstallPlan` 的 `namespace` 换成 `schema`（PostgreSQL 里表所在的 schema），由新的 `SearchBackend.bindPlan(plan, metadata, tableSet)` 经适配器的表名解析器填；`SearchBackend` 还多了 `installForTableSet()`。自己构造计划、直接调 `createPgTsvectorBackend().install()` 的，先 `bindPlan(plan, metadata, WorktreeTableSet.MAIN)`，否则表不按 schema 限定（US-314）
+- **rxdb:** `UpdateDataCache.getSerializedBefore(id, inversePatch)` 去掉第二参，改为 `getSerializedBefore(id)`：同批同 id 的多条 UPDATE 在构造时已合成一条，前态按 id 缓存、只算一份，另给的旧值只会拿到先算出来的那份。删掉第二个实参即可（US-032）
 
 ### 🚀 Features
 
@@ -47,6 +48,8 @@
 - **rxdb-model / -angular / -react / -vue:** 实体列表的撤销 / 重做按钮因子分支分叉点停用时，`title` 说明是哪条分支继承了下一步；文案在 `describeHistoryBarrier()`（US-315）
 
 ### 🩹 Fixes
+
+- **rxdb / rxdb-plugin-tree:** 修复跨 Tab 增量 UPDATE 在冷缓存或残缺缓存下让 count / find 系与树查询静默过期：补丁改了查询读取的列（树查询含父列）而缓存补不齐、或缓存比事件新时回 SQL，只改无关列的补丁不再多打查询；同批同 id 的多条 UPDATE 合并判定、每条补丁都落到缓存，脏实体按已持久化的值判定，增量合并不再混入同批的其他实体类型；findAll 新匹配结果不再缺少未改的持久列；JSON 路径的 `= null` 与 SQL 的 `IS NULL` 一致；增量判定走到认不出的 where 条件（如大写组合子 `'AND'`）时报带原文的 `RxDBError`，不再是指不到条件的 `TypeError`（US-032）。
 
 - **rxdb / rxdb-adapter-pglite / -sqlite-core:** 公开仓库写入在 COMMIT 失败时恢复实体状态、变更基线与身份缓存，并保留等待期间的本地编辑，修复延迟外键失败后重试漏写。
 - **rxdb-plugin-history / rxdb-adapter-pglite / -sqlite-core:** 切分支在事务内生成 SQL，并拒绝计算增量或排队期间已改变表集、当前分支的旧计划，防止切换可写检出位时误改主检出位。

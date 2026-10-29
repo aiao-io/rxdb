@@ -23,7 +23,19 @@ import {
 import { hasTreeParentChanged } from './query-tree.utils.js';
 
 /**
+ * 树查询在 where / orderBy 之外还读的列：父列决定节点挂在哪、在不在子树里。
+ *
+ * @remarks
+ * 交给核心门控一起查完整性。冷缓存的稀疏补丁不带它时，`get_tree_parent_id` 把缺失读成
+ * `null`，节点被当成根、判成「不是后代」，新匹配的子节点永远进不了结果。
+ */
+const TREE_READ_FIELDS = ['parentId'];
+
+/**
  * 重新计算查询结果（JS 增量更新）
+ *
+ * @param task 查询任务
+ * @param data 本任务实体类型的更新事件，不含同批的关系实体事件
  */
 const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntityLocalUpdatedEventData<T>[]) => {
   const { cache, classification } = prepareIncrementalUpdate(task, data);
@@ -122,11 +134,11 @@ export const merge_update = <T extends EntityType>(
       break;
   }
 
-  const result = queryNeedRefreshUpdate(task, entities, refresh_rules, recalculate_rules);
+  const result = queryNeedRefreshUpdate(task, entities, refresh_rules, recalculate_rules, TREE_READ_FIELDS);
 
   if (result.refresh) {
     task.refresh();
   } else if (result.recalculate) {
-    _recalculate(task, entities);
+    _recalculate(task, result.current_entities);
   }
 };

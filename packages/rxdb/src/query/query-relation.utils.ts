@@ -1,4 +1,5 @@
 import { EntityType } from '../entity/entity.interface.js';
+import { RelationKind } from '../entity/metadata-options.interface.js';
 import { EntityMetadata } from '../entity/metadata.interface.js';
 import { FindAllOptions } from '../repository/query-options.interface.js';
 import { RuleGroup } from '../repository/query.interface.js';
@@ -151,6 +152,63 @@ export function separateEntities<T extends EntityType, CT extends EntityChangeRe
 }
 
 /**
+ * 规则或排序字段的根段
+ *
+ * @param field - 字段，可带点号路径
+ * @returns 路径的第一段
+ *
+ * @remarks
+ * 点号路径一定从根实体自身属性出发：第一段要么是关系名（这条路径穿过了关系），要么是
+ * keyValue 列（如 `'settings.theme'`，不算关系依赖）。
+ */
+export const fieldRoot = (field: string): string => (field.includes('.') ? field.split('.')[0] : field.split(':')[0]);
+
+/**
+ * 依次产出 where 里的每条规则，递归穿透嵌套组
+ *
+ * @param where - where 条件，形状未经校验
+ *
+ * @remarks
+ * 既不是规则也不是规则组的元素跳过，例如大写的 `'AND'` 组合子：sqlite-core / PGlite 的
+ * SQL 翻译接受它，JS 判定（{@link isRuleGroup}）不认。这里只收集字段，判不了的元素留给
+ * 求值一侧：`isEntityMatchWhere` 走到它就抛 `RxDBError`，由 `QueryManager` 按任务退回整查；
+ * 走不到说明短路已定结论，它组内的字段读不读都一样。
+ */
+export function* whereRules(where: unknown): Generator<{ field: string }> {
+  if (!isRuleGroup(where)) return;
+  for (const rule of where.rules) {
+    if (isRuleGroup(rule)) yield* whereRules(rule);
+    else if (isRule(rule)) yield rule;
+  }
+}
+
+/**
+ * 规则或排序字段在本实体上读的是哪个属性
+ *
+ * @param field - 规则或排序字段，可带点号路径
+ * @param metadata - 本实体的元数据；没有时按根段本身算
+ * @returns 实体上的 JS 属性名；路径穿过 to-many 关系时为 `undefined`
+ *
+ * @remarks
+ * 返回的是属性名，不是数据库列名（`columnName` 可以另起），只拿来查实体实例与补丁。
+ *
+ * 普通字段与 keyValue 路径读根段那个属性。穿过 MANY_TO_ONE / ONE_TO_ONE 关系的路径读外键属性
+ * （`'owner.name'` → `ownerId`）：关系不是实例的自有属性（原型上装的是 `owner$` 访问器），
+ * 拿关系名去查，永远查不到。to-many 关系在本实体上没有外键，where 里用到时由
+ * {@link whereUsesRelations} 交给 SQL。
+ */
+export const fieldProperty = (field: string, metadata: EntityMetadata | undefined): string | undefined => {
+  const root = fieldRoot(field);
+  if (!metadata) return root;
+  for (const relation of allRelations(metadata)) {
+    if (relation.name !== root) continue;
+    const ownsForeignKey = relation.kind === RelationKind.MANY_TO_ONE || relation.kind === RelationKind.ONE_TO_ONE;
+    return ownsForeignKey ? `${root}Id` : undefined;
+  }
+  return root;
+};
+
+/**
  * 检测 where 条件是否使用了关系字段
  *
  * @param where where 条件对象
@@ -162,21 +220,8 @@ export function whereUsesRelations<T>(where: RuleGroup<T>, metadata: EntityMetad
   const relationNames = new Set<string>();
   for (const relation of allRelations(metadata)) relationNames.add(relation.name);
 
-  const hasRelationField = (rg: unknown): boolean => {
-    if (!isRuleGroup(rg)) return false;
-    for (const rule of rg.rules) {
-      if (isRuleGroup(rule)) {
-        if (hasRelationField(rule)) return true;
-      } else if (isRule(rule)) {
-        const field = rule.field;
-        // 点号路径一定从根实体自身属性出发：只有第一段是关系名才说明这条路径
-        // 穿过了关系（否则是 keyValue 嵌套字段，如 'settings.theme'，不算关系依赖）。
-        const top = field.includes('.') ? field.split('.')[0] : field.split(':')[0];
-        if (relationNames.has(top)) return true;
-      }
-    }
-    return false;
-  };
-
-  return hasRelationField(where);
+  for (const rule of whereRules(where)) {
+    if (relationNames.has(fieldRoot(rule.field))) return true;
+  }
+  return false;
 }

@@ -16,7 +16,7 @@
  */
 import { of } from 'rxjs';
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
+import { ENTITY_STATIC_TYPES, type RxDBEntityId } from '../../entity/entity.interface.js';
 import type { UpdateClassification, UpdateDataCache } from '../../index.js';
 import * as api from '../../index.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
@@ -82,6 +82,13 @@ describe('US-025 E：增量合并原语的公开面', () => {
     expectTypeOf<UpdateDataCache<TestEntityType>>().toHaveProperty('getSerializedBefore');
   });
 
+  it('getSerializedBefore 只收 id：前态按 id 缓存，同批同 id 的事件构造时已合成一条', () => {
+    // 再收一份旧值的话，与缓存里那份不同也只会拿到先算出来的那一份
+    expectTypeOf<UpdateDataCache<TestEntityType>['getSerializedBefore']>().parameters.toEqualTypeOf<
+      [id: RxDBEntityId]
+    >();
+  });
+
   it('prepareIncrementalUpdate 按完整实体判定 where，而不是拿裸 patch 判', () => {
     // 复合 where：status 与 priority 同时成立才算匹配。
     // e1 只改 status，patch 里没有 priority——拿裸 patch 判会因字段缺失恒判 false，
@@ -117,6 +124,6 @@ describe('US-025 E：增量合并原语的公开面', () => {
     expect([...classification.newlyUnmatchedIds]).toEqual(['e2']);
     expect([...classification.stillMatchedIds]).toEqual([]);
     expect(cache.getSerializedUpdate('e1')).toMatchObject({ id: 'e1', status: 'active', priority: 'high' });
-    expect(cache.getSerializedBefore('e1', data[0].inversePatch)).toMatchObject({ status: 'draft', priority: 'high' });
+    expect(cache.getSerializedBefore('e1')).toMatchObject({ status: 'draft', priority: 'high' });
   });
 });
