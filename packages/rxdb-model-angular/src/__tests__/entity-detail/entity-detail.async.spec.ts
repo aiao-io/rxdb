@@ -452,4 +452,20 @@ describe('EntityDetailComponent 编辑目标切换（真实组件）', () => {
     expect(close.mock.calls).toEqual([[]]);
     expect(submitted).toEqual([]);
   });
+
+  it('目标未变时保存失败：原因照常进错误面板，对话框不关闭、不发事件', async () => {
+    const { rxdb } = await createDatabase();
+    const a = await saved(rxdb, SwitchItem, '记录 A');
+    const { fixture, component, close, submitted } = renderDetail(rxdb, { entityId: a.id });
+    await showing(fixture, '记录 A');
+    vi.spyOn(a, 'save').mockRejectedValueOnce(new Error('写入被拒绝'));
+
+    typeAndSubmit(fixture, '会失败的修改');
+    await vi.waitFor(() => expect(component.saveError()).toBe('保存失败：写入被拒绝'));
+    await render(fixture);
+
+    expect(errorPanel(fixture)).toContain('保存失败：写入被拒绝');
+    expect(close).not.toHaveBeenCalled();
+    expect(submitted).toEqual([]);
+  });
 });

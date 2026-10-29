@@ -354,7 +354,7 @@ describe('QueryBuilderService', () => {
     });
 
     it('枚举候选收窄后，已选值不在其中立即报错', () => {
-      const status: FieldMetadata = { name: 'status', type: 'enum', enum: ['draft', 'published'] };
+      const status: FieldMetadata = { name: 'status', displayName: '状态', type: 'enum', enum: ['draft', 'published'] };
       const enumService = createQueryBuilderService({ fields: [status] });
       enumService.addRule(null, { field: 'status' as keyof object, operator: '=', value: 'published' });
       const seen = observe(enumService);

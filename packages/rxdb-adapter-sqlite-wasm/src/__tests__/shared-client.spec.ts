@@ -52,7 +52,10 @@ type SharedTransport = (instance: SharedWorker) => Pick<SqliteOptions, 'sharedWo
  * 连接走的是同一条 transport，两种都必须在跨标签页的锁里排事务、断开时只交还自己那一份。
  */
 const TRANSPORTS: ReadonlyArray<{ name: string; transport: SharedTransport }> = [
-  { name: 'sharedWorker: true + 实例', transport: instance => ({ sharedWorker: true, sharedWorkerInstance: instance }) },
+  {
+    name: 'sharedWorker: true + 实例',
+    transport: instance => ({ sharedWorker: true, sharedWorkerInstance: instance })
+  },
   { name: '只有实例', transport: instance => ({ sharedWorkerInstance: instance }) }
 ];
 

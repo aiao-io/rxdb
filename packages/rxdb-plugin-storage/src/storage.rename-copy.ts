@@ -306,7 +306,9 @@ async function recoverFromSourceRemovalFailure(
     await refillDirectory(host, plan.targetPath, plan.sourcePath);
     await assertFilesBackAtOrigin(host, plan.moves);
   } catch (restoreError) {
-    throw new AggregateError([error, restoreError], incompleteRenameMessage(plan, progress.backupPath));
+    throw new AggregateError([error, restoreError], incompleteRenameMessage(plan, progress.backupPath), {
+      cause: restoreError
+    });
   }
   return throwAfterRollback(error, ...rollbackCopyRename(host, plan, progress));
 }

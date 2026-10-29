@@ -127,15 +127,22 @@ const isTagShaped = (value: Record<string, unknown>): boolean => {
   return keys.length === 1 && TAG_KEYS.has(keys[0]);
 };
 
-const encodeEntries = (value: Record<string, unknown>): Record<string, unknown> => {
-  const encoded: Record<string, unknown> = {};
-  for (const [key, item] of Object.entries(value)) {
-    // 丢掉 undefined 属性，与 `JSON.stringify` 一致；协议里的可选字段（batchTimeout）
-    // 本来就按「缺席」解读，编成 null 反而会撞上 readBatchTimeout 的整数校验。
-    if (item !== undefined) encoded[key] = encodeDesktopJsonPayload(item);
-  }
-  return encoded;
-};
+/**
+ * 编码对象的每个自有键。
+ *
+ * @remarks
+ * 结果经 `Object.fromEntries` 按「定义自有属性」写入：`encoded[key] = value` 遇到 `__proto__` 键会走原型
+ * setter，值从自有键里消失，结果对象的原型反被换成载荷。`__proto__` 是合法的 JSON 数据键，
+ * `JSON.parse` 建出的就是同名自有属性，编解码不能把它当成别的东西。
+ */
+const encodeEntries = (value: Record<string, unknown>): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(value)
+      // 丢掉 undefined 属性，与 `JSON.stringify` 一致；协议里的可选字段（batchTimeout）
+      // 本来就按「缺席」解读，编成 null 反而会撞上 readBatchTimeout 的整数校验。
+      .filter(([, item]) => item !== undefined)
+      .map(([key, item]) => [key, encodeDesktopJsonPayload(item)])
+  );
 
 /**
  * 把协议负载编码成纯 JSON 可序列化的形状。
@@ -171,11 +178,9 @@ export function encodeDesktopJsonPayload(value: unknown): unknown {
   return isTagShaped(encoded) ? { [ESCAPE_TAG]: encoded } : encoded;
 }
 
-const decodeEntries = (value: Record<string, unknown>): Record<string, unknown> => {
-  const decoded: Record<string, unknown> = {};
-  for (const [key, item] of Object.entries(value)) decoded[key] = decodeDesktopJsonPayload(item);
-  return decoded;
-};
+/** 解码对象的每个自有键；与 {@link encodeEntries} 同一条理由，按「定义自有属性」写入结果 */
+const decodeEntries = (value: Record<string, unknown>): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(value).map(([key, item]) => [key, decodeDesktopJsonPayload(item)]));
 
 const decodeTag = (tag: string, payload: unknown): unknown => {
   if (tag === BIGINT_TAG) {

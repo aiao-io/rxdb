@@ -191,21 +191,19 @@ export function EntityDetail({
   }, [editTarget]);
 
   /**
-   * 编辑代次：目标切换、取消与卸载都推进；异步保存收尾时代次未变、界面上的实例仍是提交的那一个，
-   * 才关闭对话框、发事件、写错误面板。代次在 layout effect 里推进：新目标提交的同一帧就作废旧会话，
-   * 不留到 passive effect 才生效的空档。
+   * 界面上正在编辑的会话（目标 + 实例）：异步保存收尾时，目标对象与实例仍是提交时那一组，才关闭对话框、
+   * 发事件、写错误面板。在 layout effect 里同步，新目标提交的同一帧旧会话即失效，不留到 passive effect
+   * 才生效的空档；卸载或被 `<Activity>` 隐藏时清空，重显时恢复。
    */
-  const editGenerationRef = useRef(0);
-  const committedInstanceRef = useRef<EntityInstance | null>(null);
+  const shownEditRef = useRef<Pick<EditLoad, 'target' | 'instance'> | null>(null);
   useLayoutEffect(() => {
-    committedInstanceRef.current = entityInstance;
-  }, [entityInstance]);
-  useLayoutEffect(
-    () => () => {
-      editGenerationRef.current++;
-    },
-    [editTarget]
-  );
+    shownEditRef.current = { target: editTarget, instance: entityInstance };
+    return () => {
+      shownEditRef.current = null;
+    };
+  }, [editTarget, entityInstance]);
+  /** 取消代次：取消之后，进行中的保存迟到的结果同样不再关闭对话框或发事件。 */
+  const cancelGenerationRef = useRef(0);
 
   /**
    * 编辑目标未就绪（数据库未到、查询未发射或已失败）：拦截提交，表单内部动作隐藏，tabs 下方只留取消。
@@ -395,9 +393,12 @@ export function EntityDetail({
       }
       const changes = formDataToEntityChanges(inst as Record<string, unknown>, data, formFieldsValue);
       Object.assign(inst as Record<string, unknown>, changes);
-      const generation = editGenerationRef.current;
+      const cancels = cancelGenerationRef.current;
       // 保存期间切了目标、取消或卸载：迟到的结果属于旧视图，不再关闭对话框、发事件或写错误面板
-      const isCurrent = (): boolean => generation === editGenerationRef.current && committedInstanceRef.current === inst;
+      const isCurrent = (): boolean =>
+        cancels === cancelGenerationRef.current &&
+        shownEditRef.current?.target === editTarget &&
+        shownEditRef.current.instance === inst;
       inst
         .save()
         .then(() => {
@@ -410,12 +411,12 @@ export function EntityDetail({
           setSaveError(saveErrorMessage(error));
         });
     },
-    [isEditPending, isCreateMode, entityInstance, formFieldsValue, dialog, onFormSubmitted]
+    [isEditPending, isCreateMode, entityInstance, editTarget, formFieldsValue, dialog, onFormSubmitted]
   );
 
   /** 表单取消：作废进行中的保存，清理草稿缓存并 emit formCancelled。 */
   const handleFormCancelled = useCallback((): void => {
-    editGenerationRef.current++;
+    cancelGenerationRef.current++;
     cleanupDraftEntity();
     onFormCancelled?.();
     dialog?.close();

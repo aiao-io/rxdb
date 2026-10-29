@@ -212,7 +212,8 @@ new RxDBAdapterHttp(db, {
 
 打开后，`fetchMetadata` / `findByIds` 会带上 `If-None-Match` 复用上次 `200` 的解析结果，命中 `304` 时**返回那份结果**——
 不是空集（把 304 当空集就是本包全篇在防的假孤儿）。同一请求指纹的并发调用 **single-flight** 去重，
-不会出现「后一个拿到 304 而前一个还没回填」的空洞。
+不会出现「后一个拿到 304 而前一个还没回填」的空洞。去重只并同一时刻的读：`create` / `update` / `delete`
+请求结算（成败都算）或变更通知上报失效之后发起的读，不会并进此前发出的在飞请求，一定再问一次远端。
 
 ```typescript
 new RxDBAdapterHttp(db, { baseUrl, handlers, conditionalRequests: true });

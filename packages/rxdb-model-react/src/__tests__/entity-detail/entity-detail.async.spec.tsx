@@ -7,11 +7,11 @@
  * 数据库走 {@link createInMemoryRxdb} 的真实 entityManager → Repository → 内存适配器链路，
  * 只把需要挂起或失败的查询换成手动控制的结果流。
  */
-import { Entity, EntityBase, PropertyType, RxDB, type EntityType } from '@aiao/rxdb';
-import type { EntityFormData } from '@aiao/rxdb-model';
+import { Entity, EntityBase, getEntityMetadata, PropertyType, RxDB, type EntityType } from '@aiao/rxdb';
+import type { EntityFormData, FormFieldConfig } from '@aiao/rxdb-model';
 import { RxDBProvider } from '@aiao/rxdb-react';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
-import type { JSX } from 'react';
+import { Activity, type JSX } from 'react';
 import { BehaviorSubject, EMPTY, firstValueFrom, Subject, throwError, type Observable } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Dialog } from '../../dialog/dialog';
@@ -61,10 +61,11 @@ function deferredSave<T>(entity: T): { promise: Promise<T>; resolve: () => void;
   return { promise, resolve, reject };
 }
 
-/** 宿主可替换的输入：Provider 的数据库与详情 props。 */
+/** 宿主可替换的输入：Provider 的数据库、详情 props 与外层 `<Activity>` 的显隐。 */
 interface DetailHost {
   database: RxDB | Promise<RxDB>;
   props: EntityDetailProps;
+  mode: 'visible' | 'hidden';
 }
 
 describe('EntityDetail 编辑目标切换（真实组件）', () => {
@@ -108,23 +109,25 @@ describe('EntityDetail 编辑目标切换（真实组件）', () => {
     const closed = vi.fn<(result?: unknown) => void>();
     const cancelled = vi.fn<() => void>();
     const submitted: EntityFormData[] = [];
-    let host: DetailHost = { database, props };
+    let host: DetailHost = { database, props, mode: 'visible' };
     const element = (): JSX.Element => (
       <RxDBProvider db={host.database}>
         <Dialog open onClose={closed} width='720px' height='80vh'>
-          <EntityDetail
-            namespace='detail-switch'
-            name='SwitchItem'
-            {...host.props}
-            onFormSubmitted={data => submitted.push(data)}
-            onFormCancelled={cancelled}
-          />
+          <Activity mode={host.mode}>
+            <EntityDetail
+              namespace='detail-switch'
+              name='SwitchItem'
+              {...host.props}
+              onFormSubmitted={data => submitted.push(data)}
+              onFormCancelled={cancelled}
+            />
+          </Activity>
         </Dialog>
       </RxDBProvider>
     );
     const utils = render(element());
     const rerender = (next: Partial<DetailHost>): void => {
-      host = { database: next.database ?? host.database, props: { ...host.props, ...next.props } };
+      host = { ...host, ...next, props: { ...host.props, ...next.props } };
       utils.rerender(element());
     };
     return { closed, cancelled, submitted, rerender, unmount: utils.unmount };
@@ -397,7 +400,9 @@ describe('EntityDetail 编辑目标切换（真实组件）', () => {
     const a = await saved(rxdb, SwitchItem, { title: '记录 A' });
     let settle!: (database: RxDB) => void;
     const pending = new Promise<RxDB>(resolve => (settle = resolve));
-    const detail = renderDetail(pending, { entityId: a.id });
+    // 路由输入要等数据库到货才解析得出实体；对话框数据通道（metadata + formFields）在等待期间就有表单
+    const formFields: FormFieldConfig[] = [{ field: 'title', displayName: '标题', type: 'string', required: true }];
+    const detail = renderDetail(pending, { entityId: a.id, metadata: getEntityMetadata(SwitchItem), formFields });
 
     expect(formSaveButton()).toBeNull();
     expect(footerButtons()).toEqual(['取消']);
@@ -472,5 +477,42 @@ describe('EntityDetail 编辑目标切换（真实组件）', () => {
 
     expect(detail.closed.mock.calls).toEqual([[undefined]]);
     expect(detail.submitted).toEqual([]);
+  });
+
+  it('目标未变时保存失败：原因照常进错误面板，对话框不关闭、不发事件', async () => {
+    const { rxdb } = await createDatabase();
+    const a = await saved(rxdb, SwitchItem, { title: '记录 A' });
+    const detail = renderDetail(rxdb, { entityId: a.id });
+    await showing('记录 A');
+    vi.spyOn(a, 'save').mockRejectedValueOnce(new Error('写入被拒绝'));
+
+    typeAndSubmit('会失败的修改');
+    await waitFor(() => expect(errorPanel()).toContain('保存失败：写入被拒绝'));
+
+    expect(detail.closed).not.toHaveBeenCalled();
+    expect(detail.submitted).toEqual([]);
+  });
+
+  it('保存进行中被 <Activity> 隐藏再重显：编辑目标没变，重显后到达的保存成功照常关闭并发事件', async () => {
+    const { rxdb, adapter } = await createDatabase();
+    const a = await saved(rxdb, SwitchItem, { title: '记录 A' });
+    const detail = renderDetail(rxdb, { entityId: a.id });
+    await showing('记录 A');
+    const saving = deferredSave(a);
+    const persist = a.save.bind(a);
+    vi.spyOn(a, 'save').mockImplementationOnce(() => saving.promise.then(() => persist()));
+    typeAndSubmit('隐藏前提交的内容');
+
+    detail.rerender({ mode: 'hidden' });
+    detail.rerender({ mode: 'visible' });
+    await showing('隐藏前提交的内容');
+    await act(async () => {
+      saving.resolve();
+      await flush();
+    });
+
+    await waitFor(() => expect(detail.closed).toHaveBeenCalledExactlyOnceWith('saved'));
+    expect(titleOf(adapter, ITEM, a.id)).toBe('隐藏前提交的内容');
+    expect(detail.submitted).toEqual([expect.objectContaining({ title: '隐藏前提交的内容' })]);
   });
 });

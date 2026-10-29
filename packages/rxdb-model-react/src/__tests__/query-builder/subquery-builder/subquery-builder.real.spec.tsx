@@ -5,7 +5,7 @@
  * （服务生命周期 + 空态），增删改与组合器回调从未触发；这里按 query-group spec
  * 的模式直接渲染真实组件、驱动真实 QueryGroup UI 补齐这些链路。
  */
-import type { FieldMetadata, QueryBuilderRuleGroup } from '@aiao/rxdb-model';
+import type { FieldMetadata, QueryBuilderRuleGroup, ValidationResult } from '@aiao/rxdb-model';
 import { act, fireEvent, render } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -241,6 +241,37 @@ describe('SubqueryBuilder（真实组件）', () => {
 
     expect(lastQuery(host.onQueryChange)).toBeUndefined();
     expect(buttonByText(host.container, '添加子条件')).toBeDefined();
+  });
+
+  it('fields 由非空切空同样同步到服务：既有子规则立即报 fieldExists，恢复后转回合法，查询不重复发出', () => {
+    const initialQuery: QueryBuilderRuleGroup = {
+      id: '',
+      combinator: 'and',
+      rules: [{ id: '', field: 'title', operator: '=', value: 'ok' }]
+    };
+    const onQueryChange = vi.fn();
+    const onValidationChange = vi.fn();
+    const element = (fields: FieldMetadata[]) => (
+      <SubqueryBuilder
+        fields={fields}
+        initialQuery={initialQuery}
+        onQueryChange={onQueryChange}
+        onValidationChange={onValidationChange}
+      />
+    );
+    const sub = render(element(FIELDS));
+    const lastValidation = () => onValidationChange.mock.calls.at(-1)?.[0] as ValidationResult | undefined;
+    expect(lastValidation()?.valid).toBe(true);
+    const emitted = onQueryChange.mock.calls.length;
+
+    sub.rerender(element([]));
+
+    expect(lastValidation()?.errors).toEqual([expect.objectContaining({ field: 'title', rule: 'fieldExists' })]);
+
+    sub.rerender(element(FIELDS));
+
+    expect(lastValidation()?.valid).toBe(true);
+    expect(onQueryChange).toHaveBeenCalledTimes(emitted);
   });
 
   it('maxDepth 变更同步到服务', () => {

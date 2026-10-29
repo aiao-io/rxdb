@@ -364,6 +364,8 @@ export class EntityTableComponent implements OnDestroy, EntityTableHandle {
   #handleCellChange(col: number, row: number, changedValue: unknown): void {
     const record = this.#tableInstance?.getRecordByCell(col, row) as EntityTableRecord | undefined;
     const fieldName = (this.#getColDef(col) as { field?: string })?.field;
+    // 这里只判行级只读：列级只读的鼠标编辑由 VTable 按列的 editor / disable 拦住（与列级只读标记同一判定），
+    // 键盘切换在 handleTableKeydown 里已按列判过，不可写列的变更到不了这里
     if (!record || !fieldName || (isReadonly(record) && fieldName !== '__selected')) return;
     this.cellChanged.emit({ col, row, field: fieldName, value: changedValue, record });
   }

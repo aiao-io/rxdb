@@ -835,6 +835,32 @@ describe('QueryCacheEngine', () => {
         expect(vi.mocked(writeLocalAdapter.deleteByIds).mock.calls).toEqual([['Product', ['p2']]]);
       });
 
+      it('新建回执迟到、其后的删除已落缓存：新建不把行写回本地', async () => {
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
+        const createReply = holdNext<MockProduct>(writeRemoteAdapter.create);
+        const creating = firstValueFrom(writeRepo.create(row('p1', 'created')));
+
+        await firstValueFrom(writeRepo.delete('p1'));
+        deliver(createReply, row('p1', 'created'));
+
+        await expect(creating).resolves.toEqual(row('p1', 'created'));
+        expect(writeLocalAdapter.upsertMany).not.toHaveBeenCalled();
+      });
+
+      it('删除回执迟到、其后的新建已落缓存：删除不清掉新建的那一行', async () => {
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
+        const deleteReply = holdNext<void>(writeRemoteAdapter.delete);
+        vi.mocked(writeRemoteAdapter.create!).mockReturnValueOnce(of(row('p1', 'recreated')) as never);
+        const deleting = firstValueFrom(writeRepo.delete('p1'));
+
+        await firstValueFrom(writeRepo.create(row('p1', 'recreated')));
+        deliver(deleteReply, undefined);
+        await deleting;
+
+        expect(writeLocalAdapter.upsertMany).toHaveBeenCalledWith('Product', [row('p1', 'recreated')]);
+        expect(writeLocalAdapter.deleteByIds).not.toHaveBeenCalled();
+      });
+
       it('本地已经落定一次更晚的写（离线写）：此前在飞的在线回执不再落缓存', async () => {
         const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
         const updateReply = holdNext<MockProduct>(writeRemoteAdapter.update);

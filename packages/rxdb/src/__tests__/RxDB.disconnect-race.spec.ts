@@ -169,6 +169,8 @@ interface PendingFactoryScene {
   released: Mock<() => void>;
   /** 让 B 的工厂以给定错误拒绝 */
   failFactory: (error: Error) => void;
+  /** 让 B 的工厂建成给定实例 */
+  resolveFactory: (adapter: IRxDBAdapter) => void;
   /** `getAdapter('pending')` 自己的结算结果（拒绝原因），免得成为未处理的拒绝 */
   creating: Promise<unknown>;
 }
@@ -180,22 +182,28 @@ const createPendingFactoryScene = async (): Promise<PendingFactoryScene> => {
   database.adapter('local', () => healthy).adapter('pending', () => factory.promise);
   const scopes: LifecycleScope[] = [];
   const released = vi.fn<() => void>();
-  database.use(
-    (): IRxDBPlugin => ({
-      name: 'scoped-probe',
-      lifecycle: 'scoped',
-      install: scope => {
-        scopes.push(scope);
-        scope.acquire(() => released, 'probe');
-      }
-    })
-  );
+  database.use((): IRxDBPlugin => ({
+    name: 'scoped-probe',
+    lifecycle: 'scoped',
+    install: scope => {
+      scopes.push(scope);
+      scope.acquire(() => released, 'probe');
+    }
+  }));
   await database.connect('local');
   const creating = database.getAdapter('pending').then(
     () => undefined,
     (error: unknown) => error
   );
-  return { database, healthy, scopes, released, failFactory: error => factory.reject(error), creating };
+  return {
+    database,
+    healthy,
+    scopes,
+    released,
+    failFactory: error => factory.reject(error),
+    resolveFactory: adapter => factory.resolve(adapter),
+    creating
+  };
 };
 
 /**
@@ -240,6 +248,19 @@ describe('在飞适配器工厂失败时的全局拆卸', () => {
     await expect(database.destroy()).resolves.toBeUndefined();
     expect(healthy.disconnect).toHaveBeenCalledTimes(1);
     await expect(database.connect('local')).rejects.toThrow(/destroyed/);
+  });
+
+  it('工厂在拆卸途中建成：建出的实例与健康适配器一并断开', async () => {
+    const { database, healthy, resolveFactory, creating } = await createPendingFactoryScene();
+    const late = createMockAdapter(database);
+
+    const disconnecting = database.disconnectAll();
+    resolveFactory(late);
+
+    await expect(disconnecting).resolves.toBeUndefined();
+    expect(await creating).toBeUndefined();
+    expect(late.disconnect).toHaveBeenCalledTimes(1);
+    expect(healthy.disconnect).toHaveBeenCalledTimes(1);
   });
 
   it('工厂失败与适配器断开失败并存时，抛出先结算的工厂错误', async () => {

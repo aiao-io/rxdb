@@ -970,6 +970,32 @@ describe('RxdbFileStorage', () => {
       });
     });
 
+    it('补齐之后仍有已登记文件不在原路径：不算恢复成功，一个副本都不删', async () => {
+      const error = removalError();
+      const { service } = createService({
+        filesystem: interruptedRemoval({
+          failingPath: '/docs',
+          // 源里删掉 a.txt 的同时，目标副本里那一份也不见了：补齐补不出它
+          partial: async filesystem => {
+            await filesystem.removeFile('docs/a.txt');
+            await filesystem.removeFile('guides/a.txt');
+          },
+          error
+        })
+      });
+      const metas = await seedDocs(service);
+
+      const thrown = await service.renameDirectory('/docs', 'guides').catch((reason: unknown) => reason);
+
+      expect(thrown).toBeInstanceOf(AggregateError);
+      expect(String((thrown as AggregateError).errors[1])).toContain('docs/a.txt');
+      await expectEveryFileReadable(service, metas.slice(1), {
+        'guides/b.txt': 'bravo',
+        'guides/nested/c.txt': 'charlie',
+        'guides/nested/deep/d.txt': 'delta'
+      });
+    });
+
     it('覆盖已有目标时删源半途失败：源补齐之后，被覆盖的旧目标连同它的 meta 从备份还原', async () => {
       const error = removalError();
       const { service } = createService({

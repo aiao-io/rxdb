@@ -85,12 +85,9 @@ export function SubqueryBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 字段变化同步到服务（Angular 侧 effect 同语义）
+  // 字段变化同步到服务（Angular 侧 effect 同语义）：空列表同样同步，字段被撤下后既有子规则立即按「字段不存在」校验
   useEffect(() => {
-    const service = serviceRef.current;
-    if (service && fields.length > 0) {
-      service.setFields(fields);
-    }
+    serviceRef.current?.setFields(fields);
   }, [fields]);
 
   // 初始查询只应用一次（Angular 侧 effect 同语义）

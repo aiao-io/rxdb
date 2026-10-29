@@ -112,8 +112,7 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
       const entities_map = buildEntityMap(concatIterables(task.resultEntitySet, entities), e => e.id);
 
       const new_descendants = entities.filter(
-        entity =>
-          isTreeBaseMember(entity.id, entity, entityId) || isDescendantOf(entity, entityId, entities_map, level)
+        entity => isTreeBaseMember(entity.id, entity, entityId) || isDescendantOf(entity, entityId, entities_map, level)
       );
       if (new_descendants.length === 0) return;
 

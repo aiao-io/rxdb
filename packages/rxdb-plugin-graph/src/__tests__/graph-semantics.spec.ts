@@ -1,5 +1,6 @@
 import type { RxDBEntityId } from '@aiao/rxdb';
 import { encodeRxDBChangeEntityId, getEntityMetadata, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import type { RxDBAdapterSqliteBase } from '@aiao/rxdb-adapter-sqlite-core';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { GraphEntity } from '../@GraphEntity.js';
@@ -488,10 +489,11 @@ describe('图语义锁定（起点排除 / 去重 / 边属性 / 表名）', () =
     // 仓储在 level 0 直接返回空结果，生成器的这一支只能直接拿 SQL 交给 SQLite 执行
     it('level 0 的邻居 SQL 交给 SQLite 执行只回起点', async () => {
       const [a] = await seedOrderLines();
-      const { sql, params } = generate_entity_find_neighbors_sql(adapter, getEntityMetadata(OrderLine), {
-        entityId: a.id,
-        level: 0
-      });
+      const { sql, params } = generate_entity_find_neighbors_sql(
+        adapter as unknown as RxDBAdapterSqliteBase,
+        getEntityMetadata(OrderLine),
+        { entityId: a.id, level: 0 }
+      );
 
       const result = await adapter.query(sql, params);
 

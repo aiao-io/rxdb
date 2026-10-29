@@ -148,6 +148,15 @@ describe('评审：写流初始化失败时同样要取消已收到的响应体'
     }
   });
 
+  it('没有输入流：写一个空文件并提交', async () => {
+    const writer = { write: vi.fn(async () => undefined), close: vi.fn(async () => undefined), abort: vi.fn() };
+
+    await expect(streamReadableToFile(writeOnlyHost(async () => writer), null, 'empty.bin')).resolves.toBe(0);
+    expect(writer.write).toHaveBeenCalledWith(new Blob([]));
+    expect(writer.close).toHaveBeenCalledTimes(1);
+    expect(writer.abort).not.toHaveBeenCalled();
+  });
+
   it('写句柄打不开：未消费的输入流以原错取消，原错原样抛出', async () => {
     const quota = quotaExceeded();
     const cancel = vi.fn();

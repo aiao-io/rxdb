@@ -96,9 +96,9 @@ describe('createSqliteClient 远端契约', () => {
     };
     wrapWithComlinkEndpointMock.mockResolvedValue(remoteClient);
 
-    await expect(
-      createSqliteClient('inferred-shared', { vfs: 'idb', sharedWorkerInstance }, 'owner-a')
-    ).resolves.toBe(remoteClient);
+    await expect(createSqliteClient('inferred-shared', { vfs: 'idb', sharedWorkerInstance }, 'owner-a')).resolves.toBe(
+      remoteClient
+    );
     expect(remoteClient.init).toHaveBeenCalledWith(
       'inferred-shared',
       expect.objectContaining({ worker: false, sharedWorker: true }),

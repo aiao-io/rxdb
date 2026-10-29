@@ -47,14 +47,10 @@ const validationSub = service.validation$.subscribe(v => (validation.value = v))
 /** initialQuery 是否已应用（只应用一次） */
 let initialQueryApplied = false;
 
-// 监听字段变化并同步到服务
+// 监听字段变化并同步到服务：空列表同样同步，字段被撤下后既有子规则立即按「字段不存在」校验
 watch(
   () => props.fields,
-  fields => {
-    if (fields.length > 0) {
-      service.setFields(fields);
-    }
-  },
+  fields => service.setFields(fields),
   { immediate: true }
 );
 
