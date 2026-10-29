@@ -1,7 +1,7 @@
 import { ENTITY_STATIC_TYPES, QueryTask, type RxDBEntityLocalUpdatedEventData } from '@aiao/rxdb';
 import { collectEmissions, createHarnessQueryTask, type HarnessTaskOptions } from '@aiao/rxdb/testing';
 import { of } from 'rxjs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { merge_update as query_merge_update_cache_impl } from '../../query/merge_update.js';
 
 describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
@@ -2247,6 +2247,61 @@ describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
       // 必须整体刷新，不能用局部 ±1 算出一个看似合理实则漏算上方链路的计数
       expect(refreshCalled).toBe(true);
       expect(results).toEqual([]);
+    });
+  });
+
+  // US-032：另一个 Tab 转来的稀疏 UPDATE 落到没缓存该节点的 Tab。补丁只带 where 列，
+  // `get_tree_parent_id` 把缺失的 parentId 读成 null，节点被当成根、判成「不是后代」。
+  describe('冷缓存的稀疏 UPDATE', () => {
+    const activeWhere = {
+      combinator: 'and' as const,
+      rules: [{ field: 'status', operator: '=' as const, value: 'active' }]
+    };
+    const root = { id: '1', name: 'root', parentId: null };
+    const sparseActivation = () =>
+      createMockUpdateEvent({ id: '5', status: 'active' }, { id: '5', status: 'inactive' });
+
+    it('findDescendants：子节点经稀疏补丁新匹配 where、父列未知时回 SQL', () => {
+      const child = { id: '5', status: 'active', parentId: '1' };
+      let call = 0;
+      const task = createMockQueryTask({
+        type: 'findDescendants',
+        options: { entityId: '1', where: activeWhere },
+        runner: () => of<TestEntityData[]>(call++ === 0 ? [root] : [root, child])
+      });
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [sparseActivation()]);
+
+      expect(emissions).toEqual([[root], [root, child]]);
+    });
+
+    it('countDescendants：子节点经稀疏补丁新匹配 where、父列未知时回 SQL', () => {
+      let call = 0;
+      const task = createMockQueryTask({
+        type: 'countDescendants',
+        options: { entityId: '1', where: activeWhere },
+        runner: () => of(call++ === 0 ? 0 : 1)
+      });
+      const emissions = collectEmissions(task);
+
+      query_merge_update_cache(task, [sparseActivation()]);
+
+      expect(emissions).toEqual([0, 1]);
+    });
+
+    it('只改了 where 与父列都不读的列时，稀疏补丁不触发 SQL', () => {
+      const task = createMockQueryTask({
+        type: 'findDescendants',
+        options: { entityId: '1', where: activeWhere },
+        runner: () => of<TestEntityData[]>([root])
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      collectEmissions(task);
+
+      query_merge_update_cache(task, [createMockUpdateEvent({ id: '5', name: 'renamed' }, { id: '5', name: 'old' })]);
+
+      expect(refresh).not.toHaveBeenCalled();
     });
   });
 });
