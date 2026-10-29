@@ -552,15 +552,17 @@ describe('supabase review regressions', () => {
     );
   });
 
-  it('mutations keeps its direct-write RPC shape without p_updates', async () => {
-    const rpc = vi.fn(async () => ({ data: { upserted: [] }, error: null }));
+  it('mutations 的直写载荷保留独立的 p_updates 数组', async () => {
+    const rpc = vi
+      .fn<(name: string, payload: Record<string, unknown>) => Promise<unknown>>()
+      .mockResolvedValue({ data: { upserted: [] }, error: null });
     const adapter = createAdapter({ rpc }, {}, [Todo]);
     const remove = new Map([[Todo, new Set([{ id: 't1' } as unknown as Todo])]]);
 
     await adapter.mutations({ create: new Map(), update: new Map(), remove });
 
     expect(rpc).toHaveBeenCalledOnce();
-    expect(rpc.mock.calls[0]?.[1]).not.toHaveProperty('p_updates');
+    expect(rpc.mock.calls[0]?.[1]).toHaveProperty('p_updates', []);
   });
 
   it('query-cache operations handle null data without inventing rows', async () => {

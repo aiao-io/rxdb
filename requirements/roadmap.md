@@ -9,45 +9,47 @@
 | :------------- | :----- |
 | ✅ Done        | 86     |
 | 🚧 In Progress | 1      |
-| 👀 In Review   | 4      |
-| 📝 Backlog     | 30     |
+| 👀 In Review   | 6      |
+| 📝 Backlog     | 28     |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **35** |
 
-仓库还剩 **35 条**未关闭故事（1 In Progress + 4 In Review + 30 Backlog + 0 Blocked）。
+仓库还剩 **35 条**未关闭故事（1 In Progress + 6 In Review + 28 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把 35 条当成 35 个可开工项。
 
 ## 未完成需求全景
 
-| Story                                                                                                                                                                                                                              | 状态           | 剩什么                                                                  | 排期位置    |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------------------------- | ----------- |
-| [US-032](stories/core/US-032-cross-tab-update-live-query.md)                                                                                                                                                                       | 👀 In Review   | 改了读取列而缓存补不齐时回 SQL，核心与双连接回归通过；待代码评审        | 独立核心 PR |
-| [US-223](stories/adapter/US-223-supabase-mutations-update-semantics.md) / [US-224](stories/adapter/US-224-supabase-cascade-delete-change-log.md)                                                                                   | 📝 Backlog     | 已有复现：RLS 误拒直写 UPDATE、级联删除遗漏同步日志；补齐边界后优先修复 | 建议批次 3  |
-| [US-030](stories/core/US-030-declarative-storage-constraints.md)                                                                                                                                                                   | 👀 In Review   | 当前承诺 A～C 的评审收尾；候选 D 不参与本轮关闭                         | 批次 3      |
-| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                                                                                    | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                     | 批次 3      |
-| [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                                                                                    | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                            | 批次 3      |
-| [epic-009 BOM](epics/epic-009-bom-domain-model.md)（19 条）                                                                                                                                                                        | 📝 Backlog     | 先首轮切片与贯穿应用，再按前置推进；候选优化不自动解锁                  | 批次 4      |
-| [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                                                                                          | 👀 In Review   | 仓外发布 tarball 消费与按文档独立重搭；workspace 证据不能替代           | 批次 5      |
-| [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                                                                                          | 📝 Backlog     | 按现有公开逻辑与 #152 列表能力界定入口/依赖隔离，保留默认 UI            | 立项池      |
-| [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                                                        | 📝 Backlog     | 价值待证，等待具名多用户写授权症状；解锁时重验当前 API 前提             | 立项池      |
-| [US-910](stories/future/US-910-data-i18n.md)                                                                                                                                                                                       | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具          | 立项池      |
-| [US-911](stories/future/US-911-client-i18n.md)                                                                                                                                                                                     | 📝 Backlog     | 先冻结偏好持久化/通知与唯一 fallback 合同，再做三端文案                 | 立项池      |
-| [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) / [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md) | 📝 Backlog     | 价值待证；先证明离线发现/连接与认证宿主，明确 Tauri 验收归属            | 立项池      |
-| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                       | 📝 Backlog     | 手工发布前置校验结果与提交/产物绑定，当前仅有手工要求                   | 立项池      |
+| Story                                                                                                                                                                                                                              | 状态           | 剩什么                                                                                                | 排期位置    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------- | ----------- |
+| [US-032](stories/core/US-032-cross-tab-update-live-query.md)                                                                                                                                                                       | 👀 In Review   | 改了读取列而缓存补不齐时回 SQL，核心与双连接回归通过；待代码评审                                      | 独立核心 PR |
+| [US-223](stories/adapter/US-223-supabase-mutations-update-semantics.md) / [US-224](stories/adapter/US-224-supabase-cascade-delete-change-log.md)                                                                                   | 👀 In Review   | 直写 UPDATE 返回服务器最终行、级联删除写完整隐式日志已实现；待代码评审                                | 批次 3      |
+| [US-030](stories/core/US-030-declarative-storage-constraints.md)                                                                                                                                                                   | 👀 In Review   | 当前承诺 A～C 的评审收尾；候选 D 不参与本轮关闭                                                       | 批次 3      |
+| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                                                                                    | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                                                   | 批次 3      |
+| [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                                                                                    | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                                                          | 批次 3      |
+| [epic-009 BOM](epics/epic-009-bom-domain-model.md)（19 条）                                                                                                                                                                        | 📝 Backlog     | 先首轮切片与贯穿应用，再按前置推进；候选优化不自动解锁                                                | 批次 4      |
+| [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                                                                                          | 👀 In Review   | AC#1 仓外发布 tarball 消费与 AC#3 按文档独立重搭仍待验证，AC#2 成本记录已通过；workspace 证据不能替代 | 批次 5      |
+| [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                                                                                          | 📝 Backlog     | 按现有公开逻辑与 #152 列表能力界定入口/依赖隔离，保留默认 UI                                          | 立项池      |
+| [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                                                        | 📝 Backlog     | 价值待证，等待具名多用户写授权症状；解锁时重验当前 API 前提                                           | 立项池      |
+| [US-910](stories/future/US-910-data-i18n.md)                                                                                                                                                                                       | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                        | 立项池      |
+| [US-911](stories/future/US-911-client-i18n.md)                                                                                                                                                                                     | 📝 Backlog     | 先冻结偏好持久化/通知与唯一 fallback 合同，再做三端文案                                               | 立项池      |
+| [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) / [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md) | 📝 Backlog     | 价值待证；先证明离线发现/连接与认证宿主，明确 Tauri 验收归属                                          | 立项池      |
+| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                       | 📝 Backlog     | 手工发布前置校验结果与提交/产物绑定，当前仅有手工要求                                                 | 立项池      |
 
 ## 即办清单
 
-当前没有独立于下列故事的即办项。US-223/224 是已有用户症状的修复建议，不与仍价值待证的新增抽象混排。
+当前没有独立于下列故事的即办项。US-223/224 是已有用户症状的修复，owner 于 2026-10-28 授权完成并转入批次 3，不与仍价值待证的新增抽象混排。
 
 ## 排期批次
 
 ### 批次 3：能力补齐（可并行开 PR）
 
-| 顺序         | 范围            | 关闭条件                                                                  |
-| ------------ | --------------- | ------------------------------------------------------------------------- |
-| 优先修复建议 | US-223 / US-224 | 各自复现翻为正向断言，RLS、级联、重试和双端收敛边界通过；保持两条独立故事 |
-| 并行收尾     | US-030 A～C     | 当前承诺的双后端 AC 与评审完成；D 保留未验状态和独立准入                  |
-| 并行收尾     | US-211 / US-219 | 当前构建/工具/设备矩阵可复验，未验证的设备与平台不扩大支持声明            |
+2026-10-28 owner 授权完成 US-223 / US-224，两条真实缺陷修复由优先修复建议转为已授权任务，待代码评审。
+
+| 顺序     | 范围            | 关闭条件                                                                                                  |
+| -------- | --------------- | --------------------------------------------------------------------------------------------------------- |
+| 待评审   | US-223 / US-224 | 代码评审通过（复现已翻为正向断言，RLS、级联、重试和双端收敛边界回归及各自 AC 均已通过）；保持两条独立故事 |
+| 并行收尾 | US-030 A～C     | 当前承诺的双后端 AC 与评审完成；D 保留未验状态和独立准入                                                  |
+| 并行收尾 | US-211 / US-219 | 当前构建/工具/设备矩阵可复验，未验证的设备与平台不扩大支持声明                                            |
 
 US-211/219 有人工宿主验收，不用单元测试通过替代。US-030 的候选 D 不阻塞已授权范围。
 
@@ -66,8 +68,9 @@ US-513 联产品、US-510 热路径优化、US-519 可选索引与 US-030 D 保�
 
 ### 批次 5：模型驱动后台首版（epic-010 已解锁）
 
-当前剩余为 US-528 的真实发布消费证据。以仓外安装、样式/WASM 资源、CRUD 和重开闭环证明独立接入；
-再记录一个真实任务的接入成本，不能只靠 workspace 应用代码量推导用户收益。
+当前剩余为 US-528 的真实发布消费证据：AC#1 以仓外安装、样式/WASM 资源、CRUD 和重开闭环证明独立接入，
+AC#3 由试用者按文档独立重搭并记录一个真实任务的接入成本，二者仍待验证；
+AC#2 的成本记录已通过，但不能只靠 workspace 应用代码量推导用户收益，不替代 AC#1 / #3。
 
 ### 线 A：桥接版本发布（owner 门控）
 

@@ -55,7 +55,16 @@ CASES=(
   receipts-idempotent
   receipts-legacy
   receipts-many-groups
+  update-visibility-transition
+  cascade-source-order
   cascade-delete-logging
+  cascade-explicit-deletes
+  cascade-rejected-child
+  cascade-uuid-keys
+  cascade-replay-rollback
+  cascade-hidden-inverse-patch
+  cascade-numeric-keys
+  cascade-partition-keys
   production-change-grants
   # 最后把全部用例放进同一个事务再跑一遍（SQL 文件不给 test_case 时的默认模式）：
   # 逐用例各起一个 psql 互相隔离，看不见用例之间经事务级设置漏过去的状态——
