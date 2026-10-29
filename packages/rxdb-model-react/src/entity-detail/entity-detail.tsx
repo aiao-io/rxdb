@@ -12,7 +12,7 @@
  *
  * @module entity-detail
  */
-import { getEntityMetadata, RelationKind, type EntityMetadata, type EntityType } from '@aiao/rxdb';
+import { getEntityMetadata, RelationKind, type EntityMetadata, type EntityType, type RxDB } from '@aiao/rxdb';
 import type {
   DetailTableTab,
   EntityFormData,
@@ -31,7 +31,17 @@ import {
   validateForm
 } from '@aiao/rxdb-model';
 import { useRxDBOptional } from '@aiao/rxdb-react';
-import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type JSX } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type JSX
+} from 'react';
 import { DialogContext } from '../dialog/dialog';
 import { EntityDialog } from '../entity-dialog/entity-dialog';
 import { EntityForm } from '../entity-form/entity-form';
@@ -39,6 +49,28 @@ import { EntityList, type EntityInstance } from '../entity-list/entity-list';
 import './entity-detail.css';
 
 let nextDetailId = 0;
+
+/** 编辑目标：数据库、实体类、id、表单模式任一变化都是新目标。 */
+interface EditTarget {
+  readonly rxdb: RxDB | undefined;
+  readonly cls: EntityType | null;
+  readonly id: string | undefined;
+  readonly mode: FormMode;
+}
+
+/** 编辑目标的加载状态：实例与失败原因都只属于 `target`，目标一换整体复位。 */
+interface EditLoad {
+  readonly target: EditTarget;
+  readonly instance: EntityInstance | null;
+  readonly error: string | null;
+}
+
+const isSameEditTarget = (current: EditTarget, next: EditTarget): boolean =>
+  current.rxdb === next.rxdb && current.cls === next.cls && current.id === next.id && current.mode === next.mode;
+
+/** 加载失败：可读原因进错误面板（与保存失败同形）。 */
+const loadErrorMessage = (error: unknown): string =>
+  `加载失败：${error instanceof Error ? error.message : String(error)}`;
 
 /** CDK Dialog 传入的数据结构（React 侧 = EntityDetail 的 props）。 */
 export interface EntityDetailDialogData {
@@ -126,42 +158,60 @@ export function EntityDetail({
     );
   }, [rxdb, metadata]);
 
-  // 编辑模式：按 id 从 Repository 加载实体实例（Angular 侧 switchMap + toSignal 同语义）
-  const [entityInstance, setEntityInstance] = useState<EntityInstance | null>(null);
-  const loadCls = entityCls ?? entityClsFromDialog;
+  const formModeValue: FormMode = formMode ?? 'edit';
+  const isCreateMode = formModeValue === 'create';
 
-  // 无查询目标（缺实体类 / id）时渲染期立即清空实例（Angular 侧订阅链切到 null 同语义）
-  const [prevLoad, setPrevLoad] = useState<{ cls: EntityType | null; id: string | undefined }>({
-    cls: loadCls,
-    id: entityId
-  });
-  if (prevLoad.cls !== loadCls || prevLoad.id !== entityId) {
-    setPrevLoad({ cls: loadCls, id: entityId });
-    if (!loadCls || !entityId) setEntityInstance(null);
+  // 编辑模式：按目标从 Repository 加载实体实例（Angular 侧加载 effect、Vue 侧 watch 同语义）。
+  // 目标一变，渲染期立即复位加载状态，不等旧订阅退订、新查询发射：旧实例从这一帧起既不显示也不能被保存
+  const nextTarget: EditTarget = { rxdb, cls: entityCls ?? entityClsFromDialog, id: entityId, mode: formModeValue };
+  const [editLoad, setEditLoad] = useState<EditLoad>(() => ({ target: nextTarget, instance: null, error: null }));
+  if (!isSameEditTarget(editLoad.target, nextTarget)) {
+    setEditLoad({ target: nextTarget, instance: null, error: null });
   }
+  const { target: editTarget, instance: entityInstance, error: loadError } = editLoad;
 
   useEffect(() => {
-    if (!loadCls || !entityId || !rxdb) {
-      return;
-    }
-    let active = true;
-    const subscription = rxdb.entityManager
-      .getRepository(loadCls)
-      .get(entityId)
+    const { rxdb: database, cls, id } = editTarget;
+    if (!database || !cls || !id) return;
+    // 结果只写回发起查询的目标：目标已换时，旧查询迟到的结果原样丢弃
+    const settle = (update: (load: EditLoad) => EditLoad): void =>
+      setEditLoad(load => (load.target === editTarget ? update(load) : load));
+    const subscription = database.entityManager
+      .getRepository(cls)
+      .get(id)
       .subscribe({
-        next: inst => {
-          if (active) setEntityInstance(inst as EntityInstance);
-        },
-        error: error => {
+        next: inst => settle(load => (load.instance === inst ? load : { ...load, instance: inst as EntityInstance })),
+        // 已加载的实例保留（与 Vue 端一致），失败原因进错误面板
+        error: (error: unknown) => {
           console.error(error);
-          if (active) setEntityInstance(null);
+          settle(load => ({ ...load, error: loadErrorMessage(error) }));
         }
       });
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, [rxdb, loadCls, entityId]);
+    return () => subscription.unsubscribe();
+  }, [editTarget]);
+
+  /**
+   * 编辑代次：目标切换、取消与卸载都推进；异步保存收尾时代次未变、界面上的实例仍是提交的那一个，
+   * 才关闭对话框、发事件、写错误面板。代次在 layout effect 里推进：新目标提交的同一帧就作废旧会话，
+   * 不留到 passive effect 才生效的空档。
+   */
+  const editGenerationRef = useRef(0);
+  const committedInstanceRef = useRef<EntityInstance | null>(null);
+  useLayoutEffect(() => {
+    committedInstanceRef.current = entityInstance;
+  }, [entityInstance]);
+  useLayoutEffect(
+    () => () => {
+      editGenerationRef.current++;
+    },
+    [editTarget]
+  );
+
+  /**
+   * 编辑目标未就绪（数据库未到、查询未发射或已失败）：拦截提交，表单内部动作隐藏，tabs 下方只留取消。
+   * `useRxDBOptional()` 不区分「没有 Provider」与「异步 source 尚未解析完」，两者都按未就绪处理。
+   */
+  const isEditPending = !isCreateMode && !!entityId && !entityInstance;
 
   /** create 模式（对话框数据通道）按当前输入建内存草稿，不保存；条件不齐时返回 null。 */
   const createDraftEntity = (): EntityInstance | null => {
@@ -208,9 +258,6 @@ export function EntityDetail({
   const [formErrors, setFormErrors] = useState<FormValidationResult | null>(null);
   /** 保存失败原因（校验错误以外的落库错误）。 */
   const [saveError, setSaveError] = useState<string | null>(null);
-
-  const formModeValue: FormMode = formMode ?? 'edit';
-  const isCreateMode = formModeValue === 'create';
 
   const metadataValue: EntityMetadata | undefined = metadata ?? (entityCls ? getEntityMetadata(entityCls) : undefined);
 
@@ -335,6 +382,8 @@ export function EntityDetail({
   /** 表单提交：create 模式 delegate 语义只 emit；edit 模式内部保存并关闭（'saved'）。 */
   const handleFormSubmitted = useCallback(
     (data: EntityFormData): void => {
+      // 表单内部动作已隐藏，回车仍会提交：目标未就绪时既不能写旧实例，也不能当成透传成功
+      if (isEditPending) return;
       if (isCreateMode) {
         onFormSubmitted?.(data);
         return;
@@ -346,19 +395,27 @@ export function EntityDetail({
       }
       const changes = formDataToEntityChanges(inst as Record<string, unknown>, data, formFieldsValue);
       Object.assign(inst as Record<string, unknown>, changes);
+      const generation = editGenerationRef.current;
+      // 保存期间切了目标、取消或卸载：迟到的结果属于旧视图，不再关闭对话框、发事件或写错误面板
+      const isCurrent = (): boolean => generation === editGenerationRef.current && committedInstanceRef.current === inst;
       inst
         .save()
         .then(() => {
+          if (!isCurrent()) return;
           dialog?.close('saved');
           onFormSubmitted?.(data);
         })
-        .catch(error => setSaveError(saveErrorMessage(error)));
+        .catch(error => {
+          if (!isCurrent()) return;
+          setSaveError(saveErrorMessage(error));
+        });
     },
-    [isCreateMode, entityInstance, formFieldsValue, dialog, onFormSubmitted]
+    [isEditPending, isCreateMode, entityInstance, formFieldsValue, dialog, onFormSubmitted]
   );
 
-  /** 表单取消：清理草稿缓存并 emit formCancelled。 */
+  /** 表单取消：作废进行中的保存，清理草稿缓存并 emit formCancelled。 */
   const handleFormCancelled = useCallback((): void => {
+    editGenerationRef.current++;
     cleanupDraftEntity();
     onFormCancelled?.();
     dialog?.close();
@@ -472,7 +529,7 @@ export function EntityDetail({
                     fields={formFieldsValue}
                     mode={formModeValue}
                     relatedEntityProvider={relatedEntityProvider}
-                    showActions={!isCreateMode}
+                    showActions={!isCreateMode && !isEditPending}
                     onFieldChanged={handleFieldChanged}
                     onFormCancelled={handleFormCancelled}
                     onFormSubmitted={handleFormSubmitted}
@@ -497,7 +554,7 @@ export function EntityDetail({
         </div>
 
         {/* 校验 / 保存错误面板（US-104）：只转发不渲染时用户看不到任何反馈 */}
-        {(formErrors !== null || saveError !== null) && (
+        {(formErrors !== null || saveError !== null || loadError !== null) && (
           <div
             className='border-base-300 flex shrink-0 flex-col gap-1 border-t px-4 py-3 text-sm'
             data-testid='entity-detail-errors'
@@ -509,18 +566,21 @@ export function EntityDetail({
               </span>
             ))}
             {saveError !== null && <span className='text-error'>{saveError}</span>}
+            {loadError !== null && <span className='text-error'>{loadError}</span>}
           </div>
         )}
 
-        {/* Save/Cancel buttons for create mode (below tabs) */}
-        {isCreateMode && (
+        {/* 保存/取消按钮在 tabs 下方：create 模式两者都有；编辑实体未就绪（加载中或失败）时只留取消 */}
+        {(isCreateMode || isEditPending) && (
           <div className='border-base-300 flex shrink-0 justify-end gap-2 border-t px-4 py-3'>
             <button className='btn' data-detail-cancel='true' onClick={handleCancel} type='button'>
               取消
             </button>
-            <button className='btn btn-primary' data-detail-save='true' onClick={handleSave} type='button'>
-              保存
-            </button>
+            {isCreateMode && (
+              <button className='btn btn-primary' data-detail-save='true' onClick={handleSave} type='button'>
+                保存
+              </button>
+            )}
           </div>
         )}
       </EntityDialog>

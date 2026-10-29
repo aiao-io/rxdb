@@ -1404,6 +1404,29 @@ describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
           query_merge_create_cache(task, [parentNode]);
         });
       });
+
+      it('目标与父节点同批新建、父链在批内成环时，判定照样收敛（不应死循环）', () => {
+        // 延迟外键允许同一事务里互指的两行一起提交；走父链判定本地能否算清时必须靠 visited 收住
+        const task = createMockQueryTask({
+          type: 'findAncestors',
+          options: { entityId: 't', where: { combinator: 'and', rules: [] } },
+          runner: () => of<TestEntityData[]>([])
+        });
+        const emissions = collectEmissions(task);
+
+        query_merge_create_cache(task, [
+          createMockEntityEvent({ id: 't', parentId: 'p' }),
+          createMockEntityEvent({ id: 'p', parentId: 't' })
+        ]);
+
+        expect(emissions).toEqual([
+          [],
+          [
+            { id: 't', parentId: 'p' },
+            { id: 'p', parentId: 't' }
+          ]
+        ]);
+      });
     });
   });
 
