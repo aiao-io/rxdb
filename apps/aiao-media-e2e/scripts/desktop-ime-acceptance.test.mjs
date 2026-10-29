@@ -10,7 +10,8 @@ import {
 } from './desktop-ime-acceptance.mjs';
 
 test('只接受本机正式产物服务或正式 origin', () => {
-  assert.equal(imeOrigin({}), 'http://127.0.0.1:4399');
+  // 4398/4399/4407 已分别属于本机、真实账号和图库浏览器套件。
+  assert.equal(imeOrigin({}), 'http://127.0.0.1:4412');
   assert.equal(imeOrigin({ AIAO_MEDIA_IME_ORIGIN: 'https://media.aiao.io' }), 'https://media.aiao.io');
   assert.equal(imeOrigin({ AIAO_MEDIA_IME_ORIGIN: 'http://127.0.0.1:4398' }), 'http://127.0.0.1:4398');
   for (const value of [
