@@ -1,7 +1,7 @@
 import { chromium, expect, request as playwrightRequest } from '@playwright/test';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { chmod, mkdir, open, readFile } from 'node:fs/promises';
+import { chmod, mkdir, open, readFile, readdir, unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { imageMetadata } from '../../aiao-media/src/contracts/image-format.ts';
@@ -183,6 +183,73 @@ export function attemptPath(directory, settings, mode, aspect) {
       aspect
     ]) + '.json'
   );
+}
+
+export async function checkAttemptHistory(settings, directory) {
+  const history = new Map();
+  for (const name of await readdir(directory)) {
+    if (!/^[a-f0-9]{64}\.json$/.test(name)) continue;
+    let record;
+    try {
+      record = JSON.parse(await readFile(resolve(directory, name), 'utf8'));
+    } catch {
+      throw new Error('PREVIOUS_ATTEMPT_REQUIRES_REVIEW');
+    }
+    requireCheck(record && typeof record === 'object' && !Array.isArray(record), 'PREVIOUS_ATTEMPT_REQUIRES_REVIEW');
+    history.set(resolve(directory, name), record);
+  }
+  const providerFingerprint = fingerprint([settings.baseUrl, settings.model]);
+  for (const { mode, ratio } of acceptancePlan(settings.selection ?? acceptanceSelection({}))) {
+    const file = attemptPath(directory, settings, mode, ratio.aspect);
+    const current = history.get(file);
+    if (current) {
+      requireCheck(
+        current.phase === 'verified' && file === resolve(directory, current.identity + '.json'),
+        'PREVIOUS_ATTEMPT_REQUIRES_REVIEW'
+      );
+      continue;
+    }
+    const unresolved = [...history.values()].some(
+      record =>
+        record.phase !== 'verified' &&
+        record.origin === settings.origin &&
+        record.providerFingerprint === providerFingerprint &&
+        record.mode === mode &&
+        record.aspect === ratio.aspect
+    );
+    requireCheck(!unresolved, 'PREVIOUS_ATTEMPT_REQUIRES_REVIEW');
+  }
+}
+
+export async function withAcceptanceRunLock(directory, operation) {
+  const file = resolve(directory, '.acceptance-run.lock');
+  const owner = JSON.stringify({ id: randomUUID(), pid: process.pid, startedAt: new Date().toISOString() });
+  let handle;
+  try {
+    handle = await open(file, 'wx', 0o600);
+  } catch (error) {
+    if (error.code === 'EEXIST') throw new Error('PREVIOUS_ATTEMPT_REQUIRES_REVIEW', { cause: error });
+    throw error;
+  }
+  try {
+    await handle.writeFile(owner);
+    await handle.sync();
+    return await operation();
+  } finally {
+    await handle.close();
+    await releaseAcceptanceRunLock(file, owner);
+  }
+}
+
+async function releaseAcceptanceRunLock(file, owner) {
+  let current;
+  try {
+    current = await readFile(file, 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return;
+    throw error;
+  }
+  if (current === owner) await unlink(file);
 }
 
 async function verifyManifest(settings) {
@@ -476,6 +543,11 @@ export async function runProviderAcceptance(settings, directory, setupContext) {
   await verifyManifest(settings);
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await chmod(directory, 0o700);
+  return withAcceptanceRunLock(directory, () => executeProviderAcceptance(settings, directory, setupContext));
+}
+
+async function executeProviderAcceptance(settings, directory, setupContext) {
+  await checkAttemptHistory(settings, directory);
   const browser = await chromium.launch({ channel: process.env.AIAO_PLAYWRIGHT_CHANNEL || 'chrome', headless: true });
   const records = [];
   try {

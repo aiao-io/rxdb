@@ -43,7 +43,7 @@ import {
 } from './local-provider';
 import { ProductClient } from './product-client';
 import { ProductWorkspaceController, type ProductWorkspaceState } from './product-workspace';
-import { templateState, type PromptTemplate } from './prompts/prompt-catalog';
+import { applyIssue, templateState, type PromptTemplate } from './prompts/prompt-catalog';
 import { PromptInput } from './prompts/prompt-input';
 import { plainPrompt, serializePrompt, type PromptState } from './prompts/prompt-state';
 import { StudioDraftSession, type StudioDraftStatus } from './prompts/studio-draft-session';
@@ -731,9 +731,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.notify('请先等待当前图片任务完成。');
       return;
     }
+    const issue = applyIssue(template, false);
+    if (issue) {
+      this.notify(issue);
+      return;
+    }
     if (
-      this.dirtyInput &&
-      this.serialized().text.trim() &&
+      (this.serialized().text.length || this.promptState().fields.length || this.selected()) &&
       !window.confirm('使用此模板替换当前输入？当前输入会被新的模板覆盖。')
     )
       return;

@@ -1,16 +1,24 @@
 import assert from 'node:assert/strict';
-import { EventEmitter } from 'node:events';
+import { fork } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { EventEmitter, once } from 'node:events';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import {
   acceptancePlan,
   acceptanceSelection,
   assertionCode,
   attemptPath,
+  checkAttemptHistory,
   failureCode,
   generationDispatch,
   generationImageResult,
   liveSettings,
-  readResultHeaders
+  readResultHeaders,
+  withAcceptanceRunLock
 } from './provider-acceptance.mjs';
 import { installFetchCapture } from './provider-fetch-capture.mjs';
 import { observeResultNetwork, resultNetworkFailure } from './provider-result-network.mjs';
@@ -24,6 +32,142 @@ const config = {
   AIAO_IMAGE_MODEL: 'image-test',
   AIAO_IMAGE_API_KEY: 'private-test-key'
 };
+
+async function attemptHistory(run) {
+  const directory = await mkdtemp(join(tmpdir(), 'media-attempt-history-'));
+  const settings = liveSettings(config);
+  const put = async (settings, mode, aspect, phase) => {
+    const file = attemptPath(directory, settings, mode, aspect);
+    await writeFile(
+      file,
+      JSON.stringify({
+        identity: basename(file, '.json'),
+        origin: settings.origin,
+        providerFingerprint: createHash('sha256')
+          .update(JSON.stringify([settings.baseUrl, settings.model]))
+          .digest('hex'),
+        mode,
+        aspect,
+        phase
+      })
+    );
+  };
+  try {
+    await run({ settings, directory, put });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+const lockProcess = (directory, release, digest) =>
+  fork(
+    fileURLToPath(new URL('./fixtures/provider-acceptance-lock-process.mjs', import.meta.url)),
+    [directory, release, digest],
+    { silent: true }
+  );
+
+async function stopLockProcess(child) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  const exited = once(child, 'exit');
+  child.kill('SIGKILL');
+  await exited;
+}
+
+test('两个跨发布进程竞争同一验收目录时，只有持锁者进入发送操作', { timeout: 15000 }, async () => {
+  await attemptHistory(async ({ directory }) => {
+    const first = lockProcess(directory, 'release-a', 'a'.repeat(64));
+    let second;
+    try {
+      assert.deepEqual((await once(first, 'message'))[0], { phase: 'sent' });
+      second = lockProcess(directory, 'release-b', 'b'.repeat(64));
+      assert.deepEqual((await once(second, 'message'))[0], {
+        phase: 'blocked',
+        code: 'PREVIOUS_ATTEMPT_REQUIRES_REVIEW'
+      });
+      const exited = once(first, 'exit');
+      first.send('release');
+      await exited;
+      let entered = false;
+      await withAcceptanceRunLock(directory, () => {
+        entered = true;
+      });
+      assert.equal(entered, true);
+    } finally {
+      await stopLockProcess(first);
+      await stopLockProcess(second);
+    }
+  });
+});
+
+test('持锁进程崩溃后保留未知锁，后续运行不能自动删除并发送', { timeout: 15000 }, async () => {
+  await attemptHistory(async ({ directory }) => {
+    const child = lockProcess(directory, 'release-a', 'a'.repeat(64));
+    try {
+      assert.deepEqual((await once(child, 'message'))[0], { phase: 'sent' });
+      await stopLockProcess(child);
+      let sent = 0;
+      await assert.rejects(
+        withAcceptanceRunLock(directory, () => {
+          sent++;
+        }),
+        /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
+      );
+      assert.equal(sent, 0);
+    } finally {
+      await stopLockProcess(child);
+    }
+  });
+});
+
+test('正常退出只释放本次持有的锁，已被替换的锁原样保留', async () => {
+  await attemptHistory(async ({ directory }) => {
+    const file = join(directory, '.acceptance-run.lock');
+    await withAcceptanceRunLock(directory, () => writeFile(file, 'other-owner'));
+    assert.equal(await readFile(file, 'utf8'), 'other-owner');
+    await assert.rejects(
+      withAcceptanceRunLock(directory, () => assert.fail('不得进入发送操作')),
+      /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
+    );
+  });
+});
+
+test('整份验收计划在发送前核对历史，后面的未知组合也阻止前面新请求', async () => {
+  await attemptHistory(async ({ settings, directory, put }) => {
+    await put(settings, 'proxy', 'portrait', 'dispatching');
+    await assert.rejects(checkAttemptHistory(settings, directory), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
+    const direct = { ...settings, selection: { modes: ['direct'], aspects: ['square'] } };
+    await checkAttemptHistory(direct, directory);
+  });
+});
+
+test('未知请求不会因发布版本、产物摘要或 Key 变化而解锁', async () => {
+  await attemptHistory(async ({ settings, directory, put }) => {
+    await put(settings, 'direct', 'square', 'requires-review');
+    const next = {
+      ...settings,
+      release: '92883918-76ac-47de-a424-4bc5af23bee0',
+      manifestSha256: 'b'.repeat(64),
+      key: 'rotated-private-key',
+      selection: { modes: ['direct'], aspects: ['square'] }
+    };
+    await assert.rejects(checkAttemptHistory(next, directory), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
+    await checkAttemptHistory({ ...next, model: 'independent-image' }, directory);
+  });
+});
+
+test('已完成证据只复用同产物，不让历史未知记录触发新请求', async () => {
+  await attemptHistory(async ({ settings, directory, put }) => {
+    const old = { ...settings, release: '92883918-76ac-47de-a424-4bc5af23bee0' };
+    const selected = { ...settings, selection: { modes: ['direct'], aspects: ['square'] } };
+    await put(old, 'direct', 'square', 'requires-review');
+    await put(settings, 'direct', 'square', 'verified');
+    await checkAttemptHistory(selected, directory);
+    await assert.rejects(
+      checkAttemptHistory({ ...selected, manifestSha256: 'b'.repeat(64) }, directory),
+      /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
+    );
+  });
+});
 
 test('默认计划覆盖两通道三画幅，显式选择仅保留指定子集', () => {
   const defaults = acceptancePlan(acceptanceSelection({}));

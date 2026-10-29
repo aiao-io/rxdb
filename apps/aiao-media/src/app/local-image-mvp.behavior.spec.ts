@@ -635,6 +635,75 @@ describe('drafts and browsing', () => {
     expect(component.toast()).toContain('当前图片任务');
   });
 
+  it('preserves a restored draft when template replacement is cancelled', () => {
+    const { component } = rig();
+    const original = plainPrompt('刷新后恢复的草稿');
+    component.promptState.set(original);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    component.applyTemplate(component.templates()[0]);
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(component.promptState()).toBe(original);
+    expect(component.selected()).toBeNull();
+    expect(component.view()).toBe('discover');
+  });
+
+  it('preserves empty template fields when replacement is cancelled', () => {
+    const { component } = rig();
+    const original = {
+      document: {
+        type: 'doc' as const,
+        content: [
+          { type: 'paragraph' as const, content: [{ type: 'templateField' as const, attrs: { fieldId: 'subject' } }] }
+        ]
+      },
+      fields: [{ id: 'subject', label: '主体', defaultValue: '', required: true }],
+      values: { subject: '' }
+    };
+    component.onPromptChanged(original);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    component.applyTemplate(component.templates()[0]);
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(component.promptState()).toBe(original);
+  });
+
+  it('rejects a structurally invalid template before changing the existing draft', () => {
+    const { component } = rig();
+    const original = component.promptState();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    component.applyTemplate({
+      ...component.templates()[0],
+      templateDocument: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'templateField', attrs: { fieldId: 'unknown' } }] }]
+      },
+      fields: []
+    });
+    expect(component.promptState()).toBe(original);
+    expect(component.selected()).toBeNull();
+    expect(component.toast()).toContain('未知字段');
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('applies a valid empty parameter template for editing while keeping generation blocked', () => {
+    const { component } = rig();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const template = {
+      ...component.templates()[0],
+      templateDocument: {
+        type: 'doc' as const,
+        content: [
+          { type: 'paragraph' as const, content: [{ type: 'templateField' as const, attrs: { fieldId: 'subject' } }] }
+        ]
+      },
+      fields: [{ id: 'subject', label: '主体', defaultValue: '', required: true }]
+    };
+    component.applyTemplate(template);
+    expect(component.selected()).toBe(template);
+    expect(component.promptState().values).toEqual({ subject: '' });
+    expect(component.canGenerate()).toBe(false);
+    expect(component.view()).toBe('studio');
+  });
+
   it('keeps aspect ratio and reused prompt unchanged while a request is active', () => {
     const { component } = rig();
     component.setRatio('landscape');
@@ -962,6 +1031,7 @@ describe('runtime policy and catalog selection', () => {
     const r = await boot();
     await vi.waitFor(() => expect(r.component.templates().some(template => template.id === published.id)).toBe(true));
     expect(r.component.templates().length).toBeGreaterThan(1);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     r.component.applyTemplate(published);
     expect(r.component.selectedVersion()).toBe(7);
   });

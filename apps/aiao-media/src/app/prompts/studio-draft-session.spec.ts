@@ -1,10 +1,11 @@
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, throwError } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StudioDraftSnapshot, StudioPromptState } from '../../local-data/index';
 import { plainPrompt } from './prompt-state';
 import { StudioDraftSession } from './studio-draft-session';
 function rig(initial: StudioDraftSnapshot | null = null) {
   const events = new BehaviorSubject(initial),
+    watch = vi.fn<() => import('rxjs').Observable<StudioDraftSnapshot | null>>(() => events),
     read = vi.fn(async () => initial),
     save = vi.fn(async (state: StudioPromptState, revision: number | null) => {
       const row = {
@@ -18,15 +19,12 @@ function rig(initial: StudioDraftSnapshot | null = null) {
     report = vi.fn();
   return {
     events,
+    watch,
     read,
     save,
     accept,
     report,
-    session: new StudioDraftSession(
-      { studioDraft: read, saveStudioDraft: save, studioDraft$: () => events },
-      accept,
-      report
-    )
+    session: new StudioDraftSession({ studioDraft: read, saveStudioDraft: save, studioDraft$: watch }, accept, report)
   };
 }
 const latch = () => {
@@ -193,6 +191,68 @@ describe('工作区切换前的输入检查点', () => {
 });
 
 describe('explicit draft recovery and subscription failures', () => {
+  it('does not report saved or resume writes when the restored subscription fails immediately', async () => {
+    const r = rig({ state: plainPrompt('原草稿'), revision: 1 });
+    r.watch.mockReturnValue(throwError(() => new Error('temporarily unavailable')));
+    await r.session.start();
+    expect(r.report).toHaveBeenLastCalledWith('failed');
+    r.session.edit(plainPrompt('保留当前输入'));
+    await r.session.keepCurrent();
+    expect(r.report).toHaveBeenLastCalledWith('failed');
+    expect(r.save).not.toHaveBeenCalled();
+    r.session.close();
+  });
+
+  it('recovers a failed initial read by explicitly keeping the current input', async () => {
+    const r = rig();
+    r.read.mockRejectedValueOnce(new Error('temporarily unavailable'));
+    await r.session.start();
+    r.session.edit(plainPrompt('保留并重新保存的输入'));
+    r.read.mockResolvedValueOnce({ state: plainPrompt('已存草稿'), revision: 3 });
+    await r.session.keepCurrent();
+    expect(r.save).toHaveBeenCalledWith(plainPrompt('保留并重新保存的输入'), 3);
+    await expect(r.session.checkpoint()).resolves.toBeUndefined();
+    r.events.next({ state: plainPrompt('另一标签页的新草稿'), revision: 5 });
+    expect(r.accept).toHaveBeenLastCalledWith(plainPrompt('另一标签页的新草稿'));
+    r.session.close();
+  });
+
+  it('recovers a failed initial read by explicitly reloading and resumes autosave', async () => {
+    const r = rig();
+    r.read.mockRejectedValueOnce(new Error('temporarily unavailable'));
+    await r.session.start();
+    r.read.mockResolvedValueOnce({ state: plainPrompt('重新载入的草稿'), revision: 3 });
+    await r.session.reload();
+    expect(r.accept).toHaveBeenLastCalledWith(plainPrompt('重新载入的草稿'));
+    r.session.edit(plainPrompt('恢复后继续输入'));
+    await expect(r.session.checkpoint()).resolves.toBeUndefined();
+    expect(r.save).toHaveBeenCalledWith(plainPrompt('恢复后继续输入'), 3);
+    r.events.next({ state: plainPrompt('另一标签页的新草稿'), revision: 5 });
+    expect(r.accept).toHaveBeenLastCalledWith(plainPrompt('另一标签页的新草稿'));
+    r.session.close();
+  });
+
+  it('preserves input typed while an explicit reload is waiting and requires a fresh keep-current decision', async () => {
+    const r = rig();
+    r.read.mockRejectedValueOnce(new Error('temporarily unavailable'));
+    await r.session.start();
+    const gate = latch();
+    r.read.mockReturnValueOnce(gate.promise);
+    const reloading = r.session.reload();
+    r.session.edit(plainPrompt('重新载入期间的新输入'));
+    gate.resolve({ state: plainPrompt('较早保存的草稿'), revision: 3 });
+    await reloading;
+    expect(r.accept).not.toHaveBeenCalled();
+    expect(r.report).toHaveBeenLastCalledWith('conflict');
+    await r.session.flush();
+    expect(r.save).not.toHaveBeenCalled();
+    r.read.mockResolvedValueOnce({ state: plainPrompt('最新保存的草稿'), revision: 4 });
+    await r.session.keepCurrent();
+    expect(r.save).toHaveBeenCalledWith(plainPrompt('重新载入期间的新输入'), 4);
+    await expect(r.session.checkpoint()).resolves.toBeUndefined();
+    r.session.close();
+  });
+
   it('reloads an explicitly empty draft and clears a previously edited value', async () => {
     const r = rig({ state: plainPrompt('旧草稿'), revision: 2 });
     await r.session.start();
@@ -225,6 +285,7 @@ describe('explicit draft recovery and subscription failures', () => {
     await r.session.flush();
     expect(r.save).not.toHaveBeenCalled();
     await expect(r.session.checkpoint()).rejects.toThrow('尚未保存');
+    r.watch.mockReturnValueOnce(new BehaviorSubject<StudioDraftSnapshot | null>(null));
     await r.session.keepCurrent();
     expect(r.save).toHaveBeenCalledWith(plainPrompt('仍在本页的输入'), null);
     r.session.close();

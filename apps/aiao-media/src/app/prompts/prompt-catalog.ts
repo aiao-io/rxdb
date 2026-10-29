@@ -91,6 +91,9 @@ export function filterCatalog(catalog: PromptTemplate[], query: CatalogQuery): P
 export function applyIssue(template: PromptTemplate, busy: boolean): string | null {
   if (busy) return '正在生成，不能替换当前输入';
   if (template.needsReference) return '本机 Demo 不支持参考图；可复制正文，但不能套用';
-  const result = serializePrompt(templateState(template));
-  return result.issues.find(issue => !issue.startsWith('请填写')) ?? null;
+  const state = templateState(template),
+    result = serializePrompt(state);
+  return (
+    result.issues.find(issue => !issue.startsWith('请填写') && !(issue === '请输入描述' && state.fields.length)) ?? null
+  );
 }

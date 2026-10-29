@@ -6,6 +6,8 @@
 
 本目录维护平台与可复用领域能力。Aiao Media 的产品需求位于 [apps/aiao-media/requirements](../apps/aiao-media/requirements/README.md)，使用 `MEDIA-US-*` 编号，独立统计和验收。底层能力通过带作用域的引用关联，不复制故事状态。
 
+Aiao Media 的 Web、Tauri、Cloudflare 后端与管理页面、免费/收费生图和队列、自有 Supabase/平台同步及目录演进，统一见[未来功能需求与目录规划](../apps/aiao-media/requirements/future-requirements.md)。
+
 ## 术语
 
 | 缩写 | 全称                   | 含义                                                                                                |

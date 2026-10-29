@@ -1,8 +1,21 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { endpoint, pngFixture, profile, prompt, provider } from './local-first.helpers';
 
-async function activate(context: BrowserContext) {
+async function activate(context: BrowserContext, version: string) {
+  const workers = await Promise.all(
+    context.serviceWorkers().map(async worker => ({
+      worker,
+      version: await worker.evaluate('typeof MANIFEST === "object" && MANIFEST.version').catch(() => null)
+    }))
+  );
+  const waiting = workers.find(worker => worker.version === version)?.worker;
+  if (!waiting) throw new Error('待激活的离线构建不存在。');
   for (const page of context.pages()) await page.close();
+  await expect
+    .poll(() =>
+      waiting.evaluate('self.registration.active?.state === "activated" && self.registration.waiting === null')
+    )
+    .toBe(true);
   const next = await context.newPage();
   await next.goto('/create');
   await next.evaluate(async () => {
@@ -36,7 +49,7 @@ test('实际离线 Worker 更新等待旧页面关闭，切换版本与回退后
   expect(
     await page.evaluate(() => document.querySelector('meta[name="local-test-build"]')?.getAttribute('content'))
   ).toBe('a');
-  let next = await activate(context);
+  let next = await activate(context, b.version);
   await expect(next.locator('[contenteditable=true]')).toContainText('离线更新前的草稿');
   expect(await profile(next)).toBe(id);
   await context.setOffline(true);
@@ -52,7 +65,7 @@ test('实际离线 Worker 更新等待旧页面关闭，切换版本与回退后
   await expect
     .poll(() => next.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting)))
     .toBe(true);
-  next = await activate(context);
+  next = await activate(context, a.version);
   await context.setOffline(true);
   await next.goto('/create');
   expect(await next.locator('meta[name="local-test-build"]').getAttribute('content')).toBe('a');

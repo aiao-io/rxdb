@@ -35,15 +35,8 @@ export class StudioDraftSession {
       this.revision = row?.revision ?? null;
       this.ready = true;
       if (version === this.editVersion && !this.dirty && row) this.accept(structuredClone(row.state));
-      this.subscription = this.port.studioDraft$().subscribe({
-        next: value => this.receive(value),
-        error: () => {
-          if (!this.closed) {
-            this.conflict = true;
-            this.report('failed');
-          }
-        }
-      });
+      this.watch();
+      if (this.conflict) return;
       if (this.dirty) this.schedule();
       else this.report(row ? 'saved' : 'ready');
     } catch {
@@ -79,25 +72,37 @@ export class StudioDraftSession {
   /** Explicit replace/reload only; never silently drops this tab's dirty input. */
   async reload() {
     if (this.closed) return;
+    const version = this.editVersion;
     try {
       const row = await this.port.studioDraft();
       if (this.closed) return;
+      if (version !== this.editVersion) {
+        this.conflict = true;
+        if (this.timer) clearTimeout(this.timer);
+        this.report('conflict');
+        return;
+      }
       this.revision = row?.revision ?? null;
+      this.ready = true;
       this.dirty = false;
       this.conflict = false;
       this.desired = null;
       ++this.editVersion;
       if (this.timer) clearTimeout(this.timer);
       this.accept(
-        row?.state ?? {
-          document: {
-            type: 'doc',
-            content: [{ type: 'paragraph', content: [] }]
-          },
-          fields: [],
-          values: {}
-        }
+        row ?
+          structuredClone(row.state)
+        : {
+            document: {
+              type: 'doc',
+              content: [{ type: 'paragraph', content: [] }]
+            },
+            fields: [],
+            values: {}
+          }
       );
+      this.watch();
+      if (this.conflict) return;
       this.report(row ? 'saved' : 'ready');
     } catch {
       if (!this.closed) this.report('failed');
@@ -109,7 +114,9 @@ export class StudioDraftSession {
       const row = await this.port.studioDraft();
       if (this.closed) return;
       this.revision = row?.revision ?? null;
+      this.ready = true;
       this.conflict = false;
+      this.watch();
       await this.flush();
     } catch {
       if (!this.closed) this.report('failed');
@@ -180,6 +187,18 @@ export class StudioDraftSession {
         values: {}
       });
     this.report('saved');
+  }
+  private watch() {
+    if (this.subscription && !this.subscription.closed) return;
+    this.subscription = this.port.studioDraft$().subscribe({
+      next: value => this.receive(value),
+      error: () => {
+        if (!this.closed) {
+          this.conflict = true;
+          this.report('failed');
+        }
+      }
+    });
   }
   private schedule() {
     if (this.timer) clearTimeout(this.timer);

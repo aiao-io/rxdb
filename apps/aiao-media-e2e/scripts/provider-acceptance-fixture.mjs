@@ -203,6 +203,21 @@ try {
   };
   await assert.rejects(runProviderAcceptance(blocked, directory, setupContext), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
   assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  await assert.rejects(
+    runProviderAcceptance({ ...blocked, release: 'fixture-production-worker-v2' }, directory, setupContext),
+    /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
+  );
+  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  const preflightDirectory = await mkdtemp(resolve(import.meta.dirname, '../tmp/provider-acceptance-preflight-'));
+  await writeFile(
+    attemptPath(preflightDirectory, settings, 'proxy', 'portrait'),
+    JSON.stringify({ ...records[5], phase: 'requires-review' })
+  );
+  await assert.rejects(
+    runProviderAcceptance(settings, preflightDirectory, setupContext),
+    /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
+  );
+  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
   incorrectSize = true;
   const failedDirectory = await mkdtemp(resolve(import.meta.dirname, '../tmp/provider-acceptance-invalid-size-'));
   await assert.rejects(runProviderAcceptance(settings, failedDirectory, setupContext), /ACCEPTANCE_STOPPED_REVIEW/);

@@ -6,6 +6,8 @@
 
 本目录管理 Aiao Media 的独立产品需求，编号为 `MEDIA-US-XXX`。仓库根 `requirements/` 管理平台与领域能力，两者分别统计；通过带作用域的能力引用关联，底层故事 Done 不代表应用已接线或验收。
 
+后续产品方向见[未来功能需求与目录规划](future-requirements.md)：Web 持续优化、Tauri 安装版、Cloudflare 后端与管理页面、安全代理、免费/收费生图及排队提示、自有 Supabase/平台同步。目录结构本次只形成方案，代码随功能分阶段迁移；规划不计入已实现能力或故事状态。
+
 ## 术语
 
 | 缩写 | 全称                | 含义                                                                                                |
@@ -27,6 +29,7 @@
 | ------------------------------------------------ | -------------------------------------------------------------- |
 | [status-overview.md](status-overview.md)         | 每条故事**现在是什么状态**、哪些在做、哪些卡住                 |
 | [roadmap.md](roadmap.md)                         | **接下来做什么**、什么必须排在什么前面                         |
+| [future-requirements.md](future-requirements.md) | **未来产品做什么**、目录如何演进、范围与验收边界               |
 | [capability-matrix.md](capability-matrix.md)     | 仓库**现在能做什么**、哪些组合还不支持                         |
 | [verification-report.md](verification-report.md) | 哪些证据来自本地/模拟，哪些仍需真实环境（分层验收台账）        |
 | [decisions.md](decisions.md)                     | 正式域名、供应商额度、账户、桌面范围与按需决策的当前结论       |
