@@ -432,7 +432,7 @@ describe('applyClipboard', () => {
   it('skips cell when cellType does not match', () => {
     const record = { id: '1', active: false };
     const table = makeTable([[{ col: 1, row: 1, field: 'active', cellType: 'switch' }]], [record], {
-      '1,1': { cellType: 'switch' }
+      '1,1': { cellType: 'switch', field: 'active' }
     });
     const clipboard: ClipboardContent = [[{ col: 1, field: 'active', value: true, cellType: 'text' }]];
     const writes = applyClipboard(table, clipboard);
@@ -585,7 +585,12 @@ describe('粘贴入口的列级只读（列定义取自 buildEditableColumns）'
     const columns = listColumns();
     const record = { ...RECORD };
     const table = selectWholeRow(columns, record);
-    const clip = (field: string, value: unknown, cellType = 'text'): ClipboardCell => ({ col: 1, field, value, cellType });
+    const clip = (field: string, value: unknown, cellType = 'text'): ClipboardCell => ({
+      col: 1,
+      field,
+      value,
+      cellType
+    });
     const clipboard: ClipboardContent = [
       [
         clip('__selected', true, 'checkbox'),

@@ -337,7 +337,12 @@ describe('buildPropertyColumn', () => {
     });
 
     it('操作列不接受写入', () => {
-      expect(isColumnWritable('actions', actionsColumn('操作', '删除', () => true))).toBe(false);
+      expect(
+        isColumnWritable(
+          'actions',
+          actionsColumn('操作', '删除', () => true)
+        )
+      ).toBe(false);
     });
 
     it('字段名为空或带 `_` 前缀（行号列、选择列 __selected 等元字段）不接受写入', () => {

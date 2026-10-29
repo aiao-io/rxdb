@@ -151,7 +151,13 @@ describe('评审：写流初始化失败时同样要取消已收到的响应体'
   it('没有输入流：写一个空文件并提交', async () => {
     const writer = { write: vi.fn(async () => undefined), close: vi.fn(async () => undefined), abort: vi.fn() };
 
-    await expect(streamReadableToFile(writeOnlyHost(async () => writer), null, 'empty.bin')).resolves.toBe(0);
+    await expect(
+      streamReadableToFile(
+        writeOnlyHost(async () => writer),
+        null,
+        'empty.bin'
+      )
+    ).resolves.toBe(0);
     expect(writer.write).toHaveBeenCalledWith(new Blob([]));
     expect(writer.close).toHaveBeenCalledTimes(1);
     expect(writer.abort).not.toHaveBeenCalled();
@@ -162,9 +168,13 @@ describe('评审：写流初始化失败时同样要取消已收到的响应体'
     const cancel = vi.fn();
     const stream = new ReadableStream<Uint8Array>({ cancel });
 
-    await expect(streamReadableToFile(writeOnlyHost(() => Promise.reject(quota)), stream, 'tmp.bin')).rejects.toBe(
-      quota
-    );
+    await expect(
+      streamReadableToFile(
+        writeOnlyHost(() => Promise.reject(quota)),
+        stream,
+        'tmp.bin'
+      )
+    ).rejects.toBe(quota);
     expect(cancel).toHaveBeenCalledWith(quota);
   });
 
@@ -174,9 +184,13 @@ describe('评审：写流初始化失败时同样要取消已收到的响应体'
       cancel: () => Promise.reject(new Error('cancel failed'))
     });
 
-    await expect(streamReadableToFile(writeOnlyHost(() => Promise.reject(quota)), stream, 'tmp.bin')).rejects.toBe(
-      quota
-    );
+    await expect(
+      streamReadableToFile(
+        writeOnlyHost(() => Promise.reject(quota)),
+        stream,
+        'tmp.bin'
+      )
+    ).rejects.toBe(quota);
   });
 
   it('输入流已被别处锁住、取读者失败：已打开的写句柄被 abort 释放，原错原样抛出，别人的流不替它取消', async () => {

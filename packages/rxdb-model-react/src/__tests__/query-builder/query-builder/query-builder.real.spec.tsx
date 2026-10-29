@@ -203,6 +203,25 @@ describe('QueryBuilder（真实组件）', () => {
   const titleQuery = (value: string): RxDBQueryOutput<object> =>
     ({ combinator: 'and', rules: [{ field: 'title', operator: '=', value }] }) as RxDBQueryOutput<object>;
 
+  it('宿主在显示期间换了 initialQuery 引用：载入新查询并只对外发一次，同一引用重渲染不覆盖用户编辑', () => {
+    const queries: Array<RxDBQueryOutput<object>> = [];
+    const element = (initial: RxDBQueryOutput<object>) => (
+      <QueryBuilder<object> fields={FIELDS} initialQuery={initial} onQueryChange={query => queries.push(query)} />
+    );
+    const replaced = titleQuery('replaced');
+    const { container, rerender } = render(element(titleQuery('hello')));
+    const emitted = queries.length;
+
+    rerender(element(replaced));
+
+    expect(valueInput(container)?.value).toBe('replaced');
+    expect(queries.slice(emitted).map(query => query.rules)).toEqual([replaced.rules]);
+
+    fireEvent.change(valueInput(container) as HTMLInputElement, { target: { value: 'edited' } });
+    rerender(element(replaced));
+    expect(valueInput(container)?.value).toBe('edited');
+  });
+
   describe('字段集合变化（含清空）同步给服务', () => {
     const SCHEMA: SchemaInfo = { entityName: 'Post', fields: [FIELDS[0]] };
     const TITLE_OK = titleQuery('ok');

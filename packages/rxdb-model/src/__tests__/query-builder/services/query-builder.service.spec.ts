@@ -331,7 +331,9 @@ describe('QueryBuilderService', () => {
       service.setFields([]);
 
       expect(seen.validations.at(-1)?.valid).toBe(false);
-      expect(seen.validations.at(-1)?.errors).toEqual([expect.objectContaining({ field: 'name', rule: 'fieldExists' })]);
+      expect(seen.validations.at(-1)?.errors).toEqual([
+        expect.objectContaining({ field: 'name', rule: 'fieldExists' })
+      ]);
       // 订阅方与直接 validate() 看到同一结论
       expect(seen.validations.at(-1)).toEqual(service.validate());
 

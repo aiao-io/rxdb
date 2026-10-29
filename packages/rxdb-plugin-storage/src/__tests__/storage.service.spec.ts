@@ -931,19 +931,22 @@ describe('RxdbFileStorage', () => {
           await filesystem.removeDirectory('/docs/nested');
         }
       ]
-    ] as const)('%s失败：先用目标副本补齐源目录，再撤回目标与 meta，每个文件仍在原路径可读', async (_label, partial) => {
-      const error = removalError();
-      const { service } = createService({
-        filesystem: interruptedRemoval({ failingPath: '/docs', partial, error })
-      });
-      const metas = await seedDocs(service);
+    ] as const)(
+      '%s失败：先用目标副本补齐源目录，再撤回目标与 meta，每个文件仍在原路径可读',
+      async (_label, partial) => {
+        const error = removalError();
+        const { service } = createService({
+          filesystem: interruptedRemoval({ failingPath: '/docs', partial, error })
+        });
+        const metas = await seedDocs(service);
 
-      await expect(service.renameDirectory('/docs', 'guides')).rejects.toBe(error);
+        await expect(service.renameDirectory('/docs', 'guides')).rejects.toBe(error);
 
-      await expectEveryFileReadable(service, metas, ORIGINAL);
-      expect(await service.listEntries()).toEqual([{ kind: 'directory', name: 'docs', path: '/docs' }]);
-      expectNoTemporaryEntries();
-    });
+        await expectEveryFileReadable(service, metas, ORIGINAL);
+        expect(await service.listEntries()).toEqual([{ kind: 'directory', name: 'docs', path: '/docs' }]);
+        expectNoTemporaryEntries();
+      }
+    );
 
     it('源目录补不回来：完整副本原样留在目标、meta 指向它，错误点名目标路径', async () => {
       const error = removalError();
@@ -1034,7 +1037,9 @@ describe('RxdbFileStorage', () => {
       await seedDocs(service);
       await service.upload(new File(['old guide'], 'a.txt'), { path: '/guides' });
 
-      const thrown = await service.renameDirectory('/docs', 'guides', { overwrite: true }).catch((reason: unknown) => reason);
+      const thrown = await service
+        .renameDirectory('/docs', 'guides', { overwrite: true })
+        .catch((reason: unknown) => reason);
 
       const storageRoot = rootHandle.directories.get('files');
       const backupName = [...(storageRoot?.directories.keys() ?? [])].find(name => name.startsWith('.rxdb-storage-'));

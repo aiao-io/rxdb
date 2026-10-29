@@ -1855,7 +1855,8 @@ describe('草稿按检出位分区（US-314 B2.4）', () => {
     const mainKey = cacheId('Todo', TODO_ID_1);
     const checkoutKey = shadowKey('wt_a', TODO_ID_1);
     const storedTitle = (key: string) => (idbState.store.get(key) as { title?: string } | undefined)?.title;
-    const viewTitles = (plugin: RxDBPluginWorkspace) => plugin.list().map(entry => [entry.cacheId, entry.data['title']]);
+    const viewTitles = (plugin: RxDBPluginWorkspace) =>
+      plugin.list().map(entry => [entry.cacheId, entry.data['title']]);
 
     it('ready 之前在检出位上新建同 UUID 的草稿：主表集排着的那条照样落到主表集的键', async () => {
       const rxdb = createPartitionRxDB();
