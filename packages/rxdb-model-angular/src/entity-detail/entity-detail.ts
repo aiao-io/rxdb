@@ -161,6 +161,28 @@ export class EntityDetailComponent {
   readonly #entityInstance = computed<EntityInstance | null>(() => this.#currentLoad()?.instance ?? null);
 
   /**
+   * 交给 EntityForm 的表单数据。
+   *
+   * @remarks
+   * 必须是 computed 而不是每次求值都拼新对象的 getter：模板绑定每轮变更检测都会重新求值，
+   * EntityForm 的本地表单按 `data` 的对象身份重置，换一个新对象就把用户还没提交的输入冲回
+   * 实例上的旧值（界面仍显示输入，提交出去的却是旧值）。只在依赖的信号变化时重建，
+   * 与 React 的 `useMemo`、Vue 的 `computed` 同口径。
+   */
+  readonly #formDataValue = computed<EntityFormData>(() => {
+    if (this.isCreateMode()) {
+      const draft = this.draftFormData();
+      const fixed = this.fixedFormDataValue;
+      return fixed ? { ...draft, ...fixed } : draft;
+    }
+    const inst = this.#entityInstance();
+    if (inst) return entityToFormData(inst as Record<string, unknown>, this.formFieldsValue ?? []);
+    const base = this.formData() ?? this.#dialogData?.formData ?? {};
+    const fixed = this.fixedFormDataValue;
+    return fixed ? { ...base, ...fixed } : base;
+  });
+
+  /**
    * 编辑代次：目标切换与组件销毁（加载 effect 清理）、取消都推进。
    * 异步保存收尾时代次未变、当前实例仍是提交的那一个，才关闭对话框、发事件、写错误面板；
    * 目标切换后 effect 尚未重跑的空档里，`#entityInstance` 已经为空，同样判为过期。
@@ -297,28 +319,6 @@ export class EntityDetailComponent {
     if (!fixed) return fields;
     return fields.map(f => (f.field in fixed ? { ...f, readonly: true } : f));
   }
-
-  /**
-   * 交给 EntityForm 的表单数据。
-   *
-   * @remarks
-   * 必须是 computed 而不是每次求值都拼新对象的 getter：模板绑定每轮变更检测都会重新求值，
-   * EntityForm 的本地表单按 `data` 的对象身份重置，换一个新对象就把用户还没提交的输入冲回
-   * 实例上的旧值（界面仍显示输入，提交出去的却是旧值）。只在依赖的信号变化时重建，
-   * 与 React 的 `useMemo`、Vue 的 `computed` 同口径。
-   */
-  readonly #formDataValue = computed<EntityFormData>(() => {
-    if (this.isCreateMode()) {
-      const draft = this.draftFormData();
-      const fixed = this.fixedFormDataValue;
-      return fixed ? { ...draft, ...fixed } : draft;
-    }
-    const inst = this.#entityInstance();
-    if (inst) return entityToFormData(inst as Record<string, unknown>, this.formFieldsValue ?? []);
-    const base = this.formData() ?? this.#dialogData?.formData ?? {};
-    const fixed = this.fixedFormDataValue;
-    return fixed ? { ...base, ...fixed } : base;
-  });
 
   get formDataValue(): EntityFormData {
     return this.#formDataValue();
