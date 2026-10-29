@@ -3533,7 +3533,7 @@
       }
     ]
   },
-  "digest": "8bade3bcc755c0c7c04670cfedf2507f01147ac298caed16ffcdcb3c2e605b60",
+  "digest": "0ce72a52a3eecd03a9eb39b30042ad29d516cfec9993931929982e57f212ee8d",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,
