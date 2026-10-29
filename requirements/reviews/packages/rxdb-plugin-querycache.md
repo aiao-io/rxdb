@@ -1,9 +1,9 @@
 # rxdb-plugin-querycache 深度评审
 
 - 包：`@aiao/rxdb-plugin-querycache`
-- 日期：2026-10-28
-- 基线：`7bb16a9014095d4003bd059244722013b36867c1`
-- 结论：🟡凑合。发现 1 条 P2：在线写回执反序到达时，已确认删除的本地缓存行会被旧更新回执复活。
+- 日期：2026-10-29
+- 基线：`f62f77c19d55c73d8335df026778422282c2fed4`
+- 结论：🟡凑合。发现 1 条 P2：在线写回执反序到达时，已确认删除的本地缓存行会被旧更新回执复活。2026-10-29 更新轮复核仍有效、无新增。
 
 ## 评审计划与实际范围
 
@@ -45,6 +45,8 @@ SQLite/PGlite 当前 QueryCache upsert 都是无版本条件的 ON CONFLICT 更�
 
 **回归建议**：远端先提交更新、延迟回执，再成功删除，最后交付旧回执，断言零缓存复活；补两次更新反序回执、失败删除不误丢成功更新、不同 id 并行及普通 pull 作废的组合。
 
+**2026-10-29 复核：**仍有效。基线 `7bb16a9` → `f62f77c19d55c73d8335df026778422282c2fed4` 区间本包无源码变更；[`QueryCacheEngine.update`](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts) 收到远端回执后仍无条件 `upsertMany`，[`QueryCachePrimaryRepository.update` / `remove`](../../../packages/rxdb-plugin-querycache/src/query-cache-primary.ts) 的 `invalidateInflight()` 仍只推进读侧代次、不约束在线写回执；三个跨包证据文件（[`Repository.ts`](../../../packages/rxdb/src/repository/Repository.ts)、[`RxDBAdapterSqliteBase.upsertMany`](../../../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts)、[`buildQueryCacheUpsertStatements`](../../../packages/rxdb-adapter-pglite/src/query-cache/upsert_many_sql.ts)）自基线同样未变；读侧 `#pull` / `#evictOrphans` 的代次门禁原样。本更新轮未发现新的确定问题。
+
 ## 跨包依赖
 
 离线队列的非 public 命名空间缺陷归属 [rxdb-plugin-sync：SYNC-001](rxdb-plugin-sync.md)，不在本包重复计数。正常在线路径已有命名空间限定，不能把两个入口混为同一个现状。
@@ -53,5 +55,5 @@ SQLite/PGlite 当前 QueryCache upsert 都是无版本条件的 ON CONFLICT 更�
 
 - 静态证据：逐一读取上述符号的实现，并沿对应调用链核对；未修改产品代码或既有测试。
 - 发现仓库测试文件 16 份；文件数仅描述现有测试入口，不等于本次覆盖率。
-- 本次 `rxdb-plugin-querycache:test`：206 passed (206)；目标实际执行。命令及整体边界见[总索引](README.md)。
+- 首轮（2026-10-28）`rxdb-plugin-querycache:test`：206 passed (206)；目标实际执行。命令及整体边界见[总索引](README.md)。
 - 已对真实 Primary/Engine 完成 QCACHE-001 的反序在线写回执诊断；既有基线用例通过不覆盖该新增场景。已审查稳定生产路径及关键引擎分支，未证明任意第三方适配器满足 QueryCache 契约。直接 new QueryCacheEngine 已标 experimental，生产外的独立用法不升级为兼容承诺。

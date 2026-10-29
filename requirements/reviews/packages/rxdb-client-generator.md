@@ -1,8 +1,8 @@
 # rxdb-client-generator 深度评审
 
-包：`@aiao/rxdb-client-generator`。日期：2026-10-28。基线：`7bb16a9014095d4003bd059244722013b36867c1`。
+包：`@aiao/rxdb-client-generator`。日期：2026-10-29。基线：`f62f77c19d55c73d8335df026778422282c2fed4`。
 
-结论：**🟡凑合**。确认 1 条 P2。生成输出有 staging、manifest 和物理目录队列；多配置入口的物理路径校验却未复用同一判据。
+结论：**🟡凑合**。确认 1 条 P2。生成输出有 staging、manifest 和物理目录队列；多配置入口的物理路径校验却未复用同一判据。2026-10-29 更新轮复核：自基线起本包无源码变更，GENERATOR-001 仍有效，本更新轮未发现新的确定问题。
 
 ## 评审范围
 
@@ -22,6 +22,8 @@
 
 **改进**：抽出最近存在祖先的物理路径解析，供配置唯一性校验、构建队列和 watcher 统一使用。回归用 CLI `loadConfig()` 与 Vite 创建入口各验证「outDir 已存在 / 尚不存在」的父软链别名，均须在任何输出写入前拒绝。
 
+**2026-10-29 复核：**仍有效。HEAD `f62f77c19d55c73d8335df026778422282c2fed4` 相对基线本包无源码变更：`resolveConfigOutDirKey()` 仍仅在整体 `outDir` 已存在时调用 `realpathSync()`，不存在即退回词法绝对路径；`resolveQueueKey()` 维持最近存在祖先的物理解析（RV-049）；CLI（`cli.ts` 归一后）与 Vite 插件两个入口都仍调用 `validateUniqueConfigOutDirs()`。首次生成经父目录软链别名绕过的行为与报告一致。
+
 ## 测试与边界
 
-本次 `rxdb-client-generator:test` 通过：40 个文件、382 个用例；目标实际执行。提交阶段逐文件 rename 的中途 I/O 失败与跨进程并发属于源码已声明的限制，本次不重报。Windows 路径、大小写不敏感文件系统和真实 Vite watcher 关闭时序未实测。
+首轮（2026-10-28）`rxdb-client-generator:test` 通过：40 个文件、382 个用例；目标实际执行。提交阶段逐文件 rename 的中途 I/O 失败与跨进程并发属于源码已声明的限制，本次不重报。Windows 路径、大小写不敏感文件系统和真实 Vite watcher 关闭时序未实测。

@@ -1,9 +1,9 @@
 # rxdb-plugin-graph 深度评审
 
 - 包：`@aiao/rxdb-plugin-graph`
-- 日期：2026-10-28
-- 基线：`7bb16a9014095d4003bd059244722013b36867c1`
-- 结论：🟡凑合。新增确定问题见下文。
+- 日期：2026-10-29
+- 基线：`f62f77c19d55c73d8335df026778422282c2fed4`
+- 结论：🟡凑合。P2 × 1（GRAPH-001）；2026-10-29 更新轮复核仍有效、无新增。
 
 ## 评审计划与实际范围
 
@@ -34,9 +34,11 @@
 
 **回归建议**：图实体名称保持普通字符串、仅给 `tableName` 加双引号，验证 addEdge 后的三个读入口及只读检出位上的同一组查询。
 
+**2026-10-29 复核：**仍有效。基线 `7bb16a9` → `f62f77c19d55c73d8335df026778422282c2fed4` 区间本包无源码变更；[`generate_entity_find_neighbors_sql`](../../../packages/rxdb-plugin-graph/src/sqlite/query_graph_sql.ts)、`generate_entity_count_neighbors_sql`、`generate_entity_find_paths_sql` 仍直接嵌入 `FROM "${table_name}"`，[`SqliteGraphRepository.findPaths`](../../../packages/rxdb-plugin-graph/src/sqlite/SqliteGraphRepository.ts) 的节点回填仍用同样拼法；[`graph_edge_table_name`](../../../packages/rxdb-plugin-graph/src/sqlite/graph_edge_table.ts) 仍走 `quote_sql_identifier`，两侧合同差异原样。本更新轮未发现新的确定问题。
+
 ## 验证证据与边界
 
 - 静态证据：逐一读取上述符号的实现，并沿对应调用链核对；未修改产品代码或既有测试。
 - 发现仓库测试文件 20 份；文件数仅描述现有测试入口，不等于本次覆盖率。
-- 本次 `rxdb-plugin-graph:test`：192 passed (192)；目标实际执行。命令及整体边界见[总索引](README.md)。
+- 首轮（2026-10-28）`rxdb-plugin-graph:test`：192 passed (192)；目标实际执行。命令及整体边界见[总索引](README.md)。
 - SQLite 诊断已复现 GRAPH-001；未对 PGlite 或六个真实浏览器后端逐一复验。路径最优性只审查当前排序与截断实现，不扩展成算法完备性证明。

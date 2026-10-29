@@ -1,12 +1,12 @@
 # rxdb-adapter-sqlite-wasm 深度评审
 
-评审日期：2026-10-28；源码基线：`7bb16a9014095d4003bd059244722013b36867c1`。本报告按风险追踪公开入口与关键调用链，未声称逐行覆盖全部源码。
+评审日期：2026-10-29；源码基线：`f62f77c19d55c73d8335df026778422282c2fed4`。本报告按风险追踪公开入口与关键调用链，未声称逐行覆盖全部源码。更新轮核对：自基线 `7bb16a9` 至 HEAD 本包无源码变更。
 
 验证口径：区分源码实证、原函数局部执行与真实后端运行。统一 Nx 校验结果见 [包级索引](README.md)；未运行的浏览器、真机或 Rust 宿主测试不计为通过。
 
 ## 结论与范围
 
-🟡凑合：VFS、OPFS 重试和 Worker 生命周期已有专门约束；但 transport 推断与共享连接治理没有使用同一判据。独立问题 1 条，另继承 sqlite-core 的 P2 加密写入缺陷。
+🟡凑合：VFS、OPFS 重试和 Worker 生命周期已有专门约束；但 transport 推断与共享连接治理没有使用同一判据。独立问题 1 条，另继承 sqlite-core 的 P2 加密写入缺陷。2026-10-29 更新轮复核 SWM-001 仍有效，未发现新的确定问题。
 
 | 评审重点                   | 证据入口                                                                                                                                                                                                        | 当前判断                                             |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -19,6 +19,8 @@
 ## 确定问题
 
 ### SWM-001 · P1 · 仅传 sharedWorkerInstance 时没有共享事务锁，断开会关闭其他标签页
+
+**2026-10-29 复核：**仍有效。HEAD `f62f77c19d55c73d8335df026778422282c2fed4` 相对基线本包无源码变更：`validateComlinkTransportOptions` 仍是单向校验（flag 缺实例报错，只传 `sharedWorkerInstance` 不报错）；`wrapWithComlinkEndpoint` 仍按实例 wrap 端口；`sharedClientLockName` 仍仅按 `options.sharedWorker === true` 返回锁名，实例推断与 adapter 锁判据不一致的整条链不变。双标签真实浏览器复现仍未补。
 
 **证据与根因。** [`createSqliteClient`](../../../packages/rxdb-adapter-sqlite-wasm/src/create_sqlite_client.ts) 把实例交给 [`wrapWithComlinkEndpoint`](../../../packages/rxdb-adapter-sqlite-core/src/create_sqlite_client.ts)，后者接受 `sharedWorker` 未指定、只有 `sharedWorkerInstance` 的组合，并实际 wrap 其端口；`checkVFSConfig` 对支持 SharedWorker 的 memory/idb 也允许这条路径。但是 adapter 的判据是：
 
@@ -50,4 +52,4 @@ return this.options.sharedWorker === true ? `rxdb-sqlite-shared-client:${ADAPTER
 
 ## 本次 Nx 校验
 
-本次 `rxdb-adapter-sqlite-wasm:test`：994 passed | 13 skipped (1007)；目标实际执行。命令及整体边界见[总索引](README.md)。
+首轮（2026-10-28）`rxdb-adapter-sqlite-wasm:test`：994 passed | 13 skipped (1007)；目标实际执行。命令及整体边界见[总索引](README.md)。

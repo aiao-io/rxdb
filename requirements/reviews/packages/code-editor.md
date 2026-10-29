@@ -1,10 +1,10 @@
 # code-editor 深度评审
 
-评审日期：2026-10-28。源码基线：`7bb16a9014095d4003bd059244722013b36867c1`。范围：`packages/code-editor`。
+评审日期：2026-10-29（更新轮；首轮 2026-10-28）。源码基线：`f62f77c19d55c73d8335df026778422282c2fed4`。范围：`packages/code-editor`。首轮基线 `7bb16a9014095d4003bd059244722013b36867c1` 至本基线本包无源码变更。
 
 ## 结论
 
-🟢 好。本次检查范围内未发现确定缺陷；新增问题 0 条。
+🟢 好。本次检查范围内未发现确定缺陷；新增问题 0 条。2026-10-29 更新轮抽查关键符号与链接，本更新轮未发现新的确定问题。
 
 ## 检查范围与证据
 
@@ -14,7 +14,7 @@
 
 ## 确定发现
 
-无。React 生命周期里的文档丢失发生在绑定层，单独记在 [code-editor-react](code-editor-react.md)，不能归罪于差量算法。
+无。React 生命周期里的文档丢失发生在绑定层，单独记在 [code-editor-react](code-editor-react.md)，不能归罪于差量算法。2026-10-29 复核：`computeMinimalDocumentChange` / `resolveCodeEditorLanguage` / `isSameResolvedLanguage` / `findLanguageByName` 等符号均在当前 HEAD 存在且与报告描述一致，报告链接全部有效。
 
 ## 公开 API 与三端对照
 
@@ -28,6 +28,6 @@ Angular、React、Vue 均调用同一份差量、语言解析、错误载荷和�
 
 核对 [`review-document-change-properties.spec.ts`](../../../packages/code-editor/src/__tests__/review-document-change-properties.spec.ts)、[`language-resolution.spec.ts`](../../../packages/code-editor/src/__tests__/language-resolution.spec.ts) 与 [`accessibility.spec.ts`](../../../packages/code-editor/src/__tests__/accessibility.spec.ts) 的断言范围：差量可重构目标字符串，等价解析和空属性分别有用例。
 
-本次 `code-editor:test`：107 passed (107)；目标实际执行。命令及整体边界见[总索引](README.md)。
+首轮（2026-10-28）`code-editor:test`：107 passed (107)；目标实际执行。命令及整体边界见[总索引](README.md)。
 
 边界：没有逐一下载和运行全部第三方语言 parser，也未执行浏览器可访问性验收。上游 parser 的语法能力不由别名元数据保证。

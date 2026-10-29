@@ -1,10 +1,10 @@
 # code-editor-vue 深度评审
 
-评审日期：2026-10-28。源码基线：`7bb16a9014095d4003bd059244722013b36867c1`。范围：`packages/code-editor-vue`。
+评审日期：2026-10-29（更新轮；首轮 2026-10-28）。源码基线：`f62f77c19d55c73d8335df026778422282c2fed4`。范围：`packages/code-editor-vue`。首轮基线 `7bb16a9014095d4003bd059244722013b36867c1` 至本基线本包无源码变更。
 
 ## 结论
 
-🟢 好。本次检查范围内未发现确定缺陷；新增问题 0 条。
+🟢 好。本次检查范围内未发现确定缺陷；新增问题 0 条。2026-10-29 更新轮抽查关键符号与链接，本更新轮未发现新的确定问题。
 
 ## 检查范围与证据
 
@@ -14,7 +14,7 @@
 
 ## 确定发现
 
-无。源码中的语言同步 throw 已经过 try/catch 转成失败载荷，未重复登记历史问题。
+无。源码中的语言同步 throw 已经过 try/catch 转成失败载荷，未重复登记历史问题。2026-10-29 复核：`onMounted` / `onUnmounted` / `languageRequest` / `defineExpose` 等符号均在当前 HEAD 存在且与报告描述一致，报告链接全部有效。
 
 ## 公开 API 与三端对照
 
@@ -28,6 +28,6 @@
 
 对照 [`CodeEditor.document-sync.spec.ts`](../../../packages/code-editor-vue/src/__tests__/CodeEditor.document-sync.spec.ts)、[`CodeEditor.language.spec.ts`](../../../packages/code-editor-vue/src/__tests__/CodeEditor.language.spec.ts) 和 [`review-language-sync-throw.spec.ts`](../../../packages/code-editor-vue/src/__tests__/review-language-sync-throw.spec.ts) 的差量、竞态及异常入口。
 
-本次 `code-editor-vue:test`：68 passed (68)；目标实际执行。命令及整体边界见[总索引](README.md)。
+首轮（2026-10-28）`code-editor-vue:test`：68 passed (68)；目标实际执行。命令及整体边界见[总索引](README.md)。
 
 边界：未运行真实 KeepAlive 激活/停用组合、Shadow DOM 和 IME 验收；Vue 没有 React Activity 的同一 effect 重放路径，不能直接套用 React 问题。

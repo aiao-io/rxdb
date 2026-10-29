@@ -1,8 +1,8 @@
 # utils 深度评审
 
-包：`@aiao/utils`。日期：2026-10-28。基线：`7bb16a9014095d4003bd059244722013b36867c1`。
+包：`@aiao/utils`。日期：2026-10-29。基线：`f62f77c19d55c73d8335df026778422282c2fed4`。
 
-结论：**🟡凑合**。确认 1 条 P2、1 条 P3。异步队列和稳定键已有针对性边界防护；普通对象复制和路径扁平化仍有可复现的数据形状问题。
+结论：**🟡凑合**。确认 1 条 P2、1 条 P3。异步队列和稳定键已有针对性边界防护；普通对象复制和路径扁平化仍有可复现的数据形状问题。2026-10-29 更新轮复核：自基线起本包无源码变更，两条问题均仍有效，本更新轮未发现新的确定问题。
 
 ## 评审范围
 
@@ -20,6 +20,8 @@
 
 **改进**：用 `Object.fromEntries` 或显式定义自有属性完成复制；回归覆盖 JSON 自有 `__proto__` 键，并断言原型、属性描述符和原始值均正确。
 
+**2026-10-29 复核：**仍有效。HEAD `f62f77c19d55c73d8335df026778422282c2fed4` 相对基线本包无源码变更：`toPlainObject()` 仍以 `result[key] = Reflect.get(source, key)` 向普通对象赋值；同包 `zipObject()` 的注释已写明 `acc[key] = value` 对 `__proto__` 键会走原型 setter，本函数未跟进同一防护。
+
 ## UTILS-002 · P3：扁平化会静默丢弃仅含空洞或尾部空洞的数组
 
 **证据**：[`plainObjectToFlattenPathObject()` / `flattenValue()`](../../../packages/utils/src/object/plainObjectToFlattenPathObject.ts) 仅把 `length === 0` 当空数组，其余数组用 `forEach()` 遍历；`forEach()` 跳过空洞，没有输出任何长度信息。对应 [`flattenPathObjectToPlainObject()`](../../../packages/utils/src/object/flattenPathObjectToPlainObject.ts) 无法重建未被编码的字段或尾部长度。
@@ -32,6 +34,8 @@
 
 **改进**：为稀疏数组定义可往返表示，或在公开边界明确拒绝而不静默丢弃。回归至少覆盖全空洞、尾部空洞、显式 `undefined` 与密集数组四类。
 
+**2026-10-29 复核：**仍有效。HEAD 相对基线本包无源码变更：`flattenValue()` 已把 `length === 0` 的空容器写作叶子（UTL-012 已修），但非空数组仍走 `forEach()`，`new Array(2)` 与 `[1, ,]` 两类稀疏输入的行为与报告一致，反扁平化仍无法重建。
+
 ## 测试与边界
 
-本次 `utils:test` 通过：121 个文件、982 个用例；目标实际执行。其输出覆盖率为 statements 96.15%、branches 93.24%、functions 97%、lines 97.69%，仅代表该目标已配置的采集范围。未单独执行浏览器目标；跨标签页、OPFS 和 Web Locks 的真实环境不在上述 Node 诊断的证明范围。
+首轮（2026-10-28）`utils:test` 通过：121 个文件、982 个用例；目标实际执行。其输出覆盖率为 statements 96.15%、branches 93.24%、functions 97%、lines 97.69%，仅代表该目标已配置的采集范围。未单独执行浏览器目标；跨标签页、OPFS 和 Web Locks 的真实环境不在上述 Node 诊断的证明范围。

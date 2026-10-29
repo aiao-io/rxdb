@@ -1,6 +1,6 @@
 # rxdb-adapter-encrypted 深度评审
 
-评审日期：2026-10-28；源码基线：`7bb16a9014095d4003bd059244722013b36867c1`。本次为公开入口和高风险路径审计，未声称逐行覆盖整个包。
+评审日期：2026-10-29；源码基线：`f62f77c19d55c73d8335df026778422282c2fed4`。本次为公开入口和高风险路径审计，未声称逐行覆盖整个包。更新轮核对：自基线 `7bb16a9` 至 HEAD 本包无源码变更。
 
 统一 Nx 校验结果见 [包级索引](README.md)；源码实证与测试运行结果分别记录，未运行的宿主验证不计为通过。
 
@@ -20,6 +20,8 @@
 
 本次范围内没有达到确定缺陷门槛的新增条目。未将“缺少某种故障注入用例”直接当成产品 bug。
 
+**2026-10-29 复核：**本包源码自基线起无变更。抽查加密 AAD 关键符号与上表判断一致：`buildAAD()` 仍按 uint32 大端长度前缀编码各认证域字段、主键带类型标签（`STRING_ID_TAG` / `NUMBER_ID_TAG` / `BIGINT_ID_TAG`）；`decodeEnvelope()` 的版本/算法/base64 规范形式与 kid/iv/tag 长度校验仍在；`Keyring` 的 `lockEpoch` 在入队前捕获、`writeSingleton` 前后断言（`assertUnlockNotAborted`）仍在；`crypto.ts` 维持 PBKDF2 600k、AES-256-GCM、12 字节 IV、128 位 tag。本更新轮未发现新的确定问题。
+
 ## 已核对的修复与契约
 
 [`Keyring.performUnlock`](../../../packages/rxdb-adapter-encrypted/src/keyring.ts) 在首次 `writeSingleton` 前检查取消，未复报已修“provider 迟到后仍初始化凭据”。`decrypt()` 对发生 lock 的在途明文先清零再拒绝。旧 v1 实体信封默认拒绝，仅 migration policy 允许读取；verifier 的旧版兼容是独立路径。idleTimeoutMs 已限制 setTimeout 范围。
@@ -34,4 +36,4 @@
 
 ## 本次 Nx 校验
 
-本次 `rxdb-adapter-encrypted:test`：321 passed (321)；目标实际执行。命令及整体边界见[总索引](README.md)。
+首轮（2026-10-28）`rxdb-adapter-encrypted:test`：321 passed (321)；目标实际执行。命令及整体边界见[总索引](README.md)。

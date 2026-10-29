@@ -1,10 +1,10 @@
 # code-editor-react 深度评审
 
-评审日期：2026-10-28。源码基线：`7bb16a9014095d4003bd059244722013b36867c1`。范围：`packages/code-editor-react`。
+评审日期：2026-10-29（更新轮；首轮 2026-10-28）。源码基线：`f62f77c19d55c73d8335df026778422282c2fed4`。范围：`packages/code-editor-react`。首轮基线 `7bb16a9014095d4003bd059244722013b36867c1` 至本基线本包无源码变更。
 
 ## 结论
 
-🟡 凑合。发现 1 条 P1：生产环境 Activity 隐藏再显示会丢弃未回写到 value 的用户文本。
+🟡 凑合。发现 1 条 P1（2026-10-29 复核仍有效）：生产环境 Activity 隐藏再显示会丢弃未回写到 value 的用户文本。本更新轮沿原评审重点抽查未发现新的确定问题。
 
 ## 检查范围与证据
 
@@ -39,6 +39,8 @@ after show: initial
 
 建议回归：未受控输入、受控回写、隐藏期间 value 改变三组；同时断言文本、选区、undo 历史和迟到语言回调只作用于新 view。
 
+**2026-10-29 复核：**仍有效。[`initialConfigRef` 与创建 EditorView 的 effect](../../../packages/code-editor-react/src/CodeEditor.tsx) 仍捕获首次 `value` 建 state、清理仅 `view.destroy()` 不保存 state；value 同步 effect 只按 props 差量同步。本轮为静态链路核对（更新轮禁止运行 node），首轮真实 React Activity 与 EditorView 隔离复现记录保持有效；本包自首轮基线无源码变更。
+
 ## 公开 API 与三端对照
 
 公共配置和错误载荷与另外两端对齐，React 使用 callback prop 的命名差异属于框架惯例。此次差异是内部状态在 effect 断开后是否保留，不能靠 index.ts 导出检查发现。
@@ -51,6 +53,6 @@ after show: initial
 
 运行了上述真实 Activity 隔离复现；没有提交新测试，也没有修改实现。已有回归中的“StrictMode 销毁两次”“卸载后 loader 不再 dispatch”“父 layout effect 使用新回调”均作为已实现防护审阅。
 
-本次 `code-editor-react:test`：41 passed (41)；目标实际执行。命令及整体边界见[总索引](README.md)。
+首轮（2026-10-28）`code-editor-react:test`：41 passed (41)；目标实际执行。命令及整体边界见[总索引](README.md)。
 
 边界：复现使用 happy-dom，没有完成真实浏览器中的 IME、滚动与辅助技术验收。问题不依赖网络或某个语言 parser。

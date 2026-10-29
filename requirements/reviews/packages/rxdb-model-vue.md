@@ -1,10 +1,10 @@
 # rxdb-model-vue 深度评审
 
-评审日期：2026-10-28。源码基线：`7bb16a9014095d4003bd059244722013b36867c1`。范围：`packages/rxdb-model-vue`。
+评审日期：2026-10-29。源码基线：`f62f77c19d55c73d8335df026778422282c2fed4`。范围：`packages/rxdb-model-vue`。
 
 ## 结论
 
-🟡 凑合。发现 1 条 P1、1 条 P2。三端 EntityDetail 共享“切换目标时保存旧实例”问题族；本文件登记本包独立实现的修复点。共享核心问题以链接引用，不重复计数。
+🟡 凑合。原 1 条 P1（切换详情目标时保存旧实例）已被 #169 修复，本轮从计数剔除；现存 1 条 P2（QueryBuilder 空 schema 同步缺失）。本更新轮未发现新的确定问题。三端 EntityDetail“切换目标时保存旧实例”问题族在本包已闭环，Angular/React 同族状态见对应报告。
 
 ## 检查范围与证据
 
@@ -33,6 +33,8 @@
 
 建议回归：A 已加载→B 挂起期间保存为零写入；B 到达后只写 B；A→B→C 反序到达、切换实体类型、B error/empty complete、取消/卸载后迟到回调。三端用同一场景矩阵分别验证。
 
+**2026-10-29 复核：已修复。** a808f770（#169「修复 Vue 实体详情的异步数据库就绪」）重写了[`EntityDetail.vue`](../../../packages/rxdb-model-vue/src/entity-detail/EntityDetail.vue) 的加载与保存链：`entityInstance` watch 依赖改为 `[rxdb.value, entityCls, entityId, formMode]`，目标变化时立即置空旧实例并取消旧订阅；`onFormSubmitted` 先经 `isEditPending` 守卫（数据库或实体查询未就绪时拦截提交，表单内部提交按钮同时隐藏），保存完成后经 `editGeneration` 代次与实例身份守卫（`isCurrent`）判定是否关闭对话框、发事件或写错误面板。新增 [entity-detail.async.spec.ts](../../../packages/rxdb-model-vue/src/__tests__/entity-detail/entity-detail.async.spec.ts)（777 行）覆盖「实体查询等待期间加载前不提交、加载后实际保存」「A→B→A 切换后旧保存迟到成功/失败不影响当前视图」「换库后旧保存不影响新草稿」等用例。原触发链（A 已加载→B 挂起→保存改写 A）已不可达。不再计入新增问题计数。
+
 ### MDV-20261028-02 [P2] 字段列表清空没有同步给 QueryBuilder 服务
 
 问题族：`QueryBuilder 空 schema 同步缺失`；独立修复位置：rxdb-model-vue。
@@ -53,20 +55,22 @@ if (fields.length > 0) service.setFields(fields);
 
 建议回归：保持同一组件，fields 从非空切空、schema 从有值切 undefined、再恢复字段，断言现有规则的 validationChange 与字段选择器一致；同一用例同时覆盖后续修改规则再校验，避免只验证上游是否重算。
 
+**2026-10-29 复核：仍有效。** [`QueryBuilder.vue`](../../../packages/rxdb-model-vue/src/query-builder/query-builder/QueryBuilder.vue) 本轮无变更（变更面仅 EntityDetail.vue 与新增 async spec），`fields.length > 0` 过滤条件仍在 fieldsComputed watch 中；核心 [`QueryBuilderService.setFields`](../../../packages/rxdb-model/src/query-builder/services/query-builder.service.ts) 与 [`ValidationService.validateGroup`](../../../packages/rxdb-model/src/query-builder/services/validation.service.ts) 的 Map 更新与校验路径亦未变化。
+
 ## 共享问题与 API 对照
 
 Vue 的 props/emits、DialogPortal 注入上下文、defineExpose 对应另外两端组件面。查询构建器及 EntityTable/QueryTable 均有公开入口。Vue maxDepth 动态调用 setMaxNestingLevel；这与另外两端的构造期捕获有现有差异。
 
-本包的表格快捷键与批量事件使用核心 [MOD-20261028-01](rxdb-model.md)，列级只读绕过问题只在核心报告计数；框架层应在同一修复中执行交互回归。已知限制，非新增发现：EntityDetail 在 setup 执行 `const rxdb = useRxDBOptional()` 只保存快照；其 entityCls 与创建草稿 watch 不会因 provider Ref 后到而重新获得数据库。因此 Promise/Ref source 首帧未就绪时，edit 加载与 create 草稿补建缺失。当前源码与 2026-10-27 清理记录一致；应消费响应式 useRxDBRef/injectRxDBRef。该条不再计入本次新增 P 级统计。
+本包的表格快捷键与批量事件使用核心 [MOD-20261028-01](rxdb-model.md)，列级只读绕过问题只在核心报告计数；框架层应在同一修复中执行交互回归。已知限制（更新）：EntityDetail 已改用 [`injectRxDBRef(true)`](../../../packages/rxdb-vue/src/rxdb-vue.ts) 响应式等待异步数据库（#169），Promise/Ref/异步工厂 source 首帧未就绪时的 edit 加载与 create 草稿补建（metadata 路径）均已覆盖，setup 快照缺口不再成立。剩余边界：create 草稿 watch 仍只认 `props.metadata`（`entityClsFromDialog`），纯路由输入（namespace/name 无 metadata）在 create 模式下不建草稿、`onSave` 走 emit 透传路径零落库——与基线行为一致（基线同样要求 meta），未恶化，不计入新增 P 级统计。
 
 ## 保存目标与异步源边界
 
-entityInstance watch 的 cleanup 只撤销旧订阅，不撤销已存的 A；EntityForm 的保存动作没有 loading/身份保护，因此有效 B 尚未发射时的 P1 可达。`useRxDBOptional()` setup 快照的既有缺口保留在已知限制中，没有重新计作新增。字段列表清空 guard 与核心 validation$ 不通知也不是同一修复位置。
+新实现以 `editGeneration` 代次 + 实例身份双守卫收紧保存链：目标/数据库/formMode 任一变化都推进代次并复位 `entityInstance`；`isEditPending` 在数据库或实体查询未就绪期间拦截提交；迟到保存成功/失败都经 `isCurrent` 判定后静默丢弃。等待期间的字段输入进 `editFormChanges`，目标就绪后合入显示并随下一次提交落库（保存期间再输入的新值经 `settleEditChanges` 保留到下次提交）。`useRxDBOptional()` setup 快照的既有缺口已被 `injectRxDBRef(true)` 取代，不再成立。字段列表清空 guard 与核心 validation$ 不通知仍不是同一修复位置。
 
 ## 验证与边界
 
-重点核对 [`entity-detail/entity-detail.real.spec.ts`](../../../packages/rxdb-model-vue/src/__tests__/entity-detail/entity-detail.real.spec.ts) 的现有 create/edit、保存失败、草稿取消、固定字段与关系 tab 覆盖；现有目标加载测试以单个已就绪记录为主，不能证明有效 id 切换的加载窗口安全。
+重点核对 [`entity-detail/entity-detail.real.spec.ts`](../../../packages/rxdb-model-vue/src/__tests__/entity-detail/entity-detail.real.spec.ts) 的现有 create/edit、保存失败、草稿取消、固定字段与关系 tab 覆盖；新增 [entity-detail/entity-detail.async.spec.ts](../../../packages/rxdb-model-vue/src/__tests__/entity-detail/entity-detail.async.spec.ts)（777 行、16 个用例）为本轮变更直接配套：三种 source（Promise/异步工厂/Ref）迟到就绪、等待期间输入保留与提交拦截、卸载后迟到回调、换库与 A→B→A 迟到保存、独立表单保存期间继续编辑等。本轮评审只做静态推导与证据链核对，未重新运行测试目标。
 
-本次 `rxdb-model-vue:test`：338 passed (338)；本地缓存命中，未重新执行此目标。命令及整体边界见[总索引](README.md)。
+首轮（2026-10-28）`rxdb-model-vue:test`：338 passed (338)；本地缓存命中，未重新执行此目标。命令及整体边界见[总索引](README.md)。
 
 边界：没有完成真实浏览器、真实 VTable canvas、路由复用和数据库适配器组合的端到端验收。组件测试中 VTable 仍为 fake，不能据此宣布表格引擎的 DOM/可访问性行为全部通过。

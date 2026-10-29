@@ -1,9 +1,9 @@
 # rxdb-plugin-sync 深度评审
 
 - 包：`@aiao/rxdb-plugin-sync`
-- 日期：2026-10-28
-- 基线：`7bb16a9014095d4003bd059244722013b36867c1`
-- 结论：🟡凑合。新增确定问题见下文。
+- 日期：2026-10-29
+- 基线：`f62f77c19d55c73d8335df026778422282c2fed4`
+- 结论：🟡凑合。P1 × 1（SYNC-001）；2026-10-29 更新轮复核仍有效、无新增。
 
 ## 评审计划与实际范围
 
@@ -39,9 +39,11 @@
 
 **回归建议**：两个 namespace 下同名实体，覆盖 INSERT/UPDATE/DELETE、KEEP_REMOTE 的 upsert/drop 修复，验证公共实体完全不变；错误目标不得被计成功并推进水位。
 
+**2026-10-29 复核：**仍有效。基线 `7bb16a9` → `f62f77c19d55c73d8335df026778422282c2fed4` 区间本包无源码变更；[`runOutboxFlush`](../../../packages/rxdb-plugin-sync/src/query-cache-outbox.ts) 对 `probeRemoteMetadata` / `replayPhases` / `repairLocalCache` 仍只传裸 entity，下游 `remoteWrite` 与缓存修复继续用裸值；对照侧 [`createQueryCachePrimary`](../../../packages/rxdb-plugin-querycache/src/query-cache-primary.ts) 的非 public `namespace:entity` 标识与 HTTP [`resolveEntitySegment`](../../../packages/rxdb-adapter-http/src/rest.ts) 按传入名查资源映射均原样。本更新轮未发现新的确定问题。
+
 ## 验证证据与边界
 
 - 静态证据：逐一读取上述符号的实现，并沿对应调用链核对；未修改产品代码或既有测试。
 - 发现仓库测试文件 36 份；文件数仅描述现有测试入口，不等于本次覆盖率。
-- 本次 `rxdb-plugin-sync:test`：500 passed (500)；目标实际执行。命令及整体边界见[总索引](README.md)。
+- 首轮（2026-10-28）`rxdb-plugin-sync:test`：500 passed (500)；目标实际执行。命令及整体边界见[总索引](README.md)。
 - 已对非 public 编排做源码转译诊断；真实远端拒绝/接受裸名称的最终表现取决于适配器与服务端配置，报告按这两个结果明确区分。未跑线上同步或真实鉴权服务。

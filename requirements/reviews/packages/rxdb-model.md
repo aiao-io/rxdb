@@ -1,10 +1,10 @@
 # rxdb-model 深度评审
 
-评审日期：2026-10-28。源码基线：`7bb16a9014095d4003bd059244722013b36867c1`。范围：`packages/rxdb-model`。
+评审日期：2026-10-29（更新轮；首轮 2026-10-28）。源码基线：`f62f77c19d55c73d8335df026778422282c2fed4`。范围：`packages/rxdb-model`。首轮基线 `7bb16a9014095d4003bd059244722013b36867c1` 至本基线本包无源码变更。
 
 ## 结论
 
-🟡 凑合。发现 2 条 P2：列级只读未贯穿快捷键/批量入口；字段 schema 更新后，已有校验订阅不重新计算。
+🟡 凑合。发现 2 条 P2（2026-10-29 复核均仍有效）：列级只读未贯穿快捷键/批量入口；字段 schema 更新后，已有校验订阅不重新计算。本更新轮沿原评审重点抽查未发现新的确定问题。
 
 ## 检查范围与证据
 
@@ -42,6 +42,8 @@ disabled column emitted true
 
 建议回归：对同一 readonly 字符串/布尔字段分别执行鼠标、Enter/Space、内部/系统剪贴板和 Delete，断言零 PendingWrite、零事件、零实体内存变化；再以可写列为正向对照。
 
+**2026-10-29 复核：**仍有效。[`applyClipboard` / `applySystemText` / `collectDeleteWrites`](../../../packages/rxdb-model/src/entity-table/vtable/table-clipboard.ts) 仍只调用 `isReadonlyOrAddRow` 行级判断；[`toggleCellValue`](../../../packages/rxdb-model/src/entity-table/vtable/table-keyboard.ts) 仍只判 `isReadonly(record)`，不读布尔列的 `disable`；[`buildPropertyColumn`](../../../packages/rxdb-model/src/entity-table/columns/column-utils.ts) 对 readonly 布尔列仍以 `disable: true` 表示（本包自首轮基线无源码变更）。
+
 ### MOD-20261028-02 [P2] setFields 修改校验依赖却不通知 validation$ 订阅
 
 证据：[`QueryBuilderService.setFields`](../../../packages/rxdb-model/src/query-builder/services/query-builder.service.ts) 仅清空和重新填充 `fieldsMap`，不向任何响应式源发出变更；同一类的 `validation$` 仅由 `state$` 驱动，然后读取这个普通 Map。
@@ -60,6 +62,8 @@ after setFields([]), emitted validity: [true] direct validate: false
 
 建议回归：保持一个 validation$ 订阅，分别更新字段为空、变更字段类型、收窄 enum，断言立即得到当前结论；同时检查 query$ 不出现不必要的业务查询。
 
+**2026-10-29 复核：**仍有效。[`setFields`](../../../packages/rxdb-model/src/query-builder/services/query-builder.service.ts) 仍仅清空/填充普通 `fieldsMap`，`validation$` 仍只由 `state$` 驱动后读取该 Map（本包自首轮基线无源码变更）。
+
 ## 公开 API 与三端对照
 
 本包是三端共享模型与表格内核；共享错误只在这里登记一次。各框架报告链接本条，不重复把同一核心修复计算成三个独立缺陷。表单转换已跳过 readonly，表格批量入口缺少等价约束。
@@ -72,6 +76,6 @@ after setFields([]), emitted validity: [true] direct validate: false
 
 执行上述原函数接缝复现，并核对 [`column-utils.spec.ts`](../../../packages/rxdb-model/src/__tests__/entity-table/columns/column-utils.spec.ts)、[`table-clipboard.spec.ts`](../../../packages/rxdb-model/src/__tests__/entity-table/vtable/table-clipboard.spec.ts)、[`table-keyboard.spec.ts`](../../../packages/rxdb-model/src/__tests__/entity-table/vtable/table-keyboard.spec.ts) 的现有范围：已有列只读渲染、行只读和选择 checkbox 覆盖，没有贯穿列只读与快捷键/批量入口。
 
-本次 `rxdb-model:test`：1034 passed (1034)；目标实际执行。命令及整体边界见[总索引](README.md)。
+首轮（2026-10-28）`rxdb-model:test`：1034 passed (1034)；目标实际执行。命令及整体边界见[总索引](README.md)。
 
 边界：未逐一执行所有编辑器在真实 VTable/canvas 中的交互；异长剪贴板行在隔离函数中可触发 TypeError，但未证明正常 UI 会产出该形状，故没有将它登记为产品缺陷。

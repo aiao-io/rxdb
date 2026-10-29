@@ -1,9 +1,9 @@
 # rxdb-plugin-history 深度评审
 
 - 包：`@aiao/rxdb-plugin-history`
-- 日期：2026-10-28
-- 基线：`7bb16a9014095d4003bd059244722013b36867c1`
-- 结论：🟢好。本次已审范围未发现新增确定缺陷；不代表全部路径无缺陷。
+- 日期：2026-10-29
+- 基线：`f62f77c19d55c73d8335df026778422282c2fed4`
+- 结论：🟢好。本次已审范围未发现新增确定缺陷；2026-10-29 更新轮同样无新增，不代表全部路径无缺陷。
 
 ## 评审计划与实际范围
 
@@ -23,9 +23,11 @@
 
 本次未发现可给出确定触发链的新增包内问题。
 
+2026-10-29 更新轮：基线 `7bb16a9` → `f62f77c19d55c73d8335df026778422282c2fed4` 区间本包无源码变更；抽查 [`applyUndoRedoHistories`](../../../packages/rxdb-plugin-history/src/undo-redo-apply.ts) 的写事务前置复核、[`fetchLatestHistories`](../../../packages/rxdb-plugin-history/src/undo-redo-apply.ts) 的水位与在飞认领约束、[`RedoStack`](../../../packages/rxdb-plugin-history/src/redo-stack.ts) 的容量与指纹移除、[`table_set_scope` / `keep_table_set_actions`](../../../packages/rxdb-plugin-history/src/table-set-scope.ts) 的成员过滤，均与报告描述一致，本更新轮未发现新的确定问题。
+
 ## 验证证据与边界
 
 - 静态证据：逐一读取上述符号的实现，并沿对应调用链核对；未修改产品代码或既有测试。
 - 发现仓库测试文件 32 份；文件数仅描述现有测试入口，不等于本次覆盖率。
-- 本次 `rxdb-plugin-history:test`：439 passed (439)；目标实际执行。命令及整体边界见[总索引](README.md)。
+- 首轮（2026-10-28）`rxdb-plugin-history:test`：439 passed (439)；目标实际执行。命令及整体边界见[总索引](README.md)。
 - 分支对比/预览没有单事务一致快照属于仓库已有接受边界；未要求在本次文档评审中改变语义。未证明所有后端的 switchBranch prepare 都正确实现，本包只核查调用和防线。

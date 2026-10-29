@@ -1,10 +1,10 @@
 # rxdb-angular 深度评审
 
-评审日期：2026-10-28。源码基线：`7bb16a9014095d4003bd059244722013b36867c1`。范围：`packages/rxdb-angular`。
+评审日期：2026-10-29（更新轮；首轮 2026-10-28）。源码基线：`f62f77c19d55c73d8335df026778422282c2fed4`。范围：`packages/rxdb-angular`。首轮基线 `7bb16a9014095d4003bd059244722013b36867c1` 至本基线本包无源码变更。
 
 ## 结论
 
-🟢 好。本次检查范围内未发现确定缺陷；新增问题 0 条。
+🟢 好。本次检查范围内未发现确定缺陷；新增问题 0 条。2026-10-29 更新轮抽查关键符号与链接，本更新轮未发现新的确定问题。
 
 ## 检查范围与证据
 
@@ -14,7 +14,7 @@
 
 ## 确定发现
 
-无。根 provider 不能套用 Vue 模型层的异步快照缺陷；它在根 bootstrap 前已等完异步 source。
+无。根 provider 不能套用 Vue 模型层的异步快照缺陷；它在根 bootstrap 前已等完异步 source。2026-10-29 复核：`createHolder` / `provideRxDB` / `useRepositoryQuery` / `InfiniteScrollingList` / `useInfiniteScroll` / `useAction` / `usePersistedState` / `useSyncState` 等符号均在当前 HEAD 存在且与报告描述一致，报告链接全部有效。
 
 ## 公开 API 与三端对照
 
@@ -28,6 +28,6 @@
 
 审阅 provider 的异步失败合同和查询/分页实现；基线用例入口包括 [`rxdb.provider.spec.ts`](../../../packages/rxdb-angular/src/__tests__/rxdb.provider.spec.ts)、[`InfiniteScrollingList.spec.ts`](../../../packages/rxdb-angular/src/__tests__/InfiniteScrollingList.spec.ts)、[`tri-framework-provider.spec.ts`](../../../packages/rxdb-angular/src/__tests__/tri-framework-provider.spec.ts)。
 
-本次 `rxdb-angular:test`：266 passed (266)；目标实际执行。命令及整体边界见[总索引](README.md)。
+首轮（2026-10-28）`rxdb-angular:test`：266 passed (266)；目标实际执行。命令及整体边界见[总索引](README.md)。
 
 已文档化限制：`provideAppInitializer` 只在根环境注入器自动等待；路由级异步 source 的 loading 要由宿主负责。未验收路由级注入器在真实应用中的组合生命周期，也未测本包独立发布后的 SSR 消费。

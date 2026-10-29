@@ -1,8 +1,8 @@
 # rxdb-test 深度评审
 
-包：`@aiao/rxdb-test`。日期：2026-10-28。基线：`7bb16a9014095d4003bd059244722013b36867c1`。
+包：`@aiao/rxdb-test`。日期：2026-10-29。基线：`f62f77c19d55c73d8335df026778422282c2fed4`。
 
-结论：**🟢好**。本次已检查范围内未发现新的确定缺陷；这不代表所有后端契约已完成验收。
+结论：**🟢好**。本次已检查范围内未发现新的确定缺陷；这不代表所有后端契约已完成验收。2026-10-29 更新轮复核：自基线起本包无源码变更，抽查符号与报告链接均有效，本更新轮未发现新的确定问题。
 
 ## 评审范围与判断
 
@@ -15,9 +15,11 @@
 | 并发用例辨别力      | [`withTransactionBarrier()`](../../../packages/rxdb-test/src/sortable/transaction-barrier.ts) 让两次事务请求到齐后才放行，结束恢复原 transaction，能够把串行化责任落回适配器。                                                                                            |
 | 发布入口            | [`src/index.ts`](../../../packages/rxdb-test/src/index.ts) 主要导出测试工具和跨框架 fixtures；套件按子路径消费，不能以根入口未导出套件判定能力缺失。                                                                                                                      |
 
+**2026-10-29 复核：**本包源码自基线起无变更（`git diff 7bb16a9..HEAD -- packages/rxdb-test` 为空）。上表各符号逐一对照当前源码仍成立：`expectObservableSequence()` 的 `finish()` 保留原始序列错误并让 teardown 失败单独拒绝（RXT-001）；`cleanupSqliteTestAdapter()` 保持影子表精确后缀过滤、`restoreInitialRows` 钩子与 DELETE 前配置校验；`withSeedLock()` 以 WeakMap 记录且前次失败不阻断后续 seed；`disposeOpened()` 收集并传播 dispose 失败；`withTransactionBarrier()` 两次事务请求到齐才放行并在 finally 还原原 `transaction`。报告全部链接在 HEAD 存在。本更新轮未发现新的确定问题。
+
 ## 测试证据
 
-本次 `rxdb-test:test` 实际执行并通过：24 个文件、249 个用例。验证命令为总索引记录的全包 Nx 串行命令；该结果证明测试辅助库自身现有用例通过。
+首轮（2026-10-28）`rxdb-test:test` 实际执行并通过：24 个文件、249 个用例。验证命令为总索引记录的全包 Nx 串行命令；该结果证明测试辅助库自身现有用例通过。
 
 ## 未验证边界
 

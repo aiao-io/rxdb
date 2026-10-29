@@ -1,9 +1,9 @@
 # rxdb-plugin-workspace 深度评审
 
 - 包：`@aiao/rxdb-plugin-workspace`
-- 日期：2026-10-28
-- 基线：`7bb16a9014095d4003bd059244722013b36867c1`
-- 结论：🟡凑合。新增确定问题见下文。
+- 日期：2026-10-29
+- 基线：`f62f77c19d55c73d8335df026778422282c2fed4`
+- 结论：🟡凑合。P2 × 1（WORKSPACE-001）；2026-10-29 更新轮复核仍有效、无新增。
 
 ## 评审计划与实际范围
 
@@ -36,9 +36,11 @@
 
 **回归建议**：两个分区同 UUID、换挂ready未完成的新建/广播、旧分区删除与新分区新增交错；断言两个物理键及挂回主表集后的恢复值。
 
+**2026-10-29 复核：**仍有效。基线 `7bb16a9` → `f62f77c19d55c73d8335df026778422282c2fed4` 区间本包无源码变更；[`#queueSave`](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts) 仍按无分区 cacheId 键控 `#need_save_entities` / `#queued_keys`；[`#remount`](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts) 清视图仍保留队列、`#loadView(true)` 经 `#settleQueue` 异步结算；`#entityEventHandler` 仍无 restoring 屏障；[`WorkspaceCacheId`](../../../packages/rxdb-plugin-workspace/src/workspace-entry.ts) 仍为不含分区的三段式，`workspaceStorageKeyOf` 仍按分区前缀拼键。本更新轮未发现新的确定问题。
+
 ## 验证证据与边界
 
 - 静态证据：逐一读取上述符号的实现，并沿对应调用链核对；未修改产品代码或既有测试。
 - 发现仓库测试文件 5 份；文件数仅描述现有测试入口，不等于本次覆盖率。
-- 本次 `rxdb-plugin-workspace:test`：112 passed (112)；目标实际执行。命令及整体边界见[总索引](README.md)。
+- 首轮（2026-10-28）`rxdb-plugin-workspace:test`：112 passed (112)；目标实际执行。命令及整体边界见[总索引](README.md)。
 - 本轮已复现换挂队列状态机，使用内存IndexedDB及表集替身；未模拟真实浏览器标签页调度和文件系统。现有浏览器换挂测试通过也不能证明上述未覆盖窗口安全。

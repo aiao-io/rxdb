@@ -1,10 +1,10 @@
 # rxdb-model-angular 深度评审
 
-评审日期：2026-10-28。源码基线：`7bb16a9014095d4003bd059244722013b36867c1`。范围：`packages/rxdb-model-angular`。
+评审日期：2026-10-29（更新轮；首轮 2026-10-28）。源码基线：`f62f77c19d55c73d8335df026778422282c2fed4`。范围：`packages/rxdb-model-angular`。首轮基线 `7bb16a9014095d4003bd059244722013b36867c1` 至本基线本包无源码变更。
 
 ## 结论
 
-🟡 凑合。发现 1 条 P1、1 条 P2。三端 EntityDetail 共享“切换目标时保存旧实例”问题族；本文件登记本包独立实现的修复点。共享核心问题以链接引用，不重复计数。
+🟡 凑合。发现 1 条 P1、1 条 P2（2026-10-29 复核均仍有效）。三端 EntityDetail 共享“切换目标时保存旧实例”问题族；本文件登记本包独立实现的修复点。共享核心问题以链接引用，不重复计数。本更新轮沿原评审重点抽查未发现新的确定问题。
 
 ## 检查范围与证据
 
@@ -33,6 +33,8 @@
 
 建议回归：A 已加载→B 挂起期间保存为零写入；B 到达后只写 B；A→B→C 反序到达、切换实体类型、B error/empty complete、取消/卸载后迟到回调。三端用同一场景矩阵分别验证。
 
+**2026-10-29 复核：**仍有效。[`#entityInstance` / `onFormSubmitted`](../../../packages/rxdb-model-angular/src/entity-detail/entity-detail.ts) 的 switchMap 分支没有 `startWith(null)`，signal 在 B 首次发射前保留 A；`onFormSubmitted` 直接 `Object.assign` 当前 signal 值并调用 save，无加载身份校验，均与首轮记录一致（本包自首轮基线无源码变更）。
+
 ### MDA-20261028-02 [P2] 字段列表清空没有同步给 QueryBuilder 服务
 
 问题族：`QueryBuilder 空 schema 同步缺失`；独立修复位置：rxdb-model-angular。
@@ -53,6 +55,8 @@ if (fields.length > 0) this.service.setFields(fields);
 
 建议回归：保持同一组件，fields 从非空切空、schema 从有值切 undefined、再恢复字段，断言现有规则的 validationChange 与字段选择器一致；同一用例同时覆盖后续修改规则再校验，避免只验证上游是否重算。
 
+**2026-10-29 复核：**仍有效。[字段同步 effect](../../../packages/rxdb-model-angular/src/query-builder/query-builder/query-builder.component.ts) 的 `if (fields.length > 0)` 守卫与核心 `setFields` 仅改普通 Map 的路径均与首轮一致（本包自首轮基线无源码变更）。
+
 ## 共享问题与 API 对照
 
 Angular 经 input/output 与 CDK DialogRef/DIALOG_DATA 对接；creationChain/editChain 采用别名 input，保留原有效值成员。EntityTableHandle/QueryTableHandle 复用核心合同。
@@ -67,6 +71,6 @@ Angular 经 input/output 与 CDK DialogRef/DIALOG_DATA 对接；creationChain/ed
 
 重点核对 [`entity-detail/entity-detail.real.spec.ts`](../../../packages/rxdb-model-angular/src/__tests__/entity-detail/entity-detail.real.spec.ts) 的现有 create/edit、保存失败、草稿取消、固定字段与关系 tab 覆盖；现有目标加载测试以单个已就绪记录为主，不能证明有效 id 切换的加载窗口安全。
 
-本次 `rxdb-model-angular:test`：344 passed (344)；本地缓存命中，未重新执行此目标。命令及整体边界见[总索引](README.md)。
+首轮（2026-10-28）`rxdb-model-angular:test`：344 passed (344)；本地缓存命中，未重新执行此目标。命令及整体边界见[总索引](README.md)。
 
 边界：没有完成真实浏览器、真实 VTable canvas、路由复用和数据库适配器组合的端到端验收。组件测试中 VTable 仍为 fake，不能据此宣布表格引擎的 DOM/可访问性行为全部通过。

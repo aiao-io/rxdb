@@ -1,10 +1,10 @@
 # rxdb-model-react 深度评审
 
-评审日期：2026-10-28。源码基线：`7bb16a9014095d4003bd059244722013b36867c1`。范围：`packages/rxdb-model-react`。
+评审日期：2026-10-29（更新轮；首轮 2026-10-28）。源码基线：`f62f77c19d55c73d8335df026778422282c2fed4`。范围：`packages/rxdb-model-react`。首轮基线 `7bb16a9014095d4003bd059244722013b36867c1` 至本基线本包无源码变更。
 
 ## 结论
 
-🟡 凑合。发现 1 条 P1、2 条 P2。三端 EntityDetail 共享“切换目标时保存旧实例”问题族；本文件登记本包独立实现的修复点。共享核心问题以链接引用，不重复计数。
+🟡 凑合。发现 1 条 P1、2 条 P2（2026-10-29 复核均仍有效）。三端 EntityDetail 共享“切换目标时保存旧实例”问题族；本文件登记本包独立实现的修复点。共享核心问题以链接引用，不重复计数。本更新轮沿原评审重点抽查未发现新的确定问题。
 
 ## 检查范围与证据
 
@@ -33,6 +33,8 @@
 
 建议回归：A 已加载→B 挂起期间保存为零写入；B 到达后只写 B；A→B→C 反序到达、切换实体类型、B error/empty complete、取消/卸载后迟到回调。三端用同一场景矩阵分别验证。
 
+**2026-10-29 复核：**仍有效。[`prevLoad` / `handleFormSubmitted`](../../../packages/rxdb-model-react/src/entity-detail/entity-detail.tsx) 的 `!loadCls || !entityId` 清空分支与保存时无身份校验的调用链均与首轮一致；首轮真实组件接缝复现记录保持有效（本包自首轮基线无源码变更）。
+
 ### MDR-20261028-02 [P2] 字段列表清空没有同步给 QueryBuilder 服务
 
 问题族：`QueryBuilder 空 schema 同步缺失`；独立修复位置：rxdb-model-react。
@@ -53,6 +55,8 @@ if (service && fieldsComputed.length > 0) service.setFields(fieldsComputed);
 
 建议回归：保持同一组件，fields 从非空切空、schema 从有值切 undefined、再恢复字段，断言现有规则的 validationChange 与字段选择器一致；同一用例同时覆盖后续修改规则再校验，避免只验证上游是否重算。
 
+**2026-10-29 复核：**仍有效。[字段同步 effect](../../../packages/rxdb-model-react/src/query-builder/query-builder/query-builder.tsx) 的 `if (service && fieldsComputed.length > 0)` 守卫与核心 `setFields` 路径均与首轮一致（本包自首轮基线无源码变更）。
+
 ### MDR-20261028-03 [P2] Activity 重显把用户查询重置为空并发出 queryChange
 
 证据：[`QueryBuilder` 的服务生命周期 effect](../../../packages/rxdb-model-react/src/query-builder/query-builder/query-builder.tsx) 每次接通创建一个新的 QueryBuilderService，立即订阅其 rootGroup$；订阅会覆盖保留的 React rootGroup state 并调用 onQueryChange。清理会销毁服务，仅清空 lastAppliedInitialQueryRef，没有保存用户当前查询。重显后的 initialQuery effect 只能恢复宿主传入的 initialQuery，无法恢复用户内部编辑而未回写 props 的查询。
@@ -72,6 +76,8 @@ after hide/show: {"combinator":"and","rules":[]}
 
 建议回归：无 initialQuery、稳定 initialQuery 后用户修改、宿主回写当前查询三种配置；隐藏期间更新 initialQuery、反复显示及 StrictMode；同时断言界面规则和 queryChange 序列，不只等所有 effect 跑完看最终 DOM。
 
+**2026-10-29 复核：**仍有效。[服务生命周期 effect](../../../packages/rxdb-model-react/src/query-builder/query-builder/query-builder.tsx) 挂载即订阅 rootGroup$ 并调用 onQueryChange、清理只复位 `lastAppliedInitialQueryRef` 不保存用户查询，均与首轮一致（本包自首轮基线无源码变更）。
+
 ## 共享问题与 API 对照
 
 React 使用 props/callback 与 DialogContext；表格句柄由 useImperativeHandle 提供，复用核心 EntityTableHandle/QueryTableHandle。已查看实际公开入口以及查询构建器入口，未将 Angular inject 与 React hook 名字差别误报为缺失。
@@ -86,6 +92,6 @@ React 使用 props/callback 与 DialogContext；表格句柄由 useImperativeHan
 
 重点核对 [`entity-detail/entity-detail.real.spec.tsx`](../../../packages/rxdb-model-react/src/__tests__/entity-detail/entity-detail.real.spec.tsx) 的现有 create/edit、保存失败、草稿取消、固定字段与关系 tab 覆盖；现有目标加载测试以单个已就绪记录为主，不能证明有效 id 切换的加载窗口安全。
 
-本次 `rxdb-model-react:test`：302 passed (302)；本地缓存命中，未重新执行此目标。命令及整体边界见[总索引](README.md)。
+首轮（2026-10-28）`rxdb-model-react:test`：302 passed (302)；本地缓存命中，未重新执行此目标。命令及整体边界见[总索引](README.md)。
 
 边界：没有完成真实浏览器、真实 VTable canvas、路由复用和数据库适配器组合的端到端验收。组件测试中 VTable 仍为 fake，不能据此宣布表格引擎的 DOM/可访问性行为全部通过。

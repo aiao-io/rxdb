@@ -1,12 +1,12 @@
 # rxdb-adapter-http 深度评审
 
-评审日期：2026-10-28；源码基线：`7bb16a9014095d4003bd059244722013b36867c1`。本报告按风险追踪公开入口与关键调用链，未声称逐行覆盖全部源码。
+评审日期：2026-10-29；源码基线：`f62f77c19d55c73d8335df026778422282c2fed4`。本报告按风险追踪公开入口与关键调用链，未声称逐行覆盖全部源码。更新轮核对：自基线 `7bb16a9` 至 HEAD 本包无源码变更。
 
 验证口径：区分源码实证、原函数局部执行与真实后端运行。统一 Nx 校验结果见 [包级索引](README.md)；未运行的浏览器、真机或 Rust 宿主测试不计为通过。
 
 ## 结论与范围
 
-🟡凑合：HTTP 传输的错误分类、分页上限、条件缓存隔离已有完整结构；SSE 的 URL 守卫与普通请求采用了不同的地址契约。确定问题 2 条。
+🟡凑合：HTTP 传输的错误分类、分页上限、条件缓存隔离已有完整结构；SSE 的 URL 守卫与普通请求采用了不同的地址契约。确定问题 2 条。2026-10-29 更新轮复核：两条问题均仍有效，本更新轮未发现新的确定问题。
 
 | 评审重点             | 已追踪的源码                                                                                                                                                                  | 当前判断                                                   |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
@@ -28,6 +28,8 @@
 
 **修复与回归。** 在同一个地址解析入口使用浏览器 `location.href` 补全绝对地址，再交给普通请求与 SSE；无 location 的宿主仍拒绝不可解析地址。增加 `/api`、`api`、绝对 baseUrl、畸形 `https://` 及缺 location 的测试，确保错误 URL 不进入无限重连。
 
+**2026-10-29 复核：**仍有效。HEAD `f62f77c19d55c73d8335df026778422282c2fed4` 相对基线本包无源码变更：`transport.ts` 的 `assertResolvableUrl()` 仍同时检查绝对 URL 与 `location.href` 下的相对 URL；`#createChangeFeed()` 仍把 `resolveUrl()` 的结果交给 SSE，而 `change-feed.ts` 的 `assertResolvedFeedUrl()` 仍只执行 `URL.canParse(url)`。同源相对 baseUrl 配 changeFeed 在构造期被拒的行为不变。
+
 ### HTTP-002 · P2 · 已确认写入后的读取仍合流到写入前的在飞请求
 
 **证据与根因。** [`HttpTransport.sendJson`](../../../packages/rxdb-adapter-http/src/transport.ts) 在开启 `conditionalRequests` 后，对 fetchMetadata/findByIds 以请求指纹进入 [`ConditionalRequestCache.singleFlight`](../../../packages/rxdb-adapter-http/src/conditional-cache.ts)。在飞表只在原请求 finally 时移除，没有作废代次。HTTP adapter 的 [`#installWriteDucks`](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts) 在 create/update/delete 成功时没有结束对应旧读的合流窗口；SSE 的 invalidate 回调也只通知核心查询层。
@@ -48,6 +50,8 @@
 
 **回归建议。** 用当前 HTTP adapter+QueryCache 生产入口覆盖挂起的 metadata/full-row 读、update/delete 确认后新读及 SSE invalidation；断言写后新请求确实发出，旧结果不能伪装成新代次结果。保留同一代次的并发读去重。
 
+**2026-10-29 复核：**仍有效。HEAD `f62f77c19d55c73d8335df026778422282c2fed4` 相对基线本包无源码变更：`ConditionalRequestCache.singleFlight()` 仍在原请求 `finally` 时删除自身条目、没有任何代次推进机制；`sendJson()` 仍对 `fetchMetadata` / `findByIds` 以请求指纹合流；`#installWriteDucks()` 的 create/update/delete 成功路径仍只做回执归一化，不触碰在飞合流表；SSE 的 `invalidate` 回调仍只通知 `rxdb.invalidateRemoteEntity()`（核心查询层）。已确认写入后的新读合流到旧在飞请求的路径不变。
+
 ## 已核对而不作为新增缺陷的约束
 
 [README](../../../packages/rxdb-adapter-http/README.md) 明确要求换用户时 disconnect/connect：auth header 不参与缓存指纹。该代价不是本次新增问题。SSE 实验性、HTTP 不支持 changelog/bigint/binary、删除只判断状态码也是已明示契约。
@@ -62,4 +66,4 @@ HTTP-001 已补完整构造函数诊断；HTTP-002 已补完整 adapter+网络�
 
 ## 本次 Nx 校验
 
-本次 `rxdb-adapter-http:test`：501 passed (501)；目标实际执行。命令及整体边界见[总索引](README.md)。
+首轮（2026-10-28）`rxdb-adapter-http:test`：501 passed (501)；目标实际执行。命令及整体边界见[总索引](README.md)。

@@ -1,9 +1,9 @@
 # rxdb-plugin-storage 深度评审
 
 - 包：`@aiao/rxdb-plugin-storage`
-- 日期：2026-10-28
-- 基线：`7bb16a9014095d4003bd059244722013b36867c1`
-- 结论：🟡凑合。发现 1 条 P1、1 条 P2：目录复制重命名在源目录部分删除失败后丢文件；写流初始化失败漏取消响应体。
+- 日期：2026-10-29
+- 基线：`f62f77c19d55c73d8335df026778422282c2fed4`
+- 结论：🟡凑合。发现 1 条 P1、1 条 P2：目录复制重命名在源目录部分删除失败后丢文件；写流初始化失败漏取消响应体。2026-10-29 更新轮复核均仍有效、无新增。
 
 ## 评审计划与实际范围
 
@@ -35,6 +35,8 @@
 
 **回归建议**：持续发送正文的本地 HTTP 服务 + openWrite 故障，断言 fetch reject 原错且服务端 close 被触发；另覆盖 getReader 本身失败时已取得 writer 的释放。
 
+**2026-10-29 复核：**仍有效。基线 `7bb16a9` → `f62f77c19d55c73d8335df026778422282c2fed4` 区间本包无源码变更；[`streamReadableToFile`](../../../packages/rxdb-plugin-storage/src/storage.ops.ts) 的 `openWrite` 仍在 `try` 之前，[`fetchToOpfs`](../../../packages/rxdb-plugin-storage/src/storage.ops.ts) 的 finally 仍只删临时文件。
+
 ### STORAGE-002 [P1] 目录复制重命名在源目录部分删除失败后丢掉唯一完整副本
 
 **证据**：[`renameDirectoryLocked`](../../../packages/rxdb-plugin-storage/src/storage.rename-copy.ts) 在不支持原生目录移动时，先复制 source 到 target、更新元数据，最后 `await host.removeDirectoryPath(sourcePath)`。该递归删除若已经删掉一部分源文件再失败，catch 执行 `rollbackDirectoryCopy(host, copyJournal)` 和 `removeDirectoryPath(targetPath)`，会删除完整目标副本，却没有先用目标恢复被部分删除的源目录。
@@ -59,9 +61,11 @@ metadata after rollback: [{"id":"a","name":"a.txt","opfsPath":"source/a.txt"},{"
 
 **回归建议**：源目录递归删除分别在第一个文件之后、中间子目录、最后移除目录时失败，断言原始每个文件至少保留一份，元数据可定位；再覆盖恢复失败时完整副本不被清掉、覆盖目标时旧目标备份仍可恢复。
 
+**2026-10-29 复核：**仍有效。基线区间本包无源码变更；[`renameDirectoryLocked`](../../../packages/rxdb-plugin-storage/src/storage.rename-copy.ts) 仍在复制与元数据更新后执行 `removeDirectoryPath(sourcePath)`，catch 仍无条件 `removeDirectoryPath(targetPath)`；[`StorageFilesystem.removeDirectory`](../../../packages/rxdb-plugin-storage/src/filesystem/storage-filesystem.ts) 仍无失败原子性承诺。本更新轮未发现新的确定问题。
+
 ## 验证证据与边界
 
 - 静态证据：逐一读取上述符号的实现，并沿对应调用链核对；未修改产品代码或既有测试。
 - 发现仓库测试文件 18 份；文件数仅描述现有测试入口，不等于本次覆盖率。
-- 本次 `rxdb-plugin-storage:test`：277 passed (277)；目标实际执行。命令及整体边界见[总索引](README.md)。
+- 首轮（2026-10-28）`rxdb-plugin-storage:test`：277 passed (277)；目标实际执行。命令及整体边界见[总索引](README.md)。
 - STORAGE-002 另以真实目录重命名/补偿函数和部分递归删除故障接缝复现；未注入真实宿主故障。取消诊断用真实 ReadableStream 和源码函数，文件系统为故障替身；未声称验证真实 OPFS 配额耗尽、桌面 IPC 或断电补偿。
