@@ -170,6 +170,26 @@ describe('QueryBuilderComponent（真实组件）', () => {
     expect(component.rootGroup()?.rules.length).toBe(1);
   });
 
+  it('宿主换了 initialQuery 引用：载入新查询并只对外发一次，同一引用再设置不覆盖用户编辑', () => {
+    const titleQuery = (value: string) =>
+      ({ combinator: 'and', rules: [{ field: 'title', operator: '=', value }] }) as RxDBQueryOutput<object>;
+    const replaced = titleQuery('replaced');
+    const { fixture, component, emitted } = render({ initialQuery: titleQuery('hello') });
+    const before = emitted.length;
+
+    fixture.componentRef.setInput('initialQuery', replaced);
+    fixture.detectChanges();
+
+    expect(component.rootGroup()?.rules[0]).toMatchObject({ value: 'replaced' });
+    expect(emitted.slice(before).map(query => query.rules)).toEqual([replaced.rules]);
+
+    const ruleId = (component.rootGroup()!.rules[0] as { id: string }).id;
+    component.onUpdateRule({ id: ruleId, updates: { value: 'edited' } });
+    fixture.componentRef.setInput('initialQuery', replaced);
+    fixture.detectChanges();
+    expect(component.rootGroup()?.rules[0]).toMatchObject({ value: 'edited' });
+  });
+
   it('ngOnDestroy 销毁服务后不再抛错', () => {
     host.component.addFirstRule();
     expect(() => host.fixture.destroy()).not.toThrow();

@@ -199,6 +199,31 @@ describe('QueryBuilder（真实组件）', () => {
     expect(vm.rootGroup?.rules.length).toBe(1);
   });
 
+  it('宿主换了 initialQuery 引用：载入新查询并只对外发一次，同一引用再设置不覆盖用户编辑', async () => {
+    const titleQuery = (value: string) =>
+      ({ combinator: 'and', rules: [{ field: 'title', operator: '=', value }] }) as RxDBQueryOutput<
+        Record<string, unknown>
+      >;
+    const replaced = titleQuery('replaced');
+    const { wrapper, vm } = render({ initialQuery: titleQuery('hello') });
+    const emitted = () => (wrapper.emitted('queryChange') ?? []).map(args => args[0] as RxDBQueryOutput<object>);
+    const before = emitted().length;
+
+    await wrapper.setProps({ initialQuery: replaced });
+
+    expect(vm.rootGroup?.rules[0]).toMatchObject({ value: 'replaced' });
+    expect(
+      emitted()
+        .slice(before)
+        .map(query => query.rules)
+    ).toEqual([replaced.rules]);
+
+    const ruleId = (vm.rootGroup!.rules[0] as { id: string }).id;
+    vm.onUpdateRule({ id: ruleId, updates: { value: 'edited' } });
+    await wrapper.setProps({ initialQuery: replaced });
+    expect(vm.rootGroup?.rules[0]).toMatchObject({ value: 'edited' });
+  });
+
   it('销毁组件销毁服务后不再抛错', () => {
     host.vm.addFirstRule();
     expect(() => host.wrapper.unmount()).not.toThrow();
