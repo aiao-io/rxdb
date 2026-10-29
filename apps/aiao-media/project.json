@@ -82,7 +82,8 @@
       },
       "defaultConfiguration": "development",
       "options": {
-        "port": 4300
+        "port": 4300,
+        "prebundle": false
       }
     },
     "extract-i18n": {
@@ -119,7 +120,8 @@
       "continuous": true,
       "options": {
         "buildTarget": "aiao-media:build:development",
-        "port": 4300
+        "port": 4300,
+        "prebundle": false
       },
       "dependsOn": ["prompt-assets", "auth-config"]
     },

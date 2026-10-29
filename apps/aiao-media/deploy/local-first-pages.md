@@ -34,7 +34,7 @@ pnpm nx run aiao-media:serve
 pnpm nx run aiao-media:offline-assets
 ```
 
-- `aiao-media:serve`：4300，只启动 Angular 开发服务器，不启动 API，不提供代理。
+- `aiao-media:serve`：4300，只启动 Angular 开发服务器，不启动 API，不提供代理。关闭了依赖预构建（`prebundle: false`）：预构建从仓库根 `node_modules` 解析，找不到只链接在 `apps/aiao-media/node_modules` 的 `@aiao/*` 包；关闭后与生产构建一样按源文件位置解析。
 - `aiao-media:build`：生产 CSR 编译到 `apps/aiao-media/dist/browser`。
 - `aiao-media:offline-assets`：先 build，再写带摘要的离线壳和 Service Worker。
 - `aiao-media:preview`：4398，使用 Wrangler 本地运行生产形态。
