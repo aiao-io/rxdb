@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isEntityEffectOrderBy, isEntityMatchWhere } from '../../query/query-matching.utils.js';
 import type { OrderBy } from '../../repository/query-options.interface.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
+import { RxDBError } from '../../RxDBError.js';
 
 describe('query.utils', () => {
   describe('isEntityMatchWhere', () => {
@@ -14,6 +15,26 @@ describe('query.utils', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
       }
+    });
+
+    it.each([
+      [
+        '嵌套组',
+        {
+          combinator: 'and',
+          rules: [
+            { field: 'id', operator: '=', value: 1 },
+            { combinator: 'AND', rules: [] }
+          ]
+        }
+      ],
+      ['顶层组', { combinator: 'AND', rules: [{ field: 'id', operator: '=', value: 1 }] }]
+    ])('%s用大写组合子时抛带原文的 RxDBError，不落成取值的 TypeError', (_, where) => {
+      // 大写 'AND' 能过 sqlite-core / PGlite 的 SQL 翻译，JS 判定只认类型声明的小写
+      const match = () => isEntityMatchWhere({ id: 1 }, where as unknown as RuleGroup<{ id: number }>);
+
+      expect(match).toThrow(RxDBError);
+      expect(match).toThrow('"combinator":"AND"');
     });
 
     it('测试等于操作符', () => {
@@ -725,6 +746,38 @@ describe('query.utils', () => {
   });
 
   describe('RXD-024: JS 匹配与 SQL 三值逻辑/空规则组/集合语义对齐', () => {
+    it('= null 与 IS NULL 同义：JSON 缺键、整列为空都算命中，有值不算', () => {
+      // SQL 侧把 `= null` 译成 `IS NULL`，json_extract / ->> 对缺失的键取出的正是 NULL
+      const where = {
+        combinator: 'and',
+        rules: [{ field: 'settings.theme', operator: '=', value: null }]
+      } as unknown as RuleGroup<{ id: number }>;
+
+      expect(isEntityMatchWhere({ id: 1, settings: {} }, where)).toBe(true);
+      expect(isEntityMatchWhere({ id: 1, settings: null }, where)).toBe(true);
+      expect(isEntityMatchWhere({ id: 1, settings: { theme: 'dark' } }, where)).toBe(false);
+    });
+
+    it('日期等值规则遇到实体侧为空时判不命中，不当成类型错配抛错', () => {
+      // SQL 里 col = ? 在 col IS NULL 时是 UNKNOWN，WHERE 不保留该行
+      const where: RuleGroup<{ id: number; dueAt: Date | null }> = {
+        combinator: 'and',
+        rules: [{ field: 'dueAt', operator: '=', value: new Date(0) }]
+      };
+
+      expect(isEntityMatchWhere({ id: 1, dueAt: null }, where)).toBe(false);
+    });
+
+    it('!= null 与 IS NOT NULL 同义：JSON 缺键不算命中', () => {
+      const where = {
+        combinator: 'and',
+        rules: [{ field: 'settings.theme', operator: '!=', value: null }]
+      } as unknown as RuleGroup<{ id: number }>;
+
+      expect(isEntityMatchWhere({ id: 1, settings: {} }, where)).toBe(false);
+      expect(isEntityMatchWhere({ id: 1, settings: { theme: 'dark' } }, where)).toBe(true);
+    });
+
     it('!= 对缺失字段应判定不匹配（SQL 里 col != value 在 col IS NULL 时是 UNKNOWN，被 WHERE 排除，不是"当匹配"）', () => {
       const is = isEntityMatchWhere(
         { id: 1, role: null },
