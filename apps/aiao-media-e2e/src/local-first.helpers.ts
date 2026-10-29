@@ -43,6 +43,8 @@ export async function downloadBackup(page: Page) {
   return readFile((await (await event).path()) as string);
 }
 export async function importBackup(page: Page, buffer: Buffer) {
+  // setInputFiles skips actionability checks, so it can upload into an input that workspace
+  // initialization has just disabled again. Clicking waits until the input is enabled.
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('input[type=file]').click()]);
   await chooser.setFiles({
     name: 'backup.json',
