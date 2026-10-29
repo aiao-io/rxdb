@@ -442,7 +442,7 @@ export const handleCountDescendantsUpdate = <T extends EntityType>(
     const parentChanged = hasTreeParentChanged(updateData);
     if (!whereFlipped && !parentChanged) return false;
 
-    const beforeEntity = cache.getSerializedBefore(entityId, updateData.inversePatch);
+    const beforeEntity = cache.getSerializedBefore(entityId);
     const afterEntity = cache.getSerializedUpdate(entityId);
     // 前后都是基准成员（查全树时的根节点）：不过 where、父也没动，计数不受影响
     if (isTreeBaseMember(beforeEntity) && isTreeBaseMember(afterEntity)) return false;
@@ -507,7 +507,7 @@ export const handleCountAncestorsUpdate = <T extends EntityType>(
   const helper = new TreeHelper(cache, oldResultMap);
 
   // 获取目标实体更新前后的状态
-  const targetBefore = cache.getSerializedBefore(targetUpdate.id as RxDBEntityId, targetUpdate.inversePatch);
+  const targetBefore = cache.getSerializedBefore(targetUpdate.id as RxDBEntityId);
   const targetAfter = cache.getSerializedUpdate(targetUpdate.id as RxDBEntityId);
 
   if (!targetBefore || !targetAfter) {
@@ -547,7 +547,7 @@ export const handleCountAncestorsUpdate = <T extends EntityType>(
     if (!whereFlipped && !hasTreeParentChanged(updateData)) return false;
 
     // 候选的 before / after 两份序列化必须分别查：`getEntityId` 可能只在其中一份上有值。
-    const entityBefore = cache.getSerializedBefore(entityId, updateData.inversePatch);
+    const entityBefore = cache.getSerializedBefore(entityId);
     const wasAncestorBefore = resolveAncestorForCount(targetAncestors, entityBefore);
     const isAncestorNow = resolveAncestorForCount(targetAncestors, cache.getSerializedUpdate(entityId));
     // 无法确定前/后的祖先关系，或前后任一时刻在链上 → 交回 SQL
