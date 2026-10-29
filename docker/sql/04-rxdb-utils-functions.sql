@@ -1242,10 +1242,11 @@ BEGIN
       (v_entities->v_rec.key) - 'code' - 'reason' - 'message' - 'dependsOn');
   END LOOP;
 
-  -- 4. 保留源日志的映射；不可见子行由实际删除的 OLD 补齐最终 DELETE 快照。
+  -- 4. 保留源日志的映射；最终显式 DELETE 一律以触发器捕获的实际 OLD 为快照。
+  --    不能只补 snapshotComplete = false 的：客户端 DELETE 的 inversePatch 按协议不含 id，规范化阶段
+  --    仅凭它非空就判了完整，调用方读不到的行（RLS 隐藏）只剩这份缺 id 的快照，按 id 过滤的拉取会漏删
   SELECT COALESCE(pg_catalog.jsonb_agg(
     CASE WHEN COALESCE(c->>'branchId', 'main') = 'main' AND c->>'type' = 'DELETE'
-      AND NOT (c->>'snapshotComplete')::boolean
       AND pg_catalog.jsonb_typeof(v_explicit_deletes->(c->>'rxdbEntityKey')) = 'object'
       AND ord = (SELECT pg_catalog.max(last_ord)
         FROM pg_catalog.jsonb_array_elements(normalized_changes) WITH ORDINALITY AS last_change(value, last_ord)
