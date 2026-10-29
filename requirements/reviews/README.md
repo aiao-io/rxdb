@@ -11,7 +11,7 @@
 | `README.md`                                       | 本说明、状态约定与清理记录              | —                   |
 | `review.template.md`                              | 新建 review 记录的模板                  | —                   |
 | `requirements-incomplete-stories-review.md`       | 未完成需求整体评审（不占 RV 编号）      | 37（14 P1 + 23 P2） |
-| [RV-084](RV-084-packages-review-fix-followups.md) | packages 深度评审修复中新发现的待处理项 | 6（3 P2 + 3 P3）    |
+| [RV-084](RV-084-packages-review-fix-followups.md) | packages 深度评审修复中新发现的待处理项 | 4（1 P2 + 3 P3）    |
 
 ## 状态约定
 
@@ -64,7 +64,7 @@
 
 ## 清理记录
 
-改为随适配器实例存活、断开不再完成；QueryCache 在线写回执按同 id 的发出序号落缓存，离线写同样压住更早的在途回执（`QueryCacheEngine` 新增 experimental 的 `supersedeInflightWrites`）；HTTP 条件读的合流按代次，写结算（成败都算）与远端失效都推进代次。顺带修：树 UPDATE 在全树且带 `where` / `level` 时节点跨进跨出根层回 SQL、`findAncestors` 全树收得到新根；Supabase 两层 `exists` 的嵌入按当前层实体解析关系名；三端 `SubqueryBuilder` 同样同步空字段列表；Angular `EntityDetail` 的 `formDataValue` 原是每轮变更检测都拼新对象的 getter，把未提交的输入冲回实例旧值（界面仍显示输入、提交出去的是旧值，P1），改为 computed，与 React `useMemo`、Vue `computed` 同口径。修复中新发现、仍需动作或决策的 6 条登记为 [RV-084](RV-084-packages-review-fix-followups.md)。全文可用 `git show 27ea4a01:requirements/reviews/packages/<文件>` 取回。
+改为随适配器实例存活、断开不再完成；QueryCache 在线写回执按同 id 的发出序号落缓存，离线写同样压住更早的在途回执（`QueryCacheEngine` 新增 experimental 的 `supersedeInflightWrites`）；HTTP 条件读的合流按代次，写结算（成败都算）与远端失效都推进代次。顺带修：树 UPDATE 在全树且带 `where` / `level` 时节点跨进跨出根层回 SQL、`findAncestors` 全树收得到新根；Supabase 两层 `exists` 的嵌入按当前层实体解析关系名；三端 `SubqueryBuilder` 同样同步空字段列表；Angular `EntityDetail` 的 `formDataValue` 原是每轮变更检测都拼新对象的 getter，把未提交的输入冲回实例旧值（界面仍显示输入、提交出去的是旧值，P1），改为 computed，与 React `useMemo`、Vue `computed` 同口径。修复中新发现的问题里，树 `findDescendants` 带 `level` 时结果里的节点改父（上移漏补被 `level` 截掉的子孙、下移漏删越界的子孙）改为回 SQL，Supabase 同一层几条 `exists` 指向同一关系时各用独立的嵌入别名（此前并进同一个嵌入，「有一笔满足 A、也有一笔满足 B」成了「同一笔同时满足」，真实栈复现返回空集），两条一并修复；其余仍需动作或决策的 4 条登记为 [RV-084](RV-084-packages-review-fix-followups.md)。全文可用 `git show 27ea4a01:requirements/reviews/packages/<文件>` 取回。
 
 - **2026-10-29（codex/supabase-update-cascade 两份分支评审删除）**：`codex-supabase-update-cascade-review-2026-10-29.md`（评审对象 `codex/supabase-update-cascade` @ `d73dbf6f`，1 P1 + 3 P2）与 `codex-supabase-update-cascade-branch-review.md`（同一 tip，1 P1 + 3 P3 + 1 观察项）逐条复核后删除。F-01 属实：DELETE 的 `inversePatch` 按协议不含 id，规范化阶段仅凭它非空就判了完整快照，RLS 隐藏的显式子行被允许的父删除级联后最终快照缺 id、按 id 过滤拉不到删除；改为该实体最后一条显式 DELETE 一律以触发器捕获的 `OLD` 为快照。F-02 / F-03 属实：触发器只按（分区根 oid，`OLD.id::text`）捕获实际删除，业务写之后再按 id 列类型的等值关系（与 DELETE 同一判据）把显式删除与捕获配对，`numeric(8,2)`、无修饰 `numeric` 存 `1.00` 而客户端发 `"1"`、经分区根表或叶分区的显式删除都不再追加隐式重复；比「按列类型修饰规范化文本」多覆盖了无修饰 numeric 这一同类反例，也不必新增公开函数。事务上下文随之改名 `rxdb.captured_deletes`。三个反例的回归在修复前的 02 / 04 上实测为红，评审原文的复现脚本修复后得到期望结果。F-04 与 P1-1 属实（同一问题）：merge 决议保留了 #168 之前的派生视图结构；重合 main 时 roadmap / status-overview / capability-matrix / epic-004 以 main 为底，只套 US-223/224 的状态、能力与交付行，数字经 `audit:requirements:update` 回写。P3-1 属实：未设置 `context.userId` 时直写修改仍下发 `createdBy`，与故事「`createdBy` 不下发」及 `SupabaseRepository.update` 不一致，改为修改载荷一律剥除（回归先红后绿）。P3-2 说法不实：`jsonb_object_agg` 撞键保留后一条、不报错（PG 17 实测）；改为等值配对后，同批两种 uuid 拼写的两条源日志都配到实际删除、都带真实 `OLD`。病态输入，不改 duplicate_write 的文本比较，判据写在配对处注释。P3-3 属实：RLS 复现 spec 的 afterAll 补清本 spec 两个实体的日志。观察项不修：直写删除零行静默成功是 US-218 起的既有语义，判据写在 `rxdb_mutations_apply_group` 注释。SQL 安全回归 39 个独立用例及 `all` 组合、适配器 43 个 spec / 630 条、lint / typecheck 通过。全文可用 `git show 70eafc06:requirements/reviews/<文件名>` 取回。
 

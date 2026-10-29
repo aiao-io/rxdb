@@ -84,11 +84,11 @@
 - **rxdb-adapter-sqlite-core（及 -sqlite / -sqlite-wasm / -sqliteai / -wa-sqlite / -miniprogram / -electron / -tauri）:** 没有外键的实体上声明的 `*Id` 属性（如加密的 `secretId`）按声明类型转换并加密，不再按 `Id` 后缀猜成外键原样写入。此前这类加密列写入后解密回填失败、整笔回滚，合法属性存不进去；未声明的 `*Id` 键与其他未声明键一样忽略。
 - **rxdb-adapter-sqlite-wasm:** 只传 `sharedWorkerInstance`、不写 `sharedWorker: true` 时同样进跨标签页事务锁，断开只交还本标签页那一份。此前事务不排队，断开时还会关掉其他标签页正在用的共用连接。
 - **rxdb-adapter-http:** 浏览器里同源相对 `baseUrl` 可以配 `changeFeed`：普通请求与 SSE 走同一个地址出口，按文档基准地址补成绝对地址（此前构造期就抛 `HttpConfigError`）。条件读的 single-flight 只在同一代次内合流：`create` / `update` / `delete` 结算（成败都算）或变更通知上报失效之后发起的读，不再并进写之前的在飞请求、刚写完读回旧值。
-- **rxdb-adapter-supabase:** `exists` 子查询里的 OR（及 `notBetween`）改在关系作用域内表达（`<嵌入路径>.or=(…)`），不再拆成 AND 静默漏行；两层 `exists` 的嵌入按当前层实体解析关系名，此前第二层进不了 select、整个查询被 PostgREST 拒绝。
+- **rxdb-adapter-supabase:** `exists` 子查询里的 OR（及 `notBetween`）改在关系作用域内表达（`<嵌入路径>.or=(…)`），不再拆成 AND 静默漏行；两层 `exists` 的嵌入按当前层实体解析关系名，此前第二层进不了 select、整个查询被 PostgREST 拒绝；同一层几条 `exists` / `notExists` 指向同一关系时各用独立的嵌入别名，「有一笔满足 A 的、也有一笔满足 B 的」不再被并成「同一笔同时满足 A 与 B」。
 - **rxdb-adapter-tauri:** JSON 编解码把 `__proto__` 等数据键作为自有属性往返，不再丢键、也不再把结果对象的原型换成载荷。
 - **rxdb-adapter-pglite:** `changeErrors$` 随适配器实例存活：`disconnect()` 不再完成它，同一实例重连后的变更管线失败照常送达（此前重新订阅时它已经完成）。
 - **rxdb-plugin-graph:** 节点物理表名含双引号时，`findNeighbors` / `countNeighbors` / `findPaths`（含节点回填）正确转义，不再报 SQL 语法错误。
-- **rxdb-plugin-tree:** 实时树查询的起点（全树查询的各根、指定 `entityId` 时的目标）与 SQL 同口径不过 `where`：新建或删除不匹配 `where` 的起点时列表与计数即时更新，`findAncestors` 全树收得到新根，目标新建而祖先链在本地拼不全时回 SQL；全树且带 `where` / `level` 时，节点改父跨进或跨出根层回 SQL。
+- **rxdb-plugin-tree:** 实时树查询的起点（全树查询的各根、指定 `entityId` 时的目标）与 SQL 同口径不过 `where`：新建或删除不匹配 `where` 的起点时列表与计数即时更新，`findAncestors` 全树收得到新根，目标新建而祖先链在本地拼不全时回 SQL；全树且带 `where` / `level` 时，节点改父跨进或跨出根层回 SQL；带 `level` 的 `findDescendants` 里结果中的节点改父也回 SQL（此前上移漏补被 `level` 截掉的子孙、下移漏删越界的子孙）。
 - **rxdb-plugin-querycache:** 同一行在线写的回执反序到达时按发出顺序落缓存：迟到的更新回执不再把已删除（含离线删除）的缓存行写回来，两次更新的回执反序也不再让旧值覆盖新值。`QueryCacheEngine`（experimental）新增 `supersedeInflightWrites(ids)`。
 - **rxdb-plugin-sync / -querycache:** 非 `public` 命名空间的离线写重放与缓存修复按 `namespace:entity` 定位，不再打到同名的公共实体、也不再在错误目标上推进水位；标识函数 `queryCacheEntityIdentifier` 由 sync 新导出，querycache 的在线读写复用同一个。
 - **rxdb-plugin-storage:** 远端拉取在本地写流打不开时先取消未消费的响应体、再抛原始错误，不留后台下载；复制式目录重命名删源目录半途失败时，先用目标里的完整副本补齐源目录、确认无误再撤回，补不齐时保留全部副本并抛出点名路径的 `AggregateError`，不再删掉唯一的完整副本。

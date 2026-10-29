@@ -119,7 +119,11 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
     if (!updatedEntity) return 'refresh';
 
     const { isDescendant, level: entityLevel } = helper.isEntityDescendant(updatedEntity, targetEntityId);
-    return isDescendant && (level === undefined || entityLevel <= level) ? 'keep' : 'drop';
+    if (!isDescendant || (level !== undefined && entityLevel > level)) return 'drop';
+    // 带 level 时，改父会整体平移它名下子树的深度：上移让原先被 level 截掉的子孙落进范围，
+    // 下移让结果里的子孙越过上限。那些子孙不在本批事件里，本地既补不进也删不准，交回 SQL。
+    // 不带 level 时深度不设限，子树只是跟着挪位置，本地照常保留。
+    return level === undefined ? 'keep' : 'refresh';
   };
 
   let needsRefresh = false;

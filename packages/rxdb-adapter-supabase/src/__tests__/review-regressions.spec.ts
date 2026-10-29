@@ -797,6 +797,35 @@ describe('supabase review regressions', () => {
     });
   });
 
+  // 两条 exists 落到同一条 `orders!inner` 嵌入上，PostgREST 要求同一笔订单同时满足两组条件，
+  // 「有 100 的订单、也有 200 的订单」的用户被漏掉。每条 exists 各自一个嵌入别名，过滤按别名挂
+  it('embeds independent exists rules on the same relation under their own aliases', async () => {
+    const query = resolvedRecordingQuery({ data: [], error: null });
+    const from = vi.fn(() => query.proxy);
+    const schema = vi.fn(() => ({ from }));
+    const adapter = createAdapter({ schema, from }, {}, [User, Order, OrderItem]);
+    const repository = new SupabaseRepository(adapter, User);
+    const amountIs = (value: number) => ({
+      combinator: 'and' as const,
+      rules: [{ field: 'amount', operator: '=' as const, value }]
+    });
+
+    await repository.find({
+      where: {
+        combinator: 'and',
+        rules: [
+          { field: 'orders', operator: 'exists', where: amountIs(100) },
+          { field: 'orders', operator: 'exists', where: amountIs(200) }
+        ]
+      }
+    });
+
+    const selectCall = query.calls.find(call => call.method === 'select');
+    expect(selectCall?.args[0]).toBe('*, orders__1:order!inner(*), orders__2:order!inner(*)');
+    expect(query.calls).toContainEqual({ method: 'eq', args: ['orders__1.amount', 100] });
+    expect(query.calls).toContainEqual({ method: 'eq', args: ['orders__2.amount', 200] });
+  });
+
   it('mutations returns early for empty operations', async () => {
     const rpc = vi.fn();
     const adapter = createAdapter({ rpc });

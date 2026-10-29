@@ -2382,4 +2382,65 @@ describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
       expect(scenario.sqlRuns()).toBe(1);
     });
   });
+
+  /**
+   * 带 level 时，结果里的节点改父会整体平移它名下子树的深度：上移让原先被 level 截掉的子孙落进范围，
+   * 下移让结果里的子孙越过上限。那些子孙不在本批事件里，本地补不进也删不准。
+   */
+  describe('findDescendants 带 level：结果里的节点改父平移子树深度，即时结果与重跑 SQL 一致', () => {
+    /** 先改表、再发 UPDATE 事件；补丁带整行，模拟身份缓存里已有该节点（门控能补齐前后态） */
+    const move = (scenario: TreeSqlScenario<TestEntityType>, id: string, parentId: string | null): void => {
+      const index = scenario.rows.findIndex(row => row.id === id);
+      const before = scenario.rows[index];
+      const after = { ...before, parentId };
+      scenario.rows.splice(index, 1, after);
+      query_merge_update_cache(scenario.task, [createMockUpdateEvent(after, before)]);
+    };
+    const targets = [
+      ['指定目标', 'root'],
+      ['查全树', null]
+    ] as const;
+
+    it.each(targets)('%s：节点上移，原先被 level 截掉的子孙补进结果', (_label, entityId) => {
+      const scenario = createTreeSqlScenario(TestEntity, { type: 'findDescendants', options: { entityId, level: 2 } }, [
+        { id: 'root', parentId: null },
+        { id: 'a', parentId: 'root' },
+        { id: 'b', parentId: 'a' },
+        { id: 'c', parentId: 'b' }
+      ]);
+
+      move(scenario, 'b', 'root');
+
+      expect(scenario.sql()).toHaveLength(4);
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it.each(targets)('%s：节点下移，越过 level 上限的子孙移出结果', (_label, entityId) => {
+      const scenario = createTreeSqlScenario(TestEntity, { type: 'findDescendants', options: { entityId, level: 2 } }, [
+        { id: 'root', parentId: null },
+        { id: 'a', parentId: 'root' },
+        { id: 'b', parentId: 'root' },
+        { id: 'c', parentId: 'b' }
+      ]);
+
+      move(scenario, 'b', 'a');
+
+      expect(scenario.sql()).toHaveLength(3);
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it('不带 level 时节点在子树内改父只是挪位置，本地算清、不回 SQL', () => {
+      const scenario = createTreeSqlScenario(TestEntity, { type: 'findDescendants', options: { entityId: 'root' } }, [
+        { id: 'root', parentId: null },
+        { id: 'a', parentId: 'root' },
+        { id: 'b', parentId: 'a' },
+        { id: 'c', parentId: 'b' }
+      ]);
+
+      move(scenario, 'b', 'root');
+
+      expect(scenario.live()).toEqual(scenario.sql());
+      expect(scenario.sqlRuns()).toBe(1);
+    });
+  });
 });

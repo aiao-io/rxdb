@@ -394,5 +394,28 @@ describe('Supabase EXISTS 操作符测试', () => {
 
       expect(names).toEqual([nameA]);
     });
+
+    it('两条 exists 指向同一关系：各自命中不同的订单', async () => {
+      // A 有 100 与 200 两笔订单，两条 exists 各要一笔；落到同一个嵌入上就成了「同一笔订单既是 100 又是 200」
+      const amountIs = (value: number) => ({
+        combinator: 'and' as const,
+        rules: [{ field: 'amount' as const, operator: '=' as const, value }]
+      });
+      const users = await (adapter.getRepository(User) as SupabaseRepository<typeof User>).find({
+        where: {
+          combinator: 'and',
+          rules: [
+            { field: 'name', operator: 'in', value: [nameA, nameB] },
+            { field: 'orders', operator: 'exists', where: amountIs(100) },
+            { field: 'orders', operator: 'exists', where: amountIs(200) }
+          ]
+        }
+      });
+
+      expect(users.map(user => user.name)).toEqual([nameA]);
+      // 别名嵌入只为过滤而存在：响应里带回的嵌入行不进实体
+      expect(Object.keys(users[0])).not.toContain('orders__1');
+      expect(Object.keys(users[0])).not.toContain('orders__2');
+    });
   });
 });

@@ -7,6 +7,7 @@ import { EntityStaticType, getEntityMetadata, isRuleGroup, normalizeUpdateEntity
 
 import { SupabaseDataError } from './errors.js';
 import { assert_postgrest_ok } from './postgrest-error.js';
+import { assign_exists_aliases, type ExistsAliases } from './relation_embeds.js';
 import { apply_rule_group } from './rule_group_builder.js';
 import type { RxDBAdapterSupabase } from './RxDBAdapterSupabase.js';
 import { resolve_supabase_schema } from './schema.utils.js';
@@ -18,6 +19,40 @@ interface RepositoryRuleView {
   field: string;
   operator: string;
   where?: RepositoryRuleGroup;
+}
+
+/** select 里的一条关系嵌入：`<别名>:<表>[!<消歧>][!inner](*, <子嵌入>...)` */
+interface RelationEmbed {
+  readonly relationName: string;
+  /** 有任一 exists / 点路径要求它存在时为 inner；只有 notExists 用到时是左连接 */
+  inner: boolean;
+  /** 子嵌入，按别名索引 */
+  readonly children: Map<string, RelationEmbed>;
+}
+
+/** 取或建一条嵌入；同一别名被多处用到时只要有一处要求存在就是 inner */
+function ensure_embed(
+  embeds: Map<string, RelationEmbed>,
+  alias: string,
+  relationName: string,
+  inner: boolean
+): RelationEmbed {
+  const existing = embeds.get(alias);
+  if (existing) {
+    existing.inner ||= inner;
+    return existing;
+  }
+  const created: RelationEmbed = { relationName, inner, children: new Map() };
+  embeds.set(alias, created);
+  return created;
+}
+
+/** 点路径（`orders.items.sku`）沿途的每一跳都是以关系名命名的 inner 嵌入 */
+function collect_dotted_embeds(field: string, embeds: Map<string, RelationEmbed>): void {
+  let level = embeds;
+  for (const relationName of field.split('.').slice(0, -1)) {
+    level = ensure_embed(level, relationName, relationName, true).children;
+  }
 }
 
 /**
@@ -87,7 +122,12 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
     type FindOrder = NonNullable<EntityStaticType<T, 'findOptions'>['orderBy']>[number];
     const where = options.where as unknown as RepositoryRuleGroup;
 
-    const selectFields = this.buildSelectFields(where);
+    const embeds = this.relation_embeds(where);
+    const selectFields = this.select_expression('*', embeds);
+    // 与关系名不同的别名嵌入只为让同一关系上的几条 exists 各自独立而存在，带回的嵌入行不进实体
+    const filterOnlyKeys = new Set(
+      [...embeds].filter(([alias, embed]) => alias !== embed.relationName).map(([alias]) => alias)
+    );
 
     const build_query = () => {
       let query = this.get_client().select(selectFields);
@@ -132,7 +172,13 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
       }
     }
 
-    return rows.map((row: Record<string, unknown>) => transform_row_to_entity(this.EntityType, this.metadata, row));
+    return rows.map((row: Record<string, unknown>) =>
+      transform_row_to_entity(
+        this.EntityType,
+        this.metadata,
+        Object.fromEntries(Object.entries(row).filter(([key]) => !filterOnlyKeys.has(key)))
+      )
+    );
   }
 
   /**
@@ -253,14 +299,7 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
    * @returns 含关系嵌入的 PostgREST SELECT 表达式
    */
   buildSelectFields(where: RepositoryRuleGroup | undefined, fields: string = '*'): string {
-    const relationFields = this.extract_relation_fields(where);
-    if (relationFields.size === 0) return fields;
-
-    const paths = [...relationFields.keys()];
-    const deepestPaths = paths.filter(path => !paths.some(other => other !== path && other.startsWith(`${path}.`)));
-    return `${fields}, ${deepestPaths
-      .map(path => this.build_relation_select(path, relationFields.get(path) ?? true))
-      .join(', ')}`;
+    return this.select_expression(fields, this.relation_embeds(where));
   }
 
   // ============================================
@@ -290,54 +329,56 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
     return { ascending, nullsFirst: ascending };
   }
 
+  /** 根实体的列加上全部关系嵌入 */
+  private select_expression(fields: string, embeds: Map<string, RelationEmbed>): string {
+    return embeds.size === 0 ? fields : [fields, ...this.render_embeds(embeds, this.metadata)].join(', ');
+  }
+
   /**
-   * 提取查询中的关系字段路径（用于 EXISTS 查询的 INNER JOIN）
+   * 查询条件里的关系过滤需要的嵌入（用于 EXISTS 查询的 INNER JOIN），按别名索引
+   *
+   * @remarks
+   * 别名由 {@link assign_exists_aliases} 定：同一层里几条 exists 指向同一关系时各有各的嵌入，
+   * `apply_rule_group` 编译过滤时用的是同一份规划，挂过滤的路径与这里的嵌入一一对应。
+   */
+  private relation_embeds(where: RepositoryRuleGroup | undefined): Map<string, RelationEmbed> {
+    const embeds = new Map<string, RelationEmbed>();
+    this.collect_embeds(where, this.metadata, assign_exists_aliases(where), embeds);
+    return embeds;
+  }
+
+  /**
+   * 收集一层嵌入里的关系过滤
    *
    * @remarks
    * exists 的关系名按**当前层**实体解析：子条件属于关联实体，拿根实体去查第二层的关系名必然落空，
    * 那条嵌入就进不了 select，PostgREST 随即以「不是本次请求的嵌入资源」拒绝整个查询。
    */
-  private extract_relation_fields(ruleGroup: RepositoryRuleGroup | undefined): Map<string, boolean> {
-    const paths = new Map<string, boolean>();
-
-    const addPath = (path: string, inner: boolean) => {
-      if (inner || !paths.has(path)) {
-        paths.set(path, inner);
+  private collect_embeds(
+    ruleGroup: RepositoryRuleGroup | undefined,
+    metadata: EntityMetadata,
+    aliases: ExistsAliases,
+    embeds: Map<string, RelationEmbed>
+  ): void {
+    for (const rule of ruleGroup?.rules ?? []) {
+      if (isRuleGroup(rule)) {
+        this.collect_embeds(rule as unknown as RepositoryRuleGroup, metadata, aliases, embeds);
+        continue;
       }
-    };
-
-    const traverse = (rg: RepositoryRuleGroup | undefined, prefix: string, metadata: EntityMetadata) => {
-      if (!rg?.rules) return;
-
-      for (const rule of rg.rules) {
-        if (isRuleGroup(rule)) {
-          traverse(rule as unknown as RepositoryRuleGroup, prefix, metadata);
-          continue;
-        }
-
-        const ruleView = rule as unknown as RepositoryRuleView;
-        if (ruleView.field.includes('.')) {
-          // 点号字段：提取关系路径（不含最后的字段名）
-          const parts = ruleView.field.split('.');
-          for (let i = 1; i < parts.length; i++) {
-            const path = parts.slice(0, i).join('.');
-            addPath(prefix ? `${prefix}.${path}` : path, true);
-          }
-        } else if (ruleView.operator === 'exists' || ruleView.operator === 'notExists') {
-          const name = ruleView.field;
-          const currentPath = prefix ? `${prefix}.${name}` : name;
-          const relation = metadata.relationMap?.get(name);
-          if (!relation) continue;
-
-          addPath(currentPath, ruleView.operator === 'exists');
-          const related = this.related_metadata(relation);
-          if (ruleView.where && related) traverse(ruleView.where, currentPath, related);
-        }
+      const ruleView = rule as unknown as RepositoryRuleView;
+      if (ruleView.field.includes('.')) {
+        collect_dotted_embeds(ruleView.field, embeds);
+        continue;
       }
-    };
+      if (ruleView.operator !== 'exists' && ruleView.operator !== 'notExists') continue;
+      const relation = metadata.relationMap?.get(ruleView.field);
+      if (!relation) continue;
 
-    traverse(ruleGroup, '', this.metadata);
-    return paths;
+      const alias = aliases.get(rule) ?? ruleView.field;
+      const embed = ensure_embed(embeds, alias, ruleView.field, ruleView.operator === 'exists');
+      const related = this.related_metadata(relation);
+      if (ruleView.where && related) this.collect_embeds(ruleView.where, related, aliases, embed.children);
+    }
   }
 
   /**
@@ -352,102 +393,39 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
   }
 
   /**
-   * 构建关系字段的 SELECT 语法
-   * 支持嵌套路径：'orders.items' → Order!inner(*, OrderItem!inner(*))
+   * 拼一层嵌入的 SELECT 片段
+   * 支持嵌套：`orders` 下挂 `items` → `orders:order!inner(*, items:order_item!inner(*))`
    */
-  private build_relation_select(relationPath: string, inner: boolean): string {
-    const parts = relationPath.split('.');
-    if (parts.length === 1) return this.build_single_relation_select(parts[0], inner);
-
-    // 收集每层关系信息
-    const infos: Array<{
-      relationName: string;
-      targetTableName: string;
-      targetEntityName: string;
-      kind: string;
-      sourceEntityName: string;
-      sourceTableName: string;
-    }> = [];
-    let meta = this.metadata;
-
-    for (const name of parts) {
-      const rel = meta.relationMap?.get(name);
-      if (!rel) return `${name}(id)`;
-
-      const nextMeta = this.adapter.rxdb.schemaManager.getEntityMetadata(rel.mappedEntity, rel.mappedNamespace ?? '');
-
-      infos.push({
-        relationName: name,
-        targetTableName: nextMeta?.tableName ?? rel.mappedEntity,
-        targetEntityName: rel.mappedEntity,
-        kind: rel.kind,
-        sourceEntityName: meta.name,
-        sourceTableName: meta.tableName
-      });
-
-      if (nextMeta) meta = nextMeta;
-    }
-
-    // 从内向外构建嵌套 SELECT
-    let result = this.build_relation_segment(infos[infos.length - 1], inner);
-    for (let i = infos.length - 2; i >= 0; i--) {
-      const base = this.build_relation_segment(infos[i], inner);
-      result = base.replace('(*)', `(*, ${result})`);
-    }
-    return result;
+  private render_embeds(embeds: Map<string, RelationEmbed>, source: EntityMetadata | undefined): string[] {
+    return [...embeds].map(([alias, embed]) => this.render_embed(alias, embed, source));
   }
 
-  /**
-   * 构建单层关系 SELECT
-   * 根据关系类型生成正确的消歧语法
-   */
-  private build_single_relation_select(relationName: string, inner: boolean): string {
-    const rel = this.metadata.relationMap?.get(relationName);
-    if (!rel) return `${relationName}(id)`;
+  private render_embed(alias: string, embed: RelationEmbed, source: EntityMetadata | undefined): string {
+    const relation = source?.relationMap?.get(embed.relationName);
+    if (!source || !relation) return `${alias}(id)`;
 
-    const mappedMeta = this.adapter.rxdb.schemaManager.getEntityMetadata(rel.mappedEntity, rel.mappedNamespace ?? '');
-    const table = mappedMeta?.tableName ?? rel.mappedEntity;
-    const current = this.metadata.tableName;
-    const suffix = inner ? '!inner' : '';
-
-    // m:1 / 1:1：使用外键约束名消歧
-    if (rel.kind === 'm:1' || rel.kind === '1:1') {
-      const constraint = `${current}_${relationName}Id_fkey`.toLowerCase();
-      return `${relationName}:${table}!${constraint}${suffix}(*)`;
-    }
-
-    // m:n：使用中间表消歧
-    if (rel.kind === 'm:n') {
-      const joinTable = this.get_join_table_name(this.metadata.name, rel.mappedEntity);
-      return `${relationName}:${table}!${joinTable}${suffix}(*)`;
-    }
-
-    // 1:m：简单语法
-    return `${relationName}:${table}${suffix}(*)`;
+    const target = this.related_metadata(relation);
+    const children = this.render_embeds(embed.children, target);
+    const inner = embed.inner ? '!inner' : '';
+    return `${this.embed_head(alias, embed.relationName, relation, source, target)}${inner}(${['*', ...children].join(', ')})`;
   }
 
-  /** 构建关系 SELECT 片段 */
-  private build_relation_segment(
-    info: {
-      relationName: string;
-      targetTableName: string;
-      targetEntityName: string;
-      kind: string;
-      sourceEntityName: string;
-      sourceTableName: string;
-    },
-    inner: boolean
+  /** `<别名>:<表>[!<消歧>]`：m:1 / 1:1 用外键约束名、m:n 用中间表名消歧，1:m 不需要 */
+  private embed_head(
+    alias: string,
+    relationName: string,
+    relation: EntityRelationMetadata,
+    source: EntityMetadata,
+    target: EntityMetadata | undefined
   ): string {
-    const suffix = inner ? '!inner' : '';
-    if (info.kind === 'm:n') {
-      const joinTable = this.get_join_table_name(info.sourceEntityName, info.targetEntityName);
-      return `${info.relationName}:${info.targetTableName}!${joinTable}${suffix}(*)`;
+    const table = target?.tableName ?? relation.mappedEntity;
+    if (relation.kind === 'm:1' || relation.kind === '1:1') {
+      return `${alias}:${table}!${`${source.tableName}_${relationName}Id_fkey`.toLowerCase()}`;
     }
-    if (info.kind === 'm:1' || info.kind === '1:1') {
-      const constraint = `${info.sourceTableName}_${info.relationName}Id_fkey`.toLowerCase();
-      return `${info.relationName}:${info.targetTableName}!${constraint}${suffix}(*)`;
+    if (relation.kind === 'm:n') {
+      return `${alias}:${table}!${this.get_join_table_name(source.name, relation.mappedEntity)}`;
     }
-    return `${info.relationName}:${info.targetTableName}${suffix}(*)`;
+    return `${alias}:${table}`;
   }
 
   /** 获取 m:n 中间表名（按字母顺序） */

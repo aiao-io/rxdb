@@ -434,8 +434,8 @@ describe('apply_rule_group', () => {
     );
 
     expect(calls).toEqual([
-      { method: 'not', args: ['children', 'is', null] },
-      { method: 'is', args: ['children', null] }
+      { method: 'not', args: ['children__1', 'is', null] },
+      { method: 'is', args: ['children__2', null] }
     ]);
   });
 
@@ -789,5 +789,107 @@ describe('apply_rule_group', () => {
         { getEntityMetadata: vi.fn(() => child) } as unknown as SchemaManager
       )
     ).toThrow("Relation 'missing' not found in Child");
+  });
+});
+
+/**
+ * 同一层里两条显式 exists 指向同一关系时，SQLite / PGlite 各编一个独立的 EXISTS 子查询：
+ * 「存在一笔满足 A 的、也存在一笔满足 B 的」。PostgREST 把挂在同一条嵌入上的过滤当作对同一行的条件，
+ * 落到同一个嵌入就成了「存在一笔同时满足 A 与 B 的」，静默漏行。每条 exists 要有自己的嵌入别名。
+ */
+describe('independent exists rules on the same relation', () => {
+  const amountIs = (value: number): TestRule => ({ field: 'amount', operator: '=', value });
+
+  it('gives each exists on the same relation its own embed alias', () => {
+    const { proxy, calls } = recordingQuery();
+    const root = metadata('Root', [['orders', relation('Order')]]);
+
+    applyGroup(
+      proxy,
+      {
+        combinator: 'and',
+        rules: [
+          { field: 'orders', operator: 'exists', where: { combinator: 'and', rules: [amountIs(100)] } },
+          { field: 'orders', operator: 'exists', where: { combinator: 'and', rules: [amountIs(200)] } }
+        ]
+      },
+      root,
+      { getEntityMetadata: vi.fn(() => metadata('Order')) } as unknown as SchemaManager
+    );
+
+    expect(calls).toEqual([
+      { method: 'not', args: ['orders__1', 'is', null] },
+      { method: 'eq', args: ['orders__1.amount', 100] },
+      { method: 'not', args: ['orders__2', 'is', null] },
+      { method: 'eq', args: ['orders__2.amount', 200] }
+    ]);
+  });
+
+  it('keeps the relation name for a sole exists and for dotted paths, aliasing explicit exists beside them', () => {
+    const { proxy, calls } = recordingQuery();
+    const root = metadata('Root', [
+      ['orders', relation('Order')],
+      ['tags', relation('Tag')]
+    ]);
+
+    applyGroup(
+      proxy,
+      {
+        combinator: 'and',
+        rules: [
+          { field: 'orders.amount', operator: '=', value: 100 },
+          { field: 'orders', operator: 'exists', where: { combinator: 'and', rules: [amountIs(200)] } },
+          { field: 'tags', operator: 'exists' }
+        ]
+      },
+      root,
+      { getEntityMetadata: vi.fn(() => metadata('Order')) } as unknown as SchemaManager
+    );
+
+    expect(calls).toEqual([
+      { method: 'not', args: ['orders', 'is', null] },
+      { method: 'eq', args: ['orders.amount', 100] },
+      { method: 'not', args: ['orders__1', 'is', null] },
+      { method: 'eq', args: ['orders__1.amount', 200] },
+      { method: 'not', args: ['tags', 'is', null] }
+    ]);
+  });
+
+  it('aliases nested exists rules within their parent embed', () => {
+    const { proxy, calls } = recordingQuery();
+    const order = metadata('Order', [['items', relation('Item')]]);
+    const root = metadata('Root', [['orders', relation('Order')]]);
+    const getEntityMetadata = vi.fn((name: string) => (name === 'Order' ? order : metadata('Item')));
+    const skuIs = (value: string): TestRule => ({ field: 'sku', operator: '=', value });
+
+    applyGroup(
+      proxy,
+      {
+        combinator: 'and',
+        rules: [
+          {
+            field: 'orders',
+            operator: 'exists',
+            where: {
+              combinator: 'and',
+              rules: [
+                { field: 'items', operator: 'exists', where: { combinator: 'and', rules: [skuIs('A')] } },
+                { field: 'items', operator: 'exists', where: { combinator: 'and', rules: [skuIs('B')] } }
+              ]
+            }
+          }
+        ]
+      },
+      root,
+      { getEntityMetadata } as unknown as SchemaManager
+    );
+
+    expect(calls).toEqual([
+      { method: 'not', args: ['orders', 'is', null] },
+      { method: 'not', args: ['orders.items__1', 'is', null] },
+      { method: 'eq', args: ['orders.items__1.sku', 'A'] },
+      { method: 'not', args: ['orders.items__2', 'is', null] },
+      { method: 'eq', args: ['orders.items__2.sku', 'B'] }
+    ]);
   });
 });

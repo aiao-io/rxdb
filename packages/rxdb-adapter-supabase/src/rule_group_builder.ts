@@ -16,6 +16,7 @@ import {
   type Rule,
   type RuleGroup
 } from '@aiao/rxdb';
+import { assign_exists_aliases, type ExistsAliases } from './relation_embeds.js';
 
 // ============================================
 // 类型定义
@@ -244,6 +245,10 @@ function expand_dot_path(field: string, operator: string, value: unknown): Rule 
 
 /**
  * 应用 RuleGroup 到 Supabase Query Builder
+ *
+ * @remarks
+ * exists 落在哪个嵌入上（别名）由 {@link assign_exists_aliases} 按整份条件一次定下，与
+ * `SupabaseRepository.buildSelectFields` 拼 select 时用的是同一份规划。
  */
 export function apply_rule_group<T, TQuery>(
   query: TQuery,
@@ -251,33 +256,38 @@ export function apply_rule_group<T, TQuery>(
   metadata?: EntityMetadata,
   schemaManager?: SchemaManager
 ): TQuery {
-  const builder = query as unknown as SupabaseQueryBuilder;
-  if (!ruleGroup?.rules?.length) return query;
+  const context: CompileContext = { schemaManager, aliases: assign_exists_aliases(ruleGroup) };
+  return apply_group(query as unknown as SupabaseQueryBuilder, ruleGroup, metadata, context) as unknown as TQuery;
+}
 
-  // 单规则直接处理
-  if (ruleGroup.rules.length === 1) {
-    const rule = ruleGroup.rules[0];
-    const result =
-      isRuleGroup(rule) ?
-        apply_rule_group(builder, rule as unknown as RuleGroup<T>, metadata, schemaManager)
-      : apply_rule(builder, rule as Rule<T>, metadata, schemaManager);
-    return result as unknown as TQuery;
-  }
+/** 一次编译的上下文：解析关联实体元数据的 schemaManager，与本份条件里各条 exists 的嵌入别名 */
+interface CompileContext {
+  readonly schemaManager?: SchemaManager;
+  readonly aliases: ExistsAliases;
+}
 
-  // AND: 链式调用
-  if (ruleGroup.combinator === 'and') {
+function apply_group<T>(
+  builder: SupabaseQueryBuilder,
+  ruleGroup: RuleGroup<T>,
+  metadata: EntityMetadata | undefined,
+  context: CompileContext
+): SupabaseQueryBuilder {
+  if (!ruleGroup?.rules?.length) return builder;
+
+  // 单规则与 AND 都是逐条链式调用
+  if (ruleGroup.rules.length === 1 || ruleGroup.combinator === 'and') {
     return ruleGroup.rules.reduce(
       (q, rule) =>
         isRuleGroup(rule) ?
-          apply_rule_group(q, rule as unknown as RuleGroup<T>, metadata, schemaManager)
-        : apply_rule(q, rule as Rule<T>, metadata, schemaManager),
+          apply_group(q, rule as unknown as RuleGroup<T>, metadata, context)
+        : apply_rule(q, rule as Rule<T>, metadata, context),
       builder
-    ) as unknown as TQuery;
+    );
   }
 
   // OR: 构建过滤字符串
   const conditions = ruleGroup.rules.map(rule => emit_rule_node(rule as Rule<T> | RuleGroup<T>, metadata));
-  return builder.or(conditions.join(',')) as unknown as TQuery;
+  return builder.or(conditions.join(','));
 }
 
 // ============================================
@@ -288,19 +298,19 @@ export function apply_rule_group<T, TQuery>(
 function apply_rule<T>(
   query: SupabaseQueryBuilder,
   rule: Rule<T>,
-  metadata?: EntityMetadata,
-  schemaManager?: SchemaManager
+  metadata: EntityMetadata | undefined,
+  context: CompileContext
 ): SupabaseQueryBuilder {
   const { field, operator, value } = rule as RuleView;
 
-  // 点分路径 → 展开为 EXISTS
+  // 点分路径 → 展开为 EXISTS（展开出来的规则不在别名表里，落在以关系名命名的嵌入上）
   if (typeof field === 'string' && field.includes('.')) {
-    return apply_rule(query, expand_dot_path(field, operator, value), metadata, schemaManager);
+    return apply_rule(query, expand_dot_path(field, operator, value), metadata, context);
   }
 
   // EXISTS / NOT EXISTS（存在 / 不存在）
   if (operator === 'exists' || operator === 'notExists') {
-    return apply_exists_rule(query, rule, metadata, schemaManager);
+    return apply_exists_rule(query, rule, metadata, context);
   }
 
   // 普通字段
@@ -311,34 +321,29 @@ function apply_rule<T>(
 function apply_exists_rule<T>(
   query: SupabaseQueryBuilder,
   rule: Rule<T>,
-  metadata?: EntityMetadata,
-  schemaManager?: SchemaManager
+  metadata: EntityMetadata | undefined,
+  context: CompileContext
 ): SupabaseQueryBuilder {
   const { field, operator, where: whereCondition } = rule as RuleView;
   const relationName = String(field);
+  const embed = context.aliases.get(rule) ?? relationName;
 
   const relation = metadata?.relationMap?.get(relationName);
   if (!relation) {
     throw new Error(`Relation '${relationName}' not found in '${metadata?.name || 'unknown'}'`);
   }
 
-  const subMetadata = metadata ? get_relation_metadata(relation, schemaManager, metadata) : undefined;
+  const subMetadata = metadata ? get_relation_metadata(relation, context.schemaManager, metadata) : undefined;
   if (!subMetadata) throw new Error(`Cannot resolve metadata for '${relationName}'`);
 
   // 无 WHERE：简单的 EXISTS 检查
   if (!whereCondition?.rules?.length) {
-    return operator === 'exists' ? query.not(relationName, 'is', null) : query.is(relationName, null);
+    return operator === 'exists' ? query.not(embed, 'is', null) : query.is(embed, null);
   }
 
   assert_not_exists_without_where(operator, relationName);
 
-  return apply_nested_conditions(
-    query.not(relationName, 'is', null),
-    whereCondition,
-    subMetadata,
-    relationName,
-    schemaManager
-  );
+  return apply_nested_conditions(query.not(embed, 'is', null), whereCondition, subMetadata, embed, context);
 }
 
 /**
@@ -379,14 +384,14 @@ function assert_not_exists_without_where(operator: string, relationName: string)
  * OR 子句里只能写该关系自己的列，与顶层 OR 同一条限制：再嵌关系过滤由 {@link emit_rule_node}
  * 在发请求前显式拒绝。单条规则的 OR 组与 AND 等价，按 AND 挂。
  *
- * @param path - 嵌入路径，如 `posts`、`children.grandchildren`
+ * @param path - 嵌入路径（各段是嵌入别名），如 `posts`、`children.grandchildren`、`orders__2.items`
  */
 function apply_nested_conditions<T>(
   query: SupabaseQueryBuilder,
   where: RuleGroup<T>,
   metadata: EntityMetadata,
   path: string,
-  schemaManager?: SchemaManager
+  context: CompileContext
 ): SupabaseQueryBuilder {
   if (!where?.rules?.length) return query;
 
@@ -398,8 +403,8 @@ function apply_nested_conditions<T>(
   return where.rules.reduce(
     (result, rule) =>
       isRuleGroup(rule) ?
-        apply_nested_conditions(result, rule as unknown as RuleGroup<T>, metadata, path, schemaManager)
-      : apply_nested_rule(result, rule as Rule<T>, metadata, path, schemaManager),
+        apply_nested_conditions(result, rule as unknown as RuleGroup<T>, metadata, path, context)
+      : apply_nested_rule(result, rule as Rule<T>, metadata, path, context),
     query
   );
 }
@@ -410,7 +415,7 @@ function apply_nested_rule<T>(
   rule: Rule<T>,
   metadata: EntityMetadata,
   path: string,
-  schemaManager?: SchemaManager
+  context: CompileContext
 ): SupabaseQueryBuilder {
   const { field, operator, value, where: subWhere } = rule as RuleView;
   if (operator !== 'exists' && operator !== 'notExists') {
@@ -421,15 +426,15 @@ function apply_nested_rule<T>(
   const subRelation = metadata?.relationMap?.get(subRelationName);
   if (!subRelation) throw new Error(`Relation '${field}' not found in ${metadata.name}`);
 
-  const subPath = `${path}.${subRelationName}`;
+  const subPath = `${path}.${context.aliases.get(rule) ?? subRelationName}`;
   if (!subWhere?.rules?.length) {
     return operator === 'exists' ? query.not(subPath, 'is', null) : query.is(subPath, null);
   }
 
   // 嵌套层同样没有 anti-join 可用，理由见 assert_not_exists_without_where
   assert_not_exists_without_where(operator, subRelationName);
-  const subMeta = get_relation_metadata(subRelation, schemaManager, metadata);
-  return apply_nested_conditions(query.not(subPath, 'is', null), subWhere, subMeta, subPath, schemaManager);
+  const subMeta = get_relation_metadata(subRelation, context.schemaManager, metadata);
+  return apply_nested_conditions(query.not(subPath, 'is', null), subWhere, subMeta, subPath, context);
 }
 
 // ============================================
