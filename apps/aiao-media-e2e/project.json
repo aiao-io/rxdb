@@ -12,7 +12,8 @@
         "local-first-e2e",
         "provider-acceptance-fixture",
         "public-origin-smoke-fixture",
-        "actual-release-update-check"
+        "actual-release-update-check",
+        "desktop-ime-acceptance-check"
       ]
     },
     "typecheck": {
@@ -89,6 +90,22 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "node --test scripts/provider-acceptance.test.mjs",
+        "cwd": "apps/aiao-media-e2e"
+      }
+    },
+    "desktop-ime-acceptance": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets", "desktop-ime-acceptance-check"],
+      "options": {
+        "command": "node scripts/desktop-ime-acceptance.mjs",
+        "cwd": "apps/aiao-media-e2e"
+      }
+    },
+    "desktop-ime-acceptance-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test scripts/desktop-ime-acceptance.test.mjs",
         "cwd": "apps/aiao-media-e2e"
       }
     },
