@@ -307,7 +307,7 @@ class SupabaseTreeRepository<T> extends SupabaseRepository<T> {
 
 ### 直写事务（`mutations`）
 
-`mutations()` 把新增发到 `p_upserts`，修改发到 `p_updates`，在一个 RPC 事务里执行。修改使用普通 `UPDATE`，不再经过 INSERT 策略；`createdBy` 保持原值，`updatedBy` 使用当前用户。
+`mutations()` 把新增发到 `p_upserts`，修改发到 `p_updates`，在一个 RPC 事务里执行。修改使用普通 `UPDATE`，不再经过 INSERT 策略；`createdBy` 不下发、保持原值，`updatedBy` 使用当前用户（未设置 `context.userId` 时不注入审计字段，`createdBy` 同样不下发）。
 
 该批量直写路径没有逐列脏追踪：`id` 用于定位，序列化整实体中除 `createdBy` 外的其余列参与更新。推送路径则只发送变更列；两者都只更新载荷中出现的列。`mutations()` 通过 `UPDATE … RETURNING` 将服务器结果与新增行一起返回，调用方可从返回值读取 `updatedAt` 等服务器字段。UPDATE 被策略拒绝报 `42501`，目标行已不存在报 `RX001`；直写批次任一写入失败，整批回滚。
 
@@ -347,7 +347,7 @@ class SupabaseTreeRepository<T> extends SupabaseRepository<T> {
 
 ### 级联删除
 
-推送父行删除后，数据库按 `ON DELETE CASCADE` 实际删除的子行各有一条 DELETE 日志。同批已显式删除的子行沿用客户端日志与 `clientId + localId` 映射，RPC 不再追加重复的隐式日志；若子行先被 RLS 拒绝、随后被允许的父删除级联，最终回执按实际结果记为 `applied`。缺失的最终 DELETE 快照由被删行的 `OLD` 补齐，重试成功批次不重复记日志。
+推送父行删除后，数据库按 `ON DELETE CASCADE` 实际删除的子行各有一条 DELETE 日志。同批已显式删除的子行沿用客户端日志与 `clientId + localId` 映射，RPC 不再追加重复的隐式日志；显式删除与实际删除按 id 列类型的等值关系配对（与 DELETE 同一判据，uuid 大小写、`numeric` 的 `1` 与 `1.00` 认成同一行），并按分区根表归并，经分区根表或叶分区删除同样只记一条。若子行先被 RLS 拒绝、随后被允许的父删除级联，最终回执按实际结果记为 `applied`。最后一条显式 DELETE 的快照一律取被删行的 `OLD`（客户端 DELETE 的 `inversePatch` 不含 `id`，不能替代），重试成功批次不重复记日志。
 
 触发器先在事务上下文中捕获实际删除；RPC 将隐式 DELETE 追加在客户端源日志之后，统一写入。同批先新增或修改子行、再删父行时，其他端按 INSERT / UPDATE → 隐式 DELETE 的顺序拉取，最终子行不会被较晚的源日志复活；全部日志与业务写一同提交或回滚。
 

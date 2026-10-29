@@ -40,31 +40,29 @@ DECLARE
     v_val_new jsonb;
     v_val_old jsonb;
     v_branch_id text := 'main'; -- 默认为 main 分支
-    v_explicit_deletes jsonb;
-    v_entity_key text;
+    v_captured_deletes jsonb;
+    v_capture_key text;
 BEGIN
     IF pg_catalog.current_setting('rxdb.sync_enabled', true) = 'false' THEN
         IF TG_OP != 'DELETE' THEN
             RETURN NULL;
         END IF;
 
-        v_explicit_deletes := NULLIF(pg_catalog.current_setting('rxdb.explicit_deletes', true), '')::jsonb;
-        IF v_explicit_deletes IS NULL THEN
+        v_captured_deletes := NULLIF(pg_catalog.current_setting('rxdb.captured_deletes', true), '')::jsonb;
+        IF v_captured_deletes IS NULL THEN
             RETURN NULL;
         END IF;
 
-        -- 登记键按分区根计算：显式删除登记的是请求里的关系（可能是根表），叶分区触发时 TG_TABLE_NAME 是叶名
-        v_entity_key := pg_catalog.jsonb_build_array(
-          COALESCE(pg_catalog.pg_partition_root(TG_RELID::regclass)::oid, TG_RELID)::text, OLD.id::text
+        -- 推送事务内只捕获实际 DELETE，不写日志；哪些是客户端显式删的，由 rxdb_mutations 在业务写之后
+        -- 按 id 列类型的等值关系配对。键取分区根：叶分区触发时 TG_RELID 是叶，请求里的可能是根表
+        v_capture_key := pg_catalog.jsonb_build_array(
+            COALESCE(pg_catalog.pg_partition_root(TG_RELID::regclass)::oid, TG_RELID)::text, OLD.id::text
         )::text;
         PERFORM pg_catalog.set_config(
-            'rxdb.explicit_deletes',
-            pg_catalog.jsonb_set(v_explicit_deletes, ARRAY[v_entity_key],
-                COALESCE(v_explicit_deletes->v_entity_key, pg_catalog.jsonb_build_object('entityKey', NULL))
-                || pg_catalog.jsonb_build_object(
-                    'namespace', v_namespace, 'entity', v_entity, 'beforeData', pg_catalog.to_jsonb(OLD)
-                )
-            )::text,
+            'rxdb.captured_deletes',
+            pg_catalog.jsonb_set(v_captured_deletes, ARRAY[v_capture_key], pg_catalog.jsonb_build_object(
+                'namespace', v_namespace, 'entity', v_entity, 'beforeData', pg_catalog.to_jsonb(OLD)
+            ))::text,
             true
         );
         RETURN OLD;

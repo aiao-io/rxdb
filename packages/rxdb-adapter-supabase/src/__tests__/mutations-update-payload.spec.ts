@@ -83,27 +83,33 @@ describe('US-223 mutations() 的更新载荷', () => {
     expect(rpc).toHaveBeenCalledOnce();
   });
 
-  it('未设置身份时保持原实体的审计字段', async () => {
+  it('未设置身份时不注入审计字段，修改仍不下发 createdBy', async () => {
+    const created = todo({ title: 'no-user-created', createdBy: '00000000-0000-4000-8000-000000000003' });
     const updated = todo({
       title: 'no-user',
       createdBy: '00000000-0000-4000-8000-000000000001',
       updatedBy: '00000000-0000-4000-8000-000000000002'
     });
-    const { adapter, rpc } = createAdapter([{ ...updated }]);
+    const { adapter, rpc } = createAdapter([{ ...created }, { ...updated }]);
 
     await adapter.mutations({
-      create: new Map(),
+      create: new Map([[Todo, new Set([created])]]),
       update: new Map([[Todo, new Set([updated])]]),
       remove: new Map()
     });
 
+    const updatedWithoutCreator: Record<string, unknown> = { ...updated };
+    delete updatedWithoutCreator['createdBy'];
     expect(rpc).toHaveBeenCalledWith(
       'rxdb_mutations',
       expect.objectContaining({
-        p_upserts: [],
-        p_updates: [{ table: 'todos', schema: 'public', data: [updated] }]
+        p_upserts: [{ table: 'todos', schema: 'public', data: [created] }],
+        p_updates: [{ table: 'todos', schema: 'public', data: [updatedWithoutCreator] }]
       })
     );
+    const payload = rpc.mock.calls[0][1];
+    expect(payload.p_updates?.[0].data[0]).not.toHaveProperty('createdBy');
+    expect(updated.createdBy).toBe('00000000-0000-4000-8000-000000000001');
   });
 
   it('空批次不调用 RPC', async () => {

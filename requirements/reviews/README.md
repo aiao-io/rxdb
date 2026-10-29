@@ -1,17 +1,16 @@
 # AI Review 规则与记录
 
-这个目录存放 review 记录模板与**尚未处理**的问题报告。目前有 2 份待处理报告。
+这个目录存放 review 记录模板与**尚未处理**的问题报告。目前有 1 份待处理报告。
 
 ## 目录结构
 
 报告只留**尚未处理**的条目。复核确认已修、或判定不值得做的条目直接删除——修法与判据都写在代码注释里，报告再留一份副本只会与代码漂移。整份报告清空即删文件，删前在下方「清理记录」留一行。目录里除 `README.md` 与模板外没有文件，就是没有待处理项。
 
-| 路径                                                 | 说明                                               | 剩余项     |
-| ---------------------------------------------------- | -------------------------------------------------- | ---------- |
-| `README.md`                                          | 本说明、状态约定与清理记录                         | —          |
-| `review.template.md`                                 | 新建 review 记录的模板                             | —          |
-| `requirements-incomplete-stories-review.md`          | 未完成需求整体评审（不占 RV 编号）                 | 见报告正文 |
-| `codex-supabase-update-cascade-review-2026-10-29.md` | Supabase UPDATE / 级联删除分支评审（不占 RV 编号） | 1 P1、3 P2 |
+| 路径                                        | 说明                               | 剩余项     |
+| ------------------------------------------- | ---------------------------------- | ---------- |
+| `README.md`                                 | 本说明、状态约定与清理记录         | —          |
+| `review.template.md`                        | 新建 review 记录的模板             | —          |
+| `requirements-incomplete-stories-review.md` | 未完成需求整体评审（不占 RV 编号） | 见报告正文 |
 
 ## 状态约定
 
@@ -31,6 +30,8 @@
 ## 清理记录
 
 每条只记删了什么、结论是什么；修法细节在代码注释与回归测试里。删除前的完整记录（含逐条修法、执行台账、进度页与 `evidence/` 取证目录）可用 `git show aaf155a1:requirements/reviews/<路径>` 取回。
+
+- **2026-10-29（codex/supabase-update-cascade 两份分支评审删除）**：`codex-supabase-update-cascade-review-2026-10-29.md`（评审对象 `codex/supabase-update-cascade` @ `d73dbf6f`，1 P1 + 3 P2）与 `codex-supabase-update-cascade-branch-review.md`（同一 tip，1 P1 + 3 P3 + 1 观察项）逐条复核后删除。F-01 属实：DELETE 的 `inversePatch` 按协议不含 id，规范化阶段仅凭它非空就判了完整快照，RLS 隐藏的显式子行被允许的父删除级联后最终快照缺 id、按 id 过滤拉不到删除；改为该实体最后一条显式 DELETE 一律以触发器捕获的 `OLD` 为快照。F-02 / F-03 属实：触发器只按（分区根 oid，`OLD.id::text`）捕获实际删除，业务写之后再按 id 列类型的等值关系（与 DELETE 同一判据）把显式删除与捕获配对，`numeric(8,2)`、无修饰 `numeric` 存 `1.00` 而客户端发 `"1"`、经分区根表或叶分区的显式删除都不再追加隐式重复；比「按列类型修饰规范化文本」多覆盖了无修饰 numeric 这一同类反例，也不必新增公开函数。事务上下文随之改名 `rxdb.captured_deletes`。三个反例的回归在修复前的 02 / 04 上实测为红，评审原文的复现脚本修复后得到期望结果。F-04 与 P1-1 属实（同一问题）：merge 决议保留了 #168 之前的派生视图结构；重合 main 时 roadmap / status-overview / capability-matrix / epic-004 以 main 为底，只套 US-223/224 的状态、能力与交付行，数字经 `audit:requirements:update` 回写。P3-1 属实：未设置 `context.userId` 时直写修改仍下发 `createdBy`，与故事「`createdBy` 不下发」及 `SupabaseRepository.update` 不一致，改为修改载荷一律剥除（回归先红后绿）。P3-2 说法不实：`jsonb_object_agg` 撞键保留后一条、不报错（PG 17 实测）；改为等值配对后，同批两种 uuid 拼写的两条源日志都配到实际删除、都带真实 `OLD`。病态输入，不改 duplicate_write 的文本比较，判据写在配对处注释。P3-3 属实：RLS 复现 spec 的 afterAll 补清本 spec 两个实体的日志。观察项不修：直写删除零行静默成功是 US-218 起的既有语义，判据写在 `rxdb_mutations_apply_group` 注释。SQL 安全回归 39 个独立用例及 `all` 组合、适配器 43 个 spec / 630 条、lint / typecheck 通过。全文可用 `git show 70eafc06:requirements/reviews/<文件名>` 取回。
 
 - **2026-10-29（codex/fix-vue-detail-async 分支评审删除）**：`codex-fix-vue-detail-async-review-2026-10-29.md`（评审对象 `codex/fix-vue-detail-async` @ `8da92bb8`，2 P2 + 1 项既有缺口）逐条复核属实，全部修复后删除。F-01：保存成功只清掉仍与提交时一致的覆盖项，保存期间的新输入保留（独立表单续写同一字段的回归）。F-02：等待与加载失败时只隐藏保存、取消仍在，加载失败原因进错误面板（补上既有的无可见错误缺口；三种独立详情的回归）；重试按钮未做，属新能力。C-01：本分支新增的展示把委托表单的宿主 `formData` 显示出来、提交却不带，改为与 real spec 既有约定一致（委托提交只含用户输入），宿主初始值只在等待数据库期间显示；让三端委托提交带上预填属约定变更，未做。rxdb-model-vue 372 条、rxdb-vue 228 条通过，两包 lint（max-warnings 0）/ typecheck / build 通过。全文可用 `git show e5a280f3:requirements/reviews/codex-fix-vue-detail-async-review-2026-10-29.md` 取回。
 

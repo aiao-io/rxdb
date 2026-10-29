@@ -93,6 +93,13 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('US-223 mutations() 的 UPDATE �
   afterAll(async () => {
     const service = getSupabaseServiceRoleClient();
     for (const row of fixtureRows) await service.from(row.table).delete().eq('id', row.id);
+    // 两张夹具表挂着同步触发器，夹具写入、修改与上面的删除都记了日志；业务行删完再清，只清本 spec 的两个实体
+    const { error } = await service
+      .from('rxdb_change')
+      .delete()
+      .eq('namespace', 'public')
+      .in('entity', ['RlsMutationsOwner', 'RlsMutationsShared']);
+    if (error) throw new Error(`日志清理失败：${error.message}`);
   });
 
   it('owner 型 RLS 下更新自己的行，保留作者并返回数据库最终行', async () => {

@@ -5,7 +5,7 @@ status: In Review
 priority: High
 epic: epic-004-future-features
 created: 2026-10-27
-updated: 2026-10-28
+updated: 2026-10-29
 tags: [adapter, supabase, rls, mutations]
 ---
 
@@ -90,7 +90,8 @@ const upserts = [
 ## 技术笔记
 
 - 推送路径的 `p_updates` 只含 id、变化的列与 `updatedBy`；直写路径使用序列化后的整实体，不从缓存推导差异。
-  两条路径都不下发 `createdBy`，调用角色仍需目标表 UPDATE / SELECT 权限，并满足相应 RLS 策略。
+  两条路径都不下发 `createdBy`（直写未设置 `context.userId` 时同样剥除，只是不注入 `updatedBy`），
+  调用角色仍需目标表 UPDATE / SELECT 权限，并满足相应 RLS 策略。
 - `rxdb_execute_batch_update` 共用普通 UPDATE 与 denied / gone 判定，通过 `p_return_rows` 决定是否执行
   RETURNING，返回 `{updated, rows}`。`rxdb_batch_update_rows` 以 `SECURITY INVOKER` 调用返回行模式；
   原 `rxdb_batch_update` 调用无 RETURNING 模式，保留整数计数、原有列权限与 RLS 可见性语义。
@@ -104,17 +105,19 @@ const upserts = [
 
 ## 验证记录
 
-验证日期：2026-10-28。AC#1～7 全部通过，门禁通过、待评审；尚未合并，不标 Done。
+验证日期：2026-10-28，评审修复复验 2026-10-29。AC#1～7 全部通过，待评审；尚未合并，不标 Done。
 
 - 先写失败回归，再实现并转绿：直写载荷不再混入 upsert，owner / 共享编辑 RLS 正向修改、拒绝与已删除错误、整批回滚、`mutations()` 返回服务器最终行均有覆盖。列级 SELECT 权限回归同时验证原计数 UPDATE 不要求读取无关列。
 - 与 US-224 共同完成完整 affected 门禁：49 项任务、4 个受影响项目、36 项依赖任务全部通过。
 - Supabase 适配器 43 个 spec 文件、630 个用例通过；应用单测 50 个、本地模式 e2e 4 个、远端模式 e2e 4 个通过。
 - SQL 安全回归 36 个独立用例及 `all` 单事务组合全部通过；脚本套件已执行版本 489 个用例通过。
 - 适配器覆盖率：Lines 97.52%、Statements 96.65%、Functions 97.71%、Branches 88.20%，四项均达到 80% 门槛。
+- 评审修复（2026-10-29）：未设置 `context.userId` 时直写修改仍下发 `createdBy`，与本故事「`createdBy` 不下发」不符；`mutations-update-payload.spec.ts` 对应用例先红后绿，修改载荷不论有无身份都剥除 `createdBy`。RLS 复现 spec 的 afterAll 补清本 spec 两个实体的日志。适配器 43 个 spec 文件、630 个用例通过，覆盖率 Lines 97.53%、Statements 96.66%、Functions 97.71%、Branches 88.23%；SQL 安全回归 39 个独立用例及 `all` 组合通过；lint / typecheck 通过。
 
 ## 实现文件
 
 - `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts` — `mutations()` 的修改半边
+- `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.utils.ts` — 修改载荷不论有无身份都不下发 `createdBy`
 - `docker/sql/04-rxdb-utils-functions.sql` — UPDATE 返回行、兼容计数入口与事务结果汇总
 - `packages/rxdb-adapter-supabase/src/__tests__/mutations-update-rls-repro.spec.ts` — 复现用例翻成正向断言
 - `packages/rxdb-adapter-supabase/src/__tests__/mutations-update-payload.spec.ts` — INSERT / UPDATE 载荷拆分、完整结果与审计字段回归

@@ -423,12 +423,18 @@ ALTER TABLE rxdb_sql_regression.cascade_hidden_children ENABLE ROW LEVEL SECURIT
 CREATE POLICY cascade_hidden_insert ON rxdb_sql_regression.cascade_hidden_children
   FOR INSERT WITH CHECK (true);
 
--- 数值主键：numeric(8,2) 存的是 1.00，客户端按 "1" 删除（显式删除上下文按列精度登记）
+-- 数值主键：numeric(8,2) 存的是 1.00；无修饰的 numeric 按写入时的小数位存 1.00。客户端（JSON 数字）都按 "1" 删除，
+-- 显式删除与实际删除按 id 列类型的等值关系配对，不比文本
 CREATE TABLE rxdb_sql_regression.numeric_key_nodes (
   id numeric(8,2) PRIMARY KEY,
   value text NOT NULL
 );
 SELECT public.rxdb_enable_sync_for_table('numeric_key_nodes', 'rxdb_sql_regression', 'NumericKeyNode');
+CREATE TABLE rxdb_sql_regression.numeric_plain_key_nodes (
+  id numeric PRIMARY KEY,
+  value text NOT NULL
+);
+SELECT public.rxdb_enable_sync_for_table('numeric_plain_key_nodes', 'rxdb_sql_regression', 'NumericPlainKeyNode');
 
 -- 分区表：同步挂在根表上，叶分区的触发器由 PostgreSQL 克隆，TG_TABLE_NAME 是叶分区名
 CREATE TABLE rxdb_sql_regression.partitioned_key_nodes (
@@ -2860,7 +2866,7 @@ DECLARE
   suffix text;
   deletes jsonb;
   previous_sync text := COALESCE(pg_catalog.current_setting('rxdb.sync_enabled', true), '');
-  previous_deletes text := COALESCE(pg_catalog.current_setting('rxdb.explicit_deletes', true), '');
+  previous_deletes text := COALESCE(pg_catalog.current_setting('rxdb.captured_deletes', true), '');
 BEGIN
   FOREACH parent_first IN ARRAY ARRAY[true, false] LOOP
     suffix := CASE WHEN parent_first THEN 'parent-first' ELSE 'child-first' END;
@@ -2891,7 +2897,7 @@ BEGIN
   END LOOP;
   PERFORM rxdb_sql_regression.assert_true(
     COALESCE(pg_catalog.current_setting('rxdb.sync_enabled', true), '') = previous_sync
-      AND COALESCE(pg_catalog.current_setting('rxdb.explicit_deletes', true), '') = previous_deletes,
+      AND COALESCE(pg_catalog.current_setting('rxdb.captured_deletes', true), '') = previous_deletes,
     'mutation context must be restored before the next call in the same transaction'
   );
   INSERT INTO rxdb_sql_regression.cascade_parent_ids (id, value) VALUES ('after-cascade-push', 'native');
@@ -3139,7 +3145,7 @@ BEGIN
 END;
 $$;
 
--- numeric(8,2) 主键：客户端的 "1" 与存储的 1.00 是同一行，显式删除只记一条源日志，不再追加隐式日志
+-- 数值主键：客户端的 "1" 与存储的 1.00 是同一行（numeric(8,2) 与无修饰 numeric 都是），显式删除只记一条源日志，不再追加隐式日志
 CREATE FUNCTION rxdb_sql_regression.test_cascade_numeric_keys()
 RETURNS void
 LANGUAGE plpgsql
@@ -3168,6 +3174,26 @@ BEGIN
         WHERE namespace = 'rxdb_sql_regression' AND entity = 'NumericKeyNode' AND type = 'DELETE'
           AND "clientId" = 'sql-numeric-key' AND "localId" = 1 AND "snapshotComplete") = 1,
     'numeric key: one explicit delete must produce exactly one mapped complete DELETE, no implicit duplicate'
+  );
+
+  INSERT INTO rxdb_sql_regression.numeric_plain_key_nodes (id, value) VALUES (1.00, 'plain');
+  result := public.rxdb_mutations(
+    p_deletes => '[{"schema":"rxdb_sql_regression","table":"numeric_plain_key_nodes","ids":["1"]}]',
+    p_changes => '[{"namespace":"rxdb_sql_regression","entity":"NumericPlainKeyNode","schema":"rxdb_sql_regression",
+      "table":"numeric_plain_key_nodes","entityId":"1","type":"DELETE","inversePatch":{"value":"plain"},
+      "branchId":"main","clientId":"sql-numeric-plain-key","localId":1}]',
+    p_skip_sync => true,
+    p_receipts => true
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    result->'entity_results'->0->>'status' = 'applied'
+      AND (SELECT pg_catalog.count(*) FROM public.rxdb_change
+        WHERE namespace = 'rxdb_sql_regression' AND entity = 'NumericPlainKeyNode' AND type = 'DELETE') = 1
+      AND (SELECT pg_catalog.count(*) FROM public.rxdb_change
+        WHERE namespace = 'rxdb_sql_regression' AND entity = 'NumericPlainKeyNode' AND type = 'DELETE'
+          AND "clientId" = 'sql-numeric-plain-key' AND "localId" = 1
+          AND ("beforeData"->>'id')::numeric = 1) = 1,
+    'plain numeric key: "1" and stored 1.00 are one row, one mapped DELETE with the real OLD, no implicit duplicate'
   );
 END;
 $$;

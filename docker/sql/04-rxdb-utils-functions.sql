@@ -104,49 +104,6 @@ END;
 $$;
 
 /**
- * rxdb_id_column_type - 取业务表 id 列的完整类型文本（保留列类型修饰，如 numeric(8,2)）
- *
- * 显式删除登记映射时要按列精度规范化 id：数组 regtype 不带修饰，会把存储的 1.00 登记成 "1"，
- * 与触发器看到的 OLD.id::text 对不上。只读系统目录，与 rxdb_id_array_type 同一套校验。
- *
- * @param p_table 表名
- * @param p_schema schema 名称
- * @returns id 列的完整类型文本
- */
-CREATE OR REPLACE FUNCTION public.rxdb_id_column_type(
-  p_table text,
-  p_schema text
-)
-RETURNS text
-LANGUAGE plpgsql
-STABLE
-SECURITY INVOKER
-SET search_path = pg_catalog, pg_temp
-AS $$
-DECLARE
-  v_id_type text;
-BEGIN
-  SELECT pg_catalog.format_type(a.atttypid, a.atttypmod)
-  INTO v_id_type
-  FROM pg_catalog.pg_attribute AS a
-  JOIN pg_catalog.pg_class AS c ON c.oid = a.attrelid
-  JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
-  WHERE n.nspname = p_schema
-    AND c.relname = p_table
-    AND c.relkind IN ('r', 'p')
-    AND a.attname = 'id'
-    AND a.attnum > 0
-    AND NOT a.attisdropped;
-
-  IF v_id_type IS NULL THEN
-    RAISE EXCEPTION 'Missing id column: %.%', p_schema, p_table;
-  END IF;
-
-  RETURN v_id_type;
-END;
-$$;
-
-/**
  * rxdb_execute_batch_update - 共享 UPDATE 执行器，按需返回最终行
  *
  * 逐行执行普通 UPDATE，只 SET 该行出现的非 id 列；未出现的列保持原值。
@@ -610,7 +567,9 @@ BEGIN
     v_deleted := v_deleted_rows;
 
     -- 推送路径：少删的行若对探针仍存在，就是被行级权限拒绝，不能当成功（US-218 AC#1、AC#2）；
-    -- 已不存在的行按幂等成功处理。直写路径零行删除不触发日志触发器，不需要判定
+    -- 已不存在的行按幂等成功处理。直写路径零行删除不触发日志触发器，不需要判定——也因此直写删除
+    -- 不存在或被 RLS 滤掉的行静默成功，与直写 UPDATE 的 42501 / RX001 不对称；这是 US-218 起的既有语义，
+    -- 要改须连同 mutations() 的删除返回值一起定，不在 UPDATE 语义修复（US-223）里顺带收紧
     IF p_skip_sync AND v_deleted_rows < pg_catalog.cardinality(v_ids_array) THEN
       v_denied_ids := public.rxdb_existing_ids(p_table, p_schema, v_ids_array);
       IF pg_catalog.cardinality(v_denied_ids) > 0 THEN
@@ -957,39 +916,22 @@ DECLARE
   v_log_result jsonb;
   v_entity_results jsonb;
   v_previous_sync text := COALESCE(pg_catalog.current_setting('rxdb.sync_enabled', true), '');
-  v_previous_deletes text := COALESCE(pg_catalog.current_setting('rxdb.explicit_deletes', true), '');
+  v_previous_deletes text := COALESCE(pg_catalog.current_setting('rxdb.captured_deletes', true), '');
   v_explicit_deletes jsonb := '{}'::jsonb;
-  v_delete_group jsonb;
   v_delete_context jsonb;
+  v_root_captures jsonb;
+  v_group_matches jsonb;
+  v_group_keys text[];
+  v_matched_keys text[] := '{}'::text[];
   v_relation regclass;
   v_root_oid oid;
 BEGIN
   -- 0. 只读载荷校验配对，失败时快照、日志与业务表都还没动
   PERFORM public.rxdb_assert_push_integrity(p_upserts, p_deletes, p_changes, p_skip_sync, p_updates);
 
-  FOR op IN SELECT value FROM pg_catalog.jsonb_array_elements(p_deletes)
-  LOOP
-    schema_name := COALESCE(op->>'schema', 'public');
-    table_name := op->>'table';
-    -- 登记键与触发器的 (根表 oid, OLD.id::text) 一致：id 按列类型修饰规范化（1.00 不是 1），
-    -- 关系取分区根（叶分区删行时触发器看到的是叶名）。同一行以不同拼写（uuid 大小写）同批出现时键相同，
-    -- jsonb_object_agg 保留后一条——病态输入，回滚无损，不为此改校验规则
-    v_relation := pg_catalog.to_regclass(pg_catalog.format('%I.%I', schema_name, table_name));
-    v_root_oid := COALESCE(pg_catalog.pg_partition_root(v_relation), v_relation)::oid;
-    EXECUTE pg_catalog.format(
-      'SELECT COALESCE(pg_catalog.jsonb_object_agg(
-        pg_catalog.jsonb_build_array($4, (ids.value::%s)::text)::text,
-        pg_catalog.jsonb_build_object(
-          ''entityKey'', pg_catalog.jsonb_build_array($2, $3, ids.value)::text, ''beforeData'', NULL
-        )
-      ), ''{}''::jsonb) FROM pg_catalog.jsonb_array_elements_text($1) AS ids(value)',
-      public.rxdb_id_column_type(table_name, schema_name)
-    ) INTO v_delete_group USING op->'ids', schema_name, table_name, v_root_oid::text;
-    v_explicit_deletes := v_explicit_deletes || v_delete_group;
-  END LOOP;
-
   PERFORM pg_catalog.set_config('rxdb.sync_enabled', CASE WHEN p_skip_sync THEN 'false' ELSE 'true' END, true);
-  PERFORM pg_catalog.set_config('rxdb.explicit_deletes', CASE WHEN p_skip_sync THEN v_explicit_deletes::text ELSE '' END, true);
+  -- 推送路径打开删除捕获：同步触发器把实际 DELETE 的 OLD 收进事务上下文，业务写之后再与显式删除配对
+  PERFORM pg_catalog.set_config('rxdb.captured_deletes', CASE WHEN p_skip_sync THEN '{}' ELSE '' END, true);
 
   -- 1. 在实体操作前固化每条 change 的前后完整快照
   FOR op IN SELECT value FROM pg_catalog.jsonb_array_elements(p_changes)
@@ -1227,12 +1169,37 @@ BEGIN
     delete_count := delete_count + (v_group_result->>'deleted')::int;
   END LOOP;
 
+  -- 显式删除与捕获的实际删除按 id 列类型的等值配对，与 rxdb_batch_delete 的 id = ANY($1::类型[]) 同一判据：
+  -- uuid 大小写、numeric 的精度与小数位（"1" 与存储的 1.00）这类拼写差异都认成同一行，不比文本。
+  -- 只拿同一分区根的捕获来配——别的表的 id 文本未必能转成本表的类型。同一行以两种拼写同批列出时
+  -- 两条源日志都配到这一行；客户端按规范 id 推送不会出现，不为此把 duplicate_write 的文本比较改成按类型比较
+  v_delete_context := COALESCE(NULLIF(pg_catalog.current_setting('rxdb.captured_deletes', true), '')::jsonb, '{}'::jsonb);
+  FOR op IN SELECT value FROM pg_catalog.jsonb_array_elements(p_deletes) WHERE v_delete_context != '{}'::jsonb
+  LOOP
+    schema_name := COALESCE(op->>'schema', 'public');
+    table_name := op->>'table';
+    v_relation := pg_catalog.to_regclass(pg_catalog.format('%I.%I', schema_name, table_name));
+    v_root_oid := COALESCE(pg_catalog.pg_partition_root(v_relation), v_relation)::oid;
+    SELECT COALESCE(pg_catalog.jsonb_object_agg(key, value), '{}'::jsonb)
+    INTO v_root_captures
+    FROM pg_catalog.jsonb_each(v_delete_context)
+    WHERE (key::jsonb)->>0 = v_root_oid::text;
+    CONTINUE WHEN v_root_captures = '{}'::jsonb;
+
+    EXECUTE pg_catalog.format(
+      'SELECT COALESCE(pg_catalog.jsonb_object_agg(
+          pg_catalog.jsonb_build_array($2, $3, ids.value)::text, captured.value->''beforeData''), ''{}''::jsonb),
+        COALESCE(pg_catalog.array_agg(captured.key), ''{}''::text[])
+      FROM pg_catalog.jsonb_array_elements_text($1) AS ids(value)
+      JOIN pg_catalog.jsonb_each($4) AS captured(key, value)
+        ON (ARRAY[(captured.key::jsonb)->>1]::%1$s)[1] = (ARRAY[ids.value]::%1$s)[1]',
+      public.rxdb_id_array_type(table_name, schema_name)
+    ) INTO v_group_matches, v_group_keys USING op->'ids', schema_name, table_name, v_root_captures;
+    v_explicit_deletes := v_explicit_deletes || v_group_matches;
+    v_matched_keys := v_matched_keys || v_group_keys;
+  END LOOP;
+
   -- 显式删除可能先被拒绝，随后被同批允许的父行级联删除；以触发器捕获的真实结果为准。
-  v_delete_context := NULLIF(pg_catalog.current_setting('rxdb.explicit_deletes', true), '')::jsonb;
-  SELECT COALESCE(pg_catalog.jsonb_object_agg(value->>'entityKey', value->'beforeData'), '{}'::jsonb)
-  INTO v_explicit_deletes
-  FROM pg_catalog.jsonb_each(v_delete_context)
-  WHERE value->>'entityKey' IS NOT NULL AND pg_catalog.jsonb_typeof(value->'beforeData') = 'object';
   FOR v_rec IN
     SELECT key, value FROM pg_catalog.jsonb_each(v_explicit_deletes)
     WHERE pg_catalog.jsonb_typeof(value) = 'object'
@@ -1268,7 +1235,7 @@ BEGIN
   ) ORDER BY key), '[]'::jsonb)
   INTO v_changes_to_log
   FROM pg_catalog.jsonb_each(v_delete_context)
-  WHERE value->>'entityKey' IS NULL AND pg_catalog.jsonb_typeof(value->'beforeData') = 'object';
+  WHERE NOT (key = ANY(v_matched_keys));
 
   -- 落库交给 rxdb_insert_changes（SECURITY DEFINER）：生产权限下调用方没有 rxdb_change 写权限（US-218 阶段 C）
   IF pg_catalog.jsonb_array_length(v_changes_to_log) > 0 THEN
@@ -1288,7 +1255,7 @@ BEGIN
   END IF;
 
   PERFORM pg_catalog.set_config('rxdb.sync_enabled', v_previous_sync, true);
-  PERFORM pg_catalog.set_config('rxdb.explicit_deletes', v_previous_deletes, true);
+  PERFORM pg_catalog.set_config('rxdb.captured_deletes', v_previous_deletes, true);
 
   RETURN pg_catalog.jsonb_build_object(
     'upserted', upsert_results,
