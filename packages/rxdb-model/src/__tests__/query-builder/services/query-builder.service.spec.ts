@@ -5,6 +5,7 @@
 import { firstValueFrom, take, toArray } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { FieldMetadata } from '../../../query-builder/models/query-builder-state.js';
+import type { ValidationResult } from '../../../query-builder/models/validation.interface.js';
 import {
   QueryBuilderService,
   createQueryBuilderService
@@ -309,6 +310,74 @@ describe('QueryBuilderService', () => {
     });
   });
 
+  describe('setFields 与已订阅的校验结论', () => {
+    /** 持续订阅 validation$ / query$，记下每次发射。 */
+    function observe(target: QueryBuilderService) {
+      const validations: ValidationResult[] = [];
+      const queries: unknown[] = [];
+      const subscriptions = [
+        target.validation$.subscribe(result => validations.push(result)),
+        target.query$.subscribe(query => queries.push(query))
+      ];
+      return { validations, queries, stop: () => subscriptions.forEach(sub => sub.unsubscribe()) };
+    }
+
+    it('字段被撤下时订阅方立即拿到 fieldExists，恢复后立即转回合法；query$ 不发出新查询', () => {
+      service.addRule(null, { field: 'name' as keyof object, operator: '=', value: 'ok' });
+      const seen = observe(service);
+      expect(seen.validations.at(-1)?.valid).toBe(true);
+      const queryCount = seen.queries.length;
+
+      service.setFields([]);
+
+      expect(seen.validations.at(-1)?.valid).toBe(false);
+      expect(seen.validations.at(-1)?.errors).toEqual([expect.objectContaining({ field: 'name', rule: 'fieldExists' })]);
+      // 订阅方与直接 validate() 看到同一结论
+      expect(seen.validations.at(-1)).toEqual(service.validate());
+
+      service.setFields(testFields);
+
+      expect(seen.validations.at(-1)?.valid).toBe(true);
+      expect(seen.queries).toHaveLength(queryCount);
+      seen.stop();
+    });
+
+    it('字段类型变化时按新类型重算', () => {
+      service.addRule(null, { field: 'age' as keyof object, operator: '=', value: 18 });
+      const seen = observe(service);
+      expect(seen.validations.at(-1)?.valid).toBe(true);
+
+      service.setFields(testFields.map(field => (field.name === 'age' ? { ...field, type: 'string' } : field)));
+
+      expect(seen.validations.at(-1)?.errors).toEqual([expect.objectContaining({ field: 'age', rule: 'stringType' })]);
+      seen.stop();
+    });
+
+    it('枚举候选收窄后，已选值不在其中立即报错', () => {
+      const status: FieldMetadata = { name: 'status', type: 'enum', enum: ['draft', 'published'] };
+      const enumService = createQueryBuilderService({ fields: [status] });
+      enumService.addRule(null, { field: 'status' as keyof object, operator: '=', value: 'published' });
+      const seen = observe(enumService);
+      expect(seen.validations.at(-1)?.valid).toBe(true);
+
+      enumService.setFields([{ ...status, enum: ['draft'] }]);
+
+      expect(seen.validations.at(-1)?.errors).toEqual([expect.objectContaining({ field: 'status', rule: 'enumType' })]);
+      seen.stop();
+    });
+
+    it('换一份等价字段不重复发出校验结论', () => {
+      service.addRule(null, { field: 'name' as keyof object, operator: '=', value: 'ok' });
+      const seen = observe(service);
+      const emitted = seen.validations.length;
+
+      service.setFields(testFields.map(field => ({ ...field })));
+
+      expect(seen.validations).toHaveLength(emitted);
+      seen.stop();
+    });
+  });
+
   describe('destroy', () => {
     it('应该完成所有 Observable', () => {
       let completed = false;
@@ -319,6 +388,15 @@ describe('QueryBuilderService', () => {
       });
 
       service.destroy();
+      expect(completed).toBe(true);
+    });
+
+    it('validation$ 随服务一起结束', () => {
+      let completed = false;
+      service.validation$.subscribe({ complete: () => (completed = true) });
+
+      service.destroy();
+
       expect(completed).toBe(true);
     });
   });

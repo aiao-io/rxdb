@@ -2,7 +2,7 @@
  * @fileoverview Supabase Repository 实现
  */
 
-import type { EntityMetadata, EntityType, IRepository, RuleGroup } from '@aiao/rxdb';
+import type { EntityMetadata, EntityRelationMetadata, EntityType, IRepository, RuleGroup } from '@aiao/rxdb';
 import { EntityStaticType, getEntityMetadata, isRuleGroup, normalizeUpdateEntity, RepositoryBase } from '@aiao/rxdb';
 
 import { SupabaseDataError } from './errors.js';
@@ -290,7 +290,13 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
     return { ascending, nullsFirst: ascending };
   }
 
-  /** 提取查询中的关系字段路径（用于 EXISTS 查询的 INNER JOIN） */
+  /**
+   * 提取查询中的关系字段路径（用于 EXISTS 查询的 INNER JOIN）
+   *
+   * @remarks
+   * exists 的关系名按**当前层**实体解析：子条件属于关联实体，拿根实体去查第二层的关系名必然落空，
+   * 那条嵌入就进不了 select，PostgREST 随即以「不是本次请求的嵌入资源」拒绝整个查询。
+   */
   private extract_relation_fields(ruleGroup: RepositoryRuleGroup | undefined): Map<string, boolean> {
     const paths = new Map<string, boolean>();
 
@@ -300,12 +306,12 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
       }
     };
 
-    const traverse = (rg: RepositoryRuleGroup | undefined, prefix: string = '') => {
+    const traverse = (rg: RepositoryRuleGroup | undefined, prefix: string, metadata: EntityMetadata) => {
       if (!rg?.rules) return;
 
       for (const rule of rg.rules) {
         if (isRuleGroup(rule)) {
-          traverse(rule as unknown as RepositoryRuleGroup, prefix);
+          traverse(rule as unknown as RepositoryRuleGroup, prefix, metadata);
           continue;
         }
 
@@ -320,17 +326,29 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
         } else if (ruleView.operator === 'exists' || ruleView.operator === 'notExists') {
           const name = ruleView.field;
           const currentPath = prefix ? `${prefix}.${name}` : name;
+          const relation = metadata.relationMap?.get(name);
+          if (!relation) continue;
 
-          if (this.metadata.relationMap?.has(name)) {
-            addPath(currentPath, ruleView.operator === 'exists');
-          }
-          if (ruleView.where) traverse(ruleView.where, currentPath);
+          addPath(currentPath, ruleView.operator === 'exists');
+          const related = this.related_metadata(relation);
+          if (ruleView.where && related) traverse(ruleView.where, currentPath, related);
         }
       }
     };
 
-    traverse(ruleGroup);
+    traverse(ruleGroup, '', this.metadata);
     return paths;
+  }
+
+  /**
+   * 关系另一端实体的元数据；目标实体未注册时为 `undefined`。
+   *
+   * @remarks
+   * 解析不到就不再往下推嵌入路径，不拿当前层的元数据去猜：关系本身不存在的查询会在
+   * `apply_rule_group` 构造过滤时以「Relation not found」显式失败。
+   */
+  private related_metadata(relation: EntityRelationMetadata): EntityMetadata | undefined {
+    return this.adapter.rxdb.schemaManager.getEntityMetadata(relation.mappedEntity, relation.mappedNamespace ?? '');
   }
 
   /**

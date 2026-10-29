@@ -3,6 +3,7 @@ import { collectEmissions, createHarnessQueryTask, type HarnessTaskOptions } fro
 import { of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 import { merge_create as query_merge_create_cache_impl } from '../../query/merge_create.js';
+import { createTreeSqlScenario, type TreeSqlScenario } from './tree-sql-reference.js';
 
 describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
   class TestEntity {
@@ -960,46 +961,25 @@ describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
 
   describe('findAncestors - 查找祖先', () => {
     describe('高优先级场景 - 创建目标实体', () => {
-      it('应该在创建目标实体时将其添加到结果中', () => {
-        return new Promise<void>((done, reject) => {
-          // 场景：查询 id='3' 的祖先，初始结果为空
-          // 创建 id='3' 的节点本身
+      it('应该在创建目标实体时将其添加到结果中，库里已有的祖先回 SQL 补齐', () => {
+        // 场景：查询 id='3' 的祖先，3 还不存在（CTE 一行都没有）；它的父节点 2 与根 1 早已在库里。
+        // 3 新建后 SQL 返回整条链，而 2、1 从没进过结果集、也不在本批事件里，本地拼不出来，只能回 SQL
+        const scenario = createTreeSqlScenario(
+          TestEntity,
+          { type: 'findAncestors', options: { entityId: '3', where: { combinator: 'and', rules: [] } } },
+          [
+            { id: '1', name: 'root', parentId: null },
+            { id: '2', name: 'parent', parentId: '1' }
+          ]
+        );
+        const target = { id: '3', name: 'target', parentId: '2' };
 
-          const task = createMockQueryTask({
-            type: 'findAncestors',
-            options: {
-              entityId: '3',
-              where: { combinator: 'and', rules: [] }
-            },
-            runner: () => of([]) // 初始结果为空
-          });
+        scenario.rows.push(target);
+        query_merge_create_cache(scenario.task, [createMockEntityEvent(target)]);
 
-          const results = [
-            [],
-            // 创建目标实体后，它应该出现在结果中
-            [{ id: '3', name: 'target', parentId: '2' }]
-          ];
-          let resultIndex = 0;
-
-          task.result$.subscribe({
-            next: d => {
-              try {
-                expect(d).toEqual(results[resultIndex]);
-                resultIndex++;
-                if (resultIndex === 2) {
-                  done();
-                }
-              } catch (error) {
-                reject(error);
-              }
-            },
-            error: reject
-          });
-
-          // 创建目标实体本身
-          const targetNode = createMockEntityEvent({ id: '3', name: 'target', parentId: '2' });
-          query_merge_create_cache(task, [targetNode]);
-        });
+        expect(scenario.sqlRuns()).toBe(2);
+        expect(scenario.sql()).toHaveLength(3);
+        expect(scenario.live()).toEqual(scenario.sql());
       });
 
       it('应该在创建目标实体时，如果已有祖先也一起添加', () => {
@@ -1085,75 +1065,48 @@ describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
         });
       });
 
-      it('应该支持创建目标实体的同时创建新的祖先', () => {
-        return new Promise<void>((done, reject) => {
-          // 场景：同时创建 target 和它的 parent
+      it('应该支持创建目标实体的同时创建新的祖先，父链接上库里已有的根时回 SQL', () => {
+        // 场景：同批创建 target(3) 和它的 parent(2)，而 2 的父节点 1 早已在库里。
+        // 本批只认识 3、2 两行，走到 1 就断了，本地补不出 1，交回 SQL 重算
+        const scenario = createTreeSqlScenario(
+          TestEntity,
+          { type: 'findAncestors', options: { entityId: '3', where: { combinator: 'and', rules: [] } } },
+          [{ id: '1', name: 'root', parentId: null }]
+        );
+        const created = [
+          { id: '2', name: 'parent', parentId: '1' },
+          { id: '3', name: 'target', parentId: '2' }
+        ];
 
-          const task = createMockQueryTask({
+        scenario.rows.push(...created);
+        query_merge_create_cache(scenario.task, created.map(createMockEntityEvent));
+
+        expect(scenario.sqlRuns()).toBe(2);
+        expect(scenario.sql()).toHaveLength(3);
+        expect(scenario.live()).toEqual(scenario.sql());
+      });
+
+      it('目标实体是基准成员，不受 where 过滤：不匹配 where 的目标新建后同样进结果', () => {
+        const target = { id: '3', name: 'target', parentId: null, isActive: false };
+        const scenario = createTreeSqlScenario(
+          TestEntity,
+          {
             type: 'findAncestors',
             options: {
               entityId: '3',
-              where: { combinator: 'and', rules: [] }
-            },
-            runner: () => of([])
-          });
-
-          const results = [
-            [],
-            // 同时添加 target 和 parent
-            [
-              { id: '2', name: 'parent', parentId: '1' },
-              { id: '3', name: 'target', parentId: '2' }
-            ]
-          ];
-          let resultIndex = 0;
-
-          task.result$.subscribe({
-            next: d => {
-              try {
-                expect(d).toEqual(results[resultIndex]);
-                resultIndex++;
-                if (resultIndex === 2) {
-                  done();
-                }
-              } catch (error) {
-                reject(error);
-              }
-            },
-            error: reject
-          });
-
-          // 同时创建 target 和它的 parent
-          const newNodes = [
-            createMockEntityEvent({ id: '2', name: 'parent', parentId: '1' }),
-            createMockEntityEvent({ id: '3', name: 'target', parentId: '2' })
-          ];
-          query_merge_create_cache(task, newNodes);
-        });
-      });
-
-      it('应该支持 where 条件过滤创建的目标实体', () => {
-        const task = createMockQueryTask({
-          type: 'findAncestors',
-          options: {
-            entityId: '3',
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'isActive', operator: '=', value: true }]
+              where: { combinator: 'and', rules: [{ field: 'isActive', operator: '=', value: true }] }
             }
           },
-          runner: () => of([])
-        });
+          []
+        );
 
-        const expectedResult: TestEntityData[] = [];
+        scenario.rows.push(target);
+        query_merge_create_cache(scenario.task, [createMockEntityEvent(target)]);
 
-        const emissions = collectEmissions(task);
-
-        // 创建不满足 where 条件的目标实体
-        const targetNode = createMockEntityEvent({ id: '3', name: 'target', parentId: '2', isActive: false });
-        query_merge_create_cache(task, [targetNode]);
-
-        expect(emissions).toEqual([expectedResult]);
+        expect(scenario.sql()).toEqual([target]);
+        expect(scenario.live()).toEqual(scenario.sql());
+        // 目标挂在根上，祖先链本地即可算清，不必回 SQL
+        expect(scenario.sqlRuns()).toBe(1);
       });
     });
 
@@ -1451,6 +1404,150 @@ describe('query_merge_tree_create_cache - CREATE 事件的树形查询', () => {
           query_merge_create_cache(task, [parentNode]);
         });
       });
+    });
+  });
+
+  /**
+   * 基准成员（查全树时 `parentId` 为空的根、指定 `entityId` 时目标自己）在 SQL 里不过 where 也不过 level，
+   * 只有递归成员才过。新建的基准成员哪怕不匹配 where 也要即时进结果、进计数，否则活查询停在旧值，
+   * 直到别的事件把它拉回 SQL。runner 在内存表上按 `generate_tree_sql` 的口径重跑，见 `tree-sql-reference.ts`。
+   */
+  describe('新建基准成员：即时结果与重跑 SQL 一致', () => {
+    const activeOnly = {
+      combinator: 'and' as const,
+      rules: [{ field: 'active', operator: '=' as const, value: true }]
+    };
+
+    /** 先落表、再发 CREATE 事件，与「先提交、后发事件」同序 */
+    const insert = (scenario: TreeSqlScenario<TestEntityType>, ...rows: TestEntityData[]): void => {
+      scenario.rows.push(...rows);
+      query_merge_create_cache(scenario.task, rows.map(createMockEntityEvent));
+    };
+
+    it.each([undefined, 0])('findDescendants 全树（level=%s）：不匹配 where 的新根进结果', level => {
+      const root = { id: 'r', parentId: null, active: false };
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'findDescendants', options: { entityId: null, level, where: activeOnly } },
+        []
+      );
+
+      insert(scenario, root);
+
+      expect(scenario.sql()).toEqual([root]);
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it.each([undefined, 0])('countDescendants 全树（level=%s）：不匹配 where 的新根计入', level => {
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'countDescendants', options: { entityId: null, level, where: activeOnly } },
+        []
+      );
+
+      insert(scenario, { id: 'r', parentId: null, active: false });
+
+      expect(scenario.sql()).toBe(1);
+      expect(scenario.live()).toBe(1);
+    });
+
+    it('findAncestors 全树：新根不论是否匹配 where 都进结果，新建的非根不进', () => {
+      const roots = [
+        { id: 'a', parentId: null, active: true },
+        { id: 'r', parentId: null, active: false }
+      ];
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'findAncestors', options: { entityId: null, where: activeOnly } },
+        [roots[0]]
+      );
+
+      // 查全树的祖先：递归成员往上找不到东西，结果就是全部根
+      insert(scenario, roots[1], { id: 'c', parentId: 'a', active: true });
+
+      expect(scenario.sql()).toEqual(roots);
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it('countAncestors 全树：不匹配 where 的新根计入', () => {
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'countAncestors', options: { entityId: null, where: activeOnly } },
+        [{ id: 'a', parentId: null, active: true }]
+      );
+
+      insert(scenario, { id: 'r', parentId: null, active: false });
+
+      expect(scenario.sql()).toBe(2);
+      expect(scenario.live()).toBe(2);
+    });
+
+    it('findDescendants 显式目标：不匹配 where 的新目标连同同批匹配的子节点进结果', () => {
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'findDescendants', options: { entityId: 't', where: activeOnly } },
+        []
+      );
+
+      insert(scenario, { id: 't', parentId: null, active: false }, { id: 'c', parentId: 't', active: true });
+
+      expect(scenario.sql()).toHaveLength(2);
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it('findDescendants 全树：新根名下不匹配 where 的子节点截断它下面的孙节点', () => {
+      const root = { id: 'r', parentId: null, active: false };
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'findDescendants', options: { entityId: null, where: activeOnly } },
+        []
+      );
+
+      insert(scenario, root, { id: 'c', parentId: 'r', active: false }, { id: 'g', parentId: 'c', active: true });
+
+      expect(scenario.sql()).toEqual([root]);
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it.each([undefined, 0])('findAncestors 显式目标（level=%s）：新目标挂在已有父节点下，祖先链与 SQL 一致', level => {
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'findAncestors', options: { entityId: 't', level, where: activeOnly } },
+        [{ id: 'p', parentId: null, active: true }]
+      );
+
+      insert(scenario, { id: 't', parentId: 'p', active: false });
+
+      expect(scenario.sql()).toHaveLength(level === 0 ? 1 : 2);
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it('findAncestors 显式目标：父链在本批里被 where 截断时本地算清，不回 SQL', () => {
+      const target = { id: 't', parentId: 'p', active: false };
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'findAncestors', options: { entityId: 't', where: activeOnly } },
+        []
+      );
+
+      insert(scenario, { id: 'r', parentId: null, active: true }, { id: 'p', parentId: 'r', active: false }, target);
+
+      expect(scenario.sql()).toEqual([target]);
+      expect(scenario.live()).toEqual(scenario.sql());
+      expect(scenario.sqlRuns()).toBe(1);
+    });
+
+    it('countAncestors 显式目标：不匹配 where 的新目标挂在已有父节点下，计数回 SQL', () => {
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'countAncestors', options: { entityId: 't', where: activeOnly } },
+        [{ id: 'p', parentId: null, active: true }]
+      );
+
+      insert(scenario, { id: 't', parentId: 'p', active: false });
+
+      expect(scenario.sql()).toBe(1);
+      expect(scenario.live()).toBe(1);
     });
   });
 });

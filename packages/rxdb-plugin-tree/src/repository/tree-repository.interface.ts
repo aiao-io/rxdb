@@ -11,6 +11,11 @@ export interface FindTreeOptions<T extends EntityType = EntityType, WhereType = 
 
   /**
    * 查询条件
+   *
+   * @remarks
+   * 只筛递归展开出来的节点：起点（指定 `entityId` 时的当前节点、不指定时的所有根节点）不过 where，
+   * 也不受 `level` 限制。某一级不匹配就截断在那里，它名下的后代（`findAncestors` 是它上方的祖先）
+   * 即便自身匹配也不返回。实时查询的增量合并与 SQL 重查同口径。
    */
   where?: WhereType;
 

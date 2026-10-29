@@ -723,6 +723,140 @@ describe('QueryCacheEngine', () => {
         await expect(firstValueFrom(writeRepo.create(createdProduct))).rejects.toThrow('Local cache failed');
       });
     });
+
+    /**
+     * 同一 id 上先后发出的几次写，回执可能反序到达：网络滞留了先发出的那次，后发出的那次先落了缓存。
+     * 落缓存只认发出顺序 —— 比自己晚发出的写已经落过缓存，迟到的回执就不再写本地；后发出的写失败不占位；
+     * 不同 id 各记各的。每条用例里远端回执都由用例手动交付，不靠计时猜先后。
+     */
+    describe('回执反序到达时按发出顺序落缓存', () => {
+      const row = (id: string, name: string): MockProduct => ({ id, name, updatedAt: '2024-01-02T00:00:00Z' });
+
+      /** 下一次远端写返回一个由用例手动交付的回执 */
+      const holdNext = <R>(write: unknown): Subject<R> => {
+        const reply = new Subject<R>();
+        vi.mocked(write as (...args: unknown[]) => Observable<R>).mockReturnValueOnce(reply.asObservable());
+        return reply;
+      };
+
+      const deliver = <R>(reply: Subject<R>, value: R): void => {
+        reply.next(value);
+        reply.complete();
+      };
+
+      it('后发出的删除先落了缓存：先发出的更新回执迟到，不把已删行写回本地', async () => {
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
+        const updateReply = holdNext<MockProduct>(writeRemoteAdapter.update);
+        const updating = firstValueFrom(writeRepo.update('p1', { name: 'late' }));
+
+        await firstValueFrom(writeRepo.delete('p1'));
+        deliver(updateReply, row('p1', 'late'));
+
+        // 调用方照常拿到自己那次写的回执，只是它不再落缓存
+        await expect(updating).resolves.toEqual(row('p1', 'late'));
+        expect(writeLocalAdapter.deleteByIds).toHaveBeenCalledWith('Product', ['p1']);
+        expect(writeLocalAdapter.upsertMany).not.toHaveBeenCalled();
+      });
+
+      it('两次更新回执反序到达：本地停在后发出的那一次', async () => {
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
+        const firstReply = holdNext<MockProduct>(writeRemoteAdapter.update);
+        const secondReply = holdNext<MockProduct>(writeRemoteAdapter.update);
+        const first = firstValueFrom(writeRepo.update('p1', { name: 'first' }));
+        const second = firstValueFrom(writeRepo.update('p1', { name: 'second' }));
+
+        deliver(secondReply, row('p1', 'second'));
+        await second;
+        deliver(firstReply, row('p1', 'first'));
+        await first;
+
+        expect(vi.mocked(writeLocalAdapter.upsertMany).mock.calls).toEqual([['Product', [row('p1', 'second')]]]);
+      });
+
+      it('回执按发出顺序到达：两次都落缓存，后到的覆盖先到的', async () => {
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
+        const firstReply = holdNext<MockProduct>(writeRemoteAdapter.update);
+        const secondReply = holdNext<MockProduct>(writeRemoteAdapter.update);
+        const first = firstValueFrom(writeRepo.update('p1', { name: 'first' }));
+        const second = firstValueFrom(writeRepo.update('p1', { name: 'second' }));
+
+        deliver(firstReply, row('p1', 'first'));
+        await first;
+        deliver(secondReply, row('p1', 'second'));
+        await second;
+
+        expect(vi.mocked(writeLocalAdapter.upsertMany).mock.calls).toEqual([
+          ['Product', [row('p1', 'first')]],
+          ['Product', [row('p1', 'second')]]
+        ]);
+      });
+
+      it('后发出的删除被远端拒绝：先发出的更新回执照常落缓存', async () => {
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
+        const updateReply = holdNext<MockProduct>(writeRemoteAdapter.update);
+        vi.mocked(writeRemoteAdapter.delete!).mockReturnValueOnce(throwError(() => new Error('Unprocessable')));
+        const updating = firstValueFrom(writeRepo.update('p1', { name: 'kept' }));
+
+        await expect(firstValueFrom(writeRepo.delete('p1'))).rejects.toThrow('Unprocessable');
+        deliver(updateReply, row('p1', 'kept'));
+        await updating;
+
+        expect(writeLocalAdapter.deleteByIds).not.toHaveBeenCalled();
+        expect(writeLocalAdapter.upsertMany).toHaveBeenCalledWith('Product', [row('p1', 'kept')]);
+      });
+
+      it('不同 id 的写互不阻塞：回执反序到达时各自照常落缓存', async () => {
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
+        const slowReply = holdNext<MockProduct>(writeRemoteAdapter.update);
+        vi.mocked(writeRemoteAdapter.update!).mockReturnValueOnce(of(row('p2', 'fast')) as never);
+        const slow = firstValueFrom(writeRepo.update('p1', { name: 'slow' }));
+
+        await firstValueFrom(writeRepo.update('p2', { name: 'fast' }));
+        deliver(slowReply, row('p1', 'slow'));
+        await slow;
+
+        expect(vi.mocked(writeLocalAdapter.upsertMany).mock.calls).toEqual([
+          ['Product', [row('p2', 'fast')]],
+          ['Product', [row('p1', 'slow')]]
+        ]);
+      });
+
+      it('批量删除的回执迟到：只清掉仍由它领先的 id，后发出的写已落缓存的那个 id 不动', async () => {
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
+        const deleteReply = holdNext<void>(writeRemoteAdapter.delete);
+        vi.mocked(writeRemoteAdapter.update!).mockReturnValueOnce(of(row('p1', 'recreated')) as never);
+        const deleting = firstValueFrom(writeRepo.delete(['p1', 'p2']));
+
+        await firstValueFrom(writeRepo.update('p1', { name: 'recreated' }));
+        deliver(deleteReply, undefined);
+        await deleting;
+
+        expect(writeLocalAdapter.upsertMany).toHaveBeenCalledWith('Product', [row('p1', 'recreated')]);
+        expect(vi.mocked(writeLocalAdapter.deleteByIds).mock.calls).toEqual([['Product', ['p2']]]);
+      });
+
+      it('本地已经落定一次更晚的写（离线写）：此前在飞的在线回执不再落缓存', async () => {
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
+        const updateReply = holdNext<MockProduct>(writeRemoteAdapter.update);
+        const updating = firstValueFrom(writeRepo.update('p1', { name: 'late' }));
+
+        writeRepo.supersedeInflightWrites(['p1']);
+        deliver(updateReply, row('p1', 'late'));
+        await updating;
+
+        expect(writeLocalAdapter.upsertMany).not.toHaveBeenCalled();
+      });
+
+      it('本地落定的写只压住它之前发出的回执，之后发出的在线写照常落缓存', async () => {
+        const { writeRemoteAdapter, writeLocalAdapter, writeRepo } = createWriteAdapters();
+        writeRepo.supersedeInflightWrites(['p1']);
+        vi.mocked(writeRemoteAdapter.update!).mockReturnValueOnce(of(row('p1', 'after')) as never);
+
+        await firstValueFrom(writeRepo.update('p1', { name: 'after' }));
+
+        expect(writeLocalAdapter.upsertMany).toHaveBeenCalledWith('Product', [row('p1', 'after')]);
+      });
+    });
   });
 
   describe('Stale-While-Revalidate 模式 (T040-T041)', () => {

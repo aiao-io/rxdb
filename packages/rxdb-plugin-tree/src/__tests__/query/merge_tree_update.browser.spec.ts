@@ -3,6 +3,7 @@ import { collectEmissions, createHarnessQueryTask, type HarnessTaskOptions } fro
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { merge_update as query_merge_update_cache_impl } from '../../query/merge_update.js';
+import { createTreeSqlScenario, type TreeSqlScenario } from './tree-sql-reference.js';
 
 describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
   class TestEntity {
@@ -2302,6 +2303,83 @@ describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
       query_merge_update_cache(task, [createMockUpdateEvent({ id: '5', name: 'renamed' }, { id: '5', name: 'old' })]);
 
       expect(refresh).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * 查全树时基准成员是全部根，不过 where 也不过 level：节点改父跨进根层就连同名下子树进结果，
+   * 跨出根层且不匹配 where 就连同子树出结果，与它自己匹不匹配 where 无关。
+   * runner 在内存表上按 `generate_tree_sql` 的口径重跑，见 `tree-sql-reference.ts`。
+   */
+  describe('查全树时节点跨进 / 跨出根层：即时结果与重跑 SQL 一致', () => {
+    const activeOnly = {
+      combinator: 'and' as const,
+      rules: [{ field: 'active', operator: '=' as const, value: true }]
+    };
+    const types = ['findDescendants', 'countDescendants', 'countAncestors'] as const;
+
+    /** 先改表、再发 UPDATE 事件；补丁带整行，模拟身份缓存里已有该节点（门控能补齐前后态） */
+    const move = (scenario: TreeSqlScenario<TestEntityType>, id: string, parentId: string | null): void => {
+      const index = scenario.rows.findIndex(row => row.id === id);
+      const before = scenario.rows[index];
+      const after = { ...before, parentId };
+      scenario.rows.splice(index, 1, after);
+      query_merge_update_cache(scenario.task, [createMockUpdateEvent(after, before)]);
+    };
+
+    it.each(types)('%s：不匹配 where 的子节点挂到根上，连同子树进结果', type => {
+      const scenario = createTreeSqlScenario(TestEntity, { type, options: { entityId: null, where: activeOnly } }, [
+        { id: 'a', parentId: null, active: true },
+        { id: 'n', parentId: 'a', active: false },
+        { id: 'k', parentId: 'n', active: true }
+      ]);
+
+      move(scenario, 'n', null);
+
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it.each(types)('%s：不匹配 where 的根挂到别处，连同子树出结果', type => {
+      const scenario = createTreeSqlScenario(TestEntity, { type, options: { entityId: null, where: activeOnly } }, [
+        { id: 'a', parentId: null, active: true },
+        { id: 'r', parentId: null, active: false },
+        { id: 'k', parentId: 'r', active: true }
+      ]);
+
+      move(scenario, 'r', 'a');
+
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it('findDescendants：带 level 时匹配 where 的节点挂到根上，子树深度上移，回 SQL', () => {
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'findDescendants', options: { entityId: null, level: 1 } },
+        [
+          { id: 'a', parentId: null },
+          { id: 'n', parentId: 'a' },
+          { id: 'k', parentId: 'n' }
+        ]
+      );
+
+      move(scenario, 'n', null);
+
+      expect(scenario.sql()).toHaveLength(3);
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it('findDescendants：不带 where 也不带 level 时跨根层只是挪位置，本地算清', () => {
+      const scenario = createTreeSqlScenario(TestEntity, { type: 'findDescendants', options: { entityId: null } }, [
+        { id: 'a', parentId: null },
+        { id: 'n', parentId: 'a' },
+        { id: 'k', parentId: 'n' }
+      ]);
+
+      move(scenario, 'n', null);
+      move(scenario, 'a', 'k');
+
+      expect(scenario.live()).toEqual(scenario.sql());
+      expect(scenario.sqlRuns()).toBe(1);
     });
   });
 });

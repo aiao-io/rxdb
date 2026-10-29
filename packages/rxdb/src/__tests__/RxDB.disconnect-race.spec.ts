@@ -1,7 +1,9 @@
+import type { LifecycleScope } from '@aiao/utils';
 import { firstValueFrom } from 'rxjs';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, type Mock, vi } from 'vitest';
 import { SyncType } from '../entity/metadata-options.interface.js';
 import type { IRxDBAdapter } from '../rxdb-adapter.js';
+import type { IRxDBPlugin } from '../rxdb-plugin.js';
 import { RxDB } from '../RxDB.js';
 import { createMockAdapter, type MockLocalAdapter } from './fixtures/test-db-setup.js';
 
@@ -154,5 +156,102 @@ describe('RxDB 断连与在飞 connect 的仲裁', () => {
 
     await expect(database.connect('local')).resolves.toBe(adapter);
     expect(await firstValueFrom(database.connected$)).toBe(true);
+  });
+});
+
+/** 健康适配器 A 已连上、适配器 B 的工厂还没结算时开始拆卸的现场。 */
+interface PendingFactoryScene {
+  database: RxDB;
+  healthy: MockLocalAdapter;
+  /** 作用域型插件拿到的连接纪元作用域，按安装次序 */
+  scopes: LifecycleScope[];
+  /** 插件登记在作用域上的撤销条目 */
+  released: Mock<() => void>;
+  /** 让 B 的工厂以给定错误拒绝 */
+  failFactory: (error: Error) => void;
+  /** `getAdapter('pending')` 自己的结算结果（拒绝原因），免得成为未处理的拒绝 */
+  creating: Promise<unknown>;
+}
+
+const createPendingFactoryScene = async (): Promise<PendingFactoryScene> => {
+  const database = createDatabase();
+  const healthy = createMockAdapter(database);
+  const factory = Promise.withResolvers<IRxDBAdapter>();
+  database.adapter('local', () => healthy).adapter('pending', () => factory.promise);
+  const scopes: LifecycleScope[] = [];
+  const released = vi.fn<() => void>();
+  database.use(
+    (): IRxDBPlugin => ({
+      name: 'scoped-probe',
+      lifecycle: 'scoped',
+      install: scope => {
+        scopes.push(scope);
+        scope.acquire(() => released, 'probe');
+      }
+    })
+  );
+  await database.connect('local');
+  const creating = database.getAdapter('pending').then(
+    () => undefined,
+    (error: unknown) => error
+  );
+  return { database, healthy, scopes, released, failFactory: error => factory.reject(error), creating };
+};
+
+/**
+ * 拆卸要等在飞的工厂结算（否则它建出的实例没人关），但不能被它的失败拖垮：工厂拒绝只说明
+ * 那一个实例没建出来，已经连着的适配器、插件作用域照样要拆，错误留到拆完再交给调用方。
+ */
+describe('在飞适配器工厂失败时的全局拆卸', () => {
+  it('disconnectAll：仍断开健康适配器并释放插件作用域，工厂错误原样抛出，实例可重连', async () => {
+    const { database, healthy, scopes, released, failFactory, creating } = await createPendingFactoryScene();
+    const failure = new Error('factory failed');
+
+    const disconnecting = database.disconnectAll();
+    failFactory(failure);
+
+    await expect(disconnecting).rejects.toBe(failure);
+    expect(await creating).toBe(failure);
+    expect(healthy.disconnect).toHaveBeenCalledTimes(1);
+    expect(released).toHaveBeenCalledTimes(1);
+    expect(scopes.map(scope => scope.state)).toEqual(['disposed']);
+    expect(await firstValueFrom(database.connected$)).toBe(false);
+
+    // 停机走完才会复位成「可重新 init()」：重连装进的是全新纪元的作用域
+    await database.connect('local');
+    expect(scopes.map(scope => scope.state)).toEqual(['disposed', 'active']);
+  });
+
+  it('destroy：同样拆干净并抛出工厂错误，之后进入终态、重复销毁不再断开', async () => {
+    const { database, healthy, scopes, released, failFactory, creating } = await createPendingFactoryScene();
+    const failure = new Error('factory failed');
+
+    const destroying = database.destroy();
+    failFactory(failure);
+
+    await expect(destroying).rejects.toBe(failure);
+    expect(await creating).toBe(failure);
+    expect(healthy.disconnect).toHaveBeenCalledTimes(1);
+    expect(released).toHaveBeenCalledTimes(1);
+    expect(scopes.map(scope => scope.state)).toEqual(['disposed']);
+    expect(await firstValueFrom(database.connected$)).toBe(false);
+
+    // 终态不可逆：漏关的资源没有机会靠重试 destroy() 回收，所以第一次就必须拆干净
+    await expect(database.destroy()).resolves.toBeUndefined();
+    expect(healthy.disconnect).toHaveBeenCalledTimes(1);
+    await expect(database.connect('local')).rejects.toThrow(/destroyed/);
+  });
+
+  it('工厂失败与适配器断开失败并存时，抛出先结算的工厂错误', async () => {
+    const { database, healthy, failFactory, creating } = await createPendingFactoryScene();
+    const failure = new Error('factory failed');
+    healthy.disconnect.mockRejectedValueOnce(new Error('close failed'));
+
+    const disconnecting = database.disconnectAll();
+    failFactory(failure);
+
+    await expect(disconnecting).rejects.toBe(failure);
+    expect(await creating).toBe(failure);
+    expect(healthy.disconnect).toHaveBeenCalledTimes(1);
   });
 });

@@ -23,16 +23,16 @@ import {
   Component,
   computed,
   effect,
+  ErrorHandler,
   inject,
   input,
   linkedSignal,
   output,
   signal,
   untracked,
+  type EffectCleanupRegisterFn,
   type InputSignal
 } from '@angular/core';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { of, switchMap } from 'rxjs';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
 import { EntityFormComponent } from '../entity-form/rxdb-entity-form-angular';
 import { EntityListComponent } from '../entity-list/entity-list.component';
@@ -58,6 +58,26 @@ export interface EntityDetailDialogData {
 
 let nextDetailId = 0;
 
+/** 编辑目标：实体类、id、表单模式任一变化都是新目标（数据库经 DI 注入，组件生命周期内不变）。 */
+interface EditTarget {
+  readonly cls: EntityType | null;
+  readonly id: string | undefined;
+  readonly mode: FormMode;
+}
+
+/** 编辑目标的加载结果：实例与失败原因都只属于 `target`，目标一换即失效。 */
+interface EditLoad {
+  readonly target: EditTarget;
+  readonly instance: EntityInstance | null;
+  readonly error: string | null;
+}
+
+const sameEditTarget = (a: EditTarget, b: EditTarget): boolean => a.cls === b.cls && a.id === b.id && a.mode === b.mode;
+
+/** 加载失败：可读原因进错误面板（与保存失败同形）。 */
+const loadErrorMessage = (error: unknown): string =>
+  `加载失败：${error instanceof Error ? error.message : String(error)}`;
+
 /**
  * Tab 式实体详情组件：基础表单 Tab + 每个一对多/多对多关系一个表格 Tab；
  * create 模式先生成内存草稿实体，校验通过并保存时才落库；
@@ -75,6 +95,7 @@ export class EntityDetailComponent {
   readonly #dialogRef = inject(DialogRef, { optional: true });
   readonly #dialogData = inject(DIALOG_DATA, { optional: true }) as EntityDetailDialogData | null;
   readonly #rxdb = inject(RxDB, { optional: true }) as RxDB | null;
+  readonly #errorHandler = inject(ErrorHandler);
 
   /** 创建模式下的草稿实体实例（立即创建，不保存） */
   #draftEntity: EntityInstance | null = null;
@@ -118,19 +139,43 @@ export class EntityDetailComponent {
     return buildFormFields(meta, this.formModeValue);
   });
 
-  readonly #entityInstance = toSignal(
-    toObservable(
-      computed(() => ({
-        cls: this.#entityCls() ?? this.#entityClsFromDialog(),
-        id: this.entityId() ?? this.#dialogData?.entityId
-      }))
-    ).pipe(
-      switchMap(({ cls, id }) => {
-        if (!cls || !id || !this.#rxdb) return of(null);
-        return this.#rxdb.entityManager.getRepository(cls).get(id);
-      })
-    ),
-    { initialValue: null }
+  /** 当前编辑目标；字段都没变时保持同一个对象，加载结果凭对象身份认领目标。 */
+  readonly #editTarget = computed<EditTarget>(
+    () => ({
+      cls: this.#entityCls() ?? this.#entityClsFromDialog(),
+      id: this.entityId() ?? this.#dialogData?.entityId,
+      mode: this.formModeValue
+    }),
+    { equal: sameEditTarget }
+  );
+
+  /** 最近一次加载结果（带着所属目标），由加载 effect 写入。 */
+  readonly #editLoad = signal<EditLoad | null>(null);
+
+  /** 属于当前目标的加载结果：目标一变立即为空，不等旧查询退订、新查询发射。 */
+  readonly #currentLoad = computed<EditLoad | null>(() => {
+    const load = this.#editLoad();
+    return load?.target === this.#editTarget() ? load : null;
+  });
+
+  readonly #entityInstance = computed<EntityInstance | null>(() => this.#currentLoad()?.instance ?? null);
+
+  /**
+   * 编辑代次：目标切换与组件销毁（加载 effect 清理）、取消都推进。
+   * 异步保存收尾时代次未变、当前实例仍是提交的那一个，才关闭对话框、发事件、写错误面板；
+   * 目标切换后 effect 尚未重跑的空档里，`#entityInstance` 已经为空，同样判为过期。
+   */
+  #editGeneration = 0;
+
+  /** 加载失败原因（编辑实体查询报错）：实体未就绪期间只剩取消可用，原因需可见。 */
+  protected readonly loadError = computed<string | null>(() => this.#currentLoad()?.error ?? null);
+
+  /**
+   * 编辑目标未就绪（查询未发射或已失败）：拦截提交，表单内部动作隐藏，tabs 下方只留取消。
+   * 没有注入数据库时无从加载，`entityId` 只随表单数据透传，不算等待。
+   */
+  protected readonly isEditPending = computed(
+    () => this.#rxdb !== null && !this.isCreateMode() && !!this.#editTarget().id && this.#entityInstance() === null
   );
 
   // 路由参数输入（与 namespace/name/entityId 路由参数绑定）
@@ -191,7 +236,7 @@ export class EntityDetailComponent {
 
   /** 父实体（草稿或已保存实例），用于关系 tab 的 entity-list */
   readonly parentEntityForRelation = computed<EntityInstance | null>(() => {
-    return this.draftEntitySignal() ?? (this.#entityInstance() as EntityInstance | null) ?? null;
+    return this.draftEntitySignal() ?? this.#entityInstance();
   });
 
   /** 弹框标题 */
@@ -298,6 +343,11 @@ export class EntityDetailComponent {
       const cls = this.#entityClsFromDialog();
       untracked(() => this.#ensureDraftEntity(mode, delegateSave, cls));
     });
+    // edit 模式按目标加载实例：目标一变（或组件销毁）先作废旧会话、退订旧查询，再订阅新目标
+    effect(onCleanup => {
+      const target = this.#editTarget();
+      untracked(() => this.#loadEditTarget(target, onCleanup));
+    });
   }
 
   selectTab(key: string): void {
@@ -322,12 +372,14 @@ export class EntityDetailComponent {
   }
 
   onFormSubmitted(data: EntityFormData): void {
+    // 表单内部动作已隐藏，回车仍会提交：目标未就绪时既不能写旧实例，也不能当成透传成功
+    if (this.isEditPending()) return;
     // create 模式与无实例（纯表单数据透传）保持 delegate 语义：只 emit 由宿主处理
     if (this.isCreateMode()) {
       this.formSubmitted.emit(data);
       return;
     }
-    const inst = this.#entityInstance() as EntityInstance | null;
+    const inst = this.#entityInstance();
     if (!inst) {
       this.formSubmitted.emit(data);
       return;
@@ -335,16 +387,24 @@ export class EntityDetailComponent {
     // edit 模式内部保存：变更应用到已加载实例并落库，成功后关闭对话框并通知宿主
     const changes = formDataToEntityChanges(inst as Record<string, unknown>, data, this.formFieldsValue);
     Object.assign(inst as Record<string, unknown>, changes);
+    const generation = this.#editGeneration;
+    // 保存期间切了目标、取消或销毁：迟到的结果属于旧视图，不再关闭对话框、发事件或写错误面板
+    const isCurrent = (): boolean => generation === this.#editGeneration && this.#entityInstance() === inst;
     inst
       .save()
       .then(() => {
+        if (!isCurrent()) return;
         this.#dialogRef?.close('saved');
         this.formSubmitted.emit(data);
       })
-      .catch(e => this.saveError.set(this.#saveErrorMessage(e)));
+      .catch(e => {
+        if (!isCurrent()) return;
+        this.saveError.set(this.#saveErrorMessage(e));
+      });
   }
 
   onFormCancelled(): void {
+    this.#editGeneration++;
     this.#cleanupDraftEntity();
     this.formCancelled.emit();
     this.#dialogRef?.close();
@@ -437,6 +497,35 @@ export class EntityDetailComponent {
     this.#draftEntity = draft;
     this.draftEntitySignal.set(draft);
     this.draftFormData.set(entityToFormData(draft as Record<string, unknown>, fields));
+  }
+
+  /**
+   * 订阅编辑目标的实体查询，结果带着目标写回。
+   *
+   * @remarks 目标切换或组件销毁时由 effect 清理推进代次并退订；迟到的旧结果即便写回，
+   * 也因目标身份不符不会显示或被保存。查询失败只记在本目标名下，已加载的实例保留（与 Vue 端一致），
+   * 原因进错误面板。
+   */
+  #loadEditTarget(target: EditTarget, onCleanup: EffectCleanupRegisterFn): void {
+    onCleanup(() => this.#editGeneration++);
+    const rxdb = this.#rxdb;
+    const { cls, id } = target;
+    if (!rxdb || !cls || !id) return;
+    const subscription = rxdb.entityManager
+      .getRepository(cls)
+      .get(id)
+      .subscribe({
+        next: instance => this.#editLoad.set({ target, instance: instance as EntityInstance, error: null }),
+        error: (error: unknown) => {
+          this.#errorHandler.handleError(error);
+          this.#editLoad.update(load => ({
+            target,
+            instance: load?.target === target ? load.instance : null,
+            error: loadErrorMessage(error)
+          }));
+        }
+      });
+    onCleanup(() => subscription.unsubscribe());
   }
 
   /** 将表单数据同步到草稿实体 */

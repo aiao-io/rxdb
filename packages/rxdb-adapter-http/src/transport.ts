@@ -71,6 +71,8 @@ interface ConditionalCallContext {
   operation: string;
   /** 实体名；两个条件操作都由实体驱动，恒有值 */
   entityName?: string;
+  /** 请求登记进合流表时的代次；结算时已不是当前代次的响应不进缓存 */
+  generation: number;
 }
 
 /**
@@ -129,6 +131,40 @@ const joinUrl = (baseUrl: string, url: string): string => {
     return url;
   }
   return `${baseUrl.replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`;
+};
+
+/**
+ * 宿主解析相对地址用的基准，与 `fetch` / `EventSource` 自己用的是同一个。
+ *
+ * @remarks
+ * 窗口里是文档基准地址（`<base href>` 生效，不是 `location.href`），Worker 里没有 `document`，
+ * 基准是脚本地址 `location.href`。两者都没有的宿主（node 等）返回 `undefined`：那里没有「同源」可言。
+ */
+const hostBaseUrl = (): string | undefined => globalThis.document?.baseURI ?? globalThis.location?.href;
+
+/**
+ * 拼接请求地址，并在有页面的宿主里补成绝对地址。
+ *
+ * @remarks
+ * 普通请求与变更通知通道**唯一**的地址出口：两边各判一套「什么地址算合法」，同源相对 `baseUrl`
+ * 就会出现「请求能发、开了 SSE 整个适配器构造失败」的分裂。补全之后两边的判据都只剩
+ * `URL.canParse(url)` 一条。
+ *
+ * 已经是绝对地址的原样返回，不经 `new URL()` 规范化：发出去的字节、错误里的地址和条件请求的指纹
+ * 都该是接入方写下的那一个。补不全时也原样返回拼接结果，由调用方按各自阶段报错——请求期是
+ * `HttpRequestBuildError`，通知通道是构造期的 `HttpConfigError`；这里抛错就得替两边选一个错误类型。
+ *
+ * @param baseUrl - 适配器配置的基地址
+ * @param url - handler 或 `changeFeed` 给的地址：绝对 URL，或相对 `baseUrl` 的路径
+ * @returns 绝对地址；当前宿主解析不了时为拼接结果本身
+ */
+const resolveRequestUrl = (baseUrl: string, url: string): string => {
+  const joined = joinUrl(baseUrl, url);
+  if (URL.canParse(joined)) {
+    return joined;
+  }
+  const base = hostBaseUrl();
+  return base !== undefined && URL.canParse(joined, base) ? new URL(joined, base).href : joined;
 };
 
 /** 取错误的可读消息，非 Error 值也要有输出 */
@@ -258,16 +294,18 @@ const assertMethodAllowsBody = (method: string, body: string | undefined, operat
  * 拼出来的地址必须解析得了。
  *
  * @remarks
- * 与上面同一条理由，只是入口不同：`baseUrl: 'api'` 拼出 `api/items`，`fetch` 抛
+ * 与上面同一条理由，只是入口不同：node 里 `baseUrl: 'api'` 拼出 `api/items`，`fetch` 抛
  * `TypeError('Failed to parse URL from api/items')`，一样被读成离线。构造期的
  * `assertBaseUrl` 只查非空——它拦不住这条，因为**浏览器里相对 `baseUrl` 是合法的**，
  * 一刀切会砍掉同源部署这种最常见的用法。
  *
- * 所以判在这里，且以 `location` 为基准兜第二次：有 `location` 的宿主（浏览器）里
- * `/api/items` 解析得了，没有的宿主（node）里解析不了——两边的答案各自都正确。
+ * 浏览器里的相对地址已经由 {@link resolveRequestUrl} 按页面补成绝对地址，所以这里只剩
+ * 一条判据：补全之后仍不是绝对地址，就是当前宿主里解析不了——两种宿主的答案各自都正确。
+ *
+ * @param url - {@link resolveRequestUrl} 的产出
  */
 const assertResolvableUrl = (url: string, operation: string): void => {
-  if (URL.canParse(url) || (globalThis.location !== undefined && URL.canParse(url, globalThis.location.href))) {
+  if (URL.canParse(url)) {
     return;
   }
   throw new HttpRequestBuildError('url', operation, `"${url}" is not a parsable URL`);
@@ -390,7 +428,9 @@ export class HttpTransport {
     }
     // 指纹读的就是要发出去的那份字节，不再单独 stringify 一次
     const key = requestFingerprint(prepared.method, prepared.url, prepared.body, prepared.variant);
-    return cache.singleFlight(key, () => this.#sendJsonConditional(cache, key, prepared, { operation, entityName }));
+    return cache.singleFlight(key, generation =>
+      this.#sendJsonConditional(cache, key, prepared, { operation, entityName, generation })
+    );
   }
 
   /**
@@ -402,6 +442,18 @@ export class HttpTransport {
    */
   clearConditionalCache(): void {
     this.#conditional?.clear();
+  }
+
+  /**
+   * 远端状态可能已经变了：此后发起的条件读不再合流到此前发出的在飞请求。
+   *
+   * @remarks
+   * 由适配器在写请求结算、变更通道报失效时调用。合流跳过了服务端，并进一个在飞请求就等于
+   * 拿它发出那一刻的快照——写确认之后再拿写之前的快照，就是「刚写完读回旧值」。
+   * 未启用条件请求时是 no-op：没有合流，也就没有可作废的代次。
+   */
+  markRemoteChanged(): void {
+    this.#conditional?.advanceGeneration();
   }
 
   /**
@@ -433,11 +485,12 @@ export class HttpTransport {
    * 把请求描述里的相对 URL 拼成最终地址。
    *
    * @remarks
-   * 给 `isTableExisted` 用：它按状态码自己分流，抛错时要能报出和其他路径**一致**的 URL。
+   * 给 `isTableExisted` 与变更通知通道用：前者按状态码自己分流，抛错时要能报出和其他路径
+   * **一致**的 URL；后者的 SSE 地址必须与普通请求按同一套规则补全（见 {@link resolveRequestUrl}）。
    * 让调用方自己拼一遍，两处规则迟早分叉。
    */
   resolveUrl(spec: HttpRequestSpec): string {
-    return joinUrl(this.options.baseUrl, spec.url);
+    return resolveRequestUrl(this.options.baseUrl, spec.url);
   }
 
   /**
@@ -533,7 +586,7 @@ export class HttpTransport {
     // auth 在 fetch 之前：hook 抛错则请求不发出，且错误原样上抛不被包装——
     // 包成 NetworkOfflineError 会让 token 过期被 offlineFallback 吞成缓存命中
     const headers = await this.buildHeaders(spec);
-    const url = joinUrl(this.options.baseUrl, spec.url);
+    const url = this.resolveUrl(spec);
     const body = serializeBody(spec.body, operation);
     assertResolvableUrl(url, operation);
     assertMethodAllowsBody(spec.method, body, operation);
@@ -645,6 +698,10 @@ export class HttpTransport {
    * @remarks
    * 从 {@link #sendJsonConditional} 里拆出来纯为压嵌套：`consume` 回调本身已经占掉一层，
    * 内联写下去 `if (etag === null)` 就是第四层。
+   *
+   * 请求发出之后代次推进过（写已结算、远端报了失效），这份响应就可能是变更之前的快照：
+   * 照常交给发起它的调用方，但**不碰条目**——写进去会盖掉新一代请求刚存下的 ETag，
+   * 停发 ETag 那一支的删除同理，删掉的可能正是新一代的条目。
    */
   async #cacheAndReturn(
     cache: ConditionalRequestCache,
@@ -654,6 +711,9 @@ export class HttpTransport {
     ctx: ConditionalCallContext
   ): Promise<unknown> {
     const value = await decodeJson(response, url);
+    if (!cache.isCurrentGeneration(ctx.generation)) {
+      return value;
+    }
     const etag = response.headers.get('etag');
     if (etag === null) {
       // 远端停发 ETag：留着旧条目就是拿一个再也换不到 304 的令牌去问，

@@ -6,7 +6,7 @@ import {
   StorageOfflineError
 } from '../errors.js';
 import { createOpfsStorageFilesystem } from '../filesystem/opfs-filesystem.js';
-import type { StorageFilesystemFactory } from '../filesystem/storage-filesystem.js';
+import type { StorageFilesystem, StorageFilesystemFactory } from '../filesystem/storage-filesystem.js';
 import { ObjectUrlRegistry } from '../object-url.js';
 import {
   getDirectoryPathFromOpfsPath,
@@ -836,6 +836,187 @@ describe('RxdbFileStorage', () => {
       expect(await (await service.read(guidesEntries[0].meta.id)).text()).toBe('guide');
     }
     expectNoTemporaryEntries();
+  });
+
+  /**
+   * 不支持原生目录 move 时的复制式重命名：复制、改 meta 都成功之后，递归删源目录半途失败。
+   *
+   * `StorageFilesystem.removeDirectory` 只承诺递归删除与不存在时幂等，没有失败原子性 —— 删掉一部分再抛错是合法的。
+   * 那时目标里复制出来的才是唯一完整的副本，撤回绝不能先把它删掉。
+   */
+  describe('复制式目录重命名：删源目录半途失败', () => {
+    const removalError = (): Error => new Error('recursive removal interrupted');
+
+    /**
+     * 浏览器 OPFS 后端，只在第一次递归删 `failingPath` 时先跑 `partial`（删掉一部分）再抛错；
+     * `failRestoreUnder` 给了的话，之后往这个前缀下打开写句柄一律失败（源目录补不回来）。
+     */
+    const interruptedRemoval =
+      (options: {
+        failingPath: string;
+        partial: (filesystem: StorageFilesystem) => Promise<void>;
+        error: Error;
+        failRestoreUnder?: string;
+      }): StorageFilesystemFactory =>
+      (rootDir, context) => {
+        const base = createOpfsStorageFilesystem(rootDir, context);
+        let interrupted = false;
+        const overrides: Partial<StorageFilesystem> = {
+          removeDirectory: async (directoryPath: string) => {
+            if (interrupted || directoryPath !== options.failingPath) return base.removeDirectory(directoryPath);
+            interrupted = true;
+            await options.partial(base);
+            throw options.error;
+          },
+          openWrite: async (filePath: string) => {
+            const restoring = interrupted && options.failRestoreUnder !== undefined;
+            if (restoring && filePath.startsWith(options.failRestoreUnder!)) {
+              throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+            }
+            return base.openWrite(filePath);
+          }
+        };
+        return new Proxy(base, {
+          get(target, property) {
+            if (Object.hasOwn(overrides, property)) return overrides[property as keyof StorageFilesystem];
+            const value: unknown = Reflect.get(target, property, target);
+            return typeof value === 'function' ? value.bind(target) : value;
+          }
+        });
+      };
+
+    /** 源目录 /docs：顶层两份、一层子目录、再深一层 */
+    const seedDocs = async (service: ReturnType<typeof createService>['service']) => [
+      await service.upload(new File(['alpha'], 'a.txt'), { path: '/docs' }),
+      await service.upload(new File(['bravo'], 'b.txt'), { path: '/docs' }),
+      await service.upload(new File(['charlie'], 'c.txt'), { path: '/docs/nested' }),
+      await service.upload(new File(['delta'], 'd.txt'), { path: '/docs/nested/deep' })
+    ];
+
+    const expectEveryFileReadable = async (
+      service: ReturnType<typeof createService>['service'],
+      metas: ReadonlyArray<{ id: string }>,
+      expected: Record<string, string>
+    ) => {
+      const actual: Record<string, string> = {};
+      for (const meta of metas) {
+        const current = (await service.list()).find(candidate => candidate.id === meta.id);
+        if (!current) throw new Error(`metadata ${meta.id} disappeared`);
+        actual[current.opfsPath] = await (await service.read(meta.id)).text();
+      }
+      expect(actual).toEqual(expected);
+    };
+
+    const ORIGINAL = {
+      'docs/a.txt': 'alpha',
+      'docs/b.txt': 'bravo',
+      'docs/nested/c.txt': 'charlie',
+      'docs/nested/deep/d.txt': 'delta'
+    };
+
+    it.each([
+      ['删掉第一个文件之后', (filesystem: StorageFilesystem) => filesystem.removeFile('docs/a.txt')],
+      [
+        '删掉一个中间子目录之后',
+        async (filesystem: StorageFilesystem) => {
+          await filesystem.removeFile('docs/a.txt');
+          await filesystem.removeDirectory('/docs/nested');
+        }
+      ],
+      [
+        '子项全删完、最后移除目录本身时',
+        async (filesystem: StorageFilesystem) => {
+          await filesystem.removeFile('docs/a.txt');
+          await filesystem.removeFile('docs/b.txt');
+          await filesystem.removeDirectory('/docs/nested');
+        }
+      ]
+    ] as const)('%s失败：先用目标副本补齐源目录，再撤回目标与 meta，每个文件仍在原路径可读', async (_label, partial) => {
+      const error = removalError();
+      const { service } = createService({
+        filesystem: interruptedRemoval({ failingPath: '/docs', partial, error })
+      });
+      const metas = await seedDocs(service);
+
+      await expect(service.renameDirectory('/docs', 'guides')).rejects.toBe(error);
+
+      await expectEveryFileReadable(service, metas, ORIGINAL);
+      expect(await service.listEntries()).toEqual([{ kind: 'directory', name: 'docs', path: '/docs' }]);
+      expectNoTemporaryEntries();
+    });
+
+    it('源目录补不回来：完整副本原样留在目标、meta 指向它，错误点名目标路径', async () => {
+      const error = removalError();
+      const { service } = createService({
+        filesystem: interruptedRemoval({
+          failingPath: '/docs',
+          partial: filesystem => filesystem.removeFile('docs/a.txt'),
+          error,
+          failRestoreUnder: 'docs/'
+        })
+      });
+      const metas = await seedDocs(service);
+
+      const thrown = await service.renameDirectory('/docs', 'guides').catch((reason: unknown) => reason);
+
+      expect(thrown).toBeInstanceOf(AggregateError);
+      expect((thrown as AggregateError).errors[0]).toBe(error);
+      expect((thrown as AggregateError).message).toContain('/guides');
+      await expectEveryFileReadable(service, metas, {
+        'guides/a.txt': 'alpha',
+        'guides/b.txt': 'bravo',
+        'guides/nested/c.txt': 'charlie',
+        'guides/nested/deep/d.txt': 'delta'
+      });
+    });
+
+    it('覆盖已有目标时删源半途失败：源补齐之后，被覆盖的旧目标连同它的 meta 从备份还原', async () => {
+      const error = removalError();
+      const { service } = createService({
+        filesystem: interruptedRemoval({
+          failingPath: '/docs',
+          partial: filesystem => filesystem.removeFile('docs/a.txt'),
+          error
+        })
+      });
+      const metas = await seedDocs(service);
+      const previousTarget = [
+        await service.upload(new File(['old guide'], 'a.txt'), { path: '/guides' }),
+        await service.upload(new File(['old only'], 'old.txt'), { path: '/guides/archive' })
+      ];
+
+      await expect(service.renameDirectory('/docs', 'guides', { overwrite: true })).rejects.toBe(error);
+
+      await expectEveryFileReadable(service, metas, ORIGINAL);
+      await expectEveryFileReadable(service, previousTarget, {
+        'guides/a.txt': 'old guide',
+        'guides/archive/old.txt': 'old only'
+      });
+      expectNoTemporaryEntries();
+    });
+
+    it('覆盖已有目标时源也补不回来：被覆盖的旧目标留在备份目录里，错误点名它', async () => {
+      const error = removalError();
+      const { service } = createService({
+        filesystem: interruptedRemoval({
+          failingPath: '/docs',
+          partial: filesystem => filesystem.removeFile('docs/a.txt'),
+          error,
+          failRestoreUnder: 'docs/'
+        })
+      });
+      await seedDocs(service);
+      await service.upload(new File(['old guide'], 'a.txt'), { path: '/guides' });
+
+      const thrown = await service.renameDirectory('/docs', 'guides', { overwrite: true }).catch((reason: unknown) => reason);
+
+      const storageRoot = rootHandle.directories.get('files');
+      const backupName = [...(storageRoot?.directories.keys() ?? [])].find(name => name.startsWith('.rxdb-storage-'));
+      expect(backupName).toBeDefined();
+      expect((thrown as AggregateError).message).toContain(`/${backupName}`);
+      const backupFile = await storageRoot?.directories.get(backupName!)?.files.get('a.txt')?.getFile();
+      expect(await backupFile?.text()).toBe('old guide');
+    });
   });
 
   it('should clear all files when no path given', async () => {

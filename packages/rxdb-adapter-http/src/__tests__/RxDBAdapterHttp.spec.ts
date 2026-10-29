@@ -428,6 +428,159 @@ describe('conditionalRequests 开关接线（AC#28）', () => {
 });
 
 /**
+ * 条件请求的合流只能把**同一时刻**的读并成一个请求（AC#28）。
+ *
+ * @remarks
+ * 写已结算之后发起的读若并进写之前发出的在飞请求，拿回的是写前快照，而且一个请求都不上线。
+ * 核心查询层自己的代次守卫拦不住这一条：新一代的远端调用在 HTTP 这一层又被并回了旧请求。
+ */
+describe('写之后发起的读不合流到写之前的在飞请求（AC#28）', () => {
+  interface PendingCall {
+    url: string;
+    init: RequestInit;
+    respond: (response: Response) => void;
+  }
+
+  /** 每个请求都挂起，由用例决定何时、以什么交付 */
+  const deferredNetwork = (): PendingCall[] => {
+    const calls: PendingCall[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init: RequestInit) => new Promise<Response>(respond => calls.push({ url, init, respond })))
+    );
+    return calls;
+  };
+
+  const handlers: HttpHandlers = { ...minimalHandlers, ...writeHandlers };
+
+  const connectWithWrites = (): Promise<RxDBAdapterHttp> => createAdapter({ conditionalRequests: true, handlers });
+
+  const etagged = (body: unknown, etag: string): Response =>
+    new Response(JSON.stringify(body), { status: 200, headers: { etag } });
+
+  /** 发起写、交付回执、等它结算 */
+  const settleWrite = async (calls: PendingCall[], written: Promise<unknown>, receipt: Response): Promise<void> => {
+    const index = calls.length;
+    await vi.waitFor(() => expect(calls).toHaveLength(index + 1));
+    calls[index].respond(receipt);
+    await written;
+  };
+
+  const writes: [string, (adapter: RxDBAdapterHttp) => Promise<unknown>, () => Response][] = [
+    [
+      'create',
+      adapter => firstValueFrom(adapter.create!('HttpRecipe', { id: 'b', title: 'new' })),
+      () => json({ id: 'b' })
+    ],
+    [
+      'update',
+      adapter => firstValueFrom(adapter.update!('HttpRecipe', 'a', { title: 'new' })),
+      () => json({ id: 'a', title: 'new' })
+    ],
+    [
+      'delete',
+      adapter => firstValueFrom(adapter.delete!('HttpRecipe', ['a'])),
+      () => new Response(null, { status: 204 })
+    ]
+  ];
+
+  it.each(writes)('%s 结算之后的 findByIds 真的上线，写前发出的请求只交给写前的调用方', async (_, write, receipt) => {
+    const calls = deferredNetwork();
+    const adapter = await connectWithWrites();
+    const before = firstValueFrom(adapter.findByIds('HttpRecipe', ['a']));
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+
+    await settleWrite(calls, write(adapter), receipt());
+
+    const after = firstValueFrom(adapter.findByIds('HttpRecipe', ['a']));
+    await vi.waitFor(() => expect(calls).toHaveLength(3));
+    calls[0].respond(json([{ id: 'a', title: 'old' }]));
+    calls[2].respond(json([{ id: 'a', title: 'new' }]));
+    await expect(before).resolves.toEqual([{ id: 'a', title: 'old' }]);
+    await expect(after).resolves.toEqual([{ id: 'a', title: 'new' }]);
+  });
+
+  it('update 结算之后的 fetchMetadata 同样不并进写前的在飞请求', async () => {
+    const calls = deferredNetwork();
+    const adapter = await connectWithWrites();
+    const before = firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+
+    await settleWrite(calls, firstValueFrom(adapter.update!('HttpRecipe', 'a', { title: 'new' })), json({ id: 'a' }));
+
+    const after = firstValueFrom(adapter.fetchMetadata('HttpRecipe', ALL));
+    await vi.waitFor(() => expect(calls).toHaveLength(3));
+    const fresh = { id: 'a', updatedAt: '2026-08-23T11:00:00.000Z' };
+    calls[0].respond(json([meta('a')]));
+    calls[2].respond(json([fresh]));
+    await expect(before).resolves.toEqual([meta('a')]);
+    await expect(after).resolves.toEqual([fresh]);
+  });
+
+  it('写失败同样推进代次：客户端看到的失败不代表服务端没提交', async () => {
+    const calls = deferredNetwork();
+    const adapter = await connectWithWrites();
+    const before = firstValueFrom(adapter.findByIds('HttpRecipe', ['a']));
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+
+    const written = firstValueFrom(adapter.update!('HttpRecipe', 'a', { title: 'new' }));
+    await vi.waitFor(() => expect(calls).toHaveLength(2));
+    calls[1].respond(json({ message: 'gateway timeout' }, 504));
+    await expect(written).rejects.toBeInstanceOf(HttpResponseError);
+
+    const after = firstValueFrom(adapter.findByIds('HttpRecipe', ['a']));
+    await vi.waitFor(() => expect(calls).toHaveLength(3));
+    calls[0].respond(json([{ id: 'a', title: 'old' }]));
+    calls[2].respond(json([{ id: 'a', title: 'new' }]));
+    await before;
+    await expect(after).resolves.toEqual([{ id: 'a', title: 'new' }]);
+  });
+
+  it('同一代次的并发读照旧合流；旧请求结算不摘掉新一代的在飞记录', async () => {
+    const calls = deferredNetwork();
+    const adapter = await connectWithWrites();
+    const stale = firstValueFrom(adapter.findByIds('HttpRecipe', ['a']));
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    await settleWrite(calls, firstValueFrom(adapter.update!('HttpRecipe', 'a', { title: 'new' })), json({ id: 'a' }));
+
+    const fresh = firstValueFrom(adapter.findByIds('HttpRecipe', ['a']));
+    await vi.waitFor(() => expect(calls).toHaveLength(3));
+    calls[0].respond(json([{ id: 'a', title: 'old' }]));
+    await stale;
+
+    const joined = firstValueFrom(adapter.findByIds('HttpRecipe', ['a']));
+    // 让后来的读先走到合流表：它若另起请求，此刻已经上线
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(calls).toHaveLength(3);
+    calls[2].respond(json([{ id: 'a', title: 'new' }]));
+    await expect(fresh).resolves.toEqual([{ id: 'a', title: 'new' }]);
+    await expect(joined).resolves.toEqual([{ id: 'a', title: 'new' }]);
+  });
+
+  it('写之前发出的请求晚到，不覆盖写之后存下的 ETag', async () => {
+    const calls = deferredNetwork();
+    const adapter = await connectWithWrites();
+    const stale = firstValueFrom(adapter.findByIds('HttpRecipe', ['a']));
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    await settleWrite(calls, firstValueFrom(adapter.update!('HttpRecipe', 'a', { title: 'new' })), json({ id: 'a' }));
+
+    const fresh = firstValueFrom(adapter.findByIds('HttpRecipe', ['a']));
+    await vi.waitFor(() => expect(calls).toHaveLength(3));
+    calls[2].respond(etagged([{ id: 'a', title: 'new' }], '"new"'));
+    await fresh;
+    calls[0].respond(etagged([{ id: 'a', title: 'old' }], '"old"'));
+    await stale;
+
+    const next = firstValueFrom(adapter.findByIds('HttpRecipe', ['a']));
+    await vi.waitFor(() => expect(calls).toHaveLength(4));
+    // 旧快照的令牌若覆盖进缓存，下一次就拿它去问——304 不会答错，但条件请求白白失效
+    expect((calls[3].init.headers as Record<string, string>)['if-none-match']).toBe('"new"');
+    calls[3].respond(new Response(null, { status: 304 }));
+    await expect(next).resolves.toEqual([{ id: 'a', title: 'new' }]);
+  });
+});
+
+/**
  * US-215：诊断回调从 `HttpAdapterOptions` 到 transport 的接线。
  *
  * @remarks

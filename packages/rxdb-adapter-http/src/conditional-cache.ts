@@ -45,6 +45,12 @@ export interface ConditionalCacheHit {
   takeValue(): unknown;
 }
 
+/** 一条在飞的读请求，连同它登记时的合流代次 */
+interface InFlightRead {
+  readonly generation: number;
+  readonly promise: Promise<unknown>;
+}
+
 /**
  * 深拷贝一份响应体。
  *
@@ -125,12 +131,18 @@ export const requestFingerprint = (
  *
  * 代价是每次命中多一次 `structuredClone`。它与刚发生的一次网络往返和 `JSON.parse`
  * 同一量级，换掉的是一类只在生产环境、只在开了条件请求时才出现、且不报任何错的数据污染。
+ *
+ * **合流只在同一代次内成立。** 条目的正确性由服务端校验 ETag 担保，合流却跳过了服务端：
+ * 并进一个在飞请求就等于拿它发出那一刻的快照。写已结算、或远端报了失效之后，那一刻的快照
+ * 可能已经过时，所以由调用方 {@link advanceGeneration}，此后的读另起一个请求。
  */
 export class ConditionalRequestCache {
   readonly #entries = new Map<string, ConditionalCacheEntry>();
-  readonly #inFlight = new Map<string, Promise<unknown>>();
+  readonly #inFlight = new Map<string, InFlightRead>();
   /** 已经报过「读不到 ETag」的指纹（US-215 AC#5 的去重表） */
   readonly #etagUnreadable = new Set<string>();
+  /** 合流代次，见类头「合流只在同一代次内成立」 */
+  #generation = 0;
 
   /** 当前条目数 */
   get size(): number {
@@ -244,28 +256,65 @@ export class ConditionalRequestCache {
   }
 
   /**
-   * 同一指纹的并发调用合流到一个 Promise。
+   * 推进合流代次：远端状态可能已经变了。
+   *
+   * @remarks
+   * 写请求结算、或变更通道报了失效时调用。此后的读不再并进此前发出的在飞请求，
+   * 此前的请求结算时也不再改写条目（见 {@link isCurrentGeneration}）。
+   *
+   * 不按实体分代：指纹里没有实体名，而一次写会不会改变别的实体的读结果（服务端联表、
+   * 计算字段）客户端判断不了。整体推进的代价至多是每个在飞指纹多发一个请求。
+   *
+   * 条目**不清**：它们的正确性由服务端校验 ETag 担保，过时的令牌只会换来一次 200，不会答错。
+   */
+  advanceGeneration(): void {
+    this.#generation++;
+  }
+
+  /**
+   * 某个代次是否仍是当前代次。
+   *
+   * @remarks
+   * 给 transport 判「这份响应还能不能进缓存」：发出之后代次推进过，响应可能是变更之前的快照，
+   * 写进条目会盖掉新一代请求刚存下的 ETag。
+   *
+   * @param generation - {@link singleFlight} 交给 factory 的代次
+   */
+  isCurrentGeneration(generation: number): boolean {
+    return generation === this.#generation;
+  }
+
+  /**
+   * 同一指纹、同一代次的并发调用合流到一个 Promise。
    *
    * @remarks
    * 堵的是 AC#28 点名的那个空洞：第二个请求若独立发出，会带着同一个 `If-None-Match`
    * 拿到 304，而此时第一个还没回填，缓存里没有 body——304 于是无处还原。
    *
+   * 跨代次不合流：代次推进之后再来的调用另起一个请求并接管这个指纹，旧请求照常交给它自己的调用方。
+   *
    * 失败也合流，且 `finally` 里必须摘除映射：残留会让这个指纹永久返回那次失败。
+   * **只摘自己那一条**——指纹可能已经换上了新一代的请求，摘掉它会让同代次的下一次读白发一个请求。
    *
    * **合流方拿到的是副本**，不是发起方那个对象：否则去重本身会把两个本该互不相干的
    * 调用方绑成共享一份数据，理由同类头「隔离」一节。失败路径不拷——错误对象共享无害，
    * 而 `structuredClone` 反而会把它拷成一个丢了原型的普通对象。
    *
    * @param key - {@link requestFingerprint} 的产出
-   * @param factory - 真正发请求的工厂，仅在没有 in-flight 时调用
+   * @param factory - 真正发请求的工厂，仅在没有同代次的 in-flight 时调用；参数是这次登记的代次
    */
-  async singleFlight<T>(key: string, factory: () => Promise<T>): Promise<T> {
+  async singleFlight<T>(key: string, factory: (generation: number) => Promise<T>): Promise<T> {
+    const generation = this.#generation;
     const pending = this.#inFlight.get(key);
-    if (pending) {
-      return cloneValue(await pending) as T;
+    if (pending?.generation === generation) {
+      return cloneValue(await pending.promise) as T;
     }
-    const started = factory().finally(() => this.#inFlight.delete(key));
-    this.#inFlight.set(key, started);
+    const started: Promise<T> = factory(generation).finally(() => {
+      if (this.#inFlight.get(key)?.promise === started) {
+        this.#inFlight.delete(key);
+      }
+    });
+    this.#inFlight.set(key, { generation, promise: started });
     return started;
   }
 }

@@ -77,5 +77,32 @@ describe('createSqliteClient 远端契约', () => {
       sharedWorkerInstance: undefined,
       workerOwnership: undefined
     });
+    // 远端按加载选项核对自己真的跑在 Worker 里：推断出的 transport 要一并交过去
+    expect(remoteClient.init).toHaveBeenCalledWith(
+      'inferred-worker',
+      expect.objectContaining({ worker: true, sharedWorker: false }),
+      undefined
+    );
+  });
+
+  it('只传 sharedWorkerInstance 时，远端 init 收到的加载选项同样标明 SharedWorker transport', async () => {
+    const sharedWorkerInstance = {} as SharedWorker;
+    const remoteClient = {
+      addEventListener: vi.fn(),
+      disconnect: vi.fn(),
+      execute: vi.fn(),
+      init: vi.fn().mockResolvedValue(undefined),
+      version: vi.fn()
+    };
+    wrapWithComlinkEndpointMock.mockResolvedValue(remoteClient);
+
+    await expect(
+      createSqliteClient('inferred-shared', { vfs: 'idb', sharedWorkerInstance }, 'owner-a')
+    ).resolves.toBe(remoteClient);
+    expect(remoteClient.init).toHaveBeenCalledWith(
+      'inferred-shared',
+      expect.objectContaining({ worker: false, sharedWorker: true }),
+      'owner-a'
+    );
   });
 });

@@ -58,6 +58,7 @@ import {
   WorktreeTableSet
 } from '@aiao/rxdb';
 import { firstValueFrom, type Observable } from 'rxjs';
+import { queryCacheEntityIdentifier } from './query-cache-entity-identifier.js';
 
 /** 压缩后每条净操作的类型 */
 type OutboxKind = 'INSERT' | 'UPDATE' | 'DELETE';
@@ -329,13 +330,17 @@ async function runOutboxFlush(
     settled: new Set<OutboxEntry>()
   };
 
-  const metadata = await probeRemoteMetadata(remoteAdapter, entity, entries, rxdb, run);
+  // 远端资源与本地缓存表按 QueryCache 的实体标识定位（非 public 为 `namespace:entity`），与在线读写是同一个；
+  // 本地系统表（`rxdb_change` / `RxDBSync`）的条件仍按独立的 namespace / entity 两列查，不用它。
+  const identifier = queryCacheEntityIdentifier(namespace, entity);
+  const metadata = await probeRemoteMetadata(remoteAdapter, identifier, entries, rxdb, run);
   if (metadata) {
-    await replayPhases(entries, metadata, { rxdb, entity, remoteAdapter, conflictResolver, run });
+    await replayPhases(entries, metadata, { rxdb, identifier, remoteAdapter, conflictResolver, run });
   }
-  await repairLocalCache(localAdapter, remoteAdapter, entity, run, {
+  await repairLocalCache(localAdapter, remoteAdapter, identifier, run, {
     changeRepo,
     namespace,
+    entity,
     branchId: branch.id,
     maxChangeId
   });
@@ -624,7 +629,7 @@ function chunkIds(ids: readonly string[], size: number): string[][] {
  */
 async function probeRemoteMetadata(
   remoteAdapter: QueryCacheRemoteAdapter,
-  entity: string,
+  identifier: string,
   entries: OutboxEntry[],
   rxdb: RxDB,
   run: RunState
@@ -634,7 +639,7 @@ async function probeRemoteMetadata(
   for (const batch of chunkIds(ids, METADATA_PROBE_CHUNK_SIZE)) {
     try {
       const metadata = await firstValueFrom(
-        remoteAdapter.fetchMetadata(entity, {
+        remoteAdapter.fetchMetadata(identifier, {
           combinator: 'and',
           rules: [{ field: 'id', operator: 'in', value: batch }]
         })
@@ -652,7 +657,8 @@ async function probeRemoteMetadata(
 
 interface ReplayContext {
   rxdb: RxDB;
-  entity: string;
+  /** 远端资源的实体标识，见 {@link queryCacheEntityIdentifier} */
+  identifier: string;
   remoteAdapter: QueryCacheRemoteAdapter;
   conflictResolver: ConflictResolver;
   run: RunState;
@@ -801,13 +807,13 @@ function synthesizeRemoteChange(entry: OutboxEntry, remoteUpdatedAt: string): Rx
 
 /** 发一次远端写，并把结果上报给可达性监视器 */
 async function replayEntry(entry: OutboxEntry, verb: RemoteWriteVerb, context: ReplayContext): Promise<void> {
-  const { entity, remoteAdapter, run, rxdb } = context;
+  const { identifier, remoteAdapter, run, rxdb } = context;
 
-  const write = remoteWrite(remoteAdapter, entity, entry, verb);
+  const write = remoteWrite(remoteAdapter, identifier, entry, verb);
   if (!write) {
     run.failures.push({
       entityId: entry.entityId,
-      error: new RxDBError(`Remote adapter does not support ${verb} operation for ${entity}`)
+      error: new RxDBError(`Remote adapter does not support ${verb} operation for ${identifier}`)
     });
     return;
   }
@@ -833,12 +839,12 @@ async function replayEntry(entry: OutboxEntry, verb: RemoteWriteVerb, context: R
  */
 function remoteWrite(
   remoteAdapter: QueryCacheRemoteAdapter,
-  entity: string,
+  identifier: string,
   entry: OutboxEntry,
   verb: RemoteWriteVerb
 ): Observable<unknown> | null {
   if (verb === 'delete') {
-    return remoteAdapter.delete ? remoteAdapter.delete(entity, [entry.entityId]) : null;
+    return remoteAdapter.delete ? remoteAdapter.delete(identifier, [entry.entityId]) : null;
   }
   const patch = entry.action.patch ?? {};
   if (verb === 'create') {
@@ -848,15 +854,17 @@ function remoteWrite(
     // 本地那份从此对不上远端，成了远端从不认识的孤儿行，下一轮元数据拉取把它当孤儿清掉。
     // 水位线照常推进，用户看着推上去了，其实丢了。
     const body = { id: entry.entityId, ...patch };
-    return remoteAdapter.create ? remoteAdapter.create(entity, body) : null;
+    return remoteAdapter.create ? remoteAdapter.create(identifier, body) : null;
   }
-  return remoteAdapter.update ? remoteAdapter.update(entity, entry.entityId, patch) : null;
+  return remoteAdapter.update ? remoteAdapter.update(identifier, entry.entityId, patch) : null;
 }
 
 /** {@link repairLocalCache} 判定「这批 id 里谁被新写盖过」所需的快照上下文 */
 interface RepairSnapshot {
   changeRepo: IRepository<typeof RxDBChange>;
+  /** 本地系统表的条件按独立的 namespace / entity 两列查，不用远端那个实体标识 */
   namespace: string;
+  entity: string;
   branchId: string;
   /** 本轮重放开始时 `pending` 的最大变更行 id —— 判定起点,见 {@link findEntityIdsWithNewerPendingChanges} */
   maxChangeId: number;
@@ -880,14 +888,11 @@ interface RepairSnapshot {
  * 查询条件复用 {@link queryOutboxChanges}：同分支、未推送、未回滚、`id > maxChangeId`，
  * 与「谁还排在出站队列里」同一个口径，不开第二份判据。
  */
-async function findEntityIdsWithNewerPendingChanges(
-  snapshot: RepairSnapshot,
-  entity: string
-): Promise<ReadonlySet<string>> {
+async function findEntityIdsWithNewerPendingChanges(snapshot: RepairSnapshot): Promise<ReadonlySet<string>> {
   const newer = await queryOutboxChanges(
     snapshot.changeRepo,
     snapshot.namespace,
-    entity,
+    snapshot.entity,
     snapshot.branchId,
     snapshot.maxChangeId
   );
@@ -914,7 +919,7 @@ async function findEntityIdsWithNewerPendingChanges(
 async function repairLocalCache(
   localAdapter: OutboxLocalAdapter,
   remoteAdapter: QueryCacheRemoteAdapter,
-  entity: string,
+  identifier: string,
   run: RunState,
   snapshot: RepairSnapshot
 ): Promise<void> {
@@ -924,19 +929,19 @@ async function repairLocalCache(
 
   const rows =
     run.restoreIds.length > 0 ?
-      await firstValueFrom(remoteAdapter.findByIds<QueryCacheEntity>(entity, run.restoreIds))
+      await firstValueFrom(remoteAdapter.findByIds<QueryCacheEntity>(identifier, run.restoreIds))
     : [];
 
-  const superseded = await findEntityIdsWithNewerPendingChanges(snapshot, entity);
+  const superseded = await findEntityIdsWithNewerPendingChanges(snapshot);
 
   const freshRows = rows.filter(row => !superseded.has(row.id));
   if (freshRows.length > 0) {
-    await firstValueFrom(localAdapter.upsertMany(entity, freshRows));
+    await firstValueFrom(localAdapter.upsertMany(identifier, freshRows));
   }
 
   const freshDropIds = run.dropIds.filter(id => !superseded.has(id));
   if (freshDropIds.length > 0) {
-    await firstValueFrom(localAdapter.deleteByIds(entity, freshDropIds));
+    await firstValueFrom(localAdapter.deleteByIds(identifier, freshDropIds));
   }
 }
 

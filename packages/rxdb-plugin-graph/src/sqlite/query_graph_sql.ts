@@ -4,13 +4,7 @@
  */
 
 import { EntityMetadata, RuleGroup } from '@aiao/rxdb';
-import {
-  GenerateSqlResult,
-  ROWID,
-  type RxDBAdapterSqliteBase,
-  buildRuleGroup,
-  get_table_name_by_metadata as sqliteGetTableNameByMetadata
-} from '@aiao/rxdb-adapter-sqlite-core';
+import { GenerateSqlResult, ROWID, type RxDBAdapterSqliteBase, buildRuleGroup } from '@aiao/rxdb-adapter-sqlite-core';
 
 import { GRAPH_DEFAULT_RESULT_LIMIT, GRAPH_MAX_PATH_EXPANSIONS } from '../constants.js';
 import {
@@ -20,6 +14,7 @@ import {
   GraphEdgePropertyValue
 } from '../graph-repository.interface.js';
 import { graph_edge_table_name } from './graph_edge_table.js';
+import { graph_node_table_name } from './graph_node_table.js';
 
 type SQLiteParam = string | number | null;
 
@@ -270,7 +265,7 @@ export const generate_entity_find_neighbors_sql = (
   } = options;
   const effective_direction = resolve_effective_direction(metadata, direction);
   const rule_sql = build_rule_group_sql(rule_group, metadata, adapter);
-  const table_name = sqliteGetTableNameByMetadata(metadata, adapter.tableSet);
+  const node_table_name = graph_node_table_name(adapter, metadata);
   const edge_table_name = graph_edge_table_name(adapter, metadata);
   const hasWeight = metadata.features?.graph?.weight === true;
   const hasProperties = (metadata.features?.graph?.properties?.length ?? 0) > 0;
@@ -278,7 +273,7 @@ export const generate_entity_find_neighbors_sql = (
   // Level 0: 仅返回起始节点（不包含边信息）
   if (level === 0) {
     const where_clause = rule_sql ? `AND ${rule_sql}` : '';
-    const sql = `SELECT *, rowid as ${ROWID}, NULL AS _edge_sourceId, NULL AS _edge_targetId, NULL AS _edge_direction, 0 AS _edge_level, NULL AS _edge_weight, NULL AS _edge_properties FROM "${table_name}" AS _ WHERE id = ? ${where_clause};`;
+    const sql = `SELECT *, rowid as ${ROWID}, NULL AS _edge_sourceId, NULL AS _edge_targetId, NULL AS _edge_direction, 0 AS _edge_level, NULL AS _edge_weight, NULL AS _edge_properties FROM ${node_table_name} AS _ WHERE id = ? ${where_clause};`;
     return { sql, params: [entityId] };
   }
 
@@ -295,7 +290,7 @@ export const generate_entity_find_neighbors_sql = (
 
   const sql = `WITH RECURSIVE neighbors(id, level) AS (
   SELECT id, 0 AS level
-  FROM "${table_name}"
+  FROM ${node_table_name}
   WHERE id = ?
 
   UNION${edge_join.recursiveSql}
@@ -326,7 +321,7 @@ SELECT
   nb.weight AS _edge_weight,
   nb.properties AS _edge_properties
 FROM ranked_edges nb
-JOIN "${table_name}" ${MAIN_TABLE_ALIAS} ON ${MAIN_TABLE_ALIAS}.id = nb.id
+JOIN ${node_table_name} ${MAIN_TABLE_ALIAS} ON ${MAIN_TABLE_ALIAS}.id = nb.id
 WHERE nb._edge_rn = 1${rule_sql ? ` AND ${rule_sql}` : ''}
 ORDER BY _edge_level ASC, _edge_weight ASC, id ASC
 LIMIT ?;`;
@@ -351,7 +346,7 @@ export const generate_entity_count_neighbors_sql = (
 ): GenerateSqlResult => {
   const { entityId, direction = 'both', level = 1, where: rule_group, edgeWhere } = options;
   const effective_direction = resolve_effective_direction(metadata, direction);
-  const table_name = sqliteGetTableNameByMetadata(metadata, adapter.tableSet);
+  const node_table_name = graph_node_table_name(adapter, metadata);
   const edge_table_name = graph_edge_table_name(adapter, metadata);
   const hasWeight = metadata.features?.graph?.weight === true;
   const hasProperties = (metadata.features?.graph?.properties?.length ?? 0) > 0;
@@ -380,7 +375,7 @@ export const generate_entity_count_neighbors_sql = (
 
   const sql = `WITH RECURSIVE neighbors(id, level) AS (
   SELECT id, 0 AS level
-  FROM "${table_name}"
+  FROM ${node_table_name}
   WHERE id = ?
 
   UNION${edge_join.recursiveSql}
@@ -392,7 +387,7 @@ distances(id, level) AS (
 )
 SELECT COUNT(*) AS count
 FROM distances nb
-JOIN "${table_name}" ${MAIN_TABLE_ALIAS} ON ${MAIN_TABLE_ALIAS}.id = nb.id
+JOIN ${node_table_name} ${MAIN_TABLE_ALIAS} ON ${MAIN_TABLE_ALIAS}.id = nb.id
 ${where_clause};`;
 
   return { sql, params: [entityId, ...edge_join.recursiveParams] };
@@ -422,7 +417,7 @@ export const generate_entity_find_paths_sql = (
   } = options;
   const effective_direction = resolve_effective_direction(metadata, direction);
   const rule_sql = build_rule_group_sql(rule_group, metadata, adapter);
-  const table_name = sqliteGetTableNameByMetadata(metadata, adapter.tableSet);
+  const node_table_name = graph_node_table_name(adapter, metadata);
   const edge_table_name = graph_edge_table_name(adapter, metadata);
   const hasWeight = metadata.features?.graph?.weight === true;
   const hasProperties = (metadata.features?.graph?.properties?.length ?? 0) > 0;
@@ -486,7 +481,7 @@ export const generate_entity_find_paths_sql = (
     json_array() AS path_edges,
     0 AS depth,
     0 AS cycle${weight_init}
-  FROM "${table_name}"
+  FROM ${node_table_name}
   WHERE id = ?
 
   UNION ALL
@@ -506,7 +501,7 @@ export const generate_entity_find_paths_sql = (
     END AS cycle${weight_accumulation}
   FROM paths p
   JOIN ${edge_table_name} e ON ${edge_join_condition}
-  JOIN "${table_name}" ${MAIN_TABLE_ALIAS} ON ${MAIN_TABLE_ALIAS}.id = ${edge_select_id}
+  JOIN ${node_table_name} ${MAIN_TABLE_ALIAS} ON ${MAIN_TABLE_ALIAS}.id = ${edge_select_id}
   WHERE p.depth < ?
     AND p.cycle = 0
     ${where_clause}${edge_where_sql}

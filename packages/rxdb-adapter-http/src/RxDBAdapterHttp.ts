@@ -529,9 +529,12 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    * 与 `conditional` 同一条口径：缺席即禁用。返回一个「停用状态的通道」会让 AC#12
    * 的「零连接」依赖对象内部再判一次开关，而这里不存在这个对象。
    *
-   * URL 借 transport 拼：`baseUrl` 的拼接规则只有一份，让通道自己再拼一遍，两处迟早分叉。
+   * URL 借 transport 拼：`baseUrl` 的拼接与补全规则只有一份，让通道自己再拼一遍，两处迟早分叉。
    * 三个回调都是**现读**而不是构造期快照——`clientId` 在登录后会被换掉，实体清单也可能
    * 在 `connect()` 之后才补齐。
+   *
+   * 失效先推进条件读的合流代次、再上报给核心：核心收到失效可能当场重跑查询，
+   * 那次读不能并进失效之前发出的在飞请求。
    */
   #createChangeFeed(): HttpChangeFeed | undefined {
     const changeFeed = this.options.changeFeed;
@@ -544,7 +547,10 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
       options: changeFeed,
       clientId: () => this.rxdb.context.clientId,
       entities: () => this.#subscribedEntities(),
-      invalidate: (entity, namespace) => this.rxdb.invalidateRemoteEntity(entity, namespace)
+      invalidate: (entity, namespace) => {
+        this.#markRemoteChanged();
+        this.rxdb.invalidateRemoteEntity(entity, namespace);
+      }
     });
   }
 
@@ -645,7 +651,26 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
     return feed;
   }
 
-  /** 按 handler 的有无挂载三个可选写 duck（AC#4 的特性探测语义） */
+  /**
+   * 远端状态可能已变：推进条件读的合流代次（见 `HttpTransport.markRemoteChanged`）。
+   *
+   * @remarks
+   * 写请求一结算就推进，**不分成败**：客户端看到的失败（超时、连接中途断开）不代表服务端没提交。
+   * 推进的代价至多是下一次读多发一个请求；不推进，写之后发起的读会并进写之前发出的在飞请求，
+   * 拿回写前快照。变更通道的失效上报同理。
+   *
+   * 现读 `#transport`：`connect()` 会换上新的 transport，旧的那个上的读已随断开信号中止。
+   */
+  #markRemoteChanged(): void {
+    this.#transport.markRemoteChanged();
+  }
+
+  /**
+   * 按 handler 的有无挂载三个可选写 duck（AC#4 的特性探测语义）。
+   *
+   * @remarks
+   * 三个写请求结算时都推进条件读的合流代次，理由见 {@link RxDBAdapterHttp.#markRemoteChanged}。
+   */
   #installWriteDucks(): void {
     const { onCreate, onUpdate, onDelete } = this.#handlers;
     if (onCreate) {
@@ -655,7 +680,9 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
         const ctx: CreateContext = { entityName, data };
         return defer(() => {
           this.#assertConnected('create');
-          return from(this.#transport.sendJson(onCreate.request(ctx), 'create'));
+          return from(
+            this.#transport.sendJson(onCreate.request(ctx), 'create').finally(() => this.#markRemoteChanged())
+          );
         }).pipe(
           map(body => assertHandlerRow('create', entityName, onCreate.parse(body, ctx))),
           // 回执原样落本地缓存，updatedAt 是之后的新鲜度基准：过与 metadata 同一道时区门禁
@@ -668,7 +695,9 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
         const ctx: UpdateContext = { entityName, id, data };
         return defer(() => {
           this.#assertConnected('update');
-          return from(this.#transport.sendJson(onUpdate.request(ctx), 'update'));
+          return from(
+            this.#transport.sendJson(onUpdate.request(ctx), 'update').finally(() => this.#markRemoteChanged())
+          );
         }).pipe(
           map(body => assertHandlerRow('update', entityName, onUpdate.parse(body, ctx))),
           map(row => canonicalizeRowUpdatedAt(entityName, 'update receipt', row) as R)
@@ -690,7 +719,11 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
             // 本地即答，一个请求都不发
             return of(undefined);
           }
-          return from(this.#transport.sendVoid(onDelete.request({ entityName, ids: list }), 'delete'));
+          return from(
+            this.#transport
+              .sendVoid(onDelete.request({ entityName, ids: list }), 'delete')
+              .finally(() => this.#markRemoteChanged())
+          );
         });
     }
   }

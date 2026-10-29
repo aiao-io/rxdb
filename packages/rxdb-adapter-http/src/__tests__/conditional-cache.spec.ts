@@ -244,4 +244,70 @@ describe('ConditionalRequestCache', () => {
       expect(await cache.singleFlight('k', recovered)).toBe('R');
     });
   });
+
+  /**
+   * 远端可能已变（写已结算、变更通道报了失效）时推进代次：合流只在同一代次内成立。
+   * 写之后发起的读若并进写之前的在飞请求，拿回的就是写前快照，且一个请求都不上线。
+   */
+  describe('合流代次', () => {
+    /** 挂起的 factory，由用例决定何时结算 */
+    const deferred = (): { factory: (generation: number) => Promise<string>; resolve: (value: string) => void } => {
+      let resolve: (value: string) => void = () => undefined;
+      const promise = new Promise<string>(r => {
+        resolve = r;
+      });
+      return { factory: () => promise, resolve: value => resolve(value) };
+    };
+
+    it('推进代次之后的读不合流到之前的在飞请求', async () => {
+      const cache = new ConditionalRequestCache(4);
+      const stale = deferred();
+      const staleRead = cache.singleFlight('k', stale.factory);
+      cache.advanceGeneration();
+      const freshFactory = vi.fn(() => Promise.resolve('new'));
+      const freshRead = cache.singleFlight('k', freshFactory);
+      stale.resolve('old');
+      expect(freshFactory).toHaveBeenCalledTimes(1);
+      await expect(staleRead).resolves.toBe('old');
+      await expect(freshRead).resolves.toBe('new');
+    });
+
+    it('同一代次内照旧合流', async () => {
+      const cache = new ConditionalRequestCache(4);
+      cache.advanceGeneration();
+      const factory = vi.fn(() => Promise.resolve('R'));
+      await Promise.all([cache.singleFlight('k', factory), cache.singleFlight('k', factory)]);
+      expect(factory).toHaveBeenCalledTimes(1);
+    });
+
+    it('旧代次的请求结算时只摘自己，不摘掉同一指纹上新一代的在飞记录', async () => {
+      const cache = new ConditionalRequestCache(4);
+      const stale = deferred();
+      const fresh = deferred();
+      const staleRead = cache.singleFlight('k', stale.factory);
+      cache.advanceGeneration();
+      const freshRead = cache.singleFlight('k', fresh.factory);
+      stale.resolve('old');
+      await staleRead;
+      const joiner = vi.fn(() => Promise.resolve('third'));
+      const joined = cache.singleFlight('k', joiner);
+      fresh.resolve('new');
+      await expect(freshRead).resolves.toBe('new');
+      await expect(joined).resolves.toBe('new');
+      expect(joiner).not.toHaveBeenCalled();
+    });
+
+    it('factory 拿到的是它登记时的代次，推进之后不再是当前代次', async () => {
+      const cache = new ConditionalRequestCache(4);
+      const seen: number[] = [];
+      await cache.singleFlight('k', generation => {
+        seen.push(generation);
+        return Promise.resolve('R');
+      });
+      const [generation] = seen;
+      expect(cache.isCurrentGeneration(generation)).toBe(true);
+      cache.advanceGeneration();
+      expect(cache.isCurrentGeneration(generation)).toBe(false);
+    });
+  });
 });

@@ -4,11 +4,7 @@
  */
 
 import type { EntityBaseType, EntityType } from '@aiao/rxdb';
-import {
-  get_table_name_by_metadata as sqliteGetTableNameByMetadata,
-  SqliteRepository,
-  type RxDBAdapterSqliteBase
-} from '@aiao/rxdb-adapter-sqlite-core';
+import { SqliteRepository, type RxDBAdapterSqliteBase } from '@aiao/rxdb-adapter-sqlite-core';
 import { createGraphQueryResult } from '../graph-query-result.js';
 import {
   EdgeFilterOptions,
@@ -26,6 +22,7 @@ import {
 } from '../graph-repository.interface.js';
 import { normalizeNeighborsOptions, normalizePathsOptions } from '../utils.js';
 import { graph_edge_table_name } from './graph_edge_table.js';
+import { graph_node_table_name } from './graph_node_table.js';
 import {
   generate_entity_count_neighbors_sql,
   generate_entity_find_neighbors_sql,
@@ -231,7 +228,7 @@ export class SqliteGraphRepository<
       if (allNodeIds.size > 0) {
         const nodeIdArray = Array.from(allNodeIds);
         const placeholders = nodeIdArray.map((_, i) => `$${i + 1}`).join(',');
-        const nodeQuery = `SELECT * FROM "${sqliteGetTableNameByMetadata(this.metadata, this.adapter.tableSet)}" WHERE id IN (${placeholders})`;
+        const nodeQuery = `SELECT * FROM ${graph_node_table_name(this.adapter, this.metadata)} WHERE id IN (${placeholders})`;
         const nodeResult = await executor.execute(nodeQuery, nodeIdArray);
 
         const nodeRows = nodeResult.results[0].rows;

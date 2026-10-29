@@ -15,7 +15,7 @@ import {
   type RxDBMutationsMap
 } from '@aiao/rxdb';
 import { Todo, TypeDemo } from '@aiao/rxdb-test/entities';
-import { Order, User } from '@aiao/rxdb-test/shop';
+import { Order, OrderItem, User } from '@aiao/rxdb-test/shop';
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseConfigError, SupabaseDataError } from '../errors.js';
@@ -750,6 +750,51 @@ describe('supabase review regressions', () => {
 
     const selectCall = query.calls.find(call => call.method === 'select');
     expect(selectCall?.args[0]).toContain('orders:order!inner(*)');
+  });
+
+  // 第二层关系名属于关联实体，拿根实体去查会落空：那条嵌入不进 select，PostgREST 以
+  // 「'items' is not an embedded resource in this request」拒绝整个查询，两层 exists 从来跑不通
+  it('embeds a nested exists relation resolved against the related entity, not the root', async () => {
+    const query = resolvedRecordingQuery({ data: [], error: null });
+    const from = vi.fn(() => query.proxy);
+    const schema = vi.fn(() => ({ from }));
+    const adapter = createAdapter({ schema, from }, {}, [User, Order, OrderItem]);
+    const repository = new SupabaseRepository(adapter, User);
+
+    await repository.find({
+      where: {
+        combinator: 'and',
+        rules: [
+          {
+            field: 'orders',
+            operator: 'exists',
+            where: {
+              combinator: 'and',
+              rules: [
+                {
+                  field: 'items',
+                  operator: 'exists',
+                  where: {
+                    combinator: 'or',
+                    rules: [
+                      { field: 'quantity', operator: '=', value: 1 },
+                      { field: 'quantity', operator: '=', value: 7 }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    });
+
+    const selectCall = query.calls.find(call => call.method === 'select');
+    expect(selectCall?.args[0]).toBe('*, orders:order!inner(*, items:order_item!inner(*))');
+    expect(query.calls).toContainEqual({
+      method: 'or',
+      args: ['quantity.eq.1,quantity.eq.7', { referencedTable: 'orders.items' }]
+    });
   });
 
   it('mutations returns early for empty operations', async () => {

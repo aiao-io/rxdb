@@ -14,13 +14,14 @@ import {
   RxDBEntityLocalUpdatedEventData
 } from '@aiao/rxdb';
 import { TREE_QUERY_TYPES } from '../constants.js';
+import { FindTreeOptions } from '../repository/tree-repository.interface.js';
 import {
   handleCountAncestorsUpdate,
   handleCountDescendantsUpdate,
   handleFindAncestorsUpdate,
   handleFindDescendantsUpdate
 } from './merge-update-tree.js';
-import { hasTreeParentChanged } from './query-tree.utils.js';
+import { get_tree_parent_id, hasTreeParentChanged } from './query-tree.utils.js';
 
 /**
  * 树查询在 where / orderBy 之外还读的列：父列决定节点挂在哪、在不在子树里。
@@ -60,6 +61,36 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
 };
 
 /**
+ * 查全树、且带 where 或 level 时，本批有节点跨进或跨出根层
+ *
+ * @param task 查询任务
+ * @param entities 本批更新事件
+ * @returns `true` 时整体回 SQL
+ *
+ * @remarks
+ * 查全树的基准成员是全部根（见 `query-tree.utils.ts` 的 `isTreeBaseMember`），不过 where 也不过 level。节点改父挂到根上，
+ * 它连同名下匹配 where 的子树一起进结果、子树深度整体上移；从根上挂到别处，不匹配 where 就连同整棵子树
+ * 出结果，匹配则子树深度整体下移。下面的规则与处理器只按 where 判，看不见基准成员这一维，
+ * 进出的子树也不在本批事件里，本地补不全。
+ *
+ * 不带 where 也不带 level 时全树每个节点都在结果里、深度不设限，跨根层只是挪了位置，处理器算得清，
+ * 不必回 SQL。指定了 `entityId` 时基准成员恒为目标自己，改父改不了它的身份。
+ */
+const crossesFilteredTreeRoots = <T extends EntityType>(
+  task: QueryTask<T>,
+  entities: RxDBEntityLocalUpdatedEventData<T>[]
+): boolean => {
+  const { entityId, where, level } = task.options as FindTreeOptions<T>;
+  if (entityId !== null && entityId !== undefined) return false;
+  if (!where && level === undefined) return false;
+  return entities.some(
+    event =>
+      hasTreeParentChanged(event) &&
+      (get_tree_parent_id(event.patch) === null || get_tree_parent_id(event.inversePatch) === null)
+  );
+};
+
+/**
  * 处理树查询 UPDATE 事件的缓存合并
  *
  * @param task 查询任务
@@ -88,6 +119,11 @@ export const merge_update = <T extends EntityType>(
   // {@link handleFindAncestorsUpdate} 开头按同一条规则（同一个 `hasTreeParentChanged`）
   // 再判一次，是为了让处理器脱离本调用方也成立，不是兜底：两处判的是同一条规则。
   if (task.type === 'findAncestors' && entities.some(hasTreeParentChanged)) {
+    task.refresh();
+    return;
+  }
+
+  if (crossesFilteredTreeRoots(task, entities)) {
     task.refresh();
     return;
   }

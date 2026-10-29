@@ -174,11 +174,53 @@ export async function renameDirectoryLocked(
     return renameDirectoryWithMove(host, targetExists, sourcePath, targetPath, moves, targetMetas);
   }
 
-  const backupPath = targetExists ? `/.rxdb-storage-journal-${Date.now()}-${randomToken()}` : null;
+  return renameDirectoryWithCopy(host, { sourcePath, targetPath, targetExists, moves, targetMetas });
+}
+
+/** 目录里一个已登记文件的 meta 要搬去哪 */
+interface DirectoryMetaMove {
+  meta: StorageFileMeta;
+  original: StorageMetaPatch;
+  targetOpfsPath: string;
+}
+
+/** 一次复制式目录重命名的输入 */
+interface DirectoryCopyRenamePlan {
+  readonly sourcePath: string;
+  readonly targetPath: string;
+  readonly targetExists: boolean;
+  readonly moves: readonly DirectoryMetaMove[];
+  readonly targetMetas: readonly StorageFileMeta[];
+}
+
+/** 复制式目录重命名已经做到哪一步：撤回按它来 */
+interface DirectoryCopyRenameProgress {
+  /** 被覆盖的旧目标的备份目录；目标原本不存在时为 `null` */
+  readonly backupPath: string | null;
+  readonly copyJournal: DirectoryCopyJournal;
+  readonly removedTargetMetas: StorageFileMeta[];
+  readonly attemptedMoves: DirectoryMetaMove[];
+}
+
+/**
+ * 不支持原生目录 move 时的复制式重命名：备份被覆盖的旧目标 → 复制源到目标 → 改 meta → 删源。
+ *
+ * @remarks
+ * 提交点是「删源成功」。在它之前失败，源目录一个字节都没动过，按日志撤掉目标与 meta 即可。
+ * 删源本身失败时源目录可能已经删掉了一部分 —— `StorageFilesystem.removeDirectory` 只承诺递归删除与
+ * 不存在时幂等，没有失败原子性 —— 这时目标里复制出来的那份才是唯一完整的副本，撤回必须先拿它把源补齐，
+ * 见 {@link recoverFromSourceRemovalFailure}。
+ */
+async function renameDirectoryWithCopy(host: StorageFileOpsHost, plan: DirectoryCopyRenamePlan): Promise<string> {
+  const { sourcePath, targetPath, targetExists, moves, targetMetas } = plan;
   const backupJournal: DirectoryCopyJournal = { files: [], createdDirectories: [] };
-  const copyJournal: DirectoryCopyJournal = { files: [], createdDirectories: [] };
-  const removedTargetMetas: StorageFileMeta[] = [];
-  const attemptedMoves: typeof moves = [];
+  const progress: DirectoryCopyRenameProgress = {
+    backupPath: targetExists ? `/.rxdb-storage-journal-${Date.now()}-${randomToken()}` : null,
+    copyJournal: { files: [], createdDirectories: [] },
+    removedTargetMetas: [],
+    attemptedMoves: []
+  };
+  const { backupPath } = progress;
 
   if (backupPath) {
     try {
@@ -195,31 +237,118 @@ export async function renameDirectoryLocked(
   try {
     for (const targetMeta of targetMetas) {
       await host.removeMeta(targetMeta);
-      removedTargetMetas.push(targetMeta);
+      progress.removedTargetMetas.push(targetMeta);
     }
     if (targetExists) await host.removeDirectoryPath(targetPath);
-    await copyDirectory(host, sourcePath, targetPath, copyJournal);
+    await copyDirectory(host, sourcePath, targetPath, progress.copyJournal);
     for (const move of moves) {
-      attemptedMoves.push(move);
+      progress.attemptedMoves.push(move);
       await host.updateMeta(move.meta, { ...move.original, opfsPath: move.targetOpfsPath });
     }
-    await host.removeDirectoryPath(sourcePath);
   } catch (error) {
-    return throwAfterRollback(
-      error,
-      () => rollbackMetaMoves(host, attemptedMoves),
-      () => rollbackDirectoryCopy(host, copyJournal),
-      () => host.removeDirectoryPath(targetPath),
-      () => restoreDirectoryBackup(host, backupPath, targetPath),
-      () => restoreRemovedMetas(host, removedTargetMetas),
-      () => (backupPath ? host.removeDirectoryPath(backupPath) : Promise.resolve())
-    );
+    return throwAfterRollback(error, ...rollbackCopyRename(host, plan, progress));
   }
 
-  await discardDirectoryJournal(host, copyJournal);
+  try {
+    await host.removeDirectoryPath(sourcePath);
+  } catch (error) {
+    return recoverFromSourceRemovalFailure(host, error, plan, progress);
+  }
+
+  await discardDirectoryJournal(host, progress.copyJournal);
   await discardDirectoryJournal(host, backupJournal);
   if (backupPath) await host.removeDirectoryPath(backupPath);
   return targetPath;
+}
+
+/**
+ * 撤回一次复制式重命名的动作清单：meta 搬回、删掉目标副本、从备份还原被覆盖的旧目标。
+ *
+ * @remarks
+ * 只能在源目录完整时用 —— 第二步删的是目标里那份副本，源不完整时它就是唯一完整的那一份。
+ */
+function rollbackCopyRename(
+  host: StorageFileOpsHost,
+  plan: DirectoryCopyRenamePlan,
+  progress: DirectoryCopyRenameProgress
+): Array<() => Promise<void>> {
+  const { backupPath } = progress;
+  return [
+    () => rollbackMetaMoves(host, progress.attemptedMoves),
+    () => rollbackDirectoryCopy(host, progress.copyJournal),
+    () => host.removeDirectoryPath(plan.targetPath),
+    () => restoreDirectoryBackup(host, backupPath, plan.targetPath),
+    () => restoreRemovedMetas(host, progress.removedTargetMetas),
+    () => (backupPath ? host.removeDirectoryPath(backupPath) : Promise.resolve())
+  ];
+}
+
+/**
+ * 删源半途失败之后的撤回。
+ *
+ * @param error - 删源抛出的原始错误
+ *
+ * @remarks
+ * 递归删除可能已经删掉了源里的一部分文件。照常撤回会先删掉目标里的副本，已经从源里删掉的那些文件就再也
+ * 找不回来，meta 却被搬回去指向它们 —— 「meta 在、文件不在」。所以先用目标副本把源补齐，并确认每个已登记文件
+ * 都回到了原路径，源重新完整之后才走常规撤回。
+ *
+ * 补齐失败时一个副本都不删：目标原样保留、meta 继续指向目标（文件照样读得到），被覆盖的旧目标也留在备份目录里；
+ * 抛出的错误点名这些位置，由调用方处置。源目录此时可能只剩一部分，那里没有任何 meta 指向它。
+ */
+async function recoverFromSourceRemovalFailure(
+  host: StorageFileOpsHost,
+  error: unknown,
+  plan: DirectoryCopyRenamePlan,
+  progress: DirectoryCopyRenameProgress
+): Promise<never> {
+  try {
+    await refillDirectory(host, plan.targetPath, plan.sourcePath);
+    await assertFilesBackAtOrigin(host, plan.moves);
+  } catch (restoreError) {
+    throw new AggregateError([error, restoreError], incompleteRenameMessage(plan, progress.backupPath));
+  }
+  return throwAfterRollback(error, ...rollbackCopyRename(host, plan, progress));
+}
+
+/** 源目录补不回来时的错误消息：点名完整副本与旧目标备份各在哪 */
+function incompleteRenameMessage(plan: DirectoryCopyRenamePlan, backupPath: string | null): string {
+  const kept = `the complete copy is kept at ${plan.targetPath} and its metadata points there`;
+  const backup = backupPath ? `; the overwritten target is kept at ${backupPath}` : '';
+  return (
+    `Directory rename from ${plan.sourcePath} to ${plan.targetPath} failed while removing the source, ` +
+    `and the source could not be restored: ${kept}${backup}`
+  );
+}
+
+/**
+ * 用一份完整副本把目录补齐：只补缺的，已经在的原件一字不动。
+ *
+ * @remarks
+ * 不复用 {@link copyDirectory}：那一个会给每个已存在的文件先做回滚快照再覆盖。这里既不该覆盖幸存的原件，
+ * 也没有要回滚的东西 —— 补进去的每个文件本就是原件的副本，补到一半失败时补进去的那些照样是对的。
+ */
+async function refillDirectory(host: StorageFileOpsHost, fromPath: string, toPath: string): Promise<void> {
+  await host.filesystem.ensureDirectory(toPath);
+  for await (const { name, kind } of host.filesystem.list(fromPath)) {
+    if (kind === 'directory') {
+      await refillDirectory(host, joinDirectoryPath(fromPath, name), joinDirectoryPath(toPath, name));
+      continue;
+    }
+    const toOpfsPath = joinDirectoryAndFileName(toPath, name);
+    if (await host.hasFile(toOpfsPath)) continue;
+    const file = await host.filesystem.readBlob(joinDirectoryAndFileName(fromPath, name));
+    await writeBlobWithoutRollback(host, toOpfsPath, file);
+  }
+}
+
+/** 确认每个已登记文件都回到了重命名之前的路径；缺一个就不算补齐 */
+async function assertFilesBackAtOrigin(host: StorageFileOpsHost, moves: readonly DirectoryMetaMove[]): Promise<void> {
+  for (const move of moves) {
+    if (!(await host.hasFile(move.original.opfsPath))) {
+      throw new Error(`Storage file was not restored to its original path: ${move.original.opfsPath}`);
+    }
+  }
 }
 
 async function renameDirectoryWithMove(
@@ -227,11 +356,7 @@ async function renameDirectoryWithMove(
   targetExists: boolean,
   sourcePath: string,
   targetPath: string,
-  moves: ReadonlyArray<{
-    meta: StorageFileMeta;
-    original: StorageMetaPatch;
-    targetOpfsPath: string;
-  }>,
+  moves: readonly DirectoryMetaMove[],
   targetMetas: readonly StorageFileMeta[]
 ): Promise<string> {
   const parentPath = getDirectoryPathFromOpfsPath(targetPath.slice(1));

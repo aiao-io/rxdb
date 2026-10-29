@@ -1,4 +1,5 @@
 import { ACTIVE_BRANCH_KEY, type RxDB } from '@aiao/rxdb';
+import { quote_sql_identifier } from '@aiao/rxdb-adapter-sqlite-core';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { SqliteGraphRepository } from '../sqlite/SqliteGraphRepository.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
@@ -28,7 +29,8 @@ export const cleanup_db = async (adapter: RxDBAdapterWaSqlite) => {
       if (tableName.startsWith('sqlite_')) {
         continue;
       }
-      await tx.execute(`DELETE FROM "${tableName}";`);
+      // 物理表名可以含双引号（如 `order"line`），必须按标识符转义后再拼
+      await tx.execute(`DELETE FROM ${quote_sql_identifier(tableName)};`);
     }
 
     try {
