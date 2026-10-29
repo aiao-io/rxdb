@@ -22,6 +22,14 @@
         "kind": "type"
       },
       {
+        "name": "BoardShellComponent",
+        "kind": "both"
+      },
+      {
+        "name": "BoardShellOptions",
+        "kind": "type"
+      },
+      {
         "name": "BoardViewComponent",
         "kind": "both"
       },

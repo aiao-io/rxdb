@@ -1,27 +1,11 @@
-/* 看板 demo 宿主样式：看板视图本身的样式来自核心包（三端绑定共用一份） */
+/* 看板 demo 宿主样式：看板视图与外壳（启动选择 / 工具栏）的样式来自核心包（三端绑定共用一份） */
 @import '../../../packages/rxdb-plugin-board/board.css';
 
 :root {
-  --shell-bg: #ffffff;
-  --shell-subtle: #f6f8fa;
-  --shell-fg: #1f2328;
-  --shell-muted: #59636e;
-  --shell-border: #d1d9e0;
-  --shell-accent: #0969da;
-  --shell-danger: #b42318;
-  color-scheme: light dark;
-}
+  /* 独立 demo 的外壳占满视口：启动选择居中、看板列等高 */
+  --rxb-shell-min-height: 100vh;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --shell-bg: #0d1117;
-    --shell-subtle: #151b23;
-    --shell-fg: #f0f6fc;
-    --shell-muted: #9198a1;
-    --shell-border: #3d444d;
-    --shell-accent: #4493f8;
-    --shell-danger: #ff7b72;
-  }
+  color-scheme: light dark;
 }
 
 html,
@@ -31,161 +15,11 @@ body {
 
 body {
   margin: 0;
-  background: var(--shell-bg);
-  color: var(--shell-fg);
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei',
-    sans-serif;
-  font-size: 14px;
+  background: #ffffff;
 }
 
-.shell {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-/* 独立 demo 的看板占满视口：列等高、底部留白由列区自带 */
-.shell > board-view {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-}
-
-.shell .rxb {
-  flex: 1;
-}
-
-/* 宿主确认对话框：借 .rxb 的主题变量与 .rxb-dialog 样式，包裹层本身不参与布局 */
-.rxb.shell-overlay {
-  display: contents;
-}
-
-.shell-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 24px;
-  border-bottom: 1px solid var(--shell-border);
-  background: var(--shell-subtle);
-}
-
-.shell-brand {
-  font-weight: 600;
-}
-
-.shell-spacer {
-  flex: 1;
-}
-
-.shell-btn {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--shell-border);
-  border-radius: 6px;
-  background: var(--shell-bg);
-  color: inherit;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.shell-btn:hover {
-  border-color: var(--shell-muted);
-}
-
-.shell-btn:focus-visible,
-.shell-option:focus-visible {
-  outline: 2px solid var(--shell-accent);
-  outline-offset: 2px;
-}
-
-.shell-error {
-  margin: 8px 24px 0;
-  padding: 8px 12px;
-  border: 1px solid color-mix(in srgb, var(--shell-danger) 40%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--shell-danger) 10%, var(--shell-bg));
-  color: var(--shell-danger);
-}
-
-.shell-startup {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 24px;
-  box-sizing: border-box;
-  background: var(--shell-subtle);
-}
-
-.shell-card {
-  width: min(560px, 100%);
-  padding: 32px;
-  border: 1px solid var(--shell-border);
-  border-radius: 12px;
-  background: var(--shell-bg);
-  box-shadow: 0 8px 24px rgb(66 74 83 / 12%);
-}
-
-.shell-eyebrow {
-  margin: 0 0 4px;
-  color: var(--shell-muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.shell-card h1 {
-  margin: 0 0 8px;
-  font-size: 24px;
-}
-
-.shell-hint {
-  margin: 0 0 24px;
-  color: var(--shell-muted);
-}
-
-.shell-options {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.shell-option {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 14px 16px;
-  border: 1px solid var(--shell-border);
-  border-radius: 8px;
-  background: var(--shell-bg);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.shell-option:hover {
-  border-color: var(--shell-accent);
-  background: color-mix(in srgb, var(--shell-accent) 6%, var(--shell-bg));
-}
-
-.shell-option strong {
-  font-size: 14px;
-}
-
-.shell-option span {
-  color: var(--shell-muted);
-  font-size: 12px;
-}
-
-.shell-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  color: var(--shell-muted);
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0d1117;
+  }
 }

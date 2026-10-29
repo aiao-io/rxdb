@@ -8,13 +8,13 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 89     |
-| 🚧 In Progress | 5      |
-| 👀 In Review   | 3      |
+| 🚧 In Progress | 3      |
+| 👀 In Review   | 5      |
 | 📝 Backlog     | 31     |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **39** |
 
-仓库还剩 **39 条**未关闭故事（5 In Progress + 3 In Review + 31 Backlog + 0 Blocked）。
+仓库还剩 **39 条**未关闭故事（3 In Progress + 5 In Review + 31 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -27,10 +27,10 @@
 | [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                                                                                    | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                            | 批次 3     |
 | [epic-009 BOM](epics/epic-009-bom-domain-model.md)（19 条）                                                                                                                                                                        | 📝 Backlog     | 先首轮切片与贯穿应用，再按前置推进；候选优化不自动解锁                  | 批次 4     |
 | [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                                                                                          | 👀 In Review   | 仓外发布 tarball 消费与按文档独立重搭；workspace 证据不能替代           | 批次 5     |
-| [US-534](stories/domain/US-534-board-column-task-skeleton.md)                                                                                                                                                                      | 🚧 In Progress | 既有库增加看板实体的组合验收                                            | 批次 6     |
-| [US-537](stories/domain/US-537-board-backup-restore.md)                                                                                                                                                                            | 🚧 In Progress | 恢复异常分支和三端宿主恢复入口                                          | 批次 6     |
-| [US-539](stories/domain/US-539-board-tri-framework-ui.md)                                                                                                                                                                          | 🚧 In Progress | 三端恢复、鼠标拖列、截止日与错误态验收收尾                              | 批次 6     |
-| [US-540](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                                                                                           | 🚧 In Progress | 独立 demo 的搜索隔离、升级重开组合证据                                  | 批次 6     |
+| [US-534](stories/domain/US-534-board-column-task-skeleton.md)                                                                                                                                                                      | 👀 In Review   | 全部 AC 已验，等待合并收尾                                              | 批次 6     |
+| [US-537](stories/domain/US-537-board-backup-restore.md)                                                                                                                                                                            | 🚧 In Progress | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）                        | 批次 6     |
+| [US-539](stories/domain/US-539-board-tri-framework-ui.md)                                                                                                                                                                          | 👀 In Review   | 阶段 A～C 三端全绿，等待合并收尾                                        | 批次 6     |
+| [US-540](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                                                                                           | 🚧 In Progress | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）                        | 批次 6     |
 | [US-541](stories/domain/US-541-board-team-sync.md)                                                                                                                                                                                 | 📝 Backlog     | 具名团队触发后冻结身份、成员权限、RLS 与冲突规则                        | 立项池     |
 | [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                                                                                          | 📝 Backlog     | 按现有公开逻辑与 #152 列表能力界定入口/依赖隔离，保留默认 UI            | 立项池     |
 | [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                                                        | 📝 Backlog     | 价值待证，等待具名多用户写授权症状；解锁时重验当前 API 前提             | 立项池     |
@@ -77,13 +77,13 @@ US-513 联产品、US-510 热路径优化、US-519 可选索引与 US-030 D 保�
 
 owner 已批准以完整单人演示应用驱动 US-534～US-540，范围与默认决策见
 [epic-011](epics/epic-011-task-board-domain-model.md#首轮可开工切片)。
-当前收尾按 US-534、US-537、US-539、US-540 的保留 AC 推进，组合验收由 `apps/dev-rxdb-board` 承接。
+当前收尾按 US-537、US-540 的保留 AC 推进（US-534 / US-539 已验，待合并收尾），组合验收由 `apps/dev-rxdb-board` 承接。
 US-541 团队版没有随首轮解锁，仍按具名团队症状和身份/冲突合同准入。
 
-| 范围            | 关闭条件                                                                                                               |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| US-534 / US-537 | 既有库新实体、恢复异常分支与三端宿主入口按原承诺验收。                                                                 |
-| US-539 / US-540 | 三端交互和独立 demo 的搜索隔离、升级重开组合证据齐全；缺口见 [RV-083](reviews/RV-083-board-v1-closeout-checklist.md)。 |
+| 范围            | 关闭条件                                                                                                                           |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| US-534 / US-537 | 既有库新实体与三端宿主恢复入口已验；恢复异常分支（US-537 AC#9）按原承诺验收。                                                      |
+| US-539 / US-540 | 三端交互和独立 demo 的搜索隔离、升级重开组合证据齐全；US-539 已收口，US-540 剩 AC#7（demo 既有库初态）与 AC#12（无搜索插件构建）。 |
 
 ### 线 A：桥接版本发布（owner 门控）
 

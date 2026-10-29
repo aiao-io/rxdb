@@ -1,7 +1,6 @@
 import type { RxDB } from '@aiao/rxdb';
 import { PropertyType } from '@aiao/rxdb';
 import { sqliteWasmFactory } from '@aiao/rxdb-adapter-sqlite-wasm/testing';
-import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -16,7 +15,8 @@ import { RELEASE_BOARD_ID, seedReleaseBoardDataset } from '../testing/index.js';
  * 新实体表在既有库上正常创建，既有实体数据不受影响，种子可装载且重开后原样。
  *
  * 用 sqlite-wasm 的真实持久化（idb vfs）跑跨断开重开；迁移路径与触发器重建
- * 必须在真实后端上验收（既有库补建新实体表的先例见记忆）。
+ * 必须在真实后端上验收（既有库补建新实体表的先例见记忆）。历史插件由测试工厂登记，
+ * 这里只传看板额外需要的搜索插件（重复登记同名插件会让 `plugin:history` 注入失败）。
  */
 
 /** 既有库里的旧实体（非看板命名空间）。 */
@@ -36,11 +36,10 @@ class Note extends EntityBase {
 }
 
 describe('既有库升级重开（US-534 AC#8 / US-540 AC#7）', () => {
-  it.skip('对照组：同一组实体重开，旧数据保留（被适配器关闭路径数据丢失缺陷阻塞，见下方 TODO）', async () => {
+  it('对照组：同一组实体两次断开重开，每一段的写入都保留', async () => {
     const name = `board-same-${Math.random().toString(36).slice(2)}`;
     const first = await sqliteWasmFactory.createAdapter<{ rxdb: RxDB; disconnect(): Promise<void> }>({
       entities: [Note],
-      plugins: [rxDBPluginHistory],
       persistent: true,
       dbName: name
     });
@@ -56,7 +55,6 @@ describe('既有库升级重开（US-534 AC#8 / US-540 AC#7）', () => {
 
     const second = await sqliteWasmFactory.createAdapter<{ rxdb: RxDB; disconnect(): Promise<void> }>({
       entities: [Note],
-      plugins: [rxDBPluginHistory],
       persistent: true,
       dbName: name
     });
@@ -65,7 +63,7 @@ describe('既有库升级重开（US-534 AC#8 / US-540 AC#7）', () => {
       second.rxdb.entityManager.getRepository(Note).find({ where: { combinator: 'and', rules: [] } })
     );
 
-    // 阶段 2 再写一条，断开后阶段 3 读——定位「只有首段写入丢失」还是「跨断开一律丢失」
+    // 第二段再写一条、断开后第三段读：首段写入与重开后的写入都要跨断开保留
     await second.rxdb.entityManager.getRepository(Note).create(
       second.rxdb.entityManager.instantiate(Note, {
         id: 'd0000000-0000-4000-8000-000000000003',
@@ -77,7 +75,6 @@ describe('既有库升级重开（US-534 AC#8 / US-540 AC#7）', () => {
 
     const third = await sqliteWasmFactory.createAdapter<{ rxdb: RxDB; disconnect(): Promise<void> }>({
       entities: [Note],
-      plugins: [rxDBPluginHistory],
       persistent: true,
       dbName: name
     });
@@ -98,14 +95,10 @@ describe('既有库升级重开（US-534 AC#8 / US-540 AC#7）', () => {
     }
   });
 
-  // TODO(SQLC-待开)：sqlite-wasm 的 idb vfs 在「干净关闭（disconnect）后重连」场景丢已提交行——
-  // 实测表结构保留、INSERT 的行丢失；页面崩溃/重载路径（demo 的常规重开）不受影响。
-  // 缺陷在适配器关闭路径（worker + comlink + idb 导出），修好后本用例与上方对照组一起去掉 skip。
-  it.skip('旧实体先建库写入，断开后装看板实体重开：旧数据原样、种子可装载、再重开不丢', async () => {
+  it('旧实体先建库写入，断开后装看板实体重开：旧数据原样、种子可装载、再重开不丢', async () => {
     // 第一段：只有旧实体的库
     const legacy = await sqliteWasmFactory.createAdapter<{ rxdb: RxDB; disconnect(): Promise<void> }>({
       entities: [Note],
-      plugins: [rxDBPluginHistory],
       persistent: true,
       dbName: DB_NAME
     });
@@ -123,7 +116,7 @@ describe('既有库升级重开（US-534 AC#8 / US-540 AC#7）', () => {
     // 第二段：装上看板实体与插件重开同一库
     const upgraded = await sqliteWasmFactory.createAdapter<{ rxdb: RxDB; disconnect(): Promise<void> }>({
       entities: [Note, Board, Column, Task, BoardLabel, TaskLabel],
-      plugins: [rxDBPluginHistory, rxDBPluginSearch],
+      plugins: [rxDBPluginSearch],
       persistent: true,
       dbName: DB_NAME
     });
@@ -149,7 +142,7 @@ describe('既有库升级重开（US-534 AC#8 / US-540 AC#7）', () => {
     await upgraded.disconnect();
     const reopened = await sqliteWasmFactory.createAdapter<{ rxdb: RxDB; disconnect(): Promise<void> }>({
       entities: [Note, Board, Column, Task, BoardLabel, TaskLabel],
-      plugins: [rxDBPluginHistory, rxDBPluginSearch],
+      plugins: [rxDBPluginSearch],
       persistent: true,
       dbName: DB_NAME
     });

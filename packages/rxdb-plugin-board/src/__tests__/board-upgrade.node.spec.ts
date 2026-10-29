@@ -16,8 +16,7 @@ import { RELEASE_BOARD_ID, seedReleaseBoardDataset } from '../testing/index.js';
  * 同一个持久库先用「非看板实体」建库并写入，断开后再装看板实体与插件重开——
  * 新实体表在既有库上补建，既有数据不受影响，种子可装载且重开后原样。
  *
- * sqlite-wasm 半边在 `board-upgrade.browser.spec.ts`，被该适配器干净关闭丢行的缺陷挡住；
- * 这里跑绿说明看板实体的补建路径本身没问题，问题收敛在适配器。
+ * sqlite-wasm（主线程 `vfs: 'idb'`）半边在 `board-upgrade.browser.spec.ts`，两个后端各自跨断开重开验收。
  */
 
 /** 既有库里的旧实体（非看板命名空间）。 */

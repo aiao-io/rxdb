@@ -19,7 +19,7 @@ const test = base.extend<{ boardPage: Page }>({
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto('/board');
-    await expect(page.getByTestId('board-view')).toBeVisible();
+    await expect(page.getByTestId('startup-page')).toBeVisible();
     await use(page);
     await context.close();
   }
@@ -62,7 +62,8 @@ const collectBoardSnapshot = (page: Page) =>
 
 test.describe('看板对拍（US-539 AC#1～3）', () => {
   test('种子语义 + 同一组拖拽 + 同一组详情编辑与 golden 一致', async ({ boardPage: page }, testInfo) => {
-    await page.getByTestId('seed-demo').click();
+    await page.getByTestId('start-seed').click();
+    await expect(page.getByTestId('board-view')).toBeVisible();
     await expect(page.getByTestId('column')).toHaveCount(4);
     await expect(page.getByTestId('task-card')).toHaveCount(12);
     await expect(page.getByTestId('card-label').first()).toBeVisible();

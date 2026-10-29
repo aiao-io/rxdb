@@ -1,18 +1,15 @@
 # AI Review 规则与记录
 
-这个目录存放 review 记录模板与**尚未处理**的问题报告。目前有 3 份待处理报告。
+这个目录存放 review 记录模板与**尚未处理**的问题报告。目前没有待处理报告。
 
 ## 目录结构
 
 报告只留**尚未处理**的条目。复核确认已修、或判定不值得做的条目直接删除——修法与判据都写在代码注释里，报告再留一份副本只会与代码漂移。整份报告清空即删文件，删前在下方「清理记录」留一行。目录里除 `README.md` 与模板外没有文件，就是没有待处理项。
 
-| 路径                                        | 说明                               | 剩余项     |
-| ------------------------------------------- | ---------------------------------- | ---------- |
-| `README.md`                                 | 本说明、状态约定与清理记录         | —          |
-| `review.template.md`                        | 新建 review 记录的模板             | —          |
-| `requirements-incomplete-stories-review.md` | 未完成需求整体评审（不占 RV 编号） | 见报告正文 |
-| `RV-083-board-v1-closeout-checklist.md`     | 看板 v1 保留验收项                 | 见文件     |
-| `xenodochial-board-branch-review.md`        | 看板分支评审                       | 见文件     |
+| 路径                 | 说明                       | 剩余项 |
+| -------------------- | -------------------------- | ------ |
+| `README.md`          | 本说明、状态约定与清理记录 | —      |
+| `review.template.md` | 新建 review 记录的模板     | —      |
 
 ## 状态约定
 
@@ -30,6 +27,8 @@
 例外：整分支 / 整包评审报告结论一次性给出、没有 Open/Resolved 生命周期，不占用 RV 编号；它们的「状态」体现为文件里还剩几条。
 
 ## 清理记录
+
+- **2026-10-29（RV-083 看板 v1 收尾清单删除）**：剩余 7 项（第 1 / 3 / 4 / 5 / 9 / 10 条与 P0）逐条对 HEAD 复核。修：第 4 / 5 条三端宿主无恢复入口——独立 demo 壳里的启动选择与恢复编排收进核心包 `BoardShellController`（驱动 `restoreStateMachine`，此前没有任何调用方），三个绑定包各出外壳组件（Angular `<board-shell>`、React / Vue `BoardShell`），demo 与三端宿主都改用它，demo 原有 19 条 e2e 照绿；三端共用新增的 `board-restore.spec.ts`（工具菜单与启动页两条入口、损坏归档、一页恢复中另一页写入口禁用与草稿保留及再次恢复被拒、切库后另一页重载）。第 1 条 AC#9 补鼠标真实拖列（与列菜单左移互逆、另一板列序不变、重开保留）。第 3 条 AC#12 用 `page.clock` 固定本地 2026-10-19 验三态文字、Done 列照算逾期与跨午夜重算；AC#13 补空板 / 空列 e2e、Angular 视图首次读失败渲染用例（React / Vue 已有）与三端 `useBoard` 刷新失败保留数据、重试恢复用例。第 9 条 demo 补 `board-search.spec.ts`（US-540 AC#9～11、#13）。P0 sqlite-wasm idb「干净关闭后重连丢行」在当前适配器上不复现：两条 `it.skip` 去掉后连跑 5 轮全绿，转为常规用例（同时去掉测试里重复登记的历史插件）。复核中顺带修三处：状态机在「切换中」就清掉恢复中标记，与 US-537 协议表和 demo 实际行为不一致（其他页会在重载读回窗口写旧库）；装载演示数据失败的清理会删掉原本就有看板的库（库名列表过时才会选中它），改为只删本次新建的库；三端 AC#23 / #24 的「等动画播完」排除滚动驱动动画——87e1581d 加的列区溢出渐隐（ScrollTimeline）永远不会 finished，该用例在 HEAD 上必然超时。不修：第 10 条跨列落位过渡动画（只影响观感；视图编排三端各一份，FLIP 要在三处分别接渲染时序，还会干扰拖拽 e2e 的位置断言，待视图编排收进核心包再议）。转出：US-540 AC#7 的 demo Playwright 半边与 AC#12、US-537 AC#9 的注入分支留在各自故事。全文可用 `git show e94a2cc8:requirements/reviews/RV-083-board-v1-closeout-checklist.md` 取回。
 
 - **2026-10-29（看板分支深度评审删除）**：`board-branch-deep-review-2026-10-28.md`（8 P1 + 35 P2，基于 `676cabc0`）逐条对 HEAD 复核。近半数已由其后的 `6086e744` 与 `87e1581d` 修掉（React 首帧动作与 effect 依赖、三端模态焦点循环、外部指针判定限本实例、`eq` / `inRule` 去重、查询共享订阅、`./testing` 键序、三张表的外键 / 排序索引、PGlite 磁盘库升级重开、`saveTaskFields` 只认 `undefined`、种子空库自检、焦点环与选中描边分离、列区横向溢出渐隐、`ReorderTarget` 混写拒绝等）。本轮修：Angular 绑定补 `./board-view.css` 子路径（转引核心包 `board.css`），Vue 的 `index.css` 改为同名 `board-view.css`，三端 README 写明引入方式；发布消费门禁三端都断言样式产物、入口带 `useBoard`，另加 `@aiao/rxdb-plugin-board/testing` 的 tsc / esbuild 探针；新增 `audit:e2e-spec-copies` 守三端同内容 spec 副本（看板与两份对拍）；看板 demo e2e 默认不复用端口上的服务（`BOARD_E2E_REUSE_SERVER=1` 显式开启）；React / Vue 绑定的核心包依赖改为 peer；三端 `useBoard` 公开接口补 TSDoc；对拍归一化对缺标签列表 / 截止日字段报错；demo 删库去掉猜名兜底、四个宿主的备份下载延迟回收 Blob URL、demo 根组件销毁时断开连接；去掉只为 React 宿主页服务的 css 路径映射。不修（判据在代码注释）：板内搜索按全库任务数取第 0 页（上游按全库排名，缩成本板数会把本板命中挤出第 0 页，评审建议有误）；`waitUpstreamSettled` 的通用错误（两次读之间错误可能被重查清空，直接 `throw error` 会抛 undefined）；`query.ts` 值泛型只收字符串；标签色不展开短格式；读回与清理都失败时保留待切换记录（每次打开页面重试一次，不是死循环）；恢复状态机切换中不可取消；`exportBackup` / `onExportBackup` 属 US-539 允许的端差异（三端 TSDoc 写明对应）；提交信息卫生（squash 合并）。评审另有三处说法不实：`./testing` 键序的失败场景不成立——TypeScript 在 `import` 条件下找不到声明会接着试后面的 `types`（TS 6.0.3 `--traceResolution` 实测），`87e1581d` 的调整只是惯例写法；React 发布包并不自动注入样式（库构建抽成独立 CSS，消费端同样要引入子路径）；`676cabc0` 只改了 React 的一个单测，不是编排漂移的先例。另外 `87e1581d` 把生成物 `SKILL.md` 误回退成 v0.0.26 旧版，本轮随包组合摘要一并重新生成。转出：视图编排三端各一份记入 [US-539](../stories/domain/US-539-board-tri-framework-ui.md) 技术笔记（单独排期）；demo 阶段 B 用例与 sqlite-wasm idb 干净关闭丢行仍由 RV-083 第 9 条与 P0 条跟踪。全文可用 `git show 87e1581d:requirements/reviews/board-branch-deep-review-2026-10-28.md` 取回。
 

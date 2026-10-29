@@ -1,30 +1,13 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
-import { Board, BoardLabel, Column, Task, TaskLabel, nextRestoreDbName } from '@aiao/rxdb-plugin-board';
-import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
+import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
-import { firstValueFrom } from 'rxjs';
 
 /**
- * 看板实例工厂与恢复编排（US-537 宿主半边）。
- *
- * 首轮支持组合：sqlite-wasm 主线程 `vfs: 'idb'`；归档只恢复到同 adapter、
- * 未连接的新库名，恢复完成后整页重载、读回成功才把新库写成活动位置。
+ * 看板实例工厂（US-537 首轮支持组合）：sqlite-wasm 主线程 `vfs: 'idb'`，库名由外壳分配；
+ * 归档只恢复到同 adapter、未连接的新库名，恢复编排在 `BoardShellController`。
  */
-
-/** 演示数据的初始库名（新建空看板与装载演示数据共用命名空间，取下一个空位）。 */
-export const BOARD_DB_PREFIX = 'rxdb-board';
-/** 本次恢复目标：启动清理只处理这一份存储。 */
-export const RESTORE_TARGET_KEY = 'rxdb-board-restore-target';
-
-/** 恢复、启动读回与残留清理共用跨页面互斥锁。 */
-export const withBoardRestoreLock = <T>(operation: () => Promise<T>, wait = true): Promise<T> =>
-  navigator.locks.request('rxdb-board:restore', { ifAvailable: !wait }, lock => {
-    if (lock === null) throw new Error('另一页面正在准备或恢复看板，请稍后重试');
-    return operation();
-  });
-
 export const createBoardRxdb = (dbName: string): RxDB => {
   const db = new RxDB({
     dbName,
@@ -40,78 +23,3 @@ export const createBoardRxdb = (dbName: string): RxDB => {
   );
   return db;
 };
-
-/** 连接（幂等）。 */
-export const connectBoardRxdb = async (db: RxDB): Promise<void> => {
-  await db.connect('sqlite-wasm');
-};
-
-/** 装载演示数据：只装进新库（US-537 演示数据只进新库，避免固定 ID 撞主键）。 */
-export const seedBoardDemo = async (db: RxDB): Promise<void> => {
-  const boardRepo = db.entityManager.getRepository(Board);
-  const boards = await firstValueFrom(boardRepo.count({ where: { combinator: 'and', rules: [] } }));
-  if (boards > 0) throw new Error('演示数据只能装进新库');
-  await seedReleaseBoardDataset(db);
-};
-
-/** 在未连接的实例上把归档恢复到新库名（US-217：必须在 rxdb.connect() 之前调用）。 */
-export const restoreBoardArchive = async (db: RxDB, file: File): Promise<void> => {
-  const adapter = await db.getAdapter('sqlite-wasm');
-  await adapter.restore(file.stream());
-};
-
-/** 清理有记录且实际存在的恢复目标；没有残留标记时也删除完整的孤儿库。 */
-export const cleanupBoardRestoreTarget = async (dbName: string, activeDbName: string | null = null): Promise<void> => {
-  if (dbName === activeDbName) throw new Error('拒绝清理当前活动看板');
-  if (!(await listExistingDbNames()).includes(dbName)) return;
-  const db = createBoardRxdb(dbName);
-  const adapter = await db.getAdapter('sqlite-wasm');
-  const cleanedIncomplete = await adapter.cleanupIncompleteRestore();
-  if (!cleanedIncomplete) await deleteBoardDbStorage(dbName);
-};
-
-/**
- * 删除明确指定的 sqlite-wasm IndexedDB 持久库：只删实际列出、规范名对得上的库。
- * 一个都没有就是库还没落盘（连接前失败），无可删——不按命名规则猜一个库名去删。
- */
-export const deleteBoardDbStorage = async (dbName: string): Promise<void> => {
-  const databaseNames = (await indexedDB.databases())
-    .map(info => info.name ?? '')
-    .filter(name => name !== '' && canonicalDbName(name) === dbName);
-  for (const name of databaseNames) await deleteIndexedDb(name);
-};
-
-/** 读回前验证目标存储存在，避免连接时把丢失的恢复库初始化成空库。 */
-export const assertBoardRestoreTargetExists = async (dbName: string): Promise<void> => {
-  if (!(await listExistingDbNames()).includes(dbName)) throw new Error('恢复目标存储已不存在');
-};
-
-/** 现有 IndexedDB 库名（sqlite-wasm idb vfs 以 `<dbName>.sqlite` 落盘）。 */
-const listExistingDbNames = async (): Promise<string[]> => {
-  return (await indexedDB.databases())
-    .map(info => info.name ?? '')
-    .filter(name => name !== '')
-    .map(canonicalDbName);
-};
-
-const canonicalDbName = (name: string): string => {
-  const base = name.split('@')[0];
-  return base.endsWith('.sqlite') ? base.slice(0, -'.sqlite'.length) : base;
-};
-
-const deleteIndexedDb = (name: string): Promise<void> =>
-  new Promise((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(name);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error ?? new Error(`删除 IndexedDB 库失败：${name}`));
-    request.onblocked = () => reject(new Error(`IndexedDB 库仍被占用：${name}`));
-  });
-
-/**
- * 生成不与活动位置冲突、也不与现存 IndexedDB 库冲突的新库名。
- *
- * 只避开活动名会回绕：`restore-0` → 重置建 `restore-1` → 再重置回算 `restore-0`
- * 撞上已存在的用户旧库，种子装载报「演示数据只能装进新库」永久失败。
- */
-export const nextBoardDbName = async (activeDbName: string | null): Promise<string> =>
-  nextRestoreDbName(activeDbName, await listExistingDbNames());

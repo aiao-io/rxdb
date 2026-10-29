@@ -3,6 +3,7 @@ import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { TestBed } from '@angular/core/testing';
+import { Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LAST_BOARD_KEY, useBoard, type UseBoardReturn } from '../use-board.js';
@@ -210,5 +211,29 @@ describe('useBoard（Angular 桥接）', () => {
       '排序生效'
     );
     await waitFor(() => board.writeEvent()?.kind === 'sort-committed', '写入事件');
+  });
+
+  it('读取失败（AC#13）：刷新失败可判别且保留已显示的数据；重试重建订阅后回到原板', async () => {
+    const created = await board.actions.createBoard({ title: '读失败板' });
+    await waitFor(() => board.currentBoard()?.id === created.id, '进入板');
+    const column = await board.actions.createColumn({ title: '待办' });
+    await waitFor(() => board.columns().length === 1 && !board.loading(), '列就绪');
+
+    // 已显示中的刷新失败：活查询先给出数据再报错
+    const live = new Subject<Column[]>();
+    const failing = vi.spyOn(rxdb.entityManager.getRepository(Column), 'findAll').mockReturnValueOnce(live);
+    board.retryReads();
+    live.next([column]);
+    await waitFor(() => board.columns().length === 1 && !board.loading(), '刷新出数据');
+    live.error(new Error('磁盘读取失败'));
+    await waitFor(() => board.readError() === '磁盘读取失败', '读失败');
+    expect(board.loading()).toBe(false);
+    expect(board.columns().map(item => item.title)).toEqual(['待办']);
+    failing.mockRestore();
+
+    board.retryReads();
+    expect(board.readError()).toBeNull();
+    await waitFor(() => !board.loading() && board.columns().length === 1, '重试读回');
+    expect(board.currentBoard()?.id).toBe(created.id);
   });
 });

@@ -4,7 +4,7 @@ import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-bo
 import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BoardViewComponent } from '../board-view.js';
@@ -243,6 +243,29 @@ describe('BoardViewComponent（Angular 视图，看板 v2）', () => {
       expect(($(fixture, `[data-testid="${testId}"]`) as HTMLButtonElement).disabled).toBe(true);
     }
     expect(($(fixture, '[data-testid="labels-open"]') as HTMLButtonElement).disabled).toBe(false);
+    fixture.destroy();
+  });
+
+  it('首次读取失败（AC#13）：显示原因与重试，不呈现可写的空板；重试成功回到原板', async () => {
+    await seedReleaseBoardDataset(rxdb);
+    const columns = rxdb.entityManager.getRepository(Column);
+    const failing = vi.spyOn(columns, 'findAll').mockReturnValueOnce(throwError(() => new Error('磁盘读取失败')));
+    const fixture = await mount();
+    await waitFor(fixture, () => $(fixture, '[data-testid="board-read-error"]') !== null, '读失败横幅');
+    expect($(fixture, '[data-testid="board-read-error"]')!.textContent).toContain('读取看板数据失败：磁盘读取失败');
+    expect($(fixture, '[data-testid="board-loading"]')).toBeNull();
+    expect($(fixture, '[data-testid="empty-board"]')).toBeNull();
+    expect($$(fixture, '[data-testid="task-card"]')).toHaveLength(0);
+    for (const testId of ['create-board', 'create-column', 'undo']) {
+      expect(($(fixture, `[data-testid="${testId}"]`) as HTMLButtonElement).disabled, testId).toBe(true);
+    }
+    failing.mockRestore();
+
+    ($(fixture, '[data-testid="board-read-retry"]') as HTMLButtonElement).click();
+    await waitFor(fixture, () => $$(fixture, '[data-testid="task-card"]').length === 12, '重试后读回');
+    expect($(fixture, '[data-testid="board-read-error"]')).toBeNull();
+    expect($(fixture, '[data-testid="rename-board"]')!.textContent?.trim()).toBe('rxdb 1.0 发布计划');
+    expect(($(fixture, '[data-testid="create-column"]') as HTMLButtonElement).disabled).toBe(false);
     fixture.destroy();
   });
 });

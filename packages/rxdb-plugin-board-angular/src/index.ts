@@ -2,7 +2,8 @@
  * rxdb-plugin-board-angular - Angular 集成层
  *
  * 提供 `useBoard()`：看板领域数据 signal + 领域动作集合，
- * 全部写入口经核心包服务（校验、恢复中写门禁、事务原子性）。
+ * 全部写入口经核心包服务（校验、恢复中写门禁、事务原子性）；
+ * `BoardViewComponent` 是看板视图，`BoardShellComponent` 是带启动选择与备份恢复的外壳。
  * 命名与 React / Vue 绑定层一致。
  *
  * @packageDocumentation
@@ -14,6 +15,7 @@ export type {
   BoardHostContext,
   BoardLabel,
   BoardSearchUnavailableReason,
+  BoardShellOptions,
   BoardWriteEvent,
   CardDropTarget,
   Column,
@@ -25,6 +27,7 @@ export type {
   TaskDraft,
   TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
+export { BoardShellComponent } from './board-shell.js';
 export { BoardViewComponent } from './board-view.js';
 export {
   LAST_BOARD_KEY,

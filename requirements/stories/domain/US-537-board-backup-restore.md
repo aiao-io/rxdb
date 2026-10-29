@@ -5,7 +5,7 @@ status: In Progress
 priority: Low
 epic: epic-011-task-board-domain-model
 created: 2026-10-19
-updated: 2026-10-21
+updated: 2026-10-29
 tags: [domain, board, backup, restore]
 ---
 
@@ -71,9 +71,10 @@ tags: [domain, board, backup, restore]
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> **验收注记（2026-10-21）**：AC#1～8、#10 由核心包单测与独立 board demo 的六条闭环 e2e 覆盖；
-> AC#9 的「配额不足 / 关闭页面后重开」注入分支未全部落地。三端宿主的恢复入口
-> （启动页 / 工具菜单）目前只有独立 board demo 接线，三端 demo 待补（US-539 AC#4 的三端半边）。
+> **验收注记（2026-10-29）**：AC#1～8、#10 由核心包单测与独立 board demo 的闭环 / 恢复 e2e 覆盖；
+> AC#9 的「配额不足 / 关闭页面后重开」注入分支未全部落地。宿主编排收进核心包 `BoardShellController`（驱动
+> `restoreStateMachine`；顺带修正状态机在「切换中」提前清除恢复中标记、与下表不一致的一处），三端绑定各出外壳组件，
+> 独立 demo 与三端宿主共用；三端宿主的启动页 / 工具菜单恢复与跨页门禁由 US-539 AC#4 / #5 的 `board-restore.spec.ts` 验收。
 
 ## 技术笔记
 
@@ -136,9 +137,10 @@ React / Vue 虽能换实例，三端数据 hooks 在库关闭后都不重新订�
 
 ## 实现文件
 
-- `packages/rxdb-plugin-board/` — 已建；备份 / 恢复编排状态机、活动位置与待切换记录、「恢复中」跨页标记（三端共用）
-- `packages/rxdb-plugin-board-{angular,react,vue}/` — 已建；三端入口与状态接线，随 [US-539](US-539-board-tri-framework-ui.md)
-- `apps/dev-rxdb-board/` — 已建；sqlite-wasm 主线程 `vfs: 'idb'` 配置与启动页接线，贯穿闭环随 [US-540](US-540-board-end-to-end-demo.md)
+- `packages/rxdb-plugin-board/` — 已建；备份 / 恢复编排状态机、活动位置与待切换记录、「恢复中」跨页标记（三端共用）；
+  `src/board-shell.ts` 的 `BoardShellController` 是上表状态流的宿主半边（启动选择、新库名、整页重载读回、残留清理）
+- `packages/rxdb-plugin-board-{angular,react,vue}/` — 已建；三端外壳组件（启动页 / 工具栏 / 应用内确认）与状态接线，随 [US-539](US-539-board-tri-framework-ui.md)
+- `apps/dev-rxdb-board/` — 已建；sqlite-wasm 主线程 `vfs: 'idb'` 实例工厂接进外壳，贯穿闭环随 [US-540](US-540-board-end-to-end-demo.md)
 
 ## References
 

@@ -22,6 +22,18 @@
         "kind": "type"
       },
       {
+        "name": "BoardShell",
+        "kind": "value"
+      },
+      {
+        "name": "BoardShellOptions",
+        "kind": "type"
+      },
+      {
+        "name": "BoardShellProps",
+        "kind": "type"
+      },
+      {
         "name": "BoardView",
         "kind": "value"
       },

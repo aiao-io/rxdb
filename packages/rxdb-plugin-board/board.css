@@ -17,6 +17,13 @@
  *   ├─ .rxb-popover              菜单 / 选择器（position: fixed，渲染在根层）
  *   ├─ .rxb-dialog-backdrop      模态对话框（删除确认 / 标签 / 新建板 / 搜索 / 快捷键）
  *   └─ .rxb-toast                操作提示（带撤销）
+ *
+ * 外壳（三端 BoardShell，US-537）另起一个 .rxb 根，看板视图嵌在它的看板阶段里：
+ *   .rxb.rxb-shell               根（data-testid="board-shell"），--rxb-shell-min-height 由宿主给
+ *   ├─ .rxb-shell-startup        启动选择（新建空看板 / 装载演示数据 / 从备份恢复）
+ *   ├─ .rxb-shell-status         准备中 / 恢复中
+ *   ├─ .rxb-shell-board          工具栏 .rxb-shell-bar + 看板视图
+ *   └─ .rxb-dialog-backdrop      外壳的应用内确认（重置 / 恢复）
  */
 
 .rxb {
@@ -1539,6 +1546,145 @@ button.rxb-label:hover {
 .rxb-toast-undo {
   font-weight: 600;
   text-decoration: underline;
+}
+
+/* ---------- 外壳：启动选择 / 恢复中 / 工具栏 ---------- */
+
+/* 宿主在祖先上给 --rxb-shell-min-height（独立 demo 占满视口为 100vh），缺省随内容 */
+.rxb-shell {
+  min-height: var(--rxb-shell-min-height, 0);
+}
+
+.rxb-shell-board {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+/* 看板视图占满外壳的剩余高度（Angular 多一层 <board-view> 宿主元素） */
+.rxb-shell-board > board-view {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.rxb-shell-board .rxb {
+  flex: 1;
+}
+
+.rxb-shell-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--rxb-border);
+  background: var(--rxb-canvas-subtle);
+}
+
+.rxb-shell-brand {
+  font-weight: 600;
+}
+
+.rxb-shell-spacer {
+  flex: 1;
+}
+
+.rxb-shell-error {
+  margin: 8px 24px 0;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--rxb-danger) 40%, transparent);
+  border-radius: var(--rxb-radius);
+  background: var(--rxb-danger-muted);
+  color: var(--rxb-danger);
+}
+
+.rxb-shell-card .rxb-shell-error {
+  margin: 16px 0 0;
+}
+
+.rxb-shell-startup {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--rxb-canvas-subtle);
+}
+
+.rxb-shell-card {
+  width: min(560px, 100%);
+  padding: 32px;
+  border: 1px solid var(--rxb-border);
+  border-radius: var(--rxb-radius-lg);
+  background: var(--rxb-canvas);
+  box-shadow: var(--rxb-shadow-overlay);
+}
+
+.rxb-shell-eyebrow {
+  margin: 0 0 4px;
+  color: var(--rxb-fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rxb-shell-heading {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.rxb-shell-hint {
+  margin: 0 0 24px;
+  color: var(--rxb-fg-muted);
+}
+
+.rxb-shell-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rxb-shell-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--rxb-border);
+  border-radius: var(--rxb-radius);
+  background: var(--rxb-canvas);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rxb-shell-option:hover {
+  border-color: var(--rxb-accent);
+  background: color-mix(in srgb, var(--rxb-accent) 6%, var(--rxb-canvas));
+}
+
+.rxb-shell-option:focus-visible {
+  outline: none;
+  box-shadow: var(--rxb-focus);
+}
+
+.rxb-shell-option strong {
+  font-size: 14px;
+}
+
+.rxb-shell-option span {
+  color: var(--rxb-fg-muted);
+  font-size: 12px;
+}
+
+.rxb-shell-status {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  margin: 0;
+  color: var(--rxb-fg-muted);
 }
 
 @media (max-width: 640px) {

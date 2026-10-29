@@ -2,8 +2,20 @@ export type { SearchHandle, SearchResult } from '@aiao/rxdb-plugin-search';
 export { BoardDomain } from './board-domain.js';
 export { observeBoardRead, type BoardReadSnapshot, type BoardReadState } from './board-read.js';
 export {
+  BOARD_RESTORE_LOCK,
+  BoardShellController,
+  browserBoardShellRuntime,
+  type BoardBackupAdapter,
+  type BoardShellConfirm,
+  type BoardShellOptions,
+  type BoardShellPhase,
+  type BoardShellRuntime,
+  type BoardShellState
+} from './board-shell.js';
+export {
   ACTIVE_DB_KEY,
   PENDING_SWITCH_KEY,
+  RESTORE_TARGET_KEY,
   RESTORING_MARKER_KEY,
   clearPendingSwitch,
   clearRestoringMarker,

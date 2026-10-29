@@ -8,8 +8,8 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 89   |
-| 🚧 In Progress | 5    |
-| 👀 In Review   | 3    |
+| 🚧 In Progress | 3    |
+| 👀 In Review   | 5    |
 | 📝 Backlog     | 31   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 128  |
@@ -17,23 +17,23 @@
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（5 条）
+## 进行中（3 条）
 
 | Story                                                                                                       | 剩余范围                                                           |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md) | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。 |
-| [US-534 看板领域模型骨架](stories/domain/US-534-board-column-task-skeleton.md)                              | 既有库增加看板实体的组合验收仍待完成。                             |
-| [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)                                  | 恢复异常分支与三端宿主恢复入口继续按故事 AC 收尾。                 |
-| [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)                              | 三端恢复入口、鼠标拖列及截止日/错误态分支证据仍需补齐。            |
-| [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                    | 多板搜索隔离、升级重开的独立 demo 组合证据仍需补齐。               |
+| [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)                                  | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）仍待补齐。         |
+| [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                    | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。           |
 
-## 待评审（3 条）
+## 待评审（5 条）
 
 | Story                                                                                         | 剩余范围                                                                      |
 | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                               |
 | [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。   |
 | [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)      | workspace接线已验证；发布tarball仓外消费与独立重搭仍待验证，AC#1/#3不能标绿。 |
+| [US-534 看板领域模型骨架](stories/domain/US-534-board-column-task-skeleton.md)                | 全部 AC 已验（既有库重开在 PGlite 与 sqlite-wasm 各验一遍），等待合并收尾。   |
+| [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)                | 阶段 A～C 三端全绿（含外壳恢复入口与跨页门禁），等待合并收尾。                |
 
 ## 阻塞（0 条）
 
@@ -192,12 +192,12 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 单人范围 US-534～US-540 已获 owner 授权；US-541 团队版保留价值待证。
 当前排期与准入见 [roadmap 批次 6](roadmap.md#批次-6看板首轮切片epic-011-已解锁)。
 
-- 🚧 [US-534 看板领域模型骨架：Board / Column / Task 与按列排序域](stories/domain/US-534-board-column-task-skeleton.md)
+- 👀 [US-534 看板领域模型骨架：Board / Column / Task 与按列排序域](stories/domain/US-534-board-column-task-skeleton.md)
 - ✅ [US-535 跨列移动与本列排序的领域语义](stories/domain/US-535-cross-column-move-ordering.md)
 - ✅ [US-536 任务详情与编辑：标签、截止日与撤销重做](stories/domain/US-536-task-detail-editing.md)
 - 🚧 [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)
 - ✅ [US-538 看板任务搜索：FTS 接线](stories/domain/US-538-board-task-search.md)
-- 🚧 [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)
+- 👀 [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)
 - 🚧 [US-540 看板端到端 demo：一份数据集走完全域](stories/domain/US-540-board-end-to-end-demo.md)
 - ⬜ [US-541 团队版看板：Supabase 同步与身份](stories/domain/US-541-board-team-sync.md)
 

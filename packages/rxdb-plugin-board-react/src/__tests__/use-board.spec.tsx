@@ -254,4 +254,28 @@ describe('useBoard（React 桥接）', () => {
     await run(async () => board().actions.executeDelete(await board().actions.planBoardDelete(created.id)));
     await waitFor(() => board().boards.length === 0, '删除板');
   });
+
+  it('读取失败（AC#13）：刷新失败可判别且保留已显示的数据；重试重建订阅后回到原板', async () => {
+    const created = await run(() => board().actions.createBoard({ title: '读失败板' }));
+    await waitFor(() => board().currentBoardId === created.id, '进入板');
+    const column = await run(() => board().actions.createColumn({ title: '待办' }));
+    await waitFor(() => board().columns.length === 1 && !board().loading, '列就绪');
+
+    // 已显示中的刷新失败：活查询先给出数据再报错
+    const live = new Subject<Column[]>();
+    const failing = vi.spyOn(rxdb.entityManager.getRepository(Column), 'findAll').mockReturnValueOnce(live);
+    act(() => board().retryReads());
+    act(() => live.next([column]));
+    await waitFor(() => board().columns.length === 1 && !board().loading, '刷新出数据');
+    act(() => live.error(new Error('磁盘读取失败')));
+    await waitFor(() => board().readError === '磁盘读取失败', '读失败');
+    expect(board().loading).toBe(false);
+    expect(board().columns.map(item => item.title)).toEqual(['待办']);
+    failing.mockRestore();
+
+    act(() => board().retryReads());
+    expect(board().readError).toBeNull();
+    await waitFor(() => !board().loading && board().columns.length === 1, '重试读回');
+    expect(board().currentBoard?.id).toBe(created.id);
+  });
 });

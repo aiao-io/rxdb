@@ -59,14 +59,19 @@ describe('restoreStateMachine（US-537 AC#10）', () => {
     expect(end.failure).toBeNull();
   });
 
-  it('恢复中标记覆盖写入期：archive_selected 之后到 restore_succeeded 之前 marker 为真', () => {
+  it('恢复中标记覆盖写入期与切换期：archive_selected 之后到读回成功之前 marker 为真', () => {
     const restoring = drive([{ kind: 'choose_restore' }, selectArchive]);
     expect(restoring.state).toBe('restoring');
     expect(restoring.restoringMarker).toBe(true);
 
+    // 重载读回的窗口里其他页面仍不可写：它们写进的旧库在切换后不再打开
     const switching = restoreStateMachine(restoring, { kind: 'restore_succeeded' });
-    expect(switching.restoringMarker).toBe(false);
+    expect(switching.restoringMarker).toBe(true);
     expect(switching.pendingSwitch).toBe(true);
+
+    const restored = restoreStateMachine(switching, { kind: 'readback_succeeded' });
+    expect(restored.restoringMarker).toBe(false);
+    expect(restored.pendingSwitch).toBe(false);
   });
 
   it('已有库恢复：取消不启动恢复，回到启动选择', () => {

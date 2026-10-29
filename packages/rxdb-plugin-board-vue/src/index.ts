@@ -1,7 +1,8 @@
 /**
  * rxdb-plugin-board-vue - Vue 集成层
  *
- * 提供 `useBoard()`：看板领域数据 ref + 领域动作集合。
+ * 提供 `useBoard()`：看板领域数据 ref + 领域动作集合；
+ * `BoardView` 是看板视图，`BoardShell` 是带启动选择与备份恢复的外壳。
  * 命名与 Angular / React 绑定层一致。
  *
  * @packageDocumentation
@@ -13,6 +14,7 @@ export type {
   BoardHostContext,
   BoardLabel,
   BoardSearchUnavailableReason,
+  BoardShellOptions,
   BoardWriteEvent,
   CardDropTarget,
   Column,
@@ -24,6 +26,7 @@ export type {
   TaskDraft,
   TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
+export { default as BoardShell } from './board-shell.vue';
 export { default as BoardView } from './board-view.vue';
 export {
   LAST_BOARD_KEY,

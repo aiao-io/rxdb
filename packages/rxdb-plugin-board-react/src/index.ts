@@ -1,7 +1,8 @@
 /**
  * rxdb-plugin-board-react - React 集成层
  *
- * 提供 `useBoard()`：看板领域数据 state + 领域动作集合。
+ * 提供 `useBoard()`：看板领域数据 state + 领域动作集合；
+ * `BoardView` 是看板视图，`BoardShell` 是带启动选择与备份恢复的外壳。
  * 命名与 Angular / Vue 绑定层一致。
  *
  * @packageDocumentation
@@ -13,6 +14,7 @@ export type {
   BoardHostContext,
   BoardLabel,
   BoardSearchUnavailableReason,
+  BoardShellOptions,
   BoardWriteEvent,
   CardDropTarget,
   Column,
@@ -24,6 +26,7 @@ export type {
   TaskDraft,
   TaskDraftSnapshot
 } from '@aiao/rxdb-plugin-board';
+export { BoardShell, type BoardShellProps } from './board-shell.js';
 export { BoardView, type BoardViewProps } from './board-view.js';
 export {
   LAST_BOARD_KEY,

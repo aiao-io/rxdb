@@ -19,6 +19,8 @@ export const ACTIVE_DB_KEY = 'rxdb-board-active-db';
 export const PENDING_SWITCH_KEY = 'rxdb-board-pending-switch';
 /** 恢复中标记键（localStorage）：跨页写门禁的信号源（US-539 AC#5）。 */
 export const RESTORING_MARKER_KEY = 'rxdb-board-restoring';
+/** 本次恢复目标库名记录键（localStorage）：中断后重开只清理这一份存储，清理失败时留着供下次重试。 */
+export const RESTORE_TARGET_KEY = 'rxdb-board-restore-target';
 
 /** 当前活动库名；无记录 = 首次启动（显示启动选择页）。 */
 export const readActiveDbName = (storage: BoardStorage): string | null => storage.get(ACTIVE_DB_KEY);

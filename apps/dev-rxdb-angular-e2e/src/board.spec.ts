@@ -4,8 +4,9 @@ import { test as base, expect } from './fixtures.js';
 
 /**
  * 看板页三端对齐验收（US-539，看板 v2 交互）：每个用例都在全新浏览器上下文进入 `/board`
- * （干净 IndexedDB / localStorage 初态），拖拽用真实拖拽且拖后刷新读回（US-028 AC#18 先例），
- * 种子来自「装载演示数据」入口（US-540 同一份确定性种子）。全程不出现浏览器原生弹窗。
+ * （干净 IndexedDB / localStorage 初态，停在外壳的启动选择），拖拽用真实拖拽且拖后刷新读回（US-028 AC#18 先例），
+ * 种子来自启动页「装载演示数据」（US-540 同一份确定性种子）。全程不出现浏览器原生弹窗。
+ * 备份恢复与跨页恢复门禁在 `board-restore.spec.ts`。
  *
  * 本文件与 dev-rxdb-react-e2e / dev-rxdb-vue-e2e 的副本内容一致，只允许一处差异：
  * Angular 端从 `./fixtures.js` 取 test / expect（US-909 失败归档守卫），React / Vue 从
@@ -23,16 +24,17 @@ const test = base.extend<{ boardPage: Page }>({
       void dialog.dismiss();
     });
     await page.goto('/board');
-    await expect(page.getByTestId('board-view')).toBeVisible();
+    await expect(page.getByTestId('startup-page')).toBeVisible();
     await use(page);
     await context.close();
     expect(nativeDialogs).toEqual([]);
   }
 });
 
-/** 经宿主入口装载演示数据（只进空库），等种子渲染完成。 */
+/** 经启动页装载演示数据（只进新库），等种子渲染完成。 */
 const startWithSeed = async (page: Page): Promise<void> => {
-  await page.getByTestId('seed-demo').click();
+  await page.getByTestId('start-seed').click();
+  await expect(page.getByTestId('board-view')).toBeVisible();
   await expect(page.getByTestId('column')).toHaveCount(4);
   await expect(page.getByTestId('task-card')).toHaveCount(12);
 };
@@ -90,7 +92,6 @@ test.describe('看板页对齐（US-539，看板 v2）', () => {
   });
 
   test('AC#1：装载演示数据——列头、任务、标签与截止日与种子一致，重开后原样', async ({ boardPage: page }) => {
-    await expect(page.getByTestId('empty-board')).toBeVisible();
     await startWithSeed(page);
 
     await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Doing', 'Done', 'Ideas']);
@@ -248,6 +249,8 @@ test.describe('看板页对齐（US-539，看板 v2）', () => {
   });
 
   test('AC#7：空库闭环——建板 / 建列 / 建任务、第二块板切换、重开原样', async ({ boardPage: page }) => {
+    await page.getByTestId('start-empty').click();
+    // 空态（AC#13）：无板时只给「新建看板」，空列保留建任务入口并写明暂无任务
     await expect(page.getByTestId('empty-board')).toBeVisible();
 
     await page.getByTestId('create-board-empty').click();
@@ -259,6 +262,7 @@ test.describe('看板页对齐（US-539，看板 v2）', () => {
     await page.getByTestId('column-composer-input').fill('待办');
     await page.getByTestId('column-composer-submit').click();
     await expect(page.getByTestId('column')).toHaveCount(1);
+    await expect(page.getByTestId('column-empty')).toHaveText('暂无任务');
     // 列底建任务：Esc 取消零写，Enter 提交且输入框保持打开
     await page.getByTestId('add-task').click();
     await page.getByTestId('add-task-input').fill('第一件事');
@@ -329,6 +333,44 @@ test.describe('看板页对齐（US-539，看板 v2）', () => {
     await page.getByTestId('board-selector').selectOption({ label: '引擎研究草稿' });
     await page.reload();
     await expect(page.getByTestId('task-card')).toHaveCount(8);
+  });
+
+  test('AC#9：拖列改序——鼠标真实拖拽与列菜单左移互为逆操作；只改当前板，另一板不变；重开保留', async ({
+    boardPage: page
+  }) => {
+    await startWithSeed(page);
+    const header = (title: string) => columnOf(page, title).getByTestId('column-header');
+
+    // 另一板先补一列，让「另一板不变」有可比的列序
+    await page.getByTestId('board-selector').selectOption({ label: '引擎研究草稿' });
+    await page.getByTestId('create-column').click();
+    await page.getByTestId('column-composer-input').fill('归档');
+    await page.getByTestId('column-composer-submit').click();
+    await expect(page.getByTestId('column-title')).toHaveText(['研究', '归档']);
+    await page.getByTestId('board-selector').selectOption({ label: 'rxdb 1.0 发布计划' });
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+
+    // 真实拖拽：Doing 列头拖到 Done 列头右半边，落在 Done 之后（首尾越界由 AC#6 的列菜单禁用覆盖）
+    const doneBox = (await header('Done').boundingBox())!;
+    await header('Doing').dragTo(header('Done'), {
+      sourcePosition: { x: 12, y: 12 },
+      targetPosition: { x: doneBox.width - 12, y: 12 }
+    });
+    await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Done', 'Doing', 'Ideas']);
+    await page.reload();
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+    await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Done', 'Doing', 'Ideas']);
+    expect(await titlesOfColumn(page, 'Doing')).toHaveLength(4);
+
+    // 键盘等价路径（列菜单左移）还原同一结果；另一板列序不变
+    await openColumnMenu(page, 'Doing');
+    await page.getByTestId('column-move-back').click();
+    await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Doing', 'Done', 'Ideas']);
+    await page.reload();
+    await expect(page.getByTestId('task-card')).toHaveCount(12);
+    await expect(page.getByTestId('column-title')).toHaveText(['To do', 'Doing', 'Done', 'Ideas']);
+    await page.getByTestId('board-selector').selectOption({ label: '引擎研究草稿' });
+    await expect(page.getByTestId('column-title')).toHaveText(['研究', '归档']);
   });
 
   test('AC#10：标签管理——新建（预设色）/ 同板重名拒绝 / 改名改色 / 删除确认，引用卡片同步，他板不受影响、刷新后保留', async ({
@@ -448,6 +490,52 @@ test.describe('看板页对齐（US-539，看板 v2）', () => {
     await expect(page.getByTestId('board-view')).toBeVisible();
     await expect(page.getByTestId('undo')).toBeDisabled();
     await expect(page.getByTestId('redo')).toBeDisabled();
+  });
+
+  test('AC#12：截止日按本地纯日期——已逾期 / 今天到期 / 日期，空值不显示；列名 Done 不免除；跨午夜重算', async ({
+    boardPage: page
+  }) => {
+    // 固定本地当天 2026-10-19 上午（时钟照常走）；种子截止日在 10 月底之后，这里改出 18 / 19 / 20 三天
+    await page.clock.install({ time: new Date(2026, 9, 19, 10, 0, 0) });
+    await page.reload();
+    await startWithSeed(page);
+    const due = (title: string) => page.getByTestId('task-card').filter({ hasText: title }).getByTestId('task-due');
+    const setDue = async (title: string, value: string): Promise<void> => {
+      const detail = await openDetail(page, title);
+      await detail.getByTestId('detail-due').fill(value);
+      await expect(due(title)).toContainText(value);
+      await detail.getByTestId('detail-close').click();
+      await expect(detail).toHaveCount(0);
+    };
+    await setDue('修复登录 bug', '2026-10-18');
+    await setDue('同步插件适配 Supabase', '2026-10-19');
+    await setDue('回归测试：工作树同步', '2026-10-20');
+
+    await expect(due('修复登录 bug')).toHaveText('已逾期 2026-10-18');
+    await expect(due('同步插件适配 Supabase')).toHaveText('今天到期 2026-10-19');
+    await expect(due('回归测试：工作树同步')).toHaveText('2026-10-20');
+    await expect(due('写发布说明')).toHaveCount(0);
+    await expect(columnOf(page, 'To do').getByTestId('column-overdue')).toHaveText('逾期 1');
+    // 详情读回纯日期，不随时区漂移
+    const detail = await openDetail(page, '同步插件适配 Supabase');
+    await expect(detail.getByTestId('detail-due')).toHaveValue('2026-10-19');
+    await detail.getByTestId('detail-close').click();
+
+    // 模型没有完成字段：列名叫 Done 也照算逾期
+    await expect(columnOf(page, 'Done').getByTestId('column-overdue')).toHaveText('逾期 3');
+    await openTaskMenu(page, '修复登录 bug');
+    await page.getByTestId('task-move-to-column').click();
+    await page.getByTestId('picker-filter').fill('Done');
+    await page.getByTestId('picker-filter').press('Enter');
+    await expect.poll(async () => (await titlesOfColumn(page, 'Done')).at(-1)).toBe('修复登录 bug');
+    await expect(due('修复登录 bug')).toHaveText('已逾期 2026-10-18');
+    await expect(columnOf(page, 'Done').getByTestId('column-overdue')).toHaveText('逾期 4');
+
+    // 跨本地午夜：派生状态按新的一天重算
+    await page.clock.fastForward('14:00:00');
+    await expect(due('同步插件适配 Supabase')).toHaveText('已逾期 2026-10-19');
+    await expect(due('回归测试：工作树同步')).toHaveText('今天到期 2026-10-20');
+    await expect(columnOf(page, 'To do').getByTestId('column-overdue')).toHaveText('逾期 1');
   });
 
   test('AC#14：本列排序——按截止日排序、已排好提示无变化、一次 undo 还原整列', async ({ boardPage: page }) => {
@@ -609,12 +697,16 @@ test.describe('看板页对齐（US-539，看板 v2）', () => {
     await page.reload();
     await expect(page.getByTestId('task-card')).toHaveCount(12);
     const expectNoAxeViolations = async (): Promise<void> => {
-      // 侧栏 / 弹层带入场动画：等有限动画播完再扫，半透明的中间帧会被误判为对比度不足
+      // 侧栏 / 弹层带入场动画：等有限动画播完再扫，半透明的中间帧会被误判为对比度不足。
+      // 只等按时间推进的动画：列区溢出渐隐是滚动驱动的（ScrollTimeline），停在随滚动位置的那一帧，永远不会 finished
       await page.evaluate(() =>
         Promise.all(
           document
             .getAnimations()
-            .filter(animation => animation.effect?.getTiming().iterations !== Infinity)
+            .filter(
+              animation =>
+                animation.timeline instanceof DocumentTimeline && animation.effect?.getTiming().iterations !== Infinity
+            )
             .map(animation => animation.finished.catch(() => undefined))
         )
       );

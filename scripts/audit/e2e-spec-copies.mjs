@@ -29,7 +29,12 @@ import ts from 'typescript';
 export const E2E_PROJECTS = ['dev-rxdb-angular-e2e', 'dev-rxdb-react-e2e', 'dev-rxdb-vue-e2e'];
 
 /** 三端同内容副本登记表（文件名相同，分处三个 e2e 项目）。 */
-export const COPY_GROUPS = ['board.spec.ts', 'board-parity.spec.ts', 'entity-model-parity.spec.ts'];
+export const COPY_GROUPS = [
+  'board.spec.ts',
+  'board-parity.spec.ts',
+  'board-restore.spec.ts',
+  'entity-model-parity.spec.ts'
+];
 
 /** 只有基准端（Angular）允许把这个来源当作 `@playwright/test`。 */
 const ANGULAR_FIXTURES = './fixtures.js';

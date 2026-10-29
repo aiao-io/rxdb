@@ -27,7 +27,10 @@ export interface RestoreSnapshot {
   readonly state: RestoreState;
   /** 本次恢复的目标库名：选定归档起携带到切换与已恢复；未开始、失败或取消（目标已清理）为 `null`。 */
   readonly targetDbName: string | null;
-  /** 恢复中标记是否在写（所有页面据此暂停写入）。 */
+  /**
+   * 恢复中标记是否在写（所有页面据此暂停写入）：选定归档起，直到重载后读回成功或失败清理。
+   * 切换中仍在写——其他页面在重载读回的窗口里写旧库，切换后这些写入就留在了不再打开的库里。
+   */
   readonly restoringMarker: boolean;
   /** 待切换记录是否在写（重载后据此连接新库并读回）。 */
   readonly pendingSwitch: boolean;
@@ -92,12 +95,12 @@ export const restoreStateMachine = (snapshot: RestoreSnapshot, input: RestoreInp
         : snapshot;
 
     case 'restore_succeeded':
-      return snapshot.state === 'restoring' ?
-          { ...snapshot, state: 'switching', restoringMarker: false, pendingSwitch: true }
-        : snapshot;
+      return snapshot.state === 'restoring' ? { ...snapshot, state: 'switching', pendingSwitch: true } : snapshot;
 
     case 'readback_succeeded':
-      return snapshot.state === 'switching' ? { ...snapshot, state: 'restored', pendingSwitch: false } : snapshot;
+      return snapshot.state === 'switching' ?
+          { ...snapshot, state: 'restored', restoringMarker: false, pendingSwitch: false }
+        : snapshot;
 
     case 'restore_failed':
       return snapshot.state === 'restoring' ?

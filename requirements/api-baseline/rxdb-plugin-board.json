@@ -18,6 +18,14 @@
         "kind": "value"
       },
       {
+        "name": "BOARD_RESTORE_LOCK",
+        "kind": "value"
+      },
+      {
+        "name": "BoardBackupAdapter",
+        "kind": "type"
+      },
+      {
         "name": "BoardColumnSortService",
         "kind": "both"
       },
@@ -130,6 +138,30 @@
         "kind": "type"
       },
       {
+        "name": "BoardShellConfirm",
+        "kind": "type"
+      },
+      {
+        "name": "BoardShellController",
+        "kind": "both"
+      },
+      {
+        "name": "BoardShellOptions",
+        "kind": "type"
+      },
+      {
+        "name": "BoardShellPhase",
+        "kind": "type"
+      },
+      {
+        "name": "BoardShellRuntime",
+        "kind": "type"
+      },
+      {
+        "name": "BoardShellState",
+        "kind": "type"
+      },
+      {
         "name": "BoardStorage",
         "kind": "type"
       },
@@ -140,6 +172,10 @@
       {
         "name": "BoardWriteNotifier",
         "kind": "both"
+      },
+      {
+        "name": "browserBoardShellRuntime",
+        "kind": "value"
       },
       {
         "name": "CardDropColumnView",
@@ -339,6 +375,10 @@
       },
       {
         "name": "resolveMenuMove",
+        "kind": "value"
+      },
+      {
+        "name": "RESTORE_TARGET_KEY",
         "kind": "value"
       },
       {
