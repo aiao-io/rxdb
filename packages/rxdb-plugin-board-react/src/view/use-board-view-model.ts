@@ -46,8 +46,10 @@ const runGlobalShortcut = (vm: BoardViewModel, event: KeyboardEvent): boolean =>
   return true;
 };
 
-/** 模态对话框打开时 Tab 只在对话框内循环（首尾绕回，目标由核心包 `trapTabFocus` 换算）；返回是否接管。 */
-/** document 级按键：只在焦点位于看板内或 body 时生效。 */
+/**
+ * document 级按键：只在焦点位于看板内或 body 时生效。模态对话框打开时 Tab 只在对话框内循环
+ * （首尾绕回，目标由核心包 `trapTabFocus` 换算）。
+ */
 const onDocumentKeydown = (vm: BoardViewModel, event: KeyboardEvent): void => {
   const root = vm.core.areaRef.current;
   const active = document.activeElement;

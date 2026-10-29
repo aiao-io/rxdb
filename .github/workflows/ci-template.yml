@@ -237,6 +237,11 @@ jobs:
       - name: Table name resolver gate
         run: pnpm audit:table-name-resolver
 
+      # 三端 e2e 的「同内容三副本」（看板与两份对拍 spec）只许 Angular 从 ./fixtures.js 取 test / expect。
+      # 改一端漏两端时三端 e2e 各自照绿，副本改动又只让对应 e2e 项目进 affected，只能在这里统一核对。
+      - name: E2E spec copies gate
+        run: pnpm audit:e2e-spec-copies
+
       # requirements/ 的派生视图（status-overview 计数与索引、epic status、README 的 N/M、
       # 相对链接与 #L 行号锚点）必须等于 story YAML 推导值。此前全靠手改，README 写 50/61 时
       # YAML 已是 54/63；数字类漂移本地跑 `pnpm audit:requirements:update` 即可回写。

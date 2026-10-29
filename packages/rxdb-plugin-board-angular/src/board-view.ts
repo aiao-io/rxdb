@@ -179,7 +179,8 @@ let instanceCounter = 0;
  * 动作收进上下文菜单、就地编辑即改即存（每次改动一个可撤销事务）、一个选择器与一套筛选语法走天下。
  * 三端只采集指针 / 键盘事件，落点、键盘目标、筛选与弹层定位都调用核心包同一份纯函数；
  * 全部写入口经 {@link useBoard} 的领域动作（恢复中写门禁与校验在服务层复核，不靠隐藏按钮）。
- * 样式来自 `@aiao/rxdb-plugin-board/board.css`，Angular 宿主需在全局样式中引入。
+ * 样式来自 `@aiao/rxdb-plugin-board/board.css`，经本包 `./board-view.css` 子路径交付（与 React / Vue 绑定同名），
+ * 宿主在全局样式中引入（如 `angular.json` 的 `styles`）。
  */
 @Component({
   selector: 'board-view',
@@ -390,7 +391,10 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
   readonly rxdb = input.required<Parameters<typeof useBoard>[0]>();
-  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。 */
+  /**
+   * 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。
+   * 与 React / Vue 的 `onExportBackup` 是同一个回调：名字随各框架的属性绑定习惯（US-539 技术笔记允许的端差异）。
+   */
   readonly exportBackup = input<() => void | Promise<void>>();
 
   ngOnInit(): void {
@@ -1494,6 +1498,10 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     return true;
   }
 
+  /**
+   * document 级按键：只在焦点位于看板内或 body 时生效。模态对话框打开时 Tab 只在对话框内循环
+   * （首尾绕回，目标由核心包 `trapTabFocus` 换算）。
+   */
   private readonly onDocumentKeydown = (event: KeyboardEvent): void => {
     const root = this.boardArea()?.nativeElement;
     const active = document.activeElement;
@@ -1516,7 +1524,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     if (this.runGlobalShortcut(event)) event.preventDefault();
   };
 
-  /** 模态对话框打开时 Tab 只在对话框内循环（首尾绕回，目标由核心包 `trapTabFocus` 换算）；返回是否接管。 */
+  /** 单键与撤销快捷键（非编辑框内、无对话框时）；返回是否接管。 */
   private runGlobalShortcut(event: KeyboardEvent): boolean {
     if (isModifier(event) && event.key.toLowerCase() === 'z') {
       void (event.shiftKey ? this.redo() : this.undo());

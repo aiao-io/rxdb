@@ -70,13 +70,15 @@ export const cleanupBoardRestoreTarget = async (dbName: string, activeDbName: st
   if (!cleanedIncomplete) await deleteBoardDbStorage(dbName);
 };
 
-/** 删除明确指定的 sqlite-wasm IndexedDB 持久库。 */
+/**
+ * 删除明确指定的 sqlite-wasm IndexedDB 持久库：只删实际列出、规范名对得上的库。
+ * 一个都没有就是库还没落盘（连接前失败），无可删——不按命名规则猜一个库名去删。
+ */
 export const deleteBoardDbStorage = async (dbName: string): Promise<void> => {
   const databaseNames = (await indexedDB.databases())
     .map(info => info.name ?? '')
     .filter(name => name !== '' && canonicalDbName(name) === dbName);
-  const names = databaseNames.length > 0 ? databaseNames : [`${dbName}.sqlite`];
-  for (const name of names) await deleteIndexedDb(name);
+  for (const name of databaseNames) await deleteIndexedDb(name);
 };
 
 /** 读回前验证目标存储存在，避免连接时把丢失的恢复库初始化成空库。 */

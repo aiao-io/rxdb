@@ -9,7 +9,10 @@ import { firstValueFrom, from, type Observable } from 'rxjs';
  * `find` 返回 Promise；经 `from` 统一后，取首个快照即完成。
  */
 
-/** `field = value` 规则（泛型收窄字段与值类型）。 */
+/**
+ * `field = value` 规则（泛型收窄字段与值类型）。
+ * 值只收字符串：看板按列过滤的字段全是 UUID / 文本，出现按数字、布尔或日期列查询的调用方时再放宽。
+ */
 export const eq = <F extends string, V extends string>(field: F, value: V) => ({
   field,
   operator: '=' as const,

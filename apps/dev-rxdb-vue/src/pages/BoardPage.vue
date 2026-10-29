@@ -60,8 +60,11 @@ const exportBackup = async (): Promise<void> => {
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = `board-backup-${current.config.dbName}.rxdb`;
+  document.body.append(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  // 点击触发的下载对 blob URL 的读取是异步的，立即回收会让部分浏览器中断下载或拿到空文件
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
 /** 装载演示数据：只装进空库（种子固定 ID，不向已有库追加）。 */

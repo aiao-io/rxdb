@@ -1,6 +1,6 @@
 # AI Review 规则与记录
 
-这个目录存放 review 记录模板与**尚未处理**的问题报告。目前有 1 份待处理报告。
+这个目录存放 review 记录模板与**尚未处理**的问题报告。目前有 3 份待处理报告。
 
 ## 目录结构
 
@@ -30,6 +30,8 @@
 例外：整分支 / 整包评审报告结论一次性给出、没有 Open/Resolved 生命周期，不占用 RV 编号；它们的「状态」体现为文件里还剩几条。
 
 ## 清理记录
+
+- **2026-10-29（看板分支深度评审删除）**：`board-branch-deep-review-2026-10-28.md`（8 P1 + 35 P2，基于 `676cabc0`）逐条对 HEAD 复核。近半数已由其后的 `6086e744` 与 `87e1581d` 修掉（React 首帧动作与 effect 依赖、三端模态焦点循环、外部指针判定限本实例、`eq` / `inRule` 去重、查询共享订阅、`./testing` 键序、三张表的外键 / 排序索引、PGlite 磁盘库升级重开、`saveTaskFields` 只认 `undefined`、种子空库自检、焦点环与选中描边分离、列区横向溢出渐隐、`ReorderTarget` 混写拒绝等）。本轮修：Angular 绑定补 `./board-view.css` 子路径（转引核心包 `board.css`），Vue 的 `index.css` 改为同名 `board-view.css`，三端 README 写明引入方式；发布消费门禁三端都断言样式产物、入口带 `useBoard`，另加 `@aiao/rxdb-plugin-board/testing` 的 tsc / esbuild 探针；新增 `audit:e2e-spec-copies` 守三端同内容 spec 副本（看板与两份对拍）；看板 demo e2e 默认不复用端口上的服务（`BOARD_E2E_REUSE_SERVER=1` 显式开启）；React / Vue 绑定的核心包依赖改为 peer；三端 `useBoard` 公开接口补 TSDoc；对拍归一化对缺标签列表 / 截止日字段报错；demo 删库去掉猜名兜底、四个宿主的备份下载延迟回收 Blob URL、demo 根组件销毁时断开连接；去掉只为 React 宿主页服务的 css 路径映射。不修（判据在代码注释）：板内搜索按全库任务数取第 0 页（上游按全库排名，缩成本板数会把本板命中挤出第 0 页，评审建议有误）；`waitUpstreamSettled` 的通用错误（两次读之间错误可能被重查清空，直接 `throw error` 会抛 undefined）；`query.ts` 值泛型只收字符串；标签色不展开短格式；读回与清理都失败时保留待切换记录（每次打开页面重试一次，不是死循环）；恢复状态机切换中不可取消；`exportBackup` / `onExportBackup` 属 US-539 允许的端差异（三端 TSDoc 写明对应）；提交信息卫生（squash 合并）。评审另有三处说法不实：`./testing` 键序的失败场景不成立——TypeScript 在 `import` 条件下找不到声明会接着试后面的 `types`（TS 6.0.3 `--traceResolution` 实测），`87e1581d` 的调整只是惯例写法；React 发布包并不自动注入样式（库构建抽成独立 CSS，消费端同样要引入子路径）；`676cabc0` 只改了 React 的一个单测，不是编排漂移的先例。另外 `87e1581d` 把生成物 `SKILL.md` 误回退成 v0.0.26 旧版，本轮随包组合摘要一并重新生成。转出：视图编排三端各一份记入 [US-539](../stories/domain/US-539-board-tri-framework-ui.md) 技术笔记（单独排期）；demo 阶段 B 用例与 sqlite-wasm idb 干净关闭丢行仍由 RV-083 第 9 条与 P0 条跟踪。全文可用 `git show 87e1581d:requirements/reviews/board-branch-deep-review-2026-10-28.md` 取回。
 
 - **2026-10-28（PR #139 评审报告删除）**：`pr139-full-diff-review-2026-10-28.md` 的剩余治理待办已失效，现行统一评审规则见 [AGENTS.md](../../AGENTS.md)。
 

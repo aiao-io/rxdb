@@ -57,12 +57,15 @@ import {
 /** 上一次打开板的本地记录键。 */
 export const LAST_BOARD_KEY = 'rxdb-board-last-board';
 
+/** 本地记录存储：记住上次打开的板（默认 localStorage，测试注入内存表）。 */
 export interface UseBoardStorage {
   get(key: string): string | null;
   set(key: string, value: string): void;
 }
 
+/** {@link useBoard} 的可选参数。 */
 export interface UseBoardOptions {
+  /** 本地记录存储（默认 localStorage；测试注入内存表）。 */
   readonly storage?: UseBoardStorage;
   /** 板内搜索（US-539 阶段 B）：注入上游全文源（搜索插件实例）。不传则无搜索能力。 */
   readonly search?: { readonly upstream: BoardSearchUpstream };
@@ -70,31 +73,49 @@ export interface UseBoardOptions {
   readonly searchUnavailableReason?: BoardSearchUnavailableReason;
 }
 
+/** {@link useBoard} 的返回值：看板状态（React state）与领域动作。 */
 export interface UseBoardReturn {
   /** 板级搜索源（US-539 阶段 B）；宿主未注入上游时为 `null`，注入后随上游重建。 */
   readonly searchSource: BoardSearchSource | null;
   /** 搜索入口不可用时的稳定原因。 */
   readonly searchUnavailableReason: BoardSearchUnavailableReason | null;
+  /** 全部板（创建时间升序、同时刻按 id）。 */
   readonly boards: readonly Board[];
+  /** 当前板 id（本地记录持久化）。 */
   readonly currentBoardId: UUID | null;
+  /** 当前板；无板为 `null`。 */
   readonly currentBoard: Board | null;
+  /** 当前板的列（板内列序）。 */
   readonly columns: readonly Column[];
+  /** 当前板全部任务（各列库序）。 */
   readonly tasks: readonly Task[];
+  /** 当前板的板级标签（创建时间升序、同时刻按 id）。 */
   readonly labels: readonly BoardLabel[];
+  /** 任务 → 其标签（按标签创建顺序）。 */
   readonly taskLabels: ReadonlyMap<string, readonly BoardLabel[]>;
+  /** 恢复中写门禁（US-534 / US-537）。 */
   readonly restoring: boolean;
+  /** 首次读取或重试中：板列表与当前板数据都就绪前为 `true`，读取失败即为 `false`。 */
   readonly loading: boolean;
+  /** 读取失败原因；读取正常为 `null`。 */
   readonly readError: string | null;
+  /** 清除读取失败并重建全部读取订阅。 */
   readonly retryReads: () => void;
+  /** 本次会话可撤销事务数（undo 入口禁用判据）。 */
   readonly undoCount: number;
+  /** redo 栈深度（redo 入口禁用判据）。 */
   readonly redoCount: number;
+  /** 最近一次移动 / 排序写入事件（成功或失败）。 */
   readonly writeEvent: { readonly kind: string; readonly reason?: string } | null;
+  /** 切板：写本地记录并切换数据流。 */
   readonly selectBoard: (boardId: UUID) => void;
+  /** 进入 / 退出恢复中（恢复编排由宿主驱动，本绑定只持状态）。 */
   readonly setRestoring: (value: boolean) => void;
   /** 领域动作（首帧即完整，同一 `rxdb` 实例内引用稳定）。 */
   readonly actions: UseBoardActions;
 }
 
+/** 看板领域动作：逐个委托核心包领域服务，恢复中写门禁与校验在服务层复核。 */
 export interface UseBoardActions {
   createBoard(input: { title: string; description?: string }): Promise<Board>;
   createColumn(input: { title: string }): Promise<Column>;

@@ -154,6 +154,10 @@ export class App implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('storage', this.onActiveDbChanged);
+    // 应用拆除（含开发期整体替换）后仍握着连接，随后清理同名恢复目标时删库会被 onblocked 拒绝
+    void this.rxdb()
+      ?.disconnectAll()
+      .catch((cause: unknown) => console.error('[board] 断开失败', cause));
   }
 
   protected settleConfirm(confirmed: boolean): void {
@@ -199,8 +203,11 @@ export class App implements OnInit, OnDestroy {
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = `board-backup-${db.config.dbName}.rxdb`;
+    document.body.append(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    // 点击触发的下载对 blob URL 的读取是异步的，立即回收会让部分浏览器中断下载或拿到空文件
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   protected async onResetDemo(): Promise<void> {
@@ -325,6 +332,8 @@ export class App implements OnInit, OnDestroy {
         disconnectFailure = `恢复目标断开失败：${failureMessage(disconnectCause)}`;
       }
       const cleanupFailure = await this.cleanupInterruptedRestore();
+      // 清理失败时保留待切换记录：下次打开页面再读回一次、失败再清理一次。不会在本页循环——
+      // 本次照样回到原看板（或启动页）并报出原因，重试只随页面重开发生
       if (cleanupFailure === null) this.clearStorage(PENDING_SWITCH_KEY);
       this.error.set(
         [`恢复读回失败：${failureMessage(cause)}`, disconnectFailure, cleanupFailure].filter(Boolean).join('；')

@@ -2,7 +2,6 @@ import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { BoardView } from '@aiao/rxdb-plugin-board-react';
-import '@aiao/rxdb-plugin-board-react/board-view.css';
 import { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
@@ -61,8 +60,11 @@ export default function BoardPage() {
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = `board-backup-${rxdb.config.dbName}.rxdb`;
+    document.body.append(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    // 点击触发的下载对 blob URL 的读取是异步的，立即回收会让部分浏览器中断下载或拿到空文件
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   if (error) {

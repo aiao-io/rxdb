@@ -4,6 +4,8 @@ import { defineConfig } from '@playwright/test';
 import { APP_BASE_URL, APP_PORT } from './src/env';
 
 const isCI = Boolean(process.env['CI']);
+/** 显式开关：对开着的 `nx serve dev-rxdb-board`（同占 4312）跑本套件时设 `BOARD_E2E_REUSE_SERVER=1`。 */
+const reuseServer = process.env['BOARD_E2E_REUSE_SERVER'] === '1';
 
 /**
  * 看板 demo e2e（US-540）：串行——用例共享同一个浏览器上下文外的前端静态产物，
@@ -27,12 +29,12 @@ export default defineConfig({
   webServer: [
     {
       // 与 dev-rxdb-angular-e2e 同款静态服务器：工作区根起服，产物路径不受 e2e 项目 cwd 影响。
-      // 端口上有健康服务（如用户开着 `nx serve dev-rxdb-board`）就复用，否则自起——
-      // 避免 dev server 与静态服务器抢 4312 端口互斥（BOM 4311 先例）
+      // 默认不复用端口上已有的服务，与其余 e2e 配置一致：残留进程或开着的 dev server 占住 4312 时显式失败，
+      // 而不是静默跑在非本次构建的产物上（假绿假红分不清）。确要对 dev server 跑时用上面的显式开关。
       command: `node scripts/e2e-static-server.mjs --root dist/apps/dev-rxdb-board/browser --port ${APP_PORT}`,
       cwd: workspaceRoot,
       url: APP_BASE_URL,
-      reuseExistingServer: true,
+      reuseExistingServer: reuseServer,
       timeout: 180000
     }
   ]

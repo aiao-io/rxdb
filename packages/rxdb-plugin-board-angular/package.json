@@ -21,6 +21,9 @@
     "directory": "packages/rxdb-plugin-board-angular"
   },
   "type": "module",
+  "exports": {
+    "./board-view.css": "./board-view.css"
+  },
   "peerDependencies": {
     "@aiao/rxdb": "workspace:^",
     "@aiao/rxdb-plugin-board": "workspace:^",
@@ -44,5 +47,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false
+  "sideEffects": [
+    "**/*.css"
+  ]
 }

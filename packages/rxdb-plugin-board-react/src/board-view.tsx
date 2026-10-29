@@ -16,7 +16,7 @@ import { useBoardViewModel } from './view/use-board-view-model.js';
 export interface BoardViewProps {
   /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
   readonly rxdb: Parameters<typeof useBoard>[0];
-  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。 */
+  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。Angular 绑定的同一输入名为 `exportBackup`。 */
   readonly onExportBackup?: () => void | Promise<void>;
 }
 
@@ -99,7 +99,8 @@ function BoardToast({ vm }: { readonly vm: BoardViewModel }): ReactNode {
  * 动作收进上下文菜单、就地编辑即改即存（每次改动一个可撤销事务）、一个选择器与一套筛选语法走天下。
  * 三端只采集指针 / 键盘事件，落点、键盘目标、筛选与弹层定位都调用核心包同一份纯函数；
  * 全部写入口经 {@link useBoard} 的领域动作（恢复中写门禁与校验在服务层复核，不靠隐藏按钮）。
- * 样式来自 `@aiao/rxdb-plugin-board/board.css`（本包 `./board-view.css` 子路径已内联），
+ * 样式来自 `@aiao/rxdb-plugin-board/board.css`（本包 `./board-view.css` 子路径已内联；库构建把样式抽成独立文件、
+ * 产物不自动注入，消费端在入口引入该子路径），
  * DOM 契约（类名 + data-testid）与 Angular / Vue 绑定同构。
  */
 export function BoardView({ rxdb, onExportBackup }: BoardViewProps): ReactNode {

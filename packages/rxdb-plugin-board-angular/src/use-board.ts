@@ -58,11 +58,13 @@ import {
 /** 上一次打开板的本地记录键（US-539：打开时进入上次打开的板）。 */
 export const LAST_BOARD_KEY = 'rxdb-board-last-board';
 
+/** 本地记录存储：记住上次打开的板（默认 localStorage，测试注入内存表）。 */
 export interface UseBoardStorage {
   get(key: string): string | null;
   set(key: string, value: string): void;
 }
 
+/** {@link useBoard} 的可选参数。 */
 export interface UseBoardOptions {
   /** 本地记录存储（默认 localStorage；测试注入内存表）。 */
   readonly storage?: UseBoardStorage;
@@ -72,6 +74,7 @@ export interface UseBoardOptions {
   readonly searchUnavailableReason?: BoardSearchUnavailableReason;
 }
 
+/** {@link useBoard} 的返回值：看板状态（signal）与领域动作。 */
 export interface UseBoardReturn {
   /** 板级搜索源（US-539 阶段 B）；宿主未注入上游时为 `null`。 */
   readonly searchSource: BoardSearchSource | null;
@@ -93,8 +96,11 @@ export interface UseBoardReturn {
   readonly taskLabels: Signal<ReadonlyMap<string, readonly BoardLabel[]>>;
   /** 恢复中写门禁（US-534 / US-537）。 */
   readonly restoring: Signal<boolean>;
+  /** 首次读取或重试中：板列表与当前板数据都就绪前为 `true`，读取失败即为 `false`。 */
   readonly loading: Signal<boolean>;
+  /** 读取失败原因；读取正常为 `null`。 */
   readonly readError: Signal<string | null>;
+  /** 清除读取失败并重建全部读取订阅。 */
   readonly retryReads: () => void;
   /** 本次会话可撤销事务数（undo 入口禁用判据）。 */
   readonly undoCount: Signal<number>;
@@ -110,6 +116,7 @@ export interface UseBoardReturn {
   readonly actions: UseBoardActions;
 }
 
+/** 看板领域动作：逐个委托核心包领域服务，恢复中写门禁与校验在服务层复核。 */
 export interface UseBoardActions {
   createBoard(input: { title: string; description?: string }): Promise<Board>;
   createColumn(input: { title: string }): Promise<Column>;

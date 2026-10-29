@@ -56,21 +56,24 @@ export function loadParityGolden(specFile) {
 
 const isRecord = value => typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** 任务语义输出：标题 / 标签名（按名排序）/ 截止日（空串归一为 null）。 */
+/**
+ * 任务语义输出：标题 / 标签名（按名排序）/ 截止日（空串归一为 null）。
+ * 标签列表与截止日字段缺失按采集漏项报错：三端采集恒给数组与 `string | null`，静默补成空值会让漏采的一端照样对上 golden。
+ */
 function normalizeTask(rawTask) {
   if (!isRecord(rawTask) || typeof rawTask.title !== 'string') {
     throw new Error(`任务语义输出缺标题：${JSON.stringify(rawTask)}`);
   }
-  const labels =
-    Array.isArray(rawTask.labels) ?
-      [...rawTask.labels]
-        .map(label => {
-          if (typeof label !== 'string') throw new Error(`标签名不是字符串：${JSON.stringify(label)}`);
-          return label;
-        })
-        .sort()
-    : [];
-  const dueDate = rawTask.dueDate === '' || rawTask.dueDate === undefined ? null : rawTask.dueDate;
+  if (!Array.isArray(rawTask.labels)) {
+    throw new Error(`任务语义输出缺标签列表：${JSON.stringify(rawTask)}`);
+  }
+  const labels = rawTask.labels
+    .map(label => {
+      if (typeof label !== 'string') throw new Error(`标签名不是字符串：${JSON.stringify(label)}`);
+      return label;
+    })
+    .sort();
+  const dueDate = rawTask.dueDate === '' ? null : rawTask.dueDate;
   if (dueDate !== null && typeof dueDate !== 'string') {
     throw new Error(`截止日不是字符串或 null：${JSON.stringify(rawTask.dueDate)}`);
   }

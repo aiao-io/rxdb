@@ -37,6 +37,8 @@ export default defineConfig(() => ({
       entry: 'src/index.ts',
       name: 'rxdb-plugin-board-vue',
       fileName: 'index',
+      // 样式资产入口是 `./board-view.css` 子路径（与 React / Angular 绑定同名），lib 默认会命名为 index.css
+      cssFileName: 'board-view',
       formats: ['es' as const]
     },
     rolldownOptions: {

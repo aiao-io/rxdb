@@ -74,7 +74,8 @@ export const restoreStateMachine = (snapshot: RestoreSnapshot, input: RestoreInp
         : snapshot;
 
     case 'cancel':
-      // 取消：清理本次目标与标记，回到原看板或启动选择（宿主决定）
+      // 取消：清理本次目标与标记，回到原看板或启动选择（宿主决定）。切换中不可取消：恢复已完成、
+      // 待切换记录已写，读回或失败清理都由重载后的启动流程按该记录完成，内存快照本就不跨重载
       return (
         snapshot.state === 'selecting_archive' ? { ...initialRestoreSnapshot, state: 'startup_choice' }
         : snapshot.state === 'restoring' ? { ...initialRestoreSnapshot, state: 'startup_choice' }

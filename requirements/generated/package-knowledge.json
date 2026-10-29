@@ -2555,7 +2555,7 @@
             "range": "workspace:^"
           },
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-board",
             "optional": false,
             "range": "workspace:^"
@@ -2582,7 +2582,7 @@
             "range": "workspace:^"
           },
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-board",
             "optional": false,
             "range": "workspace:^"
@@ -3647,7 +3647,7 @@
       }
     ]
   },
-  "digest": "9c0cd18c8322d496748718ddae1350a8cef005f5c9c77b2aed1a193a08dea284",
+  "digest": "5f1b6242070d3f437e5946cabda417441ca5d8cdf780ef32e0fa6435bfed3329",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

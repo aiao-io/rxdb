@@ -438,23 +438,29 @@ const writeTsconfig = async (root, files, resolution = 'NodeNext') => {
   await writeFile(path.join(root, 'tsconfig.json'), JSON.stringify(config, null, 2));
 };
 
-/** 三框架绑定：各自一个入口，能导入、能过 tsc、能被 esbuild 最小构建。 */
+/**
+ * 三框架绑定：各自一个入口，能导入、能过 tsc、能被 esbuild 最小构建。
+ * 看板组合三端都从同名 `./board-view.css` 子路径取样式（构建产物随后断言内容），入口同时导出 `useBoard`
+ * （掉出包入口或改名时 tsc 报 TS2305）；`board-testing` 入口导入 `@aiao/rxdb-plugin-board/testing`：
+ * 子路径声明没进 tgz 或 `types` 指错时严格模式下是 TS7016，运行时目标缺失时 esbuild 构建失败。
+ */
 const writeBindingEntries = async (root, board) => {
   const entries =
     board ?
       [
         [
           'angular',
-          "import '@angular/compiler';\nexport { BoardViewComponent } from '@aiao/rxdb-plugin-board-angular';\n"
+          "import '@angular/compiler';\nimport '@aiao/rxdb-plugin-board-angular/board-view.css';\nexport { BoardViewComponent, useBoard } from '@aiao/rxdb-plugin-board-angular';\n"
         ],
         [
           'react',
-          "export { BoardView } from '@aiao/rxdb-plugin-board-react';\nimport '@aiao/rxdb-plugin-board-react/board-view.css';\n"
+          "import '@aiao/rxdb-plugin-board-react/board-view.css';\nexport { BoardView, useBoard } from '@aiao/rxdb-plugin-board-react';\n"
         ],
         [
           'vue',
-          "export { BoardView } from '@aiao/rxdb-plugin-board-vue';\nimport '@aiao/rxdb-plugin-board-vue/index.css';\n"
-        ]
+          "import '@aiao/rxdb-plugin-board-vue/board-view.css';\nexport { BoardView, useBoard } from '@aiao/rxdb-plugin-board-vue';\n"
+        ],
+        ['board-testing', "export { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';\n"]
       ]
     : [
         ['angular', "import { provideRxDB, useRxDB } from '@aiao/rxdb-angular';\nvoid provideRxDB;\nvoid useRxDB;\n"],
@@ -547,7 +553,7 @@ const auditConsumer = async (combo, manager, packed, bumped) => {
           root
         );
       }
-      for (const framework of board ? ['react', 'vue'] : []) {
+      for (const framework of board ? ['angular', 'react', 'vue'] : []) {
         const css = await readFile(path.join(root, `dist/binding-${framework}.ts.css`), 'utf8');
         assert.ok(css.includes('.rxb-columns'), `${framework}: 发布产物缺少看板列布局`);
         assert.ok(css.includes('.is-drop-before'), `${framework}: 发布产物缺少拖拽落点反馈`);

@@ -2144,9 +2144,6 @@ importers:
 
   packages/rxdb-plugin-board-react:
     dependencies:
-      '@aiao/rxdb-plugin-board':
-        specifier: workspace:^
-        version: link:../rxdb-plugin-board
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -2157,6 +2154,9 @@ importers:
       '@aiao/rxdb-adapter-pglite':
         specifier: workspace:*
         version: link:../rxdb-adapter-pglite
+      '@aiao/rxdb-plugin-board':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-board
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../rxdb-plugin-history
@@ -2175,9 +2175,6 @@ importers:
 
   packages/rxdb-plugin-board-vue:
     dependencies:
-      '@aiao/rxdb-plugin-board':
-        specifier: workspace:^
-        version: link:../rxdb-plugin-board
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -2188,6 +2185,9 @@ importers:
       '@aiao/rxdb-adapter-pglite':
         specifier: workspace:*
         version: link:../rxdb-adapter-pglite
+      '@aiao/rxdb-plugin-board':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-board
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../rxdb-plugin-history

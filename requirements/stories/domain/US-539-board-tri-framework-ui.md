@@ -5,7 +5,7 @@ status: In Progress
 priority: Low
 epic: epic-011-task-board-domain-model
 created: 2026-10-19
-updated: 2026-10-28
+updated: 2026-10-29
 tags: [domain, board, angular, react, vue, ui]
 ---
 
@@ -196,6 +196,13 @@ sqlite-wasm 主线程 `vfs: 'idb'`、独立库名、看板实体在 `board` 命�
 各自框架与核心包 `rxdb-plugin-board`；视图、指针事件采集、详情面板、标签管理、历史与备份入口都在绑定包内，
 领域逻辑全部在核心包。
 
+**已知技术债：视图编排三端各一份。** 纯规则（落点、键盘目标、筛选、弹层定位、截止日、焦点循环）已在核心包，
+编排层仍是三份独立实现（Angular `board-view.ts` + `board-view.html`、Vue `board-view.vue`、React `view/`，
+各约 3000 行）：可见任务映射、筛选派生（如 `filteredLabelNames`）、全局按键分派（`onDocumentKeydown`）、
+标签选择器提交与删除编排逐字重复，交互规则改一次要三处各改一遍，对称靠三端共用 e2e
+（`board.spec.ts` 三副本，`pnpm audit:e2e-spec-copies` 守同步）兜底。方向是把这些派生与分派收进核心包纯函数、
+视图层只留框架原语；体量大，单独排期，不计入本故事关闭条件。
+
 **关闭条件**：阶段 A、B 分别完成三端全部 AC；空库创建到重开闭环可用；真实拖拽后 DB 重查一致，
 键盘有等价路径；详情 / 标签 / 历史 / 备份 / 搜索行为一致；恢复中门禁与状态反馈一致；axe 通过。
 
@@ -207,18 +214,18 @@ sqlite-wasm 主线程 `vfs: 'idb'`、独立库名、看板实体在 `board` 命�
 
 ## 实现文件
 
-| 路径                                                                               | 阶段 | 职责                                                                                                          |
-| ---------------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| `packages/rxdb-plugin-board-{angular,react,vue}/`                                  | A    | 已建；三端看板视图、指针事件采集、本列排序、详情面板 / 标签 / 历史 / 备份接线与恢复中门禁                     |
-| `apps/dev-rxdb-{angular,react,vue}/` 及对应 `-e2e`                                 | A    | 看板页与独立 RxDB 实例；三端 Playwright（真实拖拽、axe、恢复）                                                |
-| `modules/e2e-parity/`                                                              | A    | 看板专用归一化与 golden，与 entity-model 对拍同目录、各自一份                                                 |
-| `packages/rxdb-plugin-board/src/testing/release-board-dataset.ts`                  | A    | 已建；三端与 US-540 共用确定性种子                                                                            |
-| `packages/rxdb-plugin-board-{angular,react,vue}/`                                  | B    | 板内搜索领域源的三端接线、分页、切板失效与结果定位                                                            |
-| `packages/rxdb-plugin-board/src/{filter,keyboard,popover,palette,due-status}.ts`   | C    | 三端共用纯函数：筛选语法 / 匹配 / 补全 / 点击即筛选、网格焦点与键盘移动目标、弹层定位、标签预设色、截止日状态 |
-| `packages/rxdb-plugin-board/board.css`                                             | C    | 三端共用样式（`rxb-` 前缀、宿主主题 token 回落 GitHub 配色、暗色）；`./board.css` 子路径                      |
-| `packages/rxdb-plugin-board/src/detail-service.ts`                                 | C    | `saveTaskFields`：即改即存，字段级冲突检测，一次调用一个事务                                                  |
-| `packages/rxdb-plugin-board-{angular,react,vue}/`                                  | C    | 看板 v2 视图：根层弹层、选择器、对话框、叠加侧栏、筛选条、键盘体系、带撤销的提示                              |
-| `apps/dev-rxdb-board/`、`apps/dev-rxdb-{angular,react,vue}-e2e/src/board*.spec.ts` | C    | demo 外壳（启动页卡片、顶部应用栏、应用内确认）；三端共用 e2e 契约（同内容三副本）                            |
+| 路径                                                                               | 阶段 | 职责                                                                                                                                     |
+| ---------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/rxdb-plugin-board-{angular,react,vue}/`                                  | A    | 已建；三端看板视图、指针事件采集、本列排序、详情面板 / 标签 / 历史 / 备份接线与恢复中门禁                                                |
+| `apps/dev-rxdb-{angular,react,vue}/` 及对应 `-e2e`                                 | A    | 看板页与独立 RxDB 实例；三端 Playwright（真实拖拽、axe、恢复）                                                                           |
+| `modules/e2e-parity/`                                                              | A    | 看板专用归一化与 golden，与 entity-model 对拍同目录、各自一份                                                                            |
+| `packages/rxdb-plugin-board/src/testing/release-board-dataset.ts`                  | A    | 已建；三端与 US-540 共用确定性种子                                                                                                       |
+| `packages/rxdb-plugin-board-{angular,react,vue}/`                                  | B    | 板内搜索领域源的三端接线、分页、切板失效与结果定位                                                                                       |
+| `packages/rxdb-plugin-board/src/{filter,keyboard,popover,palette,due-status}.ts`   | C    | 三端共用纯函数：筛选语法 / 匹配 / 补全 / 点击即筛选、网格焦点与键盘移动目标、弹层定位、标签预设色、截止日状态                            |
+| `packages/rxdb-plugin-board/board.css`                                             | C    | 三端共用样式（`rxb-` 前缀、宿主主题 token 回落 GitHub 配色、暗色）；`./board.css` 子路径，三个绑定包以同名 `./board-view.css` 子路径交付 |
+| `packages/rxdb-plugin-board/src/detail-service.ts`                                 | C    | `saveTaskFields`：即改即存，字段级冲突检测，一次调用一个事务                                                                             |
+| `packages/rxdb-plugin-board-{angular,react,vue}/`                                  | C    | 看板 v2 视图：根层弹层、选择器、对话框、叠加侧栏、筛选条、键盘体系、带撤销的提示                                                         |
+| `apps/dev-rxdb-board/`、`apps/dev-rxdb-{angular,react,vue}-e2e/src/board*.spec.ts` | C    | demo 外壳（启动页卡片、顶部应用栏、应用内确认）；三端共用 e2e 契约（同内容三副本）                                                       |
 
 ## References
 

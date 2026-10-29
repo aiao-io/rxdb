@@ -53,12 +53,12 @@ import { useBoard } from './use-board.js';
  * 三端只采集指针 / 键盘事件，落点、键盘目标、筛选与弹层定位都调用核心包同一份纯函数；
  * 全部写入口经 {@link useBoard} 的领域动作（恢复中写门禁与校验在服务层复核，不靠隐藏按钮）。
  * DOM 契约（`rxb-` 类名 + data-testid）与 Angular / React 同构；样式即核心包共用的
- * `@aiao/rxdb-plugin-board/board.css`，随本组件打进发布包的 `index.css`。
+ * `@aiao/rxdb-plugin-board/board.css`，随本组件打进发布包的 `board-view.css` 子路径（与 React / Angular 绑定同名）。
  */
 const props = defineProps<{
   /** 已连接的看板 RxDB 实例（实体含 board 命名空间五实体，需历史插件）。 */
   rxdb: Parameters<typeof useBoard>[0];
-  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。 */
+  /** 备份导出回调（US-537 编排由宿主接线；缺省展示占位提示）。Angular 绑定的同一输入名为 `exportBackup`。 */
   onExportBackup?: () => void | Promise<void>;
 }>();
 
@@ -1401,7 +1401,10 @@ const runCardCommand = (event: KeyboardEvent, task: Task): boolean => {
   return true;
 };
 
-/** 模态对话框打开时 Tab 只在对话框内循环（首尾绕回，目标由核心包 `trapTabFocus` 换算）；返回是否接管。 */
+/**
+ * document 级按键：只在焦点位于看板内或 body 时生效。模态对话框打开时 Tab 只在对话框内循环
+ * （首尾绕回，目标由核心包 `trapTabFocus` 换算）。
+ */
 const onDocumentKeydown = (event: KeyboardEvent): void => {
   const root = boardArea.value;
   const active = document.activeElement;
@@ -1424,6 +1427,7 @@ const onDocumentKeydown = (event: KeyboardEvent): void => {
   if (runGlobalShortcut(event)) event.preventDefault();
 };
 
+/** 单键与撤销快捷键（非编辑框内、无对话框时）；返回是否接管。 */
 const runGlobalShortcut = (event: KeyboardEvent): boolean => {
   if (isModifier(event) && event.key.toLowerCase() === 'z') {
     void (event.shiftKey ? redo() : undo());
@@ -3347,9 +3351,9 @@ onBeforeUnmount(() => {
 
 <style>
 /*
- * 三端共用的看板样式（非 scoped）：构建时内联进发布包的 index.css，开发期由 Vite 注入。
+ * 三端共用的看板样式（非 scoped）：构建时内联进发布包的 board-view.css，开发期由 Vite 注入。
  * 用 CSS @import 而非 <style src>：后者会生成 JS 侧的样式 import，被库构建的 /^@aiao\// external 规则
- * 原样外置（产物里留下消费方解析不了的 `board.css?vue&type=style` 引用，index.css 也不再产出）；
+ * 原样外置（产物里留下消费方解析不了的 `board.css?vue&type=style` 引用，board-view.css 也不再产出）；
  * @import 由 Vite 的 CSS 管线自行解析内联，不经过 external。
  */
 @import '@aiao/rxdb-plugin-board/board.css';

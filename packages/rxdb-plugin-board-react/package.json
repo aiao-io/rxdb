@@ -53,17 +53,16 @@
       "react-lib"
     ]
   },
-  "dependencies": {
-    "@aiao/rxdb-plugin-board": "workspace:^"
-  },
   "peerDependencies": {
     "@aiao/rxdb": "workspace:^",
+    "@aiao/rxdb-plugin-board": "workspace:^",
     "react": "^19.0.0",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@aiao/rxdb-plugin-board": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-plugin-search": "workspace:*",
     "@types/react": "^19.0.0",
