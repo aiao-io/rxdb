@@ -122,10 +122,16 @@ const handleError = (error: unknown): void => {
 const formErrors = ref<FormValidationResult | null>(null);
 /** 保存失败原因（校验错误以外的落库错误）。 */
 const saveError = ref<string | null>(null);
+/** 加载失败原因（编辑实体查询报错）：实体未就绪期间只剩取消可用，原因需可见。 */
+const loadError = ref<string | null>(null);
 
 /** 落库失败：可读原因进错误面板（不再只进 console，US-104）。 */
 const saveErrorMessage = (error: unknown): string =>
   `保存失败：${error instanceof Error ? error.message : String(error)}`;
+
+/** 加载失败：可读原因进错误面板（与保存失败同形）。 */
+const loadErrorMessage = (error: unknown): string =>
+  `加载失败：${error instanceof Error ? error.message : String(error)}`;
 
 /** create 模式下的草稿实体实例（立即创建，不保存） */
 const draftEntity = shallowRef<EntityInstance | null>(null);
@@ -186,6 +192,7 @@ watch(
   ([database, cls, id], _old, onCleanup) => {
     editGeneration++;
     entityInstance.value = null;
+    loadError.value = null;
     let cancelled = false;
     let subscription: Subscription | undefined;
     onCleanup(() => {
@@ -203,7 +210,9 @@ watch(
           if (!cancelled) entityInstance.value = inst as EntityInstance;
         },
         error: error => {
-          if (!cancelled) handleError(error);
+          if (cancelled) return;
+          handleError(error);
+          loadError.value = loadErrorMessage(error);
         }
       });
   },
@@ -266,7 +275,8 @@ const formFieldsValue = computed<FormFieldConfig[]>(() => {
 
 const formDataValue = computed<EntityFormData>(() => {
   if (isCreateMode.value) {
-    const draft = draftEntity.value ? draftFormData.value : { ...props.formData, ...draftFormData.value };
+    // 等待数据库期间草稿尚未建出，宿主初始值先于草稿显示；其余情况界面与提交都只用 draftFormData
+    const draft = isCreatePending.value ? { ...props.formData, ...draftFormData.value } : draftFormData.value;
     const fixed = props.fixedFormData;
     return fixed ? { ...draft, ...fixed } : draft;
   }
@@ -328,11 +338,7 @@ watch(
 const selectTab = (key: string): void => {
   const targetTab = tabs.value.find(t => t.key === key);
   if (isCreateMode.value && targetTab?.type === 'table') {
-    const fields = formFieldsValue.value;
-    const data = draftFormData.value;
-    const fixed = props.fixedFormData;
-    const merged = fixed ? { ...data, ...fixed } : data;
-    const result = validateForm(fields, merged);
+    const result = validateForm(formFieldsValue.value, formDataValue.value);
     if (!result.valid) {
       onValidationErrors(result);
       return;
@@ -344,6 +350,15 @@ const selectTab = (key: string): void => {
 
 const onFormDataChanged = (data: EntityFormData): void => {
   draftFormData.value = data;
+};
+
+/** 保存成功后清掉已落库的覆盖项：字段值仍与提交时相同才清，保存期间再次输入的字段与新字段保留到下一次提交 */
+const settleEditChanges = (submitted: EntityFormData): void => {
+  editFormChanges.value = Object.fromEntries(
+    Object.entries(editFormChanges.value).filter(
+      ([field, value]) => !(field in submitted && submitted[field] === value)
+    )
+  );
 };
 
 const onFormSubmitted = (data: EntityFormData): void => {
@@ -363,13 +378,14 @@ const onFormSubmitted = (data: EntityFormData): void => {
   Object.assign(inst as Record<string, unknown>, changes);
   const database = rxdb.value;
   const generation = editGeneration;
+  const submitted = editFormChanges.value;
   const isCurrent = (): boolean =>
     generation === editGeneration && entityInstance.value === inst && rxdb.value === database;
   inst
     .save()
     .then(() => {
       if (!isCurrent()) return;
-      editFormChanges.value = {};
+      settleEditChanges(submitted);
       dialogContext?.close('saved');
       emit('formSubmitted', data);
     })
@@ -407,11 +423,8 @@ const onValidationErrors = (result: FormValidationResult): void => {
 /** 外部保存按钮（create 模式） */
 const onSave = (): void => {
   if (isCreatePending.value) return;
-  const fields = formFieldsValue.value;
-  const data = draftFormData.value;
-  const fixed = props.fixedFormData;
-  const merged = fixed ? { ...data, ...fixed } : data;
-  const result = validateForm(fields, merged);
+  const merged = formDataValue.value;
+  const result = validateForm(formFieldsValue.value, merged);
   if (!result.valid) {
     onValidationErrors(result);
     return;
@@ -585,7 +598,7 @@ defineExpose({
 
       <!-- 校验 / 保存错误面板（US-104）：只转发不渲染时用户看不到任何反馈 -->
       <div
-        v-if="formErrors !== null || saveError !== null"
+        v-if="formErrors !== null || saveError !== null || loadError !== null"
         class="border-base-300 flex shrink-0 flex-col gap-1 border-t px-4 py-3 text-sm"
         data-testid="entity-detail-errors"
         role="alert"
@@ -602,11 +615,16 @@ defineExpose({
           class="text-error"
           >{{ saveError }}</span
         >
+        <span
+          v-if="loadError !== null"
+          class="text-error"
+          >{{ loadError }}</span
+        >
       </div>
 
-      <!-- Save/Cancel buttons for create mode (below tabs) -->
+      <!-- 保存/取消按钮在 tabs 下方：create 模式两者都有；编辑实体未就绪（加载中或失败）时只留取消 -->
       <div
-        v-if="isCreateMode"
+        v-if="isCreateMode || isEditPending"
         class="border-base-300 flex shrink-0 justify-end gap-2 border-t px-4 py-3"
       >
         <button
@@ -617,6 +635,7 @@ defineExpose({
           取消
         </button>
         <button
+          v-if="isCreateMode"
           class="btn btn-primary"
           :disabled="isCreatePending"
           type="button"
