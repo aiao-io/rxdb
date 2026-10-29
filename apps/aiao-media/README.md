@@ -15,9 +15,9 @@ pnpm install --frozen-lockfile
 pnpm nx run aiao-media:serve
 ```
 
-打开 `http://localhost:4300`，四个页面分别为 `/`、`/create`、`/images`、`/providers`。首次打开时会自动创建并选中当前免费的默认供应商；如果本机还没有 API Key，生成时会引导你填写。也可以在供应商设置页覆盖默认项，填写自己的名称、HTTPS Base URL、图片模型 ID 和 API Key。Base URL 填 API 前缀，应用追加 `/images/generations`。
+打开 `http://localhost:4300`，四个页面分别为 `/`、`/create`、`/images`、`/providers`。首次打开时会自动创建并选中当前免费的默认供应商；如果本机还没有 API Key，生成时会引导你填写。也可以在供应商设置页覆盖默认项，填写自己的名称、HTTPS Base URL、图片模型 ID 和 API Key。Base URL 填 API 前缀：Images API 追加 `/images/generations`，MiniMax 官方前缀追加 `/image_generation`。
 
-当前适配器支持单张 PNG：`n=1`、`quality=low`、`output_format=png`，三个请求尺寸为 1024×1024、1536×1024、1024×1536；供应商必须支持这些参数。真实供应商验收可使用忽略的本地 `.env`，字段见 [`.env.example`](.env.example)；本次验收额度不限，Key 不进入发布产物。
+当前适配器支持单张 PNG/JPEG 原图，按实际字节识别格式并原样保存、下载。Images API 使用 `n=1`、`quality=low`、`output_format=png`；MiniMax 官方前缀使用 `image-01`、`response_format=url`，关闭提示词优化。三个请求尺寸为 1024×1024、1536×1024、1024×1536；供应商必须支持对应参数。真实供应商验收可使用忽略的本地 `.env`，字段见 [`.env.example`](.env.example)；本次验收额度不限，Key 不进入发布产物。
 
 模型 ID 使用 1–128 位英数字、点、下划线、冒号或短横线。支持读取 `b64_json` 或允许跨域读取的 HTTPS 图片 URL，不代表兼容所有图片 API。
 
@@ -82,7 +82,7 @@ pnpm nx run aiao-media:deploy --skipRemoteCache
 
 部署使用 Cloudflare Workers Static Assets 和同一个 Worker 的 `/api/relay`，不需要容器或云数据库；静态目录也可独立发布到 Pages。方案、免费额度边界、代理允许列表和回退见 [部署说明](deploy/local-first-pages.md)。发布前会检查产物中的凭据、旧 API 调用、文件大小和 SSR 运行时。
 
-正式域名的代理三画幅、离线内容回读及真实静态构建更新/回退已验，当前版本已恢复并核对 100% 流量。本轮账号、同步与后台仅使用本地 Supabase；直连和跨 origin 原图 URL 仍有未验项，详见[正式交付记录](requirements/plans/public-delivery-verification.md)。
+正式域名的代理三画幅、离线内容回读及真实静态构建更新/回退已验，线上当前版本见[验收记录](requirements/verification-report.md#正式环境证据)。本轮账号、同步与后台仅使用本地 Supabase；直连和跨 origin 原图 URL 仍有未验项，见[状态概览](requirements/status-overview.md#未完成验收与关闭条件)。
 
 ## 设计与历史资料
 

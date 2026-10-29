@@ -7,7 +7,7 @@ status: Blocked
 priority: High
 epic: MEDIA-EPIC-002
 created: 2026-09-26
-updated: 2026-10-25
+updated: 2026-10-29
 dependsOn: [MEDIA-US-105, MEDIA-US-202, MEDIA-US-301]
 tags: [image, provider, text-to-image, local-first]
 ---
@@ -58,15 +58,16 @@ tags: [image, provider, text-to-image, local-first]
 
 ## 技术笔记
 
-2026-10-25 最新验收：PNG/JPEG 原图交付已随正式版本 `e6ece57b-cd1f-4834-99cb-f20813817eb2` 发布，本地完整测试 700/700、页面 E2E 32/32 与公网烟测通过。22:04:17 的 MiniMax direct/square 请求返回 HTTP 200 / 业务码 0，但浏览器未取得可读原图响应，保存、刷新回读和精确下载未通过正式验收；横/竖两幅未发送，自动重试 0。AC7 继续 ⚠️，故事保持 Blocked；按供应商请求 ID 取回同一结果后只读复核，后续历史 1033 记录保留。详见[JPEG 交付验收](../../plans/jpeg-delivery-verification.md)。
+本地闭环由 `aiao-media-e2e:local-first-e2e` 验证：真实 Chrome、RxDB、WASM、IndexedDB 和 OPFS，供应商为 fixture；它证明状态与保存行为，不证明真实供应商在正式 origin 可用。PNG/JPEG 原图交付、`.jpg` 下载后缀与兼容标记 2 的实现与证据见 [JPEG 交付验收](../../plans/jpeg-delivery-verification.md)。
 
-本地闭环已交付。`aiao-media-e2e:local-first-e2e` 使用真实 Chrome、RxDB、WASM、IndexedDB 和 OPFS，供应商为 fixture；它验证状态与保存行为，不证明真实供应商在正式 origin 可用。
+AC7 的正式 origin 证据：
 
-2026-10-25 正式 `https://media.aiao.io` 的真实供应商代理三画幅均通过：每项一次请求、HTTP 200、PNG 尺寸精确匹配，保存、刷新回读与下载字节/SHA-256 一致。直连正方形一次尝试未收到响应，保持 `requires-review`，未重发；另两种直连画幅未尝试。AC7 的代理部分已验，直连部分未完成，整项保持 ⚠️；不为补验重发未知请求。三项结果均为 base64，不提供 URL 原图读取证明。发布身份、摘要和证据边界见[正式交付验收](../../plans/public-delivery-verification.md)。故事因当前供应商能力与缺失单次请求核对证据记为 `Blocked`，PR 尚未合并。
+- 代理：原供应商三画幅各一次 HTTP 200，PNG 尺寸精确匹配，保存、刷新回读与下载字节/SHA-256 一致；结果均为 base64，见[正式交付验收](../../plans/public-delivery-verification.md)。
+- 直连：原供应商正式 origin 预检 403，正方形一次尝试无响应；MiniMax 预检通过，正方形请求业务成功但浏览器未取得可读原图，结果 URL 已过 24 小时有效期、无法回查。两条均为未知并锁定，不重发。横向、纵向直连待诊断，进展见[供应商补验](../../plans/provider-acceptance-follow-up.md)。
+
+关闭条件：直连三画幅各一次真实原图的保存、刷新回读与精确下载。正方形须用户先在 MiniMax 控制台核对 2026-10-25 22:04 那笔请求再明确解锁；若诊断确认原图跨域不可读，须先决定直连是否改用 base64，并相应修改上文 In Scope 中 MiniMax 的 `response_format`。故事因缺少可用的直连组合记为 `Blocked`。
 
 当前任务沿用 `processing`、`completed`、`failed`、`needs_review` 等契约状态，保存标记与生成状态分开。页面中断后不假设请求未发送，也不假设供应商可查询或撤销原请求。
-
-2026-10-25 补验复核：当前供应商的正式 origin 预检仍为 403，既有成功结果为 base64；用量 API 只有汇总、没有单次请求记录，原正方形请求保持未知。缺少可用直连/URL 组合，状态记为 Blocked；本轮新增生成请求为 0。具体关闭条件见[供应商补验记录](../../plans/provider-acceptance-follow-up.md)。
 
 ## 实现文件
 

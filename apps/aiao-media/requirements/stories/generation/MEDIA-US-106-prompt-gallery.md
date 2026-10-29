@@ -7,7 +7,7 @@ status: In Progress
 priority: Medium
 epic: MEDIA-EPIC-002
 created: 2026-10-02
-updated: 2026-10-24
+updated: 2026-10-29
 dependsOn: []
 tags: [image, prompts, gallery, web, inspiration, tiptap, template-input]
 ---
@@ -60,7 +60,7 @@ tags: [image, prompts, gallery, web, inspiration, tiptap, template-input]
 
 ## 技术笔记
 
-当前复用 Tiptap `3.31.3` 最小扩展与同源运行时。`aiao-media:test` 中的提示词状态、焦点与草稿会话测试覆盖序列化及编辑状态；`aiao-media-e2e:local-first-e2e` 验证字段撤销/重做、画幅与字段刷新恢复、模板替换后清空旧撤销历史、真实双标签草稿冲突保留/载入选择，以及图片失败提示与编辑器失败后重试保留输入；见[可靠性验收](../../plans/local-reliability-verification.md)。自身保存回执不重置编辑器另有 `studio-draft-session.spec.ts` 状态机证据。桌面真实操作系统 IME 仍待人工验收，不用 composition 事件模拟代替；移动端不作为当前关闭条件。
+当前复用 Tiptap `3.31.3` 最小扩展与同源运行时。`aiao-media:test` 中的提示词状态、焦点与草稿会话测试覆盖序列化及编辑状态；`aiao-media-e2e:local-first-e2e` 验证字段撤销/重做、画幅与字段刷新恢复、模板替换后清空旧撤销历史、真实双标签草稿冲突保留/载入选择，以及图片失败提示与编辑器失败后重试保留输入；见[可靠性验收](../../plans/local-reliability-verification.md)。自身保存回执不重置编辑器另有 `studio-draft-session.spec.ts` 状态机证据。桌面真实操作系统 IME 仍待验收，不用合成 composition 事件代替：入口 `aiao-media-e2e:desktop-ime-acceptance` 由 System Events 向 macOS 简体拼音发送物理按键，系统输入法负责组字，覆盖正文/字段输入、组字中途自动保存、粘贴、撤销重做、焦点、布局与刷新恢复；运行需要给 VS Code 开辅助功能权限，期间不能操作键鼠。入口尚未实跑，按 D-09 本轮跳过；移动端不作为当前关闭条件。
 
 界面参考与静态示例保留在[设计资料](../../design/image-mvp/README.md)；其中三页原型用于布局参考，当前产品另含供应商页。300 ms 自动保存和 CAS 冲突规则见[本机草稿说明](../local-first/local-first-studio.md)。
 
@@ -79,4 +79,5 @@ tags: [image, prompts, gallery, web, inspiration, tiptap, template-input]
 - [MEDIA-US-102 图片生成与本机交付](MEDIA-US-102-image-generation.md)
 - [MEDIA-US-301 浏览器本地草稿与图片持久化](../local-first/MEDIA-US-301-browser-persistence.md)
 - [设计参考图片来源](../../design/image-mvp/assets/SOURCES.md)
+- [真实系统输入法验收入口](../../../../aiao-media-e2e/scripts/desktop-ime-acceptance.mjs)
 - [验收记录](../../verification-report.md)

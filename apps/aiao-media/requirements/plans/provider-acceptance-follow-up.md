@@ -119,3 +119,20 @@ MiniMax 原生请求路径为 `/v1/image_generation`，使用 `width/height` 或
 用户在独立 MiniMax JPEG 出图成功后要求继续 PNG/JPEG 产品交付与正式验收。共享格式校验、持久文件、下载后缀、备份恢复与同步元数据一并扩展；首次写入 JPEG 前将工作区兼容标记提高为 2，旧版本拒绝访问，原 PNG 路径保留。实现边界、验证和后续正式发布证据集中在[JPEG 交付验收](jpeg-delivery-verification.md)。原两项未知请求保留，不因本轮实现而自动解除。
 
 JPEG 支持版本 `e6ece57b-cd1f-4834-99cb-f20813817eb2` 已正式发布，官方核对 100% 流量，公网烟测通过。22:04:17 的 MiniMax 正式 direct/square 生成返回 HTTP 200 / 业务码 0，请求 ID `072d3f68cb4bb6729477e6e2163d1f21`；后续浏览器原图读取未取得可读响应，本轮 0/3 验收通过，横/竖两幅未发出，square journal 保持 `requires-review`、自动重试 0。原因尚不能在 CORS、连接和重定向间进一步归因；按该 ID 取得原图 URL/处理记录后再作只读核对，102/105 保持 Blocked。完整发布身份、文件摘要、700/700 测试与 32/32 页面 E2E 见[JPEG 交付验收](jpeg-delivery-verification.md)。
+
+## 结果 URL 失效与直连横图诊断（2026-10-29）
+
+**原解锁路径作废。** MiniMax [官方文生图接口](https://platform.minimax.io/docs/api-reference/image-generation-t2i)写明 `response_format` 可选 `url` 或 `base64`，URL 24 小时后失效。2026-10-25 22:04:17 请求 `072d3f68cb4bb6729477e6e2163d1f21` 的原图地址已经失效，公开文档也没有按请求 ID 取回结果的入口，「取回同一原图 URL 再只读核对」无法执行。direct/square 保持 `requires-review`；须由用户在 MiniMax 控制台核对该笔请求的处理与计费并明确确认，才能解除该组合的锁定。
+
+**尝试记录迁移。** 该次请求的 live 记录（身份 `4f05789a…`）与 `minimax-native` 目录所在的检出位已不存在，在全部现存工作区中都没有找到。PR #154 工作区的忽略目录 `apps/aiao-media-e2e/tmp/provider-acceptance/live`（0700）现包含：
+
+- 从主检出位原样复制的 4 份原供应商记录（B 版本：direct/square `requires-review`/`BROWSER_TIMEOUT`，proxy 三画幅 `verified`）；
+- 为 MiniMax direct/square 补建的保守锁（0600），`stage=documented-unknown-conservative-lock`、`generationRequests=null`、`documentedGenerationRequests=1`，来源为 [JPEG 交付验收](jpeg-delivery-verification.md)。按 origin、JPEG 版本、manifest、`https://api.minimax.cn/v1`、`image-01`、direct、square 重算的身份与文档记录的 `4f05789a…` 一致，说明当前私有配置与原请求组合相同。
+
+离线调用 `checkAttemptHistory` 核对：MiniMax direct/square 无论在同一发布还是其他发布下都以 `PREVIOUS_ATTEMPT_REQUIRES_REVIEW` 阻断；direct/landscape、direct/portrait 允许。核对不联网、不读取 Key。
+
+**线上版本。** `wrangler deployments status` 显示 100% 流量在 `e6ece57b-cd1f-4834-99cb-f20813817eb2`；正式 `offline-manifest.json` 的 SHA-256 为 `e83a9f05b54832f454e61795cf951d4843bfde004c65749fcd8e17a38e4f82cf`，与 JPEG 版本记录一致。
+
+**直连横图诊断。** 20:37:08 以 direct/landscape 单项执行 `aiao-media-e2e:provider-acceptance`，在核对线上 manifest 时停止，`failureCode=BROWSER_OPERATION_FAILED`。单独复现为 Playwright 请求上下文 GET manifest 30 秒超时，Chrome 正常启动。本机到 Cloudflare 正式站的连接不稳定：curl 抽样 8 次中 1 次在 3 秒内返回、4 次用时 4.9–13.5 秒、3 次 15 秒超时，同期 MiniMax 与 GitHub 均在 0.3 秒内响应。失败发生在登记尝试之前：新增生成请求 0 次，没有尝试记录，运行锁已释放，横图组合仍可执行。
+
+为避免网络在发出生成请求之后中断、把横图也锁成未知，改为每 30 秒探测一次正式站，连续 5 次在 3 秒内返回后再执行。
