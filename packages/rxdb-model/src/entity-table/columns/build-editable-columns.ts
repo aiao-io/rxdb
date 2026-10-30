@@ -11,9 +11,13 @@ import { deriveEntityCapabilities } from '../../entity-capabilities.js';
 import type { RelatedEntityItem } from '../../entity-form/interfaces.js';
 import { modelText, type ModelI18n } from '../../i18n.js';
 import { actionsColumn, buildPropertyColumn, formatDateValue, type KVSchemaEntry } from './column-utils.js';
+import { COLUMN_READONLY_KEY } from './column-writable.js';
 
 /** 仅展示（不可编辑）的系统字段 */
 export const DISPLAY_ONLY_FIELDS = new Set(['createdBy', 'updatedBy']);
+
+/** 系统列（id / createdAt / updatedAt）的列级只读标记 */
+const SYSTEM_COLUMN_READONLY = { [COLUMN_READONLY_KEY]: true } as const;
 
 /** 跳过（不显示为独立列）的系统字段 */
 export const SKIP_FIELDS = new Set(['id', 'createdAt', 'updatedAt']);
@@ -128,7 +132,8 @@ export function buildEditableColumns(
   } = options;
 
   const { canDelete } = deriveEntityCapabilities(metadata, { readOnly });
-  const columns: ColumnDefine[] = [{ field: 'id', title: 'ID', width: 260, sort: true }];
+  // id 与时间戳列由系统维护：不挂编辑器，并打上列级只读标记，键盘 / 剪贴板 / 清空入口同样不写
+  const columns: ColumnDefine[] = [{ field: 'id', title: 'ID', width: 260, sort: true, ...SYSTEM_COLUMN_READONLY }];
 
   for (const [key, prop] of metadata.propertyMap) {
     if (DISPLAY_ONLY_FIELDS.has(key) || SKIP_FIELDS.has(key)) continue;
@@ -180,13 +185,15 @@ export function buildEditableColumns(
       field: 'createdAt',
       title: createdAtTitle,
       width: 160,
-      fieldFormat: (r: Record<string, unknown>) => formatDateValue(r['createdAt'], i18n)
+      fieldFormat: (r: Record<string, unknown>) => formatDateValue(r['createdAt'], i18n),
+      ...SYSTEM_COLUMN_READONLY
     },
     {
       field: 'updatedAt',
       title: updatedAtTitle,
       width: 160,
-      fieldFormat: (r: Record<string, unknown>) => formatDateValue(r['updatedAt'], i18n)
+      fieldFormat: (r: Record<string, unknown>) => formatDateValue(r['updatedAt'], i18n),
+      ...SYSTEM_COLUMN_READONLY
     },
     actionsColumn(actionsTitle, deleteLabel, () => canDelete, viewLabel)
   );

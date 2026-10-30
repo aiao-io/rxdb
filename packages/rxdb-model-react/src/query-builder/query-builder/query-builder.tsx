@@ -5,14 +5,17 @@ import { useModelI18n } from '../../i18n.js';
  * 语义与 Angular 侧一致：提供可视化的查询条件构建界面（字段选择 / 操作符 / 值输入、
  * AND/OR 组合、拖拽重排、最大 5 层嵌套、实时验证），`fields` 优先于 `schema`，
  * `initialQuery` 仅在引用变化时加载（用户修改不覆盖），Escape 在有规则时清空。
- * 服务生命周期：挂载创建、卸载销毁（对应 Angular constructor + ngOnDestroy）。
+ * 服务生命周期：挂载创建、卸载销毁（对应 Angular constructor + ngOnDestroy）；
+ * `<Activity>` 隐藏再显示、StrictMode 双挂载断开 effect 后重连时，新服务从当前查询快照起步。
  *
  * @module query-builder/query-builder
  */
 import {
   createQueryBuilderService,
   type FieldMetadata,
+  type QueryBuilderRuleGroup,
   type QueryBuilderService,
+  type QueryBuilderServiceOptions,
   type RuleGroup,
   type SchemaInfo,
   type UIRule,
@@ -20,6 +23,9 @@ import {
 } from '@aiao/rxdb-model';
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { QueryDragDropHandler, QueryGroup, type UIRuleGroup } from '../query-group/query-group';
+
+/** 未传 fields / schema 时的空字段列表：引用稳定，不随每次渲染换新、反复触发字段同步 */
+const EMPTY_FIELDS: FieldMetadata[] = [];
 
 /**
  * RxDB 查询输出格式。
@@ -52,11 +58,23 @@ export interface QueryBuilderProps<T extends object = Record<string, unknown>> {
 }
 
 /**
+ * 新服务的查询起点：宿主新给的 initialQuery 优先；否则沿用上一服务留下的查询快照（保留规则 id，界面不重建）；
+ * 都没有时为空查询。
+ */
+function serviceStartingPoint<T>(
+  replacedQuery: RxDBQueryOutput<T> | undefined,
+  snapshot: QueryBuilderRuleGroup<T> | undefined
+): Pick<QueryBuilderServiceOptions<T>, 'initialQuery' | 'initialState'> {
+  if (replacedQuery !== undefined) return { initialQuery: replacedQuery as unknown as RuleGroup<T> };
+  return snapshot ? { initialState: { rootGroup: snapshot } } : {};
+}
+
+/**
  * Query Builder 主组件。
  */
 export function QueryBuilder<T extends object = Record<string, unknown>>({
   schema,
-  fields = [],
+  fields = EMPTY_FIELDS,
   initialQuery,
   maxDepth = 5,
   height = '80vh',
@@ -68,7 +86,13 @@ export function QueryBuilder<T extends object = Record<string, unknown>>({
   const { t, runtime: modelI18n } = useModelI18n();
 
   const serviceRef = useRef<QueryBuilderService<T> | null>(null);
+  /** 最近一次载入服务的 initialQuery 引用：引用没换即宿主没有主动替换，用户的编辑不被它覆盖 */
   const lastAppliedInitialQueryRef = useRef<unknown>(undefined);
+  /**
+   * 当前查询快照（服务最近一次发出的根规则组）。Activity 隐藏 / StrictMode 模拟卸载会断开 effect、销毁服务，
+   * 组件 state 与 ref 却保留；重连时新服务从这份快照起步，用户尚未回写给宿主的编辑才不会丢
+   */
+  const rootGroupRef = useRef<QueryBuilderRuleGroup<T> | undefined>(undefined);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const onQueryChangeRef = useRef(onQueryChange);
   const onValidationChangeRef = useRef(onValidationChange);
@@ -86,11 +110,23 @@ export function QueryBuilder<T extends object = Record<string, unknown>>({
   }, [onValidationChange]);
 
   // 计算后的字段列表（fields 优先于 schema）
-  const fieldsComputed = useMemo(() => (fields.length > 0 ? fields : (schema?.fields ?? [])), [fields, schema]);
+  const fieldsComputed = useMemo(
+    () => (fields.length > 0 ? fields : (schema?.fields ?? EMPTY_FIELDS)),
+    [fields, schema]
+  );
 
-  // 服务生命周期（挂载创建 / 卸载销毁，对应 Angular constructor + ngOnDestroy）
+  // 服务生命周期（挂载创建 / 卸载销毁，对应 Angular constructor + ngOnDestroy）。
+  // Activity 隐藏再显示、StrictMode 双挂载会断开后重连：宿主换了 initialQuery（引用变化，含首次挂载）就从它起步，
+  // 否则从查询快照起步；从快照起步时服务的首个发射就是界面与宿主已持有的那份查询，不再通知，重连不对外发临时空查询
   useEffect(() => {
-    const service = createQueryBuilderService<T>({ i18n: modelI18n, config: { maxNestingLevel: maxDepth } });
+    const replacesQuery = initialQuery !== undefined && initialQuery !== lastAppliedInitialQueryRef.current;
+    if (replacesQuery) lastAppliedInitialQueryRef.current = initialQuery;
+    const service = createQueryBuilderService<T>({
+      i18n: modelI18n,
+      config: { maxNestingLevel: maxDepth },
+      fields: fieldsComputed,
+      ...serviceStartingPoint(replacesQuery ? initialQuery : undefined, rootGroupRef.current)
+    });
     serviceRef.current = service;
 
     // 拖拽 moveItem 实现绑定到服务（服务实例 effect 期才就绪）
@@ -99,6 +135,8 @@ export function QueryBuilder<T extends object = Record<string, unknown>>({
     });
 
     const groupSubscription = service.rootGroup$.subscribe(group => {
+      if (group === rootGroupRef.current) return;
+      rootGroupRef.current = group;
       setRootGroup(group as unknown as UIRuleGroup);
       onQueryChangeRef.current?.(service.toRxDBQuery() as unknown as RxDBQueryOutput<T>);
     });
@@ -112,19 +150,17 @@ export function QueryBuilder<T extends object = Record<string, unknown>>({
       validationSubscription.unsubscribe();
       service.destroy();
       serviceRef.current = null;
-      // 「已载入」记的是这个服务：StrictMode 双挂载 / Activity 重显会重建服务，复位后由下方 effect 给新服务载入
-      lastAppliedInitialQueryRef.current = undefined;
+      // 不复位 lastAppliedInitialQueryRef：重连时据它区分「宿主替换了 initialQuery」与「沿用快照里的用户编辑」
     };
-    // 初始 maxDepth 只在服务创建时读取（Angular 侧 constructor 同语义）
+    // 服务只在挂载 / 重连时创建：maxDepth、initialQuery、字段在创建时读取（Angular 侧 constructor 同语义），
+    // 之后的 initialQuery / 字段变化由下方 effect 同步
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragDropHandler, modelI18n]);
 
-  // 字段变化同步到服务（Angular 侧 effect 同语义）
+  // 字段变化同步到服务（Angular 侧 effect 同语义）：空列表同样同步——字段被撤下后，
+  // 既有规则要立即按「字段不存在」校验，不能让服务留着界面上已经选不到的旧字段
   useEffect(() => {
-    const service = serviceRef.current;
-    if (service && fieldsComputed.length > 0) {
-      service.setFields(fieldsComputed);
-    }
+    serviceRef.current?.setFields(fieldsComputed);
   }, [fieldsComputed]);
 
   // 初始查询加载（引用变化时重新加载；用户修改不改变 initialQuery 引用故不会覆盖）

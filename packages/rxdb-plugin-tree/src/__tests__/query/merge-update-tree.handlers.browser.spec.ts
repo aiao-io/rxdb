@@ -295,7 +295,9 @@ describe('树形更新合并处理器', () => {
       expect(idsOf(next.mock.calls[0][0])).toEqual(['parent']);
     });
 
-    it('retains and patches a moved descendant that remains within the level', () => {
+    it('refreshes when a moved descendant stays within the level: its subtree depth shifts with it', () => {
+      // 'child' 下移一层仍在 level 内，但它在结果里的子孙随之越过上限、上移时被截掉的子孙会落进范围，
+      // 那些子孙都不在本批事件里，本地拼不准
       const parent = createNode('parent', 'root');
       const child = createNode('child', 'root', { label: 'before' });
       const updates = [
@@ -305,7 +307,7 @@ describe('树形更新合并处理器', () => {
           { parentId: 'root', label: 'before' }
         )
       ];
-      const { task, next } = createFindDescendantsTask({ entityId: 'root', level: 2 }, [parent, child]);
+      const { task, next, refresh } = createFindDescendantsTask({ entityId: 'root', level: 2 }, [parent, child]);
 
       handleFindDescendantsUpdate(
         task,
@@ -314,6 +316,30 @@ describe('树形更新合并处理器', () => {
         createCache(updates, [['child', createNode('child', 'parent', { label: 'after' })]])
       );
 
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('retains and patches a moved descendant when the query has no level', () => {
+      const parent = createNode('parent', 'root');
+      const child = createNode('child', 'root', { label: 'before' });
+      const updates = [
+        createUpdate(
+          'child',
+          { id: 'child', parentId: 'parent', label: 'after' },
+          { parentId: 'root', label: 'before' }
+        )
+      ];
+      const { task, next, refresh } = createFindDescendantsTask({ entityId: 'root' }, [parent, child]);
+
+      handleFindDescendantsUpdate(
+        task,
+        updates,
+        createClassification({ updatedIds: ['child'], matchNowIds: ['child'], stillMatchedIds: ['child'] }),
+        createCache(updates, [['child', createNode('child', 'parent', { label: 'after' })]])
+      );
+
+      expect(refresh).not.toHaveBeenCalled();
       expect(idsOf(next.mock.calls[0][0])).toEqual(['parent', 'child']);
       expect(next.mock.calls[0][0][1]).toMatchObject({ parentId: 'parent', label: 'after' });
     });

@@ -11,6 +11,7 @@ import { NumberEditor } from '../editors/number-editor.js';
 import { RelationEditor } from '../editors/relation-editor.js';
 import { TextFormatEditor } from '../editors/text-format-editor.js';
 import { getCSSVariableValue, getDocumentRootStyle } from '../vtable/table-theme.js';
+import { COLUMN_READONLY_KEY } from './column-writable.js';
 
 /** 删除图标默认颜色 */
 export const DELETE_COLOR = 'var(--entity-table-delete, #ef4444)';
@@ -59,7 +60,7 @@ export interface PropertyColumnConfig {
   title?: string;
   /** 属性类型 */
   type: PropertyTypeString | string;
-  /** 属性级只读（整列不可编辑） */
+  /** 属性级只读：整列不挂编辑器（布尔列禁用开关），键盘切换、剪贴板粘贴、Delete 清空同样拒写 */
   readonly?: boolean;
   /** 枚举值列表（type=enum 时使用，不含图标/i18n 时的简短形式） */
   enumValues?: readonly string[];
@@ -262,12 +263,17 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
 
   col['_propertyType'] = type;
 
+  // 列级只读一处判定：同一结论既决定下面各类型挂不挂编辑器、开关禁不禁用（鼠标编辑由 VTable 据此拦截），
+  // 也落成列定义标记，供键盘切换、剪贴板粘贴、Delete 清空这些不经编辑器的入口读取（见 isColumnWritable）
+  const columnReadonly = propReadonly === true || type === 'computed';
+  if (columnReadonly) col[COLUMN_READONLY_KEY] = true;
+
   switch (type) {
     case 'boolean': {
       const b = col as unknown as Record<string, unknown>;
       b['cellType'] = 'switch';
       applyDefaultSizes(col, type, config.width);
-      if (propReadonly) {
+      if (columnReadonly) {
         b['disable'] = true;
       } else {
         b['disable'] = switchDisabledForReadonly;
@@ -295,7 +301,7 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
         return textMap.get(v) ?? v;
       };
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) {
+      if (!columnReadonly) {
         const allItems: EnumItem[] =
           nullable ?
             [
@@ -315,7 +321,7 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
       col['fieldFormat'] = (r: Record<string, unknown>) =>
         format ? formatEntityFieldValue('date', r[field], format) : formatDateValue(r[field], i18n);
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) col['editor'] = makeEditorForReadonly('date-editor');
+      if (!columnReadonly) col['editor'] = makeEditorForReadonly('date-editor');
       break;
 
     case 'stringArray': {
@@ -329,7 +335,7 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
         return items.map(item => textMap.get(String(item).trim()) ?? String(item).trim()).join(', ');
       };
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) {
+      if (!columnReadonly) {
         if (enumValues && enumValues.length > 0) {
           const optionList = enumValues.map(v => {
             const option = options?.[v];
@@ -353,13 +359,13 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
     case 'numberArray':
       col['fieldFormat'] = (r: Record<string, unknown>) => formatArray(r[field]);
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) col['editor'] = makeEditorForReadonly('number-tags-editor');
+      if (!columnReadonly) col['editor'] = makeEditorForReadonly('number-tags-editor');
       break;
 
     case 'keyValue':
       col['fieldFormat'] = (r: Record<string, unknown>) => formatJson(r[field]);
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) {
+      if (!columnReadonly) {
         if (keyValueSchema) {
           const kvInst = new KeyValueEditor(keyValueSchema);
           col['editor'] = ((args: StylePropertyFunctionArg) =>
@@ -373,14 +379,14 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
     case 'json':
       col['fieldFormat'] = (r: Record<string, unknown>) => formatJson(r[field]);
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) col['editor'] = makeEditorForReadonly('json-editor');
+      if (!columnReadonly) col['editor'] = makeEditorForReadonly('json-editor');
       break;
 
     // uuid / string / number / integer / 未知类型
     case 'uuid':
       col['fieldFormat'] = (r: Record<string, unknown>) => stringField(r, field);
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) col['editor'] = makeEditorForReadonly('uuid-editor');
+      if (!columnReadonly) col['editor'] = makeEditorForReadonly('uuid-editor');
       break;
 
     case 'number':
@@ -389,7 +395,7 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
           i18n.formatNumber(r[field] as number)
         : formatEntityFieldValue('number', r[field], format);
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) {
+      if (!columnReadonly) {
         const bounds = numericBoundsOf(format);
         if (bounds && hasNumericBounds(bounds)) {
           const inst = new NumberEditor(false, bounds);
@@ -407,7 +413,7 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
           i18n.formatNumber(r[field] as number)
         : formatEntityFieldValue('integer', r[field], format);
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) {
+      if (!columnReadonly) {
         const bounds = numericBoundsOf(format);
         if (bounds && hasNumericBounds(bounds)) {
           const inst = new NumberEditor(true, bounds);
@@ -422,13 +428,13 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
     case 'bigint':
       col['fieldFormat'] = (r: Record<string, unknown>) => stringField(r, field);
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) col['editor'] = makeEditorForReadonly('bigint-editor');
+      if (!columnReadonly) col['editor'] = makeEditorForReadonly('bigint-editor');
       break;
 
     case 'binary':
       col['fieldFormat'] = (r: Record<string, unknown>) => formatEntityFieldValue('binary', r[field]);
       applyDefaultSizes(col, type, config.width);
-      // 二进制列只读展示（表格内不做字节级编辑，表单里用 hex 编辑）
+      // 表格内不挂字节级编辑器（表单里用 hex 编辑）；非只读属性仍接受剪贴板的十六进制粘贴与 Delete 清空
       break;
 
     // ── 关系类型 ─────────────────────────────────────────────────────────
@@ -445,7 +451,7 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
         return items.find(i => i.id === id)?.displayName ?? id;
       };
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) {
+      if (!columnReadonly) {
         // 将 provider 或静态 items 传入 RelationEditor，打开时动态格取
         const relEditor = new RelationEditor(provider ?? staticItems, nullable ?? false);
         col['editor'] = ((args: StylePropertyFunctionArg) =>
@@ -458,14 +464,14 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
     case 'computed':
       col['fieldFormat'] = (r: Record<string, unknown>) => stringField(r, field);
       applyDefaultSizes(col, type, config.width);
-      // 无编辑器，始终只读
+      // 无编辑器，始终只读（列级只读标记已在上面按类型打上）
       break;
 
     // string / 未知类型
     default:
       col['fieldFormat'] = (r: Record<string, unknown>) => stringField(r, field);
       applyDefaultSizes(col, 'string', config.width);
-      if (!propReadonly) {
+      if (!columnReadonly) {
         switch (format?.kind) {
           case 'color': {
             const colorInst = new ColorEditor();
@@ -662,7 +668,7 @@ export type RecordDeletePredicate = (record: Readonly<Record<string, unknown>>) 
  * @param deleteLabel 删除按钮文案
  * @param canDelete 逐行判定是否出删除按钮；与行是否只读无关（`update: 'system'` 的实体行只读仍可删）
  * @param viewLabel 查看按钮文案（可选，不传则只显示删除按钮，不可删的行因此无图标）
- * @returns 操作列定义
+ * @returns 操作列定义（不承载实体数据，带列级只读标记，粘贴 / 清空不写入）
  */
 export function actionsColumn(
   title: string,
@@ -671,7 +677,7 @@ export function actionsColumn(
   viewLabel?: string
 ): ColumnDefine {
   const width = viewLabel ? 130 : 100;
-  return {
+  const col: ColumnDefine & Record<string, unknown> = {
     field: 'actions',
     title,
     width,
@@ -685,4 +691,6 @@ export function actionsColumn(
       return record && canDelete(record) ? [...viewIcons, ...makeDeleteIcons(deleteLabel)] : viewIcons;
     }) as ColumnDefine['icon']
   };
+  col[COLUMN_READONLY_KEY] = true;
+  return col;
 }

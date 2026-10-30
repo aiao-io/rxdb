@@ -75,6 +75,8 @@ function onSaved(data: EntityFormData): void {
 
 主要 props：`namespace` / `name` / `entity-id`（路由输入通道，与 `metadata` 二选一）、`metadata` / `form-fields` / `form-data` / `form-mode`（直接传入元数据与表单数据）；事件 `form-submitted` / `form-cancelled` / `field-changed` / `validation-errors`。
 
+编辑目标加载期间（数据库或实例未就绪）表单内部动作隐藏、只留「取消」，提交被拦截，但允许输入：输入暂存，就绪后合入加载到的实例数据，随下次提交落库（取消或切换编辑目标时丢弃）。edit 模式下 `fixedFormData` 叠加在实例数据上显示（对应字段只读，保存不改写实例上的原值）。这两点是与 Angular / React 的框架差异：那两端未就绪期间的输入不保留，`fixedFormData` 只合入 create 草稿与无实例的透传表单。
+
 ## 实体表单
 
 `EntityForm`：按模式渲染全部字段类型的输入控件，create / edit / view 三模式，view 模式全部字段只读。
@@ -148,5 +150,7 @@ function onValidationChange(result: ValidationResult): void {
 主要 props：`fields`（字段列表，优先于 `schema`）、`schema`（Schema 信息）、`initial-query`（可回填既有查询）、`max-depth`（最大嵌套层级，缺省 `5`）、`height`（内容区最大高度，缺省 `'80vh'`）、`enable-drag` / `enable-collapse`；事件 `query-change` / `validation-change`。
 
 `RxDBQueryOutput<T>` 的类型参数必填：`T` 是被查询的实体类型，约束规则里的 `field`；Vue 组件的事件固定按 `Record<string, unknown>` 发出。
+
+挂载时 `queryChange` / `validationChange` 各发一次当前值（载入的 `initialQuery` 及其校验结果，没传时是空查询），之后随编辑再发。
 
 主题注入：`provideQueryBuilderTheme(theme)` 提供自定义 `QueryBuilderTheme`（字段选择器 / 操作符选择器 / 值输入组件的替换实现），缺省用内置 `DEFAULT_QUERY_BUILDER_THEME`。

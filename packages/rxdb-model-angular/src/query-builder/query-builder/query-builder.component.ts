@@ -243,12 +243,10 @@ export class QueryBuilderComponent<T extends object> implements OnDestroy {
     this.rootGroupSignal = toSignal(this.service.rootGroup$, { requireSync: true });
     this.validationSignal = toSignal(this.service.validation$, { initialValue: undefined });
 
-    // 监听字段变化并同步到服务
+    // 监听字段变化并同步到服务：空列表同样同步——字段被撤下后，既有规则要立即按「字段不存在」校验，
+    // 不能让服务留着界面上已经选不到的旧字段
     effect(() => {
-      const fields = this.fieldsComputed();
-      if (fields.length > 0) {
-        this.service.setFields(fields);
-      }
+      this.service.setFields(this.fieldsComputed());
     });
 
     // 监听初始查询并加载（引用变化时重新加载，用户修改不影响此 signal 故不会覆盖）

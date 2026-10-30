@@ -93,16 +93,9 @@ const hasRules = computed(() => {
   return !!group && group.rules.length > 0;
 });
 
-// 监听字段变化并同步到服务
-watch(
-  fieldsComputed,
-  fields => {
-    if (fields.length > 0) {
-      service.setFields(fields);
-    }
-  },
-  { immediate: true }
-);
+// 监听字段变化并同步到服务：空列表同样同步——字段被撤下后，既有规则要立即按「字段不存在」校验，
+// 不能让服务留着界面上已经选不到的旧字段
+watch(fieldsComputed, fields => service.setFields(fields), { immediate: true });
 
 // 监听初始查询并加载（引用变化时重新加载，用户修改不影响此 prop 故不会覆盖）
 watch(
@@ -116,19 +109,27 @@ watch(
   { immediate: true }
 );
 
-// 监听查询变化并发出事件
-watch(rootGroup, group => {
-  if (group) {
-    emit('queryChange', service.toRxDBQuery() as RxDBQueryOutput<Record<string, unknown>>);
-  }
-});
+// 监听查询变化并发出事件：挂载时先发一次当前查询（已载入的 initialQuery，没有则为空查询），与 Angular / React 同口径
+watch(
+  rootGroup,
+  group => {
+    if (group) {
+      emit('queryChange', service.toRxDBQuery() as RxDBQueryOutput<Record<string, unknown>>);
+    }
+  },
+  { immediate: true }
+);
 
-// 监听验证变化并发出事件
-watch(validation, v => {
-  if (v) {
-    emit('validationChange', v);
-  }
-});
+// 监听验证变化并发出事件：挂载时同样先发一次当前校验结果
+watch(
+  validation,
+  v => {
+    if (v) {
+      emit('validationChange', v);
+    }
+  },
+  { immediate: true }
+);
 
 // 同步 maxDepth 到 service
 watch(

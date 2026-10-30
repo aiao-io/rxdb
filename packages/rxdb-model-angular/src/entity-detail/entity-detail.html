@@ -26,7 +26,7 @@
             [fields]="formFieldsValue"
             [mode]="formModeValue"
             [relatedEntityProvider]="relatedEntityProviderValue"
-            [showActions]="!isCreateMode()"
+            [showActions]="!isCreateMode() && !isEditPending()"
             (fieldChanged)="onFieldChanged($event)"
             (formCancelled)="onFormCancelled()"
             (formSubmitted)="onFormSubmitted($event)"
@@ -52,7 +52,7 @@
   </div>
 
   <!-- 校验 / 保存错误面板（US-104）：只转发不渲染时用户看不到任何反馈 -->
-  @if (formErrors() !== null || saveError() !== null) {
+  @if (formErrors() !== null || saveError() !== null || loadError() !== null) {
     <div
       class="border-base-300 flex shrink-0 flex-col gap-1 border-t px-4 py-3 text-sm"
       data-testid="entity-detail-errors"
@@ -64,14 +64,19 @@
       @if (saveError() !== null) {
         <span class="text-error">{{ saveError() }}</span>
       }
+      @if (loadError() !== null) {
+        <span class="text-error">{{ loadError() }}</span>
+      }
     </div>
   }
 
-  <!-- Save/Cancel buttons for create mode (below tabs) -->
-  @if (isCreateMode()) {
+  <!-- 保存/取消按钮在 tabs 下方：create 模式两者都有；编辑实体未就绪（加载中或失败）时只留取消 -->
+  @if (isCreateMode() || isEditPending()) {
     <div class="border-base-300 flex shrink-0 justify-end gap-2 border-t px-4 py-3">
       <button class="btn" (click)="onCancel()" type="button">{{ t('common.cancel') }}</button>
-      <button class="btn btn-primary" (click)="onSave()" type="button">{{ t('common.save') }}</button>
+      @if (isCreateMode()) {
+        <button class="btn btn-primary" (click)="onSave()" type="button">{{ t('common.save') }}</button>
+      }
     </div>
   }
 </rxdb-entity-dialog>

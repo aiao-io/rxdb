@@ -5,7 +5,7 @@ import { modelText, type ModelI18n } from '../../i18n.js';
  */
 
 import type { OperatorName, RuleGroup } from '@aiao/rxdb';
-import { BehaviorSubject, Observable, distinctUntilChanged, map } from 'rxjs';
+import { BehaviorSubject, Observable, combineLatest, distinctUntilChanged, map } from 'rxjs';
 import type { QueryBuilderConfig } from '../models/config.interface.js';
 import type {
   FieldMetadata,
@@ -89,6 +89,11 @@ function createEmptyRootGroup<T>(): QueryBuilderRuleGroup<T> {
   };
 }
 
+/** 字段列表按字段名建索引（每次换字段都建一份新 Map，旧 Map 不再改动） */
+function toFieldsMap(fields: readonly FieldMetadata[]): Map<string, FieldMetadata> {
+  return new Map(fields.map(field => [field.name, field]));
+}
+
 /**
  * QueryBuilder 核心服务
  * 基于 RxJS 的响应式状态管理
@@ -96,7 +101,11 @@ function createEmptyRootGroup<T>(): QueryBuilderRuleGroup<T> {
 export class QueryBuilderService<T = Record<string, unknown>> {
   private readonly i18n: ModelI18n | undefined;
   private readonly stateSubject: BehaviorSubject<QueryBuilderState<T>>;
-  private readonly fieldsMap: Map<string, FieldMetadata>;
+  /**
+   * 字段元数据。校验结论依赖它，所以是响应式状态：换字段要让 validation$ 立即重算；
+   * 它不进 state$——查询本身没变，rootGroup$ / query$ 不该因此发射
+   */
+  private readonly fieldsSubject: BehaviorSubject<Map<string, FieldMetadata>>;
   private readonly config: QueryBuilderConfig<T>;
   private readonly operatorRegistry: OperatorRegistry;
   private readonly validationService: ValidationService;
@@ -114,7 +123,7 @@ export class QueryBuilderService<T = Record<string, unknown>> {
   readonly rootGroup$: Observable<QueryBuilderRuleGroup<T>>;
 
   /**
-   * 校验结果的 Observable
+   * 校验结果的 Observable（规则或字段元数据变化都会重算，结论不变时不重复发射）
    */
   readonly validation$: Observable<ValidationResult>;
 
@@ -137,12 +146,7 @@ export class QueryBuilderService<T = Record<string, unknown>> {
     this.queryConverter = options.queryConverter ?? createQueryConverter<T>();
 
     // 初始化字段映射
-    this.fieldsMap = new Map();
-    if (options.fields) {
-      for (const field of options.fields) {
-        this.fieldsMap.set(field.name, field);
-      }
-    }
+    this.fieldsSubject = new BehaviorSubject(toFieldsMap(options.fields ?? []));
 
     // 保存配置
     this.config = options.config ?? {};
@@ -170,9 +174,9 @@ export class QueryBuilderService<T = Record<string, unknown>> {
       distinctUntilChanged()
     );
 
-    this.validation$ = this.state$.pipe(
-      map(state =>
-        this.validationService.validateGroup(state.rootGroup as unknown as ValidationGroupInput, this.fieldsMap)
+    this.validation$ = combineLatest([this.state$, this.fieldsSubject]).pipe(
+      map(([state, fields]) =>
+        this.validationService.validateGroup(state.rootGroup as unknown as ValidationGroupInput, fields)
       ),
       distinctUntilChanged((a, b) => a.valid === b.valid && structuralEqual(a.errors, b.errors))
     );
@@ -215,17 +219,15 @@ export class QueryBuilderService<T = Record<string, unknown>> {
    * 获取字段列表
    */
   getFields(): FieldMetadata[] {
-    return Array.from(this.fieldsMap.values());
+    return Array.from(this.fieldsSubject.getValue().values());
   }
 
   /**
-   * 设置字段列表
+   * 设置字段列表（空列表同样生效：已有规则引用的字段随即按「不存在」校验）。
+   * 已订阅的 validation$ 立即按新字段重算；查询本身不变，rootGroup$ / query$ 不发射。
    */
   setFields(fields: FieldMetadata[]): void {
-    this.fieldsMap.clear();
-    for (const field of fields) {
-      this.fieldsMap.set(field.name, field);
-    }
+    this.fieldsSubject.next(toFieldsMap(fields));
   }
 
   /**
@@ -378,6 +380,7 @@ export class QueryBuilderService<T = Record<string, unknown>> {
    */
   destroy(): void {
     this.stateSubject.complete();
+    this.fieldsSubject.complete();
   }
 
   // ==================== 转换方法 ====================
@@ -408,7 +411,7 @@ export class QueryBuilderService<T = Record<string, unknown>> {
   validate(): ValidationResult {
     return this.validationService.validateGroup(
       this.getState().rootGroup as unknown as ValidationGroupInput,
-      this.fieldsMap
+      this.fieldsSubject.getValue()
     );
   }
 

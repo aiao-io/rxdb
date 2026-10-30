@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useInsertionEffect, useRef, useState } from 'react';
 
 /**
  * {@link useAction} 的返回值。
@@ -16,7 +16,9 @@ export interface ActionResource<Options, RT> {
    *
    * @remarks
    * 函数 identity 跨渲染稳定，可以直接进 `useEffect` / `useCallback` 的依赖数组，
-   * 同时调用的始终是**最新一次渲染**传入的 `promiseFn`。
+   * 同时调用的始终是**最新一次已提交渲染**传入的 `promiseFn`：从这次提交的 layout effect
+   * （含父组件的）或提交途中同步派发的事件里调用也是如此；挂起或被丢弃、没有提交的并发渲染
+   * 不会改写它。
    */
   readonly execute: (options: Options) => Promise<RT>;
 }
@@ -59,9 +61,11 @@ export const useAction = <Options = void, RT = unknown>(
   const [pendingCount, setPendingCount] = useState(0);
   const latest = useRef(promiseFn);
 
-  // 在 effect 里同步而不是渲染期赋值：渲染期写 ref 在并发渲染下可能被丢弃或重放。
-  // execute 只会从事件回调 / effect 里调用，那时 effect 早已提交，读到的必然是最新值。
-  useEffect(() => {
+  // 不在渲染期赋值：并发渲染可能被挂起、丢弃或重放，只有真正提交的那次渲染才该改写它。
+  // 也不放被动 effect：同一次提交里的 layout effect（含父组件的）与提交途中同步派发的事件
+  // （如 autoFocus 触发的 onFocus）都先于被动 effect 运行，那时调用 execute 会落到上一次
+  // 提交的旧闭包上。insertion effect 在提交的 mutation 阶段运行，早于以上全部。
+  useInsertionEffect(() => {
     latest.current = promiseFn;
   });
 

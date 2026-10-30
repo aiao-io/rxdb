@@ -1,5 +1,5 @@
 import { realpathSync } from 'node:fs';
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -144,6 +144,33 @@ describe('rxdb-client-generator cli', () => {
     );
     await expect(loadConfig(symlinkedConfigPath)).rejects.toThrow(/same outDir/);
   });
+
+  // 首次生成时输出目录往往还不存在：只在整个 outDir 已存在时才解软链的话，父目录软链的两个别名
+  // 以两条词法路径通过校验，后一个构建读到前一个的 manifest，把对方的产物当陈旧文件删掉。
+  it.each([false, true])(
+    'rejects parent-symlink aliases of an output directory before any write (outDir exists: %s)',
+    async existing => {
+      const tempDir = await mkdtemp(path.join(tmpdir(), 'rxdb-client-generator-'));
+      tempDirs.push(tempDir);
+      const physicalDir = path.join(tempDir, 'physical');
+      await mkdir(physicalDir);
+      await symlink(physicalDir, path.join(tempDir, 'alias'));
+      if (existing) await mkdir(path.join(physicalDir, 'generated'));
+      const configPath = path.join(tempDir, 'parent-alias.config.ts');
+      await writeFile(
+        configPath,
+        [
+          'export default [',
+          "  { entities: ['./alpha.ts'], outDir: './physical/generated' },",
+          "  { entities: ['./beta.ts'], outDir: './alias/generated' }",
+          '];'
+        ].join('\n')
+      );
+
+      await expect(loadConfig(configPath)).rejects.toThrow(/same outDir/);
+      expect(await readdir(physicalDir)).toEqual(existing ? ['generated'] : []);
+    }
+  );
 
   // 配置文件来自用户磁盘，是系统边界：`as` 强转会把 '3' / 0.5 / 'yes' 原样放进生成流程。
   it('rejects malformed relationQueryDeep and splitFiles in config files', async () => {

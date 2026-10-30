@@ -204,7 +204,7 @@ for (const entry of preview.entries) {
 }
 ```
 
-- `compareBranches(from, to)`：只在 `to` 上有的实体是 `INSERT`（`patch` 为整行），只在 `from` 上有的是 `DELETE`（`inversePatch` 为整行），两边都有且业务字段不同的是 `UPDATE`（两侧各取自己的值）。同一条分支返回空条目，分支不存在时与 `mergeBranch()` 报同一句错。
+- `compareBranches(from, to)`：只在 `to` 上有的实体是 `INSERT`（`patch` 为整行），只在 `from` 上有的是 `DELETE`（`inversePatch` 为整行），两边都有且业务字段不同的是 `UPDATE`（两侧各取自己的值）。同一条分支返回空条目，分支不存在时与 `mergeBranch()` 报同一句错。挂在可写检出位上只列那套表的成员，与 `previewMerge()` 同一口径。
 - `previewMerge(source, options?)`：条目按所选策略汇总合并会落的操作；`patch` 是合并会写入的值，`inversePatch` 是当前分支现在的值。压缩策略滤掉源分支的先建后删；逐条策略在目标存在同主键记录时列出删除，两种策略的终态可能不同。目标当前也不存在的幽灵实体不出条目。`merged` 在压缩策略下是净操作数，在逐条策略下是源分支变更条数，仍包含未列成条目的幽灵操作。
 
 合并是单向覆盖。预览把撞上当前分支分叉以来改动的条目标出来（`conflict`）：

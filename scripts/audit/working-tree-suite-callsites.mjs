@@ -5,11 +5,8 @@
  * `workingTreeCaptureConformanceSuite`、`workingTreeCommitConformanceSuite` 与 `worktreeConformanceSuite` 三套套件，
  * 缺一即失败（`git show f9528e8f:specs/001-working-tree-commits/contracts/conformance-suites.md` §0、SC-006）。
  *
- * 触发路径：`pnpm audit:suite-callsites`。
- *
- * **还没接进 CI**，因为它现在就是红的：捕获侧的 6 个调用点要等 US-306 阶段 A（T068）落地。
- * 接进 `.github/workflows/ci-template.yml` 的 audit 段是 T068 的收口动作——在那之前把一条
- * 必红的门禁挂上 CI，唯一的后果是所有人学会忽略它。
+ * 触发路径：`pnpm audit:suite-callsites`；CI 上由 `pnpm test-scripts` 跑本脚本 spec 里的「真实仓库」用例，
+ * 与 `working-tree-callsite-drift.mjs`、`core-plugin-boundary.mjs` 同一种接法。
  *
  * 为什么需要这条门禁：套件本体按 `*.suite.ts` 命名，因此被命名门禁与漂移扫描排除，
  * **vitest 也不收它**——套件写得再全，只要没有一个 `*.spec.ts` 去调它，它一条用例都不会跑。

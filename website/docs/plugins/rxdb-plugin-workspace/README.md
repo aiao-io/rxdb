@@ -54,7 +54,7 @@ await db.workspace.flush(); // 显式等待 IndexedDB 写入
 挂着工作树插件的可写检出位（`db.workingTree.checkouts`）时，每条草稿属于它存下去会写进的那套表：
 
 - 挂在可写检出位上新建的草稿只在这个检出位上看得到；主检出位上的草稿只在主检出位上看得到。`list()`、`discard()`、跨标签页同步都只看本实例此刻挂的那一套。不进检出位影子表的实体（QueryCache 同步的这类）无论挂哪套都写主表，它们的草稿在每个检出位上都看得到。
-- 换挂（`checkouts.mount()` / `mountMain()`）时，排着队的写先落盘，再换成新挂那套表的草稿；`await db.workspace.ready` 等它换完。
+- 换挂（`checkouts.mount()` / `mountMain()`）时，排着队的写先落盘，再换成新挂那套表的草稿；`await db.workspace.ready` 等它换完。排队的写按带分区的完整键记账：`ready` 之前在新挂那套表上新建（或从别的标签页收到）同 UUID 的草稿，不会顶掉旧分区还没落盘的那一条。
 - IndexedDB 里主检出位的草稿键照旧是 `namespace:entity:id`，可写检出位的草稿键前面加那套表的后缀（`wt_xxx:namespace:entity:id`）；以前存下的草稿不用迁移。
 - 换挂之前拿到的实体对象（包括没存的草稿）不能在另一套表上保存：`save()` 抛 `WorktreeTableSetMismatchError`。挂回原来那套表再存，或在当前检出位上重新新建。
 

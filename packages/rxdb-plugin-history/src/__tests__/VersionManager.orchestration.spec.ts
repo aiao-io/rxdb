@@ -6,10 +6,20 @@
  * 的三件事：生命周期、本地事件过滤、分支编排。
  */
 
-import { ENTITY_LOCAL_CREATE_EVENT, RxDB, RxDBBranch, RxDBChange, WorktreeTableSet, type EntityType } from '@aiao/rxdb';
+import {
+  ENTITY_LOCAL_CREATE_EVENT,
+  getEntityMetadata,
+  RxDB,
+  RxDBBranch,
+  RxDBChange,
+  WorktreeTableSet,
+  type EntityType
+} from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import type { ChangeInTableSet } from '../table-set-scope.js';
 import { VersionManager } from '../VersionManager.js';
+import { Post, User } from './fixtures/test-entities.js';
 import { createSwitchBranchStub, createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
 type DetachedOperation = () => Promise<unknown>;
@@ -601,7 +611,7 @@ describe('VersionManager 对协作模块的编排契约', () => {
       branchRepository: harness.localBranchRepository,
       changeRepository: harness.localChangeRepository
     });
-    expect(doubles.delegates.compareBranches).toHaveBeenCalledWith(readers, 'main', 'feature');
+    expect(doubles.delegates.compareBranches).toHaveBeenCalledWith(readers, 'main', 'feature', expect.any(Function));
     expect(doubles.delegates.previewMerge).toHaveBeenCalledWith(
       readers,
       'feature',
@@ -609,8 +619,45 @@ describe('VersionManager 对协作模块的编排契约', () => {
       { strategy: 'normal' },
       expect.any(Function)
     );
+    // 对比的最后一个参数是挂着那套表的成员判定（US-314 B2.1），与预览、合并同一份：主表集什么都管
+    const inTableSet = doubles.delegates.compareBranches.mock.calls[0][3] as ChangeInTableSet;
+    expect(inTableSet('public', 'AnyEntity')).toBe(true);
     expect(harness.dispatchEvent).not.toHaveBeenCalled();
     expect(doubles.history.clearUndoHistory).not.toHaveBeenCalled();
+  });
+
+  // 挂在可写检出位上切分支只动这套表的成员（US-314 B2.1）：对比照列表集外的实体，就与切过去读到的对不上
+  it('挂在可写检出位上：对比与预览交出去的判定都只对这套表的成员为真', async () => {
+    const harness = createHarness();
+    const member = getEntityMetadata(User);
+    // Post 记日志、不是这套影子表的成员，与 QueryCache 同步的实体同一种处境
+    const outside = getEntityMetadata(Post);
+    Object.assign(harness.rxdb, {
+      worktreeTableSet: WorktreeTableSet.of('wt_compare', [User]),
+      schemaManager: {
+        getEntityMetadata: (entity: string, namespace: string) =>
+          [member, outside].find(metadata => metadata.name === entity && metadata.namespace === namespace)
+      }
+    });
+    vi.spyOn(harness.manager, 'getCurrentBranch').mockResolvedValue({ id: 'held' } as RxDBBranch);
+
+    await harness.manager.compareBranches('main', 'feature');
+    await harness.manager.previewMerge('feature');
+
+    expect(doubles.delegates.compareBranches).toHaveBeenCalledWith(
+      expect.anything(),
+      'main',
+      'feature',
+      expect.any(Function)
+    );
+    const scopes = [
+      doubles.delegates.compareBranches.mock.calls[0][3],
+      doubles.delegates.previewMerge.mock.calls[0][4]
+    ] as ChangeInTableSet[];
+    for (const inTableSet of scopes) {
+      expect(inTableSet(member.namespace, member.name)).toBe(true);
+      expect(inTableSet(outside.namespace, outside.name)).toBe(false);
+    }
   });
 
   it('rejects preview when the active branch lookup yields no branch', async () => {

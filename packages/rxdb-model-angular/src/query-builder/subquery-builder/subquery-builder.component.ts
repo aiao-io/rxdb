@@ -124,12 +124,9 @@ export class SubqueryBuilderComponent implements OnDestroy {
     this.rootGroupSignal = toSignal(this.service.rootGroup$, { requireSync: true });
     this.validationSignal = toSignal(this.service.validation$, { initialValue: undefined });
 
-    // 监听字段变化并同步到服务
+    // 监听字段变化并同步到服务：空列表同样同步，字段被撤下后既有子规则立即按「字段不存在」校验
     effect(() => {
-      const fields = this.fields();
-      if (fields.length > 0) {
-        this.service.setFields(fields);
-      }
+      this.service.setFields(this.fields());
     });
 
     // 监听初始查询并加载（只应用一次，避免用户修改后被重置）

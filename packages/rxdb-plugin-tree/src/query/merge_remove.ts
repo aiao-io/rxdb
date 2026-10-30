@@ -15,7 +15,7 @@ import {
 } from '@aiao/rxdb';
 import { TREE_QUERY_TYPES } from '../constants.js';
 import { FindTreeOptions } from '../repository/tree-repository.interface.js';
-import { buildEntityMap, traverseAncestors } from './query-tree.utils.js';
+import { buildEntityMap, isTreeBaseMember, traverseAncestors } from './query-tree.utils.js';
 
 /**
  * JS 增量更新查询结果
@@ -111,6 +111,28 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
 };
 
 /**
+ * count 查询删掉了基准成员
+ *
+ * @param task 查询任务
+ * @param events 本任务实体类型的删除事件
+ * @returns `true` 时计数必须回 SQL 重数
+ *
+ * @remarks
+ * count 的刷新规则只按被删行的快照判 where，而基准成员（查全树时的根、指定 `entityId` 时的目标，
+ * 见 {@link isTreeBaseMember}）不过 where：删掉一个不匹配 where 的根，全树计数要少一；删掉目标，
+ * 整条 CTE 落空、计数归零。列表查询不需要这一道——基准成员一定在结果集里，`result_contains` 接得住。
+ * `inversePatch` 是删除前的整行快照，父列直接可读。
+ */
+const removesCountedBaseMember = <T extends EntityType>(
+  task: QueryTask<T>,
+  events: RxDBEntityLocalRemovedEventData<T>[]
+): boolean => {
+  if (task.type !== 'countDescendants' && task.type !== 'countAncestors') return false;
+  const { entityId } = task.options as FindTreeOptions<T>;
+  return events.some(event => isTreeBaseMember(event.id, event.inversePatch, entityId));
+};
+
+/**
  * 处理树查询 REMOVE 事件的缓存合并
  *
  * @param task 查询任务
@@ -156,7 +178,7 @@ export const merge_remove = <T extends EntityType>(
   }
 
   const result = queryNeedRefreshRemove(task, freshEntities, refresh_rules, recalculate_rules);
-  if (result.refresh) {
+  if (result.refresh || removesCountedBaseMember(task, result.current_entities)) {
     task.refresh();
   } else if (result.recalculate) {
     _recalculate(task, result.current_entities);

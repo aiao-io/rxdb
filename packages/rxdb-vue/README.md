@@ -65,9 +65,9 @@ const database = useRxDBRef();
 // database.value 在初始化完成后更新
 ```
 
-`injectRxDBRef()` 是可选版本；没有 provider 时返回 `undefined`。`useInfiniteScroll` 会在 provider 存在但数据库仍为 `undefined` 时等待，并在 ref 就绪后自动加载。
+`injectRxDBRef()` 是可选版本；没有 provider 时返回 `undefined`。允许缺少 provider 的组件可调用 `injectRxDBRef(true)`，同时避免开发模式的注入警告。`useInfiniteScroll` 会在 provider 存在但数据库仍为 `undefined` 时等待，并在 ref 就绪后自动加载。
 
-**生命周期所有权：provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 provider 等来，作用域销毁时它负责 `disconnectAll()`；传已就绪的实例或你自己的 `Ref`，它归调用方所有，provider 不碰 —— 否则一个模块级单例会被某个子组件的卸载顺手断掉，而没有人会去重连。这条规则三端逐字相同。
+**生命周期所有权：provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 provider 等来，作用域销毁时它负责 `destroy()`；传已就绪的实例或你自己的 `Ref`，它归调用方所有，provider 不碰 —— 否则一个模块级单例会被某个子组件的卸载顺手断掉，而没有人会去重连。这条规则三端逐字相同。
 
 ## 响应式查询
 

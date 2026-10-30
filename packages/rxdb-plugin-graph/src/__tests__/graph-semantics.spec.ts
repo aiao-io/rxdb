@@ -1,10 +1,12 @@
 import type { RxDBEntityId } from '@aiao/rxdb';
-import { encodeRxDBChangeEntityId, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import { encodeRxDBChangeEntityId, getEntityMetadata, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import type { RxDBAdapterSqliteBase } from '@aiao/rxdb-adapter-sqlite-core';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { GraphEntity } from '../@GraphEntity.js';
 import { GraphEntityBase } from '../GraphEntityBase.js';
 import { rxDBPluginGraph } from '../plugin.js';
+import { generate_entity_find_neighbors_sql } from '../sqlite/query_graph_sql.js';
 import { SqliteGraphRepository } from '../sqlite/SqliteGraphRepository.js';
 import { cleanup_db, create_graph_test_adapter } from './test-utils.js';
 
@@ -89,17 +91,44 @@ export class Station extends GraphEntityBase {
   name!: string;
 }
 
+/**
+ * OrderLine 实体 - 实体名是普通字符串，只有物理表名含双引号的有向图
+ * 用于锁定三个读入口与路径节点回填都按转义后的标识符引用节点表
+ */
+@GraphEntity({
+  name: 'OrderLine',
+  tableName: 'order"line',
+  displayName: '订单行',
+  properties: [
+    {
+      type: PropertyType.string,
+      name: 'name',
+      displayName: '名称'
+    }
+  ],
+  features: {
+    graph: {
+      type: 'directed-graph',
+      weight: false
+    }
+  }
+})
+export class OrderLine extends GraphEntityBase {
+  name!: string;
+}
+
 describe('图语义锁定（起点排除 / 去重 / 边属性 / 表名）', () => {
   let rxdb: RxDB;
   let adapter: RxDBAdapterWaSqlite;
   let buddyRepo: SqliteGraphRepository<typeof Buddy>;
   let routeRepo: SqliteGraphRepository<typeof Route>;
   let stationRepo: SqliteGraphRepository<typeof Station>;
+  let orderLineRepo: SqliteGraphRepository<typeof OrderLine>;
 
   beforeAll(async () => {
     rxdb = new RxDB({
       dbName: 'graph_semantics_' + Math.random().toString(36).substring(7),
-      entities: [Buddy, Route, Station],
+      entities: [Buddy, Route, Station, OrderLine],
       sync: {
         type: SyncType.None,
         local: {
@@ -116,6 +145,7 @@ describe('图语义锁定（起点排除 / 去重 / 边属性 / 表名）', () =
     buddyRepo = adapter.getRepository(Buddy);
     routeRepo = adapter.getRepository(Route);
     stationRepo = adapter.getRepository(Station);
+    orderLineRepo = adapter.getRepository(OrderLine);
   });
 
   afterEach(async () => {
@@ -415,6 +445,59 @@ describe('图语义锁定（起点排除 / 去重 / 边属性 / 表名）', () =
       expect(paths).toHaveLength(1);
       expect(paths[0].nodes).toHaveLength(2);
       expect(paths[0].nodes.map(n => n.name)).toEqual(['S1', 'S2']);
+    });
+  });
+
+  describe('节点物理表名含双引号', () => {
+    /** A → B → C 一条链 */
+    const seedOrderLines = async (): Promise<[OrderLine, OrderLine, OrderLine]> => {
+      const a = new OrderLine({ name: 'A' });
+      const b = new OrderLine({ name: 'B' });
+      const c = new OrderLine({ name: 'C' });
+      await rxdb.entityManager.saveMany([a, b, c]);
+      await orderLineRepo.addEdge(a, b);
+      await orderLineRepo.addEdge(b, c);
+      return [a, b, c];
+    };
+
+    it('findNeighbors 查得出两跳邻居', async () => {
+      const [a] = await seedOrderLines();
+
+      const neighbors = await orderLineRepo.findNeighbors({ entityId: a.id, direction: 'out', level: 2 });
+
+      expect(neighbors.map(n => [n.node.name, n.level])).toEqual([
+        ['B', 1],
+        ['C', 2]
+      ]);
+    });
+
+    it('countNeighbors 数得出两跳邻居', async () => {
+      const [a] = await seedOrderLines();
+
+      await expect(orderLineRepo.countNeighbors({ entityId: a.id, direction: 'out', level: 2 })).resolves.toBe(2);
+    });
+
+    it('findPaths 的路径与节点回填都落在这张表上', async () => {
+      const [a, , c] = await seedOrderLines();
+
+      const paths = await orderLineRepo.findPaths({ fromId: a.id, toId: c.id, direction: 'out', maxDepth: 3 });
+
+      expect(paths).toHaveLength(1);
+      expect(paths[0].nodes.map(n => n.name)).toEqual(['A', 'B', 'C']);
+    });
+
+    // 仓储在 level 0 直接返回空结果，生成器的这一支只能直接拿 SQL 交给 SQLite 执行
+    it('level 0 的邻居 SQL 交给 SQLite 执行只回起点', async () => {
+      const [a] = await seedOrderLines();
+      const { sql, params } = generate_entity_find_neighbors_sql(
+        adapter as unknown as RxDBAdapterSqliteBase,
+        getEntityMetadata(OrderLine),
+        { entityId: a.id, level: 0 }
+      );
+
+      const result = await adapter.query(sql, params);
+
+      expect(result.results[0].rows).toHaveLength(1);
     });
   });
 

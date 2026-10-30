@@ -196,6 +196,43 @@ describe('compare_branches', () => {
     }
   });
 
+  // 挂在可写检出位上切分支只动这套表的成员（US-314 B2.1）：不进影子表集的实体（QueryCache 同步的实体）切过去不变，
+  // 照列它们，结果就不再等于「切到终点后的数据 − 切到起点后的数据」
+  it('传入表集判定：表集外实体的增、删、改都不出条目，表集内的照常出', async () => {
+    const history = new MemoryBranchHistory();
+    for (const id of ['t1', 't2', 's1', 's2']) history.insert('main', id, { title: id });
+    history.branch('feature', 'main');
+    history.update('feature', 't1', { title: 'feature' });
+    history.delete('feature', 't2');
+    history.insert('feature', 't3', { title: 't3' });
+    history.update('feature', 's1', { title: 'feature' });
+    history.delete('feature', 's2');
+    history.insert('feature', 's3', { title: 's3' });
+    // s 开头的几条记在表集外的实体名下
+    const readers = history.readers();
+    const find = readers.changeRepository.find;
+    readers.changeRepository.find = async options =>
+      (await find(options)).map(change =>
+        String(change.entityId).startsWith('s') ? Object.assign(change, { entity: 'Shared' }) : change
+      );
+    const inTableSet = (namespace: string, entity: string) =>
+      namespace === MEMORY_NAMESPACE && entity === MEMORY_ENTITY;
+    const members = (state: Map<string, MemoryRow>) => new Map([...state].filter(([id]) => id.startsWith('t')));
+
+    const all = await compare_branches(readers, 'main', 'feature');
+    expect(all.entries.map(entry => [entry.entity, entry.entityId, entry.operation])).toEqual([
+      ['Shared', 's1', 'UPDATE'],
+      ['Shared', 's2', 'DELETE'],
+      ['Shared', 's3', 'INSERT'],
+      [MEMORY_ENTITY, 't1', 'UPDATE'],
+      [MEMORY_ENTITY, 't2', 'DELETE'],
+      [MEMORY_ENTITY, 't3', 'INSERT']
+    ]);
+
+    const scoped = await compare_branches(readers, 'main', 'feature', inTableSet);
+    expect(scoped.entries).toEqual(expectedDiff(members(history.stateOf('main')), members(history.stateOf('feature'))));
+  });
+
   it('分支不存在：抛 RxDBError，与合并同一句报错', async () => {
     const history = seeded();
     await expect(compare_branches(history.readers(), 'main', 'nope')).rejects.toThrow(RxDBError);
