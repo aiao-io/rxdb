@@ -4,7 +4,6 @@
   "installed_integrations": [
     "claude",
     "copilot",
-    "cursor-agent",
     "codex"
   ],
   "integration_settings": {
@@ -15,10 +14,6 @@
     "copilot": {
       "script": "sh",
       "invoke_separator": "."
-    },
-    "cursor-agent": {
-      "script": "sh",
-      "invoke_separator": "-"
     },
     "codex": {
       "script": "sh",
