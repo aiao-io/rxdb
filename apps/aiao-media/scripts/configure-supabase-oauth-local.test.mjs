@@ -30,12 +30,10 @@ test('读取已有私有配置，保留其他变量和有效 cookie secret，补
     assert.equal(result.MEDIA_SUPABASE_AUTOINIT_SQL, undefined);
     assert.equal(result.SUPABASE_OAUTH_REDIRECT_URI, 'http://localhost:4398/api/supabase/oauth/callback');
     assert.equal(Buffer.from(result.MEDIA_SUPABASE_AUTOINIT_SQL_B64, 'base64').toString('utf8'), sql);
-    assert.equal((await stat(varsPath)).mode & 0o777, 0o600);
     await configureSupabaseOAuthLocal(root, {});
-    assert.equal(
-      parseEnv(await readFile(varsPath, 'utf8')).SUPABASE_OAUTH_COOKIE_SECRET,
-      result.SUPABASE_OAUTH_COOKIE_SECRET
-    );
+    const second = parseEnv(await readFile(varsPath, 'utf8'));
+    assert.equal(second.SUPABASE_OAUTH_COOKIE_SECRET, result.SUPABASE_OAUTH_COOKIE_SECRET);
+    assert.equal((await stat(varsPath)).mode & 0o777, 0o600);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
