@@ -1,5 +1,6 @@
 import type * as VTable from '@visactor/vtable';
 import { isReadonly } from '../columns/column-utils.js';
+import { isColumnWritable } from '../columns/column-writable.js';
 import type { EntityTableRecord } from '../interfaces.js';
 import { isTableEditing, setCellSwitchState } from './vtable-compat.js';
 
@@ -14,7 +15,7 @@ export interface KeyboardHandlerContext {
     /** 行索引 */
     row: number;
   } | null;
-  /** 按列索引获取列定义 */
+  /** 按列索引获取列定义（原样返回列定义对象：布尔切换还要读其上的列级只读标记） */
   getColDef(col: number):
     | {
         /** 单元格类型 */
@@ -35,6 +36,9 @@ export interface KeyboardHandlerContext {
 
 /** 可通过 Enter / Space 切换的布尔类型列 */
 const TOGGLE_CELL_TYPES = new Set(['switch', 'checkbox', 'radio']);
+
+/** 选择列字段：切的是界面选中态而非实体数据 */
+const SELECTION_FIELD = '__selected';
 
 /**
  * 表格容器 keydown 事件处理 — 剪贴板快捷键 + 布尔切换 + 删除。
@@ -80,10 +84,12 @@ function toggleCellValue(ctx: KeyboardHandlerContext, e: KeyboardEvent): void {
   if (!colDef?.cellType || !TOGGLE_CELL_TYPES.has(colDef.cellType)) return;
   const table = ctx.getTable()!;
   const record = table.getRecordByCell(sel.col, sel.row) as EntityTableRecord | undefined;
-  if (isReadonly(record) && colDef.field !== '__selected') return;
+  const field = colDef.field ?? '';
+  // 选择列只读行也允许勾选；数据列须行可写且列可写——只读布尔列虽禁用了开关（挡住鼠标），键盘切换不经开关，要在这里拦
+  const toggleable = field === SELECTION_FIELD || (!isReadonly(record) && isColumnWritable(field, colDef));
+  if (!toggleable) return;
   e.preventDefault();
-  if (!colDef.field) return;
-  const currentValue = (record as Record<string, unknown> | undefined)?.[colDef.field];
+  const currentValue = (record as Record<string, unknown> | undefined)?.[field];
   const newValue = !currentValue;
   setCellSwitchState(table, sel.col, sel.row, newValue);
   ctx.onCellChange(sel.col, sel.row, newValue);

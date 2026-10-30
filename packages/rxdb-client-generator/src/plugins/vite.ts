@@ -1,10 +1,9 @@
-import { realpathSync } from 'node:fs';
-import { basename, dirname, normalize, resolve, sep } from 'node:path';
+import { normalize, resolve, sep } from 'node:path';
 import type { Plugin } from 'vite';
 import buildClientLibrary from '../cli/build-client-lib.js';
 import type { RxDBClientCLIentGeneratorOptions } from '../cli/cli.interface.js';
 import findFiles, { GLOB_MAGIC } from '../cli/find-files.js';
-import { validateUniqueConfigOutDirs } from '../cli/out-dir.js';
+import { resolvePhysicalPath, validateUniqueConfigOutDirs } from '../cli/out-dir.js';
 
 /**
  * Vite 插件配置。传入数组时每项必须拥有独立的物理 `outDir`。
@@ -14,35 +13,18 @@ export type RxDBClientGeneratorVitePluginOptions =
 
 const WATCH_EVENTS = new Set(['add', 'change', 'unlink']);
 
-const toPhysicalPath = (filePath: string): string => {
-  const absolute = normalize(resolve(filePath));
-  const suffix: string[] = [];
-  let existingPath = absolute;
-
-  while (true) {
-    try {
-      return normalize(resolve(realpathSync.native(existingPath), ...suffix.reverse()));
-    } catch {
-      const parent = dirname(existingPath);
-      if (parent === existingPath) return absolute;
-      suffix.push(basename(existingPath));
-      existingPath = parent;
-    }
-  }
-};
-
 const getWatchRoot = (pattern: string): string => {
   const absolute = normalize(resolve(pattern));
   const magicIndex = absolute.search(GLOB_MAGIC);
-  if (magicIndex === -1) return toPhysicalPath(absolute);
+  if (magicIndex === -1) return resolvePhysicalPath(absolute);
   const prefix = absolute.slice(0, magicIndex);
   const separatorIndex = prefix.lastIndexOf(sep);
   const watchRoot = separatorIndex === -1 ? normalize(resolve('.')) : prefix.slice(0, separatorIndex) || sep;
-  return toPhysicalPath(watchRoot);
+  return resolvePhysicalPath(watchRoot);
 };
 
 const resolveEntityFiles = async (config: RxDBClientCLIentGeneratorOptions): Promise<Set<string>> =>
-  new Set((await findFiles(config.entities, { allowEmpty: true })).map(toPhysicalPath));
+  new Set((await findFiles(config.entities, { allowEmpty: true })).map(file => resolvePhysicalPath(file)));
 
 const toViteError = (error: unknown) => {
   const normalized = error instanceof Error ? error : new Error(String(error));
@@ -116,7 +98,7 @@ export function rxdbClientGeneratorVitePlugin(options: RxDBClientGeneratorVitePl
       };
 
       const scheduleBuild = (file: string): void => {
-        pendingFiles.add(toPhysicalPath(file));
+        pendingFiles.add(resolvePhysicalPath(file));
         if (rebuildPromise) return;
         rebuildPromise = Promise.resolve()
           .then(runPendingBuilds)

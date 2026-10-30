@@ -285,6 +285,8 @@ class SupabaseRepository<T> extends RepositoryBase<T> {
 出来的子行、不裁父行，`!inner` 又只能表达 EXISTS 而取不到补集 —— 任何客户端拼法给出的都是与请求
 语义相反的结果集。需要这个能力时请写服务端 RPC（返回反连接结果的 SQL 函数）后用 `adapter.client.rpc` 调用。
 
+同一层里几条 `exists` / `notExists` 指向同一关系时，每条各用一个嵌入别名（`orders__1`、`orders__2`），彼此独立：`exists(orders, amount = 100) AND exists(orders, amount = 200)` 是「有一笔 100 的订单、也有一笔 200 的订单」，与 SQLite / PGlite 一致。点分关系路径照旧落在以关系名命名的嵌入上，同一关系上的几个点路径条件作用于同一行关联记录。
+
 ### SupabaseTreeRepository
 
 ```typescript

@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
+import { buildPropertyColumn } from '../../../entity-table/columns/column-utils.js';
 import type { KeyboardHandlerContext } from '../../../entity-table/vtable/table-keyboard.js';
 import { handleTableKeydown } from '../../../entity-table/vtable/table-keyboard.js';
 
@@ -173,6 +174,44 @@ describe('handleTableKeydown — toggle cell', () => {
     handleTableKeydown(ctx, e);
     expect(setCellSwitchState).toHaveBeenCalledWith(1, 1, true);
     expect(ctx.onCellChange).toHaveBeenCalledWith(1, 1, true);
+  });
+
+  describe('列级只读（列定义取自 buildPropertyColumn）', () => {
+    function toggleCtx(colDef: unknown, record: Record<string, unknown>) {
+      const setCellSwitchState = vi.fn();
+      const ctx = makeCtx({
+        getTable: vi.fn().mockReturnValue({
+          editorManager: { editingEditor: null },
+          getRecordByCell: vi.fn().mockReturnValue(record),
+          setCellSwitchState
+        }),
+        getSelectedCell: vi.fn().mockReturnValue({ col: 1, row: 1 }),
+        getColDef: vi.fn().mockReturnValue(colDef)
+      });
+      return { ctx, setCellSwitchState };
+    }
+
+    it.each(['Enter', ' '])('只读布尔列按 %j：不切换开关、不发变更、不动行数据', key => {
+      const record = { id: '1', archived: true };
+      const column = buildPropertyColumn({ field: 'archived', type: 'boolean', readonly: true });
+      const { ctx, setCellSwitchState } = toggleCtx(column, record);
+
+      handleTableKeydown(ctx, makeKeyEvent(key));
+
+      expect(setCellSwitchState).not.toHaveBeenCalled();
+      expect(ctx.onCellChange).not.toHaveBeenCalled();
+      expect(record).toEqual({ id: '1', archived: true });
+    });
+
+    it.each(['Enter', ' '])('可写布尔列按 %j 照常切换（对照）', key => {
+      const column = buildPropertyColumn({ field: 'pinned', type: 'boolean' });
+      const { ctx, setCellSwitchState } = toggleCtx(column, { id: '1', pinned: true });
+
+      handleTableKeydown(ctx, makeKeyEvent(key));
+
+      expect(setCellSwitchState).toHaveBeenCalledWith(1, 1, false);
+      expect(ctx.onCellChange).toHaveBeenCalledWith(1, 1, false);
+    });
   });
 
   it('ignores non-toggle cell types', () => {

@@ -22,7 +22,7 @@ class Waypoint extends GraphEntityBase {
   label!: string;
 }
 
-const NODE_BACKFILL_SQL = 'WHERE id IN (';
+const NODE_BACKFILL_SQL = 'WHERE "id" IN (';
 const PATH_CTE_SQL = 'WITH RECURSIVE paths(';
 
 describe('findPaths 节点回填一致性（GRAPH-008）', () => {

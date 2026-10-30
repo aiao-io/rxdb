@@ -34,6 +34,7 @@ import {
   type SyncStateHub,
   type SyncStats
 } from '@aiao/rxdb';
+import { queryCacheEntityIdentifier } from '@aiao/rxdb-plugin-sync';
 import { firstValueFrom, map, Observable } from 'rxjs';
 import { QueryCacheEngine } from './QueryCacheEngine.js';
 import { queryCacheFingerprint, QueryCacheSyncMemo } from './query-cache-sync-memo.js';
@@ -200,7 +201,7 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
     const created = await this.#tryRemote('create', () => this.#cache.create(entity));
     const settled =
       created === OFFLINE ?
-        await this.#queueOffline(() => this.localRepository.create(entity))
+        await this.#queueOffline(entity, () => this.localRepository.create(entity))
       : this.#decodeRemote(created);
     this.syncMemo.clear();
     // 推进查询引擎自己的作废代次（RV-053）：写之前已经发出、写之后才交付的在飞 pull/
@@ -221,7 +222,7 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
     const updated = await this.#tryRemote('update', () => this.#cache.update(entityId(entity), patch));
     const settled =
       updated === OFFLINE ?
-        await this.#queueOffline(() => this.localRepository.update(entity, patch))
+        await this.#queueOffline(entity, () => this.localRepository.update(entity, patch))
       : this.#decodeRemote(updated);
     this.syncMemo.clear();
     // 见 create() 里的同一条注释（RV-053）：旧实现只清 syncMemo，没有推进引擎的落地代次，
@@ -240,7 +241,7 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
     const removed = await this.#tryRemote('delete', () => this.#cache.delete(entityId(entity)).pipe(map(() => entity)));
     if (removed === OFFLINE) {
-      await this.#queueOffline(() => this.localRepository.remove(entity));
+      await this.#queueOffline(entity, () => this.localRepository.remove(entity));
     }
     this.syncMemo.clear();
     // 见 create() 里的同一条注释（RV-053）：没有这一步，迟到的旧 pull 响应会把刚确认
@@ -282,15 +283,22 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
   /**
    * 跑一次离线本地写，成功后把它记进出站积压。
    *
+   * @param entity - 这次写的实体；本地写之前先在引擎里占住它的写次序
    * @param write - 本地写；只有它成功了才算真的排上队
    * @returns 本地写的结果
    *
    * @remarks
+   * 本地写之前先 {@link QueryCacheEngine.supersedeInflightWrites}：同一行此前发出的在线写可能还在路上
+   * （断网前发出、回执被滞留，或这次写本身就是在线失败后改走离线），它们迟到的回执不能再落缓存，
+   * 否则会盖掉这次本地写 —— 本地以最后发出的那次写为准。占位放在写之前而不是之后：本地写要等一个 `await`，
+   * 回执正好可能落在这段间隙里。本地写随后失败的话，被压住的只是一次更早的回执，下一次读同步会把远端拉回来。
+   *
    * 上报在 `await` **之后**：本地写失败什么都没排上队，先报再写会让面板凭空多出一条
    * 永远推不掉的积压。计数本身是 `+1` 而不是重数一遍全表，理由见
    * {@link SyncStateHub.reportOfflineWrite}。
    */
-  async #queueOffline<R>(write: () => Promise<R>): Promise<R> {
+  async #queueOffline<R>(entity: InstanceType<T>, write: () => Promise<R>): Promise<R> {
+    this.#cache.supersedeInflightWrites([entityId(entity)]);
     const result = await write();
     this.syncState.reportOfflineWrite();
     return result;
@@ -424,6 +432,11 @@ const entityId = <T extends EntityType>(entity: InstanceType<T>): string => (ent
  * @param syncState - 同步状态面板，取自 `RxDB` 实例
  * @param pendingWriteIds - 查询本仓库出站队列占用的出口，生产实现是 `pendingQueryCacheWriteIds`
  * @throws {@link RxDBQueryCacheCapabilityError} 适配器缺必需 duck
+ *
+ * @remarks
+ * 远端与本地缓存按 `queryCacheEntityIdentifier` 定位实体（非 public 为 `namespace:entity`）。
+ * 这个函数取自 `@aiao/rxdb-plugin-sync`：离线写由它的出站队列重放，两边必须是同一个标识，
+ * 各拼一份的话非 public 实体的离线写会被重放到同名的公共实体上。
  */
 export function createQueryCachePrimary<T extends EntityType>(
   entityName: string,
@@ -438,7 +451,7 @@ export function createQueryCachePrimary<T extends EntityType>(
 ): QueryCachePrimaryRepository<T> {
   assertQueryCacheCapabilities(entityName, localAdapter, remoteAdapter);
   const metadata = getEntityMetadata(EntityType);
-  const identifier = metadata.namespace === 'public' ? entityName : `${metadata.namespace}:${entityName}`;
+  const identifier = queryCacheEntityIdentifier(metadata.namespace, entityName);
   return new QueryCachePrimaryRepository<T>(
     identifier,
     metadata,

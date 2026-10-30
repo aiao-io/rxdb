@@ -78,7 +78,7 @@ provideRxDB(async () => {
 
 ### 生命周期所有权
 
-**provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 provider 等来，作用域销毁时它负责 `disconnectAll()`；传已就绪的实例或你自己的 `Ref`，它归调用方所有，provider 不碰 —— 否则一个模块级单例会被某个子组件的卸载顺手断掉，而没有人会去重连。这条规则在 Angular / React 侧逐字相同。
+**provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 provider 等来，作用域销毁时它负责 `destroy()`；传已就绪的实例或你自己的 `Ref`，它归调用方所有，provider 不碰 —— 否则一个模块级单例会被某个子组件的卸载顺手断掉，而没有人会去重连。这条规则在 Angular / React 侧逐字相同。
 
 ## Composables API
 

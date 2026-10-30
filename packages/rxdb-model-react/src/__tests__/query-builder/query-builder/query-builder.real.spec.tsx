@@ -6,9 +6,9 @@
  * 所有交互经 DOM（按钮点击 / Escape / 规则控件）驱动 —— 对应 Angular 侧
  * 直接调用组件方法的覆盖点。
  */
-import type { FieldMetadata } from '@aiao/rxdb-model';
+import type { FieldMetadata, SchemaInfo, ValidationResult } from '@aiao/rxdb-model';
 import { fireEvent, render } from '@testing-library/react';
-import { StrictMode } from 'react';
+import { Activity, StrictMode, type JSX } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { QueryBuilder, type RxDBQueryOutput } from '../../../query-builder/query-builder/query-builder';
 
@@ -193,5 +193,185 @@ describe('QueryBuilder（真实组件）', () => {
   it('卸载销毁服务后不再抛错', () => {
     addFirstRule(host);
     expect(() => host.unmount()).not.toThrow();
+  });
+
+  /** 规则区里第一个值输入框。 */
+  const valueInput = (container: HTMLElement): HTMLInputElement | null =>
+    container.querySelector('input[placeholder="输入值"]');
+
+  /** 单条 `title = value` 的查询。 */
+  const titleQuery = (value: string): RxDBQueryOutput<object> =>
+    ({ combinator: 'and', rules: [{ field: 'title', operator: '=', value }] }) as RxDBQueryOutput<object>;
+
+  it('宿主在显示期间换了 initialQuery 引用：载入新查询并只对外发一次，同一引用重渲染不覆盖用户编辑', () => {
+    const queries: Array<RxDBQueryOutput<object>> = [];
+    const element = (initial: RxDBQueryOutput<object>) => (
+      <QueryBuilder<object> fields={FIELDS} initialQuery={initial} onQueryChange={query => queries.push(query)} />
+    );
+    const replaced = titleQuery('replaced');
+    const { container, rerender } = render(element(titleQuery('hello')));
+    const emitted = queries.length;
+
+    rerender(element(replaced));
+
+    expect(valueInput(container)?.value).toBe('replaced');
+    expect(queries.slice(emitted).map(query => query.rules)).toEqual([replaced.rules]);
+
+    fireEvent.change(valueInput(container) as HTMLInputElement, { target: { value: 'edited' } });
+    rerender(element(replaced));
+    expect(valueInput(container)?.value).toBe('edited');
+  });
+
+  describe('字段集合变化（含清空）同步给服务', () => {
+    const SCHEMA: SchemaInfo = { entityName: 'Post', fields: [FIELDS[0]] };
+    const TITLE_OK = titleQuery('ok');
+
+    function renderWith(initial: { fields?: FieldMetadata[]; schema?: SchemaInfo }) {
+      const queries: Array<RxDBQueryOutput<object>> = [];
+      const validations: ValidationResult[] = [];
+      const element = (props: { fields?: FieldMetadata[]; schema?: SchemaInfo }): JSX.Element => (
+        <QueryBuilder<object>
+          fields={props.fields}
+          schema={props.schema}
+          initialQuery={TITLE_OK}
+          onQueryChange={query => queries.push(query)}
+          onValidationChange={result => validations.push(result)}
+        />
+      );
+      const utils = render(element(initial));
+      return {
+        ...utils,
+        queries,
+        validations,
+        update: (props: { fields?: FieldMetadata[]; schema?: SchemaInfo }) => utils.rerender(element(props))
+      };
+    }
+
+    /** 最近一次 onValidationChange 是否报了 title 的 fieldExists。 */
+    const titleMissing = (validations: ValidationResult[]): boolean =>
+      validations.at(-1)?.valid === false &&
+      !!validations.at(-1)?.errors?.some(error => error.field === 'title' && error.rule === 'fieldExists');
+
+    it('fields 由非空切空：既有规则立即失效且后续改规则仍按空字段集校验，恢复后转回合法；全程不多发查询', () => {
+      const host = renderWith({ fields: [FIELDS[0]] });
+      expect(host.validations.at(-1)?.valid).toBe(true);
+      const queryCount = host.queries.length;
+
+      host.update({ fields: [] });
+
+      expect(titleMissing(host.validations)).toBe(true);
+      expect(host.queries).toHaveLength(queryCount);
+
+      fireEvent.change(valueInput(host.container) as HTMLInputElement, { target: { value: 'changed' } });
+      expect(titleMissing(host.validations)).toBe(true);
+      const afterEdit = host.queries.length;
+
+      host.update({ fields: [FIELDS[0]] });
+
+      expect(host.validations.at(-1)?.valid).toBe(true);
+      expect(host.queries).toHaveLength(afterEdit);
+    });
+
+    it('schema 由有值切 undefined（未传 fields）：同样立即失效，恢复后转回合法', () => {
+      const host = renderWith({ schema: SCHEMA });
+      expect(host.validations.at(-1)?.valid).toBe(true);
+      const queryCount = host.queries.length;
+
+      host.update({ schema: undefined });
+
+      expect(titleMissing(host.validations)).toBe(true);
+
+      host.update({ schema: SCHEMA });
+
+      expect(host.validations.at(-1)?.valid).toBe(true);
+      expect(host.queries).toHaveLength(queryCount);
+    });
+  });
+
+  describe('Activity 隐藏再显示（effect 断开后重连，state / ref 保留）', () => {
+    function renderInActivity(initialQuery?: RxDBQueryOutput<object>, strict = false) {
+      const queries: Array<RxDBQueryOutput<object>> = [];
+      const element = (mode: 'visible' | 'hidden', initial: RxDBQueryOutput<object> | undefined): JSX.Element => {
+        const tree = (
+          <Activity mode={mode}>
+            <QueryBuilder<object> fields={FIELDS} initialQuery={initial} onQueryChange={query => queries.push(query)} />
+          </Activity>
+        );
+        return strict ? <StrictMode>{tree}</StrictMode> : tree;
+      };
+      const utils = render(element('visible', initialQuery));
+      return {
+        ...utils,
+        queries,
+        hide: (initial = initialQuery) => utils.rerender(element('hidden', initial)),
+        show: (initial = initialQuery) => utils.rerender(element('visible', initial))
+      };
+    }
+
+    it('无 initialQuery：用户建的条件在反复隐藏 / 显示后仍在，重接不对外发任何查询', () => {
+      const host = renderInActivity();
+      fireEvent.click(host.container.querySelector('[aria-label="添加第一个条件"]') as HTMLElement);
+      fireEvent.change(valueInput(host.container) as HTMLInputElement, { target: { value: 'draft' } });
+      const emitted = host.queries.length;
+
+      host.hide();
+      host.show();
+      host.hide();
+      host.show();
+
+      expect(valueInput(host.container)?.value).toBe('draft');
+      expect(host.queries.slice(emitted)).toEqual([]);
+    });
+
+    it('稳定 initialQuery 后用户修改：重显保留用户的值，不回退到 initialQuery，也不先发空查询', () => {
+      const host = renderInActivity(titleQuery('hello'));
+      fireEvent.change(valueInput(host.container) as HTMLInputElement, { target: { value: 'world' } });
+      const emitted = host.queries.length;
+
+      host.hide();
+      host.show();
+
+      expect(valueInput(host.container)?.value).toBe('world');
+      expect(host.queries.slice(emitted)).toEqual([]);
+    });
+
+    it('宿主回写当前查询：隐藏时交回收到的最新查询，重显界面与发出的查询都是它，中途不发空查询', () => {
+      const host = renderInActivity(titleQuery('hello'));
+      fireEvent.change(valueInput(host.container) as HTMLInputElement, { target: { value: 'world' } });
+      const latest = host.queries.at(-1) as RxDBQueryOutput<object>;
+      const emitted = host.queries.length;
+
+      host.hide(latest);
+      host.show(latest);
+
+      expect(valueInput(host.container)?.value).toBe('world');
+      expect(host.queries.slice(emitted).map(query => query.rules)).toEqual([titleQuery('world').rules]);
+    });
+
+    it('隐藏期间宿主替换 initialQuery：重显载入新查询，只对外发一次新查询', () => {
+      const host = renderInActivity(titleQuery('hello'));
+      const emitted = host.queries.length;
+      const replaced = titleQuery('replaced');
+
+      host.hide();
+      host.hide(replaced);
+      host.show(replaced);
+
+      expect(valueInput(host.container)?.value).toBe('replaced');
+      expect(host.queries.slice(emitted).map(query => query.rules)).toEqual([replaced.rules]);
+    });
+
+    it('StrictMode：挂载只发一次 initialQuery，用户修改在隐藏 / 显示后保留且不再对外发查询', () => {
+      const host = renderInActivity(titleQuery('hello'), true);
+      expect(host.queries.map(query => query.rules)).toEqual([titleQuery('hello').rules]);
+
+      fireEvent.change(valueInput(host.container) as HTMLInputElement, { target: { value: 'world' } });
+      const emitted = host.queries.length;
+      host.hide();
+      host.show();
+
+      expect(valueInput(host.container)?.value).toBe('world');
+      expect(host.queries.slice(emitted)).toEqual([]);
+    });
   });
 });

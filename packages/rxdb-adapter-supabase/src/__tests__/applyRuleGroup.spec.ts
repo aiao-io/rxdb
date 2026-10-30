@@ -434,8 +434,8 @@ describe('apply_rule_group', () => {
     );
 
     expect(calls).toEqual([
-      { method: 'not', args: ['children', 'is', null] },
-      { method: 'is', args: ['children', null] }
+      { method: 'not', args: ['children__1', 'is', null] },
+      { method: 'is', args: ['children__2', null] }
     ]);
   });
 
@@ -557,6 +557,206 @@ describe('apply_rule_group', () => {
     ]);
   });
 
+  /**
+   * exists 子查询里的 OR 必须作用在同一条关联行上：PostgREST 用 `<关系路径>.or=(...)`
+   * 表达（postgrest-js 的 `or(filters, { referencedTable })`），子句里写的是该关系自己的列。
+   * 逐条挂成 `<关系>.<列>=...` 就是 AND：「标题为 A 或 B」变成「标题同时是 A 和 B」，静默返回空集。
+   */
+  describe('OR inside an exists subquery', () => {
+    const titleIs = (value: string): TestRule => ({ field: 'title', operator: '=', value });
+
+    it('compiles a direct OR into one or-filter scoped to the relation', () => {
+      const { proxy, calls } = recordingQuery();
+      const post = {
+        ...metadata('Post'),
+        propertyMap: new Map([['id', { columnName: 'post_key' }]])
+      } as unknown as EntityMetadata;
+      const root = metadata('Root', [['posts', relation('Post')]]);
+
+      applyGroup(
+        proxy,
+        {
+          combinator: 'and',
+          rules: [
+            {
+              field: 'posts',
+              operator: 'exists',
+              where: {
+                combinator: 'or',
+                rules: [titleIs('A'), titleIs('B'), { field: 'id', operator: '=', value: 'p1' }]
+              }
+            }
+          ]
+        },
+        root,
+        { getEntityMetadata: vi.fn(() => post) } as unknown as SchemaManager
+      );
+
+      expect(calls).toEqual([
+        { method: 'not', args: ['posts', 'is', null] },
+        { method: 'or', args: ['title.eq.A,title.eq.B,post_key.eq.p1', { referencedTable: 'posts' }] }
+      ]);
+    });
+
+    it('keeps AND siblings as embedded filters and scopes the nested OR group', () => {
+      const { proxy, calls } = recordingQuery();
+      const root = metadata('Root', [['posts', relation('Post')]]);
+
+      applyGroup(
+        proxy,
+        {
+          combinator: 'and',
+          rules: [
+            {
+              field: 'posts',
+              operator: 'exists',
+              where: {
+                combinator: 'and',
+                rules: [
+                  { field: 'views', operator: '>=', value: 10 },
+                  {
+                    combinator: 'or',
+                    rules: [
+                      titleIs('A'),
+                      { combinator: 'and', rules: [titleIs('B'), { field: 'draft', operator: '=', value: false }] }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        root,
+        { getEntityMetadata: vi.fn(() => metadata('Post')) } as unknown as SchemaManager
+      );
+
+      expect(calls).toEqual([
+        { method: 'not', args: ['posts', 'is', null] },
+        { method: 'gte', args: ['posts.views', 10] },
+        { method: 'or', args: ['title.eq.A,and(title.eq.B,draft.eq.false)', { referencedTable: 'posts' }] }
+      ]);
+    });
+
+    it('scopes an OR two relations deep to the full embed path', () => {
+      const { proxy, calls } = recordingQuery();
+      const grandchild = metadata('Grandchild');
+      const child = metadata('Child', [['grandchildren', relation('Grandchild')]]);
+      const root = metadata('Root', [['children', relation('Child')]]);
+      const getEntityMetadata = vi.fn((name: string) => (name === 'Child' ? child : grandchild));
+
+      applyGroup(
+        proxy,
+        {
+          combinator: 'and',
+          rules: [
+            {
+              field: 'children',
+              operator: 'exists',
+              where: {
+                combinator: 'and',
+                rules: [
+                  {
+                    field: 'grandchildren',
+                    operator: 'exists',
+                    where: {
+                      combinator: 'or',
+                      rules: [
+                        { field: 'name', operator: '=', value: 'G' },
+                        { field: 'name', operator: '=', value: 'H' }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        root,
+        { getEntityMetadata } as unknown as SchemaManager
+      );
+
+      expect(calls).toEqual([
+        { method: 'not', args: ['children', 'is', null] },
+        { method: 'not', args: ['children.grandchildren', 'is', null] },
+        { method: 'or', args: ['name.eq.G,name.eq.H', { referencedTable: 'children.grandchildren' }] }
+      ]);
+    });
+
+    it('scopes notBetween (an OR in disguise) to the relation instead of a cross-table top-level or', () => {
+      const { proxy, calls } = recordingQuery();
+      const root = metadata('Root', [['children', relation('Child')]]);
+
+      applyGroup(
+        proxy,
+        {
+          combinator: 'and',
+          rules: [
+            {
+              field: 'children',
+              operator: 'exists',
+              where: { combinator: 'and', rules: [{ field: 'age', operator: 'notBetween', value: [1, 5] }] }
+            }
+          ]
+        },
+        root,
+        { getEntityMetadata: vi.fn(() => metadata('Child')) } as unknown as SchemaManager
+      );
+
+      expect(calls).toEqual([
+        { method: 'not', args: ['children', 'is', null] },
+        { method: 'or', args: ['age.lt.1,age.gt.5', { referencedTable: 'children' }] }
+      ]);
+    });
+
+    it('treats a single-rule OR group like AND', () => {
+      const { proxy, calls } = recordingQuery();
+      const root = metadata('Root', [['posts', relation('Post')]]);
+
+      applyGroup(
+        proxy,
+        {
+          combinator: 'and',
+          rules: [{ field: 'posts', operator: 'exists', where: { combinator: 'or', rules: [titleIs('A')] } }]
+        },
+        root,
+        { getEntityMetadata: vi.fn(() => metadata('Post')) } as unknown as SchemaManager
+      );
+
+      expect(calls).toEqual([
+        { method: 'not', args: ['posts', 'is', null] },
+        { method: 'eq', args: ['posts.title', 'A'] }
+      ]);
+    });
+
+    it.each<[string, TestRule]>([
+      ['a nested exists', { field: 'comments', operator: 'exists' }],
+      ['a dotted relation field', { field: 'comments.body', operator: '=', value: 'x' }]
+    ])('rejects %s inside the OR before any or-filter is built, like a top-level OR does', (_label, relationRule) => {
+      const { proxy, calls } = recordingQuery();
+      const post = metadata('Post', [['comments', relation('Comment')]]);
+      const root = metadata('Root', [['posts', relation('Post')]]);
+
+      expect(() =>
+        applyGroup(
+          proxy,
+          {
+            combinator: 'and',
+            rules: [
+              {
+                field: 'posts',
+                operator: 'exists',
+                where: { combinator: 'or', rules: [titleIs('A'), relationRule] }
+              }
+            ]
+          },
+          root,
+          { getEntityMetadata: vi.fn(() => post) } as unknown as SchemaManager
+        )
+      ).toThrow('Relation filters inside OR groups are not supported by PostgREST');
+      expect(calls.some(call => call.method === 'or' || call.method === 'eq')).toBe(false);
+    });
+  });
+
   it('rejects unresolved root and nested relations', () => {
     const first = recordingQuery();
     const second = recordingQuery();
@@ -589,5 +789,107 @@ describe('apply_rule_group', () => {
         { getEntityMetadata: vi.fn(() => child) } as unknown as SchemaManager
       )
     ).toThrow("Relation 'missing' not found in Child");
+  });
+});
+
+/**
+ * 同一层里两条显式 exists 指向同一关系时，SQLite / PGlite 各编一个独立的 EXISTS 子查询：
+ * 「存在一笔满足 A 的、也存在一笔满足 B 的」。PostgREST 把挂在同一条嵌入上的过滤当作对同一行的条件，
+ * 落到同一个嵌入就成了「存在一笔同时满足 A 与 B 的」，静默漏行。每条 exists 要有自己的嵌入别名。
+ */
+describe('independent exists rules on the same relation', () => {
+  const amountIs = (value: number): TestRule => ({ field: 'amount', operator: '=', value });
+
+  it('gives each exists on the same relation its own embed alias', () => {
+    const { proxy, calls } = recordingQuery();
+    const root = metadata('Root', [['orders', relation('Order')]]);
+
+    applyGroup(
+      proxy,
+      {
+        combinator: 'and',
+        rules: [
+          { field: 'orders', operator: 'exists', where: { combinator: 'and', rules: [amountIs(100)] } },
+          { field: 'orders', operator: 'exists', where: { combinator: 'and', rules: [amountIs(200)] } }
+        ]
+      },
+      root,
+      { getEntityMetadata: vi.fn(() => metadata('Order')) } as unknown as SchemaManager
+    );
+
+    expect(calls).toEqual([
+      { method: 'not', args: ['orders__1', 'is', null] },
+      { method: 'eq', args: ['orders__1.amount', 100] },
+      { method: 'not', args: ['orders__2', 'is', null] },
+      { method: 'eq', args: ['orders__2.amount', 200] }
+    ]);
+  });
+
+  it('keeps the relation name for a sole exists and for dotted paths, aliasing explicit exists beside them', () => {
+    const { proxy, calls } = recordingQuery();
+    const root = metadata('Root', [
+      ['orders', relation('Order')],
+      ['tags', relation('Tag')]
+    ]);
+
+    applyGroup(
+      proxy,
+      {
+        combinator: 'and',
+        rules: [
+          { field: 'orders.amount', operator: '=', value: 100 },
+          { field: 'orders', operator: 'exists', where: { combinator: 'and', rules: [amountIs(200)] } },
+          { field: 'tags', operator: 'exists' }
+        ]
+      },
+      root,
+      { getEntityMetadata: vi.fn(() => metadata('Order')) } as unknown as SchemaManager
+    );
+
+    expect(calls).toEqual([
+      { method: 'not', args: ['orders', 'is', null] },
+      { method: 'eq', args: ['orders.amount', 100] },
+      { method: 'not', args: ['orders__1', 'is', null] },
+      { method: 'eq', args: ['orders__1.amount', 200] },
+      { method: 'not', args: ['tags', 'is', null] }
+    ]);
+  });
+
+  it('aliases nested exists rules within their parent embed', () => {
+    const { proxy, calls } = recordingQuery();
+    const order = metadata('Order', [['items', relation('Item')]]);
+    const root = metadata('Root', [['orders', relation('Order')]]);
+    const getEntityMetadata = vi.fn((name: string) => (name === 'Order' ? order : metadata('Item')));
+    const skuIs = (value: string): TestRule => ({ field: 'sku', operator: '=', value });
+
+    applyGroup(
+      proxy,
+      {
+        combinator: 'and',
+        rules: [
+          {
+            field: 'orders',
+            operator: 'exists',
+            where: {
+              combinator: 'and',
+              rules: [
+                { field: 'items', operator: 'exists', where: { combinator: 'and', rules: [skuIs('A')] } },
+                { field: 'items', operator: 'exists', where: { combinator: 'and', rules: [skuIs('B')] } }
+              ]
+            }
+          }
+        ]
+      },
+      root,
+      { getEntityMetadata } as unknown as SchemaManager
+    );
+
+    expect(calls).toEqual([
+      { method: 'not', args: ['orders', 'is', null] },
+      { method: 'not', args: ['orders.items__1', 'is', null] },
+      { method: 'eq', args: ['orders.items__1.sku', 'A'] },
+      { method: 'not', args: ['orders.items__2', 'is', null] },
+      { method: 'eq', args: ['orders.items__2.sku', 'B'] }
+    ]);
   });
 });

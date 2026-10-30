@@ -9,6 +9,7 @@ import {
 } from '@aiao/rxdb-adapter-sqlite-core';
 import { createSqliteClient } from './create_sqlite_client.js';
 import { ADAPTER_NAME, type SqliteOptions } from './sqlite.interface.js';
+import { resolveSqliteWasmTransport, type SqliteWasmTransport } from './transport.js';
 
 /**
  * 浏览器 @subframe7536/sqlite-wasm 适配器。
@@ -20,6 +21,8 @@ import { ADAPTER_NAME, type SqliteOptions } from './sqlite.interface.js';
 export class RxDBAdapterSqlite extends RxDBAdapterSqliteBase {
   /** 数据库名直接从 RxDB 配置读取，避免与多个 RxDB 实例串号。 */
   readonly #dbName: string;
+  /** 连接实际走的 transport：锁名、交还持有者、备份拒绝都按它判，与 `createSqliteClient` 同一个判据。 */
+  readonly #transport: SqliteWasmTransport;
   override readonly name: string = ADAPTER_NAME;
 
   constructor(
@@ -28,6 +31,7 @@ export class RxDBAdapterSqlite extends RxDBAdapterSqliteBase {
   ) {
     super(rxdb, options);
     this.#dbName = rxdb.config.dbName;
+    this.#transport = resolveSqliteWasmTransport(options);
   }
 
   /**
@@ -65,12 +69,8 @@ export class RxDBAdapterSqlite extends RxDBAdapterSqliteBase {
    * 设置了其中任一选项都报 `unsupported_combination`（`field` 为 `transport`）。
    */
   protected override backupStorage(): SqliteBackupStorage {
-    const { worker, workerInstance, sharedWorker, sharedWorkerInstance } = this.options;
-    if (worker === true || workerInstance !== undefined)
-      return { kind: 'unsupported', field: 'transport', actual: 'worker' };
-    if (sharedWorker === true || sharedWorkerInstance !== undefined) {
-      return { kind: 'unsupported', field: 'transport', actual: 'sharedWorker' };
-    }
+    if (this.#transport.worker) return { kind: 'unsupported', field: 'transport', actual: 'worker' };
+    if (this.#transport.sharedWorker) return { kind: 'unsupported', field: 'transport', actual: 'sharedWorker' };
     const vfs = this.options.vfs ?? 'idb';
     if (vfs === 'memory') return { kind: 'memory', label: 'memory' };
     if (vfs === 'idb') return this.persistentBackupStorage('idb');
@@ -85,9 +85,12 @@ export class RxDBAdapterSqlite extends RxDBAdapterSqliteBase {
    * SharedWorker 传输下多个标签页共用 worker 里那一个客户端：给出跨标签页串行事务的锁名（US-314 B2.3b）。
    *
    * @returns 按库名区分的锁名；不走 SharedWorker 时为 `undefined`
+   *
+   * @remarks
+   * 判据与连接时实际走的 transport 同一份：只给 `sharedWorkerInstance`、没写 `sharedWorker: true` 也是共用连接。
    */
   protected override sharedClientLockName(): string | undefined {
-    return this.options.sharedWorker === true ? `rxdb-sqlite-shared-client:${ADAPTER_NAME}:${this.#dbName}` : undefined;
+    return this.#transport.sharedWorker ? `rxdb-sqlite-shared-client:${ADAPTER_NAME}:${this.#dbName}` : undefined;
   }
 
   /** 本库存储的删法；`canDropStorage()` 与 `dropStorage()` 共用这一份，删不掉的 VFS 交回 `undefined`。 */

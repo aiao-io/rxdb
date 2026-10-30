@@ -482,6 +482,9 @@ export class VersionManager {
    * 条目的 `patch` 是终点上的值、`inversePatch` 是起点上的值，与工作树 `diff()` 同一个语义。
    * 取值原样来自变更日志，不解码；`remoteId` 与审计时间这类簿记字段（`ENTITY_BOOKKEEPING_FIELDS`）不算差异。
    *
+   * 挂在可写检出位上只对比这套表的成员，与 {@link previewMerge} 同一口径：不进影子表集的实体（QueryCache 同步的实体）
+   * 在检出位里切分支时不动，列出它们就与切过去读到的对不上。
+   *
    * @example
    * ```ts
    * // feature 相对当前分支 main 改了什么
@@ -490,7 +493,12 @@ export class VersionManager {
    * ```
    */
   async compareBranches(fromBranchId: string, toBranchId: string): Promise<BranchComparison> {
-    return compare_branches(await this.getLocalRepositories(), fromBranchId, toBranchId);
+    return compare_branches(
+      await this.getLocalRepositories(),
+      fromBranchId,
+      toBranchId,
+      table_set_scope(this.rxdb, this.rxdb.worktreeTableSet)
+    );
   }
 
   /**

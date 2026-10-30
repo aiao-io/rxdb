@@ -4,6 +4,7 @@ import {
   get_tree_parent_id,
   isAncestorOf,
   isDescendantOf,
+  isTreeBaseMember,
   traverseAncestors
 } from '../../query/query-tree.utils.js';
 
@@ -32,6 +33,25 @@ describe('query-tree.utils', () => {
     it('should return 0 when parentId is numeric zero, not treat it as null', () => {
       const entity = { id: 1, parentId: 0, name: 'Child of root-zero' };
       expect(get_tree_parent_id(entity)).toBe(0);
+    });
+  });
+
+  describe('isTreeBaseMember', () => {
+    it('查全树时只认父列为空的根，缺失的父列同样算根', () => {
+      expect(isTreeBaseMember('r', { id: 'r', parentId: null }, null)).toBe(true);
+      expect(isTreeBaseMember('r', { id: 'r' }, undefined)).toBe(true);
+      expect(isTreeBaseMember('c', { id: 'c', parentId: 'r' }, null)).toBe(false);
+    });
+
+    it('查全树时取不到快照就判否：证明不了它是根', () => {
+      expect(isTreeBaseMember('r', undefined, null)).toBe(false);
+      expect(isTreeBaseMember('r', null, null)).toBe(false);
+    });
+
+    it('指定 entityId 时只认目标自己，不看父列，主键 0 不被当成「没传」', () => {
+      expect(isTreeBaseMember(0, { id: 0, parentId: 5 }, 0)).toBe(true);
+      expect(isTreeBaseMember(1, { id: 1, parentId: null }, 0)).toBe(false);
+      expect(isTreeBaseMember('t', undefined, 't')).toBe(true);
     });
   });
 

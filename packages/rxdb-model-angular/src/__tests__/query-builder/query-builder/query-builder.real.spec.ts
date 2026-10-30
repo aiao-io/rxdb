@@ -1,5 +1,5 @@
 import { PropertyType } from '@aiao/rxdb';
-import type { FieldMetadata } from '@aiao/rxdb-model';
+import type { FieldMetadata, SchemaInfo, ValidationResult } from '@aiao/rxdb-model';
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -170,8 +170,96 @@ describe('QueryBuilderComponent（真实组件）', () => {
     expect(component.rootGroup()?.rules.length).toBe(1);
   });
 
+  it('宿主换了 initialQuery 引用：载入新查询并只对外发一次，同一引用再设置不覆盖用户编辑', () => {
+    const titleQuery = (value: string) =>
+      ({ combinator: 'and', rules: [{ field: 'title', operator: '=', value }] }) as RxDBQueryOutput<object>;
+    const replaced = titleQuery('replaced');
+    const { fixture, component, emitted } = render({ initialQuery: titleQuery('hello') });
+    const before = emitted.length;
+
+    fixture.componentRef.setInput('initialQuery', replaced);
+    fixture.detectChanges();
+
+    expect(component.rootGroup()?.rules[0]).toMatchObject({ value: 'replaced' });
+    expect(emitted.slice(before).map(query => query.rules)).toEqual([replaced.rules]);
+
+    const ruleId = (component.rootGroup()!.rules[0] as { id: string }).id;
+    component.onUpdateRule({ id: ruleId, updates: { value: 'edited' } });
+    fixture.componentRef.setInput('initialQuery', replaced);
+    fixture.detectChanges();
+    expect(component.rootGroup()?.rules[0]).toMatchObject({ value: 'edited' });
+  });
+
   it('ngOnDestroy 销毁服务后不再抛错', () => {
     host.component.addFirstRule();
     expect(() => host.fixture.destroy()).not.toThrow();
+  });
+
+  describe('字段集合变化（含清空）同步给服务', () => {
+    const TITLE_OK = {
+      combinator: 'and',
+      rules: [{ field: 'title', operator: '=', value: 'ok' }]
+    } as RxDBQueryOutput<object>;
+    const SCHEMA: SchemaInfo = { entityName: 'Post', fields: [FIELDS[0]] };
+
+    function renderWith(inputs: { fields?: FieldMetadata[]; schema?: SchemaInfo }) {
+      const fixture = TestBed.createComponent<QueryBuilderComponent<object>>(QueryBuilderComponent);
+      const queries: Array<RxDBQueryOutput<object>> = [];
+      const validations: ValidationResult[] = [];
+      fixture.componentInstance.queryChange.subscribe(query => queries.push(query));
+      fixture.componentInstance.validationChange.subscribe(result => validations.push(result));
+      if (inputs.fields) fixture.componentRef.setInput('fields', inputs.fields);
+      if (inputs.schema) fixture.componentRef.setInput('schema', inputs.schema);
+      fixture.componentRef.setInput('initialQuery', TITLE_OK);
+      fixture.detectChanges();
+      const update = (name: 'fields' | 'schema', value: unknown): void => {
+        fixture.componentRef.setInput(name, value);
+        fixture.detectChanges();
+      };
+      return { fixture, component: fixture.componentInstance, queries, validations, update };
+    }
+
+    /** 最近一次 validationChange 是否报了 title 的 fieldExists。 */
+    const titleMissing = (validations: ValidationResult[]): boolean =>
+      validations.at(-1)?.valid === false &&
+      !!validations.at(-1)?.errors?.some(error => error.field === 'title' && error.rule === 'fieldExists');
+
+    it('fields 由非空切空：既有规则立即失效且后续改规则仍按空字段集校验，恢复后转回合法；全程不多发查询', () => {
+      const host = renderWith({ fields: [FIELDS[0]] });
+      expect(host.validations.at(-1)?.valid).toBe(true);
+      const queryCount = host.queries.length;
+
+      host.update('fields', []);
+
+      expect(host.component.fieldsComputed()).toEqual([]);
+      expect(titleMissing(host.validations)).toBe(true);
+      expect(host.queries).toHaveLength(queryCount);
+
+      const ruleId = (host.component.rootGroup()!.rules[0] as { id: string }).id;
+      host.component.onUpdateRule({ id: ruleId, updates: { value: 'changed' } });
+      host.fixture.detectChanges();
+      expect(titleMissing(host.validations)).toBe(true);
+      const afterEdit = host.queries.length;
+
+      host.update('fields', [FIELDS[0]]);
+
+      expect(host.validations.at(-1)?.valid).toBe(true);
+      expect(host.queries).toHaveLength(afterEdit);
+    });
+
+    it('schema 由有值切 undefined（未传 fields）：同样立即失效，恢复后转回合法', () => {
+      const host = renderWith({ schema: SCHEMA });
+      expect(host.validations.at(-1)?.valid).toBe(true);
+      const queryCount = host.queries.length;
+
+      host.update('schema', undefined);
+
+      expect(titleMissing(host.validations)).toBe(true);
+
+      host.update('schema', SCHEMA);
+
+      expect(host.validations.at(-1)?.valid).toBe(true);
+      expect(host.queries).toHaveLength(queryCount);
+    });
   });
 });

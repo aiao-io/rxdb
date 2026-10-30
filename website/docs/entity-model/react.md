@@ -69,6 +69,8 @@ export default function EntityDetailPage(): React.JSX.Element {
 
 主要 props：`namespace` / `name` / `entityId`（路由输入通道，与 `metadata` 二选一）、`metadata` / `formFields` / `formData` / `formMode`（直接传入元数据与表单数据）、`onFormSubmitted` / `onFormCancelled` / `onFieldChanged` / `onValidationErrors`。
 
+组件树里没有 `RxDBProvider` 时按独立表单运行，create 与 edit 都把表单数据经 `onFormSubmitted` 交给调用方。有 Provider 但数据库还没到（含异步 source 创建失败）时，create 的保存禁用，等待期间的输入在库到了之后并进草稿。编辑目标未就绪（数据库未到、按 `entityId` 加载中或加载失败）时，表单内部动作隐藏、tabs 下方只留「取消」，提交被拦截；就绪后表单按加载到的实例重置，未就绪期间的输入不保留。`fixedFormData` 只合入 create 草稿与无实例的透传表单；已加载实例的 edit 模式下只把对应字段设为只读、显示实例自身的值。这两点与 Angular 一致，Vue 不同（见 Vue 页的「实体详情」）。
+
 ## 实体表单
 
 `EntityForm`：按模式渲染全部字段类型的输入控件，create / edit / view 三模式，view 模式全部字段只读。
@@ -134,5 +136,9 @@ function FilterPanel({ fields }: { fields: FieldMetadata[] }): React.JSX.Element
 主要 props：`fields`（字段列表，优先于 `schema`）、`schema`（Schema 信息）、`initialQuery`（可回填既有查询）、`maxDepth`（最大嵌套层级，缺省 `5`）、`height`（内容区最大高度，缺省 `'80vh'`）、`enableDrag` / `enableCollapse`、`onQueryChange` / `onValidationChange`。
 
 `RxDBQueryOutput<T>` 的类型参数必填：`T` 是被查询的实体类型，约束规则里的 `field`；不绑定具体实体时写 `Record<string, unknown>`（组件的缺省泛型）。
+
+挂载时 `onQueryChange` / `onValidationChange` 各调一次当前值（载入的 `initialQuery` 及其校验结果，没传时是空查询），之后随编辑再调。
+
+`SubqueryBuilder` 单独使用、被 `<Activity>` 隐藏再显示时，内部状态随 effect 断开重建，从当前 `initialQuery`（没有则为空查询）重新起步，隐藏前没回写给宿主的编辑不保留；嵌在 `QueryBuilder` 里时由父组件的查询快照恢复，不受影响。要跨隐藏保留编辑，把 `onQueryChange` 的结果作为新引用回写给 `initialQuery`。
 
 主题注入：用 `QueryBuilderThemeProvider` 包裹组件树提供自定义 `QueryBuilderTheme`（字段选择器 / 操作符选择器 / 值输入组件的替换实现），缺省用内置 `DEFAULT_QUERY_BUILDER_THEME`。

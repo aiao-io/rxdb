@@ -98,6 +98,28 @@ class CnProfile extends EntityBase {
   employeeId!: string;
 }
 
+// -- 加密列：无外键实体上以 Id 结尾的物理列 --
+
+/**
+ * 没有任何关系的实体：`secretId` 用默认列名，`token` 的物理列名改成 `tokenId`。
+ * 两列都只是普通声明属性，不是外键；写入按物理列名为键，两列都必须写成信封。
+ */
+@Entity({
+  name: 'EncIdVault',
+  namespace: 'enc',
+  tableName: 'enc_id_vault',
+  properties: [
+    { name: 'label', type: PropertyType.string },
+    { name: 'secretId', type: PropertyType.string, encrypted: true, nullable: true },
+    { name: 'token', columnName: 'tokenId', type: PropertyType.string, encrypted: true, nullable: true }
+  ]
+})
+class EncIdVault extends EntityBase {
+  label!: string;
+  secretId!: string | null;
+  token!: string | null;
+}
+
 // -- enum 枚举类型 --
 
 enum TypeDemoEnum {
@@ -3144,6 +3166,130 @@ export function crudIntegrationSuite(factory: AdapterFactory) {
         })
       );
       expect(rows.map(row => row.attributeId).sort()).toEqual([color.id, size.id].sort());
+    });
+  });
+
+  // ========== 加密列：无外键实体上以 Id 结尾的物理列 ==========
+  // 外键只认真实关系元数据。单条写入与批量 mutations 都要把这两列写成信封、读回解得开；
+  // 锁定时写入被拒，库里的行数与原行内容都不变。
+  describe.sequential(`加密 Id 后缀列（无外键实体） [${factory.name}]`, () => {
+    const keyBytes = new Uint8Array(32).fill(7);
+    let adapter: RxDBAdapterSqliteBase;
+
+    beforeAll(async () => {
+      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [EncIdVault] });
+    });
+
+    beforeEach(async () => {
+      if (adapter.encryption.isLocked) await adapter.encryption.unlock({ keyBytes });
+      await cleanup_db(adapter);
+      // 清库连密钥环那一行一起删了；锁上再解锁，库里重新落下与内存同一把钥匙的那一行，
+      // 用例中途锁定再解锁时才会读回同一个 kid
+      adapter.encryption.lock();
+      await adapter.encryption.unlock({ keyBytes });
+    });
+
+    afterAll(async () => {
+      if (adapter) {
+        await adapter.rxdb.disconnectAll();
+      }
+    });
+
+    const createVault = (label: string, secretId: string, token: string): EncIdVault => {
+      const row = new EncIdVault();
+      row.label = label;
+      row.secretId = secretId;
+      row.token = token;
+      return row;
+    };
+
+    /** 库里的原样单元格，按 label 排序 */
+    const readStoredRows = async (): Promise<Array<{ label: unknown; secretId: unknown; tokenId: unknown }>> => {
+      const { rows } = await adapter.rawQuery(
+        'SELECT "label", "secretId", "tokenId" FROM "enc$enc_id_vault" ORDER BY "label"'
+      );
+      return rows.map(([label, secretId, tokenId]) => ({ label, secretId, tokenId }));
+    };
+
+    const expectStoredAsEnvelopes = async (labels: string[]): Promise<void> => {
+      const rows = await readStoredRows();
+      expect(rows.map(row => row.label)).toEqual(labels);
+      for (const row of rows) {
+        expect(adapter.isEncryptedAtRest(row.secretId)).toBe(true);
+        expect(adapter.isEncryptedAtRest(row.tokenId)).toBe(true);
+      }
+    };
+
+    /** 清掉实体缓存再从库里读：缓存里的实例还带着写入时的明文 */
+    const readBack = async (): Promise<EncIdVault[]> => {
+      adapter.rxdb.entityManager.cleanAllCache();
+      adapter.cleanAllCache();
+      return firstValueFrom(
+        EncIdVault.find({ where: { combinator: 'and', rules: [] }, orderBy: [{ field: 'label', sort: 'asc' }] })
+      );
+    };
+
+    const plainValues = (rows: EncIdVault[]) =>
+      rows.map(row => ({ label: row.label, secretId: row.secretId, token: row.token }));
+
+    it('单实体创建与更新：两列都落库为信封，读回解得开', async () => {
+      await createVault('single', 'secret-1', 'token-1').save();
+      await expectStoredAsEnvelopes(['single']);
+      const [created] = await readBack();
+      expect(plainValues([created])).toEqual([{ label: 'single', secretId: 'secret-1', token: 'token-1' }]);
+
+      created.secretId = 'secret-2';
+      created.token = 'token-2';
+      await created.save();
+
+      await expectStoredAsEnvelopes(['single']);
+      expect(plainValues(await readBack())).toEqual([{ label: 'single', secretId: 'secret-2', token: 'token-2' }]);
+    });
+
+    it('批量 mutations 创建与更新：每行两列都落库为信封，读回解得开', async () => {
+      await adapter.rxdb.entityManager.saveMany([
+        createVault('m1', 'secret-m1', 'token-m1'),
+        createVault('m2', 'secret-m2', 'token-m2')
+      ]);
+      await expectStoredAsEnvelopes(['m1', 'm2']);
+
+      const [m1, m2] = await readBack();
+      m1.secretId = 'secret-m1x';
+      m2.token = 'token-m2x';
+      await adapter.rxdb.entityManager.saveMany([m1, m2]);
+
+      await expectStoredAsEnvelopes(['m1', 'm2']);
+      expect(plainValues(await readBack())).toEqual([
+        { label: 'm1', secretId: 'secret-m1x', token: 'token-m1' },
+        { label: 'm2', secretId: 'secret-m2', token: 'token-m2x' }
+      ]);
+    });
+
+    it('锁定时单条与批量写入都被拒、库里原行不变；解锁后同一写入成功往返', async () => {
+      await createVault('kept', 'secret-k', 'token-k').save();
+      const [kept] = await readBack();
+      const storedBefore = await readStoredRows();
+
+      adapter.encryption.lock();
+      const locked = { name: 'EncryptedLockedError', code: 'locked' };
+      const blocked = createVault('blocked', 'secret-b', 'token-b');
+      await expect(blocked.save()).rejects.toMatchObject(locked);
+      kept.secretId = 'secret-k2';
+      await expect(kept.save()).rejects.toMatchObject(locked);
+      await expect(
+        adapter.rxdb.entityManager.saveMany([createVault('batch', 'secret-x', 'token-x')])
+      ).rejects.toMatchObject(locked);
+      expect(await readStoredRows()).toEqual(storedBefore);
+
+      await adapter.encryption.unlock({ keyBytes });
+      await blocked.save();
+      await kept.save();
+
+      await expectStoredAsEnvelopes(['blocked', 'kept']);
+      expect(plainValues(await readBack())).toEqual([
+        { label: 'blocked', secretId: 'secret-b', token: 'token-b' },
+        { label: 'kept', secretId: 'secret-k2', token: 'token-k' }
+      ]);
     });
   });
 }

@@ -240,6 +240,25 @@ describe('SubqueryBuilderComponent（真实组件）', () => {
     expect(empty.validations.at(-1)?.errors ?? []).not.toContainEqual(expect.objectContaining({ rule: 'fieldExists' }));
   });
 
+  it('fields 由非空切空同样同步到服务：既有子规则立即报 fieldExists，恢复后转回合法，查询不重复发出', () => {
+    const sub = render({
+      initialQuery: { id: '', combinator: 'and', rules: [{ id: '', field: 'title', operator: '=', value: 'ok' }] }
+    });
+    expect(sub.validations.at(-1)?.valid).toBe(true);
+    const emitted = sub.emitted.length;
+
+    sub.fixture.componentRef.setInput('fields', []);
+    sub.fixture.detectChanges();
+
+    expect(sub.validations.at(-1)?.errors).toEqual([expect.objectContaining({ field: 'title', rule: 'fieldExists' })]);
+
+    sub.fixture.componentRef.setInput('fields', FIELDS);
+    sub.fixture.detectChanges();
+
+    expect(sub.validations.at(-1)?.valid).toBe(true);
+    expect(sub.emitted).toHaveLength(emitted);
+  });
+
   it('maxDepth 变更同步到服务：放宽之后才能在根组下建子组', () => {
     // 根组深度为 1，maxDepth = 1 时根组下不能再建组
     const shallow = render({ maxDepth: 1 });

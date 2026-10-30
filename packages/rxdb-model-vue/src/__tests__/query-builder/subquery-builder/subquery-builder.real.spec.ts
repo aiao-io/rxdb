@@ -2,6 +2,7 @@ import { PropertyType } from '@aiao/rxdb';
 import type { FieldMetadata, QueryBuilderRuleGroup, UIRule, ValidationResult } from '@aiao/rxdb-model';
 import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { nextTick } from 'vue';
 import type { UIRuleGroup } from '../../../query-builder/query-group/query-drag-drop';
 import SubqueryBuilder from '../../../query-builder/subquery-builder/SubqueryBuilder.vue';
 
@@ -253,6 +254,25 @@ describe('SubqueryBuilder（真实组件）', () => {
     expect(validations.at(-1)?.errors ?? []).not.toContainEqual(expect.objectContaining({ rule: 'fieldExists' }));
   });
 
+  it('fields 由非空切空同样同步到服务：既有子规则立即报 fieldExists，恢复后转回合法，查询不重复发出', async () => {
+    const sub = render({
+      initialQuery: { id: '', combinator: 'and', rules: [{ id: '', field: 'title', operator: '=', value: 'ok' }] }
+    });
+    await sub.wrapper.vm.$nextTick();
+    const validations = (): ValidationResult[] =>
+      (sub.wrapper.emitted('validationChange') ?? []).map(([v]) => v as ValidationResult);
+    const emitted = (sub.wrapper.emitted('queryChange') ?? []).length;
+
+    await sub.wrapper.setProps({ fields: [] });
+
+    expect(validations().at(-1)?.errors).toEqual([expect.objectContaining({ field: 'title', rule: 'fieldExists' })]);
+
+    await sub.wrapper.setProps({ fields: FIELDS });
+
+    expect(validations().at(-1)?.valid).toBe(true);
+    expect(sub.wrapper.emitted('queryChange') ?? []).toHaveLength(emitted);
+  });
+
   it('maxDepth 变更同步到服务：放宽之后才能在根组下建子组', async () => {
     // 根组深度为 1，maxDepth = 1 时根组下不能再建组
     const shallow = render({ maxDepth: 1 });
@@ -264,6 +284,45 @@ describe('SubqueryBuilder（真实组件）', () => {
     shallow.vm.onAddGroup(rootId);
     await shallow.wrapper.vm.$nextTick();
     expect(shallow.vm.rootGroup?.rules).toHaveLength(1);
+  });
+
+  describe('挂载时 queryChange / validationChange 各发一次（与 Angular 同口径）', () => {
+    it('未传 initialQuery：queryChange 发 undefined，validationChange 发合法结果', async () => {
+      const { wrapper } = render();
+      await nextTick();
+
+      expect(wrapper.emitted('queryChange')).toEqual([[undefined]]);
+      expect(wrapper.emitted('validationChange')).toEqual([[{ valid: true }]]);
+    });
+
+    it('传入 initialQuery：发载入后的查询与它按字段校验的结果，不先发 undefined', async () => {
+      const { wrapper } = render({
+        initialQuery: {
+          id: '',
+          combinator: 'or',
+          rules: [
+            { id: '', field: 'title', operator: '=', value: 'ok' },
+            { id: '', field: 'missing', operator: '=', value: 'x' }
+          ]
+        }
+      });
+      await nextTick();
+
+      expect(wrapper.emitted('queryChange')).toEqual([
+        [
+          {
+            combinator: 'or',
+            rules: [
+              { field: 'title', operator: '=', value: 'ok' },
+              { field: 'missing', operator: '=', value: 'x' }
+            ]
+          }
+        ]
+      ]);
+      expect(wrapper.emitted('validationChange')).toEqual([
+        [{ valid: false, errors: [expect.objectContaining({ field: 'missing', rule: 'fieldExists' })] }]
+      ]);
+    });
   });
 
   it('销毁组件销毁服务后不再抛错', () => {
