@@ -19,7 +19,10 @@ fn main() {
         .setup(|app| {
             let data = app.path().app_data_dir()?;
             app.manage(DesktopHost::new(app.handle(), data, &["main"]));
+            let api_origin = option_env!("AIAO_MEDIA_API_ORIGIN").unwrap_or("https://media.aiao.io");
+            let initialization = format!("globalThis.__AIAO_MEDIA_API_ORIGIN__ = {};", serde_json::to_string(api_origin).unwrap());
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
+                .initialization_script(&initialization)
                 .on_navigation(|url| url.scheme() == "tauri" && url.host_str() == Some("localhost"))
                 .build()?;
             Ok(())

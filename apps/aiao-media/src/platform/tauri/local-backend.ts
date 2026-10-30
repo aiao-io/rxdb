@@ -15,7 +15,8 @@ async function sharedTransport(): Promise<DesktopHostTransport> {
 }
 /** 安装版业务请求使用固定产品域名，不在特权窗口加载远程页面。 */
 export function apiEndpoint(path: string): string {
-  return `https://media.aiao.io${path}`;
+  const origin = (globalThis as { __AIAO_MEDIA_API_ORIGIN__?: string }).__AIAO_MEDIA_API_ORIGIN__ || 'https://media.aiao.io';
+  return `${origin}${path}`;
 }
 /** 支付页交给系统浏览器，原生窗口保持本机来源。 */
 export async function openPayment(url: string): Promise<void> {

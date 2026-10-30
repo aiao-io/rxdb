@@ -23,6 +23,7 @@ version = "0.1.0"
 dependencies = [
  "aiao-rxdb-tauri",
  "rfd",
+ "serde_json",
  "tauri",
  "tauri-build",
  "uuid",
