@@ -187,4 +187,54 @@ describe('desktop json codec', () => {
       expect((error as RxDBAdapterDesktopError).code).toBe('protocol_violation');
     }
   });
+
+  /**
+   * `__proto__` 是合法的 JSON 数据键：`JSON.parse` 把它建成自有属性，`JSON.stringify` 也照样写出。
+   * 编解码若用赋值填结果对象，这个键会走原型 setter——值从自有键里消失，结果对象反倒继承了载荷。
+   */
+  describe('keys named like Object.prototype members', () => {
+    /** 用 `JSON.parse` 造数据：对象字面量里的 `__proto__: x` 是设原型的语法，造不出数据键 */
+    const parse = (text: string): Record<string, unknown> => JSON.parse(text) as Record<string, unknown>;
+
+    const expectPlainObjectWithOwnKeys = (value: unknown, keys: string[]): void => {
+      expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
+      expect(Object.keys(value as object)).toEqual(keys);
+    };
+
+    it.each([
+      ['__proto__', '{"__proto__":{"fromPayload":true},"safe":1}'],
+      ['constructor', '{"constructor":{"fromPayload":true},"safe":1}'],
+      ['prototype', '{"prototype":{"fromPayload":true},"safe":1}']
+    ])('encodes and decodes a %s data key as an own key without replacing the prototype', (key, text) => {
+      for (const result of [encodeDesktopJsonPayload(parse(text)), decodeDesktopJsonPayload(parse(text))]) {
+        expectPlainObjectWithOwnKeys(result, [key, 'safe']);
+        expect((result as { fromPayload?: unknown }).fromPayload).toBeUndefined();
+        expect(JSON.stringify(result)).toBe(text);
+      }
+      expect(JSON.stringify(roundTrip(parse(text)))).toBe(text);
+    });
+
+    it('keeps nested __proto__ keys own, with tagged values under them', () => {
+      const text = '{"outer":{"__proto__":{"$bigint":"5"}},"list":[{"__proto__":{"$date":7}}]}';
+      const decoded = decodeDesktopJsonPayload(parse(text)) as { outer: object; list: object[] };
+
+      expectPlainObjectWithOwnKeys(decoded.outer, ['__proto__']);
+      expect(Object.getOwnPropertyDescriptor(decoded.outer, '__proto__')?.value).toBe(5n);
+      expectPlainObjectWithOwnKeys(decoded.list[0], ['__proto__']);
+      expect(Object.getOwnPropertyDescriptor(decoded.list[0], '__proto__')?.value).toEqual(new Date(7));
+      // 再编码回去，逐字还原成同一段 JSON
+      expect(JSON.stringify(encodeDesktopJsonPayload(decoded))).toBe(text);
+    });
+
+    it('round trips a tag-shaped object that carries a __proto__ key through $esc', () => {
+      // 外层只有一个 `$esc` 键、内层的值又长得像 `$u8` 标签：两层都要转义
+      const text = '{"$esc":{"__proto__":{"$u8":"not base64"}}}';
+      const encodedText = JSON.stringify(encodeDesktopJsonPayload(parse(text)));
+      expect(encodedText).toBe('{"$esc":{"$esc":{"__proto__":{"$esc":{"$u8":"not base64"}}}}}');
+
+      const decoded = decodeDesktopJsonPayload(JSON.parse(encodedText)) as { $esc: object };
+      expect(JSON.stringify(decoded)).toBe(text);
+      expectPlainObjectWithOwnKeys(decoded.$esc, ['__proto__']);
+    });
+  });
 });

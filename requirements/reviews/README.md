@@ -1,16 +1,15 @@
 # AI Review 规则与记录
 
-这个目录存放 review 记录模板与**尚未处理**的问题报告。目前有 1 份待处理报告。
+这个目录存放 review 记录模板与**尚未处理**的问题报告，当前入口见下表。
 
 ## 目录结构
 
 报告只留**尚未处理**的条目。复核确认已修、或判定不值得做的条目直接删除——修法与判据都写在代码注释里，报告再留一份副本只会与代码漂移。整份报告清空即删文件，删前在下方「清理记录」留一行。目录里除 `README.md` 与模板外没有文件，就是没有待处理项。
 
-| 路径                                        | 说明                               | 剩余项     |
-| ------------------------------------------- | ---------------------------------- | ---------- |
-| `README.md`                                 | 本说明、状态约定与清理记录         | —          |
-| `review.template.md`                        | 新建 review 记录的模板             | —          |
-| `requirements-incomplete-stories-review.md` | 未完成需求整体评审（不占 RV 编号） | 见报告正文 |
+| 路径                 | 说明                       | 剩余项 |
+| -------------------- | -------------------------- | ------ |
+| `README.md`          | 本说明、状态约定与清理记录 | —      |
+| `review.template.md` | 新建 review 记录的模板     | —      |
 
 ## 状态约定
 
@@ -30,6 +29,10 @@
 ## 清理记录
 
 每条只记删了什么、结论是什么；修法细节在代码注释与回归测试里。删除前的完整记录（含逐条修法、执行台账、进度页与 `evidence/` 取证目录）可用 `git show aaf155a1:requirements/reviews/<路径>` 取回。
+
+- **2026-10-30（未完成需求整体评审与 RV-084 删除）**：`requirements-incomplete-stories-review.md`（剩余 7 条工程项，源码基线 `7bb16a90`）与 `RV-084-packages-review-fix-followups.md`（1 P2 + 3 P3）对当前源码逐条复核，修 9 条、判重复跟踪 2 条后两份一起删除。需求评审：小程序拒绝表为空、在它上面循环的用例不执行断言属实——拒绝表拆成 `unsupported-platforms.ts`，`unsupported-platform-rejection.spec.ts` 把整表换成演示条目，逐条走直接判定、宿主路径、预检、随机源准备、VFS 与建客户端（去掉拒绝分支时新用例红、旧循环照绿），US-211 AC#17 的证据描述改正；US-312 对比范围属实——`compareBranches()` 挂在可写检出位上按 `table_set_scope` 只列这套表的成员，与 `previewMerge()` / `mergeBranch()` 同口径，sqlite-core 共享套件与 PGlite 各补「挂在检出位上对比」（换回旧实现时两个后端都多列出非成员实体）；US-315 说明缺口属实——history 包 README 补 `undoBarrier$` / `redoBarrier$` 与分叉点一段、网站补可写检出位一段，CHANGELOG 把 `HistoryScopeAPI` 新增必填成员挪进 Breaking；套件调用点门禁现已 6 × 3 全绿，按 callsite-drift / core-boundary 的接法给 spec 加真实仓库用例，经 `test-scripts` 进 CI；BOM 一条在 PR #129 修（高级索引名本已带表集后缀；类级生成列、实例级 `entityStorage` 的生成列与索引进可写检出位的表集指纹，SQLite 影子表改按存储元数据建，PGlite 播种复制主表行跳过生成列——此前成员带生成列时检出位开不了；本地提交 `f8d59617`、`66e562ec`，待推送；备份清单指纹不加生成列：逻辑转储不带生成列的值，结构只差生成列时恢复后的漂移检查明确报错，加进指纹反而误拒能靠迁移补齐的恢复）。判重复：无日志实体的新增 / 修改通知已由 US-222「其余 log: false 的表只补上删除」与 US-311 定范围；被拒变更的 redo 与待推计数由 roadmap 零散项第 4 条跟踪；「已有独立故事的未交付范围」一段只是指向各 story，随文件删除。RV-084：P2-1 rxdb-react 新增 `useHasRxDBProvider()`，React `EntityDetail` 的 create / edit 未就绪判据与 Vue 同口径（有 Provider 而库未到时禁用保存、没有 Provider 时照常透传）；P3-1 Supabase 全树 `findAncestors` 返回全部根、`countAncestors` 为根数，真实栈用例同步改；P3-2 图插件的锚点、JOIN、排序与路径回填按主键物理列，节点记录以属性名为键；P3-3 修 ③ Angular / React create 草稿保存的迟到结果、④ React 换库清旧草稿与错误面板、⑤ Vue `QueryBuilder` / `SubqueryBuilder` 挂载各发一次与 React `SubqueryBuilder` 不再先发临时值，①（Vue 编辑目标加载期间可输入）②（Vue edit 模式叠加 `fixedFormData`）⑥（React 单独用 `SubqueryBuilder` 在 `<Activity>` 下重显从 `initialQuery` 起步）定为框架差异，写进网站三页与 Angular README。回归：history 441、graph 203、Supabase 654（含本机真实栈）、rxdb-react 232、rxdb-model-react 355 / -angular 371 / -vue 381、PGlite 1565、sqlite-core 1581、sqlite 836（全量串行时两条备份恢复用例卡在 5 秒超时，单跑该 spec 58 条通过）、miniprogram 359、test-scripts 通过；改动包的 lint / typecheck 全过，`rxdb-react` 的 API 基线随提交。 全文可用 `git show c3b45808:requirements/reviews/<文件>` 取回。
+
+- **2026-10-29（packages 深度评审删除）**：`packages/` 整包深度评审（首轮 10-28、更新轮 10-29；51 份逐包报告与计划、索引；32 个修复点：6 P1 + 24 P2 + 2 P3，合 28 个问题族）逐条复核全部属实，全部修复后整目录删除。P1：Angular / React `EntityDetail` 切换编辑目标期间保存旧实例，按 Vue #169 同一套语义修（目标变化立即复位、未就绪只留取消并拦截提交、加载失败原因进错误面板、迟到的保存按代次与实例判定，不再关闭对话框或发事件）；sqlite-wasm 只传 `sharedWorkerInstance` 时不进跨标签页锁、断开关掉共用连接——README 早已承诺实例本身即选定 transport，构造期拒绝会是破坏性变更，改为锁名、交还持有者、远端加载选项与备份拒绝统一按推断出的 transport 判；sync 离线重放丢 namespace，远端写与缓存修复改按 `namespace:entity` 定位，标识函数 `queryCacheEntityIdentifier` 由 sync 导出、querycache 复用（querycache 本就 peer 依赖 sync，反过来会成环）；storage 复制式目录重命名删源半途失败时丢唯一完整副本，改为先用目标副本补齐源目录并确认，补不齐就一个副本都不删、抛点名路径的 `AggregateError`；code-editor-react 的 `<Activity>` 重显丢文本，编辑器状态（文本、选区、撤销历史）改随组件状态保留。P2 / P3 按评审修，其中几处取舍：rxdb-react 的 Promise source 在 `<Activity>` 隐藏后无法重建（`destroy()` 是终态、Promise 不能重新求值），重显改为明确报错，工厂照常重新建库；utils 扁平化遇末位空洞的数组改为抛 `TypeError`（扁平格式只能由最大下标推出长度，补成 `undefined` 等于换了数据）；PGlite `changeErrors$` 断开即完成、同一实例重连后收不到变更管线失败，改为随适配器实例存活、断开不再完成；QueryCache 在线写回执按同 id 的发出序号落缓存，离线写同样压住更早的在途回执（`QueryCacheEngine` 新增 experimental 的 `supersedeInflightWrites`）；HTTP 条件读的合流按代次，写结算（成败都算）与远端失效都推进代次。顺带修：树 UPDATE 在全树且带 `where` / `level` 时节点跨进跨出根层回 SQL、`findAncestors` 全树收得到新根；Supabase 两层 `exists` 的嵌入按当前层实体解析关系名；三端 `SubqueryBuilder` 同样同步空字段列表；Angular `EntityDetail` 的 `formDataValue` 原是每轮变更检测都拼新对象的 getter，把未提交的输入冲回实例旧值（界面仍显示输入、提交出去的是旧值，P1），改为 computed，与 React `useMemo`、Vue `computed` 同口径。修复中新发现的问题里，树 `findDescendants` 带 `level` 时结果里的节点改父（上移漏补被 `level` 截掉的子孙、下移漏删越界的子孙）改为回 SQL，Supabase 同一层几条 `exists` 指向同一关系时各用独立的嵌入别名（此前并进同一个嵌入，「有一笔满足 A、也有一笔满足 B」成了「同一笔同时满足」，真实栈复现返回空集），两条一并修复；其余仍需动作或决策的 4 条登记为 RV-084（2026-10-30 处理后删除，见上一条）。全文可用 `git show 27ea4a01:requirements/reviews/packages/<文件>` 取回。
 
 - **2026-10-29（codex/supabase-update-cascade 两份分支评审删除）**：`codex-supabase-update-cascade-review-2026-10-29.md`（评审对象 `codex/supabase-update-cascade` @ `d73dbf6f`，1 P1 + 3 P2）与 `codex-supabase-update-cascade-branch-review.md`（同一 tip，1 P1 + 3 P3 + 1 观察项）逐条复核后删除。F-01 属实：DELETE 的 `inversePatch` 按协议不含 id，规范化阶段仅凭它非空就判了完整快照，RLS 隐藏的显式子行被允许的父删除级联后最终快照缺 id、按 id 过滤拉不到删除；改为该实体最后一条显式 DELETE 一律以触发器捕获的 `OLD` 为快照。F-02 / F-03 属实：触发器只按（分区根 oid，`OLD.id::text`）捕获实际删除，业务写之后再按 id 列类型的等值关系（与 DELETE 同一判据）把显式删除与捕获配对，`numeric(8,2)`、无修饰 `numeric` 存 `1.00` 而客户端发 `"1"`、经分区根表或叶分区的显式删除都不再追加隐式重复；比「按列类型修饰规范化文本」多覆盖了无修饰 numeric 这一同类反例，也不必新增公开函数。事务上下文随之改名 `rxdb.captured_deletes`。三个反例的回归在修复前的 02 / 04 上实测为红，评审原文的复现脚本修复后得到期望结果。F-04 与 P1-1 属实（同一问题）：merge 决议保留了 #168 之前的派生视图结构；重合 main 时 roadmap / status-overview / capability-matrix / epic-004 以 main 为底，只套 US-223/224 的状态、能力与交付行，数字经 `audit:requirements:update` 回写。P3-1 属实：未设置 `context.userId` 时直写修改仍下发 `createdBy`，与故事「`createdBy` 不下发」及 `SupabaseRepository.update` 不一致，改为修改载荷一律剥除（回归先红后绿）。P3-2 说法不实：`jsonb_object_agg` 撞键保留后一条、不报错（PG 17 实测）；改为等值配对后，同批两种 uuid 拼写的两条源日志都配到实际删除、都带真实 `OLD`。病态输入，不改 duplicate_write 的文本比较，判据写在配对处注释。P3-3 属实：RLS 复现 spec 的 afterAll 补清本 spec 两个实体的日志。观察项不修：直写删除零行静默成功是 US-218 起的既有语义，判据写在 `rxdb_mutations_apply_group` 注释。SQL 安全回归 39 个独立用例及 `all` 组合、适配器 43 个 spec / 630 条、lint / typecheck 通过。全文可用 `git show 70eafc06:requirements/reviews/<文件名>` 取回。
 

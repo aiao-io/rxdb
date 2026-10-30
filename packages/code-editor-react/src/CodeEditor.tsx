@@ -63,6 +63,10 @@ export interface CodeEditorProps extends CodeEditorHostProps {
    * 强行拉平文档。本属性变化时只同步公共前后缀之间的那一段差量（见
    * {@link computeMinimalDocumentChange}），光标、选区与滚动位置都保留。
    * 要做受控请把 `onChange` 的值存进 state 再传回来。
+   *
+   * 放在 `<Activity>` 里时，编辑器状态（文本、选区、撤销历史）随组件状态保留：隐藏再显示
+   * 后接着隐藏前的状态编辑。隐藏期间本属性若有变化，重新显示时按同一规则补一次差量同步；
+   * 没有变化则不会拿它覆盖隐藏前的文档。
    */
   value?: string;
   /**
@@ -199,6 +203,35 @@ const setupExtensions = {
 
 const getSetupExtension = (setup: CodeEditorSetup): Extension => (setup === null ? [] : setupExtensions[setup]);
 
+/**
+ * 新建编辑器状态：各 compartment 先占一个空位，由对应的配置 effect 按 props 填进去。
+ *
+ * @param doc - 初始文档
+ * @param compartments - 全部可重配的 compartment，顺序即扩展优先级
+ * @param onUserChange - 非宿主同步（不带 `External` 标记）的事务改了文档时调用
+ */
+const createEditorState = (
+  doc: string,
+  compartments: readonly Compartment[],
+  onUserChange: (doc: string) => void
+): EditorState =>
+  EditorState.create({
+    doc,
+    extensions: [
+      ...compartments.map(compartment => compartment.of([])),
+      EditorView.theme({
+        '&': { height: '100%', fontSize: '12px' },
+        '.cm-scroller': { overflow: 'auto' },
+        '.cm-gutters': { background: 'initial', border: 'none' }
+      }),
+      EditorView.updateListener.of(update => {
+        if (update.docChanged && !update.transactions.some(transaction => transaction.annotation(External))) {
+          onUserChange(update.state.doc.toString());
+        }
+      })
+    ]
+  });
+
 /** 按元素身份逐项比较语言列表：内容相同的新数组不应触发语言重配置。 */
 const isSameLanguageList = (
   left: readonly CodeEditorLanguageDescription[],
@@ -287,7 +320,22 @@ export function CodeEditor({
   const onLanguageErrorRef = useRef(onLanguageError);
   // `autoFocus` 只在挂载时生效，判定所需的 `disabled` / `readonly` 也必须取挂载那一刻的值，
   // 否则后续改这两个 prop 会让「是否曾经自动聚焦过」变成一个无法复现的历史问题。
-  const initialConfigRef = useRef({ autoFocus, disabled, readonly, root, value });
+  const initialConfigRef = useRef({ autoFocus, disabled, readonly, root });
+  /**
+   * 上一个 view 销毁时的完整编辑器状态（文本、选区、撤销历史与各 compartment 的配置）。
+   *
+   * `<Activity>` 隐藏会执行 effect 清理、重显时重新接通，而组件 state / ref 原样保留 ——
+   * EditorView 必然销毁重建，编辑器状态却应当跟组件状态同寿命。重建时若按 `value` 新建文档，
+   * 非严格受控用法下宿主没回写的输入直接丢失，回写了也丢选区与撤销历史。
+   */
+  const editorStateRef = useRef<EditorState | null>(null);
+  /**
+   * 最近一次写进文档的 `value`，新建文档也从它开始。
+   *
+   * 重新接通时 value effect 会无条件重跑，只拿它与当前 `value` 比较才分得清「隐藏期间宿主
+   * 改过 value」与「只是重新接通」：后者若照常同步，会把恢复出来的未回写输入冲回旧 value。
+   */
+  const syncedValueRef = useRef(value);
   const setupConf = useRef(new Compartment());
   const languageConf = useRef(new Compartment());
   const themeConf = useRef(new Compartment());
@@ -302,8 +350,9 @@ export function CodeEditor({
   /**
    * 最近一次**已生效**的语言解析结果，用于跳过等价的重复配置（CEA-006 / CEV-003 的 React 面）。
    *
-   * 连同当时的 view 一起记：ref 的寿命长于 effect，StrictMode 下 effect 会被卸载重挂、
-   * view 也随之重建，只比解析结果就会把重建后的空 compartment 当成「已经配好了」。
+   * 连同当时的 view 一起记：ref 的寿命长于 effect，StrictMode / `<Activity>` 下 effect 会被
+   * 断开重接、view 也随之重建。旧 view 上仍在途的装载随之作废（见下方请求号与 view 身份守卫），
+   * 只比解析结果就会把它当成「已经配好了」，新 view 永远等不到语言。
    */
   const appliedLanguageRef = useRef<{
     readonly resolved: ResolvedCodeEditorLanguage;
@@ -337,31 +386,24 @@ export function CodeEditor({
     const parent = editorRef.current;
     if (!parent) return;
 
-    const extensions: Extension[] = [
-      setupConf.current.of([]),
-      languageConf.current.of([]),
-      themeConf.current.of([]),
-      readonlyConf.current.of([]),
-      editableConf.current.of([]),
-      placeholderConf.current.of([]),
-      indentWithTabConf.current.of([]),
-      indentUnitConf.current.of([]),
-      lineWrappingConf.current.of([]),
-      highlightWhitespaceConf.current.of([]),
-      a11yConf.current.of([]),
-      EditorView.theme({
-        '&': { height: '100%', fontSize: '12px' },
-        '.cm-scroller': { overflow: 'auto' },
-        '.cm-gutters': { background: 'initial', border: 'none' }
-      }),
-      EditorView.updateListener.of(update => {
-        if (update.docChanged && !update.transactions.some(transaction => transaction.annotation(External))) {
-          onChangeRef.current?.(update.state.doc.toString());
-        }
-      })
-    ];
+    const compartments = [
+      setupConf,
+      languageConf,
+      themeConf,
+      readonlyConf,
+      editableConf,
+      placeholderConf,
+      indentWithTabConf,
+      indentUnitConf,
+      lineWrappingConf,
+      highlightWhitespaceConf,
+      a11yConf
+    ].map(conf => conf.current);
+    // 恢复出来的状态自带全部 compartment 的旧配置；随后各配置 effect 同样会重跑，按当前 props 重配一遍。
+    const state =
+      editorStateRef.current ??
+      createEditorState(syncedValueRef.current, compartments, doc => onChangeRef.current?.(doc));
     const initialConfig = initialConfigRef.current;
-    const state = EditorState.create({ doc: initialConfig.value, extensions });
     const view = new EditorView({
       state,
       parent,
@@ -374,6 +416,9 @@ export function CodeEditor({
     if (initialConfig.autoFocus && shouldAutoFocusCodeEditor(initialConfig)) view.focus();
 
     return () => {
+      // 清理不一定是卸载：`<Activity>` 隐藏也走这里，组件随后会被重新接通。真正卸载时
+      // 这份状态随组件一起回收，不会多活。
+      editorStateRef.current = view.state;
       viewRef.current = null;
       view.destroy();
     };
@@ -514,10 +559,13 @@ export function CodeEditor({
     );
   }, [language, stableLanguages]);
 
+  // 重新接通（`<Activity>` 重显、StrictMode 重挂）时本 effect 不看依赖、无条件重跑；
+  // 与上次写入的值比较，才能只补同步隐藏期间真正变过的 value。
   useEffect(() => {
     const view = viewRef.current;
-    if (!view) return;
+    if (!view || value === syncedValueRef.current) return;
 
+    syncedValueRef.current = value;
     syncDocument(view, value);
   }, [value]);
 

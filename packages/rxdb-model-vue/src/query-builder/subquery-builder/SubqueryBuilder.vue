@@ -47,14 +47,10 @@ const validationSub = service.validation$.subscribe(v => (validation.value = v))
 /** initialQuery 是否已应用（只应用一次） */
 let initialQueryApplied = false;
 
-// 监听字段变化并同步到服务
+// 监听字段变化并同步到服务：空列表同样同步，字段被撤下后既有子规则立即按「字段不存在」校验
 watch(
   () => props.fields,
-  fields => {
-    if (fields.length > 0) {
-      service.setFields(fields);
-    }
-  },
+  fields => service.setFields(fields),
   { immediate: true }
 );
 
@@ -72,24 +68,32 @@ watch(
   { immediate: true }
 );
 
-// 监听查询变化并发出事件
-watch(rootGroup, group => {
-  if (group) {
-    const query = service.toRxDBQuery();
-    if (!query.rules || query.rules.length === 0) {
-      emit('queryChange', undefined);
-    } else {
-      emit('queryChange', query);
+// 监听查询变化并发出事件：挂载时先发一次当前查询（已载入的 initialQuery，没有规则则为 undefined），与 Angular 同口径
+watch(
+  rootGroup,
+  group => {
+    if (group) {
+      const query = service.toRxDBQuery();
+      if (!query.rules || query.rules.length === 0) {
+        emit('queryChange', undefined);
+      } else {
+        emit('queryChange', query);
+      }
     }
-  }
-});
+  },
+  { immediate: true }
+);
 
-// 监听验证变化并发出事件
-watch(validation, v => {
-  if (v) {
-    emit('validationChange', v);
-  }
-});
+// 监听验证变化并发出事件：挂载时同样先发一次当前校验结果
+watch(
+  validation,
+  v => {
+    if (v) {
+      emit('validationChange', v);
+    }
+  },
+  { immediate: true }
+);
 
 // 同步 maxDepth 到 service
 watch(

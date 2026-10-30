@@ -668,6 +668,36 @@ export function worktreeTableSetSuite(factory: AdapterFactory): void {
         expect(await countChanges()).toBe(before + 1);
       });
 
+      // 检出位里的分支对比与切分支、合并同一口径（US-312 AC#3）：`WorktreeSeqNote` 不是这套影子表的成员，
+      // 检出位里切分支不动它，对比也不列它
+      it('挂在检出位上对比：只列这套表的成员，与检出位里切过去读到的一致', async () => {
+        const versionManager = adapter.rxdb.versionManager;
+        const seqTable = quote_sql_identifier(
+          get_table_name_by_metadata(getEntityMetadata(WorktreeSeqNote), WorktreeTableSet.MAIN)
+        );
+        const now = new Date().toISOString();
+        await versionManager.createBranch('compare-src');
+        await versionManager.switchBranch('compare-src');
+        // 裸写：主表集的触发器此刻挂在 compare-src 上，两行都记在它名下
+        await rawInsert(WorktreeTableSet.MAIN, 'from-src');
+        await adapter.internalQuery(`INSERT INTO ${seqTable} ("title", "createdAt", "updatedAt") VALUES (?, ?, ?)`, [
+          'not-a-member',
+          now,
+          now
+        ]);
+        await versionManager.switchBranch('main');
+
+        await adapter.rxdb.mountWorktreeTableSet(tableSet);
+        const { entries } = await versionManager.compareBranches(heldBranch, 'compare-src');
+
+        expect(entries.map(({ entity, operation, patch }) => [entity, operation, patch?.['title']])).toEqual([
+          [getEntityMetadata(Todo).name, 'INSERT', 'from-src']
+        ]);
+        await versionManager.switchBranch('compare-src');
+        expect(await titlesOf(tableSet)).toEqual(['from-src']);
+        expect(await readRows(`SELECT "title" FROM ${seqTable}`)).toEqual([]);
+      });
+
       // QueryCache 同步的实体只在主表集（不进影子表集）：挂在检出位上回填缓存，要摘的是主表集的触发器，
       // 否则回填被记进主分支的日志，挂回主检出位后出站队列把它当离线写推回远端（US-314 B2.1）。
       // `WorktreeSeqNote` 记日志、不是这套影子表的成员，落回主表，与 QueryCache 的表同一种处境。

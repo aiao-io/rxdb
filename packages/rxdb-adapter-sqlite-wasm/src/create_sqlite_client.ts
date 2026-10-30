@@ -6,6 +6,7 @@ import {
 } from '@aiao/rxdb-adapter-sqlite-core';
 import { LoadModuleOptions, SqliteOptions } from './sqlite.interface.js';
 import { SqliteClient } from './SqliteClient.js';
+import { resolveSqliteWasmTransport } from './transport.js';
 
 /**
  * 创建 SQLite 客户端
@@ -59,6 +60,8 @@ async function createSqliteClient(dbName: string, options: SqliteOptions, owner?
     batchTimeout
   } = options;
 
+  // 远端按加载选项核对自己真的跑在对应的 Worker 里，交过去的必须是推断后的 transport，与适配器的锁判据同一份
+  const transport = resolveSqliteWasmTransport(options);
   const loadModuleOptions: LoadModuleOptions = {
     vfs,
     wasmUrl,
@@ -66,12 +69,13 @@ async function createSqliteClient(dbName: string, options: SqliteOptions, owner?
     fsRoot,
     idbLockPolicy,
     idbLockTimeout,
-    worker,
-    sharedWorker,
+    worker: transport.worker,
+    sharedWorker: transport.sharedWorker,
     cacheSizeKb,
     batchTimeout
   };
 
+  // 组合是否合法按调用方原样给的选项判（validateComlinkTransportOptions），不拿推断结果去校验
   const sqliteClient = await wrapWithComlinkEndpoint<SqliteWasmClientLike>(new SqliteClient(), {
     worker,
     workerInstance,

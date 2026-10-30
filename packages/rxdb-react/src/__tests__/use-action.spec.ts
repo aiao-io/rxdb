@@ -10,7 +10,20 @@
  * 末尾两条是 React 独有的：`execute` 的函数 identity 必须跨渲染稳定，
  * 否则它没法安全地进 `useEffect` / `useCallback` 的依赖数组。
  */
-import { act, cleanup, renderHook } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook } from '@testing-library/react';
+import {
+  createElement,
+  createRef,
+  startTransition,
+  use,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction
+} from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useAction } from '../use-action';
 
@@ -174,5 +187,140 @@ describe('useAction（RVU-010）', () => {
     });
 
     expect(value).toBe('b');
+  });
+});
+
+/**
+ * 「最新一次渲染」指最近一次**已提交**的渲染，从提交的哪个阶段调用都一样。
+ *
+ * @remarks
+ * layout effect 先于被动 effect 运行，父组件的 layout effect 又晚于子组件的；提交途中
+ * 同步派发的事件（`autoFocus` 触发的 `onFocus`）也落在这段窗口里。断言的是**真正被调用的**
+ * 回调属于哪个已提交目标 —— 函数 identity 稳定与调用目标正确是两个要求，上面只锁了前者。
+ */
+describe('useAction 在提交阶段调用', () => {
+  /** 记下每次调用实际执行的是哪个目标的回调。 */
+  const createRecorder = () => {
+    const targets: string[] = [];
+    return { targets, record: (target: string) => targets.push(target) };
+  };
+
+  /** 等 execute 的异步尾巴（`finally` 里的计数回退）在 act 内落地，避免 act 警告。 */
+  const flush = () => act(async () => undefined);
+
+  it('同组件 layout effect 调用的是本次提交的回调', async () => {
+    const { targets, record } = createRecorder();
+    const { rerender } = renderHook(
+      ({ target }: { target: string }) => {
+        const { execute } = useAction(async () => {
+          record(target);
+        });
+        useLayoutEffect(() => {
+          void execute();
+        }, [execute, target]);
+      },
+      { initialProps: { target: 'A' } }
+    );
+    await flush();
+    targets.length = 0;
+
+    rerender({ target: 'B' });
+    await flush();
+
+    expect(targets).toEqual(['B']);
+  });
+
+  it('父组件 layout effect 经子组件句柄调用的是子组件本次提交的回调', async () => {
+    const { targets, record } = createRecorder();
+    const Child = ({ slot, target }: { slot: RefObject<(() => Promise<void>) | null>; target: string }) => {
+      const { execute } = useAction(async () => {
+        record(target);
+      });
+      useImperativeHandle(slot, () => execute, [execute]);
+      return null;
+    };
+    const Parent = ({ target }: { target: string }) => {
+      const slot = useRef<(() => Promise<void>) | null>(null);
+      useLayoutEffect(() => {
+        void slot.current?.();
+      }, [target]);
+      return createElement(Child, { slot, target });
+    };
+    const view = render(createElement(Parent, { target: 'A' }));
+    await flush();
+    targets.length = 0;
+
+    view.rerender(createElement(Parent, { target: 'B' }));
+    await flush();
+
+    expect(targets).toEqual(['B']);
+  });
+
+  it('提交途中同步派发的事件调用的是本次提交的回调', async () => {
+    const { targets, record } = createRecorder();
+    // 换 key 让输入框随目标重新挂载：React 在提交的 layout 阶段执行 autoFocus，onFocus 同步触发。
+    const Field = ({ target }: { target: string }) => {
+      const { execute } = useAction(async () => {
+        record(target);
+      });
+      return createElement('input', { autoFocus: true, key: target, onFocus: () => void execute() });
+    };
+    const view = render(createElement(Field, { target: 'A' }));
+    await flush();
+    targets.length = 0;
+
+    view.rerender(createElement(Field, { target: 'B' }));
+    await flush();
+
+    expect(targets).toEqual(['B']);
+  });
+
+  it('提交之后的事件调用最新提交的回调', async () => {
+    const { targets, record } = createRecorder();
+    const Button = ({ target }: { target: string }) => {
+      const { execute } = useAction(async () => {
+        record(target);
+      });
+      return createElement('button', { onClick: () => void execute(), type: 'button' }, target);
+    };
+    const view = render(createElement(Button, { target: 'A' }));
+    view.rerender(createElement(Button, { target: 'B' }));
+
+    fireEvent.click(view.getByRole('button'));
+    await flush();
+
+    expect(targets).toEqual(['B']);
+  });
+
+  // 反向守卫：在渲染期直接改写回调能让上面几条变绿，却会让一次被挂起、最终没有提交的并发
+  // 渲染把屏幕上仍在显示的旧目标换成新目标的回调。
+  it('挂起未提交的并发渲染不改写已提交的回调', async () => {
+    const { targets, record } = createRecorder();
+    const gate = new Promise<never>(() => undefined);
+    const control = createRef<Dispatch<SetStateAction<string>>>();
+    const Saver = ({ target }: { target: string }) => {
+      const { execute } = useAction(async () => {
+        record(target);
+      });
+      if (target === 'B') use(gate);
+      return createElement('button', { onClick: () => void execute(), type: 'button' }, target);
+    };
+    const Host = () => {
+      const [target, setTarget] = useState('A');
+      useImperativeHandle(control, () => setTarget, []);
+      return createElement(Saver, { target });
+    };
+    const view = render(createElement(Host));
+
+    await act(async () => {
+      startTransition(() => control.current?.('B'));
+    });
+    // 点击会让 React 在同一个 act 里重试那次挂起的渲染，外层必须是被 await 的 act。
+    await act(async () => {
+      fireEvent.click(view.getByRole('button'));
+    });
+
+    expect(view.getByRole('button').textContent).toBe('A');
+    expect(targets).toEqual(['A']);
   });
 });

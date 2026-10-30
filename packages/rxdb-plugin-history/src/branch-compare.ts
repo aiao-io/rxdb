@@ -191,6 +191,12 @@ const identityOf = (key: string): Pick<BranchDiffEntry, 'namespace' | 'entity' |
   return { namespace, entity, entityId };
 };
 
+/** 这个实体落不落在那套表里。 */
+const keyInTableSet = (key: string, inTableSet: ChangeInTableSet): boolean => {
+  const { namespace, entity } = identityOf(key);
+  return inTableSet(namespace, entity);
+};
+
 /** 从全量分支行里取一条；没有就按合并的口径报错。 */
 const branchOf = (branches: readonly RxDBBranch[], branchId: string): RxDBBranch => {
   const branch = branches.find(candidate => candidate.id === branchId);
@@ -218,6 +224,7 @@ const diffEntry = (key: string, before: Row | undefined, after: Row | undefined)
  * @param readers - 见 {@link SwitchBranchActionReaders}
  * @param fromBranchId - 起点分支
  * @param toBranchId - 终点分支
+ * @param inTableSet - 只对比落在挂着那套表里的实体，与 `previewMerge()` 传同一份判定；缺省全比
  * @returns 有差异的实体；同一条分支时为空数组
  * @throws {@link RxDBError} 任一分支不存在时
  *
@@ -226,21 +233,25 @@ const diffEntry = (key: string, before: Row | undefined, after: Row | undefined)
  * （见 {@link compute_branch_transition_actions}），所以再算一次「终点 → 起点」取它的 `patch`。
  * 两次增量碰到的实体与字段相同，存在性各由自己那一次的终点判定。
  *
+ * 挂在可写检出位上切分支只动这套表的成员（`keep_table_set_actions`）：不进影子表集的实体（QueryCache 同步的实体）
+ * 切过去不变，照列它们，结果就不再是「切到终点后的数据 − 切到起点后的数据」。
+ *
  * @internal
  */
 export const compare_branches = async (
   readers: SwitchBranchActionReaders,
   fromBranchId: string,
-  toBranchId: string
+  toBranchId: string,
+  inTableSet: ChangeInTableSet = () => true
 ): Promise<BranchComparison> => {
   const branches = await allBranches(readers);
   const from = await branch_tip_point(readers.changeRepository, branchOf(branches, fromBranchId));
   const to = await branch_tip_point(readers.changeRepository, branchOf(branches, toBranchId));
   const forward = await compute_branch_transition_actions(readers.changeRepository, branches, from, to);
   const backward = await compute_branch_transition_actions(readers.changeRepository, branches, to, from);
-  const entries = touchedKeys(forward, backward).flatMap(key =>
-    diffEntry(key, valuesAt(backward, key), valuesAt(forward, key))
-  );
+  const entries = touchedKeys(forward, backward)
+    .filter(key => keyInTableSet(key, inTableSet))
+    .flatMap(key => diffEntry(key, valuesAt(backward, key), valuesAt(forward, key)));
   return { fromBranchId, toBranchId, entries };
 };
 

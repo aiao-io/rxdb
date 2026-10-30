@@ -3,12 +3,8 @@
  * SQLite 图数据库仓库实现
  */
 
-import type { EntityBaseType, EntityType } from '@aiao/rxdb';
-import {
-  get_table_name_by_metadata as sqliteGetTableNameByMetadata,
-  SqliteRepository,
-  type RxDBAdapterSqliteBase
-} from '@aiao/rxdb-adapter-sqlite-core';
+import type { EntityBaseType, EntityMetadata, EntityType } from '@aiao/rxdb';
+import { SqliteRepository, type RxDBAdapterSqliteBase } from '@aiao/rxdb-adapter-sqlite-core';
 import { createGraphQueryResult } from '../graph-query-result.js';
 import {
   EdgeFilterOptions,
@@ -26,14 +22,26 @@ import {
 } from '../graph-repository.interface.js';
 import { normalizeNeighborsOptions, normalizePathsOptions } from '../utils.js';
 import { graph_edge_table_name } from './graph_edge_table.js';
+import { graph_node_primary_key_column, graph_node_table_name } from './graph_node_table.js';
 import {
   generate_entity_count_neighbors_sql,
   generate_entity_find_neighbors_sql,
   generate_entity_find_paths_sql
 } from './query_graph_sql.js';
 
-/** 从节点表整行读出的原始记录（列名 → 值）。 */
+/** 从节点表整行读出的原始记录（属性名 → 值）。 */
 type NodeRecord = Record<string, unknown>;
+
+/**
+ * 结果集里的物理列名换成节点记录的键。
+ *
+ * @remarks
+ * 主键与其它属性都能用 `columnName` 改写物理列（SQLC-014），结果集里拿到的是物理列名。
+ * 门面层的 `createEntityRef` 按属性名 `id` 认身份：照搬物理列名做键，自定义主键列的节点就没有 `id`，
+ * 全部挤进 `undefined` 这一个缓存槽。外键列与 `__rowid` 不是属性，保持原名。
+ */
+const node_record_key = (metadata: EntityMetadata, column: string): string =>
+  metadata.columnNameToPropertyName.get(column) ?? column;
 
 /**
  * 断言查询结果里存在指定的内部边列，并返回其下标。
@@ -132,11 +140,11 @@ export class SqliteGraphRepository<
     const weightIdx = columns.indexOf('_edge_weight');
     const propertiesIdx = columns.indexOf('_edge_properties');
 
-    // 预先筛选非边信息列，避免每行都过滤一次
+    // 预先筛选非边信息列并换成节点记录的键，避免每行都过滤一次
     const entityCols: Array<[string, number]> = [];
     for (let i = 0; i < columns.length; i++) {
       const col = columns[i];
-      if (!col.startsWith('_edge_')) entityCols.push([col, i]);
+      if (!col.startsWith('_edge_')) entityCols.push([node_record_key(this.metadata, col), i]);
     }
 
     // 去重已由 SQL 窗口函数完成（每个节点只保留最短层级的一条边）
@@ -231,11 +239,11 @@ export class SqliteGraphRepository<
       if (allNodeIds.size > 0) {
         const nodeIdArray = Array.from(allNodeIds);
         const placeholders = nodeIdArray.map((_, i) => `$${i + 1}`).join(',');
-        const nodeQuery = `SELECT * FROM "${sqliteGetTableNameByMetadata(this.metadata, this.adapter.tableSet)}" WHERE id IN (${placeholders})`;
+        const nodeQuery = `SELECT * FROM ${graph_node_table_name(this.adapter, this.metadata)} WHERE ${graph_node_primary_key_column(this.metadata)} IN (${placeholders})`;
         const nodeResult = await executor.execute(nodeQuery, nodeIdArray);
 
         const nodeRows = nodeResult.results[0].rows;
-        const nodeColumns = nodeResult.results[0].columns;
+        const nodeColumns = nodeResult.results[0].columns.map(column => node_record_key(this.metadata, column));
         for (const nodeRow of nodeRows) {
           const node: NodeRecord = {};
           for (let c = 0; c < nodeColumns.length; c++) {

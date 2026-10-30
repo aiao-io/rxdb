@@ -77,6 +77,7 @@ Category.findDescendants({ entityId: rootId, level: 2 }).subscribe(nodes => {
 - `findDescendants` / `findAncestors`：指定 `entityId` 时返回“当前节点 + 后代 / 祖先节点”。
 - `countDescendants` / `countAncestors`：指定 `entityId` 时**不含**当前节点，只统计后代 / 祖先数量。
 - 不指定 `entityId` 时，以所有根节点为起点。
+- `where` 只筛递归展开出来的节点：起点（指定 `entityId` 时的当前节点、不指定时的所有根节点）不过 `where`，也不受 `level` 限制；某一级不匹配就截断在那里，它名下的后代（`findAncestors` 是它上方的祖先）即便自身匹配也不返回。实时查询的增量 merge 与 SQL 重查同口径。
 
 ## 增量 merge
 
@@ -86,7 +87,7 @@ Category.findDescendants({ entityId: rootId, level: 2 }).subscribe(nodes => {
 2. 事件里有过期实体（`isStaleEntityEvent`）→ refresh；
 3. `findAncestors` 且 `parentId` 变过 → refresh（祖先链已被改写，增量无从谈起）。
 
-`find*` 走 recalculate，`count*` 走 refresh。用到的 merge 原语（`prepareIncrementalUpdate` / `UpdateDataCache` / `applyExternalEntityUpdate` / `getEntityId` / `isStaleEntityEvent` / `isStaleEntityRemoveEvent` 等）由 `@aiao/rxdb` 公开导出，进基线后受兼容承诺约束；`classifyUpdates` / `invalidateEntityFingerprint` 是核心内部装配细节，不在公开面上。
+`find*` 走 recalculate，`count*` 走 refresh。起点不过 `where`（见上文「查询语义」），所以判定刷新时起点另算：新建或删除起点会让 `count*` 回 SQL；`findAncestors` 的当前节点新建、而祖先链接到本批事件与旧结果之外的节点时回 SQL；不指定 `entityId` 且带 `where` 或 `level` 时，节点改父跨进或跨出根层同样回 SQL；带 `level` 的 `findDescendants` 里，结果中的节点改父也回 SQL —— 它名下子树的深度跟着平移，上移会让原先被截掉的子孙落进范围，下移会让结果里的子孙越界。用到的 merge 原语（`prepareIncrementalUpdate` / `UpdateDataCache` / `applyExternalEntityUpdate` / `getEntityId` / `isStaleEntityEvent` / `isStaleEntityRemoveEvent` 等）由 `@aiao/rxdb` 公开导出，进基线后受兼容承诺约束；`classifyUpdates` / `invalidateEntityFingerprint` 是核心内部装配细节，不在公开面上。
 
 ## 连接纪元
 

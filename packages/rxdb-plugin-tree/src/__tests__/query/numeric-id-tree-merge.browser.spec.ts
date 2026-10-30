@@ -25,6 +25,7 @@ import { describe, expect, it } from 'vitest';
 import { merge_create as query_merge_create_cache_impl } from '../../query/merge_create.js';
 import { merge_remove as query_merge_remove_cache_impl } from '../../query/merge_remove.js';
 import { merge_update as query_merge_update_cache_impl } from '../../query/merge_update.js';
+import { createTreeSqlScenario } from './tree-sql-reference.js';
 
 describe('数值主键树实体的查询缓存合并（RXD-069）', () => {
   /**
@@ -212,6 +213,66 @@ describe('数值主键树实体的查询缓存合并（RXD-069）', () => {
             removeEvent({ id: 0, name: 'ancestor-zero', parentId: null })
           ])
       );
+    });
+  });
+
+  /**
+   * 基准成员不过 where（见 `tree-sql-reference.ts`）。主键 0 是这里最容易被吃掉的值：
+   * 目标 0 一旦被当成「没传 entityId」，基准成员就会从「目标自己」退化成「全部根」。
+   */
+  describe('基准成员为 id=0', () => {
+    const activeOnly = {
+      combinator: 'and' as const,
+      rules: [{ field: 'active', operator: '=' as const, value: true }]
+    };
+
+    it('entityId=0 的 findDescendants：不匹配 where 的目标 0 新建即进结果，parentId=0 的同批子节点挂得上', () => {
+      const rows = [
+        { id: 0, parentId: null, active: false },
+        { id: 2, parentId: 0, active: true }
+      ];
+      const scenario = createTreeSqlScenario(
+        NumericEntity,
+        { type: 'findDescendants', options: { entityId: 0, where: activeOnly } },
+        []
+      );
+
+      scenario.rows.push(...rows);
+      query_merge_create_cache_impl(scenario.task, rows.map(createEvent));
+
+      expect(scenario.sql()).toEqual(rows);
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it('countDescendants 全树（level=0）：不匹配 where 的根 0 新建即计入', () => {
+      const root = { id: 0, parentId: null, active: false };
+      const scenario = createTreeSqlScenario(
+        NumericEntity,
+        { type: 'countDescendants', options: { entityId: null, level: 0, where: activeOnly } },
+        []
+      );
+
+      scenario.rows.push(root);
+      query_merge_create_cache_impl(scenario.task, [createEvent(root)]);
+
+      expect(scenario.sql()).toBe(1);
+      expect(scenario.live()).toBe(1);
+    });
+
+    it('entityId=0 的 countAncestors：删除不匹配 where 的目标 0，祖先计数即时归零', () => {
+      const target = { id: 0, parentId: 1, active: false };
+      const scenario = createTreeSqlScenario(
+        NumericEntity,
+        { type: 'countAncestors', options: { entityId: 0, where: activeOnly } },
+        [{ id: 1, parentId: null, active: true }, target]
+      );
+      expect(scenario.live()).toBe(1);
+
+      scenario.rows.splice(scenario.rows.indexOf(target), 1);
+      query_merge_remove_cache_impl(scenario.task, [removeEvent(target)]);
+
+      expect(scenario.sql()).toBe(0);
+      expect(scenario.live()).toBe(0);
     });
   });
 });

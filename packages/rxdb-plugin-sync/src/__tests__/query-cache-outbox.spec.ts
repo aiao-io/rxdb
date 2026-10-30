@@ -29,8 +29,9 @@ import {
   SyncType,
   WorktreeTableSet
 } from '@aiao/rxdb';
-import { of, throwError } from 'rxjs';
+import { defer, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { queryCacheEntityIdentifier } from '../index.js';
 import { countQueryCacheOutbox, flushQueryCacheOutbox, pendingQueryCacheWriteIds } from '../query-cache-outbox.js';
 import { detachedReachability } from './fixtures/reachability.js';
 
@@ -65,6 +66,32 @@ class CachedRecipe extends EntityBase {
 class VersionedRecipe extends EntityBase {
   static [ENTITY_STATIC_TYPES]: { idType: string };
   title!: string;
+}
+
+/**
+ * 与 `CachedRecipe` 同名、落在另一个命名空间的 QueryCache 实体。
+ *
+ * @remarks
+ * 在线读写按 `tenant_a:CachedRecipe` 打远端（`createQueryCachePrimary` 的实体标识），离线重放与缓存修复
+ * 必须用同一个标识，否则会落到同名的公共实体上。
+ */
+@Entity({
+  name: 'CachedRecipe',
+  namespace: 'tenant_a',
+  properties: [
+    { name: 'title', type: PropertyType.string },
+    { name: 'servings', type: PropertyType.number }
+  ],
+  sync: {
+    type: SyncType.QueryCache,
+    local: { adapter: 'sqlite' },
+    remote: { adapter: 'http' }
+  }
+})
+class TenantRecipe extends EntityBase {
+  static [ENTITY_STATIC_TYPES]: { idType: string };
+  title!: string;
+  servings!: number;
 }
 
 const NAMESPACE = getEntityMetadata(CachedRecipe).namespace;
@@ -105,6 +132,8 @@ interface SetupOptions {
   /** 预置的同步水位记录；不给就走懒创建 */
   sync?: Partial<RxDBSync>;
   entityType?: typeof CachedRecipe | typeof VersionedRecipe;
+  /** 注册进实例的全部实体；缺省只有 `entityType` 一个 */
+  entities?: Array<typeof CachedRecipe | typeof VersionedRecipe | typeof TenantRecipe>;
   /** 实例对 `entityType` 的同步覆盖（US-026） */
   syncOverride?: SyncOptions;
 }
@@ -193,7 +222,7 @@ const setup = (options: SetupOptions = {}) => {
   const entityType = options.entityType ?? CachedRecipe;
   const overrides = new Map(options.syncOverride ? [[getEntityMetadata(entityType), options.syncOverride]] : []);
   const rxdb = {
-    config: { entities: [entityType], sync: undefined },
+    config: { entities: options.entities ?? [entityType], sync: undefined },
     entitySync: createEntitySyncResolver(undefined, overrides),
     entityManager: {
       instantiate: () => ({ enabled: true }) as RxDBSync,
@@ -804,6 +833,175 @@ describe('flushQueryCacheOutbox', () => {
       expect(ctx.remoteAdapter.create).toHaveBeenCalledTimes(1);
       expect(second).toBe(first);
     });
+  });
+
+  // 在线读写对非 public 命名空间用 `namespace:entity` 定位远端资源与本地缓存表（`createQueryCachePrimary`）；
+  // 离线重放必须用同一个标识。用裸实体名的话，HTTP 的 `resources` 映射把它路由到同名的公共资源上：
+  // 写进了别人的表，调用却算成功、水位照推，tenant_a 那几笔离线写从此再也不会重放。
+  describe('非 public 命名空间按 namespace:entity 定位远端与本地缓存', () => {
+    const TENANT = 'tenant_a';
+    const TENANT_IDENTIFIER = 'tenant_a:CachedRecipe';
+    const SERVER_TIME = '2026-03-01T12:00:00.000Z';
+
+    interface RemoteRow {
+      id: string;
+      title?: string;
+      servings?: number;
+      updatedAt: string;
+    }
+
+    /**
+     * 按实体标识分资源存行的远端：公共的 `CachedRecipe` 与 `tenant_a:CachedRecipe` 是两份数据，
+     * 没配资源的标识直接拒（同 HTTP 适配器缺 `resources` 映射时的行为）。
+     */
+    const scopedRemote = (seed: Record<string, RemoteRow[]>) => {
+      const stores = new Map(
+        Object.entries(seed).map(([identifier, rows]) => [identifier, new Map(rows.map(row => [row.id, { ...row }]))])
+      );
+      const storeOf = (identifier: string): Map<string, RemoteRow> => {
+        const store = stores.get(identifier);
+        if (store === undefined) throw new Error(`no REST resource configured for "${identifier}"`);
+        return store;
+      };
+      const idsOf = (query: unknown): string[] => (query as { rules: [{ value: string[] }] }).rules[0].value;
+      const adapter = {
+        fetchMetadata: vi.fn((identifier: string, query: unknown) =>
+          defer(() =>
+            of(
+              [...storeOf(identifier).values()]
+                .filter(row => idsOf(query).includes(row.id))
+                .map(({ id, updatedAt }) => ({ id, updatedAt }))
+            )
+          )
+        ),
+        findByIds: vi.fn((identifier: string, ids: string[]) =>
+          defer(() => of(ids.flatMap(id => [storeOf(identifier).get(id)].filter(row => row !== undefined))))
+        ),
+        create: vi.fn((identifier: string, data: Record<string, unknown>) =>
+          defer(() => {
+            const row = { ...data, updatedAt: SERVER_TIME } as RemoteRow;
+            storeOf(identifier).set(row.id, row);
+            return of(row);
+          })
+        ),
+        update: vi.fn((identifier: string, id: string, patch: Record<string, unknown>) =>
+          defer(() => {
+            const store = storeOf(identifier);
+            const row = { ...store.get(id), ...patch, id, updatedAt: SERVER_TIME } as RemoteRow;
+            store.set(id, row);
+            return of(row);
+          })
+        ),
+        delete: vi.fn((identifier: string, ids: string[]) =>
+          defer(() => {
+            const store = storeOf(identifier);
+            ids.forEach(id => store.delete(id));
+            return of(undefined);
+          })
+        )
+      };
+      return { adapter, stores };
+    };
+
+    /** 两个命名空间都注册、只灌 tenant_a 的变更行，并换上分资源的远端 */
+    const setupTenant = (changes: RxDBChange[], seed: Record<string, RemoteRow[]>) => {
+      const ctx = setup({
+        changes,
+        entities: [CachedRecipe, TenantRecipe],
+        sync: { id: `${TENANT}:CachedRecipe:${BRANCH}`, namespace: TENANT, lastPushedChangeId: null }
+      });
+      const remote = scopedRemote(seed);
+      Object.assign(ctx.rxdb, { remoteAdapter$: of(remote.adapter) });
+      return { ctx, remote };
+    };
+
+    const publicRows = (): RemoteRow[] => [
+      { id: 'r2', title: '公共的 r2', updatedAt: '2026-03-01T09:00:00.000Z' },
+      { id: 'r3', title: '公共的 r3', updatedAt: '2026-03-01T09:00:00.000Z' }
+    ];
+
+    it('INSERT / UPDATE / DELETE 都打到 tenant_a:CachedRecipe，同名公共实体一行不动', async () => {
+      const { ctx, remote } = setupTenant(
+        [
+          change({ namespace: TENANT, type: 'INSERT', entityId: 'r1', patch: { title: '离线新建' } }),
+          change({ namespace: TENANT, type: 'UPDATE', entityId: 'r2', patch: { title: '离线改过' } }),
+          change({ namespace: TENANT, type: 'DELETE', entityId: 'r3', inversePatch: { id: 'r3' } })
+        ],
+        {
+          CachedRecipe: publicRows(),
+          [TENANT_IDENTIFIER]: [
+            { id: 'r2', title: 'tenant 的 r2', updatedAt: '2026-03-01T09:00:00.000Z' },
+            { id: 'r3', title: 'tenant 的 r3', updatedAt: '2026-03-01T09:00:00.000Z' }
+          ]
+        }
+      );
+
+      const result = await flushQueryCacheOutbox(ctx.rxdb, TENANT, 'CachedRecipe');
+
+      expect(result).toMatchObject({
+        repository: { namespace: TENANT, entity: 'CachedRecipe' },
+        replayed: 3,
+        failures: [],
+        watermark: 3
+      });
+      const writtenIdentifiers = [
+        ...remote.adapter.fetchMetadata.mock.calls,
+        ...remote.adapter.create.mock.calls,
+        ...remote.adapter.update.mock.calls,
+        ...remote.adapter.delete.mock.calls
+      ].map(([identifier]) => identifier);
+      expect(new Set(writtenIdentifiers)).toEqual(new Set([TENANT_IDENTIFIER]));
+      expect([...(remote.stores.get(TENANT_IDENTIFIER)?.values() ?? [])]).toEqual([
+        { id: 'r2', title: '离线改过', updatedAt: SERVER_TIME },
+        { id: 'r1', title: '离线新建', updatedAt: SERVER_TIME }
+      ]);
+      // 写错目标不能算成功：公共资源一行都没被动过
+      expect([...(remote.stores.get('CachedRecipe')?.values() ?? [])]).toEqual(publicRows());
+    });
+
+    it('KEEP_REMOTE 的 upsert 修复与远端已删的 drop 修复都按 tenant_a:CachedRecipe 定位本地缓存', async () => {
+      const tenantRow = { id: 'r1', title: 'tenant 远端的新值', updatedAt: '2026-03-01T11:00:00.000Z' };
+      const { ctx, remote } = setupTenant(
+        [
+          change({ namespace: TENANT, type: 'UPDATE', entityId: 'r1', patch: { title: '离线改过' } }),
+          change({ namespace: TENANT, type: 'UPDATE', entityId: 'r2', patch: { title: '离线改过' } })
+        ],
+        {
+          CachedRecipe: [
+            { id: 'r1', title: '公共的 r1', updatedAt: '2026-03-01T09:00:00.000Z' },
+            { id: 'r2', title: '公共的 r2', updatedAt: '2026-03-01T09:00:00.000Z' }
+          ],
+          [TENANT_IDENTIFIER]: [tenantRow]
+        }
+      );
+
+      const result = await flushQueryCacheOutbox(ctx.rxdb, TENANT, 'CachedRecipe');
+
+      expect(result).toMatchObject({ replayed: 0, discarded: 2, conflicts: ['r1'], failures: [], watermark: 2 });
+      expect(remote.adapter.findByIds).toHaveBeenCalledWith(TENANT_IDENTIFIER, ['r1']);
+      expect(ctx.localAdapter.upsertMany).toHaveBeenCalledWith(TENANT_IDENTIFIER, [tenantRow]);
+      expect(ctx.localAdapter.deleteByIds).toHaveBeenCalledWith(TENANT_IDENTIFIER, ['r2']);
+      // 本地系统表的条件仍按独立的 namespace / entity 两列查：取待推行与修复前的复核都是
+      const changeRules = ctx.changeQueries.map(query => rulesOf(query).filter(rule => rule.field !== 'id'));
+      expect(changeRules).toHaveLength(2);
+      for (const rules of changeRules) {
+        expect(rules).toEqual(
+          expect.arrayContaining([
+            { field: 'namespace', operator: '=', value: TENANT },
+            { field: 'entity', operator: '=', value: 'CachedRecipe' }
+          ])
+        );
+      }
+      expect(remote.adapter.update).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('queryCacheEntityIdentifier', () => {
+  // 读引擎包的在线读写与出站重放共用这个公开函数：public 写裸实体名，其余命名空间带前缀
+  it('public 用裸实体名，其余命名空间写成 namespace:entity', () => {
+    expect(queryCacheEntityIdentifier('public', 'CachedRecipe')).toBe('CachedRecipe');
+    expect(queryCacheEntityIdentifier('tenant_a', 'CachedRecipe')).toBe('tenant_a:CachedRecipe');
   });
 });
 

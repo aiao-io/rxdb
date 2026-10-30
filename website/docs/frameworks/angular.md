@@ -62,7 +62,7 @@ const maybe = useRxDBOptional(); // 无 provider 或未就绪时返回 undefined
 
 ### 生命周期所有权
 
-**provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 provider 等来，注入器销毁时它负责 `disconnectAll()`；传已就绪的实例，它归调用方所有，provider 不碰 —— 否则一个模块级单例会被某个子注入器的销毁顺手断掉，而没有人会去重连。这条规则在 React / Vue 侧逐字相同。
+**provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 provider 等来，注入器销毁时它负责 `destroy()`；传已就绪的实例，它归调用方所有，provider 不碰 —— 否则一个模块级单例会被某个子注入器的销毁顺手断掉，而没有人会去重连。这条规则在 React / Vue 侧逐字相同。
 
 ## Hooks API
 

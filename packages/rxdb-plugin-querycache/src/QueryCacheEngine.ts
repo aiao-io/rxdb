@@ -46,6 +46,7 @@ import {
 import { concat, defer, EMPTY, finalize, forkJoin, Observable, of, throwError } from 'rxjs';
 import { catchError, filter, map, shareReplay, switchMap } from 'rxjs/operators';
 import { queryCacheFingerprint } from './query-cache-sync-memo.js';
+import { QueryCacheWriteOrder } from './query-cache-write-order.js';
 
 /**
  * 取一行的主键。
@@ -186,6 +187,19 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
    * 或把刚确认的删除复活。
    */
   #invalidationGeneration = 0;
+
+  /**
+   * 同一 id 上在线写回执的落缓存次序（见 {@link QueryCacheWriteOrder}）。
+   *
+   * @remarks
+   * 与 {@link QueryCacheEngine.#invalidationGeneration} 是两条通道：那一个拦的是读侧迟到的 pull / 清孤儿，
+   * 这一个拦的是写侧迟到的回执。后者不能借前者 —— 写成功后推进作废代次只会让此前的读作废，
+   * 挡不住更早发出、此刻才到的写回执落缓存。
+   *
+   * 次序记在引擎实例上：同一时刻在飞的几次写共用同一个主仓储（`Repository` 的 `primary$` 在仍有订阅时
+   * 不重建），也就共用这本账。
+   */
+  readonly #writeOrder = new QueryCacheWriteOrder();
 
   /** 实体名称 */
   readonly entityName: string;
@@ -385,6 +399,8 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
    * 2. 远程成功后，将返回数据缓存到本地
    * 3. 返回服务器生成的完整实体（可能包含服务器生成的 id/updatedAt）
    *
+   * 同一 id 上更晚发出的写已经落过缓存时，这次的回执照常返回给调用方，但不再落缓存（见 {@link QueryCacheWriteOrder}）。
+   *
    * @param data - 要创建的实体数据
    * @returns Observable<InstanceType<T>> - 创建成功的实体
    * @throws 远程写入失败时抛出错误，本地不写入
@@ -400,12 +416,13 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
       throw new Error(`Remote adapter does not support create operation for ${this.entityName}`);
     }
 
+    // 不带 id 的新建由服务端分配 id：此前不可能有同 id 的写在飞，不参与排序
+    const id = (data as Partial<QueryCacheEntity>).id;
     // 远程优先：先写入远程
-    return this.remoteAdapter.create<InstanceType<T>>(this.entityName, data as InstanceType<T>).pipe(
-      switchMap(createdData => {
-        // 远程成功后，缓存到本地
-        return this.localAdapter.upsertMany(this.entityName, [createdData]).pipe(map(() => createdData));
-      })
+    const request$ = this.remoteAdapter.create<InstanceType<T>>(this.entityName, data as InstanceType<T>);
+    return this.#writeInOrder(id === undefined ? [] : [String(id)], request$, (createdData, claimed, ids) =>
+      // 远程成功后，缓存到本地
+      claimed.length === ids.length ? this.#upsertReceipt(createdData) : of(createdData)
     );
   }
 
@@ -416,6 +433,8 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
    * 1. 更新远程数据库
    * 2. 远程成功后，将返回数据缓存到本地（使用服务器返回的最新 updatedAt）
    * 3. 返回更新后的完整实体
+   *
+   * 同一 id 上更晚发出的写已经落过缓存时，这次的回执照常返回给调用方，但不再落缓存（见 {@link QueryCacheWriteOrder}）。
    *
    * @param id - 实体 ID
    * @param data - 要更新的字段
@@ -434,11 +453,10 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
     }
 
     // 远程优先：先更新远程
-    return this.remoteAdapter.update<InstanceType<T>>(this.entityName, id, data).pipe(
-      switchMap(updatedData => {
-        // 远程成功后，缓存到本地
-        return this.localAdapter.upsertMany(this.entityName, [updatedData]).pipe(map(() => updatedData));
-      })
+    const request$ = this.remoteAdapter.update<InstanceType<T>>(this.entityName, id, data);
+    return this.#writeInOrder([id], request$, (updatedData, claimed) =>
+      // 远程成功后，缓存到本地
+      claimed.length > 0 ? this.#upsertReceipt(updatedData) : of(updatedData)
     );
   }
 
@@ -448,6 +466,8 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
    * 执行远程优先写入策略：
    * 1. 从远程数据库删除
    * 2. 远程成功后，从本地缓存删除
+   *
+   * 只清掉仍由这次删除领先的 id：同一 id 上更晚发出的写已经落过缓存的，那一行归那次写管（见 {@link QueryCacheWriteOrder}）。
    *
    * @param ids - 要删除的实体 ID 或 ID 数组
    * @returns Observable<void>
@@ -467,12 +487,57 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
     const idArray = Array.isArray(ids) ? ids : [ids];
 
     // 远程优先：先删除远程
-    return this.remoteAdapter.delete(this.entityName, ids).pipe(
-      switchMap(() => {
-        // 远程成功后，删除本地缓存
-        return this.localAdapter.deleteByIds(this.entityName, idArray);
-      })
+    const request$ = this.remoteAdapter.delete(this.entityName, ids);
+    return this.#writeInOrder(idArray, request$, (_receipt, claimed) =>
+      // 远程成功后，删除本地缓存
+      claimed.length > 0 ? this.localAdapter.deleteByIds(this.entityName, claimed) : of(undefined)
     );
+  }
+
+  /**
+   * 声明这些 id 刚在本地落定了一次不经远端的写（离线写）。
+   *
+   * @param ids - 本地刚写过的实体 ID
+   *
+   * @remarks
+   * 这次本地写排在此前发出的全部在线写之后：那些写迟到的回执照常交给各自的调用方，但不再落缓存，
+   * 否则会盖掉这次本地写 —— 断网改走离线删除之后，先前在飞的更新回执把行写回本地。
+   * 之后才发出的在线写不受影响。
+   *
+   * 生产路径上由 QueryCache 主仓储在每次离线写之前调用；直接使用本类、自行落本地写的调用方同样要调。
+   */
+  supersedeInflightWrites(ids: readonly string[]): void {
+    this.#writeOrder.supersede(ids);
+  }
+
+  /**
+   * 发一次远端写，回执按发出顺序判定后再交给 `commit` 落缓存。
+   *
+   * @param ids - 这次写涉及的实体 id
+   * @param request$ - 远端写；订阅即视为请求发出
+   * @param commit - 回执落缓存；`claimed` 是仍由这次写领先、可以落缓存的 id（`ids` 的子集）
+   *
+   * @remarks
+   * 在**订阅时**登记、而不是调用时：调用方拿到 Observable 不订阅，请求就没有发出，不该占一个序号。
+   * `finalize` 覆盖成功、失败与退订三种结局 —— 失败的写从此不再占账，挡不住先发出且成功的那次。
+   */
+  #writeInOrder<R, C>(
+    ids: readonly string[],
+    request$: Observable<R>,
+    commit: (receipt: R, claimed: string[], ids: readonly string[]) => Observable<C>
+  ): Observable<C> {
+    return defer(() => {
+      const ticket = this.#writeOrder.issue(ids);
+      return request$.pipe(
+        switchMap(receipt => commit(receipt, this.#writeOrder.claim(ticket), ids)),
+        finalize(() => this.#writeOrder.settle(ticket))
+      );
+    });
+  }
+
+  /** 把一次写回执落进本地缓存，并原样交回回执 */
+  #upsertReceipt(receipt: InstanceType<T>): Observable<InstanceType<T>> {
+    return this.localAdapter.upsertMany(this.entityName, [receipt]).pipe(map(() => receipt));
   }
 
   /**

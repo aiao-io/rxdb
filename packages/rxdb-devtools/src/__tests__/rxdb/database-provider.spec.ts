@@ -310,4 +310,109 @@ describe('RxDB database provider（AC#46）', () => {
     expect(expectFailed(await create().invoke('export', {}))).toBe('provider_unsupported');
     expect(expectFailed(await create().invoke('list', {}))).toBe('provider_unsupported');
   });
+
+  // 端口合同：`getRxDB()` 的返回值可以在运行期变化，事件订阅要跟着当前实例走。
+  // 只在 `events` 里换绑时，旧库事件继续混进面板、新库事件无人转发，旧实例还被监听器拖住无法回收。
+  describe('运行期换实例', () => {
+    const articleCreated = (id: string) => ({
+      type: 'ENTITY_LOCAL_CREATE',
+      entities: [{ entity: 'Article', namespace: 'public', data: { id, body: 'secret', title: id } }]
+    });
+
+    /** 两个互不相干的库；用例改写 `state.current` 模拟宿主在运行期换实例。 */
+    const createSwitchable = () => {
+      const oldDb = createMockRxDB({
+        config: { dbName: 'old-db', entities: [ARTICLE] },
+        entityManager: entityManagerOf(new Map([[ARTICLE, [{ id: 'o1', body: 'secret', title: 'old' }]]]))
+      });
+      const newDb = createMockRxDB({
+        config: { dbName: 'new-db', entities: [ARTICLE] },
+        entityManager: entityManagerOf(new Map([[ARTICLE, [{ id: 'n1', body: 'secret', title: 'new' }]]]))
+      });
+      const state: { current: MockRxDB | undefined } = { current: oldDb };
+      const provider = createDevToolsRxdbDatabaseProvider({
+        getRxDB: () => state.current,
+        getEntityMetadata: metadataReader(METADATA),
+        runtime: 'electron',
+        emitEvent: (eventType, data) => emitted.push({ eventType, data })
+      });
+      return { oldDb, newDb, state, provider };
+    };
+
+    it('开启事件后换实例：inspect / query 回新库，只转发新库事件，dispose 后两侧都不留监听', async () => {
+      const { oldDb, newDb, state, provider } = createSwitchable();
+      await provider.invoke('events', {});
+      expect(expectOk(await provider.invoke('inspect', {}))['dbName']).toBe('old-db');
+      state.current = newDb;
+
+      expect(expectOk(await provider.invoke('inspect', {}))['dbName']).toBe('new-db');
+      expect(expectOk(await provider.invoke('query', { entityName: 'Article' }))['documents']).toEqual([
+        { id: 'n1', body: '[encrypted]', title: 'new' }
+      ]);
+      expect(listenerCount(oldDb)).toBe(0);
+      expect(listenerCount(newDb)).toBe(RXDB_EVENT_TYPES.length);
+
+      oldDb.emit('ENTITY_LOCAL_CREATE', articleCreated('from-old'));
+      expect(emitted).toEqual([]);
+
+      newDb.emit('ENTITY_LOCAL_CREATE', articleCreated('from-new'));
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data).toMatchObject({
+        entities: [{ entity: 'Article', data: { id: 'from-new', body: '[encrypted]', title: 'from-new' } }]
+      });
+
+      provider.dispose();
+      expect(listenerCount(oldDb)).toBe(0);
+      expect(listenerCount(newDb)).toBe(0);
+    });
+
+    it('换实例后、下一次操作之前旧库发来的事件不转发，订阅随即换到当前实例', async () => {
+      const { oldDb, newDb, state, provider } = createSwitchable();
+      await provider.invoke('events', {});
+      state.current = newDb;
+
+      oldDb.emit('ENTITY_LOCAL_CREATE', articleCreated('from-old'));
+
+      expect(emitted).toEqual([]);
+      expect(listenerCount(oldDb)).toBe(0);
+      expect(listenerCount(newDb)).toBe(RXDB_EVENT_TYPES.length);
+
+      newDb.emit('ENTITY_LOCAL_CREATE', articleCreated('from-new'));
+      expect(emitted.map(entry => entry.eventType)).toEqual(['ENTITY_LOCAL_CREATE']);
+
+      provider.dispose();
+      expect(listenerCount(newDb)).toBe(0);
+    });
+
+    it('实例回到未就绪时摘掉旧监听；重新就绪后不必再调 events 即恢复订阅', async () => {
+      const { oldDb, newDb, state, provider } = createSwitchable();
+      await provider.invoke('events', {});
+
+      state.current = undefined;
+      expect(expectFailed(await provider.invoke('inspect', {}))).toBe('provider_unavailable');
+      expect(listenerCount(oldDb)).toBe(0);
+
+      state.current = newDb;
+      expectOk(await provider.invoke('inspect', {}));
+      expect(listenerCount(newDb)).toBe(RXDB_EVENT_TYPES.length);
+
+      provider.dispose();
+      expect(listenerCount(newDb)).toBe(0);
+    });
+
+    it('没开过事件或已 dispose 时，换实例不会自行订阅', async () => {
+      const { oldDb, newDb, state, provider } = createSwitchable();
+      state.current = newDb;
+      expectOk(await provider.invoke('inspect', {}));
+      expect(listenerCount(newDb)).toBe(0);
+
+      await provider.invoke('events', {});
+      provider.dispose();
+      state.current = oldDb;
+      expectOk(await provider.invoke('inspect', {}));
+
+      expect(listenerCount(oldDb)).toBe(0);
+      expect(listenerCount(newDb)).toBe(0);
+    });
+  });
 });

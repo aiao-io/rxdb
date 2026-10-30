@@ -1846,4 +1846,122 @@ describe('草稿按检出位分区（US-314 B2.4）', () => {
       await scope.dispose();
     }
   });
+
+  /**
+   * 同一实体在两个分区上可以各有一条草稿（主表集与检出位上同一个 UUID）。换挂之后、旧视图排着的写落盘之前，
+   * 新视图照常收新建与广播 —— 两条草稿的公开主键一样，排队必须按带分区的完整键各占一格，各自结算。
+   */
+  describe('换挂恢复窗口里两个分区上同 UUID 的草稿', () => {
+    const mainKey = cacheId('Todo', TODO_ID_1);
+    const checkoutKey = shadowKey('wt_a', TODO_ID_1);
+    const storedTitle = (key: string) => (idbState.store.get(key) as { title?: string } | undefined)?.title;
+    const viewTitles = (plugin: RxDBPluginWorkspace) =>
+      plugin.list().map(entry => [entry.cacheId, entry.data['title']]);
+
+    it('ready 之前在检出位上新建同 UUID 的草稿：主表集排着的那条照样落到主表集的键', async () => {
+      const rxdb = createPartitionRxDB();
+      const { plugin, scope, ready } = installScoped(rxdb, { autoSave: false });
+
+      try {
+        await ready;
+        dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: '主表集上没存的' }));
+        rxdb.worktreeTableSet$.next(CHECKOUT);
+        dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, {
+          ...newEventData(TODO_ID_1, { title: '检出位上同 UUID 的' }),
+          tableSetSuffix: 'wt_a'
+        });
+        await plugin.ready;
+        await plugin.flush();
+
+        expect(storedTitle(mainKey)).toBe('主表集上没存的');
+        expect(storedTitle(checkoutKey)).toBe('检出位上同 UUID 的');
+        expect(viewTitles(plugin)).toEqual([[mainKey, '检出位上同 UUID 的']]);
+
+        rxdb.worktreeTableSet$.next(WorktreeTableSet.MAIN);
+        await plugin.ready;
+        expect(viewTitles(plugin)).toEqual([[mainKey, '主表集上没存的']]);
+      } finally {
+        await scope.dispose();
+      }
+    });
+
+    it('ready 之前收到另一个标签页同 UUID 的检出位草稿：两个分区的键各自落盘', async () => {
+      const rxdb = createPartitionRxDB();
+      const { plugin, scope, ready } = installScoped(rxdb, { autoSave: false });
+      const channel = BroadcastChannelStub.instances[0]!;
+
+      try {
+        await ready;
+        dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: '主表集上没存的' }));
+        rxdb.worktreeTableSet$.next(CHECKOUT);
+        channel.emit({
+          type: 'add',
+          clientId: 'other-tab',
+          cacheId: mainKey,
+          partition: 'wt_a',
+          data: { id: TODO_ID_1, title: '另一个标签页的' }
+        });
+        await plugin.ready;
+        await plugin.flush();
+
+        expect(storedTitle(mainKey)).toBe('主表集上没存的');
+        expect(storedTitle(checkoutKey)).toBe('另一个标签页的');
+
+        rxdb.worktreeTableSet$.next(WorktreeTableSet.MAIN);
+        await plugin.ready;
+        expect(viewTitles(plugin)).toEqual([[mainKey, '主表集上没存的']]);
+      } finally {
+        await scope.dispose();
+      }
+    });
+
+    it('旧分区排着删除、新分区新建同 UUID：主表集那条照删，检出位那条照存', async () => {
+      idbState.store.set(mainKey, { id: TODO_ID_1, title: '主表集已落盘的' });
+      const rxdb = createPartitionRxDB();
+      const { plugin, scope, ready } = installScoped(rxdb, { autoSave: false });
+
+      try {
+        await ready;
+        expect(plugin.discard(mainKey)).toBe(true);
+        rxdb.worktreeTableSet$.next(CHECKOUT);
+        dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, {
+          ...newEventData(TODO_ID_1, { title: '检出位上同 UUID 的' }),
+          tableSetSuffix: 'wt_a'
+        });
+        await plugin.ready;
+        await plugin.flush();
+
+        expect(idbState.store.has(mainKey)).toBe(false);
+        expect(storedTitle(checkoutKey)).toBe('检出位上同 UUID 的');
+
+        rxdb.worktreeTableSet$.next(WorktreeTableSet.MAIN);
+        await plugin.ready;
+        expect(plugin.list()).toEqual([]);
+      } finally {
+        await scope.dispose();
+      }
+    });
+
+    it('旧分区排着新建、新分区的恢复窗口里删除同 UUID：主表集那条照存，检出位那条照删', async () => {
+      idbState.store.set(checkoutKey, { id: TODO_ID_1, title: '检出位已落盘的' });
+      const rxdb = createPartitionRxDB();
+      const { plugin, scope, ready } = installScoped(rxdb, { autoSave: false });
+
+      try {
+        await ready;
+        dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: '主表集上没存的' }));
+        // 换挂前那次落盘失败：主表集那条回到队列，与新视图恢复窗口里登记的删除同时排着
+        setManyMock.mockRejectedValueOnce(new Error('IndexedDB 写盘失败'));
+        rxdb.worktreeTableSet$.next(CHECKOUT);
+        dispatch(rxdb, ENTITY_LOCAL_REMOVE_EVENT, { ...removeEventData(TODO_ID_1), tableSetSuffix: 'wt_a' });
+        await plugin.ready;
+        await plugin.flush();
+
+        expect(storedTitle(mainKey)).toBe('主表集上没存的');
+        expect(idbState.store.has(checkoutKey)).toBe(false);
+      } finally {
+        await scope.dispose();
+      }
+    });
+  });
 });
