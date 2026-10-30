@@ -82,7 +82,7 @@ interface DraftSession {
 
 /** 草稿从建它的库的实体缓存里移除（取消、换库时）：未落库的草稿不该留在那个库里。 */
 const releaseDraft = ({ entity, database }: DraftSession): void => {
-  database.entityManager.removeEntityCache(entity as never);
+  database.entityManager.removeEntityCache(entity);
 };
 
 /** 加载失败：可读原因进错误面板（与保存失败同形）。 */
@@ -227,7 +227,7 @@ export function EntityDetail({
     if (!metadata) return null;
     if (!rxdb) return null;
     const cls = entityClsFromDialog;
-    if (!cls) return null;
+    if (!cls || typeof cls !== 'function') return null;
     // 经当前库建：同一实体类登记在多个库上（换库那一刻新旧库都在）时 `new cls()` 无从选库
     const entity = rxdb.entityManager.instantiate(cls, { ...formData, ...input, ...fixedFormData }) as EntityInstance;
     return { entity, database: rxdb };

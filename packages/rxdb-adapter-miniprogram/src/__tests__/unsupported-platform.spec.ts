@@ -17,7 +17,9 @@ import {
   resolveMiniProgramHost
 } from '../host.js';
 import { ALIPAY_UNDOCUMENTED_CAPABILITIES, AlipayUndocumentedCapabilityError } from '../hosts/alipay-capability.js';
+import * as mainEntry from '../index.js';
 import type { MiniProgramFileSystemManager, MiniProgramHost } from '../mini-program.interface.js';
+import * as runtimeEntry from '../runtime.js';
 
 /** 改判标准门 3 的三个运行环境。 */
 const EVIDENCE_ENVIRONMENTS = ['devtools', 'ios', 'android'] as const;
@@ -344,7 +346,6 @@ describe('MiniProgramUnsupportedPlatformError', () => {
         '判定理由与复议条件见 requirements/stories/adapter/miniprogram-platform-feasibility.md 的「某平台 — unsupported」一节'
     );
   });
-
 });
 
 describe('assertMiniProgramPlatformId：造不出宿主时直接判定平台 id', () => {
@@ -382,11 +383,9 @@ describe('assertMiniProgramPlatformId：造不出宿主时直接判定平台 id'
     expect(swan).not.toBeInstanceOf(MiniProgramUnsupportedPlatformError);
   });
 
-  it('主入口与轻量 /runtime 入口导出的是同一个函数', async () => {
-    const [main, runtime] = await Promise.all([import('../index.js'), import('../runtime.js')]);
-
+  it('主入口与轻量 /runtime 入口导出的是同一个函数', () => {
     expect(assertMiniProgramPlatformId).toBeTypeOf('function');
-    expect(main.assertMiniProgramPlatformId).toBe(assertMiniProgramPlatformId);
-    expect(runtime.assertMiniProgramPlatformId).toBe(assertMiniProgramPlatformId);
+    expect(mainEntry.assertMiniProgramPlatformId).toBe(assertMiniProgramPlatformId);
+    expect(runtimeEntry.assertMiniProgramPlatformId).toBe(assertMiniProgramPlatformId);
   });
 });

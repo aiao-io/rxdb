@@ -48,6 +48,7 @@
 - **rxdb-plugin-working-tree-angular / -react / -vue:** `useWorkingTree()` 新增 `checkBranchFromCommit()` / `createBranchFromCommit()` 与两格命令状态（US-314）
 - **rxdb:** 建分支上下文 `RxDBBranchCreationContext` 新增可选的 `fromCommitId`，原样转交给系统贡献方（US-314）
 - **rxdb-model / -angular / -react / -vue:** 实体列表的撤销 / 重做按钮因子分支分叉点停用时，`title` 说明是哪条分支继承了下一步；文案在 `describeHistoryBarrier()`（US-315）
+- **rxdb-react:** 新增 `useHasRxDBProvider()`（`makeRxDBProvider()` 返回的每一套也带一份）：只回答组件树里有没有同一套 context 的 Provider，与数据库是否就绪、是否创建失败无关；配合 `useRxDBOptional()` 区分「没有 Provider」与「有 Provider 但还在解析」。只加在 React 端：Vue 已有 `injectRxDBRef(true)`，Angular 注入时库已就绪（RV-084）
 
 ### 🩹 Fixes
 
@@ -99,6 +100,11 @@
 - **rxdb-react:** 换 `db` 的首个提交起，子树只拿得到新 source 的结果，不再先读到旧库或旧 source 的创建异常；`<Activity>` 隐藏后重显时工厂重新建库，Promise source 报明确的错误，不再把已销毁的实例当就绪库交出去（工厂交回已被销毁的实例同样报错）；`useAction` 在本次提交的 layout effect 与提交途中同步派发的事件里也调用最新回调。
 - **code-editor-react:** 放在 `<Activity>` 里隐藏再显示，编辑器的文本、选区与撤销历史都保留；隐藏期间 `value` 若有变化，重显时按差量补同步。
 - **rxdb-model-angular / -react:** `EntityDetail` 切换编辑目标期间不再把输入保存到旧记录（与 Vue 同口径）：目标未就绪时只留取消并拦截提交，加载失败原因进错误面板，换目标、取消或卸载之后迟到的保存结果不再关闭对话框或发事件。Angular 编辑模式下输入之后再跑一轮变更检测，表单不再被重置回实例旧值（此前界面仍显示输入，提交出去的却是旧值）。
+- **rxdb-model-react:** `EntityDetail` 区分「没有 Provider」与「有 Provider 但库未到」，与 Vue / Angular 同口径：有 Provider 但库未到（含 source 创建失败）时，create 的保存禁用并拦截提交，不再把表单数据当透传交出、记录不落库；等待期间先显示宿主初始值，期间的输入并进库到之后的草稿；没有 Provider 时带 `entityId` 的编辑照常透传表单数据，不再只留取消；带关系的实体在库未到或没有 Provider 时不再因关系列表读库而抛错（RV-084）
+- **rxdb-model-react:** `EntityDetail` 的 create 草稿保存在取消、换库、草稿被换之后到达的成功 / 失败不再关闭对话框、不写错误面板、不清掉新草稿；换库时把旧草稿移出旧库的实体缓存，清掉输入与错误面板，按新库补建草稿并重新装配关系列表；草稿经当前库的 `entityManager.instantiate()` 建，两个库共用同一实体类时不再无从选库（RV-084）
+- **rxdb-model-react:** `SubqueryBuilder` 传了 `initialQuery` 时挂载只发一次 `queryChange` / `validationChange`，值为载入后的查询与校验结果，不再先发临时的 `undefined` 查询与临时的 `{ valid: true }`，与 Angular / Vue 同口径（RV-084）
+- **rxdb-model-angular:** `EntityDetailComponent` 的 create 草稿保存进行中取消、或取消后重建了草稿时，旧草稿迟到的保存结果不再生效：成功不再以 `'saved'` 关闭对话框、不再清掉新草稿（此前新草稿被清后再点保存，会退化成只发 `formSubmitted`、不落库），失败不再写进错误面板。判定沿用 edit 模式的编辑代次，与 Vue 同口径（RV-084）
+- **rxdb-model-vue:** `QueryBuilder` / `SubqueryBuilder` 挂载时各发一次 `queryChange` / `validationChange`，内容是当前查询与校验结果（载入的 `initialQuery`；没有时 `QueryBuilder` 发空查询、`SubqueryBuilder` 发 `undefined`），与 Angular / React 同口径。此前挂载时不发，`EntityList` 筛选弹层关闭不应用后再打开，「确定」仍按上次未应用的条件与校验状态（RV-084）
 - **rxdb-model / -angular / -react / -vue:** 列级只读贯穿键盘与批量入口：Enter / Space 切换、内部 / 系统剪贴板粘贴、Delete 清空都不再写只读属性列、计算列、id / 时间戳列、操作列与选择列，只读开关也不再被刷成关；`QueryBuilderService.setFields()` 之后已订阅的 `validation$` 立即按新字段重算；三端 `QueryBuilder` / `SubqueryBuilder` 把清空后的字段列表也同步给服务；React `QueryBuilder` 在 `<Activity>` 重显时保留用户查询，不再先对外发一个空查询（首次挂载带 `initialQuery` 时只发一次 `queryChange`）。
 - **rxdb-client-generator:** 输出目录尚未创建、经父目录软链指向同一物理目录的多个配置，在 CLI 加载配置与 Vite 插件创建时即被拒绝，不再首次生成时互删产物；判据统一为从最近存在的祖先解析物理路径，大小写不敏感的文件系统上只差大小写的已存在目录同样判为重复。
 - **rxdb-devtools:** database provider 在运行期换实例后自动换绑事件订阅：旧实例在切换后发出的事件不再转发，新实例的事件不必重新调用 `events` 就能收到。

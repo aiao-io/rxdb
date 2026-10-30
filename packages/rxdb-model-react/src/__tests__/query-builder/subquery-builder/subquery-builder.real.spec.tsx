@@ -122,6 +122,33 @@ describe('SubqueryBuilder（真实组件）', () => {
     expect(lastQuery(withInitial.onQueryChange)?.rules.length).toBe(1);
   });
 
+  // 挂载只发一次最终值（Angular / Vue 同口径，与 QueryBuilder 一致）：先 queryChange 再 validationChange，
+  // 值是载入 initialQuery 之后的查询与校验结果，不先发服务刚建好时的临时空查询（undefined）/ 临时合法
+  it.each([
+    { kind: '合法', field: 'title', valid: true },
+    { kind: '无效', field: 'missing', valid: false }
+  ] as const)(
+    '传$kind的 initialQuery 挂载：queryChange 与 validationChange 各只发一次，且是最终值',
+    ({ field, valid }) => {
+      const sub = renderBuilder({
+        initialQuery: { id: 'root', combinator: 'and', rules: [{ id: 'r1', field, operator: '=', value: 'hello' }] }
+      });
+
+      expect(sub.onQueryChange.mock.calls).toEqual([
+        [{ combinator: 'and', rules: [expect.objectContaining({ field, operator: '=', value: 'hello' })] }]
+      ]);
+      expect(sub.onValidationChange.mock.calls).toEqual([[expect.objectContaining({ valid })]]);
+      expect(sub.onQueryChange.mock.invocationCallOrder[0]).toBeLessThan(
+        sub.onValidationChange.mock.invocationCallOrder[0]
+      );
+    }
+  );
+
+  it('不传 initialQuery 挂载：queryChange 发 undefined、validationChange 发合法，各一次', () => {
+    expect(host.onQueryChange.mock.calls).toEqual([[undefined]]);
+    expect(host.onValidationChange.mock.calls).toEqual([[expect.objectContaining({ valid: true })]]);
+  });
+
   it('initialQuery 只应用一次：用户加规则后变更 initialQuery 不重置', () => {
     const withInitial = renderBuilder({
       initialQuery: {

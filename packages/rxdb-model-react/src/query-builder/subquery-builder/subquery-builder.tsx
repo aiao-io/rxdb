@@ -3,7 +3,8 @@
  *
  * 用于 EXISTS / NOT EXISTS 操作符的嵌套查询条件：添加子条件、嵌套规则组、清空子条件。
  * `initialQuery` 只应用一次（用户修改后不被重置）；没有规则时输出 `undefined`
- * （Angular 侧 queryChange 同语义）。
+ * （Angular 侧 queryChange 同语义）。挂载时 queryChange、validationChange 各只发一次，
+ * 值是载入 `initialQuery` 之后的查询与校验结果（Angular / Vue 同口径）。
  *
  * @module query-builder/subquery-builder
  */
@@ -12,6 +13,7 @@ import {
   type FieldMetadata,
   type QueryBuilderRuleGroup,
   type QueryBuilderService,
+  type RuleGroup,
   type UIRule,
   type ValidationResult
 } from '@aiao/rxdb-model';
@@ -58,10 +60,19 @@ export function SubqueryBuilder({
     onValidationChangeRef.current = onValidationChange;
   }, [onValidationChange]);
 
-  // 服务生命周期（挂载创建 / 卸载销毁，对应 Angular constructor + ngOnDestroy）
+  // 服务生命周期（挂载创建 / 卸载销毁，对应 Angular constructor + ngOnDestroy）。
+  // 字段与 initialQuery 在创建时就交给服务（QueryBuilder 同做法）：订阅即拿到载入之后的查询与校验结果，
+  // 挂载只发一次最终值，不先发临时的空查询（undefined）与临时合法。StrictMode 双挂载 / Activity 重显
+  // 重建服务时同样在创建时载入
   useEffect(() => {
-    const service = createQueryBuilderService<Record<string, unknown>>({ config: { maxNestingLevel: maxDepth } });
+    const service = createQueryBuilderService<Record<string, unknown>>({
+      config: { maxNestingLevel: maxDepth },
+      fields,
+      initialQuery: initialQuery as unknown as RuleGroup<Record<string, unknown>> | undefined
+    });
     serviceRef.current = service;
+    // 「只应用一次」针对这个服务：创建时已载入，下方 effect 不再重复应用
+    initialQueryAppliedRef.current = initialQuery !== undefined;
 
     const groupSubscription = service.rootGroup$.subscribe(group => {
       setRootGroup(group as unknown as UIRuleGroup);
@@ -79,9 +90,9 @@ export function SubqueryBuilder({
       validationSubscription.unsubscribe();
       service.destroy();
       serviceRef.current = null;
-      // 「只应用一次」针对这个服务：StrictMode 双挂载 / Activity 重显会重建服务，复位后由下方 effect 给新服务应用
-      initialQueryAppliedRef.current = false;
     };
+    // 服务只在挂载 / 重连时创建：maxDepth、字段、initialQuery 在创建时读取（Angular 侧 constructor 同语义），
+    // 之后的变化由下方 effect 同步
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -96,6 +96,8 @@ export default class EntityDetailPage {
 | `(formSubmitted)` / `(formCancelled)`               | 保存 / 取消                                            |
 | `(fieldChanged)` / `(validationErrors)`             | 字段变更与校验失败事件                                 |
 
+编辑目标未就绪（按 `entityId` 加载中或加载失败）时，表单内部动作隐藏、tabs 下方只留「取消」，提交被拦截；就绪后表单按加载到的实例重置，未就绪期间的输入不保留。`fixedFormData` 只合入 create 草稿与无实例的透传表单；已加载实例的 edit 模式下只把对应字段设为只读、显示实例自身的值。这两点与 React 一致，Vue 不同（见 Vue 页的「实体详情」）。
+
 ## 实体表单
 
 `EntityFormComponent`（selector `rxdb-entity-form`）：按模式渲染全部字段类型的输入控件，create / edit / view 三模式，view 模式全部字段只读。
@@ -127,5 +129,7 @@ export default class EntityDetailPage {
   [maxDepth]="5"
 />
 ```
+
+挂载时 `(queryChange)` / `(validationChange)` 各发一次当前值（载入的 `initialQuery` 及其校验结果，没传时是空查询），之后随编辑再发。
 
 主题注入：`provideQueryBuilderTheme(theme)` 在组件树任一层提供自定义 `QueryBuilderTheme`（字段选择器 / 操作符选择器 / 值输入组件的替换实现），缺省用内置 `DEFAULT_QUERY_BUILDER_THEME`。
