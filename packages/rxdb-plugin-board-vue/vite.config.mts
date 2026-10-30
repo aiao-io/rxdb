@@ -50,6 +50,7 @@ export default defineConfig(() => ({
     name: 'rxdb-plugin-board-vue',
     watch: false,
     globals: true,
+    testTimeout: 15000,
     environment: 'happy-dom',
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],

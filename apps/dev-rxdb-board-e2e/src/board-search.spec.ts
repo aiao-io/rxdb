@@ -43,7 +43,7 @@ const search = async (page: Page, query?: string): Promise<void> => {
 };
 
 const closeSearch = async (page: Page): Promise<void> => {
-  await page.keyboard.press('Escape');
+  await page.getByTestId('board-search-input').press('Escape');
   await expect(page.getByTestId('board-search')).toHaveCount(0);
 };
 
@@ -185,6 +185,8 @@ test('AC#13：重开既有库——编辑过的任务与标签原样，旧任务
   await page.getByTestId('label-row').filter({ hasText: '核心' }).getByTestId('label-edit').click();
   await page.getByTestId('label-name-input').fill('Core');
   await page.getByTestId('label-editor-save').click();
+  await expect(page.getByTestId('label-editor')).toHaveCount(0);
+  await expect(page.getByTestId('label-row').filter({ hasText: 'Core' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('label-manager')).toHaveCount(0);
 
