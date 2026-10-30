@@ -322,7 +322,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/aiao-media",
-        "command": "node --test scripts/build-supabase-config.test.mjs scripts/build-production-supabase-bundle.test.mjs scripts/local-first-worker.test.mjs scripts/product-api.test.mjs scripts/product-sync-contract.test.mjs scripts/migration.test.mjs"
+        "command": "node --test scripts/build-supabase-config.test.mjs scripts/build-production-supabase-bundle.test.mjs scripts/local-first-worker.test.mjs scripts/product-api.test.mjs scripts/product-sync-contract.test.mjs scripts/migration.test.mjs scripts/configure-supabase-oauth-local.test.mjs"
       }
     },
     "production-bundle": {
