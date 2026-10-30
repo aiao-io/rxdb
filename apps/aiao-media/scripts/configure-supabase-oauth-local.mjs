@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
 
 const placeholder = value => !value || /^(replace|your_|你的|<)/i.test(value);
+const placeholderSupabaseUrl = value => !value || /^https:\/\/your-project\.supabase\.co(?:\/|$)/i.test(value);
 
 /** 读取本地已有凭据，仅补齐 OAuth 所需配置，保留其他服务和有效的 cookie 密钥。 */
 export async function configureSupabaseOAuthLocal(application = resolve(import.meta.dirname, '..'), env = process.env) {
@@ -20,16 +21,26 @@ export async function configureSupabaseOAuthLocal(application = resolve(import.m
   const text = sql.toString('utf8');
   if (!text.includes('\nBEGIN;\n') || !text.includes('\nCOMMIT;')) throw new Error('初始化 SQL 不完整，原配置未修改。');
   const oldCookie = env.SUPABASE_OAUTH_COOKIE_SECRET || values.SUPABASE_OAUTH_COOKIE_SECRET || '';
+  const configuredAllowlist = values.ALLOWED_PROVIDER_BASE_URLS?.trim();
   const additions = {
     SUPABASE_OAUTH_CLIENT_ID: clientId,
     SUPABASE_OAUTH_CLIENT_SECRET: clientSecret,
     SUPABASE_OAUTH_COOKIE_SECRET: !placeholder(oldCookie) && oldCookie.length >= 32 ? oldCookie : randomBytes(32).toString('hex'),
     SUPABASE_OAUTH_REDIRECT_URI: 'http://localhost:4398/api/supabase/oauth/callback',
+    ALLOWED_PROVIDER_BASE_URLS:
+      configuredAllowlist && configuredAllowlist !== '[]' ? configuredAllowlist : '["https://api.pengdevs.com"]',
+    ...(placeholderSupabaseUrl(values.MEDIA_SUPABASE_URL) ? { MEDIA_SUPABASE_URL: '' } : {}),
     MEDIA_SUPABASE_AUTOINIT_SQL_B64: sql.toString('base64')
   };
   const replaced = new Set([...Object.keys(additions), 'MEDIA_SUPABASE_AUTOINIT_SQL']);
   const kept = existing.split(/\r?\n/).filter(line => !replaced.has(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line)?.[1]));
-  const updated = kept.join('\n').trimEnd() + '\n' + Object.entries(additions).map(([name, value]) => `${name}=${JSON.stringify(value)}`).join('\n') + '\n';
+  const updated =
+    kept.join('\n').trimEnd() +
+    '\n' +
+    Object.entries(additions)
+      .map(([name, value]) => `${name}=${name === 'ALLOWED_PROVIDER_BASE_URLS' ? value : JSON.stringify(value)}`)
+      .join('\n') +
+    '\n';
   const temporary = `${varsPath}.${randomBytes(8).toString('hex')}.tmp`;
   await writeFile(temporary, updated, { mode: 0o600, flag: 'wx' });
   await rename(temporary, varsPath);

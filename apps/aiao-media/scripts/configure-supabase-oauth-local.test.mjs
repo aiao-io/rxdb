@@ -12,7 +12,7 @@ test('读取已有私有配置，保留其他变量和有效 cookie secret，补
     await mkdir(join(root, 'deploy'));
     await mkdir(join(root, 'tmp'));
     const varsPath = join(root, 'deploy/.dev.vars');
-    const original = 'SUPABASE_OAUTH_CLIENT_ID="fixture-client"\nSUPABASE_OAUTH_CLIENT_SECRET="fixture-secret"\nSUPABASE_OAUTH_COOKIE_SECRET="' + 'a'.repeat(64) + '"\nSUPABASE_OAUTH_REDIRECT_URI="http://127.0.0.1:4398/api/supabase/oauth/callback"\nMEDIA_PLATFORM_MODELS="[]"\nMEDIA_SUPABASE_AUTOINIT_SQL=replace_with_reviewed_autoinit_bundle\n';
+    const original = 'SUPABASE_OAUTH_CLIENT_ID="fixture-client"\nSUPABASE_OAUTH_CLIENT_SECRET="fixture-secret"\nSUPABASE_OAUTH_COOKIE_SECRET="' + 'a'.repeat(64) + '"\nSUPABASE_OAUTH_REDIRECT_URI="http://127.0.0.1:4398/api/supabase/oauth/callback"\nMEDIA_SUPABASE_URL="https://your-project.supabase.co"\nMEDIA_PLATFORM_MODELS="[]"\nMEDIA_SUPABASE_AUTOINIT_SQL=replace_with_reviewed_autoinit_bundle\n';
     await writeFile(varsPath, original);
     const sql = '-- reviewed fixture\nBEGIN;\nSELECT 1;\nCOMMIT;\n';
     await writeFile(join(root, 'tmp/supabase-autoinit.sql'), sql);
@@ -22,6 +22,8 @@ test('读取已有私有配置，保留其他变量和有效 cookie secret，补
     assert.equal(result.SUPABASE_OAUTH_CLIENT_SECRET, 'fixture-secret');
     assert.equal(result.SUPABASE_OAUTH_COOKIE_SECRET, 'a'.repeat(64));
     assert.equal(result.MEDIA_PLATFORM_MODELS, '[]');
+    assert.equal(result.MEDIA_SUPABASE_URL, '');
+    assert.equal(result.ALLOWED_PROVIDER_BASE_URLS, '["https://api.pengdevs.com"]');
     assert.equal(result.MEDIA_SUPABASE_AUTOINIT_SQL, undefined);
     assert.equal(result.SUPABASE_OAUTH_REDIRECT_URI, 'http://localhost:4398/api/supabase/oauth/callback');
     assert.equal(Buffer.from(result.MEDIA_SUPABASE_AUTOINIT_SQL_B64, 'base64').toString('utf8'), sql);

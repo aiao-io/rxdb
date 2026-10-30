@@ -15,7 +15,7 @@
 本地 OAuth 配置：
 
 1. 在 Supabase 组织设置的 OAuth Apps 中登记回调 `http://localhost:4398/api/supabase/oauth/callback`。Supabase 的 HTTP 例外只接受 `localhost`，不能使用 `127.0.0.1`；生产回调使用 HTTPS。
-2. 将 Client ID 和 Client Secret 填入被 Git 忽略的 `deploy/.dev.vars`，再运行 `pnpm nx run aiao-media:supabase-oauth-local-config`。脚本保留其他变量和已有有效 cookie 密钥，补齐初始化 SQL 与本地回调，并将文件权限设为 0600。
+2. 将 Client ID 和 Client Secret 填入被 Git 忽略的 `deploy/.dev.vars`，再运行 `pnpm nx run aiao-media:supabase-oauth-local-config`。脚本保留其他变量和已有有效 cookie 密钥，补齐初始化 SQL、本地回调和默认代理白名单；示例 Supabase URL 会被清空，避免误触发产品策略请求，并将文件权限设为 0600。
 3. 重启 `pnpm nx run aiao-media:preview`，打开 `http://localhost:4398/providers` 重新连接。页面与回调必须使用同一主机名，才能保留 OAuth state cookie。
 
 凭据只用部署平台 secrets 管理，不写入 Wrangler vars、Git、队列、网页或桌面包。示例见 [.dev.vars.example](.dev.vars.example)。生产发布前核对构建产物、RLS、Auth、管理员授权、bucket 权限及真实端到端验收；配置齐全不等于已验收。

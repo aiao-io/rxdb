@@ -34,7 +34,7 @@
     }
   ],
   "vars": {
-    "ALLOWED_PROVIDER_BASE_URLS": "[]",
+    "ALLOWED_PROVIDER_BASE_URLS": "[\"https://api.pengdevs.com\"]",
     "MEDIA_ALLOW_DESKTOP_ORIGIN": "true",
     "SUPABASE_OAUTH_REDIRECT_URI": "https://media.aiao.io/api/supabase/oauth/callback"
   },
