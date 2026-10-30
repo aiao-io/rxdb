@@ -116,11 +116,15 @@ describe('真实双连接的跨 Tab 增量 UPDATE 与未缓存实体的活查询
     await expect.poll(() => counts.at(-1), POLL).toBe(0);
     expect(b.entityManager.hasEntityRef(ConformanceNote, id)).toBe(false);
     const updates = receivedUpdates(b, id);
-    // 身份缓存按 WeakRef 存，count 不强引用实体：残缺实体要一直持有到最后一次 poll，
-    // 否则第二条更新可能落到冷缓存分支，两条路径都刷到 1，分不出验的是哪一条
+    // 身份缓存按 WeakRef 存，count 不强引用实体：残缺实体要从建出起一直持有到最后一次 poll。
+    // 建出到被 poll 读到之间撞上一次 GC，它就再也读不回来（CI 负载下复现过）；读到后不持有，
+    // 第二条更新又可能落到冷缓存分支，两条路径都刷到 1，分不出验的是哪一条
     let sparse: ConformanceNote | undefined;
 
     if (primeCache) {
+      // 合并在空闲回调里经 createEntityRef 建出残缺实体，spy 的 mock.results 从那一刻起就强持有它
+      const created = vi.spyOn(b.entityManager, 'createEntityRef');
+      cleanups.push(() => created.mockRestore());
       await renameNote(a, id, 'queued');
       await expect.poll(() => updates.length, POLL).toBe(1);
       expectIncrementalUpdate(updates[0], 'queued');
