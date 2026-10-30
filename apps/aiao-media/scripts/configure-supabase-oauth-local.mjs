@@ -10,8 +10,11 @@ const placeholderSupabaseUrl = value => !value || /^https:\/\/your-project\.supa
 export async function configureSupabaseOAuthLocal(application = resolve(import.meta.dirname, '..'), env = process.env) {
   const varsPath = resolve(application, 'deploy/.dev.vars');
   let existing = '';
-  try { existing = await readFile(varsPath, 'utf8'); }
-  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  try {
+    existing = await readFile(varsPath, 'utf8');
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
   const values = parseEnv(existing);
   const clientId = (env.SUPABASE_OAUTH_CLIENT_ID || values.SUPABASE_OAUTH_CLIENT_ID || '').trim();
   const clientSecret = (env.SUPABASE_OAUTH_CLIENT_SECRET || values.SUPABASE_OAUTH_CLIENT_SECRET || '').trim();
@@ -25,7 +28,8 @@ export async function configureSupabaseOAuthLocal(application = resolve(import.m
   const additions = {
     SUPABASE_OAUTH_CLIENT_ID: clientId,
     SUPABASE_OAUTH_CLIENT_SECRET: clientSecret,
-    SUPABASE_OAUTH_COOKIE_SECRET: !placeholder(oldCookie) && oldCookie.length >= 32 ? oldCookie : randomBytes(32).toString('hex'),
+    SUPABASE_OAUTH_COOKIE_SECRET:
+      !placeholder(oldCookie) && oldCookie.length >= 32 ? oldCookie : randomBytes(32).toString('hex'),
     SUPABASE_OAUTH_REDIRECT_URI: 'http://localhost:4398/api/supabase/oauth/callback',
     ALLOWED_PROVIDER_BASE_URLS:
       configuredAllowlist && configuredAllowlist !== '[]' ? configuredAllowlist : '["https://api.pengdevs.com"]',
@@ -33,7 +37,9 @@ export async function configureSupabaseOAuthLocal(application = resolve(import.m
     MEDIA_SUPABASE_AUTOINIT_SQL_B64: sql.toString('base64')
   };
   const replaced = new Set([...Object.keys(additions), 'MEDIA_SUPABASE_AUTOINIT_SQL']);
-  const kept = existing.split(/\r?\n/).filter(line => !replaced.has(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line)?.[1]));
+  const kept = existing
+    .split(/\r?\n/)
+    .filter(line => !replaced.has(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line)?.[1]));
   const updated =
     kept.join('\n').trimEnd() +
     '\n' +
@@ -52,5 +58,7 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename
   const path = await configureSupabaseOAuthLocal();
   console.log(`本地 OAuth 配置已补齐：${path}；保留其他变量，权限 0600。`);
   console.log('重启 aiao-media:preview 后生效；未输出任何密钥。');
-  console.log('本地入口：http://localhost:4398/providers；Supabase OAuth 应用需登记 http://localhost:4398/api/supabase/oauth/callback。');
+  console.log(
+    '本地入口：http://localhost:4398/providers；Supabase OAuth 应用需登记 http://localhost:4398/api/supabase/oauth/callback。'
+  );
 }
