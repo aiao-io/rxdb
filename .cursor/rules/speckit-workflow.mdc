@@ -6,6 +6,7 @@ alwaysApply: false
 # Spec Kit（Cursor）
 
 本仓库已安装 `cursor-agent` 集成。在 Cursor Agent 对话中通过 **Skills** 或斜杠命令驱动（命令名中的 `.` 换成 `-`）。
+同时安装了 Codex 集成，在 Codex 对话中使用 `$speckit-*` 调用同一套核心流程。
 
 ## 核心流程
 
@@ -31,7 +32,7 @@ alwaysApply: false
 | `/speckit-git-remote` | 检测 remote |
 | `/speckit-git-initialize` | 初始化仓库 |
 
-Skills 目录：`.cursor/skills/`（核心）+ `.agents/skills/`（Git 扩展，已链到 `.cursor/skills/`）。
+Skills 目录：`.cursor/skills/`（Cursor 核心）与 `.agents/skills/`（Codex 核心及 Git 扩展）；Cursor 的 Git 扩展目录通过符号链接复用 `.agents/skills/`。
 
 ## 目录
 
