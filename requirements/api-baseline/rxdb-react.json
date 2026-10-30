@@ -114,6 +114,10 @@
         "kind": "value"
       },
       {
+        "name": "useHasRxDBProvider",
+        "kind": "value"
+      },
+      {
         "name": "useInfiniteScroll",
         "kind": "value"
       },

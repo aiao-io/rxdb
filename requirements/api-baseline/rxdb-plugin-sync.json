@@ -42,6 +42,10 @@
         "kind": "value"
       },
       {
+        "name": "queryCacheEntityIdentifier",
+        "kind": "value"
+      },
+      {
         "name": "QueryCacheOutboxFailure",
         "kind": "type"
       },

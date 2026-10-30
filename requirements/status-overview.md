@@ -9,8 +9,8 @@
 | :------------- | :--- |
 | ✅ Done        | 86   |
 | 🚧 In Progress | 1    |
-| 👀 In Review   | 4    |
-| 📝 Backlog     | 30   |
+| 👀 In Review   | 6    |
+| 📝 Backlog     | 28   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 121  |
 
@@ -23,14 +23,16 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md) | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。 |
 
-## 待评审（4 条）
+## 待评审（6 条）
 
-| Story                                                                                         | 剩余范围                                                                      |
-| --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)  | 改了读取列而缓存补不齐时回 SQL 已实现，核心与真实双连接回归通过；待代码评审。 |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                               |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。   |
-| [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)      | workspace接线已验证；发布tarball仓外消费与独立重搭仍待验证，AC#1/#3不能标绿。 |
+| Story                                                                                                                | 剩余范围                                                                                                        |
+| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)                         | 改了读取列而缓存补不齐时回 SQL 已实现，核心与真实双连接回归通过；待代码评审。                                   |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                           | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                                                 |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)                        | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                                     |
+| [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)                             | workspace接线已验证、AC#2成本记录已通过；AC#1发布tarball仓外消费与AC#3试用者按文档独立重搭仍待验证，不能标绿。  |
+| [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)          | 直写修改经 `p_updates` 普通 UPDATE 并返回服务器最终行，推送与原计数入口保留既有权限语义；待代码评审。           |
+| [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md) | 触发器捕获实际 DELETE，RPC 在源日志后写完整隐式日志；显式删除去重、回执收口与混合批次顺序回归通过；待代码评审。 |
 
 ## 阻塞（0 条）
 
@@ -109,8 +111,8 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - 👀 [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)
 - ✅ [US-220 Supabase 推送 UPDATE 的落库语义](stories/adapter/US-220-supabase-update-push-semantics.md)
 - ✅ [US-221 OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄](stories/adapter/US-221-opfs-reload-access-handle-race.md)
-- ⬜ [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)
-- ⬜ [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md)
+- 👀 [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)
+- 👀 [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md)
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md)

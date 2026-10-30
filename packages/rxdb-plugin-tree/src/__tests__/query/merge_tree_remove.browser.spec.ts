@@ -3,6 +3,7 @@ import { collectEmissions, createHarnessQueryTask, type HarnessTaskOptions } fro
 import { of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 import { merge_remove as query_merge_remove_cache_impl } from '../../query/merge_remove.js';
+import { createTreeSqlScenario, type TreeSqlScenario } from './tree-sql-reference.js';
 
 describe('query_merge_tree_remove_cache - REMOVE 事件的树形查询', () => {
   class TestEntity {
@@ -1408,6 +1409,110 @@ describe('query_merge_tree_remove_cache - REMOVE 事件的树形查询', () => {
         // leaf 的父级被删，失去连接，跟着一起摘掉
         [{ id: 5, name: 'root', parentId: null }]
       ]);
+    });
+  });
+
+  /**
+   * count 不维护结果集，刷新规则只按被删行的快照判 where。基准成员（查全树时的根、指定 `entityId` 时的目标）
+   * 在 SQL 里不过 where：删掉不匹配 where 的根，全树计数要少一；删掉目标，CTE 落空、计数归零。
+   * 列表查询的基准成员一定在结果集里，`result_contains` 接得住，这里只补一条列表对照。
+   * runner 在内存表上按 `generate_tree_sql` 的口径重跑，见 `tree-sql-reference.ts`。
+   */
+  describe('删除基准成员：即时结果与重跑 SQL 一致', () => {
+    const activeOnly = {
+      combinator: 'and' as const,
+      rules: [{ field: 'active', operator: '=' as const, value: true }]
+    };
+
+    /** 先从表里删掉、再发 DELETE 事件，与「先提交、后发事件」同序；事件快照取删除前的整行 */
+    const remove = (scenario: TreeSqlScenario<TestEntityType>, ...ids: string[]): void => {
+      const removed = scenario.rows.filter(row => ids.includes(row.id));
+      const kept = scenario.rows.filter(row => !ids.includes(row.id));
+      scenario.rows.splice(0, scenario.rows.length, ...kept);
+      query_merge_remove_cache(scenario.task, removed.map(createMockRemoveEvent));
+    };
+
+    it.each([undefined, 0])('countDescendants 全树（level=%s）：删除不匹配 where 的根，计数即时回落', level => {
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'countDescendants', options: { entityId: null, level, where: activeOnly } },
+        [{ id: 'r', parentId: null, active: false }]
+      );
+      expect(scenario.live()).toBe(1);
+
+      remove(scenario, 'r');
+
+      expect(scenario.sql()).toBe(0);
+      expect(scenario.live()).toBe(0);
+    });
+
+    it('countAncestors 显式目标：删除不匹配 where 的目标，祖先计数即时归零', () => {
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'countAncestors', options: { entityId: 't', where: activeOnly } },
+        [
+          { id: 'p', parentId: null, active: true },
+          { id: 't', parentId: 'p', active: false }
+        ]
+      );
+      expect(scenario.live()).toBe(1);
+
+      // 祖先不受级联影响：p 还在，只是起点没了，整条 CTE 落空
+      remove(scenario, 't');
+
+      expect(scenario.sql()).toBe(0);
+      expect(scenario.live()).toBe(0);
+    });
+
+    it('findDescendants 全树：删除不匹配 where 的根即时摘除', () => {
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'findDescendants', options: { entityId: null, where: activeOnly } },
+        [
+          { id: 'a', parentId: null, active: true },
+          { id: 'r', parentId: null, active: false }
+        ]
+      );
+
+      remove(scenario, 'r');
+
+      expect(scenario.sql()).toEqual([{ id: 'a', parentId: null, active: true }]);
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it('countDescendants：删除匹配 where 的普通行照旧回 SQL', () => {
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'countDescendants', options: { entityId: null, where: activeOnly } },
+        [
+          { id: 'r', parentId: null, active: false },
+          { id: 'c', parentId: 'r', active: true }
+        ]
+      );
+      expect(scenario.live()).toBe(2);
+
+      remove(scenario, 'c');
+
+      expect(scenario.sqlRuns()).toBe(2);
+      expect(scenario.live()).toBe(1);
+      expect(scenario.live()).toEqual(scenario.sql());
+    });
+
+    it('countDescendants：删除不匹配 where 的非基准行不回 SQL', () => {
+      const scenario = createTreeSqlScenario(
+        TestEntity,
+        { type: 'countDescendants', options: { entityId: null, where: activeOnly } },
+        [
+          { id: 'r', parentId: null, active: true },
+          { id: 'x', parentId: 'r', active: false }
+        ]
+      );
+
+      remove(scenario, 'x');
+
+      expect(scenario.sqlRuns()).toBe(1);
+      expect(scenario.live()).toBe(1);
+      expect(scenario.live()).toEqual(scenario.sql());
     });
   });
 });

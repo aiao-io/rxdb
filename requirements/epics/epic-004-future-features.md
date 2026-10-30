@@ -33,6 +33,11 @@ owner: jimmy
 - [x] 普通实体可声明手动排序（整表或按分组字段），三端 Todo 列表可拖拽调整先后并落库
 - [x] 三端 demo 的树菜单与文件管理器改用可排序树实体，排序键一律由 core 给出，同一操作三端结果一致
 
+## 当前交付
+
+2026-10-28 owner 授权完成 US-223 / US-224，纳入 [roadmap 批次 3](../roadmap.md#批次-3能力补齐可并行开-pr)。
+两条故事待评审，AC 全部通过；2026-10-29 分支评审的修复已复验适配器全量用例与 SQL 安全回归，验证范围与数字见各 story 的验证记录。尚未合并，不标 Done。
+
 ## 故事
 
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
@@ -65,8 +70,8 @@ owner: jimmy
 - [US-218 Supabase 远端启用 RLS 时的推送完整性](../stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：业务表开 RLS 后，被策略过滤的删除仍写进 `rxdb_change`，其它端拉到幽灵 DELETE（SQL 回归 `rls-filtered-delete` 已复现，连 SELECT 都看不到的行同样中招）；三阶段（不写幽灵日志 + 日志与业务写配对 → 逐实体回执与被拒实体本地对齐 → 日志表收口与部署指引），阶段 B 以 US-220 为前置，不含租户与角色
 - [US-220 Supabase 推送 UPDATE 的落库语义](../stories/adapter/US-220-supabase-update-push-semantics.md) — 推送把 UPDATE 当 `INSERT … ON CONFLICT DO UPDATE` 落库：只改部分列在 NOT NULL 列上报 23502，owner 型 RLS 下改自己的行、INSERT 比 UPDATE 窄的表上改别人的行都误报 42501；改走普通 UPDATE，单个 PR，US-218 阶段 B 的前置
 - [US-221 OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄](../stories/adapter/US-221-opfs-reload-access-handle-race.md) — 三端 demo 走的 sqlite-wasm（OPFS）路径：刷新时上一个页面的 Worker 还占着库文件的同步访问句柄，`createSyncAccessHandle()` 抛 `NoModificationAllowedError`，VFS 不重试，应用起不来也不报错；有界重试（wa-sqlite 的 `OPFSCoopSyncVFS` 同一个 VFS，一并覆盖）+ 连接失败提示 + 确定性浏览器用例
-- [US-223 Supabase 直写路径的 UPDATE 落库语义](../stories/adapter/US-223-supabase-mutations-update-semantics.md) — US-220 的直写路径半边：`mutations()` 仍把修改并进 `p_upserts`，owner 型与共享编辑型 RLS 下改行被 42501 误拒
-- [US-224 Supabase 推送路径上级联删除的子行不写变更日志](../stories/adapter/US-224-supabase-cascade-delete-change-log.md) — `p_skip_sync = true` 时被 `ON DELETE CASCADE` 删掉的子行没有 `rxdb_change`，其它端拉不到这些删除
+- [US-223 Supabase 直写路径的 UPDATE 落库语义](../stories/adapter/US-223-supabase-mutations-update-semantics.md) — `mutations()` 修改经 `p_updates` 执行普通 UPDATE，修复 owner 型与共享编辑型 RLS 的 INSERT 误拒；仅直写返回服务器最终行，推送与原计数入口保留既有权限语义
+- [US-224 Supabase 推送路径上级联删除的子行不写变更日志](../stories/adapter/US-224-supabase-cascade-delete-change-log.md) — 服务端触发器捕获实际 DELETE 的完整 `OLD`，RPC 在源日志后统一写入隐式日志；同批显式删除去重并保留客户端映射，最终回执按实际删除收口，混合批次不复活子行
 - [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`；阶段 B 失败现场数据原样归档与导入（价值证据门禁已豁免；传输限制经主线程 IDB 第二连接绕开）；阶段 C 应用内 rrweb 录制插件与三框架组件（价值待证门禁已豁免）
 - [US-104 rxdb-model 表单校验反馈与保存失败的展示](../stories/framework/US-104-validation-feedback.md) — 三端 EntityDetail 错误面板（US-526 AC#4 触发）
 - [US-910 数据国际化 / 本地化](../stories/future/US-910-data-i18n.md) — 生产方案采用 C-L；阶段 A 先验证同步启停公开入口与删除证据/合并扩展点，再做 Full/Filter 试点；HTTP QueryCache demo 不承担同步验收

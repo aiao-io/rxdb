@@ -63,6 +63,8 @@ await rxdb.syncManager.pushRepository('public', 'note');
 
 只有 `import type { QueryCacheRemoteAdapter }`，**不产生** `inject` 运行期依赖。装了本包、没装 `@aiao/rxdb-plugin-querycache` 且没有 QueryCache 实体的工作区照常运行。
 
+QueryCache 的实体标识 `queryCacheEntityIdentifier(namespace, entity)` 由本包导出：`public` 用裸实体名，其余命名空间写成 `namespace:entity`。读引擎包的在线读写与本包的出站重放共用它——远端资源映射（如 HTTP 适配器的 `resources`）与本地缓存表都按这个标识定位，两边各拼一份，非 public 实体的离线写就会被重放到同名的公共实体上。读引擎包本就依赖本包，标识只能从这一侧出。
+
 ## 没装插件时
 
 `rxdb.syncManager` **不存在**（读到 `undefined`），核心不给一个什么都不做的空壳。

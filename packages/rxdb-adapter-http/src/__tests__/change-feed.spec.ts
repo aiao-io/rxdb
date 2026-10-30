@@ -309,6 +309,60 @@ describe('连接生命周期（AC#13）', () => {
   });
 });
 
+/**
+ * 同源部署的相对 `baseUrl`：普通请求与 SSE 走同一个地址出口，
+ * 浏览器里补成绝对地址，没有页面地址的宿主照旧在构造期拒绝。
+ */
+describe('同源相对 baseUrl', () => {
+  const PAGE = 'https://app.example.test/app/page';
+
+  it.each([
+    ['/api', 'https://app.example.test/api'],
+    ['api', 'https://app.example.test/app/api']
+  ])('浏览器里 baseUrl=%s 开着 changeFeed 照常构造，SSE 与查询都打到 %s 下', async (baseUrl, origin) => {
+    vi.stubGlobal('location', { href: PAGE });
+    const fetchMock = vi.fn(() => Promise.resolve(new Response('[]', { status: 200 })));
+    vi.stubGlobal('fetch', fetchMock);
+    const { adapter } = createAdapter({ baseUrl, changeFeed: { url: 'changes' } });
+
+    await adapter.connect();
+    await firstValueFrom(adapter.fetchMetadata('FeedRecipe', ALL));
+
+    expect(lastSource().url).toBe(`${origin}/changes`);
+    expect(fetchMock.mock.calls[0]).toEqual([`${origin}/metadata`, expect.anything()]);
+  });
+
+  it('绝对 baseUrl 不受页面地址影响', async () => {
+    vi.stubGlobal('location', { href: PAGE });
+    await createConnectedFeed();
+    expect(lastSource().url).toBe(FEED_URL);
+  });
+
+  it('页面地址补不全畸形的绝对地址：changeFeed.url = "https://" 仍在构造期拒绝', () => {
+    vi.stubGlobal('location', { href: PAGE });
+    expect(() => createAdapter({ changeFeed: { url: 'https://' } })).toThrow(HttpConfigError);
+    expect(FakeEventSource.instances).toEqual([]);
+  });
+
+  it('没有页面地址的宿主拒绝相对地址，错误 URL 进不了退避重连', () => {
+    vi.useFakeTimers();
+    const error = (() => {
+      try {
+        createAdapter({ baseUrl: '/api', changeFeed: { url: 'changes' } });
+      } catch (thrown) {
+        return thrown;
+      }
+      throw new Error('用例期望构造期抛错');
+    })();
+
+    expect(error).toBeInstanceOf(HttpConfigError);
+    expect((error as HttpConfigError).field).toBe('changeFeed.url');
+    expect((error as HttpConfigError).value).toBe('/api/changes');
+    expect(FakeEventSource.instances).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
 describe('推送 → 失效上报（AC#14 / AC#15）', () => {
   it('收到通知 → 失效上报口被调用一次，实体名原样透出', async () => {
     const { invalidate } = await createConnectedFeed();
@@ -378,6 +432,40 @@ describe('推送 → 失效上报（AC#14 / AC#15）', () => {
     expect(() => lastSource().pushRaw(data)).not.toThrow();
     expect(invalidate).not.toHaveBeenCalled();
     expect(reports.map(report => report.reason)).toEqual(['malformed-message']);
+  });
+});
+
+/**
+ * 失效上报说的是「远端从此刻起可能不一样了」：通知之后发起的读若并进通知之前的在飞条件请求，
+ * 核心按失效重跑的那次查询拿回的仍是旧快照，而且一个请求都不上线。
+ */
+describe('失效之后的读不合流到失效之前的在飞条件请求', () => {
+  it.each([
+    ['收到变更通知', (source: FakeEventSource) => source.push({ entity: 'FeedRecipe' })],
+    ['连接（重新）建立的全量失效', (source: FakeEventSource) => source.open()]
+  ])('%s之后发起的读真的上线', async (_, trigger) => {
+    const calls: { respond: (response: Response) => void }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise<Response>(respond => calls.push({ respond })))
+    );
+    const { adapter, rxdb } = createAdapter({ conditionalRequests: true, changeFeed: { url: 'changes' } });
+    const invalidate = vi.spyOn(rxdb, 'invalidateRemoteEntity').mockImplementation(() => undefined);
+    await adapter.connect();
+    const stale = { id: 'a', updatedAt: '2026-08-27T10:00:00.000Z' };
+    const fresh = { id: 'a', updatedAt: '2026-08-27T11:00:00.000Z' };
+
+    const before = firstValueFrom(adapter.fetchMetadata('FeedRecipe', ALL));
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    trigger(lastSource());
+    expect(invalidate).toHaveBeenCalled();
+
+    const after = firstValueFrom(adapter.fetchMetadata('FeedRecipe', ALL));
+    await vi.waitFor(() => expect(calls).toHaveLength(2));
+    calls[0].respond(new Response(JSON.stringify([stale])));
+    calls[1].respond(new Response(JSON.stringify([fresh])));
+    await expect(before).resolves.toEqual([stale]);
+    await expect(after).resolves.toEqual([fresh]);
   });
 });
 

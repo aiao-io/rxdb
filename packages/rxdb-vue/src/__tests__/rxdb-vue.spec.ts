@@ -90,6 +90,22 @@ describe('rxdb-vue dependency injection', () => {
     mounted.wrapper.unmount();
   });
 
+  it('允许静默注入响应式引用，保留迟到就绪与无 provider 的可选语义', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const databaseRef = shallowRef<RxDB>();
+    const mounted = mountWithProvider(databaseRef, () => RxDBVue.injectRxDBRef(true));
+    expect(mounted.result).toBe(databaseRef);
+    databaseRef.value = createRxDB('迟到就绪');
+    await nextTick();
+    expect(mounted.result?.value).toBe(databaseRef.value);
+    mounted.wrapper.unmount();
+
+    const wrapper = mount(createSetupHarness(() => expect(RxDBVue.injectRxDBRef(true)).toBeUndefined()));
+    expect(warning).not.toHaveBeenCalled();
+    wrapper.unmount();
+    warning.mockRestore();
+  });
+
   it('throws from useRxDBRef when no provider exists', () => {
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const Consumer = createSetupHarness(() => {

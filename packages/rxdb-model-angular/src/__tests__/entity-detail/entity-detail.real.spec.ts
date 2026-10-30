@@ -8,7 +8,7 @@ import {
 import { Account, Contract, Invoice, Todo } from '@aiao/rxdb-test/entities';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityDetailComponent, type EntityDetailDialogData } from '../../entity-detail/entity-detail';
@@ -588,6 +588,52 @@ describe('EntityDetailComponent（真实组件）', () => {
     });
     expect(closeSpy).toHaveBeenCalledWith('saved');
     expect(submitted).toEqual([{ title: '已编辑', count: 2 }]);
+  });
+
+  /** 把表单里当前显示为 `from` 的文本框改成 `to`：EntityForm 的文本框按 change 收值。 */
+  const changeTextInput = (fixture: ComponentFixture<EntityDetailComponent>, from: string, to: string): void => {
+    const input = fixture.debugElement
+      .queryAll(By.css('input'))
+      .map(d => d.nativeElement as HTMLInputElement)
+      .find(el => el.value === from);
+    if (!input) throw new Error(`找不到显示为「${from}」的文本框`);
+    input.value = to;
+    input.dispatchEvent(new Event('change'));
+  };
+
+  it('edit 模式输入之后再跑变更检测，表单不被已加载实例重置：提交并落库的是用户输入', async () => {
+    const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '旧标题', count: 1 });
+    await inst.save();
+
+    const { fixture, component } = createWithRouteInputs('test', 'DetailGroup', inst.id);
+    const submitted: EntityFormData[] = [];
+    component.formSubmitted.subscribe(e => submitted.push(e));
+    await FLUSH();
+    fixture.detectChanges();
+
+    changeTextInput(fixture, '旧标题', '用户输入');
+    // 输入事件之后的任意一轮变更检测（失焦、别处信号变化）都会重算模板绑定
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.css('form')).nativeElement.dispatchEvent(new Event('submit'));
+    await vi.waitFor(async () => {
+      expect(((await findAll())[0] as Record<string, unknown>)['title']).toBe('用户输入');
+    });
+    expect(submitted.map(data => data['title'])).toEqual(['用户输入']);
+  });
+
+  it('edit 模式无实例且带 fixedFormData 时，输入之后再跑变更检测，透传的仍是用户输入', async () => {
+    const { fixture, submitted } = createWithDialog(
+      dialogData({ formMode: 'edit', formData: { title: '原值', count: 0 }, fixedFormData: { count: 9 } })
+    );
+
+    changeTextInput(fixture, '原值', '用户输入');
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.css('form')).nativeElement.dispatchEvent(new Event('submit'));
+    await FLUSH();
+
+    expect(submitted.map(data => [data['title'], data['count']])).toEqual([['用户输入', 9]]);
   });
 
   it('edit 模式无实例（无 entityId）时 formSubmitted 直接透传，不落库', async () => {

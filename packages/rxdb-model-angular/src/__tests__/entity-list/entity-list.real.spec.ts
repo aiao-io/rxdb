@@ -42,6 +42,24 @@ class LockedTask extends EntityBase {
   declare title: string;
 }
 
+/** 字段级只读的实体：code / archived 只读，title / pinned 可写（列级只读回归用） */
+@Entity({
+  name: 'ReadonlyFieldNote',
+  namespace: 'test',
+  properties: [
+    { name: 'code', type: PropertyType.string, readonly: true },
+    { name: 'archived', type: PropertyType.boolean, readonly: true },
+    { name: 'title', type: PropertyType.string },
+    { name: 'pinned', type: PropertyType.boolean }
+  ]
+})
+class ReadonlyFieldNote extends EntityBase {
+  declare code: string;
+  declare archived: boolean;
+  declare title: string;
+  declare pinned: boolean;
+}
+
 /**
  * EntityListComponent —— **真实组件源码**。
  *
@@ -96,7 +114,8 @@ describe('EntityListComponent（真实组件）', () => {
       Invoice,
       Contract,
       Task,
-      LockedTask
+      LockedTask,
+      ReadonlyFieldNote
     ] as unknown as EntityType[]);
     await rxdb.connect(IN_MEMORY_ADAPTER_NAME);
     const { firstValueFrom } = await import('rxjs');
@@ -655,6 +674,69 @@ describe('EntityListComponent（真实组件）', () => {
     expect(updates.length - updatesBefore).toBe(1);
     expect(updates.at(-1)!.patch).toMatchObject({ title: 'batch-done', completed: true });
     expect(updates.at(-1)!.patch).not.toHaveProperty('actions');
+  });
+
+  it('列级只读：Enter / Space、Delete、系统与内部剪贴板都不改只读字段，可写列照常落库', async () => {
+    const a = new ReadonlyFieldNote({ code: 'A-1', archived: true, title: 'a', pinned: true });
+    await a.save();
+    const b = new ReadonlyFieldNote({ code: 'B-1', archived: false, title: 'b', pinned: false });
+    await b.save();
+    let clipboardText = '';
+    Object.defineProperty(navigator, 'clipboard', {
+      value: {
+        writeText: vi.fn(async (text: string) => {
+          clipboardText = text;
+        }),
+        readText: vi.fn(async () => clipboardText)
+      },
+      configurable: true
+    });
+    const { fixture } = await renderList({ namespace: 'test', name: 'ReadonlyFieldNote' });
+    await vi.waitFor(() => expect(tableOf(fixture).records).toHaveLength(2));
+    const updatesBefore = adapter.changes.filter(c => c.type === 'UPDATE').length;
+    const table = tableOf(fixture);
+    const switches = vi.spyOn(table, 'setCellSwitchState');
+    const col = (field: string): number => table.columns.findIndex(column => column['field'] === field) + 1;
+    const rowOf = (id: string): number => tableOf(fixture).records.findIndex(record => record['id'] === id) + 1;
+    const rowCells = (id: string) =>
+      (['code', 'archived', 'title', 'pinned'] as const).map(field => ({
+        col: col(field),
+        row: rowOf(id),
+        field,
+        cellType: field === 'archived' || field === 'pinned' ? 'switch' : 'text'
+      }));
+    const press = async (init: KeyboardEventInit): Promise<void> => {
+      table.getElement().dispatchEvent(new KeyboardEvent('keydown', { cancelable: true, ...init }));
+      await FLUSH();
+      fixture.detectChanges();
+    };
+
+    // Enter / Space 切换只读布尔列
+    table.emit('selected_cell', { col: col('archived'), row: rowOf(a.id) });
+    await press({ key: 'Enter' });
+    await press({ key: ' ' });
+    // Delete 清空：只读的 code / archived 与可写的 pinned（对照）
+    table.selectedCellInfos = [rowCells(a.id).filter(cell => cell.field !== 'title')];
+    await press({ key: 'Delete' });
+    await vi.waitFor(() => expect(a.pinned).toBe(false));
+    // 系统剪贴板整行粘贴到 b
+    clipboardText = 'X-9\ttrue\tpasted\ttrue';
+    table.selectedCellInfos = [rowCells(b.id)];
+    await press({ key: 'v', ctrlKey: true });
+    await vi.waitFor(() => expect([b.title, b.pinned]).toEqual(['pasted', true]));
+    // 内部剪贴板：复制 a 整行再粘贴到 b（系统剪贴板仍是刚写入的文本 → 走内部备份）
+    table.selectedCellInfos = [rowCells(a.id)];
+    await press({ key: 'c', ctrlKey: true });
+    table.selectedCellInfos = [rowCells(b.id)];
+    await press({ key: 'v', ctrlKey: true });
+    await vi.waitFor(() => expect([b.title, b.pinned]).toEqual(['a', false]));
+
+    // 只读字段：实体内存与落库数据都不变，只读开关的视觉也从未被改写
+    expect([a.code, a.archived, b.code, b.archived]).toEqual(['A-1', true, 'B-1', false]);
+    expect(switches.mock.calls.filter(([column]) => column === col('archived'))).toEqual([]);
+    const patches = adapter.changes.filter(c => c.type === 'UPDATE').slice(updatesBefore);
+    expect(patches.length).toBeGreaterThan(0);
+    expect(patches.some(c => 'code' in (c.patch ?? {}) || 'archived' in (c.patch ?? {}))).toBe(false);
   });
 
   it('Ctrl+Z / Ctrl+Shift+Z 键盘快捷键驱动 undo / redo', async () => {

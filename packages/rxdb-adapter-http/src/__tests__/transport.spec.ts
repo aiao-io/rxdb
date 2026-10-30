@@ -75,6 +75,33 @@ describe('HttpTransport', () => {
       await transport.sendJson({ url: 'https://other.example.com/x', method: 'GET' }, 'test');
       expect(fetchMock.mock.calls[0][0]).toBe('https://other.example.com/x');
     });
+
+    // 同源部署的相对 baseUrl：交给 fetch 的必须是补全后的绝对地址，变更通知通道拿的是同一个结果
+    it.each([
+      ['/api', 'https://app.example.test/api/items'],
+      ['api', 'https://app.example.test/app/api/items']
+    ])('浏览器里相对 baseUrl=%s 按页面地址补成 %s', async (baseUrl, expected) => {
+      vi.stubGlobal('location', { href: 'https://app.example.test/app/page' });
+      const { transport } = createTransport({ baseUrl });
+      await transport.sendJson({ url: 'items', method: 'GET' }, 'test');
+      expect(fetchMock.mock.calls[0][0]).toBe(expected);
+      expect(transport.resolveUrl({ url: 'items', method: 'GET' })).toBe(expected);
+    });
+
+    it('页面有 <base href> 时按文档基准地址补全，与 fetch 自己解析相对地址的基准一致', async () => {
+      vi.stubGlobal('location', { href: 'https://app.example.test/app/page' });
+      vi.stubGlobal('document', { baseURI: 'https://app.example.test/shell/' });
+      const { transport } = createTransport({ baseUrl: 'api' });
+      await transport.sendJson({ url: 'items', method: 'GET' }, 'test');
+      expect(fetchMock.mock.calls[0][0]).toBe('https://app.example.test/shell/api/items');
+    });
+
+    it('绝对 baseUrl 不受页面地址影响', async () => {
+      vi.stubGlobal('location', { href: 'https://app.example.test/app/page' });
+      const { transport } = createTransport();
+      await transport.sendJson({ url: 'items', method: 'GET' }, 'test');
+      expect(fetchMock.mock.calls[0][0]).toBe('https://api.example.com/v1/items');
+    });
   });
 
   describe('请求构造', () => {

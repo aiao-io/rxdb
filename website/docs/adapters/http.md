@@ -248,7 +248,7 @@ new RxDBAdapterHttp(db, { baseUrl, handlers, conditionalRequests: true });
 - 按请求指纹（method + url + body）键控，翻页 / 分块**逐页、逐块**各占一个条目
 - 有界，`conditionalCacheSize` 条 LRU；取太小只是命中率下降，不会产生错误结果
 - 随适配器实例存活，`disconnect()` 时清空
-- 同一指纹的并发调用 **single-flight** 去重，不会出现「后一个拿到 304 而前一个还没回填」的空洞
+- 同一指纹的并发调用 **single-flight** 去重，不会出现「后一个拿到 304 而前一个还没回填」的空洞。去重只并同一时刻的读：`create` / `update` / `delete` 请求结算（成败都算）或变更通知上报失效之后发起的读，不会并进此前发出的在飞请求，一定再问一次远端
 - 每个调用方拿到的都是**独立副本**：就地改动返回值既不会污染缓存，也不会串到后续 304 命中或同批 single-flight 的其他调用方身上。开与不开这个特性，对象是否共享的答案是同一个
 
 :::warning 换用户要走 `disconnect()` / `connect()`

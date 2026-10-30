@@ -45,8 +45,8 @@ export interface RxDBDependencyInjection<T extends RxDB> {
   provideRxDB: (db: RxDBInput<T>) => void;
   /** 注入当前已就绪的数据库实例；无 provider 或未就绪时返回 `undefined`。 */
   injectRxDB: () => T | undefined;
-  /** 注入数据库的响应式引用；无 provider 时返回 `undefined`。 */
-  injectRxDBRef: () => RxDBRef<T> | undefined;
+  /** 注入数据库的响应式引用；无 provider 时返回 `undefined`，`quiet` 为真时不告警。 */
+  injectRxDBRef: (quiet?: boolean) => RxDBRef<T> | undefined;
 }
 
 /**
@@ -162,7 +162,7 @@ const createInjection = <T extends RxDB>(): InternalInjection<T> => {
   const injectSlot = (): RxDBSlot<T> | undefined => inject(RxDBKey);
   // 传默认值：可选读取本就允许缺 provider，不该顺带告警
   const injectSlotQuietly = (): RxDBSlot<T> | undefined => inject(RxDBKey, undefined);
-  const injectRxDBRef = (): RxDBRef<T> | undefined => injectSlot()?.db;
+  const injectRxDBRef = (quiet = false): RxDBRef<T> | undefined => (quiet ? injectSlotQuietly() : injectSlot())?.db;
   const injectRxDB = (): T | undefined => injectRxDBRef()?.value;
 
   return { provideRxDB, injectRxDB, injectRxDBRef, injectSlot, injectSlotQuietly };
@@ -194,7 +194,7 @@ function makeRxDBDependencyInjector<T extends RxDB>(): RxDBDependencyInjection<T
  * - `provideRxDB(db)`：在当前组件的 setup 中提供数据库，作用域是该组件的整棵子树。
  * - `injectRxDB()`：取当前已就绪的实例，无 provider 或数据库未就绪时返回 `undefined`。
  * - `injectRxDBRef()`：取响应式引用，用于等待异步就绪；无 provider 时返回 `undefined`
- *   （dev 下 Vue 会额外发出 injection 未找到的警告）。
+ *   （dev 下 Vue 会额外发出 injection 未找到的警告；传入 `true` 可静默读取）。
  *
  * 需要在同一棵组件树里隔离多个数据库时，改用 {@link makeRxDBDependencyInjector}。
  * 需要「没有就抛错」而非返回 `undefined` 的语义时，用 {@link useRxDB} / {@link useRxDBRef}。

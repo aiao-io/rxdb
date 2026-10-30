@@ -167,10 +167,10 @@ platforms:
 ```
 
 `MINI_PROGRAM_PLATFORM_IDS` 登记了 `wechat`、`douyin` 与 `alipay`。上表其余 id 传给适配器都在连接前失败，错误信息指向本文件：
-登记在拒绝表 `MINI_PROGRAM_UNSUPPORTED_PLATFORMS`（`host.ts`）里的 `unsupported` 平台抛
+登记在拒绝表 `MINI_PROGRAM_UNSUPPORTED_PLATFORMS`（`unsupported-platforms.ts`）里的 `unsupported` 平台抛
 `MiniProgramUnsupportedPlatformError`，带出这里的 `blockers` 与平台章节标题，目前为空；其余（含判 `unsupported` 但没写 host 的百度、QQ，它们有意不进拒绝表）抛
 `MiniProgramUnknownPlatformError`。`unsupported-platform.spec.ts` 用 `?raw` 解析上面的 YAML，核对登记表等于
-`supported` 集合、拒绝表每项的 `decision` 与 `blockers` 与这里一致、章节标题真实存在；第一档每行的 `decision`、
+`supported` 集合、拒绝表每项的 `decision` 与 `blockers` 与这里一致、章节标题真实存在（表现为空，这几项核对暂不执行断言；带原因的拒绝路径由 `unsupported-platform-rejection.spec.ts` 换进演示条目来走）；第一档每行的 `decision`、
 `blockers` 与 `caveats` 还要能按「改判标准」从 `undocumented` 与 `evidence` 推出来——改判或改标题时代码与本文件一起改。
 
 ## 阶段 B 结论（AC#8）
