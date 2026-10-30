@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnWithDeadline } from '../../../scripts/spawn-with-deadline.mjs';
+import { runCoverageSuites } from './run-coverage-suites.mjs';
 
 const require = createRequire(import.meta.url);
 const packageRoot = path.resolve(import.meta.dirname, '..');
@@ -25,7 +26,7 @@ const browserSuiteNames = ['wa-sqlite', 'sqlite', 'sqlite-wasm', 'sqliteai'];
 const excludedSourceFiles = new Set(['testing.ts', 'fts5/types.ts', 'oo1-types.ts']);
 const threshold = 80;
 const metrics = ['statements', 'branches', 'functions', 'lines'];
-// 单个 suite 的墙钟上限。五段并发时 CI 上最慢的一段约 2.5 min，留足余量；
+// 单个 suite 的墙钟上限。等待调度的时间不计入本段时限；
 // 同时要比 ci-template.yml 里 coverage-acceptance 的 job 超时（30 min）扣掉装依赖与建 dist 后短，
 // 挂死才会以本脚本的汇总行收场，而不是被 Actions 静默取消。
 const SUITE_DEADLINE_MS = 15 * 60_000;
@@ -284,7 +285,7 @@ try {
   // 能力探测放在跑 suite 之前：浏览器没装就没必要先烧十几分钟再失败。
   verifyBrowserCapability();
 
-  const suiteResults = await Promise.all(suiteNames.map(runSuite));
+  const suiteResults = await runCoverageSuites(suiteNames, runSuite);
   suiteOutcomes = Object.fromEntries(suiteResults.map(result => [result.suiteName, describeOutcome(result)]));
 
   const failedSuites = suiteResults.filter(result => result.error || result.timedOut || result.code !== 0);
