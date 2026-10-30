@@ -50,12 +50,16 @@ const SUFFIX_PATTERN = new RegExp(`^${SUFFIX_BODY}$`);
 const HOLDER_KEY_PATTERN = new RegExp(`^\\*worktree:(${SUFFIX_BODY})\\*$`);
 
 /**
- * 表集指纹在备份清单的键之外还看的实体级字段（US-314 B2.6）：约束决定影子表怎么建，`log` 决定实体进不进这套表。
+ * 表集指纹在备份清单的键之外还看的实体级字段（US-314 B2.6）：约束与生成列决定影子表怎么建，`log` 决定实体进不进这套表。
  *
  * @remarks
  * 备份清单那份键不动：往里加键，已有备份的指纹就全对不上、恢复不了。
+ *
+ * 生成列取实体自己声明的 `generatedColumns` 数组（`generatedColumnMap` 是 Map，编码会丢掉）。没声明生成列的实体没有这个键，
+ * 编码时丢掉，指纹与加这个键之前逐字相同，已开的检出位不会因此整套重建。备份清单的指纹不看生成列：恢复还原的是归档自带的表结构，
+ * 生成列的值由引擎按归档里的定义算；与目标的声明对不上，由连接时的漂移检查拦下（用户迁移排在它之前，可以补齐）。
  */
-const TABLE_SET_FINGERPRINT_KEYS = [...FINGERPRINT_KEYS, 'checks', 'exclusions', 'log'];
+const TABLE_SET_FINGERPRINT_KEYS = [...FINGERPRINT_KEYS, 'checks', 'exclusions', 'generatedColumns', 'log'];
 
 /**
  * {@link WorktreeTableSet.heldBranchWhere} 的形状：只有一条规则的条件组
@@ -170,7 +174,7 @@ export class WorktreeTableSet {
   }
 
   /**
-   * 一套表的结构指纹（US-314 B2.6）：成员实体的结构，在备份清单的结构指纹之外还看约束（`checks` / `exclusions`）与 `log`。
+   * 一套表的结构指纹（US-314 B2.6）：成员实体的结构，在备份清单的结构指纹之外还看约束（`checks` / `exclusions`）、生成列与 `log`。
    *
    * @param entities - 这套表的成员
    * @returns 64 位十六进制 SHA-256；与声明顺序无关

@@ -152,12 +152,20 @@ describe('WorktreeTableSet', () => {
 });
 
 // 一套可写检出位的表刚建好（US-314 B2.5）：插件在业务表上建的附属对象（全文索引）要在影子表上也建一份
-/** 只在 `log` / `checks` 上有差别的同一个实体（US-314 B2.6 的指纹用例） */
-const defineFingerprintTodo = (options: { log?: false; checked?: true }) => {
+/**
+ * 只在 `log` / `checks` / 生成列上有差别的同一个实体（US-314 B2.6 的指纹用例）
+ *
+ * @remarks
+ * `generatedKey` 是生成列取 `ext` 里的哪个键，不给就没有生成列。
+ */
+const defineFingerprintTodo = (options: { log?: false; checked?: true; generatedKey?: string }) => {
   @Entity({
     name: 'WorktreeFingerprintTodo',
     tableName: 'worktree_fingerprint_todo',
-    properties: [{ name: 'title', type: PropertyType.string }],
+    properties: [
+      { name: 'title', type: PropertyType.string },
+      { name: 'ext', type: PropertyType.json, nullable: true }
+    ],
     ...(options.log === false ? { log: false } : {}),
     ...(options.checked ?
       {
@@ -165,7 +173,17 @@ const defineFingerprintTodo = (options: { log?: false; checked?: true }) => {
           { name: 'title_present', rule: { combinator: 'and', rules: [{ field: 'title', operator: 'notNull' }] } }
         ]
       }
-    : {})
+    : {}),
+    ...(options.generatedKey === undefined ?
+      {}
+    : {
+        generatedColumns: [
+          {
+            name: 'ext_hot',
+            expression: { kind: 'jsonScalar', property: 'ext', key: options.generatedKey, dataType: 'string' }
+          }
+        ]
+      })
   })
   class FingerprintTodo extends EntityBase {
     title!: string;
@@ -187,6 +205,19 @@ describe('WorktreeTableSet.schemaFingerprintOf（US-314 B2.6）', () => {
     expect(computeRxDBSchemaFingerprint([checked])).toBe(computeRxDBSchemaFingerprint([plain]));
     expect(WorktreeTableSet.schemaFingerprintOf([unlogged])).not.toBe(WorktreeTableSet.schemaFingerprintOf([plain]));
     expect(WorktreeTableSet.schemaFingerprintOf([checked])).not.toBe(WorktreeTableSet.schemaFingerprintOf([plain]));
+  });
+
+  // 影子表按生成列建：指纹不看它的话，实体加了生成列、改了表达式，已开的检出位都不重建，影子表缺那一列
+  it('多一条生成列、改生成列的表达式都会改变它；备份清单用的结构指纹不看生成列、照旧不变', () => {
+    const plain = defineFingerprintTodo({});
+    const generated = defineFingerprintTodo({ generatedKey: 'status' });
+    const regenerated = defineFingerprintTodo({ generatedKey: 'grade' });
+
+    expect(computeRxDBSchemaFingerprint([generated])).toBe(computeRxDBSchemaFingerprint([plain]));
+    expect(WorktreeTableSet.schemaFingerprintOf([generated])).not.toBe(WorktreeTableSet.schemaFingerprintOf([plain]));
+    expect(WorktreeTableSet.schemaFingerprintOf([regenerated])).not.toBe(
+      WorktreeTableSet.schemaFingerprintOf([generated])
+    );
   });
 });
 
