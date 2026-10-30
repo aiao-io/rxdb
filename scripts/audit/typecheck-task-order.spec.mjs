@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const workspaceRoot = fileURLToPath(new URL('../../', import.meta.url));
+const nxCli = createRequire(import.meta.url).resolve('nx/bin/nx');
 
 const predecessorsOf = (dependencies, task) => {
   const pending = [task];
@@ -25,7 +27,7 @@ test('Angular 模型类型检查必须等引用项目完成类型声明写入', 
   const temporary = mkdtempSync(path.join(tmpdir(), 'rxdb-typecheck-order-'));
   const graphPath = path.join(temporary, 'tasks.json');
   try {
-    execFileSync('pnpm', ['nx', 'run', 'rxdb-model-angular:typecheck', `--graph=${graphPath}`], {
+    execFileSync(process.execPath, [nxCli, 'run', 'rxdb-model-angular:typecheck', `--graph=${graphPath}`], {
       cwd: workspaceRoot,
       env: { ...process.env, NX_DAEMON: 'false', NX_NO_CLOUD: 'true' },
       stdio: 'pipe'

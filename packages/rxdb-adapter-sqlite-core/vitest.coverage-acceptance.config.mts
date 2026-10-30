@@ -254,7 +254,7 @@ const createRunConfig = (suiteName: SuiteName): ViteUserConfig => {
       test: {
         name: projectName,
         globals: true,
-        // 每段一个 worker；外层最多两个 suite 并发，避免浏览器与 Node worker 叠满 runner。
+        // 每段一个 worker、段与段串行，避免浏览器与 Node worker 叠满 runner。
         fileParallelism: false,
         maxWorkers: 1,
         testTimeout: 30000,
