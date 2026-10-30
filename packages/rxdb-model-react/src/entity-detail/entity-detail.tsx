@@ -461,7 +461,16 @@ export function EntityDetail({
           setSaveError(saveErrorMessage(error));
         });
     },
-    [isEditPending, isCreateMode, entityInstance, editTarget, formFieldsValue, dialog, onFormSubmitted, saveErrorMessage]
+    [
+      isEditPending,
+      isCreateMode,
+      entityInstance,
+      editTarget,
+      formFieldsValue,
+      dialog,
+      onFormSubmitted,
+      saveErrorMessage
+    ]
   );
 
   /** 表单取消：作废进行中的保存，清理草稿缓存并 emit formCancelled。 */
