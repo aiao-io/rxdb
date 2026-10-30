@@ -254,11 +254,9 @@ const createRunConfig = (suiteName: SuiteName): ViteUserConfig => {
       test: {
         name: projectName,
         globals: true,
-        // 与各包 vite.config 同口径：sqlite / sqliteai 明确关掉文件级并行；
-        // wa-sqlite 在这里进一步收到单 worker —— 五个 suite 是并发起的，
-        // 五份 chromium 同时开满 worker 会把机器压垮。
-        fileParallelism: !['wa-sqlite', 'sqlite', 'sqliteai'].includes(suiteName),
-        maxWorkers: suiteName === 'wa-sqlite' ? 1 : undefined,
+        // 每段一个 worker；外层最多两个 suite 并发，避免浏览器与 Node worker 叠满 runner。
+        fileParallelism: false,
+        maxWorkers: 1,
         testTimeout: 30000,
         hookTimeout: 30000,
         include:
