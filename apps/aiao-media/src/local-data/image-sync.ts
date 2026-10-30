@@ -175,7 +175,14 @@ export class ImageSyncController {
     });
     const row = Array.isArray(response) ? response[0] : response;
     const result = this.record(row);
-    if (result.sourceId !== input.job.id || result.path !== input.path || result.sha256 !== input.digest || result.bytes !== input.bytes || result.status !== input.status) throw new Error('远端图片回执与原图不一致。');
+    if (
+      result.sourceId !== input.job.id ||
+      result.path !== input.path ||
+      result.sha256 !== input.digest ||
+      result.bytes !== input.bytes ||
+      result.status !== input.status
+    )
+      throw new Error('远端图片回执与原图不一致。');
     return result;
   }
 

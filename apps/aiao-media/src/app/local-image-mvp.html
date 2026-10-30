@@ -359,7 +359,9 @@
           <b class="count-badge">{{ localWorksKnown() ? works().length : '…' }}</b>
         </span>
       </div>
-      <span class="library-notice">◈ 原图保存在本机 · {{ imageSyncEnabled() ? '已确认图片同步' : '同步默认只传作品信息' }}</span>
+      <span class="library-notice">
+        ◈ 原图保存在本机 · {{ imageSyncEnabled() ? '已确认图片同步' : '同步默认只传作品信息' }}
+      </span>
     </div>
     <form class="library-filters" (submit)="filterLibrary($event)" aria-label="筛选本机作品" novalidate>
       <label>
@@ -532,7 +534,9 @@
               <p>{{ work.modelId }} · {{ work.width }} × {{ work.height }}</p>
               <small>仅同步作品信息，原图仍在生成设备。</small>
               @if (targetKind() === 'custom' && imageSyncEnabled()) {
-                <button class="secondary" [disabled]="imageSyncBusy()" (click)="restoreRemoteWork(work)">取回并保存原图</button>
+                <button class="secondary" [disabled]="imageSyncBusy()" (click)="restoreRemoteWork(work)">
+                  取回并保存原图
+                </button>
               }
             </div>
           </article>
@@ -829,7 +833,8 @@
         <h2>已登录</h2>
         <p>{{ user.email || user.id }}</p>
         <p class="notice">
-          登录不会自动上传本机内容。启用同步后，草稿、供应商公开配置和作品信息可同步；原图只有在单独确认图片同步后才上传，API Key 始终留在本机。
+          登录不会自动上传本机内容。启用同步后，草稿、供应商公开配置和作品信息可同步；原图只有在单独确认图片同步后才上传，API
+          Key 始终留在本机。
         </p>
         <section aria-label="工作区同步">
           <button class="secondary" (click)="inspectRemoteQuota()">检查远端配额</button>
@@ -853,12 +858,28 @@
               <p>元数据同步不会上传原图。原图会进入你自己的私有 Supabase Storage；Key、管理授权和本机路径不会上传。</p>
               @if (imageSyncEnabled()) {
                 <p>图片自动同步已启用。{{ imageSyncProgress() }} {{ imageSyncMessage() }}</p>
-                <button class="secondary" [disabled]="settingsBusy() || imageSyncBusy()" (click)="stopImageSync()">停止图片自动同步</button>
+                <button class="secondary" [disabled]="settingsBusy() || imageSyncBusy()" (click)="stopImageSync()">
+                  停止图片自动同步
+                </button>
               } @else {
-                <button class="secondary" [disabled]="settingsBusy() || imageSyncBusy()" (click)="enableImageSync('future')">只同步以后保存的图片</button>
-                <button class="secondary" [disabled]="settingsBusy() || imageSyncBusy()" (click)="enableImageSync('existing')">同步已有及以后图片</button>
+                <button
+                  class="secondary"
+                  [disabled]="settingsBusy() || imageSyncBusy()"
+                  (click)="enableImageSync('future')"
+                >
+                  只同步以后保存的图片
+                </button>
+                <button
+                  class="secondary"
+                  [disabled]="settingsBusy() || imageSyncBusy()"
+                  (click)="enableImageSync('existing')"
+                >
+                  同步已有及以后图片
+                </button>
               }
-              @if (imageSyncMessage()) { <p role="status">{{ imageSyncMessage() }}</p> }
+              @if (imageSyncMessage()) {
+                <p role="status">{{ imageSyncMessage() }}</p>
+              }
             </article>
           }
           @if (sync().confirmation; as confirmation) {

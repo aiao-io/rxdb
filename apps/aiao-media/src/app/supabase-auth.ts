@@ -122,7 +122,8 @@ export class SupabaseAuthClient {
     const port = await this.port();
     if (!port.setSession) throw new Error('当前账号连接不支持自动会话接入。');
     const result = await port.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
-    if (result.error || !result.data.session || !this.validSession(result.data.session)) throw result.error ?? new Error('自动会话无效。');
+    if (result.error || !result.data.session || !this.validSession(result.data.session))
+      throw result.error ?? new Error('自动会话无效。');
     const user = await port.getUser(result.data.session.access_token);
     if (user.error || !user.data.user) throw user.error ?? new Error('自动会话用户无效。');
     this.accept(result.data.session, user.data.user);

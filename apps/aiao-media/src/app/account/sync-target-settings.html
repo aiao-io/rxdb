@@ -36,7 +36,9 @@
   />
   <div class="provider-actions">
     @if (oauthAvailable()) {
-      <button class="primary" [disabled]="busy() || oauthBusy()" (click)="connectOAuth.emit()">{{ oauthBusy() ? '正在连接 Supabase…' : '通过 Supabase 授权自动连接' }}</button>
+      <button class="primary" [disabled]="busy() || oauthBusy()" (click)="connectOAuth.emit()">
+        {{ oauthBusy() ? '正在连接 Supabase…' : '通过 Supabase 授权自动连接' }}
+      </button>
     }
     <button class="secondary" [disabled]="busy()" (click)="changeTarget.emit('custom')">连接自己的项目</button>
     @if (platformAvailable()) {
@@ -49,7 +51,11 @@
   </div>
   @if (oauthProjects().length) {
     <label for="oauth-project">选择已授权项目</label>
-    <select id="oauth-project" [disabled]="busy() || oauthBusy()" (change)="initializeOAuth.emit($any($event.target).value)">
+    <select
+      id="oauth-project"
+      [disabled]="busy() || oauthBusy()"
+      (change)="initializeOAuth.emit($any($event.target).value)"
+    >
       <option value="">选择项目并初始化…</option>
       @for (project of oauthProjects(); track project.ref) {
         <option [value]="project.ref">{{ project.name || project.ref }} · {{ project.status || '可检查' }}</option>

@@ -48,17 +48,15 @@ describe('同步目标', () => {
     );
   });
   it('图片同步必须单独通过私有 Storage 和续传能力检查', async () => {
-    const request = vi
-      .fn()
-      .mockResolvedValue(
-        Response.json({
-          protocol: 1,
-          privateBucket: 'aiao-media-images',
-          maxBytes: 16777216,
-          resumable: true,
-          metadataOnly: false
-        })
-      );
+    const request = vi.fn().mockResolvedValue(
+      Response.json({
+        protocol: 1,
+        privateBucket: 'aiao-media-images',
+        maxBytes: 16777216,
+        resumable: true,
+        metadataOnly: false
+      })
+    );
     await verifyImageSyncTarget({ config, userId: 'user', session: { access_token: 'session' } } as never, request);
     expect(request).toHaveBeenCalledWith(`${config.url}/rest/v1/rpc/media_file_capabilities`, expect.any(Object));
     request.mockResolvedValueOnce(

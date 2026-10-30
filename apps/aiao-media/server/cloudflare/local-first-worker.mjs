@@ -1,9 +1,9 @@
 import { imageGenerationRequest, isMiniMaxImageProvider } from '../../src/contracts/image-provider-protocol.ts';
 import { handleAdmin } from './admin-api.mjs';
 import { handlePlatform } from './platform-api.mjs';
-import { handleSupabaseOAuth } from './supabase-oauth.mjs';
 import { publishedTemplates, runtimePolicy } from './product-content.mjs';
 import { endpoint, originAllowed } from './product-http.mjs';
+import { handleSupabaseOAuth } from './supabase-oauth.mjs';
 export { PlatformCoordinator } from './platform-coordinator.mjs';
 // Optional, stateless relay. Static assets are served by the ASSETS binding.
 const json = (status, error) =>

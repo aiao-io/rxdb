@@ -23,5 +23,11 @@ test('OAuth start uses PKCE, fixed redirect and HttpOnly state cookie without ex
   assert.doesNotMatch(JSON.stringify(data), /client-secret|cookie/);
 });
 test('OAuth start refuses an incomplete deployment configuration', async () => {
-  await assert.rejects(startSupabaseOAuth(new Request('https://media.example.com/api/supabase/oauth/start'), { ...env, SUPABASE_OAUTH_COOKIE_SECRET: '' }), /尚未配置/);
+  await assert.rejects(
+    startSupabaseOAuth(new Request('https://media.example.com/api/supabase/oauth/start'), {
+      ...env,
+      SUPABASE_OAUTH_COOKIE_SECRET: ''
+    }),
+    /尚未配置/
+  );
 });
