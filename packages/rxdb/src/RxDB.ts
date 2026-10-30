@@ -1349,8 +1349,8 @@ export class RxDB {
   }
 
   /**
-   * 一套可写检出位的表的指纹（US-314 B2.6）：成员实体的结构指纹（{@link WorktreeTableSet.schemaFingerprintOf}），
-   * 并上各插件建表集钩子的指纹（`WorktreeTableSetHooks.fingerprint`）。
+   * 一套可写检出位的表的指纹（US-314 B2.6）：成员实体的结构指纹（{@link WorktreeTableSet.schemaFingerprintOf}，
+   * 含本实例给成员的存储声明 `entityStorage`），并上各插件建表集钩子的指纹（`WorktreeTableSetHooks.fingerprint`）。
    *
    * @param tableSet - 那套表；只看它的成员，不看后缀
    * @returns 64 位十六进制 SHA-256
@@ -1367,7 +1367,9 @@ export class RxDB {
       )
       .sort(([left], [right]) => (left < right ? -1 : Number(left > right)));
     return sha256Hex(
-      new TextEncoder().encode(JSON.stringify([WorktreeTableSet.schemaFingerprintOf(members), plugins]))
+      new TextEncoder().encode(
+        JSON.stringify([WorktreeTableSet.schemaFingerprintOf(members, this.config.entityStorage), plugins])
+      )
     );
   }
 

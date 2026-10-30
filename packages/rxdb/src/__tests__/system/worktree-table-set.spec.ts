@@ -10,7 +10,9 @@ import { describe, expect, it } from 'vitest';
 import { computeRxDBSchemaFingerprint } from '../../backup/schema-fingerprint.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
+import type { EntityGeneratedColumnMetadataOptions } from '../../entity/generated-column.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
+import type { EntityStorageOverride } from '../../entity/storage-override.js';
 import type { IRxDBPlugin } from '../../rxdb-plugin.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
@@ -38,6 +40,14 @@ class Todo extends EntityBase {
 class Note extends EntityBase {
   body!: string;
 }
+
+/** 带 JSON 列的实体：实例级存储声明（`entityStorage`）在它上面加生成列与高级索引（US-314 B2.6 的指纹用例） */
+@Entity({
+  name: 'WorktreeTableSetItem',
+  tableName: 'worktree_table_set_item',
+  properties: [{ name: 'ext', type: PropertyType.json, nullable: true }]
+})
+class StorageItem extends EntityBase {}
 
 describe('WorktreeTableSet', () => {
   it('主表集没有后缀，也不给任何实体建副本', () => {
@@ -223,12 +233,18 @@ describe('WorktreeTableSet.schemaFingerprintOf（US-314 B2.6）', () => {
 
 describe('RxDB.worktreeTableSetFingerprint（US-314 B2.6）', () => {
   const tableSet = WorktreeTableSet.of('wt_print', [Todo]);
-  const createRxdb = () =>
+  const createRxdb = (entityStorage?: readonly EntityStorageOverride[]) =>
     new RxDB({
       dbName: `worktree-fingerprint-${Math.random().toString(36).slice(2)}`,
-      entities: [Todo, Note],
+      entities: [Todo, Note, StorageItem],
+      ...(entityStorage === undefined ? {} : { entityStorage }),
       sync: { local: { adapter: 'noop' }, type: SyncType.None }
     });
+  /** `StorageItem` 上取 `ext` 里某个键的生成列 */
+  const hot = (key: string): EntityGeneratedColumnMetadataOptions => ({
+    name: 'hot',
+    expression: { kind: 'jsonScalar', property: 'ext', key, dataType: 'string' }
+  });
   const withFingerprint =
     (name: Uncapitalize<string>, fingerprint: (set: WorktreeTableSet) => string) => (): IRxDBPlugin => ({
       name,
@@ -260,6 +276,33 @@ describe('RxDB.worktreeTableSetFingerprint（US-314 B2.6）', () => {
     expect(reordered.worktreeTableSetFingerprint(tableSet)).toBe(fingerprint);
     expect(changed.worktreeTableSetFingerprint(tableSet)).not.toBe(fingerprint);
     expect(createRxdb().worktreeTableSetFingerprint(tableSet)).not.toBe(fingerprint);
+  });
+
+  // 影子表与主表一样按实例生效的存储元数据建：只改实例级存储声明，已开的检出位也得整套重建，不然影子表缺列、缺索引
+  it('只改 entityStorage：成员多一条生成列、改了生成列的表达式、多一条高级索引，指纹都会变', () => {
+    const storageSet = WorktreeTableSet.of('wt_print', [StorageItem]);
+    const plain = createRxdb().worktreeTableSetFingerprint(storageSet);
+    const generated = createRxdb([{ entity: StorageItem, generatedColumns: [hot('status')] }]);
+    const regenerated = createRxdb([{ entity: StorageItem, generatedColumns: [hot('grade')] }]);
+    const indexed = createRxdb([
+      { entity: StorageItem, generatedColumns: [hot('status')], indexes: [{ name: 'hot_lookup', properties: ['hot'] }] }
+    ]);
+
+    expect(generated.worktreeTableSetFingerprint(storageSet)).not.toBe(plain);
+    expect(regenerated.worktreeTableSetFingerprint(storageSet)).not.toBe(
+      generated.worktreeTableSetFingerprint(storageSet)
+    );
+    expect(indexed.worktreeTableSetFingerprint(storageSet)).not.toBe(generated.worktreeTableSetFingerprint(storageSet));
+  });
+
+  it('没有 entityStorage、或只给非成员声明时与改前逐字相同：已开的检出位不会因升级整套重建', () => {
+    // 改前开检出位时记在登记行上的值
+    const recorded = 'f4cc3d8346151805aae66e02d0b3419d60045f9650aac29525d4f1b4b2a8547c';
+
+    expect(createRxdb().worktreeTableSetFingerprint(tableSet)).toBe(recorded);
+    expect(
+      createRxdb([{ entity: StorageItem, generatedColumns: [hot('status')] }]).worktreeTableSetFingerprint(tableSet)
+    ).toBe(recorded);
   });
 });
 

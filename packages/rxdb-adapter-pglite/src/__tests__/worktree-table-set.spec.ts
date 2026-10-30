@@ -10,12 +10,17 @@
 
 import {
   ACTIVE_BRANCH_KEY,
+  advancedIndexesOf,
+  compileAdvancedIndex,
+  compileGeneratedColumn,
   encodeRxDBChangeEntityId,
   Entity,
   ENTITY_LOCAL_CREATE_EVENT,
   ENTITY_LOCAL_REMOVE_EVENT,
   EntityBase,
+  generatedColumnsOf,
   getEntityMetadata,
+  getEntityStorageMetadata,
   getRxDBChangeKey,
   type IRxDBChange,
   PropertyType,
@@ -31,7 +36,9 @@ import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom, skip } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { quoteIdentifier } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { getSchemaName, getTableNameByMetadata } from '../table-name-resolver.js';
 import { execute_switch_actions } from '../version/execute_switch_actions.js';
 import { generateDbName } from './test-utils.js';
 
@@ -58,6 +65,15 @@ class WorktreeSeqNote extends EntityBase<number> {
 class WorktreeLookalike extends EntityBase {
   declare title: string;
 }
+
+/** 记变更日志的实体，进可写检出位的表集；生成列与高级索引都只在实例级存储声明（`entityStorage`）里 */
+@Entity({
+  name: 'WorktreeHotItem',
+  namespace: 'wthot',
+  tableName: 'hot_item',
+  properties: [{ name: 'ext', type: PropertyType.json, nullable: true }]
+})
+class WorktreeHotItem extends EntityBase {}
 
 const emptyActions = (): SwitchVersionActions => ({ inserts: new Map(), updates: new Map(), deletes: new Map() });
 
@@ -643,5 +659,96 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
       await expect(rxdb.mountWorktreeTableSet(WorktreeTableSet.of('wt_none', [Todo]))).rejects.toThrow(/持有/);
       expect(rxdb.worktreeTableSet).toBe(WorktreeTableSet.MAIN);
     });
+  });
+});
+
+// 影子表与主表按同一份生效的存储元数据建：实例级声明的生成列与引用它的高级索引，影子表上也各有一份
+describe('可写检出位的影子表带上实例级存储声明（entityStorage）', () => {
+  let rxdb: RxDB | undefined;
+
+  afterEach(async () => {
+    await rxdb?.disconnectAll();
+    rxdb = undefined;
+  });
+
+  it('影子表有声明的生成列与引用它的高级索引，主表的行原样复制，挂上检出位能按生成列查', async () => {
+    rxdb = new RxDB({
+      dbName: generateDbName(),
+      entities: [WorktreeHotItem],
+      entityStorage: [
+        {
+          entity: WorktreeHotItem,
+          generatedColumns: [
+            {
+              name: 'status_hot',
+              expression: { kind: 'jsonScalar', property: 'ext', key: 'status', dataType: 'string' }
+            }
+          ],
+          indexes: [{ name: 'status_lookup', properties: ['status_hot'] }]
+        }
+      ],
+      sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+    });
+    rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' }));
+    rxdb.use(rxDBPluginHistory);
+    const adapter: RxDBAdapterPGlite = await rxdb.connect('pglite');
+
+    const tableSet = WorktreeTableSet.of('wt_hot', [WorktreeHotItem]);
+    const metadata = getEntityStorageMetadata(rxdb, WorktreeHotItem);
+    const [column] = generatedColumnsOf(metadata).map(declared =>
+      compileGeneratedColumn(metadata, declared, 'postgres')
+    );
+    const [index] = advancedIndexesOf(metadata).flatMap(declared => {
+      const compiled = compileAdvancedIndex(metadata, declared, 'postgres');
+      return compiled === null ? [] : [compiled];
+    });
+    const shadowTable = getTableNameByMetadata(metadata, tableSet);
+
+    const id = uuid();
+    await adapter.internalQuery(
+      `INSERT INTO ${getTableNameByMetadata(metadata, WorktreeTableSet.MAIN)} ("id", "ext", "createdAt", "updatedAt")
+       VALUES ($1::uuid, $2::jsonb, now(), now())`,
+      [id, JSON.stringify({ status: 'ok' })]
+    );
+    await rxdb.versionManager.createBranch('held');
+    await adapter.internalQuery(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = $1::text WHERE "id" = $2::text`, [
+      tableSet.holderKey,
+      'held'
+    ]);
+    await adapter.transaction(
+      executor => adapter.createWorktreeTableSet(executor, tableSet, { branchId: 'held', actions: emptyActions() }),
+      false
+    );
+
+    expect(
+      (
+        await adapter.internalQuery<{ attgenerated: string }>(
+          `SELECT attgenerated FROM pg_attribute WHERE attrelid = $1::regclass AND attname = $2::text`,
+          [shadowTable, column.columnName]
+        )
+      ).rows
+    ).toEqual([{ attgenerated: 's' }]);
+    expect(
+      (
+        await adapter.internalQuery<{ indexname: string }>(
+          `SELECT indexname FROM pg_indexes WHERE schemaname = $1::text AND tablename = $2::text`,
+          [getSchemaName(metadata, tableSet), metadata.tableName]
+        )
+      ).rows.map(row => row.indexname)
+    ).toContain(index.name);
+    expect((await adapter.internalQuery<{ id: string }>(`SELECT "id"::text AS "id" FROM ${shadowTable}`)).rows).toEqual(
+      [{ id }]
+    );
+
+    await rxdb.mountWorktreeTableSet(tableSet);
+    const found = await adapter.transaction(
+      executor =>
+        executor.query(
+          `SELECT "id"::text FROM ${executor.tableRef(WorktreeHotItem)} WHERE ${quoteIdentifier(column.columnName)} = $1`,
+          ['ok']
+        ),
+      false
+    );
+    expect(found.rows).toEqual([[id]]);
   });
 });

@@ -12,6 +12,7 @@ import {
 } from '../backup/schema-fingerprint-encoding.js';
 import type { EntityType } from '../entity/entity.interface.js';
 import type { EntityMetadata } from '../entity/metadata.interface.js';
+import type { EntityStorageOverride } from '../entity/storage-override.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDBError } from '../RxDBError.js';
 import type { SwitchVersionActions } from '../sync-contract/VersionManager.interface.js';
@@ -174,16 +175,30 @@ export class WorktreeTableSet {
   }
 
   /**
-   * 一套表的结构指纹（US-314 B2.6）：成员实体的结构，在备份清单的结构指纹之外还看约束（`checks` / `exclusions`）、生成列与 `log`。
+   * 一套表的结构指纹（US-314 B2.6）：成员实体的结构，在备份清单的结构指纹之外还看约束（`checks` / `exclusions`）、生成列与 `log`，
+   * 并上成员的实例级存储声明。
    *
    * @param entities - 这套表的成员
+   * @param entityStorage - 实例级存储声明（`RxDBOptions.entityStorage`）；只看成员的那几条
    * @returns 64 位十六进制 SHA-256；与声明顺序无关
    *
    * @remarks
    * 可写检出位开的时候记下它（并上插件钩子的指纹，见 `RxDB.worktreeTableSetFingerprint`），挂上时不符就整套重建。
+   *
+   * 影子表与主表一样按实例生效的存储元数据建（`getEntityStorageMetadata`）：实例级声明的生成列、高级索引也在影子表上，
+   * 只改它们同样要重建。这一项并在各成员的结构里，没有声明的成员值为 `undefined`、编码时丢掉，
+   * 没有实例级存储声明时指纹与不看这一项时逐字相同，已开的检出位不会因此整套重建。
    */
-  static schemaFingerprintOf(entities: readonly EntityType[]): string {
-    return fingerprintSchemaInput(pickSchemaFingerprintInput(entities, TABLE_SET_FINGERPRINT_KEYS));
+  static schemaFingerprintOf(
+    entities: readonly EntityType[],
+    entityStorage: readonly EntityStorageOverride[] = []
+  ): string {
+    const declared = new Map(entityStorage.map(({ entity, ...declaration }) => [entity, declaration] as const));
+    return fingerprintSchemaInput(
+      pickSchemaFingerprintInput(entities, TABLE_SET_FINGERPRINT_KEYS, entity => ({
+        entityStorage: declared.get(entity)
+      }))
+    );
   }
 
   /**

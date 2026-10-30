@@ -17,7 +17,7 @@
  */
 
 import type { EntityMetadata, WorktreeTableSetSeed } from '@aiao/rxdb';
-import { getEntityMetadata, parseRxDBChangeKey, WorktreeTableSet } from '@aiao/rxdb';
+import { getEntityMetadata, getEntityStorageMetadata, parseRxDBChangeKey, WorktreeTableSet } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { build_set_sequence_statements, quote_sql_identifier, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 import {
@@ -36,13 +36,17 @@ import { convertSwitchResultToSql } from '../version/switch-result.utils.js';
  *
  * @param adapter - 适配器
  * @param tableSet - 影子表集
- * @returns 成员的元数据，按配置顺序
+ * @returns 成员在本实例生效的存储元数据（含实例级存储声明 `entityStorage`），按配置顺序
  * @throws {@link RxDBAdapterSqliteError} 成员里有不记变更日志的实体时：没有触发器的成员表，写进去的东西进不了历史
+ *
+ * @remarks
+ * 与主表建表（`create_tables_sql`）同一份元数据：实例级声明的生成列与高级索引在影子表上也各有一份，
+ * 挂上检出位按生成列查才查得到。
  */
 const memberMetadataOf = (adapter: RxDBAdapterSqliteBase, tableSet: WorktreeTableSet): EntityMetadata[] => {
   const members = adapter.rxdb.config.entities
-    .map(EntityType => getEntityMetadata(EntityType))
-    .filter(metadata => tableSet.has(metadata));
+    .filter(EntityType => tableSet.has(getEntityMetadata(EntityType)))
+    .map(EntityType => getEntityStorageMetadata(adapter.rxdb, EntityType));
   const unlogged = members.filter(metadata => metadata.log === false);
   if (unlogged.length > 0) {
     const names = unlogged.map(metadata => `${metadata.namespace}.${metadata.name}`).join(', ');
