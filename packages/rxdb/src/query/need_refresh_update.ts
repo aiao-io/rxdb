@@ -3,33 +3,39 @@
  * 查询刷新判断 - 更新事件
  * 判断当有实体更新时,哪些查询结果需要刷新
  */
-import { EntityType } from '../entity/entity.interface.js';
-import { FindOptions } from '../repository/query-options.interface.js';
+import { isEqual, once } from '@aiao/utils';
+import { EntityStaticType, EntityType, RxDBEntityId } from '../entity/entity.interface.js';
+import { EntityMetadata } from '../entity/metadata.interface.js';
+import { FindOptions, OrderBy } from '../repository/query-options.interface.js';
 import { RefreshMatchRules } from '../repository/QueryManager.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalUpdatedEventData } from '../rxdb-events.js';
-import { tryGetEntityMetadata } from '../rxdb-utils.js';
+import { tryGetEntityMetadata, tryGetEntityStatus } from '../rxdb-utils.js';
 import { UpdateDataCache } from './merge-update.utils.js';
 import { isEntityMatchWhere, runMatches } from './query-matching.utils.js';
-import { separateEntities, whereUsesRelations } from './query-relation.utils.js';
+import { fieldProperty, separateEntities, whereRules, whereUsesRelations } from './query-relation.utils.js';
 import { QueryRulesBuilder } from './query-rules-builder.js';
+import { isStaleEventPayload } from './stale-event.utils.js';
 
-const getWhere = <T extends EntityType>(options: unknown) => {
-  if (!options || typeof options !== 'object' || !('where' in options)) {
-    return undefined;
-  }
-
-  return (options as FindOptions<T>).where;
-};
+const getFindOptions = <T extends EntityType>(options: unknown): FindOptions<T> | undefined =>
+  options && typeof options === 'object' ? (options as FindOptions<T>) : undefined;
 
 const hasKeys = (value: unknown): boolean =>
   !!value && typeof value === 'object' && Object.keys(value as object).length > 0;
+
+/** 实体在这些属性上都有已知值：是自有属性且不是 `undefined`（`null` 是已知值）。 */
+const hasFields = (entity: object, fields: Iterable<string>): boolean => {
+  for (const field of fields) {
+    if (!Object.hasOwn(entity, field) || Reflect.get(entity, field) === undefined) return false;
+  }
+  return true;
+};
 
 /**
  * 更新前态是否无法还原。
  *
  * @remarks
- * `getSerializedBefore` 靠「更新后完整实体叠加 `inversePatch`」倒推更新前态。
+ * 更新前态靠「更新后态叠加 `inversePatch`」倒推。
  * `inversePatch` 为空时倒推结果就等于更新后态，于是 `match_where` 和
  * `match_where_before` 恒同真同假 —— 一条从「匹配」变成「不匹配」的行在增量合并里
  * **彻底隐形**：既不 refresh 也不 recalculate，活查询永久停在过期结果上，且没有任何
@@ -49,47 +55,170 @@ const hasKeys = (value: unknown): boolean =>
 const hasUnknownBefore = <T extends EntityType>(events: RxDBEntityLocalUpdatedEventData<T>[]): boolean =>
   events.some(event => hasKeys(event.patch) && !hasKeys(event.inversePatch));
 
+/**
+ * 任务读取的实体属性：where 规则与 orderBy 字段落在的属性，外加调用方声明的属性。
+ */
+const readPropertiesOf = (
+  where: unknown,
+  orderBy: OrderBy<string>[] | undefined,
+  metadata: EntityMetadata | undefined,
+  extra: Iterable<string>
+): Set<string> => {
+  const properties = new Set(extra);
+  const add = (field: string) => {
+    const property = fieldProperty(field, metadata);
+    if (property !== undefined) properties.add(property);
+  };
+  for (const rule of whereRules(where)) add(rule.field);
+  for (const order of orderBy ?? []) add(order.field);
+  return properties;
+};
+
+/**
+ * 这条更新（同批同 id 已合并）是否改动了给定属性中的某一个。
+ *
+ * @remarks
+ * 只认值真的变了的属性：有的写入路径会把没变的属性一起带上（树节点只改名时 patch 里仍可能有
+ * `parentId`）。一侧缺这个键按「变了」算。
+ */
+const touchesProperties = (event: RxDBEntityLocalUpdatedEventData, properties: ReadonlySet<string>): boolean => {
+  const patch = event.patch as Record<string, unknown>;
+  const inversePatch = event.inversePatch as Record<string, unknown>;
+  for (const property of properties) {
+    const present = Object.hasOwn(patch, property) || Object.hasOwn(inversePatch, property);
+    if (present && !isEqual(patch[property], inversePatch[property])) return true;
+  }
+  return false;
+};
+
+/**
+ * 门控按库里的值判定。
+ *
+ * @remarks
+ * 脏实体的可见值里混着用户还没保存的编辑（外部更新经 `mergeExternal` 逐字段避让它们），
+ * SQL 活查询不会按这些值算。被编辑的键改取基线：`inversePatch` 正是这些键在 `origin`
+ * 上的值，外部更新推进的也是这份基线。
+ */
+const persistedState = (entity: object): object => {
+  const status = tryGetEntityStatus(entity);
+  return status?.modified ? { ...entity, ...status.inversePatch } : entity;
+};
+
+/** 一个实体在本批更新前后的样子，交给门控与规则层判定。 */
+interface ResolvedUpdate<T extends EntityType> {
+  id: RxDBEntityId;
+  /** 本批对它的更新，同 id 多条已合并 */
+  event: RxDBEntityLocalUpdatedEventData<T>;
+  /** 更新后态 */
+  patch: object;
+  /** 更新前态：更新后态叠加 `inversePatch` */
+  inversePatch: object;
+}
+
+/**
+ * 用身份缓存里的实例叠加补丁，补足补丁之外没改的列。
+ *
+ * @remarks
+ * 补得齐补不齐取决于缓存：未命中时更新后态只有补丁里的列，缓存里也可能本就是此前增量事件
+ * 留下的残缺实体。够不够判定由门控按任务读取的列检查。序列化顺带把补丁合进身份缓存，
+ * 所以每个实体都要走一遍，不能被门控的早退跳过。
+ */
+const resolveUpdate = <T extends EntityType>(cache: UpdateDataCache<T>, id: RxDBEntityId): ResolvedUpdate<T> => {
+  const event = cache.getData(id)!;
+  const after = persistedState(cache.getSerializedUpdate(id)!);
+  return { id, event, patch: after, inversePatch: { ...after, ...event.inversePatch, id } };
+};
+
+/**
+ * 判定一批 UPDATE 要不要回 SQL、能不能走 JS 增量。
+ *
+ * @param task - 查询任务
+ * @param changes - 本批更新事件，可含关系实体的事件
+ * @param refresh_rules - 命中即回 SQL 的规则组
+ * @param recalculate_rules - 命中即走 JS 增量的规则组
+ * @param readFields - 任务在 where / orderBy 之外还读的实体属性（树查询的 `parentId`）
+ * @returns 判定结论，以及按类型分好的原始事件
+ */
 export const query_need_refresh_update = <T extends EntityType>(
   task: QueryTask<T>,
   changes: RxDBEntityLocalUpdatedEventData<T>[],
   refresh_rules: RefreshMatchRules,
-  recalculate_rules: RefreshMatchRules
+  recalculate_rules: RefreshMatchRules,
+  readFields: Iterable<string> = []
 ) => {
   const query_entity_metadata = tryGetEntityMetadata(task.entityType);
 
   // 分离当前实体和关系实体（对外返回原始事件，不改变既有契约）
   const { current_entities, relation_entities } = separateEntities(task, changes);
 
+  const options = getFindOptions<T>(task.options);
+  const where = options?.where;
+
+  // 门控判定要用补足后的实体。UPDATE 事件的 patch/inversePatch 只含被改字段，
+  // 复合 where（多字段 AND）下用裸 patch 做 Reflect.get 判定，未变但满足条件的字段恒判
+  // false，match_where 永远算不出"新匹配"——recalculate/refresh 都不会触发，查询结果
+  // 永久性静默过期。这里与 classifyUpdates（merge-update.utils.ts）用同一套机制：用身份
+  // 缓存里的实例叠加 patch/inversePatch，补足没改的字段；补不齐任务读取的属性时由下面的
+  // 门控回 SQL。返回值里的 current_entities/relation_entities 仍是原始事件，保持公开契约不变。
+  // 缓存只收本任务实体类型的事件：关系实体与它同 id 时会互相顶替（整数主键最常见）。
+  const cache = new UpdateDataCache(current_entities, event => task.serialize(event));
+  const resolvedById = new Map<RxDBEntityId, ResolvedUpdate<T>>();
+  for (const event of current_entities) {
+    const id = event.id as RxDBEntityId;
+    if (!resolvedById.has(id)) resolvedById.set(id, resolveUpdate(cache, id));
+  }
+  const resolvedCurrentEntities = Array.from(resolvedById.values());
+
+  const readProperties = readPropertiesOf(where, options?.orderBy, query_entity_metadata, readFields);
+  const resultFields = once(() =>
+    query_entity_metadata ? [...query_entity_metadata.propertyMap.keys(), ...query_entity_metadata.foreignKeyNames] : []
+  );
+
+  // findAll 把新匹配的行直接追加进结果：补丁之外的持久列补不齐时，追加进去的就是残缺行。
+  // 已在结果里的行就地合并补丁，不需要整行。
+  const isIncompleteNewRow = (resolved: ResolvedUpdate<T>): boolean =>
+    task.type === 'findAll' &&
+    !task.resultEntityIds.has(resolved.id as EntityStaticType<T, 'idType'>) &&
+    (!where || isEntityMatchWhere(resolved.patch, where)) &&
+    !hasFields(resolved.patch, resultFields());
+
+  const isUndecidable = (resolved: ResolvedUpdate<T>): boolean => {
+    // 没改任务读取的属性：这一行的匹配状态与排序位置都没动，缓存缺哪个属性都不影响结论。
+    // findAll 结果外的行同理：此前不匹配，此后仍不匹配（无筛选时结果外没有行，新行由 INSERT 追加）。
+    // 不能拿残缺补丁判它新匹配：缺失的列在判空条件（`null`、`= null`）下按空算，不匹配的行会被判进来、
+    // 改一次无关列就整查一次
+    if (!touchesProperties(resolved.event, readProperties)) return false;
+    // 缓存比事件新：更新后态是更晚的版本，叠加这条迟到的 inversePatch 拼出的前态哪个版本都不是
+    if (isStaleEventPayload(resolved.patch, resolved.event.patch)) return true;
+    return (
+      !hasFields(resolved.patch, readProperties) ||
+      !hasFields(resolved.inversePatch, readProperties) ||
+      isIncompleteNewRow(resolved)
+    );
+  };
+
+  // 前后态补不齐或已过期，证明不了更新前后的匹配状态，也不能作为完整查询行下发。
+  if (hasUnknownBefore(current_entities) || resolvedCurrentEntities.some(isUndecidable)) {
+    return {
+      refresh: true,
+      recalculate: false,
+      current_entities,
+      relation_entities,
+      count_boundary_crossed: false
+    };
+  }
+
   // 检测 where 是否使用了关系字段
-  const where = getWhere<T>(task.options);
   let uses_relations = false;
   if (where && query_entity_metadata) {
     uses_relations = whereUsesRelations(where, query_entity_metadata);
   }
-
-  // 门控判定必须基于完整实体。UPDATE 事件的 patch/inversePatch 只含被改字段，
-  // 复合 where（多字段 AND）下用裸 patch 做 Reflect.get 判定，未变但满足条件的字段恒判
-  // false，match_where 永远算不出"新匹配"——recalculate/refresh 都不会触发，查询结果
-  // 永久性静默过期。这里与 classifyUpdates（merge-update.utils.ts）用同一套机制（叠加
-  // patch/inversePatch 到完整快照）为 QueryRulesBuilder 重建完整实体，仅用于门控判定；
-  // 返回值里的 current_entities/relation_entities 仍是原始事件，保持公开契约不变。
-  const cache = new UpdateDataCache(changes, event => task.serialize(event));
-  const resolvedCurrentEntities = current_entities.map(e => {
-    const id = e.id as string;
-    return {
-      id: e.id,
-      patch: cache.getSerializedUpdate(id) ?? e.patch,
-      inversePatch: cache.getSerializedBefore(id, e.inversePatch) ?? e.inversePatch
-    };
-  });
 
   // 构建规则
   const builder = new QueryRulesBuilder(task, resolvedCurrentEntities, relation_entities.length > 0, uses_relations);
   const rules = builder.buildUpdateRules();
 
   const matches = runMatches(rules, refresh_rules, recalculate_rules);
-  // 更新前态未知时不能走 JS 增量：它的每一条规则都建立在「能对比更新前后」之上。
-  const before_unknown = hasUnknownBefore(current_entities);
 
   // count 专用的精确判据（其余 task.type 都有更合适的机制，不该消费这个字段——见
   // merge_update.ts 的 count 分支）。match_where / match_where_before 是整个批次的
@@ -99,18 +228,8 @@ export const query_need_refresh_update = <T extends EntityType>(
   // **同一个实体自己**的 patch 与 inversePatch，才能看出它是否真的跨过了 where 边界，
   // 不受同批次其它实体方向的干扰。用 resolvedCurrentEntities 而不是原始
   // current_entities——复合 where 下真实的增量 patch 可能只含被改字段，必须先合并进
-  // 缓存实体补全字段（RXD-017），否则缺失字段在 isEntityMatchWhere 里恒判 false。
-  //
-  // 边界：补全靠的是**本 tab 的实体缓存**。缓存里没有这个实体时，`task.serialize` 只能拿
-  // patch 本身建实体，where 用到的其余字段在更新前后两侧同为缺失、按同一个缺失值判定——
-  // 缺失值过不了其余子句（`=` 子句恒如此）时两侧一起判 false，跨界探测失效，count 静默停在
-  // 旧值。典型来源是他 tab 转来的增量 UPDATE 落到只挂着 count 的 tab：count 不往缓存里装实体。
-  // 空 inversePatch 的事件（notifyExternalUpdate、适配器写系统表）不在此列，已由 before_unknown
-  // 回 SQL。find 系判「新匹配」的 match_where 规则同病，是既有缺口，不是本判据引入的。
-  //
-  // 不在这里就地修：未命中时 `serialize` 会把这份残缺实体写进缓存，同一实体的下一条事件就按
-  // 命中处理，「命中与否」分不出完整与残缺；要么门控改判「where 用到的字段是否齐全」，要么跨 tab
-  // 事件改带整行，两条都动整个 UPDATE 门控。已登记 roadmap「epic-006 评审顺延的架构项」。
+  // 缓存实体补全字段（RXD-017），否则缺失字段在 isEntityMatchWhere 里恒判 false；
+  // 补不齐的情形上面已经回 SQL。
   const count_boundary_crossed =
     where ?
       resolvedCurrentEntities.some(
@@ -119,8 +238,8 @@ export const query_need_refresh_update = <T extends EntityType>(
     : false;
 
   return {
-    refresh: matches.refresh || before_unknown,
-    recalculate: before_unknown ? false : matches.recalculate,
+    refresh: matches.refresh,
+    recalculate: matches.recalculate,
     current_entities,
     relation_entities,
     count_boundary_crossed

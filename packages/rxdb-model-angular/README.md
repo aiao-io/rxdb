@@ -16,6 +16,13 @@ RxDB Model 的 Angular 组件集：以实体元数据驱动的列表、详情、
 
 另有 `ENTITY_TABLE_CONFIG`、`QUERY_BUILDER_THEME` 注入 token 与 `provideQueryBuilderTheme()`。
 
+### `EntityDetailComponent` 的编辑行为
+
+- edit 模式按 `entityId` 从 Repository 加载实例。编辑目标未就绪（加载中或加载失败）时表单内部动作隐藏、tabs 下方只留「取消」，提交被拦截；就绪后表单按加载到的实例重置，未就绪期间的输入不保留。
+- `fixedFormData` 的取值只合入 create 草稿与无实例的透传表单；已加载实例的 edit 模式下只把对应字段设为只读，显示实例自身的值。
+
+以上与 React 端一致。Vue 端在这两点上是框架差异：编辑目标加载期间允许输入，就绪后合入表单、随下次提交落库；edit 模式把 `fixedFormData` 叠加在实例数据上显示（对应字段同样只读，保存不改写实例上的原值）。
+
 ## 样式约定（重要）
 
 组件模板使用 **Tailwind CSS v4 + daisyUI v5** 类名；本包**不发布编译 CSS**（无 reset、无主题、无 daisyUI 打包），只注册自身模板为 Tailwind 扫描源，由消费方应用的样式管线生成工具类，app 主题保持权威。

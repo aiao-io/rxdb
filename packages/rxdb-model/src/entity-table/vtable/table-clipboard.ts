@@ -1,6 +1,7 @@
 import type * as VTable from '@visactor/vtable';
 import { UUID_RE } from '../../entity-value.utils.js';
 import { isReadonlyOrAddRow } from '../columns/column-utils.js';
+import { isColumnWritable } from '../columns/column-writable.js';
 import type { EntityTableRecord, PendingWrite } from '../interfaces.js';
 
 /** 布尔类型列 */
@@ -227,11 +228,12 @@ export function formatAsTsv(clipboard: ClipboardContent): string {
 /**
  * 从内部剪贴板收集待写入操作（按列位置匹配，类 Excel 行为）。
  * cellType 必须一致；行/列数不足时循环复用。
+ * 跳过只读行、新增行与不可写列（列级只读、系统 / 选择 / 操作列）；
  * 若目标列定义了 menuList，则跳过不在枚举范围内的值。
  *
  * @param table 目标表格实例
  * @param clipboard 内部剪贴板内容
- * @param columns 列定义列表（可选），用于读取列属性类型与枚举选项
+ * @param columns 列定义列表（可选），用于读取列属性类型、枚举选项与列级只读标记
  * @returns 待写入操作列表
  */
 export function applyClipboard(
@@ -260,16 +262,17 @@ export function applyClipboard(
       const clipCell = clipRow[colI % clipColCount];
 
       const targetCellInfo = table.getCellInfo(targetCol, targetRow) as { cellType?: unknown; field?: unknown };
+      const colDef = columns?.[targetCol - 1];
+      const field = String(targetCellInfo.field ?? '');
+      if (!isColumnWritable(field, colDef)) continue;
       if (String(targetCellInfo.cellType ?? 'text') !== clipCell.cellType) continue;
 
-      const colDef = columns?.[targetCol - 1];
       const srcGroup = getPropertyTypeGroup(clipCell.propertyType);
       const dstGroup = getPropertyTypeGroup(colDef?.['_propertyType'] as string | undefined);
       if (srcGroup && dstGroup && srcGroup !== dstGroup) continue;
 
       if (!isAllowedByMenuList(colDef, String(clipCell.value ?? ''))) continue;
 
-      const field = String(targetCellInfo.field ?? '');
       pending.push({ col: targetCol, row: targetRow, value: clipCell.value, field, record: targetRecord });
     }
   }
@@ -280,10 +283,11 @@ export function applyClipboard(
  * 从系统剪贴板文本（TSV）收集待写入操作。
  * 布尔列自动将文本转为布尔值（true/1/yes/是 → true，false/0/no/否/空 → false），
  * 无法识别的值跳过；枚举列跳过不在 menuList 中的值；行/列数不足时循环复用。
+ * 跳过只读行、新增行与不可写列（列级只读、系统 / 选择 / 操作列）。
  *
  * @param table 目标表格实例
  * @param text 系统剪贴板文本（TSV 格式，按 \n 分行、\t 分列）
- * @param columns 列定义列表（可选），用于读取列属性类型与枚举选项
+ * @param columns 列定义列表（可选），用于读取列属性类型、枚举选项与列级只读标记
  * @returns 待写入操作列表
  */
 export function applySystemText(
@@ -315,13 +319,14 @@ export function applySystemText(
       const targetCellInfo = table.getCellInfo(targetCol, targetRow) as { cellType?: unknown; field?: unknown };
       const targetCellType = String(targetCellInfo.cellType ?? 'text');
       const field = String(targetCellInfo.field ?? '');
+      const colDef = columns?.[targetCol - 1];
+      if (!isColumnWritable(field, colDef)) continue;
 
       if (BOOL_CELL_TYPES.has(targetCellType)) {
         const boolValue = textToBoolean(value);
         if (boolValue === undefined) continue;
         pending.push({ col: targetCol, row: targetRow, value: boolValue, field, record: targetRecord });
       } else {
-        const colDef = columns?.[targetCol - 1];
         const propertyType = colDef?.['_propertyType'] as string | undefined;
         // enum 列必须有 menuList 且值在其中才允许写入（strict=true）
         if (!isAllowedByMenuList(colDef, value, propertyType === 'enum')) continue;
@@ -336,9 +341,11 @@ export function applySystemText(
 
 /**
  * 从选区收集 Delete/Backspace 需要清空的单元格写入列表。
+ * 跳过只读行、新增行与不可写列（列级只读、系统 / 选择 / 操作列）；不可写的布尔列也不进 boolCells，
+ * 免得没有写入却把开关刷成关。
  *
  * @param table 目标表格实例
- * @param columns 列定义列表
+ * @param columns 列定义列表（读取字段名、单元格类型与列级只读标记）
  * @param nonClearableFields 禁止清空的字段名集合
  * @param cellClearable 业务层回调判断单元格是否可清空，返回 false 跳过该单元格
  * @returns writes — 需要写入的清空操作；boolCells — 需要刷新视觉状态的布尔列坐标
@@ -361,8 +368,8 @@ export function collectDeleteWrites(
       const record = table.getRecordByCell(cell.col, cell.row) as Record<string, unknown> | undefined;
       if (!record || isReadonlyOrAddRow(record)) continue;
       const colDef = columns[cell.col - 1];
-      const field = colDef?.field;
-      if (!field || field.startsWith('_')) continue;
+      const field = colDef?.field ?? '';
+      if (!isColumnWritable(field, colDef)) continue;
       if (nonClearableFields.has(field)) continue;
       if (cellClearable && !cellClearable(record, field)) continue;
 

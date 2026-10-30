@@ -47,8 +47,8 @@ export default defineConfig(() => ({
     rolldownOptions: {
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
-      // 不打进库里的外部依赖。
-      external: ['@aiao/rxdb', '@aiao/utils', 'rxjs'],
+      // 不打进库里的外部依赖。sync 插件是 peer：QueryCache 的实体标识取自它，内联一份会把整个出站队列复制进来。
+      external: ['@aiao/rxdb', '@aiao/rxdb-plugin-sync', '@aiao/utils', 'rxjs'],
       input: {
         index: 'src/index.ts'
       },
@@ -67,10 +67,10 @@ export default defineConfig(() => ({
     }
   },
   optimizeDeps: {
-    // 排除包（@aiao/rxdb / @aiao/utils）的 CJS 深层依赖需显式预优化，
+    // 排除包（@aiao/rxdb / @aiao/rxdb-plugin-sync 及其依赖的 history / @aiao/utils）的 CJS 深层依赖需显式预优化，
     // 否则测试运行中途发现新依赖会触发 reload，打断测试文件的动态 import
     include: ['fastest-levenshtein', 'ms', 'uuid'],
-    exclude: ['@aiao/rxdb', '@aiao/utils', 'comlink', 'rxjs']
+    exclude: ['@aiao/rxdb', '@aiao/rxdb-plugin-history', '@aiao/rxdb-plugin-sync', '@aiao/utils', 'comlink', 'rxjs']
   },
   test: {
     name: 'rxdb-plugin-querycache',

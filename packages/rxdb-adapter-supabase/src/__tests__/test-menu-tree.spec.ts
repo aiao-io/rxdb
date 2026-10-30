@@ -285,10 +285,17 @@ describe('SupabaseTreeRepository - MenuLarge 树形查询', () => {
       expect(ancestors[0].id).toBe(rootMenu.id);
     });
 
-    it('不传 entityId 应返回空数组', async () => {
+    it('不传 entityId 应返回所有根节点', async () => {
       const ancestors = await repository.findAncestors({});
 
-      expect(ancestors).toEqual([]);
+      // 起点是全部根节点，往上没有祖先：与 sqlite-core / PGlite 的递归 CTE 同口径
+      expect(ancestors.length).toBeGreaterThan(0);
+      ancestors.forEach(a => {
+        expect(a.parentId).toBeNull();
+      });
+      const root = ancestors.find(a => a.id === rootMenu.id);
+      expect(root).toBeDefined();
+      expect(root?.hasChildren).toBe(true);
     });
 
     it('不存在的节点应返回空数组', async () => {
@@ -338,6 +345,15 @@ describe('SupabaseTreeRepository - MenuLarge 树形查询', () => {
       const count = await repository.countAncestors({ entityId: rootMenu.id, level: 100 });
 
       expect(count).toBe(0);
+    });
+
+    it('不传 entityId 时等于全树 findAncestors 的长度（所有根节点，不扣起点）', async () => {
+      const ancestors = await repository.findAncestors({});
+      const count = await repository.countAncestors({});
+
+      // 夹具里至少有 rootMenu 这一个根：两边都为 0 时这条断言会假绿
+      expect(count).toBeGreaterThan(0);
+      expect(count).toBe(ancestors.length);
     });
   });
 

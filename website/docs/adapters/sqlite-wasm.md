@@ -101,6 +101,7 @@ rxdb.adapter(
 - 事务按库名在一把跨标签页的 Web Lock 里排队：一个标签页的事务开着时，别的标签页的读写等它结束，不会落进它的事务。
   标签页死在事务中间（关页、崩溃）时，它那笔事务留在连接上，下一个拿到锁的标签页先回滚它。
 - 一个标签页断开只交还自己那一份：别的标签页照常读写、照常收到变更事件；最后一个标签页断开时才关库，之后新开的标签页还能连上。
+- 只传 `sharedWorkerInstance`、不写 `sharedWorker: true` 也选中 SharedWorker 传输，排队与断开规则完全相同。
 - 需要 Web Locks（`navigator.locks`，HTTPS 或 localhost）；没有时 `connect()` 报错。
 - 备份与恢复不支持 SharedWorker 传输（`unsupported_combination`）。
 

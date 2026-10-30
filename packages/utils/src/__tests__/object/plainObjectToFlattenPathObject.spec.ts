@@ -51,4 +51,50 @@ describe('plainObjectToFlattenPathObject', () => {
       expect(flattenPathObjectToPlainObject(flattened)).toEqual(object);
     });
   });
+
+  // 扁平结果里数组长度只能由写出的最大下标推出：末位是空洞时没有任何键能承载长度，
+  // `forEach` 跳过空洞后全空洞数组整个消失、尾部空洞把数组缩短。
+  // 往返断言用 toStrictEqual：它区分空洞与显式 undefined，toEqual 不区分。
+  describe('稀疏数组', () => {
+    it('全空洞数组抛 TypeError，而不是整个消失', () => {
+      expect(() => plainObjectToFlattenPathObject({ items: new Array(2) })).toThrow(TypeError);
+      expect(() => plainObjectToFlattenPathObject({ items: new Array(2) })).toThrow(/"items"/);
+    });
+
+    it('尾部空洞抛 TypeError，而不是把数组缩短', () => {
+      // eslint-disable-next-line no-sparse-arrays
+      expect(() => plainObjectToFlattenPathObject({ items: [1, ,] })).toThrow(TypeError);
+      // eslint-disable-next-line no-sparse-arrays
+      expect(() => plainObjectToFlattenPathObject({ a: { b: [[1, ,]] } })).toThrow(/"a\.b\[0\]"/);
+    });
+
+    it('显式 undefined 写成叶子，往返后长度与值不变', () => {
+      const object = { items: [1, undefined] };
+
+      const flattened = plainObjectToFlattenPathObject(object);
+
+      expect(flattened).toStrictEqual({ 'items[0]': 1, 'items[1]': undefined });
+      expect(Object.hasOwn(flattened, 'items[1]')).toBe(true);
+      expect(flattenPathObjectToPlainObject(flattened)).toStrictEqual(object);
+    });
+
+    it('密集数组往返不变', () => {
+      const object = { items: [1, 'x', null, { id: 1 }] };
+
+      expect(flattenPathObjectToPlainObject(plainObjectToFlattenPathObject(object))).toStrictEqual(object);
+    });
+
+    it('中间空洞由缺席的下标表示，往返后空洞位置不变', () => {
+      // eslint-disable-next-line no-sparse-arrays
+      const object = { items: [1, , 3] };
+
+      const flattened = plainObjectToFlattenPathObject(object);
+      const restored = flattenPathObjectToPlainObject(flattened) as { items: unknown[] };
+
+      expect(flattened).toStrictEqual({ 'items[0]': 1, 'items[2]': 3 });
+      expect(restored.items).toHaveLength(3);
+      expect(Object.hasOwn(restored.items, 1)).toBe(false);
+      expect(restored).toStrictEqual(object);
+    });
+  });
 });

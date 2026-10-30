@@ -9,7 +9,13 @@ import {
   type EntityRelationMetadataOptions,
   type KeyValuePropertyMetadata
 } from '@aiao/rxdb';
-import { createKeyring, type Keyring, type KeyringRow, type KeyringStorageBinding } from '@aiao/rxdb-adapter-encrypted';
+import {
+  createKeyring,
+  isEnvelope,
+  type Keyring,
+  type KeyringRow,
+  type KeyringStorageBinding
+} from '@aiao/rxdb-adapter-encrypted';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   get_sql_value,
@@ -635,8 +641,14 @@ describe('sqlite.utils', () => {
       });
     });
 
-    it('应该保留外键字段（以 Id 结尾）', async () => {
-      const metadata = createMetadata();
+    it('应该按真实关系保留外键字段（以 Id 结尾）', async () => {
+      const metadata = createMetadata(
+        [],
+        [
+          { name: 'user', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'User', mappedProperty: 'items' },
+          { name: 'post', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Post', mappedProperty: 'items' }
+        ]
+      );
 
       const entity = { userId: 'user-123', postId: 'post-456' };
       const result = await transformEntityValueToSql(metadata, entity);
@@ -1138,10 +1150,25 @@ describe('sqlite.utils', () => {
       expect(result).toEqual({ dept_id: 'd2' });
     });
 
-    it('元数据缺失 foreignKeyNames 时应该保留 Id 后缀键', async () => {
-      const result = await transformEntityValueToSql(fakeMetadata(), { fooId: 'x' });
+    // 无关系实体的表上没有这一列：照后缀猜成外键只会把它拼进 INSERT 列清单
+    it('未声明的 Id 后缀键不按后缀猜成外键，与其他未声明键一样忽略', async () => {
+      await expect(transformEntityValueToSql(fakeMetadata(), { fooId: 'x' })).resolves.toEqual({});
 
-      expect(result).toEqual({ fooId: 'x' });
+      const noRelationMetadata = createMetadata([{ name: 'name', type: PropertyType.string }]);
+      await expect(transformEntityValueToSql(noRelationMetadata, { name: 'n', ownerId: 'o1' })).resolves.toEqual({
+        name: 'n'
+      });
+    });
+
+    it('无关系实体上声明的 Id 后缀属性按声明类型转换', async () => {
+      const metadata = createMetadata([
+        { name: 'activeId', type: PropertyType.boolean },
+        { name: 'tagsId', type: PropertyType.stringArray }
+      ]);
+
+      const result = await transformEntityValueToSql(metadata, { activeId: true, tagsId: ['a', 'b'] });
+
+      expect(result).toEqual({ activeId: 1, tagsId: '["a","b"]' });
     });
 
     it('columnNameToPropertyName 指向不存在的属性时应该忽略该键', async () => {
@@ -1273,6 +1300,79 @@ describe('sqlite.utils', () => {
         await expect(
           getEntityObjectFromResult(customKeyMetadata, ['pk_id', 'secret'], ['entity-3', saved.secret as string], ctx)
         ).resolves.toEqual({ id: 'entity-3', secret: 'v' });
+      });
+    });
+
+    // 实体没有任何关系：`*Id` 列只是普通声明属性，判它是不是外键只能看真实关系元数据
+    describe('无外键实体的 Id 后缀加密列', () => {
+      const idSuffixMetadata = createMetadata([
+        { name: 'id', type: PropertyType.uuid, primary: true },
+        { name: 'secretId', type: PropertyType.string, encrypted: true, nullable: true },
+        { name: 'token', columnName: 'tokenId', type: PropertyType.string, encrypted: true, nullable: true }
+      ]);
+
+      it('默认列名：解锁后写成信封，读回解得开', async () => {
+        const keyring = await createUnlockedKeyring();
+        const ctx = { keyring, namespace: ENCRYPTION_CONTEXT_NAMESPACE };
+
+        const saved = await transformEntityValueToSql(idSuffixMetadata, { id: 'entity-4', secretId: 'plain-s' }, ctx);
+
+        expect(isEnvelope(saved.secretId)).toBe(true);
+        await expect(
+          getEntityObjectFromResult(idSuffixMetadata, ['id', 'secretId'], ['entity-4', saved.secretId as string], ctx)
+        ).resolves.toEqual({ id: 'entity-4', secretId: 'plain-s' });
+      });
+
+      it('自定义物理列名以 Id 结尾：按创建归一化后的列名为键同样写成信封', async () => {
+        const keyring = await createUnlockedKeyring();
+        const ctx = { keyring, namespace: ENCRYPTION_CONTEXT_NAMESPACE };
+        const entityData = normalizeCreateEntity(idSuffixMetadata, {
+          id: 'entity-5',
+          secretId: 'plain-s',
+          token: 'plain-t'
+        });
+        expect(entityData).toEqual({ id: 'entity-5', secretId: 'plain-s', tokenId: 'plain-t' });
+
+        const saved = await transformEntityValueToSql(idSuffixMetadata, entityData, ctx);
+
+        expect(isEnvelope(saved.secretId)).toBe(true);
+        expect(isEnvelope(saved.tokenId)).toBe(true);
+        await expect(
+          getEntityObjectFromResult(
+            idSuffixMetadata,
+            ['id', 'secretId', 'tokenId'],
+            ['entity-5', saved.secretId as string, saved.tokenId as string],
+            ctx
+          )
+        ).resolves.toEqual({ id: 'entity-5', secretId: 'plain-s', token: 'plain-t' });
+      });
+
+      it('更新归一化后的补丁：带着行主键写成信封', async () => {
+        const keyring = await createUnlockedKeyring();
+        const ctx = { keyring, namespace: ENCRYPTION_CONTEXT_NAMESPACE, primaryKey: 'entity-6' };
+        const patch = normalizeUpdateEntity(idSuffixMetadata, { secretId: 'next-s', token: 'next-t' });
+
+        const saved = await transformEntityValueToSql(idSuffixMetadata, patch, ctx);
+
+        await expect(
+          getEntityObjectFromResult(
+            idSuffixMetadata,
+            ['id', 'secretId', 'tokenId'],
+            ['entity-6', saved.secretId as string, saved.tokenId as string],
+            ctx
+          )
+        ).resolves.toEqual({ id: 'entity-6', secretId: 'next-s', token: 'next-t' });
+      });
+
+      it('keyring 锁定时两列都在写入转换处拒绝', async () => {
+        const ctx = { keyring: createLockedKeyring(), namespace: ENCRYPTION_CONTEXT_NAMESPACE };
+
+        await expect(
+          transformEntityValueToSql(idSuffixMetadata, { id: 'entity-7', secretId: 'plain-s' }, ctx)
+        ).rejects.toThrow(/keyring is locked/);
+        await expect(
+          transformEntityValueToSql(idSuffixMetadata, { id: 'entity-7', tokenId: 'plain-t' }, ctx)
+        ).rejects.toThrow(/keyring is locked/);
       });
     });
   });

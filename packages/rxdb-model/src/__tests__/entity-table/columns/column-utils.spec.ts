@@ -15,6 +15,7 @@ import {
   parsePropertyColumnValue,
   switchDisabledForReadonly
 } from '../../../entity-table/columns/column-utils.js';
+import { isColumnWritable } from '../../../entity-table/columns/column-writable.js';
 import { EnumEditor } from '../../../entity-table/editors/enum-editor.js';
 import { RelationEditor } from '../../../entity-table/editors/relation-editor.js';
 
@@ -281,6 +282,77 @@ describe('buildPropertyColumn', () => {
   it('string readonly → no editor', () => {
     const col = buildPropertyColumn({ field: 'name', type: 'string', readonly: true }) as Record<string, unknown>;
     expect(col['editor']).toBeUndefined();
+  });
+
+  describe('列级只读一处判定：鼠标编辑与键盘 / 剪贴板 / 清空入口取同一结论', () => {
+    const EDITABLE_TYPES = [
+      'uuid',
+      'string',
+      'enum',
+      'number',
+      'integer',
+      'bigint',
+      'date',
+      'stringArray',
+      'numberArray',
+      'keyValue',
+      'json',
+      'oneToOne',
+      'manyToOne'
+    ];
+
+    it.each(EDITABLE_TYPES)('%s：readonly 时既无编辑器也拒绝批量写入，可写时两者都放行', type => {
+      const locked = buildPropertyColumn({ field: 'f', type, readonly: true }) as Record<string, unknown>;
+      const open = buildPropertyColumn({ field: 'f', type }) as Record<string, unknown>;
+
+      expect(locked['editor']).toBeUndefined();
+      expect(isColumnWritable('f', locked)).toBe(false);
+      expect(open['editor']).toBeDefined();
+      expect(isColumnWritable('f', open)).toBe(true);
+    });
+
+    it('boolean：readonly 时开关禁用且拒绝批量写入', () => {
+      const locked = buildPropertyColumn({ field: 'f', type: 'boolean', readonly: true }) as Record<string, unknown>;
+      const open = buildPropertyColumn({ field: 'f', type: 'boolean' }) as Record<string, unknown>;
+
+      expect(locked['disable']).toBe(true);
+      expect(isColumnWritable('f', locked)).toBe(false);
+      expect(isColumnWritable('f', open)).toBe(true);
+    });
+
+    it('binary：表格内没有字节编辑器，但非只读属性仍接受十六进制粘贴；readonly 时拒绝', () => {
+      const open = buildPropertyColumn({ field: 'f', type: 'binary' }) as Record<string, unknown>;
+      const locked = buildPropertyColumn({ field: 'f', type: 'binary', readonly: true }) as Record<string, unknown>;
+
+      expect(open['editor']).toBeUndefined();
+      expect(isColumnWritable('f', open)).toBe(true);
+      expect(isColumnWritable('f', locked)).toBe(false);
+    });
+
+    it('computed：不论 readonly 配置都不接受写入', () => {
+      const col = buildPropertyColumn({ field: 'f', type: 'computed' }) as Record<string, unknown>;
+
+      expect(col['editor']).toBeUndefined();
+      expect(isColumnWritable('f', col)).toBe(false);
+    });
+
+    it('操作列不接受写入', () => {
+      expect(
+        isColumnWritable(
+          'actions',
+          actionsColumn('操作', '删除', () => true)
+        )
+      ).toBe(false);
+    });
+
+    it('字段名为空或带 `_` 前缀（行号列、选择列 __selected 等元字段）不接受写入', () => {
+      expect(isColumnWritable('', { field: '' })).toBe(false);
+      expect(isColumnWritable('__selected', { field: '__selected', cellType: 'checkbox' })).toBe(false);
+    });
+
+    it('调用方没给列定义时只按字段名判定', () => {
+      expect(isColumnWritable('name', undefined)).toBe(true);
+    });
   });
 
   it('date type → fieldFormat produces date string', () => {

@@ -14,12 +14,14 @@ import {
   type RxDB,
   type RxDBMutationsMap
 } from '@aiao/rxdb';
+import type { FindTreeOptions } from '@aiao/rxdb-plugin-tree';
 import { Todo, TypeDemo } from '@aiao/rxdb-test/entities';
-import { Order, User } from '@aiao/rxdb-test/shop';
+import { Order, OrderItem, User } from '@aiao/rxdb-test/shop';
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseConfigError, SupabaseDataError } from '../errors.js';
 import { handleSupabaseChange } from '../handle_supabase_change.js';
+import { SUPABASE_PAGE_SIZE } from '../pagination.js';
 import { apply_rule_group } from '../rule_group_builder.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
 import type { SupabaseAdapterOptions } from '../supabase.interface.js';
@@ -194,6 +196,71 @@ function buildTreeRepository(adapter: RxDBAdapterSupabase, metadataOverrides: Re
     }
   });
   return repository;
+}
+
+/** 树用例里的一行远端数据 */
+interface TreeRow {
+  id: string;
+  title: string;
+  parentId: string | null;
+}
+
+/** 查询链上记录下来的一次调用 */
+interface ChainCall {
+  method: string;
+  args: unknown[];
+}
+
+/**
+ * 内存版 PostgREST 表：按链上的 `eq` / `is` / `in` 过滤、按 `order` 排序、按 `range` / `limit` 取窗口，
+ * 并像服务端 `max-rows` 那样把单次响应截在一页以内。
+ *
+ * 不翻页、不排序的实现在这里与在真 PostgREST 上一样静默丢行或乱序，不会被替身放过；
+ * 判据因此可以只看结果，不必锁定发了哪几条请求。
+ */
+function createPostgrestTable(rows: readonly TreeRow[]) {
+  const select = () => {
+    const calls: ChainCall[] = [];
+    const builder: Record<string, unknown> = {
+      then: (resolve: (value: unknown) => unknown) =>
+        Promise.resolve(resolve({ data: runPostgrestQuery(rows, calls), error: null, status: 200 }))
+    };
+    for (const method of ['eq', 'is', 'in', 'order', 'range', 'limit']) {
+      builder[method] = (...args: unknown[]) => {
+        calls.push({ method, args });
+        return builder;
+      };
+    }
+    return builder;
+  };
+  const from = vi.fn(() => ({ select }));
+  return { schema: vi.fn(() => ({ from })) };
+}
+
+/** 按 PostgREST 的语义执行一条记录下来的查询链 */
+function runPostgrestQuery(rows: readonly TreeRow[], calls: ChainCall[]): TreeRow[] {
+  const matched = rows.filter(row => calls.every(call => matchesPostgrestFilter(row, call)));
+  const order = calls.find(call => call.method === 'order');
+  if (order) {
+    const column = order.args[0] as keyof TreeRow;
+    const direction = (order.args[1] as { ascending: boolean }).ascending ? 1 : -1;
+    matched.sort((a, b) => direction * String(a[column]).localeCompare(String(b[column])));
+  }
+
+  const range = calls.find(call => call.method === 'range');
+  const limit = calls.find(call => call.method === 'limit');
+  const start = range ? Number(range.args[0]) : 0;
+  const size = range ? Number(range.args[1]) - start + 1 : Number(limit?.args[0] ?? SUPABASE_PAGE_SIZE);
+  return matched.slice(start, start + Math.min(size, SUPABASE_PAGE_SIZE));
+}
+
+/** PostgREST 走 URL 传参，`eq` / `in` 按字符串比较；`null` 只有 `is` 能匹配 */
+function matchesPostgrestFilter(row: TreeRow, { method, args }: ChainCall): boolean {
+  const cell = row[args[0] as keyof TreeRow];
+  if (method === 'eq') return cell !== null && String(cell) === String(args[1]);
+  if (method === 'is') return cell === null;
+  if (method === 'in') return cell !== null && (args[1] as unknown[]).map(String).includes(String(cell));
+  return true;
 }
 
 afterEach(() => {
@@ -552,15 +619,17 @@ describe('supabase review regressions', () => {
     );
   });
 
-  it('mutations keeps its direct-write RPC shape without p_updates', async () => {
-    const rpc = vi.fn(async () => ({ data: { upserted: [] }, error: null }));
+  it('mutations 的直写载荷保留独立的 p_updates 数组', async () => {
+    const rpc = vi
+      .fn<(name: string, payload: Record<string, unknown>) => Promise<unknown>>()
+      .mockResolvedValue({ data: { upserted: [] }, error: null });
     const adapter = createAdapter({ rpc }, {}, [Todo]);
     const remove = new Map([[Todo, new Set([{ id: 't1' } as unknown as Todo])]]);
 
     await adapter.mutations({ create: new Map(), update: new Map(), remove });
 
     expect(rpc).toHaveBeenCalledOnce();
-    expect(rpc.mock.calls[0]?.[1]).not.toHaveProperty('p_updates');
+    expect(rpc.mock.calls[0]?.[1]).toHaveProperty('p_updates', []);
   });
 
   it('query-cache operations handle null data without inventing rows', async () => {
@@ -748,6 +817,80 @@ describe('supabase review regressions', () => {
 
     const selectCall = query.calls.find(call => call.method === 'select');
     expect(selectCall?.args[0]).toContain('orders:order!inner(*)');
+  });
+
+  // 第二层关系名属于关联实体，拿根实体去查会落空：那条嵌入不进 select，PostgREST 以
+  // 「'items' is not an embedded resource in this request」拒绝整个查询，两层 exists 从来跑不通
+  it('embeds a nested exists relation resolved against the related entity, not the root', async () => {
+    const query = resolvedRecordingQuery({ data: [], error: null });
+    const from = vi.fn(() => query.proxy);
+    const schema = vi.fn(() => ({ from }));
+    const adapter = createAdapter({ schema, from }, {}, [User, Order, OrderItem]);
+    const repository = new SupabaseRepository(adapter, User);
+
+    await repository.find({
+      where: {
+        combinator: 'and',
+        rules: [
+          {
+            field: 'orders',
+            operator: 'exists',
+            where: {
+              combinator: 'and',
+              rules: [
+                {
+                  field: 'items',
+                  operator: 'exists',
+                  where: {
+                    combinator: 'or',
+                    rules: [
+                      { field: 'quantity', operator: '=', value: 1 },
+                      { field: 'quantity', operator: '=', value: 7 }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    });
+
+    const selectCall = query.calls.find(call => call.method === 'select');
+    expect(selectCall?.args[0]).toBe('*, orders:order!inner(*, items:order_item!inner(*))');
+    expect(query.calls).toContainEqual({
+      method: 'or',
+      args: ['quantity.eq.1,quantity.eq.7', { referencedTable: 'orders.items' }]
+    });
+  });
+
+  // 两条 exists 落到同一条 `orders!inner` 嵌入上，PostgREST 要求同一笔订单同时满足两组条件，
+  // 「有 100 的订单、也有 200 的订单」的用户被漏掉。每条 exists 各自一个嵌入别名，过滤按别名挂
+  it('embeds independent exists rules on the same relation under their own aliases', async () => {
+    const query = resolvedRecordingQuery({ data: [], error: null });
+    const from = vi.fn(() => query.proxy);
+    const schema = vi.fn(() => ({ from }));
+    const adapter = createAdapter({ schema, from }, {}, [User, Order, OrderItem]);
+    const repository = new SupabaseRepository(adapter, User);
+    const amountIs = (value: number) => ({
+      combinator: 'and' as const,
+      rules: [{ field: 'amount', operator: '=' as const, value }]
+    });
+
+    await repository.find({
+      where: {
+        combinator: 'and',
+        rules: [
+          { field: 'orders', operator: 'exists', where: amountIs(100) },
+          { field: 'orders', operator: 'exists', where: amountIs(200) }
+        ]
+      }
+    });
+
+    const selectCall = query.calls.find(call => call.method === 'select');
+    expect(selectCall?.args[0]).toBe('*, orders__1:order!inner(*), orders__2:order!inner(*)');
+    expect(query.calls).toContainEqual({ method: 'eq', args: ['orders__1.amount', 100] });
+    expect(query.calls).toContainEqual({ method: 'eq', args: ['orders__2.amount', 200] });
   });
 
   it('mutations returns early for empty operations', async () => {
@@ -1539,6 +1682,84 @@ describe('supabase review regressions', () => {
 
       expect(idsOf(await repository.findAncestors({ entityId: 2 as never }))).toEqual([2, 1, 0]);
       expect(idsOf(await repository.findAncestors({ entityId: 0 as never }))).toEqual([0]);
+    });
+
+    it('countAncestors excludes the id 0 anchor', async () => {
+      const repository = createNumericHarness();
+
+      expect(await repository.countAncestors({ entityId: 0 as never })).toBe(0);
+      expect(await repository.countAncestors({ entityId: 2 as never })).toBe(2);
+    });
+  });
+
+  /**
+   * 不指定 entityId 查祖先（全树）时，起点是全部根节点。
+   *
+   * sqlite-core / PGlite 的递归 CTE 锚点是 `parentId is null`，递归成员 `children.id = c.parentId`
+   * 在根上找不到任何节点，结果就是全部根（按主键升序），计数是 `count(*)` 即根数。
+   * 树插件的实时 merge 也按这个口径把新根并进结果；Supabase 曾在这里直接返回 `[]`，
+   * 同一个活查询首查为空、增量又冒出新根，前后矛盾（RV-084）。
+   */
+  describe('findAncestors / countAncestors 不指定 entityId：起点是全部根节点', () => {
+    /** 比一页多一个根：不翻页就会丢掉最后一个 */
+    const rootIds = Array.from(
+      { length: SUPABASE_PAGE_SIZE + 1 },
+      (_, index) => `root-${String(index).padStart(4, '0')}`
+    );
+    /** 有子节点的根：一个落在第一页，一个落在第二页，hasChildren 的分块查询得覆盖到翻页取回的根 */
+    const parentRootIds = [rootIds[3], rootIds[SUPABASE_PAGE_SIZE]];
+    // 根按主键倒序落表：不按主键排序的实现会整体倒序；单数号根不匹配 where，用来判别起点有没有被过滤
+    const rows: TreeRow[] = [
+      ...rootIds.map((id, index) => ({ id, title: index % 2 === 0 ? 'keep' : 'drop', parentId: null })).reverse(),
+      { id: 'child-a', title: 'keep', parentId: parentRootIds[0] },
+      { id: 'child-b', title: 'keep', parentId: parentRootIds[1] },
+      { id: 'grandchild', title: 'keep', parentId: 'child-a' }
+    ];
+    const keepOnly: RuleGroup<FakeTreeEntity> = {
+      combinator: 'and',
+      rules: [{ field: 'title', operator: '=', value: 'keep' }]
+    };
+    const createHarness = (features: Record<string, unknown> = {}) =>
+      buildTreeRepository(createAdapter(createPostgrestTable(rows)), { features });
+    const idsOf = (entities: FakeTreeEntity[]) => entities.map(entity => entity.id);
+
+    it('findAncestors 全树：翻页取回全部根，按主键升序，带 hasChildren', async () => {
+      const repository = createHarness({ tree: { hasChildren: true } });
+
+      const roots = await repository.findAncestors({});
+
+      expect(idsOf(roots)).toEqual(rootIds);
+      const hasChildren = roots.map(root => (root as unknown as Record<string, unknown>)['hasChildren']);
+      expect(hasChildren.every(value => typeof value === 'boolean')).toBe(true);
+      expect(idsOf(roots.filter((_, index) => hasChildren[index]))).toEqual(parentRootIds);
+      // 树插件把「没传 entityId」统一成 null 再下发：两种写法同一个答案
+      expect(idsOf(await repository.findAncestors({ entityId: null }))).toEqual(rootIds);
+    });
+
+    it.each<[string, FindTreeOptions<typeof FakeTreeEntity>]>([
+      ['where', { where: keepOnly }],
+      ['level: 0', { level: 0 }],
+      ['where + level: 1', { where: keepOnly, level: 1 }]
+    ])('findAncestors 全树带 %s：起点不过 where、不受 level 限制，仍是全部根', async (_label, options) => {
+      expect(idsOf(await createHarness().findAncestors(options))).toEqual(rootIds);
+    });
+
+    it('countAncestors 全树：等于根数，不扣起点（与 sqlite-core 的 count(*) 同口径）', async () => {
+      const repository = createHarness();
+
+      expect(await repository.countAncestors({})).toBe(rootIds.length);
+      expect(await repository.countAncestors({ entityId: null, where: keepOnly, level: 0 })).toBe(rootIds.length);
+    });
+
+    it('指定 entityId 时照旧：当前节点 + 祖先链，计数不含当前节点', async () => {
+      const repository = createHarness();
+
+      expect(idsOf(await repository.findAncestors({ entityId: 'grandchild' }))).toEqual([
+        'grandchild',
+        'child-a',
+        parentRootIds[0]
+      ]);
+      expect(await repository.countAncestors({ entityId: 'grandchild' })).toBe(2);
     });
   });
 

@@ -51,6 +51,9 @@ export {
   type QueryCacheOutboxFailure,
   type QueryCacheOutboxResult
 } from './query-cache-outbox.js';
+// QueryCache 远端 / 本地缓存的实体标识。读引擎包（`@aiao/rxdb-plugin-querycache`）的在线读写与本包的
+// 离线重放共用这一个函数 —— 读引擎包本就依赖本包，标识只能从这一侧出。
+export { queryCacheEntityIdentifier } from './query-cache-entity-identifier.js';
 // 同 `cleanup-expired`：只转 `SyncManager.syncBranches()` 的返回值（连同 `skipReasons` 的
 // 元素类型），自由函数收回。
 export type { SyncBranchSkipReason, SyncBranchesResult } from './sync-branches.js';

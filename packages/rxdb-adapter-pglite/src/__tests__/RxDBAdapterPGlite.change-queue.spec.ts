@@ -180,4 +180,63 @@ describe('RxDBAdapterPGlite - change queue', () => {
 
     subscription.unsubscribe();
   });
+
+  /**
+   * 同一个适配器实例可以 connect → disconnect → connect（工厂返回同一实例、或直接调适配器）。
+   * 错误流若在断开时被完成，重连之后的管线失败就再没有任何订阅者收得到。
+   */
+  describe('同一实例断开重连', () => {
+    const failingEvent: PGliteChangeEvent = {
+      type: PGliteChangeType.INSERT,
+      dbName: 'test-db',
+      tableName: 'public$Todo',
+      rowIds: ['1'],
+      recordAt: new Date()
+    };
+
+    const reconnect = async (): Promise<InstanceType<typeof state.MockPGliteClient>> => {
+      await adapter.disconnect();
+      await adapter.connect();
+      const reconnected = state.clientInstances.at(-1)!;
+      expect(reconnected).not.toBe(client);
+      return reconnected;
+    };
+
+    it('重连后重新订阅 changeErrors$，管线失败照常送达', async () => {
+      const reconnected = await reconnect();
+      const errors: Error[] = [];
+      let completed = false;
+      const subscription = adapter.changeErrors$.subscribe({
+        next: value => errors.push(value),
+        complete: () => (completed = true)
+      });
+      const error = new Error('change handler failed after reconnect');
+      state.handleRxdbChange.mockRejectedValueOnce(error);
+
+      reconnected.emit(failingEvent.type, failingEvent);
+
+      await vi.waitFor(() => expect(errors).toEqual([error]));
+      expect(completed).toBe(false);
+      subscription.unsubscribe();
+    });
+
+    it('断开前的订阅不被断开结束，重连后的失败照样收到', async () => {
+      const errors: Error[] = [];
+      let completed = false;
+      const subscription = adapter.changeErrors$.subscribe({
+        next: value => errors.push(value),
+        complete: () => (completed = true)
+      });
+
+      const reconnected = await reconnect();
+      expect(completed).toBe(false);
+      const error = new Error('change handler failed after reconnect');
+      state.handleRxdbChange.mockRejectedValueOnce(error);
+
+      reconnected.emit(failingEvent.type, failingEvent);
+
+      await vi.waitFor(() => expect(errors).toEqual([error]));
+      subscription.unsubscribe();
+    });
+  });
 });

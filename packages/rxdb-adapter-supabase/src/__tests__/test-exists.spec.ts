@@ -1,5 +1,5 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
-import { ENTITIES, IdCard, Order, User } from '@aiao/rxdb-test/shop';
+import { ENTITIES, IdCard, Order, OrderItem, User, type UserStaticTypes } from '@aiao/rxdb-test/shop';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import { SupabaseRepository } from '../SupabaseRepository.js';
@@ -263,6 +263,159 @@ describe('Supabase EXISTS 操作符测试', () => {
       });
 
       expect(count).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  /**
+   * exists 子查询里的 OR 作用于同一条关联行：「有一笔金额为 100 或 999 的订单」。
+   * 组合子被丢掉时它变成「同一笔订单金额同时是 100 和 999」，服务端不报错，静默返回空集。
+   */
+  describe('exists 子查询内的 OR', () => {
+    const suffix = Date.now();
+    const nameA = `EXISTS_OR_A_${suffix}`;
+    const nameB = `EXISTS_OR_B_${suffix}`;
+
+    /** 建一笔订单并挂一个订单项，供两层关系的查询用 */
+    const createOrder = async (owner: User, amount: number, quantity: number): Promise<void> => {
+      const order = new Order();
+      order.number = `EXISTS-OR-${suffix}-${amount}`;
+      order.amount = amount;
+      order.ownerId = owner.id;
+      await (adapter.getRepository(Order) as SupabaseRepository<typeof Order>).create(order);
+
+      const item = new OrderItem();
+      item.productName = `EXISTS-OR-${amount}`;
+      item.quantity = quantity;
+      item.price = amount;
+      item.orderId = order.id;
+      await (adapter.getRepository(OrderItem) as SupabaseRepository<typeof OrderItem>).create(item);
+    };
+
+    const findNames = async (where: UserStaticTypes['findOptions']['where']): Promise<string[]> => {
+      const rows = await (adapter.getRepository(User) as SupabaseRepository<typeof User>).find({ where });
+      return rows.map(row => row.name).sort();
+    };
+
+    beforeAll(async () => {
+      const userRepo = adapter.getRepository(User) as SupabaseRepository<typeof User>;
+      const userA = new User();
+      userA.name = nameA;
+      userA.age = 30;
+      await userRepo.create(userA);
+      const userB = new User();
+      userB.name = nameB;
+      userB.age = 31;
+      await userRepo.create(userB);
+
+      // A：金额 100（订单项数量 7）与 200（数量 2）；B：金额 300（数量 3）
+      await createOrder(userA, 100, 7);
+      await createOrder(userA, 200, 2);
+      await createOrder(userB, 300, 3);
+    });
+
+    it('exists 下直接 OR：任一分支命中同一笔订单即可', async () => {
+      const names = await findNames({
+        combinator: 'and',
+        rules: [
+          { field: 'name', operator: 'in', value: [nameA, nameB] },
+          {
+            field: 'orders',
+            operator: 'exists',
+            where: {
+              combinator: 'or',
+              rules: [
+                { field: 'amount', operator: '=', value: 100 },
+                { field: 'amount', operator: '=', value: 999 }
+              ]
+            }
+          }
+        ]
+      });
+
+      expect(names).toEqual([nameA]);
+    });
+
+    it('exists 下 AND 包 OR：两个条件落在同一笔订单上', async () => {
+      // A 的 100 过不了 >= 150，200 过不了 OR；只有 B 的 300 两条都满足
+      const names = await findNames({
+        combinator: 'and',
+        rules: [
+          { field: 'name', operator: 'in', value: [nameA, nameB] },
+          {
+            field: 'orders',
+            operator: 'exists',
+            where: {
+              combinator: 'and',
+              rules: [
+                { field: 'amount', operator: '>=', value: 150 },
+                {
+                  combinator: 'or',
+                  rules: [
+                    { field: 'amount', operator: '=', value: 100 },
+                    { field: 'amount', operator: '=', value: 300 }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      });
+
+      expect(names).toEqual([nameB]);
+    });
+
+    it('两层关系：订单项上的 OR 作用于完整嵌入路径', async () => {
+      const names = await findNames({
+        combinator: 'and',
+        rules: [
+          { field: 'name', operator: 'in', value: [nameA, nameB] },
+          {
+            field: 'orders',
+            operator: 'exists',
+            where: {
+              combinator: 'and',
+              rules: [
+                {
+                  field: 'items',
+                  operator: 'exists',
+                  where: {
+                    combinator: 'or',
+                    rules: [
+                      { field: 'quantity', operator: '=', value: 1 },
+                      { field: 'quantity', operator: '=', value: 7 }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      });
+
+      expect(names).toEqual([nameA]);
+    });
+
+    it('两条 exists 指向同一关系：各自命中不同的订单', async () => {
+      // A 有 100 与 200 两笔订单，两条 exists 各要一笔；落到同一个嵌入上就成了「同一笔订单既是 100 又是 200」
+      const amountIs = (value: number) => ({
+        combinator: 'and' as const,
+        rules: [{ field: 'amount' as const, operator: '=' as const, value }]
+      });
+      const users = await (adapter.getRepository(User) as SupabaseRepository<typeof User>).find({
+        where: {
+          combinator: 'and',
+          rules: [
+            { field: 'name', operator: 'in', value: [nameA, nameB] },
+            { field: 'orders', operator: 'exists', where: amountIs(100) },
+            { field: 'orders', operator: 'exists', where: amountIs(200) }
+          ]
+        }
+      });
+
+      expect(users.map(user => user.name)).toEqual([nameA]);
+      // 别名嵌入只为过滤而存在：响应里带回的嵌入行不进实体
+      expect(Object.keys(users[0])).not.toContain('orders__1');
+      expect(Object.keys(users[0])).not.toContain('orders__2');
     });
   });
 });

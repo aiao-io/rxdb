@@ -9,10 +9,10 @@
 | :------------- | :--- |
 | ✅ Done        | 89   |
 | 🚧 In Progress | 3    |
-| 👀 In Review   | 5    |
-| 📝 Backlog     | 31   |
+| 👀 In Review   | 8    |
+| 📝 Backlog     | 29   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 128  |
+| **合计**       | 129  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -25,7 +25,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)                                  | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）仍待补齐。         |
 | [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                    | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。           |
 
-## 待评审（5 条）
+## 待评审（8 条）
 
 | Story                                                                                         | 剩余范围                                                                      |
 | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
@@ -92,6 +92,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md)
 - ✅ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)
 - ✅ [US-028 可排序实体（普通实体手动排序）](stories/core/US-028-sortable-entity.md)
+- 👀 [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)
 - ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md)
 - 👀 [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)
 - ✅ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md)
@@ -111,8 +112,8 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - 👀 [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)
 - ✅ [US-220 Supabase 推送 UPDATE 的落库语义](stories/adapter/US-220-supabase-update-push-semantics.md)
 - ✅ [US-221 OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄](stories/adapter/US-221-opfs-reload-access-handle-race.md)
-- ⬜ [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)
-- ⬜ [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md)
+- 👀 [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)
+- 👀 [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md)
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md)

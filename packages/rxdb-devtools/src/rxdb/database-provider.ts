@@ -60,7 +60,14 @@ export interface DevToolsRxdbDatabaseProviderPorts {
    * @remarks
    * 返回 `undefined` 表示尚未 init：所有操作回 `provider_unavailable`（可重试），
    * 而不是回一份空结果——空结果会让面板把「还没连上」显示成「这个库是空的」。
-   * 实例可以在运行期被换掉，实体索引与事件订阅都会跟着重建。
+   *
+   * 实例可以在运行期被换掉（含变回 `undefined`），实体索引与事件订阅都会跟着重建。
+   * 换实例没有通知：provider 在每次操作入口与每条事件的转发边界重新读取它，发现换了就作废
+   * 实体索引、摘掉旧实例上的全部监听；开启过事件（调用过 `events` 且其后没有 `dispose()`）时
+   * 立即在当前实例上重建订阅。旧实例在切换之后发出的事件一律不转发。
+   * 从换掉到下一次操作（或旧实例的下一条事件）之前，新实例上的事件还没有人订阅——
+   * 要立刻接上的宿主在换实例后调用一次任意操作即可。
+   * 同一个实例必须按身份原样返回：每次都包一层新对象会被当成一直在换实例。
    */
   getRxDB(): DevToolsRxDB | undefined;
 
@@ -82,11 +89,13 @@ export interface DevToolsRxdbDatabaseProviderPorts {
 /** `database` provider；额外暴露订阅回收入口。 */
 export interface DevToolsRxdbDatabaseProvider extends DevToolsProvider {
   /**
-   * 摘掉全部 RxDB 事件监听。
+   * 摘掉全部 RxDB 事件监听，并关闭事件转发（之后要再收事件须重新调用 `events`）。
    *
    * @remarks
-   * 幂等。session 结束、实例被换掉与连接器 `disconnect()` 都会调用它；
-   * 不回收的话，被替换掉的实例会因为监听器还在而无法回收。
+   * 幂等。session 结束与连接器 `disconnect()` 都会调用它；
+   * 不回收的话，实例会因为监听器还在而无法回收。
+   * 运行期换实例不必调用它：旧实例上的监听在换绑时就已摘掉，见
+   * {@link DevToolsRxdbDatabaseProviderPorts.getRxDB}。
    */
   dispose(): void;
 }
@@ -160,6 +169,8 @@ export function createDevToolsRxdbDatabaseProvider(
   };
 
   let cachedRegistry: { instance: DevToolsRxDB; registry: EntityRegistry } | undefined;
+  /** `events` 打开、`dispose()` 关闭；换实例时据此决定要不要在新实例上重建订阅。 */
+  let eventsEnabled = false;
   let subscribedTo: DevToolsRxDB | undefined;
   const listeners = new Map<keyof RxDBEventMap, (event: RxDBEvent) => void>();
 
@@ -183,9 +194,38 @@ export function createDevToolsRxdbDatabaseProvider(
     subscribedTo = undefined;
   }
 
-  function onRxDBEvent(rxdb: DevToolsRxDB, event: RxDBEvent): void {
+  function subscribe(rxdb: DevToolsRxDB): void {
+    subscribedTo = rxdb;
+    for (const eventType of RXDB_EVENT_TYPES) {
+      const listener = (event: RxDBEvent): void => onRxDBEvent(rxdb, event);
+      rxdb.addEventListener(eventType, listener);
+      listeners.set(eventType, listener);
+    }
+  }
+
+  /**
+   * 换绑入口：实体索引与事件订阅只认 `ports.getRxDB()` 的当前值。
+   *
+   * @remarks
+   * 操作入口与事件转发边界都经这里，订阅只在这一处建立与换掉。实例换了（或变回未就绪）就作废
+   * 实体索引、摘掉旧实例的全部监听——留着的话旧库事件继续混进面板，旧实例也因为监听器与索引
+   * 还引用着它而无法回收；开启过事件时再在当前实例上重建订阅，否则新库的事件无人转发。
+   */
+  function bindTo(current: DevToolsRxDB | undefined): void {
+    if (cachedRegistry?.instance !== current) cachedRegistry = undefined;
+    if (subscribedTo !== current) unsubscribe();
+    if (eventsEnabled && current !== undefined && subscribedTo === undefined) subscribe(current);
+  }
+
+  function onRxDBEvent(source: DevToolsRxDB, event: RxDBEvent): void {
+    const current = ports.getRxDB();
+    // 换实例之后、下一次操作之前，旧库仍可能发事件：它已不是检查对象，丢弃并就地换绑
+    if (current !== source) {
+      bindTo(current);
+      return;
+    }
     const record = toEventRecord(event);
-    const context: ConnectorMaskContext = registryFor(rxdb).sync();
+    const context: ConnectorMaskContext = registryFor(source).sync();
     ports.emitEvent(record.type, serializeDevToolsValue(maskEncryptedEvent(context, record)));
   }
 
@@ -232,15 +272,8 @@ export function createDevToolsRxdbDatabaseProvider(
   };
 
   const events: Handler = rxdb => {
-    if (subscribedTo !== rxdb) unsubscribe();
-    if (subscribedTo === undefined) {
-      subscribedTo = rxdb;
-      for (const eventType of RXDB_EVENT_TYPES) {
-        const listener = (event: RxDBEvent): void => onRxDBEvent(rxdb, event);
-        rxdb.addEventListener(eventType, listener);
-        listeners.set(eventType, listener);
-      }
-    }
+    eventsEnabled = true;
+    bindTo(rxdb);
     return Promise.resolve(ok({ eventTypes: listeners.size }));
   };
 
@@ -292,6 +325,7 @@ export function createDevToolsRxdbDatabaseProvider(
       const handler = Object.hasOwn(handlers, operation) ? handlers[operation] : undefined;
       if (handler === undefined) return failure('provider_unsupported');
       const rxdb = ports.getRxDB();
+      bindTo(rxdb);
       if (rxdb === undefined) return failure('provider_unavailable');
       try {
         return await handler(rxdb, isRecord(params) ? params : {});
@@ -300,6 +334,9 @@ export function createDevToolsRxdbDatabaseProvider(
       }
     },
 
-    dispose: unsubscribe
+    dispose() {
+      eventsEnabled = false;
+      unsubscribe();
+    }
   };
 }

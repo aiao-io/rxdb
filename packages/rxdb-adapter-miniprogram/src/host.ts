@@ -8,8 +8,10 @@ import type {
   MiniProgramWechatApi
 } from './mini-program.interface.js';
 import { MINI_PROGRAM_PLATFORM_IDS } from './mini-program.interface.js';
+import { MINI_PROGRAM_UNSUPPORTED_PLATFORMS, type MiniProgramUnsupportedPlatform } from './unsupported-platforms.js';
 
 export { MINI_PROGRAM_PLATFORM_IDS } from './mini-program.interface.js';
+export { MINI_PROGRAM_UNSUPPORTED_PLATFORMS, type MiniProgramUnsupportedPlatform } from './unsupported-platforms.js';
 
 /** 平台可行性矩阵在仓库里的位置；未知平台与无文档能力缺失的报错指向这里。包内共用，不从包入口导出。 */
 export const PLATFORM_FEASIBILITY_PATH = 'requirements/stories/adapter/miniprogram-platform-feasibility.md';
@@ -35,28 +37,6 @@ export class MiniProgramUnknownPlatformError extends Error {
     this.platform = String(platform);
   }
 }
-
-/** 可行性矩阵判 `unsupported` 的一个平台：报错要带出的判定依据。 */
-export interface MiniProgramUnsupportedPlatform {
-  /** 报错里的平台名。 */
-  readonly displayName: string;
-  /** 与矩阵 YAML 的 `blockers` 逐项一致。 */
-  readonly blockers: readonly string[];
-  /** 判定理由的一句话摘要，全文在矩阵对应章节。 */
-  readonly reason: string;
-  /** 矩阵里该平台章节的标题原文。 */
-  readonly section: string;
-}
-
-/**
- * 可行性矩阵判 `unsupported` 的平台。它们不在 {@link MINI_PROGRAM_PLATFORM_IDS} 里，传入时抛
- * {@link MiniProgramUnsupportedPlatformError} 并带出判定依据；矩阵改判时两张表一起改，测试逐项核对。
- *
- * 包内共用，不从包入口导出。
- */
-export const MINI_PROGRAM_UNSUPPORTED_PLATFORMS: Readonly<Record<string, MiniProgramUnsupportedPlatform>> =
-  // 支付宝 2026-10-04 改判 supported 后为空；百度、QQ 门 1 就不过、没写 host，按未知平台拒绝
-  Object.freeze({});
 
 /**
  * 传入的平台 id 被可行性矩阵判为 `unsupported`。

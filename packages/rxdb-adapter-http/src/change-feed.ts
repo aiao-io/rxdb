@@ -444,10 +444,13 @@ export const assertChangeFeedUrl = (url: string): void => {
 /**
  * 校验拼接完成的通知端点确实是个能解析的 URL。
  *
- * @param url - {@link ChangeFeedHost.url}，即 `joinUrl(baseUrl, changeFeed.url)` 的结果
+ * @param url - {@link ChangeFeedHost.url}，即 transport 的 `resolveUrl()` 对 `changeFeed.url` 的产出
  * @throws HttpConfigError URL 解析不出来
  *
  * @remarks
+ * 与普通请求同一个地址出口、同一条判据：浏览器里的同源相对地址此时已按页面补成绝对地址，
+ * 仍解析不了的只剩两种——没有页面地址的宿主（node）里的相对地址，以及畸形的绝对地址。
+ *
  * 判在构造期而不是等 `#connect()`，理由与空串被 {@link assertChangeFeedUrl} 拦下**完全一样**，
  * 只是漏网的路径不同：`joinUrl` 见到 `http(s)://` 开头就原样透出，于是
  * `changeFeed.url: 'https://'` 绕过非空校验，一路走到 `new EventSource()` 才同步抛

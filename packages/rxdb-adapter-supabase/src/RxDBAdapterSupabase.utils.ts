@@ -54,8 +54,8 @@ export type UpsertMode = 'insert' | 'update';
  * 构建 upsert RPC 参数
  *
  * @param entityMap - 按实体类型分组的待写入实体
- * @param userId - 当前用户；不传则完全不注入审计字段
- * @param mode - 写入语义，默认 `'insert'`。`'update'` 下**不下发** `createdBy`，避免覆写原作者
+ * @param userId - 当前用户；不传则不注入审计字段
+ * @param mode - 写入语义，默认 `'insert'`。`'update'` 下无论有没有 `userId` 都**不下发** `createdBy`，避免覆写原作者
  * @returns `rxdb_mutations` RPC 的 upsert 参数数组
  */
 export function build_upsert_params<T extends EntityType>(
@@ -71,7 +71,7 @@ export function build_upsert_params<T extends EntityType>(
     params.push({
       table: metadata.tableName,
       schema: metadata.namespace,
-      data: userId ? data.map(e => applyAuditFields(e, userId, mode)) : data
+      data: data.map(e => applyAuditFields(e, userId, mode))
     });
   }
 
@@ -79,26 +79,32 @@ export function build_upsert_params<T extends EntityType>(
 }
 
 /**
- * 按写入语义注入审计字段。
+ * 按写入语义处理审计字段。
  *
  * @param entity - 待写入实体
- * @param userId - 当前用户
- * @param mode - `'insert'` 注入 `createdBy` + `updatedBy`；`'update'` 只注入 `updatedBy` 并**移除** `createdBy`
- * @returns 可直接下发给 `rxdb_batch_upsert` 的行数据
+ * @param userId - 当前用户；不传则不注入 `createdBy` / `updatedBy`
+ * @param mode - `'insert'` 注入 `createdBy` + `updatedBy`；`'update'` 只注入 `updatedBy`，且无论有没有 `userId` 都**移除** `createdBy`
+ * @returns 可直接下发给 `rxdb_mutations` 的行数据
  *
  * @remarks
- * 服务端 `rxdb_batch_upsert` 是 `ON CONFLICT (id) DO UPDATE SET <除 id 外全部下发的键> = EXCLUDED.<键>`。
- * 更新路径只要把 `createdBy` 送上去，原作者就会被当前用户覆写 —— 若 RLS 依赖该列判定行归属，
+ * 修改走普通 UPDATE，`SET` 覆盖载荷里出现的每一列。更新路径只要把 `createdBy` 送上去，原作者就会被
+ * 覆写（有身份时成了当前用户，没身份时成了实体手里的值，可能是 `null`）—— 若 RLS 依赖该列判定行归属，
  * 这等于一次静默的所有权转移。因此更新语义下必须**根本不下发**该列，让服务端的 SET 子句碰不到它。
  *
- * `mergeChanges` 一直是这么做的（更新只注 `updatedBy`、插入才注 `createdBy`），此处与之对齐。
+ * `createdBy` 是只读系统字段：`SupabaseRepository.update` 按只读过滤从不下发它，
+ * `mergeChanges` 的修改也只注 `updatedBy`，此处与两者对齐。
  */
-const applyAuditFields = <T extends object>(entity: T, userId: string, mode: UpsertMode): Record<string, unknown> => {
-  const row: Record<string, unknown> = { ...entity, updatedBy: userId };
-  if (mode === 'insert') {
-    row['createdBy'] = userId;
-  } else {
+const applyAuditFields = <T extends object>(
+  entity: T,
+  userId: string | undefined,
+  mode: UpsertMode
+): Record<string, unknown> => {
+  const row = { ...entity } as Record<string, unknown>;
+  if (userId) row['updatedBy'] = userId;
+  if (mode === 'update') {
     delete row['createdBy'];
+  } else if (userId) {
+    row['createdBy'] = userId;
   }
   return row;
 };

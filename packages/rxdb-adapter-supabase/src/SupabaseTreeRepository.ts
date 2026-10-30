@@ -57,25 +57,15 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
    * - 不指定 entityId 时：统计所有根节点及其后代的总数
    */
   async countDescendants(options: FindTreeOptions<T>): Promise<number> {
-    const { entityId } = options;
-
-    // 使用 findDescendants 然后计数
-    const descendants = await this.findDescendants(options);
-
-    // 如果指定了 entityId，不包含当前节点（节点不存在时 descendants 为空，需避免返回负数）。
-    // `!= null` 而非 truthy：整数主键 0 是合法 id，与 sqlite-core / PGlite 的判据一致。
-    if (entityId != null) {
-      return Math.max(0, descendants.length - 1);
-    }
-
-    return descendants.length;
+    return this.countTreeNodes(await this.findDescendants(options), options.entityId);
   }
 
   /**
    * 查询祖先节点
    *
    * @remarks
-   * 指定 entityId 时：包含当前节点 + 祖先节点
+   * - 指定 entityId 时：包含当前节点 + 祖先节点
+   * - 不指定 entityId 时：返回所有根节点（起点就是全部根，往上没有祖先）
    */
   async findAncestors(options: FindTreeOptions<T>): Promise<InstanceType<T>[]> {
     return this.findAncestorsFromTable(options);
@@ -85,13 +75,11 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
    * 查询祖先节点数量
    *
    * @remarks
-   * 指定 entityId 时：**不包含当前节点**，只统计祖先数量
+   * - 指定 entityId 时：**不包含当前节点**，只统计祖先数量
+   * - 不指定 entityId 时：统计所有根节点的数量
    */
   async countAncestors(options: FindTreeOptions<T>): Promise<number> {
-    const ancestors = await this.findAncestors(options);
-
-    // 不包含当前节点
-    return Math.max(0, ancestors.length - 1);
+    return this.countTreeNodes(await this.findAncestors(options), options.entityId);
   }
 
   /**
@@ -105,18 +93,15 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
       options.level,
       `tree query 'level' must be a non-negative integer, received: ${String(options.level)}`
     );
-    const tableName = this.metadata.tableName;
     const hasChildrenFeature = this.metadata.features?.tree?.hasChildren;
     const primaryKeyColumn = this.primary_key_column();
     const parentColumnName = this.parent_column_name();
-    const schema = resolve_supabase_schema(this.metadata.namespace) ?? 'public';
-    const tableClient = this.adapter.client.schema(schema).from(tableName);
+    const tableClient = this.table_client();
     const results: InstanceType<T>[] = [];
     const visited = new Set<string>();
 
     // 起点不应用 where：递归 CTE 的锚点成员同样不带 rule group
     // （sqlite-core `WHERE id = ?` / `parentId is null`），起点是否匹配不影响它自身是否返回。
-    // 根节点可能有任意多个，必须翻页。
     const loadRoots = async (): Promise<Record<string, unknown>[]> => {
       if (entityId != null) {
         const { data, error, status } = await tableClient.select('*').eq(primaryKeyColumn, entityId).limit(1);
@@ -124,16 +109,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
         return (data ?? []) as Record<string, unknown>[];
       }
 
-      return select_all_pages<Record<string, unknown>>(
-        this.rxdb.reachability,
-        (rangeFrom, rangeTo) =>
-          tableClient
-            .select('*')
-            .is(parentColumnName, null)
-            .order(primaryKeyColumn, { ascending: true })
-            .range(rangeFrom, rangeTo),
-        'Failed to find descendants'
-      );
+      return this.selectRootRows('Failed to find descendants');
     };
 
     // 取某一层的全部子节点。这里有两重上限要绕开，缺一层都会丢节点：
@@ -234,7 +210,12 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
   /**
    * 基于实体表的祖先节点查询
    *
-   * 一次查询获取所有节点，在内存中向上遍历，避免 N+1 问题。
+   * @remarks
+   * 起点与 sqlite-core / PGlite 递归 CTE 的锚点成员同一判据（`entityId == null ? parentId is null : id = ?`）：
+   * - 指定 entityId：自底向上逐跳取当前节点及其祖先链，见 `selectAncestorChain`；
+   * - 不指定（全树）：起点是全部根节点。递归成员 `children.id = c.parentId` 在根上找不到任何节点，
+   *   结果就是全部根（按主键升序），起点不过 where、不受 level 限制。树插件的实时 merge
+   *   按同一口径把新根并进结果，这里若返回空，同一个活查询的首查与增量就会前后矛盾。
    */
   private async findAncestorsFromTable(options: FindTreeOptions<T>): Promise<InstanceType<T>[]> {
     const { entityId, where } = options;
@@ -243,51 +224,16 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
       `tree query 'level' must be a non-negative integer, received: ${String(options.level)}`
     );
 
-    if (entityId == null) {
-      return [];
-    }
+    const rows =
+      entityId == null ?
+        await this.selectRootRows('Failed to find ancestors')
+      : await this.selectAncestorChain(entityId as RxDBEntityId, where, level);
 
-    const tableName = this.metadata.tableName;
+    if (rows.length === 0) return [];
+
     const hasChildrenFeature = this.metadata.features?.tree?.hasChildren;
     const primaryKeyColumn = this.primary_key_column();
     const parentColumnName = this.parent_column_name();
-    const schema = resolve_supabase_schema(this.metadata.namespace) ?? 'public';
-    const tableClient = () => this.adapter.client.schema(schema).from(tableName);
-
-    // 自底向上逐级取节点，而不是一次性拉整张表。
-    //
-    // 整表 `select('*')` 会被 PostgREST 的 `max-rows`（默认 1000）**静默截断** ——
-    // 目标节点或其祖先落在截断之外时，内存回溯会在未命中处提前 break，
-    // 返回不完整的祖先链且不报任何错。往返次数由树深度决定（给了 level 时 ≤ level + 1），
-    // 树的深度天然有界，代价可控。
-    const rows: Record<string, unknown>[] = [];
-    // 环检测按字符串归一：PostgREST 回来的 parentId 可能是 number 也可能是 string
-    const seen = new Set<string>();
-    let currentId: RxDBEntityId | null = entityId as RxDBEntityId;
-    let currentLevel = 0;
-
-    // `!= null` 而非 truthy：`parentId: 0` 指向的是 id 为 0 的真实父节点，不是根
-    while (currentId != null && (level === undefined || currentLevel <= level)) {
-      // 环保护：不传 level 时它就是唯一的终止条件；给了 level 时也不该让循环跑满 level 次
-      const seenKey = String(currentId);
-      if (seen.has(seenKey)) break;
-      seen.add(seenKey);
-
-      // where 只作用于往上的每一跳（递归成员），起点豁免：
-      // 某一级祖先不匹配即断链，它上面的整条链都不再返回，即使更高处的节点自身匹配。
-      // 与 findDescendants 及 sqlite-core 的 children_where 同一套语义。
-      const hopQuery = tableClient().select('*').eq(primaryKeyColumn, currentId);
-      const { data, error, status } = await (currentLevel === 0 ? hopQuery : this.applyWhere(hopQuery, where)).limit(1);
-      assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to find ancestors');
-      const node = data?.[0] as Record<string, unknown> | undefined;
-      if (!node) break;
-
-      rows.push(node);
-      currentId = (node[parentColumnName] as RxDBEntityId | null | undefined) ?? null;
-      currentLevel++;
-    }
-
-    if (rows.length === 0) return [];
 
     // hasChildren 批量判定，避免每个节点再来一次往返
     let parentsWithChildren: Set<string> | undefined;
@@ -295,7 +241,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
       const ids = rows.map(node => String(node[primaryKeyColumn]));
       parentsWithChildren = await this.findParentsWithChildren(
         (chunk, rangeFrom, rangeTo) =>
-          tableClient()
+          this.table_client()
             .select(parentColumnName)
             .in(parentColumnName, chunk)
             .order(primaryKeyColumn, { ascending: true })
@@ -314,6 +260,89 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     });
 
     return results;
+  }
+
+  /**
+   * 自底向上逐跳取当前节点及其祖先链的行
+   *
+   * @remarks
+   * 不一次性拉整张表：整表 `select('*')` 会被 PostgREST 的 `max-rows`（默认 1000）**静默截断** ——
+   * 目标节点或其祖先落在截断之外时，内存回溯会在未命中处提前 break，
+   * 返回不完整的祖先链且不报任何错。往返次数由树深度决定（给了 level 时 ≤ level + 1），
+   * 树的深度天然有界，代价可控。
+   */
+  private async selectAncestorChain(
+    entityId: RxDBEntityId,
+    where: FindTreeOptions<T>['where'],
+    level: number | undefined
+  ): Promise<Record<string, unknown>[]> {
+    const primaryKeyColumn = this.primary_key_column();
+    const parentColumnName = this.parent_column_name();
+    const rows: Record<string, unknown>[] = [];
+    // 环检测按字符串归一：PostgREST 回来的 parentId 可能是 number 也可能是 string
+    const seen = new Set<string>();
+    let currentId: RxDBEntityId | null = entityId;
+    let currentLevel = 0;
+
+    // `!= null` 而非 truthy：`parentId: 0` 指向的是 id 为 0 的真实父节点，不是根
+    while (currentId != null && (level === undefined || currentLevel <= level)) {
+      // 环保护：不传 level 时它就是唯一的终止条件；给了 level 时也不该让循环跑满 level 次
+      const seenKey = String(currentId);
+      if (seen.has(seenKey)) break;
+      seen.add(seenKey);
+
+      // where 只作用于往上的每一跳（递归成员），起点豁免：
+      // 某一级祖先不匹配即断链，它上面的整条链都不再返回，即使更高处的节点自身匹配。
+      // 与 findDescendants 及 sqlite-core 的 children_where 同一套语义。
+      const hopQuery = this.table_client().select('*').eq(primaryKeyColumn, currentId);
+      const { data, error, status } = await (currentLevel === 0 ? hopQuery : this.applyWhere(hopQuery, where)).limit(1);
+      assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to find ancestors');
+      const node = data?.[0] as Record<string, unknown> | undefined;
+      if (!node) break;
+
+      rows.push(node);
+      currentId = (node[parentColumnName] as RxDBEntityId | null | undefined) ?? null;
+      currentLevel++;
+    }
+
+    return rows;
+  }
+
+  /**
+   * 翻页取出全部根节点（`parentId` 为空）的行，按主键升序
+   *
+   * @remarks
+   * 全树查询（不指定 entityId）的起点，findDescendants 与 findAncestors 共用。
+   * 对齐 sqlite-core / PGlite 递归 CTE 的锚点成员 `parentId is null`：不带 where、不受 level 限制。
+   * 根节点可能有任意多个，必须翻页，否则会被 PostgREST 的 `max-rows` 静默截断。
+   */
+  private selectRootRows(errorMessage: string): Promise<Record<string, unknown>[]> {
+    const tableClient = this.table_client();
+    const primaryKeyColumn = this.primary_key_column();
+    const parentColumnName = this.parent_column_name();
+
+    return select_all_pages<Record<string, unknown>>(
+      this.rxdb.reachability,
+      (rangeFrom, rangeTo) =>
+        tableClient
+          .select('*')
+          .is(parentColumnName, null)
+          .order(primaryKeyColumn, { ascending: true })
+          .range(rangeFrom, rangeTo),
+      errorMessage
+    );
+  }
+
+  /**
+   * 树计数的口径，countDescendants 与 countAncestors 共用
+   *
+   * @remarks
+   * 指定 entityId 时不含当前节点（节点不存在时结果为空，钳在 0 避免返回负数）；不指定时（全树）一个不扣。
+   * 对齐 sqlite-core 的 `isFindRoot ? count(*) : max(count(*)-1, 0)`。
+   * `!= null` 而非 truthy：整数主键 0 是合法 id，与 sqlite-core / PGlite 的判据一致。
+   */
+  private countTreeNodes(nodes: readonly unknown[], entityId: FindTreeOptions<T>['entityId']): number {
+    return entityId != null ? Math.max(0, nodes.length - 1) : nodes.length;
   }
 
   /**
@@ -396,5 +425,11 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
    */
   private parent_column_name(): string {
     return 'parentId';
+  }
+
+  /** 本实体的远端表；树查询一律显式带 schema（缺省 `public`） */
+  private table_client() {
+    const schema = resolve_supabase_schema(this.metadata.namespace) ?? 'public';
+    return this.adapter.client.schema(schema).from(this.metadata.tableName);
   }
 }

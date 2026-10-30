@@ -9,19 +9,20 @@
 | :------------- | :----- |
 | ✅ Done        | 89     |
 | 🚧 In Progress | 3      |
-| 👀 In Review   | 5      |
-| 📝 Backlog     | 31     |
+| 👀 In Review   | 8      |
+| 📝 Backlog     | 29     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **39** |
+| **未完成合计** | **40** |
 
-仓库还剩 **39 条**未关闭故事（3 In Progress + 5 In Review + 31 Backlog + 0 Blocked）。
+仓库还剩 **40 条**未关闭故事（3 In Progress + 8 In Review + 29 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
 
 | Story                                                                                                                                                                                                                              | 状态           | 剩什么                                                                  | 排期位置   |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------------------------- | ---------- |
-| [US-223](stories/adapter/US-223-supabase-mutations-update-semantics.md) / [US-224](stories/adapter/US-224-supabase-cascade-delete-change-log.md)                                                                                   | 📝 Backlog     | 已有复现：RLS 误拒直写 UPDATE、级联删除遗漏同步日志；补齐边界后优先修复 | 建议批次 3 |
+| [US-223](stories/adapter/US-223-supabase-mutations-update-semantics.md) / [US-224](stories/adapter/US-224-supabase-cascade-delete-change-log.md)                                                                                   | 👀 In Review   | 直写 UPDATE 返回服务器最终行、级联删除写完整隐式日志已实现；待代码评审  | 批次 3     |
+| [US-032](stories/core/US-032-cross-tab-update-live-query.md)                                                                                                                                                                      | 👀 In Review   | 改了读取列而缓存补不齐时回 SQL，核心与真实双连接回归通过；待代码评审       | 独立核心 PR |
 | [US-030](stories/core/US-030-declarative-storage-constraints.md)                                                                                                                                                                   | 👀 In Review   | 当前承诺 A～C 的评审收尾；候选 D 不参与本轮关闭                         | 批次 3     |
 | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                                                                                    | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                     | 批次 3     |
 | [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                                                                                    | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                            | 批次 3     |

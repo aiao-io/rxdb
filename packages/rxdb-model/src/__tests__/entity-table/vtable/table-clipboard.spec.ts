@@ -1,5 +1,8 @@
+import type { EntityMetadata } from '@aiao/rxdb';
+import { PropertyType } from '@aiao/rxdb';
 import type * as VTable from '@visactor/vtable';
 import { describe, expect, it, vi } from 'vitest';
+import { buildEditableColumns } from '../../../entity-table/columns/build-editable-columns.js';
 import {
   applyClipboard,
   applySystemText,
@@ -429,7 +432,7 @@ describe('applyClipboard', () => {
   it('skips cell when cellType does not match', () => {
     const record = { id: '1', active: false };
     const table = makeTable([[{ col: 1, row: 1, field: 'active', cellType: 'switch' }]], [record], {
-      '1,1': { cellType: 'switch' }
+      '1,1': { cellType: 'switch', field: 'active' }
     });
     const clipboard: ClipboardContent = [[{ col: 1, field: 'active', value: true, cellType: 'text' }]];
     const writes = applyClipboard(table, clipboard);
@@ -511,6 +514,104 @@ describe('applyClipboard', () => {
     const clipboard: ClipboardContent = [[{ col: 1, field: 'tags', value: 'b', cellType: 'text' }]];
     const writes = applyClipboard(table, clipboard, columns);
     expect(writes).toHaveLength(1);
+  });
+});
+
+// ── 列级只读 ───────────────────────────────────────────────────────────────
+
+describe('粘贴入口的列级只读（列定义取自 buildEditableColumns）', () => {
+  /**
+   * 实体列表的真实列：选择列 + id / code（只读）/ archived（只读布尔）/ title / pinned / createdAt / updatedAt / 操作列。
+   * VTable 列号 = 数组下标 + 1（col 0 是行号列）。
+   */
+  function listColumns(): Record<string, unknown>[] {
+    const prop = (name: string, type: PropertyType, readonly = false) =>
+      [name, { name, columnName: name, type, ...(readonly ? { readonly } : {}) }] as const;
+    const meta = {
+      name: 'Note',
+      namespace: 'test',
+      propertyMap: new Map([
+        prop('code', PropertyType.string, true),
+        prop('archived', PropertyType.boolean, true),
+        prop('title', PropertyType.string),
+        prop('pinned', PropertyType.boolean)
+      ]),
+      computedPropertyMap: new Map(),
+      foreignKeyRelationMap: new Map()
+    } as unknown as EntityMetadata;
+    const selection = { field: '__selected', title: '', cellType: 'checkbox', width: 50 };
+    return [selection, ...buildEditableColumns(meta)] as unknown as Record<string, unknown>[];
+  }
+
+  /** 整行选中：每一列一个单元格（cellType / field 取自列定义）。 */
+  function selectWholeRow(columns: Record<string, unknown>[], record: Record<string, unknown>) {
+    const cells = columns.map((column, index) => ({
+      col: index + 1,
+      row: 1,
+      field: String(column['field']),
+      cellType: typeof column['cellType'] === 'string' ? column['cellType'] : 'text'
+    }));
+    return makeTable([cells], [record]);
+  }
+
+  const RECORD = { id: 'n1', __selected: false, code: 'C-1', archived: false, title: 'old', pinned: false };
+
+  it('系统剪贴板：只读列、id / 时间戳、选择列与操作列都不产出写入，可写列照常写入', () => {
+    const columns = listColumns();
+    expect(columns.map(column => column['field'])).toEqual([
+      '__selected',
+      'id',
+      'code',
+      'archived',
+      'title',
+      'pinned',
+      'createdAt',
+      'updatedAt',
+      'actions'
+    ]);
+    const record = { ...RECORD };
+    const table = selectWholeRow(columns, record);
+
+    const writes = applySystemText(table, 'true\tnew-id\tC-2\ttrue\tnew\ttrue\t2024-01-01\t2024-01-01\tx', columns);
+
+    expect(writes.map(write => [write.field, write.value])).toEqual([
+      ['title', 'new'],
+      ['pinned', true]
+    ]);
+    expect(record).toEqual(RECORD);
+  });
+
+  it('内部剪贴板：同样只写可写列', () => {
+    const columns = listColumns();
+    const record = { ...RECORD };
+    const table = selectWholeRow(columns, record);
+    const clip = (field: string, value: unknown, cellType = 'text'): ClipboardCell => ({
+      col: 1,
+      field,
+      value,
+      cellType
+    });
+    const clipboard: ClipboardContent = [
+      [
+        clip('__selected', true, 'checkbox'),
+        clip('id', 'new-id'),
+        clip('code', 'C-2'),
+        clip('archived', true, 'switch'),
+        clip('title', 'new'),
+        clip('pinned', true, 'switch'),
+        clip('createdAt', '2024-01-01'),
+        clip('updatedAt', '2024-01-01'),
+        clip('actions', 'x')
+      ]
+    ];
+
+    const writes = applyClipboard(table, clipboard, columns);
+
+    expect(writes.map(write => [write.field, write.value])).toEqual([
+      ['title', 'new'],
+      ['pinned', true]
+    ]);
+    expect(record).toEqual(RECORD);
   });
 });
 

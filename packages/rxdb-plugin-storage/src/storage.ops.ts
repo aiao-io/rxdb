@@ -173,17 +173,33 @@ async function streamResponseToFile(
   return streamReadableToFile(host, response.body, opfsPath, signal);
 }
 
+/**
+ * 把一路输入流整段写进文件。
+ *
+ * @param host - 文件操作 Host
+ * @param stream - 输入流；`null` 写一个空文件
+ * @param opfsPath - 目标路径
+ * @param signal - 取消信号
+ * @returns 写入的字节数
+ *
+ * @remarks
+ * 写句柄与读者的**获取**也在同一个清理范围里：输入流常常是一次还在下载的响应体，打不开写句柄
+ * （配额耗尽、无权限、句柄被占）时若直接离开，没人消费也没人取消的正文会在后台一直下载到结束，
+ * 重试还会叠加新的请求。任何一步失败都先放掉已经拿到的资源，再原样抛出最初的错误。
+ */
 export async function streamReadableToFile(
   host: StorageFileOpsHost,
   stream: ReadableStream<Uint8Array> | null,
   opfsPath: string,
   signal?: AbortSignal
 ): Promise<number> {
-  const writer = await host.filesystem.openWrite(opfsPath);
-  const reader = stream?.getReader();
+  let writer: StorageFileWriter | undefined;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   let size = 0;
 
   try {
+    writer = await host.filesystem.openWrite(opfsPath);
+    reader = stream?.getReader();
     if (!reader) {
       await writer.write(new Blob([]));
       await writer.close();
@@ -203,9 +219,32 @@ export async function streamReadableToFile(
     await writer.close();
     return size;
   } catch (error) {
-    await reader?.cancel(error).catch(() => undefined);
-    await writer.abort(error);
+    await cancelUnconsumedInput(stream, reader, error);
+    await writer?.abort(error);
     throw error;
+  }
+}
+
+/**
+ * 放弃一路没读完的输入：读者已经取到就经读者取消，还没取到就直接取消流本身。
+ *
+ * @remarks
+ * 取读者失败多半是流已被别的读者锁住 —— 那时它归持锁方处置，这里无权也无法取消，原样留下。
+ * 取消本身失败不改变、也不掩盖原始错误：那只是收尾，调用方要看到的是最初的那个失败。
+ */
+async function cancelUnconsumedInput(
+  stream: ReadableStream<Uint8Array> | null,
+  reader: ReadableStreamDefaultReader<Uint8Array> | undefined,
+  reason: unknown
+): Promise<void> {
+  try {
+    if (reader) {
+      await reader.cancel(reason);
+    } else if (stream && !stream.locked) {
+      await stream.cancel(reason);
+    }
+  } catch {
+    // 收尾失败不顶替原始错误，见上
   }
 }
 

@@ -93,13 +93,12 @@ describe('merge-update.utils', () => {
     it('should cache serialized before data', () => {
       const data = [createUpdateEvent('1', { id: '1', name: 'updated' }, { id: '1', name: 'original' })];
       const cache = new UpdateDataCache(data, mockSerialize);
-      const inversePatch = { id: '1', name: 'original' };
 
-      const result1 = cache.getSerializedBefore('1', inversePatch);
+      const result1 = cache.getSerializedBefore('1');
       expect(result1).toBeDefined();
       expect(mockSerialize).toHaveBeenCalledTimes(1);
 
-      const result2 = cache.getSerializedBefore('1', inversePatch);
+      const result2 = cache.getSerializedBefore('1');
       expect(result2).toBeDefined();
       expect(mockSerialize).toHaveBeenCalledTimes(1);
     });
