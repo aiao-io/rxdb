@@ -6,6 +6,8 @@
 
 后续产品方向见[未来功能需求与目录规划](future-requirements.md)：Web 持续优化、Tauri 安装版、Cloudflare 后端与管理页面、安全代理、免费/收费生图及排队提示、自有 Supabase/平台同步。新增故事和本地实现见[产品交付计划](plans/product-completion-20261030.md)；生产服务、真实支付与正式桌面发行分别验收。
 
+“授权一次接入自己的 Supabase 并同步图片”拆为两条待实现故事：[MEDIA-US-304 授权接入与自动初始化](stories/local-first/MEDIA-US-304-supabase-oauth-onboarding.md)、[MEDIA-US-305 图片原文件同步](stories/local-first/MEDIA-US-305-supabase-image-sync.md)。前者消除手工 Key/SQL/项目账号配置，后者在独立确认后上传原图并跨设备取回；现有元数据同步不等于这两条已交付。
+
 ## 术语
 
 | 缩写 | 全称                | 含义                                                                                                |

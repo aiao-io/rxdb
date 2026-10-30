@@ -12,7 +12,7 @@ test('production bundle is deterministic, excludes development probe, and keeps 
     const first = await buildProductionBundle(join(directory, 'first.sql'));
     const second = await buildProductionBundle(join(directory, 'second.sql'));
     assert.equal(first.sql, second.sql);
-    assert.equal(first.sources.length, 12);
+    assert.equal(first.sources.length, 13);
     assert.deepEqual(
       first.sources.map(source => source.relativePath),
       productionSources

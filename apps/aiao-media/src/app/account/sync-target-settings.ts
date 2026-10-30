@@ -17,8 +17,14 @@ export class SyncTargetSettings {
   readonly configured = input.required<boolean>();
   readonly busy = input.required<boolean>();
   readonly message = input.required<string>();
+  readonly oauthAvailable = input.required<boolean>();
+  readonly oauthProjects =
+    input.required<{ ref: string; name: string; organizationId: string | null; status: string | null }[]>();
+  readonly oauthBusy = input.required<boolean>();
   readonly urlChanged = output<string>();
   readonly keyChanged = output<string>();
   readonly changeTarget = output<SyncTarget['kind']>();
   readonly login = output<Event>();
+  readonly connectOAuth = output<void>();
+  readonly initializeOAuth = output<string>();
 }

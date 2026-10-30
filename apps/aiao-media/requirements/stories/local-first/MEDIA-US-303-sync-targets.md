@@ -28,7 +28,8 @@ tags: [product-completion]
 
 ### Out of Scope
 
-- 未承诺的其他操作系统、自动更新、图片文件跨设备同步和任意历史版本迁移。
+- 未承诺的其他操作系统、自动更新和任意历史版本迁移。
+- 官方管理 OAuth 授权与自动初始化由 [MEDIA-US-304](MEDIA-US-304-supabase-oauth-onboarding.md) 负责，图片文件跨设备同步由 [MEDIA-US-305](MEDIA-US-305-supabase-image-sync.md) 负责；本故事仍只覆盖手工连接与元数据同步目标管理。
 - 通过模拟结果替代正式供应商、支付、签名公证或真实设备证据。
 
 ## 验收标准
@@ -55,3 +56,5 @@ tags: [product-completion]
 ## References
 
 - [实施和证据](../../plans/product-completion-20261030.md)
+- [MEDIA-US-304 Supabase 授权接入与自动初始化](MEDIA-US-304-supabase-oauth-onboarding.md)
+- [MEDIA-US-305 图片原文件同步到自有 Supabase](MEDIA-US-305-supabase-image-sync.md)

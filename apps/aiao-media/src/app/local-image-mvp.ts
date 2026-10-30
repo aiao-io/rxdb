@@ -10,6 +10,7 @@ import {
   ViewEncapsulation
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import type { Session } from '@supabase/supabase-js';
 import { concatMap, EMPTY, merge, Subscription } from 'rxjs';
 import { imageExtension, validateImageBlob, type ImageMimeType } from '../contracts/image-format';
 import type { GenerationJobSummary, ImageAspectRatio } from '../contracts/index';
@@ -21,6 +22,7 @@ import {
   type ProviderPolicy,
   type PublicWorkPayload
 } from '../contracts/product-data.mjs';
+import { ImageSyncController } from '../local-data/image-sync';
 import type { LocalMediaStore, LocalWorkSummary, StudioPromptState } from '../local-data/index';
 import { libraryWhere, type LocalWorkFilters } from '../local-data/library-query';
 import { applyProductProjection, collectProductSnapshot } from '../local-data/product-projection';
@@ -65,7 +67,14 @@ import {
   type SupabaseAuthState,
   type SupabaseAuthUser
 } from './supabase-auth';
-import { readSyncTarget, saveSyncTarget, verifySyncTarget, type SyncTarget } from './sync-target';
+import type { SupabaseAuthConfig } from './supabase-auth-config';
+import {
+  readSyncTarget,
+  saveSyncTarget,
+  verifyImageSyncTarget,
+  verifySyncTarget,
+  type SyncTarget
+} from './sync-target';
 import { WorkLibrarySession, type LibraryState, type LibraryWork } from './work-library-session';
 import { WorkMetadataSession } from './work-metadata-session';
 import { WorkVisibleDirective } from './work-visible.directive';
@@ -73,6 +82,7 @@ import { WorkspaceSession } from './workspace-session';
 
 type View = 'discover' | 'studio' | 'library' | 'providers' | 'admin';
 type Work = LibraryWork;
+type OAuthProject = { ref: string; name: string; organizationId: string | null; status: string | null };
 type LocalTask = GenerationJobSummary & {
   channel?: 'direct' | 'proxy' | 'platform';
   saved?: boolean;
@@ -113,6 +123,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private registry?: WorkspaceRegistry;
   private workspaceSession?: WorkspaceSession<LocalMediaStore>;
   private product?: ProductWorkspaceController;
+  private imageSync?: ImageSyncController;
   private registryState?: WorkspaceRegistryState;
   private rootId = '';
   private transitionCount = 0;
@@ -252,9 +263,16 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly targetKey = signal('');
   readonly targetMessage = signal('');
   readonly targetBusy = signal(false);
+  readonly oauthBusy = signal(false);
+  readonly oauthAvailable = signal(true);
+  readonly oauthProjects = signal<OAuthProject[]>([]);
   readonly syncPaused = signal(false);
   readonly lastSyncedAt = signal('');
   readonly remoteQuota = signal('');
+  readonly imageSyncEnabled = signal(false);
+  readonly imageSyncBusy = signal(false);
+  readonly imageSyncMessage = signal('');
+  readonly imageSyncProgress = signal('');
   readonly platformAvailable = signal(false);
   readonly authConfigured = signal(false);
   readonly authStatus = signal<SupabaseAuthState['status']>('signed-out');
@@ -423,6 +441,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   stopSync() {
     this.product?.pause();
+    this.imageSync = undefined;
+    this.imageSyncEnabled.set(false);
+    this.imageSyncMessage.set('');
     this.syncPaused.set(true);
     localStorage.setItem(this.syncPauseKey(), '1');
     this.authMessage.set('同步已停止。本机内容保留，远端数据未删除。');
@@ -796,6 +817,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.job.set(task);
       this.saved.set(true);
       this.storageMessage.set('');
+      void this.syncSavedImage(task);
     } catch {
       if (current()) this.storageMessage.set('图片已生成，本机保存失败。请先下载，再释放空间并重试保存。');
     }
@@ -1076,6 +1098,85 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.storageMessage.set('工作区已变化；当前输入尚未保存，请处理后刷新。')
     );
   }
+  @HostListener('window:message', ['$event']) onSupabaseOAuthMessage(event: MessageEvent) {
+    if (event.origin !== location.origin || event.data?.type !== 'aiao-supabase-oauth-complete') return;
+    void this.loadOAuthProjects();
+  }
+  async startSupabaseOAuth() {
+    if (this.oauthBusy()) return;
+    this.oauthBusy.set(true);
+    try {
+      const response = await fetch(apiEndpoint('/api/supabase/oauth/start'), {
+        credentials: 'include',
+        cache: 'no-store',
+        redirect: 'error'
+      });
+      if (!response.ok)
+        throw new Error(((await response.json()) as { error?: string }).error ?? 'Supabase OAuth 尚未配置。');
+      const value = (await response.json()) as { url: string };
+      const popup = window.open(value.url, 'aiao-supabase-oauth', 'popup,width=640,height=760');
+      if (!popup) throw new Error('浏览器阻止了授权窗口，请允许当前站点打开弹窗后重试。');
+      await new Promise<void>((resolve, reject) => {
+        const started = Date.now();
+        const timer = window.setInterval(() => {
+          if (popup.closed) {
+            window.clearInterval(timer);
+            resolve();
+          } else if (Date.now() - started > 180000) {
+            window.clearInterval(timer);
+            reject(new Error('Supabase 授权等待超时。'));
+          }
+        }, 500);
+      });
+      await this.loadOAuthProjects();
+    } catch (error) {
+      this.targetMessage.set(error instanceof Error ? error.message : 'Supabase 授权失败。');
+    } finally {
+      this.oauthBusy.set(false);
+    }
+  }
+  async loadOAuthProjects() {
+    try {
+      const response = await fetch(apiEndpoint('/api/supabase/oauth/projects'), {
+        credentials: 'include',
+        cache: 'no-store',
+        redirect: 'error'
+      });
+      if (!response.ok)
+        throw new Error(((await response.json()) as { error?: string }).error ?? 'Supabase 项目列表不可读。');
+      this.oauthProjects.set(((await response.json()) as { projects: OAuthProject[] }).projects);
+    } catch (error) {
+      this.targetMessage.set(error instanceof Error ? error.message : 'Supabase 项目列表不可读。');
+    }
+  }
+  async initializeOAuthProject(projectRef: string) {
+    if (!projectRef || this.oauthBusy()) return;
+    this.oauthBusy.set(true);
+    this.targetMessage.set('正在初始化选定 Supabase 项目…');
+    try {
+      const response = await fetch(apiEndpoint('/api/supabase/oauth/initialize'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store',
+        redirect: 'error',
+        body: JSON.stringify({ projectRef })
+      });
+      const value = (await response.json()) as { error?: string; config?: SupabaseAuthConfig; session?: Session };
+      if (!response.ok || !value.config || !value.session)
+        throw new Error(value.error ?? 'Supabase 自动初始化未完成。');
+      const target = { kind: 'custom' as const, config: value.config };
+      saveSyncTarget(localStorage, target);
+      this.configureTarget(target);
+      await this.auth?.adoptSession(value.session);
+      this.oauthProjects.set([]);
+      this.targetMessage.set('Supabase 已授权并初始化。请单独确认图片同步范围；本机图片尚未上传。');
+    } catch (error) {
+      this.targetMessage.set(error instanceof Error ? error.message : 'Supabase 自动初始化未完成。');
+    } finally {
+      this.oauthBusy.set(false);
+    }
+  }
   async enableSync() {
     const product = this.product;
     if (!product || !this.syncReady()) {
@@ -1103,6 +1204,85 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     localStorage.removeItem(this.syncPauseKey());
     this.syncPaused.set(false);
     await this.product?.synchronize();
+  }
+
+  async enableImageSync(scope: 'future' | 'existing') {
+    if (this.imageSyncBusy() || this.settingsBusy() || this.targetKind() !== 'custom' || !this.syncInitialized())
+      return;
+    const text =
+      scope === 'existing' ?
+        '这会上传当前工作区已保存的 PNG/JPEG 原图，之后保存的新图也会自动上传。原图会进入你的 Supabase 私有 Storage；Key、管理 token 和本机路径不会上传。继续吗？'
+      : '之后保存的新 PNG/JPEG 会自动上传到你的 Supabase 私有 Storage；已有图片不会补传。继续吗？';
+    if (!window.confirm(text)) return;
+    this.imageSyncBusy.set(true);
+    this.imageSyncMessage.set('正在确认图片同步范围…');
+    try {
+      await verifyImageSyncTarget(await this.adminApi.authorization());
+      localStorage.setItem(this.imageSyncKey(), scope);
+      this.imageSyncEnabled.set(true);
+      const controller = await this.imageSyncController();
+      const tasks =
+        scope === 'existing' ?
+          this.history().filter(task => task.status === 'completed' && this.hasLocalCopy(task))
+        : [];
+      for (let index = 0; index < tasks.length; index++) {
+        this.imageSyncProgress.set(`${index}/${tasks.length}`);
+        await controller.upload(tasks[index]);
+      }
+      this.imageSyncProgress.set(tasks.length ? `${tasks.length}/${tasks.length}` : '');
+      this.imageSyncMessage.set(
+        scope === 'existing' ?
+          `已确认并处理 ${tasks.length} 张本机图片；失败项可重试。`
+        : '已确认以后保存的图片自动同步；已有图片未上传。'
+      );
+    } catch (error) {
+      this.imageSyncMessage.set(error instanceof Error ? error.message : '图片同步未完成，本机原图保留。');
+    } finally {
+      this.imageSyncBusy.set(false);
+    }
+  }
+  async stopImageSync() {
+    if (!window.confirm('停止以后图片自动上传？已上传到 Supabase 的原图和本机原图都保留。')) return;
+    localStorage.removeItem(this.imageSyncKey());
+    this.imageSyncEnabled.set(false);
+    this.imageSyncMessage.set('图片自动同步已停止；远端原图未删除。');
+  }
+  async restoreRemoteWork(work: PublicWorkPayload) {
+    if (this.imageSyncBusy() || this.targetKind() !== 'custom') return;
+    const task =
+      this.history().find(item => item.id === work.jobId) ??
+      ({
+        id: work.jobId,
+        request: {
+          kind: 'image',
+          operation: 'text-to-image',
+          providerInstanceId: work.providerInstanceId,
+          providerRevision: 1,
+          modelId: work.modelId,
+          prompt: work.prompt,
+          aspectRatio:
+            work.width > work.height ? 'landscape'
+            : work.height > work.width ? 'portrait'
+            : 'square'
+        },
+        status: 'completed',
+        createdAt: work.createdAt,
+        updatedAt: work.createdAt,
+        delivery: { status: 'available', expiresAt: null, acknowledgedAt: null },
+        failure: null
+      } as LocalTask);
+    this.imageSyncBusy.set(true);
+    this.imageSyncMessage.set('正在从你的 Supabase 取回原图…');
+    try {
+      await (await this.imageSyncController()).download(work.jobId, task);
+      await this.readTasks();
+      this.retryLibrary();
+      this.imageSyncMessage.set('原图已校验并保存到本机。');
+    } catch (error) {
+      this.imageSyncMessage.set(error instanceof Error ? error.message : '原图取回失败，本机数据保留。');
+    } finally {
+      this.imageSyncBusy.set(false);
+    }
   }
   async rescanSync() {
     if (
@@ -1192,6 +1372,33 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.notify('反馈已复制');
     } catch {
       this.notify('复制失败，请手动复制反馈内容。');
+    }
+  }
+  private imageSyncKey(): string {
+    return `aiao-media-image-sync-v1:${encodeURIComponent(this.auth?.config.url ?? '')}:${this.authUser()?.id ?? ''}:${this.profileId}`;
+  }
+  private async imageSyncController(): Promise<ImageSyncController> {
+    if (this.imageSync) return this.imageSync;
+    const profile = this.currentProfile(),
+      access = await this.auth?.authorizeProduct();
+    if (
+      !profile?.binding?.initialized ||
+      !profile.binding.remoteWorkspaceId ||
+      !access ||
+      this.targetKind() !== 'custom'
+    )
+      throw new Error('请先连接自己的 Supabase 并确认元数据同步工作区。');
+    this.imageSync = new ImageSyncController(this.requireStore(), access, profile.binding.remoteWorkspaceId);
+    return this.imageSync;
+  }
+  private async syncSavedImage(task: LocalTask) {
+    if (!this.imageSyncEnabled() || this.targetKind() !== 'custom' || task.status !== 'completed') return;
+    try {
+      await (await this.imageSyncController()).upload(task);
+      if (!this.disposed) this.imageSyncMessage.set('新作品已同步到你的 Supabase 私有 Storage。');
+    } catch (error) {
+      if (!this.disposed)
+        this.imageSyncMessage.set(error instanceof Error ? error.message : '新作品图片同步失败，本机原图保留。');
     }
   }
   private releaseLibraryPreviews() {
@@ -1623,6 +1830,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.refreshProfiles();
       this.syncReady.set(this.product !== undefined);
       this.syncPaused.set(localStorage.getItem(this.syncPauseKey()) === '1');
+      this.imageSyncEnabled.set(this.targetKind() === 'custom' && localStorage.getItem(this.imageSyncKey()) !== null);
       if (!this.syncPaused() && this.authStatus() === 'signed-in' && this.currentProfile()?.binding?.initialized)
         await this.product?.resume();
     } catch (error) {

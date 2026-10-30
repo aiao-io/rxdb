@@ -10,8 +10,11 @@
 4. `MEDIA_PLATFORM_MODELS` 为 JSON 数组，每项含 `id`、`name`、HTTPS `baseUrl`、上游 `model`、凭据环境变量名 `secret`、单张 `credits` 和单张预算 `costMicros`。上游路径固定，拒绝 IP、非 HTTPS、端口、凭据和重定向。模型原图使用 base64，不能以临时 URL 作为持久结果。
 5. 每个 `secret` 对应单独 Worker secret。设置 `MEDIA_PLATFORM_FREE_DAILY` 与 `MEDIA_PLATFORM_DAILY_BUDGET_MICROS`；缺省均零，禁止意外开放免费模型。`costMicros` 是运营配置的成本上界，预算统计包含预占和已结算，不能冒充供应商账单。
 6. Stripe secrets：`MEDIA_STRIPE_SECRET_KEY`、`MEDIA_STRIPE_WEBHOOK_SECRET`。配置 `MEDIA_CREDIT_PACK`，如 `{"credits":20,"amount":500,"currency":"usd"}`；随后管理员可发布新价格，旧订单价格不变。通知入口为 `/api/platform/webhook`，订阅 Checkout 完成、异步支付成功和 refund.created/refund.updated。
+7. Supabase 自动接入 secrets：`SUPABASE_OAUTH_CLIENT_ID`、`SUPABASE_OAUTH_CLIENT_SECRET`、`SUPABASE_OAUTH_COOKIE_SECRET`。OAuth 应用 scopes 至少覆盖 `projects:read`、`database:write` 和读取项目公开 Key 所需的最小 secrets scope；回调固定为 `SUPABASE_OAUTH_REDIRECT_URI`。`MEDIA_SUPABASE_AUTOINIT_SQL` 由 `pnpm nx run aiao-media:supabase-autoinit` 生成后，经人工审阅作为受保护部署配置注入，不能由用户请求携带 SQL。
 
 凭据只用部署平台 secrets 管理，不写入 Wrangler vars、Git、队列、网页或桌面包。示例见 [.dev.vars.example](.dev.vars.example)。生产发布前核对构建产物、RLS、Auth、管理员授权、bucket 权限及真实端到端验收；配置齐全不等于已验收。
+
+自动接入使用 Supabase Management OAuth 的 PKCE/state 回调；管理 token 只保存在 Worker 的加密 HttpOnly cookie。用户选择项目后，Worker 再次验证项目归属，执行固定初始化 SQL，读取公开项目 Key，并通过项目服务端管理接口为授权邮箱生成一次性项目登录链接、换取项目 session；service role 只在 Worker 内短暂使用，绝不返回浏览器。项目内 session 与 Management OAuth 会话分开撤销和过期。
 
 ## 任务与结算
 

@@ -11,7 +11,7 @@
       kind() === 'platform' ? '平台账号'
       : kind() === 'custom' ? '自己的 Supabase'
       : '仅本机'
-    }}。草稿、公开配置和作品信息可同步；原图与 API Key 留在本机。
+    }}。草稿、公开配置和作品信息可同步；原图默认留在本机，图片上传必须另行确认；API Key 不同步。
   </p>
   <p>
     自己的项目需由所有者审阅并执行初始化 SQL，使用独立空项目，启用 RLS。连接不会自动修改数据库或上传内容。
@@ -35,6 +35,9 @@
     placeholder="sb_publishable_…"
   />
   <div class="provider-actions">
+    @if (oauthAvailable()) {
+      <button class="primary" [disabled]="busy() || oauthBusy()" (click)="connectOAuth.emit()">{{ oauthBusy() ? '正在连接 Supabase…' : '通过 Supabase 授权自动连接' }}</button>
+    }
     <button class="secondary" [disabled]="busy()" (click)="changeTarget.emit('custom')">连接自己的项目</button>
     @if (platformAvailable()) {
       <button class="secondary" [disabled]="busy()" (click)="changeTarget.emit('platform')">使用平台账号</button>
@@ -44,6 +47,16 @@
       <button class="primary" (click)="login.emit($event)">登录与同步设置</button>
     }
   </div>
+  @if (oauthProjects().length) {
+    <label for="oauth-project">选择已授权项目</label>
+    <select id="oauth-project" [disabled]="busy() || oauthBusy()" (change)="initializeOAuth.emit($any($event.target).value)">
+      <option value="">选择项目并初始化…</option>
+      @for (project of oauthProjects(); track project.ref) {
+        <option [value]="project.ref">{{ project.name || project.ref }} · {{ project.status || '可检查' }}</option>
+      }
+    </select>
+    <small>初始化只操作你确认的项目；项目内表、私有图片 bucket 和权限会先执行检查。</small>
+  }
   @if (message()) {
     <p class="notice" role="status">{{ message() }}</p>
   }

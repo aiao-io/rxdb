@@ -31,11 +31,13 @@ Tauri、Cloudflare 平台任务与计费、同步目标已进入实施，代码�
 
 ## 产品扩展实施
 
-| 能力         | 当前边界                                                                                             | 故事                                                                   |
-| ------------ | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Tauri 安装版 | ⚠️ 原生数据库/文件、指针与兼容守卫已接线，前端构建与两项 Rust 测试通过；实际安装、签名公证和升级待验 | [MEDIA-US-005](stories/platform/MEDIA-US-005-tauri-desktop.md)         |
-| 平台持久生图 | ⚠️ 原子额度、预算、队列、未知不重发、原图入 R2 与 UI 已接线；正式配置和真实平台生成待验              | [MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md) |
-| 支付与运维   | ⚠️ Checkout、验签、积分/退款、审计和运维界面已接线；真实商户付款、退款和对账待验                     | [MEDIA-US-205](stories/account/MEDIA-US-205-platform-billing.md)       |
-| 两种同步目标 | ⚠️ 自有项目选择、兼容检查、停止/导出/配额/逻辑删除已接线；新入口完整双副本和生产跨设备待验           | [MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md)       |
+| 能力                   | 当前边界                                                                                             | 故事                                                                          |
+| ---------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Tauri 安装版           | ⚠️ 原生数据库/文件、指针与兼容守卫已接线，前端构建与两项 Rust 测试通过；实际安装、签名公证和升级待验 | [MEDIA-US-005](stories/platform/MEDIA-US-005-tauri-desktop.md)                |
+| 平台持久生图           | ⚠️ 原子额度、预算、队列、未知不重发、原图入 R2 与 UI 已接线；正式配置和真实平台生成待验              | [MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md)        |
+| 支付与运维             | ⚠️ Checkout、验签、积分/退款、审计和运维界面已接线；真实商户付款、退款和对账待验                     | [MEDIA-US-205](stories/account/MEDIA-US-205-platform-billing.md)              |
+| 两种同步目标           | ⚠️ 自有项目选择、兼容检查、停止/导出/配额/逻辑删除已接线；新入口完整双副本和生产跨设备待验           | [MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md)              |
+| Supabase 授权自动接入  | ⬜ 仅需求：官方 OAuth、选项目、确认后自动初始化和项目同步身份引导；当前仍需手工配置                  | [MEDIA-US-304](stories/local-first/MEDIA-US-304-supabase-oauth-onboarding.md) |
+| 自有 Supabase 原图同步 | ⬜ 仅需求：独立范围确认、私有原图上传/续传、跨设备取回和删除恢复；现有连接不上传原图                 | [MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md)       |
 
 扩展实现的统一证据见[产品交付计划](plans/product-completion-20261030.md)。

@@ -35,7 +35,8 @@
   ],
   "vars": {
     "ALLOWED_PROVIDER_BASE_URLS": "[]",
-    "MEDIA_ALLOW_DESKTOP_ORIGIN": "true"
+    "MEDIA_ALLOW_DESKTOP_ORIGIN": "true",
+    "SUPABASE_OAUTH_REDIRECT_URI": "https://media.aiao.io/api/supabase/oauth/callback"
   },
   "workers_dev": true
 }

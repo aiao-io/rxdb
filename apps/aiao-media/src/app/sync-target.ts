@@ -46,3 +46,34 @@ export async function verifySyncTarget(access: ProductAuthorization, request: ty
   if (data['protocol'] !== 1 || data['rls'] !== true || data['metadataOnly'] !== true)
     throw new Error('同步项目版本或 RLS 不兼容，未上传数据。');
 }
+
+/** 图片传输单独检查私有 bucket、版本和续传能力，metadata-only 项目不能伪装成文件备份。 */
+export async function verifyImageSyncTarget(
+  access: ProductAuthorization,
+  request: typeof fetch = fetch
+): Promise<void> {
+  const result = await request(`${access.config.url}/rest/v1/rpc/media_file_capabilities`, {
+    method: 'POST',
+    headers: {
+      apikey: access.config.anonKey,
+      authorization: `Bearer ${access.session.access_token}`,
+      'content-type': 'application/json'
+    },
+    body: '{}',
+    credentials: 'omit',
+    cache: 'no-store',
+    redirect: 'error',
+    referrerPolicy: 'no-referrer',
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!result.ok) throw new Error('图片 Storage 尚未初始化、无访问权限或无法连接。');
+  const data = (await result.json()) as Record<string, unknown>;
+  if (
+    data['protocol'] !== 1 ||
+    data['privateBucket'] !== 'aiao-media-images' ||
+    data['maxBytes'] !== 16777216 ||
+    data['resumable'] !== true ||
+    data['metadataOnly'] !== false
+  )
+    throw new Error('图片同步协议或私有 Storage 不兼容，未上传原图。');
+}

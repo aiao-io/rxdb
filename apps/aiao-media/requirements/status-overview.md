@@ -2,16 +2,16 @@
 
 > **真相源**：`stories/*/MEDIA-US-*.md` 的 YAML `status`。本页按该字段派生，有冲突以 YAML 为准并修正本页。排期见[路线图](roadmap.md)，能力范围见[能力矩阵](capability-matrix.md)，证据分层见[验收记录](verification-report.md)。
 
-当前范围是桌面浏览器上的本机图片创作：灵感与提示词、单张 PNG/JPEG 生成与交付、本机作品检索与按需预览、可选账号与跨设备同步、跨用户业务后台。账号、同步和后台只在真实本地 Supabase 上验证（[D-08](decisions.md)）。旧 Bun API/PostgreSQL、SSR/BFF、音视频、Electron 桌面与服务端任务/证据机不在范围内；新增方向已拆为 MEDIA-US-005/108/205/303，实施状态见[产品交付计划](plans/product-completion-20261030.md)。
+当前范围是桌面浏览器上的本机图片创作：灵感与提示词、单张 PNG/JPEG 生成与交付、本机作品检索与按需预览、可选账号与跨设备同步、跨用户业务后台。账号、同步和后台只在真实本地 Supabase 上验证（[D-08](decisions.md)）。旧 Bun API/PostgreSQL、SSR/BFF、音视频、Electron 桌面与通用供应商证据机不在范围内；新增方向已拆为 MEDIA-US-005/108/205/303，实施状态见[产品交付计划](plans/product-completion-20261030.md)。MEDIA-US-304/305 已进入实现：OAuth 自动接入、私有 Storage 文件传输和 UI 已接线；真实云 OAuth、项目身份引导、跨设备原图联验仍未关闭。
 
 | 状态           |   数量 | 说明                                                                       |
 | -------------- | -----: | -------------------------------------------------------------------------- |
 | ✅ Done        |      8 | 工作区骨架，以及全部 AC 已验、按 [D-11](decisions.md) 在当前分支结项的七条 |
-| 🚧 In Progress |      5 | 灵感库 IME 未验，以及桌面、平台任务、计费运维和同步目标四项新增范围        |
+| 🚧 In Progress |      7 | 灵感库 IME 未验，以及桌面、平台任务、计费运维和同步目标四项新增范围        |
 | 👀 In Review   |      0 | 无                                                                         |
-| ⬜ Backlog     |      1 | 移动真机验收暂缓（[D-04](decisions.md)）                                   |
+| ⬜ Backlog     |      1 | Supabase 自动接入、原图同步待实现；移动真机按 D-04 暂缓                    |
 | 🚫 Blocked     |      2 | 正式直连三画幅与真实跨 origin 原图 URL 缺少可用的真实供应商证据            |
-| **合计**       | **16** | 不含模板和上游故事                                                         |
+| **合计**       | **18** | 不含模板和上游故事                                                         |
 
 ## 按 Epic 索引
 
@@ -19,6 +19,7 @@
 
 - ✅ [MEDIA-US-001 多项目开发工作区](stories/platform/MEDIA-US-001-nx-workspace.md)
 - ✅ [MEDIA-US-004 Cloudflare 边缘代理与安全部署](stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md)
+- 🚧 [MEDIA-US-005 Tauri 本地安装版](stories/platform/MEDIA-US-005-tauri-desktop.md)
 
 ### [图片生成](epics/MEDIA-EPIC-002.md)
 
@@ -26,6 +27,7 @@
 - 🚫 [MEDIA-US-102 图片生成与本机交付](stories/generation/MEDIA-US-102-image-generation.md)
 - 🚧 [MEDIA-US-106 图片提示词灵感库与一键套用](stories/generation/MEDIA-US-106-prompt-gallery.md)
 - ⬜ [MEDIA-US-107 移动设备能力验收](stories/generation/MEDIA-US-107-mobile-verification.md)（暂缓）
+- 🚧 [MEDIA-US-108 平台生图、额度与持久任务](stories/generation/MEDIA-US-108-platform-generation.md)
 
 ### [账户、作品库与业务管理](epics/MEDIA-EPIC-003.md)
 
@@ -33,15 +35,19 @@
 - ✅ [MEDIA-US-202 本地图片作品与任务历史](stories/account/MEDIA-US-202-library.md)
 - ✅ [MEDIA-US-203 跨用户业务后台管理](stories/account/MEDIA-US-203-business-admin.md)
 - ✅ [MEDIA-US-204 本地作品检索与按需预览](stories/account/MEDIA-US-204-library-search.md)
+- 🚧 [MEDIA-US-205 平台支付、退款与生产运维](stories/account/MEDIA-US-205-platform-billing.md)
 
 ### [本地优先与跨设备同步](epics/MEDIA-EPIC-004.md)
 
 - ✅ [MEDIA-US-301 浏览器本地草稿与图片持久化](stories/local-first/MEDIA-US-301-browser-persistence.md)
 - ✅ [MEDIA-US-302 多端草稿同步与冲突处理](stories/local-first/MEDIA-US-302-draft-sync.md)
+- 🚧 [MEDIA-US-303 自有 Supabase 与平台同步目标管理](stories/local-first/MEDIA-US-303-sync-targets.md)
+- 🚧 [MEDIA-US-304 Supabase 授权接入与自动初始化](stories/local-first/MEDIA-US-304-supabase-oauth-onboarding.md)
+- 🚧 [MEDIA-US-305 图片原文件同步到自有 Supabase](stories/local-first/MEDIA-US-305-supabase-image-sync.md)
 
 ## 未完成验收与关闭条件
 
-16 条故事共 102 条 AC，85 条已通过，逐条见各 story 的验收标准表。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有范围剩余 6 条只缺真实环境证据；新增四条故事按[产品交付计划](plans/product-completion-20261030.md)分别验收：
+18 条故事共 127 条 AC，85 条已通过，逐条见各 story 的验收标准表。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有范围剩余 6 条只缺真实环境证据；新增四条故事按[产品交付计划](plans/product-completion-20261030.md)分别验收。新规划的 25 条 AC 属于 MEDIA-US-304/305，代码已部分接线但尚无真实环境通过；关闭条件包含真实官方 OAuth、项目内身份引导与 Web/Tauri 原图联验，不计入下表既有缺证项：
 
 | 故事 / AC                                                                  | 当前进展                                                                                                                                                                                  | 关闭所需证据                                                                                                                                                                                   |
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -62,11 +68,3 @@ PR [#154](https://github.com/aiao-io/rxdb/pull/154) 为 OPEN/DRAFT、未合并�
 - MEDIA-US-004：正式域名、四路由/WASM/CSP/旧 API 404、完整离线内容与官方 A→B→A 更新/回退已验，见[正式交付验收](plans/public-delivery-verification.md)；线上当前版本见[验收记录](verification-report.md#正式环境证据)。
 - MEDIA-US-201/203/302：账号会话、工作区绑定、产品 RLS、原生复制、冲突/删除、后台与显式上报均为真实本地验证；D-06 不设 TTL/自动清理，生产启用属后续范围。
 - MEDIA-US-204：本地分层验收（1,005 条 metadata 原生压力、50 张图片全应用 IO），不是 1,000 张原图的 UI 实测，见[实施清单](plans/library-search-tasks.md)。
-
-- 🚧 [MEDIA-US-005 Tauri 本地安装版](stories/platform/MEDIA-US-005-tauri-desktop.md)
-
-- 🚧 [MEDIA-US-108 平台生图、额度与持久任务](stories/generation/MEDIA-US-108-platform-generation.md)
-
-- 🚧 [MEDIA-US-205 平台支付、退款与生产运维](stories/account/MEDIA-US-205-platform-billing.md)
-
-- 🚧 [MEDIA-US-303 自有 Supabase 与平台同步目标管理](stories/local-first/MEDIA-US-303-sync-targets.md)

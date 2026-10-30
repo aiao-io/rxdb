@@ -20,7 +20,7 @@ export interface ProductAuthorization {
 export type SupabaseAuthPort = Pick<
   SupabaseClient['auth'],
   'getSession' | 'getUser' | 'signInWithPassword' | 'signUp' | 'signOut' | 'onAuthStateChange' | 'stopAutoRefresh'
->;
+> & { setSession?: SupabaseClient['auth']['setSession'] };
 export type SupabaseAuthFactory = (config: SupabaseAuthConfig) => Promise<SupabaseAuthPort>;
 
 // Auth sessions never share the local workspace's preferences or backup records.
@@ -117,6 +117,15 @@ export class SupabaseAuthClient {
   }
   async signUp(email: string, password: string): Promise<void> {
     await this.authenticate('sign-up', email, password);
+  }
+  async adoptSession(session: Session): Promise<void> {
+    const port = await this.port();
+    if (!port.setSession) throw new Error('当前账号连接不支持自动会话接入。');
+    const result = await port.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+    if (result.error || !result.data.session || !this.validSession(result.data.session)) throw result.error ?? new Error('自动会话无效。');
+    const user = await port.getUser(result.data.session.access_token);
+    if (user.error || !user.data.user) throw user.error ?? new Error('自动会话用户无效。');
+    this.accept(result.data.session, user.data.user);
   }
   async authorizeProduct(): Promise<ProductAuthorization> {
     const generation = this.generation;

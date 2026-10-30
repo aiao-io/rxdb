@@ -205,7 +205,7 @@
     "deploy": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["release-check"],
+      "dependsOn": ["release-check", "supabase-autoinit"],
       "options": {
         "command": "node scripts/deploy-local-first.mjs",
         "cwd": "apps/aiao-media"
@@ -340,6 +340,15 @@
       "options": {
         "cwd": "apps/aiao-media",
         "command": "node --test scripts/build-production-supabase-bundle.test.mjs"
+      }
+    },
+    "supabase-autoinit": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "outputs": ["{projectRoot}/tmp/supabase-autoinit.sql"],
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "node scripts/build-supabase-autoinit.mjs"
       }
     },
     "supabase-init": {

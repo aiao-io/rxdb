@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readSyncTarget, saveSyncTarget, verifySyncTarget } from './sync-target';
+import { readSyncTarget, saveSyncTarget, verifyImageSyncTarget, verifySyncTarget } from './sync-target';
 
 const config = { url: 'https://mine.supabase.co', anonKey: 'sb_publishable_public' };
 const storage = () => {
@@ -46,5 +46,26 @@ describe('同步目标', () => {
     await expect(verifySyncTarget({ config, session: { access_token: 'session' } } as never, request)).rejects.toThrow(
       '初始化'
     );
+  });
+  it('图片同步必须单独通过私有 Storage 和续传能力检查', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({
+          protocol: 1,
+          privateBucket: 'aiao-media-images',
+          maxBytes: 16777216,
+          resumable: true,
+          metadataOnly: false
+        })
+      );
+    await verifyImageSyncTarget({ config, userId: 'user', session: { access_token: 'session' } } as never, request);
+    expect(request).toHaveBeenCalledWith(`${config.url}/rest/v1/rpc/media_file_capabilities`, expect.any(Object));
+    request.mockResolvedValueOnce(
+      Response.json({ protocol: 1, privateBucket: 'public', maxBytes: 16777216, resumable: true, metadataOnly: false })
+    );
+    await expect(
+      verifyImageSyncTarget({ config, userId: 'user', session: { access_token: 'session' } } as never, request)
+    ).rejects.toThrow('不兼容');
   });
 });

@@ -22,7 +22,8 @@ export const productionSources = [
   'apps/aiao-media/infra/supabase/migrations/006-trusted-membership.sql',
   'apps/aiao-media/infra/supabase/migrations/007-jpeg-work-metadata.sql',
   'apps/aiao-media/infra/supabase/migrations/008-sync-target-capabilities.sql',
-  'apps/aiao-media/infra/supabase/migrations/009-sync-data-management.sql'
+  'apps/aiao-media/infra/supabase/migrations/009-sync-data-management.sql',
+  'apps/aiao-media/infra/supabase/migrations/010-image-storage.sql'
 ];
 
 const transactionBoundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;
