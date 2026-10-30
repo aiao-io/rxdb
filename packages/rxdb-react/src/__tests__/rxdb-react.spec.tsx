@@ -5,7 +5,14 @@ import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as publicApi from '../index';
-import { makeRxDBProvider, RxDBProvider, useRxDB, useRxDBOptional, type RxDBSource } from '../rxdb-react';
+import {
+  makeRxDBProvider,
+  RxDBProvider,
+  useHasRxDBProvider,
+  useRxDB,
+  useRxDBOptional,
+  type RxDBSource
+} from '../rxdb-react';
 
 const contextDatabase = { name: 'context-database' } as unknown as RxDB;
 const directDatabase = { name: 'direct-database' } as unknown as RxDB;
@@ -184,6 +191,61 @@ describe('异步 source', () => {
     );
 
     await waitFor(() => expect(result.current.error).toBe(failure));
+  });
+});
+
+// useRxDBOptional 在「没有 Provider」与「有 Provider 但还没就绪」时都是 undefined；组件要在
+// 「独立使用、直接透传」与「等数据库就绪」之间分路，只能再问一句 Provider 在不在 —— 与库的状态无关。
+describe('useHasRxDBProvider', () => {
+  /** 同一次渲染里读两样：Provider 在不在、库就绪没有。 */
+  const useProbe = () => ({ hasProvider: useHasRxDBProvider(), database: useRxDBOptional() });
+
+  it('没有 Provider 时为 false', () => {
+    const { result } = renderHook(useProbe);
+
+    expect(result.current).toEqual({ hasProvider: false, database: undefined });
+  });
+
+  it('已就绪实例：true', () => {
+    const { result } = renderHook(useProbe, { wrapper: wrap(contextDatabase) });
+
+    expect(result.current).toEqual({ hasProvider: true, database: contextDatabase });
+  });
+
+  it('未决 Promise：库还没到也为 true', () => {
+    const { result } = renderHook(useProbe, { wrapper: wrap(deferred<RxDB>().promise) });
+
+    expect(result.current).toEqual({ hasProvider: true, database: undefined });
+  });
+
+  it('工厂：解析前后都为 true', async () => {
+    const { database } = makeFakeDatabase('factory');
+    const { result } = renderHook(useProbe, { wrapper: wrap(() => Promise.resolve(database)) });
+
+    expect(result.current).toEqual({ hasProvider: true, database: undefined });
+    await waitFor(() => expect(result.current).toEqual({ hasProvider: true, database }));
+  });
+
+  it('创建失败：仍为 true', async () => {
+    const failure = new Error('storage unavailable');
+    const { result } = renderHook(() => ({ hasProvider: useHasRxDBProvider(), outcome: useRxDBOutcome() }), {
+      wrapper: wrap(() => Promise.reject(failure))
+    });
+
+    await waitFor(() => expect(result.current.outcome).toBe(failure));
+    expect(result.current.hasProvider).toBe(true);
+  });
+
+  it('makeRxDBProvider 的各套互相隔离：只认同一套 context 里的 Provider', () => {
+    const first = makeRxDBProvider<RxDB>();
+    const second = makeRxDBProvider<RxDB>();
+    const useEverySet = () => [first.useHasRxDBProvider(), second.useHasRxDBProvider(), useHasRxDBProvider()];
+    const FirstProvider = ({ children }: PropsWithChildren) => (
+      <first.RxDBProvider db={contextDatabase}>{children}</first.RxDBProvider>
+    );
+
+    expect(renderHook(useEverySet, { wrapper: FirstProvider }).result.current).toEqual([true, false, false]);
+    expect(renderHook(useEverySet, { wrapper: wrap(contextDatabase) }).result.current).toEqual([false, false, true]);
   });
 });
 
@@ -595,6 +657,7 @@ describe('named exports', () => {
       RxDBProvider,
       useRxDB,
       useRxDBOptional,
+      useHasRxDBProvider,
       useInfiniteScroll: expect.any(Function),
       useFind: expect.any(Function),
       useRepositoryQuery: expect.any(Function)

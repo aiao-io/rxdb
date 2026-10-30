@@ -186,6 +186,7 @@ export class EntityDetailComponent {
    * 编辑代次：目标切换与组件销毁（加载 effect 清理）、取消都推进。
    * 异步保存收尾时代次未变、当前实例仍是提交的那一个，才关闭对话框、发事件、写错误面板；
    * 目标切换后 effect 尚未重跑的空档里，`#entityInstance` 已经为空，同样判为过期。
+   * create 草稿的保存同理：代次未变、当前草稿仍是提交的那一个，才清草稿、关闭对话框、写错误面板。
    */
   #editGeneration = 0;
 
@@ -451,14 +452,22 @@ export class EntityDetailComponent {
     }
     if (this.#draftEntity) {
       this.#syncDraftEntity();
-      this.#draftEntity
+      const draft = this.#draftEntity;
+      const generation = this.#editGeneration;
+      // 保存期间取消、换了草稿或销毁：迟到的结果属于旧草稿，不再清草稿、关闭对话框或写错误面板
+      const isCurrent = (): boolean => generation === this.#editGeneration && this.#draftEntity === draft;
+      draft
         .save()
         .then(() => {
+          if (!isCurrent()) return;
           this.#draftEntity = null;
           this.draftEntitySignal.set(null);
           this.#dialogRef?.close('saved');
         })
-        .catch(e => this.saveError.set(this.#saveErrorMessage(e)));
+        .catch(e => {
+          if (!isCurrent()) return;
+          this.saveError.set(this.#saveErrorMessage(e));
+        });
     } else {
       this.formSubmitted.emit(merged);
       this.#dialogRef?.close();

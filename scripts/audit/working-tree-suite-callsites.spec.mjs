@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import {
   CONFORMANCE_SUITE_NAMES,
   SUITE_ENTRY,
+  TESTING_ENTRY_FILE,
   V1_ADAPTER_PACKAGES,
   auditCallsites,
   blankStringLiterals,
@@ -20,6 +21,8 @@ import {
 const COMMIT_SUITE = 'workingTreeCommitConformanceSuite';
 const CAPTURE_SUITE = 'workingTreeCaptureConformanceSuite';
 const WORKTREE_SUITE = 'worktreeConformanceSuite';
+
+const PACKAGES_ROOT = new URL('../../packages/', import.meta.url).pathname;
 
 /** 一个合格调用点的最小形状：从入口具名导入 + 顶层调用。 */
 const callsite = suite =>
@@ -366,4 +369,18 @@ test('近似调用点的理由会带进违规信息，省一次「为什么没�
     assert.equal(offenders.length, 1);
     assert.match(offenders[0], /未调用/);
   });
+});
+
+// ---------------------------------------------------------------------------
+// 真实仓库：CI 经 `pnpm test-scripts` 跑到这里，门禁由此生效
+// ---------------------------------------------------------------------------
+
+test('真实仓库的套件入口三套齐全，6 个后端都在顶层调用了三套套件', async () => {
+  const testingEntry = await readFile(join(PACKAGES_ROOT, TESTING_ENTRY_FILE), 'utf8');
+  assert.deepEqual(findMissingSuiteExports(testingEntry), []);
+
+  const { packages, offenders } = await auditCallsites({ packagesRoot: PACKAGES_ROOT });
+
+  assert.equal(packages, V1_ADAPTER_PACKAGES.length);
+  assert.deepEqual(offenders, [], offenders.join('\n'));
 });

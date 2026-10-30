@@ -64,7 +64,7 @@ Category.findDescendants({ entityId: root.id, level: 2 }).subscribe(nodes => {
 `level` 包含当前节点本身：`level: 0` 只有当前节点，`level: 1` 是当前节点 + 直接子节点。数字以外的值（字符串、小数、NaN）在适配器层直接抛 `RxDBError`，没有兜底。
 
 - `findDescendants`：指定 `entityId` 时是当前节点及其后代；不指定时覆盖所有根节点及其后代。
-- `findAncestors`：指定 `entityId` 时是当前节点及其祖先链。
+- `findAncestors`：指定 `entityId` 时是当前节点及其祖先链；不指定时是所有根节点（根往上没有祖先）。
 - `countDescendants` / `countAncestors`：与对应的 `find*` 同范围；指定 `entityId` 时**不计**当前节点自己。
 - `where` 只筛递归展开出来的节点：起点（指定 `entityId` 时的当前节点、不指定时的所有根节点）不过 `where`，也不受 `level` 限制；某一级不匹配就截断在那里，它名下的后代（`findAncestors` 是它上方的祖先）即便自身匹配也不返回。实时查询的增量 merge 与 SQL 重查同口径。
 

@@ -62,6 +62,8 @@ export interface RxDBProviderSet<T extends RxDB> {
   useRxDB: UseRxDB<T>;
   /** 读取显式传入或 context 中的数据库实例；未就绪时返回 `undefined`。 */
   useRxDBOptional: UseRxDBOptional<T>;
+  /** 组件树中有没有本套的 Provider；与数据库是否就绪、是否创建失败无关。 */
+  useHasRxDBProvider: () => boolean;
 }
 
 /**
@@ -316,7 +318,7 @@ const useResolvedRxDB = <T extends RxDB>(source: RxDBSource<T>): RxDBSlot<T> => 
 /**
  * 创建隔离的 RxDB React context 与访问 hook。
  *
- * @returns 共享同一个 context 的 Provider、`useRxDB` 与 `useRxDBOptional`。
+ * @returns 共享同一个 context 的 Provider、`useRxDB`、`useRxDBOptional` 与 `useHasRxDBProvider`。
  */
 export function makeRxDBProvider<T extends RxDB>(): RxDBProviderSet<T> {
   const context = createContext<RxDBSlot<T> | undefined>(undefined);
@@ -325,6 +327,9 @@ export function makeRxDBProvider<T extends RxDB>(): RxDBProviderSet<T> {
     const slot = useContext(context);
     return db ?? slot?.db;
   };
+
+  // 槽位存在与否只回答「有没有 Provider」，不看 `db` / `failure` / `pending`。
+  const useHasProvider = (): boolean => useContext(context) !== undefined;
 
   const useDatabase = (db?: T): T => {
     const slot = useContext(context);
@@ -341,7 +346,12 @@ export function makeRxDBProvider<T extends RxDB>(): RxDBProviderSet<T> {
     return <context.Provider value={slot}>{children}</context.Provider>;
   };
 
-  return { RxDBProvider: DatabaseProvider, useRxDB: useDatabase, useRxDBOptional: useOptionalDatabase };
+  return {
+    RxDBProvider: DatabaseProvider,
+    useRxDB: useDatabase,
+    useRxDBOptional: useOptionalDatabase,
+    useHasRxDBProvider: useHasProvider
+  };
 }
 
 const defaultProvider = makeRxDBProvider<RxDB>();
@@ -368,5 +378,30 @@ export const useRxDB = defaultProvider.useRxDB;
  *
  * @remarks
  * 与 {@link useRxDB} 的区别只有「没有时怎么办」：这个不抛错，用于异步 source 下渲染 loading 态。
+ * 「没有 Provider」与「有 Provider 但尚未就绪」在这里都是 `undefined`，要区分时配合
+ * {@link useHasRxDBProvider}。
  */
 export const useRxDBOptional = defaultProvider.useRxDBOptional;
+
+/**
+ * 组件树中有没有最近的 {@link RxDBProvider}。
+ *
+ * @returns 有 Provider 时为 `true`，不论数据库是否就绪、异步 source 是否创建失败；没有时为 `false`
+ *
+ * @remarks
+ * 与 {@link useRxDBOptional} 配合区分它的两种 `undefined`：「组件树里根本没有 Provider」
+ * （本 hook 为 `false`，组件按独立形态运行，不该等数据库）与「有 Provider 但异步 source 还在解析
+ * 或已失败」（本 hook 为 `true`，应渲染 loading 态并拦截依赖数据库的操作）。
+ *
+ * 只认同一套 context：{@link makeRxDBProvider} 创建的 Provider 不会让它为 `true`，
+ * 那一套请用它自己返回的 `useHasRxDBProvider`。
+ *
+ * @example
+ * ```tsx
+ * const database = useRxDBOptional();
+ * const hasProvider = useHasRxDBProvider();
+ * if (hasProvider && !database) return <Loading />; // 有 Provider：等它就绪（或展示创建失败）
+ * return <Form database={database} />; // 已就绪，或没有 Provider、按独立形态运行
+ * ```
+ */
+export const useHasRxDBProvider = defaultProvider.useHasRxDBProvider;

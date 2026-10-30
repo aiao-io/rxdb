@@ -1,5 +1,5 @@
 /**
- * @fileoverview 图实体的节点表在本实例挂的那套表里的物理名。
+ * @fileoverview 图实体的节点表在本实例挂的那套表里的物理名，以及节点表主键的物理列。
  */
 
 import type { EntityMetadata } from '@aiao/rxdb';
@@ -22,3 +22,17 @@ import {
  */
 export const graph_node_table_name = (adapter: RxDBAdapterSqliteBase, nodeMetadata: EntityMetadata): string =>
   quote_sql_identifier(get_table_name_by_metadata(nodeMetadata, adapter.tableSet));
+
+/**
+ * 节点表主键的物理列，已按 SQL 标识符转义。
+ *
+ * @param nodeMetadata - 节点实体的元数据
+ * @returns 加好引号的主键物理列，可直接拼进 SQL
+ *
+ * @remarks
+ * 主键属性名恒为 `id`，但 `columnName` 是公开可配的，物理列可以叫别的名字（SQLC-014）。
+ * 凡是落到节点表上的主键引用都走这里；递归 CTE 自己声明的 `id` 列不是节点表的列，不受影响。
+ * sqlite-core 的 `get_primary_key_column` 不在公开导出里，与 PGlite 的 `join_sql.ts` 一样就地解析。
+ */
+export const graph_node_primary_key_column = (nodeMetadata: EntityMetadata): string =>
+  quote_sql_identifier(nodeMetadata.propertyMap.get('id')?.columnName ?? 'id');

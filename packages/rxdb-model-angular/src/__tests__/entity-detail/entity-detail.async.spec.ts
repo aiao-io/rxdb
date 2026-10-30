@@ -1,4 +1,4 @@
-import { Entity, EntityBase, PropertyType, RxDB, type EntityType } from '@aiao/rxdb';
+import { Entity, EntityBase, getEntityMetadata, PropertyType, RxDB, type EntityType } from '@aiao/rxdb';
 import type { EntityFormData } from '@aiao/rxdb-model';
 import { DialogRef } from '@angular/cdk/dialog';
 import { ErrorHandler, provideZonelessChangeDetection } from '@angular/core';
@@ -59,6 +59,7 @@ function deferredSave<T>(entity: T): { promise: Promise<T>; resolve: () => void;
  * Angular 的数据库经 DI 注入、组件生命周期内不变，换库场景只在 React / Vue 端存在。
  * 数据库走 createInMemoryRxdb 的真实 entityManager → Repository → 内存适配器链路，
  * 只把需要挂起或失败的查询换成手动控制的结果流。
+ * create 草稿的保存同理：取消或换了草稿之后，旧草稿迟到的保存结果不再清草稿、关闭对话框或写错误面板。
  */
 describe('EntityDetailComponent 编辑目标切换（真实组件）', () => {
   const databases: RxDB[] = [];
@@ -173,12 +174,25 @@ describe('EntityDetailComponent 编辑目标切换（真实组件）', () => {
   const errorPanel = (fixture: Fixture): string | null =>
     host(fixture).querySelector('[data-testid="entity-detail-errors"]')?.textContent ?? null;
 
-  /** 输入标题后回车提交：等待期间保存按钮已隐藏，回车照样触发表单提交。 */
-  function typeAndSubmit(fixture: Fixture, title: string): void {
+  /** 在表单里输入标题（change 事件经 EntityForm 发 fieldChanged）。 */
+  function typeTitle(fixture: Fixture, title: string): void {
     const input = host(fixture).querySelector<HTMLInputElement>('form input[type="text"]')!;
     input.value = title;
     input.dispatchEvent(new Event('change'));
+  }
+
+  /** 输入标题后回车提交：等待期间保存按钮已隐藏，回车照样触发表单提交。 */
+  function typeAndSubmit(fixture: Fixture, title: string): void {
+    typeTitle(fixture, title);
     host(fixture).querySelector('form')!.dispatchEvent(new Event('submit'));
+  }
+
+  /** 点击 tabs 下方页脚的按钮（create 模式的保存 / 取消）。 */
+  function clickFooter(fixture: Fixture, text: '保存' | '取消'): void {
+    [...host(fixture).querySelectorAll<HTMLButtonElement>('button')]
+      .filter(button => !button.closest('form'))
+      .find(button => button.textContent?.trim() === text)!
+      .click();
   }
 
   const titleOf = (adapter: InMemoryRxDBAdapter, cls: EntityType, id: string): unknown =>
@@ -468,4 +482,76 @@ describe('EntityDetailComponent 编辑目标切换（真实组件）', () => {
     expect(close).not.toHaveBeenCalled();
     expect(submitted).toEqual([]);
   });
+
+  /** create 草稿用法：草稿只认 metadata 对应的实体类，字段随路由输入推导。 */
+  async function renderDraft(rxdb: RxDB) {
+    const rendered = renderDetail(rxdb, { metadata: getEntityMetadata(SwitchItem), formMode: 'create' });
+    await render(rendered.fixture);
+    return rendered;
+  }
+
+  /** 输入标题后点保存，草稿的 save 挂起到手动结束。 */
+  function saveDraftDeferred(fixture: Fixture, title: string) {
+    const draft = fixture.componentInstance.draftEntitySignal()!;
+    const saving = deferredSave<void>(undefined);
+    const save = vi.spyOn(draft, 'save').mockReturnValueOnce(saving.promise);
+    typeTitle(fixture, title);
+    clickFooter(fixture, '保存');
+    expect(save).toHaveBeenCalledOnce();
+    return saving;
+  }
+
+  it.each(['成功', '失败'] as const)(
+    'create 草稿保存进行中取消：迟到的保存%s不再按已保存关闭、不发事件、不写错误面板',
+    async outcome => {
+      const { rxdb } = await createDatabase();
+      const { fixture, component, close, submitted, cancelled } = await renderDraft(rxdb);
+      const saving = saveDraftDeferred(fixture, '取消前保存的草稿');
+
+      clickFooter(fixture, '取消');
+      expect(cancelled).toHaveBeenCalledOnce();
+      if (outcome === '成功') saving.resolve();
+      else saving.reject(new Error('取消后迟到的失败'));
+      await flush();
+      await render(fixture);
+
+      expect(close.mock.calls).toEqual([[]]);
+      expect(submitted).toEqual([]);
+      expect(component.saveError()).toBeNull();
+      expect(errorPanel(fixture)).toBeNull();
+    }
+  );
+
+  it.each(['成功', '失败'] as const)(
+    'create 取消后换实体重建草稿：旧草稿迟到的保存%s不清掉新草稿、不关闭对话框、不写错误面板，新草稿照常落库',
+    async outcome => {
+      const { rxdb, adapter } = await createDatabase();
+      const { fixture, component, close, submitted } = await renderDraft(rxdb);
+      const saving = saveDraftDeferred(fixture, '旧草稿保存中的内容');
+      clickFooter(fixture, '取消');
+
+      await switchTo(fixture, { name: 'SwitchOther', metadata: getEntityMetadata(SwitchOther) });
+      const fresh = component.draftEntitySignal()!;
+      expect(fresh).toBeInstanceOf(SwitchOther);
+      typeTitle(fixture, '新草稿的输入');
+      await render(fixture);
+
+      if (outcome === '成功') saving.resolve();
+      else saving.reject(new Error('旧草稿迟到的失败'));
+      await flush();
+      await render(fixture);
+
+      expect(component.draftEntitySignal()).toBe(fresh);
+      expect(component.formDataValue['title']).toBe('新草稿的输入');
+      expect(close.mock.calls).toEqual([[]]);
+      expect(submitted).toEqual([]);
+      expect(component.saveError()).toBeNull();
+      expect(errorPanel(fixture)).toBeNull();
+
+      clickFooter(fixture, '保存');
+      await vi.waitFor(() => expect(close.mock.calls).toEqual([[], ['saved']]));
+      expect(titleOf(adapter, SwitchOther as unknown as EntityType, fresh.id)).toBe('新草稿的输入');
+      expect(submitted).toEqual([]);
+    }
+  );
 });

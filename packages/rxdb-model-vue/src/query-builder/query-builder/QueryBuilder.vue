@@ -104,19 +104,27 @@ watch(
   { immediate: true }
 );
 
-// 监听查询变化并发出事件
-watch(rootGroup, group => {
-  if (group) {
-    emit('queryChange', service.toRxDBQuery() as RxDBQueryOutput<Record<string, unknown>>);
-  }
-});
+// 监听查询变化并发出事件：挂载时先发一次当前查询（已载入的 initialQuery，没有则为空查询），与 Angular / React 同口径
+watch(
+  rootGroup,
+  group => {
+    if (group) {
+      emit('queryChange', service.toRxDBQuery() as RxDBQueryOutput<Record<string, unknown>>);
+    }
+  },
+  { immediate: true }
+);
 
-// 监听验证变化并发出事件
-watch(validation, v => {
-  if (v) {
-    emit('validationChange', v);
-  }
-});
+// 监听验证变化并发出事件：挂载时同样先发一次当前校验结果
+watch(
+  validation,
+  v => {
+    if (v) {
+      emit('validationChange', v);
+    }
+  },
+  { immediate: true }
+);
 
 // 同步 maxDepth 到 service
 watch(

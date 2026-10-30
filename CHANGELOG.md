@@ -12,6 +12,7 @@
 - **rxdb:** `TransactionExecutor` 多了必填的只读成员 `tableSet`：本事务落在哪一套业务表上（发起它的实例挂的那一套）。自己实现事务执行器的适配器要补上，取适配器的 `tableSet` 即可；两个内置适配器已带（US-314）
 - **rxdb-plugin-search:** `FtsInstallPlan` 的 `namespace` 换成 `schema`（PostgreSQL 里表所在的 schema），由新的 `SearchBackend.bindPlan(plan, metadata, tableSet)` 经适配器的表名解析器填；`SearchBackend` 还多了 `installForTableSet()`。自己构造计划、直接调 `createPgTsvectorBackend().install()` 的，先 `bindPlan(plan, metadata, WorktreeTableSet.MAIN)`，否则表不按 schema 限定（US-314）
 - **rxdb:** `UpdateDataCache.getSerializedBefore(id, inversePatch)` 去掉第二参，改为 `getSerializedBefore(id)`：同批同 id 的多条 UPDATE 在构造时已合成一条，前态按 id 缓存、只算一份，另给的旧值只会拿到先算出来的那份。删掉第二个实参即可（US-032）
+- **rxdb:** `HistoryScopeAPI` 多了两个必填成员 `undoBarrier$` / `redoBarrier$`：撤销 / 重做栈停在子分支分叉点时给出原因（`{ reason: 'inherited_by_branch', branchIds }`），否则 `null`。自己实现 `HistoryScopeAPI` 的（如测试替身、没装历史插件时的兜底对象）要补上这两个成员，没有分支的实现发一个 `null` 即可（US-315）
 
 ### 🚀 Features
 
@@ -46,7 +47,6 @@
 - **rxdb-plugin-working-tree:** 从提交建分支 `rxdb.workingTree.createBranchFromCommit(branchId, commitId)`：新分支的 HEAD 就是当前分支历史里的那个提交（与源分支共享之前的历史），工作树为空，切过去读到那次 `commit()` 刚完成时的数据；只建不切。`checkBranchFromCommit(commitId)` 先判建不建得了，被拒三种走返回值（`unreachable_target` / `fork_point_unknown` / `history_rewritten`）。分叉点在提交时同一事务记进新的系统表 `rxdb_commit_fork_point`，既有库连接时补建，补建之前的提交不能拿来建分支（US-314）
 - **rxdb-plugin-working-tree-angular / -react / -vue:** `useWorkingTree()` 新增 `checkBranchFromCommit()` / `createBranchFromCommit()` 与两格命令状态（US-314）
 - **rxdb:** 建分支上下文 `RxDBBranchCreationContext` 新增可选的 `fromCommitId`，原样转交给系统贡献方（US-314）
-- **rxdb:** `HistoryScopeAPI` 新增 `undoBarrier$` / `redoBarrier$`：撤销 / 重做栈停在子分支分叉点时给出原因（`{ reason: 'inherited_by_branch', branchIds }`），否则 `null`。自己实现 `HistoryScopeAPI` 的（如测试替身、没装历史插件时的兜底对象）要补上这两个成员（US-315）
 - **rxdb-model / -angular / -react / -vue:** 实体列表的撤销 / 重做按钮因子分支分叉点停用时，`title` 说明是哪条分支继承了下一步；文案在 `describeHistoryBarrier()`（US-315）
 
 ### 🩹 Fixes
@@ -85,10 +85,13 @@
 - **rxdb-adapter-sqlite-wasm:** 只传 `sharedWorkerInstance`、不写 `sharedWorker: true` 时同样进跨标签页事务锁，断开只交还本标签页那一份。此前事务不排队，断开时还会关掉其他标签页正在用的共用连接。
 - **rxdb-adapter-http:** 浏览器里同源相对 `baseUrl` 可以配 `changeFeed`：普通请求与 SSE 走同一个地址出口，按文档基准地址补成绝对地址（此前构造期就抛 `HttpConfigError`）。条件读的 single-flight 只在同一代次内合流：`create` / `update` / `delete` 结算（成败都算）或变更通知上报失效之后发起的读，不再并进写之前的在飞请求、刚写完读回旧值。
 - **rxdb-adapter-supabase:** `exists` 子查询里的 OR（及 `notBetween`）改在关系作用域内表达（`<嵌入路径>.or=(…)`），不再拆成 AND 静默漏行；两层 `exists` 的嵌入按当前层实体解析关系名，此前第二层进不了 select、整个查询被 PostgREST 拒绝；同一层几条 `exists` / `notExists` 指向同一关系时各用独立的嵌入别名，「有一笔满足 A 的、也有一笔满足 B 的」不再被并成「同一笔同时满足 A 与 B」。
+- **rxdb-adapter-supabase:** 不指定 `entityId` 的 `findAncestors` 返回全部根节点（翻页取全、按主键升序，开 `hasChildren` 特性时带 `hasChildren`；起点不过 `where`、不受 `level` 限制），全树 `countAncestors` 为根节点数，只在指定 `entityId` 时扣掉当前节点，与 sqlite-core / PGlite 及树插件的实时 merge 同口径。此前全树 `findAncestors` 恒为 `[]`、`countAncestors` 恒为 0，同一个活查询首查为空、增量合并后又冒出新根（RV-084）
 - **rxdb-adapter-tauri:** JSON 编解码把 `__proto__` 等数据键作为自有属性往返，不再丢键、也不再把结果对象的原型换成载荷。
 - **rxdb-adapter-pglite:** `changeErrors$` 随适配器实例存活：`disconnect()` 不再完成它，同一实例重连后的变更管线失败照常送达（此前重新订阅时它已经完成）。
 - **rxdb-plugin-graph:** 节点物理表名含双引号时，`findNeighbors` / `countNeighbors` / `findPaths`（含节点回填）正确转义，不再报 SQL 语法错误。
+- **rxdb-plugin-graph:** 图实体把主键 `columnName` 改成别的物理列（如 `pk_id`）时，`findNeighbors` / `countNeighbors` / `findPaths` 不再因写死 `id` 报 `no such column: id`：锚点、JOIN、排序与路径节点回填改按实体的主键物理列引用，返回的节点记录以属性名为键，门面查询按 `id` 认回同一个实体（RV-084）
 - **rxdb-plugin-tree:** 实时树查询的起点（全树查询的各根、指定 `entityId` 时的目标）与 SQL 同口径不过 `where`：新建或删除不匹配 `where` 的起点时列表与计数即时更新，`findAncestors` 全树收得到新根，目标新建而祖先链在本地拼不全时回 SQL；全树且带 `where` / `level` 时，节点改父跨进或跨出根层回 SQL；带 `level` 的 `findDescendants` 里结果中的节点改父也回 SQL（此前上移漏补被 `level` 截掉的子孙、下移漏删越界的子孙）。
+- **rxdb-plugin-history:** 挂在可写检出位上时，`compareBranches()` 只对比这套表的成员，与 `previewMerge()` / `mergeBranch()` 用同一份判定。此前它照样列出不进影子表集的实体（QueryCache 同步的这类只在主检出位那套表里的实体），而检出位里切分支不动它们，对比结果与切过去读到的对不上（US-312）
 - **rxdb-plugin-querycache:** 同一行在线写的回执反序到达时按发出顺序落缓存：迟到的更新回执不再把已删除（含离线删除）的缓存行写回来，两次更新的回执反序也不再让旧值覆盖新值。`QueryCacheEngine`（experimental）新增 `supersedeInflightWrites(ids)`。
 - **rxdb-plugin-sync / -querycache:** 非 `public` 命名空间的离线写重放与缓存修复按 `namespace:entity` 定位，不再打到同名的公共实体、也不再在错误目标上推进水位；标识函数 `queryCacheEntityIdentifier` 由 sync 新导出，querycache 的在线读写复用同一个。
 - **rxdb-plugin-storage:** 远端拉取在本地写流打不开时先取消未消费的响应体、再抛原始错误，不留后台下载；复制式目录重命名删源目录半途失败时，先用目标里的完整副本补齐源目录、确认无误再撤回，补不齐时保留全部副本并抛出点名路径的 `AggregateError`，不再删掉唯一的完整副本。

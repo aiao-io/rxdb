@@ -57,6 +57,8 @@ await rxdb.versionManager.mergeBranch('feature-a');
 
 **撤销 / 重做停在子分支的分叉点。** 当前分支上不晚于某条子分支分叉点的变更已被那条子分支继承：撤销或重做它们会让子分支记下的反向补丁过期，切回当前分支时读到错值，对比与合并预览也跟着失真。所以它们不进 `undoHistories$`，`undo()` / `redo()` 撤到那一步时什么也不做；`undoBarrier$` / `redoBarrier$` 给出原因（`{ reason: 'inherited_by_branch', branchIds }`），UI 拿它说明按钮为什么点不了。建分支之前的改动，建完分支就撤不了——与 git 分支所基于的历史不改写同一个道理；删掉继承它们的子分支之后限制解除。要改回去，就再改一次。
 
+实例挂在可写检出位上时（工作树插件的 `checkouts.mount()`），当前分支是那套表持有的分支：`mergeBranch()` 合进它、落在那套表里，只合进得了这套表的实体，`previewMerge()` 与 `compareBranches()` 同一口径（只列这套表的成员：不进影子表集的实体在检出位里切分支时不动）；可推送计数是 0（只有主检出位同步）。被可写检出位持有的分支 `removeBranch()` 删不掉，抛 `WorktreeBranchHeldError`。
+
 ## 没装插件时
 
 `rxdb.versionManager` **不存在**（读到 `undefined`），核心不给一个什么都不做的空壳。这对下游是可见的契约而非退化路径：

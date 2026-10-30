@@ -4,12 +4,14 @@
  *
  * 目标（数据库 / 实体类型 / id / 表单模式）一变，旧实例立即作废：新目标就绪前拦截提交（表单内部动作
  * 隐藏，只留取消），加载失败原因进错误面板，旧查询与旧保存迟到的结果都不影响当前视图。
+ * create 草稿同一口径：有 Provider 但库未到时保存禁用、等待期间的输入并进到货后的草稿；没有 Provider 时
+ * 照常透传；换库时旧草稿随旧库清掉、按新库补建；取消 / 换库之后旧草稿迟到的保存结果一律丢弃。
  * 数据库走 {@link createInMemoryRxdb} 的真实 entityManager → Repository → 内存适配器链路，
- * 只把需要挂起或失败的查询换成手动控制的结果流。
+ * 只把需要挂起或失败的查询与落库换成手动控制的结果。
  */
-import { Entity, EntityBase, getEntityMetadata, PropertyType, RxDB, type EntityType } from '@aiao/rxdb';
+import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
 import type { EntityFormData, FormFieldConfig } from '@aiao/rxdb-model';
-import { RxDBProvider } from '@aiao/rxdb-react';
+import { RxDBProvider, type RxDBSource } from '@aiao/rxdb-react';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { Activity, type JSX } from 'react';
 import { BehaviorSubject, EMPTY, firstValueFrom, Subject, throwError, type Observable } from 'rxjs';
@@ -45,8 +47,40 @@ class SwitchOther extends EntityBase {
   declare title: string;
 }
 
+/** 带一对多关系的实体：关系 tab 内嵌实体列表，观察列表随数据库就绪 / 换库装配。 */
+@Entity({
+  name: 'SwitchGroup',
+  namespace: 'detail-switch',
+  properties: [{ name: 'title', type: PropertyType.string, required: true }],
+  relations: [
+    {
+      name: 'members',
+      displayName: '成员',
+      kind: RelationKind.ONE_TO_MANY,
+      mappedEntity: 'SwitchMember',
+      mappedProperty: 'group'
+    }
+  ]
+})
+class SwitchGroup extends EntityBase {
+  declare title: string;
+}
+
+/** 一对多关系的另一端（注册进 RxDB 供关系元数据校验）。 */
+@Entity({
+  name: 'SwitchMember',
+  namespace: 'detail-switch',
+  properties: [{ name: 'label', type: PropertyType.string }],
+  relations: [{ name: 'group', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'SwitchGroup', mappedProperty: 'members' }]
+})
+class SwitchMember extends EntityBase {
+  declare label: string;
+}
+
 const ITEM = SwitchItem as unknown as EntityType;
 const OTHER = SwitchOther as unknown as EntityType;
+const GROUP = SwitchGroup as unknown as EntityType;
+const MEMBER = SwitchMember as unknown as EntityType;
 
 const flush = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
 
@@ -61,12 +95,47 @@ function deferredSave<T>(entity: T): { promise: Promise<T>; resolve: () => void;
   return { promise, resolve, reject };
 }
 
-/** 宿主可替换的输入：Provider 的数据库、详情 props 与外层 `<Activity>` 的显隐。 */
+/** 手动放行的闸门：草稿落库挂在它上面，期间取消 / 换库。 */
+function gate(): { promise: Promise<void>; open: () => void; fail: (error: Error) => void } {
+  let open!: () => void;
+  let fail!: (error: Error) => void;
+  const promise = new Promise<void>((complete, reject) => {
+    open = complete;
+    fail = reject;
+  });
+  return { promise, open, fail };
+}
+
+/** 宿主可替换的输入：Provider 的数据库（`null` = 组件树里没有 Provider）、详情 props 与外层 `<Activity>` 的显隐。 */
 interface DetailHost {
-  database: RxDB | Promise<RxDB>;
+  database: RxDBSource<RxDB> | null;
   props: EntityDetailProps;
   mode: 'visible' | 'hidden';
 }
+
+/** create 模式表单字段：标题必填、数量可选。 */
+const ITEM_FIELDS: FormFieldConfig[] = [
+  { field: 'title', displayName: '标题', type: 'string', required: true },
+  { field: 'count', displayName: '数量', type: 'integer' }
+];
+
+/** create 模式的对话框数据（路由输入仍是同一实体）：草稿按 metadata 建，字段与宿主初始值随之给出。 */
+const createProps = (over: EntityDetailProps = {}): EntityDetailProps => ({
+  metadata: getEntityMetadata(SwitchItem),
+  formFields: ITEM_FIELDS,
+  formMode: 'create',
+  formData: { title: '' },
+  ...over
+});
+
+/** 带关系实体的 create 对话框数据：表单只有标题，关系 tab 内嵌成员列表。 */
+const groupProps = (): EntityDetailProps => ({
+  name: 'SwitchGroup',
+  metadata: getEntityMetadata(SwitchGroup),
+  formFields: [ITEM_FIELDS[0]],
+  formMode: 'create',
+  formData: { title: '' }
+});
 
 describe('EntityDetail 编辑目标切换（真实组件）', () => {
   const databases: RxDB[] = [];
@@ -78,14 +147,14 @@ describe('EntityDetail 编辑目标切换（真实组件）', () => {
   });
 
   async function createDatabase() {
-    const rxdb = createInMemoryRxdb([ITEM, OTHER]);
+    const rxdb = createInMemoryRxdb([ITEM, OTHER, GROUP, MEMBER]);
     await rxdb.connect(IN_MEMORY_ADAPTER_NAME);
     databases.push(rxdb);
     const adapter = (await firstValueFrom(rxdb.localAdapter$)) as unknown as InMemoryRxDBAdapter;
     return { rxdb, adapter };
   }
 
-  async function saved<T extends typeof SwitchItem | typeof SwitchOther>(
+  async function saved<T extends typeof SwitchItem | typeof SwitchOther | typeof SwitchGroup>(
     rxdb: RxDB,
     cls: T,
     data: Partial<InstanceType<T>>
@@ -110,8 +179,8 @@ describe('EntityDetail 编辑目标切换（真实组件）', () => {
     const cancelled = vi.fn<() => void>();
     const submitted: EntityFormData[] = [];
     let host: DetailHost = { database, props, mode: 'visible' };
-    const element = (): JSX.Element => (
-      <RxDBProvider db={host.database}>
+    const element = (): JSX.Element => {
+      const dialog = (
         <Dialog open onClose={closed} width='720px' height='80vh'>
           <Activity mode={host.mode}>
             <EntityDetail
@@ -123,8 +192,9 @@ describe('EntityDetail 编辑目标切换（真实组件）', () => {
             />
           </Activity>
         </Dialog>
-      </RxDBProvider>
-    );
+      );
+      return host.database === null ? dialog : <RxDBProvider db={host.database}>{dialog}</RxDBProvider>;
+    };
     const utils = render(element());
     const rerender = (next: Partial<DetailHost>): void => {
       host = { ...host, ...next, props: { ...host.props, ...next.props } };
@@ -164,6 +234,32 @@ describe('EntityDetail 编辑目标切换（真实组件）', () => {
 
   const updatesOf = (adapter: InMemoryRxDBAdapter, id: string): number =>
     adapter.changes.filter(change => change.type === 'UPDATE' && change.entityId === id).length;
+
+  /** 该库 SwitchItem 表里已落库的标题。 */
+  const titlesOf = (adapter: InMemoryRxDBAdapter): unknown[] =>
+    [...adapter.tableFor(ITEM).values()].map(row => row['title']);
+
+  const countInput = (): HTMLInputElement | null => pane().querySelector('[data-field="count"] input');
+
+  /** tabs 下方页脚的保存按钮（create 模式）。 */
+  const footerSave = (): HTMLButtonElement => pane().querySelector('[data-detail-save="true"]') as HTMLButtonElement;
+
+  const tabLabels = (): Array<string | null> =>
+    [...pane().querySelectorAll('[role="tab"]')].map(tab => tab.getAttribute('aria-label'));
+
+  /** 关系 tab 内嵌的实体列表（只有一个关系 tab）。 */
+  const relationList = (): Element | null => pane().querySelector('.rxdb-entity-list');
+
+  function typeTitle(title: string): void {
+    fireEvent.change(titleInput()!, { target: { value: title } });
+  }
+
+  /** 让该库下一次新建落库挂在闸门上：放行即视为写入成功（不真正落表），失败原样抛出。 */
+  function holdCreate(rxdb: RxDB, saving: ReturnType<typeof gate>): void {
+    vi.spyOn(rxdb.entityManager.getRepository(ITEM), 'create').mockImplementationOnce(entity =>
+      saving.promise.then(() => entity)
+    );
+  }
 
   it('首次加载等待期间：表单内部动作隐藏、只留取消，回车提交既不透传也不落库', async () => {
     const { rxdb, adapter } = await createDatabase();
@@ -514,5 +610,263 @@ describe('EntityDetail 编辑目标切换（真实组件）', () => {
     await waitFor(() => expect(detail.closed).toHaveBeenCalledExactlyOnceWith('saved'));
     expect(titleOf(adapter, ITEM, a.id)).toBe('隐藏前提交的内容');
     expect(detail.submitted).toEqual([expect.objectContaining({ title: '隐藏前提交的内容' })]);
+  });
+
+  // ── Provider 有无与数据库就绪（与 Vue 端 isCreatePending / isEditPending 同口径）──────────────
+
+  it.each(['未决 Promise', '创建失败'] as const)(
+    '有 Provider 但 source 为%s：create 显示宿主初始值，保存禁用，点击既不透传也不关闭',
+    async kind => {
+      const source: RxDBSource<RxDB> =
+        kind === '未决 Promise' ? new Promise<RxDB>(() => undefined) : () => Promise.reject(new Error('存储不可用'));
+      const detail = renderDetail(source, createProps({ formData: { title: '宿主初始值', count: 3 } }));
+      await act(flush);
+
+      expect(titleInput()?.value).toBe('宿主初始值');
+      expect(countInput()?.value).toBe('3');
+      typeTitle('等待时填写');
+      expect(footerSave().disabled).toBe(true);
+      fireEvent.click(footerSave());
+      await act(flush);
+
+      expect(detail.submitted).toEqual([]);
+      expect(detail.closed).not.toHaveBeenCalled();
+      expect(errorPanel()).toBeNull();
+    }
+  );
+
+  it('有 Provider 但库未到：等待期间的输入并进到货后的草稿，保存落库而不透传', async () => {
+    const { rxdb, adapter } = await createDatabase();
+    let settle!: (database: RxDB) => void;
+    const pending = new Promise<RxDB>(resolve => (settle = resolve));
+    const detail = renderDetail(pending, createProps({ formData: { title: '宿主初始值', count: 3 } }));
+
+    typeTitle('等待时填写');
+    await act(async () => {
+      settle(rxdb);
+      await flush();
+    });
+    await waitFor(() => expect(footerSave().disabled).toBe(false));
+    expect(titleInput()?.value).toBe('等待时填写');
+    expect(countInput()?.value).toBe('3');
+
+    fireEvent.click(footerSave());
+    await waitFor(() => expect(detail.closed).toHaveBeenCalledExactlyOnceWith('saved'));
+    expect([...adapter.tableFor(ITEM).values()].map(row => [row['title'], row['count']])).toEqual([['等待时填写', 3]]);
+    expect(detail.submitted).toEqual([]);
+  });
+
+  it('没有 Provider：带 entityId 的编辑照常透传表单数据，表单动作可用', async () => {
+    const detail = renderDetail(null, {
+      entityId: 'host-owned-id',
+      metadata: getEntityMetadata(SwitchItem),
+      formFields: [ITEM_FIELDS[0]],
+      formData: { title: '宿主数据' }
+    });
+
+    expect(titleInput()?.value).toBe('宿主数据');
+    expect(formSaveButton()).not.toBeNull();
+    expect(footerButtons()).toEqual([]);
+    typeAndSubmit('透传的修改');
+    await act(flush);
+
+    expect(detail.submitted).toEqual([{ title: '透传的修改' }]);
+    expect(detail.closed).not.toHaveBeenCalled();
+  });
+
+  it('没有 Provider：create 保存照常透传表单数据并关闭', () => {
+    const detail = renderDetail(null, createProps());
+
+    expect(footerSave().disabled).toBe(false);
+    typeTitle('由宿主保存');
+    fireEvent.click(footerSave());
+
+    expect(detail.submitted).toEqual([{ title: '由宿主保存' }]);
+    expect(detail.closed).toHaveBeenCalledExactlyOnceWith(undefined);
+  });
+
+  it('有 Provider 但库未到：带关系的实体照常渲染表单，关系列表等数据库到货才装配', async () => {
+    const { rxdb } = await createDatabase();
+    let settle!: (database: RxDB) => void;
+    const pending = new Promise<RxDB>(resolve => (settle = resolve));
+    renderDetail(pending, groupProps());
+
+    expect(tabLabels()).toEqual(['基本信息', '成员']);
+    expect(titleInput()).not.toBeNull();
+    expect(relationList()).toBeNull();
+    await act(async () => {
+      settle(rxdb);
+      await flush();
+    });
+
+    expect(relationList()).not.toBeNull();
+  });
+
+  it('有 Provider 但库未到：切关系 tab 按界面显示的数据校验，宿主初始值有效即放行', () => {
+    renderDetail(new Promise<RxDB>(() => undefined), { ...groupProps(), formData: { title: '宿主初始标题' } });
+
+    fireEvent.click(pane().querySelectorAll('[role="tab"]')[1]);
+
+    expect(errorPanel()).toBeNull();
+    expect((pane().querySelectorAll('[role="tab"]')[1] as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('没有 Provider：带关系的实体照常渲染表单、不装配关系列表，保存照常透传', () => {
+    const detail = renderDetail(null, groupProps());
+
+    expect(tabLabels()).toEqual(['基本信息', '成员']);
+    expect(relationList()).toBeNull();
+    typeTitle('无库分组');
+    fireEvent.click(footerSave());
+
+    expect(detail.submitted).toEqual([{ title: '无库分组' }]);
+  });
+
+  // ── create 草稿保存的迟到结果（与 Vue 端 onSave 的 isCurrent 同口径）────────────────────────
+
+  it.each(['成功', '失败'] as const)(
+    'create 保存进行中取消：迟到的保存%s不再按已保存关闭，也不写错误面板',
+    async outcome => {
+      const { rxdb } = await createDatabase();
+      const saving = gate();
+      holdCreate(rxdb, saving);
+      const detail = renderDetail(rxdb, createProps());
+      typeTitle('取消前提交的内容');
+      fireEvent.click(footerSave());
+
+      fireEvent.click(pane().querySelector('[data-detail-cancel="true"]')!);
+      expect(detail.cancelled).toHaveBeenCalledOnce();
+      await act(async () => {
+        if (outcome === '成功') saving.open();
+        else saving.fail(new Error('取消后迟到的失败'));
+        await flush();
+      });
+
+      expect(detail.closed.mock.calls).toEqual([[undefined]]);
+      expect(errorPanel()).toBeNull();
+    }
+  );
+
+  it.each([
+    { switching: '换库', outcome: '成功' },
+    { switching: '换库', outcome: '失败' },
+    { switching: '换库再换回', outcome: '成功' },
+    { switching: '换库再换回', outcome: '失败' }
+  ] as const)(
+    'create $switching后旧草稿的保存迟到$outcome：不关闭对话框、不写错误面板、不清掉新草稿',
+    async ({ switching, outcome }) => {
+      const first = await createDatabase();
+      const saving = gate();
+      holdCreate(first.rxdb, saving);
+      const detail = renderDetail(first.rxdb, createProps());
+      typeTitle('旧草稿保存中的内容');
+      fireEvent.click(footerSave());
+
+      // 第二个库在首帧之后才建：此前同一实体类只登记了一个库
+      const second = await createDatabase();
+      detail.rerender({ database: second.rxdb });
+      if (switching === '换库再换回') detail.rerender({ database: first.rxdb });
+      await act(flush);
+      typeTitle('新草稿上的输入');
+      await act(async () => {
+        if (outcome === '成功') saving.open();
+        else saving.fail(new Error('旧草稿迟到的失败'));
+        await flush();
+      });
+
+      expect(detail.closed).not.toHaveBeenCalled();
+      expect(errorPanel()).toBeNull();
+      expect(titleInput()?.value).toBe('新草稿上的输入');
+      fireEvent.click(footerSave());
+      await waitFor(() => expect(detail.closed).toHaveBeenCalledExactlyOnceWith('saved'));
+      expect(titlesOf((switching === '换库' ? second : first).adapter)).toEqual(['新草稿上的输入']);
+    }
+  );
+
+  // ── 换库（与 Vue 端 watch(rxdb) 同口径）─────────────────────────────────────────────
+
+  it('create 直接换库：旧草稿移出旧库缓存，输入与错误面板清空，按新库补建草稿且只落新库', async () => {
+    const first = await createDatabase();
+    const create = vi
+      .spyOn(first.rxdb.entityManager.getRepository(ITEM), 'create')
+      .mockRejectedValueOnce(new Error('旧库写入被拒'));
+    const detail = renderDetail(first.rxdb, createProps({ formData: { title: '宿主初始值' } }));
+    typeTitle('旧草稿上的输入');
+    fireEvent.click(footerSave());
+    await waitFor(() => expect(errorPanel()).toContain('保存失败：旧库写入被拒'));
+    const [oldDraft] = create.mock.calls[0];
+    expect(first.rxdb.entityManager.getEntityRef(ITEM, oldDraft.id as never)).toBe(oldDraft);
+
+    // 第二个库在首帧之后才建：此前同一实体类只登记了一个库
+    const second = await createDatabase();
+    detail.rerender({ database: second.rxdb });
+    await act(flush);
+
+    expect(first.rxdb.entityManager.getEntityRef(ITEM, oldDraft.id as never)).toBeUndefined();
+    expect(errorPanel()).toBeNull();
+    expect(titleInput()?.value).toBe('宿主初始值');
+    typeTitle('只写新库');
+    fireEvent.click(footerSave());
+    await waitFor(() => expect(detail.closed).toHaveBeenCalledExactlyOnceWith('saved'));
+    expect(titlesOf(second.adapter)).toEqual(['只写新库']);
+    expect(titlesOf(first.adapter)).toEqual([]);
+  });
+
+  it('create 换成未就绪的 source：等待期间保存禁用、回到宿主初始值；新库到货后补建草稿，只落新库', async () => {
+    const first = await createDatabase();
+    const detail = renderDetail(first.rxdb, createProps({ formData: { title: '宿主初始值' } }));
+    typeTitle('旧草稿上的输入');
+    let settle!: (database: RxDB) => void;
+    detail.rerender({ database: new Promise<RxDB>(resolve => (settle = resolve)) });
+    await act(flush);
+
+    expect(footerSave().disabled).toBe(true);
+    expect(titleInput()?.value).toBe('宿主初始值');
+    const second = await createDatabase();
+    await act(async () => {
+      settle(second.rxdb);
+      await flush();
+    });
+    await waitFor(() => expect(footerSave().disabled).toBe(false));
+    typeTitle('只写新库');
+    fireEvent.click(footerSave());
+
+    await waitFor(() => expect(detail.closed).toHaveBeenCalledExactlyOnceWith('saved'));
+    expect(titlesOf(second.adapter)).toEqual(['只写新库']);
+    expect(titlesOf(first.adapter)).toEqual([]);
+  });
+
+  it.each(['保存失败', '校验失败'] as const)('编辑中直接换库：%s的错误面板随旧库清空', async failure => {
+    const first = await createDatabase();
+    const second = await createDatabase();
+    const a = await saved(first.rxdb, SwitchItem, { title: '旧库记录' });
+    await saved(second.rxdb, SwitchItem, { id: a.id, title: '新库记录' });
+    const detail = renderDetail(first.rxdb, { entityId: a.id });
+    await showing('旧库记录');
+    if (failure === '保存失败') vi.spyOn(a, 'save').mockRejectedValueOnce(new Error('旧库写入被拒'));
+    typeAndSubmit(failure === '保存失败' ? '会失败的修改' : '');
+    await waitFor(() => expect(errorPanel()).not.toBeNull());
+
+    detail.rerender({ database: second.rxdb });
+    await showing('新库记录');
+
+    expect(errorPanel()).toBeNull();
+  });
+
+  it('直接换库：关系 tab 的列表按新库重新装配，不沿用旧库的列表实例', async () => {
+    const first = await createDatabase();
+    const second = await createDatabase();
+    const group = await saved(first.rxdb, SwitchGroup, { title: '旧库分组' });
+    await saved(second.rxdb, SwitchGroup, { id: group.id, title: '新库分组' });
+    const detail = renderDetail(first.rxdb, { name: 'SwitchGroup', entityId: group.id });
+    await showing('旧库分组');
+    const oldList = relationList();
+    expect(oldList).not.toBeNull();
+
+    detail.rerender({ database: second.rxdb });
+    await showing('新库分组');
+
+    expect(relationList()).not.toBeNull();
+    expect(relationList()).not.toBe(oldList);
   });
 });

@@ -229,6 +229,33 @@ describe('QueryBuilder（真实组件）', () => {
     expect(() => host.wrapper.unmount()).not.toThrow();
   });
 
+  describe('挂载时 queryChange / validationChange 各发一次（与 Angular / React 同口径）', () => {
+    it('未传 initialQuery：发空查询与合法的校验结果', async () => {
+      const { wrapper } = render();
+      await nextTick();
+
+      expect(wrapper.emitted('queryChange')).toEqual([[{ combinator: 'and', rules: [] }]]);
+      expect(wrapper.emitted('validationChange')).toEqual([[{ valid: true }]]);
+    });
+
+    it('传入 initialQuery：发载入后的查询与它按字段校验的结果，不先发空查询', async () => {
+      const initial = {
+        combinator: 'or',
+        rules: [
+          { field: 'title', operator: '=', value: 'hello' },
+          { field: 'missing', operator: '=', value: 'x' }
+        ]
+      } as RxDBQueryOutput<Record<string, unknown>>;
+      const { wrapper } = render({ initialQuery: initial });
+      await nextTick();
+
+      expect(wrapper.emitted('queryChange')).toEqual([[initial]]);
+      expect(wrapper.emitted('validationChange')).toEqual([
+        [{ valid: false, errors: [expect.objectContaining({ field: 'missing', rule: 'fieldExists' })] }]
+      ]);
+    });
+  });
+
   describe('字段集合变化（含清空）同步给服务', () => {
     const TITLE_OK = {
       combinator: 'and',

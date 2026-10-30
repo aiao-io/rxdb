@@ -67,7 +67,8 @@ export interface ITreeRepository<T extends EntityType> extends IRepository<T> {
    * 查询祖先节点
    *
    * @remarks
-   * 指定 entityId 时：包含当前节点 + 祖先节点
+   * - 指定 entityId 时：包含当前节点 + 祖先节点
+   * - 不指定 entityId 时：所有根节点（起点是全部根，根往上没有祖先）
    */
   findAncestors(options: FindTreeOptions<T>): Promise<InstanceType<T>[]>;
 
@@ -75,7 +76,8 @@ export interface ITreeRepository<T extends EntityType> extends IRepository<T> {
    * 查询祖先节点数量
    *
    * @remarks
-   * 指定 entityId 时：**不包含当前节点**，只统计祖先数量
+   * - 指定 entityId 时：**不包含当前节点**，只统计祖先数量
+   * - 不指定 entityId 时：根节点的数量
    */
   countAncestors(options: FindTreeOptions<T>): Promise<number>;
 }

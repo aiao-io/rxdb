@@ -1,12 +1,13 @@
 /**
- * US-211 阶段 C：可行性矩阵与平台表、拒绝表、改判标准逐项核对；判 `unsupported` 的平台在连接前被拒绝，错误带出矩阵里的阻断项与判定章节。
+ * US-211 阶段 C：可行性矩阵与平台表、拒绝表、改判标准逐项核对。
  *
- * 拒绝表与矩阵的 YAML 结论逐项核对：矩阵改判而代码没跟（或反过来），这里先红。
+ * 拒绝表与矩阵的 YAML 结论逐项核对：矩阵改判而代码没跟（或反过来），这里先红。拒绝表现在是空的，
+ * 在它上面循环的核对不执行断言；带原因的拒绝路径（连接前拒绝、错误带出阻断项与判定章节）由
+ * `unsupported-platform-rejection.spec.ts` 换进演示条目来走。
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- requirements/ 不是 Nx 项目，是拒绝表的契约原文，越过包边界读的正是它
 import FEASIBILITY_MARKDOWN from '../../../../requirements/stories/adapter/miniprogram-platform-feasibility.md?raw';
-import { createWaSqliteMiniProgramClient } from '../create-client.js';
 import {
   MINI_PROGRAM_PLATFORM_IDS,
   MINI_PROGRAM_UNSUPPORTED_PLATFORMS,
@@ -16,15 +17,7 @@ import {
   resolveMiniProgramHost
 } from '../host.js';
 import { ALIPAY_UNDOCUMENTED_CAPABILITIES, AlipayUndocumentedCapabilityError } from '../hosts/alipay-capability.js';
-import type {
-  MiniProgramFileSystemManager,
-  MiniProgramHost,
-  MiniProgramWasmRuntime,
-  WaSqliteModuleFactory
-} from '../mini-program.interface.js';
-import { assertMiniProgramRuntimeCapabilities } from '../runtime-capabilities.js';
-import { prepareMiniProgramHostRuntime } from '../runtime-polyfills.js';
-import { createMiniProgramFileVFS } from '../wechat-file-vfs.js';
+import type { MiniProgramFileSystemManager, MiniProgramHost } from '../mini-program.interface.js';
 
 /** 改判标准门 3 的三个运行环境。 */
 const EVIDENCE_ENVIRONMENTS = ['devtools', 'ios', 'android'] as const;
@@ -168,9 +161,6 @@ function createHost(platform: string): MiniProgramHost {
     requestRandomValues: vi.fn((length: number) => Promise.resolve(new Uint8Array(length)))
   };
 }
-
-const wasmRuntime = { instantiate: vi.fn() } as unknown as MiniProgramWasmRuntime;
-const moduleFactory = vi.fn() as unknown as WaSqliteModuleFactory;
 
 function caught(run: () => unknown): unknown {
   try {
@@ -355,41 +345,9 @@ describe('MiniProgramUnsupportedPlatformError', () => {
     );
   });
 
-  it('拒绝表里的平台在预检、随机源准备、VFS 与建客户端时都在碰宿主能力之前拒绝', async () => {
-    for (const id of Object.keys(MINI_PROGRAM_UNSUPPORTED_PLATFORMS)) {
-      const host = createHost(id);
-      expect(() => assertMiniProgramRuntimeCapabilities({ host, moduleFactory, wasmRuntime }), id).toThrow(
-        MiniProgramUnsupportedPlatformError
-      );
-      await expect(prepareMiniProgramHostRuntime(host), id).rejects.toThrow(MiniProgramUnsupportedPlatformError);
-      expect(() => createMiniProgramFileVFS({} as never, { host, databaseName: 'a.sqlite' }), id).toThrow(
-        MiniProgramUnsupportedPlatformError
-      );
-      await expect(
-        createWaSqliteMiniProgramClient(`${id}-db`, { host, moduleFactory, wasmRuntime }),
-        id
-      ).rejects.toThrow(MiniProgramUnsupportedPlatformError);
-      expect(host.getFileSystemManager, id).not.toHaveBeenCalled();
-      expect(host.requestRandomValues, id).not.toHaveBeenCalled();
-    }
-    expect(moduleFactory).not.toHaveBeenCalled();
-  });
 });
 
 describe('assertMiniProgramPlatformId：造不出宿主时直接判定平台 id', () => {
-  it('拒绝表里的平台抛的错与宿主路径逐字一致', () => {
-    for (const [id, entry] of Object.entries(MINI_PROGRAM_UNSUPPORTED_PLATFORMS)) {
-      const direct = caught(() => {
-        assertMiniProgramPlatformId(id);
-      });
-      const viaHost = caught(() => resolveMiniProgramHost({ host: createHost(id) }));
-
-      expect(direct, id).toBeInstanceOf(MiniProgramUnsupportedPlatformError);
-      expect(direct, id).toMatchObject({ platform: id, blockers: entry.blockers });
-      expect((direct as Error).message, id).toBe((viaHost as Error).message);
-    }
-  });
-
   it('已登记的平台 id 放行', () => {
     for (const id of MINI_PROGRAM_PLATFORM_IDS) {
       expect(() => {

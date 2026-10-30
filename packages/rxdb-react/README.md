@@ -44,7 +44,10 @@ const source = useMemo(() => async () => (await import('./setup-desktop')).setup
 ```tsx
 const database = useRxDB(); // 未就绪抛错，创建失败原样抛出创建异常
 const maybe = useRxDBOptional(); // 无 Provider 或未就绪时返回 undefined，用于渲染 loading 态
+const hasProvider = useHasRxDBProvider(); // 只回答有没有 Provider，与是否就绪、是否创建失败无关
 ```
+
+`useRxDBOptional()` 的 `undefined` 分不出「没有 Provider」与「有 Provider 但还在解析（或已失败）」，要分路时配合 `useHasRxDBProvider()`：前者按独立形态运行（如表单直接透传数据），后者渲染 loading 态并拦截依赖数据库的操作。
 
 **生命周期所有权：Provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 Provider 等来，卸载时它负责 `destroy()`；传已就绪的实例，它归调用方所有，Provider 不碰 —— 否则 `StrictMode` 的双挂载（挂载 → 卸载 → 挂载）会断掉调用方的模块级单例，留下一个没人会去重连的死库。这条规则三端逐字相同。
 
