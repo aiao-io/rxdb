@@ -106,7 +106,7 @@ jobs:
       build_projects: ${{ steps.plan.outputs.build_projects }}
       test_projects: ${{ steps.plan.outputs.test_projects }}
       test_browser_projects: ${{ steps.plan.outputs.test_browser_projects }}
-      acceptance_projects: ${{ steps.plan.outputs.acceptance_projects }}
+      acceptance_matrix: ${{ steps.plan.outputs.acceptance_matrix }}
       rust_projects: ${{ steps.plan.outputs.rust_projects }}
       extras_projects: ${{ steps.plan.outputs.extras_projects }}
       test_matrix: ${{ steps.plan.outputs.test_matrix }}
@@ -409,6 +409,7 @@ jobs:
           # 有 test-memory target 的项目（按子进程 RSS 判内存的用例）另开一条 lane，见 plan-test-lanes.mjs 的 MEMORY_TARGET。
           MEMORY=$(jq -r 'sort | join(",")' <<<"$(projects_json test-memory)")
           TEST_MATRIX=$(node scripts/ci/plan-test-lanes.mjs --projects="$TEST" --memory-projects="$MEMORY")
+          ACCEPTANCE_MATRIX=$(jq -c '{project: sort}' <<<"$ACCEPTANCE_JSON")
 
           # PR 且改动落在 packages/ 或 benchmarks/ 时才跑基准门禁。
           # 在这里判定而不是在 benchmark job 里判定：不需要时整个 job 直接 skip，
@@ -435,7 +436,7 @@ jobs:
             echo "build_projects=$BUILD"
             echo "test_projects=$TEST"
             echo "test_browser_projects=$TEST_BROWSER"
-            echo "acceptance_projects=$ACCEPTANCE"
+            echo "acceptance_matrix=$ACCEPTANCE_MATRIX"
             echo "rust_projects=$RUST"
             echo "extras_projects=$EXTRAS"
             echo "test_matrix=$TEST_MATRIX"
@@ -751,12 +752,16 @@ jobs:
   # ---------------------------------------------------------------------------
   # coverage-acceptance 必须独立于 test 跑：它自己驱动多段 vitest 并合并 blob，
   # 不能接收 test 那行的 `--coverage.*` 参数（RXT-031）。
+  # 每个项目独占 runner，避免 rxdb-test 阻塞 sqlite-core 起跑；产物按项目命名。
   acceptance:
-    name: coverage-acceptance
+    name: coverage-acceptance (${{ matrix.project }})
     needs: setup
     if: needs.setup.outputs.has_acceptance == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.acceptance_matrix) }}
     env:
       NX_NO_CLOUD: ${{ needs.setup.outputs.nx_no_cloud }}
     steps:
@@ -770,18 +775,18 @@ jobs:
       - uses: ./.github/actions/build-task-prerequisites
         with:
           targets: coverage-acceptance
-          projects: ${{ needs.setup.outputs.acceptance_projects }}
+          projects: ${{ matrix.project }}
 
       - name: Run coverage acceptance
         env:
-          PROJECTS: ${{ needs.setup.outputs.acceptance_projects }}
+          PROJECTS: ${{ matrix.project }}
         run: pnpm exec nx run-many -t coverage-acceptance -p "$PROJECTS" --output-style=stream --parallel=1
 
       - name: Upload coverage
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: coverage-acceptance
+          name: coverage-acceptance-${{ matrix.project }}
           path: |
             coverage/**/coverage-final.json
             coverage/**/coverage-summary.json
@@ -1242,7 +1247,8 @@ jobs:
         if: needs.acceptance.result == 'success'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: coverage-acceptance
+          pattern: coverage-acceptance-*
+          merge-multiple: true
           path: coverage
 
       - name: Coverage gate

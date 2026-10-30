@@ -162,7 +162,9 @@ test.describe('Working Tree 页面功能', () => {
     await page.getByTestId('wt-diff-settings').click();
     await expect(page.getByTestId('wt-diff-settings-popup')).toBeVisible();
     await expect(page.getByRole('radio', { name: 'Split' })).toBeChecked();
-    await page.getByRole('radio', { name: 'Unified' }).check();
+    // Angular 的 change 处理同步关闭设置面板；用 click 完成交互后立即断言结果，
+    // 避免 Playwright 在已被移除的 input 上继续等待 check 的动作收尾。
+    await page.getByRole('radio', { name: 'Unified' }).click();
     await expect(page.getByTestId('wt-split')).toHaveCount(0);
     // Unified：逐字段 -/+ 行，增行整行绿底。
     await expect(viewer.locator('.gd-hunk')).toBeVisible();
@@ -173,10 +175,10 @@ test.describe('Working Tree 页面功能', () => {
     await page.getByTestId('wt-diff-settings').click();
     await expect(page.getByTestId('wt-diff-whitespace')).not.toBeChecked();
     await expect(page.getByTestId('wt-diff-wrap')).toBeChecked();
-    await page.getByTestId('wt-diff-wrap').uncheck();
+    await page.getByTestId('wt-diff-wrap').click();
     await expect(viewer.locator('.gd-diff-content').first()).toHaveCSS('white-space', 'pre');
     await page.getByTestId('wt-diff-settings').click();
-    await page.getByTestId('wt-diff-wrap').check();
+    await page.getByTestId('wt-diff-wrap').click();
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('wt-diff-settings-popup')).toHaveCount(0);
     await page.getByTestId('wt-change-filter').fill('no-match');
