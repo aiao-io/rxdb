@@ -104,7 +104,7 @@ END;
 $$;
 
 /**
- * rxdb_batch_update - 批量部分列更新
+ * rxdb_execute_batch_update - 共享 UPDATE 执行器，按需返回最终行
  *
  * 逐行执行普通 UPDATE，只 SET 该行出现的非 id 列；未出现的列保持原值。
  * 只受调用方 UPDATE / SELECT 策略约束，不受 INSERT 策略约束。
@@ -113,14 +113,16 @@ $$;
  * @param p_table 表名
  * @param p_schema schema 名称
  * @param p_data JSONB 数组，每个元素: {id, ...本次修改的列}
- * @returns 实际更新的行数
+ * @param p_return_rows 是否执行 RETURNING；计数调用保留原有列权限与 RLS 语义
+ * @returns {updated, rows}
  */
-CREATE OR REPLACE FUNCTION public.rxdb_batch_update(
+CREATE OR REPLACE FUNCTION public.rxdb_execute_batch_update(
   p_table text,
-  p_schema text DEFAULT 'public',
-  p_data jsonb DEFAULT '[]'::jsonb
+  p_schema text,
+  p_data jsonb,
+  p_return_rows boolean
 )
-RETURNS int
+RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY INVOKER
 SET search_path = pg_catalog, pg_temp
@@ -131,7 +133,10 @@ DECLARE
   v_id text;
   v_reason text;
   rc int;
-  affected int := 0;
+  updated_row jsonb;
+  updated_rows jsonb := '[]'::jsonb;
+  updated_count int := 0;
+  update_sql text;
 BEGIN
   IF p_table !~ '^[a-zA-Z_][a-zA-Z0-9_]*$' THEN
     RAISE EXCEPTION 'Invalid table name: %', p_table;
@@ -154,14 +159,24 @@ BEGIN
     FROM pg_catalog.jsonb_object_keys(item) AS keys(key)
     WHERE key != 'id';
 
-    EXECUTE pg_catalog.format(
+    update_sql := pg_catalog.format(
       'UPDATE %I.%I AS t SET %s WHERE t.id = (pg_catalog.jsonb_populate_record(null::%I.%I, $1)).id',
       p_schema, p_table, set_clause, p_schema, p_table
-    ) USING item;
+    );
+    IF p_return_rows THEN
+      EXECUTE update_sql || ' RETURNING pg_catalog.to_jsonb(t)' INTO updated_row USING item;
+    ELSE
+      EXECUTE update_sql USING item;
+    END IF;
 
     GET DIAGNOSTICS rc = ROW_COUNT;
-    affected := affected + rc;
-    CONTINUE WHEN rc > 0;
+    IF rc > 0 THEN
+      updated_count := updated_count + rc;
+      IF p_return_rows THEN
+        updated_rows := updated_rows || pg_catalog.jsonb_build_array(updated_row);
+      END IF;
+      CONTINUE;
+    END IF;
 
     -- 零行：探针区分「被行级权限拒绝」与「行已不存在」，两者都显式失败、整批回滚
     v_id := item->>'id';
@@ -187,8 +202,40 @@ BEGIN
       )::text;
   END LOOP;
 
-  RETURN affected;
+  RETURN pg_catalog.jsonb_build_object('updated', updated_count, 'rows', updated_rows);
 END;
+$$;
+
+/**
+ * rxdb_batch_update_rows - 批量部分列更新并返回服务器最终行
+ */
+CREATE OR REPLACE FUNCTION public.rxdb_batch_update_rows(
+  p_table text,
+  p_schema text DEFAULT 'public',
+  p_data jsonb DEFAULT '[]'::jsonb
+)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT public.rxdb_execute_batch_update(p_table, p_schema, p_data, true)->'rows';
+$$;
+
+/**
+ * rxdb_batch_update - 批量部分列更新，保留原有计数返回值
+ */
+CREATE OR REPLACE FUNCTION public.rxdb_batch_update(
+  p_table text,
+  p_schema text DEFAULT 'public',
+  p_data jsonb DEFAULT '[]'::jsonb
+)
+RETURNS int
+LANGUAGE sql
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT (public.rxdb_execute_batch_update(p_table, p_schema, p_data, false)->>'updated')::int;
 $$;
 
 /**
@@ -506,7 +553,12 @@ BEGIN
   IF p_op = 'INSERT' THEN
     v_upserted := public.rxdb_batch_upsert(p_table, p_schema, p_items);
   ELSIF p_op = 'UPDATE' THEN
-    v_updated := public.rxdb_batch_update(p_table, p_schema, p_items);
+    IF p_skip_sync THEN
+      v_updated := public.rxdb_batch_update(p_table, p_schema, p_items);
+    ELSE
+      v_upserted := public.rxdb_batch_update_rows(p_table, p_schema, p_items);
+      v_updated := pg_catalog.jsonb_array_length(v_upserted);
+    END IF;
   ELSE
     SELECT pg_catalog.array_agg(value) INTO v_ids_array
     FROM pg_catalog.jsonb_array_elements_text(p_items) AS ids(value);
@@ -515,7 +567,9 @@ BEGIN
     v_deleted := v_deleted_rows;
 
     -- 推送路径：少删的行若对探针仍存在，就是被行级权限拒绝，不能当成功（US-218 AC#1、AC#2）；
-    -- 已不存在的行按幂等成功处理。直写路径零行删除不触发日志触发器，不需要判定
+    -- 已不存在的行按幂等成功处理。直写路径零行删除不触发日志触发器，不需要判定——也因此直写删除
+    -- 不存在或被 RLS 滤掉的行静默成功，与直写 UPDATE 的 42501 / RX001 不对称；这是 US-218 起的既有语义，
+    -- 要改须连同 mutations() 的删除返回值一起定，不在 UPDATE 语义修复（US-223）里顺带收紧
     IF p_skip_sync AND v_deleted_rows < pg_catalog.cardinality(v_ids_array) THEN
       v_denied_ids := public.rxdb_existing_ids(p_table, p_schema, v_ids_array);
       IF pg_catalog.cardinality(v_denied_ids) > 0 THEN
@@ -733,7 +787,8 @@ BEGIN
       c->'beforeData',
       c->'afterData',
       COALESCE((c->>'snapshotComplete')::boolean, false)
-    FROM pg_catalog.jsonb_array_elements(p_changes) AS changes(c)
+    FROM pg_catalog.jsonb_array_elements(p_changes) WITH ORDINALITY AS changes(c, ordinality)
+    ORDER BY ordinality
     ON CONFLICT ("clientId", "localId")
       WHERE "clientId" IS NOT NULL AND "localId" IS NOT NULL
       DO NOTHING
@@ -860,14 +915,23 @@ DECLARE
   v_changes_to_log jsonb;
   v_log_result jsonb;
   v_entity_results jsonb;
+  v_previous_sync text := COALESCE(pg_catalog.current_setting('rxdb.sync_enabled', true), '');
+  v_previous_deletes text := COALESCE(pg_catalog.current_setting('rxdb.captured_deletes', true), '');
+  v_explicit_deletes jsonb := '{}'::jsonb;
+  v_delete_context jsonb;
+  v_root_captures jsonb;
+  v_group_matches jsonb;
+  v_group_keys text[];
+  v_matched_keys text[] := '{}'::text[];
+  v_relation regclass;
+  v_root_oid oid;
 BEGIN
   -- 0. 只读载荷校验配对，失败时快照、日志与业务表都还没动
   PERFORM public.rxdb_assert_push_integrity(p_upserts, p_deletes, p_changes, p_skip_sync, p_updates);
 
-  -- 如果请求跳过同步，设置会话变量禁用触发器
-  IF p_skip_sync THEN
-    PERFORM pg_catalog.set_config('rxdb.sync_enabled', 'false', true);
-  END IF;
+  PERFORM pg_catalog.set_config('rxdb.sync_enabled', CASE WHEN p_skip_sync THEN 'false' ELSE 'true' END, true);
+  -- 推送路径打开删除捕获：同步触发器把实际 DELETE 的 OLD 收进事务上下文，业务写之后再与显式删除配对
+  PERFORM pg_catalog.set_config('rxdb.captured_deletes', CASE WHEN p_skip_sync THEN '{}' ELSE '' END, true);
 
   -- 1. 在实体操作前固化每条 change 的前后完整快照
   FOR op IN SELECT value FROM pg_catalog.jsonb_array_elements(p_changes)
@@ -1105,12 +1169,73 @@ BEGIN
     delete_count := delete_count + (v_group_result->>'deleted')::int;
   END LOOP;
 
-  -- 4. 写入 rxdb_change 表：按原顺序，只写 applied 实体的 main 日志 + 全部非 main 日志
-  SELECT COALESCE(pg_catalog.jsonb_agg(c), '[]'::jsonb)
+  -- 显式删除与捕获的实际删除按 id 列类型的等值配对，与 rxdb_batch_delete 的 id = ANY($1::类型[]) 同一判据：
+  -- uuid 大小写、numeric 的精度与小数位（"1" 与存储的 1.00）这类拼写差异都认成同一行，不比文本。
+  -- 只拿同一分区根的捕获来配——别的表的 id 文本未必能转成本表的类型。同一行以两种拼写同批列出时
+  -- 两条源日志都配到这一行；客户端按规范 id 推送不会出现，不为此把 duplicate_write 的文本比较改成按类型比较
+  v_delete_context := COALESCE(NULLIF(pg_catalog.current_setting('rxdb.captured_deletes', true), '')::jsonb, '{}'::jsonb);
+  FOR op IN SELECT value FROM pg_catalog.jsonb_array_elements(p_deletes) WHERE v_delete_context != '{}'::jsonb
+  LOOP
+    schema_name := COALESCE(op->>'schema', 'public');
+    table_name := op->>'table';
+    v_relation := pg_catalog.to_regclass(pg_catalog.format('%I.%I', schema_name, table_name));
+    v_root_oid := COALESCE(pg_catalog.pg_partition_root(v_relation), v_relation)::oid;
+    SELECT COALESCE(pg_catalog.jsonb_object_agg(key, value), '{}'::jsonb)
+    INTO v_root_captures
+    FROM pg_catalog.jsonb_each(v_delete_context)
+    WHERE (key::jsonb)->>0 = v_root_oid::text;
+    CONTINUE WHEN v_root_captures = '{}'::jsonb;
+
+    EXECUTE pg_catalog.format(
+      'SELECT COALESCE(pg_catalog.jsonb_object_agg(
+          pg_catalog.jsonb_build_array($2, $3, ids.value)::text, captured.value->''beforeData''), ''{}''::jsonb),
+        COALESCE(pg_catalog.array_agg(captured.key), ''{}''::text[])
+      FROM pg_catalog.jsonb_array_elements_text($1) AS ids(value)
+      JOIN pg_catalog.jsonb_each($4) AS captured(key, value)
+        ON (ARRAY[(captured.key::jsonb)->>1]::%1$s)[1] = (ARRAY[ids.value]::%1$s)[1]',
+      public.rxdb_id_array_type(table_name, schema_name)
+    ) INTO v_group_matches, v_group_keys USING op->'ids', schema_name, table_name, v_root_captures;
+    v_explicit_deletes := v_explicit_deletes || v_group_matches;
+    v_matched_keys := v_matched_keys || v_group_keys;
+  END LOOP;
+
+  -- 显式删除可能先被拒绝，随后被同批允许的父行级联删除；以触发器捕获的真实结果为准。
+  FOR v_rec IN
+    SELECT key, value FROM pg_catalog.jsonb_each(v_explicit_deletes)
+    WHERE pg_catalog.jsonb_typeof(value) = 'object'
+  LOOP
+    v_entities := pg_catalog.jsonb_set(v_entities, ARRAY[v_rec.key, 'status'], '"applied"'::jsonb, true);
+    v_entities := pg_catalog.jsonb_set(v_entities, ARRAY[v_rec.key],
+      (v_entities->v_rec.key) - 'code' - 'reason' - 'message' - 'dependsOn');
+  END LOOP;
+
+  -- 4. 保留源日志的映射；最终显式 DELETE 一律以触发器捕获的实际 OLD 为快照。
+  --    不能只补 snapshotComplete = false 的：客户端 DELETE 的 inversePatch 按协议不含 id，规范化阶段
+  --    仅凭它非空就判了完整，调用方读不到的行（RLS 隐藏）只剩这份缺 id 的快照，按 id 过滤的拉取会漏删
+  SELECT COALESCE(pg_catalog.jsonb_agg(
+    CASE WHEN COALESCE(c->>'branchId', 'main') = 'main' AND c->>'type' = 'DELETE'
+      AND pg_catalog.jsonb_typeof(v_explicit_deletes->(c->>'rxdbEntityKey')) = 'object'
+      AND ord = (SELECT pg_catalog.max(last_ord)
+        FROM pg_catalog.jsonb_array_elements(normalized_changes) WITH ORDINALITY AS last_change(value, last_ord)
+        WHERE value->>'rxdbEntityKey' = c->>'rxdbEntityKey' AND COALESCE(value->>'branchId', 'main') = 'main')
+    THEN c || pg_catalog.jsonb_build_object(
+      'beforeData', v_explicit_deletes->(c->>'rxdbEntityKey'), 'afterData', NULL, 'snapshotComplete', true
+    ) ELSE c END ORDER BY ord
+  ), '[]'::jsonb)
   INTO v_changes_to_log
-  FROM pg_catalog.jsonb_array_elements(normalized_changes) AS t(c)
+  FROM pg_catalog.jsonb_array_elements(normalized_changes) WITH ORDINALITY AS t(c, ord)
   WHERE COALESCE(c->>'branchId', 'main') != 'main'
      OR (v_entities->(c->>'rxdbEntityKey')->>'status') = 'applied';
+
+  -- 隐式删除必须排在源 INSERT / UPDATE 之后，避免拉取端把同批已删子行重新插回。
+  SELECT v_changes_to_log || COALESCE(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'namespace', value->>'namespace', 'entity', value->>'entity', 'entityId', value->'beforeData'->>'id',
+    'type', 'DELETE', 'patch', value->'beforeData', 'branchId', 'main',
+    'clientId', NULL, 'localId', NULL, 'beforeData', value->'beforeData', 'snapshotComplete', true
+  ) ORDER BY key), '[]'::jsonb)
+  INTO v_changes_to_log
+  FROM pg_catalog.jsonb_each(v_delete_context)
+  WHERE NOT (key = ANY(v_matched_keys));
 
   -- 落库交给 rxdb_insert_changes（SECURITY DEFINER）：生产权限下调用方没有 rxdb_change 写权限（US-218 阶段 C）
   IF pg_catalog.jsonb_array_length(v_changes_to_log) > 0 THEN
@@ -1129,6 +1254,9 @@ BEGIN
     FROM pg_catalog.unnest(v_entity_order) WITH ORDINALITY AS t(key, ord);
   END IF;
 
+  PERFORM pg_catalog.set_config('rxdb.sync_enabled', v_previous_sync, true);
+  PERFORM pg_catalog.set_config('rxdb.captured_deletes', v_previous_deletes, true);
+
   RETURN pg_catalog.jsonb_build_object(
     'upserted', upsert_results,
     'updated', update_count,
@@ -1142,6 +1270,8 @@ $$;
 
 -- 授权
 GRANT EXECUTE ON FUNCTION public.rxdb_batch_upsert(text, text, jsonb) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_execute_batch_update(text, text, jsonb, boolean) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_batch_update_rows(text, text, jsonb) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_batch_update(text, text, jsonb) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_batch_delete(text, text, text[]) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_id_array_type(text, text) TO anon, authenticated;

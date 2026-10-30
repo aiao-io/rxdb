@@ -37,6 +37,32 @@ export const hasTreeParentChanged = (event: { patch: object; inversePatch: objec
   'parentId' in event.patch && get_tree_parent_id(event.patch) !== get_tree_parent_id(event.inversePatch);
 
 /**
+ * 判断一行是不是树查询递归 CTE 的基准成员
+ *
+ * @param id 该行的主键
+ * @param row 该行的完整快照，查全树时读它的 `parentId`
+ * @param targetId 查询的 `entityId`；为空表示查全树
+ * @returns 查全树时 `parentId` 为空的根、指定了 `entityId` 时目标自己，返回 `true`
+ *
+ * @remarks
+ * 适配器的树 SQL 里，基准成员是 `WHERE parentId IS NULL` 或 `WHERE id = ?`，**既不过 where 也不过 level**，
+ * 两者只挂在递归成员上（sqlite-core / PGlite 的 `generate_tree_sql`；Supabase 的起点同样豁免 where）。
+ * 增量合并判「这一行在不在结果里」时必须同口径：新建的基准成员不匹配 where 也要进结果、进计数，
+ * 删掉一个不匹配 where 的基准成员同样会改变计数。
+ *
+ * 查全树时节点改父会让它进出基准成员；指定 `entityId` 时基准成员恒为目标自己。
+ * 快照缺失时判否——取不到父列就证明不了它是根。
+ */
+export const isTreeBaseMember = <ID>(
+  id: ID,
+  row: object | null | undefined,
+  targetId: ID | null | undefined
+): boolean => {
+  if (targetId === null || targetId === undefined) return !!row && get_tree_parent_id(row) === null;
+  return id === targetId;
+};
+
+/**
  * 向上遍历父级链路
  *
  * @param entity 起始实体

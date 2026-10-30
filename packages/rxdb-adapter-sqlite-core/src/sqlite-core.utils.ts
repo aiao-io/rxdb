@@ -363,6 +363,11 @@ const encryptedColumnValue = async (
 
 /**
  * 将实体值转换为 SQLite 格式
+ *
+ * @remarks
+ * 只收两类键：真实外键（`foreignKeyNames` 的属性名或 `foreignKeyColumnNames` 的物理列名），
+ * 以及已声明属性（属性名或物理列名）。其余键一律忽略，以 `Id` 结尾的也一样。
+ *
  * @param metadata 实体元数据
  * @param entity 实体对象
  * @param opts 可选加密上下文；当包含 keyring 时，会自动加密 `property.encrypted === true` 的列
@@ -380,7 +385,6 @@ export const transformEntityValueToSql = async (
   const foreignKeyNames = metadata.foreignKeyNames || [];
   const foreignKeyColumnNames = metadata.foreignKeyColumnNames || foreignKeyNames;
   const { propertyMap, columnNameToPropertyName, encryptedPropertyMap } = metadata;
-  const hasForeignKeys = foreignKeyNames.length > 0;
   const hasEncryption = encryptedPropertyMap && encryptedPropertyMap.size > 0;
   // 入参两种键都收（属性名 / 物理列名），主键也得两种都认：创建路径交来的是 normalizeCreateEntity 按列名的产物，
   // 自定义主键列下只认 `id` 会让 AAD 落成空串，而读侧用真实主键解密，行写进去就再也读不出来
@@ -400,6 +404,8 @@ export const transformEntityValueToSql = async (
       : toSQLiteCompatibleValue(value, foreignKeyName);
   };
 
+  // 不按 `Id` 后缀猜外键：无关系实体上的 `secretId` 是普通声明属性，必须走下面的属性分支
+  // 做类型转换与加密；未声明的键在表上没有对应列，照猜只会把它拼进 INSERT 列清单
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
 
@@ -414,11 +420,6 @@ export const transformEntityValueToSql = async (
     const fkColIndex = foreignKeyColumnNames.indexOf(key);
     if (fkColIndex !== -1) {
       needSave[key] = transformForeignKey(foreignKeyNames[fkColIndex], entity[key]);
-      continue;
-    }
-
-    if (!hasForeignKeys && key.endsWith('Id')) {
-      needSave[key] = toSQLiteCompatibleValue(entity[key], key);
       continue;
     }
 

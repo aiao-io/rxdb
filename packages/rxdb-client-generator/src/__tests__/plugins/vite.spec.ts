@@ -1,6 +1,8 @@
-import { resolve } from 'node:path';
+import { mkdir, mkdtemp, readdir, rm, symlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import buildClientLibrary from '../../cli/build-client-lib.js';
 import type { RxDBClientCLIentGeneratorOptions } from '../../cli/cli.interface.js';
 import { rxdbClientGeneratorVitePlugin } from '../../plugins/vite.js';
@@ -24,6 +26,7 @@ const runBuildStart = async (plugin: Plugin): Promise<void> => {
 
 describe('rxdbClientGeneratorVitePlugin', () => {
   const buildClientLibraryMock = vi.mocked(buildClientLibrary);
+  const tempDirs: string[] = [];
   const first: RxDBClientCLIentGeneratorOptions = {
     entities: ['./entities/*.ts'],
     outDir: './generated/first'
@@ -35,6 +38,10 @@ describe('rxdbClientGeneratorVitePlugin', () => {
 
   beforeEach(() => {
     buildClientLibraryMock.mockReset();
+  });
+
+  afterEach(async () => {
+    await Promise.all(tempDirs.splice(0).map(dir => rm(dir, { force: true, recursive: true })));
   });
 
   it('accepts one generator config', async () => {
@@ -59,4 +66,28 @@ describe('rxdbClientGeneratorVitePlugin', () => {
   it('rejects configs that share an output directory', () => {
     expect(() => rxdbClientGeneratorVitePlugin([first, { ...second, outDir: first.outDir }])).toThrow(/same outDir/);
   });
+
+  // 首次生成时输出目录往往还不存在：父目录软链的两个别名必须在插件创建时就被认出是同一个物理目录，
+  // 否则两次构建先后写进同一目录，后一个按前一个的 manifest 把对方的产物当陈旧文件删掉。
+  it.each([false, true])(
+    'rejects parent-symlink aliases of an output directory at creation (outDir exists: %s)',
+    async existing => {
+      const tempDir = await mkdtemp(join(tmpdir(), 'rxdb-client-generator-vite-alias-'));
+      tempDirs.push(tempDir);
+      const physicalDir = join(tempDir, 'physical');
+      const aliasDir = join(tempDir, 'alias');
+      await mkdir(physicalDir);
+      await symlink(physicalDir, aliasDir);
+      if (existing) await mkdir(join(physicalDir, 'generated'));
+
+      expect(() =>
+        rxdbClientGeneratorVitePlugin([
+          { entities: [join(tempDir, 'alpha.ts')], outDir: join(physicalDir, 'generated') },
+          { entities: [join(tempDir, 'beta.ts')], outDir: join(aliasDir, 'generated') }
+        ])
+      ).toThrow(/same outDir/);
+      expect(buildClientLibraryMock).not.toHaveBeenCalled();
+      expect(await readdir(physicalDir)).toEqual(existing ? ['generated'] : []);
+    }
+  );
 });

@@ -65,7 +65,11 @@ const maybe = useRxDBOptional(); // 无 Provider 或未就绪时返回 undefined
 
 ### 生命周期所有权
 
-**Provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 Provider 等来，卸载时它负责 `disconnectAll()`；传已就绪的实例，它归调用方所有，Provider 不碰 —— 否则 `StrictMode` 的双挂载（挂载 → 卸载 → 挂载）会断掉调用方的模块级单例，留下一个没人会去重连的死库。这条规则在 Angular / Vue 侧逐字相同。
+**Provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 Provider 等来，卸载时它负责 `destroy()`；传已就绪的实例，它归调用方所有，Provider 不碰 —— 否则 `StrictMode` 的双挂载（挂载 → 卸载 → 挂载）会断掉调用方的模块级单例，留下一个没人会去重连的死库。这条规则在 Angular / Vue 侧逐字相同。
+
+**`<Activity>` 隐藏等同于一次断开。** 隐藏与卸载一样会执行 effect 清理，Provider 在清理时分不出两者，只能照上面的所有权规则销毁自己持有的库（`destroy()` 是终态，销毁后不能再连接）。重新显示时，工厂会被重新调用、建出一个新库；`Promise` 不能重新求值，只会再解析出那个已销毁的实例 —— Provider 不会把它交出去，而是让 `useRxDB()` 抛出说明原因的错误（`useRxDBOptional()` 返回 `undefined`）。所以会被 `<Activity>` 隐藏的 Provider 请传工厂（每次调用都新建数据库）或你自己持有的实例；工厂交回一个已被 Provider 销毁过的实例，同样按错误处理。
+
+换 `db` 时，从新 source 的首个提交起子树拿到的就只属于新 source：异步 source 解析完成之前读到的是未就绪，不会先读到旧库或旧 source 的创建异常。
 
 ### 自定义 Provider
 

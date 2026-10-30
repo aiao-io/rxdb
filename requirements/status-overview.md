@@ -9,10 +9,10 @@
 | :------------- | :--- |
 | ✅ Done        | 105  |
 | 🚧 In Progress | 2    |
-| 👀 In Review   | 2    |
-| 📝 Backlog     | 11   |
+| 👀 In Review   | 5    |
+| 📝 Backlog     | 9    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 120  |
+| **合计**       | 121  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -24,10 +24,11 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md) | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。            |
 | [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)                                | 既有过滤与候选消歧已实现；新增 AC#12 的空批次集合写入拒绝与兼容性验收待完成。 |
 
-## 待评审（2 条）
+## 待评审（5 条）
 
 | Story                                                                                      | 剩余范围                                                                      |
 | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md) | 改了读取列而缓存补不齐时回 SQL，核心与真实双连接回归通过；待代码评审。          |
 | [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md) | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                               |
 | [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)   | workspace接线已验证；发布tarball仓外消费与独立重搭仍待验证，AC#1/#3不能标绿。 |
 
@@ -91,6 +92,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md)
 - ✅ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)
 - ✅ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md)
+- 👀 [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)
 - ✅ [US-104 rxdb-model 表单校验反馈与保存失败的展示（三端对称）](stories/framework/US-104-validation-feedback.md)
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md)
@@ -107,8 +109,8 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - 👀 [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)
 - ✅ [US-220 Supabase 推送 UPDATE 的落库语义](stories/adapter/US-220-supabase-update-push-semantics.md)
 - ✅ [US-221 OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄](stories/adapter/US-221-opfs-reload-access-handle-race.md)
-- ⬜ [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)
-- ⬜ [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md)
+- 👀 [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)
+- 👀 [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md)
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md)

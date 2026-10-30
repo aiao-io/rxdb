@@ -119,7 +119,11 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
     if (!updatedEntity) return 'refresh';
 
     const { isDescendant, level: entityLevel } = helper.isEntityDescendant(updatedEntity, targetEntityId);
-    return isDescendant && (level === undefined || entityLevel <= level) ? 'keep' : 'drop';
+    if (!isDescendant || (level !== undefined && entityLevel > level)) return 'drop';
+    // 带 level 时，改父会整体平移它名下子树的深度：上移让原先被 level 截掉的子孙落进范围，
+    // 下移让结果里的子孙越过上限。那些子孙不在本批事件里，本地既补不进也删不准，交回 SQL。
+    // 不带 level 时深度不设限，子树只是跟着挪位置，本地照常保留。
+    return level === undefined ? 'keep' : 'refresh';
   };
 
   let needsRefresh = false;
@@ -442,7 +446,7 @@ export const handleCountDescendantsUpdate = <T extends EntityType>(
     const parentChanged = hasTreeParentChanged(updateData);
     if (!whereFlipped && !parentChanged) return false;
 
-    const beforeEntity = cache.getSerializedBefore(entityId, updateData.inversePatch);
+    const beforeEntity = cache.getSerializedBefore(entityId);
     const afterEntity = cache.getSerializedUpdate(entityId);
     // 前后都是基准成员（查全树时的根节点）：不过 where、父也没动，计数不受影响
     if (isTreeBaseMember(beforeEntity) && isTreeBaseMember(afterEntity)) return false;
@@ -507,7 +511,7 @@ export const handleCountAncestorsUpdate = <T extends EntityType>(
   const helper = new TreeHelper(cache, oldResultMap);
 
   // 获取目标实体更新前后的状态
-  const targetBefore = cache.getSerializedBefore(targetUpdate.id as RxDBEntityId, targetUpdate.inversePatch);
+  const targetBefore = cache.getSerializedBefore(targetUpdate.id as RxDBEntityId);
   const targetAfter = cache.getSerializedUpdate(targetUpdate.id as RxDBEntityId);
 
   if (!targetBefore || !targetAfter) {
@@ -547,7 +551,7 @@ export const handleCountAncestorsUpdate = <T extends EntityType>(
     if (!whereFlipped && !hasTreeParentChanged(updateData)) return false;
 
     // 候选的 before / after 两份序列化必须分别查：`getEntityId` 可能只在其中一份上有值。
-    const entityBefore = cache.getSerializedBefore(entityId, updateData.inversePatch);
+    const entityBefore = cache.getSerializedBefore(entityId);
     const wasAncestorBefore = resolveAncestorForCount(targetAncestors, entityBefore);
     const isAncestorNow = resolveAncestorForCount(targetAncestors, cache.getSerializedUpdate(entityId));
     // 无法确定前/后的祖先关系，或前后任一时刻在链上 → 交回 SQL

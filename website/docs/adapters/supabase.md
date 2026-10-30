@@ -170,36 +170,52 @@ const { data } = await client.rpc('rxdb_mutations', {
   p_updates: [{ table: 'todos', schema: 'public', data: [{ id, completed: true }] }],
   p_deletes: [{ table: 'todos', schema: 'public', ids: [...] }],
   p_changes: [...],        // RxDBChange 记录
-  p_skip_sync: true         // 跳过服务端同步触发器
+  p_skip_sync: true         // 触发器捕获实际删除，RPC 在源日志后统一写入隐式 DELETE
 });
 ```
 
-| 参数          | 类型      | 说明                                                           |
-| ------------- | --------- | -------------------------------------------------------------- |
-| `p_upserts`   | `json[]`  | 按表分组的新增实体（全部列），`INSERT … ON CONFLICT DO UPDATE` |
-| `p_updates`   | `json[]`  | 按表分组的修改实体（`id` + 修改的列），普通 `UPDATE`           |
-| `p_deletes`   | `json[]`  | 按表分组的删除 ID                                              |
-| `p_changes`   | `json[]`  | 变更记录（写入 RxDBChange 表）                                 |
-| `p_skip_sync` | `boolean` | 是否跳过同步触发器（避免循环）                                 |
+| 参数          | 类型      | 说明                                                                                |
+| ------------- | --------- | ----------------------------------------------------------------------------------- |
+| `p_upserts`   | `json[]`  | 按表分组的新增实体（全部列），`INSERT … ON CONFLICT DO UPDATE`                      |
+| `p_updates`   | `json[]`  | 按表分组的修改实体（`id` + 修改的列），普通 `UPDATE`                                |
+| `p_deletes`   | `json[]`  | 按表分组的删除 ID                                                                   |
+| `p_changes`   | `json[]`  | 变更记录（写入 RxDBChange 表）                                                      |
+| `p_skip_sync` | `boolean` | 显式变更是否使用 `p_changes`；触发器捕获实际删除，RPC 在源日志后统一写入隐式 DELETE |
 
-实体表按 `p_upserts` → `p_updates` → `p_deletes` 的顺序执行，返回对象含 `upserted` / `updated` / `deleted` 计数。
+实体表按 `p_upserts` → `p_updates` → `p_deletes` 的顺序执行。返回对象的 `upserted` 数组包含新增行，直写事务（`p_skip_sync = false`）另包含修改的服务器行；推送不返回修改行。`updated` / `deleted` 为计数；推送还返回变更 ID 映射，启用推送回执时另含逐实体结果。
 
 #### 修改的语义
 
 本地修改推送为普通 `UPDATE`：只改载荷里出现的列，未出现的列保持远端原值；只受目标表的 UPDATE 与 SELECT 策略约束，不受 INSERT 策略约束。因此 owner 型策略下推送不必携带 `owner` 列，开放共享编辑的表上可以修改他人创建的行。
 
-某条修改更新到 0 行时，整批回滚并抛错，不会静默跳过，也不会插入残缺行：
+`mutations()` 同样把修改发到 `p_updates`。该批量直写路径使用序列化整实体，没有逐列脏追踪：`id` 用于定位，`createdBy` 不下发，其余出现的列参与 UPDATE，`updatedBy` 注入当前用户。服务器通过 `UPDATE … RETURNING` 返回实际写入的行，调用方可从 `mutations()` 返回值读取 `updatedAt` 等服务器字段；新增仍走 `p_upserts`。
+
+普通单实体修改的 `save()` 经 `EntityManager.update` → `SupabaseRepository.update`，原本就执行 PostgREST 普通 UPDATE；只有需要批量图变更时才走 `mutations()`。现有 `EntityManager.save` 丢弃批量 RPC 的返回值并返回原实体，本次不改变这一行为，不承诺 `save()` 自动合并服务器字段。
+
+`rxdb_batch_update_rows` 以 `SECURITY INVOKER` 执行 UPDATE 并返回行；直写角色需要返回列的 SELECT 权限，修改后的行也要满足 SELECT 策略。推送与原 `rxdb_batch_update` 计数入口继续使用不带 RETURNING 的 UPDATE，保留原有列权限与 RLS 可见性语义，不因本次返回值需求新增全列 SELECT 或修改后行可见性要求。
+
+某条修改更新到 0 行时抛错，不会静默跳过，也不会插入残缺行：
 
 | SQLSTATE | `details.reason` | 含义                                   |
 | -------- | ---------------- | -------------------------------------- |
 | `42501`  | `denied`         | 行仍存在，但调用方的行级权限不允许修改 |
 | `RX001`  | `gone`           | 行已不存在（被删除）                   |
 
-两种错误的 `details` 都是 JSON 文本，键为 `op` / `schema` / `table` / `entityId` / `reason`；`message` 以 `rxdb:` 开头。客户端今天把两种失败都包装为 `SupabaseDataError`，推送失败、水位线不推进，本地变更仍待推送。
+两种错误的 `details` 都是 JSON 文本，键为 `op` / `schema` / `table` / `entityId` / `reason`；`message` 以 `rxdb:` 开头。直写的 `mutations()` 抛 `SupabaseDataError` 并整批回滚。推送是否整批失败或返回逐实体拒绝，取决于是否启用[推送回执](../migration/supabase-push-receipts.md)。
 
 区分「被拒」与「已不存在」依赖存在性探针 `rxdb_existing_ids`（`SECURITY DEFINER`，只接受挂了 RxDB 同步触发器的表），它绕过行级权限回答「这些 id 是否存在」，不返回任何列值。从旧版本升级见 [Supabase 修改推送语义迁移](../migration/supabase-update-push.md)。
 
 本地 push 的每条 `p_changes` 都携带 `clientId` 和 `localId`，两者组成远端幂等键。数据库必须安装 `docker/sql/01-rxdb-system-tables.sql` 中的部分唯一索引，并使用同版本的 `rxdb_mutations`：RPC 收到纯重试批次时返回首次提交的 remoteId，同时跳过重复的实体 upsert/delete。升级脚本会先为每个重复键保留最早 change、删除后续重复记录，再创建唯一索引。
+
+#### 级联删除的日志
+
+`p_skip_sync = true` 时，同步触发器在事务上下文中捕获实际 DELETE。RPC 先按源顺序整理客户端的 `p_changes`，再追加被 `ON DELETE CASCADE` 删除、但未显式下发的子行日志，统一写入 `rxdb_change`。每个隐式删除各有一条日志，`clientId` / `localId` 为 NULL，因此推送父删除的客户端自己也能拉回子行删除；完整 `OLD` 保存在 `beforeData`，`afterData = null`、`snapshotComplete = true`。
+
+源日志排在隐式 DELETE 之前。同批先新增或修改子行、再删除父行时，其他客户端按 INSERT / UPDATE → 隐式 DELETE 拉取，最终子行保持不存在。RPC 保留数组顺序一次写入，两部分日志与业务写在同一事务内提交或回滚。
+
+同批显式删除的子行保留客户端日志与 ID 映射，触发器只捕获 `OLD`，避免重复日志；显式删除与实际删除按 id 列类型的等值关系配对（与 DELETE 同一判据，uuid 大小写、`numeric` 的 `1` 与 `1.00` 认成同一行），并按分区根表归并，经分区根表或叶分区删除同样只记一条。若它先被行级策略拒绝、随后被允许的父删除级联，最终回执以实际删除为准，记为 `applied`；最后一条显式 DELETE 的快照一律取实际删除的 `OLD`，客户端 DELETE 的 `inversePatch` 不含 `id`，不能替代。成功批次重试会跳过实体副作用，隐式日志不会重复产生。
+
+外键动作可删除调用方按业务表 RLS 看不到的子行。补出的日志沿用现有触发器模式的完整快照与可读范围，可能包含该子行的全部列。业务表 RLS 不会自动给日志提供逐行授权隔离，日志的读取策略必须按应用的数据边界单独设计。
 
 ### 树查询 RPC
 
@@ -325,6 +341,12 @@ local-only 并使用 SQLite family 或 PGlite；不要用 string/base64 fallback
 
 ## 生产部署
 
+### 更新 UPDATE 与级联删除函数
+
+已有系统表与幂等索引的数据库，先在同一数据库事务中按 02 → 04 执行新版 `docker/sql/02-rxdb-sync-functions.sql`、`docker/sql/04-rxdb-utils-functions.sql` 并一起提交，再升级客户端。前者更新 DELETE 捕获，后者更新 UPDATE 返回行与删除日志统一写入；两者必须配套，不能在写入流量下分别提交。
+
+用 `psql --single-transaction` 同时传入两个 `-f`；Supabase SQL Editor 则须在同一次执行中用 `BEGIN` / `COMMIT` 包住两份文件的完整内容。若工具无法原子执行，须在维护窗口禁止业务写入，直到两份脚本部署完成。`01-rxdb-system-tables.sql` 本次无变化，无需为这两项修复重跑；从更早版本升级仍须满足原有系统表与推送回执迁移前置。完整命令见[迁移说明](../migration/supabase-update-push.md)。
+
 ### 收紧变更日志表的写权限
 
 基础 SQL 里的 `docker/sql/01-rxdb-system-tables.sql` 与 `03-business-tables.sql` 以 `GRANT ALL ON ALL TABLES IN SCHEMA public` 给 `anon` / `authenticated` 授权，变更日志表 `public.rxdb_change` 也在其中。执行完基础 SQL 之后，再执行一次生产权限脚本：
@@ -343,10 +365,10 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 
 收紧后，日志只剩两条写入路径：
 
-| 写入路径                                             | 怎么写日志                                                                                                      |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 推送 `rxdb_mutations`                                | 经内部函数 `rxdb_insert_changes`（`SECURITY DEFINER`）写入；main 分支的日志必须与同批实体写入配对，否则 `RX002` |
-| 直接写业务表（`mutations()`，`p_skip_sync = false`） | 同步触发器函数 `rxdb_log_change_trigger`（`SECURITY DEFINER`）写入                                              |
+| 写入路径                                             | 怎么写日志                                                                                                                                                                   |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 推送 `rxdb_mutations`                                | 触发器捕获实际 DELETE，RPC 将隐式日志追加在源日志之后，经内部函数 `rxdb_insert_changes`（`SECURITY DEFINER`）统一写入；main 分支的源日志必须与同批实体写入配对，否则 `RX002` |
+| 直接写业务表（`mutations()`，`p_skip_sync = false`） | 同步触发器函数 `rxdb_log_change_trigger`（`SECURITY DEFINER`）写入                                                                                                           |
 
 客户端经 PostgREST 直接写 `rxdb_change`，得到 `42501 permission denied for table rxdb_change`。直接调用 `rxdb_insert_changes` 也得到 `42501`（`rxdb: rxdb_insert_changes may only be called by rxdb_mutations`）：它只认 `rxdb_mutations` 在同一事务里设置的守卫，客户端无法预置这个守卫。
 
@@ -391,6 +413,7 @@ CREATE POLICY todos_delete ON public.todos
 - **非 main 分支的日志仍可写**：推送非 main 分支时，`rxdb_mutations` 只写日志、不写实体，也就没有可配对的实体写入。这类日志不会进入 main 分支的拉取，但调用方仍可以往任意非 main 分支写日志。
 - **`rxdb_branch` 未收紧**：分支表仍对客户端开放读写，生产权限脚本不处理它。
 - **存在性探针**：`rxdb_existing_ids` 的剩余探测面见下文[已知限制](#已知限制)。id 不应承载敏感信息。
+- **日志的读取范围**：级联删除保留完整 `OLD` 快照，即使调用方按业务表 RLS 看不到子行。日志表的授权与拉取规则须单独设计，不能依赖业务表的 RLS 自动隔离。
 
 ## 故障排查
 
@@ -402,7 +425,7 @@ ERROR: function rxdb_mutations does not exist
 
 确保已在 Supabase 数据库中创建所需的 RPC 函数（`rxdb_mutations`、`get_descendants` 等）。
 
-新客户端连旧版 SQL 时，推送报 `Could not find the function public.rxdb_mutations(p_changes, p_deletes, p_skip_sync, p_updates, p_upserts)`：先执行新版 `docker/sql/04-rxdb-utils-functions.sql`，见 [迁移说明](../migration/supabase-update-push.md)。
+新客户端连旧版 SQL 时，推送报 `Could not find the function public.rxdb_mutations(p_changes, p_deletes, p_skip_sync, p_updates, p_upserts)`：按[迁移说明](../migration/supabase-update-push.md)在同一事务中更新新版 02 与 04，再重试。
 
 ### Realtime 未收到变更
 

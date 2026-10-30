@@ -25,6 +25,7 @@ import { wrap } from 'comlink';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { RxDBAdapterSqlite } from '../RxDBAdapterSqlite.js';
+import type { SqliteOptions } from '../sqlite.interface.js';
 import { SqliteClient } from '../SqliteClient.js';
 
 const ALL = { where: { combinator: 'and' as const, rules: [] } };
@@ -43,8 +44,23 @@ const freshName = (prefix: string): string => `${prefix}-${Date.now()}-${Math.ra
 const connectSharedWorker = (name: string): SharedWorker =>
   new SharedWorker(new URL('./sqlite-wasm-shared-client.worker', import.meta.url), { type: 'module', name });
 
+/** 适配器配置里选中 SharedWorker transport 的那部分 */
+type SharedTransport = (instance: SharedWorker) => Pick<SqliteOptions, 'sharedWorker' | 'sharedWorkerInstance'>;
+
+/**
+ * 连同一个 SharedWorker 的两种配法：显式 `sharedWorker: true` 加实例，或只给实例由适配器推断。
+ * 连接走的是同一条 transport，两种都必须在跨标签页的锁里排事务、断开时只交还自己那一份。
+ */
+const TRANSPORTS: ReadonlyArray<{ name: string; transport: SharedTransport }> = [
+  {
+    name: 'sharedWorker: true + 实例',
+    transport: instance => ({ sharedWorker: true, sharedWorkerInstance: instance })
+  },
+  { name: '只有实例', transport: instance => ({ sharedWorkerInstance: instance }) }
+];
+
 /** 一个「标签页」：连到名为 `workerName` 的 SharedWorker 上那个客户端 */
-const openTab = async (dbName: string, workerName: string): Promise<RxDB> => {
+const openTab = async (dbName: string, workerName: string, transport: SharedTransport): Promise<RxDB> => {
   const database = new RxDB({
     dbName,
     context: { userId: WORKING_TREE_CONFORMANCE_USER_ID },
@@ -56,8 +72,7 @@ const openTab = async (dbName: string, workerName: string): Promise<RxDB> => {
     async db =>
       new RxDBAdapterSqlite(db, {
         ...LOAD_OPTIONS,
-        sharedWorker: true,
-        sharedWorkerInstance: connectSharedWorker(workerName)
+        ...transport(connectSharedWorker(workerName))
       })
   );
   opened.push(database);
@@ -66,11 +81,13 @@ const openTab = async (dbName: string, workerName: string): Promise<RxDB> => {
 };
 
 /** 两个标签页连同一个 SharedWorker，按顺序连上（连接时的系统迁移各自要一笔排他事务） */
-const openTabs = async (): Promise<{ a: RxDB; b: RxDB; dbName: string; workerName: string }> => {
+const openTabs = async (
+  transport: SharedTransport
+): Promise<{ a: RxDB; b: RxDB; dbName: string; workerName: string }> => {
   const dbName = freshName('shared');
   const workerName = freshName('wasm-shared');
-  const a = await openTab(dbName, workerName);
-  const b = await openTab(dbName, workerName);
+  const a = await openTab(dbName, workerName, transport);
+  const b = await openTab(dbName, workerName, transport);
   return { a, b, dbName, workerName };
 };
 
@@ -112,9 +129,9 @@ const settledWithin = async (promise: Promise<unknown>, ms: number): Promise<str
     new Promise<string>(resolve => setTimeout(() => resolve('waiting'), ms))
   ]);
 
-describe('SharedWorker 上多个标签页共用一个客户端（US-314 B2.3b）', () => {
+describe.each(TRANSPORTS)('SharedWorker 上多个标签页共用一个客户端（US-314 B2.3b）：$name', ({ transport }) => {
   it('一个标签页的事务开着时，另一个标签页的事务排在它后面，不落进这笔事务', async () => {
-    const { a, b } = await openTabs();
+    const { a, b } = await openTabs(transport);
     const aAdapter = await a.getAdapter('sqlite-wasm');
     let entered!: () => void;
     const aEntered = new Promise<void>(resolve => (entered = resolve));
@@ -142,7 +159,7 @@ describe('SharedWorker 上多个标签页共用一个客户端（US-314 B2.3b）
   });
 
   it('一个标签页断开，另一个照常读写、照常收到变更事件；之后新连上的标签页也能用', async () => {
-    const { a, b, dbName, workerName } = await openTabs();
+    const { a, b, dbName, workerName } = await openTabs(transport);
     const bLocalCreates = recordLocalCreates(b);
     await createNote(a, 'A 写的');
 
@@ -151,13 +168,13 @@ describe('SharedWorker 上多个标签页共用一个客户端（US-314 B2.3b）
 
     const fromB = await createNote(b, 'A 断开之后 B 写的');
     await expect.poll(() => bLocalCreates.has(fromB), POLL).toBe(true);
-    const c = await openTab(dbName, workerName);
+    const c = await openTab(dbName, workerName, transport);
     await createNote(c, 'C 写的');
     expect(await titlesOf(c)).toEqual(['A 写的', 'A 断开之后 B 写的', 'C 写的']);
   });
 
   it('别的标签页留下没结束的事务（标签页死在事务中间）：下一个拿到锁的标签页先回滚它', async () => {
-    const { b, workerName } = await openTabs();
+    const { b, workerName } = await openTabs(transport);
     const orphan = wrap<SqliteClient>(connectSharedWorker(workerName).port);
     await orphan.init(b.config.dbName, { ...LOAD_OPTIONS, sharedWorker: true });
     await orphan.execute('CREATE TABLE orphan_probe (x INTEGER)');

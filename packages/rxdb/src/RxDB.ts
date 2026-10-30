@@ -1378,17 +1378,30 @@ export class RxDB {
    *
    * 与 {@link RxDB.disconnect} 同口径：先作废所有在飞的 `connect()`，它们会以中止错误
    * reject。不作废的话，它们会在 `#shutdown()` 之后醒来，把刚清空的已连接集合重新填上。
+   *
+   * 还在工厂里的适配器会等它结算，建出来的实例一并断开。
+   *
+   * @throws 在飞的适配器工厂、全局拆卸或某个适配器的 `disconnect()` 失败时抛出最先出现的那个错误；
+   * 抛出时拆卸已经全部走完，不会因为其中一处失败而留下没断开的适配器
    */
   async disconnectAll(): Promise<void> {
     for (const adapterName of this.#connect_promise_map.keys()) this.#invalidate_connect(adapterName);
-    const adapters = await Promise.all(this.#adapter_map.values());
+    // 在飞的工厂要等它结算，否则它建出的实例没人关；但只能 allSettled：一个工厂拒绝只说明那一个
+    // 实例没建出来，其余已建好的照样要拆。Promise.all 会在首个拒绝处整体退出，下面的插件销毁、
+    // 适配器断连与缓存清理一步都走不到——destroy() 此时已置终态，重试它也补不回来。
+    // 工厂错误与后两段同口径：保留首个，全部拆完再统一抛出。
+    let firstError: unknown;
+    const adapters: IRxDBAdapter[] = [];
+    for (const result of await Promise.allSettled(this.#adapter_map.values())) {
+      if (result.status === 'fulfilled') adapters.push(result.value);
+      else firstError ??= result.reason;
+    }
     // 插件须在适配器断开前销毁。#shutdown() 抛错（例如仓储销毁失败）不能让下面的
     // 适配器断连被跳过——两段互相独立，保留首个错误，两段都跑完再统一抛出。
-    let firstError: unknown;
     try {
       await this.#shutdown();
     } catch (error) {
-      firstError = error;
+      firstError ??= error;
     }
     try {
       const results = await Promise.allSettled(adapters.map(adapter => adapter.disconnect()));

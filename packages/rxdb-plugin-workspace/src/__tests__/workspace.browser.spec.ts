@@ -837,5 +837,55 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       // 草稿由适配器按变更行异步派出的 CREATE 收尾
       await expect.poll(() => titles(workspace)).toEqual([]);
     });
+
+    // 换挂之后、`ready` 之前（旧视图排着的写还没落盘）就在新挂的那套表上新建同 UUID 的草稿：
+    // 两条草稿的公开主键相同，必须各落各的键，主表集那条挂回去还在。
+    it('换挂 ready 之前在检出位上新建同 UUID 的草稿：两个分区各落各的键，挂回主检出位恢复主表集那条', async () => {
+      const harness = await open(nextDbName(), { autoSave: false });
+      const { Draft, idbName, rxdb, workspace } = harness;
+      await workspace.ready;
+      const tableSet = WorktreeTableSet.of('wt_ws', [Draft]);
+      await openCheckout(harness, tableSet);
+      const mainDraft = new Draft({ title: '主检出位上没存的' });
+      await settle();
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      new Draft({ id: mainDraft.id, title: '检出位上同 UUID 的' });
+      await workspace.ready;
+      await workspace.flush();
+
+      const stored = await readStore(idbName);
+      expect(stored.get(cacheIdOf(mainDraft))?.['title']).toBe('主检出位上没存的');
+      expect(stored.get(`wt_ws:${cacheIdOf(mainDraft)}`)?.['title']).toBe('检出位上同 UUID 的');
+
+      await rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+      await workspace.ready;
+      expect(titles(workspace)).toEqual(['主检出位上没存的']);
+    });
+
+    it('主检出位上排着删除、换挂 ready 之前在检出位上新建同 UUID：主表集那条照删，检出位那条照存', async () => {
+      const harness = await open(nextDbName(), { autoSave: false });
+      const { Draft, idbName, rxdb, workspace } = harness;
+      await workspace.ready;
+      const tableSet = WorktreeTableSet.of('wt_ws', [Draft]);
+      await openCheckout(harness, tableSet);
+      const mainDraft = new Draft({ title: '主检出位上已存的' });
+      await settle();
+      await workspace.flush();
+      expect(workspace.discard(cacheIdOf(mainDraft))).toBe(true);
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      new Draft({ id: mainDraft.id, title: '检出位上同 UUID 的' });
+      await workspace.ready;
+      await workspace.flush();
+
+      const stored = await readStore(idbName);
+      expect(stored.has(cacheIdOf(mainDraft))).toBe(false);
+      expect(stored.get(`wt_ws:${cacheIdOf(mainDraft)}`)?.['title']).toBe('检出位上同 UUID 的');
+
+      await rxdb.mountWorktreeTableSet(WorktreeTableSet.MAIN);
+      await workspace.ready;
+      expect(titles(workspace)).toEqual([]);
+    });
   });
 });

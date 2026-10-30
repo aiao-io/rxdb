@@ -9,19 +9,20 @@
 | :------------- | :----- |
 | ✅ Done        | 105    |
 | 🚧 In Progress | 2      |
-| 👀 In Review   | 2      |
-| 📝 Backlog     | 11     |
+| 👀 In Review   | 5      |
+| 📝 Backlog     | 9      |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **15** |
+| **未完成合计** | **16** |
 
-仓库还剩 **15 条**未关闭故事（2 In Progress + 2 In Review + 11 Backlog + 0 Blocked）。
+仓库还剩 **16 条**未关闭故事（2 In Progress + 5 In Review + 9 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事都当作可开工项。
 
 ## 未完成需求全景
 
 | Story                                                                                                                                                                                                                              | 状态           | 剩什么                                                                  | 排期位置   |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------------------------- | ---------- |
-| [US-223](stories/adapter/US-223-supabase-mutations-update-semantics.md) / [US-224](stories/adapter/US-224-supabase-cascade-delete-change-log.md)                                                                                   | 📝 Backlog     | 已有复现：RLS 误拒直写 UPDATE、级联删除遗漏同步日志；补齐边界后优先修复 | 建议批次 3 |
+| [US-032](stories/core/US-032-cross-tab-update-live-query.md)                                                                                                                                                                       | 👀 In Review   | 改了读取列而缓存补不齐时回 SQL，核心与真实双连接回归通过；待代码评审 | 独立核心 PR |
+| [US-223](stories/adapter/US-223-supabase-mutations-update-semantics.md) / [US-224](stories/adapter/US-224-supabase-cascade-delete-change-log.md)                                                                                   | 👀 In Review   | 直写 UPDATE 返回服务器最终行、级联删除写完整隐式日志已实现；待代码评审 | 批次 3 |
 | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                                                                                    | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                     | 批次 3     |
 | [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                                                                                    | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                            | 批次 3     |
 | [US-518](stories/domain/US-518-bom-unit-lot-effectivity.md) / [epic-009 BOM](epics/epic-009-bom-domain-model.md)                                                                                                                   | 🚧 In Progress | 既有功能已实现；新增 AC#12 的空批次集合写入拒绝与兼容性验收             | 批次 4     |
@@ -35,7 +36,7 @@
 
 ## 即办清单
 
-当前没有独立于下列故事的即办项。US-223/224 是已有用户症状的修复建议，不与仍价值待证的新增抽象混排。
+当前没有独立于下列故事的即办项。US-223/224 是已有用户症状的修复，不与仍价值待证的新增抽象混排。
 
 ## 排期批次
 
@@ -43,7 +44,7 @@
 
 | 顺序         | 范围            | 关闭条件                                                                  |
 | ------------ | --------------- | ------------------------------------------------------------------------- |
-| 优先修复建议 | US-223 / US-224 | 各自复现翻为正向断言，RLS、级联、重试和双端收敛边界通过；保持两条独立故事 |
+| 待评审       | US-223 / US-224 | 代码评审通过（复现已翻为正向断言，RLS、级联、重试和双端收敛边界回归及各自 AC 均已通过）；保持两条独立故事 |
 
 US-211/219 有人工宿主验收，不用单元测试通过替代。US-030 A～D 在本分支已有实现，不再列为待办。
 

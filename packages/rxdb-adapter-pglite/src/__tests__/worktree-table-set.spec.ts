@@ -517,6 +517,31 @@ describe('可写检出位的表集（US-314 B1.3）', () => {
       expect(await countChanges()).toBe(before + 1);
     });
 
+    // 检出位里的分支对比与切分支、合并同一口径（US-312 AC#3）：`WorktreeSeqNote` 不是这套影子表的成员，
+    // 检出位里切分支不动它，对比也不列它
+    it('挂在检出位上对比：只列这套表的成员，与检出位里切过去读到的一致', async () => {
+      await rxdb.versionManager.createBranch('compare-src');
+      await rxdb.versionManager.switchBranch('compare-src');
+      // 裸写：主表集的触发器此刻挂在 compare-src 上，两行都记在它名下
+      await rawInsert(WorktreeTableSet.MAIN, 'from-src');
+      await adapter.internalQuery(
+        `INSERT INTO "wtseq"."wtseq_note" ("title", "createdAt", "updatedAt") VALUES ('not-a-compared-member', now(), now())`
+      );
+      await rxdb.versionManager.switchBranch('main');
+
+      await rxdb.mountWorktreeTableSet(tableSet);
+      const { entries } = await rxdb.versionManager.compareBranches(heldBranch, 'compare-src');
+
+      expect(entries.map(({ entity, operation, patch }) => [entity, operation, patch?.['title']])).toEqual([
+        [getEntityMetadata(Todo).name, 'INSERT', 'from-src']
+      ]);
+      await rxdb.versionManager.switchBranch('compare-src');
+      expect(await titlesOf(tableSet)).toEqual(['from-src']);
+      // 清库不清 wtseq 这个 schema：只看非成员那一行有没有被检出位里的切分支写回主表
+      const titles = (await adapter.internalQuery<{ title: string }>(`SELECT "title" FROM "wtseq"."wtseq_note"`)).rows;
+      expect(titles.map(row => row.title)).not.toContain('not-a-compared-member');
+    });
+
     // QueryCache 抄的是远端副本，不是本地变更：回填不进变更日志，否则出站队列把它当离线写推回远端。
     // 从前 PGlite 的 QueryCache 写根本不摘触发器（主检出位上也记日志）；同步的实体只在主表集，挂在检出位上
     // 摘的也必须是主表集的触发器（US-314 B2.1）。`WorktreeSeqNote` 记日志、不是这套影子表的成员，处境相同。

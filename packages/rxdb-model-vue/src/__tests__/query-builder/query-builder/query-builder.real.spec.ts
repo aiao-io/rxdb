@@ -1,7 +1,8 @@
 import { PropertyType } from '@aiao/rxdb';
-import type { FieldMetadata } from '@aiao/rxdb-model';
+import type { FieldMetadata, SchemaInfo, ValidationResult } from '@aiao/rxdb-model';
 import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { nextTick } from 'vue';
 import QueryBuilder from '../../../query-builder/query-builder/QueryBuilder.vue';
 import type { RxDBQueryOutput } from '../../../query-builder/query-builder/query-builder-types';
 
@@ -198,8 +199,126 @@ describe('QueryBuilder（真实组件）', () => {
     expect(vm.rootGroup?.rules.length).toBe(1);
   });
 
+  it('宿主换了 initialQuery 引用：载入新查询并只对外发一次，同一引用再设置不覆盖用户编辑', async () => {
+    const titleQuery = (value: string) =>
+      ({ combinator: 'and', rules: [{ field: 'title', operator: '=', value }] }) as RxDBQueryOutput<
+        Record<string, unknown>
+      >;
+    const replaced = titleQuery('replaced');
+    const { wrapper, vm } = render({ initialQuery: titleQuery('hello') });
+    const emitted = () => (wrapper.emitted('queryChange') ?? []).map(args => args[0] as RxDBQueryOutput<object>);
+    const before = emitted().length;
+
+    await wrapper.setProps({ initialQuery: replaced });
+
+    expect(vm.rootGroup?.rules[0]).toMatchObject({ value: 'replaced' });
+    expect(
+      emitted()
+        .slice(before)
+        .map(query => query.rules)
+    ).toEqual([replaced.rules]);
+
+    const ruleId = (vm.rootGroup!.rules[0] as { id: string }).id;
+    vm.onUpdateRule({ id: ruleId, updates: { value: 'edited' } });
+    await wrapper.setProps({ initialQuery: replaced });
+    expect(vm.rootGroup?.rules[0]).toMatchObject({ value: 'edited' });
+  });
+
   it('销毁组件销毁服务后不再抛错', () => {
     host.vm.addFirstRule();
     expect(() => host.wrapper.unmount()).not.toThrow();
+  });
+
+  describe('挂载时 queryChange / validationChange 各发一次（与 Angular / React 同口径）', () => {
+    it('未传 initialQuery：发空查询与合法的校验结果', async () => {
+      const { wrapper } = render();
+      await nextTick();
+
+      expect(wrapper.emitted('queryChange')).toEqual([[{ combinator: 'and', rules: [] }]]);
+      expect(wrapper.emitted('validationChange')).toEqual([[{ valid: true }]]);
+    });
+
+    it('传入 initialQuery：发载入后的查询与它按字段校验的结果，不先发空查询', async () => {
+      const initial = {
+        combinator: 'or',
+        rules: [
+          { field: 'title', operator: '=', value: 'hello' },
+          { field: 'missing', operator: '=', value: 'x' }
+        ]
+      } as RxDBQueryOutput<Record<string, unknown>>;
+      const { wrapper } = render({ initialQuery: initial });
+      await nextTick();
+
+      expect(wrapper.emitted('queryChange')).toEqual([[initial]]);
+      expect(wrapper.emitted('validationChange')).toEqual([
+        [{ valid: false, errors: [expect.objectContaining({ field: 'missing', rule: 'fieldExists' })] }]
+      ]);
+    });
+  });
+
+  describe('字段集合变化（含清空）同步给服务', () => {
+    const TITLE_OK = {
+      combinator: 'and',
+      rules: [{ field: 'title', operator: '=', value: 'ok' }]
+    } as RxDBQueryOutput<Record<string, unknown>>;
+    const SCHEMA: SchemaInfo = { entityName: 'Post', fields: [FIELDS[0]] };
+
+    function renderWith(props: { fields?: FieldMetadata[]; schema?: SchemaInfo }) {
+      const wrapper = mount(QueryBuilder, { props: { ...props, initialQuery: TITLE_OK } });
+      const vm = wrapper.vm as unknown as QueryBuilderVM;
+      const validations = (): ValidationResult[] =>
+        (wrapper.emitted('validationChange') ?? []).map(args => args[0] as ValidationResult);
+      const queryCount = (): number => (wrapper.emitted('queryChange') ?? []).length;
+      return { wrapper, vm, validations, queryCount };
+    }
+
+    /** 最近一次 validationChange 是否报了 title 的 fieldExists（界面错误列表同步）。 */
+    const titleMissing = (host: ReturnType<typeof renderWith>): boolean =>
+      host.validations().at(-1)?.valid === false &&
+      host.vm.validationErrors.some(error => {
+        const { field, rule } = error as { field: string; rule: string };
+        return field === 'title' && rule === 'fieldExists';
+      });
+
+    it('fields 由非空切空：既有规则立即失效且后续改规则仍按空字段集校验，恢复后转回合法；全程不多发查询', async () => {
+      const host = renderWith({ fields: [FIELDS[0]] });
+      await nextTick();
+      expect(host.vm.validationErrors).toEqual([]);
+      const queryCount = host.queryCount();
+
+      await host.wrapper.setProps({ fields: [] });
+
+      expect(host.vm.fieldsComputed).toEqual([]);
+      expect(titleMissing(host)).toBe(true);
+      expect(host.queryCount()).toBe(queryCount);
+
+      const ruleId = (host.vm.rootGroup!.rules[0] as { id: string }).id;
+      host.vm.onUpdateRule({ id: ruleId, updates: { value: 'changed' } });
+      await nextTick();
+      expect(titleMissing(host)).toBe(true);
+      const afterEdit = host.queryCount();
+
+      await host.wrapper.setProps({ fields: [FIELDS[0]] });
+
+      expect(host.validations().at(-1)?.valid).toBe(true);
+      expect(host.vm.validationErrors).toEqual([]);
+      expect(host.queryCount()).toBe(afterEdit);
+    });
+
+    it('schema 由有值切 undefined（未传 fields）：同样立即失效，恢复后转回合法', async () => {
+      const host = renderWith({ schema: SCHEMA });
+      await nextTick();
+      expect(host.vm.validationErrors).toEqual([]);
+      const queryCount = host.queryCount();
+
+      await host.wrapper.setProps({ schema: undefined });
+
+      expect(titleMissing(host)).toBe(true);
+
+      await host.wrapper.setProps({ schema: SCHEMA });
+
+      expect(host.validations().at(-1)?.valid).toBe(true);
+      expect(host.queryCount()).toBe(queryCount);
+    });
   });
 });

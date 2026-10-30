@@ -392,6 +392,8 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
     const table = tableRef.current;
     const record = table?.getRecordByCell(col, row) as EntityTableRecord | undefined;
     const fieldName = getColDef(col)?.field;
+    // 这里只判行级只读：列级只读的鼠标编辑由 VTable 按列的 editor / disable 拦住（与列级只读标记同一判定），
+    // 键盘切换在 handleTableKeydown 里已按列判过，不可写列的变更到不了这里
     if (!record || !fieldName || (isReadonly(record) && fieldName !== '__selected')) return;
     propsRef.current.onCellChanged?.({ col, row, field: fieldName, value: changedValue, record });
   }

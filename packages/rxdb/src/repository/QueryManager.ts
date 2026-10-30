@@ -463,7 +463,9 @@ export class QueryManager<T extends EntityType> {
      * @param event 实体变更事件（创建、更新、修补或删除）
      */
     const _need_change = (event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent) => {
-      // 如果没有活跃的查询任务，直接返回（性能优化）
+      // 如果没有活跃的查询任务，直接返回（性能优化）。
+      // 代价：身份缓存只在合并时经 `#serialize` 收到 UPDATE，没有任务时实例停在旧值。之后的查询
+      // 命中这个实例，UPDATE 门控只验得出列齐不齐、验不出值已落后（登记在 roadmap 零散收尾项）。
       if (this.#query_task_map.size === 0) {
         return;
       }

@@ -173,8 +173,14 @@ export interface AdapterEncryptionFacade {
  * - 变更历史追踪
  */
 export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdapter {
-  /** 变更事件异步处理失败，供同步状态和 UI 订阅。 */
-  #changeErrors = new Subject<Error>();
+  /**
+   * 变更事件异步处理失败，供同步状态和 UI 订阅。
+   *
+   * @remarks
+   * 跟随适配器实例存活，`disconnect()` 不完成它：同一实例允许断开后再 `connect()`，完成了的 Subject
+   * 对重连后的失败一律静默。`#pipelineHost` 在构造期捕获的也是这一个对象，不存在「换一个」的时机。
+   */
+  readonly #changeErrors = new Subject<Error>();
 
   /** 仓库实例缓存，避免重复创建 */
   #repository_cache = new Map<EntityType, IRepository<EntityType>>();
@@ -221,7 +227,13 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   /** 适配器名称 */
   name: string = ADAPTER_NAME;
 
-  /** PGlite NOTIFY 变更处理错误流。 */
+  /**
+   * PGlite NOTIFY 变更处理错误流。
+   *
+   * @remarks
+   * 与适配器实例同寿命：断开不会让它完成，同一实例重连后的管线失败照样从这里发出，
+   * 订阅者不必因为重连而重新订阅。
+   */
   readonly changeErrors$ = this.#changeErrors.asObservable();
 
   get encryptionContext(): EncryptionContext {
@@ -641,7 +653,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   /**
    * 断开数据库连接
    *
-   * 清理资源并发送销毁信号
+   * 清理资源并发送销毁信号。`changeErrors$` 不在这里完成，它跟随实例存活，见其说明。
    */
   async disconnect(): Promise<void> {
     const client = this.#cached_client ?? (await this.#client_promise?.catch(() => undefined));
@@ -662,7 +674,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       this.#client_promise = undefined;
       this.#notifyInfrastructureReady = false;
       this.#lifecycle_state = 'closed';
-      this.#changeErrors.complete();
     }
   }
 

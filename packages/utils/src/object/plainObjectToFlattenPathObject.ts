@@ -18,11 +18,30 @@ const flattenEmptyContainer = (
   return result;
 };
 
+/**
+ * 数组末位不能是空洞
+ *
+ * 扁平结果里数组长度只能由写出的最大下标推出（还原时按下标写回，长度 = 最大下标 + 1）。
+ * 中间空洞靠「该下标缺席」就能原样还原；末位空洞却没有任何键能承载长度——
+ * `forEach` 跳过空洞后，`new Array(2)` 整个消失、`[1, ,]` 缩成 `[1]`。
+ * 拒绝而不是把空洞补成 `undefined`：同包 isEqual / cloneDeep / createStableKey
+ * 都把空洞与 `undefined` 当作不同的数据，补齐等于换了一份数据交回去。
+ */
+const assertTrailingSlotFilled = (array: readonly unknown[], prefix: string): void => {
+  const lastIndex = array.length - 1;
+  if (lastIndex in array) return;
+  throw new TypeError(
+    `plainObjectToFlattenPathObject: 路径 "${prefix}" 处的数组末位是空洞（length ${array.length}），` +
+      '扁平路径只能由最大下标推出数组长度，无法表示末尾空洞'
+  );
+};
+
 const flattenValue = (value: unknown, prefix: string, result: Record<string, unknown>): Record<string, unknown> => {
   if (isArray(value)) {
     if (value.length === 0) {
       return flattenEmptyContainer([], prefix, result);
     }
+    assertTrailingSlotFilled(value, prefix);
     value.forEach((item, index) => flattenValue(item, `${prefix}[${index}]`, result));
     return result;
   }
@@ -50,8 +69,12 @@ const flattenValue = (value: unknown, prefix: string, result: Record<string, unk
  * 根为普通对象、且键名不含 `.` / `[` / `]` 时，输出可由 {@link flattenPathObjectToPlainObject} 原样还原。
  * 根为数组时扁平键以 `[i]` 开头，而还原结果的根恒为普通对象，还原会抛 TypeError。
  *
+ * 稀疏数组：中间空洞不产生键（还原后仍是空洞）；末位是空洞的数组（含 `new Array(n)`）
+ * 无法表示长度，直接抛错，不静默缩短或丢弃。显式 `undefined` 是有值的位，照常写成叶子。
+ *
  * @param object - 待扁平化对象
  * @returns 路径键值对象
+ * @throws {TypeError} 任一层非空数组的末位是空洞
  *
  * @example
  * ```ts
