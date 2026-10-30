@@ -337,6 +337,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   ngOnInit() {
     this.view.set(routeView(location.pathname));
+    if (new URL(location.href).searchParams.get('supabase_oauth') === 'complete') {
+      history.replaceState(null, '', location.pathname);
+      queueMicrotask(() => void this.loadOAuthProjects());
+    }
     try {
       const platform = readSupabaseAuthConfig();
       this.platformAvailable.set(platform !== null);
@@ -1130,7 +1134,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       });
       await this.loadOAuthProjects();
     } catch (error) {
-      this.targetMessage.set(error instanceof Error && error.message !== 'Load failed' ? error.message : '当前 App 无法连接 Supabase OAuth 服务。请先部署最新 Worker 或启动本地 Worker（OAuth 未配置时会显示明确配置提示）。');
+      this.targetMessage.set(
+        error instanceof Error && error.message !== 'Load failed' ?
+          error.message
+        : '当前 App 无法连接 Supabase OAuth 服务。请先部署最新 Worker 或启动本地 Worker（OAuth 未配置时会显示明确配置提示）。'
+      );
     } finally {
       this.oauthBusy.set(false);
     }

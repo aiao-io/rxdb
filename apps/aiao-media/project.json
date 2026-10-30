@@ -351,6 +351,15 @@
         "command": "node scripts/build-supabase-autoinit.mjs"
       }
     },
+    "supabase-oauth-local-config": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["supabase-autoinit"],
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "node scripts/configure-supabase-oauth-local.mjs"
+      }
+    },
     "supabase-init": {
       "executor": "nx:run-commands",
       "cache": false,

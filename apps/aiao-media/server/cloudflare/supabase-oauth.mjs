@@ -53,7 +53,8 @@ function clearCookie(name) {
   return cookie(name, '', 0);
 }
 function responseHtml(origin, extraHeaders = []) {
-  const bodyText = `<!doctype html><meta charset="utf-8"><title>Supabase 已连接</title><script>window.opener?.postMessage({type:'aiao-supabase-oauth-complete'},${JSON.stringify(origin)});window.close();</script><p>Supabase 已连接，可以关闭此窗口。</p>`;
+  const returnUrl = `${origin}/providers?supabase_oauth=complete`;
+  const bodyText = `<!doctype html><meta charset="utf-8"><title>Supabase 已连接</title><script>if(window.opener){window.opener.postMessage({type:'aiao-supabase-oauth-complete'},${JSON.stringify(origin)});window.close()}else{location.replace(${JSON.stringify(returnUrl)})}</script><p>Supabase 已连接，可以关闭此窗口。</p>`;
   const headers = new Headers({
     'content-type': 'text/html; charset=utf-8',
     'cache-control': 'no-store',
@@ -198,10 +199,13 @@ export async function initializeSupabaseProject(request, env) {
   const projects = await management(request, connection.accessToken, '/projects');
   const project = projects.find(item => (item.ref ?? item.id) === value.projectRef);
   if (!project) reject(404, '该项目不在当前授权范围内。');
-  if (!env.MEDIA_SUPABASE_AUTOINIT_SQL) reject(503, '自动初始化 SQL 尚未配置，项目未修改。');
+  const initSql =
+    env.MEDIA_SUPABASE_AUTOINIT_SQL ||
+    (env.MEDIA_SUPABASE_AUTOINIT_SQL_B64 ? new TextDecoder().decode(decode(env.MEDIA_SUPABASE_AUTOINIT_SQL_B64)) : '');
+  if (!initSql) reject(503, '自动初始化 SQL 尚未配置，项目未修改。');
   await management(request, connection.accessToken, `/projects/${value.projectRef}/database/query`, {
     method: 'POST',
-    body: JSON.stringify({ query: env.MEDIA_SUPABASE_AUTOINIT_SQL, read_only: false })
+    body: JSON.stringify({ query: initSql, read_only: false })
   });
   const keys = await management(request, connection.accessToken, `/projects/${value.projectRef}/api-keys?reveal=true`);
   const publicKey =

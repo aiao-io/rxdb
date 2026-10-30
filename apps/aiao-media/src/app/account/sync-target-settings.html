@@ -18,37 +18,41 @@
     <a download href="/sync-setup.sql">下载并审阅初始化 SQL</a>
     ；已有项目按迁移说明逐项审阅。
   </p>
-  <label for="sync-url">自己的 Supabase 项目 URL</label>
-  <input
-    id="sync-url"
-    [ngModel]="url()"
-    (ngModelChange)="urlChanged.emit($event)"
-    placeholder="https://your-project.supabase.co"
-    type="url"
-  />
-  <label for="sync-public-key">公开 publishable / anon Key</label>
-  <input
-    id="sync-public-key"
-    [ngModel]="publicKey()"
-    (ngModelChange)="keyChanged.emit($event)"
-    autocomplete="off"
-    placeholder="sb_publishable_…"
-  />
   <div class="provider-actions">
     @if (oauthAvailable()) {
       <button class="primary" [disabled]="busy() || oauthBusy()" (click)="connectOAuth.emit()">
-        {{ oauthBusy() ? '正在连接 Supabase…' : '通过 Supabase 授权自动连接' }}
+        {{ oauthBusy() ? '正在连接 Supabase…' : '连接自己的 Supabase' }}
       </button>
     }
-    <button class="secondary" [disabled]="busy()" (click)="changeTarget.emit('custom')">连接自己的项目</button>
     @if (platformAvailable()) {
       <button class="secondary" [disabled]="busy()" (click)="changeTarget.emit('platform')">使用平台账号</button>
     }
     <button class="secondary" [disabled]="busy()" (click)="changeTarget.emit('disconnected')">断开同步服务</button>
-    @if (configured()) {
-      <button class="primary" (click)="login.emit($event)">登录与同步设置</button>
-    }
   </div>
+  @if (configured()) {
+    <button class="secondary" (click)="login.emit($event)">登录与同步设置</button>
+  }
+  <details>
+    <summary>手动连接已有项目（高级）</summary>
+    <p>OAuth 不可用或已有兼容项目时使用。只填写公开项目 URL 和 publishable/anon Key。</p>
+    <label for="sync-url">自己的 Supabase 项目 URL</label>
+    <input
+      id="sync-url"
+      [ngModel]="url()"
+      (ngModelChange)="urlChanged.emit($event)"
+      placeholder="https://your-project.supabase.co"
+      type="url"
+    />
+    <label for="sync-public-key">公开 publishable / anon Key</label>
+    <input
+      id="sync-public-key"
+      [ngModel]="publicKey()"
+      (ngModelChange)="keyChanged.emit($event)"
+      autocomplete="off"
+      placeholder="sb_publishable_…"
+    />
+    <button class="secondary" [disabled]="busy()" (click)="changeTarget.emit('custom')">手动连接项目</button>
+  </details>
   @if (oauthProjects().length) {
     <label for="oauth-project">选择已授权项目</label>
     <select
