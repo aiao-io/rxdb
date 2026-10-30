@@ -88,7 +88,7 @@ export function decodeCollection(collection: LocalCollection, payload: string): 
       const { saved, acknowledged, channel = 'direct', ...input } = value;
       if (
         [saved, acknowledged].some(flag => flag !== undefined && typeof flag !== 'boolean') ||
-        !['direct', 'proxy'].includes(channel)
+        !['direct', 'proxy', 'platform'].includes(channel)
       )
         throw new Error('任务状态无效。');
       const task = validateGenerationJobSummary(input);

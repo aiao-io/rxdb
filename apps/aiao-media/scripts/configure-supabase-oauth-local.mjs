@@ -7,7 +7,10 @@ const varsPath = resolve(application, 'deploy/.dev.vars');
 const sqlPath = resolve(application, 'tmp/supabase-autoinit.sql');
 const clientId = process.env.SUPABASE_OAUTH_CLIENT_ID?.trim();
 const clientSecret = process.env.SUPABASE_OAUTH_CLIENT_SECRET?.trim();
-if (!clientId || !clientSecret) throw new Error('请在命令环境变量中提供 SUPABASE_OAUTH_CLIENT_ID 和 SUPABASE_OAUTH_CLIENT_SECRET；不要把 secret 写进 Git。');
+if (!clientId || !clientSecret)
+  throw new Error(
+    '请在命令环境变量中提供 SUPABASE_OAUTH_CLIENT_ID 和 SUPABASE_OAUTH_CLIENT_SECRET；不要把 secret 写进 Git。'
+  );
 const sql = await readFile(sqlPath);
 const values = [
   `SUPABASE_OAUTH_CLIENT_ID=${clientId}`,

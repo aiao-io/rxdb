@@ -78,6 +78,7 @@ async function login(page: Page) {
   await page.getByRole('button', { name: '登录', exact: true }).click();
   await expect(page.getByRole('heading', { name: '已登录', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '关闭账号窗口' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 }
 // Auth fixtures verify the built application + real SDK without contacting an external Auth project.
 // The local-first suite separately verifies Service Worker installation and offline cold starts.
@@ -143,15 +144,20 @@ test('平台接单响应丢失后刷新，使用原标识核对，不因修改�
     return route.fulfill({ json: task() });
   });
   await page.goto('/create');
+  await expect(page.locator('.draft-status')).toHaveText('输入会自动保存到本机');
   await login(page);
   const editor = page.locator('[contenteditable="true"]');
+  await expect(page.getByRole('button', { name: '撤销', exact: true })).toBeEnabled();
   await editor.fill('平台原请求');
+  await expect(page.locator('.draft-status')).toHaveText('输入已保存到本机');
   page.on('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: '确认并提交平台生图', exact: true }).click();
   await expect(page.getByText(/再次点击将核对同一请求/)).toBeVisible();
   await page.reload();
-  await expect(editor).toBeVisible();
+  await expect(editor).toContainText('平台原请求');
+  await expect(page.getByRole('button', { name: '撤销', exact: true })).toBeEnabled();
   await editor.fill('修改后的新提示词');
+  await expect(page.locator('.draft-status')).toHaveText('输入已保存到本机');
   await page.getByRole('button', { name: '确认并提交平台生图', exact: true }).click();
   await expect(page.getByRole('button', { name: '取消排队并释放额度' })).toBeVisible();
   expect(requests).toHaveLength(2);

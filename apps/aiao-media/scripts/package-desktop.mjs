@@ -19,8 +19,8 @@ function run(command, args) {
       NX_ISOLATE_PLUGINS: 'false',
       ...(process.env.AIAO_DESKTOP_ENABLE_PLATFORM === 'true' ?
         {}
-      : { AIAO_SUPABASE_URL: '', AIAO_SUPABASE_ANON_KEY: '' })
-      , ...(process.env.AIAO_MEDIA_API_ORIGIN ? { AIAO_MEDIA_API_ORIGIN: process.env.AIAO_MEDIA_API_ORIGIN } : {})
+      : { AIAO_SUPABASE_URL: '', AIAO_SUPABASE_ANON_KEY: '' }),
+      ...(process.env.AIAO_MEDIA_API_ORIGIN ? { AIAO_MEDIA_API_ORIGIN: process.env.AIAO_MEDIA_API_ORIGIN } : {})
     }
   });
   if (result.error) throw result.error;
