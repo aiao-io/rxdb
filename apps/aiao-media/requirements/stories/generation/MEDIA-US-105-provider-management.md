@@ -71,7 +71,7 @@ AC7 仍缺真实证据：产品内成功结果均为 base64；MiniMax 正方形�
 - [浏览器供应商适配器](../../../src/app/local-provider.ts)
 - [无 Key 备份](../../../src/app/local-backup.ts)
 - [本地数据存储](../../../src/local-data/browser-media.ts)
-- [无状态代理](../../../deploy/local-first-worker.mjs)
+- [无状态代理](../../../server/cloudflare/local-first-worker.mjs)
 - [真实应用浏览器测试](../../../../aiao-media-e2e/src/local-first.spec.ts)
 
 ## References

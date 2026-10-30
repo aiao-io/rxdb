@@ -949,6 +949,7 @@ describe('runtime policy and catalog selection', () => {
       const r = rig();
       await authorizeGeneration(r);
       r.component.authConfigured.set(true);
+      r.component.targetKind.set('platform');
       r.component.ratio.set(ratio);
       vi.mocked(fetch).mockResolvedValue(
         new Response(JSON.stringify({ policy: { version: 1, revision: 3, providers: [policyEntry] } }))
@@ -974,6 +975,7 @@ describe('runtime policy and catalog selection', () => {
     const r = rig();
     await authorizeGeneration(r);
     r.component.authConfigured.set(true);
+    r.component.targetKind.set('platform');
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify({ policy: { version: 1, revision: 1, providers: [entry] } }))
     );
@@ -988,6 +990,7 @@ describe('runtime policy and catalog selection', () => {
     const r = rig();
     await authorizeGeneration(r);
     r.component.authConfigured.set(true);
+    r.component.targetKind.set('platform');
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify({ policy: { version: 1, revision, providers: [policyEntry] } }))
     );
@@ -1001,6 +1004,7 @@ describe('runtime policy and catalog selection', () => {
     const r = rig();
     await authorizeGeneration(r);
     r.component.authConfigured.set(true);
+    r.component.targetKind.set('platform');
     vi.mocked(fetch).mockResolvedValue(new Response('{"policy":null}'));
     vi.spyOn(providerApi, 'generateLocalImage').mockResolvedValue(new Blob(['png']));
     await r.component.generate();
@@ -1013,6 +1017,7 @@ describe('runtime policy and catalog selection', () => {
     const r = rig();
     await authorizeGeneration(r);
     r.component.authConfigured.set(true);
+    r.component.targetKind.set('platform');
     vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 503 }));
     const generate = vi.spyOn(providerApi, 'generateLocalImage');
     await r.component.generate();

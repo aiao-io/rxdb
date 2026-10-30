@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import worker from '../deploy/local-first-worker.mjs';
+import worker from '../server/cloudflare/local-first-worker.mjs';
 const origin = 'https://app.example.test';
 const env = {
   ALLOWED_PROVIDER_BASE_URLS: '["https://provider.example.test/v1"]',

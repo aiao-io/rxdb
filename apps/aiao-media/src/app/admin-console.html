@@ -6,6 +6,7 @@
     <button [disabled]="busy()" (click)="selectTab('templates')">模板</button>
     <button [disabled]="busy()" (click)="selectTab('policies')">供应商策略</button>
     <button [disabled]="busy()" (click)="selectTab('tasks')">任务与用量</button>
+    <button [disabled]="busy()" (click)="selectTab('platform')">平台生图与计费</button>
     <button [disabled]="busy()" (click)="selectTab('audit')">操作审计</button>
     <button [disabled]="busy()" (click)="load()">重新载入后台</button>
   </nav>
@@ -16,6 +17,9 @@
     <p class="notice" role="status">{{ message() }}</p>
   }
   @if (allowed()) {
+    @if (tab() === 'platform') {
+      <app-platform-admin [client]="client()" [identity]="identity()" />
+    }
     <fieldset [disabled]="busy()">
       @if (tab() === 'users') {
         <h2>用户列表</h2>

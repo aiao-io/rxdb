@@ -46,7 +46,8 @@ export function actualUpdateSettings(env) {
 
 export function baselineDeployConfig(source, buildA, applicationRoot = application) {
   requireCheck(
-    source.name === 'aiao-media' && resolve(source.main) === resolve(applicationRoot, 'deploy/local-first-worker.mjs'),
+    source.name === 'aiao-media' &&
+      resolve(source.main) === resolve(applicationRoot, 'server/cloudflare/local-first-worker.mjs'),
     'CURRENT_WORKER_REQUIRED'
   );
   requireCheck(

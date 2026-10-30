@@ -6,6 +6,7 @@
   "dependencies": {
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-supabase": "workspace:*",
+    "@aiao/rxdb-adapter-tauri": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-plugin-storage": "workspace:*",

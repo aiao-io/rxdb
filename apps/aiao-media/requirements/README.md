@@ -4,7 +4,7 @@
 
 本目录管理 Aiao Media 的独立产品需求，编号为 `MEDIA-US-XXX`。仓库根 `requirements/` 管理平台与领域能力，两者分别统计；通过带作用域的能力引用关联，底层故事 Done 不代表应用已接线或验收。
 
-后续产品方向见[未来功能需求与目录规划](future-requirements.md)：Web 持续优化、Tauri 安装版、Cloudflare 后端与管理页面、安全代理、免费/收费生图及排队提示、自有 Supabase/平台同步。目录结构本次只形成方案，代码随功能分阶段迁移；规划不计入已实现能力或故事状态。
+后续产品方向见[未来功能需求与目录规划](future-requirements.md)：Web 持续优化、Tauri 安装版、Cloudflare 后端与管理页面、安全代理、免费/收费生图及排队提示、自有 Supabase/平台同步。新增故事和本地实现见[产品交付计划](plans/product-completion-20261030.md)；生产服务、真实支付与正式桌面发行分别验收。
 
 ## 术语
 

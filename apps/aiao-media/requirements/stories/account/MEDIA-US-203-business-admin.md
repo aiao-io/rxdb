@@ -71,8 +71,8 @@ tags: [admin, users, templates, provider-policy, tasks, usage, supabase]
 
 ## 实现文件
 
-- [后台界面](../../../src/app/admin-console.ts)、[管理 API](../../../deploy/admin-api.mjs)、[服务端授权](../../../deploy/product-http.mjs)
-- [模板与运行策略](../../../deploy/product-content.mjs)、[任务筛选与用量](../../../deploy/product-reports.mjs)
+- [后台界面](../../../src/app/admin-console.ts)、[管理 API](../../../server/cloudflare/admin-api.mjs)、[服务端授权](../../../server/cloudflare/product-http.mjs)
+- [模板与运行策略](../../../server/cloudflare/product-content.mjs)、[任务筛选与用量](../../../server/cloudflare/product-reports.mjs)
 - [后台授权与审计](../../../infra/supabase/migrations/004-admin-foundation.sql)、[内容与上报](../../../infra/supabase/migrations/005-product-content.sql)、[可信运维授权](../../../scripts/admin-membership.mjs)
 
 ## References

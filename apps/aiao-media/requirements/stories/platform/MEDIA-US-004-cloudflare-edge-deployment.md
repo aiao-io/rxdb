@@ -60,7 +60,7 @@ tags: [cloudflare, deployment, static, relay]
 ## 实现文件
 
 - [`deploy/wrangler.json`](../../../deploy/wrangler.json) — Worker 配置。
-- [`deploy/local-first-worker.mjs`](../../../deploy/local-first-worker.mjs) — `/api/relay` 无状态代理。
+- [`server/cloudflare/local-first-worker.mjs`](../../../server/cloudflare/local-first-worker.mjs) — `/api/relay` 无状态代理。
 - [`deploy/local-first-pages.md`](../../../deploy/local-first-pages.md) — 静态部署方案与免费额度边界。
 - [`scripts/deploy-local-first.mjs`](../../../scripts/deploy-local-first.mjs) / [`scripts/check-local-first-release.mjs`](../../../scripts/check-local-first-release.mjs) — 发布与产物审查。
 - [`scripts/build-offline-assets.mjs`](../../../scripts/build-offline-assets.mjs) — 离线壳与 Service Worker。

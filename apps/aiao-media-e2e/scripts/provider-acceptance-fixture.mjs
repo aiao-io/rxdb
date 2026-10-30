@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, relative, resolve } from 'node:path';
 import sharp from 'sharp';
-import worker from '../../aiao-media/deploy/local-first-worker.mjs';
+import worker from '../../aiao-media/server/cloudflare/local-first-worker.mjs';
 import { acceptanceSelection, attemptPath, runProviderAcceptance } from './provider-acceptance.mjs';
 
 const root = resolve(import.meta.dirname, '../../aiao-media/dist/browser');

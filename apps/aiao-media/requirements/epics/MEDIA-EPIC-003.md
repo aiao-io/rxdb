@@ -1,6 +1,6 @@
 ---
 id: MEDIA-EPIC-003
-status: Done
+status: In Progress
 startDate: 2026-10-01
 targetDate: TBD
 owner: jimmy
@@ -19,6 +19,8 @@ owner: jimmy
 - [x] 跨用户管理用户、模板、供应商策略、任务与用量（[MEDIA-US-203](../stories/account/MEDIA-US-203-business-admin.md)）
 - [x] 本地作品检索、稳定分页与真实视口按需预览（[MEDIA-US-204](../stories/account/MEDIA-US-204-library-search.md)）
 
+- [ ] 平台支付、退款与生产运维（[MEDIA-US-205](../stories/account/MEDIA-US-205-platform-billing.md)）
+
 ## 故事
 
 > 只列范围；状态以 story YAML 为准，汇总见 [状态概览](../status-overview.md)。
@@ -27,6 +29,8 @@ owner: jimmy
 - [MEDIA-US-202 本地图片作品与任务历史](../stories/account/MEDIA-US-202-library.md) (High)
 - [MEDIA-US-203 跨用户业务后台管理](../stories/account/MEDIA-US-203-business-admin.md) (High)
 - [MEDIA-US-204 本地作品检索与按需预览](../stories/account/MEDIA-US-204-library-search.md) (High)
+
+- [MEDIA-US-205 平台支付、退款与生产运维](../stories/account/MEDIA-US-205-platform-billing.md) (High)
 
 ## 非目标
 

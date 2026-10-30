@@ -1,0 +1,18 @@
+[package]
+name = "aiao-media"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "=2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.5", features = [] }
+aiao-rxdb-tauri = { path = "../../../packages/rxdb-adapter-tauri/rust" }
+uuid = { version = "1", features = ["v4"] }
+rfd = "0.15"
+
+[profile.release.build-override]
+debug = true
+strip = "none"

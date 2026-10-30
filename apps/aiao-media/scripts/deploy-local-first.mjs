@@ -28,7 +28,7 @@ const allowed = [
       })
   )
 ];
-config.main = resolve(root, 'deploy/local-first-worker.mjs');
+config.main = resolve(root, 'server/cloudflare/local-first-worker.mjs');
 config.assets.directory = resolve(root, 'dist/browser');
 config.vars.ALLOWED_PROVIDER_BASE_URLS = JSON.stringify(allowed);
 const directory = resolve(root, '.wrangler/local-first');

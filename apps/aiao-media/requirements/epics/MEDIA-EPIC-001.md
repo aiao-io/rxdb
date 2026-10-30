@@ -1,6 +1,6 @@
 ---
 id: MEDIA-EPIC-001
-status: Done
+status: In Progress
 startDate: 2026-09-26
 targetDate: TBD
 owner: jimmy
@@ -17,6 +17,8 @@ owner: jimmy
 - [x] Nx / Bun 多项目开发和测试入口（[MEDIA-US-001](../stories/platform/MEDIA-US-001-nx-workspace.md)）
 - [x] Cloudflare 静态部署与可选代理、正式域名验证（[MEDIA-US-004](../stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md)）
 
+- [ ] Tauri 本地安装版（[MEDIA-US-005](../stories/platform/MEDIA-US-005-tauri-desktop.md)）
+
 ## 故事
 
 > 只列范围；状态以 story YAML 为准，汇总见 [状态概览](../status-overview.md)。
@@ -24,10 +26,12 @@ owner: jimmy
 - [MEDIA-US-001 多项目开发工作区](../stories/platform/MEDIA-US-001-nx-workspace.md) (High)
 - [MEDIA-US-004 Cloudflare 边缘代理与安全部署](../stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md) (Medium)
 
+- [MEDIA-US-005 Tauri 本地安装版](../stories/platform/MEDIA-US-005-tauri-desktop.md) (High)
+
 ## 非目标
 
 - 真实图片/声音/视频生成；见 [epic-002](MEDIA-EPIC-002.md)。
-- 服务端渲染、Bun API、PostgreSQL、桌面发行与音视频。
+- 服务端渲染、Bun API、PostgreSQL 与音视频。
 
 ## 进展
 

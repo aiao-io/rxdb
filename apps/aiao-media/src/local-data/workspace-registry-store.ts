@@ -1,6 +1,6 @@
 import { Entity, EntityBase, PropertyType, RxDB, SyncType, type RxDBEvent, type UUID } from '@aiao/rxdb';
-import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { firstValueFrom, map, type Observable } from 'rxjs';
+import { configureLocalAdapter, localAdapterName } from '../platform/local-backend';
 import { localRepository } from './local-repository';
 import type { WorkspaceRegistryState } from './workspace-registry';
 
@@ -51,19 +51,11 @@ export class WorkspaceRegistryStore {
       dbName: 'aiao-media-workspaces-v1',
       context: { userId: '00000000-0000-4000-8000-000000000000' },
       entities: [types.Group, types.Alias],
-      sync: { type: SyncType.None, local: { adapter: 'wa-sqlite' } }
+      sync: { type: SyncType.None, local: { adapter: localAdapterName } }
     });
-    db.adapter(
-      'wa-sqlite',
-      host =>
-        new RxDBAdapterWaSqlite(host, {
-          vfs: 'IDBBatchAtomicVFS',
-          async: true,
-          wasmPath: '/wa-sqlite/wa-sqlite-async.wasm'
-        })
-    );
+    await configureLocalAdapter(db);
     try {
-      await db.connect('wa-sqlite');
+      await db.connect(localAdapterName);
       return new WorkspaceRegistryStore(db, types);
     } catch (error) {
       await db.disconnectAll();

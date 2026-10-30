@@ -1,4 +1,5 @@
 import { validateTaskReport, type TaskReport } from '../contracts/product-data.mjs';
+import { apiEndpoint } from '../platform/local-backend';
 import type { ProductAuthorization } from './supabase-auth';
 
 export interface RemoteWorkspace {
@@ -41,10 +42,20 @@ export class ProductClient {
     return result as string[];
   }
 
+  /** 同步管理只访问当前已验证项目，不通过其他目标转存。 */
+  async manageSync(operation: 'status' | 'export' | 'delete', requestId?: string): Promise<unknown> {
+    const access = await this.authorize();
+    const path =
+      operation === 'delete' ? 'media_delete_remote_metadata'
+      : operation === 'export' ? 'media_export_sync'
+      : 'media_sync_status';
+    return this.remote(access, `/rpc/${path}`, operation === 'delete' ? { p_request_id: requestId } : {});
+  }
+
   async admin(path: string, method = 'GET', payload?: unknown): Promise<unknown> {
     if (!/^[a-z0-9/?=&,._%:-]+$/i.test(path) || path.startsWith('/')) throw new Error('管理请求路径无效。');
     const access = await this.authorize();
-    return this.request(`/api/admin/${path}`, {
+    return this.request(apiEndpoint(`/api/admin/${path}`), {
       method,
       headers: { authorization: `Bearer ${access.session.access_token}`, 'content-type': 'application/json' },
       ...(payload === undefined ? {} : { body: JSON.stringify(payload) })

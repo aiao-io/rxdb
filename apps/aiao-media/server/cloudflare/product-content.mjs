@@ -1,4 +1,4 @@
-import { validateProviderPolicy, validatePublishedTemplate } from '../src/contracts/product-data.mjs';
+import { validateProviderPolicy, validatePublishedTemplate } from '../../src/contracts/product-data.mjs';
 import { backend, body, fields, reject, uuid } from './product-http.mjs';
 
 export function validateContent(kind, payload) {

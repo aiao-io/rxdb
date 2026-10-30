@@ -763,6 +763,9 @@ importers:
       '@aiao/rxdb-adapter-supabase':
         specifier: workspace:*
         version: link:../../packages/rxdb-adapter-supabase
+      '@aiao/rxdb-adapter-tauri':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-adapter-tauri
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
         version: link:../../packages/rxdb-adapter-wa-sqlite

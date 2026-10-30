@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { handleAdmin } from '../deploy/admin-api.mjs';
+import { handleAdmin } from '../server/cloudflare/admin-api.mjs';
 
 const userId = '00000000-0000-4000-8000-000000000001';
 const env = {
@@ -95,7 +95,7 @@ test('跨 origin 管理写入被拒绝', async () => {
 });
 
 test('运行策略实际限制代理启停、模型和画幅，并返回生效版本', async () => {
-  const { default: worker } = await import('../deploy/local-first-worker.mjs');
+  const { default: worker } = await import('../server/cloudflare/local-first-worker.mjs');
   const previous = globalThis.fetch;
   const target = 'https://provider.example.test/v1';
   let enabled = false,
@@ -164,7 +164,7 @@ test('运行策略实际限制代理启停、模型和画幅，并返回生效�
 });
 
 test('用量汇总保留已知小计和每个指标的未知条数', async () => {
-  const { reports } = await import('../deploy/product-reports.mjs');
+  const { reports } = await import('../server/cloudflare/product-reports.mjs');
   const rows = [
     { payload: { source: 'application', requestCount: 1, providerUnits: null, verifiedCost: null, currency: null } },
     { payload: { source: 'application', requestCount: null, providerUnits: null, verifiedCost: null, currency: null } }

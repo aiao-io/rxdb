@@ -7,6 +7,7 @@ import {
   type TaskReport
 } from '../contracts/product-data.mjs';
 import { imageMvpCatalog } from './image-mvp-catalog';
+import { PlatformAdmin } from './platform-admin';
 import type { ProductClient } from './product-client';
 import type { PromptTemplate } from './prompts/prompt-catalog';
 
@@ -57,11 +58,11 @@ interface AuditEntry {
   target_id: string;
   created_at: string;
 }
-type AdminTab = 'users' | 'templates' | 'policies' | 'tasks' | 'audit';
+type AdminTab = 'users' | 'templates' | 'policies' | 'tasks' | 'audit' | 'platform';
 
 @Component({
   selector: 'app-admin-console',
-  imports: [FormsModule],
+  imports: [FormsModule, PlatformAdmin],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './admin-console.html',
   styleUrl: './admin-console.css'
@@ -290,6 +291,7 @@ export class AdminConsole {
     }
   }
   private async readTab(): Promise<() => void> {
+    if (this.tab() === 'platform') return () => undefined;
     if (this.tab() === 'users') {
       const data = (await this.client().admin(`users?page=${this.page()}&perPage=25`)) as { users: AdminUser[] };
       return () => {

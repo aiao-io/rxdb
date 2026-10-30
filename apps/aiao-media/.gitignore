@@ -12,3 +12,8 @@ public/app-config.js
 infra/supabase/.env
 infra/supabase/kong.yml
 deploy/.dev.vars
+
+public/sync-setup.sql
+src-tauri/target/
+src-tauri/gen/
+desktop-dist/

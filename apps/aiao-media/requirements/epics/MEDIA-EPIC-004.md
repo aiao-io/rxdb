@@ -1,6 +1,6 @@
 ---
 id: MEDIA-EPIC-004
-status: Done
+status: In Progress
 startDate: 2026-10-01
 targetDate: TBD
 owner: TBD
@@ -17,12 +17,16 @@ owner: TBD
 - [x] 浏览器本地草稿、图片与配置可靠持久化（[MEDIA-US-301](../stories/local-first/MEDIA-US-301-browser-persistence.md)）
 - [x] 账号 + Supabase 同步与冲突处理（[MEDIA-US-302](../stories/local-first/MEDIA-US-302-draft-sync.md)）
 
+- [ ] 自有 Supabase 与平台同步目标管理（[MEDIA-US-303](../stories/local-first/MEDIA-US-303-sync-targets.md)）
+
 ## 故事
 
 > 只列范围；状态以 story YAML 为准，汇总见 [状态概览](../status-overview.md)。
 
 - [MEDIA-US-301 浏览器本地草稿与图片持久化](../stories/local-first/MEDIA-US-301-browser-persistence.md) (High)
 - [MEDIA-US-302 多端草稿同步与冲突处理](../stories/local-first/MEDIA-US-302-draft-sync.md) (Medium)
+
+- [MEDIA-US-303 自有 Supabase 与平台同步目标管理](../stories/local-first/MEDIA-US-303-sync-targets.md) (High)
 
 ## 非目标
 

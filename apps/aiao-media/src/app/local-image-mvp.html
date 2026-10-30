@@ -232,7 +232,7 @@
           }}
           ↗
         </button>
-        <div class="under-button">需要联网 · 成功后保存到当前浏览器</div>
+        <div class="under-button">需要联网 · 成功后保存到{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}</div>
       </section>
       <section class="result-panel" aria-label="生成结果" aria-live="polite">
         <div class="result-toolbar">
@@ -267,6 +267,9 @@
                 class="primary"
                 [download]="'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!)"
                 [href]="url"
+                (click)="
+                  downloadImage($event, url, 'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!))
+                "
               >
                 ↓ 下载图片
               </a>
@@ -318,8 +321,25 @@
     @if (error()) {
       <div class="notice" role="status">{{ error() }}</div>
     }
+    @defer (when authConfigured()) {
+      @if (targetKind() === 'platform') {
+        <app-platform-studio
+          [client]="adminApi"
+          [identity]="authUser()?.id ?? ''"
+          [prompt]="serialized().text"
+          [scope]="currentProfileId()"
+          [size]="
+            ratio() === 'landscape' ? '1536x1024'
+            : ratio() === 'portrait' ? '1024x1536'
+            : '1024x1024'
+          "
+          [valid]="serialized().valid && editorReady() && localStatus() === 'ready' && !inFlight()"
+          (received)="receivePlatformResult($event)"
+        />
+      }
+    }
     <div class="privacy-line">
-      <span>◈ 图片保存在当前浏览器，请及时下载重要作品。</span>
+      <span>◈ 图片保存在{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}，请及时下载重要作品。</span>
       <button (click)="navigate('library')">查看我的图片 →</button>
     </div>
   }
@@ -443,7 +463,13 @@
             </div>
             <div class="work-actions">
               @if (w.url) {
-                <a [download]="'aiao-' + w.jobId + '.' + imageExtension(w.mimeType!)" [href]="w.url">↓ 下载图片</a>
+                <a
+                  [download]="'aiao-' + w.jobId + '.' + imageExtension(w.mimeType!)"
+                  [href]="w.url"
+                  (click)="downloadImage($event, w.url, 'aiao-' + w.jobId + '.' + imageExtension(w.mimeType!), w.jobId)"
+                >
+                  ↓ 下载图片
+                </a>
               }
               <button (click)="reuseWork(w)">复用提示词</button>
               <button (click)="deleteWork(w)" aria-label="删除本机图片">删除</button>
@@ -545,12 +571,35 @@
       <div>
         <span class="eyebrow">YOUR PROVIDER. YOUR CHOICE.</span>
         <h1>供应商设置</h1>
-        <p>无需登录。配置、草稿、任务记录和作品保存在当前浏览器。</p>
+        <p>无需登录。配置、草稿、任务记录和作品保存在{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}。</p>
       </div>
     </section>
+    @defer (when view() === 'providers') {
+      <app-sync-target-settings
+        [busy]="settingsBusy() || targetBusy()"
+        [configured]="authConfigured()"
+        [kind]="targetKind()"
+        [message]="targetMessage()"
+        [nativeMode]="nativeMode"
+        [platformAvailable]="platformAvailable()"
+        [publicKey]="targetKey()"
+        [url]="targetUrl()"
+        (changeTarget)="changeSyncTarget($event)"
+        (keyChanged)="targetKey.set($event)"
+        (login)="openAuth($event)"
+        (urlChanged)="targetUrl.set($event)"
+      />
+    }
     <section class="local-data-panel" aria-label="本地数据管理">
       <h2>本地数据与备份</h2>
-      <p>{{ storageInfo() }} · {{ offlineReady() ? '离线资源已准备好' : '正在准备离线资源，首次需要联网' }}</p>
+      <p>
+        {{ storageInfo() }} ·
+        {{
+          nativeMode ? '离线界面已随安装包提供'
+          : offlineReady() ? '离线资源已准备好'
+          : '正在准备离线资源，首次需要联网'
+        }}
+      </p>
       <p>
         备份包含原图、提示词、草稿和供应商配置，固定排除 API Key。单个备份最多 64
         MiB。恢复会切换到独立工作区，原工作区保留；校验失败不切换。
@@ -568,7 +617,9 @@
             type="file"
           />
         </label>
-        <button class="secondary" (click)="requestPersistence()">申请持久存储</button>
+        @if (!nativeMode) {
+          <button class="secondary" (click)="requestPersistence()">申请持久存储</button>
+        }
       </div>
       @if (dataMessage()) {
         <p class="notice" role="status">{{ dataMessage() }}</p>
@@ -674,12 +725,13 @@
           />
           <label class="checkbox-label">
             <input
+              [disabled]="nativeMode"
               [ngModel]="rememberKey()"
               (ngModelChange)="rememberKey.set($event)"
               name="rememberKey"
               type="checkbox"
             />
-            在此设备记住 Key
+            {{ nativeMode ? '桌面 Key 仅本次会话' : '在此设备记住 Key' }}
           </label>
           <small>默认只在当前页面内存使用。勾选后保存在本机 RxDB；同源脚本或能访问浏览器数据的人可读取它。</small>
           <label for="provider-mode">请求通道</label>
@@ -772,7 +824,18 @@
           登录不会上传本机内容。启用同步后，仅同步草稿、供应商公开配置和作品信息；API Key 和原图留在本机。
         </p>
         <section aria-label="工作区同步">
-          <p role="status">{{ syncLabel() }}</p>
+          <button class="secondary" (click)="inspectRemoteQuota()">检查远端配额</button>
+          <button class="secondary" (click)="exportRemoteMetadata()">导出远端元数据</button>
+          <button class="secondary" [disabled]="settingsBusy()" (click)="deleteRemoteMetadata()">
+            删除远端当前元数据
+          </button>
+          @if (remoteQuota()) {
+            <p>{{ remoteQuota() }}</p>
+          }
+          <p role="status">{{ syncLabel() }} · {{ targetKind() === 'custom' ? '自己的 Supabase' : '平台账号' }}</p>
+          @if (lastSyncedAt()) {
+            <p>最近成功：{{ lastSyncedAt() }}</p>
+          }
           @if (sync().message) {
             <p class="notice" role="status">{{ sync().message }}</p>
           }
@@ -804,6 +867,7 @@
             <button class="primary" [disabled]="settingsBusy()" (click)="synchronize()">
               {{ sync().busy ? '正在同步…' : '立即同步' }}
             </button>
+            <button class="secondary" [disabled]="settingsBusy()" (click)="stopSync()">停止同步</button>
             <button class="secondary" [disabled]="settingsBusy()" (click)="rescanSync()">重新扫描远程记录</button>
             <button class="secondary" [disabled]="settingsBusy()" (click)="reportTasks()">上报本机任务</button>
             <button class="secondary" [disabled]="settingsBusy() || sync().draftDeleted" (click)="deleteSyncedDraft()">
@@ -860,7 +924,9 @@
         @if (authMessage()) {
           <p class="notice" role="status">{{ authMessage() }}</p>
         }
-        <a (click)="navigate('admin', $event); closeAuth()" href="/admin">业务管理后台</a>
+        @if (targetKind() === 'platform') {
+          <a (click)="navigate('admin', $event); closeAuth()" href="/admin">业务管理后台</a>
+        }
         <button class="secondary" [disabled]="authBusy()" (click)="signOut()">
           {{ authBusy() ? '正在退出…' : '退出账号' }}
         </button>

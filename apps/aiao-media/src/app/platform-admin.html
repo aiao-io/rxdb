@@ -1,0 +1,89 @@
+<section class="local-data-panel" aria-label="平台生图运维">
+  <h2>平台生图与计费</h2>
+  <p>平台权威任务、预占和支付流水。用户自有供应商的客户端上报在“任务与用量”中单独查看。</p>
+  <button class="secondary" (click)="load()">刷新平台状态</button>
+  @if (message()) {
+    <p role="status">{{ message() }}</p>
+  }
+  @if (data(); as data) {
+    <fieldset [disabled]="busy()">
+      <label>
+        操作原因
+        <input [ngModel]="note()" (ngModelChange)="note.set($event)" maxlength="500" />
+      </label>
+      <h3>接单与预算</h3>
+      <label>
+        <input [ngModel]="policy().enabled" (ngModelChange)="updatePolicy('enabled', $event)" type="checkbox" />
+        接受新任务
+      </label>
+      <label>
+        并发数（1–5）
+        <input
+          [ngModel]="policy().concurrency"
+          (ngModelChange)="updatePolicy('concurrency', $event)"
+          max="5"
+          min="1"
+          type="number"
+        />
+      </label>
+      <label>
+        队列容量
+        <input [ngModel]="policy().capacity" (ngModelChange)="updatePolicy('capacity', $event)" type="number" />
+      </label>
+      <label>
+        每用户每日免费次数
+        <input [ngModel]="policy().freeDaily" (ngModelChange)="updatePolicy('freeDaily', $event)" type="number" />
+      </label>
+      <label>
+        每日供应商预算（USD 微元，含预占；模型成本由运维配置）
+        <input
+          [ngModel]="policy().dailyBudgetMicros"
+          (ngModelChange)="updatePolicy('dailyBudgetMicros', $event)"
+          type="number"
+        />
+      </label>
+      <button (click)="savePolicy()">保存接单策略</button>
+      <h3>积分包价格</h3>
+      <label>
+        积分数
+        <input [ngModel]="priceCredits()" (ngModelChange)="priceCredits.set($event)" type="number" />
+      </label>
+      <label>
+        价格（美分）
+        <input [ngModel]="priceAmount()" (ngModelChange)="priceAmount.set($event)" type="number" />
+      </label>
+      <button (click)="savePrice()">发布 USD 价格</button>
+      <h3>订单与退款</h3>
+      <label>
+        订单号
+        <input [ngModel]="orderId()" (ngModelChange)="orderId.set($event)" />
+      </label>
+      <button (click)="refund()">核对并退款</button>
+      @for (order of data.orders; track order.id) {
+        <p>{{ order.id }} · {{ order.owner }} · {{ order.paid ? '已支付' : '待支付' }} · {{ order.payload }}</p>
+      }
+      <h3>任务与未知结果</h3>
+      @for (job of data.jobs; track job.id) {
+        <article class="notice">
+          <p>{{ job.id }} · {{ job.owner }} · {{ job.model }} · {{ job.status }}</p>
+          @if (job.status === 'needs_review') {
+            <button (click)="resolve(job, 'completed')">恢复已保存原图</button>
+            <button (click)="resolve(job, 'failed')">已核对未交付，释放额度</button>
+          }
+        </article>
+      }
+      <h3>供应商预算占用（含未知结果，非供应商账单）</h3>
+      @for (budget of data.budget; track budget.day) {
+        <p>{{ budget.day }} · {{ budget.used }} USD 微元</p>
+      }
+      <h3>平台权威流水</h3>
+      @for (entry of data.ledger; track entry.id) {
+        <p>{{ entry.reference }} · {{ entry.owner }} · {{ entry.action }} · {{ entry.amount }} 积分</p>
+      }
+      <h3>操作审计</h3>
+      @for (entry of data.audit; track entry.id) {
+        <p>{{ entry.actor }} · {{ entry.action }} · {{ entry.target }} · {{ entry.detail }}</p>
+      }
+    </fieldset>
+  }
+</section>

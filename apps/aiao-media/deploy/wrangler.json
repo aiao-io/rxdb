@@ -8,7 +8,21 @@
     "run_worker_first": ["/api/*"]
   },
   "compatibility_date": "2026-10-23",
-  "main": "local-first-worker.mjs",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MEDIA_PLATFORM",
+        "class_name": "PlatformCoordinator"
+      }
+    ]
+  },
+  "main": "../server/cloudflare/local-first-worker.mjs",
+  "migrations": [
+    {
+      "tag": "media-platform-v1",
+      "new_sqlite_classes": ["PlatformCoordinator"]
+    }
+  ],
   "name": "aiao-media",
   "observability": {
     "enabled": false
@@ -20,7 +34,8 @@
     }
   ],
   "vars": {
-    "ALLOWED_PROVIDER_BASE_URLS": "[]"
+    "ALLOWED_PROVIDER_BASE_URLS": "[]",
+    "MEDIA_ALLOW_DESKTOP_ORIGIN": "true"
   },
   "workers_dev": true
 }

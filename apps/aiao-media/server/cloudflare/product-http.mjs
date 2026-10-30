@@ -28,9 +28,15 @@ export async function endpoint(operation) {
     );
   }
 }
-export function sameOriginWrite(request) {
-  if (!['GET', 'HEAD'].includes(request.method) && request.headers.get('origin') !== new URL(request.url).origin)
-    reject(403, '仅允许同源操作。');
+export function originAllowed(request, env = {}) {
+  const origin = request.headers.get('origin');
+  return (
+    origin === new URL(request.url).origin ||
+    (env.MEDIA_ALLOW_DESKTOP_ORIGIN === 'true' && origin === 'tauri://localhost')
+  );
+}
+export function sameOriginWrite(request, env = {}) {
+  if (!['GET', 'HEAD'].includes(request.method) && !originAllowed(request, env)) reject(403, '仅允许同源操作。');
 }
 export function fields(value, allowed) {
   if (
@@ -117,7 +123,7 @@ export function backend(env) {
   };
 }
 export async function administrator(request, env) {
-  sameOriginWrite(request);
+  sameOriginWrite(request, env);
   const token = /^Bearer ([A-Za-z0-9._~-]+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   if (!token) reject(401, '请先登录。');
   const client = backend(env);

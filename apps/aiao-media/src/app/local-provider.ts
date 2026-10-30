@@ -1,6 +1,7 @@
 import { ImageFormatError, imageMetadata, validateImageBlob } from '../contracts/image-format';
 import { imageGenerationRequest, isMiniMaxImageProvider } from '../contracts/image-provider-protocol';
 import type { ImageAspectRatio } from '../contracts/index';
+import { apiEndpoint } from '../platform/local-backend';
 
 export interface LocalProvider {
   id: string;
@@ -126,7 +127,7 @@ export async function generateLocalImage(
   };
   const request = imageGenerationRequest(base, body);
   if (!request) throw new ProviderFailure('MiniMax 图片仅支持 image-01，提示词最多 1500 字符。', true);
-  const response = await fetch(provider.mode === 'proxy' ? '/api/relay' : request.url, {
+  const response = await fetch(provider.mode === 'proxy' ? apiEndpoint('/api/relay') : request.url, {
     method: 'POST',
     mode: 'cors',
     credentials: 'omit',

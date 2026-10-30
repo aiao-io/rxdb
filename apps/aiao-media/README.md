@@ -6,6 +6,8 @@ Local-first 图片创作应用：发现灵感 → Tiptap 编辑提示词 → 使
 
 迁入来源与兼容验证见[迁移验收](requirements/plans/rxdb-import-verification.md)。应用需求在本目录内独立维护，平台需求仍位于仓库根。
 
+桌面安装版、平台生图与计费、自有 Supabase 接入和同步管理的当前实现与未验边界见[产品交付计划](requirements/plans/product-completion-20261030.md)。本地安装说明见 [Tauri](src-tauri/README.md)，平台配置见[服务部署](deploy/platform-services.md)。
+
 ## 运行
 
 需要 Node.js >=26、pnpm 10，以及支持 OPFS、Web Locks、WASM 的现代浏览器。前端不需要 `.env` 或数据库。
@@ -22,7 +24,7 @@ pnpm nx run aiao-media:serve
 模型 ID 使用 1–128 位英数字、点、下划线、冒号或短横线。支持读取 `b64_json` 或允许跨域读取的 HTTPS 图片 URL，不代表兼容所有图片 API。
 
 - **浏览器直连，自建配置默认**：Key 和提示词直接发给供应商，本站不接收。供应商 API 和结果图片均须支持 CORS。
-- **本站代理，明确选择或预设声明**：本次 Key 和参数经本站 Worker 转发；Worker 无数据库、无 Key 持久化、无结果缓存，仅允许运营配置的供应商前缀。开发服务器不带代理；生产预览使用 `aiao-media:preview`。
+- **本站代理，明确选择或预设声明**：本次 Key 和参数经本站 Worker 转发；此 relay 不持久化 Key 或结果，不使用业务数据库，仅允许运营配置的供应商前缀。开发服务器不带代理；生产预览使用 `aiao-media:preview`。
 - 默认 Key 只保留在当前页面内存。勾选“在此设备记住 Key”后，写入本机专门的凭据记录；配置、任务记录和备份不包含凭据。
 - 请求发送前先写本机任务记录。超时、CORS、断网或刷新后结果不确定时不自动重发、不自动切换代理。用户核对供应商记录后才能解除锁定。
 

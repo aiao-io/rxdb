@@ -1,7 +1,6 @@
 import type { TransactionExecutor } from '@aiao/rxdb';
 import { Entity, EntityBase, PropertyType, RxDB, RxDBSync, SyncType, type Conflict, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterSupabase } from '@aiao/rxdb-adapter-supabase';
-import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { firstValueFrom } from 'rxjs';
@@ -16,6 +15,7 @@ import {
   type ProductRecordPayload,
   type TaskReport
 } from '../contracts/product-data.mjs';
+import { configureLocalAdapter, localAdapterName } from '../platform/local-backend';
 import { splitReportBatches } from './report-batches';
 import SupabaseSDK = require('@supabase/supabase-js');
 type SupabaseClient = SupabaseSDK.SupabaseClient;
@@ -216,18 +216,10 @@ export class ProductSyncStore {
         types.Baseline,
         types.Acknowledged
       ],
-      sync: { type: SyncType.Full, local: { adapter: 'wa-sqlite' }, remote: { adapter: 'supabase' } }
+      sync: { type: SyncType.Full, local: { adapter: localAdapterName }, remote: { adapter: 'supabase' } }
     });
     db.use(rxDBPluginHistory).use(rxDBPluginSync);
-    db.adapter(
-      'wa-sqlite',
-      host =>
-        new RxDBAdapterWaSqlite(host, {
-          vfs: 'IDBBatchAtomicVFS',
-          async: true,
-          wasmPath: '/wa-sqlite/wa-sqlite-async.wasm'
-        })
-    );
+    await configureLocalAdapter(db);
     db.adapter(
       'supabase',
       host =>
@@ -245,7 +237,7 @@ export class ProductSyncStore {
       if (result.error || result.data.user?.id !== authorization.userId) throw new Error('当前同步账号未验证。');
       const allowed = await client.from('media_workspaces').select('id').eq('id', workspaceId).single();
       if (allowed.error || allowed.data?.id !== workspaceId) throw new Error('同步工作区授权已失效，本机数据保留。');
-      await db.connect('wa-sqlite');
+      await db.connect(localAdapterName);
       await db.connect('supabase');
       return store;
     } catch (error) {

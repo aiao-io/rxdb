@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { concatMap, EMPTY, merge, Subscription } from 'rxjs';
-import { imageExtension, type ImageMimeType } from '../contracts/image-format';
+import { imageExtension, validateImageBlob, type ImageMimeType } from '../contracts/image-format';
 import type { GenerationJobSummary, ImageAspectRatio } from '../contracts/index';
 import {
   productRecordId,
@@ -31,6 +31,15 @@ import {
   type WorkspaceRegistryState
 } from '../local-data/workspace-registry';
 import type { WorkspaceRegistryStore } from '../local-data/workspace-registry-store';
+import {
+  apiEndpoint,
+  initialProfile,
+  interceptDownload,
+  nativeBackend,
+  persistNativeProfile,
+  saveDownload
+} from '../platform/local-backend';
+import { SyncTargetSettings } from './account/sync-target-settings';
 import { AdminConsole } from './admin-console';
 import { DEFAULT_FREE_PROVIDER, DEFAULT_FREE_PROVIDER_ID, defaultFreeProvider } from './default-provider';
 import { imageMvpCatalog } from './image-mvp-catalog';
@@ -41,6 +50,8 @@ import {
   publicProvider,
   type LocalProvider
 } from './local-provider';
+import type { PlatformJob } from './platform-client';
+import { PlatformStudio } from './platform-studio';
 import { ProductClient } from './product-client';
 import { ProductWorkspaceController, type ProductWorkspaceState } from './product-workspace';
 import { applyIssue, templateState, type PromptTemplate } from './prompts/prompt-catalog';
@@ -54,6 +65,7 @@ import {
   type SupabaseAuthState,
   type SupabaseAuthUser
 } from './supabase-auth';
+import { readSyncTarget, saveSyncTarget, verifySyncTarget, type SyncTarget } from './sync-target';
 import { WorkLibrarySession, type LibraryState, type LibraryWork } from './work-library-session';
 import { WorkMetadataSession } from './work-metadata-session';
 import { WorkVisibleDirective } from './work-visible.directive';
@@ -62,7 +74,7 @@ import { WorkspaceSession } from './workspace-session';
 type View = 'discover' | 'studio' | 'library' | 'providers' | 'admin';
 type Work = LibraryWork;
 type LocalTask = GenerationJobSummary & {
-  channel?: 'direct' | 'proxy';
+  channel?: 'direct' | 'proxy' | 'platform';
   saved?: boolean;
   acknowledged?: boolean;
 };
@@ -89,7 +101,7 @@ const emptyLibrary = (): LibraryState => ({
 });
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, PromptInput, AdminConsole, WorkVisibleDirective],
+  imports: [FormsModule, PromptInput, AdminConsole, WorkVisibleDirective, PlatformStudio, SyncTargetSettings],
   templateUrl: './local-image-mvp.html',
   host: { class: 'image-mvp' },
   encapsulation: ViewEncapsulation.None,
@@ -166,6 +178,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (!this.auth) throw new Error('账号服务不可用。');
     return this.auth.authorizeProduct();
   });
+  readonly nativeMode = nativeBackend;
   readonly view = signal<View>('discover');
   readonly templates = signal(imageMvpCatalog);
   readonly selectedVersion = signal(1);
@@ -234,6 +247,15 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly error = signal('');
   readonly toast = signal('');
   readonly feedbackOpen = signal(false);
+  readonly targetKind = signal<SyncTarget['kind']>('disconnected');
+  readonly targetUrl = signal('');
+  readonly targetKey = signal('');
+  readonly targetMessage = signal('');
+  readonly targetBusy = signal(false);
+  readonly syncPaused = signal(false);
+  readonly lastSyncedAt = signal('');
+  readonly remoteQuota = signal('');
+  readonly platformAvailable = signal(false);
   readonly authConfigured = signal(false);
   readonly authStatus = signal<SupabaseAuthState['status']>('signed-out');
   readonly authConfigError = signal('');
@@ -298,28 +320,14 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   ngOnInit() {
     this.view.set(routeView(location.pathname));
     try {
-      const config = readSupabaseAuthConfig();
-      if (config) {
-        this.auth = new SupabaseAuthClient(config);
-        this.authConfigured.set(true);
-        void this.loadCatalog();
-        this.unsubscribeAuth = this.auth.subscribe(state => {
-          this.syncReady.set(false);
-          this.authUser.set(state.user);
-          this.authStatus.set(state.status);
-          this.authMessage.set(state.message);
-          this.product?.pause();
-          this.identitySelection = null;
-          this.refreshProfiles();
-          void this.reconcileIdentity();
-        });
-        void this.restoreAuth();
-      }
+      const platform = readSupabaseAuthConfig();
+      this.platformAvailable.set(platform !== null);
+      this.configureTarget(readSyncTarget(localStorage, platform));
     } catch {
       this.authConfigError.set('账号服务配置无效，请联系部署方。本机创作仍可继续。');
     }
     void this.openLocal();
-    if ('serviceWorker' in navigator) {
+    if (!nativeBackend && 'serviceWorker' in navigator) {
       void navigator.serviceWorker
         .register('/offline-worker.js', {
           scope: '/',
@@ -330,13 +338,15 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         .then(() => this.offlineReady.set(true))
         .catch(() => undefined);
     }
-    void navigator.storage
-      ?.estimate()
-      .then(info =>
-        this.storageInfo.set(
-          `本机已用 ${Math.ceil((info.usage ?? 0) / 1024 / 1024)} MiB / 约 ${Math.floor((info.quota ?? 0) / 1024 / 1024)} MiB 可用配额`
-        )
-      );
+    if (nativeBackend) this.storageInfo.set('SQLite 数据库与原图保存在原生应用数据目录，可用空间由系统文件系统决定');
+    else
+      void navigator.storage
+        ?.estimate()
+        .then(info =>
+          this.storageInfo.set(
+            `本机已用 ${Math.ceil((info.usage ?? 0) / 1024 / 1024)} MiB / 约 ${Math.floor((info.quota ?? 0) / 1024 / 1024)} MiB 可用配额`
+          )
+        );
   }
   ngOnDestroy() {
     this.disposed = true;
@@ -381,6 +391,41 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   openTemplate(template: PromptTemplate, event: Event) {
     this.dialogTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     this.detail.set(template);
+  }
+  async changeSyncTarget(kind: SyncTarget['kind']) {
+    if (this.settingsBusy() || this.targetBusy()) return;
+    this.targetBusy.set(true);
+    this.targetMessage.set('');
+    try {
+      const config =
+        kind === 'platform' ? readSupabaseAuthConfig()
+        : kind === 'custom' ? { url: this.targetUrl(), anonKey: this.targetKey() }
+        : null;
+      if (kind !== 'disconnected' && !config) throw new Error('平台账号服务尚未启用。');
+      const target = kind === 'disconnected' ? ({ kind, config: null } as const) : { kind, config: config! };
+      if (kind === 'custom' && new URL(config!.url).origin === readSupabaseAuthConfig()?.url)
+        throw new Error('此项目是平台同步目标，请选择平台账号。');
+      if (!window.confirm('切换同步目标并停止当前复制？本机数据和远端数据保留；新目标须重新登录和确认上传。')) return;
+      await this.checkpoint();
+      saveSyncTarget(localStorage, target);
+      this.configureTarget(target);
+      await this.reconcileIdentity();
+      this.targetMessage.set(
+        kind === 'disconnected' ? '已断开同步；本机和远端数据保留。' : (
+          '目标已选择，请登录此项目并检查兼容性，再确认同步。'
+        )
+      );
+    } catch (error) {
+      this.targetMessage.set(error instanceof Error ? error.message : '同步目标切换失败，原数据保留。');
+    } finally {
+      this.targetBusy.set(false);
+    }
+  }
+  stopSync() {
+    this.product?.pause();
+    this.syncPaused.set(true);
+    localStorage.setItem(this.syncPauseKey(), '1');
+    this.authMessage.set('同步已停止。本机内容保留，远端数据未删除。');
   }
   async restoreAuth() {
     await this.auth?.restore();
@@ -428,7 +473,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     try {
       await this.auth.signOut();
       if (!this.disposed) {
-        this.authMessage.set('已退出账号。本机数据保留在当前浏览器。');
+        this.authMessage.set(
+          nativeBackend ? '已退出账号。本机数据保留在此应用目录。' : '已退出账号。本机数据保留在当前浏览器。'
+        );
         this.notify('已退出账号');
       }
     } catch {
@@ -476,7 +523,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         model,
         baseUrl: providerBase(this.baseUrl()),
         mode: this.mode(),
-        rememberKey: this.rememberKey() && Boolean(key)
+        rememberKey: !nativeBackend && this.rememberKey() && Boolean(key)
       };
       const seededDefaultOnly =
         !this.editingId() && this.providers().length === 1 && this.providers()[0].id === DEFAULT_FREE_PROVIDER_ID;
@@ -680,6 +727,54 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.error.set('无法保存核对记录，请重试。');
     }
   }
+  async receivePlatformResult(event: { job: PlatformJob; blob: Blob; ownerId: string; scope: string }) {
+    if (
+      this.settingsBusy() ||
+      !this.store ||
+      event.scope !== this.profileId ||
+      event.ownerId !== this.authUser()?.id ||
+      this.targetKind() !== 'platform'
+    )
+      return;
+    this.sending.set(true);
+    try {
+      await validateImageBlob(event.blob);
+      const now = new Date().toISOString();
+      const task: LocalTask = {
+        id: event.job.id,
+        channel: 'platform',
+        request: {
+          kind: 'image',
+          operation: 'text-to-image',
+          providerInstanceId: '00000000-0000-4000-8000-000000000001',
+          providerRevision: 1,
+          modelId: event.job.model,
+          prompt: event.job.prompt,
+          aspectRatio:
+            event.job.size === '1536x1024' ? 'landscape'
+            : event.job.size === '1024x1536' ? 'portrait'
+            : 'square'
+        },
+        status: 'completed',
+        createdAt: event.job.createdAt,
+        updatedAt: now,
+        delivery: { status: 'available', expiresAt: null, acknowledgedAt: null },
+        failure: null
+      };
+      this.revokeResult();
+      this.resultBlob = event.blob;
+      this.resultMimeType.set(event.blob.type as ImageMimeType);
+      this.resultUrl.set(URL.createObjectURL(event.blob));
+      this.job.set(task);
+      this.saved.set(false);
+      await this.writeTask(task);
+      await this.saveResult();
+    } catch (error) {
+      this.storageMessage.set(error instanceof Error ? error.message : '平台图片本机保存未完成，请重试读取原图。');
+    } finally {
+      this.sending.set(false);
+    }
+  }
   async saveResult() {
     const job = this.job(),
       blob = this.resultBlob,
@@ -850,6 +945,19 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   retryWork(work: Work) {
     this.library?.retry(work.jobId);
   }
+  async downloadImage(event: Event, url: string, name: string, jobId?: string) {
+    const store = this.store,
+      blob = this.resultBlob;
+    try {
+      await interceptDownload(event, url, name, async () => {
+        if (jobId && store) return (await store.backupImage(jobId)).blob;
+        if (blob) return blob;
+        throw new Error('原图暂不可读。');
+      });
+    } catch {
+      this.notify('文件保存未完成，请重试；原图保留。');
+    }
+  }
   async exportBackup() {
     if (!this.store || this.inFlight() || this.dataBusy()) return;
     this.dataBusy.set(true);
@@ -862,12 +970,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         const { createLocalBackup } = await import('./local-backup');
         if (!this.store) throw new Error('本机工作区不可用。');
         const blob = await createLocalBackup(this.store, this.providers(), this.providerId(), this.history());
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `aiao-backup-${new Date().toISOString().slice(0, 10)}.json`;
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        if (!(await saveDownload(blob, `aiao-backup-${new Date().toISOString().slice(0, 10)}.json`))) {
+          this.dataMessage.set('已取消导出，原数据保留。');
+          return;
+        }
         this.dataMessage.set('备份已导出，包含原图、草稿、配置和任务记录，不含 API Key。');
       });
     } catch (e) {
@@ -933,6 +1039,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
             await next.close();
           }
           localStorage.setItem('aiao-local-previous-profile-v1', this.profileId);
+          await persistNativeProfile(nextId);
           localStorage.setItem('aiao-local-profile-v1', nextId);
           localStorage.removeItem(stagingKey);
           location.reload();
@@ -959,6 +1066,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     }
   }
   @HostListener('window:storage', ['$event']) onWorkspaceChanged(event: StorageEvent) {
+    if (event.key === this.syncPauseKey() && event.newValue === '1') {
+      this.product?.pause();
+      this.syncPaused.set(true);
+      return;
+    }
     if (event.key !== 'aiao-local-profile-v1' || event.newValue === this.profileId) return;
     void this.followWorkspace(event.newValue).catch(() =>
       this.storageMessage.set('工作区已变化；当前输入尚未保存，请处理后刷新。')
@@ -971,15 +1083,25 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       return;
     }
     this.authMessage.set('');
-    await product.requestEnable();
+    try {
+      if (this.targetKind() === 'custom') await verifySyncTarget(await this.adminApi.authorization());
+      this.syncPaused.set(false);
+      await product.requestEnable();
+    } catch (error) {
+      this.authMessage.set(error instanceof Error ? error.message : '同步项目检查失败。');
+    }
   }
   async confirmSync() {
+    localStorage.removeItem(this.syncPauseKey());
+    this.syncPaused.set(false);
     await this.product?.confirmEnable();
   }
   cancelSync() {
     this.product?.cancelEnable();
   }
   async synchronize() {
+    localStorage.removeItem(this.syncPauseKey());
+    this.syncPaused.set(false);
     await this.product?.synchronize();
   }
   async rescanSync() {
@@ -991,6 +1113,46 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   async reportTasks() {
     if (window.confirm('上报本机任务的状态、模型、供应商标识和用量来源？不包含提示词、图片或 API Key。'))
       await this.product?.reportTasks();
+  }
+  async inspectRemoteQuota() {
+    try {
+      const data = (await this.adminApi.manageSync('status')) as {
+        records: number;
+        active: number;
+        bytes: number;
+        recordLimit: number;
+        byteLimit: number;
+      };
+      this.remoteQuota.set(
+        `远端当前记录 ${data.records}/${data.recordLimit}（有效 ${data.active}），正文 ${Math.ceil(data.bytes / 1024)} KiB / ${data.byteLimit / 1024 / 1024} MiB。历史、冲突和删除标记持续保留；原图未上传。`
+      );
+    } catch {
+      this.authMessage.set('同步配额暂不可读，请确认项目已执行最新迁移。');
+    }
+  }
+  async exportRemoteMetadata() {
+    try {
+      const data = await this.adminApi.manageSync('export');
+      await saveDownload(new Blob([JSON.stringify(data)], { type: 'application/json' }), 'aiao-sync-metadata.json');
+    } catch {
+      this.authMessage.set('远端导出未完成，本机数据保留。');
+    }
+  }
+  async deleteRemoteMetadata() {
+    if (
+      this.settingsBusy() ||
+      !window.confirm(
+        '停止此设备同步并删除远端当前元数据？本机内容保留。删除标记、冲突版本与历史日志继续保留，其他已同步设备会收到删除。以后恢复同步可能合并或产生冲突。此操作不删除原图，也不是彻底清除历史。'
+      )
+    )
+      return;
+    this.stopSync();
+    try {
+      await this.adminApi.manageSync('delete', crypto.randomUUID());
+      this.authMessage.set('远端当前记录已标记删除，此设备同步已停止；本机内容、远端历史与删除标记保留。');
+    } catch {
+      this.authMessage.set('远端删除尚未确认；此设备已停止同步，本机内容保留。');
+    }
   }
   async deleteSyncedDraft() {
     if (window.confirm('删除同步端草稿？当前本机输入和原图保留，其他设备会收到删除标记。'))
@@ -1035,9 +1197,41 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private releaseLibraryPreviews() {
     for (const work of this.libraryPage().works) this.library?.setVisible(work.jobId, false);
   }
+  private syncPauseKey() {
+    return `aiao-media-sync-paused-v1:${encodeURIComponent(this.auth?.config.url ?? '')}:${this.authUser()?.id ?? ''}:${this.profileId}`;
+  }
+  private configureTarget(target: SyncTarget) {
+    this.unsubscribeAuth?.();
+    this.auth?.dispose();
+    this.auth = null;
+    this.product?.pause();
+    ++this.identityVersion;
+    this.identitySelection = null;
+    this.authStatus.set('signed-out');
+    this.authUser.set(null);
+    this.authConfigured.set(target.config !== null);
+    this.targetKind.set(target.kind);
+    this.targetUrl.set(target.kind === 'custom' ? target.config.url : '');
+    this.targetKey.set('');
+    this.syncReady.set(false);
+    if (!target.config) return;
+    this.auth = new SupabaseAuthClient(target.config);
+    this.unsubscribeAuth = this.auth.subscribe(state => {
+      this.syncReady.set(false);
+      this.authUser.set(state.user);
+      this.authStatus.set(state.status);
+      this.authMessage.set(state.message);
+      this.product?.pause();
+      this.identitySelection = null;
+      this.refreshProfiles();
+      void this.reconcileIdentity();
+    });
+    void this.restoreAuth();
+    if (target.kind === 'platform') void this.loadCatalog();
+  }
   private async checkProviderPolicy(provider: LocalProvider): Promise<void> {
-    if (!this.authConfigured()) return;
-    const response = await fetch('/api/provider-policies', {
+    if (!this.authConfigured() || this.targetKind() !== 'platform') return;
+    const response = await fetch(apiEndpoint('/api/provider-policies'), {
       cache: 'no-store',
       credentials: 'omit',
       redirect: 'error',
@@ -1074,7 +1268,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   private async loadCatalog(): Promise<void> {
     try {
-      const response = await fetch('/api/templates', {
+      const response = await fetch(apiEndpoint('/api/templates'), {
         cache: 'no-store',
         credentials: 'omit',
         redirect: 'error',
@@ -1106,12 +1300,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private async openLocal() {
     try {
       if (!navigator.locks) throw new Error('Web Locks unavailable');
-      this.profileId = await navigator.locks.request('aiao-local-profile-v1', () => {
+      this.profileId = await navigator.locks.request('aiao-local-profile-v1', async () => {
         const key = 'aiao-local-profile-v1';
         const existing = localStorage.getItem(key);
         if (existing && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(existing))
           throw new Error('Invalid local profile');
-        const id = existing ?? crypto.randomUUID();
+        const id = await initialProfile(existing ?? crypto.randomUUID());
         localStorage.setItem(key, id);
         return id;
       });
@@ -1155,7 +1349,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         },
         canActivate: profile => this.canActivate(profile)
       });
-      if (this.auth) {
+      {
         const api = this.adminApi;
         this.product = new ProductWorkspaceController(this.registry, this.workspaceSession, api, {
           profile: () => this.currentProfile(),
@@ -1185,14 +1379,18 @@ export class LocalImageMvp implements OnInit, OnDestroy {
             const tasks = this.history();
             return Promise.all(
               tasks
-                .filter(task => ['processing', 'completed', 'failed', 'needs_review'].includes(task.status))
+                .filter(
+                  task =>
+                    task.channel !== 'platform' &&
+                    ['processing', 'completed', 'failed', 'needs_review'].includes(task.status)
+                )
                 .map(async task => ({
                   id: await productRecordId(workspaceId, 'work', task.id),
                   taskId: task.id,
                   workspaceId,
                   model: task.request.modelId,
                   providerId: task.request.providerInstanceId,
-                  channel: task.channel ?? 'direct',
+                  channel: task.channel === 'proxy' ? ('proxy' as const) : ('direct' as const),
                   status: task.status as 'processing' | 'completed' | 'failed' | 'needs_review',
                   startedAt: task.createdAt,
                   source: 'application' as const,
@@ -1204,7 +1402,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
             );
           }
         });
-        this.subscriptions.add(this.product.state$.subscribe(state => this.sync.set(state)));
+        this.subscriptions.add(
+          this.product.state$.subscribe(state => {
+            this.sync.set(state);
+            if (state.status === 'synced') this.lastSyncedAt.set(new Date().toLocaleString());
+          })
+        );
         this.product.selection();
       }
       await this.acceptRegistry(this.registryState);
@@ -1341,7 +1544,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     return (
       this.authStatus() === 'signed-in' &&
       profile.account.userId === this.authUser()?.id &&
-      profile.account.projectOrigin === readSupabaseAuthConfig()?.url
+      profile.account.projectOrigin === this.auth?.config.url
     );
   }
   private async checkpoint(): Promise<void> {
@@ -1358,7 +1561,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.registryState = state;
     await navigator.locks.request('aiao-local-profile-v1', async () => {
       await this.assertRoot();
-      if (state.selectedId === this.profileId) localStorage.setItem('aiao-local-profile-v1', this.profileId);
+      if (state.selectedId === this.profileId) {
+        await persistNativeProfile(this.profileId);
+        localStorage.setItem('aiao-local-profile-v1', this.profileId);
+      }
     });
     this.refreshProfiles();
     this.product?.selection();
@@ -1368,7 +1574,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.identityBlocked.set(
       this.authStatus() === 'signed-in' &&
         !!account &&
-        (account.userId !== this.authUser()?.id || account.projectOrigin !== readSupabaseAuthConfig()?.url)
+        (account.userId !== this.authUser()?.id || account.projectOrigin !== this.auth?.config.url)
     );
     this.syncInitialized.set(!!this.currentProfile()?.binding?.initialized);
     this.availableProfiles.set(this.registryState?.profiles.filter(profile => this.canActivate(profile)) ?? []);
@@ -1416,7 +1622,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.identitySelection = identityKey;
       this.refreshProfiles();
       this.syncReady.set(this.product !== undefined);
-      if (this.authStatus() === 'signed-in' && this.currentProfile()?.binding?.initialized)
+      this.syncPaused.set(localStorage.getItem(this.syncPauseKey()) === '1');
+      if (!this.syncPaused() && this.authStatus() === 'signed-in' && this.currentProfile()?.binding?.initialized)
         await this.product?.resume();
     } catch (error) {
       if (version === this.identityVersion)

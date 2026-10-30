@@ -61,4 +61,4 @@ NX_NO_CLOUD=true pnpm nx run aiao-media-e2e:provider-acceptance-fixture --skipRe
 8. 服务端配置以 0600、Git 忽略的私密 JSON 经 Wrangler `secret bulk` 接入，不把值写入 shell 参数或日志。然后执行 `aiao-media:deploy-check`，核对公开配置与 Supabase 精确 CSP、无服务端 Key，最后 `aiao-media:deploy` 并保存真实回执。
 9. 正式服务按本页验收表收口。服务端 schema 采用前向修复，前端回退不自动删除表、冲突、tombstone、SQLite 或 OPFS；数据库恢复单独作为灾备操作处理。
 
-源码依据：[生产迁移包脚本](../../scripts/build-production-supabase-bundle.mjs)、[本地迁移入口](../../scripts/supabase-local.mjs)、[可信管理员入口](../../scripts/admin-membership.mjs)、[Worker 后端请求](../../deploy/product-http.mjs)、[公开配置/CSP 构建](../../scripts/build-supabase-config.mjs)、[发布脚本](../../scripts/deploy-local-first.mjs)。
+源码依据：[生产迁移包脚本](../../scripts/build-production-supabase-bundle.mjs)、[本地迁移入口](../../scripts/supabase-local.mjs)、[可信管理员入口](../../scripts/admin-membership.mjs)、[Worker 后端请求](../../server/cloudflare/product-http.mjs)、[公开配置/CSP 构建](../../scripts/build-supabase-config.mjs)、[发布脚本](../../scripts/deploy-local-first.mjs)。

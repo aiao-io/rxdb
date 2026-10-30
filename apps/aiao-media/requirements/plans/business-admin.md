@@ -51,7 +51,7 @@ A1–C2 均已有真实本地服务、产品浏览器与 Worker 分层证据，�
 
 ## 研究依据
 
-- [现有 Auth](../../src/app/supabase-auth.ts)、[静态模板](../../src/app/image-mvp-catalog.ts)、[Worker](../../deploy/local-first-worker.mjs) 和[开发探针 RLS](../../infra/supabase/migrations/001-local-account-checks.sql)核对了当前接入点；探针表不是产品后台。
+- [现有 Auth](../../src/app/supabase-auth.ts)、[静态模板](../../src/app/image-mvp-catalog.ts)、[Worker](../../server/cloudflare/local-first-worker.mjs) 和[开发探针 RLS](../../infra/supabase/migrations/001-local-account-checks.sql)核对了当前接入点；探针表不是产品后台。
 - [Supabase Auth Admin](https://supabase.com/docs/reference/javascript/auth-admin-listusers)：管理用户需要可信服务端调用，service role 不进浏览器。
 - [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security)：`user_metadata` 可由用户修改；JWT 中的管理员声明可能过时，因此实时权限使用服务端表。
 - [API Keys 与 RLS](https://supabase.com/docs/guides/api/api-keys)：service role 绕过 RLS，使用该客户端前必须完成请求授权和端点范围校验。

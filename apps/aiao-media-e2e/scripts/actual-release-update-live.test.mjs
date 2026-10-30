@@ -67,7 +67,7 @@ test('正式控制器固定origin、不同审核摘要和当前版本，不接�
     assert.throws(() => actualUpdateSettings({ ...env, ...patch }));
   const source = {
     name: 'aiao-media',
-    main: '/reviewed/app/deploy/local-first-worker.mjs',
+    main: '/reviewed/app/server/cloudflare/local-first-worker.mjs',
     observability: { enabled: false },
     assets: { binding: 'ASSETS', directory: '/reviewed/b' },
     vars: { ALLOWED_PROVIDER_BASE_URLS: '["https://provider.example.test/v1"]' }

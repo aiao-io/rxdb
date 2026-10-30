@@ -19,6 +19,8 @@ owner: TBD
 - [ ] 图片提示词灵感库与一键套用（[MEDIA-US-106](../stories/generation/MEDIA-US-106-prompt-gallery.md)）
 - [ ] 移动设备验收（暂缓，不阻断当前桌面工作，[MEDIA-US-107](../stories/generation/MEDIA-US-107-mobile-verification.md)）
 
+- [ ] 平台生图、额度与持久任务（[MEDIA-US-108](../stories/generation/MEDIA-US-108-platform-generation.md)）
+
 ## 故事
 
 > 只列范围；状态以 story YAML 为准，汇总见 [状态概览](../status-overview.md)。
@@ -28,12 +30,14 @@ owner: TBD
 - [MEDIA-US-106 图片提示词灵感库与一键套用](../stories/generation/MEDIA-US-106-prompt-gallery.md) (Medium)
 - [MEDIA-US-107 移动设备能力验收](../stories/generation/MEDIA-US-107-mobile-verification.md) (Low，暂缓)
 
+- [MEDIA-US-108 平台生图、额度与持久任务](../stories/generation/MEDIA-US-108-platform-generation.md) (High)
+
 ## 非目标
 
-- 服务端任务队列、日额度、人工核查与供应商证据机。
+- 通用供应商证据机与用户自有 Key 的异步托管。
 - 声音与视频生成。
 - 图生图/参考图（本轮仍暂停）。
 
 ## 进展
 
-四条故事均有未过的真实环境 AC，逐条进展与关闭条件见[状态概览](../status-overview.md#未完成验收与关闭条件)，正式环境证据见[验收记录](../verification-report.md#正式环境证据)。
+既有四条故事和新增平台故事均有未过的真实环境 AC，逐条进展与关闭条件见[状态概览](../status-overview.md#未完成验收与关闭条件)，正式环境证据见[验收记录](../verification-report.md#正式环境证据)。

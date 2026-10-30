@@ -1,7 +1,9 @@
-import { imageGenerationRequest, isMiniMaxImageProvider } from '../src/contracts/image-provider-protocol.ts';
+import { imageGenerationRequest, isMiniMaxImageProvider } from '../../src/contracts/image-provider-protocol.ts';
 import { handleAdmin } from './admin-api.mjs';
+import { handlePlatform } from './platform-api.mjs';
 import { publishedTemplates, runtimePolicy } from './product-content.mjs';
-import { endpoint } from './product-http.mjs';
+import { endpoint, originAllowed } from './product-http.mjs';
+export { PlatformCoordinator } from './platform-coordinator.mjs';
 // Optional, stateless relay. Static assets are served by the ASSETS binding.
 const json = (status, error) =>
   Response.json(
@@ -260,10 +262,11 @@ function lateRelayResponse(responsePromise, upstreamController, cleanup) {
     }
   );
 }
-export default {
+const worker = {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return fetchAsset(request, env);
+    if (url.pathname.startsWith('/api/platform/')) return handlePlatform(request, env);
     if (url.pathname.startsWith('/api/admin/')) return handleAdmin(request, env);
     if (url.pathname === '/api/templates' && request.method === 'GET') return endpoint(() => publishedTemplates(env));
     if (url.pathname === '/api/provider-policies' && request.method === 'GET')
@@ -274,7 +277,7 @@ export default {
     }
     if (url.pathname !== '/api/relay') return json(404, 'Unknown API');
     if (request.method !== 'POST') return json(405, 'POST required');
-    if (request.headers.get('origin') !== url.origin) return json(403, 'Same-origin browser request required');
+    if (!originAllowed(request, env)) return json(403, 'Same-origin browser request required');
     let upstream, policy;
     try {
       upstream = base(request.headers.get('x-provider-base') ?? '');
@@ -433,5 +436,31 @@ export default {
       cleanup();
       return json(502, 'Provider connection interrupted; review provider history before retrying');
     }
+  }
+};
+
+export default {
+  async fetch(request, env) {
+    const origin = request.headers.get('origin');
+    const desktop = origin === 'tauri://localhost' && env.MEDIA_ALLOW_DESKTOP_ORIGIN === 'true';
+    if (request.method === 'OPTIONS' && new URL(request.url).pathname.startsWith('/api/')) {
+      if (!desktop) return json(403, 'Origin is not enabled');
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'access-control-allow-origin': origin,
+          'access-control-allow-methods': 'GET,POST,DELETE',
+          'access-control-allow-headers': 'authorization,content-type,x-provider-base',
+          'access-control-max-age': '600',
+          vary: 'Origin'
+        }
+      });
+    }
+    const result = await worker.fetch(request, env);
+    if (!desktop || !new URL(request.url).pathname.startsWith('/api/')) return result;
+    const headers = new Headers(result.headers);
+    headers.set('access-control-allow-origin', origin);
+    headers.set('vary', 'Origin');
+    return new Response(result.body, { status: result.status, headers });
   }
 };

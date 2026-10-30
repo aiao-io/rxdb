@@ -1,5 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { pngFixture, verifyImageDownload } from './local-first.helpers';
 
 const url = 'https://auth.example.test';
 const publicKey = 'sb_publishable_browser_fixture';
@@ -80,6 +82,90 @@ async function login(page: Page) {
 // Auth fixtures verify the built application + real SDK without contacting an external Auth project.
 // The local-first suite separately verifies Service Worker installation and offline cold starts.
 test.use({ serviceWorkers: 'block' });
+
+test('平台接单响应丢失后刷新，使用原标识核对，不因修改提示词重复接单', async ({ page, context }) => {
+  await configure(context);
+  await authFixture(context);
+  const png = await pngFixture();
+  const requests: Record<string, unknown>[] = [];
+  let dropped = false;
+  let visible = false;
+  let status = 'queued';
+  const task = () => ({
+    id: status === 'completed' ? 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' : 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    requestId: requests[0]?.['requestId'],
+    prompt: '平台原请求',
+    model: 'platform-model',
+    size: '1024x1024',
+    billing: 'free',
+    credits: 0,
+    status,
+    createdAt: '2026-10-30T00:00:00Z',
+    result:
+      status === 'completed' ?
+        {
+          mimeType: 'image/png',
+          width: 64,
+          height: 64,
+          bytes: png.length,
+          sha256: createHash('sha256').update(png).digest('hex')
+        }
+      : null,
+    message: '当前繁忙，任务已进入队列。'
+  });
+  await context.route('**/api/platform/**', async route => {
+    const request = route.request(),
+      path = new URL(request.url()).pathname;
+    if (path.endsWith('/result')) return route.fulfill({ contentType: 'image/png', body: png });
+    if (path.endsWith('/catalog'))
+      return route.fulfill({
+        json: {
+          enabled: true,
+          freeDaily: 2,
+          models: [{ id: 'platform-model', name: '平台模型', credits: 2, sizes: ['1024x1024'] }],
+          pack: null,
+          fairness: '按接单顺序处理'
+        }
+      });
+    if (path.endsWith('/account'))
+      return route.fulfill({ json: { credits: 0, freeRemaining: 2, freeReset: 'UTC 00:00', ledger: [] } });
+    if (path.endsWith('/cancel')) {
+      status = 'cancelled';
+      return route.fulfill({ json: task() });
+    }
+    if (request.method() === 'GET') return route.fulfill({ json: { jobs: visible ? [task()] : [] } });
+    requests.push(request.postDataJSON() as Record<string, unknown>);
+    if (!dropped) {
+      dropped = true;
+      return route.abort('failed');
+    }
+    visible = true;
+    return route.fulfill({ json: task() });
+  });
+  await page.goto('/create');
+  await login(page);
+  const editor = page.locator('[contenteditable="true"]');
+  await editor.fill('平台原请求');
+  page.on('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: '确认并提交平台生图', exact: true }).click();
+  await expect(page.getByText(/再次点击将核对同一请求/)).toBeVisible();
+  await page.reload();
+  await expect(editor).toBeVisible();
+  await editor.fill('修改后的新提示词');
+  await page.getByRole('button', { name: '确认并提交平台生图', exact: true }).click();
+  await expect(page.getByRole('button', { name: '取消排队并释放额度' })).toBeVisible();
+  expect(requests).toHaveLength(2);
+  expect(requests[1]).toEqual(requests[0]);
+  await page.getByRole('button', { name: '取消排队并释放额度' }).click();
+  await expect(page.getByText('已取消', { exact: true })).toBeVisible();
+  status = 'completed';
+  await page.getByRole('button', { name: '刷新任务与余额' }).click();
+  await page.getByRole('button', { name: '读取原图并保存到本机' }).click();
+  await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: '我的图片', exact: true }).click();
+  await expect(page.locator('.library-card')).toHaveCount(1);
+  await verifyImageDownload(page, page.locator('.library-card'), png);
+});
 
 test('未配置账号时四页面不连接 Supabase 或创建会话', async ({ page, baseURL }) => {
   const foreign: string[] = [];

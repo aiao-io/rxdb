@@ -20,11 +20,22 @@
 | Supabase 跨设备复制    | ⚠️ 草稿、供应商公开配置与作品元数据的原生双副本、离线/重开、冲突/删除与显式重新扫描已通过真实本地验收；Key、原图、句柄与本地文件标识固定排除 | [MEDIA-US-302](stories/local-first/MEDIA-US-302-draft-sync.md)              |
 | 供应商配置同步         | ✅ 两独立副本公开配置同步已验；固定排除 Key                                                                                                  | [MEDIA-US-105](stories/generation/MEDIA-US-105-provider-management.md)      |
 
-当前范围不包含 SSR、旧 Bun API/自建 PostgreSQL 业务栈、服务端任务队列/证据机、音视频和 Electron 桌面。Supabase 为独立本地栈，生产账号/后台未部署；受保护的管理 API 已通过本地 Worker 验收。
+当前范围不包含 SSR、旧 Bun API/自建 PostgreSQL 业务栈、音视频和 Electron 桌面；新增持久平台任务见下表。Supabase 为独立本地栈，生产账号/后台未部署；受保护的管理 API 已通过本地 Worker 验收。
 
-Tauri 安装发行、Cloudflare 平台生图与任务队列、免费/收费结算、自有 Supabase 项目接入和平台生产同步属于[未来功能需求与目录规划](future-requirements.md)，不计入上表已验能力。现有账号、同步和后台的真实本地证据继续保留；目录方案随功能实施，不代表本次已经迁移代码。
+Tauri、Cloudflare 平台任务与计费、同步目标已进入实施，代码及各层证据见下表。正式发行与生产服务尚未验收，不计入上表既有已验范围。
 
 | 计划中能力     | 当前状态                                                                                           | 对应故事                                                               |
 | -------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | 跨用户业务后台 | ⚠️ 用户、模板、运行策略、显式上报与来源明确的用量已通过真实本地服务/浏览器验收；生产启用属后续范围 | [MEDIA-US-203](stories/account/MEDIA-US-203-business-admin.md)         |
 | 移动设备验收   | ⬜ 暂缓，不阻断桌面、同步和后台工作                                                                | [MEDIA-US-107](stories/generation/MEDIA-US-107-mobile-verification.md) |
+
+## 产品扩展实施
+
+| 能力         | 当前边界                                                                                             | 故事                                                                   |
+| ------------ | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Tauri 安装版 | ⚠️ 原生数据库/文件、指针与兼容守卫已接线，前端构建与两项 Rust 测试通过；实际安装、签名公证和升级待验 | [MEDIA-US-005](stories/platform/MEDIA-US-005-tauri-desktop.md)         |
+| 平台持久生图 | ⚠️ 原子额度、预算、队列、未知不重发、原图入 R2 与 UI 已接线；正式配置和真实平台生成待验              | [MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md) |
+| 支付与运维   | ⚠️ Checkout、验签、积分/退款、审计和运维界面已接线；真实商户付款、退款和对账待验                     | [MEDIA-US-205](stories/account/MEDIA-US-205-platform-billing.md)       |
+| 两种同步目标 | ⚠️ 自有项目选择、兼容检查、停止/导出/配额/逻辑删除已接线；新入口完整双副本和生产跨设备待验           | [MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md)       |
+
+扩展实现的统一证据见[产品交付计划](plans/product-completion-20261030.md)。

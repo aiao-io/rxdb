@@ -54,7 +54,7 @@ Supabase SDK 在锁文件去重到 2.117.3，无全局版本 override。同步�
 - [应用接线](../../src/app/local-image-mvp.ts)、[绑定控制器](../../src/app/product-workspace.ts)、[工作区会话](../../src/app/workspace-session.ts)
 - [本机注册表](../../src/local-data/workspace-registry.ts)、[持久注册表](../../src/local-data/workspace-registry-store.ts)、[原生复制](../../src/local-data/product-sync-store.ts)
 - [私有投影](../../src/local-data/product-projection.ts)、[集合迁移](../../src/local-data/local-collections.ts)、[产品 DTO](../../src/contracts/product-data.mjs)
-- [后台界面](../../src/app/admin-console.ts)、[后台 API](../../deploy/admin-api.mjs)、[运行策略](../../deploy/product-content.mjs)
+- [后台界面](../../src/app/admin-console.ts)、[后台 API](../../server/cloudflare/admin-api.mjs)、[运行策略](../../server/cloudflare/product-content.mjs)
 - [真实服务测试](../../scripts/test-product-local.mjs)、[真实产品浏览器测试](../../../aiao-media-e2e/src/product-local.spec.mts)
 
 ## 最终本地门禁

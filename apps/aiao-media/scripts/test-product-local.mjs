@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { handleAdmin } from '../deploy/admin-api.mjs';
+import { handleAdmin } from '../server/cloudflare/admin-api.mjs';
 import { localEnvironment } from './supabase-local.mjs';
 
 const { env, url } = await localEnvironment();

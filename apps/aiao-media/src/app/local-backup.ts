@@ -4,7 +4,11 @@ import { validateGenerationJobSummary } from '../contracts/index';
 import type { LocalMediaStore, StudioPromptState } from '../local-data/index';
 import { ownedStudioPrompt } from '../local-data/studio-draft';
 import { publicProvider, type LocalProvider } from './local-provider';
-type Task = GenerationJobSummary & { channel?: 'direct' | 'proxy'; saved?: boolean; acknowledged?: boolean };
+type Task = GenerationJobSummary & {
+  channel?: 'direct' | 'proxy' | 'platform';
+  saved?: boolean;
+  acknowledged?: boolean;
+};
 interface BackupImage {
   job: GenerationJobSummary;
   base64: string;
@@ -74,7 +78,8 @@ function validateBackup(data: LocalBackup): LocalBackup {
   data.draft = data.draft ? ownedStudioPrompt(data.draft) : null;
   data.tasks = data.tasks.map(t => {
     const { saved, acknowledged, channel, ...summary } = t;
-    if (channel !== undefined && !['direct', 'proxy'].includes(channel)) throw new Error('备份任务通道无效。');
+    if (channel !== undefined && !['direct', 'proxy', 'platform'].includes(channel))
+      throw new Error('备份任务通道无效。');
     return {
       channel: channel ?? 'direct',
       ...validateGenerationJobSummary(summary),

@@ -311,7 +311,7 @@ async function fixture() {
     `const MANIFEST = ${JSON.stringify({ version, assets })};\n${workerTemplate}`
   );
   await writeFile(resolve(root, 'offline-manifest.json'), JSON.stringify({ version }));
-  const { default: worker } = await import('../../aiao-media/deploy/local-first-worker.mjs');
+  const { default: worker } = await import('../../aiao-media/server/cloudflare/local-first-worker.mjs');
   const template = await readFile(resolve(root, '_headers'), 'utf8');
   const headersFor = path => {
     let matches = false;

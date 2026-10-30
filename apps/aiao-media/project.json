@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "implicitDependencies": ["rxdb", "rxdb-adapter-wa-sqlite", "rxdb-plugin-storage"],
+  "implicitDependencies": ["rxdb", "rxdb-adapter-wa-sqlite", "rxdb-plugin-storage", "rxdb-adapter-tauri"],
   "name": "aiao-media",
   "prefix": "app",
   "projectType": "application",
@@ -22,14 +22,14 @@
           }
         ],
         "styles": ["apps/aiao-media/src/styles.css", "apps/aiao-media/src/image-mvp.css"],
-        "allowedCommonJsDependencies": ["@supabase/supabase-js"]
+        "allowedCommonJsDependencies": ["@supabase/supabase-js", "ms"]
       },
       "configurations": {
         "production": {
           "budgets": [
             {
               "type": "initial",
-              "maximumWarning": "500kb",
+              "maximumWarning": "510kb",
               "maximumError": "1mb"
             },
             {
@@ -52,10 +52,22 @@
           "optimization": false,
           "extractLicenses": false,
           "sourceMap": true
+        },
+        "desktop": {
+          "outputPath": "apps/aiao-media/desktop-dist",
+          "fileReplacements": [
+            {
+              "replace": "apps/aiao-media/src/platform/local-backend.ts",
+              "with": "apps/aiao-media/src/platform/tauri/local-backend.ts"
+            }
+          ],
+          "optimization": true,
+          "sourceMap": false,
+          "outputHashing": "all"
         }
       },
       "defaultConfiguration": "production",
-      "dependsOn": ["^build", "prompt-assets", "prepare-assets", "auth-config"],
+      "dependsOn": ["^build", "prompt-assets", "prepare-assets", "auth-config", "sync-setup"],
       "inputs": [
         "production",
         "^production",
@@ -210,7 +222,7 @@
     "relay-test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "eslint deploy/local-first-worker.mjs scripts/local-first-worker.test.mjs && node --test scripts/local-first-worker.test.mjs",
+        "command": "eslint server/cloudflare/local-first-worker.mjs scripts/local-first-worker.test.mjs && node --test scripts/local-first-worker.test.mjs",
         "cwd": "apps/aiao-media"
       }
     },
@@ -451,6 +463,83 @@
       "options": {
         "cwd": "apps/aiao-media",
         "command": "vitest run --config vite.config.mts --coverage"
+      }
+    },
+    "platform-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "node --test server/cloudflare/*.test.mjs"
+      }
+    },
+    "desktop-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "cargo test --manifest-path src-tauri/Cargo.toml"
+      }
+    },
+    "desktop-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "cargo check --manifest-path src-tauri/Cargo.toml"
+      }
+    },
+    "desktop-package": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "node scripts/package-desktop.mjs"
+      }
+    },
+    "platform-ui-test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "vitest run --config vite.config.mts --project=aiao-media-ui src/app/platform-submission.spec.ts src/app/sync-target.spec.ts src/app/platform-client.spec.ts src/app/desktop-files.spec.ts"
+      }
+    },
+    "sync-setup": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "node scripts/build-production-supabase-bundle.mjs public/sync-setup.sql"
+      },
+      "outputs": ["{projectRoot}/public/sync-setup.sql"]
+    },
+    "desktop-icons": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "pnpm exec tauri icon src-tauri/icons/brand.svg --output src-tauri/icons"
+      }
+    },
+    "desktop-clean-macros": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "cargo clean --manifest-path src-tauri/Cargo.toml --release"
+      }
+    },
+    "sync-management-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["supabase-migrate"],
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "node scripts/test-sync-management-local.mjs"
+      }
+    },
+    "desktop-format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-media",
+        "command": "cargo fmt --manifest-path src-tauri/Cargo.toml"
       }
     }
   }

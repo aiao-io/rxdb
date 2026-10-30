@@ -1,8 +1,6 @@
 import type { EntityStaticType, EntityType, FindAllOptions, IRepository, RxDBEvent } from '@aiao/rxdb';
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
-import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import type { StorageFilesystem } from '@aiao/rxdb-plugin-storage';
-import { OpfsStorageFilesystem, rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { defer, distinctUntilChanged, firstValueFrom, map, Observable, Subject, takeUntil } from 'rxjs';
 import {
   imageExtension,
@@ -33,6 +31,13 @@ import {
   type VideoResultMetadata
 } from '../contracts/index';
 import { productPayloadText, validateSyncPayload, type PublicWorkPayload } from '../contracts/product-data.mjs';
+import {
+  configureLocalAdapter,
+  localAdapterName,
+  localFilesystem,
+  nativeBackend,
+  nativeSchema
+} from '../platform/local-backend';
 import type { DraftNotebook } from './draft-notebook';
 import {
   acceptNotebookConflicts,
@@ -444,14 +449,16 @@ export class LocalMediaError extends Error {
  * data. An old, already open tab must stop too; never lower or remove the marker.
  * Releases predating this guard are not safe rollback targets.
  */
-function assertLocalSchema(userId: string) {
+async function assertLocalSchema(userId: string) {
+  await nativeSchema(userId);
   const key = `aiao-local-schema-${userId}`;
   const version = localStorage.getItem(key);
   if (version !== null && version !== '1' && version !== '2')
     throw new LocalMediaError('incompatible', '本机数据版本与此应用不兼容，请更新应用后重试；原数据未更改。');
   if (version === null) localStorage.setItem(key, '1');
 }
-function requireJpegSchema(userId: string) {
+async function requireJpegSchema(userId: string) {
+  await nativeSchema(userId, true);
   const key = `aiao-local-schema-${userId}`;
   if (localStorage.getItem(key) === '2') return;
   try {
@@ -508,12 +515,13 @@ export class LocalMediaStore {
     };
   }
   static async open(userId: string): Promise<LocalMediaStore> {
+    const { rxDBPluginStorage } = await import('@aiao/rxdb-plugin-storage');
     if ('__aiaoRxdbDesktopHost__' in globalThis || 'aiaoDesktop' in globalThis)
       throw new LocalMediaError('unavailable', '当前图片 MVP 仅支持 Web；桌面数据未打开或迁移。');
     if (
       !uuid.test(userId) ||
       typeof navigator === 'undefined' ||
-      !navigator.storage?.getDirectory ||
+      (!nativeBackend && !navigator.storage?.getDirectory) ||
       !navigator.locks ||
       typeof BroadcastChannel === 'undefined' ||
       typeof createImageBitmap !== 'function'
@@ -522,7 +530,7 @@ export class LocalMediaStore {
     userId = userId.toLowerCase();
     const rootDir = `aiao-media-v1-${userId}`;
     const dbName = `am1-${userId.replace(/-/g, '')}`;
-    const adapterName = 'wa-sqlite';
+    const adapterName = localAdapterName;
     const db = new RxDB({
       dbName,
       context: { userId },
@@ -544,27 +552,19 @@ export class LocalMediaStore {
       ],
       sync: { local: { adapter: adapterName }, type: SyncType.None }
     });
-    const filesystem: StorageFilesystem = new OpfsStorageFilesystem(rootDir);
+    const filesystem: StorageFilesystem = await localFilesystem(rootDir);
     const closeBackend = async () => undefined;
-    db.adapter(
-      adapterName,
-      host =>
-        new RxDBAdapterWaSqlite(host, {
-          vfs: 'IDBBatchAtomicVFS',
-          async: true,
-          wasmPath: '/wa-sqlite/wa-sqlite-async.wasm'
-        })
-    );
+    await configureLocalAdapter(db);
     db.use(rxDBPluginStorage, {
       rootDir,
       previewLimitBytes: 64 * 1024 * 1024,
       filesystem: () => filesystem
     });
-    const store = new LocalMediaStore(userId, db, filesystem, 'browser', closeBackend);
+    const store = new LocalMediaStore(userId, db, filesystem, nativeBackend ? 'desktop' : 'browser', closeBackend);
     try {
       await navigator.locks.request(`aiao-media-account-${userId}`, async () => {
         if (store.isLocked) throw new LocalMediaError('locked', '本地数据已锁定。');
-        assertLocalSchema(userId);
+        await assertLocalSchema(userId);
         await db.connect(adapterName);
         await db.storage.init();
       });
@@ -979,7 +979,7 @@ export class LocalMediaStore {
     const projectedWorks = projection.works?.map(input => validateSyncPayload('work', input));
     const draftPayload = projection.draft ? studioPayload(projection.draft.state) : null;
     return this.exclusive(async () => {
-      if (projectedWorks?.some(work => work.mimeType === 'image/jpeg')) requireJpegSchema(this.userId);
+      if (projectedWorks?.some(work => work.mimeType === 'image/jpeg')) await requireJpegSchema(this.userId);
       const adapter = await firstValueFrom(this.db.localAdapter$),
         events: RxDBEvent[] = [];
       await adapter.transaction(async executor => {
@@ -1146,7 +1146,7 @@ export class LocalMediaStore {
     await validateImage(blob);
     const checksum = await digest(blob);
     return this.exclusive(async () => {
-      if (blob.type === 'image/jpeg') requireJpegSchema(this.userId);
+      if (blob.type === 'image/jpeg') await requireJpegSchema(this.userId);
       await this.recoverUnlocked();
       const repo = await this.works();
       const [previous] = await repo.find({
@@ -1415,7 +1415,7 @@ export class LocalMediaStore {
     if (this.locked) throw new LocalMediaError('locked', '本地数据已锁定，请先在线重新验证当前账号。');
     return navigator.locks.request(`aiao-media-account-${this.userId}`, async () => {
       if (this.locked) throw new LocalMediaError('locked', '本地数据已锁定。');
-      assertLocalSchema(this.userId);
+      await assertLocalSchema(this.userId);
       return operation();
     });
   }
