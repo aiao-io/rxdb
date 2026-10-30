@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { setImmediate } from 'node:timers/promises';
 import { runCoverageSuites } from '../../packages/rxdb-adapter-sqlite-core/scripts/run-coverage-suites.mjs';
 
-test('最多同时跑两段，空位立即补齐，失败结果不漏掉剩余 suite', async () => {
+test('串行运行所有段，失败结果不漏掉后续 suite', async () => {
   const suiteNames = ['core', 'wa-sqlite', 'sqlite', 'sqlite-wasm', 'sqliteai'];
   const releases = new Map(suiteNames.map(name => [name, Promise.withResolvers()]));
   const started = [];
@@ -19,6 +19,10 @@ test('最多同时跑两段，空位立即补齐，失败结果不漏掉剩余 s
     return { suiteName, code: suiteName === 'wa-sqlite' ? 1 : 0 };
   });
 
+  await setImmediate();
+  assert.deepEqual(started, ['core']);
+  releases.get('core').resolve();
+  await setImmediate();
   assert.deepEqual(started, ['core', 'wa-sqlite']);
   releases.get('wa-sqlite').resolve();
   await setImmediate();
@@ -26,17 +30,16 @@ test('最多同时跑两段，空位立即补齐，失败结果不漏掉剩余 s
   releases.get('sqlite').resolve();
   await setImmediate();
   assert.deepEqual(started, ['core', 'wa-sqlite', 'sqlite', 'sqlite-wasm']);
-  releases.get('core').resolve();
+  releases.get('sqlite-wasm').resolve();
   await setImmediate();
   assert.deepEqual(started, suiteNames);
   releases.get('sqliteai').resolve();
-  releases.get('sqlite-wasm').resolve();
 
   assert.deepEqual(
     await pending,
     suiteNames.map(suiteName => ({ suiteName, code: suiteName === 'wa-sqlite' ? 1 : 0 }))
   );
-  assert.equal(peak, 2);
+  assert.equal(peak, 1);
   assert.equal(active, 0);
 });
 
