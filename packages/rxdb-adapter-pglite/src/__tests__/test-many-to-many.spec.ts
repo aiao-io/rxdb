@@ -6,7 +6,7 @@
 
 import { getEntityStatus, RxDB, SyncType } from '@aiao/rxdb';
 import { Category, ENTITIES, Order, OrderItem, User } from '@aiao/rxdb-test/shop';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../index.js';
 import { generateDbName } from './test-utils.js';
 
@@ -40,6 +40,10 @@ describe('MANY_TO_MANY 关系测试', () => {
     order.amount = 1000;
     order.owner$.set(user);
     await order.save();
+  });
+
+  afterAll(async () => {
+    if (rxdb) await rxdb.disconnectAll();
   });
 
   describe('基础关系操作', () => {
