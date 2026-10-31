@@ -1,8 +1,20 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
+import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
+
+let connectedDevToolsDb: RxDB | null = null;
+
+/** 把 DevTools 连接器切到当前活动看板；备份与清理临时库不经过这里。 */
+export const connectBoardDevTools = (db: RxDB): void => {
+  if (connectedDevToolsDb === db) return;
+  const connector = getDevToolsConnector();
+  if (connectedDevToolsDb !== null) connector.disconnect();
+  connector.init(db, getEntityMetadata);
+  connectedDevToolsDb = db;
+};
 
 /**
  * 看板实例工厂（US-537 首轮支持组合）：sqlite-wasm 主线程 `vfs: 'idb'`，库名由外壳分配；

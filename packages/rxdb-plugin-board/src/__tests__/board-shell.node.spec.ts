@@ -203,6 +203,24 @@ describe('BoardShellController（US-537 宿主编排 / US-539 AC#4 / #5）', () 
     expect(world.storage.has(RESTORING_MARKER_KEY)).toBe(false);
   });
 
+  it('只在活动看板激活后通知宿主，恢复临时库不触发回调', async () => {
+    const world = createWorld();
+    const activated: RxDB[] = [];
+    const shell = createShell(world, { onRxdbActivated: db => activated.push(db) });
+    await shell.start();
+    await shell.startSeed();
+
+    expect(activated).toEqual([shell.state.rxdb]);
+
+    const restoring = shell.restoreFromFile(archiveOf('archive:3'));
+    await settled();
+    shell.settleConfirm(true);
+    await restoring;
+
+    expect(world.reload).toHaveBeenCalledOnce();
+    expect(activated).toHaveLength(1);
+  });
+
   it('重置为演示数据：取消零写；确认后避让现存库名、断开旧库并打开新库', async () => {
     const world = createWorld();
     const shell = createShell(world);

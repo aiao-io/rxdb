@@ -101,6 +101,8 @@ export interface BoardShellOptions {
   readonly adapterName: string;
   /** 演示数据装载函数（如 `seedReleaseBoardDataset`）；不传则不提供演示数据入口。 */
   readonly seed?: (rxdb: RxDB) => Promise<void>;
+  /** 活动看板切换完成后的宿主回调；备份与清理使用的临时实例不会触发。 */
+  readonly onRxdbActivated?: (rxdb: RxDB) => void;
   /** 浏览器能力（默认 {@link browserBoardShellRuntime}）。 */
   readonly runtime?: BoardShellRuntime;
 }
@@ -393,9 +395,11 @@ export class BoardShellController {
     const previous = this.state.rxdb;
     this.#activeDbName = dbName;
     this.#patch({ rxdb: db, phase: 'board' });
-    if (previous === null) return;
-    const disconnectFailure = await this.#disconnectFailure(previous, '看板连接释放失败');
-    if (disconnectFailure !== null) this.#patch({ error: disconnectFailure });
+    if (previous !== null) {
+      const disconnectFailure = await this.#disconnectFailure(previous, '看板连接释放失败');
+      if (disconnectFailure !== null) this.#patch({ error: disconnectFailure });
+    }
+    this.#options.onRxdbActivated?.(db);
   }
 
   // ---------- 恢复 ----------
