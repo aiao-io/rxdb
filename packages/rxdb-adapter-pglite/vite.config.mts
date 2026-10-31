@@ -194,16 +194,17 @@ export default defineConfig(() => {
       // 实测（147 文件 / 1012 用例，本地连跑 5 轮零 flake）：
       //   maxWorkers=1 → 178s，峰值内存 +2.3GB
       //   maxWorkers=4 →  72s，峰值内存 +4.5GB
-      // 公开仓库的 runner 现在是 4vCPU/16GB，4.5GB 有充足余量。
-      // 前提：CI 的 test lane 内是 `--parallel=1`（见 .github/workflows/ci-template.yml），
-      // 轮到本包时整台 runner 归它，4 个 worker 不与其它 Nx 任务抢核。
-      // CI 实测（run 85622186464，4vCPU runner）：455s → 261s，比本地慢得多，
-      // scripts/ci/plan-test-lanes.mjs 的 WEIGHTS 记的是 261s 这个真值。
-      // 本包是 test 阶段唯一的长尾（第二名 76s），LPT 会单独给它一条 lane ——
+      // 公开仓库的 runner 虽然是 4vCPU/16GB，但 CI 还会给这条任务开启 V8 coverage，
+      // 并同时运行 Chromium。4 个 worker 的本地内存测量不包含这两项开销，而 CI 日志
+      // 多次在长尾阶段出现 runner shutdown。coverage 运行限为 2 个 worker 留出浏览器余量；
+      // CI 的 test lane 内仍是 `--parallel=1`（见 .github/workflows/ci-template.yml），
+      // 轮到本包时整台 runner 归它，worker 不与其它 Nx 任务抢核。
+      // CI 比本地慢得多，耗时权重集中登记在 scripts/ci/plan-test-lanes.mjs。
+      // 本包是 test 阶段唯一的长尾，LPT 会单独给它一条 lane ——
       // 也就是说这里的耗时直接等于整个 test 阶段的下界。
       // 改这里的 maxWorkers 请同步复核那两处。
       fileParallelism: true,
-      maxWorkers: 4,
+      maxWorkers: process.argv.includes('--coverage') ? 2 : 4,
       browser:
         nodeTestMode ?
           { enabled: false }
