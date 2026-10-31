@@ -1,7 +1,7 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../index.js';
 import { generateDbName } from './test-utils.js';
 
@@ -29,6 +29,10 @@ describe('树结构增量算法测试 - Ancestors 与 Count', () => {
     });
     adapter = await rxdb.getAdapter('pglite');
     await rxdb.connect('pglite');
+  });
+
+  afterAll(async () => {
+    if (rxdb) await rxdb.disconnectAll();
   });
 
   afterEach(async () => {

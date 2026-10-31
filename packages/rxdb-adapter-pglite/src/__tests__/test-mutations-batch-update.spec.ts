@@ -7,7 +7,7 @@
 import { getEntityStatus, RxDB, SyncType } from '@aiao/rxdb';
 import { ENTITIES, User } from '@aiao/rxdb-test/shop';
 import { firstValueFrom } from 'rxjs';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../index.js';
 import { generateDbName } from './test-utils.js';
 
@@ -29,6 +29,10 @@ describe('mutations 批量更新不同值', () => {
     });
 
     await rxdb.connect('pglite');
+  });
+
+  afterAll(async () => {
+    if (rxdb) await rxdb.disconnectAll();
   });
 
   it('相同字段不同值：每个实体应保留各自的更新值', async () => {
