@@ -228,6 +228,7 @@ function summarizeCorrectness(samples) {
     rapidRewriteFailures: samples.filter(sample => !sample.correctness.rapidRewrite.passed).length,
     sameSecondRapidRewrites: samples.filter(sample => sample.correctness.rapidRewrite.sameTimestampSecond).length,
     stockOverwriteFailures: samples.filter(sample => sample.correctness.overwriteProbe?.passed === false).length,
+    branchFailures: samples.filter(sample => sample.correctness.branchHeadMatches !== true).length,
     reopenStatusFailures: samples.filter(sample => sample.correctness.reopen?.firstDirtyCount > 0).length,
     allMeasuredTreesAndBytesMatch: samples.every(
       sample => sample.correctness.filesVerified && sample.correctness.reopen?.treeMatches !== false

@@ -12,6 +12,19 @@ JSPI / Asyncify 的产品接入。** 在本次统一 MEMFS 对照中，wasm-git 
 和重开状态也未通过。本次应继续推进 JSPI / Asyncify 原型，同时验证浏览器覆盖、内存与持久化边界；
 没有任何一行耗时代表完整 IDE 已可交付。
 
+## 研究分支 011 复验（2026-10-31）
+
+为验证当前依赖没有改变选型结论，分支 `011-browser-git-opfs` 用 Chromium 156 对 100 文件 fixture
+各跑一轮 `isomorphic-git 1.44.4`、`wasm-git 0.0.17` JSPI 和 Asyncify。三种配置都通过 clone、
+修改、暂存、提交、`branch → checkout`、tree/OID/文件字节校验与 Worker 重开；isomorphic-git 仍在
+同秒等长改写时返回 clean，JSPI / Asyncify 均检测到变更。原始逐轮数据见
+[`browser-git-research-011.json`](../../benchmarks/reports/browser-git-research-011.json)；1000 文件档见
+[`browser-git-research-011-medium.json`](../../benchmarks/reports/browser-git-research-011-medium.json)。
+
+本轮是正确性复验，不是性能门禁；单次耗时不能替代基准中的五次中位数。结论保持为：固定 JSPI /
+Asyncify 做受限 Worker + OPFS 原型，isomorphic-git 先修正 FS 元数据语义后再重评，pthreads 与 Rust
+自研路线暂缓。
+
 ## 环境与口径
 
 - Apple M1 Max，10 逻辑核，32 GiB RAM；macOS 内核 Darwin 27.0.0。

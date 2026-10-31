@@ -1,0 +1,805 @@
+{
+  "status": "completed",
+  "generatedAt": "2026-10-31T12:35:58.098Z",
+  "environment": {
+    "platform": "darwin",
+    "release": "27.0.0",
+    "cpu": "Apple M1 Max",
+    "logicalCpus": 10,
+    "totalMemoryBytes": 34359738368,
+    "node": "v26.12.0",
+    "browser": "156.0.8078.4"
+  },
+  "versions": {
+    "isomorphic-git": "1.44.4",
+    "wasm-git": "0.0.17"
+  },
+  "sourceSha256": {
+    "git-browser-benchmark.mjs": "7db60d6c8a2f36778a1e143c495563e3a4e9df97138d465562d5a793c3cb0564",
+    "git-benchmark-worker.mjs": "73933cfeaebf8bc2ea260333061769addd4d2d17bda1b9f2b1e540c4f86c8561",
+    "git-benchmark-fs.mjs": "b62392a57c4d0333f6418903367042d92b9b674d2e14540a173e2c3c33f71940",
+    "git-benchmark-fixture.mjs": "33606a3d47ac66504f7a0755fdcda9bde3bca5289f713f8d9e2feacb0bbe15b4",
+    "git-benchmark-isomorphic.mjs": "15001f79c33f5001b15bf5d3d6f4fbc46968cd3096df1f62641096c3585889e9"
+  },
+  "attempts": 1,
+  "profiles": [
+    "small"
+  ],
+  "notes": [
+    "MEMFS configurations share the Emscripten FS implementation; isomorphic startup includes that benchmark-only FS runtime.",
+    "Native OPFS is a benchmark-only async facade for ordinary files, not a production filesystem.",
+    "Git clone uses a loopback native git-http-backend, without internet latency or authentication.",
+    "All OPFS builds run with COOP/COEP enabled; variants are forced rather than auto-selected.",
+    "Validation and fixture creation are outside operation timings. Reopen includes runtime initialization, restoration, and first status.",
+    "Rapid equal-length rewrite correctness is reported separately. Timed ten-file edits wait 1100 ms outside timing to avoid second-resolution stat-cache races.",
+    "WasmFS pthreads FS.writeFile appends in Emscripten 6.0.3. Its stock behavior is probed; benchmark edits explicitly use open(w), positioned write, and close.",
+    "WASM linear memory is not total browser memory; JS heap and peak RSS are not measured.",
+    "Five samples support medians and ranges; p95 nearest-rank equals the maximum and is not a stable tail estimate."
+  ],
+  "results": [
+    {
+      "profile": "small",
+      "configuration": {
+        "label": "isomorphic-native-opfs",
+        "engine": "isomorphic",
+        "storage": "native-opfs"
+      },
+      "fileCount": 100,
+      "totalBytes": 409600,
+      "metrics": {
+        "readyMs": {
+          "samples": 1,
+          "medianMs": 62.58116700000005,
+          "p95Ms": 62.58116700000005,
+          "minMs": 62.58116700000005,
+          "maxMs": 62.58116700000005,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "engineImportMs": {
+          "samples": 1,
+          "medianMs": 27.469999998807907,
+          "p95Ms": 27.469999998807907,
+          "minMs": 27.469999998807907,
+          "maxMs": 27.469999998807907,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 1,
+          "medianMs": 6.560000002384186,
+          "p95Ms": 6.560000002384186,
+          "minMs": 6.560000002384186,
+          "maxMs": 6.560000002384186,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 1,
+          "medianMs": 244.48000000417233,
+          "p95Ms": 244.48000000417233,
+          "minMs": 244.48000000417233,
+          "maxMs": 244.48000000417233,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 1,
+          "medianMs": 68.0249999910593,
+          "p95Ms": 68.0249999910593,
+          "minMs": 68.0249999910593,
+          "maxMs": 68.0249999910593,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 1,
+          "medianMs": 65.31000000238419,
+          "p95Ms": 65.31000000238419,
+          "minMs": 65.31000000238419,
+          "maxMs": 65.31000000238419,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 1,
+          "medianMs": 20.975000008940697,
+          "p95Ms": 20.975000008940697,
+          "minMs": 20.975000008940697,
+          "maxMs": 20.975000008940697,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 1,
+          "medianMs": 83.1799999922514,
+          "p95Ms": 83.1799999922514,
+          "minMs": 83.1799999922514,
+          "maxMs": 83.1799999922514,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 1,
+          "medianMs": 18.230000004172325,
+          "p95Ms": 18.230000004172325,
+          "minMs": 18.230000004172325,
+          "maxMs": 18.230000004172325,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 1,
+          "medianMs": 53.375,
+          "p95Ms": 53.375,
+          "minMs": 53.375,
+          "maxMs": 53.375,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "branchCreateMs": {
+          "samples": 1,
+          "medianMs": 2.7100000083446503,
+          "p95Ms": 2.7100000083446503,
+          "minMs": 2.7100000083446503,
+          "maxMs": 2.7100000083446503,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 1,
+          "medianMs": 61.8500000089407,
+          "p95Ms": 61.8500000089407,
+          "minMs": 61.8500000089407,
+          "maxMs": 61.8500000089407,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 1,
+          "medianMs": 64.72499999403954,
+          "p95Ms": 64.72499999403954,
+          "minMs": 64.72499999403954,
+          "maxMs": 64.72499999403954,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenReadyMs": {
+          "samples": 1,
+          "medianMs": 45.33829100000003,
+          "p95Ms": 45.33829100000003,
+          "minMs": 45.33829100000003,
+          "maxMs": 45.33829100000003,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "restoreMs": {
+          "samples": 1,
+          "medianMs": 0.009999990463256836,
+          "p95Ms": 0.009999990463256836,
+          "minMs": 0.009999990463256836,
+          "maxMs": 0.009999990463256836,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenFirstStatusMs": {
+          "samples": 1,
+          "medianMs": 98.76500000059605,
+          "p95Ms": 98.76500000059605,
+          "minMs": 98.76500000059605,
+          "maxMs": 98.76500000059605,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenWarmStatusMs": {
+          "samples": 1,
+          "medianMs": 69.70000000298023,
+          "p95Ms": 69.70000000298023,
+          "minMs": 69.70000000298023,
+          "maxMs": 69.70000000298023,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenTotalMs": {
+          "samples": 1,
+          "medianMs": 144.11329099105933,
+          "p95Ms": 144.11329099105933,
+          "minMs": 144.11329099105933,
+          "maxMs": 144.11329099105933,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenRuntimeMs": {
+          "samples": 1,
+          "medianMs": 11.144999995827675,
+          "p95Ms": 11.144999995827675,
+          "minMs": 11.144999995827675,
+          "maxMs": 11.144999995827675,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 1,
+        "sameSecondRapidRewrites": 1,
+        "stockOverwriteFailures": 0,
+        "branchFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 62.58116700000005,
+            "engineImportMs": 27.469999998807907,
+            "filesystemAndRuntimeMs": 6.560000002384186,
+            "cloneMs": 244.48000000417233,
+            "firstCleanStatusMs": 68.0249999910593,
+            "warmCleanStatusMs": 65.31000000238419,
+            "write10FilesMs": 20.975000008940697,
+            "modifiedStatusMs": 83.1799999922514,
+            "stage10FilesMs": 18.230000004172325,
+            "commitMs": 53.375,
+            "branchCreateMs": 2.7100000083446503,
+            "checkoutOriginalMs": 61.8500000089407,
+            "checkoutModifiedMs": 64.72499999403954,
+            "reopenReadyMs": 45.33829100000003,
+            "restoreMs": 0.009999990463256836,
+            "reopenFirstStatusMs": 98.76500000059605,
+            "reopenWarmStatusMs": 69.70000000298023,
+            "reopenTotalMs": 144.11329099105933,
+            "reopenRuntimeMs": 11.144999995827675
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "branchName": "benchmark-branch",
+            "branchHeadMatches": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1793450159618,
+              "afterMtimeMs": 1793450159698,
+              "sameTimestampSecond": true,
+              "detectedChanges": 0,
+              "expectedChanges": 1,
+              "passed": false
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": null,
+          "storage": {
+            "quota": 10738147293,
+            "usage": 729053,
+            "usageDetails": {
+              "fileSystem": 729053
+            }
+          }
+        }
+      ]
+    },
+    {
+      "profile": "small",
+      "configuration": {
+        "label": "wasm-opfs-jspi",
+        "engine": "wasm",
+        "storage": "opfs",
+        "variant": "jspi"
+      },
+      "fileCount": 100,
+      "totalBytes": 409600,
+      "metrics": {
+        "readyMs": {
+          "samples": 1,
+          "medianMs": 25.81141600000001,
+          "p95Ms": 25.81141600000001,
+          "minMs": 25.81141600000001,
+          "maxMs": 25.81141600000001,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 1,
+          "medianMs": 19.12000000476837,
+          "p95Ms": 19.12000000476837,
+          "minMs": 19.12000000476837,
+          "maxMs": 19.12000000476837,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 1,
+          "medianMs": 279.29999999701977,
+          "p95Ms": 279.29999999701977,
+          "minMs": 279.29999999701977,
+          "maxMs": 279.29999999701977,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 1,
+          "medianMs": 13.980000004172325,
+          "p95Ms": 13.980000004172325,
+          "minMs": 13.980000004172325,
+          "maxMs": 13.980000004172325,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 1,
+          "medianMs": 10.064999997615814,
+          "p95Ms": 10.064999997615814,
+          "minMs": 10.064999997615814,
+          "maxMs": 10.064999997615814,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 1,
+          "medianMs": 21.015000000596046,
+          "p95Ms": 21.015000000596046,
+          "minMs": 21.015000000596046,
+          "maxMs": 21.015000000596046,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 1,
+          "medianMs": 4.7249999940395355,
+          "p95Ms": 4.7249999940395355,
+          "minMs": 4.7249999940395355,
+          "maxMs": 4.7249999940395355,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 1,
+          "medianMs": 53.88000001013279,
+          "p95Ms": 53.88000001013279,
+          "minMs": 53.88000001013279,
+          "maxMs": 53.88000001013279,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 1,
+          "medianMs": 70.2800000011921,
+          "p95Ms": 70.2800000011921,
+          "minMs": 70.2800000011921,
+          "maxMs": 70.2800000011921,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "branchCreateMs": {
+          "samples": 1,
+          "medianMs": 14.675000011920929,
+          "p95Ms": 14.675000011920929,
+          "minMs": 14.675000011920929,
+          "maxMs": 14.675000011920929,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 1,
+          "medianMs": 22.450000002980232,
+          "p95Ms": 22.450000002980232,
+          "minMs": 22.450000002980232,
+          "maxMs": 22.450000002980232,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 1,
+          "medianMs": 22.400000005960464,
+          "p95Ms": 22.400000005960464,
+          "minMs": 22.400000005960464,
+          "maxMs": 22.400000005960464,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenReadyMs": {
+          "samples": 1,
+          "medianMs": 22.745209000000614,
+          "p95Ms": 22.745209000000614,
+          "minMs": 22.745209000000614,
+          "maxMs": 22.745209000000614,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "restoreMs": {
+          "samples": 1,
+          "medianMs": 175.0649999976158,
+          "p95Ms": 175.0649999976158,
+          "minMs": 175.0649999976158,
+          "maxMs": 175.0649999976158,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenFirstStatusMs": {
+          "samples": 1,
+          "medianMs": 24.635000005364418,
+          "p95Ms": 24.635000005364418,
+          "minMs": 24.635000005364418,
+          "maxMs": 24.635000005364418,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenWarmStatusMs": {
+          "samples": 1,
+          "medianMs": 10.939999997615814,
+          "p95Ms": 10.939999997615814,
+          "minMs": 10.939999997615814,
+          "maxMs": 10.939999997615814,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenTotalMs": {
+          "samples": 1,
+          "medianMs": 222.44520900298085,
+          "p95Ms": 222.44520900298085,
+          "minMs": 222.44520900298085,
+          "maxMs": 222.44520900298085,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenRuntimeMs": {
+          "samples": 1,
+          "medianMs": 12.82999999821186,
+          "p95Ms": 12.82999999821186,
+          "minMs": 12.82999999821186,
+          "maxMs": 12.82999999821186,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 0,
+        "sameSecondRapidRewrites": 1,
+        "stockOverwriteFailures": 0,
+        "branchFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 25.81141600000001,
+            "filesystemAndRuntimeMs": 19.12000000476837,
+            "cloneMs": 279.29999999701977,
+            "firstCleanStatusMs": 13.980000004172325,
+            "warmCleanStatusMs": 10.064999997615814,
+            "write10FilesMs": 21.015000000596046,
+            "modifiedStatusMs": 4.7249999940395355,
+            "stage10FilesMs": 53.88000001013279,
+            "commitMs": 70.2800000011921,
+            "branchCreateMs": 14.675000011920929,
+            "checkoutOriginalMs": 22.450000002980232,
+            "checkoutModifiedMs": 22.400000005960464,
+            "reopenReadyMs": 22.745209000000614,
+            "restoreMs": 175.0649999976158,
+            "reopenFirstStatusMs": 24.635000005364418,
+            "reopenWarmStatusMs": 10.939999997615814,
+            "reopenTotalMs": 222.44520900298085,
+            "reopenRuntimeMs": 12.82999999821186
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "branchName": "benchmark-branch",
+            "branchHeadMatches": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1793450162262,
+              "afterMtimeMs": 1793450162293,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10738148953,
+            "usage": 730713,
+            "usageDetails": {
+              "fileSystem": 730713
+            }
+          }
+        }
+      ]
+    },
+    {
+      "profile": "small",
+      "configuration": {
+        "label": "wasm-opfs-asyncify",
+        "engine": "wasm",
+        "storage": "opfs",
+        "variant": "asyncify"
+      },
+      "fileCount": 100,
+      "totalBytes": 409600,
+      "metrics": {
+        "readyMs": {
+          "samples": 1,
+          "medianMs": 22.802166000000398,
+          "p95Ms": 22.802166000000398,
+          "minMs": 22.802166000000398,
+          "maxMs": 22.802166000000398,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "filesystemAndRuntimeMs": {
+          "samples": 1,
+          "medianMs": 16.30000001192093,
+          "p95Ms": 16.30000001192093,
+          "minMs": 16.30000001192093,
+          "maxMs": 16.30000001192093,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "cloneMs": {
+          "samples": 1,
+          "medianMs": 303.1300000101328,
+          "p95Ms": 303.1300000101328,
+          "minMs": 303.1300000101328,
+          "maxMs": 303.1300000101328,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "firstCleanStatusMs": {
+          "samples": 1,
+          "medianMs": 16.864999994635582,
+          "p95Ms": 16.864999994635582,
+          "minMs": 16.864999994635582,
+          "maxMs": 16.864999994635582,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "warmCleanStatusMs": {
+          "samples": 1,
+          "medianMs": 11.275000005960464,
+          "p95Ms": 11.275000005960464,
+          "minMs": 11.275000005960464,
+          "maxMs": 11.275000005960464,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "write10FilesMs": {
+          "samples": 1,
+          "medianMs": 12.444999992847443,
+          "p95Ms": 12.444999992847443,
+          "minMs": 12.444999992847443,
+          "maxMs": 12.444999992847443,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "modifiedStatusMs": {
+          "samples": 1,
+          "medianMs": 3.6400000005960464,
+          "p95Ms": 3.6400000005960464,
+          "minMs": 3.6400000005960464,
+          "maxMs": 3.6400000005960464,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "stage10FilesMs": {
+          "samples": 1,
+          "medianMs": 44.73999999463558,
+          "p95Ms": 44.73999999463558,
+          "minMs": 44.73999999463558,
+          "maxMs": 44.73999999463558,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "commitMs": {
+          "samples": 1,
+          "medianMs": 68.1499999910593,
+          "p95Ms": 68.1499999910593,
+          "minMs": 68.1499999910593,
+          "maxMs": 68.1499999910593,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "branchCreateMs": {
+          "samples": 1,
+          "medianMs": 14.934999987483025,
+          "p95Ms": 14.934999987483025,
+          "minMs": 14.934999987483025,
+          "maxMs": 14.934999987483025,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutOriginalMs": {
+          "samples": 1,
+          "medianMs": 22.625,
+          "p95Ms": 22.625,
+          "minMs": 22.625,
+          "maxMs": 22.625,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "checkoutModifiedMs": {
+          "samples": 1,
+          "medianMs": 21.780000001192093,
+          "p95Ms": 21.780000001192093,
+          "minMs": 21.780000001192093,
+          "maxMs": 21.780000001192093,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenReadyMs": {
+          "samples": 1,
+          "medianMs": 19.78125,
+          "p95Ms": 19.78125,
+          "minMs": 19.78125,
+          "maxMs": 19.78125,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "restoreMs": {
+          "samples": 1,
+          "medianMs": 174.00499999523163,
+          "p95Ms": 174.00499999523163,
+          "minMs": 174.00499999523163,
+          "maxMs": 174.00499999523163,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenFirstStatusMs": {
+          "samples": 1,
+          "medianMs": 31.04500000178814,
+          "p95Ms": 31.04500000178814,
+          "minMs": 31.04500000178814,
+          "maxMs": 31.04500000178814,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenWarmStatusMs": {
+          "samples": 1,
+          "medianMs": 12.364999994635582,
+          "p95Ms": 12.364999994635582,
+          "minMs": 12.364999994635582,
+          "maxMs": 12.364999994635582,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenTotalMs": {
+          "samples": 1,
+          "medianMs": 224.83124999701977,
+          "p95Ms": 224.83124999701977,
+          "minMs": 224.83124999701977,
+          "maxMs": 224.83124999701977,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        },
+        "reopenRuntimeMs": {
+          "samples": 1,
+          "medianMs": 14.274999991059303,
+          "p95Ms": 14.274999991059303,
+          "minMs": 14.274999991059303,
+          "maxMs": 14.274999991059303,
+          "p95Method": "nearest-rank",
+          "p95Note": "1 次采样的最近秩 p95 等于最大样本，不能作为稳定尾延迟估计。"
+        }
+      },
+      "correctness": {
+        "rapidRewriteFailures": 0,
+        "sameSecondRapidRewrites": 1,
+        "stockOverwriteFailures": 0,
+        "branchFailures": 0,
+        "reopenStatusFailures": 0,
+        "allMeasuredTreesAndBytesMatch": true
+      },
+      "samples": [
+        {
+          "metrics": {
+            "readyMs": 22.802166000000398,
+            "filesystemAndRuntimeMs": 16.30000001192093,
+            "cloneMs": 303.1300000101328,
+            "firstCleanStatusMs": 16.864999994635582,
+            "warmCleanStatusMs": 11.275000005960464,
+            "write10FilesMs": 12.444999992847443,
+            "modifiedStatusMs": 3.6400000005960464,
+            "stage10FilesMs": 44.73999999463558,
+            "commitMs": 68.1499999910593,
+            "branchCreateMs": 14.934999987483025,
+            "checkoutOriginalMs": 22.625,
+            "checkoutModifiedMs": 21.780000001192093,
+            "reopenReadyMs": 19.78125,
+            "restoreMs": 174.00499999523163,
+            "reopenFirstStatusMs": 31.04500000178814,
+            "reopenWarmStatusMs": 12.364999994635582,
+            "reopenTotalMs": 224.83124999701977,
+            "reopenRuntimeMs": 14.274999991059303
+          },
+          "correctness": {
+            "initialTree": "6b3df21b4d3b5cebfe5737d4686637c9ba3dab54",
+            "modifiedTree": "8f48d186b1b3227cdd365e9970b941a2a3e19d65",
+            "dirtyCount": 10,
+            "filesVerified": true,
+            "branchName": "benchmark-branch",
+            "branchHeadMatches": true,
+            "rapidRewrite": {
+              "beforeMtimeMs": 1793450164332,
+              "afterMtimeMs": 1793450164367,
+              "sameTimestampSecond": true,
+              "detectedChanges": 1,
+              "expectedChanges": 1,
+              "passed": true
+            },
+            "overwriteProbe": null,
+            "reopen": {
+              "firstDirtyCount": 0,
+              "warmDirtyCount": 0,
+              "treeMatches": true,
+              "filesVerified": true,
+              "statusPreview": []
+            }
+          },
+          "wasmLinearMemoryBytes": 17039360,
+          "storage": {
+            "quota": 10738149103,
+            "usage": 730863,
+            "usageDetails": {
+              "fileSystem": 730863
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "assetSizes": {
+    "isomorphic.js": {
+      "bytes": 268966,
+      "gzipBytes": 82313
+    },
+    "vendor/lg2.js": {
+      "bytes": 110554,
+      "gzipBytes": 30630
+    },
+    "vendor/lg2.wasm": {
+      "bytes": 862879,
+      "gzipBytes": 361650
+    },
+    "vendor/lg2_opfs.js": {
+      "bytes": 72574,
+      "gzipBytes": 20191
+    },
+    "vendor/lg2_opfs.wasm": {
+      "bytes": 976417,
+      "gzipBytes": 400318
+    },
+    "vendor/lg2_opfs_jspi.js": {
+      "bytes": 106230,
+      "gzipBytes": 29199
+    },
+    "vendor/lg2_opfs_jspi.wasm": {
+      "bytes": 861379,
+      "gzipBytes": 361552
+    },
+    "vendor/lg2_opfs_async.js": {
+      "bytes": 110040,
+      "gzipBytes": 30183
+    },
+    "vendor/lg2_opfs_async.wasm": {
+      "bytes": 1627526,
+      "gzipBytes": 549167
+    }
+  }
+}

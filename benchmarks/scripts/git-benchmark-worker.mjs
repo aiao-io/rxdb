@@ -175,6 +175,13 @@ async function checkout(ref) {
   return runWasm(['checkout', ref]);
 }
 
+async function createBranch(ref, object) {
+  cache = {};
+  if (engine) return engine.branch({ fs, dir: repo, ref, object, force: true });
+  enterRepository();
+  return runWasm(['checkout', '-b', ref]);
+}
+
 async function verifyFiles(files) {
   for (const file of files) {
     const actual = await fs.promises.readFile(`${repo}/${file.path}`, 'utf8');
@@ -230,10 +237,14 @@ async function workflow({ fixture, url, expected }) {
   const modifiedOid = await head();
   assert((await tree()) === expected.modifiedTree, 'committed tree differs from native Git');
   assert((await status()) === 0, 'commit is dirty');
+  const branchName = 'benchmark-branch';
+  await measured(metrics, 'branchCreateMs', () => createBranch(branchName, modifiedOid));
+  assert((await head()) === modifiedOid, 'created branch does not point at modified commit');
   await measured(metrics, 'checkoutOriginalMs', () => checkout(expected.initialOid));
   await verifyFiles(fixture.files);
-  await measured(metrics, 'checkoutModifiedMs', () => checkout(modifiedOid));
+  await measured(metrics, 'checkoutModifiedMs', () => checkout(branchName));
   await verifyFiles(fixture.patch);
+  assert((await head()) === modifiedOid, 'branch checkout points at the wrong commit');
   assert((await status()) === 0, 'checkout is dirty');
   return {
     metrics,
@@ -242,6 +253,8 @@ async function workflow({ fixture, url, expected }) {
       modifiedTree: expected.modifiedTree,
       dirtyCount,
       filesVerified: true,
+      branchName,
+      branchHeadMatches: (await head()) === modifiedOid,
       rapidRewrite,
       overwriteProbe
     },
