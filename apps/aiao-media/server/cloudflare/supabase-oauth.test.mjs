@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  accessTokenEmail,
+  initializeSupabaseProject,
   management,
   managementForConnection,
   managementPermissionMessage,
-  accessTokenEmail,
-  initializeSupabaseProject,
   profileEmail,
   startSupabaseOAuth
 } from './supabase-oauth.mjs';
@@ -50,7 +50,11 @@ test('OAuth management maps a forbidden database operation to its required scope
   globalThis.fetch = async () => new Response(null, { status: 403 });
   try {
     await assert.rejects(
-      management(new Request('https://media.example.com/api/supabase/oauth/initialize'), 'token', '/projects/ref/database/query'),
+      management(
+        new Request('https://media.example.com/api/supabase/oauth/initialize'),
+        'token',
+        '/projects/ref/database/query'
+      ),
       error => error?.status === 403 && /Database Write/.test(error.message)
     );
   } finally {
@@ -62,7 +66,11 @@ test('OAuth management maps an unauthorized database operation to its required s
   globalThis.fetch = async () => new Response(null, { status: 401 });
   try {
     await assert.rejects(
-      management(new Request('https://media.example.com/api/supabase/oauth/initialize'), 'token', '/projects/ref/database/query'),
+      management(
+        new Request('https://media.example.com/api/supabase/oauth/initialize'),
+        'token',
+        '/projects/ref/database/query'
+      ),
       error => error?.status === 401 && /Database Write/.test(error.message)
     );
   } finally {
@@ -76,7 +84,10 @@ test('OAuth project identity uses the current Supabase profile email field', () 
 });
 test('OAuth project identity can read an email claim from a validated JWT access token', () => {
   const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');
-  assert.equal(accessTokenEmail(`${encode({ alg: 'none' })}.${encode({ email: 'owner@example.com' })}.signature`), 'owner@example.com');
+  assert.equal(
+    accessTokenEmail(`${encode({ alg: 'none' })}.${encode({ email: 'owner@example.com' })}.signature`),
+    'owner@example.com'
+  );
   assert.equal(accessTokenEmail('opaque-access-token'), null);
 });
 test('OAuth management refreshes an expired access token before retrying', async () => {
@@ -86,9 +97,12 @@ test('OAuth management refreshes an expired access token before retrying', async
     calls.push({ url: String(url), method: init?.method ?? 'GET' });
     if (calls.length === 1) return new Response(null, { status: 401 });
     if (calls.length === 2)
-      return new Response(JSON.stringify({ access_token: 'refreshed-access', refresh_token: 'refreshed-refresh', expires_in: 900 }), {
-        headers: { 'content-type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({ access_token: 'refreshed-access', refresh_token: 'refreshed-refresh', expires_in: 900 }),
+        {
+          headers: { 'content-type': 'application/json' }
+        }
+      );
     return new Response(JSON.stringify([]), { headers: { 'content-type': 'application/json' } });
   };
   try {
@@ -103,7 +117,10 @@ test('OAuth management refreshes an expired access token before retrying', async
     assert.equal(connection.accessToken, 'refreshed-access');
     assert.equal(connection.refreshToken, 'refreshed-refresh');
     assert.equal(connection.refreshed, true);
-    assert.deepEqual(calls.map(call => call.method), ['GET', 'POST', 'GET']);
+    assert.deepEqual(
+      calls.map(call => call.method),
+      ['GET', 'POST', 'GET']
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -121,9 +138,15 @@ test('OAuth initialization continues when profile is unauthorized but the valida
         headers: { 'content-type': 'application/json' }
       });
     if (value.includes('/api-keys?reveal=true'))
-      return new Response(JSON.stringify([{ type: 'publishable', api_key: 'anon' }, { type: 'service_role', api_key: 'service' }]), {
-        headers: { 'content-type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify([
+          { type: 'publishable', api_key: 'anon' },
+          { type: 'service_role', api_key: 'service' }
+        ]),
+        {
+          headers: { 'content-type': 'application/json' }
+        }
+      );
     if (value === 'https://api.supabase.com/v1/profile') return new Response(null, { status: 401 });
     if (value.includes('/database/query')) return new Response(null, { status: 201 });
     if (value.endsWith('/auth/v1/admin/generate_link'))
@@ -147,8 +170,14 @@ test('OAuth initialization continues when profile is unauthorized but the valida
       { accessToken: token, expiresAt: Date.now() + 3600000 }
     );
     assert.equal(result.initialized, true);
-    assert.equal(calls.some(call => call.url === 'https://api.supabase.com/v1/profile'), true);
-    assert.equal(calls.some(call => call.url.includes('/database/query')), true);
+    assert.equal(
+      calls.some(call => call.url === 'https://api.supabase.com/v1/profile'),
+      true
+    );
+    assert.equal(
+      calls.some(call => call.url.includes('/database/query')),
+      true
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -164,9 +193,15 @@ test('OAuth initialization accepts an explicitly confirmed Supabase account emai
         headers: { 'content-type': 'application/json' }
       });
     if (value.includes('/api-keys?reveal=true'))
-      return new Response(JSON.stringify([{ type: 'publishable', api_key: 'anon' }, { type: 'service_role', api_key: 'service' }]), {
-        headers: { 'content-type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify([
+          { type: 'publishable', api_key: 'anon' },
+          { type: 'service_role', api_key: 'service' }
+        ]),
+        {
+          headers: { 'content-type': 'application/json' }
+        }
+      );
     if (value === 'https://api.supabase.com/v1/profile') return new Response(null, { status: 401 });
     if (value.includes('/database/query')) return new Response(null, { status: 201 });
     if (value.endsWith('/auth/v1/admin/generate_link'))

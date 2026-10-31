@@ -252,13 +252,19 @@ describe('Supabase OAuth transport', () => {
   it('asks for the Supabase account email once when Management OAuth cannot return it', async () => {
     const r = rig();
     vi.spyOn(SupabaseAuthClient.prototype, 'adoptSession').mockResolvedValue(undefined);
-    vi.stubGlobal('prompt', vi.fn(() => 'owner@example.com'));
+    vi.stubGlobal(
+      'prompt',
+      vi.fn(() => 'owner@example.com')
+    );
     vi.mocked(fetch)
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: 'Supabase 管理 API 未返回账号邮箱。请输入刚才授权的 Supabase 账号邮箱后重试。' }), {
-          status: 409,
-          headers: { 'content-type': 'application/json' }
-        })
+        new Response(
+          JSON.stringify({ error: 'Supabase 管理 API 未返回账号邮箱。请输入刚才授权的 Supabase 账号邮箱后重试。' }),
+          {
+            status: 409,
+            headers: { 'content-type': 'application/json' }
+          }
+        )
       )
       .mockResolvedValueOnce(
         new Response(

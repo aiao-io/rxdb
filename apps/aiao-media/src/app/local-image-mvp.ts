@@ -1160,7 +1160,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         cache: 'no-store',
         redirect: 'error'
       });
-      const value = await readJson<{ error?: string; projects?: OAuthProject[] }>(response, 'Supabase 项目列表不可读。');
+      const value = await readJson<{ error?: string; projects?: OAuthProject[] }>(
+        response,
+        'Supabase 项目列表不可读。'
+      );
       if (!response.ok) throw new Error(value.error ?? 'Supabase 项目列表不可读。');
       if (!Array.isArray(value.projects)) throw new Error('Supabase 项目列表不可读。');
       this.oauthProjects.set(value.projects);

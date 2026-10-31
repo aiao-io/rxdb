@@ -127,7 +127,10 @@ export async function management(request, token, path, init = {}) {
   });
   if (result.status >= 300 && result.status < 400) reject(502, 'Supabase 管理接口禁止重定向。');
   if (!result.ok) {
-    const detail = await result.clone().json().catch(() => ({}));
+    const detail = await result
+      .clone()
+      .json()
+      .catch(() => ({}));
     const code = typeof detail?.code === 'string' ? detail.code.slice(0, 80) : null;
     console.warn('Supabase 管理接口请求失败', { path, status: result.status, code });
     await result.body?.cancel();
@@ -136,7 +139,10 @@ export async function management(request, token, path, init = {}) {
     if (result.status === 404) reject(404, 'Supabase 管理接口找不到目标项目或操作。');
     if (result.status === 429) reject(429, 'Supabase 管理接口请求过于频繁，请稍后重试。');
     if (path.includes('/database/query'))
-      reject(502, 'Supabase 项目数据库初始化失败，目标项目可能已有冲突对象或 SQL 与项目状态不兼容。请使用独立空项目并审阅初始化 SQL。');
+      reject(
+        502,
+        'Supabase 项目数据库初始化失败，目标项目可能已有冲突对象或 SQL 与项目状态不兼容。请使用独立空项目并审阅初始化 SQL。'
+      );
     if (path.includes('/api-keys')) reject(502, 'Supabase 项目 Key 读取失败，请确认项目状态正常后重试。');
     reject(502, 'Supabase 管理接口暂时不可用，请稍后重试。');
   }
@@ -297,7 +303,12 @@ export async function initializeSupabaseProject(request, env, suppliedConnection
     env.MEDIA_SUPABASE_AUTOINIT_SQL ||
     (env.MEDIA_SUPABASE_AUTOINIT_SQL_B64 ? new TextDecoder().decode(decode(env.MEDIA_SUPABASE_AUTOINIT_SQL_B64)) : '');
   if (!initSql) reject(503, '自动初始化 SQL 尚未配置，项目未修改。');
-  const keys = await managementForConnection(request, env, connection, `/projects/${value.projectRef}/api-keys?reveal=true`);
+  const keys = await managementForConnection(
+    request,
+    env,
+    connection,
+    `/projects/${value.projectRef}/api-keys?reveal=true`
+  );
   const publicKey =
     Array.isArray(keys) ?
       keys.find(item => item.type === 'publishable' || item.name === 'anon' || item.name === 'publishable')?.api_key
@@ -316,8 +327,7 @@ export async function initializeSupabaseProject(request, env, suppliedConnection
     profile = { primary_email: connection.email ?? accessTokenEmail(connection.accessToken) };
   }
   const email = profileEmail(profile) ?? requestedEmail ?? connection.email ?? accessTokenEmail(connection.accessToken);
-  if (!email)
-    reject(409, 'Supabase 管理 API 未返回账号邮箱。请输入刚才授权的 Supabase 账号邮箱后重试。');
+  if (!email) reject(409, 'Supabase 管理 API 未返回账号邮箱。请输入刚才授权的 Supabase 账号邮箱后重试。');
   await managementForConnection(request, env, connection, `/projects/${value.projectRef}/database/query`, {
     method: 'POST',
     body: JSON.stringify({ query: initSql, read_only: false })
