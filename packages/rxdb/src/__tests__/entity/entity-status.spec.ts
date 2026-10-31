@@ -526,6 +526,188 @@ describe('EntityStatus', () => {
     });
   });
 
+  describe('更新回填', () => {
+    it.each(['赋值撤回', 'reset撤回'])('%s在保存结果到达后仍可再次提交', mode => {
+      const entity = rxdb.entityManager.instantiate(TestEntity, { title: 'before' });
+      const status = getEntityStatus(entity);
+      status.replace({ title: 'before' });
+      entity.title = 'submitted';
+      const pending = status.prepareUpdate({ title: 'submitted' });
+      if (mode === '赋值撤回') entity.title = 'before';
+      else entity.reset();
+      pending.apply({ title: 'submitted' });
+      pending.release();
+      expect(entity.title).toBe('before');
+      expect(status.origin.title).toBe('submitted');
+      expect(status.patch).toEqual({ title: 'before' });
+      expect(status.modified).toBe(true);
+    });
+
+    it('直接补丁不要求先改实体，失败结束后同一补丁可用新起点重试', () => {
+      const entity = rxdb.entityManager.instantiate(TestEntity, { title: 'before' });
+      const status = getEntityStatus(entity);
+      status.replace({ title: 'before' });
+      const patch = { title: 'submitted' };
+      const failed = status.prepareUpdate(patch);
+      failed.release();
+      entity.title = 'before-retry';
+      status.replace({ title: 'retry-baseline' });
+      const retry = status.prepareUpdate(patch);
+      failed.release();
+      retry.apply({ title: 'submitted' });
+      retry.release();
+      expect(entity.title).toBe('submitted');
+      expect(status.patch).toEqual({});
+      expect(status.modified).toBe(false);
+    });
+
+    it('直接补丁写入期间编辑后回到调用值，不被当作从未编辑', () => {
+      const entity = rxdb.entityManager.instantiate(TestEntity, { title: 'before' });
+      const status = getEntityStatus(entity);
+      status.replace({ title: 'before' });
+      const pending = status.prepareUpdate({ title: 'submitted' });
+      entity.title = 'typing';
+      entity.title = 'before';
+      pending.apply({ title: 'submitted' });
+      pending.release();
+      expect(entity.title).toBe('before');
+      expect(status.origin.title).toBe('submitted');
+      expect(status.patch).toEqual({ title: 'before' });
+    });
+
+    it('普通查询回填仍按真实patch合并，不获得更新的撤回保护', () => {
+      const entity = rxdb.entityManager.instantiate(TestEntity, { title: 'before' });
+      const status = getEntityStatus(entity);
+      status.replace({ title: 'before' });
+      const pending = status.prepareUpdate({ title: 'submitted' });
+      entity.title = 'typing';
+      entity.title = 'before';
+      status.applyExternal({ title: 'external' });
+      pending.release();
+      expect(entity.title).toBe('external');
+      expect(status.patch).toEqual({});
+    });
+
+    describe('回填行早于已合入的外部写', () => {
+      const T0 = new Date('2026-01-01T00:00:00.000Z');
+      const T_EARLY = new Date('2026-01-01T00:00:00.500Z');
+      const T1 = new Date('2026-01-01T00:00:01.000Z');
+      const T2 = new Date('2026-01-01T00:00:02.000Z');
+
+      const savedEntity = () => {
+        const entity = rxdb.entityManager.instantiate(TestEntity, { title: 'before', count: 0 });
+        const status = getEntityStatus(entity);
+        status.replace({ title: 'before', count: 0, updatedAt: T0 });
+        return { entity, status };
+      };
+
+      it('不回退已合入的外部新字段与 updatedAt，本次写入的字段照常推进基线', () => {
+        const { entity, status } = savedEntity();
+        entity.title = 'submitted';
+        const pending = status.prepareUpdate({ title: 'submitted' });
+        // UPDATE 已提交、回填尚未合入时，另一个来源改了 count 并先合入缓存
+        status.applyExternal({ count: 7, updatedAt: T2 });
+        // RETURNING 捕获的是提交那一刻的整行：count 仍是旧值，updatedAt 早于那次外部写
+        pending.apply({ title: 'submitted', count: 0, updatedAt: T1 });
+        pending.release();
+        expect(entity.count).toBe(7);
+        expect(status.origin.count).toBe(7);
+        expect(entity.updatedAt).toEqual(T2);
+        expect(status.origin.updatedAt).toEqual(T2);
+        expect(entity.title).toBe('submitted');
+        expect(status.origin.title).toBe('submitted');
+        expect(status.patch).toEqual({});
+        expect(status.modified).toBe(false);
+      });
+
+      it('直接补丁写入的字段落到可见值，未写入的字段不被旧行盖回', () => {
+        const { entity, status } = savedEntity();
+        const pending = status.prepareUpdate({ count: 5 });
+        status.applyExternal({ title: 'external', updatedAt: T2 });
+        pending.apply({ title: 'before', count: 5, updatedAt: T1 });
+        pending.release();
+        expect(entity.title).toBe('external');
+        expect(entity.count).toBe(5);
+        expect(status.origin.count).toBe(5);
+        expect(status.patch).toEqual({});
+        expect(status.modified).toBe(false);
+      });
+
+      it('写入的字段随后又被外部改写时随新基线收敛，不残留成待保存', () => {
+        const { entity, status } = savedEntity();
+        entity.title = 'submitted';
+        const pending = status.prepareUpdate({ title: 'submitted' });
+        status.applyExternal({ title: 'external', updatedAt: T2 });
+        pending.apply({ title: 'submitted', count: 0, updatedAt: T1 });
+        pending.release();
+        expect(entity.title).toBe('external');
+        expect(status.origin.title).toBe('external');
+        expect(status.patch).toEqual({});
+        expect(status.modified).toBe(false);
+      });
+
+      it('写入的字段被外部改写、写入期间又有新编辑时保留新编辑，基线不回退', () => {
+        const { entity, status } = savedEntity();
+        entity.title = 'submitted';
+        const pending = status.prepareUpdate({ title: 'submitted' });
+        status.applyExternal({ title: 'external', updatedAt: T2 });
+        entity.title = 'typing';
+        pending.apply({ title: 'submitted', count: 0, updatedAt: T1 });
+        pending.release();
+        expect(entity.title).toBe('typing');
+        expect(status.origin.title).toBe('external');
+        expect(status.patch).toEqual({ title: 'typing' });
+        expect(status.modified).toBe(true);
+      });
+
+      it('写入前合入的外部值不算覆盖了本次写入：基线取最近一次 prepare', () => {
+        const { entity, status } = savedEntity();
+        entity.title = 'submitted';
+        const patch = { title: 'submitted' };
+        const facade = status.prepareUpdate(patch);
+        // 门面校验期间合入的外部写早于本次 UPDATE（适配器据它算出更晚的 updatedAt）
+        status.applyExternal({ title: 'early', updatedAt: T_EARLY });
+        const adapter = status.prepareUpdate(patch);
+        // 提交之后又有更晚的外部写合入，回填行因此陈旧
+        status.applyExternal({ count: 7, updatedAt: T2 });
+        adapter.apply({ title: 'submitted', count: 0, updatedAt: T1 });
+        adapter.release();
+        facade.release();
+        expect(entity.title).toBe('submitted');
+        expect(status.origin.title).toBe('submitted');
+        expect(entity.count).toBe(7);
+        expect(status.patch).toEqual({});
+        expect(status.modified).toBe(false);
+      });
+
+      it('补丁里有、回填行里没有的键不被当成 undefined 写进基线', () => {
+        const { entity, status } = savedEntity();
+        entity.title = 'submitted';
+        const pending = status.prepareUpdate({ title: 'submitted', active: false });
+        status.applyExternal({ count: 7, updatedAt: T2 });
+        pending.apply({ title: 'submitted', count: 0, updatedAt: T1 });
+        pending.release();
+        expect(entity.active).toBe(true);
+        expect(status.origin.active).toBe(true);
+        expect(entity.title).toBe('submitted');
+        expect(status.patch).toEqual({});
+      });
+
+      it('回填行不早于基线时照常整行推进', () => {
+        const { entity, status } = savedEntity();
+        entity.title = 'submitted';
+        const pending = status.prepareUpdate({ title: 'submitted' });
+        pending.apply({ title: 'submitted', count: 3, updatedAt: T1 });
+        pending.release();
+        expect(entity.count).toBe(3);
+        expect(status.origin.count).toBe(3);
+        expect(status.origin.updatedAt).toEqual(T1);
+        expect(status.patch).toEqual({});
+        expect(status.modified).toBe(false);
+      });
+    });
+  });
+
   describe('inversePatch property', () => {
     it('should return inverse of current patch', () => {
       const entityId = uuid();

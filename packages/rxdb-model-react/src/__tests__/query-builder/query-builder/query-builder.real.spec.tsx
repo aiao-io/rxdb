@@ -186,6 +186,7 @@ describe('QueryBuilder（真实组件）', () => {
       </StrictMode>
     );
 
+    expect(container.querySelector('.rxdb-query-group')).toBeTruthy();
     expect((container.querySelector('input[placeholder="输入值"]') as HTMLInputElement | null)?.value).toBe('hello');
     expect(emitted.at(-1)?.rules).toEqual([expect.objectContaining({ field: 'title', operator: '=', value: 'hello' })]);
   });

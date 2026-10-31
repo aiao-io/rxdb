@@ -1,10 +1,13 @@
 import {
+  advancedIndexStatements,
   compileCheckConstraint,
   compileConditionalUniqueIndex,
   compileExclusionConstraint,
   conditionalUniqueIndexesOf,
   EntityMetadata,
+  generatedColumnDefinitions,
   getEntityColumnName,
+  isAdvancedIndex,
   isConditionalUniqueIndex,
   PropertyType,
   RelationKind,
@@ -254,7 +257,7 @@ const create_table_column_sql = (
     column_check_sql.push(`CONSTRAINT ${quote_sql_identifier(name)} CHECK (${expression})`);
   }
 
-  const need_column_sql = [...column_sql, ...column_check_sql];
+  const need_column_sql = [...column_sql, ...generatedColumnDefinitions(metadata, 'sqlite'), ...column_check_sql];
   if (need_column_sql.length) {
     runSQL += need_column_sql.map(sql => `\n${sql}`).join(',');
     runSQL += '\n);';
@@ -276,7 +279,7 @@ const create_table_column_sql = (
   if (metadata.indexMap && metadata.indexMap.size > 0) {
     metadata.indexMap.forEach(index => {
       // 带 where 的条件唯一索引是存储约束，走下方确定性命名的 uq_ 分支，不进 idx_
-      if (isConditionalUniqueIndex(index)) return;
+      if (isConditionalUniqueIndex(index) || isAdvancedIndex(metadata, index)) return;
       // SQLite 的索引名是**库级全局**的，不含 namespace 时跨 namespace 的同名实体
       // 会撞在一起、第二张表直接建不出来。与表名同口径带上 `namespace$`（SQLC-021）
       const indexName = `idx_${get_table_name_by_metadata(metadata, tableSet)}_${index.name}`;
@@ -299,6 +302,12 @@ const create_table_column_sql = (
       runSQL += `\nCREATE ${uniqueKeyword}INDEX ${quote_sql_identifier(indexName)} ON ${quote_sql_identifier(tableName)}(${columns});`;
     });
   }
+
+  runSQL +=
+    '\n' +
+    advancedIndexStatements(metadata, 'sqlite', quote_sql_identifier(tableName), name =>
+      get_storage_object_name(name, metadata, tableSet)
+    ).join('\n');
 
   // 条件唯一索引（US-030 阶段 B）：确定性名 uq_ + 部分索引 WHERE。读 indexMap（继承合并后的全集）。
   // 名字含 namespace 参与的定义哈希——SQLite 的索引名是库级的，跨 namespace 的同名表不撞名。

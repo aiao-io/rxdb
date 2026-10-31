@@ -144,6 +144,124 @@ describe('Reactive refresh state transitions (T058)', () => {
     h.destroy();
   });
 
+  it('clear 丢弃合并窗口内的旧刷新，持续数据变更也保持 idle', async () => {
+    let onChangeCb: (() => void) | undefined;
+    const perform = vi.fn<PerformSearch>().mockResolvedValue({ results: [res('alpha')], hasMore: false });
+    const h = createSearchHandle({
+      performSearch: perform,
+      subscribeDataChanges: callback => {
+        onChangeCb = callback;
+        return () => {
+          onChangeCb = undefined;
+        };
+      }
+    });
+
+    h.setQuery('alpha');
+    await vi.advanceTimersByTimeAsync(400);
+    expect(await firstValueFrom(h.state$)).toBe('success');
+    expect(onChangeCb).toBeTypeOf('function');
+
+    onChangeCb?.();
+    await vi.advanceTimersByTimeAsync(40);
+    h.clear();
+    const states: SearchState[] = [];
+    const sub = h.state$.subscribe(state => states.push(state));
+    for (let index = 0; index < 8; index += 1) {
+      onChangeCb?.();
+      await vi.advanceTimersByTimeAsync(50);
+    }
+    const results = await firstValueFrom(h.results$);
+    sub.unsubscribe();
+    h.destroy();
+
+    expect([...new Set(states)]).toEqual(['idle']);
+    expect(results).toEqual([]);
+    expect(perform).toHaveBeenCalledTimes(1);
+  });
+
+  it('clear 后输入新查询，旧合并刷新不能覆盖新结果', async () => {
+    let onChangeCb: (() => void) | undefined;
+    const perform = vi.fn<PerformSearch>(async query => ({ results: [res(query)], hasMore: false }));
+    const h = createSearchHandle({
+      performSearch: perform,
+      debounceMs: 10,
+      refreshAuditMs: 80,
+      subscribeDataChanges: callback => {
+        onChangeCb = callback;
+        return () => {
+          onChangeCb = undefined;
+        };
+      }
+    });
+
+    h.setQuery('alpha');
+    await vi.advanceTimersByTimeAsync(10);
+    expect(await firstValueFrom(h.state$)).toBe('success');
+    expect(onChangeCb).toBeTypeOf('function');
+
+    onChangeCb?.();
+    h.clear();
+    h.setQuery('beta');
+    await vi.advanceTimersByTimeAsync(10);
+    expect((await firstValueFrom(h.results$)).map(result => result.id)).toEqual(['beta']);
+
+    await vi.advanceTimersByTimeAsync(80);
+    const results = await firstValueFrom(h.results$);
+    const state = await firstValueFrom(h.state$);
+    h.destroy();
+
+    expect(perform.mock.calls.map(([query]) => query)).toEqual(['alpha', 'beta']);
+    expect(results.map(result => result.id)).toEqual(['beta']);
+    expect(state).toBe('success');
+  });
+
+  it.each([80, 0])('刷新窗口为 %ims 时，慢查询的旧刷新不能替换已入队的新词', async refreshAuditMs => {
+    let onChangeCb: (() => void) | undefined;
+    let finishAlpha: ((page: SearchPage) => void) | undefined;
+    const alpha = new Promise<SearchPage>(resolve => {
+      finishAlpha = resolve;
+    });
+    const perform = vi
+      .fn<PerformSearch>()
+      .mockImplementationOnce(() => alpha)
+      .mockImplementation(async query => ({ results: [res(query)], hasMore: false }));
+    const h = createSearchHandle({
+      performSearch: perform,
+      debounceMs: 10,
+      refreshAuditMs,
+      subscribeDataChanges: callback => {
+        onChangeCb = callback;
+        return () => {
+          onChangeCb = undefined;
+        };
+      }
+    });
+
+    h.setQuery('alpha');
+    await vi.advanceTimersByTimeAsync(10);
+    expect(await firstValueFrom(h.state$)).toBe('loading');
+    expect(onChangeCb).toBeTypeOf('function');
+    expect(finishAlpha).toBeTypeOf('function');
+
+    h.setQuery('beta');
+    await vi.advanceTimersByTimeAsync(10);
+    expect(perform).toHaveBeenCalledTimes(1);
+    onChangeCb?.();
+    await vi.advanceTimersByTimeAsync(refreshAuditMs + 1);
+    expect(perform).toHaveBeenCalledTimes(1);
+
+    finishAlpha?.({ results: [res('alpha')], hasMore: false });
+    await vi.advanceTimersByTimeAsync(1);
+    const results = await firstValueFrom(h.results$);
+    const state = await firstValueFrom(h.state$);
+    h.destroy();
+
+    expect(perform.mock.calls.map(([query]) => query)).toEqual(['alpha', 'beta']);
+    expect(results.map(result => result.id)).toEqual(['beta']);
+    expect(state).toBe('success');
+  });
+
   // 每个实体事件立刻触发一次完整重查，而一次重查 = collections × fields 条并发 rawQuery。
   // 批量导入 / 同步拉取产生几百个事件时，会有数千条 SQL 灌进单线程 sqlite-wasm worker。
   // switchMap 只取消订阅，已发出的 promise 与其 SQL 仍会跑完。

@@ -7,30 +7,30 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 86   |
-| 🚧 In Progress | 1    |
-| 👀 In Review   | 7    |
-| 📝 Backlog     | 27   |
+| ✅ Done        | 105  |
+| 🚧 In Progress | 2    |
+| 👀 In Review   | 6    |
+| 📝 Backlog     | 8    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 121  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（1 条）
+## 进行中（2 条）
 
-| Story                                                                                                       | 剩余范围                                                           |
-| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md) | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。 |
+| Story                                                                                                       | 剩余范围                                                                      |
+| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md) | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。            |
+| [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)                                | 既有过滤与候选消歧已实现；新增 AC#12 的空批次集合写入拒绝与兼容性验收待完成。 |
 
-## 待评审（7 条）
+## 待评审（6 条）
 
 | Story                                                                                                                | 剩余范围                                                                                                        |
 | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)                         | 改了读取列而缓存补不齐时回 SQL 已实现，核心与真实双连接回归通过；待代码评审。                                   |
 | [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                                                 | A～D 已实现；偏好载体对照、历史隔离、三端/四运行时、目录分发与 DevTools 已验收，待代码评审。                    |
 | [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                           | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                                                 |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)                        | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                                     |
 | [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)                             | workspace接线已验证、AC#2成本记录已通过；AC#1发布tarball仓外消费与AC#3试用者按文档独立重搭仍待验证，不能标绿。  |
 | [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)          | 直写修改经 `p_updates` 普通 UPDATE 并返回服务器最终行，推送与原计数入口保留既有权限语义；待代码评审。           |
 | [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md) | 触发器捕获实际 DELETE，RPC 在源日志后写完整隐式日志；显式删除去重、回执收口与混合批次顺序回归通过；待代码评审。 |
@@ -93,7 +93,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)
 - ✅ [US-028 可排序实体（普通实体手动排序）](stories/core/US-028-sortable-entity.md)
 - ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md)
-- 👀 [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)
+- ✅ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)
 - ✅ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md)
 - 👀 [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)
 - ✅ [US-104 rxdb-model 表单校验反馈与保存失败的展示（三端对称）](stories/framework/US-104-validation-feedback.md)
@@ -161,25 +161,25 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 ### [BOM 领域模型](epics/epic-009-bom-domain-model.md)
 
-- ⬜ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md)
-- ⬜ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md)
-- ⬜ [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md)
-- ⬜ [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md)
-- ⬜ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md)
-- ⬜ [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md)
-- ⬜ [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md)
-- ⬜ [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md)
-- ⬜ [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md)
-- ⬜ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md)
-- ⬜ [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md)
-- ⬜ [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)
-- ⬜ [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/domain/US-519-bom-extension-attributes.md)
-- ⬜ [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md)
-- ⬜ [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md)
-- ⬜ [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md)
-- ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md)
-- ⬜ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md)
-- ⬜ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md)
+- ✅ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md)
+- ✅ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md)
+- ✅ [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md)
+- ✅ [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md)
+- ✅ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md)
+- ✅ [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md)
+- ✅ [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md)
+- ✅ [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md)
+- ✅ [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md)
+- ✅ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md)
+- ✅ [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md)
+- 🚧 [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)
+- ✅ [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/domain/US-519-bom-extension-attributes.md)
+- ✅ [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md)
+- ✅ [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md)
+- ✅ [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md)
+- ✅ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md)
+- ✅ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md)
+- ✅ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md)
 
 ### [模型驱动后台管理框架](epics/epic-010-model-driven-admin-framework.md)
 
@@ -197,7 +197,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
-- BOM按已授权切片推进，后续故事仍受各自前置约束；联产品、热路径与可选索引保留独立准入。
+- BOM 既有完整范围已有实现；US-518 新增 AC#12 仍未关闭，不能以旧阶段验收替代。
 - US-029与P2P仍价值待证；US-403、US-910、US-603留在立项池，不因Backlog状态自动获得开工授权。
 - US-910/911的最小能力验证、US-211/219的真实宿主证据、US-528的仓外消费均不能由源码单测替代。
 - Epic关闭还须满足其当前承诺目标和实际发布验收，不能只看所属故事的Done数量。

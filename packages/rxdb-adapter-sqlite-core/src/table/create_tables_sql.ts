@@ -1,4 +1,10 @@
-import { EntityMetadata, EntityType, getEntityMetadata, type WorktreeTableSet } from '@aiao/rxdb';
+import {
+  EntityMetadata,
+  EntityType,
+  getEntityMetadata,
+  getEntityStorageMetadata,
+  type WorktreeTableSet
+} from '@aiao/rxdb';
 import { generate_entity_inserts_sql } from '../entity/inserts_sql.js';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { get_sql_with_params } from '../sqlite-core.utils.js';
@@ -27,7 +33,7 @@ export const create_tables_sql = async <T extends EntityType>(
   let sql = '';
   for (let i = 0; i < EntityTypes.length; i++) {
     const EntityType = EntityTypes[i];
-    const metadata = getEntityMetadata(EntityType);
+    const metadata = getEntityStorageMetadata(adapter.rxdb, EntityType);
     sql += '\n' + create_table_sql(adapter, metadata, tableSet);
     if (metadata.log !== false) {
       const trigger_sql = generate_table_trigger_sql(metadata, {

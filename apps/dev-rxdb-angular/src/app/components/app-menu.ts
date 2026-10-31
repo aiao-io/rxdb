@@ -174,6 +174,12 @@ export class AppMenu {
     },
     {
       type: 'link',
+      title: 'nav.bomView',
+      path: '/bom-view',
+      icon: ListTree
+    },
+    {
+      type: 'link',
       title: 'nav.codeEditor',
       path: '/code-editor',
       icon: Code

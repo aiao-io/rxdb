@@ -46,6 +46,7 @@ export const routes: RouteObject[] = [
         index: true,
         loader: () => redirect('/home')
       },
+      { path: 'bom-view', lazy: lazyRoute(() => import('./pages/bom-view')) },
       {
         path: 'home',
         element: <HomePage />

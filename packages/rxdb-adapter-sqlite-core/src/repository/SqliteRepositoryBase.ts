@@ -1,4 +1,4 @@
-import { EntityMetadata, EntityType, getEntityMetadata, getEntityStatus, RepositoryBase } from '@aiao/rxdb';
+import { EntityMetadata, EntityType, getEntityStatus, getEntityStorageMetadata, RepositoryBase } from '@aiao/rxdb';
 import { find_by_row_ids_sql } from '../query/find_by_row_ids_sql.js';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { RowId, SqliteSuccessResult } from '../sqlite-core.interface.js';
@@ -23,7 +23,7 @@ export class SqliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
     EntityType: T
   ) {
     super(adapter.rxdb, EntityType);
-    this.metadata = getEntityMetadata(EntityType);
+    this.metadata = getEntityStorageMetadata(adapter.rxdb, EntityType);
   }
 
   async findByRowIds(rowIds: RowId[], forceRefresh = false): Promise<InstanceType<T>[]> {
@@ -73,17 +73,25 @@ export class SqliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
   /**
    * 把结果行合进身份映射：干净实体整行刷新，脏实体逐字段避让未保存的编辑。
    *
-   * @param sqliteSuccessResult - 一次 SELECT 的结果集
+   * @param sqliteSuccessResult - 查询或更新后的结果集
    * @returns 结果行对应的实体（命中缓存的返回同一引用）
    *
    * @remarks
-   * 与 {@link addQueryCache} 的分工是「读」与「写」：写路径（`create` / `update`）知道自己
-   * 刚刚写了什么，用 `forcedUpdate` 整行盖回去是对的；读路径拿到的是**别人**写的行，可能
-   * 落在一个用户正在编辑的实体上，只能用 `state.modified ? mergeExternal : replace`
-   * 这一对策略——这正是 `entity-status.ts#applyExternal` 的语义，它把「查询结果回填」
-   * 明确列为必须分流的三条路径之一。
+   * 查询与更新都可能在等待数据库期间收到新编辑；结果行推进基线后，已保存字段自然
+   * 收敛为空差异，新编辑继续保留为下一次保存的 patch。
    */
-  protected mergeQueryCache(sqliteSuccessResult: SqliteSuccessResult): Promise<InstanceType<T>[]> {
-    return transaction_sqlite_result<T>(this.adapter, this.EntityType, sqliteSuccessResult, false, false, true);
+  protected mergeQueryCache(
+    sqliteSuccessResult: SqliteSuccessResult,
+    applySaved?: (data: Partial<InstanceType<T>>) => void
+  ): Promise<InstanceType<T>[]> {
+    return transaction_sqlite_result<T>(
+      this.adapter,
+      this.EntityType,
+      sqliteSuccessResult,
+      false,
+      false,
+      true,
+      applySaved
+    );
   }
 }

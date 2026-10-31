@@ -16,8 +16,17 @@
  * `EntityRelationMetadataBase` 等）只在子文件内使用，**不会**通过本 barrel 暴露。
  */
 
+export type { StorageIndexMethod } from './advanced-index.js';
 export * from './cascade-options.interface.js';
 export * from './entity-options.interface.js';
+export type { EntityGeneratedColumnMetadataOptions } from './generated-column.js';
 export * from './property-types.interface.js';
 export * from './relation-types.interface.js';
+export type {
+  JsonDocumentStorageExpression,
+  JsonScalarDataType,
+  JsonScalarStorageExpression,
+  StorageDialect,
+  StorageExpression
+} from './storage-expression.js';
 export * from './sync-options.interface.js';

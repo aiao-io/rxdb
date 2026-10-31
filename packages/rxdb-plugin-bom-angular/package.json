@@ -1,0 +1,43 @@
+{
+  "name": "@aiao/rxdb-plugin-bom-angular",
+  "version": "0.0.26",
+  "description": "Angular bindings and components for the Aiao RxDB BOM plugin.",
+  "homepage": "https://rxdb.aiao.io/docs/plugins",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "angular",
+    "tree",
+    "hierarchy",
+    "signals"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-plugin-bom-angular"
+  },
+  "type": "module",
+  "peerDependencies": {
+    "@aiao/rxdb": "workspace:^",
+    "@aiao/rxdb-plugin-bom": "workspace:^",
+    "@angular/core": "22.2.3",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-plugin-bom": "workspace:*",
+    "@angular/common": "22.2.3",
+    "@angular/compiler": "22.2.3",
+    "@angular/core": "22.2.3",
+    "@angular/platform-browser": "22.2.3",
+    "vitest": "4.1.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false
+}

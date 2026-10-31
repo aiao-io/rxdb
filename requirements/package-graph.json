@@ -228,6 +228,43 @@
       "framework": "vue"
     },
     {
+      "name": "@aiao/rxdb-plugin-bom",
+      "description": "> Implements: [US-507 BOM 图骨架](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/domain/US-507-bom-graph-skeleton.md)（epic-009 BOM 领域模型首轮切片）",
+      "role": "plugin",
+      "hosts": ["browser", "node"],
+      "slots": [],
+      "framework": null,
+      "plugin": {
+        "source": "src/plugin.ts",
+        "class": "RxDBPluginBom",
+        "factory": "rxDBPluginBom"
+      }
+    },
+    {
+      "name": "@aiao/rxdb-plugin-bom-angular",
+      "description": "BOM 的 angular 绑定、树与行编辑器。",
+      "role": "binding",
+      "hosts": ["browser"],
+      "slots": [],
+      "framework": "angular"
+    },
+    {
+      "name": "@aiao/rxdb-plugin-bom-react",
+      "description": "BOM 的 react 绑定、树与行编辑器。",
+      "role": "binding",
+      "hosts": ["browser"],
+      "slots": [],
+      "framework": "react"
+    },
+    {
+      "name": "@aiao/rxdb-plugin-bom-vue",
+      "description": "BOM 的 vue 绑定、树与行编辑器。",
+      "role": "binding",
+      "hosts": ["browser"],
+      "slots": [],
+      "framework": "vue"
+    },
+    {
       "name": "@aiao/rxdb-plugin-graph",
       "description": "> Implements: [US-503 图数据插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-503-graph-data.md)",
       "role": "plugin",

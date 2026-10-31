@@ -1,8 +1,8 @@
 import { nextMicroTask } from '@aiao/utils';
-import { firstValueFrom, Observable } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { Repository } from '../repository/Repository.js';
 import { RepositoryBase } from '../repository/RepositoryBase.js';
-import { IRxDBAdapter, RxDBMutationsMap } from '../rxdb-adapter.js';
+import { RxDBMutationsMap } from '../rxdb-adapter.js';
 import { EntityLocalNewEvent, EntityLocalUpdatedEvent } from '../rxdb-events.js';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
@@ -16,6 +16,7 @@ import {
   sortOrderAppendEntities
 } from '../sortable/sortable-mutations.js';
 import { snapshotSortOrders } from '../sortable/sortable.utils.js';
+import type { TransactionExecutor } from '../transaction/transaction-executor.interface.js';
 import { EntityIdentityCache } from './entity-identity-cache.js';
 import { assertMutationsAllowed } from './entity-permissions.js';
 import { EntityStatusOptions } from './entity-status.interface.js';
@@ -517,10 +518,12 @@ export class EntityManager {
     if (queryCache) {
       return this.#mutations_query_cache(options);
     }
-    const adapter$: Observable<IRxDBAdapter> =
-      primary.kind === 'remote' ? this.rxdb.remoteAdapter$ : this.rxdb.localAdapter$;
-    const adapter = await firstValueFrom(adapter$);
-    return adapter.mutations(options);
+    if (primary.kind === 'remote') return (await firstValueFrom(this.rxdb.remoteAdapter$)).mutations(options);
+    const adapter = await firstValueFrom(this.rxdb.localAdapter$);
+    const writers = this.#mutation_writers(EntityTypes);
+    // 没有门面实现批量写钩子时保持原路径；有则同一事务里由钩子包住写入（两本地后端的 mutations 本就如此实现）
+    if (writers.length === 0) return adapter.mutations(options);
+    return adapter.transaction(executor => this.#write_mutations(executor, options, writers));
   }
 
   /**
@@ -675,18 +678,40 @@ export class EntityManager {
       );
     }
     const adapter = await firstValueFrom(this.rxdb.localAdapter$);
+    const EntityTypes = collectMutationEntityTypes(options as RxDBMutationsMap);
     // 事务回滚不撤销实例上的赋值：失败时撤回引擎赋上的键，重试才会重新追加
     const restore = snapshotSortOrders(sortOrderAppendEntities(options as RxDBMutationsMap));
     try {
       return await adapter.transaction(async executor => {
         assertMutationsTableSet(this.rxdb, options);
         await appendBatchSortOrders(executor, options as RxDBMutationsMap);
-        return executor.mutations(options);
+        return this.#write_mutations(executor, options, this.#mutation_writers(EntityTypes));
       });
     } catch (error) {
       restore();
       throw error;
     }
+  }
+
+  /** 批内实现了批量写钩子的门面仓储：只实例化注册类原型上声明了钩子的那些。 */
+  #mutation_writers(EntityTypes: readonly EntityType[]): Repository<EntityType>[] {
+    return EntityTypes.filter(EntityType => {
+      const config = this.rxdb.getRepositoryConfig(getEntityMetadata(EntityType).repository);
+      return typeof config?.class.prototype.writeMutations === 'function';
+    }).map(EntityType => this.#get_entity_repository(EntityType));
+  }
+
+  /** 事务内执行一批写入：各门面的批量写钩子按实体类型顺序包住同一次 `executor.mutations`。 */
+  #write_mutations<T extends EntityType>(
+    executor: TransactionExecutor,
+    options: RxDBMutationsMap<T>,
+    writers: readonly Repository<EntityType>[]
+  ): Promise<InstanceType<T>[]> {
+    const write = writers.reduceRight<() => Promise<InstanceType<T>[]>>(
+      (next, writer) => () => writer.writeMutations!(executor, options, next),
+      () => executor.mutations(options)
+    );
+    return write();
   }
 
   /**

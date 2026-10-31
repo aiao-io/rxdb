@@ -21,8 +21,7 @@ export default defineConfig({
   ...nxE2EPreset('.', { testDir: './src', openHtmlReport: 'never' }),
   /* 并行执行所有测试 */
   fullyParallel: !isCI,
-  /* 增加 workers */
-  workers: isCI ? 2 : 8,
+  workers: 1,
   /* 本地不重试 */
   retries: isCI ? 2 : 0,
   timeout: isCI ? 120000 : 90000,
