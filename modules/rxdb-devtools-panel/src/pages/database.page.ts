@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ConnectionGuardComponent } from '../components/connection-guard.component';
-import { DevToolsValueComponent } from '../components/devtools-value.component';
+import { EntityDataTableComponent } from '../components/database/entity-data-table.component';
 import { DatabaseStateService } from '../services/database-state.service';
 import type { EntityInfo } from '../types/devtools.types';
 
@@ -11,7 +11,7 @@ import type { EntityInfo } from '../types/devtools.types';
 @Component({
   selector: 'app-database-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ConnectionGuardComponent, DevToolsValueComponent],
+  imports: [ConnectionGuardComponent, EntityDataTableComponent],
   template: `
     <app-connection-guard>
       <div class="flex h-full">
@@ -245,42 +245,15 @@ import type { EntityInfo } from '../types/devtools.types';
             </div>
 
             <!-- 数据区域 -->
-            <div class="flex-1 overflow-auto p-2">
-              @if (entityLoading()) {
-                <div class="flex h-full items-center justify-center">
-                  <svg
-                    class="animate-spin opacity-50"
-                    fill="none"
-                    height="24"
-                    stroke="currentColor"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                  </svg>
-                </div>
-              } @else if (entityData(); as data) {
+            <div class="min-h-0 flex-1 overflow-hidden p-2">
+              @if (entityData(); as data) {
                 @if (data.error) {
                   <div class="text-error p-2 text-sm">{{ data.error }}</div>
-                } @else if (data.data) {
-                  @if (data.data.length === 0) {
-                    <div class="flex h-full items-center justify-center text-xs opacity-50">无数据</div>
-                  } @else {
-                    <div class="space-y-1">
-                      @for (item of data.data; track $index) {
-                        <div class="bg-base-200 rounded p-2">
-                          <div class="overflow-x-auto">
-                            <app-devtools-value [value]="item" />
-                          </div>
-                        </div>
-                      }
-                    </div>
-                  }
+                } @else {
+                  <app-entity-data-table [data]="data.data" [loading]="entityLoading()" [model]="entityModel()" />
                 }
+              } @else {
+                <app-entity-data-table [data]="[]" [loading]="entityLoading()" [model]="entityModel()" />
               }
             </div>
           }
@@ -316,6 +289,12 @@ export class DatabasePage implements OnInit {
   readonly entityLoading = computed(() => {
     const entity = this.selectedEntity();
     return entity ? this.databaseState.isEntityLoading(entity.name, entity.namespace || 'public') : false;
+  });
+
+  /** 仅展示与当前选中实体匹配的模型，避免同名实体串模型。 */
+  readonly entityModel = computed(() => {
+    const entity = this.selectedEntity();
+    return entity ? this.databaseState.getEntityModel(entity.name, entity.namespace || 'public') : null;
   });
 
   /** 仅展示与当前选中实体匹配的查询结果，避免与 Storage 页共享状态时串数据 */

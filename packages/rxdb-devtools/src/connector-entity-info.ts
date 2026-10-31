@@ -1,5 +1,11 @@
 import type { EntityType } from '@aiao/rxdb';
-import type { DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
+import type { DevToolsEntityMetadata, DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
+import type {
+  DevToolsEntityField,
+  DevToolsEntityFieldOption,
+  DevToolsEntityFieldType,
+  DevToolsEntityModel
+} from './types.js';
 
 /** 连接器内部缓存的实体身份。 */
 export type EntityInfo = {
@@ -8,6 +14,110 @@ export type EntityInfo = {
   encryptedFields: string[];
   entityType: EntityType;
 };
+
+const MODEL_FIELD_TYPES: ReadonlySet<string> = new Set<DevToolsEntityFieldType>([
+  'uuid',
+  'string',
+  'enum',
+  'number',
+  'integer',
+  'bigint',
+  'boolean',
+  'date',
+  'binary',
+  'stringArray',
+  'numberArray',
+  'keyValue',
+  'json',
+  'oneToOne',
+  'manyToOne',
+  'computed'
+]);
+
+const SYSTEM_FIELD_ORDER = new Map([
+  ['id', 0],
+  ['createdAt', 1],
+  ['updatedAt', 2]
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function readFieldType(value: unknown): DevToolsEntityFieldType | undefined {
+  return typeof value === 'string' && MODEL_FIELD_TYPES.has(value) ? (value as DevToolsEntityFieldType) : undefined;
+}
+
+function readFieldOptions(value: unknown): Record<string, DevToolsEntityFieldOption> | undefined {
+  if (!isRecord(value)) return undefined;
+  const options: Record<string, DevToolsEntityFieldOption> = {};
+  for (const [key, option] of Object.entries(value)) {
+    if (!isRecord(option)) continue;
+    const projected: DevToolsEntityFieldOption = {};
+    if (typeof option['label'] === 'string') projected.label = option['label'];
+    if (typeof option['color'] === 'string') projected.color = option['color'];
+    if (typeof option['disabled'] === 'boolean') projected.disabled = option['disabled'];
+    options[key] = projected;
+  }
+  return Object.keys(options).length > 0 ? options : undefined;
+}
+
+function projectField(
+  name: string,
+  source: unknown,
+  forcedType?: DevToolsEntityFieldType
+): DevToolsEntityField | undefined {
+  const raw = isRecord(source) ? source : {};
+  const type = forcedType ?? readFieldType(raw['type']);
+  if (type === undefined) return undefined;
+  const field: DevToolsEntityField = { name, type };
+  const displayName = readString(raw['displayName']);
+  if (displayName !== undefined) field.displayName = displayName;
+  else if (name === 'id') field.displayName = 'ID';
+  if (typeof raw['nullable'] === 'boolean') field.nullable = raw['nullable'];
+  if (Array.isArray(raw['enum']) && raw['enum'].every(item => typeof item === 'string')) {
+    field.enumValues = [...raw['enum']];
+  }
+  const options = readFieldOptions(raw['options']);
+  if (options !== undefined) field.options = options;
+  return field;
+}
+
+function projectModel(metadata: DevToolsEntityMetadata): DevToolsEntityModel {
+  const fields = new Map<string, DevToolsEntityField>();
+  fields.set('id', { name: 'id', displayName: 'ID', type: 'uuid' });
+  for (const [name, fieldMetadata] of metadata.propertyMap ?? []) {
+    const field = projectField(name, fieldMetadata);
+    if (field !== undefined) fields.set(name, field);
+  }
+  for (const [name, fieldMetadata] of metadata.computedPropertyMap ?? []) {
+    const field = projectField(name, fieldMetadata, 'computed');
+    if (field !== undefined) fields.set(name, field);
+  }
+  for (const [name, fieldMetadata] of metadata.foreignKeyRelationMap ?? []) {
+    const field = projectField(name, fieldMetadata, fieldMetadataType(fieldMetadata));
+    if (field !== undefined) fields.set(name, field);
+  }
+
+  const orderedFields = [...fields.values()].sort((a, b) => {
+    const aOrder = SYSTEM_FIELD_ORDER.get(a.name) ?? 3;
+    const bOrder = SYSTEM_FIELD_ORDER.get(b.name) ?? 3;
+    return aOrder - bOrder;
+  });
+  const model: DevToolsEntityModel = { fields: orderedFields };
+  const displayName = readString(metadata.displayName);
+  if (displayName !== undefined) model.displayName = displayName;
+  return model;
+}
+
+function fieldMetadataType(value: unknown): DevToolsEntityFieldType {
+  const raw = isRecord(value) ? value['kind'] : undefined;
+  return raw === '1:1' ? 'oneToOne' : 'manyToOne';
+}
 
 /**
  * 实体身份的复合 key。
@@ -44,19 +154,39 @@ export function resolveEntityKey(
 }
 
 /** 从 RxDB 配置与元数据读取函数收集实体身份。 */
-export function collectEntityInfo(rxdb: DevToolsRxDB, getEntityMetadata: GetEntityMetadataFn): EntityInfo[] {
+export interface CollectedEntityInfo {
+  entityInfo: EntityInfo[];
+  modelMap: Map<string, DevToolsEntityModel>;
+}
+
+function collectEntityView(rxdb: DevToolsRxDB, getEntityMetadata: GetEntityMetadataFn): CollectedEntityInfo {
   const entityInfo: EntityInfo[] = [];
+  const modelMap = new Map<string, DevToolsEntityModel>();
   for (const entityType of rxdb.config.entities) {
     const metadata = getEntityMetadata(entityType);
     if (!metadata?.name) continue;
+    const namespace = metadata.namespace || 'public';
     entityInfo.push({
       name: metadata.name,
-      namespace: metadata.namespace || 'public',
+      namespace,
       encryptedFields: metadata.encryptedPropertyMap ? [...metadata.encryptedPropertyMap.keys()] : [],
       entityType
     });
+    modelMap.set(entityKey(namespace, metadata.name), projectModel(metadata));
   }
-  return entityInfo;
+  return { entityInfo, modelMap };
+}
+
+export function collectEntityInfo(rxdb: DevToolsRxDB, getEntityMetadata: GetEntityMetadataFn): EntityInfo[] {
+  return collectEntityView(rxdb, getEntityMetadata).entityInfo;
+}
+
+/** 从实体元数据生成不会携带 Map、函数、默认值或约束的模型投影。 */
+export function collectEntityModels(
+  rxdb: DevToolsRxDB,
+  getEntityMetadata: GetEntityMetadataFn
+): Map<string, DevToolsEntityModel> {
+  return collectEntityView(rxdb, getEntityMetadata).modelMap;
 }
 
 /** 由实体身份列表派生查询 / 遮罩索引。 */
@@ -75,6 +205,7 @@ export interface EntityIndex {
   readonly entityInfo: readonly EntityInfo[];
   readonly entityTypeMap: ReadonlyMap<string, EntityType>;
   readonly encryptedFieldsMap: ReadonlyMap<string, string[]>;
+  readonly modelMap: ReadonlyMap<string, DevToolsEntityModel>;
 }
 
 /** 按需重算的实体注册表。 */
@@ -93,7 +224,8 @@ export interface EntityRegistry {
 export const EMPTY_ENTITY_INDEX: EntityIndex = Object.freeze({
   entityInfo: Object.freeze([]) as readonly EntityInfo[],
   entityTypeMap: new Map<string, EntityType>(),
-  encryptedFieldsMap: new Map<string, string[]>()
+  encryptedFieldsMap: new Map<string, string[]>(),
+  modelMap: new Map<string, DevToolsEntityModel>()
 });
 
 /**
@@ -131,9 +263,9 @@ export function createEntityRegistry(rxdb: DevToolsRxDB, getEntityMetadata: GetE
     sync(): EntityIndex {
       const entities = rxdb.config.entities;
       if (collected && sameEntityList(lastEntities, entities)) return lastIndex;
-      const entityInfo = collectEntityInfo(rxdb, getEntityMetadata);
+      const view = collectEntityView(rxdb, getEntityMetadata);
       lastEntities = [...entities];
-      lastIndex = { entityInfo, ...entityIndexMaps(entityInfo) };
+      lastIndex = { entityInfo: view.entityInfo, ...entityIndexMaps(view.entityInfo), modelMap: view.modelMap };
       collected = true;
       return lastIndex;
     }

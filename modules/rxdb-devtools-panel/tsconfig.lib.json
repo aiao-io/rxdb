@@ -15,6 +15,12 @@
   "references": [
     {
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-model/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-model-angular/tsconfig.lib.json"
     }
   ]
 }
