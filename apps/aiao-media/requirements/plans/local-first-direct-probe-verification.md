@@ -1,6 +1,6 @@
 # Local-first 最小静态直连试验记录
 
-日期：2026-10-23（Asia/Shanghai）。本记录保留 LF-0 最小页面和本机浏览器实验的结论；完整 local-first 应用、可选代理与 Cloudflare 静态发布已有独立实现和验收记录。
+日期：2026-10-23（Asia/Shanghai）。本记录保留 LF-0 最小页面和本机浏览器实验的历史结论；直连实验实现已在产品接入后移除，完整 local-first 应用、可选代理与 Cloudflare 静态发布已有独立实现和验收记录。
 
 ## 结论
 
@@ -13,25 +13,15 @@
 
 据此确认架构保留两条通道：允许浏览器直连的供应商由用户本机调用；需要代理的供应商由用户主动选择我们的代理。代理默认按请求使用 Key，不持久保存，应用数据仍以本地为准。
 
-## 本次实现
+## 历史实现
 
-- [验证页](../../direct-provider-probe/index.html)、[浏览器请求代码](../../direct-provider-probe/main.js)、[使用说明](../../direct-provider-probe/README.md)。
-- [构建与静态预览脚本](../../scripts/direct-provider-probe.mjs)：只复制四个公开静态文件；预览服务不接受 POST、不提供 API、不暴露环境文件。
-- [真实浏览器测试](../../scripts/direct-provider-probe.test.mjs)：本机静态站点与另一个 origin 的 HTTPS 测试供应商，执行真实 CORS 预检。
-- [单次真实网关实验](../../scripts/direct-provider-probe-live.mjs)：读取本机配置到内存，Key 不写入产物/报告/截图，不自动重试。
-- [Nx 入口](../../project.json)：`direct-probe-build`、`direct-probe-serve`、`direct-probe-test`、`direct-probe-live`；均不依赖现有 API 启动或数据库。
+- 当时使用纯静态页面、独立构建/预览脚本、真实浏览器 CORS 测试和一次性真实网关实验完成验证。相关页面、脚本和 Nx 入口已在产品接入后移除，当前证据以[真实应用集成验证](local-first-app-verification.md)及产品 e2e 为准。
 
-API Key 只在当前页面内存。此页没有 RxDB/持久任务，不标记“已保存到本机作品库”；仅在验证真实图片后提供下载。
+当时页面的 API Key 只保留在内存，没有 RxDB/持久任务，不标记“已保存到本机作品库”；仅在验证真实图片后提供下载。
 
-## 自动化证据
+## 历史自动化证据
 
-命令：
-
-```sh
-pnpm nx run aiao-media:direct-probe-test
-```
-
-六项测试通过：
+删除前的 `aiao-media:direct-probe-test` 曾有六项测试通过：
 
 1. 真实浏览器预检通过后发送一次带鉴权的 POST，解码 PNG，下载字节与 fixture 一致；刷新不保留 Key、不重新生成。
 2. 预检拒绝时没有发送生成 POST，不自动重试，不显示下载成功。

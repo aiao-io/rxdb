@@ -89,7 +89,7 @@ pnpm nx run aiao-media:deploy --skipRemoteCache
 ## 设计与历史资料
 
 - [当前路线图](requirements/roadmap.md) · [真实应用集成验证](requirements/plans/local-first-app-verification.md)
-- [独立直连实验](direct-provider-probe/README.md) · [真实网关 CORS 实测](requirements/plans/local-first-direct-probe-verification.md)
+- [历史直连 CORS 实测](requirements/plans/local-first-direct-probe-verification.md)
 - [界面设计总览](requirements/design/image-mvp/00-overview.png) · [交互原型](requirements/design/image-mvp/index.html)
 - [需求索引](requirements/README.md) · [验收记录](requirements/verification-report.md)
 

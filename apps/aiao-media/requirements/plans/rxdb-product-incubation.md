@@ -53,7 +53,6 @@ rxdb/
         contracts/                    # 当前 apps/aiao-media/src/contracts，普通文件夹
         local-data/                   # 当前 apps/aiao-media/src/local-data，普通文件夹
       public/                         # 模板图片、编辑器资源、WASM 等
-      direct-provider-probe/          # 现有直连探针
       requirements/                   # 完整迁入当前 requirements
       deploy/                         # Worker、Wrangler、部署说明
       infra/supabase/                 # 本地 Auth、SQL、Compose
