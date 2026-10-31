@@ -6,7 +6,7 @@ import {
   type PropertyColumnConfig
 } from '@aiao/rxdb-model';
 import { EntityTableComponent } from '@aiao/rxdb-model-angular';
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
 import type { ColumnDefine, ListTableConstructorOptions } from '@visactor/vtable/es/ts-types/index.js';
 import { DevToolsValueComponent, toDevToolsDisplayRows, type DevToolsDisplayRow } from '../devtools-value.component';
 
@@ -21,6 +21,7 @@ function inferFieldType(name: string, value: unknown): DevToolsEntityFieldType {
   if (name === 'id') return 'uuid';
   if (name === 'createdAt' || name === 'updatedAt') return 'date';
   if (Array.isArray(value)) {
+    if (value.length === 0) return 'json';
     if (value.every(item => typeof item === 'string')) return 'stringArray';
     if (value.every(item => typeof item === 'number')) return 'numberArray';
     return 'json';
@@ -166,13 +167,10 @@ export class EntityDataTableComponent {
   readonly selectedRecord = signal<EntityDataRecord | null>(null);
   readonly tableOptions = ENTITY_DATA_TABLE_OPTIONS;
 
-  readonly recordViewed = output<EntityDataRecord>();
-
   onIconClicked(event: { name: string; record: EntityTableRecord }): void {
     if (event.name !== 'view-action') return;
     const record = { ...event.record };
     this.selectedRecord.set(record);
-    this.recordViewed.emit(record);
   }
 
   closeDetail(): void {

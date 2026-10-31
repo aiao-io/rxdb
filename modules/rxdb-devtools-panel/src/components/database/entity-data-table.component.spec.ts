@@ -62,4 +62,8 @@ describe('EntityDataTableComponent helpers', () => {
       { name: 'config', type: 'json' }
     ]);
   });
+
+  it('无法从空数组推导元素类型时按 JSON 展示', () => {
+    expect(resolveEntityFields(null, [{ tags: [] }])).toEqual([{ name: 'tags', type: 'json' }]);
+  });
 });
