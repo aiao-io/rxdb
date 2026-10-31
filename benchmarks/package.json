@@ -18,6 +18,7 @@
     "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",
     "@aiao/rxdb-adapter-sqliteai": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
+    "@aiao/rxdb-devtools": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-plugin-querycache": "workspace:*",
     "@aiao/rxdb-plugin-search": "workspace:*",

@@ -79,6 +79,12 @@ code {
   color: #f85149;
   outline: 1px solid #f85149;
 }
+.git-demo-devtools-status {
+  color: #8b949e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  margin: 18px 0 0;
+}
 .git-demo-stats {
   display: grid;
   gap: 1px;

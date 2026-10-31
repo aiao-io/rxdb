@@ -1299,6 +1299,9 @@ importers:
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
         version: link:../packages/rxdb-adapter-wa-sqlite
+      '@aiao/rxdb-devtools':
+        specifier: workspace:*
+        version: link:../packages/rxdb-devtools
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../packages/rxdb-plugin-history

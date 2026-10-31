@@ -16,6 +16,7 @@ type DemoResult = {
 };
 
 type WorkerResponse = { result?: DemoResult; error?: string };
+type DevToolsState = 'loading' | 'loaded' | 'unavailable' | 'production';
 
 function App() {
   const workerRef = useRef<Worker | null>(null);
@@ -25,6 +26,17 @@ function App() {
   const [persisted, setPersisted] = useState(false);
   const [head, setHead] = useState('—');
   const [branch, setBranch] = useState('—');
+  const [devToolsState, setDevToolsState] = useState<DevToolsState>(import.meta.env.DEV ? 'loading' : 'production');
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    void import('@aiao/rxdb-devtools')
+      .then(({ getDevToolsConnector }) => {
+        getDevToolsConnector();
+        setDevToolsState('loaded');
+      })
+      .catch(() => setDevToolsState('unavailable'));
+  }, []);
 
   const getWorker = useCallback(() => {
     workerRef.current ??= new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
@@ -99,6 +111,13 @@ function App() {
             清空 OPFS 仓库
           </button>
         </div>
+        <p className='git-demo-devtools-status'>
+          RxDB DevTools：
+          {devToolsState === 'loading' && '加载中…'}
+          {devToolsState === 'loaded' && '连接器已加载；当前 Demo 没有 RxDB 实例'}
+          {devToolsState === 'unavailable' && '未加载'}
+          {devToolsState === 'production' && '仅开发态启用'}
+        </p>
       </section>
 
       <section className='git-demo-stats' aria-label='仓库状态'>
@@ -153,4 +172,6 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('git-demo-root')!).render(<App />);
+const root = document.getElementById('git-demo-root');
+if (!root) throw new Error('git-demo-root is missing');
+createRoot(root).render(<App />);

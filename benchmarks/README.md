@@ -113,7 +113,8 @@ pnpm nx serve benchmarks
 
 页面固定使用 `wasm-git` JSPI，在 dedicated Worker 中把工作区和 `.git` 写入 OPFS，
 可点击“运行 Git 闭环”执行初始化、修改、提交、分支切换和 Worker 重开；“重启 Worker”
-单独验证恢复状态，“清空 OPFS 仓库”只删除这个 Demo 的仓库。页面是研究型验证入口，
+单独验证恢复状态，“清空 OPFS 仓库”只删除这个 Demo 的仓库。开发态会加载
+`@aiao/rxdb-devtools` 连接器；由于本页面没有 RxDB 实例，只显示连接器加载状态，不伪造数据库初始化。页面是研究型验证入口，
 不代表任意 Node / Nx 项目、依赖安装或隔离预览已经支持。
 
 ## 项目结构
