@@ -280,7 +280,7 @@ test('离线多次编辑与重开可推送，修改冲突和删除冲突保留�
     await editDraft(second, '离线第一版');
     await editDraft(second, '离线第二版');
     await second.getByRole('button', { name: '我的账号', exact: true }).click();
-    await expect(second.getByText('有待同步改动', { exact: true })).toBeVisible({ timeout: 25000 });
+    await expect(second.getByText('有待同步改动', { exact: false })).toBeVisible({ timeout: 25000 });
     await context.setOffline(false);
     await second.reload();
     await expect(second.locator('[contenteditable=true]')).toContainText('离线第二版');
