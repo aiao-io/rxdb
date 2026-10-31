@@ -40,7 +40,9 @@ test.describe('功能路由初始化冒烟', () => {
   test('/menu-virtual 能打开并渲染虚拟滚动菜单', async ({ page }) => {
     await page.goto('/menu-virtual');
 
-    await expect(page.getByRole('heading', { level: 1, name: /Tree Menu - Virtual Scroll|树菜单 - 虚拟滚动/ })).toBeVisible({
+    await expect(
+      page.getByRole('heading', { level: 1, name: /Tree Menu - Virtual Scroll|树菜单 - 虚拟滚动/ })
+    ).toBeVisible({
       timeout: 20000
     });
     await assertNoAppCrash(page);
@@ -49,7 +51,9 @@ test.describe('功能路由初始化冒烟', () => {
   test('/file-manager-virtual 能打开并渲染虚拟滚动文件管理器', async ({ page }) => {
     await page.goto('/file-manager-virtual');
 
-    await expect(page.getByRole('heading', { level: 1, name: /File Manager - Virtual Scroll|文件管理器 - 虚拟滚动/ })).toBeVisible({
+    await expect(
+      page.getByRole('heading', { level: 1, name: /File Manager - Virtual Scroll|文件管理器 - 虚拟滚动/ })
+    ).toBeVisible({
       timeout: 20000
     });
     await assertNoAppCrash(page);
