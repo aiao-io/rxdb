@@ -1,4 +1,4 @@
-import { type RxDB, type UUID } from '@aiao/rxdb';
+import { getEntityMutations, type EntityInstanceType, type RxDB, type UUID } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 
 import { BoardLabel } from '../entities/board-label.entity.js';
@@ -119,7 +119,7 @@ const ISOLATION_DESCRIPTION = '同步机制同步回放';
 
 /**
  * 装载确定性种子：主板 + 隔离板，固定 ID 与审计时间戳。
- * 经门面仓储写入（自动按组追加 `sortOrder`），两次装载的五张业务表逐字节相同。
+ * 经 EntityManager 一次批量写入（自动按组追加 `sortOrder`），两次装载的五张业务表逐字节相同。
  *
  * @throws {@link BoardDomainError} `seed_target_not_empty`：库里已有看板（种子不向已有库追加，
  *   否则固定 ID 撞主键、逐条写入会在中途失败留下半套种子）。外键 RESTRICT 保证无板即五张表全空
@@ -130,21 +130,21 @@ export async function seedReleaseBoardDataset(rxdb: RxDB): Promise<void> {
   if ((await firstValueFrom(boardRepo.count({ where: matchAll() }))) > 0) {
     throw new BoardDomainError('seed_target_not_empty', '演示数据只能装进空库');
   }
-  const columnRepo = rxdb.entityManager.getRepository(Column);
-  const taskRepo = rxdb.entityManager.getRepository(Task);
-  const labelRepo = rxdb.entityManager.getRepository(BoardLabel);
-  const linkRepo = rxdb.entityManager.getRepository(TaskLabel);
 
-  await boardRepo.create(
+  type SeedEntity =
+    | EntityInstanceType<typeof Board>
+    | EntityInstanceType<typeof Column>
+    | EntityInstanceType<typeof Task>
+    | EntityInstanceType<typeof BoardLabel>
+    | EntityInstanceType<typeof TaskLabel>;
+  const entities: SeedEntity[] = [
     instantiate(Board, {
       id: RELEASE_BOARD_ID,
       title: 'rxdb 1.0 发布计划',
       description: '1.0 发布前的全部工作。',
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP
-    })
-  );
-  await boardRepo.create(
+    }),
     instantiate(Board, {
       id: ISOLATION_BOARD_ID,
       title: '引擎研究草稿',
@@ -152,10 +152,10 @@ export async function seedReleaseBoardDataset(rxdb: RxDB): Promise<void> {
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP
     })
-  );
+  ];
 
   for (let index = 0; index < RELEASE_COLUMN_IDS.length; index++) {
-    await columnRepo.create(
+    entities.push(
       instantiate(Column, {
         id: RELEASE_COLUMN_IDS[index],
         boardId: RELEASE_BOARD_ID,
@@ -165,7 +165,7 @@ export async function seedReleaseBoardDataset(rxdb: RxDB): Promise<void> {
       })
     );
   }
-  await columnRepo.create(
+  entities.push(
     instantiate(Column, {
       id: ISOLATION_COLUMN_ID,
       boardId: ISOLATION_BOARD_ID,
@@ -182,7 +182,7 @@ export async function seedReleaseBoardDataset(rxdb: RxDB): Promise<void> {
     { name: '发布', color: '#d97706' }
   ] as const;
   for (let index = 0; index < labelNames.length; index++) {
-    await labelRepo.create(
+    entities.push(
       instantiate(BoardLabel, {
         id: RELEASE_LABEL_IDS[index],
         boardId: RELEASE_BOARD_ID,
@@ -198,19 +198,18 @@ export async function seedReleaseBoardDataset(rxdb: RxDB): Promise<void> {
   let linkIndex = 0;
   for (let column = 0; column < RELEASE_TASKS.length; column++) {
     for (const seed of RELEASE_TASKS[column]) {
-      const task = await taskRepo.create(
-        instantiate(Task, {
-          id: taskId(taskIndex),
-          columnId: RELEASE_COLUMN_IDS[column],
-          title: seed.title,
-          description: seed.description,
-          dueDate: seed.dueDate,
-          createdAt: SEED_TIMESTAMP,
-          updatedAt: SEED_TIMESTAMP
-        })
-      );
+      const task = instantiate(Task, {
+        id: taskId(taskIndex),
+        columnId: RELEASE_COLUMN_IDS[column],
+        title: seed.title,
+        description: seed.description,
+        dueDate: seed.dueDate,
+        createdAt: SEED_TIMESTAMP,
+        updatedAt: SEED_TIMESTAMP
+      });
+      entities.push(task);
       for (const label of seed.labels) {
-        await linkRepo.create(
+        entities.push(
           instantiate(TaskLabel, {
             id: linkId(linkIndex),
             taskId: task.id,
@@ -225,7 +224,7 @@ export async function seedReleaseBoardDataset(rxdb: RxDB): Promise<void> {
     }
   }
   for (let index = 0; index < ISOLATION_TITLES.length; index++) {
-    await taskRepo.create(
+    entities.push(
       instantiate(Task, {
         id: taskId(taskIndex + index),
         columnId: ISOLATION_COLUMN_ID,
@@ -237,6 +236,13 @@ export async function seedReleaseBoardDataset(rxdb: RxDB): Promise<void> {
       })
     );
   }
+
+  await rxdb.entityManager.mutations(
+    getEntityMutations({
+      needSaveEntities: entities,
+      needRemoveEntities: []
+    })
+  );
 }
 
 /** 种子看板实体实例类型。 */
