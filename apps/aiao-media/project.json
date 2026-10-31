@@ -166,6 +166,42 @@
         "cwd": "apps/aiao-media"
       }
     },
+    "direct-probe-build": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["{projectRoot}/direct-provider-probe/**/*", "{projectRoot}/scripts/direct-provider-probe.mjs"],
+      "outputs": ["{projectRoot}/dist/direct-provider-probe"],
+      "options": {
+        "command": "node scripts/direct-provider-probe.mjs build",
+        "cwd": "apps/aiao-media"
+      }
+    },
+    "direct-probe-serve": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "dependsOn": ["direct-probe-build"],
+      "options": {
+        "command": "node scripts/direct-provider-probe.mjs serve",
+        "cwd": "apps/aiao-media"
+      }
+    },
+    "direct-probe-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "eslint scripts/direct-provider-probe*.mjs direct-provider-probe/main.js && node --test scripts/direct-provider-probe.test.mjs",
+        "cwd": "apps/aiao-media"
+      }
+    },
+    "direct-probe-live": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["direct-probe-build"],
+      "options": {
+        "command": "node scripts/direct-provider-probe-live.mjs",
+        "cwd": "apps/aiao-media"
+      }
+    },
     "deploy": {
       "executor": "nx:run-commands",
       "cache": false,

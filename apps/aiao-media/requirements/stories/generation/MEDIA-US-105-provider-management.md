@@ -79,5 +79,5 @@ AC7 仍缺真实证据：产品内成功结果均为 base64；MiniMax 正方形�
 - [MEDIA-US-102 图片生成与本机交付](MEDIA-US-102-image-generation.md)
 - [MEDIA-US-004 Cloudflare 静态部署与可选代理](../platform/MEDIA-US-004-cloudflare-edge-deployment.md)
 - [MEDIA-US-302 多端草稿同步与冲突处理](../local-first/MEDIA-US-302-draft-sync.md)
-- [历史直连试验记录](../../plans/local-first-direct-probe-verification.md)
+- [直连试验记录](../../plans/local-first-direct-probe-verification.md)
 - [验收记录](../../verification-report.md)
