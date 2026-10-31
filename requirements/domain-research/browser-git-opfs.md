@@ -15,11 +15,11 @@ CodeMirror 提供编辑界面，已经有拼出浏览器代码工作区的基础
 [`browser-git-research-011.json`](../../benchmarks/reports/browser-git-research-011.json)。本轮新增了
 `branch → checkout` 验收，三种配置都保持提交 OID、tree 和文件字节一致，Worker 重开后状态仍为 clean。
 
-| 配置 | clone | 热 status | 提交 | 重开总耗时 | 同秒等长改写 | 分支切换 / 文件互通 |
-| ---- | ----: | --------: | ---: | ---------: | ------------: | -------------------: |
-| isomorphic-git + OPFS | 244 ms | 65 ms | 53 ms | 144 ms | ❌ 漏检 | ✅ |
-| wasm-git JSPI + OPFS | 279 ms | 10 ms | 70 ms | 222 ms | ✅ | ✅ |
-| wasm-git Asyncify + OPFS | 303 ms | 11 ms | 68 ms | 225 ms | ✅ | ✅ |
+| 配置                     |  clone | 热 status |  提交 | 重开总耗时 | 同秒等长改写 | 分支切换 / 文件互通 |
+| ------------------------ | -----: | --------: | ----: | ---------: | -----------: | ------------------: |
+| isomorphic-git + OPFS    | 244 ms |     65 ms | 53 ms |     144 ms |      ❌ 漏检 |                  ✅ |
+| wasm-git JSPI + OPFS     | 279 ms |     10 ms | 70 ms |     222 ms |           ✅ |                  ✅ |
+| wasm-git Asyncify + OPFS | 303 ms |     11 ms | 68 ms |     225 ms |           ✅ |                  ✅ |
 
 单次采样只用于正确性与数量级判断，不能当作性能门禁。`isomorphic-git` 的漏检在 1.44.4 仍存在，
 所以它继续保留为备选；`wasm-git` pthreads 的既有覆盖写入与重开失败仍阻止采用。

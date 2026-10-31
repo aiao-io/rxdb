@@ -1,6 +1,43 @@
 {
-  "status": "completed",
-  "generatedAt": "2026-10-31T12:35:58.098Z",
+  "assetSizes": {
+    "isomorphic.js": {
+      "bytes": 268966,
+      "gzipBytes": 82313
+    },
+    "vendor/lg2.js": {
+      "bytes": 110554,
+      "gzipBytes": 30630
+    },
+    "vendor/lg2.wasm": {
+      "bytes": 862879,
+      "gzipBytes": 361650
+    },
+    "vendor/lg2_opfs.js": {
+      "bytes": 72574,
+      "gzipBytes": 20191
+    },
+    "vendor/lg2_opfs.wasm": {
+      "bytes": 976417,
+      "gzipBytes": 400318
+    },
+    "vendor/lg2_opfs_jspi.js": {
+      "bytes": 106230,
+      "gzipBytes": 29199
+    },
+    "vendor/lg2_opfs_jspi.wasm": {
+      "bytes": 861379,
+      "gzipBytes": 361552
+    },
+    "vendor/lg2_opfs_async.js": {
+      "bytes": 110040,
+      "gzipBytes": 30183
+    },
+    "vendor/lg2_opfs_async.wasm": {
+      "bytes": 1627526,
+      "gzipBytes": 549167
+    }
+  },
+  "attempts": 1,
   "environment": {
     "platform": "darwin",
     "release": "27.0.0",
@@ -10,21 +47,7 @@
     "node": "v26.12.0",
     "browser": "156.0.8078.4"
   },
-  "versions": {
-    "isomorphic-git": "1.44.4",
-    "wasm-git": "0.0.17"
-  },
-  "sourceSha256": {
-    "git-browser-benchmark.mjs": "7db60d6c8a2f36778a1e143c495563e3a4e9df97138d465562d5a793c3cb0564",
-    "git-benchmark-worker.mjs": "73933cfeaebf8bc2ea260333061769addd4d2d17bda1b9f2b1e540c4f86c8561",
-    "git-benchmark-fs.mjs": "b62392a57c4d0333f6418903367042d92b9b674d2e14540a173e2c3c33f71940",
-    "git-benchmark-fixture.mjs": "33606a3d47ac66504f7a0755fdcda9bde3bca5289f713f8d9e2feacb0bbe15b4",
-    "git-benchmark-isomorphic.mjs": "15001f79c33f5001b15bf5d3d6f4fbc46968cd3096df1f62641096c3585889e9"
-  },
-  "attempts": 1,
-  "profiles": [
-    "small"
-  ],
+  "generatedAt": "2026-10-31T12:35:58.098Z",
   "notes": [
     "MEMFS configurations share the Emscripten FS implementation; isomorphic startup includes that benchmark-only FS runtime.",
     "Native OPFS is a benchmark-only async facade for ordinary files, not a production filesystem.",
@@ -36,6 +59,7 @@
     "WASM linear memory is not total browser memory; JS heap and peak RSS are not measured.",
     "Five samples support medians and ranges; p95 nearest-rank equals the maximum and is not a stable tail estimate."
   ],
+  "profiles": ["small"],
   "results": [
     {
       "profile": "small",
@@ -764,42 +788,16 @@
       ]
     }
   ],
-  "assetSizes": {
-    "isomorphic.js": {
-      "bytes": 268966,
-      "gzipBytes": 82313
-    },
-    "vendor/lg2.js": {
-      "bytes": 110554,
-      "gzipBytes": 30630
-    },
-    "vendor/lg2.wasm": {
-      "bytes": 862879,
-      "gzipBytes": 361650
-    },
-    "vendor/lg2_opfs.js": {
-      "bytes": 72574,
-      "gzipBytes": 20191
-    },
-    "vendor/lg2_opfs.wasm": {
-      "bytes": 976417,
-      "gzipBytes": 400318
-    },
-    "vendor/lg2_opfs_jspi.js": {
-      "bytes": 106230,
-      "gzipBytes": 29199
-    },
-    "vendor/lg2_opfs_jspi.wasm": {
-      "bytes": 861379,
-      "gzipBytes": 361552
-    },
-    "vendor/lg2_opfs_async.js": {
-      "bytes": 110040,
-      "gzipBytes": 30183
-    },
-    "vendor/lg2_opfs_async.wasm": {
-      "bytes": 1627526,
-      "gzipBytes": 549167
-    }
+  "sourceSha256": {
+    "git-browser-benchmark.mjs": "7db60d6c8a2f36778a1e143c495563e3a4e9df97138d465562d5a793c3cb0564",
+    "git-benchmark-worker.mjs": "73933cfeaebf8bc2ea260333061769addd4d2d17bda1b9f2b1e540c4f86c8561",
+    "git-benchmark-fs.mjs": "b62392a57c4d0333f6418903367042d92b9b674d2e14540a173e2c3c33f71940",
+    "git-benchmark-fixture.mjs": "33606a3d47ac66504f7a0755fdcda9bde3bca5289f713f8d9e2feacb0bbe15b4",
+    "git-benchmark-isomorphic.mjs": "15001f79c33f5001b15bf5d3d6f4fbc46968cd3096df1f62641096c3585889e9"
+  },
+  "status": "completed",
+  "versions": {
+    "isomorphic-git": "1.44.4",
+    "wasm-git": "0.0.17"
   }
 }
