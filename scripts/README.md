@@ -25,6 +25,7 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | [check-doc-code.mjs](#check-doc-codemjs)                                    | 改 `website/docs/**` 后                      | 抽取文档代码块里的 `@aiao/*` import，验证指向真实包                                                           | `node scripts/check-doc-code.mjs [--strict]`                                  |
 | [check-externals.mjs](#check-externalsmjs)                                  | 新增/删除包依赖后                            | 检查 `vite.config.mts` 的 `external` 是否覆盖 `dependencies + peerDependencies`                               | `node scripts/check-externals.mjs`                                            |
 | [check-migration-release-gate.mjs](#check-migration-release-gatemjs)        | 发 bridge / migration release 前             | 校验 `requirements/migration-release.json` 字段语义                                                           | `pnpm check-migration-release-gate` / `check-migration-release-gate.spec.mjs` |
+| [release-preflight.mjs](#release-preflightmjs)                              | 手工发布前                                   | 在当前干净提交上跑全量校验、迁移清单和包图门禁，并校验输入未漂移                                             | `pnpm run release:preflight`；发布入口自动调用                           |
 | [git-stats.mjs](#git-statsmjs)                                              | 统计代码归属                                 | 跑 `git blame` 汇总各项目 / 作者的代码 / 测试 / 注释 / 文档行数                                               | `node scripts/git-stats.mjs`                                                  |
 | [git-stats-worker.mjs](#git-stats-workermjs)                                | 同上                                         | 真正的 worker：解析 `git blame --line-porcelain` 并累加统计                                                   | 由 `git-stats.mjs` 通过 `worker_threads` 拉起                                 |
 | [git-stats-worker.test.mjs](#git-stats-worker-testmjs)                      | 改 worker 后                                 | Node test runner，覆盖 blame 解析逻辑                                                                         | `node --test scripts/git-stats-worker.test.mjs`                               |
@@ -155,6 +156,13 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 ---
 
 ## 5. 同步与发布
+
+### `release-preflight.mjs`
+
+- **触发**：`pnpm run release:preflight`，以及根 `publish` / `publish:sequential`（dry-run 除外）。
+- **做什么**：要求工作区干净，在当前提交上依次运行 `pnpm test-all`、迁移发布清单门禁和包组合门禁；校验期间提交、版本、清单或发布项目配置发生变化会直接停止。校验完成后从同一工作树继续发布，不接受外部或旧 tarball。
+- **边界**：只约束仓库提供的两个手工发布入口；直接调用 `npm publish`、`pnpm publish` 或 `publish-local` 不在本故事范围内。不会自动决定版本、推 tag 或写 registry。
+- **何时手动跑**：最终发布提交准备好、工作区干净且产物已由当前提交构建后，运行 `pnpm run release:preflight` 查看门禁结果；支持的发布入口会在真正发布前再次执行同一组门禁。
 
 ### `check-migration-release-gate.mjs`
 
