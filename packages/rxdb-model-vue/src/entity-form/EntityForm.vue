@@ -12,7 +12,6 @@ import { useModelI18n } from '../i18n';
  * 逐项等价，模板文案逐字一致。
  */
 import type {
-  EntityFieldType,
   EntityFormData,
   FormFieldChangeEvent,
   FormFieldConfig,
@@ -21,8 +20,8 @@ import type {
   RelatedEntityItem,
   RelatedEntityProvider
 } from '@aiao/rxdb-model';
-import { formatEntityFieldValue, parseEntityFieldValueStrict, validateForm } from '@aiao/rxdb-model';
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
+import { useEntityForm } from './headless';
 
 const props = withDefaults(
   defineProps<{
@@ -51,18 +50,25 @@ const emit = defineEmits<{
   validationErrors: [result: FormValidationResult];
 }>();
 
-/** 初始数据（data 属性变化时重置） */
-const initialData = ref<EntityFormData>({ ...props.data });
-/** 当前编辑数据（取消时回到 initialData） */
-const formData = ref<EntityFormData>({ ...initialData.value });
-
-watch(
-  () => props.data,
-  data => {
-    initialData.value = { ...data };
-    formData.value = { ...data };
-  }
-);
+const { controller, snapshot } = useEntityForm({
+  get fields() {
+    return props.fields;
+  },
+  get data() {
+    return props.data;
+  },
+  get mode() {
+    return props.mode;
+  },
+  get relatedEntityProvider() {
+    return props.relatedEntityProvider;
+  },
+  i18n: modelI18n
+});
+/** 控制器快照中的当前值；默认模板继续使用原有 `formData.value` 形态。 */
+const formData = computed(() => snapshot.value.data);
+/** 控制器快照中的取消基线。 */
+const initialData = computed(() => snapshot.value.initialData);
 
 /** 可编辑字段（隐藏字段不渲染） */
 const editableFields = computed(() => props.fields.filter(f => !f.hidden));
@@ -85,63 +91,30 @@ const relatedItemsMap = computed(() => {
 
 /** 只读字段的展示值（field → 格式化字符串） */
 const displayValueMap = computed(() => {
-  const data = formData.value;
-  const fields = editableFields.value;
-  const itemsMap = relatedItemsMap.value;
-  const map = new Map<string, string>();
-  for (const field of fields) {
-    if (!isReadonly.value && field.readonly !== true) continue;
-    const value = data[field.field];
-    if ((field.type === 'oneToOne' || field.type === 'manyToOne') && field.relatedEntityName) {
-      const items = itemsMap.get(field.field) ?? [];
-      const item = items.find(i => i.id === value);
-      map.set(field.field, item?.displayName ?? formatEntityFieldValue(field.type, value, field.format));
-    } else if (field.type === 'enum' && field.options) {
-      const label = field.options[String(value)]?.label;
-      map.set(field.field, label ?? formatEntityFieldValue(field.type, value, field.format));
-    } else if (field.type === 'stringArray' && field.options) {
-      const items =
-        Array.isArray(value) ? value
-        : typeof value === 'string' ? value.split(',')
-        : [];
-      map.set(field.field, items.map(v => field.options![String(v).trim()]?.label ?? String(v).trim()).join(', '));
-    } else {
-      map.set(field.field, formatEntityFieldValue(field.type, value, field.format));
-    }
-  }
-  return map;
+  return new Map(
+    snapshot.value.fieldStates
+      .filter(field => isReadonly.value || field.readonly)
+      .map(field => [field.config.field, field.displayValue])
+  );
 });
 
 /** 字段变更：统一解析链路（解析失败 emit validationErrors 且不更新数据） */
 const onFieldChange = (field: FormFieldConfig, rawValue: unknown): void => {
-  const current = formData.value;
-  const previousValue = current[field.field];
-  const result = parseEntityFieldValueStrict(field.type, rawValue, modelI18n);
-  if (!result.ok) {
-    emit('validationErrors', {
-      valid: false,
-      errors: [{ field: field.field, message: `${field.displayName} ${result.message}` }]
-    });
-    return;
-  }
-  const parsed = result.value;
-  formData.value = { ...current, [field.field]: parsed };
-  emit('fieldChanged', { field: field.field, type: field.type as EntityFieldType, value: parsed, previousValue });
+  const result = controller.setField(field.field, rawValue);
+  if (!result.ok) emit('validationErrors', result.result);
+  else emit('fieldChanged', result.event);
 };
 
 /** 表单提交：校验通过才 emit formSubmitted */
 const onSubmit = (): void => {
-  const result = validateForm(props.fields, formData.value, modelI18n);
-  if (!result.valid) {
-    emit('validationErrors', result);
-    return;
-  }
-  emit('formSubmitted', formData.value);
+  const result = controller.submit();
+  if (!result.valid) emit('validationErrors', result.result);
+  else emit('formSubmitted', result.data);
 };
 
 /** 取消：重置为初始数据并 emit formCancelled */
 const onCancel = (): void => {
-  formData.value = { ...initialData.value };
+  controller.cancel();
   emit('formCancelled');
 };
 

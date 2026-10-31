@@ -11,7 +11,9 @@ const { controller, snapshot } = useEntityForm({ fields, data, mode: 'edit' });
 controller.setField('title', value);
 ```
 
-`snapshot` 是响应式 ref；组件卸载时自动清理订阅。只使用 headless 入口不需要 VTable 或 Tailwind。
+`snapshot` 是响应式 ref；传入响应式选项以跟随输入变化，组件卸载时自动清理订阅。字段、模式与关系候选更新保留未提交草稿，内容变化的 `data` / `entity` 才重置输入。只使用 headless 入口不需要 VTable 或 Tailwind。
+
+列表切换查询、排序或页码后调用 `refresh()` 执行数据源，过期请求不会回写。批量删除可能部分成功并以 `AggregateError.errors` 报告失败项；详情保存拒绝重复调用，取消/关闭或输入切换后的迟到结果不会覆盖新会话。默认 QueryBuilder、列表和详情尚未全部复用新控制器，headless 历史/手动排序与完整独立 UI 示例仍待完成。
 
 [`@aiao/rxdb-model`](../rxdb-model) 的 Vue 组件层：元数据驱动的实体列表、详情、表单、对话框、可编辑表格与查询构建器。
 

@@ -97,6 +97,20 @@
         "command": "node scripts/audit/release-consumers.mjs"
       }
     },
+    "headless-consumer": {
+      "// cache": "在工作区外复制四个 headless 构建产物，验证 exports、类型文件和无 VTable 导入。",
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": ["rxdb-model", "rxdb-model-angular", "rxdb-model-react", "rxdb-model-vue"]
+        }
+      ],
+      "options": {
+        "command": "node scripts/audit/headless-consumer.mjs"
+      }
+    },
     "lint": {
       "executor": "nx:run-commands",
       "inputs": ["{workspaceRoot}/scripts/**/*", "{workspaceRoot}/eslint.config.mjs"],

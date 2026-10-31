@@ -102,6 +102,10 @@
         "kind": "type"
       },
       {
+        "name": "cloneStructured",
+        "kind": "value"
+      },
+      {
         "name": "cn",
         "kind": "value"
       },
@@ -359,6 +363,10 @@
       },
       {
         "name": "EntityFormSubmitResult",
+        "kind": "type"
+      },
+      {
+        "name": "EntityFormValidationEvent",
         "kind": "type"
       },
       {
@@ -1080,6 +1088,10 @@
         "kind": "value"
       },
       {
+        "name": "cloneStructured",
+        "kind": "value"
+      },
+      {
         "name": "createDefaultFormData",
         "kind": "value"
       },
@@ -1201,6 +1213,10 @@
       },
       {
         "name": "EntityFormSubmitResult",
+        "kind": "type"
+      },
+      {
+        "name": "EntityFormValidationEvent",
         "kind": "type"
       },
       {
@@ -1353,6 +1369,10 @@
       },
       {
         "name": "sortFormFields",
+        "kind": "value"
+      },
+      {
+        "name": "structuralEqual",
         "kind": "value"
       },
       {

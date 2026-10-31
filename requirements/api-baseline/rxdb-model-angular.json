@@ -10,6 +10,10 @@
         "kind": "value"
       },
       {
+        "name": "AngularHeadlessOptions",
+        "kind": "type"
+      },
+      {
         "name": "applyClipboard",
         "kind": "value"
       },
@@ -104,6 +108,10 @@
       {
         "name": "ClipboardContent",
         "kind": "type"
+      },
+      {
+        "name": "cloneStructured",
+        "kind": "value"
       },
       {
         "name": "cn",
@@ -387,6 +395,10 @@
       },
       {
         "name": "EntityFormSubmitResult",
+        "kind": "type"
+      },
+      {
+        "name": "EntityFormValidationEvent",
         "kind": "type"
       },
       {
@@ -1263,6 +1275,10 @@
       }
     ],
     "./headless": [
+      {
+        "name": "AngularHeadlessOptions",
+        "kind": "type"
+      },
       {
         "name": "injectEntityDetail",
         "kind": "value"

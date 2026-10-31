@@ -7,8 +7,8 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 87   |
-| 🚧 In Progress | 1    |
+| ✅ Done        | 86   |
+| 🚧 In Progress | 2    |
 | 👀 In Review   | 7    |
 | 📝 Backlog     | 26   |
 | 🚫 Blocked     | 0    |
@@ -17,10 +17,11 @@
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（1 条）
+## 进行中（2 条）
 
 | Story                                                                                                       | 剩余范围                                                           |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [US-403](stories/ui/US-403-entity-components-headless.md)                                                   | 独立消费、依赖隔离及三框架质量门禁待收口                           |
 | [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md) | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。 |
 
 ## 待评审（7 条）
@@ -74,7 +75,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 ### [UI 组件与开发者工具](epics/epic-003-ui-developer-tools.md)
 
 - ✅ [US-402 代码编辑器组件](stories/ui/US-402-code-editor.md)
-- ✅ [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md)
+- 🚧 [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md)
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
 - ✅ [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)
 - ✅ [US-905 Tauri DevTools 调试窗口、transport 与原生存储集成](stories/future/US-905-tauri-native-devtools.md)

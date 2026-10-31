@@ -1,11 +1,14 @@
 /** React 对 EntityFormController 的响应式绑定。 */
 import {
+  cloneStructured,
   createEntityFormController,
+  structuralEqual,
   type EntityFormController,
   type EntityFormControllerOptions,
   type EntityFormSnapshot
 } from '@aiao/rxdb-model/headless';
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef } from 'react';
+import { useControllerStore } from '../controller-store.js';
 
 /** React headless 表单返回值。 */
 export interface UseEntityFormResult {
@@ -15,17 +18,19 @@ export interface UseEntityFormResult {
 
 /**
  * 将共享表单状态绑定到 React 生命周期。
- * @remarks `data`、`fields` 或 `mode` 变化时会同步到同一个控制器；卸载时自动释放订阅。
+ * @remarks 字段和模式变化保留草稿；宿主数据语义变化才重置。严格模式回放不会提前销毁控制器。
  */
 export function useEntityForm(options: EntityFormControllerOptions): UseEntityFormResult {
-  const controllerRef = useRef<EntityFormController | null>(null);
-  if (controllerRef.current === null) controllerRef.current = createEntityFormController(options);
-  const controller = controllerRef.current;
-  const snapshot = useSyncExternalStore(
-    listener => controller.subscribe(() => listener()),
-    () => controller.snapshot,
-    () => controller.snapshot
+  const { controller, snapshot } = useControllerStore<EntityFormController, EntityFormSnapshot>(() =>
+    createEntityFormController(options)
   );
+  const previousInput = useRef<{
+    data?: EntityFormControllerOptions['data'];
+    entity?: EntityFormControllerOptions['entity'];
+  }>({
+    data: cloneStructured(options.data),
+    entity: cloneStructured(options.entity)
+  });
   useEffect(() => {
     controller.setFields(options.fields);
   }, [controller, options.fields]);
@@ -33,10 +38,20 @@ export function useEntityForm(options: EntityFormControllerOptions): UseEntityFo
     controller.setMode(options.mode ?? 'edit');
   }, [controller, options.mode]);
   useEffect(() => {
-    if (options.data) controller.setData(options.data);
-    else if (options.entity) controller.setEntity(options.entity);
+    controller.setRelatedEntityProvider(options.relatedEntityProvider);
+  }, [controller, options.relatedEntityProvider]);
+  useEffect(() => {
+    const previous = previousInput.current;
+    if (options.data !== undefined && !structuralEqual(options.data, previous.data)) controller.setData(options.data);
+    else if (
+      options.data === undefined &&
+      options.entity !== undefined &&
+      !structuralEqual(options.entity, previous.entity)
+    ) {
+      controller.setEntity(options.entity);
+    }
+    previousInput.current = { data: cloneStructured(options.data), entity: cloneStructured(options.entity) };
   }, [controller, options.data, options.entity]);
-  useEffect(() => () => controller.dispose(), [controller]);
   return { controller, snapshot };
 }
 

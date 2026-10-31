@@ -18,3 +18,4 @@ export * from './entity-table/headless.js';
 export * from './query-builder/models/config.interface.js';
 export * from './query-builder/models/query-builder-state.js';
 export * from './query-builder/services/headless.js';
+export * from './structural-equal.js';

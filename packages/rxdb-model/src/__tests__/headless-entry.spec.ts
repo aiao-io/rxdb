@@ -25,4 +25,46 @@ describe('@aiao/rxdb-model/headless entry', () => {
     expect(packageJson.peerDependenciesMeta?.['@visactor/vtable']?.optional).toBe(true);
     expect(packageJson.peerDependenciesMeta?.['@visactor/vtable-editors']?.optional).toBe(true);
   });
+
+  it('三端 headless 子路径映射到可执行构建产物，Angular secondary entry 使用包根配置', () => {
+    const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
+    type Manifest = {
+      exports?: Record<string, string | Record<string, string>>;
+      peerDependenciesMeta?: Record<string, { optional?: boolean }>;
+      lib?: { entryFile?: string };
+    };
+    const readManifest = (relativePath: string): Manifest =>
+      JSON.parse(readFileSync(resolve(workspaceRoot, relativePath), 'utf8')) as Manifest;
+    const assertHeadlessExport = (relativePath: string): void => {
+      const manifest = readManifest(relativePath);
+      const entry = manifest.exports?.['./headless'];
+      expect(entry).toBeDefined();
+      expect(typeof entry).toBe('object');
+      if (!entry || typeof entry === 'string') return;
+      expect(entry['@aiao/source']).toMatch(/\.ts$/);
+      expect(entry.types).toMatch(/\.d\.ts$/);
+      expect(entry.import ?? entry.default).toMatch(/\.js$/);
+      expect(manifest.peerDependenciesMeta?.['@visactor/vtable']?.optional).toBe(true);
+    };
+
+    assertHeadlessExport('packages/rxdb-model/package.json');
+    assertHeadlessExport('packages/rxdb-model-react/package.json');
+    assertHeadlessExport('packages/rxdb-model-vue/package.json');
+
+    const angularManifest = readManifest('packages/rxdb-model-angular/package.json');
+    expect(angularManifest.exports?.['.']).toBeUndefined();
+    const angularHeadless = angularManifest.exports?.['./headless'];
+    expect(typeof angularHeadless).toBe('object');
+    if (!angularHeadless || typeof angularHeadless === 'string') return;
+    expect(angularHeadless['@aiao/source']).toBe('./src/headless/public-api.ts');
+    expect(readManifest('packages/rxdb-model-angular/headless/ng-package.json').lib?.entryFile).toBe(
+      '../src/headless/public-api.ts'
+    );
+    expect(() =>
+      readFileSync(resolve(workspaceRoot, 'packages/rxdb-model-angular/src/headless/package.json'))
+    ).toThrow();
+    expect(() =>
+      readFileSync(resolve(workspaceRoot, 'packages/rxdb-model-angular/src/headless/ng-package.json'))
+    ).toThrow();
+  });
 });

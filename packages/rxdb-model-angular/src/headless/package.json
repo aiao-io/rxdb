@@ -1,8 +1,0 @@
-{
-  "name": "@aiao/rxdb-model-angular/headless",
-  "ngPackage": {
-    "lib": {
-      "entryFile": "public-api.ts"
-    }
-  }
-}

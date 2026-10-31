@@ -43,6 +43,7 @@ describe('headless contracts', () => {
 
     const table = createQueryTableController({ records: [first, second] });
     table.setQuery({ title: 'b' });
+    table.setRecords([first, second]);
     table.select(['1']);
     expect(table.snapshot.selectedIds).toEqual(['1']);
     list.dispose();
@@ -90,6 +91,9 @@ describe('headless contracts', () => {
     expect(controller.snapshot.state.rootGroup.rules).toHaveLength(1);
     controller.updateRule(id, { value: 'b' });
     expect(controller.snapshot.query).toBeDefined();
+    const snapshotRule = controller.snapshot.state.rootGroup.rules[0] as { value?: unknown };
+    snapshotRule.value = 'mutated outside controller';
+    expect(controller.snapshot.state.rootGroup.rules[0]).toMatchObject({ value: 'b' });
     expect(listener).toHaveBeenCalled();
     controller.dispose();
   });
@@ -113,11 +117,18 @@ describe('headless contracts', () => {
     resolveFirst?.({ records: [record('stale')], total: 1 });
     await firstLoad;
     expect(list.snapshot.records.map(item => item.id)).toEqual(['2']);
-    const created = await list.create({ id: '3' });
+    const crud = createEntityListController({
+      records: [second],
+      onCreate: data => record(String(data['id'] ?? 'created')),
+      onUpdate: (_record, changes) => ({ ..._record, ...changes }),
+      onDelete: vi.fn()
+    });
+    const created = await crud.create({ id: '3' });
     expect(created.id).toBe('3');
-    await list.update('3', { title: 'changed' });
-    await list.remove(['3']);
-    expect(list.snapshot.records.map(item => item.id)).toEqual(['2']);
+    await crud.update('3', { title: 'changed' });
+    await crud.remove(['3']);
+    expect(crud.snapshot.records.map(item => item.id)).toEqual(['2']);
     list.dispose();
+    crud.dispose();
   });
 });

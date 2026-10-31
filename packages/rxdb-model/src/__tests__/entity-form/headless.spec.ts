@@ -64,4 +64,25 @@ describe('EntityFormController', () => {
     expect(controller.snapshot.errors).toEqual([]);
     expect(controller.snapshot.dirty).toBe(false);
   });
+
+  it('初始非法值、多个字段错误和嵌套值都保持可观察且隔离', () => {
+    const nested = { enabled: true };
+    const controller = createEntityFormController({
+      fields: [
+        { field: 'count', displayName: '数量', type: 'integer', required: true },
+        { field: 'json', displayName: 'JSON', type: 'json' }
+      ],
+      data: { count: 'bad', json: nested },
+      mode: 'edit'
+    });
+    expect(controller.snapshot.valid).toBe(false);
+    const snapshotValue = controller.snapshot.data.json as { enabled: boolean };
+    snapshotValue.enabled = false;
+    expect((controller.snapshot.data.json as { enabled: boolean }).enabled).toBe(true);
+    controller.setField('count', 'still bad');
+    controller.setField('json', '{bad');
+    expect(controller.snapshot.errors.map(error => error.field)).toEqual(['count', 'json']);
+    controller.validate();
+    expect(controller.snapshot.errors.map(error => error.field)).toEqual(['count']);
+  });
 });

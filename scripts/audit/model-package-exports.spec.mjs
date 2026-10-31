@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import semver from 'semver';
 
@@ -24,6 +24,23 @@ const peerRange = (manifest, name) => {
 test('Angular model 的 APF 入口由 ng-packagr 生成，不能保留不存在的 dist/index.js 条件', () => {
   assert.equal(angularManifest.exports['.'], undefined);
   assert.equal(angularManifest.exports['./package.json'], undefined);
+});
+
+test('Angular model 的 headless secondary entry 使用包根 ng-package 配置', () => {
+  const headlessEntry = angularManifest.exports['./headless'];
+  assert.deepEqual(headlessEntry?.['@aiao/source'], './src/headless/public-api.ts');
+  const config = JSON.parse(
+    readFileSync(new URL('../../packages/rxdb-model-angular/headless/ng-package.json', import.meta.url), 'utf8')
+  );
+  assert.equal(config.lib.entryFile, '../src/headless/public-api.ts');
+  assert.equal(
+    existsSync(new URL('../../packages/rxdb-model-angular/src/headless/ng-package.json', import.meta.url)),
+    false
+  );
+  assert.equal(
+    existsSync(new URL('../../packages/rxdb-model-angular/src/headless/package.json', import.meta.url)),
+    false
+  );
 });
 
 test('Angular model 的 Tailwind 扫描入口保留为独立资源导出', () => {

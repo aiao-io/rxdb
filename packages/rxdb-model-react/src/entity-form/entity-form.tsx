@@ -11,10 +11,7 @@ import { useModelI18n } from '../i18n.js';
  */
 import {
   cn,
-  EntityFieldType,
   formatEntityFieldValue,
-  parseEntityFieldValueStrict,
-  validateForm,
   type EntityFormData,
   type FormFieldChangeEvent,
   type FormFieldConfig,
@@ -23,7 +20,8 @@ import {
   type RelatedEntityItem,
   type RelatedEntityProvider
 } from '@aiao/rxdb-model';
-import { useMemo, useState, type JSX } from 'react';
+import { useMemo, type JSX } from 'react';
+import { useEntityForm } from './headless.js';
 
 /** {@link EntityForm} 的 props。 */
 export interface EntityFormProps {
@@ -173,16 +171,14 @@ export function EntityForm({
 }: EntityFormProps): JSX.Element {
   const { t, runtime: modelI18n } = useModelI18n();
 
-  const [initialData, setInitialData] = useState<EntityFormData>(() => ({ ...data }));
-  const [formData, setFormData] = useState<EntityFormData>(() => ({ ...data }));
-
-  // data 输入变化 → 重置本地表单（Angular 侧 linkedSignal 同语义；渲染期调整状态）
-  const [prevData, setPrevData] = useState(data);
-  if (prevData !== data) {
-    setPrevData(data);
-    setInitialData({ ...data });
-    setFormData({ ...data });
-  }
+  const { controller: formController, snapshot: formSnapshot } = useEntityForm({
+    fields,
+    data,
+    mode,
+    i18n: modelI18n,
+    relatedEntityProvider
+  });
+  const formData = formSnapshot.data;
 
   const editableFields = useMemo(() => fields.filter(field => !field.hidden), [fields]);
   const isReadonly = mode === 'view';
@@ -227,30 +223,25 @@ export function EntityForm({
   /** 字段变更：严格解析失败输出 validationErrors 且不更新本地数据（Angular 侧同语义）。 */
   const onFieldChange = (field: FormFieldConfig, rawValue: unknown): void => {
     const previousValue = formData[field.field];
-    const result = parseEntityFieldValueStrict(field.type, rawValue, modelI18n);
+    const result = formController.setField(field.field, rawValue);
     if (!result.ok) {
-      onValidationErrors?.({
-        valid: false,
-        errors: [{ field: field.field, message: `${field.displayName} ${result.message}` }]
-      });
+      onValidationErrors?.(result.result);
       return;
     }
-    const parsed = result.value;
-    setFormData(current => ({ ...current, [field.field]: parsed }));
-    onFieldChanged?.({ field: field.field, type: field.type as EntityFieldType, value: parsed, previousValue });
+    onFieldChanged?.({ ...result.event, previousValue });
   };
 
   const onSubmit = (): void => {
-    const result = validateForm(fields, formData, modelI18n);
+    const result = formController.submit();
     if (!result.valid) {
-      onValidationErrors?.(result);
+      onValidationErrors?.(result.result);
       return;
     }
-    onFormSubmitted?.(formData);
+    onFormSubmitted?.(result.data);
   };
 
   const onCancel = (): void => {
-    setFormData({ ...initialData });
+    formController.cancel();
     onFormCancelled?.();
   };
 

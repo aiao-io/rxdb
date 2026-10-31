@@ -7,7 +7,7 @@
  */
 import { formatEntityFieldValue, parseEntityFieldValueStrict } from '../entity-value.utils.js';
 import type { ModelI18n } from '../i18n.js';
-import { structuralEqual } from '../structural-equal.js';
+import { cloneStructured, structuralEqual } from '../structural-equal.js';
 import { createDefaultFormData, entityToFormData, formDataToEntityChanges } from './form-data.js';
 import { validateForm } from './form-validation.js';
 import type {
@@ -16,7 +16,8 @@ import type {
   FormFieldConfig,
   FormFieldValidationError,
   FormMode,
-  FormValidationResult
+  FormValidationResult,
+  RelatedEntityProvider
 } from './interfaces.js';
 
 export type { FormFieldConfig } from './interfaces.js';
@@ -43,6 +44,7 @@ export interface EntityFormSnapshot {
   readonly readonly: boolean;
 }
 
+/** 单个字段的配置、当前值、错误与展示状态。 */
 export interface EntityFormFieldSnapshot {
   readonly config: FormFieldConfig;
   readonly value: unknown;
@@ -59,6 +61,9 @@ export type EntityFormEvent =
   | { readonly type: 'submitted'; readonly data: EntityFormData }
   | { readonly type: 'cancelled'; readonly data: EntityFormData };
 
+/** 校验完成（包括校验通过）的事件。 */
+export type EntityFormValidationEvent = { readonly type: 'validationChanged'; readonly result: FormValidationResult };
+
 /** 表单提交结果。 */
 export type EntityFormSubmitResult =
   | { readonly valid: true; readonly data: EntityFormData; readonly changes: Record<string, unknown> }
@@ -71,11 +76,12 @@ export interface EntityFormControllerOptions {
   readonly entity?: Record<string, unknown>;
   readonly mode?: FormMode;
   readonly i18n?: ModelI18n;
+  readonly relatedEntityProvider?: RelatedEntityProvider;
 }
 
-type Listener = (snapshot: EntityFormSnapshot, event: EntityFormEvent) => void;
+type Listener = (snapshot: EntityFormSnapshot, event: EntityFormEvent | EntityFormValidationEvent) => void;
 
-const cloneData = (data: EntityFormData): EntityFormData => ({ ...data });
+const cloneData = (data: EntityFormData): EntityFormData => cloneStructured(data);
 
 const equalData = (left: EntityFormData, right: EntityFormData): boolean => {
   const leftKeys = Object.keys(left);
@@ -91,6 +97,7 @@ const equalData = (left: EntityFormData, right: EntityFormData): boolean => {
 export class EntityFormController {
   #fields: FormFieldConfig[];
   readonly #i18n?: ModelI18n;
+  #relatedEntityProvider?: RelatedEntityProvider;
   readonly #listeners = new Set<Listener>();
   #mode: FormMode;
   #data: EntityFormData;
@@ -99,9 +106,15 @@ export class EntityFormController {
   #snapshot: EntityFormSnapshot;
   #disposed = false;
 
+  /** 当前不可变快照；每次读取都会返回新的数据对象。 */
+  get snapshot(): EntityFormSnapshot {
+    return cloneStructured(this.#snapshot);
+  }
+
   constructor(options: EntityFormControllerOptions) {
-    this.#fields = options.fields.map(field => ({ ...field }));
+    this.#fields = cloneStructured([...options.fields]);
     this.#i18n = options.i18n;
+    this.#relatedEntityProvider = options.relatedEntityProvider;
     this.#mode = options.mode ?? 'edit';
     const source =
       options.data ??
@@ -111,37 +124,9 @@ export class EntityFormController {
     this.#snapshot = this.#buildSnapshot();
   }
 
-  /** 当前不可变快照；每次读取都会返回新的数据对象。 */
-  get snapshot(): EntityFormSnapshot {
-    return this.#snapshot;
-  }
-
-  #buildSnapshot(): EntityFormSnapshot {
-    const data = cloneData(this.#data);
-    const initialData = cloneData(this.#initialData);
-    const errors = new Map(this.#errors.map(error => [error.field, error]));
-    return {
-      mode: this.#mode,
-      fields: this.#fields,
-      fieldStates: this.#fields.map(config => ({
-        config,
-        value: data[config.field],
-        error: errors.get(config.field),
-        readonly: this.#mode === 'view' || config.readonly === true,
-        displayValue: formatEntityFieldValue(config.type, data[config.field], config.format)
-      })),
-      data,
-      initialData,
-      errors: [...this.#errors],
-      valid: this.#errors.length === 0,
-      dirty: !equalData(data, initialData),
-      readonly: this.#mode === 'view'
-    };
-  }
-
   /** 读取单个字段的渲染状态。 */
   getFieldState(fieldName: string): EntityFormFieldSnapshot | undefined {
-    return this.#snapshot.fieldStates.find(field => field.config.field === fieldName);
+    return cloneStructured(this.#snapshot.fieldStates.find(field => field.config.field === fieldName));
   }
 
   /** 订阅状态和动作事件，返回可安全重复调用的清理函数。 */
@@ -154,6 +139,7 @@ export class EntityFormController {
   /** 替换宿主数据，并清除旧的输入与错误。 */
   setData(data: EntityFormData): void {
     this.#assertActive();
+    if (structuralEqual(this.#initialData, data)) return;
     this.#data = cloneData(data);
     this.#initialData = cloneData(data);
     this.#errors = [];
@@ -170,8 +156,20 @@ export class EntityFormController {
   setFields(fields: readonly FormFieldConfig[]): void {
     this.#assertActive();
     if (structuralEqual(this.#fields, fields)) return;
-    this.#fields = fields.map(field => ({ ...field }));
-    this.#errors = [];
+    const previousTypes = new Map(this.#fields.map(field => [field.field, field.type]));
+    this.#fields = cloneStructured([...fields]);
+    this.#errors = this.#errors.filter(error =>
+      this.#fields.some(field => field.field === error.field && field.type === previousTypes.get(error.field))
+    );
+    this.#snapshot = this.#buildSnapshot();
+    this.#emit({ type: 'reset', data: cloneData(this.#data) });
+  }
+
+  /** 更新关系候选提供者并刷新只读展示值。 */
+  setRelatedEntityProvider(provider: RelatedEntityProvider | undefined): void {
+    this.#assertActive();
+    if (this.#relatedEntityProvider === provider) return;
+    this.#relatedEntityProvider = provider;
     this.#snapshot = this.#buildSnapshot();
     this.#emit({ type: 'reset', data: cloneData(this.#data) });
   }
@@ -179,6 +177,7 @@ export class EntityFormController {
   /** 切换模式；view 模式会阻止所有字段写入和提交。 */
   setMode(mode: FormMode): void {
     this.#assertActive();
+    if (this.#mode === mode) return;
     this.#mode = mode;
     if (mode === 'view') this.#errors = [];
     this.#snapshot = this.#buildSnapshot();
@@ -214,14 +213,14 @@ export class EntityFormController {
         valid: false,
         errors: [{ field: field.field, message: `${field.displayName} ${parsed.message}` }]
       };
-      this.#errors = result.errors;
+      this.#errors = [...this.#errors.filter(error => error.field !== field.field), ...result.errors];
       this.#snapshot = this.#buildSnapshot();
       this.#emit({ type: 'validationErrors', result });
       return { ok: false, result };
     }
     const previousValue = this.#data[field.field];
     const event: FormFieldChangeEvent = { field: field.field, type: field.type, value: parsed.value, previousValue };
-    this.#data = { ...this.#data, [field.field]: parsed.value };
+    this.#data = { ...this.#data, [field.field]: cloneStructured(parsed.value) };
     this.#errors = this.#errors.filter(error => error.field !== field.field);
     this.#snapshot = this.#buildSnapshot();
     this.#emit({ type: 'fieldChanged', event });
@@ -232,9 +231,9 @@ export class EntityFormController {
   validate(): FormValidationResult {
     this.#assertActive();
     const result = validateForm(this.#fields, this.#data, this.#i18n);
-    this.#errors = [...result.errors];
+    this.#errors = [];
     this.#snapshot = this.#buildSnapshot();
-    if (!result.valid) this.#emit({ type: 'validationErrors', result });
+    this.#emit({ type: 'validationChanged', result });
     return result;
   }
 
@@ -270,11 +269,55 @@ export class EntityFormController {
     this.#listeners.clear();
   }
 
+  #buildSnapshot(): EntityFormSnapshot {
+    const data = cloneData(this.#data);
+    const initialData = cloneData(this.#initialData);
+    const errors = new Map(
+      [...validateForm(this.#fields, this.#data, this.#i18n).errors, ...this.#errors].map(error => [error.field, error])
+    );
+    return {
+      mode: this.#mode,
+      fields: cloneStructured(this.#fields),
+      fieldStates: this.#fields.map(config => ({
+        config: cloneStructured(config),
+        value: cloneStructured(data[config.field]),
+        error: errors.get(config.field),
+        readonly: this.#mode === 'view' || config.readonly === true,
+        displayValue: this.#displayValue(config, data[config.field])
+      })),
+      data,
+      initialData,
+      errors: [...errors.values()],
+      valid: errors.size === 0,
+      dirty: !equalData(data, initialData),
+      readonly: this.#mode === 'view'
+    };
+  }
+
+  #displayValue(field: FormFieldConfig, value: unknown): string {
+    if ((field.type === 'oneToOne' || field.type === 'manyToOne') && field.relatedEntityName) {
+      const item = this.#relatedEntityProvider?.(field.relatedEntityName, field.relatedNamespace).find(
+        entry => entry.id === value
+      );
+      if (item) return item.displayName;
+    }
+    if (field.type === 'enum' && field.options)
+      return field.options[String(value)]?.label ?? formatEntityFieldValue(field.type, value, field.format);
+    if (field.type === 'stringArray' && field.options) {
+      const items =
+        Array.isArray(value) ? value
+        : typeof value === 'string' ? value.split(',')
+        : [];
+      return items.map(item => field.options![String(item).trim()]?.label ?? String(item).trim()).join(', ');
+    }
+    return formatEntityFieldValue(field.type, value, field.format);
+  }
+
   #assertActive(): void {
     if (this.#disposed) throw new Error('EntityFormController has been disposed');
   }
 
-  #emit(event: EntityFormEvent): void {
+  #emit(event: EntityFormEvent | EntityFormValidationEvent): void {
     if (this.#disposed) return;
     const snapshot = this.snapshot;
     for (const listener of this.#listeners) listener(snapshot, event);

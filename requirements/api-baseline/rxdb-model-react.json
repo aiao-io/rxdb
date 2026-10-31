@@ -106,6 +106,10 @@
         "kind": "type"
       },
       {
+        "name": "cloneStructured",
+        "kind": "value"
+      },
+      {
         "name": "cn",
         "kind": "value"
       },
@@ -399,6 +403,10 @@
       },
       {
         "name": "EntityFormSubmitResult",
+        "kind": "type"
+      },
+      {
+        "name": "EntityFormValidationEvent",
         "kind": "type"
       },
       {

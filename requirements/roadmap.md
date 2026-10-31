@@ -7,14 +7,14 @@
 
 | 状态           | 数量   |
 | :------------- | :----- |
-| ✅ Done        | 87     |
-| 🚧 In Progress | 1      |
+| ✅ Done        | 86     |
+| 🚧 In Progress | 2      |
 | 👀 In Review   | 7      |
 | 📝 Backlog     | 26     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **34** |
+| **未完成合计** | **35** |
 
-仓库还剩 **34 条**未关闭故事（1 In Progress + 7 In Review + 26 Backlog + 0 Blocked）。
+仓库还剩 **35 条**未关闭故事（2 In Progress + 7 In Review + 26 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把 35 条当成 35 个可开工项。
 
 ## 未完成需求全景
@@ -25,6 +25,7 @@
 | [US-223](stories/adapter/US-223-supabase-mutations-update-semantics.md) / [US-224](stories/adapter/US-224-supabase-cascade-delete-change-log.md)                                                                                   | 👀 In Review   | 直写 UPDATE 返回服务器最终行、级联删除写完整隐式日志已实现；待代码评审                                | 批次 3      |
 | [US-030](stories/core/US-030-declarative-storage-constraints.md)                                                                                                                                                                   | 👀 In Review   | 当前承诺 A～C 的评审收尾；候选 D 不参与本轮关闭                                                       | 批次 3      |
 | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                                                                                    | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                                                   | 批次 3      |
+| [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                                                                                          | 🚧 In Progress | 独立构建产物消费、Angular secondary entry 与三框架质量门禁待收口                                      | 批次 3      |
 | [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                                                                                    | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                                                          | 批次 3      |
 | [epic-009 BOM](epics/epic-009-bom-domain-model.md)（19 条）                                                                                                                                                                        | 📝 Backlog     | 先首轮切片与贯穿应用，再按前置推进；候选优化不自动解锁                                                | 批次 4      |
 | [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                                                                                          | 👀 In Review   | AC#1 仓外发布 tarball 消费与 AC#3 按文档独立重搭仍待验证，AC#2 成本记录已通过；workspace 证据不能替代 | 批次 5      |

@@ -7,11 +7,11 @@
 ```ts
 import { injectEntityForm } from '@aiao/rxdb-model-angular/headless';
 
-const { controller, snapshot } = injectEntityForm({ fields, data, mode: 'edit' });
+const { controller, snapshot } = injectEntityForm(() => ({ fields: fields(), data: data(), mode: 'edit' }));
 controller.setField('title', value);
 ```
 
-`snapshot()` 是 Angular signal；宿主的 `DestroyRef` 销毁时自动清理订阅。只使用 headless 入口不需要 VTable 或 Tailwind。
+`snapshot()` 是只读 Angular signal；选项可传普通对象、signal 或 getter。需要跟随宿主 signal 更新时传 signal/getter，内容相同的输入和字段/模式更新不会覆盖未提交草稿；`DestroyRef` 销毁时自动清理订阅。只使用 headless 入口不需要 VTable 或 Tailwind。
 
 RxDB Model 的 Angular 组件集：以实体元数据驱动的列表、详情、表单、对话框、可编辑表格与可视化查询构建器。所有领域逻辑来自框架无关核心包 [`@aiao/rxdb-model`](https://github.com/aiao-io/rxdb/tree/main/packages/rxdb-model)，本包只承载 Angular 组件壳与 CDK/浏览器集成。
 
@@ -29,9 +29,11 @@ RxDB Model 的 Angular 组件集：以实体元数据驱动的列表、详情、
 
 另有 `ENTITY_TABLE_CONFIG`、`QUERY_BUILDER_THEME` 注入 token 与 `provideQueryBuilderTheme()`。
 
-## Headless 绑定
+## Headless 状态与异步动作
 
-没有 Tailwind / daisyUI 或 VTable 时，从 `@aiao/rxdb-model-angular/headless` 使用 `injectEntityForm`、`injectQueryBuilder`、`injectEntityList`、`injectEntityDetail`、`injectEntityDialog` 和 `injectQueryTable`。每个入口返回 `{ controller, snapshot }`，快照用 Angular signal 暴露，控制器提供状态动作；宿主销毁时自动清理订阅。
+`injectEntityForm`、`injectQueryBuilder`、`injectEntityList`、`injectEntityDetail`、`injectEntityDialog` 和 `injectQueryTable` 返回 `{ controller, snapshot }`。列表切换查询、排序或页码会清除旧页，再由 `refresh()` 调用数据源；过期请求不会回写。批量删除可能部分成功，成功项先收敛，失败原因以 `AggregateError.errors` 返回。详情保存会拒绝重复调用，输入切换、取消或关闭后的迟到结果不会覆盖新会话。
+
+默认 QueryBuilder、列表和详情尚未全部复用新控制器；headless 的历史/手动排序与三框架完整独立 UI 示例仍待完成。完整状态契约、交互责任与渐进迁移见[Headless 实体能力](../../website/docs/entity-model/headless.md)。
 
 ### `EntityDetailComponent` 的编辑行为
 
