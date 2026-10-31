@@ -18,8 +18,8 @@ JSPI / Asyncify 的产品接入。** 在本次统一 MEMFS 对照中，wasm-git 
 各跑一轮 `isomorphic-git 1.44.4`、`wasm-git 0.0.17` JSPI 和 Asyncify。三种配置都通过 clone、
 修改、暂存、提交、`branch → checkout`、tree/OID/文件字节校验与 Worker 重开；isomorphic-git 仍在
 同秒等长改写时返回 clean，JSPI / Asyncify 均检测到变更。原始逐轮数据见
-[`browser-git-research-011.json`](../../benchmarks/reports/browser-git-research-011.json)；1000 文件档见
-[`browser-git-research-011-medium.json`](../../benchmarks/reports/browser-git-research-011-medium.json)。
+[browser-git-research-011.json](../../benchmarks/reports/browser-git-research-011.json)；1000 文件档见
+[browser-git-research-011-medium.json](../../benchmarks/reports/browser-git-research-011-medium.json)。
 
 本轮是正确性复验，不是性能门禁；单次耗时不能替代基准中的五次中位数。结论保持为：固定 JSPI /
 Asyncify 做受限 Worker + OPFS 原型，isomorphic-git 先修正 FS 元数据语义后再重评，pthreads 与 Rust

@@ -12,7 +12,7 @@ CodeMirror 提供编辑界面，已经有拼出浏览器代码工作区的基础
 
 分支 `011-browser-git-opfs` 在当前依赖（`wasm-git 0.0.17`、`isomorphic-git 1.44.4`）上，
 用 Chromium 156、M1 Max、100 个文件的 fixture 跑了一轮真实 Worker + OPFS 验收；原始报告见
-[`browser-git-research-011.json`](../../benchmarks/reports/browser-git-research-011.json)。本轮新增了
+[browser-git-research-011.json](../../benchmarks/reports/browser-git-research-011.json)。本轮新增了
 `branch → checkout` 验收，三种配置都保持提交 OID、tree 和文件字节一致，Worker 重开后状态仍为 clean。
 
 | 配置                     |  clone | 热 status |  提交 | 重开总耗时 | 同秒等长改写 | 分支切换 / 文件互通 |
