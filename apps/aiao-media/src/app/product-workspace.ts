@@ -184,16 +184,13 @@ export class ProductWorkspaceController {
       await this.registry.recordRemote(plan.account, binding.requestId, remote.id);
       this.port.registry(await this.registry.read());
       const replica = await this.open(access, remote.id, generation);
-      console.log('[media-sync] replica opened');
       if (!replica) return;
       await this.round(replica, generation, binding.mode === 'join' && !binding.initialized);
-      console.log('[media-sync] round complete');
       if (!this.current(generation)) return;
       await this.registry.activateBinding(plan.account, binding.requestId, remote.id);
       this.port.registry(await this.registry.read());
       this.plan = null;
     } catch (error) {
-      console.error('确认同步工作区失败', error);
       if (this.current(generation)) this.fail();
     } finally {
       if (this.current(generation)) this.publish({ busy: false });
@@ -392,10 +389,6 @@ export class ProductWorkspaceController {
       throw new Error('当前同步账号已变化。');
   }
   private accept(result: ProductSyncResult): void {
-    console.log(
-      '[media-sync] accepted',
-      JSON.stringify({ pending: result.pending, conflicts: result.conflicts.length })
-    );
     this.publish({
       status:
         result.conflicts.length ? 'conflict'

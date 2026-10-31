@@ -6,11 +6,6 @@ import { endpoint, key, pngFixture, provider } from './local-first.helpers';
 
 let admin: SupabaseClient;
 const ids = new Set<string>();
-test.beforeEach(({ page }) => {
-  page.on('console', message => {
-    console.log(`[browser:${message.type()}] ${message.location().url} ${message.text()}`);
-  });
-});
 test.beforeAll(async () => {
   const local = await localEnvironment();
   admin = createClient(local.url, local.env['SERVICE_ROLE_KEY'], {
