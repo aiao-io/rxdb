@@ -8,13 +8,13 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 86     |
-| 🚧 In Progress | 1      |
+| 🚧 In Progress | 2      |
 | 👀 In Review   | 7      |
-| 📝 Backlog     | 27     |
+| 📝 Backlog     | 26     |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **35** |
 
-仓库还剩 **35 条**未关闭故事（1 In Progress + 7 In Review + 27 Backlog + 0 Blocked）。
+仓库还剩 **35 条**未关闭故事（2 In Progress + 7 In Review + 26 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把 35 条当成 35 个可开工项。
 
 ## 未完成需求全景
@@ -28,16 +28,16 @@
 | [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                                                                                    | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                                                          | 批次 3      |
 | [epic-009 BOM](epics/epic-009-bom-domain-model.md)（19 条）                                                                                                                                                                        | 📝 Backlog     | 先首轮切片与贯穿应用，再按前置推进；候选优化不自动解锁                                                | 批次 4      |
 | [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                                                                                          | 👀 In Review   | AC#1 仓外发布 tarball 消费与 AC#3 按文档独立重搭仍待验证，AC#2 成本记录已通过；workspace 证据不能替代 | 批次 5      |
+| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                       | 🚧 In Progress | 两个手工发布入口统一执行当前提交的全量校验、迁移清单与包图门禁；待受控 registry 替身验收              | 本轮执行   |
 | [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                                                                                          | 📝 Backlog     | 按现有公开逻辑与 #152 列表能力界定入口/依赖隔离，保留默认 UI                                          | 立项池      |
 | [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                                                        | 📝 Backlog     | 价值待证，等待具名多用户写授权症状；解锁时重验当前 API 前提                                           | 立项池      |
 | [US-910](stories/future/US-910-data-i18n.md)                                                                                                                                                                                       | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                        | 立项池      |
 | [US-911](stories/future/US-911-client-i18n.md)                                                                                                                                                                                     | 👀 In Review   | A～D 已实现；A4/A5 载体对照与历史隔离验证通过，三端/四运行时与实现基线全量门禁通过，待代码评审        | 本轮交付    |
 | [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) / [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md) | 📝 Backlog     | 价值待证；先证明离线发现/连接与认证宿主，明确 Tauri 验收归属                                          | 立项池      |
-| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                       | 📝 Backlog     | 手工发布前置校验结果与提交/产物绑定，当前仅有手工要求                                                 | 立项池      |
 
 ## 即办清单
 
-当前没有独立于下列故事的即办项。US-223/224 是已有用户症状的修复，owner 于 2026-10-28 授权完成并转入批次 3，不与仍价值待证的新增抽象混排。
+US-603 是当前独立执行项；US-223/224 是已有用户症状的修复，owner 于 2026-10-28 授权完成并转入批次 3，不与仍价值待证的新增抽象混排。
 
 ## 排期批次
 
@@ -84,7 +84,6 @@ AC#2 的成本记录已通过，但不能只靠 workspace 应用代码量推导�
 | US-029          | 具名多用户使用方与当前可复现写授权症状；解锁时重定库级身份、owner 外键和按行能力                            |
 | US-910 / US-911 | 先完成故事中的能力/持久化合同验证；共享 locale/fallback 仅有一份定义，不预先承诺无需同步改动                |
 | US-704～707     | 按 [epic-011](epics/epic-011-p2p-file-share.md#价值待证)解锁，先验证断服务器超过 TTL 的局域网路径与认证前置 |
-| US-603          | owner 选择发布入口约束范围；已有门禁缺口按独立 tooling story 验收，不引入自动发布                           |
 
 ### epic-006 评审顺延的架构项
 

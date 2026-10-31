@@ -1,11 +1,11 @@
 ---
 id: US-603
 title: 手工发布入口的提交与校验结果一致性
-status: Backlog
+status: In Progress
 priority: Medium
 epic: epic-007-public-api-gates
 created: 2026-10-28
-updated: 2026-10-28
+updated: 2026-10-31
 tags: [tooling, release, preflight]
 ---
 
@@ -54,6 +54,12 @@ tags: [tooling, release, preflight]
 - `package.json` — 两条手工发布入口
 - `scripts/publish-sequential.mjs` — 顺序发布路径
 - `scripts/` — 前置校验与回归用例，具体落点由计划确定
+
+## 当前实现
+
+- `scripts/release-preflight.mjs` 统一执行当前干净提交上的 `pnpm test-all`、迁移清单门禁和包组合门禁，并在门禁期间复核提交、工作区、版本和发布项目配置未变化。
+- 根 `publish` 与 `publish:sequential` 接入同一前置；dry-run 只模拟包清单、不写 registry，可跳过耗时门禁；真实发布入口没有绕过开关。
+- `scripts/release-preflight.spec.mjs` 覆盖门禁顺序、失败短路、脏工作区、输入漂移和入口接线；真实 registry 替身发布验收仍待执行。
 
 ## References
 

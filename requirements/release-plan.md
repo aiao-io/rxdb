@@ -9,7 +9,7 @@
 - 下一次发布必须是 **schema 7→8 的迁移发布**，桥接锚点为 `v0.0.28`。版本号与旧 bundle 隔离策略在发布前定案。
 - `migration-release.json` 保留已发布 `0.0.28` 的原始声明（`normal`、升级位 false）；产物的 3→7 升级已在 CHANGELOG 追认。历史清单不追改为下一次发布。
 - 当前清单检查通过只说明历史声明可读取，不说明下一次迁移发布已就绪。开发、测试、合入不受发布时点阻塞。
-- 发布前必须跑绿 `pnpm test-all`；把结果绑定到待发布提交和产物的自动前置由 [US-603](stories/tooling/US-603-manual-release-preflight.md) 认领，尚未交付。
+- 发布前必须跑绿 `pnpm test-all`；把结果绑定到待发布提交和产物的自动前置由 [US-603](stories/tooling/US-603-manual-release-preflight.md) 承担，当前已接入两个手工入口，待受控 registry 验收。
 
 基线可用 `git show v0.0.28:packages/rxdb/src/system/migration.ts`、当前 `RXDB_SYSTEM_SCHEMA_VERSION` 与 `RXDB_CHANGE_CODEC_VERSION` 复核；版本产物清单以对应 tag 与 registry 为准。
 

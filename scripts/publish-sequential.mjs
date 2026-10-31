@@ -27,6 +27,7 @@ import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { dependencyEdges, scanPackages } from './audit/lib/package-discovery.mjs';
 import { linkReleasePeers, resolvePackageRoot } from './audit/link-release-peers.mjs';
+import { runPreflight } from './release-preflight.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -125,6 +126,11 @@ async function main() {
   }
 
   const workspaceRoot = process.cwd();
+  if (!options.dryRun) {
+    runPreflight({ cwd: workspaceRoot });
+  } else {
+    console.log('dry-run：跳过发布前置，不写入 registry。');
+  }
   const packages = scanPackages(join(workspaceRoot, 'packages'));
   const order = topologicalOrder(packages);
   const published = await publishedSet(order, options.registry);
