@@ -392,6 +392,10 @@ export class ProductWorkspaceController {
       throw new Error('当前同步账号已变化。');
   }
   private accept(result: ProductSyncResult): void {
+    console.log(
+      '[media-sync] accepted',
+      JSON.stringify({ pending: result.pending, conflicts: result.conflicts.length })
+    );
     this.publish({
       status:
         result.conflicts.length ? 'conflict'
