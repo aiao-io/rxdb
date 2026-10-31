@@ -6,7 +6,7 @@
 
 | 维度         | 数值                                                                                                                                                                                                                                                                                                                                                                     |
 | :----------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 总包目录     | **51 个** `packages/*`（有 `package.json` 的包），均未标 `private: true`；哪些已发到 npm、哪些尚未首发见 [release-plan.md](release-plan.md)。其中 **50 个**受 API baseline 保护——[api-baseline/](api-baseline/) 的 json 文件数即此数，缺的是 `rxdb-test`（非产品 API，见下方脚注）；新包先有公开入口后补基线，`api-surface.mjs --check` 会拦。两个数不同义，引用时别互换 |
+| 总包目录     | **55 个** `packages/*`（有 `package.json` 的包），均未标 `private: true`；哪些已发到 npm、哪些尚未首发见 [release-plan.md](release-plan.md)。其中 **54 个**受 API baseline 保护——[api-baseline/](api-baseline/) 的 json 文件数即此数，缺的是 `rxdb-test`（非产品 API，见下方脚注）；新包先有公开入口后补基线，`api-surface.mjs --check` 会拦。两个数不同义，引用时别互换 |
 | 支持框架     | Angular 22 / React 19 / Vue 3.5                                                                                                                                                                                                                                                                                                                                          |
 | 支持平台     | Web / Electron / Tauri / PWA / 小程序                                                                                                                                                                                                                                                                                                                                    |
 | 存储适配器   | 11 个具名适配器：wa-sqlite / sqlite-wasm / sqlite (@sqlite.org) / sqliteai / wa-sqlite-miniprogram / sqlite-electron / sqlite-tauri / pglite / pglite-electron / supabase / http（以代码里的 `ADAPTER_NAME` 为准）；另有 sqlite-core 共享基类与 encrypted 加密工具包（两者均非适配器）                                                                                   |
@@ -30,6 +30,7 @@
 | Graph hooks        |   ✅    |  ✅   | ✅  |
 | InfiniteScroll     |   ✅    |  ✅   | ✅  |
 | `useSearch`        |   ✅    |  ✅   | ✅  |
+| `useI18n`          |   ✅    |  ✅   | ✅  |
 
 > `useSearch` 的三端 API 对称成立，但**能力边界不对称于适配器**。放行名单由
 > [backend-registry.ts](../packages/rxdb-plugin-search/src/backend/backend-registry.ts) 的登记表 `SEARCH_BACKEND_DESCRIPTORS` 派生：
@@ -48,7 +49,9 @@
 > （`sqlite-electron` / `sqlite-tauri`）**有意不进表**：SQL 在宿主侧执行，宿主没注册那个函数，
 > 缺的不是验证而是宿主实现；`http` / `supabase` 同理，缺的是本地 SQL 连接本身。
 
-三端绑定不止上表的 hook：插件各有 `-angular` / `-react` / `-vue` 绑定包，包含 `rxdb-plugin-tree-*`（树 hook）、`rxdb-plugin-search-*`（`useSearch`）、`rxdb-plugin-working-tree-*`（`useWorkingTree` 等）、`rxdb-plugin-replay-*`（`Replayer` 组件与恢复提示）与 `rxdb-model-*`（实体模型 UI）；包清单与导出以 [api-baseline/](api-baseline/) 为准，对称性用 `tri-framework-check` 复核。
+`useI18n()` 在三端都返回 `t` / `locale` / `availableLocales` / `setLocale` / `formatNumber` / `formatDate` / `formatRelativeTime`；语言和目录在 Angular 暴露为 `Signal`、React 暴露为状态、Vue 暴露为只读 `Ref` / `ComputedRef`。三端都提供 `useI18nRuntime()` 与 `useI18nOptional()` 支持可选接入。provider 按框架惯例分别为 Angular `provideI18n()`、React `I18nProvider` 与 Vue `provideI18n()`。核心 ICU 引擎与平台 `Intl.*` 面向 Web / Node / Electron / Tauri，小程序运行时明确不支持。
+
+三端绑定不止上表的 hook：插件各有 `-angular` / `-react` / `-vue` 绑定包，包含 `rxdb-plugin-tree-*`（树 hook）、`rxdb-plugin-search-*`（`useSearch`）、`rxdb-plugin-working-tree-*`（`useWorkingTree` 等）、`rxdb-plugin-replay-*`（`Replayer` 组件与恢复提示）、`rxdb-i18n-*`（客户端国际化）与 `rxdb-model-*`（实体模型 UI）；包清单与导出以 [api-baseline/](api-baseline/) 为准，对称性用 `tri-framework-check` 复核。
 
 ## 适配器能力对比
 

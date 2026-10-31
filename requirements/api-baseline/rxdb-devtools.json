@@ -462,6 +462,22 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsI18nMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsI18nMissingMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsI18nPort",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsI18nSnapshot",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsInvalidDateValue",
         "kind": "type"
       },
@@ -819,6 +835,10 @@
       },
       {
         "name": "isDevToolsErrorPayload",
+        "kind": "value"
+      },
+      {
+        "name": "isDevToolsI18nSnapshot",
         "kind": "value"
       },
       {

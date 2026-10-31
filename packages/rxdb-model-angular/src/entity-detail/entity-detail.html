@@ -73,9 +73,9 @@
   <!-- 保存/取消按钮在 tabs 下方：create 模式两者都有；编辑实体未就绪（加载中或失败）时只留取消 -->
   @if (isCreateMode() || isEditPending()) {
     <div class="border-base-300 flex shrink-0 justify-end gap-2 border-t px-4 py-3">
-      <button class="btn" (click)="onCancel()" type="button">取消</button>
+      <button class="btn" (click)="onCancel()" type="button">{{ t('common.cancel') }}</button>
       @if (isCreateMode()) {
-        <button class="btn btn-primary" (click)="onSave()" type="button">保存</button>
+        <button class="btn btn-primary" (click)="onSave()" type="button">{{ t('common.save') }}</button>
       }
     </div>
   }

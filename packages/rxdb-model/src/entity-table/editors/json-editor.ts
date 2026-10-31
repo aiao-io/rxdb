@@ -1,4 +1,5 @@
 import type { EditContext, IEditor } from '@visactor/vtable-editors';
+import { ModelEditorI18n } from '../../i18n.js';
 import { DAISY_COLORS, positionOverlayPanel, refocusTable, scheduleEditorSetup } from './global-overlay-editor.js';
 
 type TableLike = { getCellOriginValue(col: number, row: number): unknown } | null;
@@ -13,6 +14,7 @@ type TableLike = { getCellOriginValue(col: number, row: number): unknown } | nul
  * - 实时显示 JSON 格式错误
  */
 export class JsonEditor implements IEditor<unknown> {
+  readonly #messages = new ModelEditorI18n();
   #value: unknown = null;
   #originalValue: unknown = null;
   #panel: HTMLDivElement | null = null;
@@ -26,6 +28,7 @@ export class JsonEditor implements IEditor<unknown> {
 
   /** 打开编辑器：构建浮层 textarea 面板并初始化原始值 */
   onStart(ctx: EditContext<unknown>): void {
+    this.#messages.start(ctx.table);
     const container = ctx.container as HTMLElement;
     this.#endEdit = () => {
       refocusTable(container);
@@ -55,12 +58,12 @@ export class JsonEditor implements IEditor<unknown> {
 
     const hint = document.createElement('div');
     hint.style.cssText = `font-size:12px;opacity:0.45;color:${DAISY_COLORS.text}`;
-    hint.textContent = 'Ctrl+Enter 确认 · Esc 取消';
+    this.#messages.bind(hint, 'textContent', () => this.#messages.t('text.39a82a1330'));
 
     const copyBtn = document.createElement('button');
     copyBtn.type = 'button';
-    copyBtn.textContent = '复制';
-    copyBtn.title = '复制 JSON';
+    this.#messages.bind(copyBtn, 'textContent', () => this.#messages.t('common.copy'));
+    this.#messages.bind(copyBtn, 'title', () => this.#messages.t('text.4170c9792c'));
     copyBtn.style.cssText = [
       'font-size:12px',
       `color:${DAISY_COLORS.text}`,
@@ -80,9 +83,9 @@ export class JsonEditor implements IEditor<unknown> {
       navigator.clipboard?.writeText(text).catch(() => {
         /* ignore */
       });
-      copyBtn.textContent = '✓';
+      this.#messages.bind(copyBtn, 'textContent', () => '✓');
       setTimeout(() => {
-        copyBtn.textContent = '复制';
+        this.#messages.bind(copyBtn, 'textContent', () => this.#messages.t('common.copy'));
       }, 1200);
     });
 
@@ -161,6 +164,7 @@ export class JsonEditor implements IEditor<unknown> {
 
   /** 结束编辑：清理浮层面板与事件监听 */
   onEnd(): void {
+    this.#messages.clear();
     this.#cleanup();
   }
 
@@ -172,15 +176,15 @@ export class JsonEditor implements IEditor<unknown> {
   #validate(): boolean {
     const text = (this.#textarea?.value ?? '').trim();
     if (!text) {
-      if (this.#errorEl) this.#errorEl.textContent = '';
+      if (this.#errorEl) this.#messages.bind(this.#errorEl, 'textContent', () => '');
       return true;
     }
     try {
       JSON.parse(text);
-      if (this.#errorEl) this.#errorEl.textContent = '';
+      if (this.#errorEl) this.#messages.bind(this.#errorEl, 'textContent', () => '');
       return true;
     } catch (e) {
-      if (this.#errorEl) this.#errorEl.textContent = `⚠ ${(e as Error).message}`;
+      if (this.#errorEl) this.#messages.bindValue(this.#errorEl, 'textContent', `⚠ ${(e as Error).message}`);
       return false;
     }
   }
@@ -200,6 +204,7 @@ export class JsonEditor implements IEditor<unknown> {
   }
 
   #cleanup(): void {
+    this.#messages.clear();
     if (this.#outsideHandler) {
       document.removeEventListener('mousedown', this.#outsideHandler, { capture: true });
       this.#outsideHandler = null;

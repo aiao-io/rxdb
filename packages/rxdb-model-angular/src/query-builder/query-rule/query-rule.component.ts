@@ -11,6 +11,7 @@ import {
   signal,
   untracked
 } from '@angular/core';
+import { useModelI18n } from '../../i18n';
 import { DEFAULT_QUERY_BUILDER_THEME } from '../theme/default-query-builder-theme';
 import { QUERY_BUILDER_THEME } from '../theme/query-builder-theme.token';
 
@@ -45,8 +46,13 @@ export type UIRuleWithWhere = UIRule & {
         />
         @if (isExistsOperator()) {
           @if (!subqueryVisible()) {
-            <button class="btn btn-ghost btn-xs" (click)="onAddSubcondition()" title="添加子条件" type="button">
-              + 子条件（可选）
+            <button
+              class="btn btn-ghost btn-xs"
+              [title]="t('text.d7efba02db')"
+              (click)="onAddSubcondition()"
+              type="button"
+            >
+              {{ t('text.cfd02b3e86') }}
             </button>
           }
         } @else if (!isNoValueOperator()) {
@@ -54,8 +60,8 @@ export type UIRuleWithWhere = UIRule & {
         }
         <button
           class="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-error ml-auto"
+          [title]="t('text.96d7b159d2')"
           (click)="onRemove()"
-          title="删除条件"
           type="button"
         >
           ✕
@@ -69,6 +75,8 @@ export type UIRuleWithWhere = UIRule & {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class QueryRuleComponent {
+  readonly #modelBinding = useModelI18n();
+
   private readonly existsOperators = new Set(['exists', 'notExists']);
   private readonly noValueOperators = new Set(['null', 'notNull']);
 
@@ -160,6 +168,13 @@ export class QueryRuleComponent {
   }));
 
   /** 子条件清空/全部删除时自动收起面板并恢复 +子条件 按钮 */
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
+
   constructor() {
     effect(() => {
       const where = this.rule().where;

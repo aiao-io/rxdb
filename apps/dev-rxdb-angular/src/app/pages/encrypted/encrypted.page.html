@@ -6,14 +6,14 @@
       [class.text-success]="!$isLocked()"
       [lucideIcon]="$isLocked() ? Lock : LockOpen"
     ></svg>
-    <h1 class="text-2xl font-bold">本地字段加密演示</h1>
+    <h1 class="text-2xl font-bold">{{ 'page.encrypted.title' | i18n }}</h1>
     <span
       class="badge"
       [class.badge-error]="$isLocked()"
       [class.badge-success]="!$isLocked()"
       data-testid="encryption-status"
     >
-      {{ $isLocked() ? '已锁定' : '已解锁' }}
+      {{ $isLocked() ? ('page.encrypted.locked' | i18n) : ('page.encrypted.unlocked' | i18n) }}
     </span>
   </div>
 
@@ -27,22 +27,22 @@
   @if ($isLocked()) {
     <div class="card card-border bg-base-100">
       <div class="card-body space-y-4">
-        <h2 class="card-title text-lg">解锁数据库</h2>
+        <h2 class="card-title text-lg">{{ 'common.open' | i18n }}</h2>
         @if ($isFirstTime()) {
           <div class="alert alert-info alert-soft" role="alert">
-            <span>首次使用：请设置一个密码，系统将用它加密您的数据。请牢记此密码，后续解锁需要输入相同的密码。</span>
+            <span>{{ 'page.encrypted.firstUse' | i18n }}</span>
           </div>
         } @else {
-          <p class="text-base-content/70 text-sm">输入密码以解密加密字段。密码不会离开您的设备。</p>
+          <p class="text-base-content/70 text-sm">{{ 'page.encrypted.unlockHint' | i18n }}</p>
         }
         <fieldset class="fieldset">
-          <legend class="fieldset-legend">密码</legend>
+          <legend class="fieldset-legend">{{ 'page.i18n.name' | i18n }}</legend>
           <input
             class="input input-bordered w-full"
             [(ngModel)]="passphrase"
+            [placeholder]="'page.encrypted.passphrasePlaceholder' | i18n"
             (keyup.enter)="unlock()"
             data-testid="encryption-passphrase"
-            placeholder="输入密码…"
             type="password"
           />
         </fieldset>
@@ -54,7 +54,7 @@
             data-testid="encryption-unlock"
           >
             <svg class="size-4" [lucideIcon]="LockOpen"></svg>
-            解锁
+            {{ 'page.encrypted.unlock' | i18n }}
           </button>
         </div>
       </div>
@@ -67,31 +67,31 @@
     <div class="flex items-center justify-between">
       <button class="btn btn-sm btn-ghost" (click)="loadUsers()">
         <svg class="size-4" [class.animate-spin]="$isLoading()" [lucideIcon]="RefreshCw"></svg>
-        刷新
+        {{ 'page.encrypted.refresh' | i18n }}
       </button>
       <button class="btn btn-sm btn-error btn-outline" (click)="lock()" data-testid="encryption-lock">
         <svg class="size-4" [lucideIcon]="Lock"></svg>
-        锁定
+        {{ 'page.encrypted.lock' | i18n }}
       </button>
     </div>
 
     <!-- Create new user -->
     <div class="card card-border bg-base-100">
       <div class="card-body space-y-3">
-        <h2 class="card-title text-base">添加加密用户</h2>
+        <h2 class="card-title text-base">{{ 'common.create' | i18n }}</h2>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <fieldset class="fieldset">
-            <legend class="fieldset-legend">姓名（明文）</legend>
+            <legend class="fieldset-legend">{{ 'page.i18n.name' | i18n }}</legend>
             <input
               class="input input-bordered w-full"
               [(ngModel)]="newName"
+              [placeholder]="'page.i18n.namePlaceholder' | i18n"
               data-testid="encryption-name"
-              placeholder="Alice"
               type="text"
             />
           </fieldset>
           <fieldset class="fieldset">
-            <legend class="fieldset-legend">信用卡号（加密）</legend>
+            <legend class="fieldset-legend">{{ 'common.view' | i18n }}</legend>
             <input
               class="input input-bordered w-full"
               [(ngModel)]="newCard"
@@ -101,7 +101,7 @@
             />
           </fieldset>
           <fieldset class="fieldset">
-            <legend class="fieldset-legend">API 密钥（加密）</legend>
+            <legend class="fieldset-legend">{{ 'common.open' | i18n }}</legend>
             <input
               class="input input-bordered w-full"
               [(ngModel)]="newSecret"
@@ -119,7 +119,7 @@
             data-testid="encryption-save-user"
           >
             <svg class="size-4" [lucideIcon]="Plus"></svg>
-            保存用户
+            {{ 'page.encrypted.saveUser' | i18n }}
           </button>
         </div>
       </div>
@@ -131,14 +131,14 @@
         <table class="table-zebra table-sm table">
           <thead>
             <tr>
-              <th>姓名</th>
+              <th>{{ 'page.i18n.name' | i18n }}</th>
               <th>
-                信用卡号
-                <span class="badge badge-warning badge-xs ml-1">加密</span>
+                {{ 'page.encrypted.card' | i18n }}
+                <span class="badge badge-warning badge-xs ml-1">{{ 'page.encrypted.title' | i18n }}</span>
               </th>
               <th>
-                API 密钥
-                <span class="badge badge-warning badge-xs ml-1">加密</span>
+                {{ 'page.encrypted.apiKey' | i18n }}
+                <span class="badge badge-warning badge-xs ml-1">{{ 'page.encrypted.title' | i18n }}</span>
               </th>
               <th></th>
             </tr>
@@ -165,7 +165,7 @@
       </div>
     } @else {
       <div class="text-base-content/50 py-10 text-center">
-        <p>暂无加密用户，请在上方添加。</p>
+        <p>{{ 'common.noData' | i18n }}</p>
       </div>
     }
   }

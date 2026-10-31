@@ -2,7 +2,7 @@
   <!-- Header -->
   <div class="border-base-300 flex items-center justify-between border-b px-3 py-2">
     <div class="flex items-center gap-3">
-      <span class="text-sm font-bold">OPFS 文件管理</span>
+      <span class="text-sm font-bold">{{ 'page.opfs.title' | i18n }}</span>
       <!-- 连接状态 -->
       <div class="flex items-center gap-1.5">
         <div
@@ -32,10 +32,10 @@
 
   <!-- 工具栏 -->
   <div class="border-base-300 flex flex-wrap items-center gap-2 border-b p-2">
-    <button class="btn btn-xs btn-ghost" (click)="navigateTo('/')" title="根目录">
+    <button class="btn btn-xs btn-ghost" [attr.title]="'page.opfs.root' | i18n" (click)="navigateTo('/')">
       <svg [lucideIcon]="Home" size="16"></svg>
     </button>
-    <button class="btn btn-xs btn-ghost" (click)="refresh()" title="刷新">
+    <button class="btn btn-xs btn-ghost" [attr.title]="'common.refresh' | i18n" (click)="refresh()">
       <svg [class.animate-spin]="loading()" [lucideIcon]="RefreshCw" size="16"></svg>
     </button>
     <div class="divider divider-horizontal m-0"></div>
@@ -49,19 +49,25 @@
     </button>
     <button class="btn btn-xs btn-secondary" (click)="showNewFolder.set(true)">
       <svg [lucideIcon]="FolderPlus" size="16"></svg>
-      新建文件夹
+      {{ 'page.opfs.newFolder' | i18n }}
     </button>
     @if (selectedPaths().size > 0) {
       <div class="divider divider-horizontal m-0"></div>
-      <span class="text-base-content/60 text-xs">已选择 {{ selectedPaths().size }} 项</span>
-      <button class="btn btn-xs btn-ghost" (click)="clearSelection()" title="取消选择">
+      <span class="text-base-content/60 text-xs">
+        {{ 'page.opfs.selected' | i18n: { count: selectedPaths().size } }}
+      </span>
+      <button class="btn btn-xs btn-ghost" [attr.title]="'common.cancel' | i18n" (click)="clearSelection()">
         <svg [lucideIcon]="X" size="14"></svg>
       </button>
-      <button class="btn btn-xs btn-info" (click)="handleBatchDownload()" title="批量下载">
+      <button
+        class="btn btn-xs btn-info"
+        [attr.title]="'page.opfs.batchDownload' | i18n"
+        (click)="handleBatchDownload()"
+      >
         <svg [lucideIcon]="Download" size="16"></svg>
         下载
       </button>
-      <button class="btn btn-xs btn-error" (click)="handleBatchDelete()" title="批量删除">
+      <button class="btn btn-xs btn-error" [attr.title]="'page.opfs.batchDelete' | i18n" (click)="handleBatchDelete()">
         <svg [lucideIcon]="Trash2" size="16"></svg>
         删除
       </button>
@@ -70,7 +76,7 @@
 
   <!-- 面包屑导航 -->
   <div class="border-base-300 flex items-center gap-1 overflow-x-auto border-b px-3 py-2 text-sm whitespace-nowrap">
-    <button class="hover:underline" (click)="navigateTo('/')">根目录</button>
+    <button class="hover:underline" (click)="navigateTo('/')">{{ 'page.opfs.root' | i18n }}</button>
     @for (segment of pathSegments; track segment.path) {
       <div class="flex items-center gap-1">
         <svg class="text-base-content/40" [lucideIcon]="ChevronRight" size="14"></svg>
@@ -137,7 +143,7 @@
       >
         <div class="bg-base-100 rounded-lg p-8 shadow-lg">
           <svg class="text-primary mx-auto mb-2" [lucideIcon]="Upload" size="48"></svg>
-          <p class="text-primary text-lg font-semibold">拖放文件到这里上传</p>
+          <p class="text-primary text-lg font-semibold">{{ 'page.opfs.drop' | i18n }}</p>
         </div>
       </div>
     }
@@ -145,13 +151,13 @@
 
   <!-- 统计信息 -->
   <div class="border-base-300 text-base-content/60 flex items-center gap-4 border-t px-3 py-1 text-xs">
-    <span>{{ entries().length }} 项 ({{ dirCount }} 个文件夹, {{ fileCount }} 个文件)</span>
+    <span>{{ 'page.opfs.stats' | i18n: { count: entries().length, folders: dirCount, files: fileCount } }}</span>
   </div>
 
   <!-- 预览弹窗 -->
   <app-opfs-file-preview [entry]="previewEntry()" (closed)="previewEntry.set(null)"></app-opfs-file-preview>
 
-  <!-- 新建文件夹弹窗 -->
+  <!-- {{ 'page.opfs.newFolder' | i18n }}弹窗 -->
   @if (showNewFolder()) {
     <div
       class="modal modal-open"
@@ -167,24 +173,24 @@
         (keydown.enter)="$event.stopPropagation()"
         tabindex="-1"
       >
-        <h3 class="mb-4 text-base font-bold">新建文件夹</h3>
+        <h3 class="mb-4 text-base font-bold">{{ 'page.opfs.newFolder' | i18n }}</h3>
         <input
           class="input input-bordered w-full"
+          [placeholder]="'page.opfs.folderName' | i18n"
           [value]="newFolderName()"
           (input)="onNewFolderNameInput($event)"
           (keydown.enter)="handleCreateFolder()"
-          placeholder="文件夹名称"
           type="text"
         />
         <div class="modal-action">
-          <button class="btn btn-sm" (click)="showNewFolder.set(false)">取消</button>
-          <button class="btn btn-sm btn-primary" (click)="handleCreateFolder()">创建</button>
+          <button class="btn btn-sm" (click)="showNewFolder.set(false)">{{ 'common.cancel' | i18n }}</button>
+          <button class="btn btn-sm btn-primary" (click)="handleCreateFolder()">{{ 'common.create' | i18n }}</button>
         </div>
       </div>
     </div>
   }
 
-  <!-- 文件覆盖确认弹窗 -->
+  <!-- 文件{{ 'page.opfs.overwrite' | i18n }}确认弹窗 -->
   @if (overwriteConfirm().show && overwriteConfirm().file && overwriteConfirm().existingEntry) {
     <div
       class="modal modal-open"
@@ -202,21 +208,23 @@
         <p class="mb-4">
           文件
           <span class="font-semibold">{{ overwriteConfirm().file!.name }}</span>
-          已存在，是否覆盖？
+          已存在，是否{{ 'page.opfs.overwrite' | i18n }}？
         </p>
         <div class="bg-base-200 mb-4 space-y-2 rounded-lg p-3">
           <div class="flex justify-between text-sm">
-            <span class="text-base-content/60">现有文件:</span>
+            <span class="text-base-content/60">{{ 'page.opfs.existingFile' | i18n }}</span>
             <span class="font-mono">{{ formatFileSize(overwriteConfirm().existingEntry!.size || 0) }}</span>
           </div>
           <div class="flex justify-between text-sm">
-            <span class="text-base-content/60">新文件:</span>
+            <span class="text-base-content/60">{{ 'page.opfs.newFile' | i18n }}</span>
             <span class="font-mono">{{ formatFileSize(overwriteConfirm().file!.size) }}</span>
           </div>
         </div>
         <div class="modal-action">
-          <button class="btn btn-sm" (click)="handleOverwriteResponse(false)">取消</button>
-          <button class="btn btn-sm btn-warning" (click)="handleOverwriteResponse(true)">覆盖</button>
+          <button class="btn btn-sm" (click)="handleOverwriteResponse(false)">{{ 'common.cancel' | i18n }}</button>
+          <button class="btn btn-sm btn-warning" (click)="handleOverwriteResponse(true)">
+            {{ 'page.opfs.overwrite' | i18n }}
+          </button>
         </div>
       </div>
     </div>
@@ -236,23 +244,23 @@
         <button class="gap-2 px-2 py-1.5" (click)="handleContextMenuAction('view')" type="button">
           @if (contextMenu().entry!.kind === 'file') {
             <svg [lucideIcon]="Eye" size="14"></svg>
-            <span>查看</span>
+            <span>{{ 'common.view' | i18n }}</span>
           } @else {
             <svg [lucideIcon]="FolderOpen" size="14"></svg>
-            <span>打开</span>
+            <span>{{ 'common.open' | i18n }}</span>
           }
         </button>
       </li>
       <li>
         <button class="gap-2 px-2 py-1.5" (click)="handleContextMenuAction('rename')" type="button">
           <svg [lucideIcon]="Edit3" size="14"></svg>
-          <span>重命名</span>
+          <span>{{ 'common.rename' | i18n }}</span>
         </button>
       </li>
       <li>
         <button class="text-error gap-2 px-2 py-1.5" (click)="handleContextMenuAction('delete')" type="button">
           <svg [lucideIcon]="Trash2" size="14"></svg>
-          <span>删除</span>
+          <span>{{ 'common.delete' | i18n }}</span>
         </button>
       </li>
     </div>
@@ -298,8 +306,10 @@
           </p>
         }
         <div class="modal-action">
-          <button class="btn btn-sm" (click)="handleDeleteResponse(false)">取消</button>
-          <button class="btn btn-sm btn-error" (click)="handleDeleteResponse(true)">删除</button>
+          <button class="btn btn-sm" (click)="handleDeleteResponse(false)">{{ 'common.cancel' | i18n }}</button>
+          <button class="btn btn-sm btn-error" (click)="handleDeleteResponse(true)">
+            {{ 'common.delete' | i18n }}
+          </button>
         </div>
       </div>
     </div>
@@ -316,7 +326,10 @@
       tabindex="-1"
     >
       <div class="modal-box">
-        <h3 class="mb-4 text-base font-bold">重命名{{ renameDialog().entry!.kind === 'file' ? '文件' : '文件夹' }}</h3>
+        <h3 class="mb-4 text-base font-bold">
+          {{ 'common.rename' | i18n
+          }}{{ renameDialog().entry!.kind === 'file' ? ('common.file' | i18n) : ('common.folder' | i18n) }}
+        </h3>
         <input
           class="input input-bordered w-full"
           [placeholder]="renameDialog().entry!.kind === 'file' ? '文件名' : '文件夹名'"
@@ -326,8 +339,12 @@
           type="text"
         />
         <div class="modal-action">
-          <button class="btn btn-sm" (click)="renameDialog.set({ show: false, entry: null, newName: '' })">取消</button>
-          <button class="btn btn-sm btn-primary" (click)="handleRename()">确定</button>
+          <button class="btn btn-sm" (click)="renameDialog.set({ show: false, entry: null, newName: '' })">
+            {{ 'common.cancel' | i18n }}
+          </button>
+          <button class="btn btn-sm btn-primary" (click)="handleRename()">
+            {{ 'page.opfs.confirmRename' | i18n }}
+          </button>
         </div>
       </div>
     </div>

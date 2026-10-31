@@ -1,3 +1,4 @@
+import { useModelI18n } from '../../i18n.js';
 /**
  * @fileoverview 字段选择器组件（Angular `FieldSelectorComponent` 的 React 移植）。
  *
@@ -29,15 +30,19 @@ export interface FieldSelectorProps {
 export function FieldSelector({
   fields,
   selectedField = '',
-  placeholder = '选择字段',
+  placeholder,
   onFieldChange
 }: FieldSelectorProps): JSX.Element {
-  const fieldTree = useMemo(() => buildFieldTree(fields), [fields]);
+  const { t, runtime: modelI18n } = useModelI18n();
+  const fieldTree = useMemo(() => {
+    t('common.actions');
+    return buildFieldTree(fields, modelI18n);
+  }, [fields, modelI18n, t]);
 
   return (
     <TreeSelect
       nodes={fieldTree}
-      placeholder={placeholder}
+      placeholder={placeholder ?? t('query.selectField')}
       selected={selectedField}
       onSelectChange={value => onFieldChange?.(value)}
       minWidth='14rem'

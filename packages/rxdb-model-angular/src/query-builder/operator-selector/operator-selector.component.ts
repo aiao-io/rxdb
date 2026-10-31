@@ -1,5 +1,6 @@
 import { getDefaultOperatorRegistry, type FieldMetadata, type PropertyType } from '@aiao/rxdb-model';
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { useModelI18n } from '../../i18n';
 import { PopoverSelectComponent } from '../popover-select/popover-select.component';
 
 /**
@@ -21,22 +22,24 @@ import { PopoverSelectComponent } from '../popover-select/popover-select.compone
   template: `
     <rxdb-popover-select
       [options]="operatorOptions()"
+      [placeholder]="t('query.selectOperator')"
       [selected]="selectedOperator()"
       (selectChange)="onOperatorChange($event)"
       minWidth="8rem"
-      placeholder="选择操作符"
     />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OperatorSelectorComponent {
+  readonly #modelBinding = useModelI18n();
+
   private readonly registry = getDefaultOperatorRegistry();
 
   readonly operatorOptions = computed(() => {
     const metadata = this.fieldMetadata();
     const operators =
       metadata ? this.registry.getForField(metadata) : this.registry.getForType(this.fieldType() as PropertyType);
-    return operators.map(op => ({ value: op.key, label: op.label }));
+    return operators.map(op => ({ value: op.key, label: op.labelKey ? this.t(op.labelKey) : op.label }));
   });
 
   readonly fieldMetadata = input<FieldMetadata | undefined>(undefined);
@@ -48,6 +51,13 @@ export class OperatorSelectorComponent {
 
   /** 直接模板使用时的 output 事件 */
   readonly operatorChange = output<string>();
+
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
 
   onOperatorChange(op: string): void {
     this.operatorChange.emit(op);

@@ -23,6 +23,7 @@ import {
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '@modules/angular';
 import { TreeWriteError } from '../../../components/tree-write-error';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { TreeMenuDragDropBase } from '../utils/tree-menu.drag-drop';
 
 /**
@@ -39,7 +40,7 @@ import { TreeMenuDragDropBase } from '../utils/tree-menu.drag-drop';
   templateUrl: './tree-menu-simple.page.html',
   styleUrls: ['./tree-menu-simple.page.scss'],
   host: { class: 'page-host' },
-  imports: [FormsModule, LucideDynamicIcon, AsyncPipe, HistorySidebarComponent, TreeWriteError],
+  imports: [I18nPipe, FormsModule, LucideDynamicIcon, AsyncPipe, HistorySidebarComponent, TreeWriteError],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export default class MenuTreePage extends TreeMenuDragDropBase<typeof SortableMenuSimple> {

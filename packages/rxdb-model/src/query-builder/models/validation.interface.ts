@@ -1,4 +1,5 @@
 import type { OperatorName } from '@aiao/rxdb';
+import { modelText } from '../../i18n.js';
 import type { PropertyType } from './query-builder-state.js';
 
 /**
@@ -19,6 +20,9 @@ export interface ValidationRule {
    * 错误消息
    */
   message: string;
+
+  /** 内置文案目录键。 */
+  messageKey?: string;
 
   /**
    * 验证函数
@@ -114,7 +118,8 @@ export const BUILTIN_VALIDATION_RULES: ValidationRule[] = [
   {
     name: 'stringType',
     appliesTo: ['string'],
-    message: '值必须是字符串类型',
+    message: modelText('text.6804dc9dea'),
+    messageKey: 'text.6804dc9dea',
     validate: context => {
       if (shouldSkipValidation(context.value)) return true;
       return typeof context.value === 'string';
@@ -123,7 +128,8 @@ export const BUILTIN_VALIDATION_RULES: ValidationRule[] = [
   {
     name: 'numberType',
     appliesTo: ['number'],
-    message: '值必须是数字类型',
+    message: modelText('text.8aca673072'),
+    messageKey: 'text.8aca673072',
     validate: context => {
       if (shouldSkipValidation(context.value)) return true;
       return typeof context.value === 'number' && !isNaN(context.value);
@@ -132,7 +138,8 @@ export const BUILTIN_VALIDATION_RULES: ValidationRule[] = [
   {
     name: 'booleanType',
     appliesTo: ['boolean'],
-    message: '值必须是布尔类型',
+    message: modelText('text.f023a0285d'),
+    messageKey: 'text.f023a0285d',
     validate: context => {
       if (shouldSkipValidation(context.value)) return true;
       return typeof context.value === 'boolean';
@@ -141,7 +148,8 @@ export const BUILTIN_VALIDATION_RULES: ValidationRule[] = [
   {
     name: 'dateType',
     appliesTo: ['date'],
-    message: '值必须是有效日期',
+    message: modelText('text.8880ae4982'),
+    messageKey: 'text.8880ae4982',
     validate: context => {
       if (shouldSkipValidation(context.value)) return true;
       if (context.value instanceof Date) {
@@ -157,7 +165,8 @@ export const BUILTIN_VALIDATION_RULES: ValidationRule[] = [
   {
     name: 'enumType',
     appliesTo: ['enum'],
-    message: '值必须是枚举中的有效选项',
+    message: modelText('text.97460c34d2'),
+    messageKey: 'text.97460c34d2',
     validate: context => {
       if (context.value === undefined || context.value === null) return true;
       if (!context.enum || context.enum.length === 0) return true;
@@ -170,7 +179,8 @@ export const BUILTIN_VALIDATION_RULES: ValidationRule[] = [
   {
     name: 'patternType',
     appliesTo: ['string'],
-    message: '值不符合要求的格式',
+    message: modelText('text.df042a00f5'),
+    messageKey: 'text.df042a00f5',
     validate: context => {
       if (shouldSkipValidation(context.value)) return true;
       if (!context.pattern || typeof context.value !== 'string') return true;

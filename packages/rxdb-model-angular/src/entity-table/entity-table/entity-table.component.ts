@@ -48,6 +48,7 @@ import {
 } from '@angular/core';
 import type { ListTableConstructorOptions } from '@visactor/vtable';
 import * as VTable from '@visactor/vtable';
+import { useModelI18n } from '../../i18n';
 import { ENTITY_TABLE_CONFIG } from '../config';
 
 /**
@@ -74,6 +75,8 @@ import { ENTITY_TABLE_CONFIG } from '../config';
  * 组件实例即三端共用的命令面 {@link EntityTableHandle}。
  */
 export class EntityTableComponent implements OnDestroy, EntityTableHandle {
+  readonly #modelBinding = useModelI18n();
+
   readonly #document = inject(DOCUMENT);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #config = inject(ENTITY_TABLE_CONFIG, { optional: true });
@@ -136,6 +139,13 @@ export class EntityTableComponent implements OnDestroy, EntityTableHandle {
     return this.#tableInstance;
   }
 
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
+
   constructor() {
     if (isPlatformBrowser(this.#platformId)) {
       this.#syncDetectedDarkMode();
@@ -149,7 +159,10 @@ export class EntityTableComponent implements OnDestroy, EntityTableHandle {
           this.#prevColumns = this.columns();
           this.#tableReady.set(true);
           // 无障碍：VTable 焦点控制输入没有语义标签（axe label 违规）
-          el.querySelector<HTMLInputElement>('.table-focus-control')?.setAttribute('aria-label', '数据表格焦点控制');
+          el.querySelector<HTMLInputElement>('.table-focus-control')?.setAttribute(
+            'aria-label',
+            this.t('text.b02941cb88')
+          );
         }
       });
 
@@ -242,7 +255,14 @@ export class EntityTableComponent implements OnDestroy, EntityTableHandle {
 
   #initTable(container: HTMLElement): void {
     const records = this.records();
-    const table = createListTable(container, records, this.columns(), this.#resolvedDarkMode(), this.tableOptions());
+    const table = createListTable(
+      container,
+      records,
+      this.columns(),
+      this.#resolvedDarkMode(),
+      this.tableOptions(),
+      this.modelI18n
+    );
     this.#tableInstance = table;
     this.#prevRecords = records;
     this.#committedRecords = [...records];

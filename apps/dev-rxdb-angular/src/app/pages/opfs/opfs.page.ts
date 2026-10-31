@@ -39,6 +39,7 @@ import {
   LucideX as X
 } from '@lucide/angular';
 import { map } from 'rxjs';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { traverseFileTree } from '../../shared/traverse-file-tree';
 import { OpfsFileGridComponent } from './components/opfs-file-grid.component';
 import { OpfsFileListComponent } from './components/opfs-file-list.component';
@@ -98,6 +99,7 @@ interface SelectionBox {
     CommonModule,
     FormsModule,
     LucideDynamicIcon,
+    I18nPipe,
     OpfsFileListComponent,
     OpfsFileGridComponent,
     OpfsFilePreviewComponent

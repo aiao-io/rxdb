@@ -11,7 +11,7 @@ test.describe('Home Page', () => {
   });
 
   test('should navigate to different pages from home', async ({ page }) => {
-    await page.getByRole('link', { name: 'Todo (findAll)' }).click();
+    await page.getByRole('link', { name: /Todo \(findAll\)|Todo（findAll）/ }).click();
 
     await expect(page).toHaveURL(/\/todo$/);
     await expect(page.getByRole('heading', { name: 'Todos', exact: true })).toBeVisible();

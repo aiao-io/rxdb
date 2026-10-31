@@ -50,10 +50,8 @@ export default defineConfig({
   /*
    * 两个 webServer：后端 + 前端产物。
    *
-   * 前端用 `serve-e2e` 而不是 `serve-static`——后者带 `buildTarget`，会在 playwright 进程内
-   * 再起一个 `NX_DAEMON=false` 的 nx 把整条依赖链重建一遍，与外层 nx 争着写各包的 dist
-   * （`ENOTEMPTY: packages/rxdb/dist/entity` 就是这么来的）。`e2e` target 自己
-   * `dependsOn: ["dev-rxdb-http:build"]`，产物在 playwright 启动前就已存在。
+   * 前端直接运行仓库的 SPA 静态服务，复用外层 build 产物，避免在 Playwright
+   * 子进程里嵌套 Nx 构建及遗留静态服务。`e2e` target 已声明前后端构建依赖。
    *
    * `reuseExistingServer: false`：@nx/web 的 file-server 在端口被占时会 `detectPort`
    * **静默换端口**，复用又会把上一轮残留的进程（serve 的是旧产物）当成本次的服务器。
@@ -67,7 +65,7 @@ export default defineConfig({
       timeout: isCI ? 120000 : 60000
     },
     {
-      command: `NX_DAEMON=false pnpm exec nx run dev-rxdb-http:serve-e2e --port ${APP_PORT}`,
+      command: `node scripts/e2e-static-server.mjs --root dist/apps/dev-rxdb-http/browser --port ${APP_PORT}`,
       url: APP_BASE_URL,
       reuseExistingServer: false,
       cwd: workspaceRoot,

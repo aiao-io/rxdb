@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "out-tsc/tsconfig.lib.tsbuildinfo",
+    "emitDeclarationOnly": true,
+    "types": ["node"]
+  },
+  "exclude": ["src/**/*.spec.ts", "src/**/__tests__/**"],
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../rxdb-plugin-working-tree/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-plugin-history/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-adapter-pglite/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-adapter-electron/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb/tsconfig.lib.json"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { useModelI18n } from '../../i18n.js';
 /**
  * @fileoverview 子查询构建器组件（Angular `SubqueryBuilderComponent` 的 React 移植）。
  *
@@ -45,6 +46,8 @@ export function SubqueryBuilder({
   onQueryChange,
   onValidationChange
 }: SubqueryBuilderProps): JSX.Element {
+  const { t, runtime: modelI18n } = useModelI18n();
+
   const serviceRef = useRef<QueryBuilderService<Record<string, unknown>> | null>(null);
   const initialQueryAppliedRef = useRef(false);
   const onQueryChangeRef = useRef(onQueryChange);
@@ -66,6 +69,7 @@ export function SubqueryBuilder({
   // 重建服务时同样在创建时载入
   useEffect(() => {
     const service = createQueryBuilderService<Record<string, unknown>>({
+      i18n: modelI18n,
       config: { maxNestingLevel: maxDepth },
       fields,
       initialQuery: initialQuery as unknown as RuleGroup<Record<string, unknown>> | undefined
@@ -94,7 +98,7 @@ export function SubqueryBuilder({
     // 服务只在挂载 / 重连时创建：maxDepth、字段、initialQuery 在创建时读取（Angular 侧 constructor 同语义），
     // 之后的变化由下方 effect 同步
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [modelI18n]);
 
   // 字段变化同步到服务（Angular 侧 effect 同语义）：空列表同样同步，字段被撤下后既有子规则立即按「字段不存在」校验
   useEffect(() => {
@@ -162,9 +166,9 @@ export function SubqueryBuilder({
       {!hasRules ?
         <div className='text-base-content/60 flex items-center gap-2'>
           <button className='btn btn-ghost btn-xs' onClick={handleAddFirstRule} type='button'>
-            + 添加子条件
+            {t('text.cb29450db8')}
           </button>
-          <span className='text-xs opacity-50'>（可选）</span>
+          <span className='text-xs opacity-50'>{t('text.3d5c3c3dba')}</span>
         </div>
       : <>
           <QueryGroup
@@ -181,7 +185,7 @@ export function SubqueryBuilder({
           />
           <div className='mt-2 flex justify-end'>
             <button className='btn btn-ghost btn-xs text-error' onClick={handleClear} type='button'>
-              清空
+              {t('text.1ef3de06b3')}
             </button>
           </div>
         </>

@@ -1,4 +1,5 @@
 import type { EditContext, IEditor } from '@visactor/vtable-editors';
+import { ModelEditorI18n } from '../../i18n.js';
 import { DAISY_COLORS, positionOverlayPanel, refocusTable, scheduleEditorSetup } from './global-overlay-editor.js';
 
 type TableLike = { getCellOriginValue(col: number, row: number): unknown } | null;
@@ -19,6 +20,7 @@ export type TagsMode = 'string' | 'number';
  * 数字模式下（TagsMode='number'）仅接受有效数字。
  */
 export class TagsEditor implements IEditor<unknown> {
+  readonly #messages = new ModelEditorI18n();
   readonly #mode: TagsMode;
   #tags: string[] = [];
   #originalTags: string[] = [];
@@ -43,6 +45,7 @@ export class TagsEditor implements IEditor<unknown> {
 
   /** 弹出标签编辑浮层，从单元格值解析初始标签并绑定交互事件 */
   onStart(ctx: EditContext<unknown>): void {
+    this.#messages.start(ctx.table);
     const container = ctx.container as HTMLElement;
     this.#endEdit = () => {
       refocusTable(container);
@@ -85,7 +88,9 @@ export class TagsEditor implements IEditor<unknown> {
     const input = document.createElement('input');
     input.type = 'text';
     if (this.#mode === 'number') input.inputMode = 'decimal';
-    input.placeholder = this.#mode === 'number' ? '输入数字 Enter 添加' : '输入后 Enter 添加';
+    this.#messages.bind(input, 'placeholder', () =>
+      this.#mode === 'number' ? this.#messages.t('text.367db3a370') : this.#messages.t('text.b6717239b9')
+    );
     input.style.cssText = [
       'width:100%',
       `background:${DAISY_COLORS.bg}`,
@@ -101,7 +106,7 @@ export class TagsEditor implements IEditor<unknown> {
 
     const hint = document.createElement('div');
     hint.style.cssText = `font-size:12px;opacity:0.4;color:${DAISY_COLORS.text}`;
-    hint.textContent = 'Enter /逗号 添加 · Backspace 删除 · Esc 取消';
+    this.#messages.bind(hint, 'textContent', () => this.#messages.t('text.cf03ea085f'));
 
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ',') {
@@ -160,6 +165,7 @@ export class TagsEditor implements IEditor<unknown> {
 
   /** 移除浮层并解绑全局点击事件 */
   onEnd(): void {
+    this.#messages.clear();
     this.#cleanup();
   }
 
@@ -202,7 +208,7 @@ export class TagsEditor implements IEditor<unknown> {
       const label = document.createTextNode(tag);
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
-      removeBtn.textContent = '×';
+      this.#messages.bind(removeBtn, 'textContent', () => '×');
       removeBtn.style.cssText = [
         'background:none',
         'border:none',
@@ -227,6 +233,7 @@ export class TagsEditor implements IEditor<unknown> {
   }
 
   #cleanup(): void {
+    this.#messages.clear();
     if (this.#outsideHandler) {
       document.removeEventListener('mousedown', this.#outsideHandler, { capture: true });
       this.#outsideHandler = null;

@@ -33,24 +33,36 @@
               role="button"
               tabindex="0"
             >
-              Tree Menu - Simple
+              {{ 'page.tree.simple' | i18n }}
             </h2>
             @if (keyword) {
-              <div class="badge badge-warning badge-sm">搜索: {{ matchedCount }} 项</div>
+              <div class="badge badge-warning badge-sm">
+                {{ 'page.tree.searchCount' | i18n: { count: matchedCount } }}
+              </div>
             } @else {
-              <div class="badge badge-primary badge-sm">{{ menuCount }} 项</div>
+              <div class="badge badge-primary badge-sm">{{ 'page.tree.itemCount' | i18n: { count: menuCount } }}</div>
             }
           </div>
           <div class="flex items-center gap-2">
             <!-- Undo/Redo -->
             <div class="join">
-              <button class="btn btn-sm join-item" [disabled]="undo_disabled" (click)="undo()" aria-label="撤销">
+              <button
+                class="btn btn-sm join-item"
+                [attr.aria-label]="'common.undo' | i18n"
+                [disabled]="undo_disabled"
+                (click)="undo()"
+              >
                 <svg [lucideIcon]="Undo2" size="16"></svg>
                 @if (undo_count) {
                   <span class="badge badge-xs" data-testid="menu-undo-count">{{ undo_count }}</span>
                 }
               </button>
-              <button class="btn btn-sm join-item" [disabled]="redo_disabled" (click)="redo()" aria-label="重做">
+              <button
+                class="btn btn-sm join-item"
+                [attr.aria-label]="'common.redo' | i18n"
+                [disabled]="redo_disabled"
+                (click)="redo()"
+              >
                 <svg [lucideIcon]="Redo2" size="16"></svg>
                 @if (redo_count) {
                   <span class="badge badge-xs" data-testid="menu-redo-count">{{ redo_count }}</span>
@@ -60,9 +72,9 @@
             <!-- History Toggle -->
             <button
               class="btn btn-sm"
+              [attr.aria-label]="'common.history' | i18n"
               [class.btn-primary]="showHistory"
               (click)="toggle_history()"
-              aria-label="历史记录"
             >
               <svg [lucideIcon]="History" size="16"></svg>
             </button>
@@ -77,12 +89,18 @@
         <!-- Title Bar -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <h1 class="text-2xl font-bold">Tree Menu - Simple</h1>
-            <div class="badge badge-primary" data-testid="menu-count">{{ menuCount }} 项</div>
+            <h1 class="text-2xl font-bold">{{ 'page.tree.simple' | i18n }}</h1>
+            <div class="badge badge-primary" data-testid="menu-count">
+              {{ 'page.tree.itemCount' | i18n: { count: menuCount } }}
+            </div>
 
             <!-- 批量添加：details/summary 原生切换（触屏 tap 不产生 :focus，focus 驱动的 daisyUI dropdown 在移动端打不开） -->
             <details class="dropdown dropdown-end" #batchDropdown>
-              <summary class="btn btn-sm btn-circle" aria-label="批量添加" data-testid="menu-batch-add">
+              <summary
+                class="btn btn-sm btn-circle"
+                [attr.aria-label]="'common.batchAdd' | i18n"
+                data-testid="menu-batch-add"
+              >
                 <svg [lucideIcon]="Plus" [size]="16" />
               </summary>
               <ul class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
@@ -106,13 +124,23 @@
           <div class="flex items-center gap-2">
             <!-- Undo/Redo -->
             <div class="join">
-              <button class="btn btn-sm join-item" [disabled]="undo_disabled" (click)="undo()" aria-label="撤销">
+              <button
+                class="btn btn-sm join-item"
+                [attr.aria-label]="'common.undo' | i18n"
+                [disabled]="undo_disabled"
+                (click)="undo()"
+              >
                 <svg [lucideIcon]="Undo2" size="16"></svg>
                 @if (undo_count) {
                   <span class="badge badge-xs">{{ undo_count }}</span>
                 }
               </button>
-              <button class="btn btn-sm join-item" [disabled]="redo_disabled" (click)="redo()" aria-label="重做">
+              <button
+                class="btn btn-sm join-item"
+                [attr.aria-label]="'common.redo' | i18n"
+                [disabled]="redo_disabled"
+                (click)="redo()"
+              >
                 <svg [lucideIcon]="Redo2" size="16"></svg>
                 @if (redo_count) {
                   <span class="badge badge-xs">{{ redo_count }}</span>
@@ -122,9 +150,9 @@
             <!-- History Toggle -->
             <button
               class="btn btn-sm"
+              [attr.aria-label]="'common.history' | i18n"
               [class.btn-primary]="showHistory"
               (click)="toggle_history()"
-              aria-label="历史记录"
             >
               <svg [lucideIcon]="History" size="16"></svg>
             </button>
@@ -135,7 +163,7 @@
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <div class="bg-base-100 border-base-200 flex items-center gap-2 rounded-lg border px-3 py-1 shadow-sm">
-              <span class="text-xs opacity-70">已展开</span>
+              <span class="text-xs opacity-70">{{ 'page.tree.expanded' | i18n }}</span>
               <span class="font-mono text-lg font-bold" data-testid="menu-expanded-count">{{ expandedCount() }}</span>
             </div>
             <button
@@ -159,7 +187,7 @@
             } @else {
               <svg [lucideIcon]="Trash2" [size]="16" />
             }
-            删除所有数据
+            {{ 'common.deleteAll' | i18n }}
           </button>
         </div>
 
@@ -171,12 +199,12 @@
                 class="join-item bg-base-200 border-base-300 flex items-center border border-r-0 px-3 text-sm"
                 data-testid="menu-selected-parent"
               >
-                <span class="mr-1 opacity-70">父节点:</span>
+                <span class="mr-1 opacity-70">{{ 'page.tree.parent' | i18n }}</span>
                 <span class="max-w-[8rem] truncate font-medium">{{ getSelectedParentTitle() }}</span>
                 <button
                   class="btn btn-ghost btn-xs btn-circle ml-1 h-5 min-h-0 w-5"
+                  [attr.title]="'common.selectParent' | i18n"
                   (click)="cancelSelectParent()"
-                  title="取消选择父节点"
                   type="button"
                 >
                   <svg [lucideIcon]="X" [size]="14" />
@@ -187,7 +215,7 @@
               class="input input-bordered input-sm join-item min-w-0 flex-1"
               id="menu-title-input"
               [(ngModel)]="$new_menu_title"
-              [placeholder]="parentId ? '输入子菜单标题...' : '输入根菜单标题...'"
+              [placeholder]="(parentId ? 'page.tree.childTitlePlaceholder' : 'page.tree.rootTitlePlaceholder') | i18n"
               (keyup.enter)="onFormSubmit($event)"
               autocomplete="off"
               data-testid="menu-title-input"
@@ -201,7 +229,7 @@
             type="button"
           >
             <svg [lucideIcon]="Plus" [size]="16" />
-            {{ parentId ? '添加子菜单' : '添加根菜单' }}
+            {{ parentId ? ('page.tree.addChild' | i18n) : ('page.tree.addRoot' | i18n) }}
           </button>
         </div>
 
@@ -216,15 +244,15 @@
             <input
               class="input input-bordered input-sm w-full pl-10"
               [(ngModel)]="$search_keyword"
+              [placeholder]="'page.tree.searchPlaceholder' | i18n"
               data-testid="menu-search-input"
-              placeholder="搜索菜单..."
               type="text"
             />
           </div>
           @if (keyword) {
             <button class="btn btn-ghost btn-sm" (click)="clearSearch()" data-testid="menu-clear-search" type="button">
               <svg [lucideIcon]="X" [size]="16" />
-              清除
+              {{ 'common.clear' | i18n }}
             </button>
           }
         </div>
@@ -237,12 +265,12 @@
         <!-- 写入失败提示（新建 / 重命名 / 批量添加 / 删除） -->
         <app-tree-write-error [message]="writeError()" (closed)="clearWriteError()" />
 
-        <!-- 路径冲突警告 -->
+        <!-- {{ 'page.tree.pathConflict' | i18n }} -->
         @if (pathConflictWarning()) {
           <div class="alert alert-warning">
             <svg [lucideIcon]="TriangleAlert" [size]="20" />
             <div class="flex-1">
-              <div class="font-semibold">路径冲突警告</div>
+              <div class="font-semibold">{{ 'page.tree.pathConflict' | i18n }}</div>
               <div class="text-sm">
                 已存在同名菜单：
                 <strong>{{ pathConflictWarning()?.conflictPath }}</strong>
@@ -259,8 +287,8 @@
           <div class="card-body p-4">
             @if (treeNodes().length === 0) {
               <div class="empty-state text-base-content/60 py-8 text-center">
-                <p class="mb-2 text-lg">暂无菜单</p>
-                <p class="text-sm">点击上方"添加根菜单"按钮创建第一个菜单</p>
+                <p class="mb-2 text-lg">{{ 'page.tree.emptyMenu' | i18n }}</p>
+                <p class="text-sm">{{ 'page.tree.createMenuHint' | i18n }}</p>
               </div>
             } @else {
               <ul class="tree-list">
@@ -289,13 +317,13 @@
                         <!-- 拖拽手柄 -->
                         <button
                           class="btn btn-ghost btn-xs btn-square drag-handle touch-none opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100"
+                          [attr.title]="'common.dragSort' | i18n"
                           (click)="$event.stopPropagation()"
                           (pointercancel)="onPointerUp($event)"
                           (pointerdown)="startPointerDrag($event, node.menu)"
                           (pointermove)="onPointerMove($event)"
                           (pointerup)="onPointerUp($event)"
                           data-testid="menu-drag-handle"
-                          title="拖拽排序"
                           type="button"
                         >
                           <svg [lucideIcon]="GripVertical" [size]="14" />
@@ -327,9 +355,11 @@
                               type="text"
                             />
                             <button class="btn btn-primary btn-sm" (click)="saveEdit($event)" type="button">
-                              确认
+                              {{ 'common.confirm' | i18n }}
                             </button>
-                            <button class="btn btn-ghost btn-sm" (click)="cancelEdit()" type="button">取消</button>
+                            <button class="btn btn-ghost btn-sm" (click)="cancelEdit()" type="button">
+                              {{ 'common.cancel' | i18n }}
+                            </button>
                           </div>
                         } @else {
                           <!-- 菜单标题（显示模式） -->
@@ -348,9 +378,9 @@
                             <!-- 添加子菜单 -->
                             <button
                               class="btn btn-ghost btn-xs"
+                              [attr.title]="'common.addChild' | i18n"
                               (click)="selectParent(node.menu.id)"
                               data-testid="menu-add-child"
-                              title="添加子菜单"
                             >
                               <svg [lucideIcon]="Plus" [size]="14" />
                             </button>
@@ -358,9 +388,9 @@
                             <!-- 编辑 -->
                             <button
                               class="btn btn-ghost btn-xs"
+                              [attr.title]="'common.edit' | i18n"
                               (click)="startEdit($event, node.menu)"
                               data-testid="menu-edit"
-                              title="编辑"
                             >
                               <svg [lucideIcon]="Pen" [size]="14" />
                             </button>
@@ -368,9 +398,9 @@
                             <!-- 删除 -->
                             <button
                               class="btn btn-ghost btn-xs text-error"
+                              [attr.title]="'common.delete' | i18n"
                               (click)="deleteMenu($event, node.menu)"
                               data-testid="menu-delete"
-                              title="删除"
                             >
                               <svg [lucideIcon]="Trash2" [size]="14" />
                             </button>
@@ -393,11 +423,11 @@
   </main>
 </div>
 
-<!-- 删除确认对话框 -->
+<!-- 删除{{ 'common.confirm' | i18n }}对话框 -->
 @if (menuToDelete(); as menu) {
   <dialog class="modal modal-open" role="dialog">
     <div class="modal-box">
-      <h3 class="text-lg font-bold">确认删除</h3>
+      <h3 class="text-lg font-bold">{{ 'page.tree.confirmDelete' | i18n }}</h3>
 
       <div class="py-4">
         <p class="mb-3">
@@ -411,11 +441,11 @@
           <div class="alert alert-warning">
             <svg [lucideIcon]="TriangleAlert" [size]="20" />
             <div class="flex flex-col gap-1 text-sm">
-              <p class="font-medium">此操作将级联删除：</p>
+              <p class="font-medium">{{ 'page.tree.cascadeDelete' | i18n }}</p>
               <ul class="ml-4 list-disc">
-                <li>{{ impact.childrenCount }} 个直接子节点</li>
+                <li>{{ 'page.tree.directChildrenCount' | i18n: { count: impact.childrenCount } }}</li>
                 @if (impact.descendantsCount > impact.childrenCount) {
-                  <li>共 {{ impact.descendantsCount }} 个所有后代节点</li>
+                  <li>{{ 'page.tree.descendantsCount' | i18n: { count: impact.descendantsCount } }}</li>
                 }
               </ul>
             </div>
@@ -424,12 +454,12 @@
       </div>
 
       <div class="modal-action flex-col gap-2 sm:flex-row">
-        <button class="btn btn-ghost" (click)="cancelDelete()" type="button">取消</button>
+        <button class="btn btn-ghost" (click)="cancelDelete()" type="button">{{ 'common.cancel' | i18n }}</button>
 
         @if (impact.childrenCount > 0) {
           <button class="btn btn-warning" (click)="executePromoteChildrenDelete()" type="button">
             <svg [lucideIcon]="Trash2" [size]="16" />
-            删除父节点 (子节点提升)
+            {{ 'page.tree.promoteDelete' | i18n }}
           </button>
           <button class="btn btn-error" (click)="executeCascadeDelete()" type="button">
             <svg [lucideIcon]="Trash2" [size]="16" />
@@ -438,13 +468,13 @@
         } @else {
           <button class="btn btn-error" (click)="executeCascadeDelete()" type="button">
             <svg [lucideIcon]="Trash2" [size]="16" />
-            确认删除
+            {{ 'page.tree.confirmDelete' | i18n }}
           </button>
         }
       </div>
     </div>
     <form class="modal-backdrop" (click)="cancelDelete()" (keydown.escape)="cancelDelete()" method="dialog">
-      <button aria-label="关闭对话框" type="button">close</button>
+      <button [attr.aria-label]="'common.close' | i18n" type="button">{{ 'common.close' | i18n }}</button>
     </form>
   </dialog>
 }

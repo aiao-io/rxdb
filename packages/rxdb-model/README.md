@@ -40,6 +40,28 @@ qb.addRule({ field: 'title', operator: 'contains', value: 'a' });
 const rxdbQuery = qb.toRxDBQuery();
 ```
 
+## 国际化
+
+`modelMessages` 随包提供默认 `zh-Hans` 目录。未提供 i18n provider 时，组件继续使用原中文文案，日期保留原 `toLocaleString()` 的时分秒，数字保留原文本格式。显式接入 provider 后，日期按 locale 格式化且保留到秒，普通数字按 locale 分组。英文示例目录 `modelEnMessages` 由应用显式注册：
+
+```ts
+import { I18n } from '@aiao/rxdb-i18n';
+import { modelMessages, modelEnMessages, buildEditableColumns, buildDetailTabs } from '@aiao/rxdb-model';
+
+const i18n = new I18n({
+  defaultLocale: 'zh-Hans',
+  deviceLocale: 'zh-Hans',
+  catalogs: [...modelMessages, { locale: 'en', namespace: 'rxdb-model', messages: modelEnMessages }]
+});
+const columns = buildEditableColumns(metadata, { i18n });
+const tabs = buildDetailTabs(metadata, i18n);
+await i18n.setLocale('en');
+```
+
+Angular / React / Vue 组件消费对应 `@aiao/rxdb-i18n-{angular,react,vue}` 的 provider，无需逐层传入翻译函数。命令式表格通过 `createListTable` 的第六个参数接收同一运行时；已打开的编辑器会更新 placeholder、提示与当前错误，结束编辑时解除订阅。
+
+应用目录使用 namespace=`rxdb-model` 和 [文案盘点](../../requirements/client-i18n-inventory.md) 中的 key。数据库模式下通过 `i18n.setMessages({ locale: 'en', namespace: 'rxdb-model', messages: { 'common.save': 'Submit' } })` 持久化逐条覆盖，重启后仍生效；未覆盖 key 沿 fallback 链回退中文。`actionsTitle` 等已有 options 始终优先于目录。
+
 ## 开发
 
 ```bash

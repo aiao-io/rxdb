@@ -2,6 +2,7 @@ import type { ReplayManager, ReplaySessionInfo, ReplayState, ReplayUsage } from 
 import { ReplayerComponent } from '@aiao/rxdb-plugin-replay-angular';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { isReplayEnabled, setReplayEnabled } from '../../rxdb/replay-toggle';
 
 type PagePhase = 'disabled' | 'loading' | 'ready' | 'error';
@@ -16,7 +17,7 @@ type PagePhase = 'disabled' | 'loading' | 'ready' | 'error';
  */
 @Component({
   selector: 'app-replay-page',
-  imports: [DatePipe, DecimalPipe, ReplayerComponent],
+  imports: [DatePipe, DecimalPipe, ReplayerComponent, I18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './replay.page.html'
 })

@@ -13,6 +13,7 @@ import {
 } from '@aiao/rxdb-model';
 import { DatePipe, JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, output } from '@angular/core';
+import { useModelI18n } from '../i18n';
 
 /**
  * 元数据驱动表单组件：按字段类型渲染对应输入控件，支持 create / edit / view 三模式；
@@ -49,7 +50,7 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
                 (change)="onFieldChange(field, $any($event.target).value)"
               >
                 @if (field.nullable) {
-                  <option value="">(空)</option>
+                  <option value="">{{ t('text.98057319c7') }}</option>
                 }
                 @for (val of field.enumValues ?? []; track val) {
                   <option [disabled]="enumOptionDisabled(field, val)" [value]="val">
@@ -72,8 +73,8 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
                   class="input flex-1"
                   [attr.max]="numericBounds(field).max"
                   [attr.min]="numericBounds(field).min"
-                  [attr.placeholder]="field.placeholder ?? ''"
                   [attr.step]="numericBounds(field).step ?? 'any'"
+                  [placeholder]="field.placeholder ?? ''"
                   [value]="formData()[field.field] ?? ''"
                   (change)="onFieldChange(field, $any($event.target).value)"
                   type="number"
@@ -89,8 +90,8 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
                   class="input flex-1"
                   [attr.max]="numericBounds(field).max"
                   [attr.min]="numericBounds(field).min"
-                  [attr.placeholder]="field.placeholder ?? ''"
                   [attr.step]="numericBounds(field).step ?? '1'"
+                  [placeholder]="field.placeholder ?? ''"
                   [value]="formData()[field.field] ?? ''"
                   (change)="onFieldChange(field, $any($event.target).value)"
                   type="number"
@@ -103,7 +104,7 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
             @case ('bigint') {
               <input
                 class="input"
-                [attr.placeholder]="field.placeholder ?? ''"
+                [placeholder]="field.placeholder ?? ''"
                 [value]="formData()[field.field] ?? ''"
                 (change)="onFieldChange(field, $any($event.target).value)"
                 inputmode="numeric"
@@ -113,7 +114,7 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
             @case ('binary') {
               <textarea
                 class="textarea min-h-16 font-mono"
-                [attr.placeholder]="field.placeholder ?? '十六进制字节序列（如 0a0b）'"
+                [placeholder]="field.placeholder ?? t('text.0f4507b76e')"
                 [value]="binaryToHex(formData()[field.field])"
                 (change)="onFieldChange(field, $any($event.target).value)"
               ></textarea>
@@ -140,7 +141,7 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
               } @else {
                 <input
                   class="input"
-                  [attr.placeholder]="field.placeholder ?? '逗号分隔'"
+                  [placeholder]="field.placeholder ?? t('text.07a7f1dd37')"
                   [value]="$any(formData()[field.field] ?? []).join(', ')"
                   (change)="onFieldChange(field, $any($event.target).value)"
                   type="text"
@@ -150,7 +151,7 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
             @case ('numberArray') {
               <input
                 class="input"
-                [attr.placeholder]="field.placeholder ?? '逗号分隔数字'"
+                [placeholder]="field.placeholder ?? t('text.65c1f50349')"
                 [value]="$any(formData()[field.field] ?? []).join(', ')"
                 (change)="onFieldChange(field, $any($event.target).value)"
                 type="text"
@@ -159,7 +160,7 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
             @case ('json') {
               <textarea
                 class="textarea min-h-24"
-                [attr.placeholder]="field.placeholder ?? 'JSON'"
+                [placeholder]="field.placeholder ?? 'JSON'"
                 [value]="formData()[field.field] !== null ? (formData()[field.field] | json) : ''"
                 (change)="onFieldChange(field, $any($event.target).value)"
               ></textarea>
@@ -167,7 +168,7 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
             @case ('keyValue') {
               <textarea
                 class="textarea min-h-24"
-                [attr.placeholder]="field.placeholder ?? 'JSON'"
+                [placeholder]="field.placeholder ?? 'JSON'"
                 [value]="formData()[field.field] !== null ? (formData()[field.field] | json) : ''"
                 (change)="onFieldChange(field, $any($event.target).value)"
               ></textarea>
@@ -178,14 +179,14 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
                 [value]="formData()[field.field] ?? ''"
                 (change)="onFieldChange(field, $any($event.target).value)"
               >
-                <option value="">(空)</option>
+                <option value="">{{ t('text.98057319c7') }}</option>
                 @for (item of relatedItemsMap().get(field.field) ?? []; track item.id) {
                   <option [value]="item.id">{{ item.displayName }}</option>
                 }
               </select>
               @if ((relatedItemsMap().get(field.field) ?? []).length === 0) {
                 <span class="text-warning text-xs" data-testid="relation-empty-hint">
-                  暂无「{{ field.displayName }}」可选，请先创建对应记录
+                  {{ t('text.5366e25b36', { p0: field.displayName }) }}
                 </span>
               }
             }
@@ -195,14 +196,14 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
                 [value]="formData()[field.field] ?? ''"
                 (change)="onFieldChange(field, $any($event.target).value)"
               >
-                <option value="">(空)</option>
+                <option value="">{{ t('text.98057319c7') }}</option>
                 @for (item of relatedItemsMap().get(field.field) ?? []; track item.id) {
                   <option [value]="item.id">{{ item.displayName }}</option>
                 }
               </select>
               @if ((relatedItemsMap().get(field.field) ?? []).length === 0) {
                 <span class="text-warning text-xs" data-testid="relation-empty-hint">
-                  暂无「{{ field.displayName }}」可选，请先创建对应记录
+                  {{ t('text.5366e25b36', { p0: field.displayName }) }}
                 </span>
               }
             }
@@ -217,7 +218,7 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
                   />
                   <input
                     class="input flex-1"
-                    [attr.placeholder]="field.placeholder ?? '#rrggbb'"
+                    [placeholder]="field.placeholder ?? '#rrggbb'"
                     [value]="formData()[field.field] ?? ''"
                     (change)="onFieldChange(field, $any($event.target).value)"
                     type="text"
@@ -226,14 +227,14 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
               } @else if (isTextareaFormat(field)) {
                 <textarea
                   class="textarea min-h-16"
-                  [attr.placeholder]="field.placeholder ?? ''"
+                  [placeholder]="field.placeholder ?? ''"
                   [value]="formData()[field.field] ?? ''"
                   (change)="onFieldChange(field, $any($event.target).value)"
                 ></textarea>
               } @else {
                 <input
                   class="input"
-                  [attr.placeholder]="field.placeholder ?? ''"
+                  [placeholder]="field.placeholder ?? ''"
                   [type]="textInputType(field)"
                   [value]="formData()[field.field] ?? ''"
                   (change)="onFieldChange(field, $any($event.target).value)"
@@ -249,14 +250,16 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
     }
     @if (!isReadonly() && showActions()) {
       <div class="flex justify-end gap-2 pt-2 md:col-span-2">
-        <button class="btn" (click)="onCancel()" type="button">取消</button>
-        <button class="btn btn-primary" type="submit">保存</button>
+        <button class="btn" (click)="onCancel()" type="button">{{ t('common.cancel') }}</button>
+        <button class="btn btn-primary" type="submit">{{ t('common.save') }}</button>
       </div>
     }
   </form>`,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EntityFormComponent {
+  readonly #modelBinding = useModelI18n();
+
   readonly fields = input.required<FormFieldConfig[]>();
   readonly data = input.required<EntityFormData>();
   readonly mode = input<FormMode>('view');
@@ -318,10 +321,17 @@ export class EntityFormComponent {
     return map;
   });
 
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
+
   onFieldChange(field: FormFieldConfig, rawValue: unknown): void {
     const current = this.formData();
     const previousValue = current[field.field];
-    const result = parseEntityFieldValueStrict(field.type, rawValue);
+    const result = parseEntityFieldValueStrict(field.type, rawValue, this.modelI18n);
     if (!result.ok) {
       this.validationErrors.emit({
         valid: false,
@@ -337,7 +347,7 @@ export class EntityFormComponent {
   onSubmit(): void {
     const currentFields = this.fields();
     const currentData = this.formData();
-    const result = validateForm(currentFields, currentData);
+    const result = validateForm(currentFields, currentData, this.modelI18n);
     if (!result.valid) {
       this.validationErrors.emit(result);
       return;

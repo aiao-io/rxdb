@@ -459,7 +459,7 @@ pub struct SelfCheckOutcome {
     /// 本次启动读回的累计启动次数；只有 [`SelfCheckStatus::Ok`] 时有值。
     #[serde(default)]
     pub launch_count: Option<i64>,
-    /// 失败原因；只有失败方向有值。
+    /// 失败原因或成功时的运行时探针诊断。
     #[serde(default)]
     pub message: Option<String>,
     /// 文件存储探针的结果；只有 [`SelfCheckStatus::Ok`] 时有值。

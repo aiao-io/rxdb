@@ -32,6 +32,7 @@ import {
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '@modules/angular';
 import { TreeWriteError } from '../../../components/tree-write-error';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { FileDragDropService } from '../services/file-drag-drop.service';
 import { FilePathValidatorService } from '../services/file-path-validator.service';
 import { TreeFileDragDropBase } from '../utils/tree-file-drag-drop.base';
@@ -51,6 +52,7 @@ import { TreeFileDragDropStore } from '../utils/tree-file.store';
   standalone: true,
   imports: [
     CommonModule,
+    I18nPipe,
     FormsModule,
     LucideDynamicIcon,
     AsyncPipe,

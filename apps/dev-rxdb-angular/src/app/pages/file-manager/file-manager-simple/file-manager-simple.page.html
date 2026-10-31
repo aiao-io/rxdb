@@ -25,9 +25,11 @@
         <!-- Title Bar -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <h1 class="text-2xl font-bold">File Manager - Simple</h1>
+            <h1 class="text-2xl font-bold">{{ 'page.file.simple' | i18n }}</h1>
             @if (keyword) {
-              <div class="badge badge-warning badge-sm">搜索: {{ matchedCount }} 项</div>
+              <div class="badge badge-warning badge-sm">
+                {{ 'page.file.searchCount' | i18n: { count: matchedCount } }}
+              </div>
             } @else {
               <div class="badge badge-primary" data-testid="file-count">{{ fileCount }} 项</div>
             }
@@ -35,7 +37,11 @@
             <!-- 批量添加 -->
             <!-- 批量添加：details/summary 原生切换（触屏 tap 不产生 :focus，focus 驱动的 daisyUI dropdown 在移动端打不开） -->
             <details class="dropdown dropdown-end" #batchDropdown>
-              <summary class="btn btn-sm btn-circle" aria-label="批量添加" data-testid="file-batch-add">
+              <summary
+                class="btn btn-sm btn-circle"
+                [attr.aria-label]="'common.batchAdd' | i18n"
+                data-testid="file-batch-add"
+              >
                 <svg [lucideIcon]="Plus" [size]="16" />
               </summary>
               <ul class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
@@ -59,13 +65,23 @@
           <div class="flex items-center gap-2">
             <!-- Undo/Redo -->
             <div class="join">
-              <button class="btn btn-sm join-item" [disabled]="undoDisabled" (click)="undo()" aria-label="撤销">
+              <button
+                class="btn btn-sm join-item"
+                [attr.aria-label]="'common.undo' | i18n"
+                [disabled]="undoDisabled"
+                (click)="undo()"
+              >
                 <svg [lucideIcon]="Undo2" size="16"></svg>
                 @if (undoCount) {
                   <span class="badge badge-xs" data-testid="file-undo-count">{{ undoCount }}</span>
                 }
               </button>
-              <button class="btn btn-sm join-item" [disabled]="redoDisabled" (click)="redo()" aria-label="重做">
+              <button
+                class="btn btn-sm join-item"
+                [attr.aria-label]="'common.redo' | i18n"
+                [disabled]="redoDisabled"
+                (click)="redo()"
+              >
                 <svg [lucideIcon]="Redo2" size="16"></svg>
                 @if (redoCount) {
                   <span class="badge badge-xs" data-testid="file-redo-count">{{ redoCount }}</span>
@@ -75,9 +91,9 @@
             <!-- History Toggle -->
             <button
               class="btn btn-sm"
+              [attr.aria-label]="'common.history' | i18n"
               [class.btn-primary]="showHistory"
               (click)="toggle_history()"
-              aria-label="历史记录"
             >
               <svg [lucideIcon]="History" size="16"></svg>
             </button>
@@ -88,7 +104,7 @@
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <div class="bg-base-100 border-base-200 flex items-center gap-2 rounded-lg border px-3 py-1 shadow-sm">
-              <span class="text-xs opacity-70">已展开</span>
+              <span class="text-xs opacity-70">{{ 'page.tree.expanded' | i18n }}</span>
               <span class="font-mono text-lg font-bold" data-testid="file-expanded-count">{{ expandedCount() }}</span>
             </div>
             <button
@@ -113,7 +129,7 @@
               } @else {
                 <svg [lucideIcon]="Trash2" [size]="16" />
               }
-              删除所有数据
+              {{ 'common.deleteAll' | i18n }}
             </button>
           </div>
         </div>
@@ -129,8 +145,8 @@
             <input
               class="input input-bordered input-sm w-full pl-10"
               [(ngModel)]="$search_keyword"
+              [placeholder]="'page.file.searchPlaceholder' | i18n"
               data-testid="file-search-input"
-              placeholder="搜索文件或文件夹..."
               type="text"
             />
           </div>
@@ -142,21 +158,21 @@
             (change)="onSortModeChange($event)"
             data-testid="file-sort-select"
           >
-            <option value="manual">自由排序</option>
-            <option value="name-asc">名称 A→Z</option>
-            <option value="name-desc">名称 Z→A</option>
-            <option value="type-asc">文件夹优先</option>
-            <option value="type-desc">文件优先</option>
-            <option value="ext-asc">扩展名 A→Z</option>
-            <option value="ext-desc">扩展名 Z→A</option>
-            <option value="size-asc">大小 小→大</option>
-            <option value="size-desc">大小 大→小</option>
+            <option value="manual">{{ 'page.tree.sortFree' | i18n }}</option>
+            <option value="name-asc">{{ 'page.tree.nameAsc' | i18n }}</option>
+            <option value="name-desc">{{ 'page.tree.nameDesc' | i18n }}</option>
+            <option value="type-asc">{{ 'page.tree.folderFirst' | i18n }}</option>
+            <option value="type-desc">{{ 'page.tree.fileFirst' | i18n }}</option>
+            <option value="ext-asc">{{ 'page.tree.extensionAsc' | i18n }}</option>
+            <option value="ext-desc">{{ 'page.tree.extensionDesc' | i18n }}</option>
+            <option value="size-asc">{{ 'page.tree.sizeAsc' | i18n }}</option>
+            <option value="size-desc">{{ 'page.tree.sizeDesc' | i18n }}</option>
           </select>
 
           @if (keyword) {
             <button class="btn btn-ghost btn-sm" (click)="clearSearch()" data-testid="file-clear-search" type="button">
               <svg [lucideIcon]="X" [size]="16" />
-              清除
+              {{ 'common.clear' | i18n }}
             </button>
           }
         </div>
@@ -172,7 +188,11 @@
                 将添加到:
                 <span class="font-semibold">{{ getSelectedFolderTitle() }}</span>
               </span>
-              <button class="btn btn-ghost btn-xs" (click)="cancelSelectFolder()" aria-label="取消选择">
+              <button
+                class="btn btn-ghost btn-xs"
+                [attr.aria-label]="'common.cancel' | i18n"
+                (click)="cancelSelectFolder()"
+              >
                 <svg [lucideIcon]="X" [size]="14" />
               </button>
             </div>
@@ -182,14 +202,14 @@
             <!-- 文件/文件夹模式切换 -->
             <button
               class="btn btn-sm"
+              [attr.aria-label]="'common.switchMode' | i18n"
               [class.btn-info]="isAddingFile"
               [class.btn-warning]="!isAddingFile"
               (click)="toggleAddingMode()"
-              aria-label="切换模式"
               type="button"
             >
               <svg [lucideIcon]="isAddingFile ? File : Folder" [size]="16" />
-              {{ isAddingFile ? '文件' : '文件夹' }}
+              {{ (isAddingFile ? 'page.file.file' : 'page.file.folder') | i18n }}
             </button>
 
             <!-- 扩展名选择器 (仅文件模式) -->
@@ -210,9 +230,8 @@
               id="file-name-input"
               [(ngModel)]="$new_file_name"
               [placeholder]="
-                isAddingFile ?
-                  '添加文件' + (selectedFolder ? '' : ' (根目录)') + '...'
-                : '添加文件夹' + (selectedFolder ? '' : ' (根目录)') + '...'
+                (isAddingFile ? 'page.file.rootNamePlaceholder' : 'page.file.folderNamePlaceholder')
+                  | i18n: { suffix: selectedFolder ? '' : ' (root)' }
               "
               (keyup.enter)="onFormSubmit($event)"
               autocomplete="off"
@@ -228,7 +247,7 @@
               type="button"
             >
               <svg [lucideIcon]="Plus" [size]="16" />
-              添加
+              {{ 'common.add' | i18n }}
             </button>
           </div>
         </div>
@@ -241,7 +260,7 @@
         <!-- 写入失败提示（新建 / 重命名 / 批量添加 / 删除） -->
         <app-tree-write-error [message]="writeError()" (closed)="clearWriteError()" />
 
-        <!-- 路径冲突警告 -->
+        <!-- {{ 'page.tree.pathConflict' | i18n }} -->
         @if (pathConflictWarning(); as warning) {
           <div class="alert alert-warning">
             <svg
@@ -258,7 +277,7 @@
               />
             </svg>
             <div class="flex-1">
-              <div class="font-semibold">路径冲突警告</div>
+              <div class="font-semibold">{{ 'page.tree.pathConflict' | i18n }}</div>
               <div class="text-sm">
                 已存在同名文件/文件夹：
                 <strong>{{ warning.conflictPath }}</strong>
@@ -275,8 +294,8 @@
           <div class="card-body p-4">
             @if (treeNodes().length === 0) {
               <div class="empty-state text-base-content/60 py-8 text-center">
-                <p class="mb-2 text-lg">暂无文件</p>
-                <p class="text-sm">点击上方"添加根文件夹"按钮创建第一个文件夹</p>
+                <p class="mb-2 text-lg">{{ 'page.tree.emptyFile' | i18n }}</p>
+                <p class="text-sm">{{ 'page.tree.createFileHint' | i18n }}</p>
               </div>
             } @else {
               <ul class="tree-list">
@@ -308,13 +327,13 @@
                       <!-- 拖拽手柄（pointer 起拖，触屏可用） -->
                       <button
                         class="btn btn-ghost btn-xs btn-square drag-handle touch-none opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100"
+                        [attr.title]="'common.dragSort' | i18n"
                         (click)="$event.stopPropagation()"
                         (pointercancel)="onPointerUp($event)"
                         (pointerdown)="startPointerDrag($event, node.node)"
                         (pointermove)="onPointerMove($event)"
                         (pointerup)="onPointerUp($event)"
                         data-testid="file-drag-handle"
-                        title="拖拽排序"
                         type="button"
                       >
                         <svg [lucideIcon]="GripVertical" [size]="14" />
@@ -371,8 +390,12 @@
                             (keyup.enter)="saveEdit($event)"
                             type="text"
                           />
-                          <button class="btn btn-primary btn-sm" (click)="saveEdit($event)" type="button">确认</button>
-                          <button class="btn btn-ghost btn-sm" (click)="cancelEdit()" type="button">取消</button>
+                          <button class="btn btn-primary btn-sm" (click)="saveEdit($event)" type="button">
+                            {{ 'common.confirm' | i18n }}
+                          </button>
+                          <button class="btn btn-ghost btn-sm" (click)="cancelEdit()" type="button">
+                            {{ 'common.cancel' | i18n }}
+                          </button>
                         </div>
                       } @else {
                         <!-- 文件名（显示模式） -->
@@ -400,23 +423,27 @@
                           @if (isFolder) {
                             <button
                               class="btn btn-ghost btn-xs"
+                              [attr.title]="'common.addChild' | i18n"
                               (click)="selectFolder(node.node.id)"
-                              title="添加子文件夹"
                             >
                               <svg [lucideIcon]="Plus" [size]="14" />
                             </button>
                           }
 
                           <!-- 编辑 -->
-                          <button class="btn btn-ghost btn-xs" (click)="startEdit($event, node.node)" title="重命名">
+                          <button
+                            class="btn btn-ghost btn-xs"
+                            [attr.title]="'common.rename' | i18n"
+                            (click)="startEdit($event, node.node)"
+                          >
                             <svg [lucideIcon]="Pen" [size]="14" />
                           </button>
 
                           <!-- 删除 -->
                           <button
                             class="btn btn-ghost btn-xs text-error"
+                            [attr.title]="'common.delete' | i18n"
                             (click)="deleteFile($event, node.node)"
-                            title="删除"
                           >
                             <svg [lucideIcon]="Trash2" [size]="14" />
                           </button>
@@ -434,11 +461,11 @@
   </main>
 </div>
 
-<!-- 删除确认对话框 -->
+<!-- 删除{{ 'common.confirm' | i18n }}对话框 -->
 @if (fileToDelete(); as file) {
   <dialog class="modal modal-open" role="dialog">
     <div class="modal-box">
-      <h3 class="text-lg font-bold">确认删除</h3>
+      <h3 class="text-lg font-bold">{{ 'page.tree.confirmDelete' | i18n }}</h3>
 
       <div class="py-4">
         <p class="mb-3">
@@ -464,11 +491,11 @@
               />
             </svg>
             <div class="flex flex-col gap-1 text-sm">
-              <p class="font-medium">此操作将级联删除：</p>
+              <p class="font-medium">{{ 'page.tree.cascadeDelete' | i18n }}</p>
               <ul class="ml-4 list-disc">
                 <li>{{ impact.childrenCount }} 个直接子项</li>
                 @if (impact.descendantsCount > impact.childrenCount) {
-                  <li>共 {{ impact.descendantsCount }} 个所有后代节点</li>
+                  <li>{{ 'page.file.descendantsCount' | i18n: { count: impact.descendantsCount } }}</li>
                 }
               </ul>
             </div>
@@ -477,15 +504,15 @@
       </div>
 
       <div class="modal-action">
-        <button class="btn btn-ghost" (click)="cancelDelete()" type="button">取消</button>
+        <button class="btn btn-ghost" (click)="cancelDelete()" type="button">{{ 'common.cancel' | i18n }}</button>
         <button class="btn btn-error" (click)="executeCascadeDelete()" type="button">
           <svg [lucideIcon]="Trash2" [size]="16" />
-          {{ impact.childrenCount > 0 ? '级联删除' : '确认删除' }}
+          {{ impact.childrenCount > 0 ? ('page.tree.deleteCascade' | i18n) : ('page.tree.confirmDelete' | i18n) }}
         </button>
       </div>
     </div>
     <form class="modal-backdrop" (click)="cancelDelete()" (keydown.escape)="cancelDelete()" method="dialog">
-      <button aria-label="关闭对话框" type="button">close</button>
+      <button [attr.aria-label]="'common.close' | i18n" type="button">{{ 'common.close' | i18n }}</button>
     </form>
   </dialog>
 }

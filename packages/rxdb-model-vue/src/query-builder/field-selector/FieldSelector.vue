@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t, runtime: modelI18n } = useModelI18n();
+
+import { useModelI18n } from '../../i18n';
+
 /**
  * 字段选择器组件（对齐 Angular 侧 `FieldSelectorComponent`）。
  *
@@ -24,7 +28,7 @@ const props = withDefaults(
     /** 动态组件注入时使用的回调 */
     fieldChangeFn?: ((field: string) => void) | undefined;
   }>(),
-  { selectedField: '', placeholder: '选择字段', fieldChangeFn: undefined }
+  { selectedField: '', placeholder: undefined, fieldChangeFn: undefined }
 );
 
 const emit = defineEmits<{
@@ -32,7 +36,7 @@ const emit = defineEmits<{
   fieldChange: [field: string];
 }>();
 
-const fieldTree = computed(() => buildFieldTree(props.fields));
+const fieldTree = computed(() => buildFieldTree(props.fields, modelI18n));
 
 const onSelect = (field: string): void => {
   emit('fieldChange', field);
@@ -45,7 +49,7 @@ defineExpose({ fieldTree, onSelect });
 <template>
   <TreeSelect
     :nodes="fieldTree"
-    :placeholder="placeholder"
+    :placeholder="placeholder ?? t('query.selectField')"
     :selected="selectedField"
     min-width="14rem"
     @select-change="onSelect"

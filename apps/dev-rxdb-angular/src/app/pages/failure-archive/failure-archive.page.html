@@ -5,7 +5,7 @@
   data-testid="failure-archive-page"
 >
   <div class="space-y-2">
-    <h1 class="text-2xl font-bold">导入失败现场归档</h1>
+    <h1 class="text-2xl font-bold">{{ 'page.failureArchive.title' | i18n }}</h1>
     <p class="text-base-content/70 text-sm">
       选择 e2e 失败用例附件里的
       <code>rxdb-failure-archive</code>
@@ -14,7 +14,7 @@
   </div>
 
   <fieldset class="fieldset">
-    <label class="fieldset-legend" for="failure-archive-file">选择归档文件</label>
+    <label class="fieldset-legend" for="failure-archive-file">{{ 'common.open' | i18n }}</label>
     <input
       class="file-input w-full"
       id="failure-archive-file"
@@ -30,11 +30,11 @@
     <div class="card card-border bg-base-100">
       <div class="card-body space-y-3">
         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-          <dt class="text-base-content/70">库名</dt>
+          <dt class="text-base-content/70">{{ 'page.failureArchive.archiveName' | i18n }}</dt>
           <dd class="font-mono" data-testid="failure-archive-db-name">{{ info.dbName }}</dd>
-          <dt class="text-base-content/70">创建时间</dt>
+          <dt class="text-base-content/70">{{ 'page.failureArchive.createdAt' | i18n }}</dt>
           <dd data-testid="failure-archive-created-at">{{ info.createdAt | date: 'medium' }}</dd>
-          <dt class="text-base-content/70">格式版本</dt>
+          <dt class="text-base-content/70">{{ 'page.failureArchive.formatVersion' | i18n }}</dt>
           <dd data-testid="failure-archive-format-version">{{ info.formatVersion }}</dd>
         </dl>
         <div class="card-actions">
@@ -56,7 +56,7 @@
         <span class="ml-2">{{ failure.failure.message }}</span>
       </p>
       @if ($openableDbName(); as dbName) {
-        <button class="btn btn-sm" (click)="open(dbName)" type="button">打开该库</button>
+        <button class="btn btn-sm" (click)="open(dbName)" type="button">{{ 'page.failureArchive.open' | i18n }}</button>
       }
     </div>
   }
