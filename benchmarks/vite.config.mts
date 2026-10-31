@@ -2,12 +2,37 @@
 import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { defineConfig, normalizePath } from 'vite';
+import { defineConfig, normalizePath, type Plugin } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 function benchmarkAssetPath(...segments: string[]): string {
   return normalizePath(resolve(import.meta.dirname, ...segments));
+}
+
+function serveGitDemoAssets(): Plugin {
+  const allowedAssets = new Set(['lg2_opfs_auto.js', 'lg2_opfs_jspi.js', 'lg2_opfs_jspi.wasm']);
+  return {
+    name: 'serve-git-demo-assets',
+    configureServer(server) {
+      server.middlewares.use('/git-demo/vendor', async (request, response, next) => {
+        const asset = request.url?.split('?')[0].replace(/^\/+/, '');
+        if (!asset || !allowedAssets.has(asset)) {
+          next();
+          return;
+        }
+        try {
+          const content = await readFile(benchmarkAssetPath('node_modules/wasm-git', asset));
+          response.statusCode = 200;
+          response.setHeader('Content-Type', asset.endsWith('.wasm') ? 'application/wasm' : 'text/javascript');
+          response.end(content);
+        } catch {
+          next();
+        }
+      });
+    }
+  };
 }
 
 const workspacePackages = [
@@ -56,8 +81,21 @@ export default defineConfig(() => ({
     }
   },
   plugins: [
+    serveGitDemoAssets(),
     viteStaticCopy({
       targets: [
+        {
+          src: benchmarkAssetPath('node_modules/wasm-git/lg2_opfs_auto.js'),
+          dest: 'git-demo/vendor'
+        },
+        {
+          src: benchmarkAssetPath('node_modules/wasm-git/lg2_opfs_jspi.js'),
+          dest: 'git-demo/vendor'
+        },
+        {
+          src: benchmarkAssetPath('node_modules/wasm-git/lg2_opfs_jspi.wasm'),
+          dest: 'git-demo/vendor'
+        },
         {
           src: benchmarkAssetPath('../node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm'),
           dest: 'official-sqlite-wasm',
@@ -94,6 +132,12 @@ export default defineConfig(() => ({
     outDir: './dist',
     emptyOutDir: true,
     reportCompressedSize: true,
+    rollupOptions: {
+      input: {
+        main: benchmarkAssetPath('index.html'),
+        gitDemo: benchmarkAssetPath('git-demo.html')
+      }
+    },
     commonjsOptions: {
       transformMixedEsModules: true
     }

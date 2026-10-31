@@ -103,6 +103,20 @@ GIT_BENCH_CONFIGS=isomorphic-memfs,wasm-memfs NX_NO_CLOUD=true pnpm nx run bench
 `large` 为 3000 文件；`GIT_BENCH_REPORT` 可指定另一个 JSON 输出路径。报告提供中位数和范围；五个样本
 的最近秩 p95 等于最大值，不作为稳定尾延迟或 CI 性能门禁。WASM linear memory 不包含完整 JS 堆或峰值 RSS。
 
+### 可视化 Git + OPFS Demo
+
+启动 benchmarks 开发服务器后打开 `http://localhost:3200/git-demo.html`：
+
+```bash
+pnpm nx serve benchmarks
+```
+
+页面固定使用 `wasm-git` JSPI，在 dedicated Worker 中把工作区和 `.git` 写入 OPFS，
+可点击“运行 Git 闭环”执行初始化、修改、提交、分支切换和 Worker 重开；“重启 Worker”
+单独验证恢复状态，“清空 OPFS 仓库”只删除这个 Demo 的仓库。开发态会加载
+`@aiao/rxdb-devtools` 连接器；由于本页面没有 RxDB 实例，只显示连接器加载状态，不伪造数据库初始化。页面是研究型验证入口，
+不代表任意 Node / Nx 项目、依赖安装或隔离预览已经支持。
+
 ## 项目结构
 
 ```text
