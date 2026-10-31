@@ -10,7 +10,7 @@
 
 import { RxDB, SyncType, getEntityStatus } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import {
   PGliteExecuteResult,
@@ -37,6 +37,10 @@ describe('transaction_pglite_result', () => {
     rxdb = db;
     adapter = await rxdb.getAdapter('pglite');
     await rxdb.connect('pglite');
+  });
+
+  afterAll(async () => {
+    if (rxdb) await rxdb.disconnectAll();
   });
 
   describe('transaction_pglite_result', () => {
