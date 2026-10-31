@@ -3,7 +3,7 @@ name: speckit-git-remote
 description: Detect Git remote URL for GitHub integration
 compatibility: Requires spec-kit project structure with .specify/ directory
 metadata:
-  author: github-spec-kit
+  author: spec-kit-core
   source: git:commands/speckit.git.remote.md
 ---
 
@@ -36,7 +36,6 @@ Parse the remote URL and determine:
 3. **Is GitHub**: Whether the remote points to a GitHub repository
 
 Supported URL formats:
-
 - HTTPS: `https://github.com/<owner>/<repo>.git`
 - SSH: `git@github.com:<owner>/<repo>.git`
 
@@ -47,6 +46,5 @@ Supported URL formats:
 ## Graceful Degradation
 
 If Git is not installed, the directory is not a Git repository, or no remote is configured:
-
 - Return an empty result
 - Do NOT error — other workflows should continue without Git remote information
