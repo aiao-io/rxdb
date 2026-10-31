@@ -8,7 +8,7 @@ let admin: SupabaseClient;
 const ids = new Set<string>();
 test.beforeEach(({ page }) => {
   page.on('console', message => {
-    if (message.type() === 'error') console.log(`[browser] ${message.location().url} ${message.text()}`);
+    console.log(`[browser:${message.type()}] ${message.location().url} ${message.text()}`);
   });
 });
 test.beforeAll(async () => {

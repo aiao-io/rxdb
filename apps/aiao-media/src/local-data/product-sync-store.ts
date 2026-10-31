@@ -234,11 +234,15 @@ export class ProductSyncStore {
         access_token: authorization.session.access_token,
         refresh_token: authorization.session.refresh_token
       });
+      console.log('[media-sync] session verified');
       if (result.error || result.data.user?.id !== authorization.userId) throw new Error('当前同步账号未验证。');
       const allowed = await client.from('media_workspaces').select('id').eq('id', workspaceId).single();
+      console.log('[media-sync] workspace checked');
       if (allowed.error || allowed.data?.id !== workspaceId) throw new Error('同步工作区授权已失效，本机数据保留。');
       await db.connect(localAdapterName);
+      console.log('[media-sync] local adapter connected');
       await db.connect('supabase');
+      console.log('[media-sync] remote adapter connected');
       return store;
     } catch (error) {
       await store.close();
@@ -451,10 +455,12 @@ export class ProductSyncStore {
   }
 
   private async syncRound(apply?: ApplyProductSync, options: ProductSyncOptions = {}): Promise<ProductSyncResult> {
+    console.log('[media-sync] sync round start');
     const allowed = await this.client.from('media_workspaces').select('id').eq('id', this.workspaceId).single();
     if (allowed.error || allowed.data?.id !== this.workspaceId) throw new Error('同步工作区授权已失效，本机数据保留。');
     if (options.rescan) await this.resetPullCheckpoint();
     await this.pull();
+    console.log('[media-sync] pull complete');
     for (const conflict of await this.conflicts()) {
       const latest = await this.remote(conflict.recordId);
       if (latest?.revision !== conflict.latestRemote?.revision)
@@ -464,6 +470,7 @@ export class ProductSyncStore {
     const pushed = await this.db.syncManager.push({
       repositoryFilter: [{ namespace: 'public', entity: 'MediaSyncRecord' }]
     });
+    console.log('[media-sync] push complete');
     if (pushed.failed || pushed.failures.length) throw new Error('同步推送失败，本机改动保留。');
     if (pushed.rejected) await this.preserveRejections();
     await this.flushReports();

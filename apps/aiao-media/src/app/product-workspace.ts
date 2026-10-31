@@ -184,8 +184,10 @@ export class ProductWorkspaceController {
       await this.registry.recordRemote(plan.account, binding.requestId, remote.id);
       this.port.registry(await this.registry.read());
       const replica = await this.open(access, remote.id, generation);
+      console.log('[media-sync] replica opened');
       if (!replica) return;
       await this.round(replica, generation, binding.mode === 'join' && !binding.initialized);
+      console.log('[media-sync] round complete');
       if (!this.current(generation)) return;
       await this.registry.activateBinding(plan.account, binding.requestId, remote.id);
       this.port.registry(await this.registry.read());
