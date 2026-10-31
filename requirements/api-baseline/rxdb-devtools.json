@@ -138,6 +138,18 @@
         "kind": "type"
       },
       {
+        "name": "DbModelInfoEntity",
+        "kind": "type"
+      },
+      {
+        "name": "DbModelInfoMessage",
+        "kind": "type"
+      },
+      {
+        "name": "DbModelInfoPayload",
+        "kind": "type"
+      },
+      {
         "name": "decodeCanonicalBase64",
         "kind": "value"
       },
@@ -398,7 +410,23 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsEntityField",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsEntityFieldOption",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsEntityFieldType",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsEntityMetadata",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsEntityModel",
         "kind": "type"
       },
       {

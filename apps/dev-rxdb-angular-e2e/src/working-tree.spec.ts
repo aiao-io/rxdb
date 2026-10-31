@@ -216,7 +216,7 @@ test.describe('Working Tree 页面功能', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openPanel(page);
     await waitForAutoEnabled(page);
-    const menuToggle = page.getByRole('button', { name: 'Toggle menu' });
+    const menuToggle = page.getByRole('button', { name: /Toggle menu|切换菜单/ });
     await expect(menuToggle).toBeVisible();
     await menuToggle.click();
     await expect(page.locator('app-sidebar')).toBeVisible();

@@ -31,7 +31,7 @@ export interface SearchPageReadyOptions {
 export async function gotoSearchPage(page: Page, options: SearchPageReadyOptions = {}): Promise<void> {
   await page.goto('/search', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('search-page')).toBeVisible({ timeout: 20000 });
-  await expect(page.getByRole('searchbox', { name: 'Global search' })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('search-input')).toBeVisible({ timeout: 10000 });
   if (options.waitForSeed === true) {
     await expect(page.getByTestId('search-seed-count')).toContainText('文章', { timeout: 20000 });
   }

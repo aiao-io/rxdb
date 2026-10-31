@@ -1,0 +1,27 @@
+{
+  "//paths": "独立类型检查使用已构建声明，避免 composite 项目的 rootDir 把 workspace 依赖源码吸进 panel。",
+  "compilerOptions": {
+    "paths": {
+      "@aiao/rxdb-devtools": ["../../packages/rxdb-devtools/dist/index.d.ts"],
+      "@aiao/rxdb-model": ["../../packages/rxdb-model/dist/index.d.ts"],
+      "@aiao/rxdb-model-angular": ["../../dist/packages/rxdb-model-angular/types/aiao-rxdb-model-angular.d.ts"],
+      "@aiao/rxdb": ["../../packages/rxdb/dist/index.d.ts"],
+      "@aiao/rxdb-plugin-history": ["../../packages/rxdb-plugin-history/dist/index.d.ts"],
+      "@aiao/utils": ["../../packages/utils/dist/index.d.ts"],
+      "@modules/rxdb-devtools-panel": ["./src/index.ts"],
+      "@modules/rxdb-devtools-panel/wire": ["./wire/index.ts"]
+    }
+  },
+  "extends": "./tsconfig.lib.json",
+  "references": [
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-model/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-model-angular/tsconfig.lib.json"
+    }
+  ]
+}
