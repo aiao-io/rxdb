@@ -135,3 +135,20 @@ pnpm nx run-many -t lint typecheck test --projects=dev-rxdb-http-server
 - 不为「以后换 PostgreSQL」预留抽象层。SQL 方言由 `rxdb-adapter-pglite` 生成，换库时换适配器。
 - 没有真实身份认证、没有 Full / Filter 同步、没有离线写队列与冲突解决。
 - 与 `packages/rxdb-adapter-http/tests/reference-server.ts`（US-213）**不共享代码**。那份服务的是包内测试，这份服务的是浏览器 demo，各自演进。
+
+## 国际化目录资源（US-911）
+
+`messages` 资源对应 `i18n:RemoteMessageEntry`，在同一 PGlite 权威库中持久化，遵循已有 HTTP QueryCache 协议：
+
+| 请求                         | 行为                                               |
+| ---------------------------- | -------------------------------------------------- |
+| `HEAD /v1/messages`          | 探测目录表                                         |
+| `POST /v1/messages/metadata` | 按 `where` / `limit` / `offset` 返回 id、updatedAt |
+| `POST /v1/messages/by-ids`   | 按 ids 拉取完整消息                                |
+| `POST /v1/messages`          | 创建 `{locale, namespace, key, value}` 消息        |
+| `PATCH /v1/messages/:id`     | 修改 value；id 是经 URL 编码的确定性消息 id        |
+| `POST /v1/messages/delete`   | 删除 ids 指定的远端消息                            |
+
+写入前校验 BCP 47 与 ICU，空字符串合法，非法消息返回 400。更新使用单调递增的 updatedAt。
+成功写入后广播 `{entity:"RemoteMessageEntry",namespace:"i18n"}`，不在 SSE 中携带文案。
+`seed` / `reset` 同时恢复两条英文种子；重置时食谱和目录各广播一次。客户端本地覆盖从不发送到此资源。

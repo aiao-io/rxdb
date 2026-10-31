@@ -4,6 +4,7 @@ import { STORAGE_TESTID } from '@aiao/utils';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import { LucideDynamicIcon, LucideX as X } from '@lucide/angular';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { StorageBrowserItem, getCodeLanguage, getFileType, isTextBlob } from '../utils/storage-utils';
 
 const TEXT_PREVIEW_LIMIT_BYTES = 5 * 1024 * 1024;
@@ -11,7 +12,7 @@ const TEXT_PREVIEW_LIMIT_BYTES = 5 * 1024 * 1024;
 @Component({
   selector: 'app-storage-file-preview',
   standalone: true,
-  imports: [CommonModule, LucideDynamicIcon, CodeEditor],
+  imports: [CommonModule, LucideDynamicIcon, CodeEditor, I18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (entry()) {
@@ -51,12 +52,14 @@ const TEXT_PREVIEW_LIMIT_BYTES = 5 * 1024 * 1024;
                 </div>
               } @else if (fileType() === 'audio' && content()) {
                 <div class="flex items-center justify-center p-4">
-                  <audio class="w-full max-w-xl" [src]="content()!" controls>Audio preview is not supported</audio>
+                  <audio class="w-full max-w-xl" [src]="content()!" controls>
+                    {{ 'page.storage.audioUnsupported' | i18n }}
+                  </audio>
                 </div>
               } @else if (fileType() === 'video' && content()) {
                 <div class="flex h-full items-center justify-center p-4">
                   <video class="max-h-full max-w-full" [src]="content()!" controls>
-                    Video preview is not supported
+                    {{ 'page.storage.videoUnsupported' | i18n }}
                   </video>
                 </div>
               } @else if (fileType() === 'code' && textContent()) {
@@ -73,13 +76,13 @@ const TEXT_PREVIEW_LIMIT_BYTES = 5 * 1024 * 1024;
               } @else if (fileType() === 'text' && textContent()) {
                 <pre class="bg-base-200 overflow-auto rounded p-4 text-xs">{{ textContent() }}</pre>
               } @else {
-                <div class="text-base-content/40 py-8 text-center">Unable to preview this file</div>
+                <div class="text-base-content/40 py-8 text-center">{{ 'page.storage.previewUnsupported' | i18n }}</div>
               }
             }
           </div>
 
           <div class="modal-action">
-            <button class="btn btn-sm" (click)="handleClose()" type="button">Close</button>
+            <button class="btn btn-sm" (click)="handleClose()" type="button">{{ 'common.close' | i18n }}</button>
           </div>
         </div>
       </div>

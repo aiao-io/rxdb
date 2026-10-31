@@ -15,13 +15,14 @@ import {
   LucideTrash2 as Trash2
 } from '@lucide/angular';
 import { firstValueFrom } from 'rxjs';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 
 @Component({
   selector: 'app-encrypted-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './encrypted.page.html',
-  imports: [CommonModule, FormsModule, LucideDynamicIcon]
+  imports: [CommonModule, FormsModule, LucideDynamicIcon, I18nPipe]
 })
 export default class EncryptedPage implements OnInit {
   private readonly rxdb = inject(RxDB);

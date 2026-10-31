@@ -3,8 +3,8 @@
   @if (records().length === 0 && !loading()) {
     <div
       class="text-base-content/40 absolute inset-x-0 bottom-0 flex items-center justify-center text-sm"
+      [attr.aria-label]="t('common.noData')"
       [style.top.px]="headerHeight()"
-      aria-label="暂无数据"
       role="status"
     >
       <div class="empty-slot">
@@ -28,7 +28,7 @@
           <path d="M9 9v12" />
           <path d="M3 15h18" />
         </svg>
-        <span>暂无数据</span>
+        <span>{{ t('common.noData') }}</span>
       </div>
     </div>
   }

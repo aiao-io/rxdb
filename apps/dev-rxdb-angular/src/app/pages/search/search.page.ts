@@ -20,6 +20,7 @@ import {
   viewChild
 } from '@angular/core';
 
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { SearchRecordsService } from './search-records.service';
 import { seedAndRefreshRecords } from './search-seed-refresh';
 import { SearchSeedService } from './search-seed.service';
@@ -74,6 +75,7 @@ const createCommentDraft = (articleId: string, token: string): CommentCreateDraf
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './search.page.html',
+  imports: [I18nPipe],
   providers: [SearchRecordsService, SearchSeedService]
 })
 export default class SearchPage implements OnInit, AfterViewInit {

@@ -1,0 +1,100 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "buildLocaleChain",
+        "kind": "value"
+      },
+      {
+        "name": "canonicalizeLocale",
+        "kind": "value"
+      },
+      {
+        "name": "CatalogMessage",
+        "kind": "type"
+      },
+      {
+        "name": "catalogMessages",
+        "kind": "value"
+      },
+      {
+        "name": "I18n",
+        "kind": "both"
+      },
+      {
+        "name": "i18nEntities",
+        "kind": "value"
+      },
+      {
+        "name": "I18nInspectedMessage",
+        "kind": "type"
+      },
+      {
+        "name": "I18nInspectedMissingMessage",
+        "kind": "type"
+      },
+      {
+        "name": "I18nInspection",
+        "kind": "type"
+      },
+      {
+        "name": "I18nOptions",
+        "kind": "type"
+      },
+      {
+        "name": "I18nRuntime",
+        "kind": "both"
+      },
+      {
+        "name": "I18nSettings",
+        "kind": "both"
+      },
+      {
+        "name": "LocalePreferences",
+        "kind": "type"
+      },
+      {
+        "name": "MessageCatalog",
+        "kind": "type"
+      },
+      {
+        "name": "MessageEntry",
+        "kind": "both"
+      },
+      {
+        "name": "messageId",
+        "kind": "value"
+      },
+      {
+        "name": "MessageSource",
+        "kind": "type"
+      },
+      {
+        "name": "MissingMessageEntry",
+        "kind": "both"
+      },
+      {
+        "name": "RemoteMessageEntry",
+        "kind": "both"
+      },
+      {
+        "name": "ResolvedMessage",
+        "kind": "type"
+      },
+      {
+        "name": "resolveMessage",
+        "kind": "value"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "assertI18nRuntimeSmoke",
+        "kind": "value"
+      },
+      {
+        "name": "I18nRuntimeSmokeResult",
+        "kind": "type"
+      }
+    ]
+  }
+}

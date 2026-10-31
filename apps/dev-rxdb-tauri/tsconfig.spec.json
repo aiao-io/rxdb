@@ -25,6 +25,9 @@
   ],
   "references": [
     {
+      "path": "../../packages/rxdb-i18n/tsconfig.lib.json"
+    },
+    {
       "path": "../../modules/rxdb-devtools-panel/tsconfig.lib.json"
     },
     {

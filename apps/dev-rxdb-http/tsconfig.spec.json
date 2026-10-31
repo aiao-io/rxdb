@@ -29,6 +29,12 @@
     },
     {
       "path": "../../modules/recipes-domain/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-i18n/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-i18n-angular/tsconfig.lib.json"
     }
   ]
 }

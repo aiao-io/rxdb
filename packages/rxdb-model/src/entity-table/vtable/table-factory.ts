@@ -1,6 +1,7 @@
 import type { ListTableConstructorOptions } from '@visactor/vtable';
 import * as VTable from '@visactor/vtable';
 import { InputEditor, TextAreaEditor } from '@visactor/vtable-editors';
+import { setTableI18n, type ModelI18n } from '../../i18n.js';
 import { ColorEditor } from '../editors/color-editor.js';
 import { DateEditor } from '../editors/date-editor.js';
 import { EnumEditor } from '../editors/enum-editor.js';
@@ -105,12 +106,19 @@ export function createListTable(
   records: EntityTableRecord[],
   columns: ListTableConstructorOptions['columns'],
   isDarkMode: boolean,
-  options?: Partial<ListTableConstructorOptions>
+  options?: Partial<ListTableConstructorOptions>,
+  i18n?: ModelI18n
 ): VTable.ListTable {
   ensureBaseEditorRegistered();
   const option = buildTableOptions(records, columns, isDarkMode, options);
   const table = new VTable.ListTable(container, option);
-  labelTableFocusControl(container);
+  if (i18n) setTableI18n(table, i18n);
+  const clearFocusLabel = labelTableFocusControl(container, i18n);
+  const release = table.release.bind(table);
+  table.release = () => {
+    clearFocusLabel();
+    return release();
+  };
   return table;
 }
 

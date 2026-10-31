@@ -1,3 +1,4 @@
+import { modelText, type ModelI18n } from '../i18n.js';
 /**
  * Entity Detail 标签构建工具
  * 根据实体元数据生成详情页标签配置
@@ -13,10 +14,10 @@ import type { DetailFormTab, DetailTab, DetailTableTab } from './interfaces.js';
  * @param metadata - 实体元数据
  * @returns 详情页标签配置列表
  */
-export function buildDetailTabs(metadata: EntityMetadata): DetailTab[] {
+export function buildDetailTabs(metadata: EntityMetadata, i18n?: ModelI18n): DetailTab[] {
   const formTab: DetailFormTab = {
     key: 'basic',
-    label: '基本信息',
+    label: modelText('detail.basic', undefined, i18n),
     type: 'form'
   };
 

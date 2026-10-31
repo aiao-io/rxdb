@@ -53,6 +53,7 @@ import {
   runInInjectionContext,
   signal,
   TemplateRef,
+  untracked,
   viewChild,
   type WritableSignal
 } from '@angular/core';
@@ -69,6 +70,7 @@ import { of } from 'rxjs';
 import type { EntityDetailDialogData } from '../entity-detail/entity-detail';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
 import { QueryTableComponent } from '../entity-table/query-table/query-table.component';
+import { useModelI18n } from '../i18n';
 import { QueryBuilderComponent } from '../query-builder/query-builder/query-builder.component';
 import { ListViewSettingsComponent } from './list-view-settings.component';
 
@@ -178,6 +180,8 @@ function parseInitialFilter(raw: string | undefined): FilterQuery | undefined {
  * 级联新增与多对多选择模式。
  */
 export class EntityListComponent {
+  readonly #modelBinding = useModelI18n();
+
   #m2mDialogRef: DialogRef<unknown, void> | null = null;
   /** 待确认删除的行；非空即弹层打开。 */
   readonly #deleteConfirmRecord = signal<EntityTableRecord | null>(null);
@@ -223,36 +227,41 @@ export class EntityListComponent {
 
   readonly #scrollListMap = new Map<string, InfiniteScrollingList<EntityType>>();
 
-  readonly #columnsCache = new Map<string, ColumnsDefine>(
-    this.#rxdb.config.entities.map(cls => {
-      const meta = getEntityMetadata(cls);
-      return [
-        `${meta.namespace}:${meta.name}`,
-        buildEditableColumns(meta, {
-          readOnly: this.#rxdb.readOnly,
-          relatedItemsProviderFactory: (fkField, relatedEntityName) => {
-            const relCls = [...this.#entityClsMap.values()].find(c => {
-              const m = getEntityMetadata(c);
-              return m.name === relatedEntityName;
-            });
-            if (!relCls) return undefined;
-            const relKey = (() => {
-              const m = getEntityMetadata(relCls);
-              return `${m.namespace}:${m.name}`;
-            })();
-            const list = this.#getOrCreateList(relKey, relCls);
-            const strVal = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined);
-            return () => {
-              return (list.value() as Record<string, unknown>[]).map(inst => ({
-                id: String(inst['id'] ?? ''),
-                displayName: strVal(inst['displayName']) ?? strVal(inst['name']) ?? String(inst['id'] ?? '')
-              }));
-            };
-          }
-        })
-      ] as const;
-    })
-  );
+  readonly #columnsCache = computed(() => {
+    this.t('common.actions');
+    return new Map<string, ColumnsDefine>(
+      this.#rxdb.config.entities.map(cls => {
+        const meta = getEntityMetadata(cls);
+        return [
+          `${meta.namespace}:${meta.name}`,
+          buildEditableColumns(meta, {
+            i18n: this.modelI18n,
+            readOnly: this.#rxdb.readOnly,
+            relatedItemsProviderFactory: (fkField, relatedEntityName) => {
+              const relCls = [...this.#entityClsMap.values()].find(c => {
+                const m = getEntityMetadata(c);
+                return m.name === relatedEntityName;
+              });
+              if (!relCls) return undefined;
+              const relKey = (() => {
+                const m = getEntityMetadata(relCls);
+                return `${m.namespace}:${m.name}`;
+              })();
+              const list = this.#getOrCreateList(relKey, relCls);
+              const strVal = (v: unknown): string | undefined =>
+                typeof v === 'string' && v.length > 0 ? v : undefined;
+              return () => {
+                return (list.value() as Record<string, unknown>[]).map(inst => ({
+                  id: String(inst['id'] ?? ''),
+                  displayName: strVal(inst['displayName']) ?? strVal(inst['name']) ?? String(inst['id'] ?? '')
+                }));
+              };
+            }
+          })
+        ] as const;
+      })
+    );
+  });
 
   readonly #vHistory = (this.#rxdb as unknown as { versionManager?: VersionManager }).versionManager?.history() ?? {
     undoCount$: of(0),
@@ -326,7 +335,9 @@ export class EntityListComponent {
   });
   protected readonly baseTableColumns = computed<ColumnsDefine>(() => {
     // 未注册实体无元数据可派生，不给删除
-    const base = this.#columnsCache.get(this.#entityKey()) ?? [actionsColumn('操作', '删除', () => false, '查看')];
+    const base = this.#columnsCache().get(this.#entityKey()) ?? [
+      actionsColumn(this.t('common.actions'), this.t('common.delete'), () => false, this.t('common.view'))
+    ];
     if (this.isSelectMode()) {
       const withoutActions = base.filter(c => (c as Record<string, unknown>)['field'] !== 'actions');
       return [{ field: '__selected', title: '', cellType: 'checkbox', width: 50 }, ...withoutActions];
@@ -335,7 +346,7 @@ export class EntityListComponent {
   });
   protected readonly listTableOptions = computed<Partial<ListTableConstructorOptions>>(() => ({
     ...LIST_TABLE_OPTIONS,
-    ...buildListViewTableOptions(this.viewState(), this.baseTableColumns())
+    ...buildListViewTableOptions(this.viewState(), this.baseTableColumns(), this.modelI18n)
   }));
 
   /** CDK Overlay 定位策略：优先下方右对齐，其次上方右对齐 */
@@ -458,9 +469,13 @@ export class EntityListComponent {
   readonly canUndo = computed(() => this.undoCount() > 0);
   readonly canRedo = computed(() => this.redoCount() > 0);
   /** 撤销按钮停用时的说明：栈停在子分支分叉点（US-315）；能撤销或不是这个原因时为 `null` */
-  readonly undoHint = computed(() => (this.canUndo() ? null : describeHistoryBarrier('undo', this.#undoBarrier())));
+  readonly undoHint = computed(() =>
+    this.canUndo() ? null : describeHistoryBarrier('undo', this.#undoBarrier(), this.modelI18n)
+  );
   /** 重做按钮停用时的说明，同 {@link undoHint} */
-  readonly redoHint = computed(() => (this.canRedo() ? null : describeHistoryBarrier('redo', this.#redoBarrier())));
+  readonly redoHint = computed(() =>
+    this.canRedo() ? null : describeHistoryBarrier('redo', this.#redoBarrier(), this.modelI18n)
+  );
 
   readonly queryBuilderFields = computed<FieldMetadata[]>(() => {
     const cls = this.#entityCls();
@@ -472,7 +487,7 @@ export class EntityListComponent {
     const cls = this.#entityCls();
     if (!cls) return [];
     const meta = getEntityMetadata(cls);
-    return buildFormFields(meta, 'create');
+    return buildFormFields(meta, 'create', this.modelI18n);
   });
 
   readonly tableColumns = computed(() => applyListViewColumns(this.baseTableColumns(), this.viewState()));
@@ -528,6 +543,13 @@ export class EntityListComponent {
   });
 
   // ── Constructor ───────────────────────────────────────────────────────
+
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
 
   constructor() {
     toObservable(this.#entityKey)
@@ -872,7 +894,7 @@ export class EntityListComponent {
 
     const meta = getEntityMetadata(cls);
     const formMode = record['_readonly'] === true ? 'view' : 'edit';
-    const fields = buildFormFields(meta, formMode);
+    const fields = buildFormFields(meta, formMode, this.modelI18n);
 
     const { EntityDetailComponent } = await import('../entity-detail/entity-detail');
     // 懒加载 chunk 期间组件可能已被销毁（如测试 teardown），销毁后不再打开对话框
@@ -988,7 +1010,9 @@ export class EntityListComponent {
         orderBy: buildListViewOrderBy(view, getEntityMetadata(cls)) as FindByCursorOptions<EntityType>['orderBy']
       };
     });
-    const list = runInInjectionContext(this.#injector, () => new InfiniteScrollingList(this.#rxdb, cls, options));
+    const list = untracked(() =>
+      runInInjectionContext(this.#injector, () => new InfiniteScrollingList(this.#rxdb, cls, options))
+    );
     this.#scrollListMap.set(key, list);
     return list;
   }

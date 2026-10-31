@@ -1,0 +1,30 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "I18nBinding",
+        "kind": "type"
+      },
+      {
+        "name": "I18nProvider",
+        "kind": "value"
+      },
+      {
+        "name": "I18nProviderProps",
+        "kind": "type"
+      },
+      {
+        "name": "useI18n",
+        "kind": "value"
+      },
+      {
+        "name": "useI18nOptional",
+        "kind": "value"
+      },
+      {
+        "name": "useI18nRuntime",
+        "kind": "value"
+      }
+    ]
+  }
+}

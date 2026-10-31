@@ -274,7 +274,7 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
     // 选中父文件夹（行内「添加子文件夹」按钮）后新建子项
     const folder = fileRows(page).filter({ hasText: '待删文件夹' }).first();
     await folder.hover();
-    await folder.locator('button[title="添加子文件夹"]').click();
+    await folder.getByTitle(/添加子文件夹|添加子项/).click();
     const input = page.getByTestId('file-name-input');
     await input.fill('待删子项');
     await page.getByTestId('file-submit').click();

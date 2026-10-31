@@ -1,3 +1,4 @@
+import { useModelI18n } from '../i18n.js';
 /**
  * @fileoverview VTable 表格宿主组件（Angular `EntityTableComponent` 的 React 移植）。
  *
@@ -129,6 +130,8 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
   },
   ref
 ) {
+  const { t, runtime: modelI18n } = useModelI18n();
+
   const config = useContext(ENTITY_TABLE_CONFIG);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -252,8 +255,8 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
   useEffect(() => {
     if (!tableReady) return;
     const input = containerRef.current?.querySelector<HTMLInputElement>('.table-focus-control');
-    input?.setAttribute('aria-label', '数据表格焦点控制');
-  }, [tableReady, columns]);
+    input?.setAttribute('aria-label', t('text.b02941cb88'));
+  }, [tableReady, columns, t]);
 
   // ── 初始化 / records / columns 同步（对应 Angular 的 afterNextRender + effect）──
   useEffect(() => {
@@ -295,7 +298,8 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
       current.records,
       columnDefs,
       resolvedDarkModeRef.current,
-      current.tableOptions
+      current.tableOptions,
+      modelI18n
     );
     tableRef.current = table;
     prevRecordsRef.current = current.records;
@@ -509,7 +513,7 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
         <div
           className='text-base-content/40 absolute inset-x-0 bottom-0 flex items-center justify-center text-sm'
           style={{ top: headerHeight }}
-          aria-label='暂无数据'
+          aria-label={t('common.noData')}
           role='status'
         >
           <div className='empty-slot'>{emptyState}</div>
@@ -530,7 +534,7 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
               <path d='M9 9v12' />
               <path d='M3 15h18' />
             </svg>
-            <span>暂无数据</span>
+            <span>{t('common.noData')}</span>
           </div>
         </div>
       )}

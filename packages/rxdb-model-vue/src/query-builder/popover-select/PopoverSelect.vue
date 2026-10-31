@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t } = useModelI18n();
+
+import { useModelI18n } from '../../i18n';
+
 /**
  * 基于 Popover API 的下拉选择组件（对齐 Angular 侧 `PopoverSelectComponent`）。
  *
@@ -22,7 +26,7 @@ const props = withDefaults(
     /** 最小宽度 */
     minWidth?: string;
   }>(),
-  { selected: '', placeholder: '请选择', minWidth: '8rem' }
+  { selected: '', placeholder: undefined, minWidth: '8rem' }
 );
 
 const emit = defineEmits<{
@@ -39,7 +43,9 @@ const trigger = ref<HTMLButtonElement | null>(null);
 const popoverEl = ref<HTMLElement | null>(null);
 const filterInput = ref<HTMLInputElement | null>(null);
 
-const currentLabel = computed(() => findOptionLabel(props.options, props.selected, props.placeholder));
+const currentLabel = computed(() =>
+  findOptionLabel(props.options, props.selected, props.placeholder ?? t('text.da590a8fe3'))
+);
 
 const filteredOptions = computed(() => {
   const filter = filterText.value.toLowerCase().trim();
@@ -173,7 +179,7 @@ defineExpose({
         :aria-controls="listId"
         aria-autocomplete="list"
         aria-expanded="true"
-        placeholder="搜索..."
+        :placeholder="t('text.c304ad3873')"
         role="combobox"
         type="text"
       />
@@ -221,7 +227,7 @@ defineExpose({
         v-if="filteredOptions.length === 0"
         class="px-3 py-1.5 text-sm opacity-50"
       >
-        无匹配项
+        {{ t('text.336cba9a92') }}
       </li>
     </ul>
   </div>

@@ -1,0 +1,128 @@
+<main class="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 lg:p-6" data-testid="i18n-demo-page">
+  <header class="bg-base-200 flex flex-col gap-3 rounded-2xl p-5 md:flex-row md:items-end md:justify-between">
+    <div>
+      <p class="text-primary text-sm font-semibold tracking-wide uppercase">RxDB i18n</p>
+      <h1 class="mt-1 text-3xl font-bold">{{ 'page.i18n.title' | i18n }}</h1>
+      <p class="text-base-content/65 mt-2 max-w-3xl">{{ 'page.i18n.subtitle' | i18n }}</p>
+    </div>
+    <label class="form-control w-full max-w-xs">
+      <span class="label-text mb-1 text-sm font-medium">{{ 'shell.language' | i18n }}</span>
+      <select
+        class="select select-bordered"
+        [value]="i18n.locale().startsWith('en') ? 'en' : 'zh-Hans'"
+        (change)="changeLocale($event)"
+        data-testid="i18n-demo-locale"
+      >
+        <option value="zh-Hans">{{ 'i18n.locale.zh' | i18n }}</option>
+        <option value="en">{{ 'i18n.locale.en' | i18n }}</option>
+      </select>
+    </label>
+  </header>
+
+  <section class="grid gap-4 md:grid-cols-2" [attr.aria-label]="'page.i18n.bundleTitle' | i18n">
+    <article class="card border-base-300 bg-base-100 border shadow-sm">
+      <div class="card-body">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="card-title">{{ 'page.i18n.bundleTitle' | i18n }}</h2>
+          <span class="badge badge-primary">{{ i18n.locale() }}</span>
+        </div>
+        <p class="text-base-content/65">{{ 'page.i18n.bundleDescription' | i18n }}</p>
+        <dl class="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+          <div class="bg-base-200 rounded-lg p-3">
+            <dt class="text-base-content/60">{{ 'page.i18n.currentLocale' | i18n }}</dt>
+            <dd class="mt-1 font-mono font-semibold" data-testid="i18n-demo-current-locale">{{ i18n.locale() }}</dd>
+          </div>
+          <div class="bg-base-200 rounded-lg p-3">
+            <dt class="text-base-content/60">{{ 'page.i18n.availableLocales' | i18n }}</dt>
+            <dd class="mt-1 font-mono font-semibold">{{ i18n.availableLocales().join(', ') }}</dd>
+          </div>
+        </dl>
+      </div>
+    </article>
+
+    <article class="card border-base-300 bg-base-100 border shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title">{{ 'page.i18n.persistenceTitle' | i18n }}</h2>
+        <p class="text-base-content/65">{{ 'page.i18n.persistenceDescription' | i18n }}</p>
+        <div class="alert alert-success mt-2" data-testid="i18n-demo-persisted-status" role="status">
+          <span>{{ 'page.i18n.persistenceStatus' | i18n }}</span>
+        </div>
+        <a class="btn btn-outline mt-2 w-fit" routerLink="/entities/public/Todo">{{ 'page.i18n.openModel' | i18n }}</a>
+      </div>
+    </article>
+  </section>
+
+  <section class="card border-base-300 bg-base-100 border shadow-sm">
+    <div class="card-body gap-4">
+      <div>
+        <h2 class="card-title">{{ 'page.i18n.icuTitle' | i18n }}</h2>
+        <p class="text-base-content/65">{{ 'page.i18n.icuDescription' | i18n }}</p>
+      </div>
+      <div class="grid gap-3 md:grid-cols-3">
+        <label class="form-control">
+          <span class="label-text">{{ 'page.i18n.name' | i18n }}</span>
+          <input
+            class="input input-bordered"
+            [(ngModel)]="sampleName"
+            [placeholder]="'page.i18n.namePlaceholder' | i18n"
+          />
+        </label>
+        <label class="form-control">
+          <span class="label-text">{{ 'page.i18n.count' | i18n }}</span>
+          <input class="input input-bordered" [(ngModel)]="sampleCount" min="0" type="number" />
+        </label>
+        <label class="form-control">
+          <span class="label-text">{{ 'page.i18n.role' | i18n }}</span>
+          <select class="select select-bordered" [(ngModel)]="sampleRole">
+            <option value="admin">{{ 'page.i18n.role.admin' | i18n }}</option>
+            <option value="developer">{{ 'page.i18n.role.developer' | i18n }}</option>
+            <option value="reader">{{ 'page.i18n.role.reader' | i18n }}</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid gap-3 md:grid-cols-3">
+        <div class="bg-base-200 rounded-lg p-4">
+          <p class="text-base-content/60 text-xs uppercase">{{ 'page.i18n.messageLabel' | i18n }}</p>
+          <p class="mt-2 font-medium" data-testid="i18n-demo-greeting">
+            {{ 'i18n.greeting' | i18n: { name: sampleName } }}
+          </p>
+        </div>
+        <div class="bg-base-200 rounded-lg p-4">
+          <p class="text-base-content/60 text-xs uppercase">{{ 'page.i18n.itemsLabel' | i18n }}</p>
+          <p class="mt-2 font-medium" data-testid="i18n-demo-items">
+            {{ 'i18n.items' | i18n: { count: sampleCount } }}
+          </p>
+        </div>
+        <div class="bg-base-200 rounded-lg p-4">
+          <p class="text-base-content/60 text-xs uppercase">{{ 'page.i18n.roleLabel' | i18n }}</p>
+          <p class="mt-2 font-medium" data-testid="i18n-demo-role">{{ 'i18n.role' | i18n: { role: sampleRole } }}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card border-base-300 bg-base-100 border shadow-sm">
+    <div class="card-body">
+      <h2 class="card-title">{{ 'page.i18n.formatTitle' | i18n }}</h2>
+      <p class="text-base-content/65">{{ 'page.i18n.formatDescription' | i18n }}</p>
+      <dl class="mt-3 grid gap-3 md:grid-cols-3">
+        <div class="bg-base-200 rounded-lg p-4">
+          <dt class="text-base-content/60 text-sm">{{ 'page.i18n.date' | i18n }}</dt>
+          <dd class="mt-1 font-semibold" data-testid="i18n-demo-date">
+            {{ i18n.formatDate(formatDate, dateOptions) }}
+          </dd>
+        </div>
+        <div class="bg-base-200 rounded-lg p-4">
+          <dt class="text-base-content/60 text-sm">{{ 'page.i18n.number' | i18n }}</dt>
+          <dd class="mt-1 font-semibold" data-testid="i18n-demo-number">{{ i18n.formatNumber(formatNumber) }}</dd>
+        </div>
+        <div class="bg-base-200 rounded-lg p-4">
+          <dt class="text-base-content/60 text-sm">{{ 'page.i18n.relative' | i18n }}</dt>
+          <dd class="mt-1 font-semibold" data-testid="i18n-demo-relative">
+            {{ i18n.formatRelativeTime(relativeValue, 'day') }}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+</main>

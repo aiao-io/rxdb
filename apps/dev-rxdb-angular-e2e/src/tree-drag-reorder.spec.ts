@@ -146,7 +146,7 @@ async function addRootFolder(page: Page, name: string): Promise<void> {
 async function addChildFolder(page: Page, parentName: string, name: string): Promise<void> {
   const parent = fileRow(page, parentName);
   await parent.hover();
-  await parent.getByTitle('添加子文件夹').click();
+  await parent.getByTitle(/添加子文件夹|添加子项/).click();
 
   const input = page.getByTestId('file-name-input');
   await input.fill(name);

@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t, runtime: modelI18n } = useModelI18n();
+
+import { useModelI18n } from '../i18n';
+
 /**
  * 通用实体数据表格组件（对齐 Angular 侧 `EntityTableComponent`）。
  *
@@ -155,7 +159,14 @@ const observeThemeChanges = (): void => {
 };
 
 const initTable = (container: HTMLElement): void => {
-  const table = createListTable(container, props.records, props.columns, resolvedDarkMode(), props.tableOptions);
+  const table = createListTable(
+    container,
+    props.records,
+    props.columns,
+    resolvedDarkMode(),
+    props.tableOptions,
+    modelI18n
+  );
   tableInstance.value = table;
   prevRecords = props.records;
   committedRecords = [...props.records];
@@ -324,7 +335,7 @@ onMounted(() => {
     prevColumns = props.columns;
     tableReady.value = true;
     // 无障碍：VTable 焦点控制输入没有语义标签（axe label 违规）
-    el.querySelector<HTMLInputElement>('.table-focus-control')?.setAttribute('aria-label', '数据表格焦点控制');
+    el.querySelector<HTMLInputElement>('.table-focus-control')?.setAttribute('aria-label', t('text.b02941cb88'));
   }
 });
 
@@ -339,7 +350,7 @@ watch(
           prevColumns = columns;
           tableReady.value = true;
           // 无障碍：VTable 焦点控制输入没有语义标签（axe label 违规）
-          el.querySelector<HTMLInputElement>('.table-focus-control')?.setAttribute('aria-label', '数据表格焦点控制');
+          el.querySelector<HTMLInputElement>('.table-focus-control')?.setAttribute('aria-label', t('text.b02941cb88'));
         }
       }
       return;
@@ -415,7 +426,7 @@ defineExpose({
       v-if="records.length === 0 && !loading"
       class="text-base-content/40 absolute inset-x-0 bottom-0 flex items-center justify-center text-sm"
       :style="{ top: headerHeight + 'px' }"
-      aria-label="暂无数据"
+      :aria-label="t('common.noData')"
       role="status"
     >
       <div class="empty-slot">
@@ -445,7 +456,7 @@ defineExpose({
           <path d="M9 9v12" />
           <path d="M3 15h18" />
         </svg>
-        <span>暂无数据</span>
+        <span>{{ t('common.noData') }}</span>
       </div>
     </div>
     <div

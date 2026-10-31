@@ -67,7 +67,7 @@ export default defineConfig(() => ({
     rolldownOptions: {
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
-      external: ['@aiao/rxdb', 'rxjs', 'rxjs/operators', /^@visactor\//],
+      external: [/^@aiao\/rxdb-i18n/, '@aiao/rxdb', 'rxjs', 'rxjs/operators', /^@visactor\//],
       input: {
         index: 'src/index.ts'
       },

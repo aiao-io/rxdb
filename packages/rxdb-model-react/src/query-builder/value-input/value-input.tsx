@@ -1,3 +1,4 @@
+import { useModelI18n } from '../../i18n.js';
 /**
  * @fileoverview 值输入组件（Angular `ValueInputComponent` 的 React 移植）。
  *
@@ -153,6 +154,8 @@ export function ValueInput({
   onValueChange,
   onWhereChange
 }: ValueInputProps): JSX.Element {
+  const { t } = useModelI18n();
+
   const inputType = useMemo(() => getInputType(fieldType, operator, enumOptions), [fieldType, operator, enumOptions]);
 
   const [currentValue, setCurrentValue] = useState<unknown>(
@@ -191,7 +194,7 @@ export function ValueInput({
     inputType !== 'uuid' ? '' : (
       (() => {
         const val = String(currentValue ?? '').trim();
-        return val && !UUID_RE.test(val) ? '请输入合法的 UUID 格式' : '';
+        return val && !UUID_RE.test(val) ? t('text.5c1d789855') : '';
       })()
     );
 
@@ -254,7 +257,7 @@ export function ValueInput({
 
   switch (inputType) {
     case 'none':
-      return <span className='text-base-content/50 px-2 text-sm italic'>无需输入值</span>;
+      return <span className='text-base-content/50 px-2 text-sm italic'>{t('text.c91721bbca')}</span>;
     case 'uuid':
       return (
         <div
@@ -270,7 +273,7 @@ export function ValueInput({
               const trimmed = raw.trim();
               onValueChange?.(trimmed.toLowerCase() || '');
             }}
-            placeholder='输入 UUID'
+            placeholder={t('text.e2c752399e')}
             style={{ minWidth: '16rem' }}
             type='text'
           />
@@ -280,7 +283,7 @@ export function ValueInput({
       return (
         <div className='subquery-container w-full'>
           {!relationFields || relationFields.length === 0 ?
-            <span className='text-base-content/50 px-2 text-sm italic'>存在/不存在（无子条件）</span>
+            <span className='text-base-content/50 px-2 text-sm italic'>{t('text.b06078aff8')}</span>
           : <SubqueryBuilder
               fields={relationFields}
               initialQuery={where}
@@ -307,7 +310,7 @@ export function ValueInput({
           selected={String(currentValue ?? '')}
           onSelectChange={value => onValueChangeHandler(value)}
           minWidth='12rem'
-          placeholder='选择值'
+          placeholder={t('text.aff46a5acc')}
         />
       );
     case 'enum-array':
@@ -344,7 +347,7 @@ export function ValueInput({
               style={{ width: '9rem' }}
               type='date'
             />
-            <span className='text-base-content/50'>至</span>
+            <span className='text-base-content/50'>{t('text.65edbf9f1c')}</span>
             <input
               className={cn('input input-sm', hasError && 'input-error')}
               value={dateRangeEnd}
@@ -368,11 +371,11 @@ export function ValueInput({
               setRangeMin(min);
               onRangeChange(min, rangeMax);
             }}
-            placeholder='最小值'
+            placeholder={t('text.b2dcdcfabb')}
             style={{ width: '7rem' }}
             type='number'
           />
-          <span className='text-base-content/50'>至</span>
+          <span className='text-base-content/50'>{t('text.65edbf9f1c')}</span>
           <input
             className={cn('input input-sm', hasError && 'input-error')}
             value={String(rangeMax ?? '')}
@@ -381,7 +384,7 @@ export function ValueInput({
               setRangeMax(max);
               onRangeChange(rangeMin, max);
             }}
-            placeholder='最大值'
+            placeholder={t('text.1e7a228207')}
             style={{ width: '7rem' }}
             type='number'
           />
@@ -394,7 +397,7 @@ export function ValueInput({
             className={cn('input input-sm', hasError && 'input-error')}
             value={String(currentValue ?? '')}
             onChange={event => onNumberInputChange(event.target.value)}
-            placeholder='输入数值'
+            placeholder={t('text.9bc4dfa6ca')}
             type='number'
           />
         </div>
@@ -418,7 +421,7 @@ export function ValueInput({
             className={cn('input input-sm', hasError && 'input-error')}
             value={arrayInputValue}
             onChange={event => onArrayInputChange(event.target.value)}
-            placeholder='输入多个值，用逗号分隔'
+            placeholder={t('text.ca6668dc4c')}
             style={{ width: '100%', minWidth: '12rem' }}
             type='text'
           />
@@ -431,7 +434,7 @@ export function ValueInput({
             className={cn('input input-sm', hasError && 'input-error')}
             value={String(currentValue ?? '')}
             onChange={event => onValueChangeHandler(event.target.value)}
-            placeholder='输入值'
+            placeholder={t('text.26cf65c431')}
             style={{ width: '100%', minWidth: '12rem' }}
             type='text'
           />

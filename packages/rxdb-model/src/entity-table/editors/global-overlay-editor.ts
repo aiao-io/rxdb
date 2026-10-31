@@ -1,4 +1,5 @@
 import type { EditContext, IEditor, RectProps } from '@visactor/vtable-editors';
+import { ModelEditorI18n } from '../../i18n.js';
 
 /** daisyUI v5 主题色引用（CSS 变量，主题自适应） */
 export const DAISY_COLORS = {
@@ -96,6 +97,8 @@ export abstract class GlobalOverlayEditor implements IEditor<string> {
   readonly #handleOutsideMouseDown: (e: MouseEvent) => void;
   readonly #handleKeydown: (e: KeyboardEvent) => void;
 
+  protected readonly messages = new ModelEditorI18n();
+
   protected container: HTMLElement | null = null;
   protected table: { getCellOriginValue(col: number, row: number): unknown } | null = null;
   protected editCol = 0;
@@ -151,6 +154,7 @@ export abstract class GlobalOverlayEditor implements IEditor<string> {
 
   /** 打开浮层：渲染行、定位面板并注册全局鼠标/键盘监听 */
   onStart(ctx: EditContext<string>): void {
+    this.messages.start(ctx.table);
     this.#endEdit = ctx.endEdit;
     this.container = ctx.container;
     this.table = ctx.table as { getCellOriginValue(col: number, row: number): unknown } | null;
@@ -186,6 +190,7 @@ export abstract class GlobalOverlayEditor implements IEditor<string> {
 
   /** 关闭浮层：移除面板并注销全局鼠标/键盘监听 */
   onEnd(): void {
+    this.messages.clear();
     this.#panel?.remove();
     this.#panel = null;
     document.removeEventListener('mousedown', this.#handleOutsideMouseDown, { capture: true });

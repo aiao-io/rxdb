@@ -22,7 +22,7 @@ async function addRootMenu(page: Page, title: string): Promise<void> {
   await expect(input).toHaveValue(title);
   await input.blur();
   await addButton.click();
-  await expect(menuCountBadge).toHaveText(new RegExp(`^${menuCountBefore + 1}\\s*项$`), { timeout: 20_000 });
+  await expect(menuCountBadge).toHaveText(new RegExp(`^\\s*${menuCountBefore + 1}\\s*项\\s*$`), { timeout: 20_000 });
   await expect(input).toHaveValue('', { timeout: 15_000 });
 }
 
@@ -45,7 +45,7 @@ test.describe('Menu Page - E2E Tests', () => {
   });
 
   test('should display menu page', async ({ page }) => {
-    await expect(page.locator('h1')).toContainText(/Tree Menu - Simple|场景1：基础树形菜单/);
+    await expect(page.locator('h1')).toContainText(/Tree Menu - Simple|树菜单 - 简单模式|场景1：基础树形菜单/);
   });
 
   test('should have add menu input', async ({ page }) => {

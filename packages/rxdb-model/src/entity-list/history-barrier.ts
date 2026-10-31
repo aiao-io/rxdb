@@ -1,5 +1,6 @@
 import type { HistoryScopeAPI } from '@aiao/rxdb';
 import type { ObservedValueOf } from 'rxjs';
+import { modelText, type ModelI18n } from '../i18n.js';
 
 /**
  * 撤销 / 重做按钮停用时的说明。
@@ -14,11 +15,12 @@ import type { ObservedValueOf } from 'rxjs';
  */
 export function describeHistoryBarrier(
   operation: 'undo' | 'redo',
-  barrier: ObservedValueOf<HistoryScopeAPI['undoBarrier$']>
+  barrier: ObservedValueOf<HistoryScopeAPI['undoBarrier$']>,
+  i18n?: ModelI18n
 ): string | null {
   if (barrier === null) return null;
   const branches = barrier.branchIds.join('、');
   return operation === 'undo' ?
-      `更早的改动已被分支 ${branches} 继承，撤销不了`
-    : `要重做的改动已被分支 ${branches} 继承，重做不了`;
+      modelText('text.6bd1dcd84d', { p0: branches }, i18n)
+    : modelText('text.7c9c29f280', { p0: branches }, i18n);
 }

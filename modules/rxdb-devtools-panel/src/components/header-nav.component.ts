@@ -30,6 +30,7 @@ export class HeaderNavComponent {
     { path: '/database', label: 'Database', icon: Database },
     { path: '/opfs', label: 'OPFS', icon: FolderOpen },
     { path: '/storage', label: 'Storage', icon: Server },
+    { path: '/i18n', label: 'I18n', icon: Activity },
     { path: '/settings', label: 'Settings', icon: Settings }
   ];
 }

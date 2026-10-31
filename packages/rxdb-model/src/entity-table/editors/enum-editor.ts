@@ -7,6 +7,8 @@ export interface EnumItem {
   value: string;
   /** 显示文本（默认等于 value） */
   text?: string;
+  /** 内置选项的目录键。 */
+  textKey?: string;
   /** Lucide 图标数据（可选，配合 color 使用） */
   icon?: IconData;
   /** 图标描边颜色（可选，配合 icon 使用） */
@@ -96,7 +98,7 @@ export class EnumEditor extends GlobalOverlayEditor {
     if (this.#items.length === 0) {
       const empty = document.createElement('div');
       empty.style.cssText = `padding:8px 12px;font-size:12px;opacity:0.45;color:${DAISY_COLORS.text}`;
-      empty.textContent = '暂无可选项';
+      this.messages.bind(empty, 'textContent', () => this.messages.t('text.90fd33a793'));
       panel.appendChild(empty);
       return;
     }
@@ -130,7 +132,8 @@ export class EnumEditor extends GlobalOverlayEditor {
         span.textContent = item.text ?? item.value;
         row.appendChild(span);
       } else {
-        row.textContent = item.text ?? item.value;
+        if (item.textKey) this.messages.bind(row, 'textContent', () => this.messages.t(item.textKey as string));
+        else row.textContent = item.text ?? item.value;
       }
 
       row.addEventListener('mouseenter', () => {

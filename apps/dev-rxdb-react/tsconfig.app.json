@@ -32,19 +32,16 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../../packages/rxdb-plugin-working-tree-react/tsconfig.lib.json"
+      "path": "../../packages/rxdb-model/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
+      "path": "../../packages/rxdb-i18n/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-plugin-board-react/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/rxdb-plugin-board/tsconfig.lib.json"
+      "path": "../../packages/rxdb-i18n-react/tsconfig.lib.json"
     },
     {
       "path": "../../modules/wujie/tsconfig.lib.json"
@@ -60,6 +57,12 @@
     },
     {
       "path": "../../packages/rxdb-plugin-workspace/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-working-tree-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-plugin-tree/tsconfig.lib.json"
@@ -99,6 +102,12 @@
     },
     {
       "path": "../../packages/code-editor-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-board-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-board/tsconfig.lib.json"
     }
   ]
 }

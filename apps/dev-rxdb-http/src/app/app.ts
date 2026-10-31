@@ -40,6 +40,8 @@ import { clearEtagDiagnostics, etagDiagnostics, onEtagDiagnostic, type EtagDiagn
 import { buildFilterRules, emptyFilterState, type RecipeFilterState, type RecipeRuleGroup } from './filter-rules';
 import { clampPage, DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, pageCount } from './paging';
 import { Recipe } from './recipe';
+import { resolveI18nEnabled } from './remote-i18n';
+import { RemoteI18nDemo } from './remote-i18n-demo';
 import { clearTraffic, lastTransportStatus, onTraffic, trafficEntries, type TrafficEntry } from './traffic-recorder';
 
 /** 新建表单的初值。 */
@@ -70,7 +72,7 @@ const TAB_KEY_MOVES: Record<string, ((index: number, count: number) => number) |
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, JsonPipe],
+  imports: [FormsModule, JsonPipe, RemoteI18nDemo],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -119,6 +121,8 @@ export class App implements OnInit {
 
   /** 后端地址。`?api=` 可覆盖，默认 `http://127.0.0.1:4301/v1`。 */
   readonly baseUrl = resolveApiBaseUrl(typeof location === 'undefined' ? '' : location.search);
+  readonly i18nEnabled = resolveI18nEnabled(typeof location === 'undefined' ? '' : location.search);
+  readonly i18nDemoUrl = `?i18n=1&api=${encodeURIComponent(this.baseUrl)}`;
 
   // ---- 过滤面板 -------------------------------------------------------------
 

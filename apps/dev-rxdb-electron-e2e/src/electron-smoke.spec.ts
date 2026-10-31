@@ -142,6 +142,24 @@ test.describe('打包产物 smoke', () => {
     expect(outcome).toEqual({ status: 200, compiled: true });
   });
 
+  test('渲染进程通过 ICU 插值、复数、select 与 fallback 共享冒烟', async () => {
+    await expect(page.getByTestId('rxdb-status')).toHaveText(/已连接/, { timeout: 60000 });
+    const result = await page.evaluate(() => {
+      const raw = document.documentElement.dataset['i18nRuntimeSmoke'];
+      if (!raw) throw new Error('Electron renderer did not run the ICU smoke');
+      return JSON.parse(raw);
+    });
+    expect(result).toEqual({
+      interpolation: 'Hello Ada',
+      singular: '1 item',
+      plural: '2 items',
+      selected: 'Administrator',
+      otherSelection: 'Guest',
+      parentFallback: 'Bonjour Ada',
+      defaultFallback: '默认文案'
+    });
+  });
+
   test('IPC 往返可用', async () => {
     await page.getByTestId('ipc-run').click();
     await expect(page.getByTestId('ipc-result')).toBeVisible();
