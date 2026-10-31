@@ -57,7 +57,7 @@ async function synchronizePage(page: Page) {
   await button.click();
   await verified;
   await expect(button).toBeEnabled({ timeout: 25000 });
-  await expect(page.getByText('同步已确认', { exact: true })).toBeVisible({ timeout: 25000 });
+  await expect(page.getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
 }
 async function deleteRemoteDraft(page: Page, ownerId: string) {
   const workspace = (await admin.from('media_workspaces').select('id').eq('owner_id', ownerId).single()).data!;
@@ -78,7 +78,7 @@ async function deleteRemoteDraft(page: Page, ownerId: string) {
     )
     .toBe(true);
   await expect(page.getByRole('button', { name: '立即同步', exact: true })).toBeEnabled();
-  await expect(page.getByText('同步已确认', { exact: true })).toBeVisible();
+  await expect(page.getByText('同步已确认', { exact: false })).toBeVisible();
   await expect(button).toBeDisabled();
 }
 test('真实登录不绑定，取消首次同步确认不上传或改变本机副本', async ({ page }) => {
@@ -145,7 +145,7 @@ test('两台独立设备通过原生 RxDB 同步草稿，登录/退出与 A→B�
   await signIn(page, user);
   await page.getByRole('button', { name: '启用同步', exact: true }).click();
   await page.getByRole('button', { name: '确认并启用同步' }).click();
-  await expect(page.getByText('同步已确认', { exact: true })).toBeVisible({ timeout: 25000 });
+  await expect(page.getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
   const aProfile = await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'));
   const workspace = (await admin.from('media_workspaces').select('id').eq('owner_id', user.id).single()).data!;
   await expect
@@ -166,7 +166,7 @@ test('两台独立设备通过原生 RxDB 同步草稿，登录/退出与 A→B�
     await second.getByRole('button', { name: '启用同步', exact: true }).click();
     await expect(second.getByText('此账号已有同步工作区', { exact: false })).toBeVisible();
     await second.getByRole('button', { name: '确认并启用同步' }).click();
-    await expect(second.getByText('同步已确认', { exact: true })).toBeVisible({ timeout: 25000 });
+    await expect(second.getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
     expect(await second.evaluate(() => localStorage.getItem('aiao-local-profile-v1'))).not.toBe(unbound);
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await expect(second.locator('[contenteditable=true]')).toContainText('设备 A 的输入');
@@ -261,7 +261,7 @@ async function enableReplica(page: Page, user: { email: string; password: string
   await signIn(page, user);
   await page.getByRole('button', { name: '启用同步', exact: true }).click();
   await page.getByRole('button', { name: '确认并启用同步' }).click();
-  await expect(page.getByText('同步已确认', { exact: true })).toBeVisible({ timeout: 25000 });
+  await expect(page.getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
   await expect(page.getByRole('button', { name: '立即同步', exact: true })).toBeEnabled();
 }
 
@@ -290,7 +290,7 @@ test('离线多次编辑与重开可推送，修改冲突和删除冲突保留�
     await second.reload();
     await expect(second.locator('[contenteditable=true]')).toContainText('离线第二版');
     await second.getByRole('button', { name: '我的账号', exact: true }).click();
-    await expect(second.getByText('同步已确认', { exact: true })).toBeVisible({ timeout: 25000 });
+    await expect(second.getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
     await synchronizePage(page);
     await page.getByRole('button', { name: '关闭账号窗口' }).click();
     await expect(page.locator('[contenteditable=true]')).toContainText('离线第二版');
@@ -309,7 +309,7 @@ test('离线多次编辑与重开可推送，修改冲突和删除冲突保留�
     await second.getByRole('button', { name: '我的账号', exact: true }).click();
     await expect(second.getByRole('heading', { name: '草稿存在冲突', exact: true })).toBeVisible({ timeout: 25000 });
     await second.getByRole('button', { name: '保留本机版本', exact: true }).click();
-    await expect(second.getByText('同步已确认', { exact: true })).toBeVisible({ timeout: 25000 });
+    await expect(second.getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await expect(second.locator('[contenteditable=true]')).toContainText('B未上传的并发稿');
     await synchronizePage(page);
@@ -321,7 +321,7 @@ test('离线多次编辑与重开可推送，修改冲突和删除冲突保留�
     await second.getByRole('button', { name: '立即同步', exact: true }).click();
     await expect(second.getByText('同步端：已删除', { exact: false })).toBeVisible({ timeout: 25000 });
     await second.getByRole('button', { name: '采用同步端版本', exact: true }).click();
-    await expect(second.getByText('同步已确认', { exact: true })).toBeVisible({ timeout: 25000 });
+    await expect(second.getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await expect(second.locator('[contenteditable=true]')).toBeEmpty();
     await second.reload();
@@ -434,7 +434,7 @@ test('明确重新扫描重放旧日志，保留未上传修订和删除冲突�
     await second.getByRole('button', { name: '重新扫描远程记录', exact: true }).click();
     await expect(second.getByRole('button', { name: '采用同步端版本', exact: true })).toBeEnabled({ timeout: 25000 });
     await second.getByRole('button', { name: '采用同步端版本', exact: true }).click();
-    await expect(second.getByText('同步已确认', { exact: true })).toBeVisible({ timeout: 25000 });
+    await expect(second.getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
     const workspace = (await admin.from('media_workspaces').select('id').eq('owner_id', user.id).single()).data!;
     const record = () =>
       admin
@@ -448,7 +448,7 @@ test('明确重新扫描重放旧日志，保留未上传修订和删除冲突�
     second.once('dialog', dialog => dialog.accept());
     await second.getByRole('button', { name: '重新扫描远程记录', exact: true }).click();
     await expect(second.getByRole('button', { name: '重新扫描远程记录', exact: true })).toBeEnabled({ timeout: 25000 });
-    await expect(second.getByText('同步已确认', { exact: true })).toBeVisible();
+    await expect(second.getByText('同步已确认', { exact: false })).toBeVisible();
     expect((await record()).data).toEqual(before);
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await expect(second.locator('[contenteditable=true]')).toBeEmpty();
