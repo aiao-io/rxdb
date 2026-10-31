@@ -1,6 +1,6 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
-import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
+import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
