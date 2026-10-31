@@ -52,7 +52,8 @@ export async function downloadFromServer(options: {
   const size = value instanceof Blob ? value.size : value.byteLength;
   if (size !== options.manifest.size) throw new Error('server response size does not match manifest');
   const readChunk = async (offset: number, size: number): Promise<Uint8Array> =>
-    value instanceof Blob ? new Uint8Array(await value.slice(offset, offset + size).arrayBuffer())
+    value instanceof Blob ?
+      new Uint8Array(await value.slice(offset, offset + size).arrayBuffer())
     : value.slice(offset, offset + size);
   const hash = createSha256();
   for (const descriptor of descriptors) {
