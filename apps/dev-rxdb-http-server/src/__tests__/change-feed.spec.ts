@@ -262,15 +262,20 @@ describe('控制端点改了数据也广播', () => {
     const feed = await openFeedConnection();
     const response = await post('__control/reset', {});
     expect(response.ok).toBe(true);
-    expect(await feed.next(10_000)).toEqual({ entity: CLIENT_ENTITY_NAME });
+    const messages = [await feed.next(10_000), await feed.next(10_000)];
+    expect(messages).toEqual(
+      expect.arrayContaining([{ entity: CLIENT_ENTITY_NAME }, { entity: 'RemoteMessageEntry', namespace: 'i18n' }])
+    );
   });
 
-  it('reset 的种子不逐行广播——250 行只派发一条通知（D7）', { timeout: 30_000 }, async () => {
+  it('reset 的种子按实体广播——食谱与目录各派发一条通知（D7）', { timeout: 30_000 }, async () => {
     const feed = await openFeedConnection();
     await post('__control/reset', {});
-    expect(await feed.next(10_000)).toEqual({ entity: CLIENT_ENTITY_NAME });
-    // 种子经引擎批处理 + NOTIFY 聚合后只派发一条 Recipe 实体事件；若逐行广播，
-    // 这里会再读到第二条通知，expectSilence 直接红。
+    const messages = [await feed.next(10_000), await feed.next(10_000)];
+    expect(messages).toEqual(
+      expect.arrayContaining([{ entity: CLIENT_ENTITY_NAME }, { entity: 'RemoteMessageEntry', namespace: 'i18n' }])
+    );
+    // 食谱经引擎聚合、目录在整批种子提交后广播；任何逐行多发都会让静默断言失败。
     await feed.expectSilence(150);
   });
 
@@ -298,5 +303,20 @@ describe('控制端点改了数据也广播', () => {
     await post('__control/log/clear', {});
     await fetch(`${baseUrl}/__control/state`);
     await feed.expectSilence(150);
+  });
+});
+
+describe('国际化目录通知', () => {
+  it('目录变更携带i18n namespace，空字符串保持合法值', async () => {
+    const feed = await openFeedConnection();
+    const id = JSON.stringify(['en', 'http-demo', 'greeting']);
+    const response = await fetch(`${baseUrl}/messages/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ value: '' })
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ value: '' });
+    expect(await feed.next()).toEqual({ entity: 'RemoteMessageEntry', namespace: 'i18n' });
   });
 });

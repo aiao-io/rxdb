@@ -1,3 +1,4 @@
+import { useModelI18n } from '../../i18n.js';
 /**
  * @fileoverview 树形下拉选择组件（Angular `TreeSelectComponent` 的 React 移植）。
  *
@@ -116,10 +117,12 @@ export interface TreeSelectProps {
 export function TreeSelect({
   nodes,
   selected = '',
-  placeholder = '请选择',
+  placeholder,
   minWidth = '14rem',
   onSelectChange
 }: TreeSelectProps): JSX.Element {
+  const { t } = useModelI18n();
+
   const [uid] = useState(() => `rxdb-ts-${++uidCounter}`);
   const listId = `${uid}-list`;
 
@@ -131,7 +134,8 @@ export function TreeSelect({
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [activeIndex, setActiveIndex] = useState(-1);
 
-  const displayValue = selected ? getDisplayNamePath(nodes, selected) || selected : placeholder;
+  const displayValue =
+    selected ? getDisplayNamePath(nodes, selected) || selected : (placeholder ?? t('text.da590a8fe3'));
 
   const selectedNode = selected ? findNodeByValue(nodes, selected) : null;
 
@@ -286,7 +290,7 @@ export function TreeSelect({
             aria-expanded='true'
             aria-owns={listId}
             aria-autocomplete='list'
-            placeholder='搜索字段...'
+            placeholder={t('text.174856a357')}
             role='combobox'
             type='text'
             value={filterText}
@@ -301,7 +305,7 @@ export function TreeSelect({
         {/* 树形列表 */}
         <ul
           className='menu menu-sm max-h-60 w-full flex-nowrap overflow-y-auto px-2'
-          aria-label={placeholder}
+          aria-label={placeholder ?? t('text.da590a8fe3')}
           id={listId}
           role='tree'
         >
@@ -346,7 +350,7 @@ export function TreeSelect({
               </button>
             </li>
           ))}
-          {visibleItems.length === 0 && <li className='px-3 py-1.5 text-sm opacity-50'>无匹配字段</li>}
+          {visibleItems.length === 0 && <li className='px-3 py-1.5 text-sm opacity-50'>{t('text.1a399b1a95')}</li>}
         </ul>
       </div>
     </>

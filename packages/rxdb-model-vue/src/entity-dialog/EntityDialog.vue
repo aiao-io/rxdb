@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t } = useModelI18n();
+
+import { useModelI18n } from '../i18n';
+
 /**
  * 对话框外壳组件（内置 DialogPortal 内使用）。
  *
@@ -229,7 +233,7 @@ defineExpose({
         <!-- Fullscreen Toggle -->
         <button
           class="btn btn-ghost btn-xs btn-square"
-          :aria-label="isFullscreen ? '退出全屏' : '全屏'"
+          :aria-label="isFullscreen ? t('text.0f1505b6ad') : t('text.22ea3f47fe')"
           type="button"
           @click="toggleFullscreen"
         >
@@ -257,7 +261,7 @@ defineExpose({
         <!-- Close -->
         <button
           class="btn btn-ghost btn-xs btn-square"
-          aria-label="关闭"
+          :aria-label="t('common.close')"
           type="button"
           @click="close"
         >

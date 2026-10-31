@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t } = useModelI18n();
+
+import { useModelI18n } from '../../i18n';
+
 /**
  * 操作符选择器组件（对齐 Angular 侧 `OperatorSelectorComponent`）。
  *
@@ -38,7 +42,7 @@ const registry = getDefaultOperatorRegistry();
 const operatorOptions = computed(() => {
   const metadata = props.fieldMetadata;
   const operators = metadata ? registry.getForField(metadata) : registry.getForType(props.fieldType as PropertyType);
-  return operators.map(op => ({ value: op.key, label: op.label }));
+  return operators.map(op => ({ value: op.key, label: op.labelKey ? t(op.labelKey) : op.label }));
 });
 
 const onOperatorChange = (op: string): void => {
@@ -54,7 +58,7 @@ defineExpose({ operatorOptions, onOperatorChange });
     :options="operatorOptions"
     :selected="selectedOperator"
     min-width="8rem"
-    placeholder="选择操作符"
+    :placeholder="t('query.selectOperator')"
     @select-change="onOperatorChange"
   />
 </template>

@@ -1,10 +1,12 @@
 import { RxDB } from '@aiao/rxdb';
 import { useCount, useFind } from '@aiao/rxdb-angular';
+import { useI18nOptional } from '@aiao/rxdb-i18n-angular';
 import { type WorkspaceCacheEntry } from '@aiao/rxdb-plugin-workspace';
 import { Todo, type TodoStaticTypes } from '@aiao/rxdb-test/entities';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 
 /**
  * Todo 主表每页条数。此前页面订阅的是 `findAll`（整表、不带 limit），
@@ -25,36 +27,39 @@ type Notice = {
   text: string;
 };
 
-function formatDateTime(value: Date | string | null | undefined): string {
+function formatDateTime(value: Date | string | null | undefined, locale = 'zh-CN'): string {
   if (!value) return '-';
   const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('zh-CN');
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString(locale);
 }
 
 @Component({
   selector: 'app-workspace-demo-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'page-host' },
+  imports: [I18nPipe],
   template: `
     <div class="flex h-full flex-col overflow-hidden">
       <!-- 顶部 toolbar -->
       <div class="border-base-300 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div class="flex flex-wrap items-center gap-2">
-          <h1 class="text-lg font-semibold">Workspace 草稿恢复</h1>
-          <span class="badge badge-ghost badge-sm">{{ workspaceEntries().length }} 草稿</span>
+          <h1 class="text-lg font-semibold">{{ 'page.workspace.title' | i18n }}</h1>
+          <span class="badge badge-ghost badge-sm">{{
+            'page.workspace.drafts' | i18n: { count: workspaceEntries().length }
+          }}</span>
           <span class="text-base-content/55 hidden text-xs lg:inline">
-            new Todo() 先入 workspace 缓存，刷新后从 IndexedDB 恢复
+            {{ 'page.workspace.cacheHint' | i18n }}
           </span>
         </div>
         <div class="flex items-center gap-2">
           <button class="btn btn-ghost btn-sm" [disabled]="busy()" (click)="refreshWorkspace()" type="button">
-            刷新
+            {{ 'common.refresh' | i18n }}
           </button>
           <button class="btn btn-ghost btn-sm" [disabled]="busy()" (click)="reloadPage()" type="button">
-            刷新页面验证恢复
+            {{ 'page.workspace.reloadVerify' | i18n }}
           </button>
           <button class="btn btn-ghost btn-sm text-error" [disabled]="busy()" (click)="resetDemo()" type="button">
-            重置
+            {{ 'common.reset' | i18n }}
           </button>
         </div>
       </div>
@@ -70,19 +75,19 @@ function formatDateTime(value: Date | string | null | undefined): string {
         <!-- 紧凑统计行 -->
         <div class="stats stats-vertical bg-base-100 border-base-300 md:stats-horizontal mb-4 w-full border shadow-sm">
           <div class="stat py-3">
-            <div class="stat-title text-xs">Workspace 草稿</div>
+            <div class="stat-title text-xs">{{ 'page.workspace.draftStat' | i18n }}</div>
             <div class="stat-value text-primary text-2xl">{{ workspaceEntries().length }}</div>
-            <div class="stat-desc">还没保存到主表的草稿</div>
+            <div class="stat-desc">{{ 'page.workspace.draftStatDescription' | i18n }}</div>
           </div>
           <div class="stat py-3">
-            <div class="stat-title text-xs">Todo 主表</div>
+            <div class="stat-title text-xs">{{ 'page.workspace.todoStat' | i18n }}</div>
             <div class="stat-value text-2xl">{{ savedTodoTotal() }}</div>
-            <div class="stat-desc">已写入数据库的全部记录</div>
+            <div class="stat-desc">{{ 'page.workspace.todoStatDescription' | i18n }}</div>
           </div>
           <div class="stat py-3">
-            <div class="stat-title text-xs">当前活动草稿</div>
+            <div class="stat-title text-xs">{{ 'page.workspace.activeDraftStat' | i18n }}</div>
             <div class="stat-value text-secondary text-2xl">{{ activeDraftEntry() ? 1 : 0 }}</div>
-            <div class="stat-desc">恢复面板聚焦的草稿</div>
+            <div class="stat-desc">{{ 'page.workspace.activeDraftStatDescription' | i18n }}</div>
           </div>
         </div>
 
@@ -92,26 +97,26 @@ function formatDateTime(value: Date | string | null | undefined): string {
             <section class="card border-base-300 bg-base-100 border shadow-sm">
               <div class="card-body gap-3 p-4">
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                  <h2 class="text-base font-semibold">创建未保存草稿</h2>
-                  <span class="badge badge-outline badge-sm">Workspace only</span>
+                  <h2 class="text-base font-semibold">{{ 'page.workspace.createDraft' | i18n }}</h2>
+                  <span class="badge badge-outline badge-sm">{{ 'page.workspace.workspaceOnly' | i18n }}</span>
                 </div>
                 <p class="text-base-content/65 text-xs">
-                  只创建草稿对象，不直接写入 Todo 主表。草稿先落 workspace，刷新后还能继续处理。
+                  {{ 'page.workspace.createDescription' | i18n }}
                 </p>
 
                 <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
                   <label class="floating-label">
                     <input
                       class="input input-sm w-full"
+                      [placeholder]="'page.workspace.titlePlaceholder' | i18n"
                       [value]="draftTitle()"
                       (input)="draftTitle.set($any($event.target).value)"
-                      placeholder="例如：整理需求清单"
                       type="text"
                     />
-                    <span>草稿标题</span>
+                    <span>{{ 'page.workspace.draftTitle' | i18n }}</span>
                   </label>
                   <label class="label rounded-box border-base-300 cursor-pointer gap-2 border px-3 py-2">
-                    <span class="label-text text-xs">已完成</span>
+                    <span class="label-text text-xs">{{ 'page.workspace.completed' | i18n }}</span>
                     <input
                       class="checkbox checkbox-sm checkbox-primary"
                       [checked]="draftCompleted()"
@@ -125,7 +130,7 @@ function formatDateTime(value: Date | string | null | undefined): string {
                     (click)="createDraft()"
                     type="button"
                   >
-                    创建草稿
+                    {{ 'page.workspace.createButton' | i18n }}
                   </button>
                 </div>
               </div>
@@ -135,15 +140,17 @@ function formatDateTime(value: Date | string | null | undefined): string {
             <section class="card border-base-300 bg-base-100 border shadow-sm">
               <div class="card-body gap-3 p-4">
                 <div class="flex items-center justify-between">
-                  <h2 class="text-base font-semibold">草稿列表</h2>
-                  <span class="badge badge-ghost badge-sm">{{ workspaceEntries().length }} drafts</span>
+                  <h2 class="text-base font-semibold">{{ 'page.workspace.draftList' | i18n }}</h2>
+                  <span class="badge badge-ghost badge-sm">{{
+                    'page.workspace.draftsCount' | i18n: { count: workspaceEntries().length }
+                  }}</span>
                 </div>
 
                 @if (workspaceEntries().length === 0) {
                   <div
                     class="border-base-300 text-base-content/55 rounded-box border border-dashed p-6 text-center text-sm"
                   >
-                    当前没有未保存草稿。先创建一个，再刷新页面验证恢复链路。
+                    {{ 'page.workspace.emptyDrafts' | i18n }}
                   </div>
                 } @else {
                   <div class="space-y-2">
@@ -156,12 +163,14 @@ function formatDateTime(value: Date | string | null | undefined): string {
                           <div class="flex min-w-0 flex-1 items-center gap-2">
                             <h3 class="truncate text-sm font-medium">{{ titleOf(entry) }}</h3>
                             @if (recoveredIds().has(entry.id)) {
-                              <span class="badge badge-secondary badge-soft badge-xs">已恢复</span>
+                              <span class="badge badge-secondary badge-soft badge-xs">{{
+                                'page.workspace.recovered' | i18n
+                              }}</span>
                             }
                           </div>
                           <div class="flex flex-wrap gap-1.5">
                             <button class="btn btn-xs btn-ghost" (click)="selectDraft(entry.id)" type="button">
-                              查看
+                              {{ 'page.workspace.view' | i18n }}
                             </button>
                             <button
                               class="btn btn-xs btn-primary"
@@ -169,7 +178,7 @@ function formatDateTime(value: Date | string | null | undefined): string {
                               (click)="saveDraft(entry)"
                               type="button"
                             >
-                              保存
+                              {{ 'common.save' | i18n }}
                             </button>
                             <button
                               class="btn btn-xs btn-ghost text-error"
@@ -177,12 +186,14 @@ function formatDateTime(value: Date | string | null | undefined): string {
                               (click)="discardDraft(entry)"
                               type="button"
                             >
-                              丢弃
+                              {{ 'common.discard' | i18n }}
                             </button>
                           </div>
                         </div>
                         <div class="text-base-content/55 grid gap-1 font-mono text-xs sm:grid-cols-3">
-                          <span class="truncate">完成: {{ completedText(entry) }}</span>
+                          <span class="truncate">{{
+                            'page.workspace.completedValue' | i18n: { value: completedText(entry) }
+                          }}</span>
                           <span class="truncate">{{ formatDateTime(createdAtOf(entry)) }}</span>
                           <span class="truncate">{{ entry.cacheId }}</span>
                         </div>
@@ -198,9 +209,9 @@ function formatDateTime(value: Date | string | null | undefined): string {
               <div class="card-body gap-3 p-4">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h2 class="text-base font-semibold">Todo 主表</h2>
+                    <h2 class="text-base font-semibold">{{ 'page.workspace.todoTable' | i18n }}</h2>
                     <p class="text-base-content/55 text-xs">
-                      草稿保存后落到这里，最新在前。只查询当前这一页（每页 {{ todoPageSize }} 条）
+                      {{ 'page.workspace.todoDescription' | i18n: { size: todoPageSize } }}
                     </p>
                   </div>
                   <button
@@ -209,24 +220,24 @@ function formatDateTime(value: Date | string | null | undefined): string {
                     (click)="clearSavedTodos()"
                     type="button"
                   >
-                    清空主表
+                    {{ 'page.workspace.clearTable' | i18n }}
                   </button>
                 </div>
                 <div class="rounded-box border-base-300 overflow-x-auto border">
                   <table class="table-zebra table-sm table">
                     <thead>
                       <tr>
-                        <th>Title</th>
-                        <th>Status</th>
+                        <th>{{ 'page.workspace.titleColumn' | i18n }}</th>
+                        <th>{{ 'page.workspace.statusColumn' | i18n }}</th>
                         <th>ID</th>
-                        <th>Updated At</th>
+                        <th>{{ 'page.workspace.updatedAtColumn' | i18n }}</th>
                       </tr>
                     </thead>
                     <tbody>
                       @if (savedTodos().length === 0) {
                         <tr>
                           <td class="text-base-content/55 text-center text-sm" colspan="4">
-                            主表还没有记录。保存一条草稿看它落库。
+                            {{ 'page.workspace.emptyTodos' | i18n }}
                           </td>
                         </tr>
                       } @else {
@@ -235,7 +246,9 @@ function formatDateTime(value: Date | string | null | undefined): string {
                             <td class="font-medium">{{ todo.title }}</td>
                             <td>
                               <span class="badge badge-outline badge-sm">{{
-                                todo.completed ? 'completed' : 'open'
+                                todo.completed ?
+                                  ('page.workspace.statusCompleted' | i18n)
+                                : ('page.workspace.statusOpen' | i18n)
                               }}</span>
                             </td>
                             <td class="font-mono text-xs">{{ todo.id.slice(0, 8) }}</td>
@@ -249,7 +262,10 @@ function formatDateTime(value: Date | string | null | undefined): string {
 
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <span class="text-base-content/55 text-xs">
-                    共 {{ savedTodoTotal() }} 条 · 第 {{ todoPage() + 1 }} / {{ todoPageCount() }} 页
+                    {{
+                      'page.workspace.pagination'
+                        | i18n: { count: savedTodoTotal(), current: todoPage() + 1, total: todoPageCount() }
+                    }}
                   </span>
                   <div class="join">
                     <button
@@ -258,7 +274,7 @@ function formatDateTime(value: Date | string | null | undefined): string {
                       (click)="previousTodoPage()"
                       type="button"
                     >
-                      上一页
+                      {{ 'common.previous' | i18n }}
                     </button>
                     <button
                       class="btn btn-sm join-item"
@@ -266,7 +282,7 @@ function formatDateTime(value: Date | string | null | undefined): string {
                       (click)="nextTodoPage()"
                       type="button"
                     >
-                      下一页
+                      {{ 'common.next' | i18n }}
                     </button>
                   </div>
                 </div>
@@ -278,26 +294,28 @@ function formatDateTime(value: Date | string | null | undefined): string {
           <aside class="flex flex-col gap-4">
             <section class="card border-base-300 bg-base-100 border shadow-sm">
               <div class="card-body gap-3 p-4">
-                <h2 class="text-base font-semibold">恢复面板</h2>
+                <h2 class="text-base font-semibold">{{ 'page.workspace.recoveryPanel' | i18n }}</h2>
                 @if (activeDraftEntry(); as entry) {
                   <div class="space-y-3">
                     <div class="flex flex-wrap items-center gap-2">
                       <h3 class="font-semibold">{{ titleOf(entry) }}</h3>
                       @if (recoveredIds().has(entry.id)) {
-                        <span class="badge badge-secondary badge-soft badge-sm">刷新后恢复</span>
+                        <span class="badge badge-secondary badge-soft badge-sm">{{
+                          'page.workspace.recoveredAfterRefresh' | i18n
+                        }}</span>
                       }
                     </div>
                     <div class="space-y-1.5 text-sm">
                       <div class="flex items-center justify-between gap-3">
-                        <span class="text-base-content/55">草稿 ID</span>
+                        <span class="text-base-content/55">{{ 'page.workspace.draftId' | i18n }}</span>
                         <span class="font-mono text-xs">{{ entry.id }}</span>
                       </div>
                       <div class="flex items-center justify-between gap-3">
-                        <span class="text-base-content/55">完成状态</span>
+                        <span class="text-base-content/55">{{ 'page.workspace.completedStatus' | i18n }}</span>
                         <span>{{ completedText(entry) }}</span>
                       </div>
                       <div class="flex items-center justify-between gap-3">
-                        <span class="text-base-content/55">创建时间</span>
+                        <span class="text-base-content/55">{{ 'page.workspace.createdAt' | i18n }}</span>
                         <span>{{ formatDateTime(createdAtOf(entry)) }}</span>
                       </div>
                     </div>
@@ -308,7 +326,7 @@ function formatDateTime(value: Date | string | null | undefined): string {
                         (click)="saveDraft(entry)"
                         type="button"
                       >
-                        保存
+                        {{ 'common.save' | i18n }}
                       </button>
                       <button
                         class="btn btn-ghost btn-sm text-error"
@@ -316,13 +334,13 @@ function formatDateTime(value: Date | string | null | undefined): string {
                         (click)="discardDraft(entry)"
                         type="button"
                       >
-                        丢弃
+                        {{ 'common.discard' | i18n }}
                       </button>
                     </div>
                   </div>
                 } @else {
                   <div class="border-base-300 text-base-content/55 rounded-box border border-dashed p-4 text-sm">
-                    还没有选中的草稿。先创建一个，或从左侧列表点"查看"。
+                    {{ 'page.workspace.emptySelection' | i18n }}
                   </div>
                 }
               </div>
@@ -335,6 +353,7 @@ function formatDateTime(value: Date | string | null | undefined): string {
 })
 export default class WorkspaceDemoPage {
   private readonly rxdb = inject(RxDB);
+  private readonly i18n = useI18nOptional();
   private readonly destroyRef = inject(DestroyRef);
 
   /** 用户点出来的页码。记录被删后可能越界，对外一律读 {@link todoPage}。 */
@@ -379,8 +398,6 @@ export default class WorkspaceDemoPage {
 
   readonly canCreateDraft = computed(() => this.draftTitle().trim().length > 0);
 
-  readonly formatDateTime = formatDateTime;
-
   constructor() {
     this.rxdb.workspace.changes$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.refreshWorkspace(this.activeDraftId());
@@ -388,6 +405,10 @@ export default class WorkspaceDemoPage {
 
     this.refreshWorkspace(null);
     void this.restoreWorkspaceEntries();
+  }
+
+  formatDateTime(value: Date | string | null | undefined): string {
+    return formatDateTime(value, this.i18n?.locale() ?? 'zh-CN');
   }
 
   protected previousTodoPage() {
@@ -413,11 +434,15 @@ export default class WorkspaceDemoPage {
 
   protected titleOf(entry: WorkspaceCacheEntry): string {
     const title = entry.data['title'];
-    return typeof title === 'string' && title.trim().length > 0 ? title : 'Untitled Todo';
+    return typeof title === 'string' && title.trim().length > 0 ?
+        title
+      : this.translate('page.workspace.untitled', 'Untitled Todo');
   }
 
   protected completedText(entry: WorkspaceCacheEntry): string {
-    return entry.data['completed'] === true ? 'completed' : 'open';
+    return entry.data['completed'] === true ?
+        this.translate('page.workspace.statusCompleted', 'Completed')
+      : this.translate('page.workspace.statusOpen', 'Open');
   }
 
   protected createdAtOf(entry: WorkspaceCacheEntry): Date | string | null {
@@ -441,9 +466,15 @@ export default class WorkspaceDemoPage {
       this.draftCompleted.set(false);
 
       await this.syncWorkspace(todo.id);
-      this.setNotice(`已创建未保存草稿：${todo.title}`, 'success');
+      this.setNotice(
+        this.translate('page.workspace.noticeCreated', `已创建未保存草稿：${todo.title}`, { title: todo.title }),
+        'success'
+      );
     } catch (error) {
-      this.setNotice(this.getErrorMessage(error, '创建草稿失败'), 'error');
+      this.setNotice(
+        this.getErrorMessage(error, this.translate('page.workspace.errorCreate', '创建草稿失败')),
+        'error'
+      );
     } finally {
       this.busy.set(false);
     }
@@ -456,7 +487,7 @@ export default class WorkspaceDemoPage {
   protected async saveDraft(entry: WorkspaceCacheEntry) {
     const todo = this.resolveDraft(entry);
     if (!todo) {
-      this.setNotice('未找到可恢复的 Todo 草稿', 'error');
+      this.setNotice(this.translate('page.workspace.errorNoDraft', '未找到可恢复的 Todo 草稿'), 'error');
       return;
     }
 
@@ -464,9 +495,12 @@ export default class WorkspaceDemoPage {
     try {
       await todo.save();
       await this.syncWorkspace(this.activeDraftId());
-      this.setNotice(`已保存 Todo：${todo.title}`, 'success');
+      this.setNotice(
+        this.translate('page.workspace.noticeSaved', `已保存 Todo：${todo.title}`, { title: todo.title }),
+        'success'
+      );
     } catch (error) {
-      this.setNotice(this.getErrorMessage(error, '保存草稿失败'), 'error');
+      this.setNotice(this.getErrorMessage(error, this.translate('page.workspace.errorSave', '保存草稿失败')), 'error');
     } finally {
       this.busy.set(false);
     }
@@ -478,7 +512,11 @@ export default class WorkspaceDemoPage {
       const discarded = this.rxdb.workspace.discard(entry.cacheId);
       await this.syncWorkspace(this.activeDraftId() === entry.id ? null : this.activeDraftId());
       this.setNotice(
-        discarded ? `已丢弃草稿：${this.titleOf(entry)}` : '草稿已经不存在',
+        discarded ?
+          this.translate('page.workspace.noticeDiscarded', `已丢弃草稿：${this.titleOf(entry)}`, {
+            title: this.titleOf(entry)
+          })
+        : this.translate('page.workspace.errorMissingDraft', '草稿已经不存在'),
         discarded ? 'warning' : 'info'
       );
     } finally {
@@ -493,9 +531,12 @@ export default class WorkspaceDemoPage {
     try {
       await this.deleteAllTodos();
       this.requestedTodoPage.set(0);
-      this.setNotice('已清空 Todo 主表', 'warning');
+      this.setNotice(this.translate('page.workspace.noticeCleared', '已清空 Todo 主表'), 'warning');
     } catch (error) {
-      this.setNotice(this.getErrorMessage(error, '清空 Todo 主表失败'), 'error');
+      this.setNotice(
+        this.getErrorMessage(error, this.translate('page.workspace.errorClear', '清空 Todo 主表失败')),
+        'error'
+      );
     } finally {
       this.busy.set(false);
     }
@@ -512,10 +553,13 @@ export default class WorkspaceDemoPage {
       await this.deleteAllTodos();
       this.requestedTodoPage.set(0);
 
-      this.setNotice('已重置 workspace 草稿和 Todo 主表', 'warning');
+      this.setNotice(this.translate('page.workspace.noticeReset', '已重置 workspace 草稿和 Todo 主表'), 'warning');
       this.recoveredIds.set(new Set());
     } catch (error) {
-      this.setNotice(this.getErrorMessage(error, '重置演示数据失败'), 'error');
+      this.setNotice(
+        this.getErrorMessage(error, this.translate('page.workspace.errorReset', '重置演示数据失败')),
+        'error'
+      );
     } finally {
       this.busy.set(false);
     }
@@ -532,6 +576,13 @@ export default class WorkspaceDemoPage {
     const nextId =
       preferredId && entries.some(entry => entry.id === preferredId) ? preferredId : (entries[0]?.id ?? null);
     this.activeDraftId.set(nextId);
+  }
+
+  private translate(key: string, fallback: string, params?: Record<string, unknown>): string {
+    return (
+      this.i18n?.t(key, params) ??
+      fallback.replaceAll(/\{(\w+)\}/g, (_, name: string) => String(params?.[name] ?? `{${name}}`))
+    );
   }
 
   /**
@@ -559,7 +610,10 @@ export default class WorkspaceDemoPage {
       this.recoveredIds.set(new Set(restoredEntries.map(entry => entry.id)));
       this.refreshWorkspace(this.activeDraftId() ?? restoredEntries[0]?.id ?? null);
     } catch (error) {
-      this.setNotice(this.getErrorMessage(error, '读取 workspace 草稿失败'), 'error');
+      this.setNotice(
+        this.getErrorMessage(error, this.translate('page.workspace.errorLoad', '读取 workspace 草稿失败')),
+        'error'
+      );
     }
   }
 

@@ -46,7 +46,7 @@ const chooseArchive = async (page: Page, archive: Buffer): Promise<void> => {
   await page.goto('/failure-archive', { waitUntil: 'domcontentloaded' });
   const view = page.getByTestId('failure-archive-page');
   await expect(view).toHaveAttribute('data-phase', 'idle', { timeout: 20000 });
-  await page.getByLabel('选择归档文件').setInputFiles({
+  await page.getByTestId('failure-archive-file').setInputFiles({
     name: 'rxdb-failure-archive.bin',
     mimeType: 'application/octet-stream',
     buffer: archive

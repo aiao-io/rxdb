@@ -37,6 +37,7 @@ import {
   LucideX as X
 } from '@lucide/angular';
 import { map } from 'rxjs';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { traverseFileTree } from '../../shared/traverse-file-tree';
 import { StorageFileGridComponent } from './components/storage-file-grid.component';
 import { StorageFileListComponent } from './components/storage-file-list.component';
@@ -108,6 +109,7 @@ interface SelectionBox {
   imports: [
     CommonModule,
     LucideDynamicIcon,
+    I18nPipe,
     StorageFileListComponent,
     StorageFileGridComponent,
     StorageFilePreviewComponent

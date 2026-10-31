@@ -1,3 +1,4 @@
+import { modelText, type ModelI18n } from '../../i18n.js';
 /**
  * @fileoverview 校验服务
  * 提供规则值的即时校验功能
@@ -59,6 +60,8 @@ function isValidationRule(item: ValidationRuleInput | ValidationGroupInput): ite
  * 校验服务选项
  */
 export interface ValidationServiceOptions {
+  /** 文案运行时。 */
+  i18n?: ModelI18n;
   /**
    * 自定义校验规则
    */
@@ -96,11 +99,13 @@ function extractValueFromRule(rule: ValidationRuleInput): unknown {
  * 负责验证 QueryBuilder 规则和值
  */
 export class ValidationService {
+  private readonly i18n: ModelI18n | undefined;
   private readonly rules: Map<string, ValidationRule>;
   private readonly operatorRegistry: OperatorRegistry;
 
   /** @param options - 校验服务配置（自定义规则等） */
   constructor(options: ValidationServiceOptions = {}) {
+    this.i18n = options.i18n;
     this.rules = new Map();
     this.operatorRegistry = options.operatorRegistry ?? getDefaultOperatorRegistry();
 
@@ -134,7 +139,7 @@ export class ValidationService {
       errors.push({
         field: rule.field as string,
         rule: 'operatorTypeMatch',
-        message: `操作符 "${rule.operator}" 不支持字段 "${field.name}"`
+        message: modelText('text.363c161321', { p0: rule.operator, p1: field.name }, this.i18n)
       });
     }
 
@@ -155,7 +160,7 @@ export class ValidationService {
             errors.push({
               field: rule.field as string,
               rule: 'valueType',
-              message: 'EXISTS 子查询条件不能为空'
+              message: modelText('text.ac581257fe', undefined, this.i18n)
             });
           } else {
             // 验证 where 子查询内部规则的基本有效性
@@ -174,7 +179,7 @@ export class ValidationService {
           errors.push({
             field: rule.field as string,
             rule: 'valueType',
-            message: 'EXISTS 子查询格式无效'
+            message: modelText('text.e25e6ad482', undefined, this.i18n)
           });
         }
       }
@@ -199,7 +204,10 @@ export class ValidationService {
         errors.push({
           field: rule.field as string,
           rule: validationRule.name,
-          message: validationRule.message
+          message:
+            validationRule.messageKey ?
+              modelText(validationRule.messageKey, undefined, this.i18n)
+            : validationRule.message
         });
       }
     }
@@ -228,7 +236,7 @@ export class ValidationService {
           errors.push({
             field: item.field as string,
             rule: 'fieldExists',
-            message: `字段 "${item.field}" 不存在`
+            message: modelText('text.81ce7b0bb9', { p0: item.field }, this.i18n)
           });
           continue;
         }
@@ -292,7 +300,7 @@ export class ValidationService {
         return {
           field: fieldName,
           rule: 'valueType',
-          message: `${displayName || fieldName}需要提供一个或多个值`
+          message: modelText('text.32fad74ab5', { p0: displayName || fieldName }, this.i18n)
         };
       }
       return null;
@@ -304,7 +312,7 @@ export class ValidationService {
         return {
           field: fieldName,
           rule: 'valueType',
-          message: `${displayName || fieldName}需要提供两个值（范围）`
+          message: modelText('text.6afc8451ed', { p0: displayName || fieldName }, this.i18n)
         };
       }
       return null;
@@ -315,7 +323,7 @@ export class ValidationService {
       return {
         field: fieldName,
         rule: 'valueType',
-        message: `${displayName || fieldName}需要提供一个值`
+        message: modelText('text.b2e4b652b5', { p0: displayName || fieldName }, this.i18n)
       };
     }
 
@@ -357,7 +365,7 @@ export class ValidationService {
                 errors.push({
                   field: item.field as string,
                   rule: 'valueType',
-                  message: 'EXISTS 子查询条件不能为空'
+                  message: modelText('text.ac581257fe', undefined, this.i18n)
                 });
               } else {
                 const subErrors = this.validateSubqueryRules(where);
@@ -367,7 +375,7 @@ export class ValidationService {
               errors.push({
                 field: item.field as string,
                 rule: 'valueType',
-                message: 'EXISTS 子查询格式无效'
+                message: modelText('text.e25e6ad482', undefined, this.i18n)
               });
             }
           }

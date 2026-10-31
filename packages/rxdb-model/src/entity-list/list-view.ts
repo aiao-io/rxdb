@@ -2,6 +2,7 @@ import type { EntityMetadata, OrderBy } from '@aiao/rxdb';
 import type { ListTableConstructorOptions } from '@visactor/vtable';
 import type { ColumnDefine } from '@visactor/vtable/es/ts-types/index.js';
 import type { EntityTableRecord } from '../entity-table/interfaces.js';
+import { modelText, type ModelI18n } from '../i18n.js';
 import { defaultListOrderBy } from './manual-order-list.js';
 
 /** 实体列表的字段配置、查询排序与单字段分组。 */
@@ -71,7 +72,7 @@ export function applyListViewColumns(columns: readonly ColumnDefine[], state: Li
       const column = byField.get(field);
       return column ? [column] : [];
     });
-  if (data.length > 0 && visible.length === 0) throw new Error('至少保留一个字段');
+  if (data.length > 0 && visible.length === 0) throw new Error(modelText('text.c1493300cf'));
   return [
     ...columns.filter(column => column.field === '__selected'),
     ...visible,
@@ -101,7 +102,8 @@ export function buildListViewRecords(records: EntityTableRecord[], state: ListVi
 /** 构造可折叠分组及已加载记录计数，不将当前页计数冒充全量统计。 */
 export function buildListViewTableOptions(
   state: ListViewState,
-  columns: readonly ColumnDefine[]
+  columns: readonly ColumnDefine[],
+  i18n?: ModelI18n
 ): Partial<ListTableConstructorOptions> {
   const field = state.groupBy;
   if (!field) return { groupBy: [] };
@@ -116,13 +118,13 @@ export function buildListViewTableOptions(
       const record = children[0];
       const value = record[field];
       const label =
-        value == null ? '未填写'
+        value == null ? modelText('text.7f05190592', undefined, i18n)
         : formatter ? formatter(record)
         : typeof value === 'boolean' ?
-          value ? '是'
-          : '否'
+          value ? modelText('common.yes', undefined, i18n)
+          : modelText('common.no', undefined, i18n)
         : String(value);
-      return `${title}：${String(label)}（已加载 ${children.length} 条）`;
+      return modelText('text.8149de63ce', { p0: title, p1: String(label), p2: children.length }, i18n);
     }
   };
 }

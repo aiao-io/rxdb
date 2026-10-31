@@ -1,5 +1,6 @@
 import type { FieldFormat } from '@aiao/rxdb';
 import type { EntityFieldConfig, EntityFieldType } from './entity-field.utils.js';
+import { modelText, type ModelI18n } from './i18n.js';
 
 /**
  * RxDB Model 实体值处理工具模块
@@ -152,11 +153,12 @@ export function parseEntityFieldValue(type: EntityFieldType | string, raw: unkno
  */
 export function parseEntityFieldValueStrict(
   type: EntityFieldType | string,
-  raw: unknown
+  raw: unknown,
+  i18n?: ModelI18n
 ): { ok: true; value: unknown } | { ok: false; message: string } {
   if (raw == null || raw === '') return { ok: true, value: null };
   if (type === 'integer' && typeof raw === 'string' && !/^[+-]?\d+$/.test(raw.trim())) {
-    return { ok: false, message: '必须是整数' };
+    return { ok: false, message: modelText('text.7af360adc1', undefined, i18n) };
   }
   if (type === 'numberArray') {
     const values =
@@ -166,7 +168,7 @@ export function parseEntityFieldValueStrict(
           .map(part => part.trim())
       );
     if (values.some(value => value === '' || !Number.isFinite(Number(value)))) {
-      return { ok: false, message: '必须是数字数组' };
+      return { ok: false, message: modelText('text.eb8010ea2d', undefined, i18n) };
     }
   }
   if (type === 'json' || type === 'keyValue') {
@@ -174,15 +176,15 @@ export function parseEntityFieldValueStrict(
       try {
         JSON.parse(raw);
       } catch {
-        return { ok: false, message: 'JSON 格式不正确' };
+        return { ok: false, message: modelText('text.d0e91136a2', undefined, i18n) };
       }
     }
   }
   if (type === 'bigint' && typeof raw === 'string' && !BIGINT_RE.test(raw.trim())) {
-    return { ok: false, message: '必须是大整数' };
+    return { ok: false, message: modelText('text.0c63b16f69', undefined, i18n) };
   }
   if (type === 'binary' && typeof raw === 'string' && parseBinary(raw) === null) {
-    return { ok: false, message: '必须是十六进制字节序列' };
+    return { ok: false, message: modelText('text.a69d64b03a', undefined, i18n) };
   }
   let value: unknown;
   try {
@@ -191,15 +193,25 @@ export function parseEntityFieldValueStrict(
     return { ok: false, message: error instanceof Error ? error.message : String(error) };
   }
   if ((type === 'number' || type === 'integer') && (value === null || !Number.isFinite(Number(value)))) {
-    return { ok: false, message: type === 'integer' ? '必须是整数' : '必须是数字' };
+    return {
+      ok: false,
+      message:
+        type === 'integer' ?
+          modelText('text.7af360adc1', undefined, i18n)
+        : modelText('text.0967bd4aee', undefined, i18n)
+    };
   }
   // parseInt 会截断（12.9 → 12、1e21 → '1e+21' → 1）：解析结果须等于原始输入的数值，小数输入拒绝而非截断
-  if (type === 'integer' && value !== Number(raw)) return { ok: false, message: '必须是整数' };
+  if (type === 'integer' && value !== Number(raw))
+    return { ok: false, message: modelText('text.7af360adc1', undefined, i18n) };
   // 2^53 以上两种转换舍入到同一个双精度值，上一条拦不住：放行就存成用户没输入过的数（更大的整数用 bigint 字段）
-  if (type === 'integer' && !Number.isSafeInteger(value)) return { ok: false, message: '超出安全整数范围' };
-  if (type === 'bigint' && typeof value !== 'bigint') return { ok: false, message: '必须是大整数' };
-  if (type === 'binary' && !(value instanceof Uint8Array)) return { ok: false, message: '必须是十六进制字节序列' };
-  if (type === 'date' && value === null) return { ok: false, message: '日期格式不正确' };
+  if (type === 'integer' && !Number.isSafeInteger(value))
+    return { ok: false, message: modelText('text.7e57926e87', undefined, i18n) };
+  if (type === 'bigint' && typeof value !== 'bigint')
+    return { ok: false, message: modelText('text.0c63b16f69', undefined, i18n) };
+  if (type === 'binary' && !(value instanceof Uint8Array))
+    return { ok: false, message: modelText('text.a69d64b03a', undefined, i18n) };
+  if (type === 'date' && value === null) return { ok: false, message: modelText('text.9dccc48c10', undefined, i18n) };
   return { ok: true, value };
 }
 
@@ -327,12 +339,13 @@ function validateFormatRange(
   value: number,
   min: number | undefined,
   max: number | undefined,
-  step: number | undefined
+  step: number | undefined,
+  i18n?: ModelI18n
 ): string | null {
-  if (min !== undefined && value < min) return `${displayName} 必须不小于 ${min}`;
-  if (max !== undefined && value > max) return `${displayName} 必须不大于 ${max}`;
+  if (min !== undefined && value < min) return modelText('text.98e2f98546', { p0: displayName, p1: min }, i18n);
+  if (max !== undefined && value > max) return modelText('text.48b9fa6cb8', { p0: displayName, p1: max }, i18n);
   if (step !== undefined && min !== undefined && !isOnStep(value, min, step))
-    return `${displayName} 必须按步长 ${step} 取值`;
+    return modelText('text.071f1566a1', { p0: displayName, p1: step }, i18n);
   return null;
 }
 
@@ -344,39 +357,49 @@ function validateFormatRange(
  * @param value - 待校验的字段值
  * @returns 校验错误；校验通过时返回 null
  */
-export function validateEntityFieldValue(field: EntityFieldConfig, value: unknown): FieldValidationError | null {
+export function validateEntityFieldValue(
+  field: EntityFieldConfig,
+  value: unknown,
+  i18n?: ModelI18n
+): FieldValidationError | null {
   if (field.required) {
-    if (value == null || value === '') return { field: field.field, message: `${field.displayName} 是必填项` };
+    if (value == null || value === '')
+      return { field: field.field, message: modelText('text.127ad2bc86', { p0: field.displayName }, i18n) };
     if (Array.isArray(value) && value.length === 0)
-      return { field: field.field, message: `${field.displayName} 是必填项` };
+      return { field: field.field, message: modelText('text.127ad2bc86', { p0: field.displayName }, i18n) };
   }
 
   if (value == null || value === '') return null;
 
   switch (field.type) {
     case 'uuid':
-      if (!UUID_RE.test(String(value))) return { field: field.field, message: `${field.displayName} 格式不正确` };
+      if (!UUID_RE.test(String(value)))
+        return { field: field.field, message: modelText('text.5124008c27', { p0: field.displayName }, i18n) };
       break;
     case 'number':
     case 'integer':
-      if (isNaN(Number(value))) return { field: field.field, message: `${field.displayName} 必须是数字` };
+      if (isNaN(Number(value)))
+        return { field: field.field, message: modelText('text.dcf021380e', { p0: field.displayName }, i18n) };
       if (field.type === 'integer' && !Number.isInteger(Number(value)))
-        return { field: field.field, message: `${field.displayName} 必须是整数` };
+        return { field: field.field, message: modelText('text.40a57d561d', { p0: field.displayName }, i18n) };
       break;
     case 'bigint':
-      if (parseBigint(value) === null) return { field: field.field, message: `${field.displayName} 必须是大整数` };
+      if (parseBigint(value) === null)
+        return { field: field.field, message: modelText('text.506ec8d92a', { p0: field.displayName }, i18n) };
       break;
     case 'binary':
-      if (parseBinary(value) === null) return { field: field.field, message: `${field.displayName} 必须是字节序列` };
+      if (parseBinary(value) === null)
+        return { field: field.field, message: modelText('text.16b1a40300', { p0: field.displayName }, i18n) };
       break;
     case 'date': {
       const d = value instanceof Date ? value : new Date(value as string | number);
-      if (isNaN(d.getTime())) return { field: field.field, message: `${field.displayName} 日期格式不正确` };
+      if (isNaN(d.getTime()))
+        return { field: field.field, message: modelText('text.295837849b', { p0: field.displayName }, i18n) };
       break;
     }
     case 'enum':
       if (field.enumValues && !field.enumValues.includes(String(value))) {
-        return { field: field.field, message: `${field.displayName} 值不在允许范围内` };
+        return { field: field.field, message: modelText('text.288895b264', { p0: field.displayName }, i18n) };
       }
       break;
     case 'json':
@@ -384,7 +407,7 @@ export function validateEntityFieldValue(field: EntityFieldConfig, value: unknow
         try {
           JSON.parse(value);
         } catch {
-          return { field: field.field, message: `${field.displayName} JSON 格式不正确` };
+          return { field: field.field, message: modelText('text.e4341f4a90', { p0: field.displayName }, i18n) };
         }
       }
       break;
@@ -400,29 +423,31 @@ export function validateEntityFieldValue(field: EntityFieldConfig, value: unknow
         try {
           url = new URL(text);
         } catch {
-          return { field: field.field, message: `${field.displayName} URL 格式不正确` };
+          return { field: field.field, message: modelText('text.908c2e08dd', { p0: field.displayName }, i18n) };
         }
         if (format.schemes && format.schemes.length > 0) {
           const scheme = url.protocol.slice(0, -1).toUpperCase();
           if (!format.schemes.some(item => item.toUpperCase() === scheme)) {
-            return { field: field.field, message: `${field.displayName} 的协议不在允许范围内` };
+            return { field: field.field, message: modelText('text.3672264bf2', { p0: field.displayName }, i18n) };
           }
         }
         break;
       }
       case 'email':
-        if (!isEmailText(String(value))) return { field: field.field, message: `${field.displayName} 邮箱格式不正确` };
+        if (!isEmailText(String(value)))
+          return { field: field.field, message: modelText('text.f5089b66ad', { p0: field.displayName }, i18n) };
         break;
       case 'phone':
-        if (!isPhoneText(String(value))) return { field: field.field, message: `${field.displayName} 电话格式不正确` };
+        if (!isPhoneText(String(value)))
+          return { field: field.field, message: modelText('text.5924e73802', { p0: field.displayName }, i18n) };
         break;
       case 'color':
         if ((format.colorSpace === undefined || format.colorSpace === 'hex') && !HEX_COLOR_RE.test(String(value)))
-          return { field: field.field, message: `${field.displayName} 颜色格式不正确` };
+          return { field: field.field, message: modelText('text.471e1159b0', { p0: field.displayName }, i18n) };
         break;
       case 'rating': {
         const n = Number(value);
-        const message = validateFormatRange(field.displayName, n, format.min, format.max, format.step);
+        const message = validateFormatRange(field.displayName, n, format.min, format.max, format.step, i18n);
         if (message) return { field: field.field, message };
         break;
       }
@@ -434,7 +459,8 @@ export function validateEntityFieldValue(field: EntityFieldConfig, value: unknow
           n,
           format.min === undefined ? domain[0] : Math.max(format.min, domain[0]),
           format.max === undefined ? domain[1] : Math.min(format.max, domain[1]),
-          format.step
+          format.step,
+          i18n
         );
         if (message) return { field: field.field, message };
         break;
@@ -443,7 +469,7 @@ export function validateEntityFieldValue(field: EntityFieldConfig, value: unknow
       case 'currency':
       case 'duration': {
         const n = Number(value);
-        const message = validateFormatRange(field.displayName, n, format.min, format.max, format.step);
+        const message = validateFormatRange(field.displayName, n, format.min, format.max, format.step, i18n);
         if (message) return { field: field.field, message };
         break;
       }

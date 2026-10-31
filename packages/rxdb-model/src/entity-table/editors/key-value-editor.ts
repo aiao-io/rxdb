@@ -1,4 +1,5 @@
 import type { EditContext, IEditor } from '@visactor/vtable-editors';
+import { ModelEditorI18n } from '../../i18n.js';
 import type { KVSchemaEntry } from '../columns/column-utils.js';
 import { DAISY_COLORS, positionOverlayPanel, refocusTable, scheduleEditorSetup } from './global-overlay-editor.js';
 
@@ -22,6 +23,7 @@ interface SchemaRow {
  * - Escape / cancel button: revert to original value
  */
 export class KeyValueEditor implements IEditor<unknown> {
+  readonly #messages = new ModelEditorI18n();
   #value: Record<string, unknown> = {};
   #panel: HTMLDivElement | null = null;
   #schemaRows: SchemaRow[] = [];
@@ -47,6 +49,7 @@ export class KeyValueEditor implements IEditor<unknown> {
 
   /** 打开编辑器：构建键值对编辑浮层并按初始值 / Schema 填充行 */
   onStart(ctx: EditContext<unknown>): void {
+    this.#messages.start(ctx.table);
     const container = ctx.container as HTMLElement;
     this.#endEdit = () => {
       refocusTable(container);
@@ -87,9 +90,9 @@ export class KeyValueEditor implements IEditor<unknown> {
       'opacity:0.6',
       `color:${DAISY_COLORS.text}`
     ].join(';');
-    for (const text of ['Key', 'Value', '']) {
+    for (const key of ['editor.key', 'editor.value', '']) {
       const cell = document.createElement('div');
-      cell.textContent = text;
+      if (key) this.#messages.bind(cell, 'textContent', () => this.#messages.t(key));
       header.appendChild(cell);
     }
 
@@ -113,7 +116,7 @@ export class KeyValueEditor implements IEditor<unknown> {
     const footer = document.createElement('div');
     footer.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:4px';
 
-    const addBtn = this.#makeBtn('+ \u6dfb\u52a0\u884c', false);
+    const addBtn = this.#makeBtn(this.#messages.t('text.a27f5e856e'), false);
     this.#addBtn = addBtn;
     addBtn.addEventListener('mousedown', e => {
       e.preventDefault();
@@ -126,14 +129,14 @@ export class KeyValueEditor implements IEditor<unknown> {
     const btnGroup = document.createElement('div');
     btnGroup.style.cssText = 'display:flex;gap:4px';
 
-    const confirmBtn = this.#makeBtn('\u2713 \u786e\u8ba4', true);
+    const confirmBtn = this.#makeBtn(this.#messages.t('text.58acf1cab8'), true);
     confirmBtn.addEventListener('mousedown', e => {
       e.preventDefault();
       e.stopPropagation();
       if (this.#commit()) this.#endEdit?.();
     });
 
-    const cancelBtn = this.#makeBtn('\u2717 \u53d6\u6d88', false);
+    const cancelBtn = this.#makeBtn(this.#messages.t('text.0d701b3e88'), false);
     cancelBtn.addEventListener('mousedown', e => {
       e.preventDefault();
       e.stopPropagation();
@@ -208,6 +211,7 @@ export class KeyValueEditor implements IEditor<unknown> {
 
   /** 结束编辑：中止未决监听并清理浮层 */
   onEnd(): void {
+    this.#messages.clear();
     this.#cleanup();
   }
 
@@ -239,7 +243,7 @@ export class KeyValueEditor implements IEditor<unknown> {
   #makeBtn(text: string, primary: boolean): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.textContent = text;
+    this.#messages.bindValue(btn, 'textContent', text);
     btn.style.cssText = [
       'font-size:12px',
       `color:${DAISY_COLORS.text}`,
@@ -286,7 +290,7 @@ export class KeyValueEditor implements IEditor<unknown> {
       const inp = document.createElement('input');
       inp.type = 'text';
       inp.value = initialKey;
-      inp.placeholder = 'Key';
+      this.#messages.bind(inp, 'placeholder', () => this.#messages.t('editor.key'));
       inp.style.cssText = fieldStyle;
       keySelect = inp;
     } else {
@@ -319,8 +323,8 @@ export class KeyValueEditor implements IEditor<unknown> {
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
-    delBtn.textContent = '\u00d7';
-    delBtn.title = '\u5220\u9664\u884c';
+    this.#messages.bind(delBtn, 'textContent', () => '\u00d7');
+    this.#messages.bind(delBtn, 'title', () => this.#messages.t('text.8ed1bd0881'));
     delBtn.style.cssText = [
       'width:22px',
       'height:22px',
@@ -395,17 +399,17 @@ export class KeyValueEditor implements IEditor<unknown> {
       if (nullable) {
         const opt = document.createElement('option');
         opt.value = '';
-        opt.textContent = '(\u672a\u8bbe\u7f6e)';
+        this.#messages.bind(opt, 'textContent', () => this.#messages.t('text.ee86d36696'));
         if (v === '') opt.selected = true;
         sel.appendChild(opt);
       }
       for (const [val, label] of [
-        ['true', '\u662f (true)'],
-        ['false', '\u5426 (false)']
+        ['true', this.#messages.t('text.9f1f2cb220')],
+        ['false', this.#messages.t('text.b651c091e4')]
       ] as const) {
         const opt = document.createElement('option');
         opt.value = val;
-        opt.textContent = label;
+        this.#messages.bindValue(opt, 'textContent', label);
         if (val === v) opt.selected = true;
         sel.appendChild(opt);
       }
@@ -431,10 +435,11 @@ export class KeyValueEditor implements IEditor<unknown> {
       inp.type = type === 'number' || type === 'integer' ? 'number' : 'text';
       if (type === 'integer') inp.step = '1';
       inp.value = v;
-      inp.placeholder =
-        type === 'number' ? '\u5982 3.14\u3001-2'
-        : type === 'integer' ? '\u5982 42\u3001-7'
-        : '\u8bf7\u8f93\u5165\u503c';
+      this.#messages.bind(inp, 'placeholder', () =>
+        type === 'number' ? this.#messages.t('text.4bfe1bca2b')
+        : type === 'integer' ? this.#messages.t('text.3f07cdd588')
+        : this.#messages.t('common.enterValue')
+      );
     }
     return inp;
   }
@@ -513,23 +518,25 @@ export class KeyValueEditor implements IEditor<unknown> {
 
   #clearRowHint(row: SchemaRow): void {
     row.hintEl.style.display = 'none';
-    row.hintEl.textContent = '';
+    this.#messages.bind(row.hintEl, 'textContent', () => '');
     row.valueEl.style.borderColor = DAISY_COLORS.border;
   }
 
   #clearGlobalError(): void {
-    if (this.#errorEl) this.#errorEl.textContent = '';
+    if (this.#errorEl) this.#messages.bind(this.#errorEl, 'textContent', () => '');
   }
 
   #validate(): boolean {
-    const errors: string[] = [];
+    const errors: Array<() => string> = [];
     const duplicateKeys = this.#getDuplicateKeys();
     for (const row of this.#schemaRows) {
       const key = row.keySelect.value;
-      const msg = key && duplicateKeys.has(key) ? `键「${key}」重复` : this.#validateRow(row);
+      const renderError = () =>
+        key && duplicateKeys.has(key) ? this.#messages.t('text.16476ecb44', { p0: key }) : this.#validateRow(row);
+      const msg = renderError();
       if (msg) {
-        errors.push(msg);
-        row.hintEl.textContent = msg;
+        errors.push(renderError);
+        this.#messages.bind(row.hintEl, 'textContent', renderError);
         row.hintEl.style.display = 'block';
         row.valueEl.style.borderColor = DAISY_COLORS.error;
       } else {
@@ -538,8 +545,9 @@ export class KeyValueEditor implements IEditor<unknown> {
     }
     if (errors.length > 0 && this.#errorEl) {
       const extra = errors.length - 1;
-      this.#errorEl.textContent =
-        extra > 0 ? `\u26a0 ${errors[0]}\uff08\u53ca\u5176\u4ed6 ${extra} \u5904\uff09` : `\u26a0 ${errors[0]}`;
+      this.#messages.bind(this.#errorEl, 'textContent', () =>
+        extra > 0 ? this.#messages.t('editor.errors.more', { p0: errors[0](), p1: extra }) : `⚠ ${errors[0]()}`
+      );
       return false;
     }
     this.#clearGlobalError();
@@ -583,6 +591,7 @@ export class KeyValueEditor implements IEditor<unknown> {
   }
 
   #cleanup(): void {
+    this.#messages.clear();
     this.#abortController?.abort();
     this.#abortController = null;
     this.#panel?.remove();

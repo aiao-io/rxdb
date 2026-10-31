@@ -1,0 +1,40 @@
+{
+  "name": "@aiao/rxdb-i18n-angular",
+  "version": "0.0.28",
+  "description": "Angular bindings for reactive Aiao RxDB internationalization.",
+  "homepage": "https://rxdb.aiao.io/docs/plugins",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "angular",
+    "i18n",
+    "localization"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-i18n-angular"
+  },
+  "type": "module",
+  "peerDependencies": {
+    "@angular/core": "22.2.3",
+    "rxjs": "^7.8.2",
+    "@aiao/rxdb-i18n": "workspace:^"
+  },
+  "devDependencies": {
+    "@angular/common": "22.2.3",
+    "@angular/compiler": "22.2.3",
+    "@angular/core": "22.2.3",
+    "@angular/platform-browser": "22.2.3",
+    "vitest": "4.1.11",
+    "@aiao/rxdb-i18n": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false
+}

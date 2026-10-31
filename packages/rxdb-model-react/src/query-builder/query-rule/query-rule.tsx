@@ -1,3 +1,4 @@
+import { useModelI18n } from '../../i18n.js';
 /**
  * @fileoverview 单条查询规则组件（Angular `QueryRuleComponent` 的 React 移植）。
  *
@@ -39,6 +40,8 @@ export interface QueryRuleProps {
  * 单条查询规则组件：字段 / 操作符 / 值输入 + 删除按钮；exists 时支持子查询。
  */
 export function QueryRule({ rule, fields, errors = [], onUpdate, onRemove }: QueryRuleProps): JSX.Element {
+  const { t } = useModelI18n();
+
   const theme = useContext(QUERY_BUILDER_THEME) ?? DEFAULT_QUERY_BUILDER_THEME;
   const ThemeFieldSelector = theme.fieldSelector;
   const ThemeOperatorSelector = theme.operatorSelector;
@@ -152,8 +155,13 @@ export function QueryRule({ rule, fields, errors = [], onUpdate, onRemove }: Que
         />
         {isExistsOperator ?
           !subqueryVisible && (
-            <button className='btn btn-ghost btn-xs' onClick={onAddSubcondition} title='添加子条件' type='button'>
-              + 子条件（可选）
+            <button
+              className='btn btn-ghost btn-xs'
+              onClick={onAddSubcondition}
+              title={t('text.d7efba02db')}
+              type='button'
+            >
+              {t('text.cfd02b3e86')}
             </button>
           )
         : !isNoValueOperator && (
@@ -173,7 +181,7 @@ export function QueryRule({ rule, fields, errors = [], onUpdate, onRemove }: Que
         <button
           className='btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-error ml-auto'
           onClick={onRemove}
-          title='删除条件'
+          title={t('text.96d7b159d2')}
           type='button'
         >
           ✕

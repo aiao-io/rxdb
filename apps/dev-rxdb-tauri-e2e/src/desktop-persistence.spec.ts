@@ -44,6 +44,15 @@ describe('打包产物的桌面 SQLite 持久化', () => {
       const first = await runSelfCheck({ dataDir, reportPath: reportPath(workspace, 1) });
       expect(first.report.status, because(first)).toBe('ok');
       expect(first.exitCode).toBe(0);
+      expect(JSON.parse(first.report.message ?? '{}').i18nRuntimeSmoke).toEqual({
+        interpolation: 'Hello Ada',
+        singular: '1 item',
+        plural: '2 items',
+        selected: 'Administrator',
+        otherSelection: 'Guest',
+        parentFallback: 'Bonjour Ada',
+        defaultFallback: '默认文案'
+      });
       expect(first.report.launchCount).toBe(1);
 
       // 这条断言是整套用例里最容易被忽略、也最要紧的一条：它证明 `DEV_RXDB_TAURI_APP_DATA_DIR`

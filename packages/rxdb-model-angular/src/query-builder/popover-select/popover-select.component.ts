@@ -12,6 +12,7 @@ import {
   viewChild
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { useModelI18n } from '../../i18n';
 
 let _uid = 0;
 
@@ -57,9 +58,9 @@ let _uid = 0;
           [attr.aria-controls]="listId"
           [attr.aria-expanded]="true"
           [ngModel]="filterText()"
+          [placeholder]="t('text.c304ad3873')"
           (ngModelChange)="filterText.set($event)"
           aria-autocomplete="list"
-          placeholder="搜索..."
           role="combobox"
           type="text"
         />
@@ -96,7 +97,7 @@ let _uid = 0;
             </button>
           </li>
         } @empty {
-          <li class="px-3 py-1.5 text-sm opacity-50">无匹配项</li>
+          <li class="px-3 py-1.5 text-sm opacity-50">{{ t('text.336cba9a92') }}</li>
         }
       </ul>
     </div>
@@ -104,6 +105,8 @@ let _uid = 0;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PopoverSelectComponent {
+  readonly #modelBinding = useModelI18n();
+
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
   private readonly popoverEl = viewChild.required<ElementRef<HTMLElement>>('popoverEl');
   private readonly filterInput = viewChild<ElementRef<HTMLInputElement>>('filterInput');
@@ -115,12 +118,14 @@ export class PopoverSelectComponent {
 
   readonly options = input.required<ReadonlyArray<{ value: string; label: string }>>();
   readonly selected = input<string>('');
-  readonly placeholder = input<string>('请选择');
+  readonly placeholder = input<string | undefined>(undefined);
   readonly minWidth = input<string>('8rem');
 
   readonly selectChange = output<string>();
 
-  readonly currentLabel = computed(() => findOptionLabel(this.options(), this.selected(), this.placeholder()));
+  readonly currentLabel = computed(() =>
+    findOptionLabel(this.options(), this.selected(), this.placeholder() ?? this.t('text.da590a8fe3'))
+  );
 
   readonly filteredOptions = computed(() => {
     const filter = this.filterText().toLowerCase().trim();
@@ -133,6 +138,13 @@ export class PopoverSelectComponent {
     const opts = this.filteredOptions();
     return idx >= 0 && idx < opts.length ? `${this.uid}-opt-${opts[idx].value}` : null;
   });
+
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
 
   constructor() {
     effect(() => {

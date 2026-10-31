@@ -17,6 +17,7 @@ import {
   LucideWifi as Wifi,
   LucideWifiOff as WifiOff
 } from '@lucide/angular';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 
 interface RemoteResource {
   label: string;
@@ -57,7 +58,7 @@ const REMOTE_DIR = '/remote';
 
 @Component({
   selector: 'app-remote-cache-page',
-  imports: [CommonModule, LucideDynamicIcon],
+  imports: [CommonModule, LucideDynamicIcon, I18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './remote-cache.page.html'
 })

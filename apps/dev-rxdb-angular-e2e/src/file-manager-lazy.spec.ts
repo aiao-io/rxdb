@@ -6,12 +6,12 @@ test.describe('File Manager Lazy Loading Page', () => {
   test.beforeEach(async ({ page }) => {
     await resetE2eState(page);
     await page.goto('/file-manager-lazy');
-    const title = page.locator('h1').filter({ hasText: 'File Manager' });
+    const title = page.locator('h1').filter({ hasText: /File Manager|文件管理器/ });
     await expect(title).toBeVisible({ timeout: 15000 });
   });
 
   test('should display page title', async ({ page }) => {
-    const title = page.locator('h1').filter({ hasText: 'File Manager' });
+    const title = page.locator('h1').filter({ hasText: /File Manager|文件管理器/ });
     await expect(title).toBeVisible();
   });
 

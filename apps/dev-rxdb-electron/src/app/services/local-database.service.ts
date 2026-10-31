@@ -5,6 +5,7 @@
  */
 
 import { RxDBBackupError, type RxDB } from '@aiao/rxdb';
+import { assertI18nRuntimeSmoke } from '@aiao/rxdb-i18n/testing';
 import { computed, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { backupProbeMode, installBackupProbe, type BackupProbeArchiveOps } from '../backup-probe';
@@ -98,6 +99,15 @@ export class LocalDatabaseService {
       this.#status.set('failed');
       this.#error.set(error);
       console.error('local database creation failed', error);
+      return;
+    }
+
+    try {
+      document.documentElement.dataset['i18nRuntimeSmoke'] = JSON.stringify(await assertI18nRuntimeSmoke());
+    } catch (error) {
+      this.#status.set('failed');
+      this.#error.set(error);
+      console.error('i18n runtime smoke failed', error);
       return;
     }
 

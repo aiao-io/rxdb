@@ -206,6 +206,10 @@
         "kind": "value"
       },
       {
+        "name": "defaultModelI18n",
+        "kind": "value"
+      },
+      {
         "name": "DELETE_COLOR",
         "kind": "value"
       },
@@ -610,8 +614,32 @@
         "kind": "value"
       },
       {
+        "name": "ModelEditorI18n",
+        "kind": "both"
+      },
+      {
+        "name": "modelEnMessages",
+        "kind": "value"
+      },
+      {
+        "name": "ModelI18n",
+        "kind": "type"
+      },
+      {
         "name": "ModelInfo",
         "kind": "type"
+      },
+      {
+        "name": "modelMessages",
+        "kind": "value"
+      },
+      {
+        "name": "modelText",
+        "kind": "value"
+      },
+      {
+        "name": "modelZhHansMessages",
+        "kind": "value"
       },
       {
         "name": "moveListViewItem",
@@ -891,6 +919,10 @@
       },
       {
         "name": "setRowDragEnabled",
+        "kind": "value"
+      },
+      {
+        "name": "setTableI18n",
         "kind": "value"
       },
       {

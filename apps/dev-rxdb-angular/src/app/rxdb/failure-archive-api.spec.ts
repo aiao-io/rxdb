@@ -26,9 +26,10 @@ function failingSecondary(): RxDB {
   } as unknown as RxDB;
 }
 
-function installWithPrimary(connecting: Promise<unknown>) {
+function installWithPrimary(connecting: Promise<unknown>, startupReady: Promise<unknown> = Promise.resolve()) {
   const primary = { connect: vi.fn(() => connecting) } as unknown as RxDB;
-  installFailureArchiveApi(primary, { dbName: 'db', baseHref: '/' });
+  const options = { dbName: 'db', baseHref: '/', startupReady };
+  installFailureArchiveApi(primary, options);
   const api = window.__rxdbFailureArchive;
   if (!api) throw new Error('failure archive api not installed');
   return api;
@@ -38,6 +39,42 @@ describe('installFailureArchiveApi archive()', () => {
   afterEach(() => {
     createSecondary.mockReset();
     delete window.__rxdbFailureArchive;
+  });
+
+  it('完整应用初始化还在进行时不建第二实例，避免 i18n 启动事务占用迁移锁', async () => {
+    createSecondary.mockImplementation(failingSecondary);
+    const startup = deferred<unknown>();
+    const api = installWithPrimary(Promise.resolve({}), startup.promise);
+
+    const archiving = api.archive(REQUEST);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(createSecondary).not.toHaveBeenCalled();
+
+    startup.resolve(undefined);
+    const result = await archiving;
+    expect(createSecondary).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ ok: false, reason: { stage: 'connect', message: 'Error: secondary connect stub' } });
+  });
+
+  it('应用初始化失败也照常尝试归档，不把原来的启动错误当成归档失败', async () => {
+    createSecondary.mockImplementation(failingSecondary);
+    const startup = deferred<unknown>();
+    const api = installWithPrimary(Promise.resolve({}), startup.promise);
+
+    const archiving = api.archive(REQUEST);
+    startup.reject(new Error('i18n startup failed'));
+    const result = await archiving;
+    expect(createSecondary).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ ok: false, reason: { stage: 'connect', message: 'Error: secondary connect stub' } });
+  });
+
+  it('等待应用初始化也受归档截止约束，超时不建第二实例', async () => {
+    createSecondary.mockImplementation(failingSecondary);
+    const api = installWithPrimary(Promise.resolve({}), new Promise(() => undefined));
+
+    const result = await api.archive({ ...REQUEST, deadlineMs: 20 });
+    expect(createSecondary).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ ok: false, reason: { stage: 'connect', code: 'timeout' } });
   });
 
   it('主实例的 connect() 还在进行时不建第二实例（两边同时建触发器会撞 database is locked）', async () => {

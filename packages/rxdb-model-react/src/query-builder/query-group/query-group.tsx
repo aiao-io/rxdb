@@ -1,3 +1,4 @@
+import { useModelI18n } from '../../i18n.js';
 /**
  * @fileoverview 查询规则组组件（Angular `QueryGroupComponent` 的 React 移植）。
  *
@@ -177,6 +178,8 @@ export function QueryGroup({
   onUpdateRule,
   onUpdateCombinator
 }: QueryGroupProps): JSX.Element {
+  const { t } = useModelI18n();
+
   const [collapsed, setCollapsed] = useState(false);
 
   const handlerState = useSyncExternalStore(
@@ -185,7 +188,7 @@ export function QueryGroup({
   );
 
   const canAddGroup = depth < maxDepth - 1;
-  const nestingLimitHint = `已达最大嵌套层级（${maxDepth} 层）`;
+  const nestingLimitHint = t('text.6c886ad5ce', { p0: maxDepth });
 
   const isDragging = (itemId: string): boolean => handlerState.draggedItemId === itemId;
   const isDropTarget = (itemId: string, mode: QueryDropMode): boolean =>
@@ -403,7 +406,7 @@ export function QueryGroup({
         {allowCollapse && (
           <button
             className='btn btn-ghost btn-xs btn-square'
-            title={collapsed ? '展开' : '收起'}
+            title={collapsed ? t('text.00bd3960fe') : t('text.afd4b78353')}
             type='button'
             onClick={() => setCollapsed(value => !value)}
           >
@@ -426,7 +429,7 @@ export function QueryGroup({
         {!collapsed && (
           <>
             <button className='btn btn-ghost btn-xs' onClick={handleAddRule} type='button'>
-              + 条件
+              {t('text.85bdca3be7')}
             </button>
 
             <button
@@ -437,7 +440,7 @@ export function QueryGroup({
               onClick={handleAddGroup}
               type='button'
             >
-              + 分组
+              {t('text.4431aae209')}
             </button>
             {!canAddGroup && (
               <span className='text-base-content/50 text-xs' role='status'>
@@ -449,7 +452,7 @@ export function QueryGroup({
               <button
                 className='btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-error'
                 onClick={() => onRemoveItem?.(group.id)}
-                title='删除组'
+                title={t('text.b85068a840')}
                 type='button'
               >
                 ✕
@@ -463,7 +466,7 @@ export function QueryGroup({
         <>
           <div className='space-y-1'>{group.rules.map((item, index) => renderItem(item, index))}</div>
           {group.rules.length === 0 && (
-            <div className='text-base-content/50 py-2 text-center text-sm select-none'>暂无条件</div>
+            <div className='text-base-content/50 py-2 text-center text-sm select-none'>{t('text.9b25f95c75')}</div>
           )}
         </>
       )}

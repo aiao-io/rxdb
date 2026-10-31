@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t } = useModelI18n();
+
+import { useModelI18n } from '../../i18n';
+
 /**
  * 值输入组件（对齐 Angular 侧 `ValueInputComponent`）。
  *
@@ -77,7 +81,7 @@ const hasError = computed(() => !!props.errorMessage);
 const uuidError = computed(() => {
   if (inputType.value !== 'uuid') return '';
   const val = String(currentValue.value ?? '').trim();
-  return val && !UUID_RE.test(val) ? '请输入合法的 UUID 格式' : '';
+  return val && !UUID_RE.test(val) ? t('text.5c1d789855') : '';
 });
 
 /** 通用值变更（string / boolean…） */
@@ -270,7 +274,7 @@ defineExpose({
 
 <template>
   <template v-if="inputType === 'none'">
-    <span class="text-base-content/50 px-2 text-sm italic">无需输入值</span>
+    <span class="text-base-content/50 px-2 text-sm italic">{{ t('text.c91721bbca') }}</span>
   </template>
   <template v-else-if="inputType === 'uuid'">
     <div
@@ -281,7 +285,7 @@ defineExpose({
         class="input input-sm font-mono"
         :class="{ 'input-error': hasError || !!uuidError }"
         :value="currentValue as string"
-        placeholder="输入 UUID"
+        :placeholder="t('text.e2c752399e')"
         style="min-width: 16rem"
         type="text"
         @input="onUuidChange(($event.target as HTMLInputElement).value)"
@@ -293,7 +297,7 @@ defineExpose({
       <span
         v-if="!relationFields || relationFields.length === 0"
         class="text-base-content/50 px-2 text-sm italic"
-        >存在/不存在（无子条件）</span
+        >{{ t('text.b06078aff8') }}</span
       >
       <SubqueryBuilder
         v-else
@@ -315,7 +319,7 @@ defineExpose({
     :options="enumSelectOptions"
     :selected="currentValue == null ? '' : String(currentValue)"
     min-width="12rem"
-    placeholder="选择值"
+    :placeholder="t('text.aff46a5acc')"
     @select-change="onEnumSelect"
   />
   <div
@@ -354,7 +358,7 @@ defineExpose({
       type="date"
       @change="onDateRangeStartChange(($event.target as HTMLInputElement).value)"
     />
-    <span class="text-base-content/50">至</span>
+    <span class="text-base-content/50">{{ t('text.65edbf9f1c') }}</span>
     <input
       class="input input-sm"
       :class="{ 'input-error': hasError }"
@@ -374,17 +378,17 @@ defineExpose({
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="rangeMin ?? ''"
-      placeholder="最小值"
+      :placeholder="t('text.b2dcdcfabb')"
       style="width: 7rem"
       type="number"
       @input="onRangeMinChange(($event.target as HTMLInputElement).value)"
     />
-    <span class="text-base-content/50">至</span>
+    <span class="text-base-content/50">{{ t('text.65edbf9f1c') }}</span>
     <input
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="rangeMax ?? ''"
-      placeholder="最大值"
+      :placeholder="t('text.1e7a228207')"
       style="width: 7rem"
       type="number"
       @input="onRangeMaxChange(($event.target as HTMLInputElement).value)"
@@ -399,7 +403,7 @@ defineExpose({
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="currentValue ?? ''"
-      placeholder="输入数值"
+      :placeholder="t('text.9bc4dfa6ca')"
       type="number"
       @input="onNumberInputChange(($event.target as HTMLInputElement).value)"
     />
@@ -427,7 +431,7 @@ defineExpose({
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="arrayInputValue"
-      placeholder="输入多个值，用逗号分隔"
+      :placeholder="t('text.ca6668dc4c')"
       style="width: 100%; min-width: 12rem"
       type="text"
       @input="onArrayInputChange(($event.target as HTMLInputElement).value)"
@@ -442,7 +446,7 @@ defineExpose({
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="currentValue ?? ''"
-      placeholder="输入值"
+      :placeholder="t('text.26cf65c431')"
       style="width: 100%; min-width: 12rem"
       type="text"
       @input="onValueChange(($event.target as HTMLInputElement).value)"

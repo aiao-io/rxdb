@@ -1,5 +1,6 @@
 import { buildFieldTree, type FieldMetadata } from '@aiao/rxdb-model';
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { useModelI18n } from '../../i18n';
 import { TreeSelectComponent } from '../tree-select/tree-select.component';
 
 /**
@@ -21,7 +22,7 @@ import { TreeSelectComponent } from '../tree-select/tree-select.component';
   template: `
     <rxdb-tree-select
       [nodes]="fieldTree()"
-      [placeholder]="placeholder()"
+      [placeholder]="placeholder() ?? t('query.selectField')"
       [selected]="selectedField()"
       (selectChange)="onSelect($event)"
       minWidth="14rem"
@@ -30,9 +31,11 @@ import { TreeSelectComponent } from '../tree-select/tree-select.component';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FieldSelectorComponent {
+  readonly #modelBinding = useModelI18n();
+
   readonly fields = input.required<FieldMetadata[]>();
   readonly selectedField = input<string>('');
-  readonly placeholder = input<string>('选择字段');
+  readonly placeholder = input<string | undefined>(undefined);
 
   /** 通过 NgComponentOutlet 注入时使用的回调 input */
   readonly fieldChangeFn = input<((field: string) => void) | undefined>(undefined);
@@ -40,7 +43,14 @@ export class FieldSelectorComponent {
   /** 直接模板使用时的 output 事件 */
   readonly fieldChange = output<string>();
 
-  readonly fieldTree = computed(() => buildFieldTree(this.fields()));
+  readonly fieldTree = computed(() => buildFieldTree(this.fields(), this.modelI18n));
+
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
 
   onSelect(field: string): void {
     this.fieldChange.emit(field);

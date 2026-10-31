@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject, Signal } from '
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 
 /** 左侧目录里的实体条目。 */
 export interface EntityOption {
@@ -29,7 +30,7 @@ export interface EntityGroup {
   selector: 'app-entity',
   templateUrl: './entity.page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, I18nPipe],
   host: { class: 'page-host flex h-full bg-base-100' }
 })
 export default class EntityPage {

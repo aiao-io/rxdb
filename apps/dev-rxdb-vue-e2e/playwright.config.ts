@@ -32,6 +32,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     baseURL,
+    locale: 'zh-CN',
     serviceWorkers: 'block',
     /* Record a trace for every attempt and keep it only when the attempt fails. See https://playwright.dev/docs/trace-viewer */
     trace: { mode: 'retain-on-failure', screenshots: false },

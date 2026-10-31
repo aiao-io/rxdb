@@ -1,0 +1,30 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "I18N",
+        "kind": "value"
+      },
+      {
+        "name": "I18nBinding",
+        "kind": "type"
+      },
+      {
+        "name": "provideI18n",
+        "kind": "value"
+      },
+      {
+        "name": "useI18n",
+        "kind": "value"
+      },
+      {
+        "name": "useI18nOptional",
+        "kind": "value"
+      },
+      {
+        "name": "useI18nRuntime",
+        "kind": "value"
+      }
+    ]
+  }
+}

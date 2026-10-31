@@ -61,7 +61,7 @@ export type {
 } from './connector-types.js';
 export { RXDB_EVENT_TYPES };
 
-const DEFAULT_OPTIONS: Required<Omit<DevToolsOptions, 'transport'>> = {
+const DEFAULT_OPTIONS: Required<Omit<DevToolsOptions, 'transport' | 'i18n'>> = {
   maxBufferSize: 100,
   enabled: true,
   capabilities: 'full',
@@ -129,7 +129,7 @@ const BRANCH_ENTITY_NAME = 'RxDBBranch' as const;
  * 当前协议只支持一个 RxDB 实例；同实例重复初始化是幂等操作。
  */
 export class DevToolsConnector {
-  #options: Required<Omit<DevToolsOptions, 'transport'>> & Pick<DevToolsOptions, 'transport'>;
+  #options: Required<Omit<DevToolsOptions, 'transport' | 'i18n'>> & Pick<DevToolsOptions, 'transport' | 'i18n'>;
   #connected = false;
   #buffer: EventBuffer;
   #sequence: SequenceGenerator;
@@ -212,6 +212,7 @@ export class DevToolsConnector {
    * @param getEntityMetadata - 实体元数据读取函数（通常是 `@aiao/rxdb` 的
    *   `getEntityMetadata`）。省略时连接器不知道任何实体，`INSPECT_DB` 回 `null`、
    *   `QUERY_ENTITY` 回"实体不存在"，且**加密字段不会被遮罩**（无从得知哪些字段是密文）
+   * @param options - 可在运行时构造后补充国际化端口与写策略；改变时重建调试会话。
    * @throws Error 当已注册了另一个 RxDB 实例时；同实例重复调用是幂等的
    * @throws 由 `getEntityMetadata` 透传 —— 上游 `getEntityMetadata` 对未装饰的类 fail-fast
    *
@@ -224,13 +225,23 @@ export class DevToolsConnector {
    * 在 `window.__AIAO_RXDB_DEVTOOLS__` 上挂断开 helper、并立刻发出一次握手。
    * 全部由 {@link disconnect} 撤销。
    */
-  init(rxdb: DevToolsRxDB, getEntityMetadata?: GetEntityMetadataFn): void {
+  init(
+    rxdb: DevToolsRxDB,
+    getEntityMetadata?: GetEntityMetadataFn,
+    options?: Pick<DevToolsOptions, 'i18n' | 'mutationPolicy'>
+  ): void {
     if (!this.#options.enabled || typeof window === 'undefined') return;
     if (!this.#assertUsableOrigin()) return;
-    if (this.#rxdbInstance === rxdb) return;
-    if (this.#rxdbInstance) {
+    if (this.#rxdbInstance && this.#rxdbInstance !== rxdb) {
       throw new Error('DevToolsConnector supports a single RxDB instance');
     }
+    const changed =
+      options !== undefined &&
+      ((Object.hasOwn(options, 'i18n') && options.i18n !== this.#options.i18n) ||
+        (options.mutationPolicy !== undefined && options.mutationPolicy !== this.#options.mutationPolicy));
+    if (this.#rxdbInstance === rxdb && !changed) return;
+    if (this.#rxdbInstance === rxdb) this.disconnect();
+    if (options) this.#options = { ...this.#options, ...options };
 
     this.#rxdbInstance = rxdb;
     this.#getEntityMetadata = getEntityMetadata ?? null;
@@ -676,6 +687,8 @@ export class DevToolsConnector {
           getRootDirectory: resolveBrowserOpfsRoot(),
           saveToDisk: saveFileThroughPage,
           ...this.#databasePorts(),
+          i18n: this.#options.i18n,
+          canClearI18nMissing: this.#options.capabilities === 'full' && this.#options.mutationPolicy === 'allow',
           ...this.#options.providers
         })
       : {

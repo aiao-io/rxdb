@@ -21,6 +21,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 - `init(rxdb, getEntityMetadata)` 注册 RxDB 实例、读取实体 metadata、监听 RxDB 事件并发送 `HANDSHAKE`。
 - DevTools 返回 `HANDSHAKE_ACK` 后，connector 发送实时事件，并刷新握手前的内存事件缓冲区。
 - 对同一个 RxDB 对象重复 `init()` 是幂等操作，不会重复握手、读取 metadata 或注册监听。
+- `init()` 第三个参数可显式补充 `i18n` 与 `mutationPolicy`；同实例只有选项改变时才清理旧会话并重新握手。
 - 当前协议明确只支持一个 RxDB 实例。第二个不同实例会在读取其 metadata、修改映射或注册监听前抛错。
 - `disconnect()` 只断开 connector 通信、清理监听和缓冲区，不调用 `rxdb.disconnectAll()`。
 - `DISCONNECT_RXDB` 或 `window.__AIAO_RXDB_DEVTOOLS__.disconnectRxdb()` 会请求关闭 RxDB：
@@ -32,6 +33,21 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 ## SSR
 
 `init()` 和 `disconnect()` 在没有 `window` 的环境中是 no-op。仍建议把动态导入和初始化放在浏览器开发环境分支内，避免服务端无意义加载。
+
+## 国际化检视
+
+应用把已有的 `I18n` 实例作为结构端口传入，连接器不创建国际化单例，也不依赖 `@aiao/rxdb-i18n`：
+
+```ts
+getDevToolsConnector().init(rxdb, getEntityMetadata, {
+  i18n,
+  mutationPolicy: 'allow'
+});
+```
+
+面板的 I18n 页显示当前语言、目录每一层的文案与来源、最高优先级版本、缺失 key 及首次观察时间。`database.inspect` 的可选 `i18n` 字段携带快照；既有 `database.events` 经 `I18N_CHANGED` 推送后续变化。未注入端口时原响应不增加字段，现有 wire 的领域、操作名和握手结构保持兼容。
+
+清空按钮只在 `canClearMissing: true` 时出现，该值同时要求 `full` 档、`mutationPolicy: 'allow'`、可用 settings provider 与显式清空端口。请求沿既有 `settings.clear` 发送精确参数 `{ scope: 'i18n-missing' }`，只删除国际化诊断。未知 scope 拒绝；未带 scope 的旧请求继续委托原 provider，原本不支持全量清空的 provider 仍返回原拒绝结果。旧 connector 缺少 `i18n` 字段时，新面板不会发出诊断清空请求。
 
 ## 通信与威胁模型
 

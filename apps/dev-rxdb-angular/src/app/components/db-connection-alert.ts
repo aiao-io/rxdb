@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { I18nPipe } from '../pipes/i18n.pipe';
 import { dbConnectionError } from '../rxdb/db-connection';
 
 /**
@@ -10,12 +11,13 @@ import { dbConnectionError } from '../rxdb/db-connection';
  */
 @Component({
   selector: 'app-db-connection-alert',
+  imports: [I18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (message(); as text) {
       <div class="alert alert-error m-4" data-testid="app-db-error" role="alert">
-        <span class="flex-1 text-sm">数据库打不开：{{ text }}</span>
-        <button class="btn btn-sm" (click)="reload()" type="button">重新加载</button>
+        <span class="flex-1 text-sm">{{ 'error.databaseOpen' | i18n: { message: text } }}</span>
+        <button class="btn btn-sm" (click)="reload()" type="button">{{ 'common.reload' | i18n }}</button>
       </div>
     }
   `
