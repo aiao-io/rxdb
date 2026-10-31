@@ -74,6 +74,14 @@ export interface DevToolsEntityMetadata {
   readonly namespace?: string;
   /** 声明为加密列的字段名集合；只读取键。 */
   readonly encryptedPropertyMap?: ReadonlyMap<string, unknown>;
+  /** 普通属性元数据；连接器只读取安全字段投影。 */
+  readonly propertyMap?: ReadonlyMap<string, unknown>;
+  /** 计算属性元数据；连接器只读取名称与显示名。 */
+  readonly computedPropertyMap?: ReadonlyMap<string, unknown>;
+  /** 外键关系元数据；连接器只读取关系类型与展示名称。 */
+  readonly foreignKeyRelationMap?: ReadonlyMap<string, unknown>;
+  /** 实体显示名。 */
+  readonly displayName?: string;
 }
 
 /**
