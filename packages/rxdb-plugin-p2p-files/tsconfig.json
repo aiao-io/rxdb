@@ -1,0 +1,7 @@
+{
+  "compilerOptions": { "ignoreDeprecations": "6.0" },
+  "extends": "../../tsconfig.base.json",
+  "files": [],
+  "include": [],
+  "references": [{ "path": "./tsconfig.lib.json" }]
+}

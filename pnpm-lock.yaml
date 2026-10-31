@@ -2235,6 +2235,19 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
 
+  packages/rxdb-plugin-p2p-files:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:^
+        version: link:../rxdb
+      '@aiao/utils':
+        specifier: workspace:^
+        version: link:../utils
+    devDependencies:
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.106.1)(terser@5.51.2)(yaml@2.9.1))
+
   packages/rxdb-plugin-querycache:
     dependencies:
       '@aiao/rxdb':

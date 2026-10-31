@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-plugin-p2p-files",
+  "projectType": "library",
+  "sourceRoot": "packages/rxdb-plugin-p2p-files/src",
+  "tags": ["js-lib"],
+  "targets": {
+    "typecheck": { "dependsOn": ["build", "^typecheck"] },
+    "build": { "options": { "command": "vite build" } },
+    "test": { "options": { "cwd": "packages/rxdb-plugin-p2p-files", "command": "vitest run" } },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/packages/rxdb-plugin-p2p-files"],
+      "options": { "cwd": "packages/rxdb-plugin-p2p-files", "command": "vitest run --coverage" }
+    }
+  }
+}
