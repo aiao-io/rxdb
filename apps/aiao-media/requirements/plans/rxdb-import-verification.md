@@ -28,7 +28,7 @@ Aiao Media 已导入 RxDB 的 `codex/aiao-media-incubation` 分支。应用专�
 | `aiao-media:supabase-e2e`        | 3 项通过            | 真实本地账号浏览器场景；不代表产品绑定与多设备同步                                             |
 | `aiao-media:deploy-check`        | 通过                | 本地产物检查和 Wrangler dry-run，不发布                                                        |
 
-补充检查：迁入阶段的直连实验 6 项通过，平台脚本 451 项通过，所依赖的四个底层项目 lint 通过。平台需求审计维持 103 条，应用 11 条独立统计；`nx sync:check` 通过。
+补充检查：直连探针 6 项通过，平台脚本 451 项通过，所依赖的四个底层项目 lint 通过。平台需求审计维持 103 条，应用 11 条独立统计；`nx sync:check` 通过。
 
 升级用例的旧构建来自原仓基线，用原仓 `web:offline-assets` 构建，测试时通过 `AIAO_MEDIA_BASELINE` 指向其 browser 目录。同一浏览器 origin、同一 profile，旧原图来自 fixture；Service Worker 在该专项套件中禁用，离线行为由常规 27 项套件覆盖。该证据只覆盖当前 0.0.26 基线，不宣称支持任意历史库。
 

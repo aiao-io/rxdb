@@ -1,7 +1,7 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
-import { beforeAll, describe, it } from 'vitest';
+import { afterAll, beforeAll, describe, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../index.js';
 import { PGliteTreeRepository } from '../repository/PGliteTreeRepository.js';
 import { generateDbName } from './test-utils.js';
@@ -28,6 +28,10 @@ describe('树结构', () => {
     });
     adapter = await rxdb.getAdapter('pglite');
     await rxdb.connect('pglite');
+  });
+
+  afterAll(async () => {
+    if (rxdb) await rxdb.disconnectAll();
   });
 
   describe('自引用关系查询', () => {
