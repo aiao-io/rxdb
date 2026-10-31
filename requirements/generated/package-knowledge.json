@@ -3641,7 +3641,7 @@
       }
     ]
   },
-  "digest": "91007f70a2dfc90d74f585e3ea146d2855ca8f45da3d030449b7e340e9b2a1d0",
+  "digest": "b2534a5704a9a619e75ed7959e724f212b3823e9d43e038cdfd62f191a9a3ee2",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

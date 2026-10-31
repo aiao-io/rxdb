@@ -1,5 +1,18 @@
 # @aiao/rxdb-model-vue
 
+## Headless 绑定
+
+没有默认展示层时，从 `@aiao/rxdb-model-vue/headless` 使用共享控制器：
+
+```ts
+import { useEntityForm } from '@aiao/rxdb-model-vue/headless';
+
+const { controller, snapshot } = useEntityForm({ fields, data, mode: 'edit' });
+controller.setField('title', value);
+```
+
+`snapshot` 是响应式 ref；组件卸载时自动清理订阅。只使用 headless 入口不需要 VTable 或 Tailwind。
+
 [`@aiao/rxdb-model`](../rxdb-model) 的 Vue 组件层：元数据驱动的实体列表、详情、表单、对话框、可编辑表格与查询构建器。
 
 ## 安装
@@ -19,6 +32,8 @@ import { EntityList } from '@aiao/rxdb-model-vue';
   <EntityList name="Todo" namespace="public" />
 </template>
 ```
+
+自定义控件可从 `@aiao/rxdb-model-vue/headless` 使用 `useEntityForm`、`useQueryBuilder`、`useEntityList`、`useEntityDetail`、`useEntityDialog` 和 `useQueryTable`。这些 composable 返回共享 `controller` 与 `snapshot`，在组件卸载时清理订阅，不要求 Tailwind、daisyUI 或 VTable。
 
 ## 样式
 

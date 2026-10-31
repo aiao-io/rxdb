@@ -29,6 +29,18 @@ import {
   calculateDropMode,
   cn,
   provideQueryBuilderTheme,
+  useEntityDetail,
+  useEntityDetailHeadless,
+  useEntityDialog,
+  useEntityDialogHeadless,
+  useEntityForm,
+  useEntityFormHeadless,
+  useEntityList,
+  useEntityListHeadless,
+  useQueryBuilder,
+  useQueryBuilderHeadless,
+  useQueryTable,
+  useQueryTableHeadless,
   type EntityDetailDialogData,
   type EntityInstance,
   type EntityTableHandle,
@@ -79,6 +91,21 @@ describe('rxdb-model-vue 公开 API 面对称', () => {
 
   it('表格配置注入键导出', () => {
     expect(ENTITY_TABLE_CONFIG).toBeDefined();
+  });
+
+  it('Headless 状态绑定按实体能力完整导出', () => {
+    expect(useEntityForm).toBeTypeOf('function');
+    expect(useEntityFormHeadless).toBe(useEntityForm);
+    expect(useQueryBuilder).toBeTypeOf('function');
+    expect(useQueryBuilderHeadless).toBe(useQueryBuilder);
+    expect(useEntityList).toBeTypeOf('function');
+    expect(useEntityListHeadless).toBe(useEntityList);
+    expect(useEntityDetail).toBeTypeOf('function');
+    expect(useEntityDetailHeadless).toBe(useEntityDetail);
+    expect(useEntityDialog).toBeTypeOf('function');
+    expect(useEntityDialogHeadless).toBe(useEntityDialog);
+    expect(useQueryTable).toBeTypeOf('function');
+    expect(useQueryTableHeadless).toBe(useQueryTable);
   });
 
   it('类名工具 cn 透传核心包', () => {

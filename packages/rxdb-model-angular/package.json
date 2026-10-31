@@ -24,6 +24,15 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./fesm2022/aiao-rxdb-model-angular.mjs"
+    },
+    "./headless": {
+      "@aiao/source": "./src/headless/public-api.ts",
+      "types": "./types/aiao-rxdb-model-angular-src-headless.d.ts",
+      "default": "./fesm2022/aiao-rxdb-model-angular-src-headless.mjs"
+    },
     "./tailwind.css": "./tailwind.css"
   },
   "peerDependencies": {
@@ -40,6 +49,11 @@
     "@lucide/angular": "1.61.0",
     "@visactor/vtable": "~1.26.5",
     "rxjs": "^7.8.2"
+  },
+  "peerDependenciesMeta": {
+    "@visactor/vtable": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",

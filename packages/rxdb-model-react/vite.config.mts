@@ -41,7 +41,7 @@ export default defineConfig(() => ({
       transformMixedEsModules: true
     },
     lib: {
-      entry: 'src/index.ts',
+      entry: { index: 'src/index.ts', headless: 'src/headless.ts' },
       name: 'rxdb-model-react',
       fileName: 'index',
       formats: ['es' as const]
@@ -49,6 +49,9 @@ export default defineConfig(() => ({
     rolldownOptions: {
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
+      output: {
+        entryFileNames: chunkInfo => `${chunkInfo.name}.js`
+      },
       external: [
         /^@aiao\//,
         'react',

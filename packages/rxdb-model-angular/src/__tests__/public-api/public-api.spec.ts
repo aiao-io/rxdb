@@ -26,6 +26,18 @@ import {
   ValueInputComponent,
   calculateDropMode,
   cn,
+  injectEntityDetail,
+  injectEntityDetailHeadless,
+  injectEntityDialog,
+  injectEntityDialogHeadless,
+  injectEntityForm,
+  injectEntityFormHeadless,
+  injectEntityList,
+  injectEntityListHeadless,
+  injectQueryBuilder,
+  injectQueryBuilderHeadless,
+  injectQueryTable,
+  injectQueryTableHeadless,
   provideQueryBuilderTheme,
   type EntityDetailDialogData,
   type EntityInstance,
@@ -77,6 +89,21 @@ describe('rxdb-model-angular 公开 API 面对称', () => {
 
   it('表格配置注入令牌导出', () => {
     expect(ENTITY_TABLE_CONFIG).toBeDefined();
+  });
+
+  it('Headless 状态绑定按实体能力完整导出', () => {
+    expect(injectEntityForm).toBeTypeOf('function');
+    expect(injectEntityFormHeadless).toBe(injectEntityForm);
+    expect(injectQueryBuilder).toBeTypeOf('function');
+    expect(injectQueryBuilderHeadless).toBe(injectQueryBuilder);
+    expect(injectEntityList).toBeTypeOf('function');
+    expect(injectEntityListHeadless).toBe(injectEntityList);
+    expect(injectEntityDetail).toBeTypeOf('function');
+    expect(injectEntityDetailHeadless).toBe(injectEntityDetail);
+    expect(injectEntityDialog).toBeTypeOf('function');
+    expect(injectEntityDialogHeadless).toBe(injectEntityDialog);
+    expect(injectQueryTable).toBeTypeOf('function');
+    expect(injectQueryTableHeadless).toBe(injectQueryTable);
   });
 
   it('类名工具 cn 透传核心包', () => {

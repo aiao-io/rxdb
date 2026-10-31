@@ -1,5 +1,9 @@
 # @aiao/rxdb-model-react
 
+## Headless 绑定
+
+从 `@aiao/rxdb-model-react/headless` 使用 `useEntityForm`、`useQueryBuilder`、`useEntityList`、`useEntityDetail`、`useEntityDialog` 和 `useQueryTable`。这些 hooks 只返回状态与动作，卸载时自动清理控制器；只使用该入口不需要 VTable 或 Tailwind。
+
 [`@aiao/rxdb-model`](../rxdb-model) 的 React 组件层：元数据驱动的实体列表、详情、表单、对话框、可编辑表格与查询构建器。
 
 ## 安装
@@ -15,6 +19,8 @@ import { EntityList } from '@aiao/rxdb-model-react';
 
 <EntityList namespace="public" name="Todo" />;
 ```
+
+需要自定义控件时可从 `@aiao/rxdb-model-react/headless` 使用 `useEntityForm` / `useEntityFormHeadless`。Hook 返回共享的 `controller` 和 `snapshot`，消费方自行渲染 DOM；卸载时会自动释放订阅，因此不要求 Tailwind、daisyUI 或 VTable。三框架等价用法见[Headless 实体能力](../../website/docs/entity-model/headless.md)。
 
 ## 样式
 

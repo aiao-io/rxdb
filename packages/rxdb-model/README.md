@@ -8,6 +8,7 @@
 - **框架无关**：本包不含任何 Angular / React / Vue 依赖，可被任意前端技术栈消费；三框架 UI 组件层见 `@aiao/rxdb-model-angular`（React / Vue 版本陆续提供）。
 - **与 `@aiao/rxdb` 的边界**：核心包的 `entity-field.utils`（Field Descriptor 字段语义元数据）与 `entity-value.utils`（`parseEntityFieldValue`/`formatEntityFieldValue`/`validateFieldValue` 等）服务于核心内部与插件契约；本包的同名模块面向「实体管理界面」场景（表单字段提取、字段值解析/格式化/校验、表格列构建），语义不同、请勿混用。
 - **表格引擎**：`@visactor/vtable` 与 `@visactor/vtable-editors` 为 peer 依赖（`~1.26.x`），由消费方提供。
+- **Headless 入口**：`@aiao/rxdb-model/headless` 只导出表单、查询构建器、列表、详情、对话框和 QueryTable 的状态与动作，不加载 VTable；两个 VTable peer 在包清单中为可选。需要默认表格展示时再安装并使用根入口。
 
 ## 模块一览
 
@@ -28,6 +29,8 @@ const fields = buildFormFields(metadata, 'create');
 const columns = buildEditableColumns(metadata);
 const tabs = buildDetailTabs(metadata);
 ```
+
+只需要状态与动作时可从 `@aiao/rxdb-model/headless` 导入 `createEntityFormController`。该入口不触碰 DOM，也不加载 VTable，消费方自行渲染字段控件；控制器的 `snapshot`、`setField`、`validate`、`submit`、`cancel` 和 `dispose` 组成稳定的表单交互契约。完整的三框架接入示例见[Headless 实体能力](../../website/docs/entity-model/headless.md)。
 
 查询构建器（框架无关服务层）：
 

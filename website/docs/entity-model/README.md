@@ -11,6 +11,8 @@
 | `@aiao/rxdb-model-react`   | React 组件（同名组件集）                                                                                      |
 | `@aiao/rxdb-model-vue`     | Vue 3 组件（同名组件集）                                                                                      |
 
+Headless 消费方可直接使用框架无关状态与动作，不安装默认展示依赖；接入方式见 [Headless 实体能力](headless.md)。
+
 ## 安装
 
 ```bash npm2yarn
@@ -70,5 +72,6 @@ Repository 是实体的数据访问门面，由客户端生成器为每个实体
 - [Angular 用法](angular.md)
 - [React 用法](react.md)
 - [Vue 用法](vue.md)
+- [Headless 实体能力](headless.md)
 - [样式接入](styling.md)
 - [迁移说明](migration.md)
