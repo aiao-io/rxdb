@@ -133,6 +133,7 @@ describe('P2P 字节传输适配器', () => {
     const transport = createWebRTCTransport(channel);
     const frame = encodeP2PFrame({ kind: 'response', requestId: 'peer:0', ok: true, payload: bytes });
     expect(manifest.chunkSize).toBe(DEFAULT_P2P_CHUNK_SIZE);
+    expect(frame.byteLength).toBeLessThanOrEqual(65536);
     await transport.send(frame);
     channel.emit('message', channel.sent[0]);
     expect(decodeP2PFrame(await transport.receive())).toMatchObject({ payload: bytes });
