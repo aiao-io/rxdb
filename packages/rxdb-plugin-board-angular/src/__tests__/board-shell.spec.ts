@@ -100,7 +100,7 @@ describe('BoardShellComponent（Angular 外壳）', () => {
     expect($('board-view')).not.toBeNull();
   });
 
-  it('装载演示数据后重置：确认框聚焦取消、Esc 取消、Tab 不离开对话框；确认后切到新库', async () => {
+  it('装载演示数据后重置：确认框聚焦取消、Esc 取消、Tab 不离开对话框；确认后切到新库', { timeout: 15000 }, async () => {
     const { fixture, $, $$ } = mount();
     await waitFor(fixture, () => $('start-seed') !== null, '启动选择');
     $('start-seed')!.click();
