@@ -102,6 +102,12 @@
     },
     {
       "path": "../../packages/code-editor-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-board-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-board/tsconfig.lib.json"
     }
   ]
 }

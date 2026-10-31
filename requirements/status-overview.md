@@ -7,33 +7,34 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 86   |
-| 🚧 In Progress | 1    |
-| 👀 In Review   | 7    |
-| 📝 Backlog     | 27   |
+| ✅ Done        | 89   |
+| 🚧 In Progress | 3    |
+| 👀 In Review   | 9    |
+| 📝 Backlog     | 28   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 121  |
+| **合计**       | 129  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（1 条）
+## 进行中（3 条）
 
 | Story                                                                                                       | 剩余范围                                                           |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md) | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。 |
+| [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)                                  | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）仍待补齐。         |
+| [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                    | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。           |
 
-## 待评审（7 条）
+## 待评审（9 条）
 
-| Story                                                                                                                | 剩余范围                                                                                                        |
-| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)                         | 改了读取列而缓存补不齐时回 SQL 已实现，核心与真实双连接回归通过；待代码评审。                                   |
-| [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                                                 | A～D 已实现；偏好载体对照、历史隔离、三端/四运行时、目录分发与 DevTools 已验收，待代码评审。                    |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                           | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                                                 |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)                        | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                                     |
-| [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)                             | workspace接线已验证、AC#2成本记录已通过；AC#1发布tarball仓外消费与AC#3试用者按文档独立重搭仍待验证，不能标绿。  |
-| [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)          | 直写修改经 `p_updates` 普通 UPDATE 并返回服务器最终行，推送与原计数入口保留既有权限语义；待代码评审。           |
-| [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md) | 触发器捕获实际 DELETE，RPC 在源日志后写完整隐式日志；显式删除去重、回执收口与混合批次顺序回归通过；待代码评审。 |
+| Story                                                                                         | 剩余范围                                                                                                       |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                          | A～D 已实现；偏好载体对照、历史隔离、三端/四运行时、目录分发与 DevTools 已验收，待代码评审。                   |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                                                |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                                    |
+| [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)      | workspace接线已验证、AC#2成本记录已通过；AC#1发布tarball仓外消费与AC#3试用者按文档独立重搭仍待验证，不能标绿。 |
+| [US-534 看板领域模型骨架](stories/domain/US-534-board-column-task-skeleton.md)                | 全部 AC 已验（既有库重开在 PGlite 与 sqlite-wasm 各验一遍），等待合并收尾。                                    |
+| [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)                | 阶段 A～C 三端全绿（含外壳恢复入口与跨页门禁），等待合并收尾。                                                 |
 
 ## 阻塞（0 条）
 
@@ -92,10 +93,10 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md)
 - ✅ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)
 - ✅ [US-028 可排序实体（普通实体手动排序）](stories/core/US-028-sortable-entity.md)
+- 👀 [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)
 - ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md)
 - 👀 [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)
 - ✅ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md)
-- 👀 [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)
 - ✅ [US-104 rxdb-model 表单校验反馈与保存失败的展示（三端对称）](stories/framework/US-104-validation-feedback.md)
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md)
@@ -187,6 +188,20 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-527 工作台备份恢复闭环：失败语义与数据保留](stories/domain/US-527-admin-backup-restore.md)
 - 👀 [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)
 - ✅ [US-529 实体列表视图配置：字段显隐、多字段排序与分组](stories/domain/US-529-entity-list-view-settings.md)
+
+### [任务看板领域模型](epics/epic-011-task-board-domain-model.md)
+
+单人范围 US-534～US-540 已获 owner 授权；US-541 团队版保留价值待证。
+当前排期与准入见 [roadmap 批次 6](roadmap.md#批次-6看板首轮切片epic-011-已解锁)。
+
+- 👀 [US-534 看板领域模型骨架：Board / Column / Task 与按列排序域](stories/domain/US-534-board-column-task-skeleton.md)
+- ✅ [US-535 跨列移动与本列排序的领域语义](stories/domain/US-535-cross-column-move-ordering.md)
+- ✅ [US-536 任务详情与编辑：标签、截止日与撤销重做](stories/domain/US-536-task-detail-editing.md)
+- 🚧 [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)
+- ✅ [US-538 看板任务搜索：FTS 接线](stories/domain/US-538-board-task-search.md)
+- 👀 [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)
+- 🚧 [US-540 看板端到端 demo：一份数据集走完全域](stories/domain/US-540-board-end-to-end-demo.md)
+- ⬜ [US-541 团队版看板：Supabase 同步与身份](stories/domain/US-541-board-team-sync.md)
 
 ### [局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md)
 

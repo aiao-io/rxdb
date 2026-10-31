@@ -1,0 +1,110 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "Board",
+        "kind": "type"
+      },
+      {
+        "name": "BoardDomainError",
+        "kind": "both"
+      },
+      {
+        "name": "BoardHostContext",
+        "kind": "type"
+      },
+      {
+        "name": "BoardLabel",
+        "kind": "type"
+      },
+      {
+        "name": "BoardSearchUnavailableReason",
+        "kind": "type"
+      },
+      {
+        "name": "BoardShellComponent",
+        "kind": "both"
+      },
+      {
+        "name": "BoardShellOptions",
+        "kind": "type"
+      },
+      {
+        "name": "BoardViewComponent",
+        "kind": "both"
+      },
+      {
+        "name": "BoardWriteEvent",
+        "kind": "type"
+      },
+      {
+        "name": "CardDropTarget",
+        "kind": "type"
+      },
+      {
+        "name": "Column",
+        "kind": "type"
+      },
+      {
+        "name": "ColumnSortMode",
+        "kind": "type"
+      },
+      {
+        "name": "DeletePlan",
+        "kind": "type"
+      },
+      {
+        "name": "LabelDeletePlan",
+        "kind": "type"
+      },
+      {
+        "name": "LAST_BOARD_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "resolveCardDrop",
+        "kind": "value"
+      },
+      {
+        "name": "resolveColumnDrop",
+        "kind": "value"
+      },
+      {
+        "name": "SaveTaskDraftResult",
+        "kind": "type"
+      },
+      {
+        "name": "Task",
+        "kind": "type"
+      },
+      {
+        "name": "TaskDraft",
+        "kind": "type"
+      },
+      {
+        "name": "TaskDraftSnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "useBoard",
+        "kind": "value"
+      },
+      {
+        "name": "UseBoardActions",
+        "kind": "type"
+      },
+      {
+        "name": "UseBoardOptions",
+        "kind": "type"
+      },
+      {
+        "name": "UseBoardReturn",
+        "kind": "type"
+      },
+      {
+        "name": "UseBoardStorage",
+        "kind": "type"
+      }
+    ]
+  }
+}

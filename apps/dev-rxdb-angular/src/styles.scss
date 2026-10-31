@@ -11,6 +11,8 @@
 // 工作区内 node_modules 没有 @aiao/* 软链（代码解析走 tsconfig paths），
 // CSS @import 无法按包名解析，故用相对路径；发布消费方按 README 用包名导入。
 @import '../../../packages/rxdb-model-angular/tailwind.css';
+// 看板视图样式（三端绑定共用一份 @aiao/rxdb-plugin-board/board.css），同上用相对路径。
+@import '../../../packages/rxdb-plugin-board/board.css';
 
 @plugin 'daisyui' {
   themes:

@@ -18,7 +18,8 @@ golden（`entity-model-parity.golden.json`）比较。三端都过同一 golden 
 归一化与 golden 都是**单一实现**（`entity-model-parity.mjs`），不随框架复制；
 三端 spec 只保留「怎么读页面」（采集）。三份 spec 副本间只允许一处差异：
 Angular 端从 `./fixtures.js` 取 test / expect（US-909 失败归档守卫），React / Vue
-从 `@playwright/test` 取。其余内容必须保持同步，改一处改三处。
+从 `@playwright/test` 取。其余内容必须保持同步，改一处改三处——由 `pnpm audit:e2e-spec-copies`
+（CI setup 阻塞门禁）核对，看板的 `board-parity.spec.ts` 与三端共用的 `board.spec.ts` 同样登记在内。
 
 ## 项目形态：内部共享模块，有 lint 与单测，没有 tsconfig
 

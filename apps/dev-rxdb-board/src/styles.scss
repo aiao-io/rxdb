@@ -1,0 +1,25 @@
+/* 看板 demo 宿主样式：看板视图与外壳（启动选择 / 工具栏）的样式来自核心包（三端绑定共用一份） */
+@import '../../../packages/rxdb-plugin-board/board.css';
+
+:root {
+  /* 独立 demo 的外壳占满视口：启动选择居中、看板列等高 */
+  --rxb-shell-min-height: 100vh;
+
+  color-scheme: light dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0d1117;
+  }
+}

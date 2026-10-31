@@ -522,13 +522,21 @@ const assertGroupTarget = (entity: string, fields: readonly string[], group: Gro
   );
 };
 
+/** 邻居目标独有的字段：与 `group` 并存时 `group` 分支会把它们全部丢掉 */
+const BETWEEN_TARGET_FIELDS = ['prevId', 'nextId', 'expectedGroup'] as const;
+
 /**
  * 断言重排目标本身成立（不读库）
  *
  * @param metadata - 实体元数据
  * @param id - 被移动行的 id
  * @param target - 目标位置
- * @throws {@link SortOrderError} `reason` 为 `'invalidTarget'`
+ * @throws {@link SortOrderError} `reason` 为 `'invalidTarget'`：两侧邻居都为空、邻居就是移动行、
+ *   `group` / `expectedGroup` 的键与分组字段不符，或 `group` 与 `prevId` / `nextId` / `expectedGroup` 混用
+ *
+ * @remarks
+ * 联合类型的多余属性检查放行 `{ group, expectedGroup }` 这类两个成员字段混写的对象；
+ * 不拒绝的话 `expectedGroup` 的并发改组保护会被静默忽略。
  */
 export const assertReorderTarget = (
   metadata: ManualOrderMetadata,
@@ -537,8 +545,15 @@ export const assertReorderTarget = (
 ): void => {
   const entity = metadata.name;
   if ('group' in target) {
+    const mixed = BETWEEN_TARGET_FIELDS.filter(field => field in target);
+    if (mixed.length > 0) {
+      throw new SortOrderError(entity, 'invalidTarget', `{ group } 不能与 ${mixed.join(' / ')} 同时给出`);
+    }
     assertGroupTarget(entity, manualOrderGroupFields(metadata), target.group);
     return;
+  }
+  if (target.expectedGroup !== undefined) {
+    assertGroupTarget(entity, manualOrderGroupFields(metadata), target.expectedGroup);
   }
   const { prevId, nextId } = target;
   if (prevId === null && nextId === null) {
@@ -616,7 +631,7 @@ const placeBetweenNeighbors = async (
   entity: string,
   fields: readonly string[],
   row: SortableRow,
-  { prevId, nextId }: ReorderBetween<unknown>
+  { prevId, nextId, expectedGroup }: ReorderBetween<unknown>
 ): Promise<Placement> => {
   const lower = await readNeighbor(repository, entity, prevId, '前邻居');
   const upper = await readNeighbor(repository, entity, nextId, '后邻居');
@@ -625,6 +640,9 @@ const placeBetweenNeighbors = async (
     fields,
     [lower, upper].filter(neighbor => neighbor !== null)
   );
+  if (expectedGroup !== undefined && !isSameGroup(fields, values, groupValuesOf(fields, expectedGroup))) {
+    throw new SortOrderError(entity, 'staleTarget', '目标邻居已不属于期望分组');
+  }
   if (lower && upper && !(lower.sortOrder < upper.sortOrder)) {
     throw new SortOrderError(
       entity,
@@ -663,8 +681,8 @@ const placeAtGroupTail = async (
  * @param id - 被移动行的 id
  * @param target - 目标位置，须先经 {@link assertReorderTarget}
  * @returns 移动后的行；已在目标位置时原样返回、零写
- * @throws {@link SortOrderError} 移动行不存在（`'notFound'`）、邻居不存在 / 不再相邻 / 不在同一组（`'staleTarget'`）、
- *   锚点键不合法（`'corruptAnchor'`）
+ * @throws {@link SortOrderError} 移动行不存在（`'notFound'`）、邻居不存在 / 不再相邻 / 不在同一组 /
+ *   已不在 `expectedGroup`（`'staleTarget'`）、锚点键不合法（`'corruptAnchor'`）
  *
  * @remarks
  * 被移动行自身的旧键不是锚点：把空串或非法键的行拖进两个合法邻居之间是合法写入。

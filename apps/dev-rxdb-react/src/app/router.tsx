@@ -55,6 +55,10 @@ export const routes: RouteObject[] = [
         element: <TodoPage />
       },
       {
+        path: 'board',
+        lazy: lazyRoute(() => import('./pages/board/board.page'))
+      },
+      {
         path: 'todo-cursor',
         lazy: lazyRoute(() => import('./pages/todo-cursor'))
       },
