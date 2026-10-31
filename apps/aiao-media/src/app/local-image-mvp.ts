@@ -101,6 +101,16 @@ const routeView = (path: string): View =>
   : path === '/providers' ? 'providers'
   : path === '/admin' ? 'admin'
   : 'discover';
+const oauthWorkerUnavailable =
+  '当前页面没有连接 Supabase OAuth 后端，请打开 http://localhost:4398/providers 的本地 Worker 预览，或部署最新 Worker。';
+async function readJson<T>(response: Response, fallback: string): Promise<T> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+    throw new Error(contentType.includes('text/html') ? oauthWorkerUnavailable : fallback);
+  }
+}
 const emptyLibrary = (): LibraryState => ({
   works: [],
   total: null,
@@ -1115,9 +1125,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         cache: 'no-store',
         redirect: 'error'
       });
-      if (!response.ok)
-        throw new Error(((await response.json()) as { error?: string }).error ?? 'Supabase OAuth 尚未配置。');
-      const value = (await response.json()) as { url: string };
+      const value = await readJson<{ error?: string; url?: string }>(response, 'Supabase OAuth 尚未配置。');
+      if (!response.ok) throw new Error(value.error ?? 'Supabase OAuth 尚未配置。');
+      if (typeof value.url !== 'string' || !value.url) throw new Error('Supabase OAuth 未返回授权地址。');
       const popup = window.open(value.url, 'aiao-supabase-oauth', 'popup,width=640,height=760');
       if (!popup) throw new Error('浏览器阻止了授权窗口，请允许当前站点打开弹窗后重试。');
       await new Promise<void>((resolve, reject) => {
@@ -1150,9 +1160,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         cache: 'no-store',
         redirect: 'error'
       });
-      if (!response.ok)
-        throw new Error(((await response.json()) as { error?: string }).error ?? 'Supabase 项目列表不可读。');
-      this.oauthProjects.set(((await response.json()) as { projects: OAuthProject[] }).projects);
+      const value = await readJson<{ error?: string; projects?: OAuthProject[] }>(response, 'Supabase 项目列表不可读。');
+      if (!response.ok) throw new Error(value.error ?? 'Supabase 项目列表不可读。');
+      if (!Array.isArray(value.projects)) throw new Error('Supabase 项目列表不可读。');
+      this.oauthProjects.set(value.projects);
     } catch (error) {
       this.targetMessage.set(error instanceof Error ? error.message : 'Supabase 项目列表不可读。');
     }
@@ -1170,7 +1181,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         redirect: 'error',
         body: JSON.stringify({ projectRef })
       });
-      const value = (await response.json()) as { error?: string; config?: SupabaseAuthConfig; session?: Session };
+      const value = await readJson<{ error?: string; config?: SupabaseAuthConfig; session?: Session }>(
+        response,
+        'Supabase 自动初始化未完成。'
+      );
       if (!response.ok || !value.config || !value.session)
         throw new Error(value.error ?? 'Supabase 自动初始化未完成。');
       const target = { kind: 'custom' as const, config: value.config };

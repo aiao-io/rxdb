@@ -52,6 +52,14 @@ function cookie(name, value, maxAgeValue = maxAge) {
 function clearCookie(name) {
   return cookie(name, '', 0);
 }
+async function sealedConnection(env, connection) {
+  return seal(env, {
+    accessToken: connection.accessToken,
+    refreshToken: connection.refreshToken,
+    expiresAt: connection.expiresAt,
+    ...(connection.email ? { email: connection.email } : {})
+  });
+}
 function responseHtml(origin, extraHeaders = []) {
   const returnUrl = `${origin}/providers?supabase_oauth=complete`;
   const bodyText = `<!doctype html><meta charset="utf-8"><title>Supabase 已连接</title><script>if(window.opener){window.opener.postMessage({type:'aiao-supabase-oauth-complete'},${JSON.stringify(origin)});window.close()}else{location.replace(${JSON.stringify(returnUrl)})}</script><p>Supabase 已连接，可以关闭此窗口。</p>`;
@@ -72,20 +80,102 @@ function configured(env) {
     redirectUri: env.SUPABASE_OAUTH_REDIRECT_URI
   };
 }
-async function management(request, token, path, init = {}) {
+export function managementPermissionMessage(path) {
+  if (path === '/projects')
+    return '无法读取 Supabase 项目列表。请在 OAuth App 启用 Projects Read（projects:read）并重新授权；如果已启用，请确认当前账号可访问目标组织。';
+  if (path.includes('/database/query'))
+    return '无法写入 Supabase 项目数据库。请在 OAuth App 启用 Database Write（database:write）并重新授权，同时确认当前账号拥有该项目的管理权限。';
+  if (path.includes('/api-keys'))
+    return '无法读取 Supabase 项目 Key。请在 OAuth App 启用 Secrets Read（secrets:read）并重新授权，同时确认当前账号拥有该项目的管理权限。';
+  return 'Supabase 管理账号没有此项目的操作权限，请确认当前账号属于项目所在组织并拥有项目管理权限。';
+}
+function managementUnauthorizedMessage(path) {
+  if (path.includes('/database/query'))
+    return 'Supabase 拒绝执行数据库初始化（401）。请确认当前账号是目标项目的 Owner 或 Administrator，项目处于运行状态；OAuth App 的 Database Write（database:write）不能提升账号本身的项目权限。';
+  if (path.includes('/api-keys'))
+    return 'Supabase 拒绝读取项目 Key（401）。请确认当前账号是目标项目的 Owner 或 Administrator，项目处于运行状态；OAuth App 的 Secrets Read（secrets:read）不能提升账号本身的项目权限。';
+  if (path === '/profile') return 'Supabase 管理账号资料读取失败（401）。请重新授权，并确认当前账号可以访问目标组织。';
+  return 'Supabase 管理授权已失效，请重新连接。';
+}
+export function profileEmail(profile) {
+  const email = profile?.primary_email ?? profile?.email;
+  return typeof email === 'string' && email.includes('@') ? email : null;
+}
+export function accessTokenEmail(token) {
+  try {
+    const parts = String(token).split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(new TextDecoder().decode(decode(parts[1])));
+    return profileEmail(payload);
+  } catch {
+    return null;
+  }
+}
+export async function management(request, token, path, init = {}) {
+  const headers = {
+    authorization: `Bearer ${token}`,
+    accept: 'application/json',
+    ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
+    ...(init.headers ?? {})
+  };
   const result = await fetch(`${oauthApi}${path}`, {
     ...init,
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', ...(init.headers ?? {}) },
+    headers,
     redirect: 'manual',
     cache: 'no-store',
     signal: AbortSignal.timeout(20000)
   });
   if (result.status >= 300 && result.status < 400) reject(502, 'Supabase 管理接口禁止重定向。');
   if (!result.ok) {
+    const detail = await result.clone().json().catch(() => ({}));
+    const code = typeof detail?.code === 'string' ? detail.code.slice(0, 80) : null;
+    console.warn('Supabase 管理接口请求失败', { path, status: result.status, code });
     await result.body?.cancel();
-    reject(result.status === 403 ? 403 : 502, 'Supabase 管理授权不允许此项目操作。');
+    if (result.status === 401) reject(401, managementUnauthorizedMessage(path));
+    if (result.status === 403) reject(403, managementPermissionMessage(path));
+    if (result.status === 404) reject(404, 'Supabase 管理接口找不到目标项目或操作。');
+    if (result.status === 429) reject(429, 'Supabase 管理接口请求过于频繁，请稍后重试。');
+    if (path.includes('/database/query'))
+      reject(502, 'Supabase 项目数据库初始化失败，目标项目可能已有冲突对象或 SQL 与项目状态不兼容。请使用独立空项目并审阅初始化 SQL。');
+    if (path.includes('/api-keys')) reject(502, 'Supabase 项目 Key 读取失败，请确认项目状态正常后重试。');
+    reject(502, 'Supabase 管理接口暂时不可用，请稍后重试。');
   }
-  return result.status === 204 ? null : result.json();
+  return result.status === 204 || !result.body ? null : result.json();
+}
+async function refreshManagementToken(env, connection) {
+  if (typeof connection.refreshToken !== 'string') return false;
+  const config = configured(env);
+  const result = await fetch(`${oauthApi}/oauth/token`, {
+    method: 'POST',
+    headers: {
+      authorization: `Basic ${btoa(`${config.clientId}:${config.clientSecret}`)}`,
+      accept: 'application/json',
+      'content-type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: connection.refreshToken }),
+    redirect: 'manual',
+    cache: 'no-store',
+    signal: AbortSignal.timeout(20000)
+  });
+  if (!result.ok) {
+    await result.body?.cancel();
+    return false;
+  }
+  const tokens = await result.json();
+  if (typeof tokens.access_token !== 'string') return false;
+  connection.accessToken = tokens.access_token;
+  if (typeof tokens.refresh_token === 'string') connection.refreshToken = tokens.refresh_token;
+  connection.expiresAt = Date.now() + Math.min(Number(tokens.expires_in ?? 3600), 3600) * 1000;
+  connection.refreshed = true;
+  return true;
+}
+export async function managementForConnection(request, env, connection, path, init = {}) {
+  try {
+    return await management(request, connection.accessToken, path, init);
+  } catch (error) {
+    if (error?.status !== 401 || !(await refreshManagementToken(env, connection))) throw error;
+    return management(request, connection.accessToken, path, init);
+  }
 }
 async function managementConnection(request, env) {
   const value = request.headers.get('cookie')?.match(new RegExp(`${connectionCookie}=([^;]+)`))?.[1];
@@ -109,7 +199,7 @@ async function projectRequest(config, path, key, init = {}) {
     await result.body?.cancel();
     reject(502, '目标 Supabase 项目身份引导失败。');
   }
-  return result.status === 204 ? null : result.json();
+  return result.status === 204 || !result.body ? null : result.json();
 }
 export async function startSupabaseOAuth(request, env) {
   const config = configured(env),
@@ -165,19 +255,21 @@ export async function finishSupabaseOAuth(request, env) {
   const tokens = await result.json();
   if (typeof tokens.access_token !== 'string' || typeof tokens.refresh_token !== 'string')
     return responseHtml(state.origin, [['set-cookie', clearCookie(stateCookie)]]);
-  const connection = await seal(env, {
+  const email = profileEmail(tokens) ?? profileEmail(tokens.user) ?? accessTokenEmail(tokens.access_token);
+  const connection = await sealedConnection(env, {
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
-    expiresAt: Date.now() + Math.min(Number(tokens.expires_in ?? 3600), 3600) * 1000
+    expiresAt: Date.now() + Math.min(Number(tokens.expires_in ?? 3600), 3600) * 1000,
+    ...(email ? { email } : {})
   });
   return responseHtml(state.origin, [
     ['set-cookie', clearCookie(stateCookie)],
     ['set-cookie', cookie(connectionCookie, connection, 3600)]
   ]);
 }
-export async function listSupabaseProjects(request, env) {
-  const connection = await managementConnection(request, env);
-  const projects = await management(request, connection.accessToken, '/projects');
+export async function listSupabaseProjects(request, env, suppliedConnection) {
+  const connection = suppliedConnection ?? (await managementConnection(request, env));
+  const projects = await managementForConnection(request, env, connection, '/projects');
   return {
     projects:
       Array.isArray(projects) ?
@@ -191,23 +283,19 @@ export async function listSupabaseProjects(request, env) {
       : []
   };
 }
-export async function initializeSupabaseProject(request, env) {
-  const connection = await managementConnection(request, env);
+export async function initializeSupabaseProject(request, env, suppliedConnection) {
+  const connection = suppliedConnection ?? (await managementConnection(request, env));
   const value = fields(await body(request, 8192), ['projectRef']);
   if (typeof value.projectRef !== 'string' || !/^[a-z]{20}$/.test(value.projectRef))
     reject(400, 'Supabase 项目标识无效。');
-  const projects = await management(request, connection.accessToken, '/projects');
+  const projects = await managementForConnection(request, env, connection, '/projects');
   const project = projects.find(item => (item.ref ?? item.id) === value.projectRef);
   if (!project) reject(404, '该项目不在当前授权范围内。');
   const initSql =
     env.MEDIA_SUPABASE_AUTOINIT_SQL ||
     (env.MEDIA_SUPABASE_AUTOINIT_SQL_B64 ? new TextDecoder().decode(decode(env.MEDIA_SUPABASE_AUTOINIT_SQL_B64)) : '');
   if (!initSql) reject(503, '自动初始化 SQL 尚未配置，项目未修改。');
-  await management(request, connection.accessToken, `/projects/${value.projectRef}/database/query`, {
-    method: 'POST',
-    body: JSON.stringify({ query: initSql, read_only: false })
-  });
-  const keys = await management(request, connection.accessToken, `/projects/${value.projectRef}/api-keys?reveal=true`);
+  const keys = await managementForConnection(request, env, connection, `/projects/${value.projectRef}/api-keys?reveal=true`);
   const publicKey =
     Array.isArray(keys) ?
       keys.find(item => item.type === 'publishable' || item.name === 'anon' || item.name === 'publishable')?.api_key
@@ -218,15 +306,26 @@ export async function initializeSupabaseProject(request, env) {
     : null;
   if (typeof publicKey !== 'string' || typeof serviceKey !== 'string')
     reject(502, '项目初始化完成，但未能读取公开项目 Key；没有返回管理密钥。');
-  const profile = await management(request, connection.accessToken, '/profile');
-  if (typeof profile?.email !== 'string' || !profile.email.includes('@'))
-    reject(409, 'Supabase 管理账号没有可用于项目身份引导的邮箱。');
+  let profile;
+  try {
+    profile = await managementForConnection(request, env, connection, '/profile');
+  } catch (error) {
+    if (error?.status !== 401) throw error;
+    profile = { primary_email: connection.email ?? accessTokenEmail(connection.accessToken) };
+  }
+  const email = profileEmail(profile);
+  if (!email)
+    reject(401, 'Supabase 管理账号资料读取失败（401），且授权 token 未提供可用邮箱。请重新授权，并确认当前账号可以访问目标组织。');
+  await managementForConnection(request, env, connection, `/projects/${value.projectRef}/database/query`, {
+    method: 'POST',
+    body: JSON.stringify({ query: initSql, read_only: false })
+  });
   const config = { url: `https://${value.projectRef}.supabase.co`, anonKey: publicKey };
   const link = await projectRequest(config, '/auth/v1/admin/generate_link', serviceKey, {
     method: 'POST',
     body: JSON.stringify({
       type: 'magiclink',
-      email: profile.email,
+      email,
       options: { redirectTo: new URL(request.url).origin }
     })
   });
@@ -265,12 +364,22 @@ export function handleSupabaseOAuth(request, env) {
       const path = new URL(request.url).pathname.replace('/api/supabase/oauth', '');
       if (path === '/start' && request.method === 'GET') return await startSupabaseOAuth(request, env);
       if (path === '/callback' && request.method === 'GET') return await finishSupabaseOAuth(request, env);
-      if (path === '/projects' && request.method === 'GET')
-        return Response.json(await listSupabaseProjects(request, env), { headers: { 'cache-control': 'no-store' } });
-      if (path === '/initialize' && request.method === 'POST')
-        return Response.json(await initializeSupabaseProject(request, env), {
-          headers: { 'cache-control': 'no-store' }
-        });
+      if (path === '/projects' && request.method === 'GET') {
+        const connection = await managementConnection(request, env);
+        const result = await listSupabaseProjects(request, env, connection);
+        const headers = new Headers({ 'cache-control': 'no-store' });
+        if (connection.refreshed)
+          headers.set('set-cookie', cookie(connectionCookie, await sealedConnection(env, connection), 3600));
+        return Response.json(result, { headers });
+      }
+      if (path === '/initialize' && request.method === 'POST') {
+        const connection = await managementConnection(request, env);
+        const result = await initializeSupabaseProject(request, env, connection);
+        const headers = new Headers({ 'cache-control': 'no-store' });
+        if (connection.refreshed)
+          headers.set('set-cookie', cookie(connectionCookie, await sealedConnection(env, connection), 3600));
+        return Response.json(result, { headers });
+      }
       if (path === '/revoke' && request.method === 'POST') return await revokeSupabaseOAuth(request, env);
       reject(404, 'Supabase 授权接口不存在。');
     } catch (error) {

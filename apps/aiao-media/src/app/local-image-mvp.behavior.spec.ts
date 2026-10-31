@@ -221,6 +221,35 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('Supabase OAuth transport', () => {
+  it('turns an HTML OAuth start response into an actionable local Worker message', async () => {
+    const r = rig();
+    vi.mocked(fetch).mockResolvedValue(new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }));
+
+    await r.component.startSupabaseOAuth();
+
+    expect(r.component.targetMessage()).toContain('本地 Worker');
+  });
+
+  it('turns an HTML project list response into an actionable local Worker message', async () => {
+    const r = rig();
+    vi.mocked(fetch).mockResolvedValue(new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }));
+
+    await r.component.loadOAuthProjects();
+
+    expect(r.component.targetMessage()).toContain('本地 Worker');
+  });
+
+  it('turns an HTML project initialization response into an actionable local Worker message', async () => {
+    const r = rig();
+    vi.mocked(fetch).mockResolvedValue(new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }));
+
+    await r.component.initializeOAuthProject('abcdefghijklmnopqrst');
+
+    expect(r.component.targetMessage()).toContain('本地 Worker');
+  });
+});
+
 describe('local result lifecycle', () => {
   it('本机数据已打开但身份初始化未结束时不启动同步预览', async () => {
     vi.stubGlobal('__AIAO_SUPABASE_CONFIG__', { url: 'https://account.example', anonKey: 'sb_publishable_fixture' });
