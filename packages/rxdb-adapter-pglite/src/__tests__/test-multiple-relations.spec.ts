@@ -4,7 +4,7 @@
  */
 import { getEntityStatus, RxDB, SyncType, type EntityRelationMetadata } from '@aiao/rxdb';
 import { ENTITIES, IdCard, User } from '@aiao/rxdb-test/shop';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../index.js';
 import { generateDbName } from './test-utils.js';
 
@@ -29,6 +29,10 @@ describe('多个同类型关系的缓存清理测试', () => {
     });
 
     await rxdb.connect('pglite');
+  });
+
+  afterAll(async () => {
+    if (rxdb) await rxdb.disconnectAll();
   });
 
   it('设置 idCardId = null 不应该影响其他关系数据', async () => {
