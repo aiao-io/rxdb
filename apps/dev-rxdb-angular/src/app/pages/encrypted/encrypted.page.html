@@ -40,9 +40,9 @@
           <input
             class="input input-bordered w-full"
             [(ngModel)]="passphrase"
+            [placeholder]="'page.encrypted.passphrasePlaceholder' | i18n"
             (keyup.enter)="unlock()"
             data-testid="encryption-passphrase"
-            [placeholder]="'page.encrypted.passphrasePlaceholder' | i18n"
             type="password"
           />
         </fieldset>
@@ -85,8 +85,8 @@
             <input
               class="input input-bordered w-full"
               [(ngModel)]="newName"
-              data-testid="encryption-name"
               [placeholder]="'page.i18n.namePlaceholder' | i18n"
+              data-testid="encryption-name"
               type="text"
             />
           </fieldset>

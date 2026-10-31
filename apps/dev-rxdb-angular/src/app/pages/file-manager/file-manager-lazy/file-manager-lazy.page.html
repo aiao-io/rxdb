@@ -38,14 +38,20 @@
               {{ 'page.file.lazy' | i18n }}
             </h2>
             @if (keyword) {
-              <div class="badge badge-warning badge-sm">{{ 'page.file.searchCount' | i18n: { count: matchedCount } }}</div>
+              <div class="badge badge-warning badge-sm">
+                {{ 'page.file.searchCount' | i18n: { count: matchedCount } }}
+              </div>
             } @else {
               <div class="badge badge-primary" data-testid="file-count-sticky">{{ fileCount }} 项</div>
             }
 
             <!-- 批量添加：details/summary 原生切换（触屏 tap 不产生 :focus，focus 驱动的 daisyUI dropdown 在移动端打不开） -->
             <details class="dropdown dropdown-end" [attr.open]="add_many.isPending() ? '' : null">
-              <summary class="btn btn-sm btn-circle" [attr.aria-label]="'common.batchAdd' | i18n" data-testid="file-batch-add-sticky">
+              <summary
+                class="btn btn-sm btn-circle"
+                [attr.aria-label]="'common.batchAdd' | i18n"
+                data-testid="file-batch-add-sticky"
+              >
                 <svg [lucideIcon]="Plus" [size]="16" />
               </summary>
               <ul class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
@@ -72,13 +78,23 @@
           </div>
           <div class="flex items-center gap-2">
             <div class="join">
-              <button class="btn btn-sm join-item" [disabled]="undoDisabled" (click)="undo()" [attr.aria-label]="'common.undo' | i18n">
+              <button
+                class="btn btn-sm join-item"
+                [attr.aria-label]="'common.undo' | i18n"
+                [disabled]="undoDisabled"
+                (click)="undo()"
+              >
                 <svg [lucideIcon]="Undo2" size="16"></svg>
                 @if (undoCount) {
                   <span class="badge badge-xs" data-testid="file-undo-count">{{ undoCount }}</span>
                 }
               </button>
-              <button class="btn btn-sm join-item" [disabled]="redoDisabled" (click)="redo()" [attr.aria-label]="'common.redo' | i18n">
+              <button
+                class="btn btn-sm join-item"
+                [attr.aria-label]="'common.redo' | i18n"
+                [disabled]="redoDisabled"
+                (click)="redo()"
+              >
                 <svg [lucideIcon]="Redo2" size="16"></svg>
                 @if (redoCount) {
                   <span class="badge badge-xs" data-testid="file-redo-count">{{ redoCount }}</span>
@@ -87,9 +103,9 @@
             </div>
             <button
               class="btn btn-sm"
+              [attr.aria-label]="'common.history' | i18n"
               [class.btn-primary]="showHistory"
               (click)="toggle_history()"
-              [attr.aria-label]="'common.history' | i18n"
             >
               <svg [lucideIcon]="History" size="16"></svg>
             </button>
@@ -104,14 +120,20 @@
           <div class="flex items-center gap-3">
             <h1 class="text-2xl font-bold">{{ 'page.file.lazy' | i18n }}</h1>
             @if (keyword) {
-              <div class="badge badge-warning badge-sm">{{ 'page.file.searchCount' | i18n: { count: matchedCount } }}</div>
+              <div class="badge badge-warning badge-sm">
+                {{ 'page.file.searchCount' | i18n: { count: matchedCount } }}
+              </div>
             } @else {
               <div class="badge badge-primary" data-testid="file-count">{{ fileCount }} 项</div>
             }
 
             <!-- 批量添加：details/summary 原生切换（触屏 tap 不产生 :focus，focus 驱动的 daisyUI dropdown 在移动端打不开） -->
             <details class="dropdown dropdown-end" [attr.open]="add_many.isPending() ? '' : null">
-              <summary class="btn btn-sm btn-circle" [attr.aria-label]="'common.batchAdd' | i18n" data-testid="file-batch-add">
+              <summary
+                class="btn btn-sm btn-circle"
+                [attr.aria-label]="'common.batchAdd' | i18n"
+                data-testid="file-batch-add"
+              >
                 <svg [lucideIcon]="Plus" [size]="16" />
               </summary>
               <ul class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
@@ -139,13 +161,23 @@
 
           <div class="flex items-center gap-2">
             <div class="join">
-              <button class="btn btn-sm join-item" [disabled]="undoDisabled" (click)="undo()" [attr.aria-label]="'common.undo' | i18n">
+              <button
+                class="btn btn-sm join-item"
+                [attr.aria-label]="'common.undo' | i18n"
+                [disabled]="undoDisabled"
+                (click)="undo()"
+              >
                 <svg [lucideIcon]="Undo2" size="16"></svg>
                 @if (undoCount) {
                   <span class="badge badge-xs" data-testid="file-undo-count">{{ undoCount }}</span>
                 }
               </button>
-              <button class="btn btn-sm join-item" [disabled]="redoDisabled" (click)="redo()" [attr.aria-label]="'common.redo' | i18n">
+              <button
+                class="btn btn-sm join-item"
+                [attr.aria-label]="'common.redo' | i18n"
+                [disabled]="redoDisabled"
+                (click)="redo()"
+              >
                 <svg [lucideIcon]="Redo2" size="16"></svg>
                 @if (redoCount) {
                   <span class="badge badge-xs" data-testid="file-redo-count">{{ redoCount }}</span>
@@ -154,9 +186,9 @@
             </div>
             <button
               class="btn btn-sm"
+              [attr.aria-label]="'common.history' | i18n"
               [class.btn-primary]="showHistory"
               (click)="toggle_history()"
-              [attr.aria-label]="'common.history' | i18n"
             >
               <svg [lucideIcon]="History" size="16"></svg>
             </button>
@@ -207,8 +239,8 @@
             <input
               class="input input-bordered input-sm w-full pl-10"
               [(ngModel)]="$search_keyword"
-              data-testid="file-search-input"
               [placeholder]="'page.file.searchPlaceholder' | i18n"
+              data-testid="file-search-input"
               type="text"
             />
           </div>
@@ -250,7 +282,11 @@
                 将添加到:
                 <span class="font-semibold">{{ getSelectedFolderTitle() }}</span>
               </span>
-              <button class="btn btn-ghost btn-xs" (click)="cancelSelectFolder()" [attr.aria-label]="'common.cancel' | i18n">
+              <button
+                class="btn btn-ghost btn-xs"
+                [attr.aria-label]="'common.cancel' | i18n"
+                (click)="cancelSelectFolder()"
+              >
                 <svg [lucideIcon]="X" [size]="14" />
               </button>
             </div>
@@ -260,10 +296,10 @@
             <!-- 文件/文件夹模式切换 -->
             <button
               class="btn btn-sm"
+              [attr.aria-label]="'common.switchMode' | i18n"
               [class.btn-info]="isAddingFile"
               [class.btn-warning]="!isAddingFile"
               (click)="toggleAddingMode()"
-              [attr.aria-label]="'common.switchMode' | i18n"
               type="button"
             >
               <svg [lucideIcon]="isAddingFile ? File : Folder" [size]="16" />
@@ -287,7 +323,10 @@
               class="input input-bordered input-sm flex-1"
               id="file-name-input"
               [(ngModel)]="$new_file_name"
-              [placeholder]="(isAddingFile ? 'page.file.rootNamePlaceholder' : 'page.file.folderNamePlaceholder') | i18n: { suffix: selectedFolder ? '' : ' (root)' }"
+              [placeholder]="
+                (isAddingFile ? 'page.file.rootNamePlaceholder' : 'page.file.folderNamePlaceholder')
+                  | i18n: { suffix: selectedFolder ? '' : ' (root)' }
+              "
               (keyup.enter)="onFormSubmit($event)"
               autocomplete="off"
               data-testid="file-name-input"
@@ -318,7 +357,9 @@
               <div class="font-semibold">{{ 'page.tree.searchScope' | i18n }}</div>
               <div class="text-sm">
                 {{ warning.message }}
-                <span class="ml-2 opacity-70">{{ 'page.file.loadedCount' | i18n: { count: warning.loadedCount } }}</span>
+                <span class="ml-2 opacity-70">
+                  {{ 'page.file.loadedCount' | i18n: { count: warning.loadedCount } }}
+                </span>
               </div>
             </div>
           </div>
@@ -379,13 +420,13 @@
                       <!-- 拖拽手柄（pointer 起拖，触屏可用） -->
                       <button
                         class="btn btn-ghost btn-xs btn-square drag-handle touch-none opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100"
+                        [attr.title]="'common.dragSort' | i18n"
                         (click)="$event.stopPropagation()"
                         (pointercancel)="onPointerUp($event)"
                         (pointerdown)="startPointerDrag($event, node.node)"
                         (pointermove)="onPointerMove($event)"
                         (pointerup)="onPointerUp($event)"
                         data-testid="file-drag-handle"
-                        [attr.title]="'common.dragSort' | i18n"
                         type="button"
                       >
                         <svg [lucideIcon]="GripVertical" [size]="14" />
@@ -443,7 +484,9 @@
                             type="text"
                           />
                           <button class="btn btn-primary btn-sm" type="submit">{{ 'common.confirm' | i18n }}</button>
-                          <button class="btn btn-ghost btn-sm" (click)="cancelEdit()" type="button">{{ 'common.cancel' | i18n }}</button>
+                          <button class="btn btn-ghost btn-sm" (click)="cancelEdit()" type="button">
+                            {{ 'common.cancel' | i18n }}
+                          </button>
                         </form>
                       } @else {
                         <span
@@ -464,8 +507,8 @@
                         @if (getNodeError(node.node.id); as error) {
                           <button
                             class="btn btn-error btn-xs"
-                            (click)="retryLoadChildren(node.node.id)"
                             [attr.title]="'common.retryLoad' | i18n"
+                            (click)="retryLoadChildren(node.node.id)"
                           >
                             <svg [lucideIcon]="TriangleAlert" [size]="14" />
                             重试
@@ -479,19 +522,23 @@
                           @if (node.node.type === 'folder') {
                             <button
                               class="btn btn-ghost btn-xs"
-                              (click)="selectFolder(node.node.id)"
                               [attr.title]="'common.addChild' | i18n"
+                              (click)="selectFolder(node.node.id)"
                             >
                               <svg [lucideIcon]="Plus" [size]="14" />
                             </button>
                           }
-                          <button class="btn btn-ghost btn-xs" (click)="startEdit($event, node.node)" [attr.title]="'common.rename' | i18n">
+                          <button
+                            class="btn btn-ghost btn-xs"
+                            [attr.title]="'common.rename' | i18n"
+                            (click)="startEdit($event, node.node)"
+                          >
                             <svg [lucideIcon]="Pen" [size]="14" />
                           </button>
                           <button
                             class="btn btn-ghost btn-xs text-error"
-                            (click)="deleteFile($event, node.node)"
                             [attr.title]="'common.delete' | i18n"
+                            (click)="deleteFile($event, node.node)"
                           >
                             <svg [lucideIcon]="Trash2" [size]="14" />
                           </button>

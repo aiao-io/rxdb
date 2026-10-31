@@ -24,8 +24,8 @@ import {
   LucideX as X
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '@modules/angular';
-import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { TreeWriteError } from '../../../components/tree-write-error';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { TreeMenuDragDropBase } from '../utils/tree-menu.drag-drop';
 import { ENTITY_CLASS, HISTORY, TreeMenuLazyStore } from './tree-menu-lazy.store';
 
@@ -71,7 +71,15 @@ import { ENTITY_CLASS, HISTORY, TreeMenuLazyStore } from './tree-menu-lazy.store
   styleUrls: ['./tree-menu-lazy.page.scss'],
   host: { class: 'page-host' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [I18nPipe, FormsModule, LucideDynamicIcon, ScrollingModule, AsyncPipe, HistorySidebarComponent, TreeWriteError],
+  imports: [
+    I18nPipe,
+    FormsModule,
+    LucideDynamicIcon,
+    ScrollingModule,
+    AsyncPipe,
+    HistorySidebarComponent,
+    TreeWriteError
+  ],
   standalone: true,
   providers: [
     TreeMenuLazyStore,

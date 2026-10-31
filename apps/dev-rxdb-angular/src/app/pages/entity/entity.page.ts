@@ -1,10 +1,10 @@
-import { I18nPipe } from '../../pipes/i18n.pipe';
 import { getEntityMetadata, RxDB } from '@aiao/rxdb';
 import { useCount } from '@aiao/rxdb-angular';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, Signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 
 /** 左侧目录里的实体条目。 */
 export interface EntityOption {

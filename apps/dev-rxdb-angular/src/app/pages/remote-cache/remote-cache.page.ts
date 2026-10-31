@@ -1,4 +1,3 @@
-import { I18nPipe } from '../../pipes/i18n.pipe';
 import { RxDB } from '@aiao/rxdb';
 import {
   StorageFetchError,
@@ -18,6 +17,7 @@ import {
   LucideWifi as Wifi,
   LucideWifiOff as WifiOff
 } from '@lucide/angular';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 
 interface RemoteResource {
   label: string;

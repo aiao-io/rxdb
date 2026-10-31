@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { useI18n } from '@aiao/rxdb-i18n-angular';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import {
   LucideDatabase as Database,
   LucideDynamicIcon,
@@ -20,14 +20,18 @@ import { BranchManager } from './branch-manager';
       <div id="logo">
         <button
           class="btn btn-ghost btn-sm hover:border-transparent hover:bg-transparent"
-          (click)="app.toggleSidebar()"
           [attr.aria-label]="i18n.t('shell.sidebarToggle')"
+          (click)="app.toggleSidebar()"
         >
           <svg [lucideIcon]="Database" size="16"></svg>
           <span id="logo-name">RxDB</span>
         </button>
       </div>
-      <button class="btn btn-ghost btn-sm" (click)="app.toggleSidebar()" [attr.aria-label]="i18n.t('shell.sidebarToggle')">
+      <button
+        class="btn btn-ghost btn-sm"
+        [attr.aria-label]="i18n.t('shell.sidebarToggle')"
+        (click)="app.toggleSidebar()"
+      >
         @if (app.$sidebarPinned()) {
           <svg [lucideIcon]="PanelLeftClose" size="16"></svg>
         } @else {

@@ -1,4 +1,3 @@
-import { I18nPipe } from '../../pipes/i18n.pipe';
 import { RxDB } from '@aiao/rxdb';
 import { AdapterEncryptionFacade } from '@aiao/rxdb-adapter-sqlite-core';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
@@ -16,6 +15,7 @@ import {
   LucideTrash2 as Trash2
 } from '@lucide/angular';
 import { firstValueFrom } from 'rxjs';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 
 @Component({
   selector: 'app-encrypted-page',

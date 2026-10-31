@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { I18nPipe } from '../pipes/i18n.pipe';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import {
   LucideArchiveRestore as ArchiveRestore,
@@ -22,6 +21,7 @@ import {
   type LucideIconInput
 } from '@lucide/angular';
 import { AppService } from '../app.service';
+import { I18nPipe } from '../pipes/i18n.pipe';
 
 interface MenuChild {
   title: string;

@@ -36,7 +36,9 @@
               {{ 'page.tree.virtual' | i18n }}
             </h2>
             @if (keyword) {
-              <div class="badge badge-warning badge-sm">{{ 'page.tree.searchCount' | i18n: { count: matchedCount } }}</div>
+              <div class="badge badge-warning badge-sm">
+                {{ 'page.tree.searchCount' | i18n: { count: matchedCount } }}
+              </div>
             } @else {
               <div class="badge badge-primary badge-sm">{{ 'page.tree.itemCount' | i18n: { count: menuCount } }}</div>
             }
@@ -45,9 +47,9 @@
             <!-- History Toggle -->
             <button
               class="btn btn-sm"
+              [attr.aria-label]="'common.history' | i18n"
               [class.btn-primary]="$show_history()"
               (click)="toggle_history()"
-              [attr.aria-label]="'common.history' | i18n"
             >
               <svg [lucideIcon]="History" size="16"></svg>
             </button>
@@ -90,13 +92,23 @@
           <div class="flex items-center gap-2">
             <!-- Undo/Redo -->
             <div class="join">
-              <button class="btn btn-sm join-item" [disabled]="undo_disabled" (click)="undo()" [attr.aria-label]="'common.undo' | i18n">
+              <button
+                class="btn btn-sm join-item"
+                [attr.aria-label]="'common.undo' | i18n"
+                [disabled]="undo_disabled"
+                (click)="undo()"
+              >
                 <svg [lucideIcon]="Undo2" size="16"></svg>
                 @if (undo_count) {
                   <span class="badge badge-xs" data-testid="menu-undo-count">{{ undo_count }}</span>
                 }
               </button>
-              <button class="btn btn-sm join-item" [disabled]="redo_disabled" (click)="redo()" [attr.aria-label]="'common.redo' | i18n">
+              <button
+                class="btn btn-sm join-item"
+                [attr.aria-label]="'common.redo' | i18n"
+                [disabled]="redo_disabled"
+                (click)="redo()"
+              >
                 <svg [lucideIcon]="Redo2" size="16"></svg>
                 @if (redo_count) {
                   <span class="badge badge-xs">{{ redo_count }}</span>
@@ -106,9 +118,9 @@
             <!-- History Toggle -->
             <button
               class="btn btn-sm"
+              [attr.aria-label]="'common.history' | i18n"
               [class.btn-primary]="showHistory"
               (click)="toggle_history()"
-              [attr.aria-label]="'common.history' | i18n"
             >
               <svg [lucideIcon]="History" size="16"></svg>
             </button>
@@ -154,8 +166,8 @@
                 <span class="max-w-[8rem] truncate font-medium">{{ getSelectedParentTitle() }}</span>
                 <button
                   class="btn btn-ghost btn-xs btn-circle ml-1 h-5 min-h-0 w-5"
-                  (click)="cancelSelectParent()"
                   [attr.title]="'common.selectParent' | i18n"
+                  (click)="cancelSelectParent()"
                   type="button"
                 >
                   <svg [lucideIcon]="X" [size]="14" />
@@ -270,13 +282,13 @@
                       <!-- 拖拽手柄 -->
                       <button
                         class="btn btn-ghost btn-xs btn-square drag-handle touch-none opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100"
+                        [attr.title]="'common.dragSort' | i18n"
                         (click)="$event.stopPropagation()"
                         (pointercancel)="onPointerUp($event)"
                         (pointerdown)="startPointerDrag($event, node.menu)"
                         (pointermove)="onPointerMove($event)"
                         (pointerup)="onPointerUp($event)"
                         data-testid="menu-drag-handle"
-                        [attr.title]="'common.dragSort' | i18n"
                         type="button"
                       >
                         <svg [lucideIcon]="GripVertical" [size]="14" />
@@ -306,8 +318,12 @@
                             data-testid="menu-edit-input"
                             type="text"
                           />
-                          <button class="btn btn-primary btn-sm" (click)="saveEdit($event)" type="button">{{ 'common.confirm' | i18n }}</button>
-                          <button class="btn btn-ghost btn-sm" (click)="cancelEdit()" type="button">{{ 'common.cancel' | i18n }}</button>
+                          <button class="btn btn-primary btn-sm" (click)="saveEdit($event)" type="button">
+                            {{ 'common.confirm' | i18n }}
+                          </button>
+                          <button class="btn btn-ghost btn-sm" (click)="cancelEdit()" type="button">
+                            {{ 'common.cancel' | i18n }}
+                          </button>
                         </div>
                       } @else {
                         <!-- 菜单标题（显示模式） -->
@@ -324,20 +340,28 @@
                           class="actions flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100"
                         >
                           <!-- 添加子菜单 -->
-                          <button class="btn btn-ghost btn-xs" (click)="selectParent(node.menu.id)" [attr.title]="'common.addChild' | i18n">
+                          <button
+                            class="btn btn-ghost btn-xs"
+                            [attr.title]="'common.addChild' | i18n"
+                            (click)="selectParent(node.menu.id)"
+                          >
                             <svg [lucideIcon]="Plus" [size]="14" />
                           </button>
 
                           <!-- 编辑 -->
-                          <button class="btn btn-ghost btn-xs" (click)="startEdit($event, node.menu)" [attr.title]="'common.edit' | i18n">
+                          <button
+                            class="btn btn-ghost btn-xs"
+                            [attr.title]="'common.edit' | i18n"
+                            (click)="startEdit($event, node.menu)"
+                          >
                             <svg [lucideIcon]="Pen" [size]="14" />
                           </button>
 
                           <!-- 删除 -->
                           <button
                             class="btn btn-ghost btn-xs text-error"
-                            (click)="deleteMenu($event, node.menu)"
                             [attr.title]="'common.delete' | i18n"
+                            (click)="deleteMenu($event, node.menu)"
                           >
                             <svg [lucideIcon]="Trash2" [size]="14" />
                           </button>

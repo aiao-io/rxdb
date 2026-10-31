@@ -31,8 +31,8 @@ import {
   LucideX as X
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '@modules/angular';
-import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { TreeWriteError } from '../../../components/tree-write-error';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { TreeFileDragDropBase } from '../utils/tree-file-drag-drop.base';
 import { FILE_ENTITY_CLASS, FILE_HISTORY, TreeFileLazyStore } from './file-manager-lazy.store';
 

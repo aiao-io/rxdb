@@ -26,7 +26,11 @@ import { DEMO_DATE_OPTIONS, DEMO_FORMAT_DATE, DEMO_FORMAT_NUMBER } from '../rxdb
     role="navigation"
   >
     <div class="inline-flex items-center gap-3">
-      <button class="btn btn-ghost btn-sm md:hidden" (click)="app.toggleSidebar()" [attr.aria-label]="i18n.t('shell.toggleMenu')">
+      <button
+        class="btn btn-ghost btn-sm md:hidden"
+        [attr.aria-label]="i18n.t('shell.toggleMenu')"
+        (click)="app.toggleSidebar()"
+      >
         <svg [lucideIcon]="Menu" size="20"></svg>
       </button>
     </div>

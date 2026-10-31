@@ -1,9 +1,9 @@
 import { RxDB } from '@aiao/rxdb';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, OnInit, PLATFORM_ID } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { BaseSrcPipe } from '../../pipes/base-src.pipe';
 import { I18nPipe } from '../../pipes/i18n.pipe';
-import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-home',

@@ -21,9 +21,9 @@ import { I18nPipe } from './pipes/i18n.pipe';
       @if (app.$sidebarPinned()) {
         <div
           class="sidebar-overlay md:hidden"
+          [attr.aria-label]="'shell.closeSidebar' | i18n"
           (click)="app.toggleSidebar()"
           aria-hidden="true"
-          [attr.aria-label]="'shell.closeSidebar' | i18n"
         ></div>
       }
       <app-sidebar></app-sidebar>
