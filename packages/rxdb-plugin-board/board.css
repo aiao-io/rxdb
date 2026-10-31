@@ -1020,7 +1020,7 @@ button.rxb-label:hover {
 .rxb-panel {
   position: fixed;
   inset: 0 0 0 auto;
-  z-index: 40;
+  z-index: 50;
   display: flex;
   flex-direction: column;
   width: min(760px, 100vw);
