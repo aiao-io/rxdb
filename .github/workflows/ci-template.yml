@@ -575,7 +575,7 @@ jobs:
   # ---------------------------------------------------------------------------
   # test lane：一条 lane = 一个 job，项目划分由 scripts/ci/plan-test-lanes.mjs
   # 按实测耗时做 LPT 装箱。lane 内 `--parallel=1` —— 各 vitest 任务自己已经
-  # 多 worker 并行（见 rxdb-adapter-pglite 的 maxWorkers=4），再叠一层 Nx 并行
+  # 多 worker 并行（coverage 下见 rxdb-adapter-pglite 的 maxWorkers=2），再叠一层 Nx 并行
   # 只会在 4 vCPU 上互相抢核。测试依赖的构建不受这条限制，见 Build test prerequisites。
   # 每条 lane 的 `matrix.target` 是 test，内存 lane 是 test-memory（plan-test-lanes.mjs 的 MEMORY_TARGET）。
   test:

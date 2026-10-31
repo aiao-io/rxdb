@@ -1,7 +1,7 @@
 import { getEntityMetadata, getEntityStatus, RxDB, SyncType } from '@aiao/rxdb';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { PGliteExecuteResult, transaction_pglite_result } from '../transaction_pglite_result.js';
 
@@ -25,6 +25,10 @@ describe('transaction_pglite_result residual computed/forcedUpdate', () => {
     rxdb = db;
     adapter = await rxdb.getAdapter('pglite');
     await rxdb.connect('pglite');
+  });
+
+  afterAll(async () => {
+    if (rxdb) await rxdb.disconnectAll();
   });
 
   it('updates computed properties even when forcedUpdate is false', async () => {
