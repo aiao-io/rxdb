@@ -95,6 +95,51 @@ describe('createEntityRegistry', () => {
     expect(index.entityTypeMap.has('b:Beta')).toBe(false);
   });
 
+  it('模型投影只保留可渲染字段，不把 Map、函数、默认值和约束带上 wire', () => {
+    const rxdb = createMockRxDB({ config: { entities: [Alpha] } });
+    const getMetadata: GetEntityMetadataFn = () => ({
+      name: 'Alpha',
+      namespace: 'a',
+      displayName: '甲',
+      propertyMap: new Map([
+        ['id', { type: 'uuid', default: () => 'secret', check: { operator: 'exists' } }],
+        [
+          'status',
+          {
+            type: 'enum',
+            displayName: '状态',
+            enum: ['active', 'disabled'],
+            options: { active: { label: '启用', color: 'green' }, disabled: { disabled: true } }
+          }
+        ],
+        ['createdAt', { type: 'date', nullable: true }]
+      ]),
+      computedPropertyMap: new Map([['label', { displayName: '标签', compute: () => 'secret' }]]),
+      foreignKeyRelationMap: new Map([['ownerId', { kind: 'm:1', displayName: '所有者', nullable: true }]]),
+      encryptedPropertyMap: new Map()
+    });
+
+    const model = createEntityRegistry(rxdb, getMetadata).sync().modelMap.get('a:Alpha');
+
+    expect(model).toEqual({
+      displayName: '甲',
+      fields: [
+        { name: 'id', type: 'uuid', displayName: 'ID' },
+        { name: 'createdAt', type: 'date', nullable: true },
+        {
+          name: 'status',
+          type: 'enum',
+          displayName: '状态',
+          enumValues: ['active', 'disabled'],
+          options: { active: { label: '启用', color: 'green' }, disabled: { disabled: true } }
+        },
+        { name: 'label', type: 'computed', displayName: '标签' },
+        { name: 'ownerId', type: 'manyToOne', displayName: '所有者', nullable: true }
+      ]
+    });
+    expect(JSON.stringify(model)).not.toContain('secret');
+  });
+
   it('没有元数据的类被跳过，不进索引', () => {
     class Undecorated {}
     const { rxdb, getMetadata } = createRegistryFixture([Alpha, Undecorated]);

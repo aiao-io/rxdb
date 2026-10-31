@@ -8,7 +8,13 @@
   "tags": ["angular-lib"],
   "targets": {
     "typecheck": {
-      "outputs": ["{workspaceRoot}/dist/out-tsc/rxdb-devtools-panel"]
+      "outputs": ["{workspaceRoot}/dist/out-tsc/rxdb-devtools-panel"],
+      "executor": "nx:run-commands",
+      "dependsOn": ["build", "^typecheck"],
+      "options": {
+        "cwd": "modules/rxdb-devtools-panel",
+        "command": "tsc --build tsconfig.typecheck.json --emitDeclarationOnly"
+      }
     },
     "build": {
       "executor": "@nx/angular:ng-packagr-lite",

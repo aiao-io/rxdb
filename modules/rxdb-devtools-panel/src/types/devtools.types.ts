@@ -1,7 +1,7 @@
 /**
  * DevTools Panel 类型定义
  */
-import type { EntityDataPayload } from '@aiao/rxdb-devtools';
+import type { DbModelInfoPayload, DevToolsEntityModel, EntityDataPayload } from '@aiao/rxdb-devtools';
 
 /** 序列化事件 */
 export interface SerializedEvent {
@@ -24,6 +24,12 @@ export interface EntityInfo {
   namespace: string;
   encryptedFields: string[];
 }
+
+/** 数据库模型信息；没有该消息时由面板按数据行推导列。 */
+export type DbModelInfo = DbModelInfoPayload;
+
+/** 单个实体模型。 */
+export type EntityModel = DevToolsEntityModel;
 
 /** 数据库信息 */
 export interface DbInfo {
