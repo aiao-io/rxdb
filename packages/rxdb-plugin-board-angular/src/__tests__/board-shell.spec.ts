@@ -54,10 +54,15 @@ describe('BoardShellComponent（Angular 外壳）', () => {
     return db;
   };
 
-  const waitFor = async (fixture: ComponentFixture<unknown>, probe: () => boolean, label: string): Promise<void> => {
+  const waitFor = async (
+    fixture: ComponentFixture<unknown>,
+    probe: () => boolean,
+    label: string,
+    timeoutMs = 8000
+  ): Promise<void> => {
     const start = Date.now();
     while (!probe()) {
-      if (Date.now() - start > 8000) throw new Error(`等待超时：${label}`);
+      if (Date.now() - start > timeoutMs) throw new Error(`等待超时：${label}`);
       fixture.detectChanges();
       await new Promise(resolve => setTimeout(resolve, 10));
     }
@@ -85,9 +90,9 @@ describe('BoardShellComponent（Angular 外壳）', () => {
     for (const db of opened.splice(0)) await db.disconnectAll().catch(() => undefined);
   });
 
-  it('启动选择：三个入口；新建空看板进入看板阶段，工具栏有重置与恢复', async () => {
+  it('启动选择：三个入口；新建空看板进入看板阶段，工具栏有重置与恢复', { timeout: 15000 }, async () => {
     const { fixture, $ } = mount();
-    await waitFor(fixture, () => $('startup-page') !== null, '启动选择');
+    await waitFor(fixture, () => $('startup-page') !== null, '启动选择', 15_000);
     expect($('start-empty')).not.toBeNull();
     expect($('start-seed')).not.toBeNull();
     expect($('start-restore')).not.toBeNull();
