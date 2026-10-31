@@ -1,3 +1,4 @@
+import { useModelI18n } from '../i18n.js';
 /**
  * @fileoverview Tab 式实体详情组件（Angular `EntityDetailComponent` 的 React 移植）。
  *
@@ -146,6 +147,8 @@ export function EntityDetail({
   onFieldChanged,
   onValidationErrors
 }: EntityDetailProps): JSX.Element {
+  const { t, runtime: modelI18n } = useModelI18n();
+
   const rxdb = useRxDBOptional();
   /** 组件树里有没有 Provider：没有时按独立表单运行，有但库未到（含 source 创建失败）时按未就绪处理。 */
   const hasProvider = useHasRxDBProvider();
@@ -301,12 +304,16 @@ export function EntityDetail({
   const metadataValue: EntityMetadata | undefined = metadata ?? (entityCls ? getEntityMetadata(entityCls) : undefined);
 
   const formFieldsValue: FormFieldConfig[] = useMemo(() => {
+    t('common.actions');
+
     const fields =
-      formFields ?? (entityCls && metadataValue ? buildFormFields(metadataValue, formModeValue) : undefined) ?? [];
+      formFields ??
+      (entityCls && metadataValue ? buildFormFields(metadataValue, formModeValue, modelI18n) : undefined) ??
+      [];
     const fixed = fixedFormData;
     if (!fixed) return fields;
     return fields.map(f => (f.field in fixed ? { ...f, readonly: true } : f));
-  }, [formFields, entityCls, metadataValue, formModeValue, fixedFormData]);
+  }, [formFields, entityCls, metadataValue, formModeValue, fixedFormData, modelI18n, t]);
 
   const formDataValue: EntityFormData = useMemo(() => {
     if (isCreateMode) {
@@ -327,7 +334,7 @@ export function EntityDetail({
     const meta = metadataValue;
     const mode = formModeValue;
     const title = meta?.displayName ?? meta?.name ?? '';
-    return mode === 'create' ? `新建${title}` : title;
+    return mode === 'create' ? t('text.ec43629967', { p0: title }) : title;
   })();
 
   /** 创建链路：当前实体 + 祖先链路，传递给子 entity-list 以阻断循环创建。 */
@@ -345,13 +352,15 @@ export function EntityDetail({
   const tabs = useMemo(() => {
     if (!metadataValue) return [];
     const chain = creationChainValue;
-    return buildDetailTabs(metadataValue).filter(tab => {
+
+    t('detail.basic');
+    return buildDetailTabs(metadataValue, modelI18n).filter(tab => {
       if (tab.type !== 'table') return true;
       const t = tab as DetailTableTab;
       const key = `${t.relatedNamespace}:${t.relatedEntityName}`;
       return !chain.includes(key);
     });
-  }, [metadataValue, creationChainValue]);
+  }, [t, metadataValue, creationChainValue, modelI18n]);
 
   // tabs 变化时活动 tab 重置为首个（Angular 侧 linkedSignal 同语义；渲染期调整状态）
   const [prevTabs, setPrevTabs] = useState(tabs);
@@ -388,8 +397,10 @@ export function EntityDetail({
   );
 
   /** 落库失败：可读原因进错误面板（不再只进 console，US-104）。 */
-  const saveErrorMessage = (error: unknown): string =>
-    `保存失败：${error instanceof Error ? error.message : String(error)}`;
+  const saveErrorMessage = useCallback(
+    (error: unknown): string => t('text.6ba723c9e6', { p0: error instanceof Error ? error.message : String(error) }),
+    [t]
+  );
 
   /** 切 tab：create 模式切到关系 tab 前先校验界面上的数据并同步草稿（Angular / Vue 侧同语义）。 */
   const selectTab = useCallback(
@@ -397,7 +408,7 @@ export function EntityDetail({
       const targetTab = tabs.find(t => t.key === key);
       if (isCreateMode && targetTab?.type === 'table') {
         // 校验的是界面显示的数据：等库期间它含宿主初始值，与 draftFormData 不同
-        const result = validateForm(formFieldsValue, formDataValue);
+        const result = validateForm(formFieldsValue, formDataValue, modelI18n);
         if (!result.valid) {
           handleValidationErrors(result);
           return;
@@ -406,7 +417,7 @@ export function EntityDetail({
       }
       setActiveTabKey(key);
     },
-    [tabs, isCreateMode, formFieldsValue, formDataValue, handleValidationErrors]
+    [tabs, isCreateMode, formFieldsValue, formDataValue, handleValidationErrors, modelI18n]
   );
 
   /** 清理草稿实体缓存：从建它的那个库移除（Angular 侧 #cleanupDraftEntity、Vue 侧 cleanupDraftEntity 同语义）。 */
@@ -450,7 +461,16 @@ export function EntityDetail({
           setSaveError(saveErrorMessage(error));
         });
     },
-    [isEditPending, isCreateMode, entityInstance, editTarget, formFieldsValue, dialog, onFormSubmitted]
+    [
+      isEditPending,
+      isCreateMode,
+      entityInstance,
+      editTarget,
+      formFieldsValue,
+      dialog,
+      onFormSubmitted,
+      saveErrorMessage
+    ]
   );
 
   /** 表单取消：作废进行中的保存，清理草稿缓存并 emit formCancelled。 */
@@ -477,11 +497,8 @@ export function EntityDetail({
   const handleSave = useCallback((): void => {
     // 等库期间按钮已禁用，这里再拦一道：草稿还没建出来，不能当成透传成功（Vue 侧同语义）
     if (isCreatePending) return;
-    const fields = formFieldsValue;
-    const data = draftFormData;
-    const fixed = fixedFormData;
-    const merged = fixed ? { ...data, ...fixed } : data;
-    const result = validateForm(fields, merged);
+    const merged = formDataValue;
+    const result = validateForm(formFieldsValue, merged, modelI18n);
     if (!result.valid) {
       handleValidationErrors(result);
       return;
@@ -513,13 +530,14 @@ export function EntityDetail({
   }, [
     isCreatePending,
     formFieldsValue,
-    draftFormData,
-    fixedFormData,
+    formDataValue,
     draftEntity,
     editTarget,
     dialog,
     onFormSubmitted,
-    handleValidationErrors
+    handleValidationErrors,
+    saveErrorMessage,
+    modelI18n
   ]);
 
   /** 取消按钮（create 模式页脚）。 */
@@ -641,7 +659,7 @@ export function EntityDetail({
         {(isCreateMode || isEditPending) && (
           <div className='border-base-300 flex shrink-0 justify-end gap-2 border-t px-4 py-3'>
             <button className='btn' data-detail-cancel='true' onClick={handleCancel} type='button'>
-              取消
+              {t('common.cancel')}
             </button>
             {isCreateMode && (
               <button
@@ -651,7 +669,7 @@ export function EntityDetail({
                 onClick={handleSave}
                 type='button'
               >
-                保存
+                {t('common.save')}
               </button>
             )}
           </div>

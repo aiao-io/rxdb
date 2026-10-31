@@ -1,3 +1,4 @@
+import { useModelI18n } from '../../i18n.js';
 /**
  * @fileoverview 基于 Popover API 的下拉选择组件（Angular `PopoverSelectComponent` 的 React 移植）。
  *
@@ -40,10 +41,12 @@ export interface PopoverSelectProps {
 export function PopoverSelect({
   options,
   selected = '',
-  placeholder = '请选择',
+  placeholder,
   minWidth = '8rem',
   onSelectChange
 }: PopoverSelectProps): JSX.Element {
+  const { t } = useModelI18n();
+
   const [uid] = useState(() => `rxdb-ps-${++uidCounter}`);
   const listId = `${uid}-list`;
 
@@ -54,7 +57,7 @@ export function PopoverSelect({
   const [filterText, setFilterText] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const currentLabel = findOptionLabel(options, selected, placeholder);
+  const currentLabel = findOptionLabel(options, selected, placeholder ?? t('text.da590a8fe3'));
 
   const filteredOptions = useMemo(() => {
     const filter = filterText.toLowerCase().trim();
@@ -174,7 +177,7 @@ export function PopoverSelect({
             aria-controls={listId}
             aria-expanded='true'
             aria-autocomplete='list'
-            placeholder='搜索...'
+            placeholder={t('text.c304ad3873')}
             role='combobox'
             type='text'
             value={filterText}
@@ -213,7 +216,7 @@ export function PopoverSelect({
               </button>
             </li>
           ))}
-          {filteredOptions.length === 0 && <li className='px-3 py-1.5 text-sm opacity-50'>无匹配项</li>}
+          {filteredOptions.length === 0 && <li className='px-3 py-1.5 text-sm opacity-50'>{t('text.336cba9a92')}</li>}
         </ul>
       </div>
     </>

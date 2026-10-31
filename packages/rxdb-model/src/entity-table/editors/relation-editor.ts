@@ -1,5 +1,6 @@
 import type { EditContext, IEditor, RectProps } from '@visactor/vtable-editors';
 import type { RelatedEntityItem } from '../../entity-form/interfaces.js';
+import { ModelEditorI18n } from '../../i18n.js';
 import { DAISY_COLORS, positionOverlayPanel, refocusTable } from './global-overlay-editor.js';
 
 /** 关联实体选项项 */
@@ -15,6 +16,7 @@ export { type RelatedEntityItem };
  * - 存储外键 ID，显示关联实体的 displayName
  */
 export class RelationEditor implements IEditor<string> {
+  readonly #messages = new ModelEditorI18n();
   #currentValue = '';
   #originalValue = '';
   readonly #itemsSource: RelatedEntityItem[] | (() => RelatedEntityItem[]);
@@ -91,6 +93,7 @@ export class RelationEditor implements IEditor<string> {
 
   /** 弹出搜索浮层，解析候选列表并绑定键盘与点击事件 */
   onStart(ctx: EditContext<string>): void {
+    this.#messages.start(ctx.table);
     const table = ctx.table as { getCellOriginValue(col: number, row: number): unknown } | null;
     const origin = table?.getCellOriginValue(ctx.col, ctx.row) ?? ctx.value;
     this.#currentValue = origin != null ? String(origin) : '';
@@ -125,7 +128,7 @@ export class RelationEditor implements IEditor<string> {
 
     const input = document.createElement('input');
     input.type = 'text';
-    input.placeholder = '搜索…';
+    this.#messages.bind(input, 'placeholder', () => this.#messages.t('common.search'));
     input.style.cssText = [
       'width:100%',
       'box-sizing:border-box',
@@ -174,6 +177,7 @@ export class RelationEditor implements IEditor<string> {
 
   /** 移除浮层并解绑全局事件 */
   onEnd(): void {
+    this.#messages.clear();
     this.#panel?.remove();
     this.#panel = null;
     this.#listContainer = null;
@@ -201,7 +205,9 @@ export class RelationEditor implements IEditor<string> {
 
   #buildFilteredItems(query: string): void {
     const base: RelatedEntityItem[] =
-      this.#nullable ? [{ id: '', displayName: '(空)' }, ...this.#resolvedItems] : [...this.#resolvedItems];
+      this.#nullable ?
+        [{ id: '', displayName: this.#messages.t('text.98057319c7') }, ...this.#resolvedItems]
+      : [...this.#resolvedItems];
     if (!query.trim()) {
       this.#filteredItems = base;
       return;
@@ -219,7 +225,7 @@ export class RelationEditor implements IEditor<string> {
     if (this.#filteredItems.length === 0) {
       const empty = document.createElement('div');
       empty.style.cssText = `padding:8px 12px;font-size:12px;opacity:0.45;color:${DAISY_COLORS.text}`;
-      empty.textContent = '无匹配结果';
+      this.#messages.bind(empty, 'textContent', () => this.#messages.t('common.noMatches'));
       list.appendChild(empty);
       return;
     }

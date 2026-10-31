@@ -21,6 +21,7 @@ import {
   type LucideIconInput
 } from '@lucide/angular';
 import { AppService } from '../app.service';
+import { I18nPipe } from '../pipes/i18n.pipe';
 
 interface MenuChild {
   title: string;
@@ -29,13 +30,13 @@ interface MenuChild {
 
 @Component({
   selector: 'app-menu',
-  imports: [RouterLink, RouterLinkActive, LucideDynamicIcon],
+  imports: [RouterLink, RouterLinkActive, LucideDynamicIcon, I18nPipe],
   template: `
     <ul class="menu bg-base-200 rounded-box w-full p-1">
       @for (item of menus; track $index) {
         @if (item.type === 'divider') {
           <li class="menu-title">
-            <span class="rxdb-menu-item">{{ item.title }}</span>
+            <span class="rxdb-menu-item">{{ item.title | i18n }}</span>
           </li>
         } @else if (item.type === 'group') {
           <!-- 分组（details 原生折叠）：Tree Menu / File Manager 等重复命名收进折叠组 -->
@@ -43,13 +44,13 @@ interface MenuChild {
             <details open>
               <summary>
                 <svg [lucideIcon]="item.icon!" size="16"></svg>
-                <span class="rxdb-menu-item">{{ item.title }}</span>
+                <span class="rxdb-menu-item">{{ item.title | i18n }}</span>
               </summary>
               <ul>
                 @for (child of item.children; track child.path) {
                   <li>
                     <a [routerLink]="child.path" routerLinkActive="menu-active">
-                      <span class="rxdb-menu-item">{{ child.title }}</span>
+                      <span class="rxdb-menu-item">{{ child.title | i18n }}</span>
                     </a>
                   </li>
                 }
@@ -60,7 +61,7 @@ interface MenuChild {
           <li>
             <a [routerLink]="item.path" routerLinkActive="menu-active">
               <svg [lucideIcon]="item.icon!" size="16"></svg>
-              <span class="rxdb-menu-item">{{ item.title }}</span>
+              <span class="rxdb-menu-item">{{ item.title | i18n }}</span>
             </a>
           </li>
         }
@@ -111,151 +112,161 @@ export class AppMenu {
   > = [
     {
       type: 'link',
-      title: 'Home',
+      title: 'nav.home',
       path: '/home',
       icon: House
     },
     {
       type: 'divider',
-      title: 'Todo Examples'
+      title: 'nav.section.examples'
     },
     {
       type: 'link',
-      title: 'Todo (findAll)',
+      title: 'nav.todo.findAll',
       path: '/todo',
       icon: ListTodo
     },
     {
       type: 'link',
-      title: 'Todo (cursor)',
+      title: 'nav.todo.cursor',
       path: '/todo-cursor',
       icon: ListTodo
     },
     {
       type: 'divider',
-      title: 'Components'
+      title: 'nav.section.components'
     },
     {
       type: 'group',
-      title: 'Tree Menu',
+      title: 'nav.treeMenu',
       icon: ListTree,
       children: [
-        { title: 'Simple', path: '/menu-simple' },
-        { title: 'Virtual Scroll', path: '/menu-virtual' },
-        { title: 'Lazy Load', path: '/menu-lazy' }
+        { title: 'nav.simple', path: '/menu-simple' },
+        { title: 'nav.virtualScroll', path: '/menu-virtual' },
+        { title: 'nav.lazyLoad', path: '/menu-lazy' }
       ]
     },
     {
       type: 'group',
-      title: 'File Manager',
+      title: 'nav.fileManager',
       icon: FolderTree,
       children: [
-        { title: 'Simple', path: '/file-manager-simple' },
-        { title: 'Virtual Scroll', path: '/file-manager-virtual' },
-        { title: 'Lazy Load', path: '/file-manager-lazy' }
+        { title: 'nav.simple', path: '/file-manager-simple' },
+        { title: 'nav.virtualScroll', path: '/file-manager-virtual' },
+        { title: 'nav.lazyLoad', path: '/file-manager-lazy' }
       ]
     },
     {
       type: 'link',
-      title: 'AG Grid',
+      title: 'nav.agGrid',
       path: '/ag-grid',
       icon: Grid3x3
     },
     {
       type: 'divider',
-      title: 'Entity Model'
+      title: 'nav.section.entityModel'
     },
     {
       type: 'link',
-      title: 'Entities',
+      title: 'nav.entities',
       path: '/entities',
       icon: ListTodo
     },
     {
       type: 'link',
-      title: 'BOM 编辑与展开',
+      title: 'nav.bomView',
       path: '/bom-view',
       icon: ListTree
     },
     {
       type: 'link',
-      title: 'Code Editor',
+      title: 'nav.codeEditor',
       path: '/code-editor',
       icon: Code
     },
     {
       type: 'link',
-      title: 'Generator',
+      title: 'nav.generator',
       path: '/generator',
       icon: Factory
     },
     {
       type: 'divider',
-      title: 'Search'
+      title: 'nav.section.search'
     },
     {
       type: 'link',
-      title: 'Global Search',
+      title: 'nav.globalSearch',
       path: '/search',
       icon: Search
     },
     {
       type: 'divider',
-      title: 'Storage'
+      title: 'nav.section.storage'
     },
     {
       type: 'link',
-      title: 'OPFS Manager',
+      title: 'nav.opfsManager',
       path: '/opfs',
       icon: FolderOpen
     },
     {
       type: 'link',
-      title: 'Storage',
+      title: 'nav.storage',
       path: '/storage',
       icon: Database
     },
     {
       type: 'link',
-      title: 'Remote Cache',
+      title: 'nav.remoteCache',
       path: '/remote-cache',
       icon: Cloud
     },
     {
       type: 'divider',
-      title: 'Workspace'
+      title: 'nav.section.workspace'
     },
     {
       type: 'link',
-      title: 'Draft Recovery',
+      title: 'nav.draftRecovery',
       path: '/workspace',
       icon: Layers
     },
     {
       type: 'link',
-      title: 'Working Tree',
+      title: 'nav.workingTree',
       path: '/working-tree',
       icon: GitMerge
     },
     {
       type: 'link',
-      title: '失败归档导入',
+      title: 'nav.failureArchive',
       path: '/failure-archive',
       icon: ArchiveRestore
     },
     {
       type: 'link',
-      title: '录制回放',
+      title: 'nav.replay',
       path: '/replay',
       icon: Video
     },
     {
       type: 'divider',
-      title: '安全'
+      title: 'nav.section.internationalization'
     },
     {
       type: 'link',
-      title: '字段加密',
+      title: 'nav.i18nDemo',
+      path: '/i18n',
+      icon: Search
+    },
+    {
+      type: 'divider',
+      title: 'nav.section.security'
+    },
+    {
+      type: 'link',
+      title: 'nav.encrypted',
       path: '/encrypted',
       icon: Lock
     }

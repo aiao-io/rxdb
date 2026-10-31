@@ -20,6 +20,7 @@ const ROUTES = [
   ['/database', 'app-database-page'],
   ['/opfs', 'app-opfs-page'],
   ['/storage', 'app-storage-page'],
+  ['/i18n', 'app-i18n-page'],
   ['/settings', 'app-settings-page']
 ] as const;
 

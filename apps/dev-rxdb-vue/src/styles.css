@@ -71,6 +71,10 @@ app-header,
   left: 0;
 }
 
+.header-floating #layout-content {
+  margin-top: 2.5rem;
+}
+
 /* Mobile sidebar overlay
    absolute 锚定 #layout-main（移动端 position:relative 的应用区）而不是视口：
    无界嵌入（website）里 fixed inset-0 会盖到宿主导航栏上、遮罩也从视口顶起算。 */

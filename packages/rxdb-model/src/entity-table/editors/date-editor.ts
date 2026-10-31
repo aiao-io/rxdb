@@ -1,4 +1,5 @@
 import type { EditContext, IEditor } from '@visactor/vtable-editors';
+import { ModelEditorI18n } from '../../i18n.js';
 import { DAISY_COLORS, positionOverlayPanel, refocusTable, scheduleEditorSetup } from './global-overlay-editor.js';
 
 type TableLike = { getCellOriginValue(col: number, row: number): unknown } | null;
@@ -13,6 +14,7 @@ type TableLike = { getCellOriginValue(col: number, row: number): unknown } | nul
  * - 「清除」按钮：将值设为 null
  */
 export class DateEditor implements IEditor<unknown> {
+  readonly #messages = new ModelEditorI18n();
   #value: Date | null = null;
   #originalValue: Date | null = null;
   #panel: HTMLDivElement | null = null;
@@ -24,6 +26,7 @@ export class DateEditor implements IEditor<unknown> {
 
   /** 打开编辑器：构建浮层面板并初始化原生 datetime-local 输入 */
   onStart(ctx: EditContext<unknown>): void {
+    this.#messages.start(ctx.table);
     const container = ctx.container as HTMLElement;
     this.#endEdit = () => {
       refocusTable(container);
@@ -88,7 +91,7 @@ export class DateEditor implements IEditor<unknown> {
 
     const clearBtn = document.createElement('button');
     clearBtn.type = 'button';
-    clearBtn.textContent = '清除';
+    this.#messages.bind(clearBtn, 'textContent', () => this.#messages.t('common.clear'));
     clearBtn.style.cssText = [
       'font-size:12px',
       `color:${DAISY_COLORS.text}`,
@@ -133,6 +136,7 @@ export class DateEditor implements IEditor<unknown> {
 
   /** 结束编辑：清理浮层面板与事件监听 */
   onEnd(): void {
+    this.#messages.clear();
     this.#cleanup();
   }
 
@@ -159,6 +163,7 @@ export class DateEditor implements IEditor<unknown> {
   }
 
   #cleanup(): void {
+    this.#messages.clear();
     if (this.#outsideHandler) {
       document.removeEventListener('mousedown', this.#outsideHandler, { capture: true });
       this.#outsideHandler = null;

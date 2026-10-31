@@ -123,6 +123,8 @@
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@aiao/rxdb-i18n": "workspace:*",
+    "@aiao/rxdb-i18n-angular": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@analogjs/vite-plugin-angular": "^2.9.2",
     "@analogjs/vitest-angular": "^2.9.2",
@@ -261,5 +263,5 @@
     "website",
     "benchmarks"
   ],
-  "packageManager": "pnpm@12.15.0"
+  "packageManager": "pnpm@12.16.1"
 }

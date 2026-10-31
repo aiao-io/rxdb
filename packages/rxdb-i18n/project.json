@@ -1,0 +1,28 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-i18n",
+  "tags": ["js-lib"],
+  "targets": {
+    "build": {
+      "options": {
+        "command": "vite build && node ../../scripts/audit/package-api-docs.mjs . --members"
+      }
+    },
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
+    "test-browser": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-i18n",
+        "command": "vitest run --config vite.config.mts",
+        "env": {
+          "VITEST_BROWSER": "true"
+        }
+      },
+      "metadata": {
+        "description": "US-911 A2：真实Chromium中的ICU共享冒烟。"
+      }
+    }
+  }
+}

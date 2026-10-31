@@ -9,6 +9,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, input, OnDestroy, output, Signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { useModelI18n } from '../../i18n';
 import { QueryGroupComponent, type UIRuleGroup } from '../query-group/query-group.component';
 
 /**
@@ -29,8 +30,10 @@ import { QueryGroupComponent, type UIRuleGroup } from '../query-group/query-grou
     <div class="subquery-builder border-base-300 bg-base-200/50 p-2">
       @if (!hasRules()) {
         <div class="text-base-content/60 flex items-center gap-2">
-          <button class="btn btn-ghost btn-xs" (click)="handleAddFirstRule()" type="button">+ 添加子条件</button>
-          <span class="text-xs opacity-50">（可选）</span>
+          <button class="btn btn-ghost btn-xs" (click)="handleAddFirstRule()" type="button">
+            {{ t('text.cb29450db8') }}
+          </button>
+          <span class="text-xs opacity-50">{{ t('text.3d5c3c3dba') }}</span>
         </div>
       } @else {
         <rxdb-query-group
@@ -45,7 +48,9 @@ import { QueryGroupComponent, type UIRuleGroup } from '../query-group/query-grou
           (updateRule)="onUpdateRule($event)"
         />
         <div class="mt-2 flex justify-end">
-          <button class="btn btn-ghost btn-xs text-error" (click)="handleClear()" type="button">清空</button>
+          <button class="btn btn-ghost btn-xs text-error" (click)="handleClear()" type="button">
+            {{ t('text.1ef3de06b3') }}
+          </button>
         </div>
       }
     </div>
@@ -61,6 +66,8 @@ import { QueryGroupComponent, type UIRuleGroup } from '../query-group/query-grou
   ]
 })
 export class SubqueryBuilderComponent implements OnDestroy {
+  readonly #modelBinding = useModelI18n();
+
   private readonly service: QueryBuilderService<Record<string, unknown>>;
   /** initialQuery 是否已应用（只应用一次） */
   private initialQueryApplied = false;
@@ -97,9 +104,17 @@ export class SubqueryBuilderComponent implements OnDestroy {
     return group && group.rules.length > 0;
   });
 
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
+
   constructor() {
     // 在构造函数中初始化服务
     this.service = createQueryBuilderService<Record<string, unknown>>({
+      i18n: this.modelI18n,
       config: {
         maxNestingLevel: this.maxDepth()
       }

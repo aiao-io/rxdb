@@ -1,3 +1,4 @@
+import type { ModelI18n } from '../i18n.js';
 /**
  * 表单校验工具
  * 基于字段配置校验单个字段值与整份表单数据
@@ -12,8 +13,8 @@ import type { EntityFormData, FormFieldConfig, FormValidationResult } from './in
  * @param value - 待校验的字段值
  * @returns 校验错误；校验通过时返回 null
  */
-export function validateField(field: FormFieldConfig, value: unknown): FieldValidationError | null {
-  return validateEntityFieldValue(field, value);
+export function validateField(field: FormFieldConfig, value: unknown, i18n?: ModelI18n): FieldValidationError | null {
+  return validateEntityFieldValue(field, value, i18n);
 }
 
 /**
@@ -23,11 +24,11 @@ export function validateField(field: FormFieldConfig, value: unknown): FieldVali
  * @param data - 表单数据
  * @returns 校验结果（是否通过及错误列表）
  */
-export function validateForm(fields: FormFieldConfig[], data: EntityFormData): FormValidationResult {
+export function validateForm(fields: FormFieldConfig[], data: EntityFormData, i18n?: ModelI18n): FormValidationResult {
   const errors: FieldValidationError[] = [];
   for (const field of fields) {
     if (field.readonly || field.hidden) continue;
-    const error = validateEntityFieldValue(field, data[field.field]);
+    const error = validateEntityFieldValue(field, data[field.field], i18n);
     if (error) errors.push(error);
   }
   return { valid: errors.length === 0, errors };

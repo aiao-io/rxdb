@@ -288,4 +288,29 @@ describe('PersistedStateRegistry', () => {
     expect(other.entry('ns', 'isolated', 1)).not.toBe(registry.entry('ns', 'isolated', 1));
     expect(other.entry('ns', 'isolated', 1).get()).toBe(9);
   });
+
+  it('已初始化的独立注册表不跟随 storage 事件，重新创建时才恢复盘上新偏好', () => {
+    const first = registry.entry('i18n', 'devicePreferredLocale', 'zh-Hans');
+    const otherRegistry = new PersistedStateRegistry({ onError });
+    const other = otherRegistry.entry('i18n', 'devicePreferredLocale', 'fr');
+    const listener = vi.fn();
+    const unsubscribe = other.subscribe(listener);
+
+    expect(other.get()).toBe('zh-Hans');
+    first.set('en');
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: first.storageKey,
+        oldValue: JSON.stringify('zh-Hans'),
+        newValue: JSON.stringify('en')
+      })
+    );
+
+    expect(mockLocalStorage.getItem(first.storageKey)).toBe(JSON.stringify('en'));
+    expect(other.get()).toBe('zh-Hans');
+    expect(listener).not.toHaveBeenCalled();
+    const reloaded = new PersistedStateRegistry({ onError });
+    expect(reloaded.entry('i18n', 'devicePreferredLocale', 'fr').get()).toBe('en');
+    unsubscribe();
+  });
 });

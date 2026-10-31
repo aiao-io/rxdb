@@ -23,6 +23,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/storage.page').then(m => m.StoragePage)
   },
   {
+    path: 'i18n',
+    loadComponent: () => import('./pages/i18n.page').then(m => m.I18nPage)
+  },
+  {
     path: 'settings',
     loadComponent: () => import('./pages/settings.page').then(m => m.SettingsPage)
   }

@@ -6,7 +6,7 @@
     data-testid="entity-catalog"
   >
     <div class="border-base-300 text-base-content/70 flex h-10 min-h-10 items-center border-b px-3 text-xs font-medium">
-      实体类型
+      {{ 'page.entity.types' | i18n }}
     </div>
     <div class="flex-1 overflow-y-auto max-md:max-h-40">
       <ul class="menu menu-sm w-full">
@@ -40,7 +40,7 @@
       </ul>
     </div>
     <div class="border-base-300 text-base-content/40 flex items-center border-t px-3 py-1.5 text-xs">
-      <span>共 {{ entityList.length }} 个实体</span>
+      <span>{{ 'page.entity.total' | i18n: { count: entityList.length } }}</span>
     </div>
   </div>
 

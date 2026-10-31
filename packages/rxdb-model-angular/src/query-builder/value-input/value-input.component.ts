@@ -25,6 +25,7 @@ import {
   ViewContainerRef,
   type OutputRefSubscription
 } from '@angular/core';
+import { useModelI18n } from '../../i18n';
 import { PopoverSelectComponent } from '../popover-select/popover-select.component';
 import type { SubqueryBuilderComponent } from '../subquery-builder/subquery-builder.component';
 
@@ -50,7 +51,7 @@ import type { SubqueryBuilderComponent } from '../subquery-builder/subquery-buil
   template: `
     @switch (inputType()) {
       @case ('none') {
-        <span class="text-base-content/50 px-2 text-sm italic">无需输入值</span>
+        <span class="text-base-content/50 px-2 text-sm italic">{{ t('text.c91721bbca') }}</span>
       }
       @case ('uuid') {
         <div
@@ -61,9 +62,9 @@ import type { SubqueryBuilderComponent } from '../subquery-builder/subquery-buil
           <input
             class="input input-sm font-mono"
             [class.input-error]="hasError() || !!uuidError()"
+            [placeholder]="t('text.e2c752399e')"
             [value]="$any(currentValue())"
             (input)="onUuidChange($any($event.target).value)"
-            placeholder="输入 UUID"
             style="min-width: 16rem"
             type="text"
           />
@@ -72,7 +73,7 @@ import type { SubqueryBuilderComponent } from '../subquery-builder/subquery-buil
       @case ('subquery') {
         <div class="subquery-container w-full">
           @if (!relationFields() || relationFields().length === 0) {
-            <span class="text-base-content/50 px-2 text-sm italic">存在/不存在（无子条件）</span>
+            <span class="text-base-content/50 px-2 text-sm italic">{{ t('text.b06078aff8') }}</span>
           } @else {
             <div #subqueryContainer></div>
           }
@@ -89,10 +90,10 @@ import type { SubqueryBuilderComponent } from '../subquery-builder/subquery-buil
       @case ('enum') {
         <rxdb-popover-select
           [options]="enumSelectOptions()"
+          [placeholder]="t('text.aff46a5acc')"
           [selected]="$any(currentValue())?.toString() ?? ''"
           (selectChange)="onEnumSelect($event)"
           minWidth="12rem"
-          placeholder="选择值"
         />
       }
       @case ('enum-array') {
@@ -126,7 +127,7 @@ import type { SubqueryBuilderComponent } from '../subquery-builder/subquery-buil
               style="width: 9rem"
               type="date"
             />
-            <span class="text-base-content/50">至</span>
+            <span class="text-base-content/50">{{ t('text.65edbf9f1c') }}</span>
             <input
               class="input input-sm"
               [class.input-error]="hasError()"
@@ -146,19 +147,19 @@ import type { SubqueryBuilderComponent } from '../subquery-builder/subquery-buil
             <input
               class="input input-sm"
               [class.input-error]="hasError()"
+              [placeholder]="t('text.b2dcdcfabb')"
               [value]="$any(rangeMin()) ?? ''"
               (input)="onRangeMinChange($any($event.target).value)"
-              placeholder="最小值"
               style="width: 7rem"
               type="number"
             />
-            <span class="text-base-content/50">至</span>
+            <span class="text-base-content/50">{{ t('text.65edbf9f1c') }}</span>
             <input
               class="input input-sm"
               [class.input-error]="hasError()"
+              [placeholder]="t('text.1e7a228207')"
               [value]="$any(rangeMax()) ?? ''"
               (input)="onRangeMaxChange($any($event.target).value)"
-              placeholder="最大值"
               style="width: 7rem"
               type="number"
             />
@@ -170,9 +171,9 @@ import type { SubqueryBuilderComponent } from '../subquery-builder/subquery-buil
           <input
             class="input input-sm"
             [class.input-error]="hasError()"
+            [placeholder]="t('text.9bc4dfa6ca')"
             [value]="$any(currentValue()) ?? ''"
             (input)="onNumberInputChange($any($event.target).value)"
-            placeholder="输入数值"
             type="number"
           />
         </div>
@@ -194,9 +195,9 @@ import type { SubqueryBuilderComponent } from '../subquery-builder/subquery-buil
           <input
             class="input input-sm"
             [class.input-error]="hasError()"
+            [placeholder]="t('text.ca6668dc4c')"
             [value]="arrayInputValue()"
             (input)="onArrayInputChange($any($event.target).value)"
-            placeholder="输入多个值，用逗号分隔"
             style="width: 100%; min-width: 12rem"
             type="text"
           />
@@ -207,9 +208,9 @@ import type { SubqueryBuilderComponent } from '../subquery-builder/subquery-buil
           <input
             class="input input-sm"
             [class.input-error]="hasError()"
+            [placeholder]="t('text.26cf65c431')"
             [value]="$any(currentValue()) ?? ''"
             (input)="onValueChange($any($event.target).value)"
-            placeholder="输入值"
             style="width: 100%; min-width: 12rem"
             type="text"
           />
@@ -220,6 +221,8 @@ import type { SubqueryBuilderComponent } from '../subquery-builder/subquery-buil
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ValueInputComponent implements OnInit, OnDestroy {
+  readonly #modelBinding = useModelI18n();
+
   private previousInputType: string | null = null;
   private subqueryComponentRef?: ComponentRef<SubqueryBuilderComponent>;
   private subquerySubscription?: OutputRefSubscription;
@@ -230,7 +233,7 @@ export class ValueInputComponent implements OnInit, OnDestroy {
   readonly uuidError = computed(() => {
     if (this.inputType() !== 'uuid') return '';
     const val = String(this.currentValue() ?? '').trim();
-    return val && !UUID_RE.test(val) ? '请输入合法的 UUID 格式' : '';
+    return val && !UUID_RE.test(val) ? this.t('text.5c1d789855') : '';
   });
 
   @ViewChild('subqueryContainer', { read: ViewContainerRef })
@@ -267,6 +270,13 @@ export class ValueInputComponent implements OnInit, OnDestroy {
   readonly enumSelectOptions = computed(() =>
     this.enumOptions().map(opt => ({ value: String(opt), label: String(opt) }))
   );
+
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
 
   constructor() {
     effect(() => {

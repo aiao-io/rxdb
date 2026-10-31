@@ -1,4 +1,5 @@
 import type { OperatorName } from '@aiao/rxdb';
+import { modelText } from '../../i18n.js';
 import type { PropertyType } from './query-builder-state.js';
 
 /**
@@ -15,6 +16,9 @@ export interface OperatorDefinition {
    * 显示标签（支持国际化）
    */
   label: string;
+
+  /** 内置标签目录键；自定义 label 保持优先。 */
+  labelKey?: string;
 
   /**
    * 值类型
@@ -44,13 +48,15 @@ export const DEFAULT_OPERATORS: OperatorDefinition[] = [
   // 相等操作符
   {
     key: '=',
-    label: '等于',
+    label: modelText('text.4bc69a0562'),
+    labelKey: 'text.4bc69a0562',
     valueType: 'single',
     applicableTypes: ['uuid', 'string', 'number', 'boolean', 'date', 'enum']
   },
   {
     key: '!=',
-    label: '不等于',
+    label: modelText('text.9678e3a7cb'),
+    labelKey: 'text.9678e3a7cb',
     valueType: 'single',
     applicableTypes: ['uuid', 'string', 'number', 'boolean', 'date', 'enum']
   },
@@ -58,25 +64,29 @@ export const DEFAULT_OPERATORS: OperatorDefinition[] = [
   // 比较操作符
   {
     key: '<',
-    label: '小于',
+    label: modelText('text.a39accd359'),
+    labelKey: 'text.a39accd359',
     valueType: 'single',
     applicableTypes: ['number', 'date', 'string']
   },
   {
     key: '>',
-    label: '大于',
+    label: modelText('text.b4614ab230'),
+    labelKey: 'text.b4614ab230',
     valueType: 'single',
     applicableTypes: ['number', 'date', 'string']
   },
   {
     key: '<=',
-    label: '小于等于',
+    label: modelText('text.035d78382d'),
+    labelKey: 'text.035d78382d',
     valueType: 'single',
     applicableTypes: ['number', 'date', 'string']
   },
   {
     key: '>=',
-    label: '大于等于',
+    label: modelText('text.e1feef07d1'),
+    labelKey: 'text.e1feef07d1',
     valueType: 'single',
     applicableTypes: ['number', 'date', 'string']
   },
@@ -84,37 +94,43 @@ export const DEFAULT_OPERATORS: OperatorDefinition[] = [
   // 字符串操作符
   {
     key: 'contains',
-    label: '包含',
+    label: modelText('text.107319b8b3'),
+    labelKey: 'text.107319b8b3',
     valueType: 'single',
     applicableTypes: ['string', 'array']
   },
   {
     key: 'notContains',
-    label: '不包含',
+    label: modelText('text.5f60ffcf60'),
+    labelKey: 'text.5f60ffcf60',
     valueType: 'single',
     applicableTypes: ['string', 'array']
   },
   {
     key: 'startsWith',
-    label: '开头是',
+    label: modelText('text.f35b23dcbb'),
+    labelKey: 'text.f35b23dcbb',
     valueType: 'single',
     applicableTypes: ['string']
   },
   {
     key: 'notStartsWith',
-    label: '开头不是',
+    label: modelText('text.1a5ca15290'),
+    labelKey: 'text.1a5ca15290',
     valueType: 'single',
     applicableTypes: ['string']
   },
   {
     key: 'endsWith',
-    label: '结尾是',
+    label: modelText('text.e3131c7560'),
+    labelKey: 'text.e3131c7560',
     valueType: 'single',
     applicableTypes: ['string']
   },
   {
     key: 'notEndsWith',
-    label: '结尾不是',
+    label: modelText('text.82e3d0a39b'),
+    labelKey: 'text.82e3d0a39b',
     valueType: 'single',
     applicableTypes: ['string']
   },
@@ -122,13 +138,15 @@ export const DEFAULT_OPERATORS: OperatorDefinition[] = [
   // 空值操作符（仅在 nullable 字段时通过 getForField() 动态添加）
   {
     key: 'null',
-    label: '为空',
+    label: modelText('text.6f0db35f5c'),
+    labelKey: 'text.6f0db35f5c',
     valueType: 'none',
     applicableTypes: []
   },
   {
     key: 'notNull',
-    label: '不为空',
+    label: modelText('text.1a160efcb3'),
+    labelKey: 'text.1a160efcb3',
     valueType: 'none',
     applicableTypes: []
   },
@@ -136,13 +154,15 @@ export const DEFAULT_OPERATORS: OperatorDefinition[] = [
   // 集合操作符
   {
     key: 'in',
-    label: '在列表中',
+    label: modelText('text.8c4c2b3124'),
+    labelKey: 'text.8c4c2b3124',
     valueType: 'array',
     applicableTypes: ['string', 'number', 'enum']
   },
   {
     key: 'notIn',
-    label: '不在列表中',
+    label: modelText('text.220fa9b54a'),
+    labelKey: 'text.220fa9b54a',
     valueType: 'array',
     applicableTypes: ['string', 'number', 'enum']
   },
@@ -150,13 +170,15 @@ export const DEFAULT_OPERATORS: OperatorDefinition[] = [
   // 范围操作符
   {
     key: 'between',
-    label: '在范围内',
+    label: modelText('text.b696b2e453'),
+    labelKey: 'text.b696b2e453',
     valueType: 'range',
     applicableTypes: ['number', 'date']
   },
   {
     key: 'notBetween',
-    label: '不在范围内',
+    label: modelText('text.789ca1313e'),
+    labelKey: 'text.789ca1313e',
     valueType: 'range',
     applicableTypes: ['number', 'date']
   },
@@ -164,13 +186,15 @@ export const DEFAULT_OPERATORS: OperatorDefinition[] = [
   // 关系操作符
   {
     key: 'exists',
-    label: '存在',
+    label: modelText('text.4a558371f9'),
+    labelKey: 'text.4a558371f9',
     valueType: 'subquery',
     applicableTypes: ['relation']
   },
   {
     key: 'notExists',
-    label: '不存在',
+    label: modelText('text.4e51b67dd3'),
+    labelKey: 'text.4e51b67dd3',
     valueType: 'subquery',
     applicableTypes: ['relation']
   }

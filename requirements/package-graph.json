@@ -163,6 +163,39 @@
       "framework": null
     },
     {
+      "name": "@aiao/rxdb-i18n",
+      "description": "框架无关的 ICU 客户端国际化运行时，语言偏好与目录覆盖存入本地 RxDB。",
+      "role": "capability",
+      "hosts": ["browser", "node", "electron", "tauri"],
+      "slots": [],
+      "framework": null,
+      "notes": "依赖宿主 Intl 系列 API；小程序运行时不支持。静态目录模式不需要数据库。"
+    },
+    {
+      "name": "@aiao/rxdb-i18n-angular",
+      "description": "客户端国际化的 Angular 原生响应式绑定，提供 useI18n() 与组件树注入。",
+      "role": "binding",
+      "hosts": ["browser"],
+      "slots": [],
+      "framework": "angular"
+    },
+    {
+      "name": "@aiao/rxdb-i18n-react",
+      "description": "客户端国际化的 React 原生响应式绑定，提供 useI18n() 与组件树注入。",
+      "role": "binding",
+      "hosts": ["browser"],
+      "slots": [],
+      "framework": "react"
+    },
+    {
+      "name": "@aiao/rxdb-i18n-vue",
+      "description": "客户端国际化的 Vue 原生响应式绑定，提供 useI18n() 与组件树注入。",
+      "role": "binding",
+      "hosts": ["browser"],
+      "slots": [],
+      "framework": "vue"
+    },
+    {
       "name": "@aiao/rxdb-model",
       "description": "框架无关的 RxDB 实体模型核心库：从实体元数据（`EntityMetadata`）派生表单、详情页、可编辑表格与可视化查询构建器所需的全部纯逻辑，并配套 VTable 表格运行时基础设施。",
       "role": "model",

@@ -162,9 +162,9 @@ test.describe('Working Tree 页面功能', () => {
     await page.getByTestId('wt-diff-settings').click();
     await expect(page.getByTestId('wt-diff-settings-popup')).toBeVisible();
     await expect(page.getByRole('radio', { name: 'Split' })).toBeChecked();
-    // Angular 的 change 处理同步关闭设置面板；用 click 完成交互后立即断言结果，
-    // 避免 Playwright 在已被移除的 input 上继续等待 check 的动作收尾。
+    // 选中设置会立即卸载弹层，用点击和实际显示效果验证，不在已卸载节点上核验 checked。
     await page.getByRole('radio', { name: 'Unified' }).click();
+    await expect(page.getByTestId('wt-diff-settings-popup')).toHaveCount(0);
     await expect(page.getByTestId('wt-split')).toHaveCount(0);
     // Unified：逐字段 -/+ 行，增行整行绿底。
     await expect(viewer.locator('.gd-hunk')).toBeVisible();
@@ -176,11 +176,13 @@ test.describe('Working Tree 页面功能', () => {
     await expect(page.getByTestId('wt-diff-whitespace')).not.toBeChecked();
     await expect(page.getByTestId('wt-diff-wrap')).toBeChecked();
     await page.getByTestId('wt-diff-wrap').click();
+    await expect(page.getByTestId('wt-diff-settings-popup')).toHaveCount(0);
     await expect(viewer.locator('.gd-diff-content').first()).toHaveCSS('white-space', 'pre');
     await page.getByTestId('wt-diff-settings').click();
+    await expect(page.getByTestId('wt-diff-wrap')).not.toBeChecked();
     await page.getByTestId('wt-diff-wrap').click();
-    await page.keyboard.press('Escape');
     await expect(page.getByTestId('wt-diff-settings-popup')).toHaveCount(0);
+    await expect(viewer.locator('.gd-diff-content').first()).toHaveCSS('white-space', 'pre-wrap');
     await page.getByTestId('wt-change-filter').fill('no-match');
     await expect(page.getByTestId('wt-diff-item')).toHaveCount(0);
     await page.getByTestId('wt-change-filter').fill('tasks');
@@ -214,7 +216,7 @@ test.describe('Working Tree 页面功能', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openPanel(page);
     await waitForAutoEnabled(page);
-    const menuToggle = page.getByRole('button', { name: 'Toggle menu' });
+    const menuToggle = page.getByRole('button', { name: /Toggle menu|切换菜单/ });
     await expect(menuToggle).toBeVisible();
     await menuToggle.click();
     await expect(page.locator('app-sidebar')).toBeVisible();

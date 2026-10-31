@@ -1,5 +1,6 @@
 import type { EditContext, IEditor, RectProps } from '@visactor/vtable-editors';
 import { UUID_RE } from '../../entity-value.utils.js';
+import { ModelEditorI18n } from '../../i18n.js';
 import { DAISY_COLORS, refocusTable, scheduleEditorSetup } from './global-overlay-editor.js';
 
 type TableLike = { getCellOriginValue(col: number, row: number): unknown } | null;
@@ -14,6 +15,7 @@ export { UUID_RE };
  * Enter / Tab 提交；Escape 恢复原值；点击外部提交，非法输入恢复原值。
  */
 export class UuidEditor implements IEditor<unknown> {
+  readonly #messages = new ModelEditorI18n();
   #value: string | null = null;
   #originalValue: string | null = null;
   #input: HTMLInputElement | null = null;
@@ -27,6 +29,7 @@ export class UuidEditor implements IEditor<unknown> {
 
   /** 创建并显示输入框与错误提示浮层，绑定格式校验与提交逻辑 */
   onStart(ctx: EditContext<unknown>): void {
+    this.#messages.start(ctx.table);
     const container = ctx.container as HTMLElement;
     this.#container = container;
     this.#endEdit = () => {
@@ -47,7 +50,7 @@ export class UuidEditor implements IEditor<unknown> {
     const input = document.createElement('input');
     input.type = 'text';
     input.value = this.#value ?? '';
-    input.placeholder = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
+    this.#messages.bind(input, 'placeholder', () => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx');
     input.style.cssText = [
       'position:fixed',
       'z-index:9999',
@@ -84,11 +87,11 @@ export class UuidEditor implements IEditor<unknown> {
 
     const setError = (msg: string) => {
       if (msg) {
-        tooltip.textContent = msg;
+        this.#messages.bindValue(tooltip, 'textContent', msg);
         tooltip.style.display = 'block';
         input.style.borderColor = DAISY_COLORS.error;
       } else {
-        tooltip.textContent = '';
+        this.#messages.bind(tooltip, 'textContent', () => '');
         tooltip.style.display = 'none';
         input.style.borderColor = DAISY_COLORS.primary;
       }
@@ -99,7 +102,7 @@ export class UuidEditor implements IEditor<unknown> {
       if (v === '' || UUID_RE.test(v)) {
         setError('');
       } else {
-        setError('请输入合法的 UUID 格式');
+        setError(this.#messages.t('text.5c1d789855'));
       }
     });
 
@@ -115,7 +118,7 @@ export class UuidEditor implements IEditor<unknown> {
           this.#value = v.toLowerCase();
           this.#endEdit?.();
         } else {
-          setError('请输入合法的 UUID 格式 (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)');
+          setError(this.#messages.t('text.b688e4530c'));
         }
       } else if (e.key === 'Escape') {
         e.preventDefault();
@@ -158,6 +161,7 @@ export class UuidEditor implements IEditor<unknown> {
 
   /** 移除输入框与提示浮层，解绑全局点击事件 */
   onEnd(): void {
+    this.#messages.clear();
     this.#cleanup();
   }
 
@@ -185,6 +189,7 @@ export class UuidEditor implements IEditor<unknown> {
   }
 
   #cleanup(): void {
+    this.#messages.clear();
     if (this.#outsideHandler) {
       document.removeEventListener('mousedown', this.#outsideHandler, { capture: true });
       this.#outsideHandler = null;

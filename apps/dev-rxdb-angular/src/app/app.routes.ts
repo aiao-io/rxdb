@@ -57,6 +57,10 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./pages/home/home.page')
   },
   {
+    path: 'i18n',
+    loadComponent: () => import('./pages/i18n/i18n.page')
+  },
+  {
     path: 'search',
     canActivate: [connectBeforeEnter],
     loadComponent: () => import('./pages/search/search.page')

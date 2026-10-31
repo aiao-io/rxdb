@@ -1,8 +1,10 @@
 import { provideRxDB } from '@aiao/rxdb-angular';
+import { I18N, provideI18n } from '@aiao/rxdb-i18n-angular';
 import { APP_BASE_HREF, PlatformLocation, registerLocaleData } from '@angular/common';
 import { provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
 import {
   ApplicationConfig,
+  inject,
   isDevMode,
   LOCALE_ID,
   provideAppInitializer,
@@ -21,6 +23,8 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { provideLoadingBarInterceptor } from '@ngx-loading-bar/http-client';
 import { provideLoadingBarRouter } from '@ngx-loading-bar/router';
 import { appRoutes } from './app.routes';
+import { dbConnectionError } from './rxdb/db-connection';
+import { createDemoI18n } from './rxdb/i18n';
 import setup_rxdb from './rxdb/setup_rxdb_sqlite-wasm';
 
 const resolveLocale = (): 'zh' | 'en-US' => {
@@ -63,6 +67,14 @@ export const appConfig: ApplicationConfig = {
       })
     ),
     provideRxDB(setup_rxdb),
+    provideI18n(() => createDemoI18n(setup_rxdb())),
+    provideAppInitializer(() =>
+      inject(I18N)
+        .init()
+        .catch(error => {
+          if (dbConnectionError() === null) throw error;
+        })
+    ),
     provideHttpClient(withFetch(), withInterceptorsFromDi()),
     provideLoadingBarInterceptor(),
     provideLoadingBarRouter(),

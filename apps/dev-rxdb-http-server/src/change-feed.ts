@@ -62,13 +62,21 @@ export const openChangeFeed = (
  *
  * @param entity - **客户端**实体名（`@Entity({ name })`），不是资源路径
  * @param clientId - 发起这次写入的客户端标识；`undefined` 时字段不出现在载荷里
+ * @param namespace - 非 public 实体的命名空间；缺省时沿用协议的 public
  *
  * @remarks
  * `clientId` 原样回显，后端不解释也不校验它。客户端拿它抑制自己的回声（D6）——
  * 刚写完的那一端本地已经是最新，再被自己的通知踢一次纯属白跑一趟远端。
  */
-export const broadcastChange = (subscribers: ChangeSubscribers, entity: string, clientId?: string): void => {
-  subscribers.broadcast(`data:${JSON.stringify({ entity, ...(clientId === undefined ? {} : { clientId }) })}\n\n`);
+export const broadcastChange = (
+  subscribers: ChangeSubscribers,
+  entity: string,
+  clientId?: string,
+  namespace?: string
+): void => {
+  subscribers.broadcast(
+    `data:${JSON.stringify({ entity, ...(clientId === undefined ? {} : { clientId }), ...(namespace === undefined ? {} : { namespace }) })}\n\n`
+  );
 };
 
 /** 从一次写入请求里读出发起方标识。缺失、空串、重复头一律当没有。 */

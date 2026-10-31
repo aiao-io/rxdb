@@ -1,3 +1,4 @@
+import { useModelI18n } from '../i18n.js';
 /**
  * @fileoverview 实体列表组件（Angular `EntityListComponent` 的 React 移植）。
  *
@@ -210,6 +211,8 @@ export function EntityList({
   onSelectionConfirmed,
   onSelectionCancelled
 }: EntityListProps): JSX.Element {
+  const { t, runtime: modelI18n } = useModelI18n();
+
   const rxdb = useRxDB();
 
   const entityKey = `${namespace}:${name}`;
@@ -351,8 +354,8 @@ export function EntityList({
   const canUndo = undoCount > 0;
   const canRedo = redoCount > 0;
   // 按钮停用时的说明：栈停在子分支分叉点（US-315）；能撤销 / 重做或不是这个原因时没有
-  const undoHint = canUndo ? null : describeHistoryBarrier('undo', undoBarrier);
-  const redoHint = canRedo ? null : describeHistoryBarrier('redo', redoBarrier);
+  const undoHint = canUndo ? null : describeHistoryBarrier('undo', undoBarrier, modelI18n);
+  const redoHint = canRedo ? null : describeHistoryBarrier('redo', redoBarrier, modelI18n);
 
   // ── 列表资源注册表（ListSlot 写入；事件/回调路径经 ref 镜像读取）───────
   const [listResources, setListResources] = useState<ReadonlyMap<string, InfiniteScrollResource<EntityType>>>(
@@ -469,12 +472,14 @@ export function EntityList({
   }, [instances, localDraftItems, isSelectMode, alreadyLinkedIds, selectedIds, isRowReadonly]);
 
   const columnsCache = useMemo(() => {
+    t('common.actions');
     const cache = new Map<string, ColumnDefine[]>();
     for (const cls of rxdb.config.entities) {
       const meta = getEntityMetadata(cls);
       cache.set(
         `${meta.namespace}:${meta.name}`,
         buildEditableColumns(meta, {
+          i18n: modelI18n,
           readOnly: rxdb.readOnly,
           relatedItemsProviderFactory: (fkField, relatedEntityName) => {
             const relCls = [...entityClsMap.values()].find(c => getEntityMetadata(c).name === relatedEntityName);
@@ -496,17 +501,19 @@ export function EntityList({
       );
     }
     return cache;
-  }, [rxdb, entityClsMap]);
+  }, [rxdb, entityClsMap, t, modelI18n]);
 
   const baseTableColumns = useMemo<ColumnDefine[]>(() => {
     // 未注册实体无元数据可派生，不给删除
-    const base = columnsCache.get(entityKey) ?? [actionsColumn('操作', '删除', () => false, '查看')];
+    const base = columnsCache.get(entityKey) ?? [
+      actionsColumn(t('common.actions'), t('common.delete'), () => false, t('common.view'))
+    ];
     if (isSelectMode) {
       const withoutActions = base.filter(column => (column as Record<string, unknown>)['field'] !== 'actions');
       return [{ field: '__selected', title: '', cellType: 'checkbox', width: 50 }, ...withoutActions];
     }
     return base;
-  }, [columnsCache, entityKey, isSelectMode]);
+  }, [columnsCache, entityKey, isSelectMode, t]);
 
   const tableColumns = useMemo(
     () => applyListViewColumns(baseTableColumns, activeViewState),
@@ -520,10 +527,10 @@ export function EntityList({
     () => buildListViewRecords(sourceTableRecords, activeViewState),
     [activeViewState, sourceTableRecords]
   );
-  const listTableOptions = useMemo(
-    () => ({ ...LIST_TABLE_OPTIONS, ...buildListViewTableOptions(activeViewState, baseTableColumns) }),
-    [activeViewState, baseTableColumns]
-  );
+  const listTableOptions = useMemo(() => {
+    t('common.actions');
+    return { ...LIST_TABLE_OPTIONS, ...buildListViewTableOptions(activeViewState, baseTableColumns, modelI18n) };
+  }, [activeViewState, baseTableColumns, modelI18n, t]);
   const onViewSettingsChange = (value: ListViewState): void => {
     setViewState(value);
     const first = value.sorts[0];
@@ -531,9 +538,11 @@ export function EntityList({
   };
 
   const createFormFieldConfigs = useMemo<FormFieldConfig[]>(() => {
+    t('common.actions');
+
     if (!entityCls) return [];
-    return buildFormFields(getEntityMetadata(entityCls), 'create');
-  }, [entityCls]);
+    return buildFormFields(getEntityMetadata(entityCls), 'create', modelI18n);
+  }, [entityCls, modelI18n, t]);
 
   const selectedCount = selectedIds.size;
 
@@ -738,7 +747,7 @@ export function EntityList({
       const formMode = record['_readonly'] === true ? 'view' : 'edit';
       const data: EntityDetailDialogData = {
         metadata: meta,
-        formFields: buildFormFields(meta, formMode),
+        formFields: buildFormFields(meta, formMode, modelI18n),
         formData: {},
         formMode,
         entityId: id,
@@ -746,7 +755,7 @@ export function EntityList({
       };
       setOpenDialog({ kind: 'view', recordId: id, data });
     },
-    [editChain]
+    [editChain, modelI18n]
   );
 
   const onIconClicked = useCallback(
@@ -1011,7 +1020,9 @@ export function EntityList({
       <div className='border-base-300 flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-1'>
         <div className='flex items-center gap-2 text-sm'>
           <span className='font-medium'>{displayName}</span>
-          {isFilterQuery && <span className='badge badge-ghost badge-sm'>{filteredCount} 条记录</span>}
+          {isFilterQuery && (
+            <span className='badge badge-ghost badge-sm'>{t('text.3a517ca2dd', { p0: filteredCount })}</span>
+          )}
         </div>
         <div className='flex flex-wrap items-center gap-2'>
           {!isSelectMode && (
@@ -1022,7 +1033,7 @@ export function EntityList({
                 disabled={!canUndo}
                 title={undoHint ?? undefined}
                 onClick={undo}
-                aria-label={`撤销 (Ctrl+Z) ${undoCount}`}
+                aria-label={t('text.63def656c9', { p0: undoCount })}
                 type='button'
               >
                 <Undo2 className='h-3.5 w-3.5' size={14} />
@@ -1035,7 +1046,7 @@ export function EntityList({
                 disabled={!canRedo}
                 title={redoHint ?? undefined}
                 onClick={redo}
-                aria-label={`重做 (Ctrl+Shift+Z) ${redoCount}`}
+                aria-label={t('text.a8e3b35a63', { p0: redoCount })}
                 type='button'
               >
                 <Redo2 className='h-3.5 w-3.5' size={14} />
@@ -1072,20 +1083,20 @@ export function EntityList({
               type='button'
             >
               <X className='h-3.5 w-3.5' size={14} />
-              清除筛选
+              {t('text.657d9cbf45')}
             </button>
           )}
           {!isCreateBlocked &&
             (isSelectMode ?
               <button className='btn btn-sm btn-outline' onClick={openCreateDialog} type='button'>
-                + 新建
+                {t('text.e514cb19f5')}
               </button>
             : isM2m ?
               <button className='btn btn-primary btn-sm' onClick={openM2mSelectDialog} type='button'>
-                + 添加
+                {t('text.42bb5c118d')}
               </button>
             : <button className='btn btn-primary btn-sm' onClick={openCreateDialog} type='button'>
-                + 新增
+                {t('text.a91e87b292')}
               </button>)}
         </div>
       </div>
@@ -1093,14 +1104,16 @@ export function EntityList({
       {/* 拖拽排序落库失败 */}
       {reorderError !== null && (
         <div role='alert' className='alert alert-error alert-soft mx-4 mt-2 py-2 text-sm'>
-          排序保存失败：{reorderError}
+          {t('text.3c8fa3dfd1')}
+          {reorderError}
         </div>
       )}
 
       {/* 删除被存储层拒绝 */}
       {deleteError !== null && (
         <div role='alert' className='alert alert-error alert-soft mx-4 mt-2 py-2 text-sm' data-testid='delete-error'>
-          删除失败：{deleteError}
+          {t('text.0580fcee37')}
+          {deleteError}
         </div>
       )}
 
@@ -1127,9 +1140,9 @@ export function EntityList({
             onSortClicked={onSortClicked}
             emptyState={
               <div className='flex flex-col items-center gap-1 py-10' data-testid='entity-empty-state'>
-                <span className='text-base-content/40 text-sm'>暂无数据</span>
+                <span className='text-base-content/40 text-sm'>{t('common.noData')}</span>
                 {!isSelectMode && !isCreateBlocked && (
-                  <span className='text-base-content/40 text-sm'>点击「+ 新增」开始录入第一条{displayName}</span>
+                  <span className='text-base-content/40 text-sm'>{t('text.0d4d0cde26', { p0: displayName })}</span>
                 )}
               </div>
             }
@@ -1141,11 +1154,11 @@ export function EntityList({
       {isSelectMode && (
         <div className='border-base-300 flex shrink-0 items-center justify-between border-t px-4 py-3'>
           {selectedCount > 0 ?
-            <span className='text-base-content/70 text-sm'>已选 {selectedCount} 项</span>
-          : <span className='text-base-content/40 text-sm'>请选择要关联的{displayName}</span>}
+            <span className='text-base-content/70 text-sm'>{t('text.dfd3db5fee', { p0: selectedCount })}</span>
+          : <span className='text-base-content/40 text-sm'>{t('text.f2baa39ff0', { p0: displayName })}</span>}
           <div className='flex gap-2'>
             <button className='btn btn-sm' onClick={cancelSelection} type='button'>
-              取消
+              {t('common.cancel')}
             </button>
             <button
               className='btn btn-primary btn-sm'
@@ -1153,7 +1166,7 @@ export function EntityList({
               onClick={confirmSelection}
               type='button'
             >
-              确认添加
+              {t('text.72dde8dfef')}
             </button>
           </div>
         </div>
@@ -1216,11 +1229,15 @@ export function EntityList({
           width='min(420px, calc(100vw - 1rem))'
           className='entity-delete-confirm-dialog'
         >
-          <EntityDialog title='删除确认' onCloseRequested={() => setDeleteConfirm(null)}>
-            <p className='text-sm'>确定删除这条{displayName}记录？</p>
+          <EntityDialog title={t('text.fe43bc43c2')} onCloseRequested={() => setDeleteConfirm(null)}>
+            <p className='text-sm'>
+              {t('text.759f1a1020')}
+              {displayName}
+              {t('text.7de9eb2080')}
+            </p>
             <div className='flex justify-end gap-2 pt-3'>
               <button className='btn btn-sm' onClick={() => setDeleteConfirm(null)} type='button'>
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 className='btn btn-error btn-sm'
@@ -1228,7 +1245,7 @@ export function EntityList({
                 onClick={() => void confirmDelete()}
                 type='button'
               >
-                删除
+                {t('common.delete')}
               </button>
             </div>
           </EntityDialog>
@@ -1239,7 +1256,7 @@ export function EntityList({
       {saveToastVisible && (
         <div className='toast toast-end z-[1100]' data-testid='save-toast'>
           <div className='alert alert-success py-2 text-sm' role='status'>
-            已保存
+            {t('text.1bd91a7d0c')}
           </div>
         </div>
       )}
@@ -1255,7 +1272,7 @@ export function EntityList({
           minHeight='300px'
           className='entity-m2m-select-dialog'
         >
-          <EntityDialog title={`添加${displayName}`} onCloseRequested={m2mCancelSelection}>
+          <EntityDialog title={t('text.bdb86a1198', { p0: displayName })} onCloseRequested={m2mCancelSelection}>
             <EntityList
               alreadyLinkedIds={m2mAlreadyLinkedIds}
               mode='select'
@@ -1312,6 +1329,8 @@ function FilterPopover({
   onReset,
   onApply
 }: FilterPopoverProps): JSX.Element {
+  const { t } = useModelI18n();
+
   const triggerRef = useRef<HTMLButtonElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -1345,7 +1364,7 @@ function FilterPopover({
         type='button'
       >
         <Funnel className='h-4 w-4' size={16} />
-        筛选
+        {t('text.b5f15473fd')}
         {isQueryActive && <span className='badge badge-primary badge-xs'>{filterRuleCount}</span>}
       </button>
       {open && (
@@ -1372,7 +1391,7 @@ function FilterPopover({
               />
               <div className='mt-3 flex justify-end gap-2'>
                 <button className='btn btn-ghost btn-sm' onClick={onReset} type='button'>
-                  重置
+                  {t('text.cb5d682bac')}
                 </button>
                 <button
                   className='btn btn-primary btn-sm'
@@ -1380,7 +1399,7 @@ function FilterPopover({
                   onClick={onApply}
                   type='button'
                 >
-                  确定
+                  {t('text.fac2a67ad8')}
                 </button>
               </div>
             </div>

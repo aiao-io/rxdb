@@ -27,7 +27,7 @@ export interface SelfCheckOutcome {
   readonly status: SelfCheckStatus;
   /** 本次读回的累计启动次数；只有 `ok` 时有值。 */
   readonly launchCount?: number;
-  /** 失败原因；只有失败方向有值。 */
+  /** 失败原因或成功时的运行时探针诊断。 */
   readonly message?: string;
   /**
    * 文件存储探针的结果；只有 `ok` 时有值（US-505 AC#1 / AC#3）。

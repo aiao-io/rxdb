@@ -61,6 +61,9 @@
       "path": "../../packages/rxdb-plugin-history/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-i18n/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     },
     {

@@ -11,6 +11,7 @@ import {
   output,
   viewChild
 } from '@angular/core';
+import { useModelI18n } from '../i18n';
 
 let uidCounter = 0;
 
@@ -21,6 +22,8 @@ let uidCounter = 0;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ListViewSettingsComponent {
+  readonly #modelBinding = useModelI18n();
+
   readonly #destroyRef = inject(DestroyRef);
   private readonly root = viewChild.required<ElementRef<HTMLElement>>('settings');
   readonly uid = `rxdb-list-settings-${++uidCounter}`;
@@ -36,6 +39,13 @@ export class ListViewSettingsComponent {
     this.fields().filter(field => field.sortable && !this.value().sorts.some(sort => sort.field === field.field))
   );
   readonly sortable = computed(() => this.fields().filter(field => field.sortable));
+
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
 
   constructor() {
     afterNextRender(() => {

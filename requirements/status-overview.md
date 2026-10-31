@@ -9,8 +9,8 @@
 | :------------- | :--- |
 | ✅ Done        | 105  |
 | 🚧 In Progress | 2    |
-| 👀 In Review   | 5    |
-| 📝 Backlog     | 9    |
+| 👀 In Review   | 6    |
+| 📝 Backlog     | 8    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 121  |
 
@@ -24,13 +24,16 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md) | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。            |
 | [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)                                | 既有过滤与候选消歧已实现；新增 AC#12 的空批次集合写入拒绝与兼容性验收待完成。 |
 
-## 待评审（5 条）
+## 待评审（6 条）
 
-| Story                                                                                        | 剩余范围                                                                      |
-| -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md) | 改了读取列而缓存补不齐时回 SQL，核心与真实双连接回归通过；待代码评审。        |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)   | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                               |
-| [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)     | workspace接线已验证；发布tarball仓外消费与独立重搭仍待验证，AC#1/#3不能标绿。 |
+| Story                                                                                                                | 剩余范围                                                                                                        |
+| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)                         | 改了读取列而缓存补不齐时回 SQL 已实现，核心与真实双连接回归通过；待代码评审。                                   |
+| [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                                                 | A～D 已实现；偏好载体对照、历史隔离、三端/四运行时、目录分发与 DevTools 已验收，待代码评审。                    |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                           | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                                                 |
+| [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)                             | workspace接线已验证、AC#2成本记录已通过；AC#1发布tarball仓外消费与AC#3试用者按文档独立重搭仍待验证，不能标绿。  |
+| [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)          | 直写修改经 `p_updates` 普通 UPDATE 并返回服务器最终行，推送与原计数入口保留既有权限语义；待代码评审。           |
+| [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md) | 触发器捕获实际 DELETE，RPC 在源日志后写完整隐式日志；显式删除去重、回执收口与混合批次顺序回归通过；待代码评审。 |
 
 ## 阻塞（0 条）
 
@@ -118,7 +121,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-703 PGlite 全文搜索](stories/future/US-703-pglite-full-text-search.md)
 - ✅ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md)
 - ⬜ [US-910 数据国际化 / 本地化（多语言实体翻译）](stories/future/US-910-data-i18n.md)
-- ⬜ [US-911 客户端国际化 / 本地化（UI 文案与 locale 状态）](stories/future/US-911-client-i18n.md)
+- 👀 [US-911 客户端国际化 / 本地化（UI 文案与 locale 状态）](stories/future/US-911-client-i18n.md)
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 
@@ -195,6 +198,6 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 ## 前置阻塞（不体现在 Blocked 计数里）
 
 - BOM 既有完整范围已有实现；US-518 新增 AC#12 仍未关闭，不能以旧阶段验收替代。
-- US-029与P2P仍价值待证；US-403、US-910/911、US-603留在立项池，不因Backlog状态自动获得开工授权。
+- US-029与P2P仍价值待证；US-403、US-910、US-603留在立项池，不因Backlog状态自动获得开工授权。
 - US-910/911的最小能力验证、US-211/219的真实宿主证据、US-528的仓外消费均不能由源码单测替代。
 - Epic关闭还须满足其当前承诺目标和实际发布验收，不能只看所属故事的Done数量。

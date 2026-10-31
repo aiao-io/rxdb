@@ -47,7 +47,7 @@ test.describe('Lazy Loading Tree Menu - E2E Tests', () => {
   });
 
   test('should display lazy loading menu page', async ({ page }) => {
-    await expect(page.locator('h1')).toContainText(/Tree Menu - Lazy Load|场景3：懒加载/);
+    await expect(page.locator('h1')).toContainText(/Tree Menu - Lazy Load|树菜单 - 懒加载|场景3：懒加载/);
   });
 
   test('should have add menu input', async ({ page }) => {

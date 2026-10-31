@@ -1,5 +1,6 @@
 import { APP_BASE_HREF, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { canOpenExisting, FailureArchiveImportFailure, toImportFailure } from '../../rxdb/failure-archive';
 import { FailureArchiveInfo, importFailureArchive, readFailureArchiveInfo } from '../../rxdb/failure-archive-import';
 import { openImportedDb } from '../../rxdb/imported-db';
@@ -21,7 +22,7 @@ type ImportState =
  */
 @Component({
   selector: 'app-failure-archive-page',
-  imports: [DatePipe],
+  imports: [DatePipe, I18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './failure-archive.page.html'
 })

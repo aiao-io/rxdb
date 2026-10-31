@@ -18,11 +18,13 @@
 import type { Repository, RuleGroup, SyncOptions } from '@aiao/rxdb';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
+import { RemoteMessageEntry } from '@aiao/rxdb-i18n';
 import { Recipe } from '@modules/recipes-domain';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { firstValueFrom } from 'rxjs';
 
+import { seedMessageCatalog } from './message-catalog.ts';
 import type { RecipeRow } from './seed.ts';
 
 /** 后端 RxDB 食谱存储。 */
@@ -55,10 +57,13 @@ export const createRxdbRecipeStore = async (dataDir: string): Promise<RxdbRecipe
     dbName: SERVER_DB_NAME,
     // D9：后端实例是全租户共享，`context` 填服务器身份（不是任何用户），引擎拿它盖审计字段。
     context: { userId: 'server' },
-    entities: [Recipe],
+    entities: [Recipe, RemoteMessageEntry],
     multiInstance: false,
     sync: SERVER_RECIPE_SYNC,
-    syncOverrides: [{ entity: Recipe, sync: SERVER_RECIPE_SYNC }]
+    syncOverrides: [
+      { entity: Recipe, sync: SERVER_RECIPE_SYNC },
+      { entity: RemoteMessageEntry, sync: SERVER_RECIPE_SYNC }
+    ]
   });
   rxdb.adapter('pglite', async db => new RxDBAdapterPGlite(db, { dataDir }));
   await rxdb.connect('pglite');
@@ -113,6 +118,7 @@ export const seedRxdbStore = async (store: RxdbRecipeStore, rows: readonly Recip
       updatedAt: new Date(row.updatedAt)
     })
   );
+  await seedMessageCatalog(store);
   await store.rxdb.entityManager.saveMany(entities);
   return entities.length;
 };

@@ -59,3 +59,6 @@ export * from './entity-table/vtable/vtable-compat.js';
 export * from './query-builder/models/index.js';
 export * from './query-builder/services/index.js';
 export * from './query-builder/utils/index.js';
+
+export * from './i18n.js';
+export * from './messages.js';

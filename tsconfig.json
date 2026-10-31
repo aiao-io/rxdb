@@ -269,6 +269,18 @@
     },
     {
       "path": "./apps/dev-rxdb-admin-consumer"
+    },
+    {
+      "path": "./packages/rxdb-i18n"
+    },
+    {
+      "path": "./packages/rxdb-i18n-angular"
+    },
+    {
+      "path": "./packages/rxdb-i18n-react"
+    },
+    {
+      "path": "./packages/rxdb-i18n-vue"
     }
   ]
 }

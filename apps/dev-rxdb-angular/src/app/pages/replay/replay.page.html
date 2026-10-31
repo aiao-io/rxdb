@@ -5,11 +5,9 @@
   data-testid="replay-page"
 >
   <div class="space-y-2">
-    <h1 class="text-2xl font-bold">会话录制回放</h1>
+    <h1 class="text-2xl font-bold">{{ 'page.replay.title' | i18n }}</h1>
     <p class="text-base-content/70 text-sm">
-      打开后每次加载页面都会装上录制插件，事件写进独立的录制库，不进应用库。输入框默认遮蔽，带
-      <code>data-rxdb-replay-block</code>
-      的区块只录占位。回放时点 commit 标记可把工作树恢复到那一刻。
+      {{ 'page.replay.description' | i18n }}
     </p>
   </div>
 
@@ -22,7 +20,7 @@
         data-testid="replay-enabled"
         type="checkbox"
       />
-      录制开关（切换后重新加载页面）
+      {{ 'page.replay.toggle' | i18n }}
     </label>
     @if ($recordingDbName(); as recordingDbName) {
       <span class="badge badge-ghost font-mono" data-testid="replay-recording-db">{{ recordingDbName }}</span>
@@ -30,7 +28,7 @@
   </div>
 
   @if ($phase() === 'loading') {
-    <span class="loading loading-spinner" aria-label="加载录制插件"></span>
+    <span class="loading loading-spinner" [attr.aria-label]="'page.replay.loadingPlugin' | i18n"></span>
   }
 
   @if ($error(); as error) {
@@ -41,33 +39,42 @@
     <div class="flex flex-wrap items-center gap-3">
       @if ($recording()) {
         <button class="btn btn-warning" [disabled]="$busy()" (click)="stop()" data-testid="replay-stop" type="button">
-          停止录制
+          {{ 'page.replay.stop' | i18n }}
         </button>
       } @else {
         <button class="btn btn-primary" [disabled]="$busy()" (click)="start()" data-testid="replay-start" type="button">
-          开始录制
+          {{ 'page.replay.start' | i18n }}
         </button>
       }
-      <button class="btn btn-ghost" [disabled]="$busy()" (click)="refresh()" type="button">刷新列表</button>
+      <button class="btn btn-ghost" [disabled]="$busy()" (click)="refresh()" type="button">
+        {{ 'common.refresh' | i18n }}
+      </button>
       <span class="text-sm" data-testid="replay-state">{{ $state().kind }}</span>
       @if ($usage(); as usage) {
         <span class="text-base-content/70 text-sm" data-testid="replay-usage">
-          已用 {{ usage.bytes / 1024 | number: '1.0-1' }} KiB /
-          {{ usage.limits.storeBytes / 1048576 | number: '1.0-0' }}
-          MiB
+          {{
+            'page.replay.used'
+              | i18n
+                : {
+                    used: (usage.bytes / 1024 | number: '1.0-1'),
+                    limit: (usage.limits.storeBytes / 1048576 | number: '1.0-0')
+                  }
+          }}
         </span>
       }
     </div>
 
     <div class="overflow-x-auto">
-      <table class="table-sm table" aria-label="录制会话" data-testid="replay-sessions">
+      <table class="table-sm table" [attr.aria-label]="'page.replay.sessions' | i18n" data-testid="replay-sessions">
         <thead>
           <tr>
-            <th scope="col">开始时间</th>
-            <th scope="col">状态</th>
-            <th scope="col">事件数</th>
-            <th scope="col">体积</th>
-            <th scope="col"><span class="sr-only">操作</span></th>
+            <th scope="col">{{ 'page.replay.startedAt' | i18n }}</th>
+            <th scope="col">{{ 'page.replay.status' | i18n }}</th>
+            <th scope="col">{{ 'page.replay.eventCount' | i18n }}</th>
+            <th scope="col">{{ 'page.replay.size' | i18n }}</th>
+            <th scope="col">
+              <span class="sr-only">{{ 'common.moreActions' | i18n }}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -109,7 +116,7 @@
             </tr>
           } @empty {
             <tr>
-              <td class="text-base-content/70" colspan="5">还没有录制会话</td>
+              <td class="text-base-content/70" colspan="5">{{ 'common.noData' | i18n }}</td>
             </tr>
           }
         </tbody>
@@ -117,8 +124,8 @@
     </div>
 
     <fieldset class="fieldset card card-border bg-base-100 p-4" data-testid="replay-mask-demo">
-      <legend class="fieldset-legend">脱敏演示</legend>
-      <label class="label" for="replay-mask-input">输入框默认遮蔽：回放里只剩同样长度的 *</label>
+      <legend class="fieldset-legend">{{ 'page.replay.maskDemo' | i18n }}</legend>
+      <label class="label" for="replay-mask-input">{{ 'page.replay.maskHint' | i18n }}</label>
       <input class="input w-full" id="replay-mask-input" data-testid="replay-mask-input" type="text" />
       <div class="bg-base-200 rounded p-3 text-sm" data-rxdb-replay-block data-testid="replay-block-demo">
         带 data-rxdb-replay-block 的区块：回放里只是同尺寸的占位块，这段文字不进录像。

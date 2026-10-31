@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t, runtime: modelI18n } = useModelI18n();
+
+import { useModelI18n } from '../i18n';
+
 /**
  * 元数据驱动表单组件：按字段类型渲染对应输入控件，支持 create / edit / view 三模式；
  * 解析、格式化与校验全部委托 `@aiao/rxdb-model`。
@@ -112,7 +116,7 @@ const displayValueMap = computed(() => {
 const onFieldChange = (field: FormFieldConfig, rawValue: unknown): void => {
   const current = formData.value;
   const previousValue = current[field.field];
-  const result = parseEntityFieldValueStrict(field.type, rawValue);
+  const result = parseEntityFieldValueStrict(field.type, rawValue, modelI18n);
   if (!result.ok) {
     emit('validationErrors', {
       valid: false,
@@ -127,7 +131,7 @@ const onFieldChange = (field: FormFieldConfig, rawValue: unknown): void => {
 
 /** 表单提交：校验通过才 emit formSubmitted */
 const onSubmit = (): void => {
-  const result = validateForm(props.fields, formData.value);
+  const result = validateForm(props.fields, formData.value, modelI18n);
   if (!result.valid) {
     emit('validationErrors', result);
     return;
@@ -377,7 +381,7 @@ defineExpose({
             v-if="field.nullable"
             value=""
           >
-            (空)
+            {{ t('text.98057319c7') }}
           </option>
           <option
             v-for="val in field.enumValues ?? []"
@@ -447,7 +451,7 @@ defineExpose({
         <textarea
           v-else-if="field.type === 'binary'"
           class="textarea min-h-16 font-mono"
-          :placeholder="field.placeholder ?? '十六进制字节序列（如 0a0b）'"
+          :placeholder="field.placeholder ?? t('text.0f4507b76e')"
           :value="binaryToHex(formData[field.field])"
           @change="onFieldChange(field, ($event.target as HTMLTextAreaElement).value)"
         />
@@ -478,7 +482,7 @@ defineExpose({
         <input
           v-else-if="field.type === 'stringArray'"
           class="input"
-          :placeholder="field.placeholder ?? '逗号分隔'"
+          :placeholder="field.placeholder ?? t('text.07a7f1dd37')"
           :value="arrayJoin(formData[field.field] ?? [])"
           type="text"
           @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
@@ -486,7 +490,7 @@ defineExpose({
         <input
           v-else-if="field.type === 'numberArray'"
           class="input"
-          :placeholder="field.placeholder ?? '逗号分隔数字'"
+          :placeholder="field.placeholder ?? t('text.65c1f50349')"
           :value="arrayJoin(formData[field.field] ?? [])"
           type="text"
           @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
@@ -511,7 +515,7 @@ defineExpose({
             :value="displayInputValue(field)"
             @change="onFieldChange(field, ($event.target as HTMLSelectElement).value)"
           >
-            <option value=""> (空) </option>
+            <option value=""> {{ t('text.98057319c7') }} </option>
             <option
               v-for="item in relatedItemsMap.get(field.field) ?? []"
               :key="item.id"
@@ -525,7 +529,7 @@ defineExpose({
             class="text-warning text-xs"
             data-testid="relation-empty-hint"
           >
-            暂无「{{ field.displayName }}」可选，请先创建对应记录
+            {{ t('text.5366e25b36', { p0: field.displayName }) }}
           </span>
         </template>
         <div
@@ -578,13 +582,13 @@ defineExpose({
         type="button"
         @click="onCancel"
       >
-        取消
+        {{ t('common.cancel') }}
       </button>
       <button
         class="btn btn-primary"
         type="submit"
       >
-        保存
+        {{ t('common.save') }}
       </button>
     </div>
   </form>
