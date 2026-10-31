@@ -151,6 +151,10 @@ app-header {
     @apply relative;
   }
 
+  #layout-content {
+    margin-top: 2.5rem;
+  }
+
   app-header {
     @apply absolute top-0 right-0 left-0;
     position: absolute !important;

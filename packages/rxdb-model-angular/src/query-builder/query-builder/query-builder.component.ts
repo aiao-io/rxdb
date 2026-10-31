@@ -21,6 +21,7 @@ import {
   viewChild
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { useModelI18n } from '../../i18n';
 import { QueryDragDropHandler, QueryGroupComponent, type UIRuleGroup } from '../query-group/query-group.component';
 
 /**
@@ -56,26 +57,26 @@ export interface RxDBQueryOutput<T> {
   template: `
     <div
       class="rxdb-query-builder bg-base-100"
+      [attr.aria-label]="t('text.56a9f5c541')"
       (keydown)="onKeyDown($event)"
-      aria-label="查询条件构建器"
       role="search"
       tabindex="0"
     >
       <div class="overflow-y-auto" #scrollContainer [style.max-height]="height()">
         <!-- 标题栏 -->
         <div class="mb-4 flex items-center justify-between">
-          <h3 class="text-base" id="query-builder-title">查询条件</h3>
-          <div class="flex gap-2" aria-label="查询操作" role="toolbar">
+          <h3 class="text-base" id="query-builder-title">{{ t('text.648fdced03') }}</h3>
+          <div class="flex gap-2" [attr.aria-label]="t('text.7ed37bf1ef')" role="toolbar">
             @if (hasRules()) {
               <button
                 class="btn btn-ghost btn-sm"
+                [attr.aria-label]="t('text.d5766fc7e7')"
+                [title]="t('text.aa3624ed89')"
                 (click)="clearAll()"
                 (keydown.enter)="clearAll()"
-                aria-label="清空所有查询条件"
-                title="清空所有查询条件 (Escape)"
                 type="button"
               >
-                清空
+                {{ t('text.1ef3de06b3') }}
               </button>
             }
           </div>
@@ -99,9 +100,9 @@ export interface RxDBQueryOutput<T> {
                 <path d="m21 21-4.3-4.3" />
               </svg>
             </div>
-            <p class="mb-4">还没有任何查询条件</p>
-            <button class="btn btn-sm" (click)="addFirstRule()" aria-label="添加第一个条件" type="button">
-              添加第一个条件
+            <p class="mb-4">{{ t('text.d9f64a68c4') }}</p>
+            <button class="btn btn-sm" [attr.aria-label]="t('text.25ed2ab519')" (click)="addFirstRule()" type="button">
+              {{ t('text.25ed2ab519') }}
             </button>
           </div>
         } @else {
@@ -128,6 +129,8 @@ export interface RxDBQueryOutput<T> {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class QueryBuilderComponent<T extends object> implements OnDestroy {
+  readonly #modelBinding = useModelI18n();
+
   private readonly service: QueryBuilderService<T>;
   /** 上次应用的 initialQuery 引用，用于检测是否有新查询需要加载 */
   private lastAppliedInitialQuery: unknown = undefined;
@@ -216,9 +219,17 @@ export class QueryBuilderComponent<T extends object> implements OnDestroy {
     return group && group.rules.length > 0;
   });
 
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
+
   constructor() {
     // 在构造函数中初始化服务（非 reactive context）
     this.service = createQueryBuilderService<T>({
+      i18n: this.modelI18n,
       config: {
         maxNestingLevel: this.maxDepth()
       }

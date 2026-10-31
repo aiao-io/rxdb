@@ -1,4 +1,5 @@
 import { provideRxDB } from '@aiao/rxdb-angular';
+import { assertI18nRuntimeSmoke } from '@aiao/rxdb-i18n/testing';
 import { APP_BASE_HREF, isPlatformBrowser, PlatformLocation, registerLocaleData } from '@angular/common';
 import { provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
 import {
@@ -244,6 +245,7 @@ export const appConfig: ApplicationConfig = {
         state: inject(RxDBConnectionState),
         launches: inject(DesktopLaunchService),
         probe: probeStorage,
+        probeI18n: assertI18nRuntimeSmoke,
         probeWebview: probeWebviewCapabilities,
         probeDevTools: probeDevToolsWindow,
         backupProbe: {

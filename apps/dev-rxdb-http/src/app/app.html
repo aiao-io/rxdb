@@ -1,6 +1,9 @@
 <header class="topbar">
   <div class="topbar-head">
     <h1>RxDB HTTP 适配器 demo</h1>
+    @if (!i18nEnabled) {
+      <a [href]="i18nDemoUrl">国际化目录演示</a>
+    }
     <!--
       通道开关放这儿，是因为它是**全页唯一一个随时会想翻一下的开关**：
       两个窗口对照着看的时候，一次实验要翻两三回。压在页面最底下的面板里时，
@@ -116,6 +119,9 @@
     }
   </div>
 </header>
+@if (i18nEnabled) {
+  <app-i18n-demo />
+}
 
 <main>
   <section class="panel panel-filter" aria-labelledby="filter-heading">

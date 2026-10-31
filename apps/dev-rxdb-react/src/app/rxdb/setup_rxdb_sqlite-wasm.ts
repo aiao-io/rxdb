@@ -1,6 +1,7 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite, SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
+import { i18nEntities } from '@aiao/rxdb-i18n';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
@@ -29,7 +30,7 @@ export default () => {
   rxdb = new RxDB({
     dbName,
     context: { userId: 'userId' },
-    entities: [...ENTITIES, ...shop_entities, EncryptedUser],
+    entities: [...ENTITIES, ...shop_entities, EncryptedUser, ...i18nEntities()],
     sync: {
       local: {
         adapter: 'sqlite-wasm'

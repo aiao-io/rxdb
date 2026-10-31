@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t } = useModelI18n();
+
+import { useModelI18n } from '../../i18n';
+
 /**
  * 单条查询规则组件（对齐 Angular 侧 `QueryRuleComponent`）。
  *
@@ -234,11 +238,11 @@ defineExpose({
       <button
         v-if="isExistsOperator && !subqueryVisible"
         class="btn btn-ghost btn-xs"
-        title="添加子条件"
+        :title="t('text.d7efba02db')"
         type="button"
         @click="onAddSubcondition"
       >
-        + 子条件（可选）
+        {{ t('text.cfd02b3e86') }}
       </button>
       <component
         v-bind="valueInputInputs"
@@ -247,7 +251,7 @@ defineExpose({
       />
       <button
         class="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-error ml-auto"
-        title="删除条件"
+        :title="t('text.96d7b159d2')"
         type="button"
         @click="onRemove"
       >

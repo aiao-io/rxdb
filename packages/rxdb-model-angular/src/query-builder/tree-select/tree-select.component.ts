@@ -33,6 +33,7 @@ import {
   LucideType as TypeIcon,
   type LucideIconInput
 } from '@lucide/angular';
+import { useModelI18n } from '../../i18n';
 
 let _uid = 0;
 
@@ -137,9 +138,9 @@ export class TreeItemDirective implements Highlightable {
           [attr.aria-expanded]="true"
           [attr.aria-owns]="listId"
           [ngModel]="filterText()"
+          [placeholder]="t('text.174856a357')"
           (ngModelChange)="filterText.set($event)"
           aria-autocomplete="list"
-          placeholder="搜索字段..."
           role="combobox"
           type="text"
         />
@@ -148,7 +149,7 @@ export class TreeItemDirective implements Highlightable {
       <!-- 树形列表 -->
       <ul
         class="menu menu-sm max-h-60 w-full flex-nowrap overflow-y-auto px-2"
-        [attr.aria-label]="placeholder()"
+        [attr.aria-label]="placeholder() ?? t('text.da590a8fe3')"
         [id]="listId"
         role="tree"
       >
@@ -200,13 +201,15 @@ export class TreeItemDirective implements Highlightable {
             </button>
           </li>
         } @empty {
-          <li class="px-3 py-1.5 text-sm opacity-50">无匹配字段</li>
+          <li class="px-3 py-1.5 text-sm opacity-50">{{ t('text.1a399b1a95') }}</li>
         }
       </ul>
     </div>
   `
 })
 export class TreeSelectComponent {
+  readonly #modelBinding = useModelI18n();
+
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
   private readonly popoverEl = viewChild.required<ElementRef<HTMLElement>>('popoverEl');
   private readonly filterInput = viewChild<ElementRef<HTMLInputElement>>('filterInput');
@@ -247,13 +250,13 @@ export class TreeSelectComponent {
 
   readonly nodes = input.required<FieldTreeNode[]>();
   readonly selected = input<string>('');
-  readonly placeholder = input<string>('请选择');
+  readonly placeholder = input<string | undefined>(undefined);
   readonly minWidth = input<string>('14rem');
   readonly selectChange = output<string>();
 
   readonly displayValue = computed(() => {
     const sel = this.selected();
-    return sel ? getDisplayNamePath(this.nodes(), sel) || sel : this.placeholder();
+    return sel ? getDisplayNamePath(this.nodes(), sel) || sel : (this.placeholder() ?? this.t('text.da590a8fe3'));
   });
 
   readonly selectedNode = computed(() => {
@@ -273,6 +276,13 @@ export class TreeSelectComponent {
     const vis = this.visibleItems();
     return idx < vis.length ? `${this.uid}-item-${vis[idx].node.value}` : null;
   });
+
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
 
   constructor() {
     const injector = inject(Injector);

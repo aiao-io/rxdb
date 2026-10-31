@@ -1,3 +1,4 @@
+import { useModelI18n } from '../../i18n.js';
 /**
  * @fileoverview 操作符选择器组件（Angular `OperatorSelectorComponent` 的 React 移植）。
  *
@@ -32,13 +33,18 @@ export function OperatorSelector({
   selectedOperator = '=',
   onOperatorChange
 }: OperatorSelectorProps): JSX.Element {
+  const { t } = useModelI18n();
+
   const registry = useMemo(() => getDefaultOperatorRegistry(), []);
 
   const operatorOptions = useMemo(() => {
     const operators =
       fieldMetadata ? registry.getForField(fieldMetadata) : registry.getForType(fieldType as PropertyType);
-    return operators.map(operator => ({ value: operator.key, label: operator.label }));
-  }, [registry, fieldMetadata, fieldType]);
+    return operators.map(operator => ({
+      value: operator.key,
+      label: operator.labelKey ? t(operator.labelKey) : operator.label
+    }));
+  }, [registry, fieldMetadata, fieldType, t]);
 
   return (
     <PopoverSelect
@@ -46,7 +52,7 @@ export function OperatorSelector({
       selected={selectedOperator}
       onSelectChange={operator => onOperatorChange?.(operator)}
       minWidth='8rem'
-      placeholder='选择操作符'
+      placeholder={t('query.selectOperator')}
     />
   );
 }

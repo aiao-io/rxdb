@@ -9,12 +9,12 @@
 | :------------- | :----- |
 | ✅ Done        | 86     |
 | 🚧 In Progress | 1      |
-| 👀 In Review   | 6      |
-| 📝 Backlog     | 28     |
+| 👀 In Review   | 7      |
+| 📝 Backlog     | 27     |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **35** |
 
-仓库还剩 **35 条**未关闭故事（1 In Progress + 6 In Review + 28 Backlog + 0 Blocked）。
+仓库还剩 **35 条**未关闭故事（1 In Progress + 7 In Review + 27 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把 35 条当成 35 个可开工项。
 
 ## 未完成需求全景
@@ -31,7 +31,7 @@
 | [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                                                                                          | 📝 Backlog     | 按现有公开逻辑与 #152 列表能力界定入口/依赖隔离，保留默认 UI                                          | 立项池      |
 | [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                                                        | 📝 Backlog     | 价值待证，等待具名多用户写授权症状；解锁时重验当前 API 前提                                           | 立项池      |
 | [US-910](stories/future/US-910-data-i18n.md)                                                                                                                                                                                       | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                        | 立项池      |
-| [US-911](stories/future/US-911-client-i18n.md)                                                                                                                                                                                     | 📝 Backlog     | 先冻结偏好持久化/通知与唯一 fallback 合同，再做三端文案                                               | 立项池      |
+| [US-911](stories/future/US-911-client-i18n.md)                                                                                                                                                                                     | 👀 In Review   | A～D 已实现；A4/A5 载体对照与历史隔离验证通过，三端/四运行时与实现基线全量门禁通过，待代码评审        | 本轮交付    |
 | [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) / [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md) | 📝 Backlog     | 价值待证；先证明离线发现/连接与认证宿主，明确 Tauri 验收归属                                          | 立项池      |
 | [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                       | 📝 Backlog     | 手工发布前置校验结果与提交/产物绑定，当前仅有手工要求                                                 | 立项池      |
 

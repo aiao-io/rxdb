@@ -84,8 +84,8 @@ export const setPageMode = (request: APIRequestContext, mode: 'offset' | 'token'
   postControl(request, 'page-mode', { mode });
 
 /** 删库重建 + 重写种子，返回写入行数。 */
-export const resetBackendData = async (request: APIRequestContext): Promise<number> => {
-  const response = await request.post(controlUrl('reset'), { data: {} });
+export const resetBackendData = async (request: APIRequestContext, timeoutMs?: number): Promise<number> => {
+  const response = await request.post(controlUrl('reset'), { data: {}, timeout: timeoutMs });
   expect(response.status(), 'POST __control/reset').toBe(200);
   return ((await response.json()) as { rows: number }).rows;
 };
@@ -105,12 +105,12 @@ export const clearBackendData = async (request: APIRequestContext): Promise<numb
  * （闸门在控制路由之后），但让后面几步在「协议全断」的状态下跑毫无意义。
  * 日志放在最后清，这样 reset 自己产生的那几条不会混进用例要断言的日志里。
  */
-export const resetDemo = async (request: APIRequestContext): Promise<void> => {
+export const resetDemo = async (request: APIRequestContext, resetTimeoutMs?: number): Promise<void> => {
   await setOffline(request, false);
   await setFault(request, null);
   await setExposeEtag(request, true);
   await setPageMode(request, 'offset');
-  await resetBackendData(request);
+  await resetBackendData(request, resetTimeoutMs);
   await clearServerLog(request);
 };
 

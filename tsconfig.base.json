@@ -116,7 +116,12 @@
       "@modules/rxdb-devtools-panel/wire": ["./modules/rxdb-devtools-panel/wire/index.ts"],
       "@modules/recipes-domain": ["./modules/recipes-domain/src/index.ts"],
       "@modules/wujie": ["./modules/wujie/src/index.ts"],
-      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"]
+      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"],
+      "@aiao/rxdb-i18n": ["./packages/rxdb-i18n/src/index.ts"],
+      "@aiao/rxdb-i18n-angular": ["./packages/rxdb-i18n-angular/src/index.ts"],
+      "@aiao/rxdb-i18n-react": ["./packages/rxdb-i18n-react/src/index.ts"],
+      "@aiao/rxdb-i18n-vue": ["./packages/rxdb-i18n-vue/src/index.ts"],
+      "@aiao/rxdb-i18n/testing": ["./packages/rxdb-i18n/src/testing.ts"]
     },
     "resolveJsonModule": true,
     "skipDefaultLibCheck": true,

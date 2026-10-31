@@ -1,0 +1,12 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-i18n-react",
+  "projectType": "library",
+  "sourceRoot": "packages/rxdb-i18n-react/src",
+  "tags": ["react-lib"],
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    }
+  }
+}

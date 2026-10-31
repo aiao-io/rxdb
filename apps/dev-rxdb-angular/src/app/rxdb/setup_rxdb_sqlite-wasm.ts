@@ -9,7 +9,7 @@ import {
 import { Article, Comment } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { APP_BASE_HREF, isPlatformBrowser } from '@angular/common';
-import { inject, PLATFORM_ID } from '@angular/core';
+import { ApplicationInitStatus, inject, PLATFORM_ID } from '@angular/core';
 import { connectLocalAdapter } from './db-connection';
 import { demoRxDBOptions, getSqliteWasmUrl, useDemoPlugins } from './demo-rxdb-config';
 import { getImportedDbName } from './imported-db';
@@ -47,6 +47,7 @@ export default () => {
   if (!isBrowser) throw new Error('RxDB setup requires a browser platform');
   const baseHref = inject(APP_BASE_HREF);
   if (rxdb) return rxdb;
+  const startupReady: Promise<unknown> = inject(ApplicationInitStatus).donePromise;
   // 导入页恢复出来的库（US-909 阶段 B）：恢复经主线程 IDB 写入，打开它也必须走 IDB
   const importedDbName = getImportedDbName(window.localStorage);
   const dbName = importedDbName ?? getAngularDbName();
@@ -90,7 +91,7 @@ export default () => {
   // 按需加载：备份读写不进初始包。fixture 归档前会等 `window.__rxdbFailureArchive` 出现
   if (forceIdb) {
     void import('./failure-archive-api').then(({ installFailureArchiveApi }) =>
-      installFailureArchiveApi(db, { dbName, baseHref })
+      installFailureArchiveApi(db, { dbName, baseHref, startupReady })
     );
   }
   // 录制回放（US-909 阶段 C）默认关：开关打开时才加载录制模块与 rrweb，关时它们不进初始包（FR-022）。

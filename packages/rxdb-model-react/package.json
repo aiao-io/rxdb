@@ -66,5 +66,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@aiao/rxdb-i18n-react": "workspace:^"
   }
 }

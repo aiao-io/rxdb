@@ -1,5 +1,6 @@
+import { I18nProvider, useI18n } from '@aiao/rxdb-i18n-react';
 import { RxDBProvider } from '@aiao/rxdb-react';
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigation } from 'react-router-dom';
 import { AppHeader } from './components/AppHeader';
 import { AppSidebar } from './components/AppSidebar';
@@ -7,19 +8,23 @@ import { DbConnectionAlert } from './components/DbConnectionAlert';
 import LoadingBar, { LoadingBarRef } from './components/LoadingBar';
 import { AppServiceProvider, useAppService } from './hooks/useAppService';
 import { useTheme } from './hooks/useTheme';
+import { isReportedDbConnectionError } from './rxdb/db-connection';
+import { createDemoI18n } from './rxdb/i18n';
 import setup_rxdb from './rxdb/setup_rxdb_sqlite-wasm';
 
 const db = setup_rxdb();
+const i18n = createDemoI18n(db);
+const i18nReady = i18n.init();
 
 function AppLayout() {
   const { sidebarPinned, headerFloating, toggleSidebar } = useAppService();
   const ref = useRef<LoadingBarRef>(null);
   const navigation = useNavigation();
+  const { locale } = useI18n();
 
   useEffect(() => {
-    const locale = Intl.DateTimeFormat().resolvedOptions().locale;
     document.documentElement.lang = locale;
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     if (navigation.state === 'loading') {
@@ -60,12 +65,40 @@ function AppLayout() {
 
 export default function App() {
   useTheme();
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<unknown>();
+
+  useEffect(() => {
+    let active = true;
+    void i18nReady.then(
+      () => {
+        if (active) setReady(true);
+      },
+      error => {
+        if (active) setError(error);
+      }
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (error && isReportedDbConnectionError(error)) return <DbConnectionAlert />;
+  if (error) throw error;
+  if (!ready)
+    return (
+      <div className='flex h-full items-center justify-center'>
+        <span className='loading loading-spinner loading-lg' />
+      </div>
+    );
 
   return (
     <RxDBProvider db={db}>
-      <AppServiceProvider>
-        <AppLayout />
-      </AppServiceProvider>
+      <I18nProvider value={i18n}>
+        <AppServiceProvider>
+          <AppLayout />
+        </AppServiceProvider>
+      </I18nProvider>
     </RxDBProvider>
   );
 }

@@ -24,7 +24,7 @@ import { createServer as createHttpServer } from 'node:http';
 
 import type { ChangeBroadcaster } from './change-broadcaster.ts';
 import { createChangeBroadcaster } from './change-broadcaster.ts';
-import { openChangeFeed, readClientId } from './change-feed.ts';
+import { broadcastChange, openChangeFeed, readClientId } from './change-feed.ts';
 import type { ChangeSubscribers } from './change-subscribers.ts';
 import { createChangeSubscribers } from './change-subscribers.ts';
 import { BACKEND_VERSION, BASE_PATH, CHANGES_RESOURCE, RECIPES_RESOURCE, SEED_ROW_COUNT } from './config.ts';
@@ -32,6 +32,15 @@ import type { ControlActions, DemoState } from './control.ts';
 import { createDemoState, handleControlRequest, recordRequest } from './control.ts';
 import { applyCorsHeaders, handlePreflight } from './cors.ts';
 import { computeEtag, HttpError, matchesIfNoneMatch, readJsonBody, sendEmpty, sendJson } from './http-utils.ts';
+import {
+  createRemoteMessage,
+  deleteRemoteMessages,
+  findMessagesByIds,
+  listMessageMetadata,
+  MESSAGES_RESOURCE,
+  REMOTE_MESSAGE_ENTITY,
+  updateRemoteMessage
+} from './message-catalog.ts';
 import {
   createRecipe,
   deleteRecipes,
@@ -188,6 +197,10 @@ const routeProtocol = async (
     sendJson(response, 200, { version: BACKEND_VERSION });
     return;
   }
+  if (segments[0] === MESSAGES_RESOURCE) {
+    await routeMessages(request, response, getStore, segments, subscribers);
+    return;
+  }
   if (route === `HEAD ${RECIPES_RESOURCE}`) {
     // pglite 在 `connect()` 的建表链路里建成 Recipe 表，恒存在——HEAD 恒 200
     // （与现行 node:sqlite「openDatabase 即建表」同一语义）。
@@ -230,6 +243,58 @@ const routeProtocol = async (
   throw new HttpError(404, `No route for ${method} ${BASE_PATH}/${segments.join('/')}`);
 };
 
+const routeMessages = async (
+  request: IncomingMessage,
+  response: ServerResponse,
+  getStore: () => RxdbRecipeStore,
+  segments: string[],
+  subscribers: ChangeSubscribers
+): Promise<void> => {
+  const route = `${request.method} ${segments.slice(1).join('/')}`;
+  if (route === 'HEAD ') {
+    sendEmpty(response, 200);
+    return;
+  }
+  if (request.method !== 'POST' && request.method !== 'PATCH') throw new HttpError(404, 'Unknown catalog endpoint');
+  const body = readObject(await readJsonBody(request), 'catalog');
+  if (route === 'POST metadata') {
+    sendConditional(
+      request,
+      response,
+      await listMessageMetadata(
+        getStore(),
+        body['where'],
+        readPositiveInt(body['limit'], 'limit', 1000),
+        readPositiveInt(body['offset'], 'offset', 0)
+      )
+    );
+    return;
+  }
+  if (route === 'POST by-ids') {
+    sendConditional(request, response, await findMessagesByIds(getStore(), body));
+    return;
+  }
+  if (route === 'POST delete') {
+    const deleted = await deleteRemoteMessages(getStore(), body);
+    broadcastChange(subscribers, REMOTE_MESSAGE_ENTITY, readClientId(request), 'i18n');
+    sendJson(response, 200, { deleted });
+    return;
+  }
+  if (route === 'POST ') {
+    const created = await createRemoteMessage(getStore(), body);
+    broadcastChange(subscribers, REMOTE_MESSAGE_ENTITY, readClientId(request), 'i18n');
+    sendJson(response, 201, created);
+    return;
+  }
+  if (request.method === 'PATCH' && segments.length === 2) {
+    const updated = await updateRemoteMessage(getStore(), segments[1], body);
+    broadcastChange(subscribers, REMOTE_MESSAGE_ENTITY, readClientId(request), 'i18n');
+    sendJson(response, 200, updated);
+    return;
+  }
+  throw new HttpError(404, 'Unknown catalog endpoint');
+};
+
 /**
  * 建服务器。
  *
@@ -256,7 +321,9 @@ export const createDemoServer = async (options: DemoServerOptions): Promise<Demo
       deleteRxdbDataDir(options.dataDir);
       store = await createRxdbRecipeStore(options.dataDir);
       broadcaster.attach(store.rxdb);
-      return seedRxdbStore(store, seedRows(SEED_ROW_COUNT));
+      const count = await seedRxdbStore(store, seedRows(SEED_ROW_COUNT));
+      broadcastChange(subscribers, REMOTE_MESSAGE_ENTITY, undefined, 'i18n');
+      return count;
     },
     clear: async (): Promise<number> => clearRxdbStore(store)
   };

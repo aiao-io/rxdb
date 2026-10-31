@@ -1,6 +1,7 @@
 <script lang="ts" setup>
+import { provideI18n } from '@aiao/rxdb-i18n-vue';
 import { provideRxDB } from '@aiao/rxdb-vue';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeUnmount, ref, watchEffect } from 'vue';
 import { RouterView, useRouter } from 'vue-router';
 import AppHeader from './components/AppHeader.vue';
 import AppSidebar from './components/AppSidebar.vue';
@@ -9,10 +10,32 @@ import LoadingBar from './components/LoadingBar.vue';
 import { useAppService } from './composables/useAppService';
 import { useTheme } from './composables/useTheme';
 import DbConnectionAlert from './components/DbConnectionAlert.vue';
+import { dbConnectionError } from './rxdb/db-connection';
+import { createDemoI18n } from './rxdb/i18n';
 import setup_rxdb from './rxdb/setup_rxdb_sqlite-wasm';
 
 const db = setup_rxdb();
 provideRxDB(db);
+const i18n = createDemoI18n(db);
+provideI18n(i18n);
+const ready = ref(false);
+const initError = ref<string>();
+const locale = ref(i18n.locale);
+const subscription = i18n.locale$.subscribe(value => {
+  locale.value = value;
+});
+void i18n.init().then(
+  () => {
+    ready.value = true;
+  },
+  error => {
+    initError.value = error instanceof Error ? error.message : String(error);
+  }
+);
+onBeforeUnmount(() => {
+  subscription.unsubscribe();
+  i18n.destroy();
+});
 
 useTheme();
 const { sidebarPinned, headerFloating, toggleSidebar } = useAppService();
@@ -21,9 +44,8 @@ const { sidebarPinned, headerFloating, toggleSidebar } = useAppService();
 const loadingBarRef = ref<InstanceType<typeof LoadingBar>>();
 const router = useRouter();
 
-onMounted(() => {
-  const locale = Intl.DateTimeFormat().resolvedOptions().locale;
-  document.documentElement.lang = locale;
+watchEffect(() => {
+  document.documentElement.lang = locale.value;
 });
 
 const removeBeforeEach = router.beforeEach(() => {
@@ -46,6 +68,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
+    v-if="ready"
     id="layout-main"
     :class="['flex size-full', { 'left-menu-pinned': sidebarPinned, 'header-floating': headerFloating }]"
   >
@@ -75,6 +98,19 @@ onBeforeUnmount(() => {
         <RouterView />
       </div>
     </div>
+  </div>
+  <DbConnectionAlert v-else-if="dbConnectionError !== null" />
+  <div
+    v-else-if="initError"
+    class="alert alert-error"
+    role="alert"
+    >{{ initError }}</div
+  >
+  <div
+    v-else
+    class="flex h-full items-center justify-center"
+  >
+    <span class="loading loading-spinner loading-lg" />
   </div>
 </template>
 

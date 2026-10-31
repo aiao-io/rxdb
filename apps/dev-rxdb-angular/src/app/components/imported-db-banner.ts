@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { I18nPipe } from '../pipes/i18n.pipe';
 import { getImportedDbName, leaveImportedDb } from '../rxdb/imported-db';
 
 /**
@@ -10,15 +11,16 @@ import { getImportedDbName, leaveImportedDb } from '../rxdb/imported-db';
  */
 @Component({
   selector: 'app-imported-db-banner',
+  imports: [I18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (dbName; as name) {
       <div class="alert alert-warning alert-soft m-2" data-testid="imported-db-banner" role="status">
         <span>
-          正在查看导入的失败现场库
+          {{ 'banner.importedDatabase' | i18n }}
           <code class="font-mono" data-testid="imported-db-name">{{ name }}</code>
         </span>
-        <button class="btn btn-sm" (click)="leave()" type="button">回到默认库</button>
+        <button class="btn btn-sm" (click)="leave()" type="button">{{ 'banner.backToDefault' | i18n }}</button>
       </div>
     }
   `

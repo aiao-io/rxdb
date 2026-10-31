@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t, runtime: modelI18n } = useModelI18n();
+
+import { useModelI18n } from '../../i18n';
+
 /**
  * 子查询构建器组件（对齐 Angular 侧 `SubqueryBuilderComponent`）。
  *
@@ -36,6 +40,7 @@ const emit = defineEmits<{
 }>();
 
 const service = createQueryBuilderService<Record<string, unknown>>({
+  i18n: modelI18n,
   config: { maxNestingLevel: props.maxDepth }
 });
 
@@ -185,9 +190,9 @@ defineExpose({
         type="button"
         @click="handleAddFirstRule"
       >
-        + 添加子条件
+        {{ t('text.cb29450db8') }}
       </button>
-      <span class="text-xs opacity-50">（可选）</span>
+      <span class="text-xs opacity-50">{{ t('text.3d5c3c3dba') }}</span>
     </div>
     <template v-else>
       <QueryGroup
@@ -208,7 +213,7 @@ defineExpose({
           type="button"
           @click="handleClear"
         >
-          清空
+          {{ t('text.1ef3de06b3') }}
         </button>
       </div>
     </template>

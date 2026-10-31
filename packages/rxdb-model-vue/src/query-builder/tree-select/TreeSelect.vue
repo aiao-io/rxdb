@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+const { t } = useModelI18n();
+
+import { useModelI18n } from '../../i18n';
+
 /**
  * 树形下拉选择组件（对齐 Angular 侧 `TreeSelectComponent`）。
  *
@@ -91,7 +95,7 @@ const props = withDefaults(
     /** 最小宽度 */
     minWidth?: string;
   }>(),
-  { selected: '', placeholder: '请选择', minWidth: '14rem' }
+  { selected: '', placeholder: undefined, minWidth: '14rem' }
 );
 
 const emit = defineEmits<{
@@ -138,7 +142,7 @@ const keyManager = new TreeKeyManager(() => visibleItems.value.length);
 
 const displayValue = computed(() => {
   const sel = props.selected;
-  return sel ? getDisplayNamePath(props.nodes, sel) || sel : props.placeholder;
+  return sel ? getDisplayNamePath(props.nodes, sel) || sel : (props.placeholder ?? t('query.selectField'));
 });
 
 const selectedNode = computed(() => {
@@ -373,7 +377,7 @@ defineExpose({
         :aria-expanded="true"
         :aria-owns="listId"
         aria-autocomplete="list"
-        placeholder="搜索字段..."
+        :placeholder="t('text.174856a357')"
         role="combobox"
         type="text"
       />
@@ -383,7 +387,7 @@ defineExpose({
     <ul
       :id="listId"
       class="menu menu-sm max-h-60 w-full flex-nowrap overflow-y-auto px-2"
-      :aria-label="placeholder"
+      :aria-label="placeholder ?? t('query.selectField')"
       role="tree"
     >
       <li
@@ -440,7 +444,7 @@ defineExpose({
         v-if="visibleItems.length === 0"
         class="px-3 py-1.5 text-sm opacity-50"
       >
-        无匹配字段
+        {{ t('text.1a399b1a95') }}
       </li>
     </ul>
   </div>

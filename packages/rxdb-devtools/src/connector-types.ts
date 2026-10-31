@@ -1,5 +1,6 @@
 import type { EntityType, RxDB } from '@aiao/rxdb';
 import type { DevToolsConnectorTransport } from './connector-transport.js';
+import type { DevToolsI18nPort } from './i18n-port.js';
 import type { DevToolsNativeFilesProviderPorts } from './native/native-files-provider.js';
 import type { DevToolsProviderRuntime } from './provider/descriptor.js';
 import type { DevToolsProvider } from './provider/types.js';
@@ -152,6 +153,8 @@ export interface DevToolsProviderOptions {
 
 /** RxDB DevTools 配置选项。 */
 export interface DevToolsOptions {
+  /** 当前应用显式提供的国际化实例；省略时协议行为保持原样。 */
+  i18n?: DevToolsI18nPort;
   /**
    * 握手完成前缓存的事件条数上限，超出按 FIFO 丢弃最旧的。
    *

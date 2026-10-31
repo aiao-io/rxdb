@@ -11,6 +11,7 @@ import {
   output,
   signal
 } from '@angular/core';
+import { useModelI18n } from '../i18n';
 
 /**
  * 对话框外壳组件（CDK Dialog 内使用）：支持拖拽（CdkDrag）、8 向缩放与全屏切换。
@@ -24,6 +25,8 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EntityDialogComponent implements AfterViewInit {
+  readonly #modelBinding = useModelI18n();
+
   readonly #dialogRef = inject(DialogRef, { optional: true });
   readonly #cdkDrag = inject(CdkDrag, { optional: true, self: true });
   readonly #el = inject(ElementRef) as ElementRef<HTMLElement>;
@@ -38,6 +41,13 @@ export class EntityDialogComponent implements AfterViewInit {
 
   readonly isFullscreen = signal(false);
   readonly isInDialog = !!inject(DialogRef, { optional: true });
+
+  get t() {
+    return this.#modelBinding.t;
+  }
+  get modelI18n() {
+    return this.#modelBinding.runtime;
+  }
 
   constructor() {
     if (this.#cdkDrag) {

@@ -1,0 +1,55 @@
+{
+  "name": "@aiao/rxdb-i18n-react",
+  "version": "0.0.28",
+  "description": "React bindings for reactive Aiao RxDB internationalization.",
+  "homepage": "https://rxdb.aiao.io/docs/plugins",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "react",
+    "i18n",
+    "localization"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-i18n-react"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "rxjs": "^7.8.2",
+    "@aiao/rxdb-i18n": "workspace:^"
+  },
+  "devDependencies": {
+    "react": "^19.3.1",
+    "@aiao/rxdb-i18n": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

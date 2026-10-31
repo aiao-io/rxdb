@@ -18,6 +18,9 @@ export default defineConfig({
     globals: true,
     // 参考后端跑在 Node 上（node:http / node:sqlite / node:crypto），不需要 DOM 垫片。
     environment: 'node',
+    // 每个文件都冷启动 PGlite WASM；串行文件避免全量门禁里同时抢占初始化资源。
+    fileParallelism: false,
+    hookTimeout: process.env.CI ? 120000 : 30000,
     include: ['src/**/*.{test,spec}.ts'],
     reporters: ['default'],
     // reportsDirectory 必须显式指向仓库根的 coverage/apps/<项目名>：

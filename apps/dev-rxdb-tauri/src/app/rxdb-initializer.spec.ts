@@ -38,6 +38,17 @@ describe('connectRxDB', () => {
 });
 
 describe('startLocalDatabase', () => {
+  const i18nRuntimeSmoke = {
+    interpolation: 'Hello Ada',
+    singular: '1 item',
+    plural: '2 items',
+    selected: 'Administrator',
+    otherSelection: 'Guest',
+    parentFallback: 'Bonjour Ada',
+    defaultFallback: '默认文案'
+  };
+  const i18nMessage = JSON.stringify({ i18nRuntimeSmoke });
+
   /** 探针的固定结果；上报路径只需要它被原样带出去。 */
   const probeResult = { digest: 'a'.repeat(64), byteLength: 65536, existedBefore: true };
 
@@ -69,6 +80,7 @@ describe('startLocalDatabase', () => {
       probe?: () => Promise<StorageProbeResult>;
       webview?: () => Promise<WebviewProbeResult | null>;
       devtools?: () => Promise<DevToolsProbeResult | null>;
+      i18n?: () => Promise<typeof i18nRuntimeSmoke>;
       backupMode?: () => Promise<BackupProbeMode | null>;
       backup?: () => Promise<BackupProbeResult>;
       restore?: () => Promise<BackupProbeResult>;
@@ -114,6 +126,7 @@ describe('startLocalDatabase', () => {
             return (overrides.record ?? (() => Promise.resolve(1)))();
           }
         },
+        probeI18n: () => (overrides.i18n ?? (() => Promise.resolve(i18nRuntimeSmoke)))(),
         probe: async () => {
           order.push('probe');
           return (overrides.probe ?? (() => Promise.resolve(probeResult)))();
@@ -168,9 +181,26 @@ describe('startLocalDatabase', () => {
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
     expect(context.order).toEqual(['open', 'connect', 'record', 'probe', 'webview', 'devtools', 'report']);
     expect(context.reports).toEqual([
-      { status: 'ok', launchCount: 7, storage: probeResult, webview: webviewResult, devtools: null, backup: null }
+      {
+        status: 'ok',
+        message: i18nMessage,
+        launchCount: 7,
+        storage: probeResult,
+        webview: webviewResult,
+        devtools: null,
+        backup: null
+      }
     ]);
     expect(context.markFailed).not.toHaveBeenCalled();
+  });
+
+  it('ICU 探针失败沿既有 failed 状态上报，不写启动记录', async () => {
+    const failure = new Error('ICU runtime smoke failed (plural)');
+    const context = startup({ i18n: () => Promise.reject(failure) });
+    await startLocalDatabase(context.startup);
+    expect(context.markFailed).toHaveBeenCalledWith(failure);
+    expect(context.reports).toEqual([{ status: 'failed', message: failure.message }]);
+    expect(context.order).toEqual(['open', 'connect', 'report']);
   });
 
   /**
@@ -185,6 +215,7 @@ describe('startLocalDatabase', () => {
     expect(context.reports).toEqual([
       {
         status: 'ok',
+        message: i18nMessage,
         launchCount: 2,
         storage: probeResult,
         webview: webviewResult,
@@ -206,6 +237,7 @@ describe('startLocalDatabase', () => {
     expect(context.reports).toEqual([
       {
         status: 'ok',
+        message: i18nMessage,
         launchCount: 1,
         storage: probeResult,
         webview: webviewResult,
@@ -249,7 +281,15 @@ describe('startLocalDatabase', () => {
     const context = startup({ webview: () => Promise.resolve(null) });
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
     expect(context.reports).toEqual([
-      { status: 'ok', launchCount: 1, storage: probeResult, webview: null, devtools: null, backup: null }
+      {
+        status: 'ok',
+        message: i18nMessage,
+        launchCount: 1,
+        storage: probeResult,
+        webview: null,
+        devtools: null,
+        backup: null
+      }
     ]);
   });
 

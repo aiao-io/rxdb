@@ -31,6 +31,7 @@ import {
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '@modules/angular';
 import { TreeWriteError } from '../../../components/tree-write-error';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { FileDragDropService } from '../services/file-drag-drop.service';
 import { FilePathValidatorService } from '../services/file-path-validator.service';
 import { TreeFileDragDropBase } from '../utils/tree-file-drag-drop.base';
@@ -47,7 +48,7 @@ import { TreeFileDragDropStore } from '../utils/tree-file.store';
 @Component({
   selector: 'app-file-manager-simple-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideDynamicIcon, AsyncPipe, HistorySidebarComponent, TreeWriteError],
+  imports: [CommonModule, I18nPipe, FormsModule, LucideDynamicIcon, AsyncPipe, HistorySidebarComponent, TreeWriteError],
   providers: [FilePathValidatorService],
   templateUrl: './file-manager-simple.page.html',
   styleUrl: './file-manager-simple.page.scss',

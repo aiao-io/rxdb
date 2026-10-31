@@ -1,6 +1,7 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { createRestHandlers, RxDBAdapterHttp } from '@aiao/rxdb-adapter-http';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import { i18nEntities, RemoteMessageEntry } from '@aiao/rxdb-i18n';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
@@ -18,6 +19,7 @@ import {
 } from './demo-config';
 import { recordEtagDiagnostic } from './etag-diagnostics';
 import { Recipe } from './recipe';
+import { resolveI18nEnabled } from './remote-i18n';
 import { buildWaSqliteOptions, isSharedWorkerSupported } from './wa-sqlite-options';
 
 /** 本地行缓存的库名。 */
@@ -56,7 +58,16 @@ export default (): RxDB => {
 
   rxdb = new RxDB({
     dbName: DB_NAME,
-    entities: [Recipe],
+    entities: [Recipe, ...i18nEntities()],
+    syncOverrides:
+      resolveI18nEnabled(location.search) ?
+        [
+          {
+            entity: RemoteMessageEntry,
+            sync: { type: SyncType.QueryCache, local: { adapter: 'wa-sqlite' }, remote: { adapter: 'http' } }
+          }
+        ]
+      : [],
     sync: {
       type: SyncType.None,
       local: { adapter: 'wa-sqlite' },
@@ -72,7 +83,7 @@ export default (): RxDB => {
       const adapter: RxDBAdapterHttp = new RxDBAdapterHttp(db, {
         baseUrl,
         handlers: createRestHandlers({
-          resources: { Recipe: 'recipes' },
+          resources: { Recipe: 'recipes', 'i18n:RemoteMessageEntry': 'messages' },
           templates: {
             // 探测走 `POST :entity/metadata`（`limit: 1`）而不是默认的 `HEAD :entity`：
             // 参考后端没实现 HEAD，会回 405，而 405 既不是 2xx 也不是 404，

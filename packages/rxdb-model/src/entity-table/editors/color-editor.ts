@@ -1,4 +1,5 @@
 import type { EditContext, IEditor, RectProps } from '@visactor/vtable-editors';
+import { ModelEditorI18n } from '../../i18n.js';
 import { DAISY_COLORS, refocusTable, scheduleEditorSetup } from './global-overlay-editor.js';
 
 type TableLike = { getCellOriginValue(col: number, row: number): unknown } | null;
@@ -20,6 +21,7 @@ const normalizeHexColor = (text: string): string | null => {
  * Enter / Tab 提交；Escape 恢复原值；点击外部提交，提交失败时恢复原值。
  */
 export class ColorEditor implements IEditor<unknown> {
+  readonly #messages = new ModelEditorI18n();
   #value: string | null = null;
   #originalValue: string | null = null;
   #input: HTMLInputElement | null = null;
@@ -34,6 +36,7 @@ export class ColorEditor implements IEditor<unknown> {
 
   /** 创建并显示取色器、文本输入与错误提示浮层 */
   onStart(ctx: EditContext<unknown>): void {
+    this.#messages.start(ctx.table);
     const container = ctx.container as HTMLElement;
     this.#container = container;
     this.#endEdit = () => {
@@ -54,7 +57,7 @@ export class ColorEditor implements IEditor<unknown> {
 
     const input = document.createElement('input');
     input.type = 'text';
-    input.placeholder = '#rrggbb';
+    this.#messages.bind(input, 'placeholder', () => '#rrggbb');
     input.value = this.#value ?? '';
     input.style.cssText = [
       'position:fixed',
@@ -76,7 +79,7 @@ export class ColorEditor implements IEditor<unknown> {
     const picker = document.createElement('input');
     picker.type = 'color';
     picker.value = this.#value ?? '#000000';
-    picker.title = '选择颜色';
+    this.#messages.bind(picker, 'title', () => this.#messages.t('text.369b82fa07'));
     picker.style.cssText = [
       'position:fixed',
       'z-index:9999',
@@ -110,11 +113,11 @@ export class ColorEditor implements IEditor<unknown> {
 
     const setError = (show: boolean, msg?: string) => {
       if (show && msg) {
-        tooltip.textContent = msg;
+        this.#messages.bindValue(tooltip, 'textContent', msg);
         tooltip.style.display = 'block';
         input.style.borderColor = DAISY_COLORS.error;
       } else {
-        tooltip.textContent = '';
+        this.#messages.bind(tooltip, 'textContent', () => '');
         tooltip.style.display = 'none';
         input.style.borderColor = DAISY_COLORS.primary;
       }
@@ -151,7 +154,7 @@ export class ColorEditor implements IEditor<unknown> {
         if (commit()) {
           this.#endEdit?.();
         } else {
-          setError(true, '请输入 #rrggbb 格式的颜色');
+          setError(true, this.#messages.t('text.59ff87031e'));
         }
       } else if (e.key === 'Escape') {
         e.preventDefault();
@@ -193,6 +196,7 @@ export class ColorEditor implements IEditor<unknown> {
 
   /** 移除输入框与提示浮层，解绑全局点击事件 */
   onEnd(): void {
+    this.#messages.clear();
     this.#cleanup();
   }
 
@@ -224,6 +228,7 @@ export class ColorEditor implements IEditor<unknown> {
   }
 
   #cleanup(): void {
+    this.#messages.clear();
     if (this.#outsideHandler) {
       document.removeEventListener('mousedown', this.#outsideHandler, { capture: true });
       this.#outsideHandler = null;

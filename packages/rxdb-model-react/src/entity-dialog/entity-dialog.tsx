@@ -1,3 +1,4 @@
+import { useModelI18n } from '../i18n.js';
 /**
  * @fileoverview 对话框外壳组件（Angular `EntityDialogComponent` 的 React 移植）。
  *
@@ -38,6 +39,8 @@ export interface EntityDialogProps {
  * 「非 DIALOG 语境只渲染投影内容」一致。
  */
 export function EntityDialog({ title, children, onCloseRequested }: EntityDialogProps): JSX.Element {
+  const { t } = useModelI18n();
+
   const dialog = useContext(DialogContext);
   const isInDialog = dialog !== null;
   const ownPaneRef = useRef<HTMLDivElement | null>(null);
@@ -174,7 +177,7 @@ export function EntityDialog({ title, children, onCloseRequested }: EntityDialog
             <div className='flex items-center gap-1'>
               <button
                 className='btn btn-ghost btn-xs btn-square'
-                aria-label={isFullscreen ? '退出全屏' : '全屏'}
+                aria-label={isFullscreen ? t('text.0f1505b6ad') : t('text.22ea3f47fe')}
                 type='button'
                 onClick={toggleFullscreen}
               >
@@ -187,7 +190,12 @@ export function EntityDialog({ title, children, onCloseRequested }: EntityDialog
                   </svg>
                 }
               </button>
-              <button className='btn btn-ghost btn-xs btn-square' aria-label='关闭' type='button' onClick={close}>
+              <button
+                className='btn btn-ghost btn-xs btn-square'
+                aria-label={t('common.close')}
+                type='button'
+                onClick={close}
+              >
                 <svg className='h-4 w-4' fill='none' stroke='currentColor' strokeWidth='2' viewBox='0 0 24 24'>
                   <path d='M18 6 6 18M6 6l12 12' />
                 </svg>

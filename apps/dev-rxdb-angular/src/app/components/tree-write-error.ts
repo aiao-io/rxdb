@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { LucideDynamicIcon, LucideX as X } from '@lucide/angular';
+import { I18nPipe } from '../pipes/i18n.pipe';
 
 /**
  * 树页面（菜单 / 文件管理器）的写入失败提示条。
@@ -11,12 +12,17 @@ import { LucideDynamicIcon, LucideX as X } from '@lucide/angular';
 @Component({
   selector: 'app-tree-write-error',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideDynamicIcon],
+  imports: [LucideDynamicIcon, I18nPipe],
   template: `
     @if (message(); as text) {
       <div class="alert alert-error" data-testid="tree-write-error" role="alert">
         <span class="flex-1 text-sm">{{ text }}</span>
-        <button class="btn btn-ghost btn-sm btn-circle" (click)="closed.emit()" aria-label="关闭错误提示" type="button">
+        <button
+          class="btn btn-ghost btn-sm btn-circle"
+          [attr.aria-label]="'error.close' | i18n"
+          (click)="closed.emit()"
+          type="button"
+        >
           <svg [lucideIcon]="X" [size]="16" />
         </button>
       </div>

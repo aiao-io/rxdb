@@ -4,12 +4,12 @@ import { readCount } from './e2e-utils.js';
 test.describe('Todo Cursor Page', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/todo-cursor');
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /^Todo \(Cursor\)/ })).toBeVisible();
     await expect(page.getByTestId('todo-cursor-add-1')).toBeEnabled({ timeout: 15000 });
   });
 
   test('should display todo cursor page', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Todo');
+    await expect(page.getByRole('heading', { level: 1, name: /^Todo \(Cursor\)/ })).toContainText('Todo (Cursor)');
   });
 
   test('should have batch add buttons', async ({ page }) => {
