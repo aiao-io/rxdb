@@ -72,6 +72,12 @@ export type {
   DbInfoMessage,
   /** 数据库信息响应载荷。 */
   DbInfoPayload,
+  /** `DB_MODEL_INFO` 中单个实体的模型。 */
+  DbModelInfoEntity,
+  /** 数据库模型信息响应。 */
+  DbModelInfoMessage,
+  /** 数据库模型信息响应载荷。 */
+  DbModelInfoPayload,
   /** 删除分支命令。 */
   DeleteBranchMessage,
   /** 页面授予 DevTools 的命令能力档。 */
@@ -80,6 +86,14 @@ export type {
   DevToolsCommandMessage,
   /** `ENTITY_DATA` 的结构化错误码。 */
   DevToolsEntityErrorCode,
+  /** DevTools 面板可渲染的实体字段。 */
+  DevToolsEntityField,
+  /** DevTools 实体字段的安全展示选项。 */
+  DevToolsEntityFieldOption,
+  /** DevTools 实体字段类型。 */
+  DevToolsEntityFieldType,
+  /** DevTools 面板可渲染的实体模型。 */
+  DevToolsEntityModel,
   /** 消息 envelope 基础结构。 */
   DevToolsMessage,
   /** 通信断开消息（页面与 DevTools 双向）。 */

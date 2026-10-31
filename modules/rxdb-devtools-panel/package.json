@@ -6,11 +6,14 @@
   "type": "module",
   "peerDependencies": {
     "@aiao/rxdb-devtools": "workspace:*",
+    "@aiao/rxdb-model": "workspace:*",
+    "@aiao/rxdb-model-angular": "workspace:*",
     "@angular/cdk": ">=22.0.0",
     "@angular/common": "^22.0.0",
     "@angular/core": "^22.0.0",
     "@angular/router": "^22.0.0",
     "@lucide/angular": "^1.16.0",
+    "@visactor/vtable": "~1.26.5",
     "rxjs": "^7.8.2"
   },
   "sideEffects": false
