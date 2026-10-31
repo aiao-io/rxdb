@@ -16,6 +16,7 @@ export * from './entity-dialog/index';
 
 // Entity Form Vue
 export * from './entity-form/index';
+export * from './headless';
 
 // Entity List Vue
 export { EntityList } from './entity-list/index';

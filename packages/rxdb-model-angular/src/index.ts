@@ -6,6 +6,9 @@
 // 类名工具（与 React / Vue 端对称）
 export { cn } from '@aiao/rxdb-model';
 
+// Headless 状态与动作绑定
+export * from './headless/bindings';
+
 // Entity Detail Angular
 export * from './entity-detail/entity-detail';
 

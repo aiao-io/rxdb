@@ -8,19 +8,20 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 86   |
-| 🚧 In Progress | 1    |
+| 🚧 In Progress | 2    |
 | 👀 In Review   | 7    |
-| 📝 Backlog     | 27   |
+| 📝 Backlog     | 26   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 121  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（1 条）
+## 进行中（2 条）
 
 | Story                                                                                                       | 剩余范围                                                           |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [US-403](stories/ui/US-403-entity-components-headless.md)                                                   | 独立消费、依赖隔离及三框架质量门禁待收口                           |
 | [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md) | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。 |
 
 ## 待评审（7 条）
@@ -74,7 +75,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 ### [UI 组件与开发者工具](epics/epic-003-ui-developer-tools.md)
 
 - ✅ [US-402 代码编辑器组件](stories/ui/US-402-code-editor.md)
-- ⬜ [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md)
+- 🚧 [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md)
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
 - ✅ [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)
 - ✅ [US-905 Tauri DevTools 调试窗口、transport 与原生存储集成](stories/future/US-905-tauri-native-devtools.md)
@@ -198,6 +199,6 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 ## 前置阻塞（不体现在 Blocked 计数里）
 
 - BOM按已授权切片推进，后续故事仍受各自前置约束；联产品、热路径与可选索引保留独立准入。
-- US-029与P2P仍价值待证；US-403、US-910、US-603留在立项池，不因Backlog状态自动获得开工授权。
+- US-029与P2P仍价值待证；US-910、US-603留在立项池，不因Backlog状态自动获得开工授权。
 - US-910/911的最小能力验证、US-211/219的真实宿主证据、US-528的仓外消费均不能由源码单测替代。
 - Epic关闭还须满足其当前承诺目标和实际发布验收，不能只看所属故事的Done数量。

@@ -42,6 +42,12 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./headless": {
+      "@aiao/source": "./src/headless.ts",
+      "types": "./dist/headless.d.ts",
+      "import": "./dist/headless.js",
+      "default": "./dist/headless.js"
+    },
     "./index.css": "./dist/index.css",
     "./tailwind.css": "./tailwind.css"
   },
@@ -54,6 +60,11 @@
     "@visactor/vtable": "~1.26.5",
     "rxjs": "^7.8.2",
     "vue": "^3.5.43"
+  },
+  "peerDependenciesMeta": {
+    "@visactor/vtable": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",

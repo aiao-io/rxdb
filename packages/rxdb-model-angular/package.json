@@ -24,6 +24,9 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
+    "./headless": {
+      "@aiao/source": "./src/headless/public-api.ts"
+    },
     "./tailwind.css": "./tailwind.css"
   },
   "peerDependencies": {
@@ -40,6 +43,11 @@
     "@lucide/angular": "1.61.0",
     "@visactor/vtable": "~1.26.5",
     "rxjs": "^7.8.2"
+  },
+  "peerDependenciesMeta": {
+    "@visactor/vtable": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",

@@ -11,6 +11,28 @@ export function structuralEqual(a: unknown, b: unknown): boolean {
   return structuralEqualInternal(a, b, new WeakMap<object, WeakSet<object>>());
 }
 
+/** 深复制模型状态中的结构化值，保留日期、字节序列和循环引用。 */
+export function cloneStructured<T>(value: T, seen = new WeakMap<object, unknown>()): T {
+  if (value === null || typeof value !== 'object') return value;
+  const object = value as object;
+  const previous = seen.get(object);
+  if (previous !== undefined) return previous as T;
+  if (value instanceof Date) return new Date(value.getTime()) as T;
+  if (value instanceof Uint8Array) return new Uint8Array(value) as T;
+  if (Array.isArray(value)) {
+    const copy: unknown[] = [];
+    seen.set(object, copy);
+    for (const item of value) copy.push(cloneStructured(item, seen));
+    return copy as T;
+  }
+  const copy: Record<string, unknown> = {};
+  seen.set(object, copy);
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    copy[key] = cloneStructured(item, seen);
+  }
+  return copy as T;
+}
+
 function structuralEqualInternal(a: unknown, b: unknown, seen: WeakMap<object, WeakSet<object>>): boolean {
   if (a === b) return true;
   if (a === null || b === null) return false;
@@ -19,6 +41,17 @@ function structuralEqualInternal(a: unknown, b: unknown, seen: WeakMap<object, W
   if (typeA !== typeof b) return false;
   // 非对象类型（primitives + function）走 Object.is 语义的快速路径
   if (typeA !== 'object') return false;
+  if (a instanceof Date || b instanceof Date) {
+    return a instanceof Date && b instanceof Date && Object.is(a.getTime(), b.getTime());
+  }
+  if (a instanceof Uint8Array || b instanceof Uint8Array) {
+    return (
+      a instanceof Uint8Array &&
+      b instanceof Uint8Array &&
+      a.length === b.length &&
+      a.every((value, index) => value === b[index])
+    );
+  }
 
   if (Array.isArray(a)) {
     if (!Array.isArray(b) || a.length !== b.length) return false;

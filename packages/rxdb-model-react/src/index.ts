@@ -14,6 +14,7 @@ export * from './entity-dialog/index.js';
 
 // Entity Form React
 export * from './entity-form/index.js';
+export * from './headless.js';
 
 // Entity List React
 export { EntityList, type EntityInstance, type EntityListProps, type FilterQuery } from './entity-list/entity-list.js';

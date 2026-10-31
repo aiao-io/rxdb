@@ -1,18 +1,17 @@
 import {
-  EntityFieldType,
+  cloneStructured,
+  structuralEqual,
   type EntityFormData,
-  formatEntityFieldValue,
   type FormFieldChangeEvent,
   type FormFieldConfig,
   type FormMode,
   type FormValidationResult,
-  parseEntityFieldValueStrict,
   type RelatedEntityItem,
-  type RelatedEntityProvider,
-  validateForm
+  type RelatedEntityProvider
 } from '@aiao/rxdb-model';
 import { DatePipe, JsonPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, output } from '@angular/core';
+import { injectEntityForm } from '../headless/bindings';
 import { useModelI18n } from '../i18n';
 
 /**
@@ -259,6 +258,7 @@ import { useModelI18n } from '../i18n';
 })
 export class EntityFormComponent {
   readonly #modelBinding = useModelI18n();
+  #lastInputData: EntityFormData | undefined;
 
   readonly fields = input.required<FormFieldConfig[]>();
   readonly data = input.required<EntityFormData>();
@@ -271,8 +271,21 @@ export class EntityFormComponent {
   readonly formCancelled = output<void>();
   readonly validationErrors = output<FormValidationResult>();
 
-  readonly initialData = linkedSignal(() => ({ ...this.data() }));
-  readonly formData = linkedSignal(() => ({ ...this.initialData() }));
+  /** 输入 signal 在组件实例化后才可读取，因此先建立空控制器，再由 effect 同步真实输入。 */
+  readonly formBinding = injectEntityForm({ fields: [], data: {}, mode: 'view', i18n: this.#modelBinding.runtime });
+  readonly formInputSync = effect(() => {
+    const controller = this.formBinding.controller;
+    controller.setFields(this.fields());
+    controller.setMode(this.mode());
+    controller.setRelatedEntityProvider(this.relatedEntityProvider());
+    const data = this.data();
+    if (!structuralEqual(data, this.#lastInputData)) {
+      controller.setData(data);
+      this.#lastInputData = cloneStructured(data);
+    }
+  });
+  readonly initialData = computed(() => this.formBinding.snapshot().initialData);
+  readonly formData = computed(() => this.formBinding.snapshot().data);
 
   readonly editableFields = computed(() => {
     return this.fields().filter(f => !f.hidden);
@@ -293,70 +306,33 @@ export class EntityFormComponent {
     return map;
   });
 
-  readonly displayValueMap = computed(() => {
-    const data = this.formData();
-    const fields = this.editableFields();
-    const itemsMap = this.relatedItemsMap();
-    const map = new Map<string, string>();
-    for (const field of fields) {
-      if (!this.isReadonly() && field.readonly !== true) continue;
-      const value = data[field.field];
-      if ((field.type === 'oneToOne' || field.type === 'manyToOne') && field.relatedEntityName) {
-        const items = itemsMap.get(field.field) ?? [];
-        const item = items.find(i => i.id === value);
-        map.set(field.field, item?.displayName ?? formatEntityFieldValue(field.type, value, field.format));
-      } else if (field.type === 'enum' && field.options) {
-        const label = field.options[String(value)]?.label;
-        map.set(field.field, label ?? formatEntityFieldValue(field.type, value, field.format));
-      } else if (field.type === 'stringArray' && field.options) {
-        const items =
-          Array.isArray(value) ? value
-          : typeof value === 'string' ? value.split(',')
-          : [];
-        map.set(field.field, items.map(v => field.options![String(v).trim()]?.label ?? String(v).trim()).join(', '));
-      } else {
-        map.set(field.field, formatEntityFieldValue(field.type, value, field.format));
-      }
-    }
-    return map;
-  });
+  readonly displayValueMap = computed(
+    () =>
+      new Map(
+        this.formBinding
+          .snapshot()
+          .fieldStates.filter(field => this.isReadonly() || field.readonly)
+          .map(field => [field.config.field, field.displayValue])
+      )
+  );
 
   get t() {
     return this.#modelBinding.t;
   }
-  get modelI18n() {
-    return this.#modelBinding.runtime;
-  }
-
   onFieldChange(field: FormFieldConfig, rawValue: unknown): void {
-    const current = this.formData();
-    const previousValue = current[field.field];
-    const result = parseEntityFieldValueStrict(field.type, rawValue, this.modelI18n);
-    if (!result.ok) {
-      this.validationErrors.emit({
-        valid: false,
-        errors: [{ field: field.field, message: `${field.displayName} ${result.message}` }]
-      });
-      return;
-    }
-    const parsed = result.value;
-    this.formData.set({ ...current, [field.field]: parsed });
-    this.fieldChanged.emit({ field: field.field, type: field.type as EntityFieldType, value: parsed, previousValue });
+    const result = this.formBinding.controller.setField(field.field, rawValue);
+    if (!result.ok) this.validationErrors.emit(result.result);
+    else this.fieldChanged.emit(result.event);
   }
 
   onSubmit(): void {
-    const currentFields = this.fields();
-    const currentData = this.formData();
-    const result = validateForm(currentFields, currentData, this.modelI18n);
-    if (!result.valid) {
-      this.validationErrors.emit(result);
-      return;
-    }
-    this.formSubmitted.emit(currentData);
+    const result = this.formBinding.controller.submit();
+    if (!result.valid) this.validationErrors.emit(result.result);
+    else this.formSubmitted.emit(result.data);
   }
 
   onCancel(): void {
-    this.formData.set({ ...this.initialData() });
+    this.formBinding.controller.cancel();
     this.formCancelled.emit();
   }
 

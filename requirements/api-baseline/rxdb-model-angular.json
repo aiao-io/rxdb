@@ -10,6 +10,10 @@
         "kind": "value"
       },
       {
+        "name": "AngularHeadlessOptions",
+        "kind": "type"
+      },
+      {
         "name": "applyClipboard",
         "kind": "value"
       },
@@ -106,6 +110,10 @@
         "kind": "type"
       },
       {
+        "name": "cloneStructured",
+        "kind": "value"
+      },
+      {
         "name": "cn",
         "kind": "value"
       },
@@ -134,6 +142,38 @@
         "kind": "value"
       },
       {
+        "name": "createEntityDetailController",
+        "kind": "value"
+      },
+      {
+        "name": "createEntityDetailHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "createEntityDialogController",
+        "kind": "value"
+      },
+      {
+        "name": "createEntityDialogHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "createEntityFormController",
+        "kind": "value"
+      },
+      {
+        "name": "createEntityFormHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "createEntityListController",
+        "kind": "value"
+      },
+      {
+        "name": "createEntityListHeadless",
+        "kind": "value"
+      },
+      {
         "name": "createFieldNodeMap",
         "kind": "value"
       },
@@ -150,11 +190,27 @@
         "kind": "value"
       },
       {
+        "name": "createQueryBuilderController",
+        "kind": "value"
+      },
+      {
+        "name": "createQueryBuilderHeadless",
+        "kind": "value"
+      },
+      {
         "name": "createQueryBuilderService",
         "kind": "value"
       },
       {
         "name": "createQueryConverter",
+        "kind": "value"
+      },
+      {
+        "name": "createQueryTableController",
+        "kind": "value"
+      },
+      {
+        "name": "createQueryTableHeadless",
         "kind": "value"
       },
       {
@@ -270,12 +326,36 @@
         "kind": "both"
       },
       {
+        "name": "EntityDetailController",
+        "kind": "both"
+      },
+      {
+        "name": "EntityDetailControllerOptions",
+        "kind": "type"
+      },
+      {
         "name": "EntityDetailDialogData",
+        "kind": "type"
+      },
+      {
+        "name": "EntityDetailSnapshot",
         "kind": "type"
       },
       {
         "name": "EntityDialogComponent",
         "kind": "both"
+      },
+      {
+        "name": "EntityDialogController",
+        "kind": "both"
+      },
+      {
+        "name": "EntityDialogControllerOptions",
+        "kind": "type"
+      },
+      {
+        "name": "EntityDialogSnapshot",
+        "kind": "type"
       },
       {
         "name": "EntityFieldConfig",
@@ -290,7 +370,35 @@
         "kind": "both"
       },
       {
+        "name": "EntityFormController",
+        "kind": "both"
+      },
+      {
+        "name": "EntityFormControllerOptions",
+        "kind": "type"
+      },
+      {
         "name": "EntityFormData",
+        "kind": "type"
+      },
+      {
+        "name": "EntityFormEvent",
+        "kind": "type"
+      },
+      {
+        "name": "EntityFormFieldSnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "EntityFormSnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "EntityFormSubmitResult",
+        "kind": "type"
+      },
+      {
+        "name": "EntityFormValidationEvent",
         "kind": "type"
       },
       {
@@ -300,6 +408,30 @@
       {
         "name": "EntityListComponent",
         "kind": "both"
+      },
+      {
+        "name": "EntityListController",
+        "kind": "both"
+      },
+      {
+        "name": "EntityListControllerOptions",
+        "kind": "type"
+      },
+      {
+        "name": "EntityListEvent",
+        "kind": "type"
+      },
+      {
+        "name": "EntityListLoadContext",
+        "kind": "type"
+      },
+      {
+        "name": "EntityListLoadResult",
+        "kind": "type"
+      },
+      {
+        "name": "EntityListSnapshot",
+        "kind": "type"
       },
       {
         "name": "EntityTableComponent",
@@ -516,6 +648,78 @@
       {
         "name": "IconListEditor",
         "kind": "both"
+      },
+      {
+        "name": "injectEntityDetail",
+        "kind": "value"
+      },
+      {
+        "name": "injectEntityDetailHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "InjectEntityDetailReturn",
+        "kind": "type"
+      },
+      {
+        "name": "injectEntityDialog",
+        "kind": "value"
+      },
+      {
+        "name": "injectEntityDialogHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "InjectEntityDialogReturn",
+        "kind": "type"
+      },
+      {
+        "name": "injectEntityForm",
+        "kind": "value"
+      },
+      {
+        "name": "injectEntityFormHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "InjectEntityFormReturn",
+        "kind": "type"
+      },
+      {
+        "name": "injectEntityList",
+        "kind": "value"
+      },
+      {
+        "name": "injectEntityListHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "InjectEntityListReturn",
+        "kind": "type"
+      },
+      {
+        "name": "injectQueryBuilder",
+        "kind": "value"
+      },
+      {
+        "name": "injectQueryBuilderHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "InjectQueryBuilderReturn",
+        "kind": "type"
+      },
+      {
+        "name": "injectQueryTable",
+        "kind": "value"
+      },
+      {
+        "name": "injectQueryTableHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "InjectQueryTableReturn",
+        "kind": "type"
       },
       {
         "name": "isDocumentDarkMode",
@@ -758,6 +962,18 @@
         "kind": "type"
       },
       {
+        "name": "QueryBuilderController",
+        "kind": "both"
+      },
+      {
+        "name": "QueryBuilderControllerOptions",
+        "kind": "type"
+      },
+      {
+        "name": "QueryBuilderEvent",
+        "kind": "type"
+      },
+      {
         "name": "QueryBuilderOperator",
         "kind": "type"
       },
@@ -775,6 +991,10 @@
       },
       {
         "name": "QueryBuilderServiceOptions",
+        "kind": "type"
+      },
+      {
+        "name": "QueryBuilderSnapshot",
         "kind": "type"
       },
       {
@@ -822,7 +1042,19 @@
         "kind": "both"
       },
       {
+        "name": "QueryTableController",
+        "kind": "both"
+      },
+      {
+        "name": "QueryTableControllerOptions",
+        "kind": "type"
+      },
+      {
         "name": "QueryTableHandle",
+        "kind": "type"
+      },
+      {
+        "name": "QueryTableSnapshot",
         "kind": "type"
       },
       {
@@ -1040,6 +1272,84 @@
       {
         "name": "ValueInputComponent",
         "kind": "both"
+      }
+    ],
+    "./headless": [
+      {
+        "name": "AngularHeadlessOptions",
+        "kind": "type"
+      },
+      {
+        "name": "injectEntityDetail",
+        "kind": "value"
+      },
+      {
+        "name": "injectEntityDetailHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "InjectEntityDetailReturn",
+        "kind": "type"
+      },
+      {
+        "name": "injectEntityDialog",
+        "kind": "value"
+      },
+      {
+        "name": "injectEntityDialogHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "InjectEntityDialogReturn",
+        "kind": "type"
+      },
+      {
+        "name": "injectEntityForm",
+        "kind": "value"
+      },
+      {
+        "name": "injectEntityFormHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "InjectEntityFormReturn",
+        "kind": "type"
+      },
+      {
+        "name": "injectEntityList",
+        "kind": "value"
+      },
+      {
+        "name": "injectEntityListHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "InjectEntityListReturn",
+        "kind": "type"
+      },
+      {
+        "name": "injectQueryBuilder",
+        "kind": "value"
+      },
+      {
+        "name": "injectQueryBuilderHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "InjectQueryBuilderReturn",
+        "kind": "type"
+      },
+      {
+        "name": "injectQueryTable",
+        "kind": "value"
+      },
+      {
+        "name": "injectQueryTableHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "InjectQueryTableReturn",
+        "kind": "type"
       }
     ]
   }
