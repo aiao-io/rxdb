@@ -251,6 +251,7 @@ describe('Supabase OAuth transport', () => {
 
   it('asks for the Supabase account email once when Management OAuth cannot return it', async () => {
     const r = rig();
+    vi.spyOn(SupabaseAuthClient.prototype, 'adoptSession').mockResolvedValue(undefined);
     vi.stubGlobal('prompt', vi.fn(() => 'owner@example.com'));
     vi.mocked(fetch)
       .mockResolvedValueOnce(
