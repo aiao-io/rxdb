@@ -230,7 +230,7 @@ export function createDevToolsRxdbDatabaseProvider(
   }
 
   const inspect: Handler = rxdb => {
-    const { entityInfo } = registryFor(rxdb).sync();
+    const { entityInfo, modelMap } = registryFor(rxdb).sync();
     return Promise.resolve(
       ok({
         version: rxdb.version,
@@ -239,6 +239,11 @@ export function createDevToolsRxdbDatabaseProvider(
           name: info.name,
           namespace: info.namespace,
           encryptedFields: [...info.encryptedFields]
+        })),
+        models: entityInfo.map(info => ({
+          name: info.name,
+          namespace: info.namespace,
+          model: modelMap.get(`${info.namespace}:${info.name}`) ?? { fields: [] }
         }))
       })
     );

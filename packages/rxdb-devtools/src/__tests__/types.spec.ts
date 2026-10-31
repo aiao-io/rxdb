@@ -119,6 +119,24 @@ describe('types', () => {
           entities: [{ name: 'User', namespace: 'public', encryptedFields: ['ssn'] }]
         }
       ],
+      [
+        'DB_MODEL_INFO',
+        {
+          entities: [
+            {
+              name: 'User',
+              namespace: 'public',
+              model: {
+                displayName: '用户',
+                fields: [
+                  { name: 'id', type: 'uuid' },
+                  { name: 'status', type: 'enum', enumValues: ['active'], options: { active: { label: '启用' } } }
+                ]
+              }
+            }
+          ]
+        }
+      ],
       ['ENTITY_DATA', { entityName: 'User', error: null, data: [{ id: 'u-1' }] }],
       ['ENTITY_DATA', { entityName: 'User', namespace: 'alpha', error: null, data: [{ id: 'u-1' }] }],
       ['ENTITY_DATA', { entityName: 'User', error: '实体 User 不存在', data: [] }],
@@ -196,6 +214,10 @@ describe('types', () => {
       ['capabilities 不在枚举内', { version: '1.0.0', dbName: 'app', capabilities: 'admin', entities: [] }],
       ['多出未知键', { version: '1.0.0', dbName: 'app', capabilities: 'full', entities: [], extra: 1 }],
       [
+        '旧 DB_INFO 混入 model 必须拒绝',
+        { version: '1.0.0', dbName: 'app', capabilities: 'full', entities: [], model: {} }
+      ],
+      [
         'entity 缺 namespace',
         { version: '1.0.0', dbName: 'app', capabilities: 'full', entities: [{ name: 'User', encryptedFields: [] }] }
       ]
@@ -206,6 +228,19 @@ describe('types', () => {
     });
 
     it.each([
+      [
+        'DB_MODEL_INFO',
+        { entities: [{ name: 'User', namespace: 'public', model: { fields: [{ name: 'x', type: 'unknown' }] } }] }
+      ],
+      [
+        'DB_MODEL_INFO',
+        {
+          entities: [
+            { name: 'User', namespace: 'public', model: { fields: [{ name: 'x', type: 'string', extra: true }] } }
+          ]
+        }
+      ],
+      ['DB_MODEL_INFO', { entities: [{ name: 'User', namespace: 'public', model: { fields: [] }, extra: true }] }],
       ['DISCONNECT_RXDB_RESULT', { requestId: '', success: true, error: null, status: 'graceful' }],
       ['DISCONNECT_RXDB_RESULT', { requestId: 'request-1', success: 'yes', error: null, status: 'graceful' }],
       ['DISCONNECT_RXDB_RESULT', { requestId: 'request-1', success: false, error: 1, status: 'failed' }],

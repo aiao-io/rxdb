@@ -735,20 +735,36 @@ export class DevToolsConnector {
     const rxdb = this.#rxdbInstance;
     if (!rxdb || !this.#entityRegistry) {
       this.#postMessage(createMessage('DB_INFO', 'page-to-devtools', null, this.#sequence.next()));
+      this.#postMessage(createMessage('DB_MODEL_INFO', 'page-to-devtools', null, this.#sequence.next()));
       return;
     }
 
+    const entityIndex = this.#syncEntities();
     const dbInfo = {
       version: rxdb.version,
       dbName: rxdb.config.dbName,
       capabilities: this.#options.capabilities,
-      entities: this.#syncEntities().entityInfo.map(info => ({
+      entities: entityIndex.entityInfo.map(info => ({
         name: info.name,
         namespace: info.namespace,
         encryptedFields: info.encryptedFields
       }))
     };
     this.#postMessage(createMessage('DB_INFO', 'page-to-devtools', dbInfo, this.#sequence.next()));
+    this.#postMessage(
+      createMessage(
+        'DB_MODEL_INFO',
+        'page-to-devtools',
+        {
+          entities: entityIndex.entityInfo.map(info => ({
+            name: info.name,
+            namespace: info.namespace,
+            model: entityIndex.modelMap.get(`${info.namespace}:${info.name}`) ?? { fields: [] }
+          }))
+        },
+        this.#sequence.next()
+      )
+    );
   }
 
   #replyEntityData(

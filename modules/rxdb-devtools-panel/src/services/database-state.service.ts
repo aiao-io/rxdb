@@ -2,7 +2,7 @@ import type { DevToolsEntityErrorCode } from '@aiao/rxdb-devtools';
 import { inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { ToastService } from '../components/toast.component';
 import { DEVTOOLS_TRANSPORT } from '../transport';
-import type { DbInfo, EntityData, EntityErrorKind } from '../types/devtools.types';
+import type { DbInfo, DbModelInfo, EntityData, EntityErrorKind, EntityModel } from '../types/devtools.types';
 
 /** 协议错误码 → UI 判别位；未登记的码（连接器比面板新）一律落到 `'unknown'`。 */
 const ENTITY_ERROR_KINDS: Readonly<Record<DevToolsEntityErrorCode, EntityErrorKind>> = {
@@ -33,6 +33,9 @@ export class DatabaseStateService implements OnDestroy {
 
   /** 数据库加载状态 */
   readonly dbLoading = signal(false);
+
+  /** 数据库模型；旧连接器未发送时保持 null，由表格按数据行回退推导。 */
+  readonly dbModelInfo = signal<DbModelInfo | null>(null);
 
   /** 按 namespace + entityName 分槽保存实体查询结果。 */
   readonly entityDataByKey = signal<ReadonlyMap<string, EntityData>>(new Map());
@@ -91,6 +94,14 @@ export class DatabaseStateService implements OnDestroy {
     return entityName != null && this.loadingEntities().has(this.entityKey(entityName, namespace));
   }
 
+  /** 读取指定复合身份的模型描述。 */
+  getEntityModel(entityName: string, namespace = 'public'): EntityModel | null {
+    const entity = this.dbModelInfo()?.entities.find(
+      item => item.name === entityName && (item.namespace || 'public') === (namespace || 'public')
+    );
+    return entity?.model ?? null;
+  }
+
   /** 读取指定复合身份的最近一次查询结果。 */
   getEntityData(entityName: string, namespace = 'public'): EntityData | null {
     return this.entityDataByKey().get(this.entityKey(entityName, namespace)) ?? null;
@@ -114,6 +125,9 @@ export class DatabaseStateService implements OnDestroy {
         case 'DB_INFO':
           this.handleDbInfo(message.payload as DbInfo | null);
           break;
+        case 'DB_MODEL_INFO':
+          this.handleDbModelInfo(message.payload as DbModelInfo | null);
+          break;
         case 'ENTITY_DATA':
           this.handleEntityData(message.payload as EntityData);
           break;
@@ -129,6 +143,7 @@ export class DatabaseStateService implements OnDestroy {
 
   reset(): void {
     this.dbInfo.set(null);
+    this.dbModelInfo.set(null);
     this.entityDataByKey.set(new Map());
     this.entityErrorKindByKey.set(new Map());
     this.dbLoading.set(false);
@@ -148,8 +163,12 @@ export class DatabaseStateService implements OnDestroy {
     this.dbLoading.set(false);
   }
 
+  private handleDbModelInfo(modelInfo: DbModelInfo | null): void {
+    this.dbModelInfo.set(modelInfo);
+  }
+
   /**
-   * 落地一次实体查询应答。
+   * 落地一次实体查询应答.
    *
    * @remarks
    * **不弹 toast**：`ENTITY_DATA` 永远是对某个具体槽位的应答，Database 页与 Storage 页
