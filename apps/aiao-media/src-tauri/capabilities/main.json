@@ -1,0 +1,5 @@
+{
+  "identifier": "main",
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"],
+  "windows": ["main"]
+}

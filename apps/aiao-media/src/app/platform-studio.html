@@ -1,0 +1,67 @@
+<section class="local-data-panel" aria-label="平台生图">
+  <h2>平台图片服务</h2>
+  <p>使用平台提供的模型和凭据，费用由平台额度或你的积分承担。自有供应商调用在上方独立提交。</p>
+  @if (!identity()) {
+    <p>请先选择平台账号并登录。无需平台服务时，可继续使用自己的供应商。</p>
+  }
+  @if (catalog(); as catalog) {
+    <p>{{ catalog.fairness }}</p>
+    @if (account(); as account) {
+      <p>免费剩余 {{ account.freeRemaining }} 次 · {{ account.freeReset }} · 积分余额 {{ account.credits }}</p>
+    }
+    <label for="platform-model">平台模型与价格</label>
+    <select id="platform-model" [disabled]="busy()" [ngModel]="model()" (ngModelChange)="model.set($event)">
+      @for (m of catalog.models; track m.id) {
+        <option [value]="m.id">{{ m.name }} · {{ m.credits }} 积分/张</option>
+      }
+    </select>
+    <label for="platform-billing">额度来源</label>
+    <select id="platform-billing" [disabled]="busy()" [ngModel]="billing()" (ngModelChange)="billing.set($event)">
+      <option value="free">今日免费额度</option>
+      <option value="credits">积分余额</option>
+    </select>
+    <p>使用上方提示词与画幅，提交后可关闭页面；再次登录可查看任务。平台生成完成后需主动保存到本机。</p>
+    <button
+      class="primary"
+      [disabled]="busy() || !catalog.enabled || !model() || !prompt().trim() || !valid()"
+      (click)="submit()"
+    >
+      {{ busy() ? '正在确认…' : '确认并提交平台生图' }}
+    </button>
+    @if (catalog.pack; as pack) {
+      <button class="secondary" [disabled]="busy()" (click)="checkout()">
+        购买 {{ pack.credits }} 积分 · {{ (pack.amount / 100).toFixed(2) }} {{ pack.currency.toUpperCase() }}
+      </button>
+      <p>
+        仅经支付通知确认后入账。生成失败或排队取消释放积分；结果未知须核对后结算。退款请提供订单号联系平台核对未消费积分。
+      </p>
+    }
+    <button class="secondary" (click)="refresh()">刷新任务与余额</button>
+    @for (job of jobs(); track job.id) {
+      <article class="notice">
+        <strong>{{ status(job) }}</strong>
+        <p>{{ job.model }} · {{ job.createdAt }} · {{ job.id }}</p>
+        @if (job.message) {
+          <p>{{ job.message }}</p>
+        }
+        @if (job.status === 'queued') {
+          <button class="secondary" (click)="cancel(job)">取消排队并释放额度</button>
+        }
+        @if (job.status === 'completed') {
+          <button class="primary" [disabled]="busy()" (click)="receive(job)">读取原图并保存到本机</button>
+        }
+      </article>
+    }
+    @if (account(); as account) {
+      <details>
+        <summary>平台消费流水（最近 100 条）</summary>
+        @for (entry of account.ledger; track entry.reference + entry.action) {
+          <p>{{ entry.reference }} · {{ entry.action }} · {{ entry.amount }} 积分</p>
+        }
+      </details>
+    }
+  }
+  @if (message()) {
+    <p role="status">{{ message() }}</p>
+  }
+</section>

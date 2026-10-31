@@ -56,6 +56,19 @@ export default [
     }
   },
   {
+    files: ['packages/**/*.{ts,tsx,js,mjs}', 'modules/**/*.{ts,tsx,js,mjs}'],
+    rules: {
+      '@nx/enforce-module-boundaries': [
+        'error',
+        {
+          enforceBuildableLibDependency: true,
+          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
+          depConstraints: [{ sourceTag: '*', notDependOnLibsWithTags: ['product:media'] }]
+        }
+      ]
+    }
+  },
+  {
     files: ['**/*.ts', '**/*.tsx', '**/*.cts', '**/*.mts', '**/*.js', '**/*.jsx', '**/*.cjs', '**/*.mjs'],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',

@@ -1,0 +1,73 @@
+<section class="local-data-panel" aria-label="同步目标设置">
+  <h2>选择同步服务</h2>
+  @if (nativeMode()) {
+    <p>
+      桌面版供应商 Key
+      仅保留于本次会话；数据库和原图保存在此应用的数据目录。卸载应用不会自动删除此目录，重要作品请先导出备份。
+    </p>
+  }
+  <p>
+    当前：{{
+      kind() === 'platform' ? '平台账号'
+      : kind() === 'custom' ? '自己的 Supabase'
+      : '仅本机'
+    }}。草稿、公开配置和作品信息可同步；原图默认留在本机，图片上传必须另行确认；API Key 不同步。
+  </p>
+  <p>
+    自己的项目需由所有者审阅并执行初始化 SQL，使用独立空项目，启用 RLS。连接不会自动修改数据库或上传内容。
+    <a download href="/sync-setup.sql">下载并审阅初始化 SQL</a>
+    ；已有项目按迁移说明逐项审阅。
+  </p>
+  <div class="provider-actions">
+    @if (oauthAvailable()) {
+      <button class="primary" [disabled]="busy() || oauthBusy()" (click)="connectOAuth.emit()">
+        {{ oauthBusy() ? '正在连接 Supabase…' : '连接自己的 Supabase' }}
+      </button>
+    }
+    @if (platformAvailable()) {
+      <button class="secondary" [disabled]="busy()" (click)="changeTarget.emit('platform')">使用平台账号</button>
+    }
+    <button class="secondary" [disabled]="busy()" (click)="changeTarget.emit('disconnected')">断开同步服务</button>
+  </div>
+  @if (configured()) {
+    <button class="secondary" (click)="login.emit($event)">登录与同步设置</button>
+  }
+  <details>
+    <summary>手动连接已有项目（高级）</summary>
+    <p>OAuth 不可用或已有兼容项目时使用。只填写公开项目 URL 和 publishable/anon Key。</p>
+    <label for="sync-url">自己的 Supabase 项目 URL</label>
+    <input
+      id="sync-url"
+      [ngModel]="url()"
+      (ngModelChange)="urlChanged.emit($event)"
+      placeholder="https://your-project.supabase.co"
+      type="url"
+    />
+    <label for="sync-public-key">公开 publishable / anon Key</label>
+    <input
+      id="sync-public-key"
+      [ngModel]="publicKey()"
+      (ngModelChange)="keyChanged.emit($event)"
+      autocomplete="off"
+      placeholder="sb_publishable_…"
+    />
+    <button class="secondary" [disabled]="busy()" (click)="changeTarget.emit('custom')">手动连接项目</button>
+  </details>
+  @if (oauthProjects().length) {
+    <label for="oauth-project">选择已授权项目</label>
+    <select
+      id="oauth-project"
+      [disabled]="busy() || oauthBusy()"
+      (change)="initializeOAuth.emit($any($event.target).value)"
+    >
+      <option value="">选择项目并初始化…</option>
+      @for (project of oauthProjects(); track project.ref) {
+        <option [value]="project.ref">{{ project.name || project.ref }} · {{ project.status || '可检查' }}</option>
+      }
+    </select>
+    <small>初始化只操作你确认的项目；项目内表、私有图片 bucket 和权限会先执行检查。</small>
+  }
+  @if (message()) {
+    <p class="notice" role="status">{{ message() }}</p>
+  }
+</section>

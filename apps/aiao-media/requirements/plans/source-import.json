@@ -1,0 +1,1390 @@
+{
+  "files": [
+    {
+      "source": ".editorconfig",
+      "sha256": "3970ce473928bdf945236b8aa6c7cbf6b0022f5ce379b7b0ba8e7343d8fec451",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": ".env.example",
+      "sha256": "5e7f1380a3d687f5fb7f6562f7c94ef658d90c0863604d0fcdbe53b9cfe0f78a",
+      "destination": "apps/aiao-media/.env.example",
+      "disposition": "imported"
+    },
+    {
+      "source": ".github/workflows/deploy-main.yml",
+      "sha256": "d63f341f1f6f9df52bc2694d387ced243a695594aa4a2512496fc89e926462da",
+      "destination": ".github/workflows/aiao-media.yml",
+      "disposition": "imported"
+    },
+    {
+      "source": ".gitignore",
+      "sha256": "087815f79cad8e5ee6212a146226afeff466dc6cf9e1d3126608fe18d128abba",
+      "destination": "apps/aiao-media/.gitignore",
+      "disposition": "imported"
+    },
+    {
+      "source": ".postcssrc.json",
+      "sha256": "6c96a7becce80948b52897a8968a815644d70dbe647227ae627a9cca0edcbabb",
+      "destination": "apps/aiao-media/.postcssrc.json",
+      "disposition": "imported"
+    },
+    {
+      "source": ".prettierignore",
+      "sha256": "8246eb22e3c8c01de6f42fb4e464a37dc2eae6e510235de88226a6090a94c001",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": ".prettierrc",
+      "sha256": "37055c98043228133ffcc5cad7bba5ef6c8f24698a551cae547b90f51d22e519",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": ".vscode/extensions.json",
+      "sha256": "3c964d104722645e40d5a852dda2e6a59b12368ba9584e9a425e7e42c2a049a8",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": ".vscode/launch.json",
+      "sha256": "4c9d31b4b770f63d23c684bbf09f776f61b970a27910cf782af01dab7910e820",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": "AGENTS.md",
+      "sha256": "45964d7171942305b5edb1354526b25179deb557856facfb7a6c5b839ebaee21",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": "README.md",
+      "sha256": "8c96372b75cccbf9bd7514671b2653c50d41fbaa14b997f0dcea431e0e786a6f",
+      "destination": "apps/aiao-media/README.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web-e2e/local-first.config.ts",
+      "sha256": "057dc9473f0b0caf443cc292dc8d157cd9a78f04b3ff399f487d85a2dac5dc53",
+      "destination": "apps/aiao-media-e2e/local-first.config.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web-e2e/project.json",
+      "sha256": "ed639cf553ca3f529698db15feb4dd9424e1b52249336cd25225c16a4821f26a",
+      "destination": "apps/aiao-media-e2e/project.json",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web-e2e/src/local-first.helpers.ts",
+      "sha256": "407b005c12abcc7c769ba4cba1cc217a263f5ff0572617cbcac83b93c946a3cc",
+      "destination": "apps/aiao-media-e2e/src/local-first.helpers.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web-e2e/src/local-first.spec.ts",
+      "sha256": "c7182df815a7106c44c3c1dd2494a71e976a84565654495e11e02168f372cb97",
+      "destination": "apps/aiao-media-e2e/src/local-first.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web-e2e/src/local-reliability.spec.ts",
+      "sha256": "c6b7ef79c15bfe8e74313f746f469c8e59729d28dd146c996ec5554eafbc2ebe",
+      "destination": "apps/aiao-media-e2e/src/local-reliability.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web-e2e/src/supabase-auth.spec.ts",
+      "sha256": "0651a0f22850b874e24eea07111d754ad4d3565310655533e05e2041b50eb79b",
+      "destination": "apps/aiao-media-e2e/src/supabase-auth.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web-e2e/src/supabase-local.spec.mts",
+      "sha256": "786232b57d628c39278e7894ee3f8e7b435027af0edf26027fb006add0b6e968",
+      "destination": "apps/aiao-media-e2e/src/supabase-local.spec.mts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web-e2e/supabase-local.config.ts",
+      "sha256": "65cb31179a973c88eb8365d99b72c6427f4e485de3fd6964d40c4d623413d0d8",
+      "destination": "apps/aiao-media-e2e/supabase-local.config.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web-e2e/tsconfig.json",
+      "sha256": "d97da27d9fbc941b16f937e3138fa5371f65a4fae93cd13c9f142f7c43d22ab2",
+      "destination": "apps/aiao-media-e2e/tsconfig.json",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/direct-provider-probe/README.md",
+      "sha256": "489ce8f629b3b86af2d5f45d3fbd04f2eb6494c35353e9cef4e6ae8812e7d956",
+      "destination": "apps/aiao-media/direct-provider-probe/README.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/direct-provider-probe/_headers",
+      "sha256": "582db89f12141bbede6e638de390c29021b7a6fcfec88cd935d0316e21907062",
+      "destination": "apps/aiao-media/direct-provider-probe/_headers",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/direct-provider-probe/index.html",
+      "sha256": "7dd3b4c395a5f608ea48f1645683a5a7f487c60e95389d6c222a5f0d38109bcc",
+      "destination": "apps/aiao-media/direct-provider-probe/index.html",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/direct-provider-probe/main.js",
+      "sha256": "d437554a572c72f1c6ba9dbd1a8b12f6e94b999149fb677586f7e733ecc90012",
+      "destination": "apps/aiao-media/direct-provider-probe/main.js",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/direct-provider-probe/styles.css",
+      "sha256": "c85428c4ade782bd8b3ad16ed77fa01da95697e772727b1e94d6fb80269bd011",
+      "destination": "apps/aiao-media/direct-provider-probe/styles.css",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/eslint.config.mjs",
+      "sha256": "74c959864d262cdba242530543eee31302dd2ad013ec04eb3e570fd0c2e18209",
+      "destination": "apps/aiao-media/eslint.config.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/project.json",
+      "sha256": "598abe65c6139b4366ad3f5531af579bdf57e4bb5b46ff853d383ce6cca6f587",
+      "destination": "apps/aiao-media/project.json",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/_headers",
+      "sha256": "a79ada6f9cf2ea638f68dfcf5a1fc8c60375aac26601e6f6643a0653fa041ddf",
+      "destination": "apps/aiao-media/public/_headers",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/favicon.ico",
+      "sha256": "f8410ea5598b43087f77e64a6b8732f6a7ae6b0a09c94497b383e1e92df95c9c",
+      "destination": "apps/aiao-media/public/favicon.ico",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/image-examples/REFERENCE-LICENSE.txt",
+      "sha256": "cdf642acded97160b992064916cc1c7490ce5a8d8ccc70d8d6456e16976f9bd0",
+      "destination": "apps/aiao-media/public/image-examples/REFERENCE-LICENSE.txt",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/image-examples/SOURCES.md",
+      "sha256": "eb6585f8f7b08bef6b74f2d2ffec3d0ab200b4099dee82e04db0f386a2dd7aa8",
+      "destination": "apps/aiao-media/public/image-examples/SOURCES.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/image-examples/ceramic.jpg",
+      "sha256": "18ada78c8d324b8f64194dec510e83d9fd2c8951fbe7e4c55e8a53b4f131d7f1",
+      "destination": "apps/aiao-media/public/image-examples/ceramic.jpg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/image-examples/coffee.jpg",
+      "sha256": "15720278a627f87141b55469f37050a0eec4c0df4b4171baa986c8d144aa2dfe",
+      "destination": "apps/aiao-media/public/image-examples/coffee.jpg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/image-examples/illustration.jpg",
+      "sha256": "853ad86b41ec3dd7b7993a5d13b7d7fb7efc7ce69e54399dbc47ec51c6f6a5bb",
+      "destination": "apps/aiao-media/public/image-examples/illustration.jpg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/image-examples/map.jpg",
+      "sha256": "d5ac4d50a3309dc0411f36f07a1d89aff73a60597f78c8534b66eb7190d9382b",
+      "destination": "apps/aiao-media/public/image-examples/map.jpg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/image-examples/portrait.jpg",
+      "sha256": "39bcf0de84a5a96f805823739c5e174d30e301b85f45fa7d49a5ba68957b946e",
+      "destination": "apps/aiao-media/public/image-examples/portrait.jpg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/image-examples/sources.json",
+      "sha256": "86b8067a61a170a9ef08e751aa5fd33610d1d44e35b1e4c65a79215782015232",
+      "destination": "apps/aiao-media/public/image-examples/sources.json",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/image-examples/vr.jpg",
+      "sha256": "97e848f6ad45cdd5b2c9f62c43725953afdcd52f3f2c261ec5869de92a730e85",
+      "destination": "apps/aiao-media/public/image-examples/vr.jpg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/prompt-art/alpine-dawn.svg",
+      "sha256": "9a26891da39dc715feca9ce4f0f8fe5c780badb0c56efb727a901693f9be0d57",
+      "destination": "apps/aiao-media/public/prompt-art/alpine-dawn.svg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/prompt-art/botanical-poster.svg",
+      "sha256": "8f3996ee40457a24ce18e3122c5ea71d7e89cae74b226698163658eb7aa76ae9",
+      "destination": "apps/aiao-media/public/prompt-art/botanical-poster.svg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/prompt-art/ceramic-still.svg",
+      "sha256": "a2929476b08f40671a39b38acfbbf33ef82d5c5613f10aa4f0697b2e12b55bff",
+      "destination": "apps/aiao-media/public/prompt-art/ceramic-still.svg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/prompt-art/coastline.svg",
+      "sha256": "094d2462cf636e1a0b1b12c04c81f69a4387482e8a0c8001620d803d19d48614",
+      "destination": "apps/aiao-media/public/prompt-art/coastline.svg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/prompt-art/coffee-launch.svg",
+      "sha256": "7824c9a91fa2c71e624f3e37553f1303d4fa3e2da84d6c9322ae0189aa257cbc",
+      "destination": "apps/aiao-media/public/prompt-art/coffee-launch.svg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/prompt-art/festival-poster.svg",
+      "sha256": "c673a591e83869cc844945026268d8e2f116673082ec9a79054077c82740f2a4",
+      "destination": "apps/aiao-media/public/prompt-art/festival-poster.svg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/prompt-art/minimal-perfume.svg",
+      "sha256": "10c93760d0b1dbf881e6066462ed90a88807a187466e115e04d8a27756de8f3a",
+      "destination": "apps/aiao-media/public/prompt-art/minimal-perfume.svg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/prompt-art/night-city.svg",
+      "sha256": "edd9b8bce36068f7b0454b4bdf8707567b1735292cc9d6bdc9ec3f5539cb1f85",
+      "destination": "apps/aiao-media/public/prompt-art/night-city.svg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/prompt-art/product-reference.svg",
+      "sha256": "8ca5f6bac27d2576ae05b14fd896ad5bdb58ff10f998a3205efe8d990f63b6f5",
+      "destination": "apps/aiao-media/public/prompt-art/product-reference.svg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/prompt-art/quiet-portrait.svg",
+      "sha256": "56390f971d3f9eb56538d4c0eedfa46252a995d2e2f0c099be40f2756831f7ed",
+      "destination": "apps/aiao-media/public/prompt-art/quiet-portrait.svg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/prompt-art/reading-portrait.svg",
+      "sha256": "2a0d46861b0c38bec2b7bd1e84c7e8fbd384d8c8572499779786a02a9dc0b409",
+      "destination": "apps/aiao-media/public/prompt-art/reading-portrait.svg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/public/prompt-art/structured-poster.svg",
+      "sha256": "4c4dcd5a8010587f24a878848e26577ef9702d4ec314610c91ada7bbe8dd4bbb",
+      "destination": "apps/aiao-media/public/prompt-art/structured-poster.svg",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/app.config.ts",
+      "sha256": "cce280c636704b0f55c0b63a31f7e87ef6e5309506e5590a747dee158ff6702a",
+      "destination": "apps/aiao-media/src/app/app.config.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/app.routes.ts",
+      "sha256": "bcc99931aabe2eaf68b7b963b21a1e05686a1fb6267f479eda5e0b066abe8d13",
+      "destination": "apps/aiao-media/src/app/app.routes.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/default-provider.ts",
+      "sha256": "afac9d588238815080dfcdb8513f9d08ac7a97be246aeba7157306ba297ad4c1",
+      "destination": "apps/aiao-media/src/app/default-provider.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/image-mvp-catalog.ts",
+      "sha256": "f81dc884fec1a3df5470ae60f84e5f3ec4665465024b4d04d050ac30867ad4a4",
+      "destination": "apps/aiao-media/src/app/image-mvp-catalog.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/local-backup.ts",
+      "sha256": "3f9e7c6031576ef6202ed253d35e7cfcaee0a8fda18917e16aa00908ab54d0b9",
+      "destination": "apps/aiao-media/src/app/local-backup.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/local-image-mvp.html",
+      "sha256": "306af2a323b8784ea4dab8a123f2d5ea48da93656089555f980f9789a1215b9d",
+      "destination": "apps/aiao-media/src/app/local-image-mvp.html",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/local-image-mvp.ts",
+      "sha256": "8dca194dfe7f8a76e9df5fdef4c176ede7e6d652aa64dac881fd44d69036f6f5",
+      "destination": "apps/aiao-media/src/app/local-image-mvp.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/local-provider.ts",
+      "sha256": "b56690bd30d71b191cad678b07813c0c7116e443cb48ec3d86e342237efa0569",
+      "destination": "apps/aiao-media/src/app/local-provider.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/prompts/catalog-data.ts",
+      "sha256": "02fe38221a0988f0955de7239848d2d8d424326646c9a4caf2869acad994433f",
+      "destination": "apps/aiao-media/src/app/prompts/catalog-data.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/prompts/prompt-assets.ts",
+      "sha256": "73df6a1f2c4f4235dbcf6dd11aca4ed4948e26ac8180179f0d4ccbddf83860f3",
+      "destination": "apps/aiao-media/src/app/prompts/prompt-assets.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/prompts/prompt-catalog.ts",
+      "sha256": "93dc9520627d3b2cf68eea5d8763f16d27dd15782995d1fe9e82f8b9098c3e16",
+      "destination": "apps/aiao-media/src/app/prompts/prompt-catalog.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/prompts/prompt-editor-runtime.ts",
+      "sha256": "f30adcddfcd6c9b1a01b2626c78ab33d4fdbd8bbadd42d7e9b3ce79ed47564fb",
+      "destination": "apps/aiao-media/src/app/prompts/prompt-editor-runtime.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/prompts/prompt-focus.spec.ts",
+      "sha256": "2b52bce2dc656c59107fafe9cb5955f21c28db2722366b469868f3df53d55581",
+      "destination": "apps/aiao-media/src/app/prompts/prompt-focus.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/prompts/prompt-focus.ts",
+      "sha256": "ca80ed4578016d0173a23c42d1ebe1bc5ad6511c5d18be756423f256b42c852d",
+      "destination": "apps/aiao-media/src/app/prompts/prompt-focus.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/prompts/prompt-input.css",
+      "sha256": "ce579570f6e3590a2538170d19aa4009d8f535b85109514a4a0b7a5a32de2c87",
+      "destination": "apps/aiao-media/src/app/prompts/prompt-input.css",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/prompts/prompt-input.ts",
+      "sha256": "59b714ecd91359fa499dd54c71a26797a060e71a795efe27ab657b5463fb7e0e",
+      "destination": "apps/aiao-media/src/app/prompts/prompt-input.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/prompts/prompt-state.spec.ts",
+      "sha256": "bfd34a3c895d1da52a27d02ff66449259a02d3d45794370b6f5e6a643dc4d5c7",
+      "destination": "apps/aiao-media/src/app/prompts/prompt-state.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/prompts/prompt-state.ts",
+      "sha256": "7c96ee2457513ccbb7bb52fbefe336ce8df52278ca5a818d311945e11be43d79",
+      "destination": "apps/aiao-media/src/app/prompts/prompt-state.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/prompts/studio-draft-session.spec.ts",
+      "sha256": "51b656361950684d6f21ad06910fd48b8cb797145e4e90e43bbd4ed904bd3320",
+      "destination": "apps/aiao-media/src/app/prompts/studio-draft-session.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/prompts/studio-draft-session.ts",
+      "sha256": "720dcf770b488a1732498119e4aa8296b6d392a8b2273cf878d1fbfd09ed4d43",
+      "destination": "apps/aiao-media/src/app/prompts/studio-draft-session.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/supabase-auth-config.ts",
+      "sha256": "0f21da5281728df8419649e8c6c53dc8effe301b8f828a73ccfcad5cf560de12",
+      "destination": "apps/aiao-media/src/app/supabase-auth-config.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/supabase-auth.spec.ts",
+      "sha256": "71daaacb86cc088db407147d20c1afa6acb0933bb21d57b95dff5a015c3914e4",
+      "destination": "apps/aiao-media/src/app/supabase-auth.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/app/supabase-auth.ts",
+      "sha256": "a86a0954df43f6a2343933f01756c9c6e3548e3244cd87e8307cc1e2f2fe8d88",
+      "destination": "apps/aiao-media/src/app/supabase-auth.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/image-mvp.css",
+      "sha256": "a0ffccbfc421ed71fe4bd88c53a9e9aebc2d234937481fa0fdbf94b6de71a0f3",
+      "destination": "apps/aiao-media/src/image-mvp.css",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/index.html",
+      "sha256": "a69c52d7b7cd0c9edc548b69264ae601cd54fda695f68b4c17a5b62f05d92e6d",
+      "destination": "apps/aiao-media/src/index.html",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/main.ts",
+      "sha256": "2c827807849df497d83136168a93287db70c4c58ce12b2b02ba67116b225e85b",
+      "destination": "apps/aiao-media/src/main.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/styles.css",
+      "sha256": "72809be52feea08e32546b9968ffc474a0b3c7906816f7908dd4147d2ca3708f",
+      "destination": "apps/aiao-media/src/styles.css",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/src/test-setup.ts",
+      "sha256": "fee51787348d65960d7a12404b416d9abfd803656ed463545d8fd33fd430acc5",
+      "destination": "apps/aiao-media/src/test-setup.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/tsconfig.app.json",
+      "sha256": "d5983ed57eb6ec9f4fecc2ce92cd546e15273457f889e51199d90c135b2e249d",
+      "destination": "apps/aiao-media/tsconfig.app.json",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/tsconfig.json",
+      "sha256": "9a6fef6fc76f7093364fead1e3b28df03c069770f3b618f8d847182a32caa887",
+      "destination": "apps/aiao-media/tsconfig.json",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/tsconfig.spec.json",
+      "sha256": "17d8cb19b8cc6242c71d8670dc5119b64192f4b94d11d9f185d11e0c41abb4bd",
+      "destination": "apps/aiao-media/tsconfig.spec.json",
+      "disposition": "imported"
+    },
+    {
+      "source": "apps/web/vite.config.mts",
+      "sha256": "d0ac35d6955ad0aba693d84dab755bfa8e2fa091c20ecf4688d896dc26310e3b",
+      "destination": "apps/aiao-media/vite.config.mts",
+      "disposition": "imported"
+    },
+    {
+      "source": "bun.lock",
+      "sha256": "d336e6194f50f72682c4984476aef8b4aa6eefb1a28f9a986f079228e0a0d078",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": "deploy/local-first-pages.md",
+      "sha256": "9a464192f659e3ba51460ce955226b2c3b694fc224faad0b4f08a69c2bcad9df",
+      "destination": "apps/aiao-media/deploy/local-first-pages.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "deploy/local-first-worker.mjs",
+      "sha256": "2ccb49ef148222eefada18ed3f1c13e328771acde6998ea9b3d91ca0ff629cc8",
+      "destination": "apps/aiao-media/deploy/local-first-worker.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "deploy/wrangler.json",
+      "sha256": "7ee5e15e16cb9d81ac853f1ef69d2650ae972cce8970ec0a3ac67db4cf695394",
+      "destination": "apps/aiao-media/deploy/wrangler.json",
+      "disposition": "imported"
+    },
+    {
+      "source": "eslint.config.mjs",
+      "sha256": "44acd13675e72cf600180ce6b8495c82390011016a8b549360502907f44d5e64",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": "infra/supabase/.env.example",
+      "sha256": "676dece253f19fad8d20de9089348eabdbec32968afd2f87d9781be69ba9e32b",
+      "destination": "apps/aiao-media/infra/supabase/.env.example",
+      "disposition": "imported"
+    },
+    {
+      "source": "infra/supabase/docker-compose.yml",
+      "sha256": "88265ceda242e4c47444b34b04f1b7824bca98ad0b9733a5cba3f34fef7c4660",
+      "destination": "apps/aiao-media/infra/supabase/docker-compose.yml",
+      "disposition": "imported"
+    },
+    {
+      "source": "infra/supabase/init/realtime.sql",
+      "sha256": "88dc0716a4b2f781192d70aabd8251cb5ba828d44c4eb264b351dd6e13b54ef7",
+      "destination": "apps/aiao-media/infra/supabase/init/realtime.sql",
+      "disposition": "imported"
+    },
+    {
+      "source": "infra/supabase/init/roles.sql",
+      "sha256": "8486281c67f28e863fa0ac60c039449d534e95fba6c100a9d5bd2c1054ba37b1",
+      "destination": "apps/aiao-media/infra/supabase/init/roles.sql",
+      "disposition": "imported"
+    },
+    {
+      "source": "infra/supabase/kong.template.yml",
+      "sha256": "961eeff4df56830ef487f481bb94d833ec3366aecc3f8b6e0c62648177fc0f38",
+      "destination": "apps/aiao-media/infra/supabase/kong.template.yml",
+      "disposition": "imported"
+    },
+    {
+      "source": "infra/supabase/migrations/001-local-account-checks.sql",
+      "sha256": "32d0232dbf8866e164f2500f6f3ceb3202b960adc080142ef2e37b9af274dabc",
+      "destination": "apps/aiao-media/infra/supabase/migrations/001-local-account-checks.sql",
+      "disposition": "imported"
+    },
+    {
+      "source": "infra/supabase/project.json",
+      "sha256": "49eedd02831b70bfa0fa5540f27be0b8b690b84e471a24a02b009ff871f45266",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": "nx.json",
+      "sha256": "2dda780f74bd3ace8dd8f8269363e2db7726d9f8b22f76dd3527358c5b14db5c",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": "package.json",
+      "sha256": "6de461940753bc049089ac565abab2e65a5e72e26a1c77de0c917f60dc18d7e0",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": "packages/contracts/project.json",
+      "sha256": "055d6a799905d9cb040b07080f34ec5cbc2ba16dd6f164e63c1cf2864011698d",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": "packages/contracts/src/audio-validation.spec.ts",
+      "sha256": "0300184ed6a0e9f23f00df49d35665acef4cad5fd1328135d97d9b4da66eb32c",
+      "destination": "apps/aiao-media/src/contracts/audio-validation.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/contracts/src/draft-sync-validation.spec.ts",
+      "sha256": "b41cab8e5468247d501c0bf2cae4e9fd055a82911d41893de7b8faa65b80773e",
+      "destination": "apps/aiao-media/src/contracts/draft-sync-validation.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/contracts/src/draft-sync-validation.ts",
+      "sha256": "ef45052e89e371a2fc5495f34cfb0e77a91ef2a5d5197cdbe93d927098a93ce6",
+      "destination": "apps/aiao-media/src/contracts/draft-sync-validation.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/contracts/src/draft-sync.ts",
+      "sha256": "bb181f945e8db6ffce60f670c28237722bd379ff4dc456d91bab36cdeab8cd6b",
+      "destination": "apps/aiao-media/src/contracts/draft-sync.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/contracts/src/generation-jobs.ts",
+      "sha256": "bd5342787619b46dece379a875d78641b7876dab3b50ef770436756cca660b35",
+      "destination": "apps/aiao-media/src/contracts/generation-jobs.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/contracts/src/generation-validation.spec.ts",
+      "sha256": "6092180885a03c07ddb9ff08f598669d1d187ed79ecf1f5bedd2d0a65c26a77f",
+      "destination": "apps/aiao-media/src/contracts/generation-validation.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/contracts/src/generation-validation.ts",
+      "sha256": "ba279b1ef56b97a6cb101fc442daf771ad79fc5d3346273563b5fc1ac2f93062",
+      "destination": "apps/aiao-media/src/contracts/generation-validation.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/contracts/src/index.spec.ts",
+      "sha256": "96e7c1fed624ca91ac0730b230839b679b372058687157424b995bc2168a735c",
+      "destination": "apps/aiao-media/src/contracts/index.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/contracts/src/index.ts",
+      "sha256": "2cec16a1911827e78c18b800dd46c25e33aa1e61a0e9241e968f378138b5e167",
+      "destination": "apps/aiao-media/src/contracts/index.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/contracts/src/video-validation.spec.ts",
+      "sha256": "2ae2b21746a679007340afccf4eb2b50d24fbc0356c05d7c6f9a1dc9f54961ce",
+      "destination": "apps/aiao-media/src/contracts/video-validation.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/project.json",
+      "sha256": "7790eb88b46223c32161f7bac0b21c07ca37e928adab3deab909ad1c172d3eba",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": "packages/local-data/src/audio-submissions.spec.ts",
+      "sha256": "554a98c94bdeba5a9adfedbae9af8e1cce4c58e79b42c9b408a8507c726aaf9a",
+      "destination": "apps/aiao-media/src/local-data/audio-submissions.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/audio-submissions.ts",
+      "sha256": "9e4f03e878bf0b92b6fcd9a3be9fa9190a51f4b10fb43914cae4e53b0587663f",
+      "destination": "apps/aiao-media/src/local-data/audio-submissions.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/browser-media.ts",
+      "sha256": "213db1f6a73ddb5df655dba0f46df36c0511f59b9b4a80e4b8df508b9022db12",
+      "destination": "apps/aiao-media/src/local-data/browser-media.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/draft-notebook.spec.ts",
+      "sha256": "d186166f89b5ba248ecbd59005c7bc50be2686c9c1112708fdb0acdf43b4fc57",
+      "destination": "apps/aiao-media/src/local-data/draft-notebook.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/draft-notebook.ts",
+      "sha256": "9834841f57a50308e77aca98005a55104b613d5ac0e19950136cc24f555c99c8",
+      "destination": "apps/aiao-media/src/local-data/draft-notebook.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/image-mvp.spec.ts",
+      "sha256": "e0249a23be57def245f3a2b3a780511720112aa813a7ebee7c26346b4d64867c",
+      "destination": "apps/aiao-media/src/local-data/image-mvp.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/image-submissions.spec.ts",
+      "sha256": "255685cc026b0e3bf00f5faae0f9d4384d63b9df18ab2b90d53f36166836f0f8",
+      "destination": "apps/aiao-media/src/local-data/image-submissions.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/image-submissions.ts",
+      "sha256": "ca576e6fd6f89d5468ae66c6f0a5dc6fa32d4247cc9038f5abb23f0a14f08ec7",
+      "destination": "apps/aiao-media/src/local-data/image-submissions.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/index.ts",
+      "sha256": "0394ba9ef5637c69bd72c143584afd2b89cd1dbc7acc0186b080bff3cf7fb9da",
+      "destination": "apps/aiao-media/src/local-data/index.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/media-result.spec.ts",
+      "sha256": "709bde4dc51b65c9a113974fd579ab20356255119e927406a7c781398a41ca01",
+      "destination": "apps/aiao-media/src/local-data/media-result.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/media-result.ts",
+      "sha256": "63e211ae1bf98ca42b8220c627ac606d10533315b96826082f3e79c75bb98b28",
+      "destination": "apps/aiao-media/src/local-data/media-result.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/studio-draft.spec.ts",
+      "sha256": "97a34fd6bd49e6a7555b63f48b6656e5a39afab7691f6dbba92b38ce8e99e856",
+      "destination": "apps/aiao-media/src/local-data/studio-draft.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/studio-draft.ts",
+      "sha256": "40d6f51d658c658f897c99cab21613122e772b9ef5ce632475dffef60dbea4c3",
+      "destination": "apps/aiao-media/src/local-data/studio-draft.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/video-submissions.spec.ts",
+      "sha256": "c5cdc6a09c4ac1d796610795352613197495f98089b44aff85464ab5cd529362",
+      "destination": "apps/aiao-media/src/local-data/video-submissions.spec.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/src/video-submissions.ts",
+      "sha256": "6eb5b63749a28c7732b03f6f9cf9da6e68397028f4421ac56b91d47c76732875",
+      "destination": "apps/aiao-media/src/local-data/video-submissions.ts",
+      "disposition": "imported"
+    },
+    {
+      "source": "packages/local-data/tsconfig.json",
+      "sha256": "9a066dbfd155bcd963655a5557ea3bd83b59282135dcac72987f348391f3f0c2",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": "requirements/CONVENTIONS.md",
+      "sha256": "c419946273e19de53c12a44a3b8373aa3eed70828d13472b68dd5b381f7fcaeb",
+      "destination": "apps/aiao-media/requirements/CONVENTIONS.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/README.md",
+      "sha256": "5a7df110c3fa49cc2666390b73233128d89408eedeb1208e6ff66223d713a6a8",
+      "destination": "apps/aiao-media/requirements/README.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/capability-matrix.md",
+      "sha256": "6ea88a59b6517c55e451da2a61910e629de46e6a19bf16a8550fb512756e688e",
+      "destination": "apps/aiao-media/requirements/capability-matrix.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/code-scanning/README.md",
+      "sha256": "00fc6bcae9e28537564cc10afcf9b0da13301ef5862c3a14b2ccce3a9997896a",
+      "destination": "apps/aiao-media/requirements/code-scanning/README.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/code-scanning/code-scanning.template.md",
+      "sha256": "b23c7bda85740272f18c0fef16227501049325c11b459f9c8e529ac6e3bceabd",
+      "destination": "apps/aiao-media/requirements/code-scanning/code-scanning.template.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/decisions.md",
+      "sha256": "e757ad605fc2ad763a7cdc764a64cf00d61e389ca6f6b4e3a4734fecabee4eb4",
+      "destination": "apps/aiao-media/requirements/decisions.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/00-overview.png",
+      "sha256": "c334c8b23890c7ee87bfb96abe9b73e67ca1ce3f15231c1a4bafc01d609341f4",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/00-overview.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/01-discover.png",
+      "sha256": "70ce15375d3711125bece34bd08ebee9ecc88b5e774da562ead54a721907ae9c",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/01-discover.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/02-studio.png",
+      "sha256": "c65d7eefb948a4b3caa93267736686635cecfdd74fead6bf79c37a200a46e024",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/02-studio.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/03-library.png",
+      "sha256": "1046966dad92e7b6e8e76033c4072ae095d7f7eefa6051e6c04e0d1fc5d6423e",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/03-library.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/04-loading.png",
+      "sha256": "f9f4ad4dae0eb6698001411e0ad1b33736546f326d43a632abed178caa41c8ce",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/04-loading.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/05-error.png",
+      "sha256": "85dbfa3fd411d9d53ed849b1bcdfac08f58945dff6a5b1d50a46c841b822203f",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/05-error.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/06-storage-error.png",
+      "sha256": "eecf527e201945e2ae05b42aeb4668731846fec168b55701a327c407dcbffef0",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/06-storage-error.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/07-empty.png",
+      "sha256": "35d8b7e0c9676dfb0bb0033615d8862a16587d6de6d871a8786d13ec9e37bb0c",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/07-empty.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/08-unknown.png",
+      "sha256": "9ffbd4d849b8e7d9070f921f6543d3ab68cfcb7ead8fd6151cd17b4021636b0c",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/08-unknown.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/09-mobile-discover.png",
+      "sha256": "9165e9340455b4972fc593c098329ff2f0fc1793841e4e11932048aa3c456f26",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/09-mobile-discover.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/10-mobile-studio.png",
+      "sha256": "6bda31675383a3023c59db0e724a01a9d8cbe85a6eda34a6b0581dc8a624b057",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/10-mobile-studio.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/11-mobile-library.png",
+      "sha256": "77e4949dd394476fc14fe3bc7cab3495cae13199877f54f474cf974d308b23d1",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/11-mobile-library.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/README.md",
+      "sha256": "a8114d12425d7d5c77fb905a9002baa7d99bfff025de1ca4e748569402dce53c",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/README.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/assets/REFERENCE-LICENSE.txt",
+      "sha256": "cdf642acded97160b992064916cc1c7490ce5a8d8ccc70d8d6456e16976f9bd0",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/assets/REFERENCE-LICENSE.txt",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/assets/SOURCES.md",
+      "sha256": "eb6585f8f7b08bef6b74f2d2ffec3d0ab200b4099dee82e04db0f386a2dd7aa8",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/assets/SOURCES.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/assets/ceramic.jpg",
+      "sha256": "18ada78c8d324b8f64194dec510e83d9fd2c8951fbe7e4c55e8a53b4f131d7f1",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/assets/ceramic.jpg",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/assets/coffee.jpg",
+      "sha256": "15720278a627f87141b55469f37050a0eec4c0df4b4171baa986c8d144aa2dfe",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/assets/coffee.jpg",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/assets/illustration.jpg",
+      "sha256": "853ad86b41ec3dd7b7993a5d13b7d7fb7efc7ce69e54399dbc47ec51c6f6a5bb",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/assets/illustration.jpg",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/assets/map.jpg",
+      "sha256": "d5ac4d50a3309dc0411f36f07a1d89aff73a60597f78c8534b66eb7190d9382b",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/assets/map.jpg",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/assets/portrait.jpg",
+      "sha256": "39bcf0de84a5a96f805823739c5e174d30e301b85f45fa7d49a5ba68957b946e",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/assets/portrait.jpg",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/assets/sources.json",
+      "sha256": "86b8067a61a170a9ef08e751aa5fd33610d1d44e35b1e4c65a79215782015232",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/assets/sources.json",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/assets/vr.jpg",
+      "sha256": "97e848f6ad45cdd5b2c9f62c43725953afdcd52f3f2c261ec5869de92a730e85",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/assets/vr.jpg",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/implementation/01-discover-desktop.png",
+      "sha256": "41207974d4615bb7c5a9e1c061da8721300d93ad17d79e2c09a74393f2af90de",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/implementation/01-discover-desktop.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/implementation/02-create-desktop.png",
+      "sha256": "8dc447b3fcb0c33af083ce7d2d303edb9d1bc1b33e70fceb32c1c92e8a39c5c3",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/implementation/02-create-desktop.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/implementation/03-images-desktop.png",
+      "sha256": "7859abaa7eea90dfa03c6ccc3f256a08d2a2e65759fafc25a95170a9f38a9947",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/implementation/03-images-desktop.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/implementation/04-create-mobile.png",
+      "sha256": "2770dbcf3190a3ec271b15383dd7ca3f46a8ecd1991f6fb2bdaa56416cfd8bca",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/implementation/04-create-mobile.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/implementation/04-discover-mobile.png",
+      "sha256": "bbde4c1ddffa155cddc12bd60da8e02e8a23de8f0b12a95bc075cb0791b92e99",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/implementation/04-discover-mobile.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/implementation/04-images-mobile.png",
+      "sha256": "df8096f23d40fbffd3fbbf67633a9b32664353d48a13be0ef1c5d52a0b2f590d",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/implementation/04-images-mobile.png",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/implementation/README.md",
+      "sha256": "140706d2b444855073b72f4457d08959496fe8de524306d868d212b414ef7d8a",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/implementation/README.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/index.html",
+      "sha256": "ebb677a39abb31d893db30896953c578f07cb119806428b1e7c8ba82362cbbc2",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/index.html",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/live-provider/01-create-landscape.webp",
+      "sha256": "fc18296071051fcc43900d97d62cf2d830febb6be338022899a2d8c68043eeb9",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/live-provider/01-create-landscape.webp",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/live-provider/02-create-portrait.webp",
+      "sha256": "06a391a101ccb34d57fbab2afa5923aa0f0659ff248c5cd0cef23750293678ba",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/live-provider/02-create-portrait.webp",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/live-provider/03-library-after-reload.webp",
+      "sha256": "4fa51b0a3779e3496913c7905105b9783e008692a6aa35eda7b8d341b775d888",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/live-provider/03-library-after-reload.webp",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/live-provider/README.md",
+      "sha256": "07dcca29d9cab244962d02b517c9201bc92dced5734c74b162df8dbfdd5dd483",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/live-provider/README.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/prototype.js",
+      "sha256": "8d238007858a59bc22e30c9a5b25ecf6972943d6af174c7d5b834aaf373e8d31",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/prototype.js",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/design/image-mvp/styles.css",
+      "sha256": "3511c4f212cb915d85cf65fa2d056acbff64d45c259e48c37882fcaa17726f86",
+      "destination": "apps/aiao-media/requirements/design/image-mvp/styles.css",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/epics/epic-001-platform.md",
+      "sha256": "9d64dec9bfd3fe605a0729444c4edd8caecde744d71c7767a322293c19f02af5",
+      "destination": "apps/aiao-media/requirements/epics/MEDIA-EPIC-001.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/epics/epic-002-generation.md",
+      "sha256": "042cf4566b4d9e70857dbd44a036eac35f6c0ab51b682e72843a9593ac813162",
+      "destination": "apps/aiao-media/requirements/epics/MEDIA-EPIC-002.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/epics/epic-003-account.md",
+      "sha256": "7711165bd76a852d87d362338f18d9ce4f5a9c133752e197bed20a024886672d",
+      "destination": "apps/aiao-media/requirements/epics/MEDIA-EPIC-003.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/epics/epic-004-local-first.md",
+      "sha256": "53ca771aebd7f8a300c97907885372e57096ede7b9d711bd92bd955232e4af26",
+      "destination": "apps/aiao-media/requirements/epics/MEDIA-EPIC-004.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/epics/epic.template.md",
+      "sha256": "83cb9904855c77905511eced22a24cc8657ad799f9e45bd11d1fae2b6771ec45",
+      "destination": "apps/aiao-media/requirements/epics/epic.template.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/plans/README.md",
+      "sha256": "70c773b04018287e0978e6941be562735072a0fe0a97ad99bc1709a3d010c8d1",
+      "destination": "apps/aiao-media/requirements/plans/README.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/plans/account-workspace-binding.md",
+      "sha256": "f1a99876513a71cff3b79cb59c9f44f5d3207bc931c6e82660f2189a317435a3",
+      "destination": "apps/aiao-media/requirements/plans/account-workspace-binding.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/plans/business-admin.md",
+      "sha256": "85e5e8b63b50c87da1bf02cfdd07a882c076404a0a9ef0bc9648dbb778b48ce1",
+      "destination": "apps/aiao-media/requirements/plans/business-admin.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/plans/image-mvp-live-verification.json",
+      "sha256": "9d84b3f82aeee5242f9c3d6595c4dca5f848c90d1c513d6eb6896e40e8bc0176",
+      "destination": "apps/aiao-media/requirements/plans/image-mvp-live-verification.json",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/plans/image-mvp-verification.md",
+      "sha256": "231f2216d132eef58acd71b2e5d2d900889d2539f82a13a332443866dd8ed411",
+      "destination": "apps/aiao-media/requirements/plans/image-mvp-verification.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/plans/local-first-app-verification.md",
+      "sha256": "9cc1252b0385b9896fb8a3798b816d358bf4ebf71e5db2f3d211ee108f7f7565",
+      "destination": "apps/aiao-media/requirements/plans/local-first-app-verification.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/plans/local-first-direct-probe-verification.md",
+      "sha256": "7c70ccb1016f2d235ddc6ac81d38fa449d1d4f90777a6f398e5447a449bb39df",
+      "destination": "apps/aiao-media/requirements/plans/local-first-direct-probe-verification.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/plans/local-reliability-verification.md",
+      "sha256": "49c60be889e16cc72ec884113ce96355094e11af33b060fd671963344ccc2f88",
+      "destination": "apps/aiao-media/requirements/plans/local-reliability-verification.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/plans/roadmap-before-image-mvp.md",
+      "sha256": "16bb594c26e1d1a7dafef5dce9f311b09c910f94a630223fa38c0e3ddce65e60",
+      "destination": "apps/aiao-media/requirements/plans/roadmap-before-image-mvp.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/plans/supabase-account-verification.md",
+      "sha256": "4b892fe1b57ff2b35dcd91bdfd8679ec86d1206fb31c53525fb461d1c4fe1408",
+      "destination": "apps/aiao-media/requirements/plans/supabase-account-verification.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/reviews/README.md",
+      "sha256": "cde98e81724db1a4f43b7e8d97461c7b5f03c3fea8009c8646238838f8ffd26f",
+      "destination": "apps/aiao-media/requirements/reviews/README.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/reviews/review.template.md",
+      "sha256": "394c92b9bce25e7bc8071f9fa9a93edfce935056d215f84188cb585badd5c663",
+      "destination": "apps/aiao-media/requirements/reviews/review.template.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/roadmap.md",
+      "sha256": "a2f78a201a96179f088d2710f2e515240f429f7ec0646db85225a4cab008c009",
+      "destination": "apps/aiao-media/requirements/roadmap.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/status-overview.md",
+      "sha256": "22ce34fc3a9ef57c927a39e6a41da0481ff3ff7ca95f81a5e6382cfa0db7fd9f",
+      "destination": "apps/aiao-media/requirements/status-overview.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/account/US-201-sessions.md",
+      "sha256": "461ae44c65d6849b23b3858b20c7a872424ff60515d5d73d03dcea2a8652fa53",
+      "destination": "apps/aiao-media/requirements/stories/account/MEDIA-US-201-sessions.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/account/US-202-library.md",
+      "sha256": "a6c277d06da8b4f849831ca8224bfeabcc6225077460d16150766b68d591254e",
+      "destination": "apps/aiao-media/requirements/stories/account/MEDIA-US-202-library.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/account/US-203-business-admin.md",
+      "sha256": "5ddd4098d5a3598a1a8fc1a5f4b79f886ddcdea34e3892ff803e872f808b0b57",
+      "destination": "apps/aiao-media/requirements/stories/account/MEDIA-US-203-business-admin.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/generation/US-102-image-generation.md",
+      "sha256": "d391445415dda0ed3fdc42b0f75b403edc0cc2dd74e9da8c446c887001019513",
+      "destination": "apps/aiao-media/requirements/stories/generation/MEDIA-US-102-image-generation.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/generation/US-105-provider-management.md",
+      "sha256": "4b8f5a7bfd70bf6c8f162553c92747bd69921c12b95253915648459f6769f410",
+      "destination": "apps/aiao-media/requirements/stories/generation/MEDIA-US-105-provider-management.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/generation/US-106-prompt-gallery.md",
+      "sha256": "ea3b34f655b53abd95802bbc299ed20c5503895dccf08f255ba6f89cbd117141",
+      "destination": "apps/aiao-media/requirements/stories/generation/MEDIA-US-106-prompt-gallery.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/generation/US-107-mobile-verification.md",
+      "sha256": "60a7dfd57dba2db200fa4a3ca3e913871bbd000e62ecaf0df4cc283a9d7d3202",
+      "destination": "apps/aiao-media/requirements/stories/generation/MEDIA-US-107-mobile-verification.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/local-first/US-301-browser-persistence.md",
+      "sha256": "23b89c619fd50c3995427fd346d2eda22c30e78551c0d9d05394b54d586a39a1",
+      "destination": "apps/aiao-media/requirements/stories/local-first/MEDIA-US-301-browser-persistence.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/local-first/US-302-draft-sync.md",
+      "sha256": "74d284130063662aa4998dc211842296b4368f64b02d4558503377b445089eb4",
+      "destination": "apps/aiao-media/requirements/stories/local-first/MEDIA-US-302-draft-sync.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/local-first/local-first-studio.md",
+      "sha256": "1ca48a4ff96af7f9593ee4acc2a4357e86d213766b6d9da0ac63456b3c6dece4",
+      "destination": "apps/aiao-media/requirements/stories/local-first/local-first-studio.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/platform/US-001-nx-workspace.md",
+      "sha256": "a2195d109fa76226d3be255a8a006867f971f73a69ecc95be13e3a0111485be6",
+      "destination": "apps/aiao-media/requirements/stories/platform/MEDIA-US-001-nx-workspace.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/platform/US-004-cloudflare-edge-deployment.md",
+      "sha256": "fab4c84b73c56398f757448bd0e72614306eac55cef0005c7b17beb776cf271d",
+      "destination": "apps/aiao-media/requirements/stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/stories/story.template.md",
+      "sha256": "b5297522745ada31d6885a206a74643f3349ffe9a66bc8e24e08f30585e2e5b8",
+      "destination": "apps/aiao-media/requirements/stories/story.template.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "requirements/verification-report.md",
+      "sha256": "b358a73700532f70a893d855af28cdedf4f41fa3bbb387c9649b9a1df4fa119b",
+      "destination": "apps/aiao-media/requirements/verification-report.md",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/build-offline-assets.mjs",
+      "sha256": "8459fd85984fa4ff60a234bc01fc8d1f7d934af1e523cb50e38bb207c7b53b0d",
+      "destination": "apps/aiao-media/scripts/build-offline-assets.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/build-prompt-assets.mjs",
+      "sha256": "258fb28c0160b7b40e3752a25f80a9b91e905585c2b35ded0b4339fc3aa66d3d",
+      "destination": "apps/aiao-media/scripts/build-prompt-assets.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/build-supabase-config.mjs",
+      "sha256": "92ca005a330d0580081fffa992f911f8d21047ae5a6fa74573c7b2e4d3761ec7",
+      "destination": "apps/aiao-media/scripts/build-supabase-config.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/build-supabase-config.test.mjs",
+      "sha256": "ee0c2d5529ebbe6e4854fbdd8cc00629e639c36414dd4cc9e0c0cf006880bc2c",
+      "destination": "apps/aiao-media/scripts/build-supabase-config.test.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/check-local-first-release.mjs",
+      "sha256": "a06d63b8a80e914dd41dfc3e20e827d5ff13151d9f83a311bc411c5a65d96545",
+      "destination": "apps/aiao-media/scripts/check-local-first-release.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/check-requirements.mjs",
+      "sha256": "aa28197930cdaa07ad937c719d6b26f5db90b9a5f5c01a402ff695c8edb5647e",
+      "destination": "apps/aiao-media/scripts/check-requirements.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/check-requirements.test.mjs",
+      "sha256": "c926b5032d59fdb856695f686c96dc0544ee83cabdf96f44807d67f51271ca90",
+      "destination": "apps/aiao-media/scripts/check-requirements.test.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/deploy-local-first.mjs",
+      "sha256": "6cd76ebb1ec166ae8a8ce4f18cd090af511b04cbdc76cb2422e1fd17badc9340",
+      "destination": "apps/aiao-media/scripts/deploy-local-first.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/direct-provider-probe-live.mjs",
+      "sha256": "264bc6b4f782d8599d8d606e9cbf3ecf76ee1a153911ae2a6029404cf500e586",
+      "destination": "apps/aiao-media/scripts/direct-provider-probe-live.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/direct-provider-probe.mjs",
+      "sha256": "04bd2a7ab39fa01514263a54312458a69f442cd7db25a20c64d346bc5bd8941a",
+      "destination": "apps/aiao-media/scripts/direct-provider-probe.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/direct-provider-probe.test.mjs",
+      "sha256": "636d455bd597ca6387eb60671cfae70bda3616703d5cfe80d4c518e85504c25c",
+      "destination": "apps/aiao-media/scripts/direct-provider-probe.test.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/link-rxdb.mjs",
+      "sha256": "d47812ef699a9ab3a987f585023d7e703410e531c6786997f6d80e0a522ee0cb",
+      "destination": null,
+      "disposition": "replaced-by-workspace-dependencies"
+    },
+    {
+      "source": "scripts/link-rxdb.test.mjs",
+      "sha256": "69a9b906547ca1f31ac4989ffa21e7c2a347ccf9e1a7e4428a518044502d7190",
+      "destination": null,
+      "disposition": "replaced-by-workspace-dependencies"
+    },
+    {
+      "source": "scripts/local-first-worker.test.mjs",
+      "sha256": "e6f95ced45b145ff329d80e65c67b68e8109e804c0cbe1ad36b5111134ffeea8",
+      "destination": "apps/aiao-media/scripts/local-first-worker.test.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/offline-worker.js",
+      "sha256": "f58d69c63e7fcf99483ae898d282712f975f99b2606f8aa8c3e0e3056ad81749",
+      "destination": "apps/aiao-media/scripts/offline-worker.js",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/prepare-rxdb-assets.mjs",
+      "sha256": "2ff06a24fa07241854f046c88fbdaca2eb16beafd188f1ddb1b90d646a4ade76",
+      "destination": "apps/aiao-media/scripts/prepare-rxdb-assets.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/supabase-local.d.mts",
+      "sha256": "2cef3f29f7b01cd76d3fde5de37eeacef1bfa821a661558641d686bd2be74158",
+      "destination": "apps/aiao-media/scripts/supabase-local.d.mts",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/supabase-local.mjs",
+      "sha256": "43368796cc510078f6ab449dd24ebacb26246402811a3c6f1125cb92f3deddbf",
+      "destination": "apps/aiao-media/scripts/supabase-local.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/test-supabase-local.d.mts",
+      "sha256": "b8e1f9fbd98bf8e465845a0c3853f110bafcdc17b297b1e877b847379a615879",
+      "destination": "apps/aiao-media/scripts/test-supabase-local.d.mts",
+      "disposition": "imported"
+    },
+    {
+      "source": "scripts/test-supabase-local.mjs",
+      "sha256": "999b532bc0446be619ea4c0752d71943e2c75f2ec2e35c3604262bc654073ada",
+      "destination": "apps/aiao-media/scripts/test-supabase-local.mjs",
+      "disposition": "imported"
+    },
+    {
+      "source": "tsconfig.base.json",
+      "sha256": "9e82b626c1dd4945a5121f584b5fb1c2c8f94ad75ff26cca86fe4eb4995bf1f1",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": "vitest.config.mts",
+      "sha256": "af2c88519b4db555d0c91fc03aa80faa4a00d5a9382e3016b2b1f8d3fd96a6a1",
+      "destination": null,
+      "disposition": "integrated"
+    },
+    {
+      "source": "requirements/plans/rxdb-product-incubation.md",
+      "sha256": "38b3bb90856ec76b593f56ac7471171bb26b272877382a0a6ab5f9166aa66b01",
+      "destination": "apps/aiao-media/requirements/plans/rxdb-product-incubation.md",
+      "disposition": "imported"
+    }
+  ],
+  "retiredTools": {
+    "scripts/link-rxdb.mjs": "工作区依赖替代跨仓 node_modules 软链。",
+    "scripts/link-rxdb.test.mjs": "原软链脚本专用测试随工具退出；产品业务测试全部保留。"
+  },
+  "sourceCommit": "43bc9eeb696c4b3c4c51351724d2fe91f0f8e8f3",
+  "sourceRepository": "aiao-media",
+  "sourceWorkingTreeChanges": ["requirements/plans/README.md", "requirements/plans/rxdb-product-incubation.md"],
+  "stories": [
+    {
+      "legacyId": "aiao-media:US-001",
+      "status": "Done"
+    },
+    {
+      "legacyId": "aiao-media:US-004",
+      "status": "In Progress"
+    },
+    {
+      "legacyId": "aiao-media:US-302",
+      "status": "In Progress"
+    },
+    {
+      "legacyId": "aiao-media:US-301",
+      "status": "In Progress"
+    },
+    {
+      "legacyId": "aiao-media:US-201",
+      "status": "In Progress"
+    },
+    {
+      "legacyId": "aiao-media:US-203",
+      "status": "Backlog"
+    },
+    {
+      "legacyId": "aiao-media:US-202",
+      "status": "In Progress"
+    },
+    {
+      "legacyId": "aiao-media:US-105",
+      "status": "In Progress"
+    },
+    {
+      "legacyId": "aiao-media:US-102",
+      "status": "In Progress"
+    },
+    {
+      "legacyId": "aiao-media:US-106",
+      "status": "In Progress"
+    },
+    {
+      "legacyId": "aiao-media:US-107",
+      "status": "Backlog"
+    }
+  ],
+  "targetBase": "23d8a098c0ca348b451cf19c7fa1bc127f7a80db"
+}

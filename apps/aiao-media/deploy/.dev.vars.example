@@ -1,0 +1,14 @@
+MEDIA_SUPABASE_URL=https://your-project.supabase.co
+MEDIA_SUPABASE_ANON_KEY=sb_publishable_replace_me
+MEDIA_SUPABASE_SERVICE_ROLE_KEY=replace_in_worker_secrets
+MEDIA_PLATFORM_MODELS=[]
+MEDIA_PLATFORM_FREE_DAILY=0
+MEDIA_PLATFORM_DAILY_BUDGET_MICROS=0
+MEDIA_CREDIT_PACK={"credits":20,"amount":500,"currency":"usd"}
+MEDIA_STRIPE_SECRET_KEY=replace_in_worker_secrets
+MEDIA_STRIPE_WEBHOOK_SECRET=replace_in_worker_secrets
+SUPABASE_OAUTH_CLIENT_ID=replace_in_worker_secrets
+SUPABASE_OAUTH_CLIENT_SECRET=replace_in_worker_secrets
+SUPABASE_OAUTH_COOKIE_SECRET=replace_in_worker_secrets
+SUPABASE_OAUTH_REDIRECT_URI=http://127.0.0.1:4398/api/supabase/oauth/callback
+MEDIA_SUPABASE_AUTOINIT_SQL=replace_with_reviewed_autoinit_bundle

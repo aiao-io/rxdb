@@ -937,6 +937,7 @@ jobs:
         env:
           PROJECT: ${{ matrix.project }}
           TARGET: ${{ matrix.target }}
+          AIAO_PLAYWRIGHT_CHANNEL: ${{ matrix.project == 'aiao-media-e2e' && 'chromium' || '' }}
           # dev-rxdb-electron-e2e 的 21 个依赖任务已在上面全部建完，这里必须排除任务依赖：
           # 不排除的话 electron-package-dir 会重跑，把刚配好的 SUID 助手连同整个
           # linux-unpacked/ 一起覆盖（见上面 Build E2E dependencies 的注释）。

@@ -24,6 +24,7 @@ allowBuilds:
   postman-code-generators: false
   sharp: true
   unrs-resolver: true
+  workerd: true
 
 autoInstallPeers: true
 enablePrePostScripts: true
