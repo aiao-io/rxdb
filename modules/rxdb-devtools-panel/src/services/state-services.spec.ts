@@ -81,6 +81,21 @@ describe('DatabaseStateService', () => {
     });
   });
 
+  it('按 namespace + 实体名保存模型，旧连接器没有模型时回 null', () => {
+    port.emit('DB_MODEL_INFO', {
+      entities: [
+        { name: 'User', namespace: 'alpha', model: { fields: [{ name: 'id', type: 'uuid' }] } },
+        { name: 'User', namespace: 'beta', model: { fields: [{ name: 'id', type: 'string' }] } }
+      ]
+    });
+
+    expect(service.getEntityModel('User', 'alpha')).toEqual({ fields: [{ name: 'id', type: 'uuid' }] });
+    expect(service.getEntityModel('User', 'beta')).toEqual({ fields: [{ name: 'id', type: 'string' }] });
+
+    port.emit('DB_MODEL_INFO', null);
+    expect(service.getEntityModel('User', 'alpha')).toBeNull();
+  });
+
   it('resets all state on disconnect', () => {
     const dbInfo: DbInfo = { dbName: 'test', entities: [], version: '1' };
     service.inspectDb();

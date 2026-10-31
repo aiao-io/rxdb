@@ -24,6 +24,7 @@ export type MessageType =
   | 'PING'
   | 'INSPECT_DB'
   | 'DB_INFO'
+  | 'DB_MODEL_INFO'
   | 'QUERY_ENTITY'
   | 'ENTITY_DATA'
   | 'GET_BRANCHES'
@@ -233,6 +234,66 @@ export interface DbInfoMessage extends DevToolsMessage<DbInfoPayload | null> {
   direction: 'page-to-devtools';
 }
 
+/** 模型字段类型；只允许表格展示所需的稳定字符串。 */
+export type DevToolsEntityFieldType =
+  | 'uuid'
+  | 'string'
+  | 'enum'
+  | 'number'
+  | 'integer'
+  | 'bigint'
+  | 'boolean'
+  | 'date'
+  | 'binary'
+  | 'stringArray'
+  | 'numberArray'
+  | 'keyValue'
+  | 'json'
+  | 'oneToOne'
+  | 'manyToOne'
+  | 'computed';
+
+/** 枚举值的安全展示选项。 */
+export interface DevToolsEntityFieldOption {
+  label?: string;
+  color?: string;
+  disabled?: boolean;
+}
+
+/** 传给 DevTools 的单个模型字段；不含默认值、校验器、函数或约束。 */
+export interface DevToolsEntityField {
+  name: string;
+  displayName?: string;
+  type: DevToolsEntityFieldType;
+  nullable?: boolean;
+  enumValues?: string[];
+  options?: Record<string, DevToolsEntityFieldOption>;
+}
+
+/** 传给 DevTools 的实体模型安全投影。 */
+export interface DevToolsEntityModel {
+  displayName?: string;
+  fields: DevToolsEntityField[];
+}
+
+/** `DB_MODEL_INFO` 中单个实体的模型。 */
+export interface DbModelInfoEntity {
+  name: string;
+  namespace: string;
+  model: DevToolsEntityModel;
+}
+
+/** 数据库模型信息响应载荷。 */
+export interface DbModelInfoPayload {
+  entities: DbModelInfoEntity[];
+}
+
+/** 数据库模型信息响应；旧面板会忽略未知消息类型。 */
+export interface DbModelInfoMessage extends DevToolsMessage<DbModelInfoPayload | null> {
+  type: 'DB_MODEL_INFO';
+  direction: 'page-to-devtools';
+}
+
 /** 实体查询命令参数。 */
 export interface QueryEntityPayload {
   entityName: string;
@@ -351,6 +412,7 @@ export type AnyDevToolsMessage =
   | PingMessage
   | InspectDbMessage
   | DbInfoMessage
+  | DbModelInfoMessage
   | QueryEntityMessage
   | EntityDataMessage
   | GetBranchesMessage
@@ -460,6 +522,82 @@ function isDbInfoEntity(value: unknown): value is DbInfoEntity {
   );
 }
 
+function isDevToolsEntityFieldType(value: unknown): value is DevToolsEntityFieldType {
+  return (
+    value === 'uuid' ||
+    value === 'string' ||
+    value === 'enum' ||
+    value === 'number' ||
+    value === 'integer' ||
+    value === 'bigint' ||
+    value === 'boolean' ||
+    value === 'date' ||
+    value === 'binary' ||
+    value === 'stringArray' ||
+    value === 'numberArray' ||
+    value === 'keyValue' ||
+    value === 'json' ||
+    value === 'oneToOne' ||
+    value === 'manyToOne' ||
+    value === 'computed'
+  );
+}
+
+function isDevToolsEntityFieldOption(value: unknown): value is DevToolsEntityFieldOption {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, [], ['label', 'color', 'disabled']) &&
+    (!Object.hasOwn(value, 'label') || typeof value['label'] === 'string') &&
+    (!Object.hasOwn(value, 'color') || typeof value['color'] === 'string') &&
+    (!Object.hasOwn(value, 'disabled') || typeof value['disabled'] === 'boolean')
+  );
+}
+
+function isDevToolsEntityField(value: unknown): value is DevToolsEntityField {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, ['name', 'type'], ['displayName', 'nullable', 'enumValues', 'options'])
+  ) {
+    return false;
+  }
+  if (!isNonEmptyString(value['name']) || !isDevToolsEntityFieldType(value['type'])) return false;
+  if (Object.hasOwn(value, 'displayName') && !isNonEmptyString(value['displayName'])) return false;
+  if (Object.hasOwn(value, 'nullable') && typeof value['nullable'] !== 'boolean') return false;
+  if (Object.hasOwn(value, 'enumValues') && !isStringArray(value['enumValues'])) return false;
+  if (!Object.hasOwn(value, 'options')) return true;
+  const options = value['options'];
+  return isRecord(options) && Object.values(options).every(isDevToolsEntityFieldOption);
+}
+
+function isDevToolsEntityModel(value: unknown): value is DevToolsEntityModel {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ['fields'], ['displayName']) &&
+    (!Object.hasOwn(value, 'displayName') || isNonEmptyString(value['displayName'])) &&
+    Array.isArray(value['fields']) &&
+    value['fields'].every(isDevToolsEntityField)
+  );
+}
+
+function isDbModelInfoEntity(value: unknown): value is DbModelInfoEntity {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ['name', 'namespace', 'model']) &&
+    isNonEmptyString(value['name']) &&
+    isNonEmptyString(value['namespace']) &&
+    isDevToolsEntityModel(value['model'])
+  );
+}
+
+function isDbModelInfoPayload(value: unknown): value is DbModelInfoPayload {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ['entities']) &&
+    Array.isArray(value['entities']) &&
+    value['entities'].every(isDbModelInfoEntity)
+  );
+}
+
 function isDbInfoPayload(value: unknown): value is DbInfoPayload {
   return (
     isRecord(value) &&
@@ -532,6 +670,8 @@ export function isDevToolsMessage(data: unknown): data is AnyDevToolsMessage {
     case 'DB_INFO':
       // null` = 连接器没有实体元数据，与「实体列表为空」是两件事
       return direction === 'page-to-devtools' && (payload === null || isDbInfoPayload(payload));
+    case 'DB_MODEL_INFO':
+      return direction === 'page-to-devtools' && (payload === null || isDbModelInfoPayload(payload));
     case 'QUERY_ENTITY':
       return direction === 'devtools-to-page' && isQueryEntityPayload(payload);
     case 'ENTITY_DATA':
