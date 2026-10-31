@@ -153,3 +153,48 @@ test('OAuth initialization continues when profile is unauthorized but the valida
     globalThis.fetch = originalFetch;
   }
 });
+test('OAuth initialization accepts an explicitly confirmed Supabase account email when profile is unavailable', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    const value = String(url);
+    calls.push({ url: value, method: init?.method ?? 'GET', body: init?.body });
+    if (value === 'https://api.supabase.com/v1/projects')
+      return new Response(JSON.stringify([{ ref: 'abcdefghijklmnopqrst', name: 'Media', organization_id: 'org' }]), {
+        headers: { 'content-type': 'application/json' }
+      });
+    if (value.includes('/api-keys?reveal=true'))
+      return new Response(JSON.stringify([{ type: 'publishable', api_key: 'anon' }, { type: 'service_role', api_key: 'service' }]), {
+        headers: { 'content-type': 'application/json' }
+      });
+    if (value === 'https://api.supabase.com/v1/profile') return new Response(null, { status: 401 });
+    if (value.includes('/database/query')) return new Response(null, { status: 201 });
+    if (value.endsWith('/auth/v1/admin/generate_link'))
+      return new Response(JSON.stringify({ properties: { hashed_token: 'hash' } }), {
+        headers: { 'content-type': 'application/json' }
+      });
+    if (value.endsWith('/auth/v1/verify'))
+      return new Response(JSON.stringify({ access_token: 'project-access', refresh_token: 'project-refresh' }), {
+        headers: { 'content-type': 'application/json' }
+      });
+    throw new Error(`unexpected fetch: ${value}`);
+  };
+  try {
+    const result = await initializeSupabaseProject(
+      new Request('https://media.example.com/api/supabase/oauth/initialize', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ projectRef: 'abcdefghijklmnopqrst', email: 'owner@example.com' })
+      }),
+      { ...env, MEDIA_SUPABASE_AUTOINIT_SQL: 'select 1' },
+      { accessToken: 'opaque-access', expiresAt: Date.now() + 3600000 }
+    );
+    assert.equal(result.initialized, true);
+    const databaseRequest = calls.find(call => call.url.includes('/database/query'));
+    const linkRequest = calls.find(call => call.url.endsWith('/auth/v1/admin/generate_link'));
+    assert.match(databaseRequest.body, /select 1/);
+    assert.match(linkRequest.body, /owner@example.com/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

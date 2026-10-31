@@ -248,6 +248,36 @@ describe('Supabase OAuth transport', () => {
 
     expect(r.component.targetMessage()).toContain('本地 Worker');
   });
+
+  it('asks for the Supabase account email once when Management OAuth cannot return it', async () => {
+    const r = rig();
+    vi.stubGlobal('prompt', vi.fn(() => 'owner@example.com'));
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: 'Supabase 管理 API 未返回账号邮箱。请输入刚才授权的 Supabase 账号邮箱后重试。' }), {
+          status: 409,
+          headers: { 'content-type': 'application/json' }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            config: { url: 'https://owner.supabase.co', anonKey: 'sb_publishable_fixture' },
+            session: { access_token: 'access', refresh_token: 'refresh' }
+          }),
+          { headers: { 'content-type': 'application/json' } }
+        )
+      );
+
+    await r.component.initializeOAuthProject('abcdefghijklmnopqrst');
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[1][1]?.body as string)).toEqual({
+      projectRef: 'abcdefghijklmnopqrst',
+      email: 'owner@example.com'
+    });
+    expect(r.component.targetMessage()).toContain('已授权并初始化');
+  });
 });
 
 describe('local result lifecycle', () => {

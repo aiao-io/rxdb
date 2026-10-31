@@ -1173,20 +1173,29 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.oauthBusy.set(true);
     this.targetMessage.set('正在初始化选定 Supabase 项目…');
     try {
-      const response = await fetch(apiEndpoint('/api/supabase/oauth/initialize'), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        credentials: 'include',
-        cache: 'no-store',
-        redirect: 'error',
-        body: JSON.stringify({ projectRef })
-      });
-      const value = await readJson<{ error?: string; config?: SupabaseAuthConfig; session?: Session }>(
-        response,
-        'Supabase 自动初始化未完成。'
-      );
-      if (!response.ok || !value.config || !value.session)
-        throw new Error(value.error ?? 'Supabase 自动初始化未完成。');
+      let email: string | undefined;
+      let value: { error?: string; config?: SupabaseAuthConfig; session?: Session };
+      while (true) {
+        const response = await fetch(apiEndpoint('/api/supabase/oauth/initialize'), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          credentials: 'include',
+          cache: 'no-store',
+          redirect: 'error',
+          body: JSON.stringify({ projectRef, ...(email ? { email } : {}) })
+        });
+        value = await readJson<{ error?: string; config?: SupabaseAuthConfig; session?: Session }>(
+          response,
+          'Supabase 自动初始化未完成。'
+        );
+        if (response.status !== 409 || !value.error?.includes('账号邮箱')) {
+          if (!response.ok || !value.config || !value.session)
+            throw new Error(value.error ?? 'Supabase 自动初始化未完成。');
+          break;
+        }
+        email = window.prompt('Supabase 未返回账号邮箱，请输入刚才授权的 Supabase 账号邮箱：')?.trim();
+        if (!email) throw new Error('未提供 Supabase 账号邮箱，初始化已取消。');
+      }
       const target = { kind: 'custom' as const, config: value.config };
       saveSyncTarget(localStorage, target);
       this.configureTarget(target);

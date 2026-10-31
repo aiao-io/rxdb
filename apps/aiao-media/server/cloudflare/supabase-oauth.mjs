@@ -285,9 +285,11 @@ export async function listSupabaseProjects(request, env, suppliedConnection) {
 }
 export async function initializeSupabaseProject(request, env, suppliedConnection) {
   const connection = suppliedConnection ?? (await managementConnection(request, env));
-  const value = fields(await body(request, 8192), ['projectRef']);
+  const value = fields(await body(request, 8192), ['projectRef', 'email']);
   if (typeof value.projectRef !== 'string' || !/^[a-z]{20}$/.test(value.projectRef))
     reject(400, 'Supabase 项目标识无效。');
+  const requestedEmail = value.email === undefined ? null : profileEmail({ email: value.email });
+  if (value.email !== undefined && !requestedEmail) reject(400, '项目身份邮箱格式无效。');
   const projects = await managementForConnection(request, env, connection, '/projects');
   const project = projects.find(item => (item.ref ?? item.id) === value.projectRef);
   if (!project) reject(404, '该项目不在当前授权范围内。');
@@ -313,9 +315,9 @@ export async function initializeSupabaseProject(request, env, suppliedConnection
     if (error?.status !== 401) throw error;
     profile = { primary_email: connection.email ?? accessTokenEmail(connection.accessToken) };
   }
-  const email = profileEmail(profile);
+  const email = profileEmail(profile) ?? requestedEmail ?? connection.email ?? accessTokenEmail(connection.accessToken);
   if (!email)
-    reject(401, 'Supabase 管理账号资料读取失败（401），且授权 token 未提供可用邮箱。请重新授权，并确认当前账号可以访问目标组织。');
+    reject(409, 'Supabase 管理 API 未返回账号邮箱。请输入刚才授权的 Supabase 账号邮箱后重试。');
   await managementForConnection(request, env, connection, `/projects/${value.projectRef}/database/query`, {
     method: 'POST',
     body: JSON.stringify({ query: initSql, read_only: false })
