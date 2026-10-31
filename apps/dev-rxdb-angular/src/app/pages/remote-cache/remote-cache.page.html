@@ -3,19 +3,19 @@
     <div class="flex items-center gap-2">
       <svg [lucideIcon]="Cloud" size="20"></svg>
       <div>
-        <h2 class="text-base font-bold">Remote Cache</h2>
+        <h2 class="text-base font-bold">{{ 'page.remoteCache.title' | i18n }}</h2>
         <p class="text-base-content/60 text-xs">
-          OPFS-first 缓存示例：首次联网下载 → 落盘 OPFS + StorageFileMeta → 后续命中本地不联网
+          {{ 'page.remoteCache.description' | i18n }}
         </p>
       </div>
     </div>
     <div class="flex items-center gap-1.5">
       @if (online()) {
         <svg class="text-success" [lucideIcon]="Wifi" size="16"></svg>
-        <span class="text-success text-xs font-semibold">Online</span>
+        <span class="text-success text-xs font-semibold">{{ 'page.remoteCache.online' | i18n }}</span>
       } @else {
         <svg class="text-error" [lucideIcon]="WifiOff" size="16"></svg>
-        <span class="text-error text-xs font-semibold">Offline</span>
+        <span class="text-error text-xs font-semibold">{{ 'page.remoteCache.offline' | i18n }}</span>
       }
     </div>
   </div>
@@ -24,8 +24,8 @@
     <div class="mx-auto flex max-w-5xl flex-col gap-6">
       <section class="card bg-base-100 border-base-300 border">
         <div class="card-body p-4">
-          <h3 class="text-sm font-bold">预设资源</h3>
-          <p class="text-base-content/60 text-xs">点击按钮触发 `rxdb.storage.fetch(opfsPath, &#123; url &#125;)`。</p>
+          <h3 class="text-sm font-bold">{{ 'page.remoteCache.presets' | i18n }}</h3>
+          <p class="text-base-content/60 text-xs">{{ 'page.remoteCache.presetsDescription' | i18n }}</p>
 
           <div class="mt-3 grid gap-2 sm:grid-cols-3">
             @for (preset of presets; track preset.opfsPath) {
@@ -53,12 +53,12 @@
 
       <section class="card bg-base-100 border-base-300 border">
         <div class="card-body p-4">
-          <h3 class="text-sm font-bold">自定义 URL</h3>
-          <p class="text-base-content/60 text-xs">输入任意 CORS 友好的 URL 和 OPFS 路径。</p>
+          <h3 class="text-sm font-bold">{{ 'page.remoteCache.customUrl' | i18n }}</h3>
+          <p class="text-base-content/60 text-xs">{{ 'page.remoteCache.customDescription' | i18n }}</p>
 
           <div class="mt-3 grid gap-2 sm:grid-cols-2">
             <label class="form-control">
-              <span class="label-text text-xs">URL</span>
+              <span class="label-text text-xs">{{ 'page.remoteCache.url' | i18n }}</span>
               <input
                 class="input input-bordered input-sm"
                 [value]="customUrl()"
@@ -68,7 +68,7 @@
               />
             </label>
             <label class="form-control">
-              <span class="label-text text-xs">OPFS Path</span>
+              <span class="label-text text-xs">{{ 'page.remoteCache.opfsPath' | i18n }}</span>
               <input
                 class="input input-bordered input-sm"
                 [value]="customPath()"
@@ -81,7 +81,7 @@
           <div class="mt-3">
             <button class="btn btn-sm btn-primary gap-2" (click)="fetchCustom()">
               <svg [lucideIcon]="CloudDownload" size="14"></svg>
-              Fetch
+              {{ 'page.remoteCache.fetch' | i18n }}
             </button>
           </div>
         </div>
@@ -90,18 +90,20 @@
       <section class="card bg-base-100 border-base-300 border">
         <div class="card-body p-4">
           <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold" data-testid="remote-cache-count">已缓存（{{ cachedCount() }}）</h3>
+            <h3 class="text-sm font-bold" data-testid="remote-cache-count">
+              {{ 'page.remoteCache.cached' | i18n: { count: cachedCount() } }}
+            </h3>
             @if (cachedCount() > 0) {
               <button class="btn btn-xs btn-ghost gap-1" (click)="clearAll()">
                 <svg [lucideIcon]="Trash2" size="12"></svg>
-                Clear all
+                {{ 'page.remoteCache.clearAll' | i18n }}
               </button>
             }
           </div>
 
           @if (cachedCount() === 0) {
             <p class="text-base-content/50 mt-2 text-xs" data-testid="remote-cache-empty">
-              还没有缓存内容。点击上方预设或自定义按钮开始。
+              {{ 'page.remoteCache.empty' | i18n }}
             </p>
           } @else {
             <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
@@ -136,9 +138,11 @@
 
       <section class="card bg-base-100 border-base-300 border">
         <div class="card-body p-4">
-          <h3 class="text-sm font-bold">事件日志</h3>
+          <h3 class="text-sm font-bold">{{ 'page.remoteCache.logs' | i18n }}</h3>
           @if (logs().length === 0) {
-            <p class="text-base-content/50 mt-2 text-xs" data-testid="remote-cache-log-empty">日志为空。</p>
+            <p class="text-base-content/50 mt-2 text-xs" data-testid="remote-cache-log-empty">
+              {{ 'page.remoteCache.emptyLogs' | i18n }}
+            </p>
           } @else {
             <ul class="mt-2 space-y-1 font-mono text-[11px]">
               @for (entry of logs(); track entry.timestamp) {

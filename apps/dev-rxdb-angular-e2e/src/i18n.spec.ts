@@ -69,6 +69,31 @@ async function expectLocale(page: Page, locale: 'zh-Hans' | 'en'): Promise<void>
 }
 
 test.describe('客户端国际化', () => {
+  test('完整演示页覆盖菜单、页面文案、ICU 与格式化', async ({ page }) => {
+    await resetE2eState(page);
+    await page.goto('/i18n');
+    await expectLocale(page, 'zh-Hans');
+    await expect(page.getByRole('link', { name: '国际化演示', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '国际化演示', exact: true })).toBeVisible();
+    await expect(page.getByTestId('i18n-demo-greeting')).toHaveText('你好，Ada！这条文案来自应用目录。');
+    await expect(page.getByTestId('i18n-demo-items')).toHaveText('3 条记录');
+    await expect(page.getByTestId('i18n-demo-date')).toHaveText('2026年10月28日');
+
+    await page.getByTestId('i18n-demo-locale').selectOption('en');
+    await expectLocale(page, 'en');
+    await expect(page.getByRole('link', { name: 'I18n Playground', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Internationalization playground', exact: true })).toBeVisible();
+    await expect(page.getByTestId('i18n-demo-greeting')).toHaveText(
+      'Hello, Ada! This message comes from the application catalog.'
+    );
+    await expect(page.getByTestId('i18n-demo-items')).toHaveText('3 records');
+    await expect(page.getByTestId('i18n-demo-date')).toHaveText('October 28, 2026');
+
+    await page.reload();
+    await expectLocale(page, 'en');
+    await expect(page.getByTestId('i18n-demo-current-locale')).toHaveText('en');
+  });
+
   test('切换即时更新模型文案与格式化，刷新后保持，第二标签页跟随', async ({ page, context }) => {
     await resetE2eState(page);
     await page.goto('/entities/public/Todo');

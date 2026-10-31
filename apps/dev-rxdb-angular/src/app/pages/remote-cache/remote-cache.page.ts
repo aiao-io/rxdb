@@ -1,3 +1,4 @@
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { RxDB } from '@aiao/rxdb';
 import {
   StorageFetchError,
@@ -57,7 +58,7 @@ const REMOTE_DIR = '/remote';
 
 @Component({
   selector: 'app-remote-cache-page',
-  imports: [CommonModule, LucideDynamicIcon],
+  imports: [CommonModule, LucideDynamicIcon, I18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './remote-cache.page.html'
 })

@@ -9,9 +9,10 @@ import { AppHeader } from './components/app-header';
 import { AppSidebar } from './components/app-sidebar';
 import { DbConnectionAlert } from './components/db-connection-alert';
 import { ImportedDbBanner } from './components/imported-db-banner';
+import { I18nPipe } from './pipes/i18n.pipe';
 
 @Component({
-  imports: [RouterOutlet, AppSidebar, AppHeader, DbConnectionAlert, ImportedDbBanner, NgxLoadingBar],
+  imports: [RouterOutlet, AppSidebar, AppHeader, DbConnectionAlert, ImportedDbBanner, NgxLoadingBar, I18nPipe],
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -22,7 +23,7 @@ import { ImportedDbBanner } from './components/imported-db-banner';
           class="sidebar-overlay md:hidden"
           (click)="app.toggleSidebar()"
           aria-hidden="true"
-          aria-label="Close sidebar"
+          [attr.aria-label]="'shell.closeSidebar' | i18n"
         ></div>
       }
       <app-sidebar></app-sidebar>

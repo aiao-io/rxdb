@@ -1,3 +1,4 @@
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { RxDB } from '@aiao/rxdb';
 import { AdapterEncryptionFacade } from '@aiao/rxdb-adapter-sqlite-core';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
@@ -21,7 +22,7 @@ import { firstValueFrom } from 'rxjs';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './encrypted.page.html',
-  imports: [CommonModule, FormsModule, LucideDynamicIcon]
+  imports: [CommonModule, FormsModule, LucideDynamicIcon, I18nPipe]
 })
 export default class EncryptedPage implements OnInit {
   private readonly rxdb = inject(RxDB);

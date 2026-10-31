@@ -9,21 +9,22 @@ import {
   LucidePen as Pen,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } from '../utils/storage-utils';
 
 @Component({
   selector: 'app-storage-file-list',
   standalone: true,
-  imports: [CommonModule, LucideDynamicIcon],
+  imports: [CommonModule, LucideDynamicIcon, I18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <table class="table-zebra table select-none" [attr.data-testid]="TESTID.FILE_LIST">
       <thead>
         <tr>
-          <th>Name</th>
-          <th class="w-32">Size</th>
-          <th class="hidden w-40 md:table-cell">Modified</th>
-          <th class="w-24">Actions</th>
+          <th>{{ 'page.storage.name' | i18n }}</th>
+          <th class="w-32">{{ 'page.storage.size' | i18n }}</th>
+          <th class="hidden w-40 md:table-cell">{{ 'page.storage.modified' | i18n }}</th>
+          <th class="w-24">{{ 'page.storage.actions' | i18n }}</th>
         </tr>
       </thead>
       <tbody>
@@ -66,15 +67,15 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
                 @if (entry.kind === 'directory') {
                   <button
                     class="btn btn-ghost btn-xs"
+                    [attr.title]="'common.open' | i18n"
                     (click)="navigate.emit(entry); $event.stopPropagation()"
-                    title="Open"
                   >
                     <svg [lucideIcon]="FolderOpen" size="14"></svg>
                   </button>
                   <button
                     class="btn btn-ghost btn-xs"
+                    [attr.title]="'common.downloadZip' | i18n"
                     (click)="download.emit(entry); $event.stopPropagation()"
-                    title="Download ZIP"
                   >
                     <svg [lucideIcon]="Download" size="14"></svg>
                   </button>
@@ -83,8 +84,8 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
                     <button
                       class="btn btn-ghost btn-xs"
                       [attr.data-testid]="TESTID.PREVIEW_BTN"
+                      [attr.title]="'common.view' | i18n"
                       (click)="preview.emit(entry); $event.stopPropagation()"
-                      title="Preview"
                     >
                       <svg [lucideIcon]="Eye" size="14"></svg>
                     </button>
@@ -92,25 +93,25 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
                   <button
                     class="btn btn-ghost btn-xs"
                     [attr.data-testid]="TESTID.DOWNLOAD_BTN"
+                    [attr.title]="'common.download' | i18n"
                     (click)="download.emit(entry); $event.stopPropagation()"
-                    title="Download"
                   >
                     <svg [lucideIcon]="Download" size="14"></svg>
                   </button>
                 }
                 <button
                   class="btn btn-ghost btn-xs"
+                  [attr.title]="'common.rename' | i18n"
                   (click)="rename.emit(entry); $event.stopPropagation()"
                   data-testid="storage-rename-btn"
-                  title="Rename"
                 >
                   <svg [lucideIcon]="Pen" size="14"></svg>
                 </button>
                 <button
                   class="btn btn-ghost btn-xs text-error"
                   [attr.data-testid]="entry.kind === 'file' ? TESTID.DELETE_BTN : null"
+                  [attr.title]="'common.delete' | i18n"
                   (click)="delete.emit(entry); $event.stopPropagation()"
-                  title="Delete"
                 >
                   <svg [lucideIcon]="Trash2" size="14"></svg>
                 </button>

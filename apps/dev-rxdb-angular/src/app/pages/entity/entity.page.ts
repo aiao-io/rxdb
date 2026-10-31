@@ -1,3 +1,4 @@
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { getEntityMetadata, RxDB } from '@aiao/rxdb';
 import { useCount } from '@aiao/rxdb-angular';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, Signal } from '@angular/core';
@@ -29,7 +30,7 @@ export interface EntityGroup {
   selector: 'app-entity',
   templateUrl: './entity.page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, I18nPipe],
   host: { class: 'page-host flex h-full bg-base-100' }
 })
 export default class EntityPage {

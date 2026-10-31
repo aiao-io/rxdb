@@ -10,12 +10,13 @@ import {
   LucidePen as Pen,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrowserItem } from '../utils/storage-utils';
 
 @Component({
   selector: 'app-storage-file-grid',
   standalone: true,
-  imports: [CommonModule, LucideDynamicIcon],
+  imports: [CommonModule, LucideDynamicIcon, I18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
@@ -68,15 +69,15 @@ import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrow
             @if (entry.kind === 'directory') {
               <button
                 class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
+                [attr.title]="'common.open' | i18n"
                 (click)="navigate.emit(entry); $event.stopPropagation()"
-                title="Open"
               >
                 <svg [lucideIcon]="FolderOpen" size="12"></svg>
               </button>
               <button
                 class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
+                [attr.title]="'common.downloadZip' | i18n"
                 (click)="download.emit(entry); $event.stopPropagation()"
-                title="Download ZIP"
               >
                 <svg [lucideIcon]="Download" size="12"></svg>
               </button>
@@ -85,8 +86,8 @@ import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrow
                 <button
                   class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
                   [attr.data-testid]="TESTID.PREVIEW_BTN"
+                  [attr.title]="'common.view' | i18n"
                   (click)="preview.emit(entry); $event.stopPropagation()"
-                  title="Preview"
                 >
                   <svg [lucideIcon]="Eye" size="12"></svg>
                 </button>
@@ -94,25 +95,25 @@ import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrow
               <button
                 class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
                 [attr.data-testid]="TESTID.DOWNLOAD_BTN"
+                [attr.title]="'common.download' | i18n"
                 (click)="download.emit(entry); $event.stopPropagation()"
-                title="Download"
               >
                 <svg [lucideIcon]="Download" size="12"></svg>
               </button>
             }
             <button
               class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
+              [attr.title]="'common.rename' | i18n"
               (click)="rename.emit(entry); $event.stopPropagation()"
               data-testid="storage-rename-btn"
-              title="Rename"
             >
               <svg [lucideIcon]="Pen" size="12"></svg>
             </button>
             <button
               class="btn btn-circle btn-ghost btn-xs bg-base-100/80 text-error backdrop-blur"
               [attr.data-testid]="entry.kind === 'file' ? TESTID.DELETE_BTN : null"
+              [attr.title]="'common.delete' | i18n"
               (click)="delete.emit(entry); $event.stopPropagation()"
-              title="Delete"
             >
               <svg [lucideIcon]="Trash2" size="12"></svg>
             </button>
