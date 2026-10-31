@@ -52,7 +52,11 @@ test('发布校验期间提交、清单或版本变化都会失效', () => {
   for (const field of ['head', 'status', 'migrationManifestDigest', 'packageVersion', 'releaseProjectsDigest']) {
     assert.throws(
       () => assertStableInputs(snapshot(), snapshot({ [field]: `${field}-changed` })),
-      new RegExp(field === 'head' ? '提交' : field === 'status' ? '工作区' : '发布校验期间发生变化')
+      new RegExp(
+        field === 'head' ? '提交'
+        : field === 'status' ? '工作区'
+        : '发布校验期间发生变化'
+      )
     );
   }
 });

@@ -5,8 +5,8 @@
  * 不接收外部 tarball；真实发布没有跳过校验的参数。
  */
 
-import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
