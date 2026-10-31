@@ -190,7 +190,7 @@ export class ProductWorkspaceController {
       await this.registry.activateBinding(plan.account, binding.requestId, remote.id);
       this.port.registry(await this.registry.read());
       this.plan = null;
-    } catch (error) {
+    } catch {
       if (this.current(generation)) this.fail();
     } finally {
       if (this.current(generation)) this.publish({ busy: false });
