@@ -12,7 +12,7 @@ JSPI / Asyncify 的产品接入。** 在本次统一 MEMFS 对照中，wasm-git 
 和重开状态也未通过。本次应继续推进 JSPI / Asyncify 原型，同时验证浏览器覆盖、内存与持久化边界；
 没有任何一行耗时代表完整 IDE 已可交付。
 
-## 研究分支 011 复验（2026-10-31）
+## 研究分支 011 复验
 
 为验证当前依赖没有改变选型结论，分支 `011-browser-git-opfs` 用 Chromium 156 对 100 文件 fixture
 各跑一轮 `isomorphic-git 1.44.4`、`wasm-git 0.0.17` JSPI 和 Asyncify。三种配置都通过 clone、
