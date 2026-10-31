@@ -1,7 +1,7 @@
 import { RxDB, SyncType, getEntityStatus, uuid } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../index.js';
 import { generateDbName } from './test-utils.js';
 
@@ -17,6 +17,10 @@ describe('entity id 变更行为', () => {
     });
     rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' }));
     await rxdb.connect('pglite');
+  });
+
+  afterAll(async () => {
+    if (rxdb) await rxdb.disconnectAll();
   });
 
   it('new 出来的 entity 可以改 id', () => {
