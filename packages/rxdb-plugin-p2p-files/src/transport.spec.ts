@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createP2PFileManifest } from './chunking';
+import { createP2PFileManifest, DEFAULT_P2P_CHUNK_SIZE } from './chunking';
 import {
   createP2PTransportPeer,
   createTcpTransport,
@@ -117,6 +117,28 @@ class LinkedTransport implements P2PByteTransport {
 }
 
 describe('P2P 字节传输适配器', () => {
+  it('默认文件块加协议元数据仍可通过 64 KiB 的 WebRTC 消息上限', async () => {
+    const bytes = new Uint8Array(DEFAULT_P2P_CHUNK_SIZE);
+    const manifest = await createP2PFileManifest({
+      fileName: 'default-chunk.bin',
+      size: bytes.byteLength,
+      readChunk: async () => bytes
+    });
+    const channel = new FakeChannel();
+    const send = channel.send.bind(channel);
+    channel.send = data => {
+      if (data.byteLength > 65536) throw new RangeError('negotiated message size exceeded');
+      send(data);
+    };
+    const transport = createWebRTCTransport(channel);
+    const frame = encodeP2PFrame({ kind: 'response', requestId: 'peer:0', ok: true, payload: bytes });
+    expect(manifest.chunkSize).toBe(DEFAULT_P2P_CHUNK_SIZE);
+    await transport.send(frame);
+    channel.emit('message', channel.sent[0]);
+    expect(decodeP2PFrame(await transport.receive())).toMatchObject({ payload: bytes });
+    transport.close();
+  });
+
   it('编码和解码请求、成功响应、错误响应帧', () => {
     const request = { kind: 'request' as const, requestId: 'r1', contentHash: 'hash', index: 2 };
     expect(decodeP2PFrame(encodeP2PFrame(request))).toEqual(request);

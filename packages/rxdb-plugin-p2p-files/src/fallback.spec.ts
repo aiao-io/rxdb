@@ -17,6 +17,44 @@ async function fixture() {
 }
 
 describe('P2P 服务器回退', () => {
+  it('分块读取 Blob，完整校验后再写入，不将整文件载入内存', async () => {
+    const { bytes, manifest } = await fixture();
+    const blob = new Blob([bytes]);
+    const fullRead = vi.spyOn(blob, 'arrayBuffer').mockRejectedValue(new Error('whole-file read is forbidden'));
+    const slice = vi.spyOn(blob, 'slice');
+    const writes: Uint8Array[] = [];
+    const result = await downloadFromServer({
+      manifest,
+      fallback: { download: async () => blob },
+      writeChunk: async (_index, chunk) => {
+        writes.push(chunk);
+      }
+    });
+    expect(result.bytesTransferred).toBe(bytes.byteLength);
+    expect(fullRead).not.toHaveBeenCalled();
+    expect(slice).toHaveBeenCalled();
+    expect(slice.mock.calls.every(([start = 0, end = blob.size]) => end - start <= manifest.chunkSize)).toBe(true);
+    expect(Uint8Array.from(writes.flatMap(chunk => [...chunk]))).toEqual(bytes);
+  });
+
+  it('整文件哈希或末块校验失败时不写入已验证的前块', async () => {
+    const { bytes, manifest } = await fixture();
+    const writeChunk = vi.fn(async () => undefined);
+    await expect(
+      downloadFromServer({
+        manifest: { ...manifest, contentHash: '0'.repeat(64) },
+        fallback: { download: async () => new Blob([bytes]) },
+        writeChunk
+      })
+    ).rejects.toThrow('contentHash does not match');
+    const corrupted = bytes.slice();
+    corrupted[corrupted.length - 1] ^= 1;
+    await expect(
+      downloadFromServer({ manifest, fallback: { download: async () => corrupted }, writeChunk })
+    ).rejects.toThrow('chunk 2 does not match');
+    expect(writeChunk).not.toHaveBeenCalled();
+  });
+
   it('校验并按块写入 Uint8Array 或 Blob 响应', async () => {
     const { bytes, manifest } = await fixture();
     const writes: Uint8Array[] = [];
