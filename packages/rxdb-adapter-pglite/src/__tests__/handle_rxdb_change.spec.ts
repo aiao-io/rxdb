@@ -437,6 +437,39 @@ describe('handle_rxdb_change - T013: RxDBChange 表特殊处理', () => {
     expect(updateEvent.entities[0].patch).toEqual({ title: 'Updated Task' });
   });
 
+  it.each(['INSERT', 'UPDATE', 'DELETE'] as const)('日志UPDATE只更新历史元状态，不重放原始%s业务操作', async type => {
+    const change = {
+      id: 7,
+      type,
+      namespace: 'public',
+      entity: 'Todo',
+      entityId: 'todo-1',
+      patch: type === 'DELETE' ? null : { title: '新值' },
+      inversePatch: type === 'INSERT' ? null : { title: '旧值' },
+      createdAt: new Date('2026-10-01T00:00:00Z'),
+      revertChangeId: 99
+    };
+    adapter.getRepository = vi.fn().mockReturnValue({ findByRowIds: vi.fn().mockResolvedValue([change]) });
+    await handle_rxdb_change(adapter, {
+      type: PGliteChangeType.UPDATE,
+      dbName: 'test',
+      tableName: 'rxdb$rxdb_change',
+      rowIds: [7],
+      recordAt: new Date('2026-10-28T00:00:00Z')
+    });
+    expect(dispatchEventSpy).toHaveBeenCalledTimes(1);
+    const event = dispatchEventSpy.mock.calls[0][0] as EntityLocalUpdatedEvent;
+    expect(event).toBeInstanceOf(EntityLocalUpdatedEvent);
+    expect(event.entities).toEqual([
+      expect.objectContaining({
+        namespace: 'rxdb',
+        entity: 'RxDBChange',
+        id: 7,
+        patch: expect.objectContaining({ revertChangeId: 99 })
+      })
+    ]);
+  });
+
   it('T013.3: RxDBChange DELETE 应该触发 EntityLocalRemovedEvent', async () => {
     const now = new Date();
     const mockChanges = [

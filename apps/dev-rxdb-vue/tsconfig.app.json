@@ -96,6 +96,12 @@
     },
     {
       "path": "../../packages/code-editor-vue/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-board-vue/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-board/tsconfig.lib.json"
     }
   ]
 }

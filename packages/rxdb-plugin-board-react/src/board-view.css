@@ -1,0 +1,2 @@
+/* 看板视图样式：三端共用 @aiao/rxdb-plugin-board/board.css（构建时内联进 ./board-view.css 子路径）。 */
+@import '@aiao/rxdb-plugin-board/board.css';
