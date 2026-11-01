@@ -1,5 +1,7 @@
 import { createEmscriptenFs, createOpfsFs } from './git-benchmark-fs.mjs';
 
+const branchName = 'benchmark-branch';
+
 let engine;
 let http;
 let module;
@@ -153,14 +155,36 @@ async function commit(identity) {
   await runWasm(['commit', '-m', identity.message]);
 }
 
+async function resolveRef(ref) {
+  if (engine) return engine.resolveRef({ fs, dir: repo, ref, cache });
+  enterRepository();
+  return (await runWasm(['rev-parse', ref])).trim();
+}
+
 async function head() {
-  if (engine) return engine.resolveRef({ fs, dir: repo, ref: 'HEAD', cache });
-  return (await runWasm(['rev-parse', 'HEAD'])).trim();
+  return resolveRef('HEAD');
+}
+
+async function branchHead(ref) {
+  try {
+    return await resolveRef(`refs/heads/${ref}`);
+  } catch {
+    return null;
+  }
+}
+
+async function branchState(ref, object) {
+  const currentHead = await head();
+  const currentBranchHead = await branchHead(ref);
+  return {
+    branchHeadMatches: currentHead === object,
+    branchRefMatches: currentBranchHead === object
+  };
 }
 
 async function tree() {
   if (engine) {
-    const oid = await engine.resolveRef({ fs, dir: repo, ref: 'HEAD', cache });
+    const oid = await resolveRef('HEAD');
     return (await engine.readCommit({ fs, dir: repo, oid, cache })).commit.tree;
   }
   enterRepository();
@@ -173,6 +197,13 @@ async function checkout(ref) {
   if (engine) return engine.checkout({ fs, dir: repo, ref, cache });
   enterRepository();
   return runWasm(['checkout', ref]);
+}
+
+async function createBranch(ref, object) {
+  cache = {};
+  if (engine) return engine.branch({ fs, dir: repo, ref, object, checkout: true, force: true });
+  enterRepository();
+  return runWasm(['checkout', '-b', ref]);
 }
 
 async function verifyFiles(files) {
@@ -230,10 +261,13 @@ async function workflow({ fixture, url, expected }) {
   const modifiedOid = await head();
   assert((await tree()) === expected.modifiedTree, 'committed tree differs from native Git');
   assert((await status()) === 0, 'commit is dirty');
+  await measured(metrics, 'branchCreateMs', () => createBranch(branchName, modifiedOid));
+  const createdBranch = await branchState(branchName, modifiedOid);
   await measured(metrics, 'checkoutOriginalMs', () => checkout(expected.initialOid));
   await verifyFiles(fixture.files);
-  await measured(metrics, 'checkoutModifiedMs', () => checkout(modifiedOid));
+  await measured(metrics, 'checkoutModifiedMs', () => checkout(branchName));
   await verifyFiles(fixture.patch);
+  const checkedOutBranch = await branchState(branchName, modifiedOid);
   assert((await status()) === 0, 'checkout is dirty');
   return {
     metrics,
@@ -242,6 +276,9 @@ async function workflow({ fixture, url, expected }) {
       modifiedTree: expected.modifiedTree,
       dirtyCount,
       filesVerified: true,
+      branchName,
+      branchHeadMatches: createdBranch.branchHeadMatches && checkedOutBranch.branchHeadMatches,
+      branchRefMatches: createdBranch.branchRefMatches && checkedOutBranch.branchRefMatches,
       rapidRewrite,
       overwriteProbe
     },
@@ -266,6 +303,8 @@ async function reopen({ expected, fixture }) {
       firstDirtyCount,
       warmDirtyCount,
       treeMatches: actualTree === expected.modifiedTree,
+      branchName,
+      ...(await branchState(branchName, expected.modifiedOid)),
       filesVerified: true,
       statusPreview
     },
