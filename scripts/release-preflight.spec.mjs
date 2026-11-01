@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 
 import {
@@ -92,10 +92,7 @@ test('发布校验期间提交、清单或版本变化都会失效', () => {
       )
     );
   }
-  assert.throws(
-    () => assertStableInputs({ artifactDigest: 'before' }, { artifactDigest: 'after' }),
-    /发布产物/
-  );
+  assert.throws(() => assertStableInputs({ artifactDigest: 'before' }, { artifactDigest: 'after' }), /发布产物/);
 });
 
 test('三个门禁按顺序执行，全部通过后才返回产物快照', () => {

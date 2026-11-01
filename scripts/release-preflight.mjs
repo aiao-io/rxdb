@@ -126,7 +126,17 @@ export function normalizeDryRunArgs(command) {
 const CHECKS = [
   [
     'pnpm',
-    ['nx', 'run-many', '-t', 'build', '--projects=packages/*', '--skipNxCache', '--output-style=static', '--parallel=4', '--nxBail'],
+    [
+      'nx',
+      'run-many',
+      '-t',
+      'build',
+      '--projects=packages/*',
+      '--skipNxCache',
+      '--output-style=static',
+      '--parallel=4',
+      '--nxBail'
+    ],
     '全量包构建'
   ],
   ['pnpm', ['test-packages'], '全量包校验'],
