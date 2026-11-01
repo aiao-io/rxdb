@@ -2,7 +2,7 @@
 
 > 2026-10-18，本机 Chromium 实测。原始逐轮数据见
 > [browser-git-latest.json](../../benchmarks/reports/browser-git-latest.json)，
-> 复现入口见 [benchmarks README](../../benchmarks/README.md#浏览器-git-选型基准)。
+> 复现入口见 [benchmarks README](../../benchmarks/README.md#浏览器-git-基准)。
 
 **结论：先前仅凭 API 易集成而推荐 isomorphic-git 的依据不足，应调整为优先验证 wasm-git
 JSPI / Asyncify 的产品接入。** 在本次统一 MEMFS 对照中，wasm-git 的大部分读操作、提交与 checkout
