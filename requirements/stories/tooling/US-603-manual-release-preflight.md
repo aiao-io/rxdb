@@ -28,7 +28,7 @@ tags: [tooling, release, preflight]
 ### In Scope
 
 - 仓库支持的发布入口：根 `package.json` 的 `publish` 与 `publish:sequential`
-- 发布前检查当前提交、工作区状态、版本和清单，以及 `pnpm test-all` 的通过结果
+- 发布前检查当前提交、工作区状态、版本和清单，以及全包校验和发布产物的通过结果
 - 约束已构建/打包产物与通过校验的提交一致；选择运行校验还是读取证据由实现计划决定
 - 保留手工发布和 owner 决定发布时间的流程，不引入自动发布 workflow
 
@@ -57,8 +57,8 @@ tags: [tooling, release, preflight]
 
 ## 当前实现
 
-- `scripts/release-preflight.mjs` 统一执行当前干净提交上的 `pnpm test-all`、迁移清单门禁和包组合门禁，并在门禁期间复核提交、工作区、版本和发布项目配置未变化。
-- 根 `publish` 与 `publish:sequential` 接入同一前置；dry-run 只模拟包清单、不写 registry，可跳过耗时门禁；真实发布入口没有绕过开关。
+- `scripts/release-preflight.mjs` 统一在当前干净提交上重建全部发布包，执行全包校验、迁移清单门禁和包组合门禁，并在门禁期间复核提交、工作区、版本、发布项目配置和产物未变化。
+- 根 `publish` 与 `publish:sequential` 接入同一前置；dry-run 只模拟发布命令、不写 registry，可跳过耗时门禁；真实发布入口没有绕过开关。
 - `scripts/release-preflight.spec.mjs` 覆盖门禁顺序、失败短路、脏工作区、输入漂移和入口接线；真实 registry 替身发布验收仍待执行。
 
 ## References

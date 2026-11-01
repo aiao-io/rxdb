@@ -160,8 +160,8 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 ### `release-preflight.mjs`
 
 - **触发**：`pnpm run release:preflight`，以及根 `publish` / `publish:sequential`（dry-run 除外）。
-- **做什么**：要求工作区干净，在当前提交上依次运行 `pnpm test-all`、迁移发布清单门禁和包组合门禁；校验期间提交、版本、清单或发布项目配置发生变化会直接停止。校验完成后从同一工作树继续发布，不接受外部或旧 tarball。
-- **边界**：只约束仓库提供的两个手工发布入口；直接调用 `npm publish`、`pnpm publish` 或 `publish-local` 不在本故事范围内。不会自动决定版本、推 tag 或写 registry。
+- **做什么**：要求工作区干净，先禁用 Nx 构建缓存重建全部发布包，再运行全包校验、迁移发布清单门禁和包组合门禁；校验期间提交、版本、清单、发布项目配置或生成产物发生变化会直接停止。校验完成后从同一工作树继续发布，并在真正发布前再次复核输入和产物摘要。
+- **边界**：只约束仓库提供的两个手工发布入口；直接调用 `npm publish`、`pnpm publish` 或 `publish-local` 不在本故事范围内。不会自动决定版本、推 tag 或写 registry。发布入口的 dry-run 会跳过耗时门禁，但会把发布命令保持在 dry-run 模式。
 - **何时手动跑**：最终发布提交准备好、工作区干净且产物已由当前提交构建后，运行 `pnpm run release:preflight` 查看门禁结果；支持的发布入口会在真正发布前再次执行同一组门禁。
 
 ### `check-migration-release-gate.mjs`

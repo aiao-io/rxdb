@@ -1,15 +1,10 @@
-/**
- * 手工发布前置校验（US-603）。
- *
- * 发布入口只接受当前干净工作树的校验结果，并在同一进程里继续发布。
- * 不接收外部 tarball；真实发布没有跳过校验的参数。
- */
-
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { scanPackages } from './audit/lib/package-discovery.mjs';
+import { resolvePackageRoot } from './audit/link-release-peers.mjs';
 
 const RELEASE_MANIFEST = 'requirements/migration-release.json';
 const RXDB_PACKAGE = 'packages/rxdb/package.json';
@@ -31,46 +26,76 @@ function runGit(cwd, args) {
   return result.stdout.trim();
 }
 
-/**
- * 读取发布前后需要保持一致的工作树快照。
- *
- * @param {string} cwd 工作区根目录
- */
-export function collectSnapshot(cwd = process.cwd()) {
-  const manifestPath = join(cwd, RELEASE_MANIFEST);
-  const packagePath = join(cwd, RXDB_PACKAGE);
-  return {
-    head: runGit(cwd, ['rev-parse', 'HEAD']),
-    status: runGit(cwd, ['status', '--porcelain=v1']),
-    migrationManifestDigest: sha256(readFileSync(manifestPath)),
-    packageVersion: readJson(packagePath).version,
-    releaseProjectsDigest: sha256(readFileSync(join(cwd, RELEASE_PROJECTS)))
+function digestDirectory(root) {
+  if (!existsSync(root)) return `missing:${root}`;
+  const digest = createHash('sha256');
+  const visit = directory => {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      if (entry.name === 'node_modules') continue;
+      const path = join(directory, entry.name);
+      const relativePath = relative(root, path);
+      digest.update(`${relativePath}\0`);
+      if (entry.isDirectory()) visit(path);
+      else if (entry.isSymbolicLink()) digest.update(`link:${readlinkSync(path)}`);
+      else digest.update(readFileSync(path));
+    }
   };
+  visit(root);
+  return digest.digest('hex');
 }
 
-/** 拒绝带有已跟踪或未跟踪改动的发布工作树。 */
+export function collectArtifactDigest(cwd = process.cwd()) {
+  const digest = createHash('sha256');
+  const packages = scanPackages(join(cwd, 'packages'));
+  for (const record of packages) {
+    const directory = relative(cwd, record.directory);
+    const packageRoot = resolve(cwd, resolvePackageRoot(cwd, directory));
+    const artifactRoot = packageRoot === resolve(cwd, directory) ? join(packageRoot, 'dist') : packageRoot;
+    if (!existsSync(join(packageRoot, 'package.json')) || !existsSync(artifactRoot)) {
+      throw new Error(`发布产物缺失：${relative(cwd, artifactRoot)}`);
+    }
+    digest.update(
+      `${record.name}\0${sha256(readFileSync(join(packageRoot, 'package.json')))}\0${digestDirectory(artifactRoot)}\n`
+    );
+  }
+  return digest.digest('hex');
+}
+
+export function collectSnapshot(cwd = process.cwd(), { includeArtifacts = true } = {}) {
+  const snapshot = {
+    head: runGit(cwd, ['rev-parse', 'HEAD']),
+    status: runGit(cwd, ['status', '--porcelain=v1']),
+    migrationManifestDigest: sha256(readFileSync(join(cwd, RELEASE_MANIFEST))),
+    packageVersion: readJson(join(cwd, RXDB_PACKAGE)).version,
+    releaseProjectsDigest: sha256(readFileSync(join(cwd, RELEASE_PROJECTS)))
+  };
+  if (includeArtifacts) snapshot.artifactDigest = collectArtifactDigest(cwd);
+  return snapshot;
+}
+
 export function assertCleanSnapshot(snapshot) {
   if (snapshot.status) {
     throw new Error('发布前工作区必须干净；请先提交或清理以下改动：\n' + snapshot.status);
   }
 }
 
-/** 确认门禁运行前后的发布输入完全一致。 */
 export function assertStableInputs(before, after) {
   const fields = [
     ['head', '提交'],
     ['status', '工作区'],
     ['migrationManifestDigest', '迁移清单'],
     ['packageVersion', 'RxDB 版本'],
-    ['releaseProjectsDigest', '发布项目配置']
+    ['releaseProjectsDigest', '发布项目配置'],
+    ['artifactDigest', '发布产物']
   ];
-  const changed = fields.filter(([field]) => before[field] !== after[field]).map(([, label]) => label);
+  const changed = fields
+    .filter(([field]) => field in before && field in after && before[field] !== after[field])
+    .map(([, label]) => label);
   if (changed.length > 0) {
     throw new Error(`发布校验期间发生变化：${changed.join('、')}；请重新运行发布前置校验`);
   }
 }
 
-/** 解析前置参数，并把 `--` 后的发布命令原样保留。 */
 export function parseArgs(argv) {
   const separator = argv.indexOf('--');
   const ownArgs = separator === -1 ? argv : argv.slice(0, separator);
@@ -85,7 +110,6 @@ export function parseArgs(argv) {
   return options;
 }
 
-/** 让命令行最后一个 registry 参数覆盖入口中的默认值。 */
 export function normalizeRegistryArgs(args) {
   const registryArgs = args.filter(argument => argument.startsWith('--registry='));
   if (registryArgs.length < 2) return args;
@@ -93,21 +117,27 @@ export function normalizeRegistryArgs(args) {
   return [...args.filter(argument => !argument.startsWith('--registry=')), lastRegistry];
 }
 
+export function normalizeDryRunArgs(command) {
+  if (command.includes('--dry-run')) return command;
+  const publishes = command.some(argument => argument === 'publish' || /(?:^|[/\\])publish[^/\\]*$/.test(argument));
+  return publishes ? [...command, '--dry-run'] : command;
+}
+
 const CHECKS = [
-  ['pnpm', ['test-all'], '全量校验'],
+  [
+    'pnpm',
+    ['nx', 'run-many', '-t', 'build', '--projects=packages/*', '--skipNxCache', '--output-style=static', '--parallel=4', '--nxBail'],
+    '全量包构建'
+  ],
+  ['pnpm', ['test-packages'], '全量包校验'],
   ['pnpm', ['nx', 'run', '@aiao/source:migration-release-gate'], '迁移发布清单'],
   ['pnpm', ['nx', 'run', '@aiao/source:audit-package-graph'], '包组合清单']
 ];
 
 function defaultRunner(command, args, cwd) {
-  return spawnSync(command, args, { cwd, stdio: 'inherit' });
+  return spawnSync(command, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });
 }
 
-/**
- * 在当前干净提交上执行所有发布前置，并确认校验期间输入没有变化。
- *
- * @param {{ cwd?: string, runCommand?: Function, snapshot?: Function }} options
- */
 export function runPreflight({ cwd = process.cwd(), runCommand = defaultRunner, snapshot = collectSnapshot } = {}) {
   const before = snapshot(cwd, { includeArtifacts: false });
   assertCleanSnapshot(before);
@@ -121,9 +151,11 @@ export function runPreflight({ cwd = process.cwd(), runCommand = defaultRunner, 
     if (status !== 0) throw new Error(`${label}失败（exit ${status}），已停止发布`);
   }
 
-  const after = snapshot(cwd);
+  const after = snapshot(cwd, { includeArtifacts: false });
   assertStableInputs(before, after);
-  return after;
+  const validated = snapshot(cwd);
+  assertStableInputs(after, validated);
+  return validated;
 }
 
 const USAGE = `用法：
@@ -132,7 +164,7 @@ const USAGE = `用法：
 
 无命令时只执行发布前置；传入 -- 后会在校验通过后执行发布命令。
 发布入口可用 pnpm run publish -- --registry=<url> 覆盖默认 registry。
---dry-run 只执行传入命令，不运行发布前置。`;
+--dry-run 跳过发布前置，并强制发布命令使用 dry-run。`;
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
@@ -142,14 +174,19 @@ function main() {
   }
   if (options.command.length === 0) {
     runPreflight();
-    console.log('发布前置校验通过；当前提交、清单和工作树在校验期间保持一致。');
+    console.log('发布前置校验通过；当前提交、清单、产物和工作树在校验期间保持一致。');
     return;
   }
-  if (!options.dryRun) runPreflight();
-  else console.log('dry-run：跳过发布前置，不写入 registry。');
+  if (!options.dryRun) {
+    const validated = runPreflight();
+    assertStableInputs(validated, collectSnapshot());
+  } else {
+    console.log('dry-run：跳过发布前置，不写入 registry。');
+  }
 
-  const [command, ...args] = options.command;
-  const result = defaultRunner(command, normalizeRegistryArgs(args), process.cwd());
+  const [command, ...args] = options.dryRun ? normalizeDryRunArgs(options.command) : options.command;
+  const commandArgs = args;
+  const result = defaultRunner(command, normalizeRegistryArgs(commandArgs), process.cwd());
   if (result.error) throw result.error;
   process.exitCode = result.status ?? 1;
 }
