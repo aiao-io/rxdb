@@ -10,9 +10,9 @@
 | ✅ Done        | 89   |
 | 🚧 In Progress | 4    |
 | 👀 In Review   | 9    |
-| 📝 Backlog     | 28   |
+| 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 130  |
+| **合计**       | 129  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -153,7 +153,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 - ✅ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md)
 - ✅ [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md)
-- ⬜ [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)
+- 🚧 [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)
 
 ### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
 

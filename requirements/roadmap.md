@@ -10,11 +10,11 @@
 | ✅ Done        | 89     |
 | 🚧 In Progress | 4      |
 | 👀 In Review   | 9      |
-| 📝 Backlog     | 28     |
+| 📝 Backlog     | 27     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **41** |
+| **未完成合计** | **40** |
 
-仓库还剩 **41 条**未关闭故事（4 In Progress + 9 In Review + 28 Backlog + 0 Blocked）。
+仓库还剩 **40 条**未关闭故事（4 In Progress + 9 In Review + 27 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
