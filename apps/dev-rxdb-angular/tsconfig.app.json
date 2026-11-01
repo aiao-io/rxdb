@@ -1,9 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
   "exclude": [
     "jest.config.ts",
@@ -22,10 +20,7 @@
     "src/test-setup.ts"
   ],
   "extends": "./tsconfig.json",
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.d.ts"
-  ],
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "references": [
     {
       "path": "../../modules/wujie/tsconfig.lib.json"

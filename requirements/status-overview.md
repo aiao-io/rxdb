@@ -19,25 +19,25 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 ## 进行中（5 条）
 
-| Story                                                                                                       | 剩余范围                                                           |
-| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Story                                                                                                       | 剩余范围                                                                      |
+| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md) | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。            |
 | [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)                                | 既有过滤与候选消歧已实现；新增 AC#12 的空批次集合写入拒绝与兼容性验收待完成。 |
-| [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)                                  | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）仍待补齐。         |
-| [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                    | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。           |
+| [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)                                  | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）仍待补齐。                    |
+| [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                    | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。                      |
 | [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)             | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收。              |
 
 ## 待评审（8 条）
 
-| Story                                                                                         | 剩余范围                                                                                                       |
-| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Story                                                                                                                | 剩余范围                                                                                                        |
+| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)                         | 改了读取列而缓存补不齐时回 SQL 已实现，核心与真实双连接回归通过；待代码评审。                                   |
 | [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                           | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                                                 |
 | [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)          | 直写修改经 `p_updates` 普通 UPDATE 并返回服务器最终行，推送与原计数入口保留既有权限语义；待代码评审。           |
 | [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md) | 触发器捕获实际 DELETE，RPC 在源日志后写完整隐式日志；显式删除去重、回执收口与混合批次顺序回归通过；待代码评审。 |
 | [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)                             | workspace接线已验证、AC#2成本记录已通过；AC#1发布tarball仓外消费与AC#3试用者按文档独立重搭仍待验证，不能标绿。  |
-| [US-534 看板领域模型骨架](stories/domain/US-534-board-column-task-skeleton.md)                | 全部 AC 已验（既有库重开在 PGlite 与 sqlite-wasm 各验一遍），等待合并收尾。                                    |
-| [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)                | 阶段 A～C 三端全绿（含外壳恢复入口与跨页门禁），等待合并收尾。                                                 |
+| [US-534 看板领域模型骨架](stories/domain/US-534-board-column-task-skeleton.md)                                       | 全部 AC 已验（既有库重开在 PGlite 与 sqlite-wasm 各验一遍），等待合并收尾。                                     |
+| [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)                                       | 阶段 A～C 三端全绿（含外壳恢复入口与跨页门禁），等待合并收尾。                                                  |
 | [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                                                 | A～D 已实现；偏好载体对照、历史隔离、三端/四运行时、目录分发与 DevTools 已验收，待代码评审。                    |
 
 ## 阻塞（0 条）

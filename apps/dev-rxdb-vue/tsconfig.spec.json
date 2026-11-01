@@ -1,24 +1,14 @@
 {
   "compilerOptions": {
     "outDir": "dist/test",
-    "types": [
-      "vitest/globals",
-      "vite/client",
-      "node"
-    ],
+    "types": ["vitest/globals", "vite/client", "node"],
     "rootDir": "src",
     "tsBuildInfoFile": "dist/tsconfig.spec.tsbuildinfo",
     "module": "preserve",
     "moduleResolution": "bundler"
   },
   "extends": "../../tsconfig.base.json",
-  "include": [
-    "src/**/*.spec.ts",
-    "src/**/*.test.ts",
-    "src/**/*.d.ts",
-    "src/**/*.ts",
-    "src/**/*.vue"
-  ],
+  "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.d.ts", "src/**/*.ts", "src/**/*.vue"],
   "references": [
     {
       "path": "../../modules/wujie/tsconfig.lib.json"
