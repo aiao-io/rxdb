@@ -1,5 +1,5 @@
 import { requestIdleCallbackPolyfill } from '@aiao/utils';
-import { BarChart3, FileDown, Gauge, Play, TrendingUp } from 'lucide-react';
+import { BarChart3, FileDown, Gauge, GitBranch, Play, TrendingUp } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BenchmarkResults } from '../components/BenchmarkResults';
 import { ScoreCard } from '../components/ScoreCard';
@@ -12,6 +12,8 @@ import {
   getBenchmarkSqliteMeta,
   type BenchmarkSqliteAdapter
 } from '../utils/rxdb-factory';
+
+const BROWSER_GIT_OPFS_DEMO_URL = `${import.meta.env.BASE_URL}browser-git-opfs-demo.html`;
 
 requestIdleCallbackPolyfill();
 
@@ -168,6 +170,28 @@ export function App() {
             </div>
           </div>
         </div>
+
+        <section className='card border-primary/20 bg-base-200/40 mb-10 border'>
+          <div className='card-body flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+            <div>
+              <span className='eyebrow'>research demo</span>
+              <h3 className='mt-2 text-xl font-semibold'>浏览器 Git + OPFS</h3>
+              <p className='mt-2 max-w-2xl text-sm leading-6 opacity-70'>
+                在 dedicated Worker 中运行 wasm-git，把工作区和 .git 持久化到 OPFS，验证初始化、修改、提交、分支切换与
+                Worker 重开。
+              </p>
+            </div>
+            <a
+              className='btn btn-outline shrink-0 whitespace-nowrap'
+              href={BROWSER_GIT_OPFS_DEMO_URL}
+              rel='noreferrer'
+              target='_blank'
+            >
+              <GitBranch size={16} aria-hidden />
+              打开 Git 演示
+            </a>
+          </div>
+        </section>
 
         {/* Results table */}
         <section className='mb-6'>

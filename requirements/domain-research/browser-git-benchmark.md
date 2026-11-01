@@ -2,7 +2,7 @@
 
 > 2026-10-18，本机 Chromium 实测。原始逐轮数据见
 > [browser-git-latest.json](../../benchmarks/reports/browser-git-latest.json)，
-> 复现入口见 [benchmarks README](../../benchmarks/README.md#浏览器-git-选型基准)。
+> 复现入口见 [benchmarks README](../../benchmarks/README.md#浏览器-git-基准)。
 
 **结论：先前仅凭 API 易集成而推荐 isomorphic-git 的依据不足，应调整为优先验证 wasm-git
 JSPI / Asyncify 的产品接入。** 在本次统一 MEMFS 对照中，wasm-git 的大部分读操作、提交与 checkout
@@ -11,6 +11,19 @@ JSPI / Asyncify 的产品接入。** 在本次统一 MEMFS 对照中，wasm-git 
 当前 isomorphic-git 1.44.3 的 FS 接入复现了同秒等长改写漏检；wasm-git pthreads 的官方 JS 写入封装
 和重开状态也未通过。本次应继续推进 JSPI / Asyncify 原型，同时验证浏览器覆盖、内存与持久化边界；
 没有任何一行耗时代表完整 IDE 已可交付。
+
+## 研究分支 011 复验
+
+为验证当前依赖没有改变选型结论，分支 `011-browser-git-opfs` 用 Chromium 156 对 100 文件 fixture
+各跑一轮 `isomorphic-git 1.44.4`、`wasm-git 0.0.17` JSPI 和 Asyncify。三种配置都通过 clone、
+修改、暂存、提交、`branch → checkout`、tree/OID/文件字节校验与 Worker 重开；isomorphic-git 仍在
+同秒等长改写时返回 clean，JSPI / Asyncify 均检测到变更。原始逐轮数据见
+[browser-git-research-011.json](../../benchmarks/reports/browser-git-research-011.json)；1000 文件档见
+[browser-git-research-011-medium.json](../../benchmarks/reports/browser-git-research-011-medium.json)。
+
+本轮是正确性复验，不是性能门禁；单次耗时不能替代基准中的五次中位数。结论保持为：固定 JSPI /
+Asyncify 做受限 Worker + OPFS 原型，isomorphic-git 先修正 FS 元数据语义后再重评，pthreads 与 Rust
+自研路线暂缓。
 
 ## 环境与口径
 

@@ -8,6 +8,7 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 import { gzipSync } from 'node:zlib';
 import { chromium } from 'playwright';
+import { hasBranchFailure } from './git-benchmark-correctness.mjs';
 import { createGitBenchmarkFixture, summarizeDurations } from './git-benchmark-fixture.mjs';
 
 const execFile = promisify(execFileCallback);
@@ -59,8 +60,9 @@ async function prepareRepository(root, profile) {
   await populate(source, fixture.patch);
   await git(source, ['add', '.']);
   await git(source, ['commit', '-m', fixture.modifiedCommit.message], fixture.modifiedCommit);
+  const modifiedOid = await git(source, ['rev-parse', 'HEAD']);
   const modifiedTree = await git(source, ['rev-parse', 'HEAD^{tree}']);
-  return { fixture, expected: { initialOid, initialTree, modifiedTree } };
+  return { fixture, expected: { initialOid, initialTree, modifiedOid, modifiedTree } };
 }
 
 async function bundle(root) {
@@ -228,6 +230,7 @@ function summarizeCorrectness(samples) {
     rapidRewriteFailures: samples.filter(sample => !sample.correctness.rapidRewrite.passed).length,
     sameSecondRapidRewrites: samples.filter(sample => sample.correctness.rapidRewrite.sameTimestampSecond).length,
     stockOverwriteFailures: samples.filter(sample => sample.correctness.overwriteProbe?.passed === false).length,
+    branchFailures: samples.filter(sample => hasBranchFailure(sample.correctness)).length,
     reopenStatusFailures: samples.filter(sample => sample.correctness.reopen?.firstDirtyCount > 0).length,
     allMeasuredTreesAndBytesMatch: samples.every(
       sample => sample.correctness.filesVerified && sample.correctness.reopen?.treeMatches !== false
