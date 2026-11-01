@@ -304,7 +304,7 @@ async function reopen({ expected, fixture }) {
       warmDirtyCount,
       treeMatches: actualTree === expected.modifiedTree,
       branchName,
-      ...await branchState(branchName, expected.modifiedOid),
+      ...(await branchState(branchName, expected.modifiedOid)),
       filesVerified: true,
       statusPreview
     },

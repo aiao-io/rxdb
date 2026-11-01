@@ -8,8 +8,8 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 import { gzipSync } from 'node:zlib';
 import { chromium } from 'playwright';
-import { createGitBenchmarkFixture, summarizeDurations } from './git-benchmark-fixture.mjs';
 import { hasBranchFailure } from './git-benchmark-correctness.mjs';
+import { createGitBenchmarkFixture, summarizeDurations } from './git-benchmark-fixture.mjs';
 
 const execFile = promisify(execFileCallback);
 const profiles = (process.env.GIT_BENCH_PROFILES ?? 'small,medium').split(',');
