@@ -72,7 +72,7 @@ const setupReleasedHeader = async (
 };
 
 /** 建一张 draft ECN。 */
-const makeEcn = async (prefix: string, effectiveDate = day('2026-11-01')): Promise<BomEcn> => {
+const makeEcn = async (prefix: string, effectiveDate = day('2099-11-01')): Promise<BomEcn> => {
   const ecn = new BomEcn();
   ecn.ecnNo = `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
   ecn.effectiveDate = effectiveDate;
@@ -94,9 +94,9 @@ describe('US-515 ECN 变更管理', () => {
       });
 
       it('ecn 实体：创建即 draft，effectiveDate 必填', async () => {
-        const ecn = await makeEcn('ecn', day('2026-11-01'));
+        const ecn = await makeEcn('ecn', day('2099-11-01'));
         expect(ecn.state).toBe('draft');
-        expect(ecn.effectiveDate).toEqual(day('2026-11-01'));
+        expect(ecn.effectiveDate).toEqual(day('2099-11-01'));
         expect(ecn.reason).toBeNull();
         // 缺 effectiveDate 的插入被非空列拒绝
         const bare = new BomEcn();
@@ -108,27 +108,27 @@ describe('US-515 ECN 变更管理', () => {
         const ecnNo = `dup-${Math.random().toString(36).slice(2, 8)}`;
         const first = new BomEcn();
         first.ecnNo = ecnNo;
-        first.effectiveDate = day('2026-11-01');
+        first.effectiveDate = day('2099-11-01');
         await first.save();
         const second = new BomEcn();
         second.ecnNo = ecnNo;
-        second.effectiveDate = day('2026-12-01');
+        second.effectiveDate = day('2099-12-01');
         await expect(second.save()).rejects.toThrow();
       });
 
       it('draft ECN 可改生效日与原因；released 后除合法转移外不可改（T005 状态机兜底）', async () => {
-        const ecn = await makeEcn('mutable', day('2026-11-01'));
-        ecn.effectiveDate = day('2026-11-15');
+        const ecn = await makeEcn('mutable', day('2099-11-01'));
+        ecn.effectiveDate = day('2099-11-15');
         ecn.reason = '客户要求提前';
         await ecn.save();
-        expect(ecn.effectiveDate).toEqual(day('2026-11-15'));
+        expect(ecn.effectiveDate).toEqual(day('2099-11-15'));
       });
 
       it('AC#5 手填与 ECN 冲突的 effective_from：保存即拒', async () => {
         const parent = await makeItem(adapter, 'e5-p');
         const child = await makeItem(adapter, 'e5-c');
         const { line } = await setupReleasedHeader(adapter, parent, child);
-        const ecn = await makeEcn('e5', day('2026-11-01'));
+        const ecn = await makeEcn('e5', day('2099-11-01'));
         const occurrence = new BomLineOccurrence();
         occurrence.lineId = line.id;
         occurrence.childItemId = child.id;
@@ -143,7 +143,7 @@ describe('US-515 ECN 变更管理', () => {
         const parent = await makeItem(adapter, 'e13-p');
         const child = await makeItem(adapter, 'e13-c');
         const { header } = await setupReleasedHeader(adapter, parent, child);
-        const ecn = await makeEcn('e13', day('2026-11-01'));
+        const ecn = await makeEcn('e13', day('2099-11-01'));
         // 新逻辑行（挂同一 draft ECN，矩阵放行）再插发生项——旧行区间 [2026-01-01, +∞) 不重叠
         const lineTable = backend === 'wa-sqlite' ? '"bom$bom_line"' : '"bom"."bom_line"';
         const newLineId = crypto.randomUUID();
@@ -153,14 +153,14 @@ describe('US-515 ECN 变更管理', () => {
         const table = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
         const occurrenceId = crypto.randomUUID();
         await adapter.rawQuery(
-          `INSERT INTO ${table} ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "ecnInId", "createdAt", "updatedAt") VALUES ('${occurrenceId}', '${newLineId}', '${child.id}', '2', 'pcs', '2026-11-01T00:00:00.000Z', '${ecn.id}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
+          `INSERT INTO ${table} ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "ecnInId", "createdAt", "updatedAt") VALUES ('${occurrenceId}', '${newLineId}', '${child.id}', '2', 'pcs', '2099-11-01T00:00:00.000Z', '${ecn.id}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
         );
         const read = (await adapter.rawQuery(
           `SELECT "effectiveFrom" FROM ${table} WHERE "id" = '${occurrenceId}'`
         )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
         const rows = 'results' in read ? read.results[0].rows : read.rows;
         // PGlite 返回 Date 对象、wa-sqlite 返回 ISO 文本：统一按日期值断言
-        expect(new Date(String(rows[0][0])).toISOString().startsWith('2026-11-01')).toBe(true);
+        expect(new Date(String(rows[0][0])).toISOString().startsWith('2099-11-01')).toBe(true);
       });
 
       it('AC#14 已发布头：直连改 qty 拒；插 ecn_in 指向已发布 ECN 的行拒', async () => {
@@ -172,14 +172,14 @@ describe('US-515 ECN 变更管理', () => {
           adapter.rawQuery(`UPDATE ${table} SET "qty" = '9' WHERE "id" = '${occurrence.id}'`)
         ).rejects.toThrow(/bom_write_protocol/);
         // 已发布 ECN 挂行：INSERT 拒绝（矩阵只放行 draft）
-        const ecn = await makeEcn('e14', day('2026-11-01'));
+        const ecn = await makeEcn('e14', day('2099-11-01'));
         const ecnTable = backend === 'wa-sqlite' ? '"bom$ecn"' : '"bom"."ecn"';
         await adapter.rawQuery(
-          `UPDATE ${ecnTable} SET "state" = 'released', "effectiveDate" = '2026-12-01T00:00:00.000Z' WHERE "id" = '${ecn.id}'`
+          `UPDATE ${ecnTable} SET "state" = 'released', "effectiveDate" = '2099-12-01T00:00:00.000Z' WHERE "id" = '${ecn.id}'`
         );
         await expect(
           adapter.rawQuery(
-            `INSERT INTO ${table} ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "ecnInId", "createdAt", "updatedAt") VALUES ('${crypto.randomUUID()}', '${line.id}', '${child.id}', '3', 'pcs', '2026-12-01T00:00:00.000Z', '${ecn.id}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
+            `INSERT INTO ${table} ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "ecnInId", "createdAt", "updatedAt") VALUES ('${crypto.randomUUID()}', '${line.id}', '${child.id}', '3', 'pcs', '2099-12-01T00:00:00.000Z', '${ecn.id}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
           )
         ).rejects.toThrow(/bom_write_protocol/);
       });
@@ -188,13 +188,13 @@ describe('US-515 ECN 变更管理', () => {
         const parent = await makeItem(adapter, 'e15-p');
         const child = await makeItem(adapter, 'e15-c');
         const { occurrence } = await setupReleasedHeader(adapter, parent, child);
-        const first = await makeEcn('e15a', day('2026-11-01'));
+        const first = await makeEcn('e15a', day('2099-11-01'));
         occurrence.ecnOutId = first.id;
-        occurrence.effectiveTo = day('2026-11-01');
+        occurrence.effectiveTo = day('2099-11-01');
         await occurrence.save();
-        const second = await makeEcn('e15b', day('2026-12-01'));
+        const second = await makeEcn('e15b', day('2099-12-01'));
         occurrence.ecnOutId = second.id;
-        occurrence.effectiveTo = day('2026-12-01');
+        occurrence.effectiveTo = day('2099-12-01');
         await expect(occurrence.save()).rejects.toThrow(/截止方|bom_write_protocol/);
       });
 
@@ -202,7 +202,7 @@ describe('US-515 ECN 变更管理', () => {
         const parent = await makeItem(adapter, 'e16-p');
         const child = await makeItem(adapter, 'e16-c');
         const { header } = await setupReleasedHeader(adapter, parent, child);
-        const intro = await makeEcn('e16a', day('2026-11-01'));
+        const intro = await makeEcn('e16a', day('2099-11-01'));
         // intro 引入的发生项挂在新逻辑行（区间不与既有行重叠）
         const lineTable = backend === 'wa-sqlite' ? '"bom$bom_line"' : '"bom"."bom_line"';
         const newLineId = crypto.randomUUID();
@@ -215,11 +215,11 @@ describe('US-515 ECN 变更管理', () => {
         occurrence.qty = '2';
         occurrence.uom = 'pcs';
         occurrence.ecnInId = intro.id;
-        occurrence.effectiveFrom = day('2026-11-01');
+        occurrence.effectiveFrom = day('2099-11-01');
         await occurrence.save();
-        const outro = await makeEcn('e16b', day('2026-12-01'));
+        const outro = await makeEcn('e16b', day('2099-12-01'));
         occurrence.ecnOutId = outro.id;
-        occurrence.effectiveTo = day('2026-12-01');
+        occurrence.effectiveTo = day('2099-12-01');
         await expect(occurrence.save()).rejects.toThrow(/截止|已发布/);
       });
 
@@ -227,36 +227,36 @@ describe('US-515 ECN 变更管理', () => {
         const parent = await makeItem(adapter, 'e17-p');
         const child = await makeItem(adapter, 'e17-c');
         const { line, occurrence } = await setupReleasedHeader(adapter, parent, child);
-        const ecn = await makeEcn('e17', day('2026-11-01'));
-        // ① 打截止标记：o1 收窄为 [2026-01-01, 2026-11-01)
+        const ecn = await makeEcn('e17', day('2099-11-01'));
+        // ① 打截止标记：o1 收窄为 [2026-01-01, 2099-11-01)
         occurrence.ecnOutId = ecn.id;
-        occurrence.effectiveTo = day('2026-11-01');
+        occurrence.effectiveTo = day('2099-11-01');
         await occurrence.save();
-        expect(occurrence.effectiveTo).toEqual(day('2026-11-01'));
-        // ② 挂 E 的 o2 [2026-11-01, +∞)：矩阵 INSERT 放行
+        expect(occurrence.effectiveTo).toEqual(day('2099-11-01'));
+        // ② 挂 E 的 o2 [2099-11-01, +∞)：矩阵 INSERT 放行
         const o2 = new BomLineOccurrence();
         o2.lineId = line.id;
         o2.childItemId = child.id;
         o2.qty = '3';
         o2.uom = 'pcs';
         o2.ecnInId = ecn.id;
-        o2.effectiveFrom = day('2026-11-01');
+        o2.effectiveFrom = day('2099-11-01');
         await o2.save();
-        expect(o2.effectiveFrom).toEqual(day('2026-11-01'));
+        expect(o2.effectiveFrom).toEqual(day('2099-11-01'));
       });
 
       it('AC#18 先插 o2 再打截止标记：区间排他拒绝', async () => {
         const parent = await makeItem(adapter, 'e18-p');
         const child = await makeItem(adapter, 'e18-c');
         const { line } = await setupReleasedHeader(adapter, parent, child);
-        const ecn = await makeEcn('e18', day('2026-11-01'));
+        const ecn = await makeEcn('e18', day('2099-11-01'));
         const o2 = new BomLineOccurrence();
         o2.lineId = line.id;
         o2.childItemId = child.id;
         o2.qty = '3';
         o2.uom = 'pcs';
         o2.ecnInId = ecn.id;
-        o2.effectiveFrom = day('2026-11-01');
+        o2.effectiveFrom = day('2099-11-01');
         // o1 仍是 [2026-01-01, +∞)：插入 o2 即被区间排他拒绝（AC#18 的预期）
         await expect(o2.save()).rejects.toThrow();
       });
@@ -265,9 +265,9 @@ describe('US-515 ECN 变更管理', () => {
         const parent = await makeItem(adapter, 'e19-p');
         const child = await makeItem(adapter, 'e19-c');
         const { line, occurrence } = await setupReleasedHeader(adapter, parent, child);
-        const ecn = await makeEcn('e19', day('2026-11-01'));
+        const ecn = await makeEcn('e19', day('2099-11-01'));
         occurrence.ecnOutId = ecn.id;
-        occurrence.effectiveTo = day('2026-11-01');
+        occurrence.effectiveTo = day('2099-11-01');
         await occurrence.save();
         const o2 = new BomLineOccurrence();
         o2.lineId = line.id;
@@ -275,7 +275,7 @@ describe('US-515 ECN 变更管理', () => {
         o2.qty = '3';
         o2.uom = 'pcs';
         o2.ecnInId = ecn.id;
-        o2.effectiveFrom = day('2026-11-01');
+        o2.effectiveFrom = day('2099-11-01');
         await o2.save();
         // ② 先清截止标记：o2 仍在，恢复 +∞ 与 o2 重叠 → 拒
         occurrence.ecnOutId = null;
@@ -292,7 +292,7 @@ describe('US-515 ECN 变更管理', () => {
         const child = await makeItem(adapter, 'e26-c');
         const { header, line } = await setupReleasedHeader(adapter, parent, child);
         // E1 新建逻辑行 L 与替代组 G（挂 E1 的 draft ECN）
-        const e1 = await makeEcn('e26a', day('2026-12-01'));
+        const e1 = await makeEcn('e26a', day('2099-12-01'));
         const table = backend === 'wa-sqlite' ? '"bom$bom_line"' : '"bom"."bom_line"';
         const lineId = crypto.randomUUID();
         await adapter.rawQuery(
@@ -481,10 +481,10 @@ describe('US-515 ECN 变更管理', () => {
       });
 
       it('AC#3 released 未生效的 ECN 改期：关联发生项区间级联更新', async () => {
-        const { o1, o2, ecn } = await makeReplacement('e3', '2026-11-01');
+        const { o1, o2, ecn } = await makeReplacement('e3', '2099-11-01');
         await releaseEcn(ecn);
-        // 改期到 2026-11-15（未来，未生效）
-        ecn.effectiveDate = day('2026-11-15');
+        // 改期到 2099-11-15（未来，未生效）
+        ecn.effectiveDate = day('2099-11-15');
         await ecn.save();
         const table = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
         const read = async (id: string): Promise<{ from: string; to: string | null }> => {
@@ -497,8 +497,8 @@ describe('US-515 ECN 变更管理', () => {
             to: shape[0][1] === null ? null : new Date(String(shape[0][1])).toISOString()
           };
         };
-        expect((await read(o1.id)).to).toBe('2026-11-15T00:00:00.000Z');
-        expect((await read(o2.id)).from).toBe('2026-11-15T00:00:00.000Z');
+        expect((await read(o1.id)).to).toBe('2099-11-15T00:00:00.000Z');
+        expect((await read(o2.id)).from).toBe('2099-11-15T00:00:00.000Z');
       });
 
       it('released ECN 改期不得写入过去，失败时区间保持原值', async () => {
@@ -559,12 +559,12 @@ describe('US-515 ECN 变更管理', () => {
       });
 
       it('AC#20 改期不得越过同一逻辑行后继 ECN：① 拒并点名 B ② 接受且先收窄后放宽', async () => {
-        // 链：A（2026-11-01，o1→o2）、B（2026-12-01，o2→o3）
-        const { o2, ecn: ecnA } = await makeReplacement('e20a', '2026-11-01');
+        // 链：A（2099-11-01，o1→o2）、B（2099-12-01，o2→o3）
+        const { o2, ecn: ecnA } = await makeReplacement('e20a', '2099-11-01');
         await releaseEcn(ecnA);
-        const ecnB = await makeEcn('e20b', day('2026-12-01'));
+        const ecnB = await makeEcn('e20b', day('2099-12-01'));
         o2.ecnOutId = ecnB.id;
-        o2.effectiveTo = day('2026-12-01');
+        o2.effectiveTo = day('2099-12-01');
         await o2.save();
         const o3 = new BomLineOccurrence();
         o3.lineId = o2.lineId;
@@ -572,14 +572,14 @@ describe('US-515 ECN 变更管理', () => {
         o3.qty = '3';
         o3.uom = 'pcs';
         o3.ecnInId = ecnB.id;
-        o3.effectiveFrom = day('2026-12-01');
+        o3.effectiveFrom = day('2099-12-01');
         await o3.save();
         await releaseEcn(ecnB);
-        // ① A 改期到 2026-12-15：越过 B → 拒（点名后继 ECN 号）
-        ecnA.effectiveDate = day('2026-12-15');
+        // ① A 改期到 2099-12-15：越过 B → 拒（点名后继 ECN 号）
+        ecnA.effectiveDate = day('2099-12-15');
         await expect(ecnA.save()).rejects.toThrow(/后继|AC#20/);
-        // ② A 改期到 2026-11-15：接受——级联先把 o2 收窄为 [11-15, 12-01)，再把 o1 放宽到 11-15
-        ecnA.effectiveDate = day('2026-11-15');
+        // ② A 改期到 2099-11-15：接受——级联先把 o2 收窄为 [11-15, 12-01)，再把 o1 放宽到 11-15
+        ecnA.effectiveDate = day('2099-11-15');
         await ecnA.save();
         const table = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
         const rows = (await adapter.rawQuery(
@@ -590,13 +590,13 @@ describe('US-515 ECN 变更管理', () => {
           new Date(String(row[0])).toISOString(),
           row[1] === null ? null : new Date(String(row[1])).toISOString()
         ]);
-        expect(intervals).toContainEqual(['2026-01-01T00:00:00.000Z', '2026-11-15T00:00:00.000Z']);
-        expect(intervals).toContainEqual(['2026-11-15T00:00:00.000Z', '2026-12-01T00:00:00.000Z']);
-        expect(intervals).toContainEqual(['2026-12-01T00:00:00.000Z', null]);
+        expect(intervals).toContainEqual(['2026-01-01T00:00:00.000Z', '2099-11-15T00:00:00.000Z']);
+        expect(intervals).toContainEqual(['2099-11-15T00:00:00.000Z', '2099-12-01T00:00:00.000Z']);
+        expect(intervals).toContainEqual(['2099-12-01T00:00:00.000Z', null]);
       });
 
       it('AC#4 released 未生效的 ECN 取消：整体回退，不留半生效状态', async () => {
-        const { o1, o2: _o2, ecn } = await makeReplacement('e4', '2026-11-01');
+        const { o1, o2: _o2, ecn } = await makeReplacement('e4', '2099-11-01');
         void _o2;
         await releaseEcn(ecn);
         ecn.state = 'cancelled';
@@ -615,11 +615,11 @@ describe('US-515 ECN 变更管理', () => {
       });
 
       it('AC#12 released 未生效的 A 引入行被 B 截止：取消 A 拒绝并点名 B', async () => {
-        const { o2, ecn: ecnA } = await makeReplacement('e12a', '2026-11-01');
+        const { o2, ecn: ecnA } = await makeReplacement('e12a', '2099-11-01');
         await releaseEcn(ecnA);
-        const ecnB = await makeEcn('e12b', day('2026-12-01'));
+        const ecnB = await makeEcn('e12b', day('2099-12-01'));
         o2.ecnOutId = ecnB.id;
-        o2.effectiveTo = day('2026-12-01');
+        o2.effectiveTo = day('2099-12-01');
         await o2.save();
         await releaseEcn(ecnB);
         ecnA.state = 'cancelled';
@@ -647,7 +647,7 @@ describe('US-515 ECN 变更管理', () => {
         const parent = await makeItem(adapter, 'e10-p');
         const child = await makeItem(adapter, 'e10-c');
         const { header } = await setupReleasedHeader(adapter, parent, child);
-        const ecn = await makeEcn('e10', day('2026-11-01'));
+        const ecn = await makeEcn('e10', day('2099-11-01'));
         // draft ECN 引入「child 指回 parent」的成环边（新行 + 发生项）
         const lineTable = backend === 'wa-sqlite' ? '"bom$bom_line"' : '"bom"."bom_line"';
         const newLineId = crypto.randomUUID();
@@ -657,7 +657,7 @@ describe('US-515 ECN 变更管理', () => {
         const table = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
         await expect(
           adapter.rawQuery(
-            `INSERT INTO ${table} ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "ecnInId", "createdAt", "updatedAt") VALUES ('${crypto.randomUUID()}', '${newLineId}', '${parent.id}', '1', 'pcs', '2026-11-01T00:00:00.000Z', '${ecn.id}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
+            `INSERT INTO ${table} ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "ecnInId", "createdAt", "updatedAt") VALUES ('${crypto.randomUUID()}', '${newLineId}', '${parent.id}', '1', 'pcs', '2099-11-01T00:00:00.000Z', '${ecn.id}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
           )
         ).rejects.toThrow(/bom_cycle/);
       });
@@ -667,14 +667,14 @@ describe('US-515 ECN 变更管理', () => {
         const child = await makeItem(adapter, 'e21-c');
         const { header } = await setupReleasedHeader(adapter, parent, child);
         // E：新逻辑行 50（挂 E）
-        const ecnE = await makeEcn('e21a', day('2026-11-01'));
+        const ecnE = await makeEcn('e21a', day('2099-11-01'));
         const lineTable = backend === 'wa-sqlite' ? '"bom$bom_line"' : '"bom"."bom_line"';
         await adapter.rawQuery(
           `INSERT INTO ${lineTable} ("id", "headerId", "lineNo", "ecnInId", "createdAt", "updatedAt") VALUES ('${crypto.randomUUID()}', '${header.id}', 50, '${ecnE.id}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
         );
         await releaseEcn(ecnE);
         // E′：同样新增行号 50（撞 (header, lineNo) 唯一键 → 拒）
-        const ecnE2 = await makeEcn('e21b', day('2026-12-01'));
+        const ecnE2 = await makeEcn('e21b', day('2099-12-01'));
         await expect(
           adapter.rawQuery(
             `INSERT INTO ${lineTable} ("id", "headerId", "lineNo", "ecnInId", "createdAt", "updatedAt") VALUES ('${crypto.randomUUID()}', '${header.id}', 50, '${ecnE2.id}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
@@ -688,7 +688,7 @@ describe('US-515 ECN 变更管理', () => {
         const occurrenceTable = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
         const occId = crypto.randomUUID();
         await adapter.rawQuery(
-          `INSERT INTO ${occurrenceTable} ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "ecnInId", "createdAt", "updatedAt") VALUES ('${occId}', '${line60Id}', '${child.id}', '1', 'pcs', '2026-12-01T00:00:00.000Z', '${ecnE2.id}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
+          `INSERT INTO ${occurrenceTable} ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "ecnInId", "createdAt", "updatedAt") VALUES ('${occId}', '${line60Id}', '${child.id}', '1', 'pcs', '2099-12-01T00:00:00.000Z', '${ecnE2.id}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
         );
         // draft → cancelled（撤回）：行 60 与发生项全部删除，不留空逻辑行
         ecnE2.state = 'cancelled';
@@ -709,8 +709,8 @@ describe('US-515 ECN 变更管理', () => {
         const parent = await makeItem(adapter, 'e26b-p');
         const child = await makeItem(adapter, 'e26b-c');
         const { header } = await setupReleasedHeader(adapter, parent, child);
-        // E1 发布（生效日 2026-12-01），引入行 L
-        const e1 = await makeEcn('e26c', day('2026-12-01'));
+        // E1 发布（生效日 2099-12-01），引入行 L
+        const e1 = await makeEcn('e26c', day('2099-12-01'));
         const lineTable = backend === 'wa-sqlite' ? '"bom$bom_line"' : '"bom"."bom_line"';
         const lineId = crypto.randomUUID();
         await adapter.rawQuery(
@@ -833,14 +833,14 @@ describe('评审 P2-7 ECN 影响面按路径去重：钻石的每条命中路径
         return occurrence;
       };
 
-      /** 被 ECN 改量的物料 X（其头的唯一行 qty 1→2，ECN 生效日 2026-11-01）。 */
+      /** 被 ECN 改量的物料 X（其头的唯一行 qty 1→2，ECN 生效日 2099-11-01）。 */
       const changedItem = async (prefix: string): Promise<{ item: BomItem; ecn: BomEcn }> => {
         const item = await makeItem(adapter, `${prefix}-x`);
         const leaf = await makeItem(adapter, `${prefix}-leaf`);
         const { line, occurrence } = await setupReleasedHeader(adapter, item, leaf);
-        const ecn = await makeEcn(prefix, day('2026-11-01'));
+        const ecn = await makeEcn(prefix, day('2099-11-01'));
         occurrence.ecnOutId = ecn.id;
-        occurrence.effectiveTo = day('2026-11-01');
+        occurrence.effectiveTo = day('2099-11-01');
         await occurrence.save();
         const next = new BomLineOccurrence();
         next.lineId = line.id;
@@ -848,7 +848,7 @@ describe('评审 P2-7 ECN 影响面按路径去重：钻石的每条命中路径
         next.qty = '2';
         next.uom = 'pcs';
         next.ecnInId = ecn.id;
-        next.effectiveFrom = day('2026-11-01');
+        next.effectiveFrom = day('2099-11-01');
         await next.save();
         return { item, ecn };
       };

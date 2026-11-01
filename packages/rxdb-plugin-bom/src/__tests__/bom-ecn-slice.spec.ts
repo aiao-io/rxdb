@@ -142,12 +142,12 @@ for (const backend of BACKENDS) {
         memberA = await addMember(draftHeader, child, group.id, 'primary', '0.5', null);
         memberB = await addMember(draftHeader, child, group.id, 'substitute', '0.5', null);
       });
-      const e1 = await makeEcn('s23a', '2026-11-01');
-      const e2 = await makeEcn('s23b', '2026-11-01');
+      const e1 = await makeEcn('s23a', '2099-11-01');
+      const e2 = await makeEcn('s23b', '2099-11-01');
       // E1 把 A 换成 0.6；E2 把 B 换成 0.4（都挂同一组）
       await replaceMember(header, child, memberA, e1, groupId, 'primary', '0.6', null);
       await replaceMember(header, child, memberB, e2, groupId, 'substitute', '0.4', null);
-      // ① 单独发布 E1：投影 [2026-11-01, +∞) 合计 0.6 + 0.5 = 1.1 → 拒
+      // ① 单独发布 E1：投影 [2099-11-01, +∞) 合计 0.6 + 0.5 = 1.1 → 拒
       await expect(releaseEcn(e1)).rejects.toThrow(/合计|1\.1|≠ 1/);
       // ② 单独发布 E2：0.5 + 0.4 = 0.9 → 拒
       await expect(releaseEcn(e2)).rejects.toThrow(/合计|0\.9|≠ 1/);
@@ -157,18 +157,18 @@ for (const backend of BACKENDS) {
         draft.state = 'cancelled';
         await draft.save();
       }
-      const e3 = await makeEcn('s23c', '2026-11-01');
+      const e3 = await makeEcn('s23c', '2099-11-01');
       const dialect = bomSqlDialectFor(backend);
       for (const member of [memberA, memberB]) {
         // 直连 SQL 打截止标记：内存实体仍是撤回前的旧值，经实体保存会算错补丁
         await adapter.rawQuery(
           `UPDATE ${dialect.table('bom_line_occurrence')} SET "ecnOutId" = ${dialect.placeholder(0)}, "effectiveTo" = ${dialect.placeholder(1)} WHERE "id" = ${dialect.placeholder(2)}`,
-          [e3.id, '2026-11-01T00:00:00.000Z', member.id]
+          [e3.id, '2099-11-01T00:00:00.000Z', member.id]
         );
       }
       const nextA = await addMember(header, child, groupId, 'primary', '0.6', null, undefined, e3);
       const nextB = await addMember(header, child, groupId, 'substitute', '0.4', null, undefined, e3);
-      const e4 = await makeEcn('s23d', '2026-11-01');
+      const e4 = await makeEcn('s23d', '2099-11-01');
       const extra = await addMember(header, child, groupId, 'substitute', '0.3', null, undefined, e4);
       await expect(releaseEcn(e3)).resolves.toBeUndefined();
       const ecnRows = (await adapter.rawQuery(
@@ -179,7 +179,7 @@ for (const backend of BACKENDS) {
       // 发布后的运行投影：生效日起是 A' / B'（0.6 + 0.4），旧成员截止、E4 的成员不可见
       const after = await resolveBom(
         adapter,
-        { bomType: 'ebom', orgId: 'org-x', asOfDate: day('2026-12-01') },
+        { bomType: 'ebom', orgId: 'org-x', asOfDate: day('2099-12-01') },
         { parentItemId: parent.id }
       );
       expect(after.occurrences.map(occurrence => occurrence.occurrenceId).sort()).toEqual([nextA.id, nextB.id].sort());
@@ -205,9 +205,9 @@ for (const backend of BACKENDS) {
         await addMember(draftHeader, child, group.id, 'substitute', '0.5', null);
       });
       // E3 单独把 A 换成 0.7（组合计非法）；E4 只改同头另一条普通行的 qty
-      const e3 = await makeEcn('s24a', '2026-11-01');
+      const e3 = await makeEcn('s24a', '2099-11-01');
       await replaceMember(header, child, memberA, e3, groupId, 'primary', '0.7', null);
-      const e4 = await makeEcn('s24b', '2026-12-01');
+      const e4 = await makeEcn('s24b', '2099-12-01');
       const plainLine = new BomLine();
       plainLine.headerId = header.id;
       plainLine.lineNo = 90 + Math.floor(Math.random() * 10000);
@@ -219,7 +219,7 @@ for (const backend of BACKENDS) {
       plainOccurrence.qty = '2';
       plainOccurrence.uom = 'pcs';
       plainOccurrence.ecnInId = e4.id;
-      plainOccurrence.effectiveFrom = day('2026-12-01');
+      plainOccurrence.effectiveFrom = day('2099-12-01');
       await plainOccurrence.save();
       // 发布 E4 通过（E3 未发布，不进投影；E4 的行不进组）
       await expect(releaseEcn(e4)).resolves.toBeUndefined();
@@ -245,22 +245,22 @@ for (const backend of BACKENDS) {
         memberB = await addMember(draftHeader, child, group.id, 'substitute', null, 2);
         memberC = await addMember(draftHeader, child, group.id, 'substitute', null, 3);
       });
-      // E1（2026-11-01，B→4）、E2（2026-12-01，C→2）
-      const e1 = await makeEcn('s25a', '2026-11-01');
+      // E1（2099-11-01，B→4）、E2（2099-12-01，C→2）
+      const e1 = await makeEcn('s25a', '2099-11-01');
       await replaceMember(header, child, memberB, e1, groupId, 'substitute', null, 4);
       await releaseEcn(e1);
-      const e2 = await makeEcn('s25b', '2026-12-01');
+      const e2 = await makeEcn('s25b', '2099-12-01');
       await replaceMember(header, child, memberC, e2, groupId, 'substitute', null, 2);
       await releaseEcn(e2);
-      // ① 取消 E1：切片 [2026-12-01, +∞) B(2) 与 C'(2) 并列 → 拒
+      // ① 取消 E1：切片 [2099-12-01, +∞) B(2) 与 C'(2) 并列 → 拒
       e1.state = 'cancelled';
       await expect(e1.save()).rejects.toThrow(/并列|priority/);
-      // ② E1 改期到 2026-12-15：切片 [2026-12-01, 2026-12-15) 并列 → 拒
+      // ② E1 改期到 2099-12-15：切片 [2099-12-01, 2099-12-15) 并列 → 拒
       e1.state = 'released';
-      e1.effectiveDate = day('2026-12-15');
+      e1.effectiveDate = day('2099-12-15');
       await expect(e1.save()).rejects.toThrow(/并列|priority/);
-      // ③ E1 改期到 2026-11-15：无并列 → 接受
-      e1.effectiveDate = day('2026-11-15');
+      // ③ E1 改期到 2099-11-15：无并列 → 接受
+      e1.effectiveDate = day('2099-11-15');
       await e1.save();
       // ④ 取消 E2 → 接受（C 恢复 priority 3，无并列）
       e2.state = 'cancelled';
@@ -287,9 +287,9 @@ for (const backend of BACKENDS) {
         memberC = await addMember(draftHeader, child, group.id, 'substitute', '0.2', null);
       });
       // ① 只截止 C 并发布 → 拒（0.5 + 0.3 = 0.8）
-      const e1 = await makeEcn('s6a', '2026-11-01');
+      const e1 = await makeEcn('s6a', '2099-11-01');
       memberC.ecnOutId = e1.id;
-      memberC.effectiveTo = day('2026-11-01');
+      memberC.effectiveTo = day('2099-11-01');
       await memberC.save();
       await expect(releaseEcn(e1)).rejects.toThrow(/合计|0\.8|≠ 1/);
       // ② 同一 ECN 另以新发生项替换 A、B（0.625/0.375）→ 接受（C 已截止，合计 = 1）
@@ -315,11 +315,11 @@ for (const backend of BACKENDS) {
         memberA = await addMember(draftHeader, child, group.id, 'primary', '0.5', null);
         await addMember(draftHeader, child, group.id, 'substitute', '0.5', null);
       });
-      const e1 = await makeEcn('s9', '2026-11-01');
+      const e1 = await makeEcn('s9', '2099-11-01');
       memberA.ecnOutId = e1.id;
-      memberA.effectiveTo = day('2026-11-01');
+      memberA.effectiveTo = day('2099-11-01');
       await memberA.save();
-      // [2026-11-01, +∞) 只剩替代成员 → 拒（缺 primary）
+      // [2099-11-01, +∞) 只剩替代成员 → 拒（缺 primary）
       await expect(releaseEcn(e1)).rejects.toThrow(/primary/);
     });
 
@@ -339,13 +339,13 @@ for (const backend of BACKENDS) {
         memberA = await addMember(draftHeader, child, group.id, 'primary', null, 1);
         memberB = await addMember(draftHeader, child, group.id, 'substitute', null, 2);
       });
-      const ecn = await makeEcn('s14', '2026-11-01');
+      const ecn = await makeEcn('s14', '2099-11-01');
       // 截止 G1 全部成员
       memberA.ecnOutId = ecn.id;
-      memberA.effectiveTo = day('2026-11-01');
+      memberA.effectiveTo = day('2099-11-01');
       await memberA.save();
       memberB.ecnOutId = ecn.id;
-      memberB.effectiveTo = day('2026-11-01');
+      memberB.effectiveTo = day('2099-11-01');
       await memberB.save();
       // 引入新 proportional 组 G2（成员概率 0.6/0.4，挂 ECN）
       const group2 = new BomSubstituteGroup();
@@ -365,7 +365,7 @@ for (const backend of BACKENDS) {
       const parent = await makeItem('s9b-p');
       const child = await makeItem('s9b-c');
       const header = await setupReleasedHeader(parent, child);
-      const ecn = await makeEcn('s9b', '2026-11-01');
+      const ecn = await makeEcn('s9b', '2099-11-01');
       // managed 行 qty=3 只挂 2 个位号（draft ECN 草稿允许暂时不合法）
       const line = new BomLine();
       line.headerId = header.id;
@@ -379,7 +379,7 @@ for (const backend of BACKENDS) {
       occurrence.uom = 'pcs';
       occurrence.designatorManaged = true;
       occurrence.ecnInId = ecn.id;
-      occurrence.effectiveFrom = day('2026-11-01');
+      occurrence.effectiveFrom = day('2099-11-01');
       await occurrence.save();
       const designatorTable = backend === 'wa-sqlite' ? '"bom$bom_line_designator"' : '"bom"."bom_line_designator"';
       for (const name of ['D1', 'D2']) {
