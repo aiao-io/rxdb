@@ -36,7 +36,7 @@ jobs:
           # moderate 及以下仍会出现在下面的 PR 摘要里，只是不阻塞。
           fail-on-severity: high
 
-          # 例外：GHSA-mp2f-45pm-3cg9（decompress@4.2.1，critical，解压路径穿越）
+          # 例外：GHSA-mp2f-45pm-3cg9 / GHSA-hrh2-vp3x-79xf（decompress@4.2.1，critical，解压路径穿越）
           #
           # 开这个口子不是因为它不严重，而是因为它**没有依赖侧的修法**：
           #   - decompress 最高版本就是 4.2.1，上游已无人维护，补丁不会再有；
@@ -149,7 +149,7 @@ jobs:
           # 但和上面几条不同，它**有依赖侧的修法** —— 4.1.1 就是修复版。已在根
           # package.json 用 `cacheable-request@2>http-cache-semantics: ^4.1.1` 收掉，
           # 不占例外名额。例外只留给真正没有修复版的洞。
-          allow-ghsas: GHSA-mp2f-45pm-3cg9, GHSA-8jmw-wjr8-2x66, GHSA-pfq8-rq6v-vf5m, GHSA-c27g-q93r-2cwf, GHSA-fx2h-pf6j-xcff
+          allow-ghsas: GHSA-mp2f-45pm-3cg9, GHSA-hrh2-vp3x-79xf, GHSA-8jmw-wjr8-2x66, GHSA-pfq8-rq6v-vf5m, GHSA-c27g-q93r-2cwf, GHSA-fx2h-pf6j-xcff
 
           # 不开 comment-summary-in-pr：它要 `pull-requests: write`，而这条流水线
           # 其余部分一点写权限都不需要。为一条评论把整个 job 提权不划算 ——
