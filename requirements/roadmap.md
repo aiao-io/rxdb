@@ -8,13 +8,13 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 105    |
-| 🚧 In Progress | 2      |
+| 🚧 In Progress | 3      |
 | 👀 In Review   | 6      |
 | 📝 Backlog     | 8      |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **16** |
+| **未完成合计** | **17** |
 
-仓库还剩 **16 条**未关闭故事（2 In Progress + 6 In Review + 8 Backlog + 0 Blocked）。
+仓库还剩 **17 条**未关闭故事（3 In Progress + 6 In Review + 8 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事都当作可开工项。
 
 ## 未完成需求全景
@@ -32,11 +32,11 @@
 | [US-910](stories/future/US-910-data-i18n.md)                                                                                                                                                                                       | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                 | 立项池      |
 | [US-911](stories/future/US-911-client-i18n.md)                                                                                                                                                                                     | 👀 In Review   | A～D 已实现；A4/A5 载体对照与历史隔离验证通过，三端/四运行时与实现基线全量门禁通过，待代码评审 | 本轮交付    |
 | [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) / [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md) | 📝 Backlog     | 价值待证；先证明离线发现/连接与认证宿主，明确 Tauri 验收归属                                   | 立项池      |
-| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                       | 📝 Backlog     | 手工发布前置校验结果与提交/产物绑定，当前仅有手工要求                                          | 立项池      |
+| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                       | 🚧 In Progress | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收                                 | 本轮执行    |
 
 ## 即办清单
 
-当前没有独立于下列故事的即办项。US-223/224 是已有用户症状的修复，不与仍价值待证的新增抽象混排。
+US-603 的共享 preflight 仍待受控 registry 替身验收；US-223/224 是已有用户症状的修复，不与仍价值待证的新增抽象混排。
 
 ## 排期批次
 
