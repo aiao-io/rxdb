@@ -1,0 +1,12 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["dev-rxdb-board"],
+  "name": "dev-rxdb-board-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-board-e2e/src",
+  "targets": {
+    "e2e": {
+      "dependsOn": ["dev-rxdb-board:build"]
+    }
+  }
+}

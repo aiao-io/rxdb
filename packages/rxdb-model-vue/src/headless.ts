@@ -207,6 +207,11 @@ export function useQueryTable<T extends EntityInstance = EntityInstance>(
     },
     { deep: true, immediate: true }
   );
+  watch(
+    () => options.capabilities,
+    capabilities => result.controller.setCapabilities(capabilities),
+    { deep: true, immediate: true }
+  );
   return result;
 }
 /** useQueryTableHeadless 的等价命名别名。 */

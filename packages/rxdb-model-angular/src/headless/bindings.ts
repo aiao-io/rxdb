@@ -202,7 +202,7 @@ export function injectQueryTable<T extends EntityInstance = EntityInstance>(
   return bindController(options, createQueryTableController, (controller, current) => {
     if (current.query !== undefined) controller.setQuery(current.query);
     if (current.records !== undefined) controller.setRecords(current.records);
-    if (current.capabilities !== undefined) controller.setCapabilities(current.capabilities);
+    controller.setCapabilities(current.capabilities);
   });
 }
 /** injectQueryTableHeadless 的等价命名别名。 */

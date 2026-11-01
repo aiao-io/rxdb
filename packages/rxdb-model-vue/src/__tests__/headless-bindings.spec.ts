@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { defineComponent, h, nextTick, reactive } from 'vue';
 import { useEntityForm } from '../entity-form/headless';
-import { useQueryBuilder } from '../headless';
+import { useQueryBuilder, useQueryTable } from '../headless';
 
 const fields = [{ field: 'title', displayName: '标题', type: 'string' as const }];
 
@@ -40,6 +40,32 @@ describe('Vue headless bindings', () => {
     state.fields[0].displayName = '名称';
     await nextTick();
     expect(vm.binding.controller.snapshot.fields[0]?.displayName).toBe('名称');
+    wrapper.unmount();
+  });
+
+  it('查询表格会同步宿主能力变化', async () => {
+    const host = defineComponent({
+      props: {
+        records: { type: Array, required: true },
+        capabilities: { type: Object, default: undefined }
+      },
+      setup(props) {
+        return { binding: useQueryTable(props as never) };
+      },
+      render() {
+        return h('div');
+      }
+    });
+    const wrapper = mount(host, {
+      props: {
+        records: [{ id: 'one', save: async () => undefined, remove: async () => undefined }],
+        capabilities: { canCreate: false, canEdit: false, canDelete: false }
+      }
+    });
+    const vm = wrapper.vm as unknown as { binding: ReturnType<typeof useQueryTable> };
+    expect(vm.binding.snapshot.value.capabilities?.canCreate).toBe(false);
+    await wrapper.setProps({ capabilities: { canCreate: true, canEdit: true, canDelete: false } });
+    expect(vm.binding.snapshot.value.capabilities?.canEdit).toBe(true);
     wrapper.unmount();
   });
 });
