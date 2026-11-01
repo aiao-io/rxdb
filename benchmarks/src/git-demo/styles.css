@@ -1,0 +1,194 @@
+:root {
+  color: #e6edf3;
+  background: #0d1117;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+}
+button {
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+}
+button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+code {
+  color: #a5d6ff;
+}
+
+.git-demo-shell {
+  margin: 0 auto;
+  max-width: 1040px;
+  padding: 64px 24px 48px;
+}
+.git-demo-hero {
+  border-bottom: 1px solid #30363d;
+  padding-bottom: 36px;
+}
+.git-demo-eyebrow {
+  color: #79c0ff;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  margin: 0 0 16px;
+  text-transform: uppercase;
+}
+.git-demo-hero h1 {
+  font-size: clamp(36px, 7vw, 68px);
+  letter-spacing: -0.05em;
+  line-height: 1;
+  margin: 0;
+}
+.git-demo-hero p:not(.git-demo-eyebrow) {
+  color: #8b949e;
+  line-height: 1.7;
+  margin: 24px 0 0;
+  max-width: 760px;
+}
+.git-demo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+.git-demo-actions button {
+  background: #238636;
+  color: #fff;
+  padding: 11px 16px;
+}
+.git-demo-actions button:nth-child(2) {
+  background: #30363d;
+}
+.git-demo-actions .git-demo-danger {
+  background: transparent;
+  color: #f85149;
+  outline: 1px solid #f85149;
+}
+.git-demo-devtools-status {
+  color: #8b949e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  margin: 18px 0 0;
+}
+.git-demo-stats {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 28px 0;
+  overflow: hidden;
+}
+.git-demo-stats div {
+  background: #161b22;
+  min-width: 0;
+  padding: 18px;
+}
+.git-demo-stats span {
+  color: #8b949e;
+  display: block;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.git-demo-stats strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.git-demo-card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 24px;
+}
+.git-demo-card-heading {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+.git-demo-card-heading h2 {
+  font-size: 20px;
+  margin: 0;
+}
+.git-demo-card-heading span {
+  color: #8b949e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+.git-demo-empty,
+.git-demo-footnote {
+  color: #8b949e;
+}
+.git-demo-steps {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+}
+.git-demo-step {
+  align-items: flex-start;
+  border-top: 1px solid #21262d;
+  display: flex;
+  gap: 12px;
+  padding: 14px 0;
+}
+.git-demo-step-icon {
+  align-items: center;
+  background: #238636;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  flex: none;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+.git-demo-step.info .git-demo-step-icon {
+  background: #9e6a03;
+}
+.git-demo-step.failed .git-demo-step-icon {
+  background: #da3633;
+}
+.git-demo-step p {
+  color: #8b949e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  margin: 5px 0 0;
+}
+.git-demo-error {
+  background: #3d1f24;
+  border: 1px solid #f85149;
+  border-radius: 8px;
+  color: #ff7b72;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+.git-demo-footnote {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 20px 0 0;
+}
+
+@media (max-width: 680px) {
+  .git-demo-shell {
+    padding: 36px 16px;
+  }
+  .git-demo-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

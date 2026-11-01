@@ -2,7 +2,7 @@ name: Bench Freeze
 
 # 为 bench-working-tree 的相对门禁冻结**新比值画像**的 reference（epic-006「reference 的冻结与复冻」）。
 #
-# 为什么需要它：ratio 只在同一种 CPU 内可比（见 benchmarks/working-tree-gate.ts 的文件头）。
+# 为什么需要它：ratio 只在同一种 CPU 内可比（见 benchmarks/node/working-tree/working-tree-gate.ts 的文件头）。
 # `ubuntu-latest` 会随机分到 AMD EPYC 7763 / 9V74、Intel Xeon 6973P-C / 8573C 等不同 CPU，每一种
 # 都得在 CI 上亲自冻一份 reference；一份都没有的画像上，PR CI 的 benchmark job 以
 # `benchmark_environment_mismatch` 失败（不降级为通过）。
@@ -100,7 +100,7 @@ jobs:
       - name: Freeze reference for this runner's profile
         env:
           REASON: ${{ steps.reason.outputs.value }}
-        run: node --experimental-strip-types benchmarks/freeze-working-tree-reference.ts --new-profile "$REASON"
+        run: node --experimental-strip-types benchmarks/node/working-tree/freeze-working-tree-reference.ts --new-profile "$REASON"
 
       # 冻结脚本只会新增文件（--new-profile 不覆盖已有画像），未跟踪的 reference 就是本槽位的产物
       - name: Collect new reference

@@ -8,13 +8,13 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 89     |
-| 🚧 In Progress | 3      |
+| 🚧 In Progress | 4      |
 | 👀 In Review   | 9      |
 | 📝 Backlog     | 28     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **40** |
+| **未完成合计** | **41** |
 
-仓库还剩 **40 条**未关闭故事（3 In Progress + 9 In Review + 28 Backlog + 0 Blocked）。
+仓库还剩 **41 条**未关闭故事（4 In Progress + 9 In Review + 28 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -38,11 +38,11 @@
 | [US-910](stories/future/US-910-data-i18n.md)                                                                                                                                                                                       | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                        | 立项池      |
 | [US-911](stories/future/US-911-client-i18n.md)                                                                                                                                                                                     | 👀 In Review   | A～D 已实现；A4/A5 载体对照与历史隔离验证通过，三端/四运行时与实现基线全量门禁通过，待代码评审        | 本轮交付    |
 | [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) / [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md) | 📝 Backlog     | 价值待证；先证明离线发现/连接与认证宿主，明确 Tauri 验收归属                                          | 立项池      |
-| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                       | 📝 Backlog     | 手工发布前置校验结果与提交/产物绑定，当前仅有手工要求                                                 | 立项池      |
+| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                       | 🚧 In Progress | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收                                 | 本轮执行    |
 
 ## 即办清单
 
-当前没有独立于下列故事的即办项。US-223/224 是已有用户症状的修复建议，不与仍价值待证的新增抽象混排。
+US-603 的共享 preflight 仍待受控 registry 替身验收；US-223/224 是已有用户症状的修复建议，不与仍价值待证的新增抽象混排。
 
 ## 排期批次
 
@@ -98,7 +98,6 @@ US-541 团队版没有随首轮解锁，仍按具名团队症状和身份/冲突
 | US-029          | 具名多用户使用方与当前可复现写授权症状；解锁时重定库级身份、owner 外键和按行能力                            |
 | US-910 / US-911 | 先完成故事中的能力/持久化合同验证；共享 locale/fallback 仅有一份定义，不预先承诺无需同步改动                |
 | US-704～707     | 按 [epic-011](epics/epic-011-p2p-file-share.md#价值待证)解锁，先验证断服务器超过 TTL 的局域网路径与认证前置 |
-| US-603          | owner 选择发布入口约束范围；已有门禁缺口按独立 tooling story 验收，不引入自动发布                           |
 | US-541          | 具名团队离线协作症状出现后，先冻结身份、成员权限、RLS 与冲突合同                                            |
 
 ### epic-006 评审顺延的架构项

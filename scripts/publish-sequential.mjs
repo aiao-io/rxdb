@@ -27,6 +27,7 @@ import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { dependencyEdges, scanPackages } from './audit/lib/package-discovery.mjs';
 import { linkReleasePeers, resolvePackageRoot } from './audit/link-release-peers.mjs';
+import { assertStableInputs, collectSnapshot, runPreflight } from './release-preflight.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -95,9 +96,9 @@ async function publishedSet(packages, registry) {
       const { version } = pkg.manifest;
       try {
         const { stdout } = await execFileAsync(
-          'npm',
+          process.platform === 'win32' ? 'npm.cmd' : 'npm',
           ['view', `${name}@${version}`, 'version', '--registry', registry],
-          { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }
+          { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8', shell: process.platform === 'win32' }
         );
         return stdout.trim() === version ? name : null;
       } catch {
@@ -125,9 +126,14 @@ async function main() {
   }
 
   const workspaceRoot = process.cwd();
+  const validated = options.dryRun ? null : runPreflight({ cwd: workspaceRoot });
+  if (options.dryRun) {
+    console.log('dry-run：跳过发布前置，不写入 registry。');
+  }
   const packages = scanPackages(join(workspaceRoot, 'packages'));
   const order = topologicalOrder(packages);
   const published = await publishedSet(order, options.registry);
+  if (validated) assertStableInputs(validated, collectSnapshot(workspaceRoot));
 
   let count = 0;
   let skipped = 0;
@@ -142,10 +148,11 @@ async function main() {
       continue;
     }
 
-    // Angular 系从 dist/packages/* 发布，先补 @aiao/* 兄弟链接，否则 workspace:^ 改写会失败。幂等。
-    linkReleasePeers(workspaceRoot, directory);
+    if (validated) assertStableInputs(validated, collectSnapshot(workspaceRoot, { includeArtifacts: false }));
+    linkReleasePeers(workspaceRoot, directory, { dryRun: options.dryRun });
 
     const root = resolve(workspaceRoot, resolvePackageRoot(workspaceRoot, directory));
+    if (validated) assertStableInputs(validated, collectSnapshot(workspaceRoot));
     if (options.dryRun) {
       console.log(`🟡 将发布 ${name}@${version}（${relative(workspaceRoot, root)}）`);
       count++;
@@ -158,7 +165,11 @@ async function main() {
     if (options.tag) args.push('--tag', options.tag);
     if (options.otp) args.push('--otp', options.otp);
 
-    const result = spawnSync('pnpm', args, { cwd: root, stdio: 'inherit' });
+    const result = spawnSync(process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm', args, {
+      cwd: root,
+      stdio: 'inherit',
+      shell: process.platform === 'win32'
+    });
     if (result.status !== 0) {
       console.error(`\n❌ ${name}@${version} 发布失败（exit ${result.status}）。`);
       console.error('已发布的包不会重发，下次重跑会自动跳过、从失败处继续。');
