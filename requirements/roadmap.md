@@ -38,7 +38,7 @@
 | [US-910](stories/future/US-910-data-i18n.md)                                                                                                                                                                                       | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                        | 立项池      |
 | [US-911](stories/future/US-911-client-i18n.md)                                                                                                                                                                                     | 👀 In Review   | A～D 已实现；A4/A5 载体对照与历史隔离验证通过，三端/四运行时与实现基线全量门禁通过，待代码评审        | 本轮交付    |
 | [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) / [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md) | 📝 Backlog     | 价值待证；先证明离线发现/连接与认证宿主，明确 Tauri 验收归属                                          | 立项池      |
-| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                       | 🚧 In Progress | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收                                 | 本轮执行    |
+| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                       | 🚧 In Progress | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收                                        | 本轮执行    |
 
 ## 即办清单
 
