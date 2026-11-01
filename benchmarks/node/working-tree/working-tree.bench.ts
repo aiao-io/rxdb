@@ -50,7 +50,7 @@
  *   降级为通过**（契约 §3.2 的原话）。
  *
  * 运行：
- *   node --experimental-strip-types benchmarks/working-tree.bench.ts [--release]
+ *   node --experimental-strip-types benchmarks/node/working-tree/working-tree.bench.ts [--release]
  *
  * @see requirements/epics/epic-006-working-tree-commits.md「性能预算的口径」与「reference 的冻结与复冻」（现行规则）
  * @see `git show f9528e8f:specs/001-working-tree-commits/contracts/benchmark-report.md`（文中的「契约 §N」）
@@ -65,7 +65,7 @@ import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { WORKING_TREE_CONFORMANCE_USER_ID } from '@aiao/rxdb-plugin-working-tree/testing';
 import { firstValueFrom } from 'rxjs';
 
-import { summarise } from './bench-stats.ts';
+import { summarise } from '../bench-stats.ts';
 import type { WorkingTreeFixturePlan } from './working-tree-fixture.ts';
 import {
   buildWorkingTreeFixturePlan,
@@ -521,7 +521,7 @@ const printProfileMismatch = (decision: Extract<RelativeGateDecision, { kind: 'm
       '[bench:working-tree] CI 偶然分到新型号：先重跑该 job 一次；同一型号反复出现再补冻（契约 §3.1）。\n' +
       '[bench:working-tree] 补冻（所在提交须先在已冻结画像上过相对门禁）：\n' +
       '[bench:working-tree]   CI：推注解 tag `git tag -a bench-freeze/<日期> -m "理由"`，或手动触发 bench-freeze workflow；\n' +
-      '[bench:working-tree]   本机：node --experimental-strip-types benchmarks/freeze-working-tree-reference.ts --new-profile "理由"'
+      '[bench:working-tree]   本机：node --experimental-strip-types benchmarks/node/working-tree/freeze-working-tree-reference.ts --new-profile "理由"'
   );
 };
 
@@ -657,7 +657,7 @@ const decision = decideRelativeGate(references, report.environment.ratioProfile,
 if (decision.kind === 'unfrozen') {
   console.log(
     '\n[bench:working-tree] 还没有冻结的 reference（reports/working-tree-reference/）——' +
-      '本次只产出数字，不做门禁判定。冻结用 benchmarks/freeze-working-tree-reference.ts。'
+      '本次只产出数字，不做门禁判定。冻结用 benchmarks/node/working-tree/freeze-working-tree-reference.ts。'
   );
   process.exit(0);
 }

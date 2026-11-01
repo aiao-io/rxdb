@@ -55,7 +55,7 @@
       "dependsOn": ["typecheck", "^build"],
       "options": {
         "cwd": "benchmarks",
-        "command": "node --experimental-strip-types encryption.bench.ts"
+        "command": "node --experimental-strip-types node/encryption.bench.ts"
       }
     },
     "bench-hot-path": {
@@ -63,7 +63,7 @@
       "dependsOn": ["typecheck", "^build"],
       "options": {
         "cwd": "benchmarks",
-        "command": "node --experimental-strip-types non-encrypted-hot-path.bench.ts"
+        "command": "node --experimental-strip-types node/non-encrypted-hot-path.bench.ts"
       }
     },
     "bench-working-tree": {
@@ -71,7 +71,7 @@
       "dependsOn": ["typecheck", "^build"],
       "options": {
         "cwd": "benchmarks",
-        "command": "node --experimental-strip-types working-tree.bench.ts"
+        "command": "node --experimental-strip-types node/working-tree/working-tree.bench.ts"
       }
     },
     "bench-push-receipts": {
@@ -79,7 +79,7 @@
       "dependsOn": ["typecheck", "^build"],
       "options": {
         "cwd": "benchmarks",
-        "command": "node --experimental-strip-types push-receipts.bench.ts"
+        "command": "node --experimental-strip-types node/push-receipts.bench.ts"
       }
     },
     "bench-sortable-batch": {
@@ -87,7 +87,7 @@
       "dependsOn": ["typecheck", "^build"],
       "options": {
         "cwd": "benchmarks",
-        "command": "node --experimental-strip-types sortable-batch-append.bench.ts"
+        "command": "node --experimental-strip-types node/sortable-batch-append.bench.ts"
       }
     }
   }

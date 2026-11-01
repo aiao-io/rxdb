@@ -707,8 +707,8 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
 ### reference 的冻结与复冻
 
 reference 放在 `benchmarks/reports/working-tree-reference/`，每个比值画像一份；门禁在
-[working-tree-gate.ts](../../benchmarks/working-tree-gate.ts)，冻结脚本是
-[freeze-working-tree-reference.ts](../../benchmarks/freeze-working-tree-reference.ts)。
+[working-tree-gate.ts](../../benchmarks/node/working-tree/working-tree-gate.ts)，冻结脚本是
+[freeze-working-tree-reference.ts](../../benchmarks/node/working-tree/freeze-working-tree-reference.ts)。
 
 - **画像** = `${os} / ${cpuModel} / node ${主版本}`。不用 `runnerProfileHash` 分份：它含主机名，托管 runner 每个 job 都不同。
   「机器快一倍时分子分母一起快一倍」只在同一种 CPU 内成立，同一提交在不同 CPU 上读项与写项的 ratio 朝相反方向偏
