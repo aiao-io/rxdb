@@ -20,7 +20,7 @@
  * `bench-working-tree` 的冻结流程补一份回归门槛。
  *
  * Run:
- *   node --experimental-strip-types benchmarks/push-receipts.bench.ts
+ *   node --experimental-strip-types benchmarks/node/push-receipts.bench.ts
  *   # 或：
  *   pnpm nx run benchmarks:bench-push-receipts
  *

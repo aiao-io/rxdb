@@ -8,6 +8,32 @@
 CodeMirror 提供编辑界面，已经有拼出浏览器代码工作区的基础。代码编译、依赖解析与隔离预览
 仍是独立工作，不能据此承诺浏览器可以运行任意 Node / Nx 项目。
 
+## 研究分支 011 的复验与最终决策
+
+分支 `011-browser-git-opfs` 在当前依赖（`wasm-git 0.0.17`、`isomorphic-git 1.44.4`）上，
+用 Chromium 156、M1 Max、100 个文件的 fixture 跑了一轮真实 Worker + OPFS 验收；原始报告见
+[browser-git-research-011.json](../../benchmarks/reports/browser-git-research-011.json)。本轮新增了
+`branch → checkout` 验收，三种配置都保持提交 OID、tree 和文件字节一致，Worker 重开后状态仍为 clean。
+
+| 配置                     |  clone | 热 status |  提交 | 重开总耗时 | 同秒等长改写 | 分支切换 / 文件互通 |
+| ------------------------ | -----: | --------: | ----: | ---------: | -----------: | ------------------: |
+| isomorphic-git + OPFS    | 244 ms |     65 ms | 53 ms |     144 ms |      ❌ 漏检 |                  ✅ |
+| wasm-git JSPI + OPFS     | 279 ms |     10 ms | 70 ms |     222 ms |           ✅ |                  ✅ |
+| wasm-git Asyncify + OPFS | 303 ms |     11 ms | 68 ms |     225 ms |           ✅ |                  ✅ |
+
+单次采样只用于正确性与数量级判断，不能当作性能门禁。`isomorphic-git` 的漏检在 1.44.4 仍存在，
+所以它继续保留为备选；`wasm-git` pthreads 的既有覆盖写入与重开失败仍阻止采用。
+
+1000 文件档的同轮复验也通过三种配置的分支、tree、文件字节和重开状态；热 status 为
+`isomorphic 736 ms`、`JSPI 45 ms`、`Asyncify 52 ms`，但 JSPI / Asyncify 重开仍需约 1.3 s 的整库恢复，
+所以这些数字只用于范围判断，不构成产品性能承诺。
+
+**最终决策：✅ GO 做受限研究原型；❌ NO-GO 立即产品化。** 下一阶段固定 `wasm-git` JSPI / Asyncify
+（Worker、独立 OPFS 根、仓库级 Web Lock）继续补齐 Git 正确性、导入导出和异常恢复；不并行建设
+两套引擎，也不自研 Rust Git。只有在 Git 闭环、刷新重开、原生 Git 互通、配额/中断/多标签协调、
+浏览器矩阵和三端编辑器接入全部通过后，才按领域毕业路径建立 story、登记 roadmap 并请求 owner 解锁。
+任意 Node / Nx 运行时、依赖安装、远端认证、隔离预览和完整 AI IDE 仍不在本分支承诺内。
+
 ## 两条路线
 
 **建议优先验证 wasm-git 的 JSPI / Asyncify 工作区原型。** 本轮统一 MEMFS 和 OPFS 实测显示，
