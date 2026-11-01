@@ -41,6 +41,7 @@ overrides:
   '@angular/platform-browser': 22.2.3
   '@codemirror/language': ^6.13.1
   '@codemirror/state': ^6.7.6
+  '@codecov/bundler-plugin-core>zod': 4.6.6
   '@codemirror/view': ^6.43.14
   '@jimp/core>mkdirp': ^0.5.6
   '@jimp/core>phin': ^3.7.1
